@@ -553,8 +553,16 @@ function make(holder, mode, app) {
   }
   const startEdit = (what, on, text) => { st.menu = null; st.ask = null; st.edit = { what, on, text, owner: mode }; redraw(); };
   function finishEdit(value) {
-    const e = st.edit; st.edit = null;
-    const v = String(value || '').trim();
+    const e = st.edit, v = String(value || '').trim();
+    if (!v || (e.what !== 'new' && e.what !== 'split')) return stageEdit(e, v);
+    // A tag made under a name in use would take over what holds it, so the line stays and says so.
+    Promise.resolve(Mo.titled(M(), v).length > 0 || app.nameTaken(v)).then(taken => {
+      if (st.edit !== e) return;
+      if (taken) app.notify(`“${v}” is already in the graph: give the new tag another name`, 'warning'); else stageEdit(e, v);
+    });
+  }
+  function stageEdit(e, v) {
+    st.edit = null;
     if (v) {
       if (e.what === 'rename' && v !== name(e.on)) app.stage({ kind: 'rename', tag: e.on, name: v });
       else if (e.what === 'new') { const c = app.stage({ kind: 'make', name: v, under: e.on === LOOSE ? null : e.on }); st.open.add(e.on); if (c.made != null) { loc.cur = c.made; if (mode === 'side') st.cur = c.made; } }

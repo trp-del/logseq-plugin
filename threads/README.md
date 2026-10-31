@@ -10,7 +10,7 @@ It began as the two-way section of the old plugin, DB Refinements, and has since
 
 ## What it writes
 
-A value changed or cleared in a row, and a tag added to or taken off a node, each with its Undo. A bullet added to a node, and a page made from the **+** line, each with its Undo. The pick bar's **Delete** deletes the picked nodes or pages: it asks first, and says it cannot be undone from there. Every write goes through `parts/model.js`.
+A value changed or cleared in a row, and a tag added to or taken off a node, each with its Undo. A bullet added to a node, and a page made from the **+** line, each with its Undo. The pick bar's **Select all** picks what is shown: what the find line found, of the kind in force, in lists that are open. Its **Delete** deletes the picked nodes or pages: it asks first, names pages apart from bullets ("2 pages with all their bullets and 3 bullets"), and says it cannot be undone from there. A dug node shows Logseq's own Deadline, Scheduled, Status and Priority as they are, and a day written into a Date-and-time is kept as a moment, as Logseq keeps it. Undo after clearing words or a number puts them back as they read. Every write goes through `parts/model.js`.
 
 ## The look is Look's
 

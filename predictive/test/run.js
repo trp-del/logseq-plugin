@@ -47,6 +47,17 @@ test('a weekday, a relative span, a day and month', () => {
   assert.deepEqual(r.daysInWords('Scan in two weeks', base), [20261111]);
   assert.deepEqual(r.daysInWords('Flight 4 Aug', base), [20270804]);
 });
+test('a day that just went stays past, today\'s weekday stays silent, and a word that points ahead wins', () => {
+  const written = 20261023;   // a Friday
+  assert.deepEqual(r.daysInWords('Scan on Oct 3 showed a shadow', written), [20261003]);
+  assert.deepEqual(r.daysInWords('Saw her on 3 Oct about the rash', written), [20261003]);
+  assert.deepEqual(r.daysInWords('Bloods on Friday were normal', written), []);
+  assert.deepEqual(r.daysInWords('Bloods next Friday', written), [20261106]);
+  assert.deepEqual(r.daysInWords('Bloods on Friday next week', written), [20261030]);
+  assert.deepEqual(r.daysInWords('Next scan on Oct 3', written), [20271003]);
+  assert.deepEqual(r.daysInWords('Scan on Dec 28 showed a shadow', 20270103), [20261228], 'across the new year');
+  assert.deepEqual(r.daysInWords('Bloods on Oct 23', written), [20261023], 'today is today');
+});
 test('words that only look like dates are left alone', () => {
   assert.deepEqual(r.daysInWords('Ran 5 marathons', base), []);
   assert.deepEqual(r.daysInWords('Dose 4 may need lowering', base), []);
@@ -60,6 +71,13 @@ test('a number beside a property name, and never two', () => {
 test('a locale can replace the words (Spanish weekdays)', () => {
   const es = dates.makeReader({ ...dates.en, name: 'es', weekdays: ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'], weekdayPattern: '(?:domingo|lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado)', wholeWeekdaySuffix: '', before: ['el'], relative: { hoy: 0, 'mañana': 1, ayer: -1 } });
   assert.deepEqual(es.daysInWords('Cita el viernes', base), [20261030]);
+});
+
+test('the pencil shows the year when it is not this year', () => {
+  const year = new Date().getFullYear(), g = synthetic.work(), Meeting = g.tagPage.Meeting;
+  const res = day => propose(g.ctx, bullet({ text: 'Sync about roadmap', tags: [Meeting.id], page: journal(g, day) })).pieces.find(p => p.kind === 'day').shown;
+  assert.equal(res(year * 10000 + 1028), 'Oct 28');
+  assert.equal(res((year + 1) * 10000 + 1028), `Oct 28, ${year + 1}`);
 });
 
 section('suggested links');

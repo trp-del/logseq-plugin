@@ -43,6 +43,9 @@ const dayNumber = d => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.ge
 const asDate = day => new Date(Math.floor(day / 10000), Math.floor(day / 100) % 100 - 1, day % 100);
 const sameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 const escape = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+// A day and month with no year that went by at most this long ago is that day: a note written after the fact. Further
+// back, the words can only be about next year's.
+const JUST_WENT = 56;
 
 function makeReader(locale = en) {
   const L = locale;
@@ -78,14 +81,18 @@ function makeReader(locale = en) {
     return null;
   }
 
-  // The days the words name, as day numbers, each once, counted from `base`: a weekday is the coming one; "the 4th" the
-  // next 4th; a day and a month the next such day; "in two weeks".
+  // The days the words name, as day numbers, each once, counted from `base`: a weekday is the coming one, and today's own
+  // weekday, with no word that points ahead, is none (today, a week ago or a week on: the words cannot say); "the 4th" the
+  // next 4th; a day and a month the next such day, or the one that just went (JUST_WENT); "in two weeks".
   function daysInWords(text, base) {
     const words = ' ' + cleanWords(text).toLowerCase().replace(/[.,;:!?()]/g, ' ') + ' ', today = asDate(base), found = new Set();
     const add = date => { if (date && !Number.isNaN(date.getTime())) found.add(dayNumber(date)); };
+    const pointsAhead = L.ahead.test(text);
     for (const [, word] of words.matchAll(new RegExp(`\\s(${Object.keys(L.relative).join('|')})\\s`, 'g'))) add(parseDay(word, today));
     for (const [, next, on, day] of words.matchAll(new RegExp(`\\s(?:(${escape(L.next)})\\s+|(${L.before.map(escape).join('|')})\\s+)?(${L.weekdayPattern})(?=\\s)`, 'g'))) {
-      if (next || on || day.endsWith(L.wholeWeekdaySuffix)) add(parseDay(`${next ? L.next + ' ' : ''}${day}`, today));
+      if (!next && !on && !day.endsWith(L.wholeWeekdaySuffix)) continue;
+      const date = parseDay(`${next ? L.next + ' ' : ''}${day}`, today);
+      if (next || pointsAhead || !date || !sameDay(date, dayAfter(today, 7))) add(date);
     }
     for (const [, n] of words.matchAll(new RegExp(`\\s(?:${L.dayPrepositions.map(escape).join('|')}|${L.weekdayPattern})\\s+${escape(L.the)}\\s+(\\d{1,2})${L.ordinalSuffix}${AFTER_DAY}`, 'g'))) {
       const d = Number(n);
@@ -96,7 +103,10 @@ function makeReader(locale = en) {
     }
     const dayMonth = (d, month, rest) => {
       if (month === L.ambiguousMonth && !new RegExp(`^${AFTER_DAY}`).test(rest)) return;
-      const date = parseDay(`${d} ${month.slice(0, 3)}`, today); if (date && date.getDate() === Number(d)) add(date);
+      const date = parseDay(`${d} ${month.slice(0, 3)}`, today);
+      if (!date || date.getDate() !== Number(d)) return;
+      const yearBefore = exactDay(date.getFullYear() - 1, date.getMonth(), date.getDate());
+      add(yearBefore && !pointsAhead && dayAfter(yearBefore, JUST_WENT) >= today ? yearBefore : date);
     };
     for (const m of words.matchAll(new RegExp(`\\s(\\d{1,2})${L.ordinalSuffix}?\\s+(?:${escape(L.of)}\\s+)?(${L.monthPattern})`, 'g'))) dayMonth(m[1], m[2], words.slice(m.index + m[0].length));
     for (const m of words.matchAll(new RegExp(`\\s(${L.monthPattern})\\s+(\\d{1,2})${L.ordinalSuffix}?(?=\\s)`, 'g'))) dayMonth(m[2], m[1], words.slice(m.index + m[0].length));

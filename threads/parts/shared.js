@@ -763,7 +763,13 @@ function ask({ at, question, note: hint, go: goWord = 'OK', cancel = 'Cancel', f
     p.body.append(...[el(doc, 'div', { class: 'rf-ask-words' }, question), hint ? note(doc, hint) : null, f,
       el(doc, 'div', { class: 'rf-btns' }, quiet(doc, { label: cancel, run: () => p.close() }), go(doc, { label: goWord, run: done }))].filter(Boolean));
     if (f) { f.input.focus({ preventScroll: true }); if (fieldOptions.select && f.input.value) f.input.select(); }
-    p.el.addEventListener('keydown', event => { if (event.key === 'Enter' && !event.isComposing && event.target !== f?.input) { event.preventDefault(); done(); } });
+    // Enter takes what is offered: with the keyboard on a button, that button, so on Cancel it cancels. Pressed here, since Logseq takes Enter before the browser would.
+    p.el.addEventListener('keydown', event => {
+      if (event.key !== 'Enter' || event.isComposing || event.target === f?.input) return;
+      event.preventDefault(); event.stopPropagation();
+      const button = event.target.closest?.('button');
+      if (button) button.click(); else done();
+    });
   });
 }
 /* THE window: the browser's own dialog, shown modal (it keeps the keyboard, closes on Escape, draws the backdrop),

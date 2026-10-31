@@ -17,7 +17,9 @@ function sentence(M, c) {
     case 'move': { const was = parentOf(M, c.tag); return { text: c.to === Mo.LOOSE ? `Take ${name(M, c.tag)} out from under ${was == null ? 'every tag' : name(M, was)}` : `Move ${name(M, c.tag)} from ${was == null ? 'no kind' : name(M, was)} to ${name(M, c.to)}`, nodes: count(M, c.tag) }; }
     case 'rename': return { text: `Rename ${name(M, c.tag)} to ${c.name}`, nodes: count(M, c.tag) };
     case 'renameProp': return { text: `Rename ${prop(M, c.prop).title} to ${c.name}`, nodes: prop(M, c.prop).on.reduce((s, t) => s + filled(M, t, c.prop), 0) };
-    case 'merge': return { text: `Merge ${name(M, c.from)} into ${name(M, c.into)}, ${name(M, c.from)} removed`, nodes: count(M, c.from) };   // the count sits in the tray's own column
+    case 'merge': {   // the count sits in the tray's own column; what no Undo brings back is said here, as the ask reads this sentence too
+      const t = tag(M, c.from), lost = [t?.bullets && (t.bullets === 1 ? '1 bullet on its page goes' : `${t.bullets} bullets on its page go`), t?.links && (t.links === 1 ? '1 link becomes words' : `${t.links} links become words`)].filter(Boolean);
+      return { text: [`Merge ${name(M, c.from)} into ${name(M, c.into)}, ${name(M, c.from)} removed`, ...lost].join(' · '), nodes: count(M, c.from) }; }
     case 'retag': return { text: `Move ${plural(c.nodes.length, 'node')} from ${name(M, c.from)} to ${name(M, c.to)}`, nodes: c.nodes.length };
     case 'moveProp': { const from = c.from.filter(id => tag(M, id)); return { text: `Move ${prop(M, c.prop).title} from ${list(from.map(id => name(M, id)))} to ${name(M, c.to)}`, nodes: from.reduce((s, id) => s + filled(M, id, c.prop), 0) }; }
     case 'addProp': return { text: c.under != null ? `Add ${prop(M, c.prop).title} to every tag under ${name(M, c.under)}` : `Add ${prop(M, c.prop).title} to ${list(c.tags.map(id => name(M, id)))}`, nodes: (c.under != null ? [c.under] : c.tags).reduce((s, id) => s + count(M, id), 0) };
@@ -40,12 +42,12 @@ function applyToModel(M, c) {
     case 'rename': if (t) t.title = c.name; break;
     case 'renameProp': { const p = prop(M, c.prop); if (p) p.title = c.name; break; }
     case 'merge': { const from = tag(M, c.from), into = tag(M, c.into); if (!from || !into) break;
-      for (const n of from.nodes) into.nodes.add(n); into.nodeUuids.push(...from.nodeUuids);
+      for (const n of from.nodes) into.nodes.add(n); into.nodeUuids = [...new Set([...into.nodeUuids, ...from.nodeUuids])];
       for (const k of from.kids) { const kt = tag(M, k); if (!Mo.under(M, c.into, k)) kt.parents = [c.into, ...kt.parents.filter(p => p !== c.from && p !== c.into)]; else kt.parents = kt.parents.filter(p => p !== c.from); }
       for (const pid of from.props) if (!into.props.includes(pid)) into.props.push(pid);
       if (into.parents.includes(c.from)) into.parents = [...from.parents.filter(p => p !== c.into), ...into.parents.filter(p => p !== c.from)];
       Mo.removeTag(M, c.from); break; }
-    case 'retag': { const from = tag(M, c.from), to = tag(M, c.to); if (!from || !to) break; for (const n of c.nodes) { from.nodes.delete(n.id); to.nodes.add(n.id); } from.nodeUuids = from.nodeUuids.filter(u => !c.nodes.some(n => n.uuid === u)); to.nodeUuids.push(...c.nodes.map(n => n.uuid)); M.memo.clear(); break; }
+    case 'retag': { const from = tag(M, c.from), to = tag(M, c.to); if (!from || !to) break; for (const n of c.nodes) { from.nodes.delete(n.id); to.nodes.add(n.id); } from.nodeUuids = from.nodeUuids.filter(u => !c.nodes.some(n => n.uuid === u)); to.nodeUuids = [...new Set([...to.nodeUuids, ...c.nodes.map(n => n.uuid)])]; M.memo.clear(); break; }
     case 'moveProp': { for (const id of c.from) { const x = tag(M, id); if (x) x.props = x.props.filter(p => p !== c.prop); } const to = tag(M, c.to); if (to && !to.props.includes(c.prop)) to.props.push(c.prop); Mo.link(M); break; }
     case 'addProp': { const ids = c.under != null ? everyUnder(M, c.under) : c.tags; for (const id of ids) { const x = tag(M, id); if (x && !x.props.includes(c.prop)) x.props.push(c.prop); } Mo.link(M); break; }
     case 'dropProp': if (t) { t.props = t.props.filter(p => p !== c.prop); Mo.link(M); } break;
@@ -62,7 +64,8 @@ const everyUnder = (M, id) => { const out = []; const walk = x => { for (const k
 /* The steps the writer runs, in order, against the model as it stands when the change's turn comes (earlier changes of the
    tray already applied to it). A step: { op, ...handles }. Ops and their inverses (logseq/apply.js):
    makeTag(tag, parent) ⇄ deleteTag; addExtends(tag, parent) ⇄ removeExtends; rename(tag|prop, name, was); addTag(node, tag)
-   ⇄ removeTag; addClassProp(tag, prop) ⇄ removeClassProp; setRange(prop, to, was); deleteTag(tag, restore) ⇄ put back. */
+   ⇄ removeTag; addClassProp(tag, prop) ⇄ removeClassProp; setRange(prop, to, was); deleteTag(tag, restore) ⇄ put back. A node
+   that already holds a tag gets no addTag, so Undo does not take from it what it held before. */
 function steps(M, c) {
   const H = id => handleOf(M, id), out = [];
   const t = c.tag != null ? tag(M, c.tag) : null;
@@ -72,12 +75,14 @@ function steps(M, c) {
     case 'rename': out.push({ op: 'rename', tag: H(c.tag), name: c.name, was: t.title }); break;
     case 'renameProp': out.push({ op: 'rename', prop: propHandle(M, c.prop), name: c.name, was: prop(M, c.prop).title }); break;
     case 'merge': { const from = tag(M, c.from), into = tag(M, c.into); if (!from || !into) break;
-      for (const u of from.nodeUuids) { out.push({ op: 'addTag', node: u, tag: H(c.into) }); out.push({ op: 'removeTag', node: u, tag: H(c.from) }); }
+      for (const u of from.nodeUuids) { if (!into.nodeUuids.includes(u)) out.push({ op: 'addTag', node: u, tag: H(c.into) }); out.push({ op: 'removeTag', node: u, tag: H(c.from) }); }
       for (const k of from.kids) { if (Mo.under(M, c.into, k)) continue; out.push({ op: 'addExtends', tag: H(k), parent: H(c.into) }); }
       if (into.parents.includes(c.from)) for (const p of from.parents) if (p !== c.into) out.push({ op: 'addExtends', tag: H(c.into), parent: H(p) });
       for (const pid of from.props) if (!into.props.includes(pid)) out.push({ op: 'addClassProp', tag: H(c.into), prop: propHandle(M, pid) });
+      // Taken off first, or Logseq leaves its Root Tag on them when the tag goes. Undone after the tag is back, so on its new uuid.
+      for (const k of M.tags.values()) if (k.parents.includes(c.from)) out.push({ op: 'removeExtends', tag: H(k.id), parent: H(c.from) });
       out.push({ op: 'deleteTag', tag: H(c.from), into: H(c.into), restore: restoreOf(M, c.from) }); break; }
-    case 'retag': for (const n of c.nodes) { out.push({ op: 'addTag', node: n.uuid, tag: H(c.to) }); out.push({ op: 'removeTag', node: n.uuid, tag: H(c.from) }); } break;
+    case 'retag': for (const n of c.nodes) { if (!tag(M, c.to)?.nodeUuids.includes(n.uuid)) out.push({ op: 'addTag', node: n.uuid, tag: H(c.to) }); out.push({ op: 'removeTag', node: n.uuid, tag: H(c.from) }); } break;
     case 'moveProp': { const to = tag(M, c.to); if (to && !to.props.includes(c.prop)) out.push({ op: 'addClassProp', tag: H(c.to), prop: propHandle(M, c.prop) }); for (const id of c.from) if (id !== c.to && tag(M, id)?.props.includes(c.prop)) out.push({ op: 'removeClassProp', tag: H(id), prop: propHandle(M, c.prop) }); break; }
     case 'addProp': for (const id of c.under != null ? everyUnder(M, c.under) : c.tags) if (!tag(M, id).props.includes(c.prop)) out.push({ op: 'addClassProp', tag: H(id), prop: propHandle(M, c.prop) }); break;
     case 'dropProp': if (t?.props.includes(c.prop)) out.push({ op: 'removeClassProp', tag: H(c.tag), prop: propHandle(M, c.prop) }); break;
@@ -94,8 +99,8 @@ function steps(M, c) {
 function handleOf(M, id) { M.handles ||= new Map(); if (!M.handles.has(id)) { const t = tag(M, id); M.handles.set(id, { id, uuid: t?.uuid || '', title: t?.title || '' }); } return M.handles.get(id); }
 function propHandle(M, id) { M.handles ||= new Map(); const key = 'p' + id; if (!M.handles.has(key)) { const p = prop(M, id); M.handles.set(key, { id, uuid: p?.uuid || '', title: p?.title || '', ident: p?.ident || '' }); } return M.handles.get(key); }
 // Everything needed to put a deleted tag back: its name, where it sat, what it declared, the relations whose range named it
-// (its nodes get it back from the inverses of the retagging steps that came before the deletion; the values that pointed at
-// its page are read at Apply, logseq/apply.js).
+// (its nodes and child tags get it back from the inverses of the steps that came before the deletion; the values that pointed
+// at its page are read at Apply, logseq/apply.js).
 const restoreOf = (M, id) => { const t = tag(M, id); return { title: t.title, parents: t.parents.map(p => handleOf(M, p)), props: t.props.map(p => propHandle(M, p)), ranges: [...M.props.values()].filter(p => p.range.includes(id)).map(p => propHandle(M, p.id)) }; };
 
 /* The tray: the changes in order. Its model is the base (the graph as read) with every change applied, built afresh

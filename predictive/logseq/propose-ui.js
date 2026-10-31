@@ -4,9 +4,10 @@
    While a bullet is written, each proposed value is drawn faintly into the record's own property pill, where Logseq shows the
    empty value (italic grey; a guess also has a dotted line). Nothing is written until you leave the bullet. Leaving with
    Enter takes everything shown, the guesses too; leaving any other way (a click elsewhere, an arrow) takes only the sure
-   values. Escape hides them until you type again. A click on a proposed value accepts it (a second click takes the
+   values, and only if the words changed since the bullet was entered: an old bullet you pass through is left as it was.
+   Escape hides them until you type again. A click on a proposed value accepts it (a second click takes the
    acceptance back). A faded arrow after the bullet puts back what was filled in, and takes off only what is still as it
-   was filled in.
+   was filled in, and keeps those values from being proposed on that bullet again.
 
    Logseq's shape (read 2026-10-29 in 2.0.2): .ls-block[blockid] > .block-main-container > ... > .positioned-properties.block-below >
    .bottom-properties-row > .bottom-property-pill (the name in its first child, the value in .bottom-property-content, an
@@ -19,9 +20,10 @@ const { app, db, propose, text: textLib } = Flow;
 const { setting, host, warnOnce, notify } = app;
 
 const ENTER_LEAVES = 500, FILLING_MS = 6000;
-// live: the bullet being written { uuid, text, recordUuid, pieces, drawn, clicked, picked, left }. filling: bullets left a
-// moment ago whose values are being written, kept on screen, solid, until Logseq shows its own (no flash of empty).
-const S = { live: null, hushed: { uuid: '' }, accepted: { uuid: '', at: 0, keys: new Set() }, filling: new Map(), allowedNow: false, version: 0, timer: 0, stopped: false, undo: null, visiting: { live: null, timer: 0, out: 0 } };
+// live: the bullet being written { uuid, text, changed, recordUuid, pieces, drawn, clicked, picked, left }. filling: bullets left a
+// moment ago whose values are being written, kept on screen, solid, until Logseq shows its own (no flash of empty). entered:
+// the bullet in edit and its words when it was entered. refused: what an Undo took off, by the record it was on.
+const S = { live: null, hushed: { uuid: '' }, accepted: { uuid: '', at: 0, keys: new Set() }, filling: new Map(), allowedNow: false, version: 0, timer: 0, stopped: false, undo: null, visiting: { live: null, timer: 0, out: 0 }, entered: { uuid: '', words: '' }, refused: new Map() };
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const esc = t => String(t ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
 const guessKey = p => p.key ?? `${p.kind}:${p.ident}:${p.ids.join(',')}`;
@@ -29,7 +31,9 @@ const guessKey = p => p.key ?? `${p.kind}:${p.ident}:${p.ids.join(',')}`;
 // without tags (Logseq keeps them apart from the words).
 const linkless = t => { const bare = String(t || '').replace(textLib.TAG, ' '); return { n: (bare.match(textLib.LINK) || []).length, words: bare.replace(textLib.LINK, ' ').replace(/\s+/g, ' ').trim().toLowerCase() }; };
 const sameWords = (saved, typed) => { const a = linkless(saved), b = linkless(typed); return a.n === b.n && a.words === b.words; };
-const shownGuesses = live => new Set(live.pieces.filter(p => p.guess && live.drawn?.has(guessKey(p))).map(guessKey));
+const shownPieces = live => new Set(live.pieces.filter(p => live.drawn?.has(guessKey(p))).map(guessKey));
+// What leaving a bullet writes: what was taken (Enter, a click), and the sure values of a bullet whose words changed.
+const wanted = (live, p) => live.drawn?.has(guessKey(p)) && (live.taken?.has(guessKey(p)) || (!p.guess && live.changed));
 
 /* Several names in one proposal ("Dr. Mei Chen, Ruth Okoro"): a click on one name takes that one, and once any is clicked
    only the names clicked are filled in, by Enter too. live.picked: the names clicked, by the proposal's key. */
@@ -89,9 +93,10 @@ function reasonOf(piece) {
   const from = piece.from?.length ? `: ${piece.from.map(t => `“${t.length > 70 ? t.slice(0, 69) + '…' : t}”`).join(', ')}` : '';
   return parts.length ? parts.join('; ') + from : '';
 }
-function ghostLook(piece) {
+function ghostLook(piece, live) {
   const what = piece.kind === 'tag' ? 'A guess: Enter gives the bullet this tag and fills in the rest'
-    : piece.guess ? 'A guess: Enter fills it in with the rest; Option-Enter stops on it to check; a click accepts it' : 'Filled in when you leave the bullet';
+    : piece.guess ? 'A guess: Enter fills it in with the rest; Option-Enter stops on it to check; a click accepts it'
+    : live?.changed === false ? 'Enter fills it in with the rest; a click accepts it' : 'Filled in when you leave the bullet';
   const why = reasonOf(piece);
   return { cls: `flow-ghost${piece.guess ? ' flow-guess' : ''}`, title: why ? `${why}.\n${what}` : what };
 }
@@ -172,7 +177,7 @@ function drawInPlace(doc = host()) {
       const pill = pills.find(p => pillName(p) === piece.prop.lower && !p.classList.contains('flow-made')) || pills.find(p => pillName(p) === piece.prop.lower) || makePill(doc, row, piece);
       const target = pill && (pill.querySelector('.bottom-property-content') || pill);
       if (!target) continue;
-      const look = ghostLook(piece);
+      const look = ghostLook(piece, job.live);
       let g = [...target.querySelectorAll(':scope > .flow-ghost')].find(el => el.dataset.flowIdent === piece.ident);
       if (!g) {
         g = doc.createElement('span');
@@ -227,12 +232,14 @@ async function compute(box) {
   const now = editingBox(host().activeElement);
   if (!now || uuidOf(now) !== uuid) return;
   if (!block) { S.live = null; return hide(); }
-  const { record, pieces } = propose.propose(ctx, db.bulletOf(block, words, ctx.schema));
+  const { record, pieces: found } = propose.propose(ctx, db.bulletOf(block, words, ctx.schema));
+  const refused = S.refused.get(String(record.uuid || ''));
+  const pieces = found.filter(p => !refused?.has(guessKey(p))).filter((p, i, kept) => !p.needsTag || kept.some(q => q.kind === 'tag'));
   if (!pieces.length) { S.live = null; return hide(); }
   if (S.accepted.uuid !== uuid) S.accepted = { uuid, at: 0, keys: new Set() };
   // What was clicked or picked stays while the words change, for the proposals still there.
   const keep = S.live?.uuid === uuid ? S.live : null;
-  S.live = { uuid, text: words, recordUuid: String(record.uuid || ''), pieces, drawn: new Set(), clicked: keep?.clicked, picked: keep?.picked };
+  S.live = { uuid, text: words, changed: S.entered.uuid !== uuid || words !== S.entered.words, recordUuid: String(record.uuid || ''), pieces, drawn: new Set(), clicked: keep?.clicked, picked: keep?.picked };
   drawInPlace(box.ownerDocument);
 }
 const soon = box => { clearTimeout(S.timer); S.timer = setTimeout(() => compute(box).catch(error => warnOnce('the proposals could not be worked out', error)), 40); };
@@ -248,8 +255,7 @@ function leave(live, taken = new Set()) {
   S.version++;
   if (S.accepted.uuid === live.uuid) S.accepted = { uuid: '', at: 0, keys: new Set() };
   if (!live.dismissed && !S.stopped && live.recordUuid) {
-    const shown = live.drawn || new Set();
-    const pieces = live.pieces.filter(p => shown.has(guessKey(p)) && (!p.guess || live.taken.has(guessKey(p)))).map(p => narrowed(live, p));
+    const pieces = live.pieces.filter(p => wanted(live, p)).map(p => narrowed(live, p));
     if (pieces.length) S.filling.set(live.recordUuid, { recordUuid: live.recordUuid, pieces, until: Date.now() + FILLING_MS });
   }
   if (S.live === live) { S.live = null; hide(); }
@@ -277,8 +283,7 @@ async function takeShadow(live) {
   const savedTags = new Set((db.pick(block, 'block/tags') || []).map(db.idOf));
   if (propose.inWords(live.text, ctx).tags.some(tag => !savedTags.has(tag))) return;
   const { record, pieces: found } = propose.propose(ctx, db.bulletOf(block, db.pick(block, 'block/title'), ctx.schema));
-  const shown = live.drawn || new Set(), taken = live.taken || new Set();
-  const pieces = found.filter(p => shown.has(guessKey(p)) && (!p.guess || taken.has(guessKey(p)))).map(p => narrowed(live, p));
+  const pieces = found.filter(p => wanted(live, p)).map(p => narrowed(live, p));
   const recordUuid = String(record.uuid || '');
   if (!pieces.length || !textLib.UUID.test(recordUuid) || S.stopped) return;
   const { written, undo } = await writePieces(recordUuid, pieces);
@@ -327,10 +332,12 @@ async function writePieces(recordUuid, pieces) {
 
 /* ---------- the faded arrow ---------- */
 // A faded arrow at the end of the line of the bullet the values were filled in on, saying what it takes off when pointed at. It
-// stays until that bullet is edited again or the page is left. A second fill on the same bullet adds to its undo.
+// stays until that bullet is edited again or the page is left. A second fill on the same bullet adds to its undo; a fill on
+// another takes the arrow's place. An arrow runs its own change only, and what it took off is not proposed there again.
 const bulletLine = uuid => { const row = host().querySelector(`.ls-block[blockid="${uuid}"]`); return row && ([...row.querySelectorAll('.block-title-wrap')].find(ownRow(row)) || row); };
 function rememberUndo(recordUuid, bulletUuid, written, undo) {
   const before = S.undo?.record === recordUuid ? S.undo : null;
+  if (!before) S.undo?.button?.remove();
   const text = [...(before?.pieces || []), ...written].map(p => `${p.kind === 'tag' ? 'Tag' : p.prop.title}: ${p.kind === 'tag' ? String(p.shown).replace(/^#/, '') : p.shown}`).join(' · ');
   const run = before ? async () => { await undo(); await before.run(); } : undo;
   S.undo = { record: recordUuid, bullet: bulletUuid, pieces: [...(before?.pieces || []), ...written], text, run, button: before?.button || null };
@@ -348,11 +355,18 @@ function drawUndo(doc) {
     button.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); });
     button.addEventListener('click', async e => {
       e.preventDefault(); e.stopPropagation();
-      const mine = S.undo; S.undo = null; button.remove();
+      const mine = button.undo;
+      if (S.undo === mine) S.undo = null;
+      button.remove();
+      const refused = S.refused.get(mine.record) || new Set();
+      for (const piece of mine.pieces) refused.add(guessKey(piece));
+      S.refused.set(mine.record, refused);
+      S.filling.delete(mine.record);
       try { await mine.run(); } catch (error) { warnOnce('the filled-in values could not be taken off again', error); notify('The values could not be taken off again', 'warning'); }
     });
     u.button = button;
   }
+  u.button.undo = u;
   u.button.title = `Undo: ${u.text}`; u.button.setAttribute('aria-label', `Undo what was filled in: ${u.text}`);
   if (u.button.parentElement !== line) line.append(u.button);
 }
@@ -367,7 +381,9 @@ function onInput(event) {
 function onFocusIn(event) {
   const box = editingBox(event.target);
   if (!box) return;
-  forgetUndo(uuidOf(box));   // editing the bullet again ends the undo of what was filled in on it
+  const uuid = uuidOf(box);
+  forgetUndo(uuid);   // editing the bullet again ends the undo of what was filled in on it
+  if (S.live?.uuid !== uuid) S.entered = { uuid, words: box.value };   // back from its own properties is not entering it
   soon(box);
 }
 function onFocusOut(event) {
@@ -423,7 +439,7 @@ function onKey(event) {
   // Cmd-Option-Enter: everything shown is accepted, as with Enter, and the bullet is simply left, with no new bullet made.
   if (event.key === 'Enter' && app.keyMatches(event, setting('proposalsAcceptKeys'))) {
     if (app.editorPopupOpen()) return;
-    S.accepted = { uuid: S.live.uuid, at: Date.now(), keys: shownGuesses(S.live) };
+    S.accepted = { uuid: S.live.uuid, at: Date.now(), keys: shownPieces(S.live) };
     event.preventDefault(); event.stopImmediatePropagation();
     Promise.resolve(logseq.Editor.exitEditingMode()).catch(error => warnOnce('the bullet could not be left', error));
     return;
@@ -434,7 +450,7 @@ function onKey(event) {
     // Enter (plain, with no list of Logseq's open) takes the guesses too: the bullet is then left as usual. Nothing of Enter
     // is held back: Logseq still makes the next bullet.
     if (event.shiftKey || event.metaKey || event.ctrlKey || event.altKey) return;
-    S.accepted = { uuid: S.live.uuid, at: Date.now(), keys: shownGuesses(S.live) };
+    S.accepted = { uuid: S.live.uuid, at: Date.now(), keys: shownPieces(S.live) };
     return;
   }
   // Escape hides the proposals until something is typed in the bullet again; the caret stays (a second Escape is Logseq's).
@@ -522,7 +538,7 @@ function start() {
   S.stopped = false;
   applyHide();
   logseq.onSettingsChanged?.(applyHide);
-  logseq.App.onCurrentGraphChanged?.(() => { S.live = null; S.filling.clear(); forgetUndo(S.undo?.record); applyHide(); });
+  logseq.App.onCurrentGraphChanged?.(() => { S.live = null; S.filling.clear(); S.refused.clear(); forgetUndo(S.undo?.record); applyHide(); });
   logseq.App.onRouteChanged?.(() => { S.live = null; hide(); applyHide(); });
   app.onStop(() => {
     S.stopped = true; clearTimeout(S.timer); S.version++; watcher?.disconnect(); watcher = null; S.live = null; S.filling.clear();
@@ -532,6 +548,6 @@ function start() {
   });
 }
 // What the stepping piece (logseq/steps.js) works with.
-const api = { S, start, leave, shownGuesses, editingBox, uuidOf, ownRow, pillName, pillsOf, guessKey, hide, soon, rememberUndo };
+const api = { S, start, leave, shownPieces, editingBox, uuidOf, ownRow, pillName, pillsOf, guessKey, hide, soon, rememberUndo };
 Flow.proposeUi = api;
 })();

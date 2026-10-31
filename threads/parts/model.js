@@ -675,12 +675,17 @@ async function firstLines(uuid, n, withIds = false) {
    uuid -> property name -> { ident, values }, each value { text } with { id, uuid } when it is a node or a choice (a
    text value is a node of its own in Logseq, so it has an id too), { day, id } for a day, and for a number or a yes/no
    { text, number } or { text, boolean }: Logseq keeps those in a small value node of their own, the number in its
-   logseq.property/value (seen in the app, 2026-10-24: Severity on a symptom log). A node holding nothing of yours has no entry. */
-async function nodeValues(uuids) {
+   logseq.property/value (seen in the app, 2026-10-24: Severity on a symptom log); a Date-and-time is a timestamp on the node
+   itself, { day, time }. A node holding nothing of yours has no entry. logseqs: Logseq's four as well (Deadline, Scheduled, Status,
+   Priority), for a node opened in a row, which lists them; a list's grouping and what tells its rows apart stay with yours. */
+const STAMP = 100000000000;   // a ref is a small entity id, a timestamp is past this
+async function nodeValues(uuids, { logseqs = false } = {}) {
   const list = [...new Set((uuids || []).map(String))].filter(u => UUID.test(u));
   const out = new Map();
   if (!list.length) return out;
-  const where = `[(ground [${list.map(u => `#uuid "${u}"`).join(' ')}]) [?u ...]] [?b :block/uuid ?u] [?b ?attr ?v] [?prop :db/ident ?attr] [(namespace ?attr) ?ns] [(= ?ns "user.property")] [?prop :block/title ?name]`;
+  const mine = '[(namespace ?attr) ?ns] [(= ?ns "user.property")]';
+  const whose = logseqs ? `(or-join [?attr] (and ${mine}) [(contains? #{:logseq.property/deadline :logseq.property/scheduled :logseq.property/status :logseq.property/priority} ?attr)])` : mine;
+  const where = `[(ground [${list.map(u => `#uuid "${u}"`).join(' ')}]) [?u ...]] [?b :block/uuid ?u] [?b ?attr ?v] [?prop :db/ident ?attr] ${whose} [?prop :block/title ?name]`;
   const [raw, titled, dated, typed] = await Promise.all([
     dsQuery(`[:find ?u ?name ?attr ?v :where ${where}]`),
     dsQuery(`[:find ?u ?name ?attr ?v ?t ?vu :where ${where} [?v :block/title ?t] [?v :block/uuid ?vu]]`),
@@ -699,7 +704,10 @@ async function nodeValues(uuids) {
   for (const [u, name, attr, v, d] of dated) if (once(u, name, v)) slot(u, name, attr).push({ day: Number(d), id: v });
   for (const [u, name, attr, v, t, vu] of titled) if (once(u, name, v)) slot(u, name, attr).push({ text: String(t), id: v, uuid: String(vu) });
   for (const [u, name, attr, v, n] of typed) if (once(u, name, v)) slot(u, name, attr).push(typeof n === 'boolean' ? { text: n ? 'yes' : 'no', boolean: n } : typeof n === 'number' ? { text: String(n), number: n } : { text: String(n) });
-  for (const [u, name, attr, v] of raw) if (typeof v === 'string' && once(u, name, v)) slot(u, name, attr).push({ text: v });
+  for (const [u, name, attr, v] of raw) {
+    if (typeof v === 'string' && once(u, name, v)) slot(u, name, attr).push({ text: v });
+    else if (typeof v === 'number' && v > STAMP && once(u, name, v)) slot(u, name, attr).push({ day: dayNumber(new Date(v)), time: v });
+  }
   return out;
 }
 // The words of the bullets written straight on a page, for the page's own proposals (0.4.239); a property's text value

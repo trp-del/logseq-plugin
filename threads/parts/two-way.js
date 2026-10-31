@@ -60,7 +60,7 @@ const take = (core, names) => shared.take(core, names, warnOnce);
 // indexed (0.4.182): every page's rows were read in one look-up, so a page not in byPage has none, and a page
 // opened for the first time gets its rows in the same frame as its title instead of half a second later.
 // open, all and only (0.4.184): per row, whether its list is open, shows every record, or only one kind ("Infusion").
-const state = { findDug: new Map(), findAsked: new Set(), version: 0, pageUuid: '', groups: [], byPage: new Map(), indexed: false, open: new Map(), all: new Set(), only: new Map(), box: null, html: '', picked: new Set(), lastPick: '', group: new Map(), values: new Map(), nodeDraft: null, mentionsOf: new Map(), raise: new Map(), dig: new Map(), focus: '', fresh: '', node: new Map(), nall: new Set(), ball: new Set(), steps: [], pageTitle: '', kept: new Map(), find: '' };
+const state = { listed: [], findDug: new Map(), findAsked: new Set(), version: 0, pageUuid: '', groups: [], byPage: new Map(), indexed: false, open: new Map(), all: new Set(), only: new Map(), box: null, html: '', picked: new Set(), lastPick: '', group: new Map(), values: new Map(), nodeDraft: null, mentionsOf: new Map(), raise: new Map(), dig: new Map(), focus: '', fresh: '', node: new Map(), nall: new Set(), ball: new Set(), steps: [], pageTitle: '', kept: new Map(), find: '' };
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const todayNumber = () => { const d = new Date(); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); };
 const dayText = day => {
@@ -285,7 +285,7 @@ function shortName(title) {
 const addLink = group => group.ident && state.draft?.field !== group.name ? `<button type="button" class="rf-quiet rf-faint rf-tw-add" data-field="${esc(group.name)}" title="Add a${/^[aeiou]/i.test(kindsOf(group)[0] || '') ? 'n' : ''} ${esc(kindsOf(group)[0] || 'node')} with “${esc(group.name)}” set to this page">+</button>` : '';
 // The kit's tick box, in the margin left of the record (0.4.228; the kit's since 0.4.318).
 const pickBox = (group, item) => drawingTop ? '' : pickOn(group, item);
-const pickOn = (group, item) => { const key = `${item.uuid}|${group.name}`, on = state.picked.has(key); return `<input type="checkbox" class="rf-check lk-tick rf-tw-pick" data-pick="${esc(key)}"${on ? ' checked' : ''} aria-label="Pick" title="Pick (Shift-click: every one from the last picked)">`; };
+const pickOn = (group, item) => { const key = `${item.uuid}|${group.name}`, on = state.picked.has(key); state.listed.push(key); return `<input type="checkbox" class="rf-check lk-tick rf-tw-pick" data-pick="${esc(key)}"${on ? ' checked' : ''} aria-label="Pick" title="Pick (Shift-click: every one from the last picked)">`; };
 // A record's tag at the right opens the tag's page, Shift-click in the sidebar (0.4.297, the owner: "should be able to
 // click on tag in two-way area on right side"); a tag reads as a class, mono with no # (the kit's tag, 0.4.318).
 const tagLink = item => item.tag && item.tag !== 'note' ? `<a class="rf-tag lk-tag rf-tw-tag" data-tag-page="${esc(item.tag)}" href="#" title="Open ${esc(item.tag)} (Shift-click: in the sidebar)">${esc(item.tag)}</a>` : `<span class="rf-tag lk-tag rf-tw-tag">${esc(item.tag)}</span>`;
@@ -513,7 +513,7 @@ function readNode(uuid, id) {
     const schema = await provided.propSchema();
     const nodeId = Number(id) || await provided.idByUuid(uuid).catch(() => 0);
     const [fields, held, rows, lines] = await Promise.all([
-      provided.fieldsOf(uuid, schema), provided.nodeValues([uuid]),
+      provided.fieldsOf(uuid, schema), provided.nodeValues([uuid], { logseqs: true }),
       nodeId ? groupsFor(nodeId).catch(error => { warnOnce('could not read what points at a node', error); return []; }) : [],
       provided.firstLines(uuid, (state.ball.has(uuid) ? 500 : BULLETS) + 1, true).catch(error => { warnOnce('could not read the bullets of a node', error); return []; })]);
     const byIdent = new Map([...(held.get(uuid) || new Map()).values()].map(h => [h.ident, h.values]));
@@ -917,7 +917,7 @@ async function editNodeProp(uuid, ident, at) {
     typed = picked == null ? null : picked.clear ? '' : (picked.typed ?? picked.label);
   } else typed = await shared.editInPlace({ at: valueEl || at, value: words, type: kind === 'number' ? 'number' : 'text', placeholder: isDay ? 'today, friday, 4 aug …' : '' });
   if (typed == null) return;
-  const had = await provided.valuesOf(uuid, prop.ident);
+  const had = await heldNow(uuid, prop);
   let done = '';
   if (!typed.trim()) {
     if (!had.length) return;
@@ -928,10 +928,8 @@ async function editNodeProp(uuid, ident, at) {
     let value;
     if (kind === 'choice') value = prop.choices.find(c => c.title.toLowerCase() === typed.trim().toLowerCase())?.id;
     else if (isLink) value = (await pageNamed(typed.trim(), prop))?.id;
-    else if (isDay) {
-      const day = provided.parseDay(typed, new Date());
-      value = day && await provided.journalIdFor(provided.dayNumber(day), await provided.journalTitleFor(day.getFullYear(), day.getMonth() + 1, day.getDate()));
-    } else if (kind === 'checkbox') value = /^(y|yes|true|1|on)$/i.test(typed.trim()) ? true : /^(n|no|false|0|off)$/i.test(typed.trim()) ? false : undefined;
+    else if (isDay) value = await dayValue(typed, kind);
+    else if (kind === 'checkbox') value = /^(y|yes|true|1|on)$/i.test(typed.trim()) ? true : /^(n|no|false|0|off)$/i.test(typed.trim()) ? false : undefined;
     else if (kind === 'number') value = typed.trim() && Number.isFinite(Number(typed)) ? Number(typed) : undefined;
     else value = typed.trim();
     if (value == null) return notify(`“${typed.trim()}” is not a value “${prop.title}” takes, so nothing was changed`, 'warning');
@@ -1117,10 +1115,9 @@ function startGroupDraft(group, gkey) {
 async function setGroupValue(uuid, set) {
   const prop = (await provided.propSchema()).props.find(p => p.ident === set.ident);
   if (!prop) return;
-  if (prop.choices.length || ['node', 'page', 'date'].includes(prop.type)) { if (set.id != null) await setValues(uuid, prop, [set.id]); }
-  else if (set.number != null) await model.setValue(uuid, prop.ident, set.number);
-  else if (set.boolean != null) await model.setValue(uuid, prop.ident, set.boolean);
-  else if (set.text != null) await model.setValue(uuid, prop.ident, set.text);
+  const value = heldById(prop) ? set.id : set.time ?? set.number ?? set.boolean ?? set.text;
+  if (value == null) return;
+  if (heldById(prop)) await setValues(uuid, prop, [value]); else await model.setValue(uuid, prop.ident, value);
 }
 
 // Open or folded, per page and field, kept in Logseq's window storage (0.4.184): open unless you folded it.
@@ -1376,7 +1373,9 @@ function draw(doc) {
   }
   if (!rows) state.picked.clear();
   const stepped = rows && state.steps.length ? steppedHtml() : null;
-  const html = rows ? '<div class="rf-tw-pin" aria-hidden="true"></div>' + (stepped ?? (barHtml() + findHtml() + openHits(foundGroups()).map(g => rowHtml(g)).join(''))) : '';
+  state.listed = [];   // filled as the rows are drawn, so the rows come before the bar that reads it
+  const rowsHtml = rows && stepped == null ? openHits(foundGroups()).map(g => rowHtml(g)).join('') : '';
+  const html = rows ? '<div class="rf-tw-pin" aria-hidden="true"></div>' + (stepped ?? (barHtml() + findHtml() + rowsHtml)) : '';
   // What unrolls does so once: the drawing kept is the one without it, so the next drawing does not replace it.
   const bare = html.replace(/ rf-ol-unroll/g, '');
   box.toggleAttribute('data-finding', !!state.find.trim());
@@ -1902,10 +1901,10 @@ async function addRecord({ group, page, name, kind, open, asPage, where = 'journ
    "the toolbar jumps in and causes the link table to jump down … that space is fine. allows breathing room"). */
 function barHtml() {
   const idle = !state.picked.size;
-  const total = allKeys().length, n = state.picked.size;
+  const n = state.picked.size;
   /* One line (0.4.327, the owner: "why are two lines needed? the clear button can be consolidated. some of the menu items
      like change and remove can go under one menu item and so can property. the sidebar items should be on far right";
-     "have select all button"): the count's tick box clears, Select all picks every node listed here, the page's own two
+     "have select all button"): the count's tick box clears, Select all picks every node shown (found, of the kind in force, in a list that is open), the page's own two
      actions and the two property actions each under one word with a menu, Sidebar last at the right. */
   const b = (act, text, title, name, cls = '') => `<button type="button" class="rf-quiet${cls ? ' ' + cls : ''}" data-act="${act}" title="${esc(title)}">${name ? iconHtml(name) : ''}${text}</button>`;
   const menu = (act, text, title, name) => `<button type="button" class="rf-quiet rf-tw-menu" data-act="${act}" title="${esc(title)}" aria-haspopup="menu">${name ? iconHtml(name) : ''}<span class="rf-tw-menu-words">${text}</span>${iconHtml('chevron-down')}</button>`;
@@ -1914,15 +1913,13 @@ function barHtml() {
   const chosen = picks(), fromProps = idle || chosen.some(p => !isMentions(p.group)), raisable = raisablePicked();
   const best = raisable.length === 1 ? state.raise.get(raisable[0])?.best : null;
   return `<div class="rf-bar rf-tw-bar"${idle ? ' data-idle="" aria-hidden="true"' : ''}><label class="rf-count"><input type="checkbox" class="rf-check" checked data-act="clear" title="Clear the picks (Escape)" aria-label="Clear the picks">${n} picked</label>${
-    n < total ? b('all', 'Select all', `Pick all ${total} listed here`, '') : ''}${
+    state.listed.some(key => !state.picked.has(key)) ? b('all', 'Select all', `Pick all ${state.listed.length} shown here`, '') : ''}${
     fromProps ? menu('page-menu', `“${esc(pageTitle())}”`, `Change “${pageTitle()}” to another page in their field, or take it out`, '') : ''}${
     raisable.length ? menu('raise', best ? `Make it a${/^[aeiou]/i.test(best.tag.title) ? 'n' : ''} ${esc(best.tag.title)}` : 'Make it…', `Give ${raisable.length === 1 ? 'this mention' : `these ${raisable.length} mentions`} a tag, with the property that points at “${pageTitle()}” set`, 'tag') : ''}${
     b('tag', 'Tag', 'Add a tag', 'tag')}${b('copy', 'Copy', 'Copy them as references', 'copy')}${
     menu('prop-menu', 'Property', 'Give them all one value, or clear one', 'property')}${b('delete', '', 'Delete them', 'delete')}${
     b('sidebar', 'Sidebar', 'Open them in the right sidebar', 'sidebar', 'rf-tw-to-side')}</div>`;
 }
-// Every node listed here, as picks are kept: "uuid|property".
-const allKeys = () => state.groups.flatMap(g => g.items.map(item => `${item.uuid}|${g.name}`));
 // The page's own name, for the bar's "Change “Dr. Mei Chen” to…" (0.4.233, the owner: "make it clear"), read once per page.
 const named = { uuid: '', title: '' };
 const pageTitle = () => named.uuid === state.pageUuid && named.title ? named.title : 'this page';
@@ -2028,10 +2025,24 @@ const ask = async (heading, hint, options, button = 'OK', value = '', allowEmpty
   return picked == null ? null : picked.clear ? '' : (picked.typed ?? picked.label);
 };
 const sure = (heading, button, at = null) => shared.ask({ at, question: heading, go: button });
-// What a node holds under a property, as ids, so it can be put back exactly (the tag tree's way, parts/tags.js).
+// A link, a choice or a day is held by its id; anything else by what it says.
+const heldById = prop => !!prop.choices?.length || ['node', 'page', 'date'].includes(prop.type);
+/* What a node holds under a property, so it can be put back exactly: ids (the tag tree's way, parts/tags.js), or what it says.
+   Logseq takes a cleared text value's own node away with it, so its old id is no value any more ("should be a text block"). */
+async function heldNow(uuid, prop) {
+  if (heldById(prop)) return provided.valuesOf(uuid, prop.ident);
+  const held = [...(await provided.nodeValues([uuid], { logseqs: true })).get(uuid)?.values() || []].find(h => h.ident === prop.ident);
+  return (held?.values || []).map(v => v.time ?? v.number ?? v.boolean ?? v.text);
+}
 async function setValues(uuid, prop, values) {
   if (!values.length) return model.unsetValue(uuid, prop.ident);
-  return model.setValue(uuid, prop.ident, prop.many ? values : values[0], { entityId: true, reset: true });
+  return model.setValue(uuid, prop.ident, prop.many ? values : values[0], heldById(prop) ? { entityId: true, reset: true } : { reset: true });
+}
+// A day typed for a date (a journal page, by its id) or a date-and-time (a moment: the day's first).
+async function dayValue(typed, kind) {
+  const day = provided.parseDay(typed, new Date());
+  if (!day || kind === 'datetime') return day?.getTime();
+  return provided.journalIdFor(provided.dayNumber(day), await provided.journalTitleFor(day.getFullYear(), day.getMonth() + 1, day.getDate()));
 }
 // Runs one change on every picked node; a node that fails is left as it was and the rest go on. Undo puts back the rest.
 async function writeAll(text, steps) {
@@ -2069,7 +2080,7 @@ async function pageNamed(name, prop) {
 async function act(what, at = null) {
   const chosen = picks(), nodes = nodesPicked();
   if (what === 'clear') { state.picked.clear(); return draw(host()); }
-  if (what === 'all') { for (const key of allKeys()) state.picked.add(key); readTitle().catch(() => {}); return draw(host()); }
+  if (what === 'all') { for (const key of state.listed) state.picked.add(key); readTitle().catch(() => {}); return draw(host()); }
   if (!chosen.length) return;
   // The two words with a menu (0.4.327): the menu opens under the word, and what is picked from it acts as its own word did.
   if (what === 'raise') return raiseMenu(at);
@@ -2148,21 +2159,19 @@ async function act(what, at = null) {
         const options = kind === 'choice' ? prop.choices.map(c => c.title)
           : ['node', 'page'].includes(kind) ? (await provided.propPages()).filter(page => !prop.classes.length || page.tags.some(t => prop.classes.some(c => c.id === t.id))).map(page => page.title)
           : kind === 'checkbox' ? ['yes', 'no'] : [];
-        const typed = await ask(`${prop.title} for ${counted(nodes.length)}`, kind === 'date' ? 'A day: today, friday, 4 aug, 2026-08-04 …' : prop.many ? 'Added to what each one holds.' : '', options, 'Set', '', false, at);
+        const typed = await ask(`${prop.title} for ${counted(nodes.length)}`, kind === 'date' || kind === 'datetime' ? 'A day: today, friday, 4 aug, 2026-08-04 …' : prop.many ? 'Added to what each one holds.' : '', options, 'Set', '', false, at);
         if (!typed) return;
         if (kind === 'choice') value = prop.choices.find(c => c.title.toLowerCase() === typed.toLowerCase())?.id;
         else if (['node', 'page'].includes(kind)) value = (await pageNamed(typed, prop))?.id;
-        else if (kind === 'date') {
-          const day = provided.parseDay(typed, new Date());
-          value = day && await provided.journalIdFor(provided.dayNumber(day), await provided.journalTitleFor(day.getFullYear(), day.getMonth() + 1, day.getDate()));
-        } else if (kind === 'checkbox') value = /^(y|yes|true|1|on)$/i.test(typed) ? true : /^(n|no|false|0|off)$/i.test(typed) ? false : undefined;
+        else if (kind === 'date' || kind === 'datetime') value = await dayValue(typed, kind);
+        else if (kind === 'checkbox') value = /^(y|yes|true|1|on)$/i.test(typed) ? true : /^(n|no|false|0|off)$/i.test(typed) ? false : undefined;
         else if (kind === 'number') value = Number.isFinite(Number(typed)) ? Number(typed) : undefined;
         else value = typed;
         if (value == null) return notify(`“${typed}” is not a value “${prop.title}” takes, so nothing was changed`, 'warning');
       }
-      const entity = what === 'set' && (prop.choices.length || ['node', 'page', 'date'].includes(prop.type));
+      const entity = what === 'set' && heldById(prop);
       return writeAll(what === 'set' ? `Set “${prop.title}” on ${counted(nodes.length)}` : `Cleared “${prop.title}” on ${counted(nodes.length)}`, nodes.map(uuid => async () => {
-        const had = await provided.valuesOf(uuid, prop.ident);
+        const had = await heldNow(uuid, prop);
         if (what === 'unset') { if (!had.length) return null; await model.unsetValue(uuid, prop.ident); }
         else if (entity) await setValues(uuid, prop, prop.many ? [...new Set([...had, value])] : [value]);
         else await model.setValue(uuid, prop.ident, value);
@@ -2170,7 +2179,10 @@ async function act(what, at = null) {
       }));
     }
     if (what === 'delete') {
-      const one = nodes.length === 1 ? `“${titleFor(nodes[0])}”` : counted(nodes.length);
+      // A page goes with all its bullets: the question says so, the pages apart from the bullets.
+      const pages = (await Promise.all(nodes.map(uuid => model.getPage(uuid).catch(() => null)))).filter(page => page?.name).length, bullets = nodes.length - pages;
+      const one = nodes.length === 1 ? (pages ? `the page “${titleFor(nodes[0])}” with all its bullets` : `“${titleFor(nodes[0])}”`)
+        : [pages && `${pages} ${pages === 1 ? 'page' : 'pages'} with all ${pages === 1 ? 'its' : 'their'} bullets`, bullets && `${bullets} ${bullets === 1 ? 'bullet' : 'bullets'}`].filter(Boolean).join(' and ');
       if (!await sure(`Delete ${one}? This cannot be undone from here.`, 'Delete', at)) return;
       return writeAll('', nodes.map(uuid => async () => {
         const page = await model.getPage(uuid).catch(() => null);

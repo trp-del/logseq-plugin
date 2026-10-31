@@ -42,7 +42,7 @@ function smallGraph() {
   add(12, { title: 'Meeting', name: 'meeting', tags: [2], ident: 'user.class/Meeting' });
   add(13, { title: 'Project', name: 'project', tags: [2], ident: 'user.class/Project' });
   // Properties: the owner's (user.property/...) and the four of Logseq's a record takes; created-at is left out.
-  add(20, { title: 'Deadline', ident: 'logseq.property/deadline', tags: [1], type: 'date', cardinality: 'db.cardinality/one' });
+  add(20, { title: 'Deadline', ident: 'logseq.property/deadline', tags: [1], type: 'datetime', cardinality: 'db.cardinality/one' });
   add(21, { title: 'Status', ident: 'logseq.property/status', tags: [1], type: 'default' });
   add(22, { title: 'attendees', ident: 'user.property/attendees', tags: [1], type: 'node', cardinality: 'db.cardinality/many', classes: [10] });
   add(23, { title: 'project', ident: 'user.property/project', tags: [1], type: 'node', classes: [13] });
@@ -266,7 +266,7 @@ async function main() {
   const schema = await model.propSchema();
   same(schema.props.map(p => p.title), ['attendees', 'Deadline', 'email', 'project', 'specialty', 'Status'], 'propSchema: own properties only, by name');
   const by = Object.fromEntries(schema.props.map(p => [p.title, p]));
-  same([by.Deadline.type, by.Deadline.many, by.attendees.type, by.attendees.many, by.specialty.type], ['date', false, 'node', true, 'default'], 'propSchema: types and many');
+  same([by.Deadline.type, by.Deadline.many, by.attendees.type, by.attendees.many, by.specialty.type], ['datetime', false, 'node', true, 'default'], 'propSchema: types and many');
   same(by.attendees.classes.map(c => c.title), ['Person'], 'propSchema: the class a field takes');
   same(by.Status.choices.map(c => c.title), ['Todo', 'Doing', 'Done'], 'propSchema: choices in their order');
   same(by.Deadline.ident, 'logseq.property/deadline', 'propSchema: the ident without its colon');
@@ -365,6 +365,7 @@ async function main() {
     { u: U(60), name: 'Severity', attr: 'user.property/severity', v: 410, n: 3 },
     { u: U(60), name: 'Date', attr: 'user.property/date', v: 77, day: 20261001 },
     { u: U(60), name: 'Done', attr: 'user.property/done', v: 411, n: true },
+    { u: U(60), name: 'Due', attr: 'user.property/due', v: new Date(2026, 10, 3, 12).getTime() },
     { u: U(60), name: 'Notes', attr: 'user.property/notes', v: 'plain words' },
     { u: U(60), name: 'Notes', attr: 'user.property/notes', v: 412, title: 'a text value is a node', vu: U(412) },
     { u: U(61), name: 'Confidence', attr: 'user.property/confidence', v: 302, title: 'Disputed', vu: U(302) },
@@ -376,6 +377,7 @@ async function main() {
   same(held.get(U(60)).get('Severity').values, [{ text: '3', number: 3 }], 'nodeValues: a number from its value node');
   same(held.get(U(60)).get('Date').values, [{ day: 20261001, id: 77 }], 'nodeValues: a day');
   same(held.get(U(60)).get('Done').values, [{ text: 'yes', boolean: true }], 'nodeValues: a yes/no');
+  same(held.get(U(60)).get('Due').values, [{ day: 20261103, time: new Date(2026, 10, 3, 12).getTime() }], 'nodeValues: a Date-and-time, a timestamp on the node itself');
   same(held.get(U(60)).get('Notes').values, [{ text: 'a text value is a node', id: 412, uuid: U(412) }, { text: 'plain words' }], 'nodeValues: text, whether a node or plain');
   same(held.get(U(61)).get('Confidence').values.length, 1, 'nodeValues: a value asked twice is one');
   same((await model.nodeValues([])).size, 0, 'nodeValues of no nodes');

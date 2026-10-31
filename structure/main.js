@@ -66,6 +66,7 @@ const app = {
   openNode(uuid, inSidebar) { if (!uuid) return; if (inSidebar) logseq.Editor.openInRightSidebar(uuid); else logseq.App.pushState('page', { name: uuid }); },
   readNodes: id => S.db.nodesOf(id), valuesOf: (id, ident) => S.db.valuesOf(id, ident), nodesWhere: (id, ident, v) => S.db.nodesWhere(id, ident, v),
   notify,
+  nameTaken: name => S.db.nameTaken(name),
   // The sidebar's tree opens on the page's tag.
   async followPage() {
     if (![...app.views].some(v => v.mode === 'side')) return;

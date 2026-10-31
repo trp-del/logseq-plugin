@@ -17,7 +17,7 @@ const EXTENDS = 'logseq.property.class/extends', CLASS_PROPS = 'logseq.property.
 
 /* The whole reading. A few hundred milliseconds on a large graph. */
 async function read() {
-  const [tagRows, propRows, choiceRows, nodeRows, holderRows, pointedRows, newestRows] = await Promise.all([
+  const [tagRows, propRows, choiceRows, nodeRows, holderRows, pointedRows, newestRows, bulletRows, linkRows] = await Promise.all([
     query(`[:find (pull ?t [:db/id :block/uuid :block/title :db/ident {:${EXTENDS} [:db/id :db/ident]} {:${CLASS_PROPS} [:db/id]}]) :where [?t :block/tags :logseq.class/Tag] [?t :db/ident _]]`),
     query(`[:find (pull ?p [:db/id :db/ident :block/uuid :block/title :logseq.property/type :db/cardinality {:${RANGE} [:db/id]}]) :where [?p :block/tags :logseq.class/Property] [?p :db/ident _]]`),
     query('[:find ?p :where [?v :block/closed-value-property ?p]]').catch(() => []),
@@ -25,11 +25,16 @@ async function read() {
     query(`[:find ?a ?b :where [?b :block/tags ?t] [?t :block/tags :logseq.class/Tag] [?b ?a _] [?p :db/ident ?a] [?p :block/tags :logseq.class/Property] [(namespace ?a) ?ns] [(= ?ns "user.property")] ${LIVE}]`).catch(() => []),
     query(`[:find ?a ?t (count ?v) :where [?b ?a ?v] [?p :db/ident ?a] [?p :block/tags :logseq.class/Property] [(namespace ?a) ?ns] [(= ?ns "user.property")] [?v :block/tags ?t] [?t :block/tags :logseq.class/Tag]]`).catch(() => []),
     query(`[:find ?t (max ?c) :where [?t :block/tags :logseq.class/Tag] [?b :block/tags ?t] [?b :block/created-at ?c] ${LIVE}]`).catch(() => []),
+    // What a tag's deletion takes with it, for the merge's sentence: the bullets written on its page, the bullets that link it in their words.
+    query(`[:find ?t (count ?b) :where [?t :block/tags :logseq.class/Tag] [?b :block/page ?t] (not [?b :logseq.property/created-from-property _])]`).catch(() => []),
+    query(`[:find ?t (count ?b) :where [?t :block/tags :logseq.class/Tag] [?t :block/uuid ?u] [?b :block/refs ?t] [(str ?u) ?us] [?b :block/title ?w] [(clojure.string/includes? ?w ?us)]]`).catch(() => []),
   ]);
   const own = new Map();   // the graph's own tags, by id
   for (const [t] of tagRows) { const ident = bare(pick(t, 'db/ident')); if (/^user\.class\//.test(ident)) own.set(idOf(t), t); }
+  const bullets = new Map(bulletRows), links = new Map(linkRows);
   const tags = [...own.values()].map(t => ({ id: idOf(t), uuid: String(pick(t, 'block/uuid') ?? ''), title: String(pick(t, 'block/title') ?? ''),
-    parents: listOf(pick(t, EXTENDS)).map(idOf).filter(id => own.has(id)), props: listOf(pick(t, CLASS_PROPS)).map(idOf).filter(id => id != null) }));
+    parents: listOf(pick(t, EXTENDS)).map(idOf).filter(id => own.has(id)), props: listOf(pick(t, CLASS_PROPS)).map(idOf).filter(id => id != null),
+    bullets: Number(bullets.get(idOf(t))) || 0, links: Number(links.get(idOf(t))) || 0 }));
   const choice = new Set(choiceRows.map(([p]) => p));
   const props = propRows.map(([p]) => p).filter(p => /^user\.property\//.test(bare(pick(p, 'db/ident')))).map(p => ({ id: idOf(p), uuid: String(pick(p, 'block/uuid') ?? ''), ident: bare(pick(p, 'db/ident')), title: String(pick(p, 'block/title') ?? ''),
     type: bare(pick(p, 'logseq.property/type')) || 'default', many: /many$/.test(bare(pick(p, 'db/cardinality'))), choice: choice.has(idOf(p)), range: listOf(pick(p, RANGE)).map(idOf).filter(id => own.has(id)) }));
@@ -88,13 +93,22 @@ async function setRange(propUuid, tagIds) {
   await logseq.Editor.removeBlockProperty(propUuid, RANGE).catch(() => {});
   for (const id of tagIds) await logseq.Editor.upsertBlockProperty(propUuid, RANGE, id, { entityId: true });
 }
+// Logseq's createPage hands back whatever already holds a name, a tag, a page or a property, with no error (seen in 2.0.2).
+const nameTaken = async name => (await query(`[:find ?p :where [?p :block/name ${JSON.stringify(String(name).trim().toLowerCase())}] (not [?p :logseq.property/deleted-at _])]`)).length > 0;
 async function makeTag(name) {
+  if (await nameTaken(name)) throw new Error(`“${name}” is already in the graph`);
   const page = await logseq.Editor.createPage(name, {}, { redirect: false, class: true, createFirstBlock: false });
   if (!page?.uuid) throw new Error(`${name} could not be made a tag`);
   return { uuid: String(page.uuid), id: page.id ?? (await tagIdByUuid(String(page.uuid))) };
 }
+// A deleted tag made again. Its name may be held by now (two tags of one name, merged), and Logseq allows no rename onto a tag's name: the next free one.
+async function remakeTag(name) {
+  let free = name;
+  for (let n = 2; await nameTaken(free); n++) free = `${name} ${n}`;
+  return makeTag(free);
+}
 const deleteTag = uuid => logseq.Editor.deletePage(uuid);
 const editing = () => Promise.resolve(logseq.Editor.checkEditing?.()).then(v => !!v).catch(() => false);
 
-S.db = { query, read, nodesOf, valuesOf, nodesWhere, tagOfPage, tagIdByUuid, valueRefs, valueIds, rangeIds, setValues, addExtends, removeExtends, rename, addTag, removeTag, addClassProp, removeClassProp, setRange, makeTag, deleteTag, editing, bare, pick, idOf };
+S.db = { query, read, nodesOf, valuesOf, nodesWhere, tagOfPage, tagIdByUuid, valueRefs, valueIds, rangeIds, setValues, addExtends, removeExtends, rename, addTag, removeTag, addClassProp, removeClassProp, setRange, nameTaken, makeTag, remakeTag, deleteTag, editing, bare, pick, idOf };
 })();

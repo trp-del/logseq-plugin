@@ -106,4 +106,17 @@ tray.stage({ kind: 'rename', tag: id('Phenomenon'), name: 'Phenomena' }); assert
 plan = tray.plan(); deq(plan.map(s => s.op), ['removeExtends', 'makeTag', 'rename']); assert.equal(plan[0].parent.title, 'Occurrence'); assert.equal(plan[1].parent, null); assert.equal(plan[2].tag.title, 'Phenomenon'); assert.equal(plan[2].name, 'Phenomena');
 tray.discard();
 console.log('  ok  the plan: steps in order, handles shared, what Undo needs kept; the root and the kinds');
+
+// A merge: a node that held both tags gets no addTag, so Undo cannot take the kept tag from it; child tags are taken off before
+// the delete; the sentence says what no Undo brings back.
+const pair = S.changes.makeTray();
+pair.setBase({ tags: [{ id: 1, uuid: 'from', title: 'From', parents: [], props: [], bullets: 3, links: 12 }, { id: 2, uuid: 'kept', title: 'Kept', parents: [], props: [] }, { id: 3, uuid: 'kid', title: 'Kid', parents: [1], props: [] }, { id: 4, uuid: 'to', title: 'To', parents: [], props: [] }],
+  props: [], nodes: { 1: [{ id: 10, uuid: 'both' }, { id: 11, uuid: 'one' }], 2: [{ id: 10, uuid: 'both' }] } });
+pair.stage({ kind: 'merge', from: 1, into: 2 });
+assert.equal(pair.lines()[0].text, 'Merge From into Kept, From removed · 3 bullets on its page go · 12 links become words');
+deq(pair.plan().map(s => [s.op, s.node ?? s.tag.title, s.parent?.title ?? s.tag?.title]), [['removeTag', 'both', 'From'], ['addTag', 'one', 'Kept'], ['removeTag', 'one', 'From'], ['addExtends', 'Kid', 'Kept'], ['removeExtends', 'Kid', 'From'], ['deleteTag', 'From', 'From']]);
+assert.equal(pair.model.tags.get(2).nodeUuids.length, 2, 'a node held twice is one');
+pair.discard(); pair.stage({ kind: 'retag', from: 1, to: 2, nodes: [{ id: 10, uuid: 'both' }] });
+deq(pair.plan().map(s => s.op), ['removeTag'], 'a retag leaves alone a node that already holds the tag');
+console.log('  ok  a merge: what a node held is left, child tags taken off first, what cannot come back said');
 console.log('core: every check passed');

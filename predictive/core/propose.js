@@ -92,7 +92,12 @@ const mostlyAhead = ev => ev.other >= DATED_LEAST && ev.other > ev.same;
 const datedAhead = ev => ev.other >= ev.same;
 
 const dayIdFor = (ctx, day) => (ctx.dayIds ||= new Map([...(ctx.days || [])].map(([id, d]) => [d, id]))).get(day) ?? null;
-const dayText = (ctx, day) => day ? `${(ctx.reader.locale.months[Math.floor(day / 100) % 100 - 1] || '').slice(0, 3).replace(/^./, c => c.toUpperCase())} ${day % 100}` : '';
+// A day as the pencil shows it, with the year when it is not this year.
+const dayText = (ctx, day) => {
+  if (!day) return '';
+  const year = Math.floor(day / 10000);
+  return `${(ctx.reader.locale.months[Math.floor(day / 100) % 100 - 1] || '').slice(0, 3).replace(/^./, c => c.toUpperCase())} ${day % 100}${year === new Date().getFullYear() ? '' : `, ${year}`}`;
+};
 
 // The tag of the nodes an untagged bullet looks like: by its words and links alone, among every node the engine knows;
 // the nearest vote, under the tag's own stricter limits. Plain lines vote "no tag" (0), so a line like many plain notes

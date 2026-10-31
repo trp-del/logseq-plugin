@@ -26,6 +26,7 @@ const visits = [
 const block = (text, over = {}) => ({ 'db/id': 400, 'block/uuid': U(400), 'block/title': text, 'block/tags': [{ 'db/id': 11 }],
   'block/page': { 'db/id': 500, 'block/uuid': U(500), 'block/title': 'Oct 28th, 2026', 'block/journal-day': 20261028, 'block/tags': [] }, ...over });
 
+const saved = new Map();   // the bullets of the writing check, by uuid, as Logseq holds them
 function fakeQuery(query) {
   const has = (...parts) => parts.every(p => query.includes(p));
   if (has('logseq.property/classes', 'logseq.class/Property')) return [[doctorProp]];
@@ -39,7 +40,7 @@ function fakeQuery(query) {
   if (has('not [?b :block/tags _]')) return [[600, 'Bought bread and milk on the way home']];
   if (has('?o :block/alias ?a')) return [];
   if (has('[?p :block/journal-day ?d]')) return [[500, 20261028]];
-  if (has('#uuid')) return [[block(`Saw [[${U(21)}]] today`)]];
+  if (has('#uuid')) return [[saved.get(query.match(/#uuid "([^"]+)"/)[1]) || block(`Saw [[${U(21)}]] today`)]];
   return [];
 }
 const doc = { activeElement: null, body: { append() {} }, documentElement: { classList: { toggle() {}, remove() {} } }, querySelectorAll: () => [], querySelector: () => null, defaultView: {
@@ -113,5 +114,54 @@ for (const file of order) vm.runInContext(fs.readFileSync(path.join(root, file),
   assert.equal(same.length, 1);
   assert.equal(await Flow.app.allowed(), true);
   console.log('  ok  fresh page lookup and the per-graph switch');
+
+  // Writing, on a page of real elements (jsdom): passing through a bullet, writing in one, and the Undo arrow.
+  let JSDOM; try { ({ JSDOM } = require('jsdom')); } catch (error) { console.log('  skipped writing on a page: needs jsdom (set NODE_PATH)'); process.exit(0); }
+  const A = U(400), B = U(401), C = U(402), rowHtml = uuid => `<div class="ls-block" blockid="${uuid}"><div class="block-main-container"><div class="block-title-wrap"><textarea></textarea></div></div></div>`;
+  const page = new JSDOM(`<html><body><div id="main-content-container">${[A, B, C].map(rowHtml).join('')}</div></body></html>`, { pretendToBeVisual: true }), hostDoc = page.window.document;
+  window.parent = { document: hostDoc };
+  logseq.DB.datascriptQuery = async q => fakeQuery(q);
+  logseq.DB.onChanged = () => {};
+  const writes = [], ident = 'user.property/doctor', box = uuid => hostDoc.querySelector(`[blockid="${uuid}"] textarea`), line = n => `Saw [[${U(21)}]] today${n}`;
+  for (const [uuid, id] of [[A, 410], [B, 411], [C, 412]]) { saved.set(uuid, block(line(''), { 'db/id': id, 'block/uuid': uuid })); box(uuid).value = 'Saw [[Ruth Okoro]] today'; }
+  logseq.Editor.upsertBlockProperty = async (uuid, key, value) => { writes.push(['set', uuid]); saved.get(uuid)[key] = [{ 'db/id': value }]; };
+  logseq.Editor.removeBlockProperty = async (uuid, key) => { writes.push(['unset', uuid]); delete saved.get(uuid)[key]; };
+  logseq.Editor.addBlockTag = async () => {}; logseq.Editor.removeBlockTag = async () => {};
+  const wait = ms => new Promise(r => setTimeout(r, ms)), P = Flow.proposeUi;
+  P.start();
+  const enter = async uuid => { box(uuid).focus(); await wait(120); };
+  const leave = async () => { hostDoc.activeElement.blur(); await wait(350); };
+  const type = async (uuid, more) => { box(uuid).value += more; saved.get(uuid)['block/title'] = line(more); box(uuid).dispatchEvent(new page.window.Event('input', { bubbles: true })); await wait(120); };
+  const arrows = () => [...hostDoc.querySelectorAll('.flow-undo')];
+
+  await enter(A);
+  assert.ok(hostDoc.querySelector('.flow-ghost'), 'an old bullet still shows its pencils');
+  await leave();
+  assert.deepEqual(writes, [], 'a bullet only passed through is not written to');
+  console.log('  ok  passing through a bullet writes nothing');
+
+  await enter(A); await type(A, ' again'); await leave();
+  assert.deepEqual(writes, [['set', A]], 'a bullet written in gets its sure value on leaving');
+  assert.equal(arrows().length, 1);
+  await enter(B); await type(B, ' again'); await leave();
+  assert.deepEqual(writes, [['set', A], ['set', B]]);
+  assert.equal(arrows().length, 1, 'a new change’s arrow takes the last one’s place');
+  assert.equal(arrows()[0].closest('.ls-block').getAttribute('blockid'), B, 'and stands on the new bullet');
+  arrows()[0].click(); await wait(50);
+  assert.deepEqual(writes.at(-1), ['unset', B], 'the arrow takes off its own change');
+  assert.ok(saved.get(A)[ident], 'and leaves the other bullet as it was');
+  console.log('  ok  one arrow, on the last change, undoing only that change');
+
+  writes.length = 0;
+  await enter(B); await type(B, ' more'); await leave();
+  assert.deepEqual(writes, [], 'what an Undo took off stays off, even after more words');
+  assert.ok(!hostDoc.querySelector(`[blockid="${B}"] .flow-ghost`), 'and its pencil with it');
+  console.log('  ok  an Undo keeps that bullet quiet');
+
+  await enter(C);
+  assert.ok(hostDoc.querySelector(`[blockid="${C}"] .flow-ghost`));
+  box(C).dispatchEvent(new page.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })); await leave();
+  assert.deepEqual(writes, [['set', C]], 'Enter on a passed-through bullet takes what is shown');
+  console.log('  ok  Enter still takes everything shown');
   process.exit(0);
 })().catch(error => { console.error('FAIL ', error); process.exit(1); });

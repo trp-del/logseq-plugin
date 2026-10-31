@@ -13,7 +13,7 @@ const raw = sample(), id = n => raw.idOf.get(n), pid = n => raw.propIdOf.get(n),
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // The graph as Logseq's queries hand it back: pulled maps with shortened keys, idents with a colon.
-const calls = [];
+const calls = [], taken = new Set();   // taken: names some other page, tag or property holds
 let live = JSON.parse(JSON.stringify({ tags: raw.tags, props: raw.props, nodes: raw.nodes, holders: raw.holders }));
 function fakeQuery(q) {
   const has = (...p) => p.every(x => q.includes(x));
@@ -25,6 +25,8 @@ function fakeQuery(q) {
   if (has('(count ?v)')) return raw.pointed.map(([a, t, n]) => [':' + a, t, n]);
   if (has('(max ?c)')) return [[id('Consultation'), Date.UTC(2026, 9, 28)]];
   if (has('[?b :block/title ?title] [(get-else')) { const t = Number(q.match(/:block\/tags (\d+)/)[1]); return (live.nodes[t] || []).slice(0, 30).map((n, i) => [n.uuid, `Node ${i + 1} of tag ${t}`, 1000 + i, i % 2 ? 0 : 7]); }
+  if (has('[?p :block/name ')) return taken.has(JSON.parse(q.match(/:block\/name ("[^"]*")/)[1])) ? [[1]] : [];
+  if (has('[?b :block/page ?t]') || has('clojure.string/includes?')) return [];
   if (has('(count ?b)')) return [[1, 'follow-up', 19], [2, 'first', 71]];
   if (has('[?p :block/uuid #uuid')) return [[id('Consultation')]];
   return [];
@@ -196,10 +198,30 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   deq(app.tray.lines().slice(1).map(l => l.text), ['Take Stay out from under Medical event', 'Take Procedure out from under Medical event']); assert.equal(app.tray.model.loose.length, 2);
   app.discard();
   // A new tag under no kind (the root row has a card of its own), and a kind renamed.
-  app.st.cur = 'N'; app.draw(); assert.equal(text(R.querySelector('.st-card h2')), 'Not under a kind'); click(R.querySelector('[data-do="new"]')); const nf = R.querySelector('[data-edit]'); assert.ok(nf); nf.value = 'Scratch'; key(nf, 'Enter');
+  app.st.cur = 'N'; app.draw(); assert.equal(text(R.querySelector('.st-card h2')), 'Not under a kind'); click(R.querySelector('[data-do="new"]')); const nf = R.querySelector('[data-edit]'); assert.ok(nf); nf.value = 'Scratch'; key(nf, 'Enter'); await sleep(10);
   assert.equal(app.tray.lines()[0].text, 'Make Scratch under no kind'); assert.ok(app.st.cur < 0);
   app.st.cur = id('Phenomenon'); app.draw(); click(R.querySelector('[data-do="rename"]')); const kf = R.querySelector('[data-edit]'); assert.ok(kf, 'a kind can be renamed'); kf.value = 'Phenomena'; key(kf, 'Enter');
   assert.equal(app.tray.lines()[1].text, 'Rename Phenomenon to Phenomena'); app.discard();
+  // A new tag cannot take a name in use, a tag's or a page's: the line stays and says so; and Apply refuses one that came to be taken.
+  taken.add('dr. mei chen');
+  for (const name of ['consultation', 'Dr. Mei Chen']) {
+    app.st.cur = 'N'; app.draw(); click(R.querySelector('[data-do="new"]')); const typed = R.querySelector('[data-edit]'); typed.value = name; typed.dispatchEvent(new win.Event('input', { bubbles: true })); calls.length = 0; key(typed, 'Enter'); await sleep(10);
+    assert.equal(app.tray.changes.length, 0, name + ' is not staged'); assert.ok(calls.some(c => c[0] === 'notify' && c[2].includes('already in the graph')), 'a notice says so'); assert.equal(R.querySelector('[data-edit]')?.value, name, 'the line stays, the words in it');
+    key(R.querySelector('[data-edit]'), 'Escape');
+  }
+  app.stage({ kind: 'make', name: 'Late', under: null }); taken.add('late'); calls.length = 0; await app.apply();
+  assert.ok(!calls.some(c => c[0] === 'createPage'), 'Apply refuses a name taken since'); assert.ok(calls.some(c => c[0] === 'notify' && c[2].includes('already in the graph')));
+  app.discard(); taken.clear();
+  // A merge's child tags: taken off before the delete, so no Root Tag stays on them, and back under the tag Undo makes. A name
+  // held by the kept tag (two of one name) is not reused: Logseq's createPage would hand the kept tag back.
+  const medical = raw.tags.find(t => t.title === 'Medical event'), child = raw.tags.find(t => t.parents[0] === medical.id), keptTag = raw.tags.find(t => t.title === 'Treatment');
+  app.stage({ kind: 'merge', from: medical.id, into: keptTag.id }); calls.length = 0; await app.apply();
+  const offKid = calls.findIndex(c => c[0] === 'removeTagExtends' && c[1] === child.uuid && c[2] === medical.uuid), gone = calls.findIndex(c => c[0] === 'deletePage' && c[1] === medical.uuid);
+  assert.ok(offKid >= 0 && offKid < gone, 'the child tag is taken off before its parent goes');
+  taken.add('medical event'); calls.length = 0; await app.undo();
+  assert.ok(calls.some(c => c[0] === 'createPage' && c[1] === 'Medical event 2') && !calls.some(c => c[0] === 'createPage' && c[1] === 'Medical event'), 'the next free name, not the one held');
+  assert.ok(calls.some(c => c[0] === 'addTagExtends' && c[1] === child.uuid && c[2] === 'new-Medical event 2'), 'the child back under the tag Undo made');
+  taken.clear();
   // Find reveals the path; typing on the tree is finding.
   app.st.view = 'tree'; app.draw(); key(R, 'r'); key(R.querySelector('[data-find]'), 'e'); const find = R.querySelector('[data-find]'); find.value = 'res'; find.dispatchEvent(new win.Event('input', { bubbles: true }));
   rows = [...R.querySelectorAll('.st-row[data-row]')];

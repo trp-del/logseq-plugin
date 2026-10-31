@@ -1,8 +1,9 @@
 /* Apply and the one Undo. The tray's plan is a list of steps (core/changes.js); each is run through logseq/db.js in
    order and its inverse kept, so the lot can be put back in reverse by one arrow. A step that fails stops the batch
    and the steps already made are put back at once. A tag deleted by a merge or a removal comes back from Undo as a new
-   tag of the same name, in the same place, with the same declared properties; its nodes get it back as the retagging steps
-   before the deletion are undone. */
+   tag of the same name (the next free one when another tag holds it), in the same place, with the same declared properties;
+   its nodes and child tags get it back as the steps before the deletion are undone. The words on its page and the links to it
+   in bullets do not come back. */
 (function () {
 const S = window.Structure;
 const db = S.db;
@@ -30,7 +31,7 @@ async function runStep(s, undo) {
       }
       await db.deleteTag(h.uuid);
       undo.push(async () => {
-        const made = await db.makeTag(r.title); h.uuid = made.uuid; h.realId = made.id;
+        const made = await db.remakeTag(r.title); h.uuid = made.uuid; h.realId = made.id;
         for (const p of r.parents) if (p.uuid) await db.addExtends(h.uuid, p.uuid);
         for (const p of r.props) await db.addClassProp(h.uuid, p.id);
         for (const p of r.ranges || []) { const ids = await db.rangeIds(p.uuid); if (!ids.includes(made.id)) await db.setRange(p.uuid, [...ids, made.id]); }

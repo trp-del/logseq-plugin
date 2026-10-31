@@ -220,7 +220,7 @@ async function finishBullet() {
   if (!Flow.text.UUID.test(uuid)) return;
   picking.returning = uuid;
   try {
-    if (live) P.leave(live, P.shownGuesses(live));   // the fill goes on behind the next bullet
+    if (live) P.leave(live, P.shownPieces(live));   // the fill goes on behind the next bullet
     if (S.hushed.uuid === uuid) S.hushed.uuid = '';
     // Where Logseq's own Enter puts it: the first child of a bullet whose children show, else the next sibling.
     const row = recordRow(host(), uuid);

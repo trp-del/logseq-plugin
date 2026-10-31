@@ -16,14 +16,14 @@ const KINDS = [
 const LOOSE = 'N';   // the row under which tags under no kind are gathered
 const byTitle = (a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' });
 
-/* raw: { tags: [{ id, uuid, title, parents: [tagId], props: [propId] }], props: [{ id, uuid, ident, title, type, many,
+/* raw: { tags: [{ id, uuid, title, parents: [tagId], props: [propId], bullets: on its page, links: to it in bullets' words }], props: [{ id, uuid, ident, title, type, many,
    choice, range: [tagId] }], nodes: { tagId: [{ id, uuid }] }, holders: { ident: [nodeId] }, pointed: [[ident, tagId, n]],
    newest: { tagId: ms } }. Only the graph's own tags and properties; a parent that is Logseq's Root is left out. */
 function build(raw) {
   const M = { tags: new Map(), props: new Map(), byIdent: new Map(), kinds: [], loose: [], holders: new Map(), pointed: new Map(), newest: new Map(raw.newest ? Object.entries(raw.newest).map(([k, v]) => [Number(k), v]) : []), memo: new Map(), nextId: -1 };
   for (const p of raw.props || []) M.props.set(p.id, { id: p.id, uuid: p.uuid || '', ident: p.ident, title: p.title, type: p.type || 'default', many: !!p.many, choice: !!p.choice, range: [...(p.range || [])], on: [] });
   for (const p of M.props.values()) M.byIdent.set(p.ident, p);
-  for (const t of raw.tags || []) M.tags.set(t.id, { id: t.id, uuid: t.uuid || '', title: t.title, parents: [...(t.parents || [])], props: [...(t.props || [])].filter(id => M.props.has(id)), kids: [], nodes: new Set((raw.nodes?.[t.id] || []).map(n => typeof n === 'object' ? n.id : n)), nodeUuids: (raw.nodes?.[t.id] || []).map(n => typeof n === 'object' ? n.uuid : null).filter(Boolean) });
+  for (const t of raw.tags || []) M.tags.set(t.id, { id: t.id, uuid: t.uuid || '', title: t.title, parents: [...(t.parents || [])], props: [...(t.props || [])].filter(id => M.props.has(id)), kids: [], nodes: new Set((raw.nodes?.[t.id] || []).map(n => typeof n === 'object' ? n.id : n)), nodeUuids: (raw.nodes?.[t.id] || []).map(n => typeof n === 'object' ? n.uuid : null).filter(Boolean), bullets: t.bullets || 0, links: t.links || 0 });
   for (const t of M.tags.values()) t.parents = t.parents.filter(id => M.tags.has(id) && id !== t.id);
   for (const [ident, ids] of Object.entries(raw.holders || {})) M.holders.set(ident, new Set(ids));
   for (const [ident, tagId, n] of raw.pointed || []) { if (!M.pointed.has(ident)) M.pointed.set(ident, new Map()); M.pointed.get(ident).set(tagId, n); }

@@ -1,6 +1,6 @@
 /* The printed page previewed as sheets: the document's blocks dealt onto pages of the paper's size with the chosen margins,
    each sheet with its footer and page number, as Chromium will break them (a paragraph, a list item, a figure or a row
-   stays whole; a heading never ends a page). Measured in the preview's own document, so this file needs a screen; it
+   stays whole; a heading never ends a page, unless what follows it needs a sheet of its own). Measured in the preview's own document, so this file needs a screen; it
    knows nothing of Logseq. The sheets stay editable: the blocks are moved, not copied, and gather() puts them back in
    order (lists and tables that were split joined again) for the export. */
 (function () {
@@ -71,6 +71,7 @@ function paginate(doc, opts) {
     if (overflows() && onPage > 1) {
       let back = 1;   // this unit goes to the next page, with any heading that would be left at the foot of this one
       while (onPage - back > 0 && isHead(units[i - back].el)) back += 1;
+      if (back === onPage) back = 1;   // nothing but headings before it: moved too, the same sheet would come again, for ever. They stay, and it goes on alone.
       for (let k = 0; k < back; k++) takeBack(units[i - k]);
       i = i - back + 1;
       newPage();

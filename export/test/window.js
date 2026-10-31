@@ -71,5 +71,23 @@ const key = (target, name, init = {}) => target.dispatchEvent(new dom.window.Key
   E.ui.sweep();
   assert.equal(hostDoc.querySelectorAll('.xp, #xp-style').length, 0, 'nothing left in Logseq’s document');
   console.log('  ok  the export window: in Logseq’s document, the grammar’s names, keys kept, Escape and ⌘-Enter, swept');
+
+  // The preview's sheets, on set heights (a sheet holds 1000): a heading goes over with what follows it, and when what
+  // follows is taller than a whole sheet can give it after the heading, the heading stays and the dealing goes on.
+  const sheets = new JSDOM('<html><head></head><body></body></html>').window, deal = html => {
+    const d = sheets.document, heights = el => [...el.querySelectorAll('[data-h]')].reduce((sum, n) => sum + Number(n.dataset.h), 0);
+    for (const p of d.querySelectorAll('.pv-page, .x-doc')) p.remove();
+    d.body.insertAdjacentHTML('beforeend', `<div class="x-doc">${html}</div>`);
+    let asked = 0;
+    Object.defineProperty(sheets.HTMLElement.prototype, 'scrollHeight', { configurable: true, get() { if (++asked > 500) throw new Error('sheets for ever'); return heights(this); } });
+    Object.defineProperty(sheets.HTMLElement.prototype, 'clientHeight', { configurable: true, get() { return 1000; } });
+    const n = E.preview.paginate(d, { paper: 'A4' });
+    return { n, pages: [...d.querySelectorAll('.pv-page .x-doc')].map(page => [...page.children].map(c => c.id)) };
+  };
+  assert.deepEqual(deal('<p id="a" data-h="900"></p><h2 id="b" data-h="50"></h2><p id="c" data-h="300"></p>').pages, [['a'], ['b', 'c']], 'a heading never ends a sheet');
+  assert.deepEqual(deal('<h2 id="a" data-h="50"></h2><p id="b" data-h="1500"></p><p id="c" data-h="100"></p>').pages, [['a'], ['b'], ['c']], 'a heading before something too tall stays, and the dealing goes on');
+  assert.deepEqual(deal('<h1 id="a" data-h="50"></h1><h2 id="b" data-h="50"></h2><p id="c" data-h="950"></p>').pages, [['a', 'b'], ['c']], 'two headings the same');
+  assert.deepEqual(deal('<p id="a" data-h="900"></p><div id="t" class="x-head" data-h="50"></div><p id="b" data-h="1500"></p>').pages, [['a'], ['t'], ['b']], 'moved to a new sheet first, then the same');
+  console.log('  ok  the preview’s sheets: a heading before something too tall never deals sheets for ever');
   process.exit(0);
 })().catch(error => { console.error('FAIL ', error); process.exit(1); });

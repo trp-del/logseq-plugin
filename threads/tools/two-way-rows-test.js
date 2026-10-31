@@ -709,6 +709,67 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     many.part.stop();
     NODES.splice(NODES.length - extra.length, extra.length);
   }
+  // A Deadline in a dug node (a Date-and-time, a timestamp on the node), and words cleared then put back through the row's arrow.
+  {
+    const { window, doc, calls, part } = world('');
+    await wait(120);
+    const provided = window.refinementCore.provided, node = U(103), TIME = new Date(2026, 10, 3, 12).getTime(), schema = await provided.propSchema();
+    let words = true;
+    provided.propSchema = async () => ({ props: [...schema.props,
+      { ident: 'logseq.property/deadline', title: 'Deadline', lower: 'deadline', type: 'datetime', many: false, choices: [], classes: [] },
+      { ident: 'user.property/note', title: 'Note', lower: 'note', type: 'default', many: false, choices: [], classes: [] }] });
+    provided.nodeValues = async (uuids, opts) => new Map(uuids.map(uuid => [uuid, new Map([...(opts?.logseqs ? [['Deadline', { ident: 'logseq.property/deadline', values: [{ day: 20261103, time: TIME }] }]] : []),
+      ['Note', { ident: 'user.property/note', values: words ? [{ text: 'the words', id: 880, uuid: U(880) }] : [] }]])]));
+    provided.valuesOf = async (uuid, ident) => ident === 'user.property/note' ? (words ? [880] : []) : [TIME];
+    provided.unsetValue = async (uuid, ident) => { calls.push(['unsetValue', uuid, ident]); words = false; };
+    provided.parseDay = () => new Date(2026, 10, 6);
+    provided.dayNumber = () => 20261106;
+    click(window, chevOf(doc, node));
+    await wait(120);
+    const lines = () => [...kidsOf(doc, node).querySelectorAll('.rf-ol-prop:not(.rf-tw-back)')];
+    const line = name => lines().find(l => l.querySelector('.rf-ol-pname').textContent.trim() === name);
+    check(/Nov 3/.test(line('Deadline')?.querySelector('.rf-ol-pv').textContent || ''), 'a Deadline should read its day, not "empty": ' + line('Deadline')?.textContent);
+    const inPlace = () => doc.querySelector('.rf-in-place');
+    const write = async (name, typed) => { click(window, line(name).querySelector('.rf-ol-pv [data-edit]')); await wait(80); inPlace().value = typed; inPlace().dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })); await wait(150); };
+    const undo = async sentence => { click(window, [...doc.querySelectorAll('.rf-undo')].find(u => sentence.test(u.title || ''))); await wait(150); };
+    const lastSet = () => calls.filter(c => c[0] === 'setValue').at(-1)?.slice(1);
+    await write('Deadline', 'friday');
+    check(lastSet()?.[2] === String(new Date(2026, 10, 6).getTime()) && !/entityId/.test(lastSet()[3]), 'a day written into a Date-and-time should be a moment, not an id: ' + lastSet());
+    await undo(/Set “Deadline”/);
+    check(lastSet()?.[2] === String(TIME) && !/entityId/.test(lastSet()[3]), 'Undo should put the moment back, not as an id: ' + lastSet());
+    await write('Note', '');
+    check(calls.some(c => c[0] === 'unsetValue' && c[2] === 'user.property/note'), 'the words should be cleared');
+    await undo(/Cleared “Note”/);
+    check(lastSet()?.[1] === 'user.property/note' && lastSet()?.[2] === '"the words"' && !/entityId/.test(lastSet()[3]), 'Undo after clearing words should put the words back, not the old value’s id: ' + lastSet());
+    part.stop();
+  }
+  // Select all takes what is shown; the question names pages apart from bullets; Enter on Cancel cancels, and Enter on the question deletes.
+  {
+    const { window, doc, calls, part } = world('');
+    await wait(120);
+    const provided = window.refinementCore.provided;
+    provided.getPage = async uuid => uuid === U(102) ? { name: 'gap', title: 'gap' } : { id: 5, uuid: PAGE };
+    provided.deletePage = async name => { calls.push(['deletePage', name]); };
+    click(window, doc.querySelector('.rf-tw-pick'));
+    await wait(20);
+    click(window, doc.querySelector('.rf-tw-bar [data-act="all"]'));
+    await wait(20);
+    check(/5 picked/.test(doc.querySelector('.rf-tw-bar .rf-count').textContent) && !doc.querySelector('.rf-tw-bar [data-act="all"]'), 'Select all should pick the five shown, not the one behind "show all": ' + doc.querySelector('.rf-tw-bar .rf-count').textContent);
+    click(window, doc.querySelector('.rf-tw-bar [data-act="delete"]'));
+    await wait(60);
+    check(doc.querySelector('.rf-ask-words')?.textContent === 'Delete 1 page with all its bullets and 4 bullets? This cannot be undone from here.', 'the question should name the page apart from the bullets: ' + doc.querySelector('.rf-ask-words')?.textContent);
+    const press = el => el.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+    const cancel = [...doc.querySelectorAll('.rf-ask .rf-btns button')].find(b => b.textContent === 'Cancel');
+    press(cancel);
+    await wait(60);
+    check(!doc.querySelector('.rf-ask') && !calls.some(c => c[0] === 'removeBlock' || c[0] === 'deletePage'), 'Enter on Cancel should close the question and delete nothing');
+    click(window, doc.querySelector('.rf-tw-bar [data-act="delete"]'));
+    await wait(60);
+    press(doc.querySelector('.rf-ask'));
+    await wait(120);
+    check(calls.filter(c => c[0] === 'removeBlock').length === 4 && calls.some(c => c[0] === 'deletePage' && c[1] === 'gap'), 'Enter on the question should delete what it names: ' + JSON.stringify(calls));
+    part.stop();
+  }
   console.log(problems.length ? `two-way-rows-test: ${problems.length} of ${cases} checks failed` : `two-way-rows-test: OK (${cases} checks)`);
   process.exit(problems.length ? 1 : 0);
 })().catch(error => { console.log('PROBLEM: ' + (error.stack || error)); process.exit(1); });
