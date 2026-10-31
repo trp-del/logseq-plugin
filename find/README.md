@@ -16,7 +16,7 @@ The search window as the first step of a walk. You find things the way you think
 
 **Typing** finds within what is left. The letters match the choices first: "mei" lights Dr. Mei Chen under Provider, and Tab makes her the filter; "oct" lights October; with no kind picked, "cons" lights Consultation. Meanwhile the rows narrow to the letters, with the letters in bold. Enter always opens the row the cursor is on: Tab narrows, Enter opens.
 
-**Words without a kind:** Logseq's own search answers (its index, its order, up to 80), each row read in full, and the kinds among the results are the choices, with counts.
+**Words without a kind:** Logseq's own search answers (its index, its order, up to 80), each row read in full, and the kinds among the results are the choices, with counts. Two words work as one: "mei chen" shows the kinds she is found under.
 
 **A row** is the grammar's row: the day in the margin, the chevron, the bullet, the words with links to pages as names (each a link of its own, with Look's mark), the kind in mono after the words, and at the right end the page a block sits on when that is not a journal day. The kind is left off the rows when it is the one picked.
 
@@ -28,7 +28,7 @@ The search window as the first step of a walk. You find things the way you think
 
 **Make a page:** with words typed and no kind picked, "make a page “…”" at the foot's right makes a page with those words as its name and opens it.
 
-**Keys:** type to find; Tab takes the lit choice, or with none lit steps into the choices (Left and Right along a line, Up and Down between lines, Tab or Enter takes one, Escape or Shift+Tab steps back); Enter opens the row the cursor is on, Shift+Enter in the sidebar; Up and Down along the rows, Up from the first row into the choices; Right and Left dig and close (in the letters they move the caret until its end); Backspace on an empty line takes the last pick off; Escape closes the deepest thing open (a dug row, the choices, then the window). The foot names what Tab and Enter do right now ("narrow to Consultation", "open Look test", "in the sidebar"), not a legend of keys. Logseq's own shortcuts sleep while the window is open.
+**Keys:** type to find; Tab takes the lit choice, or with none lit steps into the choices (Left and Right along a line, Up and Down between lines, Tab or Enter takes one, Escape or Shift+Tab steps back); Enter opens the row the cursor is on, Shift+Enter in the sidebar; Up and Down along the rows, Up from the first row into the choices; Right and Left dig and close (in the letters they move the caret until its end); Backspace on an empty line takes the last pick off; Escape closes the deepest thing open (a dug row, the choices, then the window). The foot names what Tab and Enter do right now ("narrow to Consultation", "open Look test", "in the sidebar"), not a legend of keys. Logseq's own shortcuts sleep while the window is open, and a press of the mouse anywhere in it leaves the keyboard in the find line. A change in the graph leaves an open window as it is; the next letter or the next opening reads it afresh.
 
 ## What it writes
 

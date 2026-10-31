@@ -47,6 +47,20 @@ const key = (target, name, init = {}) => target.dispatchEvent(new dom.window.Key
   assert.equal(tags.closest('.it').querySelector('.lk-name').textContent, '', 'no name over a switch in Show: the value says its own word');
   // The Page row stays folded until Page is pressed, and a choice elsewhere does not open it; the Show lists are headed by whose they are over all / none, the one in force in the text colour.
   const pageFold = win.querySelector('.xp-fold[data-panel=xp-page]'); assert.ok(pageFold.hidden, 'the Page row is folded when the window opens'); assert.ok(pageFold.hidden, 'and stays folded after a choice');
+  // Every pick inside a panel's row can be used: pressing it keeps the row, taking a value keeps the row and folds the pick.
+  const layout = win.querySelector('[data-pick=xp-layout]'), plain = layout.querySelector('select').value;
+  const setLayout = v => { layout.querySelector('.lk-value').click(); layout.querySelector(`.lk-alts span[data-v="${v}"]`).click(); };
+  setLayout('timeline'); await sleep(200);   // Dates shows on a dated style
+  for (const fold of win.querySelectorAll('.xp-fold')) for (const it of fold.querySelectorAll('.it[data-pick]')) {
+    const value = win.querySelector(`.it[data-panel=${fold.dataset.panel}] > .lk-value`), was = it.querySelector('select').value, alts = it.querySelectorAll('.lk-alts span');
+    value.click(); assert.ok(!fold.hidden, `${fold.dataset.panel} unfolds`);
+    it.querySelector('.lk-value').click(); assert.ok(!fold.hidden && it.classList.contains('open') && !it.querySelector('.lk-alts').hidden, `${it.dataset.pick} opens in its row`);
+    (alts[1] || alts[0]).click(); assert.ok(!fold.hidden && !it.classList.contains('open') && it.querySelector('.lk-alts').hidden, `taking a value of ${it.dataset.pick} leaves its row open`);
+    assert.equal(it.querySelector('select').value, (alts[1] || alts[0]).dataset.v, 'and the value is taken');
+    it.querySelector('.lk-value').click(); it.querySelector(`.lk-alts span[data-v="${was}"]`).click();
+    value.click(); assert.ok(fold.hidden, 'pressed again, the panel folds');
+  }
+  setLayout(plain); await sleep(200);
   assert.deepEqual([...win.querySelectorAll('.xp-lists .lk-name')].map(n => n.textContent), ['of the page', 'of the nodes']);
   const all = win.querySelector('.xp-all[data-role=nodes]'); assert.deepEqual([...all.children].map(a => [a.textContent, a.classList.contains('on')]), [['all', true], ['none', false]]);
   all.querySelector('[data-all="0"]').click(); assert.deepEqual([...all.children].map(a => a.classList.contains('on')), [false, true], 'none pressed: none in force'); all.querySelector('[data-all="1"]').click();

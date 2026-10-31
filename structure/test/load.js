@@ -102,7 +102,16 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   assert.ok(R.querySelector(`[data-row="${id('Consultation')}"] .nm .lk-pencil`) && R.querySelector('.st-card h2 .lk-pencil'), 'pencilled in with Look\'s name: the row and the card');
   // A single letter is not a command: typed on the tree, it finds.
   key(R, 'm'); assert.equal(app.st.find, 'm', 'a letter goes to the find box'); assert.ok(!R.querySelector('.st-prompt')); assert.equal(doc.activeElement, R.querySelector('[data-find]'));
+  // Letters typed in the box stay in order, the caret after the last, whatever the redraw between them.
+  for (const c of 'ons') { const b = R.querySelector('[data-find]'), at = b.selectionStart; b.value = b.value.slice(0, at) + c + b.value.slice(at); b.setSelectionRange(at + 1, at + 1); b.dispatchEvent(new win.Event('input', { bubbles: true })); }
+  assert.equal(app.st.find, 'mons'); assert.equal(doc.activeElement, R.querySelector('[data-find]')); assert.equal(doc.activeElement.selectionStart, 4, 'the caret stays after the last letter');
   key(R.querySelector('[data-find]'), 'Escape'); assert.equal(app.st.find, '');
+  // After any box the keyboard is the map's: the find box, a prompt, a tick by mouse.
+  assert.equal(doc.activeElement, R, 'Escape in the find box hands the keyboard back to the map');
+  R.querySelector('.st-card .act[data-do="move"]').click(); assert.equal(doc.activeElement, R.querySelector('[data-pin]'));
+  key(R.querySelector('[data-pin]'), 'Escape'); assert.equal(doc.activeElement, R, 'and so does Escape in a prompt');
+  const ticked = R.querySelector('.st-row .lk-tick'); ticked.focus(); ticked.click(); assert.equal(doc.activeElement, R, 'and a tick by mouse');
+  key(R, 'Escape'); assert.equal(app.st.ticks.size, 0, 'Escape then clears it');
   // Tick two with space, merge into the cursor's row from its card.
   app.st.cur = id('Procedure'); app.draw(); key(R, ' '); key(R, 'ArrowDown'); key(R, ' ');
   assert.equal(app.st.ticks.size, 2); assert.equal(R.querySelectorAll('.lk-tick:checked').length, 2); assert.ok(R.querySelector('.lk-list[data-picking]'), 'the list says it is being picked from'); assert.ok(text(R.querySelector('.st-pick')).startsWith('2 ticked'), 'the pick bar above the tree');
@@ -233,6 +242,10 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   assert.ok(!side.root.querySelector('.st-right') && !side.root.querySelector('.st-tray') && !side.root.querySelector('.lk-tick'), 'no card, no tray, no ticks');
   assert.equal(app.st.side.cur, id('Consultation'), 'opened on the page\'s tag'); assert.equal(app.st.cur, id('Stay'), 'the main view\'s cursor stays'); assert.ok(side.root.querySelector('.st-row.cur'));
   assert.ok(side.root.querySelector('.st-row .iss.own'), 'the same dot in the sidebar');
+  // The tree opened or clicked, then a bullet being written: no draw and no opening takes the keyboard from it.
+  const bullet = doc.body.appendChild(doc.createElement('textarea'));
+  side.root.focus(); bullet.focus(); await app.reread(); assert.equal(doc.activeElement, bullet, 'a read of the graph leaves the keyboard in the bullet');
+  side.focus(); assert.equal(doc.activeElement, bullet, 'and so does the sidebar opening'); bullet.remove(); side.root.focus();
   key(side.root, 'Enter'); assert.equal(app.st.cur, id('Consultation')); assert.equal(text(R.querySelector('.st-trail')), 'Stay›');
   // Taken down.
   await unload(); assert.equal(doc.querySelectorAll('.st').length, 0); assert.ok(!doc.getElementById('st-style'));

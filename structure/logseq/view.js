@@ -227,7 +227,7 @@ function make(holder, mode, app) {
   const own = id => R.issuesOn(ISS(), id).length, below = id => R.issuesUnder(M(), ISS(), id).length;
   const touched = () => app.touched();
   const waitTag = id => touched().tags.has(id) ? 'wait' : '', waitProp = id => touched().props.has(id) ? 'wait' : '';
-  let wantFocus = true;
+  let wantFocus = false;   // a press in this view asked for the keyboard; nothing else takes it
 
   // ---------- the tree ----------
   function visibleRows() {
@@ -494,6 +494,7 @@ function make(holder, mode, app) {
   // ---------- draw ----------
   function draw() {
     const active = doc.activeElement, hadFocus = root.contains(active) || wantFocus;
+    const finding = !wantFocus && root.contains(active) && active.matches('[data-find]') ? active.selectionStart : null;
     const scroll = root.querySelector('.st-tree')?.scrollTop, scrollR = root.querySelector('.st-right')?.scrollTop;
     let h = treeHtml();
     if (mode === 'page') {
@@ -508,10 +509,13 @@ function make(holder, mode, app) {
     if (scrollR && root.querySelector('.st-right')) root.querySelector('.st-right').scrollTop = scrollR;
     root.querySelector('.st-row.cur')?.scrollIntoView?.({ block: 'nearest' });
     const pin = root.querySelector('[data-pin]'), edit = root.querySelector('[data-edit]');
+    wantFocus = false;
+    if (!hadFocus) return;   // the keyboard is elsewhere, in a bullet being written, say: a draw leaves it there
+    const box = finding != null && root.querySelector('[data-find]');
     if (pin && st.prompt.owner === mode) { pin.focus(); pin.setSelectionRange(pin.value.length, pin.value.length); }
     else if (edit && st.edit.owner === mode) { edit.focus(); edit.select(); }
-    else if (hadFocus && active?.tagName !== 'INPUT') root.focus({ preventScroll: true });
-    wantFocus = false;
+    else if (box) { box.focus(); box.setSelectionRange(finding, finding); }
+    else root.focus({ preventScroll: true });
   }
 
   // ---------- going places: the trail ----------
@@ -687,7 +691,7 @@ function make(holder, mode, app) {
     redraw();
   });
   root.addEventListener('input', e => {
-    if (e.target.matches('[data-find]')) { loc.find = e.target.value; draw(); root.querySelector('[data-find]').focus(); }
+    if (e.target.matches('[data-find]')) { loc.find = e.target.value; draw(); }
     else if (e.target.matches('[data-pin]')) { st.prompt.text = e.target.value; st.prompt.lit = 0; draw(); }
     else if (e.target.matches('[data-edit]')) st.edit.text = e.target.value;
   });
@@ -752,9 +756,8 @@ function make(holder, mode, app) {
     else return;
     e.preventDefault(); redraw();
   });
-  root.addEventListener('focus', () => { wantFocus = true; }, true);
 
-  const view = { root, mode, draw, destroy: () => { app.views.delete(view); root.remove(); }, focus: () => { wantFocus = true; root.focus({ preventScroll: true }); } };
+  const view = { root, mode, draw, destroy: () => { app.views.delete(view); root.remove(); }, focus: () => { if (!doc.activeElement?.matches('input, textarea, [contenteditable="true"]')) root.focus({ preventScroll: true }); } };
   app.views.add(view);
   return view;
 }

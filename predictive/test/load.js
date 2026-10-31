@@ -163,5 +163,17 @@ for (const file of order) vm.runInContext(fs.readFileSync(path.join(root, file),
   box(C).dispatchEvent(new page.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })); await leave();
   assert.deepEqual(writes, [['set', C]], 'Enter on a passed-through bullet takes what is shown');
   console.log('  ok  Enter still takes everything shown');
+
+  // Down is Logseq's, also at the very end of a bullet that has properties.
+  const row = hostDoc.querySelector(`[blockid="${A}"]`), under = hostDoc.createElement('div');
+  under.className = 'positioned-properties block-below';
+  under.innerHTML = '<div class="bottom-property-pill"><span>Doctor:</span><button class="empty-value">Empty</button></div>';
+  row.append(under);
+  box(A).focus(); box(A).setSelectionRange(box(A).value.length, box(A).value.length);
+  const down = new page.window.KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true });
+  box(A).addEventListener('keydown', Flow.steps.onPickKey);
+  box(A).dispatchEvent(down);
+  assert.ok(!down.defaultPrevented && !Flow.steps.picking.uuid, 'Down at the end of the words is left to Logseq');
+  console.log('  ok  Down is left to Logseq');
   process.exit(0);
 })().catch(error => { console.error('FAIL ', error); process.exit(1); });

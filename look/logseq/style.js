@@ -46,7 +46,7 @@ ${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill:not(:
 ${AREA} .ls-block .positioned-properties.block-below,
 ${AREA} .ls-block .positioned-properties.block-below .bottom-properties-row,
 ${AREA} .ls-block .positioned-properties.block-below .bottom-properties-pills-strip { margin-inline: -4px !important; padding-inline: 4px !important; width: calc(100% + 8px) !important; max-width: none !important; }
-${AREA} .ls-block .positioned-properties.block-below .bottom-properties-pills-strip { margin-block: -2px !important; padding-block: 2px !important; }
+${AREA} .ls-block .positioned-properties.block-below .bottom-properties-pills-strip { margin-block: -2px !important; padding-block: 2px !important; width: 0 !important; }
 ${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill:focus-within::after { inset: -2px 0 !important; border-radius: 6px !important; box-shadow: inset 0 0 0 1px var(--lk-line) !important; }
 ${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill${FILLED} ~ .bottom-property-pill::before { content: '·'; display: inline-block; width: 12px; color: var(--lk-faint); }
 ${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill${FILLED} ~ .bottom-property-pill:focus-within::after { left: 16px !important; }`;

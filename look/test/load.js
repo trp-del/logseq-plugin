@@ -23,6 +23,7 @@ const { U, load, pencilled } = standIn;
   assert.ok(/^[^.]*a\.page-ref:is\(\[data-uuid\^="00000001-"\][^{]*\{ color: var\(--lk-quiet\)/m.test(styles['look-days']), 'a day in the words stays quiet');
   // the dot between a bullet's properties also stands before a pencilled one
   assert.ok(styles['look-capsules'].includes(':is(:not(:has(.empty-value)), :has(.lk-pencil)) ~ .bottom-property-pill::before'), 'a pencilled property counts as filled for the dot');
+  assert.ok(/\.bottom-properties-pills-strip \{[^}]*width: 0 !important/.test(styles['look-capsules']), 'the strip of properties is given no width of its own, so it cannot widen the bullet\'s words past the pane');
   // the shared names: a pencilled tag fades once; the one alternative in force takes the text colour
   assert.ok(styles['look-shared'].includes('.lk-pencil .lk-tag, .lk-tag.lk-pencil { opacity: 1; }'), 'a pencilled tag fades once');
   assert.ok(styles['look-shared'].includes('.lk-alts > * { color: var(--lk-faint) !important; }') && styles['look-shared'].includes('.lk-alts { color: inherit !important; }'), 'the alternatives faint one by one, the line itself in the text colour');

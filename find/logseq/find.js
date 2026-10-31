@@ -100,7 +100,7 @@ const S = {
   dlg: null, doc: null, gen: 0, timer: 0,
   picks: [], typed: '', mode: 'rows', rowAt: 0, choiceAt: 0,
   kinds: [], recents: [], base: [], shown: [], facets: null, allShown: false, moreOf: new Set(),
-  dug: [], dugData: new Map(), openGroups: new Set(), groupAll: new Set(),
+  dug: [], dugData: new Map(), openGroups: new Set(), groupAll: new Set(), stale: false,
   cache: { kind: new Map(), kindFacets: new Map(), words: new Map() }, loading: false, failed: '', commands: null, tallest: 0,
 };
 const setting = key => Find.settings.setting(key);
@@ -179,8 +179,8 @@ function kindCounts(nodes) {
 /* The choices, as groups of items; each item knows how to pick itself. */
 function choiceGroups() {
   const groups = [];
-  const ws = words(), typed = ws.length === 1 ? ws[0] : '';
-  const matches = label => !typed || label.toLowerCase().split(/[\s,./()-]+/).some(w => w.startsWith(typed)) || label.toLowerCase().startsWith(typed);
+  const ws = words(), typed = ws.length > 0;
+  const matches = label => ws.every(w => label.toLowerCase().split(/[\s,./()-]+/).some(l => l.startsWith(w)) || label.toLowerCase().startsWith(w));
   const tag = kindPick();
   const limit = key => S.moreOf.has(key) ? 999 : 3;
   if (!tag) {
@@ -568,9 +568,10 @@ function open() {
   const doc = host();
   close();
   S.commands = null; S.tallest = 0;
+  if (S.stale) { S.stale = false; S.kinds = []; S.recents = []; S.dugData.clear(); }
   style('find', CSS);
   const dlg = el(doc, 'dialog', { class: 'fd fd-own ' + (setting('windowPlace') === 'centred' ? 'fd-centred' : 'fd-high'), 'aria-label': 'Find' });
-  const find = el(doc, 'div', { class: 'fd-find', click: () => dlg.querySelector('.fd-input').focus() });
+  const find = el(doc, 'div', { class: 'fd-find' });
   const input = el(doc, 'input', { class: 'fd-input', type: 'text', spellcheck: 'false', autocomplete: 'off', autocapitalize: 'off', placeholder: 'pick a kind, or type' });
   input.addEventListener('input', onInput);
   find.append(input);
@@ -580,6 +581,7 @@ function open() {
   S.keys = event => { if (S.dlg === dlg && dlg.contains(event.target)) onKey(event); };
   doc.addEventListener('keydown', S.keys, true);
   for (const type of ['keyup', 'keypress']) dlg.addEventListener(type, event => event.stopPropagation());
+  dlg.addEventListener('click', () => input.focus(), true);   // whatever was pressed, the keyboard stays in the one box
   dlg.addEventListener('click', event => { if (event.target === dlg) close(); });
   dlg.addEventListener('close', () => { if (S.dlg === dlg) S.dlg = null; dlg.remove(); });
   doc.body.appendChild(dlg);
@@ -598,8 +600,8 @@ function close() {
   d.remove();
 }
 const toggle = () => (S.dlg ? close() : open());
-// The graph changed: what was read is read again next time.
-function forget() { S.cache.kind.clear(); S.cache.kindFacets.clear(); S.cache.words.clear(); S.dugData.clear(); S.kinds = []; S.recents = []; db.forget(); }
+// The graph changed: what was read is read again next time. What an open window shows stays until the next opening.
+function forget() { S.cache.kind.clear(); S.cache.kindFacets.clear(); S.cache.words.clear(); S.stale = true; db.forget(); }
 
 Find.window = { open, close, toggle, forget, state: S };
 })();

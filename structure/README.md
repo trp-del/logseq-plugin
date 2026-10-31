@@ -18,7 +18,7 @@ The map of your graph's tags and properties, drawn as one screen: the tree on th
 
 **The right-click menu** on a tree row or a card line holds exactly the words the card offers, ordered by how far they reach with a gap between reaches, and what reaches many says how many nodes before you press (the grammar's menu); it acts on what was clicked and leaves the cursor where it is.
 
-**The right sidebar**: the tree alone, opened on the page's tag, with a cursor and a find box of its own, so you see where a page sits while reading it and can move it from there (drag, Tab, the right-click menu) without moving the main view. Enter, or a double click, opens the map in the main view on that tag, as a jump Escape comes back from; a change staged from the sidebar opens the main view too, where the tray is. Command palette: **Structure: the tree in the right sidebar**.
+**The right sidebar**: the tree alone, opened on the page's tag, with a cursor and a find box of its own, so you see where a page sits while reading it and can move it from there (drag, Tab, the right-click menu) without moving the main view. Enter, or a double click, opens the map in the main view on that tag, as a jump Escape comes back from; a change staged from the sidebar opens the main view too, where the tray is. The tree takes the keyboard when it opens or is pressed, and never from a bullet being written. Command palette: **Structure: the tree in the right sidebar**.
 
 ## The five rules
 

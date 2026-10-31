@@ -724,18 +724,27 @@ function pickValue({ at, placeholder = '', options = [], clearLabel = '', free =
 }
 /* A value typed where it sits, as Logseq does for a number on a bullet (copied from Logseq 2.0.2: its input with no
    border and no fill, at the line's own size). Enter keeps it, Escape leaves it as it was, a click away keeps what was
-   typed. Resolves with the words, or null when nothing changed. */
-function editInPlace({ at, value = '', type = 'text', placeholder = '', doc } = {}) {
+   typed. Resolves with the words, or null when nothing changed. A redraw of the rows does not end it: again() finds the
+   place in the new drawing and the box goes on there, words and caret as they were. */
+function editInPlace({ at, value = '', type = 'text', placeholder = '', doc, again } = {}) {
   const numeric = type === 'number';
   type = 'text';
   doc = doc || host();
   return new Promise(resolve => {
-    const was = [...at.childNodes];
+    let was = [...at.childNodes];
     const input = el(doc, 'input', { class: 'ui__input flex w-full rounded-md border-none bg-transparent px-0 !py-0 min-h-0 leading-6 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 rf-in-place', type, placeholder });
     input.value = value;
     if (numeric) input.setAttribute('inputmode', 'decimal');
-    let finished = false;
+    let finished = false, moving = false;
     const finish = answer => { if (finished) return; finished = true; at.replaceChildren(...was); resolve(answer); };
+    input.across = redraw => {
+      const from = input.selectionStart, to = input.selectionEnd;
+      moving = true; redraw(); moving = false;
+      const next = again?.();
+      if (!next) { finish(input.value === value ? null : input.value); return; }
+      at = next; was = [...at.childNodes]; at.replaceChildren(input);
+      input.focus({ preventScroll: true }); input.setSelectionRange(from, to);
+    };
     input.addEventListener('keydown', event => {
       event.stopPropagation();
       if (event.isComposing) return;
@@ -744,7 +753,7 @@ function editInPlace({ at, value = '', type = 'text', placeholder = '', doc } = 
     });
     for (const type of ['keyup', 'keypress']) input.addEventListener(type, event => event.stopPropagation());
     for (const type of ['mousedown', 'click']) input.addEventListener(type, event => event.stopPropagation());
-    input.addEventListener('blur', () => finish(input.value === value ? null : input.value));
+    input.addEventListener('blur', () => { if (!moving) finish(input.value === value ? null : input.value); });
     at.replaceChildren(input);
     input.focus({ preventScroll: true });
     try { input.setSelectionRange(input.value.length, input.value.length); } catch (error) { /* a field that has no caret */ }

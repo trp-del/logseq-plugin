@@ -172,6 +172,22 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
   assert.ok(text('.fd-r').some(t => t.includes('Go to journals')), '> lists the commands');
   await key('Escape');
   assert.equal(doc.querySelector('dialog.fd'), null, 'Escape closes');
+  // A mouse press leaves the keyboard in the one box, and a change in the graph leaves the window as it is.
+  Find.window.open(); await settle();
+  const box = () => doc.querySelector('.fd-input'), shown = () => [text('.fd-c'), text('.fd-r .fd-w')], at = shown();
+  box().blur(); doc.querySelector('.fd-r').click(); await settle(); assert.equal(doc.activeElement, box(), 'a row pressed');
+  box().blur(); doc.querySelector('.fd-foot').click(); assert.equal(doc.activeElement, box(), 'the foot pressed');
+  Find.window.forget(); await key('ArrowDown'); assert.deepEqual(shown(), at, 'a change in the graph empties nothing');
+  await key('ArrowRight'); await settle(); assert.ok(doc.querySelector('.fd-kids'), 'a node digs'); Find.window.forget(); await key('ArrowDown'); assert.ok(doc.querySelector('.fd-kids') && !/reading/.test(text('.fd-kids').join()), 'and stays read after a change');
+  await key('ArrowUp'); await key('ArrowLeft'); await settle();
+  box().blur(); doc.querySelector('.fd-c').click(); await settle(); assert.equal(doc.activeElement, box(), 'a kind pressed'); assert.equal(doc.querySelectorAll('.fd-piece').length, 1);
+  await key('Backspace'); await settle();
+  // Two words: the kinds among the results, not the biggest; a kind of two words still answers to them.
+  await type('mei chen');
+  assert.deepEqual(text('.fd-c'), ['Consultation1', 'Doctor1'], 'a name of two words shows the kinds among the results');
+  // With > there are no choices: Up stays in the commands, Enter runs one.
+  await type('>toggle wide'); await key('ArrowUp'); assert.equal(Find.window.state.mode, 'rows', 'Up finds no choices to step into');
+  await key('Escape'); await settle();
   // the key specimen, and the stop
   assert.ok(Find.settings.specimen({ key: 'takesSearchKey', type: 'boolean' }, true).includes('⌘K'), 'the key specimen');
   await logseq._unload();

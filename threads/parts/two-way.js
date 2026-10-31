@@ -140,8 +140,6 @@ async function load() {
   putBackOpen(pageUuid);
   state.pageUuid = pageUuid;
   state.groups = groups;
-  // Not '' (0.4.185): a page with no rows makes '' too, and the box kept the last page's rows while it held room.
-  state.html = null;
   state.readAt = performance.now();
   peek.cache.clear();
   if (pageUuid) { state.byPage.set(pageUuid, groups); state.mentionsOf.set(pageUuid, groups.find(isMentions) || null); }
@@ -541,7 +539,7 @@ function readNode(uuid, id) {
 }
 const shownNode = uuid => [...state.dig.keys()].some(k => k.endsWith('>' + uuid)) || state.steps.some(s => s.uuid === uuid);
 // Read again, then drawn, for every open node that shows this one (a change made in it, the graph changed).
-async function readAgain(uuid) { await readNode(uuid); if (shownNode(uuid)) { state.html = null; draw(host()); } }
+async function readAgain(uuid) { await readNode(uuid); if (shownNode(uuid)) draw(host()); }
 async function toggleDig(key, uuid, id, title) {
   if (state.dig.has(key)) { shared.outline.close(state.box?.querySelector(`.rf-ol-kids[data-key="${CSS.escape(key)}"]`), () => closeDig(key)); return; }
   const from = nameRect(key);
@@ -915,7 +913,7 @@ async function editNodeProp(uuid, ident, at) {
     const picked = await shared.pickValue({ at: valueEl || at, placeholder: `Set ${prop.title}`, options: options.map(label => ({ label, held: held.includes(label) })),
       clearLabel: held.length ? 'Clear' : '', free: isLink });
     typed = picked == null ? null : picked.clear ? '' : (picked.typed ?? picked.label);
-  } else typed = await shared.editInPlace({ at: valueEl || at, value: words, type: kind === 'number' ? 'number' : 'text', placeholder: isDay ? 'today, friday, 4 aug …' : '' });
+  } else typed = await shared.editInPlace({ at: valueEl || at, value: words, type: kind === 'number' ? 'number' : 'text', placeholder: isDay ? 'today, friday, 4 aug …' : '', again: valueBox(uuid, prop) });
   if (typed == null) return;
   const had = await heldNow(uuid, prop);
   let done = '';
@@ -940,7 +938,7 @@ async function editNodeProp(uuid, ident, at) {
   peek.cache.clear();
   await readAgain(uuid);
   const group = state.groups.find(g => g.items.some(item => item.uuid === uuid));
-  offerUndo(`${done} on “${name}”`, async () => { await setValues(uuid, prop, had); peek.cache.clear(); await readAgain(uuid); later(300); }, group?.name, inBox(`.rf-ol-pname[data-edit="${CSS.escape(prop.ident)}"][data-uuid="${CSS.escape(uuid)}"] + .rf-ol-pv`));
+  offerUndo(`${done} on “${name}”`, async () => { await setValues(uuid, prop, had); peek.cache.clear(); await readAgain(uuid); later(300); }, group?.name, valueBox(uuid, prop));
   later(300);
 }
 // A click inside the outline: a chevron opens or closes, a pencilled value is taken, "show all" shows all, a property's
@@ -1317,7 +1315,7 @@ function putBackOpen(pageUuid) {
 function readOpen2() {
   const nodes = new Map([...state.dig.values(), ...state.steps.slice(-1)].map(n => [n.uuid, n]));
   if (!nodes.size) return;
-  Promise.all([...nodes.values()].map(n => readNode(n.uuid, n.id).catch(error => warnOnce('could not read a node', error)))).then(() => { state.html = null; draw(host()); });
+  Promise.all([...nodes.values()].map(n => readNode(n.uuid, n.id).catch(error => warnOnce('could not read a node', error)))).then(() => draw(host()));
 }
 function onRoute() {
   for (const [k, mine] of state.findDug) if (mine) closeQuietly(k);
@@ -1395,7 +1393,9 @@ function draw(doc) {
     const active = box.contains(box.ownerDocument.activeElement) ? box.ownerDocument.activeElement : null;
     const typing = active?.matches('.rf-tw-draft-name'), typingNode = active?.matches('.rf-tw-node-field') ? active.dataset.key : '';
     const finding = active?.matches('.rf-tw-find') ? active.selectionStart : null;
-    state.html = bare; box.innerHTML = html; keepDraft(box); keepNodeField(box); keepFind(box, finding);
+    const redraw = () => { state.html = bare; box.innerHTML = html; keepDraft(box); keepNodeField(box); keepFind(box, finding); };
+    const inPlace = box.querySelector('.rf-in-place');
+    if (inPlace) inPlace.across(redraw); else redraw();
     if (typing) focusDraft();
     if (typingNode) focusNodeField(typingNode);
   }
@@ -1492,6 +1492,7 @@ let undoCount = 0;
 // when it is not on screen.
 const offerUndo = (text, run, field, near) => shared.undo.offer({ key: `two-way:${++undoCount}`, at: () => near?.() || (field == null ? rowNames().slice(0, 1) : rowNames(field)), text, run });
 const inBox = selector => () => state.box?.isConnected ? state.box.querySelector(selector) : null;
+const valueBox = (uuid, prop) => inBox(`.rf-ol-pname[data-edit="${CSS.escape(prop.ident)}"][data-uuid="${CSS.escape(uuid)}"] + .rf-ol-pv`);
 
 /* Right-click a row's name to change how it reads here (0.4.237, the owner: "I should be able to right click
    “report of of” and edit display name"). Saved in "Fields read backwards", as the tag map's box does; empty goes

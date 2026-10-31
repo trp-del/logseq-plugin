@@ -296,7 +296,7 @@ function open({ doc, what, act }) {
               fit();
             });
             d.addEventListener('keydown', onKey, true);
-            d.addEventListener('click', closePops);
+            d.addEventListener('click', () => closePops());
             if (sheets) { await E.print.settle(d); if (n !== run) return; E.preview.paginate(d, sheetOpts(ch)); }   // pictures first, so their height is known
             fit(); setTimeout(fit, 300);
           } catch (error) { console.warn('DB Export: preview sheets', error); fit(); } };
@@ -305,16 +305,21 @@ function open({ doc, what, act }) {
     };
     // Unfolding: one thing open at a time, a pick's alternatives under it or a panel's row under the bar; folded by a press elsewhere or Escape.
     const openOnes = () => [...root.querySelectorAll('.it.open')];
-    const closePops = () => { for (const it of openOnes()) { it.classList.remove('open'); it.querySelector('.lk-alts')?.setAttribute('hidden', ''); it.style.marginBottom = ''; } for (const f of root.querySelectorAll('.xp-fold')) f.hidden = true; };
+    // A pick inside a panel's row (keep) leaves that row and the panel's own value open.
+    const closePops = keep => {
+      const fold = keep?.closest('.xp-fold'), panel = fold && q(`.it[data-panel=${fold.dataset.panel}]`);
+      for (const it of openOnes()) { if (it === panel) continue; it.classList.remove('open'); it.querySelector('.lk-alts')?.setAttribute('hidden', ''); it.style.marginBottom = ''; }
+      for (const f of root.querySelectorAll('.xp-fold')) if (f !== fold) f.hidden = true;
+    };
     const unfold = it => {
-      const was = it.classList.contains('open'); closePops(); if (was) return;
+      const was = it.classList.contains('open'); closePops(it); if (was) return;
       it.classList.add('open');
       if (it.dataset.pick) { const a = it.querySelector('.lk-alts'); a.hidden = false; it.style.marginBottom = `${a.offsetHeight + 4}px`; }   // the line of alternatives takes its room below the row, from the pick's left edge
       else if (it.dataset.panel) { const f = q(`.xp-fold[data-panel=${it.dataset.panel}]`); if (f) { f.hidden = false; f.querySelector('input, button')?.focus(); } }
     };
     root.addEventListener('click', event => {
       const alt = event.target.closest('.lk-alts span');
-      if (alt) { const it = alt.closest('[data-pick]'), sel = it.querySelector('select'); sel.value = alt.dataset.v; closePops(); sel.dispatchEvent(new (hostDoc.defaultView.Event)('change', { bubbles: true })); return; }
+      if (alt) { const it = alt.closest('[data-pick]'), sel = it.querySelector('select'); sel.value = alt.dataset.v; closePops(it); sel.dispatchEvent(new (hostDoc.defaultView.Event)('change', { bubbles: true })); return; }
       const v = event.target.closest('.it[data-pick] > .lk-value, .it[data-panel] > .lk-value'); if (v) { unfold(v.parentNode); return; }
       if (!event.target.closest('.it.open, .xp-fold')) closePops();
     });

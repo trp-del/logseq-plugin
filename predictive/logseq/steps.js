@@ -9,10 +9,10 @@
    into the list when its stop opens, so Enter keeps it and typing puts something else. Option-Enter again, from anywhere in
    the properties, finishes the bullet. Leaving any other way (a click elsewhere) is leaving the bullet: what is sure is
    filled in. Tab and Shift-Tab go through every property, filled or empty: an empty one opens ready to type; on a filled one
-   the keyboard only rests (nothing changes by passing it) and Enter opens it. Down at the very end of the words goes to the
-   bullet's first property, and from there Tab, Left and Right step the same way.
+   the keyboard only rests (nothing changes by passing it) and Enter opens it. Down stays Logseq's; from a property its keys
+   put the keyboard on, Tab, Left and Right step the same way.
 
-   Logseq has no key of its own into the properties shown under a bullet, so the plugin presses the empty value's own trigger,
+   Logseq's own Down only rests on a bullet's first property, so to open an empty value the plugin presses its trigger,
    as a click does. A text value's box makes the value as soon as it opens, so moving on from one left blank takes the empty
    value off again: passing through a property leaves nothing behind. */
 (function () {
@@ -274,8 +274,6 @@ function stepKey(event) {
 function onPickKey(event) {
   if (event.isComposing) return;
   const plainEnter = event.key === 'Enter' && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
-  // Down at the very end of the words: into the bullet's first property, filled or empty.
-  if (event.key === 'ArrowDown' && !picking.uuid && !event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey && downIntoProperties(event)) return;
   // Tab, Left and Right in the bullet's properties reached with Logseq's own Down: the same stepping from there.
   const plainKey = !event.metaKey && !event.ctrlKey && !event.altKey;
   if (event.key === 'Tab' && !picking.uuid && plainKey && startFromVisit(event, event.shiftKey ? -1 : 1, backToWords)) return;
@@ -328,23 +326,6 @@ function startFromVisit(event, step, pastEnd) {
   openAt(doc, at + step, step, pastEnd, true);
   return true;
 }
-// Down in a bullet's words with the caret at the very end, when the bullet has properties of its own: the stepping starts on the first one.
-function downIntoProperties(event) {
-  const box = editingBox(event.target);
-  if (!box || box !== event.target || box.selectionStart !== box.value.length || box.selectionEnd !== box.value.length) return false;
-  if (!setting('proposals') || !S.allowedNow) return false;
-  const doc = box.ownerDocument;
-  if (app.editorPopupOpen(doc)) return false;
-  const uuid = uuidOf(box), places = propertyPlaces(recordRow(doc, uuid));
-  if (!places.length) return false;   // nothing under the bullet: Logseq's Down goes on to the next bullet
-  event.preventDefault(); event.stopImmediatePropagation();
-  const live = S.live?.uuid === uuid ? S.live : null;
-  endPicking(false);
-  Object.assign(picking, { uuid, text: box.value, live, rowUuid: uuid, names: places.map(p => p.name), stops: new Set(emptyNames(doc, uuid)), guesses: guessesAt(uuid) });
-  openAt(doc, 0, 1, backToWords, true);
-  return true;
-}
-
 function onKeyDown(event) {
   if (app.keyMatches(event, setting('proposalsStepKeys'))) { if (stepKey(event)) { event.preventDefault(); event.stopImmediatePropagation(); } return; }
   onPickKey(event);

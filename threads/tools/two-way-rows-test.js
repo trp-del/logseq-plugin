@@ -741,6 +741,22 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     check(calls.some(c => c[0] === 'unsetValue' && c[2] === 'user.property/note'), 'the words should be cleared');
     await undo(/Cleared “Note”/);
     check(lastSet()?.[1] === 'user.property/note' && lastSet()?.[2] === '"the words"' && !/entityId/.test(lastSet()[3]), 'Undo after clearing words should put the words back, not the old value’s id: ' + lastSet());
+    // Enter on one value, the next pressed at once: its box stays through the redraw the first write brings, words and caret kept.
+    words = false;
+    await wait(1100);
+    click(window, line('Note').querySelector('.rf-ol-pv [data-edit]')); await wait(20);
+    inPlace().value = 'new words'; inPlace().dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+    words = true;
+    click(window, line('Deadline').querySelector('.rf-ol-pv [data-edit]')); await wait(1);
+    const box = inPlace();
+    box.value = 'friday'; box.setSelectionRange(3, 3);
+    await wait(1200);
+    check(/the words/.test(line('Note')?.querySelector('.rf-ol-pv').textContent || ''), 'the row should show the first value meanwhile: ' + line('Note')?.textContent);
+    check(inPlace() === box && line('Deadline').contains(box) && doc.activeElement === box, 'the box should stay through the redraw, in its row, with the keyboard');
+    check(box.value === 'friday' && box.selectionStart === 3, 'and keep its words and caret: ' + box.value);
+    box.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+    await wait(150);
+    check(!inPlace() && lastSet()?.[2] === String(new Date(2026, 10, 6).getTime()), 'Enter should then write it whole: ' + lastSet());
     part.stop();
   }
   // Select all takes what is shown; the question names pages apart from bullets; Enter on Cancel cancels, and Enter on the question deletes.
