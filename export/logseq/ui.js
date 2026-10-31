@@ -5,11 +5,12 @@
    off and it still works. The toolbar is a row of controls on the Pressing rule (buttons-mockup.html beside the plugins):
    each is a small faint name over a value in the text colour, and the value is the thing pressed. A value that unfolds
    (a pick) wears a faint chevron after it and a hairline standing before it; a switch reads its state as words; a field
-   is faint until written. Pressed, a pick shows what it can become as a line of words under it, in place; a panel
-   (Page, Title block, Dates, Show) unfolds its own controls in a row under the bar. The destination's three words stay
-   unfolded at the left; the one accent, the button that does the export, stands at the right end, and × is the way out.
-   The page is drawn beneath at its printed width and redrawn as the choices change, or the Markdown as text. Every
-   choice is remembered in the plugin's settings. */
+   is faint until written. Pressed, a pick shows what it can become as a line of words under the row, from its own left
+   edge, so nothing moves sideways; a panel (Page, Title block, Dates, Show) unfolds its own controls in a row under the
+   bar, and stays folded until pressed. The destination's three words stay unfolded at the left; the one accent, the
+   button that does the export, stands at the right end, and × is the way out. The page is drawn beneath at its printed
+   width on a desk, with only the size pick at the desk's right, and redrawn as the choices change, or the Markdown as
+   text. Every choice is remembered in the plugin's settings. */
 (function () {
 const E = (window.DbExport ||= {});
 const { inline, doc: D, themes } = E;
@@ -21,65 +22,66 @@ const host = () => { try { return window.parent.document; } catch (error) { retu
    they are: the window stands in Logseq's document. */
 const CSS = `
 .xp { position: fixed; inset: 0; z-index: 9990; display: flex; flex-direction: column; box-sizing: border-box; margin: 0;
-  background: color-mix(in srgb, var(--ls-primary-background-color, #fff) 84%, #000); color: var(--ls-primary-text-color, #222);
+  background: color-mix(in srgb, var(--lk-paper, #fff) 84%, #000); color: var(--lk-text, #222);
   font-family: var(--ls-font-family, -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif); font-size: 13.5px; line-height: 1.35;
   --xp-quiet: var(--lk-quiet, color-mix(in srgb, currentColor 70%, transparent)); --xp-faint: var(--lk-faint, color-mix(in srgb, currentColor 46%, transparent));
   --xp-hair: var(--lk-hair, color-mix(in srgb, currentColor 12%, transparent)); --xp-line: var(--lk-line, color-mix(in srgb, currentColor 26%, transparent));
   --xp-wash: var(--lk-wash, color-mix(in srgb, currentColor 7%, transparent)); }
 .xp * { box-sizing: border-box; }
 .xp[hidden] { display: none; }
-.xp-titlebar { display: flex; align-items: center; justify-content: center; flex: none; height: 48px; font-size: 12.5px; color: var(--xp-faint); background: var(--ls-primary-background-color, #fff); }
+.xp-titlebar { display: flex; align-items: center; justify-content: center; flex: none; height: 48px; font-size: 12.5px; color: var(--xp-faint); background: var(--lk-paper, #fff); }
 /* The bar: a row of controls, nothing between them but space, a wider space between groups; the accent and the × at the end. */
-.xp-bar { display: flex; align-items: flex-start; flex-wrap: wrap; flex: none; padding: 2px 28px 14px; background: var(--ls-primary-background-color, #fff); }
+.xp-bar { display: flex; align-items: flex-start; flex-wrap: wrap; flex: none; padding: 2px 28px 14px; background: var(--lk-paper, #fff); }
 .xp-bar .g { display: flex; align-items: flex-start; }
 .xp-bar .g + .g { margin-left: 44px; }
 .xp-bar .g[hidden] { display: none; }
 .xp-bar .g.end { margin-left: auto; gap: 26px; padding-top: 15px; }
 /* A control: its name small and faint above, its value in the text colour below. The gap between controls is equal paddings,
    so a pick's hairline stands mid-gap. (The plain look of the Pressing names; Look's stylesheet refines it where Look runs.) */
-.xp .it { display: flex; flex-direction: column; gap: 3px; white-space: nowrap; padding: 0 20px; }
+.xp .it { --pl: 20px; position: relative; display: flex; flex-direction: column; gap: 3px; white-space: nowrap; padding: 0 20px 0 var(--pl); }
 .xp .it[hidden] { display: none; }
-.xp .it:first-child, .xp .it[hidden] + .it { padding-left: 0; } .xp .it:last-child { padding-right: 0; }
+.xp .it:first-child, .xp .it[hidden] + .it { --pl: 0px; } .xp .it:last-child { padding-right: 0; }
 .xp .it.lk-pick:not(:first-child) { border-left: 1px solid var(--xp-hair); }
 .xp .it[hidden] + .it.lk-pick { border-left: 0; }
 .xp .lk-name { font-size: 11px; color: var(--xp-faint); letter-spacing: .02em; min-height: 15px; }
-.xp .lk-value { all: unset; display: inline-flex; align-items: center; cursor: pointer; color: var(--ls-primary-text-color, #222); font: inherit; line-height: 1.35; }
+.xp .lk-value { all: unset; display: inline-flex; align-items: center; cursor: pointer; color: var(--lk-text, #222); font: inherit; line-height: 1.35; }
 .xp .lk-value:hover { color: var(--xp-quiet); }
 .xp .lk-value.off { color: var(--xp-faint); }
 .xp .lk-value:focus-visible { outline: 1px solid var(--xp-line); outline-offset: 3px; border-radius: 1px; }
 /* The mark: a small faint chevron tight after a value that unfolds. */
 .xp .lk-value .m { width: 8px; height: 8px; margin-left: 4px; color: var(--xp-faint); flex: none; }
-/* What a value can become: a line of faint words under it, the one in force in the text colour. */
-.xp .lk-alts { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 4px; color: var(--xp-faint); max-width: 420px; white-space: normal; }
+/* What a value can become: a line of faint words under it, the one in force in the text colour. It takes its room below the
+   row (the pick grows by the line's height while open, see unfold), never beside the pick: nothing moves sideways. */
+.xp .lk-alts { position: absolute; left: var(--pl); top: 100%; margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--xp-faint); width: max-content; max-width: 420px; white-space: normal; }
 .xp .lk-alts[hidden] { display: none; }
-.xp .lk-alts span { cursor: pointer; } .xp .lk-alts span:hover, .xp .lk-alts .on { color: var(--ls-primary-text-color, #222); }
+.xp .lk-alts span { cursor: pointer; } .xp .lk-alts span:hover, .xp .lk-alts .on { color: var(--lk-text, #222); }
 /* A field: a value not yet written is faint and reads its own name; a hairline under it only while it has the keyboard. */
 .xp input.lk-value { cursor: text; border: 0; border-bottom: 1px solid transparent; padding: 0 0 1px; background: none; min-width: 9em; outline: none; box-shadow: none; border-radius: 0; }
 .xp input.lk-value::placeholder { color: var(--xp-faint); }
-.xp input.lk-value:focus { border-bottom-color: currentColor; color: var(--ls-primary-text-color, #222); }
+.xp input.lk-value:focus { border-bottom-color: currentColor; color: var(--lk-text, #222); }
 /* A switch: a hidden box; its word reads the state. */
 .xp .lk-switch input { position: absolute; opacity: 0; width: 0; height: 0; margin: 0; }
 .xp .lk-switch .lk-value { position: relative; }
 .xp .lk-switch:has(:focus-visible) .lk-value { outline: 1px solid var(--xp-line); outline-offset: 3px; border-radius: 1px; }
-/* Where the export goes: a choice that stays open, the one in force in the text colour. */
+/* A choice that stays open (where the export goes; all or none of a list), the one in force in the text colour. */
 .xp-where { display: flex; gap: 14px; }
-.xp-where label { position: relative; cursor: pointer; color: var(--xp-faint); white-space: nowrap; }
-.xp-where label:hover { color: var(--xp-quiet); }
+.xp-where > * { position: relative; cursor: pointer; color: var(--xp-faint); white-space: nowrap; }
+.xp-where > :hover { color: var(--xp-quiet); }
 .xp-where input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
-.xp-where label:has(:checked) { color: var(--ls-primary-text-color, #222); }
+.xp-where label:has(:checked), .xp-where > .on { color: var(--lk-text, #222); }
 .xp-where label:has(:focus-visible) { outline: 1px solid var(--xp-line); outline-offset: 3px; border-radius: 1px; }
 /* A panel's own controls, unfolded in a row under the bar; a pick whose panel is open shows it by its value going quiet. */
-.xp-fold { flex: none; padding: 0 28px 16px; background: var(--ls-primary-background-color, #fff); }
+.xp-fold { flex: none; padding: 0 28px 16px; background: var(--lk-paper, #fff); }
 .xp-fold[hidden] { display: none; }
 .xp-fold .row { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 10px 0; }
 .xp .it.open > .lk-value { color: var(--xp-quiet); }
-/* The lists of properties to pick from, inside Show: above each, as quiet words, whose they are and all / none; then a row per
-   property, its tick box at the left (lk-tick: Look shows them when the pointer is on the list), the icon of what it holds, its name, the count (lk-count: never shown where Look runs). */
+/* The lists of properties to pick from, inside Show: each headed by a named value, whose they are over all / none as an open
+   choice (the one in force in the text colour); then one column, a row per property, its tick box at the left (lk-tick: Look
+   shows them when the pointer is on the list), the icon of what it holds, its name, the count (lk-count: never shown where
+   Look runs). A list longer than ten takes two columns. The gap tells the two lists apart. */
 .xp-lists { display: flex; gap: 44px; flex-wrap: wrap; margin-top: 14px; }
-.xp-all { display: flex; align-items: baseline; gap: 10px; padding: 0 0 4px; font-size: 11px; color: var(--xp-faint); letter-spacing: .02em; }
-.xp-all b { font-weight: 400; margin-right: auto; }
-.xp-all a { cursor: pointer; } .xp-all a:hover { color: var(--ls-primary-text-color, #222); }
-.xp-list { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; min-width: 300px; }
+.xp-list { display: grid; grid-template-columns: 1fr; gap: 0 18px; margin-top: 10px; }
+.xp-list.two { grid-template-columns: 1fr 1fr; }
 .xp-list .xp-prop { display: flex; align-items: center; gap: 6px; padding: 2px 0; cursor: pointer; min-width: 0; }
 .xp-list .xp-prop input { margin: 0; flex: none; }
 .xp-list .lk-prop { display: inline-flex; align-items: center; gap: 5px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -93,20 +95,21 @@ const CSS = `
 .xp input[type=checkbox].lk-tick:checked::before { content: ""; position: absolute; left: 3.5px; top: .5px; width: 3.5px; height: 7px; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg); }
 .xp input[type=checkbox].lk-tick:focus-visible { outline: 1px solid var(--xp-line); outline-offset: 1px; }
 /* The accent: the one action, a little heavier, its key faint beside it; a second action plain; × the way out. */
-.xp-bar button { all: unset; cursor: pointer; font: inherit; color: var(--ls-primary-text-color, #222); white-space: nowrap; }
+.xp-bar button { all: unset; cursor: pointer; font: inherit; color: var(--lk-text, #222); white-space: nowrap; }
 .xp-bar button[hidden] { display: none; }
 .xp-bar button:hover { color: var(--xp-quiet); }
 .xp-bar button:focus-visible { outline: 1px solid var(--xp-line); outline-offset: 3px; border-radius: 1px; }
 .xp-bar button.lk-accent { font-weight: 600; }
 .xp-bar button.lk-accent kbd { font: inherit; font-weight: 400; font-size: .85em; color: var(--xp-faint); margin-left: 8px; }
 .xp-bar button.lk-close { color: var(--xp-faint); font-size: 17px; line-height: 1; margin-top: -2px; }
-.xp-bar button.lk-close:hover { color: var(--ls-primary-text-color, #222); }
+.xp-bar button.lk-close:hover { color: var(--lk-text, #222); }
 .xp-desk { flex: 1; overflow: auto; padding: 26px 24px 48px; }
 .xp-desk iframe { display: block; margin: 0 auto; width: 794px; max-width: 100%; height: 600px; border: 0; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.12), 0 10px 36px rgba(0,0,0,.22); }
 .xp-desk iframe.sheets { background: transparent; box-shadow: none; }
-.xp-note { display: flex; justify-content: center; align-items: center; gap: 24px; color: var(--xp-faint); font-size: .85em; padding: 0 0 12px; }
-.xp-note .it { padding: 0; position: relative; } .xp-note .lk-name { display: none; } .xp-note .lk-value { color: var(--xp-quiet); }
-.xp-note .lk-alts { position: absolute; margin-top: 2px; }`;
+/* Over the desk, at its right, alone: how large the sheets are drawn. */
+.xp-note { display: flex; justify-content: flex-end; align-items: center; font-size: .85em; padding: 0 0 12px; }
+.xp-note .it { padding: 0; } .xp-note .lk-name { display: none; } .xp-note .lk-value { color: var(--xp-quiet); }
+.xp-note .lk-alts { left: auto; right: 0; justify-content: flex-end; }`;
 
 /* The icon of what a property holds, before its name, as Look draws it: the web (three dots joined in a triangle) for a
    link to nodes, drawn here because no font has it; the rest from Logseq's own icon font (Tabler, loaded on every page). */
@@ -114,11 +117,7 @@ const WEB = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 2.6 2.4 9.2
 const KIND_ICONS = { node: null, page: null, date: 'calendar', datetime: 'calendar', default: 'letter-case', text: 'letter-case', number: '123', 'raw-number': '123', choice: 'select', checkbox: 'checkbox', url: 'world' };
 const kindIconHtml = type => { const k = String(type || 'default').replace(/^:/, ''); return `<span class="xp-kind">${KIND_ICONS[k] === null ? WEB : `<i class="ti ti-${KIND_ICONS[k] || 'letter-case'}" aria-hidden="true"></i>`}</span>`; };
 
-const TARGETS = [
-  { key: 'pdf', name: 'PDF', preview: 'The page as it will print; click any words to change them for this export. Save PDF… opens the print window: choose Save as PDF there.' },
-  { key: 'md', name: 'Markdown', preview: 'The Markdown as it will be copied or saved; click it to change it for this export.' },
-  { key: 'rich', name: 'Rich text', preview: 'The page as it will paste, with its look, into Pages, Word, Mail or Google Docs; click any words to change them for this export.' },
-];
+const TARGETS = [{ key: 'pdf', name: 'PDF' }, { key: 'md', name: 'Markdown' }, { key: 'rich', name: 'Rich text' }];
 const SIZES = [['small', 'Small'], ['normal', 'Normal'], ['large', 'Large']], MARGINS = [['narrow', 'Narrow'], ['normal', 'Normal'], ['wide', 'Wide']];
 const LINKS = [['plain', 'Links as words'], ['wiki', '[[Wikilinks]]'], ['file', 'Links to .md files']];
 const ZOOMS = [['fit', 'Fit the window'], ['75', '75%'], ['100', '100%'], ['125', '125%'], ['150', '150%']];
@@ -175,7 +174,7 @@ function open({ doc, what, act }) {
     for (const old of hostDoc.querySelectorAll('.xp')) old.remove();   // one window at a time
     const c = read();
     const props = D.propertiesIn(doc);
-    const lists = [['head', doc.kind === 'blocks' ? (doc.nodes.length > 1 ? 'Of the blocks chosen' : 'Of the block chosen') : 'Of the page', D.propertiesIn(doc, 'head'), c.hiddenHead], ['nodes', doc.kind === 'blocks' ? 'Of those under' : 'Of the nodes', D.propertiesIn(doc, 'nodes'), c.hiddenNodes]].filter(l => l[2].length);
+    const lists = [['head', doc.kind === 'blocks' ? (doc.nodes.length > 1 ? 'of the blocks chosen' : 'of the block chosen') : 'of the page', D.propertiesIn(doc, 'head'), c.hiddenHead], ['nodes', doc.kind === 'blocks' ? 'of those under' : 'of the nodes', D.propertiesIn(doc, 'nodes'), c.hiddenNodes]].filter(l => l[2].length);
     const dates = D.dateChoices(doc);
     const lines = doc.title ? (c.titleLines[doc.title] || {}) : {};
     const root = hostDoc.createElement('div');
@@ -193,9 +192,9 @@ function open({ doc, what, act }) {
     const sw = (cls, name, on, offWord, onWord) => `<div class="it lk-switch">${nm(name)}<label class="lk-value ${on ? '' : 'off'}" data-on="${esc(onWord)}" data-off="${esc(offWord)}"><input type="checkbox" class="${cls}" ${on ? 'checked' : ''}>${esc(on ? onWord : offWord)}</label></div>`;
     // A field: the name, and a value faint until written.
     const field = (cls, name, value, placeholder) => `<div class="it lk-field">${nm(name)}<input type="text" class="lk-value ${cls}" placeholder="${esc(placeholder)}" value="${esc(value)}"></div>`;
-    // A list of properties: the grammar's row, a tick box at the left, the icon of what it holds, the name, the count.
-    const list = (role, label, ps, hidden) => `<div class="it"><div class="xp-all"><b>${label}</b><a data-all="1" data-role="${role}">all</a><a data-all="0" data-role="${role}">none</a></div>
-      <div class="xp-list lk-list" data-role="${role}">${ps.map(p => `<label class="xp-prop lk-row"><input type="checkbox" class="lk-tick" value="${esc(p.ident)}" ${hidden.has(p.ident) ? '' : 'checked'}><span class="lk-prop">${kindIconHtml(p.type)}<span>${esc(p.name)}</span></span><span class="lk-count">${p.count}</span></label>`).join('')}</div></div>`;
+    // A list of properties, headed by whose they are over all / none (an open choice); then the grammar's row, a tick box at the left, the icon of what it holds, the name, the count.
+    const list = (role, label, ps, hidden) => `<div class="it">${nm(label)}<div class="xp-where xp-all" data-role="${role}"><a data-all="1" data-role="${role}">all</a><a data-all="0" data-role="${role}">none</a></div>
+      <div class="xp-list lk-list${ps.length > 10 ? ' two' : ''}" data-role="${role}">${ps.map(p => `<label class="xp-prop lk-row"><input type="checkbox" class="lk-tick" value="${esc(p.ident)}" ${hidden.has(p.ident) ? '' : 'checked'}><span class="lk-prop">${kindIconHtml(p.type)}<span>${esc(p.name)}</span></span><span class="lk-count">${p.count}</span></label>`).join('')}</div></div>`;
     root.innerHTML = `<div class="xp-titlebar" style="height:${dragBand(hostDoc)}px">Export ${esc(what)}</div>
     <div class="xp-bar" role="toolbar" aria-label="Export">
       <div class="g">${where(TARGETS, c.target)}</div>
@@ -216,8 +215,8 @@ function open({ doc, what, act }) {
       + field('xp-footer', 'footer', c.footer, 'Footer') + sw('xp-pagenumbers', 'numbers', c.pageNumbers, 'No page numbers', 'Page numbers'), 'pdf')}
     ${doc.title ? fold('xp-title', field('xp-kicker', 'line above', lines.kicker || '', 'Line above') + field('xp-subtitle', 'subtitle', lines.subtitle || '', 'Subtitle')
       + field('xp-by', 'prepared by', c.preparedBy, 'Prepared by') + sw('xp-titledate', 'date', c.titleDate, 'No date', 'Today’s date')) : ''}
-    ${fold('xp-show', sw('xp-tags', 'tags', c.tags, 'No tags', 'Tags') + sw('xp-tasks', 'task boxes', c.tasks, 'No task boxes', 'Task boxes') + (lists.length ? `<div class="xp-lists" style="flex-basis:100%">${lists.map(l => list(...l)).join('')}</div>` : ''))}
-    <div class="xp-desk"><div class="xp-note"><span class="xp-note-text"></span>${pick('xp-zoom', 'size', ZOOMS, c.zoom, 'How large the preview is drawn')}</div><iframe title="Preview"></iframe></div>`;
+    ${fold('xp-show', sw('xp-tags', '', c.tags, 'No tags', 'Tags') + sw('xp-tasks', '', c.tasks, 'No task boxes', 'Task boxes') + (lists.length ? `<div class="xp-lists" style="flex-basis:100%">${lists.map(l => list(...l)).join('')}</div>` : ''))}
+    <div class="xp-desk"><div class="xp-note">${pick('xp-zoom', 'size', ZOOMS, c.zoom, 'How large the preview is drawn')}</div><iframe title="Preview"></iframe></div>`;
     keepKeys(root);
     hostDoc.body.appendChild(root);
     const q = sel => root.querySelector(sel);
@@ -239,14 +238,15 @@ function open({ doc, what, act }) {
         for (const a of it.querySelectorAll('.lk-alts span')) a.classList.toggle('on', a.dataset.v === sel.value);
       }
       for (const v of root.querySelectorAll('.lk-switch .lk-value')) { const on = v.querySelector('input').checked; v.classList.toggle('off', !on); v.lastChild.nodeValue = on ? v.dataset.on : v.dataset.off; }
+      for (const h of root.querySelectorAll('.xp-all')) { const bs = boxes(h.dataset.role), on = bs.filter(b => b.checked).length; h.querySelector('[data-all="1"]').classList.toggle('on', on === bs.length); h.querySelector('[data-all="0"]').classList.toggle('on', on === 0); }
     };
     // What the toolbar shows for the destination, and the words in its panels' buttons.
     const describe = () => {
       const ch = choice();
-      q('.xp-note-text').textContent = TARGETS.find(x => x.key === ch.target).preview;
       q('[data-pick=xp-layout] .lk-value').title = D.layouts.find(l => l.key === ch.layout)?.about || '';
       q('[data-pick=xp-look] .lk-value').title = themes.look(ch.look).about;
-      for (const el of root.querySelectorAll('[data-for]')) el.hidden = !el.dataset.for.split(' ').includes(ch.target);
+      // What belongs to another destination is hidden; a panel's row stays folded until its pick is pressed, and is never opened from here.
+      for (const el of root.querySelectorAll('[data-for]')) { const fits = el.dataset.for.split(' ').includes(ch.target); if (el.classList.contains('xp-fold')) { if (!fits) el.hidden = true; } else el.hidden = !fits; }
       q('.xp-dates').hidden = !D.dated(ch.layout); if (q('.xp-dates').hidden) q('.xp-fold[data-panel=xp-dates]').hidden = true;
       syncValues();
       // Each panel's value: a few words for its state, the rest told inside the panel.
@@ -305,11 +305,11 @@ function open({ doc, what, act }) {
     };
     // Unfolding: one thing open at a time, a pick's alternatives under it or a panel's row under the bar; folded by a press elsewhere or Escape.
     const openOnes = () => [...root.querySelectorAll('.it.open')];
-    const closePops = () => { for (const it of openOnes()) { it.classList.remove('open'); it.querySelector('.lk-alts')?.setAttribute('hidden', ''); } for (const f of root.querySelectorAll('.xp-fold')) f.hidden = true; };
+    const closePops = () => { for (const it of openOnes()) { it.classList.remove('open'); it.querySelector('.lk-alts')?.setAttribute('hidden', ''); it.style.marginBottom = ''; } for (const f of root.querySelectorAll('.xp-fold')) f.hidden = true; };
     const unfold = it => {
       const was = it.classList.contains('open'); closePops(); if (was) return;
       it.classList.add('open');
-      if (it.dataset.pick) it.querySelector('.lk-alts').hidden = false;
+      if (it.dataset.pick) { const a = it.querySelector('.lk-alts'); a.hidden = false; it.style.marginBottom = `${a.offsetHeight + 4}px`; }   // the line of alternatives takes its room below the row, from the pick's left edge
       else if (it.dataset.panel) { const f = q(`.xp-fold[data-panel=${it.dataset.panel}]`); if (f) { f.hidden = false; f.querySelector('input, button')?.focus(); } }
     };
     root.addEventListener('click', event => {

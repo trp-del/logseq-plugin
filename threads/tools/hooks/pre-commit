@@ -1,0 +1,4 @@
+#!/bin/sh
+# Stops a commit whose documents are behind (tools/docs-check.sh). Turned on once per clone with:
+#   git config core.hooksPath tools/hooks
+sh tools/docs-check.sh --staged || { echo "Commit stopped: update the documents above, then commit again."; exit 1; }

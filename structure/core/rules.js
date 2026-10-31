@@ -19,21 +19,42 @@ function singularOf(name) {
   return null;
 }
 
+/* An issue's sentence is kept in parts, each with its role, so a screen can key them apart (Health, a card's Issues): the
+   thing to settle (a tag, or a property on a tag; it opens its card), the words that tie it to the rest, the tags it concerns
+   (drawn as tags, three then "and N more"), the count. `text` is the same sentence as plain words. */
+const subject = (tag, prop) => ({ subject: prop != null ? { tag, prop } : { tag } });
+const say = words => ({ words });
+const tags = (ids, sep) => ({ tags: ids, sep });
+const num = count => ({ count });
+const MORE = 3;
+function plain(M, parts) {
+  const nm = id => M.tags.get(id)?.title ?? '';
+  let s = '';
+  for (const p of parts) {
+    const w = p.subject ? (p.subject.prop != null ? M.props.get(p.subject.prop)?.title : nm(p.subject.tag))
+      : p.tags ? (p.sep === 'and' || p.tags.length <= MORE ? list(p.tags.map(nm)) : p.tags.slice(0, MORE).map(nm).join(', ') + ` and ${p.tags.length - MORE} more`)
+      : p.count ?? p.words;
+    s += (s && p.count ? ', ' : s && !/^[,:;]/.test(w) ? ' ' : '') + w;
+  }
+  return s;
+}
+
 function issues(M) {
   const out = [];
-  const add = (rule, on, text, fix, change) => out.push({ rule, on, text, fix, change });
+  // `line`: the line on a card the issue belongs to, when it has one (the property on the tag; a tag beneath on the property's card).
+  const add = (rule, on, parts, fix, change, line) => out.push({ rule, on, parts, text: plain(M, parts), fix, change, line });
   const user = [...M.tags.values()].filter(t => !t.missing && !t.kind);
   const kindName = id => M.tags.get(id)?.title;
   // 1. One place.
   for (const t of user) {
     if (t.parents.length > 1) {
       const keep = [...t.parents].sort((a, b) => (isKind(M, a) ? 1 : 0) - (isKind(M, b) ? 1 : 0) || S.model.depth(M, b) - S.model.depth(M, a))[0];
-      add(RULES[0], t.id, `${t.title} sits under ${list(t.parents.map(kindName))}`, `keep only under ${kindName(keep)}`, { kind: 'keepUnder', tag: t.id, parent: keep });
+      add(RULES[0], t.id, [subject(t.id), say('sits under'), tags(t.parents, 'and')], `keep only under ${kindName(keep)}`, { kind: 'keepUnder', tag: t.id, parent: keep });
     }
-    if (!kindOf(M, t.id) && t.parents.length < 2) add(RULES[0], t.id, `${t.title} sits under none of the four kinds`, 'put under a kind', { kind: 'prompt', what: 'tag', tag: t.id });
+    if (!kindOf(M, t.id) && t.parents.length < 2) add(RULES[0], t.id, [subject(t.id), say('sits under none of the four kinds')], 'put under a kind', { kind: 'prompt', what: 'tag', tag: t.id });
   }
   // 2. A child earns its place.
-  for (const t of user) if (!count(M, t.id) && !t.kids.length) add(RULES[1], t.id, `${t.title} has no nodes and no tags under it`, 'remove', { kind: 'remove', tag: t.id });
+  for (const t of user) if (!count(M, t.id) && !t.kids.length) add(RULES[1], t.id, [subject(t.id), say('has no nodes and no tags under it')], 'remove', { kind: 'remove', tag: t.id });
   const seenPair = new Set();
   for (const t of user) {
     if (!t.props.length) continue;
@@ -45,15 +66,16 @@ function issues(M) {
     if (like == null) continue;
     const s = tag(M, like);
     seenPair.add(`${Math.min(like, t.id)}:${Math.max(like, t.id)}`);
-    add(RULES[1], t.id, `${t.title} reads like ${s.title}: ${t.props.length === s.props.length ? 'the same properties' : 'nothing ' + s.title + ' lacks'}, both under ${kindName(p)}`, `merge into ${s.title}`, { kind: 'merge', from: t.id, into: like });
+    add(RULES[1], t.id, [subject(t.id), say('reads like'), tags([like]), ...(t.props.length === s.props.length ? [say(': the same properties, both under')] : [say(': nothing'), tags([like]), say('lacks, both under')]), tags([p])], `merge into ${s.title}`, { kind: 'merge', from: t.id, into: like });
   }
   // 3. A relation has a range.
   for (const p of M.props.values()) {
     if (p.type !== 'node' || p.range.length || !p.on.length) continue;
     const guess = rangeGuess(M, p.id)[0];
     const on = p.on[0];
-    if (guess) add(RULES[2], on, `${p.title} links to nodes but no tag is set as what it points at; its values are mostly ${M.tags.get(guess[0]).title}s`, `set ${M.tags.get(guess[0]).title}`, { kind: 'setRange', prop: p.id, to: [guess[0]] });
-    else add(RULES[2], on, `${p.title} links to nodes but no tag is set as what it points at`, 'set the range', { kind: 'prompt', what: 'range', prop: p.id });
+    const head = [subject(on, p.id), say('on'), tags([on])];
+    if (guess) add(RULES[2], on, [...head, say(`links to nodes but no tag is set as what it points at; its values are mostly ${M.tags.get(guess[0]).title}s`)], `set ${M.tags.get(guess[0]).title}`, { kind: 'setRange', prop: p.id, to: [guess[0]] });
+    else add(RULES[2], on, [...head, say('links to nodes but no tag is set as what it points at')], 'set the range', { kind: 'prompt', what: 'range', prop: p.id });
   }
   // 4. A property lives as high as it is filled.
   for (const t of M.tags.values()) {
@@ -64,17 +86,17 @@ function issues(M) {
       for (const c of children) for (const pid of c.props) byProp.set(pid, [...(byProp.get(pid) || []), c.id]);
       for (const [pid, on] of byProp) {
         if (on.length < 3 || t.props.includes(pid)) continue;
-        const pr = prop(M, pid), n = on.reduce((s, id) => s + filled(M, id, pid), 0);
-        add(RULES[3], t.id, `${pr.title} is declared on ${list(on.map(kindName))}, filled on ${n} of their ${on.reduce((s, id) => s + count(M, id), 0)} nodes`, `pull up to ${t.title}`, { kind: 'moveProp', prop: pid, from: on, to: t.id });
+        const n = on.reduce((s, id) => s + filled(M, id, pid), 0);
+        add(RULES[3], t.id, [subject(on[0], pid), say('on'), tags(on), num(`${n} of ${on.reduce((s, id) => s + count(M, id), 0)} filled`)], `pull up to ${t.title}`, { kind: 'moveProp', prop: pid, from: on, to: t.id });
       }
     }
     for (const pid of t.props) {
-      const pr = prop(M, pid), all = filled(M, t.id, pid), of = count(M, t.id);
+      const all = filled(M, t.id, pid), of = count(M, t.id);
       if (children.length >= 2 && all && !filledOwn(M, t.id, pid)) {
         const where = children.filter(c => filled(M, c.id, pid) > 0);
-        if (where.length === 1) { add(RULES[3], t.id, `${pr.title} is filled only by ${where[0].title}'s nodes, ${all} of ${count(M, where[0].id)}`, `push down to ${where[0].title}`, { kind: 'moveProp', prop: pid, from: [t.id], to: where[0].id }); continue; }
+        if (where.length === 1) { add(RULES[3], t.id, [subject(t.id, pid), say('on'), tags([t.id]), say('is filled only by'), tags([where[0].id]), num(`${all} of ${count(M, where[0].id)}`)], `push down to ${where[0].title}`, { kind: 'moveProp', prop: pid, from: [t.id], to: where[0].id }, { tag: t.id, prop: pid, kid: where[0].id }); continue; }
       }
-      if (of >= 10 && all < of / 10) add(RULES[3], t.id, `${pr.title} is filled on ${all} of ${of} ${t.title}${of === 1 ? '' : 's'}`, 'drop, or leave', { kind: 'dropProp', prop: pid, tag: t.id });
+      if (of >= 10 && all < of / 10) add(RULES[3], t.id, [subject(t.id, pid), say('on'), tags([t.id]), num(`${all} of ${of} filled`)], 'drop, or leave', { kind: 'dropProp', prop: pid, tag: t.id }, { tag: t.id, prop: pid });
     }
   }
   // 5. Names say what they are.
@@ -82,12 +104,12 @@ function issues(M) {
   for (const t of user) {
     const key = t.title.trim().toLowerCase();
     const same = titled(M, t.title).filter(x => x.id !== t.id && !x.kind);
-    if (same.length && !seenName.has(key)) { seenName.add(key); const [from, into] = count(M, t.id) <= count(M, same[0].id) ? [t, same[0]] : [same[0], t]; add(RULES[4], from.id, `two tags are named ${t.title}`, `merge into the other ${into.title}`, { kind: 'merge', from: from.id, into: into.id }); }
+    if (same.length && !seenName.has(key)) { seenName.add(key); const [from, into] = count(M, t.id) <= count(M, same[0].id) ? [t, same[0]] : [same[0], t]; add(RULES[4], from.id, [subject(from.id), say('is named the same as another tag')], `merge into the other ${into.title}`, { kind: 'merge', from: from.id, into: into.id }); }
     const single = singularOf(t.title);
     if (!single) continue;
     const exists = titled(M, single).find(x => x.id !== t.id);
-    if (exists) add(RULES[4], t.id, `${t.title} is plural, and ${exists.title} exists`, `merge into ${exists.title}`, { kind: 'merge', from: t.id, into: exists.id });
-    else add(RULES[4], t.id, `${t.title} is plural`, `rename to ${single}`, { kind: 'rename', tag: t.id, name: single });
+    if (exists) add(RULES[4], t.id, [subject(t.id), say('is plural, and'), tags([exists.id]), say('exists')], `merge into ${exists.title}`, { kind: 'merge', from: t.id, into: exists.id });
+    else add(RULES[4], t.id, [subject(t.id), say('is plural')], `rename to ${single}`, { kind: 'rename', tag: t.id, name: single });
   }
   const order = new Map(RULES.map((r, i) => [r, i]));
   return out.sort((a, b) => order.get(a.rule) - order.get(b.rule));
@@ -95,6 +117,8 @@ function issues(M) {
 const issuesOn = (all, id) => all.filter(i => i.on === id);
 const issuesUnder = (M, all, id) => all.filter(i => i.on !== id && (id === S.model.LOOSE ? M.loose.includes(S.model.pathOf(M, i.on)[0]) : S.model.under(M, i.on, id)));
 const issuesOfProp = (all, propId) => all.filter(i => i.change && i.change.prop === propId);
+// The issue that belongs to a line on a card: the property's line on the tag's card; on the property's card, a tag beneath's line.
+const issueOnLine = (all, tagId, propId, kidId) => all.find(i => i.line && i.line.tag === tagId && i.line.prop === propId && (kidId == null ? i.line.kid == null : i.line.kid === kidId));
 
-S.rules = { RULES, issues, issuesOn, issuesUnder, issuesOfProp, singularOf, list };
+S.rules = { RULES, issues, issuesOn, issuesUnder, issuesOfProp, issueOnLine, singularOf, list, MORE };
 })();

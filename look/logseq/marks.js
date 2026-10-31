@@ -19,7 +19,8 @@ ${['light', 'dark'].map(theme => SORTS.map(sort => `${theme === 'dark' ? 'html[d
 .is-page-title-row > .block-control-wrap:has(> .lk-page-mark) { position: relative; }
 .lk-page-mark { position: absolute; inset: 0; display: inline-flex; align-items: center; justify-content: center; color: var(--lk-quiet); pointer-events: none; }
 .lk-page-mark svg { width: 15px; height: 15px; }
-/* In the left sidebar's lists: Logseq's plain page icon gives way to the mark. */
+/* In the left sidebar's lists: Logseq's plain page icon gives way to the mark, and where a page has none, to an empty slot
+   (a box in the column of marks would read as a fifth kind). A tag's # and an icon the person set are not touched. */
 #left-sidebar a.link-item .page-icon[data-lk-sort] :is(.ls-icon-file, .ls-icon-page) { visibility: hidden; }
 #left-sidebar a.link-item .page-icon[data-lk-sort] { background-repeat: no-repeat; background-size: 11px 11px; background-position: center; }
 ${['light', 'dark'].map(theme => SORTS.map(sort => `${theme === 'dark' ? 'html[data-theme="dark"]' : 'html:not([data-theme="dark"])'} #left-sidebar a.link-item .page-icon[data-lk-sort="${sort}"] { background-image: ${markUrl(sort, GREY[theme])}; }`).join('\n')).join('\n')}`;
@@ -67,7 +68,7 @@ function markLists(doc) {
     const icon = on ? item.querySelector('.page-icon:has(.ls-icon-file, .ls-icon-page)') : item;
     if (!icon) continue;
     const name = on ? (item.getAttribute('data-page-name') || (item.querySelector('.page-title') || item.querySelector('.title'))?.textContent || '').trim() : '';
-    const want = on ? index.sortByName(name) : null;
+    const want = on ? index.sortByName(name) || 'none' : null; // none: the slot kept empty
     if (want) { if (icon.getAttribute('data-lk-sort') !== want) icon.setAttribute('data-lk-sort', want); }
     else if (icon.hasAttribute('data-lk-sort')) icon.removeAttribute('data-lk-sort');
   }

@@ -20,7 +20,7 @@ let chromium; try { ({ chromium } = require('playwright')); } catch (error) { co
   const graph = String(await page.evaluate(async () => (await window.logseq.api.get_current_graph())?.name || '')).replace(/^logseq_db_/, '');
   if (!TEST_GRAPHS.includes(graph)) throw new Error(`the open graph is “${graph}”, not one of ${TEST_GRAPHS.join(', ')}; nothing was touched`);
   if (await page.evaluate(() => !!window.logseq.api.check_editing())) throw new Error('a block is being edited in Logseq; try again later');
-  const frame = () => page.frames().find(f => f.url().includes('/' + PLUGIN + '/') || f.url().includes(PLUGIN + '/index'));
+  const frame = () => page.frames().find(f => f.url().includes('/' + PLUGIN + '_index'));
   const have = await page.evaluate(id => { const map = window.LSPluginCore?.registeredPlugins; return !!(map && (map.get ? map.get(id) : map[id])); }, PLUGIN);
   if (!have) {
     console.log('loading the plugin unpacked from', DIR);
@@ -34,7 +34,7 @@ let chromium; try { ({ chromium } = require('playwright')); } catch (error) { co
     const cdp = await page.context().newCDPSession(page); await cdp.send('Network.clearBrowserCache').catch(() => {}); await cdp.detach().catch(() => {});
     await page.evaluate(async id => { await window.LSPluginCore.reload(id); }, PLUGIN);
   }
-  const state = () => frame()?.evaluate(() => window.Plugin ? { registered: window.Plugin.modules.map(m => m.key), started: (window.Plugin.started || []).map(m => m.key), lookIndex: !!window.Look?.index } : null).catch(() => null);
+  const state = () => frame()?.evaluate(() => window.PluginDoor ? { registered: window.PluginDoor.modules.map(m => m.key), started: (window.PluginDoor.started || []).map(m => m.key), lookIndex: !!window.Look?.index } : null).catch(() => null);
   let s = null;
   for (let i = 0; i < 100 && !(s = await state())?.started?.length; i++) await sleep(250);
   if (!s) throw new Error('the plugin did not start');

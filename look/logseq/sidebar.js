@@ -13,7 +13,7 @@ const { style, watchScreen } = Look.kit;
 const setting = key => Look.settings.setting(key);
 
 const barCss = `
-#right-sidebar .cp__right-sidebar-topbar { background-color: var(--ls-primary-background-color, Canvas) !important; box-shadow: 0 1px 0 var(--lk-hair); }
+#right-sidebar .cp__right-sidebar-topbar { background-color: var(--lk-paper, Canvas) !important; box-shadow: 0 1px 0 var(--lk-hair); }
 #right-sidebar .cp__right-sidebar-settings-btn { color: inherit !important; opacity: .7; background: none !important; border: 0 !important; box-shadow: none !important; }
 #right-sidebar .cp__right-sidebar-settings-btn:hover, #right-sidebar .cp__right-sidebar-settings-btn:focus-visible { opacity: 1; }
 #right-sidebar .cp__right-sidebar-settings > div[data-lk-dev] { display: none !important; }`;

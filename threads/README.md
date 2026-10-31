@@ -1,0 +1,52 @@
+# Threads
+
+One module of Logseq Plugin (the root README says how the six fit together; `grammar.html` in the workspace draws every rule).
+
+On a page, everything that points at it, named by the property it came through, to follow and dig along. A link made by a property reads from both ends: on the page it points to, each such property is a row after the page's own words, with the nodes that hold it, their tag and day. Rows under a head that names one kind carry no mark, and the find line stands from twenty rows up. Rows fold, group, find, dig into nodes in place, and take a node's value changes with an Undo arrow.
+
+The moments of use (the review of 31 October 2026): a node dug open at the page's width shows every property on one line, name then value, the chevron hanging before a value that opens; the names go on a line of their own only where the section is truly narrow (the sidebar). A line ends with its name and tag, nothing after them; Shift-click on a name opens it in the sidebar. The tick boxes of a list appear when the pointer is on that list alone, and the caret in the find line raises none. The mentions row's head is its days ("from Sep 30 to Oct 19"); while letters are typed, every head keeps the whole list's words and order and only the nodes narrow. A row's right-click menu is as wide as its longest words.
+
+It began as the two-way section of the old plugin, DB Refinements, and has since been reshaped here. Its code still uses the old `rf-` names beside Look's.
+
+## What it writes
+
+A value changed or cleared in a row, and a tag added to or taken off a node, each with its Undo. A bullet added to a node, and a page made from the **+** line, each with its Undo. The pick bar's **Delete** deletes the picked nodes or pages: it asks first, and says it cannot be undone from there. Every write goes through `parts/model.js`.
+
+## The look is Look's
+
+How the section's pieces look (a tag in mono, the faint underline and the sort's mark on a node's name, the
+chevron only under the pointer, the tick boxes of a list appearing when the pointer is on it, no counts) comes from **Look**, through shared class names on what Threads draws; the names are listed in Look's README. Without Look the section still works, only plainer: names without underline, tags in the page's face, chevrons always
+shown, counts back.
+
+## What is here
+
+| Part | What it is | Needed by two-way? |
+|---|---|---|
+| `shared.js` | the kit: outline lines, pop-ups, fields, Undo, icons | yes |
+| `model.js` | the one place that reads and writes the graph | yes |
+| `diagnostics.js` | troubleshooting commands (what the plugin finds on this page, warnings, the tour) | yes (foundation) |
+| `settings-panel.js` | the settings window | yes (foundation) |
+| `two-way.js` | the two-way section | the feature |
+| `property-kinds.js` | the icon before each property's name in a page's list | optional; it also draws inside opened nodes |
+| `alike.js`, `shadow-rules.js` | the "looks like" engine and the proposals' rules | optional; the grey predictions in the **+** line and the order of pick lists |
+
+Each optional part can be left out and the module still starts, runs and unloads (`node tools/parts-apart-test.js`).
+
+## What was removed
+
+The tag and property map (and the tag list's tree), the proposals while a bullet is written (the bullet's own piece, Option-Enter, a page's own properties), search and sidebar looks, page looks, the words by a page's title, a tag's place in the title, PDF quotations, the folded-node note, palette icons, the pickers, link selected text, block commands, and six parts the original kept but never loaded (pages, links, search, inline-props, rich-copy, todos). `git log` has one commit per removal.
+
+**What changes in the section itself:** the row's right-click menu no longer shows **Open in the map**. Its other items stay (**Group by…**, **Reads back as …**, **Hide on the pages it points to**), so the two settings the original edits in the tag map (`twoWayNames`, `twoWayOneEnd`) can still be set from the row. The sidebar icon at the end of a line went on 31 October 2026 (Shift-click does the same), with the other changes of that day listed at the top.
+
+## Settings
+
+Two-way: `twoWayRows` (the rows), `twoWayDays` (each node's day in the margin; off, the column goes and the rows move left into its place), `twoWayNames`, `twoWayOneEnd`, `twoWayMentions`, `twoWayMentionsHidden`, `twoWayHideLinkedRefs`, `twoWayHideTagLists`. Others that remain: the property marks (`propertyKindIcons`, `propertyNameTips`) and **Foundation only** under Troubleshooting.
+
+## Checks
+
+```
+sh tools/check.sh          # syntax, boot, the two-way rows (144 checks), Undo, the model, leaning, the real graph
+sh tools/check.sh --full   # also: every optional part left out in turn, odd names drawn, frames, pictures
+```
+
+The frames and pictures are compared with approved ones, so a visual change to the section shows up there. `tools/two-way-check.js` compares the rows with the Illness Test Graph through Logseq's command line.

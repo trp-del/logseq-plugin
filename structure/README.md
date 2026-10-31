@@ -1,0 +1,90 @@
+# Structure
+
+One module of Logseq Plugin (the root README says how the six fit together; `grammar.html` in the workspace draws every rule).
+
+The map of your graph's tags and properties, drawn as one screen: the tree on the left, the card of the tag you are on at the right, the tray of changes waiting below. It reads the graph and writes to it only when you press Apply, all the changes of the tray together, with one Undo for the lot. Built on 30 October 2026 from the design in `structure-rethink.md` and the mockup `structure-mockup.html`, the way an organized ontologist would keep a structure.
+
+## What it draws
+
+**The tree.** The four kinds on top, always: Entity, Occurrence, Phenomena and Information, each with its mark, read from your own umbrella tag of that name (Phenomenon and Interpretation count too). Under them your tags as an outline. A row is built as Logseq builds a block: the fold arrow under the pointer, the bullet ringed while the row is folded, the kind's mark and the name; at the right edge the number of nodes under it (the tags beneath included, each node once), and a dot when an issue sits on it (firm) or below it (faint). Above the tree three words say which view is on: tags, every property, health · 3; the one in force in the text colour. A faint "Not under a kind" row at the end holds the tags under none of the four kinds; it is always there, so a root tag can be made on it (its card has "new tag here") and a tag can be dropped onto it to take it out of every kind. The kinds themselves can be renamed; a kind renamed to something else stops being read as one. The map opens on the kinds and their direct children: one screen for a graph of hundreds of tags. A chevron opens one branch; Shift-→ opens everything under the row. Typing, anywhere on the tree, goes to the find box and leaves only the tags that match, each under its ancestors with the ancestors faint; Escape puts the tree back. A row that a change in the tray touches is pencilled in (Look's `lk-pencil`: italic, a dotted line), so what waits is told where it will happen. Tick boxes appear when the pointer is on the list, as the grammar says; while something is ticked a bar above the tree says how many and what can be done (move under…, merge into the row you are on, Esc clears).
+
+**The card.** The title row holds the name and, at its right end, the thing's place in the tree, nearest first, as Look draws a page's (Medical event / Occurrence; on a property's card, the tag it is on and the tags above). Once you have jumped somewhere, the grammar's trail line sits above it, small and faint: the places you came through with › between, each a step back, ending with › since the title under it is where you are. Then, in one quiet line, how many nodes it holds and the newest, "also under" when it has a second parent; and **what it can take, as short words in the text colour on one line**: rename · move under… · new tag inside · add a property… · add a property to all beneath… · merge the ticked into this · remove, each shown only when it can be done. Then what it has, each property with the icon of what it holds, what it points at and how many of the nodes fill it ("87 of 90", the least filled faint); what it inherits, after, faint; what points at it ("Topic on Conversation, 49": the property, on the tag); its issues. An issue whose line is already on the card puts its fix word at the right end of that line, after the faint count ("With points at Person · 7 of 90 · drop, or leave"), so nothing is said twice; an Issues group below holds only the issues with no line of their own, each as Health says it, with the fix as a word that is never cut. A property's card reads the same way: its facts once (points at Doctor · 87 of 90 filled; the tag is already named at the title row's right end), its own words (rename · move to… · pull up to Medical event · split by its values… · drop), what it points at, filled by which tag beneath when it has tags beneath (a push-down's fix sits on that tag's line: "Call · 44 of 54 · push down to Call"), where else it is on. A relation's card lists what it points at, one tag a row with how many of its values point at that tag's nodes; the × on a row takes the tag out, "another tag…" adds one, and tags its values point at that are not yet in the list are named after it. Both wait in the tray ("Set Topic to point at Doctor and Symptom"). The node count, or Enter on the row, opens the tag's nodes, twenty then all, each a link that opens it (Shift: in the sidebar). Underline means one thing: it opens something. A word that does something is plain and darkens under the pointer.
+
+**The tray.** Every change you make waits here as a sentence with the nodes it touches in a column of its own ("Merge research into Report, research removed · 4 nodes"; the sentence never says the number again). Nothing is written until **Apply** (⌘⏎), which runs them in order and leaves one Undo arrow; **Discard** (⌘⌫) throws them away and says how many it dropped; the × on a line takes that one out. While the tray holds changes, the tree and the cards already show the result, so you see what you are about to do. A change from outside while the tray is empty makes the map read the graph again.
+
+**Every property** (the word above the tree): one flat list, one row per property: its name with the faint underline that means it opens, every tag it is on (the biggest first; three, then "and 13 more", with the room they need), what it points at and how filled over all of them, sortable by any column, the lit head saying the sort; sorted by how filled, least first, so the pull-up, push-down and drop decisions get made in one pass. A row opens the property's card on its biggest tag, where "Also on" has each tag's own count. Properties on no tag are listed after. In a narrow pane the four columns stay and the tag columns wrap.
+
+**Health** (the word above the tree, with the count): everything that breaks one of the five rules, grouped by rule, one row each. The parts of a row are keyed by their role, so the eye sorts them without reading: the tag or property to settle first, in the text colour with the faint underline (it opens its card); the words that tie it and the sentence in the quiet grey; the tags it concerns as tags, three then "and 3 more"; the count as a number ("Date on Blood draw · Consultation · Procedure and 3 more · 226 of 226 filled"); the fix last, in the text colour, at the row's right end. A property's row does not begin with its tag, since the fix names it. The dots in the tree are these, placed; a card's Issues group says the same rows. **A fix never acts on the first press.** Choosing one opens a line under the issue with the tray's own sentence and the nodes it touches ("Move Date from Blood draw, Consultation and Stay to Medical event · 226 nodes · stage it · leave it"); Enter stages it, Escape leaves it, and the change then waits in the tray like any other. A merge is first shown the grammar's way, by placement: the two tags side by side, no wider than the sentence under them, their properties lined up at the left of each column with "on both" at the right, what moves, what the kept tag gains; the nodes retagged are said once, in the column head ("Scan · 22 nodes, removed"), and the sentence under it is the tray's ("Merge Scan into Consultation, Scan removed"). A fix that needs a choice (which kind, which tag) opens the prompt instead.
+
+**The right-click menu** on a tree row or a card line holds exactly the words the card offers, ordered by how far they reach with a gap between reaches, and what reaches many says how many nodes before you press (the grammar's menu); it acts on what was clicked and leaves the cursor where it is.
+
+**The right sidebar**: the tree alone, opened on the page's tag, with a cursor and a find box of its own, so you see where a page sits while reading it and can move it from there (drag, Tab, the right-click menu) without moving the main view. Enter, or a double click, opens the map in the main view on that tag, as a jump Escape comes back from; a change staged from the sidebar opens the main view too, where the tray is. Command palette: **Structure: the tree in the right sidebar**.
+
+## The five rules
+
+None is enforced; each shows as a quiet dot, with its fix a word on the card and in Health.
+
+1. **One place.** A tag under two parents: keep only under one. A tag under none of the four kinds: put under a kind.
+2. **A child earns its place.** A tag with no nodes and no children: remove. A sibling that declares nothing the other lacks (two or more properties, one of them a relation): merge into it.
+3. **A relation has a range.** A property that links to nodes with no tag set as what it points at: set it, guessed from what its values are tagged.
+4. **A property lives as high as it is filled.** On three or more siblings: pull up to the parent. Filled by one child only: push down to it. Filled by fewer than a tenth of the nodes (ten or more): drop, or leave.
+5. **Names say what they are.** A tag named in the plural: rename to the singular, or merge into the singular when it exists. Two tags of one name: merge.
+
+## The keys
+
+No single letter does anything: nothing else in Logseq or in its sibling plugins works that way, and a letter typed on the tree finds a tag, as in any outline. What a thing can take is written on its card and in its right-click menu. The keys are the ones every list has.
+
+| Do | Key |
+|---|---|
+| Move the cursor; open and close a branch; open everything under | `↑` `↓` · `→` `←` · `⇧→` |
+| One step in, under the row above; one step out, to the parent's level | Tab, Shift-Tab |
+| Tick a row (a node in the nodes list) for a bulk change; the bar above the list then says what the ticked can take | space |
+| Open the tag's nodes; from the sidebar, the map on that tag; from a list or a property's card, back to the row's card | Enter |
+| In a prompt: the lit row; in an ask under an issue: stage it | Enter |
+| Let go, nearest first: the menu, a prompt, an ask, a field, the find text, the ticks; then back the way you came | Escape |
+| Apply the tray; discard it | `⌘⏎` · `⌘⌫` |
+
+Moving a tag is the word on its card, Tab, or a drag of its row onto the new parent's row (the ticked tags together when the dragged one is ticked). Where you came from is kept: a link, a list, a property's card or the nodes is a jump, and Escape walks back along them one step at a time, and the trail line above the card shows the way (a click on a place in it goes back there).
+
+The six bulk operations and their sentences: Rename ("Rename Visit to Consultation, 31 nodes"), Merge ("Merge Visit into Consultation, Visit removed"), Split ("Make Follow-up under Consultation with 19 nodes where Kind is follow-up"), Retag ("Move 12 nodes from Conversation to Consultation"), Pull up or push down ("Move Date from Consultation, Procedure and Stay to Medical event"), Add or drop ("Add Place to every tag under Medical event"; "Drop Notes from Stay, 12 values kept on the nodes").
+
+## What Apply writes, and what Undo puts back
+
+Through Logseq's own calls only: a tag's Extends, a node's tags, a tag's declared properties, a property's range, a page's name, a tag made or deleted. A merge retags every node, moves the children and the declared properties to the kept tag, points the values that named the old tag's page at the kept one, then deletes the old tag. Logseq deletes a tag for good, so Undo makes a **new** tag of the same name in the same place with the same declared properties and its range memberships, and retags its nodes: the same tag to read, under a new id. Blocks written on the old tag's page are not carried over (write them on the kept tag's page first). A rename waits in the tray with the rest, as the design leaves open. A tag dropped on the root row loses its Extends and Logseq puts it under its Root tag. The order of tags among siblings is by name; Cmd-Shift-Up/Down from the design is not built, since Logseq keeps no order among the tags a tag extends.
+
+## Left out on purpose
+
+Groups of properties (order by hand with no meaning in the graph: the card orders by how filled, the table sorts by any column) and Option while dragging to keep a second parent (rule 1 treats a second parent as an issue). A drag moves the tag and everything under it, nothing else, and does exactly what "move under…" does: the row under the pointer shows a line where the tag will go, a row it cannot go under (itself, anything beneath it) takes no drop, and the move waits in the tray.
+
+## Opening it
+
+The tree icon in the toolbar's plugin menu (the puzzle piece; pin it from there), or the command palette: **Structure: the map of tags and properties**. The map is the page `#/structure`.
+
+## The look
+
+The map is drawn into Logseq's own window, so the **Look** plugin's stylesheet reaches it. Look's shared names sit on what they name and carry no look of their own here: `lk-row` on a tree row with `lk-fold` on its chevron, `lk-list` on the tree and the nodes list with `lk-tick` on their tick boxes (Look says when they show), `lk-node` on a node's name in the nodes list, `lk-pencil` on the name of anything a waiting change touches, `lk-undo` on the Undo arrow. A tag named in words (on a card, in a title row's place, in the table) is `lk-tag`, mono a step smaller; a node's day in the nodes list is `lk-day` in the left margin. The grammar's own elements are drawn as it draws them: a row as a Logseq block with bullet and chevron, the trail line, the pick bar above a list, a prompt rolling out under its row joined by a line from the margin (never a window), group heads as bold words with a gap, the menu with its reaches and counts, the two columns before a merge, the Undo arrow waiting bottom right, keys told as plain words, never chips. A tag's row in the tree is its name in the words font, since the row's words are the tag. A tag named inside words carries Look's `lk-tag`; a long range (Topic points at fifteen tags) shows three and "and 12 more", since a run of fifteen mono names was hard to read (the owner, 30 October 2026). The counts are not `lk-count` (Look hides that), since here they are the point. Property names on the card are not `lk-prop`: that name is for a label beside a value, and here the name is the thing. The rest is the mockup's stylesheet on the grammar's tokens (`../grammar.html`): greys mixed from the text colour, hairlines and space instead of boxes, an icon for what a property holds, the four marks for the kinds, italic with a dotted line for what a waiting change touches. Switch Look off and it still works, only plainer.
+
+## How it is built
+
+The root `files.js` lists these in order, each adding to `window.Structure`:
+
+```
+core/         pure: no Logseq, no screen. Runs in Node, so it is tested there.
+  model.js      the graph as plain data: tags, kinds, parents, declared properties, nodes under a tag, fill counts, what points at a tag
+  rules.js      the five rules as issues, each with its fix and the change the fix stages
+  changes.js    the staged changes: the sentence, the change shown in the model before Apply, the steps the writer runs
+logseq/       the only Logseq-facing code
+  db.js         the one reading of the graph (a few datascript rounds) and the one place that writes it
+  apply.js      Apply: the steps in order, each with its inverse kept; the one Undo; a failed batch put back
+  view.js       the screen: tree, card with its words, tray, table, Health with the ask, menu, prompts, the trail; the same drawing for the sidebar
+  mount.js      the page #/structure and the sidebar panel, hosted by Logseq's React
+main.js       the one state every view shares, the commands, the reading, Apply and Undo
+```
+
+## Checks
+
+- `node test/core.test.js`: the core on the mockup's made-up graph (`test/sample.js`): counts, the five rules, the tray's sentences, the steps and what Undo keeps.
+- `NODE_PATH=/Users/admin/logseq-value/logseq-plugin-old/node_modules node test/load.js`: every file loaded against a stand-in Logseq in jsdom; the screen drawn and walked with the words and the keys, the trail walked back, a fix's ask answered; Apply and Undo against a recording editor.
+- `NODE_PATH=/Users/admin/logseq-value/logseq-plugin-old/node_modules node tools/app/check.js <out dir> [tag]`: with Logseq running on a test graph with its debugging port, loads the plugin unpacked, opens the map on the tag, reads the rows, the card and the issues, writes a screenshot. Read-only; it never applies the tray.
+
+Checked in Logseq 2.0.2 on the Illness Test Graph on 30 October 2026: the tree with the real counts, Consultation's card, the properties table, Health, the sidebar panel; a move, a merge and a pull-up applied together and put back by one Undo; Symptom's row dragged onto Phenomena's with the mouse, the move landing in the tray.

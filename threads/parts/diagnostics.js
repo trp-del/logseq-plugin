@@ -579,7 +579,7 @@ function openTroubleshooting() {
 }
 
 function provide(core) {
-  core.provide({ addTroubleshooting, showReport: showDiagnostics, versionLine,
+  core.provide({ addTroubleshooting, openTroubleshooting, showReport: showDiagnostics, versionLine,
     // For tools/boot-test.js (read-only): the tools themselves, through the core, not a name on the window (0.4.316).
     diagnostics: { checkWhatIsFound, copyDiagnostics, togglePerf, copyPerfReport, copyWarnings, openTroubleshooting, openRecycleList, watchRecycle, recycleRows, recycleReport, tools: TOOLS } });
 }

@@ -1,0 +1,8886 @@
+{
+ "pages": [
+  {
+   "title": "Grace Mbeki",
+   "tag": "Person",
+   "props": {
+    "Notes": "Ruth's sister, in Bristol. Rings on Sundays and worries out loud."
+   },
+   "blocks": [],
+   "alias": null
+  },
+  {
+   "title": "Joan Harcourt",
+   "tag": "Person",
+   "props": {
+    "Notes": "Next-door neighbour. Waters the garden when we are away."
+   },
+   "blocks": [],
+   "alias": null
+  },
+  {
+   "title": "Sam Doyle",
+   "tag": "Person",
+   "props": {
+    "Notes": "Hosts the book group. Strong opinions about endings."
+   },
+   "blocks": [],
+   "alias": null
+  },
+  {
+   "title": "Peter Lindgren",
+   "tag": "Person",
+   "props": {
+    "Notes": "Fellow library volunteer. Does the Thursday shift with me."
+   },
+   "blocks": [],
+   "alias": null
+  },
+  {
+   "title": "Paula Reddy",
+   "tag": "Person",
+   "props": {
+    "Notes": "Dr. Chen's secretary at Northgate. Answers on the second ring."
+   },
+   "blocks": [],
+   "alias": null
+  },
+  {
+   "title": "Lena Park",
+   "tag": "Person",
+   "props": {
+    "Notes": "District nurse. Takes the pump off on day 3."
+   },
+   "blocks": [],
+   "alias": null
+  },
+  {
+   "title": "Priya Lin",
+   "tag": "Person",
+   "props": {
+    "Notes": "Pharmacist at Lakeside. Keeps the anti-sickness tablets behind the counter for me."
+   },
+   "blocks": [],
+   "alias": null
+  },
+  {
+   "title": "Ngozi Okoro",
+   "tag": "Person",
+   "props": {
+    "Notes": "Tunde's wife, in Lagos."
+   },
+   "blocks": [],
+   "alias": null
+  },
+  {
+   "title": "Callum Reid",
+   "tag": "Person",
+   "props": {
+    "Notes": "Physiotherapist at Eastbridge Physio Clinic."
+   },
+   "blocks": [],
+   "alias": null
+  },
+  {
+   "title": "Beth Navarro",
+   "tag": "Person",
+   "props": {
+    "Notes": "Ruth's friend from the choir. Brings casseroles."
+   },
+   "blocks": [],
+   "alias": null
+  },
+  {
+   "title": "Dr. Tom Okonkwo",
+   "tag": "Doctor",
+   "props": {
+    "Specialty": {
+     "choice": "General practice"
+    },
+    "Works at": {
+     "node": [
+      "Elm Street Medical Centre"
+     ]
+    }
+   },
+   "blocks": [
+    {
+     "uuid": "c2000000-0000-4000-8000-000000000001",
+     "text": "Locum at Elm Street. Said it was probably IBS."
+    }
+   ],
+   "alias": null
+  },
+  {
+   "title": "Dr. Julia Fenn",
+   "tag": "Doctor",
+   "props": {
+    "Specialty": {
+     "choice": "Oncology"
+    },
+    "Works at": {
+     "node": [
+      "Northgate Cancer Center"
+     ]
+    }
+   },
+   "blocks": [
+    {
+     "uuid": "c2000000-0000-4000-8000-000000000002",
+     "text": "Oncology registrar. Sees me when Dr. Chen is away; asks the practical questions."
+    }
+   ],
+   "alias": null
+  },
+  {
+   "title": "Dr. Amir Haddad",
+   "tag": "Doctor",
+   "props": {
+    "Works at": {
+     "node": [
+      "Riverside General Hospital"
+     ]
+    }
+   },
+   "blocks": [
+    {
+     "uuid": "c2000000-0000-4000-8000-000000000003",
+     "text": "Radiologist. Reported the CT."
+    }
+   ],
+   "alias": null
+  },
+  {
+   "title": "Eastbridge Physio Clinic",
+   "tag": "Organization",
+   "props": {},
+   "blocks": [
+    {
+     "uuid": "c2000000-0000-4000-8000-000000000004",
+     "text": "Callum does the walking programme. Ten minutes on the bike first."
+    }
+   ],
+   "alias": null
+  },
+  {
+   "title": "Eastbridge Library",
+   "tag": "Organization",
+   "props": {},
+   "blocks": [
+    {
+     "uuid": "c2000000-0000-4000-8000-000000000005",
+     "text": "Volunteer shifts on Thursdays. The reading room radiator clanks."
+    }
+   ],
+   "alias": null
+  },
+  {
+   "title": "Cancer Support Eastbridge",
+   "tag": "Organization",
+   "props": {},
+   "blocks": [
+    {
+     "uuid": "c2000000-0000-4000-8000-000000000006",
+     "text": "Drop-in on Tuesdays, tea and a leaflet for everything."
+    }
+   ],
+   "alias": null
+  },
+  {
+   "title": "Insomnia",
+   "tag": "Symptom",
+   "props": {},
+   "blocks": [],
+   "alias": null
+  },
+  {
+   "title": "Headache",
+   "tag": "Symptom",
+   "props": {},
+   "blocks": [],
+   "alias": null
+  },
+  {
+   "title": "Constipation",
+   "tag": "Symptom",
+   "props": {},
+   "blocks": [],
+   "alias": null
+  },
+  {
+   "title": "Bloating",
+   "tag": "Symptom",
+   "props": {},
+   "blocks": [],
+   "alias": null
+  },
+  {
+   "title": "Taste changes",
+   "tag": "Symptom",
+   "props": {},
+   "blocks": [],
+   "alias": null
+  },
+  {
+   "title": "Hair thinning",
+   "tag": "Symptom",
+   "props": {},
+   "blocks": [],
+   "alias": null
+  },
+  {
+   "title": "Dizziness",
+   "tag": "Symptom",
+   "props": {},
+   "blocks": [],
+   "alias": null
+  },
+  {
+   "title": "Low mood",
+   "tag": "Symptom",
+   "props": {},
+   "blocks": [],
+   "alias": null
+  },
+  {
+   "title": "Weight loss",
+   "tag": "Symptom",
+   "props": {},
+   "blocks": [],
+   "alias": null
+  },
+  {
+   "title": "Hiccups",
+   "tag": "Symptom",
+   "props": {},
+   "blocks": [],
+   "alias": null
+  },
+  {
+   "title": "Iron deficiency",
+   "tag": "Disease",
+   "props": {
+    "Definition": "Low iron stores, often from slow blood loss. Tiredness, pale skin, sometimes breathlessness."
+   },
+   "blocks": [],
+   "alias": null
+  },
+  {
+   "title": "Haemorrhoids",
+   "tag": "Disease",
+   "props": {
+    "Definition": "Swollen veins in the lower rectum. Common, usually harmless, and the first thing blood in the stool gets blamed on."
+   },
+   "blocks": [],
+   "alias": null
+  },
+  {
+   "title": "Irritable bowel syndrome",
+   "tag": "Disease",
+   "props": {
+    "Definition": "Cramps and changing bowel habit with no visible cause. A diagnosis of exclusion."
+   },
+   "blocks": [],
+   "alias": null
+  },
+  {
+   "title": "Dexamethasone",
+   "tag": "Pharmacological Agent",
+   "props": {
+    "Target": {
+     "node": [
+      "Nausea"
+     ]
+    },
+    "Therapy regimen": "8 mg with breakfast on days 1 to 3"
+   },
+   "blocks": [],
+   "alias": null
+  },
+  {
+   "title": "Paracetamol",
+   "tag": "Pharmacological Agent",
+   "props": {
+    "Target": {
+     "node": [
+      "Headache"
+     ]
+    },
+    "Therapy regimen": "1 g up to four times a day"
+   },
+   "blocks": [],
+   "alias": null
+  },
+  {
+   "title": "Oxycodone",
+   "tag": "Pharmacological Agent",
+   "props": {
+    "Target": {
+     "node": [
+      "Abdominal pain"
+     ]
+    },
+    "Therapy regimen": "5 mg as needed after the operation"
+   },
+   "blocks": [],
+   "alias": null
+  },
+  {
+   "title": "Senna",
+   "tag": "Pharmacological Agent",
+   "props": {
+    "Target": {
+     "node": [
+      "Constipation"
+     ]
+    },
+    "Therapy regimen": "2 tablets at night"
+   },
+   "blocks": [],
+   "alias": null
+  },
+  {
+   "title": "Benzydamine mouthwash",
+   "tag": "Pharmacological Agent",
+   "props": {
+    "Target": {
+     "node": [
+      "Mouth sores"
+     ]
+    },
+    "Therapy regimen": "Rinse before meals"
+   },
+   "blocks": [],
+   "alias": null
+  },
+  {
+   "title": "Melatonin",
+   "tag": "Pharmacological Agent",
+   "props": {
+    "Target": {
+     "node": [
+      "Insomnia"
+     ]
+    },
+    "Therapy regimen": "2 mg an hour before bed"
+   },
+   "blocks": [],
+   "alias": null
+  },
+  {
+   "title": "Blood count 2026-02-12",
+   "tag": "Report",
+   "props": {
+    "Date": {
+     "day": "2026-02-12"
+    },
+    "Findings": "Haemoglobin 128 g/L, borderline. Ferritin 22, low."
+   },
+   "blocks": [
+    {
+     "uuid": "c2000000-0000-4000-8000-000000000007",
+     "text": "Ordered by [[Dr. Helen Brooks]]. Points at [[Iron deficiency]], maybe."
+    }
+   ],
+   "alias": null
+  },
+  {
+   "title": "Stool test 2026-04-02",
+   "tag": "Report",
+   "props": {
+    "Date": {
+     "day": "2026-04-02"
+    },
+    "Findings": "FIT 4 µg/g, below the threshold. Reassuring, they said."
+   },
+   "blocks": [
+    {
+     "uuid": "c2000000-0000-4000-8000-000000000008",
+     "text": "I held on to that number for two months."
+    }
+   ],
+   "alias": null
+  },
+  {
+   "title": "Blood count 2026-06-26 recheck",
+   "tag": "Report",
+   "props": {
+    "Date": {
+     "day": "2026-06-26"
+    },
+    "Findings": "Ferritin 9. Haemoglobin 98."
+   },
+   "blocks": [],
+   "alias": null
+  },
+  {
+   "title": "Blood count 2026-10-27",
+   "tag": "Report",
+   "props": {
+    "Date": {
+     "day": "2026-10-27"
+    },
+    "Findings": "Neutrophils 1.8, fine. Platelets fine."
+   },
+   "blocks": [
+    {
+     "uuid": "c2000000-0000-4000-8000-000000000009",
+     "text": "For cycle 5. See [[Neutropenia]] for what low looks like."
+    }
+   ],
+   "alias": null
+  },
+  {
+   "title": "CT report 2026-07-14, radiology",
+   "tag": "Report",
+   "props": {
+    "Date": {
+     "day": "2026-07-14"
+    },
+    "Findings": "Two prominent nodes near the tumour, no distant disease."
+   },
+   "blocks": [
+    {
+     "uuid": "c2000000-0000-4000-8000-00000000000a",
+     "text": "Reported by [[Dr. Amir Haddad]]."
+    }
+   ],
+   "alias": null
+  },
+  {
+   "title": "Questions for Dr. Chen",
+   "tag": "research",
+   "props": {},
+   "blocks": [
+    {
+     "uuid": "c2000000-0000-4000-8000-00000000000b",
+     "text": "Will the tingling go away? How long does it take?"
+    },
+    {
+     "uuid": "c2000000-0000-4000-8000-00000000000c",
+     "text": "Can I fly to Lagos between cycles 6 and 7?"
+    },
+    {
+     "uuid": "c2000000-0000-4000-8000-00000000000d",
+     "text": "What do I do about the taste of metal?"
+    },
+    {
+     "uuid": "c2000000-0000-4000-8000-00000000000e",
+     "text": "Is a scan after cycle 6 standard, or because of the nodes?"
+    },
+    {
+     "uuid": "c2000000-0000-4000-8000-00000000000f",
+     "text": "Who do I ring at night?"
+    }
+   ],
+   "alias": null
+  },
+  {
+   "title": "Eating through chemo",
+   "tag": "research",
+   "props": {},
+   "blocks": [
+    {
+     "uuid": "c2000000-0000-4000-8000-000000000010",
+     "text": "Little and often. Cold food has less smell, which helps with [[Nausea]]."
+    },
+    {
+     "uuid": "c2000000-0000-4000-8000-000000000011",
+     "text": "Ginger biscuits, plain pasta, scrambled egg. Rice pudding on the bad days."
+    },
+    {
+     "uuid": "c2000000-0000-4000-8000-000000000012",
+     "text": "Mouth rinse before eating if there are [[Mouth sores]]. Soft food. Nothing sharp."
+    },
+    {
+     "uuid": "c2000000-0000-4000-8000-000000000013",
+     "text": "[[Taste changes]]: metal on everything, tea tastes odd. Plastic cutlery helps, oddly."
+    }
+   ],
+   "alias": null
+  },
+  {
+   "title": "Iron and bowel habit, notes before the colonoscopy",
+   "tag": "research",
+   "props": {},
+   "blocks": [
+    {
+     "uuid": "c2000000-0000-4000-8000-000000000014",
+     "text": "Iron deficiency in a man over fifty needs a cause found. Said the leaflet."
+    },
+    {
+     "uuid": "c2000000-0000-4000-8000-000000000015",
+     "text": "Which is what the colonoscopy was for."
+    }
+   ],
+   "alias": null
+  },
+  {
+   "title": "Blood count 2026-09-08",
+   "tag": "Report",
+   "props": {
+    "Date": {
+     "day": "2026-09-08"
+    },
+    "Findings": "Neutrophils 2.4. Platelets fine."
+   },
+   "blocks": [],
+   "alias": null
+  },
+  {
+   "title": "Blood count 2026-09-22",
+   "tag": "Report",
+   "props": {
+    "Date": {
+     "day": "2026-09-22"
+    },
+    "Findings": "Neutrophils 1.9. A little low but acceptable."
+   },
+   "blocks": [],
+   "alias": null
+  },
+  {
+   "title": "Blood count 2026-10-06",
+   "tag": "Report",
+   "props": {
+    "Date": {
+     "day": "2026-10-06"
+    },
+    "Findings": "Neutrophils 1.3. Borderline. Watching it."
+   },
+   "blocks": [
+    {
+     "uuid": "c2000000-0000-4000-8000-00000000028f",
+     "text": "The tingling is the other thing on the list at the next clinic."
+    }
+   ],
+   "alias": null
+  },
+  {
+   "title": "Blood count 2026-10-20",
+   "tag": "Report",
+   "props": {
+    "Date": {
+     "day": "2026-10-20"
+    },
+    "Findings": "Neutrophils 2.2. Recovered. Cycle 4 can go ahead tomorrow."
+   },
+   "blocks": [],
+   "alias": null
+  },
+  {
+   "title": "Iron tablets first, and the colonoscopy within the fortnight",
+   "tag": "Decision",
+   "props": {
+    "Decided by": {
+     "node": [
+      "Dr. Helen Brooks"
+     ]
+    },
+    "Date": {
+     "day": "2026-06-25"
+    }
+   },
+   "blocks": [
+    {
+     "uuid": "c2000000-0000-4000-8000-000000000292",
+     "text": "Her words: do not wait for the tablets to work before looking for the cause."
+    }
+   ],
+   "alias": null
+  },
+  {
+   "title": "No flights until the scan after cycle 6",
+   "tag": "Decision",
+   "props": {
+    "Decided by": {
+     "node": [
+      "Dr. Mei Chen"
+     ]
+    },
+    "Date": {
+     "day": "2026-10-21"
+    }
+   },
+   "blocks": [
+    {
+     "uuid": "c2000000-0000-4000-8000-000000000293",
+     "text": "Because the dates may shift if the neutrophils dip again."
+    }
+   ],
+   "alias": null
+  },
+  {
+   "title": "Physio twice a week for the fingers",
+   "tag": "Decision",
+   "props": {
+    "Decided by": {
+     "node": [
+      "Dr. Julia Fenn"
+     ]
+    },
+    "Date": {
+     "day": "2026-10-21"
+    }
+   },
+   "blocks": [
+    {
+     "uuid": "c2000000-0000-4000-8000-000000000294",
+     "text": "Callum at the clinic; ten minutes on the bike first."
+    }
+   ],
+   "alias": null
+  }
+ ],
+ "journals": {
+  "2026-01-05": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000016",
+    "text": "New year, the list: eat less sugar, walk every day, finish the shed. Ruth wants a holiday in the spring.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-01-06": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000034",
+    "text": "Went through the bank statements. Boring but done.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-01-08": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000035",
+    "text": "The cat from number 12 sat on the bonnet again.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-01-10": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000036",
+    "text": "Library shift. Re-shelved half the travel section.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000037",
+    "text": "Washing, ironing, the usual. Radio 3 throughout.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-01-11": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000038",
+    "text": "Cooked a curry from scratch. Ruth had seconds.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-01-12": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001ee",
+    "text": "Video call with [[Amara Okoro]]. She wants to come down at the weekend. She worries too much.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-01-12"
+     },
+     "Spoke with": {
+      "node": [
+       "Amara Okoro"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-01-13": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000039",
+    "text": "Cut the hedge, then sat down for an hour.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001d2",
+    "text": "Appointment with Dr. Tom Okonkwo: the weight I have lost. Ruth took notes.",
+    "tag": "Consultation",
+    "props": {
+     "Provider": {
+      "node": [
+       "Dr. Tom Okonkwo"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Weight loss"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000025e",
+    "text": "Dietitian call on Tuesday",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-01-20"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-01-15": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000003a",
+    "text": "Cricket on the radio while I sorted the shed.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000003b",
+    "text": "Cut the hedge, then sat down for an hour.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000003c",
+    "text": "Library shift. Quiet, mostly.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000003d",
+    "text": "Felt like myself for most of the afternoon.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000003e",
+    "text": "Could barely get up the stairs this evening.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Fatigue"
+      ]
+     },
+     "Date": {
+      "day": "2026-01-15"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-01-16": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000003f",
+    "text": "Walked the river loop. Herons everywhere.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000040",
+    "text": "Cleared out the loft. Found my old chalkboard compass.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-01-17": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000017",
+    "text": "First book group of the year at [[Sam Doyle]]'s. We read the Ishiguro. Nobody finished it.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-01-18": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000041",
+    "text": "Book group at [[Sam Doyle]]'s. We argued about the ending for an hour.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000042",
+    "text": "The cat from number 12 sat on the bonnet again.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-01-19": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000043",
+    "text": "Watched the football with the sound down.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-01-21": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001ef",
+    "text": "Chatted with [[Joan Harcourt]] over the fence. Said I was fine.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-01-21"
+     },
+     "Spoke with": {
+      "node": [
+       "Joan Harcourt"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-01-22": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000044",
+    "text": "Library shift. Quiet, mostly.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000045",
+    "text": "Wind and bloating. Peppermint tea did nothing.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Bloating"
+      ]
+     },
+     "Date": {
+      "day": "2026-01-22"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-01-23": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000046",
+    "text": "Cut the hedge, then sat down for an hour.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-01-24": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000047",
+    "text": "The cat from number 12 sat on the bonnet again.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-01-25": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000048",
+    "text": "Took the car in for its MOT. Passed, just.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000049",
+    "text": "A proper good day. Walked into town and back.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-01-27": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000004a",
+    "text": "Went through the bank statements. Boring but done.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000025f",
+    "text": "Eye test on the 8th",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-02-08"
+     },
+     "Status": {
+      "choice": "Missed"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-01-28": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000004b",
+    "text": "Ate everything on the plate and asked for more.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000004c",
+    "text": "[[Abdominal pain]]: sharp twinge low on the right when I bent down.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Abdominal pain"
+      ]
+     },
+     "Date": {
+      "day": "2026-01-28"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-01-29": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000004d",
+    "text": "Library shift. Quiet, mostly.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-01-30": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000004e",
+    "text": "Library: a child asked me whether books were free. Yes, I said, and he looked suspicious.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000004f",
+    "text": "A proper good day. Walked into town and back.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-02-01": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000050",
+    "text": "Charity shop run. Dropped off four bags.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001f0",
+    "text": "[[Ruth Okoro]] and I talked about the holiday over supper.",
+    "tag": "Conversation",
+    "props": {
+     "Spoke with": {
+      "node": [
+       "Ruth Okoro"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Weight loss"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-02-02": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000051",
+    "text": "Slept badly again.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-02-03": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000052",
+    "text": "Did the Thursday shift at [[Eastbridge Library]] with [[Peter Lindgren]].",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000053",
+    "text": "Fixed the dripping tap with a new washer and a lot of swearing.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001f1",
+    "text": "[[Amara Okoro]] rang. It helped.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-02-03"
+     },
+     "Spoke with": {
+      "node": [
+       "Amara Okoro"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-02-04": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000054",
+    "text": "Quiet day. Radio, tea, a little tidying.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000055",
+    "text": "Slept in two hours at a time.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Insomnia"
+      ]
+     },
+     "Date": {
+      "day": "2026-02-04"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-02-05": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000056",
+    "text": "Book group at [[Sam Doyle]]'s. We argued about the ending for an hour.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000057",
+    "text": "Library shift. Quiet, mostly.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-02-06": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000058",
+    "text": "Dug over the vegetable bed. Back complained afterwards.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-02-07": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000059",
+    "text": "The cat from number 12 sat on the bonnet again.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-02-08": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000005a",
+    "text": "[[Joan Harcourt]] brought round a lemon cake.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000005b",
+    "text": "Tight as a drum after supper.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Bloating"
+      ]
+     },
+     "Date": {
+      "day": "2026-02-08"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000260",
+    "text": "Dietitian call on Tuesday",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-02-10"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-02-09": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000018",
+    "text": "Tired for a week now. Ruth says I look pale, which I put down to January.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000019",
+    "text": "Appointment with [[Dr. Helen Brooks]] on Thursday about the tiredness. Ruth made me.",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-02-12"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001f2",
+    "text": "Chatted with [[Joan Harcourt]] over the fence. Said I was fine.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-02-09"
+     },
+     "Spoke with": {
+      "node": [
+       "Joan Harcourt"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-02-10": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000005c",
+    "text": "Listened to the whole of the Brahms on the walk back.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000005d",
+    "text": "Ruth's choir practice tonight. Had the house to myself.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000005e",
+    "text": "A proper good day. Walked into town and back.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-02-11": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000005f",
+    "text": "Cut the hedge, then sat down for an hour.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-02-12": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000001a",
+    "text": "Saw [[Dr. Helen Brooks]] about being tired all the time. She took bloods and said it is probably the winter.",
+    "tag": "Consultation",
+    "props": {
+     "Date": {
+      "day": "2026-02-12"
+     },
+     "Provider": {
+      "node": [
+       "Dr. Helen Brooks"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Fatigue"
+      ]
+     }
+    },
+    "kids": [
+     {
+      "uuid": "c2000000-0000-4000-8000-00000000001b",
+      "text": "She asked about my bowels, almost in passing. Said they were a bit unpredictable lately."
+     }
+    ]
+   }
+  ],
+  "2026-02-13": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000060",
+    "text": "Listened to the whole of the Brahms on the walk back.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000061",
+    "text": "Pottered in the garden until it rained.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-02-14": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000001c",
+    "text": "[[Dr. Helen Brooks]] rang. Haemoglobin borderline, iron on the low side. Eat red meat and greens and she'll recheck in the summer.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-02-14"
+     },
+     "Spoke with": {
+      "node": [
+       "Dr. Helen Brooks"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Iron deficiency"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000001d",
+    "text": "Result is in the notes: [[Blood count 2026-02-12]].",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000001e",
+    "text": "Recheck bloods at the end of June",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-06-25"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-02-15": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000062",
+    "text": "Crossword done by ten. The cryptic was a stinker.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-02-17": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000063",
+    "text": "Needed a nap after the library shift.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Fatigue"
+      ]
+     },
+     "Date": {
+      "day": "2026-02-17"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-02-18": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000064",
+    "text": "Rain all day. Finished the Tuesday jigsaw.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-02-19": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000065",
+    "text": "Walked the river loop. Herons everywhere.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000066",
+    "text": "Library shift. Quiet, mostly.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000261",
+    "text": "Pharmacy collection on Sunday",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-02-22"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-02-21": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000067",
+    "text": "Bought a new pair of reading glasses. The old ones are somewhere.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000068",
+    "text": "Crossword done by ten. The cryptic was a stinker.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000069",
+    "text": "Tired all day, even after nine hours in bed.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Fatigue"
+      ]
+     },
+     "Date": {
+      "day": "2026-02-21"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000006a",
+    "text": "Dull ache on the left, comes and goes.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Abdominal pain"
+      ]
+     },
+     "Date": {
+      "day": "2026-02-21"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-02-23": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000006b",
+    "text": "Book group at [[Sam Doyle]]'s. We argued about the ending for an hour.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-02-25": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000006c",
+    "text": "Rang [[Grace Mbeki]] back. She asked after everyone and told me about her boiler.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000006d",
+    "text": "Walked the river loop. Herons everywhere.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000006e",
+    "text": "[[Diarrhoea]]: loose stools all day. Water and plain toast.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Diarrhoea"
+      ]
+     },
+     "Date": {
+      "day": "2026-02-25"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-02-26": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000006f",
+    "text": "Stayed in bed with the paper until nine.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-02-27": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000070",
+    "text": "Listened to the whole of the Brahms on the walk back.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000071",
+    "text": "Ate everything on the plate and asked for more.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000072",
+    "text": "Three times before ten. Staying near the house.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Diarrhoea"
+      ]
+     },
+     "Date": {
+      "day": "2026-02-27"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-02-28": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000073",
+    "text": "Cricket on the radio while I sorted the shed.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000074",
+    "text": "Stayed in bed with the paper until nine.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000075",
+    "text": "Wind and bloating. Peppermint tea did nothing.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Bloating"
+      ]
+     },
+     "Date": {
+      "day": "2026-02-28"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-03-02": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000001f",
+    "text": "[[Grace Mbeki]] rang. Told her I'm just tired. She told me to see a specialist; she tells everyone that.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-03-02"
+     },
+     "Spoke with": {
+      "node": [
+       "Grace Mbeki"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001f3",
+    "text": "[[Grace Mbeki]] rang. Made me laugh.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-03-02"
+     },
+     "Spoke with": {
+      "node": [
+       "Grace Mbeki"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-03-03": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000076",
+    "text": "Boiler man came. Forty minutes, ninety pounds.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-03-04": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000077",
+    "text": "Charity shop run. Dropped off four bags.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-03-05": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000078",
+    "text": "Library shift. Quiet, mostly.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-03-06": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000079",
+    "text": "Lunch skipped, dinner half eaten. [[Loss of appetite]].",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Loss of appetite"
+      ]
+     },
+     "Date": {
+      "day": "2026-03-06"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-03-07": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000007a",
+    "text": "Slept in two hours at a time.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Insomnia"
+      ]
+     },
+     "Date": {
+      "day": "2026-03-07"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-03-08": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000007b",
+    "text": "[[Bloating]]: tight as a drum after supper.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Bloating"
+      ]
+     },
+     "Date": {
+      "day": "2026-03-08"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-03-09": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000007c",
+    "text": "The cat from number 12 sat on the bonnet again.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000007d",
+    "text": "Library: a child asked me whether books were free. Yes, I said, and he looked suspicious.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000007e",
+    "text": "Three times before ten. Staying near the house.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Diarrhoea"
+      ]
+     },
+     "Date": {
+      "day": "2026-03-09"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001f4",
+    "text": "Video call with [[Tunde Okoro]]. The line kept dropping. Said I was fine.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-03-09"
+     },
+     "Spoke with": {
+      "node": [
+       "Tunde Okoro"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Abdominal pain"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-03-10": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000007f",
+    "text": "Made bread. It rose, which is the main thing.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001f5",
+    "text": "[[Amara Okoro]] rang. Made me laugh.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-03-10"
+     },
+     "Spoke with": {
+      "node": [
+       "Amara Okoro"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Abdominal pain"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-03-11": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000080",
+    "text": "Sharp twinge low on the right when I bent down.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Abdominal pain"
+      ]
+     },
+     "Date": {
+      "day": "2026-03-11"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000081",
+    "text": "[[Constipation]]: hard going this morning. Senna tonight.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Constipation"
+      ]
+     },
+     "Date": {
+      "day": "2026-03-11"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000262",
+    "text": "Eye test on Tuesday",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-03-17"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-03-12": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000082",
+    "text": "Pottered in the garden until it rained.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000083",
+    "text": "Bloated all afternoon, trousers undone under the table.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Bloating"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-03-13": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000084",
+    "text": "Washing, ironing, the usual. Radio 3 throughout.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000085",
+    "text": "A proper good day. Walked into town and back.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-03-14": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000086",
+    "text": "Felt like myself for most of the afternoon.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000087",
+    "text": "[[Fatigue]]: could barely get up the stairs this evening.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Fatigue"
+      ]
+     },
+     "Date": {
+      "day": "2026-03-14"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001d3",
+    "text": "Saw [[Dr. Tom Okonkwo]]. Mostly the weight I have lost. Listened properly, which is rarer than it should be.",
+    "tag": "Consultation",
+    "props": {
+     "Date": {
+      "day": "2026-03-14"
+     },
+     "Provider": {
+      "node": [
+       "Dr. Tom Okonkwo"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Weight loss"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-03-15": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000088",
+    "text": "Belly cramping since breakfast.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Abdominal pain"
+      ]
+     },
+     "Date": {
+      "day": "2026-03-15"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-03-16": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000089",
+    "text": "Quiet day. Radio, tea, a little tidying.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000008a",
+    "text": "Charity shop run. Dropped off four bags.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000008b",
+    "text": "Belt on the last hole.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Weight loss"
+      ]
+     },
+     "Date": {
+      "day": "2026-03-16"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-03-18": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000008c",
+    "text": "[[Ruth Okoro]] and I went to the garden centre. She bought more pots than the patio can hold.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000008d",
+    "text": "Ruth watched me eat tonight. She says nothing, which says plenty.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-03-20": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000020",
+    "text": "Saw [[Dr. Tom Okonkwo]], a locum, about the cramps and the loose stools. He said it sounds like IBS and gave me a leaflet about fibre.",
+    "tag": "Consultation",
+    "props": {
+     "Date": {
+      "day": "2026-03-20"
+     },
+     "Provider": {
+      "node": [
+       "Dr. Tom Okonkwo"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Abdominal pain"
+      ]
+     }
+    },
+    "kids": [
+     {
+      "uuid": "c2000000-0000-4000-8000-000000000021",
+      "text": "He was in a hurry. I left feeling slightly silly for having come."
+     }
+    ]
+   }
+  ],
+  "2026-03-21": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000022",
+    "text": "Looked up [[Irritable bowel syndrome]]. It fits, more or less. Relieved, and slightly unconvinced.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-03-22": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000008e",
+    "text": "Boiler man came. Forty minutes, ninety pounds.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-03-23": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000008f",
+    "text": "[[Ruth Okoro]] made a lemon drizzle. I am not supposed to be hungry and yet.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000090",
+    "text": "Wiped out after a short walk.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Fatigue"
+      ]
+     },
+     "Date": {
+      "day": "2026-03-23"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000091",
+    "text": "Pushed food around the plate.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Loss of appetite"
+      ]
+     },
+     "Date": {
+      "day": "2026-03-23"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-03-25": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000092",
+    "text": "Library: a child asked me whether books were free. Yes, I said, and he looked suspicious.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000093",
+    "text": "Cooked a curry from scratch. Ruth had seconds.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000094",
+    "text": "Blocked up and bloated. [[Constipation]].",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Constipation"
+      ]
+     },
+     "Date": {
+      "day": "2026-03-25"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000263",
+    "text": "Pharmacy collection on Friday",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-03-27"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-03-26": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000095",
+    "text": "Fine until lunch, then nothing left. [[Fatigue]].",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Fatigue"
+      ]
+     },
+     "Date": {
+      "day": "2026-03-26"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-03-27": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000096",
+    "text": "Slept eight hours straight through.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000097",
+    "text": "Pushed food around the plate.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Loss of appetite"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000264",
+    "text": "Support group on Friday",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-04-03"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-03-29": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000098",
+    "text": "Fine until lunch, then nothing left.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Fatigue"
+      ]
+     },
+     "Date": {
+      "day": "2026-03-29"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000099",
+    "text": "Loose stools all day. Water and plain toast.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Diarrhoea"
+      ]
+     },
+     "Date": {
+      "day": "2026-03-29"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-03-30": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000009a",
+    "text": "Charity shop run. Dropped off four bags.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-03-31": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000009b",
+    "text": "Marked the last of the old exam papers for the archive box.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-04-01": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000023",
+    "text": "Stool sample kit came in the post. Not the most dignified task.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000024",
+    "text": "Hand the stool sample in at Elm Street on Thursday",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-04-02"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-04-02": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000009c",
+    "text": "[[Ruth Okoro]] made a lemon drizzle. I am not supposed to be hungry and yet.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000009d",
+    "text": "Dug over the vegetable bed. Back complained afterwards.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000009e",
+    "text": "A proper good day. Walked into town and back.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000009f",
+    "text": "Wiped out after a short walk. [[Fatigue]].",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Fatigue"
+      ]
+     },
+     "Date": {
+      "day": "2026-04-02"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-04-03": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000a0",
+    "text": "Went through the bank statements. Boring but done.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000a1",
+    "text": "Watched the football with the sound down.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-04-04": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000025",
+    "text": "Handed in the sample. Result in a week, said the receptionist.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-04-05": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000a2",
+    "text": "Slept in two hours at a time. [[Insomnia]].",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Insomnia"
+      ]
+     },
+     "Date": {
+      "day": "2026-04-05"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-04-06": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000a3",
+    "text": "Cut the hedge, then sat down for an hour.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-04-08": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000a4",
+    "text": "Stood on the scales. Lighter, and not on purpose.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-04-09": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000026",
+    "text": "Surgery rang. The stool test is fine. Below the threshold, so no further tests for now.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-04-09"
+     },
+     "Spoke with": {
+      "node": [
+       "Dr. Helen Brooks"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Irritable bowel syndrome"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000027",
+    "text": "Result: [[Stool test 2026-04-02]]. Told Ruth, who looked relieved and then asked why I'm still so tired.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-04-11": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000a5",
+    "text": "Tried not to think about Thursday. Thought about Thursday.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-04-12": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000028",
+    "text": "Amara and the grandchildren, no, Amara and her boyfriend, Easter weekend. Roast lamb. I could not finish my plate.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-04-13": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000a6",
+    "text": "Listened to the whole of the Brahms on the walk back.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000a7",
+    "text": "Found myself counting the days in my head.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000a8",
+    "text": "Needed a nap after the library shift.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Fatigue"
+      ]
+     },
+     "Date": {
+      "day": "2026-04-13"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-04-14": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000a9",
+    "text": "Library: a child asked me whether books were free. Yes, I said, and he looked suspicious.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001d4",
+    "text": "Video call with [[Dr. Helen Brooks]] about the loose stools. Prescribed something for it.",
+    "tag": "Consultation",
+    "props": {
+     "Date": {
+      "day": "2026-04-14"
+     },
+     "Provider": {
+      "node": [
+       "Dr. Helen Brooks"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Diarrhoea"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-04-15": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000aa",
+    "text": "Cramps after dinner, over in an hour.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Abdominal pain"
+      ]
+     },
+     "Date": {
+      "day": "2026-04-15"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-04-16": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000ab",
+    "text": "The cat from number 12 sat on the bonnet again.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000ac",
+    "text": "Library shift. Quiet, mostly.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000ad",
+    "text": "[[Fatigue]]: tired all day, even after nine hours in bed.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Fatigue"
+      ]
+     },
+     "Date": {
+      "day": "2026-04-16"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000ae",
+    "text": "Belly cramping since breakfast. [[Abdominal pain]].",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Abdominal pain"
+      ]
+     },
+     "Date": {
+      "day": "2026-04-16"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-04-17": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000af",
+    "text": "Library: a child asked me whether books were free. Yes, I said, and he looked suspicious.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001f6",
+    "text": "Chatted with [[Joan Harcourt]] over the fence.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-04-17"
+     },
+     "Spoke with": {
+      "node": [
+       "Joan Harcourt"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-04-18": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000b0",
+    "text": "Made bread. It rose, which is the main thing.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000b1",
+    "text": "Library: a child asked me whether books were free. Yes, I said, and he looked suspicious.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000b2",
+    "text": "Loose again this morning, twice.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Diarrhoea"
+      ]
+     },
+     "Date": {
+      "day": "2026-04-18"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001f7",
+    "text": "[[Graham Whitlock]] rang about the football. Too tired to talk long.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-04-18"
+     },
+     "Spoke with": {
+      "node": [
+       "Graham Whitlock"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Fatigue"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-04-19": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000b3",
+    "text": "[[Ruth Okoro]] made a lemon drizzle. I am not supposed to be hungry and yet.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000b4",
+    "text": "Tried not to think about Thursday. Thought about Thursday.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001f8",
+    "text": "Video call with [[Tunde Okoro]]. The line kept dropping. She worries too much.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-04-19"
+     },
+     "Spoke with": {
+      "node": [
+       "Tunde Okoro"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-04-20": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000029",
+    "text": "[[Amara Okoro]] said on the phone that I sounded thin. Said I was fine, which I said last time.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-04-20"
+     },
+     "Spoke with": {
+      "node": [
+       "Amara Okoro"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-04-21": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000b5",
+    "text": "Dug over the vegetable bed. Back complained afterwards.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000b6",
+    "text": "Bought a new pair of reading glasses. The old ones are somewhere.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000b7",
+    "text": "Wiped out after a short walk.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Fatigue"
+      ]
+     },
+     "Date": {
+      "day": "2026-04-21"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000b8",
+    "text": "Tender when I press low on the right.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Abdominal pain"
+      ]
+     },
+     "Date": {
+      "day": "2026-04-21"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-04-22": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000b9",
+    "text": "Lunch with [[Graham Whitlock]]. He talked about his knee; I let him.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-04-23": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000ba",
+    "text": "[[Joan Harcourt]] brought round a lemon cake.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-04-24": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000bb",
+    "text": "Slept badly again.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000bc",
+    "text": "Pasta bake for dinner. Too much cheese, no regrets.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000bd",
+    "text": "Found myself counting the days in my head.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000be",
+    "text": "Blocked up and bloated.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Constipation"
+      ]
+     },
+     "Date": {
+      "day": "2026-04-24"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-04-25": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000bf",
+    "text": "[[Ruth Okoro]] made a lemon drizzle. I am not supposed to be hungry and yet.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-04-26": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000c0",
+    "text": "Sharp twinge low on the right when I bent down. [[Abdominal pain]].",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Abdominal pain"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000c1",
+    "text": "Lunch skipped, dinner half eaten.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Loss of appetite"
+      ]
+     },
+     "Date": {
+      "day": "2026-04-26"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-04-28": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000c2",
+    "text": "The clocks go back soon and I am dreading the dark afternoons.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000c3",
+    "text": "Needed a nap after the library shift.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Fatigue"
+      ]
+     },
+     "Date": {
+      "day": "2026-04-28"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000c4",
+    "text": "[[Bloating]]: wind and bloating. Peppermint tea did nothing.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Bloating"
+      ]
+     },
+     "Date": {
+      "day": "2026-04-28"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-04-30": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000c5",
+    "text": "Cleared out the loft. Found my old chalkboard compass.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000c6",
+    "text": "Ruth watched me eat tonight. She says nothing, which says plenty.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000c7",
+    "text": "Tired all day, even after nine hours in bed.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Fatigue"
+      ]
+     },
+     "Date": {
+      "day": "2026-04-30"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000c8",
+    "text": "Urgent and watery after lunch. [[Diarrhoea]].",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Diarrhoea"
+      ]
+     },
+     "Date": {
+      "day": "2026-04-30"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000c9",
+    "text": "Tight as a drum after supper.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Bloating"
+      ]
+     },
+     "Date": {
+      "day": "2026-04-30"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001f9",
+    "text": "Video call with [[Tunde Okoro]]. The line kept dropping.",
+    "tag": "Conversation",
+    "props": {
+     "Spoke with": {
+      "node": [
+       "Tunde Okoro"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Abdominal pain"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-05-01": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000ca",
+    "text": "The cat from number 12 sat on the bonnet again.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000cb",
+    "text": "Tired all day, even after nine hours in bed.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Fatigue"
+      ]
+     },
+     "Date": {
+      "day": "2026-05-01"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000cc",
+    "text": "Loose stools all day. Water and plain toast.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Diarrhoea"
+      ]
+     },
+     "Date": {
+      "day": "2026-05-01"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-05-02": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001fa",
+    "text": "[[Ruth Okoro]] and I talked about the holiday over supper. She worries too much.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-05-02"
+     },
+     "Spoke with": {
+      "node": [
+       "Ruth Okoro"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-05-03": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000002a",
+    "text": "Ruth booked the holiday for September. I did not say that I wasn't sure I would manage the walking.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-05-04": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000cd",
+    "text": "[[Joan Harcourt]] brought round a lemon cake.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-05-05": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001d5",
+    "text": "Saw [[Dr. Tom Okonkwo]]. Mostly my weight. She wants bloods again next week.",
+    "tag": "Consultation",
+    "props": {
+     "Provider": {
+      "node": [
+       "Dr. Tom Okonkwo"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Weight loss"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000265",
+    "text": "Pharmacy collection on Sunday",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-05-17"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-05-06": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000ce",
+    "text": "Belly cramping since breakfast.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Abdominal pain"
+      ]
+     },
+     "Date": {
+      "day": "2026-05-06"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-05-07": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000cf",
+    "text": "Did the Thursday shift at [[Eastbridge Library]] with [[Peter Lindgren]].",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-05-08": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000d0",
+    "text": "Pottered in the garden until it rained.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000d1",
+    "text": "Slept eight hours straight through.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000d2",
+    "text": "Wiped out after a short walk.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Fatigue"
+      ]
+     },
+     "Date": {
+      "day": "2026-05-08"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000d3",
+    "text": "Tender when I press low on the right.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Abdominal pain"
+      ]
+     },
+     "Date": {
+      "day": "2026-05-08"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-05-10": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000d4",
+    "text": "Googled again, which I promised not to.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000d5",
+    "text": "Ate everything on the plate and asked for more.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000d6",
+    "text": "Wiped out after a short walk. [[Fatigue]].",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Fatigue"
+      ]
+     },
+     "Date": {
+      "day": "2026-05-10"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000d7",
+    "text": "Belly cramping since breakfast.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Date": {
+      "day": "2026-05-10"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-05-11": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000d8",
+    "text": "Charity shop run. Dropped off four bags.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-05-12": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000d9",
+    "text": "[[Ruth Okoro]] and I went to the garden centre. She bought more pots than the patio can hold.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000da",
+    "text": "Ate everything on the plate and asked for more.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-05-13": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000db",
+    "text": "Fixed the dripping tap with a new washer and a lot of swearing.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-05-14": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000dc",
+    "text": "Went through the bank statements. Boring but done.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000dd",
+    "text": "Library shift. Quiet, mostly.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000de",
+    "text": "Found myself counting the days in my head.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000df",
+    "text": "Hard going this morning. Senna tonight.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Constipation"
+      ]
+     },
+     "Date": {
+      "day": "2026-05-14"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001fb",
+    "text": "[[Grace Mbeki]] rang. Said I was fine.",
+    "tag": "Conversation",
+    "props": {
+     "Spoke with": {
+      "node": [
+       "Grace Mbeki"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-05-15": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000e0",
+    "text": "Up at six, watered the tomatoes before the heat.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-05-16": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000e1",
+    "text": "Posted the birthday card for Tunde, three weeks early because of the post.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000e2",
+    "text": "Painted the fence. Half of it.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000e3",
+    "text": "Felt like myself for most of the afternoon.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000e4",
+    "text": "Cramps after dinner, over in an hour.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Abdominal pain"
+      ]
+     },
+     "Date": {
+      "day": "2026-05-16"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000e5",
+    "text": "Everything tastes of nothing.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Loss of appetite"
+      ]
+     },
+     "Date": {
+      "day": "2026-05-16"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-05-17": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000e6",
+    "text": "Washing, ironing, the usual. Radio 3 throughout.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000e7",
+    "text": "Charity shop run. Dropped off four bags.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000e8",
+    "text": "Hard going this morning. Senna tonight.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Constipation"
+      ]
+     },
+     "Date": {
+      "day": "2026-05-17"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-05-18": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000002b",
+    "text": "Weighed myself. Seventy-seven kilos. A year ago I was eighty-three.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-05-19": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000e9",
+    "text": "Tried not to think about Thursday. Thought about Thursday.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000ea",
+    "text": "Yawned through the whole film. [[Fatigue]].",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Fatigue"
+      ]
+     },
+     "Date": {
+      "day": "2026-05-19"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-05-20": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000eb",
+    "text": "The clocks go back soon and I am dreading the dark afternoons.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000ec",
+    "text": "The cat from number 12 sat on the bonnet again.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000ed",
+    "text": "Slept eight hours straight through.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-05-21": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000ee",
+    "text": "Did the Thursday shift at [[Eastbridge Library]] with [[Peter Lindgren]].",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000ef",
+    "text": "Dull ache on the left, comes and goes.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Abdominal pain"
+      ]
+     },
+     "Date": {
+      "day": "2026-05-21"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000f0",
+    "text": "Urgent and watery after lunch.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Diarrhoea"
+      ]
+     },
+     "Date": {
+      "day": "2026-05-21"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000f1",
+    "text": "[[Loss of appetite]]: lunch skipped, dinner half eaten.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Loss of appetite"
+      ]
+     },
+     "Date": {
+      "day": "2026-05-21"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001fc",
+    "text": "[[Tunde Okoro]] rang from Lagos.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-05-21"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-05-22": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000f2",
+    "text": "Listened to the whole of the Brahms on the walk back.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000f3",
+    "text": "Needed a nap after the library shift.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Fatigue"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000f4",
+    "text": "Dull ache on the left, comes and goes.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Abdominal pain"
+      ]
+     },
+     "Date": {
+      "day": "2026-05-22"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000f5",
+    "text": "Loose stools all day. Water and plain toast.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Date": {
+      "day": "2026-05-22"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-05-23": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000f6",
+    "text": "Tired all day, even after nine hours in bed.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Fatigue"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001d6",
+    "text": "Video call with [[Dr. Helen Brooks]] about my weight. Asked me to ring if it gets worse.",
+    "tag": "Consultation",
+    "props": {
+     "Date": {
+      "day": "2026-05-23"
+     },
+     "Provider": {
+      "node": [
+       "Dr. Helen Brooks"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Weight loss"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-05-24": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000002c",
+    "text": "Peter at the library asked whether I was all right. I said never better. He didn't look convinced.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-05-24"
+     },
+     "Spoke with": {
+      "node": [
+       "Peter Lindgren"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001fd",
+    "text": "Chatted with [[Joan Harcourt]] over the fence. She worries too much.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-05-24"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-05-25": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000f7",
+    "text": "Painted the fence. Half of it.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000f8",
+    "text": "Crossword done by ten. The cryptic was a stinker.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000f9",
+    "text": "Tender when I press low on the right. [[Abdominal pain]].",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Abdominal pain"
+      ]
+     },
+     "Date": {
+      "day": "2026-05-25"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-05-26": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000fa",
+    "text": "Googled again, which I promised not to.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-05-27": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000fb",
+    "text": "Short walk, then soup.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000fc",
+    "text": "Listened to the whole of the Brahms on the walk back.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001fe",
+    "text": "Sunday call with [[Grace Mbeki]]. Said I was fine.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-05-27"
+     },
+     "Spoke with": {
+      "node": [
+       "Grace Mbeki"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Weight loss"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-05-28": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000fd",
+    "text": "Listened to the whole of the Brahms on the walk back.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000fe",
+    "text": "Dug over the vegetable bed. Back complained afterwards.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000000ff",
+    "text": "Library shift. Quiet, mostly.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-05-29": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000100",
+    "text": "Quiet day. Radio, tea, a little tidying.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000101",
+    "text": "Tired all day, even after nine hours in bed.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Fatigue"
+      ]
+     },
+     "Date": {
+      "day": "2026-05-29"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000102",
+    "text": "Dull ache on the left, comes and goes.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Abdominal pain"
+      ]
+     },
+     "Date": {
+      "day": "2026-05-29"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-05-30": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000103",
+    "text": "[[Ruth Okoro]] made a lemon drizzle. I am not supposed to be hungry and yet.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000104",
+    "text": "Slept in two hours at a time.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Insomnia"
+      ]
+     },
+     "Date": {
+      "day": "2026-05-30"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-05-31": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000105",
+    "text": "Made bread. It rose, which is the main thing.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000106",
+    "text": "Cleared out the loft. Found my old chalkboard compass.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000107",
+    "text": "Bloated all afternoon, trousers undone under the table.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Bloating"
+      ]
+     },
+     "Date": {
+      "day": "2026-05-31"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-06-01": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000108",
+    "text": "Pottered in the garden until it rained.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000109",
+    "text": "Short walk, then soup.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000010a",
+    "text": "Loose stools all day. Water and plain toast.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Diarrhoea"
+      ]
+     },
+     "Date": {
+      "day": "2026-06-01"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001d7",
+    "text": "Clinic. Dr. Tom Okonkwo went through the anaemia. Nothing to do but wait and see.",
+    "tag": "Consultation",
+    "props": {
+     "Date": {
+      "day": "2026-06-01"
+     },
+     "Provider": {
+      "node": [
+       "Dr. Tom Okonkwo"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Anaemia"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-06-02": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000010b",
+    "text": "Cramps after dinner, over in an hour.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Abdominal pain"
+      ]
+     },
+     "Date": {
+      "day": "2026-06-02"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000010c",
+    "text": "Slept in two hours at a time.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Insomnia"
+      ]
+     },
+     "Date": {
+      "day": "2026-06-02"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-06-03": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000010d",
+    "text": "Did the Thursday shift at [[Eastbridge Library]] with [[Peter Lindgren]].",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000010e",
+    "text": "Awake from two to five.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Insomnia"
+      ]
+     },
+     "Date": {
+      "day": "2026-06-03"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000266",
+    "text": "Pharmacy collection on Friday",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-06-05"
+     },
+     "Status": {
+      "choice": "Missed"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-06-04": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000002d",
+    "text": "Blood on the paper this morning. A little. Haemorrhoids, I told myself.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000002e",
+    "text": "Blood on the paper this morning. Bright red.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Blood in stool"
+      ]
+     },
+     "Date": {
+      "day": "2026-06-04"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-06-06": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000010f",
+    "text": "Marked the last of the old exam papers for the archive box.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000110",
+    "text": "Googled again, which I promised not to.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-06-07": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000111",
+    "text": "Lunch skipped, dinner half eaten.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Loss of appetite"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-06-08": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000002f",
+    "text": "Ruth asked whether I've been to the loo more often than usual. I said no.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001ff",
+    "text": "Sunday call with [[Grace Mbeki]]. Too tired to talk long.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-06-08"
+     },
+     "Topic": {
+      "node": [
+       "Fatigue"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000267",
+    "text": "Support group on Monday",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-06-15"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-06-09": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000112",
+    "text": "Crossword done by ten. The cryptic was a stinker.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000113",
+    "text": "Hard going this morning. Senna tonight.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Constipation"
+      ]
+     },
+     "Date": {
+      "day": "2026-06-09"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-06-10": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000114",
+    "text": "Washing, ironing, the usual. Radio 3 throughout.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000115",
+    "text": "Hard going this morning. Senna tonight. [[Constipation]].",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Constipation"
+      ]
+     },
+     "Date": {
+      "day": "2026-06-10"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000116",
+    "text": "Wind and bloating. Peppermint tea did nothing.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Bloating"
+      ]
+     },
+     "Date": {
+      "day": "2026-06-10"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001d8",
+    "text": "Appointment with [[Dr. Tom Okonkwo]]: how wiped out I get. Listened properly, which is rarer than it should be.",
+    "tag": "Consultation",
+    "props": {
+     "Date": {
+      "day": "2026-06-10"
+     },
+     "Provider": {
+      "node": [
+       "Dr. Tom Okonkwo"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Fatigue"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-06-11": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000117",
+    "text": "Cleared out the loft. Found my old chalkboard compass.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000118",
+    "text": "Watched the football with the sound down.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000119",
+    "text": "Library shift. Quiet, mostly.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000011a",
+    "text": "Pushed food around the plate.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Loss of appetite"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000200",
+    "text": "Talked to [[Amara Okoro]] for an hour. Said I was fine.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-06-11"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-06-12": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000011b",
+    "text": "[[Ruth Okoro]] and I went to the garden centre. She bought more pots than the patio can hold.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-06-13": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000030",
+    "text": "Again this morning. More than before. I have not looked it up, and I am not going to.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000031",
+    "text": "Blood again, a little more this time.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Blood in stool"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000201",
+    "text": "[[Sam Doyle]] rang about book group. Too tired to talk long.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-06-13"
+     },
+     "Spoke with": {
+      "node": [
+       "Sam Doyle"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-06-14": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000011c",
+    "text": "Rain all day. Finished the Tuesday jigsaw.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000011d",
+    "text": "Found myself counting the days in my head.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000011e",
+    "text": "Flat as a pancake by three.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 3,
+     "Symptom type": {
+      "node": [
+       "Fatigue"
+      ]
+     },
+     "Date": {
+      "day": "2026-06-14"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-06-15": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000011f",
+    "text": "Pasta bake for dinner. Too much cheese, no regrets.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000120",
+    "text": "Down another kilo on the scales.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Weight loss"
+      ]
+     },
+     "Date": {
+      "day": "2026-06-15"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-06-16": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000121",
+    "text": "Washing, ironing, the usual. Radio 3 throughout.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000122",
+    "text": "[[Fatigue]]: could barely get up the stairs this evening.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 3,
+     "Symptom type": {
+      "node": [
+       "Fatigue"
+      ]
+     },
+     "Date": {
+      "day": "2026-06-16"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-06-17": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000123",
+    "text": "Took the car in for its MOT. Passed, just.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-06-18": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000032",
+    "text": "Could not sleep. The same thought round and round. I should ring the surgery.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000202",
+    "text": "[[Tunde Okoro]] rang from Lagos. Made me laugh.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-06-18"
+     },
+     "Spoke with": {
+      "node": [
+       "Tunde Okoro"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-06-19": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000124",
+    "text": "Pottered in the garden until it rained.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000125",
+    "text": "Needed a nap after the library shift.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 3,
+     "Symptom type": {
+      "node": [
+       "Fatigue"
+      ]
+     },
+     "Date": {
+      "day": "2026-06-19"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000126",
+    "text": "Loose stools all day. Water and plain toast. [[Diarrhoea]].",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Diarrhoea"
+      ]
+     },
+     "Date": {
+      "day": "2026-06-19"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-06-20": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000127",
+    "text": "Boiler man came. Forty minutes, ninety pounds.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000128",
+    "text": "Nothing for two days, then a lot of effort.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Constipation"
+      ]
+     },
+     "Date": {
+      "day": "2026-06-20"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-06-21": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000033",
+    "text": "Sunday. Ruth's choir sang at the church fair. I sat at the back and sweated through it.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000203",
+    "text": "[[Sam Doyle]] rang about book group.",
+    "tag": "Conversation",
+    "props": {
+     "Spoke with": {
+      "node": [
+       "Sam Doyle"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-06-23": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000129",
+    "text": "Rain all day. Finished the Tuesday jigsaw.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000204",
+    "text": "[[Ruth Okoro]] and I talked it through again over supper. I said I was fine; she did not believe me.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-06-23"
+     },
+     "Topic": {
+      "node": [
+       "Nausea"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-06-24": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000012a",
+    "text": "Dug over the vegetable bed. Back complained afterwards.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000012b",
+    "text": "Googled again, which I promised not to.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000012c",
+    "text": "A proper good day. Walked into town and back.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-06-25": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000012d",
+    "text": "Needed a nap after the library shift.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Fatigue"
+      ]
+     },
+     "Date": {
+      "day": "2026-06-25"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000268",
+    "text": "Bloods next Tuesday",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-07-07"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-06-26": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000012e",
+    "text": "Posted the birthday card for Tunde, three weeks early because of the post.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-06-27": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000012f",
+    "text": "Slept badly again.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000130",
+    "text": "Ruth watched me eat tonight. She says nothing, which says plenty.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-06-28": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000131",
+    "text": "Felt like myself for most of the afternoon.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000269",
+    "text": "Physio on Monday",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-07-06"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-06-29": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000132",
+    "text": "Book group at [[Sam Doyle]]'s. We argued about the ending for an hour.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000133",
+    "text": "Tried not to think about Thursday. Thought about Thursday.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000205",
+    "text": "[[Grace Mbeki]] rang. Plans for the autumn, loosely.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-06-29"
+     },
+     "Spoke with": {
+      "node": [
+       "Grace Mbeki"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-06-30": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000134",
+    "text": "Tried not to think about Thursday. Thought about Thursday.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000206",
+    "text": "Video call with [[Amara Okoro]]. She wants to come down at the weekend. Too tired to talk long, but glad I did.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-06-30"
+     },
+     "Spoke with": {
+      "node": [
+       "Amara Okoro"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Tingling fingers"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-07-01": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000135",
+    "text": "[[Joan Harcourt]] brought round a lemon cake.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-07-02": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000136",
+    "text": "Slept in two hours at a time.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Insomnia"
+      ]
+     },
+     "Date": {
+      "day": "2026-07-02"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000137",
+    "text": "Fixed the dripping tap with a new washer and a lot of swearing.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000207",
+    "text": "[[Graham Whitlock]] rang about the football.",
+    "tag": "Conversation",
+    "props": {
+     "Spoke with": {
+      "node": [
+       "Graham Whitlock"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Tingling fingers"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-07-03": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000208",
+    "text": "Sunday call with [[Grace Mbeki]]. She wants regular updates.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-07-03"
+     },
+     "Spoke with": {
+      "node": [
+       "Grace Mbeki"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Fatigue"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-07-04": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000138",
+    "text": "Stood on the scales. Lighter, and not on purpose.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000209",
+    "text": "[[Beth Navarro]] dropped off a casserole. I said I was fine; she did not believe me.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-07-04"
+     },
+     "Spoke with": {
+      "node": [
+       "Beth Navarro"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-07-05": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001b0",
+    "text": "Ruth and I talked until midnight. About the children, about what she wants me to say to them.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-07-05"
+     },
+     "Spoke with": {
+      "node": [
+       "Ruth Okoro"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Colon cancer"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000020a",
+    "text": "[[Graham Whitlock]] rang about the football. She wants regular updates.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-07-05"
+     },
+     "Spoke with": {
+      "node": [
+       "Graham Whitlock"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-07-06": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000139",
+    "text": "Bought a new pair of reading glasses. The old ones are somewhere.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000026a",
+    "text": "Support group next Friday",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-07-17"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-07-07": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000013a",
+    "text": "Pottered in the garden until it rained.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000026b",
+    "text": "Eye test on Saturday",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-07-11"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-07-08": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000013b",
+    "text": "Sharp twinge low on the right when I bent down. [[Abdominal pain]].",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Abdominal pain"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000013c",
+    "text": "[[Ruth Okoro]] and I went to the garden centre. She bought more pots than the patio can hold.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000020b",
+    "text": "Coffee with [[Graham Whitlock]]. She wants regular updates.",
+    "tag": "Conversation",
+    "props": {
+     "Spoke with": {
+      "node": [
+       "Graham Whitlock"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000026c",
+    "text": "Bloods next Friday",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-07-17"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-07-09": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000013d",
+    "text": "Nothing much. Read, mostly.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-07-10": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000013e",
+    "text": "The clocks go back soon and I am dreading the dark afternoons.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000020c",
+    "text": "Video call with [[Tunde Okoro]]. The line kept dropping. We agreed not to Google.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-07-10"
+     },
+     "Spoke with": {
+      "node": [
+       "Tunde Okoro"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Tingling fingers"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-07-11": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000013f",
+    "text": "Felt like myself for most of the afternoon.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000026d",
+    "text": "Eye test on Friday",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-07-17"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-07-12": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000140",
+    "text": "Stood on the scales. Lighter, and not on purpose.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001b1",
+    "text": "[[Grace Mbeki]] rang, in tears. I ended up comforting her. Typical.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-07-12"
+     },
+     "Spoke with": {
+      "node": [
+       "Grace Mbeki"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Colon cancer"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-07-13": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000141",
+    "text": "Tired all day, even after nine hours in bed.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Fatigue"
+      ]
+     },
+     "Date": {
+      "day": "2026-07-13"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000142",
+    "text": "[[Ruth Okoro]] and I went to the garden centre. She bought more pots than the patio can hold.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000020d",
+    "text": "[[Grace Mbeki]] rang. We agreed not to Google.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-07-13"
+     },
+     "Spoke with": {
+      "node": [
+       "Grace Mbeki"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-07-14": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000143",
+    "text": "Wiped out after a short walk.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Fatigue"
+      ]
+     },
+     "Date": {
+      "day": "2026-07-14"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000144",
+    "text": "Tried not to think about Thursday. Thought about Thursday.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000020e",
+    "text": "[[Peter Lindgren]] rang to ask how I am. She worries too much.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-07-14"
+     },
+     "Spoke with": {
+      "node": [
+       "Peter Lindgren"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Tingling fingers"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-07-15": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000145",
+    "text": "Cricket on the radio while I sorted the shed.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000020f",
+    "text": "Ruth asked again how I am really. It helped.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-07-15"
+     },
+     "Spoke with": {
+      "node": [
+       "Ruth Okoro"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Fatigue"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-07-16": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000146",
+    "text": "Ruth watched me eat tonight. She says nothing, which says plenty.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-07-17": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000147",
+    "text": "Belt on the last hole.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Weight loss"
+      ]
+     },
+     "Date": {
+      "day": "2026-07-17"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000210",
+    "text": "Ruth asked again how I am really. We agreed not to Google.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-07-17"
+     },
+     "Spoke with": {
+      "node": [
+       "Ruth Okoro"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Colon cancer"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-07-18": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000211",
+    "text": "Ruth asked again how I am really. She worries too much.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-07-18"
+     },
+     "Spoke with": {
+      "node": [
+       "Ruth Okoro"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000026e",
+    "text": "Pharmacy collection on Thursday",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-07-23"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-07-19": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000212",
+    "text": "Sunday call with [[Grace Mbeki]]. Made me laugh, first time in days.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-07-19"
+     },
+     "Spoke with": {
+      "node": [
+       "Grace Mbeki"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Colon cancer"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-07-20": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000213",
+    "text": "[[Sam Doyle]] rang about book group. Made me laugh, first time in days.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-07-20"
+     },
+     "Spoke with": {
+      "node": [
+       "Sam Doyle"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-07-21": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000148",
+    "text": "Short walk, then soup.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000149",
+    "text": "Ruth watched me eat tonight. She says nothing, which says plenty.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000014a",
+    "text": "Slept eight hours straight through.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000214",
+    "text": "[[Ruth Okoro]] and I talked it through again over supper. She wants regular updates.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-07-21"
+     },
+     "Spoke with": {
+      "node": [
+       "Ruth Okoro"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Tingling fingers"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-07-22": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000014b",
+    "text": "Down another kilo on the scales. [[Weight loss]].",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Weight loss"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001b2",
+    "text": "Pre-op call with [[Dr. Kenji Watanabe]], the anaesthetist. Asked about teeth, allergies, my last meal. Calm voice.",
+    "tag": "Consultation",
+    "props": {
+     "Date": {
+      "day": "2026-07-22"
+     },
+     "Provider": {
+      "node": [
+       "Dr. Kenji Watanabe"
+      ]
+     }
+    },
+    "kids": [
+     {
+      "uuid": "c2000000-0000-4000-8000-0000000001b3",
+      "text": "He said I would feel nothing and I decided to believe him."
+     }
+    ]
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000026f",
+    "text": "Bloods on the 30th",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-07-30"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-07-23": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000014c",
+    "text": "Fixed the dripping tap with a new washer and a lot of swearing.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001d9",
+    "text": "Clinic. [[Dr. Raj Patel]] went through the iron levels. Nothing to do but wait and see.",
+    "tag": "Consultation",
+    "props": {
+     "Date": {
+      "day": "2026-07-23"
+     },
+     "Provider": {
+      "node": [
+       "Dr. Raj Patel"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Anaemia"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000215",
+    "text": "[[Graham Whitlock]] rang about the football. I got off the phone and felt lighter.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-07-23"
+     },
+     "Spoke with": {
+      "node": [
+       "Graham Whitlock"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000270",
+    "text": "Bloods next Monday",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-08-03"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-07-24": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000014d",
+    "text": "Boiler man came. Forty minutes, ninety pounds.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001da",
+    "text": "Saw [[Dr. Raj Patel]]. Mostly the iron levels. Listened properly, which is rarer than it should be.",
+    "tag": "Consultation",
+    "props": {
+     "Date": {
+      "day": "2026-07-24"
+     },
+     "Provider": {
+      "node": [
+       "Dr. Raj Patel"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Anaemia"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000216",
+    "text": "[[Sam Doyle]] rang about book group. We agreed not to Google.",
+    "tag": "Conversation",
+    "props": {
+     "Spoke with": {
+      "node": [
+       "Sam Doyle"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-07-25": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000014e",
+    "text": "Belt on the last hole. [[Weight loss]].",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Weight loss"
+      ]
+     },
+     "Date": {
+      "day": "2026-07-25"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000014f",
+    "text": "Fixed the dripping tap with a new washer and a lot of swearing.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000150",
+    "text": "Ruth watched me eat tonight. She says nothing, which says plenty.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000217",
+    "text": "[[Graham Whitlock]] rang about the football. It helped.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-07-25"
+     },
+     "Spoke with": {
+      "node": [
+       "Graham Whitlock"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Tingling fingers"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-07-26": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000151",
+    "text": "Wiped out after a short walk. [[Fatigue]].",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Fatigue"
+      ]
+     },
+     "Date": {
+      "day": "2026-07-26"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000152",
+    "text": "The clocks go back soon and I am dreading the dark afternoons.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000153",
+    "text": "Found myself counting the days in my head.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000218",
+    "text": "[[Amara Okoro]] rang. I said I was fine; she did not believe me.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-07-26"
+     },
+     "Spoke with": {
+      "node": [
+       "Amara Okoro"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Tingling fingers"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-07-27": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000154",
+    "text": "Lay awake going over everything. Nothing new, just louder at night.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001db",
+    "text": "Clinic. Dr. Helen Brooks went through being so tired. Left with a leaflet and a plan.",
+    "tag": "Consultation",
+    "props": {
+     "Provider": {
+      "node": [
+       "Dr. Helen Brooks"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Fatigue"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000219",
+    "text": "[[Beth Navarro]] dropped off a casserole.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-07-27"
+     },
+     "Spoke with": {
+      "node": [
+       "Beth Navarro"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Colon cancer"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000271",
+    "text": "Support group on Sunday",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-08-02"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-07-29": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001dc",
+    "text": "Saw Dr. Raj Patel. Mostly the tiredness. Nothing to do but wait and see.",
+    "tag": "Consultation",
+    "props": {
+     "Date": {
+      "day": "2026-07-29"
+     },
+     "Provider": {
+      "node": [
+       "Dr. Raj Patel"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Fatigue"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000272",
+    "text": "Scan results on Thursday",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-08-06"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-07-30": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000155",
+    "text": "Up at six, watered the tomatoes before the heat.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000021a",
+    "text": "[[Sam Doyle]] rang about book group. Plans for the autumn, loosely.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-07-30"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-07-31": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000156",
+    "text": "Library: a child asked me whether books were free. Yes, I said, and he looked suspicious.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000157",
+    "text": "Felt like myself for most of the afternoon.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000021b",
+    "text": "[[Sam Doyle]] rang about book group. Plans for the autumn, loosely.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-07-31"
+     },
+     "Spoke with": {
+      "node": [
+       "Sam Doyle"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000273",
+    "text": "Flu jab on Thursday",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-08-06"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-08-01": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000158",
+    "text": "Up at six, watered the tomatoes before the heat.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000159",
+    "text": "Ruth watched me eat tonight. She says nothing, which says plenty.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000021c",
+    "text": "[[Ruth Okoro]] and I talked it through again over supper. It helped.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-08-01"
+     },
+     "Spoke with": {
+      "node": [
+       "Ruth Okoro"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-08-02": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000015a",
+    "text": "Bought a new pair of reading glasses. The old ones are somewhere.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000021d",
+    "text": "[[Sam Doyle]] rang about book group. Too tired to talk long, but glad I did.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-08-02"
+     },
+     "Spoke with": {
+      "node": [
+       "Sam Doyle"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-08-03": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000015b",
+    "text": "[[Weight loss]]: belt on the last hole.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Weight loss"
+      ]
+     },
+     "Date": {
+      "day": "2026-08-03"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-08-04": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000015c",
+    "text": "Could barely get up the stairs this evening.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Fatigue"
+      ]
+     },
+     "Date": {
+      "day": "2026-08-04"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000015d",
+    "text": "Dug over the vegetable bed. Back complained afterwards.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000021e",
+    "text": "Sunday call with [[Grace Mbeki]]. We agreed not to Google.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-08-04"
+     },
+     "Spoke with": {
+      "node": [
+       "Grace Mbeki"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-08-05": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000015e",
+    "text": "Finally reread the whole of Middlemarch. Eliot never lets you off.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-08-06": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000015f",
+    "text": "Made bread. It rose, which is the main thing.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001dd",
+    "text": "Saw [[Dr. Raj Patel]]. Mostly how wiped out I get. Prescribed something for it.",
+    "tag": "Consultation",
+    "props": {
+     "Provider": {
+      "node": [
+       "Dr. Raj Patel"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Fatigue"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000021f",
+    "text": "[[Sam Doyle]] rang about book group. I said I was fine; she did not believe me.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-08-06"
+     },
+     "Spoke with": {
+      "node": [
+       "Sam Doyle"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Tingling fingers"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000274",
+    "text": "Flu jab on Sunday",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-08-09"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-08-07": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000160",
+    "text": "Marked the last of the old exam papers for the archive box.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001b4",
+    "text": "Marcus on 6B showed me the walking route round the ward. Three laps, then a biscuit.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-08-07"
+     },
+     "Spoke with": {
+      "node": [
+       "Marcus Bell"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-08-08": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000161",
+    "text": "Fixed the dripping tap with a new washer and a lot of swearing.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-08-09": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000162",
+    "text": "Yawned through the whole film.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Fatigue"
+      ]
+     },
+     "Date": {
+      "day": "2026-08-09"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000220",
+    "text": "Sunday call with [[Grace Mbeki]]. I said I was fine; she did not believe me.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-08-09"
+     },
+     "Spoke with": {
+      "node": [
+       "Grace Mbeki"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-08-10": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000163",
+    "text": "Slept badly again.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-08-11": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000164",
+    "text": "Down another kilo on the scales.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Weight loss"
+      ]
+     },
+     "Date": {
+      "day": "2026-08-11"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000275",
+    "text": "Support group on the 19th",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-08-19"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-08-13": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000165",
+    "text": "Pasta bake for dinner. Too much cheese, no regrets.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000166",
+    "text": "Slept eight hours straight through.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-08-14": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000167",
+    "text": "[[Joan Harcourt]] brought round a lemon cake.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000221",
+    "text": "Chatted with [[Joan Harcourt]] over the fence. We mostly talked about nothing, which was the point.",
+    "tag": "Conversation",
+    "props": {
+     "Spoke with": {
+      "node": [
+       "Joan Harcourt"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000276",
+    "text": "Eye test on Wednesday",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-08-19"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-08-15": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000168",
+    "text": "[[Ruth Okoro]] and I went to the garden centre. She bought more pots than the patio can hold.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000222",
+    "text": "[[Peter Lindgren]] rang to ask how I am. We mostly talked about nothing, which was the point.",
+    "tag": "Conversation",
+    "props": {
+     "Spoke with": {
+      "node": [
+       "Peter Lindgren"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000277",
+    "text": "Bloods on Monday",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-08-24"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-08-16": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000169",
+    "text": "[[Ruth Okoro]] made a lemon drizzle. I am not supposed to be hungry and yet.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000223",
+    "text": "[[Amara Okoro]] rang. She worries too much.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-08-16"
+     },
+     "Spoke with": {
+      "node": [
+       "Amara Okoro"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Colon cancer"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000278",
+    "text": "Clinic with [[Dr. Mei Chen]] on the 28th",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-08-28"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-08-17": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000016a",
+    "text": "Sharp twinge low on the right when I bent down. [[Abdominal pain]].",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Abdominal pain"
+      ]
+     },
+     "Date": {
+      "day": "2026-08-17"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000279",
+    "text": "Dietitian call on Friday",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-08-21"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-08-18": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000016b",
+    "text": "Listened to the whole of the Brahms on the walk back.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000016c",
+    "text": "A proper good day. Walked into town and back.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000027a",
+    "text": "Clinic with [[Dr. Mei Chen]] on Monday",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-08-24"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-08-19": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000016d",
+    "text": "[[Joan Harcourt]] brought round a lemon cake.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000224",
+    "text": "[[Peter Lindgren]] rang to ask how I am. Made me laugh, first time in days.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-08-19"
+     },
+     "Spoke with": {
+      "node": [
+       "Peter Lindgren"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000027b",
+    "text": "Dietitian call on Wednesday",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-08-26"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-08-20": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000225",
+    "text": "[[Peter Lindgren]] rang to ask how I am. We mostly talked about nothing, which was the point.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-08-20"
+     },
+     "Topic": {
+      "node": [
+       "Colon cancer"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-08-21": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000226",
+    "text": "[[Sam Doyle]] rang about book group. I said I was fine; she did not believe me.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-08-21"
+     },
+     "Spoke with": {
+      "node": [
+       "Sam Doyle"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-08-22": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000016e",
+    "text": "Watched the football with the sound down.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001de",
+    "text": "Clinic. [[Dr. Mei Chen]] went through my weight. Short appointment, long wait.",
+    "tag": "Consultation",
+    "props": {
+     "Date": {
+      "day": "2026-08-22"
+     },
+     "Provider": {
+      "node": [
+       "Dr. Mei Chen"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Weight loss"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000227",
+    "text": "[[Beth Navarro]] dropped off a casserole. Made me laugh, first time in days.",
+    "tag": "Conversation",
+    "props": {
+     "Spoke with": {
+      "node": [
+       "Beth Navarro"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-08-23": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000016f",
+    "text": "Dull ache on the left, comes and goes.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Abdominal pain"
+      ]
+     },
+     "Date": {
+      "day": "2026-08-23"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000170",
+    "text": "Went through the bank statements. Boring but done.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-08-24": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000171",
+    "text": "Ate everything on the plate and asked for more.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000228",
+    "text": "[[Graham Whitlock]] rang about the football. Made me laugh, first time in days.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-08-24"
+     },
+     "Spoke with": {
+      "node": [
+       "Graham Whitlock"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000242",
+    "text": "[[Priya Lin]] rang to say the prescription was ready. Reassuring.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-08-24"
+     },
+     "Spoke with": {
+      "node": [
+       "Priya Lin"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-08-25": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000172",
+    "text": "Slept eight hours straight through.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000229",
+    "text": "Chatted with [[Joan Harcourt]] over the fence. She wants regular updates.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-08-25"
+     },
+     "Spoke with": {
+      "node": [
+       "Joan Harcourt"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-08-26": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000173",
+    "text": "Washing, ironing, the usual. Radio 3 throughout.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000174",
+    "text": "Slept eight hours straight through.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000243",
+    "text": "[[Marcus Bell]] rang to see how the wound is. Told me what to watch for.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-08-26"
+     },
+     "Spoke with": {
+      "node": [
+       "Marcus Bell"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000027c",
+    "text": "Scan results on Sunday",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-09-06"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-08-27": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000027d",
+    "text": "Hair cut on Monday",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-08-31"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-08-28": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000175",
+    "text": "Quiet day. Radio, tea, a little tidying.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000022a",
+    "text": "[[Ruth Okoro]] and I talked it through again over supper. Plans for the autumn, loosely.",
+    "tag": "Conversation",
+    "props": {
+     "Spoke with": {
+      "node": [
+       "Ruth Okoro"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000244",
+    "text": "[[Lena Park]] called about the pump. She has heard it all before, which helps.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-08-28"
+     },
+     "Spoke with": {
+      "node": [
+       "Lena Park"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-08-29": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000176",
+    "text": "Slept eight hours straight through.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000022b",
+    "text": "[[Sam Doyle]] rang about book group. I said I was fine; she did not believe me.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-08-29"
+     },
+     "Spoke with": {
+      "node": [
+       "Sam Doyle"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000245",
+    "text": "Rang [[Paula Reddy]] to move an appointment. She has heard it all before, which helps.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-08-29"
+     },
+     "Spoke with": {
+      "node": [
+       "Paula Reddy"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-08-30": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000177",
+    "text": "Belt on the last hole.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Weight loss"
+      ]
+     },
+     "Date": {
+      "day": "2026-08-30"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000178",
+    "text": "Walked the river loop. Herons everywhere.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000022c",
+    "text": "[[Grace Mbeki]] rang.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-08-30"
+     },
+     "Spoke with": {
+      "node": [
+       "Grace Mbeki"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000246",
+    "text": "[[Lena Park]] called about the pump. Told me what to watch for.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-08-30"
+     },
+     "Spoke with": {
+      "node": [
+       "Lena Park"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Neutropenia"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000027e",
+    "text": "Dietitian call next Monday",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-09-07"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-08-31": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000179",
+    "text": "Library shift. Re-shelved half the travel section.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001b5",
+    "text": "Saw [[Dr. Julia Fenn]], the registrar, for the chemo teaching session. She went through every side effect and had me repeat the emergency numbers.",
+    "tag": "Consultation",
+    "props": {
+     "Date": {
+      "day": "2026-08-31"
+     },
+     "Provider": {
+      "node": [
+       "Dr. Julia Fenn"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Colon cancer"
+      ]
+     }
+    },
+    "kids": [
+     {
+      "uuid": "c2000000-0000-4000-8000-0000000001b6",
+      "text": "Temperature of 38 or over: ring the acute line straight away. Do not wait to see."
+     }
+    ]
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000247",
+    "text": "[[Marcus Bell]] rang to see how the wound is. Sorted in two minutes.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-08-31"
+     },
+     "Spoke with": {
+      "node": [
+       "Marcus Bell"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000027f",
+    "text": "Hair cut on Friday",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-09-04"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-09-01": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000017a",
+    "text": "Quiet day. Radio, tea, a little tidying.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001df",
+    "text": "Saw Dr. Mei Chen about not sleeping. Ruth took notes.",
+    "tag": "Consultation",
+    "props": {
+     "Date": {
+      "day": "2026-09-01"
+     },
+     "Provider": {
+      "node": [
+       "Dr. Mei Chen"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Insomnia"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-09-02": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001e0",
+    "text": "Saw [[Dr. Helen Brooks]] about the nausea. Weighed me. Down again.",
+    "tag": "Consultation",
+    "props": {
+     "Provider": {
+      "node": [
+       "Dr. Helen Brooks"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Nausea"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-09-03": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000017b",
+    "text": "Sunday roast at [[Graham Whitlock]]'s. Slept in the chair afterwards.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000022d",
+    "text": "Chatted with [[Joan Harcourt]] over the fence. We mostly talked about nothing, which was the point.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-09-03"
+     },
+     "Spoke with": {
+      "node": [
+       "Joan Harcourt"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000248",
+    "text": "[[Marcus Bell]] rang to see how the wound is. She has heard it all before, which helps.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-09-03"
+     },
+     "Spoke with": {
+      "node": [
+       "Marcus Bell"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000280",
+    "text": "Physio on Thursday",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-09-10"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-09-04": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000017c",
+    "text": "Posted the birthday card for Tunde, three weeks early because of the post.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000249",
+    "text": "[[Priya Lin]] rang to say the prescription was ready. Told me what to watch for.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-09-04"
+     },
+     "Spoke with": {
+      "node": [
+       "Priya Lin"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Nausea"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-09-05": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000017d",
+    "text": "Could barely get up the stairs this evening.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 3,
+     "Symptom type": {
+      "node": [
+       "Fatigue"
+      ]
+     },
+     "Date": {
+      "day": "2026-09-05"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-09-07": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001b7",
+    "text": "Gave away the shed project, for now. Ruth says it will still be there when I'm better.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001e1",
+    "text": "Clinic. Dr. Mei Chen went through the nights awake. Asked me to ring if it gets worse.",
+    "tag": "Consultation",
+    "props": {
+     "Date": {
+      "day": "2026-09-07"
+     },
+     "Provider": {
+      "node": [
+       "Dr. Mei Chen"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Insomnia"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000024a",
+    "text": "[[Lena Park]] called about the pump. Sorted in two minutes.",
+    "tag": "Conversation",
+    "props": {
+     "Spoke with": {
+      "node": [
+       "Lena Park"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-09-08": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000017e",
+    "text": "Quiet day. Radio, tea, a little tidying.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000024b",
+    "text": "Rang the day unit and got [[Zoë Müller]]. Reassuring.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-09-08"
+     },
+     "Spoke with": {
+      "node": [
+       "Zoë Müller"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000028d",
+    "text": "Bloods at [[Northgate]] today. Result: [[Blood count 2026-09-08]].",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-09-09": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000017f",
+    "text": "Cleared out the loft. Found my old chalkboard compass.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000022e",
+    "text": "[[Ruth Okoro]] and I talked it through again over supper. She worries too much.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-09-09"
+     },
+     "Spoke with": {
+      "node": [
+       "Ruth Okoro"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-09-10": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001e2",
+    "text": "Clinic. Dr. Mei Chen went through the weight I have lost. Left with a leaflet and a plan.",
+    "tag": "Consultation",
+    "props": {
+     "Date": {
+      "day": "2026-09-10"
+     },
+     "Provider": {
+      "node": [
+       "Dr. Mei Chen"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Weight loss"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000022f",
+    "text": "[[Beth Navarro]] dropped off a casserole.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-09-10"
+     },
+     "Topic": {
+      "node": [
+       "Nausea"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-09-11": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000180",
+    "text": "[[Fatigue]]: could barely get up the stairs this evening.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Fatigue"
+      ]
+     },
+     "Date": {
+      "day": "2026-09-11"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000230",
+    "text": "[[Ruth Okoro]] and I talked it through again over supper.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-09-11"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000024c",
+    "text": "[[Lena Park]] called about the pump. Told me what to watch for.",
+    "tag": "Conversation",
+    "props": {
+     "Spoke with": {
+      "node": [
+       "Lena Park"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000281",
+    "text": "Dentist on the 22nd",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-09-22"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-09-12": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000181",
+    "text": "The clocks go back soon and I am dreading the dark afternoons.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001e3",
+    "text": "Video call with [[Dr. Helen Brooks]] about not sleeping. Reassuring, mostly.",
+    "tag": "Consultation",
+    "props": {
+     "Provider": {
+      "node": [
+       "Dr. Helen Brooks"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Insomnia"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000231",
+    "text": "Ruth asked again how I am really. She wants regular updates.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-09-12"
+     },
+     "Topic": {
+      "node": [
+       "Tingling fingers"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000024d",
+    "text": "Rang the day unit and got [[Zoë Müller]]. Reassuring.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-09-12"
+     },
+     "Spoke with": {
+      "node": [
+       "Zoë Müller"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-09-13": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000232",
+    "text": "Sunday call with [[Grace Mbeki]]. We mostly talked about nothing, which was the point.",
+    "tag": "Conversation",
+    "props": {
+     "Spoke with": {
+      "node": [
+       "Grace Mbeki"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-09-14": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000182",
+    "text": "Stayed in bed with the paper until nine.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001e4",
+    "text": "Saw [[Dr. Mei Chen]] about the taste changes. Prescribed something for it.",
+    "tag": "Consultation",
+    "props": {
+     "Date": {
+      "day": "2026-09-14"
+     },
+     "Provider": {
+      "node": [
+       "Dr. Mei Chen"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Taste changes"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000233",
+    "text": "[[Graham Whitlock]] rang about the football. She wants regular updates.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-09-14"
+     },
+     "Spoke with": {
+      "node": [
+       "Graham Whitlock"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Tingling fingers"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-09-15": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000183",
+    "text": "Nothing much. Read, mostly.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001e5",
+    "text": "Saw [[Dr. Julia Fenn]] about the diarrhoea. Asked me to ring if it gets worse.",
+    "tag": "Consultation",
+    "props": {
+     "Date": {
+      "day": "2026-09-15"
+     },
+     "Provider": {
+      "node": [
+       "Dr. Julia Fenn"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Diarrhoea"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-09-17": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000184",
+    "text": "Hiccups for two hours after the drip.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 3,
+     "Symptom type": {
+      "node": [
+       "Hiccups"
+      ]
+     },
+     "Date": {
+      "day": "2026-09-17"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001e6",
+    "text": "Saw [[Dr. Julia Fenn]]. Mostly the sore mouth. She wants bloods again next week.",
+    "tag": "Consultation",
+    "props": {
+     "Date": {
+      "day": "2026-09-17"
+     },
+     "Provider": {
+      "node": [
+       "Dr. Julia Fenn"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Mouth sores"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-09-18": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000185",
+    "text": "Did the Thursday shift at [[Eastbridge Library]] with [[Peter Lindgren]].",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000234",
+    "text": "Coffee with [[Graham Whitlock]]. Too tired to talk long, but glad I did.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-09-18"
+     },
+     "Spoke with": {
+      "node": [
+       "Graham Whitlock"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000024e",
+    "text": "[[Zoë Müller]] rang to check how I got on after the drip. She has heard it all before, which helps.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-09-18"
+     },
+     "Spoke with": {
+      "node": [
+       "Zoë Müller"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-09-19": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000186",
+    "text": "Nausea in waves until teatime.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Nausea"
+      ]
+     },
+     "Date": {
+      "day": "2026-09-19"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000187",
+    "text": "Painted the fence. Half of it.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-09-20": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000282",
+    "text": "Eye test on Thursday",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-09-24"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-09-21": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000188",
+    "text": "Slept badly again.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001b8",
+    "text": "Lena the district nurse came about the dressing on the line. Very gentle. Said the arm was healing nicely.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-09-21"
+     },
+     "Spoke with": {
+      "node": [
+       "Lena Park"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000235",
+    "text": "Video call with [[Tunde Okoro]]. The line kept dropping. Plans for the autumn, loosely.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-09-21"
+     },
+     "Spoke with": {
+      "node": [
+       "Tunde Okoro"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-09-22": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000189",
+    "text": "Nothing much. Read, mostly.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001e7",
+    "text": "Saw Dr. Mei Chen. Mostly how wiped out I get. Nothing to do but wait and see.",
+    "tag": "Consultation",
+    "props": {
+     "Date": {
+      "day": "2026-09-22"
+     },
+     "Topic": {
+      "node": [
+       "Fatigue"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000028e",
+    "text": "Bloods at [[Northgate]] today. Result: [[Blood count 2026-09-22]].",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-09-23": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000018a",
+    "text": "[[Joan Harcourt]] brought round a lemon cake.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000024f",
+    "text": "[[Marcus Bell]] rang to see how the wound is. Asked me to ring again tomorrow if it is no better.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-09-23"
+     },
+     "Spoke with": {
+      "node": [
+       "Marcus Bell"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000283",
+    "text": "Clinic with [[Dr. Mei Chen]] on Friday",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-10-02"
+     },
+     "Status": {
+      "choice": "Moved"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-09-24": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000018b",
+    "text": "Loose stools all day. Water and plain toast. [[Diarrhoea]].",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Diarrhoea"
+      ]
+     },
+     "Date": {
+      "day": "2026-09-24"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000018c",
+    "text": "Made bread. It rose, which is the main thing.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000018d",
+    "text": "Stood on the scales. Lighter, and not on purpose.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000236",
+    "text": "Chatted with [[Joan Harcourt]] over the fence. I said I was fine; she did not believe me.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-09-24"
+     },
+     "Spoke with": {
+      "node": [
+       "Joan Harcourt"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-09-25": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000018e",
+    "text": "Up at six, watered the tomatoes before the heat.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001b9",
+    "text": "Cancer Support drop-in with [[Ruth Okoro]]. Too many leaflets, but the tea was good and I liked the woman running it.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-09-26": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001e8",
+    "text": "Saw [[Dr. Mei Chen]]. Mostly the nights awake. We agreed to leave things as they are for now.",
+    "tag": "Consultation",
+    "props": {
+     "Date": {
+      "day": "2026-09-26"
+     },
+     "Provider": {
+      "node": [
+       "Dr. Mei Chen"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Insomnia"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-09-28": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000018f",
+    "text": "[[Fatigue]]: yawned through the whole film.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Fatigue"
+      ]
+     },
+     "Date": {
+      "day": "2026-09-28"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000190",
+    "text": "[[Joan Harcourt]] brought round a lemon cake.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-09-29": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000191",
+    "text": "[[Low mood]]: flat and grey, no reason I can name.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Low mood"
+      ]
+     },
+     "Date": {
+      "day": "2026-09-29"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000192",
+    "text": "Found myself counting the days in my head.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-09-30": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000193",
+    "text": "Posted the birthday card for Tunde, three weeks early because of the post.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000237",
+    "text": "[[Sam Doyle]] rang about book group. I said I was fine; she did not believe me.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-09-30"
+     },
+     "Spoke with": {
+      "node": [
+       "Sam Doyle"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Tingling fingers"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000250",
+    "text": "[[Lena Park]] called about the pump. She has heard it all before, which helps.",
+    "tag": "Conversation",
+    "props": {
+     "Spoke with": {
+      "node": [
+       "Lena Park"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Neutropenia"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-10-01": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000194",
+    "text": "Flat as a pancake by three.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 3,
+     "Symptom type": {
+      "node": [
+       "Fatigue"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000195",
+    "text": "Sunday roast at [[Graham Whitlock]]'s. Slept in the chair afterwards.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000196",
+    "text": "Slept eight hours straight through.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-10-02": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000197",
+    "text": "Tea tastes of metal.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 4,
+     "Symptom type": {
+      "node": [
+       "Taste changes"
+      ]
+     },
+     "Date": {
+      "day": "2026-10-02"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000198",
+    "text": "Pasta bake for dinner. Too much cheese, no regrets.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001ba",
+    "text": "First physio session with [[Callum Reid]]. Ten minutes on the bike, then stretching for the fingers.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-10-02"
+     },
+     "Spoke with": {
+      "node": [
+       "Callum Reid"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Tingling fingers"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001bb",
+    "text": "Physio on Friday",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-10-09"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000238",
+    "text": "[[Sam Doyle]] rang about book group. Made me laugh, first time in days.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-10-02"
+     },
+     "Spoke with": {
+      "node": [
+       "Sam Doyle"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000284",
+    "text": "Physio on Monday",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-10-05"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-10-03": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000199",
+    "text": "Tea tastes of metal.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 3,
+     "Symptom type": {
+      "node": [
+       "Taste changes"
+      ]
+     },
+     "Date": {
+      "day": "2026-10-03"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000251",
+    "text": "[[Marcus Bell]] rang to see how the wound is. Sorted in two minutes.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-10-03"
+     },
+     "Spoke with": {
+      "node": [
+       "Marcus Bell"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000285",
+    "text": "Scan results on Wednesday",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-10-07"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-10-04": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000019a",
+    "text": "Queasy from the smell of the kitchen.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 4,
+     "Symptom type": {
+      "node": [
+       "Nausea"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001e9",
+    "text": "Video call with Dr. Helen Brooks about the nights awake. Left with a leaflet and a plan.",
+    "tag": "Consultation",
+    "props": {
+     "Date": {
+      "day": "2026-10-04"
+     },
+     "Provider": {
+      "node": [
+       "Dr. Helen Brooks"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Insomnia"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000239",
+    "text": "Sunday call with [[Grace Mbeki]]. We mostly talked about nothing, which was the point.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-10-04"
+     },
+     "Spoke with": {
+      "node": [
+       "Grace Mbeki"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000252",
+    "text": "[[Marcus Bell]] rang to see how the wound is. Told me what to watch for.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-10-04"
+     },
+     "Spoke with": {
+      "node": [
+       "Marcus Bell"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-10-05": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000019b",
+    "text": "Could not face coffee at all.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 3,
+     "Symptom type": {
+      "node": [
+       "Taste changes"
+      ]
+     },
+     "Date": {
+      "day": "2026-10-05"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000019c",
+    "text": "[[Ruth Okoro]] made a lemon drizzle. I am not supposed to be hungry and yet.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-10-06": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000019d",
+    "text": "Dropped a cup. The fingers just would not grip.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Tingling fingers"
+      ]
+     },
+     "Date": {
+      "day": "2026-10-06"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000019e",
+    "text": "Short walk, then soup.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000023a",
+    "text": "Talked to [[Amara Okoro]] for an hour. It helped.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-10-06"
+     },
+     "Topic": {
+      "node": [
+       "Fatigue"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000290",
+    "text": "Bloods at [[Northgate]] today. Result: [[Blood count 2026-10-06]].",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-10-07": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000253",
+    "text": "Rang the day unit and got [[Zoë Müller]]. Reassuring.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-10-07"
+     },
+     "Spoke with": {
+      "node": [
+       "Zoë Müller"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000286",
+    "text": "Pharmacy collection on Friday",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-10-16"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-10-08": [
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000019f",
+    "text": "Awake from two to five.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 3,
+     "Symptom type": {
+      "node": [
+       "Insomnia"
+      ]
+     },
+     "Date": {
+      "day": "2026-10-08"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001a0",
+    "text": "Stayed in bed with the paper until nine.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001a1",
+    "text": "Felt like myself for most of the afternoon.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000023b",
+    "text": "Ruth asked again how I am really.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-10-08"
+     },
+     "Spoke with": {
+      "node": [
+       "Ruth Okoro"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Colon cancer"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-10-09": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001a2",
+    "text": "[[Fatigue]]: needed a nap after the library shift.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 1,
+     "Symptom type": {
+      "node": [
+       "Fatigue"
+      ]
+     },
+     "Date": {
+      "day": "2026-10-09"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000023c",
+    "text": "Coffee with [[Graham Whitlock]]. She wants regular updates.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-10-09"
+     },
+     "Topic": {
+      "node": [
+       "Nausea"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000254",
+    "text": "[[Lena Park]] called about the pump. Reassuring.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-10-09"
+     },
+     "Spoke with": {
+      "node": [
+       "Lena Park"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000287",
+    "text": "Clinic with [[Dr. Mei Chen]] next Tuesday",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-10-20"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-10-10": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001a3",
+    "text": "Felt like myself for most of the afternoon.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001ea",
+    "text": "Clinic. [[Dr. Helen Brooks]] went through the plan. Listened properly, which is rarer than it should be.",
+    "tag": "Consultation",
+    "props": {
+     "Date": {
+      "day": "2026-10-10"
+     },
+     "Provider": {
+      "node": [
+       "Dr. Helen Brooks"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Colon cancer"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000023d",
+    "text": "Coffee with [[Graham Whitlock]]. Made me laugh, first time in days.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-10-10"
+     },
+     "Spoke with": {
+      "node": [
+       "Graham Whitlock"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Fatigue"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-10-11": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001a4",
+    "text": "Dropped a cup. The fingers just would not grip.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Tingling fingers"
+      ]
+     },
+     "Date": {
+      "day": "2026-10-11"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001a5",
+    "text": "Made bread. It rose, which is the main thing.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001a6",
+    "text": "A proper good day. Walked into town and back.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000255",
+    "text": "[[Marcus Bell]] rang to see how the wound is. Sorted in two minutes.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-10-11"
+     },
+     "Spoke with": {
+      "node": [
+       "Marcus Bell"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-10-12": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001bd",
+    "text": "[[Priya Lin]] at Lakeside had the loperamide ready before I'd asked. Bless her.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-10-12"
+     },
+     "Spoke with": {
+      "node": [
+       "Priya Lin"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Diarrhoea"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001eb",
+    "text": "Appointment with Dr. Mei Chen: the sore mouth. Ruth took notes.",
+    "tag": "Consultation",
+    "props": {
+     "Date": {
+      "day": "2026-10-12"
+     },
+     "Provider": {
+      "node": [
+       "Dr. Mei Chen"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Mouth sores"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000288",
+    "text": "Scan results on Thursday",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-10-15"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-10-13": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001a7",
+    "text": "Stood on the scales. Lighter, and not on purpose.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001a8",
+    "text": "Slept eight hours straight through.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-10-14": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001a9",
+    "text": "Boiler man came. Forty minutes, ninety pounds.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001ec",
+    "text": "Video call with [[Dr. Julia Fenn]] about the tingling in my fingers. Asked me to ring if it gets worse.",
+    "tag": "Consultation",
+    "props": {
+     "Date": {
+      "day": "2026-10-14"
+     },
+     "Provider": {
+      "node": [
+       "Dr. Julia Fenn"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Tingling fingers"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000023e",
+    "text": "[[Beth Navarro]] dropped off a casserole. Made me laugh, first time in days.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-10-14"
+     },
+     "Spoke with": {
+      "node": [
+       "Beth Navarro"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Tingling fingers"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-10-15": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001aa",
+    "text": "[[Ruth Okoro]] made a lemon drizzle. I am not supposed to be hungry and yet.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001bc",
+    "text": "Rang [[Paula Reddy]] about moving the scan. She'll ring back when she has a date.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-10-15"
+     },
+     "Spoke with": {
+      "node": [
+       "Paula Reddy"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000023f",
+    "text": "[[Amara Okoro]] rang. It helped.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-10-15"
+     },
+     "Spoke with": {
+      "node": [
+       "Amara Okoro"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Colon cancer"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000289",
+    "text": "Physio on the 26th",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-10-26"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-10-16": [
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000256",
+    "text": "[[Lena Park]] called about the pump. Reassuring.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-10-16"
+     },
+     "Spoke with": {
+      "node": [
+       "Lena Park"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-10-17": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001ab",
+    "text": "[[Joan Harcourt]] brought round a lemon cake.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001ac",
+    "text": "Ruth watched me eat tonight. She says nothing, which says plenty.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001ed",
+    "text": "Appointment with Dr. Helen Brooks: the nausea. She wants bloods again next week.",
+    "tag": "Consultation",
+    "props": {
+     "Date": {
+      "day": "2026-10-17"
+     },
+     "Provider": {
+      "node": [
+       "Dr. Helen Brooks"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Nausea"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000240",
+    "text": "[[Peter Lindgren]] rang to ask how I am.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-10-17"
+     },
+     "Topic": {
+      "node": [
+       "Colon cancer"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000257",
+    "text": "Rang [[Paula Reddy]] to move an appointment. She has heard it all before, which helps.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-10-17"
+     },
+     "Spoke with": {
+      "node": [
+       "Paula Reddy"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-10-18": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001be",
+    "text": "Reread [[Questions for Dr. Chen]] and added three more.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000258",
+    "text": "[[Priya Lin]] rang to say the prescription was ready. Sorted in two minutes.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-10-18"
+     },
+     "Spoke with": {
+      "node": [
+       "Priya Lin"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Tingling fingers"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-10-19": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001ad",
+    "text": "Rain all day. Finished the Tuesday jigsaw.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001ae",
+    "text": "A proper good day. Walked into town and back.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000241",
+    "text": "Coffee with [[Graham Whitlock]]. I said I was fine; she did not believe me.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-10-19"
+     },
+     "Spoke with": {
+      "node": [
+       "Graham Whitlock"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000259",
+    "text": "[[Zoë Müller]] rang to check how I got on after the drip. Sorted in two minutes.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-10-19"
+     },
+     "Spoke with": {
+      "node": [
+       "Zoë Müller"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-10-20": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001af",
+    "text": "Felt like myself for most of the afternoon.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-000000000291",
+    "text": "Bloods at [[Northgate]] today. Result: [[Blood count 2026-10-20]].",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ],
+  "2026-10-21": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001bf",
+    "text": "Saw [[Dr. Julia Fenn]] before the drip. Neutrophils recovered, tingling stable at grade 1. Cleared for cycle 4 at the lower dose.",
+    "tag": "Consultation",
+    "props": {
+     "Date": {
+      "day": "2026-10-21"
+     },
+     "Provider": {
+      "node": [
+       "Dr. Julia Fenn"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Peripheral neuropathy"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001c0",
+    "text": "Chemo cycle 4 done. [[Zoë Müller]] did the drip, pump home for two days.",
+    "tag": "Treatment",
+    "props": {
+     "Date": {
+      "day": "2026-10-21"
+     },
+     "Agent": {
+      "node": [
+       "Oxaliplatin",
+       "Fluorouracil (5-FU)",
+       "Leucovorin"
+      ]
+     },
+     "Cycle": 4
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001c1",
+    "text": "[[Cold sensitivity]]: cold air hurt my throat on the walk.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 3,
+     "Symptom type": {
+      "node": [
+       "Cold sensitivity"
+      ]
+     },
+     "Date": {
+      "day": "2026-10-21"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000025a",
+    "text": "[[Zoë Müller]] rang to check how I got on after the drip. Asked me to ring again tomorrow if it is no better.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-10-21"
+     },
+     "Spoke with": {
+      "node": [
+       "Zoë Müller"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000028a",
+    "text": "Pharmacy collection on Monday",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-10-26"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-10-22": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001c2",
+    "text": "[[Nausea]]: queasy from the smell of the kitchen.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 3,
+     "Symptom type": {
+      "node": [
+       "Nausea"
+      ]
+     },
+     "Date": {
+      "day": "2026-10-22"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001c3",
+    "text": "Legs like lead at the bus stop.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 3,
+     "Symptom type": {
+      "node": [
+       "Fatigue"
+      ]
+     },
+     "Date": {
+      "day": "2026-10-22"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001c4",
+    "text": "Dexamethasone with breakfast, ginger biscuit, bed by nine. Ruth fussing, which I let her do.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000028b",
+    "text": "Scan results on the 1st",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-11-01"
+     },
+     "Status": {
+      "choice": "Planned"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-10-23": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001c5",
+    "text": "[[Lena Park]] came to take the pump off. She remembered the arm from last time.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-10-23"
+     },
+     "Spoke with": {
+      "node": [
+       "Lena Park"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001c6",
+    "text": "Could not face coffee at all.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Taste changes"
+      ]
+     },
+     "Date": {
+      "day": "2026-10-23"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000025b",
+    "text": "[[Marcus Bell]] rang to see how the wound is. She has heard it all before, which helps.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-10-23"
+     },
+     "Spoke with": {
+      "node": [
+       "Marcus Bell"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-10-24": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001c7",
+    "text": "[[Tingling fingers]]: tingling all evening, worse than last week.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Tingling fingers"
+      ]
+     },
+     "Date": {
+      "day": "2026-10-24"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001c8",
+    "text": "[[Mouth sores]]: mouth sore, mouthwash before every meal.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Mouth sores"
+      ]
+     },
+     "Date": {
+      "day": "2026-10-24"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001c9",
+    "text": "Weekend. [[Graham Whitlock]] brought the paper round and stayed for a cup of tea.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000025c",
+    "text": "[[Peter Lindgren]] rang to ask how I am. I said I was fine; she did not believe me.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-10-24"
+     },
+     "Spoke with": {
+      "node": [
+       "Peter Lindgren"
+      ]
+     },
+     "Topic": {
+      "node": [
+       "Fatigue"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000028c",
+    "text": "Eye test on Tuesday",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-10-27"
+     },
+     "Status": {
+      "choice": "Done"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-10-25": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001ca",
+    "text": "Sunday walk, shorter than last week. [[Ruth Okoro]] took my arm without asking.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001cb",
+    "text": "Wiped out after a short walk.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Fatigue"
+      ]
+     },
+     "Date": {
+      "day": "2026-10-25"
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-10-26": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001cc",
+    "text": "Awake from two to five.",
+    "tag": "Symptom Log",
+    "props": {
+     "Severity": 2,
+     "Symptom type": {
+      "node": [
+       "Insomnia"
+      ]
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001cd",
+    "text": "Video call with [[Tunde Okoro]] and [[Ngozi Okoro]]. They have booked flights for the week before Christmas.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-10-26"
+     },
+     "Spoke with": {
+      "node": [
+       "Tunde Okoro",
+       "Ngozi Okoro"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-10-27": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001ce",
+    "text": "Bloods at [[Northgate]] for cycle 5. Result: [[Blood count 2026-10-27]]. Better than I feared.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001cf",
+    "text": "Chemo cycle 5 on the 4th of November",
+    "tag": "Expectation",
+    "props": {
+     "Date": {
+      "day": "2026-11-04"
+     },
+     "Status": {
+      "choice": "Planned"
+     }
+    },
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-00000000025d",
+    "text": "Chatted with [[Joan Harcourt]] over the fence. Told me what to watch for.",
+    "tag": "Conversation",
+    "props": {
+     "Date": {
+      "day": "2026-10-27"
+     },
+     "Spoke with": {
+      "node": [
+       "Joan Harcourt"
+      ]
+     }
+    },
+    "kids": []
+   }
+  ],
+  "2026-10-28": [
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001d0",
+    "text": "Feeling stronger today. Wrote out Christmas lunch and then crossed half of it out.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   },
+   {
+    "uuid": "c2000000-0000-4000-8000-0000000001d1",
+    "text": "The shed is still unfinished. Ruth says that is a reason to get better.",
+    "tag": null,
+    "props": {},
+    "kids": []
+   }
+  ]
+ },
+ "about": "Fictional additions to the Illness Test Graph. Made by test/graph/flesh-out.py."
+}

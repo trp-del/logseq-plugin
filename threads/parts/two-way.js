@@ -19,7 +19,7 @@
    day where Logseq's values start, the name, its tag right after it (0.4.320), the tick box in the margin) and draw
    everything else with the kit: a tag as a class (mono, no #), the tick box, the picking bar as a line of quiet
    words above the rows, filters as words, the fold chevron and the arrow after a name from Logseq's font, the +
-   and the sidebar icon as quiet buttons, the draft line's field, the menus and the lists as the kit's pop-up
+   as a quiet button, the draft line's field, the menus and the lists as the kit's pop-up
    placed by the browser, a question beside what it asked, the hover card; the graph is read and written only
    through the model's doors, the page and settings changes come from the core; no logseq.* call here. */
 const shared = window.refinementShared;
@@ -32,7 +32,7 @@ const settingsSchema = [
     zone: '<div><span class="m">doctor of →</span> &nbsp;<u>9 Appointments</u> <span class="m">· next Nov 12</span></div>',
     description: 'Changes here apply right away.' },
   { key: 'twoWayRows', type: 'boolean', title: 'Links read the same from both ends', default: true,
-    description: 'On a page that one of your fields points to (a doctor named as the “doctor” of visits, a report named as the “report” of a scan), each such field becomes a row in the page’s own property list, with an arrow after its name: “doctor of →   9 Appointments · next Nov 12”. Up to three records show by name; more show as a count that opens into the list. Click a record’s line to open it (Shift-click or the sidebar icon at its end: in the sidebar); rest the pointer on it to see its fields and first lines. Click the field’s name to open the field; right-click it to change how it reads here. In a list with several kinds of records, click a kind to show only those. The + at the end of a row adds a new record with that field pointing here (Undo is the faded arrow after the row’s name). Tick the box before records (Shift-click a box: every one between) to act on them together: open in the sidebar, change this page to another one in their field, take the link off, add a tag, copy, set or clear a property, or delete them. A list of more than three can be grouped: the word “group” after its count (or right-click the name, “Group by…”) groups it by tag, month or any property its nodes hold, each group folding, and the + at the end of a group adds a node with that group’s tag or value already set. The chevron before a node’s name opens it under its name: its properties, what points at it and its first bullets, with a faint empty bullet to write a new one in; nodes open in place until one would break its lines, then the outline shifts by one level: the outermost goes into the way back above, the next reads like a page at the top. While you type a new node’s words in the + line, what it would get shows under the line in grey, as the proposals do in a bullet (a guess with a dotted line under it): Enter takes everything shown, a click on a guess keeps that one and lets the other guesses go, Escape clears them until you type again; a page’s name typed in the words completes in grey after the cursor, and the Right arrow links it. The same in the empty bullet of an opened node. The node’s properties show above its bullets there; click what one holds to change it (the likely values first), and the faded Undo arrow puts it back. After Enter the + line stays open, empty, for the next node; Escape closes it. Changing this page to another for the picked nodes lists first the pages their own words name.' },
+    description: 'On a page that one of your fields points to (a doctor named as the “doctor” of visits, a report named as the “report” of a scan), each such field becomes a row in the page’s own property list, with an arrow after its name: “doctor of →   9 Appointments · next Nov 12”. Up to three records show by name; more show as a count that opens into the list. Click a record’s line to open it (Shift-click: in the sidebar); rest the pointer on it to see its fields and first lines. Click the field’s name to open the field; right-click it to change how it reads here. In a list with several kinds of records, click a kind to show only those. The + at the end of a row adds a new record with that field pointing here (Undo is the faded arrow after the row’s name). Tick the box before records (Shift-click a box: every one between) to act on them together: open in the sidebar, change this page to another one in their field, take the link off, add a tag, copy, set or clear a property, or delete them. A list of more than three can be grouped: the word “group” after its count (or right-click the name, “Group by…”) groups it by tag, month or any property its nodes hold, each group folding, and the + at the end of a group adds a node with that group’s tag or value already set. The chevron before a node’s name opens it under its name: its properties, what points at it and its first bullets, with a faint empty bullet to write a new one in; nodes open in place until one would break its lines, then the outline shifts by one level: the outermost goes into the way back above, the next reads like a page at the top. While you type a new node’s words in the + line, what it would get shows under the line in grey, as the proposals do in a bullet (a guess with a dotted line under it): Enter takes everything shown, a click on a guess keeps that one and lets the other guesses go, Escape clears them until you type again; a page’s name typed in the words completes in grey after the cursor, and the Right arrow links it. The same in the empty bullet of an opened node. The node’s properties show above its bullets there; click what one holds to change it (the likely values first), and the faded Undo arrow puts it back. After Enter the + line stays open, empty, for the next node; Escape closes it. Changing this page to another for the picked nodes lists first the pages their own words name.' },
   { key: 'twoWayDays', type: 'boolean', title: 'Show each node’s day in the margin', default: true,
     description: 'Each node in the rows shows its day (its own date, or the day it was written on) in a column at the left. Off, the column goes and the rows move left into its place; the day still shows in the card when you point at a node, and the find field still finds it.' },
   { key: 'twoWayNames', hidden: true, type: 'string', title: 'How properties read on the other page', default: '',
@@ -263,8 +263,8 @@ function summary(items, whenOnly = false) {
 const WHEN_TIP = 'The days of these nodes: each node’s date, or the journal day it is written on';
 const INLINE = 3, LISTED = 5;
 /* Moving around the rows (0.4.184, the + and the hovers 0.4.185, the owner asked for the rows to be more interactive). A record's line is
-   lit under the pointer and opens on a click anywhere along it; the sidebar icon at its end opens it in the sidebar (as
-   Shift-click does). Resting on a record shows a card with its fields and first lines (peek, below). The field's
+   lit under the pointer and opens on a click anywhere along it; Shift-click opens it in the sidebar (the icon at its
+   end that did the same went on 31 October 2026). Resting on a record shows a card with its fields and first lines (peek, below). The field's
    name opens the field's own page. In an open list, a row of kinds ("All 13 · Infusion 8 · Scan 1") shows only
    that kind, as does a kind at the end of a line; a line marked "earlier" parts what is coming up from what is
    past; "show all 13" folds back with "show fewer". Whether a list is open is kept across restarts. */
@@ -289,7 +289,8 @@ const pickOn = (group, item) => { const key = `${item.uuid}|${group.name}`, on =
 // A record's tag at the right opens the tag's page, Shift-click in the sidebar (0.4.297, the owner: "should be able to
 // click on tag in two-way area on right side"); a tag reads as a class, mono with no # (the kit's tag, 0.4.318).
 const tagLink = item => item.tag && item.tag !== 'note' ? `<a class="rf-tag lk-tag rf-tw-tag" data-tag-page="${esc(item.tag)}" href="#" title="Open ${esc(item.tag)} (Shift-click: in the sidebar)">${esc(item.tag)}</a>` : `<span class="rf-tag lk-tag rf-tw-tag">${esc(item.tag)}</span>`;
-const sideLink = item => `<a class="rf-quiet rf-tw-side" data-uuid="${esc(item.uuid)}" href="#" title="Open in the sidebar (or Shift-click the name)" aria-label="Open in the sidebar">${iconHtml('sidebar')}</a>`;
+// No sidebar icon at the end of a line (the review, 31 October: a control per row, and a long name left a blank line
+// under itself where the icon wrapped); Shift-click on the name opens it in the sidebar, as everywhere in Logseq.
 /* The rows on the kit's outline (0.4.442, docs/REWORK.md 4, the owner's drawings of 2026-10-26): every node on a line of its
    own, the tick box in the margin, its day in a column of one width, the one chevron right before its name, its tag
    after it. A row of more than three folds by the chevron before its count; its list opens under it. */
@@ -311,19 +312,26 @@ function rowHtml(group, top = null) {
     ? `<div class="rf-tw-name lk-prop"><span class="rf-kind">${shared.kindIconHtml(group.kind || 'node', group.many)}</span><a class="rf-tw-field" data-uuid="${esc(group.fieldUuid)}" href="#" title="${tip} Click to open the property “${esc(group.name)}”.">${label}</a></div>`
     : `<div class="rf-tw-name lk-prop" title="${tip}">${label}</div>`;
   const base = top ? top.key : `r:${group.name}`;
+  // Each row's list is a list of its own for the tick boxes (Look's lk-list): the pointer on it raises its boxes and no
+  // other's; while anything is ticked every list shows its boxes, as before.
+  const listCls = `rf-tw-value rf-ol lk-list`, picking = state.picked.size && !drawingTop ? ' data-picking=""' : '';
   // A row of one is the node itself, in place (its name, then its tag), not a header (1.0.2, the owner: "it is fine
   // that not everyone looked the same, especially since it is header v node"); every list of two or more has the one header.
   if (group.items.length === 1 && !(group.found && group.total > 1)) {
     const lines = group.items.map(item => itemHtml(group, item, base, addLink(group))).join('');
-    return `<div class="rf-tw-row" data-field="${esc(group.name)}">${name}<div class="rf-tw-value rf-ol">${lines}${addLineHtml(group)}</div></div>`;
+    return `<div class="rf-tw-row" data-field="${esc(group.name)}">${name}<div class="${listCls}"${picking}>${lines}${addLineHtml(group)}</div></div>`;
   }
   // While finding, a list opens in full only once something of it is left out (the reviewer: one letter made the list
   // longer, 323 → 535 px, a folded list unfolding though nothing was filtered).
   const narrowed = !!group.found && group.items.length < group.total;
   // In full only once the found are few: one node dropping out no longer makes the list three times longer.
   const open = narrowed || isOpen(key), all = state.all.has(key) || (narrowed && group.items.length <= LISTED);
+  // While finding, the head keeps the whole list's words and order and only the nodes narrow (the review, 31 October:
+  // "Consultation · Infusion · Scan" became "Infusion · Consultation" and "Admissions · from Aug 13 to Sep 12" became
+  // "Admission · on Aug 13" as letters were typed), so the eye keeps its place.
+  const whole = (group.found && state.groups.find(g => g.name === group.name)) || group;
   const counts = new Map();
-  for (const item of group.items) counts.set(item.tag, (counts.get(item.tag) || 0) + 1);
+  for (const item of whole.items) counts.set(item.tag, (counts.get(item.tag) || 0) + 1);
   const only = counts.has(state.only.get(key)) ? state.only.get(key) : '';
   const items = only ? group.items.filter(item => item.tag === only) : group.items;
   const shown = all ? items : items.slice(0, LISTED);
@@ -331,22 +339,24 @@ function rowHtml(group, top = null) {
      chevron itself, the days at the end (0.4.399, the owner: the header "3 Therapeutic sessions, 3 Cancer Drugs" said what
      the words under it said again): folded it reads as the summary, and a click on a kind opens the list with only those. */
   const chip = (tag, text, cls = '', raw = false) => `<button type="button" class="rf-chip rf-tw-chip${cls}" data-key="${esc(key)}" data-tag="${esc(tag)}" aria-pressed="${tag === only}">${raw ? text : esc(text)}</button>`;
-  // While finding, a list that has several kinds keeps the kinds' form, so its heading does not change look at a letter.
-  const kinds = counts.size > 1 || (!!group.found && new Set((state.groups.find(g => g.name === group.name)?.items || []).map(item => item.tag)).size > 1);
+  const kinds = counts.size > 1;
   /* One style for every list (1.0.2): the count and what they are first, in one weight ("11 Symptom Logs", or "4 nodes"
      when they are of several kinds); after it, quiet and parted by a dot, the kinds as filter words and the days. With several kinds the count is the old "All": it folds and unfolds the
      list, and shows every node again when one kind is picked. */
-  const total = group.items.length;
+  const total = whole.items.length;
+  const when = summary(whole.items, true);
+  // The mentions row's head is its days alone (the review, 31 October: "notes" was the plugin's word for an untagged
+  // mention, under a row already called "Mentioned in"); where the mentions are of several kinds, the kinds stay.
+  const daysOnly = isMentions(group) && !kinds && !!when;
   // The number is a count (the grammar: none shown, lk-count); it is there for a plugin without Look, and for the words' sake.
-  const leadText = kinds ? `All<span class="lk-count"> ${total}</span>` : `<span class="lk-count">${total}</span> ${esc(plural(group.items[0]?.tag || 'note', total))}`;
-  const lead = kinds ? chip('', leadText, ' rf-tw-lead', true)
+  const leadText = kinds ? `All<span class="lk-count"> ${total}</span>` : `<span class="lk-count">${total}</span> ${esc(plural(whole.items[0]?.tag || 'note', total))}`;
+  const lead = daysOnly ? '' : kinds ? chip('', leadText, ' rf-tw-lead', true)
     : `<a class="rf-tw-toggle rf-tw-lead" data-key="${esc(key)}" href="#" title="Click to ${open ? 'fold' : 'open'} the list.">${leadText}</a>`;
-  const when = summary(group.items, true);
   const whenHtml = when ? `<a class="rf-tw-toggle rf-tw-when" data-key="${esc(key)}" href="#" title="${WHEN_TIP}. Click to ${open ? 'fold' : 'open'} the list.">${esc(when)}</a>` : '';
   const sep = '<span class="rf-tw-sep" aria-hidden="true">·</span>';
   const tail = [...(kinds ? [...counts].sort((a, b) => b[1] - a[1]).map(([tag, n]) => chip(tag, `${esc(tag)} <span class="lk-count">${n}</span>`, '', true)) : []), whenHtml].filter(Boolean);
   // Each piece keeps its dot: a header that wraps starts its next line with "· next on Nov 5", never ends one on a dot.
-  const head = `<span class="rf-tw-chips">${lead}${tail.map(piece => `<span class="rf-tw-piece">${sep}${piece}</span>`).join('')}</span>`;
+  const head = `<span class="rf-tw-chips">${lead}${tail.map((piece, i) => `<span class="rf-tw-piece">${lead || i ? sep : ''}${piece}</span>`).join('')}</span>`;
   let list = '';
   if (open) {
     const today = todayNumber();
@@ -364,7 +374,7 @@ function rowHtml(group, top = null) {
   // its children"): its chevron starts where the days do, its words right after; the nodes, their days too, one step in.
   const headLine = O.line({ day: null, chev: fold, body: `${head}${addLink(group)}${groupBtn(group)}`, cls: 'rf-tw-head' });
   const listHtml = open ? O.kids({ html: list, cls: 'rf-ol-bare rf-tw-list', fresh: state.fresh === key }) : '';
-  return `<div class="rf-tw-row" data-field="${esc(group.name)}"${open ? ' data-open=""' : ''}>${name}<div class="rf-tw-value rf-ol">${headLine}${listHtml}${addLineHtml(group)}</div></div>`;
+  return `<div class="rf-tw-row" data-field="${esc(group.name)}"${open ? ' data-open=""' : ''}>${name}<div class="${listCls}"${picking}>${headLine}${listHtml}${addLineHtml(group)}</div></div>`;
 }
 // One node of a row: its line, where it sits (a mention's page and bullets), what it could be, and what it holds when open.
 // bare: the heading above names the one tag, so the lines leave it out (0.4.404; 0.4.462 for a list of one kind); tell:
@@ -379,7 +389,7 @@ function itemHtml(group, item, base, end = '', bare = false, tell = '') {
   // are typed (the reviewer: 4 to 9 px).
   lineDay.set(key, dayCell(item));
   // Opened, the node's properties show the telling value: the line lets go of it.
-  const body = `${nameHtml(shown, open && state.findDug.get(key) !== true, bare)}${tell && !open ? tellHtml(item, tell) : ''}${end}${sideLink(item)}`;
+  const body = `${nameHtml(shown, open && state.findDug.get(key) !== true, bare)}${tell && !open ? tellHtml(item, tell) : ''}${end}`;
   const line = O.line({ tick: pickBox(group, item), day: dayCell(item), chev: digChev(key, item.uuid, 0, shortName(item.title), open), body, cls: 'rf-tw-line', attrs: { 'data-uuid': item.uuid } });
   const under = `${crumbHtml(item)}${raiseHtml(group, item)}`;
   return open ? O.unit({ html: line + under + digKids(key, item.uuid, 'in'), focus: state.focus === key, attrs: { 'data-key': key } }) : line + under;
@@ -1351,7 +1361,7 @@ function draw(doc) {
   let box = state.box;
   if (!box || box.ownerDocument !== doc) {
     box = state.box = doc.createElement('div');
-    box.className = 'refinement-two-way lk-list';
+    box.className = 'refinement-two-way';
     box.setAttribute('contenteditable', 'false');
     box.addEventListener('mousedown', event => { event.stopPropagation(); if (state.find && event.target.closest?.('.rf-chev, [data-findall]')) event.preventDefault(); });
     box.addEventListener('click', onClick);
@@ -1403,7 +1413,8 @@ function draw(doc) {
   pinNow();
   if (anchor.nextElementSibling !== box) anchor.after(box);
   holdRoom(doc, box, mode, page);
-  box.toggleAttribute('data-rf-waiting', mode === 'hold' && !heights.has(page) && !anchor.matches('.ls-page-properties, .ls-page-blocks') && performance.now() - settle.since < WAIT_MS);
+  // The rows stand after the page's words, which Logseq is still drawing, so a page not seen before waits whatever the anchor.
+  box.toggleAttribute('data-rf-waiting', mode === 'hold' && !heights.has(page) && performance.now() - settle.since < WAIT_MS);
   if (!rows && mode === 'save') box.remove();
 }
 // Before the screen is drawn (0.4.182), so the rows come in the same frame as the property list they sit under. Only
@@ -1458,7 +1469,6 @@ function onClick(event) {
   hidePeek();
   if (line) return openEntity(line.dataset.uuid, event.shiftKey);
   if (target.matches('.rf-tw-record, .rf-tw-field')) return openEntity(target.dataset.uuid, event.shiftKey);
-  if (target.matches('.rf-tw-side')) return openEntity(target.dataset.uuid, true);
   if (target.matches('.rf-tw-tag[data-tag-page]')) return openPage(target.dataset.tagPage, event.shiftKey);
   if (target.matches('[data-draft="tag"]')) return tagList(target);
   const key = target.dataset.key;
@@ -1494,15 +1504,16 @@ function onRename(event) {
   const group = nameEl && state.groups.find(g => g.name === nameEl.closest('.rf-tw-row')?.dataset.field);
   if (!group) return;
   event.preventDefault(); event.stopPropagation(); hidePeek(); closeAdd();
-  adding.pop = shared.popup({ at: nameEl.querySelector('.rf-tw-field') || nameEl, head: group.label, width: 220, onClose: () => { adding.pop = null; }, items: [
+  // As wide as its longest words (the review, 31 October: a set width cut the widest action short).
+  adding.pop = shared.popup({ at: nameEl.querySelector('.rf-tw-field') || nameEl, head: group.label, onClose: () => { adding.pop = null; }, items: [
     ...(group.items.length > INLINE ? [{ icon: 'order', label: 'Group by…', run: () => { groupMenu(group, nameEl.querySelector('.rf-tw-field') || nameEl).catch(error => warnOnce('could not open the group menu', error)); } }] : []),
     { sep: true },
     isMentions(group)
       ? { icon: 'remove', label: 'Hide mentions on this page', run: () => { hideMentionsHere().catch(error => warnOnce('could not hide the mentions row', error)); } }
       : provided.tagTree?.showProp ? { icon: 'map', label: 'Open in the map', run: () => provided.tagTree.showProp(group.name) } : null,
     ...(isMentions(group) ? [] : [{ icon: 'rename', label: 'Reads back as …', run: () => { renameRow(group, nameEl).catch(error => warnOnce('could not rename the row', error)); } }]),
-    // The same two words as the tag map's (0.4.444, one word for each idea).
-    ...(isMentions(group) ? [] : [{ icon: 'hide', label: `Hide “${group.label}” on the pages it points to`, run: () => {
+    // The same two words as the tag map's (0.4.444, one word for each idea); the head above already names the row.
+    ...(isMentions(group) ? [] : [{ icon: 'hide', label: 'Hide on the pages it points to', run: () => {
       setShownAtOtherEnd(group.name, false);
       offerUndo(`“${group.label}” is hidden on every page it points to; the links stay`, () => { setShownAtOtherEnd(group.name, true); later(0); });
       later(0);
@@ -2211,7 +2222,7 @@ const twoWayCss = `
 .refinement-two-way .rf-tw-toggle:hover { color: inherit; }
 /* The list a count opens into: date, record, tag, one per line, under the value. */
 /* The line drops from under the fold arrow (centred 11px in, 0.4.196), as Logseq's own guide lines drop from theirs; the words stay where they were. */
-/* Moving around (0.4.184): a record's line lit under the pointer, the sidebar icon shown there, the field's name
+/* Moving around (0.4.184): a record's line lit under the pointer, the field's name
    and the kinds as quiet words, the kinds row above an open list, "earlier" before what is past. */
 /* The field's name and the count that opens a list get the same soft patch under the pointer (0.4.185), drawn in the
    padding a negative margin gives back, so nothing moves. */
@@ -2225,7 +2236,7 @@ const twoWayCss = `
 .refinement-two-way .rf-tw-earlier::after { content: ''; flex: 1; border-top: 1px solid var(--rf-hair); }
 /* The line for adding a node (0.4.303): under the row's values, in the value column; a + at its left, the kit's
    field inline, the tag right after it. */
-/* A node's tag sits right after its name, and the sidebar icon after the tag (0.4.320, the owner: "move tags for two-way
+/* A node's tag sits right after its name (0.4.320, the owner: "move tags for two-way
    link next to item, not right aligned"); the last column takes the rest of the row. */
 .refinement-two-way .rf-tw-draft { grid-column: 2; position: relative; display: grid; grid-template-columns: minmax(8em, 22em) auto 1.4em 1fr; column-gap: .5em; align-items: baseline; margin: 0 -.35rem; padding: 0 .35rem 0 calc(22px + .35rem); cursor: text; }
 .refinement-two-way .rf-tw-row { position: relative; }
@@ -2286,8 +2297,6 @@ const twoWayCss = `
 /* The same room as in an open list: half a letter before the day, a letter before the tag. */
 /* The room between the words and the day, and before the tag: a space, widened, which a line may break at and which
    leaves no gap at the start of a line. */
-/* The sidebar icon at the far right of its line (0.4.327, the owner: "the sidebar items should be on far right and have
-   some sort of arrow to the right signifying sidebar opening"): the last column; the icon is a sidebar with an arrow. */
 /* a long name wraps, never cut (0.4.263) */
 /* The room left of a record, where its box sits, counts as the record under the pointer, so the box shows there too. */
 .refinement-two-way { position: relative; }
@@ -2349,7 +2358,9 @@ const twoWayCss = `
 
 /* The tick boxes show when the pointer is on their row, and all of them while anything is ticked (the owner, 2026-10-27:
    "checkboxes can be revealed on hover", in place of the faint box of 2026-10-25 for these). */
-/* When the tick boxes show is Look's (the shared names lk-list and lk-tick): every box when the pointer is on the section. */
+/* When the tick boxes show is Look's (the shared names lk-list and lk-tick). Each property's row is the list (the
+   review, 31 October: the pointer on one row lit eleven boxes down the section, and the caret in the find line six),
+   so only its boxes appear; the find line stands outside the rows and raises none. */
 .refinement-two-way .rf-tw-head > .rf-ol-body { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: .9rem; }
 .refinement-two-way .rf-tw-head > .rf-ol-body > .rf-tw-add, .refinement-two-way .rf-tw-head > .rf-ol-body > .rf-tw-groupby { margin-left: 0; }
 .refinement-two-way .rf-tw-line { cursor: pointer; }
@@ -2371,8 +2382,6 @@ const twoWayCss = `
 /* A shifted section's top (0.4.463): the trail ends on it in bold; its properties; then "N nodes link to ↑" on the
    find field's hairline, and its rows as the page's. */
 .refinement-two-way .rf-tw-toplinks { grid-column: 1 / -1; color: var(--rf-quiet); font-size: 13px; padding: 6px 0 5px; margin-bottom: 4px; border-bottom: 1px solid var(--rf-hair); }
-.refinement-two-way .rf-tw-line .rf-tw-side { visibility: hidden; height: 20px; padding: 0 3px; margin-left: .3em; vertical-align: -3px; }
-.refinement-two-way .rf-tw-line:hover .rf-tw-side { visibility: visible; }
 ::highlight(rf-find) { background-color: var(--rx-blue-04, #e1f0ff); } /* a very subtle blue, Logseq's own (the owner: "I don't like a yellow highlight, do very subtle blue") */
 .refinement-two-way .rf-tw-crumb { color: var(--rf-faint); font-size: .82em; line-height: 1.3; padding: 0 0 3px calc(16px + var(--rf-ol-gap)); overflow-wrap: anywhere; }
 .refinement-two-way .rf-tw-raise { display: flex; flex-wrap: wrap; column-gap: 1.1em; align-items: baseline; margin: 0 0 .2rem calc(16px + var(--rf-ol-gap)); font-size: .92em; line-height: 1.5; }
@@ -2394,9 +2403,9 @@ const twoWayCss = `
 .refinement-two-way .rf-tw-pin { grid-column: 1 / -1; position: sticky; top: var(--rf-tw-pin-top, 0px); height: 0; z-index: 3; }
 .refinement-two-way[data-picking] .rf-tw-pin { display: none; }
 /* While something is picked the bar stays in view at the top as the section scrolls (act where you are). */
-.refinement-two-way[data-picking] .rf-tw-bar { position: sticky; top: var(--rf-tw-pin-top, 0px); z-index: 4; background: var(--ls-primary-background-color, var(--rf-bg)); padding-top: 4px; }
+.refinement-two-way[data-picking] .rf-tw-bar { position: sticky; top: var(--rf-tw-pin-top, 0px); z-index: 4; background: var(--lk-paper, var(--rf-bg)); padding-top: 4px; }
 .refinement-two-way a.rf-ol-step { text-decoration: underline; text-decoration-color: var(--rf-line); text-underline-offset: 3px; }
-.refinement-two-way .rf-tw-pin > .rf-ol-trail { position: absolute; left: -12px; right: -12px; top: 0; padding: 5px 12px; background: var(--ls-primary-background-color, var(--rf-bg)); border-bottom: 1px solid var(--rf-hair); }
+.refinement-two-way .rf-tw-pin > .rf-ol-trail { position: absolute; left: -12px; right: -12px; top: 0; padding: 5px 12px; background: var(--lk-paper, var(--rf-bg)); border-bottom: 1px solid var(--rf-hair); }
 `;
 /* Logseq draws the properties under a record as one strip (.bottom-properties-pills-strip, flex-nowrap and
    overflow-x hidden), so a record with several fields is cut off at the right edge, behind an Expand button the

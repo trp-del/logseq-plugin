@@ -1,0 +1,75 @@
+/* node test/window.js   (needs jsdom: NODE_PATH=/Users/admin/logseq-plugin/node_modules; without it the check is skipped)
+   The export window drawn into a stand-in for Logseq's document (jsdom), on the hand-made document of test/sample.js: it
+   is built from the visual grammar's shared names (Look gives them their look), its keys stay out of Logseq's reach,
+   Escape closes it, ⌘-Enter presses the button that matches, and nothing is left behind when the plugin stops. */
+const assert = require('node:assert/strict');
+const fs = require('node:fs'), path = require('node:path'), vm = require('node:vm');
+let JSDOM; try { ({ JSDOM } = require('jsdom')); } catch (error) { console.log('window: skipped, needs jsdom (set NODE_PATH)'); process.exit(0); }
+const { logseq } = require('./graph.js');
+const { root, order } = require('../../test/module.js')('export');
+const dom = new JSDOM('<html><body><div id="head" class="drag-region"></div><div id="main-content-container"></div></body></html>', { pretendToBeVisual: true });
+const hostDoc = dom.window.document;
+const own = new JSDOM('<html><body></body></html>').window.document;   // the plugin's own frame
+const sandbox = { window: { parent: { document: hostDoc }, document: own }, document: own, logseq, console, setTimeout, clearTimeout, Promise, URL, Date, Map, Set, JSON, Math, Number, String, Array, Object, RegExp, encodeURI, fetch: async () => { throw new Error('no network'); }, Blob: class {}, FileReader: class {} };
+sandbox.window.window = sandbox.window;
+vm.createContext(sandbox);
+for (const file of [...order, 'export/test/sample.js']) vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), sandbox, { filename: file });
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const key = (target, name, init = {}) => target.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: name, bubbles: true, cancelable: true, ...init }));
+(async () => {
+  await sleep(30);
+  const E = sandbox.window.DbExport;
+  const doc = E.sample();
+  const acted = [];
+  let reached = 0; hostDoc.addEventListener('keydown', () => { reached += 1; });   // what Logseq's own shortcuts would see
+  const opened = E.ui.open({ doc, what: 'this page', act: async (ch, action) => { acted.push([action, ch.target, ch.layout, [...ch.hiddenNodes]]); } });
+  const win = hostDoc.querySelector('.xp');
+  assert.ok(win && hostDoc.getElementById('xp-style'), 'the window and its stylesheet are in Logseq’s document');
+  assert.equal(own.querySelector('.xp'), null, 'nothing in the plugin’s own frame');
+  assert.deepEqual([...win.querySelectorAll('.xp-where label')].map(l => l.textContent), ['PDF', 'Markdown', 'Rich text']);
+  assert.equal(win.querySelector('.xp-where input:checked').value, 'pdf');
+  // The property lists: the grammar's rows, ticks, names with the icon of what they hold, counts as lk-count.
+  const lists = [...win.querySelectorAll('.xp-list.lk-list')];
+  assert.deepEqual(lists.map(l => l.dataset.role), ['head', 'nodes']);
+  const rows = [...lists[1].querySelectorAll('.xp-prop.lk-row')];
+  assert.deepEqual(rows.map(r => r.querySelector('.lk-prop').textContent), ['Date', 'Deadline', 'End', 'Hospital', 'Provider', 'Severity', 'Topic']);
+  assert.ok(rows.every(r => r.querySelector('input.lk-tick[type=checkbox]') && r.querySelector('.lk-count')), 'a tick and a count on every row');
+  assert.ok(rows[0].querySelector('.xp-kind .ti-calendar') && rows[4].querySelector('.xp-kind svg') && rows[5].querySelector('.xp-kind .ti-123'), 'a calendar before Date, the web before Provider, 123 before Severity');
+  // The Pressing set: every control a small name over a value; a pick wears the chevron and stands for a hidden select; a switch reads its state; a panel unfolds its row under the bar.
+  const style = win.querySelector('.it[data-pick=xp-layout]');
+  assert.equal(style.querySelector('.lk-name').textContent, 'style'); assert.equal(style.querySelector('.lk-value').firstChild.nodeValue, 'Document'); assert.ok(style.querySelector('.lk-value svg.m'), 'the chevron after the value');
+  assert.ok(style.querySelector('select.xp-layout[hidden]'), 'the select stands behind the value'); assert.ok(style.querySelector('.lk-alts').hidden, 'folded at rest');
+  style.querySelector('.lk-value').click(); assert.ok(!style.querySelector('.lk-alts').hidden && style.classList.contains('open'), 'pressed, it unfolds');
+  const prose = [...style.querySelectorAll('.lk-alts span')].find(a => a.textContent === 'Outline'); prose.click();
+  assert.equal(win.querySelector('select.xp-layout').value, prose.dataset.v, 'an alternative pressed sets the select'); assert.equal(style.querySelector('.lk-value').firstChild.nodeValue, 'Outline', 'and the value reads it'); assert.ok(style.querySelector('.lk-alts').hidden, 'and it folds');
+  const tags = win.querySelector('.xp-tags').closest('.lk-value'); assert.equal(tags.lastChild.nodeValue, 'Tags'); tags.querySelector('input').checked = false; tags.querySelector('input').dispatchEvent(new hostDoc.defaultView.Event('change', { bubbles: true }));
+  assert.equal(tags.lastChild.nodeValue, 'No tags', 'a switch reads its state'); assert.ok(tags.classList.contains('off'));
+  assert.equal(tags.closest('.it').querySelector('.lk-name').textContent, '', 'no name over a switch in Show: the value says its own word');
+  // The Page row stays folded until Page is pressed, and a choice elsewhere does not open it; the Show lists are headed by whose they are over all / none, the one in force in the text colour.
+  const pageFold = win.querySelector('.xp-fold[data-panel=xp-page]'); assert.ok(pageFold.hidden, 'the Page row is folded when the window opens'); assert.ok(pageFold.hidden, 'and stays folded after a choice');
+  assert.deepEqual([...win.querySelectorAll('.xp-lists .lk-name')].map(n => n.textContent), ['of the page', 'of the nodes']);
+  const all = win.querySelector('.xp-all[data-role=nodes]'); assert.deepEqual([...all.children].map(a => [a.textContent, a.classList.contains('on')]), [['all', true], ['none', false]]);
+  all.querySelector('[data-all="0"]').click(); assert.deepEqual([...all.children].map(a => a.classList.contains('on')), [false, true], 'none pressed: none in force'); all.querySelector('[data-all="1"]').click();
+  const note = win.querySelector('.xp-note'); assert.ok(note.children.length === 1 && note.firstElementChild.dataset.pick === 'xp-zoom' && !note.querySelector('.xp-note-text'), 'over the desk, the size pick alone, no sentence');
+  assert.ok(win.querySelector('button.lk-accent[data-act=pdf]') && win.querySelector('button.lk-close'), 'the accent and the × at the end');
+  // Keys typed in the window never reach Logseq; Escape does, and folds an open panel first, then closes the window.
+  key(win.querySelector('.xp-footer'), 'e'); assert.equal(reached, 0, 'a letter typed in a field stays in the window');
+  const show = win.querySelector('.it[data-panel=xp-show]'), fold = win.querySelector('.xp-fold[data-panel=xp-show]'); show.querySelector('.lk-value').click(); assert.ok(!fold.hidden, 'the panel unfolds under the bar');
+  key(win.querySelector('.xp-footer'), 'Escape'); assert.ok(fold.hidden, 'Escape folds the open panel'); assert.ok(hostDoc.querySelector('.xp'), 'the window stays');
+  // ⌘-Enter presses the button that matches the destination; an unticked property is left out.
+  rows[4].querySelector('input').checked = false;
+  win.querySelector('input[name=xp-target][value=md]').checked = true;
+  key(hostDoc.body, 'Enter', { metaKey: true });
+  await opened;
+  assert.deepEqual(acted, [['md', 'md', 'outline', ['user.property/provider']]], 'the export ran with the choices made');
+  assert.equal(hostDoc.querySelector('.xp'), null, 'the window is gone after the export');
+  assert.equal(logseq.settings.target, 'md', 'the choice is remembered');
+  // Escape alone closes it; the sweep takes the stylesheet too.
+  E.ui.open({ doc, what: 'this page', act: async () => {} });
+  key(hostDoc.body, 'Escape');
+  assert.equal(hostDoc.querySelector('.xp'), null, 'Escape closes the window');
+  E.ui.sweep();
+  assert.equal(hostDoc.querySelectorAll('.xp, #xp-style').length, 0, 'nothing left in Logseq’s document');
+  console.log('  ok  the export window: in Logseq’s document, the grammar’s names, keys kept, Escape and ⌘-Enter, swept');
+  process.exit(0);
+})().catch(error => { console.error('FAIL ', error); process.exit(1); });

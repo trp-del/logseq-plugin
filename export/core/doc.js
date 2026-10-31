@@ -105,6 +105,9 @@ function entries(doc, { dateKey = 'auto', newestFirst = false } = {}) {
 
 // The tags to write after a node's words: those not already written in them as #[[Name]].
 const tagsToAppend = n => (n.tags || []).filter(t => !String(n.text || '').includes(`#[[${t}]]`));
+/* The tags a row carries: while task boxes are drawn, a task row's tag Task is left off, since the box says it; with no
+   boxes the tag stays, then the only sign. `all`: every tag (a table's Tags column), not only those to write after the words. */
+const tagsOf = (n, boxes, all = false) => (all ? n.tags || [] : tagsToAppend(n)).filter(t => !(boxes && n.task && t === 'Task'));
 
 const TASK_WORDS = { todo: 'To do', doing: 'Doing', done: 'Done', canceled: 'Canceled', 'in-review': 'In review', backlog: 'Backlog', '': 'To do' };
 const taskDone = t => t && (t.status === 'done' || t.status === 'canceled');
@@ -120,5 +123,5 @@ const dated = key => key === 'timeline' || key === 'calendar';
 // In the document layout, a short top-level line with lines under it reads as a section heading.
 const readsAsHeading = (n, depth, meta) => depth === 0 && kids(n).length > 0 && n.display === '' && !n.task && E.inline.words(n.text).length <= 70 && !/[.!?:,;]$/.test(n.text.trim()) && !meta.length;
 
-E.doc = { tagsToAppend, node, document, shown, kids, isEmpty, collect, valueText, propertyText, metaOf, headNode, propertiesIn, dateChoices, autoKeys, dateOf, entries, TASK_WORDS, taskDone, layouts, dated, readsAsHeading };
+E.doc = { tagsToAppend, tagsOf, node, document, shown, kids, isEmpty, collect, valueText, propertyText, metaOf, headNode, propertiesIn, dateChoices, autoKeys, dateOf, entries, TASK_WORDS, taskDone, layouts, dated, readsAsHeading };
 })();

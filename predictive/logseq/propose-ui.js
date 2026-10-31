@@ -70,7 +70,8 @@ function makePill(doc, row, piece) {
   pill.className = 'bottom-property-pill flow-made flow-made-pill';
   pill.setAttribute('contenteditable', 'false');
   pill.innerHTML = `<span class="flow-made-name lk-prop">${esc(piece.prop.title)}:</span><span class="bottom-property-content"></span>`;
-  (rowEl.querySelector('.bottom-properties-row') || rowEl).appendChild(pill);
+  // In the strip that holds Logseq's own pills, so it lines up with them and Look's dot reaches it.
+  (rowEl.querySelector('.bottom-properties-pills-strip') || rowEl.querySelector('.bottom-properties-row') || rowEl).appendChild(pill);
   return pill;
 }
 
@@ -182,12 +183,13 @@ function drawInPlace(doc = host()) {
       fillGhost(g, piece);
       // Taken (clicked, or the bullet left and this value on its way): solid, as it will be.
       const taken = job.live ? job.live.clicked?.has(guessKey(piece)) : true;
-      // Several names carry the pencil each (the dotted line under each name, not the commas), one value as a whole.
+      // Several names carry the pencil each (the dotted line under each name, not the commas), one value as a whole. Taken
+      // keeps the name lk-pencil, so the property still counts as filled for Look's dot; flow-taken takes the look off it.
       const names = g.querySelectorAll(':scope > .flow-name');
-      const cls = look.cls + (taken ? ' flow-taken' : names.length ? '' : ' lk-pencil');
+      const cls = look.cls + (names.length ? '' : ' lk-pencil') + (taken ? ' flow-taken' : '');
       if (g.className !== cls) g.className = cls;
       const picked = job.live ? pickedIn(job.live, piece) : null;
-      for (const n of names) { const done = taken || !!picked?.has(Number(n.dataset.flowId)); n.classList.toggle('flow-taken', done); n.classList.toggle('lk-pencil', !done); }
+      for (const n of names) n.classList.toggle('flow-taken', taken || !!picked?.has(Number(n.dataset.flowId)));
       const title = job.live ? look.title : 'Being filled in';
       if (g.title !== title) g.title = title;
       if (!pill.hasAttribute('data-flow-proposal')) pill.setAttribute('data-flow-proposal', '');
@@ -465,6 +467,7 @@ function onGhostPress(event) {
   drawInPlace(el.ownerDocument);
 }
 
+const PILL = ':is(#main-content-container, #right-sidebar) .ls-block .positioned-properties.block-below .bottom-property-pill', AT = '.bottom-property-pill.bottom-property-pill[data-flow-at]';
 const css = `
 /* A proposed value, in the record's own property where the value goes. Its look (italic, grey, the dotted line, sure and
    guessed alike) is Look's, through the shared name lk-pencil; a tag's (mono, small capitals) through lk-tag. */
@@ -473,16 +476,21 @@ const css = `
 /* A proposed tag, at the right end of the bullet's line where Logseq draws its tags. */
 .flow-tag-ghost { margin-left: .25em; white-space: nowrap; }
 /* A proposal clicked: solid, filled in when the bullet is left. */
-/* Taken (clicked, or on its way in): the pencil's name is gone with it, so it reads as plain words. */
-.flow-ghost.flow-taken, .flow-ghost > .flow-name.flow-taken { color: inherit; font-style: normal; text-decoration: none; }
+/* Taken (clicked, or on its way in): it reads as plain words, over the pencil's look. */
+.flow-ghost.flow-taken, .flow-ghost > .flow-name.flow-taken { color: inherit !important; font-style: normal !important; text-decoration: none !important; }
 .flow-ghost { cursor: pointer; }
 .ls-block .positioned-properties.block-below .bottom-property-pill[data-flow-proposal] { display: flex !important; opacity: 1 !important; }
 .bottom-property-pill[data-flow-proposal] .empty-value { display: none !important; }
-/* A property Option-Enter has opened: Logseq's own empty value is back, for its list to sit under, and the guess steps aside. */
+/* A property Option-Enter has opened keeps its pencil: Logseq's own empty value is back, unseen and in its place, for its list
+   to sit under. A box of Logseq's opening in the pill (a number) holds the guess itself, so there the pencil steps aside. */
 .bottom-property-pill[data-flow-proposal][data-flow-at] .empty-value { display: revert !important; }
-.bottom-property-pill[data-flow-at] .flow-ghost { display: none; }
+.bottom-property-pill[data-flow-proposal][data-flow-at]:not(:has(input, textarea)) .empty-value { position: absolute; opacity: 0; pointer-events: none; }
+.bottom-property-pill[data-flow-at]:has(input, textarea) .flow-ghost { display: none; }
+/* Its ring, the one Look gives a property holding the keyboard: here the keyboard is in the list, outside the pill. */
+${PILL}${AT}::after { inset: -2px 0 !important; border-radius: 6px !important; box-shadow: inset 0 0 0 1px var(--lk-line, var(--ls-border-color)) !important; }
+${PILL}:is(:not(:has(.empty-value)), :has(.lk-pencil)) ~ ${AT}::after { left: 16px !important; }
 /* A pill row the plugin made (an untagged bullet): the pills side by side, as Logseq lays out its own. */
-.positioned-properties.flow-made .bottom-properties-row { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 1rem; row-gap: .25rem; }
+.positioned-properties.flow-made .bottom-properties-row { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: .5rem; row-gap: .25rem; }
 .flow-made-pill { display: inline-flex; align-items: baseline; gap: .3em; }
 /* The undo arrow at the end of the bullet's line; its fade is Look's, through lk-undo. */
 .flow-undo { border: 0; background: none; padding: 0 4px; margin-left: .25em; font: inherit; line-height: 1; cursor: pointer; color: inherit; vertical-align: -2px; }

@@ -53,9 +53,10 @@ const SPECIMENS = {
   tagsAsClasses: on => `Spoke with Dr. Mei Chen about the fatigue &nbsp; ${on ? '<span class="lk-tag">Consultation</span>' : '<span class="sw-blue sw-chip">#Consultation</span>'}`,
   tagChain: on => `<span class="sw-line"><span class="sw-big">Dr. Mei Chen</span><span style="margin-left:auto">${on ? '<span class="lk-tag">Doctor</span><span class="sw-sep">/</span><span class="lk-tag">Person</span><span class="sw-sep">/</span><span class="lk-tag">Entity</span>' : '<span class="sw-faintw sw-chip">#Doctor</span>'}</span></span>`,
   tagChainSidebar: on => `<span class="sw-k">Dr. Mei Chen</span><br>${on ? '<span class="lk-tag">Doctor</span><span class="sw-sep">/</span><span class="lk-tag">Person</span><span class="sw-sep">/</span><span class="lk-tag">Entity</span>' : '<span class="sw-faintw">(nothing)</span>'}`,
-  pageMark: on => `<span class="sw-big">${on ? `<span class="lk-page-mark" style="position:static;width:22px;height:22px">${Look.kit.markSvg('entity')}</span>` : ''}Dr. Mei Chen</span>`,
+  pageMark: on => `<span class="sw-big">${on ? `<span class="lk-page-mark">${Look.kit.markSvg('entity')}</span>` : ''}Dr. Mei Chen</span>`,
   hideTitleWords: on => `<span class="sw-faintw" style="font-size:12px;${on ? 'visibility:hidden' : ''}">Add icon &nbsp; Set property</span><br><span class="sw-big">Dr. Mei Chen</span>`,
   propertyIcons: on => `<span class="sw-big">Chest X-ray results</span><br><span class="sw-pill">${on ? `<span class="lk-kind">${Look.kit.kindIconHtml('node')}</span>` : '<span class="sw-dot"></span>'}<span class="sw-k">Provider</span> ${link('Dr. Mei Chen', 'entity')}</span><br><span class="sw-pill">${on ? `<span class="lk-kind">${Look.kit.kindIconHtml('text')}</span>` : '<span class="sw-dot"></span>'}<span class="sw-k">Findings</span> nodule in the right upper lobe</span>`,
+  propertyNameTips: on => `<span class="sw-k">Referring consul…</span>${on ? ' &nbsp; <span class="sw-chip">Referring consultant at Northgate</span>' : ''}`,
   quietNames: on => `<span class="${on ? 'sw-k' : ''}">Provider:</span> ${link('Dr. Mei Chen', 'entity')} <span class="sw-sep">·</span> <span class="${on ? 'sw-k' : ''}">Date:</span> Sep 3`,
   noCapsules: on => on ? `<span class="sw-k">Provider:</span> ${link('Dr. Mei Chen', 'entity')} <span class="sw-sep">·</span> <span class="sw-k">Date:</span> Sep 3` : `<span class="sw-cap"><span class="sw-k">Provider:</span> ${link('Dr. Mei Chen', 'entity')}</span> &nbsp;<span class="sw-cap"><span class="sw-k">Date:</span> Sep 3</span>`,
   quietEmptyProps: on => `<span class="sw-k">Provider:</span> ${link('Dr. Mei Chen', 'entity')} <span class="sw-sep">·</span> <span class="${on ? 'sw-faintw' : 'sw-k'}">Notes:</span> <span class="${on ? 'sw-faintw' : ''}">empty</span>`,
@@ -66,6 +67,5 @@ const SPECIMENS = {
   foldedNote: on => `<span class="sw-ring"><span class="sw-dot" style="margin:0"></span></span>This week${on ? ` <span class="lk-folded" style="margin-left:.5em"><span class="lk-lead">↳</span><span class="lk-pair">${Look.kit.iconHtml('circle')}<span>3</span></span><span class="lk-pair">${Look.kit.iconHtml('photo')}<span>2</span></span><span class="lk-sep">·</span><a class="lk-tag">Consultation</a><span class="lk-sep">·</span><span>due Oct 19</span></span>` : ''}`,
 };
 const specimen = (item, value) => SPECIMENS[item.key] ? SPECIMENS[item.key](!!value) : '';
-const openWindow = () => Look.settingsWindow.open({ doc: Look.kit.host(), name: 'Look', schema, read: setting, write: values => logseq.updateSettings(values), specimen });
-Look.settings = { schema, setting, openWindow, specimen };
+Look.settings = { schema, setting, specimen };
 })();

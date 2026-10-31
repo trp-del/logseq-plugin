@@ -13,17 +13,18 @@ async function main() {
   logseq.DB.onChanged(({ blocks }) => Look.kit.graphChanged(blocks));
   logseq.onSettingsChanged?.(() => { Look.style.apply(); Look.sidebar.apply(); Look.kit.run(Look.kit.host()); });
   logseq.App.onCurrentGraphChanged(() => { Look.marks.load(); });
-  // The settings window: from the command palette (Logseq's gear on the plugin's card still opens its own panel, which no
-  // plugin can replace).
-  logseq.App.registerCommandPalette({ key: 'look-settings', label: 'Look: settings' }, () => Look.settings.openWindow());
 }
 function stop() {
   Look.marks.stop(); Look.props.stop(); Look.title.stop(); Look.folded.stop(); Look.sidebar.stop();
-  Look.settingsWindow.close();
   Look.kit.stopWatching();
   Look.kit.sweep();
 }
-window.Plugin.register({
+// In the settings window one row stands for Look's icon and Threads' mark of the same thing, and Threads' tip on a cut
+// name sits with the other property rows.
+const propertyRows = row => row.key !== 'propertyIcons' ? [row] : [{ ...row, also: 'propertyKindIcons' },
+  { key: 'propertyNameTips', type: 'boolean', default: true, title: 'A cut property name whole under the pointer', description: 'With the pointer on a property’s name that Logseq has cut short, its whole name shows as a tooltip.' }];
+window.PluginDoor.describe('look', { schema: Look.settings.schema.flatMap(propertyRows), specimen: Look.settings.specimen });
+window.PluginDoor.register({
   key: 'look', title: 'Look', about: 'How things look: a link in the text colour, the sort’s mark before it, a tag in mono, a page’s place beside its title, an icon of what a property holds.',
   schema: Look.settings.schema.map(({ key, type, title, description, default: def }) => ({ key, type, title, description, default: def })),
   start: main, stop,

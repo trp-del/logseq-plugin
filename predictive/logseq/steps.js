@@ -128,7 +128,7 @@ function leaveBlank(rowUuid, name) {
   }, 300);
 }
 const passOn = () => { if (picking.at >= 0) leaveBlank(picking.rowUuid, picking.names[picking.at]); };
-// The property being filled in carries Logseq's own kind of focus ring, so it is clear where you are.
+// The property being filled in carries the ring (logseq/propose-ui.js), so it is clear where you are.
 function markAt(doc, el) {
   if (el?.matches?.('.property-pair')) el = el.querySelector('.property-key-inner') || el;   // on a row of its own the ring goes round the name
   for (const old of doc.querySelectorAll('[data-flow-at]')) if (old !== el) old.removeAttribute('data-flow-at');

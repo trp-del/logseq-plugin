@@ -467,7 +467,7 @@ plugInParts = window.refinementParts || [];
 schemaAll = plugInParts.flatMap(part => part.schema);
 setting = window.refinementShared.settingReader(schemaAll);
 RELOAD_SETTINGS = reloadOnly(schemaAll);
-window.Plugin.register({
+window.PluginDoor.register({
   key: 'threads', title: 'Threads', about: 'On a page, everything that points at it, named by the property it came through, to follow and dig along.',
   schema: schemaAll, start: main, stop: runUnloadTasks,
 });

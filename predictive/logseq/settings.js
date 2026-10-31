@@ -17,8 +17,6 @@ Flow.settingsSchema = [
     description: 'Cmd-Option-Enter: everything shown is accepted, as with Enter, and the bullet is left with no new bullet made. Empty binds none.' },
   { key: 'tagEagerness', type: 'enum', title: 'How readily a tag is suggested', default: 'balanced', enumChoices: ['careful', 'balanced', 'eager'], enumPicker: 'select',
     description: 'A bullet with no tag that reads like earlier tagged ones is offered that tag, with the tag\'s properties as guesses; Enter takes it, Undo puts it back. A close lookalike among the earlier lines, or, failing that, the words a tag\'s lines use as a whole. Careful: about one fresh line in three gets one, almost never wrong. Balanced: about one in two. Eager: a few more, and now and then a wrong one or a tag on a plain note. Measured on the Illness Test Graph (README, "How readily a tag is suggested"). Applies at once.' },
-  { key: 'locale', type: 'enum', title: 'Language of dates written in words', default: 'en', enumChoices: ['en'], enumPicker: 'select',
-    description: 'How "on Friday" or "in two weeks" is read. English ships; another language is a short file (README, Other languages).' },
   { key: 'linkHeading', type: 'heading', title: 'Suggested links', default: null, description: 'While you write, the rest of a page’s name shows in grey after the cursor; Right arrow makes the link.' },
   { key: 'linkSuggest', type: 'boolean', title: 'Suggest links while typing', default: true,
     description: 'When the last words typed start a page’s name, or a word in it, the rest of the name shows in grey. Right arrow turns the words into [[the page]]; Cmd+Z takes it back. Anything else ignores it.' },

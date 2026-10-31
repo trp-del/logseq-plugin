@@ -16,7 +16,7 @@ const CSS = `
   --fd-mono: var(--ls-font-family-mono, ui-monospace, "SF Mono", Menlo, Consolas, monospace);
   position: fixed !important; left: 50% !important; right: auto !important; transform: translateX(-50%); margin: 0 !important; width: min(900px, 92vw); max-height: 78vh;
   box-sizing: border-box; padding: 0; border: 1px solid var(--fd-hair); border-radius: 8px; display: flex; flex-direction: column;
-  background: var(--ls-primary-background-color, #fff); color: var(--ls-primary-text-color, #222); font-size: 14px; line-height: 1.5;
+  background: var(--lk-paper, #fff); color: var(--lk-text, #222); font-size: 14px; line-height: 1.5;
   box-shadow: 0 10px 30px rgba(0,0,0,.14); }
 .fd:not([open]) { display: none; }
 .fd.fd-high { top: max(10vh, 60px) !important; bottom: auto !important; }
@@ -35,12 +35,12 @@ const CSS = `
 .fd-sep { color: var(--fd-faint); }
 .fd-input { all: unset; flex: 1 1 60px; min-width: 60px; font: inherit; color: inherit; background: none; border: 0; outline: none; padding: 0; }
 .fd-input::placeholder { color: var(--fd-faint); }
-.fd-n { margin-left: auto; font-size: 12.5px; color: var(--fd-faint); font-variant-numeric: tabular-nums; align-self: center; }
-/* The body scrolls; the choices sit above the rows. */
-.fd-body { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 16px 10px; }
+/* The body scrolls; the choices sit above the rows, a gap of one line between them. */
+.fd-body { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 16px 10px; transition: opacity .1s; }
+.fd-body.fd-reading { opacity: .5; transition: opacity .15s ease .25s; }
 .fd-head { font-size: 12px; color: var(--fd-faint); letter-spacing: .03em; margin: 6px 0 2px; }
 .fd-ch { display: grid; grid-template-columns: 118px minmax(0, 1fr); gap: 2px 10px; font-size: 13px; padding: 2px 0 6px; align-items: baseline; }
-.fd-choices { padding-bottom: 4px; }
+.fd-choices { padding-bottom: 14px; }
 .fd-head-rows { margin-top: 8px; }
 .fd-ck { color: var(--fd-faint); display: flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fd-cv { display: flex; gap: 0 10px; flex-wrap: wrap; color: var(--fd-quiet); }
@@ -70,27 +70,25 @@ const CSS = `
 .fd-nm .lk-node { cursor: pointer; }
 .fd-right { color: var(--fd-faint); font-size: 12.5px; white-space: nowrap; padding-left: 12px; font-variant-numeric: tabular-nums; }
 .fd-right .fd-key { font-family: var(--fd-mono); }
-.fd-cmd .fd-icon { color: var(--fd-faint); }
 .fd-showall { all: unset; cursor: pointer; display: block; color: var(--fd-faint); font-size: 12.5px; padding: 2px 0 2px 88px; }
 .fd-showall:hover { color: inherit; }
 .fd-none { color: var(--fd-faint); padding: 6px 0 6px 88px; }
-/* A node opened in place: its properties, then what points at it, each line a row one step in. */
+/* A node opened in place: its properties, then what points at it, each a line that opens: the grammar's row, the dot
+   ringed while closed, the number after the words as faint as on a lit choice. */
 .fd-kids { margin: 2px 0 6px 76px; padding-left: 10px; border-left: 1px solid var(--fd-hair); }
-.fd-kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 1px 12px; font-size: 13.5px; align-items: baseline; padding: 2px 0 6px; }
+.fd-kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 1px 12px; font-size: 13.5px; align-items: baseline; padding: 2px 0 10px; }
 .fd-kv .fd-k { color: var(--fd-quiet); display: inline-flex; align-items: center; gap: 5px; }
 .fd-kv .fd-v { display: flex; gap: 8px; flex-wrap: wrap; }
-.fd-kids .fd-r { grid-template-columns: 16px minmax(0, 1fr) auto; }
-.fd-kids .fd-r .fd-day, .fd-kids .fd-r .fd-bul { display: none; }
+.fd-kids .fd-g { grid-template-columns: 16px 18px minmax(0, 1fr); }
 .fd-kids .fd-g .lk-prop { color: var(--fd-quiet); }
 .fd-kids .fd-g .lk-tag { margin-left: 2px; }
 .fd-gn { margin-left: 16px; }
-.fd-gn .fd-r { grid-template-columns: 52px 16px 18px minmax(0, 1fr) auto; }
-.fd-gn .fd-r .fd-day, .fd-gn .fd-r .fd-bul { display: inline-flex; }
 .fd-gn .fd-showall { padding-left: 86px; }
-.fd-ct { color: var(--fd-quiet); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.fd-ct { color: var(--fd-faint); font-size: 12px; font-variant-numeric: tabular-nums; }
 .fd-faint { color: var(--fd-faint); }
 .fd-foot { display: flex; gap: 16px; flex-wrap: wrap; padding: 6px 16px 8px; border-top: 1px solid var(--fd-hair); font-size: 12.5px; color: var(--fd-quiet); }
 .fd-foot:empty { display: none; }
+.fd-foot .fd-k { color: var(--lk-text, #222); margin-left: .4em; }
 .fd-foot .fd-right { margin-left: auto; padding: 0; }
 .fd-foot button { all: unset; cursor: pointer; }
 .fd-foot button:hover { color: inherit; }
@@ -103,7 +101,7 @@ const S = {
   picks: [], typed: '', mode: 'rows', rowAt: 0, choiceAt: 0,
   kinds: [], recents: [], base: [], shown: [], facets: null, allShown: false, moreOf: new Set(),
   dug: [], dugData: new Map(), openGroups: new Set(), groupAll: new Set(),
-  cache: { kind: new Map(), kindFacets: new Map(), words: new Map() }, loading: false, failed: '', commands: null,
+  cache: { kind: new Map(), kindFacets: new Map(), words: new Map() }, loading: false, failed: '', commands: null, tallest: 0,
 };
 const setting = key => Find.settings.setting(key);
 const words = () => S.typed.trim().toLowerCase().split(/\s+/).filter(Boolean);
@@ -244,8 +242,8 @@ function rowList() {
     // Logseq's commands, read once per opening; the letters after the > narrow them by name, every word must occur.
     const ws = S.typed.slice(1).trim().toLowerCase().split(/\s+/).filter(Boolean);
     if (!S.commands) S.commands = Find.commands.list().map(c => ({ kind: 'command', ...c }));
-    for (const c of S.commands) if (hasWord(c.label, ws)) list.push(c);
-    if (hasWord('Find: settings', ws)) list.push({ kind: 'command', label: 'Find: settings', id: 'find:settings', key: '' });
+    for (const c of S.commands) if (hasWord(c.label, ws) && c.label !== 'Plugin settings') list.push(c);
+    if (hasWord('Plugin settings', ws)) list.push({ kind: 'command', label: 'Plugin settings', id: 'plugin:settings', key: '' });
     return list;
   }
   const top = (!kindPick() && !words().length) ? S.recents : S.shown;
@@ -293,8 +291,6 @@ function render() {
   });
   if (input.value !== S.typed) input.value = S.typed;
   input.placeholder = S.picks.length ? '' : 'pick a kind, or type';
-  const n = find.querySelector('.fd-n');
-  n.textContent = isCommandMode() ? '' : (kindPick() || words().length) ? String(S.shown.length) : '';
   // the body
   const body = d.querySelector('.fd-body');
   const scrollTop = body.scrollTop;
@@ -303,8 +299,8 @@ function render() {
   if (!isCommandMode() && groups.length) {
     let ci = 0;
     const wrap = el(doc, 'div', { class: 'fd-choices' });
-    // What these lines do is said once, over them: every line is a label and the choices that narrow the list.
-    wrap.append(el(doc, 'div', { class: 'fd-head' }, 'narrow by'));
+    // No word over the lines: each is a label and the choices that narrow the list, and the gap under them tells
+    // them from the rows.
     for (const g of groups) {
       const box = el(doc, 'div', { class: 'fd-ch' });
       box.append(el(doc, 'span', { class: 'fd-ck', html: g.icon ? `<span class="fd-icon">${g.icon}</span>` : '' }, g.key === 'kind' ? 'kind' : g.label));
@@ -322,8 +318,8 @@ function render() {
     if (groups.hidden) wrap.append(el(doc, 'div', { class: 'fd-ch' }, el(doc, 'span'), el(doc, 'button', { class: 'fd-more', type: 'button', click: () => { S.moreOf.add('lines'); render(); } }, `${groups.hidden} more ${groups.hidden === 1 ? 'property' : 'properties'} to narrow by`)));
     body.append(wrap);
   }
-  // And what the rows do: open. With nothing typed they are the pages opened last.
-  if (!isCommandMode() && rows.length) body.append(el(doc, 'div', { class: 'fd-head fd-head-rows' }, (!kindPick() && !words().length) ? 'open · recently opened' : 'open'));
+  // With nothing typed the rows are the pages opened last, and a head says so; otherwise the rows are what was found.
+  if (!isCommandMode() && rows.length && !kindPick() && !words().length) body.append(el(doc, 'div', { class: 'fd-head fd-head-rows' }, 'recently opened'));
   const ws = words();
   // A dug node's lines (its properties, the groups pointing at it, their nodes) go into its box; the next top row ends it.
   let container = body;
@@ -334,9 +330,11 @@ function render() {
       const open = S.openGroups.has(r.key);
       const row = el(doc, 'div', { class: 'fd-r fd-g lk-row' + (on ? ' fd-on' : ''), 'data-i': i });
       row.append(el(doc, 'button', { class: 'fd-fold lk-fold', type: 'button', 'aria-expanded': String(open), title: open ? 'Close' : 'Open the nodes', click: event => { event.stopPropagation(); toggleGroup(r); } }, open ? '▾' : '▸'));
+      row.append(el(doc, 'span', { class: 'fd-bul' + (open ? '' : ' fd-folded') }, el(doc, 'i', { class: 'fd-d' })));
       const nm = el(doc, 'span', { class: 'fd-nm' }, el(doc, 'span', { class: 'lk-prop' }, r.name));
       if (r.tag) nm.append(el(doc, 'span', { class: 'lk-tag' }, r.tag));
-      row.append(nm, el(doc, 'span', { class: 'fd-ct' }, String(r.count)));
+      nm.append(el(doc, 'span', { class: 'fd-ct' }, String(r.count)));
+      row.append(nm);
       row.addEventListener('click', () => { S.mode = 'rows'; S.rowAt = i; toggleGroup(r); });
       container.append(wrapIn(doc, row, r));
       return;
@@ -363,6 +361,11 @@ function render() {
     row.append(el(doc, 'span', { class: 'fd-right' }, right));
     row.addEventListener('click', () => { S.mode = 'rows'; S.rowAt = i; render(); });
     container.append(wrapIn(doc, row, r));
+    // Under the last of a group's three nodes, "show all" lists the rest.
+    if (r.under && rows[i + 1]?.under !== r.under && !S.groupAll.has(r.under)) {
+      const g = rows.find(x => x.key === r.under);
+      if (g && g.count > 3) container.append(wrapIn(doc, el(doc, 'button', { class: 'fd-showall', type: 'button', click: () => { S.groupAll.add(r.under); render(); } }, `show all ${g.count}`), r));
+    }
     if (dug) { const box = dugBox(doc, node); body.append(box); container = box; }
   });
   if (!isCommandMode() && (kindPick() || ws.length)) {
@@ -370,12 +373,18 @@ function render() {
     if (!S.loading && !total && !S.failed) body.append(el(doc, 'div', { class: 'fd-none' }, 'nothing with these words here'));
     if (total > limit && !S.allShown) body.append(el(doc, 'button', { class: 'fd-showall', type: 'button', click: () => { S.allShown = true; render(); } }, `show all ${total}`));
   }
-  if (S.loading) body.append(el(doc, 'div', { class: 'fd-wait' }, 'reading…'));
+  // While the graph is read, the rows that are there stay where they are and go a shade lighter after a moment; no line
+  // is added or taken away, so nothing jumps between one letter and the next.
+  body.classList.toggle('fd-reading', S.loading);
   body.scrollTop = scrollTop;
   const cur = body.querySelector(S.mode === 'choices' ? `.fd-c[data-c="${S.choiceAt}"]` : `.fd-r[data-i="${S.rowAt}"]`);
   cur?.scrollIntoView?.({ block: 'nearest' });
   // the foot
-  d.querySelector('.fd-foot').replaceChildren(...foot(doc));
+  d.querySelector('.fd-foot').replaceChildren(...foot(doc, groups, rows));
+  // The window never shrinks while open: it keeps the tallest it has been this opening, so the bottom edge does not jump
+  // as the rows narrow or widen under the letters, or while "reading…" stands in for them. It grows when more is listed.
+  const tall = d.getBoundingClientRect().height;
+  if (tall > S.tallest) { S.tallest = tall; d.style.minHeight = tall + 'px'; }
 }
 // Rows under an opened group sit one step in; a group line sits inside its node's box.
 function wrapIn(doc, row, r) {
@@ -384,7 +393,8 @@ function wrapIn(doc, row, r) {
 }
 function commandRow(doc, r, i, on) {
   const row = el(doc, 'div', { class: 'fd-r fd-cmd lk-row' + (on ? ' fd-on' : ''), 'data-i': i });
-  row.append(el(doc, 'span', {}), el(doc, 'span', {}), el(doc, 'span', { class: 'fd-icon', html: '<i class="ti ti-command"></i>' }));
+  // No picture before a command: the > in the find line already says what these are; the words start where every row's do.
+  row.append(el(doc, 'span', {}), el(doc, 'span', {}), el(doc, 'span', {}));
   row.append(el(doc, 'span', { class: 'fd-nm' }, el(doc, 'span', { class: 'fd-w', html: markWords(esc(r.label), S.typed.slice(1).trim().toLowerCase().split(/\s+/).filter(Boolean)) })));
   row.append(el(doc, 'span', { class: 'fd-right' }, el(doc, 'span', { class: 'fd-key' }, r.key)));
   row.addEventListener('click', () => runCommand(r));
@@ -415,11 +425,30 @@ function dugBox(doc, node) {
   return box;
 }
 const short = (text, max = 36) => { const t = String(text || '').trim(); return t.length > max ? t.slice(0, max - 2).replace(/\s+\S*$/, '') + '…' : t; };
-// The foot holds one thing: the action of making a page from the words typed. Keys are not told here (the owner, 2026-10-31).
-function foot(doc) {
-  if (isCommandMode() || !words().length || kindPick()) return [];
-  const name = S.typed.trim();
-  return [el(doc, 'span', { class: 'fd-right' }, el(doc, 'button', { type: 'button', title: 'Make a page with these words as its name', click: () => makePage(name) }, `make a page “${name}”`))];
+const KEY = (k, label) => `<span>${label}<span class="fd-k">${k}</span></span>`;
+/* The foot names what the keys do right now, naming the thing: "narrow to Consultation Tab", "open Look test Enter", "in the
+   sidebar Shift Enter", dig →, close ←. The keys are words at the foot's own size in the text colour: the symbols ⏎ and ⇧⏎ small and faint could not be read. Not a legend of keys (none is wanted, 31 October): each word is the action at hand, and it changes
+   with the cursor. Taken out that morning under the ruling, asked back the same day ("there are no hints at the bottom of
+   view anymore like tab or shift enter"). The right end offers to make a page from the words. */
+function foot(doc, groups, rows) {
+  const items = [];
+  const add = html => items.push(el(doc, 'span', { html }));
+  const cur = rows[S.rowAt];
+  if (isCommandMode()) { add(KEY('Enter', cur ? `run ${esc(cur.label)}` : 'run')); return items; }
+  const choices = flatChoices(groups);
+  const lit = S.mode === 'choices' ? choices[S.choiceAt] : litChoice(groups);
+  if (S.mode === 'choices') { add(KEY('Tab', `narrow to ${esc(lit.label)}`)); add(KEY('← → ↑ ↓', 'choose')); add(KEY('Escape', 'back to the rows')); }
+  else {
+    if (lit) add(KEY('Tab', `narrow to ${esc(lit.label)}`)); else if (choices.length) add(KEY('Tab', 'narrow'));
+    if (cur?.kind === 'node') { add(KEY('Enter', `open ${esc(short(cur.node.text))}`)); add(KEY('Shift Enter', 'in the sidebar')); }
+    else if (cur?.kind === 'group') add(KEY('Enter', `open the ${cur.count}`));
+  }
+  if (!kindPick() && !words().length) { add('<span>type to find</span>'); add(`<span class="fd-faint">&gt; for a command</span>`); return items; }
+  if (cur?.kind === 'node' && cur.top) add(KEY(S.dug.includes(cur.node.uuid) ? '←' : '→', S.dug.includes(cur.node.uuid) ? 'close' : 'dig'));
+  if (cur?.kind === 'group') add(KEY(S.openGroups.has(cur.key) ? '←' : '→', S.openGroups.has(cur.key) ? 'close' : 'open'));
+  if (S.picks.length && !S.typed) add(`<span class="fd-faint">Backspace takes ${esc(S.picks[S.picks.length - 1].title || S.picks[S.picks.length - 1].label)} off</span>`);
+  if (words().length && !kindPick()) { const name = S.typed.trim(); items.push(el(doc, 'span', { class: 'fd-right' }, el(doc, 'button', { type: 'button', title: 'Make a page with these words as its name', click: () => makePage(name) }, `make a page “${name}”`))); }
+  return items;
 }
 
 /* Doing. */
@@ -445,7 +474,7 @@ function openRow(r, inSidebar) {
 }
 async function runCommand(r) {
   close();
-  if (r.id === 'find:settings') return Find.settings.openWindow();
+  if (r.id === 'plugin:settings') return window.PluginDoor.settings.open('find');
   try { await Find.commands.run(r); } catch (error) { notify(`Logseq did not run “${r.label}”.`, 'warning'); }
 }
 async function makePage(name) {
@@ -538,13 +567,13 @@ function onInput() {
 function open() {
   const doc = host();
   close();
-  S.commands = null;
+  S.commands = null; S.tallest = 0;
   style('find', CSS);
   const dlg = el(doc, 'dialog', { class: 'fd fd-own ' + (setting('windowPlace') === 'centred' ? 'fd-centred' : 'fd-high'), 'aria-label': 'Find' });
   const find = el(doc, 'div', { class: 'fd-find', click: () => dlg.querySelector('.fd-input').focus() });
   const input = el(doc, 'input', { class: 'fd-input', type: 'text', spellcheck: 'false', autocomplete: 'off', autocapitalize: 'off', placeholder: 'pick a kind, or type' });
   input.addEventListener('input', onInput);
-  find.append(input, el(doc, 'span', { class: 'fd-n' }));
+  find.append(input);
   dlg.append(find, el(doc, 'div', { class: 'fd-body' }), el(doc, 'div', { class: 'fd-foot' }));
   // The keys are taken at the document, before Logseq's own handlers see them (a Tab that reached Logseq first never
   // came back); only keys from inside the window are taken.

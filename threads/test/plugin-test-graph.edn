@@ -1,0 +1,476 @@
+;; Seed data for a Logseq DB test graph (fictional company "Lumen Labs").
+;; Import with:
+;;   logseq graph import --graph "Plugin Test Graph" --type edn --input plugin-test-graph.edn
+{:properties
+ {;; closed-value (select) properties
+  :user.property/stage {:block/title "stage"
+                        :logseq.property/type :default
+                        :db/cardinality :db.cardinality/one
+                        :build/closed-values [{:value "Idea" :uuid #uuid "e0000000-0000-4000-8000-000000000001"}
+                                              {:value "Planned" :uuid #uuid "e0000000-0000-4000-8000-000000000002"}
+                                              {:value "In progress" :uuid #uuid "e0000000-0000-4000-8000-000000000003"}
+                                              {:value "Shipped" :uuid #uuid "e0000000-0000-4000-8000-000000000004"}
+                                              {:value "Archived" :uuid #uuid "e0000000-0000-4000-8000-000000000005"}]}
+  :user.property/role {:block/title "role"
+                       :logseq.property/type :default
+                       :db/cardinality :db.cardinality/one
+                       :build/closed-values [{:value "Engineer" :uuid #uuid "e0000000-0000-4000-8000-000000000011"}
+                                             {:value "Designer" :uuid #uuid "e0000000-0000-4000-8000-000000000012"}
+                                             {:value "Product manager" :uuid #uuid "e0000000-0000-4000-8000-000000000013"}
+                                             {:value "Researcher" :uuid #uuid "e0000000-0000-4000-8000-000000000014"}]}
+  :user.property/severity {:block/title "severity"
+                           :logseq.property/type :number
+                           :db/cardinality :db.cardinality/one
+                           :build/closed-values [{:value 1 :uuid #uuid "e0000000-0000-4000-8000-000000000021"}
+                                                 {:value 2 :uuid #uuid "e0000000-0000-4000-8000-000000000022"}
+                                                 {:value 3 :uuid #uuid "e0000000-0000-4000-8000-000000000023"}]}
+  ;; scalar properties, one per type
+  :user.property/rating {:block/title "rating" :logseq.property/type :number :db/cardinality :db.cardinality/one}
+  :user.property/budget {:block/title "budget" :logseq.property/type :number :db/cardinality :db.cardinality/one}
+  :user.property/estimate {:block/title "estimate" :logseq.property/type :number :db/cardinality :db.cardinality/one}
+  :user.property/website {:block/title "website" :logseq.property/type :url :db/cardinality :db.cardinality/one}
+  :user.property/links {:block/title "links" :logseq.property/type :url :db/cardinality :db.cardinality/many}
+  :user.property/email {:block/title "email" :logseq.property/type :default :db/cardinality :db.cardinality/one}
+  :user.property/isbn {:block/title "isbn" :logseq.property/type :default :db/cardinality :db.cardinality/one}
+  :user.property/industry {:block/title "industry" :logseq.property/type :default :db/cardinality :db.cardinality/one}
+  :user.property/summary {:block/title "summary" :logseq.property/type :default :db/cardinality :db.cardinality/one}
+  :user.property/keywords {:block/title "keywords" :logseq.property/type :default :db/cardinality :db.cardinality/many}
+  :user.property/active {:block/title "active" :logseq.property/type :checkbox :db/cardinality :db.cardinality/one}
+  :user.property/remote {:block/title "remote" :logseq.property/type :checkbox :db/cardinality :db.cardinality/one}
+  :user.property/due-date {:block/title "due date" :logseq.property/type :date :db/cardinality :db.cardinality/one}
+  :user.property/start-date {:block/title "start date" :logseq.property/type :date :db/cardinality :db.cardinality/one}
+  :user.property/published-at {:block/title "published at" :logseq.property/type :datetime :db/cardinality :db.cardinality/one}
+  ;; node (reference) properties
+  :user.property/owner {:block/title "owner" :logseq.property/type :node :db/cardinality :db.cardinality/one
+                        :build/property-classes [:user.class/Person]}
+  :user.property/company {:block/title "company" :logseq.property/type :node :db/cardinality :db.cardinality/one
+                          :build/property-classes [:user.class/Company]}
+  :user.property/project {:block/title "project" :logseq.property/type :node :db/cardinality :db.cardinality/one
+                          :build/property-classes [:user.class/Project]}
+  :user.property/attendees {:block/title "attendees" :logseq.property/type :node :db/cardinality :db.cardinality/many
+                            :build/property-classes [:user.class/Person]}
+  :user.property/authors {:block/title "authors" :logseq.property/type :node :db/cardinality :db.cardinality/many
+                          :build/property-classes [:user.class/Person]}
+  :user.property/related {:block/title "related" :logseq.property/type :node :db/cardinality :db.cardinality/many}}
+
+ :classes
+ {:user.class/Person {:block/title "Person"
+                      :build/class-properties [:user.property/email :user.property/role :user.property/company :user.property/remote]}
+  :user.class/Company {:block/title "Company"
+                       :build/class-properties [:user.property/website :user.property/industry]}
+  :user.class/Project {:block/title "Project"
+                       :build/class-properties [:user.property/stage :user.property/owner :user.property/start-date
+                                                :user.property/due-date :user.property/budget :user.property/active]}
+  :user.class/Meeting {:block/title "Meeting"
+                       :build/class-properties [:user.property/attendees :user.property/project]}
+  :user.class/Decision {:block/title "Decision"
+                        :build/class-properties [:user.property/project :user.property/owner]}
+  :user.class/Idea {:block/title "Idea"}
+  ;; class hierarchy: Media > Book / Article, Task > Bug
+  :user.class/Media {:block/title "Media"
+                     :build/class-properties [:user.property/rating :user.property/website :user.property/keywords]}
+  :user.class/Book {:block/title "Book"
+                    :build/class-extends [:user.class/Media]
+                    :build/class-properties [:user.property/authors :user.property/isbn :user.property/published-at]}
+  :user.class/Article {:block/title "Article"
+                       :build/class-extends [:user.class/Media]
+                       :build/class-properties [:user.property/authors :user.property/summary]}
+  :user.class/Bug {:block/title "Bug"
+                   :build/class-extends [:logseq.class/Task]
+                   :build/class-properties [:user.property/severity :user.property/project :user.property/estimate]}}
+
+ :pages-and-blocks
+ [;; ---------- Companies ----------
+  {:page {:block/title "Lumen Labs" :block/uuid #uuid "c0000000-0000-4000-8000-000000000001" :build/keep-uuid? true
+          :build/tags [:user.class/Company]
+          :build/properties {:user.property/website "https://lumenlabs.example.com" :user.property/industry "Developer tools"}}
+   :blocks [{:block/title "Small product studio building note-taking and knowledge tools."}
+            {:block/title "Offices"
+             :build/children [{:block/title "Lisbon (HQ)"} {:block/title "Toronto"} {:block/title "Remote-first since 2023"}]}]}
+  {:page {:block/title "Northwind Analytics" :block/uuid #uuid "c0000000-0000-4000-8000-000000000002" :build/keep-uuid? true
+          :build/tags [:user.class/Company]
+          :build/properties {:user.property/website "https://northwind.example.org" :user.property/industry "Data & analytics"}}
+   :blocks [{:block/title "Customer of [[Lumen Labs]] since the [[Atlas]] beta."}]}
+  {:page {:block/title "Kestrel Press" :block/uuid #uuid "c0000000-0000-4000-8000-000000000003" :build/keep-uuid? true
+          :build/tags [:user.class/Company]
+          :build/properties {:user.property/website "https://kestrelpress.example.net" :user.property/industry "Publishing"}}
+   :blocks []}
+
+  ;; ---------- People ----------
+  {:page {:block/title "Ada Okafor" :block/uuid #uuid "a0000000-0000-4000-8000-000000000001" :build/keep-uuid? true
+          :build/tags [:user.class/Person]
+          :build/properties {:user.property/email "ada@lumenlabs.example.com"
+                             :user.property/role [:block/uuid #uuid "e0000000-0000-4000-8000-000000000011"]
+                             :user.property/company [:block/uuid #uuid "c0000000-0000-4000-8000-000000000001"]
+                             :user.property/remote true}}
+   :blocks [{:block/title "Tech lead on [[Atlas]]. Prefers async reviews."}
+            {:block/title "1:1 topics"
+             :build/children [{:block/title "Career ladder draft"} {:block/title "On-call rotation for [[Beacon]]"}]}]}
+  {:page {:block/title "Mateo Ruiz" :block/uuid #uuid "a0000000-0000-4000-8000-000000000002" :build/keep-uuid? true
+          :build/tags [:user.class/Person]
+          :build/properties {:user.property/email "mateo@lumenlabs.example.com"
+                             :user.property/role [:block/uuid #uuid "e0000000-0000-4000-8000-000000000012"]
+                             :user.property/company [:block/uuid #uuid "c0000000-0000-4000-8000-000000000001"]
+                             :user.property/remote false}}
+   :blocks [{:block/title "Owns the design system and the [[Compass]] onboarding flow."}]}
+  {:page {:block/title "Priya Nair" :block/uuid #uuid "a0000000-0000-4000-8000-000000000003" :build/keep-uuid? true
+          :build/tags [:user.class/Person]
+          :build/properties {:user.property/email "priya@lumenlabs.example.com"
+                             :user.property/role [:block/uuid #uuid "e0000000-0000-4000-8000-000000000013"]
+                             :user.property/company [:block/uuid #uuid "c0000000-0000-4000-8000-000000000001"]
+                             :user.property/remote true}}
+   :blocks [{:block/title "PM for [[Atlas]] and [[Compass]]."}]}
+  {:page {:block/title "Tomás Lindqvist" :block/uuid #uuid "a0000000-0000-4000-8000-000000000004" :build/keep-uuid? true
+          :build/tags [:user.class/Person]
+          :build/properties {:user.property/email "tomas@lumenlabs.example.com"
+                             :user.property/role [:block/uuid #uuid "e0000000-0000-4000-8000-000000000011"]
+                             :user.property/company [:block/uuid #uuid "c0000000-0000-4000-8000-000000000001"]
+                             :user.property/remote true}}
+   :blocks [{:block/title "Backend + sync. Name has a non-ASCII character on purpose (á)."}]}
+  {:page {:block/title "Wen Zhao (赵文)" :block/uuid #uuid "a0000000-0000-4000-8000-000000000005" :build/keep-uuid? true
+          :build/tags [:user.class/Person]
+          :build/properties {:user.property/email "wen.zhao@northwind.example.org"
+                             :user.property/role [:block/uuid #uuid "e0000000-0000-4000-8000-000000000014"]
+                             :user.property/company [:block/uuid #uuid "c0000000-0000-4000-8000-000000000002"]}}
+   :blocks [{:block/title "Research contact at [[Northwind Analytics]]. Page title mixes scripts and parentheses."}]}
+  {:page {:block/title "Eleanor Marsh" :block/uuid #uuid "a0000000-0000-4000-8000-000000000006" :build/keep-uuid? true
+          :build/tags [:user.class/Person]
+          :build/properties {:user.property/company [:block/uuid #uuid "c0000000-0000-4000-8000-000000000003"]}}
+   :blocks [{:block/title "Author. Sparse page: only one property set, no email or role."}]}
+
+  ;; ---------- Projects ----------
+  {:page {:block/title "Atlas" :block/uuid #uuid "d0000000-0000-4000-8000-000000000001" :build/keep-uuid? true
+          :build/tags [:user.class/Project]
+          :build/properties {:user.property/stage [:block/uuid #uuid "e0000000-0000-4000-8000-000000000003"]
+                             :user.property/owner [:block/uuid #uuid "a0000000-0000-4000-8000-000000000001"]
+                             :user.property/start-date [:build/page {:build/journal 20260901}]
+                             :user.property/due-date [:build/page {:build/journal 20261115}]
+                             :user.property/budget 120000
+                             :user.property/active true}}
+   :blocks [{:block/title "Goals" :build/properties {:logseq.property/heading 2}
+             :build/children [{:block/title "Offline-first sync for **all** block types"}
+                              {:block/title "Cold start under *400 ms* on mid-range laptops"}
+                              {:block/title "Ship public beta to [[Northwind Analytics]]"}]}
+            {:block/title "Architecture notes" :build/properties {:logseq.property/heading 2}
+             :build/children [{:block/title "Storage is SQLite with a Datascript layer on top; see [[Designing Data-Intensive Notes]]."}
+                              {:block/title "Sync uses operation logs, ~~not~~ full snapshots."
+                               :build/children [{:block/title "Conflict rule: last-writer-wins per attribute"
+                                                 :build/children [{:block/title "Exception: ordering keys use fractional indexing"
+                                                                   :build/children [{:block/title "Five levels deep, for testing nested traversal"}]}]}]}
+                              {:block/title "Inline code `db.transact(tx)` and a [link](https://example.com/atlas/spec) and ==highlight=="}]}
+            {:block/title "Open bugs" :build/properties {:logseq.property/heading 2}
+             :build/children [{:block/title "Sync drops edits made during reconnect"
+                               :block/uuid #uuid "f0000000-0000-4000-8000-000000000001" :build/keep-uuid? true
+                               :build/tags [:user.class/Bug]
+                               :build/properties {:logseq.property/status :logseq.property/status.doing
+                                                  :logseq.property/priority :logseq.property/priority.urgent
+                                                  :logseq.property/deadline 1791849600000
+                                                  :user.property/severity [:block/uuid #uuid "e0000000-0000-4000-8000-000000000021"]
+                                                  :user.property/project [:block/uuid #uuid "d0000000-0000-4000-8000-000000000001"]
+                                                  :user.property/estimate 5}}
+                              {:block/title "Search index misses pages with emoji titles"
+                               :build/tags [:user.class/Bug]
+                               :build/properties {:logseq.property/status :logseq.property/status.todo
+                                                  :logseq.property/priority :logseq.property/priority.medium
+                                                  :user.property/severity [:block/uuid #uuid "e0000000-0000-4000-8000-000000000022"]
+                                                  :user.property/project [:block/uuid #uuid "d0000000-0000-4000-8000-000000000001"]
+                                                  :user.property/estimate 2}}
+                              {:block/title "Tooltip flicker on property hover"
+                               :build/tags [:user.class/Bug]
+                               :build/properties {:logseq.property/status :logseq.property/status.done
+                                                  :logseq.property/priority :logseq.property/priority.low
+                                                  :user.property/severity [:block/uuid #uuid "e0000000-0000-4000-8000-000000000023"]
+                                                  :user.property/project [:block/uuid #uuid "d0000000-0000-4000-8000-000000000001"]
+                                                  :user.property/estimate 0.5}}]}]}
+  {:page {:block/title "Beacon" :block/uuid #uuid "d0000000-0000-4000-8000-000000000002" :build/keep-uuid? true
+          :build/tags [:user.class/Project]
+          :build/properties {:user.property/stage [:block/uuid #uuid "e0000000-0000-4000-8000-000000000004"]
+                             :user.property/owner [:block/uuid #uuid "a0000000-0000-4000-8000-000000000004"]
+                             :user.property/start-date [:build/page {:build/journal 20260302}]
+                             :user.property/due-date [:build/page {:build/journal 20260630}]
+                             :user.property/budget 45000
+                             :user.property/active false}}
+   :blocks [{:block/title "Notification service. Shipped in June; now in maintenance."}
+            {:block/title "Postmortem: duplicate pushes on 2026-07-14"
+             :build/children [{:block/title "Root cause: retry without idempotency key"}
+                              {:block/title "Fix: dedupe on (user, event, minute)"}]}]}
+  {:page {:block/title "Compass" :block/uuid #uuid "d0000000-0000-4000-8000-000000000003" :build/keep-uuid? true
+          :build/tags [:user.class/Project]
+          :build/properties {:user.property/stage [:block/uuid #uuid "e0000000-0000-4000-8000-000000000002"]
+                             :user.property/owner [:block/uuid #uuid "a0000000-0000-4000-8000-000000000003"]
+                             :user.property/start-date [:build/page {:build/journal 20261102}]
+                             :user.property/budget 30000
+                             :user.property/active true}}
+   :blocks [{:block/title "Onboarding redesign. No due date yet (property intentionally unset)."}
+            {:block/title "Candidate flows"
+             :build/children [{:block/title "Guided tour" :build/tags [:user.class/Idea]}
+                              {:block/title "Template gallery on first launch" :build/tags [:user.class/Idea]}
+                              {:block/title "Import wizard from Markdown folders" :build/tags [:user.class/Idea]}]}]}
+  {:page {:block/title "Driftwood" :block/uuid #uuid "d0000000-0000-4000-8000-000000000004" :build/keep-uuid? true
+          :build/tags [:user.class/Project]
+          :build/properties {:user.property/stage [:block/uuid #uuid "e0000000-0000-4000-8000-000000000005"]
+                             :user.property/active false}}
+   :blocks [{:block/title "Archived experiment. Minimal page: no owner, dates, or budget."}]}
+  {:page {:block/title "Echo 🚀" :block/uuid #uuid "d0000000-0000-4000-8000-000000000005" :build/keep-uuid? true
+          :build/tags [:user.class/Project]
+          :build/properties {:user.property/stage [:block/uuid #uuid "e0000000-0000-4000-8000-000000000001"]
+                             :user.property/owner [:block/uuid #uuid "a0000000-0000-4000-8000-000000000002"]
+                             :user.property/budget 0}}
+   :blocks [{:block/title "Voice capture idea. Emoji in the page title, zero budget."}]}
+
+  ;; ---------- Media ----------
+  {:page {:block/title "Designing Data-Intensive Notes" :block/uuid #uuid "b0000000-0000-4000-8000-000000000001" :build/keep-uuid? true
+          :build/tags [:user.class/Book]
+          :build/properties {:user.property/authors #{[:block/uuid #uuid "a0000000-0000-4000-8000-000000000006"]
+                                                      [:block/uuid #uuid "a0000000-0000-4000-8000-000000000005"]}
+                             :user.property/rating 5
+                             :user.property/isbn "978-1-00000-001-7"
+                             :user.property/published-at 1735689600000
+                             :user.property/website "https://kestrelpress.example.net/ddin"
+                             :user.property/keywords #{"databases" "sync" "local-first"}}}
+   :blocks [{:block/title "Highlights"
+             :build/children [{:block/title "A log is the simplest possible storage abstraction."
+                               :block/uuid #uuid "f0000000-0000-4000-8000-000000000002" :build/keep-uuid? true}
+                              {:block/title "Derived data should always be rebuildable from the source of truth."}]}
+            {:block/title "Relevant to [[Atlas]] sync design."}]}
+  {:page {:block/title "The Quiet Outliner" :block/uuid #uuid "b0000000-0000-4000-8000-000000000002" :build/keep-uuid? true
+          :build/tags [:user.class/Book]
+          :build/properties {:user.property/authors #{[:block/uuid #uuid "a0000000-0000-4000-8000-000000000006"]}
+                             :user.property/rating 3.5
+                             :user.property/isbn "978-1-00000-002-4"
+                             :user.property/published-at 1717200000000
+                             :user.property/keywords #{"writing" "outlining"}}}
+   :blocks [{:block/title "Decent, but repetitive in the second half."}]}
+  {:page {:block/title "Untitled Manuscript" :block/uuid #uuid "b0000000-0000-4000-8000-000000000003" :build/keep-uuid? true
+          :build/tags [:user.class/Book]}
+   :blocks []}
+  {:page {:block/title "Why Block References Matter" :block/uuid #uuid "b0000000-0000-4000-8000-000000000004" :build/keep-uuid? true
+          :build/tags [:user.class/Article]
+          :build/properties {:user.property/authors #{[:block/uuid #uuid "a0000000-0000-4000-8000-000000000003"]}
+                             :user.property/rating 4
+                             :user.property/website "https://lumenlabs.example.com/blog/block-refs"
+                             :user.property/summary "Argues that addressable blocks, not pages, are the unit of reuse."
+                             :user.property/keywords #{"outlining" "pkm"}}}
+   :blocks [{:block/title "Draft outline"
+             :build/children [{:block/title "Pages are containers; blocks are ideas"}
+                              {:block/title "Transclusion vs. copy-paste"}
+                              {:block/title "What breaks at 100k blocks"}]}]}
+  {:page {:block/title "Local-First Software, Five Years On" :block/uuid #uuid "b0000000-0000-4000-8000-000000000005" :build/keep-uuid? true
+          :build/tags [:user.class/Article]
+          :build/properties {:user.property/rating 2
+                             :user.property/website "https://example.org/local-first-5"
+                             :user.property/keywords #{"local-first" "sync" "crdt"}}}
+   :blocks []}
+
+  ;; ---------- Plain pages ----------
+  {:page {:block/title "Formatting Samples"
+          :build/properties {:user.property/links #{"https://example.com/a" "https://example.com/b"}
+                             :user.property/related #{[:block/uuid #uuid "d0000000-0000-4000-8000-000000000001"]
+                                                      [:block/uuid #uuid "b0000000-0000-4000-8000-000000000004"]}}}
+   :blocks [{:block/title "Heading level 1" :build/properties {:logseq.property/heading 1}}
+            {:block/title "Heading level 2" :build/properties {:logseq.property/heading 2}}
+            {:block/title "Heading level 3" :build/properties {:logseq.property/heading 3}}
+            {:block/title "**Bold**, *italic*, ~~strikethrough~~, ==highlight==, `inline code`, and $E = mc^2$ inline math."}
+            {:block/title "External [link](https://example.com), bare URL https://example.org/path?q=1, and page ref [[Atlas]]."}
+            {:block/title "Multiple refs in one block: [[Ada Okafor]], [[Mateo Ruiz]], [[Beacon]], and a ref to a page that has no content: [[Orphan Target]]."}
+            {:block/title "Inline tag usage: this block is an #Idea"
+             :build/tags [:user.class/Idea]}
+            {:block/title "Block with two tags"
+             :build/tags [:user.class/Idea :user.class/Decision]
+             :build/properties {:user.property/project [:block/uuid #uuid "d0000000-0000-4000-8000-000000000003"]}}
+            {:block/title "Multi-line block\nsecond line\nthird line with trailing spaces   "}
+            {:block/title "Special characters: <tag> & \"quotes\" 'single' \\backslash [brackets] {braces} (parens) #not-a-tag-100% @mention"}
+            {:block/title "Unicode: café, naïve, 日本語, العربية, emoji 🎉👩‍💻, zero-width​joiner"}
+            {:block/title "A very long block. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo."}
+            {:block/title ""}
+            {:block/title "The block above is empty on purpose."}
+            {:block/title "Block with ad-hoc properties (not from a tag)"
+             :build/properties {:user.property/rating 1
+                                :user.property/active false
+                                :user.property/summary "Properties attached directly to a block"
+                                :user.property/due-date [:build/page {:build/journal 20261031}]}}
+            {:block/title "Wide list (12 siblings)"
+             :build/children [{:block/title "Item 01"} {:block/title "Item 02"} {:block/title "Item 03"} {:block/title "Item 04"}
+                              {:block/title "Item 05"} {:block/title "Item 06"} {:block/title "Item 07"} {:block/title "Item 08"}
+                              {:block/title "Item 09"} {:block/title "Item 10"} {:block/title "Item 11"} {:block/title "Item 12"}]}]}
+  {:page {:block/title "Orphan Target"} :blocks []}
+  {:page {:block/title "Empty Page"} :blocks []}
+  {:page {:block/title "Team Handbook"}
+   :blocks [{:block/title "Working agreements" :build/properties {:logseq.property/heading 2}
+             :build/children [{:block/title "Default to writing things down in the graph"}
+                              {:block/title "Meetings get a #Meeting block in the journal with attendees"}
+                              {:block/title "Decisions are tagged #Decision and link to a project"}]}
+            {:block/title "People" :build/properties {:logseq.property/heading 2}
+             :build/children [{:block/title "[[Ada Okafor]] — engineering"}
+                              {:block/title "[[Mateo Ruiz]] — design"}
+                              {:block/title "[[Priya Nair]] — product"}
+                              {:block/title "[[Tomás Lindqvist]] — engineering"}]}
+            {:block/title "Reading list" :build/properties {:logseq.property/heading 2}
+             :build/children [{:block/title "[[Designing Data-Intensive Notes]]"}
+                              {:block/title "[[The Quiet Outliner]]"}
+                              {:block/title "[[Why Block References Matter]]"}]}]}
+  {:page {:block/title "Release Checklist"}
+   :blocks [{:block/title "Bump version and tag"
+             :build/tags [:logseq.class/Task]
+             :build/properties {:logseq.property/status :logseq.property/status.done}}
+            {:block/title "Run migration on staging"
+             :build/tags [:logseq.class/Task]
+             :build/properties {:logseq.property/status :logseq.property/status.in-review
+                                :logseq.property/priority :logseq.property/priority.high}}
+            {:block/title "Write changelog"
+             :build/tags [:logseq.class/Task]
+             :build/properties {:logseq.property/status :logseq.property/status.todo
+                                :logseq.property/scheduled 1791936000000}}
+            {:block/title "Announce in community forum"
+             :build/tags [:logseq.class/Task]
+             :build/properties {:logseq.property/status :logseq.property/status.backlog}}
+            {:block/title "Record demo video"
+             :build/tags [:logseq.class/Task]
+             :build/properties {:logseq.property/status :logseq.property/status.canceled
+                                :logseq.property/priority :logseq.property/priority.low}}]}
+
+  {:page {:block/title "Block Types"
+          :build/properties {:block/alias #{[:build/page {:block/title "Special Blocks"}]}}}
+   :blocks [{:block/title "function hello(name) {\n  return `Hello, ${name}!`;\n}"
+             :build/tags [:logseq.class/Code-block]
+             :build/properties {:logseq.property.node/display-type :code :logseq.property.code/lang "javascript"}}
+            {:block/title "SELECT title, count(*) FROM blocks GROUP BY 1;"
+             :build/tags [:logseq.class/Code-block]
+             :build/properties {:logseq.property.node/display-type :code :logseq.property.code/lang "sql"}}
+            {:block/title "Simplicity is prerequisite for reliability."
+             :build/tags [:logseq.class/Quote-block]
+             :build/properties {:logseq.property.node/display-type :quote}}
+            {:block/title "\\int_0^1 x^2 \\, dx = \\frac{1}{3}"
+             :build/tags [:logseq.class/Math-block]
+             :build/properties {:logseq.property.node/display-type :math}}
+            {:block/title "Open tasks (simple query)"
+             :build/tags [:logseq.class/Query]
+             :build/properties {:logseq.property/query "(task todo doing)"}}
+            {:block/title "Everything tagged Project (simple query)"
+             :build/tags [:logseq.class/Query]
+             :build/properties {:logseq.property/query "(tags Project)"}}
+            {:block/title "What does LWW stand for?"
+             :build/tags [:logseq.class/Card]
+             :build/children [{:block/title "Last-writer-wins"}]}
+            {:block/title "Which project owns notifications?"
+             :build/tags [:logseq.class/Card]
+             :build/children [{:block/title "[[Beacon]]"}]}
+            {:block/title "Meeting template"
+             :build/tags [:logseq.class/Template]
+             :build/children [{:block/title "Agenda"} {:block/title "Notes"} {:block/title "Action items"}]}
+            {:block/title "Block reference to a book highlight: [[f0000000-0000-4000-8000-000000000002]]"}
+            {:block/title "Block reference to a bug: [[f0000000-0000-4000-8000-000000000001]]"}
+            {:block/title "Collapsed parent" :block/collapsed? true
+             :build/children [{:block/title "Hidden child 1"} {:block/title "Hidden child 2"}]}]}
+
+  ;; ---------- Journals ----------
+  {:page {:build/journal 20260901}
+   :blocks [{:block/title "Kicked off [[Atlas]]. [[Ada Okafor]] is tech lead."}]}
+  {:page {:build/journal 20261001}
+   :blocks [{:block/title "Monthly planning"
+             :build/tags [:user.class/Meeting]
+             :build/properties {:user.property/attendees #{[:block/uuid #uuid "a0000000-0000-4000-8000-000000000001"]
+                                                           [:block/uuid #uuid "a0000000-0000-4000-8000-000000000002"]
+                                                           [:block/uuid #uuid "a0000000-0000-4000-8000-000000000003"]
+                                                           [:block/uuid #uuid "a0000000-0000-4000-8000-000000000004"]}}
+             :build/children [{:block/title "Atlas beta moves to mid-November"}
+                              {:block/title "Compass kickoff pencilled in for Nov 2"}
+                              {:block/title "Archive [[Driftwood]]"
+                               :build/tags [:user.class/Decision]
+                               :build/properties {:user.property/project [:block/uuid #uuid "d0000000-0000-4000-8000-000000000004"]
+                                                  :user.property/owner [:block/uuid #uuid "a0000000-0000-4000-8000-000000000003"]}}]}
+            {:block/title "Draft Q4 roadmap"
+             :build/tags [:logseq.class/Task]
+             :build/properties {:logseq.property/status :logseq.property/status.done
+                                :logseq.property/priority :logseq.property/priority.high
+                                :logseq.property/deadline 1791158400000}}]}
+  {:page {:build/journal 20261005}
+   :blocks [{:block/title "Read two chapters of [[Designing Data-Intensive Notes]]"}
+            {:block/title "Overdue: renew TLS certificate for staging"
+             :build/tags [:logseq.class/Task]
+             :build/properties {:logseq.property/status :logseq.property/status.todo
+                                :logseq.property/priority :logseq.property/priority.urgent
+                                :logseq.property/deadline 1791417600000}}]}
+  {:page {:build/journal 20261008}
+   :blocks [{:block/title "Atlas sync review"
+             :build/tags [:user.class/Meeting]
+             :build/properties {:user.property/attendees #{[:block/uuid #uuid "a0000000-0000-4000-8000-000000000001"]
+                                                           [:block/uuid #uuid "a0000000-0000-4000-8000-000000000004"]}
+                                :user.property/project [:block/uuid #uuid "d0000000-0000-4000-8000-000000000001"]}
+             :build/children [{:block/title "Reconnect path loses the in-flight op queue"}
+                              {:block/title "Use per-attribute last-writer-wins"
+                               :build/tags [:user.class/Decision]
+                               :build/properties {:user.property/project [:block/uuid #uuid "d0000000-0000-4000-8000-000000000001"]
+                                                  :user.property/owner [:block/uuid #uuid "a0000000-0000-4000-8000-000000000001"]}}
+                              {:block/title "Write a failing test for the reconnect bug"
+                               :build/tags [:logseq.class/Task]
+                               :build/properties {:logseq.property/status :logseq.property/status.done
+                                                  :logseq.property/priority :logseq.property/priority.high}}]}]}
+  {:page {:build/journal 20261009}
+   :blocks [{:block/title "Call with [[Wen Zhao (赵文)]] about [[Northwind Analytics]] beta feedback"
+             :build/children [{:block/title "They want CSV export of query results"}
+                              {:block/title "Search feels slow above 50k blocks"}]}
+            {:block/title "Follow up with Northwind on export requirements"
+             :build/tags [:logseq.class/Task]
+             :build/properties {:logseq.property/status :logseq.property/status.doing
+                                :logseq.property/priority :logseq.property/priority.medium
+                                :logseq.property/scheduled 1791763200000}}]}
+  {:page {:build/journal 20261010}
+   :blocks [{:block/title "Weekend reading: [[Local-First Software, Five Years On]]. Underwhelming."}
+            {:block/title "Voice capture as a quick-add source for [[Echo 🚀]]"
+             :build/tags [:user.class/Idea]}]}
+  {:page {:build/journal 20261011}
+   :blocks [{:block/title "Today"
+             :build/properties {:logseq.property/heading 2}
+             :build/children [{:block/title "Fix reconnect bug in sync"
+                               :build/tags [:logseq.class/Task]
+                               :build/properties {:logseq.property/status :logseq.property/status.doing
+                                                  :logseq.property/priority :logseq.property/priority.urgent
+                                                  :logseq.property/scheduled 1791676800000
+                                                  :logseq.property/deadline 1791849600000}}
+                              {:block/title "Review [[Mateo Ruiz]]'s onboarding mockups"
+                               :build/tags [:logseq.class/Task]
+                               :build/properties {:logseq.property/status :logseq.property/status.todo
+                                                  :logseq.property/priority :logseq.property/priority.medium
+                                                  :logseq.property/scheduled 1791676800000}}
+                              {:block/title "Reply to Kestrel Press about the book excerpt"
+                               :build/tags [:logseq.class/Task]
+                               :build/properties {:logseq.property/status :logseq.property/status.todo
+                                                  :logseq.property/priority :logseq.property/priority.low}}
+                              {:block/title "Task with no status or priority set"
+                               :build/tags [:logseq.class/Task]}]}
+            {:block/title "Notes"
+             :build/properties {:logseq.property/heading 2}
+             :build/children [{:block/title "The log abstraction keeps coming up; see the highlight in [[Designing Data-Intensive Notes]]."}
+                              {:block/title "Standup"
+                               :build/tags [:user.class/Meeting]
+                               :build/properties {:user.property/attendees #{[:block/uuid #uuid "a0000000-0000-4000-8000-000000000001"]
+                                                                             [:block/uuid #uuid "a0000000-0000-4000-8000-000000000002"]
+                                                                             [:block/uuid #uuid "a0000000-0000-4000-8000-000000000003"]}}
+                               :build/children [{:block/title "Ada: reconnect bug, fix in review tomorrow"}
+                                                {:block/title "Mateo: mockups ready for feedback"}
+                                                {:block/title "Priya: beta invite list final"}]}]}]}
+  {:page {:build/journal 20261012}
+   :blocks [{:block/title "Send beta invites to Northwind"
+             :build/tags [:logseq.class/Task]
+             :build/properties {:logseq.property/status :logseq.property/status.todo
+                                :logseq.property/priority :logseq.property/priority.high
+                                :logseq.property/scheduled 1791763200000}}]}
+  {:page {:build/journal 20261015}
+   :blocks [{:block/title "Compass design review"
+             :build/tags [:user.class/Meeting]
+             :build/properties {:user.property/attendees #{[:block/uuid #uuid "a0000000-0000-4000-8000-000000000002"]
+                                                           [:block/uuid #uuid "a0000000-0000-4000-8000-000000000003"]}
+                                :user.property/project [:block/uuid #uuid "d0000000-0000-4000-8000-000000000003"]}}
+            {:block/title "Prepare demo script for design review"
+             :build/tags [:logseq.class/Task]
+             :build/properties {:logseq.property/status :logseq.property/status.backlog
+                                :logseq.property/deadline 1792022400000}}]}
+  {:page {:build/journal 20261031}
+   :blocks [{:block/title "Atlas beta readiness check"
+             :build/tags [:logseq.class/Task]
+             :build/properties {:logseq.property/status :logseq.property/status.backlog
+                                :logseq.property/priority :logseq.property/priority.high
+                                :logseq.property/deadline 1793404800000}}]}]
+
+ :logseq.db.sqlite.export/schema-version {:major 65 :minor 34}}

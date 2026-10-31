@@ -47,8 +47,9 @@ function build(doc, held) {
   if (held.quotes) pair('blockquote', held.quotes);
   if (fileCount(held, 'pdf')) pair('file-type-pdf', fileCount(held, 'pdf'));
   if (fileCount(held, 'file')) pair('file', fileCount(held, 'file'));
-  held.tags.slice(0, MOST).forEach((title, i) => {
-    if (parts.length > 1 && !i) parts.push(el(doc, 'span', { class: 'lk-sep', 'aria-hidden': 'true' }, '·'));
+  // A dot before each tag (two tags are kept apart by a dot, as at the title row), unless it is the first thing after the ↳.
+  held.tags.slice(0, MOST).forEach(title => {
+    if (parts.length > 1) parts.push(el(doc, 'span', { class: 'lk-sep', 'aria-hidden': 'true' }, '·'));
     parts.push(el(doc, 'a', { class: 'lk-tag', href: '#', 'data-tag': title, title: `Open ${title} (Shift: in the sidebar)` }, title));
   });
   if (held.due) { if (parts.length > 1) parts.push(el(doc, 'span', { class: 'lk-sep', 'aria-hidden': 'true' }, '·')); parts.push(el(doc, 'span', {}, dueLabel(held.due))); }

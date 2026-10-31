@@ -26,19 +26,18 @@ async function main() {
   Find.kit.style('tokens', Find.kit.TOKENS);
   listenForKeys();
   logseq.App.registerCommandPalette({ key: 'find-open', label: 'Find' }, () => Find.window.open());
-  logseq.App.registerCommandPalette({ key: 'find-settings', label: 'Find: settings' }, () => Find.settings.openWindow());
-  logseq.provideModel({ findOpen: () => Find.window.open(), findSettings: () => Find.settings.openWindow() });
+  logseq.provideModel({ findOpen: () => Find.window.open() });
   logseq.App.registerUIItem('toolbar', { key: 'find-open', template: '<a class="button" data-on-click="findOpen" title="Find (Cmd+K)"><i class="ti ti-route"></i></a>' });
   logseq.DB.onChanged(() => Find.window.forget());
   logseq.App.onCurrentGraphChanged(() => { Find.window.close(); Find.window.forget(); });
 }
 function stop() {
   Find.window.close();
-  Find.settingsWindow.close();
   if (keyListener) Find.kit.host().removeEventListener('keydown', keyListener, true);
   Find.kit.sweep();
 }
-window.Plugin.register({
+window.PluginDoor.describe('find', { schema: [{ type: 'heading', title: 'The window' }, ...Find.settings.schema], specimen: Find.settings.specimen });
+window.PluginDoor.register({
   key: 'find', title: 'Find', about: 'The search window as the first step of a walk: a name, then the kinds and the time, then the thread from what you found.',
   schema: Find.settings.schema.map(({ key, type, title, description, default: def, enumChoices }) => ({ key, type, title, description, default: def, ...(enumChoices ? { enumChoices } : {}) })),
   start: main, stop,

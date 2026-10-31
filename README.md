@@ -9,7 +9,7 @@ Six tools for a Logseq DB graph, in one plugin, one look. Each does one job:
 - **DB Export** takes a page or some blocks out as a PDF, as Markdown or as rich text on the clipboard.
 - **Threads** shows, on a page, everything that points at it, named by the property it came through, to follow and dig along.
 
-Built for Logseq 2.0.2 DB graphs. It reads the graph and writes to it only where it says so (Structure's Apply, Predictive's filled-in values, a tag taken off a page with Look's ×, a value changed in a Threads row).
+Built for Logseq 2.0.2 DB graphs. It reads the graph and writes to it only here: Structure's Apply and its Undo; Predictive's values and tags while you write, with a journal page or a next bullet where one is needed; what Look's × takes off; Find's "make a page"; and in Threads a value or a tag changed in a row, a bullet or a page added, and the pick bar's Delete. DB Export writes nothing to the graph. Each module's own README, in its folder, says what it draws, its keys and exactly what it writes.
 
 ## Install
 
@@ -19,13 +19,23 @@ Or download the zip from the latest release, unzip it, and load the folder with 
 
 ## Settings
 
-Logseq's settings for the plugin (the gear on its card) start with **What runs**: a switch for each of the six. A switch takes effect after the plugin is reloaded. Below the switches come each module's own settings. Look, Find and Predictive also have a settings window of their own, drawn with the thing itself as each setting changes it: **Look: settings**, **Find: settings**, **Predictive: settings** in the command palette.
+One window for the whole plugin: **Plugin settings**, from the gear on the plugin's card (Open settings), the command palette, or Logseq's three dots under Plugins. Down the left the six parts, each with a tick for whether it runs; on the right each setting drawn as the thing itself. A letter typed anywhere finds a setting through all six. A part switched on or off waits, pencilled, for **Reload to apply**, which brings you back to the window. Changed by you lists what differs from the start, and "default" puts one back. Logseq's plain list is one word away at the foot; it also holds what the export window remembers.
 
 ## How it is built
 
-No build step: plain scripts, loaded in the order `files.js` lists. `plugin.js` is the door each module registers at as it loads; `main.js`, loaded last, gives Logseq every module's settings as one list and starts the modules one after another, one failing leaving the rest running. Each module lives in its own folder (`look/`, `find/`, `predictive/`, `structure/`, `export/`, `threads/`) and keeps its code under a name of its own on the plugin's window, so the modules never touch each other's.
+No build step: plain scripts, loaded in the order `files.js` lists. `plugin.js` is the door each module registers at as it loads, and where it describes its rows for the settings window (`settings/`), which belongs to no module, so it works whichever are switched off; `main.js`, loaded last, gives Logseq every module's settings as one list and starts the modules one after another, one failing leaving the rest running. Each module lives in its own folder (`look/`, `find/`, `predictive/`, `structure/`, `export/`, `threads/`) and keeps its code under a name of its own on the plugin's window, so the modules never touch each other's.
 
-The six were written as six plugins and joined into one on 31 October 2026.
+The six were written as six plugins and joined into one on 31 October 2026. This is now the only copy that changes; the six old folders are an archive.
+
+## Checks
+
+Each module keeps its own in its folder: `test/` for what runs without Logseq, `tools/app/` for driving the real app. Run all of them with
+
+```
+NODE_PATH=<a folder holding jsdom and Playwright> sh test/all.sh
+```
+
+`test/module.js` and `test/start.js` load one module the way `main.js` does, so a module can be checked alone. Threads' slow checks: `cd threads && sh tools/check.sh --full`. `node tools/app-check.js` checks the whole plugin in the real Logseq, read-only.
 
 ## Releasing
 
@@ -36,5 +46,3 @@ sh tools/release.sh
 ```
 
 That builds `dist/logseq-plugin-v<version>.zip`. Tag the commit `v<version>`, push, and on GitHub draft a release of that tag with the zip attached. Logseq's installer takes the latest release's zip.
-
-Coming from the six separate plugins: `node tools/merge-settings.js` once, before the first start, copies their settings across; then uninstall the six, so nothing draws twice.

@@ -1294,9 +1294,11 @@ a.rf-tag:hover { opacity: 1; }
 .rf-ol-name { color: inherit; cursor: pointer; } /* its underline and mark are Look's, through lk-node */
 /* Narrow (the sidebar, a narrow window): inside an opened node a property's name sits on its own line above the nodes it
    holds or that point through it,
-   and the indent gives way, so three levels still fit with whole words. */
+   and the indent gives way, so three levels still fit with whole words. Only where the section is truly narrow: at
+   the page's width the values' column is about 540 px wide in a 1100 px window, and 560 put every linked property on
+   two lines there (the review, 31 October); below 420 the names' column would take a third of the room. */
 .rf-ol { container: rf-ol / inline-size; }
-@container rf-ol (max-width: 560px) {
+@container rf-ol (max-width: 420px) {
   .rf-ol-kids { padding-left: 10px; }
   .rf-ol-kids .rf-ol-prop:has(> .rf-ol-pv > :is(.rf-chev, .rf-ol-day)) { flex-wrap: wrap; }
   .rf-ol-kids .rf-ol-prop:has(> .rf-ol-pv > :is(.rf-chev, .rf-ol-day)) > .rf-ol-pname { width: auto; flex-basis: 100%; }

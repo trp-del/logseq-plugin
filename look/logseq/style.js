@@ -13,9 +13,15 @@ ${AREA} a.page-ref:not(.tag):not(${DAY}):hover { text-decoration-color: currentC
 /* Under the pointer Logseq paints a link's box in its accent colour at strength; here the faint wash of a row under the
    pointer, the same for every link. */
 ${AREA} .page-reference:hover, ${AREA} a.page-ref:hover, ${AREA} .preview-ref-link:hover { background: var(--lk-wash) !important; }`;
+/* A day mentioned in the words is quiet grey. In a property's value (a page's list, the line under a node) the quiet grey
+   would read as the name's grey, so there a day keeps the value's colour, no underline, quiet only under the pointer; the
+   calendar icon and the name already say it is a date. */
+const VALUE = ':is(.property-value-container, .bottom-property-pill)';
 const days = `
 ${AREA} a.page-ref${DAY}, ${AREA} .ls-datetime a { color: var(--lk-quiet) !important; text-decoration: none !important; }
-${AREA} a.page-ref${DAY}:hover, ${AREA} .ls-datetime a:hover { color: inherit !important; }`;
+${AREA} a.page-ref${DAY}:hover, ${AREA} .ls-datetime a:hover { color: inherit !important; }
+${AREA} ${VALUE} a.page-ref${DAY}, ${AREA} ${VALUE} .ls-datetime a { color: inherit !important; }
+${AREA} ${VALUE} a.page-ref${DAY}:hover, ${AREA} ${VALUE} .ls-datetime a:hover { color: var(--lk-quiet) !important; }`;
 /* A tag: its name alone, as written, in mono, a step smaller, where Logseq puts it. Logseq draws a # link before the name and swaps it
    for an × under the pointer; the # is made invisible in a fixed slot and the × takes the same slot, so the name never moves. */
 const tags = `
@@ -31,6 +37,9 @@ ${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill > div
 ${AREA} .ls-properties-area .property-pair .property-key-panel { color: var(--lk-quiet) !important; }
 ${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill > div:first-child *:not(.tag),
 ${AREA} .ls-properties-area .property-pair .property-key-panel *:not(.tag) { color: inherit !important; }`;
+/* The faint dot stands before every property that follows a filled one. A property holding a pencil (a value proposed by
+   Predictive) counts as filled, so the row does not re-space when the pencil turns solid. */
+const FILLED = ':is(:not(:has(.empty-value)), :has(.lk-pencil))';
 const capsules = `
 ${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill { background: transparent !important; padding-left: 4px !important; padding-right: 4px !important; margin-inline: -4px; overflow: visible !important; }
 ${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill:not(:focus-within)::after { box-shadow: none !important; border: 0 !important; }
@@ -39,8 +48,8 @@ ${AREA} .ls-block .positioned-properties.block-below .bottom-properties-row,
 ${AREA} .ls-block .positioned-properties.block-below .bottom-properties-pills-strip { margin-inline: -4px !important; padding-inline: 4px !important; width: calc(100% + 8px) !important; max-width: none !important; }
 ${AREA} .ls-block .positioned-properties.block-below .bottom-properties-pills-strip { margin-block: -2px !important; padding-block: 2px !important; }
 ${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill:focus-within::after { inset: -2px 0 !important; border-radius: 6px !important; box-shadow: inset 0 0 0 1px var(--lk-line) !important; }
-${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill:not(:has(.empty-value)) ~ .bottom-property-pill::before { content: '·'; display: inline-block; width: 12px; color: var(--lk-faint); }
-${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill:not(:has(.empty-value)) ~ .bottom-property-pill:focus-within::after { left: 16px !important; }`;
+${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill${FILLED} ~ .bottom-property-pill::before { content: '·'; display: inline-block; width: 12px; color: var(--lk-faint); }
+${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill${FILLED} ~ .bottom-property-pill:focus-within::after { left: 16px !important; }`;
 const titleWords = `
 ${AREA} .ls-page-title-actions { visibility: hidden !important; pointer-events: none !important; }`;
 const emptyProps = `
@@ -72,6 +81,8 @@ const shared = `
 .lk-day { color: var(--lk-faint) !important; font-size: 13px !important; font-variant-numeric: tabular-nums; }
 .lk-count { display: none !important; }
 .lk-pencil { font-style: italic !important; color: var(--lk-faint) !important; text-decoration: underline dotted !important; text-decoration-color: var(--lk-line) !important; text-underline-offset: 3px; background: none !important; }
+/* A pencilled tag fades once: the pencil's grey, not the tag's own fade on top of it. */
+.lk-pencil .lk-tag, .lk-tag.lk-pencil { opacity: 1; }
 .lk-undo { opacity: .28 !important; transition: opacity .15s; }
 .lk-undo:hover, .lk-undo:focus-visible { opacity: .85 !important; }
 .lk-row .lk-fold { opacity: 0 !important; transition: opacity .12s; }
@@ -86,7 +97,9 @@ const shared = `
 .lk-value.off, input.lk-value::placeholder { color: var(--lk-faint) !important; }
 .lk-pick:not(:first-child) { border-left: 1px solid var(--lk-hair); }
 .lk-pick .lk-value svg { color: var(--lk-faint); }
-.lk-alts { color: var(--lk-faint) !important; }
+/* The faint goes on each alternative, not on the line, so the one in force can take the text colour back. */
+.lk-alts { color: inherit !important; }
+.lk-alts > * { color: var(--lk-faint) !important; }
 .lk-alts > *:hover, .lk-alts > .on { color: inherit !important; }
 .lk-accent { font-weight: 600 !important; color: inherit !important; }
 .lk-accent kbd { font-weight: 400 !important; color: var(--lk-faint) !important; }

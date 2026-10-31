@@ -114,7 +114,9 @@ function main() {
   E.app = { pageHtml, markdown, richText, act, readWhat, exportWindow, quick, settingsSchema };
 }
 const stop = () => { try { E.ui.sweep(); } catch (error) { /* Logseq's window is gone */ } };   // the window and its stylesheet live in Logseq's document
-window.Plugin.register({
+// Everything else is chosen in the export window, beside the preview that shows it.
+window.PluginDoor.describe('export', { schema: [{ type: 'heading', title: 'The PDF' }, { ...settingsSchema.find(item => item.key === 'customCss'), placeholder: '.x-title { letter-spacing: -.01em; }' }] });
+window.PluginDoor.register({
   key: 'export', title: 'DB Export', about: 'A page or some blocks out as a PDF, as Markdown or as rich text on the clipboard.',
   schema: settingsSchema, start: main, stop,
 });

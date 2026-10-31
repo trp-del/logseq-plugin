@@ -42,7 +42,7 @@ const CSS = `
   --st-hair: var(--lk-hair, color-mix(in srgb, currentColor 12%, transparent)); --st-line: var(--lk-line, color-mix(in srgb, currentColor 26%, transparent));
   --st-wash: var(--lk-wash, color-mix(in srgb, currentColor 7%, transparent)); --st-ring: color-mix(in srgb, currentColor 11%, transparent);
   --st-mono: var(--lk-mono, var(--ls-font-family-mono, ui-monospace, "SF Mono", Menlo, Consolas, monospace));
-  color: var(--ls-primary-text-color, #222); font-size: 14px; line-height: 1.5; outline: none; position: relative; }
+  color: var(--lk-text, #222); font-size: 14px; line-height: 1.5; outline: none; position: relative; }
 .st * { box-sizing: border-box; }
 .st-page { display: grid; grid-template-columns: 300px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; height: 600px; min-height: 360px; }
 .st-left { border-right: 1px solid var(--st-hair); padding: 12px 10px 12px 14px; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
@@ -52,18 +52,18 @@ const CSS = `
 .st-tray:empty { display: none; }
 .st-tray .tl { display: grid; gap: 1px; flex: 1; min-width: 0; align-items: baseline; }
 .st-tray .tl span { color: inherit; }
-.st-tray .tl > span { color: var(--ls-primary-text-color, #222); }
+.st-tray .tl > span { color: var(--lk-text, #222); }
 .st-tray .tl span i { color: var(--st-quiet); font-style: normal; font-variant-numeric: tabular-nums; margin-left: .35em; }
 .st-tray .tl span u { text-decoration: none; color: var(--st-faint); margin-left: 6px; cursor: pointer; }
 .st-tray .tl span u:hover { color: inherit; }
 .st-tray .do { display: flex; gap: 14px; white-space: nowrap; align-items: baseline; }
-.st-tray .do span { cursor: pointer; } .st-tray .do span.go { color: var(--ls-primary-text-color, #222); font-weight: 500; }
+.st-tray .do span { cursor: pointer; } .st-tray .do span.go { color: var(--lk-text, #222); font-weight: 500; }
 .st-tray .do .ky { color: var(--st-faint); font-size: 12px; margin-left: 6px; }
 /* st-done, not done: Logseq strikes through its own .done (a finished task). */
 .st-tray .st-done, .st-tray .note { color: var(--st-quiet); white-space: nowrap; margin-left: auto; }   /* the Undo arrow waits bottom right (the grammar) */ .st-tray .st-done .lk-undo { cursor: pointer; margin-left: 6px; font-size: 16px; }
 .st-tray .busy { color: var(--st-faint); }
 .st-find { border-bottom: 1px solid var(--st-line); color: var(--st-faint); font-size: 13.5px; display: flex; min-height: 24px; padding: 0 2px; margin: 0 0 10px; align-items: center; gap: 6px; }
-.st-find input, .st-in { all: unset; flex: 1; color: var(--ls-primary-text-color, #222); min-width: 0; font: inherit; }
+.st-find input, .st-in { all: unset; flex: 1; color: var(--lk-text, #222); min-width: 0; font: inherit; }
 .st-find input::placeholder { color: var(--st-faint); }
 .st-find .n { font-size: 12px; color: var(--st-faint); font-variant-numeric: tabular-nums; }
 .st-in { border-bottom: 1px solid var(--st-line); width: 100%; }
@@ -100,13 +100,13 @@ const CSS = `
 /* Pencilled in (Look's lk-pencil on the name): what a change waiting in the tray touches. */
 /* The pick bar, as the grammar draws it: above the list, how many and what can be done as quiet words, Esc clears. */
 .st-pick { display: flex; gap: 14px; align-items: center; font-size: 13px; color: var(--st-quiet); border-bottom: 1px solid var(--st-hair); padding-bottom: 4px; margin: -4px 0 4px; min-height: 22px; flex-wrap: wrap; }
-.st-pick b { color: var(--ls-primary-text-color, #222); font-weight: 500; } .st-pick .esc { margin-left: auto; color: var(--st-faint); }
+.st-pick b { color: var(--lk-text, #222); font-weight: 500; } .st-pick .esc { margin-left: auto; color: var(--st-faint); }
 /* The trail, as the grammar draws it: where you came through, each a step back, › between; Escape goes back one step. */
-.st-trail { font-size: 13px; color: var(--st-quiet); margin: 0 0 6px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-.st-trail .sep { color: var(--st-faint); } .st-trail .here { color: var(--ls-primary-text-color, #222); }
+.st-trail { font-size: 12.5px; color: var(--st-faint); margin: 0 0 4px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.st-trail .sep { color: var(--st-faint); }
 /* The three views as words above the tree, the one in force in the text colour (the grammar's narrowing words). */
 .st-views { display: flex; gap: 12px; font-size: 13px; color: var(--st-quiet); margin: 0 0 8px; padding: 0 2px; }
-.st-views .act { color: var(--st-quiet); } .st-views .act:hover { color: inherit; } .st-views .here { color: var(--ls-primary-text-color, #222); }
+.st-views .act { color: var(--st-quiet); } .st-views .act:hover { color: inherit; } .st-views .here { color: var(--lk-text, #222); }
 /* The title row: the name, and at its right end the thing's place in the tree, nearest first, as Look draws it on a page. */
 .st-ttl { display: flex; align-items: baseline; gap: 14px; margin: 0 0 2px; }
 .st-ttl .st-place { margin-left: auto; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1 auto; }
@@ -115,8 +115,9 @@ const CSS = `
 .st-card h2 .st-km { width: 14px; height: 14px; color: var(--st-quiet); } .st-card h2 .st-pi { width: 13px; height: 13px; }
 .st-card .sum { font-size: 13px; color: var(--st-quiet); margin: 0 0 6px; display: flex; gap: 14px; flex-wrap: wrap; }
 .st-card .sum .lk { cursor: pointer; }
-.st-card .acts { font-size: 13px; margin: 0 0 18px; display: flex; gap: 0 8px; flex-wrap: wrap; }
-.st-card .acts .act + .act::before { content: '·'; color: var(--st-faint); margin-right: 8px; }   /* the dot stays with the word after it when the line wraps */
+.st-card .acts { font-size: 13px; margin: 8px 0 20px; display: flex; gap: 0 10px; flex-wrap: wrap; }
+.st-card .acts .act { color: inherit; }
+.st-card .acts .act + .act::before { content: '·'; color: var(--st-faint); margin-right: 10px; }   /* the dot stays with the word after it when the line wraps */
 .st .act { color: var(--st-quiet); cursor: pointer; white-space: nowrap; } .st .act:hover { color: inherit; }
 /* A group's head is bold words on a row; groups are told apart by a gap of one line, not a hairline (the grammar). */
 .st-card h3, .st-hl h3 { font-size: 14px; font-weight: 600; color: inherit; margin: 22px 0 2px; min-height: 25px; display: flex; align-items: center; }
@@ -135,27 +136,41 @@ const CSS = `
 .st-ln.inh, .st-ln.inh .w .k { color: var(--st-faint); }
 .st-ln.rng .x { color: var(--st-faint); cursor: pointer; margin-left: 2px; opacity: .5; } .st-ln.rng:hover .x { opacity: 1; } .st-ln.rng .x:hover { color: inherit; }
 .st-ln.add .ct { text-align: left; white-space: normal; }
-.st-ln.iss .w { color: var(--st-quiet); } .st-ln.iss .fix, .st-hl .fix { color: var(--ls-primary-text-color, #222); }
+/* An issue's row, each part keyed by its role (the owner, 31 October 2026): the thing to settle in the text colour with the underline
+   that opens its card, the tying words and the sentence in the quiet grey at the row's size, the tags as tags, the count as a number,
+   the fix last in the text colour, taking the room it needs (the sentence wraps before it, never the fix word). */
+.st-ln.iss { grid-template-columns: 16px minmax(0, 1fr) max-content; }
+.st-ln.iss .w { color: var(--st-quiet); display: block; }   /* the parts flow as text, so a long sentence wraps as text */
+.st-ln.iss .fix, .st-ln.fx .fix, .st-hl .fix { color: var(--lk-text, #222); }
+.st-ln.iss .w > span { margin: 0 2px; } .st-ln.iss .w > span:first-child { margin-left: 0; }
+.st-ln.iss .w .sj { color: var(--lk-text, #222); font-weight: 500; margin-right: 4px; }
+.st-ln.iss .w .to { color: var(--st-quiet); font-size: 13.5px; } .st-ln.iss .w .pn { margin-left: -2px; }
+.st-ln.iss .w .nm { color: var(--st-quiet); font-variant-numeric: tabular-nums; font-size: 13.5px; margin-left: 6px; }
+/* A line with its own issue: the fix word at its right end, after the faint count. */
+.st-ln.fx { grid-template-columns: 16px minmax(0, 1fr) 84px max-content; }
 .st-ln.ask { min-height: 0; margin: 2px 0 10px 14px; } .st-ln.ask .w { color: var(--st-quiet); padding-left: 10px; border-left: 2px solid var(--st-hair); display: block; }
-.st-ln.ask .w .act { color: var(--ls-primary-text-color, #222); font-weight: 500; margin-left: 10px; } .st-ln.ask .w .act.f { color: var(--st-quiet); font-weight: 400; margin-left: 8px; }
+.st-ln.ask.two .w { max-width: 600px; }   /* the two columns no wider than the sentence under them */
+.st-ln.ask .w .act { color: var(--lk-text, #222); font-weight: 500; margin-left: 10px; } .st-ln.ask .w .act.f { color: var(--st-quiet); font-weight: 400; margin-left: 8px; }
 .st-ln.ask .w .ky { color: var(--st-faint); font-size: 12px; margin-left: 10px; }
 /* A merge before it is staged, as the grammar shows a consequence: the two tags side by side, their properties lined up. */
 .st-two { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; font-size: 13.5px; margin: 4px 0 6px; }
-.st-two .h { font-weight: 600; padding-bottom: 4px; display: flex; gap: 8px; align-items: baseline; color: var(--ls-primary-text-color, #222); } .st-two .h .ct { font-weight: 400; color: var(--st-quiet); font-size: 12.5px; }
-.st-two .pr { display: flex; justify-content: space-between; gap: 8px; min-height: 24px; align-items: center; color: var(--st-quiet); }
-.st-two .pr .ct { font-size: 12.5px; color: var(--st-faint); }
-.st-two .pr.moves, .st-two .pr.shared { color: var(--ls-primary-text-color, #222); } .st-two .pr.gone { text-decoration: line-through; color: var(--st-faint); } .st-two .pr.new { font-style: italic; }
+.st-two .h { font-weight: 600; padding-bottom: 4px; display: flex; gap: 8px; align-items: baseline; color: var(--lk-text, #222); } .st-two .h .ct { font-weight: 400; color: var(--st-quiet); font-size: 12.5px; }
+.st-two .pr { display: flex; gap: 8px; min-height: 24px; align-items: center; color: var(--st-quiet); }   /* the name at the left of its column, "on both" at the right */
+.st-two .pr .n { display: inline-flex; gap: 6px; align-items: center; min-width: 0; }
+.st-two .pr .ct { font-size: 12.5px; color: var(--st-faint); margin-left: auto; white-space: nowrap; }
+.st-two .pr.moves, .st-two .pr.shared { color: var(--lk-text, #222); } .st-two .pr.gone { text-decoration: line-through; color: var(--st-faint); } .st-two .pr.new { font-style: italic; }
 .st .q { color: var(--st-quiet); } .st .f { color: var(--st-faint); }
 .st-tbl { font-size: 13.5px; }
-.st-tbl .hd, .st-tbl .tr { display: grid; grid-template-columns: 16px minmax(120px, 1.2fr) minmax(0, 1fr) minmax(0, 1fr) 96px; gap: 0 12px; align-items: center; min-height: 26px; padding: 0 4px; border-radius: 3px; }
+/* The On column gets the room its three names and the count need, taken from Name and Points at, which hold one word each. */
+.st-tbl .hd, .st-tbl .tr { display: grid; grid-template-columns: 16px minmax(96px, .8fr) minmax(0, 2fr) minmax(0, 1fr) 96px; gap: 0 12px; align-items: center; min-height: 26px; padding: 0 4px; border-radius: 3px; }
 .st-tbl .hd { font-size: 12.5px; color: var(--st-faint); border-bottom: 1px solid var(--st-hair); margin-bottom: 4px; min-height: 22px; }
 .st-tbl .hd span { cursor: pointer; } .st-tbl .hd span.on { color: var(--st-quiet); font-weight: 600; }
 .st-tbl .tr:hover { background: var(--st-wash); }
-.st-tbl .tr .on { color: var(--st-quiet); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-tbl .tr .on { color: var(--st-quiet); }
 .st-tbl .to { color: var(--st-faint); font-size: 12px; margin: 0 4px; }
 .st-tbl .tr > span:nth-child(2) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
 /* A narrow pane (the right sidebar open): the table keeps its four columns, the tag columns wrapping. */
-@container (max-width: 640px) { .st-tbl .hd, .st-tbl .tr { grid-template-columns: 16px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 72px; gap: 0 8px; } .st-tbl .tr .on { white-space: normal; } .st-tbl .hd span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .st-ln { grid-template-columns: 16px minmax(0, 1fr) 72px; } }
+@container (max-width: 640px) { .st-tbl .hd, .st-tbl .tr { grid-template-columns: 16px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 72px; gap: 0 8px; } .st-tbl .hd span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .st-ln { grid-template-columns: 16px minmax(0, 1fr) 72px; } }
 .st-tbl .tr .ct { font-variant-numeric: tabular-nums; color: var(--st-quiet); font-size: 12.5px; text-align: right; }
 .st-tbl .tr.low .ct { color: var(--st-faint); }
 .st-hl .st-ln { grid-template-columns: minmax(0, 1fr) max-content; }
@@ -166,7 +181,7 @@ const CSS = `
 .st-nodes .st-ln.cur { background: var(--st-wash); }
 .st-nodes .lk-tick { align-self: center; }
 .st-nodes .more { color: var(--st-faint); cursor: pointer; padding: 4px 2px; }
-.st-menu { position: absolute; background: var(--ls-primary-background-color, #fff); border: 1px solid var(--st-hair); border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,.12); padding: 4px 0; min-width: 230px; width: max-content; max-width: 360px; font-size: 13.5px; z-index: 30; }
+.st-menu { position: absolute; background: var(--lk-paper, #fff); border: 1px solid var(--st-hair); border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,.12); padding: 4px 0; min-width: 230px; width: max-content; max-width: 360px; font-size: 13.5px; z-index: 30; }
 .st-menu div { display: flex; align-items: center; gap: 16px; padding: 0 12px; height: 26px; cursor: pointer; white-space: nowrap; }
 .st-menu div:hover { background: var(--st-wash); }
 .st-menu div .rt { margin-left: auto; color: var(--st-faint); font-size: 12.5px; font-variant-numeric: tabular-nums; }
@@ -259,8 +274,9 @@ function make(holder, mode, app) {
 
   // ---------- the top line of every content: the path, ending on the thing itself; where to go back; the two lists ----------
   const placeName = p => p.view === 'table' ? 'every property' : p.view === 'health' ? 'Health' : p.view === 'nodes' ? `the nodes of ${name(p.nodes?.tag)}` : p.propCur ? P(Number(p.propCur.split('·')[1]))?.title ?? '' : name(p.cur);
-  // The trail (the grammar's): the places you came through, each a step back (a click goes back to it), the last one where you are.
-  const trailHtml = () => st.trail.length ? `<div class="st-trail">${st.trail.map((p, i) => `<span class="lk" data-back="${i}">${esc(placeName(p))}</span>`).join('<span class="sep">›</span>')}<span class="sep">›</span><span class="here">${esc(placeName(place()))}</span></div>` : '';
+  // The trail (the grammar's): the places you came through, each a step back (a click goes back to it). It ends with ›:
+  // the title under it is where you are, so the name is not said twice (the owner, 31 October 2026, on a property's card).
+  const trailHtml = () => st.trail.length ? `<div class="st-trail">${st.trail.map((p, i) => `<span class="lk" data-back="${i}">${esc(placeName(p))}</span>`).join('<span class="sep">›</span>')}<span class="sep">›</span></div>` : '';
   // The title row: the mark and the name, and at the right end the place in the tree, nearest first, each a tag that opens (as Look draws a page's).
   const titleHtml = (mark, title, above, cls) => `<div class="st-ttl"><h2 class="${cls || ''}">${mark}<span class="${cls ? 'lk-pencil' : ''}">${title}</span></h2>${above.length ? `<span class="st-place">${above.map(tagLink).join('<span class="sep">/</span>')}</span>` : ''}</div>`;
   // The prompt that belongs to the card (a property's, the nodes'), in place under the words.
@@ -274,14 +290,17 @@ function make(holder, mode, app) {
   const tagLink = id => `<span class="lk-tag tg ${waitTag(id) ? 'lk-pencil' : ''}" data-go="${esc(id)}">${esc(name(id))}</span>`;
   // A range of many tags (Topic, on purpose, takes fifteen): the first three, then how many more; the property's card lists them all.
   const ranges = ids => ids.slice(0, 3).map(tagLink).join('<span class="to">·</span>') + (ids.length > 3 ? `<span class="to">and ${ids.length - 3} more</span>` : '');
+  // An issue that belongs to a line puts its fix word at the line's right end, after the faint count, with its ask under the line.
+  const lineFix = (tagId, pid, kid) => { const i = R.issueOnLine(ISS(), tagId, pid, kid); return i ? { cls: 'fx', word: `<span class="fix act" data-fix="${ISS().indexOf(i)}">${esc(i.fix)}</span>`, ask: askHtml(ISS().indexOf(i)) } : { cls: '', word: '', ask: '' }; };
   function propLine(tagId, pid, of, inh) {
     const p = P(pid), f = inh ? 0 : Mo.filled(M(), tagId, pid), low = of && !inh && f / of < .2;
     const editing = st.edit && st.edit.what === 'prename' && st.edit.on === `${tagId}·${pid}`;
-    return `<div class="st-ln ${inh ? 'inh' : ''} ${low ? 'low' : ''} ${waitProp(pid)}" data-prop="${tagId}·${pid}">${pi(p)}<span class="w">` +
+    const fx = inh ? { cls: '', word: '', ask: '' } : lineFix(tagId, pid);
+    return `<div class="st-ln ${inh ? 'inh' : ''} ${low ? 'low' : ''} ${fx.cls} ${waitProp(pid)}" data-prop="${tagId}·${pid}">${pi(p)}<span class="w">` +
       (editing ? `<input class="st-in" data-edit value="${esc(st.edit.text)}" autocomplete="off" spellcheck="false">` : `<span class="k lk ${waitProp(pid) ? 'lk-pencil' : ''}">${esc(p.title)}</span>`) +
       (p.type === 'node' ? `<span class="to">points at</span>${p.range.length ? ranges(p.range) : '<span class="to">any node</span>'}` : '') +
       (inh ? `<span class="to">inherited from ${esc(name(inh))}</span>` : '') +
-      `</span><span class="ct">${inh ? '' : f + ' of ' + of}</span></div>`;
+      `</span><span class="ct">${inh ? '' : f + ' of ' + of}</span>${fx.word}</div>${fx.ask}`;
   }
   function cardTag(id) {
     const m = M(), t = T(id);
@@ -293,11 +312,11 @@ function make(holder, mode, app) {
     h += `<div class="sum"><span class="${total ? 'lk' : ''}" ${total ? `data-nodes="${id}"` : ''}>${plural(total, 'node')}${t.nodes.size && kids.length ? `, ${t.nodes.size} carrying the tag itself` : ''}</span>${kids.length ? `<span>${plural(kids.length, 'tag')} under it</span>` : ''}` +
       (t.parents.length > 1 ? `<span>also under ${t.parents.slice(1).map(tagLink).join(', ')}</span>` : '') +
       (!path.slice(0, -1).length && !t.kind ? `<span>under no kind</span>` : '') +
-      `${newest ? `<span class="f">newest ${day(newest)}</span>` : ''}${t.missing ? `<span class="f">no tag of this name in the graph yet; one is made when something is moved under it</span>` : ''}</div>`;
+      `${newest ? `<span>newest ${day(newest)}</span>` : ''}${t.missing ? `<span>no tag of this name in the graph yet; one is made when something is moved under it</span>` : ''}</div>`;
     // What it can take, as words. A kind takes less; a missing kind only a new tag.
     const ticked = [...st.ticks].filter(x => x !== id && T(x));
-    h += acts(id, t.kind ? [!t.missing && ['rename', 'rename'], ['new tag inside', 'new'], ['add a property to every tag under…', 'addpropall']]
-      : [['rename', 'rename'], ['move under…', 'move'], ['new tag inside', 'new'], ['add a property…', 'addprop'], kids.length && ['add a property to every tag under…', 'addpropall'],
+    h += acts(id, t.kind ? [!t.missing && ['rename', 'rename'], ['new tag inside', 'new'], ['add a property to all beneath…', 'addpropall']]
+      : [['rename', 'rename'], ['move under…', 'move'], ['new tag inside', 'new'], ['add a property…', 'addprop'], kids.length && ['add a property to all beneath…', 'addpropall'],
         ticked.length && [`merge the ${ticked.length === 1 ? 'ticked tag' : ticked.length + ' ticked tags'} into this`, 'merge'], !total && !kids.length && ['remove', 'remove']]) + cardPrompt();
     const inh = Mo.inherited(m, id);
     if (t.props.length || inh.length) {
@@ -307,7 +326,7 @@ function make(holder, mode, app) {
     }
     const pa = Mo.pointedAt(m, id);
     if (pa.length) h += `<h3>Pointed at by</h3>` + pa.map(x => `<div class="st-ln ${waitProp(x.prop)}" data-prop="${x.tag}·${x.prop}">${pi(P(x.prop))}<span class="w"><span class="k lk ${waitProp(x.prop) ? 'lk-pencil' : ''}">${esc(P(x.prop).title)}</span><span class="to">on</span>${tagLink(x.tag)}</span><span class="ct">${x.filled}</span></div>`).join('');
-    h += issuesHtml(R.issuesOn(ISS(), id));
+    h += issuesHtml(R.issuesOn(ISS(), id).filter(i => !(i.line && i.line.tag === id)));   // the ones with a line of their own sit on it
     return h + `</div>`;
   }
   function cardLoose() {
@@ -320,23 +339,32 @@ function make(holder, mode, app) {
   }
   // An issue: what is wrong, then the fix as a word. Choosing the fix opens one line that says what it would do, with the
   // nodes it touches; only "stage it" puts it in the tray. A fix that needs a choice (which kind, which tag) opens the prompt.
-  const issueLine = (i, inner) => { const n = ISS().indexOf(i); return `<div class="st-ln iss">${inner}<span class="fix act" data-fix="${n}">${esc(i.fix)}</span></div>` + askHtml(n); };
-  const issuesHtml = list => !list.length ? '' : `<h3>Issues</h3>` + list.map(i => issueLine(i, `<span></span><span class="w">${esc(i.text)}</span>`)).join('');
+  // The sentence in parts, each keyed by its role: the thing to settle in the text colour with the underline that opens its card
+  // (a tag, or a property on a tag), the tying words quiet, the tags as tags (three, then "and N more"), the count as a number.
+  const partsHtml = parts => parts.map(p => p.subject ? (p.subject.prop != null
+      ? `<span class="k lk sj ${waitProp(p.subject.prop) ? 'lk-pencil' : ''}" data-prop="${p.subject.tag}·${p.subject.prop}">${esc(P(p.subject.prop)?.title ?? '')}</span>`
+      : `<span class="k lk sj ${waitTag(p.subject.tag) ? 'lk-pencil' : ''}" data-go="${esc(p.subject.tag)}">${esc(name(p.subject.tag))}</span>`)
+    : p.tags ? (p.sep === 'and' && p.tags.length === 2 ? p.tags.map(tagLink).join('<span class="to">and</span>') : ranges(p.tags))
+    : p.count != null ? `<span class="nm">${esc(p.count)}</span>`
+    : `<span class="to ${/^[,:;]/.test(p.words) ? 'pn' : ''}">${esc(p.words)}</span>`).join(' ').replace(/ (<span class="to pn")/g, '$1');
+  const issueLine = (i, lead) => { const n = ISS().indexOf(i); return `<div class="st-ln iss">${lead}<span class="w">${partsHtml(i.parts)}</span><span class="fix act" data-fix="${n}">${esc(i.fix)}</span></div>` + askHtml(n); };
+  const issuesHtml = list => !list.length ? '' : `<h3>Issues</h3>` + list.map(i => issueLine(i, '<span></span>')).join('');
   function askHtml(n) {
     if (!st.ask || st.ask.i !== n) return '';
     const i = ISS()[n]; if (!i) return '';
-    const s = S.changes.sentence(M(), i.change), c = i.change;
+    const s = S.changes.sentence(M(), i.change), c = i.change, two = c.kind === 'merge';
     const words = `<span class="act" data-stage>stage it</span><span class="act f" data-leave>leave it</span><span class="ky">Enter stages · Esc leaves it</span>`;
-    return `<div class="st-ln ask"><span></span><span class="w">${c.kind === 'merge' ? twoHtml(c.from, c.into) : ''}${esc(s.text)}${s.nodes ? ` · ${plural(s.nodes, 'node')}` : ''}${words}</span></div>`;
+    // The nodes it touches, once: after the sentence, or in the merge's column head.
+    return `<div class="st-ln ask ${two ? 'two' : ''}"><span></span><span class="w">${two ? twoHtml(c.from, c.into) : ''}${esc(s.text)}${s.nodes && !two ? ` · ${plural(s.nodes, 'node')}` : ''}${words}</span></div>`;
   }
   // A merge before it is staged, as the grammar shows a consequence: the two tags side by side, their properties lined up,
   // what is shared, what moves to the kept tag and what the kept tag gains.
   function twoHtml(fromId, intoId) {
     const m = M(), from = T(fromId), into = T(intoId); if (!from || !into) return '';
     const col = (t, other, gone) => `<div><div class="h">${esc(t.title)}<span class="ct">${plural(Mo.count(m, t.id), 'node')}${gone ? ', removed' : ''}</span></div>` +
-      t.props.map(pid => { const shared = other.props.includes(pid); return `<div class="pr ${shared ? 'shared' : gone ? 'moves' : ''}">${pi(P(pid))} ${esc(P(pid).title)}<span class="ct">${shared ? `on both` : gone ? 'moves' : ''}</span></div>`; }).join('') +
-      (!gone ? other.props.filter(pid => !t.props.includes(pid)).map(pid => `<div class="pr new">${pi(P(pid))} ${esc(P(pid).title)}<span class="ct">new</span></div>`).join('') : '') +
-      (gone && t.kids.length ? `<div class="pr moves">${plural(t.kids.length, 'tag')} under it<span class="ct">move</span></div>` : '') +
+      t.props.map(pid => { const shared = other.props.includes(pid); return `<div class="pr ${shared ? 'shared' : gone ? 'moves' : ''}"><span class="n">${pi(P(pid))}${esc(P(pid).title)}</span><span class="ct">${shared ? `on both` : gone ? 'moves' : ''}</span></div>`; }).join('') +
+      (!gone ? other.props.filter(pid => !t.props.includes(pid)).map(pid => `<div class="pr new"><span class="n">${pi(P(pid))}${esc(P(pid).title)}</span><span class="ct">new</span></div>`).join('') : '') +
+      (gone && t.kids.length ? `<div class="pr moves"><span class="n">${plural(t.kids.length, 'tag')} under it</span><span class="ct">move</span></div>` : '') +
       `</div>`;
     return `<div class="st-two">${col(from, into, true)}${col(into, from, false)}</div>`;
   }
@@ -345,9 +373,11 @@ function make(holder, mode, app) {
     if (!p || !t) return `<div class="st-card">${trailHtml()}<div class="st-empty">That property is no longer on this tag.</div></div>`;
     const of = Mo.count(m, tagId), f = Mo.filled(m, tagId, pid), declared = t.props.includes(pid), parent = Mo.parentOf(m, tagId);
     let h = `<div class="st-card" data-propcard="${key}">` + trailHtml() + titleHtml(pi(p), esc(p.title), [...Mo.pathOf(m, tagId)].reverse(), waitProp(pid));
-    h += `<div class="sum"><span>${p.type === 'node' ? `points at ${p.range.length === 1 ? tagLink(p.range[0]) : p.range.length ? `nodes of ${plural(p.range.length, 'tag')}` : 'any node'}` : Mo.kindWord(p.choice ? 'choice' : p.type)}${p.many ? ', several' : ''}</span><span>${f} of ${of} filled on ${esc(t.title)}</span>${declared ? '' : `<span class="f">inherited; its home is ${esc(name(p.on[0]))}</span>`}</div>`;
-    h += acts(key, [['rename', 'prename'], declared && ['move to another tag…', 'pmove'], declared && parent != null && [`pull up to ${esc(name(parent))}`, 'pullup'], p.type === 'node' && ['points at another tag too…', 'prange'],
-      (p.choice || p.type === 'node') && t.nodes.size && [`split ${esc(t.title)} by its values…`, 'split'], declared && ['drop', 'pdrop']]) + cardPrompt();
+    // The facts, said once: what it points at, how filled here (the title row's right end already names the tag), inherited.
+    h += `<div class="sum"><span>${p.type === 'node' ? `points at ${p.range.length === 1 ? tagLink(p.range[0]) : p.range.length ? plural(p.range.length, 'tag') : 'any node'}` : Mo.kindWord(p.choice ? 'choice' : p.type)}${p.many ? ', several' : ''}</span><span>${f} of ${of} filled</span>${declared ? '' : `<span>inherited from ${esc(name(p.on[0]))}</span>`}</div>`;
+    // What it can take, as short words on one line; another tag it points at is the last line of the Points at list below.
+    h += acts(key, [['rename', 'prename'], declared && ['move to…', 'pmove'], declared && parent != null && [`pull up to ${esc(name(parent))}`, 'pullup'],
+      (p.choice || p.type === 'node') && t.nodes.size && ['split by its values…', 'split'], declared && ['drop', 'pdrop']]) + cardPrompt();
     if (p.type === 'node') {
       // What it points at, one tag a row with how many of its values point at that tag's nodes; × takes a tag out, the last line adds one.
       const at = m.pointed.get(p.ident) || new Map();
@@ -355,11 +385,10 @@ function make(holder, mode, app) {
         `<div class="st-ln add"><span></span><span class="w"><span class="act" data-addrange="${key}">${p.range.length ? 'another tag…' : 'a tag…'}</span></span><span class="ct">${[...at].filter(([id]) => !p.range.includes(id) && m.tags.has(id)).length ? `<span class="f">also found: ${[...at].filter(([id]) => !p.range.includes(id) && m.tags.has(id)).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([id, n]) => `${esc(name(id))} ${n}`).join(', ')}</span>` : ''}</span></div>`;
     }
     const kids = Mo.kids(m, tagId);
-    h += `<h3>Filled, by tag beneath</h3>`;
-    h += (kids.length ? [{ id: tagId, own: true }, ...kids.map(id => ({ id }))] : [{ id: tagId }]).map(({ id, own: o }) => { const c = o ? t.nodes.size : Mo.count(m, id); const fl = o ? Mo.filledOwn(m, tagId, pid) : Mo.filled(m, id, pid); return c || !o ? `<div class="st-ln"><span></span><span class="w">${tagLink(id)}${o ? '<span class="to">the tag itself</span>' : ''}</span><span class="ct">${fl} of ${c}</span></div>` : ''; }).join('');
+    if (kids.length) h += `<h3>Filled, by tag beneath</h3>` + [{ id: tagId, own: true }, ...kids.map(id => ({ id }))].map(({ id, own: o }) => { const c = o ? t.nodes.size : Mo.count(m, id); const fl = o ? Mo.filledOwn(m, tagId, pid) : Mo.filled(m, id, pid); const fx = o ? { cls: '', word: '', ask: '' } : lineFix(tagId, pid, id); return c || !o ? `<div class="st-ln ${fx.cls}"><span></span><span class="w">${tagLink(id)}${o ? '<span class="to">the tag itself</span>' : ''}</span><span class="ct">${fl} of ${c}</span>${fx.word}</div>${fx.ask}` : ''; }).join('');
     const same = p.on.filter(id => id !== tagId);
     if (same.length) h += `<h3>Also on</h3>` + same.map(id => `<div class="st-ln" data-prop="${id}·${pid}"><span></span><span class="w">${tagLink(id)}</span><span class="ct">${Mo.filled(m, id, pid)} of ${Mo.count(m, id)}</span></div>`).join('');
-    h += issuesHtml(R.issuesOfProp(ISS(), pid));
+    h += issuesHtml(R.issuesOfProp(ISS(), pid).filter(i => !(i.line && i.line.tag === tagId && i.line.prop === pid && i.line.kid != null && kids.includes(i.line.kid))));   // the ones with a line of their own sit on it
     return h + `</div>`;
   }
 
@@ -372,9 +401,9 @@ function make(holder, mode, app) {
     const rows = [...byProp.values()].map(g => { g.on.sort((a, b) => b.of - a.of); g.tag = g.on[0].tag; g.pct = g.filled / Math.max(g.of, 1); return g; });
     const s = st.sort, onName = g => name(g.tag);
     rows.sort((a, b) => s === 'name' ? a.p.title.localeCompare(b.p.title) : s === 'on' ? onName(a).localeCompare(onName(b)) || a.p.title.localeCompare(b.p.title) : s === 'to' ? name(b.p.range[0] ?? '').localeCompare(name(a.p.range[0] ?? '')) : a.pct - b.pct || a.p.title.localeCompare(b.p.title));
-    let h = `<div class="st-card">${trailHtml()}${titleHtml('', 'Every property', [], '')}<div class="sum"><span>${plural(m.props.size, 'property').replace('propertys', 'properties')} on ${new Set(rows.flatMap(g => g.on.map(x => x.tag))).size} tags</span><span class="f">sorted by ${s === 'filled' ? 'how filled, least first' : s === 'on' ? 'the tag' : s === 'to' ? 'what it points at' : 'name'}; a name opens the property's card</span></div><div class="st-tbl">`;
+    let h = `<div class="st-card">${trailHtml()}${titleHtml('', 'Every property', [], '')}<div class="sum"><span>${plural(m.props.size, 'property').replace('propertys', 'properties')} on ${new Set(rows.flatMap(g => g.on.map(x => x.tag))).size} tags</span></div><div class="st-tbl">`;
     h += `<div class="hd"><span></span>${['name', 'on', 'to', 'filled'].map(c => `<span class="${s === c ? 'on' : ''}" data-sort="${c}">${{ name: 'Name', on: 'On', to: 'Points at', filled: 'Filled' }[c]}</span>`).join('')}</div>`;
-    h += rows.map(r => `<div class="tr ${r.pct < .2 ? 'low' : ''} ${waitProp(r.prop)}" data-prop="${r.tag}·${r.prop}">${pi(r.p)}<span class="${waitProp(r.prop) ? 'lk-pencil' : ''}">${esc(r.p.title)}</span><span class="on">${ranges(r.on.map(x => x.tag))}</span><span class="on">${r.p.type === 'node' ? (r.p.range.length ? ranges(r.p.range) : '<span class="f">any node</span>') : `<span class="f">${Mo.kindWord(r.p.choice ? 'choice' : r.p.type)}</span>`}</span><span class="ct">${r.filled} of ${r.of}</span></div>`).join('');
+    h += rows.map(r => `<div class="tr ${r.pct < .2 ? 'low' : ''} ${waitProp(r.prop)}" data-prop="${r.tag}·${r.prop}">${pi(r.p)}<span><span class="k lk ${waitProp(r.prop) ? 'lk-pencil' : ''}">${esc(r.p.title)}</span></span><span class="on">${ranges(r.on.map(x => x.tag))}</span><span class="on">${r.p.type === 'node' ? (r.p.range.length ? ranges(r.p.range) : '<span class="f">any node</span>') : `<span class="f">${Mo.kindWord(r.p.choice ? 'choice' : r.p.type)}</span>`}</span><span class="ct">${r.filled} of ${r.of}</span></div>`).join('');
     const loose = [...m.props.values()].filter(p => !p.on.length);
     if (loose.length) h += `</div><h3>On no tag</h3><div class="st-tbl">` + loose.map(p => `<div class="tr"><span class="st-pi">${ICONS[Mo.propKind(p)]}</span><span>${esc(p.title)}</span><span class="on f">—</span><span class="on">${p.range.length ? p.range.map(tagLink).join(', ') : `<span class="f">${Mo.kindWord(p.choice ? 'choice' : p.type)}</span>`}</span><span class="ct">${m.holders.get(p.ident)?.size || 0} nodes</span></div>`).join('');
     return h + `</div></div>`;
@@ -384,7 +413,7 @@ function make(holder, mode, app) {
     const all = ISS(), by = new Map();
     for (const i of all) by.set(i.rule, [...(by.get(i.rule) || []), i]);
     let h = `<div class="st-card st-hl">${trailHtml()}${titleHtml('', 'Health', [], '')}<div class="sum"><span>${all.length ? `${all.length} thing${all.length === 1 ? '' : 's'} to settle` : 'nothing to settle'}</span><span class="f">a fix first says what it would do; nothing is written until the tray is applied</span></div>`;
-    for (const [rule, list] of by) h += `<h3>${esc(rule)}</h3>` + list.map(i => issueLine(i, `<span class="w">${tagLink(i.on)} <span class="q">${esc(i.text.startsWith(name(i.on) + ' ') ? i.text.slice(name(i.on).length + 1) : i.text)}</span></span>`)).join('');
+    for (const [rule, list] of by) h += `<h3>${esc(rule)}</h3>` + list.map(i => issueLine(i, '')).join('');
     return h + `</div>`;
   }
   // ---------- a tag's nodes ----------
@@ -456,8 +485,8 @@ function make(holder, mode, app) {
       const declared = !!t?.props.includes(pid);
       const f = t ? plural(Mo.filled(m, tagId, pid), 'value') : '';
       h += it('Rename', 'prename') + (p?.type === 'node' ? it('Points at another tag too…', 'prange') : '') + '<div class="gap"></div>' +
-        it('Move to another tag…', 'pmove', !declared, f) + it(parent != null ? `Pull up to ${name(parent)}` : 'Pull up to the parent', 'pullup', !declared || parent == null, f) +
-        (p && (p.choice || p.type === 'node') ? it(`Split ${t.title} by its values…`, 'split', !t.nodes.size, plural(t.nodes.size, 'node')) : '') + '<div class="gap"></div>' + it('Drop', 'pdrop', !declared, f);
+        it('Move to…', 'pmove', !declared, f) + it(parent != null ? `Pull up to ${name(parent)}` : 'Pull up to the parent', 'pullup', !declared || parent == null, f) +
+        (p && (p.choice || p.type === 'node') ? it('Split by its values…', 'split', !t.nodes.size, plural(t.nodes.size, 'node')) : '') + '<div class="gap"></div>' + it('Drop', 'pdrop', !declared, f);
     }
     return h + `</div>`;
   }

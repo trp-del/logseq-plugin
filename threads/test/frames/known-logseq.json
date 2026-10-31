@@ -1,0 +1,588 @@
+{
+ "light · Dr. Mei Chen": {
+  "jumps": [
+   {
+    "name": "landmark: page blocks",
+    "dy": 1,
+    "dx": 0,
+    "size": 439
+   },
+   {
+    "name": "landmark: first block",
+    "dy": 1,
+    "dx": 0,
+    "size": 439
+   },
+   {
+    "name": "logseq: div.cp__sidebar-main-content",
+    "dy": 0,
+    "dx": 1,
+    "size": 50
+   },
+   {
+    "name": "logseq: div.mt-4.ls-page-blocks",
+    "dy": 1,
+    "dx": 0,
+    "size": 439
+   },
+   {
+    "name": "logseq: div.cp__sidebar-main-content",
+    "dy": 0,
+    "dx": 1,
+    "size": 49
+   }
+  ],
+  "flashes": [],
+  "settle": [
+   106,
+   106,
+   117
+  ],
+  "mask": 0
+ },
+ "light · Consultation": {
+  "jumps": [
+   {
+    "name": "landmark: page blocks",
+    "dy": 1,
+    "dx": 0,
+    "size": 528
+   },
+   {
+    "name": "landmark: first block",
+    "dy": 1,
+    "dx": 0,
+    "size": 528
+   },
+   {
+    "name": "logseq: div.cp__sidebar-main-content",
+    "dy": 0,
+    "dx": 1,
+    "size": 49
+   },
+   {
+    "name": "logseq: div.mt-4.ls-page-blocks",
+    "dy": 1,
+    "dx": 0,
+    "size": 528
+   },
+   {
+    "name": "logseq: div.h-full",
+    "dy": 0,
+    "dx": 1,
+    "size": 20
+   }
+  ],
+  "flashes": [],
+  "settle": [
+   230,
+   250,
+   227
+  ],
+  "mask": 0
+ },
+ "light · Nausea": {
+  "jumps": [
+   {
+    "name": "landmark: page blocks",
+    "dy": 1,
+    "dx": 0,
+    "size": 215
+   },
+   {
+    "name": "landmark: first block",
+    "dy": 1,
+    "dx": 0,
+    "size": 215
+   },
+   {
+    "name": "logseq: div.cp__sidebar-main-content",
+    "dy": 0,
+    "dx": 1,
+    "size": 49
+   },
+   {
+    "name": "logseq: div.ml-1.flex.flex-col",
+    "dy": 1,
+    "dx": 0,
+    "size": 215
+   },
+   {
+    "name": "logseq: div.mt-4.ls-page-blocks",
+    "dy": 1,
+    "dx": 0,
+    "size": 215
+   }
+  ],
+  "flashes": [],
+  "settle": [
+   89,
+   92,
+   88
+  ],
+  "mask": 0
+ },
+ "light · Northgate Cancer Center": {
+  "jumps": [
+   {
+    "name": "landmark: page blocks",
+    "dy": 1,
+    "dx": 0,
+    "size": 109
+   },
+   {
+    "name": "landmark: first block",
+    "dy": 1,
+    "dx": 0,
+    "size": 109
+   },
+   {
+    "name": "logseq: div.cp__sidebar-main-content",
+    "dy": 0,
+    "dx": 1,
+    "size": 49
+   },
+   {
+    "name": "logseq: div.mt-4.ls-page-blocks",
+    "dy": 1,
+    "dx": 0,
+    "size": 109
+   },
+   {
+    "name": "logseq: div.ml-1.flex.flex-col",
+    "dy": 1,
+    "dx": 0,
+    "size": 109
+   },
+   {
+    "name": "logseq: div.cp__sidebar-main-content",
+    "dy": 0,
+    "dx": 1,
+    "size": 50
+   }
+  ],
+  "flashes": [],
+  "settle": [
+   93,
+   94,
+   65
+  ],
+  "mask": 0
+ },
+ "light · Oxaliplatin": {
+  "jumps": [
+   {
+    "name": "landmark: page blocks",
+    "dy": 1,
+    "dx": 0,
+    "size": 137
+   },
+   {
+    "name": "landmark: first block",
+    "dy": 1,
+    "dx": 0,
+    "size": 137
+   },
+   {
+    "name": "logseq: div.cp__sidebar-main-content",
+    "dy": 0,
+    "dx": 1,
+    "size": 49
+   },
+   {
+    "name": "logseq: div.mt-4.ls-page-blocks",
+    "dy": 1,
+    "dx": 0,
+    "size": 137
+   },
+   {
+    "name": "logseq: div.ml-1.flex.flex-col",
+    "dy": 1,
+    "dx": 0,
+    "size": 137
+   }
+  ],
+  "flashes": [],
+  "settle": [
+   98,
+   84,
+   102
+  ],
+  "mask": 0
+ },
+ "light · Tingling fingers": {
+  "jumps": [
+   {
+    "name": "landmark: page blocks",
+    "dy": 1,
+    "dx": 0,
+    "size": 243
+   },
+   {
+    "name": "landmark: first block",
+    "dy": 1,
+    "dx": 0,
+    "size": 243
+   },
+   {
+    "name": "logseq: div.cp__sidebar-main-content",
+    "dy": 0,
+    "dx": 1,
+    "size": 49
+   },
+   {
+    "name": "logseq: div.mt-4.ls-page-blocks",
+    "dy": 1,
+    "dx": 0,
+    "size": 243
+   },
+   {
+    "name": "logseq: div.ml-1.flex.flex-col",
+    "dy": 1,
+    "dx": 0,
+    "size": 243
+   }
+  ],
+  "flashes": [],
+  "settle": [
+   81,
+   63,
+   81
+  ],
+  "mask": 0
+ },
+ "light · #/refinement-tags": {
+  "jumps": [
+   {
+    "name": "landmark: page blocks",
+    "dy": 1,
+    "dx": 0,
+    "size": 215
+   },
+   {
+    "name": "landmark: first block",
+    "dy": 1,
+    "dx": 0,
+    "size": 215
+   },
+   {
+    "name": "logseq: div.cp__sidebar-main-content",
+    "dy": 0,
+    "dx": 1,
+    "size": 49
+   },
+   {
+    "name": "logseq: div.mt-4.ls-page-blocks",
+    "dy": 1,
+    "dx": 0,
+    "size": 215
+   },
+   {
+    "name": "logseq: div.ml-1.flex.flex-col",
+    "dy": 1,
+    "dx": 0,
+    "size": 215
+   }
+  ],
+  "flashes": [],
+  "settle": [
+   69,
+   89,
+   82
+  ],
+  "mask": 0
+ },
+ "dark · Dr. Mei Chen": {
+  "jumps": [
+   {
+    "name": "landmark: page blocks",
+    "dy": 1,
+    "dx": 0,
+    "size": 439
+   },
+   {
+    "name": "landmark: first block",
+    "dy": 1,
+    "dx": 0,
+    "size": 439
+   },
+   {
+    "name": "logseq: div.cp__sidebar-main-content",
+    "dy": 0,
+    "dx": 1,
+    "size": 49
+   },
+   {
+    "name": "logseq: div.mt-4.ls-page-blocks",
+    "dy": 1,
+    "dx": 0,
+    "size": 439
+   },
+   {
+    "name": "logseq: div.cp__sidebar-main-content",
+    "dy": 0,
+    "dx": 1,
+    "size": 50
+   }
+  ],
+  "flashes": [],
+  "settle": [
+   134,
+   151,
+   97
+  ],
+  "mask": 0
+ },
+ "dark · Consultation": {
+  "jumps": [
+   {
+    "name": "landmark: page blocks",
+    "dy": 1,
+    "dx": 0,
+    "size": 528
+   },
+   {
+    "name": "landmark: first block",
+    "dy": 1,
+    "dx": 0,
+    "size": 528
+   },
+   {
+    "name": "logseq: div.cp__sidebar-main-content",
+    "dy": 0,
+    "dx": 1,
+    "size": 49
+   },
+   {
+    "name": "logseq: div.mt-4.ls-page-blocks",
+    "dy": 1,
+    "dx": 0,
+    "size": 528
+   },
+   {
+    "name": "logseq: div.h-full",
+    "dy": 0,
+    "dx": 1,
+    "size": 20
+   }
+  ],
+  "flashes": [],
+  "settle": [
+   291,
+   206,
+   213
+  ],
+  "mask": 0
+ },
+ "dark · Nausea": {
+  "jumps": [
+   {
+    "name": "landmark: page blocks",
+    "dy": 1,
+    "dx": 0,
+    "size": 215
+   },
+   {
+    "name": "landmark: first block",
+    "dy": 1,
+    "dx": 0,
+    "size": 215
+   },
+   {
+    "name": "logseq: div.cp__sidebar-main-content",
+    "dy": 0,
+    "dx": 1,
+    "size": 49
+   },
+   {
+    "name": "logseq: div.mt-4.ls-page-blocks",
+    "dy": 1,
+    "dx": 0,
+    "size": 215
+   },
+   {
+    "name": "logseq: div.ml-1.flex.flex-col",
+    "dy": 1,
+    "dx": 0,
+    "size": 215
+   }
+  ],
+  "flashes": [],
+  "settle": [
+   96,
+   89,
+   77
+  ],
+  "mask": 0
+ },
+ "dark · Northgate Cancer Center": {
+  "jumps": [
+   {
+    "name": "landmark: page blocks",
+    "dy": 1,
+    "dx": 0,
+    "size": 109
+   },
+   {
+    "name": "landmark: first block",
+    "dy": 1,
+    "dx": 0,
+    "size": 109
+   },
+   {
+    "name": "logseq: div.cp__sidebar-main-content",
+    "dy": 0,
+    "dx": 1,
+    "size": 50
+   },
+   {
+    "name": "logseq: div.mt-4.ls-page-blocks",
+    "dy": 1,
+    "dx": 0,
+    "size": 109
+   },
+   {
+    "name": "logseq: div.ml-1.flex.flex-col",
+    "dy": 1,
+    "dx": 0,
+    "size": 109
+   },
+   {
+    "name": "logseq: div.cp__sidebar-main-content",
+    "dy": 0,
+    "dx": 1,
+    "size": 49
+   }
+  ],
+  "flashes": [],
+  "settle": [
+   72,
+   87,
+   98
+  ],
+  "mask": 0
+ },
+ "dark · Oxaliplatin": {
+  "jumps": [
+   {
+    "name": "landmark: page blocks",
+    "dy": 1,
+    "dx": 0,
+    "size": 137
+   },
+   {
+    "name": "landmark: first block",
+    "dy": 1,
+    "dx": 0,
+    "size": 137
+   },
+   {
+    "name": "logseq: div.cp__sidebar-main-content",
+    "dy": 0,
+    "dx": 1,
+    "size": 49
+   },
+   {
+    "name": "logseq: div.mt-4.ls-page-blocks",
+    "dy": 1,
+    "dx": 0,
+    "size": 137
+   },
+   {
+    "name": "logseq: div.ml-1.flex.flex-col",
+    "dy": 1,
+    "dx": 0,
+    "size": 137
+   }
+  ],
+  "flashes": [],
+  "settle": [
+   83,
+   89,
+   80
+  ],
+  "mask": 0
+ },
+ "dark · Tingling fingers": {
+  "jumps": [
+   {
+    "name": "landmark: page blocks",
+    "dy": 1,
+    "dx": 0,
+    "size": 243
+   },
+   {
+    "name": "landmark: first block",
+    "dy": 1,
+    "dx": 0,
+    "size": 243
+   },
+   {
+    "name": "logseq: div.cp__sidebar-main-content",
+    "dy": 0,
+    "dx": 1,
+    "size": 49
+   },
+   {
+    "name": "logseq: div.mt-4.ls-page-blocks",
+    "dy": 1,
+    "dx": 0,
+    "size": 243
+   },
+   {
+    "name": "logseq: div.ml-1.flex.flex-col",
+    "dy": 1,
+    "dx": 0,
+    "size": 243
+   }
+  ],
+  "flashes": [],
+  "settle": [
+   93,
+   86,
+   83
+  ],
+  "mask": 0
+ },
+ "dark · #/refinement-tags": {
+  "jumps": [
+   {
+    "name": "landmark: page blocks",
+    "dy": 1,
+    "dx": 0,
+    "size": 215
+   },
+   {
+    "name": "landmark: first block",
+    "dy": 1,
+    "dx": 0,
+    "size": 215
+   },
+   {
+    "name": "logseq: div.cp__sidebar-main-content",
+    "dy": 0,
+    "dx": 1,
+    "size": 49
+   },
+   {
+    "name": "logseq: div.mt-4.ls-page-blocks",
+    "dy": 1,
+    "dx": 0,
+    "size": 215
+   },
+   {
+    "name": "logseq: div.ml-1.flex.flex-col",
+    "dy": 1,
+    "dx": 0,
+    "size": 215
+   }
+  ],
+  "flashes": [],
+  "settle": [
+   93,
+   78,
+   88
+  ],
+  "mask": 0
+ }
+}

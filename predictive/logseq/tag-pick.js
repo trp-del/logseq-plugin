@@ -88,7 +88,7 @@ function onPress(event) {
 
 const css = `
 .flow-pick { position: fixed; z-index: 30; min-width: 240px; padding: 4px; font-size: .85em; line-height: 1.35; border-radius: 6px; user-select: none;
-  background: var(--ls-primary-background-color, #fff); color: var(--ls-primary-text-color, inherit);
+  background: var(--lk-paper, #fff); color: var(--lk-text, inherit);
   border: 1px solid color-mix(in srgb, currentColor 16%, transparent); box-shadow: 0 6px 18px color-mix(in srgb, currentColor 14%, transparent); }
 .flow-pick-row { display: flex; gap: .6em; align-items: baseline; padding: 3px 8px; border-radius: 4px; cursor: pointer; }
 .flow-pick-row.on, .flow-pick-row:hover { background: color-mix(in srgb, currentColor 9%, transparent); }

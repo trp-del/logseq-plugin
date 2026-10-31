@@ -15,7 +15,7 @@ const app = {
   issues() { if (app.issuesCache.model !== tray.model || app.issuesCache.at !== tray.version) app.issuesCache = { model: tray.model, at: tray.version, list: S.rules.issues(tray.model) }; return app.issuesCache.list; },
   // The tags and properties a change waiting in the tray touches: pencilled in wherever they are drawn.
   touched() {
-    if (app.touchedCache?.at === tray.version && app.touchedCache.model === tray.model) return app.touchedCache.set;
+    if (app.touchedCache && app.touchedCache.at === tray.version && app.touchedCache.model === tray.model) return app.touchedCache.set;
     const tags = new Set(), props = new Set();
     for (const c of tray.changes) { for (const k of ['tag', 'from', 'into', 'to', 'made', 'under', 'parent']) { const v = c[k]; if (Array.isArray(v)) v.forEach(x => tags.add(x)); else if (typeof v === 'number' && !(k === 'to' && c.kind === 'setRange')) tags.add(v); } if (c.tags) c.tags.forEach(x => tags.add(x)); if (c.prop != null) props.add(c.prop); }
     app.touchedCache = { at: tray.version, model: tray.model, set: { tags, props } };
@@ -105,7 +105,8 @@ const stop = () => { for (const v of [...app.views]) v.destroy(); host().getElem
 function adopt() {
   for (const holder of host().querySelectorAll('.st-holder')) if (!holder.querySelector('.st')) { try { app.mounted(S.view.make(holder, holder.classList.contains('st-holder-side') ? 'side' : 'page', app)); } catch (error) { console.error('Structure: could not draw into a holder', error); } }
 }
-window.Plugin.register({
+window.PluginDoor.describe('structure', { none: 'Structure has nothing to set.' });
+window.PluginDoor.register({
   key: 'structure', title: 'Structure', about: 'The map of the graph’s tags and properties: one screen to see the whole shape, move things and change many at once, with one Undo.',
   start: main, stop,
 });

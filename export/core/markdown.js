@@ -44,7 +44,7 @@ function toMarkdown(doc, o = {}) {
   const indent = (text, by) => text.split('\n').map((l, i) => (l || i === 0 ? by + l : l)).join('\n');
   const box = n => opts.tasks && n.task ? (D.taskDone(n.task) ? '[x] ' : '[ ] ') : '';
   const struck = (n, text) => opts.tasks && n.task?.status === 'canceled' ? `~~${text}~~` : text;
-  const tagsOf = n => opts.tags && D.tagsToAppend(n).length ? ' ' + D.tagsToAppend(n).map(t => /\s/.test(t) ? `#[[${t}]]` : `#${t}`).join(' ') : '';
+  const tagsOf = n => { const ts = D.tagsOf(n, opts.tasks); return opts.tags && ts.length ? ' ' + ts.map(t => /\s/.test(t) ? `#[[${t}]]` : `#${t}`).join(' ') : ''; };
   const meta = (n, leave = []) => D.metaOf(n, shownOf(n), opts.locale, leave).map(inline.mdEscape).join(' · ');
   const taskMeta = n => {
     if (!n.task || !opts.tasks) return [];
@@ -93,7 +93,7 @@ function toMarkdown(doc, o = {}) {
       const cell = (r, c) => {
         const name = c.toLowerCase();
         if (name === 'name' || name === 'block' || name === 'title') return md(r.text.split('\n')[0]).trim();
-        if (name === 'tags') return opts.tags ? r.tags.join(', ') : '';
+        if (name === 'tags') return opts.tags ? D.tagsOf(r, opts.tasks, true).join(', ') : '';
         const p = (r.properties || []).find(p => p.name.toLowerCase() === name);
         return p ? inline.mdEscape(p.values.map(v => D.valueText(v, opts.locale)).join(', ')) : '';
       };

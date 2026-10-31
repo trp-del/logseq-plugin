@@ -39,7 +39,7 @@ function toHtml(doc, o = {}) {
     const done = D.taskDone(n.task);
     return `<span${cls(done ? 'task done' : 'task')}>${done ? '☑' : '☐'}</span> `;
   };
-  const tagsOf = n => opts.tags && D.tagsToAppend(n).length ? ' ' + D.tagsToAppend(n).map(t => `<span${cls('tag')}>${esc(t)}</span>`).join(' ') : '';
+  const tagsOf = n => { const ts = D.tagsOf(n, opts.tasks); return opts.tags && ts.length ? ' ' + ts.map(t => `<span${cls('tag')}>${esc(t)}</span>`).join(' ') : ''; };
   const taskMeta = n => {
     if (!n.task || !opts.tasks) return [];
     const parts = [];
@@ -79,7 +79,7 @@ function toHtml(doc, o = {}) {
       const cell = (r, c) => {
         const name = c.toLowerCase();
         if (name === 'name' || name === 'block' || name === 'title') return { h: taskMark(r) + struck(r, html(r.text.split('\n')[0])), name: true };
-        if (name === 'tags') return { h: opts.tags ? esc(r.tags.join(', ')) : '' };
+        if (name === 'tags') return { h: opts.tags ? esc(D.tagsOf(r, opts.tasks, true).join(', ')) : '' };
         const p = (r.properties || []).find(p => p.name.toLowerCase() === name);
         return { h: p ? esc(p.values.map(v => D.valueText(v, opts.locale)).join(', ')) : '' };
       };
