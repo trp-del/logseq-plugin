@@ -40,7 +40,7 @@ In the plugin's one settings window (**Plugin settings** in the command palette,
 
 ## The look is Look's
 
-What Find draws carries Look's shared class names (`lk-row`, `lk-node`, `lk-tag`, `lk-day`, `lk-fold`, `lk-prop`, listed in Look's README) and no look of its own for those pieces: the mark before a node, the faint underline, a tag in mono come from Look. Run Look with Find; without it everything still works, only plainer. The settings window is a copy of Look's (`logseq/window.js`), as Predictive keeps one, with one rule of its own: a window of one section draws no section head and no legend.
+What Find draws carries Look's shared class names (`lk-row`, `lk-node`, `lk-tag`, `lk-day`, `lk-fold`, `lk-prop`, listed in Look's README) and no look of its own for those pieces: the mark before a node, the faint underline, a tag in mono come from Look. Run Look with Find; without it everything still works, only plainer.
 
 ## Where it comes from
 
@@ -55,7 +55,6 @@ The root `files.js` lists these in order, each adding to `window.Find`:
 | `logseq/kit.js` | Logseq's window, one stylesheet door, one element builder, the greys, the property icons, the sweep |
 | `logseq/db.js` | the one place that reads the graph: the kinds with their counts, the nodes under a kind, what they hold as choices, the months, Logseq's search, a node's properties and what points at it, the recent pages |
 | `logseq/settings.js` | the switches |
-| `logseq/window.js` | the settings window (Look's, copied) |
 | `logseq/commands.js` | Logseq's commands as the app lists them, with their keys; their English names from Logseq's dictionary |
 | `logseq/find.js` | the window: the find line of pieces, the choices, the rows, digging, the keys |
 | `main.js` | registers at the plugin's door, listens for the key, registers the command and the toolbar icon, forgets what it read when the graph changes, stops |

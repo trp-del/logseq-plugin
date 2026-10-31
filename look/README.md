@@ -54,7 +54,6 @@ The root `files.js` lists these in order, each adding to `window.Look`:
 | `logseq/kit.js` | Logseq's window, one stylesheet door, one watcher of the screen, the greys, the four marks and the property icons drawn once |
 | `logseq/db.js` | the one place that reads the graph: every tag with the tag it extends, every page's sort, every property's kind, what a folded node holds |
 | `logseq/settings.js` | the switches, in sections |
-| `logseq/window.js` | the settings window, one real dialog in the grammar's look; Predictive opens this one too |
 | `logseq/style.js` | the rules that are only a stylesheet: links, days, tags, property names, capsules, the words by a title |
 | `logseq/marks.js` | the marks before links, in the page's icon slot and in the sidebar's lists |
 | `logseq/props.js` | the icon before each property's name in a page's list |

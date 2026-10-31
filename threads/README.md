@@ -20,12 +20,13 @@ shown, counts back.
 
 ## What is here
 
+`settings.js`, beside `parts/`, says how Threads' settings read in the plugin's one settings window. The rest is in `parts/`:
+
 | Part | What it is | Needed by two-way? |
 |---|---|---|
 | `shared.js` | the kit: outline lines, pop-ups, fields, Undo, icons | yes |
 | `model.js` | the one place that reads and writes the graph | yes |
 | `diagnostics.js` | troubleshooting commands (what the plugin finds on this page, warnings, the tour) | yes (foundation) |
-| `settings-panel.js` | the settings window | yes (foundation) |
 | `two-way.js` | the two-way section | the feature |
 | `property-kinds.js` | the icon before each property's name in a page's list | optional; it also draws inside opened nodes |
 | `alike.js`, `shadow-rules.js` | the "looks like" engine and the proposals' rules | optional; the grey predictions in the **+** line and the order of pick lists |
