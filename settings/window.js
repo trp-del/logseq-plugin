@@ -10,8 +10,7 @@ const ORDER = ['look', 'find', 'threads', 'predictive', 'structure', 'export'];
 const REOPEN_KEY = 'logseq-plugin-settings-reopen';
 const esc = text => String(text ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
 const host = () => window.parent.document;
-const CSS = `.sw-dialog { --sw-quiet: color-mix(in srgb, currentColor 70%, transparent); --sw-faint: color-mix(in srgb, currentColor 46%, transparent);
-  --sw-hair: color-mix(in srgb, currentColor 12%, transparent); --sw-line: color-mix(in srgb, currentColor 26%, transparent); --sw-wash: color-mix(in srgb, currentColor 7%, transparent);
+const CSS = `.sw-dialog { --sw-quiet: var(--lk-quiet); --sw-faint: var(--lk-faint); --sw-hair: var(--lk-hair); --sw-line: var(--lk-line); --sw-wash: var(--lk-wash);
   position: fixed !important; top: 50% !important; left: 50% !important; right: auto !important; bottom: auto !important; transform: translate(-50%, -50%) !important; margin: 0 !important; width: min(860px, 92vw); height: min(700px, 88vh); max-height: 88vh; overflow: hidden; box-sizing: border-box; padding: 0; border: 1px solid var(--sw-hair); border-radius: 8px;
   background: var(--lk-paper, #fff); color: var(--lk-text, #222); font-size: 14px; line-height: 1.5;
   box-shadow: 0 10px 30px rgba(0,0,0,.14); }
@@ -22,8 +21,7 @@ const CSS = `.sw-dialog { --sw-quiet: color-mix(in srgb, currentColor 70%, trans
 .sw-find { border: 0; border-bottom: 1px solid transparent; background: none; color: inherit; font: inherit; padding: 2px 0; outline: none; box-shadow: none; width: 100%; max-width: calc(100% - 22px); }
 .sw-find::placeholder { color: var(--sw-faint); opacity: 1; }
 .sw-find:focus { border-bottom-color: var(--sw-line); outline: none; box-shadow: none; }
-.sw-close { all: unset; cursor: pointer; color: var(--sw-faint); font-size: 18px; line-height: 1; padding: 0 6px; }
-.sw-close:hover, .sw-close:focus-visible { color: inherit; }
+.sw-close { all: unset; cursor: pointer; font-size: 18px; line-height: 1; padding: 0 6px; }
 .sw-side { display: flex; flex-direction: column; padding: 8px 12px 16px 14px; min-height: 0; overflow: auto; }
 .sw-mod { display: grid; grid-template-columns: 22px minmax(0, 1fr); align-items: center; padding: 5px 8px; border-radius: 4px; cursor: pointer; }
 .sw-mod:hover { background: var(--sw-wash); }
@@ -31,26 +29,19 @@ const CSS = `.sw-dialog { --sw-quiet: color-mix(in srgb, currentColor 70%, trans
 .sw-mod.off .sw-name { color: var(--sw-faint); }
 .sw-mod .lk-pencil { font-style: italic; }
 .sw-nomatch { opacity: .4; }
-.sw-foot { margin-top: auto; padding: 16px 8px 0; display: grid; gap: 8px; justify-items: start; }
-.sw-word, .sw-reload { all: unset; cursor: pointer; }
-.sw-word { color: var(--sw-faint); }
-.sw-word:hover, .sw-word:focus-visible { color: inherit; }
-.sw-word.on { color: inherit; font-weight: 500; }
-.sw-reload { font-weight: 600; }
-.sw-reload:hover { color: var(--sw-quiet); }
+.sw-foot { margin-top: auto; padding: 16px 8px 0; display: grid; gap: 2px; justify-items: start; }
+.sw-word.on { font-weight: 500; }
 .sw-body { min-height: 0; overflow: auto; padding: 0 22px 22px; scrollbar-gutter: stable; }
 .sw-resting .sw-row, .sw-resting h3 { opacity: .5; }
 .sw-none { color: var(--sw-quiet); padding-top: 18px; margin: 0; }
 .sw-part { font-weight: 600; font-size: 16px; padding-top: 18px; }
 .sw-part:first-child { padding-top: 8px; }
-.sw-do { all: unset; cursor: pointer; font-weight: 500; }
-.sw-do:hover { color: var(--sw-quiet); }
+.sw-do { justify-self: start; margin-top: -3px; margin-bottom: -3px; }
 .sw-css { width: 100%; min-height: 5.5em; box-sizing: border-box; font: 13px/1.5 var(--lk-mono, monospace); border: 1px solid var(--sw-hair); border-radius: 4px; padding: 6px 8px; background: none; color: inherit; resize: vertical; outline: none; box-shadow: none; }
 .sw-css:focus { border-color: var(--sw-line); outline: none; box-shadow: none; }
 .sw-list { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; }
 .sw-word-x { color: inherit; }
-.sw-drop { all: unset; cursor: pointer; color: var(--sw-faint); margin-left: 5px; }
-.sw-drop:hover, .sw-drop:focus-visible { color: inherit; }
+.sw-drop { margin-left: 1px; }
 .sw-add { flex: 1; min-width: 12em; }
 .sw-section { padding-top: 14px; }
 .sw-section + .sw-section { margin-top: 22px; }
@@ -88,8 +79,8 @@ const CSS = `.sw-dialog { --sw-quiet: color-mix(in srgb, currentColor 70%, trans
 .sw-choice { all: unset; cursor: pointer; color: var(--sw-faint); }
 .sw-choice:hover { color: inherit; }
 .sw-choice[aria-pressed="true"] { color: inherit; font-weight: 500; }
-.sw-default { all: unset; cursor: pointer; color: var(--sw-faint); font-weight: 400; }
-.sw-default:hover { color: inherit; }
+/* It stands beside a title and must not take the title's weight, or make the row taller when it comes. */
+.sw-row .sw-default { font-weight: 400; margin-top: -3px; margin-bottom: -3px; }
 .sw-row:hover { background: var(--sw-wash); margin: 0 -8px; padding-left: 8px; padding-right: 8px; border-radius: 4px; }`;
 
 const state = { cur: 'look', view: 'part', find: '' };
@@ -103,8 +94,7 @@ const started = part => (Door.started || []).includes(part);
 const waiting = part => wanted(part) !== started(part);
 const read = item => { const value = logseq.settings?.[item.key]; return typeof value === typeof item.default ? value : item.default; };
 const changed = item => item.type !== 'action' && JSON.stringify(read(item)) !== JSON.stringify(item.default);
-// A setting that another part also reads carries that key as `also`, so one row sets both.
-const write = (item, value) => logseq.updateSettings({ [item.key]: value, ...(item.also ? { [item.also]: value } : {}) });
+const write = (item, value) => logseq.updateSettings({ [item.key]: value });
 
 // A part's rows as sections: a heading opens one, the rows under it follow.
 function sectionsOf(part) {
@@ -127,14 +117,14 @@ const listWords = (item, value) => String(value ?? '').split(/[;\n]/).map(word =
 function listHtml(item, value) {
   const words = listWords(item, value);
   const offer = names[item.key]?.length ? `<datalist id="sw-offer-${esc(item.key)}">${names[item.key].map(name => `<option value="${esc(name)}"></option>`).join('')}</datalist>` : '';
-  return `<span class="sw-list">${words.map(word => `<span class="sw-word-x">${esc(word)}<button type="button" class="sw-drop" data-key="${esc(item.key)}" data-word="${esc(word)}" aria-label="Take out ${esc(word)}">×</button></span>`).join('')}<input class="sw-field sw-add" id="sw-${esc(item.key)}" data-add="${esc(item.key)}" placeholder="${esc(item.list.hint || 'add')}" list="sw-offer-${esc(item.key)}" spellcheck="false" autocomplete="off">${offer}</span>`;
+  return `<span class="sw-list">${words.map(word => `<span class="sw-word-x">${esc(word)}<button type="button" class="sw-drop lk-x" data-key="${esc(item.key)}" data-word="${esc(word)}" aria-label="Take out ${esc(word)}">×</button></span>`).join('')}<input class="sw-field sw-add" id="sw-${esc(item.key)}" data-add="${esc(item.key)}" placeholder="${esc(item.list.hint || 'add')}" list="sw-offer-${esc(item.key)}" spellcheck="false" autocomplete="off">${offer}</span>`;
 }
 function rowHtml(row) {
   const { item, part } = row;
   const { specimen } = Door.described[part.key];
-  if (item.type === 'action') return `<div class="sw-row"><span></span><button type="button" class="sw-do lk-value" data-action="${esc(item.key)}">${esc(item.title)}</button></div>`;
+  if (item.type === 'action') return `<div class="sw-row"><span></span><button type="button" class="sw-do lk-lone" data-action="${esc(item.key)}">${esc(item.title)}</button></div>`;
   const value = read(item), key = esc(item.key), about = esc(item.description || '');
-  const reset = changed(item) ? `<button type="button" class="sw-default lk-value off" data-reset="${key}" title="Back to the default">default</button>` : '';
+  const reset = changed(item) ? `<button type="button" class="sw-default lk-lone" data-reset="${key}" title="Back to the default">default</button>` : '';
   const spec = specimen ? specimen(item, value) : '';
   const drawn = spec ? `<div class="sw-spec" title="${about}">${spec}</div>` : '';
   if (item.type === 'boolean') return `<label class="sw-row"><input type="checkbox" class="sw-tick" id="sw-${key}" data-key="${key}"${value ? ' checked' : ''}><span class="sw-title" title="${about}">${esc(item.title)} ${reset}</span>${drawn}</label>`;
@@ -173,7 +163,7 @@ function drawSide(dlg) {
     const none = words && !everyRow().some(row => row.part === part && matches(row, words));
     const here = !words && state.view === 'part' && state.cur === part.key;
     return `<div class="sw-mod${wanted(part) ? '' : ' off'}${none ? ' sw-nomatch' : ''}" data-part="${part.key}" aria-current="${here}"><input type="checkbox" class="sw-tick" id="sw-run-${part.key}" data-run="${part.key}"${wanted(part) ? ' checked' : ''} aria-label="${esc(part.title)} runs"><span class="sw-name${waiting(part) ? ' lk-pencil' : ''}">${esc(part.title)}</span></div>`;
-  }) + `<div class="sw-foot">${parts().some(waiting) ? '<button type="button" class="sw-reload lk-accent" id="sw-reload">Reload to apply</button>' : ''}${anyChanged() || state.view === 'changed' ? `<button type="button" class="sw-word${state.view === 'changed' ? ' on' : ''}" id="sw-changed">Changed by you</button>` : ''}<button type="button" class="sw-word" id="sw-plain">Logseq’s list</button></div>`;
+  }) + `<div class="sw-foot">${parts().some(waiting) ? '<button type="button" class="sw-reload lk-lone" id="sw-reload">Reload to apply</button>' : ''}${anyChanged() || state.view === 'changed' ? `<button type="button" class="sw-word lk-lone${state.view === 'changed' ? ' on' : ''}" id="sw-changed">Changed by you</button>` : ''}<button type="button" class="sw-word lk-lone" id="sw-plain">Logseq’s list</button></div>`;
 }
 // A redraw replaces what had the keyboard: hand it back, so Escape and the arrows keep working.
 function draw() {

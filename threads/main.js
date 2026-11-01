@@ -363,24 +363,6 @@ function registerCommands(parts) {
 }
 // The register as the settings window reads it: every command with its words, keys, icon and places.
 const commandList = () => commands.map(({ key, label, title, icon, shortcut, binding, places, partName }) => ({ key, label, title, icon, shortcut, binding: bindingOf({ shortcut, binding, part: commands.find(c => c.key === key)?.part }), fixed: !shortcut, places, part: partName }));
-/* Logseq's frame stays where it is (0.4.240). Its outer boxes (the window itself, and the boxes holding the main view
-   and the sidebars) do not scroll; only the views inside them do. A focus or scrollIntoView, the plugin's or
-   Logseq's, can still push one of them up, and then the top of every view, the toolbar and the titles, stays cut off
-   and the mouse cannot scroll it back (the owner, 0.4.222 and again 0.4.239: "view jumps up and top of view is cut off
-   no matter what page"). Whenever such a box is scrolled, it is put back at the top at once. */
-const SCROLLS = /^(auto|scroll|overlay)$/;
-function keepFrameInPlace() {
-  const doc = host(), win = doc.defaultView;
-  const frame = el => el === doc.scrollingElement || el === doc.body
-    || (el.querySelector?.('#main-content-container, #left-sidebar, #right-sidebar') && !SCROLLS.test(win.getComputedStyle(el).overflowY));
-  const onScroll = event => {
-    const el = event.target === doc ? doc.scrollingElement : event.target;
-    if (!el || el.nodeType !== 1 || !el.scrollTop || !frame(el)) return;
-    el.scrollTop = 0;
-  };
-  win.addEventListener('scroll', onScroll, true);
-  onUnload(() => win.removeEventListener('scroll', onScroll, true));
-}
 let startedAt = 0; // when this copy started (the counts' door: a reload that took effect has a new one)
 function main() {
   startedAt = Date.now();
@@ -418,18 +400,13 @@ function main() {
   const foundationOnly = setting('foundationOnly') === true;
   const running = foundationOnly ? plugInParts.filter(part => part.foundation) : plugInParts;
   if (foundationOnly) notify('Threads is running only its foundation (Foundation only, under Troubleshooting in its settings). Turn it off and reload the plugin to get everything back.', 'warning');
-  for (const part of running) {
-    try { part.provide?.(window.refinementCore); } catch (error) { warnOnce(`the ${part.name} part could not provide its functions`, error); }
-  }
-  for (const part of running) {
-    try { part.start(); } catch (error) { warnOnce(`the ${part.name} part could not start`, error); }
-    onUnload(part.stop);
-  }
-  for (const part of running) {
-    try { part.ready?.(); } catch (error) { warnOnce(`the ${part.name} part could not get ready`, error); }
-  }
+  const failed = new Set();
+  const step = (part, what, fn) => { try { fn(); } catch (error) { warnOnce(`the ${part.name} part could not ${what}`, error); failed.add(part.says || part.name); } };
+  for (const part of running) step(part, 'provide its functions', () => part.provide?.(window.refinementCore));
+  for (const part of running) { step(part, 'start', () => part.start()); onUnload(part.stop); }
+  for (const part of running) step(part, 'get ready', () => part.ready?.());
+  if (failed.size) notify(`Part of Threads could not start: ${[...failed].join(', ')}. The rest runs.`, 'warning');
   startSelfCheck();
-  keepFrameInPlace();
 
   // Every hook returns an "off" function; each is called when the plugin unloads. The core listens
   // once and runs what the parts registered (hooks) after its own housekeeping.
@@ -458,8 +435,8 @@ function main() {
 }
 /* Every part lives in parts/*.js and adds itself to window.refinementParts. The plugin's files.js loads them, in order,
    before this file: shared.js first (the other parts read window.refinementShared as they load), model.js second (the
-   Logseq model, which every part reads the graph through, core.provided), then diagnostics, two-way, property-kinds,
-   alike, shadow-rules, settings-panel. The parts' settings, in that order, each under its heading, go to the plugin
+   Logseq model, which every part reads the graph through, core.provided), then diagnostics, two-way,
+   alike, shadow-rules. The parts' settings, in that order, each under its heading, go to the plugin
    with this module's registration, so they hold their defaults when main runs. */
 let plugInParts = [];
 useShared();

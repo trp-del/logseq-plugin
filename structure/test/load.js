@@ -213,7 +213,7 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   assert.ok(ops.indexOf('deletePage') > ops.lastIndexOf('removeBlockTag', ops.indexOf('deletePage')), 'a tag is deleted after its nodes are retagged');
   assert.ok(calls.some(c => c[0] === 'upsertBlockProperty' && c[1] === raw.tags.find(t => t.title === 'Medical event').uuid && c[2] === 'logseq.property.class/properties' && c[3] === pid('Date')), 'Date declared on Medical event');
   assert.ok(calls.some(c => c[0] === 'renamePage' && c[2] === 'Hospital stay'));
-  assert.equal(text(R.querySelector('.st-tray')), '4 changes applied ↶'); assert.ok(R.querySelector('.st-tray .st-done .lk-undo') && !R.querySelector('.st-tray .done'), 'the arrow carries Look\'s name; no .done for Logseq to strike through');
+  assert.equal(text(R.querySelector('.st-tray')), '4 changes applied'); assert.ok(R.querySelector('.st-tray .st-done .lk-undo') && !R.querySelector('.st-tray .done'), 'the arrow carries Look\'s name; no .done for Logseq to strike through');
   calls.length = 0;
   await app.undo();
   const back = calls.map(c => c[0]);
@@ -281,14 +281,14 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   failOn = (name, a) => (name === 'addTagExtends' && a[0] === movedB.uuid) || (name === 'removeTagExtends' && a[0] === movedA.uuid && a[1] === under.uuid);
   await app.apply();
   assert.ok(notices()[0].includes('1 step could not be put back'), notices()[0]); assert.ok(!notices()[0].includes('were put back'));
-  assert.equal(count('addTagExtends'), 2, 'the step, and the inverse of Scan\'s old parent, which ran after the failure'); assert.ok(undoArrow(), 'the arrow stands for it'); assert.equal(text(R.querySelector('.st-done')), '1 step not put back ↶');
+  assert.equal(count('addTagExtends'), 2, 'the step, and the inverse of Scan\'s old parent, which ran after the failure'); assert.ok(undoArrow(), 'the arrow stands for it'); assert.equal(text(R.querySelector('.st-done')), '1 step not put back');
   calls.length = 0; failOn = null; await app.undo();
   assert.equal(calls.filter(c => c[0] !== 'notify').length, 1, 'only what failed runs again'); assert.equal(app.tray.done, null); assert.ok(!undoArrow());
   app.discard(); app.tray.note = '';
   // A failed Undo pressed again runs what is left, not everything from the top.
   fresh(); app.stage({ kind: 'merge', from: visit.id, into: id('Consultation') }); await app.apply(); assert.ok(undoArrow());
   calls.length = 0; failOn = name => name === 'addBlockTag'; await app.undo();
-  assert.equal(count('createPage'), 1, 'the tag came back'); assert.ok(notices()[0].startsWith('Could not undo 31 of'), notices()[0]); assert.equal(text(R.querySelector('.st-done')), '31 steps not undone ↶');
+  assert.equal(count('createPage'), 1, 'the tag came back'); assert.ok(notices()[0].startsWith('Could not undo 31 of'), notices()[0]); assert.equal(text(R.querySelector('.st-done')), '31 steps not undone');
   calls.length = 0; failOn = null; await app.undo();
   assert.equal(count('createPage'), 0, 'not made twice'); assert.equal(count('addBlockTag'), 31, 'the rest, each once'); assert.equal(count('renamePage'), 0); assert.equal(app.tray.done, null);
   // The tag cannot come back: what needs it fails and stays, and writes nothing on a dead uuid.
@@ -341,8 +341,8 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   assert.ok(!calls.some(c => c[0] !== 'notify'), 'nothing written'); deq(app.tray.lines().map(l => l.text), ['Rename Scan to Scan B']); assert.ok(text(R.querySelector('.st-tray')).includes('1 change waiting'), 'and the tray is drawn again'); live.tags = liveTags; app.discard(); await app.reread(); app.tray.note = '';
   // The tray: staging keeps the last Undo, drawn with the lines; a discard keeps it; while Apply runs nothing can be staged or thrown away.
   fresh(); app.stage({ kind: 'rename', tag: movedA.id, name: 'Scan B' }); await app.apply(); assert.ok(undoArrow());
-  app.stage({ kind: 'rename', tag: movedB.id, name: 'Stay B' }); app.draw(); assert.ok(undoArrow(), 'staged: the arrow stays'); assert.ok(text(R.querySelector('.st-tray')).includes('1 change waiting') && text(R.querySelector('.st-tray')).includes('1 change applied ↶'));
-  app.discard(); assert.equal(text(R.querySelector('.st-tray')), '1 change dropped1 change applied ↶', 'discarded: the arrow stays, the line says what went'); calls.length = 0; await app.undo(); assert.ok(calls.some(c => c[0] === 'renamePage'), 'and it undoes');
+  app.stage({ kind: 'rename', tag: movedB.id, name: 'Stay B' }); app.draw(); assert.ok(undoArrow(), 'staged: the arrow stays'); assert.ok(text(R.querySelector('.st-tray')).includes('1 change waiting') && text(R.querySelector('.st-tray')).includes('1 change applied'));
+  app.discard(); assert.equal(text(R.querySelector('.st-tray')), '1 change dropped1 change applied', 'discarded: the arrow stays, the line says what went'); calls.length = 0; await app.undo(); assert.ok(calls.some(c => c[0] === 'renamePage'), 'and it undoes');
   fresh(); app.stage({ kind: 'rename', tag: movedA.id, name: 'Scan B' }); app.stage({ kind: 'rename', tag: movedB.id, name: 'Stay B' }); let refused = 'not tried';
   duringWrite = () => { duringWrite = null; refused = app.stage({ kind: 'rename', tag: under.id, name: 'Treatment B' }); key(R, 'Backspace', { metaKey: true }); app.dropChange(0); };
   await app.apply(); assert.equal(refused, null, 'refused'); assert.equal(app.tray.changes.length, 0); assert.ok(notices().some(t => t.includes('Wait for this')), 'and says so'); assert.equal(count('renamePage'), 2, 'discard and × did nothing to the run'); app.tray.done = null; app.tray.note = '';

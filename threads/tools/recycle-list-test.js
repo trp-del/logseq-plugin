@@ -35,7 +35,7 @@ window.logseq = { settings: {}, baseInfo: { version: '0.4.407' },
 window.confirm = () => answerYes;
 window.HTMLElement.prototype.showPopover = function () {};
 window.HTMLElement.prototype.hidePopover = function () {};
-for (const file of ['parts/shared.js', 'parts/diagnostics.js']) window.eval(fs.readFileSync(path.join(root, file), 'utf8'));
+for (const file of ['../plugin.js', 'parts/shared.js', 'parts/diagnostics.js']) window.eval(fs.readFileSync(path.join(root, file), 'utf8'));
 const core = window.refinementCore = { provided: { CHECKED_WITH: '2.0.2' }, sendStyle: () => {}, watchDom: () => {}, onDatabaseChange: () => {}, onSettingsChange: () => {} };
 core.provide = things => Object.assign(core.provided, things);
 const part = window.refinementParts.find(p => p.name === 'diagnostics');

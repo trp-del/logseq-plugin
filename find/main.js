@@ -23,7 +23,6 @@ function listenForKeys() {
   doc.addEventListener('keydown', keyListener, true);
 }
 async function main() {
-  Find.kit.style('tokens', Find.kit.TOKENS);
   listenForKeys();
   logseq.App.registerCommandPalette({ key: 'find-open', label: 'Find' }, () => Find.window.open());
   logseq.provideModel({ findOpen: () => Find.window.open() });
@@ -32,7 +31,7 @@ async function main() {
   logseq.App.onCurrentGraphChanged(() => { Find.window.close(); Find.window.forget(); });
 }
 function stop() {
-  Find.window.close();
+  try { Find.window.close(); } catch (error) { console.error('Find: the window could not close', error); }
   if (keyListener) Find.kit.host().removeEventListener('keydown', keyListener, true);
   Find.kit.sweep();
 }

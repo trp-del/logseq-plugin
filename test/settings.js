@@ -1,12 +1,12 @@
 /* node test/settings.js   (needs jsdom: NODE_PATH, see README)
    The one settings window, against a stand-in Logseq with every part's real description: the six down the left, a part's
    rows, a change written at once, default, a word added to a list, a letter typed finding through all six, a part switched
-   off waiting for the reload, Escape letting go one step at a time, and the gear's Open settings taken for this plugin only. */
+   off waiting for the reload, Escape letting go one step at a time, and the gear's Open settings taken for this plugin only, by its whole id. */
 const assert = require('node:assert/strict');
 const fs = require('node:fs'), path = require('node:path'), vm = require('node:vm');
 let JSDOM; try { ({ JSDOM } = require('jsdom')); } catch (error) { console.log('skipped: needs jsdom (set NODE_PATH)'); process.exit(2); }
 const root = path.join(__dirname, '..');
-const dom = new JSDOM('<html><head></head><body><div class="cp__plugins-item-card"><span>ID: logseq-plugin</span><div class="ctl"><ul class="menu-list"><li id="mine">Open settings</li></ul></div></div><div class="cp__plugins-item-card"><span>ID: another</span><div class="ctl"><ul class="menu-list"><li id="theirs">Open settings</li></ul></div></div></body></html>', { pretendToBeVisual: true, url: 'http://localhost/' });
+const dom = new JSDOM('<html><head></head><body><div class="cp__plugins-item-card"><small>ID: logseq-plugin</small><div class="ctl"><ul class="menu-list"><li id="mine">Open settings</li></ul></div></div><div class="cp__plugins-item-card"><small>ID: logseq-plugin-another</small><div class="ctl"><ul class="menu-list"><li id="theirs">Open settings</li></ul></div></div></body></html>', { pretendToBeVisual: true, url: 'http://localhost/' });
 const win = dom.window, doc = win.document;
 win.HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
 win.HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); this.dispatchEvent(new win.Event('close')); };
@@ -33,20 +33,28 @@ const key = (dlg, name, target = dlg.querySelector('.sw-tick')) => target.dispat
   assert.equal(Object.keys(palette).filter(k => /settings/.test(k)).join(), 'plugin-settings', 'no other settings command');
   const dlg = Door.settings.open();
   assert.ok(dlg.hasAttribute('open'), 'it opens');
+  // Open troubleshooting stands only while Threads can open it
+  const describedThreads = Door.described.threads;
+  if (describedThreads.schema) {
+    assert.ok(!describedThreads.schema.some(row => row.key === 'troubleshoot'), 'no Open troubleshooting while Threads is not running');
+    pluginWin.refinementCore = { provided: { openTroubleshooting() {} } };
+    assert.ok(describedThreads.schema.some(row => row.key === 'troubleshoot'), 'Open troubleshooting while Threads runs');
+    delete pluginWin.refinementCore;
+  }
   assert.equal([...dlg.querySelectorAll('.sw-mod .sw-name')].map(e => e.textContent).join(), 'Look,Find,Threads,Predictive,Structure,DB Export', 'the six in order');
   assert.equal(dlg.querySelectorAll('.sw-section').length, 5, 'Look’s five sections');
   assert.equal(dlg.querySelectorAll('.sw-section > p, .sw-legend').length, 0, 'no paragraphs');
   assert.equal(dlg.querySelector('.sw-reload'), null, 'no reload until one waits');
   // a change is written at once, and the icon's row sets both keys
   const tick = dlg.querySelector('.sw-tick[data-key="propertyIcons"]'); tick.checked = false; tick.dispatchEvent(new win.Event('change', { bubbles: true }));
-  assert.equal(JSON.stringify(written.at(-1)), JSON.stringify({ propertyIcons: false, propertyKindIcons: false }), 'one row, both keys');
+  assert.equal(JSON.stringify(written.at(-1)), JSON.stringify({ propertyIcons: false }), 'one row, one key');
   await sleep(80);
   assert.ok(dlg.querySelector('[data-reset="propertyIcons"]'), 'default shows on what differs');
   assert.ok(dlg.querySelector('#sw-changed'), 'Changed by you shows');
   dlg.querySelector('#sw-changed').click();
   assert.equal(dlg.querySelectorAll('.sw-body .sw-row').length, 1, 'only what differs');
   dlg.querySelector('[data-reset="propertyIcons"]').click(); await sleep(80);
-  assert.equal(settings.propertyIcons, true, 'default puts it back'); assert.equal(settings.propertyKindIcons, true, 'both');
+  assert.equal(settings.propertyIcons, true, 'default puts it back');
   // a part's page: Structure has nothing to set
   dlg.querySelector('[data-part="structure"]').click();
   assert.equal(dlg.querySelector('.sw-none').textContent, 'Structure has nothing to set.');

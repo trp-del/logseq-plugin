@@ -359,7 +359,7 @@ function drawUndo(doc) {
   if (!line) { u.button?.remove(); u.button = null; return; }   // not on screen (another page): it comes back with the bullet
   if (!u.button?.isConnected) {
     const button = doc.createElement('button');
-    button.type = 'button'; button.className = 'flow-undo lk-undo'; button.innerHTML = '<i class="ti ti-arrow-back-up" aria-hidden="true"></i>';
+    button.type = 'button'; button.className = 'flow-undo lk-undo'; button.innerHTML = window.PluginDoor.UNDO;
     button.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); });
     button.addEventListener('click', async e => {
       e.preventDefault(); e.stopPropagation();
@@ -518,7 +518,7 @@ const css = `
 .bottom-property-pill[data-flow-proposal][data-flow-at]:not(:has(input, textarea)) .empty-value { position: absolute; opacity: 0; pointer-events: none; }
 .bottom-property-pill[data-flow-at]:has(input, textarea) .flow-ghost { display: none; }
 /* Its ring, the one Look gives a property holding the keyboard: here the keyboard is in the list, outside the pill. */
-${PILL}${AT}::after { inset: -2px 0 !important; border-radius: 6px !important; box-shadow: inset 0 0 0 1px var(--lk-line, var(--ls-border-color)) !important; }
+${PILL}${AT}::after { inset: -2px 0 !important; border-radius: 6px !important; box-shadow: inset 0 0 0 1px var(--lk-line) !important; }
 ${PILL}:is(:not(:has(.empty-value)), :has(.lk-pencil)) ~ ${AT}::after { left: 16px !important; }
 /* A pill row the plugin made (an untagged bullet): the pills side by side, as Logseq lays out its own. */
 .positioned-properties.flow-made .bottom-properties-row { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: .5rem; row-gap: .25rem; }
@@ -528,10 +528,10 @@ ${PILL}:is(:not(:has(.empty-value)), :has(.lk-pencil)) ~ ${AT}::after { left: 16
 .flow-undo .ti { font-size: 14px; }
 `;
 // Empty properties hidden until something is proposed, only in graphs where the proposals write (elsewhere nothing would ever
-// bring them back). Under the bullet being written they stay, faint, so nothing comes and goes.
+// bring them back). Under the bullet being written they stay, so nothing comes and goes; where an empty property shows it is
+// faint, which is Look's.
 const hideCss = `
 html.flow-hide-empty .ls-block .positioned-properties .bottom-property-pill:has(.empty-value):not([data-flow-proposal]):not([data-flow-at]):not(:focus-within):not(.block-main-container:has(textarea) *) { display: none !important; }
-html.flow-hide-empty .block-main-container:has(textarea) .positioned-properties .bottom-property-pill:has(.empty-value):not([data-flow-proposal]):not([data-flow-at]):not(:focus-within) { opacity: .45; }
 `;
 let hideVersion = 0;
 async function applyHide() {

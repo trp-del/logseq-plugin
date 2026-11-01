@@ -19,8 +19,7 @@ const css = `
 .lk-path .lk-sep { margin: 0 .35em; color: var(--lk-faint); }
 .lk-path .lk-own { position: relative; }
 .lk-path .lk-sep:has(+ .lk-held) { display: inline-block; min-width: 22px; margin: 0; text-align: center; }
-.lk-path .lk-x { position: absolute; right: calc(100% + 3px); top: 0; bottom: 0; width: 14px; display: none; align-items: center; justify-content: center; font-size: 13px; color: var(--lk-faint); cursor: pointer; }
-.lk-path .lk-x:hover { color: inherit; }
+.lk-path .lk-x { position: absolute; right: calc(100% + 3px); top: 0; bottom: 0; width: 14px; padding: 0; display: none; align-items: center; justify-content: center; }
 .lk-path .lk-held:hover > .lk-x, .lk-path .lk-x:focus-visible { display: inline-flex; }
 .lk-path .lk-sep:has(+ .lk-held:hover) { visibility: hidden; }
 .lk-path a.lk-tag { cursor: pointer; }

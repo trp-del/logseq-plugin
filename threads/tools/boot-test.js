@@ -154,6 +154,19 @@ async function main() {
   await sleep(50);
   if (!logseq._main) problem('main() was never given to logseq.ready');
   const parts = pluginWindow.refinementParts || [];
+  // A part that fails to start: BOOT_FAIL=two-way. One notice says which, in words, and the rest runs (check.sh runs this).
+  if (process.env.BOOT_FAIL) {
+    const part = parts.find(p => p.name === process.env.BOOT_FAIL), others = parts.filter(p => p !== part);
+    part.start = () => { throw new Error('forced'); };
+    let ran = 0; for (const other of others) { const start = other.start; other.start = (...a) => { ran++; return start(...a); }; }
+    logseq._main(); await sleep(50);
+    const said = log.filter(line => /Part of Threads could not start/.test(line));
+    if (said.length !== 1 || !said[0].includes(part.says)) problem(`a part that failed was not said once, in words: ${JSON.stringify(said)}`);
+    if (ran !== others.length) problem('the other parts should have started');
+    await logseq._unload?.();
+    if (!problems.length) console.log(`boot-test: a failed part is said: ${said[0]}`);
+    process.exit(problems.length ? 1 : 0);
+  }
   console.log(`loaded ${parts.length} parts, ${logseq._settingsSchema.length} settings`);
   const wantParts = PART_FILES.length - 1 - Number(process.env.QUIET_PARTS || 0);
   if (parts.length !== wantParts) problem(`expected ${wantParts} parts to register, found ${parts.length}`);
@@ -172,7 +185,7 @@ async function main() {
   // Each feature does something of its own at start (0.4.279, the audit): its stylesheet goes to Logseq and the tag
   // map's command is registered, exactly when the part is loaded; left out, nothing of it shows (parts-apart-test).
   const styleKeys = logseq.calls.filter(call => call.name === 'provideStyle').map(call => call.args[0]?.key);
-  const SIGNS = { 'two-way': 'refinement-two-way', 'tag-path': 'refinement-tag-path', 'title-row': 'refinement-title-row', 'property-kinds': 'refinement-property-kinds', 'pdf-quote': 'refinement-pdf-quote', 'folded-note': 'refinement-folded-note', sidebar: 'refinement-sidebar-titles', chrome: 'refinement-chrome-sidebar', 'palette-icons': 'refinement-palette-icons', 'search-look': 'refinement-search-tidy', 'page-look': 'refinement-page-look-links', tags: 'refinement-tags', shadow: 'refinement-shadow', picker: 'refinement-picker', 'tag-menu': 'refinement-tag-menu', 'settings-panel': 'refinement-settings-panel' };
+  const SIGNS = { 'two-way': 'refinement-two-way', 'tag-path': 'refinement-tag-path', 'title-row': 'refinement-title-row', 'pdf-quote': 'refinement-pdf-quote', 'folded-note': 'refinement-folded-note', sidebar: 'refinement-sidebar-titles', chrome: 'refinement-chrome-sidebar', 'palette-icons': 'refinement-palette-icons', 'search-look': 'refinement-search-tidy', 'page-look': 'refinement-page-look-links', tags: 'refinement-tags', shadow: 'refinement-shadow', picker: 'refinement-picker', 'tag-menu': 'refinement-tag-menu', 'settings-panel': 'refinement-settings-panel' };
   // The bullet's piece of the proposals stays off, and says so, without the rules (0.4.269).
   const expected = part => part === 'shadow' ? has('shadow') && has('shadow-rules') : part === 'tags' ? tagMap() : has(part);
   for (const [part, key] of Object.entries(SIGNS)) if (expected(part) !== styleKeys.includes(key)) problem(`${expected(part) ? 'with' : 'without'} ${part}, its stylesheet ${key} was ${styleKeys.includes(key) ? 'still' : 'not'} sent`);
@@ -215,10 +228,10 @@ async function main() {
   logseq.fire('App.onCurrentGraphChanged');
   await sleep(1300); // the database round after a pause (800 ms) and the first self-check (4 s is too long to wait; it is harmless)
 
-  // The counts' door (2026-10-23, for tools/app-stress.js): what this copy set going, and when it started.
+  // The counts' door (2026-10-23, for tools/app-stress.js): what this copy set going, and when it started. Only two-way watches the screen.
   const counts = pluginWindow.refinementCore.counts?.();
   const totalSteps = c => Object.values(c?.cleanUps || {}).reduce((a, b) => a + b, 0);
-  if (!counts || !counts.startedAt || !totalSteps(counts) || !counts.watchers) problem('the counts door gave nothing: ' + JSON.stringify(counts));
+  if (!counts || !counts.startedAt || !totalSteps(counts) || (has('two-way') && !counts.watchers)) problem('the counts door gave nothing: ' + JSON.stringify(counts));
   // 3. Unload, as Logseq does before a reload.
   const stopKey = Object.keys(host.window).find(key => /Stop$/.test(key) && typeof host.window[key] === 'function');
   if (!stopKey) problem('no clean-up was left on the host window for the next copy');

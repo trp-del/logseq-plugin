@@ -1102,5 +1102,5 @@ function start() {
   window.refinementCore.onGraphChange(() => { journalFormat.value = null; });   // each graph has its own
   ({ dsQuery, graphWide } = take(window.refinementCore, ['dsQuery', 'graphWide']));
 }
-(window.refinementParts ||= []).push({ name: 'model', foundation: true, schema: [], provide, start, stop: runUnloadTasks });
+(window.refinementParts ||= []).push({ name: 'model', says: 'its reading of the graph', foundation: true, schema: [], provide, start, stop: runUnloadTasks });
 })();

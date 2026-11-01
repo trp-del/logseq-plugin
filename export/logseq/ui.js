@@ -1,6 +1,6 @@
 /* The export window: a toolbar over the document, like a page on a desk. It is drawn into Logseq's own document, not the
    plugin's frame (as Threads draws), so the Look plugin's stylesheet reaches it: the window is built from the visual
-   grammar's shared names (logseq-look/README.md: lk-row, lk-list, lk-tick, lk-prop, lk-count, and the Pressing set,
+   grammar's shared names (look/README.md: lk-row, lk-list, lk-tick, lk-prop, lk-count, and the Pressing set,
    lk-name, lk-value, lk-pick, lk-alts, lk-accent, lk-close) and carries only a plain look of its own for them; switch Look
    off and it still works. The toolbar is a row of controls on the Pressing rule (buttons-mockup.html beside the plugins):
    each is a small faint name over a value in the text colour, and the value is the thing pressed. A value that unfolds
@@ -18,15 +18,13 @@ const esc = inline.escapeHtml;
 // Logseq's document; the plugin's own when it cannot be reached (the plugin installed without "effect").
 const host = () => { try { return window.parent.document; } catch (error) { return document; } };
 
-/* The greys are Look's tokens where Look runs (--lk-*), else the same mix from the text colour. Logseq's colours apply as
-   they are: the window stands in Logseq's document. */
+/* The greys are the plugin's own (--lk-*, plugin.js). Logseq's colours apply as they are: the window stands in Logseq's
+   document. */
 const CSS = `
 .xp { position: fixed; inset: 0; z-index: 9990; display: flex; flex-direction: column; box-sizing: border-box; margin: 0;
   background: color-mix(in srgb, var(--lk-paper, #fff) 84%, #000); color: var(--lk-text, #222);
   font-family: var(--ls-font-family, -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif); font-size: 13.5px; line-height: 1.35;
-  --xp-quiet: var(--lk-quiet, color-mix(in srgb, currentColor 70%, transparent)); --xp-faint: var(--lk-faint, color-mix(in srgb, currentColor 46%, transparent));
-  --xp-hair: var(--lk-hair, color-mix(in srgb, currentColor 12%, transparent)); --xp-line: var(--lk-line, color-mix(in srgb, currentColor 26%, transparent));
-  --xp-wash: var(--lk-wash, color-mix(in srgb, currentColor 7%, transparent)); }
+  --xp-quiet: var(--lk-quiet); --xp-faint: var(--lk-faint); --xp-hair: var(--lk-hair); --xp-line: var(--lk-line); --xp-wash: var(--lk-wash); }
 .xp * { box-sizing: border-box; }
 .xp[hidden] { display: none; }
 .xp-titlebar { display: flex; align-items: center; justify-content: center; flex: none; height: 48px; font-size: 12.5px; color: var(--xp-faint); background: var(--lk-paper, #fff); }
@@ -37,7 +35,7 @@ const CSS = `
 .xp-bar .g[hidden] { display: none; }
 .xp-bar .g.end { margin-left: auto; gap: 26px; padding-top: 15px; }
 /* A control: its name small and faint above, its value in the text colour below. The gap between controls is equal paddings,
-   so a pick's hairline stands mid-gap. (The plain look of the Pressing names; Look's stylesheet refines it where Look runs.) */
+   so a pick's hairline stands mid-gap. (The layout of the Pressing names; their colours are the shared stylesheet's.) */
 .xp .it { --pl: 20px; position: relative; display: flex; flex-direction: column; gap: 3px; white-space: nowrap; padding: 0 20px 0 var(--pl); }
 .xp .it[hidden] { display: none; }
 .xp .it:first-child, .xp .it[hidden] + .it { --pl: 0px; } .xp .it:last-child { padding-right: 0; }
@@ -63,30 +61,31 @@ const CSS = `
 .xp .lk-switch input { position: absolute; opacity: 0; width: 0; height: 0; margin: 0; }
 .xp .lk-switch .lk-value { position: relative; }
 .xp .lk-switch:has(:focus-visible) .lk-value { outline: 1px solid var(--xp-line); outline-offset: 3px; border-radius: 1px; }
-/* A choice that stays open (where the export goes; all or none of a list), the one in force in the text colour. */
+/* A choice that stays open (where the export goes), the one in force in the text colour. */
 .xp-where { display: flex; gap: 14px; }
 .xp-where > * { position: relative; cursor: pointer; color: var(--xp-faint); white-space: nowrap; }
 .xp-where > :hover { color: var(--xp-quiet); }
 .xp-where input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
-.xp-where label:has(:checked), .xp-where > .on { color: var(--lk-text, #222); }
+.xp-where label:has(:checked) { color: var(--lk-text, #222); }
 .xp-where label:has(:focus-visible) { outline: 1px solid var(--xp-line); outline-offset: 3px; border-radius: 1px; }
 /* A panel's own controls, unfolded in a row under the bar; a pick whose panel is open shows it by its value going quiet. */
 .xp-fold { flex: none; padding: 0 28px 16px; background: var(--lk-paper, #fff); }
 .xp-fold[hidden] { display: none; }
 .xp-fold .row { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 10px 0; }
 .xp .it.open > .lk-value { color: var(--xp-quiet); }
-/* The lists of properties to pick from, inside Show: each headed by a named value, whose they are over all / none as an open
-   choice (the one in force in the text colour); then one column, a row per property, its tick box at the left (lk-tick: Look
+/* The lists of properties to pick from, inside Show: each headed by a named value, whose they are over all / none as a
+   small lk-bar, its first word under the name; then one column, a row per property, its tick box at the left (lk-tick: Look
    shows them when the pointer is on the list), the icon of what it holds, its name, the count (lk-count: never shown where
    Look runs). A list longer than ten takes two columns. The gap tells the two lists apart. */
 .xp-lists { display: flex; gap: 44px; flex-wrap: wrap; margin-top: 14px; }
+.xp-all { margin: -3px 0 -3px -12px; }
 .xp-list { display: grid; grid-template-columns: 1fr; gap: 0 18px; margin-top: 10px; }
 .xp-list.two { grid-template-columns: 1fr 1fr; }
 .xp-list .xp-prop { display: flex; align-items: center; gap: 6px; padding: 2px 0; cursor: pointer; min-width: 0; }
 .xp-list .xp-prop input { margin: 0; flex: none; }
 .xp-list .lk-prop { display: inline-flex; align-items: center; gap: 5px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .xp-kind { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; font-size: 14px; color: var(--xp-faint); flex: none; }
-.xp-kind svg { width: 11px; height: 11px; }
+.xp-kind .lk-icon.lk-web svg { width: 11px; height: 11px; }
 .xp-list .lk-count { margin-left: auto; color: var(--xp-faint); font-size: .85em; }
 /* The tick box, as Threads' kit draws it: the browser's checkbox as a small rounded square with a check mark inside when on.
    Logseq's own forms rule paints a checked box blue; this square keeps to the text colour. */
@@ -94,15 +93,15 @@ const CSS = `
 .xp input[type=checkbox].lk-tick:checked, .xp input[type=checkbox].lk-tick:focus { background-color: transparent !important; background-image: none !important; border-color: currentColor !important; color: inherit !important; box-shadow: none !important; }
 .xp input[type=checkbox].lk-tick:checked::before { content: ""; position: absolute; left: 3.5px; top: .5px; width: 3.5px; height: 7px; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg); }
 .xp input[type=checkbox].lk-tick:focus-visible { outline: 1px solid var(--xp-line); outline-offset: 1px; }
-/* The accent: the one action, a little heavier, its key faint beside it; a second action plain; × the way out. */
-.xp-bar button { all: unset; cursor: pointer; font: inherit; color: var(--lk-text, #222); white-space: nowrap; }
+/* The accent: the one action, its key beside it; a second action lk-btn, its words level with the accent's and the gap
+   between them measured from its words; × the way out. */
+.xp-bar button:where(:not(.lk-btn)) { all: unset; cursor: pointer; font: inherit; color: var(--lk-text, #222); white-space: nowrap; }
 .xp-bar button[hidden] { display: none; }
 .xp-bar button:hover { color: var(--xp-quiet); }
 .xp-bar button:focus-visible { outline: 1px solid var(--xp-line); outline-offset: 3px; border-radius: 1px; }
-.xp-bar button.lk-accent { font-weight: 600; }
-.xp-bar button.lk-accent kbd { font: inherit; font-weight: 400; font-size: .85em; color: var(--xp-faint); margin-left: 8px; }
-.xp-bar button.lk-close { color: var(--xp-faint); font-size: 17px; line-height: 1; margin-top: -2px; }
-.xp-bar button.lk-close:hover { color: var(--lk-text, #222); }
+.xp-bar .lk-btn { margin: -3px -12px -3px 0; }
+.xp-bar button.lk-accent kbd { font: inherit; font-size: .85em; margin-left: 8px; }
+.xp-bar button.lk-close { font-size: 17px; line-height: 1; margin-top: -2px; }
 .xp-desk { flex: 1; overflow: auto; padding: 26px 24px 48px; }
 .xp-desk iframe { display: block; margin: 0 auto; width: 794px; max-width: 100%; height: 600px; border: 0; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.12), 0 10px 36px rgba(0,0,0,.22); }
 .xp-desk iframe.sheets { background: transparent; box-shadow: none; }
@@ -111,11 +110,8 @@ const CSS = `
 .xp-note .it { padding: 0; } .xp-note .lk-name { display: none; } .xp-note .lk-value { color: var(--xp-quiet); }
 .xp-note .lk-alts { left: auto; right: 0; justify-content: flex-end; }`;
 
-/* The icon of what a property holds, before its name, as Look draws it: the web (three dots joined in a triangle) for a
-   link to nodes, drawn here because no font has it; the rest from Logseq's own icon font (Tabler, loaded on every page). */
-const WEB = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 2.6 2.4 9.2h7.2Z" fill="none" stroke="currentColor" stroke-width="1"/><circle cx="6" cy="2.6" r="1.7" fill="currentColor"/><circle cx="2.4" cy="9.2" r="1.7" fill="currentColor"/><circle cx="9.6" cy="9.2" r="1.7" fill="currentColor"/></svg>';
-const KIND_ICONS = { node: null, page: null, date: 'calendar', datetime: 'calendar', default: 'letter-case', text: 'letter-case', number: '123', 'raw-number': '123', choice: 'select', checkbox: 'checkbox', url: 'world' };
-const kindIconHtml = type => { const k = String(type || 'default').replace(/^:/, ''); return `<span class="xp-kind">${KIND_ICONS[k] === null ? WEB : `<i class="ti ti-${KIND_ICONS[k] || 'letter-case'}" aria-hidden="true"></i>`}</span>`; };
+// The icon of what a property holds, before its name: the door's.
+const kindIconHtml = type => `<span class="xp-kind">${window.PluginDoor.kindIconHtml(type || 'default')}</span>`;
 
 const TARGETS = [{ key: 'pdf', name: 'PDF' }, { key: 'md', name: 'Markdown' }, { key: 'rich', name: 'Rich text' }];
 const SIZES = [['small', 'Small'], ['normal', 'Normal'], ['large', 'Large']], MARGINS = [['narrow', 'Narrow'], ['normal', 'Normal'], ['wide', 'Wide']];
@@ -195,8 +191,8 @@ function open({ doc, what, act }) {
     const sw = (cls, name, on, offWord, onWord) => `<div class="it lk-switch">${nm(name)}<label class="lk-value ${on ? '' : 'off'}" data-on="${esc(onWord)}" data-off="${esc(offWord)}"><input type="checkbox" class="${cls}" ${on ? 'checked' : ''}>${esc(on ? onWord : offWord)}</label></div>`;
     // A field: the name, and a value faint until written.
     const field = (cls, name, value, placeholder) => `<div class="it lk-field">${nm(name)}<input type="text" class="lk-value ${cls}" placeholder="${esc(placeholder)}" value="${esc(value)}"></div>`;
-    // A list of properties, headed by whose they are over all / none (an open choice); then the grammar's row, a tick box at the left, the icon of what it holds, the name, the count.
-    const list = (role, label, ps, hidden) => `<div class="it">${nm(label)}<div class="xp-where xp-all" data-role="${role}"><a data-all="1" data-role="${role}">all</a><a data-all="0" data-role="${role}">none</a></div>
+    // A list of properties, headed by whose they are over all / none (a small bar); then the grammar's row, a tick box at the left, the icon of what it holds, the name, the count.
+    const list = (role, label, ps, hidden) => `<div class="it">${nm(label)}<div class="xp-all lk-bar" data-role="${role}"><a class="lk-btn" data-all="1" data-role="${role}">all</a><a class="lk-btn" data-all="0" data-role="${role}">none</a></div>
       <div class="xp-list lk-list${ps.length > 10 ? ' two' : ''}" data-role="${role}">${ps.map(p => `<label class="xp-prop lk-row"><input type="checkbox" class="lk-tick" value="${esc(p.ident)}" ${hidden.has(p.ident) ? '' : 'checked'}><span class="lk-prop">${kindIconHtml(p.type)}<span>${esc(p.name)}</span></span><span class="lk-count">${p.count}</span></label>`).join('')}</div></div>`;
     root.innerHTML = `<div class="xp-titlebar" style="height:${dragBand(hostDoc)}px">Export ${esc(what)}</div>
     <div class="xp-bar" role="toolbar" aria-label="Export">
@@ -205,7 +201,7 @@ function open({ doc, what, act }) {
       <div class="g" data-for="pdf rich">${pick('xp-look', 'look', themes.looks.map(l => [l.key, l.name]), c.look)}${panel('xp-page', 'page', 'pdf')}${doc.title ? panel('xp-title', 'title block') : ''}</div>
       <div class="g" data-for="md">${pick('xp-links', 'links', LINKS, c.links)}${sw('xp-frontmatter', 'front matter', c.frontMatter, 'No front matter', 'Front matter')}</div>
       <div class="g">${panel('xp-show', 'show')}</div>
-      <div class="g end"><button type="button" data-act="md-file" data-for="md">Save as file…</button>
+      <div class="g end"><button type="button" class="lk-btn" data-act="md-file" data-for="md">Save as file…</button>
         <button type="button" data-act="md" data-for="md" class="lk-accent xp-main">Copy Markdown<kbd>⌘↩</kbd></button>
         <button type="button" data-act="rich" data-for="rich" class="lk-accent xp-main">Copy rich text<kbd>⌘↩</kbd></button>
         <button type="button" data-act="pdf" data-for="pdf" class="lk-accent xp-main">Save PDF…<kbd>⌘↩</kbd></button>

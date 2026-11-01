@@ -441,7 +441,7 @@ async function darkPart(page) {
     const rec = await page.evaluate(() => { const r = document.querySelector('.refinement-two-way .rf-tw-record')?.getBoundingClientRect(); return r ? [r.left + 10, r.top + 6] : null; });
     if (rec) { await page.mouse.move(rec[0], rec[1]); await sleep(1200); await shot('two-way-card'); await page.mouse.move(5, 5); await sleep(400); }
     await page.evaluate(() => document.querySelector('.refinement-two-way input.rf-check')?.click()); await shot('two-way-picking-bar');
-    await page.evaluate(() => document.querySelector('.refinement-two-way [data-act="page-menu"], .refinement-two-way .rf-bar .rf-quiet')?.click()); await shot('two-way-bar-menu'); await closeAll();
+    await page.evaluate(() => document.querySelector('.refinement-two-way [data-act="page-menu"], .refinement-two-way .rf-tw-bar .lk-btn')?.click()); await shot('two-way-bar-menu'); await closeAll();
     await page.keyboard.press('Escape'); await sleep(300);
     // The tag map: a tag's menu, a property's menu, its kind menu, a question.
     await D.go(page, '#/refinement-tags'); await sleep(2000); await shot('tag-map');

@@ -13,16 +13,16 @@ How things look, as the visual grammar agreed on 29 October 2026 says. It reads 
 - **The sort's mark where a page's icon would be**: left of the title, in the slot Logseq keeps there, until you set an icon of your own; and in the left sidebar's lists in place of the plain page icon; a page with no mark (untagged, a journal day) gets an empty slot there, so the column holds marks alone and a box is never read as a fifth kind. A tag's # and an icon you set stay. Nothing is written to the page for it.
 - **In a page's list, an icon of what each property holds** before its name: three dots joined in a triangle for a link to nodes, a calendar for a date, letters for words, 123 for a number, a box for a choice. An icon you gave a property stays. Under a node, a property is plain text: no icon in its rows nor in the line of properties under its words, only Logseq's dot and the name. The name is a shade lighter than the value; the value keeps the text colour. No capsules: no edge, no fill, a faint dot between one property and the next; a property holding a pencilled value (Predictive's proposal) counts as filled, so the line does not re-space when the pencil turns solid. Under a bullet the properties run as plain words, and a long line wraps inside its pane, as words do.
 - **What a folded node holds**, after its words, small and grey, led by ↳: a circle with the number of unfinished tasks under it, then its pictures, quotes, PDFs and files with how many of each, then up to three of the tags inside, a dot between one and the next as at the title row, no number on them, then the nearest due day, or "was due" once passed. Only while the node is folded.
-- Logseq's "+ Add property" under a page's list is a faint word, not a filled button. Logseq's "Add icon" and "Set property" by a title are left out, their room kept. Empty properties stay faint. The pencil after a date is left out.
+- Logseq's "+ Add property" under a page's list is a faint word, not a filled button. Logseq's "Add icon" and "Set property" by a title are left out, their room kept. A property with no value is faint wherever it shows; whether it shows at rest is Predictive's one row, **Hide empty properties until something is proposed**. The pencil after a date is left out. A property's name that Logseq has cut short shows whole as a tooltip under the pointer.
 - **The right sidebar**: the bar on top of it takes the page's own ground with a fine line under it, where Logseq paints it blue grey; Contents, Page graph and Help read as quiet words; the "(Dev)" views that developer mode adds are left out. The pages and blocks in it lie flat, with no card, shadow or rounded corner, and a line between one and the next.
 
-Every one of these is a switch in the plugin's settings, on by default, applied at once. They are in the plugin's one settings window, under Look (**Plugin settings** in the command palette, or the gear on the plugin's card). Each section is a heading and its rows, nothing between; each row is the thing itself drawn under its switch, a page's name in it heavier than the words, not larger, with the mark beside it sized to match. Logseq's gear on the plugin's card opens Logseq's own panel, which no plugin can replace.
+Every one of these is a switch in the plugin's settings, on by default, applied at once. They are in the plugin's one settings window, under Look (**Plugin settings** in the command palette, or the gear on the plugin's card). Each section is a heading and its rows, nothing between; each row is the thing itself drawn under its switch, a page's name in it heavier than the words, not larger, with the mark beside it sized to match.
 
 ## The shared names
 
-Look owns one short list of class names, one per word of the grammar, and the stylesheet for them. Another module puts a name on what it draws and carries no look of its own for it; change how a tag looks once, in Look, and every module follows. Switch Look off and the others still work, only plainer.
+There is one short list of class names, one per word of the grammar. They and their stylesheet are the plugin's, in `plugin.js`, with the greys, the marks and the property icons, so they stand whichever modules run. A module puts a name on what it draws and carries no look of its own for it; change how a tag looks once, there, and every module follows. Switch Look off and it takes off only what it draws on Logseq's own page (links, tags, capsules, marks, the icons in a page's list, the title row, the sidebar); what the other modules draw keeps its grammar.
 
-| Name | On | Look gives it |
+| Name | On | What it gives |
 |---|---|---|
 | `lk-row` | a row | the room for its fold arrow |
 | `lk-fold` | the row's fold arrow | shown only while the pointer is on its row, or while open |
@@ -51,12 +51,12 @@ The root `files.js` lists these in order, each adding to `window.Look`:
 
 | File | What it is |
 |---|---|
-| `logseq/kit.js` | Logseq's window, one stylesheet door, one watcher of the screen, the greys, the four marks and the property icons drawn once |
+| `logseq/kit.js` | Logseq's window, one stylesheet door, one watcher of the screen |
 | `logseq/db.js` | the one place that reads the graph: every tag with the tag it extends, every page's sort, every property's kind, what a folded node holds |
 | `logseq/settings.js` | the switches, in sections |
 | `logseq/style.js` | the rules that are only a stylesheet: links, days, tags, property names, capsules, the words by a title |
 | `logseq/marks.js` | the marks before links, in the page's icon slot and in the sidebar's lists |
-| `logseq/props.js` | the icon before each property's name in a page's list |
+| `logseq/props.js` | the icon before each property's name in a page's list, and a cut name's tooltip |
 | `logseq/title.js` | the tag chain at the title row's right end and in the right sidebar |
 | `logseq/folded.js` | the note after a folded node's words |
 | `logseq/sidebar.js` | the right sidebar's bar and items, flat on the grammar |

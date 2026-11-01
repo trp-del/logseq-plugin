@@ -21,7 +21,7 @@ const { U, load, pencilled } = standIn;
   assert.equal(Look.folded.dueLabel(20261012, new Date(2026, 10, 1)), 'was due Oct 12');
   assert.equal(JSON.stringify(Look.folded.wordsFor({ task: 2, files: [['pdf', 1]], quotes: 0, tags: ['Consultation'], due: 0 })), JSON.stringify(['2 unfinished tasks under it', '1 PDF', 'Consultation']));
   // styles sent
-  for (const key of ['look-tokens', 'look-links', 'look-days', 'look-tags', 'look-capsules', 'look-marks', 'look-props', 'look-title', 'look-folded']) assert.ok(styles[key] && !styles[key].includes('no rules'), key + ' sent');
+  for (const key of ['look-links', 'look-days', 'look-tags', 'look-capsules', 'look-marks', 'look-props', 'look-title', 'look-folded']) assert.ok(styles[key] && !styles[key].includes('no rules'), key + ' sent');
   assert.ok(styles['look-tags'].includes('--lk-mono') && !styles['look-tags'].includes('uppercase'), 'tags in mono, as written');
   // a day in a property's value keeps the value's colour; the quiet grey stays for a day in the words
   assert.ok(/\.property-value-container, \.bottom-property-pill\)[^{]*a\.page-ref[^{]*\{ color: inherit !important; \}/.test(styles['look-days']), 'a day in a value keeps the value’s colour');
@@ -32,8 +32,8 @@ const { U, load, pencilled } = standIn;
   assert.ok(/\.bottom-properties-pills-strip \{[^}]*flex-wrap: wrap !important/.test(styles['look-capsules']), 'a long line of properties wraps like words, so nothing runs past the pane');
   assert.ok(/\.bottom-properties-row \{[^}]*max-height: none !important/.test(styles['look-capsules']), 'and its row grows to hold the lines: Logseq caps it at one');
   // the shared names: a pencilled tag fades once; the one alternative in force takes the text colour
-  assert.ok(styles['look-shared'].includes('.lk-pencil .lk-tag, .lk-tag.lk-pencil { opacity: 1; }'), 'a pencilled tag fades once');
-  assert.ok(styles['look-shared'].includes('.lk-alts > * { color: var(--lk-faint) !important; }') && styles['look-shared'].includes('.lk-alts { color: inherit !important; }'), 'the alternatives faint one by one, the line itself in the text colour');
+  assert.ok(door.NAMES.includes('.lk-pencil .lk-tag, .lk-tag.lk-pencil { opacity: 1; }'), 'a pencilled tag fades once');
+  assert.ok(door.NAMES.includes('.lk-alts > * { color: var(--lk-faint) !important; }') && door.NAMES.includes('.lk-alts { color: inherit !important; }'), 'the alternatives faint one by one, the line itself in the text colour');
   // the index: chains and sorts
   const index = Look.index; assert.ok(index, 'the page index was read');
   assert.equal(index.chainByUuid(U(3)).chain.map(t => t.title).join('/'), 'Doctor/Person/Entity');
@@ -60,6 +60,11 @@ const { U, load, pencilled } = standIn;
   assert.ok(kind('Works at')?.querySelector('.lk-web'), 'the web mark on Works at');
   assert.ok(kind('First seen')?.querySelector('.ti-calendar') && kind('Rating')?.querySelector('.ti-123') && kind('Status')?.querySelector('.ti-select') && kind('Specialty')?.querySelector('.ti-letter-case'), 'a calendar, 123, a box, letters');
   assert.equal(doc.querySelectorAll('.ls-block-properties .lk-kind, .bottom-property-pill .lk-kind').length, 0, 'plain text under a node');
+  // a row that comes has its icon before the next frame, so Logseq's dot never shows first
+  { const row = doc.querySelector('.ls-page-properties [data-property-title]'), copy = row.cloneNode(true);
+    copy.querySelector('.lk-kind').remove(); copy.querySelector('.property-m').removeAttribute('data-lk-kind');
+    row.after(copy); await Promise.resolve(); await Promise.resolve();
+    assert.ok(copy.querySelector('.property-m > .lk-kind'), 'the icon comes at once'); copy.remove(); }
   // the folded note: a circle, a PDF, two tags with a dot between them, the due day, no numbers on the tags
   await new Promise(r => setTimeout(r, 60));
   const note = doc.querySelector(`.ls-block[blockid="${U(400)}"] .lk-folded`);
@@ -72,8 +77,16 @@ const { U, load, pencilled } = standIn;
   // the settings window draws from Look's description: a heading per section, the one row for the property icon
   const described = window_described();
   assert.equal(described.schema.filter(i => i.type === 'heading').length, 5, 'five sections');
-  assert.equal(described.schema.find(i => i.key === 'propertyIcons').also, 'propertyKindIcons', 'one row sets Look’s icon and Threads’ mark');
+  const rowsOf = heading => { const at = described.schema.findIndex(i => i.title === heading); const next = described.schema.findIndex((i, n) => n > at && i.type === 'heading'); return described.schema.slice(at + 1, next).map(i => i.key); };
+  assert.equal(rowsOf('Folded nodes').join(), 'foldedNote', 'Folded nodes holds only what a folded node says');
+  for (const key of ['propertyIcons', 'propertyNameTips', 'quietAddProperty', 'hideDatePencil']) assert.ok(rowsOf('Properties').includes(key), key + ' under Properties');
+  assert.ok(!described.schema.some(i => i.key === 'quietEmptyProps'), 'one row for empty properties, Predictive’s');
   assert.ok(described.specimen({ key: 'pageMark' }, true).includes('lk-page-mark'), 'a specimen of the thing itself');
+  // a cut property name shows whole as a tooltip under the pointer, one that fits does not, and the sweep takes it off
+  { const tip = (scroll, words) => { const n = doc.createElement('span'); n.className = 'property-key-inner'; n.textContent = words; Object.defineProperty(n, 'scrollWidth', { value: scroll }); Object.defineProperty(n, 'clientWidth', { value: 100 }); doc.body.append(n); n.dispatchEvent(new (doc.defaultView.MouseEvent)('mouseover', { bubbles: true })); return n; };
+    const long = tip(180, 'Referring consultant at Northgate'), short = tip(90, 'Notes');
+    assert.equal(long.getAttribute('title'), 'Referring consultant at Northgate', 'a cut name shows whole'); assert.ok(!short.hasAttribute('title'), 'one that fits has no tooltip');
+    Look.kit.sweep(doc); assert.ok(!long.hasAttribute('title'), 'the sweep takes it off'); long.remove(); short.remove(); }
   // Words written read nothing; a tag or a name changed reads the index again.
   let asked = 0; const reads = logseq.DB.datascriptQuery; logseq.DB.datascriptQuery = async q => { asked++; return reads(q); };
   const page = { id: 901, name: 'a page', title: 'A page', tags: [{ id: 1, ident: 'logseq.class/Page' }] };
@@ -104,5 +117,10 @@ const { U, load, pencilled } = standIn;
   assert.ok(other.doc.querySelector('.ls-block-right > .lk-pencil > .lk-tag') && other.doc.querySelectorAll('.bottom-property-pill:has(.lk-pencil)').length === 3, 'the pencilled tag and three pencilled values stand');
   await other.logseq._unload();
   assert.equal(other.errors.length, 0, other.errors.join('\n'));
+  // a part that never started does not keep the others from stopping
+  const broken = await load();
+  let rest = 0; broken.Look.marks.stop = () => { throw new Error('never started'); }; broken.Look.title.stop = () => { rest++; };
+  await broken.logseq._unload();
+  assert.equal(rest, 1, 'the next part still stops'); assert.equal(broken.doc.querySelectorAll('.lk-own').length, 0, 'and the sweep still runs');
   console.log('ok: ' + order.length + ' files load; marks, chain, icons, the folded note and the settings window draw and are swept');
 })().catch(error => { console.error('load test failed:', error); process.exit(1); });

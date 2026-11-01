@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* Every part stands on its own (0.4.269): the plugin is booted (tools/boot-test.js) with each part left out in turn, and
    must start, run and unload with no warning but the one that says what is missing. In this plugin the parts that can be
-   left out are two-way itself, the property marks (property-kinds), and the two that
+   left out are two-way itself and the two that
    feed the + line (alike, shadow-rules). The foundation (shared, model, diagnostics) is not left out:
    everything stands on it.
    Needs node and jsdom. Run from the repo root: node tools/parts-apart-test.js */
@@ -14,7 +14,7 @@ const run = (script, env) => spawnSync(process.execPath, [path.join(root, 'tools
 
 // [left out, the warning that should say so (none: nothing to say), parts that then stay out by themselves]
 const CASES = [
-  ['two-way'], ['property-kinds'], ['shadow-rules'],
+  ['two-way'], ['shadow-rules'],
   ['alike', 'alike is missing from the core'],
   ['alike,shadow-rules'],
 ];

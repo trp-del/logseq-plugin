@@ -16,15 +16,12 @@ async function main() {
   logseq.App.onCurrentGraphChanged(() => { Look.marks.load(); Look.props.load(); });
 }
 function stop() {
-  Look.marks.stop(); Look.props.stop(); Look.title.stop(); Look.folded.stop(); Look.sidebar.stop();
+  // Each on its own: a part that never started must not leave the others running.
+  for (const part of ['marks', 'props', 'title', 'folded', 'sidebar']) { try { Look[part].stop(); } catch (error) { console.error(`Look: ${part} could not stop`, error); } }
   Look.kit.stopWatching();
   Look.kit.sweep();
 }
-// In the settings window one row stands for Look's icon and Threads' mark of the same thing, and Threads' tip on a cut
-// name sits with the other property rows.
-const propertyRows = row => row.key !== 'propertyIcons' ? [row] : [{ ...row, also: 'propertyKindIcons' },
-  { key: 'propertyNameTips', type: 'boolean', default: true, title: 'A cut property name whole under the pointer', description: 'With the pointer on a property’s name that Logseq has cut short, its whole name shows as a tooltip.' }];
-window.PluginDoor.describe('look', { schema: Look.settings.schema.flatMap(propertyRows), specimen: Look.settings.specimen });
+window.PluginDoor.describe('look', { schema: Look.settings.schema, specimen: Look.settings.specimen });
 window.PluginDoor.register({
   key: 'look', title: 'Look', about: 'How things look: a link in the text colour, the sort’s mark before it, a tag in mono, a page’s place beside its title, an icon of what a property holds.',
   schema: Look.settings.schema.map(({ key, type, title, description, default: def }) => ({ key, type, title, description, default: def })),

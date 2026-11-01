@@ -8,11 +8,14 @@ const COPY = String(Date.now());   // tells this copy's menu item from one left 
 const host = () => window.parent.document;
 const open = () => Door.settings.open();
 
+// A card says its plugin's id on a line of its own: compared whole, since many ids begin the same way.
+const cardIsMine = card => [...card.querySelectorAll('small')].some(line => line.textContent.trim() === `ID: ${logseq.baseInfo?.id}`);
+
 // The gear on a plugin's card is a small menu. Logseq would open its list from it; for this plugin the window opens instead.
 function onGear(event) {
   const line = event.target.closest?.('.cp__plugins-item-card .ctl .menu-list li');
   if (!line || line.textContent.trim() !== 'Open settings') return;
-  if (!line.closest('.cp__plugins-item-card').textContent.includes(`ID: ${logseq.baseInfo?.id}`)) return;
+  if (!cardIsMine(line.closest('.cp__plugins-item-card'))) return;
   event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation();
   open();
 }
@@ -62,8 +65,10 @@ function start() {
   logseq.provideStyle({ key: 'plugin-settings-menu', style: `.${ITEM_CLASS}[data-highlighted] { background: color-mix(in srgb, currentColor 7%, transparent); }` });
   doc.addEventListener('click', onGear, true);
   doc.addEventListener('click', onDots, true);
-  // A reload pressed in the window comes back to the window, at the part it was on.
-  const win = doc.defaultView;
+}
+// A reload pressed in the window comes back to the window, at the part it was on, once the parts have started.
+function reopen() {
+  const win = host().defaultView;
   let back = null;
   try { back = win.sessionStorage.getItem(Door.settings.REOPEN_KEY); win.sessionStorage.removeItem(Door.settings.REOPEN_KEY); } catch (error) { /* no storage: it stays closed */ }
   if (back) Door.settings.open(back);
@@ -75,5 +80,5 @@ function stop() {
   for (const item of doc.querySelectorAll('.' + ITEM_CLASS)) item.remove();
   Door.settings.stop();
 }
-Door.settingsWays = { start, stop };
+Door.settingsWays = { start, reopen, stop };
 })();

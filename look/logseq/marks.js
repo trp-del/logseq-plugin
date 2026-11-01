@@ -19,6 +19,7 @@ ${['light', 'dark'].map(theme => SORTS.map(sort => `${theme === 'dark' ? 'html[d
 .is-page-title-row > .block-control-wrap:has(> .lk-page-mark) { position: relative; }
 .lk-page-mark { position: absolute; inset: 0; display: inline-flex; align-items: center; justify-content: center; color: var(--lk-quiet); pointer-events: none; }
 .lk-page-mark svg { width: 15px; height: 15px; }
+#main-content-container .is-page-title-row .lk-page-mark { transform: translateY(2px); }
 /* In the left sidebar's lists: Logseq's plain page icon gives way to the mark, and where a page has none, to an empty slot
    (a box in the column of marks would read as a fifth kind). A tag's # and an icon the person set are not touched. */
 #left-sidebar a.link-item .page-icon[data-lk-sort] :is(.ls-icon-file, .ls-icon-page) { visibility: hidden; }

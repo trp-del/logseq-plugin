@@ -84,7 +84,7 @@ const LONG = [{ name: 'symptoms', label: 'logged in', ident: 'user.property/symp
 // In the page: the two-way part set up on a pretend core, its draw run early on every change as the core's watcher does.
 function twoWaySetUp(groups, pageUuid) {
   const tw = window.__tw;
-  const style = document.createElement('style'); style.textContent = window.refinementShared.kitCss + tw.twoWayCss; document.head.append(style);
+  const style = document.createElement('style'); style.textContent = window.PluginDoor.NAMES + window.refinementShared.kitCss + tw.twoWayCss; document.head.append(style);
   tw.setUp({
     provided: { pageTitles: doc => doc.querySelectorAll('#main-content-container .ls-page-title') },
     addsElements: records => records.some(r => [...r.addedNodes].some(n => n.nodeType === 1)),
@@ -126,8 +126,8 @@ async function record(browser, theme, name, scene, withPlugin) {
   await page.evaluate(async () => { const i = document.createElement('i'); i.className = 'ti ti-search'; i.style.cssText = 'position:absolute;left:-99px'; document.body.append(i); await document.fonts.ready; await new Promise(r => setTimeout(r, 50)); i.remove(); });
   // The plugin's scripts are on the page in both runs (A draws nothing with them): the same page, the same fonts.
   const base = `window.parent = window; window.logseq = { settings: {}, DB: {}, UI: {}, App: {}, Editor: {} };`;
-  if (scene.kind === 'two-way' || scene.kind === 'long-list') for (const content of [base, read('parts/shared.js'), twoWaySource(), `window.__twoWaySetUp = ${twoWaySetUp};`]) await page.addScriptTag({ content });
-  if (scene.kind === 'pop-up') for (const content of [base, read('parts/shared.js')]) await page.addScriptTag({ content });
+  if (scene.kind === 'two-way' || scene.kind === 'long-list') for (const content of [base, read('../plugin.js'), read('parts/shared.js'), twoWaySource(), `window.__twoWaySetUp = ${twoWaySetUp};`]) await page.addScriptTag({ content });
+  if (scene.kind === 'pop-up') for (const content of [base, read('../plugin.js'), read('parts/shared.js')]) await page.addScriptTag({ content });
   const vp = await page.evaluate(() => ({ width: innerWidth, height: innerHeight, timeOrigin: performance.timeOrigin }));
   const session = await page.context().newCDPSession(page);
   await page.evaluate(`(${K.ledgerSource()})(...${JSON.stringify(K.ledgerArgs())})`);
@@ -171,7 +171,7 @@ async function record(browser, theme, name, scene, withPlugin) {
   if (scene.kind === 'pop-up') {
     await page.evaluate(() => { const m = document.getElementById('main-content-container'); m.textContent = 'Linked references, Chemo cycle 7, Date: Dec 2nd, 2026, drugs: Oxaliplatin, Leucovorin. '.repeat(40); });
     if (withPlugin) {
-      await page.evaluate(() => { const style = document.createElement('style'); style.textContent = window.refinementShared.kitCss; document.head.append(style); });
+      await page.evaluate(() => { const style = document.createElement('style'); style.textContent = window.PluginDoor.NAMES + window.refinementShared.kitCss; document.head.append(style); });
       await input('open the list');
       await page.evaluate(() => window.refinementShared.popup({ head: 'Troubleshooting · none of these changes your notes', width: 360, items: [
         { icon: 'show', label: 'Check what the plugin finds on this page' }, { icon: 'settings', label: 'Measuring', chosen: true }, { icon: 'copy', label: 'Copy performance report' }] }));

@@ -1,25 +1,16 @@
-/* Loaded by main.js before parts/shadow.js, after parts/alike.js. Kept in its own scope; parts/shadow.js links it when the proposals start. */
+/* Loaded after parts/alike.js. Kept in its own scope. */
 (() => {
-/* The proposals' rules: what the graph holds, what is sure, the guesses, the looks-like learning, the reasons (split out of parts/shadow.js at 0.4.268, layer 2 item 10, so that each piece of the proposals can be read
-   and changed on its own). It draws nothing and writes nothing.
-   The pieces share one bag, shared.feature('proposals') (P; a name on the window before 0.4.315): each puts there what
-   the others use, and takes what it uses from there when the proposals start (P.links), or at once when the piece
-   that has it is loaded before. */
+/* The proposals' rules, as the + line, an opened node and the pick lists use them: what the graph holds, what is sure, the
+   guesses, the looks-like learning, the reasons. It draws nothing and writes nothing. */
 const shared = window.refinementShared;
-const { host, notify, graphNamedIn } = shared;
 const { warnOnce, runUnloadTasks } = shared.lifecycle({ prefix: 'Threads (proposals): ' });
-const P = shared.feature('proposals');
-P.links ||= [];
 const take = (core, names) => shared.take(core, names, warnOnce);
-let later, pending;
 let model, UUID, propSchema, propPages, fits, bare, pick, idOf, titleOf, alike, parseDay, dayAfter, dayNumber, sameDay;
 
 const ownLink = core => {
   ({ model, UUID, propSchema, propPages, fits, bare, pick, idOf, titleOf, alike, parseDay, dayAfter, dayNumber, sameDay } = take(core, ['sameDay', 'UUID', 'propSchema', 'propPages', 'fits', 'bare', 'pick', 'idOf', 'titleOf', 'alike', 'parseDay', 'dayAfter', 'dayNumber']));
   model = core.provided; // the graph is read through the model (0.4.226)
-  ({ later, pending } = P);
 };
-P.links.push(ownLink);
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const dayText = day => day ? `${MONTHS[Math.floor(day / 100) % 100 - 1]} ${day % 100}` : '';
@@ -141,39 +132,8 @@ function pagesTaggedIn(text, ctx) {
   }
   return out;
 }
-// Where the tag written right after a page's link is in the words (as saved, the link is [[its uuid]], or its name):
-// { at, text } with text the tag as written ("#Doctor", "#[[…]]"), or null.
-function pageTagIn(title, page, tag) {
-  const lower = title.toLowerCase();
-  for (const key of [page.uuid, page.title]) {
-    const mark = `[[${String(key).toLowerCase()}]]#`, at = lower.indexOf(mark);
-    if (at < 0) continue;
-    const from = at + mark.length, rest = title.slice(from), restLower = rest.toLowerCase();
-    const n = rest.startsWith('[[') ? rest.indexOf(']]') + 2
-      : restLower.startsWith(tag.lower) && !/[\w'’-]/.test(restLower.charAt(tag.lower.length)) ? tag.lower.length
-      : (rest.match(/^[^\s#\[\]]+/) || [''])[0].length;
-    return { at: from - 1, text: title.slice(from - 1, from + n) };
-  }
-  return null;
-}
-// The words without that tag.
-function withoutPageTag(title, page, tag) {
-  const found = pageTagIn(title, page, tag);
-  return found ? title.slice(0, found.at) + title.slice(found.at + found.text.length) : title;
-}
-// The tag put back after the page's link (Undo, when the words were changed meanwhile).
-function withPageTag(title, page, text) {
-  for (const key of [page.uuid, page.title]) {
-    const mark = `[[${String(key).toLowerCase()}]]`, at = title.toLowerCase().indexOf(mark);
-    if (at >= 0 && title.charAt(at + mark.length) !== '#') return title.slice(0, at + mark.length) + text + title.slice(at + mark.length);
-  }
-  return title;
-}
 const isBlock = node => !!(node && pick(node, 'block/page'));
 const cleanWords = text => String(text || '').replace(/#?\[\[([^\[\]]+)\]\]/g, (m, key) => /^[0-9a-f-]{36}$/i.test(key) ? '' : key).replace(/\s+/g, ' ').trim();
-// Logseq keeps the tags typed at the end of a bullet apart from its words, so they are left out when the saved words are compared.
-const plainWords = text => cleanWords(String(text || '').replace(TAG, ' ')).toLowerCase();
-
 /* The rules. b is the bullet in edit (pulled), text its words (the text box, or the saved title). Returns the
    record the pieces are for and the pieces: { ident, prop, kind: 'node' | 'day', ids, shown, tagPage?, day?, journalId?, how }. */
 // The record (the bullet, or its parent when only the parent's tags give properties) and its properties, the most
@@ -190,13 +150,6 @@ function recordOf(b, ownTags, schema) {
   const particular = prop => prop.type !== 'node' ? -1 : wide(prop, schema) ? -0.5 : Math.max(0, ...prop.classes.map(c => depth(c.id)));
   const ordered = fields.map((prop, i) => ({ prop, i, rank: particular(prop) })).sort((a, b) => b.rank - a.rank || a.i - b.i).map(x => x.prop);
   return { record, fields, ordered };
-}
-// The bullet's own tags, as it was when its editing began: those on it that its saved words do not give a page
-// ([[Dr. New]]#Doctor saved earlier is a page's). A tag of its own is never set aside or taken off (second reading:
-// a consultation writing [[Jul 3 visit]]#Consultation would have lost its own tag).
-function ownTagsAtStart(b, ctx) {
-  const toPages = new Set(pagesTaggedIn(String(pick(b, 'block/title') ?? ''), ctx).map(x => x.tag.id));
-  return new Set((pick(b, 'block/tags') || []).map(idOf).filter(id => !toPages.has(id)));
 }
 function piecesFor(b, text, ctx, ownAtStart = new Set(), assume = null) {
   const { schema } = ctx;
@@ -672,36 +625,6 @@ async function guessDataFor(ctx, { wait = true } = {}) {
 }
 // The properties the earlier lines are learned by: links that take a tag, and choices (0.4.265).
 const learnedProps = schema => [...schema.props.filter(p => p.type === 'node' && p.classes.length), ...schema.props.filter(isChoiceProp)];
-/* Learning a node at once (0.4.267, layer 2 item 9, "learn a filled value at once"): when the graph changes, the nodes
-   changed are read again a moment later and take their new place in what the guesses learn from, so a value filled
-   in, or a tag given, counts for the next bullet at once instead of within five minutes. Only while the earlier lines
-   are already read; the full reading every five minutes stays as it was. A node with no tag of the owner's (and not a
-   plain line) or deleted is in effect taken out. */
-const learning = { ids: new Set(), timer: 0 };
-function learnSoon(blocks) {
-  for (const block of blocks || []) { const id = idOf(block) ?? block?.id; if (Number.isSafeInteger(id) && id > 0) learning.ids.add(id); }
-  if (!learning.ids.size || !guessCache.data?.index) return;
-  clearTimeout(learning.timer); pending.delete(learning.timer);
-  learning.timer = later(() => learnNow().catch(error => warnOnce('a changed node could not be learned', error)), 400);
-}
-async function learnNow() {
-  const data = guessCache.data, ids = [...learning.ids];
-  learning.ids.clear();
-  if (!data?.index || !ids.length || !context?.schema || P.stopped) return;
-  const ctx = context, learned = learnedProps(ctx.schema), known = new Set(data.tagIds || []);
-  const nodes = new Map((await model.nodesById(ids, learned.map(p => p.ident))).map(n => [idOf(n), n]));
-  if (guessCache.data !== data) return; // read again meanwhile: that reading has them
-  for (const id of ids) {
-    const n = nodes.get(id), title = String(pick(n, 'block/title') ?? '');
-    const tags = (pick(n, 'block/tags') || []).map(idOf);
-    const mine = tags.filter(t => known.has(t)), plain = !tags.length;
-    const words = n && (mine.length || plain) ? shownWords(title, ctx) : new Set();
-    const values = new Map(learned.map(p => [p.ident, valuesOf(n, p.ident)]).filter(([, v]) => v.length));
-    values.set('block/tags', mine.length ? mine : [0]);
-    const tokens = alike && words.size >= 2 ? alike.tokensOf(words, linkIdsIn(title, ctx), mine) : [];
-    alike?.updateEntry(data.index, { id, title, tokens, values });
-  }
-}
 const earlierLinesRead = () => !!guessCache.data;
 async function loadGuessData(ctx) {
   const { schema } = ctx;
@@ -781,9 +704,5 @@ function datedAhead(tagIds, ctx) {
   return other >= same;
 }
 
-
-Object.assign(P, { contextFor, daysFor, guessDataFor, ownTagsAtStart, piecesFor, pullBlock, withFreshLinks, LINK, TAG, inWords, pageTagIn, plainWords, sameIds, untagged, withPageTag, withoutPageTag, addHistory, freeWords, guessCache, learnSoon, allNamedIn, namedIn, namesFor, pickerOrder, wordsEarned, draftPieces, draftProposals, nodeProposals, namedIds, namedPages, tagGuess });
-// The rules take what they use at their own start too, so the pickers' order (pickerOrder) works without the
-// proposals while writing (0.4.269); parts/shadow.js runs every piece's link again when it starts.
-(window.refinementParts ||= []).push({ name: 'proposals rules', schema: [], provide: core => core.provide({ earlierLinesRead, pickerOrder, draftProposals, nodeProposals, namedPages, tagGuess }), start() { ownLink(window.refinementCore); }, stop: runUnloadTasks });
+(window.refinementParts ||= []).push({ name: 'proposals rules', says: 'what the + line proposes', schema: [], provide: core => core.provide({ earlierLinesRead, pickerOrder, draftProposals, nodeProposals, namedPages, tagGuess }), start() { ownLink(window.refinementCore); }, stop: runUnloadTasks });
 })();

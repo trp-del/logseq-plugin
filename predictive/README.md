@@ -9,13 +9,13 @@ The structure of your graph used while you write, without making you fill in fie
 - **Option-T** on a bullet with no tag lists the tags it could be, best first, to pick from (Up and Down, Enter or a number, or a click; Escape closes; typing on closes it too). The tags are those that have a property taking the pages the line names, linked or in plain words (a doctor can be the Provider of a Consultation, who you Spoke with in a Conversation, who Decided a Decision), put in order by the words of the earlier lines nearest this one; a line that names nothing is ordered by its words alone. Picking gives the bullet the tag and its properties are proposed as for any tagged bullet, with the faded arrow to put the tag back. Nothing is written until you pick.
 - **Option-Enter** steps through a bullet's properties using Logseq's own lists: it opens the first empty or guessed one with the guess already typed in, and the property keeps its pencil while its list is open; Enter keeps it and moves on, Tab skips, Escape comes back to the words, and a date stop takes words like "next fri". Down stays Logseq's: at the end of a tagged bullet it rests on the first property, and from there Tab, Left and Right step the same way. Cmd-Option-Enter accepts everything shown and leaves the bullet without making a new one.
 
-Proposals stay out of the way: they sit where the value will go, nothing is written until you leave the bullet, a guess you carry past is dropped, Escape hides them, a click on one accepts it, and a faded arrow after the bullet puts back what was filled in and keeps it from being proposed on that bullet again. A new fill's arrow takes the last one's place. Properties with no value stay hidden under a bullet until something is proposed for them (a setting).
+Proposals stay out of the way: they sit where the value will go, nothing is written until you leave the bullet, a guess you carry past is dropped, Escape hides them, a click on one accepts it, and a faded arrow after the bullet puts back what was filled in and keeps it from being proposed on that bullet again. A new fill's arrow takes the last one's place. Properties with no value stay hidden under a bullet until something is proposed for them, and show faint under the bullet you are writing (the one setting for this, **Hide empty properties until something is proposed**; with it off they stay on screen, faint).
 
 It is made from the two features of the author's logseq-db-refinements plugin that did this, rebuilt to run on any graph.
 
 ## What it writes
 
-Property values on the bullet you are leaving, and the tag you take from a proposal or Option-T. A date that names a day with no journal page yet makes that journal page. Option-Enter's stepping can add the bullet that comes next. Leaving a bullet whose words changed writes the sure values and leaves the guesses, by the owner's ruling of 31 October.
+Property values on the bullet you are leaving, or on its parent bullet when only the parent's tags give the properties, and the tag you take from a proposal or Option-T. A page you linked with a tag right after it in the words is given that tag when the value is filled in, and Undo takes it off again. A date that names a day with no journal page yet makes that journal page; Undo takes the value and leaves the page, empty. Option-Enter's stepping can add the bullet that comes next. Leaving a bullet whose words changed writes the sure values and leaves the guesses, by the owner's ruling of 31 October.
 
 ## Why it works on any graph
 
@@ -38,7 +38,7 @@ The settings are in the plugin's one settings window, under Predictive (**Plugin
 
 ## The look is Look's
 
-The pencilled values (italic, grey, the dotted line), the proposed tag (its name in mono, no #), the tags in the Option-T list and the Undo arrow's fade take their look from **Look**, through shared class names on what Predictive draws (`lk-pencil`, `lk-tag`, `lk-prop`, `lk-undo`; the list is in Look's README). Without Look the proposals still work, only plainer: upright, in the text colour, no dotted line.
+The pencilled values (italic, grey, the dotted line), the proposed tag (its name in mono, no #), the tags in the Option-T list and the Undo arrow's fade take their look from the shared class names on what Predictive draws (`lk-pencil`, `lk-tag`, `lk-prop`, `lk-undo`; the list is in Look's README), which stand whichever modules run. With Look switched off a pencil still reads as a pencil; Logseq's own property line around it goes back to its capsules.
 
 ## Commands
 

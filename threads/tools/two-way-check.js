@@ -75,6 +75,7 @@ async function pluginRows() {
   const { window } = dom;
   window.parent = window;
   window.logseq = { settings: { twoWayRows: true, twoWayNames: settings.twoWayNames ?? '', twoWayOneEnd: settings.twoWayOneEnd ?? '' }, DB: { datascriptQuery: ask }, UI: {}, App: {}, Editor: {} };
+  window.eval(fs.readFileSync(path.join(root, '../plugin.js'), 'utf8'));
   window.eval(fs.readFileSync(path.join(root, 'parts/shared.js'), 'utf8'));
   window.eval(fs.readFileSync(path.join(root, 'parts/model.js'), 'utf8'));
   window.eval(require('./pretend-model')); // the model answers through ask (0.4.225)

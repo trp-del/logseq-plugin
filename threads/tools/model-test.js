@@ -178,7 +178,7 @@ function loadModel(graph, { made = [], config = { format: 'MMM do, yyyy' }, quer
   win.window = win;
   win.parent = { document: { querySelectorAll: () => [] } };
   const document = { currentScript: null };
-  for (const file of ['parts/shared.js', 'parts/model.js']) {
+  for (const file of ['../plugin.js', 'parts/shared.js', 'parts/model.js']) {
     const run = new Function('logseq', 'window', 'document', 'location', 'console', fs.readFileSync(path.join(root, file), 'utf8'));
     run(logseq, win, document, { href: 'file:///plugin/main.js' }, console);
   }

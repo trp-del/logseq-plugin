@@ -15,6 +15,7 @@ const dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'http:
 const { window } = dom;
 window.parent = window;
 window.logseq = { settings: {}, updateSettings() {}, onSettingsChanged: () => () => {}, App: {}, UI: {}, Editor: {}, DB: { onChanged: () => () => {} } };
+window.eval(fs.readFileSync(path.join(root, '../plugin.js'), 'utf8'));
 window.eval(fs.readFileSync(path.join(root, 'parts/shared.js'), 'utf8'));
 window.eval(fs.readFileSync(path.join(root, 'parts/alike.js'), 'utf8'));
 const core = { provided: {}, provide: things => Object.assign(core.provided, things) };

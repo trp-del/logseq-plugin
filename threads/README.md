@@ -16,13 +16,11 @@ It began as the two-way section of the old plugin, DB Refinements, and has since
 
 ## What it writes
 
-A value changed or cleared in a row, and a tag added to or taken off a node, each with its Undo. Several words or numbers in one property are changed one at a time: each is pressed alone and the box starts from it as written, a link in it whole and a line break kept; empty and Enter takes that one off; the property's name adds another. A bullet added to a node, and a page made from the **+** line, each with its Undo; the line empties on Enter, so Enter twice adds one. A page named like one in the Recycle brings that page back; a place in the Recycle takes nothing, and says so. The pick bar's **Select all** picks what is shown: what the find line found, of the kind in force, in lists that are open. Its **Delete** deletes the picked nodes or pages: it asks first, names pages apart from bullets ("2 pages with all their bullets and 3 bullets"), and says it cannot be undone from there. A dug node shows Logseq's own Deadline, Scheduled, Status and Priority as they are, and a day written into a Date-and-time is kept as a moment, as Logseq keeps it. Undo after clearing words or a number puts them back as they read. Every write goes through `parts/model.js`.
+A value changed or cleared in a row, and a tag added to or taken off a node, each with its Undo. Several words or numbers in one property are changed one at a time: each is pressed alone and the box starts from it as written, a link in it whole and a line break kept; empty and Enter takes that one off; the property's name adds another. A bullet added to a node, and a page made from the **+** line, each with its Undo; the line empties on Enter, so Enter twice adds one. A page named like one in the Recycle brings that page back; a place in the Recycle takes nothing, and says so. The pick bar's **Select all** picks what is shown: what the find line found, of the kind in force, in lists that are open. Its **Delete** deletes the picked nodes or pages: it asks first, names pages apart from bullets ("2 pages with all their bullets and 3 bullets"), and says it cannot be undone from there. A dug node shows Logseq's own Deadline, Scheduled, Status and Priority as they are, and a day written into a Date-and-time is kept as a moment, as Logseq keeps it. Undo after clearing words or a number puts them back as they read. The Recycle list under troubleshooting restores a page, or deletes it for good after asking, which no Undo takes back. Every write goes through `parts/model.js`, but for those two, which are the Recycle list's own (`parts/diagnostics.js`).
 
-## The look is Look's
+## The look is the shared names'
 
-How the section's pieces look (a tag in mono, the faint underline and the sort's mark on a node's name, the
-chevron only under the pointer, the tick boxes of a list appearing when the pointer is on it, no counts) comes from **Look**, through shared class names on what Threads draws; the names are listed in Look's README. Without Look the section still works, only plainer: names without underline, tags in the page's face, chevrons always
-shown, counts back.
+How the section's pieces look (a tag in mono, the faint underline on a node's name, the chevron only under the pointer, the tick boxes of a list appearing when the pointer is on it, no counts) comes from the shared class names on what Threads draws, which stand whichever modules run; they are listed in Look's README. With Look switched off the section reads the same, but for the sort's mark before a name, which Look works out.
 
 ## What is here
 
@@ -34,10 +32,9 @@ shown, counts back.
 | `model.js` | the one place that reads and writes the graph | yes |
 | `diagnostics.js` | troubleshooting commands (what the plugin finds on this page, warnings, the tour) | yes (foundation) |
 | `two-way.js` | the two-way section | the feature |
-| `property-kinds.js` | the icon before each property's name in a page's list | optional; it also draws inside opened nodes |
-| `alike.js`, `shadow-rules.js` | the "looks like" engine and the proposals' rules | optional; the grey predictions in the **+** line and the order of pick lists |
+| `alike.js`, `shadow-rules.js` | the "looks like" engine and the proposals' rules, Threads' own copy for the **+** line, opened nodes and pick lists | optional; the grey predictions in the **+** line and the order of pick lists |
 
-Each optional part can be left out and the module still starts, runs and unloads (`node tools/parts-apart-test.js`).
+Each optional part can be left out and the module still starts, runs and unloads (`node tools/parts-apart-test.js`). A part that fails to start leaves the rest running, and one notice says which.
 
 ## What was removed
 
@@ -47,7 +44,7 @@ The tag and property map (and the tag list's tree), the proposals while a bullet
 
 ## Settings
 
-Two-way: `twoWayRows` (the rows), `twoWayDays` (each node's day in the margin; off, the column goes and the rows move left into its place), `twoWayNames`, `twoWayOneEnd`, `twoWayMentions`, `twoWayMentionsHidden`, `twoWayHideLinkedRefs`, `twoWayHideTagLists`. Others that remain: the property marks (`propertyKindIcons`, `propertyNameTips`) and **Foundation only** under Troubleshooting.
+Two-way: `twoWayRows` (the rows), `twoWayDays` (each node's day in the margin; off, the column goes and the rows move left into its place), `twoWayNames`, `twoWayOneEnd`, `twoWayMentions`, `twoWayMentionsHidden`, `twoWayHideLinkedRefs`, `twoWayHideTagLists`. Others that remain: **Foundation only** under Troubleshooting. **Open troubleshooting** stands there only while Threads runs.
 
 ## Checks
 

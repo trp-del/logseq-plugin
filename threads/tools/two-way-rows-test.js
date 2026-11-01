@@ -46,6 +46,7 @@ function world(grouping) {
   if (grouping) window.localStorage.setItem('refinementTwoWayGroup', JSON.stringify({ about: grouping }));
   window.logseq = { settings: {}, provideStyle() {}, onSettingsChanged: () => () => {}, UI: { showMsg() {} } };
   window.eval(fs.readFileSync(path.join(root, '../plugin.js'), 'utf8'));
+  window.eval(fs.readFileSync(path.join(root, '../plugin.js'), 'utf8'));
   window.eval(fs.readFileSync(path.join(root, 'parts/shared.js'), 'utf8'));
   window.eval(fs.readFileSync(path.join(root, 'parts/two-way.js'), 'utf8'));
   const calls = [], reads = [], changed = [], graphHooks = [], madeNow = new Map(), recycled = new Set(), notices = [];
@@ -521,7 +522,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     check(!!kidsOf(doc, node)?.querySelector('.rf-tw-npvalue.rf-faint'), 'an empty one should read "empty" in grey');
     // A node property carries the triangle of dots; a fact carries the icon of what it holds (0.4.477, the owner: "a
     // property always shows its icon, on pages too"), never the triangle.
-    const marked = propLines().filter(l => l.querySelector('.rf-ol-pname .rf-kind .rf-drawn-joins')).map(l => l.querySelector('.rf-ol-pname').textContent.trim());
+    const marked = propLines().filter(l => l.querySelector('.rf-ol-pname .rf-kind .lk-web')).map(l => l.querySelector('.rf-ol-pname').textContent.trim());
     const iconed = propLines().filter(l => l.querySelector('.rf-ol-pname .rf-kind i')).map(l => l.querySelector('.rf-ol-pname').textContent.trim());
     check(marked.join('|') === 'Source' && iconed.join('|') === 'Confidence|Severity|Source', 'every property should carry its icon, only the node property the triangle of dots: ' + marked + ' / ' + iconed);
     check(calls.length === 0, 'opening should write nothing');

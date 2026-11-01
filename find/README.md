@@ -40,7 +40,7 @@ In the plugin's one settings window (**Plugin settings** in the command palette,
 
 ## The look is Look's
 
-What Find draws carries Look's shared class names (`lk-row`, `lk-node`, `lk-tag`, `lk-day`, `lk-fold`, `lk-prop`, listed in Look's README) and no look of its own for those pieces: the mark before a node, the faint underline, a tag in mono come from Look. Run Look with Find; without it everything still works, only plainer.
+What Find draws carries the shared class names (`lk-row`, `lk-node`, `lk-tag`, `lk-day`, `lk-fold`, `lk-prop`, listed in Look's README) and no look of its own for those pieces, so with Look switched off it reads the same, but for the sort's mark before a node, which Look works out.
 
 ## Where it comes from
 

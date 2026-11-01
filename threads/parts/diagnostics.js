@@ -605,5 +605,5 @@ const settingsSchema = [
   { key: 'foundationOnly', type: 'boolean', title: 'Foundation only', default: false,
     description: 'Runs only the plugin’s foundation: the part that watches Logseq and the part that knows what pages, blocks, tags and days are. Nothing is drawn and no shortcut works; the settings window and the troubleshooting tools stay. For measuring the foundation alone (turn measuring on in the troubleshooting tools). Applies after you reload the plugin.' },
 ];
-(window.refinementParts ||= []).push({ name: 'diagnostics', foundation: true, schema: settingsSchema, provide, start, ready, commands, stop: runUnloadTasks });
+(window.refinementParts ||= []).push({ name: 'diagnostics', says: 'its troubleshooting', foundation: true, schema: settingsSchema, provide, start, ready, commands, stop: runUnloadTasks });
 })();

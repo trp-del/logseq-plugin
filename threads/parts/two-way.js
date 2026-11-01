@@ -17,9 +17,9 @@
    (0.4.174) changes how a field reads backwards, and turns its row off, through this part's settings.
    On the kit since 0.4.318 (docs/LAYERS.md; the pages): the rows keep their own layout (one set of columns: the
    day where Logseq's values start, the name, its tag right after it (0.4.320), the tick box in the margin) and draw
-   everything else with the kit: a tag as a class (mono, no #), the tick box, the picking bar as a line of quiet
-   words above the rows, filters as words, the fold chevron and the arrow after a name from Logseq's font, the +
-   as a quiet button, the draft line's field, the menus and the lists as the kit's pop-up
+   everything else with the kit: a tag as a class (mono, no #), the tick box, the picking bar as the library's lk-bar
+   above the rows, filters as words, the fold chevron and the arrow after a name from Logseq's font, the +
+   as the library's lk-plus, the draft line's field, the menus and the lists as the kit's pop-up
    placed by the browser, a question beside what it asked, the hover card; the graph is read and written only
    through the model's doors, the page and settings changes come from the core; no logseq.* call here. */
 const shared = window.refinementShared;
@@ -304,10 +304,10 @@ function shortName(title) {
   return text;
 }
 /* The + (as it was until 0.4.296, at the owner's word, 0.4.303: "return that code before we moved around the plus"): at the
-   end of the last node of a short row, after the summary of a list, faint until the pointer is on the row. A click opens
+   end of the last node of a short row, after the summary of a list. A click opens
    the line to type the new node in. Since 0.4.297 a short row's nodes span the row so their tags line up, so the + sits
-   just after the last node's date (or name). The kit's quiet faint button. */
-const addLink = group => group.ident && state.draft?.field !== group.name ? `<button type="button" class="rf-quiet rf-faint rf-tw-add" data-field="${esc(group.name)}" title="Add a${/^[aeiou]/i.test(kindsOf(group)[0] || '') ? 'n' : ''} ${esc(kindsOf(group)[0] || 'node')} with “${esc(group.name)}” set to this page">+</button>` : '';
+   just after the last node's date (or name). The library's lk-plus. */
+const addLink = group => group.ident && state.draft?.field !== group.name ? `<button type="button" class="lk-plus rf-tw-add" data-field="${esc(group.name)}" title="Add a${/^[aeiou]/i.test(kindsOf(group)[0] || '') ? 'n' : ''} ${esc(kindsOf(group)[0] || 'node')} with “${esc(group.name)}” set to this page">+</button>` : '';
 // The kit's tick box, in the margin left of the record (0.4.228; the kit's since 0.4.318).
 const pickBox = (group, item) => drawingTop ? '' : pickOn(group, item);
 const pickOn = (group, item) => { const key = `${item.uuid}|${group.name}`, on = state.picked.has(key); state.listed.push(key); return `<input type="checkbox" class="rf-check lk-tick rf-tw-pick" data-pick="${esc(key)}"${on ? ' checked' : ''} aria-label="Pick" title="Pick (Shift-click: every one from the last picked)">`; };
@@ -334,7 +334,7 @@ function rowHtml(group, top = null) {
   const tip = isMentions(group) ? 'These nodes name this page in their words. Right-click to hide this row here.' : `“${esc(group.name)}” on the nodes listed here points to this page. Change it on the node.`;
   const label = group.found && group.whole ? `<span class="rf-tw-matchname">${esc(group.label)}</span>` : esc(group.label);
   const name = group.fieldUuid
-    ? `<div class="rf-tw-name lk-prop"><span class="rf-kind">${shared.kindIconHtml(group.kind || 'node', group.many)}</span><a class="rf-tw-field" data-uuid="${esc(group.fieldUuid)}" href="#" title="${tip} Click to open the property “${esc(group.name)}”.">${label}</a></div>`
+    ? `<div class="rf-tw-name lk-prop"><span class="rf-kind">${shared.kindIconHtml(group.kind || 'node')}</span><a class="rf-tw-field" data-uuid="${esc(group.fieldUuid)}" href="#" title="${tip} Click to open the property “${esc(group.name)}”.">${label}</a></div>`
     : `<div class="rf-tw-name lk-prop" title="${tip}">${label}</div>`;
   const base = top ? top.key : `r:${group.name}`;
   // Each row's list is a list of its own for the tick boxes (Look's lk-list): the pointer on it raises its boxes and no
@@ -373,7 +373,7 @@ function rowHtml(group, top = null) {
   // The mentions row's head is its days alone (the review, 31 October: "notes" was the plugin's word for an untagged
   // mention, under a row already called "Mentioned in"); where the mentions are of several kinds, the kinds stay.
   const daysOnly = isMentions(group) && !kinds && !!when;
-  // The number is a count (the grammar: none shown, lk-count); it is there for a plugin without Look, and for the words' sake.
+  // The number is a count (the grammar: none shown, lk-count); it is there for the words' sake.
   const leadText = kinds ? `All<span class="lk-count"> ${total}</span>` : `<span class="lk-count">${total}</span> ${esc(plural(whole.items[0]?.tag || 'note', total))}`;
   const lead = daysOnly ? '' : kinds ? chip('', leadText, ' rf-tw-lead', true)
     : `<a class="rf-tw-toggle rf-tw-lead" data-key="${esc(key)}" href="#" title="Click to ${open ? 'fold' : 'open'} the list.">${leadText}</a>`;
@@ -495,7 +495,7 @@ function nodeHtml(uuid, key, data, asTop = false) {
     });
   }
   if (onlyFound) return html + O.more({ text: 'show the rest', attrs: { 'data-findall': key } });
-  if (data.guesses.size > 1 && data.props.filter(r => !r.values.length && data.guesses.has(r.prop.ident)).length > 1) html += O.more({ text: 'Take what is proposed', attrs: { 'data-takeall': uuid } });
+  if (data.guesses.size > 1 && data.props.filter(r => !r.values.length && data.guesses.has(r.prop.ident)).length > 1) html += O.more({ text: 'Take what is proposed', cls: 'lk-lone', attrs: { 'data-takeall': uuid } });
   /* The nodes that link to it, after its own properties, under a line saying so: "2 nodes link to ↑", the arrow standing
      for the node just above, whose name can be long (0.4.462, the owner's pick 2 of the two-way fixes: the same property
      name, one line apart, read as the node's own and as what links to it). Under it one step in, a row per property, one
@@ -1067,7 +1067,7 @@ function groupHtml(group, part, by) {
   const adding = state.draft?.field === group.name && state.draft.gkey === gkey;
   // The + puts a node here with the row's field pointing at this page and the group's value set (not for a month, nor for "none").
   const addable = group.ident && by !== 'month' && (by === 'tag' || !part.none);
-  const plus = addable ? `<button type="button" class="rf-quiet rf-faint rf-tw-gadd" data-gkey="${esc(gkey)}" data-field="${esc(group.name)}" title="Add a node here: “${esc(group.name)}” set to this page${by === 'tag' ? `, tagged ${esc(part.label)}` : `, ${esc(groupName(by))} set to ${esc(part.label)}`}">+</button>` : '';
+  const plus = addable ? `<button type="button" class="lk-plus rf-tw-gadd" data-gkey="${esc(gkey)}" data-field="${esc(group.name)}" title="Add a node here: “${esc(group.name)}” set to this page${by === 'tag' ? `, tagged ${esc(part.label)}` : `, ${esc(groupName(by))} set to ${esc(part.label)}`}">+</button>` : '';
   const shown = all ? part.items : part.items.slice(0, GROUP_LISTED);
   // The group's heading names the tag, or the list's does when it holds one kind (0.4.462).
   const bare = (by === 'tag' && !part.none) || new Set(group.items.map(item => item.tag)).size === 1;
@@ -1959,10 +1959,10 @@ async function addRecord({ group, page, name, kind, open, asPage, where = 'journ
 /* Picking records and acting on them together (0.4.228, the owner's ask: "selected in groups and be acted on", like
    Logseq's own tables). A tick box before each record, shown under the pointer and on every record while any is
    ticked; Shift-click ticks every record from the last one ticked. A pick is a record under one field ("uuid|field"),
-   since a record can point here through two fields. The bar above the rows, the kit's: how many are picked with its
+   since a record can point here through two fields. The bar above the rows, the library's: how many are picked with its
    tick box, then open in the sidebar, point to another page, take the link off (these two through the picked
-   record's own field), add a tag, copy, set a property, clear a property, delete, as quiet words with their icons,
-   and Clear. Every change but delete has Undo (the faded arrow); delete asks first. Escape or the bar's box clears
+   record's own field), add a tag, copy, set a property, clear a property, delete, as the library's words with their icons.
+   Every change but delete has Undo (the faded arrow); delete asks first. Escape or the bar's box clears
    the picks; going to another page does too. */
 /* The bar's room is always kept above the rows, the bar shown in it only while something is picked (0.4.325, the owner:
    "the toolbar jumps in and causes the link table to jump down … that space is fine. allows breathing room"). */
@@ -1973,13 +1973,13 @@ function barHtml() {
      like change and remove can go under one menu item and so can property. the sidebar items should be on far right";
      "have select all button"): the count's tick box clears, Select all picks every node shown (found, of the kind in force, in a list that is open), the page's own two
      actions and the two property actions each under one word with a menu, Sidebar last at the right. */
-  const b = (act, text, title, name, cls = '') => `<button type="button" class="rf-quiet${cls ? ' ' + cls : ''}" data-act="${act}" title="${esc(title)}">${name ? iconHtml(name) : ''}${text}</button>`;
-  const menu = (act, text, title, name) => `<button type="button" class="rf-quiet rf-tw-menu" data-act="${act}" title="${esc(title)}" aria-haspopup="menu">${name ? iconHtml(name) : ''}<span class="rf-tw-menu-words">${text}</span>${iconHtml('chevron-down')}</button>`;
+  const b = (act, text, title, name, cls = '') => `<button type="button" class="lk-btn${cls ? ' ' + cls : ''}" data-act="${act}" title="${esc(title)}">${name ? iconHtml(name) : ''}${text}</button>`;
+  const menu = (act, text, title, name) => `<button type="button" class="lk-btn rf-tw-menu" data-act="${act}" title="${esc(title)}" aria-haspopup="menu">${name ? iconHtml(name) : ''}<span class="rf-tw-menu-words">${text}</span>${iconHtml('chevron-down')}</button>`;
   // Mentions (0.4.423): the page's own two actions act on a property, so they show only with a node from a property's
   // row picked; a picked mention with no tag is offered to be made a node, the tag its words look like first.
   const chosen = picks(), fromProps = idle || chosen.some(p => !isMentions(p.group)), raisable = raisablePicked();
   const best = raisable.length === 1 ? state.raise.get(raisable[0])?.best : null;
-  return `<div class="rf-bar rf-tw-bar"${idle ? ' data-idle="" aria-hidden="true"' : ''}><label class="rf-count"><input type="checkbox" class="rf-check" checked data-act="clear" title="Clear the picks (Escape)" aria-label="Clear the picks">${n} picked</label>${
+  return `<div class="lk-bar rf-tw-bar"${idle ? ' data-idle="" aria-hidden="true"' : ''}><label class="rf-count lk-said"><input type="checkbox" class="rf-check" checked data-act="clear" title="Clear the picks (Escape)" aria-label="Clear the picks">${n} picked</label>${
     state.listed.some(key => !state.picked.has(key)) ? b('all', 'Select all', `Pick all ${state.listed.length} shown here`, '') : ''}${
     fromProps ? menu('page-menu', `“${esc(pageTitle())}”`, `Change “${pageTitle()}” to another page in their field, or take it out`, '') : ''}${
     raisable.length ? menu('raise', best ? `Make it a${/^[aeiou]/i.test(best.tag.title) ? 'n' : ''} ${esc(best.tag.title)}` : 'Make it…', `Give ${raisable.length === 1 ? 'this mention' : `these ${raisable.length} mentions`} a tag, with the property that points at “${pageTitle()}” set`, 'tag') : ''}${
@@ -2273,8 +2273,8 @@ const twoWayCss = `
    Sizes and columns are Logseq's own property rows above, as measured in 2.0.2 (0.4.144): the text at the page's
    size (the names .94 of it, as theirs), a 150px name column, a 12px gap, the values 22px in where theirs start
    after their bullet, 28px rows; the name starts where theirs does, after the room of their property icon (15px and a 4px gap), and the → follows it.
-   Only the rows' own layout is here (0.4.318): the tag, the tick box, the bar, the filter words, the icons, the
-   buttons, the field, the card and the pop-ups are the kit's. */
+   Only the rows' own layout is here (0.4.318): the tag, the tick box, the filter words, the icons, the field, the card
+   and the pop-ups are the kit's, the bar and the buttons the library's (plugin.js). */
 .refinement-two-way {
   margin: calc(.15rem + var(--rf-tw-hold, 0px)) 0 .5rem; padding: 0;
   line-height: 1.5; user-select: text;
@@ -2324,8 +2324,7 @@ const twoWayCss = `
    link next to item, not right aligned"); the last column takes the rest of the row. */
 .refinement-two-way .rf-tw-draft { grid-column: 2; position: relative; display: grid; grid-template-columns: minmax(8em, 22em) auto 1.4em 1fr; column-gap: .5em; align-items: baseline; margin: 0 -.35rem; padding: 0 .35rem 0 calc(22px + .35rem); cursor: text; }
 .refinement-two-way .rf-tw-row { position: relative; }
-.refinement-two-way .rf-tw-add { margin-left: .6em; height: 20px; padding: 0 5px; }
-.refinement-two-way .rf-tw-row:hover .rf-tw-add { color: inherit; }
+.refinement-two-way .rf-tw-add { margin-left: .6em; }
 /* Date first in a short row, name first in a list (0.4.304): the same columns as the other kind, the other way round. */
 .refinement-two-way .rf-tw-draft-plus { position: absolute; left: calc(.35rem + 3px); width: 16px; text-align: center; }
 .refinement-two-way .rf-tw-draft-main { display: flex; align-items: baseline; gap: .5em; min-width: 0; }
@@ -2358,7 +2357,7 @@ const twoWayCss = `
 .refinement-two-way .rf-tw-gtoggle { display: inline-flex; align-items: baseline; gap: .35em; border-radius: 4px; padding: 0 .25em; margin-left: -.25em; color: var(--rf-quiet); }
 .refinement-two-way .rf-tw-gtoggle:hover { background: var(--rf-wash); color: inherit; }
 .refinement-two-way .rf-tw-gn { font-size: .88em; }
-.refinement-two-way .rf-tw-gadd { height: 20px; padding: 0 5px; visibility: hidden; }
+.refinement-two-way .rf-tw-gadd { visibility: hidden; }
 .refinement-two-way .rf-tw-ghead:hover .rf-tw-gadd, .refinement-two-way .rf-tw-gadd:focus-visible { visibility: visible; }
 .refinement-two-way .rf-tw-group .rf-tw-draft { padding-left: .35rem; }
 .refinement-two-way .rf-tw-group .rf-tw-draft-plus { display: none; }
@@ -2370,7 +2369,7 @@ const twoWayCss = `
    it and its bullets, a line down its left like an opened node's. Its size is the row's again, not the properties'. */
 /* A mention made a node (0.4.423): what it would get, under the one picked, in the proposals' grey. */
 /* Picking (0.4.228): the kit's tick box before each record, in the room left of it; shown under the pointer and on
-   every record while any is picked. The bar is the kit's, above the rows. */
+   every record while any is picked. The bar is the library's, above the rows. */
 /* The box answers 6px round it as well (0.4.297); the room left of the record ticks it too (onClick). */
 /* In an open list the box sits left of the outline's line (0.4.229, the owner: "to the left of the outline, not within it"). */
 /* Records not in a list too, one to a line so their boxes share that column (0.4.230, the owner: "even those not in a outline"). */
@@ -2389,14 +2388,20 @@ const twoWayCss = `
 .refinement-two-way, .refinement-two-way * { overflow-anchor: none; }
 /* While finding, a list heading's + and Group are away: they rode on the end of its words, which change with each letter. */
 .refinement-two-way[data-finding] :is(.rf-tw-add, .rf-tw-groupby) { display: none; }
-.refinement-two-way .rf-tw-bar { margin: 0 0 6px 19px; }
+/* The bar's look is the library's lk-bar; here where it stands, on one line, and how an icon stands in its button. */
+.refinement-two-way .rf-tw-bar { margin: 0 0 6px 19px; padding-top: 2px; font-size: 14px; }
 .refinement-two-way .rf-tw-bar[data-idle] { visibility: hidden; }
 .refinement-two-way .rf-tw-bar { flex-wrap: nowrap; min-width: 0; }
+.refinement-two-way .rf-tw-bar > * { flex: none; }
 .refinement-two-way .rf-tw-bar .rf-tw-to-side { margin-left: auto; }
-.refinement-two-way .rf-tw-menu { gap: 3px; min-width: 0; }
+.refinement-two-way .rf-tw-bar > .lk-btn { display: inline-flex; align-items: center; gap: 5px; }
+.refinement-two-way .rf-tw-bar > .lk-btn > .ti { font-size: 15px; }
+.refinement-two-way .rf-tw-bar > .lk-btn > .rf-drawn { width: 15px; justify-content: center; }
+.refinement-two-way .rf-tw-bar > .rf-tw-menu { gap: 3px; min-width: 0; }
 .refinement-two-way .rf-tw-menu-words { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 14em; }
 .refinement-two-way .rf-tw-menu > .ti:last-child { font-size: 12px; opacity: .7; }
 .refinement-two-way .rf-tw-bar .rf-count { white-space: nowrap; }
+.refinement-two-way :is(.rf-tw-add, .rf-tw-gadd, .rf-tw-bar > .lk-btn):focus-visible { outline: 2px solid var(--rf-line); outline-offset: 1px; }
 
 /* The rows on the kit's outline (0.4.442): each node a line, the tick box in the margin, the day in its column, the one
    chevron right before the name; a list opens under its count with no line of its own; what a node holds opens under
@@ -2479,7 +2484,7 @@ const twoWayCss = `
    hairline"). */
 .refinement-two-way .rf-tw-findrow > .rf-field, .refinement-two-way .rf-tw-findrow > .rf-field:focus-within { border-bottom-color: var(--rf-hair); }
 .refinement-two-way .rf-tw-stepped { grid-column: 1 / -1; }
-.refinement-two-way .rf-tw-stepped > .rf-ol-trail { padding: 2px 0 8px; font-size: .95em; }
+.refinement-two-way .rf-tw-stepped > .rf-ol-trail { padding: 2px 0 8px; }
 .refinement-two-way .rf-tw-ghead .rf-chev { align-self: center; }
 /* The tick box of a node sits in the margin left of the outline (0.4.229, the owner: "to the left of the outline"). */
 .refinement-two-way .rf-tw-line > input.rf-check.rf-tw-pick { left: -22px; }
@@ -2488,7 +2493,6 @@ const twoWayCss = `
 .refinement-two-way[data-picking] .rf-tw-pin { display: none; }
 /* While something is picked the bar stays in view at the top as the section scrolls (act where you are). */
 .refinement-two-way[data-picking] .rf-tw-bar { position: sticky; top: var(--rf-tw-pin-top, 0px); z-index: 4; background: var(--lk-paper, var(--rf-bg)); padding-top: 4px; }
-.refinement-two-way a.rf-ol-step { text-decoration: underline; text-decoration-color: var(--rf-line); text-underline-offset: 3px; }
 .refinement-two-way .rf-tw-pin > .rf-ol-trail { position: absolute; left: -12px; right: -12px; top: 0; padding: 5px 12px; background: var(--lk-paper, var(--rf-bg)); border-bottom: 1px solid var(--rf-hair); }
 `;
 /* Logseq draws the properties under a record as one strip (.bottom-properties-pills-strip, flex-nowrap and
@@ -2591,5 +2595,5 @@ function start() {
 function provide(core) {
   core.provide({ backwardsLabel, setBackwards, shownAtOtherEnd, setShownAtOtherEnd });
 }
-(window.refinementParts ||= []).push({ name: 'two-way', schema: settingsSchema, provide, start, stop: runUnloadTasks });
+(window.refinementParts ||= []).push({ name: 'two-way', says: 'the rows on a page', schema: settingsSchema, provide, start, stop: runUnloadTasks });
 })();

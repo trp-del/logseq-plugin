@@ -22,11 +22,11 @@ const OWN_NAMES = ['refinementShared', 'refinementParts', 'refinementCore'];
 // The baseline: lower a number here when a part is moved onto the kit, never raise one.
 const BASELINE = {
   logseq: {
-    'parts/two-way.js': 0, 'parts/property-kinds.js': 0, 'parts/alike.js': 0,
+    'parts/two-way.js': 0, 'parts/alike.js': 0,
     'parts/shadow-rules.js': 0,
   },
   sideways: {
-    'parts/two-way.js': 0, 'parts/property-kinds.js': 0, 'parts/alike.js': 0,
+    'parts/two-way.js': 0, 'parts/alike.js': 0,
     'parts/shadow-rules.js': 0,
   },
   names: 0,

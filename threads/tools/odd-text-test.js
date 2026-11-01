@@ -58,9 +58,7 @@ function oddLogseq(names) {
   await page.setContent('<!doctype html><html><head></head><body><div id="stage"></div></body></html>');
   // The names that can be drawn (Logseq gives no node an empty name or one of spaces; those go to the readers only).
   const drawn = ODD.filter(n => n.trim());
-  for (const content of [`(${oddLogseq})(${JSON.stringify(drawn)});`, read('parts/shared.js'), read('parts/model.js'), require('./pretend-model')]) await page.addScriptTag({ content });
-  // The property-kinds part, for a cut name's whole-name tooltip (2026-10-23).
-  await page.addScriptTag({ content: read('parts/property-kinds.js') });
+  for (const content of [`(${oddLogseq})(${JSON.stringify(drawn)});`, read('../plugin.js'), read('parts/shared.js'), read('parts/model.js'), require('./pretend-model')]) await page.addScriptTag({ content });
   // The two-way part needs a bare window of its own (it reads no pretend graph): its rowHtml is reached the same way.
   await page.addScriptTag({ content: exposeAtEnd(read('parts/two-way.js'), ['rowHtml', 'state']) });
 
@@ -114,23 +112,6 @@ function oddLogseq(names) {
       out.counts.rows = box.querySelectorAll('.rf-tw-row').length;
       box.remove();
     } catch (error) { out.faults.push('the two-way rows threw: ' + error.message); }
-    // 5. A long property name Logseq cuts in its narrow column gets its whole name as a tooltip with the pointer on it;
-    // a short one gets none; the part's unload takes the tooltip away.
-    try {
-      const core = window.refinementCore;
-      Object.assign(core, { watchDom() {}, watchDomEarly() {}, addsElements: () => false, sendStyle() {} });
-      const part = window.refinementParts.find(p => p.name === 'property-kinds');
-      part.start();
-      const row = n => { const d = doc.createElement('div'); d.className = 'property-key-inner'; d.style.cssText = 'width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:16px'; d.textContent = n; stage.append(d); return d; };
-      const long = row(names.find(n => n.length > 100)), short = row('Notes');
-      for (const el of [long, short]) el.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
-      if (long.getAttribute('title') !== long.textContent.trim()) out.faults.push('a cut property name got no whole-name tooltip');
-      if (short.hasAttribute('title')) out.faults.push('a property name that fits got a tooltip');
-      await part.stop();
-      if (long.hasAttribute('title') || long.hasAttribute('data-rf-fullname')) out.faults.push('the whole-name tooltip stayed after the part stopped');
-      long.remove(); short.remove();
-      out.counts.tips = 1;
-    } catch (error) { out.faults.push('the name tooltip threw: ' + error.message); }
     // 4. The model's readers, on every name and on the names inside links and tags.
     try {
       const m = window.refinementCore.provided;

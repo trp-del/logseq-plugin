@@ -10,10 +10,8 @@ const { host, el, esc, style, kindIconHtml, dragBand, openPage, notify } = Find.
 const db = Find.db;
 
 const CSS = `
-.fd { --fd-quiet: color-mix(in srgb, currentColor 70%, transparent); --fd-faint: color-mix(in srgb, currentColor 46%, transparent);
-  --fd-hair: color-mix(in srgb, currentColor 12%, transparent); --fd-line: color-mix(in srgb, currentColor 26%, transparent);
-  --fd-wash: color-mix(in srgb, currentColor 7%, transparent); --fd-ring: color-mix(in srgb, currentColor 11%, transparent);
-  --fd-mono: var(--ls-font-family-mono, ui-monospace, "SF Mono", Menlo, Consolas, monospace);
+.fd { --fd-quiet: var(--lk-quiet); --fd-faint: var(--lk-faint); --fd-hair: var(--lk-hair); --fd-line: var(--lk-line); --fd-wash: var(--lk-wash);
+  --fd-ring: color-mix(in srgb, currentColor 11%, transparent); --fd-mono: var(--lk-mono);
   position: fixed !important; left: 50% !important; right: auto !important; transform: translateX(-50%); margin: 0 !important; width: min(900px, 92vw); max-height: 78vh;
   box-sizing: border-box; padding: 0; border: 1px solid var(--fd-hair); border-radius: 8px; display: flex; flex-direction: column;
   background: var(--lk-paper, #fff); color: var(--lk-text, #222); font-size: 14px; line-height: 1.5;
@@ -26,9 +24,9 @@ const CSS = `
 /* The find line: the pieces, then the letters. */
 .fd-find { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; padding: 11px 16px; border-bottom: 1px solid var(--fd-hair); font-size: 16px; cursor: text; }
 .fd-piece { display: inline-flex; align-items: baseline; gap: 5px; position: relative; }
-.fd-piece .fd-x { all: unset; cursor: pointer; color: var(--fd-faint); font-size: 13px; line-height: 1; opacity: 0; width: 0; overflow: hidden; transition: opacity .12s; }
-.fd-piece:hover .fd-x, .fd-piece .fd-x:focus-visible { opacity: 1; width: auto; margin-right: 1px; }
-.fd-piece .fd-x:hover { color: inherit; }
+/* A pick's ×, lk-x, only under the pointer: until then it takes no room. */
+.fd-piece .fd-x { transition: opacity .12s; }
+.fd-piece:not(:hover) .fd-x:not(:focus-visible) { opacity: 0; width: 0; padding: 0; overflow: hidden; }
 .fd-piece .lk-tag { font-size: 14px !important; }
 .fd-piece .fd-month { color: var(--fd-quiet); }
 .fd-piece .fd-pk { color: var(--fd-quiet); }
@@ -51,17 +49,16 @@ const CSS = `
 .fd-c:hover .fd-nb, .fd-c.fd-lit .fd-nb { visibility: visible; }
 .fd-c.fd-lit { color: inherit; }
 .fd-cv .fd-dot { color: var(--fd-faint); }
-.fd-more { all: unset; cursor: pointer; color: var(--fd-faint); }
-.fd-more:hover { color: inherit; }
+.fd-more { margin: -3px 0; }
 .fd-icon { display: inline-flex; width: 12px; height: 12px; align-items: center; justify-content: center; color: var(--fd-faint); font-size: 12px; }
 .fd-icon svg { width: 12px; height: 12px; }
 /* The row: day | chevron | bullet | words and tag | right. */
 .fd-r { display: grid; grid-template-columns: 52px 16px 18px minmax(0, 1fr) auto; align-items: baseline; column-gap: 2px; min-height: 26px; padding: 1px 6px 1px 0; border-radius: 3px; cursor: default; }
 .fd-r.fd-on { background: var(--fd-wash); }
 .fd-r .fd-day { font-size: 12.5px; color: var(--fd-faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.fd-fold { all: unset; cursor: pointer; display: inline-flex; width: 16px; height: 20px; align-items: center; justify-content: center; font-size: 11px; color: inherit; align-self: center; }
+.fd-fold { all: unset; cursor: pointer; display: inline-flex; width: 16px; height: 20px; align-items: center; justify-content: center; font-size: 11px; color: inherit; align-self: start; margin-top: .5px; }
 .fd-r .lk-fold { opacity: 0; } .fd-r:hover .lk-fold, .fd-r.fd-on .lk-fold, .lk-fold[aria-expanded="true"] { opacity: .6; }
-.fd-bul { display: inline-flex; width: 16px; height: 16px; border-radius: 50%; align-items: center; justify-content: center; align-self: center; }
+.fd-bul { display: inline-flex; width: 16px; height: 16px; border-radius: 50%; align-items: center; justify-content: center; align-self: start; margin-top: 2.5px; }
 .fd-bul .fd-d { width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: .55; }
 .fd-bul.fd-folded { background: var(--fd-ring); }
 .fd-nm { display: flex; align-items: baseline; gap: 7px; min-width: 0; flex-wrap: wrap; }
@@ -70,9 +67,8 @@ const CSS = `
 .fd-nm .lk-node { cursor: pointer; }
 .fd-right { color: var(--fd-faint); font-size: 12.5px; white-space: nowrap; padding-left: 12px; font-variant-numeric: tabular-nums; }
 .fd-right .fd-key { font-family: var(--fd-mono); }
-.fd-showall { all: unset; cursor: pointer; display: block; color: var(--fd-faint); font-size: 12.5px; padding: 2px 0 2px 88px; }
-.fd-showall:hover { color: inherit; }
-.fd-cut { display: flex; align-items: baseline; font-size: 12.5px; padding: 2px 0 2px 88px; }
+.fd-body .fd-showall { display: block; padding: 2px 0 2px 88px; }
+.fd-cut { display: flex; align-items: baseline; padding: 2px 0 2px 88px; }
 .fd-cut .fd-showall { padding: 0; }
 .fd-none { color: var(--fd-faint); padding: 6px 0 6px 88px; }
 /* A node opened in place: its properties, then what points at it, each a line that opens: the grammar's row, the dot
@@ -92,8 +88,7 @@ const CSS = `
 .fd-foot:empty { display: none; }
 .fd-foot .fd-k { color: var(--lk-text, #222); margin-left: .4em; }
 .fd-foot .fd-right { margin-left: auto; padding: 0; }
-.fd-foot button { all: unset; cursor: pointer; }
-.fd-foot button:hover { color: inherit; }
+.fd-foot .lk-lone { margin: -3px -6px; }
 .fd-wait { color: var(--fd-faint); padding: 6px 0; }
 @media (prefers-reduced-motion: reduce) { .fd-piece .fd-x, .fd-r .lk-fold { transition: none; } }`;
 
@@ -292,7 +287,7 @@ function render() {
   S.picks.forEach((p, i) => {
     if (i) find.insertBefore(el(doc, 'span', { class: 'fd-sep' }, '·'), input);
     const piece = el(doc, 'span', { class: 'fd-piece' });
-    piece.append(el(doc, 'button', { class: 'fd-x', type: 'button', title: 'Take this off', 'aria-label': 'Take off ' + (p.title || p.label), click: () => removePick(i) }, '×'));
+    piece.append(el(doc, 'button', { class: 'fd-x lk-x', type: 'button', title: 'Take this off', 'aria-label': 'Take off ' + (p.title || p.label), click: () => removePick(i) }, '×'));
     if (p.kind === 'tag') piece.append(el(doc, 'span', { class: 'lk-tag' }, p.title));
     else if (p.kind === 'value') { piece.append(el(doc, 'span', { class: 'fd-pk' }, p.name)); piece.append(p.uuid ? el(doc, 'span', { class: 'lk-node', 'data-uuid': p.uuid }, p.label) : el(doc, 'span', {}, p.label)); }
     else piece.append(el(doc, 'span', { class: 'fd-month' }, p.label));
@@ -320,11 +315,11 @@ function render() {
         if (i) vals.append(el(doc, 'span', { class: 'fd-dot' }, '·'));
         vals.append(el(doc, 'button', { class: 'fd-c' + (lit ? ' fd-lit' : ''), type: 'button', 'data-c': at, title: c.label.length > 44 ? c.label : null, click: () => c.pick() }, short(c.label, 44), el(doc, 'span', { class: 'fd-nb' }, String(c.count))));
       });
-      if (g.more) { vals.append(el(doc, 'span', { class: 'fd-dot' }, '·')); vals.append(el(doc, 'button', { class: 'fd-more', type: 'button', click: () => { S.moreOf.add(g.key); render(); } }, 'more')); }
+      if (g.more) { vals.append(el(doc, 'span', { class: 'fd-dot' }, '·')); vals.append(el(doc, 'button', { class: 'fd-more lk-more', type: 'button', click: () => { S.moreOf.add(g.key); render(); } }, 'more')); }
       box.append(vals);
       wrap.append(box);
     }
-    if (groups.hidden) wrap.append(el(doc, 'div', { class: 'fd-ch' }, el(doc, 'span'), el(doc, 'button', { class: 'fd-more', type: 'button', click: () => { S.moreOf.add('lines'); render(); } }, `${groups.hidden} more ${groups.hidden === 1 ? 'property' : 'properties'} to narrow by`)));
+    if (groups.hidden) wrap.append(el(doc, 'div', { class: 'fd-ch' }, el(doc, 'span'), el(doc, 'button', { class: 'fd-more lk-more', type: 'button', click: () => { S.moreOf.add('lines'); render(); } }, `${groups.hidden} more ${groups.hidden === 1 ? 'property' : 'properties'} to narrow by`)));
     body.append(wrap);
   }
   // With nothing typed the rows are the pages opened last, and a head says so; otherwise the rows are what was found.
@@ -373,14 +368,14 @@ function render() {
     // Under the last of a group's three nodes, "show all" lists the rest.
     if (r.under && rows[i + 1]?.under !== r.under && !S.groupAll.has(r.under)) {
       const g = rows.find(x => x.key === r.under);
-      if (g && g.count > 3) container.append(wrapIn(doc, el(doc, 'button', { class: 'fd-showall', type: 'button', click: () => { S.groupAll.add(r.under); render(); } }, `show all ${g.count}`), r));
+      if (g && g.count > 3) container.append(wrapIn(doc, el(doc, 'button', { class: 'fd-showall lk-more', type: 'button', click: () => { S.groupAll.add(r.under); render(); } }, `show all ${g.count}`), r));
     }
     if (dug) { const box = dugBox(doc, node); body.append(box); container = box; }
   });
   if (!isCommandMode() && (kindPick() || ws.length)) {
     const total = S.shown.length, limit = setting('rowsShown') || 12, tag = kindPick();
     if (!S.loading && !total && !S.failed) body.append(el(doc, 'div', { class: 'fd-none' }, 'nothing with these words here'));
-    const more = total > limit && !S.allShown ? el(doc, 'button', { class: 'fd-showall', type: 'button', click: () => { S.allShown = true; render(); } }, `show all ${total}`) : null;
+    const more = total > limit && !S.allShown ? el(doc, 'button', { class: 'fd-showall lk-more', type: 'button', click: () => { S.allShown = true; render(); } }, `show all ${total}`) : null;
     // A kind too long to read whole says so where the list ends, and which part it holds.
     const cutFrom = tag && S.cache.kind.get(tag.id)?.cutFrom;
     const line = more && cutFrom ? el(doc, 'div', { class: 'fd-cut' }, more, el(doc, 'span', { class: 'fd-faint' }, ` · the newest of ${cutFrom}`)) : more || (cutFrom ? el(doc, 'div', { class: 'fd-none' }, `the newest ${S.cache.kind.get(tag.id).length} of ${cutFrom}`) : null);
@@ -470,7 +465,7 @@ function foot(doc, groups, rows) {
   if (cur?.kind === 'node' && cur.top) add(KEY(S.dug.includes(cur.node.uuid) ? '←' : '→', S.dug.includes(cur.node.uuid) ? 'close' : 'dig'));
   if (cur?.kind === 'group') add(KEY(S.openGroups.has(cur.key) ? '←' : '→', S.openGroups.has(cur.key) ? 'close' : 'open'));
   if (S.picks.length && !S.typed) add(`<span class="fd-faint">Backspace takes ${esc(S.picks[S.picks.length - 1].title || S.picks[S.picks.length - 1].label)} off</span>`);
-  if (words().length && !kindPick()) { const name = S.typed.trim(); items.push(el(doc, 'span', { class: 'fd-right' }, el(doc, 'button', { type: 'button', title: 'Make a page with these words as its name', click: () => makePage(name) }, `make a page “${name}”`))); }
+  if (words().length && !kindPick()) { const name = S.typed.trim(); items.push(el(doc, 'span', { class: 'fd-right' }, el(doc, 'button', { class: 'lk-lone', type: 'button', title: 'Make a page with these words as its name', click: () => makePage(name) }, `make a page “${name}”`))); }
   return items;
 }
 

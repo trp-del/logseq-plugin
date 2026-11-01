@@ -2,17 +2,14 @@
    a grey dot in a button: the icon takes the dot's place, so nothing moves and a click does what Logseq's does. A property
    with an icon of its own keeps it; one the plugin does not know (Alias) keeps Logseq's. Under a node, a property is plain
    text (the owner, 2026-10-30): no icon in a node's rows of properties nor in the line of them under its words, only
-   Logseq's dot and the name. */
+   Logseq's dot and the name. A name Logseq has cut short shows whole as a tooltip under the pointer. */
 (function () {
 const Look = window.Look;
 const { host, style, watchScreen, onGraphChange, kindIconHtml } = Look.kit, { setting } = Look.settings;
 const css = `
 .property-m[data-lk-kind] > :is(.bullet-container, .ls-icon-point-filled) { display: none; }
 .property-m > .lk-kind { display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 15px; font-size: 15px; opacity: .5; }
-.lk-icon.lk-web svg { width: 12px; height: 12px; }
-/* Threads (and DB Refinements) draw the same icon in the same place; where Look has drawn its own, theirs steps aside, so
-   running both never shows an icon twice. */
-.property-m:has(> .lk-kind) > :is(.rf-kind, .rf-drawn) { display: none !important; }`;
+`;
 const ROWS = '.ls-page-properties .property-pair.property-panel-row[data-property-title]';
 let byTitle = null, loading = null, stopped = false;
 async function load() {
@@ -32,8 +29,7 @@ function markLines(doc) {
     }
   }
 }
-function draw(doc) {
-  markLines(doc);
+function drawIcons(doc) {
   if (stopped || !byTitle) return;
   const on = setting('propertyIcons');
   for (const row of doc.querySelectorAll(ROWS)) {
@@ -50,13 +46,25 @@ function draw(doc) {
     button.setAttribute('data-lk-kind', '');
   }
 }
+function draw(doc) { markLines(doc); drawIcons(doc); }
+// The pointer on a property's name: if Logseq has cut it, the whole name as the tooltip (only names it cut; one it no
+// longer cuts loses the tooltip again). Nothing is measured until the pointer is there.
+function onOver(event) {
+  if (!setting('propertyNameTips')) return;
+  const name = event.target?.closest?.('.property-key-inner');
+  if (!name) return;
+  const cut = [name, ...name.querySelectorAll('*')].some(el => el.scrollWidth > el.clientWidth + 1);
+  if (cut && !name.hasAttribute('title')) { name.setAttribute('title', name.textContent.trim()); name.setAttribute('data-lk-title', ''); }
+  else if (!cut && name.hasAttribute('data-lk-title')) { name.removeAttribute('title'); name.removeAttribute('data-lk-title'); }
+}
 function start() {
   stopped = false;
   style('props', css);
-  watchScreen(draw);
+  watchScreen(draw, drawIcons);   // the icons before the screen is drawn, so Logseq's dot never shows first
+  host().defaultView.addEventListener('mouseover', onOver);
   onGraphChange(pages => { if (pages && !stopped) load(); });
   load();
 }
-function stop() { stopped = true; loading = null; byTitle = null; }
+function stop() { stopped = true; loading = null; byTitle = null; host().defaultView.removeEventListener('mouseover', onOver); }
 Look.props = { start, stop, draw, load };
 })();

@@ -7,7 +7,7 @@
    Escape walks back the way you came. A fix first says what it would do, with the nodes it touches, and is staged only
    on a second yes. A change waiting in the tray is pencilled in where it will happen (italic, the dotted line).
    The same drawing serves the main view and the right sidebar (the tree alone there, with a cursor of its own). It is
-   drawn into Logseq's own document, so Look's stylesheet reaches it: Look's names (lk-row, lk-fold, lk-list, lk-tick,
+   drawn into Logseq's own document, so the shared stylesheet reaches it: the shared names (lk-row, lk-fold, lk-list, lk-tick,
    lk-node, lk-undo) sit on what they name and carry no look of their own here; the rest is the mockup's stylesheet on
    the grammar's tokens (greys mixed from the text colour, hairlines and space instead of boxes). */
 (function () {
@@ -17,38 +17,26 @@ const { LOOSE } = Mo;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 
-// The four marks (the grammar's, as Look draws them) and the icon of what a property holds.
-const MARKS = {
-  E: "<path d='M2 1.8H8V8.2H2M3.6 5H8' fill='none' stroke='currentColor' stroke-width='1.4'/>",
-  O: "<circle cx='5' cy='5' r='3.3' fill='none' stroke='currentColor' stroke-width='1.3'/>",
-  P: "<path d='M1.3 6.2q1.85-3.4 3.7 0t3.7 0' fill='none' stroke='currentColor' stroke-width='1.3' stroke-linecap='round'/>",
-  I: "<circle cx='5' cy='2.6' r='1.25' fill='currentColor'/><circle cx='2.3' cy='7.3' r='1.25' fill='currentColor'/><circle cx='7.7' cy='7.3' r='1.25' fill='currentColor'/>",
-};
-const ICONS = {
-  rel: "<svg viewBox='0 0 12 12' fill='none'><path d='M6 2.6 2.4 9.2h7.2Z' stroke='currentColor' stroke-width='1'/><circle cx='6' cy='2.6' r='1.7' fill='currentColor'/><circle cx='2.4' cy='9.2' r='1.7' fill='currentColor'/><circle cx='9.6' cy='9.2' r='1.7' fill='currentColor'/></svg>",
-  date: "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='4' y='5' width='16' height='16' rx='2'/><path d='M16 3v4M8 3v4M4 11h16'/></svg>",
-  num: "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M3 10l2-2v8M9 8h3a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H9h3a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H9M17 8h3a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-3M17 12h4'/></svg>",
-  text: "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 7V5h12v2M10 5v14M8 19h4M18 11h-2a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h2v-5h-2'/></svg>",
-  choice: "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='4' y='4' width='16' height='16' rx='2'/><path d='m8 12 3 3 5-6'/></svg>",
-};
 // Logseq's fold chevron, as it draws it: a small right-pointing angle that turns down when open.
 const CHEVRON = `<svg viewBox="0 0 10 10" aria-hidden="true"><path d="M3.5 2 7 5 3.5 8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-const km = k => k ? `<svg class="st-km" viewBox="0 0 10 10" aria-hidden="true">${MARKS[k] || ''}</svg>` : '<span></span>';
-const pi = p => `<i class="st-pi" aria-hidden="true">${ICONS[Mo.propKind(p)]}</i>`;
+// The four marks and the icon of what a property holds are the door's, as for every module.
+const Door = window.PluginDoor;
+const SORTS = { E: 'entity', O: 'occurrence', P: 'phenomenon', I: 'information' }, KIND_OF = { rel: 'node', num: 'number', date: 'date', choice: 'choice', text: 'text' };
+const km = k => k ? `<svg class="st-km" viewBox="0 0 10 10" aria-hidden="true">${Door.MARKS[SORTS[k]] || ''}</svg>` : '<span></span>';
+const pi = p => `<i class="st-pi" aria-hidden="true">${Door.kindIconHtml(KIND_OF[Mo.propKind(p)])}</i>`;
 const day = ms => ms ? new Date(ms).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '';
 
 const CSS = `
-.st { --st-quiet: var(--lk-quiet, color-mix(in srgb, currentColor 70%, transparent)); --st-faint: var(--lk-faint, color-mix(in srgb, currentColor 46%, transparent));
-  --st-hair: var(--lk-hair, color-mix(in srgb, currentColor 12%, transparent)); --st-line: var(--lk-line, color-mix(in srgb, currentColor 26%, transparent));
-  --st-wash: var(--lk-wash, color-mix(in srgb, currentColor 7%, transparent)); --st-ring: color-mix(in srgb, currentColor 11%, transparent);
-  --st-mono: var(--lk-mono, var(--ls-font-family-mono, ui-monospace, "SF Mono", Menlo, Consolas, monospace));
+.st { --st-quiet: var(--lk-quiet); --st-faint: var(--lk-faint); --st-hair: var(--lk-hair); --st-line: var(--lk-line); --st-wash: var(--lk-wash);
+  --st-ring: color-mix(in srgb, currentColor 11%, transparent); --st-mono: var(--lk-mono);
   color: var(--lk-text, #222); font-size: 14px; line-height: 1.5; outline: none; position: relative; }
 .st * { box-sizing: border-box; }
-.st-page { display: grid; grid-template-columns: 300px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; height: 600px; min-height: 360px; }
+.st-page { display: grid; grid-template-columns: 308px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; height: 600px; min-height: 360px; }
 .st-left { border-right: 1px solid var(--st-hair); padding: 12px 10px 12px 14px; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 .st-right { padding: 14px 22px 20px 26px; min-width: 0; min-height: 0; overflow: auto; container-type: inline-size; }
 .st-side .st-left { border: 0; padding: 4px 4px 8px 6px; }
-.st-tray { grid-column: 1 / -1; border-top: 1px solid var(--st-hair); padding: 8px 22px 9px 14px; display: flex; gap: 16px; align-items: center; font-size: 13.5px; min-height: 22px; color: var(--st-quiet); }
+.st-tray { grid-column: 1 / -1; border-top: 1px solid var(--st-hair); padding: 8px 44px 9px 14px; display: flex; gap: 16px; align-items: center; font-size: 13.5px; min-height: 22px; color: var(--st-quiet); }
+/* The right padding keeps the Undo arrow clear of Logseq's help button, which stands over this corner. */
 .st-tray:empty { display: none; }
 .st-tray .tl { display: grid; gap: 1px; flex: 1; min-width: 0; align-items: baseline; }
 .st-tray .tl span { color: inherit; }
@@ -57,7 +45,7 @@ const CSS = `
 .st-tray .tl span u { text-decoration: none; color: var(--st-faint); margin-left: 6px; cursor: pointer; }
 .st-tray .tl span u:hover { color: inherit; }
 .st-tray .do { display: flex; gap: 14px; white-space: nowrap; align-items: baseline; }
-.st-tray .do span { cursor: pointer; } .st-tray .do span.go { color: var(--lk-text, #222); font-weight: 500; }
+.st-tray .do .go { padding: 3px 8px; }
 .st-tray .do .ky { color: var(--st-faint); font-size: 12px; margin-left: 6px; }
 /* st-done, not done: Logseq strikes through its own .done (a finished task). */
 .st-tray .st-done, .st-tray .note { color: var(--st-quiet); white-space: nowrap; margin-left: auto; } .st-tray .note + .st-done { margin-left: 0; }   /* the Undo arrow waits bottom right (the grammar) */ .st-tray .st-done .lk-undo { cursor: pointer; margin-left: 6px; font-size: 16px; }
@@ -86,7 +74,10 @@ const CSS = `
 .st input.lk-tick[type=checkbox]:checked, .st input.lk-tick[type=checkbox]:focus, .st input.lk-tick[type=checkbox]:hover { background-color: transparent !important; background-image: none !important; border-color: currentColor !important; color: inherit !important; box-shadow: none !important; }
 .st input.lk-tick:checked::before { content: ""; position: absolute; left: 3.5px; top: .5px; width: 3.5px; height: 7px; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg); }
 .st input.lk-tick:focus-visible { outline: 2px solid var(--st-line); outline-offset: 1px; }
-.st-row > input.lk-tick { margin-top: 6px !important; }
+/* Every box at the middle of its row's first line, in one straight column whatever the row's depth. */
+.st .st-row > input.lk-tick[type=checkbox] { margin-top: 6.5px !important; margin-left: calc(14.5px - var(--d, 0) * 12px - var(--st-in, 0px)) !important; }
+/* Under a kind a name starts right of the kind's name, past the kind's mark. */
+.st-tree .st-row:not(.kind):not(.loose) { --st-in: 9px; padding-left: calc(var(--d, 0) * 12px + var(--st-in)); }
 .st-row .lk-fold { display: inline-flex; width: 14px; height: 20px; margin-top: 3px; align-items: center; justify-content: center; cursor: pointer; }
 .st-row .lk-fold svg { width: 10px; height: 10px; transition: transform .12s; } .st-row .lk-fold[aria-expanded="true"] svg { transform: rotate(90deg); }
 .st-row .st-km { width: 10px; height: 10px; color: var(--st-quiet); flex: none; }
@@ -100,14 +91,11 @@ const CSS = `
 .st-row.over { background: var(--st-wash); box-shadow: inset 0 2px 0 var(--st-line); }
 /* Pencilled in (Look's lk-pencil on the name): what a change waiting in the tray touches. */
 /* The pick bar, as the grammar draws it: above the list, how many and what can be done as quiet words, Esc clears. */
-.st-pick { display: flex; gap: 14px; align-items: center; font-size: 13px; color: var(--st-quiet); border-bottom: 1px solid var(--st-hair); padding-bottom: 4px; margin: -4px 0 4px; min-height: 22px; flex-wrap: wrap; }
-.st-pick b { color: var(--lk-text, #222); font-weight: 500; } .st-pick .esc { margin-left: auto; color: var(--st-faint); }
+.st-pick { margin: 0 0 6px; }
 /* The trail, as the grammar draws it: where you came through, each a step back, › between; Escape goes back one step. */
-.st-trail { font-size: 12.5px; color: var(--st-faint); margin: 0 0 4px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-.st-trail .sep { color: var(--st-faint); }
+.st-trail { margin: 0 0 4px; }
 /* The three views as words above the tree, the one in force in the text colour (the grammar's narrowing words). */
-.st-views { display: flex; gap: 12px; font-size: 13px; color: var(--st-quiet); margin: 0 0 8px; padding: 0 2px; }
-.st-views .act { color: var(--st-quiet); } .st-views .act:hover { color: inherit; } .st-views .here { color: var(--lk-text, #222); }
+.st-views { margin: 0 0 8px; }
 /* The title row: the name, and at its right end the thing's place in the tree, nearest first, as Look draws it on a page. */
 .st-ttl { display: flex; align-items: baseline; gap: 14px; margin: 0 0 2px; }
 /* Too long for the row, it gives way from the middle, then the nearest tag; the kind stays whole. */
@@ -118,17 +106,14 @@ const CSS = `
 .st-card h2 { font-size: 20px; font-weight: 600; margin: 0; display: flex; gap: 10px; align-items: center; line-height: 1.3; min-width: 0; }
 .st-card h2 .st-km { width: 14px; height: 14px; color: var(--st-quiet); } .st-card h2 .st-pi { width: 13px; height: 13px; }
 .st-card .sum { font-size: 13px; color: var(--st-quiet); margin: 0 0 6px; display: flex; gap: 14px; flex-wrap: wrap; }
-.st-card .sum .lk { cursor: pointer; }
-.st-card .acts { font-size: 13px; margin: 8px 0 20px; display: flex; gap: 0 10px; flex-wrap: wrap; }
-.st-card .acts .act { color: inherit; }
-.st-card .acts .act + .act::before { content: '·'; color: var(--st-faint); margin-right: 10px; }   /* the dot stays with the word after it when the line wraps */
+.st-card .acts { margin: 8px 0 20px; }
 .st .act { color: var(--st-quiet); cursor: pointer; white-space: nowrap; } .st .act:hover { color: inherit; }
 /* A group's head is bold words on a row; groups are told apart by a gap of one line, not a hairline (the grammar). */
 .st-card h3, .st-hl h3 { font-size: 14px; font-weight: 600; color: inherit; margin: 22px 0 2px; min-height: 25px; display: flex; align-items: center; }
 .st-card h3:first-of-type, .st-hl h3:first-child { margin-top: 0; }
 .st-ln { display: grid; grid-template-columns: 16px minmax(0, 1fr) 84px; gap: 0 8px; align-items: baseline; min-height: 25px; border-radius: 3px; padding: 0 4px 0 2px; margin-left: -2px; }
 .st-ln:hover { background: var(--st-wash); }
-.st-pi { display: inline-flex; width: 11px; height: 11px; color: var(--st-faint); align-self: center; } .st-pi svg { width: 100%; height: 100%; }
+.st-pi { display: inline-flex; width: 11px; height: 11px; color: var(--st-faint); align-self: center; } .st-ln > .st-pi { align-self: start; margin-top: 5px; } .st-pi .lk-icon.lk-web, .st-pi .lk-icon.lk-web svg { width: 100%; height: 100%; } .st-pi .ti { font-size: 12px; line-height: 1; margin: -.5px; }
 .st-ln .w { display: flex; gap: 8px; align-items: baseline; min-width: 0; flex-wrap: wrap; }
 .st-ln .w .k { color: inherit; }
 .st-ln .w .to { color: var(--st-faint); font-size: 12px; }
@@ -138,14 +123,13 @@ const CSS = `
 .st-ln .ct { text-align: right; font-size: 12.5px; color: var(--st-quiet); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .st-ln.low .ct { color: var(--st-faint); }
 .st-ln.inh, .st-ln.inh .w .k { color: var(--st-faint); }
-.st-ln.rng .x { color: var(--st-faint); cursor: pointer; margin-left: 2px; opacity: .5; } .st-ln.rng:hover .x { opacity: 1; } .st-ln.rng .x:hover { color: inherit; }
+.st-ln.rng .x { margin-left: 2px; }
 .st-ln.add .ct { text-align: left; white-space: normal; }
 /* An issue's row, each part keyed by its role (the owner, 31 October 2026): the thing to settle in the text colour with the underline
    that opens its card, the tying words and the sentence in the quiet grey at the row's size, the tags as tags, the count as a number,
    the fix last in the text colour, taking the room it needs (the sentence wraps before it, never the fix word). */
 .st-ln.iss { grid-template-columns: 16px minmax(0, 1fr) max-content; }
 .st-ln.iss .w { color: var(--st-quiet); display: block; }   /* the parts flow as text, so a long sentence wraps as text */
-.st-ln.iss .fix, .st-ln.fx .fix, .st-hl .fix { color: var(--lk-text, #222); }
 .st-ln.iss .w > span { margin: 0 2px; } .st-ln.iss .w > span:first-child { margin-left: 0; }
 .st-ln.iss .w .sj { color: var(--lk-text, #222); font-weight: 500; margin-right: 4px; }
 .st-ln.iss .w .to { color: var(--st-quiet); font-size: 13.5px; } .st-ln.iss .w .pn { margin-left: -2px; }
@@ -154,8 +138,6 @@ const CSS = `
 .st-ln.fx { grid-template-columns: 16px minmax(0, 1fr) 84px max-content; }
 .st-ln.ask { min-height: 0; margin: 2px 0 10px 14px; } .st-ln.ask .w { color: var(--st-quiet); padding-left: 10px; border-left: 2px solid var(--st-hair); display: block; }
 .st-ln.ask.two .w { max-width: 600px; }   /* the two columns no wider than the sentence under them */
-.st-ln.ask .w .act { color: var(--lk-text, #222); font-weight: 500; margin-left: 10px; } .st-ln.ask .w .act.f { color: var(--st-quiet); font-weight: 400; margin-left: 8px; }
-.st-ln.ask .w .ky { color: var(--st-faint); font-size: 12px; margin-left: 10px; }
 /* A merge before it is staged, as the grammar shows a consequence: the two tags side by side, their properties lined up. */
 .st-two { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; font-size: 13.5px; margin: 4px 0 6px; }
 .st-two .h { font-weight: 600; padding-bottom: 4px; display: flex; gap: 8px; align-items: baseline; color: var(--lk-text, #222); } .st-two .h .ct { font-weight: 400; color: var(--st-quiet); font-size: 12.5px; }
@@ -167,8 +149,7 @@ const CSS = `
 .st-tbl { font-size: 13.5px; }
 /* The On column gets the room its three names and the count need, taken from Name and Points at, which hold one word each. */
 .st-tbl .hd, .st-tbl .tr { display: grid; grid-template-columns: 16px minmax(96px, .8fr) minmax(0, 2fr) minmax(0, 1fr) 96px; gap: 0 12px; align-items: center; min-height: 26px; padding: 0 4px; border-radius: 3px; }
-.st-tbl .hd { font-size: 12.5px; color: var(--st-faint); border-bottom: 1px solid var(--st-hair); margin-bottom: 4px; min-height: 22px; }
-.st-tbl .hd span { cursor: pointer; } .st-tbl .hd span.on { color: var(--st-quiet); font-weight: 600; }
+.st-tbl .hd { font-size: 12.5px; border-bottom: 1px solid var(--st-hair); margin-bottom: 4px; min-height: 22px; }
 .st-tbl .tr:hover { background: var(--st-wash); }
 .st-tbl .tr .on { color: var(--st-quiet); }
 .st-tbl .to { color: var(--st-faint); font-size: 12px; margin: 0 4px; }
@@ -183,14 +164,9 @@ const CSS = `
 .st-nodes .st-ln { grid-template-columns: 46px 14px 16px minmax(0, 1fr); }
 .st-nodes .st-ln .lk-day { white-space: nowrap; }
 .st-nodes .st-ln.cur { background: var(--st-wash); }
-.st-nodes .lk-tick { align-self: center; }
-.st-nodes .more, .st-hl .more, .st-tbl .more { color: var(--st-faint); cursor: pointer; padding: 4px 2px; }
-.st-menu { position: absolute; background: var(--lk-paper, #fff); border: 1px solid var(--st-hair); border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,.12); padding: 4px 0; min-width: 230px; width: max-content; max-width: 360px; font-size: 13.5px; z-index: 30; }
-.st-menu div { display: flex; align-items: center; gap: 16px; padding: 0 12px; height: 26px; cursor: pointer; white-space: nowrap; }
-.st-menu div:hover { background: var(--st-wash); }
-.st-menu div .rt { margin-left: auto; color: var(--st-faint); font-size: 12.5px; font-variant-numeric: tabular-nums; }
-.st-menu div.off { color: var(--st-faint); pointer-events: none; }
-.st-menu .gap { height: 8px; pointer-events: none; }
+.st-nodes .st-ln > input.lk-tick[type=checkbox] { align-self: start; margin-top: 4px !important; } .st-nodes .st-ln > .st-bul { align-self: start; margin-top: 3.5px; }
+.st-nodes .more, .st-hl .more, .st-tbl .more { padding: 4px 2px; }
+.st-menu { position: absolute; background: var(--lk-paper, #fff); box-shadow: 0 6px 18px rgba(0,0,0,.12); min-width: 230px; width: max-content; max-width: 360px; font-size: 13.5px; z-index: 30; }
 /* A prompt happens in place (the grammar: never a window): it rolls out under its row, joined by a line from the margin. */
 .st-prompt { margin: 2px 0 8px 30px; padding: 4px 0 2px 10px; border-left: 1px solid var(--st-hair); font-size: 13.5px; max-width: 320px; }
 .st-card .st-prompt { margin-left: 2px; }
@@ -271,9 +247,9 @@ function make(holder, mode, app) {
   function treeHtml() {
     const rows = visibleRows();
     promptDrawn = false;
-    const picked = mode === 'page' && st.ticks.size ? `<div class="st-pick"><b>${st.ticks.size} ticked</b><span class="act" data-do="move" data-on="${esc(st.cur)}">move under…</span>${T(st.cur) && !T(st.cur).kind && !st.ticks.has(st.cur) ? `<span class="act" data-do="merge" data-on="${esc(st.cur)}">merge into ${esc(name(st.cur))}</span>` : ''}<span class="esc">Esc clears</span></div>` : '';
+    const picked = mode === 'page' && st.ticks.size ? `<div class="st-pick lk-bar"><b class="lk-said">${st.ticks.size} ticked</b><span class="act lk-btn" data-do="move" data-on="${esc(st.cur)}">move under…</span>${T(st.cur) && !T(st.cur).kind && !st.ticks.has(st.cur) ? `<span class="act lk-btn" data-do="merge" data-on="${esc(st.cur)}">merge into ${esc(name(st.cur))}</span>` : ''}<span class="esc lk-hint">Esc clears</span></div>` : '';
     const n = ISS().length, v = st.view === 'health' ? 'health' : st.view === 'table' ? 'table' : 'tree';
-    const views = mode === 'side' ? '' : `<div class="st-views">${[['tree', 'tags'], ['table', 'every property'], ['health', `health${n ? ` · ${n}` : ''}`]].map(([k, w]) => `<span class="${v === k ? 'here' : 'act'}" ${v === k ? '' : `data-show="${k}"`}>${w}</span>`).join('')}</div>`;
+    const views = mode === 'side' ? '' : `<div class="st-views lk-views">${[['tree', 'tags'], ['table', 'every property'], ['health', `health${n ? ` · ${n}` : ''}`]].map(([k, w]) => `<span class="lk-view ${v === k ? 'here on' : 'act'}" ${v === k ? '' : `data-show="${k}"`}>${w}</span>`).join('')}</div>`;
     return `<div class="st-left">${views}<div class="st-find"><input data-find placeholder="find a tag…" value="${esc(loc.find)}" autocomplete="off" spellcheck="false"><span class="n">${loc.find.trim() ? rows.filter(r => !r.dim).length : ''}</span></div>${picked}` +
       `<div class="st-tree lk-list" ${st.ticks.size ? 'data-picking' : ''}>${rows.map(rowHtml).join('')}</div></div>`;
   }
@@ -282,13 +258,13 @@ function make(holder, mode, app) {
   const placeName = p => p.view === 'table' ? 'every property' : p.view === 'health' ? 'Health' : p.view === 'nodes' ? `the nodes of ${name(p.nodes?.tag)}` : p.propCur ? P(Number(p.propCur.split('·')[1]))?.title ?? '' : name(p.cur);
   // The trail (the grammar's): the places you came through, each a step back (a click goes back to it). It ends with ›:
   // the title under it is where you are, so the name is not said twice (the owner, 31 October 2026, on a property's card).
-  const trailHtml = () => st.trail.length ? `<div class="st-trail">${st.trail.map((p, i) => `<span class="lk" data-back="${i}">${esc(placeName(p))}</span>`).join('<span class="sep">›</span>')}<span class="sep">›</span></div>` : '';
+  const trailHtml = () => st.trail.length ? `<div class="st-trail lk-trail">${st.trail.map((p, i) => `<span class="lk-step" data-back="${i}">${esc(placeName(p))}</span>`).join('<span class="sep">›</span>')}<span class="sep">›</span></div>` : '';
   // The title row: the mark and the name, and at the right end the place in the tree, nearest first, each a tag that opens (as Look draws a page's).
   const titleHtml = (mark, title, above, cls) => `<div class="st-ttl"><h2 class="${cls || ''}">${mark}<span class="${cls ? 'lk-pencil' : ''}">${title}</span></h2>${above.length ? `<span class="st-place">${above.map(tagLink).join('<span class="sep">/</span>')}</span>` : ''}</div>`;
   // The prompt that belongs to the card (a property's, the nodes'), in place under the words.
   let promptDrawn = false;   // set by the tree: whether the prompt's row is on screen (else the card shows the prompt)
   const cardPrompt = () => st.prompt && st.prompt.owner === mode && !promptDrawn ? promptHtml() : '';
-  const acts = (on, list) => { const l = list.filter(Boolean); return l.length ? `<div class="acts">${l.map(([word, a]) => `<span class="act" data-do="${a}" data-on="${esc(on)}">${word}</span>`).join('')}</div>` : ''; };
+  const acts = (on, list) => { const l = list.filter(Boolean); return l.length ? `<div class="acts lk-strip">${l.map(([word, a]) => `<span class="act lk-btn" data-do="${a}" data-on="${esc(on)}">${word}</span>`).join('')}</div>` : ''; };
 
   // ---------- the card ----------
   // A tag named on a card or in the table: plain words with the faint underline, as the mockup draws it (a run of small mono
@@ -297,7 +273,7 @@ function make(holder, mode, app) {
   // A range of many tags (Topic, on purpose, takes fifteen): the first three, then how many more; the property's card lists them all.
   const ranges = ids => ids.slice(0, 3).map(tagLink).join('<span class="to">·</span>') + (ids.length > 3 ? `<span class="to">and ${ids.length - 3} more</span>` : '');
   // An issue that belongs to a line puts its fix word at the line's right end, after the faint count, with its ask under the line.
-  const lineFix = (tagId, pid, kid) => { const i = R.issueOnLine(ISS(), tagId, pid, kid); return i ? { cls: 'fx', word: `<span class="fix act" data-fix="${ISS().indexOf(i)}">${esc(i.fix)}</span>`, ask: askHtml(ISS().indexOf(i)) } : { cls: '', word: '', ask: '' }; };
+  const lineFix = (tagId, pid, kid) => { const i = R.issueOnLine(ISS(), tagId, pid, kid); return i ? { cls: 'fx', word: `<span class="fix act lk-fix" data-fix="${ISS().indexOf(i)}">${esc(i.fix)}</span>`, ask: askHtml(ISS().indexOf(i)) } : { cls: '', word: '', ask: '' }; };
   function propLine(tagId, pid, of, inh) {
     const p = P(pid), f = inh ? 0 : Mo.filled(M(), tagId, pid), low = of && !inh && f / of < .2;
     const editing = st.edit && st.edit.what === 'prename' && st.edit.on === `${tagId}·${pid}`;
@@ -315,7 +291,7 @@ function make(holder, mode, app) {
     const path = Mo.pathOf(m, id), total = Mo.count(m, id), kids = Mo.kids(m, id), kind = Mo.kindOf(m, id);
     let h = `<div class="st-card">` + trailHtml() + titleHtml(km(kind), esc(t.title), path.slice(0, -1).reverse(), waitTag(id));
     const newest = m.newest.get(id);
-    h += `<div class="sum"><span class="${total ? 'lk' : ''}" ${total ? `data-nodes="${id}"` : ''}>${plural(total, 'node')}${t.nodes.size && kids.length ? `, ${t.nodes.size} carrying the tag itself` : ''}</span>${kids.length ? `<span>${plural(kids.length, 'tag')} under it</span>` : ''}` +
+    h += `<div class="sum"><span class="${total ? 'lk-lone' : ''}" ${total ? `data-nodes="${id}"` : ''}>${plural(total, 'node')}${t.nodes.size && kids.length ? `, ${t.nodes.size} carrying the tag itself` : ''}</span>${kids.length ? `<span>${plural(kids.length, 'tag')} under it</span>` : ''}` +
       (t.parents.length > 1 ? `<span>also under ${t.parents.slice(1).map(tagLink).join(', ')}</span>` : '') +
       (!path.slice(0, -1).length && !t.kind ? `<span>under no kind</span>` : '') +
       `${newest ? `<span>newest ${day(newest)}</span>` : ''}${t.missing ? `<span>no tag of this name in the graph yet; one is made when something is moved under it</span>` : ''}</div>`;
@@ -353,11 +329,11 @@ function make(holder, mode, app) {
     : p.tags ? (p.sep === 'and' && p.tags.length === 2 ? p.tags.map(tagLink).join('<span class="to">and</span>') : ranges(p.tags))
     : p.count != null ? `<span class="nm">${esc(p.count)}</span>`
     : `<span class="to ${/^[,:;]/.test(p.words) ? 'pn' : ''}">${esc(p.words)}</span>`).join(' ').replace(/ (<span class="to pn")/g, '$1');
-  const issueLine = (i, lead) => { const n = ISS().indexOf(i); return `<div class="st-ln iss">${lead}<span class="w">${partsHtml(i.parts)}</span><span class="fix act" data-fix="${n}">${esc(i.fix)}</span></div>` + askHtml(n); };
+  const issueLine = (i, lead) => { const n = ISS().indexOf(i); return `<div class="st-ln iss">${lead}<span class="w">${partsHtml(i.parts)}</span><span class="fix act lk-fix" data-fix="${n}">${esc(i.fix)}</span></div>` + askHtml(n); };
   const issuesHtml = list => !list.length ? '' : `<h3>Issues</h3>` + list.map(i => issueLine(i, '<span></span>')).join('');
   const askLine = (c, last) => {
     const s = S.changes.sentence(M(), c), two = c.kind === 'merge';
-    const words = last ? `<span class="act" data-stage>stage it</span><span class="act f" data-leave>leave it</span><span class="ky">Enter stages · Esc leaves it</span>` : '';
+    const words = last ? `<span class="lk-answers"><span class="act lk-accent" data-stage>stage it</span><span class="act f lk-btn" data-leave>leave it</span><span class="ky lk-hint">Enter stages · Esc leaves it</span></span>` : '';
     // The nodes it touches, once: after the sentence, or in the merge's column head.
     return `<div class="st-ln ask ${two ? 'two' : ''}"><span></span><span class="w">${two ? twoHtml(c.from, c.into) : ''}${esc(s.text)}${s.nodes && !two ? ` · ${plural(s.nodes, 'node')}` : ''}${words}</span></div>`;
   };
@@ -392,8 +368,8 @@ function make(holder, mode, app) {
     if (p.type === 'node') {
       // What it points at, one tag a row with how many of its values point at that tag's nodes; × takes a tag out, the last line adds one.
       const at = m.pointed.get(p.ident) || new Map();
-      h += `<h3>Points at</h3>` + p.range.map(id => `<div class="st-ln rng"><span></span><span class="w">${tagLink(id)}<span class="x" data-unrange="${id}" title="Take ${esc(name(id))} out of what ${esc(p.title)} points at">×</span></span><span class="ct">${at.get(id) ? plural(at.get(id), 'value') : ''}</span></div>`).join('') +
-        `<div class="st-ln add"><span></span><span class="w"><span class="act" data-addrange="${key}">${p.range.length ? 'another tag…' : 'a tag…'}</span></span><span class="ct">${[...at].filter(([id]) => !p.range.includes(id) && m.tags.has(id)).length ? `<span class="f">also found: ${[...at].filter(([id]) => !p.range.includes(id) && m.tags.has(id)).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([id, n]) => `${esc(name(id))} ${n}`).join(', ')}</span>` : ''}</span></div>`;
+      h += `<h3>Points at</h3>` + p.range.map(id => `<div class="st-ln rng"><span></span><span class="w">${tagLink(id)}<span class="x lk-x" data-unrange="${id}" title="Take ${esc(name(id))} out of what ${esc(p.title)} points at">×</span></span><span class="ct">${at.get(id) ? plural(at.get(id), 'value') : ''}</span></div>`).join('') +
+        `<div class="st-ln add"><span></span><span class="w"><span class="act lk-add" data-addrange="${key}">${p.range.length ? 'another tag…' : 'a tag…'}</span></span><span class="ct">${[...at].filter(([id]) => !p.range.includes(id) && m.tags.has(id)).length ? `<span class="f">also found: ${[...at].filter(([id]) => !p.range.includes(id) && m.tags.has(id)).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([id, n]) => `${esc(name(id))} ${n}`).join(', ')}</span>` : ''}</span></div>`;
     }
     const kids = Mo.kids(m, tagId);
     if (kids.length) h += `<h3>Filled, by tag beneath</h3>` + [{ id: tagId, own: true }, ...kids.map(id => ({ id }))].map(({ id, own: o }) => { const c = o ? t.nodes.size : Mo.count(m, id); const fl = o ? Mo.filledOwn(m, tagId, pid) : Mo.filled(m, id, pid); const fx = o ? { cls: '', word: '', ask: '' } : lineFix(tagId, pid, id); return c || !o ? `<div class="st-ln ${fx.cls}"><span></span><span class="w">${tagLink(id)}${o ? '<span class="to">the tag itself</span>' : ''}</span><span class="ct">${fl} of ${c}</span>${fx.word}</div>${fx.ask}` : ''; }).join('');
@@ -413,18 +389,18 @@ function make(holder, mode, app) {
     const s = st.sort, onName = g => name(g.tag);
     rows.sort((a, b) => s === 'name' ? a.p.title.localeCompare(b.p.title) : s === 'on' ? onName(a).localeCompare(onName(b)) || a.p.title.localeCompare(b.p.title) : s === 'to' ? name(b.p.range[0] ?? '').localeCompare(name(a.p.range[0] ?? '')) : a.pct - b.pct || a.p.title.localeCompare(b.p.title));
     let h = `<div class="st-card">${trailHtml()}${titleHtml('', 'Every property', [], '')}<div class="sum"><span>${plural(m.props.size, 'property').replace('propertys', 'properties')} on ${new Set(rows.flatMap(g => g.on.map(x => x.tag))).size} tags</span></div><div class="st-tbl">`;
-    h += `<div class="hd"><span></span>${['name', 'on', 'to', 'filled'].map(c => `<span class="${s === c ? 'on' : ''}" data-sort="${c}">${{ name: 'Name', on: 'On', to: 'Points at', filled: 'Filled' }[c]}</span>`).join('')}</div>`;
+    h += `<div class="hd"><span></span>${['name', 'on', 'to', 'filled'].map(c => `<span class="lk-head ${s === c ? 'on' : ''}" data-sort="${c}">${{ name: 'Name', on: 'On', to: 'Points at', filled: 'Filled' }[c]}</span>`).join('')}</div>`;
     h += few('table', rows).map(r => `<div class="tr ${r.pct < .2 ? 'low' : ''} ${waitProp(r.prop)}" data-prop="${r.tag}·${r.prop}">${pi(r.p)}<span><span class="k lk ${waitProp(r.prop) ? 'lk-pencil' : ''}">${esc(r.p.title)}</span></span><span class="on">${ranges(r.on.map(x => x.tag))}</span><span class="on">${r.p.type === 'node' ? (r.p.range.length ? ranges(r.p.range) : '<span class="f">any node</span>') : `<span class="f">${Mo.kindWord(r.p.choice ? 'choice' : r.p.type)}</span>`}</span><span class="ct">${r.filled} of ${r.of}</span></div>`).join('');
     const loose = [...m.props.values()].filter(p => !p.on.length);
     h += moreOf('table', rows);
-    if (loose.length) h += `</div><h3>On no tag</h3><div class="st-tbl">` + few('loose', loose).map(p => `<div class="tr"><span class="st-pi">${ICONS[Mo.propKind(p)]}</span><span>${esc(p.title)}</span><span class="on f">—</span><span class="on">${p.range.length ? p.range.map(tagLink).join(', ') : `<span class="f">${Mo.kindWord(p.choice ? 'choice' : p.type)}</span>`}</span><span class="ct">${m.holders.get(p.ident)?.size || 0} nodes</span></div>`).join('');
+    if (loose.length) h += `</div><h3>On no tag</h3><div class="st-tbl">` + few('loose', loose).map(p => `<div class="tr">${pi(p)}<span>${esc(p.title)}</span><span class="on f">—</span><span class="on">${p.range.length ? p.range.map(tagLink).join(', ') : `<span class="f">${Mo.kindWord(p.choice ? 'choice' : p.type)}</span>`}</span><span class="ct">${m.holders.get(p.ident)?.size || 0} nodes</span></div>`).join('');
     return h + `</div></div>`;
   }
   // ---------- health ----------
   // A long list: a few, then "show all", as a tag's nodes.
   const FEW = 20;
   const few = (key, list) => st.whole.has(key) ? list : list.slice(0, FEW);
-  const moreOf = (key, list) => !st.whole.has(key) && list.length > FEW ? `<div class="more" data-all="${esc(key)}">show all ${list.length}</div>` : '';
+  const moreOf = (key, list) => !st.whole.has(key) && list.length > FEW ? `<div class="more lk-more" data-all="${esc(key)}">show all ${list.length}</div>` : '';
   function healthHtml() {
     const all = ISS(), by = new Map();
     for (const i of all) by.set(i.rule, [...(by.get(i.rule) || []), i]);
@@ -439,10 +415,10 @@ function make(holder, mode, app) {
     const list = n.all ? n.list : n.list.slice(0, 20);
     let h = `<div class="st-card st-nodes lk-list" ${n.ticks.size ? 'data-picking' : ''}>${trailHtml()}${titleHtml('', `${plural(n.list.length, 'node')} of ${esc(t.title)}`, [...Mo.pathOf(M(), n.tag)].reverse(), '')}`;
     h += `<div class="sum"><span>a name opens the node (Shift: in the sidebar); a tick picks</span></div>`;
-    if (n.ticks.size) h += `<div class="st-pick"><b>${n.ticks.size} ticked</b><span class="act" data-do="nmove" data-on="${n.tag}">move to another tag…</span><span class="act" data-do="nsplit" data-on="${n.tag}">new tag under ${esc(t.title)} with them…</span><span class="esc">Esc clears</span></div>`;
+    if (n.ticks.size) h += `<div class="st-pick lk-bar"><b class="lk-said">${n.ticks.size} ticked</b><span class="act lk-btn" data-do="nmove" data-on="${n.tag}">move to another tag…</span><span class="act lk-btn" data-do="nsplit" data-on="${n.tag}">new tag under ${esc(t.title)} with them…</span><span class="esc lk-hint">Esc clears</span></div>`;
     h += cardPrompt();
     h += list.map((x, i) => `<div class="st-ln ${i === n.cur ? 'cur' : ''}" data-node="${i}"><span class="lk-day">${day(x.created)}</span><input type="checkbox" class="lk-tick" data-ntick="${i}" ${n.ticks.has(x.uuid) ? 'checked' : ''}><span class="st-bul"><i></i></span><span class="w"><span class="lk-node lk" data-uuid="${esc(x.uuid)}" data-open="${esc(x.uuid)}">${esc(x.title.slice(0, 120) || '…')}</span></span></div>`).join('');
-    if (!n.all && n.list.length > 20) h += `<div class="more" data-more>show all ${n.list.length}</div>`;
+    if (!n.all && n.list.length > 20) h += `<div class="more lk-more" data-more>show all ${n.list.length}</div>`;
     return h + `</div>`;
   }
 
@@ -451,12 +427,12 @@ function make(holder, mode, app) {
     const tr = app.tray;
     if (st.busy) return `<div class="busy">${esc(st.busy)}</div>`;
     // The last Apply's arrow stays until a new Apply takes its place, whatever is staged or discarded in between.
-    const done = tr.done ? `<div class="st-done">${esc(tr.done.text)} <span class="lk-undo" title="Undo" data-undo>↶</span></div>` : '';
+    const done = tr.done ? `<div class="st-done">${esc(tr.done.text)} <span class="lk-undo" title="Undo" data-undo>${Door.UNDO}</span></div>` : '';
     if (!tr.changes.length) return (tr.note ? `<div class="note">${esc(tr.note)}</div>` : '') + done;
     const lines = tr.lines(), n = tr.nodes();
     return `<div class="tl"><span class="q" style="color:var(--st-faint)">${plural(lines.length, 'change')} waiting</span>` +
       lines.map((c, i) => `<span>${esc(c.text)}<i>${c.nodes ? plural(c.nodes, 'node') : ''}</i><u data-drop="${i}" title="Take this one out">×</u></span>`).join('') +
-      `</div><div class="do"><span class="go" data-apply>Apply · one Undo for ${plural(n, 'node')}<span class="ky">⌘ Enter</span></span><span data-discard>Discard<span class="ky">⌘ Delete</span></span></div>` + done;
+      `</div><div class="do"><span class="go lk-accent" data-apply>Apply · one Undo for ${plural(n, 'node')}<span class="ky">⌘ Enter</span></span><span class="lk-btn" data-discard>Discard<span class="ky">⌘ Delete</span></span></div>` + done;
   }
 
   // ---------- the move prompt ----------
@@ -491,23 +467,23 @@ function make(holder, mode, app) {
   // ---------- the menu: the same words the card has ----------
   function menuHtml() {
     const mn = st.menu, m = M(), ticked = st.ticks.size;
-    const it = (t, act, off, k) => `<div class="${off ? 'off' : ''}" data-act="${act}">${esc(t)}${k ? `<span class="rt">${k}</span>` : ''}</div>`;
-    let h = `<div class="st-menu" style="left:${mn.x}px;top:${mn.y}px">`;
+    const it = (t, act, off, k) => `<div class="lk-item ${off ? 'off' : ''}" data-act="${act}">${esc(t)}${k ? `<span class="rt lk-note">${k}</span>` : ''}</div>`;
+    let h = `<div class="st-menu lk-menu" style="left:${mn.x}px;top:${mn.y}px">`;
     if (mn.kind === 'row') {
       const t = T(mn.on), isKind = !t || t.kind, loose = mn.on === LOOSE;
       const n = Mo.count(m, mn.on), nodesOf = ids => plural(ids.reduce((s, x) => s + Mo.count(m, x), 0), 'node');
-      h += it('Open everything under', 'openall', false, 'Shift →') + (mode === 'side' ? it('Open the map here', 'main', false, 'Enter') : it(st.ticks.has(mn.on) ? 'Untick' : 'Tick', 'tick', isKind || loose, 'space')) + '<div class="gap"></div>' +
-        it('Rename', 'rename', loose || !t || t.missing) + it(loose ? 'New tag here' : 'New tag inside', 'new') + it('Add a property…', 'addprop', isKind || loose) + it('Add a property to all beneath…', 'addpropall', loose, Mo.kids(m, mn.on).length ? nodesOf(Mo.kids(m, mn.on)) : '') + '<div class="gap"></div>' +
+      h += it('Open everything under', 'openall', false, 'Shift →') + (mode === 'side' ? it('Open the map here', 'main', false, 'Enter') : it(st.ticks.has(mn.on) ? 'Untick' : 'Tick', 'tick', isKind || loose, 'space')) + '<div class="gap lk-item"></div>' +
+        it('Rename', 'rename', loose || !t || t.missing) + it(loose ? 'New tag here' : 'New tag inside', 'new') + it('Add a property…', 'addprop', isKind || loose) + it('Add a property to all beneath…', 'addpropall', loose, Mo.kids(m, mn.on).length ? nodesOf(Mo.kids(m, mn.on)) : '') + '<div class="gap lk-item"></div>' +
         it('Move under…', 'move', isKind || loose, n ? plural(n, 'node') : '') +
-        it(ticked > 1 ? `Merge the ${ticked} ticked into this` : 'Merge the ticked into this', 'merge', isKind || loose || ticked < 1 || (ticked === 1 && st.ticks.has(mn.on)), ticked && !st.ticks.has(mn.on) ? nodesOf([...st.ticks]) : '') + '<div class="gap"></div>' +
+        it(ticked > 1 ? `Merge the ${ticked} ticked into this` : 'Merge the ticked into this', 'merge', isKind || loose || ticked < 1 || (ticked === 1 && st.ticks.has(mn.on)), ticked && !st.ticks.has(mn.on) ? nodesOf([...st.ticks]) : '') + '<div class="gap lk-item"></div>' +
         it('Remove', 'remove', isKind || loose || n > 0 || Mo.kids(m, mn.on).length > 0, n ? plural(n, 'node') : '');
     } else {
       const [tagId, pid] = mn.on.split('·').map(Number), t = T(tagId), p = P(pid), parent = Mo.parentOf(m, tagId);
       const declared = !!t?.props.includes(pid);
       const f = t ? plural(Mo.filled(m, tagId, pid), 'value') : '';
-      h += it('Rename', 'prename') + (p?.type === 'node' ? it('Points at another tag too…', 'prange') : '') + '<div class="gap"></div>' +
+      h += it('Rename', 'prename') + (p?.type === 'node' ? it('Points at another tag too…', 'prange') : '') + '<div class="gap lk-item"></div>' +
         it('Move to…', 'pmove', !declared, f) + it(parent != null ? `Pull up to ${name(parent)}` : 'Pull up to the parent', 'pullup', !declared || parent == null, f) +
-        (p && (p.choice || p.type === 'node') ? it('Split by its values…', 'split', !t.nodes.size, plural(t.nodes.size, 'node')) : '') + '<div class="gap"></div>' + it('Drop', 'pdrop', !declared, f);
+        (p && (p.choice || p.type === 'node') ? it('Split by its values…', 'split', !t.nodes.size, plural(t.nodes.size, 'node')) : '') + '<div class="gap lk-item"></div>' + it('Drop', 'pdrop', !declared, f);
     }
     return h + `</div>`;
   }
@@ -791,5 +767,5 @@ function make(holder, mode, app) {
   return view;
 }
 
-S.view = { make, ensureStyle, CSS, MARKS, ICONS };
+S.view = { make, ensureStyle, CSS };
 })();

@@ -27,8 +27,8 @@ ${AREA} ${VALUE} a.page-ref${DAY}:hover, ${AREA} ${VALUE} .ls-datetime a:hover {
 const tags = `
 ${AREA} .block-tag :is(a.hash-symbol, a[title="Remove this tag"]) { display: inline-flex !important; align-items: center; justify-content: center; width: 1.1em; margin: 0 !important; padding: 0 !important; }
 ${AREA} .block-tag a.hash-symbol { visibility: hidden; }
-${AREA} a.tag:not(mark *), .lk-tag { color: inherit !important; opacity: .7; font-family: var(--lk-mono); font-size: .85em; text-decoration: none !important; }
-${AREA} a.tag:not(mark *):hover, .lk-tag:hover { opacity: 1; }
+${AREA} a.tag:not(mark *) { color: inherit !important; opacity: .7; font-family: var(--lk-mono); font-size: .85em; text-decoration: none !important; }
+${AREA} a.tag:not(mark *):hover { opacity: 1; }
 ${AREA} .block-tag:hover { background: var(--lk-wash) !important; }`;
 /* The greys are mixed from currentColor, so they are set once per box and inherited, never on every descendant. The
    value keeps the text colour; the name, one level in, is a shade lighter. */
@@ -64,63 +64,14 @@ ${AREA} .ls-new-property button { background: none !important; box-shadow: none 
 ${AREA} .ls-new-property button:hover { color: inherit !important; }`;
 const pencil = `
 ${AREA} .ls-block .bottom-property-edit-icon { display: none !important; }`;
-/* The shared names: one per word of the grammar. Another plugin (Threads, Predictive) puts these on what it draws and
-   carries no look of its own for them; Look's word is final (hence !important where the other plugin still has a rule).
-   lk-row: a row; lk-fold: its fold arrow, only under the pointer; lk-list: a list that can be picked from; lk-tick: a
-   tick box, appearing when the pointer is on the list; lk-node: a node's name (with data-uuid: Look adds its sort mark);
-   lk-tag: a tag; lk-prop: a property's name; lk-day: a day in the margin; lk-count: a number of things, never shown;
-   lk-pencil: a pencilled value; lk-undo: the faded arrow.
-   The Pressing set (buttons-mockup.html beside the plugins, 30 October 2026), for the controls of a bar or a window:
-   lk-name: the small faint name above a value; lk-value: the value, the thing pressed, in the text colour, quiet under
-   the pointer, faint when off (.off) or unwritten; lk-pick: a value that unfolds, a hairline standing before it (its
-   chevron is the other plugin's markup, coloured faint here); lk-alts: what a value can become, faint words with the
-   one in force (.on) in the text colour; lk-accent: the one action, a little heavier, its key faint; lk-close: the ×.
-   The other plugin lays them out (a name over a value, the gaps); Look only gives them their colours and weights. */
-const shared = `
-.lk-tag { color: inherit !important; opacity: .7; font-family: var(--lk-mono) !important; font-size: .85em !important; text-decoration: none !important; }
-.lk-tag:hover { opacity: 1; }
-.lk-node { color: inherit; text-decoration: underline !important; text-decoration-color: var(--lk-line) !important; text-decoration-thickness: 1px; text-underline-offset: 3px; cursor: pointer; }
-.lk-node:hover { text-decoration-color: currentColor !important; }
-.lk-prop { color: var(--lk-quiet); }
-.lk-day { color: var(--lk-faint) !important; font-size: 13px !important; font-variant-numeric: tabular-nums; }
-.lk-count { display: none !important; }
-.lk-pencil { font-style: italic !important; color: var(--lk-faint) !important; text-decoration: underline dotted !important; text-decoration-color: var(--lk-line) !important; text-underline-offset: 3px; background: none !important; }
-/* A pencilled tag fades once: the pencil's grey, not the tag's own fade on top of it. */
-.lk-pencil .lk-tag, .lk-tag.lk-pencil { opacity: 1; }
-.lk-undo { opacity: .28 !important; transition: opacity .15s; }
-.lk-undo:hover, .lk-undo:focus-visible { opacity: .85 !important; }
-.lk-row .lk-fold { opacity: 0 !important; transition: opacity .12s; }
-.lk-row:hover .lk-fold, .lk-fold[aria-expanded="true"], .lk-fold:focus-visible { opacity: .6 !important; }
-.lk-row:hover .lk-fold:hover { opacity: 1 !important; }
-.lk-list .lk-tick { opacity: 0 !important; transition: opacity .12s; }
-.lk-list:hover .lk-tick, .lk-list:focus-within .lk-tick, .lk-list[data-picking] .lk-tick { opacity: .55 !important; }
-.lk-list .lk-tick:checked, .lk-list .lk-tick:hover { opacity: 1 !important; }
-.lk-name { font-size: 11px !important; color: var(--lk-faint) !important; letter-spacing: .02em; font-weight: 400 !important; }
-.lk-value:not(input) { color: inherit !important; cursor: pointer; }
-.lk-value:not(input):hover { color: var(--lk-quiet) !important; }
-.lk-value.off, input.lk-value::placeholder { color: var(--lk-faint) !important; }
-.lk-pick:not(:first-child) { border-left: 1px solid var(--lk-hair); }
-.lk-pick .lk-value svg { color: var(--lk-faint); }
-/* The faint goes on each alternative, not on the line, so the one in force can take the text colour back. */
-.lk-alts { color: inherit !important; }
-.lk-alts > * { color: var(--lk-faint) !important; }
-.lk-alts > *:hover, .lk-alts > .on { color: inherit !important; }
-.lk-accent { font-weight: 600 !important; color: inherit !important; }
-.lk-accent kbd { font-weight: 400 !important; color: var(--lk-faint) !important; }
-.lk-close { color: var(--lk-faint) !important; }
-.lk-close:hover, .lk-close:focus-visible { color: inherit !important; }
-@media (prefers-reduced-motion: reduce) { .lk-fold, .lk-tick, .lk-undo { transition: none; } }`;
-
 function apply() {
-  style('tokens', Look.kit.TOKENS);
-  style('shared', shared);
   style('links', setting('quietLinks') ? links : '');
   style('days', setting('quietDays') ? days : '');
   style('tags', setting('tagsAsClasses') ? tags : '');
   style('names', setting('quietNames') ? names : '');
   style('capsules', setting('noCapsules') ? capsules : '');
   style('title-words', setting('hideTitleWords') ? titleWords : '');
-  style('empty', setting('quietEmptyProps') ? emptyProps : '');
+  style('empty', emptyProps);
   style('pencil', setting('hideDatePencil') ? pencil : '');
   style('add-property', setting('quietAddProperty') ? addProperty : '');
 }

@@ -34,7 +34,8 @@ window.PluginDoor.describe('threads', {
       item('twoWayMentionsHidden', { list: { hint: 'add a page' } }),
       { type: 'heading', title: 'Troubleshooting' },
       item('foundationOnly'),
-      { type: 'action', key: 'troubleshoot', title: 'Open troubleshooting', run: () => window.refinementCore.provided.openTroubleshooting?.() },
+      // Only while Threads runs: there is nothing to open otherwise.
+      ...(window.refinementCore?.provided?.openTroubleshooting ? [{ type: 'action', key: 'troubleshoot', title: 'Open troubleshooting', run: () => window.refinementCore.provided.openTroubleshooting() }] : []),
     ];
   },
   specimen,

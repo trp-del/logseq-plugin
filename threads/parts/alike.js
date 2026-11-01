@@ -128,5 +128,5 @@ function vote(near, ident, { nearLeast = limits.nearLeast, lead = limits.lead, l
 }
 
 function provide(core) { core.provide({ alike: { tokensOf, buildIndex, updateEntry, neighbours, vote, stem, wordsOf, limits } }); }
-(window.refinementParts ||= []).push({ name: 'alike', schema: [], provide, start() {}, stop: runUnloadTasks });
+(window.refinementParts ||= []).push({ name: 'alike', says: 'what the + line proposes', schema: [], provide, start() {}, stop: runUnloadTasks });
 })();

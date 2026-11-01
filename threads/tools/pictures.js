@@ -28,10 +28,10 @@ async function scenes(page) {
   const read = file => fs.readFileSync(path.join(root, file), 'utf8');
   return {
     'two-way-rows': {
-      scripts: [`window.parent = window; window.logseq = { settings: {}, DB: {}, UI: {}, App: {}, Editor: {} };`, read('parts/shared.js'),
+      scripts: [`window.parent = window; window.logseq = { settings: {}, DB: {}, UI: {}, App: {}, Editor: {} };`, read('../plugin.js'), read('parts/shared.js'),
         exposeAtEnd(read('parts/two-way.js'), ['rowHtml', 'twoWayCss', 'state'], 'parts/two-way.js')],
       draw: async groups => {
-        const style = document.createElement('style'); style.textContent = window.refinementShared.kitCss + window.__twoWayCss; document.head.append(style);
+        const style = document.createElement('style'); style.textContent = window.PluginDoor.NAMES + window.refinementShared.kitCss + window.__twoWayCss; document.head.append(style);
         window.__state.pageUuid = 'page-mei-chen';
         const box = document.createElement('div');
         box.className = 'refinement-two-way';
@@ -42,10 +42,10 @@ async function scenes(page) {
     },
     // The same rows with the days' column off (twoWayDays): the rows move left into its place.
     'two-way-rows-no-days': {
-      scripts: [`window.parent = window; window.logseq = { settings: {}, DB: {}, UI: {}, App: {}, Editor: {} };`, read('parts/shared.js'),
+      scripts: [`window.parent = window; window.logseq = { settings: {}, DB: {}, UI: {}, App: {}, Editor: {} };`, read('../plugin.js'), read('parts/shared.js'),
         exposeAtEnd(read('parts/two-way.js'), ['rowHtml', 'twoWayCss', 'noDaysCss', 'state'], 'parts/two-way.js')],
       draw: async groups => {
-        const style = document.createElement('style'); style.textContent = window.refinementShared.kitCss + window.__twoWayCss + window.__noDaysCss; document.head.append(style);
+        const style = document.createElement('style'); style.textContent = window.PluginDoor.NAMES + window.refinementShared.kitCss + window.__twoWayCss + window.__noDaysCss; document.head.append(style);
         window.__state.pageUuid = 'page-mei-chen';
         const box = document.createElement('div');
         box.className = 'refinement-two-way';
@@ -56,10 +56,10 @@ async function scenes(page) {
     },
     // The troubleshooting tools as the kit's list pop-up (0.4.316), over a page full of words, so a see-through box shows.
     'dialog': {
-      scripts: [`window.parent = window; window.logseq = { settings: {}, DB: {}, UI: {}, App: {}, Editor: {} };`, read('parts/shared.js')],
+      scripts: [`window.parent = window; window.logseq = { settings: {}, DB: {}, UI: {}, App: {}, Editor: {} };`, read('../plugin.js'), read('parts/shared.js')],
       draw: async () => {
         const shared = window.refinementShared;
-        const style = document.createElement('style'); style.textContent = shared.kitCss; document.head.append(style);
+        const style = document.createElement('style'); style.textContent = window.PluginDoor.NAMES + shared.kitCss; document.head.append(style);
         const stage = document.getElementById('stage');
         stage.style.height = '560px';
         stage.textContent = 'Linked references, Chemo cycle 7, Date: Dec 2nd, 2026, drugs: Oxaliplatin, Leucovorin. '.repeat(40);
