@@ -66,6 +66,7 @@ async function main() {
   Flow.app.context().catch(() => {});   // the first reading starts at once and is never waited for while typing
   await Flow.linkUi.start();
   Flow.tagPick.start();   // before the proposals: its keys are looked at first
+  Flow.cite.start();
   Flow.proposeUi.start();
   Flow.steps.start();
 }

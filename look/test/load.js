@@ -19,9 +19,10 @@ const { U, load, pencilled } = standIn;
   // pure pieces
   assert.equal(Look.folded.dueLabel(20261119, new Date(2026, 10, 1)), 'due Nov 19');
   assert.equal(Look.folded.dueLabel(20261012, new Date(2026, 10, 1)), 'was due Oct 12');
-  assert.equal(JSON.stringify(Look.folded.wordsFor({ task: 2, files: [['pdf', 1]], quotes: 0, tags: ['Consultation'], due: 0 })), JSON.stringify(['2 unfinished tasks under it', '1 PDF', 'Consultation']));
+  assert.equal(JSON.stringify(Look.folded.wordsFor({ task: 2, files: [['pdf', 1]], quotes: 0, links: 3, tags: ['Consultation'], due: 0 })), JSON.stringify(['2 unfinished tasks under it', '1 PDF', '3 links', 'Consultation']));
   // styles sent
-  for (const key of ['look-links', 'look-days', 'look-tags', 'look-capsules', 'look-marks', 'look-props', 'look-title', 'look-folded']) assert.ok(styles[key] && !styles[key].includes('no rules'), key + ' sent');
+  for (const key of ['look-links', 'look-days', 'look-tags', 'look-capsules', 'look-marks', 'look-props', 'look-title', 'look-folded', 'look-quote-bullets']) assert.ok(styles[key] && !styles[key].includes('no rules'), key + ' sent');
+  assert.ok(styles['look-quote-bullets'].includes('[data-type="annotation"]') && styles['look-quote-bullets'].includes('.hl-page'), 'a highlight and a bullet that only cites one carry the quotation mark');
   assert.ok(styles['look-tags'].includes('--lk-mono') && !styles['look-tags'].includes('uppercase'), 'tags in mono, as written');
   // a day in a property's value keeps the value's colour; the quiet grey stays for a day in the words
   assert.ok(/\.property-value-container, \.bottom-property-pill\)[^{]*a\.page-ref[^{]*\{ color: inherit !important; \}/.test(styles['look-days']), 'a day in a value keeps the value’s colour');
@@ -84,9 +85,10 @@ const { U, load, pencilled } = standIn;
   for (const tag of note.querySelectorAll('a.lk-tag')) assert.ok(tag.previousElementSibling?.classList.contains('lk-sep') && tag.previousElementSibling.textContent === '·', `a dot before ${tag.textContent}`);
   assert.ok(/due Nov 19|was due Nov 19/.test(note.textContent) && !/\d+ Consultation|Consultation \d/.test(note.textContent), 'the due day, no count on the tag');
   assert.equal(note.querySelector('.lk-pair').textContent, '1', 'the task count beside the circle');
+  assert.equal(note.querySelector('.ti-link')?.closest('.lk-pair').textContent, '2', 'a link written twice counts once, a web address counts, a tag and a cited highlight do not');
   // the settings window draws from Look's description: a heading per section, the one row for the property icon
   const described = window_described();
-  assert.equal(described.schema.filter(i => i.type === 'heading').length, 5, 'five sections');
+  assert.equal(described.schema.filter(i => i.type === 'heading').length, 6, 'six sections');
   const rowsOf = heading => { const at = described.schema.findIndex(i => i.title === heading); const next = described.schema.findIndex((i, n) => n > at && i.type === 'heading'); return described.schema.slice(at + 1, next).map(i => i.key); };
   assert.equal(rowsOf('Folded nodes').join(), 'foldedNote', 'Folded nodes holds only what a folded node says');
   for (const key of ['propertyIcons', 'propertyNameTips', 'quietAddProperty', 'hideDatePencil']) assert.ok(rowsOf('Properties').includes(key), key + ' under Properties');

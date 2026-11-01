@@ -378,7 +378,7 @@ function rowHtml(group, top = null) {
   const leadText = kinds ? `All<span class="lk-count"> ${total}</span>` : `<span class="lk-count">${total}</span> ${esc(plural(tagWord(whole.items[0]?.tag || 'note'), total))}`;
   const lead = daysOnly ? '' : kinds ? chip('', leadText, ' rf-tw-lead', true)
     : `<a class="rf-tw-toggle rf-tw-lead" data-key="${esc(key)}" href="#" title="Click to ${open ? 'fold' : 'open'} the list.">${leadText}</a>`;
-  const whenHtml = when ? `<a class="rf-tw-toggle rf-tw-when" data-key="${esc(key)}" href="#" title="${WHEN_TIP}. Click to ${open ? 'fold' : 'open'} the list.">${esc(when)}</a>` : '';
+  const whenHtml = when ? `<a class="rf-tw-toggle rf-tw-when" data-key="${esc(key)}" href="#" title="${WHEN_TIP}. Click to ${open ? 'fold' : 'open'} the list.">${esc(when).replace(/ (?=\d)/g, '&nbsp;')}</a>` : '';
   const sep = '<span class="rf-tw-sep" aria-hidden="true">·</span>';
   // Three kinds, then "and 12 more" (the grammar; a click shows them all), the one in force always among them. The days stay.
   const byCount = [...counts].sort((a, b) => b[1] - a[1]);
@@ -502,7 +502,7 @@ function nodeHtml(uuid, key, data, asTop = false) {
     });
   }
   if (onlyFound) return html + O.more({ text: 'show the rest', attrs: { 'data-findall': key } });
-  if (data.guesses.size > 1 && data.props.filter(r => !r.values.length && data.guesses.has(r.prop.ident)).length > 1) html += O.more({ text: 'Take what is proposed', cls: 'lk-lone', attrs: { 'data-takeall': uuid } });
+  if (data.guesses.size > 1 && data.props.filter(r => !r.values.length && data.guesses.has(r.prop.ident)).length > 1) html += O.more({ text: 'Take what is proposed', cls: 'lk-lone lk-i-tick', attrs: { 'data-takeall': uuid } });
   /* The nodes that link to it, after its own properties, under a line saying so: "2 nodes link here"
      (0.4.462, the owner's pick 2 of the two-way fixes: the same property
      name, one line apart, read as the node's own and as what links to it). Under it one step in, a row per property, one
@@ -1263,7 +1263,7 @@ async function showPeek(link) {
   hidePeek();
   // Only what the row does not say (the review, 31 October): its tag and day stand on it, and its name unless the row cut it.
   const fields = data.rows.filter(row => !item.day || row.values.map(v => v.text).join(', ') !== dayText(item.day));
-  const cut = link.scrollWidth > link.clientWidth;
+  const cut = link.scrollHeight > link.clientHeight + 1;
   if (!cut && !fields.length && !data.lines.length) return;
   const card = peek.card = shared.card({ doc, at: link, title: cut ? item.title : '',
     fields: fields.map(row => ({ name: row.name, uuid: row.uuid, values: row.values })),
@@ -1459,6 +1459,7 @@ function draw(doc) {
   // What unrolls does so once: the drawing kept is the one without it, so the next drawing does not replace it.
   const bare = html.replace(/ rf-ol-unroll/g, '');
   box.toggleAttribute('data-finding', !!state.find.trim());
+  box.toggleAttribute('data-no-days', !state.groups.some(group => group.items.some(dayCell)));   // on a day's own page, usually: nothing fills the margin
   // Held before the rows are drawn again, so the page never sees the section shorter for an instant (it pulled the page's
   // scroll up 26 px at a first letter).
   if (state.find.trim()) { if (state.findHold) box.style.minHeight = `${Math.round(state.findHold)}px`; }
@@ -2013,19 +2014,19 @@ function barHtml() {
      like change and remove can go under one menu item and so can property. the sidebar items should be on far right";
      "have select all button"): the count's tick box clears, Select all picks every node shown (found, of the kind in force, in a list that is open), the page's own two
      actions and the two property actions each under one word with a menu, Sidebar last at the right. */
-  const b = (act, text, title, name, cls = '') => `<button type="button" class="lk-btn${cls ? ' ' + cls : ''}" data-act="${act}" title="${esc(title)}">${text}</button>`;
-  const menu = (act, text, title, name) => `<button type="button" class="lk-btn rf-tw-menu" data-act="${act}" title="${esc(title)}" aria-haspopup="menu"><span class="rf-tw-menu-words">${text}</span>${iconHtml('chevron-down')}</button>`;
+  const b = (act, text, title, name, cls = '') => `<button type="button" class="lk-btn lk-i-${name}${cls ? ' ' + cls : ''}" data-act="${act}" title="${esc(title)}">${text}</button>`;
+  const menu = (act, text, title, name) => `<button type="button" class="lk-btn rf-tw-menu${name ? ' lk-i-' + name : ''}" data-act="${act}" title="${esc(title)}" aria-haspopup="menu"><span class="rf-tw-menu-words">${text}</span>${iconHtml('chevron-down')}</button>`;
   // Mentions (0.4.423): the page's own two actions act on a property, so they show only with a node from a property's
   // row picked; a picked mention with no tag is offered to be made a node, the tag its words look like first.
   const chosen = picks(), fromProps = idle || chosen.some(p => !isMentions(p.group)), raisable = raisablePicked();
   const best = raisable.length === 1 ? state.raise.get(raisable[0])?.best : null;
   return `<div class="lk-bar rf-tw-bar"${idle ? ' data-idle="" aria-hidden="true"' : ''}><label class="rf-count lk-said"><input type="checkbox" class="rf-check" checked data-act="clear" title="Clear the picks (Escape)" aria-label="Clear the picks">${n} picked</label>${
-    state.listed.some(key => !state.picked.has(key)) ? b('all', 'Select all', `Pick all ${state.listed.length} shown here`, '') : ''}${
+    state.listed.some(key => !state.picked.has(key)) ? b('all', 'Select all', `Pick all ${state.listed.length} shown here`, 'tick') : ''}${
     fromProps ? menu('page-menu', `“${esc(pageTitle())}”`, `Change “${pageTitle()}” to another page in their property, or take it out`, '') : ''}${
     raisable.length ? menu('raise', best ? `Make it a${/^[aeiou]/i.test(best.tag.title) ? 'n' : ''} ${esc(best.tag.title)}` : 'Make it…', `Give ${raisable.length === 1 ? 'this mention' : `these ${raisable.length} mentions`} a tag, with the property that points at “${pageTitle()}” set`, 'tag') : ''}${
     b('tag', 'Tag', 'Add a tag', 'tag')}${b('copy', 'Copy', 'Copy them as references', 'copy')}${
-    menu('prop-menu', 'Property', 'Give them all one value, or clear one', 'property')}${b('delete', 'Delete', 'Delete them', 'delete')}${
-    b('sidebar', 'Sidebar', 'Open them in the right sidebar', 'sidebar', 'rf-tw-to-side')}</div>`;
+    menu('prop-menu', 'Property', 'Give them all one value, or clear one', 'eq')}${b('delete', 'Delete', 'Delete them', 'bin')}${
+    b('sidebar', 'Sidebar', 'Open them in the right sidebar', 'side', 'rf-tw-to-side')}</div>`;
 }
 // The page's own name, for the bar's "Change “Dr. Mei Chen” to…" (0.4.233, the owner: "make it clear"), read once per page.
 const named = { uuid: '', title: '' };
@@ -2436,6 +2437,7 @@ const twoWayCss = `
 .refinement-two-way .rf-tw-bar > * { flex: none; }
 .refinement-two-way .rf-tw-bar .rf-tw-to-side { margin-left: auto; }
 .refinement-two-way .rf-tw-bar > .lk-btn { display: inline-flex; align-items: center; gap: 5px; }
+.refinement-two-way .rf-tw-bar > .lk-btn::before { margin-right: 0; }
 .refinement-two-way .rf-tw-bar > .lk-btn > .ti { font-size: 15px; }
 .refinement-two-way .rf-tw-bar > .lk-btn > .rf-drawn { width: 15px; justify-content: center; }
 .refinement-two-way .rf-tw-bar > .rf-tw-menu { gap: 3px; min-width: 0; }
@@ -2466,6 +2468,8 @@ const twoWayCss = `
 .refinement-two-way .rf-tw-head .rf-tw-sep { position: absolute; right: 100%; margin-right: .42rem; color: var(--rf-faint); font-weight: 400; }
 .refinement-two-way .rf-tw-head .lk-more { padding: 0; font-weight: 400; }
 .refinement-two-way .rf-tw-head .rf-tw-piece { position: relative; display: inline-flex; align-items: baseline; white-space: nowrap; }
+/* The days' words wrap as words do where the kinds' room is shorter than they are, never cut through a letter. */
+.refinement-two-way .rf-tw-head .rf-tw-piece:has(> .rf-tw-when) { white-space: normal; min-width: 0; }
 .refinement-two-way .rf-ol-kids.rf-ol-from-in { --rf-ol-cx: 8px; }
 /* A list's days hang in the margin left of the outline (the owner, 2026-10-27: "dates … should not be in the way"): a
    node's chevron sits under its heading's words, one step in, and its day ends 4px short of the heading's chevron; under
@@ -2473,6 +2477,9 @@ const twoWayCss = `
 /* The margin is the section's: room for a tick box and a day before the outline's edge, on every row, so a day never
    reaches the property names; a row with no heading has its chevron on the edge. */
 .refinement-two-way .rf-tw-value { padding-left: calc(var(--rf-tw-in) + var(--rf-ol-day) + 12px); }
+/* With no day on any line of the section (a day's own page leaves its own date out) the margin gives its room back to the words. */
+.refinement-two-way[data-no-days] .rf-tw-value.rf-ol { --rf-ol-day: 0px; }
+.refinement-two-way[data-no-days] .rf-tw-value.rf-ol .rf-ol-kids:not(.rf-tw-list) { --rf-ol-day: 48px; }
 /* A heading's chevron is never over its nodes' chevrons (the owner, 2026-10-27: "the heading chevron cannot be over other
    chevrons"): everything a list holds steps in one step, dated or not, and a group's nodes once more under the group;
    a day stays in the margin left of its node's chevron. */
@@ -2497,8 +2504,11 @@ const twoWayCss = `
 .refinement-two-way .rf-tw-head > .rf-ol-body > .rf-tw-add, .refinement-two-way .rf-tw-head > .rf-ol-body > .rf-tw-groupby { margin-left: 0; flex: none; }
 /* A name is one line, cut at the width the row leaves; its tag and what follows keep theirs. */
 .refinement-two-way .rf-ol-body:has(> .rf-tw-record) { display: flex; align-items: baseline; }
-.refinement-two-way .rf-ol-body > .rf-tw-record { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.refinement-two-way .rf-ol-body > .rf-tw-record.rf-ol-open, .refinement-two-way[data-finding] .rf-ol-body > .rf-tw-record { white-space: normal; }
+/* A node's words run to two lines, then are cut (the owner, 1 November: a short note reads whole, a long one cannot run away). Opened or found, they read whole. */
+.refinement-two-way .rf-ol-body > .rf-tw-record { min-width: 0; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+/* The mark stays on the first line of a name that wraps (an opened node's), not in the middle of the words. */
+.refinement-two-way .rf-ol-body > .rf-tw-record[data-lk-sort] { background-position: 0 calc(.75em - 4px); }
+.refinement-two-way .rf-ol-body > .rf-tw-record.rf-ol-open, .refinement-two-way[data-finding] .rf-ol-body > .rf-tw-record { display: block; -webkit-line-clamp: none; }
 .refinement-two-way .rf-ol-body > .rf-tw-record ~ * { flex: none; }
 .refinement-two-way .rf-ol-body > .rf-pencil { margin-left: 8px; }
 /* No underline at rest in this section, under the pointer the firm one (the owner, 1 November 2026: long names, each underlined in full, striped it). */

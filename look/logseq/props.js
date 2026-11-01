@@ -23,7 +23,7 @@ function markLines(doc) {
   for (const strip of doc.querySelectorAll('.bottom-properties-pills-strip')) {
     let top = null;
     for (const pill of strip.children) {
-      if (pill.offsetParent === null && top !== null) continue;
+      if (pill.offsetParent === null) { pill.removeAttribute('data-lk-line'); continue; }   // a hidden property sits on no line
       pill.toggleAttribute('data-lk-line', top !== null && pill.offsetTop > top + 4);
       top = pill.offsetTop;
     }

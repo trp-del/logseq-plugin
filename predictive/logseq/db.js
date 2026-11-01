@@ -72,6 +72,9 @@ async function loadPages() {
     :where [?p :block/name _] ${PAGE_RULES}]`);
   return rows.map(([p]) => pageOf(p)).filter(Boolean).sort((a, b) => a.lower.localeCompare(b.lower));
 }
+// The PDFs of the graph, for citing one. A PDF is a node on a page, not a page.
+const loadPdfs = async () => (await dsQuery('[:find ?u ?t :where [?a :logseq.property.asset/type "pdf"] [?a :block/uuid ?u] [?a :block/title ?t] (not [?a :logseq.property/deleted-at _])]'))
+  .map(([uuid, title]) => ({ uuid: String(uuid), title: String(title), lower: String(title).toLowerCase(), pdf: true }));
 // Pages named now (by lower-case name), read fresh: a page made a moment ago counts at once.
 async function pagesNamed(names) {
   if (!names.length) return [];
@@ -231,6 +234,6 @@ const addTag = (uuid, tagUuid) => logseq.Editor.addBlockTag(uuid, tagUuid);
 const removeTag = (uuid, tagUuid) => logseq.Editor.removeBlockTag(uuid, tagUuid);
 const currentGraph = () => Promise.resolve(logseq.App.getCurrentGraph?.()).catch(() => null);
 
-Flow.db = { forget, dsQuery, bare, pick, idOf, valuesOf, loadSchema, loadPages, pagesNamed, pullBlock, bulletOf, readContext, learnNodes,
+Flow.db = { forget, dsQuery, bare, pick, idOf, valuesOf, loadSchema, loadPages, loadPdfs, pagesNamed, pullBlock, bulletOf, readContext, learnNodes,
   currentIds, valueTitle, journalPageFor, setValue, unsetValue, addTag, removeTag, currentGraph };
 })();

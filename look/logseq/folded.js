@@ -1,5 +1,5 @@
 /* What a folded node holds, after its words, small and grey: a circle with the number of unfinished tasks at any depth;
-   then its pictures, quotes, PDFs and other files, each an icon with its number; then the tags of what is inside, the
+   then its pictures, quotes, PDFs, other files and links, each an icon with its number; then the tags of what is inside, the
    most used first, up to three, with no number on them; then the nearest due day of a task, or "was due" once it has
    passed. A ↳ leads it (the owner, 2026-10-29, bringing back the arrow of the original before 0.4.466). Shown only while folded. */
 (function () {
@@ -11,6 +11,8 @@ const css = `
 /* An icon and its number are one pair; a wider gap between pairs than inside one. */
 .lk-folded .lk-pair { display: inline-flex; align-items: baseline; gap: .15em; }
 .lk-folded .lk-pair + .lk-pair { margin-left: .35em; }
+/* A font keeps a quotation mark high in its line, so the drop is measured: the ink's middle on the number's. */
+.lk-folded .lk-quote { display: inline-block; font: 1.4em/1 Georgia, "Times New Roman", serif; height: .7em; transform: translateY(.35em); }
 .lk-folded .lk-sep { color: var(--lk-faint); margin: 0 .1em; }
 .lk-folded a.lk-tag { cursor: pointer; }
 .block-head-wrap > a.asset-ref + .lk-folded { margin-right: auto; align-self: center; flex: none; }
@@ -25,7 +27,7 @@ function dueLabel(day, now = new Date()) {
   return days === 0 ? 'due today' : days < 0 ? 'was due ' + word : 'due ' + word;
 }
 const MOST = 3;
-const shows = held => held && (held.task || held.files?.length || held.quotes || held.tags.length || held.due);
+const shows = held => held && (held.task || held.files?.length || held.quotes || held.links || held.tags.length || held.due);
 const fileCount = (held, kind) => (held.files || []).find(([k]) => k === kind)?.[1] || 0;
 const some = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 function wordsFor(held) {
@@ -35,6 +37,7 @@ function wordsFor(held) {
   if (held.quotes) words.push(some(held.quotes, 'quote', 'quotes'));
   if (fileCount(held, 'pdf')) words.push(some(fileCount(held, 'pdf'), 'PDF', 'PDFs'));
   if (fileCount(held, 'file')) words.push(some(fileCount(held, 'file'), 'file', 'files'));
+  if (held.links) words.push(some(held.links, 'link', 'links'));
   words.push(...held.tags.slice(0, MOST));
   if (held.due) words.push(dueLabel(held.due));
   return words;
@@ -44,9 +47,11 @@ function build(doc, held) {
   const pair = (name, n) => parts.push(el(doc, 'span', { class: 'lk-pair' }, el(doc, 'span', { html: iconHtml(name) }), el(doc, 'span', {}, String(n))));
   if (held.task) pair('circle', held.task);
   if (fileCount(held, 'image')) pair('photo', fileCount(held, 'image'));
-  if (held.quotes) pair('blockquote', held.quotes);
+  // A quote is the same mark as a quote's bullet (style.js), not an icon.
+  if (held.quotes) parts.push(el(doc, 'span', { class: 'lk-pair' }, el(doc, 'span', { class: 'lk-quote' }, '\u201C'), el(doc, 'span', {}, String(held.quotes))));
   if (fileCount(held, 'pdf')) pair('file-type-pdf', fileCount(held, 'pdf'));
   if (fileCount(held, 'file')) pair('file', fileCount(held, 'file'));
+  if (held.links) pair('link', held.links);
   // A dot before each tag (two tags are kept apart by a dot, as at the title row), unless it is the first thing after the ↳.
   held.tags.slice(0, MOST).forEach(title => {
     if (parts.length > 1) parts.push(el(doc, 'span', { class: 'lk-sep', 'aria-hidden': 'true' }, '·'));

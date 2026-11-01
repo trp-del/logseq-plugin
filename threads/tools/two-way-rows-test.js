@@ -335,7 +335,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     check(/couldBeHtml\(item\)\}\$\{tell/.test(source) && !/rf-tw-crumb">[^`]*couldBeHtml/.test(source), 'what a mention could be stands on its own line, so coming late moves nothing');
     check(/\.rf-tw-head \.rf-tw-sep \{ position: absolute; right: 100%/.test(source) && /\.rf-tw-head \.rf-tw-chips \{[^}]*overflow: hidden/.test(source), 'a dot stands in the gap before its piece, clipped at a line\'s start');
     check(/\.rf-tw-head > \.rf-ol-body \{ display: flex; align-items: baseline;/.test(source), 'the head does not wrap the + and Group onto a line of their own');
-    check(/\.rf-ol-body > \.rf-tw-record \{ min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; \}/.test(source), 'a name is cut by the width of its row');
+    check(/\.rf-ol-body > \.rf-tw-record \{ min-width: 0; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; \}/.test(source), 'a name runs to two lines, then is cut');
     check(!/title: item\.title/.test(source.slice(source.indexOf('async function showPeek'))) && !/\bday: item\.day/.test(source.slice(source.indexOf('async function showPeek'))), 'the card leaves out what the row says');
     check(/placePeek\(card\.el, link\)/.test(source), 'the card is placed clear of the rows');
     check(/settle\.stood = true; box\.removeAttribute\('data-rf-waiting'\)/.test(source) && /!settle\.stood && \(!state\.mentionsOf\.has\(page\) \|\| \(!heights\.has\(page\)/.test(source), 'a first visit waits only until the place stands still and the page is read');

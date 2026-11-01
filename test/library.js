@@ -13,6 +13,7 @@ const NAMES = global.window.PluginDoor.NAMES;
 const KINDS = ['lk-strip', 'lk-bar', 'lk-btn', 'lk-answers', 'lk-accent', 'lk-big', 'lk-hint', 'lk-lone', 'lk-add', 'lk-fix', 'lk-x', 'lk-plus', 'lk-more', 'lk-undo', 'lk-close',
   'lk-views', 'lk-view', 'lk-trail', 'lk-step', 'lk-head', 'lk-menu', 'lk-item', 'lk-value', 'lk-pick', 'lk-alts', 'lk-name'];
 for (const kind of KINDS) assert.ok(NAMES.includes('.' + kind), `the library draws ${kind}`);
+assert.ok(NAMES.includes('.lk-enter'), 'the library draws the return sign');
 
 // A piece of a line that makes a button: a <button> in a template, or a word Structure marks as an action.
 const BUTTON = /<button\b[^>]*>|\bcreateElement\('button'\)|\bel\(\s*\w+,\s*'button'|class="[^"]*\bact\b[^"]*"/g;
@@ -34,6 +35,9 @@ for (const file of FILES) {
   }
 }
 if (strays.length) { console.error('Buttons that do not draw from the library:\n  ' + strays.join('\n  ')); process.exit(1); }
+// Every icon a press names is one the library draws.
+const ICONS = global.window.PluginDoor.ICONS;
+for (const file of FILES) for (const [, name] of fs.readFileSync(file, 'utf8').matchAll(/lk-i-([a-z]+)/g)) assert.ok(ICONS[name], `${path.relative(ROOT, file)} names an icon the library lacks: ${name}`);
 // Focus is a wash or a firmer line, never a box round a control (grammar); a key is told in plain words, never a symbol.
 const boxes = [], symbols = [];
 for (const file of FILES) {

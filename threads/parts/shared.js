@@ -764,7 +764,7 @@ function ask({ at, question, note: hint, go: goWord = 'OK', cancel = 'Cancel', f
     const f = fieldOptions ? field(doc, { ...fieldOptions, keys: event => { if (event.key === 'Enter' && !event.isComposing && !(fieldOptions.multiline && event.shiftKey)) { done(); return true; } return fieldOptions.keys?.(event) === true; } }) : null;
     // Only what is there: the browser writes an empty piece out as the word "null" (0.4.326).
     p.body.append(...[el(doc, 'div', { class: 'rf-ask-words' }, question), hint ? note(doc, hint) : null, f,
-      el(doc, 'div', { class: 'rf-btns lk-answers' }, el(doc, 'button', { type: 'button', class: 'lk-btn', click: () => p.close() }, cancel), go(doc, { label: goWord, run: done }))].filter(Boolean));
+      el(doc, 'div', { class: 'rf-btns lk-answers' }, el(doc, 'button', { type: 'button', class: 'lk-btn lk-i-x', click: () => p.close() }, cancel), go(doc, { label: goWord, run: done, cls: 'lk-i-tick lk-enter' }))].filter(Boolean));
     if (f) { f.input.focus({ preventScroll: true }); if (fieldOptions.select && f.input.value) f.input.select(); }
     // Enter takes what is offered: with the keyboard on a button, that button, so on Cancel it cancels. Pressed here, since Logseq takes Enter before the browser would.
     p.el.addEventListener('keydown', event => {

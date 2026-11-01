@@ -27,6 +27,9 @@ const pi = p => `<i class="st-pi" aria-hidden="true">${Door.kindIconHtml(KIND_OF
 const day = ms => ms ? new Date(ms).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '';
 const dayWords = d => d ? day(new Date(Math.floor(d / 10000), Math.floor(d / 100) % 100 - 1, d % 100).getTime()) : '';   // a journal day, 20261023
 
+// The icon of a press: by what it does, and for a fix by its first word.
+const ACT_ICON = { page: 'go', ppage: 'go', rename: 'rename', prename: 'rename', move: 'move', pmove: 'move', new: 'child', addprop: 'plus', addpropall: 'plus', merge: 'merge', remove: 'bin', pullup: 'up', split: 'split', pdrop: 'minus' };
+const fixIcon = word => [[/^(remove|delete)/i, 'bin'], [/^drop/i, 'minus'], [/^(pull|lift)/i, 'up'], [/^(move|place|put)/i, 'move'], [/^merge/i, 'merge'], [/^rename/i, 'rename'], [/^(add|new)/i, 'plus']].find(([re]) => re.test(word))?.[1] || 'tick';
 const CSS = `
 .st { --st-quiet: var(--lk-quiet); --st-faint: var(--lk-faint); --st-hair: var(--lk-hair); --st-line: var(--lk-line); --st-wash: var(--lk-wash);
   --st-ring: color-mix(in srgb, currentColor 11%, transparent); --st-mono: var(--lk-mono);
@@ -39,15 +42,18 @@ const CSS = `
 /* The tray stands on top of the card, where a change is made, above what scrolls, so Apply is always in reach. The card's foot keeps clear of Logseq's help button, which stands over that corner. */
 .st-tray { grid-column: 2; grid-row: 1; border-bottom: 1px solid var(--st-hair); padding: 10px 22px 10px 26px; font-size: 14px; min-width: 0; }
 .st-tray:empty { display: none; }
-.st-tray .st-wait { overflow: visible; } .st-tray .st-wait .lk-btn:first-of-type { margin-left: auto; } .st-tray .st-wait .lk-btn:first-of-type::before { display: none; }
+.st-tray .st-wait { overflow: visible; } .st-tray .st-wait .lk-btn:first-of-type { margin-left: auto; }
 .st-tray .tl { display: grid; gap: 1px; min-width: 0; margin-top: 4px; }
 /* A line of the tray: the sentence, then in a column of its own how many nodes it affects, so the two are never read as one. */
 .st-tray .tl > span { display: grid; grid-template-columns: minmax(0, 1fr) max-content 16px; gap: 0 12px; align-items: baseline; color: var(--lk-text, #222); font-size: 13.5px; }
 .st-tray .tl span i { color: var(--st-quiet); font-style: normal; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .st-tray .tl .lk-x { justify-self: end; padding: 0 2px; }
-.st-tray .st-wait .lk-accent { padding: 3px 8px; }
+.st-tray .st-wait .lk-accent { padding: 2px 6px; margin: 0 -6px; }
 .st-tray .ky { font-weight: 400; color: var(--st-faint); font-size: 12px; margin-left: 6px; }
 /* The yes to what Undo cannot put back whole (the library's), under the lines it answers for. */
+/* A count that opens its nodes: what opens has an underline. */
+.st-card .sum .lk-lone { padding: 0; margin: 0; text-decoration: underline; text-decoration-color: var(--st-line, var(--lk-line)); text-underline-offset: 3px; }
+.st-card .sum .lk-lone:hover { background: none; text-decoration-color: currentColor; }
 /* A question, wherever it opens (the library's): what it asks, what follows from it, the answers; joined by a line from the margin. */
 .st-q { margin: 6px 0 16px; padding-left: 12px; border-left: 2px solid var(--st-hair); max-width: 640px; }
 .st-tray .st-q { margin: 8px 0 2px; max-width: none; }
@@ -258,7 +264,7 @@ function make(holder, mode, app) {
   function treeHtml() {
     const rows = visibleRows();
     promptDrawn = false;
-    const picked = mode === 'page' && st.ticks.size ? `<div class="st-pick lk-bar"><b class="lk-said">${st.ticks.size} ticked</b><span class="act lk-btn" data-do="move" data-on="${esc(st.cur)}">move under…</span><span class="esc lk-hint">Esc clears</span></div>` : '';
+    const picked = mode === 'page' && st.ticks.size ? `<div class="st-pick lk-bar"><b class="lk-said">${st.ticks.size} ticked</b><span class="act lk-btn lk-i-move" data-do="move" data-on="${esc(st.cur)}">move under…</span></div>` : '';
     const n = ISS().length, v = st.view === 'health' ? 'health' : st.view === 'table' ? 'table' : 'tree';
     // Ticks take the place of the three words, so the rows stay where they were; what merges them stands on the card beside it.
     const views = mode === 'side' ? '' : picked || `<div class="st-views lk-views">${[['tree', 'tags'], ['table', 'every property'], ['health', `health${n ? ` · ${n}` : ''}`]].map(([k, w]) => `<span class="lk-view ${v === k ? 'here on' : 'act'}" ${v === k ? '' : `data-show="${k}"`}>${w}</span>`).join('')}</div>`;
@@ -278,7 +284,7 @@ function make(holder, mode, app) {
   // The prompt that belongs to the card (a property's, the nodes'), in place under the words.
   let promptDrawn = false;   // set by the tree: whether the prompt's row is on screen (else the card shows the prompt)
   const cardPrompt = () => st.prompt && st.prompt.owner === mode && !promptDrawn ? promptHtml() : '';
-  const acts = (on, list) => { const l = list.filter(Boolean); return l.length ? `<div class="acts lk-strip">${l.map(([word, a]) => `<span class="act lk-btn" data-do="${a}" data-on="${esc(on)}">${word}</span>`).join('')}</div>` : ''; };
+  const acts = (on, list) => { const l = list.filter(Boolean); return l.length ? `<div class="acts lk-strip">${l.map(([word, a]) => `<span class="act lk-btn lk-i-${ACT_ICON[a]}" data-do="${a}" data-on="${esc(on)}">${word}</span>`).join('')}</div>` : ''; };
 
   // ---------- the card ----------
   // A tag named on a card or in the table: plain words with the faint underline, as the mockup draws it (a run of small mono
@@ -287,7 +293,7 @@ function make(holder, mode, app) {
   // A range of many tags (Topic, on purpose, takes fifteen): the first three, then how many more; the property's card lists them all.
   const ranges = ids => ids.slice(0, 3).map(tagLink).join('<span class="to">·</span>') + (ids.length > 3 ? `<span class="to">and ${ids.length - 3} more</span>` : '');
   // An issue that belongs to a line puts its fix word at the line's right end, after the faint count, with its ask under the line.
-  const lineFix = (tagId, pid, kid) => { const i = R.issueOnLine(ISS(), tagId, pid, kid); return i ? { cls: 'fx', word: `<span class="fix act lk-fix" data-fix="${ISS().indexOf(i)}">${esc(i.fix)}</span>`, ask: askHtml(ISS().indexOf(i)) } : { cls: '', word: '', ask: '' }; };
+  const lineFix = (tagId, pid, kid) => { const i = R.issueOnLine(ISS(), tagId, pid, kid); return i ? { cls: 'fx', word: `<span class="fix act lk-fix lk-i-${fixIcon(i.fix)}" data-fix="${ISS().indexOf(i)}">${esc(i.fix)}</span>`, ask: askHtml(ISS().indexOf(i)) } : { cls: '', word: '', ask: '' }; };
   function propLine(tagId, pid, of, inh) {
     const p = P(pid), f = Mo.filled(M(), tagId, pid), low = of && f / of < .2;
     const editing = st.edit && st.edit.what === 'prename' && st.edit.on === `${tagId}·${pid}`;
@@ -347,11 +353,11 @@ function make(holder, mode, app) {
     : p.tags ? (p.sep === 'and' && p.tags.length === 2 ? p.tags.map(tagLink).join('<span class="to">and</span>') : ranges(p.tags))
     : p.count != null ? `<span class="nm">${esc(p.count)}</span>`
     : `<span class="to ${/^[,:;]/.test(p.words) ? 'pn' : ''}">${esc(p.words)}</span>`).join(' ').replace(/ (<span class="to pn")/g, '$1');
-  const issueLine = (i, lead) => { const n = ISS().indexOf(i); return `<div class="st-ln iss">${lead}<span class="w">${partsHtml(i.parts)}</span><span class="fix act lk-fix" data-fix="${n}">${esc(i.fix)}</span></div>` + askHtml(n); };
+  const issueLine = (i, lead) => { const n = ISS().indexOf(i); return `<div class="st-ln iss">${lead}<span class="w">${partsHtml(i.parts)}</span><span class="fix act lk-fix lk-i-${fixIcon(i.fix)}" data-fix="${n}">${esc(i.fix)}</span></div>` + askHtml(n); };
   const issuesHtml = list => !list.length ? '' : `<h3>Issues</h3>` + list.map(i => issueLine(i, '<span></span>')).join('');
   const askLine = (c, last) => {
     const s = S.changes.sentence(M(), c), two = c.kind === 'merge';
-    const words = last ? `<div class="lk-answers"><span class="act lk-accent" data-stage>stage it</span><span class="act lk-btn" data-leave>leave it</span><span class="ky lk-hint">Enter stages · Esc leaves it</span></div>` : '';
+    const words = last ? `<div class="lk-answers"><span class="act lk-accent lk-i-tick lk-enter" data-stage>stage it</span><span class="act lk-btn lk-i-x" data-leave>leave it</span></div>` : '';
     // Each thing once: what it asks; the merge's columns say which tag goes and how many nodes; what no Undo brings back, under them.
     return `<div class="st-q"><div class="h">${esc(two ? s.ask : s.text)}${s.nodes && !two ? ` · ${plural(s.nodes, 'node')}` : ''}</div>${two ? twoHtml(c.from, c.into) : ''}${two && s.lost.length ? `<div class="l">${s.lost.map(esc).join(' · ')}</div>` : ''}${words}</div>`;
   };
@@ -384,7 +390,7 @@ function make(holder, mode, app) {
   function pointsList(p, key) {
     const m = M(), at = m.pointed.get(p.ident) || new Map();
     return `<h3>Points at</h3>` + p.range.map(id => `<div class="st-ln rng"><span></span><span class="w">${tagLink(id)}<span class="x lk-x" data-unrange="${id}" title="Take ${esc(name(id))} out of what ${esc(p.title)} points at">×</span></span><span class="ct">${at.get(id) ? plural(at.get(id), 'value') : ''}</span></div>`).join('') +
-      `<div class="st-ln add"><span></span><span class="w"><span class="act lk-add" data-addrange="${key}">${p.range.length ? 'another tag…' : 'a tag…'}</span></span><span class="ct">${[...at].filter(([id]) => !p.range.includes(id) && m.tags.has(id)).length ? `<span class="f">also found: ${[...at].filter(([id]) => !p.range.includes(id) && m.tags.has(id)).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([id, n]) => `${esc(name(id))} ${n}`).join(', ')}</span>` : ''}</span></div>`;
+      `<div class="st-ln add"><span></span><span class="w"><span class="act lk-add lk-i-plus" data-addrange="${key}">${p.range.length ? 'another tag…' : 'a tag…'}</span></span><span class="ct">${[...at].filter(([id]) => !p.range.includes(id) && m.tags.has(id)).length ? `<span class="f">also found: ${[...at].filter(([id]) => !p.range.includes(id) && m.tags.has(id)).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([id, n]) => `${esc(name(id))} ${n}`).join(', ')}</span>` : ''}</span></div>`;
   }
   // A property on no tag has a card of its own, keyed 0·property: what it is, how many nodes hold it, and a tag to put it on.
   function cardNoTag(p, key) {
@@ -449,7 +455,7 @@ function make(holder, mode, app) {
     let h = `<div class="st-card st-nodes lk-list" ${n.ticks.size ? 'data-picking' : ''}>${trailHtml()}${titleHtml('', `${plural(n.list.length, 'node')} of ${esc(t.title)}`, [...Mo.pathOf(M(), n.tag)].reverse(), '')}`;
     // Nothing ticked: the bar's room stays empty, so a tick moves no row.
     if (!n.ticks.size) h += `<div class="st-pick"></div>`;
-    else h += `<div class="st-pick lk-bar"><b class="lk-said">${n.ticks.size} ticked</b><span class="act lk-btn" data-do="nmove" data-on="${n.tag}">move to another tag…</span><span class="act lk-btn" data-do="nsplit" data-on="${n.tag}">new tag under ${esc(t.title)} with them…</span><span class="esc lk-hint">Esc clears</span></div>`;
+    else h += `<div class="st-pick lk-bar"><b class="lk-said">${n.ticks.size} ticked</b><span class="act lk-btn lk-i-move" data-do="nmove" data-on="${n.tag}">move to another tag…</span><span class="act lk-btn lk-i-child" data-do="nsplit" data-on="${n.tag}">new tag under ${esc(t.title)} with them…</span></div>`;
     h += cardPrompt();
     h += list.map((x, i) => `<div class="st-ln ${i === n.cur ? 'cur' : ''}" data-node="${i}"><span class="lk-day">${dayWords(x.day)}</span><input type="checkbox" class="lk-tick" data-ntick="${i}" ${n.ticks.has(x.uuid) ? 'checked' : ''}><span class="st-bul"><i></i></span><span class="w"><span class="lk-node lk-bare lk" data-uuid="${esc(x.uuid)}" data-open="${esc(x.uuid)}">${esc(x.title.slice(0, 120) || '…')}</span></span></div>`).join('');
     if (!n.all && n.list.length > 20) h += `<div class="more lk-more" data-more>show all ${n.list.length}</div>`;
@@ -468,7 +474,7 @@ function make(holder, mode, app) {
     // The newest lines, since the newest is what was just done and what Cmd-Z takes; the rest behind "show all".
     const lines = tr.lines().map((c, i) => [c, i]), shown = st.whole.has('tray') ? lines : lines.slice(-FEW_LINES);
     // While the big question is open its blue yes is the one Apply on the screen.
-    const big = st.ask?.apply, words = big ? '' : `<span class="lk-btn" data-discard>Discard<span class="ky">Cmd Delete</span></span><span class="lk-accent" data-apply>Apply<span class="ky">Cmd Enter</span></span>`;
+    const big = st.ask?.apply, words = big ? '' : `<span class="lk-btn lk-i-x" data-discard>Discard<span class="ky">Cmd Delete</span></span><span class="lk-accent lk-i-tick" data-apply>Apply<span class="ky">Cmd Enter</span></span>`;
     return `<div class="st-wait lk-bar"><b class="lk-said">${plural(lines.length, 'change')} waiting</b>${words}</div>` +
       `<div class="tl">${shown.map(([c, i]) => `<span><span>${esc(c.text)}</span><i>${c.nodes ? `affects ${plural(c.nodes, 'node')}` : ''}</i><span class="lk-x" data-drop="${i}" title="Take this one out">×</span></span>`).join('')}</div>` +
       (shown.length < lines.length ? `<div class="more lk-more" data-all="tray">show all ${lines.length}</div>` : '') + (big ? bigHtml() : saying);
@@ -477,7 +483,7 @@ function make(holder, mode, app) {
   // Apply, when Undo cannot put it all back: the library's question for a big change, its yes the one blue button.
   const bigHtml = () => `<div class="st-q st-big"><div class="h">Undo can’t put this back as it was</div>` +
     app.tray.lasting().map(x => `<div class="l">${esc(x.name)} is deleted for good. Undo makes a new tag of that name.</div>`).join('') +
-    `<div class="lk-answers"><span class="lk-big" data-stage>Apply</span><span class="lk-btn" data-leave>Leave it</span><span class="lk-hint">Enter applies · Esc leaves it</span></div></div>`;
+    `<div class="lk-answers"><span class="lk-big" data-stage>Apply</span><span class="lk-btn lk-i-x" data-leave>Leave it</span></div></div>`;
   const pressApply = () => { if (st.ask?.apply) return; if (app.tray.lasting().length) { st.ask = { apply: true, owner: mode }; st.menu = null; return redraw(); } app.apply(); };
 
   // ---------- the move prompt ----------

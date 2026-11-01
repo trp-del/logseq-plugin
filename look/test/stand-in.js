@@ -31,6 +31,9 @@ function fakeQuery(q) {
   if (has('[?d :block/journal-day ?day]')) return [[401, 20261119]];
   if (has('(> ?ms 100000000000)')) return [];
   if (has('logseq.property.asset/type ?type')) return [[403, 900, ':pdf']];
+  // Two links in the words, one written twice; a tag and a cited highlight, which are not links; a web address.
+  if (has('[?b :block/title ?title]')) return [[401, `See [[${U(20)}]] and [[${U(20)}]] #[[${U(5)}]]`], [402, `Cited [[${U(800)}]]`], [403, 'At https://example.org/a).']];
+  if (has('[?r :block/uuid ?u]') && has('logseq.property.pdf/hl-page')) return [[U(800)]];
   if (has('logseq.property.pdf/hl-page')) return [];
   return [];
 }

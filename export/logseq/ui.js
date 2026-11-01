@@ -45,7 +45,7 @@ const CSS = `
 .xp .lk-value { all: unset; display: inline-flex; align-items: center; cursor: pointer; color: var(--lk-text, #222); font: inherit; line-height: 1.35; }
 .xp .lk-value:hover { color: var(--xp-quiet); }
 .xp .lk-value.off { color: var(--xp-faint); }
-.xp .lk-value:focus-visible { outline: none; background: var(--lk-wash); box-shadow: 0 0 0 3px var(--lk-wash); border-radius: 1px; }
+.xp .lk-value:focus-visible { outline: none; background: var(--lk-wash); box-shadow: 0 0 0 3px var(--lk-wash); border-radius: 1em; }
 /* The mark: a small faint chevron tight after a value that unfolds. */
 .xp .lk-value .m { width: 8px; height: 8px; margin-left: 4px; color: var(--xp-faint); flex: none; }
 /* What a value can become: a line of faint words under it, the one in force in the text colour. It takes its room below the
@@ -60,14 +60,14 @@ const CSS = `
 /* A switch: a hidden box; its word reads the state. */
 .xp .lk-switch input { position: absolute; opacity: 0; width: 0; height: 0; margin: 0; }
 .xp .lk-switch .lk-value { position: relative; }
-.xp .lk-switch:has(:focus-visible) .lk-value { background: var(--lk-wash); box-shadow: 0 0 0 3px var(--lk-wash); border-radius: 1px; }
+.xp .lk-switch:has(:focus-visible) .lk-value { background: var(--lk-wash); box-shadow: 0 0 0 3px var(--lk-wash); border-radius: 1em; }
 /* A choice that stays open (where the export goes), the one in force in the text colour. */
 .xp-where { display: flex; gap: 14px; }
 .xp-where > * { position: relative; cursor: pointer; color: var(--xp-faint); white-space: nowrap; }
 .xp-where > :hover { color: var(--xp-quiet); }
 .xp-where input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
 .xp-where label:has(:checked) { color: var(--lk-text, #222); }
-.xp-where label:has(:focus-visible) { background: var(--lk-wash); box-shadow: 0 0 0 3px var(--lk-wash); border-radius: 1px; }
+.xp-where label:has(:focus-visible) { background: var(--lk-wash); box-shadow: 0 0 0 3px var(--lk-wash); border-radius: 1em; }
 /* A panel's own controls, unfolded in a row under the bar; a pick whose panel is open shows it by its value going quiet. */
 .xp-fold { flex: none; padding: 0 28px 16px; background: var(--lk-paper, #fff); }
 .xp-fold[hidden] { display: none; }
@@ -98,8 +98,8 @@ const CSS = `
 .xp-bar button:where(:not(.lk-btn)) { all: unset; cursor: pointer; font: inherit; color: var(--lk-text, #222); white-space: nowrap; }
 .xp-bar button[hidden] { display: none; }
 .xp-bar button:hover { color: var(--xp-quiet); }
-.xp-bar button:focus-visible { outline: none; background: var(--lk-wash); box-shadow: 0 0 0 3px var(--lk-wash); border-radius: 1px; }
-.xp-bar .lk-btn { margin: -3px -12px -3px 0; }
+.xp-bar button:focus-visible { outline: none; background: var(--lk-wash); box-shadow: 0 0 0 3px var(--lk-wash); border-radius: 1em; }
+.xp-bar .lk-btn { margin: -2px -6px; }
 .xp-bar button.lk-accent kbd { font: inherit; font-size: .85em; margin-left: 8px; }
 .xp-bar button.lk-close { font-size: 17px; line-height: 1; margin-top: -2px; }
 .xp-desk { flex: 1; overflow: auto; padding: 26px 24px 48px; }
@@ -192,7 +192,7 @@ function open({ doc, what, act }) {
     // A field: the name, and a value faint until written.
     const field = (cls, name, value, placeholder) => `<div class="it lk-field">${nm(name)}<input type="text" class="lk-value ${cls}" placeholder="${esc(placeholder)}" value="${esc(value)}"></div>`;
     // A list of properties, headed by whose they are over all / none (a small bar); then the grammar's row, a tick box at the left, the icon of what it holds, the name, the count.
-    const list = (role, label, ps, hidden) => `<div class="it">${nm(label)}<div class="xp-all lk-bar" data-role="${role}"><a class="lk-btn" data-all="1" data-role="${role}">all</a><a class="lk-btn" data-all="0" data-role="${role}">none</a></div>
+    const list = (role, label, ps, hidden) => `<div class="it">${nm(label)}<div class="xp-all lk-bar" data-role="${role}"><a class="lk-btn lk-i-tick" data-all="1" data-role="${role}">all</a><a class="lk-btn lk-i-x" data-all="0" data-role="${role}">none</a></div>
       <div class="xp-list lk-list${ps.length > 10 ? ' two' : ''}" data-role="${role}">${ps.map(p => `<label class="xp-prop lk-row"><input type="checkbox" class="lk-tick" value="${esc(p.ident)}" ${hidden.has(p.ident) ? '' : 'checked'}><span class="lk-prop">${kindIconHtml(p.type)}<span>${esc(p.name)}</span></span><span class="lk-count">${p.count}</span></label>`).join('')}</div></div>`;
     root.innerHTML = `<div class="xp-titlebar" style="height:${dragBand(hostDoc)}px">Export ${esc(what)}</div>
     <div class="xp-bar" role="toolbar" aria-label="Export">
@@ -201,10 +201,10 @@ function open({ doc, what, act }) {
       <div class="g" data-for="pdf rich">${pick('xp-look', 'look', themes.looks.map(l => [l.key, l.name]), c.look)}${panel('xp-page', 'page', 'pdf')}${doc.title ? panel('xp-title', 'title block') : ''}</div>
       <div class="g" data-for="md">${pick('xp-links', 'links', LINKS, c.links)}${sw('xp-frontmatter', 'front matter', c.frontMatter, 'No front matter', 'Front matter')}</div>
       <div class="g">${panel('xp-show', 'show')}</div>
-      <div class="g end"><button type="button" class="lk-btn" data-act="md-file" data-for="md">Save as file…</button>
-        <button type="button" data-act="md" data-for="md" class="lk-accent xp-main">Copy Markdown<kbd>Cmd Enter</kbd></button>
-        <button type="button" data-act="rich" data-for="rich" class="lk-accent xp-main">Copy rich text<kbd>Cmd Enter</kbd></button>
-        <button type="button" data-act="pdf" data-for="pdf" class="lk-accent xp-main">Save PDF…<kbd>Cmd Enter</kbd></button>
+      <div class="g end"><button type="button" class="lk-btn lk-i-save" data-act="md-file" data-for="md">Save as file…</button>
+        <button type="button" data-act="md" data-for="md" class="lk-accent lk-i-copy xp-main">Copy Markdown<kbd>Cmd Enter</kbd></button>
+        <button type="button" data-act="rich" data-for="rich" class="lk-accent lk-i-copy xp-main">Copy rich text<kbd>Cmd Enter</kbd></button>
+        <button type="button" data-act="pdf" data-for="pdf" class="lk-accent lk-i-save xp-main">Save PDF…<kbd>Cmd Enter</kbd></button>
         <button type="button" class="lk-close xp-cancel" aria-label="Close" title="Close (Esc)">×</button></div>
     </div>
     ${fold('xp-dates', pick('xp-datekey', 'date from', [['auto', 'Automatic'], ...dates.map(d => [d.key, d.name])], c.dated.dateKey)

@@ -131,9 +131,9 @@ function listHtml(item, value) {
 function rowHtml(row) {
   const { item, part } = row;
   const { specimen } = Door.described[part.key];
-  if (item.type === 'action') return `<div class="sw-row"><span></span><button type="button" class="sw-do lk-lone" data-action="${esc(item.key)}">${esc(item.title)}</button></div>`;
+  if (item.type === 'action') return `<div class="sw-row"><span></span><button type="button" class="sw-do lk-lone lk-i-go" data-action="${esc(item.key)}">${esc(item.title)}</button></div>`;
   const value = read(item), key = esc(item.key), about = esc(item.description || '');
-  const reset = changed(item) ? `<button type="button" class="sw-default lk-lone" data-reset="${key}" title="Back to the default">default</button>` : '';
+  const reset = changed(item) ? `<button type="button" class="sw-default lk-lone lk-i-undo" data-reset="${key}" title="Back to the default">default</button>` : '';
   const spec = specimen ? specimen(item, value) : '';
   const drawn = spec ? `<div class="sw-spec" title="${about}">${spec}</div>` : '';
   if (item.type === 'boolean') return `<label class="sw-row"><input type="checkbox" class="sw-tick" id="sw-${key}" data-key="${key}"${value ? ' checked' : ''}><span class="sw-title" title="${about}">${esc(item.title)} ${reset}</span>${drawn}</label>`;
@@ -172,7 +172,7 @@ function drawSide(dlg) {
     const none = words && !everyRow().some(row => row.part === part && matches(row, words));
     const here = !words && state.view === 'part' && state.cur === part.key;
     return `<div class="sw-mod${wanted(part) ? '' : ' off'}${none ? ' sw-nomatch' : ''}" data-part="${part.key}" aria-current="${here}"><input type="checkbox" class="sw-tick" id="sw-run-${part.key}" data-run="${part.key}"${wanted(part) ? ' checked' : ''} aria-label="${esc(part.title)} runs"><span class="sw-name${waiting(part) ? ' lk-pencil' : ''}">${esc(part.title)}</span></div>`;
-  }) + `<div class="sw-foot">${parts().some(waiting) ? '<button type="button" class="sw-reload lk-lone" id="sw-reload">Reload to apply</button>' : ''}${anyChanged() || state.view === 'changed' ? `<button type="button" class="sw-word lk-lone${state.view === 'changed' ? ' on' : ''}" id="sw-changed">Changed by you</button>` : ''}<button type="button" class="sw-word lk-lone" id="sw-plain">Logseq’s list</button></div>`;
+  }) + `<div class="sw-foot">${parts().some(waiting) ? '<button type="button" class="sw-reload lk-lone lk-i-reload" id="sw-reload">Reload to apply</button>' : ''}${anyChanged() || state.view === 'changed' ? `<button type="button" class="sw-word lk-lone${state.view === 'changed' ? ' on' : ''}" id="sw-changed">Changed by you</button>` : ''}<button type="button" class="sw-word lk-lone" id="sw-plain">Logseq’s list</button></div>`;
 }
 // A redraw replaces what had the keyboard: hand it back, so Escape and the arrows keep working.
 function draw() {

@@ -74,6 +74,19 @@ Door.kindIconHtml = kind => {
 };
 // The Undo arrow: the grammar's one shape, from Logseq's icon font. Its fade is the shared name lk-undo.
 Door.UNDO = '<i class="ti ti-arrow-back-up" aria-hidden="true"></i>';
+/* The press's icons: one even line, the most literal drawing of what the press does, and anything that moves is an arrow. None
+   is a ring, a wave or three dots, so none can be taken for a sort's mark. A press takes one by the shared name lk-i-<name>. */
+Door.ICONS = {
+  go: 'M2.5 8h11M9.5 4l4 4-4 4', up: 'M8 13.5v-11M4 6.5l4-4 4 4', move: 'M3 2.5V8a2 2 0 0 0 2 2h8.5M10 6.5l3.5 3.5-3.5 3.5',
+  child: 'M3 2.5V6a2 2 0 0 0 2 2h2M11 4.5v7M7.5 8h7', merge: 'M3 2.5 8 8l5-5.5M8 8v5.5M5 10.5l3 3 3-3', split: 'M2.5 8h4l6-4.5M6.5 8l6 4.5M9.5 3.5h3v3M9.5 12.5h3v-3',
+  plus: 'M8 2.5v11M2.5 8h11', minus: 'M2.5 8h11', bin: 'M2.5 4.5h11M5.5 4.5V3a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v1.5M4 4.5l.7 9a1 1 0 0 0 1 .9h4.6a1 1 0 0 0 1-.9l.7-9',
+  rename: 'M10.4 2.9 13.1 5.6 5.4 13.3l-3 .3.3-3zM8.8 4.5l2.7 2.7',
+  copy: 'M6.4 5.2h6.4A1.2 1.2 0 0 1 14 6.4v6.4a1.2 1.2 0 0 1-1.200 1.200H6.400a1.200 1.200 0 0 1-1.200-1.200V6.400a1.200 1.200 0 0 1 1.200-1.200zM11 2.400H3.600a1.200 1.200 0 0 0-1.200 1.200V11',
+  tag: 'M2.5 2.5h5.300l5.700 5.700-5.300 5.300-5.700-5.700zM5.300 5.300h.01', eq: 'M3 5.800h10M3 10.200h10', side: 'M3 3h10a1.200 1.200 0 0 1 1.200 1.200v7.600A1.200 1.200 0 0 1 13 13H3a1.200 1.200 0 0 1-1.200-1.200V4.200A1.200 1.200 0 0 1 3 3zM10 3v10',
+  tick: 'M2.800 8.600 6.400 12l6.800-7.800', x: 'm3.800 3.800 8.400 8.400M12.200 3.800l-8.400 8.400', save: 'M8 2.500v8M4.500 7 8 10.500 11.500 7M3 13.500h10',
+  undo: 'M6 9.500 3 6.500l3-3M3 6.500h7.500a3 3 0 0 1 0 6H9', reload: 'M13 8a5 5 0 1 1-1.500-3.500M13 2v3.500H9.500', enter: 'M13 3.500V7.800a2 2 0 0 1-2 2H3.500M6.800 6.500 3.500 9.800l3.300 3.300',
+};
+const iconUrl = d => `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='#000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><path d='${d}'/></svg>`)}")`;
 
 // The greys, mixed from Logseq's text colour so they follow any theme: quiet, faint, a hairline and a firmer line.
 const TOKENS = `
@@ -93,11 +106,13 @@ const TOKENS = `
    lk-name: the small faint name above a value; lk-value: the value, the thing pressed, in the text colour, quiet under
    the pointer, faint when off (.off) or unwritten; lk-pick: a value that unfolds, a hairline standing before it (its
    chevron is the module's markup, coloured faint here); lk-alts: what a value can become, faint words with the
-   one in force (.on) in the text colour; lk-accent: the one action, a little heavier, its key faint; lk-close: the ×.
+   one in force (.on) in the text colour; lk-accent: the one action, its key faint; lk-close: the ×.
    The module lays them out (a name over a value, the gaps); these give only their colours and weights.
    The button library (button-library.html in the workspace), one kind per job, each drawn whole here, so a module adds
-   nothing of its own to how it looks, only where it stands. lk-strip: a row of actions; lk-bar: what you can do with what
+   nothing of its own to how it looks, only where it stands. A press is a word with a line icon (lk-i-<name>, from Door.ICONS)
+   and no shape at rest; it takes the wash under the pointer. lk-strip: a row of actions; lk-bar: what you can do with what
    you ticked, lk-said holding how many; lk-btn: a word in either, or among lk-answers, the answers under a question;
+   lk-enter: the return sign, on the one press plain Enter takes;
    lk-accent: the main button, the one thing a screen is for; lk-big: the yes to a change Undo cannot put back whole, the one
    button with a colour and a fill, Logseq's own blue, a shade deeper so its white words read in both themes; lk-hint: words beside them saying what a key does now, never
    pressed; lk-lone: an action with nothing beside it; lk-add: "+ Add property"; lk-fix: what to do about a row, at its
@@ -133,23 +148,21 @@ Door.NAMES = `${TOKENS}
 .lk-alts { color: inherit !important; }
 .lk-alts > * { color: var(--lk-faint) !important; }
 .lk-alts > *:hover, .lk-alts > .on { color: inherit !important; }
-.lk-accent { font-weight: 600 !important; color: inherit !important; }
+.lk-accent { color: inherit !important; }
 .lk-accent kbd { font-weight: 400 !important; color: var(--lk-faint) !important; }
 .lk-close { color: var(--lk-faint) !important; }
 .lk-close:hover, .lk-close:focus-visible { color: inherit !important; }
 .lk-btn, .lk-accent, .lk-lone, .lk-add, .lk-fix, .lk-x, .lk-plus, .lk-more, .lk-view, .lk-step, .lk-head, .lk-item { appearance: none; background: none; border: 0; font: inherit; cursor: pointer; border-radius: 4px; }
-.lk-strip, .lk-bar, .lk-answers { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 0; overflow: hidden; }
-.lk-strip { border-top: 1px solid var(--lk-hair); border-bottom: 1px solid var(--lk-hair); padding: 4px 0; }
-.lk-answers { flex-basis: 100%; margin-top: 4px; overflow: visible; }
-.lk-btn { position: relative; color: var(--lk-text, currentColor) !important; padding: 3px 12px; white-space: nowrap; }
-.lk-strip > .lk-btn::before, .lk-bar > .lk-btn::before, .lk-answers > .lk-btn::before { content: ""; position: absolute; left: -1px; top: 50%; width: 1px; height: 12px; margin-top: -6px; background: var(--lk-line); }
-.lk-said { font-weight: 500; padding-right: 12px; color: var(--lk-text, currentColor); }
+.lk-btn, .lk-accent, .lk-lone, .lk-add, .lk-fix { border-radius: 1em; }
+.lk-strip, .lk-bar, .lk-answers { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 18px; }
+.lk-answers { flex-basis: 100%; margin-top: 4px; }
+.lk-btn { color: var(--lk-text, currentColor) !important; padding: 2px 6px; margin: 0 -6px; white-space: nowrap; }
+.lk-said { font-weight: 500; padding-right: 6px; color: var(--lk-text, currentColor); }
 .lk-hint { color: var(--lk-dim) !important; font-size: 12.5px; margin-left: auto; padding-left: 12px; white-space: nowrap; }
-.lk-accent { cursor: pointer; border-radius: 4px; color: var(--lk-text, currentColor) !important; white-space: nowrap; }
-.lk-answers > .lk-accent { padding: 3px 8px; margin-left: -8px; }
-.lk-big { appearance: none; border: 0; font: inherit; font-weight: 600; cursor: pointer; border-radius: 4px; padding: 3px 12px; margin-right: 8px; white-space: nowrap; background: color-mix(in srgb, var(--rx-blue-09, #0091ff) 80%, #000); color: #fff !important; }
+.lk-accent { cursor: pointer; border-radius: 1em; color: var(--lk-text, currentColor) !important; white-space: nowrap; }
+.lk-answers > .lk-accent { padding: 2px 6px; margin: 0 -6px; }
+.lk-big { appearance: none; border: 0; font: inherit; font-weight: 600; cursor: pointer; border-radius: 1em; padding: 3px 12px; margin-right: 8px; white-space: nowrap; background: color-mix(in srgb, var(--rx-blue-09, #0091ff) 80%, #000); color: #fff !important; }
 .lk-big:hover, .lk-big:focus-visible { background: color-mix(in srgb, var(--rx-blue-09, #0091ff) 68%, #000); outline: none; }
-.lk-big + .lk-btn::before { display: none; }
 .lk-lone { color: var(--lk-text, currentColor) !important; padding: 3px 6px; margin-left: -6px; white-space: nowrap; }
 .lk-fix { color: var(--lk-text, currentColor) !important; padding: 2px 6px; white-space: nowrap; }
 .lk-add, .lk-more { color: var(--lk-soft) !important; padding: 3px 0; }
@@ -175,5 +188,9 @@ Door.NAMES = `${TOKENS}
 .lk-note { color: var(--lk-dim); font-size: 12.5px; font-variant-numeric: tabular-nums; }
 @media (prefers-reduced-motion: reduce) { .lk-fold, .lk-tick, .lk-undo { transition: none; } }
 .lk-icon.lk-web { display: inline-flex; align-items: center; line-height: 1; }
-.lk-icon.lk-web svg { display: block; width: 12px; height: 12px; }`;
+.lk-icon.lk-web svg { display: block; width: 12px; height: 12px; }
+[class*="lk-i-"]::before, .lk-enter::after { content: ""; display: inline-block; width: 1.05em; height: 1.05em; vertical-align: -.15em; background: currentColor; -webkit-mask: var(--lk-ic) center / contain no-repeat; mask: var(--lk-ic) center / contain no-repeat; }
+[class*="lk-i-"]::before { margin-right: .38em; }
+.lk-enter::after { --lk-ic: ${iconUrl(Door.ICONS.enter)}; width: .85em; height: .85em; vertical-align: -.08em; margin-left: .4em; opacity: .46; }
+${Object.entries(Door.ICONS).map(([name, d]) => `.lk-i-${name} { --lk-ic: ${iconUrl(d)}; }`).join('\n')}`;
 })();

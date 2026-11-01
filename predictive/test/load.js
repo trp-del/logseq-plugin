@@ -13,7 +13,7 @@ const { root, order } = require('../../test/module.js')('predictive');
 // The Option-T list: Enter and the arrows only. A digit is something you might be typing: it closes the list and goes on as typing.
 { const pick = fs.readFileSync(path.join(root, 'predictive/logseq/tag-pick.js'), 'utf8');
   assert.ok(!/Number\(event\.key\)/.test(pick) && !/\[1-9\]/.test(pick) && !/flow-pick-n\b/.test(pick), 'no digit picks, and no number is shown beside a row'); }
-const listeners = [], styles = {}, commands = [], shown = [], palette = {};
+const listeners = [], styles = {}, commands = [], shown = [], palette = {}, slash = [];
 
 // A tiny graph in the shapes Logseq's datascript queries return.
 const U = n => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
@@ -57,7 +57,7 @@ const logseq = {
   ready: fn => Promise.resolve().then(fn), settings: {}, updateSettings() {}, provideStyle: ({ key, style }) => { styles[key] = style; }, useSettingsSchema() {}, beforeunload() {},
   provideModel() {}, App: { registerCommandPalette: ({ key }, fn) => { commands.push(key); palette[key] = fn; }, registerUIItem() {}, onCurrentGraphChanged() {}, onRouteChanged() {}, getCurrentGraph: async () => ({ name: 'logseq_db_pretend' }), getUserConfigs: async () => ({ preferredDateFormat: 'MMM do, yyyy' }) },
   DB: { onChanged() {}, datascriptQuery: async q => fakeQuery(q) },
-  UI: { showMsg: m => shown.push(m) }, Editor: {},
+  UI: { showMsg: m => shown.push(m) }, Editor: { registerSlashCommand: name => slash.push(name) },
 };
 const errors = [];
 const quietConsole = { ...console, error: (...a) => { errors.push(a.map(String).join(' ')); console.error(...a); } };
@@ -249,5 +249,13 @@ for (const file of order) vm.runInContext(fs.readFileSync(path.join(root, file),
   await offer(B); box(B).blur(); await wait(20);
   assert.equal(saves.length, 1, 'and the next bullet left within the minute does not');
   console.log('  ok  the link memory is saved on leaving a bullet, once a minute at most');
+  { const { finds, citation } = Flow.cite, source = (title, pdf) => ({ uuid: title, title, lower: title.toLowerCase(), pdf });
+    const all = [source('A CT report', false), source('CT report', false), source('Report on CT', true), source('CT scan (pdf)', true), source('Fatigue', false)];
+    assert.equal(finds(all, 'ct').map(s => s.title).join(' | '), 'CT scan (pdf) | CT report | Report on CT | A CT report', 'a name that starts with the words first, a PDF before a page');
+    assert.equal(finds(all, '').length, 0, 'nothing typed finds nothing');
+    assert.equal(finds(all, 'report ct').map(s => s.title).sort().join(' | '), 'A CT report | CT report | Report on CT', 'every word typed must be in the name');
+    assert.equal(citation('u', '3'), '([[u]], p. 3)'); assert.equal(citation('u', ''), '([[u]])');
+    assert.ok(slash.includes('Cite'), '/Cite is registered once'); assert.equal(slash.length, 1);
+    console.log('  ok  /Cite finds a source and words the citation'); }
   process.exit(0);
 })().catch(error => { console.error('FAIL ', error); process.exit(1); });
