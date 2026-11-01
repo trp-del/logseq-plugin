@@ -43,6 +43,24 @@ assert.equal(S.rules.singularOf('Consultations'), 'Consultation'); assert.equal(
 assert.equal(S.rules.issuesOn(I, id('Consultation')).length, 1, 'With, on Consultation'); assert.ok(S.rules.issuesUnder(M, I, id('Occurrence')).length >= 3);
 const loose = Mo.build({ ...raw, tags: raw.tags.map(t => t.title === 'Task' ? { ...t, parents: [] } : t) });
 assert.equal(S.rules.issues(loose).find(i => i.text.startsWith('Task sits under none')).fix, 'put under a kind'); deq(loose.loose.map(i => loose.tags.get(i).title), ['Task']);
+// A kind with no tag, and a tag elsewhere that reads like it: one fix joins them, as one line in the tray.
+const slipped = { ...raw, tags: raw.tags.map(t => t.title === 'Occurrence' ? { ...t, title: 'Occurence', parents: [id('Information')] } : t) };
+const slip = S.rules.issues(Mo.build(slipped)).find(i => i.fix === 'make it the kind');
+assert.equal(slip.text, 'Occurence reads like the kind Occurrence, which has no tag'); assert.equal(slip.on, id('Occurrence')); assert.equal(slip.rule, 'Names say what they are');
+const joined = S.changes.makeTray(); joined.setBase(slipped); joined.stage(slip.change);
+assert.equal(joined.lines()[0].text, 'Make Occurence the kind Occurrence'); assert.equal(joined.lines()[0].nodes, 732);
+const kindRow = joined.model.kinds.find(k => k.key === 'O');
+assert.equal(kindRow.id, id('Occurrence'), 'the row is the tag now'); assert.equal(joined.model.tags.get(kindRow.id).title, 'Occurrence'); assert.equal(Mo.count(joined.model, kindRow.id), 732); assert.ok(!joined.model.tags.has(-2), 'no empty row left'); deq(joined.model.tags.get(kindRow.id).parents, []);
+assert.ok(!S.rules.issues(joined.model).some(i => i.fix === 'make it the kind'), 'the issue is settled');
+deq(joined.plan().map(s => [s.op, s.name ?? s.parent?.title]), [['rename', 'Occurrence'], ['removeExtends', 'Information']], 'written with what Undo already knows');
+joined.drop(0); assert.equal(joined.model.kinds.find(k => k.key === 'O').id, -2, 'a line taken out brings the empty row back'); assert.equal(joined.model.tags.get(id('Occurrence')).title, 'Occurence');
+// Spelled right but placed under another kind, the name stays and only the place changes.
+const placed = S.rules.issues(Mo.build({ ...raw, tags: raw.tags.map(t => t.title === 'Occurrence' ? { ...t, parents: [id('Information')] } : t) })).find(i => i.fix === 'make it the kind');
+const here = S.changes.makeTray(); here.setBase({ ...raw, tags: raw.tags.map(t => t.title === 'Occurrence' ? { ...t, parents: [id('Information')] } : t) }); here.stage(placed.change);
+assert.equal(here.lines()[0].text, 'Make Occurrence the kind'); deq(here.plan().map(s => s.op), ['removeExtends']);
+// A word two slips away is another word, and a kind with a tag asks nothing.
+const gone = title => S.rules.issues(Mo.build({ ...raw, tags: raw.tags.map(t => t.title === 'Occurrence' ? { ...t, title } : t) })).filter(i => i.fix === 'make it the kind').length;
+assert.equal(gone('Occasion'), 0); assert.equal(gone('Occurance'), 0); assert.equal(gone('Ocucrrence'), 1, 'two letters swapped are one slip'); assert.equal(S.rules.issues(Mo.build(raw)).filter(i => i.fix === 'make it the kind').length, 0);
 console.log('  ok  the five rules, each with its fix');
 
 // The tray: sentences, the model showing the change, lines taken out.

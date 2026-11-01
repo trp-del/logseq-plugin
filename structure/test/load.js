@@ -466,6 +466,20 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   assert.ok(calls.filter(c => c[0] !== 'notify').length <= 3, 'stopped'); assert.ok(notices().some(t => t.includes('the Undo waits in Test')), 'and says where'); await sleep(30);
   graphName = 'logseq_db_Test'; logseq.graphChanged(); await sleep(30); assert.ok(undoArrow()); calls.length = 0; await app.undo(); assert.equal(count('createPage'), 0, 'the rest, not from the top'); assert.equal(app.tray.done, null);
   fresh(); app.st.view = 'tree'; app.st.cur = id('Stay'); await app.reread();
+  // A property on no tag: its row opens a card of its own, which renames it and puts it on a tag.
+  const taskTag = live.tags.find(t => t.id === id('Task')), taskProps = [...taskTag.props];
+  taskTag.props = taskProps.filter(p => p !== pid('Due')); await app.reread(); click(R.querySelector('[data-show="table"]'));
+  const noTag = () => R.querySelector(`.st-tbl [data-prop="0·${pid('Due')}"]`);
+  assert.ok(noTag().querySelector('.k.lk'), 'the name carries the underline a name that opens has');
+  noTag().dispatchEvent(new win.MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+  deq([...R.querySelectorAll('.lk-menu .lk-item')].map(text).filter(Boolean), ['Go to this property', 'Rename', 'Put on a tag…'], 'the menu holds what a property on no tag can take'); key(R, 'Escape'); app.st.menu = null; app.draw();
+  const stood = app.st.cur; click(noTag()); assert.equal(text(R.querySelector('.st-card h2')), 'Due'); assert.ok(text(R.querySelector('.st-card .sum')).includes('on no tag')); assert.equal(app.st.cur, stood, 'the tree stays where it was');
+  assert.ok(!R.querySelector('.st-empty'), 'not told it is gone');
+  click(R.querySelector('[data-do="prename"]')); const newName = R.querySelector('.st-card h2 [data-edit]'); assert.ok(newName, 'rename writes in the title'); key(newName, 'Escape'); assert.equal(text(R.querySelector('.st-card h2')), 'Due');
+  click(R.querySelector('[data-do="pmove"]')); assert.ok(text(R.querySelector('.st-prompt') || R).includes('Put Due on…'));
+  click([...R.querySelectorAll('[data-pick]')].find(r => text(r).startsWith('Task')));
+  assert.equal(app.tray.lines().at(-1).text, 'Add Due to Task'); assert.equal(app.st.propCur, `${id('Task')}·${pid('Due')}`); assert.equal(app.st.cur, id('Task'));
+  app.discard(); taskTag.props = taskProps; await app.reread(); fresh(); app.st.view = 'tree'; app.st.propCur = null; app.st.cur = id('Stay'); app.draw();
   // Find reveals the path; typing on the tree is finding.
   app.st.view = 'tree'; app.draw(); key(R, 'r'); key(R.querySelector('[data-find]'), 'e'); const find = R.querySelector('[data-find]'); find.value = 'res'; find.dispatchEvent(new win.Event('input', { bubbles: true }));
   rows = [...R.querySelectorAll('.st-row[data-row]')];

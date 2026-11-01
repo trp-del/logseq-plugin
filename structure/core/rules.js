@@ -7,6 +7,15 @@ const { KINDS, isKind, count, kids, parentOf, kindOf, filled, filledOwn, rangeGu
 const RULES = ['One place', 'A child earns its place', 'A relation has a range', 'A property lives as high as it is filled', 'Names say what they are'];
 const list = names => names.length < 2 ? names.join('') : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
 
+// One slip of the hand between two names, or none: a letter left out, added or wrong, or two swapped (Occurence, Occurrence).
+function oneSlip(a, b) {
+  if (a === b) return true;
+  if (Math.abs(a.length - b.length) > 1) return false;
+  let i = 0; while (a[i] === b[i]) i++;
+  const rest = n => a.slice(i + n), other = n => b.slice(i + n);
+  return rest(1) === other(1) || rest(1) === other(0) || rest(0) === other(1) || (a[i] === b[i + 1] && a[i + 1] === b[i] && rest(2) === other(2));
+}
+
 // The singular a name written in the plural would have (Consultations, Results, Studies), or null when the name reads
 // singular. Only a guess: spelling cannot tell Notes from Diabetes, so the rule below never renames on it unasked.
 function singularOf(name) {
@@ -111,6 +120,14 @@ function issues(M) {
     const exists = titled(M, single).find(x => x.id !== t.id);
     if (exists) add(RULES[4], t.id, [subject(t.id), say('is plural, and'), tags([exists.id]), say('exists')], `merge into ${exists.title}`, { kind: 'merge', from: t.id, into: exists.id });
     else add(RULES[4], t.id, [subject(t.id), say('may be plural')], 'rename…', { kind: 'prompt', what: 'rename', tag: t.id, name: single });
+  }
+  // A kind with no tag, and a tag elsewhere that reads like it: the two are one thing, kept apart by a slip or a place.
+  for (const { key, id } of M.kinds) {
+    const row = tag(M, id); if (!row.missing || row.kids.length) continue;
+    const reads = t => KINDS.find(k => k.key === key).names.find(n => oneSlip(t.title.trim().toLowerCase(), n));
+    const like = user.filter(reads).sort((a, b) => count(M, b.id) - count(M, a.id))[0]; if (!like) continue;
+    const word = reads(like);
+    add(RULES[4], like.id, [subject(like.id), say('reads like the kind'), tags([id]), say(', which has no tag')], 'make it the kind', { kind: 'becomeKind', tag: like.id, of: id, name: word[0].toUpperCase() + word.slice(1) });
   }
   const order = new Map(RULES.map((r, i) => [r, i]));
   return out.sort((a, b) => order.get(a.rule) - order.get(b.rule));

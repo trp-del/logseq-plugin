@@ -377,22 +377,33 @@ function make(holder, mode, app) {
       `</div>`;
     return `<div class="st-two">${col(from, into, true)}${col(into, from, false)}</div>`;
   }
+  // A property's name at the head of its card; rename writes here.
+  const propTitle = (p, key) => st.edit?.what === 'prename' && st.edit.on === key ? `<input class="st-in" data-edit value="${esc(st.edit.text)}" autocomplete="off" spellcheck="false">` : esc(p.title);
+  const pointsSum = p => `${p.type === 'node' ? `points at ${p.range.length === 1 ? tagLink(p.range[0]) : p.range.length ? plural(p.range.length, 'tag') : 'any node'}` : Mo.kindWord(p.choice ? 'choice' : p.type)}${p.many ? ', several' : ''}`;
+  // What it points at, one tag a row with how many of its values point at that tag's nodes; × takes a tag out, the last line adds one.
+  function pointsList(p, key) {
+    const m = M(), at = m.pointed.get(p.ident) || new Map();
+    return `<h3>Points at</h3>` + p.range.map(id => `<div class="st-ln rng"><span></span><span class="w">${tagLink(id)}<span class="x lk-x" data-unrange="${id}" title="Take ${esc(name(id))} out of what ${esc(p.title)} points at">×</span></span><span class="ct">${at.get(id) ? plural(at.get(id), 'value') : ''}</span></div>`).join('') +
+      `<div class="st-ln add"><span></span><span class="w"><span class="act lk-add" data-addrange="${key}">${p.range.length ? 'another tag…' : 'a tag…'}</span></span><span class="ct">${[...at].filter(([id]) => !p.range.includes(id) && m.tags.has(id)).length ? `<span class="f">also found: ${[...at].filter(([id]) => !p.range.includes(id) && m.tags.has(id)).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([id, n]) => `${esc(name(id))} ${n}`).join(', ')}</span>` : ''}</span></div>`;
+  }
+  // A property on no tag has a card of its own, keyed 0·property: what it is, how many nodes hold it, and a tag to put it on.
+  function cardNoTag(p, key) {
+    return `<div class="st-card" data-propcard="${key}">` + trailHtml() + titleHtml(pi(p), propTitle(p, key), [], waitProp(p.id)) +
+      `<div class="sum"><span>${pointsSum(p)}</span><span>on no tag</span><span>${plural(M().holders.get(p.ident)?.size || 0, 'node')}</span></div>` +
+      acts(key, [p.uuid && ['go to this property', 'ppage'], ['rename', 'prename'], ['put on a tag…', 'pmove']]) + cardPrompt() + (p.type === 'node' ? pointsList(p, key) : '') + `</div>`;
+  }
   function cardProp(key) {
     const m = M(), [tagId, pid] = key.split('·').map(Number), p = P(pid), t = T(tagId);
+    if (p && !tagId) return p.on.length ? cardProp(`${p.on[0]}·${pid}`) : cardNoTag(p, key);
     if (!p || !t) return `<div class="st-card">${trailHtml()}<div class="st-empty">That property is no longer on this tag.</div></div>`;
     const of = Mo.count(m, tagId), f = Mo.filled(m, tagId, pid), declared = t.props.includes(pid), parent = Mo.parentOf(m, tagId), from = Mo.inherited(m, tagId).find(x => x.prop === pid)?.from;
-    let h = `<div class="st-card" data-propcard="${key}">` + trailHtml() + titleHtml(pi(p), esc(p.title), [...Mo.pathOf(m, tagId)].reverse(), waitProp(pid));
+    let h = `<div class="st-card" data-propcard="${key}">` + trailHtml() + titleHtml(pi(p), propTitle(p, key), [...Mo.pathOf(m, tagId)].reverse(), waitProp(pid));
     // The facts, said once: what it points at, how filled here (the title row's right end already names the tag), inherited.
-    h += `<div class="sum"><span>${p.type === 'node' ? `points at ${p.range.length === 1 ? tagLink(p.range[0]) : p.range.length ? plural(p.range.length, 'tag') : 'any node'}` : Mo.kindWord(p.choice ? 'choice' : p.type)}${p.many ? ', several' : ''}</span><span>${f} of ${of} filled</span>${from != null ? `<span>inherited from ${esc(name(from))}</span>` : ''}</div>`;
+    h += `<div class="sum"><span>${pointsSum(p)}</span><span>${f} of ${of} filled</span>${from != null ? `<span>inherited from ${esc(name(from))}</span>` : ''}</div>`;
     // What it can take, as short words on one line; another tag it points at is the last line of the Points at list below.
     h += acts(key, [p.uuid && ['go to this property', 'ppage'], ['rename', 'prename'], declared && ['move to…', 'pmove'], declared && parent != null && [`pull up to ${esc(name(parent))}`, 'pullup'],
       (p.choice || p.type === 'node') && t.nodes.size && ['split by its values…', 'split'], declared && ['drop', 'pdrop']]) + cardPrompt();
-    if (p.type === 'node') {
-      // What it points at, one tag a row with how many of its values point at that tag's nodes; × takes a tag out, the last line adds one.
-      const at = m.pointed.get(p.ident) || new Map();
-      h += `<h3>Points at</h3>` + p.range.map(id => `<div class="st-ln rng"><span></span><span class="w">${tagLink(id)}<span class="x lk-x" data-unrange="${id}" title="Take ${esc(name(id))} out of what ${esc(p.title)} points at">×</span></span><span class="ct">${at.get(id) ? plural(at.get(id), 'value') : ''}</span></div>`).join('') +
-        `<div class="st-ln add"><span></span><span class="w"><span class="act lk-add" data-addrange="${key}">${p.range.length ? 'another tag…' : 'a tag…'}</span></span><span class="ct">${[...at].filter(([id]) => !p.range.includes(id) && m.tags.has(id)).length ? `<span class="f">also found: ${[...at].filter(([id]) => !p.range.includes(id) && m.tags.has(id)).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([id, n]) => `${esc(name(id))} ${n}`).join(', ')}</span>` : ''}</span></div>`;
-    }
+    if (p.type === 'node') h += pointsList(p, key);
     const kids = Mo.kids(m, tagId);
     if (kids.length) h += `<h3>Filled, by tag beneath</h3>` + [{ id: tagId, own: true }, ...kids.map(id => ({ id }))].map(({ id, own: o }) => { const c = o ? t.nodes.size : Mo.count(m, id); const fl = o ? Mo.filledOwn(m, tagId, pid) : Mo.filled(m, id, pid); const fx = o ? { cls: '', word: '', ask: '' } : lineFix(tagId, pid, id); return c || !o ? `<div class="st-ln ${fx.cls}"><span></span><span class="w">${tagLink(id)}${o ? '<span class="to">the tag itself</span>' : ''}</span><span class="ct">${fl} of ${c}</span>${fx.word}</div>${fx.ask}` : ''; }).join('');
     const same = p.on.filter(id => id !== tagId);
@@ -415,7 +426,7 @@ function make(holder, mode, app) {
     h += few('table', rows).map(r => `<div class="tr ${r.pct < .2 ? 'low' : ''} ${waitProp(r.prop)}" data-prop="${r.tag}·${r.prop}">${pi(r.p)}<span><span class="k lk ${waitProp(r.prop) ? 'lk-pencil' : ''}">${esc(r.p.title)}</span></span><span class="on">${ranges(r.on.map(x => x.tag))}</span><span class="on">${r.p.type === 'node' ? (r.p.range.length ? ranges(r.p.range) : '<span class="f">any node</span>') : `<span class="f">${Mo.kindWord(r.p.choice ? 'choice' : r.p.type)}</span>`}</span><span class="ct">${r.filled} of ${r.of}</span></div>`).join('');
     const loose = [...m.props.values()].filter(p => !p.on.length);
     h += moreOf('table', rows);
-    if (loose.length) h += `</div><h3>On no tag</h3><div class="st-tbl">` + few('loose', loose).map(p => `<div class="tr">${pi(p)}<span>${esc(p.title)}</span><span class="on f">—</span><span class="on">${p.range.length ? p.range.map(tagLink).join(', ') : `<span class="f">${Mo.kindWord(p.choice ? 'choice' : p.type)}</span>`}</span><span class="ct">${m.holders.get(p.ident)?.size || 0} nodes</span></div>`).join('');
+    if (loose.length) h += `</div><h3>On no tag</h3><div class="st-tbl">` + few('loose', loose).map(p => `<div class="tr ${waitProp(p.id)}" data-prop="0·${p.id}">${pi(p)}<span><span class="k lk ${waitProp(p.id) ? 'lk-pencil' : ''}">${esc(p.title)}</span></span><span class="on f">—</span><span class="on">${p.range.length ? p.range.map(tagLink).join(', ') : `<span class="f">${Mo.kindWord(p.choice ? 'choice' : p.type)}</span>`}</span><span class="ct">${m.holders.get(p.ident)?.size || 0} nodes</span></div>`).join('') + moreOf('loose', loose);
     return h + `</div></div>`;
   }
   // ---------- health ----------
@@ -483,9 +494,9 @@ function make(holder, mode, app) {
       rows = all.slice(0, 10);
     } else {
       const subject = p.what === 'nodes' ? `${p.nodes.length} ticked nodes` : p.what === 'prop' ? `the property ${P(p.prop).title}` : p.what === 'range' ? `what ${P(p.prop).title} points at` : p.tags.length > 1 ? `${p.tags.length} ticked tags` : name(p.tags[0]);
-      ask = p.what === 'range' ? `<b>${esc(P(p.prop).title)}</b> points at${P(p.prop).range.length ? ' also' : ''}…` : `Move <b>${esc(subject)}</b> under…`;
+      ask = p.what === 'range' ? `<b>${esc(P(p.prop).title)}</b> points at${P(p.prop).range.length ? ' also' : ''}…` : p.what === 'prop' && !p.from ? `Put <b>${esc(P(p.prop).title)}</b> on…` : `Move <b>${esc(subject)}</b> under…`;
       const list = all = [];
-      const walk = (n, d) => { const t = T(n); const ok = p.what === 'tag' ? !p.tags.some(s => Mo.under(m, n, s)) : p.what === 'range' || p.what === 'nodes' ? !t.kind && !t.missing : !t.missing || true; if (!q || t.title.toLowerCase().includes(q)) list.push({ key: n, nm: t.title, ct: Mo.count(m, n) || '', d, ok, mark: d === 0 ? t.kind : null }); for (const k of Mo.kids(m, n)) walk(k, d + 1); };
+      const walk = (n, d) => { const t = T(n); const ok = p.what === 'tag' ? !p.tags.some(s => Mo.under(m, n, s)) : p.what === 'range' || p.what === 'nodes' ? !t.kind && !t.missing : !t.missing || p.what !== 'prop' || !!p.from; if (!q || t.title.toLowerCase().includes(q)) list.push({ key: n, nm: t.title, ct: Mo.count(m, n) || '', d, ok, mark: d === 0 ? t.kind : null }); for (const k of Mo.kids(m, n)) walk(k, d + 1); };
       m.kinds.forEach(k => walk(k.id, 0));
       for (const l of m.loose) walk(l, 1);
       if (p.what === 'tag' && (!q || 'not under a kind'.includes(q))) list.push({ key: LOOSE, nm: 'Not under a kind', ct: '', d: 0, ok: true, loose: true });
@@ -517,8 +528,8 @@ function make(holder, mode, app) {
       const declared = !!t?.props.includes(pid);
       const f = t ? plural(Mo.filled(m, tagId, pid), 'value') : '';
       h += (p?.uuid ? it('Go to this property', 'ppage') + '<div class="gap lk-item"></div>' : '') + it('Rename', 'prename') + (p?.type === 'node' ? it('Points at another tag too…', 'prange') : '') + '<div class="gap lk-item"></div>' +
-        it('Move to…', 'pmove', !declared, f) + it(parent != null ? `Pull up to ${name(parent)}` : 'Pull up to the parent', 'pullup', !declared || parent == null, f) +
-        (p && (p.choice || p.type === 'node') ? it('Split by its values…', 'split', !t.nodes.size, plural(t.nodes.size, 'node')) : '') + '<div class="gap lk-item"></div>' + it('Drop', 'pdrop', !declared, f);
+        (t ? it('Move to…', 'pmove', !declared, f) + it(parent != null ? `Pull up to ${name(parent)}` : 'Pull up to the parent', 'pullup', !declared || parent == null, f) +
+        (p && (p.choice || p.type === 'node') ? it('Split by its values…', 'split', !t.nodes.size, plural(t.nodes.size, 'node')) : '') + '<div class="gap lk-item"></div>' + it('Drop', 'pdrop', !declared, f) : it('Put on a tag…', 'pmove'));
     }
     return h + `</div>`;
   }
@@ -622,7 +633,7 @@ function make(holder, mode, app) {
     if (row.more) { p.whole = true; wantFocus = true; return redraw(); }
     st.prompt = null;
     if (p.what === 'tag') { moveTags(p.tags, row.key); }
-    else if (p.what === 'prop') { const [tagId, pid] = p.key.split('·').map(Number); if (row.key !== tagId) { app.stage({ kind: 'moveProp', prop: pid, from: [tagId], to: row.key }); st.propCur = `${row.key}·${pid}`; st.cur = row.key; } }
+    else if (p.what === 'prop') { const [tagId, pid] = p.key.split('·').map(Number); if (!tagId) { app.stage({ kind: 'addProp', prop: pid, tags: [row.key] }); st.propCur = `${row.key}·${pid}`; st.cur = row.key; } else if (row.key !== tagId) { app.stage({ kind: 'moveProp', prop: pid, from: [tagId], to: row.key }); st.propCur = `${row.key}·${pid}`; st.cur = row.key; } }
     else if (p.what === 'nodes') moveTicked(row.key);
     else if (p.what === 'range') { const was = P(p.prop).range; if (!was.includes(row.key)) app.stage({ kind: 'setRange', prop: p.prop, to: [...was, row.key] }); }
     else if (p.what === 'split') { const v = p.values.find(x => x.id === row.key); app.nodesWhere(p.tag, P(p.prop).ident, v.id).then(nodes => { const title = v.title.charAt(0).toUpperCase() + v.title.slice(1); app.stage({ kind: 'split', tag: p.tag, name: Mo.titled(M(), title).length ? `${title} ${name(p.tag)}` : title, prop: p.prop, nodes, where: `${P(p.prop).title} is ${v.title}` }); }); }
@@ -685,7 +696,7 @@ function make(holder, mode, app) {
     else if (a === 'pmove') { const [tagId] = on.split('·').map(Number); startPrompt({ what: 'prop', list: 'tags', key: on, prop: Number(on.split('·')[1]), from: tagId }); }
     else if (a === 'pullup') { const [tagId, pid] = on.split('·').map(Number); const dest = Mo.parentOf(m, tagId); if (dest == null) return redraw(); app.stage({ kind: 'moveProp', prop: pid, from: [tagId], to: dest }); st.propCur = `${dest}·${pid}`; st.cur = dest; redraw(); }
     else if (a === 'prange') { const [, pid] = on.split('·').map(Number); st.propCur = on; startPrompt({ what: 'range', list: 'tags', prop: pid }); }
-    else if (a === 'prename') { const [, pid] = on.split('·').map(Number); startEdit('prename', on, P(pid).title); }
+    else if (a === 'prename') { const [, pid] = on.split('·').map(Number); if (st.view === 'table') showProp(on); startEdit('prename', on, P(pid).title); }
     else if (a === 'pdrop') { const [tagId, pid] = on.split('·').map(Number); app.stage({ kind: 'dropProp', prop: pid, tag: tagId }); if (st.propCur === on) st.propCur = null; redraw(); }
     else if (a === 'split') { const [tagId, pid] = on.split('·').map(Number); app.valuesOf(tagId, P(pid).ident).then(values => { if (!values.length) return app.notify(`No ${P(pid).title} values on ${name(tagId)}'s own nodes`, 'warning'); startPrompt({ what: 'split', list: 'values', tag: tagId, prop: pid, values }); }); }
     else if (a === 'nmove') { const n = st.nodes; const nodes = n.list.filter(x => n.ticks.has(x.uuid)); if (nodes.length) startPrompt({ what: 'nodes', list: 'tags', tag: n.tag, nodes }); }
@@ -720,7 +731,7 @@ function make(holder, mode, app) {
     jump(() => { st.nodes = { tag: id, list, ticks: new Set(), all: false, cur: 0 }; st.view = 'nodes'; st.propCur = null; st.cur = id; });
   }
   const show = what => jump(() => { st.view = what; st.propCur = null; st.nodes = null; st.whole.clear(); });   // 'tree' from the views line, 'table', 'health'
-  const showProp = key => jump(() => { st.propCur = key; st.view = 'tree'; st.nodes = null; st.cur = Number(key.split('·')[0]); });
+  const showProp = key => jump(() => { const on = Number(key.split('·')[0]); st.propCur = key; st.view = 'tree'; st.nodes = null; if (on) st.cur = on; });
 
   // ---------- events ----------
   root.addEventListener('click', e => {
