@@ -1284,14 +1284,12 @@ async function showPeek(link) {
   peek.anchor = link;
 }
 
-// The page's own property list in the main view (not one inside a record, a reference or the sidebar).
+// The page's own property list in the main view (not one inside a record, a reference or the sidebar), else its title:
+// the rows stand under the title and the properties, above the page's own words (the owner, 1 November 2026).
 function anchorFor(doc) {
   const main = doc.querySelector('#main-content-container');
   if (!main) return null;
   const outside = el => !el.closest('.references, .ls-bidirectional-properties, .ls-block .ls-block, .custom-query');
-  // The rows stand after the page's own words (the owner, 2026-10-31): the person's note comes first, then what points here.
-  const blocks = [...main.querySelectorAll('.ls-page-blocks')].find(outside);
-  if (blocks) return blocks;
   const props = [...main.querySelectorAll('.ls-page-properties')].find(outside);
   if (props) return props;
   const titles = [...(provided.pageTitles?.(doc) || [])].filter(el => main.contains(el) && !el.parentElement?.closest('.ls-page-title, .page-title, h1.title'));
@@ -1308,16 +1306,18 @@ function anchorFor(doc) {
 /* The keys end in 2 since 0.4.333: the rooms remembered before were measured while proposals still brought hidden
    property rows up and down, and a room remembered too large is let go at settle as a slide up (measured on Marcus
    Bell: 168 px, two seconds after the page). The old ones are dropped. */
-const SETTLE_MS = 2000, HEIGHTS_KEY = 'refinementTwoWayRoom3', OLD_KEYS = ['refinementTwoWayRoom', 'refinementTwoWayLeast', 'refinementTwoWayRoom2'];
+const SETTLE_MS = 2000, HEIGHTS_KEY = 'refinementTwoWayRoom4', OLD_KEYS = ['refinementTwoWayRoom', 'refinementTwoWayLeast', 'refinementTwoWayRoom2', 'refinementTwoWayRoom3'];
 /* A first visit (0.4.333, measured with the tour): the rows came under the title some 50 ms before Logseq's own property
    list, which then pushed them down (Dr. Raj Patel: 109 px). Now, on a page with no room remembered, they wait unseen in
    their place until that list is there, at most WAIT_MS, and no room is held for them: the least room of any page seen,
    held since 0.4.283, could be more than this page takes, and was let go at settle as a slide up (Marcus Bell: 56 px). */
-const WAIT_MS = 600, STILL_MS = 200;
+const WAIT_MS = 900, STILL_MS = 200;
 const settle = { since: 0, page: '', leaving: '', saved: false, timer: 0, ease: 0, wait: 0, frame: 0, stood: false };
 /* The wait ends once Logseq's property list is there and the rows' place has stood still a moment, or at once for a page that will
    have no list (the review, 31 October: on a first visit they came 600 ms late, the list having long been drawn). Stillness alone is
-   not enough: the list can come 200 ms after a still page (seen on Fatigue). WAIT_MS stays the most it can be. */
+   not enough: the list can come 200 ms after a still page (seen on Fatigue). WAIT_MS stays the most it can be.
+   The rows stand above the page's words, so a page not yet read this session waits for its reading as well, words and all:
+   its mentions and the find line come with that reading, and pushed the words down (Dr. Mei Chen: 266 px at half a second). */
 function endWaitWhenStill(box, page) {
   if (settle.frame) cancelAnimationFrame(settle.frame);
   let top = null, since = performance.now(), noList = false;
@@ -1328,7 +1328,7 @@ function endWaitWhenStill(box, page) {
     if (now !== top) { top = now; since = performance.now(); }
     const main = box.ownerDocument.querySelector('#main-content-container');
     const listThere = noList || !!main?.querySelector('.ls-page-properties');
-    if (!listThere || performance.now() - since < STILL_MS) { settle.frame = requestAnimationFrame(look); return; }
+    if (!listThere || !state.mentionsOf.has(page) || (!noList && performance.now() - since < STILL_MS)) { settle.frame = requestAnimationFrame(look); return; }
     settle.stood = true; box.removeAttribute('data-rf-waiting');
   };
   settle.frame = requestAnimationFrame(look);
@@ -1408,6 +1408,8 @@ function onRoute() {
   settle.leaving = shownPage(host());
   Object.assign(settle, { since: performance.now(), page: '', saved: false, stood: false });
   clearTimeout(settle.timer); clearTimeout(settle.ease); clearTimeout(settle.wait); if (settle.frame) cancelAnimationFrame(settle.frame);
+  // Left while the held room eased away: left on, the easing slid the rows on every page opened after.
+  state.box?.removeAttribute('data-rf-settling');
   // Once settled: no more room held, and the room is kept for next time.
   settle.timer = setTimeout(() => draw(host()), SETTLE_MS + 50);
   settle.wait = setTimeout(() => draw(host()), WAIT_MS + 20);
@@ -1426,8 +1428,9 @@ function draw(doc) {
   const anchor = on ? anchorFor(doc) : null;
   // A view with no page title the rows know (the Journals list), reached after the rows were read, has none of them (0.4.185).
   const stale = !shown.length && settle.since > (state.readAt || 0);
-  // The Journals list shows many days at once: no rows there (a day of its own gets them, 0.4.437).
-  const rows = state.groups.length > 0 && !stale && !(shown.length && !shown.includes(state.pageUuid)) && !(state.pageJournal && shown.length > 1);
+  // The Journals list shows many days at once: no rows there (a day of its own gets them, 0.4.437). Days by their uuid: a
+  // page's alias is a second block in the title area too, and on the way from a journal day it read as that list.
+  const rows = state.groups.length > 0 && !stale && !(shown.length && !shown.includes(state.pageUuid)) && shown.filter(uuid => uuid.startsWith('00000001-')).length < 2;
   // A page with an alias has more than one block in its title area; the page is the one the rows were read for.
   const page = shown.includes(state.pageUuid) ? state.pageUuid : shown.length === 1 ? shown[0] : '';
   const mode = anchor ? settling(page) : '';
@@ -1491,9 +1494,8 @@ function draw(doc) {
   pinNow();
   if (anchor.nextElementSibling !== box) anchor.after(box);
   holdRoom(doc, box, mode, page);
-  // The rows stand after the page's words, which Logseq is still drawing, so a page not seen before waits whatever the anchor.
   const waited = box.hasAttribute('data-rf-waiting');
-  box.toggleAttribute('data-rf-waiting', mode === 'hold' && !settle.stood && !heights.has(page) && performance.now() - settle.since < WAIT_MS);
+  box.toggleAttribute('data-rf-waiting', mode === 'hold' && !settle.stood && (!state.mentionsOf.has(page) || (!heights.has(page) && !anchor.matches('.ls-page-properties'))) && performance.now() - settle.since < WAIT_MS);
   if (!waited && box.hasAttribute('data-rf-waiting')) endWaitWhenStill(box, page);
   if (!rows && mode === 'save') box.remove();
 }
@@ -2321,15 +2323,16 @@ const twoWayCss = `
   display: grid; grid-template-columns: minmax(150px, max-content) minmax(0, 1fr); column-gap: 12px;
 }
 .refinement-two-way > * { grid-column: 1 / -1; }
-/* The rows follow the page's own words, a gap of one line away: Logseq's minimum height for the blocks would make it three. */
-.ls-page-blocks:has(+ .refinement-two-way) { min-height: 0; }
-/* Waiting unseen in its place for Logseq's property list on a first visit (0.4.333). */
+/* Waiting unseen in its place for Logseq's property list on a first visit (0.4.333), the page's words below it with it. */
 .refinement-two-way[data-rf-waiting] { visibility: hidden; }
+#main-content-container:has(.refinement-two-way[data-rf-waiting]) .ls-page-blocks { visibility: hidden; }
 /* Only holding room while the page settles: no field, no rows. */
 .refinement-two-way:not(:has(.rf-tw-row)) { margin: var(--rf-tw-hold, 0px) 0 0; }
 /* The room held while the page settled eases away (0.4.283), only then: while the page settles the held room shrinks in the same frame Logseq's list grows, and must not lag. */
 .refinement-two-way[data-rf-settling] { transition: margin-top .25s ease; }
-.refinement-two-way .rf-tw-row { display: grid; grid-template-columns: subgrid; column-gap: 12px; padding: 2px 0; }
+.refinement-two-way .rf-tw-row { display: grid; grid-template-columns: subgrid; column-gap: 12px; align-items: first baseline; padding: 2px 0; }
+/* After an open list, a gap of one line (the grammar's groups), well over the room between two of its lines. */
+.refinement-two-way .rf-tw-row[data-open] { padding-bottom: 14px; }
 /* A property's name starts with its icon (0.4.477), hung in the room left of the name so the names stay on one edge
    with the row's own words ("Mentioned in"), which have none. */
 .refinement-two-way .rf-tw-name > .rf-kind { font-size: 15px; width: 15px; justify-content: center; margin-left: -19px; margin-right: 4px; opacity: .5; vertical-align: -1px; }
@@ -2390,7 +2393,7 @@ const twoWayCss = `
    the pointer on the row. */
 .refinement-two-way .rf-tw-groupby { margin-left: .6em; height: 20px; padding: 0 5px; gap: 2px; }
 .refinement-two-way .rf-tw-groupby .ti { font-size: 12px; }
-.refinement-two-way .rf-tw-ghead { display: flex; align-items: baseline; gap: var(--rf-ol-gap); margin: .4rem 0 .05rem; }
+.refinement-two-way .rf-tw-ghead { display: flex; align-items: baseline; gap: var(--rf-ol-gap); margin: .85rem 0 .1rem; }
 .refinement-two-way .rf-tw-group:first-child .rf-tw-ghead { margin-top: .1rem; }
 .refinement-two-way .rf-tw-gwords { display: inline-flex; align-items: baseline; gap: .35em; padding-right: .25em; color: var(--rf-quiet); }
 .refinement-two-way .rf-tw-gn { font-size: .88em; }
@@ -2446,7 +2449,8 @@ const twoWayCss = `
    its name (the kit's kids). The section keeps Logseq's value column: the outline starts where Logseq's values do. */
 .refinement-two-way .rf-tw-value { display: block; font-size: inherit; }
 .refinement-two-way .rf-tw-value.rf-ol { --rf-ol-day: 48px; font-size: inherit; line-height: 1.5; }
-.refinement-two-way .rf-ol-line { min-height: 26px; padding-top: 1px; padding-bottom: 1px; }
+.refinement-two-way .rf-ol-line { min-height: 30px; padding-top: 3px; padding-bottom: 3px; }
+.refinement-two-way .rf-ol-line > input.rf-check[type=checkbox] { top: 8px; }
 .refinement-two-way .rf-tw-head { cursor: default; }
 .refinement-two-way .rf-tw-head:hover { background: transparent; }
 /* An outline (the owner, 2026-10-27: "have [date] [chevron] [bullet]"; "13 symptom logs chevron should be aligned with
@@ -2497,8 +2501,9 @@ const twoWayCss = `
 .refinement-two-way .rf-ol-body > .rf-tw-record.rf-ol-open, .refinement-two-way[data-finding] .rf-ol-body > .rf-tw-record { white-space: normal; }
 .refinement-two-way .rf-ol-body > .rf-tw-record ~ * { flex: none; }
 .refinement-two-way .rf-ol-body > .rf-pencil { margin-left: 8px; }
-.refinement-two-way a.rf-ol-name { text-decoration: underline; text-decoration-color: var(--rf-line); text-decoration-thickness: 1px; text-underline-offset: 3px; }
-.refinement-two-way a.rf-ol-name:hover { text-decoration-color: currentColor; }
+/* No underline at rest in this section, under the pointer the firm one (the owner, 1 November 2026: long names, each underlined in full, striped it). */
+.refinement-two-way a.rf-ol-name.lk-node { text-decoration-color: transparent !important; }
+.refinement-two-way a.rf-ol-name.lk-node:is(:hover, :focus-visible) { text-decoration-color: currentColor !important; }
 .refinement-two-way .rf-ol-body { display: inline; }
 .refinement-two-way .rf-ol-body > .rf-tw-add, .refinement-two-way .rf-ol-body > .rf-tw-groupby { margin-left: .5em; }
 .refinement-two-way .rf-tw-tell { margin-left: 6px; color: var(--rf-faint); font-size: 13px; white-space: nowrap; }

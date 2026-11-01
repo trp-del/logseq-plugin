@@ -147,6 +147,8 @@ async function record(browser, theme, name, scene, withPlugin) {
       await sleep(60); await page.evaluate(s => window.__page.more(s, 'blocks'), scene.spec);
     };
     if (scene.again) {
+      // Read on the visit before: no reading runs here, so a first visit waits out its limit, as a slow reading would.
+      if (withPlugin) await page.evaluate(uuid => window.__tw.state.mentionsOf.set(uuid, null), scene.spec.uuid);
       await open(); await sleep(2400);
       await page.evaluate(() => { document.getElementById('main-content-container').innerHTML = ''; });
       await sleep(200);

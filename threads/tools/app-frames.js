@@ -96,9 +96,9 @@ async function setPlugin(page, on) {
 // The rooms the two-way rows remember for these stops, forgotten (as for a page never opened); returns what was there.
 async function forgetRooms(page, stops) {
   return page.evaluate(async stops => {
-    const rooms = JSON.parse(localStorage.getItem('refinementTwoWayRoom2') || '{}'), kept = {};
+    const rooms = JSON.parse(localStorage.getItem('refinementTwoWayRoom4') || '{}'), kept = {};
     for (const stop of stops) { if (stop.startsWith('#')) continue; const p = await window.logseq.api.get_page(stop.toLowerCase()); if (p?.uuid && p.uuid in rooms) { kept[p.uuid] = rooms[p.uuid]; delete rooms[p.uuid]; } }
-    localStorage.setItem('refinementTwoWayRoom2', JSON.stringify(rooms));
+    localStorage.setItem('refinementTwoWayRoom4', JSON.stringify(rooms));
     return kept;
   }, stops);
 }
@@ -260,7 +260,7 @@ function writePictures(dir, run, pic, fails) {
     try { await setPlugin(page, true); } catch (error) { console.log('PROBLEM: the plugin could not be switched back on: ' + error.message); ok = false; }
     const clean = () => page.evaluate(() => { document.getElementById('rf-test-still')?.remove(); window.__rfFrames?.stop(); delete window.__rfFrames; }).catch(() => {});
     await clean();
-    await page.evaluate(kept => { const rooms = JSON.parse(localStorage.getItem('refinementTwoWayRoom2') || '{}'); for (const [k, v] of Object.entries(kept)) if (!(k in rooms)) rooms[k] = v; localStorage.setItem('refinementTwoWayRoom2', JSON.stringify(rooms)); }, roomsKept).catch(() => {});
+    await page.evaluate(kept => { const rooms = JSON.parse(localStorage.getItem('refinementTwoWayRoom4') || '{}'); for (const [k, v] of Object.entries(kept)) if (!(k in rooms)) rooms[k] = v; localStorage.setItem('refinementTwoWayRoom4', JSON.stringify(rooms)); }, roomsKept).catch(() => {});
     await page.evaluate(w => window.logseq.api.set_theme_mode(w.system ? 'system' : (w.theme || 'light')), was).catch(() => {});
     await page.evaluate(h => { location.hash = h; }, was.hash).catch(() => {});
     await sleep(300);

@@ -338,8 +338,12 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     check(/\.rf-ol-body > \.rf-tw-record \{ min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; \}/.test(source), 'a name is cut by the width of its row');
     check(!/title: item\.title/.test(source.slice(source.indexOf('async function showPeek'))) && !/\bday: item\.day/.test(source.slice(source.indexOf('async function showPeek'))), 'the card leaves out what the row says');
     check(/placePeek\(card\.el, link\)/.test(source), 'the card is placed clear of the rows');
-    check(/settle\.stood = true; box\.removeAttribute\('data-rf-waiting'\)/.test(source) && /!settle\.stood && !heights\.has\(page\)/.test(source), 'a first visit waits only until the place stands still');
-    check(/!listThere \|\| performance\.now\(\) - since < STILL_MS/.test(source), 'and until the property list is there: stillness alone can come before it');
+    check(/settle\.stood = true; box\.removeAttribute\('data-rf-waiting'\)/.test(source) && /!settle\.stood && \(!state\.mentionsOf\.has\(page\) \|\| \(!heights\.has\(page\)/.test(source), 'a first visit waits only until the place stands still and the page is read');
+    check(/!listThere \|\| !state\.mentionsOf\.has\(page\) \|\| \(!noList && performance\.now\(\) - since < STILL_MS\)/.test(source), 'and until the property list is there: stillness alone can come before it');
+    check(/:has\(\.refinement-two-way\[data-rf-waiting\]\) \.ls-page-blocks \{ visibility: hidden; \}/.test(source), 'the page\'s words wait with the rows, so what comes with the reading pushes nothing');
+    check(!/querySelectorAll\('\.ls-page-blocks'\)/.test(source), 'the rows stand under the title and the properties, above the page\'s words');
+    check(/state\.box\?\.removeAttribute\('data-rf-settling'\)/.test(source.slice(source.indexOf('function onRoute'))), 'leaving a page lets go of the easing, or every page after it slides');
+    check(/a\.rf-ol-name\.lk-node \{ text-decoration-color: transparent !important; \}/.test(source), 'a name in the section has no underline at rest');
     check(!/rf-card-day/.test(kit), 'the card has no day of its own');
     const { window, doc, part } = world('');
     await wait(120);

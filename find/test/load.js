@@ -276,10 +276,10 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
   { Find.window.open(); await settle();
     const foot = () => doc.querySelector('.fd-foot').textContent, dlg = doc.querySelector('dialog.fd');
     assert.ok(!/type to find|for a command/.test(foot()), 'no hint at rest'); assert.ok(foot().includes('Enter'), 'what Enter does stays');
-    assert.equal(dlg.style.height, 220 + 12 * 28 + 'px', 'room for the rows shown');
+    assert.equal(dlg.style.height, 236 + 12 * 32 + 'px', 'room for the rows shown');
     assert.ok(!fs.readFileSync(path.join(root, 'find/logseq/find.js'), 'utf8').includes('minHeight'), 'no height is kept from what was listed');
-    await type('>'); await settle(); assert.equal(dlg.style.height, 220 + 12 * 28 + 'px'); assert.equal(dlg.style.minHeight, '', 'the commands leave no height behind');
-    await key('Backspace'); await type('mei'); await settle(); assert.equal(dlg.style.height, 220 + 12 * 28 + 'px');
+    await type('>'); await settle(); assert.equal(dlg.style.height, 236 + 12 * 32 + 'px'); assert.equal(dlg.style.minHeight, '', 'the commands leave no height behind');
+    await key('Backspace'); await type('mei'); await settle(); assert.equal(dlg.style.height, 236 + 12 * 32 + 'px');
     assert.ok(doc.querySelector('.fd-w.lk-node') && !doc.querySelector('.fd-w.lk-bare'), 'where sorts mix, a page keeps its mark');
     await key('Escape'); await settle();
     Find.window.open(); await settle(); await type('doct'); await settle(); await key('Tab'); await settle();

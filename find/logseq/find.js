@@ -9,7 +9,7 @@ const Find = window.Find;
 const { host, el, esc, style, kindIconHtml, dragBand, openPage, notify } = Find.kit;
 const db = Find.db;
 
-const FRAME = 220, ROW = 28;   // the find line, the foot, three lines of choices and "show all"; a row
+const FRAME = 236, ROW = 32;   // the find line, the foot, three lines of choices and "show all"; a row
 const CSS = `
 .fd { --fd-quiet: var(--lk-quiet); --fd-faint: var(--lk-faint); --fd-hair: var(--lk-hair); --fd-line: var(--lk-line); --fd-wash: var(--lk-wash);
   --fd-ring: color-mix(in srgb, currentColor 11%, transparent); --fd-mono: var(--lk-mono);
@@ -23,7 +23,7 @@ const CSS = `
 .fd::backdrop { background: rgba(0,0,0,.12); }
 .fd * { box-sizing: border-box; }
 /* The find line: the pieces, then the letters. */
-.fd-find { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; padding: 11px 16px; border-bottom: 1px solid var(--fd-hair); font-size: 16px; cursor: text; }
+.fd-find { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; padding: 14px 16px; border-bottom: 1px solid var(--fd-hair); font-size: 16px; cursor: text; }
 .fd-piece { display: inline-flex; align-items: baseline; gap: 5px; position: relative; }
 /* A pick's ×, lk-x, only under the pointer: until then it takes no room. */
 .fd-piece .fd-x { transition: opacity .12s; }
@@ -38,7 +38,7 @@ const CSS = `
 .fd-body { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 16px 10px; transition: opacity .1s; }
 .fd-body.fd-reading { opacity: .5; transition: opacity .15s ease .25s; }
 .fd-head { font-size: 12px; color: var(--fd-faint); letter-spacing: .03em; margin: 6px 0 2px; }
-.fd-ch { display: grid; grid-template-columns: 118px minmax(0, 1fr); gap: 2px 10px; font-size: 13px; padding: 2px 0 6px; align-items: baseline; }
+.fd-ch { display: grid; grid-template-columns: 118px minmax(0, 1fr); gap: 2px 10px; font-size: 13px; padding: 3px 0 7px; align-items: baseline; }
 .fd-choices { padding-bottom: 14px; }
 .fd-head-rows { margin-top: 8px; }
 .fd-ck { color: var(--fd-faint); display: flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -55,7 +55,7 @@ const CSS = `
 .fd-icon { display: inline-flex; width: 12px; height: 12px; align-items: center; justify-content: center; color: var(--fd-faint); font-size: 12px; }
 .fd-icon svg { width: 12px; height: 12px; }
 /* The row: day | chevron | bullet | words and tag | right. */
-.fd-r { display: grid; grid-template-columns: 52px 16px 18px minmax(0, 1fr) auto; align-items: baseline; column-gap: 2px; min-height: 26px; padding: 1px 6px 1px 0; border-radius: 3px; cursor: default; }
+.fd-r { display: grid; grid-template-columns: 52px 16px 18px minmax(0, 1fr) auto; align-items: baseline; column-gap: 2px; min-height: 32px; padding: 5px 6px 6px 0; border-radius: 3px; cursor: default; }
 .fd-r.fd-on { background: var(--fd-wash); }
 .fd-r .fd-day { font-size: 12.5px; color: var(--fd-faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .fd-fold { all: unset; cursor: pointer; display: inline-flex; width: 16px; height: 20px; align-items: center; justify-content: center; font-size: 11px; color: inherit; align-self: start; margin-top: .5px; }
@@ -69,14 +69,14 @@ const CSS = `
 .fd-nm .lk-node { cursor: pointer; }
 .fd-right { color: var(--fd-faint); font-size: 12.5px; white-space: nowrap; padding-left: 12px; font-variant-numeric: tabular-nums; }
 .fd-right .fd-key { font-family: var(--fd-mono); }
-.fd-body .fd-showall { display: block; padding: 2px 0 2px 88px; }
-.fd-cut { display: flex; align-items: baseline; padding: 2px 0 2px 88px; }
+.fd-body .fd-showall { display: block; padding: 5px 0 6px 88px; }
+.fd-cut { display: flex; align-items: baseline; padding: 5px 0 6px 88px; }
 .fd-cut .fd-showall { padding: 0; }
 .fd-none { color: var(--fd-faint); padding: 6px 0 6px 88px; }
 /* A node opened in place: its properties, then what points at it, each a line that opens: the grammar's row, the dot
    ringed while closed, the number after the words as faint as on a lit choice. */
 .fd-kids { margin: 2px 0 6px 76px; padding-left: 10px; border-left: 1px solid var(--fd-hair); }
-.fd-kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 1px 12px; font-size: 13.5px; align-items: baseline; padding: 2px 0 10px; }
+.fd-kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 5px 12px; font-size: 13.5px; align-items: baseline; padding: 4px 0 10px; }
 .fd-kv .fd-k { display: inline-flex; align-items: center; gap: 5px; }
 .fd-kv .fd-v { display: flex; gap: 8px; flex-wrap: wrap; }
 .fd-kids .fd-g { grid-template-columns: 16px 18px minmax(0, 1fr); }
@@ -85,7 +85,7 @@ const CSS = `
 .fd-gn .fd-showall { padding-left: 86px; }
 .fd-ct { color: var(--fd-faint); font-size: 12px; font-variant-numeric: tabular-nums; }
 .fd-faint { color: var(--fd-faint); }
-.fd-foot { display: flex; gap: 16px; flex-wrap: wrap; padding: 6px 16px 8px; border-top: 1px solid var(--fd-hair); font-size: 12.5px; color: var(--lk-text, #222); }
+.fd-foot { display: flex; gap: 16px; flex-wrap: wrap; padding: 8px 16px 10px; border-top: 1px solid var(--fd-hair); font-size: 12.5px; color: var(--lk-text, #222); }
 .fd-foot:empty { display: none; }
 .fd-foot .fd-k { color: var(--fd-faint); margin-left: .4em; }
 .fd-foot .fd-right { margin-left: auto; padding: 0; }
