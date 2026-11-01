@@ -1,6 +1,6 @@
 /* The screen, as the mockup draws it: the tree on the left (the four kinds on top, your tags under them, each row a
    name, the nodes under it and a dot when an issue sits on or below it), the card on the right (one path line, the
-   thing's name, what it can take as words, where it sits, what it has, what points at it, its issues), the tray below
+   thing's name, what it can take as words, where it sits, what it has, what points at it, its issues), the tray on top of it
    (the changes waiting, as sentences with the nodes they touch, Apply and Discard, and the last Apply's one Undo). Every property as
    one sortable list and the Health list open from words on the path line. Nothing a single letter does: letters typed on
    the tree find a tag, as in any outline; what a thing can take is written on its card and in its right-click menu.
@@ -32,23 +32,32 @@ const CSS = `
   --st-ring: color-mix(in srgb, currentColor 11%, transparent); --st-mono: var(--lk-mono);
   color: var(--lk-text, #222); font-size: 14px; line-height: 1.5; outline: none; position: relative; }
 .st * { box-sizing: border-box; }
-.st-page { display: grid; grid-template-columns: 308px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; height: 600px; min-height: 360px; }
-.st-left { border-right: 1px solid var(--st-hair); padding: 12px 10px 12px 14px; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
-.st-right { padding: 14px 22px 20px 26px; min-width: 0; min-height: 0; overflow: auto; container-type: inline-size; }
+.st-page { display: grid; grid-template-columns: 308px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); height: 600px; min-height: 360px; }
+.st-left { grid-row: 1 / -1; border-right: 1px solid var(--st-hair); padding: 12px 10px 12px 14px; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.st-right { grid-column: 2; grid-row: 2; padding: 14px 22px 56px 26px; min-width: 0; min-height: 0; overflow: auto; container-type: inline-size; }
 .st-side .st-left { border: 0; padding: 4px 4px 8px 6px; }
-.st-tray { grid-column: 1 / -1; border-top: 1px solid var(--st-hair); padding: 8px 44px 9px 14px; display: flex; gap: 16px; align-items: center; font-size: 13.5px; min-height: 22px; color: var(--st-quiet); }
-/* The right padding keeps the Undo arrow clear of Logseq's help button, which stands over this corner. */
+/* The tray stands on top of the card, where a change is made, above what scrolls, so Apply is always in reach. The card's foot keeps clear of Logseq's help button, which stands over that corner. */
+.st-tray { grid-column: 2; grid-row: 1; border-bottom: 1px solid var(--st-hair); padding: 10px 22px 10px 26px; font-size: 14px; min-width: 0; }
 .st-tray:empty { display: none; }
-.st-tray .tl { display: grid; gap: 1px; flex: 1; min-width: 0; align-items: baseline; }
-.st-tray .tl span { color: inherit; }
-.st-tray .tl > span { color: var(--lk-text, #222); }
-.st-tray .tl span i { color: var(--st-quiet); font-style: normal; font-variant-numeric: tabular-nums; margin-left: .35em; }
-.st-tray .tl .lk-x { margin-left: 2px; }
-.st-tray .do { display: flex; gap: 14px; white-space: nowrap; align-items: baseline; }
-.st-tray .do .go { padding: 3px 8px; }
-.st-tray .do .ky { color: var(--st-faint); font-size: 12px; margin-left: 6px; }
+.st-tray .st-wait { overflow: visible; } .st-tray .st-wait .lk-btn:first-of-type { margin-left: auto; } .st-tray .st-wait .lk-btn:first-of-type::before { display: none; }
+.st-tray .tl { display: grid; gap: 1px; min-width: 0; margin-top: 4px; }
+/* A line of the tray: the sentence, then in a column of its own how many nodes it affects, so the two are never read as one. */
+.st-tray .tl > span { display: grid; grid-template-columns: minmax(0, 1fr) max-content 16px; gap: 0 12px; align-items: baseline; color: var(--lk-text, #222); font-size: 13.5px; }
+.st-tray .tl span i { color: var(--st-quiet); font-style: normal; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.st-tray .tl .lk-x { justify-self: end; padding: 0 2px; }
+.st-tray .st-wait .lk-accent { padding: 3px 8px; }
+.st-tray .ky { font-weight: 400; color: var(--st-faint); font-size: 12px; margin-left: 6px; }
+/* The yes to what Undo cannot put back whole (the library's), under the lines it answers for. */
+/* A question, wherever it opens (the library's): what it asks, what follows from it, the answers; joined by a line from the margin. */
+.st-q { margin: 6px 0 16px; padding-left: 12px; border-left: 2px solid var(--st-hair); max-width: 640px; }
+.st-tray .st-q { margin: 8px 0 2px; max-width: none; }
+.st-q .h { font-weight: 600; } .st-q .l { color: var(--st-quiet); font-size: 13.5px; }
+.st-q .lk-answers { margin-top: 6px; } .st-q .lk-hint { white-space: normal; }
 /* st-done, not done: Logseq strikes through its own .done (a finished task). */
-.st-tray .st-done, .st-tray .note { color: var(--st-quiet); white-space: nowrap; margin-left: auto; } .st-tray .note + .st-done { margin-left: 0; }   /* the Undo arrow waits bottom right (the grammar) */ .st-tray .st-done .lk-undo { cursor: pointer; margin-left: 6px; font-size: 16px; }
+.st-tray .st-saying { display: flex; gap: 16px; justify-content: flex-end; }
+.st-tray .st-done, .st-tray .note { color: var(--st-quiet); white-space: nowrap; font-size: 13.5px; }   /* the Undo arrow waits at the right, at the top of the card (the grammar) */
+.st-tray .st-wait + .tl + .st-saying, .st-tray .st-wait + .tl + .more + .st-saying { margin-top: 4px; }
+.st-tray .st-done .lk-undo { cursor: pointer; margin-left: 6px; font-size: 16px; }
 .st-tray .busy { color: var(--st-faint); }
 .st-find { border-bottom: 1px solid var(--st-line); color: var(--st-faint); font-size: 13.5px; display: flex; min-height: 24px; padding: 0 2px; margin: 0 0 10px; align-items: center; gap: 6px; }
 .st-find input, .st-in { all: unset; flex: 1; color: var(--lk-text, #222); min-width: 0; font: inherit; }
@@ -59,7 +68,7 @@ const CSS = `
 /* A row is built as Logseq builds a block (the grammar): the tick in the margin, the fold arrow shown under the pointer, the
    bullet ringed while folded, then the mark and the name; at the right edge only what tells the rows apart (here the count). */
 /* A long name wraps like text, so the row's pieces stand at its first line. Each level is one step in, as deep as the tree goes. */
-.st-row { display: grid; grid-template-columns: 14px 14px 16px minmax(0, 1fr) 46px 12px; align-items: start; min-height: 26px; padding-left: calc(var(--d, 0) * 12px); border-radius: 3px; position: relative; cursor: default; }
+.st-row { display: grid; grid-template-columns: 14px 14px 16px minmax(0, 1fr) 46px 12px; align-items: start; min-height: 26px; padding-left: calc(var(--d, 0) * 12px); border-radius: 3px; position: relative; }
 .st-side .st-row { grid-template-columns: 14px 16px minmax(0, 1fr) 40px 12px; }
 .st-bul { display: inline-flex; width: 14px; height: 14px; margin-top: 6px; border-radius: 50%; align-items: center; justify-content: center; justify-self: center; }
 .st-bul.folded { background: var(--st-ring); }
@@ -87,6 +96,9 @@ const CSS = `
 .st-row .ct { text-align: right; line-height: 26px; color: var(--st-quiet); font-size: 12.5px; font-variant-numeric: tabular-nums; }
 .st-row .iss { width: 5px; height: 5px; margin-top: 10.5px; border-radius: 50%; background: currentColor; opacity: 0; justify-self: center; }
 .st-row .iss.on { opacity: .35; } .st-row .iss.own { opacity: .7; }
+/* Everything that presses shows it under the pointer, and nothing else does: a line or a row that opens a card, a number, the rest of a list. */
+.st [data-row], .st [data-prop], .st [data-nodes], .st [data-node], .st [data-pick], .st [data-all], .st [data-more], .st [data-go], .st [data-back], .st [data-open] { cursor: pointer; }
+.st .lk-view.on { cursor: default; } .st-row.off[data-pick] { cursor: default; }
 .st-row.dragging { opacity: .4; }
 .st-row.over { background: var(--st-wash); box-shadow: inset 0 2px 0 var(--st-line); }
 /* Pencilled in (Look's lk-pencil on the name): what a change waiting in the tray touches. */
@@ -113,7 +125,7 @@ const CSS = `
 .st .act { color: var(--st-quiet); cursor: pointer; white-space: nowrap; } .st .act:hover { color: inherit; }
 /* A group's head is bold words on a row; groups are told apart by a gap of one line, not a hairline (the grammar). */
 .st-card h3, .st-hl h3 { font-size: 14px; font-weight: 600; color: inherit; margin: 22px 0 2px; min-height: 25px; display: flex; align-items: center; }
-.st-card h3:first-of-type, .st-hl h3:first-child { margin-top: 0; }
+.st-card h3:first-of-type, .st-hl h3:first-child { margin-top: 0; } .st-hl .st-ttl + h3 { margin-top: 12px; }
 .st-ln { display: grid; grid-template-columns: 16px minmax(0, 1fr) 84px; gap: 0 8px; align-items: baseline; min-height: 25px; border-radius: 3px; padding: 0 4px 0 2px; margin-left: -2px; }
 .st-ln:hover { background: var(--st-wash); }
 .st-pi { display: inline-flex; width: 11px; height: 11px; color: var(--st-faint); align-self: center; } .st-ln > .st-pi { align-self: start; margin-top: 5px; } .st-pi .lk-icon.lk-web, .st-pi .lk-icon.lk-web svg { width: 100%; height: 100%; } .st-pi .ti { font-size: 12px; line-height: 1; margin: -.5px; }
@@ -125,7 +137,6 @@ const CSS = `
 .st .lk-tag { white-space: nowrap; cursor: pointer; }
 .st-ln .ct { text-align: right; font-size: 12.5px; color: var(--st-quiet); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .st-ln.low .ct { color: var(--st-faint); }
-.st-ln.inh, .st-ln.inh .w .k { color: var(--st-faint); }
 .st-ln.rng .x { margin-left: 2px; }
 .st-ln.add .ct { text-align: left; white-space: normal; }
 /* An issue's row, each part keyed by its role (the owner, 31 October 2026): the thing to settle in the text colour with the underline
@@ -139,10 +150,8 @@ const CSS = `
 .st-ln.iss .w .nm { color: var(--st-quiet); font-variant-numeric: tabular-nums; font-size: 13.5px; margin-left: 6px; }
 /* A line with its own issue: the fix word at its right end, after the faint count. */
 .st-ln.fx { grid-template-columns: 16px minmax(0, 1fr) 84px max-content; }
-.st-ln.ask { min-height: 0; margin: 2px 0 10px 14px; } .st-ln.ask .w { color: var(--st-quiet); padding-left: 10px; border-left: 2px solid var(--st-hair); display: block; }
-.st-ln.ask.two .w { max-width: 600px; }   /* the two columns no wider than the sentence under them */
 /* A merge before it is staged, as the grammar shows a consequence: the two tags side by side, their properties lined up. */
-.st-two { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; font-size: 13.5px; margin: 4px 0 6px; }
+.st-two { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; font-size: 13.5px; margin: 8px 0 6px; }
 .st-two .h { font-weight: 600; padding-bottom: 4px; display: flex; gap: 8px; align-items: baseline; color: var(--lk-text, #222); } .st-two .h .ct { font-weight: 400; color: var(--st-quiet); font-size: 12.5px; }
 .st-two .pr { display: flex; gap: 8px; min-height: 24px; align-items: center; color: var(--st-quiet); }   /* the name at the left of its column, "on both" at the right */
 .st-two .pr .n { display: inline-flex; gap: 6px; align-items: center; min-width: 0; }
@@ -162,7 +171,6 @@ const CSS = `
 .st-tbl .tr .ct { font-variant-numeric: tabular-nums; color: var(--st-quiet); font-size: 12.5px; text-align: right; }
 .st-tbl .tr.low .ct { color: var(--st-faint); }
 .st-hl .st-ln { grid-template-columns: minmax(0, 1fr) max-content; }
-.st-hl .st-ln.ask { grid-template-columns: minmax(0, 1fr); }
 /* A node's row: the day in the left margin (the margin is time), the tick, the bullet, the name. */
 .st-nodes .st-ln { grid-template-columns: 46px 14px 16px minmax(0, 1fr); }
 .st-nodes .st-ln .lk-day { white-space: nowrap; }
@@ -182,7 +190,7 @@ const CSS = `
 .st-prompt .st-row.off .nm, .st-prompt .st-row.off .ct { color: var(--st-faint); }
 .st-prompt .st-row.lit { background: var(--st-wash); }
 .st-empty { color: var(--st-quiet); max-width: 60ch; }
-@media (max-width: 760px) { .st-page { grid-template-columns: 1fr; grid-template-rows: auto auto auto; height: auto; } .st-left { border-right: 0; border-bottom: 1px solid var(--st-hair); } }`;
+@media (max-width: 760px) { .st-page { grid-template-columns: 1fr; grid-template-rows: auto auto auto; height: auto; } .st-left { grid-row: 1; border-right: 0; border-bottom: 1px solid var(--st-hair); } .st-tray { grid-column: 1; grid-row: 2; } .st-right { grid-column: 1; grid-row: 3; } }`;
 
 function ensureStyle(doc) {
   let sheet = doc.getElementById('st-style');
@@ -264,7 +272,7 @@ function make(holder, mode, app) {
   // the title under it is where you are, so the name is not said twice (the owner, 31 October 2026, on a property's card).
   // One line in one place: the last few places, the ones before them a faint "…".
   const TRAIL = 4;
-  const trailHtml = () => st.trail.length ? `<div class="st-trail lk-trail">${st.trail.length > TRAIL ? '<span class="sep">…</span>' : ''}${st.trail.map((p, i) => [p, i]).slice(-TRAIL).map(([p, i]) => `<span class="lk-step" data-back="${i}">${esc(placeName(p))}</span>`).join('<span class="sep">›</span>')}<span class="sep">›</span></div>` : '';
+  const trailHtml = () => { const steps = st.trail.map((p, i) => [placeName(p), i]).filter(([w]) => w); return steps.length ? `<div class="st-trail lk-trail">${steps.length > TRAIL ? '<span class="sep">…</span>' : ''}${steps.slice(-TRAIL).map(([w, i]) => `<span class="lk-step" data-back="${i}">${esc(w)}</span>`).join('<span class="sep">›</span>')}<span class="sep">›</span></div>` : ''; };
   // The title row: the mark and the name, and at the right end the place in the tree, nearest first, each a tag that opens (as Look draws a page's).
   const titleHtml = (mark, title, above, cls) => `<div class="st-ttl"><h2 class="${cls || ''}">${mark}<span class="${cls ? 'lk-pencil' : ''}">${title}</span></h2>${above.length ? `<span class="st-place">${above.map(tagLink).join('<span class="sep">/</span>')}</span>` : ''}</div>`;
   // The prompt that belongs to the card (a property's, the nodes'), in place under the words.
@@ -281,14 +289,14 @@ function make(holder, mode, app) {
   // An issue that belongs to a line puts its fix word at the line's right end, after the faint count, with its ask under the line.
   const lineFix = (tagId, pid, kid) => { const i = R.issueOnLine(ISS(), tagId, pid, kid); return i ? { cls: 'fx', word: `<span class="fix act lk-fix" data-fix="${ISS().indexOf(i)}">${esc(i.fix)}</span>`, ask: askHtml(ISS().indexOf(i)) } : { cls: '', word: '', ask: '' }; };
   function propLine(tagId, pid, of, inh) {
-    const p = P(pid), f = inh ? 0 : Mo.filled(M(), tagId, pid), low = of && !inh && f / of < .2;
+    const p = P(pid), f = Mo.filled(M(), tagId, pid), low = of && f / of < .2;
     const editing = st.edit && st.edit.what === 'prename' && st.edit.on === `${tagId}·${pid}`;
     const fx = inh ? { cls: '', word: '', ask: '' } : lineFix(tagId, pid);
     return `<div class="st-ln ${inh ? 'inh' : ''} ${low ? 'low' : ''} ${fx.cls} ${waitProp(pid)}" data-prop="${tagId}·${pid}">${pi(p)}<span class="w">` +
       (editing ? `<input class="st-in" data-edit value="${esc(st.edit.text)}" autocomplete="off" spellcheck="false">` : `<span class="k lk ${waitProp(pid) ? 'lk-pencil' : ''}">${esc(p.title)}</span>`) +
       (p.type === 'node' ? `<span class="to">points at</span>${p.range.length ? ranges(p.range) : '<span class="to">any node</span>'}` : '') +
       (inh ? `<span class="to">inherited from ${esc(name(inh))}</span>` : '') +
-      `</span><span class="ct">${inh ? '' : f + ' of ' + of}</span>${fx.word}</div>${fx.ask}`;
+      `</span><span class="ct">${f} of ${of}</span>${fx.word}</div>${fx.ask}`;
   }
   function cardTag(id) {
     const m = M(), t = T(id);
@@ -303,9 +311,13 @@ function make(holder, mode, app) {
       `${newest ? `<span>newest ${day(newest)}</span>` : ''}${t.missing ? `<span>no tag of this name in the graph yet; one is made when something is moved under it</span>` : ''}</div>`;
     // What it can take, as words. A kind takes less; a missing kind only a new tag.
     const ticked = [...st.ticks].filter(x => x !== id && T(x));
-    h += acts(id, t.kind ? [!t.missing && ['rename', 'rename'], ['new tag inside', 'new'], ['add a property to all beneath…', 'addpropall']]
-      : [['rename', 'rename'], ['move under…', 'move'], ['new tag inside', 'new'], ['add a property…', 'addprop'], kids.length && ['add a property to all beneath…', 'addpropall'],
-        ticked.length && [`merge the ${ticked.length === 1 ? 'ticked tag' : ticked.length + ' ticked tags'} into this`, 'merge'], !total && !kids.length && ['remove', 'remove']]) + mergeAskHtml(id) + changeAskHtml(id) + cardPrompt();
+    const go = t.uuid && ['go to this tag', 'page'];
+    // While a question stands on this card it is what the card is for: the words give way to it.
+    const asked = st.ask?.merges && st.ask.into === id || changeAsk()?.tag === id;
+    if (!asked) h += acts(id, t.kind ? [go, !t.missing && ['rename', 'rename'], ['new tag inside', 'new'], ['add a property to all beneath…', 'addpropall']]
+      : [go, ['rename', 'rename'], ['move under…', 'move'], ['new tag inside', 'new'], ['add a property…', 'addprop'], kids.length && ['add a property to all beneath…', 'addpropall'],
+        ticked.length && [`merge the ${ticked.length === 1 ? 'ticked tag' : ticked.length + ' ticked tags'} into this`, 'merge'], !total && !kids.length && ['remove', 'remove']]);
+    h += mergeAskHtml(id) + changeAskHtml(id) + cardPrompt();
     const inh = Mo.inherited(m, id);
     if (t.props.length || inh.length) {
       h += `<h3>Has</h3>`;
@@ -339,9 +351,9 @@ function make(holder, mode, app) {
   const issuesHtml = list => !list.length ? '' : `<h3>Issues</h3>` + list.map(i => issueLine(i, '<span></span>')).join('');
   const askLine = (c, last) => {
     const s = S.changes.sentence(M(), c), two = c.kind === 'merge';
-    const words = last ? `<span class="lk-answers"><span class="act lk-accent" data-stage>stage it</span><span class="act f lk-btn" data-leave>leave it</span><span class="ky lk-hint">Enter stages · Esc leaves it</span></span>` : '';
-    // The nodes it touches, once: after the sentence, or in the merge's column head.
-    return `<div class="st-ln ask ${two ? 'two' : ''}"><span></span><span class="w">${two ? twoHtml(c.from, c.into) : ''}${esc(s.text)}${s.nodes && !two ? ` · ${plural(s.nodes, 'node')}` : ''}${words}</span></div>`;
+    const words = last ? `<div class="lk-answers"><span class="act lk-accent" data-stage>stage it</span><span class="act lk-btn" data-leave>leave it</span><span class="ky lk-hint">Enter stages · Esc leaves it</span></div>` : '';
+    // Each thing once: what it asks; the merge's columns say which tag goes and how many nodes; what no Undo brings back, under them.
+    return `<div class="st-q"><div class="h">${esc(two ? s.ask : s.text)}${s.nodes && !two ? ` · ${plural(s.nodes, 'node')}` : ''}</div>${two ? twoHtml(c.from, c.into) : ''}${two && s.lost.length ? `<div class="l">${s.lost.map(esc).join(' · ')}</div>` : ''}${words}</div>`;
   };
   function askHtml(n) {
     if (!st.ask || st.ask.i !== n) return '';
@@ -357,7 +369,8 @@ function make(holder, mode, app) {
   // what is shared, what moves to the kept tag and what the kept tag gains.
   function twoHtml(fromId, intoId) {
     const m = M(), from = T(fromId), into = T(intoId); if (!from || !into) return '';
-    const col = (t, other, gone) => `<div><div class="h">${esc(t.title)}<span class="ct">${plural(Mo.count(m, t.id), 'node')}${gone ? ', removed' : ''}</span></div>` +
+    if (!from.props.length && !into.props.length && !from.kids.length && !Mo.count(m, fromId) && !Mo.count(m, intoId)) return '';   // nothing to set side by side
+    const col = (t, other, gone) => `<div><div class="h">${esc(t.title)}<span class="ct">${[Mo.count(m, t.id) ? plural(Mo.count(m, t.id), 'node') : '', gone ? 'removed' : 'kept'].filter(Boolean).join(', ')}</span></div>` +
       t.props.map(pid => { const shared = other.props.includes(pid); return `<div class="pr ${shared ? 'shared' : gone ? 'moves' : ''}"><span class="n">${pi(P(pid))}${esc(P(pid).title)}</span><span class="ct">${shared ? `on both` : gone ? 'moves' : ''}</span></div>`; }).join('') +
       (!gone ? other.props.filter(pid => !t.props.includes(pid)).map(pid => `<div class="pr new"><span class="n">${pi(P(pid))}${esc(P(pid).title)}</span><span class="ct">new</span></div>`).join('') : '') +
       (gone && t.kids.length ? `<div class="pr moves"><span class="n">${plural(t.kids.length, 'tag')} under it</span><span class="ct">move</span></div>` : '') +
@@ -372,7 +385,7 @@ function make(holder, mode, app) {
     // The facts, said once: what it points at, how filled here (the title row's right end already names the tag), inherited.
     h += `<div class="sum"><span>${p.type === 'node' ? `points at ${p.range.length === 1 ? tagLink(p.range[0]) : p.range.length ? plural(p.range.length, 'tag') : 'any node'}` : Mo.kindWord(p.choice ? 'choice' : p.type)}${p.many ? ', several' : ''}</span><span>${f} of ${of} filled</span>${from != null ? `<span>inherited from ${esc(name(from))}</span>` : ''}</div>`;
     // What it can take, as short words on one line; another tag it points at is the last line of the Points at list below.
-    h += acts(key, [['rename', 'prename'], declared && ['move to…', 'pmove'], declared && parent != null && [`pull up to ${esc(name(parent))}`, 'pullup'],
+    h += acts(key, [p.uuid && ['go to this property', 'ppage'], ['rename', 'prename'], declared && ['move to…', 'pmove'], declared && parent != null && [`pull up to ${esc(name(parent))}`, 'pullup'],
       (p.choice || p.type === 'node') && t.nodes.size && ['split by its values…', 'split'], declared && ['drop', 'pdrop']]) + cardPrompt();
     if (p.type === 'node') {
       // What it points at, one tag a row with how many of its values point at that tag's nodes; × takes a tag out, the last line adds one.
@@ -413,7 +426,7 @@ function make(holder, mode, app) {
   function healthHtml() {
     const all = ISS(), by = new Map();
     for (const i of all) by.set(i.rule, [...(by.get(i.rule) || []), i]);
-    let h = `<div class="st-card st-hl">${trailHtml()}${titleHtml('', 'Health', [], '')}<div class="sum"><span>${all.length ? `${all.length} thing${all.length === 1 ? '' : 's'} to settle` : 'nothing to settle'}</span></div>`;
+    let h = `<div class="st-card st-hl">${trailHtml()}${titleHtml('', 'Health', [], '')}${all.length ? '' : `<div class="sum"><span>nothing to settle</span></div>`}`;
     for (const [rule, list] of by) h += `<h3>${esc(rule)}</h3>` + few(rule, list).map(i => issueLine(i, '')).join('') + moreOf(rule, list);
     return h + `</div>`;
   }
@@ -435,15 +448,26 @@ function make(holder, mode, app) {
   // ---------- the tray ----------
   function trayHtml() {
     const tr = app.tray;
-    if (st.busy) return `<div class="busy">${esc(st.busy)}</div>`;
+    if (st.ask?.apply && !tr.lasting().length) st.ask = null;   // the line it asked about was taken out
+    if (st.busy) return `<div class="busy lk-hint">${esc(st.busy)}</div>`;
     // The last Apply's arrow stays until a new Apply takes its place, whatever is staged or discarded in between.
     const done = tr.done ? `<div class="st-done">${esc(tr.done.text)} <span class="lk-undo" title="Undo" data-undo>${Door.UNDO}</span></div>` : '';
-    if (!tr.changes.length) return (tr.note ? `<div class="note">${esc(tr.note)}</div>` : '') + done;
-    const lines = tr.lines(), n = tr.nodes();
-    return `<div class="tl"><span class="q" style="color:var(--st-faint)">${plural(lines.length, 'change')} waiting</span>` +
-      lines.map((c, i) => `<span>${esc(c.text)}<i>${c.nodes ? plural(c.nodes, 'node') : ''}</i><span class="lk-x" data-drop="${i}" title="Take this one out">×</span></span>`).join('') +
-      `</div><div class="do"><span class="go lk-accent" data-apply>Apply · one Undo for ${plural(n, 'node')}<span class="ky">Cmd Enter</span></span><span class="lk-btn" data-discard>Discard<span class="ky">Cmd Delete</span></span></div>` + done;
+    const saying = tr.note || done ? `<div class="st-saying">${tr.note ? `<div class="note">${esc(tr.note)}</div>` : ''}${done}</div>` : '';
+    if (!tr.changes.length) return saying;
+    // The newest lines, since the newest is what was just done and what Cmd-Z takes; the rest behind "show all".
+    const lines = tr.lines().map((c, i) => [c, i]), shown = st.whole.has('tray') ? lines : lines.slice(-FEW_LINES);
+    // While the big question is open its blue yes is the one Apply on the screen.
+    const big = st.ask?.apply, words = big ? '' : `<span class="lk-btn" data-discard>Discard<span class="ky">Cmd Delete</span></span><span class="lk-accent" data-apply>Apply<span class="ky">Cmd Enter</span></span>`;
+    return `<div class="st-wait lk-bar"><b class="lk-said">${plural(lines.length, 'change')} waiting</b>${words}</div>` +
+      `<div class="tl">${shown.map(([c, i]) => `<span><span>${esc(c.text)}</span><i>${c.nodes ? `affects ${plural(c.nodes, 'node')}` : ''}</i><span class="lk-x" data-drop="${i}" title="Take this one out">×</span></span>`).join('')}</div>` +
+      (shown.length < lines.length ? `<div class="more lk-more" data-all="tray">show all ${lines.length}</div>` : '') + (big ? bigHtml() : saying);
   }
+  const FEW_LINES = 5;
+  // Apply, when Undo cannot put it all back: the library's question for a big change, its yes the one blue button.
+  const bigHtml = () => `<div class="st-q st-big"><div class="h">Undo can’t put this back as it was</div>` +
+    app.tray.lasting().map(x => `<div class="l">${esc(x.name)} is deleted for good. Undo makes a new tag of that name.</div>`).join('') +
+    `<div class="lk-answers"><span class="lk-big" data-stage>Apply</span><span class="lk-btn" data-leave>Leave it</span><span class="lk-hint">Enter applies · Esc leaves it</span></div></div>`;
+  const pressApply = () => { if (st.ask?.apply) return; if (app.tray.lasting().length) { st.ask = { apply: true, owner: mode }; st.menu = null; return redraw(); } app.apply(); };
 
   // ---------- the move prompt ----------
   function promptHtml() {
@@ -483,7 +507,7 @@ function make(holder, mode, app) {
     if (mn.kind === 'row') {
       const t = T(mn.on), isKind = !t || t.kind, loose = mn.on === LOOSE;
       const n = Mo.count(m, mn.on), nodesOf = ids => plural(ids.reduce((s, x) => s + Mo.count(m, x), 0), 'node');
-      h += it('Open everything under', 'openall', false, 'Shift →') + (mode === 'side' ? it('Open the map here', 'main', false, 'Enter') : it(st.ticks.has(mn.on) ? 'Untick' : 'Tick', 'tick', isKind || loose, 'space')) + '<div class="gap lk-item"></div>' +
+      h += (t?.uuid ? it('Go to this tag', 'page') : '') + it('Open everything under', 'openall', false, 'Shift →') + (mode === 'side' ? it('Open the map here', 'main', false, 'Enter') : it(st.ticks.has(mn.on) ? 'Untick' : 'Tick', 'tick', isKind || loose, 'space')) + '<div class="gap lk-item"></div>' +
         it('Rename', 'rename', loose || !t || t.missing) + it(loose ? 'New tag here' : 'New tag inside', 'new') + it('Add a property…', 'addprop', isKind || loose) + it('Add a property to all beneath…', 'addpropall', loose, Mo.kids(m, mn.on).length ? nodesOf(Mo.kids(m, mn.on)) : '') + '<div class="gap lk-item"></div>' +
         it('Move under…', 'move', isKind || loose, n ? plural(n, 'node') : '') +
         it(ticked > 1 ? `Merge the ${ticked} ticked into this` : 'Merge the ticked into this', 'merge', isKind || loose || ticked < 1 || (ticked === 1 && st.ticks.has(mn.on)), ticked && !st.ticks.has(mn.on) ? nodesOf([...st.ticks]) : '') + '<div class="gap lk-item"></div>' +
@@ -492,7 +516,7 @@ function make(holder, mode, app) {
       const [tagId, pid] = mn.on.split('·').map(Number), t = T(tagId), p = P(pid), parent = Mo.parentOf(m, tagId);
       const declared = !!t?.props.includes(pid);
       const f = t ? plural(Mo.filled(m, tagId, pid), 'value') : '';
-      h += it('Rename', 'prename') + (p?.type === 'node' ? it('Points at another tag too…', 'prange') : '') + '<div class="gap lk-item"></div>' +
+      h += (p?.uuid ? it('Go to this property', 'ppage') + '<div class="gap lk-item"></div>' : '') + it('Rename', 'prename') + (p?.type === 'node' ? it('Points at another tag too…', 'prange') : '') + '<div class="gap lk-item"></div>' +
         it('Move to…', 'pmove', !declared, f) + it(parent != null ? `Pull up to ${name(parent)}` : 'Pull up to the parent', 'pullup', !declared || parent == null, f) +
         (p && (p.choice || p.type === 'node') ? it('Split by its values…', 'split', !t.nodes.size, plural(t.nodes.size, 'node')) : '') + '<div class="gap lk-item"></div>' + it('Drop', 'pdrop', !declared, f);
     }
@@ -504,15 +528,18 @@ function make(holder, mode, app) {
     const active = doc.activeElement, hadFocus = root.contains(active) || wantFocus;
     const finding = !wantFocus && root.contains(active) && active.matches('[data-find]') ? active.selectionStart : null;
     const scroll = root.querySelector('.st-tree')?.scrollTop, scrollR = root.querySelector('.st-right')?.scrollTop;
+    const trayWas = root.querySelector('.st-tray')?.offsetHeight;   // undefined on the first drawing: what is there at opening does not slide
+    if (mode === 'page') keepPlace();
     let h = treeHtml();
     if (mode === 'page') {
-      h += `<div class="st-right">${st.view === 'table' ? tableHtml() : st.view === 'health' ? healthHtml() : st.view === 'nodes' ? nodesHtml() : st.propCur ? cardProp(st.propCur) : cardTag(st.cur)}</div>`;
-      h += `<div class="st-tray">${trayHtml()}</div>`;
+      const card = st.view === 'table' ? tableHtml() : st.view === 'health' ? healthHtml() : st.view === 'nodes' ? nodesHtml() : st.propCur ? cardProp(st.propCur) : cardTag(st.cur);
+      h += `<div class="st-tray">${trayHtml()}</div><div class="st-right">${card}</div>`;
     }
     if (st.menu && st.menu.owner === mode) h += menuHtml();
     root.innerHTML = h;
     // The screen takes the room Logseq gives it: from where the holder sits to the bottom of the window.
     if (mode === 'page') { const top = root.getBoundingClientRect().top, win = doc.defaultView; if (win?.innerHeight && top >= 0) root.style.height = Math.max(360, win.innerHeight - top - 24) + 'px'; }
+    slideTray(trayWas);
     if (scroll) root.querySelector('.st-tree').scrollTop = scroll;
     if (scrollR && root.querySelector('.st-right')) root.querySelector('.st-right').scrollTop = scrollR;
     root.querySelector('.st-row.cur')?.scrollIntoView?.({ block: 'nearest' });
@@ -526,9 +553,52 @@ function make(holder, mode, app) {
     else root.focus({ preventScroll: true });
   }
 
-  // ---------- going places: the trail ----------
+  // The tray rolls out and back when its height changes (the grammar: what opens rolls out), the card moving with it, never with a jump.
+  // Every draw makes the tray anew, so the slide runs from the height it had. Empty, it takes no room, so the card itself comes up.
+  const SLIDE = { duration: 160, easing: 'ease-out' };
+  function slideTray(was) {
+    const tray = root.querySelector('.st-tray'), now = tray?.offsetHeight;
+    if (was == null || was === now || !tray?.animate || doc.defaultView.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    if (!now) { root.querySelector('.st-right').animate({ marginTop: [`${was}px`, '0px'] }, SLIDE); return; }
+    const box = doc.defaultView.getComputedStyle(tray), from = was ? {} : { paddingTop: ['0px', box.paddingTop], paddingBottom: ['0px', box.paddingBottom], borderBottomWidth: ['0px', box.borderBottomWidth] };
+    tray.style.overflow = 'hidden';
+    tray.animate({ height: [`${was}px`, `${now}px`], ...from }, SLIDE).onfinish = () => { tray.style.overflow = ''; };
+  }
+
+  // ---------- going places: the trail, and the window's own history ----------
   const redraw = () => { wantFocus = true; app.draw(); };
   const place = () => ({ view: st.view, cur: st.cur, propCur: st.propCur, nodes: st.nodes });
+  /* Every place the map shows is an entry in the window's history (#/structure?at=7), so Logseq's own back and forward, Cmd-[, Cmd-]
+     and its arrows at the top, walk the cards as they walk pages, and on out to the page before the map: no key is taken. The address
+     changes nothing Logseq draws. The arrow keys down the tree are one step: back goes to where the walk began. */
+  const KEPT = 60;   // the window keeps fifty entries
+  const shownAt = () => { const m = /[?&]at=(\d+)/.exec(doc.defaultView.location.hash); return m ? Number(m[1]) : null; };
+  function keepPlace() {
+    const win = doc.defaultView, at = shownAt(), now = { ...place(), trail: [...st.trail] }, walk = st.walking;
+    st.walking = false;
+    if (!/^#\/structure(\?|$)/.test(win.location.hash)) return;
+    if (at !== st.at && st.places.has(at)) { go(st.places.get(at)); st.at = at; return; }   // back or forward landed here
+    const was = st.places.get(st.at);
+    if (at == null || at !== st.at) {   // the map just opened: this entry becomes the place it shows
+      st.at = at ?? app.nextPlace(); st.places.set(st.at, now);
+      if (at == null) win.history.replaceState(win.history.state, '', `#/structure?at=${st.at}`);
+      return;
+    }
+    if (samePlace(was, now)) { was.trail = now.trail; return; }
+    if (walk && was.walked) { st.places.set(at, { ...now, walked: true }); return; }
+    st.at = app.nextPlace(); st.places.set(st.at, { ...now, walked: walk });
+    if (st.places.size > KEPT) st.places.delete(st.places.keys().next().value);
+    win.location.hash = `#/structure?at=${st.at}`;
+  }
+  // A place come back to: what it names, if it is still there; what was open on the way lets go.
+  function go(p) {
+    if (p.cur === LOOSE || M().tags.has(p.cur)) st.cur = p.cur;
+    st.propCur = p.propCur && M().props.has(Number(p.propCur.split('·')[1])) ? p.propCur : null;
+    st.view = p.view === 'nodes' && !p.nodes ? 'tree' : p.view; st.nodes = p.nodes; st.trail = [...p.trail];
+    st.ask = null; st.prompt = null; st.edit = null; st.menu = null;
+    if (T(st.cur)) Mo.pathOf(M(), st.cur).slice(0, -1).forEach(a => st.open.add(a));
+  }
+  const toPlace = () => { if (shownAt() === st.at || !st.places.has(shownAt())) return; wantFocus = !doc.activeElement?.matches('input, textarea, [contenteditable="true"]'); app.draw(); };   // Logseq's arrows keep the keyboard on the map, a bullet being written keeps it
   const samePlace = (a, b) => a.view === b.view && a.cur === b.cur && a.propCur === b.propCur && a.nodes === b.nodes;
   // A jump (a link, a list opened, a property's card): the place left is kept, so Escape comes back to it.
   function jump(fn) { const was = place(); fn(); if (!samePlace(was, place())) { st.trail.push(was); if (st.trail.length > 40) st.trail.shift(); } st.ask = null; redraw(); }
@@ -597,10 +667,12 @@ function make(holder, mode, app) {
     }
     redraw();
   }
-  function act(a, on) {
+  function act(a, on, shift) {
     st.menu = null; st.ask = null;
     const m = M();
     if (a === 'openall') openAll(on);
+    else if (a === 'page') { redraw(); app.openNode(T(on)?.uuid, shift); }
+    else if (a === 'ppage') { redraw(); app.openNode(P(Number(on.split('·')[1]))?.uuid, shift); }
     else if (a === 'main') app.openMain(on);
     else if (a === 'tick') tick(on);
     else if (a === 'move') { if (T(on) && !T(on).kind) startMoveTag(on); else redraw(); }
@@ -633,6 +705,7 @@ function make(holder, mode, app) {
     st.ask = st.ask && st.ask.i === i ? null : { i, owner: mode }; st.menu = null; redraw();
   }
   function stageAsk() {
+    if (st.ask?.apply) { st.ask = null; return app.apply(); }
     if (st.ask?.change) { const c = changeAsk(); st.ask = null; if (c) app.stage(c); return redraw(); }
     if (st.ask?.merges) { const { merges, into } = st.ask; st.ask = null; for (const from of merges) app.stage({ kind: 'merge', from, into }); st.ticks.clear(); return redraw(); }
     const issue = st.ask && ISS()[st.ask.i]; st.ask = null; if (!issue) return redraw();
@@ -666,20 +739,20 @@ function make(holder, mode, app) {
     if (t.hasAttribute('data-leave')) { st.ask = null; return redraw(); }
     if (t.dataset.sort) { st.sort = t.dataset.sort; return redraw(); }
     if (t.dataset.prop) return showProp(t.dataset.prop);
-    if (t.dataset.do) return act(t.dataset.do, t.dataset.do.startsWith('p') || t.dataset.do === 'split' ? t.dataset.on : keyOf(t.dataset.on));
+    if (t.dataset.do) return act(t.dataset.do, t.dataset.do.startsWith('p') && t.dataset.do !== 'page' || t.dataset.do === 'split' ? t.dataset.on : keyOf(t.dataset.on), e.shiftKey);
     if (t.dataset.show) return show(t.dataset.show);
     if (t.dataset.back !== undefined) { const to = +t.dataset.back; while (st.trail.length > to + 1) st.trail.pop(); return back(); }
     if (t.dataset.pick) return finishPrompt(st.prompt.shown[+t.dataset.pick]);
-    if (t.dataset.act) return act(t.dataset.act, st.menu.on);
+    if (t.dataset.act) return act(t.dataset.act, st.menu.on, e.shiftKey);
     if (t.dataset.nodes) return openNodes(keyOf(t.dataset.nodes));
     if (t.hasAttribute('data-more')) { st.nodes.all = true; return redraw(); }
     if (t.dataset.all) { st.whole.add(t.dataset.all); return redraw(); }
     if (t.dataset.node) { st.nodes.cur = +t.dataset.node; return redraw(); }
-    if (t.hasAttribute('data-apply')) return app.apply();
+    if (t.hasAttribute('data-apply')) return pressApply();
     if (t.hasAttribute('data-discard')) return app.discard();
     if (t.hasAttribute('data-undo')) return app.undo();
     if (t.dataset.drop !== undefined) return app.dropChange(+t.dataset.drop);
-    if (t.dataset.row) { const id = keyOf(t.dataset.row); st.menu = null; if (mode === 'side') { loc.cur = id; if (e.detail === 2) return app.openMain(id); return redraw(); } if (e.detail === 2) return openNodes(id); if (st.view !== 'tree' || st.propCur) return jump(() => { st.cur = id; st.propCur = null; st.view = 'tree'; }); st.cur = id; st.ask = null; return redraw(); }   // on the tree a row only moves the cursor: the trail is for jumps
+    if (t.dataset.row) { const id = keyOf(t.dataset.row); st.menu = null; if (mode === 'side') { loc.cur = id; if (e.detail === 2) return app.openMain(id); return redraw(); } if (e.detail === 2) return openNodes(id); st.cur = id; st.propCur = null; st.view = 'tree'; st.nodes = null; st.trail = []; st.ask = null; return redraw(); }   // a press on the tree starts a new way: the trail is for jumps
   });
   const keyOf = s => s === LOOSE ? LOOSE : Number(s);
   /* Dragging a row onto another moves the tag there, the same as "move under…": the tag and everything under it, the ticked
@@ -725,10 +798,24 @@ function make(holder, mode, app) {
     else if (e.target.matches('[data-pin]')) { st.prompt.text = e.target.value; st.prompt.lit = 0; draw(); }
     else if (e.target.matches('[data-edit]')) st.edit.text = e.target.value;
   });
-  // Keys typed here stay here: Logseq's own shortcuts never see them.
-  for (const type of ['keyup', 'keypress']) root.addEventListener(type, e => e.stopPropagation());
+  /* Keys typed here stay here, but for Logseq's own two-key shortcuts, which work on the map as anywhere: Cmd-K, Cmd-Shift-P, Cmd-[ and
+     Cmd-]. The map keeps those it does itself, each what Logseq's does on a page: Cmd-F finds, Cmd-O goes to the row's page (Shift: the
+     sidebar, as Shift-Enter), Cmd-Down and Cmd-Up open and fold, Cmd-Z takes back. A field keeps what writing in it needs. A letter alone never reaches Logseq: it finds. */
+  const FIELD = /^(a|c|f|v|x|y|z|enter|backspace)$/i, OWN = mode === 'page' ? /^(f|o|enter|backspace|arrowup|arrowdown)$/i : /^(f|o|arrowup|arrowdown)$/i;
+  const passes = e => {
+    if (doc.querySelector('.ui__dialog-overlay')) return true;   // one of Logseq's windows stands over the map: its keys are all Logseq's
+    if (!e.metaKey && !e.ctrlKey && !e.altKey) return false;
+    if (e.target.tagName === 'INPUT' && e.target.type !== 'checkbox') return !e.altKey && !FIELD.test(e.key);
+    return e.altKey || !OWN.test(e.key);
+  };
+  for (const type of ['keyup', 'keypress']) root.addEventListener(type, e => { if (!passes(e)) e.stopPropagation(); });
+  // Where Cmd-O and Shift-Enter go: the node or property on screen, else the row the cursor is on.
+  function openHere(inSidebar) {
+    const n = st.view === 'nodes' && mode === 'page' ? st.nodes?.list[st.nodes.cur] : null, pid = mode === 'page' && st.propCur ? Number(st.propCur.split('·')[1]) : null;
+    app.openNode(n?.uuid || (pid != null ? P(pid)?.uuid : T(loc.cur)?.uuid), inSidebar);
+  }
   root.addEventListener('keydown', e => {
-    e.stopPropagation();
+    if (!passes(e)) e.stopPropagation(); else if (doc.querySelector('.ui__dialog-overlay')) return;
     const k = e.key;
     if (st.prompt && st.prompt.owner === mode) {
       if (k === 'Escape') { st.prompt = null; redraw(); }
@@ -747,9 +834,13 @@ function make(holder, mode, app) {
     }
     if (e.target.tagName === 'INPUT') return;
     if (st.menu && k === 'Escape') { st.menu = null; redraw(); return; }
-    if (mode === 'page' && (e.metaKey || e.ctrlKey) && !e.altKey) {
-      if (k === 'Enter' && app.tray.changes.length) { e.preventDefault(); app.apply(); }
-      else if (k === 'Backspace' && app.tray.changes.length) { e.preventDefault(); app.discard(); }
+    if ((e.metaKey || e.ctrlKey) && !e.altKey) {
+      const l = k.toLowerCase();
+      if (mode === 'page' && k === 'Enter' && app.tray.changes.length) { e.preventDefault(); pressApply(); }
+      else if (mode === 'page' && k === 'Backspace' && app.tray.changes.length) { e.preventDefault(); app.discard(); }
+      else if (l === 'f') { e.preventDefault(); const f = root.querySelector('[data-find]'); f.focus(); f.select(); }
+      else if (l === 'o') { e.preventDefault(); openHere(e.shiftKey); }
+      else if (k === 'ArrowDown' || k === 'ArrowUp') { e.preventDefault(); fold(loc.cur, k === 'ArrowDown'); }
       return;
     }
     if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -762,7 +853,7 @@ function make(holder, mode, app) {
       if (k === 'ArrowDown') n.cur = Math.min(shown.length - 1, n.cur + 1);
       else if (k === 'ArrowUp') n.cur = Math.max(0, n.cur - 1);
       else if (k === ' ') { const x = shown[n.cur]; if (x) n.ticks.has(x.uuid) ? n.ticks.delete(x.uuid) : n.ticks.add(x.uuid); }
-      else if (k === 'Enter') { const x = shown[n.cur]; if (x) app.openNode(x.uuid, e.shiftKey); return; }
+      else if (k === 'Enter') { openHere(e.shiftKey); return; }
       else if (k === 'Escape') { e.preventDefault(); if (!back()) { st.view = 'tree'; st.nodes = null; redraw(); } return; }
       else return;
       e.preventDefault(); redraw(); return;
@@ -771,11 +862,12 @@ function make(holder, mode, app) {
     const cur = T(loc.cur), isKind = !cur || cur.kind || loc.cur === LOOSE;
     // A letter typed on the tree finds a tag, as in any outline; nothing a single letter does.
     if (k.length === 1 && k !== ' ') { const f = root.querySelector('[data-find]'); if (!f) return; e.preventDefault(); loc.find = k === '/' ? loc.find : loc.find + k; draw(); const g = root.querySelector('[data-find]'); g.focus(); g.setSelectionRange(g.value.length, g.value.length); return; }
-    if (k === 'ArrowDown') { loc.cur = rows[Math.min(rows.length - 1, i + 1)]; if (mode === 'page') st.propCur = null; }
-    else if (k === 'ArrowUp') { loc.cur = rows[Math.max(0, i - 1)]; if (mode === 'page') st.propCur = null; }
+    const walked = to => { loc.cur = to; if (mode === 'page') { st.propCur = null; st.walking = true; if (st.view === 'tree') st.trail = []; } };   // the arrows are the tree, as a press on it is
+    if (k === 'ArrowDown') walked(rows[Math.min(rows.length - 1, i + 1)]);
+    else if (k === 'ArrowUp') walked(rows[Math.max(0, i - 1)]);
     else if (k === 'ArrowRight') { if (e.shiftKey) { openAll(loc.cur); return; } if (Mo.kids(M(), loc.cur).length) st.open.add(loc.cur); }
-    else if (k === 'ArrowLeft') { if (st.open.has(loc.cur)) st.open.delete(loc.cur); else if (Mo.parentOf(M(), loc.cur) != null) loc.cur = Mo.parentOf(M(), loc.cur); }
-    else if (k === 'Enter') { if (mode === 'side') app.openMain(loc.cur); else if (st.view !== 'tree' || st.propCur) jump(() => { st.view = 'tree'; st.propCur = null; st.nodes = null; }); else if (cur && Mo.count(M(), st.cur)) openNodes(st.cur); return; }
+    else if (k === 'ArrowLeft') { if (st.open.has(loc.cur)) st.open.delete(loc.cur); else if (Mo.parentOf(M(), loc.cur) != null) walked(Mo.parentOf(M(), loc.cur)); }
+    else if (k === 'Enter') { if (e.shiftKey) openHere(true); else if (mode === 'side') app.openMain(loc.cur); else if (st.view !== 'tree' || st.propCur) jump(() => { st.view = 'tree'; st.propCur = null; st.nodes = null; }); else if (cur && Mo.count(M(), st.cur)) openNodes(st.cur); return; }
     else if (k === ' ' && mode === 'page') { tick(st.cur); return; }
     else if (k === 'Escape') {
       // The ladder: let go of what is nearest first (the find text, the ticks), then walk back the trail.
@@ -786,7 +878,15 @@ function make(holder, mode, app) {
     e.preventDefault(); redraw();
   });
 
-  const view = { root, mode, draw, destroy: () => { app.views.delete(view); root.remove(); }, focus: () => { if (!doc.activeElement?.matches('input, textarea, [contenteditable="true"]')) root.focus({ preventScroll: true }); } };
+  // Back and forward landing on another place of the map; Cmd-Z, wherever the keyboard is but in words being written.
+  const win = doc.defaultView;
+  const undoKey = e => {
+    if (!(e.metaKey || e.ctrlKey) || e.altKey || !/^[zy]$/i.test(e.key) || doc.querySelector('.ui__dialog-overlay') || doc.activeElement?.matches('input, textarea, [contenteditable="true"]')) return;
+    e.preventDefault(); e.stopPropagation();
+    if (e.key.toLowerCase() === 'z' && !e.shiftKey) app.takeBack();
+  };
+  if (mode === 'page') { win.addEventListener('hashchange', toPlace); doc.addEventListener('keydown', undoKey, true); }
+  const view = { root, mode, draw, destroy: () => { app.views.delete(view); win.removeEventListener('hashchange', toPlace); doc.removeEventListener('keydown', undoKey, true); root.remove(); }, focus: () => { if (!doc.activeElement?.matches('input, textarea, [contenteditable="true"]')) root.focus({ preventScroll: true }); } };
   app.views.add(view);
   return view;
 }

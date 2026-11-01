@@ -11,6 +11,15 @@ const list = names => S.rules.list(names);
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const name = (M, id) => tag(M, id)?.title ?? '?';
 
+// What goes with a tag's deletion for good, in the words the merge's sentence and the Apply's question share.
+const losses = t => [t?.bullets && (t.bullets === 1 ? '1 bullet on its page goes' : `${t.bullets} bullets on its page go`), t?.links && (t.links === 1 ? '1 link becomes words' : `${t.links} links become words`)].filter(Boolean);
+// A change Undo cannot put back whole: a tag with something on it deleted. Undo makes a new one; what is lost stays lost.
+function lasting(M, c) {
+  const id = c.kind === 'merge' ? c.from : c.kind === 'remove' ? c.tag : null, t = id != null ? tag(M, id) : null;
+  if (!t || t.made || !(count(M, id) || t.bullets || t.links)) return null;
+  return { name: t.title };
+}
+
 // The sentence in the tray, and how many nodes the change touches.
 function sentence(M, c) {
   switch (c.kind) {
@@ -19,13 +28,12 @@ function sentence(M, c) {
     case 'rename': return { text: `Rename ${name(M, c.tag)} to ${c.name}`, nodes: count(M, c.tag) };
     case 'renameProp': return { text: `Rename ${prop(M, c.prop).title} to ${c.name}`, nodes: prop(M, c.prop).on.reduce((s, t) => s + filled(M, t, c.prop), 0) };
     case 'merge': {   // the count sits in the tray's own column; what no Undo brings back is said here, as the ask reads this sentence too
-      const t = tag(M, c.from), lost = [t?.bullets && (t.bullets === 1 ? '1 bullet on its page goes' : `${t.bullets} bullets on its page go`), t?.links && (t.links === 1 ? '1 link becomes words' : `${t.links} links become words`)].filter(Boolean);
-      return { text: [`Merge ${name(M, c.from)} into ${name(M, c.into)}, ${name(M, c.from)} removed`, ...lost].join(' · '), nodes: count(M, c.from) }; }
+      return { text: [`Merge ${name(M, c.from)} into ${name(M, c.into)}, ${name(M, c.from)} removed`, ...losses(tag(M, c.from))].join(' · '), nodes: count(M, c.from), ask: `Merge ${name(M, c.from)} into ${name(M, c.into)}`, lost: losses(tag(M, c.from)) }; }
     case 'retag': return { text: `Move ${plural(c.nodes.length, 'node')} from ${name(M, c.from)} to ${name(M, c.to)}`, nodes: c.nodes.length };
     case 'moveProp': { const from = c.from.filter(id => tag(M, id)); return { text: `Move ${prop(M, c.prop).title} from ${list(from.map(id => name(M, id)))} to ${name(M, c.to)}`, nodes: from.reduce((s, id) => s + filled(M, id, c.prop), 0) }; }
     case 'addProp': return { text: c.under != null ? `Add ${prop(M, c.prop).title} to every tag under ${name(M, c.under)}` : `Add ${prop(M, c.prop).title} to ${list(c.tags.map(id => name(M, id)))}`, nodes: (c.under != null ? [c.under] : c.tags).reduce((s, id) => s + count(M, id), 0) };
     case 'dropProp': { const n = filled(M, c.tag, c.prop); return { text: `Drop ${prop(M, c.prop).title} from ${name(M, c.tag)}${n ? `, ${plural(n, 'value')} kept on the nodes` : ''}`, nodes: n }; }
-    case 'remove': return { text: `Remove ${name(M, c.tag)}`, nodes: count(M, c.tag) };
+    case 'remove': return { text: [`Remove ${name(M, c.tag)}`, ...losses(tag(M, c.tag))].join(' · '), nodes: count(M, c.tag) };
     case 'make': return { text: c.under == null ? `Make ${c.name} under no kind` : `Make ${c.name} under ${name(M, c.under)}`, nodes: 0 };
     case 'keepUnder': return { text: `Keep ${name(M, c.tag)} only under ${name(M, c.parent)}`, nodes: count(M, c.tag) };
     case 'setRange': { const to = c.to.filter(id => tag(M, id)); return { text: `Set ${prop(M, c.prop).title} to point at ${to.length ? list(to.map(id => name(M, id))) : 'any node'}`, nodes: prop(M, c.prop).on.reduce((s, t) => s + filled(M, t, c.prop), 0) }; }
@@ -127,7 +135,7 @@ function makeTray() {
   const tray = { changes: [], lost: [], base: null, model: null, done: null };
   tray.setBase = raw => { tray.raw = raw; tray.rebuild(); };
   // Each change's sentence is written on the model as it stands before that change, then the change is applied.
-  const say = (M, c) => { const s = sentence(M, c); c.text = s.text; c.count = s.nodes; };   // kept on the change (its own `nodes` may be a list)
+  const say = (M, c) => { const s = sentence(M, c); c.text = s.text; c.count = s.nodes; c.lasting = lasting(M, c); };   // kept on the change (its own `nodes` may be a list)
   // A change that can no longer run leaves the tray for tray.lost, and with it whatever needed it, so the screen can say so.
   tray.rebuild = () => { tray.model = Mo.build(tray.raw || { tags: [], props: [] }); tray.changes = tray.changes.filter(c => { if (!alive(tray.model, c)) { tray.lost.push(c); return false; } say(tray.model, c); applyToModel(tray.model, c); return true; }); return tray.model; };
   tray.stage = c => { say(tray.model, c); tray.changes.push(c); applyToModel(tray.model, c); return c; };
@@ -137,6 +145,7 @@ function makeTray() {
   tray.discard = () => { tray.changes = []; tray.rebuild(); };
   tray.lines = () => tray.changes.map(c => ({ text: c.text, nodes: c.count }));
   tray.nodes = () => tray.lines().reduce((s, l) => s + l.nodes, 0);
+  tray.lasting = () => tray.changes.map(c => c.lasting).filter(Boolean);
   // The steps of every change, each computed on the model as it stands before that change (the tray's base, then each
   // change applied in turn), so names and parents are those the writer will find.
   tray.plan = () => { const M = Mo.build(tray.raw); M.handles = new Map(); const out = []; for (const c of tray.changes) { const s = steps(M, c); for (const x of s) x.change = c; out.push(...s); applyToModel(M, c); } out.handles = M.handles; return out; };

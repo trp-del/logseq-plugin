@@ -10,7 +10,7 @@ const FILES = ['structure/logseq', 'threads/parts', 'find/logseq', 'export/logse
 global.window = {};
 require(path.join(ROOT, 'plugin.js'));
 const NAMES = global.window.PluginDoor.NAMES;
-const KINDS = ['lk-strip', 'lk-bar', 'lk-btn', 'lk-answers', 'lk-accent', 'lk-hint', 'lk-lone', 'lk-add', 'lk-fix', 'lk-x', 'lk-plus', 'lk-more', 'lk-undo', 'lk-close',
+const KINDS = ['lk-strip', 'lk-bar', 'lk-btn', 'lk-answers', 'lk-accent', 'lk-big', 'lk-hint', 'lk-lone', 'lk-add', 'lk-fix', 'lk-x', 'lk-plus', 'lk-more', 'lk-undo', 'lk-close',
   'lk-views', 'lk-view', 'lk-trail', 'lk-step', 'lk-head', 'lk-menu', 'lk-item', 'lk-value', 'lk-pick', 'lk-alts', 'lk-name'];
 for (const kind of KINDS) assert.ok(NAMES.includes('.' + kind), `the library draws ${kind}`);
 

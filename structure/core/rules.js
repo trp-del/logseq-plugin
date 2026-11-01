@@ -97,7 +97,7 @@ function issues(M) {
         const where = children.filter(c => filled(M, c.id, pid) > 0);
         if (where.length === 1) { add(RULES[3], t.id, [subject(t.id, pid), say('on'), tags([t.id]), say('is filled only by'), tags([where[0].id]), num(`${all} of ${count(M, where[0].id)}`)], `push down to ${where[0].title}`, { kind: 'moveProp', prop: pid, from: [t.id], to: where[0].id }, { tag: t.id, prop: pid, kid: where[0].id }); continue; }
       }
-      if (of >= 10 && all < of / 10) add(RULES[3], t.id, [subject(t.id, pid), say('on'), tags([t.id]), num(`${all} of ${of} filled`)], 'drop, or leave', { kind: 'dropProp', prop: pid, tag: t.id }, { tag: t.id, prop: pid });
+      if (of >= 10 && all < of / 10) add(RULES[3], t.id, [subject(t.id, pid), say('on'), tags([t.id]), num(`${all} of ${of} filled`)], 'drop', { kind: 'dropProp', prop: pid, tag: t.id }, { tag: t.id, prop: pid });
     }
   }
   // 5. Names say what they are.

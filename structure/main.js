@@ -10,11 +10,16 @@ const host = () => { try { return window.parent.document; } catch (error) { retu
 
 const tray = S.changes.makeTray();
 tray.setBase({ tags: [], props: [] });
-const startState = () => ({ cur: null, open: new Set(), seen: new Set(), whole: new Set(), ticks: new Set(), find: '', view: 'tree', sort: 'filled', propCur: null, menu: null, prompt: null, edit: null, nodes: null, busy: '', trail: [], ask: null, side: { cur: null, find: '' } });
+const startState = () => ({ cur: null, open: new Set(), seen: new Set(), whole: new Set(), ticks: new Set(), find: '', view: 'tree', sort: 'filled', propCur: null, menu: null, prompt: null, edit: null, nodes: null, busy: '', trail: [], ask: null, places: new Map(), at: null, walking: false, side: { cur: null, find: '' } });
 const changesWord = n => n === 1 ? '1 change' : `${n} changes`;
 const stepsWord = n => n === 1 ? '1 step' : `${n} steps`;
 // The Undo of another graph, kept for when that graph is open again: it is the only record of what was written there.
 const dones = new Map();
+let placeNumber = Date.now();   // a place of the map in the window's history; from the clock, so a reload never reuses one
+// A line in the tray that only says what happened leaves by itself; the Undo arrow stays.
+let saidTimer = 0;
+const SAID_FOR = 6000;
+function say(text) { tray.note = text; clearTimeout(saidTimer); saidTimer = setTimeout(() => { if (tray.note === text) { tray.note = ''; app.draw(); } }, SAID_FOR); }
 const app = {
   tray, views: new Set(), issuesCache: { model: null, list: [] }, reading: null, readAt: 0, graph: '',
   st: startState(),
@@ -33,8 +38,11 @@ const app = {
     if (app.st.busy) { notify('Wait for this to finish, then try again', 'warning'); return null; }
     const c = tray.stage(change); tray.note = ''; tray.version = (tray.version || 0) + 1; if (!mounts.onPage()) mounts.openPage(); return c;
   },
-  dropChange(i) { if (app.st.busy) return; const up = Mo.parentOf(tray.model, app.st.cur); tray.drop(i); tray.version = (tray.version || 0) + 1; sayLost('it needed the change taken out'); if (!tray.changes.length) tray.note = '1 change dropped'; settle(null, up); app.draw(); },
-  discard() { if (app.st.busy) return; const n = tray.changes.length, up = Mo.parentOf(tray.model, app.st.cur); tray.discard(); tray.lost = []; tray.version = (tray.version || 0) + 1; if (n) tray.note = `${changesWord(n)} dropped`; settle(null, up); app.draw(); },
+  dropChange(i) { if (app.st.busy) return; const up = Mo.parentOf(tray.model, app.st.cur); tray.drop(i); tray.version = (tray.version || 0) + 1; sayLost('it needed the change taken out'); if (!tray.changes.length) say('1 change dropped'); settle(null, up); app.draw(); },
+  discard() { if (app.st.busy) return; const n = tray.changes.length, up = Mo.parentOf(tray.model, app.st.cur); tray.discard(); tray.lost = []; tray.version = (tray.version || 0) + 1; if (n) say(`${changesWord(n)} dropped`); settle(null, up); app.draw(); },
+  // Cmd-Z: the last thing done, a change still waiting first, else the last Apply, as the arrow.
+  takeBack() { if (tray.changes.length) app.dropChange(tray.lines().length - 1); else app.undo(); },
+  nextPlace: () => ++placeNumber,
   async apply() {
     if (app.st.busy || !tray.changes.length) return;
     const n = tray.changes.length;
@@ -82,12 +90,12 @@ const app = {
     catch (error) { console.error('Structure: the graph could not be read', error); notify(`The graph could not be read: ${error.message}`, 'error'); }
     sayLost('what it names is no longer in the graph');
     settle(was);
-    if (!app.st.ask?.change) app.st.ask = null;   // an ask of an issue or a merge names what this reading may have moved
+    if (!app.st.ask?.change && !app.st.ask?.apply) app.st.ask = null;   // an ask of an issue or a merge names what this reading may have moved
     app.draw();
   },
   mounted(view) { view.draw(); if (view.mode === 'side') app.followPage(); view.focus(); if (!app.st.busy) app.reread(); },   // the graph as it is now, not as it was last read
   // The map opened on a tag (from the sidebar, the toolbar): a jump, so Escape in the map comes back to where it was.
-  openMain(id) { const st = app.st; if (id != null && (st.cur !== id || st.propCur || st.view !== 'tree')) { st.trail.push({ view: st.view, cur: st.cur, propCur: st.propCur, nodes: st.nodes }); st.cur = id; st.propCur = null; st.view = 'tree'; st.nodes = null; st.ask = null; S.model.pathOf(tray.model, id).slice(0, -1).forEach(a => st.open.add(a)); } mounts.openPage(); app.draw(); },
+  openMain(id) { const st = app.st; if (id != null && (st.cur !== id || st.propCur || st.view !== 'tree')) { if (st.cur != null) st.trail.push({ view: st.view, cur: st.cur, propCur: st.propCur, nodes: st.nodes }); st.cur = id; st.propCur = null; st.view = 'tree'; st.nodes = null; st.ask = null; S.model.pathOf(tray.model, id).slice(0, -1).forEach(a => st.open.add(a)); } mounts.openPage(); app.draw(); },
   openNode(uuid, inSidebar) { if (!uuid) return; if (inSidebar) logseq.Editor.openInRightSidebar(uuid); else logseq.App.pushState('page', { name: uuid }); },
   // What a tag's count counts: its own nodes and those beneath, each with the tag it carries. An Entity has no day (the grammar).
   async readNodes(id) {
@@ -124,7 +132,7 @@ function sayLost(why) {
   const lost = tray.lost; tray.lost = [];
   if (!lost.length) return;
   notify(lost.length === 1 ? `“${lost[0].text}” left the tray: ${why}` : `${lost.length} changes left the tray: ${why}`, 'warning');
-  if (!tray.changes.length) tray.note = `${changesWord(lost.length)} dropped`;
+  if (!tray.changes.length) say(`${changesWord(lost.length)} dropped`);
 }
 // The cursor and the ticks kept on what is there: by id, or by name when the id changed (a tag made or put back by Undo), else the tag above.
 function settle(was, up) {
@@ -144,7 +152,7 @@ async function otherGraph() {
   tray.discard(); tray.lost = [];
   app.graph = await S.db.graph().catch(() => '');
   tray.done = dones.get(app.graph) || null; dones.delete(app.graph);
-  tray.note = waiting ? `${changesWord(waiting)} dropped: another graph opened` : '';
+  say(waiting ? `${changesWord(waiting)} dropped: another graph opened` : '');
   if (waiting && !mounts.onPage()) notify(tray.note, 'warning');
   const { side, ...rest } = startState();
   Object.assign(app.st, rest, { busy: app.st.busy }); Object.assign(app.st.side, side);

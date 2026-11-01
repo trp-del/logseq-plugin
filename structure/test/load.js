@@ -27,7 +27,8 @@ function fakeQuery(q) {
   if (has('[?b ?a _] [?p :db/ident ?a]')) return Object.entries(live.holders).flatMap(([a, ids]) => ids.map(b => [':' + a, b]));
   if (has('(count ?v)')) return raw.pointed.map(([a, t, n]) => [':' + a, t, n]);
   if (has('(max ?c)')) return [[id('Consultation'), Date.UTC(2026, 9, 28)]];
-  if (has(':find ?b ?u ?title ?c ?pg')) { const ids = new Set(q.match(/ground \[([\d ]*)\]/)[1].split(' ').map(Number)); return Object.entries(live.nodes).flatMap(([t, list]) => list.filter(n => ids.has(n.id)).map((n, i) => [n.id, n.uuid, `Node ${i + 1} of tag ${t}`, 1000 + n.id, 7])); }
+  if (has(':find ?b ?u ?title ?c ?pg')) { const ids = new Set(q.match(/ground \[([\d ]*)\]/)[1].split(' ').map(Number)); return Object.entries(live.nodes).flatMap(([t, list]) => list.filter(n => ids.has(n.id)).map((n, i) => [n.id, n.uuid, n.words || `Node ${i + 1} of tag ${t}`, 1000 + n.id, 7])); }
+  if (has(':find ?u ?t :where [(ground')) return [['1a000000-0000-4000-8000-00000000000e', 'Dr. Mei Chen']];
   if (has(':find ?b ?d ?name')) return datedNodes;
   if (has('[?b :block/page ?pg] [?pg :block/journal-day ?d]')) return [];
   if (has('[?b :block/title ?title] [(get-else')) { const t = Number(q.match(/:block\/tags (\d+)/)[1]); return (live.nodes[t] || []).slice(0, 30).map((n, i) => [n.uuid, `Node ${i + 1} of tag ${t}`, 1000 + i, i % 2 ? 0 : 7]); }
@@ -41,7 +42,7 @@ function fakeQuery(q) {
   return [];
 }
 const html = `<html><head></head><body><div id="main-content-container"><div id="holder"></div></div><div id="right-sidebar"><div class="sidebar-item"><div class="page-title"><h3>x</h3></div><div id="side"></div></div></div></body></html>`;
-const dom = new JSDOM(html, { pretendToBeVisual: true });
+const dom = new JSDOM(html, { pretendToBeVisual: true, url: 'http://logseq.test/index.html' });
 const win = dom.window, doc = win.document;
 win.Element.prototype.scrollIntoView = () => {};
 const styles = {}; let unload = null;
@@ -105,13 +106,13 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   assert.ok(R.querySelector('.st-row .st-bul') && R.querySelector('.st-row .lk-fold svg'), 'a row is built as a block: bullet, Logseq\'s chevron');
   assert.equal(text(R.querySelector('.st-card h2')), 'Consultation');
   assert.ok(text(R.querySelector('.st-card .sum')).startsWith('90 nodes'), text(R.querySelector('.st-card .sum')));
-  deq([...R.querySelectorAll('.st-card .acts .act')].map(text), ['rename', 'move under…', 'new tag inside', 'add a property…'], 'what the tag can take, as words');
+  deq([...R.querySelectorAll('.st-card .acts .act')].map(text), ['go to this tag', 'rename', 'move under…', 'new tag inside', 'add a property…'], 'what the tag can take, as words');
   const lines = [...R.querySelectorAll('.st-card .st-ln:not(.iss)')].map(text);
-  const flat = lines.map(l => l.replace(/\s/g, '')); assert.equal(flat[0], 'Date90of90', 'own properties by how filled, the number without a bar'); assert.ok(flat.includes('ProviderpointsatDoctor87of90'), flat.join(' | ')); assert.ok(flat.includes('NotesinheritedfromMedicalevent'), flat.join(' | '));
+  const flat = lines.map(l => l.replace(/\s/g, '')); assert.equal(flat[0], 'Date90of90', 'own properties by how filled, the number without a bar'); assert.ok(flat.includes('ProviderpointsatDoctor87of90'), flat.join(' | ')); assert.ok(flat.includes('NotesinheritedfromMedicalevent90of90'), flat.join(' | '));
   assert.ok(flat.includes('SourceonReport41'), 'pointed at by: the property, on the tag');
   assert.ok(R.querySelector('.st-card .lk-tag[data-go]'), 'a tag named on the card carries Look\'s name');
   // An issue with a line of its own on the card puts its fix at that line's right end, after the count; no Issues group then.
-  assert.equal(text(R.querySelector('.st-ln.fx')).replace(/\s/g, ''), 'WithpointsatPerson7of90drop,orleave', 'the fix is a word, no letter, on the line it concerns'); assert.ok(!R.querySelector('.st-ln.iss') && ![...R.querySelectorAll('.st-card h3')].some(h => text(h) === 'Issues'), 'the Issues group stays only for issues with no line of their own');
+  assert.equal(text(R.querySelector('.st-ln.fx')).replace(/\s/g, ''), 'WithpointsatPerson7of90drop', 'the fix is a word, no letter, on the line it concerns'); assert.ok(!R.querySelector('.st-ln.iss') && ![...R.querySelectorAll('.st-card h3')].some(h => text(h) === 'Issues'), 'the Issues group stays only for issues with no line of their own');
   assert.ok(R.querySelector('.st-ln.fx .fix[data-fix]'), 'the fix on the line opens the ask like any other');
   assert.equal(R.querySelector('.st-row.cur .iss').className, 'iss own', 'a firm dot on the row with the issue');
   assert.ok(!R.querySelector('.st-keys'), 'no legend of keys');
@@ -121,7 +122,7 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   deq([...R.querySelectorAll('.st-prompt [data-pick] .nm')].map(text), ['Conversation']);
   key(R.querySelector('[data-pin]'), 'Enter');
   assert.ok(!R.querySelector('.st-prompt'));
-  assert.equal(text(R.querySelector('.st-tray')), '1 change waitingMove Consultation from Medical event to Conversation90 nodes×Apply · one Undo for 90 nodesCmd EnterDiscardCmd Delete');
+  assert.equal(text(R.querySelector('.st-tray')), '1 change waitingDiscardCmd DeleteApplyCmd EnterMove Consultation from Medical event to Conversationaffects 90 nodes×');
   assert.equal(S.model.parentOf(app.tray.model, id('Consultation')), id('Conversation'), 'the tree shows the move before Apply');
   assert.ok(R.querySelector(`[data-row="${id('Consultation')}"] .nm .lk-pencil`) && R.querySelector('.st-card h2 .lk-pencil'), 'pencilled in with Look\'s name: the row and the card');
   // A single letter is not a command: typed on the tree, it finds.
@@ -141,17 +142,17 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   assert.equal(app.st.ticks.size, 2); assert.equal(R.querySelectorAll('.lk-tick:checked').length, 2); assert.ok(R.querySelector('.lk-list[data-picking]'), 'the list says it is being picked from'); assert.ok(text(R.querySelector('.st-pick')).startsWith('2 ticked'), 'the pick bar above the tree');
   app.st.cur = id('Stay'); app.draw(); key(R, 'ArrowUp'); key(R, 'ArrowUp'); key(R, 'ArrowUp'); assert.equal(app.st.cur, id('Blood draw'));
   assert.ok(!R.querySelector('.st-views') && R.querySelector('.st-left > .st-pick'), 'the bar stands in the place of the three words, so the rows stay'); const mergeWord = R.querySelector('.st-card [data-do="merge"]'); assert.equal(text(mergeWord), 'merge the 2 ticked tags into this'); const staged = app.tray.changes.length; click(mergeWord);
-  assert.equal(app.tray.changes.length, staged, 'a merge from the ticks asks first, as a fix does'); assert.equal(R.querySelectorAll('.st-card .st-ln.ask .st-two').length, 2, 'each merge shown side by side on the card'); assert.equal(R.querySelectorAll('.st-card [data-stage]').length, 1, 'one word stages them');
+  assert.equal(app.tray.changes.length, staged, 'a merge from the ticks asks first, as a fix does'); assert.equal(R.querySelectorAll('.st-card .st-q .st-two').length, 2, 'each merge shown side by side on the card'); assert.equal(R.querySelectorAll('.st-card [data-stage]').length, 1, 'one word stages them');
   key(R, 'Enter'); assert.equal(app.st.ticks.size, 0, 'Enter stages them and the ticks go');
   deq(app.tray.lines().map(l => l.text).slice(1), ['Merge Procedure into Blood draw, Procedure removed', 'Merge Scan into Blood draw, Scan removed']);
   // A fix from the card first says what it would do; Enter stages it (the issue now names the tags still under Medical event).
   app.st.cur = id('Medical event'); app.draw();
   const fix = [...R.querySelectorAll('.st-ln.iss .fix')].find(f => text(f).startsWith('pull up'));
   assert.ok(fix, [...R.querySelectorAll('.st-ln.iss')].map(text).join(' | ')); const before = app.tray.changes.length; click(fix);
-  assert.equal(app.tray.changes.length, before, 'nothing staged yet'); const ask = R.querySelector('.st-ln.ask'); assert.ok(ask, 'the ask line opens under the issue');
+  assert.equal(app.tray.changes.length, before, 'nothing staged yet'); const ask = R.querySelector('.st-q'); assert.ok(ask, 'the ask line opens under the issue');
   assert.ok(text(ask).startsWith('Move Date from Blood draw'), text(ask)); assert.ok(/\d+ nodes/.test(text(ask)), 'with the nodes it touches');
   const pull = [...R.querySelectorAll('.st-ln.iss')].find(l => text(l).startsWith('Date')); assert.ok(pull.querySelector('.w .sj[data-prop]') && pull.querySelectorAll('.w .lk-tag').length === 3 && pull.querySelector('.w .nm'), 'the issue keyed by role: the property opens its card, the tags as tags, the count a number'); assert.ok(!text(pull).includes('declared'));
-  key(R, 'Escape'); assert.ok(!R.querySelector('.st-ln.ask'), 'Escape leaves it'); assert.equal(app.tray.changes.length, before);
+  key(R, 'Escape'); assert.ok(!R.querySelector('.st-q'), 'Escape leaves it'); assert.equal(app.tray.changes.length, before);
   click([...R.querySelectorAll('.st-ln.iss .fix')].find(f => text(f).startsWith('pull up'))); key(R, 'Enter');
   assert.equal(app.tray.changes.length, before + 1); assert.ok(app.tray.lines().at(-1).text.startsWith('Move Date from Blood draw'), app.tray.lines().at(-1).text);
   // Rename in place: the word, type, Enter.
@@ -174,7 +175,7 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   app.st.propCur = `${id('Consultation')}·${pid('With')}`; app.st.cur = id('Consultation'); app.draw();
   assert.equal(text(R.querySelector('.st-card h2')), 'With'); assert.equal(R.querySelectorAll('.st-ln.rng').length, 1, 'Person, one row');
   assert.equal(text(R.querySelector('.st-ttl .st-place')), 'Consultation/Medical event/Occurrence', 'the property\'s place, nearest first');
-  deq([...R.querySelectorAll('.st-card .acts .act')].map(text), ['rename', 'move to…', 'pull up to Medical event', 'split by its values…', 'drop'], 'short words on one line; another tag it points at is the last line of the Points at list');
+  deq([...R.querySelectorAll('.st-card .acts .act')].map(text), ['go to this property', 'rename', 'move to…', 'pull up to Medical event', 'split by its values…', 'drop'], 'short words on one line; another tag it points at is the last line of the Points at list');
   assert.equal(text(R.querySelector('.st-card .sum')), 'points at Person7 of 90 filled', 'the facts once: the tag is already named at the title row\'s right end');
   assert.ok(![...R.querySelectorAll('.st-card h3')].some(h => text(h) === 'Filled, by tag beneath'), 'no list of one row that repeats the facts line');
   click(R.querySelector('[data-unrange]')); assert.equal(app.tray.lines().at(-1).text, 'Set With to point at any node'); assert.equal(R.querySelectorAll('.st-ln.rng').length, 0);
@@ -186,12 +187,12 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   click(R.querySelector('[data-do="move"]')); assert.ok(/^show all \d+$/.test(text(R.querySelector('.st-prompt .st-row.more'))), 'the last row says how many there are');
   const shortList = R.querySelectorAll('.st-prompt .st-row').length; click(R.querySelector('.st-prompt .st-row.more')); assert.ok(R.querySelectorAll('.st-prompt .st-row').length > shortList && !R.querySelector('.st-prompt .st-row.more'), 'and lists them all');
   assert.equal(R.ownerDocument.activeElement, R.querySelector('[data-pin]'), 'the keyboard stays in the prompt'); key(R.querySelector('[data-pin]'), 'Escape');
-  click(R.querySelector('[data-show="health"]')); assert.equal(text(R.querySelector('.st-card h2')), 'Health'); assert.ok(!text(R.querySelector('.st-hl .sum')).includes('a fix first'), 'Health keeps no sentence explaining itself'); assert.ok([...R.querySelectorAll('.st-hl h3')].map(text).includes('Names say what they are'));
+  click(R.querySelector('[data-show="health"]')); assert.equal(text(R.querySelector('.st-card h2')), 'Health'); assert.ok(!R.querySelector('.st-hl .sum'), 'Health keeps no line under its title: the word above the tree has the count'); assert.ok([...R.querySelectorAll('.st-hl h3')].map(text).includes('Names say what they are'));
   assert.ok(!R.querySelector('.st-hl .fix kbd'), 'no key letters'); assert.ok(R.querySelector('.st-hl .fix.act'));
   // A merge is shown side by side before it is staged: the two tags with their properties lined up.
   const mergeFix = [...R.querySelectorAll('.st-hl .fix')].find(f => text(f).startsWith('merge')); assert.ok(mergeFix, 'a merge to settle'); click(mergeFix);
-  assert.equal(R.querySelectorAll('.st-two .h').length, 2, 'two columns'); assert.ok(text(R.querySelector('.st-two .h')).includes('removed') && text(R.querySelector('.st-ln.ask')).includes('stage it'), 'the one going says so; the words wait');
-  assert.ok(!/retagged|nodes\s*stage it/.test(text(R.querySelector('.st-ln.ask'))), 'the count once, in the column head: not in the sentence, not after it'); assert.ok(R.querySelector('.st-two .pr .n') && R.querySelector('.st-ln.ask.two'), 'the names at the left of their column');
+  assert.equal(R.querySelectorAll('.st-two .h').length, 2, 'two columns'); assert.ok(text(R.querySelector('.st-two .h')).includes('removed') && text(R.querySelector('.st-q')).includes('stage it'), 'the one going says so; the words wait');
+  assert.ok(!/retagged|nodes\s*stage it/.test(text(R.querySelector('.st-q'))), 'the count once, in the column head: not in the sentence, not after it'); assert.ok(R.querySelector('.st-q .st-two .pr .n'), 'the names at the left of their column');
   assert.ok([...R.querySelectorAll('.st-hl .st-ln.iss .w')].every(w => !w.querySelector('.lk-tag:first-child')), 'no leading tag on a Health row: the thing to settle leads');
   assert.ok([...R.querySelectorAll('.st-hl .st-ln.iss .w')].some(w => w.querySelectorAll('.lk-tag').length === 3 && /and \d+ more/.test(text(w))), 'a run of many tags is cut to three and "and N more"');
   key(R, 'Escape'); assert.ok(!R.querySelector('.st-two'));
@@ -206,12 +207,12 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   assert.ok(sheet.includes('calc(var(--d, 0) * 12px)') && !/\.st-row \.nm \{[^}]*nowrap/.test(sheet), 'one step per level, and a name wraps');
   // The right-click menu has the card's words, and leaves the cursor where it is.
   const row = R.querySelector(`[data-row="${id('Consultation')}"]`); row.dispatchEvent(new win.MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 40, clientY: 60 }));
-  deq([...R.querySelectorAll('.st-menu div:not(.gap)')].map(text).slice(0, 4), ['Open everything underShift →', 'Tickspace', 'Rename', 'New tag inside']); assert.ok([...R.querySelectorAll('.st-menu div')].some(d => /^Move under…\d+ nodes$/.test(text(d))), 'what reaches many says how many');
+  deq([...R.querySelectorAll('.st-menu div:not(.gap)')].map(text).slice(0, 4), ['Go to this tag', 'Open everything underShift →', 'Tickspace', 'Rename']); assert.ok([...R.querySelectorAll('.st-menu div')].some(d => /^Move under…\d+ nodes$/.test(text(d))), 'what reaches many says how many');
   assert.equal(app.st.cur, id('Consultation'));
   key(R, 'Escape'); assert.ok(!R.querySelector('.st-menu'));
   // Apply with ⌘⏎: the writer's calls, in order; then one Undo puts them back in reverse.
   calls.length = 0;
-  key(R, 'Enter', { metaKey: true }); for (let i = 0; i < 40 && app.st.busy; i++) await sleep(10); await sleep(20);
+  key(R, 'Enter', { metaKey: true }); assert.ok(R.querySelector('.st-big'), 'a merge asks first'); key(R, 'Enter'); for (let i = 0; i < 40 && app.st.busy; i++) await sleep(10); await sleep(20);
   const ops = calls.map(c => c[0]);
   assert.equal(ops.filter(o => o === 'addBlockTag').length, 53); assert.equal(ops.filter(o => o === 'deletePage').length, 2);
   assert.ok(ops.indexOf('deletePage') > ops.lastIndexOf('removeBlockTag', ops.indexOf('deletePage')), 'a tag is deleted after its nodes are retagged');
@@ -283,15 +284,15 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   // The × on a tag's own page asks here first: what it would do, with the nodes it touches; Enter stages, Apply writes.
   { const m = app.tray.model, tag = id('Consultation'), t = m.tags.get(tag), parent = m.tags.get(t.parents[0]);
     await app.askTakeOut(t.uuid, parent.uuid); await sleep(10);
-    const ask = text(R.querySelector('.st-ln.ask'));
+    const ask = text(R.querySelector('.st-q'));
     assert.ok(ask.startsWith(`Take Consultation out from under ${parent.title}`) && ask.includes(`${Mo.count(m, tag)} nodes`), ask);
     assert.equal(app.tray.changes.length, 0, 'nothing waits before the yes');
-    await app.reread(); assert.ok(R.querySelector('.st-ln.ask'), 'a reading of the graph, which opening the map brings, leaves the ask');
-    key(R, 'Escape'); assert.ok(!R.querySelector('.st-ln.ask') && !app.tray.changes.length, 'Escape leaves it');
+    await app.reread(); assert.ok(R.querySelector('.st-q'), 'a reading of the graph, which opening the map brings, leaves the ask');
+    key(R, 'Escape'); assert.ok(!R.querySelector('.st-q') && !app.tray.changes.length, 'Escape leaves it');
     await app.askTakeOut(t.uuid, parent.uuid); await sleep(10); key(R, 'Enter');
     assert.equal(app.tray.changes.length, 1); assert.ok(app.tray.lines()[0].text.startsWith('Take Consultation out from under'));
     assert.equal(app.tray.plan().map(s => s.op).join(), 'removeExtends'); key(R, 'Backspace', { metaKey: true });
-    await app.askTakeOut(t.uuid, 'not-a-tag'); assert.ok(!R.querySelector('.st-ln.ask'), 'a place it no longer holds is not asked about'); }
+    await app.askTakeOut(t.uuid, 'not-a-tag'); assert.ok(!R.querySelector('.st-q'), 'a place it no longer holds is not asked about'); }
   // Dragging a row onto another: the move waits in the tray, the ticked ones together.
   app.st.cur = id('Scan'); app.st.ticks.clear(); app.st.view = 'tree'; app.st.nodes = null; app.draw();
   const drag = (from, to, type = 'drop') => { const src = R.querySelector(`[data-row="${from}"]`), dst = R.querySelector(`[data-row="${to}"]`); src.dispatchEvent(new win.Event('dragstart', { bubbles: true, cancelable: true })); dst.dispatchEvent(new win.Event('dragover', { bubbles: true, cancelable: true })); const over = dst.classList.contains('over'); dst.dispatchEvent(new win.Event(type, { bubbles: true, cancelable: true })); return over; };
@@ -392,6 +393,38 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   fresh(); const pointed = raw.props.find(p => p.range.includes(id('Consultation')) && p.type === 'node'), keeps = raw.tags.find(t => t.title === 'Report');
   app.stage({ kind: 'merge', from: id('Consultation'), into: keeps.id }); await app.apply(); assert.ok(ranges[pointed.uuid].includes(keeps.id) && !ranges[pointed.uuid].includes(id('Consultation')), 'swapped');
   await app.undo(); assert.ok(!ranges[pointed.uuid].includes(id('Consultation')) && ranges[pointed.uuid].some(x => x > 9000) && !ranges[pointed.uuid].includes(keeps.id) === !pointed.range.includes(keeps.id), 'the tag Undo made is back in it');
+  // Logseq's keys on the map: its own two-key shortcuts pass, the map's stay; a letter alone never reaches Logseq.
+  fresh(); calls.length = 0; app.st.view = 'tree'; app.st.propCur = null; app.st.nodes = null; app.st.cur = id('Consultation'); app.st.ticks.clear(); app.draw(); R.focus();
+  const reaches = (el, k, extra = {}) => { let got = false; const seen = () => { got = true; }; doc.addEventListener('keydown', seen); key(el, k, extra); doc.removeEventListener('keydown', seen); return got; };
+  for (const k of ['k', '[', ']', 'P']) assert.ok(reaches(R, k, { metaKey: true, shiftKey: k === 'P' }), `Cmd-${k} reaches Logseq`);
+  assert.ok(!reaches(R, 'Enter', { metaKey: true }) && !reaches(R, 'Backspace', { metaKey: true }), 'Apply and Discard stay');
+  key(R, 'f', { metaKey: true }); assert.equal(doc.activeElement, R.querySelector('[data-find]'), 'Cmd-F goes to the find box'); assert.ok(!reaches(doc.activeElement, 'c', { metaKey: true }), 'a field keeps what writing needs'); assert.ok(reaches(doc.activeElement, 'k', { metaKey: true }), 'and lets Cmd-K by'); assert.ok(!reaches(doc.activeElement, 'j'), 'a letter stays'); app.st.find = ''; app.draw(); R.focus();
+  app.st.cur = id('Medical event'); app.draw(); key(R, 'ArrowUp', { metaKey: true }); assert.ok(!app.st.open.has(id('Medical event')), 'Cmd-Up folds'); key(R, 'ArrowDown', { metaKey: true }); assert.ok(app.st.open.has(id('Medical event')), 'Cmd-Down opens');
+  app.st.cur = id('Consultation'); app.draw(); const tagUuid = app.tray.model.tags.get(id('Consultation')).uuid; key(R, 'o', { metaKey: true }); deq(calls.at(-1), ['pushState', 'page', { name: tagUuid }], 'Cmd-O goes to the tag\'s page'); key(R, 'o', { metaKey: true, shiftKey: true }); deq(calls.at(-1), ['openInRightSidebar', tagUuid], 'Shift: the sidebar'); calls.length = 0; key(R, 'Enter', { shiftKey: true }); deq(calls.at(-1), ['openInRightSidebar', tagUuid], 'as Shift-Enter does');
+  click(R.querySelector('[data-do="page"]')); deq(calls.at(-1), ['pushState', 'page', { name: tagUuid }], 'the card\'s word goes to the same page'); assert.ok(!R.querySelector('.st-menu'));
+  // Cmd-Z: the waiting line first, then the last Apply, as the arrow; in a field it is the field's.
+  calls.length = 0; app.stage({ kind: 'rename', tag: movedA.id, name: 'Scan B' }); app.stage({ kind: 'rename', tag: movedB.id, name: 'Stay B' }); key(R, 'z', { metaKey: true }); deq(app.tray.lines().map(l => l.text), ['Rename Scan to Scan B'], 'the last line goes');
+  await app.apply(); assert.ok(undoArrow()); assert.ok(calls.some(c => c[0] === 'renamePage')); calls.length = 0; key(doc.body, 'z', { metaKey: true }); await sleep(30); assert.ok(calls.some(c => c[0] === 'renamePage'), 'Cmd-Z does what the arrow does, wherever the keyboard is'); assert.equal(app.tray.done, null); calls.length = 0; key(R, 'z', { metaKey: true, shiftKey: true }); key(R, 'z', { metaKey: true }); await sleep(10); assert.ok(!calls.some(c => c[0] === 'renamePage'), 'nothing left, nothing happens');
+  fresh(); assert.equal(app.tray.note, '');
+  // Back and forward: every place is an entry in the window's history; Logseq's keys walk it. A press on the tree starts a new way; the arrows are one step.
+  const atHash = () => win.location.hash; const clickRow = n => click(R.querySelector(`[data-row="${id(n)}"]`));
+  app.st.open.add(id('Medical event')); clickRow('Consultation'); clickRow('Stay'); assert.ok(/^#\/structure\?at=\d+$/.test(atHash()), atHash());
+  const stay = atHash(); win.history.back(); await sleep(20); assert.equal(app.st.cur, id('Consultation'), 'back: the card shown before'); win.history.forward(); await sleep(20); assert.equal(app.st.cur, id('Stay'), 'forward'); assert.equal(atHash(), stay);
+  click(R.querySelector('.st-ln[data-prop]')); assert.equal(text(R.querySelector('.st-trail')), 'Stay›', 'a jump goes on the trail'); clickRow('Consultation'); assert.ok(!R.querySelector('.st-trail'), 'a press on the tree does not, and starts a new way'); win.history.back(); await sleep(20); assert.ok(app.st.propCur, 'back to the property\'s card'); assert.equal(text(R.querySelector('.st-trail')), 'Stay›', 'with its trail');
+  const cardWas = app.st.propCur; R.focus(); key(R, 'ArrowDown'); key(R, 'ArrowDown'); key(R, 'ArrowDown'); assert.equal(app.st.propCur, null); win.history.back(); await sleep(20); assert.equal(app.st.propCur, cardWas, 'three arrows, one step back');
+  app.st.trail = []; app.st.propCur = null; app.draw();
+  // The tray stands on top of the card; what Undo cannot put back whole asks first, with the library's one blue button.
+  fresh(); app.stage({ kind: 'rename', tag: movedA.id, name: 'Scan B' }); app.draw(); const trayEl = R.querySelector('.st-tray'); assert.equal(trayEl.nextElementSibling, R.querySelector('.st-right'), 'above the card'); assert.ok(trayEl.querySelector('.lk-bar .lk-accent[data-apply]') && trayEl.querySelector('.lk-btn[data-discard]'), 'drawn from the library');
+  key(R, 'Enter', { metaKey: true }); await sleep(30); assert.ok(calls.some(c => c[0] === 'renamePage'), 'a rename asks nothing'); assert.ok(!R.querySelector('.st-big')); await app.undo(); fresh();
+  const loses = app.tray.raw.tags.find(t => t.title === 'Visit'); loses.bullets = 3; loses.links = 12; app.tray.rebuild(); const goneId = loses.id, keptId = id('Consultation');
+  app.stage({ kind: 'merge', from: goneId, into: keptId }); app.draw(); assert.ok(app.tray.lines()[0].text.includes('3 bullets on its page go · 12 links become words'), app.tray.lines()[0].text); calls.length = 0;
+  click(R.querySelector('[data-apply]')); await sleep(10); assert.ok(R.querySelector('.st-tray .st-big .lk-big[data-stage]'), 'Apply asks first'); assert.ok(text(R.querySelector('.st-big')).includes('Visit is deleted for good'), text(R.querySelector('.st-big'))); assert.ok(!R.querySelector('[data-apply]'), 'one Apply on the screen, the blue one'); assert.equal(count('deletePage'), 0, 'nothing written');
+  R.focus(); key(R, 'Enter', { metaKey: true }); await sleep(10); assert.equal(count('deletePage'), 0, 'a second Cmd-Enter is no yes'); key(R, 'Escape'); assert.ok(!R.querySelector('.st-big'), 'Escape leaves it'); assert.equal(app.tray.changes.length, 1, 'and the line waits');
+  key(R, 'Enter', { metaKey: true }); assert.ok(R.querySelector('.st-big')); click(R.querySelector('[data-drop="0"]')); assert.ok(!R.querySelector('.st-big') && !app.st.ask, 'the line taken out, no question left'); app.stage({ kind: 'merge', from: goneId, into: keptId }); app.draw();
+  key(R, 'Enter', { metaKey: true }); key(R, 'Enter'); await sleep(30); assert.equal(count('deletePage'), 1, 'Enter says yes'); await app.undo(); fresh(); await app.reread(); app.tray.note = '';
+  // A line that only says what happened leaves by itself; a stored link reads as its name.
+  fresh(); app.stage({ kind: 'rename', tag: movedA.id, name: 'Scan B' }); app.discard(); assert.equal(text(R.querySelector('.st-tray')), '1 change dropped'); await sleep(6100); assert.equal(text(R.querySelector('.st-tray')), '', 'it leaves');
+  const holder = live.nodes[id('Consultation')].at(-1); holder.words = 'Clinic with [[1A000000-0000-4000-8000-00000000000E]] next Tuesday'; await app.reread(); app.st.cur = id('Consultation'); app.st.view = 'tree'; app.st.propCur = null; app.draw(); R.focus(); key(R, 'Enter'); await sleep(30); assert.ok(text(R.querySelector('.st-nodes')).includes('Clinic with Dr. Mei Chen next Tuesday'), text(R.querySelector('.st-nodes')).slice(0, 200)); delete holder.words; key(R, 'Escape'); app.st.trail = [];
   // A stale map: read on opening, read again under a waiting tray, and a line that lost its tag says so.
   fresh(); let rereadsN = 0; const reading = app.reread; app.reread = async () => { rereadsN++; }; const again = S.view.make(doc.getElementById('side'), 'page', app); app.mounted(again); assert.equal(rereadsN, 1, 'read on opening'); again.destroy(); app.reread = reading;
   app.st.cur = id('Stay'); app.stage({ kind: 'rename', tag: movedB.id, name: 'Stay B' }); app.stage({ kind: 'move', tag: movedA.id, to: under.id }); const liveTags = live.tags;

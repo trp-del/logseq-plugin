@@ -98,7 +98,8 @@ const TOKENS = `
    The button library (button-library.html in the workspace), one kind per job, each drawn whole here, so a module adds
    nothing of its own to how it looks, only where it stands. lk-strip: a row of actions; lk-bar: what you can do with what
    you ticked, lk-said holding how many; lk-btn: a word in either, or among lk-answers, the answers under a question;
-   lk-accent: the main button, the one thing a screen is for; lk-hint: words beside them saying what a key does now, never
+   lk-accent: the main button, the one thing a screen is for; lk-big: the yes to a change Undo cannot put back whole, the one
+   button with a colour and a fill, Logseq's own blue, a shade deeper so its white words read in both themes; lk-hint: words beside them saying what a key does now, never
    pressed; lk-lone: an action with nothing beside it; lk-add: "+ Add property"; lk-fix: what to do about a row, at its
    right end; lk-x: takes one thing off a row; lk-plus: adds to a row's group; lk-more: show all; lk-views with lk-view
    (.on): other contents of one place; lk-trail with lk-step: the places you came through; lk-head (.on): a sort head;
@@ -146,6 +147,9 @@ Door.NAMES = `${TOKENS}
 .lk-hint { color: var(--lk-dim) !important; font-size: 12.5px; margin-left: auto; padding-left: 12px; white-space: nowrap; }
 .lk-accent { cursor: pointer; border-radius: 4px; color: var(--lk-text, currentColor) !important; white-space: nowrap; }
 .lk-answers > .lk-accent { padding: 3px 8px; margin-left: -8px; }
+.lk-big { appearance: none; border: 0; font: inherit; font-weight: 600; cursor: pointer; border-radius: 4px; padding: 3px 12px; margin-right: 8px; white-space: nowrap; background: color-mix(in srgb, var(--rx-blue-09, #0091ff) 80%, #000); color: #fff !important; }
+.lk-big:hover, .lk-big:focus-visible { background: color-mix(in srgb, var(--rx-blue-09, #0091ff) 68%, #000); outline: none; }
+.lk-big + .lk-btn::before { display: none; }
 .lk-lone { color: var(--lk-text, currentColor) !important; padding: 3px 6px; margin-left: -6px; white-space: nowrap; }
 .lk-fix { color: var(--lk-text, currentColor) !important; padding: 2px 6px; white-space: nowrap; }
 .lk-add, .lk-more { color: var(--lk-soft) !important; padding: 3px 0; }

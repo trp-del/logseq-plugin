@@ -49,6 +49,13 @@ async function read() {
 }
 // The nodes the card's count counts, with their words and days, for the list it opens. The day is the margin's: when it happened, not
 // when it was written: its date property, else the journal day it is written on.
+// A node's words are stored with [[uuid]] and ((uuid)) where a page or a node is named: the names go in their place, as Logseq shows them.
+const STORED = /\[\[([0-9a-f]{8}-[0-9a-f-]{27})\]\]|\(\(([0-9a-f]{8}-[0-9a-f-]{27})\)\)/gi;
+async function named(titles) {
+  const ids = new Set(titles.flatMap(t => [...t.matchAll(STORED)].map(m => (m[1] || m[2]).toLowerCase())));
+  const names = new Map(ids.size ? (await query(`[:find ?u ?t :where [(ground [${[...ids].map(u => `#uuid "${u}"`).join(' ')}]) [?u ...]] [?e :block/uuid ?u] [?e :block/title ?t]]`)).map(([u, t]) => [String(u).toLowerCase(), String(t)]) : []);
+  return t => t.replace(STORED, (match, a, b) => names.get((a || b).toLowerCase()) ?? '…').replace(/\[\[([^\]]*)\]\]/g, '$1');
+}
 async function nodesOf(nodeIds) {
   const these = `[(ground [${nodeIds.join(' ')}]) [?b ...]]`;
   const [rows, dates, written] = await Promise.all([
@@ -56,8 +63,8 @@ async function nodesOf(nodeIds) {
     query(`[:find ?b ?d ?name :where ${these} [?b ?a ?v] [?p :db/ident ?a] [(namespace ?a) ?ns] [(= ?ns "user.property")] [?p :logseq.property/type :date] [?p :block/title ?name] [?v :block/journal-day ?d]]`),
     query(`[:find ?b ?d :where ${these} [?b :block/page ?pg] [?pg :block/journal-day ?d]]`),
   ]);
-  const dated = window.PluginDoor.datedDays(dates), onDay = new Map(written);
-  return rows.map(([id, u, title, c, pg]) => ({ id, uuid: String(u), title: String(title), created: Number(c) || 0, day: dated.get(id) || Number(onDay.get(id)) || 0, isPage: !pg }));
+  const dated = window.PluginDoor.datedDays(dates), onDay = new Map(written), words = await named(rows.map(row => String(row[2])));
+  return rows.map(([id, u, title, c, pg]) => ({ id, uuid: String(u), title: words(String(title)), created: Number(c) || 0, day: dated.get(id) || Number(onDay.get(id)) || 0, isPage: !pg }));
 }
 // The values of a property among a tag's nodes, with how many nodes hold each (a choice or a link), for a split by value.
 async function valuesOf(tagId, ident) {

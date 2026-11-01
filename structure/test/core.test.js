@@ -33,7 +33,7 @@ assert.equal(by('Source has no nodes').fix, 'remove');
 assert.equal(by('Visit reads like Consultation').fix, 'merge into Consultation');
 assert.equal(by('Maker on Medication links to nodes').fix, 'set Organisation');
 assert.equal(by('Date on Blood draw').fix, 'pull up to Medical event'); assert.equal(by('Date on Blood draw').change.from.length, 6);
-assert.equal(by('With on Consultation, 7 of 90').fix, 'drop, or leave');
+assert.equal(by('With on Consultation, 7 of 90').fix, 'drop');
 assert.equal(by('Results is plural').fix, 'merge into Result');
 const named = title => Mo.build({ ...raw, tags: raw.tags.map(t => t.title === 'Mood' ? { ...t, title } : t) });
 const soft = S.rules.issues(named('Diabetes')).find(i => i.text.startsWith('Diabetes'));

@@ -29,10 +29,11 @@ function mount(app) {
     try { const Side = component('side'); logseq.Experiments.registerSidebarRenderer(SIDEBAR_KEY, { title: 'Structure', render: () => React.createElement(Side) }); hosted.sidebar = true; }
     catch (error) { console.error('Structure: the sidebar panel could not be added', error); }
   }
+  const onPage = () => host().defaultView.location.hash.split('?')[0] === '#' + ROUTE;   // the address carries the place (view.js)
   return {
     ...hosted,
-    openPage: () => { const win = host().defaultView; if (win.location.hash !== '#' + ROUTE) win.location.hash = '#' + ROUTE; },
-    onPage: () => host().defaultView.location.hash === '#' + ROUTE,
+    openPage: () => { const win = host().defaultView; if (!onPage()) win.location.hash = '#' + ROUTE; },
+    onPage,
     openSidebar: async () => { await logseq.Editor.openInRightSidebar('_sidebar.' + SIDEBAR_KEY); await logseq.App.setRightSidebarVisible?.(true); },
   };
 }
