@@ -13,7 +13,7 @@ const raw = sample(), id = n => raw.idOf.get(n), pid = n => raw.propIdOf.get(n),
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // The graph as Logseq's queries hand it back: pulled maps with shortened keys, idents with a colon.
-let graphName = 'logseq_db_Test', lateNodes = {}, failOn = null, ranges = {}, declared = {}, pagesReal = false, duringWrite = null, deleted = new Set();
+let datedNodes = [], graphName = 'logseq_db_Test', lateNodes = {}, failOn = null, ranges = {}, declared = {}, pagesReal = false, duringWrite = null, deleted = new Set();
 let failQuery = null;
 const calls = [], taken = new Set();   // taken: names some other page, tag or property holds
 let live = JSON.parse(JSON.stringify({ tags: raw.tags, props: raw.props, nodes: raw.nodes, holders: raw.holders }));
@@ -27,6 +27,9 @@ function fakeQuery(q) {
   if (has('[?b ?a _] [?p :db/ident ?a]')) return Object.entries(live.holders).flatMap(([a, ids]) => ids.map(b => [':' + a, b]));
   if (has('(count ?v)')) return raw.pointed.map(([a, t, n]) => [':' + a, t, n]);
   if (has('(max ?c)')) return [[id('Consultation'), Date.UTC(2026, 9, 28)]];
+  if (has(':find ?b ?u ?title ?c ?pg')) { const ids = new Set(q.match(/ground \[([\d ]*)\]/)[1].split(' ').map(Number)); return Object.entries(live.nodes).flatMap(([t, list]) => list.filter(n => ids.has(n.id)).map((n, i) => [n.id, n.uuid, `Node ${i + 1} of tag ${t}`, 1000 + n.id, 7])); }
+  if (has(':find ?b ?d ?name')) return datedNodes;
+  if (has('[?b :block/page ?pg] [?pg :block/journal-day ?d]')) return [];
   if (has('[?b :block/title ?title] [(get-else')) { const t = Number(q.match(/:block\/tags (\d+)/)[1]); return (live.nodes[t] || []).slice(0, 30).map((n, i) => [n.uuid, `Node ${i + 1} of tag ${t}`, 1000 + i, i % 2 ? 0 : 7]); }
   if (has('[?p :block/name ')) return taken.has(JSON.parse(q.match(/:block\/name ("[^"]*")/)[1])) ? [[1]] : [];
   if (has('[?b :block/page ?t]') || has('clojure.string/includes?')) return [];
@@ -137,7 +140,7 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   app.st.cur = id('Procedure'); app.draw(); key(R, ' '); key(R, 'ArrowDown'); key(R, ' ');
   assert.equal(app.st.ticks.size, 2); assert.equal(R.querySelectorAll('.lk-tick:checked').length, 2); assert.ok(R.querySelector('.lk-list[data-picking]'), 'the list says it is being picked from'); assert.ok(text(R.querySelector('.st-pick')).startsWith('2 ticked'), 'the pick bar above the tree');
   app.st.cur = id('Stay'); app.draw(); key(R, 'ArrowUp'); key(R, 'ArrowUp'); key(R, 'ArrowUp'); assert.equal(app.st.cur, id('Blood draw'));
-  assert.equal(text(R.querySelector('.st-pick [data-do="merge"]')), 'merge into Blood draw', 'the pick bar offers it too'); const mergeWord = R.querySelector('.st-card [data-do="merge"]'); assert.equal(text(mergeWord), 'merge the 2 ticked tags into this'); const staged = app.tray.changes.length; click(mergeWord);
+  assert.ok(!R.querySelector('.st-views') && R.querySelector('.st-left > .st-pick'), 'the bar stands in the place of the three words, so the rows stay'); const mergeWord = R.querySelector('.st-card [data-do="merge"]'); assert.equal(text(mergeWord), 'merge the 2 ticked tags into this'); const staged = app.tray.changes.length; click(mergeWord);
   assert.equal(app.tray.changes.length, staged, 'a merge from the ticks asks first, as a fix does'); assert.equal(R.querySelectorAll('.st-card .st-ln.ask .st-two').length, 2, 'each merge shown side by side on the card'); assert.equal(R.querySelectorAll('.st-card [data-stage]').length, 1, 'one word stages them');
   key(R, 'Enter'); assert.equal(app.st.ticks.size, 0, 'Enter stages them and the ticks go');
   deq(app.tray.lines().map(l => l.text).slice(1), ['Merge Procedure into Blood draw, Procedure removed', 'Merge Scan into Blood draw, Scan removed']);
@@ -230,6 +233,62 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   assert.equal(app.tray.lines()[0].text, 'Move 2 nodes from Consultation to Call');
   key(R, 'Backspace', { metaKey: true }); assert.equal(app.tray.changes.length, 0, '⌘⌫ discards'); assert.equal(text(R.querySelector('.st-tray')), '1 change dropped', 'and says so');
   key(R, 'Escape'); assert.equal(app.st.view, 'tree', 'Escape walks back from the nodes');
+  const Mo = S.model;
+  // The count opens what it counts: a tag with no nodes of its own lists those beneath; the words of the title and the number agree.
+  { const parent = id('Medical event'), m = app.tray.model, n = Mo.count(m, parent);
+    app.st.cur = parent; app.st.view = 'tree'; app.st.trail = []; app.draw(); click(R.querySelector('[data-nodes]')); await sleep(30);
+    assert.equal(app.st.nodes.list.length, n, 'as many as the card said'); assert.ok(text(R.querySelector('.st-ttl')).startsWith(`${n} nodes of Medical event`));
+    assert.ok(app.st.nodes.list.every(x => Mo.under(m, x.tag, parent)), 'each with the tag it carries');
+    // Ticks moved: the tray's pencilled count follows, from the tag each carries.
+    const from = app.st.nodes.list[0].tag, to = Mo.kids(m, parent).find(k => k !== from), had = Mo.count(m, from), hadTo = Mo.count(m, to);
+    key(R, ' '); click(R.querySelector('[data-do="nmove"]')); R.querySelector('[data-pin]').value = m.tags.get(to).title; R.querySelector('[data-pin]').dispatchEvent(new win.Event('input', { bubbles: true })); key(R.querySelector('[data-pin]'), 'Enter');
+    assert.equal(Mo.count(app.tray.model, from) + 1, had, 'the tag it left counts one fewer');
+    assert.equal(Mo.count(app.tray.model, to) - 1, hadTo, 'the tag it went to one more');
+    assert.equal(app.st.nodes.list.length, n, 'still under the tag: still in its list, as its count says');
+    assert.ok(app.tray.plan().some(s => s.op === 'removeTag'), 'and Apply would write it'); key(R, 'Backspace', { metaKey: true }); key(R, 'Escape'); }
+  // The margin of the list: a date property first, an Entity none.
+  { const uuidless = id('Consultation'), first = [...app.tray.model.tags.get(uuidless).nodes][0];
+    datedNodes = [[first, 20260903, 'Date'], [first, 20260101, 'Other']];
+    assert.equal((await app.readNodes(uuidless))[0].day, 20260903, 'the date property titled Date'); datedNodes = []; }
+  // A property's card says inherited only from a tag above it.
+  { const m = app.tray.model, child = id('Consultation'), inh = Mo.inherited(m, child)[0], other = [...m.tags.values()].find(t => !t.kind && !Mo.under(m, child, t.id) && !t.props.includes(inh.prop));
+    m.props.get(inh.prop).on.unshift(other.id); app.st.cur = child; app.st.propCur = `${child}·${inh.prop}`; app.draw();
+    assert.ok(text(R.querySelector('.st-card .sum')).includes(`inherited from ${m.tags.get(inh.from).title}`), 'the tag above it: ' + text(R.querySelector('.st-card .sum')));
+    m.props.get(inh.prop).on.shift(); app.st.propCur = null; app.draw(); }
+  // A row click moves the cursor and no more: the trail is for jumps.
+  { app.st.trail = []; app.st.view = 'tree'; app.st.propCur = null; app.draw();
+    for (const name of ['Scan', 'Call', 'Stay']) click(R.querySelector(`[data-row="${id(name)}"]`));
+    assert.equal(app.st.cur, id('Stay')); assert.equal(app.st.trail.length, 0, 'three clicks, no trail');
+    app.st.trail = Array.from({ length: 9 }, (_, i) => ({ view: 'tree', cur: id('Scan'), propCur: null, nodes: null })); app.draw();
+    assert.equal(R.querySelectorAll('.st-trail .lk-step').length, 4, 'the trail stays one line: the last few places'); click(R.querySelector('.st-trail .lk-step')); assert.equal(app.st.trail.length, 5, 'each still its own step back'); app.st.trail = []; app.draw(); }
+  // The lit row of a prompt is one Enter can take, and the arrows pass over the others.
+  { const m = app.tray.model, first = Mo.kids(m, m.kinds.find(k => Mo.kids(m, k.id).length).id)[0];
+    app.st.cur = first; app.draw(); click(R.querySelector('[data-do="move"]'));
+    const pin = () => R.querySelector('[data-pin]'), rows = () => [...R.querySelectorAll('.st-prompt .st-row')];
+    // A letter that puts the tag itself, which is off, first in the list, with something it can go under after it.
+    const letter = [...'abcdfghjklmopqrsuvwxz'].find(c => { pin().value = c; pin().dispatchEvent(new win.Event('input', { bubbles: true })); return rows()[0]?.classList.contains('off') && rows().some(r => !r.classList.contains('off') && !r.classList.contains('more')); });
+    assert.ok(letter, 'a list that starts on a row that is off');
+    assert.ok(!R.querySelector('.st-prompt .st-row.lit.off'), 'that row is not lit');
+    const lit = R.querySelector('.st-prompt .st-row.lit .nm').textContent; key(pin(), 'ArrowUp'); assert.equal(R.querySelector('.st-prompt .st-row.lit .nm').textContent, lit, 'Up does not land on it');
+    key(pin(), 'Enter'); assert.ok(!R.querySelector('.st-prompt') && app.tray.changes.length === 1, 'Enter takes it: ' + lit); key(R, 'Backspace', { metaKey: true }); }
+  // Down passes over a row that is off to the one after it.
+  { app.st.cur = id('Medical event'); app.draw(); click(R.querySelector('[data-do="move"]'));
+    const pin = () => R.querySelector('[data-pin]'), rows = () => [...R.querySelectorAll('.st-prompt .st-row')], off = rows().findIndex(r => r.classList.contains('off'));
+    assert.ok(off > 0 && rows().slice(off).some(r => !r.classList.contains('off')), 'a row that is off with rows to take on both sides');
+    for (let i = 0; i < rows().length; i++) key(pin(), 'ArrowDown');
+    assert.ok(rows().findIndex(r => r.classList.contains('lit')) > off, 'the cursor went past it'); key(pin(), 'Escape'); }
+  // The × on a tag's own page asks here first: what it would do, with the nodes it touches; Enter stages, Apply writes.
+  { const m = app.tray.model, tag = id('Consultation'), t = m.tags.get(tag), parent = m.tags.get(t.parents[0]);
+    await app.askTakeOut(t.uuid, parent.uuid); await sleep(10);
+    const ask = text(R.querySelector('.st-ln.ask'));
+    assert.ok(ask.startsWith(`Take Consultation out from under ${parent.title}`) && ask.includes(`${Mo.count(m, tag)} nodes`), ask);
+    assert.equal(app.tray.changes.length, 0, 'nothing waits before the yes');
+    await app.reread(); assert.ok(R.querySelector('.st-ln.ask'), 'a reading of the graph, which opening the map brings, leaves the ask');
+    key(R, 'Escape'); assert.ok(!R.querySelector('.st-ln.ask') && !app.tray.changes.length, 'Escape leaves it');
+    await app.askTakeOut(t.uuid, parent.uuid); await sleep(10); key(R, 'Enter');
+    assert.equal(app.tray.changes.length, 1); assert.ok(app.tray.lines()[0].text.startsWith('Take Consultation out from under'));
+    assert.equal(app.tray.plan().map(s => s.op).join(), 'removeExtends'); key(R, 'Backspace', { metaKey: true });
+    await app.askTakeOut(t.uuid, 'not-a-tag'); assert.ok(!R.querySelector('.st-ln.ask'), 'a place it no longer holds is not asked about'); }
   // Dragging a row onto another: the move waits in the tray, the ticked ones together.
   app.st.cur = id('Scan'); app.st.ticks.clear(); app.st.view = 'tree'; app.st.nodes = null; app.draw();
   const drag = (from, to, type = 'drop') => { const src = R.querySelector(`[data-row="${from}"]`), dst = R.querySelector(`[data-row="${to}"]`); src.dispatchEvent(new win.Event('dragstart', { bubbles: true, cancelable: true })); dst.dispatchEvent(new win.Event('dragover', { bubbles: true, cancelable: true })); const over = dst.classList.contains('over'); dst.dispatchEvent(new win.Event(type, { bubbles: true, cancelable: true })); return over; };

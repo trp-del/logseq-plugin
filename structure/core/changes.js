@@ -15,6 +15,7 @@ const name = (M, id) => tag(M, id)?.title ?? '?';
 function sentence(M, c) {
   switch (c.kind) {
     case 'move': { const was = parentOf(M, c.tag); return { text: c.to === Mo.LOOSE ? `Take ${name(M, c.tag)} out from under ${was == null ? 'every tag' : name(M, was)}` : `Move ${name(M, c.tag)} from ${was == null ? 'no kind' : name(M, was)} to ${name(M, c.to)}`, nodes: count(M, c.tag) }; }
+    case 'takeOut': { const stays = Mo.inherited(M, c.tag, c.from), lost = Mo.inherited(M, c.tag).filter(x => !stays.some(y => y.prop === x.prop)).map(x => prop(M, x.prop).title); return { text: `Take ${name(M, c.tag)} out from under ${name(M, c.from)}${lost.length ? `, no longer inheriting ${list(lost)}` : ''}`, nodes: count(M, c.tag) }; }
     case 'rename': return { text: `Rename ${name(M, c.tag)} to ${c.name}`, nodes: count(M, c.tag) };
     case 'renameProp': return { text: `Rename ${prop(M, c.prop).title} to ${c.name}`, nodes: prop(M, c.prop).on.reduce((s, t) => s + filled(M, t, c.prop), 0) };
     case 'merge': {   // the count sits in the tray's own column; what no Undo brings back is said here, as the ask reads this sentence too
@@ -39,6 +40,7 @@ function applyToModel(M, c) {
   const t = c.tag != null ? tag(M, c.tag) : null;
   switch (c.kind) {
     case 'move': if (t && c.to === Mo.LOOSE) { t.parents = []; Mo.link(M); } else if (t && M.tags.has(c.to) && !Mo.under(M, c.to, c.tag)) { t.parents = [c.to, ...t.parents.filter(p => p !== c.to && p !== parentOf(M, c.tag))]; Mo.link(M); } break;
+    case 'takeOut': if (t) { t.parents = t.parents.filter(p => p !== c.from); Mo.link(M); } break;
     case 'rename': if (t) t.title = c.name; break;
     case 'renameProp': { const p = prop(M, c.prop); if (p) p.title = c.name; break; }
     case 'merge': { const from = tag(M, c.from), into = tag(M, c.into); if (!from || !into) break;
@@ -74,6 +76,7 @@ function steps(M, c) {
   const ensureKind = id => { const k = tag(M, id); if (k?.missing && !k.uuid) out.push({ op: 'makeTag', tag: H(id), parent: null }); };
   switch (c.kind) {
     case 'move': { if (!t) break; if (c.to === Mo.LOOSE) { for (const p of t.parents) out.push({ op: 'removeExtends', tag: H(c.tag), parent: H(p) }); break; } if (Mo.under(M, c.to, c.tag)) break; ensureKind(c.to); const was = parentOf(M, c.tag); out.push({ op: 'addExtends', tag: H(c.tag), parent: H(c.to) }); if (was != null) out.push({ op: 'removeExtends', tag: H(c.tag), parent: H(was) }); break; }
+    case 'takeOut': if (t?.parents.includes(c.from)) out.push({ op: 'removeExtends', tag: H(c.tag), parent: H(c.from) }); break;
     case 'rename': out.push({ op: 'rename', tag: H(c.tag), name: c.name, was: t.title }); break;
     case 'renameProp': out.push({ op: 'rename', prop: propHandle(M, c.prop), name: c.name, was: prop(M, c.prop).title }); break;
     case 'merge': { const from = tag(M, c.from), into = tag(M, c.into); if (!from || !into) break;

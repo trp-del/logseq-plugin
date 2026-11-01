@@ -98,7 +98,7 @@ const CSS = `
 .xp-bar button:where(:not(.lk-btn)) { all: unset; cursor: pointer; font: inherit; color: var(--lk-text, #222); white-space: nowrap; }
 .xp-bar button[hidden] { display: none; }
 .xp-bar button:hover { color: var(--xp-quiet); }
-.xp-bar button:focus-visible { outline: 1px solid var(--xp-line); outline-offset: 3px; border-radius: 1px; }
+.xp-bar button:not(.lk-accent):focus-visible { outline: 1px solid var(--xp-line); outline-offset: 3px; border-radius: 1px; }
 .xp-bar .lk-btn { margin: -3px -12px -3px 0; }
 .xp-bar button.lk-accent kbd { font: inherit; font-size: .85em; margin-left: 8px; }
 .xp-bar button.lk-close { font-size: 17px; line-height: 1; margin-top: -2px; }

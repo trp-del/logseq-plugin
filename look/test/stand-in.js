@@ -84,6 +84,6 @@ async function load({ html = page, settings = {} } = {}) {
   vm.createContext(sandbox);
   for (const file of order) vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), sandbox, { filename: file });
   await new Promise(r => setTimeout(r, 150));
-  return { dom, doc, Look: sandbox.window.Look, logseq, styles, errors, order, door: sandbox.window.PluginDoor };
+  return { dom, doc, win: sandbox.window, Look: sandbox.window.Look, logseq, styles, errors, order, door: sandbox.window.PluginDoor };
 }
 module.exports = { U, DAY, page, pencilled, load };

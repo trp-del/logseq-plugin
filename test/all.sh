@@ -7,6 +7,7 @@ run() { (cd "$1" && shift && "$@" >"${TMPDIR:-/tmp}/logseq-plugin-check.$$" 2>&1
 for file in plugin.js main.js files.js; do node --check "$file" || fail=1; done
 run . node test/settings.js
 run . node test/root.js
+run . node test/library.js
 run look node test/load.js
 run find node test/load.js
 run predictive node test/run.js

@@ -60,8 +60,20 @@ function kindOf(index, tagIds) {
   return own[0] || null;
 }
 
-/* The nodes under a kind: id, uuid, title (refs as names), the page they sit on, the day (the page's journal day, else
-   a date property's), their kind. A kind with more than `limit` nodes keeps its newest, and the list says how many it holds
+// Which of the four sorts a node falls under, from its tags and the tags above them; under two, none (as Look reads it).
+function sortOf(index, tagIds) {
+  const found = new Set(), seen = new Set(), walk = [...tagIds];
+  while (walk.length) {
+    const t = index.byId.get(walk.pop());
+    if (!t || seen.has(t.id)) continue;
+    seen.add(t.id);
+    const sort = t.own ? null : window.PluginDoor.SORT_NAMES[t.title.trim().toLowerCase()];
+    if (sort) found.add(sort); else walk.push(...t.parents.map(p => p.id));
+  }
+  return found.size === 1 ? [...found][0] : null;
+}
+/* The nodes under a kind: id, uuid, title (refs as names), the page they sit on, the day (when it happened, by the rule in
+   details), their kind. A kind with more than `limit` nodes keeps its newest, and the list says how many it holds
    in all (cutFrom). */
 async function nodesOfKind(tagId, limit = 3000) {
   const index = await tagIndex();
@@ -71,25 +83,27 @@ async function nodesOfKind(tagId, limit = 3000) {
   if (ids.length <= limit) return details(ids, []);
   const where = `${idsIn('?b', ids)} [?b :block/uuid ?u]`;
   const [ownDay, dateDay, pages] = await daysOf(where);
-  const dayOf = b => ownDay.get(b) || pages.get(b)?.journal || dateDay.get(b) || 0;
+  const dayOf = b => ownDay.get(b) || dateDay.get(b) || pages.get(b)?.journal || 0;
   const list = await details(ids.sort((a, b) => dayOf(b) - dayOf(a)).slice(0, limit), []);
   list.cutFrom = ids.length;
   return list;
 }
-// A node's own journal day, the earliest of its date properties, its page; apart from the rest, so a long kind can be cut by them.
+// A node's own journal day, its date property (the one titled Date, whatever its ident, else the earliest: Threads reads it so), its page;
+// apart from the rest, so a long kind can be cut by them.
 async function daysOf(where) {
   const [pages, days, dates] = await Promise.all([
     query(`[:find ?b ?ptitle ?pday :where ${where} [?b :block/page ?pg] [?pg :block/title ?ptitle] [(get-else $ ?pg :block/journal-day 0) ?pday]]`),
     query(`[:find ?b ?d :where ${where} [?b :block/journal-day ?d]]`),
-    query(`[:find ?b ?d :where ${where} [?b ?a ?v] ${USER_PROP} [?prop :logseq.property/type :date] [?v :block/journal-day ?d]]`),
+    query(`[:find ?b ?d ?name :where ${where} [?b ?a ?v] ${USER_PROP} [?prop :logseq.property/type :date] [?prop :block/title ?name] [?v :block/journal-day ?d]]`),
   ]);
   const ownDay = new Map(days.map(([b, d]) => [b, Number(d)]));
-  const dateDay = new Map();
-  for (const [b, d] of dates) if (!dateDay.has(b) || Number(d) < dateDay.get(b)) dateDay.set(b, Number(d));
+  const dateDay = window.PluginDoor.datedDays(dates);
   const pageOf = new Map(pages.map(([b, ptitle, pday]) => [b, { title: String(ptitle), journal: Number(pday) || 0 }]));
   return [ownDay, dateDay, pageOf];
 }
-/* The details of nodes given by id or by uuid: [{ id, uuid, title, text, isPage, page: { uuid, title, journal }, day, tags, kind }]. */
+/* The details of nodes given by id or by uuid: [{ id, uuid, title, text, isPage, page: { uuid, title, journal }, day, written, tags, kind }].
+   day is the margin's, when the node happened, not when it was written: a journal page its own; a node its date property, else
+   the journal day it is written on; an Entity none, wherever it is written. written keeps the order among those with no day. */
 async function details(ids, uuids) {
   const index = await tagIndex();
   const where = ids.length ? `${idsIn('?b', ids)} [?b :block/uuid ?u]` : `${uuidsIn('?u', uuids)} [?b :block/uuid ?u]`;
@@ -106,7 +120,7 @@ async function details(ids, uuids) {
     const t = tagsOf.get(b) || [];
     const isPage = !!name, page = isPage ? null : (pageOf.get(b) || { title: '', journal: 0 });
     return { id: b, uuid: String(u).toLowerCase(), raw: String(title), isPage, journal: !!ownDay.get(b), page,
-      day: ownDay.get(b) || page?.journal || dateDay.get(b) || 0, tags: t, kind: kindOf(index, t) };
+      day: ownDay.get(b) || (sortOf(index, t) === 'entity' ? 0 : dateDay.get(b) || page?.journal || 0), written: page?.journal || 0, tags: t, kind: kindOf(index, t) };
   });
   await resolveNames(list);
   return list;
@@ -171,6 +185,7 @@ async function facets(nodes) {
   return { props: list, byNode };
 }
 // The months among the nodes' days, newest first: [{ key: 202610, label: 'Oct', count }].
+const byDay = (a, b) => b.day - a.day || b.written - a.written;
 function months(nodes) {
   const map = new Map();
   for (const n of nodes) { if (!n.day) continue; const key = Math.floor(n.day / 100); map.set(key, (map.get(key) || 0) + 1); }
@@ -229,7 +244,6 @@ async function node(uuid) {
     if (!groups.has(key)) groups.set(key, { name: String(name), kind: n.kind?.title || '', nodes: [] });
     if (!groups.get(key).nodes.some(x => x.id === b)) groups.get(key).nodes.push(n);
   }
-  const byDay = (a, b) => b.day - a.day;
   const pointed = [...groups.values()].map(g => ({ ...g, nodes: g.nodes.sort(byDay) })).sort((a, b) => b.nodes.length - a.nodes.length);
   const mentioned = mentionIds.map(b => byId.get(b)).filter(Boolean).sort(byDay);
   return { properties: [...properties.values()], pointed, mentioned };
@@ -258,5 +272,5 @@ async function makePage(name) {
 }
 const forget = () => { tags = null; };
 
-Find.db = { tagIndex, kinds, nodesOfKind, details, facets, months, search, node, recents, makePage, dayLabel, monthLabel, forget, UUID };
+Find.db = { tagIndex, kinds, nodesOfKind, details, facets, months, byDay, search, node, recents, makePage, dayLabel, monthLabel, forget, UUID };
 })();

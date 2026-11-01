@@ -35,6 +35,22 @@ Door.structureWatch = () => {
 // Logseq tells every onSettingsChanged of any setting saved: this says whether one of a module's own keys is what changed.
 Door.settingChanged = (keys, now, before) => !before || keys.some(key => JSON.stringify(now?.[key]) !== JSON.stringify(before[key]));
 
+// Whether a module is switched on (its switch in the settings). The switches are read as the plugin starts.
+Door.runs = key => logseq.settings?.[key + 'On'] !== false;
+/* The day a node shows, from its date properties ([node, day, the property's name]): the one titled Date, whatever its ident, else
+   the earliest, as Threads reads it. */
+Door.datedDays = rows => {
+  const days = new Map(), named = new Set();
+  for (const [node, day, name] of rows) {
+    const isDate = String(name).trim().toLowerCase() === 'date';
+    if (!days.has(node) || (isDate && !named.has(node)) || (isDate === named.has(node) && Number(day) < days.get(node))) days.set(node, Number(day));
+    if (isDate) named.add(node);
+  }
+  return days;
+};
+// The tags a graph may name each of the four sorts by, and which it is.
+Door.SORT_NAMES = { entity: 'entity', entities: 'entity', occurrence: 'occurrence', occurrences: 'occurrence', phenomena: 'phenomenon', phenomenon: 'phenomenon', information: 'information', interpretation: 'information' };
+
 /* The four sorts of thing and their marks, as the grammar page draws them: Entity (∃, the logical symbol), Occurrence
    (an open ring), Phenomena (a small wave), Information (three dots, ∴). One drawing, used before a link, in a page's icon
    slot, in lists and in Structure's tree. The shapes are 10 by 10. */
@@ -120,10 +136,10 @@ Door.NAMES = `${TOKENS}
 .lk-accent kbd { font-weight: 400 !important; color: var(--lk-faint) !important; }
 .lk-close { color: var(--lk-faint) !important; }
 .lk-close:hover, .lk-close:focus-visible { color: inherit !important; }
-.lk-btn, .lk-lone, .lk-add, .lk-fix, .lk-x, .lk-plus, .lk-more, .lk-view, .lk-step, .lk-head, .lk-item { appearance: none; background: none; border: 0; font: inherit; cursor: pointer; border-radius: 4px; }
+.lk-btn, .lk-accent, .lk-lone, .lk-add, .lk-fix, .lk-x, .lk-plus, .lk-more, .lk-view, .lk-step, .lk-head, .lk-item { appearance: none; background: none; border: 0; font: inherit; cursor: pointer; border-radius: 4px; }
 .lk-strip, .lk-bar, .lk-answers { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 0; overflow: hidden; }
 .lk-strip { border-top: 1px solid var(--lk-hair); border-bottom: 1px solid var(--lk-hair); padding: 4px 0; }
-.lk-answers { flex-basis: 100%; margin-top: 4px; }
+.lk-answers { flex-basis: 100%; margin-top: 4px; overflow: visible; }
 .lk-btn { position: relative; color: var(--lk-text, currentColor) !important; padding: 3px 12px; white-space: nowrap; }
 .lk-strip > .lk-btn::before, .lk-bar > .lk-btn::before, .lk-answers > .lk-btn::before { content: ""; position: absolute; left: -1px; top: 50%; width: 1px; height: 12px; margin-top: -6px; background: var(--lk-line); }
 .lk-said { font-weight: 500; padding-right: 12px; color: var(--lk-text, currentColor); }

@@ -9,7 +9,7 @@ let standIn; try { standIn = require('./stand-in.js'); } catch (error) { console
 const { U, load, pencilled } = standIn;
 
 (async () => {
-  const { dom, doc, Look, logseq, styles, errors, order, door } = await load();
+  const { dom, doc, win, Look, logseq, styles, errors, order, door } = await load();
   const window_described = () => door.described.look;
   // Another module's setting saved leaves Look asleep; Look's own wakes it.
   let woken = 0; const run = Look.kit.run; Look.kit.run = target => { woken++; return run(target); };
@@ -55,6 +55,16 @@ const { U, load, pencilled } = standIn;
   const pathBox = doc.querySelector('.ls-block-right > .lk-path');
   assert.ok(pathBox, 'the chain is drawn'); assert.equal(pathBox.textContent.replace(/\s+/g, ''), 'Doctor×/Person/Entity');
   assert.ok(pathBox.querySelector('.lk-held .lk-x'), 'the held tag has an ×');
+  // On a tag's own page the × reaches every node under the tag, so it writes nothing: it opens Structure's ask, and with Structure off it is not there.
+  { const title = doc.querySelector('.ls-page-title .ls-block[blockid]'), was = title.getAttribute('blockid');
+    title.setAttribute('blockid', U(3)); Look.title.draw(doc);
+    const box = doc.querySelector('.ls-block-right > .lk-path');
+    assert.equal(box.textContent.replace(/\s+/g, ''), 'Person/Entity', 'only the tags above it');
+    assert.ok(!box.querySelector('.lk-x'), 'with no Structure, no ×');
+    const asked = []; win.Structure = { app: { askTakeOut: async (...a) => { asked.push(a); } } }; box.dataset.key = ''; Look.title.draw(doc);
+    const x = box.querySelector('.lk-x'); assert.ok(x, 'with Structure, the ×'); x.click(); await new Promise(r => setTimeout(r, 0));
+    assert.deepEqual(asked, [[U(3), U(2)]], 'a press asks Structure, the tag and the tag above it');
+    title.setAttribute('blockid', was); delete win.Structure; box.dataset.key = ''; Look.title.draw(doc); }
   // property icons in the page's list: the web for a link to nodes, a calendar for a date, 123, a box for a choice, letters; nothing under a node
   const kind = name => doc.querySelector(`.ls-page-properties [data-property-title="${name}"] .property-m[data-lk-kind] > .lk-kind`);
   assert.ok(kind('Works at')?.querySelector('.lk-web'), 'the web mark on Works at');

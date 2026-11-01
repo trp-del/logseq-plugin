@@ -91,7 +91,7 @@
    - tagTreeRows(matches, opened, sibs, tags, query, builtInLast, byName)   THE tag tree's rows: matches under the tags
                                   above them, child tags one level below; the tag list after a # and the tag map's pickers.
    - card({ at, title, tag, day, fields, lines, empty, open })   the hover card: a node's preview, every piece clickable
-                                  (open(what, value, event): 'node', 'tag', 'day', 'prop', 'value', 'line').
+                                  (open(what, value, event): 'node', 'prop', 'value', 'line').
    - undo                         THE Undo (0.4.258): undo.offer({ key, at, text, run, onFail, cls, data }) puts a
                                   faded arrow at the end of at()'s element(s), or at the bottom right when there is
                                   none; forget, clear, draw, size, has, stop.
@@ -990,15 +990,12 @@ const outline = {
 const countWord = n => typeof n === 'number' ? n.toLocaleString('en') : String(n ?? '');
 // The chevron as an element, for the parts that build with el.
 const chevron = (doc, { open = false, label = '', click, cls = '' } = {}) => { const b = fragmentOf(doc, outline.chev({ open, label, cls })).firstElementChild; if (click) b.addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); click(event); }); return b; };
-/* The hover card: a node's preview, every piece clickable (open(what, value): 'node', 'tag', 'day', 'prop' with the
+/* The hover card: a node's preview, every piece clickable (open(what, value): 'node', 'prop' with the
    name, 'line' with the text). A browser popover of the hint kind, placed under what the pointer rests on. */
-function card({ at, title, tag: tagTitle, day, fields = [], lines = [], empty = '', open, width = 300, cls = '', doc } = {}) {
+function card({ at, title, fields = [], lines = [], open, width = 300, cls = '', doc } = {}) {
   doc = doc || host();
   const p = popup({ at, doc, hint: true, cls: `rf-card${cls ? ' ' + cls : ''}`, width });
   const act = (what, value) => event => { event.preventDefault(); event.stopPropagation(); open?.(what, value, event); };
-  const meta = [];
-  if (tagTitle) meta.push(tag(doc, tagTitle, { href: '#', click: act('tag', tagTitle) }));
-  if (day) { if (meta.length) meta.push(' · '); meta.push(el(doc, 'a', { href: '#', class: 'rf-card-day', click: act('day', day) }, day)); }
   // A field is [name, value] or { name, uuid, values: [{ text, uuid }] }; a line a string or { uuid, text | html }.
   const fieldRow = f => {
     const name = Array.isArray(f) ? f[0] : f.name, values = Array.isArray(f) ? [{ text: f[1] }] : f.values || [];
@@ -1009,11 +1006,9 @@ function card({ at, title, tag: tagTitle, day, fields = [], lines = [], empty = 
   const lineRow = line => el(doc, 'a', { href: '#', class: 'rf-card-line', html: typeof line === 'object' && line.html ? line.html : null, click: act('line', line) }, typeof line === 'string' ? line : line.html ? null : line.text);
   // Only what is there (0.4.326): a node with no properties and no lines showed "nullnull" in its card.
   p.body.append(...[
-    el(doc, 'a', { href: '#', class: 'rf-card-title', click: act('node') }, title),
-    meta.length ? el(doc, 'div', { class: 'rf-note' }, ...meta) : null,
+    title ? el(doc, 'a', { href: '#', class: 'rf-card-title', click: act('node') }, title) : null,
     fields.length ? el(doc, 'div', { class: 'rf-card-fields' }, ...fields.flatMap(fieldRow)) : null,
-    lines.length ? el(doc, 'div', { class: 'rf-card-lines' }, ...lines.map(lineRow)) : null,
-    empty && !fields.length && !lines.length ? el(doc, 'div', { class: 'rf-note' }, empty) : null].filter(Boolean));
+    lines.length ? el(doc, 'div', { class: 'rf-card-lines' }, ...lines.map(lineRow)) : null].filter(Boolean));
   return p;
 }
 
@@ -1173,9 +1168,9 @@ const kitCss = `/* The kit (parts/shared.js, 0.4.311; docs/LAYERS.md section 3):
 .rf-ask .rf-field { margin: 6px 0 2px; width: 100%; }
 .rf-btns:not(.lk-answers) { display: flex; justify-content: flex-end; gap: 4px; margin-top: 8px; }
 /* The answers are the library's. Cancel stays first in the markup, so Tab and Enter reach what they did; the main answer
-   stands first, as the library draws it. The library's accent carries no reset of a button of its own. */
+   stands first, as the library draws it, and its wash reaches past the row's edge, so the body does not clip it. */
+.rf-ask > .rf-pop-body { margin-inline: -8px; padding-inline: 8px; }
 .rf-ask .lk-answers > .lk-accent { order: -1; }
-:where(.rf-ask) .lk-accent { appearance: none; background: none; border: 0; font: inherit; }
 /* The window: the browser's dialog in the kit's colours; the settings window only. */
 .rf-dialog { position: fixed; inset: 0; margin: auto; padding: 0; box-sizing: border-box; width: min(700px, 92vw); max-height: 86vh; overflow: auto;
   background: var(--rf-bg); color: var(--rf-fg); border: 1px solid var(--rf-hair); border-radius: 8px; box-shadow: 0 8px 28px rgba(0,0,0,.14); font-size: 14px; line-height: 1.4; text-align: left; }
@@ -1332,7 +1327,7 @@ a.rf-tag:hover { opacity: 1; }
 .rf-pencil:focus-visible { outline: 1px solid var(--rf-line); border-radius: 2px; }
 /* The trail is the library's lk-trail with lk-step; the place you are at ends it, in the text colour. */
 .rf-ol-sep { color: var(--rf-faint); }
-.rf-ol-here { color: var(--lk-text, currentColor); font-weight: 600; }
+.rf-ol-trail > .rf-ol-here { color: var(--lk-text, currentColor); font-weight: 600; }
 .rf-ol-here .rf-tag { margin-left: 6px; font-weight: 400; }
 /* The tag map's pieces (0.4.448): the count column, a property with the tag it leads to, a group's heading, a finding.
    --rf-ol-lname is the property names' column, so the tags they lead to start on one column and open under themselves. */
@@ -1400,10 +1395,11 @@ span.rf-ol-count { text-decoration: none; cursor: default; }
 .rf-card { padding: 10px 12px; font-size: 14px; }
 .rf-card a { color: inherit; text-decoration: none; }
 .rf-card-title { display: block; font-weight: 600; margin-bottom: 3px; }
-.rf-card-title:hover, .rf-card-fields a:hover, .rf-card-line:hover, .rf-card-day:hover { text-decoration: underline; text-decoration-color: var(--rf-line); text-underline-offset: 3px; }
+.rf-card-title:hover, .rf-card-fields a:hover, .rf-card-line:hover { text-decoration: underline; text-decoration-color: var(--rf-line); text-underline-offset: 3px; }
 .rf-card-fields { display: grid; grid-template-columns: max-content minmax(0, 1fr); column-gap: 12px; row-gap: 4px; margin-top: 8px; }
 .rf-card-name { color: var(--rf-faint); }
 .rf-card-lines { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--rf-hair); color: var(--rf-quiet); }
+.rf-card :first-child:is(.rf-card-fields, .rf-card-lines) { margin-top: 0; padding-top: 0; border-top: 0; }
 .rf-card-line { display: block; border-radius: 4px; margin: 0 -4px; padding: 0 4px; }
 .rf-card-line:hover { background: var(--rf-wash); text-decoration: none; }
 .rf-card-line::before { content: '• '; color: var(--rf-faint); }

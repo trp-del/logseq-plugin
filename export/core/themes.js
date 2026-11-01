@@ -128,7 +128,7 @@ function stylesheet(key, p = {}) {
 function inliner(key, p = {}) {
   const pg = page(p), rules = look(key).rules(SIZES[pg.size]);
   const cls = names => { const decl = names.split(' ').map(n => rules[n] || '').join(''); return decl ? ` style="${decl.replace(/"/g, "'")}"` : ''; };
-  return { cls, root: rules.doc.replace(/max-width:[^;]+;|margin:0 auto;/g, '') };
+  return { cls, root: rules.doc.replace(/max-width:[^;]+;|margin:0 auto;/g, '').replace(/"/g, "'") };
 }
 E.themes = { looks, look, page, stylesheet, inliner, SIZES, MARGINS, VARIABLE_FONTS };
 })();

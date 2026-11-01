@@ -27,11 +27,22 @@ async function pageHtml(doc, ch, { extraCss = '', body = null } = {}) {
   return E.print.pageHtml({ body: html, look: ch.look, page: pageOpts(ch), title: doc.title || 'Export', extraCss });
 }
 const markdown = (doc, ch) => E.markdown.toMarkdown(doc, { ...writerOpts(doc, ch), links: ch.links, frontMatter: ch.frontMatter });
+// What was changed in the window comes back with its class names: each becomes its rule written inline, as the writer would have.
+function inlined(body, cls) {
+  const page = new window.DOMParser().parseFromString(`<body>${body}`, 'text/html');
+  for (const el of page.body.querySelectorAll('[class]')) {
+    const names = [...el.classList].filter(name => name.startsWith('x-')).map(name => name.slice(2)).join(' ');
+    const style = names ? cls(names).match(/style="(.*)"/)?.[1] : '';
+    el.removeAttribute('class');
+    if (style) el.setAttribute('style', style + (el.getAttribute('style') || ''));
+  }
+  return page.body.innerHTML;
+}
 // Rich text: the same HTML with the look's rules inline (a pasting app ignores stylesheets); the Markdown as its plain form.
 async function richText(doc, ch, editedBody) {
   const { cls, root } = themes.inliner(ch.look, pageOpts(ch));
   const images = await E.files.pictures(doc);
-  const body = editedBody ?? E.html.toHtml(doc, { ...writerOpts(doc, ch), images, cls });
+  const body = editedBody != null ? inlined(editedBody, cls) : E.html.toHtml(doc, { ...writerOpts(doc, ch), images, cls });
   return { html: `<div style="${root}">${body}</div>`, text: markdown(doc, ch) };
 }
 const fileName = doc => E.files.fileName(doc.title ? E.inline.words(doc.title) : (E.inline.words(doc.nodes[0]?.text || '').slice(0, 60) || 'Logseq export'));

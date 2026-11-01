@@ -502,6 +502,7 @@ async function mergeFacts(source, target) {
    first, whatever its ident, else the earliest), else the journal day it is written on. Deleted nodes and nodes on deleted pages are left
    out, and a page's own blocks do not count as pointing at it. nodeFields(uuid) is what a node's own properties of
    yours hold, by name, each value a day, a title or plain text; firstLines(uuid, n) its first children's words. */
+const UUID_SHAPE = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 const LIVE = '(not [?b :logseq.property/deleted-at]) (not-join [?b] [?b :block/page ?pg] [?pg :logseq.property/deleted-at])';
 const USER_PROP = /^:?user\.property\//;
 async function linksInto(id) {
@@ -547,6 +548,19 @@ async function linksInto(id) {
   for (const [b, tag] of tagged) if (!tags.has(b) || tag < tags.get(b)) tags.set(b, tag);
   for (const [b, uuid, title] of titled) if (isId(b)) records.set(b, { uuid: String(uuid), title: title || '', tag: tags.get(b) || '', day: days.get(b)?.day || 0 });
   return { pages, fields: fieldsByName, records };
+}
+// Whether Logseq will draw a property list on a page: it holds a value of a property of yours, or a tag of yours, or a tag above it, declares one.
+async function pageHasList(uuid) {
+  if (!UUID_SHAPE.test(uuid)) return true;
+  const page = `[?p :block/uuid #uuid "${uuid}"]`;
+  if ((await dsQuery(`[:find ?a :where ${page} [?p ?a _] [?f :db/ident ?a] [(namespace ?a) ?ns] [(= ?ns "user.property")]]`)).length) return true;
+  let tags = (await dsQuery(`[:find ?t :where ${page} [?p :block/tags ?t] [?t :db/ident ?i] [(namespace ?i) ?ns] [(= ?ns "user.class")]]`)).map(([t]) => t);
+  for (let up = 0; tags.length && up < 16; up++) {
+    const these = `[(ground [${tags.join(' ')}]) [?t ...]]`;
+    if ((await dsQuery(`[:find ?x :where ${these} [?t :logseq.property.class/properties ?x]]`)).length) return true;
+    tags = (await dsQuery(`[:find ?up :where ${these} [?t :logseq.property.class/extends ?up]]`)).map(([t]) => t);
+  }
+  return false;
 }
 /* Mentions (0.4.423, the owner's pick A from docs/history/TWO-WAY-POTENTIALS-2026-10-25.html): the nodes whose own words
    link the page, [[its uuid]] in their stored words, as linksInto describes its nodes (uuid, words, first tag of yours,
@@ -1094,7 +1108,7 @@ function provide(core) {
     propSchema, propPages, fieldsOf, fits, kindOfPage, tagChain, tagChains, tagChainIndex, parseDay, dayNumber, sameDay, dayAfter, DAYS,
     tagGraph, propInfo, ownProps, inheritedProps, tagPropIds, acceptedIds, choicesOf, choiceUse, choiceCounts, choiceNodes, idByUuid,
     descriptionOf, titleNow, valuesOf, userValues, mergeFacts, TAG_PROPS, ACCEPTS, DESCRIPTION,
-    linksInto, mentionsInto, firstTags, nodesOfTag, nodeLines, nodeFields, nodeValues, firstLines, pagesAmong, tagUuidNamed, uuidById,
+    linksInto, mentionsInto, pageHasList, firstTags, nodesOfTag, nodeLines, nodeFields, nodeValues, firstLines, pagesAmong, tagUuidNamed, uuidById,
     pagesNamed, BLOCK_PULL, blockInEdit, userTagIds, taggedNodes, nodesById, aliasPairs, plainLines, journalDays, datedByTag, valueTitle, numberValues, linkedPages, hasTag, pageLines,
     propTextValues, propTextBlocks, propValueBlocks, propNamed, propUse, propUses, structureUse, propNodeIds, choiceIds, crumbsInto, propHolders, pdfSources, heldBelow, linkRates, linkRatesOf, journalIdFor, journalTitleFor, formatJournalTitle, CHECKED_WITH, PAGE_TITLE, screenChecks, pageTitles, titleAnchor });
 }

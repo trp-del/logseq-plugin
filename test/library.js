@@ -17,17 +17,21 @@ for (const kind of KINDS) assert.ok(NAMES.includes('.' + kind), `the library dra
 // A piece of a line that makes a button: a <button> in a template, or a word Structure marks as an action.
 const BUTTON = /<button\b[^>]*>|\bcreateElement\('button'\)|\bel\(\s*\w+,\s*'button'|class="[^"]*\bact\b[^"]*"/g;
 const LIBRARY = new RegExp(KINDS.join('|'));
-const NOT_A_LIBRARY_BUTTON = /tick|lk-tick|lk-fold|fold|dig|lk-row|rf-kind|rf-group|ps-|xp-tab|xp-cho|choice/;
+// Choices and things that are not buttons: tick boxes, fold and dig arrows, a value (Group ▾, a draft's property), Find's
+// choices, Threads' kind words, a word's own × in the kit (a chip nothing draws yet), and the kit's helpers, which take the
+// name from whoever calls them.
+const NOT_A_LIBRARY_BUTTON = /tick|lk-tick|lk-fold|fold|dig|lk-row|rf-tw-chip|rf-tw-groupby|rf-tw-dpick|rf-chip-x|rf-ol-act|fd-c\b|rf-quiet\$\{faint|ps-|xp-tab|xp-cho|choice/;
 
 const strays = [];
 for (const file of FILES) {
-  fs.readFileSync(file, 'utf8').split('\n').forEach((line, i) => {
-    for (const hit of line.match(BUTTON) || []) {
-      const near = line.slice(Math.max(0, line.indexOf(hit) - 120), line.indexOf(hit) + hit.length + 160);
-      if (LIBRARY.test(near) || NOT_A_LIBRARY_BUTTON.test(near)) continue;
-      strays.push(`${path.relative(ROOT, file)}:${i + 1}  ${hit.slice(0, 90)}`);
-    }
-  });
+  const text = fs.readFileSync(file, 'utf8');
+  for (const match of text.matchAll(BUTTON)) {
+    const line = text.slice(text.lastIndexOf('\n', match.index) + 1, match.index);
+    if (line.trimStart().startsWith('//')) continue;
+    const near = text.slice(Math.max(0, match.index - 40), match.index + match[0].length + 200);
+    if (LIBRARY.test(near) || NOT_A_LIBRARY_BUTTON.test(near)) continue;
+    strays.push(`${path.relative(ROOT, file)}:${text.slice(0, match.index).split('\n').length}  ${match[0].slice(0, 90)}`);
+  }
 }
 if (strays.length) { console.error('Buttons that do not draw from the library:\n  ' + strays.join('\n  ')); process.exit(1); }
 console.log(`library: ${KINDS.length} kinds drawn, every button in ${FILES.length} files draws from them`);

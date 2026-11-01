@@ -60,7 +60,7 @@ const take = (core, names) => shared.take(core, names, warnOnce);
 // indexed (0.4.182): every page's rows were read in one look-up, so a page not in byPage has none, and a page
 // opened for the first time gets its rows in the same frame as its title instead of half a second later.
 // open, all and only (0.4.184): per row, whether its list is open, shows every record, or only one kind ("Infusion").
-const state = { listed: [], findDug: new Map(), findAsked: new Set(), version: 0, pageUuid: '', groups: [], byPage: new Map(), indexed: false, open: new Map(), all: new Set(), only: new Map(), box: null, html: '', picked: new Set(), lastPick: '', group: new Map(), values: new Map(), nodeDraft: null, mentionsOf: new Map(), raise: new Map(), dig: new Map(), focus: '', fresh: '', node: new Map(), nall: new Set(), ball: new Set(), steps: [], pageTitle: '', kept: new Map(), find: '' };
+const state = { kindsAll: new Set(), listed: [], findDug: new Map(), findAsked: new Set(), version: 0, pageUuid: '', groups: [], byPage: new Map(), indexed: false, open: new Map(), all: new Set(), only: new Map(), box: null, html: '', picked: new Set(), lastPick: '', group: new Map(), values: new Map(), nodeDraft: null, mentionsOf: new Map(), raise: new Map(), dig: new Map(), focus: '', fresh: '', node: new Map(), nall: new Set(), ball: new Set(), steps: [], pageTitle: '', kept: new Map(), find: '' };
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const todayNumber = () => { const d = new Date(); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); };
 const dayText = day => {
@@ -204,7 +204,7 @@ async function mentionsGroup(id, groups) {
   // Each with the page and bullets it sits in, as Linked references shows it (0.4.437).
   const crumbs = provided.crumbsInto ? await provided.crumbsInto(id).catch(() => new Map()) : new Map();
   const items = await Promise.all(found.map(async m => ({ uuid: m.uuid, title: await wordsOf(m.title), tag: m.tag || 'note', day: m.day,
-    crumbs: await Promise.all((crumbs.get(m.uuid) || []).map(async c => shortName(await wordsOf(c.title)).slice(0, 60))) })));
+    crumbs: await Promise.all((crumbs.get(m.uuid) || []).map(async c => shortName(await wordsOf(c.title)))) })));
   items.sort(byWhen(todayNumber()));
   return { name: MENTIONS, label: 'Mentioned in', items, fieldUuid: '', ident: '', mentions: true };
 }
@@ -293,15 +293,14 @@ const INLINE = 3, LISTED = 5;
    name opens the field's own page. In an open list, a row of kinds ("All 13 · Infusion 8 · Scan 1") shows only
    that kind, as does a kind at the end of a line; a line marked "earlier" parts what is coming up from what is
    past; "show all 13" folds back with "show fewer". Whether a list is open is kept across restarts. */
-/* A node's name in a row (0.4.261, layer 2 item 5, "long names in two-way rows"): its first sentence; the whole line
-   shows when the pointer rests on it (the card, and the name's own tip). "Post-op check with Dr. Patel. Wounds fine, I
-   can drive" reads "Post-op check with Dr. Patel."; a full stop after Dr, Mr, St and the like is not an end. No limit
-   on its length (0.4.263, the owner: "get rid of the sentence character limit"). */
-const ABBREVIATION = /(?:^|[^\p{L}])(?:\p{L}|dr|mr|mrs|ms|prof|st|vs|no|approx|etc)\.$/iu;   // one letter: J. Smith, 3 p.m., e.g.
+/* A node's name: its own words, cut at a width, never at a sentence ("Clinic.", three times, could not be told apart; the
+   review, 31 October). On a row the width is the row's (one line, with an ellipsis: the name in the stylesheet, its tag kept
+   whole); opened, or while finding, it wraps; cut, the card shows the whole of it. This is for where words go in a sentence or a
+   small place (a notice, a crumb, the trail). */
+const NAME_ROOM = 60;
 function shortName(title) {
   const text = String(title || '').trim();
-  for (const m of text.matchAll(/[.!?](?=\s+\S)/g)) if (!ABBREVIATION.test(text.slice(0, m.index + 1))) return text.slice(0, m.index + 1);
-  return text;
+  return text.length > NAME_ROOM ? text.slice(0, NAME_ROOM).replace(/\s+\S*$/, '') + '…' : text;
 }
 /* The + (as it was until 0.4.296, at the owner's word, 0.4.303: "return that code before we moved around the plus"): at the
    end of the last node of a short row, after the summary of a list. A click opens
@@ -325,7 +324,7 @@ const dayCell = item => item.day && item.day !== state.pageDay ? dayText(item.da
 /* The day a node's line shows, by its place (the row's or the node's key), so what it opens leaves out a Date saying it
    again (0.4.462, the owner's pick 3 of the two-way fixes: "each line drops what its heading already says"). */
 const lineDay = new Map();
-const nameHtml = (item, open = false, bare = false) => `<a class="rf-tw-record rf-ol-name lk-node${bare ? ' lk-bare' : ''}${open ? ' rf-ol-open' : ''}" data-uuid="${esc(item.uuid)}" href="#"${shortName(item.title) !== item.title ? ` title="${esc(item.title)}"` : ''}>${esc(shortName(item.title))}</a>${item.tag && item.tag !== 'note' ? '<wbr>' + tagLink(item) : ''}`;
+const nameHtml = (item, open = false, bare = false) => `<a class="rf-tw-record rf-ol-name lk-node${bare ? ' lk-bare' : ''}${open ? ' rf-ol-open' : ''}" data-uuid="${esc(item.uuid)}" href="#">${esc(item.title)}</a>${item.tag && item.tag !== 'note' ? '<wbr>' + tagLink(item) : ''}`;
 /* top: the node at the top of a shifted section (0.4.463): its rows are drawn as the page's are, keyed under it; nothing
    in them acts on the page (no tick boxes, no +, no Group). */
 let drawingTop = false;
@@ -379,8 +378,13 @@ function rowHtml(group, top = null) {
     : `<a class="rf-tw-toggle rf-tw-lead" data-key="${esc(key)}" href="#" title="Click to ${open ? 'fold' : 'open'} the list.">${leadText}</a>`;
   const whenHtml = when ? `<a class="rf-tw-toggle rf-tw-when" data-key="${esc(key)}" href="#" title="${WHEN_TIP}. Click to ${open ? 'fold' : 'open'} the list.">${esc(when)}</a>` : '';
   const sep = '<span class="rf-tw-sep" aria-hidden="true">·</span>';
-  const tail = [...(kinds ? [...counts].sort((a, b) => b[1] - a[1]).map(([tag, n]) => chip(tag, `${esc(tag)} <span class="lk-count">${n}</span>`, '', true)) : []), whenHtml].filter(Boolean);
-  // Each piece keeps its dot: a header that wraps starts its next line with "· next on Nov 5", never ends one on a dot.
+  // Three kinds, then "and 12 more" (the grammar; a click shows them all), the one in force always among them. The days stay.
+  const byCount = [...counts].sort((a, b) => b[1] - a[1]);
+  const named = state.kindsAll.has(key) || byCount.length <= 3 ? byCount : byCount.findIndex(([tag]) => tag === only) > 2 ? [...byCount.slice(0, 2), byCount.find(([tag]) => tag === only)] : byCount.slice(0, 3);
+  const rest = byCount.length - named.length;
+  const tail = [...(kinds ? named.map(([tag, n]) => chip(tag, `${esc(tag)} <span class="lk-count">${n}</span>`, '', true)) : []), ...(kinds && rest ? [`<button type="button" class="lk-more rf-tw-kinds" data-kinds="${esc(key)}">and ${rest} more</button>`] : []), whenHtml].filter(Boolean);
+  // Each piece keeps its dot in the gap before it, and the head clips what stands before its left edge: a line that wraps starts on
+  // its words, never on a dot (the stylesheet).
   const head = `<span class="rf-tw-chips">${lead}${tail.map((piece, i) => `<span class="rf-tw-piece">${lead || i ? sep : ''}${piece}</span>`).join('')}</span>`;
   let list = '';
   if (open) {
@@ -414,20 +418,21 @@ function itemHtml(group, item, base, end = '', bare = false, tell = '') {
   // are typed (the reviewer: 4 to 9 px).
   lineDay.set(key, dayCell(item));
   // Opened, the node's properties show the telling value: the line lets go of it.
-  const body = `${nameHtml(shown, open && state.findDug.get(key) !== true, bare)}${tell && !open ? tellHtml(item, tell) : ''}${end}`;
+  const body = `${nameHtml(shown, open && state.findDug.get(key) !== true, bare)}${couldBeHtml(item)}${tell && !open ? tellHtml(item, tell) : ''}${end}`;
   const line = O.line({ tick: pickBox(group, item), day: dayCell(item), chev: digChev(key, item.uuid, 0, shortName(item.title), open), body, cls: 'rf-tw-line', attrs: { 'data-uuid': item.uuid } });
   const under = `${crumbHtml(item)}${raiseHtml(group, item)}`;
   return open ? O.unit({ html: line + under + digKids(key, item.uuid, 'in'), focus: state.focus === key, attrs: { 'data-key': key } }) : line + under;
 }
 /* Where a mention sits (0.4.437): its page and the bullets above it, small, under its line. A mention with no tag whose
-   words look like a known kind (0.4.438) says so, pencilled in: a click opens Make it… for that one mention. */
+   words look like a known kind (0.4.438) says so, pencilled in where its tag would stand, on its own line, so that coming late
+   moves nothing (the review, 31 October: it came after the rows and pushed them down): a click opens Make it… for that one mention. */
 const couldBeHtml = item => {
   const best = (!item.tag || item.tag === 'note') ? state.raise.get(item.uuid)?.best : null;
   return best ? O.pencil(`could be a ${best.tag.title} · ${best.prop.title}`, { 'data-could': item.uuid, title: `Its words look like a ${best.tag.title}: click to make it one, with “${best.prop.title}” set to this page` }) : '';
 };
 // A crumb that is only the journal day the node is written on says the day again: left out.
 const crumbsOf = item => (item.crumbs || []).filter((c, i) => !(i === 0 && item.day && /^[A-Z][a-z]{2} \d{1,2}(st|nd|rd|th), \d{4}$/.test(c)));
-const crumbHtml = item => crumbsOf(item).length || couldBeHtml(item) ? `<div class="rf-tw-crumb">${crumbsOf(item).map(esc).join('<span class="rf-ol-sep"> › </span>')}${crumbsOf(item).length && couldBeHtml(item) ? '<span class="rf-tw-sp">  </span>' : ''}${couldBeHtml(item)}</div>` : '';
+const crumbHtml = item => crumbsOf(item).length ? `<div class="rf-tw-crumb">${crumbsOf(item).map(esc).join('<span class="rf-ol-sep"> › </span>')}</div>` : '';
 
 /* Digging, one model (0.4.442, docs/REWORK.md 4; it replaces the node opened in a row, the chain opened inside it and the
    step into a node, three models drawn three ways). state.dig: every node open, by its place: the row ('r:Provider'),
@@ -1237,6 +1242,15 @@ async function openPage(name, inSidebar) {
 }
 const hidePeekSoon = () => { clearTimeout(peek.hide); peek.hide = setTimeout(hidePeek, 200); };
 function hidePeek() { clearTimeout(peek.timer); clearTimeout(peek.hide); peek.card?.close(); peek.card = null; peek.anchor = null; }
+/* The card sits clear of the rows: to the right of the words on the lines it stands beside, else above the row. */
+function placePeek(card, link) {
+  const box = card.getBoundingClientRect(), at = link.getBoundingClientRect(), pane = link.closest('.refinement-two-way').getBoundingClientRect();
+  const top = Math.max(48, at.top - 10), bottom = top + box.height;
+  const words = [...card.ownerDocument.querySelectorAll('.refinement-two-way .rf-ol-line')].filter(line => { const r = line.getBoundingClientRect(); return r.bottom > top && r.top < bottom; })
+    .flatMap(line => [...line.querySelectorAll('.rf-ol-body > *')]).map(part => part.getBoundingClientRect().right);
+  const left = Math.max(at.right, ...words) + 16, room = left + box.width <= pane.right;
+  Object.assign(card.style, { margin: '0', left: `${room ? left : at.left}px`, top: `${room ? top : Math.max(48, at.top - box.height - 6)}px` });
+}
 async function showPeek(link) {
   const { group, item } = findItem(link.dataset.uuid, link.closest('.rf-tw-row'));
   if (!item) return;
@@ -1244,23 +1258,24 @@ async function showPeek(link) {
   if (!link.isConnected || !link.matches(':hover')) return;
   const doc = link.ownerDocument;
   hidePeek();
-  // The record's own day is in the line above already.
+  // Only what the row does not say (the review, 31 October): its tag and day stand on it, and its name unless the row cut it.
   const fields = data.rows.filter(row => !item.day || row.values.map(v => v.text).join(', ') !== dayText(item.day));
-  const card = peek.card = shared.card({ doc, at: link, title: item.title, tag: item.tag && item.tag !== 'note' ? item.tag : '', day: item.day ? dayText(item.day) : '',
+  const cut = link.scrollWidth > link.clientWidth;
+  if (!cut && !fields.length && !data.lines.length) return;
+  const card = peek.card = shared.card({ doc, at: link, title: cut ? item.title : '',
     fields: fields.map(row => ({ name: row.name, uuid: row.uuid, values: row.values })),
     lines: data.lines.map(line => ({ uuid: line.uuid, html: lineHtml(line.text) })),
-    empty: fields.length || data.lines.length ? '' : 'Nothing else written on it yet.',
     open: (what, value, event) => {
       // The innermost piece that names something: a link in a line before the line it is in.
       const page = event?.target?.closest?.('[data-open-page]')?.dataset.openPage;
       hidePeek();
       if (page) return openPage(page, event.shiftKey);
-      if (what === 'tag') return openPage(value, event.shiftKey);
       if (what === 'prop') return value?.uuid ? openEntity(value.uuid, event.shiftKey) : openEntity(item.uuid, event.shiftKey);
       if (what === 'value' || what === 'line') return openEntity(value?.uuid || item.uuid, event.shiftKey);
       return openEntity(item.uuid, event.shiftKey);
     } });
   card.el.classList.add('refinement-two-way-peek');
+  placePeek(card.el, link);
   card.el.addEventListener('mouseenter', () => clearTimeout(peek.hide));
   card.el.addEventListener('mouseleave', hidePeekSoon);
   peek.anchor = link;
@@ -1295,8 +1310,26 @@ const SETTLE_MS = 2000, HEIGHTS_KEY = 'refinementTwoWayRoom3', OLD_KEYS = ['refi
    list, which then pushed them down (Dr. Raj Patel: 109 px). Now, on a page with no room remembered, they wait unseen in
    their place until that list is there, at most WAIT_MS, and no room is held for them: the least room of any page seen,
    held since 0.4.283, could be more than this page takes, and was let go at settle as a slide up (Marcus Bell: 56 px). */
-const WAIT_MS = 600;
-const settle = { since: 0, page: '', leaving: '', saved: false, timer: 0, ease: 0, wait: 0 };
+const WAIT_MS = 600, STILL_MS = 200;
+const settle = { since: 0, page: '', leaving: '', saved: false, timer: 0, ease: 0, wait: 0, frame: 0, stood: false };
+/* The wait ends once Logseq's property list is there and the rows' place has stood still a moment, or at once for a page that will
+   have no list (the review, 31 October: on a first visit they came 600 ms late, the list having long been drawn). Stillness alone is
+   not enough: the list can come 200 ms after a still page (seen on Fatigue). WAIT_MS stays the most it can be. */
+function endWaitWhenStill(box, page) {
+  if (settle.frame) cancelAnimationFrame(settle.frame);
+  let top = null, since = performance.now(), noList = false;
+  Promise.resolve(model?.pageHasList?.(page)).then(has => { noList = has === false; }).catch(() => {});
+  const look = () => {
+    if (!box.hasAttribute('data-rf-waiting')) return;
+    const now = box.getBoundingClientRect().top;
+    if (now !== top) { top = now; since = performance.now(); }
+    const main = box.ownerDocument.querySelector('#main-content-container');
+    const listThere = noList || !!main?.querySelector('.ls-page-properties');
+    if (!listThere || performance.now() - since < STILL_MS) { settle.frame = requestAnimationFrame(look); return; }
+    settle.stood = true; box.removeAttribute('data-rf-waiting');
+  };
+  settle.frame = requestAnimationFrame(look);
+}
 let heights = new Map();
 const readHeights = () => { try { const storage = host().defaultView.localStorage; for (const key of OLD_KEYS) storage.removeItem(key); heights = new Map(Object.entries(JSON.parse(storage.getItem(HEIGHTS_KEY) || '{}'))); } catch { heights = new Map(); } };
 function remember(page, height) {
@@ -1366,12 +1399,12 @@ function onRoute() {
   if (state.box) state.box.style.minHeight = '';
   keepOpen();
   state.find = ''; state.findRead = '';
-  hidePeek(); closeAdd(); state.draft = null; state.picked.clear(); state.lastPick = ''; state.dig.clear(); state.focus = ''; state.steps = []; state.openFor = ''; state.nodeDraft = null;
+  hidePeek(); closeAdd(); state.draft = null; state.kindsAll.clear(); state.picked.clear(); state.lastPick = ''; state.dig.clear(); state.focus = ''; state.steps = []; state.openFor = ''; state.nodeDraft = null;
   // The page being left, which may still be on screen for a moment and must not take the new page's place.
   // Only a page still on screen is being left: the same page opened again after it went is a new visit, held as one.
   settle.leaving = shownPage(host());
-  Object.assign(settle, { since: performance.now(), page: '', saved: false });
-  clearTimeout(settle.timer); clearTimeout(settle.ease); clearTimeout(settle.wait);
+  Object.assign(settle, { since: performance.now(), page: '', saved: false, stood: false });
+  clearTimeout(settle.timer); clearTimeout(settle.ease); clearTimeout(settle.wait); if (settle.frame) cancelAnimationFrame(settle.frame);
   // Once settled: no more room held, and the room is kept for next time.
   settle.timer = setTimeout(() => draw(host()), SETTLE_MS + 50);
   settle.wait = setTimeout(() => draw(host()), WAIT_MS + 20);
@@ -1456,7 +1489,9 @@ function draw(doc) {
   if (anchor.nextElementSibling !== box) anchor.after(box);
   holdRoom(doc, box, mode, page);
   // The rows stand after the page's words, which Logseq is still drawing, so a page not seen before waits whatever the anchor.
-  box.toggleAttribute('data-rf-waiting', mode === 'hold' && !heights.has(page) && performance.now() - settle.since < WAIT_MS);
+  const waited = box.hasAttribute('data-rf-waiting');
+  box.toggleAttribute('data-rf-waiting', mode === 'hold' && !settle.stood && !heights.has(page) && performance.now() - settle.since < WAIT_MS);
+  if (!waited && box.hasAttribute('data-rf-waiting')) endWaitWhenStill(box, page);
   if (!rows && mode === 'save') box.remove();
 }
 // Before the screen is drawn (0.4.182), so the rows come in the same frame as the property list they sit under. Only
@@ -1481,6 +1516,8 @@ function onClick(event) {
   if (fold) { event.preventDefault(); event.stopPropagation(); hidePeek(); const key = fold.dataset.fold; if (isOpen(key)) { const list = fold.closest('.rf-tw-row')?.querySelector('.rf-tw-list'); shared.outline.close(list, () => { setOpen(key, false); draw(host()); }); } else { setOpen(key, true); state.fresh = key; state.html = null; draw(host()); state.fresh = ''; } return; }
   const gfold = event.target.closest?.('.rf-chev[data-gkey]');
   if (gfold) { event.preventDefault(); event.stopPropagation(); setOpen(gfold.dataset.gkey, !isOpen(gfold.dataset.gkey)); draw(host()); return; }
+  const moreKinds = event.target.closest?.('[data-kinds]');
+  if (moreKinds) { event.preventDefault(); event.stopPropagation(); state.kindsAll.add(moreKinds.dataset.kinds); draw(host()); return; }
   const more = event.target.closest?.('[data-more]');
   if (more) { event.preventDefault(); event.stopPropagation(); const key = more.dataset.more; if (state.all.has(key)) state.all.delete(key); else state.all.add(key); draw(host()); return; }
   const groupBy = event.target.closest?.('.rf-tw-groupby');
@@ -1973,8 +2010,8 @@ function barHtml() {
      like change and remove can go under one menu item and so can property. the sidebar items should be on far right";
      "have select all button"): the count's tick box clears, Select all picks every node shown (found, of the kind in force, in a list that is open), the page's own two
      actions and the two property actions each under one word with a menu, Sidebar last at the right. */
-  const b = (act, text, title, name, cls = '') => `<button type="button" class="lk-btn${cls ? ' ' + cls : ''}" data-act="${act}" title="${esc(title)}">${name ? iconHtml(name) : ''}${text}</button>`;
-  const menu = (act, text, title, name) => `<button type="button" class="lk-btn rf-tw-menu" data-act="${act}" title="${esc(title)}" aria-haspopup="menu">${name ? iconHtml(name) : ''}<span class="rf-tw-menu-words">${text}</span>${iconHtml('chevron-down')}</button>`;
+  const b = (act, text, title, name, cls = '') => `<button type="button" class="lk-btn${cls ? ' ' + cls : ''}" data-act="${act}" title="${esc(title)}">${text}</button>`;
+  const menu = (act, text, title, name) => `<button type="button" class="lk-btn rf-tw-menu" data-act="${act}" title="${esc(title)}" aria-haspopup="menu"><span class="rf-tw-menu-words">${text}</span>${iconHtml('chevron-down')}</button>`;
   // Mentions (0.4.423): the page's own two actions act on a property, so they show only with a node from a property's
   // row picked; a picked mention with no tag is offered to be made a node, the tag its words look like first.
   const chosen = picks(), fromProps = idle || chosen.some(p => !isMentions(p.group)), raisable = raisablePicked();
@@ -1984,7 +2021,7 @@ function barHtml() {
     fromProps ? menu('page-menu', `“${esc(pageTitle())}”`, `Change “${pageTitle()}” to another page in their field, or take it out`, '') : ''}${
     raisable.length ? menu('raise', best ? `Make it a${/^[aeiou]/i.test(best.tag.title) ? 'n' : ''} ${esc(best.tag.title)}` : 'Make it…', `Give ${raisable.length === 1 ? 'this mention' : `these ${raisable.length} mentions`} a tag, with the property that points at “${pageTitle()}” set`, 'tag') : ''}${
     b('tag', 'Tag', 'Add a tag', 'tag')}${b('copy', 'Copy', 'Copy them as references', 'copy')}${
-    menu('prop-menu', 'Property', 'Give them all one value, or clear one', 'property')}${b('delete', '', 'Delete them', 'delete')}${
+    menu('prop-menu', 'Property', 'Give them all one value, or clear one', 'property')}${b('delete', 'Delete', 'Delete them', 'delete')}${
     b('sidebar', 'Sidebar', 'Open them in the right sidebar', 'sidebar', 'rf-tw-to-side')}</div>`;
 }
 // The page's own name, for the bar's "Change “Dr. Mei Chen” to…" (0.4.233, the owner: "make it clear"), read once per page.
@@ -2391,6 +2428,7 @@ const twoWayCss = `
 /* The bar's look is the library's lk-bar; here where it stands, on one line, and how an icon stands in its button. */
 .refinement-two-way .rf-tw-bar { margin: 0 0 6px 19px; padding-top: 2px; font-size: 14px; }
 .refinement-two-way .rf-tw-bar[data-idle] { visibility: hidden; }
+.refinement-two-way .rf-tw-bar { min-height: 30px; box-sizing: border-box; }
 .refinement-two-way .rf-tw-bar { flex-wrap: nowrap; min-width: 0; }
 .refinement-two-way .rf-tw-bar > * { flex: none; }
 .refinement-two-way .rf-tw-bar .rf-tw-to-side { margin-left: auto; }
@@ -2417,12 +2455,13 @@ const twoWayCss = `
    reads as a heading, a little heavier than a node. --rf-tw-in is the step. */
 .refinement-two-way { --rf-tw-in: 22px; } /* the chevron and its gap (16px + 6px, --rf-ol-gap is set further in) */
 .refinement-two-way .rf-tw-head .rf-tw-toggle, .refinement-two-way .rf-tw-head .rf-tw-chips { font-weight: 500; }
-.refinement-two-way .rf-tw-head .rf-tw-chips { gap: .3rem .45rem; align-items: baseline; }
+.refinement-two-way .rf-tw-head .rf-tw-chips { gap: .3rem 1.05rem; align-items: baseline; min-width: 0; overflow: hidden; }
 .refinement-two-way .rf-tw-head .rf-chip.rf-tw-lead, .refinement-two-way .rf-tw-head .rf-tw-toggle.rf-tw-lead { color: inherit; font-weight: 500; font-size: inherit; }
 .refinement-two-way .rf-tw-head :is(.rf-tw-chip:not(.rf-tw-lead), .rf-tw-when) { font-weight: 400; color: var(--rf-quiet); font-size: inherit; }
 .refinement-two-way .rf-tw-head .rf-tw-chip:not(.rf-tw-lead)[aria-pressed="true"] { color: inherit; }
-.refinement-two-way .rf-tw-head .rf-tw-sep { color: var(--rf-faint); font-weight: 400; }
-.refinement-two-way .rf-tw-head .rf-tw-piece { display: inline-flex; align-items: baseline; gap: .45rem; white-space: nowrap; }
+.refinement-two-way .rf-tw-head .rf-tw-sep { position: absolute; right: 100%; margin-right: .42rem; color: var(--rf-faint); font-weight: 400; }
+.refinement-two-way .rf-tw-head .lk-more { padding: 0; font-weight: 400; }
+.refinement-two-way .rf-tw-head .rf-tw-piece { position: relative; display: inline-flex; align-items: baseline; white-space: nowrap; }
 .refinement-two-way .rf-ol-kids.rf-ol-from-in { --rf-ol-cx: 8px; }
 /* A list's days hang in the margin left of the outline (the owner, 2026-10-27: "dates … should not be in the way"): a
    node's chevron sits under its heading's words, one step in, and its day ends 4px short of the heading's chevron; under
@@ -2450,8 +2489,14 @@ const twoWayCss = `
 /* When the tick boxes show is Look's (the shared names lk-list and lk-tick). Each property's row is the list (the
    review, 31 October: the pointer on one row lit eleven boxes down the section, and the caret in the find line six),
    so only its boxes appear; the find line stands outside the rows and raises none. */
-.refinement-two-way .rf-tw-head > .rf-ol-body { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: .9rem; }
-.refinement-two-way .rf-tw-head > .rf-ol-body > .rf-tw-add, .refinement-two-way .rf-tw-head > .rf-ol-body > .rf-tw-groupby { margin-left: 0; }
+.refinement-two-way .rf-tw-head > .rf-ol-body { display: flex; align-items: baseline; column-gap: .9rem; }
+.refinement-two-way .rf-tw-head > .rf-ol-body > .rf-tw-add, .refinement-two-way .rf-tw-head > .rf-ol-body > .rf-tw-groupby { margin-left: 0; flex: none; }
+/* A name is one line, cut at the width the row leaves; its tag and what follows keep theirs. */
+.refinement-two-way .rf-ol-body:has(> .rf-tw-record) { display: flex; align-items: baseline; }
+.refinement-two-way .rf-ol-body > .rf-tw-record { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.refinement-two-way .rf-ol-body > .rf-tw-record.rf-ol-open, .refinement-two-way[data-finding] .rf-ol-body > .rf-tw-record { white-space: normal; }
+.refinement-two-way .rf-ol-body > .rf-tw-record ~ * { flex: none; }
+.refinement-two-way .rf-ol-body > .rf-pencil { margin-left: 8px; }
 .refinement-two-way .rf-tw-line { cursor: pointer; }
 .refinement-two-way a.rf-ol-name { text-decoration: underline; text-decoration-color: var(--rf-line); text-decoration-thickness: 1px; text-underline-offset: 3px; }
 .refinement-two-way a.rf-ol-name:hover { text-decoration-color: currentColor; }
@@ -2492,7 +2537,7 @@ const twoWayCss = `
 .refinement-two-way .rf-tw-pin { grid-column: 1 / -1; position: sticky; top: var(--rf-tw-pin-top, 0px); height: 0; z-index: 3; }
 .refinement-two-way[data-picking] .rf-tw-pin { display: none; }
 /* While something is picked the bar stays in view at the top as the section scrolls (act where you are). */
-.refinement-two-way[data-picking] .rf-tw-bar { position: sticky; top: var(--rf-tw-pin-top, 0px); z-index: 4; background: var(--lk-paper, var(--rf-bg)); padding-top: 4px; }
+.refinement-two-way[data-picking] .rf-tw-bar { position: sticky; top: var(--rf-tw-pin-top, 0px); z-index: 4; background: var(--lk-paper, var(--rf-bg)); }
 .refinement-two-way .rf-tw-pin > .rf-ol-trail { position: absolute; left: -12px; right: -12px; top: 0; padding: 5px 12px; background: var(--lk-paper, var(--rf-bg)); border-bottom: 1px solid var(--rf-hair); }
 `;
 /* Logseq draws the properties under a record as one strip (.bottom-properties-pills-strip, flex-nowrap and
@@ -2588,7 +2633,7 @@ function start() {
   host().addEventListener('scroll', onScroll, { capture: true, passive: true });
   onUnload(() => host().removeEventListener('scroll', onScroll, { capture: true }));
   onUnload(() => host().removeEventListener('keydown', escape));
-  onUnload(() => { steadyWidth(state.box?.ownerDocument, false); stopped = true; clearTimeout(timer); clearTimeout(indexTimer); clearTimeout(settle.timer); clearTimeout(settle.ease); clearTimeout(settle.wait); hidePeek(); closeAdd(); state.box?.remove(); state.box = null; });
+  onUnload(() => { steadyWidth(state.box?.ownerDocument, false); stopped = true; clearTimeout(timer); clearTimeout(indexTimer); clearTimeout(settle.timer); clearTimeout(settle.ease); clearTimeout(settle.wait); if (settle.frame) cancelAnimationFrame(settle.frame); hidePeek(); closeAdd(); state.box?.remove(); state.box = null; });
   later(0);
   indexLater(1500);
 }

@@ -6,7 +6,7 @@
 const Door = window.PluginDoor;
 const notify = (text, status = 'info') => logseq.UI.showMsg(text, status);   // no options: with a timeout the notice stays on screen
 const switchKey = module => module.key + 'On';
-const on = module => logseq.settings?.[switchKey(module)] !== false;
+const on = module => Door.runs(module.key);
 
 // Logseq's own settings panel: first the switches, then each module's settings as that module wrote them.
 const schema = [

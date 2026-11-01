@@ -41,7 +41,7 @@ for (const file of order) vm.runInContext(fs.readFileSync(path.join(root, file),
   eq(spoke.properties.map(p => [p.name, p.type, p.values[0].text, p.values[0].day ?? null]), [['Date', 'date', 'Oct 23rd, 2026', 20261023], ['Provider', 'node', 'Dr. Mei Chen', null], ['Severity', 'number', '4', null]], 'dates first then by name; a number read from its value block');
   assert.equal(spoke.children.length, 1); assert.equal(spoke.children[0].kind, 'value', 'the number kept as a block is a value, not a child shown');
   const task = appointments.children[1];
-  eq(task.task, { status: 'todo', priority: 'high', deadline: 1785542400000, scheduled: null }); eq(task.tags, [], 'Logseq’s own Task class is not a tag of yours');
+  eq(task.task, { status: 'todo', priority: 'high', deadline: 1785542400000, scheduled: null }); eq(task.tags, ['Task'], 'Task stays on a task: with no boxes it is the only sign');
   assert.equal(code.display, 'code'); assert.equal(code.lang, 'js');
   const pdf = papers.children[0];
   assert.equal(pdf.kind, 'file'); assert.equal(pdf.file.file, `assets/${U(207)}.pdf`);
@@ -77,6 +77,15 @@ for (const file of order) vm.runInContext(fs.readFileSync(path.join(root, file),
   const rich = await E.app.richText(page, c);
   assert.ok(/<h1 style="[^"]*font-size/.test(rich.html) && !rich.html.includes('class="x-'), 'rich text carries its styles inline');
   assert.equal(rich.text, md);
+  // A look whose font names are quoted keeps its look: the root's style is not ended by its own quotes.
+  { const book = await E.app.richText(page, { ...c, look: 'book' }), root = book.html.match(/^<div style="([^"]*)">/);
+    assert.ok(root && /font-family/.test(root[1]) && /serif/.test(root[1]) && /line-height|color/.test(root[1]) && book.html.startsWith(`<div style="${root[1]}"><`), 'the whole of the look reaches the root: ' + book.html.slice(0, 200)); }
+  // What was changed in the window keeps its look too.
+  { try { window.DOMParser = new (require('jsdom').JSDOM)('').window.DOMParser; } catch (error) { /* no jsdom: said below */ }
+    if (window.DOMParser) {
+      const edited = await E.app.richText(page, c, '<h1 class="x-title">Dr. Mei Chen, edited</h1><p class="x-p">New words</p>');
+      assert.ok(/<h1 style="[^"]*font-size[^"]*">Dr. Mei Chen, edited<\/h1>/.test(edited.html) && !edited.html.includes('class="'), 'edited rich text carries its styles: ' + edited.html.slice(0, 200));
+    } else console.log('  skipped: edited rich text needs jsdom (set NODE_PATH)'); }
   console.log('  ok  Markdown, the printed page and rich text come out of the pretend page');
   process.exit(0);
 })().catch(error => { console.error('FAIL ', error); process.exit(1); });

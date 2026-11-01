@@ -47,10 +47,17 @@ async function read() {
   for (const [t, c] of newestRows) if (own.has(t)) newest[t] = Number(c);
   return { tags, props, nodes, holders, pointed, newest };
 }
-// A tag's nodes with their words, newest first, for the list the card's count opens (a few hundred at most).
-async function nodesOf(tagId, limit = 400) {
-  const rows = await query(`[:find ?u ?title ?c ?pg :where [?b :block/tags ${tagId}] [?b :block/uuid ?u] [?b :block/title ?title] [(get-else $ ?b :block/created-at 0) ?c] [(get-else $ ?b :block/page 0) ?pg] ${LIVE}]`).catch(() => []);
-  return rows.map(([u, title, c, pg]) => ({ uuid: String(u), title: String(title), created: Number(c) || 0, isPage: !pg })).sort((a, b) => b.created - a.created).slice(0, limit);
+// The nodes the card's count counts, with their words and days, for the list it opens. The day is the margin's: when it happened, not
+// when it was written: its date property, else the journal day it is written on.
+async function nodesOf(nodeIds) {
+  const these = `[(ground [${nodeIds.join(' ')}]) [?b ...]]`;
+  const [rows, dates, written] = await Promise.all([
+    query(`[:find ?b ?u ?title ?c ?pg :where ${these} [?b :block/uuid ?u] [(get-else $ ?b :block/title "") ?title] [(get-else $ ?b :block/created-at 0) ?c] [(get-else $ ?b :block/page 0) ?pg] ${LIVE}]`),
+    query(`[:find ?b ?d ?name :where ${these} [?b ?a ?v] [?p :db/ident ?a] [(namespace ?a) ?ns] [(= ?ns "user.property")] [?p :logseq.property/type :date] [?p :block/title ?name] [?v :block/journal-day ?d]]`),
+    query(`[:find ?b ?d :where ${these} [?b :block/page ?pg] [?pg :block/journal-day ?d]]`),
+  ]);
+  const dated = window.PluginDoor.datedDays(dates), onDay = new Map(written);
+  return rows.map(([id, u, title, c, pg]) => ({ id, uuid: String(u), title: String(title), created: Number(c) || 0, day: dated.get(id) || Number(onDay.get(id)) || 0, isPage: !pg }));
 }
 // The values of a property among a tag's nodes, with how many nodes hold each (a choice or a link), for a split by value.
 async function valuesOf(tagId, ident) {

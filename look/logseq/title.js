@@ -1,8 +1,8 @@
 /* A page's place in the tree, at the right end of its title row, where Logseq keeps a page's own tags and fades them in
    under the pointer: the page's tag and the tags above it, nearest first, "Doctor / Person / Entity", each name opening
    its page (Shift: in the right sidebar). On a tag's own page, only the tags above it; its own name is the title. Two
-   tags of a page are kept apart by a dot. Under the pointer an × stands before a tag the page holds and takes it off (on
-   a tag's page, takes the tag out from under the one above); the × sits in the room before the name, so nothing moves.
+   tags of a page are kept apart by a dot. Under the pointer an × stands before a tag the page holds and takes it off; on
+   a tag's page it reaches every node under the tag, so it opens Structure's ask, and with Structure off there is no ×. It sits in the room before the name, so nothing moves.
    The same line sits under a page's name in the right sidebar. Drawn from the index marks.js keeps, in the same frame as
    the title, so the row's right end never moves after the title has come. */
 (function () {
@@ -47,7 +47,9 @@ function groupsOf(index, uuid) {
   return groups;
 }
 const link = (doc, t, end) => el(doc, 'a', { class: end ? 'lk-tag lk-end' : 'lk-tag', href: '#', 'data-uuid': t.uuid, title: `Open ${t.title} (Shift: in the sidebar)` }, t.title);
+const asks = () => window.PluginDoor.runs('structure') && !!window.Structure?.app;
 function held(doc, t, tagPage) {
+  if (tagPage && !asks()) return link(doc, t);
   const words = tagPage ? `Take this tag out from under ${t.title}` : `Remove ${t.title} from this page`;
   return el(doc, 'span', { class: 'lk-held lk-own' }, link(doc, t), el(doc, 'span', { class: 'lk-x', role: 'button', tabindex: '0', title: words, 'aria-label': words, 'data-take': t.uuid }, '×'));
 }
@@ -74,7 +76,8 @@ const press = event => { if ((event.key === 'Enter' || event.key === ' ') && eve
 async function takeOff(tagUuid, { page, tagPage }) {
   if (!page || !tagUuid) return;
   try {
-    if (tagPage) await Look.db.removeExtends(page, tagUuid); else await Look.db.removeTag(page, tagUuid);
+    if (tagPage) return await window.Structure.app.askTakeOut(page, tagUuid);
+    await Look.db.removeTag(page, tagUuid);
     setTimeout(() => Look.marks.load(), 300);
   } catch (error) { console.error('Look: a tag could not be taken off', error); notify('The tag could not be taken off', 'warning'); }
 }

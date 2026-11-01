@@ -2,7 +2,7 @@
 
 One module of Logseq Plugin (the root README says how the six fit together; `grammar.html` in the workspace draws every rule).
 
-How things look, as the visual grammar agreed on 29 October 2026 says. It reads your graph and changes nothing else in it. **What it writes:** only what the × beside a title takes off, a tag from a page, or on a tag's own page the tag above it.
+How things look, as the visual grammar agreed on 29 October 2026 says. It reads your graph and changes nothing else in it. **What it writes:** only what the × beside a title takes off, a tag from a page. On a tag's own page the × reaches every node under the tag, so it opens Structure's ask on the tag's card, and with Structure off it is not there.
 
 ## What it draws
 
@@ -42,6 +42,8 @@ There is one short list of class names, one per word of the grammar. They and th
 | `lk-alts` | what a value can become | faint words, the one in force (`on`) in the text colour |
 | `lk-accent` | the one action of a screen | a little heavier, its key faint beside it |
 | `lk-close` | the way out, × | faint, the text colour under the pointer |
+
+The buttons have a library of their own: `button-library.html` beside the plugin shows every kind, one per job, and the names (`lk-strip`, `lk-btn`, `lk-bar`, `lk-answers`, `lk-lone`, `lk-add`, `lk-more`, `lk-fix`, `lk-x`, `lk-plus`, `lk-views`, `lk-trail`, `lk-head`, `lk-menu`) are drawn in `plugin.js` with the others. `test/library.js` fails on a button drawn by hand.
 
 Threads and Predictive use them; DB Export's toolbar is built on the last six, the Pressing set, settled on 30 October 2026 and drawn in `buttons-mockup.html` beside the plugins: a control is a small name over its value, space does the separating, one accent per screen. Look's own settings window follows it.
 

@@ -66,6 +66,11 @@ function nodesUnder(M, id) {
   });
 }
 const count = (M, id) => nodesUnder(M, id).size;
+// The tag of a branch that a node carries: the branch's own top first, for a node with two tags of one branch.
+function carrier(M, id, node) {
+  const seen = new Set(), walk = x => { if (seen.has(x)) return null; seen.add(x); const t = M.tags.get(x); if (!t) return null; if (t.nodes.has(node)) return x; for (const k of t.kids) { const found = walk(k); if (found != null) return found; } return null; };
+  return walk(id);
+}
 // The path from the kind down, ids; the kind's key, or null when the tag sits under none (or, through two parents, under two).
 const pathOf = (M, id) => { const p = []; for (let at = id, guard = 0; at != null && guard < 64; at = parentOf(M, at), guard++) p.unshift(at); return p; };
 function kindOf(M, id) {
@@ -76,8 +81,9 @@ function kindOf(M, id) {
 const under = (M, id, anc) => { for (let at = id, guard = 0; at != null && guard < 64; at = parentOf(M, at), guard++) if (at === anc) return true; return false; };
 const depth = (M, id) => pathOf(M, id).length - 1;
 // What a tag inherits: the properties of the tags above it (every parent), nearest first, each once, with the tag it comes from.
-function inherited(M, id) {
-  const have = new Set(M.tags.get(id)?.props || []), out = [], seen = new Set([id]);
+// without: a parent left out, to see what would go with it.
+function inherited(M, id, without) {
+  const have = new Set(M.tags.get(id)?.props || []), out = [], seen = new Set([id, without]);
   for (let level = [...(M.tags.get(id)?.parents || [])]; level.length;) {
     const next = [];
     for (const pid of level) { if (seen.has(pid)) continue; seen.add(pid); const t = M.tags.get(pid); for (const p of t.props) if (!have.has(p)) { have.add(p); out.push({ prop: p, from: pid }); } next.push(...t.parents); }
@@ -123,5 +129,5 @@ function addTag(M, title, parent, id = madeId--) {
 }
 const removeTag = (M, id) => { M.tags.delete(id); for (const t of M.tags.values()) t.parents = t.parents.filter(p => p !== id); for (const p of M.props.values()) p.range = p.range.filter(r => r !== id); link(M); };
 
-S.model = { KINDS, LOOSE, build, link, tag, prop, isKind, parentOf, kids, nodesUnder, count, pathOf, kindOf, under, depth, inherited, filled, filledOwn, propRows, pointedAt, rangeGuess, kindWord, propKind, titled, addTag, removeTag, byTitle };
+S.model = { KINDS, LOOSE, build, link, tag, prop, isKind, parentOf, kids, nodesUnder, count, carrier, pathOf, kindOf, under, depth, inherited, filled, filledOwn, propRows, pointedAt, rangeGuess, kindWord, propKind, titled, addTag, removeTag, byTitle };
 })();

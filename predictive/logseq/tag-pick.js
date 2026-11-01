@@ -1,8 +1,8 @@
 /* Choosing a tag for a bullet that has none, with a key (core/propose.js, tagChoices).
 
    The key (Option-T as it comes; the setting "Keys for choosing a tag") opens a short list under the bullet: the tags that the pages the line
-   names (linked, or in plain words) could take, best first by the words, with what each would add. Up and Down move, Enter or a number picks,
-   a click picks, anything else closes it and goes on typing. Picking gives the bullet the tag and the bullet's properties are proposed as
+   names (linked, or in plain words) could take, best first by the words, with what each would add. Up and Down move, Enter picks,
+   a click picks, anything else closes it and goes on typing, a digit like any other key (no key that writes is a key you might be typing). Picking gives the bullet the tag and the bullet's properties are proposed as
    they are for any tagged bullet; a faded arrow puts the tag back. Nothing is ever written until one is picked, and it is only there when
    asked, so plain notes that happen to name a person stay quiet. */
 (function () {
@@ -21,7 +21,7 @@ function draw() {
     ...items.map((item, i) => {
       const note = [item.how === 'mentioned' ? item.via.join(', ') : 'by its words', item.fields.slice(0, 3).join(', ')].filter(Boolean).join(' · ');
       const row = el(doc, 'div', { class: 'flow-pick-row' + (i === at ? ' on' : ''), role: 'option', 'aria-selected': String(i === at), 'data-i': String(i) },
-        el(doc, 'span', { class: 'flow-pick-n' }, String(i + 1)), el(doc, 'span', { class: 'flow-pick-tag lk-tag' }, item.tag.title), el(doc, 'span', { class: 'flow-pick-note' }, note));
+        el(doc, 'span', { class: 'flow-pick-tag lk-tag' }, item.tag.title), el(doc, 'span', { class: 'flow-pick-note' }, note));
       return row;
     }));
   Object.assign(list.style, { left: rect.left + 'px', top: (rect.bottom + 4) + 'px', maxWidth: Math.max(260, rect.width) + 'px' });
@@ -69,7 +69,6 @@ function onKey(event) {
     if (asked || event.key === 'Escape') { swallow(); return close(); }
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { swallow(); open.at = (open.at + (event.key === 'ArrowDown' ? 1 : open.items.length - 1)) % open.items.length; return draw(); }
     if (event.key === 'Enter' && !event.shiftKey) { swallow(); return pick(open.at); }
-    if (/^[1-9]$/.test(event.key) && !event.metaKey && !event.ctrlKey && !event.altKey && Number(event.key) <= open.items.length) { swallow(); return pick(Number(event.key) - 1); }
     return close();   // any other key: back to writing
   }
   if (!asked || !app.isBlockBox(event.target)) return;
@@ -92,7 +91,6 @@ const css = `
   border: 1px solid color-mix(in srgb, currentColor 16%, transparent); box-shadow: 0 6px 18px color-mix(in srgb, currentColor 14%, transparent); }
 .flow-pick-row { display: flex; gap: .6em; align-items: baseline; padding: 3px 8px; border-radius: 4px; cursor: pointer; }
 .flow-pick-row.on, .flow-pick-row:hover { background: color-mix(in srgb, currentColor 9%, transparent); }
-.flow-pick-n { opacity: .4; min-width: .8em; }
 .flow-pick-tag { white-space: nowrap; }
 .flow-pick-note { opacity: .5; font-size: .92em; margin-left: auto; padding-left: 1em; text-align: right; }
 `;

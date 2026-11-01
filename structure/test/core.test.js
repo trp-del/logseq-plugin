@@ -123,6 +123,14 @@ assert.equal(pair.model.tags.get(2).nodeUuids.length, 2, 'a node held twice is o
 pair.discard(); pair.stage({ kind: 'retag', from: 1, to: 2, nodes: [{ id: 10, uuid: 'both' }] });
 deq(pair.plan().map(s => s.op), ['removeTag'], 'a retag leaves alone a node that already holds the tag');
 console.log('  ok  a merge: what a node held is left, child tags taken off first, what cannot come back said');
+// Out from under one parent: the other stays, the sentence says what goes with it, and one step is written.
+{ const two = S.changes.makeTray();
+  two.setBase({ tags: [{ id: 1, uuid: 'a', title: 'First', parents: [], props: [7] }, { id: 2, uuid: 'b', title: 'Second', parents: [], props: [8] }, { id: 3, uuid: 'c', title: 'Under both', parents: [1, 2], props: [] }],
+    props: [{ id: 7, uuid: 'p', ident: 'user.property/p', title: 'Goes', type: 'default', range: [] }, { id: 8, uuid: 'q', ident: 'user.property/q', title: 'Stays', type: 'default', range: [] }], nodes: { 3: [{ id: 30, uuid: 'n' }] } });
+  two.stage({ kind: 'takeOut', tag: 3, from: 1 });
+  assert.equal(two.lines()[0].text, 'Take Under both out from under First, no longer inheriting Goes'); assert.equal(two.lines()[0].nodes, 1);
+  deq(two.model.tags.get(3).parents, [2], 'the other parent stays');
+  deq(two.plan().map(s => [s.op, s.parent.title]), [['removeExtends', 'First']]); }
 // A merge swaps the kept tag into what pointed at the merged one, and the card never holds a dead id while it waits.
 const ranged = S.changes.makeTray();
 ranged.setBase({ tags: [{ id: 1, uuid: 'from', title: 'From', parents: [], props: [] }, { id: 2, uuid: 'kept', title: 'Kept', parents: [], props: [] }, { id: 3, uuid: 'other', title: 'Other', parents: [], props: [] }, { id: 4, uuid: 'gone', title: 'Gone', parents: [], props: [] }],

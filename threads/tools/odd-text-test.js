@@ -90,7 +90,7 @@ function oddLogseq(names) {
       if (askEl) check('a question', askEl, [names[1]]);
       shared.popups.closeAll();
       void asked;
-      const card = shared.card({ at: stage, title: names[3], tag: names[4], fields: [{ name: names[5], uuid: 'u', values: [{ text: names[6], uuid: 'v' }] }], lines: [{ uuid: 'l', html: shared.esc(names[7]) }], open() {} });
+      const card = shared.card({ at: stage, title: names[3], fields: [{ name: names[5], uuid: 'u', values: [{ text: names[6], uuid: 'v' }] }], lines: [{ uuid: 'l', html: shared.esc(names[7]) }], open() {} });
       const cardEl = card?.el || doc.querySelector('.rf-card, .rf-pop');
       if (cardEl) check('the hover card', cardEl, [names[3], names[5], names[6], names[7]]);
       card?.close?.();

@@ -149,6 +149,7 @@ async function nodeOf(raw, attrsByBlock, ctx) {
   n.journalDay = page?.journalDay ?? ctx.journalDay ?? null;
   const status = entity(idOf(first('logseq.property/status')));
   if (tagIdents.includes('logseq.class/Task') || status) {
+    n.tags.push('Task');   // Logseq's own class, kept on a task: where no box is drawn it is the only sign
     n.task = { status: after(status?.ident || '', 'logseq.property/status.'), priority: after(entity(idOf(first('logseq.property/priority')))?.ident || '', 'logseq.property/priority.'),
       deadline: first('logseq.property/deadline') != null ? dayOrMs(first('logseq.property/deadline')) : null, scheduled: first('logseq.property/scheduled') != null ? dayOrMs(first('logseq.property/scheduled')) : null };
   }

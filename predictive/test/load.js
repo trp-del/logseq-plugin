@@ -10,6 +10,9 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const { root, order } = require('../../test/module.js')('predictive');
+// The Option-T list: Enter and the arrows only. A digit is something you might be typing: it closes the list and goes on as typing.
+{ const pick = fs.readFileSync(path.join(root, 'predictive/logseq/tag-pick.js'), 'utf8');
+  assert.ok(!/Number\(event\.key\)/.test(pick) && !/\[1-9\]/.test(pick) && !/flow-pick-n\b/.test(pick), 'no digit picks, and no number is shown beside a row'); }
 const listeners = [], styles = {}, commands = [], shown = [], palette = {};
 
 // A tiny graph in the shapes Logseq's datascript queries return.

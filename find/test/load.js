@@ -12,6 +12,7 @@ const { root, order } = require('../../test/module.js')('find');
 const U = n => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 // ids: tags 1 Doctor, 2 Consultation, 3 Page (Logseq's), 4 Tag; pages 20 Dr. Mei Chen, 21 Dr. Sofia Alvarez, 22 Fatigue, 23 Tingling;
 // journal pages 30..33 (days); consultation blocks 40..43; property value entities: the pages themselves.
+let DATED = [], ENTITY = false, made = [];   // date properties: [node, journal day, the property's name]; Consultation under a tag called Entity
 let SHARED = false;   // for the check of a tag under two parents: Top over A and B, Both under A and B
 const TAGS_SHARED = [[5, 'Top', 'user.class/Top'], [6, 'A', 'user.class/A'], [7, 'B', 'user.class/B'], [8, 'Both', 'user.class/Both']];
 const TAGS = [[1, 'Doctor', 'user.class/Doctor'], [2, 'Consultation', 'user.class/Consultation'], [3, 'Page', 'logseq.class/Page'], [4, 'Tag', 'logseq.class/Tag']];
@@ -29,15 +30,15 @@ const log = [];
 function fakeQuery(q) {
   log.push(q.slice(0, 60));
   const has = (...p) => p.every(x => q.includes(x));
-  if (has(':logseq.class/Tag] [?t :block/uuid ?u] [?t :block/title ?title] [?t :db/ident ?ident]')) return (SHARED ? TAGS_SHARED : TAGS).map(([id, t, i]) => [id, U(id), t, ':' + i]);
-  if (has('logseq.property.class/extends ?p')) return SHARED ? [[6, 5], [7, 5], [8, 6], [8, 7]] : [];
+  if (has(':logseq.class/Tag] [?t :block/uuid ?u] [?t :block/title ?title] [?t :db/ident ?ident]')) return (SHARED ? TAGS_SHARED : ENTITY ? [...TAGS, [9, 'Entity', 'user.class/Entity']] : TAGS).map(([id, t, i]) => [id, U(id), t, ':' + i]);
+  if (has('logseq.property.class/extends ?p')) return ENTITY ? [[2, 9]] : SHARED ? [[6, 5], [7, 5], [8, 6], [8, 7]] : [];
   if (has('[?b :block/tags ?t] [?t :block/tags :logseq.class/Tag]')) return SHARED ? [[8, 40], [7, 41]] : CARRIED;
   const given = () => (q.includes('#uuid') ? uuidsIn(q).map(idOfUuid) : idsIn(q));
   if (has(':find ?b ?u ?title ?name :where')) return given().map(id => [id, U(id), titleOf(id), PAGES[id] ? titleOf(id).toLowerCase() : '']);
   if (has(':find ?b ?ptitle ?pday :where')) return given().filter(id => BLOCKS[id]).map(id => [id, PAGES[BLOCKS[id].page], DAYS[BLOCKS[id].page]]);
   if (has(':find ?b ?t :where') && has('[?b :block/tags ?t]')) { const ids = q.includes('#uuid') ? uuidsIn(q).map(idOfUuid) : idsIn(q); return CARRIED.filter(([, b]) => ids.includes(b)).map(([t, b]) => [b, t]); }
   if (has(':find ?b ?d :where') && has('[?b :block/journal-day ?d]')) return [];
-  if (has(':find ?b ?d :where') && has(':logseq.property/type :date')) return [];
+  if (has(':find ?b ?d ?name :where')) return DATED.filter(([b]) => given().includes(b));
   if (has(':find ?u ?t :where') && has('[?r :block/uuid ?u] [?r :block/title ?t]')) return uuidsIn(q).map(u => [u, titleOf(idOfUuid(u))]);
   if (has(':find ?b ?name ?type ?v :where')) { const ids = idsIn(q); const rows = []; for (const id of ids) { const b = BLOCKS[id]; if (!b) continue; rows.push([id, 'Provider', ':node', b.provider], [id, 'Topic', ':node', b.topic]); } return rows; }
   if (has('(pull ?v [:db/id :block/uuid :block/title :property.value/content :block/name')) return idsIn(q).map(id => [{ 'db/id': id, 'block/uuid': U(id), 'block/title': titleOf(id), 'block/name': titleOf(id).toLowerCase() }]);
@@ -56,7 +57,7 @@ const logseq = {
   ready: fn => Promise.resolve().then(fn), settings: {}, provideStyle: ({ key, style }) => { styles[key] = style; }, useSettingsSchema() {}, onSettingsChanged() {}, updateSettings(v) { Object.assign(logseq.settings, v); }, provideModel() {},
   beforeunload(fn) { logseq._unload = fn; }, App: { pushState: (k, v) => opened.push(v.name), registerCommandPalette: c => commands.push(c.label), registerUIItem: (where, item) => items.push(item.key), onCurrentGraphChanged() {}, invokeExternalCommand: async id => { ran.push(id); },
     search: async words => ({ blocks: words.includes('mei') ? [{ uuid: U(20), title: 'Dr. $pfts_2lqh>$Mei$<pfts_2lqh$ Chen' }, { uuid: U(42), title: 'Saw Dr. Mei Chen about not sleeping' }] : [] }) },
-  DB: { onChanged() {}, datascriptQuery: async q => fakeQuery(q) }, UI: { showMsg() {} }, Editor: { openInRightSidebar: u => opened.push('sidebar:' + u), createPage: async () => null },
+  DB: { onChanged() {}, datascriptQuery: async q => fakeQuery(q) }, UI: { showMsg() {} }, Editor: { openInRightSidebar: u => opened.push('sidebar:' + u), createPage: async name => { made.push(name); return null; } },
 };
 const errors = [];
 // The host's api on the parent window: Logseq's palette commands as its state holds them (ids as keywords, keys as shown).
@@ -217,6 +218,57 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
   await type('s'); await type('');
   assert.deepEqual(text('.fd-none'), ['the newest 4 of 9'], 'the list says it is cut');
   await key('Escape'); Find.window.forget();
+  // The margin says when a node happened: the property titled Date, else the earliest date, else the day it is written on; an Entity nothing.
+  DATED = [[40, 20260815, 'Visited'], [40, 20260903, 'Date'], [41, 20260601, 'Noted'], [41, 20260501, 'Seen']]; Find.db.forget();
+  const dayOf = async id => (await Find.db.details([id], []))[0].day;
+  assert.equal(await dayOf(40), 20260903, 'the property titled Date first, though another is earlier');
+  assert.equal(await dayOf(41), 20260501, 'else the earliest date');
+  assert.equal(await dayOf(42), 20260901, 'else the journal day it is written on');
+  ENTITY = true; Find.db.forget();
+  assert.equal(await dayOf(40), 0, 'an Entity shows no day, whatever it holds and wherever it is written');
+  assert.equal(await dayOf(42), 0, 'nor one on a journal page');
+  const sorted = (await Find.db.details([41, 43, 42], [])).sort(Find.db.byDay).map(n => n.id);
+  assert.deepEqual(sorted, [41, 42, 43], 'with no day they keep the order of the days they were written');
+  ENTITY = false; Find.db.forget();
+  Find.window.open(); await settle(); await type('cons'); await key('Tab'); await settle();
+  assert.ok(text('.fd-r .fd-day').includes('Sep 3') && text('.fd-r .fd-day').includes('May 1'), 'the rows carry those days: ' + text('.fd-r .fd-day'));
+  await key('Escape'); await settle(); DATED = []; Find.window.forget();
+  // Enter takes what is offered. With no rows at all it makes the page, the key beside the words; pressed before the letters are read, it waits for them.
+  Find.window.open(); await settle(); await type('nothing has this');
+  assert.deepEqual(text('.fd-foot .fd-right .fd-k'), ['Enter'], 'the key stands beside "make a page"');
+  await key('Enter'); await settle(); assert.deepEqual(made, ['nothing has this'], 'Enter makes the page'); made = [];
+  Find.window.close(); Find.window.open(); await settle();
+  { const input = doc.querySelector('.fd-input'); input.value = 'nor has this'; input.dispatchEvent(new dom.window.Event('input', { bubbles: true })); input.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })); assert.deepEqual(made, [], 'not before the letters are read'); }
+  await settle(); await sleep(50); assert.deepEqual(made, ['nor has this'], 'then it takes what they found'); made = [];
+  Find.window.close(); Find.window.open(); await settle(); await type('mei');
+  assert.deepEqual(text('.fd-foot .fd-right .fd-k'), [], 'with rows, the key is not offered there'); await key('Enter'); assert.deepEqual(made, [], 'and Enter opens the row'); opened.length = 0;
+  // Row thirteen on: Down past the last row shows the rest, the cursor on the first of them.
+  Find.window.open(); await settle(); await type('cons'); await key('Tab'); await settle();
+  logseq.settings.rowsShown = 2; await type('s'); await type('');
+  assert.equal(doc.querySelectorAll('.fd-r').length, 2); await key('ArrowDown'); await key('ArrowDown');
+  assert.equal(doc.querySelectorAll('.fd-r').length, 4, 'Down past the last row shows them all'); assert.equal(Find.window.state.rowAt, 2);
+  delete logseq.settings.rowsShown; await key('Escape'); await settle();
+  // A group's "show all" the same way.
+  BLOCKS[43].provider = 20; Find.window.forget(); Find.db.forget();
+  Find.window.open(); await settle(); await type('mei'); await key('ArrowRight'); await settle();
+  await key('ArrowDown'); await key('ArrowRight'); await settle();
+  const groupRows = () => doc.querySelectorAll('.fd-gn .fd-r').length;
+  assert.equal(groupRows(), 3, 'a group shows three'); for (let i = 0; i < 4; i++) await key('ArrowDown');
+  assert.equal(groupRows(), 4, 'Down past the third shows the rest of the group'); await key('Escape'); await key('Escape'); await settle(); BLOCKS[43].provider = 21; Find.window.forget();
+  // "more" is a choice: the arrows reach it, Tab or Enter takes it, and the cursor stands on the first that came.
+  { Find.window.open(); await settle(); const kept = Find.window.state.kinds; Find.window.state.kinds = [1, 2, 3, 4, 5].map(n => ({ id: 100 + n, uuid: U(100 + n), title: 'Kind ' + n, count: n }));
+    await key('Tab'); await key('ArrowRight'); await key('ArrowRight'); await key('ArrowRight');
+    assert.ok(text('.fd-foot')[0].includes('show moreTab'), 'the foot says what the key does: ' + text('.fd-foot')[0]);
+    assert.ok(doc.querySelector('.fd-more.fd-lit'), 'more is lit'); await key('Enter');
+    assert.equal(text('.fd-c').length, 5, 'and shows the rest'); assert.ok(doc.querySelector('.fd-c.fd-lit')?.textContent.startsWith('Kind 4'), 'the cursor on the first that came');
+    await key('Escape'); await key('Escape'); await settle(); Find.window.state.kinds = kept; }
+  { Find.window.open(); await settle(); await type('cons'); await key('Tab'); await settle();
+    Find.window.state.facets = { props: ['a', 'b', 'c', 'd', 'e'].map(n => ({ name: n, type: 'default', values: [{ key: '1', label: n + '1', count: 1 }, { key: '2', label: n + '2', count: 2 }] })), months: [], kinds: [] };
+    await key('Tab'); await key('ArrowDown'); await key('ArrowDown'); await key('ArrowDown');
+    assert.ok(doc.querySelector('.fd-more.fd-lit')?.textContent.includes('2 more properties'), 'the line of properties too'); await key('Tab');
+    assert.equal(text('.fd-ch').length, 5, 'and it opens them'); await key('Escape'); await key('Escape'); await settle(); Find.window.forget(); }
+  // The foot: the words in the text colour, the key faint.
+  assert.ok(styles['find-find'].includes('.fd-foot .fd-k { color: var(--fd-faint);') && /\.fd-foot \{[^}]*color: var\(--lk-text/.test(styles['find-find']), 'the key faint, what it does in the text colour');
   // the key specimen, and the stop
   assert.ok(Find.settings.specimen({ key: 'takesSearchKey', type: 'boolean' }, true).includes('⌘K'), 'the key specimen');
   await logseq._unload();

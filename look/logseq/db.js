@@ -10,7 +10,7 @@ const EXTENDS = 'logseq.property.class/extends';
 // Logseq's kinds of page say what a page is, not a tag of yours.
 const PAGE_KINDS = new Set(['logseq.class/Page', 'logseq.class/Journal', 'logseq.class/Tag', 'logseq.class/Property', 'logseq.class/Whiteboard']);
 // A graph's own umbrella tag named like one of the four sorts places every tag under it.
-const SORT_NAMES = { entity: 'entity', entities: 'entity', occurrence: 'occurrence', occurrences: 'occurrence', phenomena: 'phenomenon', phenomenon: 'phenomenon', information: 'information', interpretation: 'information' };
+const { SORT_NAMES } = window.PluginDoor;
 
 /* Every tag with its uuid, title and ident, and which tag each extends (Root left out). */
 async function tagIndex() {
@@ -173,9 +173,7 @@ async function heldBelow(uuids) {
 // The two writes the title row makes, through Logseq's own calls.
 const removeTag = (pageUuid, tagUuid) => logseq.Editor.removeBlockTag(pageUuid, tagUuid);
 const addTag = (pageUuid, tagUuid) => logseq.Editor.addBlockTag(pageUuid, tagUuid);
-const removeExtends = (tagUuid, parentUuid) => logseq.Editor.removeTagExtends(tagUuid, parentUuid);
-const addExtends = (tagUuid, parentUuid) => logseq.Editor.addTagExtends(tagUuid, parentUuid);
 const getPage = name => Promise.resolve(logseq.Editor.getPage(name)).catch(() => null);
 
-Look.db = { query, tagIndex, chainOf, sortOfTag, pageIndex, propIndex, heldBelow, removeTag, addTag, removeExtends, addExtends, getPage, UUID, EXTENDS, PAGE_KINDS, SORT_NAMES };
+Look.db = { query, tagIndex, chainOf, sortOfTag, pageIndex, propIndex, heldBelow, removeTag, addTag, getPage, UUID, EXTENDS, PAGE_KINDS, SORT_NAMES };
 })();

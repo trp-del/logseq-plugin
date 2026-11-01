@@ -50,6 +50,7 @@ const CSS = `
 .fd-c.fd-lit { color: inherit; }
 .fd-cv .fd-dot { color: var(--fd-faint); }
 .fd-more { margin: -3px 0; }
+.fd-more.fd-lit { color: var(--lk-text, #222) !important; }
 .fd-icon { display: inline-flex; width: 12px; height: 12px; align-items: center; justify-content: center; color: var(--fd-faint); font-size: 12px; }
 .fd-icon svg { width: 12px; height: 12px; }
 /* The row: day | chevron | bullet | words and tag | right. */
@@ -84,9 +85,9 @@ const CSS = `
 .fd-gn .fd-showall { padding-left: 86px; }
 .fd-ct { color: var(--fd-faint); font-size: 12px; font-variant-numeric: tabular-nums; }
 .fd-faint { color: var(--fd-faint); }
-.fd-foot { display: flex; gap: 16px; flex-wrap: wrap; padding: 6px 16px 8px; border-top: 1px solid var(--fd-hair); font-size: 12.5px; color: var(--fd-quiet); }
+.fd-foot { display: flex; gap: 16px; flex-wrap: wrap; padding: 6px 16px 8px; border-top: 1px solid var(--fd-hair); font-size: 12.5px; color: var(--lk-text, #222); }
 .fd-foot:empty { display: none; }
-.fd-foot .fd-k { color: var(--lk-text, #222); margin-left: .4em; }
+.fd-foot .fd-k { color: var(--fd-faint); margin-left: .4em; }
 .fd-foot .fd-right { margin-left: auto; padding: 0; }
 .fd-foot .lk-lone { margin: -3px -6px; }
 .fd-wait { color: var(--fd-faint); padding: 6px 0; }
@@ -94,7 +95,7 @@ const CSS = `
 
 
 const S = {
-  dlg: null, doc: null, gen: 0, timer: 0,
+  dlg: null, doc: null, gen: 0, timer: 0, reads: 0, enter: null, making: false,
   picks: [], typed: '', mode: 'rows', rowAt: 0, choiceAt: 0,
   kinds: [], recents: [], base: [], shown: [], facets: null, allShown: false, moreOf: new Set(),
   dug: [], dugData: new Map(), openGroups: new Set(), groupAll: new Set(), stale: false,
@@ -135,7 +136,7 @@ async function compute() {
           if (p.kind === 'value') nodes = nodes.filter(n => full.byNode.get(n.id)?.has(p.name + '=' + p.key));
           if (p.kind === 'month') nodes = nodes.filter(n => Math.floor(n.day / 100) === p.key);
         }
-        const base = nodes.slice().sort((a, b) => b.day - a.day);
+        const base = nodes.slice().sort(db.byDay);
         S.cache.counted.set(picked, { base, facets: { props: countFacets(base, full), months: db.months(base), kinds: [] } });
       }
       const counted = S.cache.counted.get(picked);
@@ -214,6 +215,9 @@ function choiceGroups() {
       if (ms.length > 1) groups.push({ key: 'when', label: 'When', icon: kindIconHtml('date'), items: ms.slice(0, limit('when')).map(m => ({ label: m.label, count: m.count, lit: typed && matches(m.label), pick: () => addPick({ kind: 'month', key: m.key, label: m.label }) })), more: ms.length > limit('when') });
     }
   }
+  // "more" is a choice like the others, so the arrows reach it and Tab or Enter takes it; the cursor stays where the first new one comes.
+  for (const g of groups) if (g.more) g.items.push({ more: true, label: 'more', pick: () => { S.moreOf.add(g.key); render(); } });
+  if (groups.hidden) groups.push({ key: 'lines', label: '', icon: '', items: [{ more: true, label: `${groups.hidden} more ${groups.hidden === 1 ? 'property' : 'properties'} to narrow by`, pick: () => { S.moreOf.add('lines'); render(); } }] });
   return groups;
 }
 const flatChoices = groups => groups.flatMap(g => g.items);
@@ -313,13 +317,12 @@ function render() {
         const at = ci++;
         const lit = (S.mode === 'choices' && at === S.choiceAt) || (S.mode !== 'choices' && litChoice(groups) === c);
         if (i) vals.append(el(doc, 'span', { class: 'fd-dot' }, '·'));
-        vals.append(el(doc, 'button', { class: 'fd-c' + (lit ? ' fd-lit' : ''), type: 'button', 'data-c': at, title: c.label.length > 44 ? c.label : null, click: () => c.pick() }, short(c.label, 44), el(doc, 'span', { class: 'fd-nb' }, String(c.count))));
+        if (c.more) vals.append(el(doc, 'button', { class: 'fd-more lk-more' + (lit ? ' fd-lit' : ''), type: 'button', 'data-c': at, click: () => c.pick() }, c.label));
+        else vals.append(el(doc, 'button', { class: 'fd-c' + (lit ? ' fd-lit' : ''), type: 'button', 'data-c': at, title: c.label.length > 44 ? c.label : null, click: () => c.pick() }, short(c.label, 44), el(doc, 'span', { class: 'fd-nb' }, String(c.count))));
       });
-      if (g.more) { vals.append(el(doc, 'span', { class: 'fd-dot' }, '·')); vals.append(el(doc, 'button', { class: 'fd-more lk-more', type: 'button', click: () => { S.moreOf.add(g.key); render(); } }, 'more')); }
       box.append(vals);
       wrap.append(box);
     }
-    if (groups.hidden) wrap.append(el(doc, 'div', { class: 'fd-ch' }, el(doc, 'span'), el(doc, 'button', { class: 'fd-more lk-more', type: 'button', click: () => { S.moreOf.add('lines'); render(); } }, `${groups.hidden} more ${groups.hidden === 1 ? 'property' : 'properties'} to narrow by`)));
     body.append(wrap);
   }
   // With nothing typed the rows are the pages opened last, and a head says so; otherwise the rows are what was found.
@@ -346,7 +349,7 @@ function render() {
     const node = r.node, dug = r.top && S.dug.includes(node.uuid);
     if (r.top) container = body;
     const row = el(doc, 'div', { class: 'fd-r lk-row' + (on ? ' fd-on' : ''), 'data-i': i, 'data-uuid': node.uuid });
-    row.append(el(doc, 'span', { class: 'fd-day lk-day' }, r.under ? db.dayLabel(node.day) : (node.isPage ? '' : db.dayLabel(node.day))));
+    row.append(el(doc, 'span', { class: 'fd-day lk-day' }, node.journal ? '' : db.dayLabel(node.day)));   // a journal page's name is its day
     if (r.top) row.append(el(doc, 'button', { class: 'fd-fold lk-fold', type: 'button', 'aria-expanded': String(dug), title: dug ? 'Close' : 'Open in place', click: event => { event.stopPropagation(); S.rowAt = i; S.mode = 'rows'; toggleDig(node); } }, dug ? '▾' : '▸'));
     else row.append(el(doc, 'span', {}));
     row.append(el(doc, 'span', { class: 'fd-bul' + (node.isPage ? '' : '') }, el(doc, 'i', { class: 'fd-d' })));
@@ -385,7 +388,7 @@ function render() {
   // is added or taken away, so nothing jumps between one letter and the next.
   body.classList.toggle('fd-reading', S.loading);
   body.scrollTop = scrollTop;
-  const cur = body.querySelector(S.mode === 'choices' ? `.fd-c[data-c="${S.choiceAt}"]` : `.fd-r[data-i="${S.rowAt}"]`);
+  const cur = body.querySelector(S.mode === 'choices' ? `[data-c="${S.choiceAt}"]` : `.fd-r[data-i="${S.rowAt}"]`);
   cur?.scrollIntoView?.({ block: 'nearest' });
   drawFoot(groups, rows);
   // The window never shrinks while open: it keeps the tallest it has been this opening, so the bottom edge does not jump
@@ -445,7 +448,8 @@ function dugBox(doc, node) {
 const short = (text, max = 36) => { const t = String(text || '').trim(); return t.length > max ? t.slice(0, max - 2).replace(/\s+\S*$/, '') + '…' : t; };
 const KEY = (k, label) => `<span>${label}<span class="fd-k">${k}</span></span>`;
 /* The foot names what the keys do right now, naming the thing: "narrow to Consultation Tab", "open Look test Enter", "in the
-   sidebar Shift Enter", dig →, close ←. The keys are words at the foot's own size in the text colour: the symbols ⏎ and ⇧⏎ small and faint could not be read. Not a legend of keys (none is wanted, 31 October): each word is the action at hand, and it changes
+   sidebar Shift Enter", dig →, close ←. What a key does is in the text colour and the key faint beside it, as in the Pressing set; the key is a word at the
+   foot's own size, since the symbols ⏎ and ⇧⏎ small and faint could not be read. Not a legend of keys (none is wanted, 31 October): each word is the action at hand, and it changes
    with the cursor. Taken out that morning under the ruling, asked back the same day ("there are no hints at the bottom of
    view anymore like tab or shift enter"). The right end offers to make a page from the words. */
 function foot(doc, groups, rows) {
@@ -455,7 +459,7 @@ function foot(doc, groups, rows) {
   if (isCommandMode()) { add(KEY('Enter', cur ? `run ${esc(cur.label)}` : 'run')); return items; }
   const choices = flatChoices(groups);
   const lit = S.mode === 'choices' ? choices[S.choiceAt] : litChoice(groups);
-  if (S.mode === 'choices') { add(KEY('Tab', `narrow to ${esc(lit.label)}`)); add(KEY('← → ↑ ↓', 'choose')); add(KEY('Escape', 'back to the rows')); }
+  if (S.mode === 'choices') { add(KEY('Tab', lit.more ? 'show more' : `narrow to ${esc(lit.label)}`)); add(KEY('← → ↑ ↓', 'choose')); add(KEY('Escape', 'back to the rows')); }
   else {
     if (lit) add(KEY('Tab', `narrow to ${esc(lit.label)}`)); else if (choices.length) add(KEY('Tab', 'narrow'));
     if (cur?.kind === 'node') { add(KEY('Enter', `open ${esc(short(cur.node.text))}`)); add(KEY('Shift Enter', 'in the sidebar')); }
@@ -464,8 +468,8 @@ function foot(doc, groups, rows) {
   if (!kindPick() && !words().length) { add('<span>type to find</span>'); add(`<span class="fd-faint">&gt; for a command</span>`); return items; }
   if (cur?.kind === 'node' && cur.top) add(KEY(S.dug.includes(cur.node.uuid) ? '←' : '→', S.dug.includes(cur.node.uuid) ? 'close' : 'dig'));
   if (cur?.kind === 'group') add(KEY(S.openGroups.has(cur.key) ? '←' : '→', S.openGroups.has(cur.key) ? 'close' : 'open'));
-  if (S.picks.length && !S.typed) add(`<span class="fd-faint">Backspace takes ${esc(S.picks[S.picks.length - 1].title || S.picks[S.picks.length - 1].label)} off</span>`);
-  if (words().length && !kindPick()) { const name = S.typed.trim(); items.push(el(doc, 'span', { class: 'fd-right' }, el(doc, 'button', { class: 'lk-lone', type: 'button', title: 'Make a page with these words as its name', click: () => makePage(name) }, `make a page “${name}”`))); }
+  if (S.picks.length && !S.typed) add(KEY('Backspace', `take ${esc(S.picks[S.picks.length - 1].title || S.picks[S.picks.length - 1].label)} off`));
+  if (words().length && !kindPick()) { const name = S.typed.trim(); items.push(el(doc, 'span', { class: 'fd-right' }, el(doc, 'button', { class: 'lk-lone', type: 'button', title: 'Make a page with these words as its name', click: () => makePage(name) }, `make a page “${name}”`, makesPage(rows) ? el(doc, 'span', { class: 'fd-k' }, 'Enter') : ''))); }
   return items;
 }
 
@@ -496,8 +500,27 @@ async function runCommand(r) {
   try { await Find.commands.run(r); } catch (error) { notify(`Logseq did not run “${r.label}”.`, 'warning'); }
 }
 async function makePage(name) {
+  if (S.making) return;
+  S.making = true;
   try { const uuid = await db.makePage(name); close(); if (!uuid) notify('The page was not made.', 'warning'); }
   catch (error) { notify('The page was not made: ' + (error?.message || error), 'warning'); }
+  finally { S.making = false; }
+}
+// With no rows at all, making a page is the one thing offered, so Enter does it.
+const makesPage = rows => !rows.length && !!words().length && !kindPick() && !isCommandMode() && !S.loading && !S.failed;
+// Down past the last row of a list shows the rest of that list.
+function showRest(rows) {
+  const cur = rows[S.rowAt], next = rows[S.rowAt + 1];
+  if (cur?.under && next?.under !== cur.under && !S.groupAll.has(cur.under) && rows.find(r => r.key === cur.under)?.count > 3) { S.groupAll.add(cur.under); return true; }
+  if (next || S.allShown || isCommandMode() || !(kindPick() || words().length) || S.shown.length <= (setting('rowsShown') || 12)) return false;
+  return S.allShown = true;
+}
+// Enter takes what is on screen; pressed while the letters are being read, it waits for what they find.
+function takeEnter(shift) {
+  const groups = choiceGroups(), rows = rowList();
+  if (S.mode === 'choices') { flatChoices(groups)[S.choiceAt]?.pick(); return; }
+  if (makesPage(rows)) return makePage(S.typed.trim());
+  openRow(rows[S.rowAt], shift);
 }
 
 /* The keys. The dialog takes every key (Logseq's shortcuts never see them); each does one thing. */
@@ -517,8 +540,7 @@ function onKey(event) {
   // takes the choice too, as a click would).
   if (k === 'Enter') {
     take();
-    if (S.mode === 'choices') { choices[S.choiceAt]?.pick(); return; }
-    openRow(rows[S.rowAt], event.shiftKey);
+    if (S.loading) S.enter = { shift: event.shiftKey }; else takeEnter(event.shiftKey);
     return;
   }
   if (k === 'Tab') {
@@ -541,6 +563,7 @@ function onKey(event) {
       else if (next >= 0) S.choiceAt = groups.slice(0, next).reduce((n, g) => n + g.items.length, 0);
       render(); return;
     }
+    if (down && showRest(rows)) { S.rowAt++; render(); return; }
     if (!down && S.rowAt === 0 && choices.length) { S.mode = 'choices'; S.choiceAt = groups.slice(0, -1).reduce((n, g) => n + g.items.length, 0); render(); return; }
     litRow(Math.max(0, Math.min(rows.length - 1, S.rowAt + (down ? 1 : -1))), groups, rows);
     return;
@@ -566,17 +589,22 @@ const groupOf = (groups, at) => { let n = 0; for (let i = 0; i < groups.length; 
 function refresh() {
   clearTimeout(S.timer);
   S.loading = true;
+  const at = ++S.reads;
   render();
   S.timer = setTimeout(async () => {
     await compute();
+    if (at !== S.reads) return;   // newer letters came: their reading says when it is over
     S.loading = false;
     render();
+    const enter = S.enter; S.enter = null;
+    if (enter && S.dlg) takeEnter(enter.shift);
   }, S.typed ? 140 : 0);
 }
 function onInput() {
   const input = S.dlg.querySelector('.fd-input');
   if (input.value === S.typed) return;
   S.typed = input.value;
+  S.enter = null;
   S.mode = 'rows'; S.rowAt = 0; S.choiceAt = 0; S.allShown = false;
   refresh();
 }
@@ -604,7 +632,7 @@ function open() {
   dlg.addEventListener('close', () => { if (S.dlg === dlg) S.dlg = null; dlg.remove(); });
   doc.body.appendChild(dlg);
   S.dlg = dlg; S.doc = doc;
-  Object.assign(S, { picks: [], typed: '', mode: 'rows', rowAt: 0, choiceAt: 0, allShown: false, dug: [], failed: '' });
+  Object.assign(S, { picks: [], typed: '', mode: 'rows', rowAt: 0, choiceAt: 0, allShown: false, dug: [], failed: '', enter: null });
   S.moreOf.clear(); S.openGroups.clear(); S.groupAll.clear();
   if (typeof dlg.showModal === 'function') dlg.showModal(); else dlg.setAttribute('open', '');
   input.focus();

@@ -82,14 +82,29 @@ const app = {
     catch (error) { console.error('Structure: the graph could not be read', error); notify(`The graph could not be read: ${error.message}`, 'error'); }
     sayLost('what it names is no longer in the graph');
     settle(was);
-    app.st.ask = null;
+    if (!app.st.ask?.change) app.st.ask = null;   // an ask of an issue or a merge names what this reading may have moved
     app.draw();
   },
   mounted(view) { view.draw(); if (view.mode === 'side') app.followPage(); view.focus(); if (!app.st.busy) app.reread(); },   // the graph as it is now, not as it was last read
   // The map opened on a tag (from the sidebar, the toolbar): a jump, so Escape in the map comes back to where it was.
   openMain(id) { const st = app.st; if (id != null && (st.cur !== id || st.propCur || st.view !== 'tree')) { st.trail.push({ view: st.view, cur: st.cur, propCur: st.propCur, nodes: st.nodes }); st.cur = id; st.propCur = null; st.view = 'tree'; st.nodes = null; st.ask = null; S.model.pathOf(tray.model, id).slice(0, -1).forEach(a => st.open.add(a)); } mounts.openPage(); app.draw(); },
   openNode(uuid, inSidebar) { if (!uuid) return; if (inSidebar) logseq.Editor.openInRightSidebar(uuid); else logseq.App.pushState('page', { name: uuid }); },
-  readNodes: id => S.db.nodesOf(id), valuesOf: (id, ident) => S.db.valuesOf(id, ident), nodesWhere: (id, ident, v) => S.db.nodesWhere(id, ident, v),
+  // What a tag's count counts: its own nodes and those beneath, each with the tag it carries. An Entity has no day (the grammar).
+  async readNodes(id) {
+    const m = tray.model, timeless = Mo.kindOf(m, id) === 'E';
+    const list = await S.db.nodesOf([...Mo.nodesUnder(m, id)]);
+    return list.map(x => ({ ...x, tag: Mo.carrier(m, id, x.id), day: timeless ? 0 : x.day })).sort((a, b) => b.day - a.day || b.created - a.created);
+  },
+  // The × on a tag's own page: the tag leaves its place and every node under it what it inherited, so the map asks first, on the tag's card.
+  async askTakeOut(tagUuid, parentUuid) {
+    await app.reread();
+    const of = uuid => [...tray.model.tags.values()].find(t => t.uuid === uuid), t = of(tagUuid), p = of(parentUuid);
+    if (!t || !p || !t.parents.includes(p.id)) return notify('Structure does not list this tag, so it stays where it is', 'warning');
+    app.openMain(t.id);
+    app.st.ask = { change: { kind: 'takeOut', tag: t.id, from: p.id }, owner: 'page' };
+    app.draw();
+  },
+  valuesOf: (id, ident) => S.db.valuesOf(id, ident), nodesWhere: (id, ident, v) => S.db.nodesWhere(id, ident, v),
   notify,
   nameTaken: name => S.db.nameTaken(name),
   // The sidebar's tree opens on the page's tag.

@@ -124,13 +124,15 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
   // Rules on names: a tag of any spelling, and a name that is not cut at an initial or an hour.
   {
     const source = fs.readFileSync(path.join(root, 'parts/two-way.js'), 'utf8');
-    const { plural, shortName } = new Function(source.match(/^const plural = .*$/m)[0] + '\n' + source.match(/^const ABBREVIATION = .*$/m)[0] + '\n' + source.match(/^function shortName[\s\S]*?^}$/m)[0] + '\nreturn { plural, shortName };')();
+    const { plural, shortName } = new Function(source.match(/^const plural = .*$/m)[0] + '\n' + source.match(/^const NAME_ROOM = .*$/m)[0] + '\n' + source.match(/^function shortName[\s\S]*?^}$/m)[0] + '\nreturn { plural, shortName };')();
     check(plural('Diagnosis', 2) === 'Diagnoses' && plural('Metastasis', 2) === 'Metastases', 'a word in -sis should turn to -ses: ' + plural('Diagnosis', 2));
     check(plural('Measles', 2) === 'Measles' && plural('Series', 2) === 'Series', 'a word that ends in s stays: ' + plural('Measles', 2));
     check(plural('Study', 2) === 'Studies' && plural('Doctor', 2) === 'Doctors' && plural('Virus', 2) === 'Viruses' && plural('Doctor', 1) === 'Doctor', 'regular plurals stay');
     check(shortName('Seen by J. Smith at noon') === 'Seen by J. Smith at noon', 'an initial is no end: ' + shortName('Seen by J. Smith at noon'));
     check(shortName('Clinic at 3 p.m. with Dr. Lee') === 'Clinic at 3 p.m. with Dr. Lee', 'an hour is no end: ' + shortName('Clinic at 3 p.m. with Dr. Lee'));
-    check(shortName('Post-op check with Dr. Patel. Wounds fine, I can drive') === 'Post-op check with Dr. Patel.', 'a sentence still ends the name');
+    check(shortName('Clinic. Blood pressure high, new tablets') === 'Clinic. Blood pressure high, new tablets', 'a full stop ends no name: ' + shortName('Clinic. Blood pressure high, new tablets'));
+    const long = shortName('Clinic. ' + 'the words go on and on '.repeat(5));
+    check(long.length <= 61 && long.endsWith('…') && !/\s…$/.test(long), 'a long name is cut at a width, between words: ' + long);
   }
   // Thousands of values: a few, then "show all"; the lit row moves without drawing a row again; typing narrows.
   {
@@ -321,6 +323,38 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     const made = calls.find(c => c[0] === 'appendBlock');
     check(calls.some(c => c[0] === 'setValue' && c[1] === made?.[3] && c[2] === 'user.property/severity' && c[3] === '3' && c[4] === 'null'), 'a number should be written as the number: ' + JSON.stringify(calls.filter(c => c[0] === 'setValue')));
     part.stop();
+  }
+  // The moves and the head (the review, 31 October): what comes late, the bar's room, the card, a head of fifteen kinds.
+  {
+    const source = fs.readFileSync(path.join(root, 'parts/two-way.js'), 'utf8'), kit = fs.readFileSync(path.join(root, 'parts/shared.js'), 'utf8');
+    check(!/data-picking\] \.rf-tw-bar \{[^}]*padding-top/.test(source), 'the bar takes no more room when something is ticked');
+    check(/couldBeHtml\(item\)\}\$\{tell/.test(source) && !/rf-tw-crumb">[^`]*couldBeHtml/.test(source), 'what a mention could be stands on its own line, so coming late moves nothing');
+    check(/\.rf-tw-head \.rf-tw-sep \{ position: absolute; right: 100%/.test(source) && /\.rf-tw-head \.rf-tw-chips \{[^}]*overflow: hidden/.test(source), 'a dot stands in the gap before its piece, clipped at a line\'s start');
+    check(/\.rf-tw-head > \.rf-ol-body \{ display: flex; align-items: baseline;/.test(source), 'the head does not wrap the + and Group onto a line of their own');
+    check(/\.rf-ol-body > \.rf-tw-record \{ min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; \}/.test(source), 'a name is cut by the width of its row');
+    check(!/title: item\.title/.test(source.slice(source.indexOf('async function showPeek'))) && !/\bday: item\.day/.test(source.slice(source.indexOf('async function showPeek'))), 'the card leaves out what the row says');
+    check(/placePeek\(card\.el, link\)/.test(source), 'the card is placed clear of the rows');
+    check(/settle\.stood = true; box\.removeAttribute\('data-rf-waiting'\)/.test(source) && /!settle\.stood && !heights\.has\(page\)/.test(source), 'a first visit waits only until the place stands still');
+    check(/!listThere \|\| performance\.now\(\) - since < STILL_MS/.test(source), 'and until the property list is there: stillness alone can come before it');
+    check(!/rf-card-day/.test(kit), 'the card has no day of its own');
+    const { window, doc, part } = world('');
+    await wait(120);
+    const line = doc.querySelector('.rf-tw-line .rf-tw-record');
+    check(!line?.hasAttribute('title'), 'the name carries no tip saying the same words');
+    part.stop();
+    // Five kinds in a list: three, then how many more, the days still there; the more is a click, and a kind in force stays named.
+    const tags = NODES.map(n => n.tag);
+    NODES.forEach((n, i) => { n.tag = 'Kind' + i; });
+    const many = world('');
+    await wait(120);
+    const words = () => [...many.doc.querySelectorAll('.rf-tw-head .rf-tw-chip:not(.rf-tw-lead)')].map(el => el.textContent.trim());
+    const more = () => many.doc.querySelector('.rf-tw-head [data-kinds]');
+    const head = () => many.doc.querySelector('.rf-tw-head').textContent;
+    check(words().length === 3 && /^and \d+ more$/.test(more()?.textContent || '') && /(from|on|next) /.test(head()), 'three kinds, "and N more", and the days: ' + head());
+    click(many.window, more()); await wait(20);
+    check(words().length === NODES.length && !more(), 'a click shows them all: ' + words());
+    many.part.stop();
+    NODES.forEach((n, i) => { n.tag = tags[i]; });
   }
   // 5. A node's bullets: opened, read, written into, undone, closed.
   {
