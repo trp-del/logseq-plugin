@@ -32,6 +32,8 @@ const en = {
   small: { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 },
   // Words that point ahead without naming a day: today's date would be wrong for them.
   ahead: /\b(?:next|tomorrow|later|soon|upcoming|coming up|in (?:a|an|\d+|a few|two|three) (?:days?|weeks?|months?|fortnight))\b/i,
+  // Words that tell of what has been: a weekday among them may be the one gone or the one coming ("was moved to Friday").
+  past: /\b(?:was|were|had|did|went|saw|came|got|felt|showed|told|last)\b/i,
   numberJoiners: ['and', 'or', 'to', '&', '-'],     // "cycles 3 and 4" names two numbers
   numberMarks: ['no\\.?\\s*', '#'],                 // "cycle no. 5", "cycle #5"
 };
@@ -82,17 +84,18 @@ function makeReader(locale = en) {
   }
 
   // The days the words name, as day numbers, each once, counted from `base`: a weekday is the coming one, and today's own
-  // weekday, with no word that points ahead, is none (today, a week ago or a week on: the words cannot say); "the 4th" the
+  // weekday, with no word that points ahead, is none (today, a week ago or a week on: the words cannot say), and so is any
+  // weekday in words that tell of what has been; "the 4th" the
   // next 4th; a day and a month the next such day, or the one that just went (JUST_WENT); "in two weeks".
   function daysInWords(text, base) {
     const words = ' ' + cleanWords(text).toLowerCase().replace(/[.,;:!?()]/g, ' ') + ' ', today = asDate(base), found = new Set();
     const add = date => { if (date && !Number.isNaN(date.getTime())) found.add(dayNumber(date)); };
-    const pointsAhead = L.ahead.test(text);
+    const pointsAhead = L.ahead.test(text), tellsPast = !pointsAhead && L.past.test(text);
     for (const [, word] of words.matchAll(new RegExp(`\\s(${Object.keys(L.relative).join('|')})\\s`, 'g'))) add(parseDay(word, today));
     for (const [, next, on, day] of words.matchAll(new RegExp(`\\s(?:(${escape(L.next)})\\s+|(${L.before.map(escape).join('|')})\\s+)?(${L.weekdayPattern})(?=\\s)`, 'g'))) {
       if (!next && !on && !day.endsWith(L.wholeWeekdaySuffix)) continue;
       const date = parseDay(`${next ? L.next + ' ' : ''}${day}`, today);
-      if (next || pointsAhead || !date || !sameDay(date, dayAfter(today, 7))) add(date);
+      if (next || (!tellsPast && (pointsAhead || !date || !sameDay(date, dayAfter(today, 7))))) add(date);
     }
     for (const [, n] of words.matchAll(new RegExp(`\\s(?:${L.dayPrepositions.map(escape).join('|')}|${L.weekdayPattern})\\s+${escape(L.the)}\\s+(\\d{1,2})${L.ordinalSuffix}${AFTER_DAY}`, 'g'))) {
       const d = Number(n);

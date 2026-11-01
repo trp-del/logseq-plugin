@@ -12,6 +12,8 @@ const { root, order } = require('../../test/module.js')('find');
 const U = n => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 // ids: tags 1 Doctor, 2 Consultation, 3 Page (Logseq's), 4 Tag; pages 20 Dr. Mei Chen, 21 Dr. Sofia Alvarez, 22 Fatigue, 23 Tingling;
 // journal pages 30..33 (days); consultation blocks 40..43; property value entities: the pages themselves.
+let SHARED = false;   // for the check of a tag under two parents: Top over A and B, Both under A and B
+const TAGS_SHARED = [[5, 'Top', 'user.class/Top'], [6, 'A', 'user.class/A'], [7, 'B', 'user.class/B'], [8, 'Both', 'user.class/Both']];
 const TAGS = [[1, 'Doctor', 'user.class/Doctor'], [2, 'Consultation', 'user.class/Consultation'], [3, 'Page', 'logseq.class/Page'], [4, 'Tag', 'logseq.class/Tag']];
 const CARRIED = [[1, 20], [1, 21], [2, 40], [2, 41], [2, 42], [2, 43], [3, 20], [3, 21], [3, 22], [3, 23]];
 const PAGES = { 20: 'Dr. Mei Chen', 21: 'Dr. Sofia Alvarez', 22: 'Fatigue', 23: 'Tingling fingers', 30: 'Oct 7th, 2026', 31: 'Sep 14th, 2026', 32: 'Sep 1st, 2026', 33: 'Aug 20th, 2026' };
@@ -27,9 +29,9 @@ const log = [];
 function fakeQuery(q) {
   log.push(q.slice(0, 60));
   const has = (...p) => p.every(x => q.includes(x));
-  if (has(':logseq.class/Tag] [?t :block/uuid ?u] [?t :block/title ?title] [?t :db/ident ?ident]')) return TAGS.map(([id, t, i]) => [id, U(id), t, ':' + i]);
-  if (has('logseq.property.class/extends ?p')) return [];
-  if (has('[?b :block/tags ?t] [?t :block/tags :logseq.class/Tag]')) return CARRIED;
+  if (has(':logseq.class/Tag] [?t :block/uuid ?u] [?t :block/title ?title] [?t :db/ident ?ident]')) return (SHARED ? TAGS_SHARED : TAGS).map(([id, t, i]) => [id, U(id), t, ':' + i]);
+  if (has('logseq.property.class/extends ?p')) return SHARED ? [[6, 5], [7, 5], [8, 6], [8, 7]] : [];
+  if (has('[?b :block/tags ?t] [?t :block/tags :logseq.class/Tag]')) return SHARED ? [[8, 40], [7, 41]] : CARRIED;
   const given = () => (q.includes('#uuid') ? uuidsIn(q).map(idOfUuid) : idsIn(q));
   if (has(':find ?b ?u ?title ?name :where')) return given().map(id => [id, U(id), titleOf(id), PAGES[id] ? titleOf(id).toLowerCase() : '']);
   if (has(':find ?b ?ptitle ?pday :where')) return given().filter(id => BLOCKS[id]).map(id => [id, PAGES[BLOCKS[id].page], DAYS[BLOCKS[id].page]]);
@@ -120,6 +122,15 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
   assert.deepEqual(text('.fd-ch:nth-of-type(1) .fd-c'), ['Dr. Mei Chen3', 'Dr. Sofia Alvarez1'], 'the Provider values with counts');
   assert.deepEqual(text('.fd-r .fd-day'), ['Oct 7', 'Sep 14', 'Sep 1', 'Aug 20'], 'newest first, the day in the margin');
   assert.equal(doc.querySelectorAll('.fd-r .lk-tag').length, 0, 'the picked kind is not repeated on every row');
+  // A letter cannot change the choices, so it does not count them again; an arrow moves the lit mark and draws no row again.
+  const counted = Find.window.state.facets;
+  await type('s'); assert.equal(Find.window.state.facets, counted, 'a letter does not count the choices again'); await type('');
+  const rowOne = doc.querySelector('.fd-r');
+  await key('ArrowDown');
+  assert.ok(rowOne.isConnected && !rowOne.classList.contains('fd-on'), 'an arrow leaves the row where it is, unlit');
+  assert.ok(doc.querySelectorAll('.fd-r')[1].classList.contains('fd-on') && doc.querySelectorAll('.fd-r.fd-on').length === 1, 'and lights the next');
+  assert.ok(text('.fd-foot')[0].includes('open Saw'), 'the foot follows the cursor: ' + text('.fd-foot')[0]);
+  await key('ArrowUp');
   // "mei" lights Dr. Mei Chen under Provider; Enter picks; the rows narrow
   await type('mei');
   assert.deepEqual(text('.fd-c.fd-lit'), ['Dr. Mei Chen3'], 'the typed letters light the value');
@@ -188,6 +199,24 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
   // With > there are no choices: Up stays in the commands, Enter runs one.
   await type('>toggle wide'); await key('ArrowUp'); assert.equal(Find.window.state.mode, 'rows', 'Up finds no choices to step into');
   await key('Escape'); await settle();
+  // A tag under two parents keeps its nodes under both.
+  SHARED = true; Find.db.forget();
+  const shared = await Find.db.tagIndex();
+  assert.deepEqual([...shared.byId.get(7).under].sort(), [40, 41], 'B holds the nodes of the tag it shares with A');
+  assert.deepEqual([...shared.byId.get(6).under], [40], 'and A holds them too');
+  assert.deepEqual([...shared.byId.get(5).under].sort(), [40, 41], 'each node once at the top');
+  SHARED = false; Find.db.forget();
+  // A kind too long to read whole keeps its newest, and says so.
+  CARRIED.reverse(); Find.db.forget();   // the oldest read first, so a cut before the days are read would keep those
+  const cut = await Find.db.nodesOfKind(2, 2);
+  CARRIED.reverse(); Find.db.forget();
+  assert.deepEqual([...cut].map(n => n.day).sort().reverse(), [20261007, 20260914], 'the newest two of four');
+  assert.equal(cut.cutFrom, 4, 'and it knows how many there were');
+  Find.window.open(); await settle(); await type('cons'); await key('Tab'); await settle();
+  Find.window.state.cache.kind.get(2).cutFrom = 9;
+  await type('s'); await type('');
+  assert.deepEqual(text('.fd-none'), ['the newest 4 of 9'], 'the list says it is cut');
+  await key('Escape'); Find.window.forget();
   // the key specimen, and the stop
   assert.ok(Find.settings.specimen({ key: 'takesSearchKey', type: 'boolean' }, true).includes('⌘K'), 'the key specimen');
   await logseq._unload();

@@ -78,6 +78,13 @@ const key = (target, name, init = {}) => target.dispatchEvent(new dom.window.Key
   assert.deepEqual(acted, [['md', 'md', 'outline', ['user.property/provider']]], 'the export ran with the choices made');
   assert.equal(hostDoc.querySelector('.xp'), null, 'the window is gone after the export');
   assert.equal(logseq.settings.target, 'md', 'the choice is remembered');
+  // The same choices again: nothing is saved, since every save tells every module.
+  const sends = [], write = logseq.updateSettings;
+  logseq.updateSettings = values => { sends.push(values); write.call(logseq, values); };
+  const again = E.ui.open({ doc, what: 'this page', act: async () => {} });
+  key(hostDoc.body, 'Enter', { metaKey: true }); await again;
+  assert.deepEqual(sends, [], 'an export that changes no choice saves no setting');
+  logseq.updateSettings = write;
   // Escape alone closes it; the sweep takes the stylesheet too.
   E.ui.open({ doc, what: 'this page', act: async () => {} });
   key(hostDoc.body, 'Escape');

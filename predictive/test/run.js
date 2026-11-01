@@ -53,6 +53,9 @@ test('a day that just went stays past, today\'s weekday stays silent, and a word
   assert.deepEqual(r.daysInWords('Saw her on 3 Oct about the rash', written), [20261003]);
   assert.deepEqual(r.daysInWords('Bloods on Friday were normal', written), []);
   assert.deepEqual(r.daysInWords('Bloods next Friday', written), [20261106]);
+  assert.deepEqual(r.daysInWords('Bloods on Friday were normal', 20261031), [], 'a weekday told in the past, written on any day, is none');
+  assert.deepEqual(r.daysInWords('Scan was moved to Friday', 20261031), [], 'it may be the Friday coming, so the words cannot say');
+  assert.deepEqual(r.daysInWords('Scan was moved to next Friday', 20261031), [20261113], 'next still says');
   assert.deepEqual(r.daysInWords('Bloods on Friday next week', written), [20261030]);
   assert.deepEqual(r.daysInWords('Next scan on Oct 3', written), [20271003]);
   assert.deepEqual(r.daysInWords('Scan on Dec 28 showed a shadow', 20270103), [20261228], 'across the new year');
@@ -103,6 +106,22 @@ test('quiet inside [[ ]], after #, and for short lower-case words', () => {
 test('a name the graph writes plain is not offered unless it is typed whole', () => {
   const rates = new Map([['meeting notes', { linked: 0, plain: 9 }]]);
   assert.equal(link.suggestFor('Read the meeting no', 19, pages, { rates }), null);
+});
+
+test('link rates count whole names outside links, the longest name, and a line taken back leaves nothing', () => {
+  const named = [['Mei'], ['Dr. Mei Chen'], ['Mei Chen Clinic'], ['C++'], ['(Long) Covid'], ['??']].map(([title], i) => ({ id: i, uuid: `00000000-0000-4000-8000-00000000000${i}`, title, lower: title.toLowerCase() }));
+  const lines = ['saw dr. mei chen about mei', 'Mei Chen Clinic, then meiji and Dr Mei Chen', 'C++ and c+ and (long) covid ??', '[[00000000-0000-4000-8000-000000000001]] with [[Mei]] and mei'];
+  const counter = link.rateCounter(named);
+  for (const line of lines) counter.add(line);
+  const rates = name => { const r = counter.rates.get(name); return [r.linked, r.plain]; };
+  assert.deepEqual(rates('mei'), [1, 3], 'Mei alone, not inside Meiji, not inside the longer names (the second Dr Mei Chen has no point, so it is Mei)');
+  assert.deepEqual(rates('dr. mei chen'), [1, 1]);
+  assert.deepEqual(rates('mei chen clinic'), [0, 1]);
+  assert.deepEqual(rates('c++'), [0, 1]);
+  assert.deepEqual(rates('(long) covid'), [0, 1]);
+  assert.deepEqual(rates('??'), [0, 1]);
+  for (const line of lines) counter.add(line, -1);
+  for (const r of counter.rates.values()) assert.deepEqual([r.linked, r.plain], [0, 0]);
 });
 
 section('proposals on the "work" graph');

@@ -75,7 +75,7 @@ async function load({ html = page, settings = {} } = {}) {
   const doc = dom.window.document;
   const styles = {}, errors = [];
   const logseq = {
-    ready: fn => Promise.resolve().then(fn), settings, provideStyle: ({ key, style }) => { styles[key] = style; }, useSettingsSchema() {}, onSettingsChanged() {}, updateSettings() {}, provideModel() {},
+    ready: fn => Promise.resolve().then(fn), settings, provideStyle: ({ key, style }) => { styles[key] = style; }, useSettingsSchema() {}, onSettingsChanged(fn) { logseq._settingsHook = fn; }, updateSettings() {}, provideModel() {},
     beforeunload(fn) { logseq._unload = fn; }, App: { onCurrentGraphChanged() {}, pushState() {}, registerCommandPalette() {}, registerUIItem() {} }, DB: { onChanged() {}, datascriptQuery: async q => fakeQuery(q) },
     UI: { showMsg() {} }, Editor: { getPage: async () => null, openInRightSidebar() {} },
   };

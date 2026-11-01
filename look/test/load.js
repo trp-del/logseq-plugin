@@ -11,6 +11,11 @@ const { U, load, pencilled } = standIn;
 (async () => {
   const { dom, doc, Look, logseq, styles, errors, order, door } = await load();
   const window_described = () => door.described.look;
+  // Another module's setting saved leaves Look asleep; Look's own wakes it.
+  let woken = 0; const run = Look.kit.run; Look.kit.run = target => { woken++; return run(target); };
+  logseq._settingsHook({ linkSuggestMemory: { a: 1 } }, {}); assert.equal(woken, 0, 'another module’s setting wakes nothing');
+  logseq._settingsHook({ quietLinks: false }, { quietLinks: true }); assert.equal(woken, 1, 'its own does');
+  logseq._settingsHook({ quietLinks: true }, { quietLinks: false }); Look.kit.run = run;
   // pure pieces
   assert.equal(Look.folded.dueLabel(20261119, new Date(2026, 10, 1)), 'due Nov 19');
   assert.equal(Look.folded.dueLabel(20261012, new Date(2026, 10, 1)), 'was due Oct 12');
@@ -24,6 +29,8 @@ const { U, load, pencilled } = standIn;
   // the dot between a bullet's properties also stands before a pencilled one
   assert.ok(styles['look-capsules'].includes(':is(:not(:has(.empty-value)), :has(.lk-pencil)) ~ .bottom-property-pill::before'), 'a pencilled property counts as filled for the dot');
   assert.ok(/\.bottom-properties-pills-strip \{[^}]*width: 0 !important/.test(styles['look-capsules']), 'the strip of properties is given no width of its own, so it cannot widen the bullet\'s words past the pane');
+  assert.ok(/\.bottom-properties-pills-strip \{[^}]*flex-wrap: wrap !important/.test(styles['look-capsules']), 'a long line of properties wraps like words, so nothing runs past the pane');
+  assert.ok(/\.bottom-properties-row \{[^}]*max-height: none !important/.test(styles['look-capsules']), 'and its row grows to hold the lines: Logseq caps it at one');
   // the shared names: a pencilled tag fades once; the one alternative in force takes the text colour
   assert.ok(styles['look-shared'].includes('.lk-pencil .lk-tag, .lk-tag.lk-pencil { opacity: 1; }'), 'a pencilled tag fades once');
   assert.ok(styles['look-shared'].includes('.lk-alts > * { color: var(--lk-faint) !important; }') && styles['look-shared'].includes('.lk-alts { color: inherit !important; }'), 'the alternatives faint one by one, the line itself in the text colour');
@@ -67,6 +74,25 @@ const { U, load, pencilled } = standIn;
   assert.equal(described.schema.filter(i => i.type === 'heading').length, 5, 'five sections');
   assert.equal(described.schema.find(i => i.key === 'propertyIcons').also, 'propertyKindIcons', 'one row sets Look’s icon and Threads’ mark');
   assert.ok(described.specimen({ key: 'pageMark' }, true).includes('lk-page-mark'), 'a specimen of the thing itself');
+  // Words written read nothing; a tag or a name changed reads the index again.
+  let asked = 0; const reads = logseq.DB.datascriptQuery; logseq.DB.datascriptQuery = async q => { asked++; return reads(q); };
+  const page = { id: 901, name: 'a page', title: 'A page', tags: [{ id: 1, ident: 'logseq.class/Page' }] };
+  Look.kit.graphChanged({ blocks: [{ id: 900, title: 'Words', page: { id: 901 } }, page], txMeta: { outlinerOp: 'save-block' } });
+  await new Promise(r => setTimeout(r, 1000)); assert.equal(asked, 0, 'a bullet written, with its page in the list, reads nothing');
+  Look.kit.graphChanged({ blocks: [{ id: 900, title: 'Words', page: { id: 901 }, tags: [{ id: 5, ident: 'user.class/Doctor' }] }], txMeta: { outlinerOp: 'save-block' } });
+  await new Promise(r => setTimeout(r, 1000)); assert.ok(asked > 0, 'a tag typed in the words does'); asked = 0;
+  Look.kit.graphChanged({ blocks: [{ ...page, title: 'B page', name: 'b page' }], txMeta: { outlinerOp: 'rename-page' } });
+  await new Promise(r => setTimeout(r, 1000)); assert.ok(asked > 0, 'a rename does'); logseq.DB.datascriptQuery = reads;
+  // A wrapped line of properties: the first on the new line loses its dot.
+  const strip = doc.createElement('div'); strip.className = 'bottom-properties-pills-strip';
+  const pills = [0, 0, 32].map(top => { const pill = doc.createElement('div'); Object.defineProperty(pill, 'offsetTop', { value: top }); Object.defineProperty(pill, 'offsetParent', { value: doc.body }); strip.append(pill); return pill; });
+  doc.body.append(strip); Look.props.draw(doc);
+  assert.deepEqual(pills.map(pill => pill.hasAttribute('data-lk-line')), [false, false, true], 'only the first on a new line');
+  strip.remove();
+  // At the row's end the place line gives way from the middle: the kind is the last to go.
+  assert.ok(styles['look-title'].includes('flex: 0 1000 auto') && styles['look-title'].includes('.lk-path > a.lk-end { flex-shrink: 0; }'), 'the middle gives way first');
+  const placed = [...doc.querySelectorAll('.lk-path:not(.lk-path-sb) > a.lk-tag')];
+  assert.ok(placed.length && placed.at(-1).classList.contains('lk-end'), 'the last of the chain is kept: ' + placed.map(a => a.textContent));
   // stop: everything swept
   await logseq._unload();
   assert.equal(doc.querySelectorAll('.lk-own, [data-lk-sort], [data-lk-kind]').length, 0, 'nothing left on the page');

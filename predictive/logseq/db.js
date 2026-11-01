@@ -7,7 +7,7 @@
 const Flow = (window.Flow ||= {});
 const { buildContext, learnEntry } = Flow.context;
 const { isLinkProp, isDateProp } = Flow.schema;
-const { linkRatesOf } = Flow.link;
+const { rateCounter } = Flow.link;
 
 const UUID = Flow.text.UUID;
 const isEntityId = id => Number.isSafeInteger(id) && id > 0;
@@ -110,7 +110,7 @@ function bulletOf(block, text, schema) {
    every plain line. Also the journal days, and for each date property how many nodes under each tag carry the day they
    were written on and how many another day. */
 const userTagIds = async () => (await tagIdents()).filter(([, ident]) => /^:?user\.class\//.test(String(ident))).map(([t]) => Number(t));
-const NODE_PULL = idents => `[:db/id :block/title {:block/tags [:db/id]} ${idents.map(ident => `{:${ident} [:db/id]}`).join(' ')}]`;
+const NODE_PULL = idents => `[:db/id :block/title {:block/tags [:db/id]} {:block/page [:db/id]} ${idents.map(ident => `{:${ident} [:db/id]}`).join(' ')}]`;
 const taggedNodes = (tagIds, idents) => !tagIds.length ? Promise.resolve([]) : dsQuery(`[:find (pull ?b ${NODE_PULL(idents)})
       :where [(ground #{${tagIds.join(' ')}}) [?t ...]] [?b :block/tags ?t] (not [?b :logseq.property/deleted-at _])]`).then(rows => rows.map(([n]) => n));
 const nodesById = (ids, idents) => !ids.length ? Promise.resolve([]) : dsQuery(`[:find (pull ?b ${NODE_PULL(idents)})
@@ -133,7 +133,7 @@ const rawEntry = (node, learned, known) => {
 
 // The whole reading: the schema, the pages, the earlier lines, the days. A few hundred milliseconds on a large graph; done in
 // the background every few minutes and never while a key is being handled.
-async function readContext({ limits = {}, locale } = {}) {
+async function readContext({ limits = {}, locale, linkRates = true } = {}) {
   const [schema, pages] = await Promise.all([loadSchema(), loadPages()]);
   const learned = schema.props.filter(isLinkProp);
   const tagIds = await userTagIds(), known = new Set(tagIds);
@@ -143,7 +143,26 @@ async function readContext({ limits = {}, locale } = {}) {
   const entries = [...plain.map(({ id, title }) => ({ id, title, tags: [], values: new Map() })), ...nodes.map(n => rawEntry(n, learned, known))];
   const ctx = buildContext({ schema, pages, aliases, userTagIds: tagIds, entries, days, dated, limits, locale });
   ctx.learned = learned; ctx.readAt = Date.now();
+  if (linkRates) ctx.linkLines = await countLinks(pages);
   return ctx;
+}
+// How often each page's name is linked and written plain, for the suggested links' learning: every block's words once, a
+// slice at a time so a key is never held up; the words are kept, so a changed line can be taken back (learnNodes).
+const SLICE = 1000;
+async function countLinks(pages) {
+  const rows = await dsQuery('[:find ?b ?t :where [?b :block/page _] [?b :block/title ?t] [(not= ?t "")] (not [?b :logseq.property/deleted-at _])]').catch(() => []);
+  const counter = rateCounter(pages), lines = new Map();
+  for (let at = 0; at < rows.length; at += SLICE) {
+    for (const [id, title] of rows.slice(at, at + SLICE)) { lines.set(Number(id), String(title)); counter.add(String(title)); }
+    await new Promise(resolve => setTimeout(resolve));
+  }
+  return { counter, lines };
+}
+function learnLine(ctx, id, title) {
+  const { counter, lines } = ctx.linkLines, old = lines.get(id);
+  if (old === title) return;
+  if (old !== undefined) { counter.add(old, -1); lines.delete(id); }
+  if (title) { counter.add(title); lines.set(id, title); }
 }
 // Nodes changed a moment ago take their new place in what the guesses learn from, so a value filled in counts for the next
 // bullet at once instead of at the next full reading.
@@ -154,17 +173,12 @@ async function learnNodes(ctx, ids) {
   const nodes = new Map((await nodesById(list, ctx.learned.map(p => p.ident))).map(n => [idOf(n), n]));
   for (const id of list) {
     const node = nodes.get(id);
+    if (ctx.linkLines) learnLine(ctx, id, node && pick(node, 'block/page') ? String(pick(node, 'block/title') ?? '') : '');
     if (!node) { learnEntry(ctx, id, null); continue; }
     const raw = rawEntry(node, ctx.learned, known), anyTags = listOf(pick(node, 'block/tags')).length;
     // Tagged only with tags that are not yours: not learned from. Plain (no tag at all): learned as a plain line.
     learnEntry(ctx, id, raw.tags.length || !anyTags ? raw : null);
   }
-}
-
-// How often each page's name is linked and how often written plain, for the suggested links' learning.
-async function loadLinkRates(pages) {
-  const rows = await dsQuery('[:find ?t :where [?b :block/page _] [?b :block/title ?t] [(not= ?t "")] (not [?b :logseq.property/deleted-at _])]').catch(() => []);
-  return linkRatesOf(pages, rows.map(([t]) => String(t)));
 }
 
 // The title of a node's value under a property (a text value is a small block of its own).
@@ -216,6 +230,6 @@ const addTag = (uuid, tagUuid) => logseq.Editor.addBlockTag(uuid, tagUuid);
 const removeTag = (uuid, tagUuid) => logseq.Editor.removeBlockTag(uuid, tagUuid);
 const currentGraph = () => Promise.resolve(logseq.App.getCurrentGraph?.()).catch(() => null);
 
-Flow.db = { dsQuery, bare, pick, idOf, valuesOf, loadSchema, loadPages, pagesNamed, pullBlock, bulletOf, readContext, learnNodes, loadLinkRates,
+Flow.db = { dsQuery, bare, pick, idOf, valuesOf, loadSchema, loadPages, pagesNamed, pullBlock, bulletOf, readContext, learnNodes,
   currentIds, valueTitle, journalPageFor, setValue, unsetValue, addTag, removeTag, currentGraph };
 })();

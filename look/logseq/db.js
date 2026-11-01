@@ -120,6 +120,7 @@ async function heldBelow(uuids) {
   const ground = (variable, values) => `[(ground [${values.join(' ')}]) [${variable} ...]]`;
   const roots = await query(`[:find ?u ?r ?pg :where ${ground('?u', list.map(u => `#uuid "${u}"`))} [?r :block/uuid ?u] [?r :block/page ?pg]]`);
   if (!roots.length) return held;
+  held.pages = roots.map(r => r[2]);
   const tree = await query(`[:find ?b ?parent :where ${ground('?pg', [...new Set(roots.map(r => r[2]))])} [?b :block/page ?pg] [?b :block/parent ?parent] (not [?b :logseq.property/created-from-property _])]`);
   const kids = new Map(), parentOf = new Map();
   for (const [b, parent] of tree) { if (!kids.has(parent)) kids.set(parent, []); kids.get(parent).push(b); parentOf.set(b, parent); }

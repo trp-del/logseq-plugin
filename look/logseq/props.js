@@ -21,7 +21,19 @@ async function load() {
   catch (error) { console.error('Look: could not read the properties’ kinds', error); }
 }
 const make = (doc, prop) => { const span = doc.createElement('span'); span.className = 'lk-kind lk-own'; span.innerHTML = kindIconHtml(prop.kind); span.dataset.kind = prop.kind + (prop.many ? '+' : ''); return span; };
+// A long line of properties wraps: the first on each new line is marked, for the stylesheet to take its dot off.
+function markLines(doc) {
+  for (const strip of doc.querySelectorAll('.bottom-properties-pills-strip')) {
+    let top = null;
+    for (const pill of strip.children) {
+      if (pill.offsetParent === null && top !== null) continue;
+      pill.toggleAttribute('data-lk-line', top !== null && pill.offsetTop > top + 4);
+      top = pill.offsetTop;
+    }
+  }
+}
 function draw(doc) {
+  markLines(doc);
   if (stopped || !byTitle) return;
   const on = setting('propertyIcons');
   for (const row of doc.querySelectorAll(ROWS)) {
@@ -42,7 +54,7 @@ function start() {
   stopped = false;
   style('props', css);
   watchScreen(draw);
-  onGraphChange(() => { if (!stopped) load(); });
+  onGraphChange(pages => { if (pages && !stopped) load(); });
   load();
 }
 function stop() { stopped = true; loading = null; byTitle = null; }

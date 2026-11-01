@@ -32,7 +32,7 @@ const NODES = [
   { id: 103, title: 'Spacing does not help understanding, only recall.', tag: 'Claim', day: 20261001, confidence: ['Disputed', 302], severity: 1 },
   { id: 104, title: 'The best gap is a tenth of the time until the test.', tag: 'Claim', day: 20261010, confidence: ['Disputed', 302], severity: 2 },
   { id: 105, title: 'Does it work for skills?', tag: 'Question', day: 20261012 },
-  { id: 106, title: 'What is the best first gap?', tag: 'Question', day: 0 },
+  { id: 106, title: 'What is the best first gap? Nobody knows.', tag: 'Question', day: 0 },
 ];
 
 function world(grouping) {
@@ -45,15 +45,16 @@ function world(grouping) {
   window.CSS.escape ||= s => String(s).replace(/[^\w-]/g, '\\$&');
   if (grouping) window.localStorage.setItem('refinementTwoWayGroup', JSON.stringify({ about: grouping }));
   window.logseq = { settings: {}, provideStyle() {}, onSettingsChanged: () => () => {}, UI: { showMsg() {} } };
+  window.eval(fs.readFileSync(path.join(root, '../plugin.js'), 'utf8'));
   window.eval(fs.readFileSync(path.join(root, 'parts/shared.js'), 'utf8'));
   window.eval(fs.readFileSync(path.join(root, 'parts/two-way.js'), 'utf8'));
-  const calls = [];
+  const calls = [], reads = [], changed = [];
   const bullets = new Map([[U(101), [{ uuid: U(701), title: 'Cepeda reviewed 254 studies.' }, { uuid: U(702), title: 'See [[Testing effect]].' }]]]);
   let nextBlock = 800;
   const provided = {
     currentPage: async () => ({ id: 5, uuid: PAGE }),
     getPage: async () => ({ id: 5, uuid: PAGE }),
-    linksInto: async () => ({
+    linksInto: async () => (reads.push('rows'), {
       pages: new Map([[5, { uuid: PAGE, byField: new Map([['about', new Set(NODES.map(n => n.id))]]) }]]),
       fields: new Map([['about', { uuid: U(50), ident: 'user.property/about' }]]),
       records: new Map(NODES.map(n => [n.id, { uuid: U(n.id), title: n.title, tag: n.tag, day: n.day }])),
@@ -69,8 +70,9 @@ function world(grouping) {
       { ident: 'user.property/confidence', title: 'Confidence', lower: 'confidence', type: 'default', many: false, choices: [{ id: 301, title: 'Strong' }, { id: 302, title: 'Disputed' }], classes: [] },
       { ident: 'user.property/severity', title: 'Severity', lower: 'severity', type: 'number', many: false, choices: [], classes: [] },
       { ident: 'user.property/source', title: 'Source', lower: 'source', type: 'node', many: true, choices: [], classes: [{ id: 60 }] },
-    ] }),
-    propPages: async () => [{ id: 61, uuid: U(61), title: 'Cepeda 2006', lower: 'cepeda 2006', tags: [{ id: 60 }] }, { id: 62, uuid: U(62), title: 'Rohrer 2015', lower: 'rohrer 2015', tags: [{ id: 60 }] }, { id: 63, uuid: U(63), title: 'Memory techniques', lower: 'memory techniques', tags: [] }],
+    ], parentsOf: new Map([[64, [60]]]) }),
+    propPages: async () => [{ id: 61, uuid: U(61), title: 'Cepeda 2006', lower: 'cepeda 2006', tags: [{ id: 60 }] }, { id: 64, uuid: U(64), title: 'A child tag’s page', lower: 'a child tag’s page', tags: [{ id: 64 }] }, { id: 62, uuid: U(62), title: 'Rohrer 2015', lower: 'rohrer 2015', tags: [{ id: 60 }] }, { id: 63, uuid: U(63), title: 'Memory techniques', lower: 'memory techniques', tags: [] }],
+    fits: (page, ids, schema) => { const seen = new Set(), queue = page.tags.map(t => t.id); while (queue.length) { const c = queue.shift(); if (seen.has(c)) continue; seen.add(c); if (ids.has(c)) return true; queue.push(...(schema.parentsOf?.get(c) || [])); } return false; },
     pagesAmong: async () => 0,
     tagUuidNamed: async title => `tag-${title.toLowerCase()}`,
     journalTitleFor: async () => 'Oct 24th, 2026',
@@ -95,13 +97,13 @@ function world(grouping) {
   window.refinementCore = {
     UUID: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, isEntityId: n => Number.isSafeInteger(n) && n > 0,
     watchDomEarly: fn => early.push(fn), addsElements: () => true, sendStyle() {}, uuidsIn: () => '', saveSettings(changes) { saved.push(changes); Object.assign(window.logseq.settings, changes); },
-    onPageChange() {}, onDatabaseChange() {}, onSettingsChange() {}, provided,
+    onPageChange() {}, onDatabaseChange(fn) { changed.push(fn); }, onSettingsChange() {}, provided,
     provide(things) { Object.assign(provided, things); },
   };
   const part = window.refinementParts.find(p => p.name === 'two-way');
   part.provide(window.refinementCore);
   part.start();
-  return { window, doc, calls, part, bullets, saved };
+  return { window, doc, calls, part, bullets, saved, reads, changed, provided };
 }
 const click = (window, el) => el.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
 const type = (window, input, text) => { input.value = text; input.dispatchEvent(new window.Event('input', { bubbles: true })); };
@@ -116,6 +118,83 @@ const counts = doc => [...doc.querySelectorAll('.rf-tw-gn')].map(el => el.textCo
 const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g => g.querySelector('.rf-tw-gname')?.textContent.trim() === name);
 
 (async () => {
+  // Rules on names: a tag of any spelling, and a name that is not cut at an initial or an hour.
+  {
+    const source = fs.readFileSync(path.join(root, 'parts/two-way.js'), 'utf8');
+    const { plural, shortName } = new Function(source.match(/^const plural = .*$/m)[0] + '\n' + source.match(/^const ABBREVIATION = .*$/m)[0] + '\n' + source.match(/^function shortName[\s\S]*?^}$/m)[0] + '\nreturn { plural, shortName };')();
+    check(plural('Diagnosis', 2) === 'Diagnoses' && plural('Metastasis', 2) === 'Metastases', 'a word in -sis should turn to -ses: ' + plural('Diagnosis', 2));
+    check(plural('Measles', 2) === 'Measles' && plural('Series', 2) === 'Series', 'a word that ends in s stays: ' + plural('Measles', 2));
+    check(plural('Study', 2) === 'Studies' && plural('Doctor', 2) === 'Doctors' && plural('Virus', 2) === 'Viruses' && plural('Doctor', 1) === 'Doctor', 'regular plurals stay');
+    check(shortName('Seen by J. Smith at noon') === 'Seen by J. Smith at noon', 'an initial is no end: ' + shortName('Seen by J. Smith at noon'));
+    check(shortName('Clinic at 3 p.m. with Dr. Lee') === 'Clinic at 3 p.m. with Dr. Lee', 'an hour is no end: ' + shortName('Clinic at 3 p.m. with Dr. Lee'));
+    check(shortName('Post-op check with Dr. Patel. Wounds fine, I can drive') === 'Post-op check with Dr. Patel.', 'a sentence still ends the name');
+  }
+  // Thousands of values: a few, then "show all"; the lit row moves without drawing a row again; typing narrows.
+  {
+    const { window, doc, part } = world('');
+    await wait(100);
+    const shared = window.refinementShared;
+    const options = Array.from({ length: 300 }, (_, i) => ({ label: `Page ${i + 1}` }));
+    const picked = shared.pickValue({ at: doc.body, options, doc });
+    await wait(10);
+    const rows = () => [...doc.querySelectorAll('.rf-lsq-pop .menu-link')], box = doc.querySelector('.rf-lsq-pop input');
+    const press = key => box.dispatchEvent(new window.KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+    check(rows().length === 41 && rows().at(-1).textContent.trim() === 'show all 300', 'a long list should show a few, then show all: ' + rows().length);
+    const first = rows()[0];
+    press('ArrowDown');
+    check(first.isConnected && !first.classList.contains('chosen') && rows()[1].classList.contains('chosen'), 'an arrow should move the lit mark and draw no row again');
+    rows()[5].dispatchEvent(new window.MouseEvent('mousemove', { bubbles: true }));
+    check(first.isConnected && rows()[5].classList.contains('chosen') && !rows()[1].classList.contains('chosen'), 'the pointer should too');
+    rows().at(-1).dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
+    check(rows().length === 300 && doc.querySelector('.rf-lsq-pop'), '"show all" should list them all and keep the list open');
+    box.value = 'page 29'; box.dispatchEvent(new window.Event('input', { bubbles: true }));
+    check(rows().length === 11 && rows()[0].textContent.trim() === 'Page 29', 'typing should narrow it: ' + rows().length);
+    press('Enter');
+    check((await picked)?.label === 'Page 29', 'Enter takes the lit one');
+    part.stop();
+  }
+  // Writing reads only what it reaches; a look reads none of the earlier lines.
+  {
+    const { window, doc, part, reads, changed, provided } = world('');
+    let learned = 0;
+    provided.nodeProposals = async () => { learned++; return []; };
+    await wait(100);
+    const fire = (blocks, op = 'save-block') => changed.forEach(fn => fn({ blocks, txMeta: { outlinerOp: op } }));
+    reads.length = 0;
+    fire([{ uuid: U(700), id: 700, title: 'Words elsewhere', page: { id: 9 } }]);
+    await wait(1000);
+    check(reads.length === 0, 'words written elsewhere should read nothing: ' + reads);
+    fire([{ uuid: U(101), id: 101, title: 'A row’s own words', page: { id: 9 } }]);
+    await wait(1000);
+    check(reads.length > 0, 'words in a row’s node should read the rows');
+    reads.length = 0;
+    fire([{ uuid: U(701), id: 701, rawTitle: `Links [[${PAGE}]]`, page: { id: 9 } }]);
+    await wait(1000);
+    check(reads.length > 0, 'a new line that links this page should read the rows');
+    reads.length = 0;
+    fire([{ uuid: U(702), id: 702, title: 'A value set', page: { id: 9 } }], 'set-block-property');
+    await wait(1000);
+    check(reads.length > 0, 'anything but writing should read the rows');
+    // An untagged mention asks what it looks like only once the earlier lines are read, or after a quiet moment.
+    let guessed = 0;
+    provided.tagGuess = async () => { guessed++; return null; };
+    provided.mentionsInto = async () => [{ id: 201, uuid: U(201), title: 'Named here', tag: '', day: 20260803 }];
+    fire([{ uuid: U(703), id: 703, title: 'x', page: { id: 9 } }], 'set-block-property');
+    await wait(1000);
+    check(guessed === 0, 'a look at a page should not read the earlier lines for its mentions');
+    provided.earlierLinesRead = () => true;
+    fire([{ uuid: U(703), id: 703, title: 'x', page: { id: 9 } }], 'set-block-property');
+    await wait(1000);
+    check(guessed === 1, 'once they are read, a mention asks at once: ' + guessed);
+    const chev = doc.querySelector('.rf-chev[data-dig]');
+    chev.dispatchEvent(new window.Event('pointerover', { bubbles: true }));
+    await wait(30);
+    check(learned === 0, 'the pointer passing over a fold arrow should not read the earlier lines');
+    click(window, chev);
+    await wait(60);
+    check(doc.querySelector('.rf-ol-kids[data-key]') && learned >= 0, 'a click opens the node');
+    part.stop();
+  }
   // 1. Nothing chosen: the list as it was, with the quiet word to group it by.
   {
     const { window, doc, part } = world('');
@@ -453,12 +532,16 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     // A link: the likely one first.
     click(window, value('Source'));
     await wait(80);
-    check(asked.some(a => a[0] === node && a[1] === 'Source') && popRows()[0] === 'Rohrer 2015' && popRows().includes('Cepeda 2006') && !popRows().includes('Memory techniques'), 'the list should put the likely page first and hold only pages the property takes: ' + popRows());
+    check(asked.some(a => a[0] === node && a[1] === 'Source') && popRows()[0] === 'Rohrer 2015' && popRows().includes('Cepeda 2006') && popRows().includes('A child tag’s page') && !popRows().includes('Memory techniques'), 'the list should put the likely page first and hold only pages the property takes, child tags’ too: ' + popRows());
     popField().dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
     await wait(150);
     check(calls.some(c => c[0] === 'setValue' && c[1] === node && c[2] === 'user.property/source' && c[3] === '[62]'), 'Enter should set the lit page, as a list for a property that holds several: ' + JSON.stringify(calls));
     const undo = [...doc.querySelectorAll('.rf-undo')].find(u => /Set “Source” on/.test(u.title || ''));
     check(!!undo, 'the faded Undo arrow should be offered: ' + [...doc.querySelectorAll('.rf-undo')].map(u => u.title));
+    // Undo of the Source pick puts back what it held (nothing).
+    window.refinementCore.provided.unsetValue = async (uuid, ident) => { calls.push(['unsetValue', uuid, ident]); };
+    click(window, undo); await wait(150);
+    check(calls.some(c => c[0] === 'unsetValue' && c[1] === node && c[2] === 'user.property/source'), 'Undo should put back what Source held, nothing: ' + JSON.stringify(calls.filter(c => c[2] === 'user.property/source')));
     // A number: shown ready to change; the same words again change nothing; a new one is written as a number.
     click(window, value('Severity'));
     await wait(80);
@@ -472,14 +555,11 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     await wait(80);
     check(popRows().join('|') === 'Disputed|Strong|Clear', 'a choice should list what it holds first, then the other choices, then Clear (as Logseq lists them): ' + popRows());
     const unsets = calls.length;
-    window.refinementCore.provided.unsetValue = async (uuid, ident) => { calls.push(['unsetValue', uuid, ident]); };
     click(window, [...doc.querySelectorAll('.rf-lsq-pop .menu-link')].find(el => el.textContent.trim() === 'Clear'));
     await wait(150);
     check(calls.slice(unsets).some(c => c[0] === 'unsetValue' && c[1] === node && c[2] === 'user.property/confidence') && !calls.slice(unsets).some(c => c[0] === 'setValue'), 'Clear should clear it and set nothing: ' + JSON.stringify(calls.slice(unsets)));
-    // Undo of the Source pick puts back what it held (nothing): the arrow as it is drawn now.
-    const undoNow = [...doc.querySelectorAll('.rf-undo')].find(u => /Set “Source” on/.test(u.title || ''));
-    if (undoNow) { click(window, undoNow); await wait(150); }
-    check(calls.some(c => c[0] === 'unsetValue' && c[1] === node && c[2] === 'user.property/source'), 'Undo should put back what Source held, nothing: ' + JSON.stringify(calls.filter(c => c[2] === 'user.property/source')));
+    // A new change's arrow takes the last one's place: Severity's went when Confidence was cleared.
+    check(doc.querySelectorAll('.rf-undo').length === 1 && /Confidence/.test(doc.querySelector('.rf-undo').title), 'one arrow stands, on the last change: ' + [...doc.querySelectorAll('.rf-undo')].map(u => u.title));
     part.stop();
   }
   // 10. The picking bar's "Change … to…" (0.4.414): the pages the picked nodes' words name come first, the most named
@@ -523,6 +603,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     const schema = await p.propSchema();
     p.propSchema = async () => ({ ...schema, props: [...schema.props, spoke], byId: new Map([[81, spoke]]), classProps: new Map([[71, [81]]]), parentsOf: new Map(), builtIn: new Set() });
     p.propPages = async () => [{ id: 5, uuid: PAGE, title: 'Spaced repetition', lower: 'spaced repetition', tags: [{ id: 70 }] }, { id: 71, uuid: U(71), title: 'Conversation', lower: 'conversation', isTag: true, tags: [] }, { id: 72, uuid: U(72), title: 'Claim', lower: 'claim', isTag: true, tags: [] }];
+    p.earlierLinesRead = () => true;
     p.tagGuess = async uuid => uuid === U(201) ? { id: 71, uuid: U(71), title: 'Conversation' } : null;
     p.hasTag = async () => false;
     p.valuesOf = async () => [];
@@ -697,7 +778,11 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     const field = many.doc.querySelector('.rf-tw-find');
     check(!!field && many.doc.querySelector('.rf-tw-findrow .rf-field-count')?.textContent === '26' && !/26/.test(field.placeholder), 'twenty-six nodes should get the kit’s find field, the count at its end, not in the grey words');
     if (field) {
-      field.focus(); field.value = 'gap'; field.dispatchEvent(new many.window.Event('input', { bubbles: true }));
+      // The field finds a node's whole words, not only the name its line shows.
+      field.focus(); field.value = 'knows'; field.dispatchEvent(new many.window.Event('input', { bubbles: true }));
+      await wait(30);
+      check(many.doc.querySelectorAll('.rf-tw-line').length === 1, 'words after the first sentence should find their node');
+      field.value = 'gap'; field.dispatchEvent(new many.window.Event('input', { bubbles: true }));
       await wait(30);
       const names = [...many.doc.querySelectorAll('.rf-tw-line .rf-tw-record, .rf-tw-item .rf-tw-record')].map(a => a.textContent);
       check(names.length === 3 && names.every(n => /gap/i.test(n)), 'typing “gap” should keep the three nodes with it: ' + names);

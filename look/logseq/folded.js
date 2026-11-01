@@ -91,18 +91,21 @@ async function read(uuids) {
   try {
     const found = await Look.db.heldBelow(uuids);
     if (stopped) return;
+    for (const page of found.pages || []) read.pages.add(page);
     for (const uuid of uuids) { held.set(uuid, found.get(uuid) || null); fresh.add(uuid); asked.delete(uuid); }
     while (held.size > 2000) { const first = held.keys().next().value; held.delete(first); fresh.delete(first); }
     draw(host());
   } catch (error) { for (const uuid of uuids) { fresh.add(uuid); asked.delete(uuid); } console.error('Look: could not read what a folded node holds', error); }
 }
+read.pages = new Set();
 function clear(doc = host()) { for (const note of doc.querySelectorAll('.lk-folded')) note.remove(); }
 function start() {
   stopped = false;
   style('folded', css);
   watchScreen(draw);
-  onGraphChange(() => { if (stopped) return; fresh.clear(); draw(host()); });
+  // What a note counts sits on its node's page: a change on another page leaves every note true.
+  onGraphChange((pages, written) => { if (stopped || !(pages || [...written].some(id => read.pages.has(id)))) return; fresh.clear(); draw(host()); });
 }
-function stop() { stopped = true; held.clear(); fresh.clear(); asked.clear(); }
+function stop() { stopped = true; held.clear(); fresh.clear(); asked.clear(); read.pages.clear(); }
 Look.folded = { start, stop, draw, dueLabel, wordsFor, build };
 })();

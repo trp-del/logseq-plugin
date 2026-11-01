@@ -101,8 +101,8 @@ function start() {
   watchDomEarly(drawEarly);
   watchDom(function drawPropertyKinds(doc) { if (!stopped) draw(doc); });
   // A property made, renamed or turned into another kind shows soon after (the model reads its schema again).
-  onDatabaseChange(() => {
-    if (stopped) return;
+  onDatabaseChange(change => {
+    if (stopped || window.PluginDoor?.writing(change)) return;
     clearTimeout(timer); timer = setTimeout(load, 900);
   });
   onSettingsChange((now, before) => {

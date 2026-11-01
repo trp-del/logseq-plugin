@@ -61,7 +61,7 @@ async function main() {
   logseq.App.registerCommandPalette({ key: 'flow-tune', label: 'Predictive: tune proposals to this graph' }, tuneCommand);
   logseq.App.registerCommandPalette({ key: 'flow-reread', label: 'Predictive: read the graph again' }, async () => { Flow.app.forget(); await Flow.app.context(); Flow.app.notify('Read the graph again.'); });
   logseq.DB.onChanged(({ blocks }) => Flow.app.learnSoon(blocks));
-  logseq.onSettingsChanged?.(() => { const ctx = Flow.app.state.ctx; if (ctx) Object.assign(ctx.limits, Flow.app.tagLimits()); });   // applies at once, no new reading
+  logseq.onSettingsChanged?.((now, before) => { if (!window.PluginDoor.settingChanged(['tagEagerness'], now, before)) return; const ctx = Flow.app.state.ctx; if (ctx) Object.assign(ctx.limits, Flow.app.tagLimits()); });   // applies at once, no new reading
   logseq.App.onCurrentGraphChanged(() => Flow.app.forget());
   Flow.app.context().catch(() => {});   // the first reading starts at once and is never waited for while typing
   await Flow.linkUi.start();

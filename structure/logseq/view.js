@@ -70,9 +70,10 @@ const CSS = `
 .st-tree { flex: 1; min-height: 0; overflow: auto; }
 /* A row is built as Logseq builds a block (the grammar): the tick in the margin, the fold arrow shown under the pointer, the
    bullet ringed while folded, then the mark and the name; at the right edge only what tells the rows apart (here the count). */
-.st-row { display: grid; grid-template-columns: 14px 14px 16px minmax(0, 1fr) 46px 12px; align-items: center; min-height: 26px; border-radius: 3px; position: relative; cursor: default; }
+/* A long name wraps like text, so the row's pieces stand at its first line. Each level is one step in, as deep as the tree goes. */
+.st-row { display: grid; grid-template-columns: 14px 14px 16px minmax(0, 1fr) 46px 12px; align-items: start; min-height: 26px; padding-left: calc(var(--d, 0) * 12px); border-radius: 3px; position: relative; cursor: default; }
 .st-side .st-row { grid-template-columns: 14px 16px minmax(0, 1fr) 40px 12px; }
-.st-bul { display: inline-flex; width: 14px; height: 14px; border-radius: 50%; align-items: center; justify-content: center; justify-self: center; }
+.st-bul { display: inline-flex; width: 14px; height: 14px; margin-top: 6px; border-radius: 50%; align-items: center; justify-content: center; justify-self: center; }
 .st-bul.folded { background: var(--st-ring); }
 .st-bul i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: .55; }
 .st-row.kind .st-bul i { opacity: .8; }
@@ -85,18 +86,18 @@ const CSS = `
 .st input.lk-tick[type=checkbox]:checked, .st input.lk-tick[type=checkbox]:focus, .st input.lk-tick[type=checkbox]:hover { background-color: transparent !important; background-image: none !important; border-color: currentColor !important; color: inherit !important; box-shadow: none !important; }
 .st input.lk-tick:checked::before { content: ""; position: absolute; left: 3.5px; top: .5px; width: 3.5px; height: 7px; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg); }
 .st input.lk-tick:focus-visible { outline: 2px solid var(--st-line); outline-offset: 1px; }
-.st-row .lk-fold { display: inline-flex; width: 14px; height: 20px; align-items: center; justify-content: center; cursor: pointer; }
+.st-row > input.lk-tick { margin-top: 6px !important; }
+.st-row .lk-fold { display: inline-flex; width: 14px; height: 20px; margin-top: 3px; align-items: center; justify-content: center; cursor: pointer; }
 .st-row .lk-fold svg { width: 10px; height: 10px; transition: transform .12s; } .st-row .lk-fold[aria-expanded="true"] svg { transform: rotate(90deg); }
 .st-row .st-km { width: 10px; height: 10px; color: var(--st-quiet); flex: none; }
-.st-row .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; gap: 7px; align-items: center; }
+.st-row .nm { min-width: 0; padding: 3px 0; line-height: 20px; overflow-wrap: anywhere; display: flex; gap: 7px; align-items: baseline; }
 .st-row.kind .nm { font-weight: 500; }
 .st-row.dim .nm, .st-row.dim .ct, .st-row.loose .nm { color: var(--st-faint); }
-.st-row .ct { text-align: right; color: var(--st-quiet); font-size: 12.5px; font-variant-numeric: tabular-nums; }
-.st-row .iss { width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: 0; justify-self: center; }
+.st-row .ct { text-align: right; line-height: 26px; color: var(--st-quiet); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.st-row .iss { width: 5px; height: 5px; margin-top: 10.5px; border-radius: 50%; background: currentColor; opacity: 0; justify-self: center; }
 .st-row .iss.on { opacity: .35; } .st-row .iss.own { opacity: .7; }
 .st-row.dragging { opacity: .4; }
 .st-row.over { background: var(--st-wash); box-shadow: inset 0 2px 0 var(--st-line); }
-.st-row.d1 { padding-left: 16px; } .st-row.d2 { padding-left: 32px; } .st-row.d3 { padding-left: 46px; } .st-row.d4 { padding-left: 56px; }
 /* Pencilled in (Look's lk-pencil on the name): what a change waiting in the tray touches. */
 /* The pick bar, as the grammar draws it: above the list, how many and what can be done as quiet words, Esc clears. */
 .st-pick { display: flex; gap: 14px; align-items: center; font-size: 13px; color: var(--st-quiet); border-bottom: 1px solid var(--st-hair); padding-bottom: 4px; margin: -4px 0 4px; min-height: 22px; flex-wrap: wrap; }
@@ -109,8 +110,11 @@ const CSS = `
 .st-views .act { color: var(--st-quiet); } .st-views .act:hover { color: inherit; } .st-views .here { color: var(--lk-text, #222); }
 /* The title row: the name, and at its right end the thing's place in the tree, nearest first, as Look draws it on a page. */
 .st-ttl { display: flex; align-items: baseline; gap: 14px; margin: 0 0 2px; }
-.st-ttl .st-place { margin-left: auto; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1 auto; }
-.st-ttl .st-place .sep { color: var(--st-faint); margin: 0 .4em; }
+/* Too long for the row, it gives way from the middle, then the nearest tag; the kind stays whole. */
+.st-ttl .st-place { display: flex; align-items: baseline; margin-left: auto; font-size: 12px; white-space: nowrap; min-width: 0; flex: 0 1 auto; }
+.st-ttl .st-place > * { flex: 0 1000 auto; min-width: 2em; overflow: hidden; text-overflow: ellipsis; }
+.st-ttl .st-place > :first-child { flex-shrink: 1; } .st-ttl .st-place > :last-child { flex-shrink: 0; }
+.st-ttl .st-place .sep { flex: none; min-width: 0; color: var(--st-faint); margin: 0 .4em; }
 .st-card h2 { font-size: 20px; font-weight: 600; margin: 0; display: flex; gap: 10px; align-items: center; line-height: 1.3; min-width: 0; }
 .st-card h2 .st-km { width: 14px; height: 14px; color: var(--st-quiet); } .st-card h2 .st-pi { width: 13px; height: 13px; }
 .st-card .sum { font-size: 13px; color: var(--st-quiet); margin: 0 0 6px; display: flex; gap: 14px; flex-wrap: wrap; }
@@ -180,7 +184,7 @@ const CSS = `
 .st-nodes .st-ln .lk-day { white-space: nowrap; }
 .st-nodes .st-ln.cur { background: var(--st-wash); }
 .st-nodes .lk-tick { align-self: center; }
-.st-nodes .more { color: var(--st-faint); cursor: pointer; padding: 4px 2px; }
+.st-nodes .more, .st-hl .more, .st-tbl .more { color: var(--st-faint); cursor: pointer; padding: 4px 2px; }
 .st-menu { position: absolute; background: var(--lk-paper, #fff); border: 1px solid var(--st-hair); border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,.12); padding: 4px 0; min-width: 230px; width: max-content; max-width: 360px; font-size: 13.5px; z-index: 30; }
 .st-menu div { display: flex; align-items: center; gap: 16px; padding: 0 12px; height: 26px; cursor: pointer; white-space: nowrap; }
 .st-menu div:hover { background: var(--st-wash); }
@@ -194,7 +198,8 @@ const CSS = `
 .st-prompt .ask b { color: inherit; font-weight: 500; }
 .st-prompt .st-find { margin-bottom: 6px; }
 .st-prompt .st-row { grid-template-columns: 14px 16px minmax(0, 1fr) 40px; }
-.st-prompt .st-row.d1 { padding-left: 14px; } .st-prompt .st-row.d2 { padding-left: 28px; }
+.st-prompt .st-row { padding-left: calc(var(--d, 0) * 14px); }
+.st-prompt .st-row.more { color: var(--st-faint); }
 .st-prompt .st-row.off .nm, .st-prompt .st-row.off .ct { color: var(--st-faint); }
 .st-prompt .st-row.lit { background: var(--st-wash); }
 .st-empty { color: var(--st-quiet); max-width: 60ch; }
@@ -242,7 +247,8 @@ function make(holder, mode, app) {
       tops.forEach(k => walk(k, 0));
       return rows;
     }
-    const walk = (n, d) => { const kids = Mo.kids(m, n); const open = d === 0 || st.open.has(n); rows.push({ n, d, open, kids: kids.length }); if (open) kids.forEach(k => walk(k, d + 1)); };
+    for (const top of tops) if (!st.seen.has(top)) { st.seen.add(top); st.open.add(top); }   // a kind starts open, and folds like any row
+    const walk = (n, d) => { const kids = Mo.kids(m, n); const open = st.open.has(n); rows.push({ n, d, open, kids: kids.length }); if (open) kids.forEach(k => walk(k, d + 1)); };
     tops.forEach(k => walk(k, 0));
     return rows;
   }
@@ -254,11 +260,11 @@ function make(holder, mode, app) {
     const editing = st.edit && st.edit.what === 'rename' && st.edit.on === r.n;
     const nm = editing ? `<input class="st-in" data-edit value="${esc(st.edit.text)}" autocomplete="off" spellcheck="false">` : esc(name(r.n));
     const canDrag = t && !t.kind && !t.missing && !editing;
-    let h = `<div class="st-row lk-row d${Math.min(r.d, 4)} ${isKind ? 'kind' : ''} ${r.n === LOOSE ? 'loose' : ''} ${r.dim ? 'dim' : ''} ${t?.missing ? 'dim' : ''} ${loc.cur === r.n ? 'cur' : ''} ${waitTag(r.n)}" data-row="${esc(r.n)}" ${canDrag ? 'draggable="true"' : ''}>` +
+    let h = `<div class="st-row lk-row ${isKind ? 'kind' : ''} ${r.n === LOOSE ? 'loose' : ''} ${r.dim ? 'dim' : ''} ${t?.missing ? 'dim' : ''} ${loc.cur === r.n ? 'cur' : ''} ${waitTag(r.n)}" style="--d:${r.d}" data-row="${esc(r.n)}" ${canDrag ? 'draggable="true"' : ''}>` +
       (side ? '' : `<input type="checkbox" class="lk-tick" data-tick="${esc(r.n)}" ${st.ticks.has(r.n) ? 'checked' : ''} ${isKind || r.n === LOOSE ? 'disabled style="visibility:hidden"' : ''}>`) +
       arrow + bullet +
       `<span class="nm">${isKind && t?.kind ? km(t.kind) : ''}<span class="${waitTag(r.n) ? 'lk-pencil' : ''}">${nm}</span></span><span class="ct">${Mo.count(M(), r.n) || ''}</span><span class="iss ${o ? 'own' : b ? 'on' : ''}"></span></div>`;
-    if (st.edit && st.edit.what === 'new' && st.edit.on === r.n && st.edit.owner === mode) h += `<div class="st-row lk-row d${Math.min(r.d + 1, 4)}"><span></span><span></span><span class="st-bul"><i></i></span><span class="nm"><input class="st-in" data-edit value="${esc(st.edit.text)}" placeholder="a new tag under ${esc(name(r.n))}" autocomplete="off" spellcheck="false"></span><span class="ct"></span><span class="iss"></span></div>`;
+    if (st.edit && st.edit.what === 'new' && st.edit.on === r.n && st.edit.owner === mode) h += `<div class="st-row lk-row" style="--d:${r.d + 1}"><span></span><span></span><span class="st-bul"><i></i></span><span class="nm"><input class="st-in" data-edit value="${esc(st.edit.text)}" placeholder="a new tag under ${esc(name(r.n))}" autocomplete="off" spellcheck="false"></span><span class="ct"></span><span class="iss"></span></div>`;
     if (st.prompt && st.prompt.owner === mode && st.prompt.row === r.n) { h += promptHtml(); promptDrawn = true; }
     return h;
   }
@@ -317,7 +323,7 @@ function make(holder, mode, app) {
     const ticked = [...st.ticks].filter(x => x !== id && T(x));
     h += acts(id, t.kind ? [!t.missing && ['rename', 'rename'], ['new tag inside', 'new'], ['add a property to all beneath…', 'addpropall']]
       : [['rename', 'rename'], ['move under…', 'move'], ['new tag inside', 'new'], ['add a property…', 'addprop'], kids.length && ['add a property to all beneath…', 'addpropall'],
-        ticked.length && [`merge the ${ticked.length === 1 ? 'ticked tag' : ticked.length + ' ticked tags'} into this`, 'merge'], !total && !kids.length && ['remove', 'remove']]) + cardPrompt();
+        ticked.length && [`merge the ${ticked.length === 1 ? 'ticked tag' : ticked.length + ' ticked tags'} into this`, 'merge'], !total && !kids.length && ['remove', 'remove']]) + mergeAskHtml(id) + cardPrompt();
     const inh = Mo.inherited(m, id);
     if (t.props.length || inh.length) {
       h += `<h3>Has</h3>`;
@@ -349,14 +355,19 @@ function make(holder, mode, app) {
     : `<span class="to ${/^[,:;]/.test(p.words) ? 'pn' : ''}">${esc(p.words)}</span>`).join(' ').replace(/ (<span class="to pn")/g, '$1');
   const issueLine = (i, lead) => { const n = ISS().indexOf(i); return `<div class="st-ln iss">${lead}<span class="w">${partsHtml(i.parts)}</span><span class="fix act" data-fix="${n}">${esc(i.fix)}</span></div>` + askHtml(n); };
   const issuesHtml = list => !list.length ? '' : `<h3>Issues</h3>` + list.map(i => issueLine(i, '<span></span>')).join('');
-  function askHtml(n) {
-    if (!st.ask || st.ask.i !== n) return '';
-    const i = ISS()[n]; if (!i) return '';
-    const s = S.changes.sentence(M(), i.change), c = i.change, two = c.kind === 'merge';
-    const words = `<span class="act" data-stage>stage it</span><span class="act f" data-leave>leave it</span><span class="ky">Enter stages · Esc leaves it</span>`;
+  const askLine = (c, last) => {
+    const s = S.changes.sentence(M(), c), two = c.kind === 'merge';
+    const words = last ? `<span class="act" data-stage>stage it</span><span class="act f" data-leave>leave it</span><span class="ky">Enter stages · Esc leaves it</span>` : '';
     // The nodes it touches, once: after the sentence, or in the merge's column head.
     return `<div class="st-ln ask ${two ? 'two' : ''}"><span></span><span class="w">${two ? twoHtml(c.from, c.into) : ''}${esc(s.text)}${s.nodes && !two ? ` · ${plural(s.nodes, 'node')}` : ''}${words}</span></div>`;
+  };
+  function askHtml(n) {
+    if (!st.ask || st.ask.i !== n) return '';
+    const i = ISS()[n];
+    return i ? askLine(i.change, true) : '';
   }
+  // Ticked tags merged into this one: the same ask as a fix, one consequence for each.
+  const mergeAskHtml = id => st.ask?.merges && st.ask.into === id ? st.ask.merges.map((from, n, all) => askLine({ kind: 'merge', from, into: id }, n === all.length - 1)).join('') : '';
   // A merge before it is staged, as the grammar shows a consequence: the two tags side by side, their properties lined up,
   // what is shared, what moves to the kept tag and what the kept tag gains.
   function twoHtml(fromId, intoId) {
@@ -403,17 +414,22 @@ function make(holder, mode, app) {
     rows.sort((a, b) => s === 'name' ? a.p.title.localeCompare(b.p.title) : s === 'on' ? onName(a).localeCompare(onName(b)) || a.p.title.localeCompare(b.p.title) : s === 'to' ? name(b.p.range[0] ?? '').localeCompare(name(a.p.range[0] ?? '')) : a.pct - b.pct || a.p.title.localeCompare(b.p.title));
     let h = `<div class="st-card">${trailHtml()}${titleHtml('', 'Every property', [], '')}<div class="sum"><span>${plural(m.props.size, 'property').replace('propertys', 'properties')} on ${new Set(rows.flatMap(g => g.on.map(x => x.tag))).size} tags</span></div><div class="st-tbl">`;
     h += `<div class="hd"><span></span>${['name', 'on', 'to', 'filled'].map(c => `<span class="${s === c ? 'on' : ''}" data-sort="${c}">${{ name: 'Name', on: 'On', to: 'Points at', filled: 'Filled' }[c]}</span>`).join('')}</div>`;
-    h += rows.map(r => `<div class="tr ${r.pct < .2 ? 'low' : ''} ${waitProp(r.prop)}" data-prop="${r.tag}·${r.prop}">${pi(r.p)}<span><span class="k lk ${waitProp(r.prop) ? 'lk-pencil' : ''}">${esc(r.p.title)}</span></span><span class="on">${ranges(r.on.map(x => x.tag))}</span><span class="on">${r.p.type === 'node' ? (r.p.range.length ? ranges(r.p.range) : '<span class="f">any node</span>') : `<span class="f">${Mo.kindWord(r.p.choice ? 'choice' : r.p.type)}</span>`}</span><span class="ct">${r.filled} of ${r.of}</span></div>`).join('');
+    h += few('table', rows).map(r => `<div class="tr ${r.pct < .2 ? 'low' : ''} ${waitProp(r.prop)}" data-prop="${r.tag}·${r.prop}">${pi(r.p)}<span><span class="k lk ${waitProp(r.prop) ? 'lk-pencil' : ''}">${esc(r.p.title)}</span></span><span class="on">${ranges(r.on.map(x => x.tag))}</span><span class="on">${r.p.type === 'node' ? (r.p.range.length ? ranges(r.p.range) : '<span class="f">any node</span>') : `<span class="f">${Mo.kindWord(r.p.choice ? 'choice' : r.p.type)}</span>`}</span><span class="ct">${r.filled} of ${r.of}</span></div>`).join('');
     const loose = [...m.props.values()].filter(p => !p.on.length);
-    if (loose.length) h += `</div><h3>On no tag</h3><div class="st-tbl">` + loose.map(p => `<div class="tr"><span class="st-pi">${ICONS[Mo.propKind(p)]}</span><span>${esc(p.title)}</span><span class="on f">—</span><span class="on">${p.range.length ? p.range.map(tagLink).join(', ') : `<span class="f">${Mo.kindWord(p.choice ? 'choice' : p.type)}</span>`}</span><span class="ct">${m.holders.get(p.ident)?.size || 0} nodes</span></div>`).join('');
+    h += moreOf('table', rows);
+    if (loose.length) h += `</div><h3>On no tag</h3><div class="st-tbl">` + few('loose', loose).map(p => `<div class="tr"><span class="st-pi">${ICONS[Mo.propKind(p)]}</span><span>${esc(p.title)}</span><span class="on f">—</span><span class="on">${p.range.length ? p.range.map(tagLink).join(', ') : `<span class="f">${Mo.kindWord(p.choice ? 'choice' : p.type)}</span>`}</span><span class="ct">${m.holders.get(p.ident)?.size || 0} nodes</span></div>`).join('');
     return h + `</div></div>`;
   }
   // ---------- health ----------
+  // A long list: a few, then "show all", as a tag's nodes.
+  const FEW = 20;
+  const few = (key, list) => st.whole.has(key) ? list : list.slice(0, FEW);
+  const moreOf = (key, list) => !st.whole.has(key) && list.length > FEW ? `<div class="more" data-all="${esc(key)}">show all ${list.length}</div>` : '';
   function healthHtml() {
     const all = ISS(), by = new Map();
     for (const i of all) by.set(i.rule, [...(by.get(i.rule) || []), i]);
     let h = `<div class="st-card st-hl">${trailHtml()}${titleHtml('', 'Health', [], '')}<div class="sum"><span>${all.length ? `${all.length} thing${all.length === 1 ? '' : 's'} to settle` : 'nothing to settle'}</span><span class="f">a fix first says what it would do; nothing is written until the tray is applied</span></div>`;
-    for (const [rule, list] of by) h += `<h3>${esc(rule)}</h3>` + list.map(i => issueLine(i, '')).join('');
+    for (const [rule, list] of by) h += `<h3>${esc(rule)}</h3>` + few(rule, list).map(i => issueLine(i, '')).join('') + moreOf(rule, list);
     return h + `</div>`;
   }
   // ---------- a tag's nodes ----------
@@ -445,26 +461,30 @@ function make(holder, mode, app) {
   // ---------- the move prompt ----------
   function promptHtml() {
     const p = st.prompt, m = M(), q = p.text.toLowerCase();
-    let ask, rows;
+    let ask, rows, all;
     if (p.list === 'values') {
       ask = `Split <b>${esc(name(p.tag))}</b> by <b>${esc(P(p.prop).title)}</b>: a new tag under it for the nodes where it is…`;
-      rows = p.values.filter(v => !q || v.title.toLowerCase().includes(q)).slice(0, 10).map(v => ({ key: v.id, nm: v.title, ct: v.count, d: 0, ok: true }));
+      all = p.values.filter(v => !q || v.title.toLowerCase().includes(q)).map(v => ({ key: v.id, nm: v.title, ct: v.count, d: 0, ok: true }));
+      rows = all.slice(0, 10);
     } else if (p.list === 'props') {
       ask = `Add to <b>${esc(name(p.tag))}</b>${p.under ? ' and every tag under it' : ''} the property…`;
-      rows = [...m.props.values()].filter(x => !T(p.tag).props.includes(x.id) && (!q || x.title.toLowerCase().includes(q))).sort((a, b) => a.title.localeCompare(b.title)).slice(0, 10).map(x => ({ key: x.id, nm: x.title, ct: x.on.length ? `on ${x.on.length}` : '', d: 0, ok: true, icon: pi(x) }));
+      all = [...m.props.values()].filter(x => !T(p.tag).props.includes(x.id) && (!q || x.title.toLowerCase().includes(q))).sort((a, b) => a.title.localeCompare(b.title)).map(x => ({ key: x.id, nm: x.title, ct: x.on.length ? `on ${x.on.length}` : '', d: 0, ok: true, icon: pi(x) }));
+      rows = all.slice(0, 10);
     } else {
       const subject = p.what === 'nodes' ? `${p.nodes.length} ticked nodes` : p.what === 'prop' ? `the property ${P(p.prop).title}` : p.what === 'range' ? `what ${P(p.prop).title} points at` : p.tags.length > 1 ? `${p.tags.length} ticked tags` : name(p.tags[0]);
       ask = p.what === 'range' ? `<b>${esc(P(p.prop).title)}</b> points at${P(p.prop).range.length ? ' also' : ''}…` : `Move <b>${esc(subject)}</b> under…`;
-      const list = [];
+      const list = all = [];
       const walk = (n, d) => { const t = T(n); const ok = p.what === 'tag' ? !p.tags.some(s => Mo.under(m, n, s)) : p.what === 'range' || p.what === 'nodes' ? !t.kind && !t.missing : !t.missing || true; if (!q || t.title.toLowerCase().includes(q)) list.push({ key: n, nm: t.title, ct: Mo.count(m, n) || '', d, ok, mark: d === 0 ? t.kind : null }); for (const k of Mo.kids(m, n)) walk(k, d + 1); };
       m.kinds.forEach(k => walk(k.id, 0));
       for (const l of m.loose) walk(l, 1);
       if (p.what === 'tag' && (!q || 'not under a kind'.includes(q))) list.push({ key: LOOSE, nm: 'Not under a kind', ct: '', d: 0, ok: true, loose: true });
       rows = q ? list.slice(0, 8) : list.filter(r => r.d <= 1).slice(0, 12);
     }
+    if (p.whole) rows = all;
+    else if (all.length > rows.length) rows = [...rows, { more: true, nm: `show all ${all.length}`, ct: '', d: 0, ok: true }];
     p.shown = rows;
     return `<div class="st-prompt"><div class="ask">${ask}</div><div class="st-find"><input data-pin value="${esc(p.text)}" autocomplete="off" spellcheck="false"></div>` +
-      rows.map((r, i) => `<div class="st-row d${Math.min(r.d, 2)} ${r.ok ? '' : 'off'} ${r.loose ? 'loose' : ''} ${i === p.lit ? 'lit' : ''}" data-pick="${i}"><span></span><span class="st-bul"><i></i></span><span class="nm">${r.mark ? km(r.mark) : r.icon || ''}${esc(r.nm)}</span><span class="ct">${esc(r.ct)}</span></div>`).join('') +
+      rows.map((r, i) => `<div class="st-row ${r.ok ? '' : 'off'} ${r.loose ? 'loose' : ''} ${r.more ? 'more' : ''} ${i === p.lit ? 'lit' : ''}" style="--d:${Math.min(r.d, 2)}" data-pick="${i}"><span></span><span class="st-bul"><i></i></span><span class="nm">${r.mark ? km(r.mark) : r.icon || ''}${esc(r.nm)}</span><span class="ct">${esc(r.ct)}</span></div>`).join('') +
       (rows.length ? '' : `<div class="q" style="padding:4px 2px">nothing matches</div>`) + `</div>`;
   }
   // ---------- the menu: the same words the card has ----------
@@ -541,6 +561,7 @@ function make(holder, mode, app) {
   const startMoveTag = id => { const tags = st.ticks.size > 1 && st.ticks.has(id) ? [...st.ticks] : [id]; startPrompt({ what: 'tag', list: 'tags', tags, row: id }); };
   function finishPrompt(row) {
     const p = st.prompt; if (!row || !row.ok) return;
+    if (row.more) { p.whole = true; wantFocus = true; return redraw(); }
     st.prompt = null;
     if (p.what === 'tag') { moveTags(p.tags, row.key); }
     else if (p.what === 'prop') { const [tagId, pid] = p.key.split('·').map(Number); if (row.key !== tagId) { app.stage({ kind: 'moveProp', prop: pid, from: [tagId], to: row.key }); st.propCur = `${row.key}·${pid}`; st.cur = row.key; } }
@@ -586,7 +607,7 @@ function make(holder, mode, app) {
     else if (a === 'new') { if (!st.open.has(on)) st.open.add(on); startEdit('new', on, ''); }
     else if (a === 'addprop') { if (T(on) && !T(on).kind) startPrompt({ what: 'addprop', list: 'props', tag: on, row: on }); }
     else if (a === 'addpropall') { if (T(on)) startPrompt({ what: 'addprop', list: 'props', tag: on, under: true, row: on }); }
-    else if (a === 'merge') { const from = [...st.ticks].filter(x => x !== on && T(x)); if (!from.length || !T(on) || T(on).kind) return redraw(); for (const f of from) app.stage({ kind: 'merge', from: f, into: on }); st.ticks.clear(); if (from.includes(st.cur)) st.cur = on; redraw(); }
+    else if (a === 'merge') { const from = [...st.ticks].filter(x => x !== on && T(x)); if (!from.length || !T(on) || T(on).kind) return redraw(); st.cur = on; st.view = 'tree'; st.propCur = null; st.ask = { merges: from, into: on, owner: mode }; redraw(); }
     else if (a === 'remove') { const t = T(on); if (!t || t.kind || Mo.count(m, on) || t.kids.length) return redraw(); const p = Mo.parentOf(m, on); app.stage({ kind: 'remove', tag: on }); if (st.cur === on) st.cur = p ?? m.kinds[0].id; redraw(); }
     else if (a === 'pmove') { const [tagId] = on.split('·').map(Number); startPrompt({ what: 'prop', list: 'tags', key: on, prop: Number(on.split('·')[1]), from: tagId }); }
     else if (a === 'pullup') { const [tagId, pid] = on.split('·').map(Number); const dest = Mo.parentOf(m, tagId); if (dest == null) return redraw(); app.stage({ kind: 'moveProp', prop: pid, from: [tagId], to: dest }); st.propCur = `${dest}·${pid}`; st.cur = dest; redraw(); }
@@ -602,10 +623,16 @@ function make(holder, mode, app) {
   function fix(i) {
     const issue = ISS()[i]; if (!issue) return;
     const c = issue.change;
-    if (c.kind === 'prompt') { if (c.what === 'tag') startMoveTag(c.tag); else if (c.what === 'range') startPrompt({ what: 'range', list: 'tags', prop: c.prop }); return; }
+    if (c.kind === 'prompt') {
+      if (c.what === 'tag') startMoveTag(c.tag);
+      else if (c.what === 'range') startPrompt({ what: 'range', list: 'tags', prop: c.prop });
+      else if (c.what === 'rename') { Mo.pathOf(M(), c.tag).slice(0, -1).forEach(a => st.open.add(a)); startEdit('rename', c.tag, c.name); }
+      return;
+    }
     st.ask = st.ask && st.ask.i === i ? null : { i, owner: mode }; st.menu = null; redraw();
   }
   function stageAsk() {
+    if (st.ask?.merges) { const { merges, into } = st.ask; st.ask = null; for (const from of merges) app.stage({ kind: 'merge', from, into }); st.ticks.clear(); return redraw(); }
     const issue = st.ask && ISS()[st.ask.i]; st.ask = null; if (!issue) return redraw();
     const c = issue.change;
     app.stage({ ...c });
@@ -617,12 +644,12 @@ function make(holder, mode, app) {
     const list = await app.readNodes(id);
     jump(() => { st.nodes = { tag: id, list, ticks: new Set(), all: false, cur: 0 }; st.view = 'nodes'; st.propCur = null; st.cur = id; });
   }
-  const show = what => jump(() => { st.view = what; st.propCur = null; st.nodes = null; });   // 'tree' from the views line, 'table', 'health'
+  const show = what => jump(() => { st.view = what; st.propCur = null; st.nodes = null; st.whole.clear(); });   // 'tree' from the views line, 'table', 'health'
   const showProp = key => jump(() => { st.propCur = key; st.view = 'tree'; st.nodes = null; st.cur = Number(key.split('·')[0]); });
 
   // ---------- events ----------
   root.addEventListener('click', e => {
-    const t = e.target.closest('[data-fold],[data-tick],[data-ntick],[data-row],[data-go],[data-open],[data-unrange],[data-addrange],[data-prop],[data-fix],[data-stage],[data-leave],[data-sort],[data-apply],[data-discard],[data-drop],[data-undo],[data-act],[data-do],[data-show],[data-back],[data-pick],[data-nodes],[data-more],[data-node]');
+    const t = e.target.closest('[data-all],[data-fold],[data-tick],[data-ntick],[data-row],[data-go],[data-open],[data-unrange],[data-addrange],[data-prop],[data-fix],[data-stage],[data-leave],[data-sort],[data-apply],[data-discard],[data-drop],[data-undo],[data-act],[data-do],[data-show],[data-back],[data-pick],[data-nodes],[data-more],[data-node]');
     if (!t) { if (st.menu) { st.menu = null; redraw(); } return; }
     e.stopPropagation(); e.preventDefault();
     if (t.dataset.fold) return fold(keyOf(t.dataset.fold));
@@ -644,6 +671,7 @@ function make(holder, mode, app) {
     if (t.dataset.act) return act(t.dataset.act, st.menu.on);
     if (t.dataset.nodes) return openNodes(keyOf(t.dataset.nodes));
     if (t.hasAttribute('data-more')) { st.nodes.all = true; return redraw(); }
+    if (t.dataset.all) { st.whole.add(t.dataset.all); return redraw(); }
     if (t.dataset.node) { st.nodes.cur = +t.dataset.node; return redraw(); }
     if (t.hasAttribute('data-apply')) return app.apply();
     if (t.hasAttribute('data-discard')) return app.discard();

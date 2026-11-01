@@ -6,6 +6,10 @@ On a page, everything that points at it, named by the property it came through, 
 
 The moments of use (the review of 31 October 2026): a node dug open at the page's width shows every property on one line, name then value, the chevron hanging before a value that opens; the names go on a line of their own only where the section is truly narrow (the sidebar). A line ends with its name and tag, nothing after them; Shift-click on a name opens it in the sidebar. The tick boxes of a list appear when the pointer is on that list alone, and the caret in the find line raises none. The mentions row's head is its days ("from Sep 30 to Oct 19"); while letters are typed, every head keeps the whole list's words and order and only the nodes narrow. A row's right-click menu is as wide as its longest words. A value being typed stays open when the rows are drawn again, its words and caret where they were.
 
+One Undo arrow stands, on the last change; a new change's arrow takes its place. A date in a node's words reads as Predictive reads it: a past day stays past, and a weekday in words that tell of what has been proposes nothing.
+
+As the graph grows: a list of values shows forty, then "show all 3000", and typing narrows it; a property that takes Person offers pages under the tags beneath Person too. A section reads again only when a change reaches it: words in one of its nodes, a line that links this page, or anything that is not writing. A node's day is the property titled Date, whatever its ident, else the earliest. The pencilled tag on an untagged mention comes after a quiet moment the first time, since it rests on reading the graph's earlier lines, which a look at a page never starts; an opened node shows at once and its proposals follow.
+
 It began as the two-way section of the old plugin, DB Refinements, and has since been reshaped here. Its code still uses the old `rf-` names beside Look's.
 
 ## What it writes

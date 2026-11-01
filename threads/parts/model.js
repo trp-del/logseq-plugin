@@ -92,18 +92,28 @@ const trailingTags = /(?:\s+#(?:\[\[[^\]]*\]\]|[^\s#\[\]]+))+\s*$/;
 // pagesOnly leaves ((uuid)) alone, matching what the block editor shows; asShown also leaves a [[uuid]]
 // that points at a block (not a page) alone, because the editor shows such a link as its id.
 const storedRef = /(\(\(|\[\[)([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})(\)\)|\]\])/gi;
+// Every title asked for in one moment goes as one question: a section of 300 mentions reads the links in them at one go.
+const titleAsk = { want: new Set(), asked: null };
+function titlesOf(uuids) {
+  for (const uuid of uuids) titleAsk.want.add(uuid);
+  return titleAsk.asked ||= Promise.resolve().then(async () => {
+    const list = [...titleAsk.want];
+    titleAsk.want.clear(); titleAsk.asked = null;
+    const rows = await dsQuery(`[:find ?u ?t ?n :where [(ground [${list.map(u => `#uuid "${u}"`).join(' ')}]) [?u ...]] [?b :block/uuid ?u] [?b :block/title ?t] [(get-else $ ?b :block/name "") ?n]]`).catch(() => []);
+    return new Map(rows.map(([u, t, n]) => [String(u).toLowerCase(), { title: String(t ?? '').trim(), isPage: !!n }]));
+  });
+}
 async function readableTitle(text, { pagesOnly = false, depth = 2, asShown = false } = {}) {
   const value = String(text || '');
+  const keys = [...new Set([...value.matchAll(storedRef)].filter(([, open]) => !pagesOnly || open !== '((').map(([, , uuid]) => uuid.toLowerCase()))];
   const names = new Map();
-  for (const [, open, uuid] of value.matchAll(storedRef)) {
-    const key = uuid.toLowerCase();
-    if (names.has(key) || (pagesOnly && open === '((')) continue;
-    let entity = null;
-    try { entity = await logseq.Editor.getPage(key) || await logseq.Editor.getBlock(key); } catch (error) { /* keep the id */ }
-    if (asShown && entity && !entity.name && !entity.originalName) { names.set(key, ''); continue; } // a block: shown as its id
-    let name = titleOf(entity) || entity?.originalName || entity?.name || '';
-    if (name && depth > 1) name = await readableTitle(name, { pagesOnly, depth: depth - 1 });
-    names.set(key, name);
+  if (keys.length) {
+    const found = await titlesOf(keys);
+    await Promise.all(keys.map(async key => {
+      const entity = found.get(key);
+      if (asShown && entity && !entity.isPage) return names.set(key, ''); // a block: shown as its id
+      names.set(key, entity?.title && depth > 1 ? await readableTitle(entity.title, { pagesOnly, depth: depth - 1 }) : entity?.title || '');
+    }));
   }
   return value.replace(storedRef, (match, open, uuid, close) => {
     const name = names.get(uuid.toLowerCase());
@@ -237,6 +247,19 @@ async function fieldsOf(uuid, schema) {
     queue.push(...(schema.parentsOf.get(c) || []));
   }
   return fields;
+}
+
+// A page fits a link property when one of its tags, or a tag that tag extends, is a tag the property takes.
+function fits(page, classIds, schema) {
+  const seen = new Set(), queue = page.tags.map(t => t.id);
+  while (queue.length) {
+    const c = queue.shift();
+    if (seen.has(c)) continue;
+    seen.add(c);
+    if (classIds.has(c)) return true;
+    queue.push(...(schema.parentsOf.get(c) || []));
+  }
+  return false;
 }
 
 /* The tags (0.4.224, moved here from parts/tags.js so that the tag tree reads the graph through the model like the
@@ -467,8 +490,8 @@ async function mergeFacts(source, target) {
 
 /* Links into pages (0.4.225, moved here from parts/two-way.js). linksInto(id) is every node that points at the page
    (every page but journals when id is null) through a property of yours, with the property's name and ident, the
-   node's words as stored, its first tag of yours by name, and its day: a Date property of yours (the one named "date"
-   first, else the earliest), else the journal day it is written on. Deleted nodes and nodes on deleted pages are left
+   node's words as stored, its first tag of yours by name, and its day: a Date property of yours (the one titled Date
+   first, whatever its ident, else the earliest), else the journal day it is written on. Deleted nodes and nodes on deleted pages are left
    out, and a page's own blocks do not count as pointing at it. nodeFields(uuid) is what a node's own properties of
    yours hold, by name, each value a day, a title or plain text; firstLines(uuid, n) its first children's words. */
 const LIVE = '(not [?b :logseq.property/deleted-at]) (not-join [?b] [?b :block/page ?pg] [?pg :logseq.property/deleted-at])';
@@ -486,7 +509,7 @@ async function linksInto(id) {
     dsQuery(`[:find ?page ?pu ?b ?attr ?name ?fu :where ${these} [?prop :block/title ?name] [?page :block/uuid ?pu] [?prop :block/uuid ?fu]]`),
     dsQuery(`[:find ?b ?uuid ?title :where ${these} [?b :block/uuid ?uuid] [?b :block/title ?title]]`),
     dsQuery(`[:find ?b ?tag :where ${these} [?b :block/tags ?t] [?t :db/ident ?ti] [(namespace ?ti) ?ns] [(= ?ns "user.class")] [?t :block/title ?tag]]`),
-    dsQuery(`[:find ?b ?dattr ?day :where ${these} [?dprop :logseq.property/type :date] [?dprop :db/ident ?dattr] [?b ?dattr ?d] [?d :block/journal-day ?day]]`),
+    dsQuery(`[:find ?b ?dattr ?day ?dname :where ${these} [?dprop :logseq.property/type :date] [?dprop :db/ident ?dattr] [?dprop :block/title ?dname] [?b ?dattr ?d] [?d :block/journal-day ?day]]`),
     dsQuery(`[:find ?b ?day :where ${these} [?b :block/page ?p] [?p :block/journal-day ?day]]`),
   ]);
   const isId = v => Number.isSafeInteger(v) && v > 0;
@@ -506,10 +529,9 @@ async function linksInto(id) {
   const records = new Map();
   if (!ids.size) return { pages, fields: fieldsByName, records };
   const days = new Map();
-  for (const [b, attr, day] of dated) {
-    const ident = bare(attr);
-    if (!/^user\.property\//.test(ident)) continue;
-    const rank = ident === 'user.property/date' ? 0 : 1, had = days.get(b);
+  for (const [b, attr, day, name] of dated) {
+    if (!/^user\.property\//.test(bare(attr))) continue;
+    const rank = String(name).trim().toLowerCase() === 'date' ? 0 : 1, had = days.get(b);
     if (!had || rank < had.rank || (rank === had.rank && day < had.day)) days.set(b, { rank, day });
   }
   for (const [b, day] of written) if (!days.has(b)) days.set(b, { rank: 2, day });
@@ -528,17 +550,16 @@ async function mentionsInto(id) {
   const [titled, tagged, dated, written, [[pageUuid] = []]] = await Promise.all([
     dsQuery(`[:find ?b ?uuid ?title :where ${these} [?b :block/uuid ?uuid] [?b :block/title ?title]]`),
     dsQuery(`[:find ?b ?tag :where ${these} [?b :block/tags ?t] [?t :db/ident ?ti] [(namespace ?ti) ?ns] [(= ?ns "user.class")] [?t :block/title ?tag]]`),
-    dsQuery(`[:find ?b ?dattr ?day :where ${these} [?dprop :logseq.property/type :date] [?dprop :db/ident ?dattr] [?b ?dattr ?d] [?d :block/journal-day ?day]]`),
+    dsQuery(`[:find ?b ?dattr ?day ?dname :where ${these} [?dprop :logseq.property/type :date] [?dprop :db/ident ?dattr] [?dprop :block/title ?dname] [?b ?dattr ?d] [?d :block/journal-day ?day]]`),
     dsQuery(`[:find ?b ?day :where ${these} [?b :block/page ?p] [?p :block/journal-day ?day]]`),
     dsQuery(`[:find ?pu :where [(identity ${id}) ?page] [?page :block/uuid ?pu]]`),
   ]);
   const link = `[[${String(pageUuid || '').toLowerCase()}]]`;
   if (link === '[[]]') return [];
   const days = new Map();
-  for (const [b, attr, day] of dated) {
-    const ident = bare(attr);
-    if (!/^user\.property\//.test(ident)) continue;
-    const rank = ident === 'user.property/date' ? 0 : 1, had = days.get(b);
+  for (const [b, attr, day, name] of dated) {
+    if (!/^user\.property\//.test(bare(attr))) continue;
+    const rank = String(name).trim().toLowerCase() === 'date' ? 0 : 1, had = days.get(b);
     if (!had || rank < had.rank || (rank === had.rank && day < had.day)) days.set(b, { rank, day });
   }
   for (const [b, day] of written) if (!days.has(b)) days.set(b, { rank: 2, day });
@@ -1045,7 +1066,7 @@ function provide(core) {
   core.provide({ setValue, unsetValue, addTag, removeTag, setWords, editBlock, exitEditing, insertBlock, addLineTo, currentPage, currentBlock, pickedBlocks, getBlock, currentGraph, tagTitles, getPage, createPage, deletePage, appendBlock, removeBlock, inRecycle, restorePage,
     renamePage, moveBlock, pageBlocksTree, EXTENDS, ALIAS, ICON, PARENT_TAGS, addTagExtends, removeTagExtends, openInSidebar, showSidebar,
     titleOf, trailingTags, storedRef, readableTitle, bare, pick, idOf,
-    propSchema, propPages, fieldsOf, kindOfPage, tagChain, tagChains, tagChainIndex, parseDay, dayNumber, sameDay, dayAfter, DAYS,
+    propSchema, propPages, fieldsOf, fits, kindOfPage, tagChain, tagChains, tagChainIndex, parseDay, dayNumber, sameDay, dayAfter, DAYS,
     tagGraph, propInfo, ownProps, inheritedProps, tagPropIds, acceptedIds, choicesOf, choiceUse, choiceCounts, choiceNodes, idByUuid,
     descriptionOf, titleNow, valuesOf, userValues, mergeFacts, TAG_PROPS, ACCEPTS, DESCRIPTION,
     linksInto, mentionsInto, firstTags, nodesOfTag, nodeLines, nodeFields, nodeValues, firstLines, pagesAmong, tagUuidNamed, uuidById,

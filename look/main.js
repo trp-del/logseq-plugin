@@ -10,8 +10,9 @@ async function main() {
   Look.title.start();
   Look.folded.start();
   Look.sidebar.start();
-  logseq.DB.onChanged(({ blocks }) => Look.kit.graphChanged(blocks));
-  logseq.onSettingsChanged?.(() => { Look.style.apply(); Look.sidebar.apply(); Look.kit.run(Look.kit.host()); });
+  logseq.DB.onChanged(change => Look.kit.graphChanged(change));
+  const own = Look.settings.schema.map(item => item.key);
+  logseq.onSettingsChanged?.((now, before) => { if (!window.PluginDoor.settingChanged(own, now, before)) return; Look.style.apply(); Look.sidebar.apply(); Look.kit.run(Look.kit.host()); });
   logseq.App.onCurrentGraphChanged(() => { Look.marks.load(); });
 }
 function stop() {

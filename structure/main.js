@@ -11,7 +11,7 @@ const tray = S.changes.makeTray();
 tray.setBase({ tags: [], props: [] });
 const app = {
   tray, views: new Set(), issuesCache: { model: null, list: [] }, reading: null, readAt: 0,
-  st: { cur: null, open: new Set(), ticks: new Set(), find: '', view: 'tree', sort: 'filled', propCur: null, menu: null, prompt: null, edit: null, nodes: null, busy: '', trail: [], ask: null, side: { cur: null, find: '' } },
+  st: { cur: null, open: new Set(), seen: new Set(), whole: new Set(), ticks: new Set(), find: '', view: 'tree', sort: 'filled', propCur: null, menu: null, prompt: null, edit: null, nodes: null, busy: '', trail: [], ask: null, side: { cur: null, find: '' } },
   issues() { if (app.issuesCache.model !== tray.model || app.issuesCache.at !== tray.version) app.issuesCache = { model: tray.model, at: tray.version, list: S.rules.issues(tray.model) }; return app.issuesCache.list; },
   // The tags and properties a change waiting in the tray touches: pencilled in wherever they are drawn.
   touched() {
@@ -82,9 +82,11 @@ S.app = app;
 let mounts = { onPage: () => false, openPage() {}, openSidebar() {} };
 
 let reReadTimer = 0;
-function graphChanged() {
-  // A change from outside while the tray is empty: read again after a quiet moment, so the counts stay true.
-  if (tray.changes.length || app.st.busy) return;
+const reachesMap = window.PluginDoor.structureWatch();
+function graphChanged(change) {
+  // A change from outside while the tray is empty: read again after a quiet moment, so the counts stay true. Words being
+  // written leave the map as it is.
+  if (!reachesMap(change) || tray.changes.length || app.st.busy) return;
   clearTimeout(reReadTimer);
   reReadTimer = setTimeout(() => { if (app.views.size) app.reread(); }, 1500);
 }
@@ -95,7 +97,7 @@ async function main() {
   logseq.App.registerCommandPalette({ key: 'structure-sidebar', label: 'Structure: the tree in the right sidebar' }, () => mounts.openSidebar());
   logseq.provideModel({ structureOpen: () => app.openMain() });
   logseq.App.registerUIItem('toolbar', { key: 'structure-open', template: '<a class="button" data-on-click="structureOpen" title="Structure: the map of tags and properties"><i class="ti ti-hierarchy"></i></a>' });
-  logseq.DB.onChanged(() => graphChanged());
+  logseq.DB.onChanged(change => graphChanged(change));
   logseq.App.onCurrentGraphChanged(() => { tray.discard(); tray.done = null; tray.note = ''; app.st.trail = []; app.reread(); });
   logseq.App.onRouteChanged?.(() => { app.followPage(); });
   await app.reread();

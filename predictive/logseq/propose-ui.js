@@ -33,7 +33,8 @@ const linkless = t => { const bare = String(t || '').replace(textLib.TAG, ' '); 
 const sameWords = (saved, typed) => { const a = linkless(saved), b = linkless(typed); return a.n === b.n && a.words === b.words; };
 const shownPieces = live => new Set(live.pieces.filter(p => live.drawn?.has(guessKey(p))).map(guessKey));
 // What leaving a bullet writes: what was taken (Enter, a click), and the sure values of a bullet whose words changed.
-const wanted = (live, p) => live.drawn?.has(guessKey(p)) && (live.taken?.has(guessKey(p)) || (!p.guess && live.changed));
+// unseen: the bullet was left before its proposals were worked out; its sure values are written all the same.
+const wanted = (live, p) => (live.unseen || live.drawn?.has(guessKey(p))) && (live.taken?.has(guessKey(p)) || (!p.guess && live.changed));
 
 /* Several names in one proposal ("Dr. Mei Chen, Ruth Okoro"): a click on one name takes that one, and once any is clicked
    only the names clicked are filled in, by Enter too. live.picked: the names clicked, by the proposal's key. */
@@ -242,7 +243,14 @@ async function compute(box) {
   S.live = { uuid, text: words, changed: S.entered.uuid !== uuid || words !== S.entered.words, recordUuid: String(record.uuid || ''), pieces, drawn: new Set(), clicked: keep?.clicked, picked: keep?.picked };
   drawInPlace(box.ownerDocument);
 }
-const soon = box => { clearTimeout(S.timer); S.timer = setTimeout(() => compute(box).catch(error => warnOnce('the proposals could not be worked out', error)), 40); };
+// Once typing pauses: longer than the gap between two letters, so a proposal is not worked out after every key.
+const PAUSE = 200;
+const soon = box => {
+  clearTimeout(S.timer);
+  const mine = S.dueId = (S.dueId || 0) + 1;
+  S.due = uuidOf(box);   // this bullet's proposals are still to come
+  S.timer = setTimeout(() => compute(box).catch(error => warnOnce('the proposals could not be worked out', error)).finally(() => { if (mine === S.dueId) S.due = ''; }), PAUSE);
+};
 
 /* ---------- leaving the bullet ---------- */
 // The one way: the shadow is taken off the screen, and what was shown is filled in, unless Escape had cleared it. taken: the
@@ -283,8 +291,8 @@ async function takeShadow(live) {
   const savedTags = new Set((db.pick(block, 'block/tags') || []).map(db.idOf));
   if (propose.inWords(live.text, ctx).tags.some(tag => !savedTags.has(tag))) return;
   const { record, pieces: found } = propose.propose(ctx, db.bulletOf(block, db.pick(block, 'block/title'), ctx.schema));
-  const pieces = found.filter(p => wanted(live, p)).map(p => narrowed(live, p));
-  const recordUuid = String(record.uuid || '');
+  const recordUuid = String(record.uuid || ''), refused = S.refused.get(recordUuid);
+  const pieces = found.filter(p => wanted(live, p) && !refused?.has(guessKey(p))).map(p => narrowed(live, p));
   if (!pieces.length || !textLib.UUID.test(recordUuid) || S.stopped) return;
   const { written, undo } = await writePieces(recordUuid, pieces);
   if (!written.length) return [];
@@ -394,7 +402,14 @@ function onFocusOut(event) {
   if (S.hushed.uuid === uuid) { S.version++; setTimeout(() => { const now = editingBox(host().activeElement); if (!(now && uuidOf(now) === uuid) && picking?.uuid !== uuid && picking?.returning !== uuid) S.hushed.uuid = ''; }, 120); return; }
   // Into a property's list with Option-Enter, or coming back from it: the proposals wait for the words.
   if (picking && (picking.uuid === uuid || picking.returning === uuid)) return;
-  if (!S.live || S.live.uuid !== uuid) { if (S.accepted.uuid === uuid) S.accepted = { uuid: '', at: 0, keys: new Set() }; return; }
+  const written = S.entered.uuid !== uuid || box.value !== S.entered.words, unseen = S.due === uuid && written;
+  if (!S.live || S.live.uuid !== uuid) {
+    if (S.accepted.uuid === uuid) S.accepted = { uuid: '', at: 0, keys: new Set() };
+    if (!unseen) return;
+    S.live = { uuid, text: box.value, changed: true, recordUuid: '', pieces: [], drawn: new Set() };
+  }
+  // Left within the pause: what is shown stands for the words as they end, which the saved words will be compared with.
+  S.live.text = box.value; S.live.changed ||= written; S.live.unseen = unseen;
   // Enter's taking counts only when the bullet is left right after it.
   const live = S.live, taken = Date.now() - (S.accepted.at || 0) < ENTER_LEAVES && S.accepted.uuid === uuid ? new Set(S.accepted.keys) : new Set();
   S.version++;
@@ -403,7 +418,7 @@ function onFocusOut(event) {
     if (now && uuidOf(now) === live.uuid) return;
     if (live.left) return;
     // Into the bullet's own properties (Logseq's Down from the words, then Left/Right, Enter): not leaving it.
-    if (inOwnProperties(active, live.recordUuid)) return visitProperties(live);
+    if (inOwnProperties(active, live.recordUuid || live.uuid)) return visitProperties(live);
     leave(live, taken);
   }, 120);
 }
@@ -537,7 +552,7 @@ function start() {
   watcher.observe(doc.body, { subtree: true, childList: true });
   S.stopped = false;
   applyHide();
-  logseq.onSettingsChanged?.(applyHide);
+  logseq.onSettingsChanged?.((now, before) => { if (window.PluginDoor.settingChanged(['proposals', 'proposalsSkipGraphs', 'proposalsHideEmpty'], now, before)) applyHide(); });
   logseq.App.onCurrentGraphChanged?.(() => { S.live = null; S.filling.clear(); S.refused.clear(); forgetUndo(S.undo?.record); applyHide(); });
   logseq.App.onRouteChanged?.(() => { S.live = null; hide(); applyHide(); });
   app.onStop(() => {

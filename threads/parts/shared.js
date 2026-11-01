@@ -659,10 +659,11 @@ function popup({ at, kind = 'menu', head, items, field: fieldOptions, rows, keys
    option, Enter), or null. */
 const CHECK_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5l10 -10"></path></svg>';
 const X_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6l-12 12"></path><path d="M6 6l12 12"></path></svg>';
+const FEW = 40;
 function pickValue({ at, placeholder = '', options = [], clearLabel = '', free = false, doc } = {}) {
   doc = doc || host();
   return new Promise(resolve => {
-    let answer = null, finished = false, lit = 0, shown = [];
+    let answer = null, finished = false, lit = 0, shown = [], all = false;
     const pop = el(doc, 'div', { class: 'ui__popover-content z-50 rounded-md border bg-popover text-popover-foreground shadow-md outline-none animate-in fade-in-0 zoom-in-95 data-[side=bottom]:slide-in-from-top-2 rf-lsq-pop',
       role: 'dialog', tabindex: '-1', 'data-side': 'bottom', 'data-state': 'open' });
     pop.setAttribute('popover', 'auto');
@@ -683,10 +684,10 @@ function pickValue({ at, placeholder = '', options = [], clearLabel = '', free =
     };
     const take = value => { answer = value; finish(); };
     const row = (item, i) => {
-      const words = item.clear ? [el(doc, 'span', { class: 'ui__icon ti', html: X_SVG }), el(doc, 'span', {}, item.label)] : [el(doc, 'div', {}, item.label)];
+      const words = item.clear ? [el(doc, 'span', { class: 'ui__icon ti', html: X_SVG }), el(doc, 'span', {}, item.label)] : [el(doc, 'div', { class: item.more ? 'rf-faint' : null }, item.label)];
       const link = el(doc, 'a', { class: `${i === lit ? 'chosen ' : ''}flex justify-between menu-link`, tabindex: '-1',
-        mousedown: event => event.preventDefault(), click: event => { event.preventDefault(); take(item.clear ? { clear: true } : item); },
-        mousemove: () => { if (lit !== i) { lit = i; draw(); } } },
+        mousedown: event => event.preventDefault(), click: event => { event.preventDefault(); choose(item); },
+        mousemove: () => { if (lit !== i) light(i); } },
         el(doc, 'span', { class: 'flex-1' }, el(doc, 'div', { class: `${i === lit ? 'chosen ' : ''}flex flex-row justify-between w-full` },
           el(doc, 'div', { class: 'flex flex-row items-center gap-1' }, ...words),
           el(doc, 'div', { class: 'tip flex items-center gap-1' }, item.held ? el(doc, 'span', { class: 'ls-icon-check ui__icon ti', html: CHECK_SVG }) : null))));
@@ -697,20 +698,26 @@ function pickValue({ at, placeholder = '', options = [], clearLabel = '', free =
       const starts = o => o.label.toLowerCase().startsWith(q);
       const found = q ? options.filter(o => o.label.toLowerCase().includes(q)).sort((a, b) => (starts(b) - starts(a)) || a.label.length - b.label.length)
         : [...options.filter(o => o.held), ...options.filter(o => !o.held)]; // what it holds first, ticked, as Logseq lists it
-      shown = [...found, ...(clearLabel && !q ? [{ label: clearLabel, clear: true }] : [])];
+      // A few, then "show all": a list of thousands costs more to draw than anyone reads, and typing narrows it.
+      const few = all || found.length <= FEW ? found : [...found.slice(0, FEW), { label: `show all ${found.length}`, more: true }];
+      shown = [...few, ...(clearLabel && !q ? [{ label: clearLabel, clear: true }] : [])];
       lit = Math.min(lit, Math.max(0, shown.length - 1));
       list.replaceChildren(...shown.map(row));
       list.querySelector('.chosen')?.scrollIntoView?.({ block: 'nearest' });
     }
-    input.addEventListener('input', () => { lit = 0; draw(); });
+    // The lit row moves by its class: nothing is drawn again under the pointer or the arrows.
+    const mark = (i, on) => { const link = list.children[i]?.querySelector('a'); link?.classList.toggle('chosen', on); link?.firstElementChild?.firstElementChild?.classList.toggle('chosen', on); };
+    const light = i => { mark(lit, false); lit = i; mark(lit, true); };
+    const choose = item => { if (item.more) { all = true; input.focus(); draw(); } else take(item.clear ? { clear: true } : item); };
+    input.addEventListener('input', () => { lit = 0; all = false; draw(); });
     input.addEventListener('keydown', event => {
       event.stopPropagation();
       if (event.isComposing) return;
-      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); if (shown.length) { lit = (lit + (event.key === 'ArrowDown' ? 1 : shown.length - 1)) % shown.length; draw(); } }
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); if (shown.length) { light((lit + (event.key === 'ArrowDown' ? 1 : shown.length - 1)) % shown.length); list.children[lit]?.scrollIntoView?.({ block: 'nearest' }); } }
       else if (event.key === 'Enter') {
         event.preventDefault();
         const item = shown[lit], typed = input.value.trim();
-        if (item && (!typed || !free || item.label.toLowerCase().includes(typed.toLowerCase()))) take(item.clear ? { clear: true } : item);
+        if (item && (item.more || !typed || !free || item.label.toLowerCase().includes(typed.toLowerCase()))) choose(item);
         else if (free && typed) take({ typed });
       } else if (event.key === 'Escape') { event.preventDefault(); finish(); }
     });
@@ -1100,6 +1107,7 @@ function watchUndos() {
 const undo = {
   offer({ key, at, text, run, onFail, cls, data }) {
     const before = undoState.entries.get(key);
+    for (const other of [...undoState.entries.keys()]) if (other !== key) undoState.entries.delete(other);   // a new change's arrow takes the last one's place
     const all = before ? async () => { let failed = null; try { await run(); } catch (error) { failed = error; } await before.run(); if (failed) throw failed; } : run;
     undoState.entries.set(key, { at, text: before ? `${text} · ${before.text}` : text, run: all, onFail: onFail || before?.onFail, cls, data: data ?? before?.data });
     // Drawn again, so an arrow with the old words is replaced.

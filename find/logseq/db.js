@@ -33,16 +33,16 @@ async function tagIndex(force) {
   for (const [c, p] of links) { const child = byId.get(c), parent = byId.get(p); if (child && parent && parent.ident !== 'logseq.class/Root') { parent.kids.push(child); child.parents.push(parent); } }
   const direct = new Map();
   for (const [t, b] of carried) { if (!direct.has(t)) direct.set(t, new Set()); direct.get(t).add(b); }
-  // Under a tag: its own nodes and those of every tag below it, each node once.
-  const under = (tag, seen = new Set()) => {
-    if (tag.under) return tag.under;
-    const set = new Set(direct.get(tag.id) || []);
-    seen.add(tag.id);
-    for (const kid of tag.kids) if (!seen.has(kid.id)) for (const b of under(kid, seen)) set.add(b);
-    tag.under = set;
-    return set;
-  };
-  for (const tag of byId.values()) under(tag);
+  // Under a tag: its own nodes and those of every tag below it, each node once. Each tag walks its own tree, so a tag under
+  // two parents counts under both, and a loop of tags ends.
+  for (const tag of byId.values()) {
+    const set = tag.under = new Set(), seen = new Set([tag.id]), walk = [tag];
+    while (walk.length) {
+      const at = walk.pop();
+      for (const b of direct.get(at.id) || []) set.add(b);
+      for (const kid of at.kids) if (!seen.has(kid.id)) { seen.add(kid.id); walk.push(kid); }
+    }
+  }
   const byUuid = new Map([...byId.values()].map(t => [t.uuid, t]));
   tags = { byId, byUuid, list: [...byId.values()] };
   return tags;
@@ -61,13 +61,33 @@ function kindOf(index, tagIds) {
 }
 
 /* The nodes under a kind: id, uuid, title (refs as names), the page they sit on, the day (the page's journal day, else
-   a date property's), their kind. Up to `limit`, newest day first. */
+   a date property's), their kind. A kind with more than `limit` nodes keeps its newest, and the list says how many it holds
+   in all (cutFrom). */
 async function nodesOfKind(tagId, limit = 3000) {
   const index = await tagIndex();
   const tag = index.byId.get(tagId);
   if (!tag) return [];
-  const ids = [...tag.under].slice(0, limit);
-  return details(ids, []);
+  const ids = [...tag.under];
+  if (ids.length <= limit) return details(ids, []);
+  const where = `${idsIn('?b', ids)} [?b :block/uuid ?u]`;
+  const [ownDay, dateDay, pages] = await daysOf(where);
+  const dayOf = b => ownDay.get(b) || pages.get(b)?.journal || dateDay.get(b) || 0;
+  const list = await details(ids.sort((a, b) => dayOf(b) - dayOf(a)).slice(0, limit), []);
+  list.cutFrom = ids.length;
+  return list;
+}
+// A node's own journal day, the earliest of its date properties, its page; apart from the rest, so a long kind can be cut by them.
+async function daysOf(where) {
+  const [pages, days, dates] = await Promise.all([
+    query(`[:find ?b ?ptitle ?pday :where ${where} [?b :block/page ?pg] [?pg :block/title ?ptitle] [(get-else $ ?pg :block/journal-day 0) ?pday]]`),
+    query(`[:find ?b ?d :where ${where} [?b :block/journal-day ?d]]`),
+    query(`[:find ?b ?d :where ${where} [?b ?a ?v] ${USER_PROP} [?prop :logseq.property/type :date] [?v :block/journal-day ?d]]`),
+  ]);
+  const ownDay = new Map(days.map(([b, d]) => [b, Number(d)]));
+  const dateDay = new Map();
+  for (const [b, d] of dates) if (!dateDay.has(b) || Number(d) < dateDay.get(b)) dateDay.set(b, Number(d));
+  const pageOf = new Map(pages.map(([b, ptitle, pday]) => [b, { title: String(ptitle), journal: Number(pday) || 0 }]));
+  return [ownDay, dateDay, pageOf];
 }
 /* The details of nodes given by id or by uuid: [{ id, uuid, title, text, isPage, page: { uuid, title, journal }, day, tags, kind }]. */
 async function details(ids, uuids) {
@@ -75,19 +95,13 @@ async function details(ids, uuids) {
   const where = ids.length ? `${idsIn('?b', ids)} [?b :block/uuid ?u]` : `${uuidsIn('?u', uuids)} [?b :block/uuid ?u]`;
   if (!ids.length && !uuids.length) return [];
   // A page has no page of its own: the page a block sits on is read apart (a lookup on a missing page id throws).
-  const [basics, pages, tagRows, days, dates] = await Promise.all([
+  const [basics, tagRows, [ownDay, dateDay, pageOf]] = await Promise.all([
     query(`[:find ?b ?u ?title ?name :where ${where} [?b :block/title ?title] [(get-else $ ?b :block/name "") ?name]]`),
-    query(`[:find ?b ?ptitle ?pday :where ${where} [?b :block/page ?pg] [?pg :block/title ?ptitle] [(get-else $ ?pg :block/journal-day 0) ?pday]]`),
     query(`[:find ?b ?t :where ${where} [?b :block/tags ?t]]`),
-    query(`[:find ?b ?d :where ${where} [?b :block/journal-day ?d]]`),
-    query(`[:find ?b ?d :where ${where} [?b ?a ?v] ${USER_PROP} [?prop :logseq.property/type :date] [?v :block/journal-day ?d]]`),
+    daysOf(where),
   ]);
   const tagsOf = new Map();
   for (const [b, t] of tagRows) { if (!tagsOf.has(b)) tagsOf.set(b, []); tagsOf.get(b).push(t); }
-  const ownDay = new Map(days.map(([b, d]) => [b, Number(d)]));
-  const dateDay = new Map();
-  for (const [b, d] of dates) if (!dateDay.has(b) || Number(d) < dateDay.get(b)) dateDay.set(b, Number(d));
-  const pageOf = new Map(pages.map(([b, ptitle, pday]) => [b, { title: String(ptitle), journal: Number(pday) || 0 }]));
   const list = basics.map(([b, u, title, name]) => {
     const t = tagsOf.get(b) || [];
     const isPage = !!name, page = isPage ? null : (pageOf.get(b) || { title: '', journal: 0 });

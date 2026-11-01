@@ -438,16 +438,16 @@ function main() {
     runHooks(hooks.page, 'page change');
   }));
   // Edits fire this constantly while typing, so the database round waits for a pause before re-querying.
-  onUnload(logseq.DB.onChanged(({ blocks } = {}) => {
+  onUnload(logseq.DB.onChanged((change = {}) => {
     perf.add('DB.onChanged (calls only)', 0);
     graphCache.changed = true;
-    runHooks(hooks.database, 'database change', blocks);
+    runHooks(hooks.database, 'database change', change);
     scheduleDbWork();
   }));
   onUnload(logseq.App.onCurrentGraphChanged(() => { graphCache.clear(); runHooks(hooks.graph, 'graph change'); })); // another graph has other lists
   onUnload(() => { clearTimeout(dbWork.timer); clearTimeout(dbWork.slowTimer); });
   onUnload(logseq.onSettingsChanged((now, before) => {
-    if (perf.ownSettingsOnly(now, before)) return;
+    if (perf.ownSettingsOnly(now, before) || !window.PluginDoor.settingChanged(schemaAll.map(item => item.key), now, before)) return;
     runHooks(hooks.settings, 'settings change', now, before);
     // Logseq rewrites every setting when the plugin starts, so a setting with no earlier value is a
     // default being filled in (first install, or a new setting after an update), not a change.

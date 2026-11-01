@@ -7,11 +7,12 @@ const { KINDS, isKind, count, kids, parentOf, kindOf, filled, filledOwn, rangeGu
 const RULES = ['One place', 'A child earns its place', 'A relation has a range', 'A property lives as high as it is filled', 'Names say what they are'];
 const list = names => names.length < 2 ? names.join('') : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
 
-// The singular of a name written in the plural (Consultations, Results, Studies), or null when the name reads singular.
+// The singular a name written in the plural would have (Consultations, Results, Studies), or null when the name reads
+// singular. Only a guess: spelling cannot tell Notes from Diabetes, so the rule below never renames on it unasked.
 function singularOf(name) {
   const m = String(name).match(/^(.*?)(\S+)$/); if (!m) return null;
   const [, head, word] = m;
-  if (/^[A-Z]{2,}$/.test(word) || word.length < 4) return null;
+  if (/^[A-Z]{2,}$/.test(word) || word.length < 4 || /['’]s$/.test(word)) return null;
   if (/ies$/.test(word)) return head + word.slice(0, -3) + 'y';
   if (/(ss|us|is|ous|news|ics)$/i.test(word)) return null;
   if (/(x|z|ch|sh|s)es$/.test(word)) return head + word.slice(0, -2);
@@ -109,7 +110,7 @@ function issues(M) {
     if (!single) continue;
     const exists = titled(M, single).find(x => x.id !== t.id);
     if (exists) add(RULES[4], t.id, [subject(t.id), say('is plural, and'), tags([exists.id]), say('exists')], `merge into ${exists.title}`, { kind: 'merge', from: t.id, into: exists.id });
-    else add(RULES[4], t.id, [subject(t.id), say('is plural')], `rename to ${single}`, { kind: 'rename', tag: t.id, name: single });
+    else add(RULES[4], t.id, [subject(t.id), say('may be plural')], 'rename…', { kind: 'prompt', what: 'rename', tag: t.id, name: single });
   }
   const order = new Map(RULES.map((r, i) => [r, i]));
   return out.sort((a, b) => order.get(a.rule) - order.get(b.rule));

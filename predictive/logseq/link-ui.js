@@ -55,7 +55,8 @@ async function boostOf(box, pages) {
 // What was taken or passed over, by name, kept in a setting under the graph's name (the plugin's settings are shared by
 // every graph), the last MEMORY_MOST names.
 const MEMORY_MOST = 400;
-let memoryAll = null, saveTimer = 0;
+const SAVE_EVERY = 60000;
+let memoryAll = null, unsaved = false, savedAt = 0;
 const memoryNow = () => (memoryAll || logseq.settings?.linkSuggestMemory || {})[graph] || null;
 function remember(lower, taken) {
   if (!graph || !setting('linkSuggestLearn')) return;
@@ -67,8 +68,13 @@ function remember(lower, taken) {
   for (const key of keys.slice(0, Math.max(0, keys.length - MEMORY_MOST))) delete mine[key];
   all[graph] = mine;
   memoryAll = all;
-  clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => { app.remember('linkSuggestMemory', all); if (memoryAll === all) memoryAll = null; }, 500);
+  unsaved = true;
+}
+// Saved on leaving a bullet, at most once a minute: a setting saved wakes every module's listener in Logseq.
+function saveMemory(force) {
+  if (!unsaved || (!force && Date.now() - savedAt < SAVE_EVERY)) return;
+  unsaved = false; savedAt = Date.now();
+  app.remember('linkSuggestMemory', memoryAll);
 }
 // A suggestion shown and then passed over (the next letter did not take it, or the bullet was left): once per showing.
 const passed = new WeakSet();
@@ -84,19 +90,14 @@ async function look(box) {
   if (mine !== version || !box.isConnected || box.value !== text || box.selectionStart !== caret || host().activeElement !== box) return;
   if (app.popupOpen()) return clear();                             // Logseq's own list ([[, /, a picker) has the keys
   const learn = setting('linkSuggestLearn');
-  const [rates, boost] = learn ? await Promise.all([ratesNow(pages), boostOf(box, pages)]) : [null, null];
+  const [rates, boost] = learn ? await Promise.all([ratesNow(), boostOf(box, pages)]) : [null, null];
   if (mine !== version || !box.isConnected || box.value !== text || box.selectionStart !== caret) return;
   const hit = link.suggestFor(text, caret, pages, { min: minLetters(), rates, memory: learn ? memoryNow() : null, boost });
   if (!hit) return clear();
   draw(box, hit);
 }
-// How often each name is linked, read every 30 s at most (it reads every block's words once).
-const ratesCache = { at: 0, value: null, loading: null };
-function ratesNow(pages) {
-  if (ratesCache.value && Date.now() - ratesCache.at < 30000) return Promise.resolve(ratesCache.value);
-  ratesCache.loading ||= db.loadLinkRates(pages).then(v => { ratesCache.value = v; ratesCache.at = Date.now(); return v; }).catch(() => ratesCache.value).finally(() => { ratesCache.loading = null; });
-  return ratesCache.value ? Promise.resolve(ratesCache.value) : ratesCache.loading;
-}
+// How often each name is linked: counted with the graph's reading, and kept up line by line as lines change. Never waited for.
+const ratesNow = async () => (await app.context({ wait: false }))?.linkLines?.counter.rates || null;
 
 function onInput(event) {
   const box = event.target;
@@ -205,8 +206,9 @@ async function start() {
   app.listen(win, ['blur'], () => { hyperTap.armedAt = 0; });
   app.listen(win, ['focusout', 'pointerdown', 'mousedown'], () => { if (showing) passedOver(showing.hit); clear(); });
   app.listen(win, ['scroll', 'resize'], clear, true);
-  app.onStop(() => { clear(); clearTimeout(pauseTimer); version++; });
-  logseq.App.onCurrentGraphChanged?.(async () => { graph = await app.graphName(); boosts.clear(); ratesCache.value = null; });
+  app.listen(win, ['focusout'], event => { if (app.isBlockBox(event.target)) saveMemory(); });
+  app.onStop(() => { clear(); clearTimeout(pauseTimer); version++; saveMemory(true); });
+  logseq.App.onCurrentGraphChanged?.(async () => { saveMemory(true); graph = await app.graphName(); boosts.clear(); });
   logseq.DB.onChanged?.(() => boosts.clear());
   logseq.App.onRouteChanged?.(clear);
 }

@@ -98,13 +98,16 @@ function largeGraph(pages = 20000, propCount = 300) {
 // What nodeValues (0.4.369) reads: rows of what nodes hold under your properties, in the four shapes of its four queries.
 let VALUE_ROWS = [];
 // What structureUse (0.4.448) reads: every value, the tags on nodes, the words of text values, the links in the words.
-let USE = { values: [], tagged: [], texts: [], refs: [] };
+let USE = { values: [], tagged: [], texts: [], refs: [], link: { links: [], titled: [], dated: [] } };
 const askedUuids = query => [...query.matchAll(/#uuid "([^"]+)"/g)].map(m => m[1]);
 function fakeDb(graph, log) {
   const all = () => Object.values(graph);
   const ref = id => ({ id });
   const isProperty = x => (x.tags || []).includes(1);
   const shapes = [
+    [/^\[:find \?page \?pu \?b \?attr \?name \?fu/, () => USE.link.links], [/^\[:find \?b \?uuid \?title/, () => USE.link.titled], [/^\[:find \?b \?tag :where/, () => []],
+    [/^\[:find \?b \?dattr \?day \?dname/, () => USE.link.dated], [/^\[:find \?b \?day :where/, () => []],
+    [/^\[:find \?u \?t \?n :where \[\(ground/, (m, query) => askedUuids(query).map(u => all().find(x => x.uuid === u)).filter(Boolean).map(x => [x.uuid, x.title, x.name || ''])],
     [/\(pull \?p \[:db\/id :db\/ident :block\/uuid :block\/title :logseq\.property\/type :db\/cardinality :logseq\.property\/icon[\s\S]*:where \[\?p :block\/tags :logseq\.class\/Property\] \[\?p :db\/ident _\]/,
       () => all().filter(x => isProperty(x) && x.ident).map(x => [{ id: x.id, ident: ':' + x.ident, uuid: x.uuid, title: x.title,
         ...(x.type ? { type: ':' + x.type } : {}), ...(x.cardinality ? { cardinality: ':' + x.cardinality } : {}),
@@ -208,6 +211,29 @@ async function main() {
   same(await model.readableTitle(`Gone [[${U(999)}]]`), `Gone [[${U(999)}]]`, 'readableTitle keeps an id it cannot find');
   same(await model.readableTitle(`Odd [[${U(40)}))`), `Odd [[${U(40)}))`, 'readableTitle keeps mismatched brackets');
   same(await model.readableTitle(''), '', 'readableTitle of nothing');
+  // Every title asked for in one moment is one question, however many links.
+  queries.length = 0;
+  const together = await Promise.all([`Met [[${U(40)}]]`, `About ((${U(50)}))`, `Again [[${U(40)}]] and [[${U(50)}]]`, `Gone [[${U(999)}]]`].map(text => model.readableTitle(text)));
+  same(together.join('|'), `Met [[Mateo Ruiz]]|About Budget review|Again [[Mateo Ruiz]] and [[Budget review]]|Gone [[${U(999)}]]`, 'titles read together');
+  same(queries.filter(entry => entry.startsWith('^\\[:find \\?u \\?t \\?n')).length, 1, 'titles asked for together are one question: ' + queries);
+  // A node's day: the property titled Date, whatever its ident, before an earlier day under another name.
+  USE.link = { links: [[5, U(5), 7, ':user.property/about', 'about', U(6)]], titled: [[7, U(7), 'A node']], dated: [[7, ':user.property/seen-q1', 20260105, 'Seen'], [7, ':user.property/date-x9', 20260301, 'Date']] };
+  same([...(await model.linksInto(5)).records.values()][0].day, 20260301, 'a property titled Date comes first, its ident aside');
+  // A date in a node's words, as the proposals read it: Threads keeps its own reader, so it is held to Predictive's rules.
+  const rules = fs.readFileSync(path.join(__dirname, '../parts/shadow-rules.js'), 'utf8');
+  const lineOf = name => rules.match(new RegExp(`^const ${name} = .*$`, 'm'))[0];
+  const reader = new Function('parseDay', 'dayAfter', 'dayNumber', 'sameDay', [lineOf('WEEKDAY'), lineOf('MONTH'), lineOf('SMALL'), lineOf('AFTER_DAY'), lineOf('asDate'), lineOf('JUST_WENT'), lineOf('AHEAD'), lineOf('cleanWords'), rules.match(/^function daysInWords[\s\S]*?^}$/m)[0], 'return daysInWords;'].join('\n'))(model.parseDay, model.dayAfter, model.dayNumber, model.sameDay);
+  const saturday = 20261031, friday = 20261023;
+  same(reader('Scan on Oct 3 showed a shadow', saturday), [20261003], 'a day that just went stays this year');
+  same(reader('Scan on Nov 20', saturday), [20261120], 'a day to come stays to come');
+  same(reader('Bloods on Friday were normal', saturday), [], 'a weekday told in the past is none');
+  same(reader('Bloods on Friday', friday), [], 'today\'s own weekday is none');
+  same(reader('Scan was moved to next Friday', saturday), [20261113], 'next still says');
+  same(reader('Appointment on Friday', saturday), [20261106], 'a plain weekday is the coming one');
+  // A page fits a property through the tag it holds or any tag above that.
+  const up = { parentsOf: new Map([[3, [2]], [2, [1]]]) };
+  same(model.fits({ tags: [{ id: 3 }] }, new Set([1]), up), true, 'a tag two steps under the one taken fits');
+  same(model.fits({ tags: [{ id: 2 }] }, new Set([3]), up), false, 'a tag above the one taken does not');
 
   // Readers of a pulled map.
   same(model.bare(':user.property/x'), 'user.property/x', 'bare drops the colon');

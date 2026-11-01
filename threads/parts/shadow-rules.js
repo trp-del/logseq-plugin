@@ -12,10 +12,10 @@ const P = shared.feature('proposals');
 P.links ||= [];
 const take = (core, names) => shared.take(core, names, warnOnce);
 let later, pending;
-let model, UUID, propSchema, propPages, bare, pick, idOf, titleOf, alike, parseDay, dayAfter, dayNumber;
+let model, UUID, propSchema, propPages, fits, bare, pick, idOf, titleOf, alike, parseDay, dayAfter, dayNumber, sameDay;
 
 const ownLink = core => {
-  ({ model, UUID, propSchema, propPages, bare, pick, idOf, titleOf, alike, parseDay, dayAfter, dayNumber } = take(core, ['UUID', 'propSchema', 'propPages', 'bare', 'pick', 'idOf', 'titleOf', 'alike', 'parseDay', 'dayAfter', 'dayNumber']));
+  ({ model, UUID, propSchema, propPages, fits, bare, pick, idOf, titleOf, alike, parseDay, dayAfter, dayNumber, sameDay } = take(core, ['sameDay', 'UUID', 'propSchema', 'propPages', 'fits', 'bare', 'pick', 'idOf', 'titleOf', 'alike', 'parseDay', 'dayAfter', 'dayNumber']));
   model = core.provided; // the graph is read through the model (0.4.226)
   ({ later, pending } = P);
 };
@@ -42,18 +42,6 @@ function fieldsOfTags(tagIds, schema) {
     queue.push(...(schema.parentsOf.get(c) || []));
   }
   return fields;
-}
-// A page fits a link property when one of its tags, or a tag that tag extends, is a tag the property takes.
-function fits(page, classIds, schema) {
-  const seen = new Set(), queue = page.tags.map(t => t.id);
-  while (queue.length) {
-    const c = queue.shift();
-    if (seen.has(c)) continue;
-    seen.add(c);
-    if (classIds.has(c)) return true;
-    queue.push(...(schema.parentsOf.get(c) || []));
-  }
-  return false;
 }
 /* A wide property (0.4.220, at the owner's word: "I was testing it out because topic is wide thing"): one that takes
    tags from two or more separate families, a family being the top of a tag's chain of extends (Topic taking Symptom,
@@ -377,15 +365,23 @@ const SMALL = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6,
 // After a bare "the 4th", only the end of the words, a time, or a small joining word: "on the 2nd floor" is a floor.
 const AFTER_DAY = '(?=\\s*$|\\s+(?:at|in|and|then|for|so|but|or|to|when|with|please|until|till|\\d))';
 const asDate = day => new Date(Math.floor(day / 10000), Math.floor(day / 100) % 100 - 1, day % 100);
+// A day and month with no year that went by at most this long ago is that day; words that tell of what has been.
+const JUST_WENT = 56, PAST = /\b(?:was|were|had|did|went|saw|came|got|felt|showed|told|last)\b/i;
 // The days the words name, as day numbers, each once, counted from `base` (the journal day the bullet is written on,
-// else today): a weekday is the coming one; "the 4th" the next 4th; a day and month the next such day; "in two weeks".
+// else today): a weekday is the coming one, and none when it is today's own or the words tell of what has been; "the 4th"
+// the next 4th; a day and month the next such day, or the one that just went; "in two weeks".
 function daysInWords(text, base) {
   const words = ' ' + cleanWords(text).toLowerCase().replace(/[.,;:!?()]/g, ' ') + ' ', today = asDate(base), found = new Set();
   const add = date => { if (date && !Number.isNaN(date.getTime())) found.add(dayNumber(date)); };
+  const pointsAhead = AHEAD.test(text), tellsPast = !pointsAhead && PAST.test(text);
   for (const [, word] of words.matchAll(/\s(today|tomorrow|tmr|yesterday)\s/g)) add(parseDay(word, today));
   // A weekday: its whole name anywhere ("Friday"); a short one only after on, next, this, by, until (the code review,
   // 2026-10-21: "Sat with Dr. Chen" and "Sun was out" were read as days).
-  for (const [, next, on, day] of words.matchAll(new RegExp(`\\s(?:(next)\\s+|(on|this|by|until|till)\\s+)?(${WEEKDAY})(?=\\s)`, 'g'))) if (next || on || day.endsWith('day')) add(parseDay(`${next ? 'next ' : ''}${day}`, today));
+  for (const [, next, on, day] of words.matchAll(new RegExp(`\\s(?:(next)\\s+|(on|this|by|until|till)\\s+)?(${WEEKDAY})(?=\\s)`, 'g'))) {
+    if (!next && !on && !day.endsWith('day')) continue;
+    const date = parseDay(`${next ? 'next ' : ''}${day}`, today);
+    if (next || (!tellsPast && (pointsAhead || !date || !sameDay(date, dayAfter(today, 7))))) add(date);
+  }
   for (const [, n] of words.matchAll(new RegExp(`\\s(?:on|by|until|till|from|before|after|for|${WEEKDAY})\\s+the\\s+(\\d{1,2})(?:st|nd|rd|th)${AFTER_DAY}`, 'g'))) {
     const d = Number(n);
     if (d < 1 || d > 31) continue;
@@ -397,7 +393,10 @@ function daysInWords(text, base) {
   // "May" is a month only where a date can end: "Dose 4 may need lowering" is the verb (the code review, 2026-10-21).
   const dayMonth = (d, month, rest) => {
     if (month === 'may' && !new RegExp(`^${AFTER_DAY}`).test(rest)) return;
-    const date = parseDay(`${d} ${month.slice(0, 3)}`, today); if (date && date.getDate() === Number(d)) add(date);
+    const date = parseDay(`${d} ${month.slice(0, 3)}`, today);
+    if (!date || date.getDate() !== Number(d)) return;
+    const yearBefore = new Date(date.getFullYear() - 1, date.getMonth(), date.getDate());
+    add(!pointsAhead && dayAfter(yearBefore, JUST_WENT) >= today ? yearBefore : date);
   };
   for (const m of words.matchAll(new RegExp(`\\s(\\d{1,2})(?:st|nd|rd|th)?\\s+(?:of\\s+)?(${MONTH})`, 'g'))) dayMonth(m[1], m[2], words.slice(m.index + m[0].length));
   for (const m of words.matchAll(new RegExp(`\\s(${MONTH})\\s+(\\d{1,2})(?:st|nd|rd|th)?(?=\\s)`, 'g'))) dayMonth(m[2], m[1], words.slice(m.index + m[0].length));
@@ -703,6 +702,7 @@ async function learnNow() {
     alike?.updateEntry(data.index, { id, title, tokens, values });
   }
 }
+const earlierLinesRead = () => !!guessCache.data;
 async function loadGuessData(ctx) {
   const { schema } = ctx;
   if (!schema) return { aliases: [], tagIds: [], entries: [] }; // the properties not read yet: nothing to learn from
@@ -785,5 +785,5 @@ function datedAhead(tagIds, ctx) {
 Object.assign(P, { contextFor, daysFor, guessDataFor, ownTagsAtStart, piecesFor, pullBlock, withFreshLinks, LINK, TAG, inWords, pageTagIn, plainWords, sameIds, untagged, withPageTag, withoutPageTag, addHistory, freeWords, guessCache, learnSoon, allNamedIn, namedIn, namesFor, pickerOrder, wordsEarned, draftPieces, draftProposals, nodeProposals, namedIds, namedPages, tagGuess });
 // The rules take what they use at their own start too, so the pickers' order (pickerOrder) works without the
 // proposals while writing (0.4.269); parts/shadow.js runs every piece's link again when it starts.
-(window.refinementParts ||= []).push({ name: 'proposals rules', schema: [], provide: core => core.provide({ pickerOrder, draftProposals, nodeProposals, namedPages, tagGuess }), start() { ownLink(window.refinementCore); }, stop: runUnloadTasks });
+(window.refinementParts ||= []).push({ name: 'proposals rules', schema: [], provide: core => core.provide({ earlierLinesRead, pickerOrder, draftProposals, nodeProposals, namedPages, tagGuess }), start() { ownLink(window.refinementCore); }, stop: runUnloadTasks });
 })();

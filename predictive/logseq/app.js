@@ -42,7 +42,7 @@ async function context({ wait = true } = {}) {
   if (!state.ctx || old) {
     state.loading ||= (async () => {
       const graph = await graphName();
-      const ctx = await db.readContext({ limits: limitsFor(graph), locale: localeNow() });
+      const ctx = await db.readContext({ limits: limitsFor(graph), locale: localeNow(), linkRates: setting('linkSuggest') && setting('linkSuggestLearn') });
       ctx.graph = graph;
       return (state.ctx = ctx);
     })().catch(error => { warnOnce('the graph could not be read', error); return state.ctx; }).finally(() => { state.loading = null; });

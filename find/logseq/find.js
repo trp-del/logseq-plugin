@@ -72,6 +72,8 @@ const CSS = `
 .fd-right .fd-key { font-family: var(--fd-mono); }
 .fd-showall { all: unset; cursor: pointer; display: block; color: var(--fd-faint); font-size: 12.5px; padding: 2px 0 2px 88px; }
 .fd-showall:hover { color: inherit; }
+.fd-cut { display: flex; align-items: baseline; font-size: 12.5px; padding: 2px 0 2px 88px; }
+.fd-cut .fd-showall { padding: 0; }
 .fd-none { color: var(--fd-faint); padding: 6px 0 6px 88px; }
 /* A node opened in place: its properties, then what points at it, each a line that opens: the grammar's row, the dot
    ringed while closed, the number after the words as faint as on a lit choice. */
@@ -101,7 +103,7 @@ const S = {
   picks: [], typed: '', mode: 'rows', rowAt: 0, choiceAt: 0,
   kinds: [], recents: [], base: [], shown: [], facets: null, allShown: false, moreOf: new Set(),
   dug: [], dugData: new Map(), openGroups: new Set(), groupAll: new Set(), stale: false,
-  cache: { kind: new Map(), kindFacets: new Map(), words: new Map() }, loading: false, failed: '', commands: null, tallest: 0,
+  cache: { kind: new Map(), kindFacets: new Map(), counted: new Map(), words: new Map() }, loading: false, failed: '', commands: null, tallest: 0,
 };
 const setting = key => Find.settings.setting(key);
 const words = () => S.typed.trim().toLowerCase().split(/\s+/).filter(Boolean);
@@ -130,14 +132,20 @@ async function compute() {
       if (!S.cache.kindFacets.has(tag.id)) S.cache.kindFacets.set(tag.id, await db.facets(nodes));
       if (gen !== S.gen) return;
       const full = S.cache.kindFacets.get(tag.id);
-      for (const p of S.picks) {
-        if (p.kind === 'value') nodes = nodes.filter(n => full.byNode.get(n.id)?.has(p.name + '=' + p.key));
-        if (p.kind === 'month') nodes = nodes.filter(n => Math.floor(n.day / 100) === p.key);
+      // The choices are counted over the picks alone: the letters narrow the rows, and light the choice they name. So the
+      // count is kept by the picks, and a letter costs only the narrowing.
+      const picked = JSON.stringify(S.picks.map(p => [p.kind, p.kind === 'tag' ? p.id : p.name, p.key]));
+      if (!S.cache.counted.has(picked)) {
+        for (const p of S.picks) {
+          if (p.kind === 'value') nodes = nodes.filter(n => full.byNode.get(n.id)?.has(p.name + '=' + p.key));
+          if (p.kind === 'month') nodes = nodes.filter(n => Math.floor(n.day / 100) === p.key);
+        }
+        const base = nodes.slice().sort((a, b) => b.day - a.day);
+        S.cache.counted.set(picked, { base, facets: { props: countFacets(base, full), months: db.months(base), kinds: [] } });
       }
-      S.base = nodes.slice().sort((a, b) => b.day - a.day);
+      const counted = S.cache.counted.get(picked);
+      S.base = counted.base; S.facets = counted.facets;
       S.shown = ws.length ? S.base.filter(n => hasWord(n.text, ws)) : S.base;
-      // The choices are counted over the picks alone: the letters narrow the rows, and light the choice they name.
-      S.facets = { props: countFacets(S.base, full), months: db.months(S.base), kinds: [] };
     } else {
       if (!S.kinds.length) S.kinds = await db.kinds();
       const key = ws.join(' ');
@@ -157,9 +165,9 @@ async function compute() {
 // held by more than one node (a value held by one node each is a list of the nodes, not a way to narrow them); free words
 // only when they repeat among a few values. Properties most nodes hold come first.
 function countFacets(nodes, full) {
-  const ids = new Set(nodes.map(n => n.id));
-  return full.props.map(p => ({ name: p.name, type: p.type, values: p.values.map(v => ({ ...v, count: 0 })) }))
-    .map(p => { for (const v of p.values) for (const id of ids) if (full.byNode.get(id)?.has(p.name + '=' + v.key)) v.count++; return p; })
+  const ids = new Set(nodes.map(n => n.id)), counts = new Map();
+  for (const id of ids) for (const held of full.byNode.get(id) || []) counts.set(held, (counts.get(held) || 0) + 1);
+  return full.props.map(p => ({ name: p.name, type: p.type, values: p.values.map(v => ({ ...v, count: counts.get(p.name + '=' + v.key) || 0 })) }))
     .map(p => ({ ...p, values: p.values.filter(v => v.count > 0 && v.count < ids.size).sort((a, b) => b.count - a.count || a.label.localeCompare(b.label)) }))
     .filter(p => p.values.length > 1 && p.values.some(v => v.count >= 2) && !(p.type === 'default' && p.values.length > 8))
     .map(p => ({ ...p, held: p.values.reduce((n, v) => n + v.count, 0) }))
@@ -268,7 +276,8 @@ function rowList() {
   return list;
 }
 
-/* Drawing. The whole body is drawn again on each change: the lists are short, and nothing keeps state in the DOM. */
+/* Drawing. The whole body is drawn again on each change, and nothing keeps state in the DOM; only the cursor stepping along
+   the rows moves on its own (litRow), since after "show all" the rows can be thousands. */
 function render() {
   const d = S.dlg; if (!d) return;
   const doc = S.doc;
@@ -369,9 +378,13 @@ function render() {
     if (dug) { const box = dugBox(doc, node); body.append(box); container = box; }
   });
   if (!isCommandMode() && (kindPick() || ws.length)) {
-    const total = S.shown.length, limit = setting('rowsShown') || 12;
+    const total = S.shown.length, limit = setting('rowsShown') || 12, tag = kindPick();
     if (!S.loading && !total && !S.failed) body.append(el(doc, 'div', { class: 'fd-none' }, 'nothing with these words here'));
-    if (total > limit && !S.allShown) body.append(el(doc, 'button', { class: 'fd-showall', type: 'button', click: () => { S.allShown = true; render(); } }, `show all ${total}`));
+    const more = total > limit && !S.allShown ? el(doc, 'button', { class: 'fd-showall', type: 'button', click: () => { S.allShown = true; render(); } }, `show all ${total}`) : null;
+    // A kind too long to read whole says so where the list ends, and which part it holds.
+    const cutFrom = tag && S.cache.kind.get(tag.id)?.cutFrom;
+    const line = more && cutFrom ? el(doc, 'div', { class: 'fd-cut' }, more, el(doc, 'span', { class: 'fd-faint' }, ` · the newest of ${cutFrom}`)) : more || (cutFrom ? el(doc, 'div', { class: 'fd-none' }, `the newest ${S.cache.kind.get(tag.id).length} of ${cutFrom}`) : null);
+    if (line) body.append(line);
   }
   // While the graph is read, the rows that are there stay where they are and go a shade lighter after a moment; no line
   // is added or taken away, so nothing jumps between one letter and the next.
@@ -379,12 +392,22 @@ function render() {
   body.scrollTop = scrollTop;
   const cur = body.querySelector(S.mode === 'choices' ? `.fd-c[data-c="${S.choiceAt}"]` : `.fd-r[data-i="${S.rowAt}"]`);
   cur?.scrollIntoView?.({ block: 'nearest' });
-  // the foot
-  d.querySelector('.fd-foot').replaceChildren(...foot(doc, groups, rows));
+  drawFoot(groups, rows);
   // The window never shrinks while open: it keeps the tallest it has been this opening, so the bottom edge does not jump
   // as the rows narrow or widen under the letters, or while "reading…" stands in for them. It grows when more is listed.
   const tall = d.getBoundingClientRect().height;
   if (tall > S.tallest) { S.tallest = tall; d.style.minHeight = tall + 'px'; }
+}
+function drawFoot(groups, rows) { S.dlg.querySelector('.fd-foot').replaceChildren(...foot(S.doc, groups, rows)); }
+// The cursor moves along the rows: the lit mark goes from one to the other and nothing is drawn again.
+function litRow(at, groups, rows) {
+  S.rowAt = at;
+  const body = S.dlg.querySelector('.fd-body');
+  body.querySelector('.fd-r.fd-on')?.classList.remove('fd-on');
+  const cur = body.querySelector(`.fd-r[data-i="${at}"]`);
+  cur?.classList.add('fd-on');
+  cur?.scrollIntoView?.({ block: 'nearest' });
+  drawFoot(groups, rows);
 }
 // Rows under an opened group sit one step in; a group line sits inside its node's box.
 function wrapIn(doc, row, r) {
@@ -524,8 +547,8 @@ function onKey(event) {
       render(); return;
     }
     if (!down && S.rowAt === 0 && choices.length) { S.mode = 'choices'; S.choiceAt = groups.slice(0, -1).reduce((n, g) => n + g.items.length, 0); render(); return; }
-    S.rowAt = Math.max(0, Math.min(rows.length - 1, S.rowAt + (down ? 1 : -1)));
-    render(); return;
+    litRow(Math.max(0, Math.min(rows.length - 1, S.rowAt + (down ? 1 : -1))), groups, rows);
+    return;
   }
   if (k === 'ArrowRight' || k === 'ArrowLeft') {
     const right = k === 'ArrowRight';
@@ -601,7 +624,7 @@ function close() {
 }
 const toggle = () => (S.dlg ? close() : open());
 // The graph changed: what was read is read again next time. What an open window shows stays until the next opening.
-function forget() { S.cache.kind.clear(); S.cache.kindFacets.clear(); S.cache.words.clear(); S.stale = true; db.forget(); }
+function forget() { S.cache.kind.clear(); S.cache.kindFacets.clear(); S.cache.counted.clear(); S.cache.words.clear(); S.stale = true; db.forget(); }
 
 Find.window = { open, close, toggle, forget, state: S };
 })();

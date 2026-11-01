@@ -39,7 +39,7 @@ const styles = {}; let unload = null;
 const logseq = {
   ready: fn => Promise.resolve().then(fn), settings: {}, provideStyle: ({ key, style }) => { styles[key] = style; }, provideModel() {}, beforeunload(fn) { unload = fn; },
   App: { onCurrentGraphChanged() {}, onRouteChanged() {}, pushState: (...a) => calls.push(['pushState', ...a]), registerCommandPalette() {}, registerUIItem() {}, setRightSidebarVisible() {} },
-  DB: { onChanged() {}, datascriptQuery: async q => fakeQuery(q) },
+  DB: { onChanged(fn) { logseq.changed = fn; }, datascriptQuery: async q => fakeQuery(q) },
   UI: { showMsg: (text, status) => calls.push(['notify', status, text]) },
   Editor: {
     getCurrentPage: async () => ({ uuid: 'page-uuid' }), openInRightSidebar: (...a) => calls.push(['openInRightSidebar', ...a]),
@@ -116,7 +116,9 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   app.st.cur = id('Procedure'); app.draw(); key(R, ' '); key(R, 'ArrowDown'); key(R, ' ');
   assert.equal(app.st.ticks.size, 2); assert.equal(R.querySelectorAll('.lk-tick:checked').length, 2); assert.ok(R.querySelector('.lk-list[data-picking]'), 'the list says it is being picked from'); assert.ok(text(R.querySelector('.st-pick')).startsWith('2 ticked'), 'the pick bar above the tree');
   app.st.cur = id('Stay'); app.draw(); key(R, 'ArrowUp'); key(R, 'ArrowUp'); key(R, 'ArrowUp'); assert.equal(app.st.cur, id('Blood draw'));
-  assert.equal(text(R.querySelector('.st-pick [data-do="merge"]')), 'merge into Blood draw', 'the pick bar offers it too'); const mergeWord = R.querySelector('.st-card [data-do="merge"]'); assert.equal(text(mergeWord), 'merge the 2 ticked tags into this'); click(mergeWord);
+  assert.equal(text(R.querySelector('.st-pick [data-do="merge"]')), 'merge into Blood draw', 'the pick bar offers it too'); const mergeWord = R.querySelector('.st-card [data-do="merge"]'); assert.equal(text(mergeWord), 'merge the 2 ticked tags into this'); const staged = app.tray.changes.length; click(mergeWord);
+  assert.equal(app.tray.changes.length, staged, 'a merge from the ticks asks first, as a fix does'); assert.equal(R.querySelectorAll('.st-card .st-ln.ask .st-two').length, 2, 'each merge shown side by side on the card'); assert.equal(R.querySelectorAll('.st-card [data-stage]').length, 1, 'one word stages them');
+  key(R, 'Enter'); assert.equal(app.st.ticks.size, 0, 'Enter stages them and the ticks go');
   deq(app.tray.lines().map(l => l.text).slice(1), ['Merge Procedure into Blood draw, Procedure removed', 'Merge Scan into Blood draw, Scan removed']);
   // A fix from the card first says what it would do; Enter stages it (the issue now names the tags still under Medical event).
   app.st.cur = id('Medical event'); app.draw();
@@ -135,7 +137,7 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   click(R.querySelector('[data-drop="0"]')); assert.equal(S.model.parentOf(app.tray.model, id('Consultation')), id('Medical event'));
   assert.equal(app.tray.changes.length, 4);
   // The table and the Health list open from the path line; Escape walks back along the trail.
-  click(R.querySelector('[data-show="table"]')); assert.equal(text(R.querySelector('.st-card h2')), 'Every property'); assert.equal(R.querySelectorAll('.st-tbl .tr').length, app.tray.model.props.size, 'one row per property'); assert.ok([...R.querySelectorAll('.st-tbl .tr')].some(r => r.querySelectorAll('.on')[0].querySelectorAll('.lk-tag').length > 1), 'a row names every tag the property is on');
+  click(R.querySelector('[data-show="table"]')); assert.equal(text(R.querySelector('.st-card h2')), 'Every property'); assert.equal(R.querySelectorAll('.st-tbl .tr').length, 20, 'a few properties'); assert.equal(text(R.querySelector('.st-tbl [data-all="table"]')), `show all ${app.tray.model.props.size}`, 'then show all'); click(R.querySelector('[data-all="table"]')); assert.equal(R.querySelectorAll('.st-tbl .tr').length, app.tray.model.props.size, 'one row per property'); assert.ok([...R.querySelectorAll('.st-tbl .tr')].some(r => r.querySelectorAll('.on')[0].querySelectorAll('.lk-tag').length > 1), 'a row names every tag the property is on');
   assert.equal(text(R.querySelector('.st-trail')), 'Hospital stay›', 'the trail, with the name as it will be; it ends with ›, the title being where you are');
   assert.ok(!R.querySelector('.st-fill'), 'no bars'); assert.ok(!text(R.querySelector('.st-card .sum')).includes('sorted'), 'no sentence under the title: the lit head says the sort'); assert.ok(R.querySelector('.st-tbl .tr .lk'), 'a name carries the underline that means it opens');
   click(R.querySelector('[data-sort="name"]')); assert.equal(text(R.querySelector('.st-tbl .tr span')), 'About');
@@ -155,6 +157,10 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   R.querySelector('[data-pin]').value = 'organ'; R.querySelector('[data-pin]').dispatchEvent(new win.Event('input', { bubbles: true })); key(R.querySelector('[data-pin]'), 'Enter');
   assert.equal(app.tray.lines().at(-1).text, 'Set With to point at Organisation'); assert.equal(text(R.querySelector('.st-ln.rng .tg')), 'Organisation');
   app.tray.changes.splice(-2, 2); app.tray.rebuild(); app.st.propCur = null; app.st.trail = []; app.draw();
+  // A prompt that holds more than it shows says so, and shows the rest.
+  click(R.querySelector('[data-do="move"]')); assert.ok(/^show all \d+$/.test(text(R.querySelector('.st-prompt .st-row.more'))), 'the last row says how many there are');
+  const shortList = R.querySelectorAll('.st-prompt .st-row').length; click(R.querySelector('.st-prompt .st-row.more')); assert.ok(R.querySelectorAll('.st-prompt .st-row').length > shortList && !R.querySelector('.st-prompt .st-row.more'), 'and lists them all');
+  assert.equal(R.ownerDocument.activeElement, R.querySelector('[data-pin]'), 'the keyboard stays in the prompt'); key(R.querySelector('[data-pin]'), 'Escape');
   click(R.querySelector('[data-show="health"]')); assert.equal(text(R.querySelector('.st-card h2')), 'Health'); assert.ok([...R.querySelectorAll('.st-hl h3')].map(text).includes('Names say what they are'));
   assert.ok(!R.querySelector('.st-hl .fix kbd'), 'no key letters'); assert.ok(R.querySelector('.st-hl .fix.act'));
   // A merge is shown side by side before it is staged: the two tags with their properties lined up.
@@ -165,6 +171,14 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   assert.ok([...R.querySelectorAll('.st-hl .st-ln.iss .w')].some(w => w.querySelectorAll('.lk-tag').length === 3 && /and \d+ more/.test(text(w))), 'a run of many tags is cut to three and "and N more"');
   key(R, 'Escape'); assert.ok(!R.querySelector('.st-two'));
   key(R, 'Escape'); assert.equal(app.st.view, 'tree');
+  // A kind folds like any row, each level is one step in, as deep as the tree goes, and a long name is not cut.
+  const kindRow = () => R.querySelector(`[data-row="${id('Occurrence')}"]`);
+  assert.ok(R.querySelector(`[data-row="${id('Medical event')}"]`), 'a kind starts open');
+  click(kindRow().querySelector('.lk-fold')); assert.equal(R.querySelector(`[data-row="${id('Medical event')}"]`), null, 'its fold arrow closes it');
+  click(kindRow().querySelector('.lk-fold')); assert.ok(R.querySelector(`[data-row="${id('Medical event')}"]`), 'and opens it');
+  assert.equal(R.querySelector(`[data-row="${id('Consultation')}"]`).getAttribute('style'), '--d:2', 'the indent is the depth');
+  const sheet = doc.getElementById('st-style').textContent;
+  assert.ok(sheet.includes('calc(var(--d, 0) * 12px)') && !/\.st-row \.nm \{[^}]*nowrap/.test(sheet), 'one step per level, and a name wraps');
   // The right-click menu has the card's words, and leaves the cursor where it is.
   const row = R.querySelector(`[data-row="${id('Consultation')}"]`); row.dispatchEvent(new win.MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 40, clientY: 60 }));
   deq([...R.querySelectorAll('.st-menu div:not(.gap)')].map(text).slice(0, 4), ['Open everything underShift →', 'Tickspace', 'Rename', 'New tag inside']); assert.ok([...R.querySelectorAll('.st-menu div')].some(d => /^Move under…\d+ nodes$/.test(text(d))), 'what reaches many says how many');
@@ -248,6 +262,14 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   side.focus(); assert.equal(doc.activeElement, bullet, 'and so does the sidebar opening'); bullet.remove(); side.root.focus();
   key(side.root, 'Enter'); assert.equal(app.st.cur, id('Consultation')); assert.equal(text(R.querySelector('.st-trail')), 'Stay›');
   // Taken down.
+  // Words written leave the map as it is; anything else reads it again.
+  let rereads = 0; const reread = app.reread; app.reread = async () => { rereads++; };
+  logseq.changed({ blocks: [{ id: 9001, title: 'Words', page: { id: 9002 } }], txMeta: { outlinerOp: 'save-block' } });
+  await sleep(1600); assert.equal(rereads, 0, 'writing reads nothing');
+  logseq.changed({ blocks: [{ id: 9001, title: 'Words', tags: [{ id: 9003, ident: 'user.class/Doctor' }], page: { id: 9002 } }], txMeta: { outlinerOp: 'save-block' } });
+  await sleep(1600); assert.equal(rereads, 1, 'a tag typed in the words reads the map');
+  logseq.changed({ blocks: [{ id: 9001, title: 'Words', page: { id: 9002 } }], txMeta: { outlinerOp: 'set-block-property' } });
+  await sleep(1600); assert.equal(rereads, 2, 'a value set reads the map'); app.reread = reread;
   await unload(); assert.equal(doc.querySelectorAll('.st').length, 0); assert.ok(!doc.getElementById('st-style'));
   console.log('load: every check passed (the screen drawn, words and keys, the trail, the ask, tray, apply, undo, table, health, menu, nodes, find, sidebar)');
 })().catch(error => { console.error(error); process.exit(1); });

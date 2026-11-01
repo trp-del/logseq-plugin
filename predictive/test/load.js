@@ -19,15 +19,17 @@ const person = (id, name) => ({ 'db/id': id, 'block/uuid': U(id), 'block/title':
 const pages = [tag(10, 'Person'), tag(11, 'Visit'), person(20, 'Dr. Mei Chen'), person(21, 'Ruth Okoro')];
 const doctorProp = { 'db/id': 100, 'db/ident': 'user.property/doctor', 'block/uuid': U(100), 'block/title': 'Doctor', 'logseq.property/type': 'node', 'db/cardinality': 'db.cardinality/one', 'logseq.property/classes': [{ 'db/id': 10, 'block/uuid': U(10), 'block/title': 'Person' }] };
 const visits = [
-  { 'db/id': 300, 'block/title': `Saw [[${U(20)}]] about the tingling in my fingers`, 'block/tags': [{ 'db/id': 11 }], 'user.property/doctor': [{ 'db/id': 20 }] },
-  { 'db/id': 301, 'block/title': `Saw [[${U(20)}]] about the tingling again`, 'block/tags': [{ 'db/id': 11 }], 'user.property/doctor': [{ 'db/id': 20 }] },
-  { 'db/id': 302, 'block/title': `Saw [[${U(21)}]] about a sprained ankle`, 'block/tags': [{ 'db/id': 11 }], 'user.property/doctor': [{ 'db/id': 21 }] },
+  { 'db/id': 300, 'block/title': `Saw [[${U(20)}]] about the tingling in my fingers`, 'block/tags': [{ 'db/id': 11 }], 'block/page': { 'db/id': 500 }, 'user.property/doctor': [{ 'db/id': 20 }] },
+  { 'db/id': 301, 'block/title': `Saw [[${U(20)}]] about the tingling again`, 'block/tags': [{ 'db/id': 11 }], 'block/page': { 'db/id': 500 }, 'user.property/doctor': [{ 'db/id': 20 }] },
+  { 'db/id': 302, 'block/title': `Saw [[${U(21)}]] about a sprained ankle`, 'block/tags': [{ 'db/id': 11 }], 'block/page': { 'db/id': 500 }, 'user.property/doctor': [{ 'db/id': 21 }] },
 ];
 const block = (text, over = {}) => ({ 'db/id': 400, 'block/uuid': U(400), 'block/title': text, 'block/tags': [{ 'db/id': 11 }],
   'block/page': { 'db/id': 500, 'block/uuid': U(500), 'block/title': 'Oct 28th, 2026', 'block/journal-day': 20261028, 'block/tags': [] }, ...over });
 
 const saved = new Map();   // the bullets of the writing check, by uuid, as Logseq holds them
+const log = [];
 function fakeQuery(query) {
+  log.push(query);
   const has = (...parts) => parts.every(p => query.includes(p));
   if (has('logseq.property/classes', 'logseq.class/Property')) return [[doctorProp]];
   if (has('closed-value-property')) return [];
@@ -37,6 +39,7 @@ function fakeQuery(query) {
   if (has(':block/name _')) return pages.map(p => [p]);
   if (has('[?p :block/name ?n]')) return pages.filter(p => query.includes(JSON.stringify(p['block/title'].toLowerCase()))).map(p => [p]);
   if (has('ground #{')) return visits.map(n => [n]);
+  if (has('[?b :block/page _] [?b :block/title ?t]') && !has('not [?b :block/tags _]')) return visits.map(n => [n['db/id'], n['block/title']]);
   if (has('not [?b :block/tags _]')) return [[600, 'Bought bread and milk on the way home']];
   if (has('?o :block/alias ?a')) return [];
   if (has('[?p :block/journal-day ?d]')) return [[500, 20261028]];
@@ -129,10 +132,21 @@ for (const file of order) vm.runInContext(fs.readFileSync(path.join(root, file),
   logseq.Editor.addBlockTag = async () => {}; logseq.Editor.removeBlockTag = async () => {};
   const wait = ms => new Promise(r => setTimeout(r, ms)), P = Flow.proposeUi;
   P.start();
-  const enter = async uuid => { box(uuid).focus(); await wait(120); };
+  const enter = async uuid => { box(uuid).focus(); await wait(320); };
   const leave = async () => { hostDoc.activeElement.blur(); await wait(350); };
-  const type = async (uuid, more) => { box(uuid).value += more; saved.get(uuid)['block/title'] = line(more); box(uuid).dispatchEvent(new page.window.Event('input', { bubbles: true })); await wait(120); };
+  const type = async (uuid, more) => { box(uuid).value += more; saved.get(uuid)['block/title'] = line(more); box(uuid).dispatchEvent(new page.window.Event('input', { bubbles: true })); await wait(320); };
   const arrows = () => [...hostDoc.querySelectorAll('.flow-undo')];
+
+  // How often names are linked is counted with the graph's reading, and one changed line changes only its own count.
+  const read = await Flow.app.context(), rate = () => read.linkLines.counter.rates.get('ruth okoro').linked;
+  assert.equal(rate(), 1, 'the rates come with the graph');
+  const was = visits[2]['block/title'];
+  visits[2]['block/title'] = 'Saw nobody about a sprained ankle';
+  await Flow.db.learnNodes(read, [302]);
+  assert.equal(rate(), 0, 'a changed line takes its link back');
+  visits[2]['block/title'] = was; await Flow.db.learnNodes(read, [302]);
+  assert.equal(rate(), 1, 'and gives it again');
+  console.log('  ok  link rates come with the graph and follow one changed line');
 
   await enter(A);
   assert.ok(hostDoc.querySelector('.flow-ghost'), 'an old bullet still shows its pencils');
@@ -140,9 +154,31 @@ for (const file of order) vm.runInContext(fs.readFileSync(path.join(root, file),
   assert.deepEqual(writes, [], 'a bullet only passed through is not written to');
   console.log('  ok  passing through a bullet writes nothing');
 
-  await enter(A); await type(A, ' again'); await leave();
-  assert.deepEqual(writes, [['set', A]], 'a bullet written in gets its sure value on leaving');
+  // Nothing is worked out while letters keep coming; a bullet left within the pause keeps what was shown.
+  await enter(A);
+  const asked = () => log.filter(q => q.includes('#uuid')).length, before = asked();
+  for (const letter of ' ag') { box(A).value += letter; box(A).dispatchEvent(new page.window.Event('input', { bubbles: true })); await wait(60); }
+  await wait(60); assert.equal(asked(), before, 'three quick letters start no proposal');
+  box(A).value = 'Saw [[Ruth Okoro]] today again'; saved.get(A)['block/title'] = line(' again');
+  box(A).dispatchEvent(new page.window.Event('input', { bubbles: true }));
+  await leave();
+  assert.deepEqual(writes, [['set', A]], 'a bullet left right after the last letter still gets its sure value');
   assert.equal(arrows().length, 1);
+  // A link typed and the bullet left at once: the proposal never showed, and its sure value is written all the same.
+  const plain = U(403), plainRow = hostDoc.createElement('div'); plainRow.innerHTML = rowHtml(plain);
+  hostDoc.querySelector('#main-content-container').append(plainRow.firstElementChild);
+  saved.set(plain, block('Plain words', { 'db/id': 413, 'block/uuid': plain })); box(plain).value = 'Plain words';
+  await enter(plain); const gone = writes.length;
+  assert.ok(!hostDoc.querySelector(`[blockid="${plain}"] .flow-ghost`), 'nothing pencilled yet');
+  box(plain).value = 'Plain words [[Ruth Okoro]]'; saved.get(plain)['block/title'] = `Plain words [[${U(21)}]]`;
+  box(plain).dispatchEvent(new page.window.Event('input', { bubbles: true }));
+  await leave();
+  assert.deepEqual(writes.slice(gone), [['set', plain]], 'a sure value never shown is written on leaving');
+  // Passing through at once writes nothing, even within the pause.
+  box(B).focus(); box(B).blur(); await wait(350);
+  assert.deepEqual(writes.slice(gone), [['set', plain]], 'a bullet passed through within the pause is left alone');
+  writes.splice(gone);
+  console.log('  ok  a proposal waits for a pause, and leaving within it loses nothing');
   await enter(B); await type(B, ' again'); await leave();
   assert.deepEqual(writes, [['set', A], ['set', B]]);
   assert.equal(arrows().length, 1, 'a new change’s arrow takes the last one’s place');
@@ -175,5 +211,19 @@ for (const file of order) vm.runInContext(fs.readFileSync(path.join(root, file),
   box(A).dispatchEvent(down);
   assert.ok(!down.defaultPrevented && !Flow.steps.picking.uuid, 'Down at the end of the words is left to Logseq');
   console.log('  ok  Down is left to Logseq');
+
+  // A suggestion passed over saves nothing while writing: the link memory waits for the bullet to be left, once a minute at most.
+  await Flow.linkUi.start();
+  const saves = [];
+  logseq.updateSettings = values => saves.push(Object.keys(values));
+  logseq.settings.linkSuggestPause = 0;
+  const offer = async uuid => { const b = box(uuid); b.value = 'Dr. Mei'; b.focus(); b.setSelectionRange(7, 7); b.dispatchEvent(new page.window.Event('input', { bubbles: true })); await wait(60); assert.ok(Flow.linkUi.suggestState(), 'the rest of the name is offered'); b.value = 'Dr. Meiz'; b.setSelectionRange(8, 8); b.dispatchEvent(new page.window.Event('input', { bubbles: true })); await wait(700); };
+  await offer(A);
+  assert.deepEqual(saves.filter(k => k.includes('linkSuggestMemory')), [], 'passing a suggestion over saves no setting while writing');
+  box(A).blur(); await wait(20);
+  assert.deepEqual(saves, [['linkSuggestMemory']], 'leaving the bullet saves it');
+  await offer(B); box(B).blur(); await wait(20);
+  assert.equal(saves.length, 1, 'and the next bullet left within the minute does not');
+  console.log('  ok  the link memory is saved on leaving a bullet, once a minute at most');
   process.exit(0);
 })().catch(error => { console.error('FAIL ', error); process.exit(1); });

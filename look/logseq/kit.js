@@ -82,19 +82,20 @@ function stopWatching() {
   watch.frame = 0; watch.passes.clear();
 }
 
-// Graph changes, told once after a quiet moment, with whether a page (not only a bullet) changed.
+// Graph changes, told once after a quiet moment: whether a tag or a page may have changed, and which pages were written on.
 const dbHooks = [];
 function onGraphChange(fn) { dbHooks.push(fn); }
-const isPage = b => !!b && (b.name != null || b['block/name'] != null || (b.page == null && b['block/page'] == null));
-let dbTimer = 0, pagesChanged = false;
-function graphChanged(blocks) {
-  if (!Array.isArray(blocks) || blocks.some(isPage)) pagesChanged = true;
+const reachesPages = window.PluginDoor.structureWatch();
+let dbTimer = 0, pagesChanged = false, written = new Set();
+function graphChanged(change) {
+  if (reachesPages(change)) pagesChanged = true;
+  for (const block of change?.blocks || []) written.add(block.page?.id ?? block.id);
   clearTimeout(dbTimer);
-  dbTimer = setTimeout(() => { const pages = pagesChanged; pagesChanged = false; for (const fn of dbHooks) { try { fn(pages); } catch (error) { console.error('Look: a graph hook failed', error); } } }, 900);
+  dbTimer = setTimeout(() => { const pages = pagesChanged, on = written; pagesChanged = false; written = new Set(); for (const fn of dbHooks) { try { fn(pages, on); } catch (error) { console.error('Look: a graph hook failed', error); } } }, 900);
 }
 
 // Everything the plugin leaves in Logseq's window, taken out when it stops: elements of its own, its attributes.
-const LEAVES = { elements: '.lk-own', attributes: ['data-lk-sort', 'data-lk-kind', 'data-lk-icon', 'data-lk-dev'] };
+const LEAVES = { elements: '.lk-own', attributes: ['data-lk-sort', 'data-lk-kind', 'data-lk-icon', 'data-lk-dev', 'data-lk-line'] };
 function sweep(doc = host()) {
   for (const node of doc.querySelectorAll(LEAVES.elements)) node.remove();
   for (const name of LEAVES.attributes) for (const node of doc.querySelectorAll(`[${name}]`)) node.removeAttribute(name);

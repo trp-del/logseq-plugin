@@ -68,7 +68,8 @@ const dayText = day => {
   const year = Math.floor(day / 10000), text = `${MONTHS[Math.floor(day / 100) % 100 - 1]} ${day % 100}`;
   return year === Math.floor(todayNumber() / 10000) ? text : `${text}, ${year}`;
 };
-const plural = (word, n) => n === 1 ? word : /[^aeiou]y$/i.test(word) ? word.slice(0, -1) + 'ies' : /(s|x|z|ch|sh)$/i.test(word) ? word + 'es' : word + 's';
+// A tag's name is a singular noun, or an illness that ends in s whatever the number: Diagnosis, Diagnoses; Measles, Measles.
+const plural = (word, n) => n === 1 ? word : /[^aeiou]y$/i.test(word) ? word.slice(0, -1) + 'ies' : /sis$/i.test(word) ? word.slice(0, -2) + 'es' : /(ss|us|x|z|ch|sh)$/i.test(word) ? word + 'es' : /s$/i.test(word) ? word : word + 's';
 /* How a row is named (0.4.444, the owner, 2026-10-26: "we should get rid by default of adding these prepositions like of",
    "but still keep features of changing name"; "why are you adding an arrow?"): by the property's own name, as it is
    written, nothing added ("Provider", not "provider of"; the readings of 0.4.237 and 0.4.264 are gone). Other words are
@@ -120,6 +121,7 @@ async function load() {
         state.pageDay = Number(page.journalDay) || 0;
         state.replaces = false;
         pageUuid = String(page.uuid || '');
+        state.pageId = page.id;
         state.pageTitle = String(page.title || page.originalName || page.name || '');
         groups = await groupsFor(page.id);
         const title = String(page.title || page.originalName || page.name || '').toLowerCase();
@@ -181,14 +183,26 @@ async function mentionsGroup(id, groups) {
   const filed = new Set(groups.flatMap(g => g.items.map(item => item.uuid)));
   const found = (await provided.mentionsInto(id)).filter(m => UUID.test(m.uuid) && !filed.has(m.uuid));
   if (!found.length) return null;
-  // What an untagged mention looks like, asked once each, a few at a time (0.4.438).
-  setTimeout(() => { for (const m of found.slice(0, 30)) if (!m.tag) prepareRaise(m.uuid).catch(() => {}); }, 0);
+  // What an untagged mention looks like, asked once each, a few at a time (0.4.438): at once when the earlier lines are
+  // read, else after a quiet moment, since asking reads them, and a look at a page reads no whole graph.
+  askQuietly.uuids = found.filter(m => !m.tag).slice(0, 30).map(m => m.uuid);
+  clearTimeout(state.quiet);
+  if (askQuietly.uuids.length) state.quiet = setTimeout(askQuietly, provided.earlierLinesRead?.() ? 0 : QUIET);
   // Each with the page and bullets it sits in, as Linked references shows it (0.4.437).
   const crumbs = provided.crumbsInto ? await provided.crumbsInto(id).catch(() => new Map()) : new Map();
   const items = await Promise.all(found.map(async m => ({ uuid: m.uuid, title: await wordsOf(m.title), tag: m.tag || 'note', day: m.day,
     crumbs: await Promise.all((crumbs.get(m.uuid) || []).map(async c => shortName(await wordsOf(c.title)).slice(0, 60))) })));
   items.sort(byWhen(todayNumber()));
   return { name: MENTIONS, label: 'Mentioned in', items, fieldUuid: '', ident: '', mentions: true };
+}
+const QUIET = 5000;
+function askQuietly() { for (const uuid of askQuietly.uuids.splice(0)) prepareRaise(uuid).catch(() => {}); }
+askQuietly.uuids = [];
+// Whether words being written reach this page's rows: a row's node or a node opened from it, a bullet under one of those, or
+// a line that links this page. Writing elsewhere, or on this page itself, changes nothing the rows show.
+function touchesRows({ blocks = [] } = {}) {
+  const shown = new Set([...state.groups.flatMap(g => g.items.map(item => item.uuid)), ...state.node.keys()]);
+  return blocks.some(b => shown.has(b.uuid) || shown.has(b.parent?.uuid) || (state.pageUuid && String(b.rawTitle || b.title || '').includes(state.pageUuid)) || b.refs?.some(ref => (ref?.id ?? ref) === state.pageId));
 }
 // The rows of one page (id), or of every page that is not a journal (no id), as a Map of page id to { uuid, groups }.
 // The nodes that point at the pages come from the model (linksInto, 0.4.225); this shapes them into rows.
@@ -270,7 +284,7 @@ const INLINE = 3, LISTED = 5;
    shows when the pointer rests on it (the card, and the name's own tip). "Post-op check with Dr. Patel. Wounds fine, I
    can drive" reads "Post-op check with Dr. Patel."; a full stop after Dr, Mr, St and the like is not an end. No limit
    on its length (0.4.263, the owner: "get rid of the sentence character limit"). */
-const ABBREVIATION = /\b(?:dr|mr|mrs|ms|prof|st|vs|no|approx|e\.g|i\.e|etc)\.$/i;
+const ABBREVIATION = /(?:^|[^\p{L}])(?:\p{L}|dr|mr|mrs|ms|prof|st|vs|no|approx|etc)\.$/iu;   // one letter: J. Smith, 3 p.m., e.g.
 function shortName(title) {
   const text = String(title || '').trim();
   for (const m of text.matchAll(/[.!?](?=\s+\S)/g)) if (!ABBREVIATION.test(text.slice(0, m.index + 1))) return text.slice(0, m.index + 1);
@@ -505,8 +519,10 @@ function titleOf(uuid) {
 /* Read in one go (0.4.442): its properties with the tags of what they point at, what points at it, its first bullets and
    what the proposals would fill in; kept by node, so a node opened again draws at once and is read again behind. */
 const reading = new Map();
-function readNode(uuid, id) {
-  if (reading.has(uuid)) return reading.get(uuid);
+// look: the pointer passing over a fold arrow, which reads the node but not the earlier lines the proposals learn from.
+function readNode(uuid, id, { look = false } = {}) {
+  const key = look ? uuid + '?' : uuid;
+  if (reading.has(key)) return reading.get(key);
   const job = (async () => {
     const schema = await provided.propSchema();
     const nodeId = Number(id) || await provided.idByUuid(uuid).catch(() => 0);
@@ -529,12 +545,12 @@ function readNode(uuid, id) {
     const [tags, bullets, guesses] = await Promise.all([
       provided.firstTags ? provided.firstTags(ids).catch(() => new Map()) : new Map(),
       Promise.all(lines.map(async line => ({ uuid: line.uuid, text: await readable(line.title) }))),
-      kept.some(r => !r.values.length) && provided.nodeProposals ? provided.nodeProposals(uuid).catch(() => []) : []]);
+      !look && kept.some(r => !r.values.length) && provided.nodeProposals ? provided.nodeProposals(uuid).catch(() => []) : []]);
     const empty = new Set(kept.filter(r => !r.values.length).map(r => r.prop.ident));
     state.node.set(uuid, { props: kept, rows, tags, bullets: bullets.filter(line => line.text).slice(0, most), more: lines.length > most,
       guesses: new Map(guesses.filter(g => empty.has(g.ident) && (g.kind !== 'day' || g.journalId)).map(g => [g.ident, g])) });
-  })().finally(() => reading.delete(uuid));
-  reading.set(uuid, job);
+  })().finally(() => reading.delete(key));
+  reading.set(key, job);
   return job;
 }
 const shownNode = uuid => [...state.dig.keys()].some(k => k.endsWith('>' + uuid)) || state.steps.some(s => s.uuid === uuid);
@@ -546,11 +562,12 @@ async function toggleDig(key, uuid, id, title) {
   state.dig.set(key, { uuid, id: Number(id) || 0, title });
   state.focus = key;
   const had = state.node.has(uuid);
-  if (!had) { state.html = null; draw(host()); await readNode(uuid, id).catch(error => warnOnce('could not read a node', error)); }
+  if (!had) { state.html = null; draw(host()); await readNode(uuid, id, { look: true }).catch(error => warnOnce('could not read a node', error)); }
   if (!state.dig.has(key)) return;
   state.fresh = key; state.html = null; draw(host()); state.fresh = '';
   fitOrShift(key, from);
-  if (had) readNode(uuid, id).then(() => { state.html = null; draw(host()); }).catch(() => {});
+  // Read again behind what is drawn, this time with what the proposals would fill in: opening never waits for the earlier lines.
+  readNode(uuid, id).then(() => { state.html = null; draw(host()); }).catch(() => {});
 }
 function closeDig(key) {
   if (state.findDug.has(key)) state.findDug.set(key, false);
@@ -709,7 +726,7 @@ function foundGroups() {
     const items = g.items.map(item => {
       // A property that holds the words opens the node even when its title holds them too ("chen" shows the Provider).
       const hit = propHit(item, q, g.name);
-      return hit ? { ...item, hit } : whole || has(shortName(item.title), q) || has(item.tag, q) || has(dayCell(item), q) ? item : null;
+      return hit ? { ...item, hit } : whole || has(item.title, q) || has(item.tag, q) || has(dayCell(item), q) ? item : null;
     }).filter(Boolean);
     return { ...g, items, found: true, total: g.items.length, whole };
   }).filter(g => g.items.length);
@@ -899,7 +916,7 @@ async function editNodeProp(uuid, ident, at) {
   let options = [];
   if (kind === 'choice') options = prop.choices.map(c => c.title);
   else if (isLink) {
-    const pages = (await provided.propPages()).filter(p => !p.isTag && (!prop.classes?.length || p.tags.some(t => prop.classes.some(c => c.id === t.id))));
+    const takes = await takerOf(prop), pages = (await provided.propPages()).filter(p => !p.isTag && takes(p));
     const first = provided.pickerOrder ? await provided.pickerOrder(uuid, prop.title).catch(() => []) : [];
     const byId = new Map(pages.map(p => [p.id, p]));
     options = [...first.map(id => byId.get(id)).filter(Boolean), ...pages.filter(p => !first.includes(p.id))].map(p => p.title);
@@ -1366,7 +1383,7 @@ function draw(doc) {
     // What unrolled lets go of its clipping once it has (the kit clips it while it grows), so a day in the margin shows.
     box.addEventListener('animationend', event => { if (event.target.classList?.contains('rf-ol-unroll')) event.target.classList.remove('rf-ol-unroll'); });
     // A node is read while the pointer comes to its chevron, so it opens at once.
-    box.addEventListener('pointerover', event => { const c = event.target.closest?.('.rf-chev[data-dig]'); if (c && !state.node.has(c.dataset.uuid)) readNode(c.dataset.uuid, c.dataset.id).catch(() => {}); });
+    box.addEventListener('pointerover', event => { const c = event.target.closest?.('.rf-chev[data-dig]'); if (c && !state.node.has(c.dataset.uuid)) readNode(c.dataset.uuid, c.dataset.id, { look: true }).catch(() => {}); });
     state.html = '';
   }
   if (!rows) state.picked.clear();
@@ -2062,6 +2079,11 @@ async function writeAll(text, steps) {
   });
 }
 const propNamed = async name => (await provided.propSchema()).props.find(p => p.lower === name.toLowerCase());
+// Whether a page fits a property: any page when it takes no tag, else a page with one of its tags or a tag beneath.
+async function takerOf(prop) {
+  const schema = await provided.propSchema(), ids = new Set((prop?.classes || []).map(c => c.id));
+  return page => !ids.size || provided.fits(page, ids, schema);
+}
 // The pages the nodes' words name, among the ids allowed, the most named first, this page never ([] without the rules).
 async function namedFirst(uuids, fields, allowed) {
   if (!provided.namedPages) return [];
@@ -2075,8 +2097,7 @@ async function namedFirst(uuids, fields, allowed) {
 }
 async function pageNamed(name, prop) {
   const pages = (await provided.propPages()).filter(page => page.lower === name.toLowerCase());
-  const fits = pages.filter(page => !prop?.classes?.length || page.tags.some(t => prop.classes.some(c => c.id === t.id)));
-  return fits[0] || pages[0] || null;
+  return pages.find(await takerOf(prop)) || pages[0] || null;
 }
 async function act(what, at = null) {
   const chosen = picks(), nodes = nodesPicked();
@@ -2109,7 +2130,8 @@ async function act(what, at = null) {
       const fields = [...new Set(chosen.map(p => p.group.ident))].map(ident => schema.props.find(p => p.ident === ident)).filter(Boolean);
       let target = null;
       if (what === 'point') {
-        const fits = (await provided.propPages()).filter(page => page.id !== here && fields.some(f => !f.classes.length || page.tags.some(t => f.classes.some(c => c.id === t.id))));
+        const takers = await Promise.all(fields.map(takerOf));
+        const fits = (await provided.propPages()).filter(page => page.id !== here && takers.some(takes => takes(page)));
         // The pages the picked nodes' own words name first (0.4.414, idea 4 of the brainstorm of 2026-10-25): a node
         // pointing here while its words say "Spoke with Dr. Patel" offers Dr. Raj Patel at the top. Through the
         // proposals' reader of names (namedPages, parts/shadow-rules.js) when it is loaded; the most named first.
@@ -2158,7 +2180,7 @@ async function act(what, at = null) {
       if (what === 'set') {
         const kind = prop.choices.length ? 'choice' : prop.type;
         const options = kind === 'choice' ? prop.choices.map(c => c.title)
-          : ['node', 'page'].includes(kind) ? (await provided.propPages()).filter(page => !prop.classes.length || page.tags.some(t => prop.classes.some(c => c.id === t.id))).map(page => page.title)
+          : ['node', 'page'].includes(kind) ? (await provided.propPages()).filter(await takerOf(prop)).map(page => page.title)
           : kind === 'checkbox' ? ['yes', 'no'] : [];
         const typed = await ask(`${prop.title} for ${counted(nodes.length)}`, kind === 'date' || kind === 'datetime' ? 'A day: today, friday, 4 aug, 2026-08-04 …' : prop.many ? 'Added to what each one holds.' : '', options, 'Set', '', false, at);
         if (!typed) return;
@@ -2480,7 +2502,14 @@ function start() {
   // At once (0.4.150): the look-up waits in line behind Logseq loading the page anyway. The box stays until the next
   // page is drawn (0.4.182): draw() moves it, or takes it away, in the same frame. The hooks are the core's.
   onPageChange(() => { if (stopped) return; onRoute(); later(0); });
-  onDatabaseChange(() => { if (stopped) return; later(900); if (indexSize < BIG_INDEX) indexLater(10000); });
+  onDatabaseChange(change => {
+    if (stopped) return;
+    clearTimeout(state.quiet);
+    if (askQuietly.uuids.length) state.quiet = setTimeout(askQuietly, QUIET);
+    const writing = window.PluginDoor?.writing(change);
+    if (!writing || touchesRows(change)) later(900);
+    if (!writing && indexSize < BIG_INDEX) indexLater(10000);
+  });
   onSettingsChange((now, before) => {
     if (stopped) return;
     if (settingsSchema.some(item => now?.[item.key] !== before?.[item.key])) { applyStyles(); later(0); indexLater(0); }

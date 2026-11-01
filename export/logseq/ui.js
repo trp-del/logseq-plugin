@@ -138,9 +138,12 @@ function read() {   // the remembered choices, with their defaults
 function remember(c, title) {
   const titleLines = { ...c.titleLines };
   if (title) titleLines[title] = { kicker: c.kicker || '', subtitle: c.subtitle || '' };
+  const now = { target: c.target, layout: c.layout, look: c.look, paper: c.paper, margins: c.margins, size: c.size, footer: c.footer, pageNumbers: c.pageNumbers, showTags: c.tags, taskBoxes: c.tasks,
+    titleDate: c.titleDate, preparedBy: c.preparedBy, mdLinks: c.links, frontMatter: c.frontMatter, previewZoom: c.zoom, hiddenHeadProperties: [...c.hiddenHead], hiddenNodeProperties: [...c.hiddenNodes], dated: c.dated, titleLines };
+  // Only what changed: a save tells every module, and an export usually changes nothing.
+  const changed = Object.fromEntries(Object.entries(now).filter(([key, value]) => JSON.stringify(value) !== JSON.stringify(logseq.settings?.[key])));
   try {
-    logseq.updateSettings({ target: c.target, layout: c.layout, look: c.look, paper: c.paper, margins: c.margins, size: c.size, footer: c.footer, pageNumbers: c.pageNumbers, showTags: c.tags, taskBoxes: c.tasks,
-      titleDate: c.titleDate, preparedBy: c.preparedBy, mdLinks: c.links, frontMatter: c.frontMatter, previewZoom: c.zoom, hiddenHeadProperties: [...c.hiddenHead], hiddenNodeProperties: [...c.hiddenNodes], dated: c.dated, titleLines });
+    if (Object.keys(changed).length) logseq.updateSettings(changed);
   } catch (error) { console.warn('DB Export: could not remember the choices', error); }
 }
 

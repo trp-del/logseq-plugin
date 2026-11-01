@@ -9,7 +9,13 @@
 const Look = window.Look;
 const { host, style, watchScreen, el, esc, openPage, notify } = Look.kit, { setting } = Look.settings;
 const css = `
-.lk-path { display: inline-block; align-self: flex-start; max-width: 24em; margin: 17px 0 0 -6px; padding-left: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.6; vertical-align: middle; font-size: 14px; }
+.lk-path { display: inline-flex; align-items: baseline; align-self: flex-start; max-width: 24em; margin: 17px 0 0 -6px; padding-left: 18px; overflow: hidden; white-space: nowrap; line-height: 1.6; vertical-align: middle; font-size: 14px; }
+/* Too long for the row, the line gives way from the middle, then the nearest tag if it alone is too long; the kind stays whole. */
+.lk-path > a.lk-tag { flex: 0 1000 auto; min-width: 2em; overflow: hidden; text-overflow: ellipsis; }
+.lk-path > a.lk-end { flex-shrink: 0; }
+.lk-path > .lk-held { display: inline-flex; flex: 0 1 auto; min-width: 4em; }
+.lk-path > .lk-held > a.lk-tag { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.lk-path > .lk-sep { flex: none; }
 .lk-path .lk-sep { margin: 0 .35em; color: var(--lk-faint); }
 .lk-path .lk-own { position: relative; }
 .lk-path .lk-sep:has(+ .lk-held) { display: inline-block; min-width: 22px; margin: 0; text-align: center; }
@@ -41,7 +47,7 @@ function groupsOf(index, uuid) {
   for (const chain of index.chainsOfPage(uuid)) groups.push(chain);
   return groups;
 }
-const link = (doc, t) => el(doc, 'a', { class: 'lk-tag', href: '#', 'data-uuid': t.uuid, title: `Open ${t.title} (Shift: in the sidebar)` }, t.title);
+const link = (doc, t, end) => el(doc, 'a', { class: end ? 'lk-tag lk-end' : 'lk-tag', href: '#', 'data-uuid': t.uuid, title: `Open ${t.title} (Shift: in the sidebar)` }, t.title);
 function held(doc, t, tagPage) {
   const words = tagPage ? `Take this tag out from under ${t.title}` : `Remove ${t.title} from this page`;
   return el(doc, 'span', { class: 'lk-held lk-own' }, link(doc, t), el(doc, 'span', { class: 'lk-x', role: 'button', tabindex: '0', title: words, 'aria-label': words, 'data-take': t.uuid }, '×'));
@@ -50,7 +56,7 @@ function build(doc, groups) {
   const parts = [];
   groups.forEach((path, n) => {
     if (n) parts.push(el(doc, 'span', { class: 'lk-sep', 'aria-hidden': 'true' }, '·'));
-    path.chain.forEach((t, i) => { if (i) parts.push(el(doc, 'span', { class: 'lk-sep', 'aria-hidden': 'true' }, '/')); parts.push(i ? link(doc, t) : held(doc, t, groups.tagPage)); });
+    path.chain.forEach((t, i) => { if (i) parts.push(el(doc, 'span', { class: 'lk-sep', 'aria-hidden': 'true' }, '/')); parts.push(i ? link(doc, t, i === path.chain.length - 1) : held(doc, t, groups.tagPage)); });
     path.others.forEach(t => { parts.push(el(doc, 'span', { class: 'lk-sep', 'aria-hidden': 'true' }, '·')); parts.push(groups.tagPage ? held(doc, t, true) : link(doc, t)); });
   });
   return parts;

@@ -130,28 +130,53 @@ function suggestFor(text, caret, pages, { min = 0, rates = null, memory = null, 
   return null;
 }
 
-/* How often each page's name is linked, and how often written plain: every block's words read once, each [[uuid]] or
-   [[Name]] counted for its page, and each page's name counted where it stands as whole words outside a link. By the
-   page's lower-case name: { linked, plain }. This is what "the graph usually links this name" rests on. */
+/* How often each page's name is linked, and how often written plain: each [[uuid]] or [[Name]] counted for its page, and
+   each page's name counted where it stands as whole words outside a link. By the page's lower-case name: { linked, plain }.
+   This is what "the graph usually links this name" rests on. rateCounter(pages).add(words) counts one line, add(words, -1)
+   takes it back, so a changed line costs one line; each word of a line is looked up, so the cost does not grow with the
+   pages. The names are found word by word; the few with no letter or number in them by a pattern of their own. */
 const storedRef = /(\(\(|\[\[)([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})(\)\)|\]\])/gi;
-function linkRatesOf(pages, titles) {
+const nameWord = /[\p{L}\p{N}]+/gu, wordLetter = /[\p{L}\p{N}]/u;
+function rateCounter(pages) {
   const rates = new Map(), byUuid = new Map();
   for (const page of pages) { rates.set(page.lower, { linked: 0, plain: 0 }); if (page.uuid) byUuid.set(page.uuid.toLowerCase(), page.lower); }
   const names = [...rates.keys()].filter(n => n.length >= 2).sort((a, b) => b.length - a.length);   // longest first
   const escape = n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const finder = names.length ? new RegExp(`(?<![\\p{L}\\p{N}])(?:${names.map(escape).join('|')})(?![\\p{L}\\p{N}])`, 'giu') : null;
-  for (const title of titles) {
+  const words = new Map(), wordless = [];   // a tree of the names' words: { next, names } at each word
+  for (const name of names) {
+    const spelled = [...name.matchAll(nameWord)];
+    if (!spelled.length) { wordless.push(name); continue; }
+    let level = words, at;
+    for (const [word] of spelled) { at = level.get(word) || { next: new Map(), names: [] }; level.set(word, at); level = at.next; }
+    at.names.push({ name, lead: spelled[0].index });
+  }
+  const finder = wordless.length ? new RegExp(`(?<![\\p{L}\\p{N}])(?:${wordless.map(escape).join('|')})(?![\\p{L}\\p{N}])`, 'giu') : null;
+  const isName = (lower, name, at) => lower.startsWith(name, at) && !(at > 0 && wordLetter.test(lower[at - 1])) && !wordLetter.test(lower[at + name.length] || '');
+  function add(title, by = 1) {
     const plain = title.replace(/\[\[([^\[\]]+)\]\]/g, (m, inner) => {
       const key = inner.trim().toLowerCase(), lower = byUuid.get(key) || (rates.has(key) ? key : null);
-      if (lower) rates.get(lower).linked++;
+      if (lower) rates.get(lower).linked += by;
       return ' ';
-    }).replace(storedRef, ' ');
-    if (finder) for (const m of plain.matchAll(finder)) { const r = rates.get(m[0].toLowerCase()); if (r) r.plain++; }
+    }).replace(storedRef, ' ').toLowerCase();
+    const spelled = [...plain.matchAll(nameWord)];
+    let past = 0;
+    spelled.forEach((word, i) => {
+      if (word.index < past) return;
+      let hit = null, level = words;
+      for (let j = i, at; (at = level.get(spelled[j]?.[0])); j++, level = at.next) hit = at.names.find(({ name, lead }) => word.index - lead >= past && isName(plain, name, word.index - lead)) || hit;
+      if (hit) { rates.get(hit.name).plain += by; past = word.index - hit.lead + hit.name.length; }
+    });
+    if (finder) for (const m of plain.matchAll(finder)) rates.get(m[0]).plain += by;
   }
-  return rates;
+  return { rates, add };
+}
+function linkRatesOf(pages, titles) {
+  const counter = rateCounter(pages);
+  for (const title of titles) counter.add(title);
+  return counter.rates;
 }
 
-const api = { suggestFor, takeNameWords, boostFor, fitsTags, usual, rarelyLinked, linkRatesOf, letters };
+const api = { suggestFor, takeNameWords, boostFor, fitsTags, usual, rarelyLinked, rateCounter, linkRatesOf, letters };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 if (typeof window !== 'undefined') (window.Flow ||= {}).link = api;
 })();

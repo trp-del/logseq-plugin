@@ -99,7 +99,7 @@ function loadPlugin(host, logseq) {
   const pluginWindow = { parent: host.window, console, setTimeout, clearTimeout, Promise, Date, Map, Set, URL, location: { href: 'file:///plugin/main.js' } };
   pluginWindow.window = pluginWindow;
   // What main.js at the plugin's root does for a module: its settings, its start, its stop.
-  pluginWindow.PluginDoor = { register: module => { logseq.useSettingsSchema?.(module.schema); logseq.ready(module.start); logseq.beforeunload?.(module.stop); } };
+  pluginWindow.PluginDoor = { writing: () => false, settingChanged: (keys, now, before) => !before || keys.some(key => JSON.stringify(now?.[key]) !== JSON.stringify(before[key])), register: module => { logseq.useSettingsSchema?.(module.schema); logseq.ready(module.start); logseq.beforeunload?.(module.stop); } };
   const document = { currentScript: null, createElement: () => ({}), body: { appendChild() {} } };
   for (const file of [...PART_FILES, 'main.js']) {
     const src = fs.readFileSync(path.join(root, file), 'utf8');
