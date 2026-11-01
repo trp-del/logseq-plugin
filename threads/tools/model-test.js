@@ -105,6 +105,8 @@ function fakeDb(graph, log) {
   const ref = id => ({ id });
   const isProperty = x => (x.tags || []).includes(1);
   const shapes = [
+    [/:find \?o \?a :where \[\?o :block\/alias \?a\]/, () => USE.alias || []], [/^\[:find \?pu :where \[\(ground \[([\d ]+)\]/, m => m[1].split(' ').map(n => [U(Number(n))])],
+    [/^\[:find \?b \?w \?at :where/, () => USE.madeRow || []], [/^\[:find \(count \?k\)/, () => [[USE.madeKids || 0]]],
     [/^\[:find \?page \?pu \?b \?attr \?name \?fu/, () => USE.link.links], [/^\[:find \?b \?uuid \?title/, () => USE.link.titled], [/^\[:find \?b \?tag :where/, () => []],
     [/^\[:find \?b \?dattr \?day \?dname/, () => USE.link.dated], [/^\[:find \?b \?day :where/, () => []],
     [/^\[:find \?u \?t \?n :where \[\(ground/, (m, query) => askedUuids(query).map(u => all().find(x => x.uuid === u)).filter(Boolean).map(x => [x.uuid, x.title, x.name || ''])],
@@ -180,10 +182,11 @@ function loadModel(graph, { made = [], config = { format: 'MMM do, yyyy' }, quer
     const run = new Function('logseq', 'window', 'document', 'location', 'console', fs.readFileSync(path.join(root, file), 'utf8'));
     run(logseq, win, document, { href: 'file:///plugin/main.js' }, console);
   }
-  const cache = new Map();
+  const cache = new Map(), graphHooks = [];
   const core = {
     provided: {}, provide: things => Object.assign(core.provided, things),
     dsQuery: fakeDb(graph, queries),
+    onGraphChange: fn => { graphHooks.push(fn); },
     graphWide: (name, load) => { if (!cache.has(name)) cache.set(name, Promise.resolve().then(load)); return cache.get(name); },
   };
   win.refinementCore = core;
@@ -195,7 +198,7 @@ function loadModel(graph, { made = [], config = { format: 'MMM do, yyyy' }, quer
 
 async function main() {
   const graph = smallGraph();
-  const { model, made, queries } = loadModel(graph);
+  const { model, made, queries, logseq } = loadModel(graph);
 
   // Titles and links.
   same(model.titleOf({ title: '  Kickoff  ' }), 'Kickoff', 'titleOf trims');
@@ -418,6 +421,20 @@ async function main() {
   same(use.texts.get(412), 'Planned', 'structureUse: the words of a text value');
   same([...(use.named.get(60) || [])], [41], 'structureUse: a page a node points at through a property is not a page it names in its words');
   same([...(use.named.get(62) || [])], [41], 'structureUse: a page named in the words');
+  // A link to a page's other name is a mention of the page: Logseq's Linked references counts it.
+  USE.alias = [[40, 41], [42, 41]];
+  USE.link = { ...USE.link, titled: [[60, U(60), `see [[${U(41)}]] now`], [61, U(61), `#[[${U(42)}]] a tag only`], [62, U(62), 'no link']], dated: [], links: [] };
+  same((await model.aliasesOf(40)).sort(), [41, 42], 'aliasesOf: its aliases and theirs, either way round');
+  same((await model.aliasesOf(99)), [], 'aliasesOf: a page with none');
+  same((await model.mentionsInto(40)).map(m => m.uuid), [U(60)], 'mentionsInto: a link to an alias, not one as a tag');
+  // Words typed with a link are stored by the page's uuid; a name of no page, or of a page in the Recycle, stays as typed.
+  const named = { 'dr. x': { uuid: U(70) }, gone: { uuid: U(49) } };
+  logseq.Editor.getPage = async name => named[String(name).toLowerCase()] || null;
+  same(await model.storedWords('see [[Dr. X]] and [[Nobody]] and [[Gone]], [[Dr. X]]'), `see [[${U(70)}]] and [[Nobody]] and [[Gone]], [[${U(70)}]]`, 'storedWords');
+  same(await model.storedWords(`kept [[${U(70)}]]`), `kept [[${U(70)}]]`, 'storedWords: a stored link stays');
+  // What a thing just made holds: any change of its words, stamp or bullets shows, and a thing gone reads as nothing.
+  USE.madeRow = [[60, 'words', 5]]; const was = await model.madeState(U(60)); USE.madeKids = 1; same(await model.madeState(U(60)) !== was, true, 'madeState: a bullet inside changes it');
+  USE.madeKids = 0; same(await model.madeState(U(60)), was, 'madeState: unchanged reads the same'); USE.madeRow = []; same(await model.madeState(U(60)), '', 'madeState: gone');
   console.log(`model-test: ${passed} checks passed`);
   if (problems.length) { console.log(`model-test: FAILED (${problems.length})`); process.exit(1); }
   console.log('model-test: OK');

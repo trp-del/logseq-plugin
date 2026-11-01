@@ -13,6 +13,8 @@ const raw = sample(), id = n => raw.idOf.get(n), pid = n => raw.propIdOf.get(n),
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // The graph as Logseq's queries hand it back: pulled maps with shortened keys, idents with a colon.
+let graphName = 'logseq_db_Test', lateNodes = {}, failOn = null, ranges = {}, declared = {}, pagesReal = false, duringWrite = null, deleted = new Set();
+let failQuery = null;
 const calls = [], taken = new Set();   // taken: names some other page, tag or property holds
 let live = JSON.parse(JSON.stringify({ tags: raw.tags, props: raw.props, nodes: raw.nodes, holders: raw.holders }));
 function fakeQuery(q) {
@@ -20,6 +22,7 @@ function fakeQuery(q) {
   if (has(':logseq.class/Tag] [?t :db/ident _]')) return [...live.tags.map(t => [{ id: t.id, uuid: t.uuid, title: t.title, ident: ':user.class/' + t.title.replace(/\s/g, '-'), extends: t.parents.map(p => ({ id: p, ident: ':user.class/x' })), properties: t.props.map(p => ({ id: p })) }]), [{ id: 2, uuid: 'u2', title: 'Tag', ident: ':logseq.class/Tag', extends: [{ id: 1 }] }]];
   if (has(':logseq.class/Property] [?p :db/ident _]')) return live.props.map(p => [{ id: p.id, uuid: p.uuid, title: p.title, ident: ':' + p.ident, 'logseq.property/type': ':' + p.type, cardinality: ':db.cardinality/one', classes: p.range.map(r => ({ id: r })) }]);
   if (has('closed-value-property')) return live.props.filter(p => p.choice).map(p => [p.id]);
+  if (/^\[:find \?u :where \[\?b :block\/tags (\d+)\]/.test(q)) return (lateNodes[q.match(/:block\/tags (\d+)/)[1]] || []).map(u => [u]);   // the last look before a delete
   if (has('[?b :block/uuid ?u] (not')) return Object.entries(live.nodes).flatMap(([t, list]) => list.map(n => [Number(t), n.id, n.uuid]));
   if (has('[?b ?a _] [?p :db/ident ?a]')) return Object.entries(live.holders).flatMap(([a, ids]) => ids.map(b => [':' + a, b]));
   if (has('(count ?v)')) return raw.pointed.map(([a, t, n]) => [':' + a, t, n]);
@@ -28,6 +31,9 @@ function fakeQuery(q) {
   if (has('[?p :block/name ')) return taken.has(JSON.parse(q.match(/:block\/name ("[^"]*")/)[1])) ? [[1]] : [];
   if (has('[?b :block/page ?t]') || has('clojure.string/includes?')) return [];
   if (has('(count ?b)')) return [[1, 'follow-up', 19], [2, 'first', 71]];
+  if (has(':logseq.property/classes ?c]')) { const u = q.match(/#uuid "([^"]+)"/)[1]; return (ranges[u] ??= [...(live.props.find(p => p.uuid === u)?.range || [])]).map(c => [c]); }
+  if (has(':logseq.property.class/properties ?p]')) { const u = q.match(/#uuid "([^"]+)"/)[1]; return (declared[u] ??= [...(live.tags.find(t => t.uuid === u)?.props || [])]).map(c => [c]); }
+  if (has('[?t :block/uuid #uuid')) { const u = q.match(/#uuid "([^"]+)"/)[1], t = live.tags.find(x => x.uuid === u); return t && !deleted.has(u) ? [[t.id]] : []; }
   if (has('[?p :block/uuid #uuid')) return [[id('Consultation')]];
   return [];
 }
@@ -38,8 +44,8 @@ win.Element.prototype.scrollIntoView = () => {};
 const styles = {}; let unload = null;
 const logseq = {
   ready: fn => Promise.resolve().then(fn), settings: {}, provideStyle: ({ key, style }) => { styles[key] = style; }, provideModel() {}, beforeunload(fn) { unload = fn; },
-  App: { onCurrentGraphChanged() {}, onRouteChanged() {}, pushState: (...a) => calls.push(['pushState', ...a]), registerCommandPalette() {}, registerUIItem() {}, setRightSidebarVisible() {} },
-  DB: { onChanged(fn) { logseq.changed = fn; }, datascriptQuery: async q => fakeQuery(q) },
+  App: { onCurrentGraphChanged(fn) { logseq.graphChanged = fn; }, getCurrentGraph: async () => ({ name: graphName }), onRouteChanged() {}, pushState: (...a) => calls.push(['pushState', ...a]), registerCommandPalette() {}, registerUIItem() {}, setRightSidebarVisible() {} },
+  DB: { onChanged(fn) { logseq.changed = fn; }, datascriptQuery: async q => { if (failQuery?.test(q)) throw new Error('the read failed'); return fakeQuery(q); } },
   UI: { showMsg: (text, status) => calls.push(['notify', status, text]) },
   Editor: {
     getCurrentPage: async () => ({ uuid: 'page-uuid' }), openInRightSidebar: (...a) => calls.push(['openInRightSidebar', ...a]),
@@ -49,6 +55,21 @@ const logseq = {
     createPage: async (name) => { calls.push(['createPage', name]); return { uuid: 'new-' + name, id: 9000 + calls.length }; }, deletePage: async u => calls.push(['deletePage', u]),
   },
 };
+// A failure on demand, and the two lists Logseq lets a plugin only clear and fill, kept as Logseq would.
+for (const name of Object.keys(logseq.Editor)) {
+  const real = logseq.Editor[name];
+  logseq.Editor[name] = async (...a) => {
+    if (/^(add|remove|upsert|rename|create|delete)/.test(name)) { duringWrite?.(name, a); if (failOn?.(name, a)) { calls.push(['refused', name, ...a]); throw new Error('Logseq refused'); } }
+    if (name === 'removeBlockProperty') { if (a[1].endsWith('classes')) ranges[a[0]] = []; else declared[a[0]] = []; }
+    if (name === 'upsertBlockProperty' && a[1].endsWith('classes')) (ranges[a[0]] ||= []).push(a[2]);
+    if (name === 'upsertBlockProperty' && a[1].endsWith('class/properties')) (declared[a[0]] ||= []).push(a[2]);
+    if (name === 'deletePage') deleted.add(a[0]);
+    if (pagesReal && name === 'deletePage') live.tags = live.tags.filter(t => t.uuid !== a[0]);
+    const out = await real(...a);
+    if (pagesReal && name === 'createPage') live.tags.push({ id: out.id, uuid: out.uuid, title: a[0], parents: [], props: [] });
+    return out;
+  };
+}
 const sandbox = { window: win, document: doc, logseq, console, setTimeout, clearTimeout, Promise, Date, Map, Set, JSON, Math, Number, String, Array, Object, RegExp, Error };
 Object.defineProperty(win, 'parent', { value: win });
 vm.createContext(sandbox);
@@ -245,6 +266,111 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   assert.ok(calls.some(c => c[0] === 'createPage' && c[1] === 'Medical event 2') && !calls.some(c => c[0] === 'createPage' && c[1] === 'Medical event'), 'the next free name, not the one held');
   assert.ok(calls.some(c => c[0] === 'addTagExtends' && c[1] === child.uuid && c[2] === 'new-Medical event 2'), 'the child back under the tag Undo made');
   taken.clear();
+  // A failure halfway. A declared property cleared and not filled again: the tag gets back what it had, and the notice says so truly.
+  const CP = 'logseq.property.class/properties', visit = raw.tags.find(t => t.title === 'Visit'), notices = () => calls.filter(c => c[0] === 'notify').map(c => c[2]), undoArrow = () => R.querySelector('.st-tray .st-done .lk-undo');
+  const count = name => calls.filter(c => c[0] === name).length, fresh = () => { calls.length = 0; ranges = {}; declared = {}; failOn = null; deleted.clear(); };
+  app.tray.done = null; fresh(); let once = true;
+  app.stage({ kind: 'dropProp', prop: pid('Date'), tag: visit.id });
+  failOn = (name, a) => { if (name === 'upsertBlockProperty' && a[1] === CP && once) { once = false; return true; } return false; };
+  await app.apply();
+  deq(declared[visit.uuid].sort(), visit.props.slice().sort(), 'cut short halfway, the tag gets every property back'); assert.ok(notices()[0].includes('at step 1 of 1') && notices()[0].includes('nothing was written')); assert.equal(app.tray.changes.length, 1, 'the line waits');
+  app.discard();
+  // The first inverse fails: every other still runs, the count is said, the arrow stands for what is left, and only that runs again.
+  fresh(); const movedA = raw.tags.find(t => t.title === 'Scan'), movedB = raw.tags.find(t => t.title === 'Stay'), under = raw.tags.find(t => t.title === 'Treatment');
+  app.stage({ kind: 'move', tag: movedA.id, to: under.id }); app.stage({ kind: 'move', tag: movedB.id, to: under.id });
+  failOn = (name, a) => (name === 'addTagExtends' && a[0] === movedB.uuid) || (name === 'removeTagExtends' && a[0] === movedA.uuid && a[1] === under.uuid);
+  await app.apply();
+  assert.ok(notices()[0].includes('1 step could not be put back'), notices()[0]); assert.ok(!notices()[0].includes('were put back'));
+  assert.equal(count('addTagExtends'), 2, 'the step, and the inverse of Scan\'s old parent, which ran after the failure'); assert.ok(undoArrow(), 'the arrow stands for it'); assert.equal(text(R.querySelector('.st-done')), '1 step not put back ↶');
+  calls.length = 0; failOn = null; await app.undo();
+  assert.equal(calls.filter(c => c[0] !== 'notify').length, 1, 'only what failed runs again'); assert.equal(app.tray.done, null); assert.ok(!undoArrow());
+  app.discard(); app.tray.note = '';
+  // A failed Undo pressed again runs what is left, not everything from the top.
+  fresh(); app.stage({ kind: 'merge', from: visit.id, into: id('Consultation') }); await app.apply(); assert.ok(undoArrow());
+  calls.length = 0; failOn = name => name === 'addBlockTag'; await app.undo();
+  assert.equal(count('createPage'), 1, 'the tag came back'); assert.ok(notices()[0].startsWith('Could not undo 31 of'), notices()[0]); assert.equal(text(R.querySelector('.st-done')), '31 steps not undone ↶');
+  calls.length = 0; failOn = null; await app.undo();
+  assert.equal(count('createPage'), 0, 'not made twice'); assert.equal(count('addBlockTag'), 31, 'the rest, each once'); assert.equal(count('renamePage'), 0); assert.equal(app.tray.done, null);
+  // The tag cannot come back: what needs it fails and stays, and writes nothing on a dead uuid.
+  fresh(); app.stage({ kind: 'merge', from: visit.id, into: id('Consultation') }); await app.apply(); calls.length = 0; failOn = name => name === 'createPage'; await app.undo();
+  assert.equal(count('addBlockTag'), 0, 'nothing named the tag while it was not back'); assert.ok(notices()[0].includes('not back') || notices()[0].includes('refused'));
+  calls.length = 0; failOn = null; await app.undo(); assert.equal(count('createPage'), 1); assert.equal(count('addBlockTag'), 31); assert.equal(app.tray.done, null);
+  // A delete Logseq refused: nothing is made twice. A read that fails before the delete stops it, so no value dies with the tag.
+  fresh(); app.stage({ kind: 'merge', from: visit.id, into: id('Consultation') }); failOn = name => name === 'deletePage'; await app.apply();
+  assert.equal(count('createPage'), 0, 'the tag was never gone, so none is made'); assert.equal(app.tray.changes.length, 1); app.discard();
+  for (const clause of ['[?b ?a ', '[?b :user.property/', 'logseq.property/classes ?c']) {
+    fresh(); failQuery = new RegExp(clause.replace(/[[?\]/.]/g, '\\$&'));
+    const pr = raw.props.find(p => p.range.includes(id('Consultation')) && p.type === 'node'); live.nodes[9999] = [];
+    if (clause.startsWith('logseq')) app.stage({ kind: 'setRange', prop: pr.id, to: [] }); else app.stage({ kind: 'merge', from: visit.id, into: id('Consultation') });
+    const reading = S.db.valueRefs, ids = S.db.valueIds;
+    if (clause === '[?b :user.property/') S.db.valueRefs = async () => [{ uuid: 'held', ident: 'user.property/x' }];
+    failQuery = clause.startsWith('[?b ?a ') ? /\[\?b \?a \d+\]/ : clause.startsWith('[?b :user') ? /\[\?b :user\.property\/x \?v\]/ : /logseq\.property\/classes \?c\]/;
+    await app.apply(); S.db.valueRefs = reading; failQuery = null;
+    assert.equal(count('deletePage'), 0, `a failed read stops it (${clause})`); assert.equal(count('removeBlockProperty'), 0, 'and nothing is cleared on a read that failed'); assert.ok(notices().some(t => t.includes('the read failed'))); app.discard();
+  }
+  // A failed Apply put a deleted tag back under a new id: the line follows it, and pressing Apply again does the merge.
+  fresh(); pagesReal = true; const saved = JSON.stringify(live);
+  app.stage({ kind: 'merge', from: visit.id, into: id('Consultation') }); app.stage({ kind: 'move', tag: movedA.id, to: under.id });
+  failOn = (name, a) => name === 'addTagExtends' && a[0] === movedA.uuid; await app.apply();
+  assert.equal(app.tray.changes.length, 2, 'both lines wait'); const newId = app.tray.changes[0].from; assert.notEqual(newId, visit.id); assert.equal(app.tray.lines()[0].text.split(',')[0], 'Merge Visit into Consultation');
+  calls.length = 0; failOn = null; await app.apply(); assert.equal(count('deletePage'), 1, 'the merge ran again, not skipped'); assert.equal(app.tray.changes.length, 0);
+  live = JSON.parse(saved); pagesReal = false; app.tray.done = null; await app.reread();
+  // A node given the tag after the read: moved by the merge's last look, not left to lose the tag. A tag to remove that has nodes now stays.
+  fresh(); lateNodes[visit.id] = ['late-node']; app.stage({ kind: 'merge', from: visit.id, into: id('Consultation') }); await app.apply();
+  assert.ok(calls.some(c => c[0] === 'addBlockTag' && c[1] === 'late-node' && c[2] === raw.tags.find(t => t.title === 'Consultation').uuid), 'on to the kept tag'); assert.ok(calls.findIndex(c => c[0] === 'removeBlockTag' && c[1] === 'late-node') < calls.findIndex(c => c[0] === 'deletePage'));
+  calls.length = 0; await app.undo(); assert.ok(calls.some(c => c[0] === 'addBlockTag' && c[1] === 'late-node' && c[2] !== raw.tags.find(t => t.title === 'Consultation').uuid), 'and back'); assert.ok(calls.some(c => c[0] === 'removeBlockTag' && c[1] === 'late-node'));
+  lateNodes = {}; fresh(); const source = raw.tags.find(t => t.title === 'Source'); lateNodes[source.id] = ['late-node']; app.stage({ kind: 'remove', tag: source.id }); await app.apply();
+  assert.equal(count('deletePage'), 0); assert.ok(notices()[0].includes('has nodes now')); lateNodes = {}; app.discard();
+  // A range holds what the map does not show: kept by an edit, and by its Undo.
+  fresh(); const maker = raw.props.find(p => p.title === 'Maker'); ranges[maker.uuid] = [...maker.range, 99999]; app.stage({ kind: 'setRange', prop: maker.id, to: [id('Organisation')] }); await app.apply();
+  deq([...ranges[maker.uuid]].sort(), [99999, id('Organisation')].sort(), 'Logseq\'s tag stays'); await app.undo(); deq(ranges[maker.uuid], [...maker.range, 99999]);
+  // Only added to: nothing is cleared.
+  fresh(); ranges[maker.uuid] = [id('Person')]; app.stage({ kind: 'setRange', prop: maker.id, to: [...app.tray.model.props.get(maker.id).range, id('Organisation')] }); await app.apply(); assert.equal(count('removeBlockProperty'), 0, 'a range only added to is not cleared'); app.tray.done = null;
+  // A merge: the kept tag takes the merged one's place in a range; Undo puts the merged one back there.
+  fresh(); const pointed = raw.props.find(p => p.range.includes(id('Consultation')) && p.type === 'node'), keeps = raw.tags.find(t => t.title === 'Report');
+  app.stage({ kind: 'merge', from: id('Consultation'), into: keeps.id }); await app.apply(); assert.ok(ranges[pointed.uuid].includes(keeps.id) && !ranges[pointed.uuid].includes(id('Consultation')), 'swapped');
+  await app.undo(); assert.ok(!ranges[pointed.uuid].includes(id('Consultation')) && ranges[pointed.uuid].some(x => x > 9000) && !ranges[pointed.uuid].includes(keeps.id) === !pointed.range.includes(keeps.id), 'the tag Undo made is back in it');
+  // A stale map: read on opening, read again under a waiting tray, and a line that lost its tag says so.
+  fresh(); let rereadsN = 0; const reading = app.reread; app.reread = async () => { rereadsN++; }; const again = S.view.make(doc.getElementById('side'), 'page', app); app.mounted(again); assert.equal(rereadsN, 1, 'read on opening'); again.destroy(); app.reread = reading;
+  app.st.cur = id('Stay'); app.stage({ kind: 'rename', tag: movedB.id, name: 'Stay B' }); app.stage({ kind: 'move', tag: movedA.id, to: under.id }); const liveTags = live.tags;
+  live.tags = live.tags.filter(t => t.id !== movedB.id); calls.length = 0;
+  logseq.changed({ blocks: [{ id: 9101, title: 'Words', tags: [{ id: 9003, ident: 'user.class/Doctor' }], page: { id: 9002 } }], txMeta: { outlinerOp: 'save-block' } });
+  await sleep(1650); deq(app.tray.lines().map(l => l.text), ['Move Scan from Medical event to Treatment']); assert.ok(notices().some(t => t.includes('left the tray')), 'a line that lost its tag says so'); assert.ok(app.tray.model.tags.has(app.st.cur) || app.st.cur === 'N', 'the cursor is on something');
+  // The same at Apply: nothing is written, and the tray waits to be looked at.
+  app.stage({ kind: 'rename', tag: movedA.id, name: 'Scan B' }); live.tags = live.tags.filter(t => t.id !== under.id); calls.length = 0; await app.apply();
+  assert.ok(!calls.some(c => c[0] !== 'notify'), 'nothing written'); deq(app.tray.lines().map(l => l.text), ['Rename Scan to Scan B']); assert.ok(text(R.querySelector('.st-tray')).includes('1 change waiting'), 'and the tray is drawn again'); live.tags = liveTags; app.discard(); await app.reread(); app.tray.note = '';
+  // The tray: staging keeps the last Undo, drawn with the lines; a discard keeps it; while Apply runs nothing can be staged or thrown away.
+  fresh(); app.stage({ kind: 'rename', tag: movedA.id, name: 'Scan B' }); await app.apply(); assert.ok(undoArrow());
+  app.stage({ kind: 'rename', tag: movedB.id, name: 'Stay B' }); app.draw(); assert.ok(undoArrow(), 'staged: the arrow stays'); assert.ok(text(R.querySelector('.st-tray')).includes('1 change waiting') && text(R.querySelector('.st-tray')).includes('1 change applied ↶'));
+  app.discard(); assert.equal(text(R.querySelector('.st-tray')), '1 change dropped1 change applied ↶', 'discarded: the arrow stays, the line says what went'); calls.length = 0; await app.undo(); assert.ok(calls.some(c => c[0] === 'renamePage'), 'and it undoes');
+  fresh(); app.stage({ kind: 'rename', tag: movedA.id, name: 'Scan B' }); app.stage({ kind: 'rename', tag: movedB.id, name: 'Stay B' }); let refused = 'not tried';
+  duringWrite = () => { duringWrite = null; refused = app.stage({ kind: 'rename', tag: under.id, name: 'Treatment B' }); key(R, 'Backspace', { metaKey: true }); app.dropChange(0); };
+  await app.apply(); assert.equal(refused, null, 'refused'); assert.equal(app.tray.changes.length, 0); assert.ok(notices().some(t => t.includes('Wait for this')), 'and says so'); assert.equal(count('renamePage'), 2, 'discard and × did nothing to the run'); app.tray.done = null; app.tray.note = '';
+  // A run that fails after a discard or a × was tried: the lines wait, none lost.
+  fresh(); app.stage({ kind: 'rename', tag: movedA.id, name: 'Scan B' }); app.stage({ kind: 'rename', tag: movedB.id, name: 'Stay B' });
+  duringWrite = () => { duringWrite = null; app.discard(); app.dropChange(0); failOn = name => name === 'renamePage'; };
+  await app.apply(); assert.equal(app.tray.changes.length, 2, 'both lines still wait'); app.discard(); app.tray.note = ''; failOn = null;
+  // Another graph midway: not one more write, nothing put back into the graph now open, the Undo waits for its graph, and the map starts afresh.
+  fresh(); app.st.ticks.add(movedA.id); app.st.cur = movedA.id; app.st.propCur = 'x'; app.stage({ kind: 'merge', from: visit.id, into: id('Consultation') });
+  let writes = 0; duringWrite = () => { if (++writes === 5) { duringWrite = null; graphName = 'logseq_db_Other'; logseq.graphChanged(); } };
+  await app.apply();
+  assert.ok(calls.filter(c => !['notify', 'refused'].includes(c[0])).length <= 5, 'stopped at the next step'); assert.ok(notices()[0].includes('another graph was opened'), notices()[0]); assert.equal(count('deletePage'), 0);
+  await sleep(30); assert.equal(app.tray.changes.length, 0); assert.equal(app.tray.done, null, 'no arrow in the other graph'); assert.equal(app.st.ticks.size, 0); assert.equal(app.st.propCur, null); assert.ok(text(R.querySelector('.st-tray')).includes('dropped'), 'the tray says so'); assert.equal(app.st.busy, '');
+  calls.length = 0; graphName = 'logseq_db_Test'; logseq.graphChanged(); await sleep(30); assert.ok(undoArrow(), 'back in its graph, the arrow is there'); await app.undo(); assert.equal(app.tray.done, null); assert.ok(count('removeBlockTag') + count('addBlockTag') > 0);
+  // A step that fails because the graph went from under it: stopped as a switch, not put back into the graph now open.
+  fresh(); app.stage({ kind: 'merge', from: visit.id, into: id('Consultation') }); writes = 0;
+  failOn = () => { if (++writes === 4) { graphName = 'logseq_db_Other'; return true; } return false; };
+  await app.apply(); assert.ok(notices()[0].includes('another graph was opened'), notices()[0]); assert.equal(calls.filter(c => c[0] === 'refused').length, 1, 'one step refused, no inverse tried');
+  await sleep(10); failOn = null; graphName = 'logseq_db_Test'; logseq.graphChanged(); await sleep(30); await app.undo(); assert.equal(app.tray.done, null); app.discard(); app.tray.note = '';
+  // The new graph not answering yet: no notice, and the map waits for it.
+  fresh(); let reads = 0; const readNow = S.db.read; S.db.read = async () => { if (++reads < 3) throw new Error('Failed to fetch'); return readNow(); };
+  logseq.graphChanged(); await sleep(700); S.db.read = readNow; assert.ok(!notices().some(t => t.includes('could not be read')), 'nothing said while it opens'); assert.ok(reads >= 3);
+  // Pressing Undo, with another graph opened midway: it stops, and the rest waits.
+  fresh(); app.stage({ kind: 'merge', from: visit.id, into: id('Consultation') }); await app.apply(); calls.length = 0; writes = 0;
+  duringWrite = () => { if (++writes === 3) { duringWrite = null; graphName = 'logseq_db_Other'; logseq.graphChanged(); } }; await app.undo();
+  assert.ok(calls.filter(c => c[0] !== 'notify').length <= 3, 'stopped'); assert.ok(notices().some(t => t.includes('the Undo waits in Test')), 'and says where'); await sleep(30);
+  graphName = 'logseq_db_Test'; logseq.graphChanged(); await sleep(30); assert.ok(undoArrow()); calls.length = 0; await app.undo(); assert.equal(count('createPage'), 0, 'the rest, not from the top'); assert.equal(app.tray.done, null);
+  fresh(); app.st.view = 'tree'; app.st.cur = id('Stay'); await app.reread();
   // Find reveals the path; typing on the tree is finding.
   app.st.view = 'tree'; app.draw(); key(R, 'r'); key(R.querySelector('[data-find]'), 'e'); const find = R.querySelector('[data-find]'); find.value = 'res'; find.dispatchEvent(new win.Event('input', { bubbles: true }));
   rows = [...R.querySelectorAll('.st-row[data-row]')];

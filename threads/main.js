@@ -444,7 +444,7 @@ function main() {
     runHooks(hooks.database, 'database change', change);
     scheduleDbWork();
   }));
-  onUnload(logseq.App.onCurrentGraphChanged(() => { graphCache.clear(); runHooks(hooks.graph, 'graph change'); })); // another graph has other lists
+  onUnload(logseq.App.onCurrentGraphChanged(() => { graphCache.clear(); window.refinementShared.undo.clear(); runHooks(hooks.graph, 'graph change'); })); // another graph has other lists, and an arrow would act on what is not there
   onUnload(() => { clearTimeout(dbWork.timer); clearTimeout(dbWork.slowTimer); });
   onUnload(logseq.onSettingsChanged((now, before) => {
     if (perf.ownSettingsOnly(now, before) || !window.PluginDoor.settingChanged(schemaAll.map(item => item.key), now, before)) return;

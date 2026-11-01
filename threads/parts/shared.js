@@ -739,7 +739,9 @@ function editInPlace({ at, value = '', type = 'text', placeholder = '', doc, aga
   doc = doc || host();
   return new Promise(resolve => {
     let was = [...at.childNodes];
-    const input = el(doc, 'input', { class: 'ui__input flex w-full rounded-md border-none bg-transparent px-0 !py-0 min-h-0 leading-6 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 rf-in-place', type, placeholder });
+    // Words with a line break keep it: an input would flatten them.
+    const lines = String(value).split('\n').length;
+    const input = el(doc, lines > 1 ? 'textarea' : 'input', { class: 'ui__input flex w-full rounded-md border-none bg-transparent px-0 !py-0 min-h-0 leading-6 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 rf-in-place', ...(lines > 1 ? { rows: lines } : { type }), placeholder });
     input.value = value;
     if (numeric) input.setAttribute('inputmode', 'decimal');
     let finished = false, moving = false;

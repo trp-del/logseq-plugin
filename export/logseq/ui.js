@@ -225,13 +225,15 @@ function open({ doc, what, act }) {
     const q = sel => root.querySelector(sel);
     const boxes = role => [...root.querySelectorAll(`.xp-list[data-role=${role}] input`)];
     const target = () => q('input[name=xp-target]:checked')?.value || 'pdf';
+    // What is left out: what this page lists as ticked here, and whatever was left out on another page, which this page does not list.
+    const hiddenNow = (role, was) => new Set([...[...was].filter(ident => !boxes(role).some(b => b.value === ident)), ...boxes(role).filter(b => !b.checked).map(b => b.value)]);
     const choice = () => ({ ...c, target: target(),
       layout: q('.xp-layout').value, look: q('.xp-look').value,
       paper: q('.xp-paper').value, margins: q('.xp-margins').value, size: q('.xp-size').value, footer: q('.xp-footer').value, pageNumbers: q('.xp-pagenumbers').checked,
       tags: q('.xp-tags').checked, tasks: q('.xp-tasks').checked, zoom: q('.xp-zoom').value, links: q('.xp-links').value, frontMatter: q('.xp-frontmatter').checked,
       kicker: q('.xp-kicker')?.value || '', subtitle: q('.xp-subtitle')?.value || '', preparedBy: q('.xp-by')?.value ?? c.preparedBy, titleDate: q('.xp-titledate')?.checked ?? c.titleDate,
       dated: { dateKey: q('.xp-datekey').value, under: q('.xp-under').value, newestFirst: q('.xp-newest').checked },
-      hiddenHead: new Set(boxes('head').filter(b => !b.checked).map(b => b.value)), hiddenNodes: new Set(boxes('nodes').filter(b => !b.checked).map(b => b.value)),
+      hiddenHead: hiddenNow('head', c.hiddenHead), hiddenNodes: hiddenNow('nodes', c.hiddenNodes),
       shownHead: boxes('head').length ? new Set(boxes('head').filter(b => b.checked).map(b => b.value)) : null, shownNodes: boxes('nodes').length ? new Set(boxes('nodes').filter(b => b.checked).map(b => b.value)) : null });
     // The words each control shows: a pick its chosen option (and which of its alternatives is in force), a switch its state.
     const syncValues = () => {
@@ -276,7 +278,9 @@ function open({ doc, what, act }) {
     const fit = () => { try { frame.style.height = Math.max(600, frame.contentDocument.documentElement.scrollHeight + 2) + 'px'; } catch (error) { /* keeps its height */ } zoomIt(); };
     win.addEventListener('resize', zoomIt);
     const sheetOpts = ch => ({ paper: ch.paper, margins: themes.MARGINS[ch.margins], footer: ch.footer, pageNumbers: ch.pageNumbers });
-    let timer = null, run = 0, edited = null;
+    let timer = null, run = 0, edited = null, drawn = null;
+    // What decides the words on the sheet. Anything else (the look, the paper, the footer) leaves words changed in the preview where they are.
+    const wordsOf = ch => JSON.stringify([ch.target === 'md', ch.layout, ch.tags, ch.tasks, ch.links, ch.frontMatter, [...(ch.shownHead || [])], [...(ch.shownNodes || [])], ch.dated, ch.kicker, ch.subtitle, ch.preparedBy, ch.titleDate]);
     const refresh = () => {
       describe();
       clearTimeout(timer);
@@ -284,11 +288,14 @@ function open({ doc, what, act }) {
         const n = ++run, ch = choice();
         try {
           const md = ch.target === 'md';
-          const html = md ? `<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;padding:60px 72px;background:#fff;color:#111}pre{margin:0;font:13px/1.55 Menlo,Consolas,monospace;white-space:pre-wrap;word-break:break-word;outline:none}</style></head><body><pre contenteditable="true" spellcheck="false">${esc(E.app.markdown(doc, ch))}</pre></body></html>`
-            : await E.app.pageHtml(doc, ch, { extraCss: 'body:focus { outline: none; }' });
+          const same = drawn === wordsOf(ch), kept = same && edited ? edited() : null;
+          const html = md ? `<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;padding:60px 72px;background:#fff;color:#111}pre{margin:0;font:13px/1.55 Menlo,Consolas,monospace;white-space:pre-wrap;word-break:break-word;outline:none}</style></head><body><pre contenteditable="true" spellcheck="false">${esc(kept ?? E.app.markdown(doc, ch))}</pre></body></html>`
+            : await E.app.pageHtml(doc, ch, { extraCss: 'body:focus { outline: none; }', body: kept });
           if (n !== run) return;
+          if (edited && !same) logseq.UI.showMsg('The sheet was drawn again from the page, so the words changed in it went', 'warning');
           frame.srcdoc = html;
-          edited = null;
+          edited = kept == null ? null : () => kept;
+          drawn = wordsOf(ch);
           frame.onload = async () => { try {
             const d = frame.contentDocument, sheets = ch.target === 'pdf';
             if (!md) { d.body.contentEditable = 'true'; d.body.spellcheck = false; }
@@ -337,8 +344,9 @@ function open({ doc, what, act }) {
       const ch = choice();
       remember(ch, doc.title);
       if (action === 'pdf') root.hidden = true;   // the print window takes its place
-      try { await act(ch, action, edited ? edited() : null); } catch (error) { console.error(error); logseq.UI.showMsg(`Export stopped: ${error.message}`, 'error'); }
-      close();
+      let done = false;
+      try { done = await act(ch, action, edited ? edited() : null) !== false; } catch (error) { console.error(error); logseq.UI.showMsg(`Export stopped: ${error.message}`, 'error'); }
+      if (done) close(); else root.hidden = false;   // cancelled: the window stays, with what was chosen and written
     };
     const onKey = event => {
       if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); if (openOnes().length) { closePops(); return; } close(); }

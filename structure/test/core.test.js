@@ -89,7 +89,7 @@ deq(pull.map(s => `${s.op} ${s.tag.title}`), ['addClassProp Medical event', 'rem
 const mk = plan.find(s => s.op === 'makeTag'); assert.equal(mk.tag.title, 'Follow-up'); assert.equal(mk.parent.title, 'Consultation');
 const last = plan.at(-2); assert.equal(last.op, 'addExtends'); assert.equal(last.tag.title, 'Stay'); assert.strictEqual(last.parent, mk.tag, 'the move under the new tag shares its handle, so the uuid learned at Apply reaches it');
 tray.discard();
-tray.stage({ kind: 'split', tag: id('Consultation'), name: 'Follow-up', prop: pid('With'), nodes: [{ id: 1, uuid: 'u1' }, { id: 2, uuid: 'u2' }], where: 'With is Family' });
+tray.stage({ kind: 'split', tag: id('Consultation'), name: 'Follow-up', prop: pid('With'), nodes: raw.nodes[id('Consultation')].slice(0, 2), where: 'With is Family' });
 assert.equal(tray.lines()[0].text, 'Make Follow-up under Consultation with 2 nodes where With is Family');
 plan = tray.plan(); deq(plan.map(s => s.op), ['makeTag', 'addClassProp', 'addTag', 'removeTag', 'addTag', 'removeTag']);
 tray.discard();
@@ -123,4 +123,46 @@ assert.equal(pair.model.tags.get(2).nodeUuids.length, 2, 'a node held twice is o
 pair.discard(); pair.stage({ kind: 'retag', from: 1, to: 2, nodes: [{ id: 10, uuid: 'both' }] });
 deq(pair.plan().map(s => s.op), ['removeTag'], 'a retag leaves alone a node that already holds the tag');
 console.log('  ok  a merge: what a node held is left, child tags taken off first, what cannot come back said');
+// A merge swaps the kept tag into what pointed at the merged one, and the card never holds a dead id while it waits.
+const ranged = S.changes.makeTray();
+ranged.setBase({ tags: [{ id: 1, uuid: 'from', title: 'From', parents: [], props: [] }, { id: 2, uuid: 'kept', title: 'Kept', parents: [], props: [] }, { id: 3, uuid: 'other', title: 'Other', parents: [], props: [] }, { id: 4, uuid: 'gone', title: 'Gone', parents: [], props: [] }],
+  props: [{ id: 50, uuid: 'p1', ident: 'user.property/source', title: 'Source', type: 'node', range: [1, 3] }, { id: 51, uuid: 'p2', ident: 'user.property/both', title: 'Both', type: 'node', range: [1, 2] }, { id: 52, uuid: 'p3', ident: 'user.property/kept', title: 'Kept to', type: 'node', range: [2] }] });
+ranged.stage({ kind: 'merge', from: 1, into: 2 }); deq(ranged.model.props.get(50).range, [2, 3], 'the kept tag takes its place'); deq(ranged.model.props.get(51).range, [2], 'once');
+deq(ranged.plan().filter(s => s.op === 'setRange').map(s => [s.prop.title, s.to.map(h => h.title), s.was.map(h => h.title)]), [['Source', ['Kept', 'Other'], ['From', 'Other']], ['Both', ['Kept'], ['From', 'Kept']]], 'a step for each, before the delete');
+assert.equal(ranged.plan().at(-1).op, 'deleteTag');
+ranged.discard(); ranged.stage({ kind: 'remove', tag: 4 }); deq(ranged.model.props.get(52).range, [2]);
+ranged.discard(); ranged.stage({ kind: 'remove', tag: 3 }); deq(ranged.model.props.get(50).range, [1], 'a removed tag leaves the range while it waits');
+ranged.discard();
+console.log('  ok  a merge swaps the kept tag into each range; a removed tag leaves it');
+
+// A line taken out: the others keep what they named, and what needed it goes with it.
+const lines = S.changes.makeTray();
+lines.setBase({ tags: [{ id: 1, uuid: 'stay', title: 'Stay', parents: [], props: [] }, { id: 2, uuid: 'pa', title: 'Parent', parents: [], props: [] }], props: [{ id: 50, uuid: 'p1', ident: 'user.property/x', title: 'X', type: 'node', range: [] }] });
+const A = lines.stage({ kind: 'make', name: 'A', under: 2 }), B = lines.stage({ kind: 'make', name: 'B', under: 2 }), C = lines.stage({ kind: 'make', name: 'C', under: 2 });
+lines.stage({ kind: 'move', tag: 1, to: B.made });
+lines.drop(0); assert.equal(lines.lines().at(-1).text, 'Move Stay from no kind to B', 'not C: an id stays what it was'); assert.equal(lines.lost.length, 0);
+lines.stage({ kind: 'make', name: 'Under B', under: B.made }); lines.stage({ kind: 'rename', tag: C.made, name: 'C2' }); lines.stage({ kind: 'setRange', prop: 50, to: [B.made] });
+const drops = lines.lines().findIndex(l => l.text === 'Make B under Parent');
+lines.drop(drops); deq(lines.lines().map(l => l.text), ['Make C under Parent', 'Rename C to C2'], 'what needed B went with it'); deq(lines.lost.map(c => c.kind), ['move', 'make', 'setRange'], 'each said');
+lines.lost = []; deq(lines.plan().map(s => s.op), ['makeTag', 'rename']);
+console.log('  ok  a line taken out retargets nothing, and takes what needs it with it');
+
+// The tray read again under its changes: a line naming what left the graph leaves the tray, and its nodes follow the graph.
+const fresh = S.changes.makeTray(), base = extra => ({ tags: [{ id: 1, uuid: 'a', title: 'A', parents: [], props: [] }, { id: 2, uuid: 'b', title: 'B', parents: [], props: [] }, ...extra], props: [], nodes: { 1: [{ id: 10, uuid: 'n1' }] } });
+fresh.setBase(base([{ id: 3, uuid: 'c', title: 'C', parents: [], props: [] }]));
+fresh.stage({ kind: 'merge', from: 1, into: 2 }); fresh.stage({ kind: 'move', tag: 3, to: 2 });
+fresh.setBase({ ...base([{ id: 3, uuid: 'c', title: 'C', parents: [], props: [] }]), nodes: { 1: [{ id: 10, uuid: 'n1' }, { id: 11, uuid: 'n2' }] } });
+deq(fresh.plan().filter(s => s.op === 'addTag').map(s => s.node), ['n1', 'n2'], 'a node tagged since is in the merge');
+fresh.setBase(base([])); deq(fresh.lines().map(l => l.text), ['Merge A into B, A removed']); deq(fresh.lost.map(c => c.kind), ['move'], 'a tag gone from the graph ends its line');
+fresh.lost = []; fresh.setBase({ tags: [{ id: 2, uuid: 'b', title: 'B', parents: [], props: [] }], props: [] }); assert.equal(fresh.changes.length, 0, 'no merge of a tag that is not there');
+// A failed Apply put a tag back under a new id: the waiting line names the new one, so a second press does the same thing.
+const again = S.changes.makeTray(); again.setBase(base([])); again.stage({ kind: 'merge', from: 1, into: 2 }); again.renumber(new Map([[1, 7]]));
+again.setBase({ tags: [{ id: 7, uuid: 'a2', title: 'A', parents: [], props: [] }, { id: 2, uuid: 'b', title: 'B', parents: [], props: [] }], props: [], nodes: { 7: [{ id: 10, uuid: 'n1' }] } });
+assert.equal(again.changes.length, 1); assert.equal(again.plan().at(-1).op, 'deleteTag'); assert.equal(again.plan().at(-1).tag.uuid, 'a2');
+// A staged change leaves the last Apply's Undo where it was.
+const kept = S.changes.makeTray(); kept.setBase(base([])); kept.done = { text: 'x' }; kept.stage({ kind: 'move', tag: 1, to: 2 }); kept.discard(); deq(kept.done, { text: 'x' });
+// A kind with no tag keeps its id at every reading, whichever others the graph gains.
+const noKinds = Mo.build({ tags: [], props: [] }), oneKind = Mo.build({ tags: [{ id: 1, uuid: 'e', title: 'Entity', parents: [], props: [] }], props: [] });
+assert.equal(noKinds.kinds[2].id, oneKind.kinds[2].id);
+console.log('  ok  a tray read again, a failed Apply tried again, the arrow kept');
 console.log('core: every check passed');

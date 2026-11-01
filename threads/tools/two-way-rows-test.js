@@ -48,7 +48,8 @@ function world(grouping) {
   window.eval(fs.readFileSync(path.join(root, '../plugin.js'), 'utf8'));
   window.eval(fs.readFileSync(path.join(root, 'parts/shared.js'), 'utf8'));
   window.eval(fs.readFileSync(path.join(root, 'parts/two-way.js'), 'utf8'));
-  const calls = [], reads = [], changed = [];
+  const calls = [], reads = [], changed = [], graphHooks = [], madeNow = new Map(), recycled = new Set(), notices = [];
+  window.logseq.UI.showMsg = text => notices.push(text);
   const bullets = new Map([[U(101), [{ uuid: U(701), title: 'Cepeda reviewed 254 studies.' }, { uuid: U(702), title: 'See [[Testing effect]].' }]]]);
   let nextBlock = 800;
   const provided = {
@@ -72,6 +73,7 @@ function world(grouping) {
       { ident: 'user.property/source', title: 'Source', lower: 'source', type: 'node', many: true, choices: [], classes: [{ id: 60 }] },
     ], parentsOf: new Map([[64, [60]]]) }),
     propPages: async () => [{ id: 61, uuid: U(61), title: 'Cepeda 2006', lower: 'cepeda 2006', tags: [{ id: 60 }] }, { id: 64, uuid: U(64), title: 'A child tag’s page', lower: 'a child tag’s page', tags: [{ id: 64 }] }, { id: 62, uuid: U(62), title: 'Rohrer 2015', lower: 'rohrer 2015', tags: [{ id: 60 }] }, { id: 63, uuid: U(63), title: 'Memory techniques', lower: 'memory techniques', tags: [] }],
+    aliasesOf: async () => [], madeState: async uuid => madeNow.get(uuid) || 'as made', inRecycle: async uuid => recycled.has(uuid), restorePage: async uuid => { calls.push(['restorePage', uuid]); recycled.delete(uuid); }, storedWords: async text => text,
     fits: (page, ids, schema) => { const seen = new Set(), queue = page.tags.map(t => t.id); while (queue.length) { const c = queue.shift(); if (seen.has(c)) continue; seen.add(c); if (ids.has(c)) return true; queue.push(...(schema.parentsOf?.get(c) || [])); } return false; },
     pagesAmong: async () => 0,
     tagUuidNamed: async title => `tag-${title.toLowerCase()}`,
@@ -97,13 +99,13 @@ function world(grouping) {
   window.refinementCore = {
     UUID: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, isEntityId: n => Number.isSafeInteger(n) && n > 0,
     watchDomEarly: fn => early.push(fn), addsElements: () => true, sendStyle() {}, uuidsIn: () => '', saveSettings(changes) { saved.push(changes); Object.assign(window.logseq.settings, changes); },
-    onPageChange() {}, onDatabaseChange(fn) { changed.push(fn); }, onSettingsChange() {}, provided,
+    onPageChange() {}, onDatabaseChange(fn) { changed.push(fn); }, onSettingsChange() {}, onGraphChange(fn) { graphHooks.push(fn); }, provided,
     provide(things) { Object.assign(provided, things); },
   };
   const part = window.refinementParts.find(p => p.name === 'two-way');
   part.provide(window.refinementCore);
   part.start();
-  return { window, doc, calls, part, bullets, saved, reads, changed, provided };
+  return { window, doc, calls, part, bullets, saved, reads, changed, provided, graphHooks, madeNow, recycled, notices };
 }
 const click = (window, el) => el.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
 const type = (window, input, text) => { input.value = text; input.dispatchEvent(new window.Event('input', { bubbles: true })); };
@@ -869,6 +871,144 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     press(doc.querySelector('.rf-ask'));
     await wait(120);
     check(calls.filter(c => c[0] === 'removeBlock').length === 4 && calls.some(c => c[0] === 'deletePage' && c[1] === 'gap'), 'Enter on the question should delete what it names: ' + JSON.stringify(calls));
+    part.stop();
+  }
+  // Linked references goes only when the mentions were read; a node holding the page's alias is in the rows.
+  {
+    const { window, doc, part, provided, changed } = world('');
+    const again = async () => { changed.forEach(fn => fn({ blocks: [], txMeta: { outlinerOp: 'x' } })); await wait(1050); return doc.querySelector('.refinement-two-way').hasAttribute('data-rf-replaces'); };
+    provided.mentionsInto = async () => []; provided.kindOfPage = async () => ({ isTag: false });
+    check(await again(), 'with the mentions read, the rows replace Linked references');
+    window.logseq.settings.twoWayMentions = false;
+    check(!await again(), 'with mentions off, Linked references stays');
+    window.logseq.settings.twoWayMentions = true; provided.mentionsInto = async () => { throw new Error('refused'); };
+    check(!await again(), 'with a read that failed, Linked references stays');
+    provided.mentionsInto = async () => []; provided.aliasesOf = async id => id === 5 ? [6] : [];
+    const links = provided.linksInto;
+    provided.linksInto = async id => id !== 6 ? links(id) : { pages: new Map([[6, { uuid: U(6), byField: new Map([['about', new Set([107])]]) }]]), fields: new Map([['about', { uuid: U(50), ident: 'user.property/about' }]]), records: new Map([[107, { uuid: U(107), title: 'Held through the alias', tag: 'Claim', day: 0 }]]) };
+    await again();
+    click(window, doc.querySelector('[data-more]') || doc.body);
+    await wait(20);
+    check(doc.querySelector('.refinement-two-way').textContent.includes('Held through the alias') && doc.querySelectorAll('.refinement-two-way .rf-tw-row').length === 1, 'a node holding an alias is in the page’s row');
+    part.stop();
+  }
+  // Words: one value at a time, as written; a link stays one; the box is never inside the button, where a space would press it.
+  {
+    const { window, doc, part, calls, provided } = world('');
+    const many = { ident: 'user.property/words', title: 'Words', lower: 'words', type: 'default', many: true, choices: [], classes: [] }, one = { ident: 'user.property/note', title: 'Note', lower: 'note', type: 'default', many: false, choices: [], classes: [] };
+    provided.fieldsOf = async () => [many, one];
+    let held = ['a one', `see [[${U(40)}]] soon`];
+    provided.readableTitle = async text => String(text).replace(`[[${U(40)}]]`, '[[Dr. X]]');
+    provided.storedWords = async text => text.replace('[[Dr. X]]', `[[${U(40)}]]`);
+    provided.nodeValues = async () => new Map([[U(101), new Map([['Words', { ident: many.ident, values: held.map(text => ({ text })) }], ['Note', { ident: one.ident, values: [{ text: `to [[${U(40)}]]` }] }]])]]);
+    await wait(100);
+    click(window, chevOf(doc, U(101))); await wait(120);
+    const button = i => doc.querySelector(`.rf-tw-npvalue[data-edit="${many.ident}"][data-value="${i}"]`), box = () => doc.querySelector('.rf-in-place');
+    check(button(0)?.textContent === 'a one' && button(1)?.textContent === 'see Dr. X soon', 'each value its own, as it reads: ' + button(1)?.textContent);
+    check(button(0).parentElement.parentElement === button(1).parentElement.parentElement && !button(0).closest('.rf-ol-pv > span > span + span'), 'the values one run of text, with no gap before a comma');
+    click(window, button(1)); await wait(30);
+    check(box()?.value === 'see [[Dr. X]] soon', 'the box starts from the words as written, one value: ' + box()?.value);
+    check(!box().closest('button'), 'the box is not inside a button');
+    box().value = 'see [[Dr. X]] later'; enter(window, box()); await wait(80);
+    let set = calls.filter(c => c[0] === 'setValue' && c[2] === many.ident).at(-1);
+    check(set?.[3] === JSON.stringify(['a one', `see [[${U(40)}]] later`]) && /reset/.test(set[4]), 'that value changed in its place, the other left, the link kept: ' + set?.[3]);
+    held = JSON.parse(set[3]); await wait(1000);
+    click(window, doc.querySelector(`.rf-ol-pname[data-edit="${many.ident}"]`)); await wait(30);
+    check(box()?.value === '', 'the name adds another: an empty box');
+    box().value = 'c three'; enter(window, box()); await wait(80);
+    set = calls.filter(c => c[0] === 'setValue' && c[2] === many.ident).at(-1);
+    check(JSON.parse(set[3]).length === 3 && JSON.parse(set[3])[2] === 'c three', 'added, not folded into one: ' + set?.[3]);
+    held = JSON.parse(set[3]); await wait(1000);
+    click(window, button(0)); await wait(30); box().value = 'a two'; enter(window, box()); await wait(80);
+    set = calls.filter(c => c[0] === 'setValue' && c[2] === many.ident).at(-1);
+    check(JSON.parse(set[3])[0] === 'a two' && JSON.parse(set[3]).length === 3, 'a changed value keeps its place: ' + set?.[3]);
+    click(window, doc.querySelector(`.rf-tw-npvalue[data-edit="${one.ident}"]`)); await wait(30);
+    check(box()?.value === 'to [[Dr. X]]', 'one value: as written too: ' + box()?.value);
+    box().value = 'to [[Dr. X]] now'; enter(window, box()); await wait(80);
+    set = calls.filter(c => c[0] === 'setValue' && c[2] === one.ident).at(-1);
+    check(set?.[3] === JSON.stringify(`to [[${U(40)}]] now`), 'a link stays a link: ' + set?.[3]);
+    await wait(1000);
+    provided.nodeValues = async () => new Map([[U(101), new Map([['Note', { ident: one.ident, values: [{ text: 'two\nlines' }] }]])]]);
+    click(window, chevOf(doc, U(101))); await wait(60); click(window, chevOf(doc, U(101))); await wait(120);
+    click(window, doc.querySelector(`.rf-tw-npvalue[data-edit="${one.ident}"]`)); await wait(30);
+    check(box()?.tagName === 'TEXTAREA' && box().value === 'two\nlines', 'a line break stays in the box');
+    part.stop();
+  }
+  // Enter twice makes one: a bullet, and a node from the line.
+  {
+    const { window, doc, part, calls } = world('p:Confidence');
+    await wait(100);
+    click(window, chevOf(doc, U(101))); await wait(120);
+    const field = doc.querySelector(`.rf-tw-node-field[data-uuid="${U(101)}"]`);
+    field.value = 'Once'; field.dispatchEvent(new window.Event('input', { bubbles: true })); enter(window, field); check(field.value === '', 'the field empties on Enter'); enter(window, field); await wait(120);
+    check(calls.filter(c => c[0] === 'addLineTo' && c[2] === 'Once').length === 1, 'Enter twice adds one bullet');
+    await wait(1000);
+    click(window, chevOf(doc, U(101))); await wait(60);
+    click(window, doc.querySelector('.rf-tw-gadd')); await wait(40);
+    const line = doc.querySelector('.rf-tw-draft-name');
+    type(window, line, 'Twice over'); enter(window, line); enter(window, line); await wait(150);
+    check(calls.filter(c => c[0] === 'appendBlock' && c[2] === 'Twice over').length === 1, 'Enter twice makes one node: ' + calls.filter(c => c[0] === 'appendBlock').length);
+    part.stop();
+  }
+  // The arrow on something made: gone once it has changed, and never takes what was written. The Recycle is no page.
+  {
+    const { window, doc, part, calls, changed, madeNow, notices, recycled, provided } = world('');
+    await wait(100);
+    click(window, chevOf(doc, U(101))); await wait(120);
+    const field = () => doc.querySelector(`.rf-tw-node-field[data-uuid="${U(101)}"]`), arrow = () => doc.querySelector('.rf-undo');
+    field().value = 'Made'; enter(window, field()); await wait(150);
+    const bullet = calls.find(c => c[0] === 'addLineTo')[3];
+    check(!!arrow(), 'the arrow stands');
+    madeNow.set(bullet, 'written in'); changed.forEach(fn => fn({ blocks: [{ uuid: bullet, id: 1, title: 'Made more', page: { id: 9 } }], txMeta: { outlinerOp: 'save-block' } })); await wait(450);
+    check(!arrow(), 'written in, the arrow goes');
+    field().value = 'Made too'; enter(window, field()); await wait(150);
+    const other = calls.filter(c => c[0] === 'addLineTo').at(-1)[3];
+    madeNow.set(other, 'written in'); click(window, arrow()); await wait(100);
+    check(!calls.some(c => c[0] === 'removeBlock' && c[1] === other) && notices.some(t => t.includes('so it stays')), 'pressed after a change, nothing is taken, and it says so');
+    field().value = 'Made last'; enter(window, field()); await wait(150);
+    const last = calls.filter(c => c[0] === 'addLineTo').at(-1)[3];
+    click(window, arrow()); await wait(100);
+    check(calls.some(c => c[0] === 'removeBlock' && c[1] === last), 'unchanged, the arrow takes it away');
+    let asked = 0; const state = provided.madeState; provided.madeState = async uuid => { asked++; return state(uuid); };
+    changed.forEach(fn => fn({ blocks: [], txMeta: { outlinerOp: 'save-block' } })); await wait(400);
+    check(asked === 0, 'with no arrow left, nothing is asked: ' + asked);
+    part.stop();
+  }
+  {
+    const { window, doc, part, calls, notices, recycled, provided } = world('');
+    const gone = U(950), getPage = provided.getPage;
+    provided.pagesAmong = async () => 6;
+    provided.getPage = async key => key === 'In the bin' ? { id: 950, uuid: gone, name: 'in the bin' } : key === 'Standing' ? { id: 951, uuid: U(951), name: 'standing' } : getPage(key);
+    recycled.add(gone);
+    await wait(100);
+    click(window, doc.querySelector('.rf-tw-add')); await wait(60);
+    const name = () => doc.querySelector('.rf-tw-draft-name');
+    type(window, name(), 'Standing'); enter(window, name()); await wait(120);
+    check(notices.some(t => t.includes('already exists')), 'a page that stands refuses the name');
+    click(window, doc.querySelector('.rf-tw-add') || doc.body); await wait(60);
+    type(window, name(), 'In the bin'); enter(window, name()); await wait(150);
+    check(calls.some(c => c[0] === 'restorePage' && c[1] === gone) && notices.filter(t => t.includes('already exists')).length === 1, 'a name in the Recycle brings that page back, not a refusal: ' + JSON.stringify(notices));
+    check(calls.some(c => c[0] === 'setValue' && c[1] === gone), 'and the row’s property is set on it');
+    part.stop();
+  }
+  {
+    const { window, doc, part, calls, notices, recycled, provided, graphHooks, reads } = world('');
+    const bin = U(960);
+    provided.propPages = async () => [{ id: 960, uuid: bin, title: 'Binned place', lower: 'binned place', tags: [] }];
+    recycled.add(bin);
+    const popup = window.refinementShared.popup; window.refinementShared.popup = options => { const pop = popup(options); doc.activeElement?.blur(); return pop; };   // as a list opening does in Logseq
+    await wait(100);
+    click(window, doc.querySelector('.rf-tw-add')); await wait(60);
+    const name = doc.querySelector('.rf-tw-draft-name'); type(window, name, 'Into the bin'); enter(window, name); await wait(80);
+    const where = doc.querySelector('.rf-tw-draft-where');
+    check(doc.activeElement === where, 'the keyboard stays in the where box');
+    type(window, where, 'Binned'); await wait(60);
+    where.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })); await wait(150);
+    check(!calls.some(c => c[0] === 'appendBlock') && notices.some(t => t.includes('There is no page named')), 'a place in the Recycle takes nothing, and says so: ' + JSON.stringify(notices));
+    // Another graph: nothing read of this one holds there.
+    check(graphHooks.length === 1, 'the rows listen for another graph');
+    reads.length = 0; graphHooks.forEach(fn => fn()); await wait(120);
+    check(reads.length >= 1, 'another graph reads the rows afresh: ' + reads.length);
     part.stop();
   }
   console.log(problems.length ? `two-way-rows-test: ${problems.length} of ${cases} checks failed` : `two-way-rows-test: OK (${cases} checks)`);

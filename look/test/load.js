@@ -77,6 +77,7 @@ const { U, load, pencilled } = standIn;
   // Words written read nothing; a tag or a name changed reads the index again.
   let asked = 0; const reads = logseq.DB.datascriptQuery; logseq.DB.datascriptQuery = async q => { asked++; return reads(q); };
   const page = { id: 901, name: 'a page', title: 'A page', tags: [{ id: 1, ident: 'logseq.class/Page' }] };
+  { const loads = []; const props = Look.props.load, marks = Look.marks.load; Look.props.load = () => loads.push('props'); Look.marks.load = () => loads.push('marks'); logseq._graph(); Look.props.load = props; Look.marks.load = marks; assert.deepEqual(loads.sort(), ['marks', 'props'], 'another graph reads the marks and the property kinds again'); }
   Look.kit.graphChanged({ blocks: [{ id: 900, title: 'Words', page: { id: 901 } }, page], txMeta: { outlinerOp: 'save-block' } });
   await new Promise(r => setTimeout(r, 1000)); assert.equal(asked, 0, 'a bullet written, with its page in the list, reads nothing');
   Look.kit.graphChanged({ blocks: [{ id: 900, title: 'Words', page: { id: 901 }, tags: [{ id: 5, ident: 'user.class/Doctor' }] }], txMeta: { outlinerOp: 'save-block' } });

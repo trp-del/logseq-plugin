@@ -13,7 +13,7 @@ async function main() {
   logseq.DB.onChanged(change => Look.kit.graphChanged(change));
   const own = Look.settings.schema.map(item => item.key);
   logseq.onSettingsChanged?.((now, before) => { if (!window.PluginDoor.settingChanged(own, now, before)) return; Look.style.apply(); Look.sidebar.apply(); Look.kit.run(Look.kit.host()); });
-  logseq.App.onCurrentGraphChanged(() => { Look.marks.load(); });
+  logseq.App.onCurrentGraphChanged(() => { Look.marks.load(); Look.props.load(); });
 }
 function stop() {
   Look.marks.stop(); Look.props.stop(); Look.title.stop(); Look.folded.stop(); Look.sidebar.stop();

@@ -85,6 +85,39 @@ const key = (target, name, init = {}) => target.dispatchEvent(new dom.window.Key
   key(hostDoc.body, 'Enter', { metaKey: true }); await again;
   assert.deepEqual(sends, [], 'an export that changes no choice saves no setting');
   logseq.updateSettings = write;
+  // Left out on another page, and not listed here: stays left out, while what this page lists follows its ticks.
+  logseq.settings.hiddenHeadProperties = ['user.property/private'];
+  let chosen = null;
+  const kept = E.ui.open({ doc, what: 'this page', act: async ch => { chosen = ch; } });
+  const heads = [...hostDoc.querySelectorAll('.xp-list[data-role=head] input')]; heads[0].checked = false; heads[0].dispatchEvent(new hostDoc.defaultView.Event('change', { bubbles: true }));
+  key(hostDoc.body, 'Enter', { metaKey: true }); await kept;
+  assert.ok(chosen.hiddenHead.has('user.property/private') && chosen.hiddenHead.has(heads[0].value), 'kept across pages, with this page\'s tick');
+  heads[0].checked = true;
+  // A cancel: the window stays, with what was chosen; a finish closes it. A failure the same.
+  let answer = false, left = 0;
+  const stays = E.ui.open({ doc, what: 'this page', act: async () => { left += 1; if (answer instanceof Error) throw answer; return answer; } });
+  key(hostDoc.body, 'Enter', { metaKey: true }); await sleep(20);
+  assert.ok(hostDoc.querySelector('.xp') && !hostDoc.querySelector('.xp').hidden, 'a cancel leaves the window open and shown'); assert.equal(left, 1);
+  answer = new Error('no room'); key(hostDoc.body, 'Enter', { metaKey: true }); await sleep(20); assert.ok(hostDoc.querySelector('.xp'), 'a failure too');
+  answer = undefined; key(hostDoc.body, 'Enter', { metaKey: true }); await stays; assert.equal(hostDoc.querySelector('.xp'), null, 'a finish closes it');
+  { const print = E.print.print; E.print.print = async () => {}; assert.equal(await E.app.act(doc, { ...E.ui.read(), target: 'pdf' }, 'pdf', null), false, 'the print window does not say it saved, so the window stays'); E.print.print = print;
+    const save = E.files.save; E.files.save = async () => ({ saved: false }); assert.equal(await E.app.act(doc, E.ui.read(), 'md-file', null), false, 'a folder not chosen is a cancel'); E.files.save = async () => ({ saved: true, path: 'x' }); assert.equal(await E.app.act(doc, E.ui.read(), 'md-file', null), true); E.files.save = save; }
+  // Words changed in the preview: kept by a change of look, and said to go when the words themselves are drawn again.
+  { const bodies = [], real = E.app.pageHtml, msgs = [], show = logseq.UI.showMsg; E.app.pageHtml = async (d, ch, o) => { bodies.push(o.body ?? null); return '<html></html>'; }; logseq.UI.showMsg = text => msgs.push(text);
+    const w = E.ui.open({ doc, what: 'this page', act: async () => true });
+    const xp = hostDoc.querySelector('.xp'), q = s => xp.querySelector(s), radio = v => { const r = q(`input[name=xp-target][value=${v}]`); r.checked = true; r.dispatchEvent(new hostDoc.defaultView.Event('change', { bubbles: true })); };
+    const redrawn = async () => { await sleep(190); };
+    radio('rich'); await redrawn();
+    const frame = q('.xp-desk iframe'); frame.onload?.(); await sleep(5);
+    const d = frame.contentDocument; d.body.innerHTML = '<div class="x-doc">changed words</div>'; d.dispatchEvent(new dom.window.Event('input'));
+    bodies.length = 0; const look = q('select.xp-look'); look.value = 'book'; look.dispatchEvent(new hostDoc.defaultView.Event('change', { bubbles: true })); await redrawn();
+    assert.deepEqual(bodies, ['changed words'], 'a look keeps them'); assert.deepEqual(msgs, []);
+    bodies.length = 0; const box = q('.xp-tags'); box.checked = !box.checked; box.dispatchEvent(new hostDoc.defaultView.Event('change', { bubbles: true })); await redrawn();
+    assert.deepEqual(bodies, [null], 'a change of what is on the sheet draws it from the page'); assert.ok(msgs[0]?.includes('words changed in it went'), 'and says so');
+    key(hostDoc.body, 'Escape'); await w; E.app.pageHtml = real; logseq.UI.showMsg = show; }
+  // A file of that name is left alone.
+  { const taken = new Set(['/d/Notes.md', '/d/Notes 2.md', '/d/Plain']), apis = { doAction: async ([, path]) => taken.has(path) ? { size: 1 } : null };
+    assert.equal(await E.files.freePath(apis, '/d', 'Notes.md'), '/d/Notes 3.md'); assert.equal(await E.files.freePath(apis, '/d', 'Free.md'), '/d/Free.md'); assert.equal(await E.files.freePath(apis, '/d', 'Plain'), '/d/Plain 2'); }
   // Escape alone closes it; the sweep takes the stylesheet too.
   E.ui.open({ doc, what: 'this page', act: async () => {} });
   key(hostDoc.body, 'Escape');

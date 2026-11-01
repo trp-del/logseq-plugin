@@ -211,6 +211,7 @@ function formatJournalTitle(date, format) {
   return format.replace(/yyyy|yy|MMMM|MMM|MM|M|do|dd|d|EEEE|EEE|E/g, token => parts[token]);
 }
 let journalFormat = null;
+const forget = () => { journalFormat = null; };   // each graph has its own
 async function journalTitleFor(year, month, day) {
   const journalDay = year * 10000 + month * 100 + day;
   try {
@@ -230,6 +231,6 @@ const addTag = (uuid, tagUuid) => logseq.Editor.addBlockTag(uuid, tagUuid);
 const removeTag = (uuid, tagUuid) => logseq.Editor.removeBlockTag(uuid, tagUuid);
 const currentGraph = () => Promise.resolve(logseq.App.getCurrentGraph?.()).catch(() => null);
 
-Flow.db = { dsQuery, bare, pick, idOf, valuesOf, loadSchema, loadPages, pagesNamed, pullBlock, bulletOf, readContext, learnNodes,
+Flow.db = { forget, dsQuery, bare, pick, idOf, valuesOf, loadSchema, loadPages, pagesNamed, pullBlock, bulletOf, readContext, learnNodes,
   currentIds, valueTitle, journalPageFor, setValue, unsetValue, addTag, removeTag, currentGraph };
 })();

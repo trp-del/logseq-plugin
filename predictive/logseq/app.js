@@ -15,7 +15,7 @@ const defaults = () => Object.fromEntries((Flow.settingsSchema || []).filter(s =
 const setting = key => { const v = logseq.settings?.[key]; return v === undefined || v === null ? defaults()[key] : v; };
 const remember = (key, value) => logseq.updateSettings({ [key]: value });
 
-const state = { ctx: null, loading: null, graph: '', pages: { at: 0, list: null, loading: null } };
+const state = { ctx: null, loading: null, graph: '', generation: 0, pages: { at: 0, list: null, loading: null } };
 const REFRESH = 300000, PAGES_EVERY = 30000;
 const cleanGraph = g => String(g?.name || '').replace(/^logseq_db_/, '');
 async function graphName() { try { state.graph = cleanGraph(await db.currentGraph()); } catch (error) { state.graph = ''; } return state.graph; }
@@ -40,24 +40,34 @@ const localeNow = () => (Flow.locales || {})[setting('locale')] || Flow.dates.en
 async function context({ wait = true } = {}) {
   const old = state.ctx && Date.now() - state.ctx.readAt > REFRESH;
   if (!state.ctx || old) {
-    state.loading ||= (async () => {
-      const graph = await graphName();
-      const ctx = await db.readContext({ limits: limitsFor(graph), locale: localeNow(), linkRates: setting('linkSuggest') && setting('linkSuggestLearn') });
-      ctx.graph = graph;
-      return (state.ctx = ctx);
-    })().catch(error => { warnOnce('the graph could not be read', error); return state.ctx; }).finally(() => { state.loading = null; });
+    if (!state.loading) {
+      // A reading started in one graph never lands as another's: another graph opened meanwhile, it is dropped and read afresh.
+      const generation = state.generation;
+      const job = (async () => {
+        const graph = await graphName();
+        const ctx = await db.readContext({ limits: limitsFor(graph), locale: localeNow(), linkRates: setting('linkSuggest') && setting('linkSuggestLearn') });
+        if (generation !== state.generation) return context({ wait });
+        ctx.graph = graph;
+        return (state.ctx = ctx);
+      })().catch(error => { warnOnce('the graph could not be read', error); return state.ctx; }).finally(() => { if (state.loading === job) state.loading = null; });
+      state.loading = job;
+    }
   }
   if (state.ctx) return state.ctx;
   return wait ? state.loading : null;
 }
-const forget = () => { state.ctx = null; state.pages.list = null; state.pages.at = 0; };
+const forget = () => { state.generation++; state.ctx = null; state.loading = null; state.pages.list = null; state.pages.at = 0; state.pages.loading = null; learning.ids.clear(); clearTimeout(learning.timer); db.forget(); };
 
 // The page list for suggested links, read again at most every 30 s, so a page made a moment ago is offered soon.
 async function pages() {
   const p = state.pages;
   if (p.list && Date.now() - p.at < PAGES_EVERY) return p.list;
-  p.loading ||= db.loadPages().then(list => { p.list = list; p.at = Date.now(); return list; })
-    .catch(error => { warnOnce('the pages could not be read', error); return p.list || []; }).finally(() => { p.loading = null; });
+  if (!p.loading) {
+    const generation = state.generation;
+    const job = db.loadPages().then(list => { if (generation !== state.generation) return pages(); p.list = list; p.at = Date.now(); return list; })
+      .catch(error => { warnOnce('the pages could not be read', error); return p.list || []; }).finally(() => { if (p.loading === job) p.loading = null; });
+    p.loading = job;
+  }
   return p.list || p.loading;
 }
 

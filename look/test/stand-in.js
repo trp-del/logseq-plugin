@@ -76,7 +76,7 @@ async function load({ html = page, settings = {} } = {}) {
   const styles = {}, errors = [];
   const logseq = {
     ready: fn => Promise.resolve().then(fn), settings, provideStyle: ({ key, style }) => { styles[key] = style; }, useSettingsSchema() {}, onSettingsChanged(fn) { logseq._settingsHook = fn; }, updateSettings() {}, provideModel() {},
-    beforeunload(fn) { logseq._unload = fn; }, App: { onCurrentGraphChanged() {}, pushState() {}, registerCommandPalette() {}, registerUIItem() {} }, DB: { onChanged() {}, datascriptQuery: async q => fakeQuery(q) },
+    beforeunload(fn) { logseq._unload = fn; }, App: { onCurrentGraphChanged(fn) { logseq._graph = fn; }, pushState() {}, registerCommandPalette() {}, registerUIItem() {} }, DB: { onChanged() {}, datascriptQuery: async q => fakeQuery(q) },
     UI: { showMsg() {} }, Editor: { getPage: async () => null, openInRightSidebar() {} },
   };
   const sandbox = { window: { parent: { document: doc } }, logseq, document: { currentScript: null }, console: { ...console, error: (...a) => { errors.push(a.map(String).join(' ')); console.error(...a); } }, setTimeout, clearTimeout, Promise, URL, Date, Map, Set, JSON, encodeURIComponent, String, Number, Array, Object, RegExp, Math };

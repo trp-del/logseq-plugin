@@ -4,6 +4,8 @@
 (function () {
 const E = (window.DbExport ||= {});
 let graph = null;
+// Another graph: its folder and its pictures are not this one's.
+const forget = () => { graph = null; dataUrls.clear(); };
 async function currentGraph() {
   try { graph = await logseq.App.getCurrentGraph(); } catch (error) { graph = null; }
   return graph;
@@ -42,6 +44,14 @@ const fileName = name => String(name).replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s
    file), so the file is written through the bridge Logseq's own exports use: its folder dialog (showOpenDialog), then
    writeFile, then the file shown in the Finder. The folder chosen is remembered. Elsewhere, a download link. */
 const bridge = () => { try { return window.parent?.apis?.doAction ? window.parent.apis : null; } catch (error) { return null; } };
+// A file of that name is left alone: the next free name, "Notes 2.md".
+async function freePath(apis, dir, name) {
+  const taken = async path => { try { return !!await apis.doAction(['stat', path]); } catch (error) { return false; } };
+  const [, stem, ext] = name.match(/^(.*?)(\.[^.]*)?$/);
+  let path = `${dir}/${name}`;
+  for (let n = 2; await taken(path); n++) path = `${dir}/${stem} ${n}${ext || ''}`;
+  return path;
+}
 async function save(name, text, type = 'text/plain') {
   const apis = bridge();
   if (apis) {
@@ -49,7 +59,7 @@ async function save(name, text, type = 'text/plain') {
     const picked = await apis.doAction(['showOpenDialog', { title: `Save ${name}`, message: `Choose the folder for ${name}`, buttonLabel: 'Save here', properties: ['openDirectory', 'createDirectory'], ...(last ? { defaultPath: last } : {}) }]);
     const dir = picked && !picked.canceled && picked.filePaths?.[0];
     if (!dir) return { saved: false };
-    const path = `${String(dir).replace(/\/$/, '')}/${name}`;
+    const path = await freePath(apis, String(dir).replace(/\/$/, ''), name);
     await apis.doAction(['writeFile', null, path, text]);
     try { logseq.updateSettings({ saveFolder: dir }); } catch (error) { /* not remembered */ }
     try { apis.doAction(['openFileInFolder', path]); } catch (error) { /* the file is saved all the same */ }
@@ -64,5 +74,5 @@ async function save(name, text, type = 'text/plain') {
   setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 10000);
   return { saved: true, path: name };
 }
-E.files = { currentGraph, assetUrl, dataUrl, pictures, fileName, save };
+E.files = { forget, freePath, currentGraph, assetUrl, dataUrl, pictures, fileName, save };
 })();

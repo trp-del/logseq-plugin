@@ -1,7 +1,7 @@
 /* The screen, as the mockup draws it: the tree on the left (the four kinds on top, your tags under them, each row a
    name, the nodes under it and a dot when an issue sits on or below it), the card on the right (one path line, the
    thing's name, what it can take as words, where it sits, what it has, what points at it, its issues), the tray below
-   (the changes waiting, as sentences with the nodes they touch, Apply and Discard, then one Undo). Every property as
+   (the changes waiting, as sentences with the nodes they touch, Apply and Discard, and the last Apply's one Undo). Every property as
    one sortable list and the Health list open from words on the path line. Nothing a single letter does: letters typed on
    the tree find a tag, as in any outline; what a thing can take is written on its card and in its right-click menu.
    Escape walks back the way you came. A fix first says what it would do, with the nodes it touches, and is staged only
@@ -60,7 +60,7 @@ const CSS = `
 .st-tray .do span { cursor: pointer; } .st-tray .do span.go { color: var(--lk-text, #222); font-weight: 500; }
 .st-tray .do .ky { color: var(--st-faint); font-size: 12px; margin-left: 6px; }
 /* st-done, not done: Logseq strikes through its own .done (a finished task). */
-.st-tray .st-done, .st-tray .note { color: var(--st-quiet); white-space: nowrap; margin-left: auto; }   /* the Undo arrow waits bottom right (the grammar) */ .st-tray .st-done .lk-undo { cursor: pointer; margin-left: 6px; font-size: 16px; }
+.st-tray .st-done, .st-tray .note { color: var(--st-quiet); white-space: nowrap; margin-left: auto; } .st-tray .note + .st-done { margin-left: 0; }   /* the Undo arrow waits bottom right (the grammar) */ .st-tray .st-done .lk-undo { cursor: pointer; margin-left: 6px; font-size: 16px; }
 .st-tray .busy { color: var(--st-faint); }
 .st-find { border-bottom: 1px solid var(--st-line); color: var(--st-faint); font-size: 13.5px; display: flex; min-height: 24px; padding: 0 2px; margin: 0 0 10px; align-items: center; gap: 6px; }
 .st-find input, .st-in { all: unset; flex: 1; color: var(--lk-text, #222); min-width: 0; font: inherit; }
@@ -450,12 +450,13 @@ function make(holder, mode, app) {
   function trayHtml() {
     const tr = app.tray;
     if (st.busy) return `<div class="busy">${esc(st.busy)}</div>`;
-    if (!tr.changes.length && tr.done) return `<div class="st-done">${esc(tr.done.text)} applied <span class="lk-undo" title="Undo" data-undo>↶</span></div>`;
-    if (!tr.changes.length) return tr.note ? `<div class="note">${esc(tr.note)}</div>` : '';
+    // The last Apply's arrow stays until a new Apply takes its place, whatever is staged or discarded in between.
+    const done = tr.done ? `<div class="st-done">${esc(tr.done.text)} <span class="lk-undo" title="Undo" data-undo>↶</span></div>` : '';
+    if (!tr.changes.length) return (tr.note ? `<div class="note">${esc(tr.note)}</div>` : '') + done;
     const lines = tr.lines(), n = tr.nodes();
     return `<div class="tl"><span class="q" style="color:var(--st-faint)">${plural(lines.length, 'change')} waiting</span>` +
       lines.map((c, i) => `<span>${esc(c.text)}<i>${c.nodes ? plural(c.nodes, 'node') : ''}</i><u data-drop="${i}" title="Take this one out">×</u></span>`).join('') +
-      `</div><div class="do"><span class="go" data-apply>Apply · one Undo for ${plural(n, 'node')}<span class="ky">⌘ Enter</span></span><span data-discard>Discard<span class="ky">⌘ Delete</span></span></div>`;
+      `</div><div class="do"><span class="go" data-apply>Apply · one Undo for ${plural(n, 'node')}<span class="ky">⌘ Enter</span></span><span data-discard>Discard<span class="ky">⌘ Delete</span></span></div>` + done;
   }
 
   // ---------- the move prompt ----------
@@ -565,7 +566,7 @@ function make(holder, mode, app) {
     st.prompt = null;
     if (p.what === 'tag') { moveTags(p.tags, row.key); }
     else if (p.what === 'prop') { const [tagId, pid] = p.key.split('·').map(Number); if (row.key !== tagId) { app.stage({ kind: 'moveProp', prop: pid, from: [tagId], to: row.key }); st.propCur = `${row.key}·${pid}`; st.cur = row.key; } }
-    else if (p.what === 'nodes') { if (row.key !== p.tag) { app.stage({ kind: 'retag', from: p.tag, to: row.key, nodes: p.nodes }); st.nodes.list = st.nodes.list.filter(n => !st.nodes.ticks.has(n.uuid)); st.nodes.ticks.clear(); } }
+    else if (p.what === 'nodes') { if (row.key !== p.tag && app.stage({ kind: 'retag', from: p.tag, to: row.key, nodes: p.nodes })) { st.nodes.list = st.nodes.list.filter(n => !st.nodes.ticks.has(n.uuid)); st.nodes.ticks.clear(); } }
     else if (p.what === 'range') { const was = P(p.prop).range; if (!was.includes(row.key)) app.stage({ kind: 'setRange', prop: p.prop, to: [...was, row.key] }); }
     else if (p.what === 'split') { const v = p.values.find(x => x.id === row.key); app.nodesWhere(p.tag, P(p.prop).ident, v.id).then(nodes => { const title = v.title.charAt(0).toUpperCase() + v.title.slice(1); app.stage({ kind: 'split', tag: p.tag, name: Mo.titled(M(), title).length ? `${title} ${name(p.tag)}` : title, prop: p.prop, nodes, where: `${P(p.prop).title} is ${v.title}` }); }); }
     else if (p.what === 'addprop') app.stage(p.under ? { kind: 'addProp', prop: row.key, under: p.tag } : { kind: 'addProp', prop: row.key, tags: [p.tag] });
@@ -590,9 +591,9 @@ function make(holder, mode, app) {
     st.edit = null;
     if (v) {
       if (e.what === 'rename' && v !== name(e.on)) app.stage({ kind: 'rename', tag: e.on, name: v });
-      else if (e.what === 'new') { const c = app.stage({ kind: 'make', name: v, under: e.on === LOOSE ? null : e.on }); st.open.add(e.on); if (c.made != null) { loc.cur = c.made; if (mode === 'side') st.cur = c.made; } }
+      else if (e.what === 'new') { const c = app.stage({ kind: 'make', name: v, under: e.on === LOOSE ? null : e.on }); st.open.add(e.on); if (c?.made != null) { loc.cur = c.made; if (mode === 'side') st.cur = c.made; } }
       else if (e.what === 'prename') { const [, pid] = e.on.split('·').map(Number); if (v !== P(pid).title) app.stage({ kind: 'renameProp', prop: pid, name: v }); }
-      else if (e.what === 'split') { const n = st.nodes; const nodes = n.list.filter(x => n.ticks.has(x.uuid)).map(x => ({ id: x.id, uuid: x.uuid })); app.stage({ kind: 'split', tag: n.tag, name: v, nodes }); n.list = n.list.filter(x => !n.ticks.has(x.uuid)); n.ticks.clear(); }
+      else if (e.what === 'split') { const n = st.nodes; const nodes = n.list.filter(x => n.ticks.has(x.uuid)).map(x => ({ id: x.id, uuid: x.uuid })); if (app.stage({ kind: 'split', tag: n.tag, name: v, nodes })) { n.list = n.list.filter(x => !n.ticks.has(x.uuid)); n.ticks.clear(); } }
     }
     redraw();
   }

@@ -126,12 +126,14 @@ async function load() {
         groups = await groupsFor(page.id);
         const title = String(page.title || page.originalName || page.name || '').toLowerCase();
         if (!hiddenMentions().has(title)) {
-          const mentions = await mentionsGroup(page.id, groups).catch(error => { warnOnce('could not read the nodes that name this page', error); return null; });
+          let read = !!(setting('twoWayMentions') && provided.mentionsInto);
+          const mentions = await mentionsGroup(page.id, groups).catch(error => { read = false; warnOnce('could not read the nodes that name this page', error); return null; });
           if (mentions) groups = [...groups, mentions];
-          // The rows replace Linked references on a page that is not a tag, with its mentions shown (0.4.437).
+          // The rows replace Linked references on a page that is not a tag, once its mentions were really read (0.4.437): with
+          // them off, or a read that failed, Linked references is the only place they are.
           // Not on a journal day: its Linked references also lists the tasks scheduled or due that day, through Logseq's own
           // properties, which the rows do not read.
-          state.replaces = !state.pageJournal && !(await provided.kindOfPage?.(page.id).catch(() => null))?.isTag;
+          state.replaces = read && !state.pageJournal && !(await provided.kindOfPage?.(page.id).catch(() => null))?.isTag;
         }
         await readValues(groupedUuids(groups)).catch(error => warnOnce('could not read the values the rows are grouped by', error));
       }
@@ -156,7 +158,18 @@ const shownPage = doc => {
   const shown = doc ? [...doc.querySelectorAll('#main-content-container :is(.ls-page-title, .page-title) .ls-block[blockid]')].map(el => el.getAttribute('blockid')) : [];
   return shown.length === 1 ? shown[0] : '';
 };
-const groupsFor = async id => (await groupsByPage(id)).get(id)?.groups || [];
+// A page's rows, with what points at its other names: a node holding an alias points at the page.
+async function groupsFor(id) {
+  const groups = (await groupsByPage(id)).get(id)?.groups || [];
+  for (const other of await provided.aliasesOf?.(id) || []) {
+    for (const group of (await groupsByPage(other)).get(other)?.groups || []) {
+      const same = groups.find(g => g.name === group.name);
+      if (!same) groups.push(group);
+      else same.items = [...same.items, ...group.items.filter(item => !same.items.some(x => x.uuid === item.uuid))];
+    }
+  }
+  return groups;
+}
 // A node's stored words as they read: links as the words they show (0.4.147), "saw [[Dr. Joe]]" as "saw Dr. Joe",
 // "[the scan]([[CT]])" as "the scan", tags written in the words left out.
 async function wordsOf(stored) {
@@ -468,8 +481,10 @@ function nodeHtml(uuid, key, data, asTop = false) {
     const nameAttrs = { 'data-edit': prop.ident, 'data-uuid': uuid, title: `Change “${prop.title}”`, class: null };
     if (guess) { html += O.prop({ kind, many: prop.many, name: prop.title, nameAttrs, cls: found, value: O.pencil(guess.shown || '', { 'data-take': prop.ident, 'data-uuid': uuid, title: `${guess.guess ? 'A guess from its words' : 'From its words'}: click to fill it in` }) }); continue; }
     if (!linked) {
-      const text = values.length ? esc(values.map(v => v.text).join(', ')) : 'empty';
-      html += O.prop({ kind, many: prop.many, name: prop.title, nameAttrs, cls: found, value: `<button type="button" class="rf-tw-npvalue${values.length ? '' : ' rf-faint'}" data-edit="${esc(prop.ident)}" data-uuid="${esc(uuid)}" title="Change “${esc(prop.title)}”">${text}</button>` });
+      // Several words or numbers: each its own, changed one at a time; the property's name adds another.
+      const one = (text, at = '') => `<button type="button" class="rf-tw-npvalue${values.length ? '' : ' rf-faint'}" data-edit="${esc(prop.ident)}" data-uuid="${esc(uuid)}"${at} title="Change “${esc(prop.title)}”">${esc(text)}</button>`;
+      const typed = !['choice', 'checkbox', 'date', 'datetime'].includes(kind);
+      html += O.prop({ kind, many: prop.many, name: prop.title, nameAttrs, cls: found, value: !values.length ? one('empty') : typed && prop.many ? `<span>${values.map((v, i) => `<span>${one(v.text, ` data-value="${i}"`)}</span>`).join(', ')}</span>` : one(values.map(v => v.text).join(', ')) });
       continue;
     }
     values.forEach((v, i) => {
@@ -536,7 +551,8 @@ function readNode(uuid, id, { look = false } = {}) {
     // "Side effects"), so whatever it holds shows (0.4.450; the way back itself is left out when drawn, 0.4.451).
     const given = new Set(fields.map(p => p.ident));
     const extra = [...byIdent.keys()].filter(ident => !given.has(ident)).map(ident => schema.props.find(p => p.ident === ident)).filter(Boolean);
-    const props = await Promise.all([...fields, ...extra].map(async prop => ({ prop, values: await Promise.all((byIdent.get(prop.ident) || []).map(async v => ({ id: v.id ?? null, uuid: v.day ? '' : String(v.uuid || ''), text: v.day ? dayText(v.day) : (await readable(v.text)).replace(/\[\[([^\]]+)\]\]/g, '$1') }))) })));
+    // text as it reads; words as written, links whole, for the box that changes it; stored as Logseq holds it.
+    const props = await Promise.all([...fields, ...extra].map(async prop => ({ prop, values: await Promise.all((byIdent.get(prop.ident) || []).map(async v => { const words = v.day ? '' : await readable(v.text); return { id: v.id ?? null, uuid: v.day ? '' : String(v.uuid || ''), text: v.day ? dayText(v.day) : words.replace(/\[\[([^\]]+)\]\]/g, '$1'), words, stored: v.text }; })) })));
     // The property that points at this page stays in the list (the owner, 2026-10-27: "the nodes should actually have the
     // property that points to in the property list as well so there isn't confusion about relationship").
     const kept = props;
@@ -854,7 +870,7 @@ function keepNodeField(box) {
     field.addEventListener('keydown', event => {
       event.stopPropagation();
       if (event.isComposing) return;
-      if (event.key === 'Enter') { event.preventDefault(); clearGhost(); writeBullet(uuid, key, field.value).catch(error => warnOnce('could not add the bullet', error)); }
+      if (event.key === 'Enter') { event.preventDefault(); clearGhost(); const typed = field.value; field.value = ''; writeBullet(uuid, key, typed).catch(error => warnOnce('could not add the bullet', error)); }
       else if (event.key === 'Escape') { event.preventDefault(); if (looking.hit && looking.key === lineKey(field)) clearGhost(); else field.blur(); }
       else if (event.key === 'ArrowRight') { if (takeGhost(field)) event.preventDefault(); }
       else if (['ArrowLeft', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) clearGhost();
@@ -874,8 +890,13 @@ async function writeBullet(uuid, key, typed) {
     if (!block?.uuid) throw new Error('the bullet was not made');
     await readAgain(uuid);
     focusNodeField(key);
-    offerUndo(`Added a bullet to “${shortName(titleOf(uuid))}”`, async () => { await model.removeBlock(block.uuid); await readAgain(uuid); later(300); }, group?.name, inBox(`[data-bullet="${CSS.escape(block.uuid)}"] .rf-ol-words`));
-  } catch (error) { warnOnce('could not add the bullet', error); notify('The bullet could not be added', 'warning'); }
+    await offerMade(block.uuid, `Added a bullet to “${shortName(titleOf(uuid))}”`, async () => { await model.removeBlock(block.uuid); await readAgain(uuid); later(300); }, group?.name, inBox(`[data-bullet="${CSS.escape(block.uuid)}"] .rf-ol-words`));
+  } catch (error) {
+    warnOnce('could not add the bullet', error); notify('The bullet could not be added', 'warning');
+    state.nodeDraft = { uuid, key, text };   // the words are not lost with it
+    const field = state.box?.querySelector(`.rf-tw-node-field[data-key="${CSS.escape(key)}"]`);
+    if (field && !field.value) field.value = text;
+  }
   later(300);
 }
 /* Taking what the proposals pencilled into an opened node (0.4.438): a click on one, or "Take what is proposed" for all;
@@ -911,6 +932,8 @@ async function editNodeProp(uuid, ident, at) {
   const row = state.node.get(uuid)?.props.find(r => r.prop.ident === ident);
   if (!row) return;
   const { prop } = row, name = shortName(titleOf(uuid)), held = row.values.map(v => v.text);
+  // Of several words or numbers: the one pressed; the property's name adds another.
+  const one = prop.many && at?.dataset?.value != null ? row.values[Number(at.dataset.value)] : null;
   const kind = prop.choices?.length && prop.type !== 'node' ? 'choice' : prop.type;
   const isLink = kind === 'node' || kind === 'page', isDay = kind === 'date' || kind === 'datetime';
   let options = [];
@@ -921,22 +944,24 @@ async function editNodeProp(uuid, ident, at) {
     const byId = new Map(pages.map(p => [p.id, p]));
     options = [...first.map(id => byId.get(id)).filter(Boolean), ...pages.filter(p => !first.includes(p.id))].map(p => p.title);
   } else if (kind === 'checkbox') options = ['yes', 'no'];
-  const words = !isLink && kind !== 'choice' && !isDay && kind !== 'checkbox' ? held.join(', ') : '';
+  const typedKind = !isLink && kind !== 'choice' && !isDay && kind !== 'checkbox', addsOne = typedKind && prop.many && !one && row.values.length > 0;
+  const words = !typedKind || addsOne ? '' : one ? one.words : row.values.map(v => v.words).join(', ');   // as written: a link stays a link
   // In place, as Logseq does (1.0.3, the owner: "it is not a natural popup"): a page, a choice or yes/no is picked in
   // Logseq's own picker hanging under the value; a number, words or a day are typed where the value sits.
-  const valueEl = at?.matches?.('.rf-ol-pname') ? at.nextElementSibling : (at?.closest?.('.rf-ol-pv') || at);
+  const valueEl = one ? at.parentElement : at?.matches?.('.rf-ol-pname') ? at.nextElementSibling : (at?.closest?.('.rf-ol-pv') || at);
   let typed;
   if (options.length) {
     const picked = await shared.pickValue({ at: valueEl || at, placeholder: `Set ${prop.title}`, options: options.map(label => ({ label, held: held.includes(label) })),
       clearLabel: held.length ? 'Clear' : '', free: isLink });
     typed = picked == null ? null : picked.clear ? '' : (picked.typed ?? picked.label);
-  } else typed = await shared.editInPlace({ at: valueEl || at, value: words, type: kind === 'number' ? 'number' : 'text', placeholder: isDay ? 'today, friday, 4 aug …' : '', again: valueBox(uuid, prop) });
+  } else typed = await shared.editInPlace({ at: valueEl || at, value: words, type: kind === 'number' ? 'number' : 'text', placeholder: isDay ? 'today, friday, 4 aug …' : '', again: one ? () => inBox(`.rf-tw-npvalue[data-edit="${CSS.escape(ident)}"][data-uuid="${CSS.escape(uuid)}"][data-value="${at.dataset.value}"]`)()?.parentElement : valueBox(uuid, prop) });
   if (typed == null) return;
   const had = await heldNow(uuid, prop);
   let done = '';
+  const others = one ? had.filter(v => String(v) !== one.stored) : had;
   if (!typed.trim()) {
-    if (!had.length) return;
-    await model.unsetValue(uuid, prop.ident);
+    if (!had.length || addsOne) return;
+    if (one && others.length) await setValues(uuid, prop, others); else await model.unsetValue(uuid, prop.ident);
     done = `Cleared “${prop.title}”`;
   } else {
     if (words && typed.trim() === words) return;
@@ -946,9 +971,10 @@ async function editNodeProp(uuid, ident, at) {
     else if (isDay) value = await dayValue(typed, kind);
     else if (kind === 'checkbox') value = /^(y|yes|true|1|on)$/i.test(typed.trim()) ? true : /^(n|no|false|0|off)$/i.test(typed.trim()) ? false : undefined;
     else if (kind === 'number') value = typed.trim() && Number.isFinite(Number(typed)) ? Number(typed) : undefined;
-    else value = typed.trim();
+    else value = await provided.storedWords(typed.trim());
     if (value == null) return notify(`“${typed.trim()}” is not a value “${prop.title}” takes, so nothing was changed`, 'warning');
     if (kind === 'choice' || isLink || isDay) await setValues(uuid, prop, prop.many ? (had.includes(value) ? had.filter(v => v !== value) : [...had, value]) : [value]);
+    else if (prop.many) await setValues(uuid, prop, one ? had.map(v => String(v) === one.stored ? value : v) : [...had, value]);
     else await model.setValue(uuid, prop.ident, value);
     done = `Set “${prop.title}”`;
   }
@@ -1507,7 +1533,24 @@ const rowNames = field => [...host().querySelectorAll('#main-content-container .
 let undoCount = 0;
 // near: where the change sits in an opened node (0.4.442), found again by its key after each drawing; the row's name
 // when it is not on screen.
-const offerUndo = (text, run, field, near) => shared.undo.offer({ key: `two-way:${++undoCount}`, at: () => near?.() || (field == null ? rowNames().slice(0, 1) : rowNames(field)), text, run });
+const offerUndo = (text, run, field, near) => { made.key = ''; shared.undo.offer({ key: `two-way:${++undoCount}`, at: () => near?.() || (field == null ? rowNames().slice(0, 1) : rowNames(field)), text, run }); };
+// The arrow on something just made takes the thing away, so it lasts only while the thing is as it was made: written in,
+// renamed or given a bullet, it goes (asked after a change, and again when pressed). What was written is never taken with it.
+const made = { key: '', uuid: '', was: '', timer: 0 };
+async function offerMade(uuid, text, run, field, near) {
+  const was = await model.madeState(uuid);
+  offerUndo(text, async () => { if (await model.madeState(uuid) !== was) return notify('It has changed since it was made, so it stays', 'warning'); await run(); }, field, near);
+  Object.assign(made, { key: `two-way:${undoCount}`, uuid, was });
+}
+function checkMade() {
+  if (made.key && !shared.undo.has(made.key)) made.key = '';   // used, replaced or left behind with the page
+  if (!made.key) return;
+  clearTimeout(made.timer);
+  made.timer = setTimeout(async () => {
+    const key = made.key;
+    if (key && await model.madeState(made.uuid).catch(() => made.was) !== made.was && key === made.key) { shared.undo.forget(key); made.key = ''; }
+  }, 300);
+}
 const inBox = selector => () => state.box?.isConnected ? state.box.querySelector(selector) : null;
 const valueBox = (uuid, prop) => inBox(`.rf-ol-pname[data-edit="${CSS.escape(prop.ident)}"][data-uuid="${CSS.escape(uuid)}"] + .rf-ol-pv`);
 
@@ -1810,14 +1853,17 @@ async function whereList(field) {
   if (!adding.pop || adding.pop.isClosed) adding.pop = shared.popup({ at: field.closest('.rf-field') || field, manual: true, cls: 'refinement-two-way-add', width: 260, items, onClose: () => { adding.pop = null; } });
   else adding.pop.items(items);
   if (rows.length) adding.pop.lit(d.lit);
+  if (field.isConnected && field.ownerDocument.activeElement !== field) field.focus({ preventScroll: true });   // the list opening takes the keyboard, and keys would reach Logseq's shortcuts
 }
 async function makeDraft(target, open) {
   const d = state.draft, group = d && state.groups.find(g => g.name === d.field);
   if (!group) return dropDraft();
   const name = d.name.trim();
   if (!name) return focusDraft();
+  if (d.making) return;   // Enter twice makes one
+  d.making = true;
   const page = await model.getPage(state.pageUuid).catch(() => null);
-  if (!page?.id) return notify('This page could not be read, so nothing was added', 'warning');
+  if (!page?.id) { d.making = false; return notify('This page could not be read, so nothing was added', 'warning'); }
   const asPage = target === 'page-itself';
   const where = asPage || target === 'journal' ? 'journal' : target === 'here' ? 'here' : 'page';
   const other = where === 'page' ? target.slice(5) : '';
@@ -1850,7 +1896,9 @@ function tagList(anchor) {
     items: [...d.kinds, ''].map(k => ({ icon: k ? 'tag' : null, label: k || 'no tag', faint: !k, chosen: k === d.kind, run: () => { d.kind = k; draw(host()); focusDraft(); } })) });
 }
 async function addRecord({ group, page, name, kind, open, asPage, where = 'journal', other = '', edit = false, set = null, pieces = [] }) {
-  if (asPage && await model.getPage(name).catch(() => null)) return notify(`A page named “${name}” already exists, so nothing was added`, 'warning');
+  // A page in the Recycle still answers to its name, and "making" that name hands it back still in the Recycle: it is brought back instead.
+  const named = asPage ? await model.getPage(name).catch(() => null) : null, recycled = named?.uuid ? await model.inRecycle(String(named.uuid)).catch(() => false) : false;
+  if (named && !recycled) return notify(`A page named “${name}” already exists, so nothing was added`, 'warning');
   const prop = (await provided.propSchema()).props.find(p => p.ident === group.ident);
   let tagUuid = '';
   if (kind) {
@@ -1858,7 +1906,8 @@ async function addRecord({ group, page, name, kind, open, asPage, where = 'journ
   }
   let block, undo;
   if (asPage) {
-    block = await model.createPage(name, {}, { redirect: false, createFirstBlock: false });
+    if (recycled) { await model.restorePage(String(named.uuid)); block = named; }
+    else block = await model.createPage(name, {}, { redirect: false, createFirstBlock: false });
     if (!block?.uuid) throw new Error('the page was not made');
     // By name, as Properties in the line does: Logseq 2.0.2 left the page in place when asked by its uuid here.
     undo = async () => { await model.deletePage(name); later(300); };
@@ -1870,7 +1919,7 @@ async function addRecord({ group, page, name, kind, open, asPage, where = 'journ
     if (where === 'here') target = String(page.uuid);
     else if (where === 'page') {
       const found = (await provided.propPages()).find(p => p.lower === other.toLowerCase()) || await model.getPage(other).catch(() => null);
-      if (!found?.uuid) return notify(`There is no page named “${other}”, so nothing was added`, 'warning');
+      if (!found?.uuid || await model.inRecycle(String(found.uuid))) return notify(`There is no page named “${other}”, so nothing was added`, 'warning');
       target = String(found.uuid);
     } else {
       const now = new Date();
@@ -1900,7 +1949,7 @@ async function addRecord({ group, page, name, kind, open, asPage, where = 'journ
     } catch (error) { warnOnce(`“${piece.title}” could not be filled in on the new node`, error); notify(`“${piece.title}” could not be filled in on the new node`, 'warning'); }
   }
   later(300);
-  offerUndo(`Added “${name}”${kind ? ` (${kind})` : ''}${asPage ? ' as a page' : where === 'here' ? ' to this page' : where === 'page' ? ` to ${other}` : ' to today’s journal'}${filled.length ? `, with ${filled.join(', ')}` : ''}`, undo, group.name);
+  await offerMade(String(block.uuid), `Added “${name}”${kind ? ` (${kind})` : ''}${asPage ? ' as a page' : where === 'here' ? ' to this page' : where === 'page' ? ` to ${other}` : ' to today’s journal'}${filled.length ? `, with ${filled.join(', ')}` : ''}`, undo, group.name);
   if (open) openEntity(block.uuid, true);
   // Into its words at once (0.4.302): the sidebar draws it a moment after it opens.
   if (edit && !asPage) { const uuid = block.uuid; window.refinementCore.screen.waitFor(() => host().querySelector(`#right-sidebar .ls-block[blockid="${uuid}"]`), 3000).then(found => found && model.editBlock(uuid, { pos: 0 })).catch(error => warnOnce('the new record could not be put in edit', error)); }
@@ -2506,10 +2555,13 @@ function start() {
     if (stopped) return;
     clearTimeout(state.quiet);
     if (askQuietly.uuids.length) state.quiet = setTimeout(askQuietly, QUIET);
+    checkMade();
     const writing = window.PluginDoor?.writing(change);
     if (!writing || touchesRows(change)) later(900);
     if (!writing && indexSize < BIG_INDEX) indexLater(10000);
   });
+  // Another graph: nothing read of this one holds there.
+  window.refinementCore.onGraphChange(() => { if (stopped) return; state.byPage = new Map(); state.mentionsOf = new Map(); state.indexed = false; state.node.clear(); reading.clear(); pagesRead = null; indexSize = 0; made.key = ''; later(0); indexLater(0); });
   onSettingsChange((now, before) => {
     if (stopped) return;
     if (settingsSchema.some(item => now?.[item.key] !== before?.[item.key])) { applyStyles(); later(0); indexLater(0); }

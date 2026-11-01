@@ -37,12 +37,14 @@ async function richText(doc, ch, editedBody) {
 const fileName = doc => E.files.fileName(doc.title ? E.inline.words(doc.title) : (E.inline.words(doc.nodes[0]?.text || '').slice(0, 60) || 'Logseq export'));
 
 // editedBody: the preview as the user changed it in the window; the page's HTML, or for the Markdown actions the text.
+// False: not finished (a window cancelled), so the export window stays with what was chosen and written in it.
 async function act(doc, ch, action, editedBody) {
   if (action === 'rich') { const ok = await E.clipboard.write(await richText(doc, ch, editedBody)); notify(ok ? 'Copied as rich text' : 'Could not reach the clipboard', ok ? 'success' : 'error'); }
   else if (action === 'md') { const ok = await E.clipboard.write({ text: editedBody ?? markdown(doc, ch) }); notify(ok ? 'Copied as Markdown' : 'Could not reach the clipboard', ok ? 'success' : 'error'); }
-  else if (action === 'md-file') { const r = await E.files.save(fileName(doc) + '.md', editedBody ?? markdown(doc, ch), 'text/markdown'); if (r.saved) notify(`Saved ${r.path}`); }
-  else if (action === 'html-file') { const r = await E.files.save(fileName(doc) + '.html', await pageHtml(doc, ch), 'text/html'); if (r.saved) notify(`Saved ${r.path}`); }
-  else if (action === 'pdf') { await E.print.print(await pageHtml(doc, ch, { body: editedBody })); }
+  else if (action === 'md-file') { const r = await E.files.save(fileName(doc) + '.md', editedBody ?? markdown(doc, ch), 'text/markdown'); if (r.saved) notify(`Saved ${r.path}`); return r.saved; }
+  else if (action === 'html-file') { const r = await E.files.save(fileName(doc) + '.html', await pageHtml(doc, ch), 'text/html'); if (r.saved) notify(`Saved ${r.path}`); return r.saved; }
+  else if (action === 'pdf') { await E.print.print(await pageHtml(doc, ch, { body: editedBody })); return false; }   // the print window does not say whether it saved, so the export window stays
+  return true;
 }
 
 /* What to export: the current page, a block from its menu, the selected blocks, or the block being written. */
@@ -109,7 +111,7 @@ function main() {
   logseq.App.registerCommandPalette({ key: 'db-export-pdf', label: 'Export: save this page as PDF' }, () => quick('pdf'));
   logseq.Editor.registerBlockContextMenuItem('Export as PDF or Markdown…', event => exportWindow(event));
   logseq.App.registerPageMenuItem?.('Export as PDF or Markdown…', event => exportWindow({ page: event?.page }));
-  logseq.App.onCurrentGraphChanged(() => E.db.forget());
+  logseq.App.onCurrentGraphChanged(() => { E.db.forget(); E.files.forget(); E.ui.sweep(); });
   logseq.DB.onChanged(() => E.db.forget());   // names and days may change; they are cheap to read again
   E.app = { pageHtml, markdown, richText, act, readWhat, exportWindow, quick, settingsSchema };
 }

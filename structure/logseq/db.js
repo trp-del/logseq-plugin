@@ -68,11 +68,14 @@ async function tagOfPage(page) {
   return rows[0]?.[0] ?? null;
 }
 // Nodes holding a value that points at a page (a tag's own page, before it is deleted): the node and the property.
-const valueRefs = async pageId => (await query(`[:find ?u ?a :where [?b ?a ${pageId}] [?p :db/ident ?a] [?p :block/tags :logseq.class/Property] [(namespace ?a) ?ns] [(= ?ns "user.property")] [?b :block/uuid ?u]]`).catch(() => [])).map(([u, a]) => ({ uuid: String(u), ident: bare(a) }));
-const valueIds = async (uuid, ident) => (await query(`[:find ?v :where [?b :block/uuid #uuid "${uuid}"] [?b :${ident} ?v]]`).catch(() => [])).map(([v]) => v);
-const rangeIds = async propUuid => (await query(`[:find ?c :where [?p :block/uuid #uuid "${propUuid}"] [?p :${RANGE} ?c]]`).catch(() => [])).map(([c]) => c);
+const valueRefs = async pageId => (await query(`[:find ?u ?a :where [?b ?a ${pageId}] [?p :db/ident ?a] [?p :block/tags :logseq.class/Property] [(namespace ?a) ?ns] [(= ?ns "user.property")] [?b :block/uuid ?u]]`)).map(([u, a]) => ({ uuid: String(u), ident: bare(a) }));
+const valueIds = async (uuid, ident) => (await query(`[:find ?v :where [?b :block/uuid #uuid "${uuid}"] [?b :${ident} ?v]]`)).map(([v]) => v);
+const rangeIds = async propUuid => (await query(`[:find ?c :where [?p :block/uuid #uuid "${propUuid}"] [?p :${RANGE} ?c]]`)).map(([c]) => c);
 const setValues = (uuid, ident, ids) => logseq.Editor.upsertBlockProperty(uuid, ident, ids.length === 1 ? ids[0] : ids, { entityId: true, reset: true });
-const tagIdByUuid = async uuid => (await query(`[:find ?t :where [?t :block/uuid #uuid "${uuid}"] [?t :block/tags :logseq.class/Tag]]`).catch(() => []))[0]?.[0] ?? null;
+const tagIdByUuid = async uuid => (await query(`[:find ?t :where [?t :block/uuid #uuid "${uuid}"] [?t :block/tags :logseq.class/Tag] (not [?t :logseq.property/deleted-at _])]`))[0]?.[0] ?? null;
+const titleOf = async uuid => (await query(`[:find ?w :where [?b :block/uuid #uuid "${uuid}"] [?b :block/title ?w]]`))[0]?.[0];
+// The nodes a tag holds this moment, fresh, for the last look before it is deleted.
+const nodeUuids = async tagId => (await query(`[:find ?u :where [?b :block/tags ${tagId}] [?b :block/uuid ?u] ${LIVE}]`)).map(([u]) => String(u));
 const classPropIds = async tagUuid => (await query(`[:find ?p :where [?t :block/uuid #uuid "${tagUuid}"] [?t :${CLASS_PROPS} ?p]]`)).map(([id]) => id);
 
 /* THE writes. A tag's declared properties and a property's range are lists Logseq lets a plugin only clear and fill
@@ -89,9 +92,17 @@ async function removeClassProp(tagUuid, propId) {
   await logseq.Editor.removeBlockProperty(tagUuid, CLASS_PROPS);
   for (const id of had) if (id !== propId) await addClassProp(tagUuid, id);
 }
+// Declared again, each one missing: what a failed clear left short gets its properties back.
+async function putClassProps(tagUuid, ids) {
+  const now = await classPropIds(tagUuid);
+  for (const id of ids) if (!now.includes(id)) await addClassProp(tagUuid, id);
+}
+// The range becomes exactly tagIds. Cleared only when something leaves it, so an addition can lose nothing.
 async function setRange(propUuid, tagIds) {
-  await logseq.Editor.removeBlockProperty(propUuid, RANGE).catch(() => {});
-  for (const id of tagIds) await logseq.Editor.upsertBlockProperty(propUuid, RANGE, id, { entityId: true });
+  const now = await rangeIds(propUuid);
+  const leaves = now.some(id => !tagIds.includes(id));
+  if (leaves) await logseq.Editor.removeBlockProperty(propUuid, RANGE);
+  for (const id of tagIds) if (leaves || !now.includes(id)) await logseq.Editor.upsertBlockProperty(propUuid, RANGE, id, { entityId: true });
 }
 // Logseq's createPage hands back whatever already holds a name, a tag, a page or a property, with no error (seen in 2.0.2).
 const nameTaken = async name => (await query(`[:find ?p :where [?p :block/name ${JSON.stringify(String(name).trim().toLowerCase())}] (not [?p :logseq.property/deleted-at _])]`)).length > 0;
@@ -108,7 +119,8 @@ async function remakeTag(name) {
   return makeTag(free);
 }
 const deleteTag = uuid => logseq.Editor.deletePage(uuid);
+const graph = async () => (await logseq.App.getCurrentGraph())?.name || '';
 const editing = () => Promise.resolve(logseq.Editor.checkEditing?.()).then(v => !!v).catch(() => false);
 
-S.db = { query, read, nodesOf, valuesOf, nodesWhere, tagOfPage, tagIdByUuid, valueRefs, valueIds, rangeIds, setValues, addExtends, removeExtends, rename, addTag, removeTag, addClassProp, removeClassProp, setRange, nameTaken, makeTag, remakeTag, deleteTag, editing, bare, pick, idOf };
+S.db = { query, read, nodesOf, valuesOf, nodesWhere, tagOfPage, tagIdByUuid, titleOf, nodeUuids, graph, valueRefs, valueIds, rangeIds, classPropIds, putClassProps, setValues, addExtends, removeExtends, rename, addTag, removeTag, addClassProp, removeClassProp, setRange, nameTaken, makeTag, remakeTag, deleteTag, editing, bare, pick, idOf };
 })();

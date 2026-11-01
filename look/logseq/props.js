@@ -58,5 +58,5 @@ function start() {
   load();
 }
 function stop() { stopped = true; loading = null; byTitle = null; }
-Look.props = { start, stop, draw };
+Look.props = { start, stop, draw, load };
 })();

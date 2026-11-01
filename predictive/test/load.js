@@ -92,6 +92,19 @@ for (const file of order) vm.runInContext(fs.readFileSync(path.join(root, file),
   assert.deepEqual([...guess.ids], [20]); assert.ok(guess.guess);
   console.log('  ok  the doctor is guessed from what the earlier lines were about');
 
+  // Another graph: a reading in flight is dropped and read afresh, and a list of pages the same; each graph has its own date format.
+  { const real = Flow.db.readContext, pagesReal = Flow.db.loadPages; let release, releasePages;
+    Flow.db.readContext = () => new Promise(resolve => { release = () => resolve({ from: 'old graph', readAt: Date.now() }); });
+    Flow.db.loadPages = () => new Promise(resolve => { releasePages = () => resolve(['old page']); });
+    Flow.app.forget(); const asked = Flow.app.context(), listed = Flow.app.pages();
+    await new Promise(r => setTimeout(r, 10));
+    Flow.db.readContext = async () => ({ from: 'new graph', readAt: Date.now() }); Flow.db.loadPages = async () => ['new page'];
+    Flow.app.forget(); assert.equal(Flow.app.state.loading, null, 'the next asks afresh');
+    release(); releasePages();
+    assert.equal((await asked).from, 'new graph', 'who asked gets the new graph'); assert.equal(Flow.app.state.ctx.from, 'new graph', 'never the old'); assert.deepEqual(await listed, ['new page']);
+    Flow.db.readContext = real; Flow.db.loadPages = pagesReal; Flow.app.forget(); await Flow.app.context(); }
+  console.log('  ok  a reading in flight never lands as another graph\'s');
+
   // The settings window: no language row, and the eagerness specimen shows the choice by placement.
   assert.ok(!Flow.settingsSchema.some(s => s.key === 'locale'), 'no row for one language');
   assert.equal(Flow.app.state.ctx.reader.locale, Flow.dates.en, 'dates in words still read in English');

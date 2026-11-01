@@ -215,6 +215,14 @@ const taggedNodes = (tagIds, idents) => !tagIds.length ? Promise.resolve([]) : d
 const nodesById = (ids, idents) => !ids.length ? Promise.resolve([]) : dsQuery(`[:find (pull ?b [:db/id :block/title {:block/tags [:db/id]} ${idents.map(ident => `{:${ident} [:db/id]}`).join(' ')}])
       :where [(ground #{${ids.join(' ')}}) [?b ...]] [?b :block/uuid _] (not [?b :logseq.property/deleted-at _])]`).then(rows => rows.map(([n]) => n));
 const aliasPairs = async () => (await dsQuery('[:find ?o ?a :where [?o :block/alias ?a]]').catch(() => [])).map(([o, a]) => [Number(o), Number(a)]);
+// The other names of a page: what it is an alias of, its aliases, and theirs. Logseq's Linked references counts a link to any of them.
+async function aliasesOf(id) {
+  const pairs = await graphWide('inlineAliases', () => dsQuery('[:find ?o ?a :where [?o :block/alias ?a]]'));
+  const found = new Set([id]);
+  for (let grew = true; grew;) { grew = false; for (const [o, a] of pairs) { if (found.has(o) !== found.has(a)) { found.add(o); found.add(a); grew = true; } } }
+  found.delete(id);
+  return [...found];
+}
 const plainLines = async () => (await dsQuery('[:find ?b ?t :where [?b :block/page _] [?b :block/title ?t] [(not= ?t "")] (not [?b :block/tags _]) (not [?b :logseq.property/deleted-at _])]').catch(() => []))
   .map(([id, title]) => ({ id: Number(id), title: String(title) }));
 const journalDays = async () => new Map((await dsQuery('[:find ?p ?d :where [?p :block/journal-day ?d]]')).map(([p, d]) => [p, Number(d)]));
@@ -546,16 +554,17 @@ async function linksInto(id) {
    Whether a node also points here through a property is the caller's to say. One page only, never every page. */
 async function mentionsInto(id) {
   if (!Number.isSafeInteger(id) || id <= 0) return [];
-  const these = `[(identity ${id}) ?page] [?b :block/refs ?page] [(not= ?b ?page)] (not [?b :block/page ?page]) [?b :block/page _] ${LIVE}`;
-  const [titled, tagged, dated, written, [[pageUuid] = []]] = await Promise.all([
+  const ids = [id, ...await aliasesOf(id)];
+  const these = `[(ground [${ids.join(' ')}]) [?page ...]] [?b :block/refs ?page] ${ids.map(one => `[(not= ?b ${one})] (not [?b :block/page ${one}])`).join(' ')} [?b :block/page _] ${LIVE}`;
+  const [titled, tagged, dated, written, uuids] = await Promise.all([
     dsQuery(`[:find ?b ?uuid ?title :where ${these} [?b :block/uuid ?uuid] [?b :block/title ?title]]`),
     dsQuery(`[:find ?b ?tag :where ${these} [?b :block/tags ?t] [?t :db/ident ?ti] [(namespace ?ti) ?ns] [(= ?ns "user.class")] [?t :block/title ?tag]]`),
     dsQuery(`[:find ?b ?dattr ?day ?dname :where ${these} [?dprop :logseq.property/type :date] [?dprop :db/ident ?dattr] [?dprop :block/title ?dname] [?b ?dattr ?d] [?d :block/journal-day ?day]]`),
     dsQuery(`[:find ?b ?day :where ${these} [?b :block/page ?p] [?p :block/journal-day ?day]]`),
-    dsQuery(`[:find ?pu :where [(identity ${id}) ?page] [?page :block/uuid ?pu]]`),
+    dsQuery(`[:find ?pu :where [(ground [${ids.join(' ')}]) [?page ...]] [?page :block/uuid ?pu]]`),
   ]);
-  const link = `[[${String(pageUuid || '').toLowerCase()}]]`;
-  if (link === '[[]]') return [];
+  const links = uuids.map(([uuid]) => `[[${String(uuid).toLowerCase()}]]`);
+  if (!links.length) return [];
   const days = new Map();
   for (const [b, attr, day, name] of dated) {
     if (!/^user\.property\//.test(bare(attr))) continue;
@@ -569,8 +578,8 @@ async function mentionsInto(id) {
   for (const [b, uuid, title] of titled) {
     const words = String(title || '').toLowerCase();
     // In the words, and not only as a tag: some [[link]] that has no # before it.
-    let at = words.indexOf(link), said = false;
-    while (at >= 0 && !said) { if (words[at - 1] !== '#') said = true; at = words.indexOf(link, at + 1); }
+    let said = false;
+    for (const link of links) { let at = words.indexOf(link); while (at >= 0 && !said) { if (words[at - 1] !== '#') said = true; at = words.indexOf(link, at + 1); } }
     if (said) out.push({ id: b, uuid: String(uuid), title: String(title || ''), tag: tags.get(b) || '', day: days.get(b)?.day || 0 });
   }
   return out;
@@ -918,6 +927,22 @@ const getPage = key => logseq.Editor.getPage(key);
 // first and brings it back with restorePage.
 const inRecycle = async uuid => UUID.test(String(uuid)) && (await dsQuery(`[:find ?d :where [?p :block/uuid #uuid "${uuid}"] [?p :logseq.property/deleted-at ?d]]`)).length > 0;
 const restorePage = uuid => logseq.Editor.restorePage(uuid);
+// Words typed with a link: stored as Logseq stores a link, by the page's uuid, so it stays a link. A name that holds no page stays as typed.
+async function storedWords(text) {
+  let out = String(text);
+  for (const name of new Set([...out.matchAll(/\[\[([^\]]+)\]\]/g)].map(m => m[1]).filter(name => !UUID.test(name)))) {
+    const page = await getPage(name).catch(() => null);
+    if (page?.uuid && !await inRecycle(String(page.uuid))) out = out.split(`[[${name}]]`).join(`[[${page.uuid}]]`);
+  }
+  return out;
+}
+// A thing just made, as it stands: its words, when it last changed, the bullets inside it. Changed since, it is no longer only what was made.
+async function madeState(uuid) {
+  const [[id, words, at] = []] = await dsQuery(`[:find ?b ?w ?at :where [?b :block/uuid #uuid "${uuid}"] [?b :block/title ?w] [?b :block/updated-at ?at]]`);
+  if (id == null) return '';
+  const [[kids] = [0]] = await dsQuery(`[:find (count ?k) :where [?k :block/parent ${id}] (not [?k :logseq.property/created-from-property _])]`);
+  return JSON.stringify([words, at, kids]);
+}
 const createPage = (name, props, opts) => logseq.Editor.createPage(name, props, opts);
 const deletePage = name => logseq.Editor.deletePage(name);
 const appendBlock = (pageUuid, text) => logseq.Editor.appendBlockInPage(pageUuid, text);
@@ -1063,7 +1088,7 @@ async function heldBelow(uuids) {
 }
 
 function provide(core) {
-  core.provide({ setValue, unsetValue, addTag, removeTag, setWords, editBlock, exitEditing, insertBlock, addLineTo, currentPage, currentBlock, pickedBlocks, getBlock, currentGraph, tagTitles, getPage, createPage, deletePage, appendBlock, removeBlock, inRecycle, restorePage,
+  core.provide({ aliasesOf, madeState, storedWords, inRecycle, restorePage, setValue, unsetValue, addTag, removeTag, setWords, editBlock, exitEditing, insertBlock, addLineTo, currentPage, currentBlock, pickedBlocks, getBlock, currentGraph, tagTitles, getPage, createPage, deletePage, appendBlock, removeBlock, inRecycle, restorePage,
     renamePage, moveBlock, pageBlocksTree, EXTENDS, ALIAS, ICON, PARENT_TAGS, addTagExtends, removeTagExtends, openInSidebar, showSidebar,
     titleOf, trailingTags, storedRef, readableTitle, bare, pick, idOf,
     propSchema, propPages, fieldsOf, fits, kindOfPage, tagChain, tagChains, tagChainIndex, parseDay, dayNumber, sameDay, dayAfter, DAYS,
@@ -1074,6 +1099,7 @@ function provide(core) {
     propTextValues, propTextBlocks, propValueBlocks, propNamed, propUse, propUses, structureUse, propNodeIds, choiceIds, crumbsInto, propHolders, pdfSources, heldBelow, linkRates, linkRatesOf, journalIdFor, journalTitleFor, formatJournalTitle, CHECKED_WITH, PAGE_TITLE, screenChecks, pageTitles, titleAnchor });
 }
 function start() {
+  window.refinementCore.onGraphChange(() => { journalFormat.value = null; });   // each graph has its own
   ({ dsQuery, graphWide } = take(window.refinementCore, ['dsQuery', 'graphWide']));
 }
 (window.refinementParts ||= []).push({ name: 'model', foundation: true, schema: [], provide, start, stop: runUnloadTasks });
