@@ -45,7 +45,7 @@ const CSS = `
 .xp .lk-value { all: unset; display: inline-flex; align-items: center; cursor: pointer; color: var(--lk-text, #222); font: inherit; line-height: 1.35; }
 .xp .lk-value:hover { color: var(--xp-quiet); }
 .xp .lk-value.off { color: var(--xp-faint); }
-.xp .lk-value:focus-visible { outline: 1px solid var(--xp-line); outline-offset: 3px; border-radius: 1px; }
+.xp .lk-value:focus-visible { outline: none; background: var(--lk-wash); box-shadow: 0 0 0 3px var(--lk-wash); border-radius: 1px; }
 /* The mark: a small faint chevron tight after a value that unfolds. */
 .xp .lk-value .m { width: 8px; height: 8px; margin-left: 4px; color: var(--xp-faint); flex: none; }
 /* What a value can become: a line of faint words under it, the one in force in the text colour. It takes its room below the
@@ -60,14 +60,14 @@ const CSS = `
 /* A switch: a hidden box; its word reads the state. */
 .xp .lk-switch input { position: absolute; opacity: 0; width: 0; height: 0; margin: 0; }
 .xp .lk-switch .lk-value { position: relative; }
-.xp .lk-switch:has(:focus-visible) .lk-value { outline: 1px solid var(--xp-line); outline-offset: 3px; border-radius: 1px; }
+.xp .lk-switch:has(:focus-visible) .lk-value { background: var(--lk-wash); box-shadow: 0 0 0 3px var(--lk-wash); border-radius: 1px; }
 /* A choice that stays open (where the export goes), the one in force in the text colour. */
 .xp-where { display: flex; gap: 14px; }
 .xp-where > * { position: relative; cursor: pointer; color: var(--xp-faint); white-space: nowrap; }
 .xp-where > :hover { color: var(--xp-quiet); }
 .xp-where input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
 .xp-where label:has(:checked) { color: var(--lk-text, #222); }
-.xp-where label:has(:focus-visible) { outline: 1px solid var(--xp-line); outline-offset: 3px; border-radius: 1px; }
+.xp-where label:has(:focus-visible) { background: var(--lk-wash); box-shadow: 0 0 0 3px var(--lk-wash); border-radius: 1px; }
 /* A panel's own controls, unfolded in a row under the bar; a pick whose panel is open shows it by its value going quiet. */
 .xp-fold { flex: none; padding: 0 28px 16px; background: var(--lk-paper, #fff); }
 .xp-fold[hidden] { display: none; }
@@ -92,13 +92,13 @@ const CSS = `
 .xp input[type=checkbox].lk-tick { appearance: none; -webkit-appearance: none; position: relative; width: 13px; height: 13px; margin: 0; padding: 0; flex: none; border: 1px solid var(--xp-line); border-radius: 3px; background: none; color: inherit; vertical-align: -1px; cursor: pointer; outline: none; box-shadow: none; }
 .xp input[type=checkbox].lk-tick:checked, .xp input[type=checkbox].lk-tick:focus { background-color: transparent !important; background-image: none !important; border-color: currentColor !important; color: inherit !important; box-shadow: none !important; }
 .xp input[type=checkbox].lk-tick:checked::before { content: ""; position: absolute; left: 3.5px; top: .5px; width: 3.5px; height: 7px; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg); }
-.xp input[type=checkbox].lk-tick:focus-visible { outline: 1px solid var(--xp-line); outline-offset: 1px; }
+.xp input[type=checkbox].lk-tick:focus-visible { outline: none; border-color: currentColor !important; }
 /* The accent: the one action, its key beside it; a second action lk-btn, its words level with the accent's and the gap
    between them measured from its words; × the way out. */
 .xp-bar button:where(:not(.lk-btn)) { all: unset; cursor: pointer; font: inherit; color: var(--lk-text, #222); white-space: nowrap; }
 .xp-bar button[hidden] { display: none; }
 .xp-bar button:hover { color: var(--xp-quiet); }
-.xp-bar button:not(.lk-accent):focus-visible { outline: 1px solid var(--xp-line); outline-offset: 3px; border-radius: 1px; }
+.xp-bar button:focus-visible { outline: none; background: var(--lk-wash); box-shadow: 0 0 0 3px var(--lk-wash); border-radius: 1px; }
 .xp-bar .lk-btn { margin: -3px -12px -3px 0; }
 .xp-bar button.lk-accent kbd { font: inherit; font-size: .85em; margin-left: 8px; }
 .xp-bar button.lk-close { font-size: 17px; line-height: 1; margin-top: -2px; }
@@ -202,9 +202,9 @@ function open({ doc, what, act }) {
       <div class="g" data-for="md">${pick('xp-links', 'links', LINKS, c.links)}${sw('xp-frontmatter', 'front matter', c.frontMatter, 'No front matter', 'Front matter')}</div>
       <div class="g">${panel('xp-show', 'show')}</div>
       <div class="g end"><button type="button" class="lk-btn" data-act="md-file" data-for="md">Save as file…</button>
-        <button type="button" data-act="md" data-for="md" class="lk-accent xp-main">Copy Markdown<kbd>⌘↩</kbd></button>
-        <button type="button" data-act="rich" data-for="rich" class="lk-accent xp-main">Copy rich text<kbd>⌘↩</kbd></button>
-        <button type="button" data-act="pdf" data-for="pdf" class="lk-accent xp-main">Save PDF…<kbd>⌘↩</kbd></button>
+        <button type="button" data-act="md" data-for="md" class="lk-accent xp-main">Copy Markdown<kbd>Cmd Enter</kbd></button>
+        <button type="button" data-act="rich" data-for="rich" class="lk-accent xp-main">Copy rich text<kbd>Cmd Enter</kbd></button>
+        <button type="button" data-act="pdf" data-for="pdf" class="lk-accent xp-main">Save PDF…<kbd>Cmd Enter</kbd></button>
         <button type="button" class="lk-close xp-cancel" aria-label="Close" title="Close (Esc)">×</button></div>
     </div>
     ${fold('xp-dates', pick('xp-datekey', 'date from', [['auto', 'Automatic'], ...dates.map(d => [d.key, d.name])], c.dated.dateKey)

@@ -75,6 +75,19 @@ const key = (dlg, name, target = dlg.querySelector('.sw-tick')) => target.dispat
   assert.ok(dlg.querySelector('.sw-nomatch'), 'a part with nothing goes faint');
   const esc = new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }); find.dispatchEvent(esc);
   assert.ok(esc.defaultPrevented && find.value === '' && dlg.hasAttribute('open'), 'the first Escape clears the words');
+  // A key reads as plain words and may be typed so; it is kept in Logseq's spelling. A field's line stands only with the keyboard.
+  dlg.querySelector('[data-part="predictive"]').click();
+  const keys = dlg.querySelector('#sw-proposalsAcceptKeys');
+  assert.equal(keys.value, 'Cmd Option Enter', 'keys as plain words');
+  keys.value = 'Cmd Shift K'; keys.dispatchEvent(new win.Event('change', { bubbles: true }));
+  assert.equal(settings.proposalsAcceptKeys, 'mod+shift+k', 'kept in Logseq\'s spelling');
+  await sleep(80); assert.equal(dlg.querySelector('#sw-proposalsAcceptKeys').value, 'Cmd Shift K');
+  const typed = dlg.querySelector('#sw-proposalsAcceptKeys'); typed.value = 'mod+alt+enter'; typed.dispatchEvent(new win.Event('change', { bubbles: true }));
+  assert.equal(settings.proposalsAcceptKeys, 'mod+alt+enter', 'Logseq\'s own spelling still taken');
+  assert.equal(Door.settings.keyWords('mod+ctrl+alt+shift+space'), 'Cmd Ctrl Option Shift Space'); assert.equal(Door.settings.keySpelling('Cmd Ctrl Option Shift Space'), 'mod+ctrl+alt+shift+space');
+  await sleep(80); assert.equal(dlg.querySelector('#sw-linkSuggestKeys').placeholder, 'none', 'an empty field still reads');
+  const sheet = doc.getElementById('sw-style').textContent;
+  assert.ok(/\.sw-field \{[^}]*border-bottom: 1px solid transparent/.test(sheet) && /\.sw-field:focus \{ border-bottom-color[^}]*box-shadow: none/.test(sheet), 'a field\'s line only while it has the keyboard');
   // Logseq's list stays a word away
   dlg.querySelector('#sw-plain').click();
   assert.equal(written.at(-1), 'list'); assert.equal(Door.settings.current, null, 'and the window closes');

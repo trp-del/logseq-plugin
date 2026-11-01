@@ -246,11 +246,15 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     check(counts(doc).join() === '2,2,2', 'each group should say how many: ' + counts(doc));
     check(groupEl(doc, 'Strong')?.querySelectorAll('.rf-tw-line').length === 2, 'a group should list its nodes');
     check(!!groupEl(doc, 'Disputed')?.querySelector('.rf-tw-gadd') && !groupEl(doc, 'No Confidence')?.querySelector('.rf-tw-gadd'), 'a + in a group with a value, none in the group of those with none');
-    // Folding.
-    click(window, groupEl(doc, 'Strong').querySelector('.rf-tw-gtoggle'));
+    // Folding: the arrow, never the words.
+    click(window, groupEl(doc, 'Strong').querySelector('.rf-tw-gname'));
     await wait(20);
-    check(groupEl(doc, 'Strong').querySelectorAll('.rf-tw-line').length === 0 && !groupEl(doc, 'Strong').hasAttribute('data-open'), 'a click on a group’s name should fold it');
-    click(window, groupEl(doc, 'Strong').querySelector('.rf-tw-gtoggle'));
+    check(groupEl(doc, 'Strong').querySelectorAll('.rf-tw-line').length === 2, 'a click on a group’s words should not fold it');
+    check(!doc.querySelector('.rf-tw-ghead a:not(.rf-tag)'), 'a group’s words should not be a link');
+    click(window, groupEl(doc, 'Strong').querySelector('.rf-chev[data-gkey]'));
+    await wait(20);
+    check(groupEl(doc, 'Strong').querySelectorAll('.rf-tw-line').length === 0 && !groupEl(doc, 'Strong').hasAttribute('data-open'), 'a click on a group’s arrow should fold it');
+    click(window, groupEl(doc, 'Strong').querySelector('.rf-chev[data-gkey]'));
     await wait(20);
     check(groupEl(doc, 'Strong').querySelectorAll('.rf-tw-line').length === 2, 'and open it again');
     // The + in Disputed: the line opens in the group; Enter makes the node with the tag, about and Confidence.
@@ -288,7 +292,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     const { window, doc, calls, part } = world('tag');
     await wait(120);
     check(names(doc).join() === 'Claim,Question', 'groups by tag, biggest first: ' + names(doc));
-    check(!!doc.querySelector('.rf-tw-group .rf-tag.rf-tw-gname'), 'a tag should read as a tag in its group’s name');
+    check(!!doc.querySelector('.rf-tw-group a.rf-tag.rf-tw-gname[data-tag-page="Question"]'), 'a tag should read as a tag in its group’s name, and open its page');
     click(window, groupEl(doc, 'Question').querySelector('.rf-tw-gadd'));
     await wait(20);
     const field = groupEl(doc, 'Question').querySelector('.rf-tw-draft-name');
@@ -341,9 +345,18 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     await wait(120);
     const line = doc.querySelector('.rf-tw-line .rf-tw-record');
     check(!line?.hasAttribute('title'), 'the name carries no tip saying the same words');
+    { const row = line.closest('.rf-tw-line'), blank = new window.MouseEvent('click', { bubbles: true, cancelable: true, clientX: 500 });
+      row.dispatchEvent(blank);
+      check(!blank.defaultPrevented, 'a click on the blank part of a row should do nothing, and the page stays'); }
+    check(!/\.rf-tw-line \{ cursor: pointer/.test(source), 'and the row should not offer it');
     part.stop();
     // Five kinds in a list: three, then how many more, the days still there; the more is a click, and a kind in force stays named.
     const tags = NODES.map(n => n.tag);
+    NODES.forEach(n => { n.tag = ''; });
+    { const plain = world(''); await wait(120);
+      const lead = plain.doc.querySelector('.rf-tw-lead')?.textContent.trim();
+      check(/nodes$/.test(lead || ''), 'nodes with no tag should be called nodes: ' + lead);
+      plain.part.stop(); }
     NODES.forEach((n, i) => { n.tag = 'Kind' + i; });
     const many = world('');
     await wait(120);
@@ -419,6 +432,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     const last = asked[asked.length - 1];
     check(!!last && last.tag === 'Claim' && last.set.some(s => s.ident === 'user.property/about' && s.ids[0] === 5) && last.journalDay > 20260000, 'the rules should be asked with the tag, the row’s property set and today: ' + JSON.stringify(last));
     check(props().join('|') === `${first}|TopicColon cancer|withRuth Okoro|DateOct 24`, 'the proposals should show under the line: ' + props());
+    check(doc.querySelectorAll('.rf-tw-dpick .rf-pencil.lk-pencil').length === 3, 'a value pencilled in the + line should carry the shared pencil');
     check(doc.querySelectorAll('.rf-tw-dpick .rf-pencil').length === 3 && !doc.querySelector('.rf-tw-dghost, .rf-tw-dguess'), 'every value pencilled in should be the one pencilled look, sure and guessed alike (0.4.315)');
     check(calls.length === 0, 'nothing should be written while they show');
     esc(window, field());
@@ -427,7 +441,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     await wait(400);
     check(props().length === 4, 'typing again should bring them back: ' + props());
     click(window, doc.querySelector('.rf-tw-dpick[data-pkey="user.property/topic|77"]'));
-    check(!!doc.querySelector('.rf-tw-dpick[data-pkey="user.property/topic|77"] .rf-pencil-taken') && !!doc.querySelector('.rf-tw-dpick[data-pkey="user.property/with|78"] .rf-tw-dpassed'), 'the kept guess should read solid and the other faded');
+    check(!!doc.querySelector('.rf-tw-dpick[data-pkey="user.property/topic|77"] .rf-pencil-taken:not(.lk-pencil)') && !!doc.querySelector('.rf-tw-dpick[data-pkey="user.property/with|78"] .rf-tw-dpassed'), 'the kept guess should read solid and the other faded');
     enter(window, field());
     await wait(40);
     check(!!doc.querySelector('.rf-tw-draft-where') && props().length === 4, 'the where step should keep the proposals under the line: ' + props());
@@ -653,6 +667,8 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     const listed = () => [...(row()?.querySelectorAll('.rf-tw-record') || [])].map(a => a.textContent.trim());
     check(listed().join('|') === 'Spaced repetition felt easier today|Called Spaced repetition about the scan', 'the two mentions, latest first, links read as words, the node already in "about" left out: ' + listed());
     check(!row()?.querySelector('.rf-tw-add'), 'the mentions row should have no +');
+    { const heads = [...row().querySelectorAll('.rf-tw-chip')].map(el => el.textContent.trim().replace(/\s*\d+$/, ''));
+      check(heads.includes('No tag') && !heads.includes('note'), 'mentions of several kinds should read "No tag", never "note": ' + heads); }
     const pick = uuid => click(window, doc.querySelector(`.rf-tw-pick[data-pick="${uuid}| mentioned in"]`));
     pick(U(202)); await wait(80);
     check(!doc.querySelector('.rf-tw-bar [data-act="raise"]') && !doc.querySelector('.rf-tw-bar [data-act="page-menu"]'), 'a mention with a tag should be offered nothing, and the page’s own actions should not show for a mention');
@@ -664,6 +680,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     check(/could be a Conversation/.test(could?.textContent || ''), 'the untagged mention should say what it could be on its line: ' + could?.textContent);
     check(!doc.querySelector(`[data-could="${U(202)}"]`), 'a mention with a tag should not say what it could be');
     const preview = [...(doc.querySelector('.rf-tw-raise')?.querySelectorAll('.rf-tw-dprop') || [])].map(el => el.textContent.trim());
+    check(doc.querySelectorAll('.rf-tw-raise .rf-pencil.lk-pencil').length === 2, 'what a mention would get should carry the shared pencil');
     check(preview.join('|') === 'TagsConversation|Spoke withSpaced repetition', 'what it would get should show under it in grey: ' + preview);
     check(calls.length === 0, 'picking should write nothing');
     click(window, raiseBtn()); await wait(80);
@@ -745,7 +762,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     check([...box(U(61)).querySelectorAll('.rf-tw-back .rf-tw-record')].filter(own).length === 1, 'what points at it should be listed one name per line, the way back left out');
     // 0.4.462: the nodes that link to it under a line saying so, the arrow for the node above, after its own properties.
     const links = [...(box(U(61))?.querySelectorAll('.rf-tw-links') || [])].filter(own);
-    check(links.length === 1 && links[0].textContent.trim() === '1 node links to ↑', 'the nodes linking to it should come under "1 node links to ↑": ' + links.map(l => l.textContent));
+    check(links.length === 1 && links[0].textContent.trim() === '1 node links here', 'the nodes linking to it should come under "1 node links here": ' + links.map(l => l.textContent));
     check(!!links[0]?.nextElementSibling?.matches('.rf-tw-linked') && !!links[0].nextElementSibling.querySelector('.rf-tw-back'), 'the lines linking to it should sit under that line');
     check(![...(box(U(61))?.querySelectorAll('.rf-tw-linked .rf-ol-prop:not(.rf-tw-back)') || [])].filter(own).length, 'its own properties should not sit under that line');
     check(!chev(U(61), U(103)) && !!chev(U(61), U(104)), 'the node on the way should not be listed again, another node should');

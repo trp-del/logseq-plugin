@@ -38,7 +38,7 @@ const { U, load, pencilled } = standIn;
   const index = Look.index; assert.ok(index, 'the page index was read');
   assert.equal(index.chainByUuid(U(3)).chain.map(t => t.title).join('/'), 'Doctor/Person/Entity');
   assert.equal(index.sortByUuid(U(20)), 'entity'); assert.equal(index.sortByUuid(U(21)), 'phenomenon'); assert.equal(index.sortByName('fatigue'), 'phenomenon');
-  assert.equal(index.sortByUuid(U(3)), 'entity', 'a tag page takes its sort');
+  assert.equal(index.sortByUuid(U(3)), null, 'a tag has no mark');
   assert.equal(index.sortByUuid(U(300)), 'occurrence', 'a tagged bullet has a sort too');
   // marks before links, in words and in a property's value; none on the tag link nor on a journal day
   const links = [...doc.querySelectorAll('a.page-ref[data-lk-sort]')].map(a => a.getAttribute('data-lk-sort'));
@@ -48,7 +48,7 @@ const { U, load, pencilled } = standIn;
   // the page's mark in the icon slot; in the sidebar's list, a mark where the page has one, an empty slot where it has none
   assert.equal(doc.querySelector('.is-page-title-row > .block-control-wrap > .lk-page-mark')?.dataset.sort, 'entity');
   const slot = name => doc.querySelector(`#left-sidebar .link-item[data-page-name="${name}"] .page-icon`).getAttribute('data-lk-sort');
-  assert.equal(slot('Fatigue'), 'phenomenon'); assert.equal(slot('CT report'), 'information'); assert.equal(slot('Doctor'), 'entity');
+  assert.equal(slot('Fatigue'), 'phenomenon'); assert.equal(slot('CT report'), 'information'); assert.equal(slot('Doctor'), 'none', 'a tag has no mark');
   assert.equal(slot('Questions for Dr. Chen'), 'none', 'an untagged page: the slot kept empty'); assert.equal(slot('Oct 19th, 2026'), 'none', 'a journal day: the slot kept empty');
   assert.ok(styles['look-marks'].includes('.page-icon[data-lk-sort] :is(.ls-icon-file, .ls-icon-page) { visibility: hidden; }'), 'the plain page icon gives way');
   // the tag chain at the title's right end, nearest first, the held tag with its ×

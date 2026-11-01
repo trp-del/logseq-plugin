@@ -12,7 +12,7 @@ const schema = [
 const setting = key => { const item = schema.find(s => s.key === key); const v = logseq.settings?.[key]; return item && typeof v === typeof item.default ? v : item?.default; };
 // One specimen, the keys: it is the thing itself. The other two settings are their own specimen (a word, a number).
 const SPECIMENS = {
-  takesSearchKey: on => on ? '<span class="sw-k">⌘K</span> Find &nbsp; <span class="sw-k">⌘⇧K</span> Logseq’s search' : '<span class="sw-k">⌘⇧K</span> Find &nbsp; <span class="sw-k">⌘K</span> Logseq’s search',
+  takesSearchKey: on => on ? '<span class="sw-k">Cmd K</span> Find &nbsp; <span class="sw-k">Cmd Shift K</span> Logseq’s search' : '<span class="sw-k">Cmd Shift K</span> Find &nbsp; <span class="sw-k">Cmd K</span> Logseq’s search',
 };
 const specimen = (item, value) => SPECIMENS[item.key] ? SPECIMENS[item.key](item.type === 'boolean' ? !!value : value) : '';
 Find.settings = { schema, setting, specimen };

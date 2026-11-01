@@ -234,6 +234,14 @@ for (const file of order) vm.runInContext(fs.readFileSync(path.join(root, file),
   logseq.updateSettings = values => saves.push(Object.keys(values));
   logseq.settings.linkSuggestPause = 0;
   const offer = async uuid => { const b = box(uuid); b.value = 'Dr. Mei'; b.focus(); b.setSelectionRange(7, 7); b.dispatchEvent(new page.window.Event('input', { bubbles: true })); await wait(60); assert.ok(Flow.linkUi.suggestState(), 'the rest of the name is offered'); b.value = 'Dr. Meiz'; b.setSelectionRange(8, 8); b.dispatchEvent(new page.window.Event('input', { bubbles: true })); await wait(700); };
+  // Escape lets go one step at a time: the grey words alone; the next listeners (the proposals, Logseq) see the next press.
+  { const pressed = () => { const down = new page.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }); box(A).dispatchEvent(down); return down; };
+    let after = 0; const count = () => { after++; }; page.window.addEventListener('keydown', count, true);
+    { const b = box(A); b.value = 'Dr. Mei'; b.focus(); b.setSelectionRange(7, 7); b.dispatchEvent(new page.window.Event('input', { bubbles: true })); await wait(60); assert.ok(Flow.linkUi.suggestState(), 'grey words offered'); }
+    assert.ok(pressed().defaultPrevented && !Flow.linkUi.suggestState(), 'the first Escape takes the grey words'); assert.equal(after, 0, 'and nothing else');
+    pressed(); assert.equal(after, 1, 'the second is the next listener\'s'); page.window.removeEventListener('keydown', count, true);
+    box(A).value = ''; box(A).dispatchEvent(new page.window.Event('input', { bubbles: true })); await wait(20); const main = fs.readFileSync(path.join(root, 'predictive/main.js'), 'utf8');
+    assert.ok(main.indexOf('Flow.linkUi.start()') < main.indexOf('Flow.proposeUi.start()'), 'the grey words look at the key before the proposals'); }
   await offer(A);
   assert.deepEqual(saves.filter(k => k.includes('linkSuggestMemory')), [], 'passing a suggestion over saves no setting while writing');
   box(A).blur(); await wait(20);

@@ -9,6 +9,7 @@ const Find = window.Find;
 const { host, el, esc, style, kindIconHtml, dragBand, openPage, notify } = Find.kit;
 const db = Find.db;
 
+const FRAME = 220, ROW = 28;   // the find line, the foot, three lines of choices and "show all"; a row
 const CSS = `
 .fd { --fd-quiet: var(--lk-quiet); --fd-faint: var(--lk-faint); --fd-hair: var(--lk-hair); --fd-line: var(--lk-line); --fd-wash: var(--lk-wash);
   --fd-ring: color-mix(in srgb, currentColor 11%, transparent); --fd-mono: var(--lk-mono);
@@ -29,11 +30,11 @@ const CSS = `
 .fd-piece:not(:hover) .fd-x:not(:focus-visible) { opacity: 0; width: 0; padding: 0; overflow: hidden; }
 .fd-piece .lk-tag { font-size: 14px !important; }
 .fd-piece .fd-month { color: var(--fd-quiet); }
-.fd-piece .fd-pk { color: var(--fd-quiet); }
 .fd-sep { color: var(--fd-faint); }
 .fd-input { all: unset; flex: 1 1 60px; min-width: 60px; font: inherit; color: inherit; background: none; border: 0; outline: none; padding: 0; }
 .fd-input::placeholder { color: var(--fd-faint); }
-/* The body scrolls; the choices sit above the rows, a gap of one line between them. */
+/* The body scrolls; the choices sit above the rows, a gap of one line between them. A property's name here stays a shade
+   lighter than its values, which are quiet. */
 .fd-body { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 16px 10px; transition: opacity .1s; }
 .fd-body.fd-reading { opacity: .5; transition: opacity .15s ease .25s; }
 .fd-head { font-size: 12px; color: var(--fd-faint); letter-spacing: .03em; margin: 6px 0 2px; }
@@ -76,10 +77,9 @@ const CSS = `
    ringed while closed, the number after the words as faint as on a lit choice. */
 .fd-kids { margin: 2px 0 6px 76px; padding-left: 10px; border-left: 1px solid var(--fd-hair); }
 .fd-kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 1px 12px; font-size: 13.5px; align-items: baseline; padding: 2px 0 10px; }
-.fd-kv .fd-k { color: var(--fd-quiet); display: inline-flex; align-items: center; gap: 5px; }
+.fd-kv .fd-k { display: inline-flex; align-items: center; gap: 5px; }
 .fd-kv .fd-v { display: flex; gap: 8px; flex-wrap: wrap; }
 .fd-kids .fd-g { grid-template-columns: 16px 18px minmax(0, 1fr); }
-.fd-kids .fd-g .lk-prop { color: var(--fd-quiet); }
 .fd-kids .fd-g .lk-tag { margin-left: 2px; }
 .fd-gn { margin-left: 16px; }
 .fd-gn .fd-showall { padding-left: 86px; }
@@ -99,7 +99,7 @@ const S = {
   picks: [], typed: '', mode: 'rows', rowAt: 0, choiceAt: 0,
   kinds: [], recents: [], base: [], shown: [], facets: null, allShown: false, moreOf: new Set(),
   dug: [], dugData: new Map(), openGroups: new Set(), groupAll: new Set(), stale: false,
-  cache: { kind: new Map(), kindFacets: new Map(), counted: new Map(), words: new Map() }, loading: false, failed: '', commands: null, tallest: 0,
+  cache: { kind: new Map(), kindFacets: new Map(), counted: new Map(), words: new Map() }, loading: false, failed: '', commands: null,
 };
 const setting = key => Find.settings.setting(key);
 const words = () => S.typed.trim().toLowerCase().split(/\s+/).filter(Boolean);
@@ -293,7 +293,7 @@ function render() {
     const piece = el(doc, 'span', { class: 'fd-piece' });
     piece.append(el(doc, 'button', { class: 'fd-x lk-x', type: 'button', title: 'Take this off', 'aria-label': 'Take off ' + (p.title || p.label), click: () => removePick(i) }, '×'));
     if (p.kind === 'tag') piece.append(el(doc, 'span', { class: 'lk-tag' }, p.title));
-    else if (p.kind === 'value') { piece.append(el(doc, 'span', { class: 'fd-pk' }, p.name)); piece.append(p.uuid ? el(doc, 'span', { class: 'lk-node', 'data-uuid': p.uuid }, p.label) : el(doc, 'span', {}, p.label)); }
+    else if (p.kind === 'value') { piece.append(el(doc, 'span', { class: 'lk-prop' }, p.name)); piece.append(p.uuid ? el(doc, 'span', { class: 'lk-node', 'data-uuid': p.uuid }, p.label) : el(doc, 'span', {}, p.label)); }
     else piece.append(el(doc, 'span', { class: 'fd-month' }, p.label));
     find.insertBefore(piece, input);
   });
@@ -311,7 +311,7 @@ function render() {
     // them from the rows.
     for (const g of groups) {
       const box = el(doc, 'div', { class: 'fd-ch' });
-      box.append(el(doc, 'span', { class: 'fd-ck', html: g.icon ? `<span class="fd-icon">${g.icon}</span>` : '' }, g.key === 'kind' ? 'kind' : g.label));
+      box.append(el(doc, 'span', { class: 'fd-ck' + (g.key.startsWith('p:') ? ' lk-prop' : ''), html: g.icon ? `<span class="fd-icon">${g.icon}</span>` : '' }, g.key === 'kind' ? 'kind' : g.label));
       const vals = el(doc, 'span', { class: 'fd-cv' });
       g.items.forEach((c, i) => {
         const at = ci++;
@@ -342,7 +342,7 @@ function render() {
       if (r.tag) nm.append(el(doc, 'span', { class: 'lk-tag' }, r.tag));
       nm.append(el(doc, 'span', { class: 'fd-ct' }, String(r.count)));
       row.append(nm);
-      row.addEventListener('click', () => { S.mode = 'rows'; S.rowAt = i; toggleGroup(r); });
+      row.addEventListener('click', () => { S.mode = 'rows'; S.rowAt = i; render(); });
       container.append(wrapIn(doc, row, r));
       return;
     }
@@ -354,7 +354,9 @@ function render() {
     else row.append(el(doc, 'span', {}));
     row.append(el(doc, 'span', { class: 'fd-bul' + (node.isPage ? '' : '') }, el(doc, 'i', { class: 'fd-d' })));
     const nm = el(doc, 'span', { class: 'fd-nm' });
-    const w = el(doc, 'span', { class: 'fd-w' + (node.isPage ? ' lk-node' : ''), ...(node.isPage ? { 'data-uuid': node.uuid } : {}) });
+    // Under a kind picked, or a group's head naming one, the kind has been said: no mark before the name.
+    const named = r.top ? kindPick() : rows.find(x => x.key === r.under)?.tag;
+    const w = el(doc, 'span', { class: 'fd-w' + (node.isPage ? ' lk-node' + (named ? ' lk-bare' : '') : ''), ...(node.isPage ? { 'data-uuid': node.uuid } : {}) });
     if (node.isPage) w.innerHTML = markWords(esc(node.text), ws);
     else for (const part of node.parts) {
       if (part.uuid) w.append(el(doc, 'span', { class: 'lk-node', 'data-uuid': part.uuid, html: markWords(esc(part.text), ws), click: event => { event.stopPropagation(); openPage(part.uuid, event.shiftKey); close(); } }));
@@ -391,10 +393,6 @@ function render() {
   const cur = body.querySelector(S.mode === 'choices' ? `[data-c="${S.choiceAt}"]` : `.fd-r[data-i="${S.rowAt}"]`);
   cur?.scrollIntoView?.({ block: 'nearest' });
   drawFoot(groups, rows);
-  // The window never shrinks while open: it keeps the tallest it has been this opening, so the bottom edge does not jump
-  // as the rows narrow or widen under the letters, or while "reading…" stands in for them. It grows when more is listed.
-  const tall = d.getBoundingClientRect().height;
-  if (tall > S.tallest) { S.tallest = tall; d.style.minHeight = tall + 'px'; }
 }
 function drawFoot(groups, rows) { S.dlg.querySelector('.fd-foot').replaceChildren(...foot(S.doc, groups, rows)); }
 // The cursor moves along the rows: the lit mark goes from one to the other and nothing is drawn again.
@@ -435,7 +433,7 @@ function dugBox(doc, node) {
   if (data.properties.length) {
     const kv = el(doc, 'div', { class: 'fd-kv' });
     for (const p of data.properties) {
-      kv.append(el(doc, 'span', { class: 'fd-k', html: `<span class="fd-icon">${kindIconHtml(p.type)}</span>` }, p.name));
+      kv.append(el(doc, 'span', { class: 'fd-k lk-prop', html: `<span class="fd-icon">${kindIconHtml(p.type)}</span>` }, p.name));
       const v = el(doc, 'span', { class: 'fd-v' });
       for (const val of p.values) v.append(val.uuid ? el(doc, 'span', { class: 'lk-node', 'data-uuid': val.uuid, click: event => { openPage(val.uuid, event.shiftKey); close(); } }, val.label) : el(doc, 'span', {}, val.label));
       kv.append(v);
@@ -465,7 +463,7 @@ function foot(doc, groups, rows) {
     if (cur?.kind === 'node') { add(KEY('Enter', `open ${esc(short(cur.node.text))}`)); add(KEY('Shift Enter', 'in the sidebar')); }
     else if (cur?.kind === 'group') add(KEY('Enter', `open the ${cur.count}`));
   }
-  if (!kindPick() && !words().length) { add('<span>type to find</span>'); add(`<span class="fd-faint">&gt; for a command</span>`); return items; }
+  if (!kindPick() && !words().length) return items;
   if (cur?.kind === 'node' && cur.top) add(KEY(S.dug.includes(cur.node.uuid) ? '←' : '→', S.dug.includes(cur.node.uuid) ? 'close' : 'dig'));
   if (cur?.kind === 'group') add(KEY(S.openGroups.has(cur.key) ? '←' : '→', S.openGroups.has(cur.key) ? 'close' : 'open'));
   if (S.picks.length && !S.typed) add(KEY('Backspace', `take ${esc(S.picks[S.picks.length - 1].title || S.picks[S.picks.length - 1].label)} off`));
@@ -613,7 +611,7 @@ function onInput() {
 function open() {
   const doc = host();
   close();
-  S.commands = null; S.tallest = 0;
+  S.commands = null;
   if (S.stale) { S.stale = false; S.kinds = []; S.recents = []; S.dugData.clear(); }
   style('find', CSS);
   const dlg = el(doc, 'dialog', { class: 'fd fd-own ' + (setting('windowPlace') === 'centred' ? 'fd-centred' : 'fd-high'), 'aria-label': 'Find' });
@@ -630,6 +628,9 @@ function open() {
   dlg.addEventListener('click', () => input.focus(), true);   // whatever was pressed, the keyboard stays in the one box
   dlg.addEventListener('click', event => { if (event.target === dlg) close(); });
   dlg.addEventListener('close', () => { if (S.dlg === dlg) S.dlg = null; dlg.remove(); });
+  // One height from the opening, whatever is listed: the foot and the bottom edge stay put, and a longer list scrolls. It
+  // leaves room for the rows shown before "show all", under three lines of choices.
+  dlg.style.height = FRAME + (setting('rowsShown') || 12) * ROW + 'px';
   doc.body.appendChild(dlg);
   S.dlg = dlg; S.doc = doc;
   Object.assign(S, { picks: [], typed: '', mode: 'rows', rowAt: 0, choiceAt: 0, allShown: false, dug: [], failed: '', enter: null });

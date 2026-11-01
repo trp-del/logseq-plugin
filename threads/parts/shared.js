@@ -423,11 +423,11 @@ function tag(doc, title, props = {}) {
   // A click of the caller's own on the bare "#" link never follows it: Logseq reads "#" as its home, the Journals, and the
   // tag map left for there under an "also under" or a child tag's click (0.4.427).
   const click = !rest.click ? null : rest.href && rest.href !== '#' ? rest.click : event => { event.preventDefault(); rest.click(event); };
-  return el(doc, 'a', { class: 'rf-tag lk-tag', href: '#', title: `Open ${name} (Shift: in the sidebar)`, ...rest,
+  return el(doc, 'a', { class: 'rf-tag lk-tag', href: '#', ...rest,
     click: own ? click : event => { event.preventDefault(); event.stopPropagation(); openPageNamed(name, event.shiftKey); } }, name);
 }
 // The same as words for a paragraph (the help paragraph opens it, guide below).
-const tagLinkHtml = title => { const name = esc(String(title ?? '').replace(/^#/, '')); return `<a class="rf-tag lk-tag" href="#" data-tag-page="${name}" title="Open ${name} (Shift: in the sidebar)">${name}</a>`; };
+const tagLinkHtml = title => { const name = esc(String(title ?? '').replace(/^#/, '')); return `<a class="rf-tag lk-tag" href="#" data-tag-page="${name}">${name}</a>`; };
 // The three buttons: quiet (an icon or greyed words, lit on hover), go (the one that does it: the library's main button), pressed (quiet, in force).
 function quiet(doc, { icon: name, label, title, faint, pressed, run, cls } = {}) {
   return el(doc, 'button', { type: 'button', class: `rf-quiet${faint ? ' rf-faint' : ''}${cls ? ' ' + cls : ''}`, title: title || null, 'aria-pressed': pressed == null ? null : String(!!pressed), click: run || null },
@@ -937,7 +937,7 @@ const cellEdit = (node, title, run) => { node.classList.add('rf-tedit'); if (tit
      to walk there), then the property, with no kind icon (as the two-way rows pointing back have none), then how many of
      that tag's nodes point here ("4 of 6").
    - more({ under: 'leads' }): "show all 15" under a property's tags; under 'flush', on a list's own edge (the findings).
-   - group(text): a quiet heading over the lines of one kind under a tag ("Pointed at by", "Child tags").
+   - group(text): a quiet heading over the lines of one kind under a tag ("Points at it", "Child tags").
    - the class rf-ol-margin on the outline's root (the map): the tick boxes of every level stand in one column in the
      margin, as the map's rows had them, instead of each at its own indent on the hairline; what unrolls there fades in
      without the small slide, so no tick box moves while it comes.
@@ -1182,7 +1182,7 @@ const kitCss = `/* The kit (parts/shared.js, 0.4.311; docs/LAYERS.md section 3):
 .rf-quiet:hover { background: var(--rf-wash); color: inherit; }
 .rf-quiet[aria-pressed="true"] { color: inherit; font-weight: 600; background: none; }
 .rf-quiet:disabled { opacity: .45; cursor: default; background: none; }
-:is(.rf-quiet, .rf-item, .rf-chip, .rf-ol-more, .rf-ask button):focus-visible { outline: 2px solid var(--rf-line); outline-offset: 1px; }
+:is(.rf-quiet, .rf-item, .rf-chip, .rf-ol-more, .rf-ask button):focus-visible { outline: none; background: var(--lk-wash); }
 .rf-faint { color: var(--rf-faint); }
 /* Two or three quiet words with a hairline between them: a two-way choice. */
 .rf-seg { display: inline-flex; }
@@ -1217,7 +1217,7 @@ input.rf-check[type=checkbox] { appearance: none; -webkit-appearance: none; posi
 input.rf-check[type=checkbox]:checked, input.rf-check[type=checkbox]:indeterminate, input.rf-check[type=checkbox]:focus { background-color: transparent !important; background-image: none !important; border-color: currentColor !important; color: inherit !important; box-shadow: none !important; }
 input.rf-check:checked::before { content: ""; position: absolute; left: 3.5px; top: .5px; width: 3.5px; height: 7px; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg); }
 input.rf-check:indeterminate::before { content: ""; position: absolute; left: 2px; right: 2px; top: 5px; height: 1.5px; background: currentColor; }
-input.rf-check:focus-visible { outline: 2px solid var(--rf-line); outline-offset: 1px; }
+input.rf-check:focus-visible { outline: none; border-color: currentColor !important; }
 .rf-tick { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 /* Words for chips: a filter, or a removable item with a × on hover. */
 .rf-chip { display: inline-flex; align-items: center; gap: 2px; padding: 0; border: 0; background: none; color: var(--rf-quiet); font: inherit; font-size: 14px; cursor: default; }
@@ -1246,7 +1246,7 @@ a.rf-tag:hover { opacity: 1; }
 .rf-chev::before { content: ''; position: absolute; inset: -2px -4px; }
 .rf-chev .ti { font-size: 15px; transition: transform .16s ease; }
 .rf-chev[aria-expanded="true"] .ti { transform: rotate(90deg); }
-.rf-chev:focus-visible { outline: 1px solid var(--rf-line); }
+.rf-chev:focus-visible { outline: none; background: var(--lk-wash); }
 .rf-chev-room { flex: none; display: inline-block; width: 16px; }
 /* THE outline: lines, what opens under them, the focus. --rf-ol-day is the days' column (a list with a day of another year sets it wider), --rf-ol-name the property names'
    column, one width at every depth so the names of nodes at one depth line up. */
@@ -1324,7 +1324,7 @@ a.rf-tag:hover { opacity: 1; }
 .rf-pencil { all: unset; cursor: pointer; } /* italic, grey and dotted are Look's, through lk-pencil */
 .rf-pencil:hover { color: var(--rf-quiet); }
 .rf-pencil.rf-pencil-taken { font-style: normal; color: inherit; text-decoration: none; }
-.rf-pencil:focus-visible { outline: 1px solid var(--rf-line); border-radius: 2px; }
+.rf-pencil:focus-visible { outline: none; background: var(--lk-wash) !important; }
 /* The trail is the library's lk-trail with lk-step; the place you are at ends it, in the text colour. */
 .rf-ol-sep { color: var(--rf-faint); }
 .rf-ol-trail > .rf-ol-here { color: var(--lk-text, currentColor); font-weight: 600; }

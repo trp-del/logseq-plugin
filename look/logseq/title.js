@@ -46,7 +46,7 @@ function groupsOf(index, uuid) {
   for (const chain of index.chainsOfPage(uuid)) groups.push(chain);
   return groups;
 }
-const link = (doc, t, end) => el(doc, 'a', { class: end ? 'lk-tag lk-end' : 'lk-tag', href: '#', 'data-uuid': t.uuid, title: `Open ${t.title} (Shift: in the sidebar)` }, t.title);
+const link = (doc, t, end) => el(doc, 'a', { class: end ? 'lk-tag lk-end' : 'lk-tag', href: '#', 'data-uuid': t.uuid }, t.title);
 const asks = () => window.PluginDoor.runs('structure') && !!window.Structure?.app;
 function held(doc, t, tagPage) {
   if (tagPage && !asks()) return link(doc, t);

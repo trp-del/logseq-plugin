@@ -34,4 +34,17 @@ for (const file of FILES) {
   }
 }
 if (strays.length) { console.error('Buttons that do not draw from the library:\n  ' + strays.join('\n  ')); process.exit(1); }
+// Focus is a wash or a firmer line, never a box round a control (grammar); a key is told in plain words, never a symbol.
+const boxes = [], symbols = [];
+for (const file of FILES) {
+  const text = fs.readFileSync(file, 'utf8');
+  for (const rule of text.matchAll(/[^\n{}]*:focus-visible[^{}\n]*\{[^}]*\}/g)) if (/outline:\s*\d/.test(rule[0])) boxes.push(`${path.relative(ROOT, file)}: ${rule[0].slice(0, 90)}`);
+  for (const key of text.matchAll(/[^\n]*(<kbd>[^<]*⌘|class="ky">[^<]*⌘|class="sw-k">⌘)[^\n]{0,20}/g)) symbols.push(`${path.relative(ROOT, file)}: ${key[1]}`);
+}
+if (boxes.length) { console.error('A box round a control under the keyboard:\n  ' + boxes.join('\n  ')); process.exit(1); }
+if (symbols.length) { console.error('A key as a symbol:\n  ' + symbols.join('\n  ')); process.exit(1); }
+// Words that are not Logseq's or are old, on what the person reads.
+const WORDS = [...FILES, path.join(ROOT, 'threads/main.js')].map(file => [file, fs.readFileSync(file, 'utf8')]);
+const OLD = [/notify\([^\n]*\brecords?\b/, /Refinements plugin/, /Refinements: troubleshooting/, /Pointed at by/, /type to find/, /&gt; for a command/, /(link|links) to <span/, /\(Shift: in the sidebar\)[`"]/, /Shift-click: in the sidebar\)">/, /return 'a record'/, /a name opens the node/, /a fix first says/, /name: 'Phenomenon'/, /in their field/];
+for (const [file, text] of WORDS) for (const word of OLD) assert.ok(!word.test(text), `${path.relative(ROOT, file)} still says ${word}`);
 console.log(`library: ${KINDS.length} kinds drawn, every button in ${FILES.length} files draws from them`);

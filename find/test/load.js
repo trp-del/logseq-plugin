@@ -97,6 +97,9 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
   // closed, its number after the words; → again opens the three under it
   await key('ArrowRight'); await settle();
   assert.deepEqual(text('.fd-kids .fd-g .fd-nm'), ['ProviderConsultation3'], 'what points at her, as a line with its number after the words');
+  doc.querySelector('.fd-kids .fd-g .fd-nm').click(); await settle();
+  assert.ok(doc.querySelector('.fd-kids .fd-g .fd-bul.fd-folded') && !doc.querySelector('.fd-gn .fd-r'), 'a click on a line\'s words does not unfold it');
+  assert.ok(doc.querySelector('.fd-kids .fd-g.fd-on'), 'it moves the cursor there'); await key('ArrowUp');
   assert.ok(doc.querySelector('.fd-kids .fd-g .fd-bul.fd-folded'), 'the dot is ringed while the line is closed');
   assert.equal(doc.querySelector('.fd-kids .fd-g .fd-ct').parentElement.className, 'fd-nm', 'the number sits with the words, not at the edge');
   await key('ArrowDown'); await key('ArrowRight');
@@ -119,6 +122,7 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
   assert.equal(doc.querySelector('.fd-input').value, '', 'the letters are cleared');
   assert.equal(doc.querySelectorAll('.fd-r').length, 4, 'the four consultations');
   assert.deepEqual(text('.fd-ck'), ['Provider', 'Topic', 'When'], 'its properties and the months as choices');
+  assert.deepEqual(text('.fd-ck.lk-prop'), ['Provider', 'Topic'], 'a property named with the shared name');
   assert.deepEqual(text('.fd-head'), [], 'no head over the choices or the rows: a gap tells them apart');
   assert.deepEqual(text('.fd-ch:nth-of-type(1) .fd-c'), ['Dr. Mei Chen3', 'Dr. Sofia Alvarez1'], 'the Provider values with counts');
   assert.deepEqual(text('.fd-r .fd-day'), ['Oct 7', 'Sep 14', 'Sep 1', 'Aug 20'], 'newest first, the day in the margin');
@@ -141,12 +145,13 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
   assert.ok(doc.querySelector('.fd-piece .lk-node[data-uuid]'), 'the node carries its uuid for Look\'s mark');
   assert.equal(doc.querySelectorAll('.fd-r').length, 3, 'her three consultations');
   assert.deepEqual(text('.fd-ck'), ['Topic', 'When'], 'Provider is picked, so it is no longer offered');
+  assert.deepEqual(text('.fd-piece .lk-prop'), ['Provider'], 'in the find line too, the shared name');
   assert.ok(text('.fd-foot')[0].includes('open Video call'), 'the foot names what Enter opens: ' + text('.fd-foot')[0]);
   // → digs into the first row: its properties, then what points at it
   await key('ArrowRight');
   await settle();
   assert.ok(doc.querySelector('.fd-kids .fd-kv'), 'the node opens in place with its properties');
-  assert.deepEqual(text('.fd-kids .fd-k'), ['Specialized in'], 'the property name');
+  assert.deepEqual(text('.fd-kids .fd-k.lk-prop'), ['Specialized in'], 'the property name');
   // the second row, dug too, shows what points at it (nothing in this graph) without breaking
   await key('ArrowLeft');
   assert.equal(doc.querySelectorAll('.fd-kids').length, 0, '← closes it');
@@ -267,10 +272,23 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
     await key('Tab'); await key('ArrowDown'); await key('ArrowDown'); await key('ArrowDown');
     assert.ok(doc.querySelector('.fd-more.fd-lit')?.textContent.includes('2 more properties'), 'the line of properties too'); await key('Tab');
     assert.equal(text('.fd-ch').length, 5, 'and it opens them'); await key('Escape'); await key('Escape'); await settle(); Find.window.forget(); }
+  // At rest the foot says no hint; one height from the opening, whatever is listed; a kind named, no mark before a name.
+  { Find.window.open(); await settle();
+    const foot = () => doc.querySelector('.fd-foot').textContent, dlg = doc.querySelector('dialog.fd');
+    assert.ok(!/type to find|for a command/.test(foot()), 'no hint at rest'); assert.ok(foot().includes('Enter'), 'what Enter does stays');
+    assert.equal(dlg.style.height, 220 + 12 * 28 + 'px', 'room for the rows shown');
+    assert.ok(!fs.readFileSync(path.join(root, 'find/logseq/find.js'), 'utf8').includes('minHeight'), 'no height is kept from what was listed');
+    await type('>'); await settle(); assert.equal(dlg.style.height, 220 + 12 * 28 + 'px'); assert.equal(dlg.style.minHeight, '', 'the commands leave no height behind');
+    await key('Backspace'); await type('mei'); await settle(); assert.equal(dlg.style.height, 220 + 12 * 28 + 'px');
+    assert.ok(doc.querySelector('.fd-w.lk-node') && !doc.querySelector('.fd-w.lk-bare'), 'where sorts mix, a page keeps its mark');
+    await key('Escape'); await settle();
+    Find.window.open(); await settle(); await type('doct'); await settle(); await key('Tab'); await settle();
+    assert.ok(doc.querySelector('.fd-w.lk-node') && !doc.querySelector('.fd-w.lk-node:not(.lk-bare)'), 'under a kind picked, no mark');
+    await key('Escape'); await settle(); }
   // The foot: the words in the text colour, the key faint.
   assert.ok(styles['find-find'].includes('.fd-foot .fd-k { color: var(--fd-faint);') && /\.fd-foot \{[^}]*color: var\(--lk-text/.test(styles['find-find']), 'the key faint, what it does in the text colour');
   // the key specimen, and the stop
-  assert.ok(Find.settings.specimen({ key: 'takesSearchKey', type: 'boolean' }, true).includes('⌘K'), 'the key specimen');
+  assert.ok(Find.settings.specimen({ key: 'takesSearchKey', type: 'boolean' }, true).includes('Cmd K'), 'the key specimen, in plain words');
   await logseq._unload();
   assert.equal(doc.querySelectorAll('dialog, .fd-own').length, 0, 'nothing of the plugin\'s is left after the stop');
   assert.deepEqual(errors, [], 'no errors');

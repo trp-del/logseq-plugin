@@ -32,15 +32,15 @@ const settingsSchema = [
     zone: '<div><span class="m">doctor of →</span> &nbsp;<u>9 Appointments</u> <span class="m">· next Nov 12</span></div>',
     description: 'Changes here apply right away.' },
   { key: 'twoWayRows', type: 'boolean', title: 'Links read the same from both ends', default: true,
-    description: 'On a page that one of your fields points to (a doctor named as the “doctor” of visits, a report named as the “report” of a scan), each such field becomes a row in the page’s own property list, with an arrow after its name: “doctor of →   9 Appointments · next Nov 12”. Up to three records show by name; more show as a count that opens into the list. Click a record’s line to open it (Shift-click: in the sidebar); rest the pointer on it to see its fields and first lines. Click the field’s name to open the field; right-click it to change how it reads here. In a list with several kinds of records, click a kind to show only those. The + at the end of a row adds a new record with that field pointing here (Undo is the faded arrow after the row’s name). Tick the box before records (Shift-click a box: every one between) to act on them together: open in the sidebar, change this page to another one in their field, take the link off, add a tag, copy, set or clear a property, or delete them. A list of more than three can be grouped: the word “group” after its count (or right-click the name, “Group by…”) groups it by tag, month or any property its nodes hold, each group folding, and the + at the end of a group adds a node with that group’s tag or value already set. The chevron before a node’s name opens it under its name: its properties, what points at it and its first bullets, with a faint empty bullet to write a new one in; nodes open in place until one would break its lines, then the outline shifts by one level: the outermost goes into the way back above, the next reads like a page at the top. While you type a new node’s words in the + line, what it would get shows under the line in grey, as the proposals do in a bullet (a guess with a dotted line under it): Enter takes everything shown, a click on a guess keeps that one and lets the other guesses go, Escape clears them until you type again; a page’s name typed in the words completes in grey after the cursor, and the Right arrow links it. The same in the empty bullet of an opened node. The node’s properties show above its bullets there; click what one holds to change it (the likely values first), and the faded Undo arrow puts it back. After Enter the + line stays open, empty, for the next node; Escape closes it. Changing this page to another for the picked nodes lists first the pages their own words name.' },
+    description: 'On a page that one of your properties points to (a doctor named as the “doctor” of visits, a report named as the “report” of a scan), each such property becomes a row in the page’s own property list, with an arrow after its name: “doctor of →   9 Appointments · next Nov 12”. Up to three nodes show by name; more show as a count that opens into the list. Click a node’s name to open it (Shift-click: in the sidebar); rest the pointer on it to see its properties and first lines. Click the property’s name to open the property; right-click it to change how it reads here. In a list with several kinds of nodes, click a kind to show only those. The + at the end of a row adds a new node with that property pointing here (Undo is the faded arrow after the row’s name). Tick the box before nodes (Shift-click a box: every one between) to act on them together: open in the sidebar, change this page to another one in their property, take the link off, add a tag, copy, set or clear a property, or delete them. A list of more than three can be grouped: the word “group” after its count (or right-click the name, “Group by…”) groups it by tag, month or any property its nodes hold, each group folding, and the + at the end of a group adds a node with that group’s tag or value already set. The chevron before a node’s name opens it under its name: its properties, what points at it and its first bullets, with a faint empty bullet to write a new one in; nodes open in place until one would break its lines, then the outline shifts by one level: the outermost goes into the way back above, the next reads like a page at the top. While you type a new node’s words in the + line, what it would get shows under the line in grey, as the proposals do in a bullet (a guess with a dotted line under it): Enter takes everything shown, a click on a guess keeps that one and lets the other guesses go, Escape clears them until you type again; a page’s name typed in the words completes in grey after the cursor, and the Right arrow links it. The same in the empty bullet of an opened node. The node’s properties show above its bullets there; click what one holds to change it (the likely values first), and the faded Undo arrow puts it back. After Enter the + line stays open, empty, for the next node; Escape closes it. Changing this page to another for the picked nodes lists first the pages their own words name.' },
   { key: 'twoWayDays', type: 'boolean', title: 'Show each node’s day in the margin', default: true,
-    description: 'Each node in the rows shows its day (its own date, or the day it was written on) in a column at the left. Off, the column goes and the rows move left into its place; the day still shows in the card when you point at a node, and the find field still finds it.' },
+    description: 'Each node in the rows shows its day (its own date, or the day it was written on) in a column at the left. Off, the column goes and the rows move left into its place; the day still shows in the card when you point at a node, and the find line still finds it.' },
   { key: 'twoWayNames', hidden: true, type: 'string', title: 'How properties read on the other page', default: '',
     list: { pairs: '=', split: ';', suggest: 'properties', left: 'Property', right: 'Reads back as', about: 'A row on the page a property points to is named by the property itself (“Provider”). Give other words here, or from the row’s right-click, or the Properties table’s Reads back as cell.' },
     description: 'Other words for a row on the page a property points to, as “property = words; property = words”. A property not listed is named by itself (“Provider”), nothing added.' },
   { key: 'twoWayOneEnd', hidden: true, type: 'string', title: 'Properties hidden on the other page', default: '',
-    list: { split: ';', suggest: 'properties', about: 'Fields whose link is not shown as a row on the page they point to, for a field that points at a busy page (a status, a city with hundreds of people). The link stays in that page’s Linked references and in searches. Set from the tag tree as well.' },
-    description: 'Fields whose link is not shown as a row on the page they point to, as “field; field”. Useful for a field that points at a busy page (a status, a city with hundreds of people). The link itself stays: it still shows in that page’s Linked references and in searches. Set from the tag tree as well.' },
+    list: { split: ';', suggest: 'properties', about: 'Properties whose link is not shown as a row on the page they point to, for a property that points at a busy page (a status, a city with hundreds of people). The link stays in that page’s Linked references and in searches. Set from the tag tree as well.' },
+    description: 'Properties whose link is not shown as a row on the page they point to, as “property; property”. Useful for a property that points at a busy page (a status, a city with hundreds of people). The link itself stays: it still shows in that page’s Linked references and in searches. Set from the tag tree as well.' },
   { key: 'twoWayMentions', type: 'boolean', title: 'Mentions come up to the rows', default: true,
     description: 'On a page, the nodes whose words link it (“Called [[Dr. Mei Chen]] about the scan”) show as one more row under the rows from properties, “Mentioned in”, with their day and tag, folding, grouping and tick boxes like the other rows. Logseq still lists them under Linked references too. A node that points here through a property shows in that property’s row only. Tick a mention that has no tag and the bar offers to make it a node: the tag its words look like first, with the property that would point at this page (“Make it a Conversation · Spoke with Dr. Mei Chen”). Its words stay as they are; the faded Undo arrow takes it back. Right-click “mentioned in” to hide the row on that page.' },
   { key: 'twoWayMentionsHidden', type: 'string', title: 'Pages without the mentions row', default: '',
@@ -49,7 +49,7 @@ const settingsSchema = [
   { key: 'twoWayHideLinkedRefs', type: 'boolean', title: 'Leave out Logseq’s Linked references the rows replace', default: true,
     description: 'Logseq’s Linked references at the foot of a page list every node that links the page, under the page and bullets it sits in. The rows above show the same nodes: through a property, read backwards, and in “mentioned in” with the bullets they sit in, each opened in place. So on a page with rows, Linked references is left out. Not on a tag’s page (its nodes are Logseq’s own table there), nor on a journal day (where it also lists the tasks scheduled or due that day), nor where “mentioned in” is hidden. Off: Linked references shows as well. Unlinked references always stays.' },
   { key: 'twoWayHideTagLists', type: 'boolean', title: 'Leave out Logseq’s tag lists the rows repeat', default: true,
-    description: 'Below a page’s own text, Logseq lists the records that link to the page under a heading named after their tag (“Appointment”, “Project”), for tags with two-way links turned on. The rows above already show those records, with the field that links them, so on a page that has the rows the list is left out. In the right sidebar it is left out always: the same records are in the page’s Linked references there. Off: Logseq’s list shows as well.' },
+    description: 'Below a page’s own text, Logseq lists the nodes that link to the page under a heading named after their tag (“Appointment”, “Project”), for tags with two-way links turned on. The rows above already show those nodes, with the property that links them, so on a page that has the rows the list is left out. In the right sidebar it is left out always: the same nodes are in the page’s Linked references there. Off: Logseq’s list shows as well.' },
 ];
 const setting = shared.settingReader(settingsSchema);
 let UUID, isEntityId, watchDomEarly, addsElements, sendStyle, provided, uuidsIn, saveSettings, onPageChange, onDatabaseChange, onSettingsChange, model;
@@ -69,6 +69,8 @@ const dayText = day => {
   return year === Math.floor(todayNumber() / 10000) ? text : `${text}, ${year}`;
 };
 // A tag's name is a singular noun, or an illness that ends in s whatever the number: Diagnosis, Diagnoses; Measles, Measles.
+// The kind of a node as a word: a node with no tag has none.
+const tagWord = tag => tag === 'note' ? 'node' : tag;
 const plural = (word, n) => n === 1 ? word : /[^aeiou]y$/i.test(word) ? word.slice(0, -1) + 'ies' : /sis$/i.test(word) ? word.slice(0, -2) + 'es' : /(ss|us|x|z|ch|sh)$/i.test(word) ? word + 'es' : /s$/i.test(word) ? word : word + 's';
 /* How a row is named (0.4.444, the owner, 2026-10-26: "we should get rid by default of adding these prepositions like of",
    "but still keep features of changing name"; "why are you adding an arrow?"): by the property's own name, as it is
@@ -287,8 +289,8 @@ function summary(items, whenOnly = false) {
 }
 const WHEN_TIP = 'The days of these nodes: each node’s date, or the journal day it is written on';
 const INLINE = 3, LISTED = 5;
-/* Moving around the rows (0.4.184, the + and the hovers 0.4.185, the owner asked for the rows to be more interactive). A record's line is
-   lit under the pointer and opens on a click anywhere along it; Shift-click opens it in the sidebar (the icon at its
+/* Moving around the rows (0.4.184, the + and the hovers 0.4.185, the owner asked for the rows to be more interactive). A record's name
+   opens it; Shift-click opens it in the sidebar (the icon at its
    end that did the same went on 31 October 2026). Resting on a record shows a card with its fields and first lines (peek, below). The field's
    name opens the field's own page. In an open list, a row of kinds ("All 13 · Infusion 8 · Scan 1") shows only
    that kind, as does a kind at the end of a line; a line marked "earlier" parts what is coming up from what is
@@ -312,7 +314,7 @@ const pickBox = (group, item) => drawingTop ? '' : pickOn(group, item);
 const pickOn = (group, item) => { const key = `${item.uuid}|${group.name}`, on = state.picked.has(key); state.listed.push(key); return `<input type="checkbox" class="rf-check lk-tick rf-tw-pick" data-pick="${esc(key)}"${on ? ' checked' : ''} aria-label="Pick" title="Pick (Shift-click: every one from the last picked)">`; };
 // A record's tag at the right opens the tag's page, Shift-click in the sidebar (0.4.297, the owner: "should be able to
 // click on tag in two-way area on right side"); a tag reads as a class, mono with no # (the kit's tag, 0.4.318).
-const tagLink = item => item.tag && item.tag !== 'note' ? `<a class="rf-tag lk-tag rf-tw-tag" data-tag-page="${esc(item.tag)}" href="#" title="Open ${esc(item.tag)} (Shift-click: in the sidebar)">${esc(item.tag)}</a>` : `<span class="rf-tag lk-tag rf-tw-tag">${esc(item.tag)}</span>`;
+const tagLink = item => item.tag && item.tag !== 'note' ? `<a class="rf-tag lk-tag rf-tw-tag" data-tag-page="${esc(item.tag)}" href="#">${esc(item.tag)}</a>` : `<span class="rf-tag lk-tag rf-tw-tag">${esc(item.tag)}</span>`;
 // No sidebar icon at the end of a line (the review, 31 October: a control per row, and a long name left a blank line
 // under itself where the icon wrapped); Shift-click on the name opens it in the sidebar, as everywhere in Logseq.
 /* The rows on the kit's outline (0.4.442, docs/REWORK.md 4, the owner's drawings of 2026-10-26): every node on a line of its
@@ -373,7 +375,7 @@ function rowHtml(group, top = null) {
   // mention, under a row already called "Mentioned in"); where the mentions are of several kinds, the kinds stay.
   const daysOnly = isMentions(group) && !kinds && !!when;
   // The number is a count (the grammar: none shown, lk-count); it is there for the words' sake.
-  const leadText = kinds ? `All<span class="lk-count"> ${total}</span>` : `<span class="lk-count">${total}</span> ${esc(plural(whole.items[0]?.tag || 'note', total))}`;
+  const leadText = kinds ? `All<span class="lk-count"> ${total}</span>` : `<span class="lk-count">${total}</span> ${esc(plural(tagWord(whole.items[0]?.tag || 'note'), total))}`;
   const lead = daysOnly ? '' : kinds ? chip('', leadText, ' rf-tw-lead', true)
     : `<a class="rf-tw-toggle rf-tw-lead" data-key="${esc(key)}" href="#" title="Click to ${open ? 'fold' : 'open'} the list.">${leadText}</a>`;
   const whenHtml = when ? `<a class="rf-tw-toggle rf-tw-when" data-key="${esc(key)}" href="#" title="${WHEN_TIP}. Click to ${open ? 'fold' : 'open'} the list.">${esc(when)}</a>` : '';
@@ -382,7 +384,7 @@ function rowHtml(group, top = null) {
   const byCount = [...counts].sort((a, b) => b[1] - a[1]);
   const named = state.kindsAll.has(key) || byCount.length <= 3 ? byCount : byCount.findIndex(([tag]) => tag === only) > 2 ? [...byCount.slice(0, 2), byCount.find(([tag]) => tag === only)] : byCount.slice(0, 3);
   const rest = byCount.length - named.length;
-  const tail = [...(kinds ? named.map(([tag, n]) => chip(tag, `${esc(tag)} <span class="lk-count">${n}</span>`, '', true)) : []), ...(kinds && rest ? [`<button type="button" class="lk-more rf-tw-kinds" data-kinds="${esc(key)}">and ${rest} more</button>`] : []), whenHtml].filter(Boolean);
+  const tail = [...(kinds ? named.map(([tag, n]) => chip(tag, `${esc(tag === 'note' ? 'No tag' : tag)} <span class="lk-count">${n}</span>`, '', true)) : []), ...(kinds && rest ? [`<button type="button" class="lk-more rf-tw-kinds" data-kinds="${esc(key)}">and ${rest} more</button>`] : []), whenHtml].filter(Boolean);
   // Each piece keeps its dot in the gap before it, and the head clips what stands before its left edge: a line that wraps starts on
   // its words, never on a dot (the stylesheet).
   const head = `<span class="rf-tw-chips">${lead}${tail.map((piece, i) => `<span class="rf-tw-piece">${lead || i ? sep : ''}${piece}</span>`).join('')}</span>`;
@@ -501,8 +503,8 @@ function nodeHtml(uuid, key, data, asTop = false) {
   }
   if (onlyFound) return html + O.more({ text: 'show the rest', attrs: { 'data-findall': key } });
   if (data.guesses.size > 1 && data.props.filter(r => !r.values.length && data.guesses.has(r.prop.ident)).length > 1) html += O.more({ text: 'Take what is proposed', cls: 'lk-lone', attrs: { 'data-takeall': uuid } });
-  /* The nodes that link to it, after its own properties, under a line saying so: "2 nodes link to ↑", the arrow standing
-     for the node just above, whose name can be long (0.4.462, the owner's pick 2 of the two-way fixes: the same property
+  /* The nodes that link to it, after its own properties, under a line saying so: "2 nodes link here"
+     (0.4.462, the owner's pick 2 of the two-way fixes: the same property
      name, one line apart, read as the node's own and as what links to it). Under it one step in, a row per property, one
      name per line, three then "show all"; each node's day in the section's margin, as on the rows (placeDays). */
   const linking = asTop ? [] : data.rows.map(g => ({ g, items: g.items.filter(item => !onTheWay(path, item.uuid)) })).filter(r => r.items.length);
@@ -519,7 +521,7 @@ function nodeHtml(uuid, key, data, asTop = false) {
       });
       if (items.length > INLINE) lines += O.more({ text: all ? 'show fewer' : 'show all', attrs: { 'data-nall': allKey }, under: 'value' });
     }
-    html += `<div class="rf-tw-links" title="${esc(`${many} ${many === 1 ? 'node links' : 'nodes link'} to ${shortName(titleOf(uuid))}`)}"><span class="lk-count">${many}</span> ${many === 1 ? 'node links' : 'nodes link'} to <span class="rf-tw-up" aria-label="${esc(shortName(titleOf(uuid)))}">↑</span></div><div class="rf-tw-linked">${lines}</div>`;
+    html += `<div class="rf-tw-links" title="${esc(`${many} ${many === 1 ? 'node links' : 'nodes link'} to ${shortName(titleOf(uuid))}`)}"><span class="lk-count">${many}</span> ${many === 1 ? 'node links' : 'nodes link'} here</div><div class="rf-tw-linked">${lines}</div>`;
   }
   for (const line of data.bullets) html += O.bullet({ html: lineHtml(line.text, 400), attrs: { 'data-bullet': line.uuid } });
   if (data.more) html += O.more({ text: 'show all its bullets', attrs: { 'data-ball': uuid } });
@@ -708,7 +710,7 @@ function steppedHtml() {
   drawingTop = true;
   let rows = '';
   try { rows = groups.map(g => rowHtml(g, top)).join(''); } finally { drawingTop = false; }
-  const line = many ? `<div class="rf-tw-toplinks"><span class="lk-count">${many}</span> ${many === 1 ? 'node links' : 'nodes link'} to <span class="rf-tw-up" aria-label="${esc(top.title)}">↑</span></div>` : '';
+  const line = many ? `<div class="rf-tw-toplinks"><span class="lk-count">${many}</span> ${many === 1 ? 'node links' : 'nodes link'} here</div>` : '';
   return `<div class="rf-tw-stepped rf-ol">${O.trail(steps, `${esc(top.title)}${tag ? tagLink({ tag }) : ''}`)}<div class="rf-tw-stepbody">${nodeHtml(top.uuid, top.key, data, true)}</div></div>${line}${rows}`;
 }
 /* Find among what points here (0.4.436; the kit's field since 0.4.442, the count at its end; the owner, 2026-10-27: "there
@@ -1078,8 +1080,9 @@ function groupHtml(group, part, by) {
   const bare = (by === 'tag' && !part.none) || new Set(group.items.map(item => item.tag)).size === 1;
   const tell = bare ? tellingProp(group, part.items, by.startsWith('p:') ? by.slice(2) : '') : '';
   const more = open && part.items.length > GROUP_LISTED ? shared.outline.more({ text: all ? 'show fewer' : 'show all', attrs: { 'data-more': gkey }, under: 'name' }) : '';
-  const label = by === 'tag' && !part.none ? `<span class="rf-tag lk-tag rf-tw-gname">${esc(part.label)}</span>` : `<span class="rf-tw-gname">${esc(part.label)}</span>`;
-  return `<div class="rf-tw-group"${open ? ' data-open=""' : ''}><div class="rf-tw-ghead">${shared.outline.chev({ open, label: part.label, attrs: { 'data-gkey': gkey } })}<a class="rf-tw-gtoggle" data-gkey="${esc(gkey)}" href="#" title="${open ? 'Fold' : 'Open'} this group">${label}<span class="rf-note rf-tw-gn lk-count">${part.items.length}</span></a>${plus}</div>${open && adding ? draftLineHtml(group, state.draft) : ''}${open ? `<div class="rf-tw-gitems">${shown.map(item => itemHtml(group, item, `r:${group.name}`, '', bare, tell)).join('')}${more}</div>` : more}</div>`;
+  // The arrow folds; the words do not. A tag is a tag: it opens its page.
+  const label = by === 'tag' && !part.none ? `<a class="rf-tag lk-tag rf-tw-tag rf-tw-gname" data-tag-page="${esc(part.label)}" href="#">${esc(part.label)}</a>` : `<span class="rf-tw-gname">${esc(part.label)}</span>`;
+  return `<div class="rf-tw-group"${open ? ' data-open=""' : ''}><div class="rf-tw-ghead">${shared.outline.chev({ open, label: part.label, attrs: { 'data-gkey': gkey } })}<span class="rf-tw-gwords">${label}<span class="rf-note rf-tw-gn lk-count">${part.items.length}</span></span>${plus}</div>${open && adding ? draftLineHtml(group, state.draft) : ''}${open ? `<div class="rf-tw-gitems">${shown.map(item => itemHtml(group, item, `r:${group.name}`, '', bare, tell)).join('')}${more}</div>` : more}</div>`;
 }
 // A few nodes have nothing to group: Group shows above INLINE nodes, as the right-click's Group by… (1.0.2).
 const groupBtn = group => { if (drawingTop || group.items.length <= INLINE) return ''; const by = groupOf(group); return `<button type="button" class="rf-quiet rf-faint rf-tw-groupby"${by ? ' data-on=""' : ''} data-field="${esc(group.name)}" title="Group the list by a tag, a month or a property">${by ? `By ${esc(groupName(by))}` : 'Group'}${iconHtml('chevron-down')}</button>`; };
@@ -1227,7 +1230,7 @@ function onOver(event) {
   clearTimeout(peek.hide);
   if (peek.anchor === link && peek.card && !peek.card.isClosed) return;
   clearTimeout(peek.timer);
-  peek.timer = setTimeout(() => showPeek(link).catch(error => warnOnce('could not show the record card', error)), PEEK_MS);
+  peek.timer = setTimeout(() => showPeek(link).catch(error => warnOnce('could not show the node card', error)), PEEK_MS);
 }
 function onOut(event) {
   if (!event.target.closest?.('a.rf-tw-record')) return;
@@ -1531,7 +1534,7 @@ function onClick(event) {
   if (groupAdd) { event.preventDefault(); event.stopPropagation(); hidePeek(); const group = state.groups.find(g => g.name === groupAdd.dataset.field); if (group) startGroupDraft(group, groupAdd.dataset.gkey); return; }
   // A click that just misses the box, anywhere in the room left of the record, ticks it too (0.4.297, the owner: "make
   // checkbox tap area bigger"): before, it opened the record and took you off the page.
-  const rowEl = !event.target.closest?.('a, button') && event.target.closest?.('.rf-tw-line, .rf-tw-item');
+  const rowEl = !event.target.closest?.('a, button') && event.target.closest?.('.rf-tw-line');
   const first = rowEl && rowEl.querySelector(':scope > :not(.rf-tw-pick)');
   const box = rowEl && rowEl.querySelector(':scope > .rf-tw-pick');
   if (box && first && event.clientX < first.getBoundingClientRect().left) { event.preventDefault(); event.stopPropagation(); hidePeek(); return togglePick(box, event.shiftKey); }
@@ -1541,18 +1544,16 @@ function onClick(event) {
   if (dpick) { event.preventDefault(); event.stopPropagation(); return keepPiece(dpick.dataset.pkey); }
   const lineEl = event.target.closest?.('.rf-tw-draft');
   if (lineEl && !event.target.closest('a, input, button')) { lineEl.querySelector('.rf-tw-draft-field')?.focus(); return; }
+  // The name opens, the arrow unfolds: the blank part of a row does nothing, and the page stays.
   const target = event.target.closest?.('a, button');
-  const line = !target && event.target.closest?.('.rf-tw-line, .rf-tw-item');
-  if (!target && !line) return;
+  if (!target) return;
   event.preventDefault(); event.stopPropagation();
   hidePeek();
-  if (line) return openEntity(line.dataset.uuid, event.shiftKey);
   if (target.matches('.rf-tw-record, .rf-tw-field')) return openEntity(target.dataset.uuid, event.shiftKey);
   if (target.matches('.rf-tw-tag[data-tag-page]')) return openPage(target.dataset.tagPage, event.shiftKey);
   if (target.matches('[data-draft="tag"]')) return tagList(target);
   const key = target.dataset.key;
-  if (target.matches('.rf-tw-gtoggle')) setOpen(target.dataset.gkey, !isOpen(target.dataset.gkey));
-  else if (target.matches('.rf-tw-toggle')) setOpen(key, !isOpen(key));
+  if (target.matches('.rf-tw-toggle')) setOpen(key, !isOpen(key));
   else if (target.matches('.rf-tw-chip')) {
     // All folds and unfolds the list (0.4.401, the owner: "clicking All # should fold/unfold"); with one tag picked
     // it first shows every node again. A tag's word opens the list with only its nodes, a second click shows all.
@@ -1701,7 +1702,7 @@ function propsHtml(group, d) {
     for (const p of d.proposals) {
       const key = pieceKey(p), kept = !!d.kept?.has(key), passed = p.guess && anyKept && !kept;
       const tip = p.guess ? (kept ? 'Kept: Enter sets it. Click to let it go again' : 'A guess. Enter sets it; click to keep this one and let the other guesses go') : 'From the words: Enter sets it';
-      parts.push(`<button type="button" class="rf-tw-dprop rf-tw-dpick" data-pkey="${esc(key)}" aria-pressed="${kept}" title="${esc(tip)}"><span class="rf-tw-dname">${esc(p.title)}</span><span class="rf-pencil${kept ? ' rf-pencil-taken' : ''}${passed ? ' rf-tw-dpassed' : ''}">${esc(p.shown)}</span></button>`);
+      parts.push(`<button type="button" class="rf-tw-dprop rf-tw-dpick" data-pkey="${esc(key)}" aria-pressed="${kept}" title="${esc(tip)}"><span class="rf-tw-dname">${esc(p.title)}</span><span class="rf-pencil${kept ? ' rf-pencil-taken' : ' lk-pencil'}${passed ? ' rf-tw-dpassed' : ''}">${esc(p.shown)}</span></button>`);
     }
   }
   return parts.join('');
@@ -1908,7 +1909,7 @@ async function makeDraft(target, open) {
   dropDraft();
   let made = false;
   try { made = await addRecord({ group, page, name, kind: d.kind, open, asPage, where, other, set: d.set, pieces: takenPieces(d) }) === true; }
-  catch (error) { warnOnce('could not add the new record', error); notify('The new record could not be added', 'warning'); }
+  catch (error) { warnOnce('could not add the new node', error); notify('The new node could not be added', 'warning'); }
   // The line stays open for the next one (0.4.413, idea 5 of the brainstorm of 2026-10-25): empty, in the same place,
   // with the same tag and group, the place chosen last lit in the where step. Not after Cmd-Enter, which opens the new
   // node in the sidebar; Escape on the empty line closes it, as before.
@@ -2018,7 +2019,7 @@ function barHtml() {
   const best = raisable.length === 1 ? state.raise.get(raisable[0])?.best : null;
   return `<div class="lk-bar rf-tw-bar"${idle ? ' data-idle="" aria-hidden="true"' : ''}><label class="rf-count lk-said"><input type="checkbox" class="rf-check" checked data-act="clear" title="Clear the picks (Escape)" aria-label="Clear the picks">${n} picked</label>${
     state.listed.some(key => !state.picked.has(key)) ? b('all', 'Select all', `Pick all ${state.listed.length} shown here`, '') : ''}${
-    fromProps ? menu('page-menu', `“${esc(pageTitle())}”`, `Change “${pageTitle()}” to another page in their field, or take it out`, '') : ''}${
+    fromProps ? menu('page-menu', `“${esc(pageTitle())}”`, `Change “${pageTitle()}” to another page in their property, or take it out`, '') : ''}${
     raisable.length ? menu('raise', best ? `Make it a${/^[aeiou]/i.test(best.tag.title) ? 'n' : ''} ${esc(best.tag.title)}` : 'Make it…', `Give ${raisable.length === 1 ? 'this mention' : `these ${raisable.length} mentions`} a tag, with the property that points at “${pageTitle()}” set`, 'tag') : ''}${
     b('tag', 'Tag', 'Add a tag', 'tag')}${b('copy', 'Copy', 'Copy them as references', 'copy')}${
     menu('prop-menu', 'Property', 'Give them all one value, or clear one', 'property')}${b('delete', 'Delete', 'Delete them', 'delete')}${
@@ -2091,7 +2092,7 @@ function raiseHtml(group, item) {
   const only = raisablePicked();
   const best = only.length === 1 && only[0] === item.uuid ? state.raise.get(item.uuid)?.best : null;
   if (!best) return '';
-  const piece = (name, value) => `<span class="rf-tw-dprop"><span class="rf-tw-dname">${esc(name)}</span><span class="rf-pencil">${esc(value)}</span></span>`;
+  const piece = (name, value) => `<span class="rf-tw-dprop"><span class="rf-tw-dname">${esc(name)}</span><span class="rf-pencil lk-pencil">${esc(value)}</span></span>`;
   return `<div class="rf-tw-raise" title="What it would get: the tag its words look like, and “${esc(best.prop.title)}” set to this page. Make it from the bar above.">${piece('Tags', best.tag.title)}${piece(best.prop.title, pageTitle())}</div>`;
 }
 async function raiseMenu(at) {
@@ -2119,7 +2120,7 @@ async function raise(pair, uuids) {
 }
 const picks = () => [...state.picked].map(key => { const at = key.indexOf('|'); return { uuid: key.slice(0, at), group: state.groups.find(g => g.name === key.slice(at + 1)) }; }).filter(p => p.group);
 const nodesPicked = () => [...new Set(picks().map(p => p.uuid))];
-const titleFor = uuid => { for (const g of state.groups) for (const item of g.items) if (item.uuid === uuid) return item.title; return 'a record'; };
+const titleFor = uuid => { for (const g of state.groups) for (const item of g.items) if (item.uuid === uuid) return item.title; return 'a node'; };
 const counted = n => `${n} ${n === 1 ? 'node' : 'nodes'}`; // Logseq's word (the owner: never "record")
 /* A question with a list to choose from, asked as Logseq asks for a value (1.0.4; the owner: "keep them close to how
    logseq would show"): Logseq's own picker under what asked, the question as its placeholder ("Change “Dr. Mei Chen” to …"),
@@ -2153,15 +2154,15 @@ async function writeAll(text, steps) {
   const undos = [];
   let failed = 0;
   for (const step of steps) {
-    try { const undo = await step(); if (undo) undos.push(undo); } catch (error) { failed++; warnOnce('a picked record could not be changed', error); }
+    try { const undo = await step(); if (undo) undos.push(undo); } catch (error) { failed++; warnOnce('a picked node could not be changed', error); }
   }
   state.picked.clear(); later(300); draw(host());
-  if (failed) notify(`${failed} of the picked records could not be changed`, 'warning');
+  if (failed) notify(`${failed} of the picked nodes could not be changed`, 'warning');
   if (undos.length) offerUndo(text, async () => {
     let missed = 0;
-    for (const undo of undos.reverse()) { try { await undo(); } catch (error) { missed++; warnOnce('a picked record could not be put back', error); } }
+    for (const undo of undos.reverse()) { try { await undo(); } catch (error) { missed++; warnOnce('a picked node could not be put back', error); } }
     later(300);
-    if (missed) notify(`${missed} of the records could not be put back`, 'warning');
+    if (missed) notify(`${missed} of the nodes could not be put back`, 'warning');
   });
 }
 const propNamed = async name => (await provided.propSchema()).props.find(p => p.lower === name.toLowerCase());
@@ -2256,7 +2257,7 @@ async function act(what, at = null) {
       if (what === 'unset') {
         const held = new Set((await Promise.all(nodes.map(uuid => provided.userValues(uuid)))).flat());
         names = schema.props.filter(p => held.has(p.ident)).map(p => p.title);
-        if (!names.length) return notify('The picked records hold none of your properties', 'warning');
+        if (!names.length) return notify('The picked nodes hold none of your properties', 'warning');
       }
       const name = await ask(what === 'set' ? `Set a property on ${counted(nodes.length)}` : `Clear a property on ${counted(nodes.length)}`, what === 'unset' ? `They hold: ${names.join(', ')}` : '', names, 'Next', '', false, at);
       if (!name) return;
@@ -2299,7 +2300,7 @@ async function act(what, at = null) {
         return null;
       }));
     }
-  } catch (error) { warnOnce(`could not ${what} the picked records`, error); notify('That could not be done', 'warning'); }
+  } catch (error) { warnOnce(`could not ${what} the picked nodes`, error); notify('That could not be done', 'warning'); }
 }
 
 const twoWayCss = `
@@ -2391,8 +2392,7 @@ const twoWayCss = `
 .refinement-two-way .rf-tw-groupby .ti { font-size: 12px; }
 .refinement-two-way .rf-tw-ghead { display: flex; align-items: baseline; gap: var(--rf-ol-gap); margin: .4rem 0 .05rem; }
 .refinement-two-way .rf-tw-group:first-child .rf-tw-ghead { margin-top: .1rem; }
-.refinement-two-way .rf-tw-gtoggle { display: inline-flex; align-items: baseline; gap: .35em; border-radius: 4px; padding: 0 .25em; margin-left: -.25em; color: var(--rf-quiet); }
-.refinement-two-way .rf-tw-gtoggle:hover { background: var(--rf-wash); color: inherit; }
+.refinement-two-way .rf-tw-gwords { display: inline-flex; align-items: baseline; gap: .35em; padding-right: .25em; color: var(--rf-quiet); }
 .refinement-two-way .rf-tw-gn { font-size: .88em; }
 .refinement-two-way .rf-tw-gadd { visibility: hidden; }
 .refinement-two-way .rf-tw-ghead:hover .rf-tw-gadd, .refinement-two-way .rf-tw-gadd:focus-visible { visibility: visible; }
@@ -2439,7 +2439,7 @@ const twoWayCss = `
 .refinement-two-way .rf-tw-menu-words { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 14em; }
 .refinement-two-way .rf-tw-menu > .ti:last-child { font-size: 12px; opacity: .7; }
 .refinement-two-way .rf-tw-bar .rf-count { white-space: nowrap; }
-.refinement-two-way :is(.rf-tw-add, .rf-tw-gadd, .rf-tw-bar > .lk-btn):focus-visible { outline: 2px solid var(--rf-line); outline-offset: 1px; }
+.refinement-two-way :is(.rf-tw-add, .rf-tw-gadd):focus-visible { outline: none; background: var(--lk-wash); }
 
 /* The rows on the kit's outline (0.4.442): each node a line, the tick box in the margin, the day in its column, the one
    chevron right before the name; a list opens under its count with no line of its own; what a node holds opens under
@@ -2497,7 +2497,6 @@ const twoWayCss = `
 .refinement-two-way .rf-ol-body > .rf-tw-record.rf-ol-open, .refinement-two-way[data-finding] .rf-ol-body > .rf-tw-record { white-space: normal; }
 .refinement-two-way .rf-ol-body > .rf-tw-record ~ * { flex: none; }
 .refinement-two-way .rf-ol-body > .rf-pencil { margin-left: 8px; }
-.refinement-two-way .rf-tw-line { cursor: pointer; }
 .refinement-two-way a.rf-ol-name { text-decoration: underline; text-decoration-color: var(--rf-line); text-decoration-thickness: 1px; text-underline-offset: 3px; }
 .refinement-two-way a.rf-ol-name:hover { text-decoration-color: currentColor; }
 .refinement-two-way .rf-ol-body { display: inline; }
@@ -2506,14 +2505,13 @@ const twoWayCss = `
 /* Inside an opened node, the nodes that link to it (0.4.462): their line in words, then their rows one step in; each
    day hangs in the section's margin, placed by placeDays (absolute in its line, so it takes no room in the value). */
 .refinement-two-way .rf-tw-links { color: var(--rf-quiet); font-size: 13px; line-height: 1.5; padding: 4px 0 1px; }
-.refinement-two-way .rf-tw-up { font-size: 12px; }
 .refinement-two-way .rf-tw-linked { padding-left: var(--rf-tw-in); }
 .refinement-two-way .rf-tw-mday { position: absolute; width: var(--rf-ol-day); margin: 0; text-align: right; }
 .refinement-two-way .rf-tw-mday:not([style]) { visibility: hidden; }
 /* A node stepped into keeps the margin for those days, as the rows do (0.4.462). */
 /* always, so nothing moves sideways when a dated line first appears (the reviewer: 64 px) */
 .refinement-two-way .rf-tw-stepbody { padding-left: calc(var(--rf-ol-day) + 16px); }
-/* A shifted section's top (0.4.463): the trail ends on it in bold; its properties; then "N nodes link to ↑" on the
+/* A shifted section's top (0.4.463): the trail ends on it in bold; its properties; then "N nodes link here" on the
    find field's hairline, and its rows as the page's. */
 .refinement-two-way .rf-tw-toplinks { grid-column: 1 / -1; color: var(--rf-quiet); font-size: 13px; padding: 6px 0 5px; margin-bottom: 4px; border-bottom: 1px solid var(--rf-hair); }
 ::highlight(rf-find) { background-color: var(--rx-blue-04, #e1f0ff); } /* a very subtle blue, Logseq's own (the owner: "I don't like a yellow highlight, do very subtle blue") */

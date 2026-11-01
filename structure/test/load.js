@@ -88,7 +88,7 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   for (let i = 0; i < 40 && !win.Structure?.app?.readAt; i++) await sleep(25);
   const S = win.Structure, app = S.app;
   assert.ok(app.readAt, 'the graph was read');
-  assert.equal(app.tray.model.kinds.map(k => k.name).join(), 'Entity,Occurrence,Phenomenon,Information');
+  assert.equal(app.tray.model.kinds.map(k => k.name).join(), 'Entity,Occurrence,Phenomena,Information');
   // The main view.
   const view = S.view.make(doc.getElementById('holder'), 'page', app); app.mounted(view);
   const R = view.root;
@@ -121,7 +121,7 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   deq([...R.querySelectorAll('.st-prompt [data-pick] .nm')].map(text), ['Conversation']);
   key(R.querySelector('[data-pin]'), 'Enter');
   assert.ok(!R.querySelector('.st-prompt'));
-  assert.equal(text(R.querySelector('.st-tray')), '1 change waitingMove Consultation from Medical event to Conversation90 nodes×Apply · one Undo for 90 nodes⌘ EnterDiscard⌘ Delete');
+  assert.equal(text(R.querySelector('.st-tray')), '1 change waitingMove Consultation from Medical event to Conversation90 nodes×Apply · one Undo for 90 nodesCmd EnterDiscardCmd Delete');
   assert.equal(S.model.parentOf(app.tray.model, id('Consultation')), id('Conversation'), 'the tree shows the move before Apply');
   assert.ok(R.querySelector(`[data-row="${id('Consultation')}"] .nm .lk-pencil`) && R.querySelector('.st-card h2 .lk-pencil'), 'pencilled in with Look\'s name: the row and the card');
   // A single letter is not a command: typed on the tree, it finds.
@@ -158,6 +158,7 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   app.st.cur = id('Stay'); app.draw(); click(R.querySelector('[data-do="rename"]')); const ed = R.querySelector('[data-edit]'); assert.ok(ed, 'a field in the row'); ed.value = 'Hospital stay'; key(ed, 'Enter');
   assert.equal(app.tray.lines().at(-1).text, 'Rename Stay to Hospital stay');
   // A line taken out of the tray.
+  assert.ok(R.querySelector('.st-tray [data-drop="0"].lk-x'), 'the × that takes a change out is the library\'s');
   click(R.querySelector('[data-drop="0"]')); assert.equal(S.model.parentOf(app.tray.model, id('Consultation')), id('Medical event'));
   assert.equal(app.tray.changes.length, 4);
   // The table and the Health list open from the path line; Escape walks back along the trail.
@@ -185,7 +186,7 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   click(R.querySelector('[data-do="move"]')); assert.ok(/^show all \d+$/.test(text(R.querySelector('.st-prompt .st-row.more'))), 'the last row says how many there are');
   const shortList = R.querySelectorAll('.st-prompt .st-row').length; click(R.querySelector('.st-prompt .st-row.more')); assert.ok(R.querySelectorAll('.st-prompt .st-row').length > shortList && !R.querySelector('.st-prompt .st-row.more'), 'and lists them all');
   assert.equal(R.ownerDocument.activeElement, R.querySelector('[data-pin]'), 'the keyboard stays in the prompt'); key(R.querySelector('[data-pin]'), 'Escape');
-  click(R.querySelector('[data-show="health"]')); assert.equal(text(R.querySelector('.st-card h2')), 'Health'); assert.ok([...R.querySelectorAll('.st-hl h3')].map(text).includes('Names say what they are'));
+  click(R.querySelector('[data-show="health"]')); assert.equal(text(R.querySelector('.st-card h2')), 'Health'); assert.ok(!text(R.querySelector('.st-hl .sum')).includes('a fix first'), 'Health keeps no sentence explaining itself'); assert.ok([...R.querySelectorAll('.st-hl h3')].map(text).includes('Names say what they are'));
   assert.ok(!R.querySelector('.st-hl .fix kbd'), 'no key letters'); assert.ok(R.querySelector('.st-hl .fix.act'));
   // A merge is shown side by side before it is staged: the two tags with their properties lined up.
   const mergeFix = [...R.querySelectorAll('.st-hl .fix')].find(f => text(f).startsWith('merge')); assert.ok(mergeFix, 'a merge to settle'); click(mergeFix);
@@ -227,6 +228,8 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   // The nodes of a tag: Enter on the row, tick with space, the word moves the ticked.
   app.st.cur = id('Consultation'); app.st.view = 'tree'; app.st.trail = []; app.draw(); key(R, 'Enter'); await sleep(30);
   assert.equal(app.st.view, 'nodes'); assert.equal(R.querySelectorAll('.st-nodes .st-ln').length, 20); assert.ok(R.querySelector('.st-nodes .lk-node[data-uuid]'));
+  assert.equal(R.querySelectorAll('.st-nodes .lk-node.lk-bare').length, 20, 'under a head naming the tag, no mark before a name');
+  assert.ok(!R.querySelector('.st-nodes .sum') && !text(R.querySelector('.st-nodes .st-pick')), 'no sentence explains the list; the bar\'s room stays, empty, so a tick moves no row');
   assert.equal(text(R.querySelector('.st-ttl .st-place')), 'Consultation/Medical event/Occurrence'); assert.ok(R.querySelector('.st-nodes .st-ln .lk-day') && R.querySelector('.st-nodes .st-ln .st-bul'), 'a node\'s row: the day in the margin, the bullet');
   key(R, ' '); key(R, 'ArrowDown'); key(R, ' '); click(R.querySelector('[data-do="nmove"]')); assert.ok(text(R.querySelector('.st-prompt .ask')).startsWith('Move 2 ticked nodes under'));
   R.querySelector('[data-pin]').value = 'call'; R.querySelector('[data-pin]').dispatchEvent(new win.Event('input', { bubbles: true })); key(R.querySelector('[data-pin]'), 'Enter');

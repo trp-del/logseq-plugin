@@ -12,7 +12,7 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
 
 // The model.
 let M = Mo.build(raw);
-deq(M.kinds.map(k => k.name), ['Entity', 'Occurrence', 'Phenomenon', 'Information']);
+deq(M.kinds.map(k => k.name), ['Entity', 'Occurrence', 'Phenomena', 'Information']);
 assert.equal(Mo.count(M, id('Consultation')), 90); assert.equal(Mo.count(M, id('Medical event')), 226); assert.equal(Mo.count(M, id('Occurrence')), 732);
 deq(titles(M, Mo.pathOf(M, id('Consultation'))), ['Occurrence', 'Medical event', 'Consultation']);
 assert.equal(Mo.kindOf(M, id('Consultation')), 'O'); assert.equal(Mo.kindOf(M, id('Side effect')), 'P', 'under two parents of one kind is still that kind');

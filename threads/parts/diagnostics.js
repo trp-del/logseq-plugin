@@ -85,7 +85,7 @@ function describeElement(el, depth, lines, blockIds) {
 // A report: the kit's pop-up with the text to copy and one quiet word, Copy (it is copied as it opens, too).
 function showDiagnostics(text) {
   const doc = host();
-  const pop = shared.popup({ doc, cls: 'rf-report', width: 'min(720px, 92vw)', head: 'Report from the Refinements plugin. Copy and paste it into your chat.' });
+  const pop = shared.popup({ doc, cls: 'rf-report', width: 'min(720px, 92vw)', head: 'Report from the plugin. Copy and paste it into your chat.' });
   const area = el(doc, 'textarea', { readonly: true, spellcheck: 'false', 'aria-label': 'The report' });
   area.value = text;
   const hint = note(doc, '');
@@ -601,7 +601,7 @@ const settingsSchema = [
   { key: 'troubleshootHeading', type: 'heading', group: 'tools', rank: 4, title: 'Troubleshooting', default: null,
     legend: 'Run only the foundation, to measure it alone',
     zone: '<div><span class="m">Foundation only</span> · nothing drawn, measured alone</div>',
-    description: 'For finding out what the plugin does and what it costs. The tools themselves are in the command palette under “Refinements: troubleshooting”.' },
+    description: 'For finding out what the plugin does and what it costs. The tools themselves are in the command palette under “Threads: troubleshooting”.' },
   { key: 'foundationOnly', type: 'boolean', title: 'Foundation only', default: false,
     description: 'Runs only the plugin’s foundation: the part that watches Logseq and the part that knows what pages, blocks, tags and days are. Nothing is drawn and no shortcut works; the settings window and the troubleshooting tools stay. For measuring the foundation alone (turn measuring on in the troubleshooting tools). Applies after you reload the plugin.' },
 ];

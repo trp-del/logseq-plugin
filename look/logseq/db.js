@@ -76,8 +76,8 @@ async function pageIndex() {
   }
   const sortByUuid = new Map();
   for (const [u, sorts] of sortsOf) { sorts.delete(null); if (sorts.size === 1) sortByUuid.set(u, [...sorts][0]); }
-  // A tag's own page takes its tag's sort too (Doctor is a kind of thing).
-  for (const [id, tag] of index.byId) if (!sortByUuid.has(tag.uuid) && !/^logseq\.class\//.test(tag.ident)) { const s = sortOfTag(index, id, memo); if (s) sortByUuid.set(tag.uuid, s); }
+  // A tag has no mark (the grammar), even one given a tag of its own.
+  for (const tag of index.byId.values()) sortByUuid.delete(tag.uuid);
   return {
     sortByUuid: uuid => sortByUuid.get(String(uuid || '')) || null,
     sortByName: name => { const u = uuidByName.get(String(name || '').toLowerCase()); return u ? sortByUuid.get(u) || null : null; },

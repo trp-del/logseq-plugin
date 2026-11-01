@@ -71,9 +71,10 @@ const CSS = `.sw-dialog { --sw-quiet: var(--lk-quiet); --sw-faint: var(--lk-fain
 .sw-tick { appearance: none !important; -webkit-appearance: none !important; width: 13px !important; height: 13px !important; margin: 0 !important; align-self: center; border: 1px solid var(--sw-line) !important; border-radius: 3px !important; background: none !important; box-shadow: none !important; color: inherit !important; cursor: pointer; position: relative; }
 .sw-tick:checked { background: none !important; border-color: var(--sw-line) !important; }
 .sw-tick:checked::after { content: ''; position: absolute; left: 3.5px; top: 0.5px; width: 4px; height: 7px; border-right: 1.5px solid var(--lk-text, #222); border-bottom: 1.5px solid var(--lk-text, #222); transform: rotate(45deg); }
-.sw-tick:focus-visible { outline: 1px solid var(--sw-line); outline-offset: 2px; }
-.sw-field { border: 0; border-bottom: 1px solid var(--sw-line); background: none; color: inherit; font: inherit; padding: 1px 2px; min-width: 6em; outline: none; }
-.sw-field:focus { border-bottom-color: currentColor; }
+.sw-tick:focus-visible { outline: none; border-color: currentColor !important; }
+.sw-field { border: 0; border-bottom: 1px solid transparent; background: none; color: inherit; font: inherit; padding: 1px 0; min-width: 6em; outline: none; }
+.sw-field:focus { border-bottom-color: var(--sw-line); outline: none; box-shadow: none; }
+.sw-field::placeholder { color: var(--sw-faint); opacity: 1; }
 .sw-field.sw-wide { width: min(100%, 36em); }
 .sw-choices { display: flex; gap: 14px; flex-wrap: wrap; }
 .sw-choice { all: unset; cursor: pointer; color: var(--sw-faint); }
@@ -95,6 +96,14 @@ const waiting = part => wanted(part) !== started(part);
 const read = item => { const value = logseq.settings?.[item.key]; return typeof value === typeof item.default ? value : item.default; };
 const changed = item => item.type !== 'action' && JSON.stringify(read(item)) !== JSON.stringify(item.default);
 const write = (item, value) => logseq.updateSettings({ [item.key]: value });
+/* A key is shown as plain words and may be typed so ("Cmd Option Enter"); it is kept in Logseq's spelling ("mod+alt+enter"),
+   mod being Cmd on a Mac and Ctrl elsewhere. */
+const MAC = /Mac/.test((typeof navigator !== 'undefined' && navigator.platform) || '');
+const KEY_WORDS = MAC ? { mod: 'Cmd', alt: 'Option', ctrl: 'Ctrl' } : { mod: 'Ctrl', alt: 'Alt', ctrl: 'Ctrl' };
+const SPELLED = { cmd: 'mod', command: 'mod', meta: 'mod', option: 'alt', opt: 'alt', control: MAC ? 'ctrl' : 'mod', ctrl: MAC ? 'ctrl' : 'mod' };
+const capital = word => word.charAt(0).toUpperCase() + word.slice(1);
+const keyWords = keys => String(keys || '').split('+').map(part => part.trim()).filter(Boolean).map(part => KEY_WORDS[part] || capital(part)).join(' ');
+const keySpelling = words => String(words || '').toLowerCase().split(/[\s+]+/).filter(Boolean).map(word => SPELLED[word] || word).join('+');
 
 // A part's rows as sections: a heading opens one, the rows under it follow.
 function sectionsOf(part) {
@@ -132,7 +141,7 @@ function rowHtml(row) {
   if (item.list) return `<div class="sw-row"><span></span><span class="sw-title" title="${about}">${esc(item.title)}</span><span class="sw-value">${listHtml(item, value)}</span></div>`;
   if (item.inputAs === 'textarea') return `<div class="sw-row"><span></span><label class="sw-title" for="sw-${key}" title="${about}">${esc(item.title)}</label><span class="sw-value"><textarea class="sw-css" id="sw-${key}" data-key="${key}" spellcheck="false" placeholder="${esc(item.placeholder || '')}">${esc(value)}</textarea></span></div>`;
   const number = item.type === 'number';
-  return `<div class="sw-row"><span></span><label class="sw-title" for="sw-${key}" title="${about}">${esc(item.title)}</label><span class="sw-value"><input type="${number ? 'number' : 'text'}" class="sw-field${number ? '' : ' sw-wide'}" id="sw-${key}" data-key="${key}" value="${esc(value)}" spellcheck="false" autocomplete="off">${reset}</span>${drawn}</div>`;
+  return `<div class="sw-row"><span></span><label class="sw-title" for="sw-${key}" title="${about}">${esc(item.title)}</label><span class="sw-value"><input type="${number ? 'number' : 'text'}" class="sw-field${number ? '' : ' sw-wide'}" id="sw-${key}" data-key="${key}" value="${esc(item.keys ? keyWords(value) : value)}" placeholder="none" spellcheck="false" autocomplete="off">${reset}</span>${drawn}</div>`;
 }
 const rowsByPart = rows => parts().filter(part => rows.some(row => row.part === part)).map(part => `<div class="sw-part">${esc(part.title)}</div>${rows.filter(row => row.part === part).map(rowHtml).join('')}`).join('');
 
@@ -189,7 +198,7 @@ function onChange(event) {
   if (add) return addWord(el);
   const row = el.dataset.key && byKey(el.dataset.key); if (!row) return;
   const { item } = row;
-  write(item, item.type === 'boolean' ? !!el.checked : item.type === 'number' ? (el.value === '' ? item.default : Number(el.value)) : el.value);
+  write(item, item.type === 'boolean' ? !!el.checked : item.type === 'number' ? (el.value === '' ? item.default : Number(el.value)) : item.keys ? keySpelling(el.value) : el.value);
   later();
 }
 // logseq.settings takes the new value a moment after the write: draw from it then.
@@ -281,5 +290,5 @@ function close() {
   dlg.remove();
 }
 function stop() { close(); try { host().getElementById('sw-style')?.remove(); } catch (error) { /* Logseq's window is gone */ } }
-Door.settings = { open: openWindow, close, stop, REOPEN_KEY, get current() { return open; } };
+Door.settings = { open: openWindow, close, stop, keyWords, keySpelling, REOPEN_KEY, get current() { return open; } };
 })();

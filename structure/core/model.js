@@ -10,7 +10,7 @@ const S = (window.Structure ||= {});
 const KINDS = [
   { key: 'E', name: 'Entity', names: ['entity', 'entities'] },
   { key: 'O', name: 'Occurrence', names: ['occurrence', 'occurrences'] },
-  { key: 'P', name: 'Phenomenon', names: ['phenomenon', 'phenomena'] },
+  { key: 'P', name: 'Phenomena', names: ['phenomenon', 'phenomena'] },
   { key: 'I', name: 'Information', names: ['information', 'interpretation'] },
 ];
 const LOOSE = 'N';   // the row under which tags under no kind are gathered

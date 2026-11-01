@@ -50,7 +50,7 @@ function build(doc, held) {
   // A dot before each tag (two tags are kept apart by a dot, as at the title row), unless it is the first thing after the ↳.
   held.tags.slice(0, MOST).forEach(title => {
     if (parts.length > 1) parts.push(el(doc, 'span', { class: 'lk-sep', 'aria-hidden': 'true' }, '·'));
-    parts.push(el(doc, 'a', { class: 'lk-tag', href: '#', 'data-tag': title, title: `Open ${title} (Shift: in the sidebar)` }, title));
+    parts.push(el(doc, 'a', { class: 'lk-tag', href: '#', 'data-tag': title }, title));
   });
   if (held.due) { if (parts.length > 1) parts.push(el(doc, 'span', { class: 'lk-sep', 'aria-hidden': 'true' }, '·')); parts.push(el(doc, 'span', {}, dueLabel(held.due))); }
   const keep = event => event.stopPropagation();

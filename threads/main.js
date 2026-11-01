@@ -428,7 +428,7 @@ function main() {
     runHooks(hooks.settings, 'settings change', now, before);
     // Logseq rewrites every setting when the plugin starts, so a setting with no earlier value is a
     // default being filled in (first install, or a new setting after an update), not a change.
-    if (RELOAD_SETTINGS.some(key => before && key in before && now?.[key] !== before[key])) notify('Reload the Refinements plugin to apply this change', 'info');
+    if (RELOAD_SETTINGS.some(key => before && key in before && now?.[key] !== before[key])) notify('Reload the plugin to apply this change', 'info');
   }));
 
   registerCommands(running);

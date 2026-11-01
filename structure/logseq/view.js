@@ -43,8 +43,7 @@ const CSS = `
 .st-tray .tl span { color: inherit; }
 .st-tray .tl > span { color: var(--lk-text, #222); }
 .st-tray .tl span i { color: var(--st-quiet); font-style: normal; font-variant-numeric: tabular-nums; margin-left: .35em; }
-.st-tray .tl span u { text-decoration: none; color: var(--st-faint); margin-left: 6px; cursor: pointer; }
-.st-tray .tl span u:hover { color: inherit; }
+.st-tray .tl .lk-x { margin-left: 2px; }
 .st-tray .do { display: flex; gap: 14px; white-space: nowrap; align-items: baseline; }
 .st-tray .do .go { padding: 3px 8px; }
 .st-tray .do .ky { color: var(--st-faint); font-size: 12px; margin-left: 6px; }
@@ -74,7 +73,7 @@ const CSS = `
 .st input.lk-tick[type=checkbox] { appearance: none !important; -webkit-appearance: none !important; position: relative; box-sizing: border-box; width: 13px !important; height: 13px !important; margin: 0 !important; padding: 0; flex: none; border: 1px solid var(--st-line) !important; border-radius: 3px !important; background: none !important; color: inherit !important; vertical-align: -1px; cursor: pointer; outline: none; box-shadow: none !important; }
 .st input.lk-tick[type=checkbox]:checked, .st input.lk-tick[type=checkbox]:focus, .st input.lk-tick[type=checkbox]:hover { background-color: transparent !important; background-image: none !important; border-color: currentColor !important; color: inherit !important; box-shadow: none !important; }
 .st input.lk-tick:checked::before { content: ""; position: absolute; left: 3.5px; top: .5px; width: 3.5px; height: 7px; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg); }
-.st input.lk-tick:focus-visible { outline: 2px solid var(--st-line); outline-offset: 1px; }
+.st input.lk-tick:focus-visible { outline: none; border-color: currentColor !important; }
 /* Every box at the middle of its row's first line, in one straight column whatever the row's depth. */
 .st .st-row > input.lk-tick[type=checkbox] { margin-top: 6.5px !important; margin-left: calc(14.5px - var(--d, 0) * 12px - var(--st-in, 0px)) !important; }
 /* Under a kind a name starts right of the kind's name, past the kind's mark. */
@@ -93,7 +92,6 @@ const CSS = `
 /* Pencilled in (Look's lk-pencil on the name): what a change waiting in the tray touches. */
 /* The pick bar, as the grammar draws it: above the list, how many and what can be done as quiet words, Esc clears. */
 .st-pick { margin: 0 0 8px; min-height: 27px; flex-wrap: nowrap; }
-.st-nodes .sum { min-height: 27px; align-items: center; }
 .st-nodes .st-pick { margin: 0 0 6px; }
 /* The trail, as the grammar draws it: where you came through, each a step back, › between; Escape goes back one step. */
 .st-trail { margin: 0 0 4px; flex-wrap: nowrap; white-space: nowrap; overflow: hidden; }
@@ -315,7 +313,7 @@ function make(holder, mode, app) {
       h += inh.map(x => propLine(id, x.prop, total, x.from)).join('');
     }
     const pa = Mo.pointedAt(m, id);
-    if (pa.length) h += `<h3>Pointed at by</h3>` + pa.map(x => `<div class="st-ln ${waitProp(x.prop)}" data-prop="${x.tag}·${x.prop}">${pi(P(x.prop))}<span class="w"><span class="k lk ${waitProp(x.prop) ? 'lk-pencil' : ''}">${esc(P(x.prop).title)}</span><span class="to">on</span>${tagLink(x.tag)}</span><span class="ct">${x.filled}</span></div>`).join('');
+    if (pa.length) h += `<h3>Points at it</h3>` + pa.map(x => `<div class="st-ln ${waitProp(x.prop)}" data-prop="${x.tag}·${x.prop}">${pi(P(x.prop))}<span class="w"><span class="k lk ${waitProp(x.prop) ? 'lk-pencil' : ''}">${esc(P(x.prop).title)}</span><span class="to">on</span>${tagLink(x.tag)}</span><span class="ct">${x.filled}</span></div>`).join('');
     h += issuesHtml(R.issuesOn(ISS(), id).filter(i => !(i.line && i.line.tag === id)));   // the ones with a line of their own sit on it
     return h + `</div>`;
   }
@@ -415,7 +413,7 @@ function make(holder, mode, app) {
   function healthHtml() {
     const all = ISS(), by = new Map();
     for (const i of all) by.set(i.rule, [...(by.get(i.rule) || []), i]);
-    let h = `<div class="st-card st-hl">${trailHtml()}${titleHtml('', 'Health', [], '')}<div class="sum"><span>${all.length ? `${all.length} thing${all.length === 1 ? '' : 's'} to settle` : 'nothing to settle'}</span><span class="f">a fix first says what it would do; nothing is written until the tray is applied</span></div>`;
+    let h = `<div class="st-card st-hl">${trailHtml()}${titleHtml('', 'Health', [], '')}<div class="sum"><span>${all.length ? `${all.length} thing${all.length === 1 ? '' : 's'} to settle` : 'nothing to settle'}</span></div>`;
     for (const [rule, list] of by) h += `<h3>${esc(rule)}</h3>` + few(rule, list).map(i => issueLine(i, '')).join('') + moreOf(rule, list);
     return h + `</div>`;
   }
@@ -425,10 +423,11 @@ function make(holder, mode, app) {
     if (!t) return `<div class="st-card">${trailHtml()}<div class="st-empty">No nodes to show.</div></div>`;
     const list = n.all ? n.list : n.list.slice(0, 20);
     let h = `<div class="st-card st-nodes lk-list" ${n.ticks.size ? 'data-picking' : ''}>${trailHtml()}${titleHtml('', `${plural(n.list.length, 'node')} of ${esc(t.title)}`, [...Mo.pathOf(M(), n.tag)].reverse(), '')}`;
-    if (!n.ticks.size) h += `<div class="sum"><span>a name opens the node (Shift: in the sidebar); a tick picks</span></div>`;
+    // Nothing ticked: the bar's room stays empty, so a tick moves no row.
+    if (!n.ticks.size) h += `<div class="st-pick"></div>`;
     else h += `<div class="st-pick lk-bar"><b class="lk-said">${n.ticks.size} ticked</b><span class="act lk-btn" data-do="nmove" data-on="${n.tag}">move to another tag…</span><span class="act lk-btn" data-do="nsplit" data-on="${n.tag}">new tag under ${esc(t.title)} with them…</span><span class="esc lk-hint">Esc clears</span></div>`;
     h += cardPrompt();
-    h += list.map((x, i) => `<div class="st-ln ${i === n.cur ? 'cur' : ''}" data-node="${i}"><span class="lk-day">${dayWords(x.day)}</span><input type="checkbox" class="lk-tick" data-ntick="${i}" ${n.ticks.has(x.uuid) ? 'checked' : ''}><span class="st-bul"><i></i></span><span class="w"><span class="lk-node lk" data-uuid="${esc(x.uuid)}" data-open="${esc(x.uuid)}">${esc(x.title.slice(0, 120) || '…')}</span></span></div>`).join('');
+    h += list.map((x, i) => `<div class="st-ln ${i === n.cur ? 'cur' : ''}" data-node="${i}"><span class="lk-day">${dayWords(x.day)}</span><input type="checkbox" class="lk-tick" data-ntick="${i}" ${n.ticks.has(x.uuid) ? 'checked' : ''}><span class="st-bul"><i></i></span><span class="w"><span class="lk-node lk-bare lk" data-uuid="${esc(x.uuid)}" data-open="${esc(x.uuid)}">${esc(x.title.slice(0, 120) || '…')}</span></span></div>`).join('');
     if (!n.all && n.list.length > 20) h += `<div class="more lk-more" data-more>show all ${n.list.length}</div>`;
     return h + `</div>`;
   }
@@ -442,8 +441,8 @@ function make(holder, mode, app) {
     if (!tr.changes.length) return (tr.note ? `<div class="note">${esc(tr.note)}</div>` : '') + done;
     const lines = tr.lines(), n = tr.nodes();
     return `<div class="tl"><span class="q" style="color:var(--st-faint)">${plural(lines.length, 'change')} waiting</span>` +
-      lines.map((c, i) => `<span>${esc(c.text)}<i>${c.nodes ? plural(c.nodes, 'node') : ''}</i><u data-drop="${i}" title="Take this one out">×</u></span>`).join('') +
-      `</div><div class="do"><span class="go lk-accent" data-apply>Apply · one Undo for ${plural(n, 'node')}<span class="ky">⌘ Enter</span></span><span class="lk-btn" data-discard>Discard<span class="ky">⌘ Delete</span></span></div>` + done;
+      lines.map((c, i) => `<span>${esc(c.text)}<i>${c.nodes ? plural(c.nodes, 'node') : ''}</i><span class="lk-x" data-drop="${i}" title="Take this one out">×</span></span>`).join('') +
+      `</div><div class="do"><span class="go lk-accent" data-apply>Apply · one Undo for ${plural(n, 'node')}<span class="ky">Cmd Enter</span></span><span class="lk-btn" data-discard>Discard<span class="ky">Cmd Delete</span></span></div>` + done;
   }
 
   // ---------- the move prompt ----------

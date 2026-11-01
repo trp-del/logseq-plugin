@@ -163,7 +163,8 @@ function onKey(event) {
   // A plain key set in the settings takes it too.
   const extra = setting('linkSuggestKeys');
   if (extra && app.keyMatches(event, extra) && event.target === showing.box && accept(event)) { event.preventDefault(); event.stopImmediatePropagation(); return; }
-  if (event.key === 'Escape') { quiet = { box: showing.box, text: showing.box.value }; clear(); return; }   // Logseq's Escape still leaves the bullet
+  // Escape lets go one step at a time: the grey words alone; the proposals, then Logseq, have the next ones.
+  if (event.key === 'Escape') { quiet = { box: showing.box, text: showing.box.value }; clear(); event.preventDefault(); event.stopImmediatePropagation(); return; }
   if (/^(Arrow|Enter|Home|End|Page)/.test(event.key)) clear();                                            // moving on leaves the words as typed
 }
 
