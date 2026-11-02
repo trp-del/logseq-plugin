@@ -375,7 +375,7 @@ function rowHtml(group, top = null) {
   // mention, under a row already called "Mentioned in"); where the mentions are of several kinds, the kinds stay.
   const daysOnly = isMentions(group) && !kinds && !!when;
   // The number is a count (the grammar: none shown, lk-count); it is there for the words' sake.
-  const leadText = kinds ? `All<span class="lk-count"> ${total}</span>` : `<span class="lk-count">${total}</span> ${esc(plural(tagWord(whole.items[0]?.tag || 'note'), total))}`;
+  const leadText = kinds ? `All ${total}` : `${total} ${esc(plural(tagWord(whole.items[0]?.tag || 'note'), total))}`;   // the number shows on a closed head (the owner, 1 November, the research's rule that a head says what it holds)
   const lead = daysOnly ? '' : kinds ? chip('', leadText, ' rf-tw-lead', true)
     : `<a class="rf-tw-toggle rf-tw-lead" data-key="${esc(key)}" href="#" title="Click to ${open ? 'fold' : 'open'} the list.">${leadText}</a>`;
   const whenHtml = when ? `<a class="rf-tw-toggle rf-tw-when" data-key="${esc(key)}" href="#" title="${WHEN_TIP}. Click to ${open ? 'fold' : 'open'} the list.">${esc(when).replace(/ (?=\d)/g, '&nbsp;')}</a>` : '';
@@ -689,7 +689,9 @@ function placeDays(box) {
       edges.set(root, seen ? seen.getBoundingClientRect().right : r.left + parseFloat(getComputedStyle(root).paddingLeft || '0') - 12);
     }
     const at = line.getBoundingClientRect();
-    day.style.left = `${Math.round(edges.get(root) - day.offsetWidth - at.left)}px`;
+    const left = Math.round(edges.get(root) - day.offsetWidth - at.left);
+    day.style.left = `${left}px`;
+    line.style.setProperty('--rf-tw-day-reach', `${Math.max(0, -left) + 6}px`);   // the row's wash reaches its day in the margin
     day.style.top = `${name.offsetTop}px`;
     day.style.lineHeight = getComputedStyle(name).lineHeight;
   }
@@ -2337,7 +2339,9 @@ const twoWayCss = `
 /* A property's name starts with its icon (0.4.477), hung in the room left of the name so the names stay on one edge
    with the row's own words ("Mentioned in"), which have none. */
 .refinement-two-way .rf-tw-name > .rf-kind { font-size: 15px; width: 15px; justify-content: center; margin-left: -19px; margin-right: 4px; opacity: .5; vertical-align: -1px; }
-.refinement-two-way .rf-tw-name { color: var(--rf-faint); font-size: var(--rf-name, .94em); white-space: nowrap; cursor: default; padding-left: 19px; position: relative; }
+/* The names stand in one column you can scan down, lined up with the page's properties, in the quiet strength; only the head is bold (the owner, 1 November). */
+.refinement-two-way .rf-tw-name { color: var(--rf-quiet); font-size: var(--rf-name, .94em); white-space: nowrap; cursor: default; padding-left: 19px; position: relative; }
+.refinement-two-way .rf-tw-sep { visibility: hidden; }
 .refinement-two-way .rf-tw-value { min-width: 0; padding-left: 22px; display: flex; flex-wrap: wrap; column-gap: 1.1em; row-gap: 4px; position: relative; }
 .refinement-two-way a { color: inherit; text-decoration: none; cursor: pointer; }
 /* The underline under the words, on every line of a name that wraps (0.4.377, the owner: "you can underline the words of a whole
@@ -2523,6 +2527,9 @@ const twoWayCss = `
 .refinement-two-way .rf-tw-linked { padding-left: var(--rf-tw-in); }
 .refinement-two-way .rf-tw-mday { position: absolute; width: var(--rf-ol-day); margin: 0; text-align: right; }
 .refinement-two-way .rf-tw-mday:not([style]) { visibility: hidden; }
+/* A row's wash covers its day, out in the margin, so the two read as one row (the owner, 2 November). */
+.refinement-two-way .rf-ol-line:hover:has(.rf-tw-mday[style])::before { content: ""; position: absolute; top: 0; bottom: 0; left: calc(-1 * var(--rf-tw-day-reach, 0px)); width: var(--rf-tw-day-reach, 0px); background: var(--rf-wash); border-radius: 4px 0 0 4px; pointer-events: none; }
+.refinement-two-way .rf-ol-line:hover:has(.rf-tw-mday[style]) { border-top-left-radius: 0; border-bottom-left-radius: 0; }
 /* A node stepped into keeps the margin for those days, as the rows do (0.4.462). */
 /* always, so nothing moves sideways when a dated line first appears (the reviewer: 64 px) */
 .refinement-two-way .rf-tw-stepbody { padding-left: calc(var(--rf-ol-day) + 16px); }

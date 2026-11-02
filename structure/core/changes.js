@@ -23,7 +23,7 @@ function lasting(M, c) {
 // The sentence in the tray, and how many nodes the change touches.
 function sentence(M, c) {
   switch (c.kind) {
-    case 'move': { const was = parentOf(M, c.tag); return { text: c.to === Mo.LOOSE ? `Take ${name(M, c.tag)} out from under ${was == null ? 'every tag' : name(M, was)}` : `Move ${name(M, c.tag)} from ${was == null ? 'no kind' : name(M, was)} to ${name(M, c.to)}`, nodes: count(M, c.tag) }; }
+    case 'move': { const was = parentOf(M, c.tag); return { text: c.to === Mo.LOOSE ? `${name(M, c.tag)} goes to the top, out from under ${was == null ? 'every tag' : name(M, was)}` : `Move ${name(M, c.tag)} from ${was == null ? 'the top' : name(M, was)} to ${name(M, c.to)}`, nodes: count(M, c.tag) }; }
     case 'takeOut': { const stays = Mo.inherited(M, c.tag, c.from), lost = Mo.inherited(M, c.tag).filter(x => !stays.some(y => y.prop === x.prop)).map(x => prop(M, x.prop).title); return { text: `Take ${name(M, c.tag)} out from under ${name(M, c.from)}${lost.length ? `, no longer inheriting ${list(lost)}` : ''}`, nodes: count(M, c.tag) }; }
     case 'rename': return { text: `Rename ${name(M, c.tag)} to ${c.name}`, nodes: count(M, c.tag) };
     case 'renameProp': return { text: `Rename ${prop(M, c.prop).title} to ${c.name}`, nodes: prop(M, c.prop).on.reduce((s, t) => s + filled(M, t, c.prop), 0) };
@@ -34,7 +34,7 @@ function sentence(M, c) {
     case 'addProp': return { text: c.under != null ? `Add ${prop(M, c.prop).title} to every tag under ${name(M, c.under)}` : `Add ${prop(M, c.prop).title} to ${list(c.tags.map(id => name(M, id)))}`, nodes: (c.under != null ? [c.under] : c.tags).reduce((s, id) => s + count(M, id), 0) };
     case 'dropProp': { const n = filled(M, c.tag, c.prop); return { text: `Drop ${prop(M, c.prop).title} from ${name(M, c.tag)}${n ? `, ${plural(n, 'value')} kept on the nodes` : ''}`, nodes: n }; }
     case 'remove': return { text: [`Remove ${name(M, c.tag)}`, ...losses(tag(M, c.tag))].join(' · '), nodes: count(M, c.tag) };
-    case 'make': return { text: c.under == null ? `Make ${c.name} under no kind` : `Make ${c.name} under ${name(M, c.under)}`, nodes: 0 };
+    case 'make': return { text: c.under == null ? `Make ${c.name} at the top` : `Make ${c.name} under ${name(M, c.under)}`, nodes: 0 };
     case 'keepUnder': return { text: `Keep ${name(M, c.tag)} only under ${name(M, c.parent)}`, nodes: count(M, c.tag) };
     case 'becomeKind': { const lost = Mo.inherited(M, c.tag).map(x => prop(M, x.prop).title); return { text: `Make ${name(M, c.tag)} the kind${c.name === name(M, c.tag) ? '' : ` ${c.name}`}${lost.length ? `, no longer inheriting ${list(lost)}` : ''}`, nodes: count(M, c.tag) }; }
     case 'setRange': { const to = c.to.filter(id => tag(M, id)); return { text: `Set ${prop(M, c.prop).title} to point at ${to.length ? list(to.map(id => name(M, id))) : 'any node'}`, nodes: prop(M, c.prop).on.reduce((s, t) => s + filled(M, t, c.prop), 0) }; }
@@ -148,6 +148,8 @@ function makeTray() {
   tray.discard = () => { tray.changes = []; tray.rebuild(); };
   tray.lines = () => tray.changes.map(c => ({ text: c.text, nodes: c.count }));
   tray.nodes = () => tray.lines().reduce((s, l) => s + l.nodes, 0);
+  // The links the waiting changes reach, and those that would not survive: a plain count before Apply. A merge or a removal turns the links in bullets' words to plain words; nothing else loses one.
+  tray.links = () => { const M = Mo.build(tray.raw || { tags: [], props: [] }), seen = new Set(); let kept = 0, lost = 0; for (const c of tray.changes) for (const id of [c.tag, c.from, c.into, c.to].flat().filter(x => typeof x === 'number' && tag(M, x))) { if (seen.has(id)) continue; seen.add(id); kept += Mo.linksOf(M, id); } for (const c of tray.changes) { const gone = c.kind === 'merge' ? c.from : c.kind === 'remove' ? c.tag : null; if (gone != null && tag(M, gone)) lost += tag(M, gone).links; } return { kept: Math.max(0, kept - lost), lost }; };
   tray.lasting = () => tray.changes.map(c => c.lasting).filter(Boolean);
   // The steps of every change, each computed on the model as it stands before that change (the tray's base, then each
   // change applied in turn), so names and parents are those the writer will find.

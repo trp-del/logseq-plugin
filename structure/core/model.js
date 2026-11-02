@@ -20,10 +20,10 @@ const byTitle = (a, b) => a.title.localeCompare(b.title, undefined, { sensitivit
    choice, range: [tagId] }], nodes: { tagId: [{ id, uuid }] }, holders: { ident: [nodeId] }, pointed: [[ident, tagId, n]],
    newest: { tagId: ms } }. Only the graph's own tags and properties; a parent that is Logseq's Root is left out. */
 function build(raw) {
-  const M = { tags: new Map(), props: new Map(), byIdent: new Map(), kinds: [], loose: [], holders: new Map(), pointed: new Map(), newest: new Map(raw.newest ? Object.entries(raw.newest).map(([k, v]) => [Number(k), v]) : []), memo: new Map(), nextId: -5 };
+  const M = { tags: new Map(), props: new Map(), byIdent: new Map(), kinds: [], loose: [], holders: new Map(), pointed: new Map(), newest: new Map(raw.newest ? Object.entries(raw.newest).map(([k, v]) => [Number(k), v]) : []), memo: new Map(), nextId: -5, roads: (raw.roads || []).map(([from, ident, to, n]) => ({ from, ident, to, n: Number(n) })) };
   for (const p of raw.props || []) M.props.set(p.id, { id: p.id, uuid: p.uuid || '', ident: p.ident, title: p.title, type: p.type || 'default', many: !!p.many, choice: !!p.choice, range: [...(p.range || [])], on: [] });
   for (const p of M.props.values()) M.byIdent.set(p.ident, p);
-  for (const t of raw.tags || []) M.tags.set(t.id, { id: t.id, uuid: t.uuid || '', title: t.title, parents: [...(t.parents || [])], props: [...(t.props || [])].filter(id => M.props.has(id)), kids: [], nodes: new Set((raw.nodes?.[t.id] || []).map(n => typeof n === 'object' ? n.id : n)), nodeUuids: (raw.nodes?.[t.id] || []).map(n => typeof n === 'object' ? n.uuid : null).filter(Boolean), bullets: t.bullets || 0, links: t.links || 0 });
+  for (const t of raw.tags || []) M.tags.set(t.id, { id: t.id, uuid: t.uuid || '', title: t.title, parents: [...(t.parents || [])], props: [...(t.props || [])].filter(id => M.props.has(id)), kids: [], nodes: new Set((raw.nodes?.[t.id] || []).map(n => typeof n === 'object' ? n.id : n)), nodeUuids: (raw.nodes?.[t.id] || []).map(n => typeof n === 'object' ? n.uuid : null).filter(Boolean), bullets: t.bullets || 0, links: t.links || 0, refs: t.refs || 0 });
   for (const t of M.tags.values()) t.parents = t.parents.filter(id => M.tags.has(id) && id !== t.id);
   for (const [ident, ids] of Object.entries(raw.holders || {})) M.holders.set(ident, new Set(ids));
   for (const [ident, tagId, n] of raw.pointed || []) { if (!M.pointed.has(ident)) M.pointed.set(ident, new Map()); M.pointed.get(ident).set(tagId, n); }
@@ -114,6 +114,21 @@ function pointedAt(M, id) {
   for (const p of M.props.values()) if (p.type === 'node' && p.range.includes(id)) for (const on of p.on) out.push({ tag: on, prop: p.id, filled: filled(M, on, p.id) });
   return out.sort((a, b) => b.filled - a.filled);
 }
+// The top of the outline: the kinds a graph has, then every other tag that extends nothing. Any of them can be renamed, replaced or removed.
+const tops = M => [...M.kinds.filter(k => !M.tags.get(k.id)?.missing).map(k => k.id), ...M.loose];
+// A relationship: nodes of one tag hold nodes of another in a property. Counted from the real values, so "Topic: Cancer 12" is twelve nodes.
+const roads = M => {
+  const real = M.roads.filter(r => M.tags.has(r.from) && M.tags.has(r.to) && M.byIdent.has(r.ident)).map(r => ({ ...r, prop: M.byIdent.get(r.ident).id, title: M.byIdent.get(r.ident).title }));
+  // One set up on a tag and not used yet stands with 0, unless nodes already hold a tag beneath the one set up.
+  const set = [];
+  for (const p of M.props.values()) for (const from of p.on) for (const to of p.range) if (M.tags.has(from) && M.tags.has(to) && !real.some(r => r.prop === p.id && r.from === from && under(M, r.to, to))) set.push({ from, ident: p.ident, to, n: 0, prop: p.id, title: p.title });
+  return [...real, ...set];
+};
+// Everything of a tag: its relationships and those of the tags beneath it, since a node of Hospital is a node of Organization too.
+const within = (M, id) => { const seen = new Set(), walk = x => { if (seen.has(x)) return; seen.add(x); (M.tags.get(x)?.kids || []).forEach(walk); }; walk(id); return seen; };
+const roadsOf = (M, id) => { const all = roads(M).sort((a, b) => b.n - a.n), mine = within(M, id); return { out: all.filter(r => mine.has(r.from)), in: all.filter(r => mine.has(r.to) && !mine.has(r.from)) }; };
+// The links that reach a tag's nodes, its tags beneath included: what a change to the tag has to keep.
+const linksOf = (M, id) => { const seen = new Set(), walk = x => { if (seen.has(x)) return 0; seen.add(x); const t = M.tags.get(x); return !t ? 0 : t.refs + t.kids.reduce((s, k) => s + walk(k), 0); }; return walk(id); };
 // What a relation's values are tagged, most common first: the guess for a range Logseq's property does not set.
 const rangeGuess = (M, propId) => { const p = M.props.get(propId); const m = p && M.pointed.get(p.ident); return m ? [...m].filter(([t]) => M.tags.has(t) && !isKind(M, t)).sort((a, b) => b[1] - a[1]) : []; };
 const kindWord = type => ({ date: 'a date', datetime: 'a date', number: 'a number', default: 'words', text: 'words', choice: 'a choice', checkbox: 'yes or no', url: 'a link', node: 'nodes', page: 'nodes' })[type] || 'words';
@@ -129,5 +144,5 @@ function addTag(M, title, parent, id = madeId--) {
 }
 const removeTag = (M, id) => { M.tags.delete(id); for (const t of M.tags.values()) t.parents = t.parents.filter(p => p !== id); for (const p of M.props.values()) p.range = p.range.filter(r => r !== id); link(M); };
 
-S.model = { KINDS, LOOSE, build, link, tag, prop, isKind, parentOf, kids, nodesUnder, count, carrier, pathOf, kindOf, under, depth, inherited, filled, filledOwn, propRows, pointedAt, rangeGuess, kindWord, propKind, titled, addTag, removeTag, byTitle };
+S.model = { tops, roads, roadsOf, within, linksOf, KINDS, LOOSE, build, link, tag, prop, isKind, parentOf, kids, nodesUnder, count, carrier, pathOf, kindOf, under, depth, inherited, filled, filledOwn, propRows, pointedAt, rangeGuess, kindWord, propKind, titled, addTag, removeTag, byTitle };
 })();

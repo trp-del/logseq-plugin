@@ -36,13 +36,21 @@ const app = {
   // A change while Apply or Undo runs would be lost when they end: it is refused, and null says so.
   stage(change) {
     if (app.st.busy) { notify('Wait for this to finish, then try again', 'warning'); return null; }
-    const c = tray.stage(change); tray.note = ''; tray.version = (tray.version || 0) + 1; if (!mounts.onPage()) mounts.openPage(); return c;
+    const c = tray.stage(change); tray.note = ''; tray.version = (tray.version || 0) + 1;
+    const onTag = [...app.views].some(v => v.mode === 'tag');
+    if (!onTag && !mounts.onPage()) mounts.openPage();
+    // By reach: from a tag's page, one change that touches a node or none and Undo puts back whole is written at once; anything wider waits for Apply.
+    if (onTag && tray.changes.length === 1 && c.count <= 1 && !c.lasting) setTimeout(() => app.apply());
+    return c;
   },
   dropChange(i) { if (app.st.busy) return; const up = Mo.parentOf(tray.model, app.st.cur); tray.drop(i); tray.version = (tray.version || 0) + 1; sayLost('it needed the change taken out'); if (!tray.changes.length) say('1 change dropped'); settle(null, up); app.draw(); },
   discard() { if (app.st.busy) return; const n = tray.changes.length, up = Mo.parentOf(tray.model, app.st.cur); tray.discard(); tray.lost = []; tray.version = (tray.version || 0) + 1; if (n) say(`${changesWord(n)} dropped`); settle(null, up); app.draw(); },
   // Cmd-Z: the last thing done, a change still waiting first, else the last Apply, as the arrow.
   takeBack() { if (tray.changes.length) app.dropChange(tray.lines().length - 1); else app.undo(); },
   nextPlace: () => ++placeNumber,
+  // The log of changes: each Apply's lines, kept with the graph's name on this computer, the newest first.
+  logged() { try { return JSON.parse(localStorage.getItem(`structure-log:${app.graph}`) || '[]'); } catch (error) { return []; } },
+  log(graph, lines) { try { const at = Date.now(), all = [...lines.map(l => ({ at, text: l.text, nodes: l.nodes })), ...app.logged()].slice(0, 500); localStorage.setItem(`structure-log:${graph}`, JSON.stringify(all)); } catch (error) { console.error('Structure: the log could not be kept', error); } },
   async apply() {
     if (app.st.busy || !tray.changes.length) return;
     const n = tray.changes.length;
@@ -58,6 +66,7 @@ const app = {
         const here = async () => await S.db.graph() === graph;
         const result = await S.apply.apply(plan, here);
         keepDone(graph, { text: `${changesWord(n)} applied`, undo: result.undo, left: result.left, graph });
+        app.log(graph, tray.lines());
         tray.note = ''; tray.changes = [];
       }
     } catch (error) {
@@ -182,12 +191,36 @@ async function main() {
   logseq.App.registerUIItem('toolbar', { key: 'structure-open', template: '<a class="button" data-on-click="structureOpen" title="Structure: the map of tags and properties"><i class="ti ti-hierarchy"></i></a>' });
   logseq.DB.onChanged(change => graphChanged(change));
   logseq.App.onCurrentGraphChanged(() => otherGraph());
-  logseq.App.onRouteChanged?.(() => { app.followPage(); });
+  logseq.App.onRouteChanged?.(() => { app.followPage(); tagPage(); });
   app.graph = await S.db.graph().catch(() => '');
   await app.reread();
   adopt();
+  tagPage();
+  const doc = host();
+  pageWatch = new doc.defaultView.MutationObserver(() => { if (!tagTimer) tagTimer = setTimeout(() => { tagTimer = 0; tagPage(); }, 150); });
+  pageWatch.observe(doc.querySelector('#main-content-container') || doc.body, { childList: true, subtree: true });
+  stopHash = S.hash.start(app, doc);
 }
-const stop = () => { for (const v of [...app.views]) v.destroy(); host().getElementById('st-style')?.remove(); };
+const stop = () => { pageWatch?.disconnect(); stopHash?.(); for (const v of [...app.views]) v.destroy(); host().querySelectorAll('.st-tagholder').forEach(n => n.remove()); host().getElementById('st-style')?.remove(); };
+/* The lines on a tag's own page: set above Logseq's table, in the page's own column, each time Logseq draws a tag's page. */
+let pageWatch = null, stopHash = null, tagTimer = 0, tagAsking = 0;
+async function tagPage() {
+  const doc = host(), inner = doc.querySelector('#main-content-container .page-inner'), ask = ++tagAsking;
+  const here = inner && (inner.querySelector(':scope > .page-tabs') || inner.querySelector(':scope > .ls-page-blocks'));
+  const had = doc.querySelector('.st-tagholder');
+  if (!here) { had?.remove(); return; }
+  let id = null, prop = null;
+  try { const page = await logseq.Editor.getCurrentPage(); const uuid = String(page?.uuid || ''); id = [...tray.model.tags.values()].find(t => t.uuid === uuid)?.id ?? null; prop = id == null ? [...tray.model.props.values()].find(p => p.uuid === uuid)?.id ?? null : null; } catch (error) { /* no page on screen */ }
+  if (ask !== tagAsking) return;
+  const view = [...app.views].find(v => v.mode === 'tag');
+  if (id == null && prop == null) { view?.destroy(); doc.querySelector('.st-tagholder')?.remove(); return; }
+  if (view?.tag === (id ?? undefined) && view?.prop === (prop ?? undefined) && view.root.isConnected) { if (view.root.parentElement.nextElementSibling !== here) inner.insertBefore(view.root.parentElement, here); return; }
+  view?.destroy(); doc.querySelector('.st-tagholder')?.remove();
+  const holder = doc.createElement('div'); holder.className = 'st-tagholder st-holder-tag';
+  inner.insertBefore(holder, here);
+  if (id != null) app.st.cur = id;
+  app.mounted(S.view.make(holder, 'tag', app, id != null ? { tag: id } : { prop }));
+}
 // A holder Logseq already shows (the map's page or the sidebar panel, left from before a reload of the plugin) gets its drawing.
 function adopt() {
   for (const holder of host().querySelectorAll('.st-holder')) if (!holder.querySelector('.st')) { try { app.mounted(S.view.make(holder, holder.classList.contains('st-holder-side') ? 'side' : 'page', app)); } catch (error) { console.error('Structure: could not draw into a holder', error); } }

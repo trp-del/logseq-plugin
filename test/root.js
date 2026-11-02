@@ -94,7 +94,7 @@ const part = (key, start, stop) => ({ key, title: key, start, stop });
   assert.ok(!files.includes('threads/parts/property-kinds.js') && !/learnSoon|withPageTag/.test(code('threads/parts/shadow-rules.js')), 'Threads keeps no second icon nor the dead rules');
   assert.ok(/propertyNameTips/.test(code('look/logseq/props.js')), 'the tooltip is Look’s');
   // Logseq's help button stands over the corner at the foot of a card: what is written there scrolls clear of it.
-  assert.ok(/\.st-right \{[^}]*padding: 14px 22px 56px/.test(code('structure/logseq/view.js')), 'a card’s foot clears Logseq’s help button');
+  assert.ok(/\.st-right \{[^}]*padding: 0 22px 56px/.test(code('structure/logseq/view.js')), 'a card’s foot clears Logseq’s help button');
   console.log('ok: the start, the stop, a file not loaded, the names, the frame, one place for the shapes');
   process.exit(0);
 })().catch(error => { console.error(error); process.exit(1); });

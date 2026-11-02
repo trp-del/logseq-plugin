@@ -46,8 +46,7 @@ let chromium; try { ({ chromium } = require('playwright')); } catch (error) { co
     return {
       route: location.hash,
       rows: [...document.querySelectorAll('.st-page .st-row[data-row]')].map(r => `${'  '.repeat(Number(r.className.match(/\bd(\d)/)?.[1] || 0))}${text(r.querySelector('.nm'))} ${text(r.querySelector('.ct'))}${r.querySelector('.iss.own') ? ' !' : r.querySelector('.iss.on') ? ' ·' : ''}`),
-      card: { title: text(document.querySelector('.st-card h2') || document.createElement('i')), path: text(document.querySelector('.st-card .path') || document.createElement('i')), sum: text(document.querySelector('.st-card .sum') || document.createElement('i')),
-        lines: [...document.querySelectorAll('.st-card .st-ln')].map(text) },
+      focus: text(document.querySelector('.st-focus') || document.createElement('i')), lines: document.querySelectorAll('.st-lines path').length,
       tray: text(document.querySelector('.st-tray') || document.createElement('i')),
       issues: window.frames.length,
       lookRuns: !!document.getElementById('look-shared') || [...document.querySelectorAll('style')].some(s => s.textContent.includes('.lk-tag')),

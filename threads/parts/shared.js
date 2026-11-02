@@ -1124,7 +1124,7 @@ const kitCss = `/* The kit (parts/shared.js, 0.4.311; docs/LAYERS.md section 3):
    quiet line and the help paragraph. No colour of the plugin's own: Logseq's pop-up colours (--popover and its
    partner) and four greys mixed from the text colour. Logseq's own icon font (.ti) draws every icon. */
 :root { --rf-fg: hsl(var(--popover-foreground, 0 0% 9%)); --rf-bg: hsl(var(--popover, 0 0% 100%));
-  --rf-quiet: color-mix(in srgb, currentColor 70%, transparent); --rf-faint: color-mix(in srgb, currentColor 50%, transparent);
+  --rf-quiet: color-mix(in srgb, currentColor 70%, transparent); --rf-faint: color-mix(in srgb, currentColor 70%, transparent);
   --rf-hair: color-mix(in srgb, currentColor 12%, transparent); --rf-line: color-mix(in srgb, currentColor 26%, transparent);
   --rf-wash: color-mix(in srgb, currentColor 7%, transparent); --rf-focus: color-mix(in srgb, currentColor 3%, transparent); --rf-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 /* The pop-up: Logseq's own [[ menu look (6px corners, its light shadow, 14px rows), in the top layer, placed by the
@@ -1250,7 +1250,7 @@ a.rf-tag:hover { opacity: 1; }
 .rf-chev-room { flex: none; display: inline-block; width: 16px; }
 /* THE outline: lines, what opens under them, the focus. --rf-ol-day is the days' column (a list with a day of another year sets it wider), --rf-ol-name the property names'
    column, one width at every depth so the names of nodes at one depth line up. */
-.rf-ol { --rf-ol-day: 48px; --rf-ol-name: 10em; --rf-ol-gap: 6px; font-size: 14px; line-height: 1.5; }
+.rf-ol { --rf-ol-day: 48px; --rf-ol-name: 12em; --rf-ol-gap: 6px; font-size: 14px; line-height: 1.5; }
 .rf-ol-line { position: relative; display: flex; align-items: baseline; gap: var(--rf-ol-gap); min-height: 28px; box-sizing: border-box; padding: 3px 4px; margin-left: -4px; border-radius: 4px; }
 .rf-ol-line:hover { background: var(--rf-wash); }
 .rf-ol-line > .rf-chev, .rf-ol-pv > .rf-chev { align-self: flex-start; top: 0; height: 1.5em; }
@@ -1276,7 +1276,7 @@ a.rf-tag:hover { opacity: 1; }
 .rf-ol-unroll > .rf-ol-in { animation: rf-unroll-in .18s ease-out; }
 .rf-ol-unit { margin: 0 -6px; padding: 0 6px; border-radius: 6px; transition: background-color .16s ease; }
 .rf-ol-unit.rf-ol-focus { background: var(--rf-focus); }
-.rf-ol-prop > .rf-ol-pname { flex: none; width: var(--rf-ol-name); display: inline-flex; gap: 6px; align-items: baseline; color: var(--rf-quiet); overflow-wrap: anywhere; }
+.rf-ol-prop > .rf-ol-pname { flex: none; box-sizing: border-box; width: var(--rf-ol-name); padding-right: calc(16px + var(--rf-ol-gap)); display: inline-flex; gap: 6px; align-items: baseline; color: var(--rf-quiet); overflow-wrap: anywhere; }   /* the padding is the room of the fold arrow that overhangs from the value (.rf-ol-pv > .rf-chev): a long name wraps before it */
 .rf-ol-prop > .rf-ol-pname .rf-kind { font-size: 13px; vertical-align: 0; width: 13px; justify-content: center; flex: none; opacity: .6; } /* as faint as on a page's rows */
 /* A drawn mark sits like a font icon: on the words' line, in their colour (the kit's ICONS, DRAWN). */
 .rf-drawn { display: inline-flex; align-items: center; line-height: 1; }

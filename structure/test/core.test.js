@@ -42,7 +42,8 @@ assert.equal(S.rules.singularOf("Crohn's"), null, 'a possessive is no plural');
 assert.equal(S.rules.singularOf('Consultations'), 'Consultation'); assert.equal(S.rules.singularOf('Studies'), 'Study'); assert.equal(S.rules.singularOf('Diagnosis'), null); assert.equal(S.rules.singularOf('Status'), null); assert.equal(S.rules.singularOf('Process'), null);
 assert.equal(S.rules.issuesOn(I, id('Consultation')).length, 1, 'With, on Consultation'); assert.ok(S.rules.issuesUnder(M, I, id('Occurrence')).length >= 3);
 const loose = Mo.build({ ...raw, tags: raw.tags.map(t => t.title === 'Task' ? { ...t, parents: [] } : t) });
-assert.equal(S.rules.issues(loose).find(i => i.text.startsWith('Task sits under none')).fix, 'put under a kind'); deq(loose.loose.map(i => loose.tags.get(i).title), ['Task']);
+assert.ok(!S.rules.issues(loose).some(i => i.text.startsWith('Task sits under none')));   // a tag at the top is as good as any, since the top is open
+deq(loose.loose.map(i => loose.tags.get(i).title), ['Task']);
 // A kind with no tag, and a tag elsewhere that reads like it: one fix joins them, as one line in the tray.
 const slipped = { ...raw, tags: raw.tags.map(t => t.title === 'Occurrence' ? { ...t, title: 'Occurence', parents: [id('Information')] } : t) };
 const slip = S.rules.issues(Mo.build(slipped)).find(i => i.fix === 'make it the kind');
@@ -118,12 +119,12 @@ const noEntity = { ...raw, tags: raw.tags.filter(t => t.title !== 'Entity').map(
 const tray2 = S.changes.makeTray(); tray2.setBase(noEntity);
 assert.ok(tray2.model.tags.get(tray2.model.kinds[0].id).missing); assert.equal(tray2.model.loose.length, 4, 'Person, Place, Organisation and Medication under no kind');
 tray2.stage({ kind: 'move', tag: id('Person'), to: tray2.model.kinds[0].id });
-assert.equal(tray2.lines()[0].text, 'Move Person from no kind to Entity'); assert.equal(tray2.model.loose.length, 3);
+assert.equal(tray2.lines()[0].text, 'Move Person from the top to Entity'); assert.equal(tray2.model.loose.length, 3);
 plan = tray2.plan(); deq(plan.map(s => s.op), ['makeTag', 'addExtends']); assert.equal(plan[0].tag.title, 'Entity'); assert.strictEqual(plan[1].parent, plan[0].tag);
 // The root: a tag taken out of every kind, a new tag under no kind, a kind renamed.
 tray.discard();
-tray.stage({ kind: 'move', tag: id('Task'), to: Mo.LOOSE }); assert.equal(tray.lines()[0].text, 'Take Task out from under Occurrence'); deq(tray.model.loose, [id('Task')]);
-tray.stage({ kind: 'make', name: 'Scratch', under: null }); assert.equal(tray.lines()[1].text, 'Make Scratch under no kind'); assert.equal(tray.model.loose.length, 2);
+tray.stage({ kind: 'move', tag: id('Task'), to: Mo.LOOSE }); assert.equal(tray.lines()[0].text, 'Task goes to the top, out from under Occurrence'); deq(tray.model.loose, [id('Task')]);
+tray.stage({ kind: 'make', name: 'Scratch', under: null }); assert.equal(tray.lines()[1].text, 'Make Scratch at the top'); assert.equal(tray.model.loose.length, 2);
 tray.stage({ kind: 'rename', tag: id('Phenomenon'), name: 'Phenomena' }); assert.equal(tray.model.tags.get(id('Phenomenon')).title, 'Phenomena');
 plan = tray.plan(); deq(plan.map(s => s.op), ['removeExtends', 'makeTag', 'rename']); assert.equal(plan[0].parent.title, 'Occurrence'); assert.equal(plan[1].parent, null); assert.equal(plan[2].tag.title, 'Phenomenon'); assert.equal(plan[2].name, 'Phenomena');
 tray.discard();
@@ -166,7 +167,7 @@ const lines = S.changes.makeTray();
 lines.setBase({ tags: [{ id: 1, uuid: 'stay', title: 'Stay', parents: [], props: [] }, { id: 2, uuid: 'pa', title: 'Parent', parents: [], props: [] }], props: [{ id: 50, uuid: 'p1', ident: 'user.property/x', title: 'X', type: 'node', range: [] }] });
 const A = lines.stage({ kind: 'make', name: 'A', under: 2 }), B = lines.stage({ kind: 'make', name: 'B', under: 2 }), C = lines.stage({ kind: 'make', name: 'C', under: 2 });
 lines.stage({ kind: 'move', tag: 1, to: B.made });
-lines.drop(0); assert.equal(lines.lines().at(-1).text, 'Move Stay from no kind to B', 'not C: an id stays what it was'); assert.equal(lines.lost.length, 0);
+lines.drop(0); assert.equal(lines.lines().at(-1).text, 'Move Stay from the top to B', 'not C: an id stays what it was'); assert.equal(lines.lost.length, 0);
 lines.stage({ kind: 'make', name: 'Under B', under: B.made }); lines.stage({ kind: 'rename', tag: C.made, name: 'C2' }); lines.stage({ kind: 'setRange', prop: 50, to: [B.made] });
 const drops = lines.lines().findIndex(l => l.text === 'Make B under Parent');
 lines.drop(drops); deq(lines.lines().map(l => l.text), ['Make C under Parent', 'Rename C to C2'], 'what needed B went with it'); deq(lines.lost.map(c => c.kind), ['move', 'make', 'setRange'], 'each said');
@@ -191,4 +192,8 @@ const kept = S.changes.makeTray(); kept.setBase(base([])); kept.done = { text: '
 const noKinds = Mo.build({ tags: [], props: [] }), oneKind = Mo.build({ tags: [{ id: 1, uuid: 'e', title: 'Entity', parents: [], props: [] }], props: [] });
 assert.equal(noKinds.kinds[2].id, oneKind.kinds[2].id);
 console.log('  ok  a tray read again, a failed Apply tried again, the arrow kept');
+{ const M = S.model.build({ tags: [{ id: 1, title: 'Organization' }, { id: 2, title: 'Hospital', parents: [1] }, { id: 3, title: 'Doctor', props: [9] }, { id: 4, title: 'Report' }], props: [{ id: 9, ident: 'p/works', title: 'Works at', type: 'node', range: [1, 4] }], roads: [[3, 'p/works', 2, 9]] });
+  const of = id => S.model.roadsOf(M, id);
+  assert.deepEqual(plain(of(1).in.map(r => [r.from, r.to, r.n])), [[3, 2, 9]], 'a tag answers with the tags beneath it, and a range already used beneath stands no second time');
+  assert.deepEqual(plain(of(4).in.map(r => [r.from, r.to, r.n])), [[3, 4, 0]], 'set up and not used yet stands with 0'); }
 console.log('core: every check passed');

@@ -1,15 +1,10 @@
-/* The screen, as the mockup draws it: the tree on the left (the four kinds on top, your tags under them, each row a
-   name, the nodes under it and a dot when an issue sits on or below it), the card on the right (one path line, the
-   thing's name, what it can take as words, where it sits, what it has, what points at it, its issues), the tray on top of it
-   (the changes waiting, as sentences with the nodes they touch, Apply and Discard, and the last Apply's one Undo). Every property as
-   one sortable list and the Health list open from words on the path line. Nothing a single letter does: letters typed on
-   the tree find a tag, as in any outline; what a thing can take is written on its card and in its right-click menu.
-   Escape walks back the way you came. A fix first says what it would do, with the nodes it touches, and is staged only
-   on a second yes. A change waiting in the tray is pencilled in where it will happen (italic, the dotted line).
-   The same drawing serves the main view and the right sidebar (the tree alone there, with a cursor of its own). It is
-   drawn into Logseq's own document, so the shared stylesheet reaches it: the shared names (lk-row, lk-fold, lk-list, lk-tick,
-   lk-node, lk-undo) sit on what they name and carry no look of their own here; the rest is the mockup's stylesheet on
-   the grammar's tokens (greys mixed from the text colour, hairlines and space instead of boxes). */
+/* Structure's screens, drawn in three places. The page of the whole (mode 'page'): each top-level tag an area, its tags a small
+   outline, the relationships as lines between them, the tray on top. A tag's own page in Logseq (mode 'tag'): five short lines above
+   Logseq's table saying what surrounds the tag, then what Structure suggests. The right sidebar (mode 'side'): the outline alone.
+   Every property, a property's card, a tag's nodes and the log open in the place of the areas. Nothing a single letter does: letters
+   typed on the outline find a tag; what a thing can take is in its right-click menu. A fix first says what it would do, with the nodes
+   it touches, and is staged only on a second yes. A change waiting is pencilled in where it will happen. It is drawn into Logseq's own
+   document, so the shared names (lk-row, lk-fold, lk-list, lk-tick, lk-node, lk-undo) sit on what they name and carry no look here. */
 (function () {
 const S = window.Structure;
 const Mo = S.model, R = S.rules;
@@ -31,25 +26,71 @@ const dayWords = d => d ? day(new Date(Math.floor(d / 10000), Math.floor(d / 100
 const ACT_ICON = { page: 'go', ppage: 'go', rename: 'rename', prename: 'rename', move: 'move', pmove: 'move', new: 'child', addprop: 'plus', addpropall: 'plus', merge: 'merge', remove: 'bin', pullup: 'up', split: 'split', pdrop: 'minus' };
 const fixIcon = word => [[/^(remove|delete)/i, 'bin'], [/^drop/i, 'minus'], [/^(pull|lift)/i, 'up'], [/^(move|place|put)/i, 'move'], [/^merge/i, 'merge'], [/^rename/i, 'rename'], [/^(add|new)/i, 'plus']].find(([re]) => re.test(word))?.[1] || 'tick';
 const CSS = `
-.st { --st-quiet: var(--lk-quiet); --st-faint: var(--lk-faint); --st-hair: var(--lk-hair); --st-line: var(--lk-line); --st-wash: var(--lk-wash);
+.st { --st-quiet: currentColor; --st-faint: var(--lk-faint); --st-hair: var(--lk-hair); --st-line: var(--lk-line); --st-wash: var(--lk-wash);
   --st-ring: color-mix(in srgb, currentColor 11%, transparent); --st-mono: var(--lk-mono);
   color: var(--lk-text, #222); font-size: 14px; line-height: 1.5; outline: none; position: relative; }
 .st * { box-sizing: border-box; }
-.st-page { display: grid; grid-template-columns: 308px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); height: 600px; min-height: 360px; }
+.st-page { display: flex; flex-direction: column; height: 600px; min-height: 360px; }
+.st-top { display: flex; align-items: center; gap: 18px; padding: 0 22px 8px 6px; min-height: 37px; }
+.st-acts { display: flex; align-items: center; gap: 8px; padding: 0 22px 10px 6px; min-height: 38px; }
+.st-acts .lk-said { font-weight: 600; margin-right: 8px; } .st-acts .say { margin-right: 8px; }
+.st-acts .waits { opacity: .45; pointer-events: none; }
+.st-top .st-views, .st-top .st-pick { margin: 0; flex: none; } .st-top .st-pick { gap: 8px; } .st-top .lk-said { margin-right: 8px; } .st-top .st-find { margin: 0; flex: 0 1 200px; min-width: 80px; }
+.st-top .st-new { margin-left: auto; white-space: nowrap; flex: none; }
+/* The areas: one line of columns, a band above them for the lines that cross, gaps wide enough for the lines between neighbours. */
+.st-regions { position: relative; display: flex; gap: 48px; padding: 30px 30px 12px 6px; overflow-x: auto; min-width: 0; }
+.st-area { flex: 1 0 220px; min-width: 220px; max-width: 320px; position: relative; z-index: 1; }
+.st-regions .st-lines { position: absolute; left: 0; top: 0; pointer-events: none; color: var(--lk-text, #222); }
+.st-regions .st-row { grid-template-columns: 14px 14px 12px minmax(0, 1fr) 40px 8px; }
+.st-regions .st-row.kind .nm { font-weight: 600; }
+.st-regions .st-row .nm { overflow-wrap: normal; }
+.st-regions .st-row.cur { font-weight: 600; } .st-regions .st-row.cur::before { display: none; }
+.st-regions .st-prompt { background: var(--lk-paper, #fff); position: relative; z-index: 2; }
+/* The tag you are on, under the areas: its name opens its page; its relationships; what Structure suggests. */
+.st-focus { padding: 16px 6px 24px; border-top: 1px solid var(--st-hair); margin-top: 6px; max-width: 760px; }
+.st-focus .f-h { font-weight: 600; margin-bottom: 8px; }
+.st-rel { display: grid; grid-template-columns: auto auto auto; gap: 3px 14px; justify-content: start; align-items: baseline; font-size: 14px; }
+.st-rel .self { font-weight: 700; color: inherit; } .st-rel .gap { grid-column: 1 / -1; height: 6px; } .st-rel .all { grid-column: 1 / -1; }
+.st-rel .num, .st-lines-t .num { font-variant-numeric: tabular-nums; }
+/* A tag's own page: the lines above Logseq's table. */
+.st-tagholder { min-width: 0; }
+.page-inner:has(> .st-tagholder) .lk-path { display: none; }   /* the Extends line says it */
+.st-tag { font-size: 14px; }
+.st-page .st-tray { padding-left: 6px; }
+.st-tag .st-tray { padding: 0 0 10px; margin-bottom: 12px; }
+.st-lines-t { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 8px 14px; margin: 0; }
+.st-lines-t dt { font-weight: 600; } .st-lines-t dd { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; min-width: 0; }
+.st-lines-t .chev { font-size: 11px; margin-left: 3px; }
+.st-tag .sug { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; padding-top: 12px; }
+.st-tag .st-prompt { margin-left: 118px; }
+.st-lines-t dd.col { display: grid; gap: 3px; justify-items: start; }
+.st-lines-t .ont { display: grid; grid-template-columns: 170px 70px auto; gap: 0 14px; align-items: baseline; }
+.st-lines-t .ont.kid { padding-left: 16px; } .st-lines-t .ont.kid .lk-tag { margin-right: -16px; }
+.st-lines-t .ont .num { font-variant-numeric: tabular-nums; text-align: right; }
+.st-lines-t .ont .acts-r { display: flex; gap: 2px; }
+.st-lines-t .ont { padding-block: 2px; }
+.st-tag .sug { align-items: center; } .st-rel .lk-more { margin-top: 2px; }
+.st-lines-t .rg { display: inline-flex; gap: 4px; align-items: baseline; }
+.st-tag .st-in { max-width: 240px; }
+.st-lines-t .to { margin: 0 .35em; }
+.st-sb { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; font-size: 13.5px; margin: 10px 0 2px; }
+.st-sb .h { font-weight: 600; margin-bottom: 4px; } .st-sb .o { padding-left: calc(var(--d, 0) * 16px); }
+.st-tray .links { font-variant-numeric: tabular-nums; }
+.st-log .ln { display: grid; grid-template-columns: 120px minmax(0, 1fr) 110px; gap: 0 12px; padding: 4px 0; border-bottom: 1px solid var(--st-hair); font-size: 13.5px; }
 .st-left { grid-row: 1 / -1; border-right: 1px solid var(--st-hair); padding: 12px 10px 12px 14px; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
-.st-right { grid-column: 2; grid-row: 2; padding: 14px 22px 56px 26px; min-width: 0; min-height: 0; overflow: auto; container-type: inline-size; }
+.st-right { flex: 1; padding: 0 22px 56px 6px; min-width: 0; min-height: 0; overflow: auto; container-type: inline-size; }
 .st-side .st-left { border: 0; padding: 4px 4px 8px 6px; }
 /* The tray stands on top of the card, where a change is made, above what scrolls, so Apply is always in reach. The card's foot keeps clear of Logseq's help button, which stands over that corner. */
-.st-tray { grid-column: 2; grid-row: 1; border-bottom: 1px solid var(--st-hair); padding: 10px 22px 10px 26px; font-size: 14px; min-width: 0; }
+.st-tray { border-bottom: 1px solid var(--st-hair); padding: 10px 22px 10px 26px; font-size: 14px; min-width: 0; }
 .st-tray:empty { display: none; }
-.st-tray .st-wait { overflow: visible; } .st-tray .st-wait .lk-btn:first-of-type { margin-left: auto; }
-.st-tray .tl { display: grid; gap: 1px; min-width: 0; margin-top: 4px; }
+.st-tray .st-wait { overflow: visible; } .st-tray .st-wait .links + .lk-low, .st-tray .st-wait .links + .lk-accent { margin-left: auto !important; } .st-tray .st-wait { gap: 6px 8px; } 
+.st-tray .tl { display: grid; gap: 1px; min-width: 0; margin-bottom: 8px; }
 /* A line of the tray: the sentence, then in a column of its own how many nodes it affects, so the two are never read as one. */
 .st-tray .tl > span { display: grid; grid-template-columns: minmax(0, 1fr) max-content 16px; gap: 0 12px; align-items: baseline; color: var(--lk-text, #222); font-size: 13.5px; }
 .st-tray .tl span i { color: var(--st-quiet); font-style: normal; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .st-tray .tl .lk-x { justify-self: end; padding: 0 2px; }
 .st-tray .st-wait .lk-accent { padding: 2px 6px; margin: 0 -6px; }
-.st-tray .ky { font-weight: 400; color: var(--st-faint); font-size: 12px; margin-left: 6px; }
+.st-tray .ky { font-weight: 400; font-size: 12px; margin-left: 6px; }
 /* The yes to what Undo cannot put back whole (the library's), under the lines it answers for. */
 /* A count that opens its nodes: what opens has an underline. */
 .st-card .sum .lk-lone { padding: 0; margin: 0; text-decoration: underline; text-decoration-color: var(--st-line, var(--lk-line)); text-underline-offset: 3px; }
@@ -98,7 +139,7 @@ const CSS = `
 .st-row .st-km { width: 10px; height: 10px; color: var(--st-quiet); flex: none; }
 .st-row .nm { min-width: 0; padding: 3px 0; line-height: 20px; overflow-wrap: anywhere; display: flex; gap: 7px; align-items: baseline; }
 .st-row.kind .nm { font-weight: 500; }
-.st-row.dim .nm, .st-row.dim .ct, .st-row.loose .nm { color: var(--st-faint); }
+.st-row.dim .nm, .st-row.dim .ct, .st-row.loose .nm { color: var(--lk-off); }
 .st-row .ct { text-align: right; line-height: 26px; color: var(--st-quiet); font-size: 12.5px; font-variant-numeric: tabular-nums; }
 .st-row .iss { width: 5px; height: 5px; margin-top: 10.5px; border-radius: 50%; background: currentColor; opacity: 0; justify-self: center; }
 .st-row .iss.on { opacity: .35; } .st-row .iss.own { opacity: .7; }
@@ -110,7 +151,7 @@ const CSS = `
 /* Pencilled in (Look's lk-pencil on the name): what a change waiting in the tray touches. */
 /* The pick bar, as the grammar draws it: above the list, how many and what can be done as quiet words, Esc clears. */
 .st-pick { margin: 0 0 8px; min-height: 27px; flex-wrap: nowrap; }
-.st-nodes .st-pick { margin: 0 0 6px; }
+.st-nodes .st-pick { margin: 0 0 6px; min-height: 0; }
 /* The trail, as the grammar draws it: where you came through, each a step back, › between; Escape goes back one step. */
 .st-trail { margin: 0 0 4px; flex-wrap: nowrap; white-space: nowrap; overflow: hidden; }
 .st-trail .lk-step { min-width: 3em; overflow: hidden; text-overflow: ellipsis; }
@@ -165,17 +206,16 @@ const CSS = `
 .st-two .pr.moves, .st-two .pr.shared { color: var(--lk-text, #222); } .st-two .pr.gone { text-decoration: line-through; color: var(--st-faint); } .st-two .pr.new { font-style: italic; }
 .st .q { color: var(--st-quiet); } .st .f { color: var(--st-faint); }
 .st-tbl { font-size: 13.5px; }
-/* The On column gets the room its three names and the count need, taken from Name and Points at, which hold one word each. */
-.st-tbl .hd, .st-tbl .tr { display: grid; grid-template-columns: 16px minmax(96px, .8fr) minmax(0, 2fr) minmax(0, 1fr) 96px; gap: 0 12px; align-items: center; min-height: 26px; padding: 0 4px; border-radius: 3px; }
-.st-tbl .hd { font-size: 12.5px; border-bottom: 1px solid var(--st-hair); margin-bottom: 4px; min-height: 22px; }
+.st-tbl .hd, .st-tbl .tr { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(0, 2fr) minmax(0, 1.4fr) 116px; gap: 0; align-items: center; min-height: 32px; border-bottom: 1px solid var(--st-hair); }
+.st-tbl .hd > *, .st-tbl .tr > * { padding: 4px 12px; min-width: 0; border-left: 1px solid var(--st-hair); } .st-tbl .hd > :first-child, .st-tbl .tr > :first-child { border-left: 0; padding-left: 4px; }
+.st-tbl .hd { font-weight: 600; } .st-tbl .hd .lk-head { cursor: pointer; }
 .st-tbl .tr:hover { background: var(--st-wash); }
-.st-tbl .tr .on { color: var(--st-quiet); }
-.st-tbl .to { color: var(--st-faint); font-size: 12px; margin: 0 4px; }
-.st-tbl .tr > span:nth-child(2) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.st-tbl .tr > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.st-h { font-size: 14px; font-weight: 600; margin: 22px 0 4px; }
 /* A narrow pane (the right sidebar open): the table keeps its four columns, the tag columns wrapping. */
-@container (max-width: 640px) { .st-tbl .hd, .st-tbl .tr { grid-template-columns: 16px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 72px; gap: 0 8px; } .st-tbl .hd span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .st-ln { grid-template-columns: 16px minmax(0, 1fr) 72px; } }
-.st-tbl .tr .ct { font-variant-numeric: tabular-nums; color: var(--st-quiet); font-size: 12.5px; text-align: right; }
-.st-tbl .tr.low .ct { color: var(--st-faint); }
+@container (max-width: 640px) { .st-tbl .hd, .st-tbl .tr { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 76px; } .st-tbl .hd > *, .st-tbl .tr > * { padding-inline: 8px; } }
+.st-tbl .tr .ct { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.st-tbl .to, .st-lines-t .to { margin: 0 .35em; }
 .st-hl .st-ln { grid-template-columns: minmax(0, 1fr) max-content; }
 /* A node's row: the day in the left margin (the margin is time), the tick, the bullet, the name. */
 .st-nodes .st-ln { grid-template-columns: 46px 14px 16px minmax(0, 1fr); }
@@ -194,9 +234,10 @@ const CSS = `
 .st-prompt .st-row { padding-left: calc(var(--d, 0) * 14px); }
 .st-prompt .st-row.more { color: var(--st-faint); }
 .st-prompt .st-row.off .nm, .st-prompt .st-row.off .ct { color: var(--st-faint); }
-.st-prompt .st-row.lit { background: var(--st-wash); }
+.st-prompt .st-row:hover { background: none; }
+.st-prompt .st-row.lit, .st-prompt .st-row.lit:hover { background: var(--st-wash); }
 .st-empty { color: var(--st-quiet); max-width: 60ch; }
-@media (max-width: 760px) { .st-page { grid-template-columns: 1fr; grid-template-rows: auto auto auto; height: auto; } .st-left { grid-row: 1; border-right: 0; border-bottom: 1px solid var(--st-hair); } .st-tray { grid-column: 1; grid-row: 2; } .st-right { grid-column: 1; grid-row: 3; } }`;
+@media (max-width: 760px) { .st-page { height: auto; } }`;
 
 function ensureStyle(doc) {
   let sheet = doc.getElementById('st-style');
@@ -208,19 +249,19 @@ function ensureStyle(doc) {
    app holds the state every view shares (logseq/main.js): the tray with its model, the cursor, what is open and ticked,
    the trail. The sidebar's tree has a cursor and a find box of its own (app.st.side), so reading a page's tag there
    never moves the main view. */
-function make(holder, mode, app) {
+function make(holder, mode, app, opts = {}) {
   const doc = holder.ownerDocument;
   ensureStyle(doc);
   const st = app.st;
   const loc = mode === 'side' ? st.side : st;   // the cursor and the find text this view uses
   const root = doc.createElement('div');
-  root.className = `st ${mode === 'side' ? 'st-side' : 'st-page'}`;
+  root.className = `st ${mode === 'side' ? 'st-side' : mode === 'tag' ? 'st-tag' : 'st-page'}`;
   root.tabIndex = 0;
   holder.appendChild(root);
   const M = () => app.tray.model;
   const T = id => M().tags.get(id);
   const P = id => M().props.get(id);
-  const name = id => id === LOOSE ? 'Not under a kind' : T(id)?.title ?? '';
+  const name = id => id === LOOSE ? 'The top' : T(id)?.title ?? '';
   const ISS = () => app.issues();
   const own = id => R.issuesOn(ISS(), id).length, below = id => R.issuesUnder(M(), ISS(), id).length;
   const touched = () => app.touched();
@@ -230,18 +271,18 @@ function make(holder, mode, app) {
   // ---------- the tree ----------
   function visibleRows() {
     const m = M(), rows = [];
-    const tops = [...m.kinds.map(k => k.id), LOOSE];   // the root row always: where a new root tag is made, where a tag is dropped out of every kind
+    const tops = Mo.tops(m);
     const q = loc.find.trim().toLowerCase();
     if (q) {
       const hit = new Set([...m.tags.values()].filter(t => !t.missing && t.title.toLowerCase().includes(q)).map(t => t.id));
       const show = new Set();
-      for (const h of hit) { for (const a of Mo.pathOf(m, h)) show.add(a); if (!Mo.kindOf(m, h) && !T(h).parents.length) show.add(LOOSE); }
+      for (const h of hit) { for (const a of Mo.pathOf(m, h)) show.add(a); }
       const walk = (n, d) => { if (!show.has(n)) return; rows.push({ n, d, dim: !hit.has(n), open: true, kids: Mo.kids(m, n).length }); for (const k of Mo.kids(m, n)) walk(k, d + 1); };
       tops.forEach(k => walk(k, 0));
       return rows;
     }
-    for (const top of tops) if (!st.seen.has(top)) { st.seen.add(top); st.open.add(top); }   // a kind starts open, and folds like any row
-    const walk = (n, d) => { const kids = Mo.kids(m, n); const open = st.open.has(n); rows.push({ n, d, open, kids: kids.length }); if (open) kids.forEach(k => walk(k, d + 1)); };
+    const walk = (n, d) => { if (d < 2 && !st.seen.has(n)) { st.seen.add(n); st.open.add(n); }   // the first two levels start open, and fold like any row
+      const kids = Mo.kids(m, n); const open = st.open.has(n); rows.push({ n, d, open, kids: kids.length }); if (open) kids.forEach(k => walk(k, d + 1)); };
     tops.forEach(k => walk(k, 0));
     return rows;
   }
@@ -253,7 +294,7 @@ function make(holder, mode, app) {
     const editing = st.edit && st.edit.what === 'rename' && st.edit.on === r.n;
     const nm = editing ? `<input class="st-in" data-edit value="${esc(st.edit.text)}" autocomplete="off" spellcheck="false">` : esc(name(r.n));
     const canDrag = t && !t.kind && !t.missing && !editing;
-    let h = `<div class="st-row lk-row ${isKind ? 'kind' : ''} ${r.n === LOOSE ? 'loose' : ''} ${r.dim ? 'dim' : ''} ${t?.missing ? 'dim' : ''} ${loc.cur === r.n ? 'cur' : ''} ${waitTag(r.n)}" style="--d:${r.d}" data-row="${esc(r.n)}" ${canDrag ? 'draggable="true"' : ''}>` +
+    let h = `<div class="st-row lk-row ${isKind ? 'kind' : ''} ${r.n === LOOSE ? 'loose' : ''} ${r.dim || (st.aim && !aimOk(r.n)) ? 'dim' : ''} ${t?.missing ? 'dim' : ''} ${loc.cur === r.n ? 'cur' : ''} ${waitTag(r.n)}" style="--d:${r.d}" data-row="${esc(r.n)}" ${canDrag ? 'draggable="true"' : ''}>` +
       (side ? '' : `<input type="checkbox" class="lk-tick" data-tick="${esc(r.n)}" ${st.ticks.has(r.n) ? 'checked' : ''} ${isKind || r.n === LOOSE ? 'disabled style="visibility:hidden"' : ''}>`) +
       arrow + bullet +
       `<span class="nm">${isKind && t?.kind ? km(t.kind) : ''}<span class="${waitTag(r.n) ? 'lk-pencil' : ''}">${nm}</span></span><span class="ct">${Mo.count(M(), r.n) || ''}</span><span class="iss ${o ? 'own' : b ? 'on' : ''}"></span></div>`;
@@ -264,16 +305,78 @@ function make(holder, mode, app) {
   function treeHtml() {
     const rows = visibleRows();
     promptDrawn = false;
-    const picked = mode === 'page' && st.ticks.size ? `<div class="st-pick lk-bar"><b class="lk-said">${st.ticks.size} ticked</b><span class="act lk-btn lk-i-move" data-do="move" data-on="${esc(st.cur)}">move under…</span></div>` : '';
-    const n = ISS().length, v = st.view === 'health' ? 'health' : st.view === 'table' ? 'table' : 'tree';
-    // Ticks take the place of the three words, so the rows stay where they were; what merges them stands on the card beside it.
-    const views = mode === 'side' ? '' : picked || `<div class="st-views lk-views">${[['tree', 'tags'], ['table', 'every property'], ['health', `health${n ? ` · ${n}` : ''}`]].map(([k, w]) => `<span class="lk-view ${v === k ? 'here on' : 'act'}" ${v === k ? '' : `data-show="${k}"`}>${w}</span>`).join('')}</div>`;
+    const views = '';
     return `<div class="st-left">${views}<div class="st-find"><input data-find placeholder="find a tag…" value="${esc(loc.find)}" autocomplete="off" spellcheck="false"><span class="n">${loc.find.trim() ? rows.filter(r => !r.dim).length : ''}</span></div>` +
       `<div class="st-tree lk-list" ${st.ticks.size ? 'data-picking' : ''}>${rows.map(rowHtml).join('')}</div></div>`;
   }
 
+  // ---------- the whole: the areas ----------
+  function topHtml() {
+    const v = ['table', 'log'].includes(st.view) ? st.view : 'tree';
+    const views = `<div class="st-views lk-views">${[['tree', 'Regions'], ['table', 'Every property'], ['log', 'Log']].map(([k, w]) => `<span class="lk-view ${v === k ? 'here on' : 'act'}" ${v === k ? '' : `data-show="${k}"`}>${w}</span>`).join('')}</div>`;
+    return `<div class="st-top">${views}<div class="st-find"><input data-find placeholder="Find a tag" value="${esc(loc.find)}" autocomplete="off" spellcheck="false"></div><span class="st-new act lk-add lk-i-plus" data-do="new" data-on="${LOOSE}">New top-level tag</span></div>${st.view === 'tree' ? actsHtml() : ''}`;
+  }
+  // What can be done stays in view, faint until it can be (the research: what you can do is recognised, not remembered), so nothing moves when a tag is picked.
+  function actsHtml() {
+    const aim = st.aim, names = aim && (aim.tags.length > 3 ? `${aim.tags.length} tags` : R.list(aim.tags.map(name)));
+    if (aim) return `<div class="st-acts lk-bar"><b class="lk-said">${aim.what === 'move' ? `Move ${esc(names)} to` : `Merge ${esc(names)} into`}: press a tag</b><span class="act lk-btn lk-low lk-i-x" data-aimoff>Leave it</span>${aim.what === 'move' ? '<span class="act lk-btn lk-i-up" data-aimtop>To the top</span>' : ''}</div>`;
+    const n = st.ticks.size;
+    return `<div class="st-acts lk-bar">${n ? `<b class="lk-said">${n} picked</b>` : '<span class="say">Pick tags to move or merge</span>'}<span class="act lk-btn lk-i-move ${n ? '' : 'waits'}" data-aim="move">Move to…</span><span class="act lk-btn lk-i-merge ${n > 1 ? '' : 'waits'}" data-aim="merge">Merge into…</span></div>`;
+  }
+  function regionsHtml() {
+    promptDrawn = false;
+    const areas = [];
+    for (const r of visibleRows()) { if (!r.d) areas.push([]); areas[areas.length - 1]?.push(r); }
+    const asking = st.edit && st.edit.owner === mode && (st.edit.what === 'kids' || st.edit.on === LOOSE);
+    const edit = asking ? `<div class="st-area"><div class="st-row lk-row kind"><span></span><span></span><span></span><span class="nm"><input class="st-in" data-edit value="${esc(st.edit.text)}" placeholder="${st.edit.what === 'kids' ? `The first child tags of ${esc(name(st.edit.on))}, with commas` : 'Name of the new top-level tag'}" autocomplete="off" spellcheck="false"></span></div></div>` : '';
+    return `<div class="st-regions lk-list" ${st.ticks.size ? 'data-picking' : ''}><svg class="st-lines" aria-hidden="true"></svg>${areas.map(a => `<div class="st-area">${a.map(rowHtml).join('')}</div>`).join('')}${edit}</div>${st.aim ? '' : focusHtml(st.cur)}`;
+  }
+  // The relationships of a tag, read left to right: the tag that holds the property, the property and what it holds, how many nodes.
+  const relWord = (id, t) => `<span class="lk-tag ${id === t ? 'self' : ''}" data-go="${esc(id)}">${esc(name(id))}</span>`;
+  const relProp = (r, t) => `<span><span class="lk" data-open="${esc(P(r.prop)?.uuid || '')}">${esc(r.title)}</span>: ${relWord(r.to, t)}</span>`;
+  const relLine = (r, t) => `${relWord(r.from, t)}${relProp(r, t)}<span class="num">${r.n}</span>`;
+  function relsHtml(id) {
+    const { out, in: inn } = Mo.roadsOf(M(), id), key = `rels${id}`;
+    const part = (list, k) => { const shown = st.whole.has(key + k) ? list : list.slice(0, 3); return shown.map(r => relLine(r, id)).join('') + (shown.length < list.length ? `<span class="all lk-more" data-all="${key + k}">and ${list.length - shown.length} more</span>` : ''); };
+    if (!out.length && !inn.length) return '<span>No relationships yet</span>';
+    return `<div class="st-rel">${part(out, 'o')}${out.length && inn.length ? '<span class="gap"></span>' : ''}${part(inn, 'i')}</div>`;
+  }
+  function focusHtml(id) {
+    const t = T(id); if (!t) return '';
+    return `<div class="st-focus"><div class="f-h"><span class="lk" data-go="${esc(id)}">${esc(t.title)}</span></div>${relsHtml(id)}${mergeAskHtml(id)}${changeAskHtml(id)}${suggestHtml(id)}</div>`;
+  }
+  const suggestHtml = id => R.issuesOn(ISS(), id).map(i => { const n = ISS().indexOf(i); return `<div class="sug"><b>Suggested</b><span>${partsHtml(i.parts)}</span><span class="fix act lk-fix lk-i-${fixIcon(i.fix)}" data-fix="${n}">${esc(fixWord(i.fix))}</span></div>${askHtml(n)}`; }).join('');
+  // ---------- a tag's own page: the lines above Logseq's table ----------
+  function linesHtml(id) {
+    const t = T(id); if (!t) return '';
+    const up = Mo.pathOf(M(), id).slice(0, -1).reverse(), kids = Mo.kids(M(), id), beside = up.length ? Mo.kids(M(), up[0]).filter(k => k !== id) : [];
+    const adding = st.edit?.what === 'new' && st.edit.on === id && st.edit.owner === mode;
+    const extendsWord = `<span class="act lk-pick" data-do="move" data-on="${id}">${up.length ? up.map(tagLink).join('<span class="to"> / </span>') : 'Nothing'}<span class="chev">⌄</span></span>`;
+    return `<dl class="st-lines-t"><dt>Extends</dt><dd>${t.kind && !up.length ? 'Nothing' : extendsWord}</dd>${beside.length ? `<dt>Beside</dt><dd><span>${ranges(beside)}</span></dd>` : ''}` +
+      `<dt>Child tags</dt><dd>${kids.length ? `<span>${ranges(kids)}</span>` : ''}${adding ? `<input class="st-in" data-edit value="${esc(st.edit.text)}" placeholder="Name of the child tag" autocomplete="off" spellcheck="false">` : `<span class="act lk-add lk-i-child" data-do="new" data-on="${id}">Add child tag</span>`}</dd>` +
+      `<dt>Relationships</dt><dd>${relsHtml(id)}</dd></dl>${cardPrompt()}${mergeAskHtml(id)}${changeAskHtml(id)}${suggestHtml(id)}`;
+  }
+  // A property's own page: the same short lines above what Logseq shows. Each action sits on what it acts on.
+  function propLinesHtml(pid) {
+    const m = M(), p = P(pid); if (!p) return '';
+    const on = [...p.on].sort((a, b) => Mo.count(m, b) - Mo.count(m, a));
+    const onRow = id => { const key = `${id}·${pid}`, t = T(id), kids = Mo.kids(m, id), fx = { word: '', ask: '' };
+      return `<div class="ont" data-prop="${key}">${tagLink(id)}<span class="num">${Mo.filled(m, id, pid)} of ${Mo.count(m, id)}</span><span class="acts-r"><span class="act lk-btn lk-low lk-i-move" data-do="pmove" data-on="${key}">Move to…</span>${(p.choice || p.type === 'node') && t?.nodes.size ? `<span class="act lk-btn lk-low lk-i-split" data-do="split" data-on="${key}">Split…</span>` : ''}<span class="act lk-btn lk-low lk-del lk-i-minus" data-do="pdrop" data-on="${key}" title="Delete property from tag">Delete</span></span></div>` +
+        kids.map(k => { const lf = lineFix(id, pid, k); return `<div class="ont kid">${tagLink(k)}<span class="num">${Mo.filled(m, k, pid)} of ${Mo.count(m, k)}</span><span class="acts-r">${lf.word}</span></div>${lf.ask}`; }).join(''); };
+    const cutAt = st.whole.has(`range${pid}`) ? p.range.length : 3, nodeTags = p.range.slice(0, cutAt).map(id => `<span class="rg">${tagLink(id)}<span class="lk-x" data-unrange="${id}" title="Take ${esc(name(id))} out">×</span></span>`).join('') + (p.range.length > cutAt ? `<span class="lk-more" data-all="range${pid}">and ${p.range.length - cutAt} more</span>` : '');
+    const rels = Mo.roads(m).filter(r => r.prop === pid).sort((a, b) => b.n - a.n), key = `prop${pid}`, shown = st.whole.has(key) ? rels : rels.slice(0, 6);
+    return `<dl class="st-lines-t"><dt>Property type</dt><dd>${esc(Mo.kindWord(p.choice ? 'choice' : p.type))}${p.many ? ', several values' : ''}</dd>` +
+      (p.type === 'node' ? `<dt>Node tags</dt><dd>${nodeTags}<span class="act lk-add lk-i-plus" data-addrange="0·${pid}">Specify node tags…</span></dd>` : '') +
+      `<dt>On tags</dt><dd class="col">${on.map(onRow).join('')}${on.length ? '' : `<span>${plural(m.holders.get(p.ident)?.size || 0, 'node')}, on no tag</span>`}<span class="act lk-add lk-i-plus" data-do="pmove" data-on="0·${pid}">Put on a tag…</span></dd>` +
+      (p.type === 'node' ? `<dt>Relationships</dt><dd>${rels.length ? `<div class="st-rel">${shown.map(r => `${relWord(r.from)}${relProp(r)}<span class="num">${r.n}</span>`).join('')}${shown.length < rels.length ? `<span class="all lk-more" data-all="${key}">and ${rels.length - shown.length} more</span>` : ''}</div>` : '<span>No relationships yet</span>'}</dd>` : '') + `</dl>${cardPrompt()}` +
+      R.issuesOfProp(ISS(), pid).filter(i => !(i.line && i.line.kid != null)).map(i => { const n = ISS().indexOf(i); return `<div class="sug"><b>Suggested</b><span>${partsHtml(i.parts)}</span><span class="fix act lk-fix lk-i-${fixIcon(i.fix)}" data-fix="${n}">${esc(fixWord(i.fix))}</span></div>${askHtml(n)}`; }).join('');
+  }
+  function logHtml() {
+    const all = app.logged();
+    return `<div class="st-log">${all.length ? all.map(x => `<div class="ln"><span>${esc(new Date(x.at).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }))}</span><span>${esc(x.text)}</span><span>${x.nodes ? plural(x.nodes, 'node') : ''}</span></div>`).join('') : '<div class="st-empty">Nothing has been changed yet.</div>'}</div>`;
+  }
   // ---------- the top line of every content: the path, ending on the thing itself; where to go back; the two lists ----------
-  const placeName = p => p.view === 'table' ? 'every property' : p.view === 'health' ? 'Health' : p.view === 'nodes' ? `the nodes of ${name(p.nodes?.tag)}` : p.propCur ? P(Number(p.propCur.split('·')[1]))?.title ?? '' : name(p.cur);
+  const placeName = p => p.view === 'table' ? 'Every property' : p.view === 'log' ? 'Log' : p.view === 'nodes' ? `the nodes of ${name(p.nodes?.tag)}` : p.propCur ? P(Number(p.propCur.split('·')[1]))?.title ?? '' : name(p.cur);
   // The trail (the grammar's): the places you came through, each a step back (a click goes back to it). It ends with ›:
   // the title under it is where you are, so the name is not said twice (the owner, 31 October 2026, on a property's card).
   // One line in one place: the last few places, the ones before them a faint "…".
@@ -293,55 +396,16 @@ function make(holder, mode, app) {
   // A range of many tags (Topic, on purpose, takes fifteen): the first three, then how many more; the property's card lists them all.
   const ranges = ids => ids.slice(0, 3).map(tagLink).join('<span class="to">·</span>') + (ids.length > 3 ? `<span class="to">and ${ids.length - 3} more</span>` : '');
   // An issue that belongs to a line puts its fix word at the line's right end, after the faint count, with its ask under the line.
-  const lineFix = (tagId, pid, kid) => { const i = R.issueOnLine(ISS(), tagId, pid, kid); return i ? { cls: 'fx', word: `<span class="fix act lk-fix lk-i-${fixIcon(i.fix)}" data-fix="${ISS().indexOf(i)}">${esc(i.fix)}</span>`, ask: askHtml(ISS().indexOf(i)) } : { cls: '', word: '', ask: '' }; };
+  const lineFix = (tagId, pid, kid) => { const i = R.issueOnLine(ISS(), tagId, pid, kid); return i ? { cls: 'fx', word: `<span class="fix act lk-fix lk-i-${fixIcon(i.fix)}" data-fix="${ISS().indexOf(i)}">${esc(fixWord(i.fix))}</span>`, ask: askHtml(ISS().indexOf(i)) } : { cls: '', word: '', ask: '' }; };
   function propLine(tagId, pid, of, inh) {
     const p = P(pid), f = Mo.filled(M(), tagId, pid), low = of && f / of < .2;
     const editing = st.edit && st.edit.what === 'prename' && st.edit.on === `${tagId}·${pid}`;
     const fx = inh ? { cls: '', word: '', ask: '' } : lineFix(tagId, pid);
     return `<div class="st-ln ${inh ? 'inh' : ''} ${low ? 'low' : ''} ${fx.cls} ${waitProp(pid)}" data-prop="${tagId}·${pid}">${pi(p)}<span class="w">` +
       (editing ? `<input class="st-in" data-edit value="${esc(st.edit.text)}" autocomplete="off" spellcheck="false">` : `<span class="k lk ${waitProp(pid) ? 'lk-pencil' : ''}">${esc(p.title)}</span>`) +
-      (p.type === 'node' ? `<span class="to">points at</span>${p.range.length ? ranges(p.range) : '<span class="to">any node</span>'}` : '') +
+      (p.type === 'node' ? `<span class="to">Node tags</span>${p.range.length ? ranges(p.range) : '<span class="to">any node</span>'}` : '') +
       (inh ? `<span class="to">inherited from ${esc(name(inh))}</span>` : '') +
       `</span><span class="ct">${f} of ${of}</span>${fx.word}</div>${fx.ask}`;
-  }
-  function cardTag(id) {
-    const m = M(), t = T(id);
-    if (id === LOOSE) return cardLoose();
-    if (!t) return `<div class="st-card">${trailHtml()}<div class="st-empty">Pick a tag on the left.</div></div>`;
-    const path = Mo.pathOf(m, id), total = Mo.count(m, id), kids = Mo.kids(m, id), kind = Mo.kindOf(m, id);
-    let h = `<div class="st-card">` + trailHtml() + titleHtml(km(kind), esc(t.title), path.slice(0, -1).reverse(), waitTag(id));
-    const newest = m.newest.get(id);
-    h += `<div class="sum"><span class="${total ? 'lk-lone' : ''}" ${total ? `data-nodes="${id}"` : ''}>${plural(total, 'node')}${t.nodes.size && kids.length ? `, ${t.nodes.size} carrying the tag itself` : ''}</span>${kids.length ? `<span>${plural(kids.length, 'tag')} under it</span>` : ''}` +
-      (t.parents.length > 1 ? `<span>also under ${t.parents.slice(1).map(tagLink).join(', ')}</span>` : '') +
-      (!path.slice(0, -1).length && !t.kind ? `<span>under no kind</span>` : '') +
-      `${newest ? `<span>newest ${day(newest)}</span>` : ''}${t.missing ? `<span>no tag of this name in the graph yet; one is made when something is moved under it</span>` : ''}</div>`;
-    // What it can take, as words. A kind takes less; a missing kind only a new tag.
-    const ticked = [...st.ticks].filter(x => x !== id && T(x));
-    const go = t.uuid && ['go to this tag', 'page'];
-    // While a question stands on this card it is what the card is for: the words give way to it.
-    const asked = st.ask?.merges && st.ask.into === id || changeAsk()?.tag === id;
-    if (!asked) h += acts(id, t.kind ? [go, !t.missing && ['rename', 'rename'], ['new tag inside', 'new'], ['add a property to all beneath…', 'addpropall']]
-      : [go, ['rename', 'rename'], ['move under…', 'move'], ['new tag inside', 'new'], ['add a property…', 'addprop'], kids.length && ['add a property to all beneath…', 'addpropall'],
-        ticked.length && [`merge the ${ticked.length === 1 ? 'ticked tag' : ticked.length + ' ticked tags'} into this`, 'merge'], !total && !kids.length && ['remove', 'remove']]);
-    h += mergeAskHtml(id) + changeAskHtml(id) + cardPrompt();
-    const inh = Mo.inherited(m, id);
-    if (t.props.length || inh.length) {
-      h += `<h3>Has</h3>`;
-      h += [...t.props].sort((a, b) => Mo.filled(m, id, b) - Mo.filled(m, id, a)).map(p => propLine(id, p, total, false)).join('');
-      h += inh.map(x => propLine(id, x.prop, total, x.from)).join('');
-    }
-    const pa = Mo.pointedAt(m, id);
-    if (pa.length) h += `<h3>Points at it</h3>` + pa.map(x => `<div class="st-ln ${waitProp(x.prop)}" data-prop="${x.tag}·${x.prop}">${pi(P(x.prop))}<span class="w"><span class="k lk ${waitProp(x.prop) ? 'lk-pencil' : ''}">${esc(P(x.prop).title)}</span><span class="to">on</span>${tagLink(x.tag)}</span><span class="ct">${x.filled}</span></div>`).join('');
-    h += issuesHtml(R.issuesOn(ISS(), id).filter(i => !(i.line && i.line.tag === id)));   // the ones with a line of their own sit on it
-    return h + `</div>`;
-  }
-  function cardLoose() {
-    const m = M();
-    let h = `<div class="st-card">${trailHtml()}${titleHtml('', 'Not under a kind', [], '')}`;
-    h += `<div class="sum"><span>${m.loose.length ? `${plural(m.loose.length, 'tag')} under none of the four kinds` : 'every tag sits under a kind'}</span></div>`;
-    h += acts(LOOSE, [['new tag here', 'new']]) + cardPrompt();
-    if (m.loose.length) h += `<h3>Tags</h3>` + m.loose.map(id => `<div class="st-ln ${waitTag(id)}"><span></span><span class="w">${tagLink(id)}</span><span class="ct">${Mo.count(m, id) || ''}</span></div>`).join('');
-    return h + `</div>`;
   }
   // An issue: what is wrong, then the fix as a word. Choosing the fix opens one line that says what it would do, with the
   // nodes it touches; only "stage it" puts it in the tray. A fix that needs a choice (which kind, which tag) opens the prompt.
@@ -353,11 +417,12 @@ function make(holder, mode, app) {
     : p.tags ? (p.sep === 'and' && p.tags.length === 2 ? p.tags.map(tagLink).join('<span class="to">and</span>') : ranges(p.tags))
     : p.count != null ? `<span class="nm">${esc(p.count)}</span>`
     : `<span class="to ${/^[,:;]/.test(p.words) ? 'pn' : ''}">${esc(p.words)}</span>`).join(' ').replace(/ (<span class="to pn")/g, '$1');
-  const issueLine = (i, lead) => { const n = ISS().indexOf(i); return `<div class="st-ln iss">${lead}<span class="w">${partsHtml(i.parts)}</span><span class="fix act lk-fix lk-i-${fixIcon(i.fix)}" data-fix="${n}">${esc(i.fix)}</span></div>` + askHtml(n); };
+  const fixWord = w => w.replace(/^drop\b/i, 'Delete property from tag');
+  const issueLine = (i, lead) => { const n = ISS().indexOf(i); return `<div class="st-ln iss">${lead}<span class="w">${partsHtml(i.parts)}</span><span class="fix act lk-fix lk-i-${fixIcon(i.fix)}" data-fix="${n}">${esc(fixWord(i.fix))}</span></div>` + askHtml(n); };
   const issuesHtml = list => !list.length ? '' : `<h3>Issues</h3>` + list.map(i => issueLine(i, '<span></span>')).join('');
   const askLine = (c, last) => {
     const s = S.changes.sentence(M(), c), two = c.kind === 'merge';
-    const words = last ? `<div class="lk-answers"><span class="act lk-accent lk-i-tick lk-enter" data-stage>stage it</span><span class="act lk-btn lk-i-x" data-leave>leave it</span></div>` : '';
+    const words = last ? `<div class="lk-answers"><span class="act lk-accent lk-i-tick lk-enter" data-stage>Stage it</span><span class="act lk-btn lk-low lk-i-x" data-leave>Leave it</span></div>` : '';
     // Each thing once: what it asks; the merge's columns say which tag goes and how many nodes; what no Undo brings back, under them.
     return `<div class="st-q"><div class="h">${esc(two ? s.ask : s.text)}${s.nodes && !two ? ` · ${plural(s.nodes, 'node')}` : ''}</div>${two ? twoHtml(c.from, c.into) : ''}${two && s.lost.length ? `<div class="l">${s.lost.map(esc).join(' · ')}</div>` : ''}${words}</div>`;
   };
@@ -383,41 +448,6 @@ function make(holder, mode, app) {
       `</div>`;
     return `<div class="st-two">${col(from, into, true)}${col(into, from, false)}</div>`;
   }
-  // A property's name at the head of its card; rename writes here.
-  const propTitle = (p, key) => st.edit?.what === 'prename' && st.edit.on === key ? `<input class="st-in" data-edit value="${esc(st.edit.text)}" autocomplete="off" spellcheck="false">` : esc(p.title);
-  const pointsSum = p => `${p.type === 'node' ? `points at ${p.range.length === 1 ? tagLink(p.range[0]) : p.range.length ? plural(p.range.length, 'tag') : 'any node'}` : Mo.kindWord(p.choice ? 'choice' : p.type)}${p.many ? ', several' : ''}`;
-  // What it points at, one tag a row with how many of its values point at that tag's nodes; × takes a tag out, the last line adds one.
-  function pointsList(p, key) {
-    const m = M(), at = m.pointed.get(p.ident) || new Map();
-    return `<h3>Points at</h3>` + p.range.map(id => `<div class="st-ln rng"><span></span><span class="w">${tagLink(id)}<span class="x lk-x" data-unrange="${id}" title="Take ${esc(name(id))} out of what ${esc(p.title)} points at">×</span></span><span class="ct">${at.get(id) ? plural(at.get(id), 'value') : ''}</span></div>`).join('') +
-      `<div class="st-ln add"><span></span><span class="w"><span class="act lk-add lk-i-plus" data-addrange="${key}">${p.range.length ? 'another tag…' : 'a tag…'}</span></span><span class="ct">${[...at].filter(([id]) => !p.range.includes(id) && m.tags.has(id)).length ? `<span class="f">also found: ${[...at].filter(([id]) => !p.range.includes(id) && m.tags.has(id)).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([id, n]) => `${esc(name(id))} ${n}`).join(', ')}</span>` : ''}</span></div>`;
-  }
-  // A property on no tag has a card of its own, keyed 0·property: what it is, how many nodes hold it, and a tag to put it on.
-  function cardNoTag(p, key) {
-    return `<div class="st-card" data-propcard="${key}">` + trailHtml() + titleHtml(pi(p), propTitle(p, key), [], waitProp(p.id)) +
-      `<div class="sum"><span>${pointsSum(p)}</span><span>on no tag</span><span>${plural(M().holders.get(p.ident)?.size || 0, 'node')}</span></div>` +
-      acts(key, [p.uuid && ['go to this property', 'ppage'], ['rename', 'prename'], ['put on a tag…', 'pmove']]) + cardPrompt() + (p.type === 'node' ? pointsList(p, key) : '') + `</div>`;
-  }
-  function cardProp(key) {
-    const m = M(), [tagId, pid] = key.split('·').map(Number), p = P(pid), t = T(tagId);
-    if (p && !tagId) return p.on.length ? cardProp(`${p.on[0]}·${pid}`) : cardNoTag(p, key);
-    if (!p || !t) return `<div class="st-card">${trailHtml()}<div class="st-empty">That property is no longer on this tag.</div></div>`;
-    const of = Mo.count(m, tagId), f = Mo.filled(m, tagId, pid), declared = t.props.includes(pid), parent = Mo.parentOf(m, tagId), from = Mo.inherited(m, tagId).find(x => x.prop === pid)?.from;
-    let h = `<div class="st-card" data-propcard="${key}">` + trailHtml() + titleHtml(pi(p), propTitle(p, key), [...Mo.pathOf(m, tagId)].reverse(), waitProp(pid));
-    // The facts, said once: what it points at, how filled here (the title row's right end already names the tag), inherited.
-    h += `<div class="sum"><span>${pointsSum(p)}</span><span>${f} of ${of} filled</span>${from != null ? `<span>inherited from ${esc(name(from))}</span>` : ''}</div>`;
-    // What it can take, as short words on one line; another tag it points at is the last line of the Points at list below.
-    h += acts(key, [p.uuid && ['go to this property', 'ppage'], ['rename', 'prename'], declared && ['move to…', 'pmove'], declared && parent != null && [`pull up to ${esc(name(parent))}`, 'pullup'],
-      (p.choice || p.type === 'node') && t.nodes.size && ['split by its values…', 'split'], declared && ['drop', 'pdrop']]) + cardPrompt();
-    if (p.type === 'node') h += pointsList(p, key);
-    const kids = Mo.kids(m, tagId);
-    if (kids.length) h += `<h3>Filled, by tag beneath</h3>` + [{ id: tagId, own: true }, ...kids.map(id => ({ id }))].map(({ id, own: o }) => { const c = o ? t.nodes.size : Mo.count(m, id); const fl = o ? Mo.filledOwn(m, tagId, pid) : Mo.filled(m, id, pid); const fx = o ? { cls: '', word: '', ask: '' } : lineFix(tagId, pid, id); return c || !o ? `<div class="st-ln ${fx.cls}"><span></span><span class="w">${tagLink(id)}${o ? '<span class="to">the tag itself</span>' : ''}</span><span class="ct">${fl} of ${c}</span>${fx.word}</div>${fx.ask}` : ''; }).join('');
-    const same = p.on.filter(id => id !== tagId);
-    if (same.length) h += `<h3>Also on</h3>` + same.map(id => `<div class="st-ln" data-prop="${id}·${pid}"><span></span><span class="w">${tagLink(id)}</span><span class="ct">${Mo.filled(m, id, pid)} of ${Mo.count(m, id)}</span></div>`).join('');
-    h += issuesHtml(R.issuesOfProp(ISS(), pid).filter(i => !(i.line && i.line.tag === tagId && i.line.prop === pid && i.line.kid != null && kids.includes(i.line.kid))));   // the ones with a line of their own sit on it
-    return h + `</div>`;
-  }
-
   // ---------- every property ----------
   function tableHtml() {
     // One row per property: every tag it is declared on (the biggest first), what it points at, how filled over all of them.
@@ -427,35 +457,26 @@ function make(holder, mode, app) {
     const rows = [...byProp.values()].map(g => { g.on.sort((a, b) => b.of - a.of); g.tag = g.on[0].tag; g.pct = g.filled / Math.max(g.of, 1); return g; });
     const s = st.sort, onName = g => name(g.tag);
     rows.sort((a, b) => s === 'name' ? a.p.title.localeCompare(b.p.title) : s === 'on' ? onName(a).localeCompare(onName(b)) || a.p.title.localeCompare(b.p.title) : s === 'to' ? name(b.p.range[0] ?? '').localeCompare(name(a.p.range[0] ?? '')) : a.pct - b.pct || a.p.title.localeCompare(b.p.title));
-    let h = `<div class="st-card">${trailHtml()}${titleHtml('', 'Every property', [], '')}<div class="sum"><span>${plural(m.props.size, 'property').replace('propertys', 'properties')} on ${new Set(rows.flatMap(g => g.on.map(x => x.tag))).size} tags</span></div><div class="st-tbl">`;
-    h += `<div class="hd"><span></span>${['name', 'on', 'to', 'filled'].map(c => `<span class="lk-head ${s === c ? 'on' : ''}" data-sort="${c}">${{ name: 'Name', on: 'On', to: 'Points at', filled: 'Filled' }[c]}</span>`).join('')}</div>`;
-    h += few('table', rows).map(r => `<div class="tr ${r.pct < .2 ? 'low' : ''} ${waitProp(r.prop)}" data-prop="${r.tag}·${r.prop}">${pi(r.p)}<span><span class="k lk ${waitProp(r.prop) ? 'lk-pencil' : ''}">${esc(r.p.title)}</span></span><span class="on">${ranges(r.on.map(x => x.tag))}</span><span class="on">${r.p.type === 'node' ? (r.p.range.length ? ranges(r.p.range) : '<span class="f">any node</span>') : `<span class="f">${Mo.kindWord(r.p.choice ? 'choice' : r.p.type)}</span>`}</span><span class="ct">${r.filled} of ${r.of}</span></div>`).join('');
+    let h = `<div class="st-tbl"><div class="hd">${['name', 'on', 'to', 'filled'].map(c => `<span class="lk-head ${s === c ? 'on' : ''}" data-sort="${c}">${{ name: 'Property', on: 'On tags', to: 'Holds', filled: 'Filled' }[c]}</span>`).join('')}</div>`;
+    h += few('table', rows).map(r => `<div class="tr ${waitProp(r.prop)}" data-prop="${r.tag}·${r.prop}"><span><span class="k lk ${waitProp(r.prop) ? 'lk-pencil' : ''}">${esc(r.p.title)}</span></span><span>${ranges(r.on.map(x => x.tag))}</span><span>${r.p.type === 'node' ? (r.p.range.length ? ranges(r.p.range) : 'Any node') : esc(Mo.kindWord(r.p.choice ? 'choice' : r.p.type))}</span><span class="ct">${r.filled} of ${r.of}</span></div>`).join('');
     const loose = [...m.props.values()].filter(p => !p.on.length);
     h += moreOf('table', rows);
-    if (loose.length) h += `</div><h3>On no tag</h3><div class="st-tbl">` + few('loose', loose).map(p => `<div class="tr ${waitProp(p.id)}" data-prop="0·${p.id}">${pi(p)}<span><span class="k lk ${waitProp(p.id) ? 'lk-pencil' : ''}">${esc(p.title)}</span></span><span class="on f">—</span><span class="on">${p.range.length ? p.range.map(tagLink).join(', ') : `<span class="f">${Mo.kindWord(p.choice ? 'choice' : p.type)}</span>`}</span><span class="ct">${m.holders.get(p.ident)?.size || 0} nodes</span></div>`).join('') + moreOf('loose', loose);
-    return h + `</div></div>`;
+    if (loose.length) h += `</div><h3 class="st-h">On no tag</h3><div class="st-tbl">` + few('loose', loose).map(p => `<div class="tr ${waitProp(p.id)}" data-prop="0·${p.id}"><span><span class="k lk ${waitProp(p.id) ? 'lk-pencil' : ''}">${esc(p.title)}</span></span><span></span><span>${p.range.length ? p.range.map(tagLink).join(', ') : esc(Mo.kindWord(p.choice ? 'choice' : p.type))}</span><span class="ct">${m.holders.get(p.ident)?.size || 0} nodes</span></div>`).join('') + moreOf('loose', loose);
+    return h + `</div>`;
   }
-  // ---------- health ----------
   // A long list: a few, then "show all", as a tag's nodes.
   const FEW = 20;
   const few = (key, list) => st.whole.has(key) ? list : list.slice(0, FEW);
   const moreOf = (key, list) => !st.whole.has(key) && list.length > FEW ? `<div class="more lk-more" data-all="${esc(key)}">show all ${list.length}</div>` : '';
-  function healthHtml() {
-    const all = ISS(), by = new Map();
-    for (const i of all) by.set(i.rule, [...(by.get(i.rule) || []), i]);
-    let h = `<div class="st-card st-hl">${trailHtml()}${titleHtml('', 'Health', [], '')}${all.length ? '' : `<div class="sum"><span>nothing to settle</span></div>`}`;
-    for (const [rule, list] of by) h += `<h3>${esc(rule)}</h3>` + few(rule, list).map(i => issueLine(i, '')).join('') + moreOf(rule, list);
-    return h + `</div>`;
-  }
   // ---------- a tag's nodes ----------
   function nodesHtml() {
     const n = st.nodes, t = n && T(n.tag);
-    if (!t) return `<div class="st-card">${trailHtml()}<div class="st-empty">No nodes to show.</div></div>`;
+    if (!t) return `<div class="st-empty">No nodes to show.</div>`;
     const list = n.all ? n.list : n.list.slice(0, 20);
-    let h = `<div class="st-card st-nodes lk-list" ${n.ticks.size ? 'data-picking' : ''}>${trailHtml()}${titleHtml('', `${plural(n.list.length, 'node')} of ${esc(t.title)}`, [...Mo.pathOf(M(), n.tag)].reverse(), '')}`;
+    let h = `<div class="st-card st-nodes lk-list" ${n.ticks.size ? 'data-picking' : ''}><div class="st-h" style="margin-top:0"><span class="lk" data-go="${n.tag}">${esc(t.title)}</span>, ${plural(n.list.length, 'node')}</div>`;
     // Nothing ticked: the bar's room stays empty, so a tick moves no row.
     if (!n.ticks.size) h += `<div class="st-pick"></div>`;
-    else h += `<div class="st-pick lk-bar"><b class="lk-said">${n.ticks.size} ticked</b><span class="act lk-btn lk-i-move" data-do="nmove" data-on="${n.tag}">move to another tag…</span><span class="act lk-btn lk-i-child" data-do="nsplit" data-on="${n.tag}">new tag under ${esc(t.title)} with them…</span></div>`;
+    else h += `<div class="st-pick lk-bar"><b class="lk-said">${n.ticks.size} picked</b><span class="act lk-btn lk-i-move" data-do="nmove" data-on="${n.tag}">Move to another tag…</span><span class="act lk-btn lk-i-child" data-do="nsplit" data-on="${n.tag}">New child tag of ${esc(t.title)} with them…</span></div>`;
     h += cardPrompt();
     h += list.map((x, i) => `<div class="st-ln ${i === n.cur ? 'cur' : ''}" data-node="${i}"><span class="lk-day">${dayWords(x.day)}</span><input type="checkbox" class="lk-tick" data-ntick="${i}" ${n.ticks.has(x.uuid) ? 'checked' : ''}><span class="st-bul"><i></i></span><span class="w"><span class="lk-node lk-bare lk" data-uuid="${esc(x.uuid)}" data-open="${esc(x.uuid)}">${esc(x.title.slice(0, 120) || '…')}</span></span></div>`).join('');
     if (!n.all && n.list.length > 20) h += `<div class="more lk-more" data-more>show all ${n.list.length}</div>`;
@@ -474,16 +495,24 @@ function make(holder, mode, app) {
     // The newest lines, since the newest is what was just done and what Cmd-Z takes; the rest behind "show all".
     const lines = tr.lines().map((c, i) => [c, i]), shown = st.whole.has('tray') ? lines : lines.slice(-FEW_LINES);
     // While the big question is open its blue yes is the one Apply on the screen.
-    const big = st.ask?.apply, words = big ? '' : `<span class="lk-btn lk-i-x" data-discard>Discard<span class="ky">Cmd Delete</span></span><span class="lk-accent lk-i-tick" data-apply>Apply<span class="ky">Cmd Enter</span></span>`;
-    return `<div class="st-wait lk-bar"><b class="lk-said">${plural(lines.length, 'change')} waiting</b>${words}</div>` +
-      `<div class="tl">${shown.map(([c, i]) => `<span><span>${esc(c.text)}</span><i>${c.nodes ? `affects ${plural(c.nodes, 'node')}` : ''}</i><span class="lk-x" data-drop="${i}" title="Take this one out">×</span></span>`).join('')}</div>` +
-      (shown.length < lines.length ? `<div class="more lk-more" data-all="tray">show all ${lines.length}</div>` : '') + (big ? bigHtml() : saying);
+    const big = st.ask?.apply, l = tr.links(), words = big ? '' : `<span class="lk-btn lk-low lk-i-x" data-discard>Discard</span><span class="lk-btn lk-i-eq" data-compare>Old and new</span><span class="lk-accent lk-i-tick" data-apply>Apply<span class="ky">Cmd Enter</span></span>`;
+    // What changes reads first, then the facts, then the decision. A number lost is the one thing here in colour.
+    return `<div class="tl">${shown.map(([c, i]) => `<span><span>${esc(c.text)}</span><i>${c.nodes ? plural(c.nodes, 'node') : ''}</i><span class="lk-x" data-drop="${i}" title="Take this one out">×</span></span>`).join('')}</div>` +
+      (shown.length < lines.length ? `<div class="more lk-more" data-all="tray">show all ${lines.length}</div>` : '') + (st.compare ? compareHtml() : '') +
+      `<div class="st-wait lk-bar">${lines.length > 1 ? `<b class="lk-said">${lines.length} changes waiting</b>` : ''}<span class="links">${l.kept} links kept${l.lost ? ` <b class="lk-del">${l.lost} lost</b>` : ''}</span>${words}</div>` + (big ? bigHtml() : saying);
   }
   const FEW_LINES = 5;
+  // Old and new side by side: the top-level tags the waiting changes touch, as they stand and as Apply leaves them.
+  function compareHtml() {
+    const now = Mo.build(app.tray.raw), after = M(), seen = touched().tags, tops = new Set();
+    for (const id of seen) for (const m of [now, after]) if (m.tags.has(id)) tops.add(Mo.pathOf(m, id)[0]);
+    const col = (m, title, pencil) => { const out = []; const walk = (id, d) => { const t = m.tags.get(id); if (!t) return; out.push(`<div class="o ${pencil && seen.has(id) ? 'lk-pencil' : ''}" style="--d:${d}">${esc(t.title)}</div>`); Mo.kids(m, id).forEach(k => walk(k, d + 1)); }; tops.forEach(id => walk(id, 0)); return `<div><div class="h">${title}</div>${out.join('')}</div>`; };
+    return `<div class="st-sb">${col(now, 'Now', false)}${col(after, 'After Apply', true)}</div>`;
+  }
   // Apply, when Undo cannot put it all back: the library's question for a big change, its yes the one blue button.
   const bigHtml = () => `<div class="st-q st-big"><div class="h">Undo can’t put this back as it was</div>` +
     app.tray.lasting().map(x => `<div class="l">${esc(x.name)} is deleted for good. Undo makes a new tag of that name.</div>`).join('') +
-    `<div class="lk-answers"><span class="lk-big" data-stage>Apply</span><span class="lk-btn lk-i-x" data-leave>Leave it</span></div></div>`;
+    `<div class="lk-answers"><span class="lk-big" data-stage>Apply</span><span class="lk-btn lk-low lk-i-x" data-leave>Leave it</span></div></div>`;
   const pressApply = () => { if (st.ask?.apply) return; if (app.tray.lasting().length) { st.ask = { apply: true, owner: mode }; st.menu = null; return redraw(); } app.apply(); };
 
   // ---------- the move prompt ----------
@@ -499,13 +528,12 @@ function make(holder, mode, app) {
       all = [...m.props.values()].filter(x => !T(p.tag).props.includes(x.id) && (!q || x.title.toLowerCase().includes(q))).sort((a, b) => a.title.localeCompare(b.title)).map(x => ({ key: x.id, nm: x.title, ct: x.on.length ? `on ${x.on.length}` : '', d: 0, ok: true, icon: pi(x) }));
       rows = all.slice(0, 10);
     } else {
-      const subject = p.what === 'nodes' ? `${p.nodes.length} ticked nodes` : p.what === 'prop' ? `the property ${P(p.prop).title}` : p.what === 'range' ? `what ${P(p.prop).title} points at` : p.tags.length > 1 ? `${p.tags.length} ticked tags` : name(p.tags[0]);
-      ask = p.what === 'range' ? `<b>${esc(P(p.prop).title)}</b> points at${P(p.prop).range.length ? ' also' : ''}…` : p.what === 'prop' && !p.from ? `Put <b>${esc(P(p.prop).title)}</b> on…` : `Move <b>${esc(subject)}</b> under…`;
+      const subject = p.what === 'nodes' ? `${p.nodes.length} ticked nodes` : p.what === 'prop' ? `the property ${P(p.prop).title}` : p.what === 'range' ? `what ${P(p.prop).title} points at` : p.tags.length > 1 ? `${p.tags.length} picked tags` : name(p.tags[0]);
+      ask = p.what === 'range' ? `Node tags of <b>${esc(P(p.prop).title)}</b>${P(p.prop).range.length ? ', also' : ''}…` : p.what === 'prop' && !p.from ? `Put <b>${esc(P(p.prop).title)}</b> on…` : `Move <b>${esc(subject)}</b> to…`;
       const list = all = [];
       const walk = (n, d) => { const t = T(n); const ok = p.what === 'tag' ? !p.tags.some(s => Mo.under(m, n, s)) : p.what === 'range' || p.what === 'nodes' ? !t.kind && !t.missing : !t.missing || p.what !== 'prop' || !!p.from; if (!q || t.title.toLowerCase().includes(q)) list.push({ key: n, nm: t.title, ct: Mo.count(m, n) || '', d, ok, mark: d === 0 ? t.kind : null }); for (const k of Mo.kids(m, n)) walk(k, d + 1); };
-      m.kinds.forEach(k => walk(k.id, 0));
-      for (const l of m.loose) walk(l, 1);
-      if (p.what === 'tag' && (!q || 'not under a kind'.includes(q))) list.push({ key: LOOSE, nm: 'Not under a kind', ct: '', d: 0, ok: true, loose: true });
+      Mo.tops(m).forEach(k => walk(k, 0));
+      if (p.what === 'tag' && (!q || 'the top'.includes(q))) list.push({ key: LOOSE, nm: 'The top', ct: '', d: 0, ok: true, loose: true });
       rows = q ? list.slice(0, 8) : list.filter(r => r.d <= 1).slice(0, 12);
     }
     if (p.whole) rows = all;
@@ -519,23 +547,23 @@ function make(holder, mode, app) {
   // ---------- the menu: the same words the card has ----------
   function menuHtml() {
     const mn = st.menu, m = M(), ticked = st.ticks.size;
-    const it = (t, act, off, k) => `<div class="lk-item ${off ? 'off' : ''}" data-act="${act}">${esc(t)}${k ? `<span class="rt lk-note">${k}</span>` : ''}</div>`;
+    const it = (t, act, off, k) => `<div class="lk-item ${off ? 'off' : ''} ${/^(Remove|Delete)/.test(t) ? 'lk-del' : ''}" data-act="${act}">${esc(t)}${k ? `<span class="rt lk-note">${k}</span>` : ''}</div>`;
     let h = `<div class="st-menu lk-menu" style="left:${mn.x}px;top:${mn.y}px">`;
     if (mn.kind === 'row') {
       const t = T(mn.on), isKind = !t || t.kind, loose = mn.on === LOOSE;
       const n = Mo.count(m, mn.on), nodesOf = ids => plural(ids.reduce((s, x) => s + Mo.count(m, x), 0), 'node');
       h += (t?.uuid ? it('Go to this tag', 'page') : '') + it('Open everything under', 'openall', false, 'Shift →') + (mode === 'side' ? it('Open the map here', 'main', false, 'Enter') : it(st.ticks.has(mn.on) ? 'Untick' : 'Tick', 'tick', isKind || loose, 'space')) + '<div class="gap lk-item"></div>' +
-        it('Rename', 'rename', loose || !t || t.missing) + it(loose ? 'New tag here' : 'New tag inside', 'new') + it('Add a property…', 'addprop', isKind || loose) + it('Add a property to all beneath…', 'addpropall', loose, Mo.kids(m, mn.on).length ? nodesOf(Mo.kids(m, mn.on)) : '') + '<div class="gap lk-item"></div>' +
-        it('Move under…', 'move', isKind || loose, n ? plural(n, 'node') : '') +
+        it('Rename', 'rename', loose || !t || t.missing) + it('Its nodes', 'nodes', !n) + it(loose ? 'New top-level tag' : 'Add child tag', 'new') + it('Add a property…', 'addprop', isKind || loose) + it('Add a property to all beneath…', 'addpropall', loose, Mo.kids(m, mn.on).length ? nodesOf(Mo.kids(m, mn.on)) : '') + '<div class="gap lk-item"></div>' +
+        it('Move to…', 'move', isKind || loose, n ? plural(n, 'node') : '') +
         it(ticked > 1 ? `Merge the ${ticked} ticked into this` : 'Merge the ticked into this', 'merge', isKind || loose || ticked < 1 || (ticked === 1 && st.ticks.has(mn.on)), ticked && !st.ticks.has(mn.on) ? nodesOf([...st.ticks]) : '') + '<div class="gap lk-item"></div>' +
         it('Remove', 'remove', isKind || loose || n > 0 || Mo.kids(m, mn.on).length > 0, n ? plural(n, 'node') : '');
     } else {
       const [tagId, pid] = mn.on.split('·').map(Number), t = T(tagId), p = P(pid), parent = Mo.parentOf(m, tagId);
       const declared = !!t?.props.includes(pid);
       const f = t ? plural(Mo.filled(m, tagId, pid), 'value') : '';
-      h += (p?.uuid ? it('Go to this property', 'ppage') + '<div class="gap lk-item"></div>' : '') + it('Rename', 'prename') + (p?.type === 'node' ? it('Points at another tag too…', 'prange') : '') + '<div class="gap lk-item"></div>' +
+      h += (p?.uuid ? it('Go to this property', 'ppage') + '<div class="gap lk-item"></div>' : '') + (p?.type === 'node' ? it('Specify node tags…', 'prange') : '') + '<div class="gap lk-item"></div>' +
         (t ? it('Move to…', 'pmove', !declared, f) + it(parent != null ? `Pull up to ${name(parent)}` : 'Pull up to the parent', 'pullup', !declared || parent == null, f) +
-        (p && (p.choice || p.type === 'node') ? it('Split by its values…', 'split', !t.nodes.size, plural(t.nodes.size, 'node')) : '') + '<div class="gap lk-item"></div>' + it('Drop', 'pdrop', !declared, f) : it('Put on a tag…', 'pmove'));
+        (p && (p.choice || p.type === 'node') ? it('Split by its values…', 'split', !t.nodes.size, plural(t.nodes.size, 'node')) : '') + '<div class="gap lk-item"></div>' + it('Delete property from tag', 'pdrop', !declared, f) : it('Put on a tag…', 'pmove'));
     }
     return h + `</div>`;
   }
@@ -544,20 +572,24 @@ function make(holder, mode, app) {
   function draw() {
     const active = doc.activeElement, hadFocus = root.contains(active) || wantFocus;
     const finding = !wantFocus && root.contains(active) && active.matches('[data-find]') ? active.selectionStart : null;
-    const scroll = root.querySelector('.st-tree')?.scrollTop, scrollR = root.querySelector('.st-right')?.scrollTop;
+    const scroll = root.querySelector('.st-tree')?.scrollTop, scrollA = root.querySelector('.st-regions')?.scrollLeft, scrollR = root.querySelector('.st-right')?.scrollTop;
     const trayWas = root.querySelector('.st-tray')?.offsetHeight;   // undefined on the first drawing: what is there at opening does not slide
     if (mode === 'page') keepPlace();
-    let h = treeHtml();
+    promptDrawn = false;
+    let h;
     if (mode === 'page') {
-      const card = st.view === 'table' ? tableHtml() : st.view === 'health' ? healthHtml() : st.view === 'nodes' ? nodesHtml() : st.propCur ? cardProp(st.propCur) : cardTag(st.cur);
-      h += `<div class="st-tray">${trayHtml()}</div><div class="st-right">${card}</div>`;
-    }
+      const card = st.view === 'table' ? tableHtml() : st.view === 'log' ? logHtml() : st.view === 'nodes' ? nodesHtml() : regionsHtml();
+      h = `${topHtml()}<div class="st-tray">${trayHtml()}</div><div class="st-right">${card}</div>`;
+    } else if (mode === 'tag') h = `<div class="st-tray">${trayHtml()}</div>${opts.prop != null ? propLinesHtml(opts.prop) : linesHtml(opts.tag)}`;
+    else h = treeHtml();
     if (st.menu && st.menu.owner === mode) h += menuHtml();
     root.innerHTML = h;
     // The screen takes the room Logseq gives it: from where the holder sits to the bottom of the window.
     if (mode === 'page') { const top = root.getBoundingClientRect().top, win = doc.defaultView; if (win?.innerHeight && top >= 0) root.style.height = Math.max(360, win.innerHeight - top - 24) + 'px'; }
     slideTray(trayWas);
+    if (mode === 'page') S.regions?.lines(root, M(), st.cur, !!st.aim);
     if (scroll) root.querySelector('.st-tree').scrollTop = scroll;
+    if (scrollA && root.querySelector('.st-regions')) root.querySelector('.st-regions').scrollLeft = scrollA;
     if (scrollR && root.querySelector('.st-right')) root.querySelector('.st-right').scrollTop = scrollR;
     root.querySelector('.st-row.cur')?.scrollIntoView?.({ block: 'nearest' });
     const pin = root.querySelector('[data-pin]'), edit = root.querySelector('[data-edit]');
@@ -576,7 +608,7 @@ function make(holder, mode, app) {
   function slideTray(was) {
     const tray = root.querySelector('.st-tray'), now = tray?.offsetHeight;
     if (was == null || was === now || !tray?.animate || doc.defaultView.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
-    if (!now) { root.querySelector('.st-right').animate({ marginTop: [`${was}px`, '0px'] }, SLIDE); return; }
+    if (!now) { root.querySelector('.st-right')?.animate({ marginTop: [`${was}px`, '0px'] }, SLIDE); return; }
     const box = doc.defaultView.getComputedStyle(tray), from = was ? {} : { paddingTop: ['0px', box.paddingTop], paddingBottom: ['0px', box.paddingBottom], borderBottomWidth: ['0px', box.borderBottomWidth] };
     tray.style.overflow = 'hidden';
     tray.animate({ height: [`${was}px`, `${now}px`], ...from }, SLIDE).onfinish = () => { tray.style.overflow = ''; };
@@ -633,7 +665,17 @@ function make(holder, mode, app) {
   const openAll = id => { const walk = x => { st.open.add(x); Mo.kids(M(), x).forEach(walk); }; walk(id); redraw(); };
   const tick = id => { const t = T(id); if (!t || t.kind) return; st.ticks.has(id) ? st.ticks.delete(id) : st.ticks.add(id); redraw(); };
   const startPrompt = p => { st.menu = null; st.ask = null; st.prompt = { text: '', lit: 0, owner: mode, ...p }; redraw(); };
-  const startMoveTag = id => { const tags = st.ticks.size > 1 && st.ticks.has(id) ? [...st.ticks] : [id]; startPrompt({ what: 'tag', list: 'tags', tags, row: id }); };
+  const startMoveTag = id => { const tags = st.ticks.size > 1 && st.ticks.has(id) ? [...st.ticks] : [id]; if (mode === 'page') return startAim('move', tags); startPrompt({ what: 'tag', list: 'tags', tags, row: id }); };
+  // On the page of the whole the areas are the choice: the bar says what is moving, and a press on a tag answers.
+  const startAim = (what, tags) => { st.menu = null; st.ask = null; st.aim = { what, tags }; loc.find = ''; redraw(); };
+  const aimOk = id => { const a = st.aim, t = T(id); if (!a || !t) return false; return a.what === 'move' ? !a.tags.some(s => s === id || Mo.under(M(), id, s)) : !a.tags.includes(id) && !t.kind; };
+  function finishAim(id) {
+    const a = st.aim; if (id !== LOOSE && !aimOk(id)) return;
+    st.aim = null; loc.find = '';
+    if (a.what === 'move') moveTags(a.tags, id);
+    else { st.cur = id; st.ask = { merges: a.tags, into: id, owner: mode }; }
+    redraw();
+  }
   function finishPrompt(row) {
     const p = st.prompt; if (!row || !row.ok) return;
     if (row.more) { p.whole = true; wantFocus = true; return redraw(); }
@@ -673,7 +715,8 @@ function make(holder, mode, app) {
     st.edit = null;
     if (v) {
       if (e.what === 'rename' && v !== name(e.on)) app.stage({ kind: 'rename', tag: e.on, name: v });
-      else if (e.what === 'new') { const c = app.stage({ kind: 'make', name: v, under: e.on === LOOSE ? null : e.on }); st.open.add(e.on); if (c?.made != null) { loc.cur = c.made; if (mode === 'side') st.cur = c.made; } }
+      else if (e.what === 'new') { const c = app.stage({ kind: 'make', name: v, under: e.on === LOOSE ? null : e.on }); st.open.add(e.on); if (c?.made != null) { loc.cur = c.made; if (mode === 'side') st.cur = c.made; if (e.on === LOOSE) { st.edit = { what: 'kids', on: c.made, text: '', owner: mode }; } } }
+      else if (e.what === 'kids') { for (const w of v.split(',').map(x => x.trim()).filter(Boolean)) if (!Mo.titled(M(), w).length) app.stage({ kind: 'make', name: w, under: e.on }); st.open.add(e.on); }
       else if (e.what === 'prename') { const [, pid] = e.on.split('·').map(Number); if (v !== P(pid).title) app.stage({ kind: 'renameProp', prop: pid, name: v }); }
       else if (e.what === 'split') {
         const n = st.nodes, ticked = n.list.filter(x => n.ticks.has(x.uuid));
@@ -688,6 +731,7 @@ function make(holder, mode, app) {
     st.menu = null; st.ask = null;
     const m = M();
     if (a === 'openall') openAll(on);
+    else if (a === 'nodes') openNodes(on);
     else if (a === 'page') { redraw(); app.openNode(T(on)?.uuid, shift); }
     else if (a === 'ppage') { redraw(); app.openNode(P(Number(on.split('·')[1]))?.uuid, shift); }
     else if (a === 'main') app.openMain(on);
@@ -701,9 +745,8 @@ function make(holder, mode, app) {
     else if (a === 'remove') { const t = T(on); if (!t || t.kind || Mo.count(m, on) || t.kids.length) return redraw(); const p = Mo.parentOf(m, on); app.stage({ kind: 'remove', tag: on }); if (st.cur === on) st.cur = p ?? m.kinds[0].id; redraw(); }
     else if (a === 'pmove') { const [tagId] = on.split('·').map(Number); startPrompt({ what: 'prop', list: 'tags', key: on, prop: Number(on.split('·')[1]), from: tagId }); }
     else if (a === 'pullup') { const [tagId, pid] = on.split('·').map(Number); const dest = Mo.parentOf(m, tagId); if (dest == null) return redraw(); app.stage({ kind: 'moveProp', prop: pid, from: [tagId], to: dest }); st.propCur = `${dest}·${pid}`; st.cur = dest; redraw(); }
-    else if (a === 'prange') { const [, pid] = on.split('·').map(Number); st.propCur = on; startPrompt({ what: 'range', list: 'tags', prop: pid }); }
-    else if (a === 'prename') { const [, pid] = on.split('·').map(Number); if (st.view === 'table') showProp(on); startEdit('prename', on, P(pid).title); }
-    else if (a === 'pdrop') { const [tagId, pid] = on.split('·').map(Number); app.stage({ kind: 'dropProp', prop: pid, tag: tagId }); if (st.propCur === on) st.propCur = null; redraw(); }
+    else if (a === 'prange') { const [, pid] = on.split('·').map(Number); startPrompt({ what: 'range', list: 'tags', prop: pid }); }
+        else if (a === 'pdrop') { const [tagId, pid] = on.split('·').map(Number); app.stage({ kind: 'dropProp', prop: pid, tag: tagId }); if (st.propCur === on) st.propCur = null; redraw(); }
     else if (a === 'split') { const [tagId, pid] = on.split('·').map(Number); app.valuesOf(tagId, P(pid).ident).then(values => { if (!values.length) return app.notify(`No ${P(pid).title} values on ${name(tagId)}'s own nodes`, 'warning'); startPrompt({ what: 'split', list: 'values', tag: tagId, prop: pid, values }); }); }
     else if (a === 'nmove') { const n = st.nodes; const nodes = n.list.filter(x => n.ticks.has(x.uuid)); if (nodes.length) startPrompt({ what: 'nodes', list: 'tags', tag: n.tag, nodes }); }
     else if (a === 'nsplit') { if (st.nodes?.ticks.size) startEdit('split', st.nodes.tag, ''); }
@@ -737,25 +780,28 @@ function make(holder, mode, app) {
     jump(() => { st.nodes = { tag: id, list, ticks: new Set(), all: false, cur: 0 }; st.view = 'nodes'; st.propCur = null; st.cur = id; });
   }
   const show = what => jump(() => { st.view = what; st.propCur = null; st.nodes = null; st.whole.clear(); });   // 'tree' from the views line, 'table', 'health'
-  const showProp = key => jump(() => { const on = Number(key.split('·')[0]); st.propCur = key; st.view = 'tree'; st.nodes = null; if (on) st.cur = on; });
-
+  
   // ---------- events ----------
   root.addEventListener('click', e => {
-    const t = e.target.closest('[data-all],[data-fold],[data-tick],[data-ntick],[data-row],[data-go],[data-open],[data-unrange],[data-addrange],[data-prop],[data-fix],[data-stage],[data-leave],[data-sort],[data-apply],[data-discard],[data-drop],[data-undo],[data-act],[data-do],[data-show],[data-back],[data-pick],[data-nodes],[data-more],[data-node]');
+    const t = e.target.closest('[data-all],[data-fold],[data-tick],[data-ntick],[data-row],[data-go],[data-open],[data-unrange],[data-addrange],[data-prop],[data-fix],[data-stage],[data-leave],[data-sort],[data-apply],[data-discard],[data-drop],[data-undo],[data-act],[data-do],[data-show],[data-compare],[data-aim],[data-aimtop],[data-aimoff],[data-back],[data-pick],[data-nodes],[data-more],[data-node]');
     if (!t) { if (st.menu) { st.menu = null; redraw(); } return; }
     e.stopPropagation(); e.preventDefault();
     if (t.dataset.fold) return fold(keyOf(t.dataset.fold));
     if (t.dataset.tick) return tick(keyOf(t.dataset.tick));
     if (t.dataset.ntick) { const x = st.nodes.list[+t.dataset.ntick]; st.nodes.ticks.has(x.uuid) ? st.nodes.ticks.delete(x.uuid) : st.nodes.ticks.add(x.uuid); st.nodes.cur = +t.dataset.ntick; return redraw(); }
     if (t.dataset.open) return app.openNode(t.dataset.open, e.shiftKey);
-    if (t.dataset.go) { const id = keyOf(t.dataset.go); return mode === 'side' ? app.openMain(id) : goTo(id); }
-    if (t.dataset.unrange) { const pid = Number(st.propCur.split('·')[1]); app.stage({ kind: 'setRange', prop: pid, to: P(pid).range.filter(id => id !== Number(t.dataset.unrange)) }); return redraw(); }
+    if (t.dataset.go) { const id = keyOf(t.dataset.go); return mode === 'side' ? app.openMain(id) : app.openNode(T(id)?.uuid, e.shiftKey); }
+    if (t.dataset.aim) return startAim(t.dataset.aim, [...st.ticks]);
+    if (t.hasAttribute('data-aimtop')) return finishAim(LOOSE);
+    if (t.hasAttribute('data-aimoff')) { st.aim = null; return redraw(); }
+    if (t.hasAttribute('data-compare')) { st.compare = !st.compare; return redraw(); }
+    if (t.dataset.unrange) { const pid = opts.prop; app.stage({ kind: 'setRange', prop: pid, to: P(pid).range.filter(id => id !== Number(t.dataset.unrange)) }); return redraw(); }
     if (t.dataset.addrange) { const pid = Number(t.dataset.addrange.split('·')[1]); return startPrompt({ what: 'range', list: 'tags', prop: pid }); }
     if (t.dataset.fix) return fix(+t.dataset.fix);
     if (t.hasAttribute('data-stage')) return stageAsk();
     if (t.hasAttribute('data-leave')) { st.ask = null; return redraw(); }
     if (t.dataset.sort) { st.sort = t.dataset.sort; return redraw(); }
-    if (t.dataset.prop) return showProp(t.dataset.prop);
+    if (t.dataset.prop) { if (mode === 'tag') return; return app.openNode(P(Number(t.dataset.prop.split('·')[1]))?.uuid, e.shiftKey); }
     if (t.dataset.do) return act(t.dataset.do, t.dataset.do.startsWith('p') && t.dataset.do !== 'page' || t.dataset.do === 'split' ? t.dataset.on : keyOf(t.dataset.on), e.shiftKey);
     if (t.dataset.show) return show(t.dataset.show);
     if (t.dataset.back !== undefined) { const to = +t.dataset.back; while (st.trail.length > to + 1) st.trail.pop(); return back(); }
@@ -769,7 +815,7 @@ function make(holder, mode, app) {
     if (t.hasAttribute('data-discard')) return app.discard();
     if (t.hasAttribute('data-undo')) return app.undo();
     if (t.dataset.drop !== undefined) return app.dropChange(+t.dataset.drop);
-    if (t.dataset.row) { const id = keyOf(t.dataset.row); st.menu = null; if (mode === 'side') { loc.cur = id; if (e.detail === 2) return app.openMain(id); return redraw(); } if (e.detail === 2) return openNodes(id); st.cur = id; st.propCur = null; st.view = 'tree'; st.nodes = null; st.trail = []; st.ask = null; return redraw(); }   // a press on the tree starts a new way: the trail is for jumps
+    if (t.dataset.row) { const id = keyOf(t.dataset.row); st.menu = null; if (st.aim && mode === 'page') return finishAim(id); if (mode === 'side') { loc.cur = id; if (e.detail === 2) return app.openMain(id); return redraw(); } if (e.detail === 2) return app.openNode(T(id)?.uuid, e.shiftKey); st.cur = id; st.propCur = null; st.view = 'tree'; st.nodes = null; st.trail = []; st.ask = null; return redraw(); }   // a press on the tree starts a new way: the trail is for jumps
   });
   const keyOf = s => s === LOOSE ? LOOSE : Number(s);
   /* Dragging a row onto another moves the tag there, the same as "move under…": the tag and everything under it, the ticked
@@ -825,13 +871,15 @@ function make(holder, mode, app) {
     if (e.target.tagName === 'INPUT' && e.target.type !== 'checkbox') return !e.altKey && !FIELD.test(e.key);
     return e.altKey || !OWN.test(e.key);
   };
-  for (const type of ['keyup', 'keypress']) root.addEventListener(type, e => { if (!passes(e)) e.stopPropagation(); });
+  const standing = () => st.prompt?.owner === mode || st.edit?.owner === mode || !!st.ask;
+  for (const type of ['keyup', 'keypress']) root.addEventListener(type, e => { if (mode === 'tag' && !standing()) return; if (!passes(e)) e.stopPropagation(); });
   // Where Cmd-O and Shift-Enter go: the node or property on screen, else the row the cursor is on.
   function openHere(inSidebar) {
     const n = st.view === 'nodes' && mode === 'page' ? st.nodes?.list[st.nodes.cur] : null, pid = mode === 'page' && st.propCur ? Number(st.propCur.split('·')[1]) : null;
     app.openNode(n?.uuid || (pid != null ? P(pid)?.uuid : T(loc.cur)?.uuid), inSidebar);
   }
   root.addEventListener('keydown', e => {
+    if (mode === 'tag' && !standing()) return;
     if (!passes(e)) e.stopPropagation(); else if (doc.querySelector('.ui__dialog-overlay')) return;
     const k = e.key;
     if (st.prompt && st.prompt.owner === mode) {
@@ -851,6 +899,7 @@ function make(holder, mode, app) {
     }
     if (e.target.tagName === 'INPUT') return;
     if (st.menu && k === 'Escape') { st.menu = null; redraw(); return; }
+    if (st.aim && mode === 'page') { if (k === 'Escape') { e.preventDefault(); st.aim = null; return redraw(); } if (k === 'Enter') { e.preventDefault(); return finishAim(st.cur); } }
     if ((e.metaKey || e.ctrlKey) && !e.altKey) {
       const l = k.toLowerCase();
       if (mode === 'page' && k === 'Enter' && app.tray.changes.length) { e.preventDefault(); pressApply(); }
@@ -865,6 +914,7 @@ function make(holder, mode, app) {
       if (k === 'Enter') { e.preventDefault(); return stageAsk(); }
       if (k === 'Escape') { e.preventDefault(); st.ask = null; return redraw(); }
     }
+    if (mode === 'tag') return;
     if (st.view === 'nodes' && mode === 'page') {
       const n = st.nodes, shown = n.all ? n.list : n.list.slice(0, 20);
       if (k === 'ArrowDown') n.cur = Math.min(shown.length - 1, n.cur + 1);
@@ -884,7 +934,7 @@ function make(holder, mode, app) {
     else if (k === 'ArrowUp') walked(rows[Math.max(0, i - 1)]);
     else if (k === 'ArrowRight') { if (e.shiftKey) { openAll(loc.cur); return; } if (Mo.kids(M(), loc.cur).length) st.open.add(loc.cur); }
     else if (k === 'ArrowLeft') { if (st.open.has(loc.cur)) st.open.delete(loc.cur); else if (Mo.parentOf(M(), loc.cur) != null) walked(Mo.parentOf(M(), loc.cur)); }
-    else if (k === 'Enter') { if (e.shiftKey) openHere(true); else if (mode === 'side') app.openMain(loc.cur); else if (st.view !== 'tree' || st.propCur) jump(() => { st.view = 'tree'; st.propCur = null; st.nodes = null; }); else if (cur && Mo.count(M(), st.cur)) openNodes(st.cur); return; }
+    else if (k === 'Enter') { if (e.shiftKey) openHere(true); else if (mode === 'side') app.openMain(loc.cur); else if (st.view !== 'tree' || st.propCur) jump(() => { st.view = 'tree'; st.propCur = null; st.nodes = null; }); else if (cur) app.openNode(cur.uuid, false); return; }
     else if (k === ' ' && mode === 'page') { tick(st.cur); return; }
     else if (k === 'Escape') {
       // The ladder: let go of what is nearest first (the find text, the ticks), then walk back the trail.
@@ -903,7 +953,8 @@ function make(holder, mode, app) {
     if (e.key.toLowerCase() === 'z' && !e.shiftKey) app.takeBack();
   };
   if (mode === 'page') { win.addEventListener('hashchange', toPlace); doc.addEventListener('keydown', undoKey, true); }
-  const view = { root, mode, draw, destroy: () => { app.views.delete(view); win.removeEventListener('hashchange', toPlace); doc.removeEventListener('keydown', undoKey, true); root.remove(); }, focus: () => { if (!doc.activeElement?.matches('input, textarea, [contenteditable="true"]')) root.focus({ preventScroll: true }); } };
+  if (mode === 'page') win.addEventListener('resize', draw);
+  const view = { root, mode, tag: opts.tag, prop: opts.prop, draw, destroy: () => { app.views.delete(view); win.removeEventListener('hashchange', toPlace); win.removeEventListener('resize', draw); doc.removeEventListener('keydown', undoKey, true); root.remove(); }, focus: () => { if (mode === 'tag') return; if (!doc.activeElement?.matches('input, textarea, [contenteditable="true"]')) root.focus({ preventScroll: true }); } };
   app.views.add(view);
   return view;
 }

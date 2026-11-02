@@ -90,10 +90,10 @@ const iconUrl = d => `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='
 
 // The greys, mixed from Logseq's text colour so they follow any theme: quiet, faint, a hairline and a firmer line.
 const TOKENS = `
-:root { --lk-quiet: color-mix(in srgb, currentColor 70%, transparent); --lk-faint: color-mix(in srgb, currentColor 46%, transparent);
+:root { --lk-quiet: color-mix(in srgb, currentColor 70%, transparent); --lk-faint: color-mix(in srgb, currentColor 70%, transparent); --lk-off: color-mix(in srgb, currentColor 46%, transparent);
   --lk-hair: color-mix(in srgb, currentColor 12%, transparent); --lk-line: color-mix(in srgb, currentColor 26%, transparent);
   --lk-wash: color-mix(in srgb, currentColor 7%, transparent);
-  --lk-soft: color-mix(in srgb, var(--lk-text, currentColor) 70%, transparent); --lk-dim: color-mix(in srgb, var(--lk-text, currentColor) 46%, transparent);
+  --lk-soft: color-mix(in srgb, var(--lk-text, currentColor) 70%, transparent); --lk-dim: color-mix(in srgb, var(--lk-text, currentColor) 70%, transparent);
   --lk-mono: var(--ls-font-family-mono, ui-monospace, "SF Mono", Menlo, Consolas, monospace); }`;
 /* The shared names: one per word of the grammar. A module puts these on what it draws and carries no look of its own
    for them; these words are final (hence !important where a module still has a rule). They stand whichever modules run:
@@ -110,7 +110,7 @@ const TOKENS = `
    The module lays them out (a name over a value, the gaps); these give only their colours and weights.
    The button library (button-library.html in the workspace), one kind per job, each drawn whole here, so a module adds
    nothing of its own to how it looks, only where it stands. A press is a word with a line icon (lk-i-<name>, from Door.ICONS)
-   and no shape at rest; it takes the wash under the pointer. lk-strip: a row of actions; lk-bar: what you can do with what
+   on the round wash, at rest too; firmer under the pointer. lk-strip: a row of actions; lk-bar: what you can do with what
    you ticked, lk-said holding how many; lk-btn: a word in either, or among lk-answers, the answers under a question;
    lk-enter: the return sign, on the one press plain Enter takes;
    lk-accent: the main button, the one thing a screen is for; lk-big: the yes to a change Undo cannot put back whole, the one
@@ -141,7 +141,7 @@ Door.NAMES = `${TOKENS}
 .lk-name { font-size: 11px !important; color: var(--lk-faint) !important; letter-spacing: .02em; font-weight: 400 !important; }
 .lk-value:not(input) { color: inherit !important; cursor: pointer; }
 .lk-value:not(input):hover { color: var(--lk-quiet) !important; }
-.lk-value.off, input.lk-value::placeholder { color: var(--lk-faint) !important; }
+.lk-value.off, input.lk-value::placeholder { color: var(--lk-off) !important; }
 .lk-pick:not(:first-child) { border-left: 1px solid var(--lk-hair); }
 .lk-pick .lk-value svg { color: var(--lk-faint); }
 /* The faint goes on each alternative, not on the line, so the one in force can take the text colour back. */
@@ -154,7 +154,7 @@ Door.NAMES = `${TOKENS}
 .lk-close:hover, .lk-close:focus-visible { color: inherit !important; }
 .lk-btn, .lk-accent, .lk-lone, .lk-add, .lk-fix, .lk-x, .lk-plus, .lk-more, .lk-view, .lk-step, .lk-head, .lk-item { appearance: none; background: none; border: 0; font: inherit; cursor: pointer; border-radius: 4px; }
 .lk-btn, .lk-accent, .lk-lone, .lk-add, .lk-fix { border-radius: 1em; }
-.lk-strip, .lk-bar, .lk-answers { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 18px; }
+.lk-strip, .lk-bar, .lk-answers { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
 .lk-answers { flex-basis: 100%; margin-top: 4px; }
 .lk-btn { color: var(--lk-text, currentColor) !important; padding: 2px 6px; margin: 0 -6px; white-space: nowrap; }
 .lk-said { font-weight: 500; padding-right: 6px; color: var(--lk-text, currentColor); }
@@ -166,13 +166,29 @@ Door.NAMES = `${TOKENS}
 .lk-lone { color: var(--lk-text, currentColor) !important; padding: 3px 6px; margin-left: -6px; white-space: nowrap; }
 .lk-fix { color: var(--lk-text, currentColor) !important; padding: 2px 6px; white-space: nowrap; }
 .lk-add, .lk-more { color: var(--lk-soft) !important; padding: 3px 0; }
+.lk-more { text-decoration: underline !important; text-decoration-color: var(--lk-line) !important; text-underline-offset: 3px; }   /* it opens, so it reads as what opens */
 .lk-add:hover, .lk-more:hover, .lk-add:focus-visible, .lk-more:focus-visible { color: var(--lk-text, currentColor) !important; }
 .lk-x, .lk-plus { color: var(--lk-dim) !important; padding: 0 4px; }
 .lk-x:hover, .lk-plus:hover, .lk-x:focus-visible, .lk-plus:focus-visible { color: var(--lk-text, currentColor) !important; }
 .lk-btn:hover, .lk-btn:focus-visible, .lk-accent:hover, .lk-accent:focus-visible, .lk-lone:hover, .lk-lone:focus-visible, .lk-fix:hover, .lk-fix:focus-visible, .lk-x:hover, .lk-plus:hover, .lk-view:hover, .lk-view:focus-visible, .lk-item:hover, .lk-item:focus-visible { background: var(--lk-wash); }
 .lk-btn:focus-visible, .lk-accent:focus-visible, .lk-lone:focus-visible, .lk-fix:focus-visible, .lk-view:focus-visible, .lk-item:focus-visible { outline: none; }
+/* Three levels, so a button's weight says how much it matters before it is read (the owner, 1 November: "change the hierarchy of buttons").
+   1, lk-accent: the one step that decides, filled in the text colour, one on a screen. Above it only lk-big, what Undo cannot put back.
+   2, lk-btn, lk-lone: what you do to the thing in front of you, on the round ground.
+   3, lk-low, lk-fix: a way out, or an action repeated down a list: the word alone, the round ground under the pointer. */
+.lk-btn, .lk-lone, .lk-fix, .lk-accent { display: inline-flex; align-items: center; gap: .35em; padding: 4px 12px !important; margin: 0 !important; line-height: 1.35; }
+.lk-btn, .lk-lone { background: var(--lk-wash) !important; }
+.lk-btn:hover, .lk-lone:hover, .lk-btn:focus-visible, .lk-lone:focus-visible { background: color-mix(in srgb, currentColor 13%, transparent) !important; }
+.lk-accent { background: var(--lk-text, currentColor) !important; color: var(--lk-paper, var(--ls-primary-background-color, #fff)) !important; font-weight: 600; padding-inline: 16px !important; }
+.lk-accent:hover, .lk-accent:focus-visible { background: color-mix(in srgb, var(--lk-text, currentColor) 82%, transparent) !important; }
+.lk-accent kbd, .lk-accent .ky { color: inherit !important; opacity: .65; }
+.lk-btn.lk-low, .lk-fix { background: none !important; padding: 4px 8px !important; }
+/* Delete is red, at whatever level it stands (the owner, 1 November). */
+.lk-del, .lk-btn.lk-i-bin, .lk-fix.lk-i-bin, .lk-fix.lk-i-minus, .lk-item.lk-del { color: var(--rx-red-10, #dc3e42) !important; }
+.lk-btn.lk-low:hover, .lk-fix:hover, .lk-btn.lk-low:focus-visible, .lk-fix:focus-visible { background: var(--lk-wash) !important; }
 .lk-views { display: flex; gap: 4px; }
 .lk-view { color: var(--lk-soft) !important; padding: 3px 8px; }
+.lk-view.on { font-weight: 600; }
 .lk-view.on { color: var(--lk-text, currentColor) !important; font-weight: 500; }
 .lk-trail { display: flex; flex-wrap: wrap; gap: 2px 6px; align-items: center; font-size: 13px; }
 .lk-trail > :not(.lk-step) { color: var(--lk-dim); }
@@ -183,7 +199,7 @@ Door.NAMES = `${TOKENS}
 .lk-head.on { font-weight: 600; }
 .lk-menu { border: 1px solid var(--lk-hair); border-radius: 6px; padding: 4px; }
 .lk-item { display: flex; justify-content: space-between; gap: 16px; width: 100%; text-align: left; color: var(--lk-text, currentColor) !important; padding: 5px 8px; white-space: nowrap; }
-.lk-item.off { color: var(--lk-dim) !important; pointer-events: none; }
+.lk-item.off { color: var(--lk-off) !important; pointer-events: none; }
 .lk-item.gap { height: 8px; padding: 0; pointer-events: none; background: none; }
 .lk-note { color: var(--lk-dim); font-size: 12.5px; font-variant-numeric: tabular-nums; }
 @media (prefers-reduced-motion: reduce) { .lk-fold, .lk-tick, .lk-undo { transition: none; } }

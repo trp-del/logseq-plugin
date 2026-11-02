@@ -61,7 +61,6 @@ function issues(M) {
       const keep = [...t.parents].sort((a, b) => (isKind(M, a) ? 1 : 0) - (isKind(M, b) ? 1 : 0) || S.model.depth(M, b) - S.model.depth(M, a))[0];
       add(RULES[0], t.id, [subject(t.id), say('sits under'), tags(t.parents, 'and')], `keep only under ${kindName(keep)}`, { kind: 'keepUnder', tag: t.id, parent: keep });
     }
-    if (!kindOf(M, t.id) && t.parents.length < 2) add(RULES[0], t.id, [subject(t.id), say('sits under none of the four kinds')], 'put under a kind', { kind: 'prompt', what: 'tag', tag: t.id });
   }
   // 2. A child earns its place.
   for (const t of user) if (!count(M, t.id) && !t.kids.length) add(RULES[1], t.id, [subject(t.id), say('has no nodes and no tags under it')], 'remove', { kind: 'remove', tag: t.id });

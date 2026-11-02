@@ -51,6 +51,7 @@ ${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill > div
 ${AREA} .ls-properties-area .property-pair .property-key-panel *:not(.tag) { color: inherit !important; }`;
 /* The faint dot stands before every property that follows a filled one. A property holding a pencil (a value proposed by
    Predictive) counts as filled, so the row does not re-space when the pencil turns solid. */
+const EMPTY_ROWS = `.ls-page-properties .property-pair.lk-empty:not(:focus-within) { display: none; }`;
 const FILLED = ':is(:not(:has(.empty-value)), :has(.lk-pencil))';
 const capsules = `
 ${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill { background: transparent !important; padding-left: 4px !important; padding-right: 4px !important; margin-inline: -4px; overflow: visible !important; }
@@ -93,7 +94,7 @@ function apply() {
   style('names', setting('quietNames') ? names : '');
   style('capsules', setting('noCapsules') ? capsules : '');
   style('title-words', setting('hideTitleWords') ? titleWords : '');
-  style('empty', emptyProps);
+  style('empty', emptyProps + EMPTY_ROWS);
   style('pencil', setting('hideDatePencil') ? pencil : '');
   style('add-property', setting('quietAddProperty') ? addProperty : '');
   style('quote-bullets', setting('quoteBullets') ? quoteBullets : '');

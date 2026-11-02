@@ -30,7 +30,7 @@ const CSS = `
 .fd-piece:not(:hover) .fd-x:not(:focus-visible) { opacity: 0; width: 0; padding: 0; overflow: hidden; }
 .fd-piece .lk-tag { font-size: 14px !important; }
 .fd-piece .fd-month { color: var(--fd-quiet); }
-.fd-sep { color: var(--fd-faint); }
+.fd-sep { visibility: hidden; }   /* space sorts these, not dots */
 .fd-input { all: unset; flex: 1 1 60px; min-width: 60px; font: inherit; color: inherit; background: none; border: 0; outline: none; padding: 0; }
 .fd-input::placeholder { color: var(--fd-faint); }
 /* The body scrolls; the choices sit above the rows, a gap of one line between them. A property's name here stays a shade
@@ -49,7 +49,7 @@ const CSS = `
 .fd-c .fd-nb { color: var(--fd-faint); font-size: 12px; font-variant-numeric: tabular-nums; visibility: hidden; }
 .fd-c:hover .fd-nb, .fd-c.fd-lit .fd-nb { visibility: visible; }
 .fd-c.fd-lit { color: inherit; }
-.fd-cv .fd-dot { color: var(--fd-faint); }
+.fd-cv .fd-dot { visibility: hidden; }
 .fd-more { margin: -3px 0; }
 .fd-more.fd-lit { color: var(--lk-text, #222) !important; }
 .fd-icon { display: inline-flex; width: 12px; height: 12px; align-items: center; justify-content: center; color: var(--fd-faint); font-size: 12px; }
