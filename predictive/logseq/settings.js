@@ -15,6 +15,8 @@ Flow.settingsSchema = [
     description: 'Option-T, on a bullet that has no tag: a short list of the tags the pages the line names could take (linked or in plain words), best first by its words. Up and Down move, Enter picks, Escape closes; picking gives the bullet the tag and proposes its properties. Nothing is written until you pick. Empty binds none.' },
   { key: 'proposalsAcceptKeys', type: 'string', keys: true, title: 'Keys for accepting everything shown without a new bullet', default: 'mod+alt+enter',
     description: 'Cmd-Option-Enter: everything shown is accepted, as with Enter, and the bullet is left with no new bullet made. Empty binds none.' },
+  { key: 'citeKeys', type: 'string', keys: true, title: 'Keys for citing', default: 'alt+c',
+    description: 'Option-C, in a bullet: opens the line under it to say where it came from, as /Cite does, for a citation at the cursor. Empty binds none.' },
   { key: 'pageKeys', type: 'string', keys: true, title: 'Keys for making the bullet a page', default: 'mod+;',
     description: 'Cmd-;: the bullet’s words become a page, and the bullet stays in the outline with the page’s children under it, the same children in both places. With a page by that name already, the bullet shows that page. Empty binds none.' },
   { key: 'tagEagerness', type: 'enum', title: 'How readily a tag is suggested', default: 'balanced', enumChoices: ['careful', 'balanced', 'eager'], enumPicker: 'select',

@@ -1,6 +1,6 @@
 /* A citation: where a bullet came from, written in its words.
 
-   /Cite rolls a line out under the bullet. Typing finds among the pages and the PDFs; Enter takes one; last in the list stands what was typed, as a web
+   /Cite, or Option-C as it comes (the setting "Keys for citing"), rolls a line out under the bullet. Typing finds among the pages and the PDFs; Enter takes one; last in the list stands what was typed, as a web
    address or as plain words. A PDF or plain words then ask for the page, and Enter with none leaves the page out. The bullet gets "([[the source]], p. 3)" and is left, with the faded arrow
    to take the citation off. Escape goes back one step. A press on a citation to a PDF opens the PDF at that page: Logseq opens
    it, and the page is then scrolled to. A link in the words is what Threads and Logseq's references already follow, so a
@@ -110,7 +110,12 @@ async function show({ uuid } = {}) {
 
 function backToBullet() { const { box, at } = open; close(); if (box.isConnected) { box.focus(); box.setSelectionRange(at, at); } }
 function onKey(event) {
-  if (!open || !open.line.contains(event.target) || event.isComposing) return;
+  if (event.isComposing) return;
+  if (!open && app.keyMatches(event, app.setting('citeKeys')) && app.isBlockBox(event.target) && !app.editorPopupOpen()) {
+    event.preventDefault(); event.stopImmediatePropagation();
+    return void show({ uuid: app.uuidOf(event.target) }).catch(error => warnOnce('the citation line could not open', error));
+  }
+  if (!open || !open.line.contains(event.target)) return;
   const swallow = () => { event.preventDefault(); event.stopImmediatePropagation(); };
   if (event.key === 'Escape') { swallow(); return open.source ? askName() : backToBullet(); }
   if (event.key === 'Enter') {
