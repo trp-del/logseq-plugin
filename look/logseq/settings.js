@@ -42,6 +42,10 @@ const schema = [
   { key: 'sidebarHeading', type: 'heading', default: null, title: 'The right sidebar', description: 'The bar on top of it and the items in it.' },
   { key: 'sidebarBar', type: 'boolean', default: true, title: 'The bar on top plain, its views quiet words',
     description: 'The bar on top of the right sidebar takes the page’s own ground with a fine line under it, where Logseq paints it blue grey; Contents, Page graph and Help read as quiet words in the text colour; the “(Dev)” views that developer mode adds are left out.' },
+  { key: 'sidebarLinks', type: 'boolean', default: true, title: 'Links and Endnotes, sections of the sidebar',
+    description: 'Two words beside Contents, each opening a section you can fold or close, for the page you are on. Links: the links in its words, each once, by kind or in the order on the page. Endnotes: its citations, numbered in order.' },
+  { key: 'citationNumbers', type: 'boolean', default: true, title: 'A citation reads as its endnote’s number',
+    description: 'In a bullet on its own page, a raised number stands where the citation’s words would, the number it has in Endnotes. Under the pointer it says its source; a press goes there. The graph keeps the words, and you see them while you edit the bullet, or where it shows away from its page.' },
   { key: 'sidebarFlat', type: 'boolean', default: true, title: 'Items flat, a line between them',
     description: 'The pages and blocks in the right sidebar lie flat on it, with no card, shadow or rounded corner, and a line separates one from the next.' },
 ];
@@ -66,6 +70,8 @@ const SPECIMENS = {
   hideDatePencil: on => `<span class="sw-k">Date:</span> Sep 3${on ? '' : ' <span class="sw-faintw">✎</span>'}`,
   sidebarBar: on => on ? `<span class="sw-line" style="padding:4px 8px;box-shadow:0 1px 0 var(--sw-hair)"><span class="sw-k">Contents</span><span class="sw-k">Page graph</span><span class="sw-k">Help</span></span>` : `<span class="sw-line" style="padding:4px 8px;background:#d8e1e8;color:#222"><span>Contents</span><span>Page graph</span><span>Help</span><span>(Dev) RTC</span><span>(Dev) Profiler</span></span>`,
   sidebarFlat: on => on ? `<span style="display:block;padding:2px 0;border-top:1px solid var(--sw-line)">▸ Dr. Mei Chen</span><span style="display:block;padding:2px 0;border-top:1px solid var(--sw-line)">▸ Oct 19th, 2026 / This week</span>` : `<span class="sw-chip" style="display:block;box-shadow:0 2px 6px rgba(0,0,0,.15);margin-bottom:6px;padding:2px 8px">▸ Dr. Mei Chen</span><span class="sw-chip" style="display:block;box-shadow:0 2px 6px rgba(0,0,0,.15);padding:2px 8px">▸ Oct 19th, 2026 / This week</span>`,
+  sidebarLinks: on => on ? `<span class="sw-k">Links</span><br><b style="font-size:13px">Entity</b><br>${link('Dr. Mei Chen', '')} &nbsp; ${link('Ana Reyes', '')}` : `<span class="sw-k">Contents</span> &nbsp; <span class="sw-k">Page graph</span>`,
+  citationNumbers: on => `<span class="sw-dot"></span>Segment 6 lesion smaller than in July${on ? '<sup>1</sup>' : ' (<span class="lk-node">MRI report, Oct 14</span>, p. 3)'}`,
   quoteBullets: on => `${on ? '<span class="sw-faintw" style="margin-right:.4em;font-family:Georgia,serif">“</span>' : '<span class="sw-dot"></span>'}In this study, 34% of patients fulfilled the criteria`,
   foldedNote: on => `<span class="sw-ring"><span class="sw-dot" style="margin:0"></span></span>This week${on ? ` <span class="lk-folded" style="margin-left:.5em"><span class="lk-lead">↳</span><span class="lk-pair">${Look.kit.iconHtml('circle')}<span>3</span></span><span class="lk-pair">${Look.kit.iconHtml('photo')}<span>2</span></span><span class="lk-pair">${Look.kit.iconHtml('link')}<span>4</span></span><span class="lk-sep">·</span><a class="lk-tag">Consultation</a><span class="lk-sep">·</span><span>due Oct 19</span></span>` : ''}`,
 };

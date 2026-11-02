@@ -22,6 +22,19 @@ const { U, load, pencilled } = standIn;
   assert.equal(JSON.stringify(Look.folded.wordsFor({ task: 2, files: [['pdf', 1]], quotes: 0, links: 3, tags: ['Consultation'], due: 0 })), JSON.stringify(['2 unfinished tasks under it', '1 PDF', '3 links', 'Consultation']));
   // styles sent
   for (const key of ['look-links', 'look-days', 'look-tags', 'look-capsules', 'look-marks', 'look-props', 'look-title', 'look-folded', 'look-quote-bullets']) assert.ok(styles[key] && !styles[key].includes('no rules'), key + ' sent');
+  { const { linksIn, byKind } = Look.links;
+    const tree = [{ title: 'Saw [[Ana]] about #[[Fatigue]] and [[ana]]', children: [{ title: 'Then [[Ben]]' }] }];
+    assert.equal(linksIn(tree).join(' '), 'ana ben', 'each link once, in the order of the page, a tag not among them');
+    assert.equal(linksIn([{ title: 'Smaller ([[Report]], p. 3) as [[Ana]] said ([[Scan]])' }]).join(' '), 'ana', 'a citation is not a link here');
+    assert.equal(Look.links.citationsIn([{ title: 'A ([[Report]], p. 3)', children: [{ title: 'B ([[Report]], p. 3) and ([[Report]], p. 9) ([[Scan]]) and [[Ana]]' }] }]).map(note => `${note.key} ${note.page}`).join(', '), 'report 3, report 9, scan 0', 'endnotes: in order, the same source at the same page once');
+    { const page = new (doc.defaultView.DOMParser)().parseFromString('<span class="w">Smaller (<span class="page-reference"></span>, p. 3) today</span>', 'text/html'), ref = page.querySelector('.page-reference');
+      assert.equal(Look.cites.citedAt(ref).page, '3', 'a citation is told by what stands either side of its link');
+      ref.nextSibling.nodeValue = ') today'; assert.equal(Look.cites.citedAt(ref).page, '');
+      ref.previousSibling.nodeValue = 'Smaller '; assert.equal(Look.cites.citedAt(ref), null, 'a link with no bracket before it is no citation'); }
+    assert.equal(Look.links.citationsIn([{ title: 'A ([site](https://a.org/b)) B (*Smith 2023*, p. 6) C (*not this* one)' }]).map(note => `${note.id} ${note.title} ${note.page}`).join(', '), 'https://a.org/b site 0, words:smith 2023 Smith 2023 6', 'a web address and plain words are citations too');
+    assert.equal(linksIn([{ title: '([site](https://a.org)) (*Smith*) [[Ana]]' }]).join(' '), 'ana');
+    const rows = [{ title: 'Zed', sort: 'entity' }, { title: 'Ada', sort: 'entity' }, { title: 'Scan', sort: 'occurrence' }, { title: 'Note', sort: null }];
+    assert.equal(byKind(rows).map(group => `${group.head}: ${group.rows.map(row => row.title).join(', ')}`).join(' | '), 'Entity: Ada, Zed | Occurrence: Scan | No kind: Note', 'by kind: the kinds in order, by name, the rest last'); }
   assert.ok(styles['look-quote-bullets'].includes('[data-type="annotation"]') && styles['look-quote-bullets'].includes('.hl-page'), 'a highlight and a bullet that only cites one carry the quotation mark');
   assert.ok(styles['look-tags'].includes('--lk-mono') && !styles['look-tags'].includes('uppercase'), 'tags in mono, as written');
   // a day in a property's value keeps the value's colour; the quiet grey stays for a day in the words

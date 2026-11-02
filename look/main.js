@@ -10,14 +10,16 @@ async function main() {
   Look.title.start();
   Look.folded.start();
   Look.sidebar.start();
+  Look.cites.start();
+  Look.links.start();
   logseq.DB.onChanged(change => Look.kit.graphChanged(change));
   const own = Look.settings.schema.map(item => item.key);
-  logseq.onSettingsChanged?.((now, before) => { if (!window.PluginDoor.settingChanged(own, now, before)) return; Look.style.apply(); Look.sidebar.apply(); Look.kit.run(Look.kit.host()); });
+  logseq.onSettingsChanged?.((now, before) => { if (!window.PluginDoor.settingChanged(own, now, before)) return; Look.style.apply(); Look.sidebar.apply(); Look.kit.run(Look.kit.host()); Look.links.load(); });
   logseq.App.onCurrentGraphChanged(() => { Look.marks.load(); Look.props.load(); });
 }
 function stop() {
   // Each on its own: a part that never started must not leave the others running.
-  for (const part of ['marks', 'props', 'title', 'folded', 'sidebar']) { try { Look[part].stop(); } catch (error) { console.error(`Look: ${part} could not stop`, error); } }
+  for (const part of ['marks', 'props', 'title', 'folded', 'sidebar', 'links', 'cites']) { try { Look[part].stop(); } catch (error) { console.error(`Look: ${part} could not stop`, error); } }
   Look.kit.stopWatching();
   Look.kit.sweep();
 }

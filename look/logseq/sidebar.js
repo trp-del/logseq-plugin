@@ -19,7 +19,8 @@ const barCss = `
 #right-sidebar .cp__right-sidebar-settings > div[data-lk-dev] { display: none !important; }`;
 const flatCss = `
 #right-sidebar .sidebar-item-list > .sidebar-item, #right-sidebar .sidebar-item-list > .sidebar-item .sidebar-item-header { box-shadow: none !important; background: transparent !important; border-radius: 0 !important; }
-#right-sidebar .sidebar-item-list > .sidebar-item ~ .sidebar-item { border-top: 1px solid var(--lk-line) !important; margin-top: 10px; padding-top: 6px; }`;
+#right-sidebar .sidebar-item-list > .sidebar-item ~ .sidebar-item { border-top: 1px solid var(--lk-line) !important; margin-top: 10px; padding-top: 6px; }
+#right-sidebar .sidebar-item-list { padding-top: 14px !important; }`;
 
 // The developer views are told by their words; the mark is swept with the plugin's attributes.
 function markDevViews(doc) {

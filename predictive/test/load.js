@@ -255,7 +255,16 @@ for (const file of order) vm.runInContext(fs.readFileSync(path.join(root, file),
     assert.equal(finds(all, '').length, 0, 'nothing typed finds nothing');
     assert.equal(finds(all, 'report ct').map(s => s.title).sort().join(' | '), 'A CT report | CT report | Report on CT', 'every word typed must be in the name');
     assert.equal(citation('u', '3'), '([[u]], p. 3)'); assert.equal(citation('u', ''), '([[u]])');
+    { const { offer, wording } = Flow.cite;
+      assert.equal(wording(offer('https://www.nih.gov/news', []), ''), '([nih.gov](https://www.nih.gov/news))', 'a web address, named by its site');
+      assert.equal(wording(offer('www.nih.gov', []), ''), '([nih.gov](https://www.nih.gov))');
+      assert.equal(wording(offer('Smith 2023', []), '6'), '(*Smith 2023*, p. 6)', 'plain words, with a page');
+      assert.equal(offer('  ', []), null); assert.equal(offer('fatigue', [{ lower: 'fatigue' }]), null, 'a name that is listed is not offered again'); }
     assert.ok(slash.includes('Cite'), '/Cite is registered once'); assert.equal(slash.length, 1);
     console.log('  ok  /Cite finds a source and words the citation'); }
+  { const { nameIn, canName } = Flow.pageHere;
+    assert.equal(nameIn('  Cycle 4 plan '), 'Cycle 4 plan'); assert.equal(nameIn('[[Cycle 4 plan]]'), 'Cycle 4 plan', 'the brackets are not part of the name');
+    assert.ok(canName('Cycle 4 plan') && !canName('') && !canName('Saw [[Dr. Mei Chen]] today'), 'a name holds no link');
+    console.log('  ok  Cmd-; reads a page\'s name from the bullet'); }
   process.exit(0);
 })().catch(error => { console.error('FAIL ', error); process.exit(1); });

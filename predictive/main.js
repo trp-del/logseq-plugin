@@ -67,6 +67,7 @@ async function main() {
   await Flow.linkUi.start();
   Flow.tagPick.start();   // before the proposals: its keys are looked at first
   Flow.cite.start();
+  Flow.pageHere.start();
   Flow.proposeUi.start();
   Flow.steps.start();
 }
@@ -77,7 +78,7 @@ window.PluginDoor.describe('predictive', {
   schema: [
     row('proposalsHeading'), row('proposals'), row('proposalsHideEmpty'), row('tagEagerness'), row('proposalsSkipGraphs'),
     { type: 'heading', title: 'Keys' },
-    row('proposalsStepKeys', 'Step through a bullet’s properties'), row('proposalsTagKeys', 'Choose a tag'), row('proposalsAcceptKeys', 'Accept everything shown, without a new bullet'),
+    row('proposalsStepKeys', 'Step through a bullet’s properties'), row('proposalsTagKeys', 'Choose a tag'), row('proposalsAcceptKeys', 'Accept everything shown, without a new bullet'), row('pageKeys', 'Make the bullet a page'),
     row('linkHeading'), row('linkSuggest'), row('linkSuggestLearn'), row('linkSuggestRightArrow'), row('linkSuggestHyperTap', 'A tap of the Hyper key takes it'), row('linkSuggestKeys', 'A plain key that takes it too'), row('linkSuggestMinLetters'), row('linkSuggestPause', 'Pause before a suggestion shows, in milliseconds'),
   ],
   specimen,

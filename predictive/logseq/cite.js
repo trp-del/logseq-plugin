@@ -1,7 +1,7 @@
 /* A citation: where a bullet came from, written in its words.
 
-   /Cite rolls a line out under the bullet. Typing finds among the pages and the PDFs; Enter takes one; a PDF then asks for
-   the page, and Enter with none leaves the page out. The bullet gets "([[the source]], p. 3)" and is left, with the faded arrow
+   /Cite rolls a line out under the bullet. Typing finds among the pages and the PDFs; Enter takes one; last in the list stands what was typed, as a web
+   address or as plain words. A PDF or plain words then ask for the page, and Enter with none leaves the page out. The bullet gets "([[the source]], p. 3)" and is left, with the faded arrow
    to take the citation off. Escape goes back one step. A press on a citation to a PDF opens the PDF at that page: Logseq opens
    it, and the page is then scrolled to. A link in the words is what Threads and Logseq's references already follow, so a
    citation is a road and needs nothing of its own in the graph. */
@@ -25,6 +25,16 @@ function finds(sources, typed) {
   return sources.filter(s => words.every(word => s.lower.includes(word)))
     .sort((a, b) => rank(a.lower) - rank(b.lower) || b.pdf - a.pdf || a.lower.length - b.lower.length || a.lower.localeCompare(b.lower)).slice(0, MOST);
 }
+/* What typed can be as it stands, offered last: a web address, or plain words such as "Smith 2023". */
+function offer(typed, found) {
+  const words = typed.trim();
+  if (!words || found.some(source => source.lower === words.toLowerCase())) return null;
+  if (/^(https?:\/\/|www\.)\S+$/i.test(words)) {
+    const url = /^www\./i.test(words) ? `https://${words}` : words;
+    return { web: true, url, title: url.replace(/^https?:\/\/(www\.)?/i, '').replace(/\/.*$/, '') };
+  }
+  return { words: true, title: words.replace(/\*/g, '') };
+}
 async function sourcesNow() {
   const [pages, pdfs] = await Promise.all([app.pages(), db.loadPdfs()]);
   return [...pdfs, ...pages.filter(page => !page.isTag).map(page => ({ uuid: page.uuid, title: page.title, lower: page.lower, pdf: false }))];
@@ -35,13 +45,14 @@ function drawFound() {
   const { line, found, on } = open, doc = line.ownerDocument;
   line.querySelector('.flow-cite-found').replaceChildren(...found.map((source, i) =>
     el(doc, 'div', { class: 'flow-cite-row' + (i === on ? ' on' : ''), role: 'option', 'aria-selected': String(i === on), 'data-i': String(i) },
-      el(doc, 'span', { class: 'lk-node', 'data-uuid': source.uuid }, source.title))));
+      source.uuid ? el(doc, 'span', { class: 'lk-node', 'data-uuid': source.uuid }, source.title)
+        : el(doc, 'span', {}, el(doc, 'span', { class: 'flow-cite-word' }, source.web ? 'Link ' : 'Words '), source.web ? source.url : source.title))));
 }
 function askName() {
   const doc = open.line.ownerDocument, field = el(doc, 'input', { class: 'flow-cite-field', 'aria-label': 'Find a source', spellcheck: 'false' });
   open.source = null; open.found = []; open.on = 0;
   open.line.replaceChildren(field, el(doc, 'div', { class: 'flow-cite-found', role: 'listbox' }));
-  field.addEventListener('input', () => { if (!open) return; open.found = finds(open.sources, field.value); open.on = 0; drawFound(); });
+  field.addEventListener('input', () => { if (!open) return; const found = finds(open.sources, field.value), own = offer(field.value, found); open.found = own ? [...found, own] : found; open.on = 0; drawFound(); });
   field.focus();
 }
 function askPage(source) {
@@ -51,7 +62,7 @@ function askPage(source) {
   field.addEventListener('input', () => { field.value = field.value.replace(/\D/g, ''); });
   field.focus();
 }
-const take = source => { if (source.pdf) askPage(source); else write(source, ''); };
+const take = source => { if (source.pdf || source.words) askPage(source); else write(source, ''); };
 
 /* The words go in through the box, where the /Cite was, as if typed, so Logseq keeps them with the rest and its own Undo holds. */
 function typeIn(box, at, text) {
@@ -64,18 +75,21 @@ function typeIn(box, at, text) {
   box.dispatchEvent(new doc.defaultView.InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
 }
 const citation = (uuid, page) => `([[${uuid}]]${page ? `, p. ${page}` : ''})`;
+// A link and italic words are drawn by Logseq as elements of their own, which is what lets Look find them as it finds a [[link]].
+const wording = (source, page) => source.web ? `([${source.title}](${source.url}))` : source.words ? `(*${source.title}*${page ? `, p. ${page}` : ''})` : citation(source.uuid, page);
 async function write(source, page) {
   const { box, uuid, at } = open;
   close();
   if (!box.isConnected) return notify('The bullet was left, so nothing was cited.', 'warning');
   const before = box.value[at - 1], after = box.value[at];
-  typeIn(box, at, (before && !/\s/.test(before) ? ' ' : '') + citation(source.uuid, page) + (after && !/[\s.,;:)]/.test(after) ? ' ' : ''));
+  const words = wording(source, page);
+  typeIn(box, at, (before && !/\s/.test(before) ? ' ' : '') + words + (after && !/[\s.,;:)]/.test(after) ? ' ' : ''));
   await logseq.Editor.exitEditingMode();
-  P.rememberUndo(uuid, uuid, [{ kind: 'citation', prop: { title: 'Citation', ident: 'citation' }, ids: [], shown: source.title + (page ? `, p. ${page}` : '') }], () => takeOff(uuid, source.uuid, page));
+  P.rememberUndo(uuid, uuid, [{ kind: 'citation', prop: { title: 'Citation', ident: 'citation' }, ids: [], shown: source.title + (page ? `, p. ${page}` : '') }], () => takeOff(uuid, words));
 }
-async function takeOff(uuid, source, page) {
+async function takeOff(uuid, words) {
   const title = String((await logseq.Editor.getBlock(uuid))?.title ?? '');
-  const words = citation(source, page), at = title.indexOf(words);
+  const at = title.indexOf(words);
   if (at < 0) return;
   await logseq.Editor.updateBlock(uuid, (title.slice(0, at).replace(/ $/, '') + title.slice(at + words.length)).trim());
 }
@@ -164,5 +178,5 @@ function start() {
   logseq.App.onRouteChanged?.(close);
   if (!registered) { registered = true; logseq.Editor.registerSlashCommand('Cite', show); }   // Logseq keeps it for as long as the plugin runs
 }
-Flow.cite = { start, close, finds, citation, state: () => open };
+Flow.cite = { start, close, finds, citation, offer, wording, goToPage, state: () => open };
 })();
