@@ -135,7 +135,20 @@ function makeReader(locale = en) {
   return { locale: L, parseDay, daysInWords, numberInWords, ahead: L.ahead };
 }
 
-const api = { en, makeReader, dayAfter, dayNumber, asDate, sameDay, exactDay, reader: makeReader(en) };
+/* A day written in a date format of Logseq's (its preferredDateFormat, "MMM do, yyyy" unless set otherwise), as Logseq titles
+   a journal page: the pencil then reads as the value will once written. The tokens Logseq's formats use; anything else is
+   kept as written. */
+const ordinal = n => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th');
+const cap = w => w.replace(/^./, c => c.toUpperCase());
+function formatDay(day, format = 'MMM do, yyyy', locale = en) {
+  const d = asDate(day), month = locale.months[d.getMonth()] || '', weekday = locale.weekdays[d.getDay()] || '';
+  const two = n => String(n).padStart(2, '0');
+  const parts = { yyyy: String(d.getFullYear()), yy: two(d.getFullYear() % 100), MMMM: cap(month), MMM: cap(month.slice(0, 3)), MM: two(d.getMonth() + 1), M: String(d.getMonth() + 1),
+    do: ordinal(d.getDate()), dd: two(d.getDate()), d: String(d.getDate()), EEEE: cap(weekday), EEE: cap(weekday.slice(0, 3)), EE: cap(weekday.slice(0, 3)), E: cap(weekday.slice(0, 3)) };
+  return String(format || 'MMM do, yyyy').replace(/yyyy|yy|MMMM|MMM|MM|M|do|dd|d|EEEE|EEE|EE|E/g, t => parts[t]);
+}
+
+const api = { en, makeReader, formatDay, dayAfter, dayNumber, asDate, sameDay, exactDay, reader: makeReader(en) };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 if (typeof window !== 'undefined') (window.Flow ||= {}).dates = api;
 })();

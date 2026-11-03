@@ -121,7 +121,14 @@ const nodesById = (ids, idents) => !ids.length ? Promise.resolve([]) : dsQuery(`
 const aliasPairs = async () => (await dsQuery('[:find ?o ?a :where [?o :block/alias ?a]]').catch(() => [])).map(([o, a]) => [Number(o), Number(a)]);
 const plainLines = async () => (await dsQuery('[:find ?b ?t :where [?b :block/page _] [?b :block/title ?t] [(not= ?t "")] (not [?b :block/tags _]) (not [?b :logseq.property/deleted-at _])]').catch(() => []))
   .map(([id, title]) => ({ id: Number(id), title: String(title) }));
-const journalDays = async () => new Map((await dsQuery('[:find ?p ?d :where [?p :block/journal-day ?d]]').catch(() => [])).map(([p, d]) => [p, Number(d)]));
+// The journal days, by page; and each day's own title, which Logseq keeps when the date format changes (the pencil copies it).
+const dayTitles = new Map();
+const journalDays = async () => {
+  const rows = await dsQuery('[:find ?p ?d ?t :where [?p :block/journal-day ?d] [?p :block/title ?t]]').catch(() => []);
+  dayTitles.clear();
+  for (const [, d, t] of rows) dayTitles.set(Number(d), String(t));
+  return new Map(rows.map(([p, d]) => [p, Number(d)]));
+};
 async function datedByTag(dateIdent) {
   const dated = new Map();
   const rows = await dsQuery(`[:find ?t ?same (count ?b) :where [?b :block/tags ?t] [?b :${dateIdent} ?dp] [?dp :block/journal-day ?d] [?b :block/page ?pg] [?pg :block/journal-day ?pd] [(= ?d ?pd) ?same]]`).catch(() => []);
@@ -145,7 +152,7 @@ async function readContext({ limits = {}, locale, linkRates = true } = {}) {
   for (const prop of schema.props.filter(isDateProp)) dated.set(prop.ident, await datedByTag(prop.ident));
   const entries = [...plain.map(({ id, title }) => ({ id, title, tags: [], values: new Map() })), ...nodes.map(n => rawEntry(n, learned, known))];
   const ctx = buildContext({ schema, pages, aliases, userTagIds: tagIds, entries, days, dated, limits, locale });
-  ctx.learned = learned; ctx.readAt = Date.now();
+  ctx.learned = learned; ctx.readAt = Date.now(); ctx.dayTitles = new Map(dayTitles);
   if (linkRates) ctx.linkLines = await countLinks(pages);
   return ctx;
 }

@@ -27,6 +27,7 @@ const engine = need('engine');
 const schemaLib = need('schema');
 const { fieldsOfTags, fits, wide, untagged, isNumberProp, isDateProp, isChoiceProp, isLinkProp, isBuiltInProp } = schemaLib;
 const names = need('names');
+const datesLib = need('dates');
 const { shownWords, linkIdsIn, profileOf } = need('context');
 const { profileTag } = need('profile');
 const { dayNumber } = need('dates');
@@ -92,11 +93,12 @@ const mostlyAhead = ev => ev.other >= DATED_LEAST && ev.other > ev.same;
 const datedAhead = ev => ev.other >= ev.same;
 
 const dayIdFor = (ctx, day) => (ctx.dayIds ||= new Map([...(ctx.days || [])].map(([id, d]) => [d, id]))).get(day) ?? null;
-// A day as the pencil shows it, with the year when it is not this year.
+// A day as the pencil shows it: as Logseq will write it, so nothing changes when it is filled in. The journal page's own title
+// where the graph has that day (Logseq keeps a day's name when the date format changes), else the day in the date format
+// Logseq will name the new day in (ctx.dateFormat).
 const dayText = (ctx, day) => {
   if (!day) return '';
-  const year = Math.floor(day / 10000);
-  return `${(ctx.reader.locale.months[Math.floor(day / 100) % 100 - 1] || '').slice(0, 3).replace(/^./, c => c.toUpperCase())} ${day % 100}${year === new Date().getFullYear() ? '' : `, ${year}`}`;
+  return ctx.dayTitles?.get(day) || datesLib.formatDay(day, ctx.dateFormat, ctx.reader?.locale);
 };
 
 // The tag of the nodes an untagged bullet looks like: by its words and links alone, among every node the engine knows;

@@ -21,7 +21,7 @@ Or download the zip from the latest release, unzip it, and load the folder with 
 
 ## Settings
 
-One window for the whole plugin: **Plugin settings**, from the gear on the plugin's card (Open settings), the command palette, or Logseq's three dots under Plugins. Down the left the six parts, each with a tick for whether it runs; on the right each setting drawn as the thing itself. A letter typed anywhere finds a setting through all six. A part switched on or off waits, pencilled, for **Reload to apply**, which brings you back to the window. Changed by you lists what differs from the start, and "default" puts one back. Logseq's plain list is one word away at the foot; it also holds what the export window remembers.
+One window for the whole plugin: **Plugin settings**, from **g** then **,** outside a bullet (as Logseq's own g pairs), the gear on the plugin's card (Open settings), the command palette, or Logseq's three dots under Plugins. Down the left the six parts, each with a tick for whether it runs; on the right each setting drawn as the thing itself. A letter typed anywhere finds a setting through all six. A part switched on or off waits, pencilled, for **Reload to apply**, which brings you back to the window. Changed by you lists what differs from the start, and "default" puts one back. Logseq's plain list is one word away at the foot; it also holds what the export window remembers.
 
 ## How it is built
 

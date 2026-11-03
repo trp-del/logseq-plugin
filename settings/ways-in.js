@@ -1,4 +1,4 @@
-/* The ways into the settings window: Plugin settings in the command palette, the same words in Logseq's three-dots menu under
+/* The ways into the settings window: g then , outside a bullet, Plugin settings in the command palette, the same words in Logseq's three-dots menu under
    Plugins, and the gear on the plugin's card, whose Open settings comes here instead of Logseq's plain list. Logseq's list
    stays one word away, at the foot of the window. */
 (function () {
@@ -61,7 +61,8 @@ function onDots(event) {
 
 function start() {
   const doc = host();
-  logseq.App.registerCommandPalette({ key: 'plugin-settings', label: LABEL }, open);
+  // g then , ("go to settings", as Cmd-, in a Mac app): two keys, as Logseq's own g pairs, pressed outside a bullet.
+  logseq.App.registerCommandPalette({ key: 'plugin-settings', label: LABEL, keybinding: { binding: 'g ,' } }, open);
   logseq.provideStyle({ key: 'plugin-settings-menu', style: `.${ITEM_CLASS}[data-highlighted] { background: color-mix(in srgb, currentColor 7%, transparent); }` });
   doc.addEventListener('click', onGear, true);
   doc.addEventListener('click', onDots, true);

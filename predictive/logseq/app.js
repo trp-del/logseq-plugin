@@ -54,8 +54,18 @@ async function context({ wait = true } = {}) {
       state.loading = job;
     }
   }
-  if (state.ctx) return state.ctx;
-  return wait ? state.loading : null;
+  const ctx = state.ctx || (wait ? await state.loading : null);
+  if (ctx) ctx.dateFormat = await dateFormat();
+  return ctx;
+}
+/* The date format Logseq names new journal days in (Settings, Editor), so a day is pencilled as it will be written. Read
+   again when it is a second old: a change there shows at the next pause in typing, with nothing to reload. */
+const format = { value: '', at: 0, asking: null };
+async function dateFormat() {
+  if (Date.now() - format.at < 1000) return format.value;
+  format.asking ||= logseq.App.getUserConfigs().then(c => c?.preferredDateFormat || '', () => format.value)
+    .then(value => { format.value = value; format.at = Date.now(); format.asking = null; return value; });
+  return format.asking;
 }
 const forget = () => { state.generation++; state.ctx = null; state.loading = null; state.pages.list = null; state.pages.at = 0; state.pages.loading = null; learning.ids.clear(); clearTimeout(learning.timer); db.forget(); };
 

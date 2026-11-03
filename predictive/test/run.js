@@ -76,11 +76,20 @@ test('a locale can replace the words (Spanish weekdays)', () => {
   assert.deepEqual(es.daysInWords('Cita el viernes', base), [20261030]);
 });
 
-test('the pencil shows the year when it is not this year', () => {
-  const year = new Date().getFullYear(), g = synthetic.work(), Meeting = g.tagPage.Meeting;
-  const res = day => propose(g.ctx, bullet({ text: 'Sync about roadmap', tags: [Meeting.id], page: journal(g, day) })).pieces.find(p => p.kind === 'day').shown;
-  assert.equal(res(year * 10000 + 1028), 'Oct 28');
-  assert.equal(res((year + 1) * 10000 + 1028), `Oct 28, ${year + 1}`);
+test('the pencil writes a day as Logseq will: the journal page\'s title, else the graph\'s date format', () => {
+  const g = synthetic.work(), Meeting = g.tagPage.Meeting, day = 20261028;
+  const res = () => propose(g.ctx, bullet({ text: 'Sync about roadmap', tags: [Meeting.id], page: journal(g, day) })).pieces.find(p => p.kind === 'day').shown;
+  assert.equal(res(), 'Oct 28th, 2026');
+  g.ctx.dateFormat = 'yyyy-MM-dd';
+  assert.equal(res(), '2026-10-28', 'a day with no title of its own is in the date format');
+  g.ctx.dayTitles = new Map([[day, 'Oct 28th, 2026']]);
+  assert.equal(res(), 'Oct 28th, 2026', 'a journal day keeps its own title when the format changes');
+  const { formatDay } = require('../core/dates.js');
+  assert.equal(formatDay(day), 'Oct 28th, 2026');
+  assert.equal(formatDay(day, 'yyyy-MM-dd'), '2026-10-28');
+  assert.equal(formatDay(day, 'EEEE, MMMM do yyyy'), 'Wednesday, October 28th 2026');
+  assert.equal(formatDay(20261101, 'MMM do'), 'Nov 1st');
+  assert.equal(formatDay(20261111, 'MMM do'), 'Nov 11th');
 });
 
 section('suggested links');
