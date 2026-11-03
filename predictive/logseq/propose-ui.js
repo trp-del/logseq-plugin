@@ -253,14 +253,16 @@ async function compute(box) {
   const rules = result.pieces.filter(open).filter((p, i, kept) => !p.needsTag || kept.some(q => q.kind === 'tag'));
   // Apple's model (logseq/model.js), for what the rules left open: its answer for these words if it is in, else asked now and
   // drawn when it comes, as long as the bullet and its words are still the same.
+  // A tag it reads comes first, the tag's properties as its second answer comes.
   const asking = Flow.modelAsk, had = asking?.had(ctx, bullet, result);
   show(box, uuid, words, record, rules, (had || []).filter(open));
-  if (had || !asking?.wanted(ctx, bullet, result)) return;
-  asking.ask(ctx, bullet, result).then(more => {
+  if ((had && asking.done(ctx, bullet, result)) || !asking?.wanted(ctx, bullet, result)) return;
+  const drawn = more => {
     if (!more.length || version !== S.version || S.stopped || S.hushed.uuid === uuid) return;
     const now = editingBox(host().activeElement);
     if (now && uuidOf(now) === uuid && now.value === words) show(now, uuid, words, record, rules, more.filter(open));
-  }, error => warnOnce('Apple’s model could not be asked', error));
+  };
+  asking.ask(ctx, bullet, result, drawn).then(drawn, error => warnOnce('Apple’s model could not be asked', error));
 }
 // The proposals of the bullet being written: the rules' and the model's (core/model.js, merge).
 function show(box, uuid, words, record, rules, more) {

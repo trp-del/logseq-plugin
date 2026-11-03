@@ -398,6 +398,44 @@ test('a bullet with no tag, where the rules found none: asked only which of the 
   assert.deepEqual(modelLib.pieces(clinic.ctx, req, { values: { t: 'Recipe' } }), [], 'a tag not offered is never taken');
   assert.equal(modelLib.tagOf(req, { values: { t: 'consultation' } })?.title, 'Consultation', 'Option-T reads the same answer');
 });
+test('a tag read by the model: its properties are the second question, and come under the tag as guesses', () => {
+  const b = bullet({ id: -7, text: 'Talked through the scan with Dr. Mei Chen at length' });
+  const { req } = askAbout(b);
+  const reply = { values: { t: 'Consultation' } };
+  const next = modelLib.followUp(clinic.ctx, req, reply, 20261102);
+  assert.ok(next, 'the tag brings a second question');
+  assert.ok(next.req.fill.tags.includes('Consultation'), 'asked as a Consultation');
+  const asked = new Map(next.req.fill.properties.map(p => [p.title, p]));
+  assert.ok(!asked.has('Provider'), 'Provider the rules already guess from earlier lines is not asked again');
+  assert.deepEqual(asked.get('Where')?.choices, ['Northgate Clinic'], 'Where, which the rules left open, is asked');
+  const first = modelLib.pieces(clinic.ctx, req, reply);
+  const both = modelLib.withFollowUp(clinic.ctx, first, next.req, { values: { [asked.get('Where').key]: 'Northgate Clinic' } });
+  assert.equal(both[0].kind, 'tag', 'the tag stays first');
+  const where = both.find(p => p.prop.title === 'Where');
+  assert.equal(where.shown, 'Northgate Clinic'); assert.ok(where.guess && where.needsTag && where.how === 'model');
+  assert.equal(both.find(p => p.prop.title === 'Provider')?.shown, 'Dr. Mei Chen', 'the rules\' Provider stays beside it');
+  assert.equal(modelLib.followUp(clinic.ctx, req, { values: { t: 'none' } }), null, 'no tag, no second question');
+});
+test('the tag question says what each tag holds, with an earlier line of the likeliest ones, all from the graph', () => {
+  const b = bullet({ id: -7, text: 'Talked through the scan with Dr. Mei Chen at length' });
+  const { req } = askAbout(b);
+  const context = req.fill.context;
+  assert.match(context, /- Consultation: Provider, Spoke with, Where, Dose/, 'a tag with its properties (four at most)');
+  assert.match(context, /"Visit with Dr\. Mei Chen number 0" \(Consultation\)|"Visit with .+" \(Consultation\)/, 'an earlier Consultation, its link read as the name');
+  assert.ok(!/\[\[/.test(context), 'no raw link in what is sent');
+  assert.ok(context.length < 4000, 'kept short enough for the model on the Mac');
+});
+test('a tag the rules pencil: the model is asked about its properties, which wait for the tag', () => {
+  const b = bullet({ id: -8, text: 'Visit with Dr. Mei Chen number 1 again' });
+  const result = propose(clinic.ctx, b);
+  assert.ok(result.assume, 'the rules pencil a tag for this line');
+  const req = modelLib.request(clinic.ctx, b, result, 20261102);
+  assert.ok(req?.needsTag, 'asked, as for a bullet with the tag');
+  assert.ok(req.fill.tags.includes(result.assume.title));
+  const where = req.fill.properties.find(p => p.title === 'Where');
+  const kept = modelLib.pieces(clinic.ctx, req, { values: { [where.key]: 'Northgate Clinic' } });
+  assert.equal(kept[0].shown, 'Northgate Clinic'); assert.ok(kept[0].needsTag && kept[0].guess);
+});
 test('the pencilled tag waits while the setting is careful; Option-T still asks', () => {
   const b = bullet({ id: -7, text: 'Talked through the scan with Dr. Mei Chen at length' });
   const result = propose(clinic.ctx, b);

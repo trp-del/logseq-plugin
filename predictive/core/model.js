@@ -27,6 +27,8 @@ const { fieldsOfTags, fits, wide, isNumberProp, isDateProp, isChoiceProp, isLink
 const names = need('names');
 const { dayNumber } = need('dates');
 const proposeLib = need('propose');
+const engine = need('engine');
+const { shownWords } = need('context');
 
 const MOST_PAGES = 12;
 /* When the words name no page for a property, the model is offered the pages the property can take (its range), so it can
@@ -100,15 +102,49 @@ function tagRequest(ctx, b, today = dayNumber(new Date())) {
   if (!byTitle.size) return null;
   const page = b.page && !b.page.day ? b.page.title : '';
   return {
-    fill: { text: shown(ctx, text), page, tags: [], today: iso(b.page?.day || today), instructions: INSTRUCTIONS, properties: [{ key: 't', title: 'Kind of note', kind: 'tag', choices: [...byTitle.values()].map(p => p.title), about: ABOUT.tag() }] },
+    fill: { text: shown(ctx, text), page, tags: [], today: iso(b.page?.day || today), instructions: INSTRUCTIONS, context: tagContext(ctx, b, [...byTitle.values()]), properties: [{ key: 't', title: 'Kind of note', kind: 'tag', choices: [...byTitle.values()].map(p => p.title), about: ABOUT.tag() }] },
     asked: new Map([['t', { kind: 'tag', tags: byTitle }]]), days: new Set(), bullet: b,
   };
+}
+/* What the tag question adds to the note, so the model has more to go on than the tags' names: what each tag holds (its
+   properties, at most four), for the first TAG_HINTS tags offered; and, for the first TAG_EXAMPLES, one earlier line of
+   that tag, the one nearest this bullet by its words. All of it from the graph, read on the Mac. */
+const TAG_HINTS = 25, TAG_EXAMPLES = 8, EXAMPLE_LENGTH = 90;
+function tagContext(ctx, b, tags) {
+  const hints = tags.slice(0, TAG_HINTS).map(tag => {
+    const props = fieldsOfTags([tag.id], ctx.schema).filter(p => !isBuiltInProp(p)).slice(0, 4).map(p => p.title);
+    return `- ${tag.title}${props.length ? ': ' + props.join(', ') : ''}`;
+  });
+  const wanted = new Set(tags.slice(0, TAG_EXAMPLES).map(t => t.id)), example = new Map();
+  // Bullets only: a page is learned as a line too, but its name shows nothing of what a note of that kind says.
+  const bulletOf = e => !ctx.byId.has(e.id) && (e.values.get('block/tags') || []).some(id => wanted.has(id));
+  if (ctx.index) {
+    const tokens = engine.tokensOf(shownWords(b.text, ctx), [], [], ctx.limits);
+    const near = engine.neighbours(ctx.index, tokens, { k: 60, skip: new Set([b.id]), keep: bulletOf });
+    for (const { entry } of near) for (const id of entry.values.get('block/tags')) if (wanted.has(id) && !example.has(id)) example.set(id, entry);
+    for (const entry of ctx.index.entries) {
+      if (example.size >= wanted.size) break;
+      if (bulletOf(entry)) for (const id of entry.values.get('block/tags')) if (wanted.has(id) && !example.has(id)) example.set(id, entry);
+    }
+  }
+  const lines = tags.filter(t => example.has(t.id)).map(t => {
+    const words = shown(ctx, example.get(t.id).title).replace(/\s+/g, ' ').trim();
+    return `- "${words.length > EXAMPLE_LENGTH ? words.slice(0, EXAMPLE_LENGTH - 1) + '…' : words}" (${t.title})`;
+  });
+  return [`The kinds of note, with what each holds:\n${hints.join('\n')}`, lines.length ? `Earlier notes of some kinds:\n${lines.join('\n')}` : ''].filter(Boolean).join('\n\n');
 }
 // The tag the model read, as a page, or null.
 const tagOf = (req, reply) => { const v = reply?.values?.t; return v == null ? null : req.asked.get('t')?.tags.get(String(v).toLowerCase()) || null; };
 
 function request(ctx, b, result, today = dayNumber(new Date())) {
-  if (!result || result.assume) return null;
+  if (!result) return null;
+  // A tag the rules pencilled: the model is asked about its properties as for a bullet with that tag (its answers wait
+  // for the tag, as the rules' guesses for it do).
+  if (result.assume) {
+    const tagged = { ...b, tags: [...b.tags, result.assume.id] };
+    const asked = request(ctx, tagged, proposeLib.propose(ctx, tagged, result.assume), today);
+    return asked ? { ...asked, needsTag: true } : null;
+  }
   if (!result.pieces.length && ctx.limits?.modelTag !== false) { const asked = tagRequest(ctx, b, today); if (asked) return asked; }
   if (result.record !== b) return null;
   const text = String(b.text || '');
@@ -154,6 +190,7 @@ function request(ctx, b, result, today = dayNumber(new Date())) {
 const shown = (ctx, text) => String(text).replace(/\[\[([^\[\]]+)\]\]/g, (m, key) => ctx.byKey.get(key.toLowerCase())?.title || key);
 
 function pieces(ctx, req, reply) {
+  if (req.needsTag) return pieces(ctx, { ...req, needsTag: false }, reply).map(piece => ({ ...piece, needsTag: true }));
   const out = [], values = reply?.values || {}, taken = new Set();
   const { dayIdFor, dayText } = proposeLib;
   // The tag: pencilled as the rules pencil theirs, with the properties it brings as guesses.
@@ -192,6 +229,21 @@ function pieces(ctx, req, reply) {
   return out;
 }
 
+/* After the model reads a tag, the tag's properties are asked about too, as for a bullet that has the tag: followUp gives
+   that second question (null when there is no tag or nothing to ask), withFollowUp puts its answers with the tag's. */
+function followUp(ctx, req, reply, today = dayNumber(new Date())) {
+  const tag = req?.bullet && tagOf(req, reply);
+  if (!tag) return null;
+  const tagged = { ...req.bullet, tags: [...req.bullet.tags, tag.id] };
+  const next = request(ctx, tagged, proposeLib.propose(ctx, tagged, tag), today);
+  return next ? { req: next } : null;
+}
+function withFollowUp(ctx, first, req, reply) {
+  const [tagPiece, ...rest] = first;
+  const more = pieces(ctx, req, reply).map(piece => ({ ...piece, needsTag: true }));
+  return [tagPiece, ...merge(rest, more)];
+}
+
 /* The proposals shown: the rules', and the model's for what the rules left open. A model guess for a property the rules
    guessed from plain words alone takes its place; a plain-words guess holding a page the model put elsewhere goes, so one
    person is not in two places. */
@@ -202,7 +254,7 @@ function merge(rules, model) {
   return [...kept, ...model.filter(p => !kept.some(q => q.ident === p.ident))];
 }
 
-const api = { request, tagRequest, tagOf, pieces, merge, iso, fromIso, namedPages, rangePages, byWordsAlone, MOST_TAGS, MOST_RANGE };
+const api = { request, tagRequest, tagContext, tagOf, followUp, withFollowUp, pieces, merge, iso, fromIso, namedPages, rangePages, byWordsAlone, MOST_TAGS, MOST_RANGE };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 if (typeof window !== 'undefined') (window.Flow ||= {}).model = api;
 })();

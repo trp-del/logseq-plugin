@@ -22,7 +22,7 @@ bullet and guesses too. It reads what the rules cannot: in "Talked through the s
 rules see two doctors for one Provider and stay silent, while the model can say which one it was. It also reads a number with
 no property's name beside it ("5 mg" for a Dose) and which of two days is the start and which the end.
 
-It also reads which kind of note a bullet with no tag is, where the rules find none. Of "Mouth feels like sandpaper, even water stings" the rules may say nothing, since it names no page and shares no words with earlier lines; the model can read it as a Symptom Log. It chooses only among your own tags (those bullets carry, the ones the pages it names could take first) or none, and its tag is pencilled in as the rules' is, with the tag's properties as guesses. It does so at balanced and eager, not at careful ("How readily a tag is suggested"). Option-T asks it too, whatever that setting: its tag comes first in the list, its row says "by Apple's model", and the list waits a moment for it rather than move a row once open.
+It also reads which kind of note a bullet with no tag is, where the rules find none. Of "Mouth feels like sandpaper, even water stings" the rules may say nothing, since it names no page and shares no words with earlier lines; the model can read it as a Symptom Log. It chooses only among your own tags (those bullets carry, the ones the pages it names could take first) or none, told what each holds (its properties) and shown, for the likeliest few, the earlier line of that tag nearest this one, and its tag is pencilled in as the rules' is, with the tag's properties as guesses: the model is then asked about those properties as for a bullet with that tag, and its answers come under the bullet a moment after the tag. The same goes for a tag the rules pencil: the model fills in what the rules leave open among its properties. It does so at balanced and eager, not at careful ("How readily a tag is suggested"). Option-T asks it too, whatever that setting: its tag comes first in the list, its row says "by Apple's model", and the list waits a moment for it rather than move a row once open.
 
 It is held to the graph. A page property is offered the pages the words name that fit it; when the words name none, the pages
 the property can take (up to 40, the ones most often its value first), so it can read what the words describe in other words:
@@ -32,7 +32,9 @@ What the model is told and asked is sent with each question, so a change to that
 (Status), Logseq's own Deadline and Scheduled, a property that takes almost anything (a Topic), a note under a record, or a
 bullet whose tag is still a proposal. What it says is always a guess, dotted, written only by Enter or a click, with the same
 Undo, and its hover says it came from Apple's model. A guess with stronger evidence (a link, the page, earlier bullets) is
-never replaced. It is asked once typing has paused a little longer than for the rules, since it takes about a second.
+never replaced. It is asked once typing has paused a quarter of a second longer than for the rules, and the helper keeps
+the next session ready (the instructions already read), so an answer starts sooner. **Predictive: how fast is Apple's
+model?** in the command palette asks it one tag question three times and says how long each took.
 
 It runs on the Mac and nothing leaves it. Logseq cannot reach Apple's model by itself, so a small helper program does
 (`helper/`): it listens on this Mac only, answers only Logseq, and runs the model. It needs macOS 26 or later with Apple
@@ -79,6 +81,7 @@ In the command palette:
 
 - **Predictive: how well do proposals work on this graph?** Takes a sample of your earlier lines, hides one value at a time, asks what would be proposed and compares. Reports how many were right, wrong and left empty.
 - **Predictive: tune proposals to this graph.** Tries a small grid of limits on that same test and keeps the setting with the most right guesses among those whose wrong guesses stay under 3% of what they said. Saved per graph.
+- **Predictive: how fast is Apple's model?** Asks one tag question about a line of your graph three times and says how long each answer took, as you would wait for it.
 - **Predictive: read the graph again.**
 - **Predictive: choose a tag for this bullet.** The same as Option-T.
 

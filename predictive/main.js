@@ -40,6 +40,17 @@ async function tuneCommand() {
   Flow.app.notify(`Tuned for “${graph}”: nearest line at least ${result.limits.nearLeast}, lead ${result.limits.lead} (for properties; tags follow the setting “How readily a tag is suggested”).\n${await describe(result.after)}`, 'success');
 }
 
+async function speedCommand() {
+  const ctx = await Flow.app.context();
+  if (!ctx) return Flow.app.notify('Still reading the graph; try again in a moment.');
+  Flow.app.notify('Asking Apple’s model three times…');
+  const r = await Flow.modelAsk.speed(ctx);
+  if (!r.reached) return Flow.app.notify('Apple’s model is not connected: Plugin settings, Predictive, says why.', 'warning');
+  if (!r.times.length) return Flow.app.notify('Apple’s model did not answer the sample question.', 'warning');
+  const s = ms => (ms / 1000).toFixed(1) + ' s';
+  Flow.app.notify(`Apple’s model answered one tag question in ${r.times.map(s).join(', then ')}. The first may start cold; after it the helper has the next one ready.\nAsked about: “${r.text.length > 80 ? r.text.slice(0, 79) + '…' : r.text}”`, 'success');
+}
+
 /* The settings window's specimens: each setting as the thing itself, as it looks while you write. The pencil, tag and
    name looks are Look's, through the shared names. */
 const pen = w => `<span class="lk-pencil">${w}</span>`;
@@ -93,6 +104,7 @@ const specimen = (item, value) => item.key === 'proposalsModel' ? (value ? model
 async function main() {
   logseq.App.registerCommandPalette({ key: 'flow-score', label: 'Predictive: how well do proposals work on this graph?' }, scoreCommand);
   logseq.App.registerCommandPalette({ key: 'flow-tune', label: 'Predictive: tune proposals to this graph' }, tuneCommand);
+  logseq.App.registerCommandPalette({ key: 'flow-model-speed', label: 'Predictive: how fast is Apple’s model?' }, speedCommand);
   logseq.App.registerCommandPalette({ key: 'flow-reread', label: 'Predictive: read the graph again' }, async () => { Flow.app.forget(); await Flow.app.context(); Flow.app.notify('Read the graph again.'); });
   logseq.DB.onChanged(({ blocks }) => Flow.app.learnSoon(blocks));
   logseq.onSettingsChanged?.((now, before) => { if (!window.PluginDoor.settingChanged(['tagEagerness'], now, before)) return; const ctx = Flow.app.state.ctx; if (ctx) Object.assign(ctx.limits, Flow.app.tagLimits()); });   // applies at once, no new reading

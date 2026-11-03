@@ -4,11 +4,12 @@
    answers only requests from Logseq's own window (origin lsp://logseq.com), and runs the model on the Mac. Nothing
    leaves the Mac.
 
-   GET  /status  -> { "ready": true } or { "ready": false, "reason": "..." }
-   POST /fill    <- { "text", "page", "tags": [..], "today": "YYYY-MM-DD", "instructions", "properties": [
+   GET  /status  -> { "ready": true } or { "ready": false, "reason": "..." }, with "cloud": whether Apple's larger model in Private Cloud Compute can be asked (for the
+                    ontology only, later; never a note's words), and "cloudReason"
+   POST /fill    <- { "text", "page", "tags": [..], "today": "YYYY-MM-DD", "instructions", "context", "properties": [
                         { "key", "title", "kind": "page" | "tag" | "number" | "date", "many", "choices": [titles], "about" } ] }
                    (a "tag" is which of the graph's tags the note is, from its choices; "about" says what is asked)
-                 -> { "values": { key: title | [titles] | number | "YYYY-MM-DD" } } or { "error": "..." }
+                 -> { "values": { key: title | [titles] | number | "YYYY-MM-DD" }, "ms" } or { "error": "..." }
 
    The answer is held to a shape built from the bullet's own properties: a page property can only hold one of the
    choices it was sent (or "none"), a date only a day written YYYY-MM-DD, a number only a number. The plugin checks
@@ -26,16 +27,49 @@ let NONE = "none"
 // MARK: - the request
 
 struct Property: Decodable { let key: String; let title: String; let kind: String; let many: Bool?; let choices: [String]?; let about: String? }
-struct Fill: Decodable { let text: String; let page: String?; let tags: [String]?; let today: String?; let properties: [Property]; let instructions: String? }
+struct Fill: Decodable {
+  let text: String; let page: String?; let tags: [String]?; let today: String?; let properties: [Property]; let instructions: String?
+  let context: String?   // what the plugin adds to the note: the tags with what each holds, earlier notes of each
+}
 
 // MARK: - the model
 
 func status() -> [String: Any] {
+  var out: [String: Any]
   switch SystemLanguageModel.default.availability {
-  case .available: return ["ready": true]
-  case .unavailable(let reason): return ["ready": false, "reason": String(describing: reason)]
+  case .available: out = ["ready": true]
+  case .unavailable(let reason): out = ["ready": false, "reason": String(describing: reason)]
+  }
+  // Apple's larger model, in Private Cloud Compute: whether this Mac can ask it (macOS 27 and later, and a helper built with
+  // the macOS 27 tools, Swift 6.4; built with older tools it has none).
+  #if compiler(>=6.4)
+  if #available(macOS 27.0, *) {
+    switch PrivateCloudComputeLanguageModel().availability {
+    case .available: out["cloud"] = true
+    case .unavailable(let reason): out["cloud"] = false; out["cloudReason"] = String(describing: reason)
+    }
+  } else { out["cloud"] = false; out["cloudReason"] = "needs macOS 27" }
+  #else
+  out["cloud"] = false; out["cloudReason"] = "built without Private Cloud Compute"
+  #endif
+  return out
+}
+
+/* A session made ready ahead: the model on the Mac reads the instructions before the question comes (prewarm), so the
+   answer starts sooner. One waits for each set of instructions; taking it makes the next one ready. A note's words are
+   only ever read by this model, on the Mac. */
+actor Ready {
+  private var waiting: [String: LanguageModelSession] = [:]
+  func take(instructions: String) -> LanguageModelSession {
+    let session = waiting.removeValue(forKey: instructions) ?? LanguageModelSession(instructions: instructions)
+    if waiting.count > 4 { waiting.removeAll() }
+    let next = LanguageModelSession(instructions: instructions)
+    next.prewarm()
+    waiting[instructions] = next
+    return session
   }
 }
+let READY = Ready()
 
 // One name per property for the model to read: the property's title, made unique.
 func names(_ props: [Property]) -> [String] {
@@ -90,16 +124,18 @@ from what is usual. A person the note was with, talked to or saw goes in the pro
 """
 
 func run(_ fill: Fill) async throws -> [String: Any] {
-  guard case .available = SystemLanguageModel.default.availability else { return ["error": "the model is not ready"] }
+  let started = Date()
+  if case .unavailable = SystemLanguageModel.default.availability { return ["error": "the model is not ready"] }
   let names = names(fill.properties)
   let schema = try schemaFor(fill, names)
   var prompt = "Note: \(fill.text)\n"
   if let tags = fill.tags, !tags.isEmpty { prompt += "It is a: \(tags.joined(separator: ", "))\n" }
   if let page = fill.page, !page.isEmpty { prompt += "Written on the page: \(page)\n" }
   if let today = fill.today { prompt += "Written on: \(today)\n" }
+  if let context = fill.context, !context.isEmpty { prompt += "\n\(context)\n" }
   // The plugin's own instructions when it sends them, so their wording can change without building this again.
-  let session = LanguageModelSession(instructions: fill.instructions?.isEmpty == false ? fill.instructions! : INSTRUCTIONS)
-  let answer = try await session.respond(to: prompt, schema: schema, options: GenerationOptions(sampling: .greedy))
+  let instructions = fill.instructions?.isEmpty == false ? fill.instructions! : INSTRUCTIONS
+  let answer = try await READY.take(instructions: instructions).respond(to: prompt, schema: schema, options: GenerationOptions(sampling: .greedy))
   let data = Data(answer.content.jsonString.utf8)
   let object = (try JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
   // Back to the plugin's keys, without what the model left empty.
@@ -115,7 +151,7 @@ func run(_ fill: Fill) async throws -> [String: Any] {
     }
     values[p.key] = v
   }
-  return ["values": values]
+  return ["values": values, "ms": Int(Date().timeIntervalSince(started) * 1000)]
 }
 
 // MARK: - the door: a little HTTP on 127.0.0.1
