@@ -130,8 +130,9 @@ const CSS = `
 .st input.lk-tick[type=checkbox]:checked, .st input.lk-tick[type=checkbox]:focus, .st input.lk-tick[type=checkbox]:hover { background-color: transparent !important; background-image: none !important; border-color: currentColor !important; color: inherit !important; box-shadow: none !important; }
 .st input.lk-tick:checked::before { content: ""; position: absolute; left: 3.5px; top: .5px; width: 3.5px; height: 7px; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg); }
 .st input.lk-tick:focus-visible { outline: none; border-color: currentColor !important; }
-/* Every box at the middle of its row's first line, in one straight column whatever the row's depth. */
-.st .st-row > input.lk-tick[type=checkbox] { margin-top: 6.5px !important; margin-left: calc(14.5px - var(--d, 0) * 12px - var(--st-in, 0px)) !important; }
+/* Every box at the middle of its row's first line, in one straight column at the left edge whatever the row's depth, so a
+   top-level row, which can be ticked like any (the top is open), keeps its fold arrow beside its box. */
+.st .st-row > input.lk-tick[type=checkbox] { margin-top: 6.5px !important; margin-left: calc(0px - var(--d, 0) * 12px - var(--st-in, 0px)) !important; }
 /* Under a kind a name starts right of the kind's name, past the kind's mark. */
 .st-tree .st-row:not(.kind):not(.loose) { --st-in: 9px; padding-left: calc(var(--d, 0) * 12px + var(--st-in)); }
 .st-row .lk-fold { display: inline-flex; width: 14px; height: 20px; margin-top: 3px; align-items: center; justify-content: center; cursor: pointer; }
@@ -148,6 +149,14 @@ const CSS = `
 .st .lk-view.on { cursor: default; } .st-row.off[data-pick] { cursor: default; }
 .st-row.dragging { opacity: .4; }
 .st-row.over { background: var(--st-wash); box-shadow: inset 0 2px 0 var(--st-line); }
+.st-row.over[data-word]:not([data-word=""])::after { content: attr(data-word); position: absolute; right: 64px; top: 4px; font-size: 12px; color: var(--st-quiet); pointer-events: none; }
+/* Two panes: each finds and scrolls on its own; "to the top" stands at each foot only while a tag is held. */
+.st-panes { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); padding: 8px 0 12px; }
+.st-pane { min-width: 0; padding: 4px 14px 0 6px; display: flex; flex-direction: column; }
+.st-pane + .st-pane { border-left: 1px solid var(--st-hair); padding-left: 14px; }
+.st-pane .st-tree { max-height: calc(100vh - 300px); min-height: 160px; overflow-y: auto; }
+.st-topdrop { display: none; } .st[data-dragging] .st-topdrop { display: grid; } .st-topdrop .nm { color: var(--st-quiet); }
+.st-top .st-split { flex: none; }
 /* Pencilled in (Look's lk-pencil on the name): what a change waiting in the tray touches. */
 /* The pick bar, as the grammar draws it: above the list, how many and what can be done as quiet words, Esc clears. */
 .st-pick { margin: 0 0 8px; min-height: 27px; flex-wrap: nowrap; }
@@ -269,10 +278,11 @@ function make(holder, mode, app, opts = {}) {
   let wantFocus = false;   // a press in this view asked for the keyboard; nothing else takes it
 
   // ---------- the tree ----------
-  function visibleRows() {
-    const m = M(), rows = [];
+  // pane 2: the second of Two panes, with a find box and folds of its own (st.pane2); otherwise the map's own.
+  function visibleRows(pane) {
+    const m = M(), rows = [], P2 = pane === 2 ? st.pane2 : null, open = P2 ? P2.open : st.open, seen = P2 ? P2.seen : st.seen;
     const tops = Mo.tops(m);
-    const q = loc.find.trim().toLowerCase();
+    const q = (P2 ? P2.find : loc.find).trim().toLowerCase();
     if (q) {
       const hit = new Set([...m.tags.values()].filter(t => !t.missing && t.title.toLowerCase().includes(q)).map(t => t.id));
       const show = new Set();
@@ -281,8 +291,8 @@ function make(holder, mode, app, opts = {}) {
       tops.forEach(k => walk(k, 0));
       return rows;
     }
-    const walk = (n, d) => { if (d < 2 && !st.seen.has(n)) { st.seen.add(n); st.open.add(n); }   // the first two levels start open, and fold like any row
-      const kids = Mo.kids(m, n); const open = st.open.has(n); rows.push({ n, d, open, kids: kids.length }); if (open) kids.forEach(k => walk(k, d + 1)); };
+    const walk = (n, d) => { if (d < 2 && !seen.has(n)) { seen.add(n); open.add(n); }   // the first two levels start open, and fold like any row
+      const kids = Mo.kids(m, n); const isOpen = open.has(n); rows.push({ n, d, open: isOpen, kids: kids.length }); if (isOpen) kids.forEach(k => walk(k, d + 1)); };
     tops.forEach(k => walk(k, 0));
     return rows;
   }
@@ -291,15 +301,15 @@ function make(holder, mode, app, opts = {}) {
     const o = own(r.n), b = below(r.n);
     const arrow = r.kids ? `<span class="lk-fold" data-fold="${esc(r.n)}" aria-expanded="${r.open}">${CHEVRON}</span>` : '<span></span>';
     const bullet = `<span class="st-bul ${r.kids && !r.open ? 'folded' : ''}"><i></i></span>`;
-    const editing = st.edit && st.edit.what === 'rename' && st.edit.on === r.n;
+    const editing = !inPane2 && st.edit && st.edit.what === 'rename' && st.edit.on === r.n;
     const nm = editing ? `<input class="st-in" data-edit value="${esc(st.edit.text)}" autocomplete="off" spellcheck="false">` : esc(name(r.n));
-    const canDrag = t && !t.kind && !t.missing && !editing;
+    const canDrag = t && !t.missing && !editing;   // any tag, a kind's too: the top is open
     let h = `<div class="st-row lk-row ${isKind ? 'kind' : ''} ${r.n === LOOSE ? 'loose' : ''} ${r.dim || (st.aim && !aimOk(r.n)) ? 'dim' : ''} ${t?.missing ? 'dim' : ''} ${loc.cur === r.n ? 'cur' : ''} ${waitTag(r.n)}" style="--d:${r.d}" data-row="${esc(r.n)}" ${canDrag ? 'draggable="true"' : ''}>` +
-      (side ? '' : `<input type="checkbox" class="lk-tick" data-tick="${esc(r.n)}" ${st.ticks.has(r.n) ? 'checked' : ''} ${isKind || r.n === LOOSE ? 'disabled style="visibility:hidden"' : ''}>`) +
+      (side ? '' : `<input type="checkbox" class="lk-tick" data-tick="${esc(r.n)}" ${st.ticks.has(r.n) ? 'checked' : ''} ${r.n === LOOSE || t?.missing ? 'disabled style="visibility:hidden"' : ''}>`) +
       arrow + bullet +
       `<span class="nm">${isKind && t?.kind ? km(t.kind) : ''}<span class="${waitTag(r.n) ? 'lk-pencil' : ''}">${nm}</span></span><span class="ct">${Mo.count(M(), r.n) || ''}</span><span class="iss ${o ? 'own' : b ? 'on' : ''}"></span></div>`;
-    if (st.edit && st.edit.what === 'new' && st.edit.on === r.n && st.edit.owner === mode) h += `<div class="st-row lk-row" style="--d:${r.d + 1}"><span></span><span></span><span class="st-bul"><i></i></span><span class="nm"><input class="st-in" data-edit value="${esc(st.edit.text)}" placeholder="a new tag under ${esc(name(r.n))}" autocomplete="off" spellcheck="false"></span><span class="ct"></span><span class="iss"></span></div>`;
-    if (st.prompt && st.prompt.owner === mode && st.prompt.row === r.n) { h += promptHtml(); promptDrawn = true; }
+    if (!inPane2 && st.edit && st.edit.what === 'new' && st.edit.on === r.n && st.edit.owner === mode) h += `<div class="st-row lk-row" style="--d:${r.d + 1}"><span></span><span></span><span class="st-bul"><i></i></span><span class="nm"><input class="st-in" data-edit value="${esc(st.edit.text)}" placeholder="a new tag under ${esc(name(r.n))}" autocomplete="off" spellcheck="false"></span><span class="ct"></span><span class="iss"></span></div>`;
+    if (!inPane2 && !promptDrawn && st.prompt && st.prompt.owner === mode && st.prompt.row === r.n) { h += promptHtml(); promptDrawn = true; }
     return h;
   }
   function treeHtml() {
@@ -310,11 +320,30 @@ function make(holder, mode, app, opts = {}) {
       `<div class="st-tree lk-list" ${st.ticks.size ? 'data-picking' : ''}>${rows.map(rowHtml).join('')}</div></div>`;
   }
 
+  /* ---------- Two panes: the whole tree twice, side by side, each finding and scrolling on its own, so a tag can be dragged
+     from one onto a row of the other when the two are far apart in one long tree. The first pane is the map's own (its find
+     text, folds and cursor); a field opens only there. While a tag is held, "to the top" stands at the foot of each pane. */
+  let inPane2 = false;
+  function panesHtml() {
+    promptDrawn = false;
+    const pane = n => {
+      inPane2 = n === 2;
+      const rows = visibleRows(n), q = n === 2 ? st.pane2.find : loc.find;
+      const h = `<div class="st-pane" data-pane="${n}"><div class="st-find"><input ${n === 2 ? 'data-find2' : 'data-find'} placeholder="Find a tag" value="${esc(q)}" autocomplete="off" spellcheck="false"></div>` +
+        `<div class="st-tree lk-list" ${st.ticks.size ? 'data-picking' : ''}>${rows.map(rowHtml).join('')}<div class="st-row st-topdrop" data-row="${LOOSE}"><span></span><span></span><span></span><span class="nm">to the top</span></div></div></div>`;
+      inPane2 = false;
+      return h;
+    };
+    return `<div class="st-panes">${pane(1)}${pane(2)}</div>${st.aim ? '' : focusHtml(st.cur)}`;
+  }
+
   // ---------- the whole: the areas ----------
   function topHtml() {
     const v = ['table', 'log'].includes(st.view) ? st.view : 'tree';
     const views = `<div class="st-views lk-views">${[['tree', 'Regions'], ['table', 'Every property'], ['log', 'Log']].map(([k, w]) => `<span class="lk-view ${v === k ? 'here on' : 'act'}" ${v === k ? '' : `data-show="${k}"`}>${w}</span>`).join('')}</div>`;
-    return `<div class="st-top">${views}<div class="st-find"><input data-find placeholder="Find a tag" value="${esc(loc.find)}" autocomplete="off" spellcheck="false"></div><span class="st-new act lk-add lk-i-plus" data-do="new" data-on="${LOOSE}">New top-level tag</span></div>${st.view === 'tree' ? actsHtml() : ''}`;
+    const split = st.view === 'tree' ? `<span class="st-split act lk-btn lk-low lk-i-side" data-split>${st.split ? 'One pane' : 'Two panes'}</span>` : '';
+    const find = st.view === 'tree' && st.split ? '' : `<div class="st-find"><input data-find placeholder="Find a tag" value="${esc(loc.find)}" autocomplete="off" spellcheck="false"></div>`;
+    return `<div class="st-top">${views}${find}${split}<span class="st-new act lk-add lk-i-plus" data-do="new" data-on="${LOOSE}">New top-level tag</span></div>${st.view === 'tree' ? actsHtml() : ''}`;
   }
   // What can be done stays in view, faint until it can be (the research: what you can do is recognised, not remembered), so nothing moves when a tag is picked.
   function actsHtml() {
@@ -352,7 +381,7 @@ function make(holder, mode, app, opts = {}) {
     const up = Mo.pathOf(M(), id).slice(0, -1).reverse(), kids = Mo.kids(M(), id), beside = up.length ? Mo.kids(M(), up[0]).filter(k => k !== id) : [];
     const adding = st.edit?.what === 'new' && st.edit.on === id && st.edit.owner === mode;
     const extendsWord = `<span class="act lk-pick" data-do="move" data-on="${id}">${up.length ? up.map(tagLink).join('<span class="to"> / </span>') : 'Nothing'}<span class="chev">⌄</span></span>`;
-    return `<dl class="st-lines-t"><dt>Extends</dt><dd>${t.kind && !up.length ? 'Nothing' : extendsWord}</dd>${beside.length ? `<dt>Beside</dt><dd><span>${ranges(beside)}</span></dd>` : ''}` +
+    return `<dl class="st-lines-t"><dt>Extends</dt><dd>${extendsWord}</dd>${beside.length ? `<dt>Beside</dt><dd><span>${ranges(beside)}</span></dd>` : ''}` +
       `<dt>Child tags</dt><dd>${kids.length ? `<span>${ranges(kids)}</span>` : ''}${adding ? `<input class="st-in" data-edit value="${esc(st.edit.text)}" placeholder="Name of the child tag" autocomplete="off" spellcheck="false">` : `<span class="act lk-add lk-i-child" data-do="new" data-on="${id}">Add child tag</span>`}</dd>` +
       `<dt>Relationships</dt><dd>${relsHtml(id)}</dd></dl>${cardPrompt()}${mergeAskHtml(id)}${changeAskHtml(id)}${suggestHtml(id)}`;
   }
@@ -531,7 +560,7 @@ function make(holder, mode, app, opts = {}) {
       const subject = p.what === 'nodes' ? `${p.nodes.length} ticked nodes` : p.what === 'prop' ? `the property ${P(p.prop).title}` : p.what === 'range' ? `what ${P(p.prop).title} points at` : p.tags.length > 1 ? `${p.tags.length} picked tags` : name(p.tags[0]);
       ask = p.what === 'range' ? `Node tags of <b>${esc(P(p.prop).title)}</b>${P(p.prop).range.length ? ', also' : ''}…` : p.what === 'prop' && !p.from ? `Put <b>${esc(P(p.prop).title)}</b> on…` : `Move <b>${esc(subject)}</b> to…`;
       const list = all = [];
-      const walk = (n, d) => { const t = T(n); const ok = p.what === 'tag' ? !p.tags.some(s => Mo.under(m, n, s)) : p.what === 'range' || p.what === 'nodes' ? !t.kind && !t.missing : !t.missing || p.what !== 'prop' || !!p.from; if (!q || t.title.toLowerCase().includes(q)) list.push({ key: n, nm: t.title, ct: Mo.count(m, n) || '', d, ok, mark: d === 0 ? t.kind : null }); for (const k of Mo.kids(m, n)) walk(k, d + 1); };
+      const walk = (n, d) => { const t = T(n); const ok = p.what === 'tag' ? !p.tags.some(s => Mo.under(m, n, s)) : p.what === 'range' || p.what === 'nodes' ? !t.missing : !t.missing || p.what !== 'prop' || !!p.from; if (!q || t.title.toLowerCase().includes(q)) list.push({ key: n, nm: t.title, ct: Mo.count(m, n) || '', d, ok, mark: d === 0 ? t.kind : null }); for (const k of Mo.kids(m, n)) walk(k, d + 1); };
       Mo.tops(m).forEach(k => walk(k, 0));
       if (p.what === 'tag' && (!q || 'the top'.includes(q))) list.push({ key: LOOSE, nm: 'The top', ct: '', d: 0, ok: true, loose: true });
       rows = q ? list.slice(0, 8) : list.filter(r => r.d <= 1).slice(0, 12);
@@ -550,7 +579,7 @@ function make(holder, mode, app, opts = {}) {
     const it = (t, act, off, k) => `<div class="lk-item ${off ? 'off' : ''} ${/^(Remove|Delete)/.test(t) ? 'lk-del' : ''}" data-act="${act}">${esc(t)}${k ? `<span class="rt lk-note">${k}</span>` : ''}</div>`;
     let h = `<div class="st-menu lk-menu" style="left:${mn.x}px;top:${mn.y}px">`;
     if (mn.kind === 'row') {
-      const t = T(mn.on), isKind = !t || t.kind, loose = mn.on === LOOSE;
+      const t = T(mn.on), isKind = !t || t.missing, loose = mn.on === LOOSE;   // isKind: nothing behind the row (a kind the graph lacks)
       const n = Mo.count(m, mn.on), nodesOf = ids => plural(ids.reduce((s, x) => s + Mo.count(m, x), 0), 'node');
       h += (t?.uuid ? it('Go to this tag', 'page') : '') + it('Open everything under', 'openall', false, 'Shift →') + (mode === 'side' ? it('Open the map here', 'main', false, 'Enter') : it(st.ticks.has(mn.on) ? 'Untick' : 'Tick', 'tick', isKind || loose, 'space')) + '<div class="gap lk-item"></div>' +
         it('Rename', 'rename', loose || !t || t.missing) + it('Its nodes', 'nodes', !n) + it(loose ? 'New top-level tag' : 'Add child tag', 'new') + it('Add a property…', 'addprop', isKind || loose) + it('Add a property to all beneath…', 'addpropall', loose, Mo.kids(m, mn.on).length ? nodesOf(Mo.kids(m, mn.on)) : '') + '<div class="gap lk-item"></div>' +
@@ -572,13 +601,15 @@ function make(holder, mode, app, opts = {}) {
   function draw() {
     const active = doc.activeElement, hadFocus = root.contains(active) || wantFocus;
     const finding = !wantFocus && root.contains(active) && active.matches('[data-find]') ? active.selectionStart : null;
+    const finding2 = !wantFocus && root.contains(active) && active.matches('[data-find2]') ? active.selectionStart : null;
+    const paneScroll = [...root.querySelectorAll('.st-pane .st-tree')].map(t => t.scrollTop);
     const scroll = root.querySelector('.st-tree')?.scrollTop, scrollA = root.querySelector('.st-regions')?.scrollLeft, scrollR = root.querySelector('.st-right')?.scrollTop;
     const trayWas = root.querySelector('.st-tray')?.offsetHeight;   // undefined on the first drawing: what is there at opening does not slide
     if (mode === 'page') keepPlace();
     promptDrawn = false;
     let h;
     if (mode === 'page') {
-      const card = st.view === 'table' ? tableHtml() : st.view === 'log' ? logHtml() : st.view === 'nodes' ? nodesHtml() : regionsHtml();
+      const card = st.view === 'table' ? tableHtml() : st.view === 'log' ? logHtml() : st.view === 'nodes' ? nodesHtml() : st.split ? panesHtml() : regionsHtml();
       h = `${topHtml()}<div class="st-tray">${trayHtml()}</div><div class="st-right">${card}</div>`;
     } else if (mode === 'tag') h = `<div class="st-tray">${trayHtml()}</div>${opts.prop != null ? propLinesHtml(opts.prop) : linesHtml(opts.tag)}`;
     else h = treeHtml();
@@ -589,6 +620,7 @@ function make(holder, mode, app, opts = {}) {
     slideTray(trayWas);
     if (mode === 'page') S.regions?.lines(root, M(), st.cur, !!st.aim);
     if (scroll) root.querySelector('.st-tree').scrollTop = scroll;
+    root.querySelectorAll('.st-pane .st-tree').forEach((t, i) => { if (paneScroll[i]) t.scrollTop = paneScroll[i]; });
     if (scrollA && root.querySelector('.st-regions')) root.querySelector('.st-regions').scrollLeft = scrollA;
     if (scrollR && root.querySelector('.st-right')) root.querySelector('.st-right').scrollTop = scrollR;
     root.querySelector('.st-row.cur')?.scrollIntoView?.({ block: 'nearest' });
@@ -599,6 +631,7 @@ function make(holder, mode, app, opts = {}) {
     if (pin && st.prompt.owner === mode) { pin.focus(); pin.setSelectionRange(pin.value.length, pin.value.length); }
     else if (edit && st.edit.owner === mode) { edit.focus(); edit.select(); }
     else if (box) { box.focus(); box.setSelectionRange(finding, finding); }
+    else if (finding2 != null && root.querySelector('[data-find2]')) { const b2 = root.querySelector('[data-find2]'); b2.focus(); b2.setSelectionRange(finding2, finding2); }
     else root.focus({ preventScroll: true });
   }
 
@@ -663,12 +696,12 @@ function make(holder, mode, app, opts = {}) {
   const goTo = id => { if (!M().tags.has(id) && id !== LOOSE) return; jump(() => { st.cur = id; st.propCur = null; st.view = 'tree'; Mo.pathOf(M(), id).slice(0, -1).forEach(a => st.open.add(a)); }); };
   const fold = (id, open) => { if (open === undefined) open = !st.open.has(id); open ? st.open.add(id) : st.open.delete(id); redraw(); };
   const openAll = id => { const walk = x => { st.open.add(x); Mo.kids(M(), x).forEach(walk); }; walk(id); redraw(); };
-  const tick = id => { const t = T(id); if (!t || t.kind) return; st.ticks.has(id) ? st.ticks.delete(id) : st.ticks.add(id); redraw(); };
+  const tick = id => { const t = T(id); if (!t || t.missing) return; st.ticks.has(id) ? st.ticks.delete(id) : st.ticks.add(id); redraw(); };
   const startPrompt = p => { st.menu = null; st.ask = null; st.prompt = { text: '', lit: 0, owner: mode, ...p }; redraw(); };
   const startMoveTag = id => { const tags = st.ticks.size > 1 && st.ticks.has(id) ? [...st.ticks] : [id]; if (mode === 'page') return startAim('move', tags); startPrompt({ what: 'tag', list: 'tags', tags, row: id }); };
   // On the page of the whole the areas are the choice: the bar says what is moving, and a press on a tag answers.
   const startAim = (what, tags) => { st.menu = null; st.ask = null; st.aim = { what, tags }; loc.find = ''; redraw(); };
-  const aimOk = id => { const a = st.aim, t = T(id); if (!a || !t) return false; return a.what === 'move' ? !a.tags.some(s => s === id || Mo.under(M(), id, s)) : !a.tags.includes(id) && !t.kind; };
+  const aimOk = id => { const a = st.aim, t = T(id); if (!a || !t) return false; return a.what === 'move' ? !a.tags.some(s => s === id || Mo.under(M(), id, s)) : !a.tags.includes(id) && !t.missing; };
   function finishAim(id) {
     const a = st.aim; if (id !== LOOSE && !aimOk(id)) return;
     st.aim = null; loc.find = '';
@@ -698,7 +731,7 @@ function make(holder, mode, app, opts = {}) {
   }
   // The move itself, from the prompt, a drop or Tab: the tag and everything under it goes under the destination.
   function moveTags(tags, dest) {
-    for (const s of tags) { const t = T(s); if (!t || t.kind || s === dest || (dest !== LOOSE && Mo.under(M(), dest, s)) || (dest === LOOSE ? !t.parents.length : Mo.parentOf(M(), s) === dest)) continue; app.stage({ kind: 'move', tag: s, to: dest }); }
+    for (const s of tags) { const t = T(s); if (!t || t.missing || s === dest || (dest !== LOOSE && Mo.under(M(), dest, s)) || (dest === LOOSE ? !t.parents.length : Mo.parentOf(M(), s) === dest)) continue; app.stage({ kind: 'move', tag: s, to: dest }); }
     st.ticks.clear(); st.open.add(dest);
   }
   const startEdit = (what, on, text) => { st.menu = null; st.ask = null; st.edit = { what, on, text, owner: mode }; redraw(); };
@@ -736,13 +769,13 @@ function make(holder, mode, app, opts = {}) {
     else if (a === 'ppage') { redraw(); app.openNode(P(Number(on.split('·')[1]))?.uuid, shift); }
     else if (a === 'main') app.openMain(on);
     else if (a === 'tick') tick(on);
-    else if (a === 'move') { if (T(on) && !T(on).kind) startMoveTag(on); else redraw(); }
+    else if (a === 'move') { if (T(on) && !T(on).missing) startMoveTag(on); else redraw(); }
     else if (a === 'rename') { if (T(on) && !T(on).missing) startEdit('rename', on, name(on)); else redraw(); }
     else if (a === 'new') { if (!st.open.has(on)) st.open.add(on); startEdit('new', on, ''); }
-    else if (a === 'addprop') { if (T(on) && !T(on).kind) startPrompt({ what: 'addprop', list: 'props', tag: on, row: on }); }
+    else if (a === 'addprop') { if (T(on) && !T(on).missing) startPrompt({ what: 'addprop', list: 'props', tag: on, row: on }); }
     else if (a === 'addpropall') { if (T(on)) startPrompt({ what: 'addprop', list: 'props', tag: on, under: true, row: on }); }
-    else if (a === 'merge') { const from = [...st.ticks].filter(x => x !== on && T(x)); if (!from.length || !T(on) || T(on).kind) return redraw(); st.cur = on; st.view = 'tree'; st.propCur = null; st.ask = { merges: from, into: on, owner: mode }; redraw(); }
-    else if (a === 'remove') { const t = T(on); if (!t || t.kind || Mo.count(m, on) || t.kids.length) return redraw(); const p = Mo.parentOf(m, on); app.stage({ kind: 'remove', tag: on }); if (st.cur === on) st.cur = p ?? m.kinds[0].id; redraw(); }
+    else if (a === 'merge') { const from = [...st.ticks].filter(x => x !== on && T(x)); if (!from.length || !T(on) || T(on).missing) return redraw(); st.cur = on; st.view = 'tree'; st.propCur = null; st.ask = { merges: from, into: on, owner: mode }; redraw(); }
+    else if (a === 'remove') { const t = T(on); if (!t || t.missing || Mo.count(m, on) || t.kids.length) return redraw(); const p = Mo.parentOf(m, on); app.stage({ kind: 'remove', tag: on }); if (st.cur === on) st.cur = p ?? Mo.tops(m)[0] ?? m.kinds[0].id; redraw(); }
     else if (a === 'pmove') { const [tagId] = on.split('·').map(Number); startPrompt({ what: 'prop', list: 'tags', key: on, prop: Number(on.split('·')[1]), from: tagId }); }
     else if (a === 'pullup') { const [tagId, pid] = on.split('·').map(Number); const dest = Mo.parentOf(m, tagId); if (dest == null) return redraw(); app.stage({ kind: 'moveProp', prop: pid, from: [tagId], to: dest }); st.propCur = `${dest}·${pid}`; st.cur = dest; redraw(); }
     else if (a === 'prange') { const [, pid] = on.split('·').map(Number); startPrompt({ what: 'range', list: 'tags', prop: pid }); }
@@ -772,7 +805,7 @@ function make(holder, mode, app, opts = {}) {
     const c = issue.change;
     app.stage({ ...c });
     if (c.kind === 'merge' && st.cur === c.from) st.cur = c.into;
-    if (c.kind === 'remove' && st.cur === c.tag) st.cur = Mo.parentOf(M(), c.tag) ?? M().kinds[0].id;
+    if (c.kind === 'remove' && st.cur === c.tag) st.cur = Mo.parentOf(M(), c.tag) ?? Mo.tops(M())[0] ?? M().kinds[0].id;
     redraw();
   }
   async function openNodes(id) {
@@ -783,10 +816,11 @@ function make(holder, mode, app, opts = {}) {
   
   // ---------- events ----------
   root.addEventListener('click', e => {
-    const t = e.target.closest('[data-all],[data-fold],[data-tick],[data-ntick],[data-row],[data-go],[data-open],[data-unrange],[data-addrange],[data-prop],[data-fix],[data-stage],[data-leave],[data-sort],[data-apply],[data-discard],[data-drop],[data-undo],[data-act],[data-do],[data-show],[data-compare],[data-aim],[data-aimtop],[data-aimoff],[data-back],[data-pick],[data-nodes],[data-more],[data-node]');
+    const t = e.target.closest('[data-all],[data-fold],[data-tick],[data-ntick],[data-row],[data-go],[data-open],[data-unrange],[data-addrange],[data-prop],[data-fix],[data-stage],[data-leave],[data-sort],[data-apply],[data-discard],[data-drop],[data-undo],[data-act],[data-do],[data-show],[data-compare],[data-aim],[data-aimtop],[data-aimoff],[data-back],[data-pick],[data-nodes],[data-more],[data-node],[data-split]');
     if (!t) { if (st.menu) { st.menu = null; redraw(); } return; }
     e.stopPropagation(); e.preventDefault();
-    if (t.dataset.fold) return fold(keyOf(t.dataset.fold));
+    if (t.hasAttribute('data-split')) { st.split = !st.split; return redraw(); }
+    if (t.dataset.fold) { if (t.closest('[data-pane="2"]')) { const id = keyOf(t.dataset.fold), o = st.pane2.open; o.has(id) ? o.delete(id) : o.add(id); return redraw(); } return fold(keyOf(t.dataset.fold)); }
     if (t.dataset.tick) return tick(keyOf(t.dataset.tick));
     if (t.dataset.ntick) { const x = st.nodes.list[+t.dataset.ntick]; st.nodes.ticks.has(x.uuid) ? st.nodes.ticks.delete(x.uuid) : st.nodes.ticks.add(x.uuid); st.nodes.cur = +t.dataset.ntick; return redraw(); }
     if (t.dataset.open) return app.openNode(t.dataset.open, e.shiftKey);
@@ -825,27 +859,29 @@ function make(holder, mode, app, opts = {}) {
   const canDrop = dest => st.drag && dest != null && (dest === LOOSE ? st.drag.tags.some(s => T(s)?.parents.length) : !st.drag.tags.some(s => s === dest || Mo.under(M(), dest, s)));
   root.addEventListener('dragstart', e => {
     const id = dragOf(e); const t = id != null && T(id);
-    if (!t || t.kind || t.missing) { e.preventDefault(); return; }
+    if (!t || t.missing) { e.preventDefault(); return; }
     e.stopPropagation();
     st.drag = { tags: st.ticks.size > 1 && st.ticks.has(id) ? [...st.ticks] : [id], owner: mode };
     try { e.dataTransfer.setData('text/plain', t.title); e.dataTransfer.effectAllowed = 'move'; } catch (error) { /* a test's plain event */ }
     e.target.closest('[data-row]').classList.add('dragging');
+    root.setAttribute('data-dragging', '');
   });
   root.addEventListener('dragover', e => {
     const dest = dragOf(e); if (!canDrop(dest)) return;
     e.preventDefault(); e.stopPropagation();
     try { e.dataTransfer.dropEffect = 'move'; } catch (error) { /* ditto */ }
     const row = e.target.closest('[data-row]');
-    if (!row.classList.contains('over')) { for (const o of root.querySelectorAll('.st-row.over')) o.classList.remove('over'); row.classList.add('over'); }
+    if (!row.classList.contains('over')) { for (const o of root.querySelectorAll('.st-row.over')) o.classList.remove('over'); row.classList.add('over'); row.dataset.word = dest === LOOSE ? '' : `under ${name(dest)}`; }
   });
-  root.addEventListener('dragleave', e => { const row = e.target.closest?.('[data-row]'); if (row && !row.contains(e.relatedTarget)) row.classList.remove('over'); });
+  // The ring goes only when the pointer is off its row: moving onto a word inside the row also reports leaving it.
+  root.addEventListener('dragleave', e => { const row = e.target.closest?.('[data-row]'); if (row && doc.elementFromPoint(e.clientX, e.clientY)?.closest('[data-row]') !== row) row.classList.remove('over'); });
   root.addEventListener('drop', e => {
     const dest = dragOf(e); if (!canDrop(dest)) return;
     e.preventDefault(); e.stopPropagation();
     const tags = st.drag.tags; st.drag = null;
     moveTags(tags, dest); loc.cur = tags[0]; redraw();
   });
-  root.addEventListener('dragend', () => { st.drag = null; for (const o of root.querySelectorAll('.st-row.over, .st-row.dragging')) o.classList.remove('over', 'dragging'); });
+  root.addEventListener('dragend', () => { st.drag = null; root.removeAttribute('data-dragging'); for (const o of root.querySelectorAll('.st-row.over, .st-row.dragging')) o.classList.remove('over', 'dragging'); });
   // The right-click menu, on a row or a property line; it acts on what was clicked and leaves the cursor where it is.
   root.addEventListener('contextmenu', e => {
     const r = e.target.closest('[data-row]'), p = e.target.closest('[data-prop]');
@@ -858,6 +894,7 @@ function make(holder, mode, app, opts = {}) {
   });
   root.addEventListener('input', e => {
     if (e.target.matches('[data-find]')) { loc.find = e.target.value; draw(); }
+    else if (e.target.matches('[data-find2]')) { st.pane2.find = e.target.value; draw(); }
     else if (e.target.matches('[data-pin]')) { st.prompt.text = e.target.value; st.prompt.lit = 0; draw(); }
     else if (e.target.matches('[data-edit]')) st.edit.text = e.target.value;
   });
@@ -892,6 +929,7 @@ function make(holder, mode, app, opts = {}) {
       if (k === 'Escape') { st.edit = null; redraw(); } else if (k === 'Enter') { e.preventDefault(); finishEdit(e.target.value); }
       return;
     }
+    if (e.target.matches('[data-find2]')) { if (k === 'Escape') { st.pane2.find = ''; redraw(); } return; }
     if (e.target.matches('[data-find]')) {
       if (k === 'Escape') { loc.find = ''; redraw(); }
       else if (k === 'ArrowDown' || k === 'Enter') { const first = visibleRows().find(r => !r.dim); if (first) loc.cur = first.n; e.preventDefault(); redraw(); }
@@ -926,7 +964,7 @@ function make(holder, mode, app, opts = {}) {
       e.preventDefault(); redraw(); return;
     }
     const rows = visibleRows().map(r => r.n), i = rows.indexOf(loc.cur);
-    const cur = T(loc.cur), isKind = !cur || cur.kind || loc.cur === LOOSE;
+    const cur = T(loc.cur), isKind = !cur || cur.missing || loc.cur === LOOSE;
     // A letter typed on the tree finds a tag, as in any outline; nothing a single letter does.
     if (k.length === 1 && k !== ' ') { const f = root.querySelector('[data-find]'); if (!f) return; e.preventDefault(); loc.find = k === '/' ? loc.find : loc.find + k; draw(); const g = root.querySelector('[data-find]'); g.focus(); g.setSelectionRange(g.value.length, g.value.length); return; }
     const walked = to => { loc.cur = to; if (mode === 'page') { st.propCur = null; st.walking = true; if (st.view === 'tree') st.trail = []; } };   // the arrows are the tree, as a press on it is

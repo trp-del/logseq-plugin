@@ -10,7 +10,7 @@ const host = () => { try { return window.parent.document; } catch (error) { retu
 
 const tray = S.changes.makeTray();
 tray.setBase({ tags: [], props: [] });
-const startState = () => ({ cur: null, open: new Set(), seen: new Set(), whole: new Set(), ticks: new Set(), find: '', view: 'tree', sort: 'filled', propCur: null, menu: null, prompt: null, edit: null, nodes: null, busy: '', trail: [], ask: null, places: new Map(), at: null, walking: false, side: { cur: null, find: '' } });
+const startState = () => ({ cur: null, open: new Set(), seen: new Set(), whole: new Set(), ticks: new Set(), find: '', view: 'tree', sort: 'filled', propCur: null, menu: null, prompt: null, edit: null, nodes: null, busy: '', trail: [], ask: null, places: new Map(), at: null, walking: false, side: { cur: null, find: '' }, split: false, pane2: { find: '', open: new Set(), seen: new Set() } });
 const changesWord = n => n === 1 ? '1 change' : `${n} changes`;
 const stepsWord = n => n === 1 ? '1 step' : `${n} steps`;
 // The Undo of another graph, kept for when that graph is open again: it is the only record of what was written there.
