@@ -975,8 +975,9 @@ function make(holder, mode, app, opts = {}) {
     else if (k === 'Enter') { if (e.shiftKey) openHere(true); else if (mode === 'side') app.openMain(loc.cur); else if (st.view !== 'tree' || st.propCur) jump(() => { st.view = 'tree'; st.propCur = null; st.nodes = null; }); else if (cur) app.openNode(cur.uuid, false); return; }
     else if (k === ' ' && mode === 'page') { tick(st.cur); return; }
     else if (k === 'Escape') {
-      // The ladder: let go of what is nearest first (the find text, the ticks), then walk back the trail.
-      if (loc.find) loc.find = ''; else if (mode === 'page' && st.ticks.size) st.ticks.clear(); else if (mode === 'page' && back()) return; else return;
+      // The ladder: let go of what is nearest first (the find text, the ticks), then walk back the trail; with nothing left, the
+      // keyboard goes back to Logseq, so a letter is Logseq's again (its t and g pairs) and no longer finds a tag here.
+      if (loc.find) loc.find = ''; else if (mode === 'page' && st.ticks.size) st.ticks.clear(); else if (mode === 'page' && back()) return; else { e.preventDefault(); root.blur(); return; }
     }
     else if (k === 'Tab') { if (mode === 'side' || isKind) return; const p = Mo.parentOf(M(), st.cur); if (p == null) return; e.preventDefault(); const sib = Mo.kids(M(), p), j = sib.indexOf(st.cur); if (e.shiftKey) { const gp = Mo.parentOf(M(), p); if (gp != null) { app.stage({ kind: 'move', tag: st.cur, to: gp }); st.ticks.delete(st.cur); } } else if (j > 0) { app.stage({ kind: 'move', tag: st.cur, to: sib[j - 1] }); st.open.add(sib[j - 1]); st.ticks.delete(st.cur); } redraw(); return; }
     else return;

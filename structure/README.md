@@ -49,7 +49,7 @@ No single letter does anything: nothing else in Logseq or in its sibling plugins
 | Tick a row (a node in the nodes list) for a bulk change; the bar above the list then says what the ticked can take, in the place of the three words above the tree (of an empty line under the title in a nodes list), so the rows stay where they were; merging the ticked is on the card | space |
 | Open the tag's nodes; from the sidebar, the map on that tag; from a list or a property's card, back to the row's card | Enter |
 | In a prompt: the lit row; in an ask under an issue: stage it | Enter |
-| Let go, nearest first: the menu, a prompt, an ask, a field, the find text, the ticks; then back the way you came | Escape |
+| Let go, nearest first: the menu, a prompt, an ask, a field, the find text, the ticks; then back the way you came; with nothing left, the keyboard goes back to Logseq, so a letter is Logseq's again and no longer finds a tag | Escape |
 | Apply the tray; discard it. When Undo cannot put it back whole, Apply asks first: Enter says yes, Escape leaves it | Cmd Enter · Cmd Delete |
 | Back to the card or list shown before, on out to the page before the map; forward | Cmd-[ · Cmd-] (Logseq's own, and its arrows at the top) |
 | Take back the last thing done: a change still waiting, the newest first, then the last Apply, as the arrow | Cmd Z |
