@@ -2,7 +2,7 @@
 
 Six tools for a Logseq DB graph, in one plugin, one look. Each does one job:
 
-- **Look** draws how things look: a link in the text colour, a small mark before it saying what sort of thing it opens, a tag as its name in mono, a page's place in the tree beside its title, an icon of what each property holds.
+- **Look** draws how things look: a link in the text colour that opens its page, in a property's value too, a tag as its name in mono, a page's place in the tree beside its title, an icon of what each property holds.
 - **Find** is the search window as the first step of a walk: a name, then the kinds and the time, then the thread from what you found, without leaving.
 - **Predictive** fills in properties and predicts pages while you write, and stays out of the way.
 - **Structure** is the map of the graph's tags and properties: one screen to see the whole shape, move things and change many at once, with one Undo.

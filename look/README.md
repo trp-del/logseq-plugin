@@ -8,10 +8,9 @@ How things look, as the visual grammar agreed on 29 October 2026 says. It reads 
 
 - **A link** to a page is the text colour with a faint underline, firmer under the pointer, never blue. A journal day is quiet grey words; in a property's value, where quiet grey would read as the name's grey, a day keeps the value's colour, no underline, quiet only under the pointer (the calendar icon and the name already say it is a date).
 - **A bullet that is a page, or shows one** reads as a link: the text colour with the faint underline. A press on its words opens the page (Predictive).
-- **A small mark before a link** says what sort of thing it opens: ∃, the logical symbol, for Entity (a person, a hospital), a ring for Occurrence (a consultation), a wave for Phenomena (a symptom), three dots, ∴, for Information, which includes knowledge (a report, a finding). The sort comes from the page's tag: a tag under your own tag named Entity, Occurrence, Phenomena or Information (Phenomenon and Interpretation count too), at any depth. A link to an untagged page, a journal day, a tag, or a page under two of these has none.
 - **A tag** reads as its name alone, as written, in mono a step smaller, grey, no #, where Logseq puts it: at the end of a bullet's words and at the right end of a page's title row, the size of any other tag there too. Tags keep one right edge at any width: beside the words while they have 20em, under them on that same edge when the pane is too narrow for that. The × that removes it takes the #'s place under the pointer, so nothing moves.
 - **A page's place in the tree**, at the right end of its title row: its tag and the tags that tag sits under, nearest first, "Doctor / Person / Entity" on Dr. Mei Chen; on a tag's own page, only the tags above it. Each name opens its page (Shift: in the right sidebar). Under the pointer an × before a tag the page holds takes it off. Too long for the row, the line gives way from the middle, then the nearest tag if it alone is too long; the kind stays whole. The same line sits under a page's name in the right sidebar.
-- **The sort's mark where a page's icon would be**: left of the title, in the slot Logseq keeps there, until you set an icon of your own; and in the left sidebar's lists in place of the plain page icon; a page with no mark (untagged, a journal day, a tag) gets an empty slot there, so the column holds marks alone and a box is never read as a fifth kind. A tag's # and an icon you set stay. Nothing is written to the page for it.
+- **A page in a property opens it.** A click on a page named in a property's value opens the page, as its underline says (Shift-click: the right sidebar), where Logseq would open its list to set the property. Pointing at the property brings one press after its value, taking no room: + to add another page where the property holds several, a chevron to set another in its place where it holds one, for a date the date picker. Under a bullet and in a page's list alike. An empty property, words, a number or a choice keep Logseq's click.
 - **In a page's list, an icon of what each property holds** before its name: three dots joined in a triangle for a link to nodes, a calendar for a date, letters for words, 123 for a number, a box for a choice. An icon you gave a property stays. Under a node, a property is plain text: no icon in its rows nor in the line of properties under its words, only Logseq's dot and the name. The name is a shade lighter than the value; the value keeps the text colour. No capsules: no edge, no fill, a faint dot between one property and the next; a property holding a pencilled value (Predictive's proposal) counts as filled, so the line does not re-space when the pencil turns solid. Under a bullet the properties run as plain words, and a long line wraps inside its pane, as words do.
 - **A PDF quote's bullet** is an opening quotation mark, “, where the dot would be, centred in the grey circle while the quote is folded: on a highlight, and on a bullet that is nothing but a highlight cited. A note with words of its own beside the citation keeps its dot. With nothing under the quote, Logseq's fold arrow is left out, its room kept.
 - **What a folded node holds**, after its words, small and grey, led by ↳: a circle with the number of unfinished tasks under it, then its pictures, quotes, PDFs, files and links with how many of each (a link is one in the words, to a node or a web address, each counted once; a tag, a property's value and a cited highlight or file are not), then up to three of the tags inside, a dot between one and the next as at the title row, no number on them, then the nearest due day, or "was due" once passed. Only while the node is folded.
@@ -24,7 +23,7 @@ Every one of these is a switch in the plugin's settings, on by default, applied 
 
 ## The shared names
 
-There is one short list of class names, one per word of the grammar. They and their stylesheet are the plugin's, in `plugin.js`, with the greys, the marks and the property icons, so they stand whichever modules run. A module puts a name on what it draws and carries no look of its own for it; change how a tag looks once, there, and every module follows. Switch Look off and it takes off only what it draws on Logseq's own page (links, tags, capsules, marks, the icons in a page's list, the title row, the sidebar); what the other modules draw keeps its grammar.
+There is one short list of class names, one per word of the grammar. They and their stylesheet are the plugin's, in `plugin.js`, with the greys and the property icons, so they stand whichever modules run. A module puts a name on what it draws and carries no look of its own for it; change how a tag looks once, there, and every module follows. Switch Look off and it takes off only what it draws on Logseq's own page (links, tags, capsules, marks, the icons in a page's list, the title row, the sidebar); what the other modules draw keeps its grammar.
 
 | Name | On | What it gives |
 |---|---|---|
@@ -32,7 +31,7 @@ There is one short list of class names, one per word of the grammar. They and th
 | `lk-fold` | the row's fold arrow | shown only while the pointer is on its row, or while open |
 | `lk-list` | a list that can be picked from | the tick boxes appear when the pointer is on it |
 | `lk-tick` | a tick box in such a list | invisible until then; a ticked one stays |
-| `lk-node` | a node's name, with its `data-uuid` | the faint underline, and the sort's mark before it |
+| `lk-node` | a node's name, with its `data-uuid` | the faint underline |
 | `lk-bare` | a node's name under a head that names its kind | the underline, no mark: the head has said it |
 | `lk-tag` | a tag's name | mono, a step smaller, grey, no # |
 | `lk-prop` | a property's name | a shade lighter than the value |
@@ -61,7 +60,8 @@ The root `files.js` lists these in order, each adding to `window.Look`:
 | `logseq/db.js` | the one place that reads the graph: every tag with the tag it extends, every page's sort, every property's kind, what a folded node holds |
 | `logseq/settings.js` | the switches, in sections |
 | `logseq/style.js` | the rules that are only a stylesheet: links, days, tags, property names, capsules, the words by a title, a PDF quote's bullet |
-| `logseq/marks.js` | the marks before links, in the page's icon slot and in the sidebar's lists |
+| `logseq/marks.js` | the index of every page's sort, for the parts that group or name pages by kind (no mark is drawn) |
+| `logseq/values.js` | a page in a property opens it; the + or chevron after the value opens Logseq's list |
 | `logseq/props.js` | the icon before each property's name in a page's list, and a cut name's tooltip |
 | `logseq/title.js` | the tag chain at the title row's right end and in the right sidebar |
 | `logseq/folded.js` | the note after a folded node's words |

@@ -2511,7 +2511,6 @@ const twoWayCss = `
 /* A node's words run to two lines, then are cut (the owner, 1 November: a short note reads whole, a long one cannot run away). Opened or found, they read whole. */
 .refinement-two-way .rf-ol-body > .rf-tw-record { min-width: 0; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 /* The mark stays on the first line of a name that wraps (an opened node's), not in the middle of the words. */
-.refinement-two-way .rf-ol-body > .rf-tw-record[data-lk-sort] { background-position: 0 calc(.75em - 4px); }
 .refinement-two-way .rf-ol-body > .rf-tw-record.rf-ol-open, .refinement-two-way[data-finding] .rf-ol-body > .rf-tw-record { display: block; -webkit-line-clamp: none; }
 .refinement-two-way .rf-ol-body > .rf-tw-record ~ * { flex: none; }
 .refinement-two-way .rf-ol-body > .rf-pencil { margin-left: 8px; }

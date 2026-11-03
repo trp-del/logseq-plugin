@@ -21,11 +21,10 @@ const { app, db, propose, text: textLib } = Flow;
 const { setting, host, warnOnce, notify } = app;
 
 const ENTER_LEAVES = 500, FILLING_MS = 6000, SAVE_TRIES = 40;
-// pageUuids: the uuid of each page proposed as a value, by its id, for Look's sort mark on the pencilled name (markName).
 // live: the bullet being written { uuid, text, changed, recordUuid, pieces, drawn, clicked, picked, left }. filling: bullets left a
 // moment ago whose values are being written, kept on screen, solid, until Logseq shows its own (no flash of empty). entered:
 // the bullet in edit and its words when it was entered. refused: what an Undo took off, by the record it was on.
-const S = { live: null, hushed: { uuid: '' }, accepted: { uuid: '', at: 0, keys: new Set() }, filling: new Map(), allowedNow: false, version: 0, timer: 0, stopped: false, undo: null, visiting: { live: null, timer: 0, out: 0 }, entered: { uuid: '', words: '' }, refused: new Map(), pageUuids: new Map() };
+const S = { live: null, hushed: { uuid: '' }, accepted: { uuid: '', at: 0, keys: new Set() }, filling: new Map(), allowedNow: false, version: 0, timer: 0, stopped: false, undo: null, visiting: { live: null, timer: 0, out: 0 }, entered: { uuid: '', words: '' }, refused: new Map() };
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const esc = t => String(t ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
 const guessKey = p => p.key ?? `${p.kind}:${p.ident}:${p.ids.join(',')}`;
@@ -122,13 +121,6 @@ function crossFade(g) {
   old.animate([{ opacity: 1 }, { opacity: 0 }], { duration: FADE_MS, easing: 'ease' }).finished.then(() => old.remove(), () => old.remove());
   g.animate([{ opacity: 0 }, { opacity: 1 }], { duration: FADE_MS, easing: 'ease' });
 }
-// A proposed page's name: Look's shared name for a node's name and the page's uuid, so Look puts the sort's mark before it, as on
-// the value once written. The pencil's look stays over the link's (lk-pencil comes later in the shared stylesheet).
-function markName(el, id) {
-  const uuid = S.pageUuids.get(id);
-  if (!uuid) return;
-  el.classList.add('lk-node', 'flow-page'); el.dataset.uuid = uuid;
-}
 // What a proposed value shows: its words; a tag in mono with no #; a page that would get a tag says so after its name.
 function fillGhost(g, piece) {
   const doc = g.ownerDocument;
@@ -145,7 +137,6 @@ function fillGhost(g, piece) {
     g.replaceChildren(...piece.names.flatMap((n, i) => {
       const name = doc.createElement('span'), sep = doc.createElement('span');
       name.className = 'flow-name lk-pencil'; name.dataset.flowId = String(n.id); name.textContent = n.title;
-      markName(name, n.id);
       name.title = `Click to take ${n.title}; once a name is clicked, only the names clicked are filled in`;
       sep.className = 'flow-sep'; sep.textContent = ', ';
       return i ? [sep, name] : [name];
@@ -153,10 +144,7 @@ function fillGhost(g, piece) {
     return;
   }
   const tag = tagTitle ? Object.assign(doc.createElement('span'), { className: 'flow-tag lk-tag', textContent: tagTitle }) : null;
-  // One page: its name carries the sort's mark, as it will once written, so the value keeps its width when the pencil turns to ink.
-  const one = piece.kind === 'node' && piece.ids.length === 1 && !tagTitle ? Object.assign(doc.createElement('span'), { textContent: words }) : null;
-  if (one) markName(one, piece.ids[0]);
-  g.replaceChildren(...[one || (words ? doc.createTextNode(words) : null), words && tagTitle ? doc.createTextNode(' ') : null, tag].filter(Boolean));
+  g.replaceChildren(...[words ? doc.createTextNode(words) : null, words && tagTitle ? doc.createTextNode(' ') : null, tag].filter(Boolean));
 }
 // The × beside a proposal, while it is being written: the library's Take off (lk-x), shown under the pointer. It takes no room
 // (the stylesheet), so nothing moves when it goes: after a value, over the gap that follows it; before a tag, in the place
@@ -320,13 +308,11 @@ async function compute(box) {
   // drawn when it comes, as long as the bullet and its words are still the same.
   // A tag it reads comes first, the tag's properties as its second answer comes.
   const asking = Flow.modelAsk, had = asking?.had(ctx, bullet, result);
-  for (const p of [...rules, ...had || []]) if (p.kind === 'node') for (const id of p.ids) { const page = ctx.byId.get(id); if (page?.uuid) S.pageUuids.set(id, page.uuid); }
   show(box, uuid, words, record, rules, (had || []).filter(open));
   if ((had && asking.done(ctx, bullet, result)) || !asking?.wanted(ctx, bullet, result)) return;
   const drawn = more => {
     if (!more.length || version !== S.version || S.stopped || S.hushed.uuid === uuid) return;
     const now = editingBox(host().activeElement);
-    for (const p of more) if (p.kind === 'node') for (const id of p.ids) { const page = ctx.byId.get(id); if (page?.uuid) S.pageUuids.set(id, page.uuid); }
     if (now && uuidOf(now) === uuid && now.value === words) show(now, uuid, words, record, rules, more.filter(open));
   };
   asking.ask(ctx, bullet, result, drawn).then(drawn, error => warnOnce('Apple’s model could not be asked', error));
@@ -670,8 +656,7 @@ ${PILL}:is(:not(:has(.empty-value)), :has(.lk-pencil)) ~ ${AT}::after { left: 16
 /* Logseq clips a value at its end; a value holding a proposal shows past it, for the × and the asterisk that take no room. */
 .bottom-property-pill:is([data-flow-proposal], .flow-made-pill) .bottom-property-content { overflow: visible !important; }
 .bottom-property-content > .flow-x { margin-left: calc(-1 * var(--spacing, .25rem)) !important; }
-/* A proposed page's name carries the link's shared name for Look's sort mark, and the pencil's look, not the link's. */
-.flow-ghost > span.flow-page:not(.flow-name) { color: inherit !important; text-decoration: none !important; }
+
 .bottom-property-pill:hover .flow-x, .ls-block-right:hover .flow-x, .flow-x:focus-visible { opacity: 1; }
 /* The undo arrow at the end of the bullet's line; its fade is Look's, through lk-undo. */
 .flow-undo { border: 0; background: none; padding: 0 4px; margin-left: .25em; font: inherit; line-height: 1; cursor: pointer; color: inherit; vertical-align: -2px; }

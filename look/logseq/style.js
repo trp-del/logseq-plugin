@@ -15,8 +15,8 @@ ${AREA} a.page-ref a.asset-ref { color: inherit !important; }
 ${AREA} :is(.embed-block:not(.embed-block .embed-block) > .block-main-container, .block-main-container:not(.is-page-title-row):has(> .block-control-wrap :is(.ls-icon-file, .ls-icon-page))) .block-title-wrap { text-decoration: underline; text-decoration-color: var(--lk-line); text-decoration-thickness: 1px; text-underline-offset: 3px; cursor: pointer; }
 ${AREA} :is(.embed-block:not(.embed-block .embed-block) > .block-main-container, .block-main-container:not(.is-page-title-row):has(> .block-control-wrap :is(.ls-icon-file, .ls-icon-page))) .block-title-wrap:hover { text-decoration-color: currentColor; }
 /* Under the pointer Logseq paints a link's box in its accent colour at strength; here the faint wash of a row under the
-   pointer, the same for every link. */
-${AREA} .page-reference:hover, ${AREA} a.page-ref:hover, ${AREA} .preview-ref-link:hover { background: var(--lk-wash) !important; }`;
+   pointer, the same for every link. Its colour alone, so the sort's mark, drawn as the link's background image, stays. */
+${AREA} .page-reference:hover, ${AREA} a.page-ref:hover, ${AREA} .preview-ref-link:hover { background-color: var(--lk-wash) !important; }`;
 /* A day mentioned in the words is quiet grey. In a property's value (a page's list, the line under a node) the quiet grey
    would read as the name's grey, so there a day keeps the value's colour, no underline, quiet only under the pointer; the
    calendar icon and the name already say it is a date. */

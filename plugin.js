@@ -79,7 +79,7 @@ Door.UNDO = '<i class="ti ti-arrow-back-up" aria-hidden="true"></i>';
 Door.ICONS = {
   go: 'M2.5 8h11M9.5 4l4 4-4 4', up: 'M8 13.5v-11M4 6.5l4-4 4 4', move: 'M3 2.5V8a2 2 0 0 0 2 2h8.5M10 6.5l3.5 3.5-3.5 3.5',
   child: 'M3 2.5V6a2 2 0 0 0 2 2h2M11 4.5v7M7.5 8h7', merge: 'M3 2.5 8 8l5-5.5M8 8v5.5M5 10.5l3 3 3-3', split: 'M2.5 8h4l6-4.5M6.5 8l6 4.5M9.5 3.5h3v3M9.5 12.5h3v-3',
-  plus: 'M8 2.5v11M2.5 8h11', minus: 'M2.5 8h11', bin: 'M2.5 4.5h11M5.5 4.5V3a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v1.5M4 4.5l.7 9a1 1 0 0 0 1 .9h4.6a1 1 0 0 0 1-.9l.7-9',
+  plus: 'M8 2.5v11M2.5 8h11', chevron: 'M4 6l4 4 4-4', minus: 'M2.5 8h11', bin: 'M2.5 4.5h11M5.5 4.5V3a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v1.5M4 4.5l.7 9a1 1 0 0 0 1 .9h4.6a1 1 0 0 0 1-.9l.7-9',
   rename: 'M10.4 2.9 13.1 5.6 5.4 13.3l-3 .3.3-3zM8.8 4.5l2.7 2.7',
   copy: 'M6.4 5.2h6.4A1.2 1.2 0 0 1 14 6.4v6.4a1.2 1.2 0 0 1-1.200 1.200H6.400a1.200 1.200 0 0 1-1.200-1.200V6.400a1.200 1.200 0 0 1 1.200-1.200zM11 2.400H3.600a1.200 1.200 0 0 0-1.200 1.200V11',
   tag: 'M2.5 2.5h5.300l5.700 5.700-5.300 5.300-5.700-5.700zM5.300 5.300h.01', eq: 'M3 5.800h10M3 10.200h10', side: 'M3 3h10a1.200 1.200 0 0 1 1.200 1.200v7.600A1.200 1.200 0 0 1 13 13H3a1.200 1.200 0 0 1-1.200-1.200V4.200A1.200 1.200 0 0 1 3 3zM10 3v10',
@@ -116,7 +116,7 @@ const TOKENS = `
    lk-accent: the main button, the one thing a screen is for; lk-big: the yes to a change Undo cannot put back whole, the one
    button with a colour and a fill, Logseq's own blue, a shade deeper so its white words read in both themes; lk-hint: words beside them saying what a key does now, never
    pressed; lk-lone: an action with nothing beside it; lk-add: "+ Add property"; lk-fix: what to do about a row, at its
-   right end; lk-x: takes one thing off a row; lk-plus: adds to a row's group; lk-more: show all; lk-views with lk-view
+   right end; lk-x: takes one thing off a row; lk-plus: adds to a row's group; lk-change (with lk-i-chevron): changes a value that holds one thing; lk-more: show all; lk-views with lk-view
    (.on): other contents of one place; lk-trail with lk-step: the places you came through; lk-head (.on): a sort head;
    lk-menu with lk-item (.off, .gap, a faint lk-note): a menu. */
 Door.NAMES = `${TOKENS}
@@ -152,7 +152,7 @@ Door.NAMES = `${TOKENS}
 .lk-accent kbd { font-weight: 400 !important; color: var(--lk-faint) !important; }
 .lk-close { color: var(--lk-faint) !important; }
 .lk-close:hover, .lk-close:focus-visible { color: inherit !important; }
-.lk-btn, .lk-accent, .lk-lone, .lk-add, .lk-fix, .lk-x, .lk-plus, .lk-more, .lk-view, .lk-step, .lk-head, .lk-item { appearance: none; background: none; border: 0; font: inherit; cursor: pointer; border-radius: 4px; }
+.lk-btn, .lk-accent, .lk-lone, .lk-add, .lk-fix, .lk-x, .lk-plus, .lk-change, .lk-more, .lk-view, .lk-step, .lk-head, .lk-item { appearance: none; background: none; border: 0; font: inherit; cursor: pointer; border-radius: 4px; }
 .lk-btn, .lk-accent, .lk-lone, .lk-add, .lk-fix { border-radius: 1em; }
 .lk-strip, .lk-bar, .lk-answers { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
 .lk-answers { flex-basis: 100%; margin-top: 4px; }
@@ -168,9 +168,10 @@ Door.NAMES = `${TOKENS}
 .lk-add, .lk-more { color: var(--lk-soft) !important; padding: 3px 0; }
 .lk-more { text-decoration: underline !important; text-decoration-color: var(--lk-line) !important; text-underline-offset: 3px; }   /* it opens, so it reads as what opens */
 .lk-add:hover, .lk-more:hover, .lk-add:focus-visible, .lk-more:focus-visible { color: var(--lk-text, currentColor) !important; }
-.lk-x, .lk-plus { color: var(--lk-dim) !important; padding: 0 4px; }
-.lk-x:hover, .lk-plus:hover, .lk-x:focus-visible, .lk-plus:focus-visible { color: var(--lk-text, currentColor) !important; }
-.lk-btn:hover, .lk-btn:focus-visible, .lk-accent:hover, .lk-accent:focus-visible, .lk-lone:hover, .lk-lone:focus-visible, .lk-fix:hover, .lk-fix:focus-visible, .lk-x:hover, .lk-plus:hover, .lk-view:hover, .lk-view:focus-visible, .lk-item:hover, .lk-item:focus-visible { background: var(--lk-wash); }
+.lk-x, .lk-plus, .lk-change { color: var(--lk-dim) !important; padding: 0 4px; }
+.lk-x:hover, .lk-plus:hover, .lk-change:hover, .lk-x:focus-visible, .lk-plus:focus-visible, .lk-change:focus-visible { color: var(--lk-text, currentColor) !important; }
+.lk-change::before { margin-right: 0 !important; }   /* the chevron alone, lk-i-chevron, no word after it */
+.lk-btn:hover, .lk-btn:focus-visible, .lk-accent:hover, .lk-accent:focus-visible, .lk-lone:hover, .lk-lone:focus-visible, .lk-fix:hover, .lk-fix:focus-visible, .lk-x:hover, .lk-plus:hover, .lk-change:hover, .lk-view:hover, .lk-view:focus-visible, .lk-item:hover, .lk-item:focus-visible { background: var(--lk-wash); }
 .lk-btn:focus-visible, .lk-accent:focus-visible, .lk-lone:focus-visible, .lk-fix:focus-visible, .lk-view:focus-visible, .lk-item:focus-visible { outline: none; }
 /* Three levels, so a button's weight says how much it matters before it is read (the owner, 1 November: "change the hierarchy of buttons").
    1, lk-accent: the one step that decides, filled in the text colour, one on a screen. Above it only lk-big, what Undo cannot put back.

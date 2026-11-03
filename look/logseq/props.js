@@ -68,5 +68,7 @@ function start() {
   load();
 }
 function stop() { stopped = true; loading = null; byTitle = null; host().defaultView.removeEventListener('mouseover', onOver); }
-Look.props = { start, stop, draw, load };
+// What the index knows of a property by its title ({ kind, many, icon }), or null while it is being read.
+const prop = title => byTitle?.get(title) || null;
+Look.props = { start, stop, draw, load, prop };
 })();

@@ -45,7 +45,7 @@ let chromium; try { ({ chromium } = require('playwright')); } catch (error) { co
   await sleep(800);
   const counts = await page.evaluate(() => ({
     route: location.hash,
-    look: { marksBeforeLinks: document.querySelectorAll('a.page-ref[data-lk-sort]').length, pageMark: document.querySelectorAll('.lk-page-mark').length, chain: [...document.querySelectorAll('.lk-path')].map(b => b.textContent.replace(/\s+/g, ' ').trim()), propertyIcons: document.querySelectorAll('.lk-kind').length },
+    look: { chain: [...document.querySelectorAll('.lk-path')].map(b => b.textContent.replace(/\s+/g, ' ').trim()), propertyIcons: document.querySelectorAll('.lk-kind').length },
     find: { toolbar: !!document.querySelector('[data-on-click="findOpen"]') },
     structure: { toolbar: !!document.querySelector('[data-on-click="structureOpen"]') },
     threads: { heads: document.querySelectorAll('.rf-tw-head').length, rows: document.querySelectorAll('.rf-tw-row').length },

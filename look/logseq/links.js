@@ -207,7 +207,6 @@ const css = `
 #right-sidebar .lk-links-row { display: flex; align-items: baseline; gap: .5em; min-width: 0; padding: 2px 0; }
 #right-sidebar .lk-links-row .lk-node { min-width: 0; overflow-wrap: anywhere; }
 #right-sidebar .lk-links-row .lk-tag { flex: none; }
-#right-sidebar .lk-links-flat .lk-links-row .lk-node:not([data-lk-sort]) { padding-left: calc(8px + .3em); }
 #right-sidebar .lk-notes-row { display: grid; grid-template-columns: 1.6em minmax(0, 1fr); align-items: baseline; padding: 2px 0; }
 #right-sidebar .lk-notes-n { color: var(--lk-soft) !important; font-variant-numeric: tabular-nums; text-decoration: none; }
 #right-sidebar .lk-notes-n:hover { color: var(--lk-text, currentColor) !important; }

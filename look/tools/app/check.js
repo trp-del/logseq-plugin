@@ -42,8 +42,6 @@ let chromium; try { ({ chromium } = require('playwright')); } catch (error) { co
   await sleep(800);
   const counts = await page.evaluate(() => ({
     route: location.hash,
-    marksBeforeLinks: document.querySelectorAll('a.page-ref[data-lk-sort]').length,
-    pageMark: document.querySelectorAll('.lk-page-mark').length,
     chain: [...document.querySelectorAll('.lk-path')].map(b => b.textContent.replace(/\s+/g, ' ').trim()),
     propertyIcons: document.querySelectorAll('.lk-kind').length,
     foldedNotes: [...document.querySelectorAll('.lk-folded')].map(n => n.getAttribute('title')),

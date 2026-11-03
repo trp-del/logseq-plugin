@@ -21,7 +21,7 @@ const { U, load, pencilled } = standIn;
   assert.equal(Look.folded.dueLabel(20261012, new Date(2026, 10, 1)), 'was due Oct 12');
   assert.equal(JSON.stringify(Look.folded.wordsFor({ task: 2, files: [['pdf', 1]], quotes: 0, links: 3, tags: ['Consultation'], due: 0 })), JSON.stringify(['2 unfinished tasks under it', '1 PDF', '3 links', 'Consultation']));
   // styles sent
-  for (const key of ['look-links', 'look-days', 'look-tags', 'look-capsules', 'look-marks', 'look-props', 'look-title', 'look-folded', 'look-quote-bullets']) assert.ok(styles[key] && !styles[key].includes('no rules'), key + ' sent');
+  for (const key of ['look-links', 'look-days', 'look-tags', 'look-capsules', 'look-props', 'look-title', 'look-folded', 'look-quote-bullets']) assert.ok(styles[key] && !styles[key].includes('no rules'), key + ' sent');
   { const { linksIn, byKind } = Look.links;
     const tree = [{ title: 'Saw [[Ana]] about #[[Fatigue]] and [[ana]]', children: [{ title: 'Then [[Ben]]' }] }];
     assert.equal(linksIn(tree).join(' '), 'ana ben', 'each link once, in the order of the page, a tag not among them');
@@ -54,17 +54,9 @@ const { U, load, pencilled } = standIn;
   assert.equal(index.sortByUuid(U(20)), 'entity'); assert.equal(index.sortByUuid(U(21)), 'phenomenon'); assert.equal(index.sortByName('fatigue'), 'phenomenon');
   assert.equal(index.sortByUuid(U(3)), null, 'a tag has no mark');
   assert.equal(index.sortByUuid(U(300)), 'occurrence', 'a tagged bullet has a sort too');
-  // marks before links, in words and in a property's value; none on the tag link nor on a journal day
-  const links = [...doc.querySelectorAll('a.page-ref[data-lk-sort]')].map(a => a.getAttribute('data-lk-sort'));
-  assert.equal(links.join(','), 'entity,entity,phenomenon,information,occurrence,entity,entity');
-  assert.equal(doc.querySelector('a.tag').hasAttribute('data-lk-sort'), false);
-  assert.ok([...doc.querySelectorAll('a.page-ref[data-uuid^="00000001-"]')].every(a => !a.hasAttribute('data-lk-sort')), 'no mark on a day');
-  // the page's mark in the icon slot; in the sidebar's list, a mark where the page has one, an empty slot where it has none
-  assert.equal(doc.querySelector('.is-page-title-row > .block-control-wrap > .lk-page-mark')?.dataset.sort, 'entity');
-  const slot = name => doc.querySelector(`#left-sidebar .link-item[data-page-name="${name}"] .page-icon`).getAttribute('data-lk-sort');
-  assert.equal(slot('Fatigue'), 'phenomenon'); assert.equal(slot('CT report'), 'information'); assert.equal(slot('Doctor'), 'none', 'a tag has no mark');
-  assert.equal(slot('Questions for Dr. Chen'), 'none', 'an untagged page: the slot kept empty'); assert.equal(slot('Oct 19th, 2026'), 'none', 'a journal day: the slot kept empty');
-  assert.ok(styles['look-marks'].includes('.page-icon[data-lk-sort] :is(.ls-icon-file, .ls-icon-page) { visibility: hidden; }'), 'the plain page icon gives way');
+  // no mark of a sort anywhere: before a link, in a page's icon slot, in the left sidebar (taken off 3 November 2026)
+  assert.equal(doc.querySelectorAll('[data-lk-sort], .lk-page-mark').length, 0, 'no sort mark is drawn');
+  assert.ok(!styles['look-marks'], 'no stylesheet for marks');
   // the tag chain at the title's right end, nearest first, the held tag with its ×
   const pathBox = doc.querySelector('.ls-block-right > .lk-path');
   assert.ok(pathBox, 'the chain is drawn'); assert.equal(pathBox.textContent.replace(/\s+/g, ''), 'Doctor×/Person/Entity');
@@ -107,7 +99,8 @@ const { U, load, pencilled } = standIn;
   assert.equal(rowsOf('Folded nodes').join(), 'foldedNote', 'Folded nodes holds only what a folded node says');
   for (const key of ['propertyIcons', 'propertyNameTips', 'quietAddProperty', 'hideDatePencil']) assert.ok(rowsOf('Properties').includes(key), key + ' under Properties');
   assert.ok(!described.schema.some(i => i.key === 'quietEmptyProps'), 'one row for empty properties, Predictive’s');
-  assert.ok(described.specimen({ key: 'pageMark' }, true).includes('lk-page-mark'), 'a specimen of the thing itself');
+  assert.ok(!described.schema.some(i => i.key === 'linkMarks' || i.key === 'pageMark'), 'no setting for marks');
+  assert.ok(described.specimen({ key: 'valuesOpen' }, true).includes('lk-change'), 'a specimen of the thing itself');
   // a cut property name shows whole as a tooltip under the pointer, one that fits does not, and the sweep takes it off
   { const tip = (scroll, words) => { const n = doc.createElement('span'); n.className = 'property-key-inner'; n.textContent = words; Object.defineProperty(n, 'scrollWidth', { value: scroll }); Object.defineProperty(n, 'clientWidth', { value: 100 }); doc.body.append(n); n.dispatchEvent(new (doc.defaultView.MouseEvent)('mouseover', { bubbles: true })); return n; };
     const long = tip(180, 'Referring consultant at Northgate'), short = tip(90, 'Notes');
