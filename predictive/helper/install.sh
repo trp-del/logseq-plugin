@@ -12,9 +12,13 @@ if [ "${1:-}" = remove ]; then rm -f "$agent"; rm -rf "$home"; echo "Predictive'
 # Built here when the tools are on this Mac; else the one that came in this folder.
 sh build.sh >/dev/null 2>&1 || [ -f predictive-helper ] || { echo "No predictive-helper here and it could not be built: run xcode-select --install, then this again."; exit 1; }
 mkdir -p "$home" "$HOME/Library/LaunchAgents"
+# A new file, never written over the old one: macOS keeps the signature of a program it has run, and kills one whose
+# bytes changed under it (OS_REASON_CODESIGNING). Then signed afresh on this Mac, so the signature matches what is here.
+rm -f "$home/predictive-helper"
 cp predictive-helper "$home/predictive-helper"
 chmod +x "$home/predictive-helper"
 xattr -d com.apple.quarantine "$home/predictive-helper" 2>/dev/null || true
+codesign --force --sign - "$home/predictive-helper" 2>/dev/null || true
 cat > "$agent" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -28,6 +32,13 @@ cat > "$agent" <<PLIST
 </dict></plist>
 PLIST
 launchctl bootstrap "gui/$(id -u)" "$agent"
-sleep 1
-curl -s http://127.0.0.1:47615/status && echo
-echo "Predictive's helper is running and starts at every login."
+# Said only once the helper answers: up to five seconds, else why macOS stopped it.
+for try in 1 2 3 4 5 6 7 8 9 10; do
+  if answer=$(curl -s -m 1 http://127.0.0.1:47615/status); then
+    echo "$answer"; echo "Predictive's helper is running and starts at every login."; exit 0
+  fi
+  sleep 0.5
+done
+echo "Predictive's helper did not start. What macOS says:"
+launchctl print "gui/$(id -u)/$label" 2>&1 | grep -E "state =|last exit" | sed 's/^[[:space:]]*/  /'
+exit 1

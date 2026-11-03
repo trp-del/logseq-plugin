@@ -30,27 +30,36 @@ function had(ctx, b, result) {
 // Whether there is anything to ask the model about this bullet.
 const wanted = (ctx, b, result) => !!model.request(ctx, b, result);
 
-// The model's guesses for the bullet: [] when there is nothing to ask, no helper, or a newer question came.
-async function ask(ctx, b, result) {
-  const req = model.request(ctx, b, result);
-  if (!req || !await ready()) return [];
+// The model's reply to a question: null when there is no helper, or a newer question came. wait: the pause after typing.
+async function replyTo(req, { wait = WAIT, giveUp = GIVE_UP } = {}) {
+  if (!req || !await ready()) return null;
   const key = keyOf(req);
-  if (S.answers.has(key)) return model.pieces(ctx, req, S.answers.get(key));
+  if (S.answers.has(key)) return S.answers.get(key);
   S.asking?.abort();
   const mine = S.asking = new AbortController();
-  await new Promise(r => setTimeout(r, WAIT));
-  if (mine.signal.aborted) return [];
+  if (wait) await new Promise(r => setTimeout(r, wait));
+  if (mine.signal.aborted) return null;
   try {
-    const response = await fetch(HELPER + '/fill', { method: 'POST', headers: { 'content-type': 'application/json' }, body: key, signal: AbortSignal.any([mine.signal, AbortSignal.timeout(GIVE_UP)]) });
+    const response = await fetch(HELPER + '/fill', { method: 'POST', headers: { 'content-type': 'application/json' }, body: key, signal: AbortSignal.any([mine.signal, AbortSignal.timeout(giveUp)]) });
     const reply = await response.json();
-    if (reply.error) { app.warnOnce('Apple’s model did not answer', reply.error); return []; }
+    if (reply.error) { app.warnOnce('Apple’s model did not answer', reply.error); return null; }
     S.answers.set(key, reply);
     if (S.answers.size > KEEP) S.answers.delete(S.answers.keys().next().value);
-    return model.pieces(ctx, req, reply);
+    return reply;
   } catch (error) {
-    if (!mine.signal.aborted) { S.ready = null; app.warnOnce('the helper for Apple’s model could not be reached', error); }
-    return [];
+    if (!mine.signal.aborted && error?.name !== 'TimeoutError') { S.ready = null; app.warnOnce('the helper for Apple’s model could not be reached', error); }
+    return null;
   } finally { if (S.asking === mine) S.asking = null; }
+}
+// The model's guesses for the bullet: [] when there is nothing to ask, no helper, or a newer question came.
+async function ask(ctx, b, result) {
+  const req = model.request(ctx, b, result), reply = await replyTo(req);
+  return reply ? model.pieces(ctx, req, reply) : [];
+}
+// Option-T: the tag the model reads the bullet as, or null; asked at once, and not waited for longer than a moment.
+async function tagFor(ctx, b) {
+  const req = model.tagRequest(ctx, b), reply = await replyTo(req, { wait: 0, giveUp: 2500 });
+  return reply ? model.tagOf(req, reply) : null;
 }
 
 // What the helper says now, asked afresh, for the settings window: { reached: false } when nothing answers on this Mac,
@@ -63,5 +72,5 @@ async function status() {
   } catch (error) { S.ready = false; S.at = Date.now(); return { reached: false }; }
 }
 
-Flow.modelAsk = { ready, status, had, wanted, ask, forget: () => { S.answers.clear(); S.ready = null; } };
+Flow.modelAsk = { ready, status, had, wanted, ask, tagFor, forget: () => { S.answers.clear(); S.ready = null; } };
 })();

@@ -366,13 +366,43 @@ test('one person is not put in two places', () => {
   const kept = modelLib.pieces(clinic.ctx, req, { values });
   assert.equal(kept.filter(p => p.ids.includes(clinic.page.get('Ruth Okoro').id)).length, 1);
 });
-test('not asked: a linked page the rules placed, a note under a record, plain words, a bullet with no tag', () => {
+test('a bullet with no tag, where the rules found none: asked only which of the graph\'s tags it is', () => {
+  const b = bullet({ id: -7, text: 'Talked through the scan with Dr. Mei Chen at length' });
+  const { result, req } = askAbout(b);
+  assert.ok(!result.pieces.some(p => p.kind === 'tag') || req === null, 'asked only when the rules pencilled no tag');
+  assert.deepEqual(result.pieces, [], 'the rules pencil nothing for this line');
+  assert.equal(req.fill.properties.length, 1);
+  const [q] = req.fill.properties;
+  assert.equal(q.kind, 'tag');
+  assert.ok(q.choices.includes('Consultation'), q.choices.join(', '));
+  assert.equal(q.choices[0], 'Consultation', 'the tag the named page could take comes first');
+  assert.ok(q.choices.length <= modelLib.MOST_TAGS);
+  const kept = modelLib.pieces(clinic.ctx, req, { values: { t: 'Consultation' } });
+  assert.equal(kept[0].kind, 'tag'); assert.equal(kept[0].how, 'model'); assert.equal(kept[0].tag.title, 'Consultation');
+  assert.ok(kept.slice(1).every(p => p.guess && p.needsTag), 'the properties it brings come as guesses');
+  assert.deepEqual(modelLib.pieces(clinic.ctx, req, { values: { t: 'none' } }), [], 'none: a plain note');
+  assert.deepEqual(modelLib.pieces(clinic.ctx, req, {}), [], 'nothing said: nothing kept');
+  assert.deepEqual(modelLib.pieces(clinic.ctx, req, { values: { t: 'Recipe' } }), [], 'a tag not offered is never taken');
+  assert.equal(modelLib.tagOf(req, { values: { t: 'consultation' } })?.title, 'Consultation', 'Option-T reads the same answer');
+});
+test('the pencilled tag waits while the setting is careful; Option-T still asks', () => {
+  const b = bullet({ id: -7, text: 'Talked through the scan with Dr. Mei Chen at length' });
+  const result = propose(clinic.ctx, b);
+  assert.deepEqual(result.pieces, [], 'the rules pencil nothing for this line');
+  const was = clinic.ctx.limits.modelTag;
+  clinic.ctx.limits.modelTag = false;
+  try {
+    assert.equal(modelLib.request(clinic.ctx, b, result, 20261102), null);
+    assert.ok(modelLib.tagRequest(clinic.ctx, b, 20261102), 'Option-T asks whatever the setting');
+  } finally { clinic.ctx.limits.modelTag = was; }
+});
+test('not asked: a linked page the rules placed, a note under a record, plain words', () => {
   const linked = askAbout(visit(`Saw [[${clinic.page.get('Dr. Mei Chen').uuid}]] about the fatigue`)).req;
   assert.ok(!linked || !byTitle(linked).has('Provider'), 'the rules fill Provider from the link');
   const parent = { id: -9, uuid: synthetic.uuid(9909), tags: [clinic.tagPage.Consultation.id], values: new Map() };
   assert.equal(askAbout(bullet({ id: -6, text: 'Ruth Okoro came too, 5 mg', parent })).req, null);
   assert.equal(askAbout(visit('Felt tired all afternoon again')).req, null);
-  assert.equal(askAbout(bullet({ id: -7, text: 'Plain note number 3 about the weather' })).req, null);
+  assert.equal(modelLib.tagRequest(clinic.ctx, bullet({ id: -6, text: 'Ruth Okoro came too, 5 mg', parent }), 20261102), null, 'no tag is asked for a note under a record');
 });
 
 section('scoring each graph (leave-one-out on its own lines)');

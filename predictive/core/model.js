@@ -15,6 +15,7 @@
      them) that fit it, and not one the rules already placed. No such page: it is not asked.
    - A number is kept only if the words hold it; a day only if the date reader finds that day in the words.
    - Everything kept is a guess: dotted, written only by Enter or a click, as any guess.
+   - A bullet with no tag, where the rules found none: which of the graph's tags it is (tagRequest), or none.
 
    request(ctx, b, result, today) -> { fill (what is sent), asked: Map(key -> { prop, kind, pages: Map(lower title -> page) }),
    days: Set(day numbers in the words) } | null.  pieces(ctx, request, reply) -> the guesses kept. */
@@ -42,8 +43,43 @@ function namedPages(ctx, words, classIds, spoken) {
   return found.slice(0, MOST_PAGES);
 }
 
+/* Which of the graph's tags an untagged bullet is: asked when the rules found no tag (the pencilled tag; not while the setting
+   is careful, ctx.limits.modelTag) and by Option-T. Not for a bullet under a record, whose properties come from above. The
+   choices are the tags bullets carry, the same list for both, so one answer serves both: the tags the pages it names could
+   take first (tagChoices), then by how many bullets carry them, at most MOST_TAGS. */
+const MOST_TAGS = 60;
+function tagUse(ctx) {
+  if (ctx.tagUse) return ctx.tagUse;
+  const use = new Map();
+  for (const entry of ctx.index?.entries || []) for (const id of entry.values.get('block/tags') || []) use.set(id, (use.get(id) || 0) + 1);
+  return (ctx.tagUse = use);
+}
+function tagRequest(ctx, b, today = dayNumber(new Date())) {
+  const text = String(b.text || '');
+  if (b.tags.length || proposeLib.inWords(text, ctx).tags.length || freeWords(text).length < 2) return null;
+  if (proposeLib.recordOf(b, [], ctx.schema).fields.length) return null;
+  const use = tagUse(ctx), byTitle = new Map();
+  const first = proposeLib.tagChoices(ctx, b).map(item => item.tag.id);
+  const rest = [...ctx.knownTags].filter(id => !first.includes(id)).sort((x, y) => (use.get(y) || 0) - (use.get(x) || 0));
+  for (const id of [...first, ...rest]) {
+    const page = ctx.byId.get(id);
+    if (page?.isTag && page.uuid && !byTitle.has(page.title.toLowerCase())) byTitle.set(page.title.toLowerCase(), page);
+    if (byTitle.size >= MOST_TAGS) break;
+  }
+  if (!byTitle.size) return null;
+  const page = b.page && !b.page.day ? b.page.title : '';
+  return {
+    fill: { text: shown(ctx, text), page, tags: [], today: iso(b.page?.day || today), properties: [{ key: 't', title: 'Kind of note', kind: 'tag', choices: [...byTitle.values()].map(p => p.title) }] },
+    asked: new Map([['t', { kind: 'tag', tags: byTitle }]]), days: new Set(), bullet: b,
+  };
+}
+// The tag the model read, as a page, or null.
+const tagOf = (req, reply) => { const v = reply?.values?.t; return v == null ? null : req.asked.get('t')?.tags.get(String(v).toLowerCase()) || null; };
+
 function request(ctx, b, result, today = dayNumber(new Date())) {
-  if (!result || result.record !== b || result.assume) return null;
+  if (!result || result.assume) return null;
+  if (!result.pieces.length && ctx.limits?.modelTag !== false) { const asked = tagRequest(ctx, b, today); if (asked) return asked; }
+  if (result.record !== b) return null;
   const text = String(b.text || '');
   const words = freeWords(text);
   if (words.length < 2) return null;
@@ -85,7 +121,15 @@ const shown = (ctx, text) => String(text).replace(/\[\[([^\[\]]+)\]\]/g, (m, key
 function pieces(ctx, req, reply) {
   const out = [], values = reply?.values || {}, taken = new Set();
   const { dayIdFor, dayText } = proposeLib;
+  // The tag: pencilled as the rules pencil theirs, with the properties it brings as guesses.
+  const tag = tagOf(req, reply);
+  if (tag) {
+    const tagPiece = { ident: 'block/tags', prop: { ident: 'block/tags', title: 'Tags', lower: 'tags', type: 'tag', many: true, classes: [] }, kind: 'tag', ids: [tag.id], tag, shown: `#${tag.title}`, how: 'model', guess: true };
+    const assumed = proposeLib.propose(ctx, { ...req.bullet, tags: [...req.bullet.tags, tag.id] }, tag);
+    return [tagPiece, ...assumed.pieces.map(piece => ({ ...piece, guess: true, needsTag: true }))];
+  }
   for (const [key, ask] of req.asked) {
+    if (ask.kind === 'tag') continue;
     const v = values[key];
     if (v == null) continue;
     const { prop } = ask;
@@ -123,7 +167,7 @@ function merge(rules, model) {
   return [...kept, ...model.filter(p => !kept.some(q => q.ident === p.ident))];
 }
 
-const api = { request, pieces, merge, iso, fromIso, namedPages, byWordsAlone };
+const api = { request, tagRequest, tagOf, pieces, merge, iso, fromIso, namedPages, byWordsAlone, MOST_TAGS };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 if (typeof window !== 'undefined') (window.Flow ||= {}).model = api;
 })();

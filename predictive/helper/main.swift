@@ -6,7 +6,8 @@
 
    GET  /status  -> { "ready": true } or { "ready": false, "reason": "..." }
    POST /fill    <- { "text", "page", "tags": [..], "today": "YYYY-MM-DD", "properties": [
-                        { "key", "title", "kind": "page" | "number" | "date", "many", "choices": [titles] } ] }
+                        { "key", "title", "kind": "page" | "tag" | "number" | "date", "many", "choices": [titles] } ] }
+                   (a "tag" is which of the graph's tags the note is, from its choices)
                  -> { "values": { key: title | [titles] | number | "YYYY-MM-DD" } } or { "error": "..." }
 
    The answer is held to a shape built from the bullet's own properties: a page property can only hold one of the
@@ -57,6 +58,10 @@ func schemaFor(_ fill: Fill, _ names: [String]) throws -> GenerationSchema {
       if choices.isEmpty { continue }
       let one = DynamicGenerationSchema(name: "\(name) choice", anyOf: choices + [NONE])
       value = p.many == true ? DynamicGenerationSchema(arrayOf: one, minimumElements: 0, maximumElements: choices.count) : one
+    case "tag":
+      let choices = (p.choices ?? []).filter { $0.lowercased() != NONE }
+      if choices.isEmpty { continue }
+      value = DynamicGenerationSchema(name: "\(name) choice", anyOf: choices + [NONE])
     case "number":
       value = DynamicGenerationSchema(type: Double.self)
     case "date":
@@ -66,6 +71,7 @@ func schemaFor(_ fill: Fill, _ names: [String]) throws -> GenerationSchema {
     let about: String
     switch p.kind {
     case "page": about = "The \(p.title) the words name, from the choices; \(NONE) if the words do not say."
+    case "tag": about = "Which of these kinds of note this note is, from the choices; \(NONE) if it is a plain note that is none of them."
     case "number": about = "The \(p.title) as a number, only if the words give it."
     default: about = "The day of \(p.title) as YYYY-MM-DD, only if the words name it."
     }

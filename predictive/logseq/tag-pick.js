@@ -4,7 +4,8 @@
    names (linked, or in plain words) could take, best first by the words, with what each would add. Up and Down move, Enter picks,
    a click picks, anything else closes it and goes on typing, a digit like any other key (no key that writes is a key you might be typing). Picking gives the bullet the tag and the bullet's properties are proposed as
    they are for any tagged bullet; a faded arrow puts the tag back. Nothing is ever written until one is picked, and it is only there when
-   asked, so plain notes that happen to name a person stay quiet. */
+   asked, so plain notes that happen to name a person stay quiet. With Apple's model on this Mac, the tag it reads the line as
+   comes first, said so in its row. */
 (function () {
 const Flow = (window.Flow ||= {});
 const { app, db, propose } = Flow;
@@ -19,7 +20,7 @@ function draw() {
   const { box, items, at, list } = open, doc = box.ownerDocument, rect = box.getBoundingClientRect();
   list.replaceChildren(
     ...items.map((item, i) => {
-      const note = [item.how === 'mentioned' ? item.via.join(', ') : 'by its words', item.fields.slice(0, 3).join(', ')].filter(Boolean).join(' · ');
+      const note = [item.how === 'model' ? 'by Apple’s model' : item.how === 'mentioned' ? item.via.join(', ') : 'by its words', item.fields.slice(0, 3).join(', ')].filter(Boolean).join(' · ');
       const row = el(doc, 'div', { class: 'flow-pick-row' + (i === at ? ' on' : ''), role: 'option', 'aria-selected': String(i === at), 'data-i': String(i) },
         el(doc, 'span', { class: 'flow-pick-tag lk-tag' }, item.tag.title), el(doc, 'span', { class: 'flow-pick-note' }, note));
       return row;
@@ -40,9 +41,17 @@ async function show(box) {
   if (!block) return;
   const bullet = db.bulletOf(block, box.value, ctx.schema);
   if (bullet.tags.length) return notify('This bullet already has a tag.');
-  const items = propose.tagChoices(ctx, bullet);
+  const items = propose.tagChoices(ctx, bullet), words = box.value;
+  // Apple's model, when it is on this Mac: the tag it reads the line as goes first (core/model.js, tagRequest). The list waits
+  // for it a moment rather than move a row under the pointer once it is open.
+  const read = Flow.modelAsk && app.setting('proposalsModel') ? await Flow.modelAsk.tagFor(ctx, bullet).catch(() => null) : null;
+  if (read) {
+    const at = items.findIndex(item => item.tag.id === read.id), was = at < 0 ? null : items.splice(at, 1)[0];
+    items.unshift({ ...(was || { score: 0, via: [], fields: Flow.schema.fieldsOfTags([read.id], ctx.schema).map(p => p.title) }), tag: { id: read.id, uuid: read.uuid, title: read.title }, how: 'model' });
+    if (items.length > 5) items.length = 5;
+  }
   if (!items.length) return notify('No tag to suggest for this line.');
-  if (host().activeElement !== box) return;   // moved on while it was being worked out
+  if (host().activeElement !== box || box.value !== words) return;   // moved on while it was being worked out
   close();
   open = { box, uuid, items, at: 0, list: el(box.ownerDocument, 'div', { class: 'flow-pick', role: 'listbox' }) };
   draw();
