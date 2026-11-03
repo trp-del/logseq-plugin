@@ -20,7 +20,7 @@ const Flow = (window.Flow ||= {});
 const { app, db, propose, text: textLib } = Flow;
 const { setting, host, warnOnce, notify } = app;
 
-const ENTER_LEAVES = 500, FILLING_MS = 6000;
+const ENTER_LEAVES = 500, FILLING_MS = 6000, SAVE_TRIES = 40;
 // live: the bullet being written { uuid, text, changed, recordUuid, pieces, drawn, clicked, picked, left }. filling: bullets left a
 // moment ago whose values are being written, kept on screen, solid, until Logseq shows its own (no flash of empty). entered:
 // the bullet in edit and its words when it was entered. refused: what an Undo took off, by the record it was on.
@@ -309,23 +309,33 @@ function leave(live, taken = new Set()) {
 async function takeShadow(live) {
   if (S.stopped || live.dismissed || !await app.allowed()) return;
   const ctx = await app.freshLinks(await app.context(), live.text);
-  // Logseq saves the words a moment after the box is left: wait for them, so the rules read what is saved.
+  // Logseq saves the words a moment after the box is left: wait for them, so the rules read what is saved. A large graph or
+  // a busy Mac can take a few seconds.
   let block = null, saved = false;
-  for (let tries = 0; tries < 12 && !saved; tries++) {
+  for (let tries = 0; tries < SAVE_TRIES && !saved; tries++) {
     block = await db.pullBlock(live.uuid);
     if (!block) return;   // the bullet is gone
     saved = sameWords(db.pick(block, 'block/title'), live.text);
     if (!saved) await sleep(100);
   }
-  if (!saved) return;   // the words changed after the shadow was drawn, or never got saved: nothing is written
+  // What was accepted (Enter, a click) and cannot be written is said, never dropped in silence.
+  const lost = why => { if (live.taken?.size) { warnOnce('accepted values were not filled in', why); notify(`The values you accepted were not filled in: ${why}.`, 'warning'); } };
+  if (!saved) return lost('the words changed, or had not been saved yet');
   // A tag typed in the words must be on the bullet as saved (Enter just before a typed tag moves the tag to the next bullet).
   const savedTags = new Set((db.pick(block, 'block/tags') || []).map(db.idOf));
-  if (propose.inWords(live.text, ctx).tags.some(tag => !savedTags.has(tag))) return;
+  if (propose.inWords(live.text, ctx).tags.some(tag => !savedTags.has(tag))) return lost('the tag typed in the words is not on the bullet');
   const { record, pieces: found } = propose.propose(ctx, db.bulletOf(block, db.pick(block, 'block/title'), ctx.schema));
   const recordUuid = String(record.uuid || ''), refused = S.refused.get(recordUuid);
   // The model's guesses go with them, for the words they were given (the rules do not ask the model again here).
-  const pieces = Flow.model.merge(found, live.model?.words === live.text ? live.model.pieces : []).filter(p => wanted(live, p) && !refused?.has(guessKey(p))).map(p => narrowed(live, p));
-  if (!pieces.length || !textLib.UUID.test(recordUuid) || S.stopped) return;
+  const again = Flow.model.merge(found, live.model?.words === live.text ? live.model.pieces : []);
+  // What was shown is what is written: the rules worked out again on the saved bullet, and where they now come out otherwise
+  // for a property (another page, names in another order), the value that was on screen. The tag first, which the rest wait for.
+  const chosen = new Map();
+  for (const p of again) if (wanted(live, p)) chosen.set(p.ident, p);
+  for (const p of live.pieces) if (!chosen.has(p.ident) && wanted(live, p)) chosen.set(p.ident, p);
+  const pieces = [...chosen.values()].filter(p => !refused?.has(guessKey(p))).sort((x, y) => (y.kind === 'tag') - (x.kind === 'tag')).map(p => narrowed(live, p));
+  if (!pieces.length || S.stopped) return;
+  if (!textLib.UUID.test(recordUuid)) return lost('the bullet they belong to could not be found');
   const { written, undo } = await writePieces(recordUuid, pieces);
   if (!written.length) return [];
   rememberUndo(recordUuid, live.uuid, written, undo);
