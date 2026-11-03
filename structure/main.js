@@ -51,6 +51,10 @@ const app = {
   // The log of changes: each Apply's lines, kept with the graph's name on this computer, the newest first.
   logged() { try { return JSON.parse(localStorage.getItem(`structure-log:${app.graph}`) || '[]'); } catch (error) { return []; } },
   log(graph, lines) { try { const at = Date.now(), all = [...lines.map(l => ({ at, text: l.text, nodes: l.nodes })), ...app.logged()].slice(0, 500); localStorage.setItem(`structure-log:${graph}`, JSON.stringify(all)); } catch (error) { console.error('Structure: the log could not be kept', error); } },
+  // The groups of Every property: for order only, kept with the graph's name on this computer, nothing written to the graph.
+  // { list: [{ id, name, under: id or null, open }], of: { property ident: group id } }.
+  groups() { try { const g = JSON.parse(localStorage.getItem(`structure-groups:${app.graph}`) || 'null'); return g && Array.isArray(g.list) ? { list: g.list, of: g.of || {} } : { list: [], of: {} }; } catch (error) { return { list: [], of: {} }; } },
+  saveGroups(g) { try { localStorage.setItem(`structure-groups:${app.graph}`, JSON.stringify(g)); } catch (error) { console.error('Structure: the groups could not be kept', error); } },
   async apply() {
     if (app.st.busy || !tray.changes.length) return;
     const n = tray.changes.length;

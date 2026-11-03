@@ -157,6 +157,7 @@ const CSS = `
 .st-pane .st-tree { max-height: calc(100vh - 300px); min-height: 160px; overflow-y: auto; }
 .st-topdrop { display: none; } .st[data-dragging] .st-topdrop { display: grid; } .st-topdrop .nm { color: var(--st-quiet); }
 .st-top .st-split { flex: none; }
+
 /* Pencilled in (Look's lk-pencil on the name): what a change waiting in the tray touches. */
 /* The pick bar, as the grammar draws it: above the list, how many and what can be done as quiet words, Esc clears. */
 .st-pick { margin: 0 0 8px; min-height: 27px; flex-wrap: nowrap; }
@@ -224,6 +225,17 @@ const CSS = `
 /* A narrow pane (the right sidebar open): the table keeps its four columns, the tag columns wrapping. */
 @container (max-width: 640px) { .st-tbl .hd, .st-tbl .tr { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 76px; } .st-tbl .hd > *, .st-tbl .tr > * { padding-inline: 8px; } }
 .st-tbl .tr .ct { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+/* The groups of Every property: a name that folds like a bullet, its count at the right; what it holds one step in. */
+.st-tbl .tr > :first-child { padding-left: var(--pd, 4px); }   /* inside a group: one step past its name, as a child bullet */
+.st-tbl .st-grp .lk-fold { display: inline-flex; width: 14px; height: 20px; align-items: center; justify-content: center; cursor: pointer; }
+.st-tbl .st-grp .lk-fold svg { width: 10px; height: 10px; transition: transform .12s; } .st-tbl .st-grp .lk-fold[aria-expanded="true"] svg { transform: rotate(90deg); }
+.st-tbl .st-grp { display: grid; grid-template-columns: 14px minmax(0, 1fr) auto 22px; gap: 6px; align-items: center; min-height: 32px; padding-left: calc(var(--d, 0) * 16px); border-bottom: 1px solid var(--st-hair); }
+.st-tbl .st-grp .gn { font-weight: 600; cursor: text; } .st-tbl .st-grp.none .gn { font-weight: 500; cursor: default; }
+.st-tbl .st-grp .ct { font-variant-numeric: tabular-nums; padding-right: 12px; }
+.st-tbl .st-grp .lk-x { visibility: hidden; } .st-tbl .st-grp:hover .lk-x { visibility: visible; }
+.st-tbl .st-grp.over { background: var(--st-wash); box-shadow: inset 0 2px 0 var(--st-line); }
+.st-tbl .dragging { opacity: .4; }
+.st-gnew { padding: 8px 2px 0; }
 .st-tbl .to, .st-lines-t .to { margin: 0 .35em; }
 .st-hl .st-ln { grid-template-columns: minmax(0, 1fr) max-content; }
 /* A node's row: the day in the left margin (the margin is time), the tick, the bullet, the name. */
@@ -487,10 +499,34 @@ function make(holder, mode, app, opts = {}) {
     const s = st.sort, onName = g => name(g.tag);
     rows.sort((a, b) => s === 'name' ? a.p.title.localeCompare(b.p.title) : s === 'on' ? onName(a).localeCompare(onName(b)) || a.p.title.localeCompare(b.p.title) : s === 'to' ? name(b.p.range[0] ?? '').localeCompare(name(a.p.range[0] ?? '')) : a.pct - b.pct || a.p.title.localeCompare(b.p.title));
     let h = `<div class="st-tbl"><div class="hd">${['name', 'on', 'to', 'filled'].map(c => `<span class="lk-head ${s === c ? 'on' : ''}" data-sort="${c}">${{ name: 'Property', on: 'On tags', to: 'Holds', filled: 'Filled' }[c]}</span>`).join('')}</div>`;
-    h += few('table', rows).map(r => `<div class="tr ${waitProp(r.prop)}" data-prop="${r.tag}·${r.prop}"><span><span class="k lk ${waitProp(r.prop) ? 'lk-pencil' : ''}">${esc(r.p.title)}</span></span><span>${ranges(r.on.map(x => x.tag))}</span><span>${r.p.type === 'node' ? (r.p.range.length ? ranges(r.p.range) : 'Any node') : esc(Mo.kindWord(r.p.choice ? 'choice' : r.p.type))}</span><span class="ct">${r.filled} of ${r.of}</span></div>`).join('');
+    // A property's name, or the field renaming it (Rename in its right-click menu).
+    const nameCell = (key, title, wait) => st.edit?.what === 'prename' && st.edit.on === key && st.edit.owner === mode
+      ? `<input class="st-in" data-edit value="${esc(st.edit.text)}" autocomplete="off" spellcheck="false">` : `<span class="k lk ${wait ? 'lk-pencil' : ''}">${esc(title)}</span>`;
+    const tr = (r, d) => `<div class="tr ${waitProp(r.prop)}" data-prop="${r.tag}·${r.prop}" data-gprop="${esc(r.p.ident)}" draggable="true" style="--pd:${d ? 20 + d * 16 : 4}px"><span>${nameCell(`${r.tag}·${r.prop}`, r.p.title, waitProp(r.prop))}</span><span>${ranges(r.on.map(x => x.tag))}</span><span>${r.p.type === 'node' ? (r.p.range.length ? ranges(r.p.range) : 'Any node') : esc(Mo.kindWord(r.p.choice ? 'choice' : r.p.type))}</span><span class="ct">${r.filled} of ${r.of}</span></div>`;
+    /* The groups: an outline of names, each folding like a bullet, holding properties and other groups, for order only
+       (app.groups, kept on this computer). A property dragged onto a group's name goes into it; a group dragged onto another
+       goes inside it; onto "No group", back out. With no group made, the table reads as before. */
+    const G = app.groups(), gById = new Map(G.list.map(g => [g.id, g]));
+    const groupOf = r => gById.has(G.of[r.p.ident]) ? G.of[r.p.ident] : null;
+    const kidsOf = id => G.list.filter(g => (gById.has(g.under) ? g.under : null) === id);
+    const propsIn = id => rows.filter(r => groupOf(r) === id);
+    const countIn = id => propsIn(id).length + kidsOf(id).reduce((n, g) => n + countIn(g.id), 0);
+    const field = (what, on) => st.edit?.what === what && st.edit.on === on && st.edit.owner === mode;
+    const groupHtml = (g, d) => {
+      const open = g.open !== false;
+      let x = `<div class="st-grp" data-group="${esc(g.id)}" draggable="true" style="--d:${d}"><span class="lk-fold" data-gfold="${esc(g.id)}" aria-expanded="${open}">${CHEVRON}</span>` +
+        (field('gname', g.id) ? `<input class="st-in" data-edit value="${esc(st.edit.text)}" autocomplete="off" spellcheck="false">` : `<span class="gn" data-gname="${esc(g.id)}">${esc(g.name)}</span>`) +
+        `<span class="ct">${countIn(g.id) || ''}</span><span class="lk-x" data-gdrop="${esc(g.id)}" title="Take the group away; what it holds goes up a level">×</span></div>`;
+      if (open) x += kidsOf(g.id).map(k => groupHtml(k, d + 1)).join('') + propsIn(g.id).map(r => tr(r, d + 1)).join('');
+      return x;
+    };
+    if (G.list.length) {
+      const free = propsIn(null);
+      h += kidsOf(null).map(g => groupHtml(g, 0)).join('') + `<div class="st-grp none" data-group="" style="--d:0"><span></span><span class="gn">No group</span><span class="ct">${free.length || ''}</span><span></span></div>` + few('table', free).map(r => tr(r, 1)).join('') + moreOf('table', free);
+    } else h += few('table', rows).map(r => tr(r, 0)).join('') + moreOf('table', rows);
+    h += `<div class="st-gnew">${field('gnew', '') ? `<input class="st-in" data-edit value="${esc(st.edit.text)}" placeholder="Name of the group" autocomplete="off" spellcheck="false">` : '<span class="act lk-add lk-i-plus" data-gnew>New group</span>'}</div>`;
     const loose = [...m.props.values()].filter(p => !p.on.length);
-    h += moreOf('table', rows);
-    if (loose.length) h += `</div><h3 class="st-h">On no tag</h3><div class="st-tbl">` + few('loose', loose).map(p => `<div class="tr ${waitProp(p.id)}" data-prop="0·${p.id}"><span><span class="k lk ${waitProp(p.id) ? 'lk-pencil' : ''}">${esc(p.title)}</span></span><span></span><span>${p.range.length ? p.range.map(tagLink).join(', ') : esc(Mo.kindWord(p.choice ? 'choice' : p.type))}</span><span class="ct">${m.holders.get(p.ident)?.size || 0} nodes</span></div>`).join('') + moreOf('loose', loose);
+    if (loose.length) h += `</div><h3 class="st-h">On no tag</h3><div class="st-tbl">` + few('loose', loose).map(p => `<div class="tr ${waitProp(p.id)}" data-prop="0·${p.id}"><span>${nameCell(`0·${p.id}`, p.title, waitProp(p.id))}</span><span></span><span>${p.range.length ? p.range.map(tagLink).join(', ') : esc(Mo.kindWord(p.choice ? 'choice' : p.type))}</span><span class="ct">${m.holders.get(p.ident)?.size || 0} nodes</span></div>`).join('') + moreOf('loose', loose);
     return h + `</div>`;
   }
   // A long list: a few, then "show all", as a tag's nodes.
@@ -590,7 +626,7 @@ function make(holder, mode, app, opts = {}) {
       const [tagId, pid] = mn.on.split('·').map(Number), t = T(tagId), p = P(pid), parent = Mo.parentOf(m, tagId);
       const declared = !!t?.props.includes(pid);
       const f = t ? plural(Mo.filled(m, tagId, pid), 'value') : '';
-      h += (p?.uuid ? it('Go to this property', 'ppage') + '<div class="gap lk-item"></div>' : '') + (p?.type === 'node' ? it('Specify node tags…', 'prange') : '') + '<div class="gap lk-item"></div>' +
+      h += (p?.uuid ? it('Go to this property', 'ppage') + '<div class="gap lk-item"></div>' : '') + it('Rename', 'prename', !p) + (p?.type === 'node' ? it('Specify node tags…', 'prange') : '') + '<div class="gap lk-item"></div>' +
         (t ? it('Move to…', 'pmove', !declared, f) + it(parent != null ? `Pull up to ${name(parent)}` : 'Pull up to the parent', 'pullup', !declared || parent == null, f) +
         (p && (p.choice || p.type === 'node') ? it('Split by its values…', 'split', !t.nodes.size, plural(t.nodes.size, 'node')) : '') + '<div class="gap lk-item"></div>' + it('Delete property from tag', 'pdrop', !declared, f) : it('Put on a tag…', 'pmove'));
     }
@@ -750,6 +786,12 @@ function make(holder, mode, app, opts = {}) {
       if (e.what === 'rename' && v !== name(e.on)) app.stage({ kind: 'rename', tag: e.on, name: v });
       else if (e.what === 'new') { const c = app.stage({ kind: 'make', name: v, under: e.on === LOOSE ? null : e.on }); st.open.add(e.on); if (c?.made != null) { loc.cur = c.made; if (mode === 'side') st.cur = c.made; if (e.on === LOOSE) { st.edit = { what: 'kids', on: c.made, text: '', owner: mode }; } } }
       else if (e.what === 'kids') { for (const w of v.split(',').map(x => x.trim()).filter(Boolean)) if (!Mo.titled(M(), w).length) app.stage({ kind: 'make', name: w, under: e.on }); st.open.add(e.on); }
+      else if (e.what === 'gnew' || e.what === 'gname') {
+        const G = app.groups();
+        if (e.what === 'gnew') G.list.push({ id: 'g' + Date.now().toString(36), name: v, under: null, open: true });
+        else { const g = G.list.find(x => x.id === e.on); if (g) g.name = v; }
+        app.saveGroups(G);
+      }
       else if (e.what === 'prename') { const [, pid] = e.on.split('·').map(Number); if (v !== P(pid).title) app.stage({ kind: 'renameProp', prop: pid, name: v }); }
       else if (e.what === 'split') {
         const n = st.nodes, ticked = n.list.filter(x => n.ticks.has(x.uuid));
@@ -766,6 +808,7 @@ function make(holder, mode, app, opts = {}) {
     if (a === 'openall') openAll(on);
     else if (a === 'nodes') openNodes(on);
     else if (a === 'page') { redraw(); app.openNode(T(on)?.uuid, shift); }
+    else if (a === 'prename') { const p = P(Number(on.split('·')[1])); if (p) startEdit('prename', on, p.title); else redraw(); }
     else if (a === 'ppage') { redraw(); app.openNode(P(Number(on.split('·')[1]))?.uuid, shift); }
     else if (a === 'main') app.openMain(on);
     else if (a === 'tick') tick(on);
@@ -816,10 +859,20 @@ function make(holder, mode, app, opts = {}) {
   
   // ---------- events ----------
   root.addEventListener('click', e => {
-    const t = e.target.closest('[data-all],[data-fold],[data-tick],[data-ntick],[data-row],[data-go],[data-open],[data-unrange],[data-addrange],[data-prop],[data-fix],[data-stage],[data-leave],[data-sort],[data-apply],[data-discard],[data-drop],[data-undo],[data-act],[data-do],[data-show],[data-compare],[data-aim],[data-aimtop],[data-aimoff],[data-back],[data-pick],[data-nodes],[data-more],[data-node],[data-split]');
+    const t = e.target.closest('[data-all],[data-fold],[data-tick],[data-ntick],[data-row],[data-go],[data-open],[data-unrange],[data-addrange],[data-prop],[data-fix],[data-stage],[data-leave],[data-sort],[data-apply],[data-discard],[data-drop],[data-undo],[data-act],[data-do],[data-show],[data-compare],[data-aim],[data-aimtop],[data-aimoff],[data-back],[data-pick],[data-nodes],[data-more],[data-node],[data-split],[data-gfold],[data-gname],[data-gdrop],[data-gnew]');
     if (!t) { if (st.menu) { st.menu = null; redraw(); } return; }
+    if (e.target.matches?.('[data-edit]')) return;   // a click in a field being written stays in the field
     e.stopPropagation(); e.preventDefault();
     if (t.hasAttribute('data-split')) { st.split = !st.split; return redraw(); }
+    if (t.dataset.gfold) { const G = app.groups(), g = G.list.find(x => x.id === t.dataset.gfold); if (g) { g.open = g.open === false; app.saveGroups(G); } return redraw(); }
+    if (t.dataset.gname) { const g = app.groups().list.find(x => x.id === t.dataset.gname); return g ? startEdit('gname', g.id, g.name) : redraw(); }
+    if (t.hasAttribute('data-gnew')) return startEdit('gnew', '', '');
+    if (t.dataset.gdrop) {   // the group goes; what it held goes up a level, nothing else changes
+      const G = app.groups(), g = G.list.find(x => x.id === t.dataset.gdrop); if (!g) return redraw();
+      for (const k of G.list) if (k.under === g.id) k.under = g.under ?? null;
+      for (const [ident, id] of Object.entries(G.of)) if (id === g.id) { if (g.under) G.of[ident] = g.under; else delete G.of[ident]; }
+      G.list = G.list.filter(x => x !== g); app.saveGroups(G); return redraw();
+    }
     if (t.dataset.fold) { if (t.closest('[data-pane="2"]')) { const id = keyOf(t.dataset.fold), o = st.pane2.open; o.has(id) ? o.delete(id) : o.add(id); return redraw(); } return fold(keyOf(t.dataset.fold)); }
     if (t.dataset.tick) return tick(keyOf(t.dataset.tick));
     if (t.dataset.ntick) { const x = st.nodes.list[+t.dataset.ntick]; st.nodes.ticks.has(x.uuid) ? st.nodes.ticks.delete(x.uuid) : st.nodes.ticks.add(x.uuid); st.nodes.cur = +t.dataset.ntick; return redraw(); }
@@ -857,7 +910,20 @@ function make(holder, mode, app, opts = {}) {
      tag cannot go under (itself, anything under it) takes no drop. The move waits in the tray like every change. */
   const dragOf = e => { const r = e.target.closest?.('[data-row]'); return r ? keyOf(r.dataset.row) : null; };
   const canDrop = dest => st.drag && dest != null && (dest === LOOSE ? st.drag.tags.some(s => T(s)?.parents.length) : !st.drag.tags.some(s => s === dest || Mo.under(M(), dest, s)));
+  /* In Every property a property or a group is dragged onto a group's name (or "No group"): only the groups change, kept on
+     this computer, and the property itself stays as it is. A group cannot go inside itself or a group within it. */
+  const gTarget = e => e.target.closest?.('.st-tbl [data-group]');
+  const gWithin = (G, id, of) => { for (let g = G.list.find(x => x.id === id); g; g = G.list.find(x => x.id === g.under)) if (g.id === of) return true; return false; };
+  const gCanDrop = el => { const d = st.gdrag; if (!d || !el) return false; const to = el.dataset.group; return d.group == null || (to !== d.group && !(to && gWithin(app.groups(), to, d.group))); };
   root.addEventListener('dragstart', e => {
+    const gp = e.target.closest?.('.st-tbl [data-gprop]'), gh = e.target.closest?.('.st-tbl .st-grp[data-group]:not(.none)');
+    if (gp || gh) {
+      e.stopPropagation();
+      st.gdrag = gp ? { prop: gp.dataset.gprop } : { group: gh.dataset.group };
+      try { e.dataTransfer.setData('text/plain', (gp || gh).textContent.trim().slice(0, 60)); e.dataTransfer.effectAllowed = 'move'; } catch (error) { /* a test's plain event */ }
+      (gp || gh).classList.add('dragging'); root.setAttribute('data-dragging', '');
+      return;
+    }
     const id = dragOf(e); const t = id != null && T(id);
     if (!t || t.missing) { e.preventDefault(); return; }
     e.stopPropagation();
@@ -867,6 +933,13 @@ function make(holder, mode, app, opts = {}) {
     root.setAttribute('data-dragging', '');
   });
   root.addEventListener('dragover', e => {
+    if (st.gdrag) {
+      const el = gTarget(e); if (!gCanDrop(el)) return;
+      e.preventDefault(); e.stopPropagation();
+      try { e.dataTransfer.dropEffect = 'move'; } catch (error) { /* ditto */ }
+      if (!el.classList.contains('over')) { for (const o of root.querySelectorAll('.over')) o.classList.remove('over'); el.classList.add('over'); }
+      return;
+    }
     const dest = dragOf(e); if (!canDrop(dest)) return;
     e.preventDefault(); e.stopPropagation();
     try { e.dataTransfer.dropEffect = 'move'; } catch (error) { /* ditto */ }
@@ -876,12 +949,21 @@ function make(holder, mode, app, opts = {}) {
   // The ring goes only when the pointer is off its row: moving onto a word inside the row also reports leaving it.
   root.addEventListener('dragleave', e => { const row = e.target.closest?.('[data-row]'); if (row && doc.elementFromPoint(e.clientX, e.clientY)?.closest('[data-row]') !== row) row.classList.remove('over'); });
   root.addEventListener('drop', e => {
+    if (st.gdrag) {
+      const el = gTarget(e), d = st.gdrag; if (!gCanDrop(el)) return;
+      e.preventDefault(); e.stopPropagation(); st.gdrag = null;
+      const G = app.groups(), to = el.dataset.group || null;
+      if (d.prop != null) { if (to) G.of[d.prop] = to; else delete G.of[d.prop]; }
+      else { const g = G.list.find(x => x.id === d.group); if (g) { g.under = to; G.list = [...G.list.filter(x => x !== g), g]; } }
+      if (to) { const g = G.list.find(x => x.id === to); if (g) g.open = true; }
+      app.saveGroups(G); redraw(); return;
+    }
     const dest = dragOf(e); if (!canDrop(dest)) return;
     e.preventDefault(); e.stopPropagation();
     const tags = st.drag.tags; st.drag = null;
     moveTags(tags, dest); loc.cur = tags[0]; redraw();
   });
-  root.addEventListener('dragend', () => { st.drag = null; root.removeAttribute('data-dragging'); for (const o of root.querySelectorAll('.st-row.over, .st-row.dragging')) o.classList.remove('over', 'dragging'); });
+  root.addEventListener('dragend', () => { st.drag = null; st.gdrag = null; root.removeAttribute('data-dragging'); for (const o of root.querySelectorAll('.over, .dragging')) o.classList.remove('over', 'dragging'); });
   // The right-click menu, on a row or a property line; it acts on what was clicked and leaves the cursor where it is.
   root.addEventListener('contextmenu', e => {
     const r = e.target.closest('[data-row]'), p = e.target.closest('[data-prop]');
