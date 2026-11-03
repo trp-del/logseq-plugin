@@ -24,8 +24,11 @@ no property's name beside it ("5 mg" for a Dose) and which of two days is the st
 
 It also reads which kind of note a bullet with no tag is, where the rules find none. Of "Mouth feels like sandpaper, even water stings" the rules may say nothing, since it names no page and shares no words with earlier lines; the model can read it as a Symptom Log. It chooses only among your own tags (those bullets carry, the ones the pages it names could take first) or none, and its tag is pencilled in as the rules' is, with the tag's properties as guesses. It does so at balanced and eager, not at careful ("How readily a tag is suggested"). Option-T asks it too, whatever that setting: its tag comes first in the list, its row says "by Apple's model", and the list waits a moment for it rather than move a row once open.
 
-It is held to the graph. A page property is offered only the pages the words name that fit it, so it cannot bring in a page you
-did not mention; a number is kept only if the words hold it, a day only if the words name it. It is never asked about a choice
+It is held to the graph. A page property is offered the pages the words name that fit it; when the words name none, the pages
+the property can take (up to 40, the ones most often its value first), so it can read what the words describe in other words:
+"Woke up with a bloody nose that wouldn't stop" can give Occurrence of the symptom page Bleeding. Either way it picks only pages
+of yours that fit the property, never a new one; a number is kept only if the words hold it, a day only if the words name it.
+What the model is told and asked is sent with each question, so a change to that wording needs no new helper. It is never asked about a choice
 (Status), Logseq's own Deadline and Scheduled, a property that takes almost anything (a Topic), a note under a record, or a
 bullet whose tag is still a proposal. What it says is always a guess, dotted, written only by Enter or a click, with the same
 Undo, and its hover says it came from Apple's model. A guess with stronger evidence (a link, the page, earlier bullets) is

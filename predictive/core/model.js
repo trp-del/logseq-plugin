@@ -11,8 +11,9 @@
    - What the rules proposed stays, but for one kind of guess: a person named in plain words, which the rules put in the
      first property that takes such a page, knowing nothing of roles. That one the model is asked about again, and its
      reading replaces the rules' (merge). Where it says nothing, the rules' guess stays.
-   - A page property is offered only the pages the words name (a whole name, or a telling word of it, as names.js reads
-     them) that fit it, and not one the rules already placed. No such page: it is not asked.
+   - A page property is offered the pages the words name (a whole name, or a telling word of it, as names.js reads them)
+     that fit it, and not one the rules already placed. When the words name none, the pages it can take (rangePages), so
+     the model can read what the words describe in other words; either way only pages of the graph that fit it.
    - A number is kept only if the words hold it; a day only if the date reader finds that day in the words.
    - Everything kept is a guess: dotted, written only by Enter or a click, as any guess.
    - A bullet with no tag, where the rules found none: which of the graph's tags it is (tagRequest), or none.
@@ -28,6 +29,36 @@ const { dayNumber } = need('dates');
 const proposeLib = need('propose');
 
 const MOST_PAGES = 12;
+/* When the words name no page for a property, the model is offered the pages the property can take (its range), so it can
+   read what the words describe in other words ("woke up with a bloody nose" for a symptom page Bleeding): pages only,
+   those most often the property's value first, at most MOST_RANGE for one property and MOST_OFFERED in all, which keeps
+   the question inside what the model on the Mac can read. */
+const MOST_RANGE = 40, MOST_OFFERED = 80;
+function valueUse(ctx, ident) {
+  const byProp = ctx.valueUse ||= new Map();
+  if (byProp.has(ident)) return byProp.get(ident);
+  const use = new Map();
+  for (const entry of ctx.index?.entries || []) for (const id of entry.values.get(ident) || []) use.set(id, (use.get(id) || 0) + 1);
+  byProp.set(ident, use);
+  return use;
+}
+function rangePages(ctx, prop, classIds, spoken) {
+  const use = valueUse(ctx, prop.ident);
+  return ctx.pages.filter(page => !page.isTag && !page.day && page.title && !spoken.has(page) && fits(page, classIds, ctx.schema))
+    .sort((x, y) => (use.get(y.id) || 0) - (use.get(x.id) || 0) || x.title.localeCompare(y.title)).slice(0, MOST_RANGE);
+}
+// What the model is told, and what each question asks: sent with the question, so the wording lives here, not in the helper.
+const INSTRUCTIONS = 'You fill in the properties of one note in someone\'s notes about their life and health. Fill a property only when ' +
+  'the note\'s words say its value, plainly or in other words for the same thing. When the words do not say, leave the property ' +
+  'out or answer none. Never guess from what is usual. A person the note was with, talked to or saw goes in the property whose ' +
+  'name fits that role.';
+const ABOUT = {
+  named: title => `The ${title} the words name, from the choices; none if the words do not say.`,
+  range: title => `The ${title} this note is about, from the choices: the one its words describe, even when they use other words for it; none if none of them fits.`,
+  tag: () => 'Which of these kinds of note this note is, from the choices; none if it is a plain note that is none of them.',
+  number: title => `The ${title} as a number, only if the words give it.`,
+  date: title => `The day of ${title} as YYYY-MM-DD, only if the words name it.`,
+};
 // A guess from a name in plain words and nothing else: the one guess of the rules the model may replace.
 const byWordsAlone = p => p.kind === 'node' && p.guess && p.how === 'words';
 const freeWords = text => wordsOf(String(text || '').replace(/#?\[\[[^\[\]]*\]\]/g, ' ').replace(TAG, ' '));
@@ -69,7 +100,7 @@ function tagRequest(ctx, b, today = dayNumber(new Date())) {
   if (!byTitle.size) return null;
   const page = b.page && !b.page.day ? b.page.title : '';
   return {
-    fill: { text: shown(ctx, text), page, tags: [], today: iso(b.page?.day || today), properties: [{ key: 't', title: 'Kind of note', kind: 'tag', choices: [...byTitle.values()].map(p => p.title) }] },
+    fill: { text: shown(ctx, text), page, tags: [], today: iso(b.page?.day || today), instructions: INSTRUCTIONS, properties: [{ key: 't', title: 'Kind of note', kind: 'tag', choices: [...byTitle.values()].map(p => p.title), about: ABOUT.tag() }] },
     asked: new Map([['t', { kind: 'tag', tags: byTitle }]]), days: new Set(), bullet: b,
   };
 }
@@ -92,28 +123,32 @@ function request(ctx, b, result, today = dayNumber(new Date())) {
   const days = new Set(ctx.reader.daysInWords(text, base));
   const hasNumber = /\d/.test(text.replace(/\[\[[^\]]*\]\]/g, ' '));
   const asked = new Map(), properties = [];
+  let offered = 0;
   for (const prop of fields) {
     if (done.has(prop.ident) || quiet.has(prop.ident) || (b.values?.get(prop.ident) || []).length) continue;
     if (isChoiceProp(prop) || isBuiltInProp(prop)) continue;
     const key = 'p' + asked.size;
     if (isLinkProp(prop)) {
       if (wide(prop, ctx.schema)) continue;
-      const pages = namedPages(ctx, words, new Set(prop.classes.map(c => c.id)), spoken);
+      const classIds = new Set(prop.classes.map(c => c.id));
+      let pages = namedPages(ctx, words, classIds, spoken), how = 'named';
+      if (!pages.length && offered < MOST_OFFERED) { pages = rangePages(ctx, prop, classIds, spoken).slice(0, MOST_OFFERED - offered); how = 'range'; }
       if (!pages.length) continue;
-      asked.set(key, { prop, kind: 'page', pages: new Map(pages.map(p => [p.title.toLowerCase(), p])) });
-      properties.push({ key, title: prop.title, kind: 'page', many: !!prop.many, choices: pages.map(p => p.title) });
+      offered += pages.length;
+      asked.set(key, { prop, kind: 'page', how, pages: new Map(pages.map(p => [p.title.toLowerCase(), p])) });
+      properties.push({ key, title: prop.title, kind: 'page', many: !!prop.many, choices: pages.map(p => p.title), about: ABOUT[how](prop.title) });
     } else if (isNumberProp(prop) && hasNumber) {
       asked.set(key, { prop, kind: 'number' });
-      properties.push({ key, title: prop.title, kind: 'number' });
+      properties.push({ key, title: prop.title, kind: 'number', about: ABOUT.number(prop.title) });
     } else if (isDateProp(prop) && days.size) {
       asked.set(key, { prop, kind: 'date' });
-      properties.push({ key, title: prop.title, kind: 'date' });
+      properties.push({ key, title: prop.title, kind: 'date', about: ABOUT.date(prop.title) });
     }
   }
   if (!properties.length) return null;
   const tagTitles = tags.map(id => ctx.byId.get(id)?.title).filter(Boolean);
   const page = b.page && !b.page.day ? b.page.title : '';
-  return { fill: { text: shown(ctx, text), page, tags: tagTitles, today: iso(base), properties }, asked, days };
+  return { fill: { text: shown(ctx, text), page, tags: tagTitles, today: iso(base), instructions: INSTRUCTIONS, properties }, asked, days };
 }
 // The words as the person reads them: a saved link as its page's name.
 const shown = (ctx, text) => String(text).replace(/\[\[([^\[\]]+)\]\]/g, (m, key) => ctx.byKey.get(key.toLowerCase())?.title || key);
@@ -167,7 +202,7 @@ function merge(rules, model) {
   return [...kept, ...model.filter(p => !kept.some(q => q.ident === p.ident))];
 }
 
-const api = { request, tagRequest, tagOf, pieces, merge, iso, fromIso, namedPages, byWordsAlone, MOST_TAGS };
+const api = { request, tagRequest, tagOf, pieces, merge, iso, fromIso, namedPages, rangePages, byWordsAlone, MOST_TAGS, MOST_RANGE };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 if (typeof window !== 'undefined') (window.Flow ||= {}).model = api;
 })();

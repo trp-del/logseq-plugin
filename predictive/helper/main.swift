@@ -5,9 +5,9 @@
    leaves the Mac.
 
    GET  /status  -> { "ready": true } or { "ready": false, "reason": "..." }
-   POST /fill    <- { "text", "page", "tags": [..], "today": "YYYY-MM-DD", "properties": [
-                        { "key", "title", "kind": "page" | "tag" | "number" | "date", "many", "choices": [titles] } ] }
-                   (a "tag" is which of the graph's tags the note is, from its choices)
+   POST /fill    <- { "text", "page", "tags": [..], "today": "YYYY-MM-DD", "instructions", "properties": [
+                        { "key", "title", "kind": "page" | "tag" | "number" | "date", "many", "choices": [titles], "about" } ] }
+                   (a "tag" is which of the graph's tags the note is, from its choices; "about" says what is asked)
                  -> { "values": { key: title | [titles] | number | "YYYY-MM-DD" } } or { "error": "..." }
 
    The answer is held to a shape built from the bullet's own properties: a page property can only hold one of the
@@ -25,8 +25,8 @@ let NONE = "none"
 
 // MARK: - the request
 
-struct Property: Decodable { let key: String; let title: String; let kind: String; let many: Bool?; let choices: [String]? }
-struct Fill: Decodable { let text: String; let page: String?; let tags: [String]?; let today: String?; let properties: [Property] }
+struct Property: Decodable { let key: String; let title: String; let kind: String; let many: Bool?; let choices: [String]?; let about: String? }
+struct Fill: Decodable { let text: String; let page: String?; let tags: [String]?; let today: String?; let properties: [Property]; let instructions: String? }
 
 // MARK: - the model
 
@@ -68,13 +68,15 @@ func schemaFor(_ fill: Fill, _ names: [String]) throws -> GenerationSchema {
       value = DynamicGenerationSchema(type: String.self, guides: [.pattern(try Regex("[0-9]{4}-[0-9]{2}-[0-9]{2}"))])
     default: continue
     }
-    let about: String
+    // The plugin words each question itself (about); these are for a plugin older than that.
+    var about: String
     switch p.kind {
     case "page": about = "The \(p.title) the words name, from the choices; \(NONE) if the words do not say."
     case "tag": about = "Which of these kinds of note this note is, from the choices; \(NONE) if it is a plain note that is none of them."
     case "number": about = "The \(p.title) as a number, only if the words give it."
     default: about = "The day of \(p.title) as YYYY-MM-DD, only if the words name it."
     }
+    if let given = p.about, !given.isEmpty { about = given }
     properties.append(.init(name: name, description: about, schema: value, isOptional: true))
   }
   let root = DynamicGenerationSchema(name: "Properties", description: "The properties of one note, filled only from what its words say.", properties: properties)
@@ -95,7 +97,8 @@ func run(_ fill: Fill) async throws -> [String: Any] {
   if let tags = fill.tags, !tags.isEmpty { prompt += "It is a: \(tags.joined(separator: ", "))\n" }
   if let page = fill.page, !page.isEmpty { prompt += "Written on the page: \(page)\n" }
   if let today = fill.today { prompt += "Written on: \(today)\n" }
-  let session = LanguageModelSession(instructions: INSTRUCTIONS)
+  // The plugin's own instructions when it sends them, so their wording can change without building this again.
+  let session = LanguageModelSession(instructions: fill.instructions?.isEmpty == false ? fill.instructions! : INSTRUCTIONS)
   let answer = try await session.respond(to: prompt, schema: schema, options: GenerationOptions(sampling: .greedy))
   let data = Data(answer.content.jsonString.utf8)
   let object = (try JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]

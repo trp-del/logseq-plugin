@@ -307,12 +307,13 @@ const visit = (text, over = {}) => bullet({ id: -5, text, tags: [clinic.tagPage.
 const askAbout = b => { const result = propose(clinic.ctx, b); return { result, req: modelLib.request(clinic.ctx, b, result, 20261102) }; };
 const said = 'Saw Dr. Mei Chen with Ruth Okoro about the fatigue, 5 mg from 9 Nov until 13 Nov';
 const byTitle = req => new Map(req.fill.properties.map(p => [p.title, p]));
-test('asked only what the rules left open or guessed from plain words, with only the pages the words name', () => {
+test('asked only what the rules left open or guessed from plain words: the pages the words name, else the pages it can take', () => {
   const { result, req } = askAbout(visit(said));
   const asked = byTitle(req), rulesSaid = new Set(result.pieces.filter(p => !modelLib.byWordsAlone(p)).map(p => p.prop.title));
   for (const title of rulesSaid) assert.ok(!asked.has(title), `${title} was already proposed by the rules`);
-  for (const p of req.fill.properties.filter(p => p.kind === 'page')) assert.ok(p.choices.every(c => ['Dr. Mei Chen', 'Ruth Okoro'].includes(c)), p.choices.join(', '));
-  assert.ok(!asked.has('Where'), 'no place is named, so Where is not asked');
+  for (const title of ['Provider', 'Spoke with']) if (asked.has(title)) assert.ok(asked.get(title).choices.every(c => ['Dr. Mei Chen', 'Ruth Okoro'].includes(c)), 'named people only, where people are named');
+  assert.deepEqual(asked.get('Where')?.choices, ['Northgate Clinic'], 'no place is named, so Where is offered the places it can take');
+  assert.match(asked.get('Where').about, /other words/);
   assert.ok(!asked.has('Topic'), 'a wide property is never asked about');
   assert.ok(asked.has('Dose') && asked.has('Start') && asked.has('End'));
   assert.ok(!JSON.stringify(req.fill).includes('Lena Park'), 'a page the words do not name is never sent');
@@ -356,10 +357,22 @@ test('the model\'s reading of roles replaces the rules\' guess from plain words,
   assert.ok(sure && !sure.guess, 'a linked page is sure');
   assert.deepEqual(modelLib.merge(lr.pieces, [{ ...sure, ids: [clinic.page.get('Ruth Okoro').id], shown: 'Ruth Okoro', how: 'model', guess: true }]).find(p => p.prop.title === 'Provider').shown, 'Dr. Mei Chen', 'a sure value is never replaced');
 });
+test('words that describe a page in other words: the model is offered the pages the property can take, and its pick is kept', () => {
+  const { req } = askAbout(visit('Went to the hospital in the morning, they kept me waiting'));
+  const where = byTitle(req).get('Where');
+  assert.ok(where, 'Where is asked though no place is named');
+  assert.ok(where.choices.every(c => clinic.ctx.pages.some(p => p.title === c && !p.isTag)), 'only pages of the graph');
+  assert.ok(where.choices.length <= modelLib.MOST_RANGE);
+  const kept = modelLib.pieces(clinic.ctx, req, { values: { [where.key]: 'Northgate Clinic' } });
+  assert.equal(kept.find(p => p.prop.title === 'Where')?.shown, 'Northgate Clinic');
+  assert.ok(kept.every(p => p.guess && p.how === 'model'), 'a guess, as every answer of the model');
+  assert.deepEqual(modelLib.pieces(clinic.ctx, req, { values: { [where.key]: 'Lena Park' } }).filter(p => p.prop.title === 'Where'), [], 'a page it cannot take is never kept');
+  assert.ok(req.fill.instructions && /other words/.test(req.fill.instructions), 'the plugin sends the instructions');
+});
 test('one person is not put in two places', () => {
   const b = visit('Saw Ruth Okoro about the fatigue');
   const { req } = askAbout(b);
-  const pages = req ? req.fill.properties.filter(p => p.kind === 'page' && !p.many) : [];
+  const pages = req ? req.fill.properties.filter(p => p.kind === 'page' && !p.many && p.choices.includes('Ruth Okoro')) : [];
   if (pages.length < 1) return;
   const many = req.fill.properties.find(p => p.many);
   const values = { [pages[0].key]: 'Ruth Okoro', ...(many ? { [many.key]: ['Ruth Okoro'] } : {}) };
@@ -401,7 +414,8 @@ test('not asked: a linked page the rules placed, a note under a record, plain wo
   assert.ok(!linked || !byTitle(linked).has('Provider'), 'the rules fill Provider from the link');
   const parent = { id: -9, uuid: synthetic.uuid(9909), tags: [clinic.tagPage.Consultation.id], values: new Map() };
   assert.equal(askAbout(bullet({ id: -6, text: 'Ruth Okoro came too, 5 mg', parent })).req, null);
-  assert.equal(askAbout(visit('Felt tired all afternoon again')).req, null);
+  const plain = askAbout(visit('Felt tired all afternoon again')).req;
+  assert.ok(!plain || plain.fill.properties.every(p => p.kind === 'page' && /other words/.test(p.about)), 'words that name nothing: only the pages each property can take');
   assert.equal(modelLib.tagRequest(clinic.ctx, bullet({ id: -6, text: 'Ruth Okoro came too, 5 mg', parent }), 20261102), null, 'no tag is asked for a note under a record');
 });
 
