@@ -15,6 +15,32 @@ Proposals stay out of the way: they sit where the value will go, nothing is writ
 
 It is made from the two features of the author's logseq-db-refinements plugin that did this, rebuilt to run on any graph.
 
+## Apple's model
+
+Where the rules leave a property empty, or have only guessed it from a name in plain words, Apple's on-device model reads the
+bullet and guesses too. It reads what the rules cannot: in "Talked through the scan with Dr. Raj Patel and Dr. Mei Chen" the
+rules see two doctors for one Provider and stay silent, while the model can say which one it was. It also reads a number with
+no property's name beside it ("5 mg" for a Dose) and which of two days is the start and which the end.
+
+It is held to the graph. A page property is offered only the pages the words name that fit it, so it cannot bring in a page you
+did not mention; a number is kept only if the words hold it, a day only if the words name it. It is never asked about a choice
+(Status), Logseq's own Deadline and Scheduled, a property that takes almost anything (a Topic), a note under a record, or a
+bullet whose tag is still a proposal. What it says is always a guess, dotted, written only by Enter or a click, with the same
+Undo, and its hover says it came from Apple's model. A guess with stronger evidence (a link, the page, earlier bullets) is
+never replaced. It is asked once typing has paused a little longer than for the rules, since it takes about a second.
+
+It runs on the Mac and nothing leaves it. Logseq cannot reach Apple's model by itself, so a small helper program does
+(`helper/`): it listens on this Mac only, answers only Logseq, and runs the model. It needs macOS 26 or later with Apple
+Intelligence on. To put it on a Mac, run once in Terminal:
+
+```
+sh ~/.logseq/plugins/logseq-plugin/predictive/helper/install.sh
+```
+
+(or the same `helper/install.sh` from this folder). It starts at every login from then on; `install.sh remove` takes it off.
+Without it, or with the setting **Read my words with Apple's model on this Mac** off, Predictive works as before. On a Mac
+with the developer tools, `sh helper/build.sh test` builds it and asks the model one example.
+
 ## What it writes
 
 Property values on the bullet you are leaving, or on its parent bullet when only the parent's tags give the properties, and the tag you take from a proposal or Option-T. A citation you pick, in the bullet's words. With Cmd-;, the Page tag on a bullet, or Logseq's Node embed in it, and an empty first child. A page you linked with a tag right after it in the words is given that tag when the value is filled in, and Undo takes it off again. A date that names a day with no journal page yet makes that journal page; Undo takes the value and leaves the page, empty. Option-Enter's stepping can add the bullet that comes next. Leaving a bullet whose words changed writes the sure values and leaves the guesses, by the owner's ruling of 31 October.
@@ -64,17 +90,20 @@ core/        pure: no Logseq, no screen. Runs in Node, so it is tested there.
   names.js     a page named in plain words, only when the word is earned
   link.js      the suggested-link rule and the link learning
   propose.js   the rules: what a bullet's properties could hold, sure and guessed
+  model.js     what to ask Apple's model about a bullet, and which of its answers to keep
   score.js     leave-one-out scorer and tuner
 logseq/      the only code that knows Logseq
   db.js        reads Logseq into the core's data; the writes
   app.js       settings, the context kept fresh, shared helpers
   link-ui.js   the grey words and the keys
   propose-ui.js proposals drawn in Logseq's property pills, leaving a bullet, writing, Undo
+  model.js     asking the helper, once typing pauses; silent when it is not there
   steps.js     Option-Enter stepping through the properties
   tag-pick.js  the Option-T list
   cite.js      /Cite, and a press on a citation to a PDF
   page-here.js Cmd-;, a bullet that is also a page, and a press on its words
   settings.js  the settings Logseq shows
+helper/      the helper for Apple's model (Swift): main.swift, build.sh, install.sh
 main.js      registers at the plugin's door
 test/        run.js (core on pretend graphs), load.js (every file against a fake Logseq), synthetic.js
 tools/       speed.js; app/ (check.js drives the plugin in the real Logseq, door.js connects to it)
@@ -158,6 +187,9 @@ Read this before trusting it with a graph you care about.
 - **Not checked in the app:** a bullet with the tag typed as `#Tag` (the tag's pill appears only after Logseq saves it), property rows shown as rows of their own (Notes) and not capsules, Left/Right stepping between capsules, clicking one name of several, a graph that is not in English, and large graphs.
 - **Timing is measured on pretend data.** On 20,000 lines one proposal took about 8 ms here (it runs once typing pauses for 200 ms, not on every key; a bullet left within the pause still gets what was shown). The full reading of the graph is done in the background every five minutes, and with it how often each page's name is linked and written plain, a slice of lines at a time; a changed line then changes only its own count. What you took or passed over among suggested links is saved on leaving a bullet, at most once a minute.
 - **The limits are only as good as your history.** A graph of a few dozen tagged lines has little to learn from; the scorer will say so. It also learns from what you write while testing, as it should: lines of test text change what it proposes next.
+- **Apple's model has not answered yet.** This Mac cannot run it, so the helper was checked here up to the model (it builds,
+  answers Logseq only, is not reachable from the network, says when the model is not there) and Predictive was checked in the
+  app with a stand-in that answers as the helper does. How often the model itself is right is for the Mac that has it.
 - **English only for dates in words**, until a locale is added.
 - **Properties that are text, and choices:** only link properties, dates and numbers are proposed. Text and choice properties are never filled.
 

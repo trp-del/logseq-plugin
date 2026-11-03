@@ -86,7 +86,7 @@ const REASONS = {
   alike: p => `Earlier bullets like this one had ${p.shown}`, 'alike-tag': () => 'Earlier lines like this one have this tag',
   words: () => 'Named in your words', parent: () => 'The bullet above has it', day: () => 'The day this is written on', 'guess-day': () => 'The day this is written on; change it if it happens another day',
   'words-day': () => 'A day named in your words', 'words-number': p => `The number beside “${p.prop.title.toLowerCase()}” in your words`,
-  untagged: () => 'A page linked in your words that has no tag yet; taking it gives the page the tag too',
+  model: () => 'Read from your words by Apple’s model, on this Mac', untagged: () => 'A page linked in your words that has no tag yet; taking it gives the page the tag too',
   linked: () => 'A page linked in your words', 'linked-wide': () => 'A page linked in your words', page: () => 'The page this is written on', 'page-wide': () => 'The page this is written on',
 };
 function reasonOf(piece) {
@@ -233,14 +233,28 @@ async function compute(box) {
   const now = editingBox(host().activeElement);
   if (!now || uuidOf(now) !== uuid) return;
   if (!block) { S.live = null; return hide(); }
-  const { record, pieces: found } = propose.propose(ctx, db.bulletOf(block, words, ctx.schema));
-  const refused = S.refused.get(String(record.uuid || ''));
-  const pieces = found.filter(p => !refused?.has(guessKey(p))).filter((p, i, kept) => !p.needsTag || kept.some(q => q.kind === 'tag'));
+  const bullet = db.bulletOf(block, words, ctx.schema), result = propose.propose(ctx, bullet), { record } = result;
+  const refused = S.refused.get(String(record.uuid || '')), open = p => !refused?.has(guessKey(p));
+  const rules = result.pieces.filter(open).filter((p, i, kept) => !p.needsTag || kept.some(q => q.kind === 'tag'));
+  // Apple's model (logseq/model.js), for what the rules left open: its answer for these words if it is in, else asked now and
+  // drawn when it comes, as long as the bullet and its words are still the same.
+  const asking = Flow.modelAsk, had = asking?.had(ctx, bullet, result);
+  show(box, uuid, words, record, rules, (had || []).filter(open));
+  if (had || !asking?.wanted(ctx, bullet, result)) return;
+  asking.ask(ctx, bullet, result).then(more => {
+    if (!more.length || version !== S.version || S.stopped || S.hushed.uuid === uuid) return;
+    const now = editingBox(host().activeElement);
+    if (now && uuidOf(now) === uuid && now.value === words) show(now, uuid, words, record, rules, more.filter(open));
+  }, error => warnOnce('Apple’s model could not be asked', error));
+}
+// The proposals of the bullet being written: the rules' and the model's (core/model.js, merge).
+function show(box, uuid, words, record, rules, more) {
+  const pieces = Flow.model.merge(rules, more), fromModel = pieces.filter(p => p.how === 'model');
   if (!pieces.length) { S.live = null; return hide(); }
   if (S.accepted.uuid !== uuid) S.accepted = { uuid, at: 0, keys: new Set() };
   // What was clicked or picked stays while the words change, for the proposals still there.
   const keep = S.live?.uuid === uuid ? S.live : null;
-  S.live = { uuid, text: words, changed: S.entered.uuid !== uuid || words !== S.entered.words, recordUuid: String(record.uuid || ''), pieces, drawn: new Set(), clicked: keep?.clicked, picked: keep?.picked };
+  S.live = { uuid, text: words, changed: S.entered.uuid !== uuid || words !== S.entered.words, recordUuid: String(record.uuid || ''), pieces, drawn: new Set(), clicked: keep?.clicked, picked: keep?.picked, model: fromModel.length ? { words, pieces: fromModel } : null };
   drawInPlace(box.ownerDocument);
 }
 // Once typing pauses: longer than the gap between two letters, so a proposal is not worked out after every key.
@@ -292,7 +306,8 @@ async function takeShadow(live) {
   if (propose.inWords(live.text, ctx).tags.some(tag => !savedTags.has(tag))) return;
   const { record, pieces: found } = propose.propose(ctx, db.bulletOf(block, db.pick(block, 'block/title'), ctx.schema));
   const recordUuid = String(record.uuid || ''), refused = S.refused.get(recordUuid);
-  const pieces = found.filter(p => wanted(live, p) && !refused?.has(guessKey(p))).map(p => narrowed(live, p));
+  // The model's guesses go with them, for the words they were given (the rules do not ask the model again here).
+  const pieces = Flow.model.merge(found, live.model?.words === live.text ? live.model.pieces : []).filter(p => wanted(live, p) && !refused?.has(guessKey(p))).map(p => narrowed(live, p));
   if (!pieces.length || !textLib.UUID.test(recordUuid) || S.stopped) return;
   const { written, undo } = await writePieces(recordUuid, pieces);
   if (!written.length) return [];

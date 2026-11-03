@@ -3,3 +3,4 @@ dist/
 node_modules/
 *.zip
 check.log/
+predictive/helper/predictive-helper

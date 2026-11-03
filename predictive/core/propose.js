@@ -193,7 +193,8 @@ function propose(ctx, b, assume = null) {
   pieces.sort((a, c) => fields.indexOf(a.prop) - fields.indexOf(c.prop));   // shown in the order the tag gives them
   const guesses = guessesFor(ctx, { b, text, record, fields: ordered, recordTags, links, free, used, quiet, done: new Set(pieces.map(p => p.ident)) });
   guesses.sort((a, c) => fields.indexOf(a.prop) - fields.indexOf(c.prop));
-  return { record, pieces: [...pieces, ...guesses] };
+  // quiet: the properties held back (two names for one place), which nothing else may fill either (core/model.js).
+  return { record, pieces: [...pieces, ...guesses], quiet: [...quiet] };
 }
 
 function guessesFor(ctx, { b, text, record, fields, recordTags, links, free, used, quiet, done }) {
@@ -326,7 +327,7 @@ function tagChoices(ctx, b, { max = 5 } = {}) {
   return out.slice(0, max);
 }
 
-const api = { tagChoices, tagScores, mentionedPages, candidateTags, propose, inWords, recordOf, tagFor, looksLike, datedEvidence, datedWhenWritten, fewDatedAllSameDay, mostlyAhead, datedAhead, dayIdFor, valuesOf };
+const api = { dayText, tagChoices, tagScores, mentionedPages, candidateTags, propose, inWords, recordOf, tagFor, looksLike, datedEvidence, datedWhenWritten, fewDatedAllSameDay, mostlyAhead, datedAhead, dayIdFor, valuesOf };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 if (typeof window !== 'undefined') (window.Flow ||= {}).propose = api;
 })();

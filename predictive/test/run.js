@@ -284,6 +284,97 @@ test('nothing is proposed and nothing throws', () => {
   assert.deepEqual(score(empty.ctx).properties, { sureRight: 0, sureWrong: 0, guessRight: 0, guessWrong: 0, silent: 0 });
 });
 
+section('Apple\'s model: what it is asked and what is kept (core/model.js, with a pretend answer)');
+const modelLib = require('../core/model.js');
+const clinic = synthetic.build({
+  tags: ['Consultation', 'Person', 'Place'],
+  props: [
+    { title: 'Provider', type: 'node', accepts: ['Person'], on: ['Consultation'] },
+    { title: 'Spoke with', type: 'node', accepts: ['Person'], many: true, on: ['Consultation'] },
+    { title: 'Where', type: 'node', accepts: ['Place'], on: ['Consultation'] },
+    { title: 'Dose', type: 'number', on: ['Consultation'] },
+    { title: 'Start', type: 'date', on: ['Consultation'] },
+    { title: 'End', type: 'date', on: ['Consultation'] },
+    { title: 'Topic', type: 'node', accepts: ['Person', 'Place'], on: ['Consultation'] },
+  ],
+  people: { Person: ['Dr. Mei Chen', 'Ruth Okoro', 'Lena Park'], Place: ['Northgate Clinic'] },
+  lines({ tagPage, peoplePages, prop, add, link }) {
+    for (const [i, person] of peoplePages.Person.entries()) add({ title: `Visit with ${link(person)} number ${i}`, tags: [tagPage.Consultation.id], values: new Map([[prop('Provider').ident, [person.id]]]) });
+  },
+  plain({ add }) { for (let i = 0; i < 20; i++) add(`Plain note number ${i} about the weather`); },
+});
+const visit = (text, over = {}) => bullet({ id: -5, text, tags: [clinic.tagPage.Consultation.id], page: { id: 9902, uuid: synthetic.uuid(9902), title: 'Nov 2', day: 20261102, tags: [] }, ...over });
+const askAbout = b => { const result = propose(clinic.ctx, b); return { result, req: modelLib.request(clinic.ctx, b, result, 20261102) }; };
+const said = 'Saw Dr. Mei Chen with Ruth Okoro about the fatigue, 5 mg from 9 Nov until 13 Nov';
+const byTitle = req => new Map(req.fill.properties.map(p => [p.title, p]));
+test('asked only what the rules left open or guessed from plain words, with only the pages the words name', () => {
+  const { result, req } = askAbout(visit(said));
+  const asked = byTitle(req), rulesSaid = new Set(result.pieces.filter(p => !modelLib.byWordsAlone(p)).map(p => p.prop.title));
+  for (const title of rulesSaid) assert.ok(!asked.has(title), `${title} was already proposed by the rules`);
+  for (const p of req.fill.properties.filter(p => p.kind === 'page')) assert.ok(p.choices.every(c => ['Dr. Mei Chen', 'Ruth Okoro'].includes(c)), p.choices.join(', '));
+  assert.ok(!asked.has('Where'), 'no place is named, so Where is not asked');
+  assert.ok(!asked.has('Topic'), 'a wide property is never asked about');
+  assert.ok(asked.has('Dose') && asked.has('Start') && asked.has('End'));
+  assert.ok(!JSON.stringify(req.fill).includes('Lena Park'), 'a page the words do not name is never sent');
+});
+test('a right answer is kept, as guesses', () => {
+  const { req } = askAbout(visit(said));
+  const key = Object.fromEntries(req.fill.properties.map(p => [p.title, p.key]));
+  const values = {};
+  if (key.Provider) values[key.Provider] = 'Dr. Mei Chen';
+  if (key['Spoke with']) values[key['Spoke with']] = ['Ruth Okoro'];
+  values[key.Dose] = 5; values[key.Start] = '2026-11-09'; values[key.End] = '2026-11-13';
+  const kept = modelLib.pieces(clinic.ctx, req, { values });
+  assert.ok(kept.every(p => p.guess && p.how === 'model'));
+  const of = title => kept.find(p => p.prop.title === title);
+  assert.equal(of('Dose').ids[0], 5);
+  assert.equal(of('Start').day, 20261109); assert.equal(of('End').day, 20261113);
+  if (key['Spoke with']) assert.deepEqual(of('Spoke with').shown, 'Ruth Okoro');
+});
+test('what the words do not hold is dropped: another page, another number, another day, one day for two', () => {
+  const { req } = askAbout(visit(said));
+  const key = Object.fromEntries(req.fill.properties.map(p => [p.title, p.key]));
+  const page = req.fill.properties.find(p => p.kind === 'page');
+  const values = { [key.Dose]: 7, [key.Start]: '2026-11-10' };
+  if (page) values[page.key] = 'Lena Park';
+  assert.deepEqual(modelLib.pieces(clinic.ctx, req, { values }), []);
+  const same = modelLib.pieces(clinic.ctx, req, { values: { [key.Start]: '2026-11-09', [key.End]: '2026-11-09' } });
+  assert.deepEqual(same, [], 'a start and an end on one day is one day named');
+});
+test('the model\'s reading of roles replaces the rules\' guess from plain words, and nothing else', () => {
+  const b = visit(said), { result, req } = askAbout(b);
+  const rule = title => result.pieces.find(p => p.prop.title === title);
+  assert.equal(rule('Provider').shown, 'Ruth Okoro', 'the rules alone put the first person named second in Provider');
+  const asked = byTitle(req);
+  assert.deepEqual(asked.get('Provider').choices.sort(), ['Dr. Mei Chen', 'Ruth Okoro']);
+  const kept = modelLib.pieces(clinic.ctx, req, { values: { [asked.get('Provider').key]: 'Dr. Mei Chen' } });
+  const shown = modelLib.merge(result.pieces, kept);
+  assert.equal(shown.find(p => p.prop.title === 'Provider').shown, 'Dr. Mei Chen');
+  assert.ok(!shown.some(p => p.prop.title === 'Spoke with' && p.ids.includes(clinic.page.get('Dr. Mei Chen').id)), 'Dr. Mei Chen is not in two places');
+  const linked = `Saw [[${clinic.page.get('Dr. Mei Chen').uuid}]] about the fatigue`, lr = propose(clinic.ctx, visit(linked));
+  const sure = lr.pieces.find(p => p.prop.title === 'Provider');
+  assert.ok(sure && !sure.guess, 'a linked page is sure');
+  assert.deepEqual(modelLib.merge(lr.pieces, [{ ...sure, ids: [clinic.page.get('Ruth Okoro').id], shown: 'Ruth Okoro', how: 'model', guess: true }]).find(p => p.prop.title === 'Provider').shown, 'Dr. Mei Chen', 'a sure value is never replaced');
+});
+test('one person is not put in two places', () => {
+  const b = visit('Saw Ruth Okoro about the fatigue');
+  const { req } = askAbout(b);
+  const pages = req ? req.fill.properties.filter(p => p.kind === 'page' && !p.many) : [];
+  if (pages.length < 1) return;
+  const many = req.fill.properties.find(p => p.many);
+  const values = { [pages[0].key]: 'Ruth Okoro', ...(many ? { [many.key]: ['Ruth Okoro'] } : {}) };
+  const kept = modelLib.pieces(clinic.ctx, req, { values });
+  assert.equal(kept.filter(p => p.ids.includes(clinic.page.get('Ruth Okoro').id)).length, 1);
+});
+test('not asked: a linked page the rules placed, a note under a record, plain words, a bullet with no tag', () => {
+  const linked = askAbout(visit(`Saw [[${clinic.page.get('Dr. Mei Chen').uuid}]] about the fatigue`)).req;
+  assert.ok(!linked || !byTitle(linked).has('Provider'), 'the rules fill Provider from the link');
+  const parent = { id: -9, uuid: synthetic.uuid(9909), tags: [clinic.tagPage.Consultation.id], values: new Map() };
+  assert.equal(askAbout(bullet({ id: -6, text: 'Ruth Okoro came too, 5 mg', parent })).req, null);
+  assert.equal(askAbout(visit('Felt tired all afternoon again')).req, null);
+  assert.equal(askAbout(bullet({ id: -7, text: 'Plain note number 3 about the weather' })).req, null);
+});
+
 section('scoring each graph (leave-one-out on its own lines)');
 for (const [name, g] of [['work', work], ['libros', libros]]) {
   const s = score(g.ctx, { sample: 800 });

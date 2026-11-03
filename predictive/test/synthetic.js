@@ -106,4 +106,4 @@ function empty() {
   return build({ tags: [], props: [], people: {}, lines() {}, plain({ add }) { add('A plain note with no structure at all'); add('Another plain note, still nothing to learn'); } });
 }
 
-module.exports = { work, libros, empty, uuid };
+module.exports = { work, libros, empty, uuid, build };

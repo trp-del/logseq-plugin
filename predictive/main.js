@@ -76,7 +76,7 @@ const stop = () => { Flow.app.stopAll(); };
 const row = (key, title) => ({ ...Flow.settingsSchema.find(item => item.key === key), ...(title ? { title } : {}) });
 window.PluginDoor.describe('predictive', {
   schema: [
-    row('proposalsHeading'), row('proposals'), row('proposalsHideEmpty'), row('tagEagerness'), row('proposalsSkipGraphs'),
+    row('proposalsHeading'), row('proposals'), row('proposalsHideEmpty'), row('tagEagerness'), row('proposalsModel'), row('proposalsSkipGraphs'),
     { type: 'heading', title: 'Keys' },
     row('proposalsStepKeys', 'Step through a bullet’s properties'), row('proposalsTagKeys', 'Choose a tag'), row('proposalsAcceptKeys', 'Accept everything shown, without a new bullet'), row('citeKeys', 'Cite a source'), row('pageKeys', 'Make the bullet a page'),
     row('linkHeading'), row('linkSuggest'), row('linkSuggestLearn'), row('linkSuggestRightArrow'), row('linkSuggestHyperTap', 'A tap of the Hyper key takes it'), row('linkSuggestKeys', 'A plain key that takes it too'), row('linkSuggestMinLetters'), row('linkSuggestPause', 'Pause before a suggestion shows, in milliseconds'),
