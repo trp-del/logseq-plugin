@@ -59,14 +59,17 @@ async function replyTo(req, { wait = WAIT, giveUp = GIVE_UP } = {}) {
   } finally { if (S.asking === mine) S.asking = null; }
 }
 // The model's guesses for the bullet: [] when there is nothing to ask, no helper, or a newer question came. A tag it reads
-// is handed to some() at once, and its properties follow when the second answer comes.
+// waits for its properties, so the two come in one moment; only if their answer is slower than HOLD is the tag handed to
+// some() alone, and the properties follow.
+const HOLD = 1500;
 async function ask(ctx, b, result, some = null) {
   const req = model.request(ctx, b, result), reply = await replyTo(req);
   if (!reply) return [];
   const first = model.pieces(ctx, req, reply), next = model.followUp(ctx, req, reply);
   if (!next) return first;
-  some?.(first);
+  const early = some && setTimeout(() => some(first), HOLD);
   const second = await replyTo(next.req, { wait: 0 });
+  clearTimeout(early);
   return second ? model.withFollowUp(ctx, first, next.req, second) : first;
 }
 // Option-T: the tag the model reads the bullet as, or null; asked at once, and not waited for longer than a moment.

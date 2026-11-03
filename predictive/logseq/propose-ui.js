@@ -21,10 +21,11 @@ const { app, db, propose, text: textLib } = Flow;
 const { setting, host, warnOnce, notify } = app;
 
 const ENTER_LEAVES = 500, FILLING_MS = 6000, SAVE_TRIES = 40;
+// pageUuids: the uuid of each page proposed as a value, by its id, for Look's sort mark on the pencilled name (markName).
 // live: the bullet being written { uuid, text, changed, recordUuid, pieces, drawn, clicked, picked, left }. filling: bullets left a
 // moment ago whose values are being written, kept on screen, solid, until Logseq shows its own (no flash of empty). entered:
 // the bullet in edit and its words when it was entered. refused: what an Undo took off, by the record it was on.
-const S = { live: null, hushed: { uuid: '' }, accepted: { uuid: '', at: 0, keys: new Set() }, filling: new Map(), allowedNow: false, version: 0, timer: 0, stopped: false, undo: null, visiting: { live: null, timer: 0, out: 0 }, entered: { uuid: '', words: '' }, refused: new Map() };
+const S = { live: null, hushed: { uuid: '' }, accepted: { uuid: '', at: 0, keys: new Set() }, filling: new Map(), allowedNow: false, version: 0, timer: 0, stopped: false, undo: null, visiting: { live: null, timer: 0, out: 0 }, entered: { uuid: '', words: '' }, refused: new Map(), pageUuids: new Map() };
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const esc = t => String(t ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
 const guessKey = p => p.key ?? `${p.kind}:${p.ident}:${p.ids.join(',')}`;
@@ -50,7 +51,7 @@ function narrowed(live, piece) {
 /* ---------- where things are on Logseq's screen ---------- */
 const ownRow = row => el => el.closest('.ls-block[blockid]') === row;
 const pillName = pill => (pill.firstElementChild?.textContent || '').trim().replace(/:$/, '').toLowerCase();
-const pillsOf = row => [...row.querySelectorAll('.positioned-properties.block-below .bottom-property-pill')].filter(ownRow(row));
+const pillsOf = row => [...row.querySelectorAll('.positioned-properties.block-below:not(.flow-closing) .bottom-property-pill')].filter(ownRow(row));
 // The names of the properties Logseq itself shows filled on a row: a proposal for one of them is over.
 const filledNames = row => new Set(pillsOf(row).filter(p => !p.classList.contains('flow-made') && !(p.querySelector('.bottom-property-content') || p).querySelector('.empty-value')).map(pillName));
 // The names Logseq itself shows on a row, filled or empty: a pill the plugin made for one of them gives way to Logseq's.
@@ -64,7 +65,7 @@ const tagsShown = row => new Set([...row.querySelectorAll('.block-tags .tag')].f
 function makePill(doc, row, piece) {
   const main = [...row.querySelectorAll('.block-main-container')].find(ownRow(row));
   if (!main) return null;
-  let rowEl = [...main.querySelectorAll('.positioned-properties.block-below')].find(ownRow(row));
+  let rowEl = [...main.querySelectorAll('.positioned-properties.block-below:not(.flow-closing)')].find(ownRow(row));
   if (!rowEl) {
     const inner = [...main.querySelectorAll(':scope > .flex-col > .flex-col')].find(ownRow(row)) || main.querySelector(':scope > .flex-col') || main;
     rowEl = doc.createElement('div');
@@ -100,23 +101,51 @@ function ghostLook(piece, live) {
     : piece.guess ? 'A guess: Enter fills it in with the rest; Option-Enter stops on it to check; a click accepts it'
     : live?.changed === false ? 'Enter fills it in with the rest; a click accepts it' : 'Filled in when you leave the bullet';
   const why = reasonOf(piece);
-  return { cls: `flow-ghost${piece.guess ? ' flow-guess' : ''}`, title: why ? `${why}.\n${what}` : what };
+  // From Apple's model: the asterisk after the value (the stylesheet draws it, and takes it off once the value is taken).
+  const model = String(piece.how || '').split('+').includes('model');
+  return { cls: `flow-ghost${piece.guess ? ' flow-guess' : ''}${model ? ' flow-model' : ''}`, title: why ? `${why}.\n${what}` : what };
+}
+// A proposal whose value changes in place (more words typed, Apple's model reading the line): the old words fade out where
+// they stood while the new fade in, so the place does not blink empty. The old words are a copy beside the proposal, placed
+// over it, and go when they have faded.
+const FADE_MS = 160;
+// Still: the person asked for less motion (or the page cannot say, or animate).
+const still = doc => { const win = doc.defaultView; return !win?.matchMedia || !win.Element.prototype.animate || win.matchMedia('(prefers-reduced-motion: reduce)').matches; };
+function crossFade(g) {
+  if (!g.isConnected || !g.childNodes.length || still(g.ownerDocument)) return;
+  const old = g.cloneNode(true);
+  old.className = 'flow-old ' + [...g.classList].filter(c => c !== 'flow-ghost' && c !== 'flow-model').join(' ');
+  for (const key of Object.keys(old.dataset)) delete old.dataset[key];
+  old.removeAttribute('title');
+  Object.assign(old.style, { position: 'absolute', left: g.offsetLeft + 'px', top: g.offsetTop + 'px', pointerEvents: 'none', margin: '0' });
+  g.before(old);
+  old.animate([{ opacity: 1 }, { opacity: 0 }], { duration: FADE_MS, easing: 'ease' }).finished.then(() => old.remove(), () => old.remove());
+  g.animate([{ opacity: 0 }, { opacity: 1 }], { duration: FADE_MS, easing: 'ease' });
+}
+// A proposed page's name: Look's shared name for a node's name and the page's uuid, so Look puts the sort's mark before it, as on
+// the value once written. The pencil's look stays over the link's (lk-pencil comes later in the shared stylesheet).
+function markName(el, id) {
+  const uuid = S.pageUuids.get(id);
+  if (!uuid) return;
+  el.classList.add('lk-node', 'flow-page'); el.dataset.uuid = uuid;
 }
 // What a proposed value shows: its words; a tag in mono with no #; a page that would get a tag says so after its name.
 function fillGhost(g, piece) {
   const doc = g.ownerDocument;
   if (piece.kind === 'tag') {   // a tag reads as a class: its name, no #, in Look's shared tag look (lk-tag)
     const title = piece.tag?.title || String(piece.shown).replace(/^#/, '');
-    if (g.dataset.flowWords !== title) { g.dataset.flowWords = title; g.replaceChildren(Object.assign(doc.createElement('span'), { className: 'flow-tag lk-tag', textContent: title })); }
+    if (g.dataset.flowWords !== title) { crossFade(g); g.dataset.flowWords = title; g.replaceChildren(Object.assign(doc.createElement('span'), { className: 'flow-tag lk-tag', textContent: title })); }
     return;
   }
   const words = piece.kind === 'tag' ? '' : piece.shown, tagTitle = piece.kind === 'tag' ? piece.tag?.title || String(piece.shown).replace(/^#/, '') : piece.tagPage?.tag.title || '';
   if (g.dataset.flowWords === words && g.dataset.flowTag === tagTitle) return;
+  crossFade(g);
   g.dataset.flowWords = words; g.dataset.flowTag = tagTitle;
   if (piece.kind === 'node' && piece.names?.length > 1) {   // several names: each its own, to be clicked by itself
     g.replaceChildren(...piece.names.flatMap((n, i) => {
       const name = doc.createElement('span'), sep = doc.createElement('span');
       name.className = 'flow-name lk-pencil'; name.dataset.flowId = String(n.id); name.textContent = n.title;
+      markName(name, n.id);
       name.title = `Click to take ${n.title}; once a name is clicked, only the names clicked are filled in`;
       sep.className = 'flow-sep'; sep.textContent = ', ';
       return i ? [sep, name] : [name];
@@ -124,16 +153,23 @@ function fillGhost(g, piece) {
     return;
   }
   const tag = tagTitle ? Object.assign(doc.createElement('span'), { className: 'flow-tag lk-tag', textContent: tagTitle }) : null;
-  g.replaceChildren(...[words ? doc.createTextNode(words) : null, words && tagTitle ? doc.createTextNode(' ') : null, tag].filter(Boolean));
+  // One page: its name carries the sort's mark, as it will once written, so the value keeps its width when the pencil turns to ink.
+  const one = piece.kind === 'node' && piece.ids.length === 1 && !tagTitle ? Object.assign(doc.createElement('span'), { textContent: words }) : null;
+  if (one) markName(one, piece.ids[0]);
+  g.replaceChildren(...[one || (words ? doc.createTextNode(words) : null), words && tagTitle ? doc.createTextNode(' ') : null, tag].filter(Boolean));
 }
-// The × after a proposal, while it is being written: the library's Take off (lk-x), shown under the pointer.
+// The × beside a proposal, while it is being written: the library's Take off (lk-x), shown under the pointer. It takes no room
+// (the stylesheet), so nothing moves when it goes: after a value, over the gap that follows it; before a tag, in the place
+// Look keeps for a tag's × (the grammar's "in the #'s place").
+const xOf = g => g.classList.contains('flow-tag-ghost') ? g.previousElementSibling : g.nextElementSibling;
+const ghostOfX = x => x.classList.contains('flow-x-before') ? x.nextElementSibling : x.previousElementSibling;
 function drawX(doc, g, piece) {
-  let x = g.nextElementSibling;
+  let x = xOf(g);
   if (!x?.classList.contains('flow-x')) {
     x = doc.createElement('button');
     x.type = 'button'; x.className = 'flow-x lk-x'; x.textContent = '×';
     x.setAttribute('contenteditable', 'false');
-    g.after(x);
+    if (piece.kind === 'tag') { x.classList.add('flow-x-before'); g.before(x); } else g.after(x);
   }
   const what = piece.kind === 'tag' ? `the tag ${piece.tag?.title || ''}` : `${piece.prop.title}: ${piece.shown}`;
   x.dataset.flowKey = guessKey(piece);
@@ -151,9 +187,10 @@ function drawTag(doc, row, piece, job) {
   if (!g) {
     g = doc.createElement('span');
     g.setAttribute('contenteditable', 'false');
-    g.dataset.flowIdent = piece.ident; g.dataset.flowKey = guessKey(piece);
+    g.dataset.flowIdent = piece.ident;
     right.appendChild(g);
   }
+  g.dataset.flowKey = guessKey(piece);   // another tag in its place keeps the place, and fades over (fillGhost)
   fillGhost(g, piece);
   const cls = `${look.cls} flow-tag-ghost${(job.live ? job.live.clicked?.has(guessKey(piece)) : true) ? ' flow-taken' : ' lk-pencil'}`;
   if (g.className !== cls) g.className = cls;
@@ -172,18 +209,30 @@ function drawInPlace(doc = host()) {
     for (const piece of job.pieces) want.set(piece.ident, piece);
     jobs.push({ ...job, rows, want });
   }
-  // Out with what is no longer proposed (another bullet, a value changed, the bullet left and its values written).
+  // Out with what is no longer proposed (another bullet, the bullet left and its values written). A proposal whose value only
+  // changed keeps its place, and the new value fades over the old (fillGhost).
+  const going = [];
   for (const g of doc.querySelectorAll('.flow-ghost')) {
+    if (g.closest('.flow-closing')) continue;
     const row = g.closest('.ls-block[blockid]'), job = jobs.find(j => j.rows.includes(row)), piece = job?.want.get(g.dataset.flowIdent);
     const filled = g.classList.contains('flow-tag-ghost') ? !!piece && piece.kind === 'tag' && tagsShown(row).has(String(piece.tag.title).toLowerCase())
       : !g.closest('.flow-made') ? !g.parentElement?.querySelector('.empty-value') : piece && ownNames(row).has(piece.prop.lower);
-    if (piece && !filled && g.dataset.flowKey === guessKey(piece)) continue;
+    if (piece && !filled && (piece.kind === 'tag') === g.classList.contains('flow-tag-ghost')) continue;
+    going.push(g);
+  }
+  // A row of pills the plugin made, all of whose proposals go, rolls closed as it is (rollClosed).
+  for (const el of doc.querySelectorAll('.positioned-properties.flow-made:not(.flow-closing)')) {
+    const own = [...el.querySelectorAll('.flow-ghost')];
+    if (own.length && own.every(g => going.includes(g))) rollClosed(el);
+  }
+  for (const g of going) {
+    if (g.closest('.flow-closing')) continue;
     g.closest('[data-flow-proposal]')?.removeAttribute('data-flow-proposal');
     g.remove();
   }
-  for (const x of doc.querySelectorAll('.flow-x')) { const g = x.previousElementSibling; if (!g?.classList.contains('flow-ghost') || g.dataset.flowKey !== x.dataset.flowKey || !live?.pieces.some(p => guessKey(p) === x.dataset.flowKey)) x.remove(); }
-  for (const el of doc.querySelectorAll('.flow-made-pill')) if (!el.querySelector('.flow-ghost')) el.remove();
-  for (const el of doc.querySelectorAll('.positioned-properties.flow-made')) if (!el.querySelector('.bottom-property-pill')) el.remove();
+  for (const x of doc.querySelectorAll('.flow-x')) { if (x.closest('.flow-closing')) continue; const g = ghostOfX(x); if (!g?.classList.contains('flow-ghost') || g.dataset.flowKey !== x.dataset.flowKey || !live?.pieces.some(p => guessKey(p) === x.dataset.flowKey)) x.remove(); }
+  for (const el of doc.querySelectorAll('.flow-made-pill')) if (!el.closest('.flow-closing') && !el.querySelector('.flow-ghost')) el.remove();
+  for (const el of doc.querySelectorAll('.positioned-properties.flow-made:not(.flow-closing)')) if (!el.querySelector('.bottom-property-pill')) el.remove();
   for (const job of jobs) for (const row of job.rows) {
     const pills = pillsOf(row), filled = filledNames(row);
     for (const piece of job.want.values()) {
@@ -198,16 +247,17 @@ function drawInPlace(doc = host()) {
       if (!g) {
         g = doc.createElement('span');
         g.setAttribute('contenteditable', 'false');
-        g.dataset.flowIdent = piece.ident; g.dataset.flowKey = guessKey(piece);
+        g.dataset.flowIdent = piece.ident;
         target.appendChild(g);
       }
+      g.dataset.flowKey = guessKey(piece);
       fillGhost(g, piece);
       // Taken (clicked, or the bullet left and this value on its way): solid, as it will be.
       const taken = job.live ? job.live.clicked?.has(guessKey(piece)) : true;
       // Several names carry the pencil each (the dotted line under each name, not the commas), one value as a whole. Taken
       // keeps the name lk-pencil, so the property still counts as filled for Look's dot; flow-taken takes the look off it.
       const names = g.querySelectorAll(':scope > .flow-name');
-      const cls = look.cls + (names.length ? '' : ' lk-pencil') + (taken ? ' flow-taken' : '');
+      const cls = look.cls + (names.length ? '' : ' lk-pencil') + (piece.kind === 'node' && !names.length ? ' flow-node' : '') + (taken ? ' flow-taken' : '');
       if (g.className !== cls) g.className = cls;
       const picked = job.live ? pickedIn(job.live, piece) : null;
       for (const n of names) n.classList.toggle('flow-taken', taken || !!picked?.has(Number(n.dataset.flowId)));
@@ -222,11 +272,26 @@ function drawInPlace(doc = host()) {
   drawUndo(doc);
 }
 const hide = () => drawInPlace();
+// A row of pills the plugin made, its proposals gone: it rolls closed as it stands, so the bullets under it slide up rather than
+// jump. Where Logseq now shows a row of its own (the values were written), it goes at once, so the bullet is never two rows high.
+const ROLL_MS = 170;
+function rollClosed(el) {
+  const row = el.closest('.ls-block[blockid]');
+  const logseqRow = row && [...row.querySelectorAll('.positioned-properties.block-below:not(.flow-made)')].some(ownRow(row));
+  if (logseqRow || still(el.ownerDocument)) { el.remove(); return; }
+  el.classList.add('flow-closing');
+  for (const g of el.querySelectorAll('.flow-ghost')) g.classList.replace('flow-ghost', 'flow-gone');
+  for (const x of el.querySelectorAll('.flow-x')) x.remove();
+  el.style.height = el.offsetHeight + 'px';
+  void el.offsetHeight;
+  el.style.height = '0px';
+  setTimeout(() => el.remove(), ROLL_MS + 40);
+}
 // Drawn again as soon as Logseq redraws the row, before the screen is painted, so its redraw cannot lose a proposal.
 function onMutations(records) {
   const doc = host();
   if (!S.live && !S.filling.size && !S.undo && !doc.querySelector('.flow-ghost, .flow-made, [data-flow-proposal]')) return;
-  const ours = n => n.nodeType === 1 && n.matches?.('.flow-ghost, .flow-made, .flow-undo, .flow-x');
+  const ours = n => n.nodeType === 1 && n.matches?.('.flow-ghost, .flow-made, .flow-undo, .flow-x, .flow-old');
   if (records.some(r => r.type === 'childList' && ![...r.addedNodes, ...r.removedNodes].every(ours))) { drawInPlace(doc); watcher?.takeRecords(); }
 }
 let watcher = null;
@@ -255,11 +320,13 @@ async function compute(box) {
   // drawn when it comes, as long as the bullet and its words are still the same.
   // A tag it reads comes first, the tag's properties as its second answer comes.
   const asking = Flow.modelAsk, had = asking?.had(ctx, bullet, result);
+  for (const p of [...rules, ...had || []]) if (p.kind === 'node') for (const id of p.ids) { const page = ctx.byId.get(id); if (page?.uuid) S.pageUuids.set(id, page.uuid); }
   show(box, uuid, words, record, rules, (had || []).filter(open));
   if ((had && asking.done(ctx, bullet, result)) || !asking?.wanted(ctx, bullet, result)) return;
   const drawn = more => {
     if (!more.length || version !== S.version || S.stopped || S.hushed.uuid === uuid) return;
     const now = editingBox(host().activeElement);
+    for (const p of more) if (p.kind === 'node') for (const id of p.ids) { const page = ctx.byId.get(id); if (page?.uuid) S.pageUuids.set(id, page.uuid); }
     if (now && uuidOf(now) === uuid && now.value === words) show(now, uuid, words, record, rules, more.filter(open));
   };
   asking.ask(ctx, bullet, result, drawn).then(drawn, error => warnOnce('Apple’s model could not be asked', error));
@@ -565,10 +632,22 @@ const css = `
 .flow-ghost { white-space: nowrap; opacity: 1; transition: opacity .15s ease, color .15s ease; }
 @starting-style { .flow-ghost { opacity: 0; } }
 /* A proposed tag, at the right end of the bullet's line where Logseq draws its tags. */
-.flow-tag-ghost { margin-left: .25em; white-space: nowrap; }
-/* A proposal clicked: solid, filled in when the bullet is left. */
-/* Taken (clicked, or on its way in): it reads as plain words, over the pencil's look. */
+.flow-tag-ghost { white-space: nowrap; padding-right: 4px; }   /* the room Logseq's tag keeps after its name, so it stands where that tag will */
+/* Taken (clicked, or on its way in): it reads as the value will once written, over the pencil's look, so when Logseq's own value
+   takes its place nothing changes: plain words, and a node's name with the link's faint underline (Look's lk-node). */
 .flow-ghost.flow-taken, .flow-ghost > .flow-name.flow-taken { color: inherit !important; font-style: normal !important; text-decoration: none !important; }
+.flow-ghost.flow-taken.flow-node, .flow-ghost > .flow-name.flow-taken { text-decoration: underline !important; text-decoration-color: var(--lk-line) !important; text-decoration-thickness: 1px !important; text-underline-offset: 3px !important; }
+/* From Apple's model: a small asterisk raised at the end of the value, in the pencil's grey. It takes no room, so nothing moves
+   when it goes, and it goes once the value is taken. */
+.flow-ghost.flow-model { position: relative; }
+.flow-ghost.flow-model::after { content: '*'; position: absolute; left: 100%; top: -.35em; margin-left: 1px; font-size: .8em; font-style: normal; line-height: 1; color: var(--lk-faint); text-decoration: none; pointer-events: none; }
+.flow-ghost.flow-model.flow-taken::after { content: none; }
+.bottom-property-pill:hover .flow-ghost.flow-model::after { opacity: 0; }   /* the × stands there under the pointer */
+/* A pill row the plugin made rolls open out of the bullet and closed into it (rollClosed), so the bullets under it slide. */
+.positioned-properties.flow-made { interpolate-size: allow-keywords; min-height: 0 !important; overflow: clip; overflow-clip-margin: 4px; transition: height ${ROLL_MS}ms ease, opacity ${ROLL_MS}ms ease; }
+@starting-style { .positioned-properties.flow-made { height: 0; opacity: 0; } }
+.positioned-properties.flow-made.flow-closing { opacity: 0; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { .positioned-properties.flow-made { transition: none; } }
 .flow-ghost { cursor: pointer; }
 .ls-block .positioned-properties.block-below .bottom-property-pill[data-flow-proposal] { display: flex !important; opacity: 1 !important; }
 .bottom-property-pill[data-flow-proposal] .empty-value { display: none !important; }
@@ -584,7 +663,15 @@ ${PILL}:is(:not(:has(.empty-value)), :has(.lk-pencil)) ~ ${AT}::after { left: 16
 .positioned-properties.flow-made .bottom-properties-row { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: .5rem; row-gap: .25rem; }
 .flow-made-pill { display: inline-flex; align-items: baseline; gap: .3em; }
 /* A proposal's ×, the library's Take off: under the pointer on its property, or on the line for a proposed tag. */
-.flow-x { opacity: 0; margin-left: .15em; font-size: .95em; line-height: 1; transition: opacity .15s ease; }
+.flow-x { opacity: 0; font-size: .95em; line-height: 1; transition: opacity .15s ease; display: inline-block; width: 0 !important; min-width: 0 !important; padding: 0 !important; margin: 0 !important; overflow: visible; white-space: nowrap; }
+.flow-x-before { direction: rtl; }
+.flow-x { text-indent: 3px; }   /* a hair from the words, on whichever side it stands */
+/* In a value Logseq lays its parts out with a gap: the × gives that gap back, so it takes no room at all. */
+/* Logseq clips a value at its end; a value holding a proposal shows past it, for the × and the asterisk that take no room. */
+.bottom-property-pill:is([data-flow-proposal], .flow-made-pill) .bottom-property-content { overflow: visible !important; }
+.bottom-property-content > .flow-x { margin-left: calc(-1 * var(--spacing, .25rem)) !important; }
+/* A proposed page's name carries the link's shared name for Look's sort mark, and the pencil's look, not the link's. */
+.flow-ghost > span.flow-page:not(.flow-name) { color: inherit !important; text-decoration: none !important; }
 .bottom-property-pill:hover .flow-x, .ls-block-right:hover .flow-x, .flow-x:focus-visible { opacity: 1; }
 /* The undo arrow at the end of the bullet's line; its fade is Look's, through lk-undo. */
 .flow-undo { border: 0; background: none; padding: 0 4px; margin-left: .25em; font: inherit; line-height: 1; cursor: pointer; color: inherit; vertical-align: -2px; }
@@ -620,7 +707,7 @@ function start() {
   logseq.App.onRouteChanged?.(() => { S.live = null; hide(); applyHide(); });
   app.onStop(() => {
     S.stopped = true; clearTimeout(S.timer); S.version++; watcher?.disconnect(); watcher = null; S.live = null; S.filling.clear();
-    for (const el of doc.querySelectorAll('.flow-ghost, .flow-made, .flow-undo, .flow-x')) el.remove();
+    for (const el of doc.querySelectorAll('.flow-ghost, .flow-made, .flow-undo, .flow-x, .flow-old')) el.remove();
     for (const el of doc.querySelectorAll('[data-flow-proposal], [data-flow-at]')) { el.removeAttribute('data-flow-proposal'); el.removeAttribute('data-flow-at'); }
     doc.documentElement.classList.remove('flow-hide-empty');
   });
