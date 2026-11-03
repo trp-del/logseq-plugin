@@ -38,7 +38,7 @@ sh ~/.logseq/plugins/logseq-plugin/predictive/helper/install.sh
 ```
 
 (or the same `helper/install.sh` from this folder). It starts at every login from then on; `install.sh remove` takes it off.
-Without it, or with the setting **Read my words with Apple's model on this Mac** off, Predictive works as before. On a Mac
+Without it, or with the setting **Read my words with Apple's model on this Mac** off, Predictive works as before. Under that setting, the plugin's settings window says whether the model is connected, and if not, why: the helper is not running (with the line to run), or Apple Intelligence is off. On a Mac
 with the developer tools, `sh helper/build.sh test` builds it and asks the model one example.
 
 ## What it writes

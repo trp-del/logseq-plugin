@@ -36,6 +36,9 @@ const schema = [
   { key: 'quotesHeading', type: 'heading', default: null, title: 'PDF quotes', description: 'What a quote from a PDF looks like.' },
   { key: 'quoteBullets', type: 'boolean', default: true, title: 'A quote’s bullet is a quotation mark',
     description: 'A highlight from a PDF, and a bullet that is nothing but a highlight cited, has a quotation mark where the dot would be. A note with words of its own beside the citation keeps its dot.' },
+  { key: 'outlineHeading', type: 'heading', default: null, title: 'The outline', description: 'The bullets and the lines that join them.' },
+  { key: 'litBranch', type: 'boolean', default: true, title: 'The way to the bullet you edit, a shade darker',
+    description: 'While you write in a bullet, its dot, the dots of the bullets it sits under and the lines joining them are a shade darker than the rest of the outline, so you see where you are. The words are not changed.' },
   { key: 'foldedHeading', type: 'heading', default: null, title: 'Folded nodes', description: 'What a folded node says after its words.' },
   { key: 'foldedNote', type: 'boolean', default: true, title: 'A folded node says what is under it',
     description: 'After the words of a folded node, small and grey, led by ↳: a circle with the number of unfinished tasks under it, then its pictures, quotes, PDFs, files and links with how many of each (a link in the words, to a node or a web address, each counted once), then up to three of the tags inside (no number on them), then the nearest due day, or “was due” once it has passed. Shown only while the node is folded.' },
@@ -73,6 +76,7 @@ const SPECIMENS = {
   sidebarLinks: on => on ? `<span class="sw-k">Links</span><br><b style="font-size:13px">Entity</b><br>${link('Dr. Mei Chen', '')} &nbsp; ${link('Ana Reyes', '')}` : `<span class="sw-k">Contents</span> &nbsp; <span class="sw-k">Page graph</span>`,
   citationNumbers: on => `<span class="sw-dot"></span>Segment 6 lesion smaller than in July${on ? '<sup>1</sup>' : ' (<span class="lk-node">MRI report, Oct 14</span>, p. 3)'}`,
   quoteBullets: on => `${on ? '<span class="sw-faintw" style="margin-right:.4em;font-family:Georgia,serif">“</span>' : '<span class="sw-dot"></span>'}In this study, 34% of patients fulfilled the criteria`,
+  litBranch: on => `<span class="sw-dot"${on ? ' style="opacity:1"' : ''}></span>Consultation with Dr. Mei Chen<br><span style="display:inline-block;margin-left:3px;padding-left:14px;border-left:1px solid ${on ? 'var(--sw-line)' : 'var(--sw-hair)'}"><span class="sw-dot"${on ? ' style="opacity:1"' : ''}></span>Fatigue since September<br><span class="sw-dot"></span>Asked for the CT report</span>`,
   foldedNote: on => `<span class="sw-ring"><span class="sw-dot" style="margin:0"></span></span>This week${on ? ` <span class="lk-folded" style="margin-left:.5em"><span class="lk-lead">↳</span><span class="lk-pair">${Look.kit.iconHtml('circle')}<span>3</span></span><span class="lk-pair">${Look.kit.iconHtml('photo')}<span>2</span></span><span class="lk-pair">${Look.kit.iconHtml('link')}<span>4</span></span><span class="lk-sep">·</span><a class="lk-tag">Consultation</a><span class="lk-sep">·</span><span>due Oct 19</span></span>` : ''}`,
 };
 const specimen = (item, value) => SPECIMENS[item.key] ? SPECIMENS[item.key](!!value) : '';

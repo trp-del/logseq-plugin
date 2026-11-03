@@ -54,7 +54,41 @@ const SPECIMENS = {
   linkSuggest: on => `<span class="sw-dot"></span>Saw Dr. Mei${on ? '<span class="sw-grey"> Chen</span>' : ''}`,
   linkSuggestLearn: on => `<span class="sw-dot"></span>Saw ${on ? 'Mei<span class="sw-grey"> Chen</span>' : 'Mei'} <span class="sw-faintw">&nbsp; ${on ? 'offered from three letters, a name the graph usually links' : 'offered only after the usual count of letters'}</span>`,
 };
-const specimen = (item, value) => SPECIMENS[item.key] ? SPECIMENS[item.key](value) : '';
+/* Under the model's setting, whether Apple's model answers on this Mac: asked as the window draws (at most every two
+   seconds), and the line written in place when the answer comes, so nothing else in the window moves. The last answer is
+   drawn meanwhile; before the first, an empty line holds the place. The line is in the row's label, so a click on it (to
+   select the Terminal line) must not flip the setting. */
+const REASONS = {
+  appleIntelligenceNotEnabled: 'Apple Intelligence is off on this Mac: turn it on in System Settings.',
+  modelNotReady: 'Apple’s model is not ready yet: it may still be downloading to this Mac.',
+  deviceNotEligible: 'This Mac cannot run Apple’s model.',
+};
+// The plugin's own folder is Logseq's baseInfo.url (the frame itself is served from elsewhere).
+const helperLine = () => {
+  const url = String(logseq.baseInfo?.url || '');
+  const folder = url.startsWith('/') ? url.replace(/\/?$/, '/') : `~/.logseq/plugins/${logseq.baseInfo?.id || 'logseq-plugin'}/`;
+  return `sh ${folder.replace(/^\/Users\/[^/]+\//, '~/')}predictive/helper/install.sh`;
+};
+// The answer first, in the words a person asks with (connected or not), then why and what to do, faint.
+const modelWords = s => !s ? '&nbsp;'
+  : !s.reached ? `Not connected. <span class="sw-faintw">Predictive’s helper is not running on this Mac. In Terminal:</span><br><span class="pr-model-line">${helperLine()}</span>`
+  : s.ready ? 'Connected to Apple’s model.'
+  : `Not connected. <span class="sw-faintw">${REASONS[s.reason] || `Apple’s model is not ready: ${s.reason || 'no reason given'}.`}</span>`;
+const model = { last: null, at: 0 };
+function modelLine() {
+  const doc = window.parent.document;
+  if (!model.guarded) { model.guarded = true; doc.addEventListener('click', event => { if (event.target.closest?.('.pr-model')) event.preventDefault(); }, true); }
+  if (Date.now() - model.at > 2000 && Flow.modelAsk?.status) {
+    model.at = Date.now();
+    Flow.modelAsk.status().then(s => {
+      if (JSON.stringify(s) === JSON.stringify(model.last)) return;
+      model.last = s;
+      for (const el of doc.querySelectorAll('.pr-model')) el.innerHTML = modelWords(s);
+    });
+  }
+  return `<div class="pr-model" style="user-select:text;cursor:text">${modelWords(model.last)}</div>`;
+}
+const specimen = (item, value) => item.key === 'proposalsModel' ? (value ? modelLine() : '') : SPECIMENS[item.key] ? SPECIMENS[item.key](value) : '';
 
 async function main() {
   logseq.App.registerCommandPalette({ key: 'flow-score', label: 'Predictive: how well do proposals work on this graph?' }, scoreCommand);

@@ -87,6 +87,14 @@ const quoteBullets = `
 ${AREA} ${QUOTED} > .block-control-wrap .bullet { display: flex; align-items: center; justify-content: center; width: 16px !important; height: 16px !important; background: none !important; color: var(--lk-quiet); }
 ${AREA} ${QUOTED} > .block-control-wrap .bullet::before { content: "\\201C"; font: 19px/16px Georgia, "Times New Roman", serif; height: 16px; transform: translateY(.28em); }
 ${AREA} ${QUOTED} > .block-control-wrap[data-has-children="false"] .block-control { visibility: hidden; }`;
+/* The branch being written in: the lines and bullets above the bullet you edit are a shade darker, so you see where you are
+   in a deep outline. The words are never touched. A .block-main-container never holds its block's children, so only the
+   bullet being edited and those above it match. */
+const branch = `
+${AREA} .block-children-container:has(.editor-inner) > .block-children { border-left-color: var(--lk-line) !important; }
+${AREA} .ls-block:has(.editor-inner) > .block-main-container .bullet-container .bullet { background-color: var(--lk-off) !important; }
+${AREA} .block-children, ${AREA} .bullet-container .bullet { transition: border-color .15s, background-color .15s; }
+@media (prefers-reduced-motion: reduce) { ${AREA} .block-children, ${AREA} .bullet-container .bullet { transition: none; } }`;
 function apply() {
   style('links', setting('quietLinks') ? links : '');
   style('days', setting('quietDays') ? days : '');
@@ -98,6 +106,7 @@ function apply() {
   style('pencil', setting('hideDatePencil') ? pencil : '');
   style('add-property', setting('quietAddProperty') ? addProperty : '');
   style('quote-bullets', setting('quoteBullets') ? quoteBullets : '');
+  style('branch', setting('litBranch') ? branch : '');
 }
 Look.style = { apply };
 })();

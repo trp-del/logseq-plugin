@@ -53,5 +53,15 @@ async function ask(ctx, b, result) {
   } finally { if (S.asking === mine) S.asking = null; }
 }
 
-Flow.modelAsk = { ready, had, wanted, ask, forget: () => { S.answers.clear(); S.ready = null; } };
+// What the helper says now, asked afresh, for the settings window: { reached: false } when nothing answers on this Mac,
+// else { reached: true, ready, reason }. The ready() above takes the answer too.
+async function status() {
+  try {
+    const r = await fetch(HELPER + '/status', { signal: AbortSignal.timeout(800) }).then(response => response.json());
+    S.ready = !!r.ready; S.at = Date.now();
+    return { reached: true, ready: !!r.ready, reason: r.reason || '' };
+  } catch (error) { S.ready = false; S.at = Date.now(); return { reached: false }; }
+}
+
+Flow.modelAsk = { ready, status, had, wanted, ask, forget: () => { S.answers.clear(); S.ready = null; } };
 })();

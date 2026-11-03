@@ -42,7 +42,7 @@ const key = (dlg, name, target = dlg.querySelector('.sw-tick')) => target.dispat
     delete pluginWin.refinementCore;
   }
   assert.equal([...dlg.querySelectorAll('.sw-mod .sw-name')].map(e => e.textContent).join(), 'Look,Find,Threads,Predictive,Structure,DB Export', 'the six in order');
-  assert.equal(dlg.querySelectorAll('.sw-section').length, 6, 'Look’s six sections');
+  assert.equal(dlg.querySelectorAll('.sw-section').length, 7, 'Look’s seven sections');
   assert.equal(dlg.querySelectorAll('.sw-section > p, .sw-legend').length, 0, 'no paragraphs');
   assert.equal(dlg.querySelector('.sw-reload'), null, 'no reload until one waits');
   // a change is written at once, and the icon's row sets both keys
