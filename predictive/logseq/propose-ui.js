@@ -6,7 +6,8 @@
    Enter takes everything shown, the guesses too; leaving any other way (a click elsewhere, an arrow) takes only the sure
    values, and only if the words changed since the bullet was entered: an old bullet you pass through is left as it was.
    Escape hides them until you type again. A click on a proposed value accepts it (a second click takes the
-   acceptance back). A faded arrow after the bullet puts back what was filled in, and takes off only what is still as it
+   acceptance back). Its × (the library's Take off, under the pointer, as it would repeat on every value) takes it off, and it
+   is not proposed on that bullet again. A faded arrow after the bullet puts back what was filled in, and takes off only what is still as it
    was filled in, and keeps those values from being proposed on that bullet again.
 
    Logseq's shape (read 2026-10-29 in 2.0.2): .ls-block[blockid] > .block-main-container > ... > .positioned-properties.block-below >
@@ -125,6 +126,19 @@ function fillGhost(g, piece) {
   const tag = tagTitle ? Object.assign(doc.createElement('span'), { className: 'flow-tag lk-tag', textContent: tagTitle }) : null;
   g.replaceChildren(...[words ? doc.createTextNode(words) : null, words && tagTitle ? doc.createTextNode(' ') : null, tag].filter(Boolean));
 }
+// The × after a proposal, while it is being written: the library's Take off (lk-x), shown under the pointer.
+function drawX(doc, g, piece) {
+  let x = g.nextElementSibling;
+  if (!x?.classList.contains('flow-x')) {
+    x = doc.createElement('button');
+    x.type = 'button'; x.className = 'flow-x lk-x'; x.textContent = '×';
+    x.setAttribute('contenteditable', 'false');
+    g.after(x);
+  }
+  const what = piece.kind === 'tag' ? `the tag ${piece.tag?.title || ''}` : `${piece.prop.title}: ${piece.shown}`;
+  x.dataset.flowKey = guessKey(piece);
+  if (x.title !== `Take off ${what}`) { x.title = `Take off ${what}`; x.setAttribute('aria-label', x.title); }
+}
 const fillingJobs = () => { const now = Date.now(); for (const [uuid, job] of S.filling) if (job.until < now) S.filling.delete(uuid); return [...S.filling.values()]; };
 
 // The proposed tag, where Logseq draws a bullet's tags: the right end of its own line.
@@ -145,7 +159,7 @@ function drawTag(doc, row, piece, job) {
   if (g.className !== cls) g.className = cls;
   const title = job.live ? look.title : 'Being filled in';
   if (g.title !== title) g.title = title;
-  if (job.live) (job.live.drawn ||= new Set()).add(guessKey(piece));
+  if (job.live) { (job.live.drawn ||= new Set()).add(guessKey(piece)); drawX(doc, g, piece); }
 }
 
 function drawInPlace(doc = host()) {
@@ -167,6 +181,7 @@ function drawInPlace(doc = host()) {
     g.closest('[data-flow-proposal]')?.removeAttribute('data-flow-proposal');
     g.remove();
   }
+  for (const x of doc.querySelectorAll('.flow-x')) { const g = x.previousElementSibling; if (!g?.classList.contains('flow-ghost') || g.dataset.flowKey !== x.dataset.flowKey || !live?.pieces.some(p => guessKey(p) === x.dataset.flowKey)) x.remove(); }
   for (const el of doc.querySelectorAll('.flow-made-pill')) if (!el.querySelector('.flow-ghost')) el.remove();
   for (const el of doc.querySelectorAll('.positioned-properties.flow-made')) if (!el.querySelector('.bottom-property-pill')) el.remove();
   for (const job of jobs) for (const row of job.rows) {
@@ -199,7 +214,7 @@ function drawInPlace(doc = host()) {
       const title = job.live ? look.title : 'Being filled in';
       if (g.title !== title) g.title = title;
       if (!pill.hasAttribute('data-flow-proposal')) pill.setAttribute('data-flow-proposal', '');
-      if (job.live) (job.live.drawn ||= new Set()).add(guessKey(piece));
+      if (job.live) { (job.live.drawn ||= new Set()).add(guessKey(piece)); drawX(doc, g, piece); }
     }
   }
   // A pill marked with nothing of ours left in it (a copy cut short) is given back to Logseq.
@@ -211,7 +226,7 @@ const hide = () => drawInPlace();
 function onMutations(records) {
   const doc = host();
   if (!S.live && !S.filling.size && !S.undo && !doc.querySelector('.flow-ghost, .flow-made, [data-flow-proposal]')) return;
-  const ours = n => n.nodeType === 1 && n.matches?.('.flow-ghost, .flow-made, .flow-undo');
+  const ours = n => n.nodeType === 1 && n.matches?.('.flow-ghost, .flow-made, .flow-undo, .flow-x');
   if (records.some(r => r.type === 'childList' && ![...r.addedNodes, ...r.removedNodes].every(ours))) { drawInPlace(doc); watcher?.takeRecords(); }
 }
 let watcher = null;
@@ -491,6 +506,7 @@ function onKey(event) {
 // A click on a proposed value accepts it: it turns solid and is filled in, guess or not, when the bullet is left; a second
 // click takes the acceptance back. The press itself is held back, so Logseq's value editor does not open under the value.
 function onGhostPress(event) {
+  if (event.target?.closest?.('.flow-x')) return onTakeOff(event);
   const el = event.target?.closest?.('.flow-ghost');
   if (!el) return;
   event.stopImmediatePropagation();
@@ -511,6 +527,23 @@ function onGhostPress(event) {
     live.picked?.delete(key);
   }
   drawInPlace(el.ownerDocument);
+}
+
+// The ×: the proposal goes, and is kept from being proposed on that bullet again, as after an Undo. A tag taken off takes the
+// properties that came with it. The press is held back, so the bullet keeps the cursor.
+function onTakeOff(event) {
+  event.stopImmediatePropagation(); event.preventDefault();
+  if (event.type !== 'click') return;
+  const live = S.live, key = event.target.closest('.flow-x').dataset.flowKey, piece = live?.pieces.find(p => guessKey(p) === key);
+  if (!piece) return;
+  const refused = S.refused.get(live.recordUuid) || new Set();
+  refused.add(key);
+  S.refused.set(live.recordUuid, refused);
+  live.pieces = live.pieces.filter(p => p !== piece && !(piece.kind === 'tag' && p.needsTag));
+  live.clicked?.delete(key); live.picked?.delete(key);
+  if (live.model) live.model.pieces = live.model.pieces.filter(p => live.pieces.includes(p));
+  if (!live.pieces.length) { S.live = null; return hide(); }
+  drawInPlace(event.target.ownerDocument);
 }
 
 const PILL = ':is(#main-content-container, #right-sidebar) .ls-block .positioned-properties.block-below .bottom-property-pill', AT = '.bottom-property-pill.bottom-property-pill[data-flow-at]';
@@ -538,6 +571,9 @@ ${PILL}:is(:not(:has(.empty-value)), :has(.lk-pencil)) ~ ${AT}::after { left: 16
 /* A pill row the plugin made (an untagged bullet): the pills side by side, as Logseq lays out its own. */
 .positioned-properties.flow-made .bottom-properties-row { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: .5rem; row-gap: .25rem; }
 .flow-made-pill { display: inline-flex; align-items: baseline; gap: .3em; }
+/* A proposal's ×, the library's Take off: under the pointer on its property, or on the line for a proposed tag. */
+.flow-x { opacity: 0; margin-left: .15em; font-size: .95em; line-height: 1; transition: opacity .15s ease; }
+.bottom-property-pill:hover .flow-x, .ls-block-right:hover .flow-x, .flow-x:focus-visible { opacity: 1; }
 /* The undo arrow at the end of the bullet's line; its fade is Look's, through lk-undo. */
 .flow-undo { border: 0; background: none; padding: 0 4px; margin-left: .25em; font: inherit; line-height: 1; cursor: pointer; color: inherit; vertical-align: -2px; }
 .flow-undo .ti { font-size: 14px; }
@@ -572,7 +608,7 @@ function start() {
   logseq.App.onRouteChanged?.(() => { S.live = null; hide(); applyHide(); });
   app.onStop(() => {
     S.stopped = true; clearTimeout(S.timer); S.version++; watcher?.disconnect(); watcher = null; S.live = null; S.filling.clear();
-    for (const el of doc.querySelectorAll('.flow-ghost, .flow-made, .flow-undo')) el.remove();
+    for (const el of doc.querySelectorAll('.flow-ghost, .flow-made, .flow-undo, .flow-x')) el.remove();
     for (const el of doc.querySelectorAll('[data-flow-proposal], [data-flow-at]')) { el.removeAttribute('data-flow-proposal'); el.removeAttribute('data-flow-at'); }
     doc.documentElement.classList.remove('flow-hide-empty');
   });
