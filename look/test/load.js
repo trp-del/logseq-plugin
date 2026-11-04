@@ -37,6 +37,7 @@ const { U, load, pencilled } = standIn;
     assert.equal(byKind(rows).map(group => `${group.head}: ${group.rows.map(row => row.title).join(', ')}`).join(' | '), 'Entity: Ada, Zed | Occurrence: Scan | No kind: Note', 'by kind: the kinds in order, by name, the rest last'); }
   assert.ok(styles['look-quote-bullets'].includes('[data-type="annotation"]') && styles['look-quote-bullets'].includes('.hl-page'), 'a highlight and a bullet that only cites one carry the quotation mark');
   assert.ok(styles['look-tags'].includes('--lk-mono') && !styles['look-tags'].includes('uppercase'), 'tags in mono, as written');
+  assert.ok(/\.ls-page-blocks \.ls-block :is\(\.ls-bidirectional-properties/.test(styles['look-two-way'] || '') && !/right-sidebar/.test(styles['look-two-way']), 'Logseq\'s two-way list goes from under a node, a page\'s own list left to Threads');
   // a day in a property's value keeps the value's colour; the quiet grey stays for a day in the words
   assert.ok(/\.property-value-container, \.bottom-property-pill\)[^{]*a\.page-ref[^{]*\{ color: inherit !important; \}/.test(styles['look-days']), 'a day in a value keeps the value’s colour');
   assert.ok(/^[^.]*a\.page-ref:is\(\[data-uuid\^="00000001-"\][^{]*\{ color: var\(--lk-quiet\)/m.test(styles['look-days']), 'a day in the words stays quiet');
@@ -98,7 +99,7 @@ const { U, load, pencilled } = standIn;
   assert.equal(rowsOf('Notices').join(), 'quietNotices', 'Notices holds how a notice shows');
   assert.equal(rowsOf('The outline').join(), 'litBranch', 'The outline holds the way to the bullet you edit');
   assert.equal(rowsOf('Folded nodes').join(), 'foldedNote', 'Folded nodes holds only what a folded node says');
-  for (const key of ['propertyIcons', 'propertyNameTips', 'quietAddProperty', 'hideDatePencil']) assert.ok(rowsOf('Properties').includes(key), key + ' under Properties');
+  for (const key of ['propertyIcons', 'propertyNameTips', 'quietAddProperty', 'hideDatePencil', 'hideTwoWayList']) assert.ok(rowsOf('Properties').includes(key), key + ' under Properties');
   assert.ok(!described.schema.some(i => i.key === 'quietEmptyProps'), 'one row for empty properties, Predictive’s');
   assert.ok(!described.schema.some(i => i.key === 'linkMarks' || i.key === 'pageMark'), 'no setting for marks');
   assert.ok(described.specimen({ key: 'valuesOpen' }, true).includes('lk-change'), 'a specimen of the thing itself');

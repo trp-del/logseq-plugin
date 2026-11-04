@@ -95,6 +95,10 @@ ${AREA} .block-children-container:has(.editor-inner) > .block-children { border-
 ${AREA} .ls-block:has(.editor-inner) > .block-main-container .bullet-container .bullet { background-color: var(--lk-off) !important; }
 ${AREA} .block-children, ${AREA} .bullet-container .bullet { transition: border-color .15s, background-color .15s; }
 @media (prefers-reduced-motion: reduce) { ${AREA} .block-children, ${AREA} .bullet-container .bullet { transition: none; } }`;
+/* Logseq's two-way list under a node (a two-way tag's nodes pointing at it, in tabs), inside the node's own block. A page's own
+   list stands outside the page's blocks and is Threads' to hide where its rows replace it. */
+const twoWay = `
+#main-content-container .ls-page-blocks .ls-block :is(.ls-bidirectional-properties, .ls-bidirectional-block-container) { display: none !important; }`;
 function apply() {
   style('links', setting('quietLinks') ? links : '');
   style('days', setting('quietDays') ? days : '');
@@ -104,6 +108,7 @@ function apply() {
   style('title-words', setting('hideTitleWords') ? titleWords : '');
   style('empty', emptyProps + EMPTY_ROWS);
   style('pencil', setting('hideDatePencil') ? pencil : '');
+  style('two-way', setting('hideTwoWayList') ? twoWay : '');
   style('add-property', setting('quietAddProperty') ? addProperty : '');
   style('quote-bullets', setting('quoteBullets') ? quoteBullets : '');
   style('branch', setting('litBranch') ? branch : '');
