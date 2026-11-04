@@ -41,9 +41,10 @@ function fakeQuery(q) {
   if (has(':find ?b ?d :where') && has('[?b :block/journal-day ?d]')) return [];
   if (has(':find ?b ?d ?name :where')) return DATED.filter(([b]) => given().includes(b));
   if (has(':find ?u ?t :where') && has('[?r :block/uuid ?u] [?r :block/title ?t]')) return uuidsIn(q).map(u => [u, titleOf(idOfUuid(u))]);
-  if (has(':find ?b ?name ?type ?v :where')) { const ids = idsIn(q); const rows = []; for (const id of ids) { const b = BLOCKS[id]; if (!b) continue; rows.push([id, 'Provider', ':node', b.provider], [id, 'Topic', ':node', b.topic]); } return rows; }
+  if (has(':find ?b ?name ?type ?v :where')) { const ids = idsIn(q); const rows = []; for (const id of ids) { const b = BLOCKS[id]; if (!b) continue; rows.push([id, 'Provider', ':node', b.provider], [id, 'Topic', ':node', b.topic]); if (b.onset) rows.push([id, 'Onset', ':datetime', b.onset]); } return rows; }
+  if (idsIn(q).some(id => id > 2147483647)) throw new Error(`Highest supported entity id is 2147483647, got ${idsIn(q).find(id => id > 2147483647)}`);
   if (has('(pull ?v [:db/id :block/uuid :block/title :property.value/content :block/name')) return idsIn(q).map(id => [{ 'db/id': id, 'block/uuid': U(id), 'block/title': titleOf(id), 'block/name': titleOf(id).toLowerCase() }]);
-  if (has(':find ?name ?type ?v :where [?p :block/uuid')) return [['Specialized in', ':node', 22]];
+  if (has(':find ?name ?type ?v :where [?p :block/uuid')) return [['Specialized in', ':node', 22], ...(BLOCKS[40].onset ? [['Onset', ':datetime', BLOCKS[40].onset]] : [])];
   if (has(':find ?name ?b :where [?p :block/uuid')) { const u = uuidsIn(q)[0], id = idOfUuid(u); return Object.entries(BLOCKS).filter(([, b]) => b.provider === id).map(([bid]) => ['Provider', Number(bid)]); }
   if (has(':find ?b :where [?p :block/uuid') && has(':block/refs')) return [];
   if (has('[?b :block/name _] [?b :block/updated-at ?up]')) return [[20, 2], [22, 1]];
@@ -303,6 +304,16 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
     await key('Escape'); await settle(); }
   // The foot: the words in the text colour, the key faint.
   assert.ok(styles['find-find'].includes('.fd-foot .fd-k { color: var(--fd-faint);') && /\.fd-foot \{[^}]*color: var\(--lk-text/.test(styles['find-find']), 'the key faint, what it does in the text colour');
+  // A date and time is kept as its milliseconds, not as a node: read as an id it made Logseq throw (the tag Symptomatic Event,
+  // "Highest supported entity id is 2147483647, got 1791874800000"). Now no line says the graph could not be read, and the value reads as its day.
+  { BLOCKS[40].onset = 1791874800000; BLOCKS[41].onset = 1791874800000; Find.window.forget(); Find.db.forget();
+    Find.window.open(); await settle(); await type('cons'); await key('Tab'); await settle();
+    assert.equal(doc.querySelectorAll('.fd-r').length, 4, 'the kind lists its nodes');
+    assert.ok(!text('.fd-none').some(t => /could not be read/.test(t)), 'and says nothing of the graph not being read: ' + text('.fd-none'));
+    assert.ok(!text('.fd-ck').includes('Onset'), 'a date and time is left to the months, not offered as words');
+    await key('ArrowRight'); await settle();
+    assert.ok(text('.fd-kids .fd-kv').join().includes('OnsetOct 13'), 'dug, it reads as its day: ' + text('.fd-kids .fd-kv'));
+    await key('Escape'); await key('Escape'); await settle(); delete BLOCKS[40].onset; delete BLOCKS[41].onset; Find.window.forget(); Find.db.forget(); }
   // the key specimen, and the stop
   assert.ok(Find.settings.specimen({ key: 'takesSearchKey', type: 'boolean' }, true).includes('Cmd K'), 'the key specimen, in plain words');
   await logseq._unload();

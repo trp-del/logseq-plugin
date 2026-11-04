@@ -12,7 +12,13 @@ const query = async q => { const rows = await logseq.DB.datascriptQuery(q); retu
 const pick = (node, name) => node?.[name] ?? node?.[':' + name] ?? node?.[name.slice(name.indexOf('/') + 1)];
 const LIVE = '(not [?b :logseq.property/deleted-at _])';
 const USER_PROP = '[?prop :db/ident ?a] [(namespace ?a) ?ns] [(= ?ns "user.property")]';
-const isId = id => Number.isSafeInteger(id) && id > 0;
+// An entity id is below 2^31; a larger number held by a property is no id (a date and time is its milliseconds).
+const isId = id => Number.isSafeInteger(id) && id > 0 && id <= 2147483647;
+/* Values Logseq keeps in place rather than as a node: a date and time (milliseconds), a tick, a bare number or string. Only the
+   others are ids to read; read as ids, 1791874800000, the 13th of October 2026, made Logseq throw "Highest supported entity id". */
+const IN_PLACE = new Set(['datetime', 'checkbox', 'raw-number', 'string', 'keyword', 'map', 'coll', 'any']);
+const inPlace = type => IN_PLACE.has(bare(type));
+const inPlaceLabel = (type, v) => { const t = bare(type); if (t === 'datetime') { const d = new Date(Number(v)); return isNaN(d) ? '' : dayLabel(d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate()); } return t === 'raw-number' || t === 'string' ? String(v ?? '').trim() : ''; };
 const idsIn = (variable, ids) => `[(ground [${[...new Set(ids)].filter(isId).join(' ')}]) [${variable} ...]]`;
 const uuidsIn = (variable, uuids) => `[(ground [${[...new Set(uuids)].map(String).filter(u => UUID.test(u)).map(u => `#uuid "${u}"`).join(' ')}]) [${variable} ...]]`;
 const MARKERS = /\$pfts_2lqh>\$|\$<pfts_2lqh\$/g;
@@ -182,7 +188,7 @@ async function facets(nodes) {
   const ids = nodes.map(n => n.id);
   if (!ids.length) return { props: [], byNode: new Map() };
   const rows = await query(`[:find ?b ?name ?type ?v :where ${idsIn('?b', ids)} [?b ?a ?v] ${USER_PROP} [?prop :block/title ?name] [?prop :logseq.property/type ?type]]`);
-  const valueIds = [...new Set(rows.filter(([, , type]) => bare(type) !== 'date').map(([, , , v]) => v).filter(isId))];
+  const valueIds = [...new Set(rows.filter(([, , type]) => bare(type) !== 'date' && !inPlace(type)).map(([, , , v]) => v).filter(isId))];
   const labels = new Map();
   if (valueIds.length) for (const [v] of await query(`[:find (pull ?v [:db/id :block/uuid :block/title :property.value/content :block/name]) :in $ :where ${idsIn('?v', valueIds)}]`)) {
     const id = pick(v, 'db/id'), title = pick(v, 'block/title'), content = pick(v, 'property.value/content');
@@ -191,8 +197,9 @@ async function facets(nodes) {
   const props = new Map(), byNode = new Map();
   for (const [b, name, type, v] of rows) {
     const kind = bare(type);
-    if (kind === 'date' || kind === 'checkbox') continue;
-    const got = labels.get(v);
+    // Days are left to the months, a date and time too; a value kept in place is its own label.
+    if (kind === 'date' || kind === 'datetime' || kind === 'checkbox') continue;
+    const got = inPlace(kind) ? { label: inPlaceLabel(kind, v), uuid: '' } : labels.get(v);
     if (!got || !got.label) continue;
     const key = String(v);
     if (!props.has(name)) props.set(name, { name: String(name), type: kind, values: new Map() });
@@ -248,7 +255,7 @@ async function node(uuid) {
     query(`[:find ?name ?b :where [?p :block/uuid #uuid "${uuid}"] [?b ?a ?p] ${USER_PROP} [?prop :block/title ?name] ${LIVE}]`),
     query(`[:find ?b :where [?p :block/uuid #uuid "${uuid}"] [?b :block/refs ?p] ${LIVE}]`),
   ]);
-  const valueIds = [...new Set(props.map(([, , v]) => v).filter(isId))];
+  const valueIds = [...new Set(props.filter(([, type]) => !inPlace(type)).map(([, , v]) => v).filter(isId))];
   const labels = new Map();
   if (valueIds.length) for (const [v] of await query(`[:find (pull ?v [:db/id :block/uuid :block/title :property.value/content :block/name :block/journal-day]) :in $ :where ${idsIn('?v', valueIds)}]`)) {
     const id = pick(v, 'db/id'), day = pick(v, 'block/journal-day');
@@ -256,7 +263,7 @@ async function node(uuid) {
   }
   const properties = new Map();
   for (const [name, type, v] of props) {
-    const got = labels.get(v); if (!got || !got.label) continue;
+    const got = inPlace(type) ? { label: inPlaceLabel(type, v), uuid: '' } : labels.get(v); if (!got || !got.label) continue;
     if (!properties.has(name)) properties.set(name, { name: String(name), type: bare(type), values: [] });
     properties.get(name).values.push(got);
   }
