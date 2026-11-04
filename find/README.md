@@ -8,7 +8,7 @@ The search window as the first step of a walk. You find things the way you think
 
 **Open it** with Cmd+K (Ctrl+K elsewhere); Logseq's own search moves to Cmd+Shift+K. Or the route icon in the toolbar's plugin menu (the puzzle piece at the top right; pin it from there), or **Find** in the command palette. A setting turns the key the other way round.
 
-**Nothing typed:** the kinds in your graph (your tags, and Task), most used first, with how many nodes each holds, counting the tags under it; then the pages you opened last. Pick a kind with Up, Down and Enter, or a click.
+**Nothing typed:** the kinds in your graph (your tags, and Task), most used first, with how many nodes each holds, counting the tags under it; then the pages you opened last. Pick a kind with Up, Down and Enter, or a click. "more" opens every kind, laid out as Structure's tree: a column under each of the four kinds (then any other top-level tag), each tag beneath its parent and stepped in, Task under a head "Logseq" at the foot of the last column. Up and Down run down a column and on to the next, Left and Right go to the column beside.
 
 **A kind picked:** its nodes as rows, newest first, and above them the choices the graph holds for them: each property with the values that occur and how many rows hold each (Provider: Dr. Mei Chen 13 · Dr. Helen Brooks 10 …), then the months. A choice that would narrow nothing is not offered: a property with one value, a value on every row, a property of free words with more than about twenty. Three values show on a line, then "more"; a number stands only on the choice that is lit or under the pointer. No word stands over the choices or over the rows: a gap of one line tells them apart, and "show all 53" under the rows is the only count of what was found. A kind of more than 3,000 nodes keeps its newest 3,000 and says so where the list ends ("the newest of 12431"); letters find within those.
 
@@ -53,7 +53,7 @@ The root `files.js` lists these in order, each adding to `window.Find`:
 | File | What it is |
 |---|---|
 | `logseq/kit.js` | Logseq's window, one stylesheet door, one element builder, the greys, the property icons, the sweep |
-| `logseq/db.js` | the one place that reads the graph: the kinds with their counts, the nodes under a kind, what they hold as choices, the months, Logseq's search, a node's properties and what points at it, the recent pages |
+| `logseq/db.js` | the one place that reads the graph: the kinds with their counts, the kinds as a tree, the nodes under a kind, what they hold as choices, the months, Logseq's search, a node's properties and what points at it, the recent pages |
 | `logseq/settings.js` | the switches |
 | `logseq/commands.js` | Logseq's commands as the app lists them, with their keys; their English names from Logseq's dictionary |
 | `logseq/find.js` | the window: the find line of pieces, the choices, the rows, digging, the keys |

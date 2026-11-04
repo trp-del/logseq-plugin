@@ -272,8 +272,17 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
     await key('Tab'); await key('ArrowRight'); await key('ArrowRight'); await key('ArrowRight');
     assert.ok(text('.fd-foot')[0].includes('show moreTab'), 'the foot says what the key does: ' + text('.fd-foot')[0]);
     assert.ok(doc.querySelector('.fd-more.fd-lit'), 'more is lit'); await key('Enter');
-    assert.equal(text('.fd-c').length, 5, 'and shows the rest'); assert.ok(doc.querySelector('.fd-c.fd-lit')?.textContent.startsWith('Kind 4'), 'the cursor on the first that came');
+    assert.deepEqual(text('.fd-tree .fd-col'), ['Consultation4', 'Doctor2'], 'opened with nothing typed, the kinds stand in columns under their top-level tags');
+    assert.ok(doc.querySelector('.fd-c.fd-lit')?.textContent.startsWith('Consultation'), 'the cursor on the first of them');
     await key('Escape'); await key('Escape'); await settle(); Find.window.state.kinds = kept; }
+  // The columns: the four kinds first, each tag under its parent, stepped in by depth; Down runs down a column, Right goes beside.
+  { ENTITY = true; Find.db.forget(); Find.window.forget(); Find.window.open(); await settle();
+    Find.window.state.moreOf.add('kind'); await key('Tab');
+    assert.deepEqual([...doc.querySelectorAll('.fd-tree .fd-col')].map(c => [...c.querySelectorAll('.fd-c')].map(b => (b.classList.contains('fd-top') ? '*' : '') + b.childNodes[0].textContent + ':' + b.style.getPropertyValue('--fd-depth').trim())), [['*Entity:0', 'Consultation:0'], ['*Doctor:0']], 'Entity first, Consultation under it, Doctor a column of its own');
+    await key('ArrowDown'); assert.ok(doc.querySelector('.fd-c.fd-lit')?.textContent.startsWith('Consultation'), 'Down steps down the column');
+    await key('ArrowRight'); assert.ok(doc.querySelector('.fd-c.fd-lit')?.textContent.startsWith('Doctor'), 'Right goes to the column beside');
+    await key('Enter'); assert.deepEqual(text('.fd-piece .lk-tag'), ['Doctor'], 'Enter picks the kind');
+    await key('Escape'); await settle(); ENTITY = false; Find.db.forget(); Find.window.forget(); }
   { Find.window.open(); await settle(); await type('cons'); await key('Tab'); await settle();
     Find.window.state.facets = { props: ['a', 'b', 'c', 'd', 'e'].map(n => ({ name: n, type: 'default', values: [{ key: '1', label: n + '1', count: 1 }, { key: '2', label: n + '2', count: 2 }] })), months: [], kinds: [] };
     await key('Tab'); await key('ArrowDown'); await key('ArrowDown'); await key('ArrowDown');

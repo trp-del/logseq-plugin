@@ -53,6 +53,30 @@ async function kinds() {
   return index.list.filter(t => (!t.own || t.ident === 'logseq.class/Task') && t.under.size).sort((a, b) => b.under.size - a.under.size || a.title.localeCompare(b.title))
     .map(t => ({ id: t.id, uuid: t.uuid, title: t.title, count: t.under.size }));
 }
+/* The kinds as Structure's tree has them, one column per top-level tag: the four kinds first in their order, then any other
+   top-level tag, by title; under each, every tag beneath its first parent, by title, with its depth. Only tags that hold
+   nodes, counting those below. Logseq's Task stands last, under a head "Logseq" that is not a kind.
+   [{ title, tag: the column's own tag or null, rows: [{ id, uuid, title, count, depth }] }] */
+const SORT_ORDER = ['entity', 'occurrence', 'phenomenon', 'information'];
+async function kindTree() {
+  const index = await tagIndex();
+  const live = t => t.under.size > 0 && !t.own;
+  const row = (t, depth) => ({ id: t.id, uuid: t.uuid, title: t.title, count: t.under.size, depth });
+  const byTitle = (a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' });
+  const kidsOf = new Map();
+  for (const t of index.list) if (live(t) && t.parents.length) { const p = t.parents[0].id; if (!kidsOf.has(p)) kidsOf.set(p, []); kidsOf.get(p).push(t); }
+  const sortAt = t => { const i = SORT_ORDER.indexOf(window.PluginDoor.SORT_NAMES[t.title.trim().toLowerCase()]); return i < 0 ? SORT_ORDER.length : i; };
+  const tops = index.list.filter(t => live(t) && !t.parents.length).sort((a, b) => sortAt(a) - sortAt(b) || byTitle(a, b));
+  const columns = tops.map(top => {
+    const rows = [row(top, 0)], seen = new Set([top.id]);
+    const walk = (t, depth) => { for (const kid of (kidsOf.get(t.id) || []).sort(byTitle)) if (!seen.has(kid.id)) { seen.add(kid.id); rows.push(row(kid, depth)); walk(kid, depth + 1); } };
+    walk(top, 1);
+    return { title: top.title, tag: top.id, rows };
+  });
+  const task = index.list.find(t => t.ident === 'logseq.class/Task' && t.under.size);
+  if (task) columns.push({ title: 'Logseq', tag: null, rows: [row(task, 1)] });
+  return columns;
+}
 // The first of a node's tags that is a kind of yours, by title; Logseq's own left out.
 function kindOf(index, tagIds) {
   const own = tagIds.map(id => index.byId.get(id)).filter(t => t && (!t.own || t.ident === 'logseq.class/Task'));
@@ -276,5 +300,5 @@ async function makePage(name) {
 }
 const forget = () => { tags = null; };
 
-Find.db = { tagIndex, kinds, nodesOfKind, details, facets, months, byDay, search, node, recents, makePage, dayLabel, monthLabel, forget, UUID };
+Find.db = { tagIndex, kinds, kindTree, nodesOfKind, details, facets, months, byDay, search, node, recents, makePage, dayLabel, monthLabel, forget, UUID };
 })();

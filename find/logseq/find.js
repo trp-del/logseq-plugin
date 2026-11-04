@@ -51,6 +51,12 @@ const CSS = `
 .fd-c.fd-lit { color: inherit; }
 .fd-cv .fd-dot { visibility: hidden; }
 .fd-more { margin: -3px 0; }
+/* The kinds opened: columns, each a top-level tag in bold over the tags beneath it, stepped in by depth. */
+.fd-tree { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px 18px; }
+.fd-col { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; }
+.fd-col .fd-c { margin-left: calc(var(--fd-depth, 0) * 14px - 4px); max-width: 100%; }
+.fd-col .fd-top, .fd-col .fd-th { font-weight: 600; color: var(--lk-text, #222); }
+.fd-col .fd-th { margin-top: 12px; }
 .fd-more.fd-lit { color: var(--lk-text, #222) !important; }
 .fd-icon { display: inline-flex; width: 12px; height: 12px; align-items: center; justify-content: center; color: var(--fd-faint); font-size: 12px; }
 .fd-icon svg { width: 12px; height: 12px; }
@@ -101,7 +107,7 @@ const CSS = `
 const S = {
   dlg: null, doc: null, gen: 0, timer: 0, reads: 0, enter: null, making: false,
   picks: [], typed: '', mode: 'rows', rowAt: 0, choiceAt: 0,
-  kinds: [], recents: [], base: [], shown: [], facets: null, allShown: false, moreOf: new Set(),
+  kinds: [], tree: null, recents: [], base: [], shown: [], facets: null, allShown: false, moreOf: new Set(),
   dug: [], dugData: new Map(), openGroups: new Set(), groupAll: new Set(), stale: false,
   cache: { kind: new Map(), kindFacets: new Map(), counted: new Map(), words: new Map() }, loading: false, failed: '', commands: null,
 };
@@ -123,6 +129,7 @@ async function compute() {
     const tag = kindPick();
     if (!tag && !ws.length) {
       if (!S.kinds.length) S.kinds = await db.kinds();
+      if (!S.tree) S.tree = await db.kindTree();
       if (!S.recents.length) S.recents = await db.recents();
       if (gen !== S.gen) return;
       S.base = []; S.shown = []; S.facets = null; return;
@@ -193,7 +200,19 @@ function choiceGroups() {
   const matches = label => ws.every(w => label.toLowerCase().split(/[\s,./()-]+/).some(l => l.startsWith(w)) || label.toLowerCase().startsWith(w));
   const tag = kindPick();
   const limit = key => S.moreOf.has(key) ? 999 : 3;
-  if (!tag) {
+  if (!tag && !ws.length && S.moreOf.has('kind') && S.tree?.length) {
+    // Opened with nothing typed, every kind, laid out as Structure's tree: a column under each top-level tag, each tag
+    // beneath its parent, Task under "Logseq". The items run down each column, then on to the next.
+    // "Logseq" is no column of its own: it stands under the last one, after a gap.
+    const items = [];
+    let col = -1, at = 0;
+    for (const column of S.tree) {
+      const under = column.tag == null && col >= 0;
+      if (!under) { col++; at = 0; }
+      column.rows.forEach((r, i) => items.push({ label: r.title, count: r.count, depth: r.depth, col, at: at++, head: under && !i ? column.title : '', pick: () => addPick({ kind: 'tag', id: r.id, uuid: r.uuid, title: r.title }) }));
+    }
+    groups.push({ key: 'kind', label: 'kind', icon: '', tree: col + 1, items });
+  } else if (!tag) {
     // With letters typed, the kinds whose names match come first (so "cons" picks Consultation whatever the words find);
     // when none match, the kinds among the results say what was found.
     const named = ws.length ? S.kinds.filter(k => matches(k.title)) : S.kinds;
@@ -222,7 +241,8 @@ function choiceGroups() {
     }
   }
   // "more" is a choice like the others, so the arrows reach it and Tab or Enter takes it; the cursor stays where the first new one comes.
-  for (const g of groups) if (g.more) g.items.push({ more: true, label: 'more', pick: () => { S.moreOf.add(g.key); render(); } });
+  // The kinds opened with nothing typed are laid out anew as columns, so the cursor goes to the first of them.
+  for (const g of groups) if (g.more) g.items.push({ more: true, label: 'more', pick: () => { S.moreOf.add(g.key); if (g.key === 'kind' && !words().length && !kindPick() && S.tree?.length) S.choiceAt = 0; render(); } });
   if (groups.hidden) groups.push({ key: 'lines', label: '', icon: '', items: [{ more: true, label: `${groups.hidden} more ${groups.hidden === 1 ? 'property' : 'properties'} to narrow by`, pick: () => { S.moreOf.add('lines'); render(); } }] });
   return groups;
 }
@@ -318,6 +338,7 @@ function render() {
     for (const g of groups) {
       const box = el(doc, 'div', { class: 'fd-ch' });
       box.append(el(doc, 'span', { class: 'fd-ck' + (g.key.startsWith('p:') ? ' lk-prop' : ''), html: g.icon ? `<span class="fd-icon">${g.icon}</span>` : '' }, g.key === 'kind' ? 'kind' : g.label));
+      if (g.tree) { box.append(treeOf(doc, g, () => ci++, groups)); wrap.append(box); continue; }
       const vals = el(doc, 'span', { class: 'fd-cv' });
       g.items.forEach((c, i) => {
         const at = ci++;
@@ -400,6 +421,22 @@ function render() {
   const cur = body.querySelector(S.mode === 'choices' ? `[data-c="${S.choiceAt}"]` : `.fd-r[data-i="${S.rowAt}"]`);
   cur?.scrollIntoView?.({ block: 'nearest' });
   drawFoot(groups, rows);
+}
+// The kinds in columns: a top-level tag bold at the head of its column, the tags under it stepped in by depth; "Logseq" a
+// head that is no kind. Each is a choice like any other, lit by the cursor, its count shown only then or under the pointer.
+function treeOf(doc, g, next, groups) {
+  const tree = el(doc, 'span', { class: 'fd-cv fd-tree' });
+  for (let col = 0; col < g.tree; col++) {
+    const box = el(doc, 'span', { class: 'fd-col' });
+    for (const c of g.items.filter(x => x.col === col)) {
+      if (c.head) box.append(el(doc, 'span', { class: 'fd-th' }, c.head));
+      const at = next();
+      const lit = S.mode === 'choices' && at === S.choiceAt;
+      box.append(el(doc, 'button', { class: 'fd-c' + (c.depth ? '' : ' fd-top') + (lit ? ' fd-lit' : ''), type: 'button', 'data-c': at, style: `--fd-depth: ${Math.max(0, c.depth - 1)}`, title: c.label.length > 30 ? c.label : null, click: () => c.pick() }, short(c.label, 30), el(doc, 'span', { class: 'fd-nb' }, String(c.count))));
+    }
+    tree.append(box);
+  }
+  return tree;
 }
 function drawFoot(groups, rows) { S.dlg.querySelector('.fd-foot').replaceChildren(...foot(S.doc, groups, rows)); }
 // The cursor moves along the rows: the lit mark goes from one to the other and nothing is drawn again.
@@ -568,6 +605,9 @@ function onKey(event) {
     take();
     const down = k === 'ArrowDown';
     if (S.mode === 'choices') {
+      // In the kinds' columns Up and Down step down a column and on to the next.
+      const step = S.choiceAt + (down ? 1 : -1);
+      if (choices[S.choiceAt]?.col != null && choices[step]?.col != null) { S.choiceAt = step; render(); return; }
       // Up and Down step between the groups; Down from the last goes on to the rows.
       const at = groupOf(groups, S.choiceAt), next = at + (down ? 1 : -1);
       if (next >= groups.length) { if (rows.length) { S.mode = 'rows'; S.rowAt = 0; } }
@@ -581,7 +621,16 @@ function onKey(event) {
   }
   if (k === 'ArrowRight' || k === 'ArrowLeft') {
     const right = k === 'ArrowRight';
-    if (S.mode === 'choices') { take(); S.choiceAt = Math.max(0, Math.min(choices.length - 1, S.choiceAt + (right ? 1 : -1))); render(); return; }
+    if (S.mode === 'choices') {
+      take();
+      // In the kinds' columns Left and Right go to the column beside, at the same height or its last.
+      const cur = choices[S.choiceAt];
+      if (cur?.col != null) {
+        const beside = choices.map((c, i) => [c, i]).filter(([c]) => c.col === cur.col + (right ? 1 : -1));
+        if (beside.length) S.choiceAt = beside[Math.min(cur.at, beside.length - 1)][1];
+      } else S.choiceAt = Math.max(0, Math.min(choices.length - 1, S.choiceAt + (right ? 1 : -1)));
+      render(); return;
+    }
     const input = S.dlg.querySelector('.fd-input');
     // In the letters the arrows move the caret; at an end, or with no letters, they dig and close.
     if (S.typed && ((right && input.selectionEnd < input.value.length) || (!right && input.selectionStart > 0))) return;
@@ -625,7 +674,7 @@ function open() {
   const doc = host();
   close();
   S.commands = null;
-  if (S.stale) { S.stale = false; S.kinds = []; S.recents = []; S.dugData.clear(); }
+  if (S.stale) { S.stale = false; S.kinds = []; S.tree = null; S.recents = []; S.dugData.clear(); }
   style('find', CSS);
   const dlg = el(doc, 'dialog', { class: 'fd fd-own ' + (setting('windowPlace') === 'centred' ? 'fd-centred' : 'fd-high'), 'aria-label': 'Find' });
   const find = el(doc, 'div', { class: 'fd-find' });
