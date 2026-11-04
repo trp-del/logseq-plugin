@@ -10,11 +10,13 @@ const Look = window.Look;
 const { host, style, watchScreen, el, esc, openPage, notify } = Look.kit, { setting } = Look.settings;
 const css = `
 .lk-path { display: inline-flex; align-items: baseline; align-self: flex-start; max-width: 24em; margin: 17px 0 0 -6px; padding-left: 18px; overflow: hidden; white-space: nowrap; line-height: 1.6; vertical-align: middle; font-size: 14px; }
-/* Too long for the row, the line gives way from the middle, then the nearest tag if it alone is too long; the kind stays whole. */
-.lk-path > a.lk-tag { flex: 0 1000 auto; min-width: 2em; overflow: hidden; text-overflow: ellipsis; }
+/* Too long for the row, the line gives way from the middle, then the nearest tag if it alone is too long; the kind stays whole.
+   How far a tag gives way is never more than its name is long (--lk-n, its letters; a tag is mono, a letter is 1ch), so a
+   short name keeps no room after it: a floor of 4em once left a wide gap after "Doctor". */
+.lk-path > a.lk-tag { flex: 0 1000 auto; min-width: min(3ch, calc(var(--lk-n, 3) * 1ch)); overflow: hidden; text-overflow: ellipsis; }
 .lk-path > a.lk-end { flex-shrink: 0; }
-.lk-path > .lk-held { display: inline-flex; flex: 0 1 auto; min-width: 4em; }
-.lk-path > .lk-held > a.lk-tag { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.lk-path > .lk-held { display: inline-flex; flex: 0 1 auto; }
+.lk-path > .lk-held > a.lk-tag { min-width: min(8ch, calc(var(--lk-n, 8) * 1ch)); overflow: hidden; text-overflow: ellipsis; }
 .lk-path > .lk-sep { flex: none; }
 .lk-path .lk-sep { margin: 0 .35em; color: var(--lk-faint); }
 .lk-path .lk-own { position: relative; }
@@ -46,7 +48,7 @@ function groupsOf(index, uuid) {
   for (const chain of index.chainsOfPage(uuid)) groups.push(chain);
   return groups;
 }
-const link = (doc, t, end) => el(doc, 'a', { class: end ? 'lk-tag lk-end' : 'lk-tag', href: '#', 'data-uuid': t.uuid }, t.title);
+const link = (doc, t, end) => el(doc, 'a', { class: end ? 'lk-tag lk-end' : 'lk-tag', href: '#', 'data-uuid': t.uuid, style: `--lk-n: ${[...String(t.title)].length}` }, t.title);
 const asks = () => window.PluginDoor.runs('structure') && !!window.Structure?.app;
 function held(doc, t, tagPage) {
   if (tagPage && !asks()) return link(doc, t);
