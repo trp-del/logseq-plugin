@@ -76,6 +76,7 @@ async function main() {
     }
   });
   try { Door.settingsWays.start(); } catch (error) { console.error('The settings window: could not start', error); notify(`The settings window could not start: ${error.message}`, 'warning'); }
+  try { logseq.App.registerCommandPalette({ key: 'update-plugins', label: 'Update plugins', keybinding: { binding: 'u p' } }, updatePlugins); } catch (error) { console.error('Update plugins: the command could not be registered', error); }
   // A switch flipped: nothing starts or stops live (a module's commands and menu items cannot be taken back), so say so.
   logseq.onSettingsChanged?.((now, before) => {
     if (!before) return;   // Logseq rewrites every setting as the plugin starts: a default being filled in, not a change
@@ -88,7 +89,30 @@ async function main() {
   await graphReady();
   for (const module of Door.modules) if (on(module)) await startModule(module);
   Door.settingsWays.reopen();
+  sayUpdated();
 }
+/* Update plugins (u then p outside a bullet, as Logseq's own two-key pairs, or the command palette): every plugin that is
+   switched on loads again, so one loaded from a folder runs what changed there; a plugin switched off stays off. This plugin
+   goes last, since its reload ends this code; its files come under a new address each start (loader.js), so nothing old stays. */
+async function updatePlugins() {
+  const core = window.parent.LSPluginCore, me = logseq.baseInfo?.id;
+  if (!core?.registeredPlugins) return notify('Logseq would not reload its plugins from here.', 'warning');
+  const others = [...core.registeredPlugins.values()].filter(p => p.loaded && p.id !== me);
+  let failed = 0;
+  for (const p of others) { try { await core.reload(p.id); } catch (error) { failed++; console.error(`Update plugins: ${p.id} could not reload`, error); } }
+  // A notice goes with the plugin that showed it, so the reloaded plugin says it, from a note left here.
+  try { window.parent.sessionStorage.setItem(UPDATED_KEY, String(failed)); } catch (error) { /* it only will not be said */ }
+  window.parent.setTimeout(() => core.reload(me), 0);
+}
+const UPDATED_KEY = 'logseq-plugin-updated';
+function sayUpdated() {
+  let failed = null;
+  try { failed = window.parent.sessionStorage.getItem(UPDATED_KEY); window.parent.sessionStorage.removeItem(UPDATED_KEY); } catch (error) { return; }
+  if (failed == null) return;
+  const n = Number(failed) || 0;
+  notify(n ? `Plugins updated; ${n} could not reload` : 'Plugins updated', n ? 'warning' : 'success');
+}
+Door.updatePlugins = updatePlugins;
 logseq.useSettingsSchema(schema);
 logseq.ready(main).catch(error => console.error('Logseq Plugin: could not start', error));
 })();

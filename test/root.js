@@ -37,6 +37,18 @@ async function run({ settings = {}, modules, before } = {}) {
 }
 const part = (key, start, stop) => ({ key, title: key, start, stop });
 (async () => {
+  // Update plugins: every other plugin switched on reloads, one switched off stays off, this plugin reloads last.
+  {
+    const reloaded = [], palette = {};
+    const r = await run({ modules: () => [], before: plugin => {
+      plugin.parent.LSPluginCore = { registeredPlugins: new Map([['logseq-plugin', { id: 'logseq-plugin', loaded: true }], ['quiet', { id: 'quiet', loaded: false }], ['other', { id: 'other', loaded: true }]]), reload: async id => { reloaded.push(id); } };
+    } });
+    await sleep(20);
+    assert.ok(r.Door.updatePlugins, 'the command is on the door');
+    await r.Door.updatePlugins(); await sleep(20);
+    assert.deepEqual(reloaded, ['other', 'logseq-plugin'], 'the others first, the one switched off left, this plugin last');
+    assert.equal(r.win.sessionStorage.getItem('logseq-plugin-updated'), '0', 'it leaves a note for the plugin once reloaded, which says it is done');
+  }
   // A start that never answers: the clean-up and the ways in stand before it, it is said, the next module starts.
   let r = await run({ modules: ev => [part('hangs', () => { ev.push('hangs starts'); return new Promise(() => {}); }, () => ev.push('hangs stops')), part('next', () => { ev.push('next starts'); }, () => ev.push('next stops'))] });
   await sleep(120);
