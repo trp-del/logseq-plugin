@@ -214,7 +214,8 @@ async function tagPage() {
   const had = doc.querySelector('.st-tagholder');
   if (!here) { had?.remove(); return; }
   let id = null, prop = null;
-  try { const page = await logseq.Editor.getCurrentPage(); const uuid = String(page?.uuid || ''); id = [...tray.model.tags.values()].find(t => t.uuid === uuid)?.id ?? null; prop = id == null ? [...tray.model.props.values()].find(p => p.uuid === uuid)?.id ?? null : null; } catch (error) { /* no page on screen */ }
+  // A journal day is never a tag's page, even where the graph holds the day as a tag: nothing is set above it.
+  try { const page = await logseq.Editor.getCurrentPage(); const uuid = page?.journalDay ? '' : String(page?.uuid || ''); id = [...tray.model.tags.values()].find(t => t.uuid === uuid)?.id ?? null; prop = id == null ? [...tray.model.props.values()].find(p => p.uuid === uuid)?.id ?? null : null; } catch (error) { /* no page on screen */ }
   if (ask !== tagAsking) return;
   const view = [...app.views].find(v => v.mode === 'tag');
   if (id == null && prop == null) { view?.destroy(); doc.querySelector('.st-tagholder')?.remove(); return; }
