@@ -18,6 +18,7 @@ const calls = [], taken = new Set();   // taken: names some other page, tag or p
 let live = JSON.parse(JSON.stringify({ tags: raw.tags, props: raw.props, nodes: raw.nodes, holders: raw.holders }));
 function fakeQuery(q) {
   const has = (...p) => p.every(x => q.includes(x));
+  if (has('[?j :block/journal-day ?d]')) return q.includes(`#uuid "${dayNamed}"`) ? [[20261103]] : [];
   if (has(':logseq.class/Tag] [?t :db/ident _]')) return [...live.tags.map(t => [{ id: t.id, uuid: t.uuid, title: t.title, ident: ':user.class/' + t.title.replace(/\s/g, '-'), extends: t.parents.map(p => ({ id: p, ident: ':user.class/x' })), properties: t.props.map(p => ({ id: p })) }]), [{ id: 2, uuid: 'u2', title: 'Tag', ident: ':logseq.class/Tag', extends: [{ id: 1 }] }]];
   if (has(':logseq.class/Property] [?p :db/ident _]')) return live.props.map(p => [{ id: p.id, uuid: p.uuid, title: p.title, ident: ':' + p.ident, 'logseq.property/type': ':' + p.type, cardinality: ':db.cardinality/one', classes: p.range.map(r => ({ id: r })) }]);
   if (has('closed-value-property')) return live.props.filter(p => p.choice).map(p => [p.id]);
@@ -40,6 +41,7 @@ function fakeQuery(q) {
   if (has('[?p :block/uuid #uuid')) return [[id('Consultation')]];
   return [];
 }
+let dayNamed = '-';   // a tag that shares a journal day's name
 const html = `<html><head></head><body><div id="main-content-container"><div id="holder"></div></div><div id="right-sidebar"><div class="sidebar-item"><div class="page-title"><h3>x</h3></div><div id="side"></div></div></div></body></html>`;
 const dom = new JSDOM(html, { pretendToBeVisual: true, url: 'http://logseq.test/index.html' });
 const win = dom.window, doc = win.document;
@@ -47,7 +49,7 @@ win.Element.prototype.scrollIntoView = () => {};
 const styles = {}; let unload = null;
 const logseq = {
   ready: fn => Promise.resolve().then(fn), settings: {}, provideStyle: ({ key, style }) => { styles[key] = style; }, provideModel() {}, beforeunload(fn) { unload = fn; },
-  App: { onCurrentGraphChanged(fn) { logseq.graphChanged = fn; }, getCurrentGraph: async () => ({ name: graphName }), onRouteChanged() {}, pushState: (...a) => calls.push(['pushState', ...a]), registerCommandPalette() {}, registerUIItem() {}, setRightSidebarVisible() {} },
+  App: { onCurrentGraphChanged(fn) { logseq.graphChanged = fn; }, getCurrentGraph: async () => ({ name: graphName }), onRouteChanged(fn) { logseq.routeChanged = fn; }, pushState: (...a) => calls.push(['pushState', ...a]), registerCommandPalette() {}, registerUIItem() {}, setRightSidebarVisible() {} },
   DB: { onChanged(fn) { logseq.changed = fn; }, datascriptQuery: async q => { if (failQuery?.test(q)) throw new Error('the read failed'); return fakeQuery(q); } },
   UI: { showMsg: (text, status) => calls.push(['notify', status, text]) },
   Editor: {
@@ -153,6 +155,23 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   sideView.destroy(); side.remove();
 
   await unload(); assert.equal(doc.querySelectorAll('.st').length, 0); assert.ok(!doc.getElementById('st-style'));
+  // A tag's page gets its lines above Logseq's table; a journal day never does, nor a tag that shares a day's name (3 Nov:
+  // "Extends · Child tags · Relationships" over the owner's Nov 3rd).
+  {
+    const tag = [...M().tags.values()].find(t => t.uuid && !t.missing), main = doc.getElementById('main-content-container');
+    const show = async journal => {
+      main.querySelectorAll('.page').forEach(p => p.remove());
+      const page = doc.createElement('div'); page.className = journal ? 'is-journals page' : 'page';
+      page.innerHTML = `<div class="page-inner"><div class="ls-page-title"><div class="ls-block" blockid="${tag.uuid}"></div></div><div class="ls-page-blocks"></div></div>`;
+      main.append(page); logseq.routeChanged(); await sleep(80);
+      return !!main.querySelector('.st-tagholder');
+    };
+    assert.ok(await show(false), 'a tag\'s page gets its lines');
+    assert.ok(!(await show(true)), 'a journal day gets none, though the page drawn is a tag');
+    dayNamed = tag.uuid;
+    assert.ok(!(await show(false)), 'a tag that shares a journal day\'s name gets none');
+    dayNamed = '-'; main.querySelectorAll('.page').forEach(p => p.remove()); logseq.routeChanged(); await sleep(50);
+  }
   console.log('load: every check passed (the areas, a move, tray, apply, undo, Every property, finding, a new top-level tag, a tag\'s lines, the sidebar)');
 })().catch(error => { console.error(error); process.exit(1); });
 function Mo() { return win.Structure.model; }

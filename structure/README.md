@@ -10,7 +10,7 @@ Structure tends the ontology. It has three places, all inside Logseq: a page of 
 
 **A relationship** is written as Logseq stores it, by the property's name: "Conversation  Topic: Cancer  12", the tag that holds the property, the property and the tag it holds, and how many nodes. The number comes from the real values, not from how full the property is.
 
-**A tag's page.** Above Logseq's table: Extends (a press changes it), Beside, Child tags with Add child tag, Relationships, then what Structure suggests with its fix. The table's columns are the tag's properties, so there is no list of them. Look's place at the title row stands aside, since Extends says it. A journal day never gets these lines, even where the graph holds the day as a tag.
+**A tag's page.** Above Logseq's table: Extends (a press changes it), Beside, Child tags with Add child tag, Relationships, then what Structure suggests with its fix. The table's columns are the tag's properties, so there is no list of them. Look's place at the title row stands aside, since Extends says it. A journal day never gets these lines, even where the graph holds the day as a tag or a tag shares the day's name; the page is the one drawn on screen, not the one Logseq last named.
 
 **The # list.** Logseq's list and keys stay. Each tag gets its path on the empty line above its row; with letters typed, the first tag stands among the tags above and beside it, as rows the arrow keys pass over. Choosing "New tag" then asks where it goes, in the same way: arrows and Enter write Extends, Escape leaves it with no parent, and you are back in the bullet.
 
