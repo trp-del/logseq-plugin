@@ -688,8 +688,8 @@ function onInput() {
   refresh();
 }
 
-/* Opening and closing. */
-function open() {
+/* Opening and closing. open(typed): the window with those letters already in the find line (">" for the commands). */
+function open(typed = '') {
   const doc = host();
   close();
   S.commands = null;
@@ -714,7 +714,7 @@ function open() {
   dlg.style.height = FRAME + (setting('rowsShown') || 12) * ROW + 'px';
   doc.body.appendChild(dlg);
   S.dlg = dlg; S.doc = doc;
-  Object.assign(S, { picks: [], typed: '', mode: 'rows', rowAt: 0, choiceAt: 0, allShown: false, dug: [], failed: '', enter: null });
+  Object.assign(S, { picks: [], typed, mode: 'rows', rowAt: 0, choiceAt: 0, allShown: false, dug: [], failed: '', enter: null });
   S.moreOf.clear(); S.openGroups.clear(); S.groupAll.clear();
   if (typeof dlg.showModal === 'function') dlg.showModal(); else dlg.setAttribute('open', '');
   input.focus();
@@ -728,8 +728,14 @@ function close() {
   d.remove();
 }
 const toggle = () => (S.dlg ? close() : open());
+// The commands' key: open with > typed; pressed while the commands are listed, it closes; from anything else it turns to them.
+function commands() {
+  if (S.dlg && isCommandMode()) return close();
+  if (!S.dlg) return open('>');
+  S.typed = '>'; S.picks = []; S.mode = 'rows'; S.rowAt = 0; S.dug = []; refresh(); S.dlg.querySelector('.fd-input')?.focus();
+}
 // The graph changed: what was read is read again next time. What an open window shows stays until the next opening.
 function forget() { S.cache.kind.clear(); S.cache.kindFacets.clear(); S.cache.counted.clear(); S.cache.words.clear(); S.stale = true; db.forget(); }
 
-Find.window = { open, close, toggle, forget, state: S };
+Find.window = { open, close, toggle, commands, forget, state: S };
 })();

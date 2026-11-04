@@ -195,6 +195,13 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
   assert.ok(text('.fd-r').some(t => t.includes('Go to journals')), '> lists the commands');
   await key('Escape');
   assert.equal(doc.querySelector('dialog.fd'), null, 'Escape closes');
+  // Cmd Shift . opens the window with > typed, the commands listed; again, it closes.
+  { const press = () => doc.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: '>', code: 'Period', metaKey: true, shiftKey: true, bubbles: true, cancelable: true }));
+    press(); await settle();
+    assert.equal(doc.querySelector('.fd-input')?.value, '>', 'Cmd Shift . opens the window with > typed');
+    assert.ok(text('.fd-r .fd-nm').includes('Go to journals'), 'and the commands are listed');
+    press(); await settle();
+    assert.equal(doc.querySelector('dialog.fd'), null, 'pressed again, it closes'); }
   // A mouse press leaves the keyboard in the one box, and a change in the graph leaves the window as it is.
   Find.window.open(); await settle();
   const box = () => doc.querySelector('.fd-input'), shown = () => [text('.fd-c'), text('.fd-r .fd-w')], at = shown();

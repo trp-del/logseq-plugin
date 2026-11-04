@@ -10,6 +10,9 @@ function listenForKeys() {
   if (keyListener) doc.removeEventListener('keydown', keyListener, true);
   keyListener = event => {
     const mod = isMac ? event.metaKey : event.ctrlKey;
+    // Cmd Shift . (Ctrl elsewhere): the window with > typed, Logseq's commands listed; again, it closes. The period by its place
+    // on the keyboard, since with Shift it reads > on most layouts. No key of Logseq's uses it.
+    if (mod && event.shiftKey && !event.altKey && (event.code === 'Period' || event.key === '>' || event.key === '.')) { event.preventDefault(); event.stopPropagation(); Find.window.commands(); return; }
     if (!mod || event.altKey || String(event.key).toLowerCase() !== 'k') return;
     // Keys typed inside our own window never reach here (its dialog stops them); Logseq's own search box does.
     const takes = Find.settings.setting('takesSearchKey');
