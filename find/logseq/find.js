@@ -105,6 +105,8 @@ const setting = key => Find.settings.setting(key);
 const words = () => S.typed.trim().toLowerCase().split(/\s+/).filter(Boolean);
 const isCommandMode = () => S.typed.startsWith('>');
 const kindPick = () => S.picks.find(p => p.kind === 'tag');
+const isMac = /Mac/i.test(navigator.platform || '');
+const MOD = isMac ? 'Cmd' : 'Ctrl';
 const hasWord = (text, ws) => { const t = text.toLowerCase(); return ws.every(w => t.includes(w)); };
 
 /* What is on screen, worked out from the picks and the letters. */
@@ -449,7 +451,8 @@ const KEY = (k, label) => `<span>${label}<span class="fd-k">${k}</span></span>`;
    sidebar Shift Enter", dig →, close ←. What a key does is in the text colour and the key faint beside it, as in the Pressing set; the key is a word at the
    foot's own size, since the symbols ⏎ and ⇧⏎ small and faint could not be read. Not a legend of keys (none is wanted, 31 October): each word is the action at hand, and it changes
    with the cursor. Taken out that morning under the ruling, asked back the same day ("there are no hints at the bottom of
-   view anymore like tab or shift enter"). The right end offers to make a page from the words. */
+   view anymore like tab or shift enter"). The right end offers to make a page from the words, with its key: Cmd Enter, or Enter when
+   nothing is listed. */
 function foot(doc, groups, rows) {
   const items = [];
   const add = html => items.push(el(doc, 'span', { html }));
@@ -467,7 +470,7 @@ function foot(doc, groups, rows) {
   if (cur?.kind === 'node' && cur.top) add(KEY(S.dug.includes(cur.node.uuid) ? '←' : '→', S.dug.includes(cur.node.uuid) ? 'close' : 'dig'));
   if (cur?.kind === 'group') add(KEY(S.openGroups.has(cur.key) ? '←' : '→', S.openGroups.has(cur.key) ? 'close' : 'open'));
   if (S.picks.length && !S.typed) add(KEY('Backspace', `take ${esc(S.picks[S.picks.length - 1].title || S.picks[S.picks.length - 1].label)} off`));
-  if (words().length && !kindPick()) { const name = S.typed.trim(); items.push(el(doc, 'span', { class: 'fd-right' }, el(doc, 'button', { class: 'lk-lone lk-i-plus', type: 'button', title: 'Make a page with these words as its name', click: () => makePage(name) }, `make a page “${name}”`, makesPage(rows) ? el(doc, 'span', { class: 'fd-k' }, 'Enter') : ''))); }
+  if (words().length && !kindPick()) { const name = S.typed.trim(); items.push(el(doc, 'span', { class: 'fd-right' }, el(doc, 'button', { class: 'lk-lone lk-i-plus', type: 'button', title: 'Make a page with these words as its name', click: () => makePage(name) }, `make a page “${name}”`, el(doc, 'span', { class: 'fd-k' }, makesPage(rows) ? 'Enter' : MOD + ' Enter')))); }
   return items;
 }
 
@@ -504,6 +507,8 @@ async function makePage(name) {
   catch (error) { notify('The page was not made: ' + (error?.message || error), 'warning'); }
   finally { S.making = false; }
 }
+// Words typed and no kind picked: a page can be made of them, whatever is listed, with Cmd Enter (Ctrl elsewhere).
+const canMake = () => !!words().length && !kindPick() && !isCommandMode();
 // With no rows at all, making a page is the one thing offered, so Enter does it.
 const makesPage = rows => !rows.length && !!words().length && !kindPick() && !isCommandMode() && !S.loading && !S.failed;
 // Down past the last row of a list shows the rest of that list.
@@ -538,6 +543,7 @@ function onKey(event) {
   // takes the choice too, as a click would).
   if (k === 'Enter') {
     take();
+    if (isMac ? event.metaKey : event.ctrlKey) { if (canMake()) makePage(S.typed.trim()); return; }
     if (S.loading) S.enter = { shift: event.shiftKey }; else takeEnter(event.shiftKey);
     return;
   }

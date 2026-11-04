@@ -246,7 +246,9 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
   { const input = doc.querySelector('.fd-input'); input.value = 'nor has this'; input.dispatchEvent(new dom.window.Event('input', { bubbles: true })); input.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })); assert.deepEqual(made, [], 'not before the letters are read'); }
   await settle(); await sleep(50); assert.deepEqual(made, ['nor has this'], 'then it takes what they found'); made = [];
   Find.window.close(); Find.window.open(); await settle(); await type('mei');
-  assert.deepEqual(text('.fd-foot .fd-right .fd-k'), [], 'with rows, the key is not offered there'); await key('Enter'); assert.deepEqual(made, [], 'and Enter opens the row'); opened.length = 0;
+  assert.deepEqual(text('.fd-foot .fd-right .fd-k'), ['Cmd Enter'], 'with rows, the key beside "make a page" is Cmd Enter'); await key('Enter'); assert.deepEqual(made, [], 'and Enter opens the row'); opened.length = 0;
+  Find.window.open(); await settle(); await type('mei'); await key('Enter', { metaKey: true }); assert.deepEqual(made, ['mei'], 'Cmd Enter makes the page though rows are listed'); made = [];
+  Find.window.close(); Find.window.open(); await settle(); await type('cons'); await key('Tab'); await key('Enter', { metaKey: true }); assert.deepEqual([made, opened], [[], []], 'with a kind picked, Cmd Enter makes nothing and opens nothing'); Find.window.close();
   // Row thirteen on: Down past the last row shows the rest, the cursor on the first of them.
   Find.window.open(); await settle(); await type('cons'); await key('Tab'); await settle();
   logseq.settings.rowsShown = 2; await type('s'); await type('');
