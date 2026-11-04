@@ -48,21 +48,6 @@ Door.datedDays = rows => {
   }
   return days;
 };
-// The tags a graph may name each of the four sorts by, and which it is.
-Door.SORT_NAMES = { entity: 'entity', entities: 'entity', occurrence: 'occurrence', occurrences: 'occurrence', phenomena: 'phenomenon', phenomenon: 'phenomenon', information: 'information', interpretation: 'information' };
-
-/* The four sorts of thing and their marks, as the grammar page draws them: Entity (∃, the logical symbol), Occurrence
-   (an open ring), Phenomena (a small wave), Information (three dots, ∴). One drawing, used before a link, in a page's icon
-   slot, in lists and in Structure's tree. The shapes are 10 by 10. */
-Door.MARKS = {
-  entity: "<path d='M2 1.8H8V8.2H2M3.6 5H8' fill='none' stroke='currentColor' stroke-width='1.4'/>",
-  occurrence: "<circle cx='5' cy='5' r='3.3' fill='none' stroke='currentColor' stroke-width='1.3'/>",
-  phenomenon: "<path d='M1.3 6.2q1.85-3.4 3.7 0t3.7 0' fill='none' stroke='currentColor' stroke-width='1.3' stroke-linecap='round'/>",
-  information: "<circle cx='5' cy='2.6' r='1.25' fill='currentColor'/><circle cx='2.3' cy='7.3' r='1.25' fill='currentColor'/><circle cx='7.7' cy='7.3' r='1.25' fill='currentColor'/>",
-};
-Door.markSvg = (sort, colour = 'currentColor') => `<svg viewBox="0 0 10 10" aria-hidden="true">${(Door.MARKS[sort] || '').replace(/currentColor/g, colour)}</svg>`;
-// A mark as a picture for a stylesheet (a background takes no currentColor, so the grey is given).
-Door.markUrl = (sort, colour) => `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'>${(Door.MARKS[sort] || '').replace(/currentColor/g, colour)}</svg>`)}")`;
 /* What a property holds, as an icon: the web (three dots joined) for a link to nodes, drawn here because no font has it;
    the rest from Logseq's own icon font (Tabler, loaded on every page). */
 Door.WEB = '<svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M6 2.6 2.4 9.2h7.2Z" fill="none" stroke="currentColor" stroke-width="1"/><circle cx="6" cy="2.6" r="1.7" fill="currentColor"/><circle cx="2.4" cy="9.2" r="1.7" fill="currentColor"/><circle cx="9.6" cy="9.2" r="1.7" fill="currentColor"/></svg>';

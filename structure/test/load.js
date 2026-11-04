@@ -158,7 +158,7 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   // A tag's page gets its lines above Logseq's table; a journal day never does, nor a tag that shares a day's name (3 Nov:
   // "Extends · Child tags · Relationships" over the owner's Nov 3rd).
   {
-    const tag = [...M().tags.values()].find(t => t.uuid && !t.missing), main = doc.getElementById('main-content-container');
+    const tag = [...M().tags.values()].find(t => t.uuid), main = doc.getElementById('main-content-container');
     const show = async journal => {
       main.querySelectorAll('.page').forEach(p => p.remove());
       const page = doc.createElement('div'); page.className = journal ? 'is-journals page' : 'page';

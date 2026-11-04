@@ -36,7 +36,6 @@ function sentence(M, c) {
     case 'remove': return { text: [`Remove ${name(M, c.tag)}`, ...losses(tag(M, c.tag))].join(' · '), nodes: count(M, c.tag) };
     case 'make': return { text: c.under == null ? `Make ${c.name} at the top` : `Make ${c.name} under ${name(M, c.under)}`, nodes: 0 };
     case 'keepUnder': return { text: `Keep ${name(M, c.tag)} only under ${name(M, c.parent)}`, nodes: count(M, c.tag) };
-    case 'becomeKind': { const lost = Mo.inherited(M, c.tag).map(x => prop(M, x.prop).title); return { text: `Make ${name(M, c.tag)} the kind${c.name === name(M, c.tag) ? '' : ` ${c.name}`}${lost.length ? `, no longer inheriting ${list(lost)}` : ''}`, nodes: count(M, c.tag) }; }
     case 'setRange': { const to = c.to.filter(id => tag(M, id)); return { text: `Set ${prop(M, c.prop).title} to point at ${to.length ? list(to.map(id => name(M, id))) : 'any node'}`, nodes: prop(M, c.prop).on.reduce((s, t) => s + filled(M, t, c.prop), 0) }; }
     case 'split': return { text: `Make ${c.name} under ${name(M, c.tag)} with ${plural(c.nodes.length, 'node')}${c.where ? ` where ${c.where}` : ''}`, nodes: c.nodes.length };
     default: return { text: c.kind, nodes: 0 };
@@ -51,7 +50,6 @@ function applyToModel(M, c) {
     case 'move': if (t && c.to === Mo.LOOSE) { t.parents = []; Mo.link(M); } else if (t && M.tags.has(c.to) && !Mo.under(M, c.to, c.tag)) { t.parents = [c.to, ...t.parents.filter(p => p !== c.to && p !== parentOf(M, c.tag))]; Mo.link(M); } break;
     case 'takeOut': if (t) { t.parents = t.parents.filter(p => p !== c.from); Mo.link(M); } break;
     case 'rename': if (t) t.title = c.name; break;
-    case 'becomeKind': { const row = tag(M, c.of); if (!t || !row?.missing) break; t.title = c.name; t.parents = []; t.kind = row.kind; M.kinds = M.kinds.map(k => k.id === c.of ? { ...k, id: t.id } : k); M.tags.delete(c.of); Mo.link(M); break; }
     case 'renameProp': { const p = prop(M, c.prop); if (p) p.title = c.name; break; }
     case 'merge': { const from = tag(M, c.from), into = tag(M, c.into); if (!from || !into) break;
       for (const n of from.nodes) into.nodes.add(n); into.nodeUuids = [...new Set([...into.nodeUuids, ...from.nodeUuids])];
@@ -83,9 +81,8 @@ const everyUnder = (M, id) => { const out = []; const walk = x => { for (const k
 function steps(M, c) {
   const H = id => handleOf(M, id), out = [];
   const t = c.tag != null ? tag(M, c.tag) : null;
-  const ensureKind = id => { const k = tag(M, id); if (k?.missing && !k.uuid) out.push({ op: 'makeTag', tag: H(id), parent: null }); };
   switch (c.kind) {
-    case 'move': { if (!t) break; if (c.to === Mo.LOOSE) { for (const p of t.parents) out.push({ op: 'removeExtends', tag: H(c.tag), parent: H(p) }); break; } if (Mo.under(M, c.to, c.tag)) break; ensureKind(c.to); const was = parentOf(M, c.tag); out.push({ op: 'addExtends', tag: H(c.tag), parent: H(c.to) }); if (was != null) out.push({ op: 'removeExtends', tag: H(c.tag), parent: H(was) }); break; }
+    case 'move': { if (!t) break; if (c.to === Mo.LOOSE) { for (const p of t.parents) out.push({ op: 'removeExtends', tag: H(c.tag), parent: H(p) }); break; } if (Mo.under(M, c.to, c.tag)) break; const was = parentOf(M, c.tag); out.push({ op: 'addExtends', tag: H(c.tag), parent: H(c.to) }); if (was != null) out.push({ op: 'removeExtends', tag: H(c.tag), parent: H(was) }); break; }
     case 'takeOut': if (t?.parents.includes(c.from)) out.push({ op: 'removeExtends', tag: H(c.tag), parent: H(c.from) }); break;
     case 'rename': out.push({ op: 'rename', tag: H(c.tag), name: c.name, was: t.title }); break;
     case 'renameProp': out.push({ op: 'rename', prop: propHandle(M, c.prop), name: c.name, was: prop(M, c.prop).title }); break;
@@ -104,10 +101,9 @@ function steps(M, c) {
     case 'addProp': for (const id of c.under != null ? everyUnder(M, c.under) : c.tags) if (!tag(M, id).props.includes(c.prop)) out.push({ op: 'addClassProp', tag: H(id), prop: propHandle(M, c.prop) }); break;
     case 'dropProp': if (t?.props.includes(c.prop)) out.push({ op: 'removeClassProp', tag: H(c.tag), prop: propHandle(M, c.prop) }); break;
     case 'remove': if (t) { for (const k of t.kids) for (const p of t.parents) out.push({ op: 'addExtends', tag: H(k), parent: H(p) }); out.push({ op: 'deleteTag', tag: H(c.tag), restore: restoreOf(M, c.tag) }); } break;
-    case 'make': { if (c.under != null) ensureKind(c.under); const h = { id: c.made ?? M.nextId--, uuid: '', title: c.name }; M.handles.set(h.id, h); out.push({ op: 'makeTag', tag: h, parent: c.under == null ? null : H(c.under) }); break; }
+    case 'make': { const h = { id: c.made ?? M.nextId--, uuid: '', title: c.name }; M.handles.set(h.id, h); out.push({ op: 'makeTag', tag: h, parent: c.under == null ? null : H(c.under) }); break; }
     case 'keepUnder': if (t) for (const p of t.parents) if (p !== c.parent) out.push({ op: 'removeExtends', tag: H(c.tag), parent: H(p) }); break;
-    case 'becomeKind': if (t) { if (c.name !== t.title) out.push({ op: 'rename', tag: H(c.tag), name: c.name, was: t.title }); for (const p of t.parents) out.push({ op: 'removeExtends', tag: H(c.tag), parent: H(p) }); } break;
-    case 'setRange': { const p = prop(M, c.prop); const to = c.to.filter(id => tag(M, id)); if (to.length === p.range.length && to.every(id => p.range.includes(id))) break; for (const id of to) ensureKind(id); out.push({ op: 'setRange', prop: propHandle(M, c.prop), to: to.map(H), was: p.range.map(H) }); break; }
+    case 'setRange': { const p = prop(M, c.prop); const to = c.to.filter(id => tag(M, id)); if (to.length === p.range.length && to.every(id => p.range.includes(id))) break; out.push({ op: 'setRange', prop: propHandle(M, c.prop), to: to.map(H), was: p.range.map(H) }); break; }
     case 'split': { const h = { id: c.made ?? M.nextId--, uuid: '', title: c.name }; M.handles.set(h.id, h); out.push({ op: 'makeTag', tag: h, parent: H(c.tag) }); if (c.prop != null) out.push({ op: 'addClassProp', tag: h, prop: propHandle(M, c.prop) }); for (const n of stillOn(M, c.tag, c.nodes)) { out.push({ op: 'addTag', node: n.uuid, tag: h }); out.push({ op: 'removeTag', node: n.uuid, tag: H(c.tag) }); } break; }
     default: break;
   }

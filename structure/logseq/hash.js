@@ -23,7 +23,7 @@ function start(app, doc) {
   if (!sheet) { sheet = doc.createElement('style'); sheet.id = 'st-hash-style'; sheet.className = 'st-own'; doc.head.appendChild(sheet); }
   sheet.textContent = CSS;
   const M = () => app.tray.model;
-  const byTitle = title => [...M().tags.values()].find(t => !t.missing && t.title === title);
+  const byTitle = title => [...M().tags.values()].find(t => t.title === title);
   // What is being typed after a #, or null when the list open is not the tag list.
   const typed = () => { const a = doc.activeElement; if (a?.tagName !== 'TEXTAREA') return null; const m = /(?:^|\s)#([^#\n]*)$/.exec(a.value.slice(0, a.selectionStart)); return m ? m[1] : null; };
   let was = '';

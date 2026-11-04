@@ -5,7 +5,7 @@ const Look = (window.Look ||= {});
 const host = () => window.parent.document;
 
 // The marks and the property icons are the door's (plugin.js), as are the greys and the shared names.
-const { MARKS, markSvg, markUrl, WEB, kindIconHtml } = window.PluginDoor;
+const { WEB, kindIconHtml } = window.PluginDoor;
 const iconHtml = name => `<i class="lk-icon ti ti-${name}" aria-hidden="true"></i>`;
 
 const esc = text => String(text ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
@@ -79,5 +79,5 @@ function sweep(doc = host()) {
 const openPage = (uuid, inSidebar) => { if (!uuid) return; if (inSidebar) logseq.Editor.openInRightSidebar(uuid); else logseq.App.pushState('page', { name: uuid }); };
 const notify = (message, level = 'info') => logseq.UI.showMsg(message, level);
 
-Look.kit = { host, MARKS, markSvg, markUrl, WEB, kindIconHtml, iconHtml, esc, el, style, watchScreen, run, stopWatching, onGraphChange, graphChanged, sweep, openPage, notify };
+Look.kit = { host, WEB, kindIconHtml, iconHtml, esc, el, style, watchScreen, run, stopWatching, onGraphChange, graphChanged, sweep, openPage, notify };
 })();

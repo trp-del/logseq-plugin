@@ -9,8 +9,6 @@ const query = async q => { const rows = await logseq.DB.datascriptQuery(q); retu
 const EXTENDS = 'logseq.property.class/extends';
 // Logseq's kinds of page say what a page is, not a tag of yours.
 const PAGE_KINDS = new Set(['logseq.class/Page', 'logseq.class/Journal', 'logseq.class/Tag', 'logseq.class/Property', 'logseq.class/Whiteboard']);
-// A graph's own umbrella tag named like one of the four sorts places every tag under it.
-const { SORT_NAMES } = window.PluginDoor;
 
 /* Every tag with its uuid, title and ident, and which tag each extends (Root left out). */
 async function tagIndex() {
@@ -39,48 +37,23 @@ function chainOf({ byId, parents }, id) {
   }
   return { chain, others: (parents.get(id) || []).slice(1).map(p => shown(byId.get(p))) };
 }
-// Which of the four sorts a tag falls under: the umbrella named like one, itself or any tag above it; under two, none.
-function sortOfTag(index, id, memo = new Map()) {
-  if (memo.has(id)) return memo.get(id);
-  memo.set(id, null);
-  const found = new Set(), seen = new Set([id]), queue = [id];
-  while (queue.length) {
-    const at = queue.shift(), tag = index.byId.get(at);
-    const own = tag && !/^logseq\.class\//.test(tag.ident) ? SORT_NAMES[tag.title.trim().toLowerCase()] : null;
-    if (own) { found.add(own); continue; }
-    for (const p of index.parents.get(at) || []) if (!seen.has(p)) { seen.add(p); queue.push(p); }
-  }
-  const one = found.size === 1 ? [...found][0] : null;
-  memo.set(id, one);
-  return one;
-}
-
-/* The index a part keeps: with no wait, the chain of any tag by its uuid, the sort of any tagged node (a page by its uuid
-   or its name, a bullet by its uuid), and the tags a page holds. Read once, again when a page or a tag changes. */
+/* The index a part keeps: with no wait, the chain of any tag by its uuid, the tags a page holds with their chains, and a
+   page's uuid by its name. Read once, again when a page or a tag changes. */
 async function pageIndex() {
   const [index, taggedPages, taggedBlocks] = await Promise.all([tagIndex(),
     query(`[:find ?u ?n ?t :where [?p :block/name ?n] [?p :block/tags ?t] [?p :block/uuid ?u]]`),
     query(`[:find ?u ?t :where [?b :block/page _] [?b :block/tags ?t] [?b :block/uuid ?u] (not [?b :logseq.property/deleted-at _])]`)]);
   const tagged = [...taggedPages, ...taggedBlocks.map(([u, t]) => [u, null, t])];
   const idByUuid = new Map([...index.byId].map(([id, tag]) => [tag.uuid, id]));
-  const memo = new Map();
-  const sortsOf = new Map(), tagsOf = new Map(), uuidByName = new Map();
+  const tagsOf = new Map(), uuidByName = new Map();
   for (const [u, n, t] of tagged) {
     const key = String(u), tag = index.byId.get(t);
     if (n != null) uuidByName.set(String(n), key);
     if (!tag || /^logseq\.class\//.test(tag.ident)) continue;
-    if (!sortsOf.has(key)) sortsOf.set(key, new Set());
-    sortsOf.get(key).add(sortOfTag(index, t, memo));
     if (!tagsOf.has(key)) tagsOf.set(key, []);
     tagsOf.get(key).push(t);
   }
-  const sortByUuid = new Map();
-  for (const [u, sorts] of sortsOf) { sorts.delete(null); if (sorts.size === 1) sortByUuid.set(u, [...sorts][0]); }
-  // A tag has no mark (the grammar), even one given a tag of its own.
-  for (const tag of index.byId.values()) sortByUuid.delete(tag.uuid);
   return {
-    sortByUuid: uuid => sortByUuid.get(String(uuid || '')) || null,
-    sortByName: name => { const u = uuidByName.get(String(name || '').toLowerCase()); return u ? sortByUuid.get(u) || null : null; },
     chainByUuid: uuid => { const id = idByUuid.get(String(uuid || '')); return id == null ? null : chainOf(index, id); },
     isTag: uuid => idByUuid.has(String(uuid || '')),
     isPageKind: uuid => { const id = idByUuid.get(String(uuid || '')); return id != null && PAGE_KINDS.has(index.byId.get(id).ident); },
@@ -175,5 +148,5 @@ const removeTag = (pageUuid, tagUuid) => logseq.Editor.removeBlockTag(pageUuid, 
 const addTag = (pageUuid, tagUuid) => logseq.Editor.addBlockTag(pageUuid, tagUuid);
 const getPage = name => Promise.resolve(logseq.Editor.getPage(name)).catch(() => null);
 
-Look.db = { query, tagIndex, chainOf, sortOfTag, pageIndex, propIndex, heldBelow, removeTag, addTag, getPage, UUID, EXTENDS, PAGE_KINDS, SORT_NAMES };
+Look.db = { query, tagIndex, chainOf, pageIndex, propIndex, heldBelow, removeTag, addTag, getPage, UUID, EXTENDS, PAGE_KINDS };
 })();

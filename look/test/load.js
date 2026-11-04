@@ -33,8 +33,8 @@ const { U, load, pencilled } = standIn;
       ref.previousSibling.nodeValue = 'Smaller '; assert.equal(Look.cites.citedAt(ref), null, 'a link with no bracket before it is no citation'); }
     assert.equal(Look.links.citationsIn([{ title: 'A ([site](https://a.org/b)) B (*Smith 2023*, p. 6) C (*not this* one)' }]).map(note => `${note.id} ${note.title} ${note.page}`).join(', '), 'https://a.org/b site 0, words:smith 2023 Smith 2023 6', 'a web address and plain words are citations too');
     assert.equal(linksIn([{ title: '([site](https://a.org)) (*Smith*) [[Ana]]' }]).join(' '), 'ana');
-    const rows = [{ title: 'Zed', sort: 'entity' }, { title: 'Ada', sort: 'entity' }, { title: 'Scan', sort: 'occurrence' }, { title: 'Note', sort: null }];
-    assert.equal(byKind(rows).map(group => `${group.head}: ${group.rows.map(row => row.title).join(', ')}`).join(' | '), 'Entity: Ada, Zed | Occurrence: Scan | No kind: Note', 'by kind: the kinds in order, by name, the rest last'); }
+    const rows = [{ title: 'Zed', top: 'Visit' }, { title: 'Scan', top: 'Report' }, { title: 'Ada', top: 'Visit' }, { title: 'Entity thing', top: 'Entity' }, { title: 'Note', top: '' }];
+    assert.equal(byKind(rows).map(group => `${group.head}: ${group.rows.map(row => row.title).join(', ')}`).join(' | '), 'Entity: Entity thing | Report: Scan | Visit: Ada, Zed | No tag: Note', 'by kind: a head for each top-level tag, by name, no tag first for its name; the untagged last'); }
   assert.ok(styles['look-quote-bullets'].includes('[data-type="annotation"]') && styles['look-quote-bullets'].includes('.hl-page'), 'a highlight and a bullet that only cites one carry the quotation mark');
   assert.ok(styles['look-tags'].includes('--lk-mono') && !styles['look-tags'].includes('uppercase'), 'tags in mono, as written');
   assert.ok(/\.ls-page-blocks \.ls-block :is\(\.ls-bidirectional-properties/.test(styles['look-two-way'] || '') && !/right-sidebar/.test(styles['look-two-way']), 'Logseq\'s two-way list goes from under a node, a page\'s own list left to Threads');
@@ -49,12 +49,11 @@ const { U, load, pencilled } = standIn;
   // the shared names: a pencilled tag fades once; the one alternative in force takes the text colour
   assert.ok(door.NAMES.includes('.lk-pencil .lk-tag, .lk-tag.lk-pencil { opacity: 1; }'), 'a pencilled tag fades once');
   assert.ok(door.NAMES.includes('.lk-alts > * { color: var(--lk-faint) !important; }') && door.NAMES.includes('.lk-alts { color: inherit !important; }'), 'the alternatives faint one by one, the line itself in the text colour');
-  // the index: chains and sorts
+  // the index: chains, and no sort of any kind (the four kinds are tags like any other since 4 November 2026)
   const index = Look.index; assert.ok(index, 'the page index was read');
   assert.equal(index.chainByUuid(U(3)).chain.map(t => t.title).join('/'), 'Doctor/Person/Entity');
-  assert.equal(index.sortByUuid(U(20)), 'entity'); assert.equal(index.sortByUuid(U(21)), 'phenomenon'); assert.equal(index.sortByName('fatigue'), 'phenomenon');
-  assert.equal(index.sortByUuid(U(3)), null, 'a tag has no mark');
-  assert.equal(index.sortByUuid(U(300)), 'occurrence', 'a tagged bullet has a sort too');
+  assert.ok(!('sortByUuid' in index) && !('sortByName' in index) && !('SORT_NAMES' in Look.db), 'no tag is read as a kind by its name');
+  assert.equal(index.chainsOfPage(U(20))[0].chain.at(-1).title, 'Entity', 'a page’s top-level tag is the last of its chain');
   // no mark of a sort anywhere: before a link, in a page's icon slot, in the left sidebar (taken off 3 November 2026)
   assert.equal(doc.querySelectorAll('[data-lk-sort], .lk-page-mark').length, 0, 'no sort mark is drawn');
   assert.ok(!styles['look-marks'], 'no stylesheet for marks');

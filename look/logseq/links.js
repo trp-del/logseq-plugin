@@ -1,8 +1,8 @@
 /* Links and Endnotes, two words in the right sidebar's bar beside Contents, each opening a section of the sidebar above its items, built as Logseq
    builds one, that folds by its head and goes by its ×, for the page you are on.
 
-   Links: the links in the page's words, each once. Two orders, as words at the top of the section: By kind, four groups with a head naming the
-   kind, so the rows carry no mark, a few of each and then "show all"; or Order on page, each with its mark. A tag, a citation (what /Cite
+   Links: the links in the page's words, each once. Two orders, as words at the top of the section: By kind, a group for each top-level tag
+   the links sit under, by name, its head naming that tag, a few of each and then "show all"; or Order on page. A tag, a citation (what /Cite
    writes), a cited highlight and a file are not links here.
    Endnotes: the citations of the page, numbered in the order they come, the same source at the same page once. A press on a name goes to the source: a
    PDF opens at that page. A press on a number goes back to the bullet, where the same number stands (cites.js).
@@ -14,7 +14,6 @@ const Look = window.Look;
 const { el, style, host, watchScreen, onGraphChange, openPage } = Look.kit;
 const setting = key => Look.settings.setting(key);
 
-const KINDS = [['entity', 'Entity'], ['occurrence', 'Occurrence'], ['phenomenon', 'Phenomena'], ['information', 'Information']];
 const FEW = 5;
 const LINK = /(?<!#)\[\[([^[\]]+)\]\]/g;
 const CITATION = /\((?:\[\[([^[\]]+)\]\]|\[([^\]]+)\]\((https?:[^)\s]+)\)|\*([^*]+)\*)(?:, p\. (\d+))?\)/g;   // a node, a web address, plain words
@@ -37,11 +36,13 @@ function citationsIn(tree) {
   } });
   return [...seen.values()];
 }
-// Rows with a kind go under their heads, in the kinds' order, by name; the rest come last, under a head saying so.
+// Rows go under the top-level tag they sit under, the heads by name, the rows by name; the untagged come last, under a head saying so.
+const NO_TAG = 'No tag';
 function byKind(rows) {
-  const names = (a, b) => a.title.localeCompare(b.title);
-  const groups = KINDS.map(([kind, head]) => ({ head, rows: rows.filter(row => row.sort === kind).sort(names) }));
-  return [...groups, { head: 'No kind', rows: rows.filter(row => !KINDS.some(([kind]) => kind === row.sort)).sort(names) }].filter(group => group.rows.length);
+  const names = (a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' });
+  const heads = [...new Set(rows.map(row => row.top).filter(Boolean))].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+  const groups = heads.map(head => ({ head, rows: rows.filter(row => row.top === head).sort(names) }));
+  return [...groups, { head: NO_TAG, rows: rows.filter(row => !row.top).sort(names) }].filter(group => group.rows.length);
 }
 
 async function titlesOf(uuids) {
@@ -58,7 +59,8 @@ async function readRows(blocks, own) {
   for (const uuid of uuids.map(uuid => uuid.toLowerCase())) {
     const node = found.get(uuid);
     if (!node || node.file || index?.isTag(uuid)) continue;
-    rows.push({ uuid, title: await wordsOf(uuid, node.title), sort: index?.sortByUuid(uuid) || null, tag: index?.chainsOfPage(uuid)?.[0]?.chain?.[0]?.title || '' });
+    const chain = index?.chainsOfPage(uuid)?.[0]?.chain || [];
+    rows.push({ uuid, title: await wordsOf(uuid, node.title), tag: chain[0]?.title || '', top: chain.at(-1)?.title || '' });
   }
   return rows;
 }
@@ -105,7 +107,7 @@ function linksBody(doc) {
   else if (!state.rows.length) body.push(el(doc, 'div', { class: 'lk-links-none' }, 'No links in this page’s words.'));
   else if (state.view === 'kind') for (const group of byKind(state.rows)) {
     const open = state.all.has(group.head), shown = open ? group.rows : group.rows.slice(0, FEW);
-    body.push(el(doc, 'div', { class: 'lk-links-group' }, el(doc, 'div', { class: 'lk-links-head' }, group.head), ...shown.map(row => rowOf(doc, row, group.head !== 'No kind')),
+    body.push(el(doc, 'div', { class: 'lk-links-group' }, el(doc, 'div', { class: 'lk-links-head' }, group.head), ...shown.map(row => rowOf(doc, row, group.head !== NO_TAG)),
       shown.length < group.rows.length ? el(doc, 'button', { class: 'lk-more', type: 'button', click: () => { state.all.add(group.head); render(doc); unrollRest(doc, group.head); } }, `show all ${group.rows.length}`) : null));
   } else body.push(...state.rows.map(row => rowOf(doc, row, false)));
   return body;

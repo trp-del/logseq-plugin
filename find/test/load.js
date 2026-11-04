@@ -239,17 +239,15 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
   await type('s'); await type('');
   assert.deepEqual(text('.fd-none'), ['the newest 4 of 9'], 'the list says it is cut');
   await key('Escape'); Find.window.forget();
-  // The margin says when a node happened: the property titled Date, else the earliest date, else the day it is written on; an Entity nothing.
+  // The margin says when a node happened: the property titled Date, else the earliest date, else the day it is written on, whatever its tag.
   DATED = [[40, 20260815, 'Visited'], [40, 20260903, 'Date'], [41, 20260601, 'Noted'], [41, 20260501, 'Seen']]; Find.db.forget();
   const dayOf = async id => (await Find.db.details([id], []))[0].day;
   assert.equal(await dayOf(40), 20260903, 'the property titled Date first, though another is earlier');
   assert.equal(await dayOf(41), 20260501, 'else the earliest date');
   assert.equal(await dayOf(42), 20260901, 'else the journal day it is written on');
   ENTITY = true; Find.db.forget();
-  assert.equal(await dayOf(40), 0, 'an Entity shows no day, whatever it holds and wherever it is written');
-  assert.equal(await dayOf(42), 0, 'nor one on a journal page');
-  const sorted = (await Find.db.details([41, 43, 42], [])).sort(Find.db.byDay).map(n => n.id);
-  assert.deepEqual(sorted, [41, 42, 43], 'with no day they keep the order of the days they were written');
+  assert.equal(await dayOf(40), 20260903, 'a tag called Entity is a tag like any other: its node keeps its day');
+  assert.equal(await dayOf(42), 20260901, 'and the journal day it is written on');
   ENTITY = false; Find.db.forget();
   Find.window.open(); await settle(); await type('cons'); await key('Tab'); await settle();
   assert.ok(text('.fd-r .fd-day').includes('Sep 3') && text('.fd-r .fd-day').includes('May 1'), 'the rows carry those days: ' + text('.fd-r .fd-day'));
@@ -286,13 +284,13 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
     assert.deepEqual(text('.fd-tree .fd-col'), ['Consultation4', 'Doctor2'], 'opened with nothing typed, the kinds stand in columns under their top-level tags');
     assert.ok(doc.querySelector('.fd-c.fd-lit')?.textContent.startsWith('Consultation'), 'the cursor on the first of them');
     await key('Escape'); await key('Escape'); await settle(); Find.window.state.kinds = kept; }
-  // The columns: the four kinds first, each tag under its parent, stepped in by depth; Down runs down a column, Right goes beside.
+  // The columns: the top-level tags by name, each tag under its parent, stepped in by depth; Right goes beside, Down runs down a column.
   { ENTITY = true; Find.db.forget(); Find.window.forget(); Find.window.open(); await settle();
     Find.window.state.moreOf.add('kind'); await key('Tab');
-    assert.deepEqual([...doc.querySelectorAll('.fd-tree .fd-col')].map(c => [...c.querySelectorAll('.fd-c')].map(b => (b.classList.contains('fd-top') ? '*' : '') + b.childNodes[0].textContent + ':' + b.style.getPropertyValue('--fd-depth').trim())), [['*Entity:0', 'Consultation:0'], ['*Doctor:0']], 'Entity first, Consultation under it, Doctor a column of its own');
+    assert.deepEqual([...doc.querySelectorAll('.fd-tree .fd-col')].map(c => [...c.querySelectorAll('.fd-c')].map(b => (b.classList.contains('fd-top') ? '*' : '') + b.childNodes[0].textContent + ':' + b.style.getPropertyValue('--fd-depth').trim())), [['*Doctor:0'], ['*Entity:0', 'Consultation:0']], 'by name: Doctor first, then Entity with Consultation under it; Entity has no place of its own');
+    await key('ArrowRight'); assert.ok(doc.querySelector('.fd-c.fd-lit')?.textContent.startsWith('Entity'), 'Right goes to the column beside');
     await key('ArrowDown'); assert.ok(doc.querySelector('.fd-c.fd-lit')?.textContent.startsWith('Consultation'), 'Down steps down the column');
-    await key('ArrowRight'); assert.ok(doc.querySelector('.fd-c.fd-lit')?.textContent.startsWith('Doctor'), 'Right goes to the column beside');
-    await key('Enter'); assert.deepEqual(text('.fd-piece .lk-tag'), ['Doctor'], 'Enter picks the kind');
+    await key('Enter'); assert.deepEqual(text('.fd-piece .lk-tag'), ['Consultation'], 'Enter picks the kind');
     await key('Escape'); await settle(); ENTITY = false; Find.db.forget(); Find.window.forget(); }
   { Find.window.open(); await settle(); await type('cons'); await key('Tab'); await settle();
     Find.window.state.facets = { props: ['a', 'b', 'c', 'd', 'e'].map(n => ({ name: n, type: 'default', values: [{ key: '1', label: n + '1', count: 1 }, { key: '2', label: n + '2', count: 2 }] })), months: [], kinds: [] };

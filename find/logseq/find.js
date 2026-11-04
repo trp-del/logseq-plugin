@@ -186,7 +186,7 @@ function countFacets(nodes, full) {
     .map(p => ({ ...p, held: p.values.reduce((n, v) => n + v.count, 0) }))
     .sort((a, b) => b.held - a.held || a.name.localeCompare(b.name));
 }
-// The kinds beneath the picked one, among its nodes: under Entity, Doctor, Person, Organization. Two or more, else none.
+// The kinds beneath the picked one, among its nodes: under Person, Doctor and Nurse. Two or more, else none.
 function kindsBeneath(tag, nodes) {
   const kinds = kindCounts(nodes).filter(k => k.id !== tag.id);
   return kinds.length > 1 ? kinds : [];

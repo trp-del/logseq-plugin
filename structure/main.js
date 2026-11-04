@@ -110,11 +110,11 @@ const app = {
   // The map opened on a tag (from the sidebar, the toolbar): a jump, so Escape in the map comes back to where it was.
   openMain(id) { const st = app.st; if (id != null && (st.cur !== id || st.propCur || st.view !== 'tree')) { if (st.cur != null) st.trail.push({ view: st.view, cur: st.cur, propCur: st.propCur, nodes: st.nodes }); st.cur = id; st.propCur = null; st.view = 'tree'; st.nodes = null; st.ask = null; S.model.pathOf(tray.model, id).slice(0, -1).forEach(a => st.open.add(a)); } mounts.openPage(); app.draw(); },
   openNode(uuid, inSidebar) { if (!uuid) return; if (inSidebar) logseq.Editor.openInRightSidebar(uuid); else logseq.App.pushState('page', { name: uuid }); },
-  // What a tag's count counts: its own nodes and those beneath, each with the tag it carries. An Entity has no day (the grammar).
+  // What a tag's count counts: its own nodes and those beneath, each with the tag it carries.
   async readNodes(id) {
-    const m = tray.model, timeless = Mo.kindOf(m, id) === 'E';
+    const m = tray.model;
     const list = await S.db.nodesOf([...Mo.nodesUnder(m, id)]);
-    return list.map(x => ({ ...x, tag: Mo.carrier(m, id, x.id), day: timeless ? 0 : x.day })).sort((a, b) => b.day - a.day || b.created - a.created);
+    return list.map(x => ({ ...x, tag: Mo.carrier(m, id, x.id) })).sort((a, b) => b.day - a.day || b.created - a.created);
   },
   // The × on a tag's own page: the tag leaves its place and every node under it what it inherited, so the map asks first, on the tag's card.
   async askTakeOut(tagUuid, parentUuid) {
@@ -150,7 +150,7 @@ function sayLost(why) {
 // The cursor and the ticks kept on what is there: by id, or by name when the id changed (a tag made or put back by Undo), else the tag above.
 function settle(was, up) {
   const m = tray.model;
-  if (app.st.cur !== Mo.LOOSE && (app.st.cur == null || !m.tags.has(app.st.cur))) { const byName = was && [...m.tags.values()].find(t => t.title === was && !t.missing); app.st.cur = byName ? byName.id : m.tags.has(up) ? up : m.kinds[1]?.id ?? m.kinds[0]?.id; }
+  if (app.st.cur !== Mo.LOOSE && (app.st.cur == null || !m.tags.has(app.st.cur))) { const byName = was && [...m.tags.values()].find(t => t.title === was); app.st.cur = byName ? byName.id : m.tags.has(up) ? up : Mo.tops(m)[0] ?? null; }
   if (app.st.side.cur == null) app.st.side.cur = app.st.cur;
   for (const id of [...app.st.ticks]) if (!m.tags.has(id)) app.st.ticks.delete(id);
   if (app.st.side.cur != null && app.st.side.cur !== Mo.LOOSE && !m.tags.has(app.st.side.cur)) app.st.side.cur = app.st.cur;

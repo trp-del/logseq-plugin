@@ -59,11 +59,9 @@ async function kinds() {
   return index.list.filter(t => (!t.own || t.ident === 'logseq.class/Task') && t.under.size).sort((a, b) => b.under.size - a.under.size || a.title.localeCompare(b.title))
     .map(t => ({ id: t.id, uuid: t.uuid, title: t.title, count: t.under.size }));
 }
-/* The kinds as Structure's tree has them, one column per top-level tag: the four kinds first in their order, then any other
-   top-level tag, by title; under each, every tag beneath its first parent, by title, with its depth. Only tags that hold
+/* The kinds as Structure has them, one column per top-level tag, by title (no tag stands first for its name); under each, every tag beneath its first parent, by title, with its depth. Only tags that hold
    nodes, counting those below. Logseq's Task stands last, under a head "Logseq" that is not a kind.
    [{ title, tag: the column's own tag or null, rows: [{ id, uuid, title, count, depth }] }] */
-const SORT_ORDER = ['entity', 'occurrence', 'phenomenon', 'information'];
 async function kindTree() {
   const index = await tagIndex();
   const live = t => t.under.size > 0 && !t.own;
@@ -71,8 +69,7 @@ async function kindTree() {
   const byTitle = (a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' });
   const kidsOf = new Map();
   for (const t of index.list) if (live(t) && t.parents.length) { const p = t.parents[0].id; if (!kidsOf.has(p)) kidsOf.set(p, []); kidsOf.get(p).push(t); }
-  const sortAt = t => { const i = SORT_ORDER.indexOf(window.PluginDoor.SORT_NAMES[t.title.trim().toLowerCase()]); return i < 0 ? SORT_ORDER.length : i; };
-  const tops = index.list.filter(t => live(t) && !t.parents.length).sort((a, b) => sortAt(a) - sortAt(b) || byTitle(a, b));
+  const tops = index.list.filter(t => live(t) && !t.parents.length).sort(byTitle);
   const columns = tops.map(top => {
     const rows = [row(top, 0)], seen = new Set([top.id]);
     const walk = (t, depth) => { for (const kid of (kidsOf.get(t.id) || []).sort(byTitle)) if (!seen.has(kid.id)) { seen.add(kid.id); rows.push(row(kid, depth)); walk(kid, depth + 1); } };
@@ -90,18 +87,6 @@ function kindOf(index, tagIds) {
   return own[0] || null;
 }
 
-// Which of the four sorts a node falls under, from its tags and the tags above them; under two, none (as Look reads it).
-function sortOf(index, tagIds) {
-  const found = new Set(), seen = new Set(), walk = [...tagIds];
-  while (walk.length) {
-    const t = index.byId.get(walk.pop());
-    if (!t || seen.has(t.id)) continue;
-    seen.add(t.id);
-    const sort = t.own ? null : window.PluginDoor.SORT_NAMES[t.title.trim().toLowerCase()];
-    if (sort) found.add(sort); else walk.push(...t.parents.map(p => p.id));
-  }
-  return found.size === 1 ? [...found][0] : null;
-}
 /* The nodes under a kind: id, uuid, title (refs as names), the page they sit on, the day (when it happened, by the rule in
    details), their kind. A kind with more than `limit` nodes keeps its newest, and the list says how many it holds
    in all (cutFrom). */
@@ -134,7 +119,7 @@ async function daysOf(where) {
 /* The details of nodes given by id or by uuid: [{ id, uuid, title, text, isPage, sign, page: { uuid, title, journal }, day, written, tags, kind }].
    sign says what a page is, as Logseq's left sidebar does: 'tag', 'property' (with propType, what it holds), else 'page'; a block none.
    day is the margin's, when the node happened, not when it was written: a journal page its own; a node its date property, else
-   the journal day it is written on; an Entity none, wherever it is written. written keeps the order among those with no day. */
+   the journal day it is written on; else none, whatever its tag. written keeps the order among those with no day. */
 async function details(ids, uuids) {
   const index = await tagIndex();
   const where = ids.length ? `${idsIn('?b', ids)} [?b :block/uuid ?u]` : `${uuidsIn('?u', uuids)} [?b :block/uuid ?u]`;
@@ -154,7 +139,7 @@ async function details(ids, uuids) {
     const isPage = !!name, page = isPage ? null : (pageOf.get(b) || { title: '', journal: 0 });
     const sign = !isPage ? null : propType.has(b) ? 'property' : index.byId.has(b) ? 'tag' : 'page';
     return { id: b, uuid: String(u).toLowerCase(), raw: String(title), isPage, sign, propType: propType.get(b) || '', journal: !!ownDay.get(b), page,
-      day: ownDay.get(b) || (sortOf(index, t) === 'entity' ? 0 : dateDay.get(b) || page?.journal || 0), written: page?.journal || 0, tags: t, kind: kindOf(index, t) };
+      day: ownDay.get(b) || dateDay.get(b) || page?.journal || 0, written: page?.journal || 0, tags: t, kind: kindOf(index, t) };
   });
   await resolveNames(list);
   return list;

@@ -388,26 +388,6 @@ const DRAWN = {
   blank: '<svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"></svg>',
   joins: window.PluginDoor.WEB,
 };
-/* THE four kinds of docs/ONTOLOGY.md (0.4.473), in the chain's order; their marks are the door's. A kind is the graph's
-   own umbrella tag named like one (names). kindOfTag(tag) reads a tag of the tag graph's shape (title, builtIn, parents)
-   up to such an umbrella, at any depth; under two kinds, or none, it has none. */
-const ONTOLOGY = [
-  { key: 'entity', word: 'Entities', low: 'entities', names: ['entity', 'entities'] },
-  { key: 'occurrence', word: 'Occurrences', low: 'occurrences', names: ['occurrence', 'occurrences'] },
-  { key: 'phenomenon', word: 'Phenomena', low: 'phenomena', names: ['phenomenon', 'phenomena'] },
-  { key: 'information', word: 'Information', low: 'information', names: ['information', 'interpretation'] },
-];
-const ONTOLOGY_NAMES = new Map(ONTOLOGY.flatMap(k => k.names.map(n => [n, k])));
-const umbrellaKind = tag => tag && !tag.builtIn ? ONTOLOGY_NAMES.get(String(tag.title || '').trim().toLowerCase()) || null : null;
-function kindOfTag(tag) {
-  const found = new Set(), seen = new Set([tag?.id]), queue = tag ? [tag] : [];
-  while (queue.length) {
-    const t = queue.shift(), own = umbrellaKind(t);
-    if (own) { found.add(own); continue; }
-    for (const p of t.parents || []) if (!seen.has(p.id)) { seen.add(p.id); queue.push(p); }
-  }
-  return found.size === 1 ? [...found][0] : null;
-}
 const iconHtml = name => { const n = ICONS[name] || name; return DRAWN[n] ? `<i class="rf-drawn rf-drawn-${n}" aria-hidden="true">${DRAWN[n]}</i>` : `<i class="ti ti-${esc(n)}" aria-hidden="true"></i>`; };
 const icon = (doc, name, title) => { const n = ICONS[name] || name;
   return el(doc, 'i', { class: DRAWN[n] ? `rf-drawn rf-drawn-${n}` : `ti ti-${n}`, html: DRAWN[n] || null, 'aria-hidden': title ? null : 'true', title: title || null }); };
@@ -864,16 +844,13 @@ function tagTreeRows(matches, opened, sibs, tags, query = '', builtInLast = fals
     // The chevron points down when child tags show below, opened or shown as matches of their own (a Tags list with
     // nothing typed shows every tag; seen in the app with every chevron pointing right).
     rows.push({ t, depth, dim: !dimOk.has(t.id), match: rank.has(t.id), count: kidsOf(t).length, kidsShown: kids.length > 0,
-      kind: depth === 0 ? umbrellaKind(t) : null, nodes: t.nodes ? nodesUnder(t).size : null });
+      nodes: t.nodes ? nodesUnder(t).size : null });
     for (const k of order(kids)) walk(k, depth + 1);
   };
   const roots = [...visible].map(id => tags.byId.get(id)).filter(t => t && !(parentOf(t) && visible.has(parentOf(t).id)));
-  // Listed by name, the four kinds come first in the chain's order (0.4.473: as in the map), then your other tags, then
-  // Logseq's own.
-  const kindRank = t => { const k = umbrellaKind(t); return k ? ONTOLOGY.indexOf(k) : t.builtIn ? 6 : 5; };
-  // While typing too (the reviewer: Logseq's own tags came between the kinds after #pe): the kinds in their order, then
-  // your other tags, then Logseq's own, each group in the order of its best match.
-  const rootOrder = list => order(list).sort((a, b) => kindRank(a) - kindRank(b));
+  // Your tags first, by name (or by best match while typing), then Logseq's own; no tag of yours stands first for its name
+  // (the four kinds stopped being built in on 4 November 2026).
+  const rootOrder = list => order(list).sort((a, b) => !!a.builtIn - !!b.builtIn);
   for (const t of rootOrder(roots)) walk(t, 0);
   return rows;
 }
@@ -1453,7 +1430,7 @@ function ownMarks(doc) {
 
 window.refinementShared = {
   host, notify, lifecycle, sweepLeftovers, take, feature, screen, openEntity, openPageNamed, settingReader, graphNamedIn, perf, warnings,
-  kitCss, el, esc, fragmentOf, ICONS, icon, iconHtml, kindIconHtml, ONTOLOGY, umbrellaKind, kindOfTag, tag, tagLinkHtml, quiet, go, keepKeys, field, fieldHtml, drawnField, outline, chevron, tick, chip, note, guide, choices, popup, popups, pickValue, editInPlace, ask, dialog, bar, cellEdit, tagTreeRows, card, undo,
+  kitCss, el, esc, fragmentOf, ICONS, icon, iconHtml, kindIconHtml, tag, tagLinkHtml, quiet, go, keepKeys, field, fieldHtml, drawnField, outline, chevron, tick, chip, note, guide, choices, popup, popups, pickValue, editInPlace, ask, dialog, bar, cellEdit, tagTreeRows, card, undo,
   MARK_CLASS, MARK_ATTR, isOwnMark, ownMarks, lifeCounts,
 };
 })();
