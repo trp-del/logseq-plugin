@@ -2,7 +2,7 @@
 // by. Then each module's files, its own main.js last, in the order the modules start: Look first, Threads last. main.js, last of all, starts them.
 window.PluginFiles = [
   'plugin.js', 'settings/window.js', 'settings/ways-in.js',
-  'look/logseq/kit.js', 'look/logseq/db.js', 'look/logseq/settings.js', 'look/logseq/style.js', 'look/logseq/marks.js', 'look/logseq/props.js', 'look/logseq/title.js', 'look/logseq/folded.js', 'look/logseq/sidebar.js', 'look/logseq/cites.js', 'look/logseq/links.js', 'look/logseq/values.js', 'look/main.js',
+  'look/logseq/kit.js', 'look/logseq/db.js', 'look/logseq/settings.js', 'look/logseq/style.js', 'look/logseq/marks.js', 'look/logseq/props.js', 'look/logseq/title.js', 'look/logseq/folded.js', 'look/logseq/sidebar.js', 'look/logseq/cites.js', 'look/logseq/links.js', 'look/logseq/values.js', 'look/logseq/notices.js', 'look/main.js',
   'find/logseq/kit.js', 'find/logseq/db.js', 'find/logseq/settings.js', 'find/logseq/commands.js', 'find/logseq/find.js', 'find/main.js',
   'predictive/core/text.js', 'predictive/core/engine.js', 'predictive/core/profile.js', 'predictive/core/dates.js', 'predictive/core/schema.js', 'predictive/core/context.js', 'predictive/core/names.js', 'predictive/core/link.js', 'predictive/core/propose.js', 'predictive/core/model.js', 'predictive/core/score.js',
   'predictive/logseq/settings.js', 'predictive/logseq/db.js', 'predictive/logseq/app.js', 'predictive/logseq/model.js', 'predictive/logseq/link-ui.js', 'predictive/logseq/propose-ui.js', 'predictive/logseq/tag-pick.js', 'predictive/logseq/cite.js', 'predictive/logseq/page-here.js', 'predictive/logseq/steps.js', 'predictive/main.js',

@@ -13,20 +13,21 @@ async function main() {
   Look.cites.start();
   Look.links.start();
   Look.values.start();
+  Look.notices.start();
   logseq.DB.onChanged(change => Look.kit.graphChanged(change));
   const own = Look.settings.schema.map(item => item.key);
-  logseq.onSettingsChanged?.((now, before) => { if (!window.PluginDoor.settingChanged(own, now, before)) return; Look.style.apply(); Look.sidebar.apply(); Look.kit.run(Look.kit.host()); Look.links.load(); });
+  logseq.onSettingsChanged?.((now, before) => { if (!window.PluginDoor.settingChanged(own, now, before)) return; Look.style.apply(); Look.sidebar.apply(); Look.notices.apply(); Look.kit.run(Look.kit.host()); Look.links.load(); });
   logseq.App.onCurrentGraphChanged(() => { Look.marks.load(); Look.props.load(); });
 }
 function stop() {
   // Each on its own: a part that never started must not leave the others running.
-  for (const part of ['marks', 'props', 'title', 'folded', 'sidebar', 'links', 'cites', 'values']) { try { Look[part].stop(); } catch (error) { console.error(`Look: ${part} could not stop`, error); } }
+  for (const part of ['marks', 'props', 'title', 'folded', 'sidebar', 'links', 'cites', 'values', 'notices']) { try { Look[part].stop(); } catch (error) { console.error(`Look: ${part} could not stop`, error); } }
   Look.kit.stopWatching();
   Look.kit.sweep();
 }
 window.PluginDoor.describe('look', { schema: Look.settings.schema, specimen: Look.settings.specimen });
 window.PluginDoor.register({
-  key: 'look', title: 'Look', about: 'How things look: a link in the text colour, a page in a property that opens it, a tag in mono, a page’s place beside its title, an icon of what a property holds.',
+  key: 'look', title: 'Look', about: 'How things look: a link in the text colour, a page in a property that opens it, a tag in mono, a page’s place beside its title, an icon of what a property holds, notices small at the bottom.',
   schema: Look.settings.schema.map(({ key, type, title, description, default: def }) => ({ key, type, title, description, default: def })),
   start: main, stop,
 });
