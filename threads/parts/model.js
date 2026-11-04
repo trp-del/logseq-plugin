@@ -503,6 +503,9 @@ async function mergeFacts(source, target) {
    out, and a page's own blocks do not count as pointing at it. nodeFields(uuid) is what a node's own properties of
    yours hold, by name, each value a day, a title or plain text; firstLines(uuid, n) its first children's words. */
 const UUID_SHAPE = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
+// A tag a row is named by: one of yours, or Logseq's Task, since tasks are things people look for (as Find keeps it). Logseq's
+// other tags (Page, Journal, Tag …) say nothing a row needs.
+const YOUR_TAG = '[?t :db/ident ?ti] (or-join [?ti] (and [(namespace ?ti) ?ns] [(= ?ns "user.class")]) [(= ?ti :logseq.class/Task)])';
 const LIVE = '(not [?b :logseq.property/deleted-at]) (not-join [?b] [?b :block/page ?pg] [?pg :logseq.property/deleted-at])';
 const USER_PROP = /^:?user\.property\//;
 async function linksInto(id) {
@@ -517,7 +520,7 @@ async function linksInto(id) {
   const [links, titled, tagged, dated, written] = await Promise.all([
     dsQuery(`[:find ?page ?pu ?b ?attr ?name ?fu :where ${these} [?prop :block/title ?name] [?page :block/uuid ?pu] [?prop :block/uuid ?fu]]`),
     dsQuery(`[:find ?b ?uuid ?title :where ${these} [?b :block/uuid ?uuid] [?b :block/title ?title]]`),
-    dsQuery(`[:find ?b ?tag :where ${these} [?b :block/tags ?t] [?t :db/ident ?ti] [(namespace ?ti) ?ns] [(= ?ns "user.class")] [?t :block/title ?tag]]`),
+    dsQuery(`[:find ?b ?tag :where ${these} [?b :block/tags ?t] ${YOUR_TAG} [?t :block/title ?tag]]`),
     dsQuery(`[:find ?b ?dattr ?day ?dname :where ${these} [?dprop :logseq.property/type :date] [?dprop :db/ident ?dattr] [?dprop :block/title ?dname] [?b ?dattr ?d] [?d :block/journal-day ?day]]`),
     dsQuery(`[:find ?b ?day :where ${these} [?b :block/page ?p] [?p :block/journal-day ?day]]`),
   ]);
@@ -572,7 +575,7 @@ async function mentionsInto(id) {
   const these = `[(ground [${ids.join(' ')}]) [?page ...]] [?b :block/refs ?page] ${ids.map(one => `[(not= ?b ${one})] (not [?b :block/page ${one}])`).join(' ')} [?b :block/page _] ${LIVE}`;
   const [titled, tagged, dated, written, uuids] = await Promise.all([
     dsQuery(`[:find ?b ?uuid ?title :where ${these} [?b :block/uuid ?uuid] [?b :block/title ?title]]`),
-    dsQuery(`[:find ?b ?tag :where ${these} [?b :block/tags ?t] [?t :db/ident ?ti] [(namespace ?ti) ?ns] [(= ?ns "user.class")] [?t :block/title ?tag]]`),
+    dsQuery(`[:find ?b ?tag :where ${these} [?b :block/tags ?t] ${YOUR_TAG} [?t :block/title ?tag]]`),
     dsQuery(`[:find ?b ?dattr ?day ?dname :where ${these} [?dprop :logseq.property/type :date] [?dprop :db/ident ?dattr] [?dprop :block/title ?dname] [?b ?dattr ?d] [?d :block/journal-day ?day]]`),
     dsQuery(`[:find ?b ?day :where ${these} [?b :block/page ?p] [?p :block/journal-day ?day]]`),
     dsQuery(`[:find ?pu :where [(ground [${ids.join(' ')}]) [?page ...]] [?page :block/uuid ?pu]]`),
@@ -687,7 +690,7 @@ async function nodeLines(ids) {
 async function firstTags(ids) {
   const list = [...new Set((ids || []).filter(id => Number.isSafeInteger(id) && id > 0))];
   if (!list.length) return new Map();
-  const rows = await dsQuery(`[:find ?b ?tag :where [(ground [${list.join(' ')}]) [?b ...]] [?b :block/tags ?t] [?t :db/ident ?ti] [(namespace ?ti) ?ns] [(= ?ns "user.class")] [?t :block/title ?tag]]`);
+  const rows = await dsQuery(`[:find ?b ?tag :where [(ground [${list.join(' ')}]) [?b ...]] [?b :block/tags ?t] ${YOUR_TAG} [?t :block/title ?tag]]`);
   const out = new Map();
   for (const [b, tag] of rows) if (!out.has(b) || tag < out.get(b)) out.set(b, String(tag));
   return out;
