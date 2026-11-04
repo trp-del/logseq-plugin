@@ -17,7 +17,7 @@ let SHARED = false;   // for the check of a tag under two parents: Top over A an
 const TAGS_SHARED = [[5, 'Top', 'user.class/Top'], [6, 'A', 'user.class/A'], [7, 'B', 'user.class/B'], [8, 'Both', 'user.class/Both']];
 const TAGS = [[1, 'Doctor', 'user.class/Doctor'], [2, 'Consultation', 'user.class/Consultation'], [3, 'Page', 'logseq.class/Page'], [4, 'Tag', 'logseq.class/Tag']];
 const CARRIED = [[1, 20], [1, 21], [2, 40], [2, 41], [2, 42], [2, 43], [3, 20], [3, 21], [3, 22], [3, 23]];
-const PAGES = { 20: 'Dr. Mei Chen', 21: 'Dr. Sofia Alvarez', 22: 'Fatigue', 23: 'Tingling fingers', 30: 'Oct 7th, 2026', 31: 'Sep 14th, 2026', 32: 'Sep 1st, 2026', 33: 'Aug 20th, 2026' };
+const PAGES = { 1: 'Doctor', 50: 'Provider', 20: 'Dr. Mei Chen', 21: 'Dr. Sofia Alvarez', 22: 'Fatigue', 23: 'Tingling fingers', 30: 'Oct 7th, 2026', 31: 'Sep 14th, 2026', 32: 'Sep 1st, 2026', 33: 'Aug 20th, 2026' };
 const DAYS = { 30: 20261007, 31: 20260914, 32: 20260901, 33: 20260820 };
 const BLOCKS = { 40: { title: `Video call with [[${U(20)}]] about the tingling`, page: 30, provider: 20, topic: 23 }, 41: { title: `Saw [[${U(20)}]] about the taste changes`, page: 31, provider: 20, topic: 22 },
   42: { title: 'Saw Dr. Mei Chen about not sleeping', page: 32, provider: 20, topic: 22 }, 43: { title: 'Dr. Sofia Alvarez on the scan dates', page: 33, provider: 21, topic: 23 } };
@@ -34,6 +34,7 @@ function fakeQuery(q) {
   if (has('logseq.property.class/extends ?p')) return ENTITY ? [[2, 9]] : SHARED ? [[6, 5], [7, 5], [8, 6], [8, 7]] : [];
   if (has('[?b :block/tags ?t] [?t :block/tags :logseq.class/Tag]')) return SHARED ? [[8, 40], [7, 41]] : CARRIED;
   const given = () => (q.includes('#uuid') ? uuidsIn(q).map(idOfUuid) : idsIn(q));
+  if (has(':find ?b ?type :where') && has('[?b :logseq.property/type ?type]')) return given().filter(id => id === 50).map(id => [id, ':node']);
   if (has(':find ?b ?u ?title ?name :where')) return given().map(id => [id, U(id), titleOf(id), PAGES[id] ? titleOf(id).toLowerCase() : '']);
   if (has(':find ?b ?ptitle ?pday :where')) return given().filter(id => BLOCKS[id]).map(id => [id, PAGES[BLOCKS[id].page], DAYS[BLOCKS[id].page]]);
   if (has(':find ?b ?t :where') && has('[?b :block/tags ?t]')) { const ids = q.includes('#uuid') ? uuidsIn(q).map(idOfUuid) : idsIn(q); return CARRIED.filter(([, b]) => ids.includes(b)).map(([t, b]) => [b, t]); }
@@ -90,6 +91,7 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
   assert.ok(styles['find-find'], 'its stylesheet is sent');
   assert.deepEqual(text('.fd-c'), ['Consultation4', 'Doctor2'], 'the kinds, most first, with how many');
   assert.deepEqual(text('.fd-r .fd-w'), ['Dr. Mei Chen', 'Fatigue'], 'the recents as rows');
+  assert.deepEqual([...doc.querySelectorAll('.fd-r .fd-sign')].map(e => e.className + ' ' + e.innerHTML.match(/ti-[a-z-]+/)?.[0]), ['fd-bul fd-sign fd-page ti-file', 'fd-bul fd-sign fd-page ti-file'], 'a page carries Logseq\'s page sign, not a dot');
   assert.deepEqual(text('.fd-head'), ['recently opened'], 'the one head at rest; no "narrow by", no "open"');
   assert.equal(doc.querySelector('.fd-find .fd-n'), null, 'no count in the find line');
   assert.ok(text('.fd-foot')[0].startsWith('narrowTabopen Dr. Mei Chen'), 'the foot says Tab narrows and Enter opens: ' + text('.fd-foot')[0]);
@@ -170,6 +172,9 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
   await type('mei');
   assert.equal(doc.querySelectorAll('.fd-r').length, 2, 'Logseq\'s results as rows');
   assert.deepEqual(text('.fd-c'), ['Consultation1', 'Doctor1'], 'the kinds among the results, by name when counts tie');
+  assert.deepEqual([...doc.querySelectorAll('.fd-r')].map(r => r.querySelector('.fd-sign')?.classList[2] || (r.querySelector('.fd-d') ? 'dot' : '')), ['fd-page', 'dot'], 'a page its sign, a bullet its dot');
+  { const signs = (await Find.db.details([1, 50], [])).map(n => [n.id, n.sign, n.propType]).sort((a, b) => a[0] - b[0]);
+    assert.deepEqual(signs, [[1, 'tag', ''], [50, 'property', 'node']], 'a tag reads as a tag, a property as a property with what it holds'); }
   await type('>');
   assert.deepEqual(text('.fd-r .fd-nm'), ['Copy page url', 'Redo', 'Go to journals', 'Do the thing', 'Toggle settings', 'Toggle wide mode', 'Plugin settings'], '> lists every command the app holds, by id, named from the dictionary or its own words');
   assert.deepEqual(text('.fd-r .fd-key'), ['', '⌘⇧Z', 'g j', '', 't s', 't w', ''], 'each with its key as the window writes it');

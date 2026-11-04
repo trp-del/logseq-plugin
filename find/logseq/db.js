@@ -101,7 +101,8 @@ async function daysOf(where) {
   const pageOf = new Map(pages.map(([b, ptitle, pday]) => [b, { title: String(ptitle), journal: Number(pday) || 0 }]));
   return [ownDay, dateDay, pageOf];
 }
-/* The details of nodes given by id or by uuid: [{ id, uuid, title, text, isPage, page: { uuid, title, journal }, day, written, tags, kind }].
+/* The details of nodes given by id or by uuid: [{ id, uuid, title, text, isPage, sign, page: { uuid, title, journal }, day, written, tags, kind }].
+   sign says what a page is, as Logseq's left sidebar does: 'tag', 'property' (with propType, what it holds), else 'page'; a block none.
    day is the margin's, when the node happened, not when it was written: a journal page its own; a node its date property, else
    the journal day it is written on; an Entity none, wherever it is written. written keeps the order among those with no day. */
 async function details(ids, uuids) {
@@ -109,17 +110,20 @@ async function details(ids, uuids) {
   const where = ids.length ? `${idsIn('?b', ids)} [?b :block/uuid ?u]` : `${uuidsIn('?u', uuids)} [?b :block/uuid ?u]`;
   if (!ids.length && !uuids.length) return [];
   // A page has no page of its own: the page a block sits on is read apart (a lookup on a missing page id throws).
-  const [basics, tagRows, [ownDay, dateDay, pageOf]] = await Promise.all([
+  const [basics, tagRows, [ownDay, dateDay, pageOf], propRows] = await Promise.all([
     query(`[:find ?b ?u ?title ?name :where ${where} [?b :block/title ?title] [(get-else $ ?b :block/name "") ?name]]`),
     query(`[:find ?b ?t :where ${where} [?b :block/tags ?t]]`),
     daysOf(where),
+    query(`[:find ?b ?type :where ${where} [?b :logseq.property/type ?type]]`),
   ]);
+  const propType = new Map(propRows.map(([b, type]) => [b, bare(type)]));
   const tagsOf = new Map();
   for (const [b, t] of tagRows) { if (!tagsOf.has(b)) tagsOf.set(b, []); tagsOf.get(b).push(t); }
   const list = basics.map(([b, u, title, name]) => {
     const t = tagsOf.get(b) || [];
     const isPage = !!name, page = isPage ? null : (pageOf.get(b) || { title: '', journal: 0 });
-    return { id: b, uuid: String(u).toLowerCase(), raw: String(title), isPage, journal: !!ownDay.get(b), page,
+    const sign = !isPage ? null : propType.has(b) ? 'property' : index.byId.has(b) ? 'tag' : 'page';
+    return { id: b, uuid: String(u).toLowerCase(), raw: String(title), isPage, sign, propType: propType.get(b) || '', journal: !!ownDay.get(b), page,
       day: ownDay.get(b) || (sortOf(index, t) === 'entity' ? 0 : dateDay.get(b) || page?.journal || 0), written: page?.journal || 0, tags: t, kind: kindOf(index, t) };
   });
   await resolveNames(list);

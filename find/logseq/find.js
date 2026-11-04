@@ -63,6 +63,10 @@ const CSS = `
 .fd-bul { display: inline-flex; width: 16px; height: 16px; border-radius: 50%; align-items: center; justify-content: center; align-self: start; margin-top: 2.5px; }
 .fd-bul .fd-d { width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: .55; }
 .fd-bul.fd-folded { background: var(--fd-ring); }
+/* A page, a tag, a property: Logseq's own signs from its left sidebar, and Look's property icon, in the faint grey. */
+.fd-sign { color: var(--fd-faint); font-size: 14px; line-height: 1; margin-top: 3px; }
+.fd-sign .ti, .fd-sign .lk-icon { font-size: 14px; }
+.fd-sign .lk-web svg { width: 11px; height: 11px; }
 .fd-nm { display: flex; align-items: baseline; gap: 7px; min-width: 0; flex-wrap: wrap; }
 .fd-nm .fd-w { min-width: 0; cursor: pointer; }
 .fd-nm .fd-w b { font-weight: 600; }
@@ -354,7 +358,8 @@ function render() {
     row.append(el(doc, 'span', { class: 'fd-day lk-day' }, node.journal ? '' : db.dayLabel(node.day)));   // a journal page's name is its day
     if (r.top) row.append(el(doc, 'button', { class: 'fd-fold lk-fold', type: 'button', 'aria-expanded': String(dug), title: dug ? 'Close' : 'Open in place', click: event => { event.stopPropagation(); S.rowAt = i; S.mode = 'rows'; toggleDig(node); } }, dug ? '▾' : '▸'));
     else row.append(el(doc, 'span', {}));
-    row.append(el(doc, 'span', { class: 'fd-bul' + (node.isPage ? '' : '') }, el(doc, 'i', { class: 'fd-d' })));
+    // What the row is, in the bullet's place: a page Logseq's page sign, a tag its #, a property the icon of what it holds; a bullet its dot.
+    row.append(node.sign ? el(doc, 'span', { class: 'fd-bul fd-sign fd-' + node.sign, title: SIGN_SAYS[node.sign], html: signHtml(node) }) : el(doc, 'span', { class: 'fd-bul' }, el(doc, 'i', { class: 'fd-d' })));
     const nm = el(doc, 'span', { class: 'fd-nm' });
     // Under a kind picked, or a group's head naming one, the kind has been said: no mark before the name.
     const named = r.top ? kindPick() : rows.find(x => x.key === r.under)?.tag;
@@ -445,6 +450,8 @@ function dugBox(doc, node) {
   if (!data.properties.length && !data.pointed.length && !data.mentioned.length) box.append(el(doc, 'div', { class: 'fd-faint' }, 'nothing points here'));
   return box;
 }
+const SIGN_SAYS = { page: 'A page', tag: 'A tag', property: 'A property' };
+const signHtml = node => node.sign === 'property' ? kindIconHtml(node.propType) : `<i class="ti ti-${node.sign === 'tag' ? 'hash' : 'file'}" aria-hidden="true"></i>`;
 const short = (text, max = 36) => { const t = String(text || '').trim(); return t.length > max ? t.slice(0, max - 2).replace(/\s+\S*$/, '') + '…' : t; };
 const KEY = (k, label) => `<span>${label}<span class="fd-k">${k}</span></span>`;
 /* The foot names what the keys do right now, naming the thing: "narrow to Consultation Tab", "open Look test Enter", "in the
