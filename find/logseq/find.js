@@ -61,7 +61,10 @@ const CSS = `
 .fd-icon { display: inline-flex; width: 12px; height: 12px; align-items: center; justify-content: center; color: var(--fd-faint); font-size: 12px; }
 .fd-icon svg { width: 12px; height: 12px; }
 /* The row: day | chevron | bullet | words and tag | right. */
-.fd-r { display: grid; grid-template-columns: 52px 16px 18px minmax(0, 1fr) auto; align-items: baseline; column-gap: 2px; min-height: 32px; padding: 5px 6px 6px 0; border-radius: 3px; cursor: default; }
+/* The day's column is there only when a row in the list has a day; the commands have no margin at all, their words under the >. */
+.fd-body { --fd-day: 52px; }
+.fd-body.fd-noday { --fd-day: 0px; }
+.fd-r { display: grid; grid-template-columns: var(--fd-day) 16px 18px minmax(0, 1fr) auto; align-items: baseline; column-gap: 2px; min-height: 32px; padding: 5px 6px 6px 0; border-radius: 3px; cursor: default; }
 .fd-r.fd-on { background: var(--fd-wash); }
 .fd-r .fd-day { font-size: 12.5px; color: var(--fd-faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .fd-fold { all: unset; cursor: pointer; display: inline-flex; width: 16px; height: 20px; align-items: center; justify-content: center; font-size: 11px; color: inherit; align-self: start; margin-top: .5px; }
@@ -79,20 +82,21 @@ const CSS = `
 .fd-nm .lk-node { cursor: pointer; }
 .fd-right { color: var(--fd-faint); font-size: 12.5px; white-space: nowrap; padding-left: 12px; font-variant-numeric: tabular-nums; }
 .fd-right .fd-key { font-family: var(--fd-mono); }
-.fd-body .fd-showall { display: block; padding: 5px 0 6px 88px; }
-.fd-cut { display: flex; align-items: baseline; padding: 5px 0 6px 88px; }
+.fd-r.fd-cmd { grid-template-columns: minmax(0, 1fr) auto; padding-left: 8px; margin-left: -8px; }
+.fd-body .fd-showall { display: block; padding: 5px 0 6px calc(var(--fd-day) + 36px); }
+.fd-cut { display: flex; align-items: baseline; padding: 5px 0 6px calc(var(--fd-day) + 36px); }
 .fd-cut .fd-showall { padding: 0; }
-.fd-none { color: var(--fd-faint); padding: 6px 0 6px 88px; }
+.fd-none { color: var(--fd-faint); padding: 6px 0 6px calc(var(--fd-day) + 36px); }
 /* A node opened in place: its properties, then what points at it, each a line that opens: the grammar's row, the dot
    ringed while closed, the number after the words as faint as on a lit choice. */
-.fd-kids { margin: 2px 0 6px 76px; padding-left: 10px; border-left: 1px solid var(--fd-hair); }
+.fd-kids { margin: 2px 0 6px calc(var(--fd-day) + 24px); padding-left: 10px; border-left: 1px solid var(--fd-hair); }
 .fd-kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 5px 12px; font-size: 13.5px; align-items: baseline; padding: 4px 0 10px; }
 .fd-kv .fd-k { display: inline-flex; align-items: center; gap: 5px; }
 .fd-kv .fd-v { display: flex; gap: 8px; flex-wrap: wrap; }
 .fd-kids .fd-g { grid-template-columns: 16px 18px minmax(0, 1fr); }
 .fd-kids .fd-g .lk-tag { margin-left: 2px; }
 .fd-gn { margin-left: 16px; }
-.fd-gn .fd-showall { padding-left: 86px; }
+.fd-gn .fd-showall { padding-left: calc(var(--fd-day) + 34px); }
 .fd-ct { color: var(--fd-faint); font-size: 12px; font-variant-numeric: tabular-nums; }
 .fd-faint { color: var(--fd-faint); }
 .fd-foot { display: flex; gap: 16px; flex-wrap: wrap; padding: 8px 16px 10px; border-top: 1px solid var(--fd-hair); font-size: 12.5px; color: var(--lk-text, #222); }
@@ -330,6 +334,9 @@ function render() {
   // the body
   const body = d.querySelector('.fd-body');
   const scrollTop = body.scrollTop;
+  // The day's column stands only when a node in the list has a day to show in it.
+  const dayOf = n => (n.journal ? '' : db.dayLabel(n.day));
+  body.classList.toggle('fd-noday', !isCommandMode() && ![...rows.filter(r => r.kind === 'node').map(r => r.node), ...S.shown].some(dayOf));
   body.replaceChildren();
   if (S.failed) body.append(el(doc, 'div', { class: 'fd-none' }, 'The graph could not be read: ' + S.failed));
   if (!isCommandMode() && groups.length) {
@@ -469,8 +476,7 @@ function wrapIn(doc, row, r) {
 }
 function commandRow(doc, r, i, on) {
   const row = el(doc, 'div', { class: 'fd-r fd-cmd lk-row' + (on ? ' fd-on' : ''), 'data-i': i });
-  // No picture before a command: the > in the find line already says what these are; the words start where every row's do.
-  row.append(el(doc, 'span', {}), el(doc, 'span', {}), el(doc, 'span', {}));
+  // No picture before a command and no margin: the > in the find line already says what these are, and the words start under it.
   row.append(el(doc, 'span', { class: 'fd-nm' }, el(doc, 'span', { class: 'fd-w', html: markWords(esc(r.label), S.typed.slice(1).trim().toLowerCase().split(/\s+/).filter(Boolean)) })));
   row.append(el(doc, 'span', { class: 'fd-right' }, el(doc, 'span', { class: 'fd-key' }, r.key)));
   row.addEventListener('click', () => runCommand(r));

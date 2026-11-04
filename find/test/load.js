@@ -94,6 +94,7 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
   assert.deepEqual(text('.fd-r .fd-w'), ['Dr. Mei Chen', 'Fatigue'], 'the recents as rows');
   assert.deepEqual([...doc.querySelectorAll('.fd-r .fd-sign')].map(e => e.className + ' ' + e.innerHTML.match(/ti-[a-z-]+/)?.[0]), ['fd-bul fd-sign fd-page ti-file', 'fd-bul fd-sign fd-page ti-file'], 'a page carries Logseq\'s page sign, not a dot');
   assert.deepEqual(text('.fd-head'), ['recently opened'], 'the one head at rest; no "narrow by", no "open"');
+  assert.ok(doc.querySelector('.fd-body').classList.contains('fd-noday'), 'pages with no day: no day column, no empty margin');
   assert.equal(doc.querySelector('.fd-find .fd-n'), null, 'no count in the find line');
   assert.ok(text('.fd-foot')[0].startsWith('narrowTabopen Dr. Mei Chen'), 'the foot says Tab narrows and Enter opens: ' + text('.fd-foot')[0]);
   // → digs Dr. Mei Chen open: the line that opens (Provider, from her consultations) is a row with its dot ringed while
@@ -129,6 +130,7 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
   assert.deepEqual(text('.fd-head'), [], 'no head over the choices or the rows: a gap tells them apart');
   assert.deepEqual(text('.fd-ch:nth-of-type(1) .fd-c'), ['Dr. Mei Chen3', 'Dr. Sofia Alvarez1'], 'the Provider values with counts');
   assert.deepEqual(text('.fd-r .fd-day'), ['Oct 7', 'Sep 14', 'Sep 1', 'Aug 20'], 'newest first, the day in the margin');
+  assert.ok(!doc.querySelector('.fd-body').classList.contains('fd-noday'), 'with days, the day column stands');
   assert.equal(doc.querySelectorAll('.fd-r .lk-tag').length, 0, 'the picked kind is not repeated on every row');
   // A letter cannot change the choices, so it does not count them again; an arrow moves the lit mark and draws no row again.
   const counted = Find.window.state.facets;
@@ -180,6 +182,7 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
   assert.deepEqual(text('.fd-r .fd-nm'), ['Copy page url', 'Redo', 'Go to journals', 'Do the thing', 'Toggle settings', 'Toggle wide mode', 'Plugin settings'], '> lists every command the app holds, by id, named from the dictionary or its own words');
   assert.deepEqual(text('.fd-r .fd-key'), ['', '⌘⇧Z', 'g j', '', 't s', 't w', ''], 'each with its key as the window writes it');
   assert.equal(doc.querySelectorAll('.fd-cmd .ti, .fd-cmd .fd-icon').length, 0, 'no picture before a command');
+  assert.ok([...doc.querySelectorAll('.fd-cmd')].every(r => r.children.length === 2), 'and no empty margin: the name, then the key');
   await type('>toggle wide');
   assert.deepEqual(text('.fd-r .fd-nm'), ['Toggle wide mode'], 'the words after > narrow them, every word must occur');
   assert.ok(doc.querySelector('.fd-r .fd-w b, .fd-r .fd-w strong, .fd-r .fd-w mark'), 'the letters are marked in the name');
