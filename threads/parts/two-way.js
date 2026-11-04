@@ -206,7 +206,7 @@ async function mentionsGroup(id, groups) {
   // Each with the page and bullets it sits in, as Linked references shows it (0.4.437).
   const crumbs = provided.crumbsInto ? await provided.crumbsInto(id).catch(() => new Map()) : new Map();
   const items = await Promise.all(found.map(async m => ({ uuid: m.uuid, title: await wordsOf(m.title), tag: m.tag || 'note', day: m.day,
-    crumbs: await Promise.all((crumbs.get(m.uuid) || []).map(async c => shortName(await wordsOf(c.title)))) })));
+    crumbs: await Promise.all((crumbs.get(m.uuid) || []).map(async c => ({ uuid: c.uuid, name: shortName(await wordsOf(c.title)) }))) })));
   items.sort(byWhen(todayNumber()));
   return { name: MENTIONS, label: 'Mentioned in', items, fieldUuid: '', ident: '', mentions: true };
 }
@@ -432,9 +432,10 @@ const couldBeHtml = item => {
   const best = (!item.tag || item.tag === 'note') ? state.raise.get(item.uuid)?.best : null;
   return best ? O.pencil(`could be a ${best.tag.title} · ${best.prop.title}`, { 'data-could': item.uuid, title: `Its words look like a ${best.tag.title}: click to make it one, with “${best.prop.title}” set to this page` }) : '';
 };
-// A crumb that is only the journal day the node is written on says the day again: left out.
-const crumbsOf = item => (item.crumbs || []).filter((c, i) => !(i === 0 && item.day && /^[A-Z][a-z]{2} \d{1,2}(st|nd|rd|th), \d{4}$/.test(c)));
-const crumbHtml = item => crumbsOf(item).length ? `<div class="rf-tw-crumb">${crumbsOf(item).map(esc).join('<span class="rf-ol-sep"> › </span>')}</div>` : '';
+// A crumb that is only the journal day the node is written on says the day again: left out. Each place is a step (lk-step,
+// the faint underline of the trail): a press opens its page or bullet, Shift in the right sidebar.
+const crumbsOf = item => (item.crumbs || []).filter((c, i) => !(i === 0 && item.day && /^[A-Z][a-z]{2} \d{1,2}(st|nd|rd|th), \d{4}$/.test(c.name)));
+const crumbHtml = item => crumbsOf(item).length ? `<div class="rf-tw-crumb">${crumbsOf(item).map(c => `<a class="lk-step" href="#" data-open-uuid="${esc(c.uuid)}">${esc(c.name)}</a>`).join('<span class="rf-ol-sep"> › </span>')}</div>` : '';
 
 /* Digging, one model (0.4.442, docs/REWORK.md 4; it replaces the node opened in a row, the chain opened inside it and the
    step into a node, three models drawn three ways). state.dig: every node open, by its place: the row ('r:Provider'),
@@ -1017,6 +1018,8 @@ function onOutlineClick(event) {
   if (goto) { stop(); state.box?.querySelector(`.rf-ol-unit[data-key="${CSS.escape(goto.dataset.goto)}"]`)?.scrollIntoView({ block: 'start', behavior: shared.screen?.reduced?.() ? 'auto' : 'smooth' }); return true; }
   const page = t.closest('[data-open-page]')?.dataset.openPage;
   if (page) { stop(); openPage(page, event.shiftKey); return true; }
+  const step = t.closest('[data-open-uuid]')?.dataset.openUuid;
+  if (step) { stop(); openEntity(step, event.shiftKey); return true; }
   const bullet = !t.closest('a, button, input') && t.closest('[data-bullet]');
   if (bullet) { stop(); openEntity(bullet.dataset.bullet, event.shiftKey); return true; }
   // A click inside another open node, not on anything that acts, moves the focus there.
@@ -2537,6 +2540,7 @@ const twoWayCss = `
 .refinement-two-way .rf-tw-toplinks { grid-column: 1 / -1; color: var(--rf-quiet); font-size: 13px; padding: 6px 0 5px; margin-bottom: 4px; border-bottom: 1px solid var(--rf-hair); }
 ::highlight(rf-find) { background-color: var(--rx-blue-04, #e1f0ff); } /* a very subtle blue, Logseq's own (the owner: "I don't like a yellow highlight, do very subtle blue") */
 .refinement-two-way .rf-tw-crumb { color: var(--rf-faint); font-size: .82em; line-height: 1.3; padding: 0 0 3px calc(16px + var(--rf-ol-gap)); overflow-wrap: anywhere; }
+.refinement-two-way .rf-tw-crumb .lk-step { font-size: inherit; }
 .refinement-two-way .rf-tw-raise { display: flex; flex-wrap: wrap; column-gap: 1.1em; align-items: baseline; margin: 0 0 .2rem calc(16px + var(--rf-ol-gap)); font-size: .92em; line-height: 1.5; }
 .refinement-two-way .rf-tw-npvalue { all: unset; cursor: pointer; border-radius: 3px; }
 .refinement-two-way .rf-tw-npvalue.rf-faint { color: var(--rf-faint); }
