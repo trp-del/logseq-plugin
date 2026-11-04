@@ -6,7 +6,9 @@
    under it, the views are quiet words in the text colour, the developer views are left out (marked by a screen pass,
    since a stylesheet cannot read their words), and the items lie flat on the sidebar, no card, shadow or rounded corner,
    with a line between one and the next. Two switches. The old plugin's sidebar part drew the same (0.4.419, 0.4.420, the
-   owner: "flattened design of sidebar, removing shadows and adding lines"; "where is this blue coming from?"). */
+   owner: "flattened design of sidebar, removing shadows and adding lines"; "where is this blue coming from?"). A page in it
+   (sidebarPages): its name in the item's head reads as a link and opens the page in the main view, where Logseq would fold the
+   item (its arrow still folds it); its properties stand open, Logseq's "Open properties" pressed once for it and left out. */
 (function () {
 const Look = window.Look;
 const { style, watchScreen } = Look.kit;
@@ -20,7 +22,14 @@ const barCss = `
 const flatCss = `
 #right-sidebar .sidebar-item-list > .sidebar-item, #right-sidebar .sidebar-item-list > .sidebar-item .sidebar-item-header { box-shadow: none !important; background: transparent !important; border-radius: 0 !important; }
 #right-sidebar .sidebar-item-list > .sidebar-item ~ .sidebar-item { border-top: 1px solid var(--lk-line) !important; margin-top: 10px; padding-top: 6px; }
-#right-sidebar .sidebar-item-list { padding-top: 14px !important; }`;
+#right-sidebar .sidebar-item-list { padding-top: 24px !important; }`;
+const PAGE_ITEM = '#right-sidebar .sidebar-item.item-type-page';
+const NAME = `${PAGE_ITEM} .sidebar-item-header .page-title > span:last-child`;
+const PROPS_TOGGLE = `${PAGE_ITEM} .ls-sidebar-page-properties > div:first-child:has(> button:only-child)`;
+const pagesCss = `
+${NAME} { cursor: pointer; text-decoration: underline; text-decoration-color: var(--lk-link); text-decoration-thickness: var(--lk-link-width); text-underline-offset: 3px; }
+${NAME}:hover { text-decoration-color: currentColor; }
+${PROPS_TOGGLE} { display: none !important; }`;
 
 // The developer views are told by their words; the mark is swept with the plugin's attributes.
 function markDevViews(doc) {
@@ -31,11 +40,37 @@ function markDevViews(doc) {
     else if (box.hasAttribute('data-lk-dev')) box.removeAttribute('data-lk-dev');
   }
 }
+/* Each page's properties open: Logseq's "Open properties" pressed once, while they are closed. A press takes a moment to
+   show, so one item is pressed at most once a second, never twice in a row into closing again. */
+const pressed = new WeakMap();
+function openProperties(doc) {
+  if (!setting('sidebarPages')) return;
+  for (const box of doc.querySelectorAll(`${PAGE_ITEM} .ls-sidebar-page-properties`)) {
+    if (box.querySelector('.ls-page-properties')) continue;
+    const toggle = box.querySelector(':scope > div:first-child > button:only-child');
+    if (!toggle || Date.now() - (pressed.get(box) || 0) < 1000) continue;
+    pressed.set(box, Date.now());
+    toggle.click();
+  }
+}
+// A press on a page's name in an item's head opens the page in the main view, before Logseq takes it to fold the item.
+function openName(event) {
+  if (!setting('sidebarPages') || event.button) return;
+  const name = event.target.closest?.(NAME);
+  if (!name) return;
+  event.preventDefault(); event.stopPropagation();
+  const words = name.textContent.trim();
+  const uuid = Look.index?.uuidByName?.(words);
+  if (uuid) Look.kit.openPage(uuid, event.shiftKey); else logseq.App.pushState('page', { name: words.toLowerCase() });
+}
+function pass(doc) { markDevViews(doc); openProperties(doc); }
 function apply() {
   style('sidebar-bar', setting('sidebarBar') ? barCss : '');
   style('sidebar-flat', setting('sidebarFlat') ? flatCss : '');
+  style('sidebar-pages', setting('sidebarPages') ? pagesCss : '');
 }
-function start() { apply(); watchScreen(markDevViews); }
-function stop() { style('sidebar-bar', ''); style('sidebar-flat', ''); }
-Look.sidebar = { apply, start, stop, markDevViews };
+let listening = null;
+function start() { apply(); watchScreen(pass); listening = Look.kit.host(); listening.addEventListener('click', openName, true); }
+function stop() { style('sidebar-bar', ''); style('sidebar-flat', ''); style('sidebar-pages', ''); listening?.removeEventListener('click', openName, true); listening = null; }
+Look.sidebar = { apply, start, stop, markDevViews, openProperties, openName };
 })();
