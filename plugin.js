@@ -89,11 +89,12 @@ Door.ICONS = {
 const iconUrl = d => `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='#000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><path d='${d}'/></svg>`)}")`;
 
 // The greys, mixed from Logseq's text colour so they follow any theme: quiet, faint, a hairline and a firmer line; and the
-// underline of a link to a node, lighter and thinner than the line (half a pixel: one dot of a sharp screen).
+// underline of a link to a node, half a pixel (one dot of a sharp screen), so a stronger grey than the line to be seen
+// (at 16% it read as none, the owner 3 Nov 2026).
 const TOKENS = `
 :root { --lk-quiet: color-mix(in srgb, currentColor 70%, transparent); --lk-faint: color-mix(in srgb, currentColor 70%, transparent); --lk-off: color-mix(in srgb, currentColor 46%, transparent);
   --lk-hair: color-mix(in srgb, currentColor 12%, transparent); --lk-line: color-mix(in srgb, currentColor 26%, transparent);
-  --lk-link: color-mix(in srgb, currentColor 16%, transparent); --lk-link-width: .5px;
+  --lk-link: color-mix(in srgb, currentColor 45%, transparent); --lk-link-width: .5px;
   --lk-wash: color-mix(in srgb, currentColor 7%, transparent);
   --lk-soft: color-mix(in srgb, var(--lk-text, currentColor) 70%, transparent); --lk-dim: color-mix(in srgb, var(--lk-text, currentColor) 70%, transparent);
   --lk-mono: var(--ls-font-family-mono, ui-monospace, "SF Mono", Menlo, Consolas, monospace); }`;
