@@ -9,15 +9,16 @@
    - togglePerf, copyPerfReport  measuring of the plugin's own work (perf), with logPerfReport for the
      hidden debugPerfEvery setting;
    - copyWarnings         every warnOnce message of this session;
-   - openRecycleList      Logseq's Recycle as a plain list, with Restore (0.4.407) and Delete for good (0.4.411) on
-                          each line: the one tool that changes notes, and only when one of those is clicked.
+   - openRecycleList      Logseq's Recycle as a plain list, with Restore (0.4.407) and a red Delete (0.4.411), the
+                          library's presses, on each line: the one tool that changes notes, and only when one of those is
+                          clicked; Delete, and Delete all, ask first under their line, the blue yes and Leave it.
    A feature brings its own tools and screen rows (0.4.172): in its start() it calls
    core.provided.addTroubleshooting({ tools: [{ key, label, run, icon? }], checks: [[what, selector, neededFor]] }),
    and its tools show their report with showReport(text), whose first line is versionLine(). A feature that
    is not running (Foundation only) adds nothing, so the list holds only what is running.
    On the kit since 0.4.316 (docs/LAYERS.md; the views page): the tools are a list pop-up from the palette, each
    with its icon from the kit's list, measuring ticked while it is on; a report opens the same pop-up with the
-   text to copy and one quiet word, Copy. No window, no box of this part's own. This part is layer 1 (diagnostics
+   text to copy and Copy, the library's main button. No window, no box of this part's own. This part is layer 1 (diagnostics
    belong to talking to Logseq), so its own Logseq calls stay. */
 const shared = window.refinementShared;
 const { host, notify, el, quiet, note } = shared;
@@ -95,7 +96,8 @@ function showDiagnostics(text) {
     try { copied = doc.execCommand('copy'); } catch (error) { /* fall through */ }
     hint.textContent = copied ? 'Copied to the clipboard · Esc to close' : 'Press Cmd+C (Ctrl+C) to copy · Esc to close';
   };
-  pop.body.append(area, el(doc, 'div', { class: 'rf-btns' }, hint, quiet(doc, { icon: 'copy', label: 'Copy', run: copy })));
+  // Copy is the one thing the report is for: the library's main button (lk-accent).
+  pop.body.append(area, el(doc, 'div', { class: 'rf-btns' }, hint, shared.go(doc, { label: 'Copy', cls: 'lk-i-copy', run: copy })));
   shared.keepKeys(area);
   copy();
   return pop;
@@ -474,15 +476,37 @@ async function openRecycleList() {
     done(item, 'Restored');
     return 'keep';
   };
+  /* The big change asks under what it answers for (the grammar, the owner 1 November): a bold line, what goes, the blue yes
+     and "Leave it". It rolls out under the row; Enter says yes, Escape leaves it. One open at a time. */
+  let asking = null;
+  const leave = () => { const box = asking; asking = null; if (box) window.PluginDoor.rollUp(box).then(() => box.remove()); };
+  const askUnder = (item, { head, words, yes, run }) => {
+    const doc = host(), row = [...pop.body.querySelectorAll('.rf-item')].find(b => b.item === item);
+    if (!row) return;
+    leave();
+    const yesPress = el(doc, 'button', { type: 'button', class: 'lk-big', click: event => { event.stopPropagation(); leave(); run(); } }, yes);
+    const box = el(doc, 'div', { class: 'rf-recycle-ask', role: 'group', 'aria-label': head },
+      el(doc, 'div', { class: 'rf-recycle-ask-h' }, head), el(doc, 'div', { class: 'rf-recycle-ask-l' }, words),
+      el(doc, 'div', { class: 'lk-answers' }, yesPress, el(doc, 'button', { type: 'button', class: 'lk-btn lk-low lk-i-x', click: event => { event.stopPropagation(); leave(); row.focus?.(); } }, 'Leave it')));
+    box.addEventListener('keydown', event => {
+      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); leave(); row.focus?.(); }
+      else if (event.key === 'Enter' && event.target === yesPress) { event.preventDefault(); event.stopPropagation(); yesPress.click(); }
+      else if (event.key === 'Enter') event.stopPropagation();
+    });
+    row.after(box);
+    asking = box;
+    window.PluginDoor.unroll(box);
+    yesPress.focus({ preventScroll: true });
+    box.scrollIntoView?.({ block: 'nearest' });
+  };
   /* Delete for good (0.4.411): Logseq's own, the one its Recycle page's Delete uses (deleteRecycledPagePermanently),
-     asked first with Logseq's own question. Logseq's Recycle page breaks when a node it shows is deleted for good
+     asked first under the row. Logseq's Recycle page breaks when a node it shows is deleted for good
      ("Missing direct-children parent", seen in the test graph, 2026-10-25), so if it is open behind the list, Logseq
      goes to the journals first. */
   const awayFromRecycle = async win => { if (/^#\/page\/recycle\b/i.test(win.location.hash || '')) { logseq.App.pushState('all-journals'); await sleep(800); } };
   const removeForGood = async (item, row) => {
     if (item.done || !row.uuid) return;
     const win = host().defaultView;
-    if (!win.confirm(`Permanently delete “${recycleLine(row)}” from the Recycle? This cannot be undone.`)) return;
     await awayFromRecycle(win);
     try { await logseq.Editor.deleteRecycledPagePermanently(row.uuid); } catch (error) { console.error(error); notify(`Could not delete “${recycleLine(row)}”: ${error.message}`, 'error'); return; }
     done(item, 'Deleted');
@@ -493,8 +517,11 @@ async function openRecycleList() {
   const removeAll = async allItem => {
     const left = rowItems.filter(([item, row]) => !item.done && row.uuid);
     if (!left.length || allItem.done) return 'keep';
+    askUnder(allItem, { head: `Delete all ${left.length} for good`, words: `Every node in the Recycle goes. Undo cannot bring ${left.length === 1 ? 'it' : 'them'} back.`, yes: 'Delete for good', run: () => removeAllNow(allItem, left) });
+    return 'keep';
+  };
+  const removeAllNow = async (allItem, left) => {
     const win = host().defaultView;
-    if (!win.confirm(`Permanently delete all ${left.length} node${left.length === 1 ? '' : 's'} in the Recycle? This cannot be undone.`)) return 'keep';
     done(allItem, 'Deleting…');
     await awayFromRecycle(win);
     let failed = 0;
@@ -506,19 +533,22 @@ async function openRecycleList() {
     notify(failed ? `Deleted ${left.length - failed} of ${left.length}; ${failed} could not be deleted` : `Deleted all ${left.length} from the Recycle`, failed ? 'warning' : 'success');
     return 'keep';
   };
+  // At a row's end, the library's presses for a row (lk-fix): Restore, and Delete in red, which asks under the row first.
   const actions = (item, row) => {
     const doc = host();
-    const forGood = el(doc, 'span', { class: 'rf-recycle-delete', role: 'button', title: 'Delete for good (cannot be undone)', click: event => { event.preventDefault(); event.stopPropagation(); removeForGood(item, row); } }, 'Delete');
-    return el(doc, 'span', {}, 'Restore', ' · ', forGood);
+    const press = (cls, words, run) => el(doc, 'span', { class: `lk-fix ${cls}`, role: 'button', click: event => { event.preventDefault(); event.stopPropagation(); run(); } }, words);
+    return el(doc, 'span', { class: 'lk-strip rf-recycle-acts' },
+      press('lk-i-undo', 'Restore', () => restore(item, row)),
+      press('lk-del', 'Delete', () => { if (!item.done) askUnder(item, { head: `Delete “${recycleLine(row)}” for good`, words: 'Undo cannot bring it back.', yes: 'Delete for good', run: () => removeForGood(item, row) }); }));
   };
   const items = [
     { icon: 'copy', label: 'Copy the list as a report', run: async () => { showDiagnostics(recycleReport(rows, await versionLine())); } },
     { icon: 'warning', label: 'Open Logseq’s Recycle and copy what goes wrong', run: () => { watchRecycle(); } },
-    rows.some(row => row.uuid) ? { icon: 'delete', label: `Delete all ${rows.length} for good`, title: 'Every node in the Recycle, deleted for good after one question (cannot be undone)', keep: true, run: item => removeAll(item) } : null,
+    rows.some(row => row.uuid) ? { icon: 'delete', label: `Delete all ${rows.length} for good`, title: 'Every node in the Recycle, deleted for good after one question under this line (cannot be undone)', keep: true, run: item => removeAll(item) } : null,
     { note: rows.length ? `Deleted nodes, newest first${damaged ? `. ${damaged} look${damaged === 1 ? 's' : ''} damaged (the triangle)` : ''}.` : 'The Recycle is empty.' },
     ...rows.map(row => {
       const item = { icon: row.damage.length ? 'warning' : row.page ? 'page' : 'point', label: recycleLine(row), disabled: !row.uuid,
-        title: `Deleted ${row.at ? dayWords(row.at) : 'at an unknown time'}${row.damage.length ? ` · looks damaged: ${row.damage.join('; ')}` : ''} · click to restore, or Delete for good` };
+        title: `Deleted ${row.at ? dayWords(row.at) : 'at an unknown time'}${row.damage.length ? ` · looks damaged: ${row.damage.join('; ')}` : ''}` };
       item.right = row.uuid ? actions(item, row) : 'Restore';
       item.run = () => { restore(item, row); return 'keep'; };
       rowItems.push([item, row]);

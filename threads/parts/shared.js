@@ -1160,7 +1160,12 @@ const kitCss = `/* The kit (parts/shared.js, 0.4.311; docs/LAYERS.md section 3):
 /* The Recycle list (troubleshooting): as tall as the window allows below the pop-up's place, so many lines show at once. */
 .rf-recycle { max-width: min(640px, 92vw); }
 .rf-recycle > .rf-pop-body { max-height: calc(84vh - 60px); }
-.rf-recycle-delete:hover { color: var(--rf-fg); text-decoration: underline; }
+.rf-recycle .rf-recycle-acts { gap: 2px; }
+/* The ask under a row of the Recycle: joined to it by a line from the margin, a bold line, what goes, then the answers. */
+.rf-recycle-ask { margin: 2px 8px 8px 30px; padding: 4px 0 4px 12px; border-left: 1px solid var(--rf-line); font-size: 13.5px; }
+.rf-recycle-ask-h { font-weight: 600; }
+.rf-recycle-ask-l { color: var(--rf-quiet); }
+.rf-recycle-ask .lk-answers { margin-top: 6px; }
 .rf-report textarea { display: block; box-sizing: border-box; width: 100%; height: min(50vh, 420px); margin: 6px 0 0; padding: 6px 8px; border: 0; border-radius: 4px; background: var(--rf-wash); color: inherit; font: 12px/1.45 var(--rf-mono); resize: vertical; outline: none; }
 /* A question beside what it is about. */
 .rf-ask { padding: 8px 10px; }

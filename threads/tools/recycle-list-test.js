@@ -32,7 +32,11 @@ window.logseq = { settings: {}, baseInfo: { version: '0.4.407' },
   UI: { showMsg: (text, kind) => notices.push([text, kind]) },
   DB: { datascriptQuery: async () => answer },
   Editor: { restorePage: async uuid => { restored.push(uuid); }, deleteRecycledPagePermanently: async uuid => { removed.push(uuid); } } };
-window.confirm = () => answerYes;
+// The browser's question is never asked any more: the plugin asks under the line. A call to it is a fault.
+let confirmed = 0;
+window.confirm = () => { confirmed++; return answerYes; };
+// The ask's answers: Leave it (No) or the blue Delete for good (Yes), pressed under the line.
+const answerAsk = async (pop, yes) => { const ask = pop.body.querySelector('.rf-recycle-ask'); (yes ? ask?.querySelector('.lk-big') : ask?.querySelector('.lk-btn'))?.click(); await new Promise(r => setTimeout(r, 20)); return ask; };
 window.HTMLElement.prototype.showPopover = function () {};
 window.HTMLElement.prototype.hidePopover = function () {};
 for (const file of ['../plugin.js', 'parts/shared.js', 'parts/diagnostics.js']) window.eval(fs.readFileSync(path.join(root, file), 'utf8'));
@@ -64,7 +68,7 @@ const d = core.provided.diagnostics;
   check(buttons().length === 6, 'a line for the report, one to watch Logseq’s Recycle, Delete all, and one per node: ' + buttons().length);
   check(/3 deleted nodes/.test(pop.el.textContent) && /1 looks damaged/.test(pop.el.textContent), 'head and note: ' + pop.el.textContent.slice(0, 160));
   const page = buttons().find(b => b.textContent.includes('1 River Lane'));
-  check(page.querySelector('.rf-end')?.textContent === 'Restore · Delete', 'Restore and Delete on the line: ' + page.querySelector('.rf-end')?.textContent);
+  check(page.querySelector('.rf-end .lk-fix.lk-i-undo')?.textContent === 'Restore' && page.querySelector('.rf-end .lk-fix.lk-del')?.textContent === 'Delete', 'Restore and a red Delete on the line, the library\'s presses: ' + page.querySelector('.rf-end')?.innerHTML);
   page.click();
   await wait(20);
   check(restored.join() === PAGE, 'Restore asks Logseq for that node only: ' + restored.join());
@@ -72,15 +76,18 @@ const d = core.provided.diagnostics;
   page.click();
   await wait(20);
   check(restored.length === 1, 'a second click restores nothing more');
-  // Delete for good: asked first; No leaves it, Yes asks Logseq for that node only; the list stays open.
+  // Delete for good: asked first, under the line; Leave it leaves it, the blue yes asks Logseq for that node only; the list stays open.
   const bullet = buttons().find(b => b.textContent.includes('Asked about the second cycle'));
-  answerYes = false;
-  bullet.querySelector('.rf-recycle-delete').click();
+  bullet.querySelector('.lk-del').click();
   await wait(20);
-  check(!removed.length && !restored.includes(BULLET) && !bullet.disabled, 'No to the question deletes nothing, restores nothing');
-  answerYes = true;
-  bullet.querySelector('.rf-recycle-delete').click();
+  const ask = pop.body.querySelector('.rf-recycle-ask');
+  check(ask && ask.previousElementSibling === bullet && /for good/.test(ask.querySelector('.rf-recycle-ask-h')?.textContent) && ask.querySelector('.lk-big')?.textContent === 'Delete for good' && /Leave it/.test(ask.querySelector('.lk-btn')?.textContent), 'the ask stands under the line: a bold line, the blue yes, Leave it: ' + ask?.textContent);
+  check(!removed.length && !restored.includes(BULLET), 'asking deletes nothing, restores nothing');
+  await answerAsk(pop, false);
+  check(!removed.length && !restored.includes(BULLET) && !bullet.disabled && !pop.body.querySelector('.rf-recycle-ask'), 'Leave it deletes nothing and the ask goes');
+  bullet.querySelector('.lk-del').click();
   await wait(20);
+  await answerAsk(pop, true);
   check(removed.join() === BULLET && !restored.includes(BULLET), 'Delete asks Logseq to delete that node for good, and does not restore it: ' + removed.join());
   check(bullet.disabled && bullet.querySelector('.rf-end').textContent === 'Deleted' && !pop.isClosed, 'the line says Deleted, the list stays open');
   pop.close();
@@ -94,18 +101,21 @@ const d = core.provided.diagnostics;
   await wait(20);
   const all = lines2().find(b => /Delete all 3 for good/.test(b.textContent));
   check(all, 'Delete all, with the count: ' + lines2().map(b => b.textContent).join(' | '));
-  answerYes = false;
   all.click();
   await wait(20);
-  check(!removed.length && !pop2.isClosed, 'No to Delete all deletes nothing');
-  answerYes = true;
+  check(pop2.body.querySelector('.rf-recycle-ask')?.previousElementSibling === all && /Delete all 2 for good/.test(pop2.body.querySelector('.rf-recycle-ask-h')?.textContent), 'Delete all asks under its own line, with how many are left');
+  await answerAsk(pop2, false);
+  check(!removed.length && !pop2.isClosed, 'Leave it to Delete all deletes nothing');
   all.click();
+  await wait(20);
+  await answerAsk(pop2, true);
   await wait(40);
   check(removed.sort().join() === [BULLET, LOST].sort().join(), 'Delete all deletes every node not restored: ' + removed.join());
   check(lines2().filter(b => b.querySelector('.rf-end')?.textContent === 'Deleted').length === 2 && !pop2.isClosed, 'each line reads Deleted, the list stays open');
   check(all.disabled && all.querySelector('.rf-end')?.textContent === 'Done', 'Delete all reads Done: ' + all.textContent);
   check(notices.some(([text]) => /Deleted all 2 from the Recycle/.test(text)), 'a notice says how many: ' + JSON.stringify(notices));
   pop2.close();
+  check(confirmed === 0, 'the browser\'s question was never asked');
 
   console.log(`\nrecycle-list-test: ${cases - problems.length} of ${cases} checks passed`);
   process.exit(problems.length ? 1 : 0);
