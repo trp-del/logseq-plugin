@@ -8,11 +8,11 @@ const AREA = ':is(#main-content-container, #right-sidebar)';
 const DAY = ':is([data-uuid^="00000001-"], .ls-datetime *)'; // Logseq 2.0.2 gives every journal page a uuid starting 00000001-
 
 const links = `
-${AREA} a.page-ref:not(.tag):not(${DAY}) { color: inherit !important; text-decoration: underline !important; text-decoration-color: var(--lk-line) !important; text-decoration-thickness: 1px; text-underline-offset: .2em; }
+${AREA} a.page-ref:not(.tag):not(${DAY}) { color: inherit !important; text-decoration: underline !important; text-decoration-color: var(--lk-link) !important; text-decoration-thickness: var(--lk-link-width) !important; text-underline-offset: .2em; }
 ${AREA} a.page-ref:not(.tag):not(${DAY}):hover { text-decoration-color: currentColor !important; }
 ${AREA} a.page-ref a.asset-ref { color: inherit !important; }
 /* A bullet that is a page, or shows one: its words read as a link. A press opens the page (Predictive's page-here.js). */
-${AREA} :is(.embed-block:not(.embed-block .embed-block) > .block-main-container, .block-main-container:not(.is-page-title-row):has(> .block-control-wrap :is(.ls-icon-file, .ls-icon-page))) .block-title-wrap { text-decoration: underline; text-decoration-color: var(--lk-line); text-decoration-thickness: 1px; text-underline-offset: 3px; cursor: pointer; }
+${AREA} :is(.embed-block:not(.embed-block .embed-block) > .block-main-container, .block-main-container:not(.is-page-title-row):has(> .block-control-wrap :is(.ls-icon-file, .ls-icon-page))) .block-title-wrap { text-decoration: underline; text-decoration-color: var(--lk-link); text-decoration-thickness: var(--lk-link-width); text-underline-offset: 3px; cursor: pointer; }
 ${AREA} :is(.embed-block:not(.embed-block .embed-block) > .block-main-container, .block-main-container:not(.is-page-title-row):has(> .block-control-wrap :is(.ls-icon-file, .ls-icon-page))) .block-title-wrap:hover { text-decoration-color: currentColor; }
 /* Under the pointer Logseq paints a link's box in its accent colour at strength; here the faint wash of a row under the
    pointer, the same for every link. Its colour alone, so the sort's mark, drawn as the link's background image, stays. */

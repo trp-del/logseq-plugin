@@ -104,7 +104,7 @@ const css = `
 .lk-cite-n:hover { background: var(--lk-wash); color: var(--lk-text, currentColor); }
 .lk-cite-card { position: fixed; z-index: 40; max-width: 320px; padding: 8px 10px; font-size: 14px; line-height: 1.4; pointer-events: none; border-radius: 6px; background: var(--lk-paper, Canvas); color: var(--lk-text, CanvasText);
   border: 1px solid var(--lk-hair); box-shadow: 0 4px 14px var(--lk-hair); }
-.lk-cite-source { text-decoration: underline; text-decoration-color: var(--lk-line); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.lk-cite-source { text-decoration: underline; text-decoration-color: var(--lk-link); text-decoration-thickness: var(--lk-link-width); text-underline-offset: 3px; }
 .lk-cite-how { color: var(--lk-soft); font-size: 13px; margin-top: 2px; }`;
 
 let listening = null;

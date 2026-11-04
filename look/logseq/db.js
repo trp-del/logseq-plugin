@@ -110,12 +110,9 @@ async function propIndex() {
 }
 
 /* What folded nodes hold, at any depth: how many unfinished tasks, how many files of each kind (picture, PDF, other),
-   how many quotes, how many links, the tags inside (most used first, no numbers), and the nearest due day of an unfinished
-   task. A picture shown twice, a passage cited twice, or a link written twice, counts once. A link is one in the words, a
-   [[name]] or a web address, read from the words because :block/refs also holds a node's tags and property values; a tag
-   written in the words is a tag, and a highlight or a file cited is counted as that. */
+   how many quotes, the tags inside (most used first, no numbers), and the nearest due day of an unfinished
+   task. A picture shown twice, or a passage cited twice, counts once. */
 const dayNumber = d => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
-const linksIn = title => [...String(title).matchAll(/(?<!#)\[\[([^[\]]+)\]\]|https?:\/\/[^\s)\]>]+/g)].map(m => (m[1] || m[0]).toLowerCase());
 async function heldBelow(uuids) {
   const list = [...new Set(uuids)].map(String).filter(u => UUID.test(u));
   const held = new Map();
@@ -132,17 +129,15 @@ async function heldBelow(uuids) {
   const ids = [...new Set([...below.values()].flat())];
   if (!ids.length) return held;
   const among = ground('?b', ids);
-  const [tagRows, statusRows, dayRows, stampRows, fileRows, quoteRows, titleRows, countedRows] = await Promise.all([
+  const [tagRows, statusRows, dayRows, stampRows, fileRows, quoteRows] = await Promise.all([
     query(`[:find ?b ?title ?ident :where ${among} [?b :block/tags ?t] [?t :block/title ?title] [(get-else $ ?t :db/ident :none) ?ident]]`),
     query(`[:find ?b ?sid :where ${among} [?b :logseq.property/status ?s] [(get-else $ ?s :db/ident :none) ?sid]]`),
     query(`[:find ?b ?day :where ${among} (or [?b :logseq.property/deadline ?d] [?b :logseq.property/scheduled ?d]) [?d :block/journal-day ?day]]`),
     query(`[:find ?b ?ms :where ${among} (or [?b :logseq.property/deadline ?ms] [?b :logseq.property/scheduled ?ms]) [(> ?ms 100000000000)]]`),
     query(`[:find ?b ?a ?type :where ${among} (or-join [?b ?a] [(identity ?b) ?a] [?b :logseq.property/asset ?a] [?b :block/refs ?a]) [?a :logseq.property.asset/type ?type]]`),
     query(`[:find ?b ?q :where ${among} (or-join [?b ?q] (and [?b :logseq.property.pdf/hl-page _] [(identity ?b) ?q]) (and [?b :block/refs ?q] [?q :logseq.property.pdf/hl-page _]) (and [?b :logseq.property.node/display-type :quote] [(identity ?b) ?q]))]`),
-    query(`[:find ?b ?title :where ${among} [?b :block/title ?title]]`),
-    query(`[:find ?u :where ${among} [?b :block/refs ?r] (or [?r :logseq.property.pdf/hl-page _] [?r :logseq.property.asset/type _]) [?r :block/uuid ?u]]`),
   ]);
-  const tagsOf = new Map(), taskIds = new Set(), dueOf = new Map(), filesOf = new Map(), quoteOf = new Map(), linksOf = new Map();
+  const tagsOf = new Map(), taskIds = new Set(), dueOf = new Map(), filesOf = new Map(), quoteOf = new Map();
   const add = (map, key, value) => { if (!map.has(key)) map.set(key, []); map.get(key).push(value); };
   for (const [b, title, ident] of tagRows) { if (String(ident) === ':logseq.class/Task') taskIds.add(b); else if (!/^:?logseq\.class\//.test(String(ident))) add(tagsOf, b, String(title)); }
   const closed = new Set();
@@ -157,14 +152,11 @@ async function heldBelow(uuids) {
     const t = String(type).replace(/^:/, '').toLowerCase();
     add(filesOf, b, [t === 'pdf' ? 'pdf' : /^(png|jpe?g|gif|webp|svg|avif|heic|bmp|tiff?)$/.test(t) ? 'image' : 'file', a]);
   }
-  const counted = new Set(countedRows.map(([u]) => String(u).toLowerCase()));
-  for (const [b, title] of titleRows) for (const link of linksIn(title)) if (!counted.has(link)) add(linksOf, b, link);
   for (const [u, r] of roots) {
-    const counts = new Map(), fileSets = new Map(), passages = new Set(), links = new Set();
+    const counts = new Map(), fileSets = new Map(), passages = new Set();
     let task = 0, due = 0;
     for (const b of below.get(r)) {
       for (const q of quoteOf.get(b) || []) passages.add(q);
-      for (const link of linksOf.get(b) || []) links.add(link);
       for (const [kind, a] of filesOf.get(b) || []) { if (!fileSets.has(kind)) fileSets.set(kind, new Set()); fileSets.get(kind).add(a); }
       for (const title of tagsOf.get(b) || []) counts.set(title, (counts.get(title) || 0) + 1);
       if (!taskIds.has(b)) continue;
@@ -173,7 +165,7 @@ async function heldBelow(uuids) {
     }
     const files = ['image', 'pdf', 'file'].filter(k => fileSets.has(k)).map(k => [k, fileSets.get(k).size]);
     const tags = [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([title]) => title);
-    held.set(String(u).toLowerCase(), { task, files, quotes: passages.size, links: links.size, tags, due });
+    held.set(String(u).toLowerCase(), { task, files, quotes: passages.size, tags, due });
   }
   return held;
 }

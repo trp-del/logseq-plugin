@@ -88,10 +88,12 @@ Door.ICONS = {
 };
 const iconUrl = d => `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='#000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><path d='${d}'/></svg>`)}")`;
 
-// The greys, mixed from Logseq's text colour so they follow any theme: quiet, faint, a hairline and a firmer line.
+// The greys, mixed from Logseq's text colour so they follow any theme: quiet, faint, a hairline and a firmer line; and the
+// underline of a link to a node, lighter and thinner than the line (half a pixel: one dot of a sharp screen).
 const TOKENS = `
 :root { --lk-quiet: color-mix(in srgb, currentColor 70%, transparent); --lk-faint: color-mix(in srgb, currentColor 70%, transparent); --lk-off: color-mix(in srgb, currentColor 46%, transparent);
   --lk-hair: color-mix(in srgb, currentColor 12%, transparent); --lk-line: color-mix(in srgb, currentColor 26%, transparent);
+  --lk-link: color-mix(in srgb, currentColor 16%, transparent); --lk-link-width: .5px;
   --lk-wash: color-mix(in srgb, currentColor 7%, transparent);
   --lk-soft: color-mix(in srgb, var(--lk-text, currentColor) 70%, transparent); --lk-dim: color-mix(in srgb, var(--lk-text, currentColor) 70%, transparent);
   --lk-mono: var(--ls-font-family-mono, ui-monospace, "SF Mono", Menlo, Consolas, monospace); }`;
@@ -122,7 +124,7 @@ const TOKENS = `
 Door.NAMES = `${TOKENS}
 .lk-tag { color: inherit !important; opacity: .7; font-family: var(--lk-mono) !important; font-size: .85em !important; text-decoration: none !important; }
 .lk-tag:hover { opacity: 1; }
-.lk-node { color: inherit; text-decoration: underline !important; text-decoration-color: var(--lk-line) !important; text-decoration-thickness: 1px; text-underline-offset: 3px; cursor: pointer; }
+.lk-node { color: inherit; text-decoration: underline !important; text-decoration-color: var(--lk-link) !important; text-decoration-thickness: var(--lk-link-width) !important; text-underline-offset: 3px; cursor: pointer; }
 .lk-node:hover { text-decoration-color: currentColor !important; }
 .lk-prop { color: var(--lk-quiet); }
 .lk-day { color: var(--lk-faint) !important; font-size: 13px !important; font-variant-numeric: tabular-nums; }

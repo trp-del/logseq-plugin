@@ -19,7 +19,7 @@ const { U, load, pencilled } = standIn;
   // pure pieces
   assert.equal(Look.folded.dueLabel(20261119, new Date(2026, 10, 1)), 'due Nov 19');
   assert.equal(Look.folded.dueLabel(20261012, new Date(2026, 10, 1)), 'was due Oct 12');
-  assert.equal(JSON.stringify(Look.folded.wordsFor({ task: 2, files: [['pdf', 1]], quotes: 0, links: 3, tags: ['Consultation'], due: 0 })), JSON.stringify(['2 unfinished tasks under it', '1 PDF', '3 links', 'Consultation']));
+  assert.equal(JSON.stringify(Look.folded.wordsFor({ task: 2, files: [['pdf', 1]], quotes: 0, tags: ['Consultation'], due: 0 })), JSON.stringify(['2 unfinished tasks under it', '1 PDF', 'Consultation']));
   // styles sent
   for (const key of ['look-links', 'look-days', 'look-tags', 'look-capsules', 'look-props', 'look-title', 'look-folded', 'look-quote-bullets']) assert.ok(styles[key] && !styles[key].includes('no rules'), key + ' sent');
   { const { linksIn, byKind } = Look.links;
@@ -90,7 +90,7 @@ const { U, load, pencilled } = standIn;
   for (const tag of note.querySelectorAll('a.lk-tag')) assert.ok(tag.previousElementSibling?.classList.contains('lk-sep') && tag.previousElementSibling.textContent === '·', `a dot before ${tag.textContent}`);
   assert.ok(/due Nov 19|was due Nov 19/.test(note.textContent) && !/\d+ Consultation|Consultation \d/.test(note.textContent), 'the due day, no count on the tag');
   assert.equal(note.querySelector('.lk-pair').textContent, '1', 'the task count beside the circle');
-  assert.equal(note.querySelector('.ti-link')?.closest('.lk-pair').textContent, '2', 'a link written twice counts once, a web address counts, a tag and a cited highlight do not');
+  assert.ok(!note.querySelector('.ti-link'), 'no count of links');
   // the settings window draws from Look's description: a heading per section, the one row for the property icon
   const described = window_described();
   assert.equal(described.schema.filter(i => i.type === 'heading').length, 7, 'seven sections');
