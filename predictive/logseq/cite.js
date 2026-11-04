@@ -40,7 +40,8 @@ async function sourcesNow() {
   return [...pdfs, ...pages.filter(page => !page.isTag).map(page => ({ uuid: page.uuid, title: page.title, lower: page.lower, pdf: false }))];
 }
 
-function close() { open?.line.remove(); open = null; }
+// The line rolls back up into the bullet before it goes, as it rolled out (window.PluginDoor, the grammar: what opens rolls out).
+function close() { const line = open?.line; open = null; if (line) window.PluginDoor.rollUp(line).then(() => line.remove()); }
 function drawFound() {
   const { line, found, on } = open, doc = line.ownerDocument;
   line.querySelector('.flow-cite-found').replaceChildren(...found.map((source, i) =>
@@ -106,6 +107,7 @@ async function show({ uuid } = {}) {
   open = { box, uuid, at: box.selectionStart, sources, found: [], on: 0, source: null, line: el(box.ownerDocument, 'div', { class: 'flow-cite' }) };
   (own || row.lastElementChild).after(open.line);
   askName();
+  window.PluginDoor.unroll(open.line);
 }
 
 function backToBullet() { const { box, at } = open; close(); if (box.isConnected) { box.focus(); box.setSelectionRange(at, at); } }

@@ -274,6 +274,9 @@ function make(holder, mode, app, opts = {}) {
   const doc = holder.ownerDocument;
   ensureStyle(doc);
   const st = app.st;
+  // What a drawing shows that can come or go when something folds: a tree's rows, Every property's groups and properties.
+  const KEYED = '.st-row[data-row], .st-grp[data-group], .tr[data-prop]';
+  const keyOfShown = e => `${e.closest('[data-pane]')?.dataset.pane || ''}|${e.dataset.row ?? ''}|${e.dataset.group ?? ''}|${e.dataset.prop ?? ''}`;
   const loc = mode === 'side' ? st.side : st;   // the cursor and the find text this view uses
   const root = doc.createElement('div');
   root.className = `st ${mode === 'side' ? 'st-side' : mode === 'tag' ? 'st-tag' : 'st-page'}`;
@@ -650,7 +653,14 @@ function make(holder, mode, app, opts = {}) {
     } else if (mode === 'tag') h = `<div class="st-tray">${trayHtml()}</div>${opts.prop != null ? propLinesHtml(opts.prop) : linesHtml(opts.tag)}`;
     else h = treeHtml();
     if (st.menu && st.menu.owner === mode) h += menuHtml();
+    // What a fold opens rolls out (the grammar), as Threads' rows do: the rows, groups and properties that were not there before.
+    const wasShown = st.glide ? new Set([...root.querySelectorAll(KEYED)].map(keyOfShown)) : null, hadPrompt = !!root.querySelector('.st-prompt');
     root.innerHTML = h;
+    const rolled = [...(wasShown ? [...root.querySelectorAll(KEYED)].filter(e => !wasShown.has(keyOfShown(e))) : []), ...(!hadPrompt && root.querySelector('.st-prompt') ? [root.querySelector('.st-prompt')] : [])];
+    st.glide = false;
+    window.PluginDoor.unroll(rolled);
+    // The map's lines are measured from where the rows stand: once more when they have rolled out.
+    if (rolled.length && mode === 'page') setTimeout(() => { if (root.isConnected) S.regions?.lines(root, M(), st.cur, !!st.aim); }, 200);
     // The screen takes the room Logseq gives it: from where the holder sits to the bottom of the window.
     if (mode === 'page') { const top = root.getBoundingClientRect().top, win = doc.defaultView; if (win?.innerHeight && top >= 0) root.style.height = Math.max(360, win.innerHeight - top - 24) + 'px'; }
     slideTray(trayWas);
@@ -681,6 +691,16 @@ function make(holder, mode, app, opts = {}) {
     const box = doc.defaultView.getComputedStyle(tray), from = was ? {} : { paddingTop: ['0px', box.paddingTop], paddingBottom: ['0px', box.paddingBottom], borderBottomWidth: ['0px', box.borderBottomWidth] };
     tray.style.overflow = 'hidden';
     tray.animate({ height: [`${was}px`, `${now}px`], ...from }, SLIDE).onfinish = () => { tray.style.overflow = ''; };
+  }
+
+  // The rows a row holds as drawn: those after it, deeper than it, up to the next of its depth or less.
+  const depthOf = e => Number(e.style.getPropertyValue('--d')) || 0;
+  function rowsUnder(id) {
+    const row = [...root.querySelectorAll('.st-row[data-row]')].find(e => e.dataset.row === String(id) && !e.closest('[data-pane="2"]'));
+    if (!row) return [];
+    const d = depthOf(row), out = [];
+    for (let n = row.nextElementSibling; n && !(n.matches('.st-row') && depthOf(n) <= d); n = n.nextElementSibling) out.push(n);
+    return out;
   }
 
   // ---------- going places: the trail, and the window's own history ----------
@@ -730,7 +750,12 @@ function make(holder, mode, app, opts = {}) {
     return false;
   }
   const goTo = id => { if (!M().tags.has(id) && id !== LOOSE) return; jump(() => { st.cur = id; st.propCur = null; st.view = 'tree'; Mo.pathOf(M(), id).slice(0, -1).forEach(a => st.open.add(a)); }); };
-  const fold = (id, open) => { if (open === undefined) open = !st.open.has(id); open ? st.open.add(id) : st.open.delete(id); redraw(); };
+  // Opening rolls the rows under it out; folding rolls them up first, then draws without them.
+  const fold = async (id, open) => {
+    if (open === undefined) open = !st.open.has(id);
+    if (open) st.glide = true; else await window.PluginDoor.rollUp(rowsUnder(id));
+    open ? st.open.add(id) : st.open.delete(id); redraw();
+  };
   const openAll = id => { const walk = x => { st.open.add(x); Mo.kids(M(), x).forEach(walk); }; walk(id); redraw(); };
   const tick = id => { const t = T(id); if (!t || t.missing) return; st.ticks.has(id) ? st.ticks.delete(id) : st.ticks.add(id); redraw(); };
   const startPrompt = p => { st.menu = null; st.ask = null; st.prompt = { text: '', lit: 0, owner: mode, ...p }; redraw(); };
@@ -864,7 +889,7 @@ function make(holder, mode, app, opts = {}) {
     if (e.target.matches?.('[data-edit]')) return;   // a click in a field being written stays in the field
     e.stopPropagation(); e.preventDefault();
     if (t.hasAttribute('data-split')) { st.split = !st.split; return redraw(); }
-    if (t.dataset.gfold) { const G = app.groups(), g = G.list.find(x => x.id === t.dataset.gfold); if (g) { g.open = g.open === false; app.saveGroups(G); } return redraw(); }
+    if (t.dataset.gfold) { const G = app.groups(), g = G.list.find(x => x.id === t.dataset.gfold); if (g) { g.open = g.open === false; if (g.open) st.glide = true; app.saveGroups(G); } return redraw(); }
     if (t.dataset.gname) { const g = app.groups().list.find(x => x.id === t.dataset.gname); return g ? startEdit('gname', g.id, g.name) : redraw(); }
     if (t.hasAttribute('data-gnew')) return startEdit('gnew', '', '');
     if (t.dataset.gdrop) {   // the group goes; what it held goes up a level, nothing else changes
@@ -873,7 +898,7 @@ function make(holder, mode, app, opts = {}) {
       for (const [ident, id] of Object.entries(G.of)) if (id === g.id) { if (g.under) G.of[ident] = g.under; else delete G.of[ident]; }
       G.list = G.list.filter(x => x !== g); app.saveGroups(G); return redraw();
     }
-    if (t.dataset.fold) { if (t.closest('[data-pane="2"]')) { const id = keyOf(t.dataset.fold), o = st.pane2.open; o.has(id) ? o.delete(id) : o.add(id); return redraw(); } return fold(keyOf(t.dataset.fold)); }
+    if (t.dataset.fold) { if (t.closest('[data-pane="2"]')) { const id = keyOf(t.dataset.fold), o = st.pane2.open; if (o.has(id)) o.delete(id); else { o.add(id); st.glide = true; } return redraw(); } return fold(keyOf(t.dataset.fold)); }
     if (t.dataset.tick) return tick(keyOf(t.dataset.tick));
     if (t.dataset.ntick) { const x = st.nodes.list[+t.dataset.ntick]; st.nodes.ticks.has(x.uuid) ? st.nodes.ticks.delete(x.uuid) : st.nodes.ticks.add(x.uuid); st.nodes.cur = +t.dataset.ntick; return redraw(); }
     if (t.dataset.open) return app.openNode(t.dataset.open, e.shiftKey);

@@ -19,7 +19,7 @@ const FEW = 5;
 const LINK = /(?<!#)\[\[([^[\]]+)\]\]/g;
 const CITATION = /\((?:\[\[([^[\]]+)\]\]|\[([^\]]+)\]\((https?:[^)\s]+)\)|\*([^*]+)\*)(?:, p\. (\d+))?\)/g;   // a node, a web address, plain words
 const SECTIONS = [{ key: 'links', word: 'Links', icon: 'link' }, { key: 'notes', word: 'Endnotes', icon: 'notes' }];
-const state = { open: { links: false, notes: false }, folded: { links: false, notes: false }, words: {}, panels: {}, view: 'kind', page: false, rows: [], notes: [], all: new Set(), asked: 0, stopped: true };
+const state = { growing: new Set(), open: { links: false, notes: false }, folded: { links: false, notes: false }, words: {}, panels: {}, view: 'kind', page: false, rows: [], notes: [], all: new Set(), asked: 0, stopped: true };
 
 const eachTitle = (tree, visit) => { for (const node of tree || []) { visit(String(node?.title ?? '')); eachTitle(node?.children, visit); } };
 // What the words link to, each once, in the order of the page; a citation is not a link here.
@@ -86,7 +86,7 @@ async function load() {
   if (asked !== state.asked) return;
   Object.assign(state, { page: !!page?.uuid, rows, notes });
   Look.cites.setNotes(notes);
-  render(host());
+  render(host(), true);
 }
 
 function rowOf(doc, row, bare) {
@@ -106,7 +106,7 @@ function linksBody(doc) {
   else if (state.view === 'kind') for (const group of byKind(state.rows)) {
     const open = state.all.has(group.head), shown = open ? group.rows : group.rows.slice(0, FEW);
     body.push(el(doc, 'div', { class: 'lk-links-group' }, el(doc, 'div', { class: 'lk-links-head' }, group.head), ...shown.map(row => rowOf(doc, row, group.head !== 'No kind')),
-      shown.length < group.rows.length ? el(doc, 'button', { class: 'lk-more', type: 'button', click: () => { state.all.add(group.head); render(doc); } }, `show all ${group.rows.length}`) : null));
+      shown.length < group.rows.length ? el(doc, 'button', { class: 'lk-more', type: 'button', click: () => { state.all.add(group.head); render(doc); unrollRest(doc, group.head); } }, `show all ${group.rows.length}`) : null));
   } else body.push(...state.rows.map(row => rowOf(doc, row, false)));
   return body;
 }
@@ -115,18 +115,38 @@ function notesBody(doc) {
   if (!state.notes.length) return [el(doc, 'div', { class: 'lk-links-none' }, 'No citations on this page.')];
   return state.notes.map((note, i) => noteOf(doc, note, i + 1));
 }
-function render(doc) {
+// read: the page was read for a section just opened, so what it holds grows on from the empty section (window.PluginDoor.regrow).
+function render(doc, read) {
   for (const { key } of SECTIONS) {
     const panel = state.panels[key], body = panel?.querySelector('.sidebar-panel-content');
     if (!body) continue;
+    const was = read && state.growing.has(key) && !body.hidden ? body.getBoundingClientRect().height : null;
     panel.classList.toggle('lk-links-flat', key === 'links' && state.view === 'page');
     body.replaceChildren(...(key === 'links' ? linksBody(doc) : notesBody(doc)));
+    if (read) { state.growing.delete(key); window.PluginDoor.regrow(body, was); }
   }
   Look.kit.run(doc);
 }
+// The rest of a group, shown by "show all", rolls out under its first few.
+function unrollRest(doc, head) {
+  const group = [...(state.panels.links?.querySelectorAll('.lk-links-group') || [])].find(g => g.querySelector('.lk-links-head')?.textContent === head);
+  window.PluginDoor.unroll([...(group?.querySelectorAll(':scope > .lk-links-row') || [])].slice(FEW));
+}
 
-function setOpen(key, open) { state.open[key] = open; state.all.clear(); load(); draw(host()); letHiddenGo(); }
-function setFolded(key, folded) { state.folded[key] = folded; draw(host()); }
+// A section rolls out of the bar's word when opened and back up when closed; folding rolls what it holds up, unfolding out.
+async function setOpen(key, open) {
+  if (!open) await window.PluginDoor.rollUp(state.panels[key]);
+  state.open[key] = open; state.all.clear();
+  if (open) state.growing.add(key);
+  load(); draw(host()); letHiddenGo();
+  if (open) window.PluginDoor.unroll(state.panels[key]);
+}
+async function setFolded(key, folded) {
+  const body = state.panels[key]?.querySelector('.sidebar-panel-content');
+  if (folded) await window.PluginDoor.rollUp(body);
+  state.folded[key] = folded; draw(host());
+  if (!folded) window.PluginDoor.unroll(body);
+}
 // A section as Logseq builds one, so the sidebar's own rules reach it: a head that folds it, an × that closes it, what it holds under them.
 function sectionOf(doc, { key, word, icon }) {
   const arrow = doc.querySelector('.ls-block .rotating-arrow')?.cloneNode(true) || el(doc, 'span', { class: 'rotating-arrow' });

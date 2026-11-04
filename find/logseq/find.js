@@ -108,7 +108,7 @@ const S = {
   dlg: null, doc: null, gen: 0, timer: 0, reads: 0, enter: null, making: false,
   picks: [], typed: '', mode: 'rows', rowAt: 0, choiceAt: 0,
   kinds: [], tree: null, recents: [], base: [], shown: [], facets: null, allShown: false, moreOf: new Set(),
-  dug: [], dugData: new Map(), openGroups: new Set(), groupAll: new Set(), stale: false,
+  dug: [], dugData: new Map(), unroll: null, unrollFrom: null, openGroups: new Set(), groupAll: new Set(), stale: false,
   cache: { kind: new Map(), kindFacets: new Map(), counted: new Map(), words: new Map() }, loading: false, failed: '', commands: null,
 };
 const setting = key => Find.settings.setting(key);
@@ -242,11 +242,13 @@ function choiceGroups() {
   }
   // "more" is a choice like the others, so the arrows reach it and Tab or Enter takes it; the cursor stays where the first new one comes.
   // The kinds opened with nothing typed are laid out anew as columns, so the cursor goes to the first of them.
-  for (const g of groups) if (g.more) g.items.push({ more: true, label: 'more', pick: () => { S.moreOf.add(g.key); if (g.key === 'kind' && !words().length && !kindPick() && S.tree?.length) S.choiceAt = 0; render(); } });
-  if (groups.hidden) groups.push({ key: 'lines', label: '', icon: '', items: [{ more: true, label: `${groups.hidden} more ${groups.hidden === 1 ? 'property' : 'properties'} to narrow by`, pick: () => { S.moreOf.add('lines'); render(); } }] });
+  for (const g of groups) if (g.more) g.items.push({ more: true, label: 'more', pick: () => { S.moreOf.add(g.key); if (g.key === 'kind' && !words().length && !kindPick() && S.tree?.length) S.choiceAt = 0; growChoices(); } });
+  if (groups.hidden) groups.push({ key: 'lines', label: '', icon: '', items: [{ more: true, label: `${groups.hidden} more ${groups.hidden === 1 ? 'property' : 'properties'} to narrow by`, pick: () => { S.moreOf.add('lines'); growChoices(); } }] });
   return groups;
 }
 const flatChoices = groups => groups.flatMap(g => g.items);
+// "more" grows the choices where they stand, so the rows under them glide down (window.PluginDoor.regrow).
+function growChoices() { const was = S.dlg?.querySelector('.fd-choices')?.getBoundingClientRect().height; render(); window.PluginDoor.regrow(S.dlg?.querySelector('.fd-choices'), was); }
 const litChoice = groups => (words().length === 1 ? flatChoices(groups).find(c => c.lit) : null);
 
 function addPick(pick) {
@@ -421,7 +423,18 @@ function render() {
   const cur = body.querySelector(S.mode === 'choices' ? `[data-c="${S.choiceAt}"]` : `.fd-r[data-i="${S.rowAt}"]`);
   cur?.scrollIntoView?.({ block: 'nearest' });
   drawFoot(groups, rows);
+  // What was just opened rolls out (a dug node once it is read, a group's nodes), so the rows under it glide down.
+  // A node not read yet first shows "reading…", rolled out; what it holds then grows on from there.
+  if (S.unroll) {
+    const opened = S.unroll(body), waiting = opened.some(e => e.querySelector('.fd-wait'));
+    if (opened.length) {
+      const was = S.unrollFrom, now = opened.reduce((h, e) => h + e.getBoundingClientRect().height, 0);
+      if (was == null) window.PluginDoor.unroll(opened); else window.PluginDoor.regrow(opened[0], was);
+      if (waiting) S.unrollFrom = now; else { S.unroll = null; S.unrollFrom = null; }
+    }
+  }
 }
+const withData = (root, name, value) => [...root.querySelectorAll(`[data-${name}]`)].filter(e => e.getAttribute('data-' + name) === value);
 // The kinds in columns: a top-level tag bold at the head of its column, the tags under it stepped in by depth; "Logseq" a
 // head that is no kind. Each is a choice like any other, lit by the cursor, its count shown only then or under the pointer.
 function treeOf(doc, g, next, groups) {
@@ -451,7 +464,7 @@ function litRow(at, groups, rows) {
 }
 // Rows under an opened group sit one step in; a group line sits inside its node's box.
 function wrapIn(doc, row, r) {
-  if (r.under) { const box = el(doc, 'div', { class: 'fd-gn' }); box.append(row); return box; }
+  if (r.under) { const box = el(doc, 'div', { class: 'fd-gn', 'data-under': r.under }); box.append(row); return box; }
   return row;
 }
 function commandRow(doc, r, i, on) {
@@ -472,7 +485,7 @@ function markWords(html, ws) {
 // A node opened in place: its properties as name and value, the groups follow as rows of the list.
 function dugBox(doc, node) {
   const data = S.dugData.get(node.uuid);
-  const box = el(doc, 'div', { class: 'fd-kids' });
+  const box = el(doc, 'div', { class: 'fd-kids', 'data-dug': node.uuid });
   if (!data) { box.append(el(doc, 'div', { class: 'fd-wait' }, 'reading…')); return box; }
   if (data.properties.length) {
     const kv = el(doc, 'div', { class: 'fd-kv' });
@@ -520,16 +533,22 @@ function foot(doc, groups, rows) {
 
 /* Doing. */
 async function toggleDig(node) {
-  if (S.dug.includes(node.uuid)) { S.dug = S.dug.filter(u => u !== node.uuid); for (const k of [...S.openGroups]) if (k.startsWith(node.uuid + '|')) S.openGroups.delete(k); render(); return; }
+  if (S.dug.includes(node.uuid)) {
+    // Closing rolls the node's box back up first, then the list is drawn without it.
+    await window.PluginDoor.rollUp(S.dlg ? withData(S.dlg, 'dug', node.uuid) : []);
+    S.dug = S.dug.filter(u => u !== node.uuid); for (const k of [...S.openGroups]) if (k.startsWith(node.uuid + '|')) S.openGroups.delete(k); render(); return;
+  }
   S.dug.push(node.uuid);
+  S.unroll = body => withData(body, 'dug', node.uuid);
   if (!S.dugData.has(node.uuid)) {
     render();
     try { S.dugData.set(node.uuid, await db.node(node.uuid)); } catch (error) { console.error('Find: could not read the node', error); S.dugData.set(node.uuid, { properties: [], pointed: [], mentioned: [] }); }
   }
   render();
 }
-function toggleGroup(g) {
-  if (S.openGroups.has(g.key)) S.openGroups.delete(g.key); else S.openGroups.add(g.key);
+async function toggleGroup(g) {
+  if (S.openGroups.has(g.key)) { await window.PluginDoor.rollUp(S.dlg ? withData(S.dlg, 'under', g.key) : []); S.openGroups.delete(g.key); }
+  else { S.openGroups.add(g.key); S.unroll = body => withData(body, 'under', g.key); }
   render();
 }
 function openRow(r, inSidebar) {

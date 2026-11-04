@@ -1561,12 +1561,14 @@ function onClick(event) {
   if (target.matches('.rf-tw-tag[data-tag-page]')) return openPage(target.dataset.tagPage, event.shiftKey);
   if (target.matches('[data-draft="tag"]')) return tagList(target);
   const key = target.dataset.key;
-  if (target.matches('.rf-tw-toggle')) setOpen(key, !isOpen(key));
+  // The head folds its list as the fold arrow does: rolled up before it goes, unrolled as it comes.
+  const turn = () => { if (isOpen(key)) shared.outline.close(target.closest('.rf-tw-row')?.querySelector('.rf-tw-list'), () => { setOpen(key, false); draw(host()); }); else { setOpen(key, true); state.fresh = key; state.html = null; draw(host()); state.fresh = ''; } };
+  if (target.matches('.rf-tw-toggle')) return turn();
   else if (target.matches('.rf-tw-chip')) {
     // All folds and unfolds the list (0.4.401, the owner: "clicking All # should fold/unfold"); with one tag picked
     // it first shows every node again. A tag's word opens the list with only its nodes, a second click shows all.
     const tag = target.dataset.tag || '';
-    if (!tag) { if (state.only.has(key)) { state.only.delete(key); setOpen(key, true); } else setOpen(key, !isOpen(key)); }
+    if (!tag) { if (state.only.has(key)) { state.only.delete(key); setOpen(key, true); } else return turn(); }
     else { if (state.only.get(key) === tag) state.only.delete(key); else state.only.set(key, tag); if (!isOpen(key)) setOpen(key, true); }
   }
   draw(host());

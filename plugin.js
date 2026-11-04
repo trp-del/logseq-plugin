@@ -72,6 +72,34 @@ Door.kindIconHtml = kind => {
   if (KIND_ICONS[k] === null) return `<i class="lk-icon lk-web" aria-hidden="true">${Door.WEB}</i>`;
   return `<i class="lk-icon ti ti-${KIND_ICONS[k] || 'letter-case'}" aria-hidden="true"></i>`;
 };
+/* What opens rolls out (the grammar), as Threads' section does: the room it takes grows from nothing in 180 ms while it fades
+   in, so what is below glides down instead of jumping; closing rolls it back up before it goes. One motion for every module,
+   none under reduced motion. unroll(elements) after they are drawn; rollUp(elements) resolves when they are gone from view,
+   to draw without them then; regrow(element, height it had) where one thing grew or shrank in place. */
+const MOTION_MS = 180;
+const still = el => { const win = el?.ownerDocument?.defaultView; return !win || !el.animate || !!win.matchMedia?.('(prefers-reduced-motion: reduce)').matches; };
+// A row may hold a minimum height and padding (a grid row, a line): they go to nothing with the height, or it cannot shrink.
+const shut = el => ({ height: '0px', minHeight: '0px', paddingTop: '0px', paddingBottom: '0px', marginTop: '0px', marginBottom: '0px', opacity: 0 });
+const full = el => { const cs = el.ownerDocument.defaultView.getComputedStyle(el); return { height: el.getBoundingClientRect().height + 'px', minHeight: cs.minHeight, paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, marginTop: cs.marginTop, marginBottom: cs.marginBottom, opacity: 1 }; };
+const clipWhile = (el, animation) => { const was = el.style.overflow; el.style.overflow = 'hidden'; const end = () => { el.style.overflow = was; }; animation.onfinish = end; animation.oncancel = end; return animation; };
+Door.unroll = (elements, ms = MOTION_MS) => {
+  for (const el of [].concat(elements || [])) {
+    if (!el?.isConnected || still(el)) continue;
+    if (el.getBoundingClientRect().height > 0) clipWhile(el, el.animate([shut(el), full(el)], { duration: ms, easing: 'ease-out' }));
+  }
+};
+// It holds its end until it resolves, then lets go: the caller draws without the elements (or hides them) in the same step.
+Door.rollUp = (elements, ms = 140) => {
+  const running = [].concat(elements || []).filter(el => el?.isConnected && !still(el) && el.getBoundingClientRect().height)
+    .map(el => clipWhile(el, el.animate([full(el), shut(el)], { duration: ms, easing: 'ease-in', fill: 'forwards' })));
+  return Promise.all(running.map(a => a.finished.catch(() => {}))).then(() => { for (const a of running) a.cancel(); });
+};
+Door.regrow = (el, from, ms = MOTION_MS) => {
+  if (!el?.isConnected || still(el) || from == null) return;
+  const to = el.getBoundingClientRect().height;
+  if (Math.abs(to - from) < 1) return;
+  clipWhile(el, el.animate([{ height: from + 'px' }, { height: to + 'px' }], { duration: ms, easing: 'ease-out' }));
+};
 // The Undo arrow: the grammar's one shape, from Logseq's icon font. Its fade is the shared name lk-undo.
 Door.UNDO = '<i class="ti ti-arrow-back-up" aria-hidden="true"></i>';
 /* The press's icons: one even line, the most literal drawing of what the press does, and anything that moves is an arrow. None
