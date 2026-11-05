@@ -4,8 +4,8 @@
    plumbing, parts/model.js, parts/diagnostics.js), draws only through the kit, and finds nothing by a name on the
    window. This counts, in every loaded part outside layer 1 (PART_FILES in main.js):
      logseq    direct calls to Logseq (`logseq.` in the code, comments left out);
-     sideways  reads of a name on the window other than the engine's own three (window.refinementShared,
-               window.refinementParts, window.refinementCore): a part reaching another part, or a shared bag such as
+     sideways  reads of a name on the window other than the engine's own three (window.Threads.shared,
+               window.Threads.parts, window.Threads.core): a part reaching another part, or a shared bag such as
                window.refinementTagMap or window.refinementProposals;
    and, over main.js and every loaded part,
      names     publications on the window (`window.x = `) beyond the engine's own three.
@@ -18,16 +18,16 @@ const path = require('path');
 
 const root = path.resolve(__dirname, '..');
 const LAYER_1 = ['main.js', 'parts/shared.js', 'parts/model.js', 'parts/diagnostics.js'];
-const OWN_NAMES = ['refinementShared', 'refinementParts', 'refinementCore'];
+const OWN_NAMES = ['shared', 'parts', 'core'];   // on window.Threads, the module's one name
 // The baseline: lower a number here when a part is moved onto the kit, never raise one.
 const BASELINE = {
   logseq: {
-    'parts/two-way.js': 0, 'parts/alike.js': 0,
-    'parts/shadow-rules.js': 0,
+    'parts/two-way.js': 0,
+    'parts/proposals.js': 0,
   },
   sideways: {
-    'parts/two-way.js': 0, 'parts/alike.js': 0,
-    'parts/shadow-rules.js': 0,
+    'parts/two-way.js': 0,
+    'parts/proposals.js': 0,
   },
   names: 0,
 };
@@ -45,10 +45,10 @@ const found = { logseq: {}, sideways: {}, names: 0 };
 for (const file of features) {
   const text = code(file);
   found.logseq[file] = count(text, /\blogseq\./g);
-  found.sideways[file] = (text.match(/window\.(refinement[A-Za-z]*)/g) || []).map(m => m.replace('window.', '')).filter(name => !OWN_NAMES.includes(name)).length;
+  found.sideways[file] = (text.match(/window\.Threads\.([A-Za-z]*)/g) || []).map(m => m.replace('window.Threads.', '')).filter(name => !OWN_NAMES.includes(name)).length;
 }
 const published = new Map(); // name → the files that publish it
-for (const file of ['main.js', ...PART_FILES]) for (const m of code(file).matchAll(/window\.([A-Za-z_$][\w$]*)\s*(?:\|\||\?\?)?=[^=]/g)) if (!OWN_NAMES.includes(m[1])) published.set(m[1], [...(published.get(m[1]) || []), file.replace('parts/', '')]);
+for (const file of ['main.js', ...PART_FILES]) for (const m of code(file).matchAll(/window\.([A-Za-z_$][\w$]*)\s*(?:\|\||\?\?)?=[^=]/g)) if (m[1] !== 'Threads') published.set(m[1], [...(published.get(m[1]) || []), file.replace('parts/', '')]);
 found.names = published.size;
 
 for (const kind of ['logseq', 'sideways']) {

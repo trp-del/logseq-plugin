@@ -97,14 +97,14 @@ function world(grouping) {
     removeTag: async () => {}, createPage: async () => ({ uuid: U(++nextBlock) }), deletePage: async () => {}, editBlock: async () => {},
   };
   const early = [], saved = [];
-  window.refinementCore = {
+  window.Threads.core = {
     UUID: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, isEntityId: n => Number.isSafeInteger(n) && n > 0,
     watchDomEarly: fn => early.push(fn), addsElements: () => true, sendStyle() {}, uuidsIn: () => '', saveSettings(changes) { saved.push(changes); Object.assign(window.logseq.settings, changes); },
     onPageChange() {}, onDatabaseChange(fn) { changed.push(fn); }, onSettingsChange() {}, onGraphChange(fn) { graphHooks.push(fn); }, provided,
     provide(things) { Object.assign(provided, things); },
   };
-  const part = window.refinementParts.find(p => p.name === 'two-way');
-  part.provide(window.refinementCore);
+  const part = window.Threads.parts.find(p => p.name === 'two-way');
+  part.provide(window.Threads.core);
   part.start();
   return { window, doc, calls, part, bullets, saved, reads, changed, provided, graphHooks, madeNow, recycled, notices };
 }
@@ -141,7 +141,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
   {
     const { window, doc, part } = world('');
     await wait(100);
-    const shared = window.refinementShared;
+    const shared = window.Threads.shared;
     const options = Array.from({ length: 300 }, (_, i) => ({ label: `Page ${i + 1}` }));
     const picked = shared.pickValue({ at: doc.body, options, doc });
     await wait(10);
@@ -418,7 +418,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     const { window, doc, calls, part } = world('');
     await wait(120);
     const asked = [];
-    window.refinementCore.provided.draftProposals = async draft => {
+    window.Threads.core.provided.draftProposals = async draft => {
       asked.push(draft);
       if (!/scan/.test(draft.text)) return [];
       return [
@@ -465,7 +465,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
   {
     const { window, doc, calls, part } = world('');
     await wait(120);
-    window.refinementCore.provided.draftProposals = async () => [{ ident: 'user.property/topic', title: 'Topic', kind: 'node', ids: [77], shown: 'Colon cancer', guess: true, many: false }, { ident: 'user.property/with', title: 'with', kind: 'node', ids: [78, 79], shown: 'Ruth Okoro, Tunde Okoro', guess: true, many: true }];
+    window.Threads.core.provided.draftProposals = async () => [{ ident: 'user.property/topic', title: 'Topic', kind: 'node', ids: [77], shown: 'Colon cancer', guess: true, many: false }, { ident: 'user.property/with', title: 'with', kind: 'node', ids: [78, 79], shown: 'Ruth Okoro, Tunde Okoro', guess: true, many: true }];
     click(window, doc.querySelector('.rf-tw-add'));
     await wait(40);
     const field = doc.querySelector('.rf-tw-draft-name');
@@ -510,7 +510,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     const { window, doc, calls, part } = world('');
     await wait(120);
     const seen = [];
-    window.refinementCore.provided.linkSuggestInner = { suggestFor: (text, caret, pages, opts) => { seen.push([text, caret, opts]); return /Dr\. Pat$/.test(text) ? { start: text.length - 7, end: text.length, span: 'Dr. Pat', title: 'Dr. Raj Patel', ghost: 'el', name: 'Dr. Raj Patel' } : null; } };
+    window.Threads.core.provided.linkSuggestInner = { suggestFor: (text, caret, pages, opts) => { seen.push([text, caret, opts]); return /Dr\. Pat$/.test(text) ? { start: text.length - 7, end: text.length, span: 'Dr. Pat', title: 'Dr. Raj Patel', ghost: 'el', name: 'Dr. Raj Patel' } : null; } };
     click(window, doc.querySelector('.rf-tw-add'));
     await wait(40);
     const field = doc.querySelector('.rf-tw-draft-name');
@@ -533,12 +533,12 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     const { window, doc, calls, part } = world('');
     await wait(120);
     const seen = [];
-    window.refinementCore.provided.linkSuggestInner = {
+    window.Threads.core.provided.linkSuggestInner = {
       suggestFor: (text, caret, pages, opts) => { seen.push([text, opts]); return /Dr\. Pat$/.test(text) ? { start: text.length - 7, end: text.length, span: 'Dr. Pat', title: 'Dr. Raj Patel', ghost: 'el', name: 'Dr. Raj Patel' } : null; },
       boostFor: (tagIds) => new Set(tagIds),
     };
-    window.refinementCore.provided.propPages = async () => [{ id: 41, title: 'Claim', lower: 'claim', isTag: true, tags: [] }];
-    window.refinementCore.provided.propSchema = async () => ({ props: [] });
+    window.Threads.core.provided.propPages = async () => [{ id: 41, title: 'Claim', lower: 'claim', isTag: true, tags: [] }];
+    window.Threads.core.provided.propSchema = async () => ({ props: [] });
     const node = U(101);
     click(window, chevOf(doc, node));
     await wait(80);
@@ -567,7 +567,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     const { window, doc, calls, part } = world('');
     await wait(120);
     const asked = [];
-    window.refinementCore.provided.pickerOrder = async (uuid, title) => { asked.push([uuid, title]); return title === 'Source' ? [62] : []; };
+    window.Threads.core.provided.pickerOrder = async (uuid, title) => { asked.push([uuid, title]); return title === 'Source' ? [62] : []; };
     const node = U(103);
     click(window, chevOf(doc, node));
     await wait(120);
@@ -597,7 +597,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     const undo = [...doc.querySelectorAll('.rf-undo')].find(u => /Set “Source” on/.test(u.title || ''));
     check(!!undo, 'the faded Undo arrow should be offered: ' + [...doc.querySelectorAll('.rf-undo')].map(u => u.title));
     // Undo of the Source pick puts back what it held (nothing).
-    window.refinementCore.provided.unsetValue = async (uuid, ident) => { calls.push(['unsetValue', uuid, ident]); };
+    window.Threads.core.provided.unsetValue = async (uuid, ident) => { calls.push(['unsetValue', uuid, ident]); };
     click(window, undo); await wait(150);
     check(calls.some(c => c[0] === 'unsetValue' && c[1] === node && c[2] === 'user.property/source'), 'Undo should put back what Source held, nothing: ' + JSON.stringify(calls.filter(c => c[2] === 'user.property/source')));
     // A number: shown ready to change; the same words again change nothing; a new one is written as a number.
@@ -626,9 +626,9 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     const { window, doc, calls, part } = world('');
     await wait(120);
     const asked = [];
-    window.refinementCore.provided.namedPages = async (text, tagIds) => { asked.push([text, tagIds]); return /recall/.test(text) ? [62, 61] : /review/.test(text) ? [62] : []; };
-    window.refinementCore.provided.propSchema = async () => ({ props: [{ ident: 'user.property/about', title: 'about', lower: 'about', type: 'node', many: false, choices: [], classes: [{ id: 60 }] }] });
-    window.refinementCore.provided.valuesOf = async () => [5];
+    window.Threads.core.provided.namedPages = async (text, tagIds) => { asked.push([text, tagIds]); return /recall/.test(text) ? [62, 61] : /review/.test(text) ? [62] : []; };
+    window.Threads.core.provided.propSchema = async () => ({ props: [{ ident: 'user.property/about', title: 'about', lower: 'about', type: 'node', many: false, choices: [], classes: [{ id: 60 }] }] });
+    window.Threads.core.provided.valuesOf = async () => [5];
     const pick = uuid => click(window, doc.querySelector(`.rf-tw-pick[data-pick="${uuid}|about"]`));
     pick(U(101)); await wait(20); pick(U(102)); await wait(20);
     click(window, await moreItem(window, doc, /^Change/));
@@ -649,7 +649,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
   //     written, made with a click and taken back with Undo; the row hidden on this page from its right-click.
   {
     const { window, doc, calls, part, saved } = world('');
-    const p = window.refinementCore.provided;
+    const p = window.Threads.core.provided;
     p.mentionsInto = async id => id === 5 ? [
       { id: 201, uuid: U(201), title: 'Called [[Spaced repetition]] about the scan', tag: '', day: 20260803 },
       { id: 202, uuid: U(202), title: 'Spaced repetition felt easier today', tag: 'Symptom Log', day: 20260909 },
@@ -742,7 +742,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
   //     three deep; the chevron and closing the node close it; nothing written.
   {
     const { window, doc, calls, part } = world('');
-    const p = window.refinementCore.provided;
+    const p = window.Threads.core.provided;
     const base = p.nodeValues, baseLinks = p.linksInto;
     const link = (uuid, title, id) => ({ text: title, id, uuid });
     const extra = new Map([
@@ -858,7 +858,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
   {
     const { window, doc, calls, part } = world('');
     await wait(120);
-    const provided = window.refinementCore.provided, node = U(103), TIME = new Date(2026, 10, 3, 12).getTime(), schema = await provided.propSchema();
+    const provided = window.Threads.core.provided, node = U(103), TIME = new Date(2026, 10, 3, 12).getTime(), schema = await provided.propSchema();
     let words = true;
     provided.propSchema = async () => ({ props: [...schema.props,
       { ident: 'logseq.property/deadline', title: 'Deadline', lower: 'deadline', type: 'datetime', many: false, choices: [], classes: [] },
@@ -908,7 +908,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
   {
     const { window, doc, calls, part } = world('');
     await wait(120);
-    const provided = window.refinementCore.provided;
+    const provided = window.Threads.core.provided;
     provided.getPage = async uuid => uuid === U(102) ? { name: 'gap', title: 'gap' } : { id: 5, uuid: PAGE };
     provided.deletePage = async name => { calls.push(['deletePage', name]); };
     click(window, doc.querySelector('.rf-tw-pick'));
@@ -1054,7 +1054,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     const bin = U(960);
     provided.propPages = async () => [{ id: 960, uuid: bin, title: 'Binned place', lower: 'binned place', tags: [] }];
     recycled.add(bin);
-    const popup = window.refinementShared.popup; window.refinementShared.popup = options => { const pop = popup(options); doc.activeElement?.blur(); return pop; };   // as a list opening does in Logseq
+    const popup = window.Threads.shared.popup; window.Threads.shared.popup = options => { const pop = popup(options); doc.activeElement?.blur(); return pop; };   // as a list opening does in Logseq
     await wait(100);
     click(window, doc.querySelector('.rf-tw-add')); await wait(60);
     const name = doc.querySelector('.rf-tw-draft-name'); type(window, name, 'Into the bin'); enter(window, name); await wait(80);

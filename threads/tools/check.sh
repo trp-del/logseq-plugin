@@ -2,7 +2,7 @@
 # Checks the plugin before a commit. Run from the repo root: sh tools/check.sh   (sh tools/check.sh --full for the slow ones)
 # Exits non-zero on any problem, with a plain message.
 # Trimmed from DB Refinements' check.sh to what the two-way links plugin still has: the kit, the model, the two-way section
-# and the parts it can use (suggested links, the looks-like engine and the proposals' rules).
+# and the part that asks Predictive's core what the + line proposes.
 cd "$(dirname "$0")/.." || exit 1
 JSC=/System/Library/Frameworks/JavaScriptCore.framework/Versions/Current/Helpers/jsc
 fail=0
@@ -36,7 +36,6 @@ fi
 if command -v node >/dev/null 2>&1 && node -e "require('jsdom')" 2>/dev/null; then
   node tools/boot-test.js || problem "the boot test failed (see above)"
   BOOT_FAIL=two-way node tools/boot-test.js || problem "a part that fails to start was not said (see above)"
-  node tools/alike-test.js || problem "the looks-like engine failed its checks or timings (see above)"
   node tools/undo-test.js || problem "the plugin's one Undo failed its checks (see above)"
   node tools/recycle-list-test.js || problem "the Recycle list failed its checks (see above)"
   node tools/two-way-rows-test.js || problem "the two-way rows' grouping, + in a group or writing into a node failed its checks (see above)"

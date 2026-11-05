@@ -87,7 +87,7 @@ function fakeLogseq(log) {
     calls: [],
     settings: {},
     _settingsSchema: [],
-    baseInfo: { id: 'logseq-threads', version: '0.0.0' },
+    baseInfo: { id: 'logseq-plugin', version: '0.0.0' },
     fire: (full, ...args) => { for (const handler of hooks[full] || []) handler(...args); },
     hooks,
   };
@@ -98,9 +98,11 @@ function fakeLogseq(log) {
 function loadPlugin(host, logseq) {
   const pluginWindow = { parent: host.window, console, setTimeout, clearTimeout, Promise, Date, Map, Set, URL, location: { href: 'file:///plugin/main.js' } };
   pluginWindow.window = pluginWindow;
-  // What main.js at the plugin's root does for a module: its settings, its start, its stop.
-  pluginWindow.PluginDoor = { writing: () => false, settingChanged: (keys, now, before) => !before || keys.some(key => JSON.stringify(now?.[key]) !== JSON.stringify(before[key])), register: module => { logseq.useSettingsSchema?.(module.schema); logseq.ready(module.start); logseq.beforeunload?.(module.stop); } };
   const document = { currentScript: null, createElement: () => ({}), body: { appendChild() {} } };
+  // The door (plugin.js at the root), loaded first as the plugin loads it: the screen watcher, the shared names, the hooks the
+  // parts read. Its register is replaced by what main.js at the plugin's root does for a module: its settings, its start, its stop.
+  new Function('logseq', 'window', 'document', 'console', fs.readFileSync(path.join(root, '..', 'plugin.js'), 'utf8'))(logseq, pluginWindow, document, console);
+  pluginWindow.PluginDoor.register = module => { logseq.useSettingsSchema?.(module.schema); logseq.ready(module.start); logseq.beforeunload?.(module.stop); };
   for (const file of [...PART_FILES, 'main.js']) {
     const src = fs.readFileSync(path.join(root, file), 'utf8');
     // The same wrapping as tools/check.js, with the globals a part reaches for.
@@ -153,7 +155,7 @@ async function main() {
   const pluginWindow = loadPlugin(host, logseq);
   await sleep(50);
   if (!logseq._main) problem('main() was never given to logseq.ready');
-  const parts = pluginWindow.refinementParts || [];
+  const parts = pluginWindow.Threads.parts || [];
   // A part that fails to start: BOOT_FAIL=two-way. One notice says which, in words, and the rest runs (check.sh runs this).
   if (process.env.BOOT_FAIL) {
     const part = parts.find(p => p.name === process.env.BOOT_FAIL), others = parts.filter(p => p !== part);
@@ -190,7 +192,7 @@ async function main() {
   const expected = part => part === 'shadow' ? has('shadow') && has('shadow-rules') : part === 'tags' ? tagMap() : has(part);
   for (const [part, key] of Object.entries(SIGNS)) if (expected(part) !== styleKeys.includes(key)) problem(`${expected(part) ? 'with' : 'without'} ${part}, its stylesheet ${key} was ${styleKeys.includes(key) ? 'still' : 'not'} sent`);
   // Link selected text (on the kit, 0.4.314) sends no stylesheet of its own: its sign is its command in the one register.
-  const registered = (pluginWindow.refinementCore?.commands?.() || []).map(c => c.key);
+  const registered = (pluginWindow.Threads.core?.commands?.() || []).map(c => c.key);
   if (has('link-text') !== registered.includes('link-selected-text')) problem(`${has('link-text') ? 'with' : 'without'} link-text, its command was ${registered.includes('link-selected-text') ? 'still' : 'not'} in the register`);
   if (has('block-commands') !== registered.includes('new-outermost-block')) problem(`${has('block-commands') ? 'with' : 'without'} block-commands, its command was ${registered.includes('new-outermost-block') ? 'still' : 'not'} in the register`);
   if (tagMap() !== keys.includes('show-tag-tree')) problem(`${tagMap() ? 'with' : 'without'} the tag map, its command was ${keys.includes('show-tag-tree') ? 'still' : 'not'} registered`);
@@ -201,9 +203,9 @@ async function main() {
     ...(has('links') ? ['check-link-labels'] : []), ...(has('pages') ? ['copy-header-details'] : [])].sort();
   if (toolKeys.join() !== wantTools.join())
     problem('troubleshooting tools: ' + toolKeys.join(', '));
-  pluginWindow.refinementShared.popups.closeAll(); doc.querySelector('dialog.refinement-settings')?.remove();
+  pluginWindow.Threads.shared.popups.closeAll(); doc.querySelector('dialog.refinement-settings')?.remove();
   // Its screen report holds every running feature's rows, each thing once, with every feature that needs it.
-  await pluginWindow.refinementCore.provided.diagnostics.checkWhatIsFound();
+  await pluginWindow.Threads.core.provided.diagnostics.checkWhatIsFound();
   const report = doc.querySelector('textarea')?.value || '';
   if (ALL_PARTS) {
   for (const row of ['the page area', 'reference areas', 'title row', 'fold state', 'nesting lines', 'right sidebar', 'toolbar'])
@@ -229,7 +231,7 @@ async function main() {
   await sleep(1300); // the database round after a pause (800 ms) and the first self-check (4 s is too long to wait; it is harmless)
 
   // The counts' door (2026-10-23, for tools/app-stress.js): what this copy set going, and when it started. Only two-way watches the screen.
-  const counts = pluginWindow.refinementCore.counts?.();
+  const counts = pluginWindow.Threads.core.counts?.();
   const totalSteps = c => Object.values(c?.cleanUps || {}).reduce((a, b) => a + b, 0);
   if (!counts || !counts.startedAt || !totalSteps(counts) || (has('two-way') && !counts.watchers)) problem('the counts door gave nothing: ' + JSON.stringify(counts));
   // 3. Unload, as Logseq does before a reload.
@@ -238,7 +240,7 @@ async function main() {
   try { await logseq._unload(); } catch (error) { problem('unload threw: ' + (error && error.stack || error)); }
   await sleep(100);
   for (const key of Object.keys(host.window)) if (/Stop$/.test(key) && typeof host.window[key] === 'function') problem(`clean-up ${key} still on the host window after unload`);
-  const after = pluginWindow.refinementCore.counts?.();
+  const after = pluginWindow.Threads.core.counts?.();
   if (totalSteps(after)) problem('clean-up steps still waiting after unload: ' + JSON.stringify(after.cleanUps));
   const left = leftovers(doc);
   if (left.length) problem('left on screen after unload: ' + [...new Set(left)].join(', '));
@@ -283,7 +285,7 @@ async function main() {
   if (keys4.join() !== 'troubleshooting') problem('palette commands with Foundation only on: ' + keys4.join(', '));
   const tools4 = logseq4.calls.filter(call => call.name === 'App.registerCommand').map(call => call.args[1]?.key).sort();
   if (tools4.join() !== 'check-what-is-found,copy-perf-report,copy-styling-details,copy-warnings,recycle-list,take-the-tour,toggle-perf') problem('troubleshooting tools with Foundation only on: ' + tools4.join(', '));
-  if (!logseq4.calls.some(call => call.name === 'provideStyle' && call.args[0]?.key === 'refinements-kit')) problem('the kit’s look was not sent with Foundation only on');
+  if (!logseq4.calls.some(call => call.name === 'provideStyle' && call.args[0]?.key === 'threads-kit')) problem('the kit’s look was not sent with Foundation only on');
   console.log(`foundation only: ${keys4.length} palette commands (${keys4.join(', ')}), nothing drawn`);
   await logseq4._unload();
   await sleep(100);
@@ -291,7 +293,7 @@ async function main() {
   if (left4.length) problem('left on screen after the foundation-only unload: ' + [...new Set(left4)].join(', '));
 
   console.warn = realWarn; console.error = realError;
-  const own = warnings.filter(text => /Refinements|refinement|Error|error/i.test(text) && !(ALLOW_WARN && ALLOW_WARN.test(text)));
+  const own = warnings.filter(text => /Threads|Refinements|refinement|Error|error/i.test(text) && !(ALLOW_WARN && ALLOW_WARN.test(text)));
   if (ALLOW_WARN && !warnings.some(text => ALLOW_WARN.test(text))) problem('the warning wanted was not given: ' + ALLOW_WARN);
   for (const text of own) problem('warning: ' + text.slice(0, 300));
   for (const text of log) console.log('  ' + text);

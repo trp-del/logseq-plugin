@@ -26,7 +26,7 @@ How the section's pieces look (a tag in mono, the underline a node's name takes 
 
 ## What is here
 
-`settings.js`, beside `parts/`, says how Threads' settings read in the plugin's one settings window. The rest is in `parts/`:
+`main.js` is Threads' engine: the parts' three start steps, the hooks they share, the database round and the self-check after a Logseq update; its screen updater runs on the door's one watcher (`plugin.js`) since 5 November 2026, and the engine's names stand under `window.Threads`. `settings.js`, beside `parts/`, says how Threads' settings read in the plugin's one settings window. The rest is in `parts/`:
 
 | Part | What it is | Needed by two-way? |
 |---|---|---|
@@ -34,7 +34,7 @@ How the section's pieces look (a tag in mono, the underline a node's name takes 
 | `model.js` | the one place that reads and writes the graph | yes |
 | `diagnostics.js` | troubleshooting commands (what the plugin finds on this page, warnings, the tour) | yes (foundation) |
 | `two-way.js` | the two-way section | the feature |
-| `alike.js`, `shadow-rules.js` | the "looks like" engine and the proposals' rules, Threads' own copy for the **+** line, opened nodes and pick lists | optional; the grey predictions in the **+** line and the order of pick lists |
+| `proposals.js` | what the **+** line, an opened node and the pick lists propose: Threads' questions put to Predictive's core (its engine, its rules, its one reading of the graph), nothing of its own | optional; the pencilled values in the **+** line and the order of pick lists |
 
 Each optional part can be left out and the module still starts, runs and unloads (`node tools/parts-apart-test.js`). A part that fails to start leaves the rest running, and one notice says which.
 

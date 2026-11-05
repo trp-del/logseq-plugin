@@ -3,7 +3,7 @@
 /* The plumbing of layer 1 that lives in the plugin's frame, and THE KIT (layer 2, docs/LAYERS.md section 3): the
    pieces every part draws with, each drawn once, with one stylesheet. This header is the contract between the files.
 
-   WHAT THIS FILE PROVIDES, on window.refinementShared (and nothing else):
+   WHAT THIS FILE PROVIDES, on window.Threads.shared (and nothing else):
 
    Layer 1, talking to Logseq from the frame (the engine itself, the watcher, the database round, the command register
    and the screen door are in main.js; the graph in parts/model.js):
@@ -98,10 +98,10 @@
 
    WHAT EVERY OTHER PART MUST DO:
    - wrap itself in its own scope, `(() => { … })();`
-   - take what it needs from window.refinementShared (`const shared = window.refinementShared;`), and
+   - take what it needs from window.Threads.shared (`const shared = window.Threads.shared;`), and
      make its own lifecycle with its own prefix and, when it cleans up Logseq's window, its own stopKey,
      so that a reload still stops each part's earlier copy on its own;
-   - push { name, schema, provide?, start, ready?, commands?, moved?, foundation?, stop } onto window.refinementParts
+   - push { name, schema, provide?, start, ready?, commands?, moved?, foundation?, stop } onto window.Threads.parts
      (foundation: true keeps the part running under the setting Foundation only: the model, the troubleshooting
      tools and the settings window);
      main.js joins the schemas, in the order of PART_FILES, after its own, and from main() calls every
@@ -118,13 +118,13 @@
    LOAD ORDER AND WHY: loader.js → main.js → parts/shared.js → parts/model.js → the other parts → main().
    loader.js loads main.js with a fresh timestamp (Logseq caches a plugin's script between reloads);
    main.js loads the parts the same way, this file first, because the others read
-   window.refinementShared as they load, and parts/model.js second: the one part that knows what a page,
+   window.Threads.shared as they load, and parts/model.js second: the one part that knows what a page,
    block, tag, property, journal day and link are in a DB graph (titles, the stored form of a link, the
    property schema, the pages, days, journal titles, the Logseq version checked with). It provides them
    through core.provided, so every other part reads the graph through it with take(); the core itself knows
    nothing of content. main.js itself takes its helpers from here once the parts
    have loaded (useShared), before it gives Logseq the settings and before main() runs, and main()
-   publishes window.refinementCore before it starts any part. */
+   publishes window.Threads.core before it starts any part. */
 
 // ===== Layer 1: talking to Logseq from the frame =====
 
@@ -173,7 +173,7 @@ function sweepLeftovers(doc) {
 const lives = [];
 // Several parts share a prefix (the proposals' four, the tag map's three, the core and the troubleshooting tools): their
 // steps are added up under it, so none hides another's (the second reading of 2026-10-23).
-const lifeCounts = () => lives.reduce((out, { prefix, unloadTasks }) => { const key = prefix.replace(/^Refinements ?\(?|\)?: $/g, '') || 'core'; out[key] = (out[key] || 0) + unloadTasks.length; return out; }, {});
+const lifeCounts = () => lives.reduce((out, { prefix, unloadTasks }) => { const key = prefix.replace(/^Threads ?\(?|\)?: $/g, '') || 'core'; out[key] = (out[key] || 0) + unloadTasks.length; return out; }, {});
 function lifecycle({ prefix, stopKey, before, sweep, leaves }) {
   const warnOnce = warner(prefix);
   if (leaves) leftovers.push({ prefix, ...leaves });
@@ -1413,9 +1413,9 @@ leftovers.push({ prefix: 'Threads: ', elements: '.rf-pop, .rf-anchor, dialog.rf-
 
 // THE finder of the plugin's marks on Logseq's screen (2026-10-23): every class and attribute prefix any part uses.
 // The troubleshooting box counts with it, the boot test looks for leftovers with it and the frame tests
-// (tools/frames.js, tools/app-frames.js) track with it, so a new prefix is never counted by one and missed by another.
+// (tools/frames.js, the plugin's tools/motion-check.js) track with it, so a new prefix is never counted by one and missed by another.
 // A new prefix goes here and nowhere else.
-const MARK_CLASS = /^(refinement-|rf-|rfs-|rfp-|rtg-|rs-)/, MARK_ATTR = /^data-(refinement|rf|rfs)-/;
+const MARK_CLASS = /^(refinement-|rf-)/, MARK_ATTR = /^data-(refinement|rf)-/;
 const isOwnMark = node => node?.nodeType === 1 && ([...node.attributes].some(attr => MARK_ATTR.test(attr.name))
   || (typeof node.className === 'string' && [...node.classList].some(cls => MARK_CLASS.test(cls))));
 // Every mark in doc, counted: 'data-rf-x' → n, '.rf-y' → n.
@@ -1428,7 +1428,7 @@ function ownMarks(doc) {
   return marks;
 }
 
-window.refinementShared = {
+(window.Threads ||= {}).shared = {
   host, notify, lifecycle, sweepLeftovers, take, feature, screen, openEntity, openPageNamed, settingReader, graphNamedIn, perf, warnings,
   kitCss, el, esc, fragmentOf, ICONS, icon, iconHtml, kindIconHtml, tag, tagLinkHtml, quiet, go, keepKeys, field, fieldHtml, drawnField, outline, chevron, tick, chip, note, guide, choices, popup, popups, pickValue, editInPlace, ask, dialog, bar, cellEdit, tagTreeRows, card, undo,
   MARK_CLASS, MARK_ATTR, isOwnMark, ownMarks, lifeCounts,

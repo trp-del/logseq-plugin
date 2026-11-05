@@ -40,9 +40,9 @@ const answerAsk = async (pop, yes) => { const ask = pop.body.querySelector('.rf-
 window.HTMLElement.prototype.showPopover = function () {};
 window.HTMLElement.prototype.hidePopover = function () {};
 for (const file of ['../plugin.js', 'parts/shared.js', 'parts/diagnostics.js']) window.eval(fs.readFileSync(path.join(root, file), 'utf8'));
-const core = window.refinementCore = { provided: { CHECKED_WITH: '2.0.2' }, sendStyle: () => {}, watchDom: () => {}, onDatabaseChange: () => {}, onSettingsChange: () => {} };
+const core = window.Threads.core = { provided: { CHECKED_WITH: '2.0.2' }, sendStyle: () => {}, watchDom: () => {}, onDatabaseChange: () => {}, onSettingsChange: () => {} };
 core.provide = things => Object.assign(core.provided, things);
-const part = window.refinementParts.find(p => p.name === 'diagnostics');
+const part = window.Threads.parts.find(p => p.name === 'diagnostics');
 part.provide(core);
 const d = core.provided.diagnostics;
 

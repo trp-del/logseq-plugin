@@ -22,7 +22,7 @@ const doc = window.document;
 window.logseq = { settings: {}, UI: { showMsg() {} } };
 window.eval(fs.readFileSync(path.join(root, '../plugin.js'), 'utf8'));
 window.eval(fs.readFileSync(path.join(root, 'parts/shared.js'), 'utf8'));
-const { undo } = window.refinementShared;
+const { undo } = window.Threads.shared;
 const arrows = () => [...doc.querySelectorAll('.rf-undo')];
 const ran = [];
 

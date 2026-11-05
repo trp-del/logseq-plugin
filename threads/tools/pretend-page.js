@@ -49,7 +49,7 @@ function pretendLogseq() {
       : q.includes('count') ? counts : [], onChanged: () => () => {} },
     UI: { showMsg() {} }, App: { pushState() {} }, Editor: {},
   };
-  window.refinementCore = { provided: { backwardsLabel: n => n + ' of', setBackwards() {}, shownAtOtherEnd: () => true, setShownAtOtherEnd() {} } };
+  (window.Threads ||= {}).core = { provided: { backwardsLabel: n => n + ' of', setBackwards() {}, shownAtOtherEnd: () => true, setShownAtOtherEnd() {} } };
 }
 
 // Two-way rows as on Dr. Mei Chen's page: one short row, one long open list with several kinds of records.

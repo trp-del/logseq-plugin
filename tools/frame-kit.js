@@ -1,12 +1,18 @@
-/* The frame kit (2026-10-23, docs/history/FINISHING-PROMPT-2026-10-23.md section 3): what tools/frames.js (Chromium, a pretend page) and
-   tools/app-frames.js (the real Logseq, over its debugging port) both use to record a page settling and to say whether
-   anything jumped or flashed, and whose it was. Not a test by itself.
+/* The frame kit (2026-10-23, Threads' docs/history/FINISHING-PROMPT-2026-10-23.md section 3; the plugin's since 5 November 2026):
+   what threads/tools/frames.js (Chromium, a pretend page) and tools/motion-check.js (the real Logseq, over its debugging port)
+   both use to record a page settling and to say whether anything jumped or flashed, whose it was, and what caused it. Not a
+   test by itself.
 
    Three witnesses on one clock (the page's performance.now()):
    - THE LEDGER: a requestAnimationFrame loop in the page that writes, every frame, what changed about each tracked
      element: its rect, whether it is in the document, its opacity (with its ancestors'), visibility, colour and
-     background. Tracked: every element the plugin marks (the kit's one finder, MARK_CLASS and MARK_ATTR, from
-     tools/marks.js) and Logseq's landmarks (LANDMARKS below). Inputs the test makes are written to it too.
+     background. Tracked: every element a module marks (MARKS below: Look's lk-, Find's fd-, Predictive's flow-, Structure's
+     st-, DB Export's xp, Threads' rf- and refinement-; or Threads' own two patterns, from threads/tools/marks.js, for its
+     pretend page) and Logseq's landmarks (LANDMARKS below). Inputs the test makes are written to it too.
+   - THE BLAME LOG (blameSource): in a run of its own, every change made to Logseq's page (a node put in or taken out, an
+     attribute, a class, a style, words set) with the script and function that made it, read from the stack. Each jump or
+     flash is then explained by the changes just before it that stand above the mover in the page (explain), and a cause
+     is named by its module and file.
    - THE SHIFT LOG: the browser's layout-shift entries, with each source's node, previous and current rect.
    - THE FRAMES: the screencast's pictures (Page.startScreencast), decoded here (decodePng) and compared pixel by
      pixel with the one before: a pixel is changed when a channel moves by more than 24, as in tools/pictures.js.
@@ -31,7 +37,7 @@
    the same time is a hole in what the ledger tracks, reported so the test is fixed, not the page. Chrome reports no
    shift under 3 px and none for elements off screen, so only ledger jumps of 3 px or more on screen need a shift. */
 const zlib = require('zlib');
-const { MARK_CLASS, MARK_ATTR } = require('./marks');
+const { MARK_CLASS, MARK_ATTR } = require('../threads/tools/marks');
 
 // Logseq's landmarks on a page, by name. The first match of each selector is tracked under that name.
 const LANDMARKS = {
@@ -47,15 +53,24 @@ const LANDMARKS = {
   'property button': '#main-content-container .ls-page-properties .property-m',
   'tag corner': '#main-content-container .ls-page-title .ls-block-right',
   'sidebar item': '#right-sidebar .sidebar-item',
-  'tag map': '.refinement-tags',
 };
-// The plugin's pieces whose arrival is timed (section 3.3), by name.
+// The plugin's pieces whose arrival is timed (section 3.3), by name, as the modules draw them now.
 const PIECES = {
   'two-way rows': '.refinement-two-way:not([data-rf-waiting]) .rf-tw-row',
-  'tag chain': '.rf-tag-path',
-  'kind icons': '.property-m > .rf-kind',
-  'tag map rows': '.refinement-tags .rtg-row, .refinement-tags [class*="rtg-"]',
+  'tag chain': '.lk-path',
+  'kind icons': '.property-m > .lk-kind, .lk-kind',
 };
+/* Every module's marks on Logseq's screen, so the ledger tracks the whole plugin: the class and attribute prefixes each
+   module puts on what it draws or claims (Look claims Logseq's own links and tags with lk-node and lk-tag). The shared names
+   (lk-row, lk-tag …) stand on every module's elements, so a module is named by its own prefix first, Look last. */
+const MARKS = { class: /^(?:lk-|fd-|fd$|flow-|st-|xp$|xp-|rf-|refinement-)/, attr: /^data-(?:lk|fd|flow|st|rf|refinement)-/ };
+const MODULES = [['Threads', /(?:^|[ .])(?:rf-|refinement-)/], ['Find', /(?:^|[ .])fd(?:-|$)/], ['Predictive', /(?:^|[ .])flow-/], ['Structure', /(?:^|[ .])st-/], ['DB Export', /(?:^|[ .])xp(?:-|$)/], ['Look', /(?:^|[ .])lk-/]];
+// The module an element belongs to, from its ledger name ('span.lk-path', 'div.rf-tw-row.lk-row') or a class list; '' for Logseq's own.
+function moduleOf(name) {
+  if (!name || /^(?:landmark|logseq): /.test(name)) return '';
+  for (const [module, re] of MODULES) if (re.test(name)) return module;
+  return '';
+}
 
 /* The ledger and the shift log, injected into the page (a function's text; run it with its arguments). It keeps
    window.__rfFrames = { frames, inputs, shifts, loafs, pieces, landmarks, input(name), stop() }. Each frame is
@@ -135,11 +150,111 @@ function ledgerSource() {
       // What a piece is now, for appearance: the first matching shown element.
       stop: () => { running = false; shiftWatch.disconnect(); loafWatch?.disconnect(); },
       take: () => { const out = { frames: frames.splice(0), inputs: inputs.splice(0), shifts: shifts.splice(0), loafs: loafs.splice(0), names: { ...names }, capped: state.capped }; return out; },
+      // The element behind a ledger id, for the blame log to explain a jump of it.
+      nodeOf: id => nodes.get(id) || null,
     };
   };
 }
-// The arguments the ledger takes, with the kit's patterns.
+// The arguments the ledger takes: Threads' own patterns (its pretend page), or the whole plugin's (the real app).
 const ledgerArgs = (cap = 20000) => [MARK_CLASS.source, MARK_ATTR.source, LANDMARKS, PIECES, cap];
+const pluginLedgerArgs = (cap = 20000) => [MARKS.class.source, MARKS.attr.source, LANDMARKS, PIECES, cap];
+
+/* The blame log, injected into the page for a run of its own (it slows the page: every change reads its own stack). It wraps
+   the ways a script changes the page: a node put in, taken out or replaced, words set, an attribute, a class, a style. Each
+   change is written as [t, what, the target, the node or name, the stack's first frames], the nodes kept aside for
+   explain(). window.__blame = { ops, explain(node, t, ms), stop() }: explain gives the changes in the ms before t that stand
+   above the node in the page (a node put in or taken out before it in document order, not holding it) or on it or an
+   ancestor of it (an attribute, a class, a style, words), nearest in time first. stop() puts the originals back. */
+function blameSource() {
+  return function install() {
+    if (window.__blame) window.__blame.stop();
+    const ops = [], kept = [], originals = [];
+    const desc = n => !n ? '' : typeof n === 'string' ? n : n.nodeType === 1 ? n.tagName.toLowerCase() + (n.id ? '#' + n.id : '') + [...n.classList].slice(0, 3).map(c => '.' + c).join('') : n.nodeType === 3 ? '#text' : String(n.nodeName || '');
+    const frames = stack => String(stack || '').split('\n').slice(1).map(l => l.trim()).filter(l => /^at /.test(l)).slice(1, 7);
+    const record = (what, target, node) => { ops.push([Math.round(performance.now() * 10) / 10, what, desc(target), desc(node), frames(new Error().stack)]); kept.push([target, typeof node === 'string' ? null : node]); };
+    // who(this): the element a change is about, where `this` is not it (a class list's owner).
+    const wrap = (proto, name, pick, who) => {
+      const orig = Object.getOwnPropertyDescriptor(proto, name);
+      if (!orig || typeof orig.value !== 'function') return;
+      originals.push([proto, name, orig]);
+      Object.defineProperty(proto, name, { ...orig, value: function (...args) { try { record(name, who ? who(this) : this, pick ? pick(args, this) : null); } catch (error) { /* the log never stops the page */ } return orig.value.apply(this, args); } });
+    };
+    const wrapSet = (proto, name, what) => {
+      const orig = Object.getOwnPropertyDescriptor(proto, name);
+      if (!orig || !orig.set) return;
+      originals.push([proto, name, orig]);
+      Object.defineProperty(proto, name, { ...orig, set: function (value) { try { record(what || name, this, null); } catch (error) { /* as above */ } return orig.set.call(this, value); } });
+    };
+    const N = Node.prototype, E = Element.prototype, T = DOMTokenList.prototype;
+    wrap(N, 'appendChild', a => a[0]); wrap(N, 'insertBefore', a => a[0]); wrap(N, 'removeChild', a => a[0]); wrap(N, 'replaceChild', a => a[0]);
+    for (const name of ['append', 'prepend', 'before', 'after', 'replaceChildren', 'replaceWith']) wrap(E, name, a => a.find(x => x && x.nodeType) || String(a[0] ?? ''));
+    wrap(E, 'remove', (a, t) => t);
+    wrap(E, 'setAttribute', a => String(a[0])); wrap(E, 'removeAttribute', a => String(a[0]));
+    wrapSet(E, 'innerHTML'); wrapSet(N, 'textContent'); wrapSet(E, 'className', 'class');
+    // A class list knows no element of its own: the getter of classList lends it the element it was read from. A style
+    // declaration lends nothing, so a style set through el.style is not written; one set as an attribute is.
+    const list = Object.getOwnPropertyDescriptor(E, 'classList');
+    if (list?.get) { originals.push([E, 'classList', list]); Object.defineProperty(E, 'classList', { ...list, get: function () { const l = list.get.call(this); try { l.__owner = this; } catch (error) { /* frozen */ } return l; } }); }
+    for (const name of ['add', 'remove', 'toggle', 'replace']) wrap(T, name, a => 'class ' + a.map(String).join(' '), t => t.__owner || t);
+    const explain = (node, t, ms = 50) => {
+      const out = [];
+      for (let i = ops.length - 1; i >= 0; i--) {
+        const op = ops[i];
+        if (op[0] > t) continue;
+        if (op[0] < t - ms) break;
+        const [target, put] = kept[i];
+        const el = put && put.nodeType === 1 ? put : target && target.nodeType === 1 ? target : target && target.nodeType === 3 ? target.parentElement : null;
+        if (!el || !node) continue;
+        const on = el === node || el.contains(node);
+        const inside = !on && node.contains(el);   // a change inside it grows or shrinks it
+        const above = !on && !inside && el.isConnected && !!(el.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_FOLLOWING);
+        if (!above && !on && !inside && el.isConnected) continue;
+        out.push({ t: op[0], what: op[1], target: op[2], node: op[3], where: on ? 'on' : inside ? 'inside' : above ? 'above' : 'gone', stack: op[4] });
+      }
+      return out;
+    };
+    window.__blame = { ops, explain, stop: () => { for (const [proto, name, orig] of originals.reverse()) Object.defineProperty(proto, name, orig); originals.length = 0; delete window.__blame; } };
+  };
+}
+/* What a jump can be laid to from the ledger alone: the tracked elements that came or grew in the mover's frame or the one
+   before, standing above it (their top at or above the mover's old top) and in the same column (their left within the
+   mover's width), each with how much it grew; the one whose growth matches the move best first. A cause that is a module's
+   element names the module; a landmark names Logseq. */
+function causes(ledger, jump, frameMs = 40) {
+  const out = [];
+  for (const [id, line] of timelines(ledger)) {
+    if (id === jump.id) continue;
+    for (let k = 0; k < line.length; k++) {
+      const [t, row] = line[k], was = k ? line[k - 1][1] : null;
+      if (t > jump.t || t < jump.t - frameMs) continue;
+      const before = shownRow(was) ? was[4] : 0, now = shownRow(row) ? row[4] : 0;
+      const grew = now - before;
+      if (!grew || !row) continue;
+      const oldTop = jump.top - jump.dy;
+      if (row[1] > oldTop + 1) continue;
+      out.push({ t, id, name: ledger.names[id], module: moduleOf(ledger.names[id]) || (ledger.names[id].startsWith('landmark: ') ? 'Logseq' : ''), grew, top: row[1], fit: Math.abs(grew - jump.dy) });
+    }
+  }
+  return out.sort((a, b) => a.fit - b.fit || b.t - a.t);
+}
+/* A stack frame as the report names it: the module's file and function, or Logseq. Chrome writes
+   "at drawChain (lsp://logseq.com/external/…/look/logseq/title.js?t=…:98:21)". */
+function whoFrame(line) {
+  const m = String(line).match(/^at\s+(?:(.+?)\s+\()?(.*?):(\d+):\d+\)?$/);
+  if (!m) return null;
+  const [, fn, url, lineNo] = m;
+  // Logseq's own bundle is a main.js too (lsp://logseq.com/static/js/main.js): the plugin's files are served from its external folder.
+  if (/\/static\/js\/|lsp:\/\/logseq\.com\/(?!external)/.test(url)) return { file: 'Logseq', fn: fn || '', line: Number(lineNo), module: 'Logseq' };
+  const own = /external|logseq-plugin/.test(url) && url.match(/\/((?:look|find|predictive|structure|export|threads|settings)\/[^?#]+|plugin\.js|main\.js|loader\.js|files\.js)(?:\?|$)/);
+  if (own) return { file: own[1], fn: fn || '', line: Number(lineNo), module: moduleOfFile(own[1]) };
+  return { file: url.replace(/\?.*$/, '').split('/').slice(-2).join('/'), fn: fn || '', line: Number(lineNo), module: '' };
+}
+const moduleOfFile = file => ({ look: 'Look', find: 'Find', predictive: 'Predictive', structure: 'Structure', export: 'DB Export', threads: 'Threads', settings: 'the settings window' })[file.split('/')[0]] || 'the door';
+// The first frame of a stack that names a module's file, else the first that names Logseq, else the first at all.
+function whoMade(stack) {
+  const frames = (stack || []).map(whoFrame).filter(Boolean);
+  return frames.find(f => f.module && f.module !== 'Logseq') || frames.find(f => f.module === 'Logseq') || frames[0] || null;
+}
 // One stylesheet that stills the page while it is recorded: no caret, no animation, no transition (section 3.2).
 const STILL_CSS = '*, *::before, *::after { caret-color: transparent !important; animation: none !important; transition: none !important; }';
 
@@ -241,16 +356,21 @@ function timelines(ledger) {
 const shownRow = row => row && (row[3] > 0 || row[4] > 0) && row[5] > 0 && row[6] === 1;
 const inputBefore = (ledger, t, ms) => ledger.inputs.some(([ti, , exempt]) => exempt && ti <= t && t - ti < ms);
 
-// Jumps: a shown element that moved between two of its consecutive rows (its rows change only when something did).
+// Jumps: a shown element that moved between two of its consecutive rows (its rows change only when something did). An
+// element with no width or no height (an empty corner, a collapsed box) is nothing to see, so its moving is no jump.
+const visibleRow = row => shownRow(row) && row[3] > 0 && row[4] > 0;
 function jumps(ledger) {
   const out = [];
   for (const [id, line] of timelines(ledger)) {
     for (let k = 1; k < line.length; k++) {
       const [t, row] = line[k], [, was] = line[k - 1];
-      if (!shownRow(row) || !shownRow(was)) continue;
+      if (!visibleRow(row) || !visibleRow(was)) continue;
       const dy = row[1] - was[1], dx = row[2] - was[2];
       if (Math.abs(dy) < 1 && Math.abs(dx) < 1) continue;
       if (inputBefore(ledger, t, 500)) continue;
+      // A box anchored at its right or its foot that grew the other way (a title's corner taking a chain) kept its place: growth, not a move.
+      const rightKept = Math.abs((row[2] + row[3]) - (was[2] + was[3])) < 1, bottomKept = Math.abs((row[1] + row[4]) - (was[1] + was[4])) < 1;
+      if ((Math.abs(dx) >= 1 ? rightKept : true) && (Math.abs(dy) >= 1 ? bottomKept : true)) continue;
       out.push({ t, id, name: ledger.names[id], dy: Math.round(dy * 10) / 10, dx: Math.round(dx * 10) / 10, top: row[1], size: [row[3], row[4]] });
     }
   }
@@ -453,5 +573,20 @@ async function screencast(session, { offset, width, height }) {
   };
 }
 
-module.exports = { LANDMARKS, PIECES, ledgerSource, ledgerArgs, STILL_CSS, decodePng, encodePng, diff, regions, timelines, jumps, shiftJumps, elementFlashes,
+/* One move of many: the jumps of one frame that moved the same way are one event (a box put in above them all), named by
+   how many of each module's and of Logseq's moved, with the first cause any of them has. */
+function groupJumps(found) {
+  const groups = [];
+  for (const j of [...found].sort((a, b) => a.t - b.t)) {
+    const g = groups.find(x => Math.abs(x.t - j.t) <= 1 && Math.round(x.dy) === Math.round(j.dy) && Math.round(x.dx) === Math.round(j.dx));
+    if (g) g.members.push(j); else groups.push({ t: j.t, dy: j.dy, dx: j.dx, members: [j] });
+  }
+  return groups.map(g => {
+    const by = {};
+    for (const j of g.members) { const who = moduleOf(j.name) || 'Logseq'; by[who] = (by[who] || 0) + 1; }
+    const first = g.members.find(j => !/^(landmark|logseq): /.test(j.name)) || g.members[0];
+    return { ...g, by, first, names: g.members.map(j => j.name.replace(/^(landmark|logseq): /, '')) };
+  });
+}
+module.exports = { LANDMARKS, PIECES, MARKS, moduleOf, ledgerSource, ledgerArgs, pluginLedgerArgs, blameSource, whoFrame, whoMade, causes, groupJumps, visibleRow, STILL_CSS, decodePng, encodePng, diff, regions, timelines, jumps, shiftJumps, elementFlashes,
   pictureFlashes, noiseMask, appearances, agreement, signature, matches, growths, attribute, attributeFlashes, changesPicture, screencast, wallOffset, shownRow };

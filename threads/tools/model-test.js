@@ -189,8 +189,8 @@ function loadModel(graph, { made = [], config = { format: 'MMM do, yyyy' }, quer
     onGraphChange: fn => { graphHooks.push(fn); },
     graphWide: (name, load) => { if (!cache.has(name)) cache.set(name, Promise.resolve().then(load)); return cache.get(name); },
   };
-  win.refinementCore = core;
-  const part = win.refinementParts.find(p => p.name === 'model');
+  (win.Threads ||= {}).core = core;
+  const part = win.Threads.parts.find(p => p.name === 'model');
   part.provide(core);
   part.start();
   return { model: core.provided, made, queries, logseq };
@@ -222,17 +222,8 @@ async function main() {
   // A node's day: the property titled Date, whatever its ident, before an earlier day under another name.
   USE.link = { links: [[5, U(5), 7, ':user.property/about', 'about', U(6)]], titled: [[7, U(7), 'A node']], dated: [[7, ':user.property/seen-q1', 20260105, 'Seen'], [7, ':user.property/date-x9', 20260301, 'Date']] };
   same([...(await model.linksInto(5)).records.values()][0].day, 20260301, 'a property titled Date comes first, its ident aside');
-  // A date in a node's words, as the proposals read it: Threads keeps its own reader, so it is held to Predictive's rules.
-  const rules = fs.readFileSync(path.join(__dirname, '../parts/shadow-rules.js'), 'utf8');
-  const lineOf = name => rules.match(new RegExp(`^const ${name} = .*$`, 'm'))[0];
-  const reader = new Function('parseDay', 'dayAfter', 'dayNumber', 'sameDay', [lineOf('WEEKDAY'), lineOf('MONTH'), lineOf('SMALL'), lineOf('AFTER_DAY'), lineOf('asDate'), lineOf('JUST_WENT'), lineOf('AHEAD'), lineOf('cleanWords'), rules.match(/^function daysInWords[\s\S]*?^}$/m)[0], 'return daysInWords;'].join('\n'))(model.parseDay, model.dayAfter, model.dayNumber, model.sameDay);
-  const saturday = 20261031, friday = 20261023;
-  same(reader('Scan on Oct 3 showed a shadow', saturday), [20261003], 'a day that just went stays this year');
-  same(reader('Scan on Nov 20', saturday), [20261120], 'a day to come stays to come');
-  same(reader('Bloods on Friday were normal', saturday), [], 'a weekday told in the past is none');
-  same(reader('Bloods on Friday', friday), [], 'today\'s own weekday is none');
-  same(reader('Scan was moved to next Friday', saturday), [20261113], 'next still says');
-  same(reader('Appointment on Friday', saturday), [20261106], 'a plain weekday is the coming one');
+  // A date in a node's words is read by Predictive's reader (predictive/core/dates.js, checked in predictive/test/run.js):
+  // Threads keeps no reader of its own since 5 November 2026.
   // A page fits a property through the tag it holds or any tag above that.
   const up = { parentsOf: new Map([[3, [2]], [2, [1]]]) };
   same(model.fits({ tags: [{ id: 3 }] }, new Set([1]), up), true, 'a tag two steps under the one taken fits');

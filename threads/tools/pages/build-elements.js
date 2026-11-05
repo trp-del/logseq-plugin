@@ -116,7 +116,7 @@ const helps = [
 ];
 
 // The outline (0.4.441): the kit's own builders, run in a pretend window, so the page shows exactly the markup they make.
-const K = (() => { const { JSDOM } = require('jsdom'); const d = new JSDOM('', { runScripts: 'outside-only' }); d.window.eval(fs.readFileSync(path.join(process.cwd(), 'parts', 'shared.js'), 'utf8')); return d.window.refinementShared; })();
+const K = (() => { const { JSDOM } = require('jsdom'); const d = new JSDOM('', { runScripts: 'outside-only' }); d.window.eval(fs.readFileSync(path.join(process.cwd(), 'parts', 'shared.js'), 'utf8')); return d.window.Threads.shared; })();
 const O = K.outline;
 const nm = (t, tg, open = false) => O.name({ text: t, tag: tg, open });
 const tickBox = (on = false) => `<input type="checkbox" class="rf-check"${on ? ' checked' : ''} aria-label="Pick">`;
@@ -183,7 +183,7 @@ const mapPieces = [
 // The working drawing runs the kit itself, put in the page, on a few nodes of the Illness Test Graph.
 const liveScript = `<script>${fs.readFileSync(path.join(process.cwd(), 'parts', 'shared.js'), 'utf8').replace(/<\/script/gi, '<\\/script')}</script>
 <script>(function () {
-  var K = window.refinementShared, O = K.outline, box = document.getElementById('ol-live');
+  var K = window.Threads.shared, O = K.outline, box = document.getElementById('ol-live');
   var N = { c: { t: 'Spoke with Dr. Mei Chen about fatigue', g: 'Consultation', d: 'Oct 29', props: [['node', 'Topic', 'f'], ['date', 'Date', 'Oct 29']], bullets: [] },
     f: { t: 'Fatigue', g: 'Symptom', back: [['Symptom type', ['s1', 's2', 's3']]], bullets: [] },
     s1: { t: 'A bit better.', g: 'Symptom Log', d: 'Oct 4', props: [['number', 'Severity', '1'], ['date', 'Date', 'Oct 4']], bullets: [] },

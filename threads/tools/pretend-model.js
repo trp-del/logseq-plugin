@@ -4,17 +4,17 @@
    on the core itself wins over the model's own. Load parts/shared.js and parts/model.js first, then this, then the part.
    From node: require('./pretend-model') is the script's text, to eval in the window or add to the page. */
 module.exports = `(() => {
-  const core = window.refinementCore ||= {};
+  const core = (window.Threads ||= {}).core ||= {};
   core.provided ||= {};
   core.provide = things => Object.assign(core.provided, things);
   core.dsQuery ||= async query => { const rows = await logseq.DB.datascriptQuery(query); return Array.isArray(rows) ? rows : []; };
   core.graphWide ||= (name, load) => Promise.resolve().then(load);
   // What a part on the kit asks of the core (0.4.319): the hooks, the screen door, the settings' save, a style sent.
   for (const hook of ['onPageChange', 'onDatabaseChange', 'onSettingsChange', 'onGraphChange']) core[hook] ||= () => {};
-  core.screen ||= window.refinementShared.screen;
+  core.screen ||= window.Threads.shared.screen;
   core.saveSettings ||= patch => logseq.updateSettings(patch);
   core.sendStyle ||= () => {};
-  const part = window.refinementParts.find(p => p.name === 'model');
+  const part = window.Threads.parts.find(p => p.name === 'model');
   part.provide(core);
   part.start();
   // What the test put on the core itself (a pretend propSchema, say) wins over the model's own.

@@ -1,87 +1,43 @@
-/* Personal Logseq DB refinements. All commands preserve their source blocks. */
-/* The helpers every part shares (the Logseq document, warnings, the clean-up list, dialog boxes…)
-   live in parts/shared.js; its header is the contract between the files. This file runs before the
-   parts are loaded, so it takes them in useShared() once they have loaded, before Logseq is given the
-   settings and before main() runs. Nothing above main() calls them while this file loads.
-   Logseq keeps only the most recent beforeunload callback a plugin registers, so every part of the
-   plugin keeps its own clean-up list and main() registers one callback that runs them all. */
-let host, notify, warnOnce, onUnload, runUnloadTasks, takeOverFromEarlierCopy, updaterFailed, setting, perf;
+/* Threads' engine: the parts (parts/*.js) register on window.Threads.parts as they load; this file, loaded last, joins their
+   settings, publishes the core they share (window.Threads.core) and starts them in three steps when the plugin's door says so.
+   The helpers every part shares (the Logseq document, warnings, the clean-up list, the kit) live in parts/shared.js; its header
+   is the contract between the files. This file runs after the parts are loaded and takes them in useShared(). The screen
+   watcher is the door's (plugin.js, Door.watch) since 5 November 2026; the React mount, the command register and the moving
+   of old defaults went the same day, since no part used them.
+   Logseq keeps only the most recent beforeunload callback a plugin registers, so every part keeps its own clean-up list and
+   the module's stop runs them all. */
+let host, notify, warnOnce, onUnload, runUnloadTasks, takeOverFromEarlierCopy, setting, perf;
 function useShared() {
-  const shared = window.refinementShared;
+  const shared = window.Threads?.shared;
   if (!shared) throw new Error('parts/shared.js did not load');
   ({ host, notify, perf } = shared);
-  // The clean-up stops the screen watcher first, so nothing re-applies while the steps undo their
+  // The clean-up takes Threads' screen updaters off the door's watcher first, so nothing re-applies while the steps undo their
   // changes; a new copy runs the earlier copy's clean-up and sweeps what it left on screen.
-  ({ warnOnce, onUnload, runUnloadTasks, takeOverFromEarlierCopy, updaterFailed } = shared.lifecycle({ prefix: 'Threads: ', stopKey: STOP_KEY, before: stopWatchingDom, sweep: sweepEarlierCopy }));
+  ({ warnOnce, onUnload, runUnloadTasks, takeOverFromEarlierCopy } = shared.lifecycle({ prefix: 'Threads: ', stopKey: STOP_KEY, before: stopWatchingDom, sweep: sweepEarlierCopy }));
 }
 
-/* One watcher for Logseq's screen, with two kinds of update function. One part failing does not
-   stop the others.
-   - Early ones (watchDomEarly) run at once on every change, before the screen is drawn, so that
-     Logseq's own look never shows first. They are given the changes and must be quick.
-   - The others (watchDom) run once in the next frame, so many changes at once cost one pass.
-   The watcher does not react to what these functions change themselves: what the early ones
-   change is set aside, and what the later pass changes is shown to the early ones once. */
-const domWatch = { updaters: new Set(), early: [], observer: null, frame: 0, win: null, doc: null };
-function runEarly(records) {
-  for (const fn of [...domWatch.early]) {
-    try { perf.time(fn.name, () => fn(domWatch.doc, records)); } catch (error) { updaterFailed(fn, error, domWatch.early); }
-  }
-  domWatch.observer?.takeRecords();
-}
-function ensureDomWatch() {
-  if (domWatch.observer) return domWatch.doc;
-  const doc = host(), win = doc.defaultView;
-  domWatch.doc = doc;
-  domWatch.win = win;
-  domWatch.observer = new win.MutationObserver(records => {
-    perf.seen('screen watcher', records);
-    runEarly(records);
-    // A change of class or id alone (pointing, selecting) needs no later pass.
-    if (domWatch.frame || !records.some(record => record.type !== 'attributes')) return;
-    const timing = perf.frameState();
-    domWatch.frame = win.requestAnimationFrame(() => {
-      domWatch.frame = 0;
-      perf.pass(timing);
-      for (const fn of [...domWatch.updaters]) {
-        try { perf.time(fn.name, () => fn(doc)); } catch (error) { updaterFailed(fn, error, domWatch.updaters); }
-      }
-      perf.passDone();
-      const own = domWatch.observer?.takeRecords() || [];
-      if (own.length) runEarly(own);
-    });
-  });
-  domWatch.observer.observe(doc.body, { subtree: true, childList: true, characterData: true,
-    attributes: true, attributeFilter: ['data-ref', 'data-uuid', 'class', 'blockid', 'data-hl-type'] });
-  return doc;
-}
-function watchDom(update) {
-  const doc = ensureDomWatch();
-  domWatch.updaters.add(update);
-  update(doc);
-}
+/* Threads' screen updaters on the door's one watcher. An early one (watchDomEarly) runs at once on every change, before the
+   screen is drawn, given the changes; it must be quick. Each is timed for the troubleshooting tools, and what takes it off is
+   kept, so Threads' stop takes off only Threads'. A failing one is retired by the door after five errors. */
+const screen = { offs: [], count: 0 };
 function watchDomEarly(update) {
-  ensureDomWatch();
-  domWatch.early.push(update);
+  const timed = (doc, records) => { perf.seen('screen watcher', records); perf.time(update.name, () => update(doc, records)); };
+  screen.offs.push(window.PluginDoor.watch(timed, { early: true }));
+  screen.count++;
 }
-const addsElements = records => records.some(record => record.type === 'childList');
+const addsElements = records => window.PluginDoor.addsElements(records);
 function stopWatchingDom() {
-  domWatch.observer?.disconnect();
-  if (domWatch.frame) domWatch.win?.cancelAnimationFrame(domWatch.frame);
-  domWatch.observer = null;
-  domWatch.frame = 0;
-  domWatch.updaters.clear();
-  domWatch.early.length = 0;
+  while (screen.offs.length) screen.offs.pop()();
+  screen.count = 0;
 }
 
-/* The plugin's watchers live in Logseq's window, so they outlive the plugin's own frame. If an
-   earlier copy was removed without its clean-up finishing (an error, or Logseq's ten-second limit),
-   they would keep running beside this copy. Each copy therefore leaves its clean-up where the next
-   one can find it (takeOverFromEarlierCopy, from shared.js), and a new copy runs it and removes
-   anything still left on screen (sweepEarlierCopy). */
-const STOP_KEY = '__dbRefinementsStop';
+/* The plugin's hooks live in Logseq's window, so they outlive the plugin's own frame. If an earlier copy was removed without
+   its clean-up finishing (an error, or Logseq's ten-second limit), they would keep running beside this copy. Each copy
+   therefore leaves its clean-up where the next one can find it (takeOverFromEarlierCopy, from shared.js), and a new copy
+   runs it and removes anything still left on screen (sweepEarlierCopy). */
+const STOP_KEY = '__threadsStop';
 // Each part declares what it may leave on screen in its lifecycle (leaves); shared.js sweeps it all.
-const sweepEarlierCopy = doc => window.refinementShared.sweepLeftovers(doc);
+const sweepEarlierCopy = doc => window.Threads.shared.sweepLeftovers(doc);
 
 // Logseq ignores an empty stylesheet, which would leave the previous rules in place. A comment
 // counts as content, so sending one is how a stylesheet is cleared.
@@ -213,31 +169,29 @@ function runDbWork() {
   run(pageJobs);
   if (!dbWork.slowTimer) dbWork.slowTimer = setTimeout(fullRound, wait);
 }
-/* The core, as the other files see it: window.refinementCore, published by main() before any part
-   starts. It holds the core's own tools (the screen watcher, the database round, stylesheets, settings,
-   the query helpers) and a registry for the area parts (pages.js, links.js, … in step 7 of the
-   cleanup): each part gives its functions and state to the core by name (core.provide, in its provide()
-   step) and takes what it needs from core.provided in its start() step, after every part has provided,
-   so the order of the parts does not matter. Database look-ups register with
-   core.onDbRound(name, fn, { scope, before }): scope 'page' (the default) runs after every round, 'graph'
-   only when the whole-graph lists fall due; before() is run at the start of every round to cancel a
-   look-up of the job's own still waiting. runDbWork knows no job by name (one database round, GUIDE.md). */
-/* The hooks the parts register with the core (onPageChange, onDatabaseChange, onSettingsChange): the core
-   listens to Logseq once, does its own housekeeping first (its caches), then runs each part's function
-   in the order registered, one failing not stopping the next. */
+/* The core, as the other files see it: window.Threads.core, published by main() before any part starts. It holds the
+   core's own tools (the screen updaters, the database round, stylesheets, settings, the query helpers) and a registry for
+   the parts: each part gives its functions and state to the core by name (core.provide, in its provide() step) and takes
+   what it needs from core.provided in its start() step, after every part has provided, so the order of the parts does not
+   matter. Database look-ups register with core.onDbRound(name, fn, { scope, before }): scope 'page' (the default) runs
+   after every round, 'graph' only when the whole-graph lists fall due; before() is run at the start of every round to
+   cancel a look-up of the job's own still waiting. runDbWork knows no job by name. */
+/* The hooks the parts register with the core (onPageChange, onDatabaseChange, onSettingsChange, onGraphChange): the core
+   listens to Logseq once, does its own housekeeping first (its caches), then runs each part's function in the order
+   registered, one failing not stopping the next. */
 const hooks = { page: [], database: [], settings: [], graph: [] };
 const runHooks = (list, what, ...args) => { for (const fn of list) { try { fn(...args); } catch (error) { warnOnce(`a part's ${what} step failed (${fn.name || 'unnamed'})`, error); } } };
-const provided = {}; // what the area parts give the core and each other, by name
+const provided = {}; // what the parts give the core and each other, by name
 const dbJobs = [];   // database-round jobs, in the order the parts registered them (core.onDbRound)
 function publishCore() {
-  window.refinementCore = {
-    host, setting, notify, graphWide, scheduleDbWork, sendStyle, orNoRules, watchDom, watchDomEarly, addsElements, ensureDomWatch,
-    screen: window.refinementShared.screen, commands: commandList, mountView,
+  window.Threads.core = {
+    host, setting, notify, graphWide, scheduleDbWork, sendStyle, orNoRules, watchDomEarly, addsElements,
+    screen: window.Threads.shared.screen,
     // The settings as the settings window reads and writes them (0.4.317): the values now, the joined schema, a save,
     // Logseq's own settings page, a reload of this plugin, its version.
     settingsNow: () => logseq.settings || {}, settingsSchema: () => schemaAll, saveSettings: patch => logseq.updateSettings(patch),
     openLogseqSettings: () => logseq.showSettingsUI(), pluginVersion: () => logseq.baseInfo?.version || '',
-    reloadPlugin: () => { const win = host().defaultView, id = logseq.baseInfo?.id || 'logseq-threads'; win.setTimeout(() => win.LSPluginCore?.reload(id), 0); },
+    reloadPlugin: () => { const win = host().defaultView, id = logseq.baseInfo?.id || 'logseq-plugin'; win.setTimeout(() => win.LSPluginCore?.reload(id), 0); },
     UUID, isEntityId, idsIn, uuidsIn, dsQuery,
     provided, provide: things => Object.assign(provided, things),
     onDbRound: (name, fn, { scope = 'page', before } = {}) => { dbJobs.push({ name, fn, scope, before }); },
@@ -245,124 +199,12 @@ function publishCore() {
     onGraphChange: fn => hooks.graph.push(fn), // another graph opened (0.4.315)
     // A hidden door for the stress tests (2026-10-23, tools/app-stress.js): what this copy has set going, and when it
     // started, so twenty reloads or sixty pages can be checked to leave one of everything and nothing growing.
-    counts: () => ({ startedAt, cleanUps: window.refinementShared.lifeCounts(), watchers: domWatch.updaters.size + domWatch.early.length,
+    counts: () => ({ startedAt, cleanUps: window.Threads.shared.lifeCounts(), watchers: screen.count,
       hooks: Object.fromEntries(Object.entries(hooks).map(([k, list]) => [k, list.length])), dbJobs: dbJobs.length, styles: sentStyles.size,
-      popups: window.refinementShared.popups.size, undos: window.refinementShared.undo.size }),
-  };
-}
-// A saved setting whose old default clashed with something (a part declares it in `moved`) is moved to the new
-// default where the saved value is still the old one: Logseq saves every default, so a changed default alone would
-// not reach an existing install.
-function moveOldDefaults() {
-  for (const part of plugInParts) for (const [key, [old, now]] of Object.entries(part.moved || {})) if (logseq.settings?.[key] === old) logseq.updateSettings({ [key]: now });
-}
-/* A whole view hosted by Logseq's own React (0.4.319, for the tag map): a page of its own (a route, #/<route>) and a
-   panel in the right sidebar, both registered here so no part reaches Logseq's React itself. mountView({ key, route,
-   sidebarKey, title, holderClass, make }): make(holder, mode) draws into the holder and returns { destroy }; the result
-   says which of the two could be registered (page, sidebar) and opens them (openPage, openSidebar). */
-function mountView({ key, route, sidebarKey, title, holderClass = '', make }) {
-  const React = logseq.Experiments?.React;
-  const hosted = { page: false, sidebar: false };
-  const component = mode => function RefinementView() {
-    const ref = React.useRef(null);
-    React.useEffect(() => {
-      const holder = ref.current;
-      if (!holder) return undefined;
-      let view = null;
-      try { view = make(holder, mode); } catch (error) { warnOnce(`the ${title} view could not be drawn`, error); }
-      // Logseq titles a plugin's sidebar panel with its inner name.
-      const heading = mode === 'sidebar' && holder.closest('.sidebar-item')?.querySelector('.page-title h3');
-      if (heading) heading.textContent = title;
-      return () => view?.destroy?.();
-    }, []);
-    return React.createElement('div', { ref, className: `${holderClass} rf-holder-${mode}`.trim() });
-  };
-  if (!React?.createElement) warnOnce(`Logseq gives plugins no React here, so the ${title} view cannot be shown`);
-  else {
-    try { const Page = component('page'); logseq.Experiments.registerRouteRenderer(key, { name: key, path: route, render: () => React.createElement(Page) }); hosted.page = true; }
-    catch (error) { warnOnce(`the ${title} page could not be added`, error); }
-    try { const Side = component('sidebar'); logseq.Experiments.registerSidebarRenderer(sidebarKey, { title, render: () => React.createElement(Side) }); hosted.sidebar = true; }
-    catch (error) { warnOnce(`the ${title} sidebar panel could not be added`, error); }
-  }
-  return {
-    page: hosted.page, sidebar: hosted.sidebar,
-    openPage: () => { host().defaultView.location.hash = '#' + route; },
-    openSidebar: async () => { await logseq.Editor.openInRightSidebar('_sidebar.' + sidebarKey); await logseq.App.setRightSidebarVisible?.(true); },
+      popups: window.Threads.shared.popups.size, undos: window.Threads.shared.undo.size }),
   };
 }
 // THE screen door lives in parts/shared.js (layer 1's plumbing, 0.4.315, so the pretend windows of the tests have it too); the core publishes it.
-/* THE command register (0.4.311, docs/LAYERS.md layer 1): every command of every part, with its name, its shortcut, its
-   icon and where it shows. A part declares commands: [{ key, label, run, shortcut, binding, icon, places, title }]:
-   shortcut names the setting that holds the keys (changed in the settings window; empty binds none), binding is a
-   fixed set of keys when there is no setting; places is any of 'palette' (Logseq's command palette, with the keys as
-   its keybinding; the default), 'toolbar' (a button in Logseq's toolbar with the icon), 'menu' (a bullet's right-click
-   menu), 'keys' (the engine itself listens for the keys on Logseq's window, for commands that work inside a bullet
-   being written, which Logseq's palette does not reach; run(event) returns true when it took the key). The settings
-   window reads the register (core.commands()) for its shortcuts group. */
-const commands = [];
-const keyCommands = [];
-const bindingOf = command => {
-  let binding = command.shortcut ? String(setting(command.shortcut) || '').trim().toLowerCase() : String(command.binding || '').trim().toLowerCase();
-  const moved = command.part?.moved?.[command.shortcut];
-  if (binding && moved?.[0] === binding) binding = moved[1]; // the saved setting may not show the move yet
-  return binding;
-};
-// Logseq's own spelling of a shortcut (mod+alt+l, alt+enter, mod+shift+up): mod is ⌘ on a Mac, Ctrl elsewhere.
-const IS_MAC = /Mac/.test((typeof navigator !== 'undefined' && navigator.platform) || '');
-const KEY_NAMES = { arrowup: 'up', arrowdown: 'down', arrowleft: 'left', arrowright: 'right', ' ': 'space', escape: 'esc' };
-function keyOf(event) {
-  const code = event.code || '';
-  if (/^Key[A-Z]$/.test(code)) return code.slice(3).toLowerCase();
-  if (/^Digit\d$/.test(code)) return code.slice(5);
-  const key = String(event.key || '').toLowerCase();
-  return KEY_NAMES[key] || key;
-}
-function matchesBinding(event, binding) {
-  if (!binding) return false;
-  const parts = binding.split('+').map(p => p.trim()).filter(Boolean);
-  const want = { mod: false, ctrl: false, alt: false, shift: false, meta: false };
-  let key = '';
-  for (const p of parts) { if (p in want) want[p] = true; else key = p === 'escape' ? 'esc' : p; }
-  if (!key || keyOf(event) !== key) return false;
-  const mod = IS_MAC ? event.metaKey : event.ctrlKey;
-  const ctrl = IS_MAC ? event.ctrlKey : false;
-  const meta = IS_MAC ? false : event.metaKey;
-  return mod === want.mod && ctrl === want.ctrl && event.altKey === want.alt && event.shiftKey === want.shift && meta === want.meta;
-}
-function onCommandKey(event) {
-  if (event.defaultPrevented) return;
-  for (const command of keyCommands) {
-    if (!matchesBinding(event, bindingOf(command))) continue;
-    let took = false;
-    try { took = command.run(event) === true; } catch (error) { warnOnce(`the command ${command.key} failed`, error); }
-    if (took) { event.preventDefault(); event.stopImmediatePropagation(); return; }
-  }
-}
-function registerCommands(parts) {
-  const model = {};
-  for (const part of parts) for (const declared of part.commands || []) {
-    const command = { places: declared.menu ? ['palette', 'menu'] : ['palette'], ...declared, part, partName: part.name };
-    commands.push(command);
-    const binding = bindingOf(command);
-    const run = (...args) => { try { return command.run(...args); } catch (error) { warnOnce(`the command ${command.key} failed`, error); } };
-    if (command.places.includes('palette')) logseq.App.registerCommandPalette({ key: command.key, label: command.label, ...(binding ? { keybinding: { binding } } : {}) }, run);
-    if (command.places.includes('menu')) logseq.Editor.registerBlockContextMenuItem(command.label, run);
-    if (command.places.includes('toolbar')) {
-      const name = `rfCommand_${command.key.replace(/\W/g, '_')}`;
-      model[name] = run;
-      logseq.App.registerUIItem('toolbar', { key: `refinements-${command.key}`, template: `<a class="button rf-toolbar" data-on-click="${name}" title="${command.title || command.label}"><i class="ti ti-${command.icon || 'adjustments-horizontal'}"></i></a>` });
-    }
-    if (command.places.includes('keys')) keyCommands.push(command);
-  }
-  if (Object.keys(model).length) logseq.provideModel(model);
-  if (keyCommands.length) {
-    const win = host().defaultView;
-    win.addEventListener('keydown', onCommandKey, true);
-    onUnload(() => { win.removeEventListener('keydown', onCommandKey, true); keyCommands.length = 0; });
-  }
-}
-// The register as the settings window reads it: every command with its words, keys, icon and places.
-const commandList = () => commands.map(({ key, label, title, icon, shortcut, binding, places, partName }) => ({ key, label, title, icon, shortcut, binding: bindingOf({ shortcut, binding, part: commands.find(c => c.key === key)?.part }), fixed: !shortcut, places, part: partName }));
 let startedAt = 0; // when this copy started (the counts' door: a reload that took effect has a new one)
 function main() {
   startedAt = Date.now();
@@ -374,22 +216,16 @@ function main() {
     return;
   }
   // The clean-up (runUnloadTasks) is run by the plugin's own beforeunload (main.js at the root), as this module's stop.
-  moveOldDefaults();
   takeOverFromEarlierCopy();
   publishCore();
-  logseq.provideStyle({ key: 'refinements-kit', style: window.refinementShared.kitCss }); // the kit's look, before any part (0.4.169, the kit since 0.4.311)
+  logseq.provideStyle({ key: 'threads-kit', style: window.Threads.shared.kitCss }); // the kit's look, before any part (0.4.169, the kit since 0.4.311)
   // THE Undo (parts/shared.js, 0.4.258): its arrows belong to the page they were made on, and go with the plugin.
-  onUnload(logseq.App.onRouteChanged(() => window.refinementShared.undo.clear()));
-  onUnload(() => window.refinementShared.undo.stop());
-  onUnload(() => window.refinementShared.popups.closeAll()); // no pop-up outlives the plugin (0.4.316)
+  onUnload(logseq.App.onRouteChanged(() => window.Threads.shared.undo.clear()));
+  onUnload(() => window.Threads.shared.undo.stop());
+  onUnload(() => window.Threads.shared.popups.closeAll()); // no pop-up outlives the plugin (0.4.316)
   // The kit follows the mouse buttons itself, so a right-click menu waits for the release in an installed copy too (0.4.360).
-  window.refinementShared.popups.followButtons(host().defaultView);
-  onUnload(() => window.refinementShared.popups.stopFollowing());
-  // The main view keeps room for its scroll bar (0.4.182), so a page growing past the window's height, or a list
-  // unfolding, no longer moves everything 8px sideways as the bar comes and goes (seen in the owner's Logseq).
-  // Off since 0.4.251; on 2026-10-23 the owner dropped it after looking (the Mac's scroll bars take no room), kept here
-  // as the line it was:
-  // logseq.provideStyle({ key: 'refinements-steady-scroll', style: '#main-content-container { scrollbar-gutter: stable; }' });
+  window.Threads.shared.popups.followButtons(host().defaultView);
+  onUnload(() => window.Threads.shared.popups.stopFollowing());
   // The parts (parts/*.js, loaded before this file). Each keeps its own clean-up, run from here; one
   // that fails to start leaves the rest of the plugin working. Three steps, each over every part before the
   // next: provide() gives the core the part's functions and state; start() takes the others' things and
@@ -402,7 +238,7 @@ function main() {
   if (foundationOnly) notify('Threads is running only its foundation (Foundation only, under Troubleshooting in its settings). Turn it off and reload the plugin to get everything back.', 'warning');
   const failed = new Set();
   const step = (part, what, fn) => { try { fn(); } catch (error) { warnOnce(`the ${part.name} part could not ${what}`, error); failed.add(part.says || part.name); } };
-  for (const part of running) step(part, 'provide its functions', () => part.provide?.(window.refinementCore));
+  for (const part of running) step(part, 'provide its functions', () => part.provide?.(window.Threads.core));
   for (const part of running) { step(part, 'start', () => part.start()); onUnload(part.stop); }
   for (const part of running) step(part, 'get ready', () => part.ready?.());
   if (failed.size) notify(`Part of Threads could not start: ${[...failed].join(', ')}. The rest runs.`, 'warning');
@@ -421,7 +257,7 @@ function main() {
     runHooks(hooks.database, 'database change', change);
     scheduleDbWork();
   }));
-  onUnload(logseq.App.onCurrentGraphChanged(() => { graphCache.clear(); window.refinementShared.undo.clear(); runHooks(hooks.graph, 'graph change'); })); // another graph has other lists, and an arrow would act on what is not there
+  onUnload(logseq.App.onCurrentGraphChanged(() => { graphCache.clear(); window.Threads.shared.undo.clear(); runHooks(hooks.graph, 'graph change'); })); // another graph has other lists, and an arrow would act on what is not there
   onUnload(() => { clearTimeout(dbWork.timer); clearTimeout(dbWork.slowTimer); });
   onUnload(logseq.onSettingsChanged((now, before) => {
     if (perf.ownSettingsOnly(now, before) || !window.PluginDoor.settingChanged(schemaAll.map(item => item.key), now, before)) return;
@@ -430,19 +266,17 @@ function main() {
     // default being filled in (first install, or a new setting after an update), not a change.
     if (RELOAD_SETTINGS.some(key => before && key in before && now?.[key] !== before[key])) notify('Reload the plugin to apply this change', 'info');
   }));
-
-  registerCommands(running);
 }
-/* Every part lives in parts/*.js and adds itself to window.refinementParts. The plugin's files.js loads them, in order,
-   before this file: shared.js first (the other parts read window.refinementShared as they load), model.js second (the
+/* Every part lives in parts/*.js and adds itself to window.Threads.parts. The plugin's files.js loads them, in order,
+   before this file: shared.js first (the other parts read window.Threads.shared as they load), model.js second (the
    Logseq model, which every part reads the graph through, core.provided), then diagnostics, two-way,
-   alike, shadow-rules. The parts' settings, in that order, each under its heading, go to the plugin
+   proposals. The parts' settings, in that order, each under its heading, go to the plugin
    with this module's registration, so they hold their defaults when main runs. */
 let plugInParts = [];
 useShared();
-plugInParts = window.refinementParts || [];
+plugInParts = window.Threads.parts || [];
 schemaAll = plugInParts.flatMap(part => part.schema);
-setting = window.refinementShared.settingReader(schemaAll);
+setting = window.Threads.shared.settingReader(schemaAll);
 RELOAD_SETTINGS = reloadOnly(schemaAll);
 window.PluginDoor.register({
   key: 'threads', title: 'Threads', about: 'On a page, everything that points at it, named by the property it came through, to follow and dig along.',

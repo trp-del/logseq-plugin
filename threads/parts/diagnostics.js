@@ -20,7 +20,7 @@
    with its icon from the kit's list, measuring ticked while it is on; a report opens the same pop-up with the
    text to copy and Copy, the library's main button. No window, no box of this part's own. This part is layer 1 (diagnostics
    belong to talking to Logseq), so its own Logseq calls stay. */
-const shared = window.refinementShared;
+const shared = window.Threads.shared;
 const { host, notify, el, quiet, note } = shared;
 // Warnings keep the plain "Refinements: " prefix these tools always had.
 const { warnOnce, onUnload, runUnloadTasks } = shared.lifecycle({ prefix: 'Threads: ' });
@@ -614,16 +614,16 @@ function provide(core) {
     diagnostics: { checkWhatIsFound, copyDiagnostics, togglePerf, copyPerfReport, copyWarnings, openTroubleshooting, openRecycleList, watchRecycle, recycleRows, recycleReport, tools: TOOLS } });
 }
 function start() {
-  ({ CHECKED_WITH } = window.refinementCore.provided); // from the model part
+  ({ CHECKED_WITH } = window.Threads.core.provided); // from the model part
   try { if (logseq.settings?.debugPerf === true) perf.start(); } catch (error) { warnOnce('measuring could not start', error); }
   onUnload(perf.stop);
 }
 function ready() {
   for (const tool of TOOLS) registerTool(tool);
   toolsRegistered = true;
+  // One palette entry opens the box that lists the tools (registered here since 5 November 2026, when the engine's command register went).
+  logseq.App.registerCommandPalette({ key: 'troubleshooting', label: 'Threads: troubleshooting' }, () => openTroubleshooting());
 }
-// One palette entry opens the box that lists the tools.
-const commands = [{ key: 'troubleshooting', label: 'Threads: troubleshooting', icon: 'settings', run: () => openTroubleshooting() }];
 /* Foundation only (0.4.167): the plugin runs just its foundation, the engine and the Logseq model (parts/model.js),
    with these tools and the settings window, so the foundation can be measured alone before the layers above it are
    built on it. The core reads the setting; the parts that stay mark themselves `foundation: true`. */
@@ -635,5 +635,5 @@ const settingsSchema = [
   { key: 'foundationOnly', type: 'boolean', title: 'Foundation only', default: false,
     description: 'Runs only the plugin’s foundation: the part that watches Logseq and the part that knows what pages, blocks, tags and days are. Nothing is drawn and no shortcut works; the settings window and the troubleshooting tools stay. For measuring the foundation alone (turn measuring on in the troubleshooting tools). Applies after you reload the plugin.' },
 ];
-(window.refinementParts ||= []).push({ name: 'diagnostics', says: 'its troubleshooting', foundation: true, schema: settingsSchema, provide, start, ready, commands, stop: runUnloadTasks });
+((window.Threads ||= {}).parts ||= []).push({ name: 'diagnostics', says: 'its troubleshooting', foundation: true, schema: settingsSchema, provide, start, ready, stop: runUnloadTasks });
 })();

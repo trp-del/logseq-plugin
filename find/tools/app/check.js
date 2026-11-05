@@ -10,8 +10,8 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const TEST_GRAPHS = (process.env.TEST_GRAPHS || 'Seed Check,Illness Test Graph,Stress Check').split(',').map(s => s.trim());
 const PLUGIN = 'logseq-plugin', DIR = path.resolve(__dirname, '..', '..', '..');
 const out = process.argv[2] || path.join(DIR, 'dist', 'app-check');
-// A step: type:<letters> | key:<Key>[+shift] | wait:<ms> | shot:<name>
-const STEPS = (process.argv[3] || 'shot:empty,type:cons,shot:typed-cons,key:Enter,shot:consultation,type:mei,shot:typed-mei,key:Enter,shot:chen,key:ArrowRight,wait:900,shot:dug,key:ArrowDown,key:ArrowRight,wait:600,shot:group,key:Escape,key:Escape,key:Backspace,shot:widened,key:Backspace,type:chen,shot:words-chen,type:>jour,shot:commands').split(',');
+// A step: type:<letters> | key:<Key>[+shift] | wait:<ms> | shot:<name> | theme:<dark|light> | say (the window as a sentence, Find's second command)
+const STEPS = (process.argv[3] || 'shot:empty,type:cons,shot:typed-cons,key:Tab,shot:consultation,type:mei,shot:typed-mei,key:Tab,shot:chen,key:ArrowRight,wait:900,shot:dug,key:ArrowDown,key:ArrowRight,wait:600,shot:group,key:Escape,key:Escape,key:Backspace,shot:widened,key:Backspace,type:chen,shot:words-chen,type:>jour,shot:commands,key:Escape,say,type:Consultation with mei,shot:say-lit,key:Tab,wait:900,type:Consultation with Dr. Mei Chen around September 2026,wait:900,shot:say-around,key:Escape').split(',');
 let chromium; try { ({ chromium } = require('playwright')); } catch (error) { console.log('skipped: needs Playwright (set NODE_PATH)'); process.exit(2); }
 (async () => {
   let browser;
@@ -49,22 +49,24 @@ let chromium; try { ({ chromium } = require('playwright')); } catch (error) { co
     const d = document.querySelector('dialog.fd'); if (!d) return null;
     const t = sel => [...d.querySelectorAll(sel)].map(e => e.textContent.replace(/\s+/g, ' ').trim());
     const r = d.getBoundingClientRect();
-    return { box: { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) }, line: t('.fd-find')[0], pieces: t('.fd-piece'), choices: t('.fd-ck, .fd-head'), choiceValues: t('.fd-cv').map(s => s.slice(0, 160)), lit: t('.fd-lit'), rows: t('.fd-r').slice(0, 14).map(s => s.slice(0, 140)), rowCount: d.querySelectorAll('.fd-r').length, marks: d.querySelectorAll('.lk-node[data-lk-sort]').length, kids: t('.fd-kids').map(s => s.slice(0, 200)), foot: t('.fd-foot')[0], count: t('.fd-n')[0], notes: t('.fd-none, .fd-wait') };
+    return { box: { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) }, sentence: t('.fd-mirror')[0], notes: t('.fd-note'), line: t('.fd-line svg text').join(' '), dots: d.querySelectorAll('.fd-line .fd-dot').length, hollow: d.querySelectorAll('.fd-line .fd-hollow').length, choices: t('.fd-ck, .fd-head'), choiceValues: t('.fd-cv').map(s => s.slice(0, 160)), lit: t('.fd-lit'), rows: t('.fd-r').slice(0, 14).map(s => s.slice(0, 140)), rowCount: d.querySelectorAll('.fd-r').length, marks: d.querySelectorAll('.lk-node[data-lk-sort]').length, kids: t('.fd-kids').map(s => s.slice(0, 200)), foot: t('.fd-foot')[0], count: t('.fd-n')[0], says: t('.fd-none, .fd-wait'), lineH: d.querySelector('.fd-line svg')?.getAttribute('height'), ring: d.querySelectorAll('.fd-line .fd-ring').length, name: t('.fd-name')[0], lanes: t('.fd-lane'), by: t('.fd-by')[0] };
   });
   const report = {};
   for (const step of STEPS) {
     const [what, arg] = step.split(/:(.*)/s);
     // A step that needs the window opens it again when an earlier Escape closed it.
     if ((what === 'type' || what === 'key') && !(await inWindow(() => !!document.querySelector('dialog.fd')))) { await frame().evaluate(() => window.Find.window.open()); await sleep(900); }
-    if (what === 'type') await inWindow(text => { const input = document.querySelector('dialog.fd .fd-input'); input.value = text; input.dispatchEvent(new Event('input', { bubbles: true })); }, arg);
+    if (what === 'say') { await inWindow(() => document.querySelector('dialog.fd')?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))); await frame().evaluate(() => window.Find.window.sentence()); await sleep(900); }
+    else if (what === 'type') await inWindow(text => { const input = document.querySelector('dialog.fd .fd-input'); input.value = text; input.dispatchEvent(new Event('input', { bubbles: true })); }, arg);
     else if (what === 'key') { const [k, mod] = arg.split('+'); await inWindow(([k, mod]) => { document.querySelector('dialog.fd')?.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true, shiftKey: mod === 'shift' })); }, [k, mod]); }
     else if (what === 'wait') await sleep(Number(arg));
+    else if (what === 'theme') await inWindow(t => { document.documentElement.classList.toggle('dark', t === 'dark'); document.documentElement.setAttribute('data-theme', t); document.body.classList.toggle('dark-theme', t === 'dark'); document.body.classList.toggle('light-theme', t !== 'dark'); }, arg);
     if (what === 'shot') {
       await sleep(700);
       const state = await read();
       report[arg] = state;
       await page.screenshot({ path: path.join(out, arg + '.png') });
-      console.log(arg + ':', JSON.stringify({ line: state?.line, pieces: state?.pieces, choices: state?.choices, values: state?.choiceValues?.map(v => v.slice(0, 90)), lit: state?.lit, rows: state?.rowCount, first: state?.rows?.slice(0, 3), marks: state?.marks, count: state?.count, notes: state?.notes, foot: state?.foot }));
+      console.log(arg + ':', JSON.stringify({ sentence: state?.sentence, notes: state?.notes, line: state?.line, dots: state?.dots, hollow: state?.hollow, choices: state?.choices, values: state?.choiceValues?.map(v => v.slice(0, 90)), lit: state?.lit, rows: state?.rowCount, first: state?.rows?.slice(0, 3), marks: state?.marks, count: state?.count, says: state?.says, lineH: state?.lineH, ring: state?.ring, name: state?.name, lanes: state?.lanes, by: state?.by, kids: state?.kids, foot: state?.foot }));
     } else await sleep(500);
   }
   // Close, whatever is open.

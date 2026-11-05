@@ -22,7 +22,7 @@
    as the library's lk-plus, the draft line's field, the menus and the lists as the kit's pop-up
    placed by the browser, a question beside what it asked, the hover card; the graph is read and written only
    through the model's doors, the page and settings changes come from the core; no logseq.* call here. */
-const shared = window.refinementShared;
+const shared = window.Threads.shared;
 const { host, openEntity, openPageNamed, notify, esc, iconHtml } = shared;
 const { warnOnce, onUnload, runUnloadTasks } = shared.lifecycle({ prefix: 'Threads (two-way): ', leaves: { elements: '.refinement-two-way' } });
 
@@ -2001,7 +2001,7 @@ async function addRecord({ group, page, name, kind, open, asPage, where = 'journ
   await offerMade(String(block.uuid), `Added “${name}”${kind ? ` (${kind})` : ''}${asPage ? ' as a page' : where === 'here' ? ' to this page' : where === 'page' ? ` to ${other}` : ' to today’s journal'}${filled.length ? `, with ${filled.join(', ')}` : ''}`, undo, group.name);
   if (open) openEntity(block.uuid, true);
   // Into its words at once (0.4.302): the sidebar draws it a moment after it opens.
-  if (edit && !asPage) { const uuid = block.uuid; window.refinementCore.screen.waitFor(() => host().querySelector(`#right-sidebar .ls-block[blockid="${uuid}"]`), 3000).then(found => found && model.editBlock(uuid, { pos: 0 })).catch(error => warnOnce('the new record could not be put in edit', error)); }
+  if (edit && !asPage) { const uuid = block.uuid; window.Threads.core.screen.waitFor(() => host().querySelector(`#right-sidebar .ls-block[blockid="${uuid}"]`), 3000).then(found => found && model.editBlock(uuid, { pos: 0 })).catch(error => warnOnce('the new record could not be put in edit', error)); }
   return true;
 }
 
@@ -2256,7 +2256,7 @@ async function act(what, at = null) {
         const fits = (await provided.propPages()).filter(page => page.id !== here && takers.some(takes => takes(page)));
         // The pages the picked nodes' own words name first (0.4.414, idea 4 of the brainstorm of 2026-10-25): a node
         // pointing here while its words say "Spoke with Dr. Patel" offers Dr. Raj Patel at the top. Through the
-        // proposals' reader of names (namedPages, parts/shadow-rules.js) when it is loaded; the most named first.
+        // proposals' reader of names (namedPages, parts/proposals.js) when it is loaded; the most named first.
         const named = await namedFirst(chosen.map(p => p.uuid), fields, fits.map(page => page.id));
         const ordered = [...named.map(id => fits.find(page => page.id === id)).filter(Boolean), ...fits.filter(page => !named.includes(page.id))];
         const hint = `On ${counted(nodes.length)}: their “${fields.map(f => f.title).join('”, “')}” will name the page you pick instead.${named.length ? ` First: ${named.length === 1 ? 'the page' : 'the pages'} their words name.` : ''}`;
@@ -2410,7 +2410,7 @@ const twoWayCss = `
 .refinement-two-way .rf-tw-draft .rf-field { border-bottom-color: transparent; }
 .refinement-two-way .rf-tw-draft-typed { flex: none; max-width: 50%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .refinement-two-way .rf-tw-draft .rf-tw-draft-tag { margin-left: 0; white-space: nowrap; }
-/* The rest of the new node under the line (0.4.406): the proposals' look (parts/shadow.js), the row's height kept. */
+/* The rest of the new node under the line (0.4.406): the proposals' look (parts/proposals.js), the row's height kept. */
 .refinement-two-way .rf-tw-draft-props { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 1.1em; row-gap: .1em; min-height: 1.5em; font-size: .92em; line-height: 1.5; }
 .refinement-two-way .rf-tw-dprop { display: inline-flex; align-items: baseline; gap: .35em; margin: 0; padding: 0; border: 0; background: none; font: inherit; color: inherit; cursor: default; text-align: left; }
 .refinement-two-way button.rf-tw-dpick { cursor: pointer; }
@@ -2628,8 +2628,8 @@ const indexLater = ms => { clearTimeout(indexTimer); indexTimer = setTimeout(() 
 }), ms); };
 let stopped = false;
 function start() {
-  ({ UUID, isEntityId, watchDomEarly, addsElements, sendStyle, provided, uuidsIn, saveSettings, onPageChange, onDatabaseChange, onSettingsChange } = take(window.refinementCore, ['UUID', 'isEntityId', 'watchDomEarly', 'addsElements', 'sendStyle', 'provided', 'uuidsIn', 'saveSettings', 'onPageChange', 'onDatabaseChange', 'onSettingsChange', 'currentPage', 'getPage', 'createPage', 'deletePage', 'appendBlock', 'removeBlock', 'addTag', 'removeTag', 'setValue', 'unsetValue', 'editBlock']));
-  model = window.refinementCore.provided; // the graph is read and written through the model's doors (0.4.318)
+  ({ UUID, isEntityId, watchDomEarly, addsElements, sendStyle, provided, uuidsIn, saveSettings, onPageChange, onDatabaseChange, onSettingsChange } = take(window.Threads.core, ['UUID', 'isEntityId', 'watchDomEarly', 'addsElements', 'sendStyle', 'provided', 'uuidsIn', 'saveSettings', 'onPageChange', 'onDatabaseChange', 'onSettingsChange', 'currentPage', 'getPage', 'createPage', 'deletePage', 'appendBlock', 'removeBlock', 'addTag', 'removeTag', 'setValue', 'unsetValue', 'editBlock']));
+  model = window.Threads.core.provided; // the graph is read and written through the model's doors (0.4.318)
   stopped = false;
   applyStyles();
   readHeights();
@@ -2651,7 +2651,7 @@ function start() {
     if (!writing && indexSize < BIG_INDEX) indexLater(10000);
   });
   // Another graph: nothing read of this one holds there.
-  window.refinementCore.onGraphChange(() => { if (stopped) return; state.byPage = new Map(); state.mentionsOf = new Map(); state.indexed = false; state.node.clear(); reading.clear(); pagesRead = null; indexSize = 0; made.key = ''; later(0); indexLater(0); });
+  window.Threads.core.onGraphChange(() => { if (stopped) return; state.byPage = new Map(); state.mentionsOf = new Map(); state.indexed = false; state.node.clear(); reading.clear(); pagesRead = null; indexSize = 0; made.key = ''; later(0); indexLater(0); });
   onSettingsChange((now, before) => {
     if (stopped) return;
     if (settingsSchema.some(item => now?.[item.key] !== before?.[item.key])) { applyStyles(); later(0); indexLater(0); }
@@ -2681,5 +2681,5 @@ function start() {
 function provide(core) {
   core.provide({ backwardsLabel, setBackwards, shownAtOtherEnd, setShownAtOtherEnd });
 }
-(window.refinementParts ||= []).push({ name: 'two-way', says: 'the rows on a page', schema: settingsSchema, provide, start, stop: runUnloadTasks });
+((window.Threads ||= {}).parts ||= []).push({ name: 'two-way', says: 'the rows on a page', schema: settingsSchema, provide, start, stop: runUnloadTasks });
 })();

@@ -13,6 +13,8 @@ function listenForKeys() {
     // Cmd Shift . (Ctrl elsewhere): the window with > typed, Logseq's commands listed; again, it closes. The period by its place
     // on the keyboard, since with Shift it reads > on most layouts. No key of Logseq's uses it.
     if (mod && event.shiftKey && !event.altKey && (event.code === 'Period' || event.key === '>' || event.key === '.')) { event.preventDefault(); event.stopPropagation(); Find.window.commands(); return; }
+    // Cmd Option K (Ctrl Alt elsewhere): the window as a sentence; again, it closes. By the key's place, since Option changes what it reads.
+    if (mod && event.altKey && !event.shiftKey && (event.code === 'KeyK' || String(event.key).toLowerCase() === 'k')) { event.preventDefault(); event.stopPropagation(); Find.window.sentence(); return; }
     if (!mod || event.altKey || String(event.key).toLowerCase() !== 'k') return;
     // Keys typed inside our own window never reach here (its dialog stops them); Logseq's own search box does.
     const takes = Find.settings.setting('takesSearchKey');
@@ -28,6 +30,7 @@ function listenForKeys() {
 async function main() {
   listenForKeys();
   logseq.App.registerCommandPalette({ key: 'find-open', label: 'Find' }, () => Find.window.open());
+  logseq.App.registerCommandPalette({ key: 'find-sentence', label: 'Find by sentence' }, () => Find.window.sentence());
   logseq.provideModel({ findOpen: () => Find.window.open() });
   logseq.App.registerUIItem('toolbar', { key: 'find-open', template: '<a class="button" data-on-click="findOpen" title="Find (Cmd+K)"><i class="ti ti-route"></i></a>' });
   logseq.DB.onChanged(() => Find.window.forget());

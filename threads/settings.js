@@ -2,7 +2,7 @@
    shows comes from the parts' own schemas; this says how they read here. Tools of the window: a list offers the graph's
    properties as you type, and Open troubleshooting runs the command the diagnostics part registers. */
 (function () {
-const schemaOf = () => (window.refinementParts || []).flatMap(part => part.schema || []);
+const schemaOf = () => (window.Threads.parts || []).flatMap(part => part.schema || []);
 const item = (key, more = {}) => ({ ...schemaOf().find(row => row.key === key), hidden: false, ...more });
 const link = text => `<span class="lk-node">${text}</span>`;
 const day = (when, text) => `<span class="sw-line"><span class="lk-day sw-faintw" style="min-width:48px;text-align:right">${when}</span><span>${text}</span></span>`;
@@ -16,7 +16,7 @@ const SPECIMENS = {
   foundationOnly: on => on ? '<span class="sw-faintw">Only the plugin’s base runs, to see whether a part is at fault</span>' : '<span class="sw-k">All of Threads runs</span>',
 };
 const specimen = (row, value) => SPECIMENS[row.key] ? SPECIMENS[row.key](!!value) : '';
-const properties = async () => (await window.refinementCore.provided.propSchema()).props.map(prop => prop.title);
+const properties = async () => (await window.Threads.core.provided.propSchema()).props.map(prop => prop.title);
 // The parts' schemas are there once every part has loaded, so the rows are read when the window opens.
 window.PluginDoor.describe('threads', {
   get schema() {
@@ -35,7 +35,7 @@ window.PluginDoor.describe('threads', {
       { type: 'heading', title: 'Troubleshooting' },
       item('foundationOnly'),
       // Only while Threads runs: there is nothing to open otherwise.
-      ...(window.refinementCore?.provided?.openTroubleshooting ? [{ type: 'action', key: 'troubleshoot', title: 'Open troubleshooting', run: () => window.refinementCore.provided.openTroubleshooting() }] : []),
+      ...(window.Threads.core?.provided?.openTroubleshooting ? [{ type: 'action', key: 'troubleshoot', title: 'Open troubleshooting', run: () => window.Threads.core.provided.openTroubleshooting() }] : []),
     ];
   },
   specimen,

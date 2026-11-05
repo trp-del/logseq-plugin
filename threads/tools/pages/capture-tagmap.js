@@ -25,13 +25,13 @@ const src = f => fs.readFileSync(f, 'utf8');
   await page.addScriptTag({ content: `const settings = { tagTreeRoots: '', twoWayNames: '', twoWayOneEnd: '', propertyGroups: '' };
     window.parent = window;
     window.logseq = { settings, updateSettings: o => Object.assign(settings, o), DB: { datascriptQuery: q => window.cliQuery(q), onChanged: () => () => {} }, UI: { showMsg() {} }, App: { pushState() {} }, Editor: {} };
-    window.refinementCore = { provided: { backwardsLabel: name => name, setBackwards() {}, shownAtOtherEnd: () => true, setShownAtOtherEnd() {} } };` });
+    window.Threads.core = { provided: { backwardsLabel: name => name, setBackwards() {}, shownAtOtherEnd: () => true, setShownAtOtherEnd() {} } };` });
   for (const f of ['parts/shared.js', 'parts/model.js']) await page.addScriptTag({ content: src(f) });
   await page.addScriptTag({ content: require(path.resolve('tools/pretend-model')) });
   for (const f of ['parts/tags-graph.js', 'parts/tags-props.js']) await page.addScriptTag({ content: src(f) });
   await page.addScriptTag({ content: src('parts/tags.js').replace(/\}\)\(\);\s*$/, 'window.__createView = createView; window.__css = css; })();') });
   const out = await page.evaluate(async () => {
-    const style = document.createElement('style'); style.textContent = window.refinementShared.kitCss + window.__css; document.head.append(style);
+    const style = document.createElement('style'); style.textContent = window.Threads.shared.kitCss + window.__css; document.head.append(style);
     const view = window.__createView(document, 'page'); document.getElementById('at').append(view.node);
     await view.refresh();
     const wait = ms => new Promise(r => setTimeout(r, ms));

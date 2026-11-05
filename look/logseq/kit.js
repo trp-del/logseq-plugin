@@ -31,31 +31,19 @@ function style(key, css) {
   logseq.provideStyle({ key: 'look-' + key, style: text });
 }
 
-/* One watcher of Logseq's screen: every part that draws registers a pass; the passes run once per frame after the screen
-   changed, so many changes cost one pass. A change of class alone (pointing, selecting) runs nothing. A part may also
-   give a quick early pass, run at once when elements came, before the screen is drawn. */
-const watch = { passes: new Set(), early: new Set(), observer: null, frame: 0 };
+/* The watcher of Logseq's screen is the door's (plugin.js, Door.watch), one for every module since 5 November 2026: every part
+   that draws registers a pass, run once per frame after the screen changed, and may give a quick early pass, run at once when
+   elements came, before the screen is drawn. The kit keeps the passes too, so a reading that landed (the marks, the links) can
+   run them again on its own, and keeps what takes each off, so Look's stop takes off only Look's. */
+const watch = { passes: new Set(), offs: [] };
 function watchScreen(pass, early) {
-  const doc = host();
-  if (!watch.observer) {
-    const win = doc.defaultView;
-    watch.observer = new win.MutationObserver(records => {
-      if (records.some(r => r.type === 'childList')) for (const fn of watch.early) { try { fn(doc); } catch (error) { console.error('Look: a pass failed', error); } }
-      if (watch.frame || !records.some(r => r.type !== 'attributes')) return;
-      watch.frame = win.requestAnimationFrame(() => { watch.frame = 0; run(doc); });
-    });
-    watch.observer.observe(doc.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['data-uuid', 'blockid', 'data-collapsed', 'data-page-tags'] });
-  }
+  const Door = window.PluginDoor;
   watch.passes.add(pass);
-  if (early) watch.early.add(early);
-  try { pass(doc); } catch (error) { console.error('Look: a pass failed', error); }
+  watch.offs.push(Door.watch(pass));
+  if (early) watch.offs.push(Door.watch((doc, records) => { if (Door.addsElements(records)) early(doc); }, { early: true }));
 }
 function run(doc) { for (const pass of [...watch.passes]) { try { pass(doc); } catch (error) { console.error('Look: a pass failed', error); } } }
-function stopWatching() {
-  watch.observer?.disconnect(); watch.observer = null;
-  if (watch.frame) host().defaultView.cancelAnimationFrame(watch.frame);
-  watch.frame = 0; watch.passes.clear(); watch.early.clear();
-}
+function stopWatching() { while (watch.offs.length) watch.offs.pop()(); watch.passes.clear(); }
 
 // Graph changes, told once after a quiet moment: whether a tag or a page may have changed, and which pages were written on.
 const dbHooks = [];

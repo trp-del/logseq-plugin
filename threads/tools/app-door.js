@@ -1,15 +1,15 @@
-/* The door to the real Logseq for the tests that drive it (2026-10-23): tools/app-frames.js and tools/app-stress.js.
+/* The door to the real Logseq for the tests that drive it (2026-10-23): the plugin's tools/motion-check.js and tools/app-stress.js.
    Logseq must have been started with its debugging port (open -a Logseq --args --remote-debugging-port=9222).
    - connect(): the main window, after checking the open graph is one of the three test graphs (nothing is touched
      otherwise); exits with code 2 and a plain line when Logseq cannot be reached;
    - setPlugin(page, on): the plugin off or on through Logseq's own plugin core (what its Plugins panel's toggle does),
      waiting until its stylesheets are there or gone;
    - go(page, stop): a page by name, a route (#/…), or Logseq's All pages;
-   - plugin(page): the plugin's own frame, to read its kit (refinementShared) and core (refinementCore);
+   - plugin(page): the plugin's own frame, to read its kit (Threads.shared) and core (Threads.core);
    - counts(page): the plugin's counts door (core.counts) with the marks it has on Logseq's screen and its stylesheets;
    - graphOk(page): the open graph is still a test graph (read before every step that acts).
    Every test using this puts the app back as it found it: see the restore of each. */
-const PLUGIN = 'logseq-threads';
+const PLUGIN = 'logseq-plugin';
 const GRAPHS = ['Illness Test Graph', 'Seed Check', 'Stress Check'];
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -58,16 +58,16 @@ async function go(page, stop) {
 }
 // The plugin's frame (same address as Logseq's window, so its kit and core can be read).
 function plugin(page) {
-  return page.frames().find(f => /logseq-threads_index\.html/.test(f.url())) || null;
+  return page.frames().find(f => /logseq-plugin_index\.html/.test(f.url())) || null;
 }
 // What the plugin has set going and on screen now.
 async function counts(page) {
   const frame = plugin(page);
-  const door = frame ? await frame.evaluate(() => window.refinementCore?.counts?.() || null).catch(() => null) : null;
+  const door = frame ? await frame.evaluate(() => window.Threads.core?.counts?.() || null).catch(() => null) : null;
   const screen = await page.evaluate(id => {
     const marks = {};
-    const frame = [...document.querySelectorAll('iframe')].find(f => /logseq-threads_index/.test(f.src));
-    const shared = frame?.contentWindow?.refinementShared;
+    const frame = [...document.querySelectorAll('iframe')].find(f => /logseq-plugin_index/.test(f.src));
+    const shared = frame?.contentWindow?.Threads.shared;
     if (shared) for (const [k, v] of shared.ownMarks(document)) marks[k] = v;
     return { marks, styles: document.querySelectorAll(`style[data-ref="${id}"]`).length };
   }, PLUGIN);

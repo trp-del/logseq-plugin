@@ -35,8 +35,8 @@
      firstLines(uuid, n)                                            naming it in their words (0.4.423),
      nodeValues(uuids), firstTags(ids), nodesOfTag(id), pagesAmong,  a node's own values and first lines, many nodes' values and
      tagUuidNamed, uuidById, nodeLines(ids)                         first tags at once, a tag's nodes, many nodes as lines
-   - pagesNamed, blockInEdit, BLOCK_PULL, userTagIds, taggedNodes, nodesById, aliasPairs, plainLines, journalDays, datedByTag,
-     valueTitle, numberValues, linkedPages, hasTag, pageLines       what the proposals read while a bullet is written
+   - hasTag, pageLines                                             whether a page has a tag; a page's lines (what the proposals
+                                                                    read went to Predictive's core on 5 November 2026)
    - propTextValues, propNamed                                     turning a property into links (0.4.241)
    - propTextBlocks, propValueBlocks                               merging and deleting properties (0.4.422)
    - heldBelow(uuids)                                              what folded nodes hold: open tasks, tags, the nearest due day, files, quotes
@@ -45,7 +45,7 @@
      removeTagExtends, openInSidebar, showSidebar, EXTENDS, ALIAS, ICON, PARENT_TAGS
                                                                     THE writes (0.4.315, docs/LAYERS.md layer 1): the one door a
                                                                     part writes the graph through; Logseq's own calls live here only */
-const shared = window.refinementShared;
+const shared = window.Threads.shared;
 const { warnOnce, runUnloadTasks } = shared.lifecycle({ prefix: 'Threads (model): ' });
 // From the core, taken when the part starts.
 let dsQuery, graphWide;
@@ -185,36 +185,7 @@ async function loadPages() {
   pages.sort((a, b) => a.lower.localeCompare(b.lower));
   return pages;
 }
-// The same, for pages named now (by their lower-case names), read fresh: a page made a moment ago counts at once.
-async function pagesNamed(names) {
-  if (!names.length) return [];
-  const rows = await dsQuery(`[:find (pull ?p [:db/id :block/uuid :block/title {:block/tags [:db/id :block/title :db/ident]} {:block/_alias [:db/id :block/title]}])
-    :where [(ground [${names.map(name => JSON.stringify(name)).join(' ')}]) [?n ...]] [?p :block/name ?n] (not [?p :block/tags :logseq.class/Property]) (not [?p :block/journal-day _]) (not [?p :logseq.property/deleted-at _])]`).catch(() => []);
-  return rows.map(([p]) => pageOf(p)).filter(Boolean);
-}
-
-/* What the proposals read (0.4.226, moved here from parts/shadow.js). blockInEdit(uuid): the block with its tags and
-   values, its page, its parent and the parent's parent (BLOCK_PULL). The earlier lines the "looks like" engine learns
-   from: userTagIds (your own tags, never Logseq's), taggedNodes (every node with one of those tags, pages too since 0.4.239, with its links
-   under the given properties), aliasPairs, plainLines (nodes with no tag at all). journalDays: every journal page's day
-   by id; datedByTag(dateIdent): for each tag, how many of its nodes dated with that property are dated the day they are
-   written on, and how many another day. And what a node holds right now: valueTitle, numberValues, linkedPages, hasTag. */
-const PAGE_PULL = '[:db/id :block/uuid :block/title :block/journal-day {:block/tags [:db/id]}]';
-const BLOCK_PULL = `[* {:block/tags [:db/id]} {:block/page ${PAGE_PULL}} {:block/parent [* {:block/tags [:db/id]} {:block/page [:db/id]} {:block/parent [* {:block/tags [:db/id]} {:block/page [:db/id]}]}]}]`;
-async function blockInEdit(uuid) {
-  if (!UUID.test(uuid)) return null;
-  const [[b] = []] = await dsQuery(`[:find (pull ?b ${BLOCK_PULL}) :where [?b :block/uuid #uuid "${uuid}"]]`);
-  return b || null;
-}
 const tagIdents = () => dsQuery('[:find ?t ?i :where [?t :block/tags :logseq.class/Tag] [?t :db/ident ?i]]').catch(() => []);
-const userTagIds = async () => (await tagIdents()).filter(([, ident]) => /^:?user\.class\//.test(String(ident))).map(([t]) => Number(t));
-const taggedNodes = (tagIds, idents) => !tagIds.length ? Promise.resolve([]) : dsQuery(`[:find (pull ?b [:db/id :block/title {:block/tags [:db/id]} ${idents.map(ident => `{:${ident} [:db/id]}`).join(' ')}])
-      :where [(ground #{${tagIds.join(' ')}}) [?t ...]] [?b :block/tags ?t] (not [?b :logseq.property/deleted-at _])]`).then(rows => rows.map(([n]) => n));
-// The same as taggedNodes, for nodes by their ids, whatever their tags, for learning a node just written (0.4.267); a node
-// deleted since is not among them.
-const nodesById = (ids, idents) => !ids.length ? Promise.resolve([]) : dsQuery(`[:find (pull ?b [:db/id :block/title {:block/tags [:db/id]} ${idents.map(ident => `{:${ident} [:db/id]}`).join(' ')}])
-      :where [(ground #{${ids.join(' ')}}) [?b ...]] [?b :block/uuid _] (not [?b :logseq.property/deleted-at _])]`).then(rows => rows.map(([n]) => n));
-const aliasPairs = async () => (await dsQuery('[:find ?o ?a :where [?o :block/alias ?a]]').catch(() => [])).map(([o, a]) => [Number(o), Number(a)]);
 // The other names of a page: what it is an alias of, its aliases, and theirs. Logseq's Linked references counts a link to any of them.
 async function aliasesOf(id) {
   const pairs = await graphWide('inlineAliases', () => dsQuery('[:find ?o ?a :where [?o :block/alias ?a]]'));
@@ -223,21 +194,7 @@ async function aliasesOf(id) {
   found.delete(id);
   return [...found];
 }
-const plainLines = async () => (await dsQuery('[:find ?b ?t :where [?b :block/page _] [?b :block/title ?t] [(not= ?t "")] (not [?b :block/tags _]) (not [?b :logseq.property/deleted-at _])]').catch(() => []))
-  .map(([id, title]) => ({ id: Number(id), title: String(title) }));
-const journalDays = async () => new Map((await dsQuery('[:find ?p ?d :where [?p :block/journal-day ?d]]')).map(([p, d]) => [p, Number(d)]));
-async function datedByTag(dateIdent) {
-  const dated = new Map();
-  const rows = dateIdent ? await dsQuery(`[:find ?t ?same (count ?b) :where [?b :block/tags ?t] [?b :${dateIdent} ?dp] [?dp :block/journal-day ?d] [?b :block/page ?pg] [?pg :block/journal-day ?pd] [(= ?d ?pd) ?same]]`).catch(() => []) : [];
-  for (const [t, same, count] of rows) { const n = dated.get(t) || { same: 0, other: 0 }; n[same ? 'same' : 'other'] += Number(count) || 0; dated.set(t, n); }
-  return dated;
-}
-// The title of a node's value under a property (a text value is a small block of its own); the numbers it holds;
-// the pages its words link, by lower-case title; whether a page has a tag.
-const valueTitle = async (uuid, ident) => { const [[title] = []] = await dsQuery(`[:find ?t :where [?r :block/uuid #uuid "${uuid}"] [?r :${ident} ?v] [?v :block/title ?t]]`); return title; };
-const numberValues = async (uuid, ident) => (await dsQuery(`[:find ?n :where [?r :block/uuid #uuid "${uuid}"] [?r :${ident} ?v] [?v :logseq.property/value ?n]]`)).map(([n]) => Number(n));
-const linkedPages = async uuid => new Map((await dsQuery(`[:find ?p ?u ?t :where [?b :block/uuid #uuid "${uuid}"] [?b :block/refs ?p] [?p :block/title ?t] [?p :block/uuid ?u]]`))
-  .map(([id, pageUuid, title]) => [String(title).toLowerCase(), { id: Number(id), uuid: String(pageUuid), title: String(title) }]));
+// Whether a page has a tag.
 const hasTag = async (pageUuid, tagUuid) => (await dsQuery(`[:find ?t :where [?p :block/uuid #uuid "${pageUuid}"] [?p :block/tags ?t] [?t :block/uuid #uuid "${tagUuid}"]]`)).length > 0;
 // The cache keys are the ones Properties in the line used, so nothing else changes (0.4.164).
 const propSchema = () => graphWide('inlinePropsSchema', loadSchema);
@@ -1112,12 +1069,12 @@ function provide(core) {
     tagGraph, propInfo, ownProps, inheritedProps, tagPropIds, acceptedIds, choicesOf, choiceUse, choiceCounts, choiceNodes, idByUuid,
     descriptionOf, titleNow, valuesOf, userValues, mergeFacts, TAG_PROPS, ACCEPTS, DESCRIPTION,
     linksInto, mentionsInto, pageHasList, firstTags, nodesOfTag, nodeLines, nodeFields, nodeValues, firstLines, pagesAmong, tagUuidNamed, uuidById,
-    pagesNamed, BLOCK_PULL, blockInEdit, userTagIds, taggedNodes, nodesById, aliasPairs, plainLines, journalDays, datedByTag, valueTitle, numberValues, linkedPages, hasTag, pageLines,
+    hasTag, pageLines,
     propTextValues, propTextBlocks, propValueBlocks, propNamed, propUse, propUses, structureUse, propNodeIds, choiceIds, crumbsInto, propHolders, pdfSources, heldBelow, linkRates, linkRatesOf, journalIdFor, journalTitleFor, formatJournalTitle, CHECKED_WITH, PAGE_TITLE, screenChecks, pageTitles, titleAnchor });
 }
 function start() {
-  window.refinementCore.onGraphChange(() => { journalFormat.value = null; });   // each graph has its own
-  ({ dsQuery, graphWide } = take(window.refinementCore, ['dsQuery', 'graphWide']));
+  window.Threads.core.onGraphChange(() => { journalFormat.value = null; });   // each graph has its own
+  ({ dsQuery, graphWide } = take(window.Threads.core, ['dsQuery', 'graphWide']));
 }
-(window.refinementParts ||= []).push({ name: 'model', says: 'its reading of the graph', foundation: true, schema: [], provide, start, stop: runUnloadTasks });
+((window.Threads ||= {}).parts ||= []).push({ name: 'model', says: 'its reading of the graph', foundation: true, schema: [], provide, start, stop: runUnloadTasks });
 })();

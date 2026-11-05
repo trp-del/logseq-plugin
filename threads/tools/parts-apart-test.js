@@ -14,9 +14,8 @@ const run = (script, env) => spawnSync(process.execPath, [path.join(root, 'tools
 
 // [left out, the warning that should say so (none: nothing to say), parts that then stay out by themselves]
 const CASES = [
-  ['two-way'], ['shadow-rules'],
-  ['alike', 'alike is missing from the core'],
-  ['alike,shadow-rules'],
+  ['two-way'], ['proposals'],
+  ['two-way,proposals'],
 ];
 for (const [leave, warn, quiet] of CASES) {
   const out = run('boot-test.js', { LEAVE_OUT: leave, ALLOW_WARN: warn || '', QUIET_PARTS: String(quiet || 0) });

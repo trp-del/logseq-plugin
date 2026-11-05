@@ -1,6 +1,6 @@
 /* The plugin's marks on Logseq's screen, for the tests that run outside the plugin: the two patterns of the kit's one
    finder (parts/shared.js, MARK_CLASS and MARK_ATTR), read from its source so there is one definition. Used by
-   tools/boot-test.js (leftovers), tools/frames.js and tools/app-frames.js (what the ledger tracks). */
+   tools/boot-test.js (leftovers), tools/frames.js and the plugin's tools/motion-check.js (what the ledger tracks). */
 const fs = require('fs');
 const path = require('path');
 const src = fs.readFileSync(path.resolve(__dirname, '../parts/shared.js'), 'utf8');

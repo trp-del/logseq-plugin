@@ -179,7 +179,7 @@ async function facets(nodes) {
     const id = pick(v, 'db/id'), title = pick(v, 'block/title'), content = pick(v, 'property.value/content');
     labels.set(id, { label: String(title ?? content ?? '').trim(), uuid: String(pick(v, 'block/uuid') || '') });
   }
-  const props = new Map(), byNode = new Map();
+  const props = new Map(), byNode = new Map(), byLabel = new Map();
   for (const [b, name, type, v] of rows) {
     const kind = bare(type);
     // Days are left to the months, a date and time too; a value kept in place is its own label.
@@ -195,6 +195,9 @@ async function facets(nodes) {
     if (!val.nodes.has(b)) { val.nodes.add(b); val.count++; }
     if (!byNode.has(b)) byNode.set(b, new Set());
     byNode.get(b).add(name + '=' + key);
+    // Every value by its name, for the sentence to read: the first property that holds it wins.
+    const label = Find.sentence.norm(got.label);
+    if (label && !byLabel.has(label)) byLabel.set(label, { name: String(name), key, label: got.label, uuid: val.uuid, type: kind });
   }
   const total = ids.length;
   const list = [...props.values()].map(p => ({ name: p.name, type: p.type,
@@ -202,7 +205,13 @@ async function facets(nodes) {
     // A property with one value, or one every node holds, narrows nothing; words with a value per node are not choices.
     .filter(p => p.values.length > 1 && !(p.type === 'default' && p.values.length > 24))
     .sort((a, b) => (a.type === 'node' ? 0 : 1) - (b.type === 'node' ? 0 : 1) || a.name.localeCompare(b.name));
-  return { props: list, byNode };
+  return { props: list, byNode, byLabel };
+}
+/* Every page of yours by name, for the sentence to read (Dr. Mei Chen, Fatigue, a tag's or a property's page too): journal
+   days are left to the times, Logseq's own pages out. [{ id, uuid, title }] */
+async function pages() {
+  const rows = await query(`[:find ?b ?u ?title :where [?b :block/name _] [?b :block/uuid ?u] [?b :block/title ?title] (not [?b :block/journal-day _]) (not [?b :logseq.property/built-in? true]) ${LIVE}]`);
+  return rows.map(([id, u, title]) => ({ id, uuid: String(u).toLowerCase(), title: String(title) })).filter(p => p.title && !OWN.test(p.title));
 }
 // The months among the nodes' days, newest first: [{ key: 202610, label: 'Oct', count }].
 const byDay = (a, b) => b.day - a.day || b.written - a.written;
@@ -292,5 +301,5 @@ async function makePage(name) {
 }
 const forget = () => { tags = null; };
 
-Find.db = { tagIndex, kinds, kindTree, nodesOfKind, details, facets, months, byDay, search, node, recents, makePage, dayLabel, monthLabel, forget, UUID };
+Find.db = { tagIndex, kinds, kindTree, nodesOfKind, details, facets, pages, months, byDay, search, node, recents, makePage, dayLabel, monthLabel, forget, UUID };
 })();

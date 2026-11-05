@@ -57,6 +57,56 @@ Door.kindIconHtml = kind => {
   if (KIND_ICONS[k] === null) return `<i class="lk-icon lk-web" aria-hidden="true">${Door.WEB}</i>`;
   return `<i class="lk-icon ti ti-${KIND_ICONS[k] || 'letter-case'}" aria-hidden="true"></i>`;
 };
+/* One watcher of Logseq's screen for every module (until 5 November 2026 Look and Threads each kept an observer of their own).
+   Door.watch(fn, { early }) registers a pass and returns what takes it off. A pass runs once at registration and then once per
+   frame after the screen changed, so many changes cost one pass; a change of class alone (pointing, selecting) runs none. An
+   early pass runs at once on every change, given the records, before the screen is drawn, so Logseq's own look never shows
+   first; it must be quick. What the early passes change is set aside, and what a frame's passes change is shown to the early
+   ones once, so the watcher never answers itself. A pass that throws five times is retired for the session. The observer stands
+   while any pass is registered and goes with the last. */
+const screen = { early: new Set(), passes: new Set(), observer: null, frame: 0, doc: null, win: null, failures: new Map() };
+const SCREEN_ATTRS = ['data-uuid', 'blockid', 'data-collapsed', 'data-page-tags', 'data-ref', 'class', 'data-hl-type'];
+function passFailed(fn, set, error) {
+  const n = (screen.failures.get(fn) || 0) + 1;
+  screen.failures.set(fn, n);
+  if (n < 5) return console.error(`PluginDoor: a screen pass failed (${fn.name || 'unnamed'})`, error);
+  set.delete(fn);
+  console.error(`PluginDoor: ${fn.name || 'a screen pass'} stopped for this session after ${n} errors`, error);
+}
+function runEarly(records) {
+  for (const fn of [...screen.early]) { try { fn(screen.doc, records); } catch (error) { passFailed(fn, screen.early, error); } }
+  screen.observer?.takeRecords();
+}
+function ensureScreen() {
+  if (screen.observer) return;
+  const doc = window.parent.document, win = doc.defaultView;
+  screen.doc = doc; screen.win = win;
+  screen.observer = new win.MutationObserver(records => {
+    runEarly(records);
+    if (screen.frame || !records.some(r => r.type !== 'attributes')) return;
+    screen.frame = win.requestAnimationFrame(() => {
+      screen.frame = 0;
+      for (const fn of [...screen.passes]) { try { fn(doc); } catch (error) { passFailed(fn, screen.passes, error); } }
+      const own = screen.observer?.takeRecords() || [];
+      if (own.length) runEarly(own);
+    });
+  });
+  screen.observer.observe(doc.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: SCREEN_ATTRS });
+}
+Door.watch = (fn, { early = false } = {}) => {
+  ensureScreen();
+  const set = early ? screen.early : screen.passes;
+  set.add(fn);
+  if (!early) { try { fn(screen.doc); } catch (error) { passFailed(fn, set, error); } }
+  return () => { set.delete(fn); if (!screen.early.size && !screen.passes.size) Door.stopWatching(); };
+};
+Door.addsElements = records => records.some(r => r.type === 'childList');
+Door.watching = () => screen.early.size + screen.passes.size;
+Door.stopWatching = () => {
+  screen.observer?.disconnect();
+  if (screen.frame) screen.win?.cancelAnimationFrame(screen.frame);
+  screen.observer = null; screen.frame = 0; screen.early.clear(); screen.passes.clear();
+};
 /* What opens rolls out (the grammar), as Threads' section does: the room it takes grows from nothing in 180 ms while it fades
    in, so what is below glides down instead of jumping; closing rolls it back up before it goes. One motion for every module,
    none under reduced motion. unroll(elements) after they are drawn; rollUp(elements) resolves when they are gone from view,

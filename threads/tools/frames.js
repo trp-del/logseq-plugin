@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /* Frames of what the plugin draws, in Chromium (2026-10-23, docs/history/FINISHING-PROMPT-2026-10-23.md section 3.5): the pretend pages of
-   tools/pictures.js (tools/pretend-page.js) made to move, recorded with the three witnesses of tools/frame-kit.js (the
+   tools/pictures.js (tools/pretend-page.js) made to move, recorded with the three witnesses of the plugin's tools/frame-kit.js (the
    ledger, the shift log, the screencast's pictures). Each scene runs twice in each theme: A, the pretend Logseq page
    alone, doing what Logseq does (a page opening in steps, a list filling); B, the same with the plugin's piece drawing
-   on it. The real app is recorded by tools/app-frames.js; this one runs in seconds and inside tools/check.sh.
+   on it. The real app is recorded by the plugin's tools/motion-check.js; this one runs in seconds and inside tools/check.sh.
 
    Scenes:
    - two-way, first visit: Dr. Mei Chen's page opening as Logseq opens it (the title, then the property list 120 ms
@@ -27,7 +27,7 @@
    Needs Playwright and Chromium; skipped quietly where they are missing. */
 const fs = require('fs');
 const path = require('path');
-const K = require('./frame-kit');
+const K = require('../../tools/frame-kit');
 const { THEMES, pretendLogseq, exposeAtEnd, tablerCss } = require('./pretend-page');
 
 let chromium;
@@ -84,7 +84,7 @@ const LONG = [{ name: 'symptoms', label: 'logged in', ident: 'user.property/symp
 // In the page: the two-way part set up on a pretend core, its draw run early on every change as the core's watcher does.
 function twoWaySetUp(groups, pageUuid) {
   const tw = window.__tw;
-  const style = document.createElement('style'); style.textContent = window.PluginDoor.NAMES + window.refinementShared.kitCss + tw.twoWayCss; document.head.append(style);
+  const style = document.createElement('style'); style.textContent = window.PluginDoor.NAMES + window.Threads.shared.kitCss + tw.twoWayCss; document.head.append(style);
   tw.setUp({
     provided: { pageTitles: doc => doc.querySelectorAll('#main-content-container .ls-page-title') },
     addsElements: records => records.some(r => [...r.addedNodes].some(n => n.nodeType === 1)),
@@ -173,9 +173,9 @@ async function record(browser, theme, name, scene, withPlugin) {
   if (scene.kind === 'pop-up') {
     await page.evaluate(() => { const m = document.getElementById('main-content-container'); m.textContent = 'Linked references, Chemo cycle 7, Date: Dec 2nd, 2026, drugs: Oxaliplatin, Leucovorin. '.repeat(40); });
     if (withPlugin) {
-      await page.evaluate(() => { const style = document.createElement('style'); style.textContent = window.PluginDoor.NAMES + window.refinementShared.kitCss; document.head.append(style); });
+      await page.evaluate(() => { const style = document.createElement('style'); style.textContent = window.PluginDoor.NAMES + window.Threads.shared.kitCss; document.head.append(style); });
       await input('open the list');
-      await page.evaluate(() => window.refinementShared.popup({ head: 'Troubleshooting · none of these changes your notes', width: 360, items: [
+      await page.evaluate(() => window.Threads.shared.popup({ head: 'Troubleshooting · none of these changes your notes', width: 360, items: [
         { icon: 'show', label: 'Check what the plugin finds on this page' }, { icon: 'settings', label: 'Measuring', chosen: true }, { icon: 'copy', label: 'Copy performance report' }] }));
     }
     await sleep(1500);
@@ -185,7 +185,7 @@ async function record(browser, theme, name, scene, withPlugin) {
   await sleep(800); // still, for the noise mask
   const frames = await cast.stop();
   const ledger = await page.evaluate(() => { const l = window.__rfFrames.take(); window.__rfFrames.stop(); return l; });
-  const census = await page.evaluate(() => { const m = window.refinementShared?.ownMarks(document); return m ? Object.fromEntries([...m].sort()) : {}; });
+  const census = await page.evaluate(() => { const m = window.Threads.shared?.ownMarks(document); return m ? Object.fromEntries([...m].sort()) : {}; });
   await page.close();
   return { t0: scene.tRoute ?? t0, settleEnd, frames, ledger, census, errors };
 }

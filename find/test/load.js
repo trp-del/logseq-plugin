@@ -3,7 +3,8 @@
    shapes Logseq 2.0.2 returns (a small graph: the kinds Doctor and Consultation, Dr. Mei Chen, four consultations with
    their Provider and Topic), and a jsdom page. It walks the window from the keyboard: the kinds offered, "cons" lighting
    Consultation and Enter picking it, the choices under it, "mei" lighting Dr. Mei Chen, the rows narrowing, → digging into
-   a row, Backspace widening, Escape closing; then that the stop sweeps everything. Only the real app shows the rest. */
+   a row, the sentence widened, Escape closing; the sentence read as kind, who and when, the near rows and the year line; then
+   that the stop sweeps everything. Only the real app shows the rest. */
 const assert = require('node:assert/strict');
 const fs = require('node:fs'), path = require('node:path'), vm = require('node:vm');
 let JSDOM; try { ({ JSDOM } = require('jsdom')); } catch (error) { console.log('skipped: needs jsdom (set NODE_PATH)'); process.exit(2); }
@@ -36,6 +37,7 @@ function fakeQuery(q) {
   const given = () => (q.includes('#uuid') ? uuidsIn(q).map(idOfUuid) : idsIn(q));
   if (has(':find ?b ?type :where') && has('[?b :logseq.property/type ?type]')) return given().filter(id => id === 50).map(id => [id, ':node']);
   if (has(':find ?b ?u ?title ?name :where')) return given().map(id => [id, U(id), titleOf(id), PAGES[id] ? titleOf(id).toLowerCase() : '']);
+  if (has(':find ?b ?u ?title :where [?b :block/name _]')) return Object.entries(PAGES).filter(([id]) => !DAYS[id]).map(([id, t]) => [Number(id), U(id), t]);
   if (has(':find ?b ?ptitle ?pday :where')) return given().filter(id => BLOCKS[id]).map(id => [id, PAGES[BLOCKS[id].page], DAYS[BLOCKS[id].page]]);
   if (has(':find ?b ?t :where') && has('[?b :block/tags ?t]')) { const ids = q.includes('#uuid') ? uuidsIn(q).map(idOfUuid) : idsIn(q); return CARRIED.filter(([, b]) => ids.includes(b)).map(([t, b]) => [b, t]); }
   if (has(':find ?b ?d :where') && has('[?b :block/journal-day ?d]')) return [];
@@ -82,7 +84,7 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
   await sleep(50);
   const Find = sandbox.window.Find;
   assert.ok(Find.kit && Find.db && Find.settings && Find.window, 'the parts are on window.Find');
-  assert.deepEqual(commands, ['Find'], 'the commands are registered');
+  assert.deepEqual(commands, ['Find', 'Find by sentence'], 'the commands are registered');
   assert.deepEqual(items, ['find-open'], 'the toolbar word is registered');
   // open: the kinds and the recents
   Find.window.open();
@@ -322,6 +324,131 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
     await key('ArrowRight'); await settle();
     assert.ok(text('.fd-kids .fd-kv').join().includes('OnsetOct 13'), 'dug, it reads as its day: ' + text('.fd-kids .fd-kv'));
     await key('Escape'); await key('Escape'); await settle(); delete BLOCKS[40].onset; delete BLOCKS[41].onset; Find.window.forget(); Find.db.forget(); }
+  // The sentence, read: a kind, a name, a time, in any order; "around" widens the month; the joining words say nothing.
+  { const read = (...a) => JSON.parse(JSON.stringify(Find.sentence.read(...a))), today = new Date(2026, 10, 5);   // read in the plugin's own realm: its arrays are copied into this one
+    const names = { kinds: new Map([['consultation', { id: 2, uuid: U(2), title: 'Consultation' }]]), pages: new Map([['dr. mei chen', { id: 20, uuid: U(20), title: 'Dr. Mei Chen' }]]), values: null };
+    let r = read('Consultation with Dr. Mei Chen around May 2026', names, today);
+    assert.deepEqual(r.picks.map(p => p.kind), ['tag', 'who', 'when'], 'kind, who, when');
+    assert.deepEqual(r.spans.map(x => [x.cls, x.note]), [['fd-kind', 'kind'], ['fd-stop', ''], ['fd-who', 'node'], ['fd-when', 'when']], 'each stretch with its note, the joining word quiet, "around" part of the time');
+    assert.deepEqual([r.picks[2].from, r.picks[2].to, r.picks[2].nearFrom, r.picks[2].nearTo, r.picks[2].label], [20260401, 20260630, 20251230, 20260930, 'around May 2026'], 'around May: April to June, near from the turn of the year to September');
+    assert.deepEqual(r.words, [], 'nothing left to narrow by letters');
+    r = read('mei chen consultation', names, today);
+    assert.deepEqual([r.picks.map(p => p.kind), r.words, r.trail], [['tag'], ['mei', 'chen'], []], 'letters that name nothing narrow the rows; after the kind nothing trails');
+    r = read('Consultation with mei', names, today);
+    assert.deepEqual([r.trail, r.trailFrom], [['mei'], 18], 'the last words, less the joining one, are the trail Tab completes');
+    r = read('7 May', names, today); assert.deepEqual([r.picks[0].from, r.picks[0].to, r.picks[0].around], [20260507, 20260507, false], 'a day');
+    r = read('May', names, today); assert.equal(r.picks[0].from, 20260501, 'a month alone is the latest one up to today');
+    r = read('Dec', names, today); assert.equal(r.picks[0].from, 20251201, 'December, in November, is last year\'s');
+    r = read('2025', names, today); assert.deepEqual([r.picks[0].from, r.picks[0].to], [20250101, 20251231], 'a year');
+    r = read('last month', names, today); assert.deepEqual([r.picks[0].from, r.picks[0].to], [20261001, 20261031], 'last month');
+    r = read('Hydroxychloroquine 200 mg', names, today); assert.deepEqual(r.picks, [], 'a bare number is no time');
+    r = read('Consultation, 7 May', names, today); assert.deepEqual(r.picks.map(p => p.kind), ['tag', 'when'], 'a comma after the kind is no part of its name');
+    // A period: two times joined by "to", "until", a dash, or "between … and"; "since" runs to today (the owner, 5 November 2026: "is this able to show periods").
+    const span = r => { const p = r.picks.find(p => p.kind === 'when'); return [p.from, p.to, p.label]; };
+    assert.deepEqual(span(read('Consultation from May to August 2026', names, today)), [20260501, 20260831, 'May–Aug 2026'], 'May to August');
+    assert.deepEqual(read('Consultation from May to August 2026', names, today).spans.map(x => [x.cls, x.note]), [['fd-kind', 'kind'], ['fd-stop', ''], ['fd-when', 'when']], 'the period one stretch, "from" quiet before it');
+    assert.deepEqual(span(read('between 2024 and 2025', names, today)), [20240101, 20251231, '2024–2025'], 'between two years');
+    assert.deepEqual(span(read('May–August', names, today)), [20260501, 20260831, 'May–Aug 2026'], 'a dash joins them too');
+    assert.deepEqual(span(read('7–21 May', names, today)), [20260507, 20260521, '7–21 May 2026'], 'two days of one month');
+    assert.deepEqual(span(read('Nov to Feb', names, today)), [20251101, 20260228, 'Nov 2025–Feb 2026'], 'a start that would follow its end moves a year back');
+    assert.deepEqual(span(read('since March', names, today)), [20260301, 20261105, 'since Mar 2026'], 'since: up to today');
+    assert.deepEqual(span(read('around May to June 2026', names, today)), [20260401, 20260731, 'around May–Jun 2026'], 'around widens both ends');
+    assert.deepEqual(span(read('May to', names, today)), [20260501, 20260531, 'May 2026'], 'a "to" with nothing after it is only a quiet word'); }
+  // Find by sentence: its own command opens the same window as a sentence; the pieces are the default (the owner, 5 November 2026:
+  // "only as something that is triggered or addon to find"). Tab completes the word in the sentence; a time keeps the rows in
+  // its window, lists the ones just outside under Near, and draws the year line.
+  { Find.window.sentence(); await settle();
+    const dlg = doc.querySelector('dialog.fd');
+    assert.ok(dlg.classList.contains('fd-say') && dlg.style.height === 308 + 12 * 32 + 'px', 'the window as a sentence, with room for the notes and the year line');
+    await type('cons'); await key('Tab');
+    assert.equal(doc.querySelector('.fd-input').value, 'Consultation ', 'Tab completes the word in the sentence');
+    assert.deepEqual(text('.fd-mirror .fd-note'), ['kind'], 'and the window pencils "kind" above it');
+    assert.equal(doc.querySelectorAll('.fd-piece').length, 0, 'no pieces');
+    await type('Consultation with mei'); await key('Tab');
+    assert.equal(doc.querySelector('.fd-input').value, 'Consultation with Dr. Mei Chen ', 'Tab puts her name in place of the letters, the joining word kept');
+    assert.deepEqual(text('.fd-mirror .fd-note'), ['kind', 'Provider'], 'the property she came through is pencilled above her name');
+    assert.deepEqual([...doc.querySelectorAll('.fd-mirror .fd-part')].map(e => e.className), ['fd-part fd-kind', 'fd-part fd-stop', 'fd-part fd-who'], 'the kind, the joining word quiet, the node');
+    assert.ok(doc.querySelector('.fd-mirror .fd-note.lk-name'), 'the note is the shared small name over a value');
+    assert.equal(doc.querySelectorAll('.fd-r').length, 3, 'her three consultations');
+    await type('Consultation with '); assert.deepEqual(text('.fd-mirror .fd-note'), ['kind'], 'taking her name out of the sentence reads the kind alone'); assert.equal(doc.querySelectorAll('.fd-r').length, 4, 'and widens the list');
+    await key('ArrowRight'); await settle(); assert.ok(doc.querySelector('.fd-kids'), '→ at the end of the sentence digs'); await key('ArrowLeft'); await settle(); assert.ok(!doc.querySelector('.fd-kids'), '← closes');
+    await type('Consultation in September 2026'); await settle();
+    assert.deepEqual(text('.fd-mirror .fd-note'), ['kind', 'when'], 'the kind and the time are read');
+    assert.deepEqual(text('.fd-r .fd-day'), ['Sep 14', 'Sep 1', 'Oct 7', 'Aug 20'], 'September\'s two rows, then the near ones');
+    assert.deepEqual(text('.fd-near'), ['Near'], 'under their head');
+    assert.ok([...doc.querySelectorAll('.fd-r')].slice(2).every(r => r.previousElementSibling), 'after the rows found');
+    const svg = doc.querySelector('.fd-line svg');
+    assert.ok(svg && svg.querySelector('.fd-band') && svg.querySelectorAll('.fd-dot').length === 2 && svg.querySelectorAll('.fd-hollow').length === 2, 'the year line: a band for September, two dots, two hollow');
+    assert.deepEqual([...svg.querySelectorAll('text')].map(t => t.textContent).slice(0, 3), ['Jan', '2026', 'Feb'], 'the months named, the year above January');
+    assert.ok(!text('.fd-ck').includes('When'), 'with a time said, the months are not offered');
+    await type('Consultation around September 2026'); await settle();
+    assert.deepEqual(text('.fd-r .fd-day'), ['Oct 7', 'Sep 14', 'Sep 1', 'Aug 20'], 'around September reaches August and October');
+    assert.deepEqual(text('.fd-near'), [], 'and nothing is near');
+    await type('Consultation from August to September 2026'); await settle();
+    assert.deepEqual(text('.fd-mirror .fd-note'), ['kind', 'when'], 'a period is read as the time');
+    assert.deepEqual(text('.fd-r .fd-day'), ['Sep 14', 'Sep 1', 'Aug 20', 'Oct 7'], 'August to September: three rows, October near');
+    assert.ok(doc.querySelector('.fd-line svg .fd-band') && doc.querySelectorAll('.fd-line svg .fd-dot').length === 3, 'the band spans the two months, three dots in it');
+    // The line opened (the owner, 5 November 2026, from timeline-mockup.html: "looks good build it"): Up from the first line of
+    // choices grows it in place; each day a column, the dots piled; the newest ringed and named; Left and Right walk them; Down
+    // digs under the line; Up lays the lanes out; Escape closes what was dug, then folds the line.
+    { const S = Find.window.state, line = () => doc.querySelector('.fd-line svg');
+      const groupOfFirst = () => !doc.querySelector('.fd-ch:first-child .fd-lit, .fd-ch:first-child .fd-more.fd-lit');   // true until the lit choice is on the first line
+      await type('Consultation from August to October 2026'); await settle();
+      assert.equal(line().getAttribute('height'), '52', 'the strip, before');
+      assert.ok(doc.querySelectorAll('.fd-c').length > 0, 'lines of choices stand between the line and the rows');
+      await key('ArrowUp'); assert.equal(S.mode, 'choices', 'Up from the first row steps into the choices');
+      while (S.mode === 'choices' && groupOfFirst()) await key('ArrowUp');
+      assert.ok(text('.fd-foot').join(' ').includes('the line'), 'the foot offers the line from the first line of choices');
+      await key('ArrowUp'); assert.deepEqual([S.mode, S.line, line().getAttribute('height')], ['line', 1, '148'], 'Up from the first line of choices opens the line to its full height');
+      assert.equal(dlg.style.height, 308 + 12 * 32 + 96 + 'px', 'the window grows by what the line grew');
+      assert.deepEqual([line().querySelectorAll('.fd-dot').length, line().querySelectorAll('.fd-hollow').length, line().querySelectorAll('.fd-ring').length], [4, 0, 1], 'the four dots, the cursor\'s ringed');
+      assert.equal(S.lineDots[S.lineAt].node.day, 20261007, 'the cursor starts on the newest dot found');
+      const name = doc.querySelector('.fd-line .fd-name');
+      assert.ok(name && !name.hidden && name.textContent.startsWith('Oct 7') && name.querySelector('.lk-day'), 'the dot named beside it, day first in the margin\'s grey');
+      assert.deepEqual(text('.fd-foot .fd-k'), ['Enter', 'Shift Enter', '↓', '↑', 'Escape'], 'the foot: open, in the sidebar, dig, lanes, fold');
+      await key('ArrowLeft'); assert.equal(S.lineDots[S.lineAt].node.day, 20260914, 'Left walks to the dot before');
+      assert.ok(doc.querySelector('.fd-line .fd-name').textContent.startsWith('Sep 14'), 'and names it');
+      await key('ArrowDown'); await settle();
+      assert.ok(S.lineDug && doc.querySelector('.fd-body > .fd-kids') && doc.querySelector('.fd-body').firstElementChild.classList.contains('fd-kids'), 'Down digs the dot\'s node: its box under the line, before the choices');
+      assert.equal(S.mode, 'line', 'the cursor stays on the dot');
+      assert.ok(text('.fd-foot').join(' ').includes('into it'), 'Down would step into it');
+      await key('ArrowDown'); assert.deepEqual([S.mode, S.rowAt], ['rows', 0], 'Down again steps the cursor into what opened');
+      await key('Escape'); await settle(); assert.deepEqual([S.lineDug, S.dug.length, S.mode], [null, 0, 'line'], 'Escape closes what was dug and the cursor is back on the dot');
+      await key('ArrowUp'); assert.deepEqual([S.line, text('.fd-line .fd-lane'), text('.fd-line .fd-by')], [2, ['Dr. Mei Chen', 'Dr. Sofia Alvarez', 'others'], ['one lane']], 'Up lays the lanes out: the first choice line\'s values, then the rest');
+      assert.equal(line().getAttribute('height'), String(24 + 3 * 44 + 28), 'a lane a value');
+      await key('ArrowUp'); assert.deepEqual([S.line, text('.fd-line .fd-by')], [1, ['by Provider']], 'Up again gathers them');
+      await key('Escape'); assert.deepEqual([S.line, S.mode, line().getAttribute('height')], [0, 'rows', '52'], 'Escape folds the line to the strip');
+      line().dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true })); assert.deepEqual([S.line, S.mode], [1, 'line'], 'a click on the strip opens it');
+      await key('ArrowLeft'); await key('ArrowRight');
+      opened.length = 0; await key('Enter'); assert.deepEqual([opened, !!doc.querySelector('dialog.fd')], [[U(S.lineDots[S.lineAt].node.id)], false], 'Enter opens the dot\'s node and the window closes');
+      Find.window.sentence(); await settle(); }
+    // Down past the last row found steps on to the near rows; → digs one of them too.
+    await type('Consultation in September 2026'); await settle();
+    await key('ArrowDown'); await key('ArrowDown'); assert.ok(doc.querySelectorAll('.fd-r')[2].classList.contains('fd-on'), 'the cursor steps on to the near rows');
+    await key('ArrowRight'); await settle(); assert.ok(doc.querySelector('.fd-kids'), 'a near row digs'); await key('ArrowLeft'); await settle();
+    // The When choice says the month with its year, so it reads as that month.
+    await type('Consultation '); await settle(); await key('Tab'); await key('ArrowDown'); await key('ArrowDown');
+    assert.ok(doc.querySelector('.fd-c.fd-lit')?.textContent.startsWith('Oct'), 'the cursor on October: ' + doc.querySelector('.fd-c.fd-lit')?.textContent); await key('Enter'); await settle();
+    assert.equal(doc.querySelector('.fd-input').value, 'Consultation Oct 2026 ', 'said with its year');
+    assert.deepEqual(text('.fd-r .fd-day'), ['Oct 7', 'Sep 14', 'Sep 1', 'Aug 20'], 'October, then the three months before it near');
+    await key('Escape'); await settle(); }
+  // A name alone: everything that points at the page, the property it came through pencilled above the name, the kinds among them.
+  { Find.window.sentence(); await settle(); await type('Dr. Mei Chen'); await settle();
+    assert.deepEqual(text('.fd-mirror .fd-note'), ['Provider'], 'the property most of them came through');
+    assert.equal(doc.querySelectorAll('.fd-r').length, 3, 'her three consultations');
+    assert.deepEqual(text('.fd-c'), ['Consultation3', 'Oct1', 'Sep2'], 'the kinds among them, and their months');
+    assert.ok(doc.querySelector('.fd-line svg .fd-dot'), 'the year line draws them');
+    await type('Dr. Mei Chen tingling'); await settle();
+    assert.equal(doc.querySelectorAll('.fd-r').length, 1, 'the other words narrow them');
+    await key('Tab'); assert.equal(Find.window.state.mode, 'choices', 'with nothing lit, Tab steps into the choices'); await key('Tab'); await settle();
+    assert.equal(doc.querySelector('.fd-input').value, 'Dr. Mei Chen tingling Consultation ', 'and Tab again says the one under the cursor after the words, since they did not light it');
+    await key('Escape'); await settle(); }
+  // The sentence's key from the pieces turns the open window into a sentence; from a sentence it closes; the command is registered.
+  { Find.window.open(); await settle(); await type('cons'); await key('Tab');
+    Find.window.sentence(); await settle(); const dlg = doc.querySelector('dialog.fd');
+    assert.ok(dlg && dlg.classList.contains('fd-say') && doc.querySelectorAll('.fd-piece').length === 0 && dlg.style.height === 308 + 12 * 32 + 'px', 'the open window turns to a sentence, the picks gone');
+    Find.window.sentence(); await settle(); assert.equal(doc.querySelector('dialog.fd'), null, 'pressed again, it closes');
+    assert.deepEqual(commands, ['Find', 'Find by sentence'], 'both commands are registered'); }
   // the key specimen, and the stop
   assert.ok(Find.settings.specimen({ key: 'takesSearchKey', type: 'boolean' }, true).includes('Cmd K'), 'the key specimen, in plain words');
   await logseq._unload();

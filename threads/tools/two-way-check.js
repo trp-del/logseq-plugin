@@ -33,7 +33,7 @@ const askNow = query => new Promise((resolve, reject) => execFile(CLI, ['query',
   }));
 const problems = [];
 const problem = text => { problems.push(text); console.log('PROBLEM: ' + text); };
-const settingsFile = path.join(os.homedir(), '.logseq/settings/logseq-threads.json');
+const settingsFile = path.join(os.homedir(), '.logseq/settings/logseq-plugin.json');
 const settings = fs.existsSync(settingsFile) ? JSON.parse(fs.readFileSync(settingsFile, 'utf8')) : {};
 
 // The answer key, from every fact about every node.
@@ -86,7 +86,7 @@ async function pluginRows() {
   window.__tw.init({
     UUID: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
     isEntityId: id => Number.isSafeInteger(id) && id > 0,
-    provided: { ...window.refinementCore.provided, readableTitle: async text => text },
+    provided: { ...window.Threads.core.provided, readableTitle: async text => text },
   });
   return { rows: await window.__tw.groupsByPage(null), summary: window.__tw.summary };
 }

@@ -9,7 +9,7 @@
 #   node tools/tags-stress.js         the tag map: 200 drags, Undo in rounds, renames, both views, 1000 holders, 200 keys, memory
 #   node tools/app-stress.js          the real Logseq (over its debugging port): pages many and fast, a typing storm,
 #                                     theme / sidebar / size, twenty reloads and Foundation only, every pop-up in dark
-#   node tools/app-frames.js          every tour stop recorded off and on, light and dark (the frame test of the real app)
+#   node ../tools/motion-check.js     every tour stop recorded off and on in the real app, each jump or flash deciphered (the plugin's tool)
 # The speed parts wait for a quiet Mac and are gated on its load (tools/quiet.js).
 cd "$(dirname "$0")/.." || exit 1
 fail=0

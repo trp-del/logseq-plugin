@@ -45,7 +45,7 @@ function oddLogseq(names) {
       : q.includes('closed-value') ? [] : q.includes('class/extends [:db/id]') ? tags.map(t => [t]) : q.includes('count') ? tags.map(t => [t[':db/id'], 2]) : [], onChanged: () => () => {} },
     UI: { showMsg() {} }, App: { pushState() {} }, Editor: {},
   };
-  window.refinementCore = { provided: { backwardsLabel: n => n + ' of', setBackwards() {}, shownAtOtherEnd: () => true, setShownAtOtherEnd() {} } };
+  (window.Threads ||= {}).core = { provided: { backwardsLabel: n => n + ' of', setBackwards() {}, shownAtOtherEnd: () => true, setShownAtOtherEnd() {} } };
 }
 
 (async () => {
@@ -63,7 +63,7 @@ function oddLogseq(names) {
   await page.addScriptTag({ content: exposeAtEnd(read('parts/two-way.js'), ['rowHtml', 'state']) });
 
   const result = await page.evaluate(async ({ names, all }) => {
-    const shared = window.refinementShared, doc = document, out = { faults: [], counts: {} };
+    const shared = window.Threads.shared, doc = document, out = { faults: [], counts: {} };
     // Markup made from a name would show as an element the drawing did not mean: <b>, <img>, <script>, or any
     // element whose tag a name spells.
     const bad = root => [...root.querySelectorAll('b, img, script, query')];
@@ -114,7 +114,7 @@ function oddLogseq(names) {
     } catch (error) { out.faults.push('the two-way rows threw: ' + error.message); }
     // 4. The model's readers, on every name and on the names inside links and tags.
     try {
-      const m = window.refinementCore.provided;
+      const m = window.Threads.core.provided;
       let read = 0;
       for (const name of all) for (const text of [name, `[[${name}]]`, `#${name}`, `#[[${name}]]`, `${name} #Tag`, `on ${name}`]) {
         m.titleOf({ title: text }); await m.readableTitle?.(text); m.trailingTags.test(text); m.bare?.(text); m.parseDay?.(text, new Date(2026, 9, 23)); String(text).match(m.storedRef);

@@ -58,7 +58,7 @@ The root `files.js` lists these in order, each adding to `window.Look`:
 
 | File | What it is |
 |---|---|
-| `logseq/kit.js` | Logseq's window, one stylesheet door, one watcher of the screen |
+| `logseq/kit.js` | Logseq's window, one stylesheet door, Look's passes on the door's one watcher of the screen |
 | `logseq/db.js` | the one place that reads the graph: every tag with the tag it extends, every page's tags, every property's kind, what a folded node holds |
 | `logseq/settings.js` | the switches, in sections |
 | `logseq/style.js` | the rules that are only a stylesheet: links, days, tags, property names, capsules, the words by a title, a PDF quote's bullet |

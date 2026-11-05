@@ -34,7 +34,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
-const K = require('./frame-kit');
+const K = require('../../tools/frame-kit');
 const D = require('./app-door');
 const gate = require('./quiet');
 
@@ -231,8 +231,8 @@ async function viewPart(page, session) {
           const main = document.querySelector('#main-content-container');
           const out = [];
           if (main && main.scrollWidth > main.clientWidth + 1) out.push(`a horizontal scroll bar (${main.scrollWidth} > ${main.clientWidth})`);
-          const frame = [...document.querySelectorAll('iframe')].find(f => /logseq-threads_index/.test(f.src));
-          const shared = frame?.contentWindow?.refinementShared;
+          const frame = [...document.querySelectorAll('iframe')].find(f => /logseq-plugin_index/.test(f.src));
+          const shared = frame?.contentWindow?.Threads.shared;
           if (shared) for (const el of document.querySelectorAll('#main-content-container *')) if (shared.isOwnMark(el)) { const b = el.getBoundingClientRect(); if (b.width && b.right > innerWidth + 1) { out.push(`${el.className} reaches ${Math.round(b.right)} px in a window ${innerWidth} px wide`); break; } }
           return out;
         });
@@ -263,8 +263,8 @@ async function viewPart(page, session) {
     for (const theme of ['light', 'dark']) {
       await page.evaluate(t => window.logseq.api.set_theme_mode(t), theme); await sleep(700);
       colours[theme] = await page.evaluate(() => {
-        const frame = [...document.querySelectorAll('iframe')].find(f => /logseq-threads_index/.test(f.src));
-        const shared = frame?.contentWindow?.refinementShared, out = {};
+        const frame = [...document.querySelectorAll('iframe')].find(f => /logseq-plugin_index/.test(f.src));
+        const shared = frame?.contentWindow?.Threads.shared, out = {};
         for (const el of document.querySelectorAll('#main-content-container *')) if (shared?.isOwnMark(el) && el.childNodes.length && [...el.childNodes].some(n => n.nodeType === 3 && n.nodeValue.trim())) { const k = [...el.classList].filter(c => shared.MARK_CLASS.test(c)).join('.'); if (k && !(k in out)) out[k] = getComputedStyle(el).color; }
         return out;
       });
@@ -288,7 +288,7 @@ async function undoPart(page) {
   const made = [];
   for (const round of [1, 2]) {
     const r = await frame.evaluate(async round => {
-      const TM = window.refinementShared.feature('tagMap'), m = window.refinementCore.provided, out = { round };
+      const TM = window.Threads.shared.feature('tagMap'), m = window.Threads.core.provided, out = { round };
       const data = await TM.loadTags();
       const prop = [...(await m.propInfo()).values()].find(p => p.title === 'Location');
       if (!prop) return { error: 'no property Location' };
@@ -428,14 +428,14 @@ async function darkPart(page) {
   const was = await page.evaluate(() => ({ theme: document.documentElement.dataset.theme, system: localStorage.getItem('system-theme?') === 'true' }));
   const frame = D.plugin(page);
   const shot = async name => { await sleep(400); await page.screenshot({ path: path.join(dir, name + '.png') }); };
-  const closeAll = async () => { await frame.evaluate(() => { window.refinementShared.popups.closeAll(); document.querySelector('dialog')?.close?.(); }).catch(() => {}); await page.evaluate(() => { for (const d of document.querySelectorAll('dialog.rf-dialog, dialog.refinement-settings')) { d.close?.(); d.remove(); } }); await page.keyboard.press('Escape'); await sleep(200); };
+  const closeAll = async () => { await frame.evaluate(() => { window.Threads.shared.popups.closeAll(); document.querySelector('dialog')?.close?.(); }).catch(() => {}); await page.evaluate(() => { for (const d of document.querySelectorAll('dialog.rf-dialog, dialog.refinement-settings')) { d.close?.(); d.remove(); } }); await page.keyboard.press('Escape'); await sleep(200); };
   try {
     await page.evaluate(() => window.logseq.api.set_theme_mode('dark')); await sleep(800);
     await D.go(page, 'Dr. Mei Chen'); await sleep(2500);
     await shot('page-dr-mei-chen');
-    await frame.evaluate(() => window.refinementCore.provided.settingsPanel.open()); await shot('settings-window'); await closeAll();
-    await frame.evaluate(() => window.refinementCore.provided.diagnostics.openTroubleshooting?.()); await shot('troubleshooting'); await closeAll();
-    await frame.evaluate(() => window.refinementCore.provided.diagnostics.checkWhatIsFound()); await shot('report'); await closeAll();
+    await frame.evaluate(() => window.Threads.core.provided.settingsPanel.open()); await shot('settings-window'); await closeAll();
+    await frame.evaluate(() => window.Threads.core.provided.diagnostics.openTroubleshooting?.()); await shot('troubleshooting'); await closeAll();
+    await frame.evaluate(() => window.Threads.core.provided.diagnostics.checkWhatIsFound()); await shot('report'); await closeAll();
     // The two-way rows: a right-click on a field's name, the hover card on a node, a tick and the picking bar.
     await page.evaluate(() => { const n = document.querySelector('.refinement-two-way .rf-tw-field'); n?.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: n.getBoundingClientRect().left + 5, clientY: n.getBoundingClientRect().top + 5 })); }); await shot('two-way-rename'); await closeAll();
     const rec = await page.evaluate(() => { const r = document.querySelector('.refinement-two-way .rf-tw-record')?.getBoundingClientRect(); return r ? [r.left + 10, r.top + 6] : null; });

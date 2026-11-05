@@ -37,9 +37,9 @@ const key = (dlg, name, target = dlg.querySelector('.sw-tick')) => target.dispat
   const describedThreads = Door.described.threads;
   if (describedThreads.schema) {
     assert.ok(!describedThreads.schema.some(row => row.key === 'troubleshoot'), 'no Open troubleshooting while Threads is not running');
-    pluginWin.refinementCore = { provided: { openTroubleshooting() {} } };
+    (pluginWin.Threads ||= {}).core = { provided: { openTroubleshooting() {} } };
     assert.ok(describedThreads.schema.some(row => row.key === 'troubleshoot'), 'Open troubleshooting while Threads runs');
-    delete pluginWin.refinementCore;
+    delete pluginWin.Threads.core;
   }
   assert.equal([...dlg.querySelectorAll('.sw-mod .sw-name')].map(e => e.textContent).join(), 'Look,Find,Threads,Predictive,Structure,DB Export', 'the six in order');
   assert.equal(dlg.querySelectorAll('.sw-section').length, 8, 'Look’s eight sections');

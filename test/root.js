@@ -102,8 +102,9 @@ const part = (key, start, stop) => ({ key, title: key, start, stop });
   // One row for empty properties, one faint: Predictive hides, the faint is Look's alone.
   assert.ok(!/opacity: \.45/.test(code('predictive/logseq/propose-ui.js')), 'no second faint for an empty property');
   assert.ok(/html\.flow-hide-empty \.ls-block[^{]*:has\(\.empty-value\)[^{]*\{ display: none/.test(code('predictive/logseq/propose-ui.js')) && /:has\(\.empty-value\):not\(:focus-within\) \{ opacity: \.5; \}/.test(code('look/logseq/style.js')), 'hidden by the one row, faint by Look');
-  // One drawing of a property's icon: Threads' copy and the dead half of its rules are gone, the tooltip is Look's.
-  assert.ok(!files.includes('threads/parts/property-kinds.js') && !/learnSoon|withPageTag/.test(code('threads/parts/shadow-rules.js')), 'Threads keeps no second icon nor the dead rules');
+  // One drawing of a property's icon, one engine and one set of rules: Threads' copies are gone (5 November 2026), the tooltip is Look's.
+  assert.ok(!files.includes('threads/parts/property-kinds.js') && !files.includes('threads/parts/alike.js') && !files.includes('threads/parts/shadow-rules.js')
+    && !/function (?:tokensOf|buildIndex|neighbours|vote|propose|guessesFor|piecesFor|daysInWords)\b/.test(code('threads/parts/proposals.js')), 'Threads keeps no second icon, engine or rules');
   assert.ok(/propertyNameTips/.test(code('look/logseq/props.js')), 'the tooltip is Look’s');
   // Logseq's help button stands over the corner at the foot of a card: what is written there scrolls clear of it.
   assert.ok(/\.st-right \{[^}]*padding: 0 22px 56px/.test(code('structure/logseq/view.js')), 'a card’s foot clears Logseq’s help button');
