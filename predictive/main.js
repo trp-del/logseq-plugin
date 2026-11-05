@@ -105,6 +105,7 @@ async function main() {
   logseq.App.registerCommandPalette({ key: 'flow-score', label: 'Predictive: how well do proposals work on this graph?' }, scoreCommand);
   logseq.App.registerCommandPalette({ key: 'flow-tune', label: 'Predictive: tune proposals to this graph' }, tuneCommand);
   logseq.App.registerCommandPalette({ key: 'flow-model-speed', label: 'Predictive: how fast is Apple’s model?' }, speedCommand);
+  logseq.App.registerCommandPalette({ key: 'flow-model-measure', label: 'Predictive: measure Apple’s model on this graph' }, () => Flow.measureUi.open());
   logseq.App.registerCommandPalette({ key: 'flow-reread', label: 'Predictive: read the graph again' }, async () => { Flow.app.forget(); await Flow.app.context(); Flow.app.notify('Read the graph again.'); });
   logseq.DB.onChanged(({ blocks }) => Flow.app.learnSoon(blocks));
   logseq.onSettingsChanged?.((now, before) => { if (!window.PluginDoor.settingChanged(['tagEagerness'], now, before)) return; const ctx = Flow.app.state.ctx; if (ctx) Object.assign(ctx.limits, Flow.app.tagLimits()); });   // applies at once, no new reading
@@ -122,7 +123,7 @@ const stop = () => { Flow.app.stopAll(); };
 const row = (key, title) => ({ ...Flow.settingsSchema.find(item => item.key === key), ...(title ? { title } : {}) });
 window.PluginDoor.describe('predictive', {
   schema: [
-    row('proposalsHeading'), row('proposals'), row('proposalsHideEmpty'), row('tagEagerness'), row('proposalsModel'), row('proposalsSkipGraphs'),
+    row('proposalsHeading'), row('proposals'), row('proposalsHideEmpty'), row('tagEagerness'), row('proposalsModel'), { type: 'action', key: 'measureModel', title: 'Measure Apple’s model on this graph', run: () => Flow.measureUi.open() }, row('proposalsSkipGraphs'),
     { type: 'heading', title: 'Keys' },
     row('proposalsStepKeys', 'Step through a bullet’s properties'), row('proposalsTagKeys', 'Choose a tag'), row('proposalsAcceptKeys', 'Accept everything shown, without a new bullet'), row('citeKeys', 'Cite a source'), row('pageKeys', 'Make the bullet a page'),
     row('linkHeading'), row('linkSuggest'), row('linkSuggestLearn'), row('linkSuggestRightArrow'), row('linkSuggestHyperTap', 'A tap of the Hyper key takes it'), row('linkSuggestKeys', 'A plain key that takes it too'), row('linkSuggestMinLetters'), row('linkSuggestPause', 'Pause before a suggestion shows, in milliseconds'),

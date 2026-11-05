@@ -485,6 +485,48 @@ test('tuning picks limits that keep wrong guesses low on each graph', async () =
   }
 });
 
+section('Measuring Apple\'s model (core/measure.js, with pretend answers)');
+const measureLib = require('../core/measure.js');
+{
+  const C = clinic.ctx, P = t => C.schema.props.find(p => p.title === t), mei = clinic.peoplePages.Person[0], ruth = clinic.peoplePages.Person[1];
+  const note = {
+    b: visit('Talked it over, she wants 5 mg from 9 Nov', { values: new Map([[P('Provider').ident, [mei.id]], [P('Dose').ident, [77001]]]) }),
+    truth: new Map([[P('Provider').ident, { kind: 'ids', ids: [mei.id] }], [P('Dose').ident, { kind: 'number', number: 5 }]]),
+    parent: 'Saw Dr. Mei Chen at the clinic', before: ['Slept badly'], pageTitle: '', day: 20261102,
+  };
+  const q = measureLib.questions(C, note);
+  const keyOf = (req, title) => req.fill.properties.find(p => p.title === title)?.key;
+  test('four ways, each asking the same properties; the moment and examples only add', () => {
+    assert.deepEqual(q.props.map(x => x.way), ['alone', 'moment', 'examples', 'both']);
+    const keys = q.props.map(x => x.req.fill.properties.map(p => p.key).join());
+    assert.ok(keys.every(k => k === keys[0]), 'the same keys in every way');
+    assert.ok(!q.props[0].req.fill.context, 'alone is as Predictive asks today');
+    assert.match(q.props[1].req.fill.context, /written under: "Saw Dr\. Mei Chen at the clinic"/);
+    assert.match(q.props[1].req.fill.instructions, /"she"/);
+    assert.ok(keyOf(q.props[0].req, 'Provider') && keyOf(q.props[0].req, 'Dose'));
+    assert.ok(!note.b.values.size || q.props.every(x => !JSON.stringify(x.req.fill).includes('77001')), 'what was written is never sent');
+  });
+  test('answers judged against what was written: right, wrong, silent', () => {
+    const req = q.props[1].req, prov = keyOf(req, 'Provider'), dose = keyOf(req, 'Dose');
+    const by = r => Object.fromEntries(measureLib.judge(C, note, req, r).map(x => [req.fill.properties.find(p => p.key === x.key).title, x.result]));
+    assert.equal(by({ values: { [prov]: 'Dr. Mei Chen', [dose]: 5 } }).Provider, 'right');
+    assert.equal(by({ values: { [prov]: 'Dr. Mei Chen', [dose]: 5 } }).Dose, 'right');
+    assert.equal(by({ values: { [prov]: 'Ruth Okoro' } }).Provider, 'wrong');
+    assert.equal(by({ values: {} }).Provider, 'silent');
+    assert.equal(by({ values: { [dose]: 50 } }).Dose, 'silent', 'a number the words do not hold is not kept, so it is silent');
+    assert.ok(ruth);
+  });
+  test('the report holds numbers and names, never a note\'s words', () => {
+    const rec = { tagTitle: 'Consultation', asked: q.asked, tags: [], props: q.props.map(({ way, req }) => ({ way, ms: 900, results: measureLib.judge(C, note, req, { values: { [keyOf(req, 'Provider')]: 'Dr. Mei Chen' } }) })) };
+    const t = measureLib.tally([rec]);
+    assert.equal(t.notes, 1);
+    assert.equal(t.ways.both.all.right, 1);
+    const text = measureLib.text(t, { version: '0.3.13', helper: 2, date: '2026-11-05' });
+    assert.match(text, /Consultation · Provider/);
+    for (const word of ['Talked', 'wants', 'Slept', 'clinic']) assert.ok(!text.includes(word), `no words of the note in the report: ${word}`);
+  });
+}
+
 (async () => {
   for (const task of queue) await task();
   console.log(`\n${passed} passed, ${failed} failed`);

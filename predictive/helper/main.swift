@@ -4,11 +4,12 @@
    answers only requests from Logseq's own window (origin lsp://logseq.com), and runs the model on the Mac. Nothing
    leaves the Mac.
 
-   GET  /status  -> { "ready": true } or { "ready": false, "reason": "..." }, with "cloud": whether Apple's larger model in Private Cloud Compute can be asked (for the
+   GET  /status  -> { "ready": true } or { "ready": false, "reason": "..." }, with "version" (2: answers "choice"), "cloud": whether Apple's larger model in Private Cloud Compute can be asked (for the
                     ontology only, later; never a note's words), and "cloudReason"
    POST /fill    <- { "text", "page", "tags": [..], "today": "YYYY-MM-DD", "instructions", "context", "properties": [
-                        { "key", "title", "kind": "page" | "tag" | "number" | "date", "many", "choices": [titles], "about" } ] }
-                   (a "tag" is which of the graph's tags the note is, from its choices; "about" says what is asked)
+                        { "key", "title", "kind": "page" | "tag" | "choice" | "number" | "date", "many", "choices": [titles], "about" } ] }
+                   (a "tag" is which of the graph's tags the note is, a "choice" one of a property's own list (Status), each
+                   from its choices; "about" says what is asked)
                  -> { "values": { key: title | [titles] | number | "YYYY-MM-DD" }, "ms" } or { "error": "..." }
 
    The answer is held to a shape built from the bullet's own properties: a page property can only hold one of the
@@ -23,6 +24,8 @@ import Network
 let PORT: UInt16 = 47615
 let ORIGIN = "lsp://logseq.com"
 let NONE = "none"
+// Raised when the plugin may ask something an older helper cannot answer (2: a property with a list of choices).
+let VERSION = 2
 
 // MARK: - the request
 
@@ -40,6 +43,7 @@ func status() -> [String: Any] {
   case .available: out = ["ready": true]
   case .unavailable(let reason): out = ["ready": false, "reason": String(describing: reason)]
   }
+  out["version"] = VERSION
   // Apple's larger model, in Private Cloud Compute: whether this Mac can ask it (macOS 27 and later, and a helper built with
   // the macOS 27 tools, Swift 6.4; built with older tools it has none).
   #if compiler(>=6.4)
@@ -92,7 +96,7 @@ func schemaFor(_ fill: Fill, _ names: [String]) throws -> GenerationSchema {
       if choices.isEmpty { continue }
       let one = DynamicGenerationSchema(name: "\(name) choice", anyOf: choices + [NONE])
       value = p.many == true ? DynamicGenerationSchema(arrayOf: one, minimumElements: 0, maximumElements: choices.count) : one
-    case "tag":
+    case "tag", "choice":
       let choices = (p.choices ?? []).filter { $0.lowercased() != NONE }
       if choices.isEmpty { continue }
       value = DynamicGenerationSchema(name: "\(name) choice", anyOf: choices + [NONE])
@@ -107,6 +111,7 @@ func schemaFor(_ fill: Fill, _ names: [String]) throws -> GenerationSchema {
     switch p.kind {
     case "page": about = "The \(p.title) the words name, from the choices; \(NONE) if the words do not say."
     case "tag": about = "Which of these kinds of note this note is, from the choices; \(NONE) if it is a plain note that is none of them."
+    case "choice": about = "The \(p.title) of this note, from the choices; \(NONE) if the words do not say."
     case "number": about = "The \(p.title) as a number, only if the words give it."
     default: about = "The day of \(p.title) as YYYY-MM-DD, only if the words name it."
     }

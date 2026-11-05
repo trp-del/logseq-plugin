@@ -46,7 +46,7 @@ Intelligence on. To put it on a Mac, run once in Terminal:
 sh ~/.logseq/plugins/logseq-plugin/predictive/helper/install.sh
 ```
 
-(or the same `helper/install.sh` from this folder). It starts at every login from then on; `install.sh remove` takes it off.
+(or the same `helper/install.sh` from this folder). It starts at every login from then on; `install.sh remove` takes it off. The helper says its version in `/status`: 2 answers a property's own list of choices, which measuring asks about; run `install.sh` again after an update to get it.
 Without it, or with the setting **Read my words with Apple's model on this Mac** off, Predictive works as before. Under that setting, the plugin's settings window says whether the model is connected, and if not, why: the helper is not running (with the line to run), or Apple Intelligence is off. On a Mac
 with the developer tools, `sh helper/build.sh test` builds it and asks the model one example.
 
@@ -84,6 +84,7 @@ In the command palette:
 - **Predictive: how well do proposals work on this graph?** Takes a sample of your earlier lines, hides one value at a time, asks what would be proposed and compares. Reports how many were right, wrong and left empty.
 - **Predictive: tune proposals to this graph.** Tries a small grid of limits on that same test and keeps the setting with the most right guesses among those whose wrong guesses stay under 3% of what they said. Saved per graph.
 - **Predictive: how fast is Apple's model?** Asks one tag question about a line of your graph three times and says how long each answer took, as you would wait for it.
+- **Predictive: measure Apple's model on this graph** (also a row under Predictive in the settings window). Takes up to 60 of your tagged notes that hold values and asks the model about each as if it held none, in four ways: the note alone (as Predictive asks today), with the words around it (the bullet it sits under, the two before it, the page), with up to three earlier notes of the same tag and their values, and with both; and asks which tag each note is, alone and with the words around it. Each answer is set against what you wrote: right, wrong, silent, and how often it filled a property you had left empty, by kind of property, by whether the page is named in the note, by property (with its longest run of right answers), and how long each question took. It writes nothing to the graph, takes a few minutes, can be stopped, and its report holds numbers and the names of tags and properties, never a note's words, so it can be copied and passed on. Choices (a property with its own list, such as Status) are asked only of a helper from this release on: run `install.sh` again after updating.
 - **Predictive: read the graph again.**
 - **Predictive: choose a tag for this bullet.** The same as Option-T.
 

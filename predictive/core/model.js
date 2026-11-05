@@ -133,6 +133,17 @@ function tagContext(ctx, b, tags) {
   });
   return [`The kinds of note, with what each holds:\n${hints.join('\n')}`, lines.length ? `Earlier notes of some kinds:\n${lines.join('\n')}` : ''].filter(Boolean).join('\n\n');
 }
+/* The pages a stretch of words names that fit a property: linked ones ([[...]]) first, then named in plain words. For the
+   words around a bullet (its parent, the bullets before it), so "she" can be the doctor named a line above. */
+function momentPages(ctx, text, classIds, spoken) {
+  const found = [];
+  for (const [, key] of String(text || '').matchAll(/\[\[([^\[\]]+)\]\]/g)) {
+    const page = ctx.byKey.get(key.toLowerCase());
+    if (page && !found.includes(page) && !spoken.has(page) && fits(page, classIds, ctx.schema)) found.push(page);
+  }
+  for (const page of namedPages(ctx, freeWords(text), classIds, spoken)) if (!found.includes(page)) found.push(page);
+  return found.slice(0, MOST_PAGES);
+}
 // The tag the model read, as a page, or null.
 const tagOf = (req, reply) => { const v = reply?.values?.t; return v == null ? null : req.asked.get('t')?.tags.get(String(v).toLowerCase()) || null; };
 
@@ -254,7 +265,7 @@ function merge(rules, model) {
   return [...kept, ...model.filter(p => !kept.some(q => q.ident === p.ident))];
 }
 
-const api = { request, tagRequest, tagContext, tagOf, followUp, withFollowUp, pieces, merge, iso, fromIso, namedPages, rangePages, byWordsAlone, MOST_TAGS, MOST_RANGE };
+const api = { request, tagRequest, tagContext, tagOf, followUp, withFollowUp, pieces, merge, iso, fromIso, namedPages, rangePages, momentPages, freeWords, shown, byWordsAlone, INSTRUCTIONS, ABOUT, MOST_TAGS, MOST_RANGE };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 if (typeof window !== 'undefined') (window.Flow ||= {}).model = api;
 })();

@@ -71,7 +71,7 @@ for (const file of order) vm.runInContext(fs.readFileSync(path.join(root, file),
   const Flow = window.Flow;
   assert.deepEqual(errors, [], 'main() started without an error');
   assert.ok(Flow.propose && Flow.profile && Flow.db && Flow.app && Flow.linkUi && Flow.proposeUi && Flow.steps, 'every part registered');
-  assert.deepEqual(commands.sort(), ['flow-choose-tag', 'flow-model-speed', 'flow-reread', 'flow-score', 'flow-tune'], 'commands registered');
+  assert.deepEqual(commands.sort(), ['flow-choose-tag', 'flow-model-measure', 'flow-model-speed', 'flow-reread', 'flow-score', 'flow-tune'], 'commands registered');
   assert.ok(listeners.includes('input') && listeners.includes('focusout'), 'listeners attached to Logseq\'s window');
   assert.ok(styles['flow-proposals'] && styles['flow-link-suggest'], 'styles sent');
   console.log('  ok  every file loads in order and main() starts');

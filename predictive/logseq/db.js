@@ -92,6 +92,19 @@ async function pullBlock(uuid) {
   const [[b] = []] = await dsQuery(`[:find (pull ?b ${BLOCK_PULL}) :where [?b :block/uuid #uuid "${uuid}"]]`);
   return b || null;
 }
+// The same, by the block's id (the engine's entries know ids, not uuids): for measuring Apple's model on earlier notes.
+async function pullBlockById(id) {
+  if (!Number.isInteger(Number(id))) return null;
+  const [[b] = []] = await dsQuery(`[:find (pull ?b ${BLOCK_PULL}) :where [(ground ${Number(id)}) ?b] [?b :block/uuid _]]`);
+  return b || null;
+}
+/* What a value holds, for the entities a property points at: a number's value, a journal page's day. id -> { number, day }. */
+async function valueEntities(ids) {
+  const list = ids.map(Number).filter(Number.isInteger);
+  if (!list.length) return new Map();
+  const rows = await dsQuery(`[:find (pull ?v [:db/id :block/journal-day :logseq.property/value]) :where [(ground [${list.join(' ')}]) [?v ...]] [?v :block/uuid _]]`);
+  return new Map(rows.map(([v]) => [idOf(v), { number: pick(v, 'logseq.property/value'), day: Number(pick(v, 'block/journal-day') || 0) }]));
+}
 function valuesMap(node, schema) {
   const values = new Map();
   for (const prop of schema.props) { const ids = valuesOf(node, prop.ident); if (ids.length) values.set(prop.ident, ids); }
@@ -241,6 +254,6 @@ const addTag = (uuid, tagUuid) => logseq.Editor.addBlockTag(uuid, tagUuid);
 const removeTag = (uuid, tagUuid) => logseq.Editor.removeBlockTag(uuid, tagUuid);
 const currentGraph = () => Promise.resolve(logseq.App.getCurrentGraph?.()).catch(() => null);
 
-Flow.db = { forget, dsQuery, bare, pick, idOf, valuesOf, loadSchema, loadPages, loadPdfs, pagesNamed, pullBlock, bulletOf, readContext, learnNodes,
+Flow.db = { forget, dsQuery, bare, pick, idOf, valuesOf, loadSchema, loadPages, loadPdfs, pagesNamed, pullBlock, pullBlockById, valueEntities, bulletOf, readContext, learnNodes,
   currentIds, valueTitle, journalPageFor, setValue, unsetValue, addTag, removeTag, currentGraph };
 })();
