@@ -126,24 +126,41 @@ function questions(ctx, note) {
 
 const sameSet = (a, b) => a.length === b.length && a.every(x => b.includes(x));
 
-/* One answer, judged: [{ key, result: 'right' | 'wrong' | 'silent' | 'spoke' | 'quiet', offered }] for the properties
-   asked. A value the plugin would not keep (a number the words do not hold, a day they do not name) counts as silent,
-   since that is what you would see. */
-function judge(ctx, note, req, reply) {
-  const kept = new Map(model.pieces(ctx, req, reply || { values: {} }).map(p => [p.ident, p]));
+/* How long a question is, roughly, in the model's tokens (about four letters each): everything sent, the note, the words
+   around it, the instructions and every choice. Apple's model on the Mac reads only a few thousand tokens at once. */
+const size = fill => Math.round(JSON.stringify(fill || {}).length / 4);
+/* Why a question failed, as a name only: the first word of what the helper or the browser said ("exceededContextWindowSize",
+   "timed out"). Nothing after it, so no words of a note can come with it. */
+function reason(error) {
+  const said = String(error ?? '');
+  if (/TimeoutError|timed out/i.test(said)) return 'timed out';
+  if (/AbortError/.test(said)) return 'stopped';
+  if (/Failed to fetch|NetworkError|TypeError/.test(said)) return 'helper not reached';
+  return (said.match(/[A-Za-z][A-Za-z0-9_]*/) || ['unknown'])[0].slice(0, 40);
+}
+
+/* One answer, judged: [{ key, result, offered }] for the properties asked. result is 'right' | 'wrong' | 'silent' (no
+   value, or one the plugin would not keep: a number the words do not hold, a day they do not name) | 'failed' (the
+   model gave no answer at all: error is what was said) | 'spoke' (filled one you left empty) | 'quiet' (left it empty
+   too). offered: for a page, whether the right page was among the choices; for a date, whether its day is named in the
+   words, since only then can it be kept. */
+function judge(ctx, note, req, reply, error = null) {
+  const kept = reply ? new Map(model.pieces(ctx, req, reply).map(p => [p.ident, p])) : new Map();
   const out = [];
   for (const [key, ask] of req.asked) {
     const truth = note.truth.get(ask.prop.ident);
+    const offered = !truth ? true : ask.kind === 'page' ? truth.ids.every(id => [...ask.pages.values()].some(p => p.id === id))
+      : ask.kind === 'date' ? !!req.days?.has(truth.day) : true;
+    if (!reply) { out.push({ key, result: truth ? 'failed' : 'quiet', offered }); continue; }
     let said = null;
     if (ask.kind === 'choice') {
-      const v = reply?.values?.[key];
+      const v = reply.values?.[key];
       const id = v == null ? null : ask.ids.get(String(v).toLowerCase());
       said = id == null ? null : { ids: [id] };
     } else {
       const piece = kept.get(ask.prop.ident);
       if (piece) said = piece.kind === 'number' ? { number: piece.ids[0] } : piece.kind === 'day' ? { day: piece.day } : { ids: piece.ids };
     }
-    const offered = ask.kind !== 'page' || !truth ? true : truth.ids.every(id => [...ask.pages.values()].some(p => p.id === id));
     let result;
     if (!truth) result = said ? 'spoke' : 'quiet';
     else if (!said) result = 'silent';
@@ -154,77 +171,99 @@ function judge(ctx, note, req, reply) {
   }
   return out;
 }
-const judgeTag = (note, req, reply) => { const tag = model.tagOf(req, reply); return !tag ? 'silent' : note.b.tags.includes(tag.id) ? 'right' : 'wrong'; };
+const judgeTag = (note, req, reply, error = null) => {
+  if (!reply) return 'failed';
+  const tag = model.tagOf(req, reply);
+  return !tag ? 'silent' : note.b.tags.includes(tag.id) ? 'right' : 'wrong';
+};
 
-/* All the answers, counted. records: [{ note, asked, props: [{ way, results, ms }], tags: [{ way, result, ms }] }]. */
+/* All the answers, counted. records: [{ tagTitle, asked, props: [{ way, results, ms, size, error }], tags: [{ way, result,
+   ms, size, error }] }]. ms is kept only for questions answered. */
 function tally(records) {
-  const blank = () => ({ right: 0, wrong: 0, silent: 0, spoke: 0 });
-  const t = { notes: records.length, questions: 0, ways: {}, tagWays: {}, byKind: {}, byProp: new Map(), ms: {} };
-  for (const w of WAYS) { t.ways[w] = { all: blank(), named: blank(), unnamed: blank(), notOffered: 0 }; t.ms[w] = []; }
-  for (const w of TAG_WAYS) { t.tagWays[w] = blank(); t.ms['tag ' + w] = []; }
+  const blank = () => ({ right: 0, wrong: 0, silent: 0, failed: 0, spoke: 0 });
+  const t = { notes: records.length, questions: 0, ways: {}, tagWays: {}, byKind: {}, byProp: new Map(), ms: {}, sizes: {}, failedSizes: {}, answeredSizes: {}, reasons: {} };
+  const each = name => { t.ms[name] = []; t.sizes[name] = []; t.failedSizes[name] = []; t.answeredSizes[name] = []; t.reasons[name] = new Map(); };
+  for (const w of WAYS) { t.ways[w] = { all: blank(), named: blank(), unnamed: blank(), notOffered: 0 }; each(w); }
+  for (const w of TAG_WAYS) { t.tagWays[w] = blank(); each('tag ' + w); }
+  const asked = (name, q) => {
+    if (q.size != null) t.sizes[name].push(q.size);
+    if (q.error) { t.failedSizes[name].push(q.size); const r = reason(q.error); t.reasons[name].set(r, (t.reasons[name].get(r) || 0) + 1); }
+    else { if (q.size != null) t.answeredSizes[name].push(q.size); if (q.ms != null) t.ms[name].push(q.ms); }
+  };
   for (const rec of records) {
     const info = new Map(rec.asked.map(a => [a.key, a]));
-    for (const { way, results, ms } of rec.props) {
-      if (ms != null) t.ms[way].push(ms);
+    for (const q of rec.props) {
+      const { way, results } = q;
+      asked(way, q);
       for (const r of results) {
         if (r.result === 'quiet') continue;
         const a = info.get(r.key), w = t.ways[way];
         if (way === 'alone' && r.result !== 'spoke') t.questions++;
         w.all[r.result]++;
         if (a.kind === 'page' && r.result !== 'spoke') { w[a.named ? 'named' : 'unnamed'][r.result]++; if (!r.offered) w.notOffered++; }
-        const kind = (t.byKind[a.kind] ||= Object.fromEntries(WAYS.map(x => [x, blank()])));
+        const kindName = a.kind === 'date' ? (r.offered ? 'date, day in the words' : 'date, day not in the words') : a.kind;
+        const kind = (t.byKind[kindName] ||= Object.fromEntries(WAYS.map(x => [x, blank()])));
         kind[way][r.result]++;
-        const tagTitle = rec.tagTitle || '';
-        const pk = `${tagTitle} · ${a.prop.title}`;
+        const pk = `${rec.tagTitle || ''} · ${a.prop.title}`;
         if (!t.byProp.has(pk)) t.byProp.set(pk, Object.fromEntries(WAYS.map(x => [x, { ...blank(), run: 0, best: 0 }])));
         const p = t.byProp.get(pk)[way];
         p[r.result]++;
         if (r.result === 'right') { p.run++; p.best = Math.max(p.best, p.run); } else if (r.result === 'wrong' || r.result === 'spoke') p.run = 0;
       }
     }
-    for (const { way, result, ms } of rec.tags) { t.tagWays[way][result]++; if (ms != null) t.ms['tag ' + way].push(ms); }
+    for (const q of rec.tags) { t.tagWays[q.way][q.result]++; asked('tag ' + q.way, q); }
   }
   return t;
 }
 
 const pct = (n, of) => of ? Math.round(100 * n / of) + '%' : '–';
 const median = list => { if (!list.length) return null; const s = [...list].sort((a, b) => a - b); return s[Math.floor(s.length / 2)]; };
-const slowest = list => list.length ? Math.max(...list) : null;
+const largest = list => list.length ? Math.max(...list) : null;
+const smallest = list => list.length ? Math.min(...list) : null;
 const secs = ms => ms == null ? '–' : (ms / 1000).toFixed(1) + ' s';
+const num = n => n == null ? '–' : String(n);
 
 /* The report as plain text, to read and to copy: numbers, and the names of tags and properties, never a note's words. */
 function text(t, about = {}) {
-  const row = (label, cells) => label.padEnd(26) + cells.map(c => String(c).padStart(12)).join('');
+  const row = (label, cells) => label.padEnd(30) + cells.map(c => String(c).padStart(12)).join('');
   const head = row('', WAYS);
-  const asked = c => c.right + c.wrong + c.silent;
+  const all = c => c.right + c.wrong + c.silent + c.failed;
+  const rwsf = c => `${c.right}/${c.wrong}/${c.silent}/${c.failed}`;
+  const names = [...WAYS, ...TAG_WAYS.map(w => 'tag ' + w)];
+  const reasons = new Set(names.flatMap(n => [...t.reasons[n].keys()]));
   const lines = [
     `Apple's model on this graph · Predictive ${about.version || ''} · helper ${about.helper || '1'} · ${about.date || ''}`.trim(),
     `${t.notes} notes, ${t.questions} properties asked in each of four ways.`,
     '', 'PROPERTIES', head,
-    row('right', WAYS.map(w => `${t.ways[w].all.right} ${pct(t.ways[w].all.right, asked(t.ways[w].all))}`)),
-    row('wrong', WAYS.map(w => `${t.ways[w].all.wrong} ${pct(t.ways[w].all.wrong, asked(t.ways[w].all))}`)),
-    row('silent', WAYS.map(w => t.ways[w].all.silent)),
+    row('right', WAYS.map(w => `${t.ways[w].all.right} ${pct(t.ways[w].all.right, all(t.ways[w].all))}`)),
+    row('wrong', WAYS.map(w => `${t.ways[w].all.wrong} ${pct(t.ways[w].all.wrong, all(t.ways[w].all))}`)),
+    row('silent (answered, no value)', WAYS.map(w => t.ways[w].all.silent)),
+    row('failed (no answer at all)', WAYS.map(w => t.ways[w].all.failed)),
     row('filled one you left empty', WAYS.map(w => t.ways[w].all.spoke)),
-    '', 'A PAGE NAMED IN THE NOTE', head,
-    row('right / wrong / silent', WAYS.map(w => `${t.ways[w].named.right}/${t.ways[w].named.wrong}/${t.ways[w].named.silent}`)),
-    '', 'A PAGE NOT NAMED IN THE NOTE', head,
-    row('right / wrong / silent', WAYS.map(w => `${t.ways[w].unnamed.right}/${t.ways[w].unnamed.wrong}/${t.ways[w].unnamed.silent}`)),
+    '', 'A PAGE NAMED IN THE NOTE (right / wrong / silent / failed)', head,
+    row('', WAYS.map(w => rwsf(t.ways[w].named))),
+    '', 'A PAGE NOT NAMED IN THE NOTE (right / wrong / silent / failed)', head,
+    row('', WAYS.map(w => rwsf(t.ways[w].unnamed))),
     row('right page not offered', WAYS.map(w => t.ways[w].notOffered)),
-    '', 'BY KIND OF PROPERTY (right / wrong / silent)', head,
-    ...Object.entries(t.byKind).map(([kind, c]) => row(kind, WAYS.map(w => `${c[w].right}/${c[w].wrong}/${c[w].silent}`))),
-    '', 'THE TAG OF A NOTE (right / wrong / silent)', row('', TAG_WAYS),
-    row('', TAG_WAYS.map(w => `${t.tagWays[w].right}/${t.tagWays[w].wrong}/${t.tagWays[w].silent}`)),
-    '', 'TIME PER QUESTION', row('', ['median', 'slowest']),
-    ...[...WAYS, ...TAG_WAYS.map(w => 'tag ' + w)].map(w => row(w, [secs(median(t.ms[w])), secs(slowest(t.ms[w]))])),
-    '', 'BY PROPERTY, WITH THE MOMENT AND EXAMPLES (right / wrong / silent, longest run right)',
-    ...[...t.byProp].sort((x, y) => (y[1].both.right + y[1].both.wrong) - (x[1].both.right + x[1].both.wrong)).slice(0, 30)
-      .map(([name, c]) => row(name.length > 25 ? name.slice(0, 24) + '…' : name, [`${c.both.right}/${c.both.wrong}/${c.both.silent}`, `run ${c.both.best}`])),
+    '', 'BY KIND OF PROPERTY (right / wrong / silent / failed)', head,
+    ...Object.entries(t.byKind).map(([kind, c]) => row(kind, WAYS.map(w => rwsf(c[w])))),
+    '', 'THE TAG OF A NOTE (right / wrong / silent / failed)', row('', TAG_WAYS),
+    row('', TAG_WAYS.map(w => rwsf(t.tagWays[w]))),
+    '', 'WHY QUESTIONS FAILED (questions, not properties)', row('', names.map(n => n.replace('examples', 'exampl.'))),
+    ...(reasons.size ? [...reasons].map(r => row(r.length > 29 ? r.slice(0, 28) + '…' : r, names.map(n => t.reasons[n].get(r) || 0))) : [row('none failed', [])]),
+    '', 'SIZE OF A QUESTION, ABOUT, IN TOKENS', row('', ['median', 'largest', 'failed min', 'answer max']),
+    ...names.map(n => row(n, [num(median(t.sizes[n])), num(largest(t.sizes[n])), num(smallest(t.failedSizes[n])), num(largest(t.answeredSizes[n]))])),
+    '', 'TIME PER QUESTION ANSWERED', row('', ['median', 'slowest']),
+    ...names.map(n => row(n, [secs(median(t.ms[n])), secs(largest(t.ms[n]))])),
+    '', 'BY PROPERTY, ASKED ALONE (right / wrong / silent / failed, longest run right)',
+    ...[...t.byProp].sort((x, y) => (y[1].alone.right + y[1].alone.wrong) - (x[1].alone.right + x[1].alone.wrong)).slice(0, 30)
+      .map(([name, c]) => row(name.length > 29 ? name.slice(0, 28) + '…' : name, [rwsf(c.alone), `run ${c.alone.best}`])),
   ];
   if (about.oldHelper) lines.push('', 'Choices were not asked: the helper on this Mac is older than this release. Run install.sh again, then measure again.');
   return lines.join('\n');
 }
 
-const api = { WAYS, TAG_WAYS, candidates, momentText, examplesText, questions, judge, judgeTag, tally, text };
+const api = { WAYS, TAG_WAYS, candidates, momentText, examplesText, questions, judge, judgeTag, tally, text, size, reason };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 if (typeof window !== 'undefined') (window.Flow ||= {}).measure = api;
 })();

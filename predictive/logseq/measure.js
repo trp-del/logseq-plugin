@@ -80,13 +80,15 @@ async function run(progress, signal) {
     const rec = { tagTitle: ctx.byId.get(note.b.tags[0])?.title || '', asked: q.asked, props: [], tags: [] };
     for (const { way, req } of q.props) {
       if (signal.aborted) break;
-      const { reply, ms } = await ask(req.fill, signal);
-      rec.props.push({ way, ms, results: measure.judge(ctx, note, req, reply) });
+      const { reply, ms, error } = await ask(req.fill, signal);
+      if (signal.aborted) break;
+      rec.props.push({ way, ms, size: measure.size(req.fill), error: reply ? null : error || 'no answer', results: measure.judge(ctx, note, req, reply, reply ? null : error) });
     }
     for (const { way, req } of q.tags) {
       if (signal.aborted) break;
-      const { reply, ms } = await ask(req.fill, signal);
-      rec.tags.push({ way, ms, result: measure.judgeTag(note, req, reply) });
+      const { reply, ms, error } = await ask(req.fill, signal);
+      if (signal.aborted) break;
+      rec.tags.push({ way, ms, size: measure.size(req.fill), error: reply ? null : error || 'no answer', result: measure.judgeTag(note, req, reply, reply ? null : error) });
     }
     if (signal.aborted) break;
     records.push(rec);
