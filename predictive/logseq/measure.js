@@ -4,7 +4,7 @@
 
    It writes nothing to the graph. The report holds numbers and the names of tags and properties, never a note's words,
    so it can be copied and passed on; only on a graph made for measuring, marked by a page titled "Predictive test graph", does it
-   also list each note's words with what the model said. It takes a few minutes: each note is asked three questions, each
+   also list each note's words with what the model said. It takes a few minutes: each note is asked about six questions, each
    under a second. */
 (function () {
 const Flow = (window.Flow ||= {});
@@ -147,7 +147,7 @@ async function open() {
   S.dlg.showModal();
   // The keyboard rests on the window, not on its ×, so nothing is ringed when it opens; Escape still closes it.
   const body = S.dlg.querySelector('.pm-body'); body.tabIndex = -1; body.style.outline = 'none'; body.focus();
-  draw(`<p>Each note is asked as if it held nothing, alone and with the notes around it, and the answers are set against what you wrote. Nothing is written to the graph.</p><p class="pm-quiet" id="pm-progress">Reading the graph…</p>`,
+  draw(`<p>Each note is asked as if it held nothing: its properties together or one by one, plainly or described from your structure, and the answers are set against what you wrote. Nothing is written to the graph.</p><p class="pm-quiet" id="pm-progress">Reading the graph…</p>`,
     `<span class="pm-quiet">Only numbers and the names of tags and properties are kept, never your words.</span><button type="button" class="lk-lone lk-i-x" data-pm="stop">Stop</button>`);
   const result = await run((done, of, left) => {
     const line = S.dlg?.querySelector('#pm-progress');

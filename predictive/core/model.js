@@ -89,7 +89,7 @@ function tagUse(ctx) {
   for (const entry of ctx.index?.entries || []) for (const id of entry.values.get('block/tags') || []) use.set(id, (use.get(id) || 0) + 1);
   return (ctx.tagUse = use);
 }
-function tagRequest(ctx, b, today = dayNumber(new Date()), { examples = false } = {}) {
+function tagRequest(ctx, b, today = dayNumber(new Date()), { examples = false, described = false } = {}) {
   const text = String(b.text || '');
   if (b.tags.length || proposeLib.inWords(text, ctx).tags.length || freeWords(text).length < 2) return null;
   if (proposeLib.recordOf(b, [], ctx.schema).fields.length) return null;
@@ -104,7 +104,7 @@ function tagRequest(ctx, b, today = dayNumber(new Date()), { examples = false } 
   if (!byTitle.size) return null;
   const page = b.page && !b.page.day ? b.page.title : '';
   return {
-    fill: { text: shown(ctx, text), page, tags: [], today: iso(b.page?.day || today), instructions: INSTRUCTIONS, context: tagContext(ctx, b, [...byTitle.values()], { examples }), properties: [{ key: 't', title: 'Kind of note', kind: 'tag', choices: [...byTitle.values()].map(p => p.title), about: ABOUT.tag() }] },
+    fill: { text: shown(ctx, text), page, tags: [], today: iso(b.page?.day || today), instructions: INSTRUCTIONS, context: tagContext(ctx, b, [...byTitle.values()], { examples, described }), properties: [{ key: 't', title: 'Kind of note', kind: 'tag', choices: [...byTitle.values()].map(p => p.title), about: ABOUT.tag() }] },
     asked: new Map([['t', { kind: 'tag', tags: byTitle }]]), days: new Set(), bullet: b,
   };
 }
@@ -114,10 +114,11 @@ function tagRequest(ctx, b, today = dayNumber(new Date()), { examples = false } 
    (0.3.18) Apple's filter refused 28 of 60 tag questions with the earlier lines and 2 of 60 without, and the right tag
    came 51 times against 29. All of it from the graph, read on the Mac. */
 const TAG_HINTS = 25, TAG_EXAMPLES = 8, EXAMPLE_LENGTH = 90;
-function tagContext(ctx, b, tags, { examples = false } = {}) {
+function tagContext(ctx, b, tags, { examples = false, described = false } = {}) {
   const hints = tags.slice(0, TAG_HINTS).map(tag => {
     const props = fieldsOfTags([tag.id], ctx.schema).filter(p => !isBuiltInProp(p)).slice(0, 4).map(p => p.title);
-    return `- ${tag.title}${props.length ? ': ' + props.join(', ') : ''}`;
+    const above = described ? (ctx.schema.parentsOf.get(tag.id) || []).filter(id => !ctx.schema.builtIn?.has(id)).map(id => ctx.byId.get(id)?.title).filter(Boolean) : [];
+    return `- ${tag.title}${above.length ? ` (a kind of ${above.join(', ')})` : ''}${props.length ? ': ' + props.join(', ') : ''}`;
   });
   const wanted = new Set(examples ? tags.slice(0, TAG_EXAMPLES).map(t => t.id) : []), example = new Map();
   // Bullets only: a page is learned as a line too, but its name shows nothing of what a note of that kind says.
@@ -148,6 +149,32 @@ function momentPages(ctx, text, classIds, spoken) {
   for (const page of namedPages(ctx, freeWords(text), classIds, spoken)) if (!found.includes(page)) found.push(page);
   return found.slice(0, MOST_PAGES);
 }
+/* Each property said in plain words from the graph's structure, names only: what it holds, on which tag, beside which
+   other properties ("Targets (a Symptom) of this Therapeutic Session note; its other properties are Procedure, Date").
+   Apple's guidance: a field's description is another way of prompting. For measuring first (0.3.20); Predictive itself
+   still asks with ABOUT. */
+function describe(ctx, req, tagIds = []) {
+  const tag = req.fill.tags?.join(', ') || 'this';
+  // Every property the note's tags give, not only those asked, so the model knows each role a name could fill.
+  const all = [...new Set([...fieldsOfTags(tagIds, ctx.schema).filter(p => !isBuiltInProp(p)).map(p => p.title), ...[...req.asked.values()].map(a => a.prop.title)])];
+  const properties = req.fill.properties.map(p => {
+    const ask = req.asked.get(p.key);
+    if (!ask || ask.kind === 'tag') return p;
+    const others = all.filter(t => t !== p.title);
+    const rest = others.length ? ` Its other properties are ${others.join(', ')}; what belongs there does not go here.` : '';
+    const range = (ask.prop.classes || []).map(c => c.title).filter(Boolean).slice(0, 3).join(' or ');
+    let about;
+    if (ask.kind === 'page') about = `${p.title}${range ? ` (a ${range})` : ''} of this ${tag} note, from the choices${ask.how === 'range' ? ', even when the words use other words for it' : ''}; none if the words do not say.`;
+    else if (ask.kind === 'number') about = `${p.title} of this ${tag} note as a number, only if the words give it.`;
+    else if (ask.kind === 'date') about = `The day of ${p.title} in this ${tag} note as YYYY-MM-DD, only if the words name it.`;
+    else about = `${p.title} of this ${tag} note, from the choices; none if the words do not say.`;
+    return { ...p, about: about + rest };
+  });
+  return { ...req, fill: { ...req.fill, properties } };
+}
+/* The same question split into one per property, each asking that property alone: Apple's guidance is that the model
+   does best with one specific task. Each keeps what it asks about, so its answer is read as any other. */
+const oneByOne = req => req.fill.properties.map(p => ({ ...req, fill: { ...req.fill, properties: [p] }, asked: new Map([[p.key, req.asked.get(p.key)]]) }));
 // The tag the model read, as a page, or null.
 const tagOf = (req, reply) => { const v = reply?.values?.t; return v == null ? null : req.asked.get('t')?.tags.get(String(v).toLowerCase()) || null; };
 
@@ -269,7 +296,7 @@ function merge(rules, model) {
   return [...kept, ...model.filter(p => !kept.some(q => q.ident === p.ident))];
 }
 
-const api = { request, tagRequest, tagContext, tagOf, followUp, withFollowUp, pieces, merge, iso, fromIso, namedPages, rangePages, momentPages, freeWords, shown, byWordsAlone, INSTRUCTIONS, ABOUT, MOST_TAGS, MOST_RANGE };
+const api = { describe, oneByOne, request, tagRequest, tagContext, tagOf, followUp, withFollowUp, pieces, merge, iso, fromIso, namedPages, rangePages, momentPages, freeWords, shown, byWordsAlone, INSTRUCTIONS, ABOUT, MOST_TAGS, MOST_RANGE };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 if (typeof window !== 'undefined') (window.Flow ||= {}).model = api;
 })();

@@ -2,12 +2,16 @@
    logseq/measure.js, on the Mac that has the model.
 
    A note of yours that holds values is asked about as if it held none, and each answer is set against what you wrote.
-   It is asked two ways:
-   - alone:  the note's words, as Predictive asks today;
-   - both:   and the words around it (the bullet it sits under, the two before it, the page) and up to three earlier notes
-             of the same tag with their values, nearest by words.
+   It is asked four ways, each from the note's words alone, after Apple's guidance (a field's description is another way
+   of prompting; the model does best with one specific task):
+   - together:        every property in one question, as Predictive asks today;
+   - one by one:      a question for each property;
+   - described:       one question, each property said in plain words from the graph's structure (model.describe);
+   - both:            one by one, and described.
    A note with a tag is also asked which tag it is, as Predictive asks it (since 0.3.19 without the earlier lines of each
-   kind, which 0.3.18 measured as what Apple's filter refused). (0.3.15 measured the words around a note and the examples apart:
+   kind, which 0.3.18 measured as what Apple's filter refused), and described, each tag with the tags above it. (The
+   words around a note and earlier notes as examples, momentText and examplesText, are no longer asked: 0.3.17 to 0.3.19
+   measured them making answers wronger and refusals more often. 0.3.15 measured the words around a note and the examples apart:
    neither made the answers righter, and both made Apple's filter refuse more often. 0.3.16 measured Apple's looser filter,
    which answered exactly as the model as it comes, and its tagging model, which was wrong more often; neither is asked
    now, and SETTINGS holds them should they be measured again.)
@@ -32,8 +36,8 @@ const { shownWords } = need('context');
 
 // Apple's settings, by the word the report gives each and the name the helper takes.
 const SETTINGS = [['', 'default']];   // [' loose', 'permissive'], [' tagger', 'tagging'] measured in 0.3.16
-const WAYS = ['alone', 'both'].flatMap(w => SETTINGS.map(([word]) => w + word));
-const TAG_WAYS = ['today'];   // the tag question as Predictive asks it
+const WAYS = ['together', 'one by one', 'described', 'both'];
+const TAG_WAYS = ['today', 'described'];   // the tag question as Predictive asks it, and with the tags above each
 const TEST_PAGE = 'predictive test graph';
 const EXAMPLES = 3, LINE = 160;
 
@@ -101,8 +105,6 @@ function questions(ctx, note) {
       const ids = truth.get(ask.prop.ident)?.ids || [];
       out.asked.push({ key, prop: ask.prop, kind: ask.kind, named: ask.kind === 'page' ? ids.length > 0 && ids.every(id => own.some(p => p.id === id)) : null });
     }
-    const props = [...base.asked.values()].map(a => a.prop);
-    const examples = examplesText(ctx, b, props);
     const way = (name, context, instructions, widen, setting) => {
       const asked = new Map([...base.asked].map(([k, a]) => [k, { ...a, pages: a.pages ? new Map(a.pages) : a.pages }]));
       const fill = { ...base.fill, properties: base.fill.properties.map(p => ({ ...p, choices: p.choices && [...p.choices] })) };
@@ -119,10 +121,11 @@ function questions(ctx, note) {
       if (setting !== 'default') fill.model = setting;
       out.props.push({ way: name, req: { ...base, fill, asked } });
     };
-    for (const [word, setting] of SETTINGS) {
-      way('alone' + word, null, null, false, setting);
-      way('both' + word, [around, examples].filter(Boolean).join('\n\n'), around && MOMENT_INSTRUCTIONS, true, setting);
-    }
+    way('together');
+    const together = out.props[0].req, described = model.describe(ctx, together, b.tags);
+    for (const req of model.oneByOne(together)) out.props.push({ way: 'one by one', req });
+    out.props.push({ way: 'described', req: described });
+    for (const req of model.oneByOne(described)) out.props.push({ way: 'both', req });
   }
 
   // The tag, asked of the note as if it had none.
@@ -130,6 +133,8 @@ function questions(ctx, note) {
   const tagReq = model.tagRequest(ctx, bare, note.day);
   if (tagReq) {
     out.tags.push({ way: 'today', req: tagReq });
+    const described = model.tagRequest(ctx, bare, note.day, { described: true });
+    if (described) out.tags.push({ way: 'described', req: described });
   }
   return out;
 }
@@ -217,7 +222,7 @@ function tally(records) {
       for (const r of results) {
         if (r.result === 'quiet') continue;
         const a = info.get(r.key), w = t.ways[way];
-        if (way === 'alone' && r.result !== 'spoke') t.questions++;
+        if (way === 'together' && r.result !== 'spoke') t.questions++;
         w.all[r.result]++;
         if (a.kind === 'page' && r.result !== 'spoke') { w[a.named ? 'named' : 'unnamed'][r.result]++; if (!r.offered) w.notOffered++; }
         const kindName = a.kind === 'date' ? (r.offered ? 'date, day in the words' : 'date, day not in the words') : a.kind;
@@ -253,7 +258,7 @@ function text(t, about = {}, details = null) {
   const reasons = new Set(names.flatMap(n => [...t.reasons[n].keys()]));
   const lines = [
     `Apple's model on this graph · Predictive ${about.version || ''} · helper ${about.helper || '1'} · ${about.date || ''}`.trim(),
-    `${t.notes} notes, ${t.questions} properties asked each way: alone, and with the notes around and earlier notes as examples (both).`,
+    `${t.notes} notes, ${t.questions} properties asked four ways: together (as today), one by one, described from your structure, and both (one by one and described).`,
     '', 'PROPERTIES', head,
     row('right', WAYS.map(w => `${t.ways[w].all.right} ${pct(t.ways[w].all.right, all(t.ways[w].all))}`)),
     row('wrong', WAYS.map(w => `${t.ways[w].all.wrong} ${pct(t.ways[w].all.wrong, all(t.ways[w].all))}`)),
@@ -275,9 +280,9 @@ function text(t, about = {}, details = null) {
     ...names.map(n => row(shortName(n), [num(median(t.sizes[n])), num(largest(t.sizes[n])), num(smallest(t.failedSizes[n])), num(largest(t.answeredSizes[n]))])),
     '', 'TIME PER QUESTION ANSWERED', row('', ['median', 'slowest']),
     ...names.map(n => row(shortName(n), [secs(median(t.ms[n])), secs(largest(t.ms[n]))])),
-    '', 'BY PROPERTY, ASKED ALONE (right / wrong / silent / failed, longest run right)',
-    ...[...t.byProp].sort((x, y) => (y[1].alone.right + y[1].alone.wrong) - (x[1].alone.right + x[1].alone.wrong)).slice(0, 30)
-      .map(([name, c]) => row(name.length > 29 ? name.slice(0, 28) + '…' : name, [rwsf(c.alone), `run ${c.alone.best}`])),
+    '', 'BY PROPERTY (right / wrong / silent / failed)', row('', WAYS),
+    ...[...t.byProp].sort((x, y) => (y[1].together.right + y[1].together.wrong) - (x[1].together.right + x[1].together.wrong)).slice(0, 30)
+      .map(([name, c]) => row(name.length > 29 ? name.slice(0, 28) + '…' : name, WAYS.map(w => rwsf(c[w])))),
   ];
   if (details?.length) {
     lines.push('', 'DETAILS (a test graph only: these notes are about no one real)');
