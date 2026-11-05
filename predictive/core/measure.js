@@ -6,9 +6,8 @@
    - alone:  the note's words, as Predictive asks today;
    - both:   and the words around it (the bullet it sits under, the two before it, the page) and up to three earlier notes
              of the same tag with their values, nearest by words.
-   A note with a tag is also asked which tag it is, as Predictive asks it today and in a short form, without the earlier
-   lines of each kind it carries (0.3.17 on the test graph: Apple's filter refused 28 of 60 tag questions and 1 of 60
-   property questions about the same notes). (0.3.15 measured the words around a note and the examples apart:
+   A note with a tag is also asked which tag it is, as Predictive asks it (since 0.3.19 without the earlier lines of each
+   kind, which 0.3.18 measured as what Apple's filter refused). (0.3.15 measured the words around a note and the examples apart:
    neither made the answers righter, and both made Apple's filter refuse more often. 0.3.16 measured Apple's looser filter,
    which answered exactly as the model as it comes, and its tagging model, which was wrong more often; neither is asked
    now, and SETTINGS holds them should they be measured again.)
@@ -34,7 +33,7 @@ const { shownWords } = need('context');
 // Apple's settings, by the word the report gives each and the name the helper takes.
 const SETTINGS = [['', 'default']];   // [' loose', 'permissive'], [' tagger', 'tagging'] measured in 0.3.16
 const WAYS = ['alone', 'both'].flatMap(w => SETTINGS.map(([word]) => w + word));
-const TAG_WAYS = ['today', 'short'];   // the tag question as Predictive asks it, and without its earlier lines
+const TAG_WAYS = ['today'];   // the tag question as Predictive asks it
 const TEST_PAGE = 'predictive test graph';
 const EXAMPLES = 3, LINE = 160;
 
@@ -131,8 +130,6 @@ function questions(ctx, note) {
   const tagReq = model.tagRequest(ctx, bare, note.day);
   if (tagReq) {
     out.tags.push({ way: 'today', req: tagReq });
-    const short = model.tagRequest(ctx, bare, note.day, { examples: false });
-    if (short) out.tags.push({ way: 'short', req: short });
   }
   return out;
 }

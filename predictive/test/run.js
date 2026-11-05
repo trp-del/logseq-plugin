@@ -425,12 +425,14 @@ test('a tag read by the model: its properties are the second question, and come 
   assert.equal(both.find(p => p.prop.title === 'Provider')?.shown, 'Dr. Mei Chen', 'the rules\' Provider stays beside it');
   assert.equal(modelLib.followUp(clinic.ctx, req, { values: { t: 'none' } }), null, 'no tag, no second question');
 });
-test('the tag question says what each tag holds, with an earlier line of the likeliest ones, all from the graph', () => {
+test('the tag question says what each tag holds, from the graph, and no earlier lines unless asked for', () => {
   const b = bullet({ id: -7, text: 'Talked through the scan with Dr. Mei Chen at length' });
   const { req } = askAbout(b);
   const context = req.fill.context;
   assert.match(context, /- Consultation: Provider, Spoke with, Where, Dose/, 'a tag with its properties (four at most)');
-  assert.match(context, /"Visit with Dr\. Mei Chen number 0" \(Consultation\)|"Visit with .+" \(Consultation\)/, 'an earlier Consultation, its link read as the name');
+  assert.ok(!/Earlier notes/.test(context), 'no earlier lines: they are what Apple\'s filter refused (0.3.18)');
+  const withLines = modelLib.tagRequest(clinic.ctx, b, 20261102, { examples: true }).fill.context;
+  assert.match(withLines, /"Visit with Dr\. Mei Chen number 0" \(Consultation\)|"Visit with .+" \(Consultation\)/, 'asked for, an earlier Consultation, its link read as the name');
   assert.ok(!/\[\[/.test(context), 'no raw link in what is sent');
   assert.ok(context.length < 4000, 'kept short enough for the model on the Mac');
 });
@@ -499,9 +501,9 @@ const measureLib = require('../core/measure.js');
   test('two ways, each asking the same properties; the words around and the examples only add', () => {
     assert.deepEqual(q.props.map(x => x.way), ['alone', 'both']);
     assert.ok(q.props.every(x => x.req.fill.model === undefined), 'Apple\'s model as it comes');
-    assert.deepEqual(q.tags.map(x => x.way), ['today', 'short']);
-    assert.match(q.tags[0].req.fill.context, /Earlier notes of some kinds/);
-    assert.ok(!/Earlier notes/.test(q.tags[1].req.fill.context) && /The kinds of note/.test(q.tags[1].req.fill.context), 'the short tag question: the kinds and what each holds, no earlier lines');
+    assert.deepEqual(q.tags.map(x => x.way), ['today']);
+    assert.ok(!/Earlier notes/.test(q.tags[0].req.fill.context) && /The kinds of note/.test(q.tags[0].req.fill.context), 'the tag question: the kinds and what each holds, no earlier lines');
+    assert.match(modelLib.tagRequest(C, { ...note.b, tags: [], values: new Map(), parent: null }, 20261102, { examples: true })?.fill.context || 'Earlier notes', /Earlier notes|The kinds/, 'the earlier lines can still be asked for');
     const keys = q.props.map(x => x.req.fill.properties.map(p => p.key).join());
     assert.ok(keys.every(k => k === keys[0]), 'the same keys in every way');
     assert.ok(!q.props[0].req.fill.context, 'alone is as Predictive asks today');
@@ -530,7 +532,7 @@ const measureLib = require('../core/measure.js');
       props: q.props.map(({ way, req }) => ({ way, ms: 300, size: measureLib.size(req.fill), error: way === 'both' ? said : null, results: measureLib.judge(C, note, req, way === 'both' ? null : { values: {} }, way === 'both' ? said : null) })) };
     const text = measureLib.text(measureLib.tally([rec]), {});
     assert.match(text, /failed \(no answer at all\)\s+0\s+2\n/);
-    assert.match(text, /exceededContextWindowSize\s+0\s+1\s+1\s+0\n/);
+    assert.match(text, /exceededContextWindowSize\s+0\s+1\s+1\n/);
     assert.ok(!text.includes('wants') && !text.includes('Talked'), 'nothing a reason carries after its name reaches the report');
     assert.ok(measureLib.size(req.fill) > 0);
   });

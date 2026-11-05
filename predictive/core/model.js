@@ -89,7 +89,7 @@ function tagUse(ctx) {
   for (const entry of ctx.index?.entries || []) for (const id of entry.values.get('block/tags') || []) use.set(id, (use.get(id) || 0) + 1);
   return (ctx.tagUse = use);
 }
-function tagRequest(ctx, b, today = dayNumber(new Date()), { examples = true } = {}) {
+function tagRequest(ctx, b, today = dayNumber(new Date()), { examples = false } = {}) {
   const text = String(b.text || '');
   if (b.tags.length || proposeLib.inWords(text, ctx).tags.length || freeWords(text).length < 2) return null;
   if (proposeLib.recordOf(b, [], ctx.schema).fields.length) return null;
@@ -109,15 +109,16 @@ function tagRequest(ctx, b, today = dayNumber(new Date()), { examples = true } =
   };
 }
 /* What the tag question adds to the note, so the model has more to go on than the tags' names: what each tag holds (its
-   properties, at most four), for the first TAG_HINTS tags offered; and, for the first TAG_EXAMPLES, one earlier line of
-   that tag, the one nearest this bullet by its words. All of it from the graph, read on the Mac. */
+   properties, at most four), for the first TAG_HINTS tags offered. With examples, also one earlier line of each of the
+   first TAG_EXAMPLES tags, the one nearest this bullet by its words; asked without them since 0.3.19: on the test graph
+   (0.3.18) Apple's filter refused 28 of 60 tag questions with the earlier lines and 2 of 60 without, and the right tag
+   came 51 times against 29. All of it from the graph, read on the Mac. */
 const TAG_HINTS = 25, TAG_EXAMPLES = 8, EXAMPLE_LENGTH = 90;
-function tagContext(ctx, b, tags, { examples = true } = {}) {
+function tagContext(ctx, b, tags, { examples = false } = {}) {
   const hints = tags.slice(0, TAG_HINTS).map(tag => {
     const props = fieldsOfTags([tag.id], ctx.schema).filter(p => !isBuiltInProp(p)).slice(0, 4).map(p => p.title);
     return `- ${tag.title}${props.length ? ': ' + props.join(', ') : ''}`;
   });
-  // Without the earlier lines (examples: false), as measured in 0.3.18: their words may be what Apple's filter refuses.
   const wanted = new Set(examples ? tags.slice(0, TAG_EXAMPLES).map(t => t.id) : []), example = new Map();
   // Bullets only: a page is learned as a line too, but its name shows nothing of what a note of that kind says.
   const bulletOf = e => !ctx.byId.has(e.id) && (e.values.get('block/tags') || []).some(id => wanted.has(id));
