@@ -2,14 +2,13 @@
    logseq/measure.js, on the Mac that has the model.
 
    A note of yours that holds values is asked about as if it held none, and each answer is set against what you wrote.
-   It is asked four ways, each from the note's words alone, after Apple's guidance (a field's description is another way
-   of prompting; the model does best with one specific task):
-   - together:        every property in one question, as Predictive asks today;
-   - one by one:      a question for each property;
-   - described:       one question, each property said in plain words from the graph's structure (model.describe);
-   - both:            one by one, and described.
-   A note with a tag is also asked which tag it is, as Predictive asks it (since 0.3.19 without the earlier lines of each
-   kind, which 0.3.18 measured as what Apple's filter refused), and described, each tag with the tags above it. (The
+   It is asked from the note's words alone, as Predictive asks: every property in one question, each said in plain words
+   from the graph's structure (model.describe), and which tag it is, each tag with the tags above it. 0.3.20 measured the
+   alternatives on the owner's graph: one question per property answered exactly as one for all, and describing was a
+   little righter, so Predictive describes. Per property the report says how often the right page was not among the
+   choices (not offered) and how often the model named some of the right pages but not all (partly). Apart from the
+   questions, it lists the properties whose values in the whole graph are pages the property does not take (outside
+   its range): those the model can never offer, and Structure can fix. (The
    words around a note and earlier notes as examples, momentText and examplesText, are no longer asked: 0.3.17 to 0.3.19
    measured them making answers wronger and refusals more often. 0.3.15 measured the words around a note and the examples apart:
    neither made the answers righter, and both made Apple's filter refuse more often. 0.3.16 measured Apple's looser filter,
@@ -30,14 +29,14 @@
 (function () {
 const need = n => (typeof require === 'function' && typeof module !== 'undefined') ? require('./' + n + '.js') : window.Flow[n];
 const model = need('model');
-const { fieldsOfTags, isChoiceProp, isLinkProp, isNumberProp, isDateProp } = need('schema');
+const { fieldsOfTags, fits, isChoiceProp, isLinkProp, isNumberProp, isDateProp } = need('schema');
 const engine = need('engine');
 const { shownWords } = need('context');
 
 // Apple's settings, by the word the report gives each and the name the helper takes.
 const SETTINGS = [['', 'default']];   // [' loose', 'permissive'], [' tagger', 'tagging'] measured in 0.3.16
-const WAYS = ['together', 'one by one', 'described', 'both'];
-const TAG_WAYS = ['today', 'described'];   // the tag question as Predictive asks it, and with the tags above each
+const WAYS = ['today'];   // as Predictive asks; 0.3.20 measured 'one by one', 'described' and 'both' beside it
+const TAG_WAYS = ['today'];   // the tag question as Predictive asks it
 const TEST_PAGE = 'predictive test graph';
 const EXAMPLES = 3, LINE = 160;
 
@@ -121,11 +120,7 @@ function questions(ctx, note) {
       if (setting !== 'default') fill.model = setting;
       out.props.push({ way: name, req: { ...base, fill, asked } });
     };
-    way('together');
-    const together = out.props[0].req, described = model.describe(ctx, together, b.tags);
-    for (const req of model.oneByOne(together)) out.props.push({ way: 'one by one', req });
-    out.props.push({ way: 'described', req: described });
-    for (const req of model.oneByOne(described)) out.props.push({ way: 'both', req });
+    way('today');
   }
 
   // The tag, asked of the note as if it had none.
@@ -133,8 +128,6 @@ function questions(ctx, note) {
   const tagReq = model.tagRequest(ctx, bare, note.day);
   if (tagReq) {
     out.tags.push({ way: 'today', req: tagReq });
-    const described = model.tagRequest(ctx, bare, note.day, { described: true });
-    if (described) out.tags.push({ way: 'described', req: described });
   }
   return out;
 }
@@ -182,7 +175,9 @@ function judge(ctx, note, req, reply, error = null) {
     else if (ask.kind === 'number') result = Number(said.number) === Number(truth.number) ? 'right' : 'wrong';
     else if (ask.kind === 'date') result = said.day === truth.day ? 'right' : 'wrong';
     else result = sameSet(said.ids, truth.ids) ? 'right' : 'wrong';
-    out.push({ key, result, offered, wrote: shownValue(ctx, ask.kind, truth), said: said && shownValue(ctx, ask.kind, said) });
+    // Some of the right pages named, not all (or one too many): counted wrong, and marked so the report can say it.
+    const partly = result === 'wrong' && !!said.ids && said.ids.some(id => truth.ids?.includes(id));
+    out.push({ key, result, offered, partly, wrote: shownValue(ctx, ask.kind, truth), said: said && shownValue(ctx, ask.kind, said) });
   }
   return out;
 }
@@ -222,16 +217,18 @@ function tally(records) {
       for (const r of results) {
         if (r.result === 'quiet') continue;
         const a = info.get(r.key), w = t.ways[way];
-        if (way === 'together' && r.result !== 'spoke') t.questions++;
+        if (way === 'today' && r.result !== 'spoke') t.questions++;
         w.all[r.result]++;
         if (a.kind === 'page' && r.result !== 'spoke') { w[a.named ? 'named' : 'unnamed'][r.result]++; if (!r.offered) w.notOffered++; }
         const kindName = a.kind === 'date' ? (r.offered ? 'date, day in the words' : 'date, day not in the words') : a.kind;
         const kind = (t.byKind[kindName] ||= Object.fromEntries(WAYS.map(x => [x, blank()])));
         kind[way][r.result]++;
         const pk = `${rec.tagTitle || ''} · ${a.prop.title}`;
-        if (!t.byProp.has(pk)) t.byProp.set(pk, Object.fromEntries(WAYS.map(x => [x, { ...blank(), run: 0, best: 0 }])));
+        if (!t.byProp.has(pk)) t.byProp.set(pk, Object.fromEntries(WAYS.map(x => [x, { ...blank(), run: 0, best: 0, notOffered: 0, partly: 0 }])));
         const p = t.byProp.get(pk)[way];
         p[r.result]++;
+        if (r.result !== 'spoke' && !r.offered) p.notOffered++;
+        if (r.partly) p.partly++;
         if (r.result === 'right') { p.run++; p.best = Math.max(p.best, p.run); } else if (r.result === 'wrong' || r.result === 'spoke') p.run = 0;
       }
     }
@@ -248,7 +245,7 @@ const secs = ms => ms == null ? '–' : (ms / 1000).toFixed(1) + ' s';
 const num = n => n == null ? '–' : String(n);
 
 /* The report as plain text, to read and to copy: numbers, and the names of tags and properties, never a note's words. */
-function text(t, about = {}, details = null) {
+function text(t, about = {}, details = null, outside = []) {
   const row = (label, cells) => label.padEnd(30) + cells.map(c => String(c).padStart(14)).join('');
   const shortName = n => n;
   const head = row('', WAYS);
@@ -258,7 +255,7 @@ function text(t, about = {}, details = null) {
   const reasons = new Set(names.flatMap(n => [...t.reasons[n].keys()]));
   const lines = [
     `Apple's model on this graph · Predictive ${about.version || ''} · helper ${about.helper || '1'} · ${about.date || ''}`.trim(),
-    `${t.notes} notes, ${t.questions} properties asked four ways: together (as today), one by one, described from your structure, and both (one by one and described).`,
+    `${t.notes} notes, ${t.questions} properties asked, as Predictive asks: described from your structure.`,
     '', 'PROPERTIES', head,
     row('right', WAYS.map(w => `${t.ways[w].all.right} ${pct(t.ways[w].all.right, all(t.ways[w].all))}`)),
     row('wrong', WAYS.map(w => `${t.ways[w].all.wrong} ${pct(t.ways[w].all.wrong, all(t.ways[w].all))}`)),
@@ -280,9 +277,12 @@ function text(t, about = {}, details = null) {
     ...names.map(n => row(shortName(n), [num(median(t.sizes[n])), num(largest(t.sizes[n])), num(smallest(t.failedSizes[n])), num(largest(t.answeredSizes[n]))])),
     '', 'TIME PER QUESTION ANSWERED', row('', ['median', 'slowest']),
     ...names.map(n => row(shortName(n), [secs(median(t.ms[n])), secs(largest(t.ms[n]))])),
-    '', 'BY PROPERTY (right / wrong / silent / failed)', row('', WAYS),
-    ...[...t.byProp].sort((x, y) => (y[1].together.right + y[1].together.wrong) - (x[1].together.right + x[1].together.wrong)).slice(0, 30)
-      .map(([name, c]) => row(name.length > 29 ? name.slice(0, 28) + '…' : name, WAYS.map(w => rwsf(c[w])))),
+    '', 'BY PROPERTY', row('', ['r/w/s/failed', 'not offered', 'partly']),
+    ...[...t.byProp].sort((x, y) => (y[1].today.right + y[1].today.wrong) - (x[1].today.right + x[1].today.wrong)).slice(0, 30)
+      .map(([name, c]) => row(name.length > 29 ? name.slice(0, 28) + '…' : name, [rwsf(c.today), c.today.notOffered, c.today.partly])),
+    '', 'NOT OFFERED: the right page was not among the choices, as its tags are not ones the property takes; for a date, the day is not named in the words.',
+    'PARTLY: the model named some of the right pages, not all; counted wrong.',
+    ...outsideLines(outside),
   ];
   if (details?.length) {
     lines.push('', 'DETAILS (a test graph only: these notes are about no one real)');
@@ -295,6 +295,35 @@ function text(t, about = {}, details = null) {
   if (about.oldHelper) lines.push('', 'The helper on this Mac is older than this release: only Apple\'s model as it comes was asked, and dates still fail. Run install.sh again, then measure again.');
   if (about.noTagger) lines.push('', 'Apple\'s tagging model is not on this Mac, so it was not asked.');
   return lines.join('\n');
+}
+
+/* The properties whose values, across the whole graph, are pages they do not take: the page's tags (and the tags those
+   extend) are none of the property's range. Such a page is never offered to the model, so the right answer cannot come.
+   Names only: [{ name: 'Therapeutic Session · Targets', range, total, outside, byTag: [[tag title, count]] }]. */
+function outsideRange(ctx) {
+  const out = [];
+  for (const prop of ctx.schema.props) {
+    if (!prop.classes?.length || prop.type !== 'node') continue;
+    const range = new Set(prop.classes.map(c => c.id));
+    let total = 0, outside = 0;
+    const byTag = new Map();
+    for (const e of ctx.index?.entries || []) for (const id of e.values.get(prop.ident) || []) {
+      const page = ctx.byId.get(id);
+      if (!page) continue;
+      total++;
+      if (fits(page, range, ctx.schema)) continue;
+      outside++;
+      const tag = page.tags.map(t => t.title).filter(Boolean).join(', ') || 'no tag';
+      byTag.set(tag, (byTag.get(tag) || 0) + 1);
+    }
+    if (outside) out.push({ name: prop.title, range: prop.classes.map(c => c.title).join(', '), total, outside, byTag: [...byTag].sort((a, b) => b[1] - a[1]) });
+  }
+  return out.sort((a, b) => b.outside - a.outside);
+}
+function outsideLines(outside) {
+  if (!outside?.length) return ['', 'VALUES OUTSIDE THEIR PROPERTY\'S RANGE: none in this graph.'];
+  return ['', 'VALUES OUTSIDE THEIR PROPERTY\'S RANGE (the whole graph; fix in Structure: widen the range, or retag the pages)',
+    ...outside.slice(0, 20).map(o => `${o.name} takes ${o.range}: ${o.outside} of ${o.total} values are not, tagged ${o.byTag.slice(0, 4).map(([t, n]) => `${t} ${n}`).join(', ')}`)];
 }
 
 /* One note's details for a test graph: its words, and for each property asked, what was written and what each way said. */
@@ -310,7 +339,7 @@ function detailOf(ctx, note, asked, props, tags) {
     tags: tags.map(x => ({ way: x.way, result: x.result, said: x.said, failed: x.error ? reason(x.error) : null })) };
 }
 
-const api = { isTestGraph, tagSaid, detailOf, WAYS, TAG_WAYS, SETTINGS, candidates, momentText, examplesText, questions, judge, judgeTag, tally, text, size, reason };
+const api = { outsideRange, isTestGraph, tagSaid, detailOf, WAYS, TAG_WAYS, SETTINGS, candidates, momentText, examplesText, questions, judge, judgeTag, tally, text, size, reason };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 if (typeof window !== 'undefined') (window.Flow ||= {}).measure = api;
 })();

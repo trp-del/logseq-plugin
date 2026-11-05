@@ -89,7 +89,7 @@ function tagUse(ctx) {
   for (const entry of ctx.index?.entries || []) for (const id of entry.values.get('block/tags') || []) use.set(id, (use.get(id) || 0) + 1);
   return (ctx.tagUse = use);
 }
-function tagRequest(ctx, b, today = dayNumber(new Date()), { examples = false, described = false } = {}) {
+function tagRequest(ctx, b, today = dayNumber(new Date()), { examples = false, described = true } = {}) {
   const text = String(b.text || '');
   if (b.tags.length || proposeLib.inWords(text, ctx).tags.length || freeWords(text).length < 2) return null;
   if (proposeLib.recordOf(b, [], ctx.schema).fields.length) return null;
@@ -112,7 +112,8 @@ function tagRequest(ctx, b, today = dayNumber(new Date()), { examples = false, d
    properties, at most four), for the first TAG_HINTS tags offered. With examples, also one earlier line of each of the
    first TAG_EXAMPLES tags, the one nearest this bullet by its words; asked without them since 0.3.19: on the test graph
    (0.3.18) Apple's filter refused 28 of 60 tag questions with the earlier lines and 2 of 60 without, and the right tag
-   came 51 times against 29. All of it from the graph, read on the Mac. */
+   came 51 times against 29. Described (the default since 0.3.23), each tag also says the tags above it ("Consultation (a
+   kind of Occurrence)"): 0.3.20 measured it a little righter. All of it from the graph, read on the Mac. */
 const TAG_HINTS = 25, TAG_EXAMPLES = 8, EXAMPLE_LENGTH = 90;
 function tagContext(ctx, b, tags, { examples = false, described = false } = {}) {
   const hints = tags.slice(0, TAG_HINTS).map(tag => {
@@ -151,8 +152,8 @@ function momentPages(ctx, text, classIds, spoken) {
 }
 /* Each property said in plain words from the graph's structure, names only: what it holds, on which tag, beside which
    other properties ("Targets (a Symptom) of this Therapeutic Session note; its other properties are Procedure, Date").
-   Apple's guidance: a field's description is another way of prompting. For measuring first (0.3.20); Predictive itself
-   still asks with ABOUT. */
+   Apple's guidance: a field's description is another way of prompting. On the owner's graph (0.3.20) it was a little
+   righter than ABOUT alone and never wronger, so every request is described. */
 function describe(ctx, req, tagIds = []) {
   const tag = req.fill.tags?.join(', ') || 'this';
   // Every property the note's tags give, not only those asked, so the model knows each role a name could fill.
@@ -172,9 +173,6 @@ function describe(ctx, req, tagIds = []) {
   });
   return { ...req, fill: { ...req.fill, properties } };
 }
-/* The same question split into one per property, each asking that property alone: Apple's guidance is that the model
-   does best with one specific task. Each keeps what it asks about, so its answer is read as any other. */
-const oneByOne = req => req.fill.properties.map(p => ({ ...req, fill: { ...req.fill, properties: [p] }, asked: new Map([[p.key, req.asked.get(p.key)]]) }));
 // The tag the model read, as a page, or null.
 const tagOf = (req, reply) => { const v = reply?.values?.t; return v == null ? null : req.asked.get('t')?.tags.get(String(v).toLowerCase()) || null; };
 
@@ -226,7 +224,8 @@ function request(ctx, b, result, today = dayNumber(new Date())) {
   if (!properties.length) return null;
   const tagTitles = tags.map(id => ctx.byId.get(id)?.title).filter(Boolean);
   const page = b.page && !b.page.day ? b.page.title : '';
-  return { fill: { text: shown(ctx, text), page, tags: tagTitles, today: iso(base), instructions: INSTRUCTIONS, properties }, asked, days };
+  // Each property said in plain words from the structure (0.3.20 measured it a little righter than ABOUT alone).
+  return describe(ctx, { fill: { text: shown(ctx, text), page, tags: tagTitles, today: iso(base), instructions: INSTRUCTIONS, properties }, asked, days }, tags);
 }
 // The words as the person reads them: a saved link as its page's name.
 const shown = (ctx, text) => String(text).replace(/\[\[([^\[\]]+)\]\]/g, (m, key) => ctx.byKey.get(key.toLowerCase())?.title || key);
@@ -296,7 +295,7 @@ function merge(rules, model) {
   return [...kept, ...model.filter(p => !kept.some(q => q.ident === p.ident))];
 }
 
-const api = { describe, oneByOne, request, tagRequest, tagContext, tagOf, followUp, withFollowUp, pieces, merge, iso, fromIso, namedPages, rangePages, momentPages, freeWords, shown, byWordsAlone, INSTRUCTIONS, ABOUT, MOST_TAGS, MOST_RANGE };
+const api = { describe, request, tagRequest, tagContext, tagOf, followUp, withFollowUp, pieces, merge, iso, fromIso, namedPages, rangePages, momentPages, freeWords, shown, byWordsAlone, INSTRUCTIONS, ABOUT, MOST_TAGS, MOST_RANGE };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 if (typeof window !== 'undefined') (window.Flow ||= {}).model = api;
 })();
