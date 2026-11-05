@@ -6,7 +6,9 @@
    - alone:  the note's words, as Predictive asks today;
    - both:   and the words around it (the bullet it sits under, the two before it, the page) and up to three earlier notes
              of the same tag with their values, nearest by words.
-   A note with a tag is also asked which tag it is. (0.3.15 measured the words around a note and the examples apart:
+   A note with a tag is also asked which tag it is, as Predictive asks it today and in a short form, without the earlier
+   lines of each kind it carries (0.3.17 on the test graph: Apple's filter refused 28 of 60 tag questions and 1 of 60
+   property questions about the same notes). (0.3.15 measured the words around a note and the examples apart:
    neither made the answers righter, and both made Apple's filter refuse more often. 0.3.16 measured Apple's looser filter,
    which answered exactly as the model as it comes, and its tagging model, which was wrong more often; neither is asked
    now, and SETTINGS holds them should they be measured again.)
@@ -32,7 +34,7 @@ const { shownWords } = need('context');
 // Apple's settings, by the word the report gives each and the name the helper takes.
 const SETTINGS = [['', 'default']];   // [' loose', 'permissive'], [' tagger', 'tagging'] measured in 0.3.16
 const WAYS = ['alone', 'both'].flatMap(w => SETTINGS.map(([word]) => w + word));
-const TAG_WAYS = ['as it comes'];   // with the settings: 'loose', 'tagger'
+const TAG_WAYS = ['today', 'short'];   // the tag question as Predictive asks it, and without its earlier lines
 const TEST_PAGE = 'predictive test graph';
 const EXAMPLES = 3, LINE = 160;
 
@@ -128,7 +130,9 @@ function questions(ctx, note) {
   const bare = { ...b, tags: [], values: new Map(), parent: null };
   const tagReq = model.tagRequest(ctx, bare, note.day);
   if (tagReq) {
-    for (const [i, [, setting]] of SETTINGS.entries()) out.tags.push({ way: TAG_WAYS[i], req: setting === 'default' ? tagReq : { ...tagReq, fill: { ...tagReq.fill, model: setting } } });
+    out.tags.push({ way: 'today', req: tagReq });
+    const short = model.tagRequest(ctx, bare, note.day, { examples: false });
+    if (short) out.tags.push({ way: 'short', req: short });
   }
   return out;
 }
@@ -244,7 +248,7 @@ const num = n => n == null ? '–' : String(n);
 /* The report as plain text, to read and to copy: numbers, and the names of tags and properties, never a note's words. */
 function text(t, about = {}, details = null) {
   const row = (label, cells) => label.padEnd(30) + cells.map(c => String(c).padStart(14)).join('');
-  const shortName = n => n === 'tag as it comes' ? 'tag' : n;
+  const shortName = n => n;
   const head = row('', WAYS);
   const all = c => c.right + c.wrong + c.silent + c.failed;
   const rwsf = c => `${c.right}/${c.wrong}/${c.silent}/${c.failed}`;
@@ -283,7 +287,7 @@ function text(t, about = {}, details = null) {
     for (const d of details) {
       lines.push('', `"${d.words}" (${d.tag})`);
       for (const p of d.props) lines.push(`  ${p.title}: wrote ${p.wrote ?? '–'} · ` + p.ways.map(w => `${w.way} ${w.failed ? 'failed: ' + w.failed : w.said ? `said ${w.said} (${w.result})` : w.result}${w.offered === false ? ', right one not offered' : ''}`).join(' · '));
-      if (d.tags.length) lines.push(`  Tag: ` + d.tags.map(x => `${x.failed ? 'failed: ' + x.failed : x.said ? `said ${x.said} (${x.result})` : x.result}`).join(' · '));
+      if (d.tags.length) lines.push(`  Tag: ` + d.tags.map(x => `${x.way ? x.way + ' ' : ''}${x.failed ? 'failed: ' + x.failed : x.said ? `said ${x.said} (${x.result})` : x.result}`).join(' · '));
     }
   }
   if (about.oldHelper) lines.push('', 'The helper on this Mac is older than this release: only Apple\'s model as it comes was asked, and dates still fail. Run install.sh again, then measure again.');
@@ -301,7 +305,7 @@ function detailOf(ctx, note, asked, props, tags) {
     byKey.get(r.key).ways.push({ way, result: r.result, said: r.said, offered: r.offered, failed: error ? reason(error) : null });
   }
   return { words: clip(model.shown(ctx, note.b.text)), tag: ctx.byId.get(note.b.tags[0])?.title || '', props: [...byKey.values()],
-    tags: tags.map(x => ({ result: x.result, said: x.said, failed: x.error ? reason(x.error) : null })) };
+    tags: tags.map(x => ({ way: x.way, result: x.result, said: x.said, failed: x.error ? reason(x.error) : null })) };
 }
 
 const api = { isTestGraph, tagSaid, detailOf, WAYS, TAG_WAYS, SETTINGS, candidates, momentText, examplesText, questions, judge, judgeTag, tally, text, size, reason };

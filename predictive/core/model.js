@@ -44,9 +44,11 @@ function valueUse(ctx, ident) {
   byProp.set(ident, use);
   return use;
 }
+// A second name (an alias) is its page: "Dr. Chen" is offered and kept as Dr. Mei Chen, never as a page of its own.
+const ownPage = (ctx, page) => (page?.aliasOf && ctx.byId.get(page.aliasOf.id)) || page;
 function rangePages(ctx, prop, classIds, spoken) {
   const use = valueUse(ctx, prop.ident);
-  return ctx.pages.filter(page => !page.isTag && !page.day && page.title && !spoken.has(page) && fits(page, classIds, ctx.schema))
+  return ctx.pages.filter(page => !page.isTag && !page.day && page.title && !page.aliasOf && !spoken.has(page) && fits(page, classIds, ctx.schema))
     .sort((x, y) => (use.get(y.id) || 0) - (use.get(x.id) || 0) || x.title.localeCompare(y.title)).slice(0, MOST_RANGE);
 }
 // What the model is told, and what each question asks: sent with the question, so the wording lives here, not in the helper.
@@ -70,7 +72,7 @@ const fromIso = s => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s || ''
 // The pages the words name in plain words, a whole name or a telling word of one, that fit the property, in the order written.
 function namedPages(ctx, words, classIds, spoken) {
   const { byWord, whole } = names.namesFor(ctx), found = [];
-  const add = page => { if (!found.includes(page) && !spoken.has(page) && fits(page, classIds, ctx.schema)) found.push(page); };
+  const add = named => { const page = ownPage(ctx, named); if (!found.includes(page) && !spoken.has(page) && fits(page, classIds, ctx.schema)) found.push(page); };
   words.forEach((word, i) => { for (const { page, words: name } of whole.get(word) || []) if (name.every((w, k) => words[i + k] === w)) add(page); });
   for (const word of words) for (const page of byWord.get(word) || []) add(page);
   return found.slice(0, MOST_PAGES);
@@ -87,7 +89,7 @@ function tagUse(ctx) {
   for (const entry of ctx.index?.entries || []) for (const id of entry.values.get('block/tags') || []) use.set(id, (use.get(id) || 0) + 1);
   return (ctx.tagUse = use);
 }
-function tagRequest(ctx, b, today = dayNumber(new Date())) {
+function tagRequest(ctx, b, today = dayNumber(new Date()), { examples = true } = {}) {
   const text = String(b.text || '');
   if (b.tags.length || proposeLib.inWords(text, ctx).tags.length || freeWords(text).length < 2) return null;
   if (proposeLib.recordOf(b, [], ctx.schema).fields.length) return null;
@@ -102,7 +104,7 @@ function tagRequest(ctx, b, today = dayNumber(new Date())) {
   if (!byTitle.size) return null;
   const page = b.page && !b.page.day ? b.page.title : '';
   return {
-    fill: { text: shown(ctx, text), page, tags: [], today: iso(b.page?.day || today), instructions: INSTRUCTIONS, context: tagContext(ctx, b, [...byTitle.values()]), properties: [{ key: 't', title: 'Kind of note', kind: 'tag', choices: [...byTitle.values()].map(p => p.title), about: ABOUT.tag() }] },
+    fill: { text: shown(ctx, text), page, tags: [], today: iso(b.page?.day || today), instructions: INSTRUCTIONS, context: tagContext(ctx, b, [...byTitle.values()], { examples }), properties: [{ key: 't', title: 'Kind of note', kind: 'tag', choices: [...byTitle.values()].map(p => p.title), about: ABOUT.tag() }] },
     asked: new Map([['t', { kind: 'tag', tags: byTitle }]]), days: new Set(), bullet: b,
   };
 }
@@ -110,12 +112,13 @@ function tagRequest(ctx, b, today = dayNumber(new Date())) {
    properties, at most four), for the first TAG_HINTS tags offered; and, for the first TAG_EXAMPLES, one earlier line of
    that tag, the one nearest this bullet by its words. All of it from the graph, read on the Mac. */
 const TAG_HINTS = 25, TAG_EXAMPLES = 8, EXAMPLE_LENGTH = 90;
-function tagContext(ctx, b, tags) {
+function tagContext(ctx, b, tags, { examples = true } = {}) {
   const hints = tags.slice(0, TAG_HINTS).map(tag => {
     const props = fieldsOfTags([tag.id], ctx.schema).filter(p => !isBuiltInProp(p)).slice(0, 4).map(p => p.title);
     return `- ${tag.title}${props.length ? ': ' + props.join(', ') : ''}`;
   });
-  const wanted = new Set(tags.slice(0, TAG_EXAMPLES).map(t => t.id)), example = new Map();
+  // Without the earlier lines (examples: false), as measured in 0.3.18: their words may be what Apple's filter refuses.
+  const wanted = new Set(examples ? tags.slice(0, TAG_EXAMPLES).map(t => t.id) : []), example = new Map();
   // Bullets only: a page is learned as a line too, but its name shows nothing of what a note of that kind says.
   const bulletOf = e => !ctx.byId.has(e.id) && (e.values.get('block/tags') || []).some(id => wanted.has(id));
   if (ctx.index) {
@@ -138,7 +141,7 @@ function tagContext(ctx, b, tags) {
 function momentPages(ctx, text, classIds, spoken) {
   const found = [];
   for (const [, key] of String(text || '').matchAll(/\[\[([^\[\]]+)\]\]/g)) {
-    const page = ctx.byKey.get(key.toLowerCase());
+    const page = ownPage(ctx, ctx.byKey.get(key.toLowerCase()));
     if (page && !found.includes(page) && !spoken.has(page) && fits(page, classIds, ctx.schema)) found.push(page);
   }
   for (const page of namedPages(ctx, freeWords(text), classIds, spoken)) if (!found.includes(page)) found.push(page);

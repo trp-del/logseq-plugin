@@ -499,7 +499,9 @@ const measureLib = require('../core/measure.js');
   test('two ways, each asking the same properties; the words around and the examples only add', () => {
     assert.deepEqual(q.props.map(x => x.way), ['alone', 'both']);
     assert.ok(q.props.every(x => x.req.fill.model === undefined), 'Apple\'s model as it comes');
-    assert.deepEqual(q.tags.map(x => x.way), ['as it comes']);
+    assert.deepEqual(q.tags.map(x => x.way), ['today', 'short']);
+    assert.match(q.tags[0].req.fill.context, /Earlier notes of some kinds/);
+    assert.ok(!/Earlier notes/.test(q.tags[1].req.fill.context) && /The kinds of note/.test(q.tags[1].req.fill.context), 'the short tag question: the kinds and what each holds, no earlier lines');
     const keys = q.props.map(x => x.req.fill.properties.map(p => p.key).join());
     assert.ok(keys.every(k => k === keys[0]), 'the same keys in every way');
     assert.ok(!q.props[0].req.fill.context, 'alone is as Predictive asks today');
@@ -524,11 +526,11 @@ const measureLib = require('../core/measure.js');
     assert.ok(measureLib.judge(C, note, req, null, said).every(x => x.result === 'failed' || x.result === 'quiet'));
     assert.equal(measureLib.reason(said), 'exceededContextWindowSize');
     assert.equal(measureLib.reason('TimeoutError: signal timed out'), 'timed out');
-    const rec = { tagTitle: 'Consultation', asked: q.asked, tags: [{ way: 'as it comes', result: 'failed', size: 4100, error: said }],
+    const rec = { tagTitle: 'Consultation', asked: q.asked, tags: [{ way: 'today', result: 'failed', size: 4100, error: said }],
       props: q.props.map(({ way, req }) => ({ way, ms: 300, size: measureLib.size(req.fill), error: way === 'both' ? said : null, results: measureLib.judge(C, note, req, way === 'both' ? null : { values: {} }, way === 'both' ? said : null) })) };
     const text = measureLib.text(measureLib.tally([rec]), {});
     assert.match(text, /failed \(no answer at all\)\s+0\s+2\n/);
-    assert.match(text, /exceededContextWindowSize\s+0\s+1\s+1\n/);
+    assert.match(text, /exceededContextWindowSize\s+0\s+1\s+1\s+0\n/);
     assert.ok(!text.includes('wants') && !text.includes('Talked'), 'nothing a reason carries after its name reaches the report');
     assert.ok(measureLib.size(req.fill) > 0);
   });
@@ -544,6 +546,17 @@ const measureLib = require('../core/measure.js');
     const t = measureLib.tally([{ tagTitle: 'Consultation', asked: q.asked, props, tags: [] }]);
     assert.match(measureLib.text(t, {}, [d]), /"Talked it over, she wants 5 mg from 9 Nov" \(Consultation\)\n  Provider: wrote Dr\. Mei Chen · alone said Ruth Okoro \(wrong\)/);
     assert.ok(!measureLib.text(t, {}).includes('Talked'), 'without details, no words');
+  });
+  test('a second name (an alias) is offered and kept as its page', () => {
+    const alias = { id: 88001, uuid: synthetic.uuid(88001), title: 'Dr. Chen', lower: 'dr. chen', tags: mei.tags, isTag: false, aliasOf: { id: mei.id, title: mei.title } };
+    const A = { ...C, pages: [...C.pages, alias], byId: new Map([...C.byId, [alias.id, alias]]), byKey: new Map([...C.byKey, ['dr. chen', alias]]), aliases: [...(C.aliases || []), [mei.id, alias.id]] };
+    delete A.names;
+    const b = visit('Spoke with Dr. Chen about the sore mouth');
+    const req = modelLib.request(A, b, propose(A, b), 20261102);
+    const choices = req?.fill.properties.find(p => p.title === 'Provider')?.choices || [];
+    assert.ok(!choices.includes('Dr. Chen'), 'the alias is never a choice of its own');
+    assert.ok(!modelLib.rangePages(A, P('Provider'), new Set(P('Provider').classes.map(c => c.id)), new Set()).includes(alias));
+    assert.deepEqual(modelLib.momentPages(A, 'Saw [[Dr. Chen]] yesterday', new Set(P('Provider').classes.map(c => c.id)), new Set()).map(p => p.title), ['Dr. Mei Chen']);
   });
   test('the report holds numbers and names, never a note\'s words', () => {
     const rec = { tagTitle: 'Consultation', asked: q.asked, tags: [], props: q.props.map(({ way, req }) => ({ way, ms: 900, results: measureLib.judge(C, note, req, { values: { [keyOf(req, 'Provider')]: 'Dr. Mei Chen' } }) })) };
