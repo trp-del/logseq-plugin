@@ -2,14 +2,18 @@
    logseq/measure.js, on the Mac that has the model.
 
    A note of yours that holds values is asked about as if it held none, and each answer is set against what you wrote.
-   It is asked two ways, each of Apple's model in three settings:
+   It is asked two ways:
    - alone:  the note's words, as Predictive asks today;
    - both:   and the words around it (the bullet it sits under, the two before it, the page) and up to three earlier notes
-             of the same tag with their values, nearest by words;
-   - as it comes (the column with no word after it), loose (Apple's looser filter, for working on the person's own
-     words), tagger (Apple's model tuned for tags and the values in a text).
-   A note with a tag is also asked which tag it is, alone, in the three settings. (0.3.15 measured the words around a note
-   and the examples apart: neither made the answers righter, and both made Apple's filter refuse more often.)
+             of the same tag with their values, nearest by words.
+   A note with a tag is also asked which tag it is. (0.3.15 measured the words around a note and the examples apart:
+   neither made the answers righter, and both made Apple's filter refuse more often. 0.3.16 measured Apple's looser filter,
+   which answered exactly as the model as it comes, and its tagging model, which was wrong more often; neither is asked
+   now, and SETTINGS holds them should they be measured again.)
+
+   On a graph made for measuring (one with a page titled "Predictive test graph", whose notes are about no one real), the
+   report also lists each note's words with what was written and what the model said (details), to see why an answer
+   goes wrong. On any other graph it never does.
 
    Each property asked is right (what you wrote), wrong (something else), or silent. A property you left empty that the
    model fills anyway is counted apart (spoke), since a wrong fill taken by habit is the one thing that must not happen.
@@ -26,9 +30,10 @@ const engine = need('engine');
 const { shownWords } = need('context');
 
 // Apple's settings, by the word the report gives each and the name the helper takes.
-const SETTINGS = [['', 'default'], [' loose', 'permissive'], [' tagger', 'tagging']];
+const SETTINGS = [['', 'default']];   // [' loose', 'permissive'], [' tagger', 'tagging'] measured in 0.3.16
 const WAYS = ['alone', 'both'].flatMap(w => SETTINGS.map(([word]) => w + word));
-const TAG_WAYS = ['as it comes', 'loose', 'tagger'];
+const TAG_WAYS = ['as it comes'];   // with the settings: 'loose', 'tagger'
+const TEST_PAGE = 'predictive test graph';
 const EXAMPLES = 3, LINE = 160;
 
 // A small deterministic shuffle, so the same graph is measured on the same notes each time.
@@ -171,15 +176,24 @@ function judge(ctx, note, req, reply, error = null) {
     else if (ask.kind === 'number') result = Number(said.number) === Number(truth.number) ? 'right' : 'wrong';
     else if (ask.kind === 'date') result = said.day === truth.day ? 'right' : 'wrong';
     else result = sameSet(said.ids, truth.ids) ? 'right' : 'wrong';
-    out.push({ key, result, offered });
+    out.push({ key, result, offered, wrote: shownValue(ctx, ask.kind, truth), said: said && shownValue(ctx, ask.kind, said) });
   }
   return out;
 }
+// A value as words, for the details of a test graph: pages and choices by title, a number, a day as YYYY-MM-DD.
+function shownValue(ctx, kind, v) {
+  if (!v) return null;
+  if (v.number != null) return String(v.number);
+  if (v.day) return model.iso(v.day);
+  return (v.ids || []).map(id => ctx.byId.get(id)?.title || ctx.schema.props.flatMap(p => p.choices || []).find(c => c.id === id)?.title || '?').join(', ');
+}
+const isTestGraph = ctx => (ctx.pages || []).some(p => String(p.title || '').toLowerCase() === TEST_PAGE);
 const judgeTag = (note, req, reply, error = null) => {
   if (!reply) return 'failed';
   const tag = model.tagOf(req, reply);
   return !tag ? 'silent' : note.b.tags.includes(tag.id) ? 'right' : 'wrong';
 };
+const tagSaid = (req, reply) => model.tagOf(req, reply)?.title || null;
 
 /* All the answers, counted. records: [{ tagTitle, asked, props: [{ way, results, ms, size, error }], tags: [{ way, result,
    ms, size, error }] }]. ms is kept only for questions answered. */
@@ -228,7 +242,7 @@ const secs = ms => ms == null ? '–' : (ms / 1000).toFixed(1) + ' s';
 const num = n => n == null ? '–' : String(n);
 
 /* The report as plain text, to read and to copy: numbers, and the names of tags and properties, never a note's words. */
-function text(t, about = {}) {
+function text(t, about = {}, details = null) {
   const row = (label, cells) => label.padEnd(30) + cells.map(c => String(c).padStart(14)).join('');
   const shortName = n => n === 'tag as it comes' ? 'tag' : n;
   const head = row('', WAYS);
@@ -238,7 +252,7 @@ function text(t, about = {}) {
   const reasons = new Set(names.flatMap(n => [...t.reasons[n].keys()]));
   const lines = [
     `Apple's model on this graph · Predictive ${about.version || ''} · helper ${about.helper || '1'} · ${about.date || ''}`.trim(),
-    `${t.notes} notes, ${t.questions} properties asked in each way. A column with no word after it is Apple's model as it comes; loose is its looser filter; tagger is its tagging model.`,
+    `${t.notes} notes, ${t.questions} properties asked each way: alone, and with the notes around and earlier notes as examples (both).`,
     '', 'PROPERTIES', head,
     row('right', WAYS.map(w => `${t.ways[w].all.right} ${pct(t.ways[w].all.right, all(t.ways[w].all))}`)),
     row('wrong', WAYS.map(w => `${t.ways[w].all.wrong} ${pct(t.ways[w].all.wrong, all(t.ways[w].all))}`)),
@@ -264,12 +278,33 @@ function text(t, about = {}) {
     ...[...t.byProp].sort((x, y) => (y[1].alone.right + y[1].alone.wrong) - (x[1].alone.right + x[1].alone.wrong)).slice(0, 30)
       .map(([name, c]) => row(name.length > 29 ? name.slice(0, 28) + '…' : name, [rwsf(c.alone), `run ${c.alone.best}`])),
   ];
+  if (details?.length) {
+    lines.push('', 'DETAILS (a test graph only: these notes are about no one real)');
+    for (const d of details) {
+      lines.push('', `"${d.words}" (${d.tag})`);
+      for (const p of d.props) lines.push(`  ${p.title}: wrote ${p.wrote ?? '–'} · ` + p.ways.map(w => `${w.way} ${w.failed ? 'failed: ' + w.failed : w.said ? `said ${w.said} (${w.result})` : w.result}${w.offered === false ? ', right one not offered' : ''}`).join(' · '));
+      if (d.tags.length) lines.push(`  Tag: ` + d.tags.map(x => `${x.failed ? 'failed: ' + x.failed : x.said ? `said ${x.said} (${x.result})` : x.result}`).join(' · '));
+    }
+  }
   if (about.oldHelper) lines.push('', 'The helper on this Mac is older than this release: only Apple\'s model as it comes was asked, and dates still fail. Run install.sh again, then measure again.');
   if (about.noTagger) lines.push('', 'Apple\'s tagging model is not on this Mac, so it was not asked.');
   return lines.join('\n');
 }
 
-const api = { WAYS, TAG_WAYS, SETTINGS, candidates, momentText, examplesText, questions, judge, judgeTag, tally, text, size, reason };
+/* One note's details for a test graph: its words, and for each property asked, what was written and what each way said. */
+function detailOf(ctx, note, asked, props, tags) {
+  const titleOf = new Map(asked.map(a => [a.key, a.prop.title]));
+  const byKey = new Map();
+  for (const { way, results, error } of props) for (const r of results) {
+    if (r.result === 'quiet') continue;
+    if (!byKey.has(r.key)) byKey.set(r.key, { title: titleOf.get(r.key), wrote: r.wrote, ways: [] });
+    byKey.get(r.key).ways.push({ way, result: r.result, said: r.said, offered: r.offered, failed: error ? reason(error) : null });
+  }
+  return { words: clip(model.shown(ctx, note.b.text)), tag: ctx.byId.get(note.b.tags[0])?.title || '', props: [...byKey.values()],
+    tags: tags.map(x => ({ result: x.result, said: x.said, failed: x.error ? reason(x.error) : null })) };
+}
+
+const api = { isTestGraph, tagSaid, detailOf, WAYS, TAG_WAYS, SETTINGS, candidates, momentText, examplesText, questions, judge, judgeTag, tally, text, size, reason };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 if (typeof window !== 'undefined') (window.Flow ||= {}).measure = api;
 })();

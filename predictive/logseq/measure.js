@@ -3,7 +3,9 @@
    this reads the notes, asks the helper one question at a time, and shows the report in a window of its own.
 
    It writes nothing to the graph. The report holds numbers and the names of tags and properties, never a note's words,
-   so it can be copied and passed on. It takes a few minutes: each note is asked nine questions, each under a second. */
+   so it can be copied and passed on; only on a graph made for measuring, marked by a page titled "Predictive test graph", does it
+   also list each note's words with what the model said. It takes a few minutes: each note is asked three questions, each
+   under a second. */
 (function () {
 const Flow = (window.Flow ||= {});
 const { app, db, measure } = Flow;
@@ -68,7 +70,7 @@ async function run(progress, signal) {
   const allowed = ({ req }) => { const setting = req.fill.model || 'default'; return setting === 'default' || !oldHelper && !(setting === 'tagging' && noTagger); };
   const ctx = await app.context();
   if (!ctx?.index?.entries.length) return { error: 'This graph has no tagged notes to measure on yet.' };
-  const records = [], started = performance.now();
+  const records = [], details = measure.isTestGraph(ctx) ? [] : null, started = performance.now();
   for (const id of measure.candidates(ctx)) {
     if (signal.aborted || records.length >= NOTES) break;
     const note = await noteOf(ctx, id).catch(() => null);
@@ -88,15 +90,16 @@ async function run(progress, signal) {
       if (signal.aborted) break;
       const { reply, ms, error } = await ask(req.fill, signal);
       if (signal.aborted) break;
-      rec.tags.push({ way, ms, size: measure.size(req.fill), error: reply ? null : error || 'no answer', result: measure.judgeTag(note, req, reply, reply ? null : error) });
+      rec.tags.push({ way, ms, size: measure.size(req.fill), error: reply ? null : error || 'no answer', result: measure.judgeTag(note, req, reply, reply ? null : error), said: reply ? measure.tagSaid(req, reply) : null });
     }
     if (signal.aborted) break;
     records.push(rec);
+    if (details) details.push(measure.detailOf(ctx, note, q.asked, rec.props, rec.tags));
     const each = (performance.now() - started) / records.length;
     progress(records.length, NOTES, each * (NOTES - records.length));
   }
   const about = { version: logseq.baseInfo?.version || '', helper: status.version || 1, date: new Date().toISOString().slice(0, 10), oldHelper, noTagger };
-  return { text: measure.text(measure.tally(records), about), stopped: signal.aborted, count: records.length };
+  return { text: measure.text(measure.tally(records), about, details), stopped: signal.aborted, count: records.length, test: !!details };
 }
 
 /* The window: one real dialog in Logseq's own window, in the grammar's look, as the settings window is. */
@@ -144,7 +147,7 @@ async function open() {
   S.dlg.showModal();
   // The keyboard rests on the window, not on its ×, so nothing is ringed when it opens; Escape still closes it.
   const body = S.dlg.querySelector('.pm-body'); body.tabIndex = -1; body.style.outline = 'none'; body.focus();
-  draw(`<p>Each note is asked as if it held nothing, alone and with the notes around it, of Apple’s model in three settings, and the answers are set against what you wrote. Nothing is written to the graph.</p><p class="pm-quiet" id="pm-progress">Reading the graph…</p>`,
+  draw(`<p>Each note is asked as if it held nothing, alone and with the notes around it, and the answers are set against what you wrote. Nothing is written to the graph.</p><p class="pm-quiet" id="pm-progress">Reading the graph…</p>`,
     `<span class="pm-quiet">Only numbers and the names of tags and properties are kept, never your words.</span><button type="button" class="lk-lone lk-i-x" data-pm="stop">Stop</button>`);
   const result = await run((done, of, left) => {
     const line = S.dlg?.querySelector('#pm-progress');
@@ -154,7 +157,7 @@ async function open() {
   if (result.error) return draw(`<p>${esc(result.error)}</p>`, '');
   S.report = result.text;
   draw(`${result.stopped ? `<p class="pm-quiet">Stopped after ${result.count} notes; the numbers are of those.</p>` : ''}<pre class="pm-report">${esc(result.text)}</pre>`,
-    `<span class="pm-quiet">Only numbers and the names of tags and properties, never your words.</span><button type="button" class="lk-accent lk-i-copy" data-pm="copy">Copy the report</button>`);
+    `<span class="pm-quiet">${result.test ? 'A test graph: the report lists its notes’ words, which are about no one real.' : 'Only numbers and the names of tags and properties, never your words.'}</span><button type="button" class="lk-accent lk-i-copy" data-pm="copy">Copy the report</button>`);
 }
 
 // Gone with the plugin: the window and its stylesheet.

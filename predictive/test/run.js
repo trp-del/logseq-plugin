@@ -496,16 +496,15 @@ const measureLib = require('../core/measure.js');
   };
   const q = measureLib.questions(C, note);
   const keyOf = (req, title) => req.fill.properties.find(p => p.title === title)?.key;
-  test('two ways in three settings, each asking the same properties; the words around and the examples only add', () => {
-    assert.deepEqual(q.props.map(x => x.way), ['alone', 'both', 'alone loose', 'both loose', 'alone tagger', 'both tagger']);
-    assert.deepEqual(q.props.map(x => x.req.fill.model), [undefined, undefined, 'permissive', 'permissive', 'tagging', 'tagging'], 'each setting by the name the helper takes');
-    assert.deepEqual(q.tags.map(x => [x.way, x.req.fill.model]), [['as it comes', undefined], ['loose', 'permissive'], ['tagger', 'tagging']]);
+  test('two ways, each asking the same properties; the words around and the examples only add', () => {
+    assert.deepEqual(q.props.map(x => x.way), ['alone', 'both']);
+    assert.ok(q.props.every(x => x.req.fill.model === undefined), 'Apple\'s model as it comes');
+    assert.deepEqual(q.tags.map(x => x.way), ['as it comes']);
     const keys = q.props.map(x => x.req.fill.properties.map(p => p.key).join());
     assert.ok(keys.every(k => k === keys[0]), 'the same keys in every way');
     assert.ok(!q.props[0].req.fill.context, 'alone is as Predictive asks today');
     assert.match(q.props[1].req.fill.context, /written under: "Saw Dr\. Mei Chen at the clinic"/);
     assert.match(q.props[1].req.fill.instructions, /"she"/);
-    assert.equal(q.props[3].req.fill.context, q.props[1].req.fill.context, 'the same question in every setting');
     assert.ok(keyOf(q.props[0].req, 'Provider') && keyOf(q.props[0].req, 'Dose'));
     assert.ok(!note.b.values.size || q.props.every(x => !JSON.stringify(x.req.fill).includes('77001')), 'what was written is never sent');
   });
@@ -528,10 +527,23 @@ const measureLib = require('../core/measure.js');
     const rec = { tagTitle: 'Consultation', asked: q.asked, tags: [{ way: 'as it comes', result: 'failed', size: 4100, error: said }],
       props: q.props.map(({ way, req }) => ({ way, ms: 300, size: measureLib.size(req.fill), error: way === 'both' ? said : null, results: measureLib.judge(C, note, req, way === 'both' ? null : { values: {} }, way === 'both' ? said : null) })) };
     const text = measureLib.text(measureLib.tally([rec]), {});
-    assert.match(text, /failed \(no answer at all\)\s+0\s+0\s+0\s+2/);
-    assert.match(text, /exceededContextWindowSize\s+0\s+0\s+0\s+1\s+0\s+0\s+1\s+0\s+0\n/);
+    assert.match(text, /failed \(no answer at all\)\s+0\s+2\n/);
+    assert.match(text, /exceededContextWindowSize\s+0\s+1\s+1\n/);
     assert.ok(!text.includes('wants') && !text.includes('Talked'), 'nothing a reason carries after its name reaches the report');
     assert.ok(measureLib.size(req.fill) > 0);
+  });
+  test('a graph made for measuring, and only it, gets the details: the note\'s words, what was written and what was said', () => {
+    assert.equal(measureLib.isTestGraph(C), false);
+    assert.equal(measureLib.isTestGraph({ ...C, pages: [...C.pages, { title: 'Predictive test graph' }] }), true);
+    const props = q.props.map(({ way, req }) => ({ way, error: null, results: measureLib.judge(C, note, req, { values: { [keyOf(req, 'Provider')]: 'Ruth Okoro' } }) }));
+    const d = measureLib.detailOf(C, note, q.asked, props, [{ result: 'silent', said: null }]);
+    assert.equal(d.words, 'Talked it over, she wants 5 mg from 9 Nov');
+    const prov = d.props.find(p => p.title === 'Provider');
+    assert.equal(prov.wrote, 'Dr. Mei Chen');
+    assert.deepEqual(prov.ways.map(w => [w.way, w.said, w.result]), [['alone', 'Ruth Okoro', 'wrong'], ['both', 'Ruth Okoro', 'wrong']]);
+    const t = measureLib.tally([{ tagTitle: 'Consultation', asked: q.asked, props, tags: [] }]);
+    assert.match(measureLib.text(t, {}, [d]), /"Talked it over, she wants 5 mg from 9 Nov" \(Consultation\)\n  Provider: wrote Dr\. Mei Chen · alone said Ruth Okoro \(wrong\)/);
+    assert.ok(!measureLib.text(t, {}).includes('Talked'), 'without details, no words');
   });
   test('the report holds numbers and names, never a note\'s words', () => {
     const rec = { tagTitle: 'Consultation', asked: q.asked, tags: [], props: q.props.map(({ way, req }) => ({ way, ms: 900, results: measureLib.judge(C, note, req, { values: { [keyOf(req, 'Provider')]: 'Dr. Mei Chen' } }) })) };
