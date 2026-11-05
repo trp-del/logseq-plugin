@@ -132,7 +132,9 @@ const TOKENS = `
    lk-accent: the main button, the one thing a screen is for; lk-big: the yes to a change Undo cannot put back whole, the one
    button with a colour and a fill, Logseq's own blue, a shade deeper so its white words read in both themes; lk-hint: words beside them saying what a key does now, never
    pressed; lk-lone: an action with nothing beside it; lk-add: "+ Add property"; lk-fix: what to do about a row, at its
-   right end; lk-x: takes one thing off a row; lk-plus: adds to a row's group; lk-change (with lk-i-chevron): changes a value that holds one thing; lk-more: show all; lk-views with lk-view
+   right end; lk-x: takes one thing off a row; lk-plus: adds to a row's group; lk-change (with lk-i-chevron): changes a value that holds one thing (these three
+   only darken under the pointer, no ground behind them); lk-reveal on any of them, with lk-reveals on what it acts on: shown
+   only while that is pointed at, light grey, darker near it, kept while the hand wavers; lk-more: show all; lk-views with lk-view
    (.on): other contents of one place; lk-trail with lk-step: the places you came through; lk-head (.on): a sort head;
    lk-menu with lk-item (.off, .gap, a faint lk-note): a menu. */
 Door.NAMES = `${TOKENS}
@@ -187,7 +189,16 @@ Door.NAMES = `${TOKENS}
 .lk-x, .lk-plus, .lk-change { color: var(--lk-dim) !important; padding: 0 4px; }
 .lk-x:hover, .lk-plus:hover, .lk-change:hover, .lk-x:focus-visible, .lk-plus:focus-visible, .lk-change:focus-visible { color: var(--lk-text, currentColor) !important; }
 .lk-change::before { margin-right: 0 !important; }   /* the chevron alone, lk-i-chevron, no word after it */
-.lk-btn:hover, .lk-btn:focus-visible, .lk-accent:hover, .lk-accent:focus-visible, .lk-lone:hover, .lk-lone:focus-visible, .lk-fix:hover, .lk-fix:focus-visible, .lk-x:hover, .lk-plus:hover, .lk-change:hover, .lk-view:hover, .lk-view:focus-visible, .lk-item:hover, .lk-item:focus-visible { background: var(--lk-wash); }
+/* A press that shows only while what it acts on is pointed at (the owner, 4 November 2026: "it disappears when I move the cursor over
+   it", "grey, then darker upon closer, more drastic"). It is light grey while its holder is pointed at and the text colour near it; a
+   zone round it (::after) catches the pointer, so moving onto it never loses it; it fades only after a moment. Hidden, it takes no
+   pointer, so it never stands in the way of what is under it. The module says where it stands and how big its zone is. */
+.lk-reveal { position: relative; opacity: 0; pointer-events: none; transition: opacity .12s ease .35s, color .1s ease; color: color-mix(in srgb, var(--lk-text, currentColor) 30%, transparent) !important; background: none !important; }
+.lk-reveal::after { content: ''; position: absolute; inset: -9px -6px; }
+.lk-reveals:hover .lk-reveal, .lk-reveal:focus-visible { opacity: 1; pointer-events: auto; transition-delay: 0s, 0s; }
+.lk-reveal:is(:hover, :focus-visible) { color: var(--lk-text, currentColor) !important; }
+.lk-reveal:focus-visible { outline: none; }
+.lk-btn:hover, .lk-btn:focus-visible, .lk-accent:hover, .lk-accent:focus-visible, .lk-lone:hover, .lk-lone:focus-visible, .lk-fix:hover, .lk-fix:focus-visible, .lk-view:hover, .lk-view:focus-visible, .lk-item:hover, .lk-item:focus-visible { background: var(--lk-wash); }
 .lk-btn:focus-visible, .lk-accent:focus-visible, .lk-lone:focus-visible, .lk-fix:focus-visible, .lk-view:focus-visible, .lk-item:focus-visible { outline: none; }
 /* Three levels, so a button's weight says how much it matters before it is read (the owner, 1 November: "change the hierarchy of buttons").
    1, lk-accent: the one step that decides, filled in the text colour, one on a screen. Above it only lk-big, what Undo cannot put back.
@@ -219,20 +230,20 @@ Door.NAMES = `${TOKENS}
 .lk-item.off { color: var(--lk-off) !important; pointer-events: none; }
 .lk-item.gap { height: 8px; padding: 0; pointer-events: none; background: none; }
 .lk-note { color: var(--lk-dim); font-size: 12.5px; font-variant-numeric: tabular-nums; }
-/* lk-float: what you can do with what you picked, one solid capsule in the text colour, floating at the bottom of the window,
-   the only solid shape on a screen (the owner, 5 November 2026: "i like the bar"). The module says where it stands (left, bottom).
-   lk-float-count holds the number (lk-float-n), lk-float-x clears the picks, lk-float-act is an action, lk-float-sep the line between
-   groups: what is picked, what you do, Delete (lk-del) apart. */
-.lk-float { position: fixed; z-index: 20; transform: translateX(-50%); display: flex; flex-wrap: nowrap; align-items: center; gap: 2px; background: var(--lk-text, #111) !important; color: var(--lk-paper, #fff); border-radius: 999px; padding: 5px 8px 5px 18px; font-size: 14.5px; line-height: 1.35; white-space: nowrap; }
-.lk-float-count { display: inline-flex; align-items: baseline; gap: 6px; color: color-mix(in srgb, var(--lk-paper, #fff) 72%, transparent); margin-right: 2px; }
-.lk-float-n { font-size: 18px; font-weight: 600; color: var(--lk-paper, #fff); font-variant-numeric: tabular-nums; }
-.lk-float-x, .lk-float-act { appearance: none; background: none; border: 0; font: inherit; cursor: pointer; border-radius: 999px; }
-.lk-float-x { font-size: 17px; line-height: 1; color: color-mix(in srgb, var(--lk-paper, #fff) 70%, transparent); padding: 4px 10px 4px 6px; }
-.lk-float-act { font-weight: 500; color: var(--lk-paper, #fff); display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; }
-.lk-float-act::before { margin-right: 0 !important; }
-.lk-float :is(.lk-float-act, .lk-float-x):is(:hover, :focus-visible) { background: color-mix(in srgb, var(--lk-paper, #fff) 16%, transparent); color: var(--lk-paper, #fff); outline: none; }
-.lk-float .lk-float-act.lk-del { color: color-mix(in srgb, var(--rx-red-10, #dc3e42) 65%, var(--lk-paper, #fff)) !important; }
-.lk-float-sep { width: 1px; height: 18px; background: color-mix(in srgb, var(--lk-paper, #fff) 28%, transparent); margin: 0 6px; }
+/* lk-picked: what you can do with what you picked, right above the picked rows on the same grey as them, so the picks and what
+   acts on them read as one block, the only filled area in a list (the owner, 5 November 2026, the grey block of picking-redesign.html:
+   "build 2"). lk-picked-count holds the number (lk-picked-n), lk-picked-x clears the picks, lk-picked-act is an action, a plain word
+   with its icon, lk-picked-gap sends Delete (lk-del) to the right end. The module says where it stands. */
+.lk-picked { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; background: var(--lk-wash); border-bottom: 1px solid var(--lk-hair); padding: 6px 10px 7px; line-height: 1.35; }
+.lk-picked-count { display: inline-flex; align-items: baseline; gap: 6px; color: var(--lk-quiet); font-size: 14px; margin-right: 2px; }
+.lk-picked-n { font-size: 20px; font-weight: 600; color: var(--lk-text, currentColor); font-variant-numeric: tabular-nums; line-height: 1; }
+.lk-picked-x, .lk-picked-act { appearance: none; background: none; border: 0; font: inherit; cursor: pointer; border-radius: 999px; }
+.lk-picked-x { font-size: 16px; line-height: 1; color: var(--lk-dim); padding: 4px 8px 4px 4px; }
+.lk-picked-act { font-weight: 500; color: var(--lk-text, currentColor); display: inline-flex; align-items: center; gap: 7px; padding: 5px 10px; }
+.lk-picked-act::before { margin-right: 0 !important; }
+.lk-picked :is(.lk-picked-act, .lk-picked-x):is(:hover, :focus-visible) { background: color-mix(in srgb, currentColor 9%, transparent); color: var(--lk-text, currentColor); outline: none; }
+.lk-picked .lk-picked-act.lk-del { color: var(--rx-red-10, #dc3e42) !important; }
+.lk-picked-gap { flex: 1; }
 @media (prefers-reduced-motion: reduce) { .lk-fold, .lk-tick, .lk-undo { transition: none; } }
 .lk-icon.lk-web { display: inline-flex; align-items: center; line-height: 1; }
 .lk-icon.lk-web svg { display: block; width: 12px; height: 12px; }

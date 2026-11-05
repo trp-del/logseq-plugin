@@ -11,7 +11,7 @@ global.window = {};
 require(path.join(ROOT, 'plugin.js'));
 const NAMES = global.window.PluginDoor.NAMES;
 const KINDS = ['lk-strip', 'lk-bar', 'lk-btn', 'lk-low', 'lk-del', 'lk-answers', 'lk-accent', 'lk-big', 'lk-hint', 'lk-lone', 'lk-add', 'lk-fix', 'lk-x', 'lk-plus', 'lk-change', 'lk-more', 'lk-undo', 'lk-close',
-  'lk-views', 'lk-view', 'lk-trail', 'lk-step', 'lk-head', 'lk-menu', 'lk-item', 'lk-value', 'lk-pick', 'lk-alts', 'lk-name', 'lk-float'];
+  'lk-views', 'lk-view', 'lk-trail', 'lk-step', 'lk-head', 'lk-menu', 'lk-item', 'lk-value', 'lk-pick', 'lk-alts', 'lk-name', 'lk-reveal', 'lk-reveals', 'lk-picked'];
 for (const kind of KINDS) assert.ok(NAMES.includes('.' + kind), `the library draws ${kind}`);
 assert.ok(NAMES.includes('.lk-enter'), 'the library draws the return sign');
 

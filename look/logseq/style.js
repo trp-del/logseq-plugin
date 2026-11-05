@@ -57,16 +57,22 @@ const capsules = `
 ${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill { background: transparent !important; padding-left: 4px !important; padding-right: 4px !important; margin-inline: -4px; overflow: visible !important; }
 ${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill:not(:focus-within)::after { box-shadow: none !important; border: 0 !important; }
 ${AREA} .ls-block .positioned-properties.block-below,
-${AREA} .ls-block .positioned-properties.block-below .bottom-properties-row,
-${AREA} .ls-block .positioned-properties.block-below .bottom-properties-pills-strip { margin-inline: -4px !important; padding-inline: 4px !important; width: calc(100% + 8px) !important; max-width: none !important; }
-${AREA} .ls-block .positioned-properties.block-below .bottom-properties-pills-strip { margin-block: -2px !important; padding-block: 2px !important; width: 0 !important; flex-wrap: wrap !important; }
+${AREA} .ls-block .positioned-properties.block-below .bottom-properties-row { margin-inline: -8px !important; padding-inline: 8px !important; width: calc(100% + 16px) !important; max-width: none !important; }
+${AREA} .ls-block .positioned-properties.block-below .bottom-properties-pills-strip { margin-inline: -8px !important; padding-inline: 8px !important; width: calc(100% + 16px) !important; max-width: none !important; }
+/* A value being written under a bullet (a number, words) takes the width of what is in it, not Logseq's long box. */
+${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill input.ui__input { field-sizing: content; width: auto !important; min-width: 3ch; max-width: 40ch; height: 24px !important; line-height: 24px; padding: 0 2px !important; border: 0 !important; box-shadow: none !important; outline: none !important; background: transparent !important; }
+/* Room above and below inside the strip, given back outside, so the press after a value catches a pointer a little off the line. */
+${AREA} .ls-block .positioned-properties.block-below .bottom-properties-pills-strip { margin-block: -8px !important; padding-block: 8px !important; width: 0 !important; flex-wrap: wrap !important; }
 ${AREA} .ls-block .positioned-properties.block-below .bottom-properties-row { height: auto !important; max-height: none !important; overflow: visible !important; }
-/* The first property on a wrapped line: its dot stands at nothing, so it goes, and the name lines up with the line above. The dot keeps its room, so the wrap does not change. */
-${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill[data-lk-line] { transform: translateX(-16px); }
+/* The first property on a wrapped line: the space before it stands at nothing, so the name lines up with the line above. The space keeps its room, so the wrap does not change. */
+${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill[data-lk-line] { transform: translateX(-28px); }
 ${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill[data-lk-line]::before { visibility: hidden; }
-${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill:focus-within::after { inset: -2px 0 !important; border-radius: 6px !important; box-shadow: inset 0 0 0 1px var(--lk-line) !important; }
-${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill${FILLED} ~ .bottom-property-pill::before { content: '·'; display: inline-block; width: 12px; color: var(--lk-faint); }
-${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill${FILLED} ~ .bottom-property-pill:focus-within::after { left: 16px !important; }`;
+/* The property with the keyboard: a capsule round it, close top and bottom, a little room at each end (the owner: "make it a capsule"). */
+${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill:focus-within::after { inset: 1px -4px !important; border-radius: 999px !important; box-shadow: inset 0 0 0 1px var(--lk-line) !important; }
+/* Between one property and the next, space alone (the owner, 4 November 2026: the dot was not needed), one width after every
+   property, the width of the press Look puts after a value (values.js), which stands in it under the pointer. */
+${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill${FILLED} ~ .bottom-property-pill::before { content: ''; display: inline-block; width: 24px; }
+${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill${FILLED} ~ .bottom-property-pill:focus-within::after { left: 24px !important; }`;
 const titleWords = `
 ${AREA} .ls-page-title-actions { visibility: hidden !important; pointer-events: none !important; }`;
 const emptyProps = `

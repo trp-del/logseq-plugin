@@ -1439,7 +1439,7 @@ function draw(doc) {
   // A page with an alias has more than one block in its title area; the page is the one the rows were read for.
   const page = shown.includes(state.pageUuid) ? state.pageUuid : shown.length === 1 ? shown[0] : '';
   const mode = anchor ? settling(page) : '';
-  if (!anchor || (!rows && !mode)) { state.box?.remove(); dropBar(doc); highlightFind(state.box); steadyWidth(doc, false); return; }
+  if (!anchor || (!rows && !mode)) { state.box?.remove(); highlightFind(state.box); steadyWidth(doc, false); return; }
   let box = state.box;
   if (!box || box.ownerDocument !== doc) {
     box = state.box = doc.createElement('div');
@@ -2015,34 +2015,28 @@ async function addRecord({ group, page, name, kind, open, asPage, where = 'journ
    the picks; going to another page does too. */
 /* The bar's room is always kept above the rows, the bar shown in it only while something is picked (0.4.325, the owner:
    "the toolbar jumps in and causes the link table to jump down … that space is fine. allows breathing room"). */
-/* The floating bar (lk-float) is drawn with the section but lives at the top of Logseq's page: Logseq moves its blocks with a
-   transform, and a fixed bar inside one floats over the block, not the window. Its own home takes the section's clicks, and
-   stands centred under the section, whatever the sidebars do. */
-const floatHome = doc => {
-  let home = doc.getElementById('rf-tw-floathome');
-  if (!home) { home = doc.createElement('div'); home.id = 'rf-tw-floathome'; home.addEventListener('mousedown', event => event.stopPropagation()); home.addEventListener('click', onClick); doc.body.append(home); }
-  return home;
-};
+/* The bar moves to just above the first picked node, where the picks are. The node just ticked keeps its place on the screen:
+   the page scrolls by what the bar added or took above it, so the next tick box is where the hand left it. */
 const placeBar = box => {
-  const doc = box.ownerDocument, bar = box.querySelector('.rf-tw-bar');
-  if (bar) floatHome(doc).replaceChildren(bar);
-  const home = doc.getElementById('rf-tw-floathome');
-  if (!home) return;
-  home.hidden = !state.picked.size || !box.isConnected;
-  if (!home.hidden) { const r = box.getBoundingClientRect(); home.style.setProperty('--rf-tw-cx', `${Math.round(r.left + r.width / 2)}px`); }
+  const bar = box.querySelector('.rf-tw-bar');
+  const first = state.picked.size ? [...box.querySelectorAll('input.rf-tw-pick')].find(input => input.checked)?.closest('.rf-tw-line') : null;
+  if (bar && first && bar.nextElementSibling !== first) first.before(bar);
+  const keep = state.keepStill; state.keepStill = null;
+  if (!keep) return;
+  const pick = [...box.querySelectorAll('input.rf-tw-pick')].find(input => input.dataset.pick === keep.key);
+  const scroller = box.closest('#main-content-container'), moved = pick ? pick.getBoundingClientRect().top - keep.top : 0;
+  if (scroller && Math.abs(moved) >= 1) scroller.scrollTop += moved;
 };
-const dropBar = doc => doc?.getElementById('rf-tw-floathome')?.remove();
 function barHtml() {
   const idle = !state.picked.size;
   const n = state.picked.size;
-  /* One solid bar floating at the bottom of the window while something is picked (5 November 2026, the owner, of picking-redesign.html:
-     "i like the bar"; before it: "there is nothing that allows the eyes to grab onto"). The only solid shape on the screen, always in the
-     same place, and nothing moves when it comes. Grouped by what each part is about: the count and its ×; then the actions, Open in
-     sidebar, what is done most with picked nodes, and More, which holds the rest; then Delete, apart. */
-  // The library's selection bar (lk-float); here only where it stands.
-  const b = (act, text, title, name, cls = '') => `<button type="button" class="lk-float-act lk-i-${name}${cls ? ' ' + cls : ''}" data-act="${act}" title="${esc(title)}">${text}</button>`;
-  return `<div class="lk-float rf-tw-bar"${idle ? ' data-idle="" aria-hidden="true"' : ''} role="toolbar" aria-label="What to do with the picked nodes"><span class="lk-float-count rf-count"><b class="lk-float-n">${n}</b> picked</span><button type="button" class="lk-float-x" data-act="clear" title="Clear the picks (Escape)" aria-label="Clear the picks">×</button><span class="lk-float-sep" aria-hidden="true"></span>${
-    b('sidebar', 'Open in sidebar', 'Open them in the right sidebar', 'side')}<button type="button" class="lk-float-act rf-tw-menu" data-act="more" title="Everything else you can do with them" aria-haspopup="menu">More<span class="lk-i-chevron rf-tw-chev" aria-hidden="true"></span></button><span class="lk-float-sep" aria-hidden="true"></span>${
+  /* The bar stands right above the first picked node, on the same grey as the picked nodes, so the picks and what acts on them
+     read as one block (5 November 2026, the owner, of the grey block in picking-redesign.html: "build 2"; before it: "there is
+     nothing that allows the eyes to grab onto"). The count, large, and its ×; Open in sidebar, what is done most with picked
+     nodes; More, which holds the rest; Delete at the right end, apart. Drawn here at the top, moved into place by placeBar. */
+  const b = (act, text, title, name, cls = '') => `<button type="button" class="lk-picked-act lk-i-${name}${cls ? ' ' + cls : ''}" data-act="${act}" title="${esc(title)}">${text}</button>`;
+  return `<div class="lk-picked rf-tw-bar"${idle ? ' data-idle="" aria-hidden="true"' : ''} role="toolbar" aria-label="What to do with the picked nodes"><span class="lk-picked-count rf-count"><b class="lk-picked-n">${n}</b> picked</span><button type="button" class="lk-picked-x" data-act="clear" title="Clear the picks (Escape)" aria-label="Clear the picks">×</button>${
+    b('sidebar', 'Open in sidebar', 'Open them in the right sidebar', 'side')}<button type="button" class="lk-picked-act rf-tw-menu" data-act="more" title="Everything else you can do with them" aria-haspopup="menu">More<span class="lk-i-chevron rf-tw-chev" aria-hidden="true"></span></button><span class="lk-picked-gap"></span>${
     b('delete', 'Delete', 'Delete them', 'bin', 'lk-del')}</div>`;
 }
 // The page's own name, for More's "Change “Dr. Mei Chen” to…" (0.4.233, the owner: "make it clear"), read once per page.
@@ -2062,6 +2056,7 @@ function togglePick(el, range) {
   if (range && from >= 0 && to >= 0) { const on = !state.picked.has(key); for (const k of all.slice(Math.min(from, to), Math.max(from, to) + 1)) on ? state.picked.add(k) : state.picked.delete(k); }
   else if (state.picked.has(key)) state.picked.delete(key); else state.picked.add(key);
   state.lastPick = key;
+  state.keepStill = { key, top: el.getBoundingClientRect().top };
   state.html = null;
   draw(host());
   readTitle().catch(() => {});
@@ -2207,9 +2202,9 @@ async function pageNamed(name, prop) {
   return pages.find(await takerOf(prop)) || pages[0] || null;
 }
 async function act(what, at = null) {
-  // A press on the floating bar: its menus and questions open from where it stands on the screen (the bar's home is moved
-  // with a transform, which an anchor does not follow).
-  if (at?.closest?.('#rf-tw-floathome')) { const r = at.getBoundingClientRect(); at = { left: r.left, top: r.top, right: r.right, bottom: r.bottom }; }
+  // A press on the bar: its menus and questions open from where it stands on the screen (an anchor inside the rows' list is not
+  // followed by a menu shown over the page).
+  if (at?.closest?.('.rf-tw-bar')) { const r = at.getBoundingClientRect(); at = { left: r.left, top: r.top, right: r.right, bottom: r.bottom }; }
   const chosen = picks(), nodes = nodesPicked();
   if (what === 'clear') { state.picked.clear(); return draw(host()); }
   if (what === 'all') { for (const key of state.listed) state.picked.add(key); readTitle().catch(() => {}); return draw(host()); }
@@ -2468,11 +2463,12 @@ const twoWayCss = `
 .refinement-two-way, .refinement-two-way * { overflow-anchor: none; }
 /* While finding, a list heading's + and Group are away: they rode on the end of its words, which change with each letter. */
 .refinement-two-way[data-finding] :is(.rf-tw-add, .rf-tw-groupby) { display: none; }
-/* The bar is the library's lk-float: here it stands at the bottom of the window, centred under the section; no room is kept for it. */
-#rf-tw-floathome { position: fixed; left: var(--rf-tw-cx, 50%); bottom: 22px; transform: translateX(-50%); z-index: 20; }
-#rf-tw-floathome[hidden], #rf-tw-floathome .rf-tw-bar[data-idle] { display: none; }
-#rf-tw-floathome .lk-float { position: static; transform: none; }
-#rf-tw-floathome .rf-tw-chev::before { margin: 0 0 0 .1em !important; opacity: .75; }
+/* The bar is the library's lk-picked. Above the first picked node it reaches as far left as the tick boxes and as far right as the
+   picked nodes' grey, its top corners round, so the bar and the nodes under it are one block. No room is kept for it at rest. */
+.refinement-two-way .rf-tw-bar[data-idle] { display: none; }
+.refinement-two-way .rf-ol .rf-tw-bar { margin: 4px -12px 0 calc(-56px - var(--rf-ol-day, 48px) - var(--rf-tw-back, 0px)); padding-left: 18px; border-radius: 8px 8px 0 0; }
+.refinement-two-way > .rf-tw-bar { margin: 0 0 6px; border-radius: 8px; }
+.refinement-two-way .rf-tw-chev::before { margin: 0 0 0 .1em !important; opacity: .75; }
 /* The picked nodes on one grey ground, so the eye sees which they are. */
 .refinement-two-way .rf-tw-line:has(> input.rf-tw-pick:checked) { background: var(--lk-wash); box-shadow: -40px 0 0 var(--lk-wash), 12px 0 0 var(--lk-wash); border-radius: 0; }
 .refinement-two-way :is(.rf-tw-add, .rf-tw-gadd):focus-visible { outline: none; background: var(--lk-wash); }
@@ -2493,9 +2489,10 @@ const twoWayCss = `
 .refinement-two-way { --rf-tw-in: 22px; } /* the chevron and its gap (16px + 6px, --rf-ol-gap is set further in) */
 .refinement-two-way .rf-tw-head .rf-tw-toggle, .refinement-two-way .rf-tw-head .rf-tw-chips { font-weight: 500; }
 .refinement-two-way .rf-tw-head .rf-tw-chips { gap: .3rem 1.05rem; align-items: baseline; min-width: 0; overflow: hidden; }
-.refinement-two-way .rf-tw-head .rf-chip.rf-tw-lead, .refinement-two-way .rf-tw-head .rf-tw-toggle.rf-tw-lead { color: inherit; font-weight: 500; font-size: inherit; }
+.refinement-two-way .rf-tw-head .rf-tw-toggle.rf-tw-lead, .refinement-two-way .rf-tw-head .rf-chip.rf-tw-lead[aria-pressed="true"] { color: inherit; font-weight: 500; font-size: inherit; }
 .refinement-two-way .rf-tw-head :is(.rf-tw-chip:not(.rf-tw-lead), .rf-tw-when) { font-weight: 400; color: var(--rf-quiet); font-size: inherit; }
-.refinement-two-way .rf-tw-head .rf-tw-chip:not(.rf-tw-lead)[aria-pressed="true"] { color: inherit; }
+.refinement-two-way .rf-tw-head .rf-tw-chip[aria-pressed="true"] { color: inherit; font-weight: 600; }
+.refinement-two-way .rf-tw-head .rf-chip.rf-tw-lead[aria-pressed="false"] { color: var(--rf-quiet); font-weight: 400; font-size: inherit; }
 .refinement-two-way .rf-tw-head .rf-tw-sep { position: absolute; right: 100%; margin-right: .42rem; color: var(--rf-faint); font-weight: 400; }
 .refinement-two-way .rf-tw-head .lk-more { padding: 0; font-weight: 400; }
 .refinement-two-way .rf-tw-head .rf-tw-piece { position: relative; display: inline-flex; align-items: baseline; white-space: nowrap; }
@@ -2677,7 +2674,7 @@ function start() {
   host().addEventListener('scroll', onScroll, { capture: true, passive: true });
   onUnload(() => host().removeEventListener('scroll', onScroll, { capture: true }));
   onUnload(() => host().removeEventListener('keydown', escape));
-  onUnload(() => { steadyWidth(state.box?.ownerDocument, false); stopped = true; clearTimeout(timer); clearTimeout(indexTimer); clearTimeout(settle.timer); clearTimeout(settle.ease); clearTimeout(settle.wait); if (settle.frame) cancelAnimationFrame(settle.frame); hidePeek(); closeAdd(); dropBar(state.box?.ownerDocument); state.box?.remove(); state.box = null; });
+  onUnload(() => { steadyWidth(state.box?.ownerDocument, false); stopped = true; clearTimeout(timer); clearTimeout(indexTimer); clearTimeout(settle.timer); clearTimeout(settle.ease); clearTimeout(settle.wait); if (settle.frame) cancelAnimationFrame(settle.frame); hidePeek(); closeAdd(); state.box?.remove(); state.box = null; });
   later(0);
   indexLater(1500);
 }

@@ -186,4 +186,29 @@ console.log('  ok  a tray read again, a failed Apply tried again, the arrow kept
   const of = id => S.model.roadsOf(M, id);
   assert.deepEqual(plain(of(1).in.map(r => [r.from, r.to, r.n])), [[3, 2, 9]], 'a tag answers with the tags beneath it, and a range already used beneath stands no second time');
   assert.deepEqual(plain(of(4).in.map(r => [r.from, r.to, r.n])), [[3, 4, 0]], 'set up and not used yet stands with 0'); }
+// Properties merged: each value as the kept property takes it, what stays behind, what would clash; the tray's line, the model, the steps.
+{ const V = S.values, text = { type: 'default' }, node = { type: 'node' }, num = { type: 'number' }, date = { type: 'date' }, yes = { type: 'checkbox' };
+  deq(V.convert(text, text, { id: 5, title: 'tired' }), { text: 'tired' });
+  deq(V.convert(node, node, { id: 7, title: 'Dr. Mei Chen' }), { id: 7 }, 'a node stays the node it is');
+  deq(V.convert(text, node, { id: 5, title: 'Dr. Liu' }), { page: 'Dr. Liu' }, 'words become the node of that name');
+  deq(V.convert(text, num, { id: 5, title: '1,200' }), { num: 1200 }); assert.equal(V.convert(text, num, { id: 5, title: 'high' }), null, 'words that are no number stay');
+  deq(V.convert(text, date, { id: 5, title: 'Nov 4th, 2026' }), { day: 20261104 }); deq(V.convert(date, date, { id: 9, title: 'Nov 4th, 2026', day: 20261104 }), { id: 9 });
+  deq(V.convert(yes, text, { raw: true }), { text: 'true' }); deq(V.convert(text, yes, { id: 5, title: 'Yes' }), { raw: true });
+  deq(V.convert(text, { type: 'default', choice: true, choices: new Map([['mild', 40]]) }, { id: 5, title: 'Mild' }), { id: 40 }, 'words that name a choice become it');
+  const values = new Map([['p/doc', new Map([[1, [{ id: 7, title: 'Dr. Mei Chen' }]]])], ['p/phys', new Map([[1, [{ id: 8, title: 'Dr. Liu' }]], [2, [{ id: 9, title: 'Dr. Ng' }]]])], ['p/n', new Map([[3, [{ id: 4, title: 'high' }]], [2, [{ id: 6, title: '3' }]]])]]);
+  const doc = { id: 1, ident: 'p/doc', type: 'node', many: false }, phys = { id: 2, ident: 'p/phys', type: 'node' }, n = { id: 3, ident: 'p/n', type: 'number' };
+  deq(V.preview([phys], doc, values)[0].clash, [1], 'a node holding both, where the kept property takes one value');
+  deq(V.preview([phys], { ...doc, many: true }, values)[0].clash, [], 'none where it takes several');
+  const x = V.preview([n], { ...n, id: 4, ident: 'p/m' }, values)[0]; assert.equal(x.moved, 1); assert.equal(x.kept, 1); deq(x.left, [3]); deq(x.gave, [2]);
+  const tr = S.changes.makeTray();
+  tr.setBase({ tags: [{ id: 10, uuid: 'c', title: 'Consultation', props: [1] }, { id: 11, uuid: 'v', title: 'Visit', props: [2] }], props: [{ ...doc, uuid: 'pd', title: 'Doctor', range: [] }, { ...phys, uuid: 'pp', title: 'Physician', range: [] }], nodes: { 10: [{ id: 1, uuid: 'n1' }], 11: [{ id: 2, uuid: 'n2' }] }, holders: { 'p/doc': [1], 'p/phys': [2] } });
+  tr.stage({ kind: 'mergeProp', prop: 2, intoProp: 1, kept: 0, left: [], gave: [2] });
+  deq(tr.lines(), [{ text: 'Merge Physician into Doctor, Physician emptied', nodes: 1 }]);
+  deq(tr.model.tags.get(11).props, [1], 'the tag it was on has the kept property'); deq([...tr.model.holders.get('p/doc')], [1, 2]); assert.equal(tr.model.holders.get('p/phys').size, 0);
+  assert.ok(tr.model.props.has(2), 'the property merged away stays, empty');
+  deq(tr.plan().map(s => s.op), ['addClassProp', 'removeClassProp', 'moveValues']);
+  tr.discard(); tr.stage({ kind: 'mergeProp', prop: 2, intoProp: 1, kept: 2, left: [2], gave: [] });
+  assert.equal(tr.lines()[0].text, 'Merge Physician into Doctor, Physician emptied · 2 values stay on Physician');
+  tr.setBase({ tags: [], props: [{ ...doc, uuid: 'pd', title: 'Doctor', range: [] }] }); assert.equal(tr.changes.length, 0, 'no merge of a property that is not there'); }
+console.log('  ok  properties merged: values converted, what stays, what clashes, the line, the model, the steps');
 console.log('core: every check passed');

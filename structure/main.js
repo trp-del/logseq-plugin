@@ -10,7 +10,7 @@ const host = () => { try { return window.parent.document; } catch (error) { retu
 
 const tray = S.changes.makeTray();
 tray.setBase({ tags: [], props: [] });
-const startState = () => ({ cur: null, open: new Set(), seen: new Set(), whole: new Set(), ticks: new Set(), find: '', view: 'tree', sort: 'filled', propCur: null, menu: null, prompt: null, edit: null, nodes: null, busy: '', trail: [], ask: null, places: new Map(), at: null, walking: false, side: { cur: null, find: '' }, split: false, pane2: { find: '', open: new Set(), seen: new Set() } });
+const startState = () => ({ cur: null, open: new Set(), seen: new Set(), whole: new Set(), ticks: new Set(), pticks: new Set(), paim: false, find: '', view: 'tree', sort: 'filled', propCur: null, menu: null, prompt: null, edit: null, nodes: null, busy: '', trail: [], ask: null, places: new Map(), at: null, walking: false, side: { cur: null, find: '' }, split: false, pane2: { find: '', open: new Set(), seen: new Set() } });
 const changesWord = n => n === 1 ? '1 change' : `${n} changes`;
 const stepsWord = n => n === 1 ? '1 step' : `${n} steps`;
 // The Undo of another graph, kept for when that graph is open again: it is the only record of what was written there.
@@ -28,7 +28,7 @@ const app = {
   touched() {
     if (app.touchedCache && app.touchedCache.at === tray.version && app.touchedCache.model === tray.model) return app.touchedCache.set;
     const tags = new Set(), props = new Set();
-    for (const c of tray.changes) { for (const k of ['tag', 'from', 'into', 'to', 'made', 'under', 'parent']) { const v = c[k]; if (Array.isArray(v)) v.forEach(x => tags.add(x)); else if (typeof v === 'number' && !(k === 'to' && c.kind === 'setRange')) tags.add(v); } if (c.tags) c.tags.forEach(x => tags.add(x)); if (c.prop != null) props.add(c.prop); }
+    for (const c of tray.changes) { for (const k of ['tag', 'from', 'into', 'to', 'made', 'under', 'parent']) { const v = c[k]; if (Array.isArray(v)) v.forEach(x => tags.add(x)); else if (typeof v === 'number' && !(k === 'to' && c.kind === 'setRange')) tags.add(v); } if (c.tags) c.tags.forEach(x => tags.add(x)); if (c.prop != null) props.add(c.prop); if (c.intoProp != null) props.add(c.intoProp); }
     app.touchedCache = { at: tray.version, model: tray.model, set: { tags, props } };
     return app.touchedCache.set;
   },
@@ -124,6 +124,14 @@ const app = {
     app.openMain(t.id);
     app.st.ask = { change: { kind: 'takeOut', tag: t.id, from: p.id }, owner: 'page' };
     app.draw();
+  },
+  /* What merging properties into one would do, read from the values as they are: for each property merged away, the values that
+     move, those that stay and the nodes that would hold two values where the kept property takes one (core/values.js). */
+  async mergePreview(fromIds, intoId) {
+    const m = tray.model, P = id => m.props.get(id), all = [...fromIds, intoId].map(P);
+    const values = new Map(await Promise.all(all.map(async p => [p.ident, await S.db.propValues(p.ident, p.type)])));
+    const into = { ...P(intoId), choices: P(intoId).choice ? await S.db.choicesOf(intoId) : null };
+    return S.values.preview(fromIds.map(P), into, values);
   },
   valuesOf: (id, ident) => S.db.valuesOf(id, ident), nodesWhere: (id, ident, v) => S.db.nodesWhere(id, ident, v),
   notify,

@@ -21,9 +21,11 @@ const css = `
 .lk-path .lk-sep { margin: 0 .35em; color: var(--lk-faint); }
 .lk-path .lk-own { position: relative; }
 .lk-path .lk-sep:has(+ .lk-held) { display: inline-block; min-width: 22px; margin: 0; text-align: center; }
-.lk-path .lk-x { position: absolute; right: calc(100% + 3px); top: 0; bottom: 0; width: 14px; padding: 0; display: none; align-items: center; justify-content: center; }
-.lk-path .lk-held:hover > .lk-x, .lk-path .lk-x:focus-visible { display: inline-flex; }
-.lk-path .lk-sep:has(+ .lk-held:hover) { visibility: hidden; }
+/* The × is the library's lk-reveal: shown while its tag is pointed at, kept while the hand moves onto it, darker near it. It stands
+   where the separator before the tag is, and the separator gives way to it for as long as it shows. */
+.lk-path .lk-x { position: absolute; right: calc(100% + 3px); top: 0; bottom: 0; width: 14px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+.lk-path .lk-sep:has(+ .lk-held) { transition: visibility 0s linear .47s; }
+.lk-path .lk-sep:has(+ .lk-held:is(:hover, :focus-within)) { visibility: hidden; transition-delay: 0s; }
 .lk-path a.lk-tag { cursor: pointer; }
 /* Logseq's own faded tags there give way to the line. */
 .ls-block-right:has(> .lk-path) > .block-tags { display: none; }
@@ -53,7 +55,7 @@ const asks = () => window.PluginDoor.runs('structure') && !!window.Structure?.ap
 function held(doc, t, tagPage) {
   if (tagPage && !asks()) return link(doc, t);
   const words = tagPage ? `Take this tag out from under ${t.title}` : `Remove ${t.title} from this page`;
-  return el(doc, 'span', { class: 'lk-held lk-own' }, link(doc, t), el(doc, 'span', { class: 'lk-x', role: 'button', tabindex: '0', title: words, 'aria-label': words, 'data-take': t.uuid }, '×'));
+  return el(doc, 'span', { class: 'lk-held lk-own lk-reveals' }, link(doc, t), el(doc, 'span', { class: 'lk-x lk-reveal', role: 'button', tabindex: '0', title: words, 'aria-label': words, 'data-take': t.uuid }, '×'));
 }
 function build(doc, groups) {
   const parts = [];

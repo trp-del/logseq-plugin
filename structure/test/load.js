@@ -125,6 +125,11 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
 
   // Every property and a tag's nodes open in the place of the areas.
   click(R.querySelector('[data-show="table"]')); assert.ok(R.querySelector('.st-tbl')); assert.ok(!R.querySelector('.st-regions'));
+  // New property asks which tag, then opens that tag's page, where Logseq's own Add tag property makes it; Structure writes nothing.
+  click(R.querySelector('[data-pnew]')); assert.match(R.querySelector('.st-prompt .ask').textContent, /New property on/);
+  const pins = calls.length; key(R.querySelector('[data-pin]'), 'Enter'); await sleep(10);
+  assert.ok(!R.querySelector('.st-prompt'), 'the prompt closes'); assert.ok(calls.slice(pins).some(c => c[0] === 'pushState' && c[1] === 'page'), 'the tag\'s page opens');
+  assert.equal(app.tray.changes.length, 0, 'nothing waits in the tray');
   click(R.querySelector('[data-show="tree"]')); assert.ok(R.querySelector('.st-regions'));
 
   // A letter typed finds; Escape puts the areas back.

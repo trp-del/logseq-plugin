@@ -4,8 +4,11 @@
    (lk-change) where it holds one, to set another in its place; for a date, the date picker. Under a bullet and in a page's
    list alike. An empty property, words, a number or a choice keep Logseq's own click, since there is nothing to open.
 
-   The press takes no room (the stylesheet), so nothing moves when the pointer comes; it opens the list by passing a click to
-   Logseq's own value box, the way a click there does today. */
+   Under a bullet the press takes no room: it shows in the space before the next property, which is one width after every
+   property, a press or none, so the gaps are even and nothing moves (style.js). It catches the pointer over the whole of that
+   space and a little above and below, and fades only after a moment, so a hand that wavers does not lose it. In a page's
+   list, where each property has a row of its own, it keeps its room. It opens the list by passing a click to Logseq's own value box, the way
+   a click there does today. */
 (function () {
 const Look = window.Look;
 const { host, style, watchScreen, openPage } = Look.kit, { setting } = Look.settings;
@@ -16,19 +19,29 @@ const holderOf = inner => inner.closest('.bottom-property-pill, .property-pair')
 const titleOf = holder => holder.getAttribute('data-property-title') || holder.querySelector('.property-k')?.textContent.trim() || '';
 const nameIn = target => target?.closest?.(`${AREA} .property-value-inner:not(.empty-value) a.page-ref`);
 const css = `
-/* The press after a value: no room, so nothing moves, and above the next property, which its circle reaches into; shown while its property is pointed at or the press has the keyboard. */
-.lk-valpress { position: relative; z-index: 2; display: inline-block; width: 0 !important; padding: 0 !important; margin: 0 !important; overflow: visible; white-space: nowrap; vertical-align: baseline; opacity: 0; transition: opacity .12s ease; }
-.lk-valpress > span { display: inline-flex; align-items: center; justify-content: center; margin-left: 4px; min-width: 18px; height: 18px; border-radius: 9px; line-height: 1; background: var(--lk-paper, var(--ls-primary-background-color)); }
-.lk-valpress:hover > span, .lk-valpress:focus-visible > span { background: color-mix(in srgb, currentColor 9%, var(--lk-paper, transparent)); }
+/* The press after a value: centred on the text's line, since the chevron has no letter to sit on the baseline by; shown while its
+   property is pointed at or the press has the keyboard. */
+.lk-valpress { display: inline-flex; align-items: center; align-self: center; padding: 0 !important; margin: 0 !important; white-space: nowrap; vertical-align: middle; }
+.lk-valpress > span { display: inline-flex; align-items: center; justify-content: center; margin-left: 4px; min-width: 18px; height: 18px; border-radius: 9px; line-height: 1; }
+.lk-valpress:focus-visible { outline: none !important; box-shadow: none !important; }
+/* With the keyboard on the press, the property's capsule takes the press in. */
+${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill:has(.lk-valpress:focus-visible)::after { right: -26px !important; }
+/* How it shows, grey then darker near it, is the library's lk-reveal; the + a size up. */
+.lk-valpress > span { color: inherit; background: none !important; }
+.lk-valpress.lk-plus > span::before { width: 1.3em; height: 1.3em; }
 .lk-valpress > span::before { margin-right: 0 !important; }
-:is(.bottom-property-pill, .property-pair):hover .lk-valpress, .lk-valpress:focus-visible { opacity: 1; }
 /* Logseq greys the whole value box under the pointer, a sign the box opens its list; the name opens its page now, so only the
    name's own wash shows (style.js), as on any link. */
 ${VALUES}:hover { background-color: transparent !important; }
 /* Logseq clips a pill's value at its end; with a press after it, the press shows past it. */
 .bottom-property-content:has(.lk-valpress) { overflow: visible !important; }
-/* Logseq lays a value's parts out with a gap: the press gives it back, so it takes no room at all. */
+/* Logseq lays a value's parts out with a gap: the press gives it back, so it stands tight against its value. */
 .bottom-property-content > .lk-valpress { margin-left: calc(-1 * var(--spacing, .25rem)) !important; }
+/* Under a bullet: no room, the press over the next dot's place, which is one width (the press's) after every property. */
+${AREA} .positioned-properties.block-below .bottom-property-pill .lk-valpress { width: 0 !important; overflow: visible; position: relative; z-index: 2; }
+${AREA} .positioned-properties.block-below .bottom-property-pill .lk-valpress > span { margin-left: 7px; }
+/* What catches the pointer: from the value's end over the whole space after it, and a few pixels above and below. */
+${AREA} .positioned-properties.block-below .bottom-property-pill .lk-valpress::after { content: ''; position: absolute; left: -2px; top: -9px; width: 36px; height: calc(100% + 18px); }
 `;
 // The press after each value Look takes over: + or the chevron, by what the property holds; gone where it no longer fits.
 // Under a bullet it follows the value's box; in a page's list, where that box is the row's whole width, the last name in it.
@@ -53,17 +66,19 @@ function draw(doc) {
     if (press && press.classList.contains(want)) continue;
     press?.remove();
     press = doc.createElement('button');   // the library's lk-plus or lk-change
-    press.type = 'button'; press.className = many ? 'lk-valpress lk-own lk-plus' : 'lk-valpress lk-own lk-change';
+    press.type = 'button'; press.className = many ? 'lk-valpress lk-own lk-reveal lk-plus' : 'lk-valpress lk-own lk-reveal lk-change';
+    holder.classList.add('lk-reveals');
     press.setAttribute('contenteditable', 'false');
     press.title = many ? `Add to ${titleOf(holder)}` : `Change ${titleOf(holder)}`;
     press.setAttribute('aria-label', press.title);
-    press.innerHTML = many ? '<span>+</span>' : '<span class="lk-i-chevron"></span>';   // the chevron: the library's icon
+    press.innerHTML = many ? '<span class="lk-i-plus"></span>' : '<span class="lk-i-chevron"></span>';   // the library's icons
     spot.after(press);
   }
   for (const press of doc.querySelectorAll('.lk-valpress')) if (!innerOf(press)?.matches(':not(.empty-value)')) press.remove();
 }
 // The press, and a click on a name: Logseq's own handling of the value is kept from them (it opens its list on the press
-// itself as well as on the click). The name opens its page; the press passes a click to the value box, which opens the list.
+// itself as well as on the click). The name opens its page on the click; the press passes a click to the value box, which opens
+// the list, as soon as the button goes down, as Logseq's own box does, and not after the click (the owner: "laggy").
 const KEYS = ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'];
 function onPress(event) {
   if (!setting('valuesOpen')) return;
@@ -72,9 +87,10 @@ function onPress(event) {
   if (!press && !name) return;
   if (name && !holderOf(name)) return;
   event.stopPropagation(); event.preventDefault();
+  // Passed on once this event is over, so Logseq takes it as a click of its own and not one it is still handling; the rest of the
+  // press (up, click) is kept from Logseq, so its list stays open.
+  if (press) { if (event.type === 'pointerdown' && event.button === 0) { const box = innerOf(press)?.querySelector('.jtrigger'); host().defaultView.setTimeout(() => box?.click(), 0); } return; }
   if (event.type !== 'click') return;
-  // Passed on once this click is over, so Logseq takes it as a click of its own and not one it is still handling.
-  if (press) { const box = innerOf(press)?.querySelector('.jtrigger'); host().defaultView.setTimeout(() => box?.click(), 0); return; }
   const uuid = name.getAttribute('data-uuid');
   if (uuid) openPage(uuid, event.shiftKey);
 }

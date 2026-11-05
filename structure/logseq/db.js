@@ -80,6 +80,49 @@ async function nodesWhere(tagId, ident, valueId) {
   const rows = await query(`[:find ?b ?u :where [?b :block/tags ${tagId}] [?b :${ident} ${valueId}] [?b :block/uuid ?u] ${LIVE}]`).catch(() => []);
   return rows.map(([id, u]) => ({ id, uuid: String(u) }));
 }
+/* A property's values, node by node, for a merge: Map of node id to [{ id, title, raw, day }]. A yes or no is held raw; anything
+   else points at an entity: a node, a day, a choice, or the words of a text or number value. */
+async function propValues(ident, type) {
+  const at = `[?b :${ident} ?v] ${LIVE}`;
+  const [rows, titles, nums, days] = await Promise.all([
+    query(`[:find ?b ?v :where ${at}]`),
+    type === 'checkbox' ? [] : query(`[:find ?v ?t :where ${at} [?v :block/title ?t]]`).catch(() => []),
+    type === 'checkbox' ? [] : query(`[:find ?v ?n :where ${at} [?v :logseq.property/value ?n]]`).catch(() => []),
+    type === 'checkbox' ? [] : query(`[:find ?v ?d :where ${at} [?v :block/journal-day ?d]]`).catch(() => []),
+  ]);
+  const title = new Map(titles), num = new Map(nums), day = new Map(days), out = new Map();
+  for (const [b, v] of rows) {
+    const id = typeof v === 'object' && v ? idOf(v) : v, entity = typeof id === 'number' && (title.has(id) || num.has(id) || day.has(id));
+    const value = entity ? { id, title: String(title.get(id) ?? num.get(id) ?? ''), day: Number(day.get(id)) || 0 } : { raw: v };
+    (out.get(b) || out.set(b, []).get(b)).push(value);
+  }
+  return out;
+}
+// A choice property's choices, by their words in lower case, for a merge into it.
+const choicesOf = async propId => new Map((await query(`[:find ?t ?v :where [?v :block/closed-value-property ${propId}] [?v :block/title ?t]]`).catch(() => [])).map(([t, v]) => [String(t).toLowerCase(), v]));
+const uuidOfNode = async id => (await query(`[:find ?u :where [${id} :block/uuid ?u]]`))[0]?.[0];
+// The page of a name, for words that become a node: the id, and whether it was made here (so Undo takes it away again).
+async function pageNamed(name) {
+  const found = (await query(`[:find ?p :where [?p :block/name ${JSON.stringify(String(name).trim().toLowerCase())}] (not [?p :logseq.property/deleted-at _])]`))[0]?.[0];
+  if (found != null) return { id: found };
+  const page = await logseq.Editor.createPage(name, {}, { redirect: false, createFirstBlock: false });
+  return { id: page.id ?? (await query(`[:find ?p :where [?p :block/uuid #uuid "${page.uuid}"]]`))[0]?.[0], made: String(page.uuid) };
+}
+async function dayPage(day) {
+  const found = (await query(`[:find ?p :where [?p :block/journal-day ${day}]]`))[0]?.[0];
+  if (found != null) return { id: found };
+  const page = await logseq.Editor.createJournalPage(new Date(Math.floor(day / 10000), Math.floor(day / 100) % 100 - 1, day % 100));
+  return { id: page.id ?? (await query(`[:find ?p :where [?p :block/journal-day ${day}]]`))[0]?.[0], made: String(page.uuid) };
+}
+/* A node's values of a property become exactly these. Ids point at entities; words and numbers are written as words, each its
+   own value; a yes or no raw. None: the property comes off the node. */
+async function putValues(node, ident, list) {
+  if (!list.length) return logseq.Editor.removeBlockProperty(node, ident);
+  if (list.every(v => v.id != null)) return setValues(node, ident, [...new Set(list.map(v => v.id))]);
+  if (list.length === 1 || list.every(v => v.raw != null)) return logseq.Editor.upsertBlockProperty(node, ident, list[0].raw ?? list[0].num ?? list[0].text ?? list[0].title, { reset: true });
+  await logseq.Editor.removeBlockProperty(node, ident);
+  for (const v of list) await logseq.Editor.upsertBlockProperty(node, ident, v.id != null ? v.id : v.num ?? v.text ?? v.title, v.id != null ? { entityId: true } : {});
+}
 // The tag a page holds, for the sidebar opening on the page's tag: the page on screen, by its uuid or name.
 async function tagOfPage(page) {
   if (!page) return null;
@@ -143,5 +186,5 @@ const editing = () => Promise.resolve(logseq.Editor.checkEditing?.()).then(v => 
 
 // A journal day, or a page that shares a day's name (a tag made with a day's name): Structure sets nothing above it.
 const isDay = async uuid => /^[0-9a-f-]{36}$/i.test(uuid) && (await query(`[:find ?d :where [?p :block/uuid #uuid "${uuid}"] [?p :block/name ?n] [?j :block/name ?n] [?j :block/journal-day ?d]]`)).length > 0;
-S.db = { query, read, isDay, nodesOf, valuesOf, nodesWhere, tagOfPage, tagIdByUuid, titleOf, nodeUuids, graph, valueRefs, valueIds, rangeIds, classPropIds, putClassProps, setValues, addExtends, removeExtends, rename, addTag, removeTag, addClassProp, removeClassProp, setRange, nameTaken, makeTag, remakeTag, deleteTag, editing, bare, pick, idOf };
+S.db = { propValues, choicesOf, uuidOfNode, pageNamed, dayPage, putValues, query, read, isDay, nodesOf, valuesOf, nodesWhere, tagOfPage, tagIdByUuid, titleOf, nodeUuids, graph, valueRefs, valueIds, rangeIds, classPropIds, putClassProps, setValues, addExtends, removeExtends, rename, addTag, removeTag, addClassProp, removeClassProp, setRange, nameTaken, makeTag, remakeTag, deleteTag, editing, bare, pick, idOf };
 })();

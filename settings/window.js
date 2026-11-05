@@ -67,7 +67,7 @@ const CSS = `.sw-dialog { --sw-quiet: var(--lk-quiet); --sw-faint: var(--lk-fain
 .sw-spec .sw-line { display: flex; align-items: baseline; gap: 10px; }
 .sw-spec .sw-faintw { color: var(--sw-faint); }
 .sw-spec .sw-grey { opacity: .45; }
-.sw-spec .sw-sep { color: var(--sw-faint); margin: 0 6px; }
+.sw-spec .sw-sep { color: var(--sw-faint); margin: 0 6px; } .sw-spec .sw-gap { display: inline-block; width: 18px; }
 .sw-tick { appearance: none !important; -webkit-appearance: none !important; width: 13px !important; height: 13px !important; margin: 0 !important; align-self: center; border: 1px solid var(--sw-line) !important; border-radius: 3px !important; background: none !important; box-shadow: none !important; color: inherit !important; cursor: pointer; position: relative; }
 .sw-tick:checked { background: none !important; border-color: var(--sw-line) !important; }
 .sw-tick:checked::after { content: ''; position: absolute; left: 3.5px; top: 0.5px; width: 4px; height: 7px; border-right: 1.5px solid var(--lk-text, #222); border-bottom: 1.5px solid var(--lk-text, #222); transform: rotate(45deg); }

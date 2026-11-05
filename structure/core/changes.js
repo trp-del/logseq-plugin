@@ -38,6 +38,8 @@ function sentence(M, c) {
     case 'keepUnder': return { text: `Keep ${name(M, c.tag)} only under ${name(M, c.parent)}`, nodes: count(M, c.tag) };
     case 'setRange': { const to = c.to.filter(id => tag(M, id)); return { text: `Set ${prop(M, c.prop).title} to point at ${to.length ? list(to.map(id => name(M, id))) : 'any node'}`, nodes: prop(M, c.prop).on.reduce((s, t) => s + filled(M, t, c.prop), 0) }; }
     case 'split': return { text: `Make ${c.name} under ${name(M, c.tag)} with ${plural(c.nodes.length, 'node')}${c.where ? ` where ${c.where}` : ''}`, nodes: c.nodes.length };
+    case 'mergeProp': { const from = prop(M, c.prop).title, into = prop(M, c.intoProp).title, left = c.kept ? `${plural(c.kept, 'value')} ${c.kept === 1 ? 'stays' : 'stay'} on ${from}` : '';
+      return { text: [`Merge ${from} into ${into}, ${from} emptied`, left].filter(Boolean).join(' · '), nodes: M.holders.get(prop(M, c.prop).ident)?.size || 0, ask: `Merge ${from} into ${into}`, lost: left ? [left] : [] }; }
     default: return { text: c.kind, nodes: 0 };
   }
 }
@@ -66,6 +68,16 @@ function applyToModel(M, c) {
     case 'make': c.made = Mo.addTag(M, c.name, c.under, c.made); break;
     case 'keepUnder': if (t) { t.parents = [c.parent]; Mo.link(M); } break;
     case 'setRange': { const p = prop(M, c.prop); if (p) p.range = c.to.filter(id => tag(M, id)); break; }
+    case 'mergeProp': { const from = prop(M, c.prop), into = prop(M, c.intoProp); if (!from || !into) break;
+      // The kept property takes the tags, the nodes and the relationships; the one merged away keeps only the values it cannot give.
+      for (const t of M.tags.values()) if (t.props.includes(c.prop)) { t.props = t.props.filter(p => p !== c.prop); if (!t.props.includes(c.intoProp)) t.props.push(c.intoProp); }
+      const had = M.holders.get(from.ident) || new Set(), keep = new Set(c.left || []);
+      M.holders.set(into.ident, new Set([...(M.holders.get(into.ident) || []), ...(c.gave || [...had].filter(n => !keep.has(n)))]));
+      M.holders.set(from.ident, new Set([...had].filter(n => keep.has(n))));
+      for (const r of M.roads) if (r.ident === from.ident) r.ident = into.ident;
+      const pointed = M.pointed.get(from.ident); if (pointed) { const to = M.pointed.get(into.ident) || new Map(); for (const [t, n] of pointed) to.set(t, (to.get(t) || 0) + n); M.pointed.set(into.ident, to); M.pointed.delete(from.ident); }
+      if (into.type === 'node' && from.type === 'node' && into.range.length) into.range = [...new Set([...into.range, ...from.range])];
+      Mo.link(M); break; }
     case 'split': { c.made = Mo.addTag(M, c.name, c.tag, c.made); const nt = tag(M, c.made); for (const n of c.nodes) { t.nodes.delete(n.id); nt.nodes.add(n.id); } nt.nodeUuids = c.nodes.map(n => n.uuid); t.nodeUuids = t.nodeUuids.filter(u => !c.nodes.some(n => n.uuid === u)); if (c.prop != null) nt.props.push(c.prop); M.memo.clear(); break; }
     default: break;
   }
@@ -76,7 +88,8 @@ const everyUnder = (M, id) => { const out = []; const walk = x => { for (const k
 /* The steps the writer runs, in order, against the model as it stands when the change's turn comes (earlier changes of the
    tray already applied to it). A step: { op, ...handles }. Ops and their inverses (logseq/apply.js):
    makeTag(tag, parent) ⇄ deleteTag; addExtends(tag, parent) ⇄ removeExtends; rename(tag|prop, name, was); addTag(node, tag)
-   ⇄ removeTag; addClassProp(tag, prop) ⇄ removeClassProp; setRange(prop, to, was); deleteTag(tag, restore) ⇄ put back. A node
+   ⇄ removeTag; addClassProp(tag, prop) ⇄ removeClassProp; setRange(prop, to, was); deleteTag(tag, restore) ⇄ put back;
+   moveValues(from, into): every node's values of one property into another, each node's own put back by its inverse. A node
    that already holds a tag gets no addTag, so Undo does not take from it what it held before. */
 function steps(M, c) {
   const H = id => handleOf(M, id), out = [];
@@ -104,6 +117,12 @@ function steps(M, c) {
     case 'make': { const h = { id: c.made ?? M.nextId--, uuid: '', title: c.name }; M.handles.set(h.id, h); out.push({ op: 'makeTag', tag: h, parent: c.under == null ? null : H(c.under) }); break; }
     case 'keepUnder': if (t) for (const p of t.parents) if (p !== c.parent) out.push({ op: 'removeExtends', tag: H(c.tag), parent: H(p) }); break;
     case 'setRange': { const p = prop(M, c.prop); const to = c.to.filter(id => tag(M, id)); if (to.length === p.range.length && to.every(id => p.range.includes(id))) break; out.push({ op: 'setRange', prop: propHandle(M, c.prop), to: to.map(H), was: p.range.map(H) }); break; }
+    case 'mergeProp': { const from = prop(M, c.prop), into = prop(M, c.intoProp); if (!from || !into) break;
+      const F = propHandle(M, c.prop), I = propHandle(M, c.intoProp);
+      // Declared where the other was first, so no tag is left without either; the values then, read afresh at Apply.
+      for (const t of M.tags.values()) if (t.props.includes(c.prop)) { if (!t.props.includes(c.intoProp)) out.push({ op: 'addClassProp', tag: H(t.id), prop: I }); out.push({ op: 'removeClassProp', tag: H(t.id), prop: F }); }
+      if (into.type === 'node' && from.type === 'node' && into.range.length && from.range.some(id => !into.range.includes(id))) out.push({ op: 'setRange', prop: I, to: [...new Set([...into.range, ...from.range])].map(H), was: into.range.map(H) });
+      out.push({ op: 'moveValues', from: { ...F, type: from.type, choice: from.choice, many: from.many }, into: { ...I, type: into.type, choice: into.choice, many: into.many } }); break; }
     case 'split': { const h = { id: c.made ?? M.nextId--, uuid: '', title: c.name }; M.handles.set(h.id, h); out.push({ op: 'makeTag', tag: h, parent: H(c.tag) }); if (c.prop != null) out.push({ op: 'addClassProp', tag: h, prop: propHandle(M, c.prop) }); for (const n of stillOn(M, c.tag, c.nodes)) { out.push({ op: 'addTag', node: n.uuid, tag: h }); out.push({ op: 'removeTag', node: n.uuid, tag: H(c.tag) }); } break; }
     default: break;
   }
@@ -117,6 +136,7 @@ const NAMES = ['tag', 'from', 'into', 'to', 'under', 'parent', 'tags'];
 function alive(M, c) {
   const has = id => id === Mo.LOOSE || !!tag(M, id);
   if (c.prop != null && !prop(M, c.prop)) return false;
+  if (c.intoProp != null && !prop(M, c.intoProp)) return false;
   for (const k of NAMES) { const v = c[k]; if (Array.isArray(v) ? v.length && !v.some(has) : v != null && !has(v)) return false; }
   return !c.nodes || stillOn(M, c.from ?? c.tag, c.nodes).length > 0;
 }

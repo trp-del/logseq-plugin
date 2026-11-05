@@ -55,6 +55,30 @@ async function runStep(s, undo) {
       h.gone = true;
       await db.deleteTag(h.uuid);
       break; }
+    case 'moveValues': {
+      // Read now: the values as they are at Apply. What the kept property cannot take stays where it was; each node is put back on its own.
+      const { from, into } = s, V = S.values;
+      const [fromVals, intoVals, choices] = await Promise.all([db.propValues(from.ident, from.type), db.propValues(into.ident, into.type), into.choice ? db.choicesOf(into.id) : null]);
+      const kept = v => from.choice || V.family(from.type) === 'ref' ? { id: v.id } : v.raw != null ? { raw: v.raw } : from.type === 'number' ? { num: Number(v.title) } : { text: v.title };
+      const keptInto = v => into.choice || V.family(into.type) === 'ref' ? { id: v.id } : v.raw != null ? { raw: v.raw } : into.type === 'number' ? { num: Number(v.title) } : { text: v.title };
+      for (const [nodeId, list] of fromVals) {
+        const node = String(await db.uuidOfNode(nodeId)), was = (intoVals.get(nodeId) || []).map(keptInto), before = list.map(kept);
+        const go = [], stay = [];
+        for (const v of list) { const w = V.convert(from, { ...into, choices }, v); if (w) go.push(w); else stay.push(kept(v)); }
+        if (!go.length) continue;
+        if (!into.many && was.length + go.length > 1) throw new Error(`${into.title} takes one value, and a node holds more`);
+        const add = [];
+        for (const w of go) {
+          if (w.page != null) { const p = await db.pageNamed(w.page); if (p.made) undo.push(() => db.deleteTag(p.made)); add.push({ id: p.id }); }
+          else if (w.day != null) { const p = await db.dayPage(w.day); if (p.made) undo.push(() => db.deleteTag(p.made)); add.push({ id: p.id }); }
+          else add.push(w);
+        }
+        undo.push(() => db.putValues(node, from.ident, before));
+        undo.push(() => db.putValues(node, into.ident, was));
+        await db.putValues(node, into.ident, [...was, ...add]);
+        await db.putValues(node, from.ident, stay);
+      }
+      break; }
     default: throw new Error('unknown step ' + s.op);
   }
 }
