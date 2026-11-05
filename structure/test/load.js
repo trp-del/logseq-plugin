@@ -46,6 +46,21 @@ const html = `<html><head></head><body><div id="main-content-container"><div id=
 const dom = new JSDOM(html, { pretendToBeVisual: true, url: 'http://logseq.test/index.html' });
 const win = dom.window, doc = win.document;
 win.Element.prototype.scrollIntoView = () => {};
+/* Every piece of HTML the plugin puts on the page, read for a box left open or closed twice. The browser mends a missing
+   close without a word, so the page reads well and the rows after it fall inside: on 5 Nov the merge's ask left its column
+   open and drew the next property, End, inside the ask. */
+const unclosed = [], VOID = new Set(['input', 'br', 'img', 'hr', 'wbr', 'col', 'source', 'meta', 'link']);
+function closes(h) {
+  const open = [];
+  for (const [, end, tag, self] of String(h).matchAll(/<(\/?)([a-zA-Z][\w-]*)\b[^>]*?(\/?)>/g)) {
+    const t = tag.toLowerCase(); if (VOID.has(t) || self) continue;
+    if (!end) { open.push(t); continue; }
+    if (open.pop() !== t) return `</${t}> closes nothing open`;
+  }
+  return open.length ? `<${open.join('> <')}> never closed` : '';
+}
+const setInner = Object.getOwnPropertyDescriptor(win.Element.prototype, 'innerHTML');
+Object.defineProperty(win.Element.prototype, 'innerHTML', { ...setInner, set(h) { const why = closes(h); if (why) unclosed.push(why + ' in ' + String(h).slice(0, 120)); setInner.set.call(this, h); } });
 const styles = {}; let unload = null;
 const logseq = {
   ready: fn => Promise.resolve().then(fn), settings: {}, provideStyle: ({ key, style }) => { styles[key] = style; }, provideModel() {}, beforeunload(fn) { unload = fn; },
@@ -130,6 +145,14 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   const pins = calls.length; key(R.querySelector('[data-pin]'), 'Enter'); await sleep(10);
   assert.ok(!R.querySelector('.st-prompt'), 'the prompt closes'); assert.ok(calls.slice(pins).some(c => c[0] === 'pushState' && c[1] === 'page'), 'the tag\'s page opens');
   assert.equal(app.tray.changes.length, 0, 'nothing waits in the tray');
+  // Merge into…: tick a property, press the one it goes into, and the ask opens under that row and holds no other row.
+  click(R.querySelector(`[data-ptick="${pid('Surgeon')}"]`)); click(R.querySelector('[data-paim]'));
+  click(R.querySelector(`.tr[data-prop$="·${pid('With')}"]`));
+  for (let i = 0; i < 40 && !R.querySelector('.st-q'); i++) await sleep(25);
+  assert.match(text(R.querySelector('.st-q')), /Merge Surgeon into With/);
+  assert.ok(!R.querySelector('.st-q .tr'), 'the ask holds no other property\'s row');
+  click(R.querySelector('.st-q [data-leave]')); assert.ok(!R.querySelector('.st-q'));
+  if (st.pticks.size) click(R.querySelector(`[data-ptick="${pid('Surgeon')}"]`));
   click(R.querySelector('[data-show="tree"]')); assert.ok(R.querySelector('.st-regions'));
 
   // A letter typed finds; Escape puts the areas back.
@@ -177,6 +200,7 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
     assert.ok(!(await show(false)), 'a tag that shares a journal day\'s name gets none');
     dayNamed = '-'; main.querySelectorAll('.page').forEach(p => p.remove()); logseq.routeChanged(); await sleep(50);
   }
+  deq(unclosed, [], 'every box the plugin drew is closed');
   console.log('load: every check passed (the areas, a move, tray, apply, undo, Every property, finding, a new top-level tag, a tag\'s lines, the sidebar)');
 })().catch(error => { console.error(error); process.exit(1); });
 function Mo() { return win.Structure.model; }
