@@ -109,6 +109,9 @@ function world(grouping) {
   return { window, doc, calls, part, bullets, saved, reads, changed, provided, graphHooks, madeNow, recycled, notices };
 }
 const click = (window, el) => el.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
+// The bar's More (5 November 2026): every action but Open in sidebar sits in it. Opens it and gives its items.
+const moreItems = async (window, doc) => { doc.querySelectorAll('.rf-pop').forEach(p => p.remove()); click(window, doc.querySelector('.rf-tw-bar [data-act="more"]')); await new Promise(r => setTimeout(r, 40)); return [...doc.querySelectorAll('.rf-pop .rf-item')]; };
+const moreItem = async (window, doc, re) => (await moreItems(window, doc)).find(el => re.test(el.textContent.trim()));
 const type = (window, input, text) => { input.value = text; input.dispatchEvent(new window.Event('input', { bubbles: true })); };
 const enter = (window, input) => input.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
 // The outline (0.4.442): a node's chevron by its uuid (inside: under the node of that uuid), what an open node holds.
@@ -628,9 +631,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     window.refinementCore.provided.valuesOf = async () => [5];
     const pick = uuid => click(window, doc.querySelector(`.rf-tw-pick[data-pick="${uuid}|about"]`));
     pick(U(101)); await wait(20); pick(U(102)); await wait(20);
-    click(window, doc.querySelector('.rf-tw-bar [data-act="page-menu"]'));
-    await wait(40);
-    click(window, [...doc.querySelectorAll('.rf-pop .rf-item')].find(el => /^Change/.test(el.textContent.trim())));
+    click(window, await moreItem(window, doc, /^Change/));
     await wait(120);
     const listed = [...doc.querySelectorAll('.rf-lsq-pop .menu-link')].map(el => el.textContent.trim());
     const hint = doc.querySelector('.rf-lsq-pop input')?.placeholder || '';
@@ -675,10 +676,11 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
       check(heads.includes('No tag') && !heads.includes('note'), 'mentions of several kinds should read "No tag", never "note": ' + heads); }
     const pick = uuid => click(window, doc.querySelector(`.rf-tw-pick[data-pick="${uuid}| mentioned in"]`));
     pick(U(202)); await wait(80);
-    check(!doc.querySelector('.rf-tw-bar [data-act="raise"]') && !doc.querySelector('.rf-tw-bar [data-act="page-menu"]'), 'a mention with a tag should be offered nothing, and the page’s own actions should not show for a mention');
+    { const offered = (await moreItems(window, doc)).map(el => el.textContent.trim()); doc.querySelectorAll('.rf-pop').forEach(p => p.remove());
+      check(!offered.some(t => /^(Make it|Change|Take out)/.test(t)), 'a mention with a tag should be offered nothing, and the page’s own actions should not show for a mention: ' + offered); }
     pick(U(202)); pick(U(201)); await wait(120);
-    const raiseBtn = () => doc.querySelector('.rf-tw-bar [data-act="raise"]');
-    check(/Make it a Conversation/.test(raiseBtn()?.textContent || ''), 'a mention with no tag should be offered the tag its words look like: ' + raiseBtn()?.textContent);
+    { const raise = await moreItem(window, doc, /^Make it/); doc.querySelectorAll('.rf-pop').forEach(p => p.remove());
+      check(/Make it a Conversation/.test(raise?.textContent || ''), 'a mention with no tag should be offered the tag its words look like: ' + raise?.textContent); }
     // On its line too (0.4.438): "could be a Conversation · …" in italic, a click opening Make it… for that mention alone.
     const could = doc.querySelector(`.rf-pencil[data-could="${U(201)}"]`);
     check(/could be a Conversation/.test(could?.textContent || ''), 'the untagged mention should say what it could be on its line: ' + could?.textContent);
@@ -687,7 +689,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     check(doc.querySelectorAll('.rf-tw-raise .rf-pencil.lk-pencil').length === 2, 'what a mention would get should carry the shared pencil');
     check(preview.join('|') === 'TagsConversation|Spoke withSpaced repetition', 'what it would get should show under it in grey: ' + preview);
     check(calls.length === 0, 'picking should write nothing');
-    click(window, raiseBtn()); await wait(80);
+    click(window, await moreItem(window, doc, /^Make it/)); await wait(80);
     const items = [...doc.querySelectorAll('.rf-pop .rf-item')];
     check(/Conversation · Spoke with/.test(items[0]?.textContent || '') && /look like/.test(items[0]?.textContent || ''), 'the menu should offer the guessed tag first: ' + items.map(i => i.textContent));
     click(window, items[0]); await wait(200);
@@ -911,9 +913,9 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     provided.deletePage = async name => { calls.push(['deletePage', name]); };
     click(window, doc.querySelector('.rf-tw-pick'));
     await wait(20);
-    click(window, doc.querySelector('.rf-tw-bar [data-act="all"]'));
+    click(window, await moreItem(window, doc, /^Select all/));
     await wait(20);
-    check(/5 picked/.test(doc.querySelector('.rf-tw-bar .rf-count').textContent) && !doc.querySelector('.rf-tw-bar [data-act="all"]'), 'Select all should pick the five shown, not the one behind "show all": ' + doc.querySelector('.rf-tw-bar .rf-count').textContent);
+    check(/5 picked/.test(doc.querySelector('.rf-tw-bar .rf-count').textContent) && !(await moreItems(window, doc)).some(el => /^Select all/.test(el.textContent.trim())), 'Select all should pick the five shown, not the one behind "show all": ' + doc.querySelector('.rf-tw-bar .rf-count').textContent);
     click(window, doc.querySelector('.rf-tw-bar [data-act="delete"]'));
     await wait(60);
     check(doc.querySelector('.rf-ask-words')?.textContent === 'Delete 1 page with all its bullets and 4 bullets? This cannot be undone from here.', 'the question should name the page apart from the bullets: ' + doc.querySelector('.rf-ask-words')?.textContent);

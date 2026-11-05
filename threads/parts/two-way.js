@@ -1439,7 +1439,7 @@ function draw(doc) {
   // A page with an alias has more than one block in its title area; the page is the one the rows were read for.
   const page = shown.includes(state.pageUuid) ? state.pageUuid : shown.length === 1 ? shown[0] : '';
   const mode = anchor ? settling(page) : '';
-  if (!anchor || (!rows && !mode)) { state.box?.remove(); highlightFind(state.box); steadyWidth(doc, false); return; }
+  if (!anchor || (!rows && !mode)) { state.box?.remove(); dropBar(doc); highlightFind(state.box); steadyWidth(doc, false); return; }
   let box = state.box;
   if (!box || box.ownerDocument !== doc) {
     box = state.box = doc.createElement('div');
@@ -1494,6 +1494,7 @@ function draw(doc) {
   // nodes keeps its place when the next letter makes them fewer (the reviewer: 214 px).
   if (state.find.trim() && state.findHold) state.findHold = Math.max(state.findHold, box.getBoundingClientRect().height);
   box.toggleAttribute('data-picking', state.picked.size > 0);
+  placeBar(box);
   box.toggleAttribute('data-rf-replaces', rows && !!state.replaces);
   // The section stands for the page, stepped into a node or not (0.4.442): Logseq's lists it repeats stay hidden.
   box.toggleAttribute('data-rf-rows', !!rows);
@@ -2014,28 +2015,37 @@ async function addRecord({ group, page, name, kind, open, asPage, where = 'journ
    the picks; going to another page does too. */
 /* The bar's room is always kept above the rows, the bar shown in it only while something is picked (0.4.325, the owner:
    "the toolbar jumps in and causes the link table to jump down … that space is fine. allows breathing room"). */
+/* The floating bar (lk-float) is drawn with the section but lives at the top of Logseq's page: Logseq moves its blocks with a
+   transform, and a fixed bar inside one floats over the block, not the window. Its own home takes the section's clicks, and
+   stands centred under the section, whatever the sidebars do. */
+const floatHome = doc => {
+  let home = doc.getElementById('rf-tw-floathome');
+  if (!home) { home = doc.createElement('div'); home.id = 'rf-tw-floathome'; home.addEventListener('mousedown', event => event.stopPropagation()); home.addEventListener('click', onClick); doc.body.append(home); }
+  return home;
+};
+const placeBar = box => {
+  const doc = box.ownerDocument, bar = box.querySelector('.rf-tw-bar');
+  if (bar) floatHome(doc).replaceChildren(bar);
+  const home = doc.getElementById('rf-tw-floathome');
+  if (!home) return;
+  home.hidden = !state.picked.size || !box.isConnected;
+  if (!home.hidden) { const r = box.getBoundingClientRect(); home.style.setProperty('--rf-tw-cx', `${Math.round(r.left + r.width / 2)}px`); }
+};
+const dropBar = doc => doc?.getElementById('rf-tw-floathome')?.remove();
 function barHtml() {
   const idle = !state.picked.size;
   const n = state.picked.size;
-  /* One line (0.4.327, the owner: "why are two lines needed? the clear button can be consolidated. some of the menu items
-     like change and remove can go under one menu item and so can property. the sidebar items should be on far right";
-     "have select all button"): the count's tick box clears, Select all picks every node shown (found, of the kind in force, in a list that is open), the page's own two
-     actions and the two property actions each under one word with a menu, Sidebar last at the right. */
-  const b = (act, text, title, name, cls = '') => `<button type="button" class="lk-btn lk-i-${name}${cls ? ' ' + cls : ''}" data-act="${act}" title="${esc(title)}">${text}</button>`;
-  const menu = (act, text, title, name) => `<button type="button" class="lk-btn rf-tw-menu${name ? ' lk-i-' + name : ''}" data-act="${act}" title="${esc(title)}" aria-haspopup="menu"><span class="rf-tw-menu-words">${text}</span>${iconHtml('chevron-down')}</button>`;
-  // Mentions (0.4.423): the page's own two actions act on a property, so they show only with a node from a property's
-  // row picked; a picked mention with no tag is offered to be made a node, the tag its words look like first.
-  const chosen = picks(), fromProps = idle || chosen.some(p => !isMentions(p.group)), raisable = raisablePicked();
-  const best = raisable.length === 1 ? state.raise.get(raisable[0])?.best : null;
-  return `<div class="lk-bar rf-tw-bar"${idle ? ' data-idle="" aria-hidden="true"' : ''}><label class="rf-count lk-said"><input type="checkbox" class="rf-check" checked data-act="clear" title="Clear the picks (Escape)" aria-label="Clear the picks">${n} picked</label>${
-    state.listed.some(key => !state.picked.has(key)) ? b('all', 'Select all', `Pick all ${state.listed.length} shown here`, 'tick') : ''}${
-    fromProps ? menu('page-menu', `“${esc(pageTitle())}”`, `Change “${pageTitle()}” to another page in their property, or take it out`, '') : ''}${
-    raisable.length ? menu('raise', best ? `Make it a${/^[aeiou]/i.test(best.tag.title) ? 'n' : ''} ${esc(best.tag.title)}` : 'Make it…', `Give ${raisable.length === 1 ? 'this mention' : `these ${raisable.length} mentions`} a tag, with the property that points at “${pageTitle()}” set`, 'tag') : ''}${
-    b('tag', 'Tag', 'Add a tag', 'tag')}${b('copy', 'Copy', 'Copy them as references', 'copy')}${
-    menu('prop-menu', 'Property', 'Give them all one value, or clear one', 'eq')}${b('delete', 'Delete', 'Delete them', 'bin')}${
-    b('sidebar', 'Sidebar', 'Open them in the right sidebar', 'side', 'rf-tw-to-side')}</div>`;
+  /* One solid bar floating at the bottom of the window while something is picked (5 November 2026, the owner, of picking-redesign.html:
+     "i like the bar"; before it: "there is nothing that allows the eyes to grab onto"). The only solid shape on the screen, always in the
+     same place, and nothing moves when it comes. Grouped by what each part is about: the count and its ×; then the actions, Open in
+     sidebar, what is done most with picked nodes, and More, which holds the rest; then Delete, apart. */
+  // The library's selection bar (lk-float); here only where it stands.
+  const b = (act, text, title, name, cls = '') => `<button type="button" class="lk-float-act lk-i-${name}${cls ? ' ' + cls : ''}" data-act="${act}" title="${esc(title)}">${text}</button>`;
+  return `<div class="lk-float rf-tw-bar"${idle ? ' data-idle="" aria-hidden="true"' : ''} role="toolbar" aria-label="What to do with the picked nodes"><span class="lk-float-count rf-count"><b class="lk-float-n">${n}</b> picked</span><button type="button" class="lk-float-x" data-act="clear" title="Clear the picks (Escape)" aria-label="Clear the picks">×</button><span class="lk-float-sep" aria-hidden="true"></span>${
+    b('sidebar', 'Open in sidebar', 'Open them in the right sidebar', 'side')}<button type="button" class="lk-float-act rf-tw-menu" data-act="more" title="Everything else you can do with them" aria-haspopup="menu">More<span class="lk-i-chevron rf-tw-chev" aria-hidden="true"></span></button><span class="lk-float-sep" aria-hidden="true"></span>${
+    b('delete', 'Delete', 'Delete them', 'bin', 'lk-del')}</div>`;
 }
-// The page's own name, for the bar's "Change “Dr. Mei Chen” to…" (0.4.233, the owner: "make it clear"), read once per page.
+// The page's own name, for More's "Change “Dr. Mei Chen” to…" (0.4.233, the owner: "make it clear"), read once per page.
 const named = { uuid: '', title: '' };
 const pageTitle = () => named.uuid === state.pageUuid && named.title ? named.title : 'this page';
 async function readTitle() {
@@ -2197,12 +2207,32 @@ async function pageNamed(name, prop) {
   return pages.find(await takerOf(prop)) || pages[0] || null;
 }
 async function act(what, at = null) {
+  // A press on the floating bar: its menus and questions open from where it stands on the screen (the bar's home is moved
+  // with a transform, which an anchor does not follow).
+  if (at?.closest?.('#rf-tw-floathome')) { const r = at.getBoundingClientRect(); at = { left: r.left, top: r.top, right: r.right, bottom: r.bottom }; }
   const chosen = picks(), nodes = nodesPicked();
   if (what === 'clear') { state.picked.clear(); return draw(host()); }
   if (what === 'all') { for (const key of state.listed) state.picked.add(key); readTitle().catch(() => {}); return draw(host()); }
   if (!chosen.length) return;
   // The two words with a menu (0.4.327): the menu opens under the word, and what is picked from it acts as its own word did.
   if (what === 'raise') return raiseMenu(at);
+  // More (5 November 2026): Select all, then every action but Open in sidebar and Delete, which stand on the bar; the page's own
+  // two only with a node from a property's row picked, Make it… only with a mention that has no tag.
+  if (what === 'more') {
+    const fromProps = chosen.some(p => !isMentions(p.group)), raisable = raisablePicked();
+    const best = raisable.length === 1 ? state.raise.get(raisable[0])?.best : null;
+    const items = [
+      ...(state.listed.some(key => !state.picked.has(key)) ? [{ label: `Select all ${state.listed.length} shown`, run: () => { act('all', at); } }, { sep: true }] : []),
+      { label: 'Tag…', run: () => { act('tag', at); } },
+      { label: 'Set a property…', run: () => { act('set', at); } },
+      { label: 'Clear a property…', run: () => { act('unset', at); } },
+      ...(fromProps ? [{ label: `Change “${pageTitle()}” to…`, run: () => { act('point', at); } }, { label: `Take out “${pageTitle()}”`, run: () => { act('unlink', at); } }] : []),
+      ...(raisable.length ? [{ label: best ? `Make it a${/^[aeiou]/i.test(best.tag.title) ? 'n' : ''} ${best.tag.title}…` : 'Make it…', run: () => { raiseMenu(at).catch(error => warnOnce('could not open Make it…', error)); } }] : []),
+      { label: 'Copy as references', run: () => { act('copy', at); } },
+    ];
+    shared.popup({ at, width: 'max-content', items });
+    return;
+  }
   if (what === 'page-menu' || what === 'prop-menu') {
     const items = what === 'page-menu'
       ? [{ icon: 'to', label: `Change “${pageTitle()}” to…`, run: () => { act('point', at); } }, { icon: 'remove', label: `Remove “${pageTitle()}”`, run: () => { act('unlink', at); } }]
@@ -2438,21 +2468,13 @@ const twoWayCss = `
 .refinement-two-way, .refinement-two-way * { overflow-anchor: none; }
 /* While finding, a list heading's + and Group are away: they rode on the end of its words, which change with each letter. */
 .refinement-two-way[data-finding] :is(.rf-tw-add, .rf-tw-groupby) { display: none; }
-/* The bar's look is the library's lk-bar; here where it stands, on one line, and how an icon stands in its button. */
-.refinement-two-way .rf-tw-bar { margin: 0 0 6px 19px; padding-top: 2px; font-size: 14px; }
-.refinement-two-way .rf-tw-bar[data-idle] { visibility: hidden; }
-.refinement-two-way .rf-tw-bar { min-height: 30px; box-sizing: border-box; }
-.refinement-two-way .rf-tw-bar { flex-wrap: nowrap; min-width: 0; }
-.refinement-two-way .rf-tw-bar > * { flex: none; }
-.refinement-two-way .rf-tw-bar .rf-tw-to-side { margin-left: auto; }
-.refinement-two-way .rf-tw-bar > .lk-btn { display: inline-flex; align-items: center; gap: 5px; }
-.refinement-two-way .rf-tw-bar > .lk-btn::before { margin-right: 0; }
-.refinement-two-way .rf-tw-bar > .lk-btn > .ti { font-size: 15px; }
-.refinement-two-way .rf-tw-bar > .lk-btn > .rf-drawn { width: 15px; justify-content: center; }
-.refinement-two-way .rf-tw-bar > .rf-tw-menu { gap: 3px; min-width: 0; }
-.refinement-two-way .rf-tw-menu-words { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 14em; }
-.refinement-two-way .rf-tw-menu > .ti:last-child { font-size: 12px; opacity: .7; }
-.refinement-two-way .rf-tw-bar .rf-count { white-space: nowrap; }
+/* The bar is the library's lk-float: here it stands at the bottom of the window, centred under the section; no room is kept for it. */
+#rf-tw-floathome { position: fixed; left: var(--rf-tw-cx, 50%); bottom: 22px; transform: translateX(-50%); z-index: 20; }
+#rf-tw-floathome[hidden], #rf-tw-floathome .rf-tw-bar[data-idle] { display: none; }
+#rf-tw-floathome .lk-float { position: static; transform: none; }
+#rf-tw-floathome .rf-tw-chev::before { margin: 0 0 0 .1em !important; opacity: .75; }
+/* The picked nodes on one grey ground, so the eye sees which they are. */
+.refinement-two-way .rf-tw-line:has(> input.rf-tw-pick:checked) { background: var(--lk-wash); box-shadow: -40px 0 0 var(--lk-wash), 12px 0 0 var(--lk-wash); border-radius: 0; }
 .refinement-two-way :is(.rf-tw-add, .rf-tw-gadd):focus-visible { outline: none; background: var(--lk-wash); }
 
 /* The rows on the kit's outline (0.4.442): each node a line, the tick box in the margin, the day in its column, the one
@@ -2560,9 +2582,6 @@ const twoWayCss = `
 .refinement-two-way .rf-tw-line > input.rf-check.rf-tw-pick { left: -22px; }
 /* Where you are (0.4.442): the names opened on the way, pinned at the top of the section once they scroll off; no room. */
 .refinement-two-way .rf-tw-pin { grid-column: 1 / -1; position: sticky; top: var(--rf-tw-pin-top, 0px); height: 0; z-index: 3; }
-.refinement-two-way[data-picking] .rf-tw-pin { display: none; }
-/* While something is picked the bar stays in view at the top as the section scrolls (act where you are). */
-.refinement-two-way[data-picking] .rf-tw-bar { position: sticky; top: var(--rf-tw-pin-top, 0px); z-index: 4; background: var(--lk-paper, var(--rf-bg)); }
 .refinement-two-way .rf-tw-pin > .rf-ol-trail { position: absolute; left: -12px; right: -12px; top: 0; padding: 5px 12px; background: var(--lk-paper, var(--rf-bg)); border-bottom: 1px solid var(--rf-hair); }
 `;
 /* Logseq draws the properties under a record as one strip (.bottom-properties-pills-strip, flex-nowrap and
@@ -2658,7 +2677,7 @@ function start() {
   host().addEventListener('scroll', onScroll, { capture: true, passive: true });
   onUnload(() => host().removeEventListener('scroll', onScroll, { capture: true }));
   onUnload(() => host().removeEventListener('keydown', escape));
-  onUnload(() => { steadyWidth(state.box?.ownerDocument, false); stopped = true; clearTimeout(timer); clearTimeout(indexTimer); clearTimeout(settle.timer); clearTimeout(settle.ease); clearTimeout(settle.wait); if (settle.frame) cancelAnimationFrame(settle.frame); hidePeek(); closeAdd(); state.box?.remove(); state.box = null; });
+  onUnload(() => { steadyWidth(state.box?.ownerDocument, false); stopped = true; clearTimeout(timer); clearTimeout(indexTimer); clearTimeout(settle.timer); clearTimeout(settle.ease); clearTimeout(settle.wait); if (settle.frame) cancelAnimationFrame(settle.frame); hidePeek(); closeAdd(); dropBar(state.box?.ownerDocument); state.box?.remove(); state.box = null; });
   later(0);
   indexLater(1500);
 }

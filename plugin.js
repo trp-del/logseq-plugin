@@ -219,6 +219,20 @@ Door.NAMES = `${TOKENS}
 .lk-item.off { color: var(--lk-off) !important; pointer-events: none; }
 .lk-item.gap { height: 8px; padding: 0; pointer-events: none; background: none; }
 .lk-note { color: var(--lk-dim); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+/* lk-float: what you can do with what you picked, one solid capsule in the text colour, floating at the bottom of the window,
+   the only solid shape on a screen (the owner, 5 November 2026: "i like the bar"). The module says where it stands (left, bottom).
+   lk-float-count holds the number (lk-float-n), lk-float-x clears the picks, lk-float-act is an action, lk-float-sep the line between
+   groups: what is picked, what you do, Delete (lk-del) apart. */
+.lk-float { position: fixed; z-index: 20; transform: translateX(-50%); display: flex; flex-wrap: nowrap; align-items: center; gap: 2px; background: var(--lk-text, #111) !important; color: var(--lk-paper, #fff); border-radius: 999px; padding: 5px 8px 5px 18px; font-size: 14.5px; line-height: 1.35; white-space: nowrap; }
+.lk-float-count { display: inline-flex; align-items: baseline; gap: 6px; color: color-mix(in srgb, var(--lk-paper, #fff) 72%, transparent); margin-right: 2px; }
+.lk-float-n { font-size: 18px; font-weight: 600; color: var(--lk-paper, #fff); font-variant-numeric: tabular-nums; }
+.lk-float-x, .lk-float-act { appearance: none; background: none; border: 0; font: inherit; cursor: pointer; border-radius: 999px; }
+.lk-float-x { font-size: 17px; line-height: 1; color: color-mix(in srgb, var(--lk-paper, #fff) 70%, transparent); padding: 4px 10px 4px 6px; }
+.lk-float-act { font-weight: 500; color: var(--lk-paper, #fff); display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; }
+.lk-float-act::before { margin-right: 0 !important; }
+.lk-float :is(.lk-float-act, .lk-float-x):is(:hover, :focus-visible) { background: color-mix(in srgb, var(--lk-paper, #fff) 16%, transparent); color: var(--lk-paper, #fff); outline: none; }
+.lk-float .lk-float-act.lk-del { color: color-mix(in srgb, var(--rx-red-10, #dc3e42) 65%, var(--lk-paper, #fff)) !important; }
+.lk-float-sep { width: 1px; height: 18px; background: color-mix(in srgb, var(--lk-paper, #fff) 28%, transparent); margin: 0 6px; }
 @media (prefers-reduced-motion: reduce) { .lk-fold, .lk-tick, .lk-undo { transition: none; } }
 .lk-icon.lk-web { display: inline-flex; align-items: center; line-height: 1; }
 .lk-icon.lk-web svg { display: block; width: 12px; height: 12px; }
