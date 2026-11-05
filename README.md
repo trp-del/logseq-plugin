@@ -23,7 +23,7 @@ Or download the zip from the latest release, unzip it, and load the folder with 
 
 One window for the whole plugin: **Plugin settings**, from **g** then **,** outside a bullet (as Logseq's own g pairs), the gear on the plugin's card (Open settings), the command palette, or Logseq's three dots under Plugins. Down the left the six parts, each with a tick for whether it runs; on the right each setting drawn as the thing itself. A letter typed anywhere finds a setting through all six. A part switched on or off waits, pencilled, for **Reload to apply**, which brings you back to the window. Changed by you lists what differs from the start, and "default" puts one back. Logseq's plain list is one word away at the foot; it also holds what the export window remembers.
 
-**Update plugins**, from **u** then **p** outside a bullet, or the command palette: every plugin that is switched on loads again, so one loaded from a folder runs what changed there; one switched off stays off. This plugin goes last, and a notice says when it is done. A plugin installed from the Marketplace or a GitHub release is reloaded as it is; its new version comes through Logseq's own Check all updates on the Plugins screen.
+**Update plugins**, from **u** then **p** outside a bullet, or the command palette: every plugin that is switched on comes to its newest; one switched off stays off. One loaded from a folder loads again, so it runs what changed there, and a notice says when it is done. One installed from a GitHub release or the Marketplace is fetched by Logseq's own updater, as Check update on its card does: a newer release is put in and the plugin reloads, and Logseq's notice says it was updated, or that it is up to date. This plugin goes last.
 
 ## How it is built
 

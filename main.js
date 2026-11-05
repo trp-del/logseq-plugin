@@ -92,17 +92,52 @@ async function main() {
   sayUpdated();
 }
 /* Update plugins (u then p outside a bullet, as Logseq's own two-key pairs, or the command palette): every plugin that is
-   switched on loads again, so one loaded from a folder runs what changed there; a plugin switched off stays off. This plugin
-   goes last, since its reload ends this code; its files come under a new address each start (loader.js), so nothing old stays. */
+   switched on comes to its newest; a plugin switched off stays off. One loaded from a folder loads again, so it runs what
+   changed there. One installed from a GitHub release or the Marketplace is handed to Logseq's own updater, the one "Check
+   update" on its card uses: Logseq fetches the newest release and, if it is newer, puts it in, reloads the plugin and says so;
+   if not, it says the plugin is up to date. Reloading such a plugin alone would run the same old copy (the owner, 5 November
+   2026: "Plugins updated at the bottom, but no actual updates occurred"). This plugin goes last, since its reload ends this
+   code; from a folder, its files come under a new address each start (loader.js), so nothing old stays. */
 async function updatePlugins() {
   const core = window.parent.LSPluginCore, me = logseq.baseInfo?.id;
   if (!core?.registeredPlugins) return notify('Logseq would not reload its plugins from here.', 'warning');
   const others = [...core.registeredPlugins.values()].filter(p => p.loaded && p.id !== me);
   let failed = 0;
-  for (const p of others) { try { await core.reload(p.id); } catch (error) { failed++; console.error(`Update plugins: ${p.id} could not reload`, error); } }
+  for (const p of others) {
+    const release = fromRelease(p.id);
+    try { if (release) await fetchNewest(release); else await core.reload(p.id); }
+    catch (error) { failed++; console.error(`Update plugins: ${p.id} could not reload`, error); }
+  }
+  const mine = fromRelease(me);
+  if (mine) {
+    if (failed) notify(`${failed} plugin${failed > 1 ? 's' : ''} could not reload`, 'warning');
+    return fetchNewest(mine);   // Logseq reloads this plugin when a newer release came, and says so either way
+  }
   // A notice goes with the plugin that showed it, so the reloaded plugin says it, from a note left here.
   try { window.parent.sessionStorage.setItem(UPDATED_KEY, String(failed)); } catch (error) { /* it only will not be said */ }
   window.parent.setTimeout(() => core.reload(me), 0);
+}
+// A plugin Logseq installed itself (from a GitHub release or the Marketplace), as its updater takes it, with the repository
+// its releases come from; null for one loaded from a folder, or one with no repository to ask, which is only reloaded.
+function fromRelease(id) {
+  let installed = {};
+  try { installed = window.parent.logseq.api.get_state_from_store('plugin/installed-plugins') || {}; } catch (error) { return null; }
+  const p = Object.values(installed).find(p => p?.id === id);
+  if (!p?.iir) return null;
+  const address = typeof p.repository === 'string' ? p.repository : p.repository?.url;
+  const repo = p.repo || /github\.com[/:]([^/]+\/[^/]+?)(\.git)?\/?$/.exec(address || '')?.[1];
+  return repo ? { id, repo, version: p.version, title: p.title, name: p.name, theme: !!p.theme, effect: !!p.effect } : null;
+}
+// Asks Logseq's updater for a plugin's newest release and waits for its answer (Logseq says the outcome itself), or a minute.
+function fetchNewest(pkg) {
+  const apis = window.parent.apis;
+  return new Promise(resolve => {
+    const heard = (a, b) => { const e = b || a; if (e?.payload?.id === pkg.id && !e['only-check']) done(); };
+    const done = () => { clearTimeout(timer); apis.removeListener('lsp-updates', heard); resolve(); };
+    const timer = setTimeout(done, 60000);
+    apis.addListener('lsp-updates', heard);
+    Promise.resolve(apis.doAction(['updateMarketPlugin', { ...pkg, 'only-check': false }])).catch(error => { console.error(`Update plugins: ${pkg.id} could not be fetched`, error); done(); });
+  });
 }
 const UPDATED_KEY = 'logseq-plugin-updated';
 function sayUpdated() {
