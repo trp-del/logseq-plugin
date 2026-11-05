@@ -1,13 +1,15 @@
 /* Measuring Apple's model on the graph's own notes: the questions, and the judging of the answers. Pure; the asking is
    logseq/measure.js, on the Mac that has the model.
 
-   A note of yours that holds values is asked about as if it held none, in four ways, and each answer is set against
-   what you wrote:
-   - alone:    the note's words, as Predictive asks today;
-   - moment:   and the words around it: the bullet it sits under, the two before it, the page;
-   - examples: and up to three earlier notes of the same tag with their values, nearest by words;
-   - both:     the moment and the examples.
-   A note with a tag is also asked which tag it is, alone and with the moment.
+   A note of yours that holds values is asked about as if it held none, and each answer is set against what you wrote.
+   It is asked two ways, each of Apple's model in three settings:
+   - alone:  the note's words, as Predictive asks today;
+   - both:   and the words around it (the bullet it sits under, the two before it, the page) and up to three earlier notes
+             of the same tag with their values, nearest by words;
+   - as it comes (the column with no word after it), loose (Apple's looser filter, for working on the person's own
+     words), tagger (Apple's model tuned for tags and the values in a text).
+   A note with a tag is also asked which tag it is, alone, in the three settings. (0.3.15 measured the words around a note
+   and the examples apart: neither made the answers righter, and both made Apple's filter refuse more often.)
 
    Each property asked is right (what you wrote), wrong (something else), or silent. A property you left empty that the
    model fills anyway is counted apart (spoke), since a wrong fill taken by habit is the one thing that must not happen.
@@ -23,8 +25,10 @@ const { fieldsOfTags, isChoiceProp, isLinkProp, isNumberProp, isDateProp } = nee
 const engine = need('engine');
 const { shownWords } = need('context');
 
-const WAYS = ['alone', 'moment', 'examples', 'both'];
-const TAG_WAYS = ['alone', 'moment'];
+// Apple's settings, by the word the report gives each and the name the helper takes.
+const SETTINGS = [['', 'default'], [' loose', 'permissive'], [' tagger', 'tagging']];
+const WAYS = ['alone', 'both'].flatMap(w => SETTINGS.map(([word]) => w + word));
+const TAG_WAYS = ['as it comes', 'loose', 'tagger'];
 const EXAMPLES = 3, LINE = 160;
 
 // A small deterministic shuffle, so the same graph is measured on the same notes each time.
@@ -93,7 +97,7 @@ function questions(ctx, note) {
     }
     const props = [...base.asked.values()].map(a => a.prop);
     const examples = examplesText(ctx, b, props);
-    const way = (name, context, instructions, widen) => {
+    const way = (name, context, instructions, widen, setting) => {
       const asked = new Map([...base.asked].map(([k, a]) => [k, { ...a, pages: a.pages ? new Map(a.pages) : a.pages }]));
       const fill = { ...base.fill, properties: base.fill.properties.map(p => ({ ...p, choices: p.choices && [...p.choices] })) };
       if (widen && aroundRaw) for (const p of fill.properties) {
@@ -106,20 +110,20 @@ function questions(ctx, note) {
       }
       if (context) fill.context = context;
       if (instructions) fill.instructions = instructions;
+      if (setting !== 'default') fill.model = setting;
       out.props.push({ way: name, req: { ...base, fill, asked } });
     };
-    way('alone');
-    way('moment', around, around && MOMENT_INSTRUCTIONS, true);
-    way('examples', examples);
-    way('both', [around, examples].filter(Boolean).join('\n\n'), around && MOMENT_INSTRUCTIONS, true);
+    for (const [word, setting] of SETTINGS) {
+      way('alone' + word, null, null, false, setting);
+      way('both' + word, [around, examples].filter(Boolean).join('\n\n'), around && MOMENT_INSTRUCTIONS, true, setting);
+    }
   }
 
   // The tag, asked of the note as if it had none.
   const bare = { ...b, tags: [], values: new Map(), parent: null };
   const tagReq = model.tagRequest(ctx, bare, note.day);
   if (tagReq) {
-    out.tags.push({ way: 'alone', req: tagReq });
-    out.tags.push({ way: 'moment', req: around ? { ...tagReq, fill: { ...tagReq.fill, context: [tagReq.fill.context, around].filter(Boolean).join('\n\n'), instructions: MOMENT_INSTRUCTIONS } } : tagReq });
+    for (const [i, [, setting]] of SETTINGS.entries()) out.tags.push({ way: TAG_WAYS[i], req: setting === 'default' ? tagReq : { ...tagReq, fill: { ...tagReq.fill, model: setting } } });
   }
   return out;
 }
@@ -225,7 +229,8 @@ const num = n => n == null ? '–' : String(n);
 
 /* The report as plain text, to read and to copy: numbers, and the names of tags and properties, never a note's words. */
 function text(t, about = {}) {
-  const row = (label, cells) => label.padEnd(30) + cells.map(c => String(c).padStart(12)).join('');
+  const row = (label, cells) => label.padEnd(30) + cells.map(c => String(c).padStart(14)).join('');
+  const shortName = n => n === 'tag as it comes' ? 'tag' : n;
   const head = row('', WAYS);
   const all = c => c.right + c.wrong + c.silent + c.failed;
   const rwsf = c => `${c.right}/${c.wrong}/${c.silent}/${c.failed}`;
@@ -233,7 +238,7 @@ function text(t, about = {}) {
   const reasons = new Set(names.flatMap(n => [...t.reasons[n].keys()]));
   const lines = [
     `Apple's model on this graph · Predictive ${about.version || ''} · helper ${about.helper || '1'} · ${about.date || ''}`.trim(),
-    `${t.notes} notes, ${t.questions} properties asked in each of four ways.`,
+    `${t.notes} notes, ${t.questions} properties asked in each way. A column with no word after it is Apple's model as it comes; loose is its looser filter; tagger is its tagging model.`,
     '', 'PROPERTIES', head,
     row('right', WAYS.map(w => `${t.ways[w].all.right} ${pct(t.ways[w].all.right, all(t.ways[w].all))}`)),
     row('wrong', WAYS.map(w => `${t.ways[w].all.wrong} ${pct(t.ways[w].all.wrong, all(t.ways[w].all))}`)),
@@ -249,21 +254,22 @@ function text(t, about = {}) {
     ...Object.entries(t.byKind).map(([kind, c]) => row(kind, WAYS.map(w => rwsf(c[w])))),
     '', 'THE TAG OF A NOTE (right / wrong / silent / failed)', row('', TAG_WAYS),
     row('', TAG_WAYS.map(w => rwsf(t.tagWays[w]))),
-    '', 'WHY QUESTIONS FAILED (questions, not properties)', row('', names.map(n => n.replace('examples', 'exampl.'))),
+    '', 'WHY QUESTIONS FAILED (questions, not properties)', row('', names.map(shortName)),
     ...(reasons.size ? [...reasons].map(r => row(r.length > 29 ? r.slice(0, 28) + '…' : r, names.map(n => t.reasons[n].get(r) || 0))) : [row('none failed', [])]),
     '', 'SIZE OF A QUESTION, ABOUT, IN TOKENS', row('', ['median', 'largest', 'failed min', 'answer max']),
-    ...names.map(n => row(n, [num(median(t.sizes[n])), num(largest(t.sizes[n])), num(smallest(t.failedSizes[n])), num(largest(t.answeredSizes[n]))])),
+    ...names.map(n => row(shortName(n), [num(median(t.sizes[n])), num(largest(t.sizes[n])), num(smallest(t.failedSizes[n])), num(largest(t.answeredSizes[n]))])),
     '', 'TIME PER QUESTION ANSWERED', row('', ['median', 'slowest']),
-    ...names.map(n => row(n, [secs(median(t.ms[n])), secs(largest(t.ms[n]))])),
+    ...names.map(n => row(shortName(n), [secs(median(t.ms[n])), secs(largest(t.ms[n]))])),
     '', 'BY PROPERTY, ASKED ALONE (right / wrong / silent / failed, longest run right)',
     ...[...t.byProp].sort((x, y) => (y[1].alone.right + y[1].alone.wrong) - (x[1].alone.right + x[1].alone.wrong)).slice(0, 30)
       .map(([name, c]) => row(name.length > 29 ? name.slice(0, 28) + '…' : name, [rwsf(c.alone), `run ${c.alone.best}`])),
   ];
-  if (about.oldHelper) lines.push('', 'Choices were not asked: the helper on this Mac is older than this release. Run install.sh again, then measure again.');
+  if (about.oldHelper) lines.push('', 'The helper on this Mac is older than this release: only Apple\'s model as it comes was asked, and dates still fail. Run install.sh again, then measure again.');
+  if (about.noTagger) lines.push('', 'Apple\'s tagging model is not on this Mac, so it was not asked.');
   return lines.join('\n');
 }
 
-const api = { WAYS, TAG_WAYS, candidates, momentText, examplesText, questions, judge, judgeTag, tally, text, size, reason };
+const api = { WAYS, TAG_WAYS, SETTINGS, candidates, momentText, examplesText, questions, judge, judgeTag, tally, text, size, reason };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 if (typeof window !== 'undefined') (window.Flow ||= {}).measure = api;
 })();

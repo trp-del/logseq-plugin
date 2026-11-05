@@ -4,7 +4,7 @@
    answers only requests from Logseq's own window (origin lsp://logseq.com), and runs the model on the Mac. Nothing
    leaves the Mac.
 
-   GET  /status  -> { "ready": true } or { "ready": false, "reason": "..." }, with "version" (2: answers "choice"), "cloud": whether Apple's larger model in Private Cloud Compute can be asked (for the
+   GET  /status  -> { "ready": true } or { "ready": false, "reason": "..." }, with "version" (3: "model", dates without a pattern, failures by name), "tagging" (whether Apple's tagging model is here), "cloud": whether Apple's larger model in Private Cloud Compute can be asked (for the
                     ontology only, later; never a note's words), and "cloudReason"
    POST /fill    <- { "text", "page", "tags": [..], "today": "YYYY-MM-DD", "instructions", "context", "properties": [
                         { "key", "title", "kind": "page" | "tag" | "choice" | "number" | "date", "many", "choices": [titles], "about" } ] }
@@ -24,8 +24,9 @@ import Network
 let PORT: UInt16 = 47615
 let ORIGIN = "lsp://logseq.com"
 let NONE = "none"
-// Raised when the plugin may ask something an older helper cannot answer (2: a property with a list of choices).
-let VERSION = 2
+// Raised when the plugin may ask something an older helper cannot answer (2: a property with a list of choices; 3: "model",
+// a date without a pattern, failures by name).
+let VERSION = 3
 
 // MARK: - the request
 
@@ -33,6 +34,8 @@ struct Property: Decodable { let key: String; let title: String; let kind: Strin
 struct Fill: Decodable {
   let text: String; let page: String?; let tags: [String]?; let today: String?; let properties: [Property]; let instructions: String?
   let context: String?   // what the plugin adds to the note: the tags with what each holds, earlier notes of each
+  let model: String?     // which of Apple's settings answers: "default", "permissive" (a looser filter, for working on the
+                         // person's own words) or "tagging" (Apple's model for tags and the values in a text); default when absent
 }
 
 // MARK: - the model
@@ -44,6 +47,7 @@ func status() -> [String: Any] {
   case .unavailable(let reason): out = ["ready": false, "reason": String(describing: reason)]
   }
   out["version"] = VERSION
+  if case .available = SystemLanguageModel(useCase: .contentTagging).availability { out["tagging"] = true } else { out["tagging"] = false }
   // Apple's larger model, in Private Cloud Compute: whether this Mac can ask it (macOS 27 and later, and a helper built with
   // the macOS 27 tools, Swift 6.4; built with older tools it has none).
   #if compiler(>=6.4)
@@ -59,19 +63,40 @@ func status() -> [String: Any] {
   return out
 }
 
+/* Apple's on-device model in one of its settings. default: as it comes. permissive: its looser filter, meant for working on
+   text the person gave it (their own notes). tagging: the model Apple tuned for tags and the values in a text. All three run
+   on the Mac. */
+func modelFor(_ name: String?) -> SystemLanguageModel {
+  switch name {
+  case "permissive": return SystemLanguageModel(guardrails: .permissiveContentTransformations)
+  case "tagging": return SystemLanguageModel(useCase: .contentTagging)
+  default: return SystemLanguageModel.default
+  }
+}
+
 /* A session made ready ahead: the model on the Mac reads the instructions before the question comes (prewarm), so the
-   answer starts sooner. One waits for each set of instructions; taking it makes the next one ready. A note's words are
-   only ever read by this model, on the Mac. */
+   answer starts sooner. One waits for each set of instructions and setting; taking it makes the next one ready. A note's
+   words are only ever read by this model, on the Mac. */
 actor Ready {
   private var waiting: [String: LanguageModelSession] = [:]
-  func take(instructions: String) -> LanguageModelSession {
-    let session = waiting.removeValue(forKey: instructions) ?? LanguageModelSession(instructions: instructions)
-    if waiting.count > 4 { waiting.removeAll() }
-    let next = LanguageModelSession(instructions: instructions)
+  func take(instructions: String, model: String?) -> LanguageModelSession {
+    let key = (model ?? "default") + "\n" + instructions
+    let make = { LanguageModelSession(model: modelFor(model), instructions: instructions) }
+    let session = waiting.removeValue(forKey: key) ?? make()
+    if waiting.count > 6 { waiting.removeAll() }
+    let next = make()
     next.prewarm()
-    waiting[instructions] = next
+    waiting[key] = next
     return session
   }
+}
+
+/* A failure by its name only (guardrailViolation, exceededContextWindowSize, unsupportedGuide), never its description,
+   which can carry what was asked. */
+func failureName(_ error: Error) -> String {
+  if let label = Mirror(reflecting: error).children.first?.label { return label }
+  let said = String(describing: error)
+  return String(said.prefix { $0.isLetter || $0.isNumber || $0 == "_" }).isEmpty ? "unknown" : String(said.prefix { $0.isLetter || $0.isNumber || $0 == "_" })
 }
 let READY = Ready()
 
@@ -103,7 +128,9 @@ func schemaFor(_ fill: Fill, _ names: [String]) throws -> GenerationSchema {
     case "number":
       value = DynamicGenerationSchema(type: Double.self)
     case "date":
-      value = DynamicGenerationSchema(type: String.self, guides: [.pattern(try Regex("[0-9]{4}-[0-9]{2}-[0-9]{2}"))])
+      // No pattern: Apple's model on the Mac refuses a pattern guide (unsupportedGuide), and the whole question with it. The
+      // plugin keeps only a day written YYYY-MM-DD that the words name.
+      value = DynamicGenerationSchema(type: String.self)
     default: continue
     }
     // The plugin words each question itself (about); these are for a plugin older than that.
@@ -130,7 +157,7 @@ from what is usual. A person the note was with, talked to or saw goes in the pro
 
 func run(_ fill: Fill) async throws -> [String: Any] {
   let started = Date()
-  if case .unavailable = SystemLanguageModel.default.availability { return ["error": "the model is not ready"] }
+  if case .unavailable = modelFor(fill.model).availability { return ["error": "modelNotReady"] }
   let names = names(fill.properties)
   let schema = try schemaFor(fill, names)
   var prompt = "Note: \(fill.text)\n"
@@ -140,7 +167,9 @@ func run(_ fill: Fill) async throws -> [String: Any] {
   if let context = fill.context, !context.isEmpty { prompt += "\n\(context)\n" }
   // The plugin's own instructions when it sends them, so their wording can change without building this again.
   let instructions = fill.instructions?.isEmpty == false ? fill.instructions! : INSTRUCTIONS
-  let answer = try await READY.take(instructions: instructions).respond(to: prompt, schema: schema, options: GenerationOptions(sampling: .greedy))
+  let answer: LanguageModelSession.Response<GeneratedContent>
+  do { answer = try await READY.take(instructions: instructions, model: fill.model).respond(to: prompt, schema: schema, options: GenerationOptions(sampling: .greedy)) }
+  catch { return ["error": failureName(error)] }
   let data = Data(answer.content.jsonString.utf8)
   let object = (try JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
   // Back to the plugin's keys, without what the model left empty.

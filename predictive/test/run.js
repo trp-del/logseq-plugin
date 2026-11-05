@@ -496,13 +496,16 @@ const measureLib = require('../core/measure.js');
   };
   const q = measureLib.questions(C, note);
   const keyOf = (req, title) => req.fill.properties.find(p => p.title === title)?.key;
-  test('four ways, each asking the same properties; the moment and examples only add', () => {
-    assert.deepEqual(q.props.map(x => x.way), ['alone', 'moment', 'examples', 'both']);
+  test('two ways in three settings, each asking the same properties; the words around and the examples only add', () => {
+    assert.deepEqual(q.props.map(x => x.way), ['alone', 'both', 'alone loose', 'both loose', 'alone tagger', 'both tagger']);
+    assert.deepEqual(q.props.map(x => x.req.fill.model), [undefined, undefined, 'permissive', 'permissive', 'tagging', 'tagging'], 'each setting by the name the helper takes');
+    assert.deepEqual(q.tags.map(x => [x.way, x.req.fill.model]), [['as it comes', undefined], ['loose', 'permissive'], ['tagger', 'tagging']]);
     const keys = q.props.map(x => x.req.fill.properties.map(p => p.key).join());
     assert.ok(keys.every(k => k === keys[0]), 'the same keys in every way');
     assert.ok(!q.props[0].req.fill.context, 'alone is as Predictive asks today');
     assert.match(q.props[1].req.fill.context, /written under: "Saw Dr\. Mei Chen at the clinic"/);
     assert.match(q.props[1].req.fill.instructions, /"she"/);
+    assert.equal(q.props[3].req.fill.context, q.props[1].req.fill.context, 'the same question in every setting');
     assert.ok(keyOf(q.props[0].req, 'Provider') && keyOf(q.props[0].req, 'Dose'));
     assert.ok(!note.b.values.size || q.props.every(x => !JSON.stringify(x.req.fill).includes('77001')), 'what was written is never sent');
   });
@@ -517,16 +520,16 @@ const measureLib = require('../core/measure.js');
     assert.ok(ruth);
   });
   test('a question with no answer is failed, not silent, and its reason is a name only', () => {
-    const req = q.props[3].req;
+    const req = q.props[1].req;
     const said = 'exceededContextWindowSize(FoundationModels.LanguageModelSession.GenerationError.Context(debugDescription: "Talked it over, she wants"))';
     assert.ok(measureLib.judge(C, note, req, null, said).every(x => x.result === 'failed' || x.result === 'quiet'));
     assert.equal(measureLib.reason(said), 'exceededContextWindowSize');
     assert.equal(measureLib.reason('TimeoutError: signal timed out'), 'timed out');
-    const rec = { tagTitle: 'Consultation', asked: q.asked, tags: [{ way: 'alone', result: 'failed', size: 4100, error: said }],
+    const rec = { tagTitle: 'Consultation', asked: q.asked, tags: [{ way: 'as it comes', result: 'failed', size: 4100, error: said }],
       props: q.props.map(({ way, req }) => ({ way, ms: 300, size: measureLib.size(req.fill), error: way === 'both' ? said : null, results: measureLib.judge(C, note, req, way === 'both' ? null : { values: {} }, way === 'both' ? said : null) })) };
     const text = measureLib.text(measureLib.tally([rec]), {});
     assert.match(text, /failed \(no answer at all\)\s+0\s+0\s+0\s+2/);
-    assert.match(text, /exceededContextWindowSize\s+0\s+0\s+0\s+1\s+1/);
+    assert.match(text, /exceededContextWindowSize\s+0\s+0\s+0\s+1\s+0\s+0\s+1\s+0\s+0\n/);
     assert.ok(!text.includes('wants') && !text.includes('Talked'), 'nothing a reason carries after its name reaches the report');
     assert.ok(measureLib.size(req.fill) > 0);
   });
