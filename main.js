@@ -1,7 +1,8 @@
 /* Logseq Plugin: six modules in one plugin. Loaded last; by now every module has registered (plugin.js). This file holds
    the three things Logseq gives a plugin only once: the settings list (every module's, under a switch for each), the
    start (each module in turn, one failing or never answering leaving the rest running) and the clean-up (the stop of every
-   module that began, in reverse). And what stands whichever modules run: the shared names, and Logseq's frame kept in place. */
+   module that began, in reverse). And what stands whichever modules run: the shared names, Logseq's frame kept in place, the settings
+   window and the door for files from outside (outside.js). */
 (function () {
 const Door = window.PluginDoor;
 const notify = (text, status = 'info') => logseq.UI.showMsg(text, status);   // no options: with a timeout the notice stays on screen
@@ -76,6 +77,7 @@ async function main() {
     }
   });
   try { Door.settingsWays.start(); } catch (error) { console.error('The settings window: could not start', error); notify(`The settings window could not start: ${error.message}`, 'warning'); }
+  try { Door.outside?.start(); } catch (error) { console.error('From outside: could not start', error); notify(`Adding from outside could not start: ${error.message}`, 'warning'); }
   try { logseq.App.registerCommandPalette({ key: 'update-plugins', label: 'Update plugins', keybinding: { binding: 'u p' } }, updatePlugins); } catch (error) { console.error('Update plugins: the command could not be registered', error); }
   // A switch flipped: nothing starts or stops live (a module's commands and menu items cannot be taken back), so say so.
   logseq.onSettingsChanged?.((now, before) => {

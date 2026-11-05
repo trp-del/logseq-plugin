@@ -190,6 +190,7 @@ const CSS = `
 .st .lk { text-decoration: underline; text-decoration-color: var(--st-line); text-underline-offset: 3px; cursor: pointer; }
 .st .lk:hover { text-decoration-color: currentColor; }
 .st .lk-tag { white-space: nowrap; cursor: pointer; }
+.st-tbl .lk-tag { opacity: 1; }   /* in the table a tag is a column's whole content, not a mark after words: full strength (the owner, 5 November 2026) */
 .st-ln .ct { text-align: right; font-size: 12.5px; color: var(--st-quiet); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .st-ln.low .ct { color: var(--st-faint); }
 .st-ln.rng .x { margin-left: 2px; }
@@ -222,7 +223,20 @@ const CSS = `
 .st-acts .st-in { flex: 0 0 280px; width: 280px; }
 .st-q .st-two .h .lk-icon, .st-q .st-two .h .st-pi { margin-right: 2px; }
 .st-lines-t dd .lk-i-merge { margin-left: auto; }
-.st-tbl .tr > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.st-tbl .tr > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-tbl .tr .k.lk { cursor: pointer; }
+.st-tbl .tr.cur { background: var(--st-wash); }
+.st-tbl .tr .lk-fold { display: inline-flex; width: 14px; height: 20px; align-items: center; justify-content: center; cursor: pointer; vertical-align: middle; margin: 0 2px 0 -2px; }
+.st-tbl .tr .lk-fold svg { width: 10px; height: 10px; transition: transform .12s; } .st-tbl .tr .lk-fold[aria-expanded="true"] svg { transform: rotate(90deg); }
+.st-popen { padding: 8px 12px 14px 44px; border-bottom: 1px solid var(--st-hair); }
+/* The keys at rest (the owner's pick 1 of structure-table-keys-mockup.html, 5 November 2026): a cell that changes here ends with a faint chevron. */
+.st-tbl .tr .st-cell { display: flex; align-items: center; justify-content: space-between; gap: 8px; } .st-tbl .tr .st-cell > span:first-child { min-width: 0; }
+.st-tbl .tr .st-chev { color: var(--st-faint); font-size: 11px; cursor: pointer; padding: 0 2px; flex: none; } .st-tbl .tr .st-chev:hover { color: var(--st-quiet); }
+.st-tbl .st-prompt { margin: 6px 0 14px 44px; }
+.st-popen .st-lines-t { margin: 0; font-size: 13.5px; }
+/* On a tree row the name is the door (the grammar's row): the words carry the faint line under the pointer, since a line on every row would multiply. */
+.st-row .nm .st-name { cursor: pointer; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 3px; transition: text-decoration-color .12s; }
+.st-row .nm .st-name:hover { text-decoration-color: var(--st-line); }
 .st-h { font-size: 14px; font-weight: 600; margin: 22px 0 4px; }
 /* A narrow pane (the right sidebar open): the table keeps its four columns, the tag columns wrapping. */
 @container (max-width: 640px) { .st-tbl .hd, .st-tbl .tr { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 76px; } .st-tbl .hd > *, .st-tbl .tr > * { padding-inline: 8px; } }
@@ -277,7 +291,7 @@ function make(holder, mode, app, opts = {}) {
   ensureStyle(doc);
   const st = app.st;
   // What a drawing shows that can come or go when something folds: a tree's rows, Every property's groups and properties.
-  const KEYED = '.st-row[data-row], .st-grp[data-group], .tr[data-prop]';
+  const KEYED = '.st-row[data-row], .st-grp[data-group], .tr[data-prop], .st-popen[data-popen]';
   const keyOfShown = e => `${e.closest('[data-pane]')?.dataset.pane || ''}|${e.dataset.row ?? ''}|${e.dataset.group ?? ''}|${e.dataset.prop ?? ''}`;
   const loc = mode === 'side' ? st.side : st;   // the cursor and the find text this view uses
   const root = doc.createElement('div');
@@ -324,7 +338,7 @@ function make(holder, mode, app, opts = {}) {
     let h = `<div class="st-row lk-row ${isTop ? 'kind' : ''} ${r.n === LOOSE ? 'loose' : ''} ${r.dim || (st.aim && !aimOk(r.n)) ? 'dim' : ''} ${loc.cur === r.n ? 'cur' : ''} ${waitTag(r.n)}" style="--d:${r.d}" data-row="${esc(r.n)}" ${canDrag ? 'draggable="true"' : ''}>` +
       (side ? '' : `<input type="checkbox" class="lk-tick" data-tick="${esc(r.n)}" ${st.ticks.has(r.n) ? 'checked' : ''} ${r.n === LOOSE ? 'disabled style="visibility:hidden"' : ''}>`) +
       arrow + bullet +
-      `<span class="nm"><span class="${waitTag(r.n) ? 'lk-pencil' : ''}">${nm}</span></span><span class="ct">${Mo.count(M(), r.n) || ''}</span><span class="iss ${o ? 'own' : b ? 'on' : ''}"></span></div>`;
+      `<span class="nm"><span class="${waitTag(r.n) ? 'lk-pencil' : ''} ${t?.uuid && !editing ? 'st-name' : ''}" ${t?.uuid && !editing ? `data-tpage="${esc(r.n)}"` : ''}>${nm}</span></span><span class="ct">${Mo.count(M(), r.n) || ''}</span><span class="iss ${o ? 'own' : b ? 'on' : ''}"></span></div>`;
     if (!inPane2 && st.edit && st.edit.what === 'new' && st.edit.on === r.n && st.edit.owner === mode) h += `<div class="st-row lk-row" style="--d:${r.d + 1}"><span></span><span></span><span class="st-bul"><i></i></span><span class="nm"><input class="st-in" data-edit value="${esc(st.edit.text)}" placeholder="a new tag under ${esc(name(r.n))}" autocomplete="off" spellcheck="false"></span><span class="ct"></span><span class="iss"></span></div>`;
     if (!inPane2 && !promptDrawn && st.prompt && st.prompt.owner === mode && st.prompt.row === r.n) { h += promptHtml(); promptDrawn = true; }
     return h;
@@ -359,7 +373,7 @@ function make(holder, mode, app, opts = {}) {
     const v = ['table', 'log'].includes(st.view) ? st.view : 'tree';
     const views = `<div class="st-views lk-views">${[['tree', 'Regions'], ['table', 'Every property'], ['log', 'Log']].map(([k, w]) => `<span class="lk-view ${v === k ? 'here on' : 'act'}" ${v === k ? '' : `data-show="${k}"`}>${w}</span>`).join('')}</div>`;
     const split = st.view === 'tree' ? `<span class="st-split act lk-btn lk-low lk-i-side" data-split>${st.split ? 'One pane' : 'Two panes'}</span>` : '';
-    const find = st.view === 'tree' && st.split ? '' : `<div class="st-find"><input data-find placeholder="Find a tag" value="${esc(loc.find)}" autocomplete="off" spellcheck="false"></div>`;
+    const find = st.view === 'tree' && st.split ? '' : `<div class="st-find"><input data-find placeholder="${st.view === 'table' ? 'Find a property' : 'Find a tag'}" value="${esc(loc.find)}" autocomplete="off" spellcheck="false"></div>`;
     return `<div class="st-top">${views}${find}${split}<span class="st-new act lk-add lk-i-plus" data-do="new" data-on="${LOOSE}">New top-level tag</span></div>${st.view === 'tree' ? actsHtml() : st.view === 'table' ? pactsHtml() : ''}`;
   }
   // What can be done stays in view, faint until it can be (the research: what you can do is recognised, not remembered), so nothing moves when a tag is picked.
@@ -418,7 +432,7 @@ function make(holder, mode, app, opts = {}) {
     const onRow = id => { const key = `${id}·${pid}`, t = T(id), kids = Mo.kids(m, id), fx = { word: '', ask: '' };
       return `<div class="ont" data-prop="${key}">${tagLink(id)}<span class="num">${Mo.filled(m, id, pid)} of ${Mo.count(m, id)}</span><span class="acts-r"><span class="act lk-btn lk-low lk-i-move" data-do="pmove" data-on="${key}">Move to…</span>${(p.choice || p.type === 'node') && t?.nodes.size ? `<span class="act lk-btn lk-low lk-i-split" data-do="split" data-on="${key}">Split…</span>` : ''}<span class="act lk-btn lk-low lk-del lk-i-minus" data-do="pdrop" data-on="${key}" title="Delete property from tag">Delete</span></span></div>` +
         kids.map(k => { const lf = lineFix(id, pid, k); return `<div class="ont kid">${tagLink(k)}<span class="num">${Mo.filled(m, k, pid)} of ${Mo.count(m, k)}</span><span class="acts-r">${lf.word}</span></div>${lf.ask}`; }).join(''); };
-    const cutAt = st.whole.has(`range${pid}`) ? p.range.length : 3, nodeTags = p.range.slice(0, cutAt).map(id => `<span class="rg">${tagLink(id)}<span class="lk-x" data-unrange="${id}" title="Take ${esc(name(id))} out">×</span></span>`).join('') + (p.range.length > cutAt ? `<span class="lk-more" data-all="range${pid}">and ${p.range.length - cutAt} more</span>` : '');
+    const cutAt = st.whole.has(`range${pid}`) ? p.range.length : 3, nodeTags = p.range.slice(0, cutAt).map(id => `<span class="rg">${tagLink(id)}<span class="lk-x" data-unrange="${id}" data-unprop="${pid}" title="Take ${esc(name(id))} out">×</span></span>`).join('') + (p.range.length > cutAt ? `<span class="lk-more" data-all="range${pid}">and ${p.range.length - cutAt} more</span>` : '');
     const rels = Mo.roads(m).filter(r => r.prop === pid).sort((a, b) => b.n - a.n), key = `prop${pid}`, shown = st.whole.has(key) ? rels : rels.slice(0, 6);
     return `<dl class="st-lines-t"><dt>Property type</dt><dd>${esc(Mo.kindWord(p.choice ? 'choice' : p.type))}${p.many ? ', several values' : ''}<span class="act lk-btn lk-low lk-i-merge" data-do="pmerge" data-on="0·${pid}">Merge into…</span></dd>` +
       (p.type === 'node' ? `<dt>Node tags</dt><dd>${nodeTags}<span class="act lk-add lk-i-plus" data-addrange="0·${pid}">Specify node tags…</span></dd>` : '') +
@@ -526,20 +540,27 @@ function make(holder, mode, app, opts = {}) {
   // ---------- every property ----------
   function tableHtml() {
     // One row per property: every tag it is declared on (the biggest first), what it points at, how filled over all of them.
-    // The row opens the property's card on its biggest tag; the card's "Also on" has each tag's own count.
+    // The grammar's row (the owner, 5 November 2026: "things should be consistent across the app"): the fold arrow opens the
+    // property's lines in place under the row, the name opens the property's page, a tag's name opens the tag's page, the tick
+    // picks, and the rest of the row only selects. The row is keyed by its biggest tag, so its menu knows which tag it is on.
     const m = M(), byProp = new Map();
     for (const r of Mo.propRows(m)) { const g = byProp.get(r.prop) || { prop: r.prop, p: P(r.prop), on: [], filled: 0, of: 0 }; g.on.push({ tag: r.tag, of: r.of }); g.filled += r.filled; g.of += r.of; byProp.set(r.prop, g); }
-    const rows = [...byProp.values()].map(g => { g.on.sort((a, b) => b.of - a.of); g.tag = g.on[0].tag; g.pct = g.filled / Math.max(g.of, 1); return g; });
+    let rows = [...byProp.values()].map(g => { g.on.sort((a, b) => b.of - a.of); g.tag = g.on[0].tag; g.pct = g.filled / Math.max(g.of, 1); return g; });
     // A property on no tag is a row like any other (opened, renamed, dragged into a group); its count is the nodes that hold it,
     // and it is filled on none of its tags, so the least filled come first with it.
     for (const p of m.props.values()) if (!p.on.length) rows.push({ prop: p.id, p, on: [], tag: 0, filled: m.holders.get(p.ident)?.size || 0, of: 0, pct: 0 });
+    // The find line narrows here as on Regions: by the property's name, the tags it is on, and the tags it holds.
+    const q = loc.find.trim().toLowerCase();
+    if (q) rows = rows.filter(r => r.p.title.toLowerCase().includes(q) || r.on.some(x => name(x.tag).toLowerCase().includes(q)) || r.p.range.some(id => name(id).toLowerCase().includes(q)));
     const s = st.sort, onName = g => name(g.tag);
     rows.sort((a, b) => s === 'name' ? a.p.title.localeCompare(b.p.title) : s === 'on' ? !a.tag - !b.tag || (a.tag && onName(a).localeCompare(onName(b))) || a.p.title.localeCompare(b.p.title) : s === 'to' ? name(b.p.range[0] ?? '').localeCompare(name(a.p.range[0] ?? '')) : a.pct - b.pct || a.p.title.localeCompare(b.p.title));
     let h = `<div class="st-tbl lk-list" ${st.pticks.size ? 'data-picking' : ''}><div class="hd">${['name', 'on', 'to', 'filled'].map(c => `<span class="lk-head ${s === c ? 'on' : ''}" data-sort="${c}">${{ name: 'Property', on: 'On tags', to: 'Holds', filled: 'Filled' }[c]}</span>`).join('')}</div>`;
     // A property's name, or the field renaming it (Rename in its right-click menu).
-    const nameCell = (key, title, wait) => st.edit?.what === 'prename' && st.edit.on === key && st.edit.owner === mode
-      ? `<input class="st-in" data-edit value="${esc(st.edit.text)}" autocomplete="off" spellcheck="false">` : `<span class="k lk ${wait ? 'lk-pencil' : ''}">${esc(title)}</span>`;
-    const tr = (r, d) => `<div class="tr ${waitProp(r.prop)} ${st.paim && st.pticks.has(r.prop) ? 'dim' : ''}" data-prop="${r.tag}·${r.prop}" data-gprop="${esc(r.p.ident)}" draggable="true" style="--pd:${d ? 20 + d * 16 : 4}px"><span><input type="checkbox" class="lk-tick" data-ptick="${r.prop}" ${st.pticks.has(r.prop) ? 'checked' : ''}>${nameCell(`${r.tag}·${r.prop}`, r.p.title, waitProp(r.prop))}</span><span>${r.on.length ? ranges(r.on.map(x => x.tag)) : '<span class="f">No tag</span>'}</span><span>${r.p.type === 'node' ? (r.p.range.length ? ranges(r.p.range) : 'Any node') : esc(Mo.kindWord(r.p.choice ? 'choice' : r.p.type))}</span><span class="ct">${r.tag ? `${r.filled} of ${r.of}` : plural(r.filled, 'node')}</span></div>${pmergeAskHtml(r.prop)}`;
+    const nameCell = (key, title, wait, page) => st.edit?.what === 'prename' && st.edit.on === key && st.edit.owner === mode
+      ? `<input class="st-in" data-edit value="${esc(st.edit.text)}" autocomplete="off" spellcheck="false">` : `<span class="k lk ${wait ? 'lk-pencil' : ''}" ${page ? `data-ppage="${esc(page)}"` : ''}>${esc(title)}</span>`;
+    const tr = (r, d) => { const key = `${r.tag}·${r.prop}`, open = st.popen.has(r.prop); return `<div class="tr lk-row ${waitProp(r.prop)} ${st.paim && st.pticks.has(r.prop) ? 'dim' : ''} ${st.propCur === key ? 'cur' : ''}" data-prop="${key}" data-gprop="${esc(r.p.ident)}" draggable="true" style="--pd:${d ? 20 + d * 16 : 4}px"><span><input type="checkbox" class="lk-tick" data-ptick="${r.prop}" ${st.pticks.has(r.prop) ? 'checked' : ''}><span class="lk-fold" data-pfold="${r.prop}" aria-expanded="${open}" title="${open ? 'Close' : 'Open'} ${esc(r.p.title)} here">${CHEVRON}</span>${nameCell(key, r.p.title, waitProp(r.prop), key)}</span><span class="st-cell"><span>${r.on.length ? ranges(r.on.map(x => x.tag)) : '<span class="f">No tag</span>'}</span><span class="chev st-chev" data-pon="${r.prop}" title="Put ${esc(r.p.title)} on a tag…">⌄</span></span><span class="st-cell"><span>${r.p.type === 'node' ? (r.p.range.length ? ranges(r.p.range) : 'Any node') : esc(Mo.kindWord(r.p.choice ? 'choice' : r.p.type))}</span>${r.p.type === 'node' ? `<span class="chev st-chev" data-prange="${r.prop}" title="Node tags of ${esc(r.p.title)}…">⌄</span>` : ''}</span><span class="ct">${r.tag ? `${r.filled} of ${r.of}` : plural(r.filled, 'node')}</span></div>${open ? `<div class="st-popen" data-popen="${r.prop}">${propLinesHtml(r.prop)}</div>` : ''}${rowPrompt(r.prop)}${pmergeAskHtml(r.prop)}`; };
+    // A prompt about this property (Put on a tag…, Node tags…, from the cell's chevron or the opened lines) rolls out under its row.
+    function rowPrompt(pid) { if (promptDrawn || !st.prompt || st.prompt.owner !== mode || st.prompt.prop !== pid) return ''; promptDrawn = true; return promptHtml(); }
     /* The groups: an outline of names, each folding like a bullet, holding properties and other groups, for order only
        (app.groups, kept on this computer). A property dragged onto a group's name goes into it; a group dragged onto another
        goes inside it; onto "No group", back out. With no group made, the table reads as before. */
@@ -942,11 +963,20 @@ function make(holder, mode, app, opts = {}) {
   
   // ---------- events ----------
   root.addEventListener('click', e => {
-    const t = e.target.closest('[data-all],[data-fold],[data-tick],[data-ptick],[data-paim],[data-paimoff],[data-pcombine],[data-ntick],[data-row],[data-go],[data-open],[data-unrange],[data-addrange],[data-prop],[data-fix],[data-stage],[data-leave],[data-sort],[data-apply],[data-discard],[data-drop],[data-undo],[data-act],[data-do],[data-show],[data-compare],[data-aim],[data-aimtop],[data-aimoff],[data-back],[data-pick],[data-nodes],[data-more],[data-node],[data-split],[data-gfold],[data-gname],[data-gdrop],[data-gnew],[data-pnew]');
+    const t = e.target.closest('[data-ppage],[data-tpage],[data-pfold],[data-pon],[data-prange],[data-all],[data-fold],[data-tick],[data-ptick],[data-paim],[data-paimoff],[data-pcombine],[data-ntick],[data-row],[data-go],[data-open],[data-unrange],[data-addrange],[data-prop],[data-fix],[data-stage],[data-leave],[data-sort],[data-apply],[data-discard],[data-drop],[data-undo],[data-act],[data-do],[data-show],[data-compare],[data-aim],[data-aimtop],[data-aimoff],[data-back],[data-pick],[data-nodes],[data-more],[data-node],[data-split],[data-gfold],[data-gname],[data-gdrop],[data-gnew],[data-pnew]');
     if (!t) { if (st.menu) { st.menu = null; redraw(); } return; }
     if (e.target.matches?.('[data-edit]')) return;   // a click in a field being written stays in the field
     e.stopPropagation(); e.preventDefault();
     if (t.hasAttribute('data-split')) { st.split = !st.split; return redraw(); }
+    // Leaving for a Logseq page lets go of what was being asked here, so nothing waits unseen behind the page; the picks stay.
+    const leave = (uuid, shift) => { st.paim = false; st.ask = null; st.menu = null; st.aim = null; st.prompt = null; redraw(); app.openNode(uuid, shift); };
+    // While the bar asks "press a property", a press anywhere on a row answers it, a name in the row included.
+    if (st.paim && mode === 'page' && st.view === 'table') { const row = t.closest('.st-tbl .tr[data-prop]'); if (row) { const id = Number(row.dataset.prop.split('·')[1]); return st.pticks.has(id) ? undefined : askMerge([...st.pticks], id); } }
+    if (t.dataset.pon) return act('pmove', '0·' + t.dataset.pon);
+    if (t.dataset.prange) return act('prange', '0·' + t.dataset.prange);
+    if (t.dataset.pfold) { const id = Number(t.dataset.pfold); if (st.popen.has(id)) st.popen.delete(id); else { st.popen.add(id); st.glide = true; } return redraw(); }
+    if (t.dataset.ppage) return leave(P(Number(t.dataset.ppage.split('·')[1]))?.uuid, e.shiftKey);
+    if (t.dataset.tpage) return leave(T(keyOf(t.dataset.tpage))?.uuid, e.shiftKey);
     if (t.dataset.gfold) { const G = app.groups(), g = G.list.find(x => x.id === t.dataset.gfold); if (g) { g.open = g.open === false; if (g.open) st.glide = true; app.saveGroups(G); } return redraw(); }
     if (t.dataset.gname) { const g = app.groups().list.find(x => x.id === t.dataset.gname); return g ? startEdit('gname', g.id, g.name) : redraw(); }
     if (t.hasAttribute('data-gnew')) return startEdit('gnew', '', '');
@@ -964,20 +994,20 @@ function make(holder, mode, app, opts = {}) {
     if (t.hasAttribute('data-paimoff')) { st.paim = false; if (st.edit?.what === 'pcombine') st.edit = null; return redraw(); }
     if (t.hasAttribute('data-pcombine')) return startEdit('pcombine', '', '');
     if (t.dataset.ntick) { const x = st.nodes.list[+t.dataset.ntick]; st.nodes.ticks.has(x.uuid) ? st.nodes.ticks.delete(x.uuid) : st.nodes.ticks.add(x.uuid); st.nodes.cur = +t.dataset.ntick; return redraw(); }
-    if (t.dataset.open) return app.openNode(t.dataset.open, e.shiftKey);
-    if (t.dataset.go) { const id = keyOf(t.dataset.go); return mode === 'side' ? app.openMain(id) : app.openNode(T(id)?.uuid, e.shiftKey); }
+    if (t.dataset.open) return leave(t.dataset.open, e.shiftKey);
+    if (t.dataset.go) return leave(T(keyOf(t.dataset.go))?.uuid, e.shiftKey);
     if (t.dataset.aim) return startAim(t.dataset.aim, [...st.ticks]);
     if (t.hasAttribute('data-aimtop')) return finishAim(LOOSE);
     if (t.hasAttribute('data-aimoff')) { st.aim = null; return redraw(); }
     if (t.hasAttribute('data-compare')) { st.compare = !st.compare; return redraw(); }
-    if (t.dataset.unrange) { const pid = opts.prop; app.stage({ kind: 'setRange', prop: pid, to: P(pid).range.filter(id => id !== Number(t.dataset.unrange)) }); return redraw(); }
+    if (t.dataset.unrange) { const pid = Number(t.dataset.unprop ?? opts.prop); app.stage({ kind: 'setRange', prop: pid, to: P(pid).range.filter(id => id !== Number(t.dataset.unrange)) }); return redraw(); }
     if (t.dataset.addrange) { const pid = Number(t.dataset.addrange.split('·')[1]); return startPrompt({ what: 'range', list: 'tags', prop: pid }); }
     if (t.dataset.fix) return fix(+t.dataset.fix);
     if (t.hasAttribute('data-stage')) return stageAsk();
     if (t.hasAttribute('data-leave')) { st.ask = null; return redraw(); }
     if (t.dataset.sort) { st.sort = t.dataset.sort; return redraw(); }
     if (t.dataset.prop && st.paim && mode === 'page') { const id = Number(t.dataset.prop.split('·')[1]); return st.pticks.has(id) ? undefined : askMerge([...st.pticks], id); }
-    if (t.dataset.prop) { if (mode === 'tag') return; return app.openNode(P(Number(t.dataset.prop.split('·')[1]))?.uuid, e.shiftKey); }
+    if (t.dataset.prop) { if (mode !== 'page') return; const [tagId] = t.dataset.prop.split('·').map(Number); st.propCur = t.dataset.prop; if (T(tagId)) st.cur = tagId; st.menu = null; return redraw(); }   // the rest of a row selects
     if (t.dataset.do) return act(t.dataset.do, t.dataset.do.startsWith('p') && t.dataset.do !== 'page' || t.dataset.do === 'split' ? t.dataset.on : keyOf(t.dataset.on), e.shiftKey);
     if (t.dataset.show) return show(t.dataset.show);
     if (t.dataset.back !== undefined) { const to = +t.dataset.back; while (st.trail.length > to + 1) st.trail.pop(); return back(); }
@@ -991,7 +1021,7 @@ function make(holder, mode, app, opts = {}) {
     if (t.hasAttribute('data-discard')) return app.discard();
     if (t.hasAttribute('data-undo')) return app.undo();
     if (t.dataset.drop !== undefined) return app.dropChange(+t.dataset.drop);
-    if (t.dataset.row) { const id = keyOf(t.dataset.row); st.menu = null; if (st.aim && mode === 'page') return finishAim(id); if (mode === 'side') { loc.cur = id; if (e.detail === 2) return app.openMain(id); return redraw(); } if (e.detail === 2) return app.openNode(T(id)?.uuid, e.shiftKey); st.cur = id; st.propCur = null; st.view = 'tree'; st.nodes = null; st.trail = []; st.ask = null; return redraw(); }   // a press on the tree starts a new way: the trail is for jumps
+    if (t.dataset.row) { const id = keyOf(t.dataset.row); st.menu = null; if (st.aim && mode === 'page') return finishAim(id); if (mode === 'side') { loc.cur = id; return redraw(); } st.cur = id; st.propCur = null; st.view = 'tree'; st.nodes = null; st.trail = []; st.ask = null; return redraw(); }   // a press on the tree starts a new way: the trail is for jumps
   });
   const keyOf = s => s === LOOSE ? LOOSE : Number(s);
   /* Dragging a row onto another moves the tag there, the same as "move under…": the tag and everything under it, the ticked
@@ -1069,14 +1099,16 @@ function make(holder, mode, app, opts = {}) {
     else if (e.target.matches('[data-pin]')) { st.prompt.text = e.target.value; st.prompt.lit = 0; draw(); }
     else if (e.target.matches('[data-edit]')) st.edit.text = e.target.value;
   });
-  /* Keys typed here stay here, but for Logseq's own two-key shortcuts, which work on the map as anywhere: Cmd-K, Cmd-Shift-P, Cmd-[ and
-     Cmd-]. The map keeps those it does itself, each what Logseq's does on a page: Cmd-F finds, Cmd-O goes to the row's page (Shift: the
-     sidebar, as Shift-Enter), Cmd-Down and Cmd-Up open and fold, Cmd-Z takes back. A field keeps what writing in it needs. A letter alone never reaches Logseq: it finds. */
+  /* The map behaves as a page of Logseq's (the owner, 5 November 2026): a letter typed is Logseq's, so its letter pairs (g j, t w) run
+     here as anywhere, and so do its two-key shortcuts: Cmd-K, Cmd-Shift-P, Cmd-[ and Cmd-]. The map keeps only the keys every list
+     has (arrows, Enter, Escape, Tab, space) and those it does itself, each what Logseq's does on a page: Cmd-F puts the caret in the
+     find line, Cmd-O goes to the row's page (Shift: the sidebar, as Shift-Enter), Cmd-Down and Cmd-Up open and fold, Cmd-Z takes back.
+     A field keeps what writing in it needs. */
   const FIELD = /^(a|c|f|v|x|y|z|enter|backspace)$/i, OWN = mode === 'page' ? /^(f|o|enter|backspace|arrowup|arrowdown)$/i : /^(f|o|arrowup|arrowdown)$/i;
   const passes = e => {
     if (doc.querySelector('.ui__dialog-overlay')) return true;   // one of Logseq's windows stands over the map: its keys are all Logseq's
-    if (!e.metaKey && !e.ctrlKey && !e.altKey) return false;
-    if (e.target.tagName === 'INPUT' && e.target.type !== 'checkbox') return !e.altKey && !FIELD.test(e.key);
+    if (e.target.tagName === 'INPUT' && e.target.type !== 'checkbox') return (e.metaKey || e.ctrlKey) && !e.altKey && !FIELD.test(e.key);
+    if (!e.metaKey && !e.ctrlKey && !e.altKey) return e.key.length === 1 && e.key !== ' ';   // a letter is Logseq's; the list's keys stay here
     return e.altKey || !OWN.test(e.key);
   };
   const standing = () => st.prompt?.owner === mode || st.edit?.owner === mode || !!st.ask;
@@ -1137,19 +1169,17 @@ function make(holder, mode, app, opts = {}) {
     }
     const rows = visibleRows().map(r => r.n), i = rows.indexOf(loc.cur);
     const cur = T(loc.cur), none = !cur || loc.cur === LOOSE;
-    // A letter typed on the tree finds a tag, as in any outline; nothing a single letter does.
-    if (k.length === 1 && k !== ' ') { const f = root.querySelector('[data-find]'); if (!f) return; e.preventDefault(); loc.find = k === '/' ? loc.find : loc.find + k; draw(); const g = root.querySelector('[data-find]'); g.focus(); g.setSelectionRange(g.value.length, g.value.length); return; }
     const walked = to => { loc.cur = to; if (mode === 'page') { st.propCur = null; st.walking = true; if (st.view === 'tree') st.trail = []; } };   // the arrows are the tree, as a press on it is
     if (k === 'ArrowDown') walked(rows[Math.min(rows.length - 1, i + 1)]);
     else if (k === 'ArrowUp') walked(rows[Math.max(0, i - 1)]);
     else if (k === 'ArrowRight') { if (e.shiftKey) { openAll(loc.cur); return; } if (Mo.kids(M(), loc.cur).length) st.open.add(loc.cur); }
     else if (k === 'ArrowLeft') { if (st.open.has(loc.cur)) st.open.delete(loc.cur); else if (Mo.parentOf(M(), loc.cur) != null) walked(Mo.parentOf(M(), loc.cur)); }
-    else if (k === 'Enter') { if (e.shiftKey) openHere(true); else if (mode === 'side') app.openMain(loc.cur); else if (st.view !== 'tree' || st.propCur) jump(() => { st.view = 'tree'; st.propCur = null; st.nodes = null; }); else if (cur) app.openNode(cur.uuid, false); return; }
+    else if (k === 'Enter') { if (e.shiftKey) openHere(true); else if (mode === 'side') app.openMain(loc.cur); else if (st.propCur && st.view === 'table') openHere(false); else if (st.view !== 'tree' || st.propCur) jump(() => { st.view = 'tree'; st.propCur = null; st.nodes = null; }); else if (cur) app.openNode(cur.uuid, false); return; }
     else if (k === ' ' && mode === 'page') { tick(st.cur); return; }
     else if (k === 'Escape') {
       // The ladder: let go of what is nearest first (the find text, the ticks), then walk back the trail; with nothing left, the
-      // keyboard goes back to Logseq, so a letter is Logseq's again (its t and g pairs) and no longer finds a tag here.
-      if (loc.find) loc.find = ''; else if (mode === 'page' && st.ticks.size) st.ticks.clear(); else if (mode === 'page' && back()) return; else { e.preventDefault(); root.blur(); return; }
+      // keyboard goes back to Logseq: the map lets go of the focus, so arrows and Enter are Logseq's again.
+      if (loc.find) loc.find = ''; else if (mode === 'page' && st.popen.size) st.popen.clear(); else if (mode === 'page' && st.ticks.size) st.ticks.clear(); else if (mode === 'page' && back()) return; else { e.preventDefault(); root.blur(); return; }
     }
     else if (k === 'Tab') { if (mode === 'side' || none) return; const p = Mo.parentOf(M(), st.cur); if (p == null) return; e.preventDefault(); const sib = Mo.kids(M(), p), j = sib.indexOf(st.cur); if (e.shiftKey) { const gp = Mo.parentOf(M(), p); if (gp != null) { app.stage({ kind: 'move', tag: st.cur, to: gp }); st.ticks.delete(st.cur); } } else if (j > 0) { app.stage({ kind: 'move', tag: st.cur, to: sib[j - 1] }); st.open.add(sib[j - 1]); st.ticks.delete(st.cur); } redraw(); return; }
     else return;

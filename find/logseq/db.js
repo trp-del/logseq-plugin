@@ -241,13 +241,15 @@ async function search(words, limit = 80) {
 }
 
 /* A node opened in place: its properties with their values, and what points at it, by property and by the kind of the
-   pointing node, with those nodes; then what mentions it in its words. */
+   pointing node, with those nodes; then what mentions it in its words. A page's own block and the bullets on its page do
+   not point at it (as Threads reads links), so a page is never listed under itself. */
+const NOT_ITSELF = '[(not= ?b ?p)] (not [?b :block/page ?p])';
 async function node(uuid) {
   const index = await tagIndex();
   const [props, pointing, mentions] = await Promise.all([
     query(`[:find ?name ?type ?v :where [?p :block/uuid #uuid "${uuid}"] [?p ?a ?v] ${USER_PROP} [?prop :block/title ?name] [?prop :logseq.property/type ?type]]`),
-    query(`[:find ?name ?b :where [?p :block/uuid #uuid "${uuid}"] [?b ?a ?p] ${USER_PROP} [?prop :block/title ?name] ${LIVE}]`),
-    query(`[:find ?b :where [?p :block/uuid #uuid "${uuid}"] [?b :block/refs ?p] ${LIVE}]`),
+    query(`[:find ?name ?b :where [?p :block/uuid #uuid "${uuid}"] [?b ?a ?p] ${USER_PROP} [?prop :block/title ?name] ${NOT_ITSELF} ${LIVE}]`),
+    query(`[:find ?b :where [?p :block/uuid #uuid "${uuid}"] [?b :block/refs ?p] ${NOT_ITSELF} ${LIVE}]`),
   ]);
   const valueIds = [...new Set(props.filter(([, type]) => !inPlace(type)).map(([, , v]) => v).filter(isId))];
   const labels = new Map();

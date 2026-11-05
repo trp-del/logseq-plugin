@@ -140,6 +140,30 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
 
   // Every property and a tag's nodes open in the place of the areas.
   click(R.querySelector('[data-show="table"]')); assert.ok(R.querySelector('.st-tbl')); assert.ok(!R.querySelector('.st-regions'));
+  // The grammar's row in the table (5 November 2026): the name opens the property's page, a tag's name the tag's page, the fold
+  // arrow opens the property's lines in place, the rest of the row only selects, and the find line narrows the rows.
+  { const opens = () => calls.filter(c => c[0] === 'pushState' && c[1] === 'page').length, was = opens();
+    const tr = () => R.querySelector(`.tr[data-prop$="·${pid('With')}"]`);   // asked again after each press, since every press redraws
+    click(tr()); assert.equal(opens(), was, 'a press on the row itself opens no page'); assert.equal(st.propCur, tr().dataset.prop, 'it selects the row');
+    click(tr().querySelector('.ct')); assert.equal(opens(), was, 'the count opens no page');
+    click(tr().querySelector('[data-ppage]')); assert.equal(opens(), was + 1, 'the name opens the property\'s page');
+    click(tr().querySelector('.lk-tag[data-go]')); assert.equal(opens(), was + 2, 'a tag in the row opens the tag\'s page');
+    assert.ok(!R.querySelector('.st-popen'), 'no row is open yet');
+    click(tr().querySelector('[data-pfold]')); await sleep(10);
+    const open = R.querySelector('.st-popen'); assert.ok(open && open.querySelector('.st-lines-t'), 'the fold arrow opens the property\'s lines under the row');
+    assert.ok(open.previousElementSibling === tr(), 'right under its row');
+    key(R, 'Escape'); assert.ok(!R.querySelector('.st-popen'), 'Escape closes it');
+    // The keys at rest: the chevron after On tags opens Put on a tag… right under the row; Escape leaves it.
+    click(tr().querySelector('[data-pon]')); await sleep(10);
+    const pr = R.querySelector('.st-prompt'); assert.ok(pr && /Put/.test(pr.textContent), 'the chevron opens Put on a tag…: ' + pr?.textContent.slice(0, 40));
+    assert.ok(pr.previousElementSibling === tr(), 'the prompt rolls out under its row, not at the foot');
+    key(R, 'Escape'); assert.ok(!R.querySelector('.st-prompt'), 'Escape leaves the prompt');
+    assert.ok(tr().querySelector('[data-prange]'), 'a property that holds nodes has a chevron after Holds');
+    assert.ok(!R.querySelector(`.tr[data-prop$="·${pid('Date')}"] [data-prange]`), 'a property of dates has none: nothing changes here');
+    const all = R.querySelectorAll('.st-tbl .tr').length; st.find = 'with'; app.draw();
+    const few = R.querySelectorAll('.st-tbl .tr').length; assert.ok(few < all && few >= 1, `the find line narrows the table: ${few} of ${all}`);
+    assert.equal(R.querySelector('[data-find]').getAttribute('placeholder'), 'Find a property');
+    st.find = ''; app.draw(); st.propCur = null; }
   // New property asks which tag, then opens that tag's page, where Logseq's own Add tag property makes it; Structure writes nothing.
   click(R.querySelector('[data-pnew]')); assert.match(R.querySelector('.st-prompt .ask').textContent, /New property on/);
   const pins = calls.length; key(R.querySelector('[data-pin]'), 'Enter'); await sleep(10);
@@ -155,8 +179,15 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   if (st.pticks.size) click(R.querySelector(`[data-ptick="${pid('Surgeon')}"]`));
   click(R.querySelector('[data-show="tree"]')); assert.ok(R.querySelector('.st-regions'));
 
-  // A letter typed finds; Escape puts the areas back.
-  R.focus(); key(R, 'c'); assert.equal(st.find, 'c'); key(R.querySelector('[data-find]'), 'Escape'); assert.equal(st.find, '');
+  // The grammar's row on Regions (5 November 2026): the name opens the tag's page; the count or the empty part of the row selects.
+  { const opens = () => calls.filter(c => c[0] === 'pushState' && c[1] === 'page').length, was = opens();
+    click(row('Doctor').querySelector('.ct')); assert.equal(opens(), was, 'a press beside the name opens no page'); assert.equal(st.cur, id('Doctor'), 'it selects the row');
+    click(row('Doctor').querySelector('[data-tpage]')); assert.equal(opens(), was + 1, 'the name opens the tag\'s page'); }
+  // A letter typed is Logseq's (its g j, t w pairs), never gathered into the find line; Cmd-F puts the caret there; Escape puts the areas back.
+  let reached = 0; const hear = e => { if (e.key === 'g') reached++; }; doc.addEventListener('keydown', hear);
+  R.focus(); key(R, 'g'); assert.equal(st.find, '', 'a letter does not find'); assert.equal(reached, 1, 'the letter reaches Logseq'); doc.removeEventListener('keydown', hear);
+  key(R, 'f', { metaKey: true }); assert.equal(doc.activeElement, R.querySelector('[data-find]'), 'Cmd-F puts the caret in the find line');
+  key(R.querySelector('[data-find]'), 'Escape'); assert.equal(st.find, '');
 
   // New top-level tag: its name, then its first child tags.
   click(R.querySelector('.st-new')); assert.ok(R.querySelector('[data-edit]'));

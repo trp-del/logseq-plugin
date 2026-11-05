@@ -47,6 +47,8 @@ function fakeQuery(q) {
   if (idsIn(q).some(id => id > 2147483647)) throw new Error(`Highest supported entity id is 2147483647, got ${idsIn(q).find(id => id > 2147483647)}`);
   if (has('(pull ?v [:db/id :block/uuid :block/title :property.value/content :block/name')) return idsIn(q).map(id => [{ 'db/id': id, 'block/uuid': U(id), 'block/title': titleOf(id), 'block/name': titleOf(id).toLowerCase() }]);
   if (has(':find ?name ?type ?v :where [?p :block/uuid')) return [['Specialized in', ':node', 22], ...(BLOCKS[40].onset ? [['Onset', ':datetime', BLOCKS[40].onset]] : [])];
+  // What points at a node, and what mentions it, leave the node's own block and the bullets on its page out: a page is never listed under itself.
+  if (has(':find ?name ?b :where [?p :block/uuid') || (has(':find ?b :where [?p :block/uuid') && has(':block/refs'))) assert.ok(has('[(not= ?b ?p)]', '(not [?b :block/page ?p])'), 'a node is not among what points at it or mentions it: ' + q);
   if (has(':find ?name ?b :where [?p :block/uuid')) { const u = uuidsIn(q)[0], id = idOfUuid(u); return Object.entries(BLOCKS).filter(([, b]) => b.provider === id).map(([bid]) => ['Provider', Number(bid)]); }
   if (has(':find ?b :where [?p :block/uuid') && has(':block/refs')) return [];
   if (has('[?b :block/name _] [?b :block/updated-at ?up]')) return [[20, 2], [22, 1]];
