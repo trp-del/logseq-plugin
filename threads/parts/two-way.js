@@ -311,7 +311,7 @@ function shortName(title) {
 const addLink = group => group.ident && state.draft?.field !== group.name ? `<button type="button" class="lk-plus rf-tw-add" data-field="${esc(group.name)}" title="Add a${/^[aeiou]/i.test(kindsOf(group)[0] || '') ? 'n' : ''} ${esc(kindsOf(group)[0] || 'node')} with “${esc(group.name)}” set to this page">+</button>` : '';
 // The kit's tick box, in the margin left of the record (0.4.228; the kit's since 0.4.318).
 const pickBox = (group, item) => drawingTop ? '' : pickOn(group, item);
-const pickOn = (group, item) => { const key = `${item.uuid}|${group.name}`, on = state.picked.has(key); state.listed.push(key); return `<input type="checkbox" class="rf-check lk-tick rf-tw-pick" data-pick="${esc(key)}"${on ? ' checked' : ''} aria-label="Pick" title="Pick (Shift-click: every one from the last picked)">`; };
+const pickOn = (group, item) => { const key = `${item.uuid}|${group.name}`, on = state.picked.has(key); state.listed.push(key); return `<input type="checkbox" class="lk-tick rf-tw-pick" data-pick="${esc(key)}"${on ? ' checked' : ''} aria-label="Pick" title="Pick (Shift-click: every one from the last picked)">`; };
 // A record's tag at the right opens the tag's page, Shift-click in the sidebar (0.4.297, the owner: "should be able to
 // click on tag in two-way area on right side"); a tag reads as a class, mono with no # (the kit's tag, 0.4.318).
 const tagLink = item => item.tag && item.tag !== 'note' ? `<a class="rf-tag lk-tag rf-tw-tag" data-tag-page="${esc(item.tag)}" href="#">${esc(item.tag)}</a>` : `<span class="rf-tag lk-tag rf-tw-tag">${esc(item.tag)}</span>`;
@@ -396,7 +396,7 @@ function rowHtml(group, top = null) {
     if (grouping) list = grouping.parts.map(part => groupHtml(group, part, grouping.by)).join('');
     else {
       const bare = !!only || counts.size === 1, tell = bare ? tellingProp(group, items) : '';
-      list = shown.map((item, i) => (i > 0 && item.day && item.day < today && shown[i - 1].day >= today ? '<div class="rf-tw-earlier rf-note lk-note">earlier</div>' : '') + itemHtml(group, item, base, '', bare, tell)).join('')
+      list = shown.map((item, i) => (i > 0 && item.day && item.day < today && shown[i - 1].day >= today ? '<div class="rf-tw-earlier lk-note">earlier</div>' : '') + itemHtml(group, item, base, '', bare, tell)).join('')
         + (items.length > LISTED ? O.more({ text: all ? 'show fewer' : 'show all', attrs: { class: null, 'data-more': key }, under: 'name' }) : '');
     }
   }
@@ -1088,7 +1088,7 @@ function groupHtml(group, part, by) {
   const more = open && part.items.length > GROUP_LISTED ? shared.outline.more({ text: all ? 'show fewer' : 'show all', attrs: { 'data-more': gkey }, under: 'name' }) : '';
   // The arrow folds; the words do not. A tag is a tag: it opens its page.
   const label = by === 'tag' && !part.none ? `<a class="rf-tag lk-tag rf-tw-tag rf-tw-gname" data-tag-page="${esc(part.label)}" href="#">${esc(part.label)}</a>` : `<span class="rf-tw-gname">${esc(part.label)}</span>`;
-  return `<div class="rf-tw-group"${open ? ' data-open=""' : ''}><div class="rf-tw-ghead${plus ? ' lk-reveals' : ''}">${shared.outline.chev({ open, label: part.label, attrs: { 'data-gkey': gkey } })}<span class="rf-tw-gwords">${label}<span class="rf-note lk-note rf-tw-gn lk-count">${part.items.length}</span></span>${plus}</div>${open && adding ? draftLineHtml(group, state.draft) : ''}${open ? `<div class="rf-tw-gitems">${shown.map(item => itemHtml(group, item, `r:${group.name}`, '', bare, tell)).join('')}${more}</div>` : more}</div>`;
+  return `<div class="rf-tw-group"${open ? ' data-open=""' : ''}><div class="rf-tw-ghead${plus ? ' lk-reveals' : ''}">${shared.outline.chev({ open, label: part.label, attrs: { 'data-gkey': gkey } })}<span class="rf-tw-gwords">${label}<span class="lk-note rf-tw-gn lk-count">${part.items.length}</span></span>${plus}</div>${open && adding ? draftLineHtml(group, state.draft) : ''}${open ? `<div class="rf-tw-gitems">${shown.map(item => itemHtml(group, item, `r:${group.name}`, '', bare, tell)).join('')}${more}</div>` : more}</div>`;
 }
 // A few nodes have nothing to group: Group shows above INLINE nodes, as the right-click's Group by… (1.0.2).
 const groupBtn = group => { if (drawingTop || group.items.length <= INLINE) return ''; const by = groupOf(group); return `<button type="button" class="lk-btn lk-low rf-tw-groupby"${by ? ' data-on=""' : ''} data-field="${esc(group.name)}" title="Group the list by a tag, a month or a property">${by ? `By ${esc(groupName(by))}` : 'Group'}${iconHtml('chevron-down')}</button>`; };
@@ -2369,7 +2369,7 @@ const twoWayCss = `
    with the row's own words ("Mentioned in"), which have none. */
 .refinement-two-way .rf-tw-name > .rf-kind { font-size: 15px; width: 15px; justify-content: center; margin-left: -19px; margin-right: 4px; opacity: .5; vertical-align: -1px; }
 /* The names stand in one column you can scan down, lined up with the page's properties, in the quiet strength; only the head is bold (the owner, 1 November). */
-.refinement-two-way .rf-tw-name { color: var(--rf-quiet); font-size: var(--rf-name, 1em); white-space: nowrap; cursor: default; padding-left: 19px; position: relative; }
+.refinement-two-way .rf-tw-name { color: var(--lk-quiet); font-size: var(--rf-name, 1em); white-space: nowrap; cursor: default; padding-left: 19px; position: relative; }
 .refinement-two-way .rf-tw-sep { visibility: hidden; }
 .refinement-two-way .rf-tw-value { min-width: 0; padding-left: 22px; display: flex; flex-wrap: wrap; column-gap: 1.1em; row-gap: 4px; position: relative; }
 .refinement-two-way a { color: inherit; text-decoration: none; cursor: pointer; }
@@ -2386,13 +2386,13 @@ const twoWayCss = `
 /* The field's name and the count that opens a list get the same soft patch under the pointer (0.4.185), drawn in the
    padding a negative margin gives back, so nothing moves. */
 .refinement-two-way :is(.rf-tw-field, .rf-tw-toggle) { border-radius: 4px; padding: 0 .25em; margin-left: -.25em; margin-right: -.25em; transition: background-color .1s ease, color .1s ease; }
-.refinement-two-way :is(.rf-tw-field, .rf-tw-toggle):hover { color: inherit; background: var(--rf-wash); }
+.refinement-two-way :is(.rf-tw-field, .rf-tw-toggle):hover { color: inherit; background: var(--lk-wash); }
 .refinement-two-way a.rf-tw-field { color: inherit; }
 .refinement-two-way .rf-tw-chips { display: inline-flex; flex-wrap: wrap; gap: .3rem .9rem; }
 /* The days after the kinds, quiet and in the kinds' own size, so the line reads as one summary. */
-.refinement-two-way .rf-tw-toggle.rf-tw-when { color: var(--rf-quiet); font-size: 14px; }
+.refinement-two-way .rf-tw-toggle.rf-tw-when { color: var(--lk-quiet); font-size: 14px; }
 .refinement-two-way .rf-tw-earlier { display: flex; align-items: center; gap: .5em; margin: .2rem 0 .1rem calc(16px + var(--rf-ol-gap)); padding: 0; } /* at the chevrons of the nodes it parts (the owner: "start it at chevron") */
-.refinement-two-way .rf-tw-earlier::after { content: ''; flex: 1; border-top: 1px solid var(--rf-hair); }
+.refinement-two-way .rf-tw-earlier::after { content: ''; flex: 1; border-top: 1px solid var(--lk-hair); }
 /* The line for adding a node (0.4.303): under the row's values, in the value column; a + at its left, the kit's
    field inline, the tag right after it. */
 /* A node's tag sits right after its name (0.4.320, the owner: "move tags for two-way
@@ -2413,13 +2413,13 @@ const twoWayCss = `
 .refinement-two-way .rf-tw-draft-props { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 1.1em; row-gap: .1em; min-height: 1.5em; font-size: 14px; line-height: 1.5; }
 .refinement-two-way .rf-tw-dprop { display: inline-flex; align-items: baseline; gap: .35em; margin: 0; padding: 0; border: 0; background: none; font: inherit; color: inherit; cursor: default; text-align: left; }
 .refinement-two-way button.rf-tw-dpick { cursor: pointer; }
-.refinement-two-way .rf-tw-dname { color: var(--rf-faint); }
+.refinement-two-way .rf-tw-dname { color: var(--lk-faint); }
 .refinement-two-way .rf-tw-dpassed { opacity: .45; }
 /* A page's name completed in grey after the cursor (0.4.406): a copy of the words laid over the box, the typed part clear. */
 .refinement-two-way .rf-tw-draft .rf-field { position: relative; }
 .refinement-two-way .rf-tw-ghost-over { position: absolute; box-sizing: border-box; pointer-events: none; white-space: pre; overflow: hidden; }
 .refinement-two-way .rf-tw-ghost-typed { color: transparent; }
-.refinement-two-way .rf-tw-ghost-rest { color: var(--rf-faint); }
+.refinement-two-way .rf-tw-ghost-rest { color: var(--lk-faint); }
 .refinement-two-way .rf-tw-ghost-rest[data-name]::after { content: "  " attr(data-name); font-size: var(--lk-small); }
 /* Group a row by anything (0.4.369): the word after the count, a group's name with its count and its +, the lines
    under it. Write into a node (0.4.369): the small arrow before a node, its bullets under its line. */
@@ -2429,7 +2429,7 @@ const twoWayCss = `
 .refinement-two-way .rf-tw-groupby .ti { font-size: 12px; }
 .refinement-two-way .rf-tw-ghead { display: flex; align-items: baseline; gap: var(--rf-ol-gap); margin: .85rem 0 .1rem; }
 .refinement-two-way .rf-tw-group:first-child .rf-tw-ghead { margin-top: .1rem; }
-.refinement-two-way .rf-tw-gwords { display: inline-flex; align-items: baseline; gap: .35em; padding-right: .25em; color: var(--rf-quiet); }
+.refinement-two-way .rf-tw-gwords { display: inline-flex; align-items: baseline; gap: .35em; padding-right: .25em; color: var(--lk-quiet); }
 .refinement-two-way .rf-tw-gn { font-size: 14px; }
 /* A group's + is the library's lk-reveal. */
 .refinement-two-way .rf-tw-group .rf-tw-draft { padding-left: .35rem; }
@@ -2477,7 +2477,7 @@ const twoWayCss = `
 .refinement-two-way .rf-tw-value { display: block; font-size: inherit; }
 .refinement-two-way .rf-tw-value.rf-ol { --rf-ol-day: var(--lk-day, 48px); font-size: inherit; line-height: 1.5; }
 .refinement-two-way .rf-ol-line { min-height: 30px; padding-top: 3px; padding-bottom: 3px; }
-.refinement-two-way .rf-ol-line > input.rf-check[type=checkbox] { top: 8px; }
+.refinement-two-way .rf-ol-line > input.lk-tick[type=checkbox] { top: 8px; }
 .refinement-two-way .rf-tw-head { cursor: default; }
 .refinement-two-way .rf-tw-head:hover { background: transparent; }
 /* An outline (the owner, 2026-10-27: "have [date] [chevron] [bullet]"; "13 symptom logs chevron should be aligned with
@@ -2488,15 +2488,14 @@ const twoWayCss = `
 .refinement-two-way .rf-tw-head .rf-tw-toggle, .refinement-two-way .rf-tw-head .rf-tw-chips { font-weight: 500; }
 .refinement-two-way .rf-tw-head .rf-tw-chips { gap: .3rem 1.05rem; align-items: baseline; min-width: 0; overflow: hidden; }
 .refinement-two-way .rf-tw-head .rf-tw-toggle.rf-tw-lead, .refinement-two-way .rf-tw-head .rf-chip.rf-tw-lead[aria-pressed="true"] { color: inherit; font-weight: 500; font-size: inherit; }
-.refinement-two-way .rf-tw-head :is(.rf-tw-chip:not(.rf-tw-lead), .rf-tw-when) { font-weight: 400; color: var(--rf-quiet); font-size: inherit; }
+.refinement-two-way .rf-tw-head :is(.rf-tw-chip:not(.rf-tw-lead), .rf-tw-when) { font-weight: 400; color: var(--lk-quiet); font-size: inherit; }
 .refinement-two-way .rf-tw-head .rf-tw-chip[aria-pressed="true"] { color: inherit; font-weight: 600; }
-.refinement-two-way .rf-tw-head .rf-chip.rf-tw-lead[aria-pressed="false"] { color: var(--rf-quiet); font-weight: 400; font-size: inherit; }
-.refinement-two-way .rf-tw-head .rf-tw-sep { position: absolute; right: 100%; margin-right: .42rem; color: var(--rf-faint); font-weight: 400; }
+.refinement-two-way .rf-tw-head .rf-chip.rf-tw-lead[aria-pressed="false"] { color: var(--lk-quiet); font-weight: 400; font-size: inherit; }
+.refinement-two-way .rf-tw-head .rf-tw-sep { position: absolute; right: 100%; margin-right: .42rem; color: var(--lk-faint); font-weight: 400; }
 .refinement-two-way .rf-tw-head .lk-more { padding: 0; font-weight: 400; }
 .refinement-two-way .rf-tw-head .rf-tw-piece { position: relative; display: inline-flex; align-items: baseline; white-space: nowrap; }
 /* The days' words wrap as words do where the kinds' room is shorter than they are, never cut through a letter. */
 .refinement-two-way .rf-tw-head .rf-tw-piece:has(> .rf-tw-when) { white-space: normal; min-width: 0; }
-.refinement-two-way .rf-ol-kids.rf-ol-from-in { --rf-ol-cx: 8px; }
 /* A list's days hang in the margin left of the outline (the owner, 2026-10-27: "dates … should not be in the way"): a
    node's chevron sits under its heading's words, one step in, and its day ends 4px short of the heading's chevron; under
    Group by the nodes step in once more under their group. */
@@ -2541,43 +2540,43 @@ const twoWayCss = `
 .refinement-two-way a.rf-ol-name.lk-node:is(:hover, :focus-visible) { text-decoration-color: currentColor !important; }
 .refinement-two-way .rf-ol-body { display: inline; }
 .refinement-two-way .rf-ol-body > .rf-tw-add, .refinement-two-way .rf-ol-body > .rf-tw-groupby { margin-left: .5em; }
-.refinement-two-way .rf-tw-tell { margin-left: 6px; color: var(--rf-faint); font-size: var(--lk-small); white-space: nowrap; }
+.refinement-two-way .rf-tw-tell { margin-left: 6px; color: var(--lk-faint); font-size: var(--lk-small); white-space: nowrap; }
 /* Inside an opened node, the nodes that link to it (0.4.462): their line in words, then their rows one step in; each
    day hangs in the section's margin, placed by placeDays (absolute in its line, so it takes no room in the value). */
-.refinement-two-way .rf-tw-links { color: var(--rf-quiet); font-size: var(--lk-small); line-height: 1.5; padding: 4px 0 1px; }
+.refinement-two-way .rf-tw-links { color: var(--lk-quiet); font-size: var(--lk-small); line-height: 1.5; padding: 4px 0 1px; }
 .refinement-two-way .rf-tw-linked { padding-left: var(--rf-tw-in); }
 .refinement-two-way .rf-tw-mday { position: absolute; width: var(--rf-ol-day); margin: 0; text-align: right; }
 .refinement-two-way .rf-tw-mday:not([style]) { visibility: hidden; }
 /* A row's wash covers its day, out in the margin, so the two read as one row (the owner, 2 November). */
-.refinement-two-way .rf-ol-line:hover:has(.rf-tw-mday[style])::before { content: ""; position: absolute; top: 0; bottom: 0; left: calc(-1 * var(--rf-tw-day-reach, 0px)); width: var(--rf-tw-day-reach, 0px); background: var(--rf-wash); border-radius: 4px 0 0 4px; pointer-events: none; }
+.refinement-two-way .rf-ol-line:hover:has(.rf-tw-mday[style])::before { content: ""; position: absolute; top: 0; bottom: 0; left: calc(-1 * var(--rf-tw-day-reach, 0px)); width: var(--rf-tw-day-reach, 0px); background: var(--lk-wash); border-radius: 4px 0 0 4px; pointer-events: none; }
 .refinement-two-way .rf-ol-line:hover:has(.rf-tw-mday[style]) { border-top-left-radius: 0; border-bottom-left-radius: 0; }
 /* A node stepped into keeps the margin for those days, as the rows do (0.4.462). */
 /* always, so nothing moves sideways when a dated line first appears (the reviewer: 64 px) */
 .refinement-two-way .rf-tw-stepbody { padding-left: calc(var(--rf-ol-day) + 16px); }
 /* A shifted section's top (0.4.463): the trail ends on it in bold; its properties; then "N nodes link here" on the
    find field's hairline, and its rows as the page's. */
-.refinement-two-way .rf-tw-toplinks { grid-column: 1 / -1; color: var(--rf-quiet); font-size: var(--lk-small); padding: 6px 0 5px; margin-bottom: 4px; border-bottom: 1px solid var(--rf-hair); }
+.refinement-two-way .rf-tw-toplinks { grid-column: 1 / -1; color: var(--lk-quiet); font-size: var(--lk-small); padding: 6px 0 5px; margin-bottom: 4px; border-bottom: 1px solid var(--lk-hair); }
 ::highlight(rf-find) { background-color: var(--rx-blue-04, #e1f0ff); } /* a very subtle blue, Logseq's own (the owner: "I don't like a yellow highlight, do very subtle blue") */
-.refinement-two-way .rf-tw-crumb { color: var(--rf-faint); font-size: var(--lk-small); line-height: 1.3; padding: 0 0 3px calc(16px + var(--rf-ol-gap)); overflow-wrap: anywhere; }
+.refinement-two-way .rf-tw-crumb { color: var(--lk-faint); font-size: var(--lk-small); line-height: 1.3; padding: 0 0 3px calc(16px + var(--rf-ol-gap)); overflow-wrap: anywhere; }
 .refinement-two-way .rf-tw-crumb .lk-step { font-size: inherit; }
 .refinement-two-way .rf-tw-raise { display: flex; flex-wrap: wrap; column-gap: 1.1em; align-items: baseline; margin: 0 0 .2rem calc(16px + var(--rf-ol-gap)); font-size: 14px; line-height: 1.5; }
 .refinement-two-way .rf-tw-npvalue { all: unset; cursor: pointer; border-radius: 3px; }
-.refinement-two-way .rf-tw-npvalue.rf-faint { color: var(--rf-faint); }
-.refinement-two-way .rf-tw-npvalue:hover, .refinement-two-way .rf-tw-npvalue:focus-visible { text-decoration: underline; text-decoration-color: var(--rf-line); text-underline-offset: 3px; }
+.refinement-two-way .rf-tw-npvalue.rf-faint { color: var(--lk-faint); }
+.refinement-two-way .rf-tw-npvalue:hover, .refinement-two-way .rf-tw-npvalue:focus-visible { text-decoration: underline; text-decoration-color: var(--lk-line); text-underline-offset: 3px; }
 .refinement-two-way .rf-ol-pname[data-edit] { cursor: pointer; }
 .refinement-two-way .rf-ol-pname[data-edit]:hover { color: inherit; }
 .refinement-two-way .rf-tw-findrow { grid-column: 1 / -1; padding: 0 0 6px; }
 /* The whole width of the section, its line a hairline even while typing (the owner: "weirdly short", "bottom of it can be
    hairline"). */
-.refinement-two-way .rf-tw-findrow > .rf-field, .refinement-two-way .rf-tw-findrow > .rf-field:focus-within { border-bottom-color: var(--rf-hair); }
+.refinement-two-way .rf-tw-findrow > .rf-field, .refinement-two-way .rf-tw-findrow > .rf-field:focus-within { border-bottom-color: var(--lk-hair); }
 .refinement-two-way .rf-tw-stepped { grid-column: 1 / -1; }
 .refinement-two-way .rf-tw-stepped > .rf-ol-trail { padding: 2px 0 8px; }
 .refinement-two-way .rf-tw-ghead .rf-chev { align-self: center; }
 /* The tick box of a node sits in the margin left of the outline (0.4.229, the owner: "to the left of the outline"). */
-.refinement-two-way .rf-tw-line > input.rf-check.rf-tw-pick { left: -22px; }
+.refinement-two-way .rf-tw-line > input.lk-tick.rf-tw-pick { left: -22px; }
 /* Where you are (0.4.442): the names opened on the way, pinned at the top of the section once they scroll off; no room. */
 .refinement-two-way .rf-tw-pin { grid-column: 1 / -1; position: sticky; top: var(--rf-tw-pin-top, 0px); height: 0; z-index: 3; }
-.refinement-two-way .rf-tw-pin > .rf-ol-trail { position: absolute; left: -12px; right: -12px; top: 0; padding: 5px 12px; background: var(--lk-paper, var(--rf-bg)); border-bottom: 1px solid var(--rf-hair); }
+.refinement-two-way .rf-tw-pin > .rf-ol-trail { position: absolute; left: -12px; right: -12px; top: 0; padding: 5px 12px; background: var(--lk-paper, var(--lk-paper, #fff)); border-bottom: 1px solid var(--lk-hair); }
 `;
 /* Logseq draws the properties under a record as one strip (.bottom-properties-pills-strip, flex-nowrap and
    overflow-x hidden), so a record with several fields is cut off at the right edge, behind an Expand button the

@@ -3,11 +3,11 @@
 (function () {
 const E = window.DbExport;
 const { doc: D, themes } = E;
-const notify = (text, status = 'success') => logseq.UI.showMsg(text, status);   // no options: with a timeout option the notice stayed on screen (seen 2026-10-29)
+const { notify } = window.PluginDoor;
 const today = () => E.dates.dayNumber(new Date());
 
 // Logseq draws a query as a table; its columns and the rows' order on screen are read from the window, when it is drawn.
-const host = () => { try { return window.parent.document; } catch (error) { return null; } };
+const host = () => { try { return window.parent.document; } catch (error) { return null; } };   // null, not the frame's own document: the callers ask whether Logseq's page can be reached
 const columnsOf = async uuid => { try { const t = host()?.querySelector(`.ls-block[blockid="${uuid}"] .ls-table`); return t ? [...t.querySelectorAll('.ls-table-header .ls-table-header-cell [title]')].map(e => e.getAttribute('title')).filter(Boolean) : null; } catch (error) { return null; } };
 const orderOf = async uuid => { try { const b = host()?.querySelector(`.ls-block[blockid="${uuid}"]`); const t = b?.querySelector('.ls-table'); if (!t) return null;
   const ids = [...new Set([...t.querySelectorAll('[blockid]')].map(e => e.getAttribute('blockid').toLowerCase()))]; const count = Number(b.querySelector('.ls-view-head')?.textContent.match(/\((\d+)\)/)?.[1]);
@@ -52,8 +52,8 @@ const fileName = doc => E.files.fileName(doc.title ? E.inline.words(doc.title) :
 async function act(doc, ch, action, editedBody) {
   if (action === 'rich') { const ok = await E.clipboard.write(await richText(doc, ch, editedBody)); notify(ok ? 'Copied as rich text' : 'Could not reach the clipboard', ok ? 'success' : 'error'); }
   else if (action === 'md') { const ok = await E.clipboard.write({ text: editedBody ?? markdown(doc, ch) }); notify(ok ? 'Copied as Markdown' : 'Could not reach the clipboard', ok ? 'success' : 'error'); }
-  else if (action === 'md-file') { const r = await E.files.save(fileName(doc) + '.md', editedBody ?? markdown(doc, ch), 'text/markdown'); if (r.saved) notify(`Saved ${r.path}`); return r.saved; }
-  else if (action === 'html-file') { const r = await E.files.save(fileName(doc) + '.html', await pageHtml(doc, ch), 'text/html'); if (r.saved) notify(`Saved ${r.path}`); return r.saved; }
+  else if (action === 'md-file') { const r = await E.files.save(fileName(doc) + '.md', editedBody ?? markdown(doc, ch), 'text/markdown'); if (r.saved) notify(`Saved ${r.path}`, 'success'); return r.saved; }
+  else if (action === 'html-file') { const r = await E.files.save(fileName(doc) + '.html', await pageHtml(doc, ch), 'text/html'); if (r.saved) notify(`Saved ${r.path}`, 'success'); return r.saved; }
   else if (action === 'pdf') { await E.print.print(await pageHtml(doc, ch, { body: editedBody })); return false; }   // the print window does not say whether it saved, so the export window stays
   return true;
 }

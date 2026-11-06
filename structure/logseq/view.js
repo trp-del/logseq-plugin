@@ -9,7 +9,7 @@
 const S = window.Structure;
 const Mo = S.model, R = S.rules;
 const { LOOSE } = Mo;
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const { esc } = window.PluginDoor;
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 
 // Logseq's fold chevron, as it draws it: a small right-pointing angle that turns down when open.
@@ -24,9 +24,7 @@ const dayWords = d => d ? day(new Date(Math.floor(d / 10000), Math.floor(d / 100
 const ACT_ICON = { page: 'go', ppage: 'go', rename: 'rename', prename: 'rename', move: 'move', pmove: 'move', new: 'child', addprop: 'plus', addpropall: 'plus', merge: 'merge', remove: 'bin', pullup: 'up', split: 'split', pdrop: 'minus' };
 const fixIcon = word => [[/^(remove|delete)/i, 'bin'], [/^drop/i, 'minus'], [/^(pull|lift)/i, 'up'], [/^(move|place|put)/i, 'move'], [/^merge/i, 'merge'], [/^rename/i, 'rename'], [/^(add|new)/i, 'plus']].find(([re]) => re.test(word))?.[1] || 'tick';
 const CSS = `
-.st { --st-quiet: var(--lk-quiet); --st-faint: var(--lk-faint); --st-hair: var(--lk-hair); --st-line: var(--lk-line); --st-wash: var(--lk-wash);
-  --st-mono: var(--lk-mono);
-  color: var(--lk-text, #222); font-size: 14px; line-height: 1.5; outline: none; position: relative; }
+.st { color: var(--lk-text, #222); font-size: 14px; line-height: 1.5; outline: none; position: relative; }
 .st * { box-sizing: border-box; }
 .st-page { display: flex; flex-direction: column; height: 600px; min-height: 360px; }
 .st-top { display: flex; align-items: center; gap: 18px; padding: 0 22px 8px 6px; min-height: 37px; }
@@ -44,7 +42,7 @@ const CSS = `
 .st-regions .st-row .nm { overflow-wrap: normal; }
 .st-regions .st-row.cur { font-weight: 600; } .st-regions .st-row.cur::before { display: none; }
 /* The tag you are on, under the areas: its name opens its page; its relationships; what Structure suggests. */
-.st-focus { padding: 16px 6px 24px; border-top: 1px solid var(--st-hair); margin-top: 6px; max-width: 760px; }
+.st-focus { padding: 16px 6px 24px; border-top: 1px solid var(--lk-hair); margin-top: 6px; max-width: 760px; }
 .st-focus .f-h { font-weight: 600; margin-bottom: 8px; }
 .st-rel { display: grid; grid-template-columns: auto auto auto; gap: 3px 14px; justify-content: start; align-items: baseline; font-size: 14px; }
 .st-rel .self { font-weight: 700; color: inherit; } .st-rel .gap { grid-column: 1 / -1; height: 6px; } .st-rel .all { grid-column: 1 / -1; }
@@ -72,18 +70,18 @@ const CSS = `
 .st-sb { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; font-size: 14px; margin: 10px 0 2px; }
 .st-sb .h { font-weight: 600; margin-bottom: 4px; } .st-sb .o { padding-left: calc(var(--d, 0) * 16px); }
 .st-tray .links { font-variant-numeric: tabular-nums; }
-.st-log .ln { display: grid; grid-template-columns: 120px minmax(0, 1fr) 110px; gap: 0 12px; padding: 4px 0; border-bottom: 1px solid var(--st-hair); font-size: 14px; }
-.st-left { grid-row: 1 / -1; border-right: 1px solid var(--st-hair); padding: 12px 10px 12px 14px; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.st-log .ln { display: grid; grid-template-columns: 120px minmax(0, 1fr) 110px; gap: 0 12px; padding: 4px 0; border-bottom: 1px solid var(--lk-hair); font-size: 14px; }
+.st-left { grid-row: 1 / -1; border-right: 1px solid var(--lk-hair); padding: 12px 10px 12px 14px; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 .st-right { flex: 1; padding: 0 22px 56px 6px; min-width: 0; min-height: 0; overflow: auto; container-type: inline-size; }
 .st-side .st-left { border: 0; padding: 4px 4px 8px 6px; }
 /* The tray stands on top of the card, where a change is made, above what scrolls, so Apply is always in reach. The card's foot keeps clear of Logseq's help button, which stands over that corner. */
-.st-tray { border-bottom: 1px solid var(--st-hair); padding: 10px 22px 10px 26px; font-size: 14px; min-width: 0; }
+.st-tray { border-bottom: 1px solid var(--lk-hair); padding: 10px 22px 10px 26px; font-size: 14px; min-width: 0; }
 .st-tray:empty { display: none; }
 .st-tray .st-wait { overflow: visible; } .st-tray .st-wait .links + .lk-low, .st-tray .st-wait .links + .lk-accent { margin-left: auto !important; } .st-tray .st-wait { gap: 6px 8px; } 
 .st-tray .tl { display: grid; gap: 1px; min-width: 0; margin-bottom: 8px; }
 /* A line of the tray: the sentence, then in a column of its own how many nodes it affects, so the two are never read as one. */
 .st-tray .tl > span { display: grid; grid-template-columns: minmax(0, 1fr) max-content 16px; gap: 0 12px; align-items: baseline; color: var(--lk-text, #222); font-size: 14px; }
-.st-tray .tl span i { color: var(--st-quiet); font-style: normal; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.st-tray .tl span i { color: var(--lk-quiet); font-style: normal; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .st-tray .tl .lk-x { justify-self: end; padding: 0 2px; }
 .st-tray .st-wait .lk-accent { padding: 2px 6px; margin: 0 -6px; }
 .st-tray .ky { font-weight: 400; font-size: var(--lk-small); margin-left: 6px; }
@@ -92,19 +90,19 @@ const CSS = `
 .st-card .sum .lk-lone { padding: 0; margin: 0; text-decoration: underline; text-decoration-color: var(--st-line, var(--lk-line)); text-underline-offset: 3px; }
 .st-card .sum .lk-lone:hover { background: none; text-decoration-color: currentColor; }
 /* A question, wherever it opens (the library's): what it asks, what follows from it, the answers; joined by a line from the margin. */
-.st-q { margin: 6px 0 16px; padding-left: 12px; border-left: 2px solid var(--st-hair); max-width: 640px; }
+.st-q { margin: 6px 0 16px; padding-left: 12px; border-left: 2px solid var(--lk-hair); max-width: 640px; }
 .st-tray .st-q { margin: 8px 0 2px; max-width: none; }
-.st-q .h { font-weight: 600; } .st-q .l { color: var(--st-quiet); font-size: 14px; }
+.st-q .h { font-weight: 600; } .st-q .l { color: var(--lk-quiet); font-size: 14px; }
 .st-q .lk-answers { margin-top: 6px; } .st-q .lk-hint { white-space: normal; }
 /* st-done, not done: Logseq strikes through its own .done (a finished task). */
 .st-tray .st-saying { display: flex; gap: 16px; justify-content: flex-end; }
-.st-tray .st-done, .st-tray .note { color: var(--st-quiet); white-space: nowrap; font-size: 14px; }   /* the Undo arrow waits at the right, at the top of the card (the grammar) */
+.st-tray .st-done, .st-tray .note { color: var(--lk-quiet); white-space: nowrap; font-size: 14px; }   /* the Undo arrow waits at the right, at the top of the card (the grammar) */
 .st-tray .st-wait + .tl + .st-saying, .st-tray .st-wait + .tl + .more + .st-saying { margin-top: 4px; }
 .st-tray .st-done .lk-undo { cursor: pointer; margin-left: 6px; font-size: 16px; }
-.st-tray .busy { color: var(--st-faint); }
+.st-tray .busy { color: var(--lk-faint); }
 /* The find line and a name typed in place are the library's field (lk-field); here their room. */
-.st-find { color: var(--st-faint); font-size: 14px; min-height: 24px; padding: 0 2px; margin: 0 0 10px; }
-.st-find .n { font-size: var(--lk-small); color: var(--st-faint); font-variant-numeric: tabular-nums; }
+.st-find { color: var(--lk-faint); font-size: 14px; min-height: 24px; padding: 0 2px; margin: 0 0 10px; }
+.st-find .n { font-size: var(--lk-small); color: var(--lk-faint); font-variant-numeric: tabular-nums; }
 .st-in { width: 100%; }
 .st-tree { flex: 1; min-height: 0; overflow: auto; }
 /* A row is built as Logseq builds a block (the grammar): the tick in the margin, the fold arrow shown under the pointer, the
@@ -115,8 +113,8 @@ const CSS = `
 /* The bullet is the library's (lk-bul); here its place on the row. A row's wash under the pointer is the library's (lk-row). */
 .st-bul { margin-top: 5px; justify-self: center; }
 .st-row.kind .st-bul::before { opacity: .8; }
-.st-row.cur { background: var(--st-wash); }
-.st-row.cur::before { content: ""; position: absolute; left: -8px; top: 5px; bottom: 5px; width: 2px; background: var(--st-line); border-radius: 1px; }
+.st-row.cur { background: var(--lk-wash); }
+.st-row.cur::before { content: ""; position: absolute; left: -8px; top: 5px; bottom: 5px; width: 2px; background: var(--lk-line); border-radius: 1px; }
 /* The tick box is the library's (lk-tick); when it shows is Look's word (on the list under the pointer, or while picking). */
 /* Every box at the middle of its row's first line, in one straight column at the left edge whatever the row's depth, so a
    top-level row, which can be ticked like any (the top is open), keeps its fold arrow beside its box. */
@@ -128,21 +126,21 @@ const CSS = `
 .st-row .nm { min-width: 0; padding: 3px 0; line-height: 20px; overflow-wrap: anywhere; display: flex; gap: 7px; align-items: baseline; }
 .st-row.kind .nm { font-weight: 500; }
 .st-row.dim .nm, .st-row.dim .ct, .st-row.loose .nm { color: var(--lk-off); }
-.st-row .ct { text-align: right; line-height: 26px; color: var(--st-quiet); font-size: var(--lk-small); font-variant-numeric: tabular-nums; }
+.st-row .ct { text-align: right; line-height: 26px; color: var(--lk-quiet); font-size: var(--lk-small); font-variant-numeric: tabular-nums; }
 .st-row .iss { width: 5px; height: 5px; margin-top: 10.5px; border-radius: 50%; background: currentColor; opacity: 0; justify-self: center; }
 .st-row .iss.on { opacity: .35; } .st-row .iss.own { opacity: .7; }
 /* Everything that presses shows it under the pointer, and nothing else does: a line or a row that opens a card, a number, the rest of a list. */
 .st [data-row], .st [data-prop], .st [data-nodes], .st [data-node], .st [data-pick], .st [data-all], .st [data-more], .st [data-go], .st [data-back], .st [data-open] { cursor: pointer; }
 .st .lk-view.on { cursor: default; } .st-row.off[data-pick] { cursor: default; }
 .st-row.dragging { opacity: .4; }
-.st-row.over { background: var(--st-wash); box-shadow: inset 0 2px 0 var(--st-line); }
-.st-row.over[data-word]:not([data-word=""])::after { content: attr(data-word); position: absolute; right: 64px; top: 4px; font-size: var(--lk-small); color: var(--st-quiet); pointer-events: none; }
+.st-row.over { background: var(--lk-wash); box-shadow: inset 0 2px 0 var(--lk-line); }
+.st-row.over[data-word]:not([data-word=""])::after { content: attr(data-word); position: absolute; right: 64px; top: 4px; font-size: var(--lk-small); color: var(--lk-quiet); pointer-events: none; }
 /* Two panes: each finds and scrolls on its own; "to the top" stands at each foot only while a tag is held. */
 .st-panes { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); padding: 8px 0 12px; }
 .st-pane { min-width: 0; padding: 4px 14px 0 6px; display: flex; flex-direction: column; }
-.st-pane + .st-pane { border-left: 1px solid var(--st-hair); padding-left: 14px; }
+.st-pane + .st-pane { border-left: 1px solid var(--lk-hair); padding-left: 14px; }
 .st-pane .st-tree { max-height: calc(100vh - 300px); min-height: 160px; overflow-y: auto; }
-.st-topdrop { display: none; } .st[data-dragging] .st-topdrop { display: grid; } .st-topdrop .nm { color: var(--st-quiet); }
+.st-topdrop { display: none; } .st[data-dragging] .st-topdrop { display: grid; } .st-topdrop .nm { color: var(--lk-quiet); }
 .st-top .st-split { flex: none; }
 
 /* Pencilled in (Look's lk-pencil on the name): what a change waiting in the tray touches. */
@@ -161,54 +159,54 @@ const CSS = `
 .st-ttl .st-place { display: flex; align-items: baseline; margin-left: auto; font-size: var(--lk-small); white-space: nowrap; min-width: 0; flex: 0 1 auto; }
 .st-ttl .st-place > * { flex: 0 1000 auto; min-width: 2em; overflow: hidden; text-overflow: ellipsis; }
 .st-ttl .st-place > :first-child { flex-shrink: 1; } .st-ttl .st-place > :last-child { flex-shrink: 0; }
-.st-ttl .st-place .sep { flex: none; min-width: 0; color: var(--st-faint); margin: 0 .4em; }
+.st-ttl .st-place .sep { flex: none; min-width: 0; color: var(--lk-faint); margin: 0 .4em; }
 .st-card h2 { font-size: 20px; font-weight: 600; margin: 0; display: flex; gap: 10px; align-items: center; line-height: 1.3; min-width: 0; }
 .st-card h2 .st-pi { width: 13px; height: 13px; }
-.st-card .sum { font-size: var(--lk-small); color: var(--st-quiet); margin: 0 0 6px; display: flex; gap: 14px; flex-wrap: wrap; align-items: baseline; }
+.st-card .sum { font-size: var(--lk-small); color: var(--lk-quiet); margin: 0 0 6px; display: flex; gap: 14px; flex-wrap: wrap; align-items: baseline; }
 .st-card .acts { margin: 8px 0 20px; }
-.st .act { color: var(--st-quiet); cursor: pointer; white-space: nowrap; } .st .act:hover { color: inherit; }
+.st .act { color: var(--lk-quiet); cursor: pointer; white-space: nowrap; } .st .act:hover { color: inherit; }
 /* A group's head is bold words on a row; groups are told apart by a gap of one line, not a hairline (the grammar). */
-.st-card h3, .st-hl h3 { font-size: 14px; font-weight: 600; color: inherit; margin: 22px 0 2px; min-height: 25px; display: flex; align-items: center; }
-.st-card h3:first-of-type, .st-hl h3:first-child { margin-top: 0; } .st-hl .st-ttl + h3 { margin-top: 12px; }
+.st-card h3 { font-size: 14px; font-weight: 600; color: inherit; margin: 22px 0 2px; min-height: 25px; display: flex; align-items: center; }
+.st-card h3:first-of-type { margin-top: 0; }
 .st-ln { display: grid; grid-template-columns: 16px minmax(0, 1fr) 84px; gap: 0 8px; align-items: baseline; min-height: 25px; border-radius: 3px; padding: 0 4px 0 2px; margin-left: -2px; }
-.st-ln:hover { background: var(--st-wash); }
-.st-pi { display: inline-flex; width: 11px; height: 11px; color: var(--st-faint); align-self: center; } .st-ln > .st-pi { align-self: start; margin-top: 5px; } .st-pi .lk-icon.lk-web, .st-pi .lk-icon.lk-web svg { width: 100%; height: 100%; } .st-pi .ti { font-size: 12px; line-height: 1; margin: -.5px; }
+.st-ln:hover { background: var(--lk-wash); }
+.st-pi { display: inline-flex; width: 11px; height: 11px; color: var(--lk-faint); align-self: center; } .st-ln > .st-pi { align-self: start; margin-top: 5px; } .st-pi .lk-icon.lk-web, .st-pi .lk-icon.lk-web svg { width: 100%; height: 100%; } .st-pi .ti { font-size: 12px; line-height: 1; margin: -.5px; }
 .st-ln .w { display: flex; gap: 8px; align-items: baseline; min-width: 0; flex-wrap: wrap; }
 .st-ln .w .k { color: inherit; }
-.st-ln .w .to { color: var(--st-faint); font-size: var(--lk-small); }
-.st .lk { text-decoration: underline; text-decoration-color: var(--st-line); text-underline-offset: 3px; cursor: pointer; }
+.st-ln .w .to { color: var(--lk-faint); font-size: var(--lk-small); }
+.st .lk { text-decoration: underline; text-decoration-color: var(--lk-line); text-underline-offset: 3px; cursor: pointer; }
 .st .lk:hover { text-decoration-color: currentColor; }
 .st .lk-tag { white-space: nowrap; cursor: pointer; }
 .st-tbl .lk-tag { opacity: 1; }   /* in the table a tag is a column's whole content, not a mark after words: full strength (the owner, 5 November 2026) */
-.st-ln .ct { text-align: right; font-size: var(--lk-small); color: var(--st-quiet); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.st-ln.low .ct { color: var(--st-faint); }
+.st-ln .ct { text-align: right; font-size: var(--lk-small); color: var(--lk-quiet); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.st-ln.low .ct { color: var(--lk-faint); }
 .st-ln.rng .x { margin-left: 2px; }
 .st-ln.add .ct { text-align: left; white-space: normal; }
 /* An issue's row, each part keyed by its role (the owner, 31 October 2026): the thing to settle in the text colour with the underline
    that opens its card, the tying words and the sentence in the quiet grey at the row's size, the tags as tags, the count as a number,
    the fix last in the text colour, taking the room it needs (the sentence wraps before it, never the fix word). */
 .st-ln.iss { grid-template-columns: 16px minmax(0, 1fr) max-content; }
-.st-ln.iss .w { color: var(--st-quiet); display: block; }   /* the parts flow as text, so a long sentence wraps as text */
+.st-ln.iss .w { color: var(--lk-quiet); display: block; }   /* the parts flow as text, so a long sentence wraps as text */
 .st-ln.iss .w > span { margin: 0 2px; } .st-ln.iss .w > span:first-child { margin-left: 0; }
 .st-ln.iss .w .sj { color: var(--lk-text, #222); font-weight: 500; margin-right: 4px; }
-.st-ln.iss .w .to { color: var(--st-quiet); font-size: 14px; } .st-ln.iss .w .pn { margin-left: -2px; }
-.st-ln.iss .w .nm { color: var(--st-quiet); font-variant-numeric: tabular-nums; font-size: 14px; margin-left: 6px; }
+.st-ln.iss .w .to { color: var(--lk-quiet); font-size: 14px; } .st-ln.iss .w .pn { margin-left: -2px; }
+.st-ln.iss .w .nm { color: var(--lk-quiet); font-variant-numeric: tabular-nums; font-size: 14px; margin-left: 6px; }
 /* A line with its own issue: the fix word at its right end, after the faint count. */
 .st-ln.fx { grid-template-columns: 16px minmax(0, 1fr) 84px max-content; }
 /* A merge before it is staged, as the grammar shows a consequence: the two tags side by side, their properties lined up. */
 .st-two { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; font-size: 14px; margin: 8px 0 6px; }
-.st-two .h { font-weight: 600; padding-bottom: 4px; display: flex; gap: 8px; align-items: baseline; color: var(--lk-text, #222); } .st-two .h .ct { font-weight: 400; color: var(--st-quiet); font-size: var(--lk-small); }
-.st-two .pr { display: flex; gap: 8px; min-height: 24px; align-items: center; color: var(--st-quiet); }   /* the name at the left of its column, "on both" at the right */
+.st-two .h { font-weight: 600; padding-bottom: 4px; display: flex; gap: 8px; align-items: baseline; color: var(--lk-text, #222); } .st-two .h .ct { font-weight: 400; color: var(--lk-quiet); font-size: var(--lk-small); }
+.st-two .pr { display: flex; gap: 8px; min-height: 24px; align-items: center; color: var(--lk-quiet); }   /* the name at the left of its column, "on both" at the right */
 .st-two .pr .n { display: inline-flex; gap: 6px; align-items: center; min-width: 0; }
-.st-two .pr .ct { font-size: var(--lk-small); color: var(--st-faint); margin-left: auto; white-space: nowrap; }
-.st-two .pr.moves, .st-two .pr.shared { color: var(--lk-text, #222); } .st-two .pr.gone { text-decoration: line-through; color: var(--st-faint); } .st-two .pr.new { font-style: italic; }
-.st .q { color: var(--st-quiet); } .st .f { color: var(--st-faint); }
+.st-two .pr .ct { font-size: var(--lk-small); color: var(--lk-faint); margin-left: auto; white-space: nowrap; }
+.st-two .pr.moves, .st-two .pr.shared { color: var(--lk-text, #222); } .st-two .pr.gone { text-decoration: line-through; color: var(--lk-faint); } .st-two .pr.new { font-style: italic; }
+.st .q { color: var(--lk-quiet); } .st .f { color: var(--lk-faint); }
 /* Baked in one pass (the owner, 5 November 2026: "the table feels half-baked"): the tick and the fold arrow stand in a margin at the
    table's left, as on a Regions row, so the head Property stands over the names; the chevron sits tight after the value it keys;
    the columns are sized to what they hold; the sorted head carries Logseq's arrow. */
 .st-tbl { font-size: 14px; margin-left: 36px; }
-.st-tbl .hd, .st-tbl .tr { display: grid; grid-template-columns: minmax(140px, 1fr) minmax(0, 1.5fr) minmax(0, 1.5fr) 100px; gap: 0; align-items: center; min-height: 32px; border-bottom: 1px solid var(--st-hair); }
-.st-tbl .hd > *, .st-tbl .tr > * { padding: 4px 12px; min-width: 0; border-left: 1px solid var(--st-hair); } .st-tbl .hd > :first-child, .st-tbl .tr > :first-child { border-left: 0; padding-left: 4px; }
+.st-tbl .hd, .st-tbl .tr { display: grid; grid-template-columns: minmax(140px, 1fr) minmax(0, 1.5fr) minmax(0, 1.5fr) 100px; gap: 0; align-items: center; min-height: 32px; border-bottom: 1px solid var(--lk-hair); }
+.st-tbl .hd > *, .st-tbl .tr > * { padding: 4px 12px; min-width: 0; border-left: 1px solid var(--lk-hair); } .st-tbl .hd > :first-child, .st-tbl .tr > :first-child { border-left: 0; padding-left: 4px; }
 .st-tbl .hd { font-weight: 600; } .st-tbl .hd .lk-head { cursor: pointer; } .st-tbl .hd .sortmark { color: inherit; font-weight: 400; margin-left: 5px; }
 .st-tbl .tr > span:first-child { position: relative; } .st-tbl .tr .lk-tick { position: absolute !important; left: -34px !important; top: 50%; transform: translateY(-50%); margin: 0 !important; } .st-tbl .tr.dim { opacity: .45; } .st-tbl .st-q { margin: 6px 0 14px 4px; }
 .st-acts .st-in { flex: 0 0 280px; width: 280px; }
@@ -216,16 +214,16 @@ const CSS = `
 .st-lines-t dd .lk-i-merge { margin-left: auto; }
 .st-tbl .tr > span:first-child { white-space: nowrap; } .st-tbl .tr .k.lk { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }   /* the name is cut, not the cell, so the tick and the arrow in the margin stay in view */
 .st-tbl .tr .k.lk { cursor: pointer; }
-.st-tbl .tr.cur { background: var(--st-wash); }
+.st-tbl .tr.cur { background: var(--lk-wash); }
 .st-tbl .tr .lk-fold { position: absolute; left: -17px; top: 50%; transform: translateY(-50%); width: 14px; }
-.st-popen { padding: 8px 12px 14px 20px; border-bottom: 1px solid var(--st-hair); }
+.st-popen { padding: 8px 12px 14px 20px; border-bottom: 1px solid var(--lk-hair); }
 /* The keys at rest (the owner's pick 1 of structure-table-keys-mockup.html, 5 November 2026): a cell that changes here ends with a faint chevron. */
 .st-tbl .tr .st-cell { display: flex; align-items: center; justify-content: flex-start; gap: 6px; } .st-tbl .tr .st-cell > span:first-child { min-width: 0; }
-.st-tbl .tr .st-chev { color: var(--st-faint); font-size: 11px; cursor: pointer; padding: 0 2px; flex: none; } .st-tbl .tr .st-chev:hover { color: var(--st-quiet); }
+.st-tbl .tr .st-chev { color: var(--lk-faint); font-size: 11px; cursor: pointer; padding: 0 2px; flex: none; } .st-tbl .tr .st-chev:hover { color: var(--lk-quiet); }
 .st-popen .st-lines-t { margin: 0; font-size: 14px; }
 /* On a tree row the name is the door (the grammar's row): the words carry the faint line under the pointer, since a line on every row would multiply. */
 .st-row .nm .st-name { cursor: pointer; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 3px; transition: text-decoration-color .12s; }
-.st-row .nm .st-name:hover { text-decoration-color: var(--st-line); }
+.st-row .nm .st-name:hover { text-decoration-color: var(--lk-line); }
 .st-h { font-size: 14px; font-weight: 600; margin: 22px 0 4px; }
 /* A narrow pane (the right sidebar open): the table keeps its four columns, the tag columns wrapping. */
 @container (max-width: 640px) { .st-tbl .hd, .st-tbl .tr { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 76px; } .st-tbl .hd > *, .st-tbl .tr > * { padding-inline: 8px; } }
@@ -233,21 +231,20 @@ const CSS = `
 /* The groups of Every property: a name that folds like a bullet, its count at the right; what it holds one step in. */
 .st-tbl .tr > :first-child { padding-left: var(--pd, 4px); }   /* inside a group: one step past its name, as a child bullet */
 .st-tbl .st-grp .lk-fold { width: 14px; }
-.st-tbl .st-grp { display: grid; grid-template-columns: 14px minmax(0, 1fr) auto 22px; gap: 6px; align-items: center; min-height: 32px; padding-left: calc(var(--d, 0) * 16px); border-bottom: 1px solid var(--st-hair); }
+.st-tbl .st-grp { display: grid; grid-template-columns: 14px minmax(0, 1fr) auto 22px; gap: 6px; align-items: center; min-height: 32px; padding-left: calc(var(--d, 0) * 16px); border-bottom: 1px solid var(--lk-hair); }
 .st-tbl .st-grp .gn { font-weight: 600; cursor: text; } .st-tbl .st-grp.none .gn { font-weight: 500; cursor: default; }
 .st-tbl .st-grp .ct { font-variant-numeric: tabular-nums; padding-right: 12px; }
 /* The group's ×: the library's lk-reveal, shown while its row is pointed at. */
-.st-tbl .st-grp.over { background: var(--st-wash); box-shadow: inset 0 2px 0 var(--st-line); }
+.st-tbl .st-grp.over { background: var(--lk-wash); box-shadow: inset 0 2px 0 var(--lk-line); }
 .st-tbl .dragging { opacity: .4; }
 .st-gnew { padding: 8px 2px 0; } .st-gnew .act + .act { margin-left: 20px; }
 .st-tbl .to, .st-lines-t .to { margin: 0 .35em; }
-.st-hl .st-ln { grid-template-columns: minmax(0, 1fr) max-content; }
 /* A node's row: the day in the left margin (the margin is time), the tick, the bullet, the name. */
 .st-nodes .st-ln { grid-template-columns: 46px 14px 16px minmax(0, 1fr); }
 .st-nodes .st-ln .lk-day { white-space: nowrap; }
-.st-nodes .st-ln.cur { background: var(--st-wash); }
+.st-nodes .st-ln.cur { background: var(--lk-wash); }
 .st-nodes .st-ln > input.lk-tick[type=checkbox] { align-self: start; margin-top: 4px !important; } .st-nodes .st-ln > .st-bul { align-self: start; margin-top: 3.5px; }
-.st-nodes .more, .st-hl .more, .st-tbl .more { padding: 4px 2px; }
+.st-nodes .more, .st-tbl .more { padding: 4px 2px; }
 .st-menu { position: absolute; min-width: 230px; width: max-content; max-width: 360px; font-size: 14px; z-index: 30; }   /* the library's pop-up and menu (lk-pop, lk-menu) */
 /* The prompt is a picker at the thing pressed (the owner, 5 November 2026), with the menu's look, anchored in the scrolling box
    the press was in so it moves with its row and moves nothing else. One drawing everywhere: a find line reading the ask as its
@@ -261,13 +258,13 @@ const CSS = `
 .st-prompt .st-row.loose:not(.off) .nm { color: inherit; }   /* The top reads as any row that can take it; faint only when it cannot */
 .st-prompt .nm .st-pi { align-self: start; margin-top: 5px; }   /* a long name wraps under itself, the icon at its first line */
 .st-prompt .st-row:hover { background: none; }
-.st-prompt .st-row.lit, .st-prompt .st-row.lit:hover { background: var(--st-wash); }
+.st-prompt .st-row.lit, .st-prompt .st-row.lit:hover { background: var(--lk-wash); }
 .st-prompt .more { display: block; padding: 3px 4px; border-radius: 3px; width: 100%; text-align: left; }
-.st-prompt .more.lit { background: var(--st-wash); }
-.st-prompt .q { padding: 4px 2px; color: var(--st-quiet); } .st-prompt .q .hint { color: var(--st-faint); }
-.st-prompt .st-find .ti-search { font-size: 14px; color: var(--st-faint); flex: none; }
-.st-prompt .st-find .ask { font-size: var(--lk-small); color: var(--st-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 55%; }
-.st-prompt .nm .up { margin-left: .5em; font-size: var(--lk-small); color: var(--st-faint); }
+.st-prompt .more.lit { background: var(--lk-wash); }
+.st-prompt .q { padding: 4px 2px; color: var(--lk-quiet); } .st-prompt .q .hint { color: var(--lk-faint); }
+.st-prompt .st-find .ti-search { font-size: 14px; color: var(--lk-faint); flex: none; }
+.st-prompt .st-find .ask { font-size: var(--lk-small); color: var(--lk-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 55%; }
+.st-prompt .nm .up { margin-left: .5em; font-size: var(--lk-small); color: var(--lk-faint); }
 /* A faint row's count gives way to its reason under the pointer, so why it cannot take it is read where its number stood. */
 .st-prompt .ct .why { display: none; } .st-prompt .st-row.off:hover .ct .n { display: none; } .st-prompt .st-row.off:hover .ct .why { display: inline; }
 .st-empty { max-width: 60ch; }   /* the library's nothing-here line (lk-none) */

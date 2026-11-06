@@ -5,8 +5,7 @@
 (function () {
 const S = window.Structure;
 const Mo = S.model;
-const notify = (text, status = 'info') => logseq.UI.showMsg(text, status);   // no options: with a timeout the notice stays on screen (seen 2026-10-29)
-const host = () => { try { return window.parent.document; } catch (error) { return document; } };
+const { notify, host } = window.PluginDoor;
 
 const tray = S.changes.makeTray();
 tray.setBase({ tags: [], props: [] });

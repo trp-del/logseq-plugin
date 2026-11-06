@@ -4,21 +4,9 @@
    Find puts those names on what it draws and carries no look of its own for them. Cut down from Look's kit. */
 (function () {
 const Find = (window.Find ||= {});
-const host = () => window.parent.document;
+const { host, esc, el, notify } = window.PluginDoor;
 
-const esc = text => String(text ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
 // el(doc, 'span', { class: 'fd-x', click: fn }, child, 'words'): attributes by name, listeners by event name, html by 'html'.
-function el(doc, tag, props = {}, ...children) {
-  const node = doc.createElement(tag);
-  for (const [key, value] of Object.entries(props)) {
-    if (value == null || value === false) continue;
-    if (typeof value === 'function') node.addEventListener(key, value);
-    else if (key === 'html') node.innerHTML = value;
-    else node.setAttribute(key, value === true ? '' : String(value));
-  }
-  for (const child of children) if (child != null) node.append(child);
-  return node;
-}
 const iconHtml = name => `<i class="ti ti-${name}" aria-hidden="true"></i>`;
 const { kindIconHtml } = window.PluginDoor;
 
@@ -38,7 +26,6 @@ function sweep(doc = host()) {
   for (const name of LEAVES.attributes) for (const node of doc.querySelectorAll(`[${name}]`)) node.removeAttribute(name);
 }
 const openPage = (uuid, inSidebar) => { if (!uuid) return; if (inSidebar) logseq.Editor.openInRightSidebar(uuid); else logseq.App.pushState('page', { name: uuid }); };
-const notify = (message, level = 'info') => logseq.UI.showMsg(message, level);
 // Logseq's header is the frameless window's drag handle: a real click in that band moves the window and reaches nothing.
 // Anything of ours with controls sits below it (measured, not assumed).
 const dragBand = (doc = host()) => Math.ceil(doc.getElementById('head')?.getBoundingClientRect().bottom || 48);

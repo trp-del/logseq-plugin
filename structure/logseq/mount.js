@@ -4,7 +4,7 @@
 (function () {
 const S = window.Structure;
 const ROUTE = '/structure', SIDEBAR_KEY = 'structure';
-const host = () => window.parent.document;
+const { host } = window.PluginDoor;
 
 function mount(app) {
   const React = logseq.Experiments?.React;

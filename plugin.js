@@ -35,6 +35,24 @@ Door.structureWatch = () => {
 // Logseq tells every onSettingsChanged of any setting saved: this says whether one of a module's own keys is what changed.
 Door.settingChanged = (keys, now, before) => !before || keys.some(key => JSON.stringify(now?.[key]) !== JSON.stringify(before[key]));
 
+/* The four small helpers every module needs, once (6 November 2026; until then each module wrote its own): host() is Logseq's
+   page (the plugin runs in a frame of it); esc(text) escapes words for markup; el(doc, tag, props, ...children) makes an element
+   (attributes by name, listeners by event name, markup by html; a null or false prop is skipped); notify(text, status) is
+   Logseq's notice, with no options (a timeout option leaves the notice on screen). */
+Door.host = () => { try { return window.parent.document; } catch (error) { return document; } };
+Door.esc = text => String(text ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
+Door.el = (doc, tag, props = {}, ...children) => {
+  const node = doc.createElement(tag);
+  for (const [key, value] of Object.entries(props)) {
+    if (value == null || value === false) continue;
+    if (typeof value === 'function') node.addEventListener(key, value);
+    else if (key === 'html') node.innerHTML = value;
+    else node.setAttribute(key, value === true ? '' : String(value));
+  }
+  for (const child of children) if (child != null && child !== false) node.append(child);
+  return node;
+};
+Door.notify = (text, status = 'info') => { try { return logseq.UI.showMsg(text, status); } catch (error) { console.log(`Logseq Plugin: ${text}`); } };
 // Whether a module is switched on (its switch in the settings). The switches are read as the plugin starts.
 Door.runs = key => logseq.settings?.[key + 'On'] !== false;
 /* The day a node shows, from its date properties ([node, day, the property's name]): the one titled Date, whatever its ident, else

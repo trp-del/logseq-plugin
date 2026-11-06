@@ -53,7 +53,7 @@ const ownReveals = [];
 for (const file of FILES) {
   const text = fs.readFileSync(file, 'utf8');
   for (const rule of text.matchAll(/([^\n{}]*:hover[^{}]*)\{([^}]*)\}/g)) {
-    if (/lk-fold|lk-tick|rf-check|fd-nb/.test(rule[1]) || !/opacity:\s*(1\b|0?\.\d)|visibility:\s*visible/.test(rule[2])) continue;
+    if (/lk-fold|lk-tick|fd-nb/.test(rule[1]) || !/opacity:\s*(1\b|0?\.\d)|visibility:\s*visible/.test(rule[2])) continue;
     if (splitTop(rule[1]).some(reaches)) ownReveals.push(`${path.relative(ROOT, file)}: ${rule[0].trim().slice(0, 110)}`);
   }
 }

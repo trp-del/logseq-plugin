@@ -13,7 +13,7 @@ const { setting, host, warnOnce, notify } = app;
 const P = Flow.proposeUi;
 
 let open = null;   // { box, uuid, items, at, list }
-const el = (doc, tag, attrs = {}, ...kids) => { const e = doc.createElement(tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); e.append(...kids); return e; };
+const { el } = window.PluginDoor;
 
 function close() { open?.list.remove(); open = null; }
 function draw() {

@@ -9,7 +9,7 @@ const { setting, host, warnOnce } = app;
 
 const COPIED = ['boxSizing', 'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft', 'borderTopWidth', 'borderRightWidth', 'borderBottomWidth',
   'borderLeftWidth', 'fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'letterSpacing', 'lineHeight', 'textTransform', 'wordSpacing', 'textIndent', 'tabSize', 'textAlign'];
-const el = (doc, tag, attrs = {}, ...kids) => { const e = doc.createElement(tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); e.append(...kids); return e; };
+const { el } = window.PluginDoor;
 
 let showing = null, quiet = null, version = 0, lastPages = [], pauseTimer = 0, graph = '';
 const boosts = new Map();

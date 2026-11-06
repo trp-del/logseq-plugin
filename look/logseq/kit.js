@@ -2,25 +2,12 @@
    goes into the parent document), one stylesheet door, one watcher of the screen, one element builder. */
 (function () {
 const Look = (window.Look ||= {});
-const host = () => window.parent.document;
+const { host, esc, el, notify } = window.PluginDoor;
 
 // The marks and the property icons are the door's (plugin.js), as are the greys and the shared names.
 const { WEB, kindIconHtml } = window.PluginDoor;
 const iconHtml = name => `<i class="lk-icon ti ti-${name}" aria-hidden="true"></i>`;
 
-const esc = text => String(text ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
-// el(doc, 'span', { class: 'lk-x', click: fn }, child, 'words'): attributes by name, listeners by event name, html by 'html'.
-function el(doc, tag, props = {}, ...children) {
-  const node = doc.createElement(tag);
-  for (const [key, value] of Object.entries(props)) {
-    if (value == null || value === false) continue;
-    if (typeof value === 'function') node.addEventListener(key, value);
-    else if (key === 'html') node.innerHTML = value;
-    else node.setAttribute(key, value === true ? '' : String(value));
-  }
-  for (const child of children) if (child != null) node.append(child);
-  return node;
-}
 
 // One stylesheet per key; sent again only when its text changed (every send makes Logseq lay the page out again).
 const sent = new Map();
@@ -65,7 +52,6 @@ function sweep(doc = host()) {
   for (const node of doc.querySelectorAll('[data-lk-title]')) { node.removeAttribute('title'); node.removeAttribute('data-lk-title'); }
 }
 const openPage = (uuid, inSidebar) => { if (!uuid) return; if (inSidebar) logseq.Editor.openInRightSidebar(uuid); else logseq.App.pushState('page', { name: uuid }); };
-const notify = (message, level = 'info') => logseq.UI.showMsg(message, level);
 
 Look.kit = { host, WEB, kindIconHtml, iconHtml, esc, el, style, watchScreen, run, stopWatching, onGraphChange, graphChanged, sweep, openPage, notify };
 })();

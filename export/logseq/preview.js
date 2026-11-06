@@ -15,7 +15,7 @@ function sizes({ paper, margins }) {
   const m = String(margins || '20mm 20mm 22mm').split(/\s+/).map(s => parseFloat(s) * MM);
   return { width: Math.round(pw * MM), height: Math.round(ph * MM), top: m[0], side: m[1] ?? m[0], bottom: m[2] ?? m[0] };
 }
-const el = (doc, tag, cls) => { const e = doc.createElement(tag); if (cls) e.className = cls; return e; };
+const el = (doc, tag, cls) => window.PluginDoor.el(doc, tag, { class: cls || null });
 
 /* The blocks of a document as units that can move between pages: a list's items and a table's rows on their own, with
    the element they belong to (recreated on the next page, numbering kept). */

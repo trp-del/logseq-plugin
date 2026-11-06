@@ -11,8 +11,7 @@ const Flow = (window.Flow ||= {});
 const { app, db, measure } = Flow;
 
 const HELPER = 'http://127.0.0.1:47615', GIVE_UP = 20000, NOTES = 60, BEFORE = 2;
-const esc = text => String(text ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
-const host = () => window.parent.document;
+const { esc, host } = window.PluginDoor;
 const S = { dlg: null, stop: null, report: '' };
 
 async function helperStatus() {

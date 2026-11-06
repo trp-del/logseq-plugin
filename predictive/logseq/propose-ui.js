@@ -26,7 +26,7 @@ const ENTER_LEAVES = 500, FILLING_MS = 6000, SAVE_TRIES = 40;
 // the bullet in edit and its words when it was entered. refused: what an Undo took off, by the record it was on.
 const S = { live: null, hushed: { uuid: '' }, accepted: { uuid: '', at: 0, keys: new Set() }, filling: new Map(), allowedNow: false, version: 0, timer: 0, stopped: false, undo: null, visiting: { live: null, timer: 0, out: 0 }, entered: { uuid: '', words: '' }, refused: new Map() };
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
-const esc = t => String(t ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
+const { esc } = window.PluginDoor;
 const guessKey = p => p.key ?? `${p.kind}:${p.ident}:${p.ids.join(',')}`;
 // The words of a saved title and of the box are compared without their links (saved [[uuid]] against typed [[Name]]) and
 // without tags (Logseq keeps them apart from the words).

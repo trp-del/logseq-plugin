@@ -5,7 +5,7 @@
 (function () {
 const S = window.Structure;
 const Mo = S.model;
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const { esc } = window.PluginDoor;
 const CSS = `
 .st-hc { padding: 3px 10px; font-size: var(--lk-small); pointer-events: none; }
 .st-hc.up { font-weight: 600; }

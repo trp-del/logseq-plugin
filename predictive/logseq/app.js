@@ -4,10 +4,9 @@
 const Flow = (window.Flow ||= {});
 const { db } = Flow;
 
-const host = () => window.parent.document;
+const { host, notify } = window.PluginDoor;
 const warned = new Set();
 const warnOnce = (what, error) => { if (warned.has(what)) return; warned.add(what); console.warn(`Flow: ${what}`, error || ''); };
-const notify = (message, kind = 'info') => { try { logseq.UI.showMsg(message, kind); } catch (error) { console.log(`Flow: ${message}`); } };
 
 // Settings. The schema (settings.js) holds the defaults; the plugin's own memory (what was taken, what was tuned) lives in
 // keys the schema does not show.

@@ -315,7 +315,7 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
     assert.ok(doc.querySelector('.fd-w.lk-node') && !doc.querySelector('.fd-w.lk-node:not(.lk-bare)'), 'under a kind picked, no mark');
     await key('Escape'); await settle(); }
   // The foot: the words in the text colour, the key faint.
-  assert.ok(styles['find-find'].includes('.fd-foot .fd-k { color: var(--fd-faint);') && /\.fd-foot \{[^}]*color: var\(--lk-text/.test(styles['find-find']), 'the key faint, what it does in the text colour');
+  assert.ok(styles['find-find'].includes('.fd-foot .fd-k { color: var(--lk-faint);') && /\.fd-foot \{[^}]*color: var\(--lk-text/.test(styles['find-find']), 'the key faint, what it does in the text colour');
   // A date and time is kept as its milliseconds, not as a node: read as an id it made Logseq throw (the tag Symptomatic Event,
   // "Highest supported entity id is 2147483647, got 1791874800000"). Now no line says the graph could not be read, and the value reads as its day.
   { BLOCKS[40].onset = 1791874800000; BLOCKS[41].onset = 1791874800000; Find.window.forget(); Find.db.forget();

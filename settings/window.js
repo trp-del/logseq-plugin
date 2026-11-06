@@ -8,10 +8,8 @@
 const Door = window.PluginDoor;
 const ORDER = ['look', 'find', 'threads', 'predictive', 'structure', 'export'];
 const REOPEN_KEY = 'logseq-plugin-settings-reopen';
-const esc = text => String(text ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
-const host = () => window.parent.document;
-const CSS = `.sw-dialog { --sw-quiet: var(--lk-quiet); --sw-faint: var(--lk-faint); --sw-hair: var(--lk-hair); --sw-line: var(--lk-line); --sw-wash: var(--lk-wash);
-  position: fixed !important; top: 50% !important; left: 50% !important; right: auto !important; bottom: auto !important; transform: translate(-50%, -50%) !important; margin: 0 !important; width: min(860px, 92vw); height: min(700px, 88vh); max-height: 88vh; overflow: hidden; box-sizing: border-box; padding: 0; }   /* the window's look is the library's lk-window */
+const { esc, host } = window.PluginDoor;
+const CSS = `.sw-dialog { position: fixed !important; top: 50% !important; left: 50% !important; right: auto !important; bottom: auto !important; transform: translate(-50%, -50%) !important; margin: 0 !important; width: min(860px, 92vw); height: min(700px, 88vh); max-height: 88vh; overflow: hidden; box-sizing: border-box; padding: 0; }   /* the window's look is the library's lk-window */
 .sw-dialog[open] { display: grid; grid-template-columns: 204px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); pointer-events: auto; }
 .sw-head { grid-column: 1 / -1; display: grid; grid-template-columns: 204px minmax(0, 1fr) auto; align-items: center; padding: 14px 16px 10px 22px; }
 .sw-head b { font-size: 16px; font-weight: 600; }
@@ -21,7 +19,7 @@ const CSS = `.sw-dialog { --sw-quiet: var(--lk-quiet); --sw-faint: var(--lk-fain
 /* A part is a line of the library's menu (lk-item), the one open lit (on). */
 .sw-mod { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 0; align-items: center; padding: 5px 8px; cursor: pointer; }
 .sw-mod[aria-current="true"] { font-weight: 500; }
-.sw-mod.off .sw-name { color: var(--sw-faint); }
+.sw-mod.off .sw-name { color: var(--lk-faint); }
 .sw-mod .lk-pencil { font-style: italic; }
 .sw-nomatch { opacity: .4; }
 .sw-foot { margin-top: auto; padding: 16px 8px 0; display: grid; gap: 2px; justify-items: start; }
@@ -32,8 +30,8 @@ const CSS = `.sw-dialog { --sw-quiet: var(--lk-quiet); --sw-faint: var(--lk-fain
 .sw-part { font-weight: 600; font-size: 16px; padding-top: 18px; }
 .sw-part:first-child { padding-top: 8px; }
 .sw-do { justify-self: start; margin-top: -3px; margin-bottom: -3px; }
-.sw-css { width: 100%; min-height: 5.5em; box-sizing: border-box; font: 13px/1.5 var(--lk-mono, monospace); border: 1px solid var(--sw-hair); border-radius: 4px; padding: 6px 8px; background: none; color: inherit; resize: vertical; outline: none; box-shadow: none; }
-.sw-css:focus { border-color: var(--sw-line); outline: none; box-shadow: none; }
+.sw-css { width: 100%; min-height: 5.5em; box-sizing: border-box; font: 13px/1.5 var(--lk-mono, monospace); border: 1px solid var(--lk-hair); border-radius: 4px; padding: 6px 8px; background: none; color: inherit; resize: vertical; outline: none; box-shadow: none; }
+.sw-css:focus { border-color: var(--lk-line); outline: none; box-shadow: none; }
 .sw-list { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; }
 .sw-word-x { color: inherit; }
 .sw-drop { margin-left: 1px; }
@@ -46,23 +44,21 @@ const CSS = `.sw-dialog { --sw-quiet: var(--lk-quiet); --sw-faint: var(--lk-fain
 .sw-row .sw-value { grid-column: 2; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 /* The specimen: the thing drawn as it will look, at the page's size, under its name. */
 .sw-spec { grid-column: 2; margin-top: 3px; font-size: 15px; line-height: 1.6; color: var(--lk-text, #222); }
-.sw-spec .sw-off { color: var(--sw-faint); }
+.sw-spec .sw-off { color: var(--lk-faint); }
 .sw-spec .sw-blue { color: var(--ls-link-text-color, #3b6fc9) !important; text-decoration: none !important; }
 .sw-spec .sw-chip { background: color-mix(in srgb, currentColor 8%, transparent); border-radius: 4px; padding: 0 6px; }
 .sw-spec .sw-cap { background: color-mix(in srgb, currentColor 8%, transparent); border-radius: 10px; padding: 0 8px; }
 /* A page's name in a specimen: heavier than the words, not larger (the switch is what matters here); the mark beside it
    scales with it, as it does beside the title. */
 .sw-spec .sw-big { font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
-.sw-spec .sw-big .lk-page-mark { position: static; width: 1em; height: 1em; }
-.sw-spec .sw-big .lk-page-mark svg { width: .6em; height: .6em; }
 .sw-spec .sw-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: .55; margin: 0 8px 2px 0; }
 .sw-spec .sw-ring { display: inline-flex; width: 16px; height: 16px; border-radius: 50%; background: color-mix(in srgb, currentColor 11%, transparent); align-items: center; justify-content: center; margin-right: 6px; vertical-align: -3px; }
-.sw-spec .sw-k { color: var(--sw-quiet); }
+.sw-spec .sw-k { color: var(--lk-quiet); }
 .sw-spec .sw-pill { display: inline-flex; gap: .4em; }
 .sw-spec .sw-line { display: flex; align-items: baseline; gap: 10px; }
-.sw-spec .sw-faintw { color: var(--sw-faint); }
+.sw-spec .sw-faintw { color: var(--lk-faint); }
 .sw-spec .sw-grey { opacity: .45; }
-.sw-spec .sw-sep { color: var(--sw-faint); margin: 0 6px; } .sw-spec .sw-gap { display: inline-block; width: 18px; }
+.sw-spec .sw-sep { color: var(--lk-faint); margin: 0 6px; } .sw-spec .sw-gap { display: inline-block; width: 18px; }
 .sw-tick { align-self: center; }   /* the library's tick box (lk-tick) */
 .sw-field { min-width: 6em; }   /* the Pressing set's field (input.lk-value): a hairline only while it has the keyboard */
 .sw-field.sw-wide { width: min(100%, 36em); }
@@ -71,7 +67,7 @@ const CSS = `.sw-dialog { --sw-quiet: var(--lk-quiet); --sw-faint: var(--lk-fain
 .sw-choice.on { font-weight: 500; }
 /* It stands beside a title and must not take the title's weight, or make the row taller when it comes. */
 .sw-row .sw-default { font-weight: 400; margin-top: -3px; margin-bottom: -3px; }
-.sw-row:hover { background: var(--sw-wash); margin: 0 -8px; padding-left: 8px; padding-right: 8px; border-radius: 4px; }`;
+.sw-row:hover { background: var(--lk-wash); margin: 0 -8px; padding-left: 8px; padding-right: 8px; border-radius: 4px; }`;
 
 const state = { cur: 'look', view: 'part', find: '' };
 let open = null;

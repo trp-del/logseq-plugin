@@ -5,7 +5,7 @@
 const Door = window.PluginDoor;
 const LABEL = 'Plugin settings', ITEM_CLASS = 'plugin-settings-menu-item';
 const COPY = String(Date.now());   // tells this copy's menu item from one left by an earlier copy
-const host = () => window.parent.document;
+const { host } = window.PluginDoor;
 const open = () => Door.settings.open();
 
 // A card says its plugin's id on a line of its own: compared whole, since many ids begin the same way.

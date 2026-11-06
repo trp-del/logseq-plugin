@@ -126,8 +126,7 @@
 // ===== Layer 1: talking to Logseq from the frame =====
 
 // The Logseq window. The plugin runs in a frame inside it.
-const host = () => window.parent.document;
-const notify = (message, level = 'info') => logseq.UI.showMsg(message, level);
+const { host, notify, esc } = window.PluginDoor;
 
 /* A warning is written once per session for each distinct message, so a part that fails after every
    change (a look-up after each edit, a screen update on each redraw) does not fill the console. */
@@ -340,7 +339,6 @@ const screen = {
    icon font, notice), the browser's own (the dialog, the popover and its placement and dismissal, the checkbox, the
    tooltip), and the kit for what neither gives. */
 
-const esc = text => String(text ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
 // HTML given to el (an icon, a tag's words) is parsed once per document and copied after (2026-10-23: the tag map of
 // 600 tags parsed the same few icons thousands of times a redraw, its slowest step). At most 500 kept.
 const parsed = new WeakMap();
@@ -352,18 +350,7 @@ function fragmentOf(doc, html) {
   return t.content.cloneNode(true);
 }
 // THE element builder: el(doc, 'button', { class: 'rf-quiet', title: 'Undo', click: () => … }, icon, 'Undo').
-function el(doc, tag, props = {}, ...children) {
-  const node = doc.createElement(tag);
-  for (const [key, value] of Object.entries(props)) {
-    if (value == null || value === false) continue;
-    if (key === 'class') node.className = value;
-    else if (key === 'html') node.append(fragmentOf(doc, String(value)));
-    else if (typeof value === 'function') node.addEventListener(key, value);
-    else node.setAttribute(key, value === true ? '' : value);
-  }
-  node.append(...children.filter(child => child != null && child !== false));
-  return node;
-}
+const el = window.PluginDoor.el;
 
 /* THE icon list: what each icon means, by the name of its Tabler icon in Logseq's own font (loaded on every page;
    Logseq draws its own toolbar with it), so the plugin draws no icon of its own, but for the one shape the font lacks
@@ -440,7 +427,7 @@ function drawnField(doc, { text = '', placeholder = '', fresh = false, kbd, cls 
 }
 // The browser's tick box as a small rounded square; with a label, in a label.
 function tick(doc, { checked = false, label, title, change, cls } = {}) {
-  const box = el(doc, 'input', { type: 'checkbox', class: `rf-check lk-tick${label == null && cls ? ' ' + cls : ''}`, title: title || null, change: change ? () => change(box.checked) : null });
+  const box = el(doc, 'input', { type: 'checkbox', class: `lk-tick${label == null && cls ? ' ' + cls : ''}`, title: title || null, change: change ? () => change(box.checked) : null });
   box.checked = !!checked;
   if (label == null) return box;
   return el(doc, 'label', { class: `rf-tick${cls ? ' ' + cls : ''}` }, box, String(label));
@@ -452,7 +439,7 @@ function chip(doc, { label, pressed, run, remove, title, cls } = {}) {
   if (remove) word.append(el(doc, 'button', { type: 'button', class: 'rf-chip-x lk-x lk-reveal', title: 'Remove', 'aria-label': `Remove ${label}`, click: event => { event.stopPropagation(); remove(); } }, icon(doc, 'remove')));
   return word;
 }
-const note = (doc, text, cls) => el(doc, 'div', { class: `rf-note lk-note${cls ? ' ' + cls : ''}` }, text);
+const note = (doc, text, cls) => el(doc, 'div', { class: `lk-note${cls ? ' ' + cls : ''}` }, text);
 const guide = (doc, paragraphs) => el(doc, 'div', { class: 'rf-guide', role: 'note', click: openTagIn }, ...[].concat(paragraphs).map(p => typeof p === 'string' ? el(doc, 'p', {}, p) : p));
 // A tag written as words (tagLinkHtml) opens its page.
 function openTagIn(event) {
@@ -1058,10 +1045,7 @@ const kitCss = `/* The kit (parts/shared.js, 0.4.311; docs/LAYERS.md section 3):
    6 November 2026 every piece is drawn by the plugin's library (plugin.js): the pop-up (lk-pop), the window (lk-window), the
    presses (lk-btn lk-low, lk-accent), the field (lk-field), the tick box (lk-tick), the fold arrow (lk-fold), the Undo arrow
    (lk-undo), the quiet line (lk-note), the greys and the one motion. Here only the kit's own names, each with its place
-   and its room, never a look of its own. The rf- greys are the library's under the kit's old names. */
-:root { --rf-fg: var(--lk-text, currentColor); --rf-bg: var(--lk-paper, #fff);
-  --rf-quiet: var(--lk-quiet); --rf-faint: var(--lk-faint); --rf-hair: var(--lk-hair); --rf-line: var(--lk-line); --rf-wash: var(--lk-wash);
-  --rf-focus: color-mix(in srgb, currentColor 3%, transparent); --rf-mono: var(--lk-mono); }
+   and its room, never a look of its own; the greys are the library's by the library's names. */
 /* The pop-up (the library's lk-pop) in the top layer, placed by the browser under its anchor and flipped when there is no room. */
 .rf-pop { position: fixed; inset: auto; margin: 0; z-index: 10001; box-sizing: border-box; min-width: 160px; max-width: min(420px, 92vw); padding: 4px; overflow: visible; outline: none; }
 .rf-pop.rf-anchored { top: anchor(bottom); left: anchor(left); margin-top: 4px; position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline; }
@@ -1074,15 +1058,15 @@ const kitCss = `/* The kit (parts/shared.js, 0.4.311; docs/LAYERS.md section 3):
 .rf-in-place { font: inherit; color: inherit; height: auto; width: 100%; min-width: 4em; padding: 0; box-shadow: none; }
 /* With nothing to sit under (a pop-up opened from the palette): near the top, in the middle. */
 .rf-pop:not(.rf-anchored) { top: 12vh; left: 50%; transform: translateX(-50%); }
-.rf-pop-head { padding: 3px 8px; font-size: var(--lk-label); color: var(--rf-quiet); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rf-pop-head { padding: 3px 8px; font-size: var(--lk-label); color: var(--lk-quiet); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rf-pop-body { max-height: 320px; overflow-y: auto; }
 /* A line of a menu is the library's lk-item (lit: on); here only how its icon and words stand. */
 .rf-item { align-items: center; gap: 8px; box-sizing: border-box; }
-.rf-item > :is(.ti, .rf-drawn) { width: 16px; flex: none; color: var(--rf-faint); font-size: 15px; }
+.rf-item > :is(.ti, .rf-drawn) { width: 16px; flex: none; color: var(--lk-faint); font-size: 15px; }
 .rf-item > .rf-drawn { justify-content: center; align-self: center; }
-.rf-item.rf-faint { color: var(--rf-faint) !important; }
+.rf-item.rf-faint { color: var(--lk-faint) !important; }
 .rf-item-words { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rf-item kbd, .rf-end { margin-left: auto; flex: none; font: inherit; font-size: var(--lk-small); color: var(--rf-faint); }
+.rf-item kbd, .rf-end { margin-left: auto; flex: none; font: inherit; font-size: var(--lk-small); color: var(--lk-faint); }
 .rf-pop .rf-field { margin: 0 8px 4px; }
 /* A report to copy (the troubleshooting tools): the text in a quiet box, Copy as the one word. */
 .rf-report { padding: 8px 10px; max-width: min(720px, 92vw); }
@@ -1092,11 +1076,11 @@ const kitCss = `/* The kit (parts/shared.js, 0.4.311; docs/LAYERS.md section 3):
 .rf-recycle > .rf-pop-body { max-height: calc(84vh - 60px); }
 .rf-recycle .rf-recycle-acts { gap: 2px; }
 /* The ask under a row of the Recycle: joined to it by a line from the margin, a bold line, what goes, then the answers. */
-.rf-recycle-ask { margin: 2px 8px 8px 30px; padding: 4px 0 4px 12px; border-left: 1px solid var(--rf-line); font-size: 14px; }
+.rf-recycle-ask { margin: 2px 8px 8px 30px; padding: 4px 0 4px 12px; border-left: 1px solid var(--lk-line); font-size: 14px; }
 .rf-recycle-ask-h { font-weight: 600; }
-.rf-recycle-ask-l { color: var(--rf-quiet); }
+.rf-recycle-ask-l { color: var(--lk-quiet); }
 .rf-recycle-ask .lk-answers { margin-top: 6px; }
-.rf-report textarea { display: block; box-sizing: border-box; width: 100%; height: min(50vh, 420px); margin: 6px 0 0; padding: 6px 8px; border: 0; border-radius: 4px; background: var(--rf-wash); color: inherit; font: 12px/1.45 var(--rf-mono); resize: vertical; outline: none; }
+.rf-report textarea { display: block; box-sizing: border-box; width: 100%; height: min(50vh, 420px); margin: 6px 0 0; padding: 6px 8px; border: 0; border-radius: 4px; background: var(--lk-wash); color: inherit; font: 12px/1.45 var(--lk-mono); resize: vertical; outline: none; }
 /* A question beside what it is about. */
 .rf-ask { padding: 8px 10px; }
 .rf-ask-words { font-weight: 600; margin: 2px 0; }
@@ -1112,13 +1096,12 @@ const kitCss = `/* The kit (parts/shared.js, 0.4.311; docs/LAYERS.md section 3):
 .lk-btn > .ti { font-size: 15px; }
 .lk-btn > .rf-drawn { width: 15px; justify-content: center; }
 :is(.rf-chip, .rf-ol-more, .rf-ask button):focus-visible { outline: none; background: var(--lk-wash); }
-.rf-faint { color: var(--rf-faint); }
+.rf-faint { color: var(--lk-faint); }
 /* The field is the library's lk-field; here its room on a line. */
 .rf-field { min-height: 26px; }
 .rf-field-tall { align-items: flex-start; }
 .rf-field-tall > textarea { resize: vertical; line-height: 1.4; }
-.rf-pop-list { max-height: 300px; overflow-y: auto; }
-.rf-field > :is(.ti, .rf-drawn), .rf-field > kbd { flex: none; color: var(--rf-faint); font: inherit; font-size: var(--lk-small); }
+.rf-field > :is(.ti, .rf-drawn), .rf-field > kbd { flex: none; color: var(--lk-faint); font: inherit; font-size: var(--lk-small); }
 .rf-field > .ti { font-size: 15px; }
 .rf-field-inline { display: inline-flex; min-height: 22px; vertical-align: baseline; }
 /* The drawn field: the same look, the text and the caret drawn, so nothing takes the keyboard from the bullet. */
@@ -1126,17 +1109,16 @@ const kitCss = `/* The kit (parts/shared.js, 0.4.311; docs/LAYERS.md section 3):
    between the pieces of the drawn field, the key hint kept apart by its own room. */
 .rf-field-drawn { align-items: baseline; gap: 0; }
 .rf-field-drawn > .rf-typed { flex: 0 1 auto; min-width: 0; white-space: pre; overflow: hidden; text-overflow: ellipsis; }
-.rf-field-drawn > .rf-typed-fresh { background: var(--rf-wash); border-radius: 2px; }
-.rf-field-drawn > .rf-placeholder { flex: 1; min-width: 0; color: var(--rf-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rf-field-drawn > .rf-typed-fresh { background: var(--lk-wash); border-radius: 2px; }
+.rf-field-drawn > .rf-placeholder { flex: 1; min-width: 0; color: var(--lk-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rf-field-drawn > .rf-caret { display: inline-block; flex: none; width: 1.5px; height: 1.1em; margin-left: 1px; transform: translateY(.2em); background: currentColor; animation: rf-blink 1s steps(1) infinite; }
 .rf-field-drawn > .rf-placeholder + .rf-caret { order: -1; margin: 0 1px 0 0; }
 .rf-field-drawn > kbd { margin-left: auto; padding-left: 6px; }
 @keyframes rf-blink { 50% { opacity: 0; } }
-.rf-item.rf-new > .rf-item-words { font-style: italic; }
 /* The tick box is the library's lk-tick; with a label, in a label. */
 .rf-tick { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 /* Words for chips: a filter, or a removable item with a × on hover. */
-.rf-chip { display: inline-flex; align-items: center; gap: 2px; padding: 0; border: 0; background: none; color: var(--rf-quiet); font: inherit; font-size: 14px; cursor: default; }
+.rf-chip { display: inline-flex; align-items: center; gap: 2px; padding: 0; border: 0; background: none; color: var(--lk-quiet); font: inherit; font-size: 14px; cursor: default; }
 button.rf-chip { cursor: pointer; }
 .rf-chip[aria-pressed="true"] { color: inherit; font-weight: 600; }
 /* A chip's × is the library's lk-reveal: its colour, ground and fade come from there. */
@@ -1148,11 +1130,11 @@ button.rf-chip { cursor: pointer; }
 a.rf-tag { cursor: pointer; }
 a.rf-tag:hover { opacity: 1; }
 /* A value's kind as an icon left of the property's name. */
-.rf-kind { display: inline-flex; color: var(--rf-faint); font-size: 15px; vertical-align: -2px; }
+.rf-kind { display: inline-flex; color: var(--lk-faint); font-size: 15px; vertical-align: -2px; }
 /* The picking bar: one line of words above the list, a hairline under it. */
 /* A cell changed where it sits (0.4.430; the table it came with is gone since 0.4.456). */
 .rf-tedit { cursor: pointer; border-radius: 2px; }
-.rf-tedit:hover { text-decoration: underline; text-decoration-color: var(--rf-line); text-underline-offset: 3px; }
+.rf-tedit:hover { text-decoration: underline; text-decoration-color: var(--lk-line); text-underline-offset: 3px; }
 /* The chevron is the library's fold arrow (lk-fold: shown while its row is pointed at, turned down while open); rf-chev
    names its place on a line. */
 .rf-chev { position: relative; }
@@ -1161,18 +1143,18 @@ a.rf-tag:hover { opacity: 1; }
    column, one width at every depth so the names of nodes at one depth line up. */
 .rf-ol { --rf-ol-day: var(--lk-day, 48px); --rf-ol-name: 12em; --rf-ol-gap: 6px; font-size: 14px; line-height: 1.5; }
 .rf-ol-line { position: relative; display: flex; align-items: baseline; gap: var(--rf-ol-gap); min-height: 28px; box-sizing: border-box; padding: 3px 4px; margin-left: -4px; border-radius: 4px; }
-.rf-ol-line:hover { background: var(--rf-wash); }
+.rf-ol-line:hover { background: var(--lk-wash); }
 .rf-ol-line > .rf-chev, .rf-ol-pv > .rf-chev { align-self: flex-start; top: 0; height: 1.5em; }
 /* A value that opens hangs its chevron just left of the value (the drawing; the owner, 2026-10-27: the values of one
    column start at one edge), so "cisplatin" starts where "1" and "Oct 20" do. */
 .rf-ol-pv > .rf-chev:first-child { margin-left: calc(-16px - var(--rf-ol-gap)); }
-.rf-ol-line > input.rf-check[type=checkbox] { position: absolute; left: -20px; top: 6px; margin: 0; opacity: .3; }
-.rf-ol-line:hover > input.rf-check[type=checkbox], .rf-ol-line > input.rf-check[type=checkbox]:checked, .rf-ol-line > input.rf-check[type=checkbox]:focus-visible { opacity: 1; }
+.rf-ol-line > input.lk-tick[type=checkbox] { position: absolute; left: -20px; top: 6px; margin: 0; opacity: .3; }
+.rf-ol-line:hover > input.lk-tick[type=checkbox], .rf-ol-line > input.lk-tick[type=checkbox]:checked, .rf-ol-line > input.lk-tick[type=checkbox]:focus-visible { opacity: 1; }
 .rf-ol-day { flex: none; width: var(--rf-ol-day); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .rf-ol-body { min-width: 0; overflow-wrap: normal; }
 .rf-ol-body > .rf-tag, .rf-ol-pv .rf-tag { margin-left: 6px; white-space: nowrap; }
 .rf-ol-open { font-weight: 600; }
-.rf-ol-kids { --rf-ol-cx: 8px; display: grid; grid-template-rows: 1fr; margin: 0 0 0 var(--rf-ol-cx); padding-left: 16px; border-left: 1px solid var(--rf-line); }
+.rf-ol-kids { --rf-ol-cx: 8px; display: grid; grid-template-rows: 1fr; margin: 0 0 0 var(--rf-ol-cx); padding-left: 16px; border-left: 1px solid var(--lk-line); }
 .rf-ol-kids > .rf-ol-in { min-width: 0; min-height: 0; padding-bottom: 2px; }
 .rf-ol-from-day { --rf-ol-cx: calc(var(--rf-ol-day) + var(--rf-ol-gap) + 8px); }
 .rf-ol-from-prop { --rf-ol-cx: calc(var(--rf-ol-name) - 8px); }
@@ -1180,8 +1162,8 @@ a.rf-tag:hover { opacity: 1; }
 /* Opening grows the room under the line from nothing, so what is below slides down with it; closing rolls it back up before
    it goes: the plugin's one motion (PluginDoor.unroll and rollUp, through outline.unrolled and outline.close). */
 .rf-ol-unit { margin: 0 -6px; padding: 0 6px; border-radius: 6px; transition: background-color .16s ease; }
-.rf-ol-unit.rf-ol-focus { background: var(--rf-focus); }
-.rf-ol-prop > .rf-ol-pname { flex: none; box-sizing: border-box; width: var(--rf-ol-name); padding-right: calc(16px + var(--rf-ol-gap)); display: inline-flex; gap: 6px; align-items: baseline; color: var(--rf-quiet); overflow-wrap: anywhere; }   /* the padding is the room of the fold arrow that overhangs from the value (.rf-ol-pv > .rf-chev): a long name wraps before it */
+.rf-ol-unit.rf-ol-focus { background: color-mix(in srgb, currentColor 3%, transparent); }
+.rf-ol-prop > .rf-ol-pname { flex: none; box-sizing: border-box; width: var(--rf-ol-name); padding-right: calc(16px + var(--rf-ol-gap)); display: inline-flex; gap: 6px; align-items: baseline; color: var(--lk-quiet); overflow-wrap: anywhere; }   /* the padding is the room of the fold arrow that overhangs from the value (.rf-ol-pv > .rf-chev): a long name wraps before it */
 .rf-ol-prop > .rf-ol-pname .rf-kind { font-size: 13px; vertical-align: 0; width: 13px; justify-content: center; flex: none; opacity: .6; } /* as faint as on a page's rows */
 /* A drawn mark sits like a font icon: on the words' line, in their colour (the kit's ICONS, DRAWN). */
 .rf-drawn { display: inline-flex; align-items: center; line-height: 1; }
@@ -1195,7 +1177,7 @@ a.rf-tag:hover { opacity: 1; }
 .rf-ol-kids.rf-ol-bare { margin-left: 0; padding-left: 0; border-left: 0; }
 .rf-ol-pv > .rf-ol-day { margin-right: 0; }
 .rf-ol-bullet { display: flex; align-items: baseline; gap: 8px; min-height: 26px; padding: 1px 4px; margin-left: -4px; }
-.rf-ol-dot { flex: none; width: 16px; text-align: center; color: var(--rf-faint); }
+.rf-ol-dot { flex: none; width: 16px; text-align: center; color: var(--lk-faint); }
 .rf-ol-dot::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: currentColor; vertical-align: 2px; }
 .rf-ol-words { min-width: 0; flex: 1; outline: none; }
 .rf-ol-new > .rf-ol-dot { opacity: .45; }
@@ -1227,11 +1209,11 @@ a.rf-tag:hover { opacity: 1; }
   .rf-ol-from-leads, .rf-ol-kids .rf-ol-from-leads { --rf-ol-cx: calc(16px + var(--rf-ol-gap) + 8px); }
   .rf-ol-end { min-width: 3.6em; padding-left: 8px; } }
 .rf-pencil { all: unset; cursor: pointer; } /* italic, grey and dotted are Look's, through lk-pencil */
-.rf-pencil:hover { color: var(--rf-quiet); }
+.rf-pencil:hover { color: var(--lk-quiet); }
 .rf-pencil.rf-pencil-taken { font-style: normal; color: inherit; text-decoration: none; }
 .rf-pencil:focus-visible { outline: none; background: var(--lk-wash) !important; }
 /* The trail is the library's lk-trail with lk-step; the place you are at ends it, in the text colour. */
-.rf-ol-sep { color: var(--rf-faint); }
+.rf-ol-sep { color: var(--lk-faint); }
 .rf-ol-trail > .rf-ol-here { color: var(--lk-text, currentColor); font-weight: 600; }
 .rf-ol-here .rf-tag { margin-left: 6px; font-weight: 400; }
 /* The tag map's pieces (0.4.448): the count column, a property with the tag it leads to, a group's heading, a finding.
@@ -1239,43 +1221,40 @@ a.rf-tag:hover { opacity: 1; }
 .rf-ol { --rf-ol-lname: 9.5em; }
 .rf-ol.rf-ol-margin { position: relative; padding-left: 24px; }
 .rf-ol-margin .rf-ol-line { position: static; }
-.rf-ol-margin .rf-ol-line > input.rf-check[type=checkbox] { left: 2px; top: auto; margin-top: 5px; }
+.rf-ol-margin .rf-ol-line > input.lk-tick[type=checkbox] { left: 2px; top: auto; margin-top: 5px; }
 .rf-ol-end { flex: none; margin-left: auto; padding-left: 12px; min-width: 5.2em; text-align: right; font-size: var(--lk-small); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.rf-ol-count { color: inherit; text-decoration: underline; text-decoration-color: var(--rf-line); text-decoration-thickness: 1px; text-underline-offset: 3px; cursor: pointer; }
+.rf-ol-count { color: inherit; text-decoration: underline; text-decoration-color: var(--lk-line); text-decoration-thickness: 1px; text-underline-offset: 3px; cursor: pointer; }
 .rf-ol-count:hover { text-decoration-color: currentColor; }
-.rf-ol-count.rf-ol-none { color: var(--rf-faint); }
+.rf-ol-count.rf-ol-none { color: var(--lk-faint); }
 span.rf-ol-count { text-decoration: none; cursor: default; }
 .rf-ol-tagname { opacity: 1; cursor: pointer; }
 .rf-ol-tagname.rf-ol-open { font-weight: 700; }
 .rf-ol-leads > .rf-ol-lname { flex: none; width: var(--rf-ol-lname); display: inline-flex; gap: 6px; align-items: baseline; }
 .rf-ol-lwords { min-width: 0; overflow-wrap: normal; word-break: normal; }
-.rf-ol-inh > .rf-ol-lname { color: var(--rf-quiet); }
-.rf-ol-inhw { color: var(--rf-faint); font-size: var(--lk-small); white-space: nowrap; }
+.rf-ol-inh > .rf-ol-lname { color: var(--lk-quiet); }
+.rf-ol-inhw { color: var(--lk-faint); font-size: var(--lk-small); white-space: nowrap; }
 .rf-ol-to { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: var(--rf-ol-gap); }
 .rf-ol-to > .rf-chev { align-self: flex-start; top: 1px; }
 .rf-ol-to .rf-ol-open { font-weight: 700; }
-.rf-ol-count.rf-ol-n { margin-left: 6px; color: var(--rf-faint); font-size: var(--lk-small); font-variant-numeric: tabular-nums; text-decoration-color: var(--rf-line); }
+.rf-ol-count.rf-ol-n { margin-left: 6px; color: var(--lk-faint); font-size: var(--lk-small); font-variant-numeric: tabular-nums; text-decoration-color: var(--lk-line); }
 .rf-ol-pointing > .rf-ol-lname { width: var(--rf-ol-lname); } /* one column for every line of a list; a tag longer than it wraps between its words */
 .rf-ol-pointing > .rf-ol-lname .rf-tag { white-space: normal; overflow-wrap: normal; word-break: normal; }
-.rf-ol-sum { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 6px; font-size: 14px; color: var(--rf-quiet); }
-.rf-ol-sumword { color: inherit; text-decoration: underline; text-decoration-color: var(--rf-line); text-decoration-thickness: 1px; text-underline-offset: 3px; cursor: pointer; }
+.rf-ol-sum { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 6px; font-size: 14px; color: var(--lk-quiet); }
+.rf-ol-sumword { color: inherit; text-decoration: underline; text-decoration-color: var(--lk-line); text-decoration-thickness: 1px; text-underline-offset: 3px; cursor: pointer; }
 .rf-ol-sumword:hover { text-decoration-color: currentColor; }
 .rf-ol-sumword[aria-pressed="true"] { color: inherit; font-weight: 600; text-decoration-color: currentColor; }
 .rf-ol-from-leads { --rf-ol-cx: calc(16px + 2 * var(--rf-ol-gap) + var(--rf-ol-lname) + 8px); }
-.rf-ol-group { box-sizing: border-box; min-height: 24px; padding: 6px 0 0 calc(16px + var(--rf-ol-gap)); font-size: var(--lk-small); color: var(--rf-faint); }
+.rf-ol-group { box-sizing: border-box; min-height: 24px; padding: 6px 0 0 calc(16px + var(--rf-ol-gap)); font-size: var(--lk-small); color: var(--lk-faint); }
 .rf-ol-finding > .rf-ol-body { flex: 1 1 auto; }
 .rf-ol-finding .rf-tag { margin: 0; }
 .rf-ol-act { flex: none; margin-left: auto; height: 22px; font-size: var(--lk-small); }
-.rf-ol-line:hover > .rf-ol-act { color: var(--rf-quiet); }
-.rf-ol-done > .rf-ol-body { color: var(--rf-quiet); }
-.rf-field-count { flex: none; color: var(--rf-faint); font-size: var(--lk-small); font-variant-numeric: tabular-nums; padding-left: 6px; }
+.rf-ol-line:hover > .rf-ol-act { color: var(--lk-quiet); }
+.rf-ol-done > .rf-ol-body { color: var(--lk-quiet); }
+.rf-field-count { flex: none; color: var(--lk-faint); font-size: var(--lk-small); font-variant-numeric: tabular-nums; padding-left: 6px; }
 @media (prefers-reduced-motion: reduce) { .rf-ol-unit { transition: none; } }
 .rf-tree-dim .rf-item-words { opacity: .45; }
 /* A kind's mark (0.4.473), 10 px in the quiet grey; a kind's row in a list of tags: its mark and its word in weight, as
    the map's headings, the count of its nodes at the end in the quiet grey. */
-.rf-kindrow { font-weight: 600; font-family: inherit; }
-.rf-tree-n { color: var(--rf-quiet); font-variant-numeric: tabular-nums; }
-.rf-tree-dim .rf-kindrow { opacity: .45; }
 .rf-tree-kids { display: inline-flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; cursor: pointer; }
 .rf-tree-tri { height: 16px; }
 .rf-tree-chosen { margin-left: 6px; }
@@ -1284,25 +1263,25 @@ span.rf-ol-count { text-decoration: none; cursor: default; }
 .rf-card { padding: 10px 12px; font-size: 14px; }
 .rf-card a { color: inherit; text-decoration: none; }
 .rf-card-title { display: block; font-weight: 600; margin-bottom: 3px; }
-.rf-card-title:hover, .rf-card-fields a:hover, .rf-card-line:hover { text-decoration: underline; text-decoration-color: var(--rf-line); text-underline-offset: 3px; }
+.rf-card-title:hover, .rf-card-fields a:hover, .rf-card-line:hover { text-decoration: underline; text-decoration-color: var(--lk-line); text-underline-offset: 3px; }
 .rf-card-fields { display: grid; grid-template-columns: max-content minmax(0, 1fr); column-gap: 12px; row-gap: 4px; margin-top: 8px; }
-.rf-card-name { color: var(--rf-faint); }
-.rf-card-lines { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--rf-hair); color: var(--rf-quiet); }
+.rf-card-name { color: var(--lk-faint); }
+.rf-card-lines { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--lk-hair); color: var(--lk-quiet); }
 .rf-card :first-child:is(.rf-card-fields, .rf-card-lines) { margin-top: 0; padding-top: 0; border-top: 0; }
 .rf-card-line { display: block; border-radius: 4px; margin: 0 -4px; padding: 0 4px; }
-.rf-card-line:hover { background: var(--rf-wash); text-decoration: none; }
-.rf-card-line::before { content: '• '; color: var(--rf-faint); }
+.rf-card-line:hover { background: var(--lk-wash); text-decoration: none; }
+.rf-card-line::before { content: '• '; color: var(--lk-faint); }
 /* The quiet line (the library's lk-note) and the help paragraph. */
-.rf-note { line-height: 1.45; padding: 2px 0; }
-.rf-pop .rf-note { padding: 4px 8px; }
-.rf-guide { padding: 2px 0 2px 10px; border-left: 1px solid var(--rf-line); font-size: 14px; color: var(--rf-quiet); }
+.lk-note { line-height: 1.45; padding: 2px 0; }
+.rf-pop .lk-note { padding: 4px 8px; }
+.rf-guide { padding: 2px 0 2px 10px; border-left: 1px solid var(--lk-line); font-size: 14px; color: var(--lk-quiet); }
 .rf-guide p { margin: 0 0 4px; }
 .rf-guide p:last-child { margin-bottom: 0; }
 /* THE Undo (undo.offer): the library's arrow (lk-undo) at the end of what changed; with nothing on screen to sit beside,
    it waits at the bottom right with its words, as quiet. */
-.rf-undo-dock { position: fixed; z-index: 10002; right: 20px; bottom: 20px; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; max-width: min(420px, 60vw); color: var(--rf-fg); font-size: var(--lk-small); }
-.rf-undo-docked { margin: 0; padding: 3px 9px; border-radius: 6px; opacity: 1; background: var(--rf-bg); border: 1px solid var(--rf-hair); color: var(--rf-quiet); }
-.rf-undo-docked:hover { color: var(--rf-fg); }
+.rf-undo-dock { position: fixed; z-index: 10002; right: 20px; bottom: 20px; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; max-width: min(420px, 60vw); color: var(--lk-text, currentColor); font-size: var(--lk-small); }
+.rf-undo-docked { margin: 0; padding: 3px 9px; border-radius: 6px; opacity: 1; background: var(--lk-paper, #fff); border: 1px solid var(--lk-hair); color: var(--lk-quiet); }
+.rf-undo-docked:hover { color: var(--lk-text, currentColor); }
 .rf-undo-words { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rf-anchor { position: fixed; width: 0; height: 0; pointer-events: none; }
 

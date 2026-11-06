@@ -16,7 +16,7 @@ const E = (window.DbExport ||= {});
 const { inline, doc: D, themes } = E;
 const esc = inline.escapeHtml;
 // Logseq's document; the plugin's own when it cannot be reached (the plugin installed without "effect").
-const host = () => { try { return window.parent.document; } catch (error) { return document; } };
+const { host } = window.PluginDoor;
 
 /* The greys are the plugin's own (--lk-*, plugin.js). Logseq's colours apply as they are: the window stands in Logseq's
    document. */
@@ -24,10 +24,10 @@ const CSS = `
 .xp { position: fixed; inset: 0; z-index: 9990; display: flex; flex-direction: column; box-sizing: border-box; margin: 0;
   background: color-mix(in srgb, var(--lk-paper, #fff) 84%, #000); color: var(--lk-text, #222);
   font-family: var(--ls-font-family, -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif); font-size: 14px; line-height: 1.35;
-  --xp-quiet: var(--lk-quiet); --xp-faint: var(--lk-faint); --xp-hair: var(--lk-hair); --xp-line: var(--lk-line); --xp-wash: var(--lk-wash); }
+  }
 .xp * { box-sizing: border-box; }
 .xp[hidden] { display: none; }
-.xp-titlebar { display: flex; align-items: center; justify-content: center; flex: none; height: 48px; font-size: var(--lk-small); color: var(--xp-faint); background: var(--lk-paper, #fff); }
+.xp-titlebar { display: flex; align-items: center; justify-content: center; flex: none; height: 48px; font-size: var(--lk-small); color: var(--lk-faint); background: var(--lk-paper, #fff); }
 /* The bar: a row of controls, nothing between them but space, a wider space between groups; the accent and the × at the end. */
 .xp-bar { display: flex; align-items: flex-start; flex-wrap: wrap; flex: none; padding: 2px 28px 14px; background: var(--lk-paper, #fff); }
 .xp-bar .g { display: flex; align-items: flex-start; }
@@ -39,16 +39,16 @@ const CSS = `
 .xp .it { --pl: 20px; position: relative; display: flex; flex-direction: column; gap: 3px; white-space: nowrap; padding: 0 20px 0 var(--pl); }
 .xp .it[hidden] { display: none; }
 .xp .it:first-child, .xp .it[hidden] + .it { --pl: 0px; } .xp .it:last-child { padding-right: 0; }
-.xp .it.lk-pick:not(:first-child) { border-left: 1px solid var(--xp-hair); }
+.xp .it.lk-pick:not(:first-child) { border-left: 1px solid var(--lk-hair); }
 .xp .it[hidden] + .it.lk-pick { border-left: 0; }
 .xp .lk-name { min-height: 15px; }
 .xp .lk-value { all: unset; display: inline-flex; align-items: center; cursor: pointer; color: var(--lk-text, #222); font: inherit; line-height: 1.35; }
 .xp .lk-value:focus-visible { outline: none; background: var(--lk-wash); box-shadow: 0 0 0 3px var(--lk-wash); border-radius: 1em; }
 /* The mark: a small faint chevron tight after a value that unfolds. */
-.xp .lk-value .m { width: 8px; height: 8px; margin-left: 4px; color: var(--xp-faint); flex: none; }
+.xp .lk-value .m { width: 8px; height: 8px; margin-left: 4px; color: var(--lk-faint); flex: none; }
 /* What a value can become: a line of faint words under it, the one in force in the text colour. It takes its room below the
    row (the pick grows by the line's height while open, see unfold), never beside the pick: nothing moves sideways. */
-.xp .lk-pick .lk-alts { position: absolute; left: var(--pl); top: 100%; margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--xp-faint); width: max-content; max-width: 420px; white-space: normal; }
+.xp .lk-pick .lk-alts { position: absolute; left: var(--pl); top: 100%; margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--lk-faint); width: max-content; max-width: 420px; white-space: normal; }
 .xp .lk-pick .lk-alts[hidden] { display: none; }
 .xp .lk-alts span { cursor: pointer; }
 /* A field is the Pressing set's input.lk-value (the library): a hairline under it only while it has the keyboard. */
@@ -65,7 +65,7 @@ const CSS = `
 .xp-fold { flex: none; padding: 0 28px 16px; background: var(--lk-paper, #fff); }
 .xp-fold[hidden] { display: none; }
 .xp-fold .row { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 10px 0; }
-.xp .it.open > .lk-value { color: var(--xp-quiet); }
+.xp .it.open > .lk-value { color: var(--lk-quiet); }
 /* The lists of properties to pick from, inside Show: each headed by a named value, whose they are over all / none as a
    small lk-bar, its first word under the name; then one column, a row per property, its tick box at the left (lk-tick: Look
    shows them when the pointer is on the list), the icon of what it holds, its name, the count (lk-count: never shown where
@@ -77,9 +77,9 @@ const CSS = `
 .xp-list .xp-prop { display: flex; align-items: center; gap: 6px; padding: 2px 0; cursor: pointer; min-width: 0; }
 .xp-list .xp-prop input { margin: 0; flex: none; }
 .xp-list .lk-prop { display: inline-flex; align-items: center; gap: 5px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.xp-kind { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; font-size: 14px; color: var(--xp-faint); flex: none; }
+.xp-kind { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; font-size: 14px; color: var(--lk-faint); flex: none; }
 .xp-kind .lk-icon.lk-web svg { width: 11px; height: 11px; }
-.xp-list .lk-count { margin-left: auto; color: var(--xp-faint); font-size: var(--lk-small); }
+.xp-list .lk-count { margin-left: auto; color: var(--lk-faint); font-size: var(--lk-small); }
 /* The tick box is the library's (lk-tick). */
 /* The accent: the one action, its key beside it; a second action lk-btn, its words level with the accent's and the gap
    between them measured from its words; × the way out. */
@@ -94,7 +94,7 @@ const CSS = `
 .xp-desk iframe.sheets { background: transparent; box-shadow: none; }
 /* Over the desk, at its right, alone: how large the sheets are drawn. */
 .xp-note { display: flex; justify-content: flex-end; align-items: center; font-size: var(--lk-small); padding: 0 0 12px; }
-.xp-note .it { padding: 0; } .xp-note .lk-name { display: none; } .xp-note .lk-value { color: var(--xp-quiet); }
+.xp-note .it { padding: 0; } .xp-note .lk-name { display: none; } .xp-note .lk-value { color: var(--lk-quiet); }
 .xp-note .lk-alts { left: auto; right: 0; justify-content: flex-end; }`;
 
 // The icon of what a property holds, before its name: the door's.

@@ -12,7 +12,7 @@ const { host, notify, warnOnce } = app;
 const P = Flow.proposeUi;
 
 const MOST = 6;
-const el = (doc, tag, attrs = {}, ...kids) => { const e = doc.createElement(tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); e.append(...kids); return e; };
+const { el } = window.PluginDoor;
 let open = null;   // { box, uuid, at, sources, found, on, source, line }
 let stopped = true, registered = false;
 
