@@ -44,7 +44,6 @@ const CSS = `
 .st-regions .st-row.kind .nm { font-weight: 600; }
 .st-regions .st-row .nm { overflow-wrap: normal; }
 .st-regions .st-row.cur { font-weight: 600; } .st-regions .st-row.cur::before { display: none; }
-.st-regions .st-prompt { background: var(--lk-paper, #fff); position: relative; z-index: 2; }
 /* The tag you are on, under the areas: its name opens its page; its relationships; what Structure suggests. */
 .st-focus { padding: 16px 6px 24px; border-top: 1px solid var(--st-hair); margin-top: 6px; max-width: 760px; }
 .st-focus .f-h { font-weight: 600; margin-bottom: 8px; }
@@ -61,7 +60,6 @@ const CSS = `
 .st-lines-t dt { font-weight: 600; } .st-lines-t dd { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; min-width: 0; }
 .st-lines-t .chev { font-size: 11px; margin-left: 3px; }
 .st-tag .sug { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; padding-top: 12px; }
-.st-tag .st-prompt { margin-left: 118px; }
 .st-lines-t dd.col { display: grid; gap: 3px; justify-items: start; }
 .st-lines-t .ont { display: grid; grid-template-columns: 170px 70px auto; gap: 0 14px; align-items: baseline; }
 .st-lines-t .ont.kid { padding-left: 16px; } .st-lines-t .ont.kid .lk-tag { margin-right: -16px; }
@@ -214,25 +212,27 @@ const CSS = `
 .st-two .pr .ct { font-size: 12.5px; color: var(--st-faint); margin-left: auto; white-space: nowrap; }
 .st-two .pr.moves, .st-two .pr.shared { color: var(--lk-text, #222); } .st-two .pr.gone { text-decoration: line-through; color: var(--st-faint); } .st-two .pr.new { font-style: italic; }
 .st .q { color: var(--st-quiet); } .st .f { color: var(--st-faint); }
-.st-tbl { font-size: 13.5px; }
-.st-tbl .hd, .st-tbl .tr { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(0, 2fr) minmax(0, 1.4fr) 116px; gap: 0; align-items: center; min-height: 32px; border-bottom: 1px solid var(--st-hair); }
+/* Baked in one pass (the owner, 5 November 2026: "the table feels half-baked"): the tick and the fold arrow stand in a margin at the
+   table's left, as on a Regions row, so the head Property stands over the names; the chevron sits tight after the value it keys;
+   the columns are sized to what they hold; the sorted head carries Logseq's arrow. */
+.st-tbl { font-size: 13.5px; margin-left: 36px; }
+.st-tbl .hd, .st-tbl .tr { display: grid; grid-template-columns: minmax(140px, 1fr) minmax(0, 1.5fr) minmax(0, 1.5fr) 100px; gap: 0; align-items: center; min-height: 32px; border-bottom: 1px solid var(--st-hair); }
 .st-tbl .hd > *, .st-tbl .tr > * { padding: 4px 12px; min-width: 0; border-left: 1px solid var(--st-hair); } .st-tbl .hd > :first-child, .st-tbl .tr > :first-child { border-left: 0; padding-left: 4px; }
-.st-tbl .hd { font-weight: 600; } .st-tbl .hd .lk-head { cursor: pointer; }
+.st-tbl .hd { font-weight: 600; } .st-tbl .hd .lk-head { cursor: pointer; } .st-tbl .hd .sortmark { color: var(--st-faint); font-weight: 400; margin-left: 5px; }
 .st-tbl .tr:hover { background: var(--st-wash); }
-.st-tbl .tr .lk-tick { vertical-align: -2px; } .st-tbl .tr .lk-tick + * { margin-left: 8px; } .st-tbl .tr.dim { opacity: .45; } .st-tbl .st-q { margin: 6px 0 14px 4px; }
+.st-tbl .tr > span:first-child { position: relative; } .st-tbl .tr .lk-tick { position: absolute !important; left: -34px !important; top: 50%; transform: translateY(-50%); margin: 0 !important; } .st-tbl .tr.dim { opacity: .45; } .st-tbl .st-q { margin: 6px 0 14px 4px; }
 .st-acts .st-in { flex: 0 0 280px; width: 280px; }
 .st-q .st-two .h .lk-icon, .st-q .st-two .h .st-pi { margin-right: 2px; }
 .st-lines-t dd .lk-i-merge { margin-left: auto; }
-.st-tbl .tr > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-tbl .tr > span:first-child { white-space: nowrap; } .st-tbl .tr .k.lk { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }   /* the name is cut, not the cell, so the tick and the arrow in the margin stay in view */
 .st-tbl .tr .k.lk { cursor: pointer; }
 .st-tbl .tr.cur { background: var(--st-wash); }
-.st-tbl .tr .lk-fold { display: inline-flex; width: 14px; height: 20px; align-items: center; justify-content: center; cursor: pointer; vertical-align: middle; margin: 0 2px 0 -2px; }
+.st-tbl .tr .lk-fold { position: absolute; left: -17px; top: 50%; transform: translateY(-50%); display: inline-flex; width: 14px; height: 20px; align-items: center; justify-content: center; cursor: pointer; }
 .st-tbl .tr .lk-fold svg { width: 10px; height: 10px; transition: transform .12s; } .st-tbl .tr .lk-fold[aria-expanded="true"] svg { transform: rotate(90deg); }
-.st-popen { padding: 8px 12px 14px 44px; border-bottom: 1px solid var(--st-hair); }
+.st-popen { padding: 8px 12px 14px 20px; border-bottom: 1px solid var(--st-hair); }
 /* The keys at rest (the owner's pick 1 of structure-table-keys-mockup.html, 5 November 2026): a cell that changes here ends with a faint chevron. */
-.st-tbl .tr .st-cell { display: flex; align-items: center; justify-content: space-between; gap: 8px; } .st-tbl .tr .st-cell > span:first-child { min-width: 0; }
+.st-tbl .tr .st-cell { display: flex; align-items: center; justify-content: flex-start; gap: 6px; } .st-tbl .tr .st-cell > span:first-child { min-width: 0; }
 .st-tbl .tr .st-chev { color: var(--st-faint); font-size: 11px; cursor: pointer; padding: 0 2px; flex: none; } .st-tbl .tr .st-chev:hover { color: var(--st-quiet); }
-.st-tbl .st-prompt { margin: 6px 0 14px 44px; }
 .st-popen .st-lines-t { margin: 0; font-size: 13.5px; }
 /* On a tree row the name is the door (the grammar's row): the words carry the faint line under the pointer, since a line on every row would multiply. */
 .st-row .nm .st-name { cursor: pointer; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 3px; transition: text-decoration-color .12s; }
@@ -261,18 +261,22 @@ const CSS = `
 .st-nodes .st-ln > input.lk-tick[type=checkbox] { align-self: start; margin-top: 4px !important; } .st-nodes .st-ln > .st-bul { align-self: start; margin-top: 3.5px; }
 .st-nodes .more, .st-hl .more, .st-tbl .more { padding: 4px 2px; }
 .st-menu { position: absolute; background: var(--lk-paper, #fff); box-shadow: 0 6px 18px rgba(0,0,0,.12); min-width: 230px; width: max-content; max-width: 360px; font-size: 13.5px; z-index: 30; }
-/* A prompt happens in place (the grammar: never a window): it rolls out under its row, joined by a line from the margin. */
-.st-prompt { margin: 2px 0 8px 30px; padding: 4px 0 2px 10px; border-left: 1px solid var(--st-hair); font-size: 13.5px; max-width: 320px; }
-.st-card .st-prompt { margin-left: 2px; }
-.st-prompt .ask { color: var(--st-quiet); font-size: 12.5px; margin-bottom: 4px; }
-.st-prompt .ask b { color: inherit; font-weight: 500; }
-.st-prompt .st-find { margin-bottom: 6px; }
-.st-prompt .st-row { grid-template-columns: 14px 16px minmax(0, 1fr) 40px; }
-.st-prompt .st-row { padding-left: calc(var(--d, 0) * 14px); }
-.st-prompt .st-row.more { color: var(--st-faint); }
-.st-prompt .st-row.off .nm, .st-prompt .st-row.off .ct { color: var(--st-faint); }
+/* The prompt is a picker at the thing pressed (the owner, 5 November 2026), with the menu's look, anchored in the scrolling box
+   the press was in so it moves with its row and moves nothing else. One drawing everywhere: a find line reading the ask as its
+   own name, the rows; a row that cannot take the thing stays at the off strength with the reason in its title; one row is lit,
+   the one Enter takes, moved by the arrows and by the pointer (as Logseq's own picker moves it); "show all" is the opener. */
+.st-prompt { position: absolute; z-index: 30; width: min(320px, calc(100% - 8px)); max-height: 60vh; overflow: auto; padding: 6px; background: var(--lk-paper, #fff); border: 1px solid var(--st-hair); border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,.12); font-size: 13.5px; }
+.st-right, .st-tree { position: relative; }
+.st-prompt .st-find { margin-bottom: 4px; padding: 0 4px; }
+.st-prompt .st-row { grid-template-columns: minmax(0, 1fr) 40px; padding-left: calc(var(--d, 0) * 14px + 4px); padding-right: 4px; }
+.st-prompt .st-row.off .nm, .st-prompt .st-row.off .ct { color: var(--lk-off); }
+.st-prompt .st-row.loose:not(.off) .nm { color: inherit; }   /* The top reads as any row that can take it; faint only when it cannot */
+.st-prompt .nm .st-pi { align-self: start; margin-top: 5px; }   /* a long name wraps under itself, the icon at its first line */
 .st-prompt .st-row:hover { background: none; }
 .st-prompt .st-row.lit, .st-prompt .st-row.lit:hover { background: var(--st-wash); }
+.st-prompt .more { display: block; padding: 3px 4px; border-radius: 3px; width: 100%; text-align: left; }
+.st-prompt .more.lit { background: var(--st-wash); }
+.st-prompt .q { padding: 4px 2px; }
 .st-empty { color: var(--st-quiet); max-width: 60ch; }
 @media (max-width: 760px) { .st-page { height: auto; } }`;
 
@@ -340,14 +344,12 @@ function make(holder, mode, app, opts = {}) {
       arrow + bullet +
       `<span class="nm"><span class="${waitTag(r.n) ? 'lk-pencil' : ''} ${t?.uuid && !editing ? 'st-name' : ''}" ${t?.uuid && !editing ? `data-tpage="${esc(r.n)}"` : ''}>${nm}</span></span><span class="ct">${Mo.count(M(), r.n) || ''}</span><span class="iss ${o ? 'own' : b ? 'on' : ''}"></span></div>`;
     if (!inPane2 && st.edit && st.edit.what === 'new' && st.edit.on === r.n && st.edit.owner === mode) h += `<div class="st-row lk-row" style="--d:${r.d + 1}"><span></span><span></span><span class="st-bul"><i></i></span><span class="nm"><input class="st-in" data-edit value="${esc(st.edit.text)}" placeholder="a new tag under ${esc(name(r.n))}" autocomplete="off" spellcheck="false"></span><span class="ct"></span><span class="iss"></span></div>`;
-    if (!inPane2 && !promptDrawn && st.prompt && st.prompt.owner === mode && st.prompt.row === r.n) { h += promptHtml(); promptDrawn = true; }
     return h;
   }
   function treeHtml() {
     const rows = visibleRows();
-    promptDrawn = false;
     const views = '';
-    return `<div class="st-left">${views}<div class="st-find"><input data-find placeholder="find a tag…" value="${esc(loc.find)}" autocomplete="off" spellcheck="false"><span class="n">${loc.find.trim() ? rows.filter(r => !r.dim).length : ''}</span></div>` +
+    return `<div class="st-left">${views}<div class="st-find"><input data-find placeholder="Find a tag" value="${esc(loc.find)}" autocomplete="off" spellcheck="false"><span class="n">${loc.find.trim() ? rows.filter(r => !r.dim).length : ''}</span></div>` +
       `<div class="st-tree lk-list" ${st.ticks.size ? 'data-picking' : ''}>${rows.map(rowHtml).join('')}</div></div>`;
   }
 
@@ -356,7 +358,6 @@ function make(holder, mode, app, opts = {}) {
      text, folds and cursor); a field opens only there. While a tag is held, "to the top" stands at the foot of each pane. */
   let inPane2 = false;
   function panesHtml() {
-    promptDrawn = false;
     const pane = n => {
       inPane2 = n === 2;
       const rows = visibleRows(n), q = n === 2 ? st.pane2.find : loc.find;
@@ -374,7 +375,7 @@ function make(holder, mode, app, opts = {}) {
     const views = `<div class="st-views lk-views">${[['tree', 'Regions'], ['table', 'Every property'], ['log', 'Log']].map(([k, w]) => `<span class="lk-view ${v === k ? 'here on' : 'act'}" ${v === k ? '' : `data-show="${k}"`}>${w}</span>`).join('')}</div>`;
     const split = st.view === 'tree' ? `<span class="st-split act lk-btn lk-low lk-i-side" data-split>${st.split ? 'One pane' : 'Two panes'}</span>` : '';
     const find = st.view === 'tree' && st.split ? '' : `<div class="st-find"><input data-find placeholder="${st.view === 'table' ? 'Find a property' : 'Find a tag'}" value="${esc(loc.find)}" autocomplete="off" spellcheck="false"></div>`;
-    return `<div class="st-top">${views}${find}${split}<span class="st-new act lk-add lk-i-plus" data-do="new" data-on="${LOOSE}">New top-level tag</span></div>${st.view === 'tree' ? actsHtml() : st.view === 'table' ? pactsHtml() : ''}`;
+    return `<div class="st-top">${views}${find}${split}${st.view === 'tree' ? `<span class="st-new act lk-add lk-i-plus" data-do="new" data-on="${LOOSE}">New top-level tag</span>` : ''}</div>${st.view === 'tree' ? actsHtml() : st.view === 'table' ? pactsHtml() : ''}`;
   }
   // What can be done stays in view, faint until it can be (the research: what you can do is recognised, not remembered), so nothing moves when a tag is picked.
   function actsHtml() {
@@ -393,7 +394,6 @@ function make(holder, mode, app, opts = {}) {
     return `<div class="st-acts lk-bar">${n ? `<b class="lk-said">${n} picked</b>` : '<span class="say">Pick properties to merge or combine</span>'}<span class="act lk-btn lk-i-merge ${n ? '' : 'waits'}" data-paim>Merge into…</span><span class="act lk-btn lk-i-rename ${n > 1 ? '' : 'waits'}" data-pcombine>Combine as…</span></div>`;
   }
   function regionsHtml() {
-    promptDrawn = false;
     const areas = [];
     for (const r of visibleRows()) { if (!r.d) areas.push([]); areas[areas.length - 1]?.push(r); }
     const asking = st.edit && st.edit.owner === mode && (st.edit.what === 'kids' || st.edit.on === LOOSE);
@@ -423,7 +423,7 @@ function make(holder, mode, app, opts = {}) {
     const extendsWord = `<span class="act lk-pick" data-do="move" data-on="${id}">${up.length ? up.map(tagLink).join('<span class="to"> / </span>') : 'Nothing'}<span class="chev">⌄</span></span>`;
     return `<dl class="st-lines-t"><dt>Extends</dt><dd>${extendsWord}</dd>${beside.length ? `<dt>Beside</dt><dd><span>${ranges(beside)}</span></dd>` : ''}` +
       `<dt>Child tags</dt><dd>${kids.length ? `<span>${ranges(kids)}</span>` : ''}${adding ? `<input class="st-in" data-edit value="${esc(st.edit.text)}" placeholder="Name of the child tag" autocomplete="off" spellcheck="false">` : `<span class="act lk-add lk-i-child" data-do="new" data-on="${id}">Add child tag</span>`}</dd>` +
-      `<dt>Relationships</dt><dd>${relsHtml(id)}</dd></dl>${cardPrompt()}${mergeAskHtml(id)}${changeAskHtml(id)}${suggestHtml(id)}`;
+      `<dt>Relationships</dt><dd>${relsHtml(id)}</dd></dl>${mergeAskHtml(id)}${changeAskHtml(id)}${suggestHtml(id)}`;
   }
   // A property's own page: the same short lines above what Logseq shows. Each action sits on what it acts on.
   function propLinesHtml(pid) {
@@ -437,7 +437,7 @@ function make(holder, mode, app, opts = {}) {
     return `<dl class="st-lines-t"><dt>Property type</dt><dd>${esc(Mo.kindWord(p.choice ? 'choice' : p.type))}${p.many ? ', several values' : ''}<span class="act lk-btn lk-low lk-i-merge" data-do="pmerge" data-on="0·${pid}">Merge into…</span></dd>` +
       (p.type === 'node' ? `<dt>Node tags</dt><dd>${nodeTags}<span class="act lk-add lk-i-plus" data-addrange="0·${pid}">Specify node tags…</span></dd>` : '') +
       `<dt>On tags</dt><dd class="col">${on.map(onRow).join('')}${on.length ? '' : `<span>${plural(m.holders.get(p.ident)?.size || 0, 'node')}, on no tag</span>`}<span class="act lk-add lk-i-plus" data-do="pmove" data-on="0·${pid}">Put on a tag…</span></dd>` +
-      (p.type === 'node' ? `<dt>Relationships</dt><dd>${rels.length ? `<div class="st-rel">${shown.map(r => `${relWord(r.from)}${relProp(r)}<span class="num">${r.n}</span>`).join('')}${shown.length < rels.length ? `<span class="all lk-more" data-all="${key}">and ${rels.length - shown.length} more</span>` : ''}</div>` : '<span>No relationships yet</span>'}</dd>` : '') + `</dl>${cardPrompt()}${pmergeAskHtml(pid)}` +
+      (p.type === 'node' ? `<dt>Relationships</dt><dd>${rels.length ? `<div class="st-rel">${shown.map(r => `${relWord(r.from)}${relProp(r)}<span class="num">${r.n}</span>`).join('')}${shown.length < rels.length ? `<span class="all lk-more" data-all="${key}">and ${rels.length - shown.length} more</span>` : ''}</div>` : '<span>No relationships yet</span>'}</dd>` : '') + `</dl>${pmergeAskHtml(pid)}` +
       R.issuesOfProp(ISS(), pid).filter(i => !(i.line && i.line.kid != null)).map(i => { const n = ISS().indexOf(i); return `<div class="sug"><b>Suggested</b><span>${partsHtml(i.parts)}</span><span class="fix act lk-fix lk-i-${fixIcon(i.fix)}" data-fix="${n}">${esc(fixWord(i.fix))}</span></div>${askHtml(n)}`; }).join('');
   }
   function logHtml() {
@@ -453,9 +453,6 @@ function make(holder, mode, app, opts = {}) {
   const trailHtml = () => { const steps = st.trail.map((p, i) => [placeName(p), i]).filter(([w]) => w); return steps.length ? `<div class="st-trail lk-trail">${steps.length > TRAIL ? '<span class="sep">…</span>' : ''}${steps.slice(-TRAIL).map(([w, i]) => `<span class="lk-step" data-back="${i}">${esc(w)}</span>`).join('<span class="sep">›</span>')}<span class="sep">›</span></div>` : ''; };
   // The title row: the name, and at the right end the place in the tree, nearest first, each a tag that opens (as Look draws a page's).
   const titleHtml = (mark, title, above, cls) => `<div class="st-ttl"><h2 class="${cls || ''}">${mark}<span class="${cls ? 'lk-pencil' : ''}">${title}</span></h2>${above.length ? `<span class="st-place">${above.map(tagLink).join('<span class="sep">/</span>')}</span>` : ''}</div>`;
-  // The prompt that belongs to the card (a property's, the nodes'), in place under the words.
-  let promptDrawn = false;   // set by the tree: whether the prompt's row is on screen (else the card shows the prompt)
-  const cardPrompt = () => st.prompt && st.prompt.owner === mode && !promptDrawn ? promptHtml() : '';
   const acts = (on, list) => { const l = list.filter(Boolean); return l.length ? `<div class="acts lk-strip">${l.map(([word, a]) => `<span class="act lk-btn lk-i-${ACT_ICON[a]}" data-do="${a}" data-on="${esc(on)}">${word}</span>`).join('')}</div>` : ''; };
 
   // ---------- the card ----------
@@ -554,13 +551,12 @@ function make(holder, mode, app, opts = {}) {
     if (q) rows = rows.filter(r => r.p.title.toLowerCase().includes(q) || r.on.some(x => name(x.tag).toLowerCase().includes(q)) || r.p.range.some(id => name(id).toLowerCase().includes(q)));
     const s = st.sort, onName = g => name(g.tag);
     rows.sort((a, b) => s === 'name' ? a.p.title.localeCompare(b.p.title) : s === 'on' ? !a.tag - !b.tag || (a.tag && onName(a).localeCompare(onName(b))) || a.p.title.localeCompare(b.p.title) : s === 'to' ? name(b.p.range[0] ?? '').localeCompare(name(a.p.range[0] ?? '')) : a.pct - b.pct || a.p.title.localeCompare(b.p.title));
-    let h = `<div class="st-tbl lk-list" ${st.pticks.size ? 'data-picking' : ''}><div class="hd">${['name', 'on', 'to', 'filled'].map(c => `<span class="lk-head ${s === c ? 'on' : ''}" data-sort="${c}">${{ name: 'Property', on: 'On tags', to: 'Holds', filled: 'Filled' }[c]}</span>`).join('')}</div>`;
+    let h = `<div class="st-tbl lk-list" ${st.pticks.size ? 'data-picking' : ''}><div class="hd">${['name', 'on', 'to', 'filled'].map(c => `<span class="lk-head ${s === c ? 'on' : ''}" data-sort="${c}">${{ name: 'Property', on: 'On tags', to: 'Holds', filled: 'Filled' }[c]}${s === c ? `<span class="sortmark">${c === 'to' ? '↓' : '↑'}</span>` : ''}</span>`).join('')}</div>`;
     // A property's name, or the field renaming it (Rename in its right-click menu).
     const nameCell = (key, title, wait, page) => st.edit?.what === 'prename' && st.edit.on === key && st.edit.owner === mode
       ? `<input class="st-in" data-edit value="${esc(st.edit.text)}" autocomplete="off" spellcheck="false">` : `<span class="k lk ${wait ? 'lk-pencil' : ''}" ${page ? `data-ppage="${esc(page)}"` : ''}>${esc(title)}</span>`;
-    const tr = (r, d) => { const key = `${r.tag}·${r.prop}`, open = st.popen.has(r.prop); return `<div class="tr lk-row ${waitProp(r.prop)} ${st.paim && st.pticks.has(r.prop) ? 'dim' : ''} ${st.propCur === key ? 'cur' : ''}" data-prop="${key}" data-gprop="${esc(r.p.ident)}" draggable="true" style="--pd:${d ? 20 + d * 16 : 4}px"><span><input type="checkbox" class="lk-tick" data-ptick="${r.prop}" ${st.pticks.has(r.prop) ? 'checked' : ''}><span class="lk-fold" data-pfold="${r.prop}" aria-expanded="${open}" title="${open ? 'Close' : 'Open'} ${esc(r.p.title)} here">${CHEVRON}</span>${nameCell(key, r.p.title, waitProp(r.prop), key)}</span><span class="st-cell"><span>${r.on.length ? ranges(r.on.map(x => x.tag)) : '<span class="f">No tag</span>'}</span><span class="chev st-chev" data-pon="${r.prop}" title="Put ${esc(r.p.title)} on a tag…">⌄</span></span><span class="st-cell"><span>${r.p.type === 'node' ? (r.p.range.length ? ranges(r.p.range) : 'Any node') : esc(Mo.kindWord(r.p.choice ? 'choice' : r.p.type))}</span>${r.p.type === 'node' ? `<span class="chev st-chev" data-prange="${r.prop}" title="Node tags of ${esc(r.p.title)}…">⌄</span>` : ''}</span><span class="ct">${r.tag ? `${r.filled} of ${r.of}` : plural(r.filled, 'node')}</span></div>${open ? `<div class="st-popen" data-popen="${r.prop}">${propLinesHtml(r.prop)}</div>` : ''}${rowPrompt(r.prop)}${pmergeAskHtml(r.prop)}`; };
+    const tr = (r, d) => { const key = `${r.tag}·${r.prop}`, open = st.popen.has(r.prop); return `<div class="tr lk-row ${waitProp(r.prop)} ${st.paim && st.pticks.has(r.prop) ? 'dim' : ''} ${st.propCur === key ? 'cur' : ''}" data-prop="${key}" data-gprop="${esc(r.p.ident)}" draggable="true" style="--pd:${d ? 20 + d * 16 : 4}px"><span><input type="checkbox" class="lk-tick" data-ptick="${r.prop}" ${st.pticks.has(r.prop) ? 'checked' : ''}><span class="lk-fold" data-pfold="${r.prop}" aria-expanded="${open}" title="${open ? 'Close' : 'Open'} ${esc(r.p.title)} here">${CHEVRON}</span>${nameCell(key, r.p.title, waitProp(r.prop), key)}</span><span class="st-cell"><span>${r.on.length ? ranges(r.on.map(x => x.tag)) : '<span class="f">No tag</span>'}</span><span class="chev st-chev" data-pon="${r.prop}" title="Put ${esc(r.p.title)} on a tag…">⌄</span></span><span class="st-cell"><span>${r.p.type === 'node' ? (r.p.range.length ? ranges(r.p.range) : 'any node') : esc(Mo.kindWord(r.p.choice ? 'choice' : r.p.type))}</span>${r.p.type === 'node' ? `<span class="chev st-chev" data-prange="${r.prop}" title="Node tags of ${esc(r.p.title)}…">⌄</span>` : ''}</span><span class="ct">${r.tag ? `${r.filled} of ${r.of}` : plural(r.filled, 'node')}</span></div>${open ? `<div class="st-popen" data-popen="${r.prop}">${propLinesHtml(r.prop)}</div>` : ''}${pmergeAskHtml(r.prop)}`; };
     // A prompt about this property (Put on a tag…, Node tags…, from the cell's chevron or the opened lines) rolls out under its row.
-    function rowPrompt(pid) { if (promptDrawn || !st.prompt || st.prompt.owner !== mode || st.prompt.prop !== pid) return ''; promptDrawn = true; return promptHtml(); }
     /* The groups: an outline of names, each folding like a bullet, holding properties and other groups, for order only
        (app.groups, kept on this computer). A property dragged onto a group's name goes into it; a group dragged onto another
        goes inside it; onto "No group", back out. With no group made, the table reads as before. */
@@ -582,7 +578,7 @@ function make(holder, mode, app, opts = {}) {
       const free = propsIn(null);
       h += kidsOf(null).map(g => groupHtml(g, 0)).join('') + `<div class="st-grp none" data-group="" style="--d:0"><span></span><span class="gn">No group</span><span class="ct">${free.length || ''}</span><span></span></div>` + few('table', free).map(r => tr(r, 1)).join('') + moreOf('table', free);
     } else h += few('table', rows).map(r => tr(r, 0)).join('') + moreOf('table', rows);
-    h += `<div class="st-gnew">${field('gnew', '') ? `<input class="st-in" data-edit value="${esc(st.edit.text)}" placeholder="Name of the group" autocomplete="off" spellcheck="false">` : '<span class="act lk-add lk-i-plus" data-gnew>New group</span><span class="act lk-add lk-i-plus" data-pnew>New property</span>'}</div>${cardPrompt()}`;
+    h += `<div class="st-gnew">${field('gnew', '') ? `<input class="st-in" data-edit value="${esc(st.edit.text)}" placeholder="Name of the group" autocomplete="off" spellcheck="false">` : '<span class="act lk-add lk-i-plus" data-gnew>New group</span><span class="act lk-add lk-i-plus" data-pnew>New property</span>'}</div>`;
     return h + `</div>`;
   }
   // A long list: a few, then "show all", as a tag's nodes.
@@ -598,7 +594,6 @@ function make(holder, mode, app, opts = {}) {
     // Nothing ticked: the bar's room stays empty, so a tick moves no row.
     if (!n.ticks.size) h += `<div class="st-pick"></div>`;
     else h += `<div class="st-pick lk-bar"><b class="lk-said">${n.ticks.size} picked</b><span class="act lk-btn lk-i-move" data-do="nmove" data-on="${n.tag}">Move to another tag…</span><span class="act lk-btn lk-i-child" data-do="nsplit" data-on="${n.tag}">New child tag of ${esc(t.title)} with them…</span></div>`;
-    h += cardPrompt();
     h += list.map((x, i) => `<div class="st-ln ${i === n.cur ? 'cur' : ''}" data-node="${i}"><span class="lk-day">${dayWords(x.day)}</span><input type="checkbox" class="lk-tick" data-ntick="${i}" ${n.ticks.has(x.uuid) ? 'checked' : ''}><span class="st-bul"><i></i></span><span class="w"><span class="lk-node lk-bare lk" data-uuid="${esc(x.uuid)}" data-open="${esc(x.uuid)}">${esc(x.title.slice(0, 120) || '…')}</span></span></div>`).join('');
     if (!n.all && n.list.length > 20) h += `<div class="more lk-more" data-more>show all ${n.list.length}</div>`;
     return h + `</div>`;
@@ -636,38 +631,70 @@ function make(holder, mode, app, opts = {}) {
     `<div class="lk-answers"><span class="lk-big" data-stage>Apply</span><span class="lk-btn lk-low lk-i-x" data-leave>Leave it</span></div></div>`;
   const pressApply = () => { if (st.ask?.apply) return; if (app.tray.lasting().length) { st.ask = { apply: true, owner: mode }; st.menu = null; return redraw(); } app.apply(); };
 
-  // ---------- the move prompt ----------
+  // ---------- the prompt: the one drawing of a choice, a picker at the thing pressed ----------
+  /* A picker anchored under the element pressed (the owner, 5 November: a choice rolling out under a table row, far from the
+     chevron that opened it and pushing the rows down, "doesn't make any sense"; nothing else in Logseq or the plugin behaves so):
+     as Logseq's own picker at a cell and the right-click menu, with the menu's look, in the scrolling box the press was in, so
+     nothing on the page moves and it scrolls with its row. Drawn once, after the page, wherever the press was.
+     One find line that reads the ask as its own name ("Put Provider on…", faint until letters are typed; the row above says what it
+     concerns), then the rows: name and count, stepped in by level, no bullets, since these are choices and not blocks, as in Logseq's
+     own picker (the owner, 5 November: "this menu looks awful" of an ask line, a field and bulleted rows). A row that cannot take the thing stays,
+     faint, with the reason in its title (`why`), so the person sees why and not just that; Enter and a press do nothing on it.
+     At rest the tree shows whole levels: the top-level tags always, the next level only when all of it fits in the few, so no
+     top-level tag hides behind "show all" while a child of another shows. Typed letters find anywhere in the tree and the
+     matches stand flat, since an indent under no parent says nothing. "show all" is the grammar's opener, reached by the
+     arrows too. The lit row is the one Enter takes: the first that can take the thing, moved by the arrows and the pointer. */
+  const PROMPT_FEW = 12;
   function promptHtml() {
-    const p = st.prompt, m = M(), q = p.text.toLowerCase();
-    let ask, rows, all;
+    const p = st.prompt, m = M(), q = p.text.trim().toLowerCase(), hit = s => !q || s.toLowerCase().includes(q);
+    const byTitle = (a, b) => a.title.localeCompare(b.title);
+    let ask, all, few, kind = 'tag';
+    // The tag that gives n the property pid: n itself, or the nearest tag above it (a child tag inherits its parent's properties).
+    const giver = (n, pid) => Mo.pathOf(m, n).reverse().find(a => T(a)?.props.includes(pid)) ?? null;
     if (p.list === 'values') {
-      ask = `Split <b>${esc(name(p.tag))}</b> by <b>${esc(P(p.prop).title)}</b>: a new tag under it for the nodes where it is…`;
-      all = p.values.filter(v => !q || v.title.toLowerCase().includes(q)).map(v => ({ key: v.id, nm: v.title, ct: v.count, d: 0, ok: true }));
-      rows = all.slice(0, 10);
+      kind = 'value';
+      ask = `Split ${name(p.tag)} by ${P(p.prop).title}: a child tag for…`;
+      all = p.values.filter(v => hit(v.title)).map(v => ({ key: v.id, nm: v.title, ct: v.count, d: 0, why: '' }));
     } else if (p.what === 'pmerge') {
-      ask = `Merge <b>${esc(P(p.prop).title)}</b> into…`;
-      all = [...m.props.values()].filter(x => x.id !== p.prop && (!q || x.title.toLowerCase().includes(q))).sort((a, b) => a.title.localeCompare(b.title)).map(x => ({ key: x.id, nm: x.title, ct: m.holders.get(x.ident)?.size || '', d: 0, ok: true, icon: pi(x) }));
-      rows = all.slice(0, 10);
+      kind = 'property';
+      ask = `Merge ${P(p.prop).title} into…`;
+      all = [...m.props.values()].filter(x => x.id !== p.prop && hit(x.title)).sort(byTitle).map(x => ({ key: x.id, nm: x.title, ct: m.holders.get(x.ident)?.size || '', d: 0, why: '', icon: pi(x) }));
     } else if (p.list === 'props') {
-      ask = `Add to <b>${esc(name(p.tag))}</b>${p.under ? ' and every tag under it' : ''} the property…`;
-      all = [...m.props.values()].filter(x => !T(p.tag).props.includes(x.id) && (!q || x.title.toLowerCase().includes(q))).sort((a, b) => a.title.localeCompare(b.title)).map(x => ({ key: x.id, nm: x.title, ct: x.on.length ? `on ${x.on.length}` : '', d: 0, ok: true, icon: pi(x) }));
-      rows = all.slice(0, 10);
+      kind = 'property';
+      ask = `Add a property to ${name(p.tag)}${p.under ? ' and all beneath' : ''}…`;
+      all = [...m.props.values()].filter(x => hit(x.title)).sort(byTitle).map(x => { const g = giver(p.tag, x.id); return { key: x.id, nm: x.title, ct: x.on.length ? `on ${x.on.length}` : '', d: 0, why: g == null ? '' : g === p.tag ? `already on ${name(p.tag)}` : `inherited from ${name(g)}`, icon: pi(x) }; });
     } else {
-      const subject = p.what === 'pnew' ? '' : p.what === 'nodes' ? `${p.nodes.length} ticked nodes` : p.what === 'prop' ? `the property ${P(p.prop).title}` : p.what === 'range' ? `what ${P(p.prop).title} points at` : p.tags.length > 1 ? `${p.tags.length} picked tags` : name(p.tags[0]);
-      ask = p.what === 'pnew' ? 'New property on…' : p.what === 'range' ? `Node tags of <b>${esc(P(p.prop).title)}</b>${P(p.prop).range.length ? ', also' : ''}…` : p.what === 'prop' && !p.from ? `Put <b>${esc(P(p.prop).title)}</b> on…` : `Move <b>${esc(subject)}</b> to…`;
-      const list = all = [];
-      const walk = (n, d) => { const t = T(n); const ok = p.what === 'tag' ? !p.tags.some(s => Mo.under(m, n, s)) : true; if (!q || t.title.toLowerCase().includes(q)) list.push({ key: n, nm: t.title, ct: Mo.count(m, n) || '', d, ok }); for (const k of Mo.kids(m, n)) walk(k, d + 1); };
+      const subject = p.what === 'nodes' ? plural(p.nodes.length, 'ticked node') : p.what === 'prop' ? P(p.prop).title : p.what === 'tag' ? (p.tags.length > 1 ? `${p.tags.length} picked tags` : name(p.tags[0])) : '';
+      ask = p.what === 'pnew' ? 'New property on…' : p.what === 'range' ? `Node tags of ${P(p.prop).title}${P(p.prop).range.length ? ', also' : ''}…` : p.what === 'prop' && !p.from ? `Put ${P(p.prop).title} on…` : `Move ${subject} to…`;
+      // Why a tag cannot take it, in Logseq's words; '' when it can.
+      const why = n => {
+        if (p.what === 'tag') {
+          if (p.tags.includes(n)) return 'the tag itself';
+          const above = p.tags.find(s => Mo.under(m, n, s)); if (above != null) return `beneath ${name(above)}`;
+          if (p.tags.every(s => Mo.parentOf(m, s) === n)) return p.tags.length > 1 ? 'already under it' : `${name(p.tags[0])} is already under it`;
+        } else if (p.what === 'prop') {
+          if (n === p.from) return `${P(p.prop).title} is on it already`;
+          const g = giver(n, p.prop); if (g != null && g !== p.from) return g === n ? `${P(p.prop).title} is on it already` : `inherited from ${name(g)}`;
+        } else if (p.what === 'range') { if (P(p.prop).range.includes(n)) return 'already a node tag'; }
+        else if (p.what === 'nodes') { if (p.nodes.every(x => x.tag === n)) return p.nodes.length > 1 ? 'the nodes carry it already' : 'the node carries it already'; }
+        return '';
+      };
+      const list = [];
+      const walk = (n, d) => { const t = T(n); if (hit(t.title)) list.push({ key: n, nm: t.title, ct: Mo.count(m, n) || '', d: q ? 0 : d, why: why(n) }); for (const k of Mo.kids(m, n)) walk(k, d + 1); };
       Mo.tops(m).forEach(k => walk(k, 0));
-      if (p.what === 'tag' && (!q || 'the top'.includes(q))) list.push({ key: LOOSE, nm: 'The top', ct: '', d: 0, ok: true, loose: true });
-      rows = q ? list.slice(0, 8) : list.filter(r => r.d <= 1).slice(0, 12);
+      if (p.what === 'tag' && hit('The top')) list.push({ key: LOOSE, nm: 'The top', ct: '', d: 0, loose: true, why: p.tags.every(s => !T(s)?.parents.length) ? 'already at the top' : '' });
+      all = list;
+      if (!q) { const tops = list.filter(r => r.d === 0), two = list.filter(r => r.d <= 1); few = two.length <= PROMPT_FEW ? two : tops; }
     }
-    if (p.whole) rows = all;
-    else if (all.length > rows.length) rows = [...rows, { more: true, nm: `show all ${all.length}`, ct: '', d: 0, ok: true }];
+    let rows = p.whole ? all : (few || all).slice(0, PROMPT_FEW);
+    if (!p.whole && all.length > rows.length) rows = [...rows, { more: true, nm: `show all ${all.length}`, ct: '', d: 0, why: '' }];
+    rows.forEach(r => { r.ok = !r.why; });
     p.shown = rows;
     if (!rows[p.lit]?.ok) p.lit = rows.findIndex(r => r.ok);   // the lit row is one Enter can take
-    return `<div class="st-prompt"><div class="ask">${ask}</div><div class="st-find"><input data-pin value="${esc(p.text)}" autocomplete="off" spellcheck="false"></div>` +
-      rows.map((r, i) => `<div class="st-row ${r.ok ? '' : 'off'} ${r.loose ? 'loose' : ''} ${r.more ? 'more' : ''} ${i === p.lit ? 'lit' : ''}" style="--d:${Math.min(r.d, 2)}" data-pick="${i}"><span></span><span class="st-bul"><i></i></span><span class="nm">${r.icon || ''}${esc(r.nm)}</span><span class="ct">${esc(r.ct)}</span></div>`).join('') +
-      (rows.length ? '' : `<div class="q" style="padding:4px 2px">nothing matches</div>`) + `</div>`;
+    return `<div class="st-prompt"><div class="st-find"><input data-pin placeholder="${esc(ask)}" title="Find a ${kind}" value="${esc(p.text)}" autocomplete="off" spellcheck="false"></div>` +
+      rows.map((r, i) => r.more ? `<div class="more lk-more ${i === p.lit ? 'lit' : ''}" data-pick="${i}">${esc(r.nm)}</div>` :
+        `<div class="st-row ${r.ok ? '' : 'off'} ${r.loose ? 'loose' : ''} ${i === p.lit ? 'lit' : ''}" style="--d:${Math.min(r.d, 6)}" data-pick="${i}" ${r.why ? `title="${esc(r.why)}"` : ''}><span class="nm">${r.icon || ''}${esc(r.nm)}</span><span class="ct">${esc(r.ct)}</span></div>`).join('') +
+      (rows.length ? '' : `<div class="q">nothing matches</div>`) + `</div>`;
   }
   // ---------- the menu: the same words the card has ----------
   function menuHtml() {
@@ -702,7 +729,6 @@ function make(holder, mode, app, opts = {}) {
     const scroll = root.querySelector('.st-tree')?.scrollTop, scrollA = root.querySelector('.st-regions')?.scrollLeft, scrollR = root.querySelector('.st-right')?.scrollTop;
     const trayWas = root.querySelector('.st-tray')?.offsetHeight;   // undefined on the first drawing: what is there at opening does not slide
     if (mode === 'page') keepPlace();
-    promptDrawn = false;
     let h;
     if (mode === 'page') {
       const card = st.view === 'table' ? tableHtml() : st.view === 'log' ? logHtml() : st.view === 'nodes' ? nodesHtml() : st.split ? panesHtml() : regionsHtml();
@@ -711,9 +737,15 @@ function make(holder, mode, app, opts = {}) {
     else h = treeHtml();
     if (st.menu && st.menu.owner === mode) h += menuHtml();
     // What a fold opens rolls out (the grammar), as Threads' rows do: the rows, groups and properties that were not there before.
-    const wasShown = st.glide ? new Set([...root.querySelectorAll(KEYED)].map(keyOfShown)) : null, hadPrompt = !!root.querySelector('.st-prompt');
+    const wasShown = st.glide ? new Set([...root.querySelectorAll(KEYED)].map(keyOfShown)) : null;
     root.innerHTML = h;
-    const rolled = [...(wasShown ? [...root.querySelectorAll(KEYED)].filter(e => !wasShown.has(keyOfShown(e))) : []), ...(!hadPrompt && root.querySelector('.st-prompt') ? [root.querySelector('.st-prompt')] : [])];
+    if (st.prompt && st.prompt.owner === mode) {
+      const at = st.prompt.at || {}, box = (at.within && root.querySelector(at.within)) || root;
+      box.insertAdjacentHTML('beforeend', promptHtml());
+      const el = box.lastElementChild, room = box.clientWidth + box.scrollLeft - el.offsetWidth - 4;
+      el.style.left = `${Math.max(0, Math.min(at.left || 0, room))}px`; el.style.top = `${at.top || 0}px`;
+    }
+    const rolled = wasShown ? [...root.querySelectorAll(KEYED)].filter(e => !wasShown.has(keyOfShown(e))) : [];
     st.glide = false;
     window.PluginDoor.unroll(rolled);
     // The map's lines are measured from where the rows stand: once more when they have rolled out.
@@ -727,6 +759,7 @@ function make(holder, mode, app, opts = {}) {
     if (scrollA && root.querySelector('.st-regions')) root.querySelector('.st-regions').scrollLeft = scrollA;
     if (scrollR && root.querySelector('.st-right')) root.querySelector('.st-right').scrollTop = scrollR;
     root.querySelector('.st-row.cur')?.scrollIntoView?.({ block: 'nearest' });
+    root.querySelector('.st-prompt .lit')?.scrollIntoView?.({ block: 'nearest' });
     const pin = root.querySelector('[data-pin]'), edit = root.querySelector('[data-edit]');
     wantFocus = false;
     if (!hadFocus) return;   // the keyboard is elsewhere, in a bullet being written, say: a draw leaves it there
@@ -815,7 +848,16 @@ function make(holder, mode, app, opts = {}) {
   };
   const openAll = id => { const walk = x => { st.open.add(x); Mo.kids(M(), x).forEach(walk); }; walk(id); redraw(); };
   const tick = id => { const t = T(id); if (!t) return; st.ticks.has(id) ? st.ticks.delete(id) : st.ticks.add(id); redraw(); };
-  const startPrompt = p => { st.menu = null; st.ask = null; st.prompt = { text: '', lit: 0, owner: mode, ...p }; redraw(); };
+  // Where the press was: the element's box in the scrolling box it sits in (content coordinates, so the picker scrolls with its row).
+  let pressAt = null, justClosed = null;
+  const anchorOf = el => {
+    const within = el.closest('.st-tree, .st-right');   // not the areas box: it scrolls sideways and would clip the picker
+    const box = within || root, r = el.getBoundingClientRect(), b = box.getBoundingClientRect();
+    const pane = within?.closest('[data-pane]');
+    return { within: within ? (pane ? `[data-pane="${pane.dataset.pane}"] .st-tree` : `.${within.classList[0]}`) : null, left: r.left - b.left + box.scrollLeft, top: r.bottom - b.top + box.scrollTop + 4 };
+  };
+  const samePrompt = (a, b) => !!a && !!b && a.what === b.what && a.prop === b.prop && a.key === b.key && a.tag === b.tag && a.row === b.row && String(a.tags) === String(b.tags);
+  const startPrompt = p => { st.menu = null; st.ask = null; if (samePrompt(justClosed, p)) { justClosed = null; return redraw(); } st.prompt = { text: '', lit: 0, owner: mode, at: pressAt, ...p }; redraw(); };
   const startMoveTag = id => { const tags = st.ticks.size > 1 && st.ticks.has(id) ? [...st.ticks] : [id]; if (mode === 'page') return startAim('move', tags); startPrompt({ what: 'tag', list: 'tags', tags, row: id }); };
   // On the page of the whole the areas are the choice: the bar says what is moving, and a press on a tag answers.
   const startAim = (what, tags) => { st.menu = null; st.ask = null; st.aim = { what, tags }; loc.find = ''; redraw(); };
@@ -865,11 +907,12 @@ function make(holder, mode, app, opts = {}) {
       if (taken) app.notify(`“${v}” is already in the graph: give the new tag another name`, 'warning'); else stageEdit(e, v);
     });
   }
+  // A new top-level tag waits in the tray for its first child tags, one batch (`wait`); any other safe change is written at once.
   function stageEdit(e, v) {
     st.edit = null;
     if (v) {
       if (e.what === 'rename' && v !== name(e.on)) app.stage({ kind: 'rename', tag: e.on, name: v });
-      else if (e.what === 'new') { const c = app.stage({ kind: 'make', name: v, under: e.on === LOOSE ? null : e.on }); st.open.add(e.on); if (c?.made != null) { loc.cur = c.made; if (mode === 'side') st.cur = c.made; if (e.on === LOOSE) { st.edit = { what: 'kids', on: c.made, text: '', owner: mode }; } } }
+      else if (e.what === 'new') { const c = app.stage({ kind: 'make', name: v, under: e.on === LOOSE ? null : e.on }, { wait: e.on === LOOSE }); st.open.add(e.on); if (c?.made != null) { loc.cur = c.made; if (mode === 'side') st.cur = c.made; if (e.on === LOOSE) { st.edit = { what: 'kids', on: c.made, text: '', owner: mode }; } } }
       else if (e.what === 'kids') { for (const w of v.split(',').map(x => x.trim()).filter(Boolean)) if (!Mo.titled(M(), w).length) app.stage({ kind: 'make', name: w, under: e.on }); st.open.add(e.on); }
       else if (e.what === 'gnew' || e.what === 'gname') {
         const G = app.groups();
@@ -964,9 +1007,16 @@ function make(holder, mode, app, opts = {}) {
   // ---------- events ----------
   root.addEventListener('click', e => {
     const t = e.target.closest('[data-ppage],[data-tpage],[data-pfold],[data-pon],[data-prange],[data-all],[data-fold],[data-tick],[data-ptick],[data-paim],[data-paimoff],[data-pcombine],[data-ntick],[data-row],[data-go],[data-open],[data-unrange],[data-addrange],[data-prop],[data-fix],[data-stage],[data-leave],[data-sort],[data-apply],[data-discard],[data-drop],[data-undo],[data-act],[data-do],[data-show],[data-compare],[data-aim],[data-aimtop],[data-aimoff],[data-back],[data-pick],[data-nodes],[data-more],[data-node],[data-split],[data-gfold],[data-gname],[data-gdrop],[data-gnew],[data-pnew]');
-    if (!t) { if (st.menu) { st.menu = null; redraw(); } return; }
+    const outside = st.prompt?.owner === mode && !e.target.closest('.st-prompt');
+    if (!t) { if (st.menu || outside) { st.menu = null; if (outside) st.prompt = null; redraw(); } return; }
     if (e.target.matches?.('[data-edit]')) return;   // a click in a field being written stays in the field
     e.stopPropagation(); e.preventDefault();
+    pressAt = anchorOf(t); justClosed = null;
+    if (t.dataset.act && st.menu) {   // a choice from the menu hangs from the row the menu was for, where the menu opened, not from the item pressed
+      const on = String(st.menu.on), row = root.querySelector(st.menu.kind === 'row' ? `.st-row[data-row="${on}"]` : `.tr[data-prop="${on}"], .ont[data-prop="${on}"]`);
+      if (row) pressAt = anchorOf(row.querySelector('.nm, .k') || row);
+    }
+    if (outside) { justClosed = st.prompt; st.prompt = null; setTimeout(() => { if (!st.prompt && root.querySelector('.st-prompt')) draw(); }, 0); }   // a press elsewhere closes the picker, as Logseq's close; the press still acts
     if (t.hasAttribute('data-split')) { st.split = !st.split; return redraw(); }
     // Leaving for a Logseq page lets go of what was being asked here, so nothing waits unseen behind the page; the picks stay.
     const leave = (uuid, shift) => { st.paim = false; st.ask = null; st.menu = null; st.aim = null; st.prompt = null; redraw(); app.openNode(uuid, shift); };
@@ -1090,8 +1140,17 @@ function make(holder, mode, app, opts = {}) {
     e.preventDefault(); e.stopPropagation();
     const box = root.getBoundingClientRect();
     st.menu = { kind: r ? 'row' : 'prop', on: r ? keyOf(r.dataset.row) : p.dataset.prop, x: e.clientX - box.left, y: e.clientY - box.top, owner: mode };
-    st.ask = null;
+    st.ask = null; st.prompt = null;
     redraw();
+  });
+  // The pointer moves the prompt's lit row (as Logseq's picker does), so one row is lit for keys and mouse alike; no redraw, the classes
+  // move. Only a pointer that really moved counts: a redraw puts a new row under a resting pointer, and that must not undo an arrow key.
+  let lastAt = null;
+  root.addEventListener('mousemove', e => {
+    const at = `${e.clientX},${e.clientY}`; if (at === lastAt) return; lastAt = at;
+    const r = st.prompt?.owner === mode && e.target.closest?.('.st-prompt [data-pick]'); if (!r) return;
+    const i = +r.dataset.pick, p = st.prompt; if (i === p.lit || !p.shown?.[i]?.ok) return;
+    p.lit = i; root.querySelectorAll('.st-prompt .lit').forEach(x => x.classList.remove('lit')); r.classList.add('lit');
   });
   root.addEventListener('input', e => {
     if (e.target.matches('[data-find]')) { loc.find = e.target.value; draw(); }
@@ -1123,7 +1182,7 @@ function make(holder, mode, app, opts = {}) {
     if (!passes(e)) e.stopPropagation(); else if (doc.querySelector('.ui__dialog-overlay')) return;
     const k = e.key;
     if (st.prompt && st.prompt.owner === mode) {
-      if (k === 'Escape') { st.prompt = null; redraw(); }
+      if (k === 'Escape') { if (st.prompt.text) { st.prompt.text = ''; st.prompt.lit = 0; draw(); } else { st.prompt = null; redraw(); } }   // one step at a time: the typed text, then the prompt
       else if (k === 'ArrowDown' || k === 'ArrowUp') { const rows = st.prompt.shown || [], by = k === 'ArrowDown' ? 1 : -1; for (let i = st.prompt.lit + by; rows[i]; i += by) if (rows[i].ok) { st.prompt.lit = i; break; } e.preventDefault(); draw(); }
       else if (k === 'Enter') { e.preventDefault(); finishPrompt(st.prompt.shown?.[st.prompt.lit]); }
       return;

@@ -121,11 +121,18 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   click(row('Consultation')); assert.equal(st.cur, id('Consultation'));
   assert.equal(text(R.querySelector('.st-focus .f-h')), 'Consultation');
 
-  // A move with Tab: pencilled, in the tray, with the plain count; Old and new; one Undo for the lot.
+  // A move with Tab can lose nothing, so it is written at once with the one Undo (the owner, 5 November: no Apply for a minor change).
   const parent = M().tags.get(id('Scan')).parents[0], sib = Mo().kids(M(), parent), at = sib.indexOf(id('Scan'));
   click(row('Scan')); key(R, 'Tab', {});
   assert.equal(app.tray.changes.length, at > 0 ? 1 : 0, 'Tab: one step in, under the row above');
   if (!app.tray.changes.length) app.stage({ kind: 'move', tag: id('Scan'), to: id('Conversation') });
+  for (let i = 0; i < 40 && !app.tray.done; i++) await sleep(25);
+  assert.ok(app.tray.done && app.tray.changes.length === 0, 'one safe change is written at once'); assert.ok(calls.some(c => c[0] === 'addTagExtends'), 'through Logseq\'s own call');
+  assert.ok(R.querySelector('.st-tray [data-undo]'), 'the Undo arrow waits in the tray'); click(R.querySelector('[data-undo]')); for (let i = 0; i < 40 && app.tray.done; i++) await sleep(25);
+  assert.ok(!app.tray.done, 'Undo puts it back');
+  // Two moves staged together wait for Apply: pencilled, in the tray, with the plain count; Old and new; one Undo for the lot.
+  app.stage({ kind: 'move', tag: id('Scan'), to: id('Conversation') }); app.stage({ kind: 'move', tag: id('Call'), to: id('Treatment') }); app.draw(); await sleep(30);
+  assert.equal(app.tray.changes.length, 2, 'several together wait');
   assert.ok(R.querySelector('.st-tray [data-apply]'));
   assert.match(text(R.querySelector('.st-tray')), /links kept/);
   assert.match(text(R.querySelector('.st-tray')), /Move Scan from /);
@@ -155,8 +162,49 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
     key(R, 'Escape'); assert.ok(!R.querySelector('.st-popen'), 'Escape closes it');
     // The keys at rest: the chevron after On tags opens Put on a tag… right under the row; Escape leaves it.
     click(tr().querySelector('[data-pon]')); await sleep(10);
-    const pr = R.querySelector('.st-prompt'); assert.ok(pr && /Put/.test(pr.textContent), 'the chevron opens Put on a tag…: ' + pr?.textContent.slice(0, 40));
-    assert.ok(pr.previousElementSibling === tr(), 'the prompt rolls out under its row, not at the foot');
+    const pr = R.querySelector('.st-prompt'); assert.ok(pr && /^Put/.test(pr.querySelector('[data-pin]').placeholder), 'the chevron opens Put on a tag…: ' + pr?.querySelector('[data-pin]')?.placeholder);
+    // The prompt is a picker at the thing pressed (the owner, 5 November): anchored in the table's scrolling box, the rows unmoved.
+    assert.ok(pr.parentElement.matches('.st-right') && pr.style.left !== '' && pr.style.top !== '', 'anchored in the box the press was in');
+    assert.ok(tr().nextElementSibling?.matches('.tr'), 'the row after keeps its place: nothing is pushed down');
+    click(R.querySelector('.st-tbl .hd')); await sleep(10); assert.ok(!R.querySelector('.st-prompt'), 'a press outside closes it');
+    click(tr().querySelector('[data-pon]')); await sleep(10); assert.ok(R.querySelector('.st-prompt'));
+    click(tr().querySelector('[data-pon]')); await sleep(10); assert.ok(!R.querySelector('.st-prompt'), 'a second press on the same chevron closes it');
+    click(tr().querySelector('[data-pon]')); await sleep(10); assert.ok(R.querySelector('.st-prompt'));
+    click(tr().querySelector('[data-prange]')); await sleep(10); assert.match(R.querySelector('[data-pin]').placeholder, /^Node tags of With/, 'a press on the other chevron moves the picker there');
+    click(tr().querySelector('[data-pon]')); await sleep(10); assert.match(R.querySelector('[data-pin]').placeholder, /^Put With on/);
+    // The prompt, done whole (5 November 2026): the find line reads its own name; at rest whole levels, the top-level tags always;
+    // "show all" is the grammar's opener, reached by the arrows; a tag that cannot take it is faint with the reason in its title;
+    // typed matches stand flat; Escape clears the text first, then leaves; the pointer moves the lit row; Enter takes the lit row.
+    { const P = () => R.querySelector('.st-prompt'), pin = () => P().querySelector('[data-pin]'), lit = () => P().querySelector('.lit');
+      assert.equal(pin().getAttribute('placeholder'), 'Put With on…', 'the find line reads the ask as its own name'); assert.equal(pin().title, 'Find a tag');
+      assert.ok(!P().querySelector('.ask') && !P().querySelector('.st-bul'), 'no ask line above it, no bullets on the rows');
+      const shown = () => [...P().querySelectorAll('.st-row[data-pick]')].map(r => text(r.querySelector('.nm')));
+      for (const t of ['Entity', 'Occurrence', 'Phenomenon', 'Information']) assert.ok(shown().includes(t), `${t}, a top-level tag, shows at rest`);
+      assert.ok(!shown().includes('Doctor'), 'a level that does not fit whole waits behind show all');
+      const more = P().querySelector('.more'); assert.ok(more && more.classList.contains('lk-more') && !more.classList.contains('st-row'), 'show all is the opener, not a row');
+      assert.match(text(more), /^show all \d+$/);
+      assert.equal(text(lit().querySelector('.nm')), 'Entity', 'the first row that can take it is lit');
+      for (let i = 0; i < 20 && !lit().classList.contains('more'); i++) key(pin(), 'ArrowDown');
+      assert.ok(lit().classList.contains('more'), 'the arrows reach show all');
+      key(pin(), 'Enter'); await sleep(10); assert.ok(!P().querySelector('.more') && shown().includes('Doctor'), 'Enter on it shows the whole tree');
+      const off = n => P().querySelector(`.st-row.off[title]`) && [...P().querySelectorAll('.st-row.off')].find(r => text(r.querySelector('.nm')) === n);
+      assert.ok(off('Consultation') && /on it already/.test(off('Consultation').title), 'the tag that holds the property is faint, with why: ' + off('Consultation')?.title);
+      assert.ok(!off('Doctor'), 'a tag that can take it is not');
+      pin().value = 'proc'; pin().dispatchEvent(new win.Event('input', { bubbles: true })); await sleep(10);
+      deq(shown(), ['Procedure'], 'typed letters find in the whole tree'); assert.equal(P().querySelector('.st-row').style.getPropertyValue('--d'), '0', 'a match stands flat');
+      key(pin(), 'Escape'); await sleep(10); assert.ok(P() && pin().value === '', 'Escape clears the text first'); assert.ok(shown().length > 1);
+      const target = () => [...P().querySelectorAll('.st-row[data-pick]')].find(r => text(r.querySelector('.nm')) === 'Occurrence');   // found again after each redraw
+      const moveOver = x => target().dispatchEvent(new win.MouseEvent('mousemove', { bubbles: true, clientX: x, clientY: 40 }));
+      moveOver(40); assert.equal(lit(), target(), 'the pointer moves the lit row');
+      key(pin(), 'ArrowDown'); assert.notEqual(lit(), target(), 'the arrows go on from there');
+      moveOver(40); assert.notEqual(lit(), target(), 'a pointer that did not move does not pull it back');
+      moveOver(41); assert.equal(lit(), target(), 'one that moved does');
+      const wrote = calls.length; key(pin(), 'Enter'); await sleep(10); assert.ok(!P(), 'the prompt closes');
+      for (let i = 0; i < 40 && !app.tray.done; i++) await sleep(25);
+      assert.ok(app.tray.done && app.tray.changes.length === 0, 'Enter takes the lit row and the property is put on the tag at once');
+      assert.ok(calls.slice(wrote).some(c => c[0] === 'upsertBlockProperty' && String(c[2]).endsWith('class/properties')), 'written as a declared property');
+      click(R.querySelector('[data-undo]')); for (let i = 0; i < 40 && app.tray.done; i++) await sleep(25); assert.ok(!app.tray.done, 'Undo takes it off again');
+      click(tr().querySelector('[data-pon]')); await sleep(10); assert.ok(P()); }
     key(R, 'Escape'); assert.ok(!R.querySelector('.st-prompt'), 'Escape leaves the prompt');
     assert.ok(tr().querySelector('[data-prange]'), 'a property that holds nodes has a chevron after Holds');
     assert.ok(!R.querySelector(`.tr[data-prop$="·${pid('Date')}"] [data-prange]`), 'a property of dates has none: nothing changes here');
@@ -165,7 +213,7 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
     assert.equal(R.querySelector('[data-find]').getAttribute('placeholder'), 'Find a property');
     st.find = ''; app.draw(); st.propCur = null; }
   // New property asks which tag, then opens that tag's page, where Logseq's own Add tag property makes it; Structure writes nothing.
-  click(R.querySelector('[data-pnew]')); assert.match(R.querySelector('.st-prompt .ask').textContent, /New property on/);
+  click(R.querySelector('[data-pnew]')); assert.match(R.querySelector('.st-prompt [data-pin]').placeholder, /New property on/);
   const pins = calls.length; key(R.querySelector('[data-pin]'), 'Enter'); await sleep(10);
   assert.ok(!R.querySelector('.st-prompt'), 'the prompt closes'); assert.ok(calls.slice(pins).some(c => c[0] === 'pushState' && c[1] === 'page'), 'the tag\'s page opens');
   assert.equal(app.tray.changes.length, 0, 'nothing waits in the tray');
@@ -183,6 +231,14 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   { const opens = () => calls.filter(c => c[0] === 'pushState' && c[1] === 'page').length, was = opens();
     click(row('Doctor').querySelector('.ct')); assert.equal(opens(), was, 'a press beside the name opens no page'); assert.equal(st.cur, id('Doctor'), 'it selects the row');
     click(row('Doctor').querySelector('[data-tpage]')); assert.equal(opens(), was + 1, 'the name opens the tag\'s page'); }
+  // A choice from the right-click menu (Add a property…) is the same picker, hung from the row the menu was for, the rows unmoved.
+  { const rows = () => [...R.querySelectorAll('.st-regions .st-row[data-row]')].map(r => r.dataset.row).join(',');
+    const before = rows(); row('Doctor').dispatchEvent(new win.MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 10, clientY: 10 }));
+    click(R.querySelector('.st-menu [data-act="addprop"]')); await sleep(10);
+    const P = R.querySelector('.st-prompt'); assert.ok(P && P.parentElement.matches('.st-right'), 'the picker hangs in the scrolling box round Regions, not in the areas box that would clip it');
+    assert.equal(P.querySelector('[data-pin]').placeholder, 'Add a property to Doctor…'); assert.equal(rows(), before, 'no row moved');
+    assert.ok(!R.querySelector('.st-menu'), 'the menu has closed');
+    key(R, 'Escape'); assert.ok(!R.querySelector('.st-prompt')); }
   // A letter typed is Logseq's (its g j, t w pairs), never gathered into the find line; Cmd-F puts the caret there; Escape puts the areas back.
   let reached = 0; const hear = e => { if (e.key === 'g') reached++; }; doc.addEventListener('keydown', hear);
   R.focus(); key(R, 'g'); assert.equal(st.find, '', 'a letter does not find'); assert.equal(reached, 1, 'the letter reaches Logseq'); doc.removeEventListener('keydown', hear);
@@ -204,13 +260,35 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   for (const word of ['Extends', 'Child tags', 'Relationships']) assert.ok(lines.includes(word), word);
   assert.ok(!tagView.root.querySelector('.st-card'));
   click(tagView.root.querySelector('[data-do="move"]')); assert.ok(tagView.root.querySelector('.st-prompt'), 'the Extends line opens the choice in place');
+  { let P = tagView.root.querySelector('.st-prompt'); assert.ok(!P.closest('dl') && P.parentElement === tagView.root && P.style.top !== '', 'a picker anchored at the Extends chevron, not a line between the lines');
+    click(P.querySelector('.more')); await sleep(10); P = tagView.root.querySelector('.st-prompt');
+    const off = n => [...P.querySelectorAll('.st-row.off')].find(r => text(r.querySelector('.nm')) === n);
+    assert.equal(off('Consultation')?.title, 'the tag itself'); assert.equal(off('Medical event')?.title, 'Consultation is already under it'); assert.ok(!off('Conversation'));
+    assert.equal(P.querySelector('[data-pin]').getAttribute('placeholder'), 'Move Consultation to…'); }
   key(tagView.root.querySelector('[data-pin]'), 'Escape'); assert.ok(!tagView.root.querySelector('.st-prompt'));
   tagView.destroy(); holder.remove();
+  // A property's page: each prompt under the line it concerns: Node tags, a tag's own row in On tags, Put on a tag….
+  { const h2 = doc.createElement('div'); doc.body.appendChild(h2);
+    const pv = S.view.make(h2, 'tag', app, { prop: pid('With') }); app.mounted(pv); await sleep(30); const Rp = pv.root;
+    click(Rp.querySelector('[data-addrange]')); let P = Rp.querySelector('.st-prompt');
+    assert.ok(P && !P.closest('dl'), 'Node tags… opens the picker, not a line in the dl'); assert.match(P.querySelector('[data-pin]').placeholder, /^Node tags of With/);
+    click(P.querySelector('.more')); await sleep(10); P = Rp.querySelector('.st-prompt');
+    assert.equal([...P.querySelectorAll('.st-row.off')].find(r => text(r.querySelector('.nm')) === 'Person')?.title, 'already a node tag');
+    key(Rp.querySelector('[data-pin]'), 'Escape'); assert.ok(!Rp.querySelector('.st-prompt'));
+    click(Rp.querySelector(`[data-do="pmove"][data-on="${id('Consultation')}·${pid('With')}"]`)); P = Rp.querySelector('.st-prompt');
+    assert.ok(P && !P.closest('dl'), 'Move to… opens the picker');
+    click(P.querySelector('.more')); await sleep(10); P = Rp.querySelector('.st-prompt');
+    assert.equal([...P.querySelectorAll('.st-row.off')].find(r => text(r.querySelector('.nm')) === 'Consultation')?.title, 'With is on it already');
+    key(Rp.querySelector('[data-pin]'), 'Escape');
+    click(Rp.querySelector('[data-do="pmove"][data-on^="0·"]')); P = Rp.querySelector('.st-prompt');
+    assert.ok(P && !P.closest('dl'), 'Put on a tag… opens the picker'); assert.match(P.querySelector('[data-pin]').placeholder, /^Put With on/);
+    key(Rp.querySelector('[data-pin]'), 'Escape'); pv.destroy(); h2.remove(); }
 
   // The sidebar: the outline alone, with a cursor of its own.
   const side = doc.createElement('div'); doc.body.appendChild(side);
   const sideView = S.view.make(side, 'side', app); app.mounted(sideView); await sleep(30);
   assert.ok(sideView.root.querySelector('.st-tree .st-row')); assert.ok(!sideView.root.querySelector('.st-regions'));
+  assert.equal(sideView.root.querySelector('[data-find]').getAttribute('placeholder'), 'Find a tag', 'the sidebar\'s find line says the same words');
   sideView.destroy(); side.remove();
 
   await unload(); assert.equal(doc.querySelectorAll('.st').length, 0); assert.ok(!doc.getElementById('st-style'));

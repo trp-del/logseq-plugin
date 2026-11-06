@@ -10,6 +10,7 @@ const host = () => { try { return window.parent.document; } catch (error) { retu
 
 const tray = S.changes.makeTray();
 tray.setBase({ tags: [], props: [] });
+const AT_ONCE = new Set(['move', 'takeOut', 'rename', 'renameProp', 'moveProp', 'addProp', 'make', 'keepUnder', 'setRange', 'retag']);   // Undo puts each back whole; nothing is lost
 const startState = () => ({ cur: null, open: new Set(), seen: new Set(), whole: new Set(), ticks: new Set(), pticks: new Set(), popen: new Set(), paim: false, find: '', view: 'tree', sort: 'filled', propCur: null, menu: null, prompt: null, edit: null, nodes: null, busy: '', trail: [], ask: null, places: new Map(), at: null, walking: false, side: { cur: null, find: '' }, split: false, pane2: { find: '', open: new Set(), seen: new Set() } });
 const changesWord = n => n === 1 ? '1 change' : `${n} changes`;
 const stepsWord = n => n === 1 ? '1 step' : `${n} steps`;
@@ -34,13 +35,16 @@ const app = {
   },
   draw() { for (const v of [...app.views]) { if (!v.root.isConnected) { app.views.delete(v); continue; } try { v.draw(); } catch (error) { console.error('Structure: a draw failed', error); } } },
   // A change while Apply or Undo runs would be lost when they end: it is refused, and null says so.
-  stage(change) {
+  // Written at once, with the one Undo: a change that can lose nothing (the owner, 5 November 2026: "I don't want to have to accept
+  // every minor change"), standing alone in the tray. What can lose links or values (a merge, a removal, a property deleted from a
+  // tag, properties merged, a split) waits for Apply with its plain count, and so do changes staged together (ticked rows, a new
+  // top-level tag with its first child tags: `wait`), since several at once are what Apply is for.
+  stage(change, { wait = false } = {}) {
     if (app.st.busy) { notify('Wait for this to finish, then try again', 'warning'); return null; }
     const c = tray.stage(change); tray.note = ''; tray.version = (tray.version || 0) + 1;
     const onTag = [...app.views].some(v => v.mode === 'tag');
     if (!onTag && !mounts.onPage()) mounts.openPage();
-    // By reach: from a tag's page, one change that touches a node or none and Undo puts back whole is written at once; anything wider waits for Apply.
-    if (onTag && tray.changes.length === 1 && c.count <= 1 && !c.lasting) setTimeout(() => app.apply());
+    if (!wait && AT_ONCE.has(c.kind) && !c.lasting && tray.changes.length === 1) setTimeout(() => { if (tray.changes.length === 1 && tray.changes[0] === c && !app.st.busy) app.apply(); });
     return c;
   },
   dropChange(i) { if (app.st.busy) return; const up = Mo.parentOf(tray.model, app.st.cur); tray.drop(i); tray.version = (tray.version || 0) + 1; sayLost('it needed the change taken out'); if (!tray.changes.length) say('1 change dropped'); settle(null, up); app.draw(); },
