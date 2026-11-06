@@ -40,16 +40,19 @@ function markDevViews(doc) {
     else if (box.hasAttribute('data-lk-dev')) box.removeAttribute('data-lk-dev');
   }
 }
-/* Each page's properties open: Logseq's "Open properties" pressed once, while they are closed. A press takes a moment to
-   show, so one item is pressed at most once a second, never twice in a row into closing again. */
-const pressed = new WeakMap();
+/* Each page's properties open: Logseq's "Open properties" pressed once for each item, while they are closed, and never again
+   for that item. A press is a click, and Logseq closes the list open in the bullet being written (after # or /) on any click:
+   pressed again every second, for a page whose properties never show as open (one with none of its own), it closed that list
+   a letter or two into typing (the owner, 6 November 2026: "the prompt just disappears after typing a letter or two"). Once
+   also leaves an item the person folds folded. */
+const pressed = new WeakSet();
 function openProperties(doc) {
   if (!setting('sidebarPages')) return;
   for (const box of doc.querySelectorAll(`${PAGE_ITEM} .ls-sidebar-page-properties`)) {
-    if (box.querySelector('.ls-page-properties')) continue;
+    if (pressed.has(box) || box.querySelector('.ls-page-properties')) continue;
     const toggle = box.querySelector(':scope > div:first-child > button:only-child');
-    if (!toggle || Date.now() - (pressed.get(box) || 0) < 1000) continue;
-    pressed.set(box, Date.now());
+    if (!toggle) continue;
+    pressed.add(box);
     toggle.click();
   }
 }

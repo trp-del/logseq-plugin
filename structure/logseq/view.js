@@ -268,7 +268,7 @@ const CSS = `
 .st-prompt { position: absolute; z-index: 30; width: min(320px, calc(100% - 8px)); max-height: 60vh; overflow: auto; padding: 6px; background: var(--lk-paper, #fff); border: 1px solid var(--st-hair); border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,.12); font-size: 13.5px; }
 .st-right, .st-tree { position: relative; }
 .st-prompt .st-find { margin-bottom: 4px; padding: 0 4px; }
-.st-prompt .st-row { grid-template-columns: minmax(0, 1fr) 40px; padding-left: calc(var(--d, 0) * 14px + 4px); padding-right: 4px; }
+.st-prompt .st-row { grid-template-columns: minmax(0, 1fr) minmax(40px, max-content); column-gap: 8px; padding-left: calc(var(--d, 0) * 14px + 4px); padding-right: 4px; }
 .st-prompt .st-row.off .nm, .st-prompt .st-row.off .ct { color: var(--lk-off); }
 .st-prompt .st-row.loose:not(.off) .nm { color: inherit; }   /* The top reads as any row that can take it; faint only when it cannot */
 .st-prompt .nm .st-pi { align-self: start; margin-top: 5px; }   /* a long name wraps under itself, the icon at its first line */
@@ -276,7 +276,12 @@ const CSS = `
 .st-prompt .st-row.lit, .st-prompt .st-row.lit:hover { background: var(--st-wash); }
 .st-prompt .more { display: block; padding: 3px 4px; border-radius: 3px; width: 100%; text-align: left; }
 .st-prompt .more.lit { background: var(--st-wash); }
-.st-prompt .q { padding: 4px 2px; }
+.st-prompt .q { padding: 4px 2px; color: var(--st-quiet); } .st-prompt .q .hint { color: var(--st-faint); }
+.st-prompt .st-find .ti-search { font-size: 14px; color: var(--st-faint); flex: none; }
+.st-prompt .st-find .ask { font-size: 12px; color: var(--st-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 55%; }
+.st-prompt .nm .up { margin-left: .5em; font-size: 12px; color: var(--st-faint); }
+/* A faint row's count gives way to its reason under the pointer, so why it cannot take it is read where its number stood. */
+.st-prompt .ct .why { display: none; } .st-prompt .st-row.off:hover .ct .n { display: none; } .st-prompt .st-row.off:hover .ct .why { display: inline; }
 .st-empty { color: var(--st-quiet); max-width: 60ch; }
 @media (max-width: 760px) { .st-page { height: auto; } }`;
 
@@ -654,15 +659,15 @@ function make(holder, mode, app, opts = {}) {
     if (p.list === 'values') {
       kind = 'value';
       ask = `Split ${name(p.tag)} by ${P(p.prop).title}: a child tag for…`;
-      all = p.values.filter(v => hit(v.title)).map(v => ({ key: v.id, nm: v.title, ct: v.count, d: 0, why: '' }));
+      all = p.values.filter(v => hit(v.title)).map(v => ({ key: v.id, nm: v.title, ct: v.count, ctt: v.count ? plural(v.count, 'node') : '', d: 0, why: '' }));
     } else if (p.what === 'pmerge') {
       kind = 'property';
       ask = `Merge ${P(p.prop).title} into…`;
-      all = [...m.props.values()].filter(x => x.id !== p.prop && hit(x.title)).sort(byTitle).map(x => ({ key: x.id, nm: x.title, ct: m.holders.get(x.ident)?.size || '', d: 0, why: '', icon: pi(x) }));
+      all = [...m.props.values()].filter(x => x.id !== p.prop && hit(x.title)).sort(byTitle).map(x => ({ key: x.id, nm: x.title, ct: m.holders.get(x.ident)?.size || '', ctt: m.holders.get(x.ident)?.size ? `${plural(m.holders.get(x.ident).size, 'node')} with a value` : '', d: 0, why: '', icon: pi(x) }));
     } else if (p.list === 'props') {
       kind = 'property';
       ask = `Add a property to ${name(p.tag)}${p.under ? ' and all beneath' : ''}…`;
-      all = [...m.props.values()].filter(x => hit(x.title)).sort(byTitle).map(x => { const g = giver(p.tag, x.id); return { key: x.id, nm: x.title, ct: x.on.length ? `on ${x.on.length}` : '', d: 0, why: g == null ? '' : g === p.tag ? `already on ${name(p.tag)}` : `inherited from ${name(g)}`, icon: pi(x) }; });
+      all = [...m.props.values()].filter(x => hit(x.title)).sort(byTitle).map(x => { const g = giver(p.tag, x.id); return { key: x.id, nm: x.title, ct: x.on.length ? `on ${x.on.length}` : '', ctt: x.on.length ? `on ${plural(x.on.length, 'tag')}` : '', d: 0, why: g == null ? '' : g === p.tag ? `already on ${name(p.tag)}` : `inherited from ${name(g)}`, icon: pi(x) }; });
     } else {
       const subject = p.what === 'nodes' ? plural(p.nodes.length, 'ticked node') : p.what === 'prop' ? P(p.prop).title : p.what === 'tag' ? (p.tags.length > 1 ? `${p.tags.length} picked tags` : name(p.tags[0])) : '';
       ask = p.what === 'pnew' ? 'New property on…' : p.what === 'range' ? `Node tags of ${P(p.prop).title}${P(p.prop).range.length ? ', also' : ''}…` : p.what === 'prop' && !p.from ? `Put ${P(p.prop).title} on…` : `Move ${subject} to…`;
@@ -680,7 +685,7 @@ function make(holder, mode, app, opts = {}) {
         return '';
       };
       const list = [];
-      const walk = (n, d) => { const t = T(n); if (hit(t.title)) list.push({ key: n, nm: t.title, ct: Mo.count(m, n) || '', d: q ? 0 : d, why: why(n) }); for (const k of Mo.kids(m, n)) walk(k, d + 1); };
+      const walk = (n, d) => { const t = T(n), c = Mo.count(m, n), up = q ? Mo.parentOf(m, n) : null; if (hit(t.title)) list.push({ key: n, nm: t.title, ct: c || '', ctt: c ? plural(c, 'node') : '', d: q ? 0 : d, why: why(n), up: up != null ? name(up) : '' }); for (const k of Mo.kids(m, n)) walk(k, d + 1); };
       Mo.tops(m).forEach(k => walk(k, 0));
       if (p.what === 'tag' && hit('The top')) list.push({ key: LOOSE, nm: 'The top', ct: '', d: 0, loose: true, why: p.tags.every(s => !T(s)?.parents.length) ? 'already at the top' : '' });
       all = list;
@@ -690,11 +695,17 @@ function make(holder, mode, app, opts = {}) {
     if (!p.whole && all.length > rows.length) rows = [...rows, { more: true, nm: `show all ${all.length}`, ct: '', d: 0, why: '' }];
     rows.forEach(r => { r.ok = !r.why; });
     p.shown = rows;
+    // After "show all" the light goes to the first row it brought, so Enter or an arrow goes on from where the eye already is.
+    if (p.had) { const i = rows.findIndex(r => r.ok && !r.more && !p.had.has(r.key)); if (i >= 0) p.lit = i; p.had = null; }
     if (!rows[p.lit]?.ok) p.lit = rows.findIndex(r => r.ok);   // the lit row is one Enter can take
-    return `<div class="st-prompt"><div class="st-find"><input data-pin placeholder="${esc(ask)}" title="Find a ${kind}" value="${esc(p.text)}" autocomplete="off" spellcheck="false"></div>` +
+    // Nothing to take: say what was looked for and the way out, or, when the rows stand but are all faint, where the reason is.
+    const none = !rows.length ? `<div class="q">No ${kind} matches “${esc(p.text.trim())}”<span class="hint"> · Esc clears</span></div>` :
+      !rows.some(r => r.ok) ? `<div class="q">None of these can take it<span class="hint"> · point at one to see why</span></div>` : '';
+    // The magnifier says this line finds; once letters are typed the ask stays, faint, at the line's right, so it is not lost.
+    return `<div class="st-prompt"><div class="st-find"><i class="ti ti-search" aria-hidden="true"></i><input data-pin placeholder="${esc(ask)}" title="Find a ${kind}" value="${esc(p.text)}" autocomplete="off" spellcheck="false">${p.text ? `<span class="ask" title="${esc(ask)}">${esc(ask)}</span>` : ''}</div>` +
       rows.map((r, i) => r.more ? `<div class="more lk-more ${i === p.lit ? 'lit' : ''}" data-pick="${i}">${esc(r.nm)}</div>` :
-        `<div class="st-row ${r.ok ? '' : 'off'} ${r.loose ? 'loose' : ''} ${i === p.lit ? 'lit' : ''}" style="--d:${Math.min(r.d, 6)}" data-pick="${i}" ${r.why ? `title="${esc(r.why)}"` : ''}><span class="nm">${r.icon || ''}${esc(r.nm)}</span><span class="ct">${esc(r.ct)}</span></div>`).join('') +
-      (rows.length ? '' : `<div class="q">nothing matches</div>`) + `</div>`;
+        `<div class="st-row ${r.ok ? '' : 'off'} ${r.loose ? 'loose' : ''} ${i === p.lit ? 'lit' : ''}" style="--d:${Math.min(r.d, 6)}" data-pick="${i}" ${r.why ? `title="${esc(r.why)}"` : ''}><span class="nm">${r.icon || ''}<span class="t">${esc(r.nm)}</span>${r.up ? `<span class="up">${esc(r.up)}</span>` : ''}</span><span class="ct"><span class="n"${r.ctt ? ` title="${esc(r.ctt)}"` : ''}>${esc(r.ct)}</span>${r.why ? `<span class="why">${esc(r.why)}</span>` : ''}</span></div>`).join('') +
+      none + `</div>`;
   }
   // ---------- the menu: the same words the card has ----------
   function menuHtml() {
@@ -743,7 +754,11 @@ function make(holder, mode, app, opts = {}) {
       const at = st.prompt.at || {}, box = (at.within && root.querySelector(at.within)) || root;
       box.insertAdjacentHTML('beforeend', promptHtml());
       const el = box.lastElementChild, room = box.clientWidth + box.scrollLeft - el.offsetWidth - 4;
-      el.style.left = `${Math.max(0, Math.min(at.left || 0, room))}px`; el.style.top = `${at.top || 0}px`;
+      el.style.left = `${Math.max(0, Math.min(at.left || 0, room))}px`;
+      // Decided once per opening: a picker that would run past the bottom of what shows, and fits above, opens upward from the thing pressed.
+      if (st.prompt.up == null) { const bottom = Math.min(box.getBoundingClientRect().bottom, doc.defaultView?.innerHeight || Infinity), t = box.getBoundingClientRect().top - box.scrollTop + (at.top || 0);
+        st.prompt.up = at.above != null && t + el.offsetHeight > bottom && at.above - el.offsetHeight >= box.scrollTop; }
+      el.style.top = `${st.prompt.up ? at.above - el.offsetHeight : at.top || 0}px`;
     }
     const rolled = wasShown ? [...root.querySelectorAll(KEYED)].filter(e => !wasShown.has(keyOfShown(e))) : [];
     st.glide = false;
@@ -854,7 +869,7 @@ function make(holder, mode, app, opts = {}) {
     const within = el.closest('.st-tree, .st-right');   // not the areas box: it scrolls sideways and would clip the picker
     const box = within || root, r = el.getBoundingClientRect(), b = box.getBoundingClientRect();
     const pane = within?.closest('[data-pane]');
-    return { within: within ? (pane ? `[data-pane="${pane.dataset.pane}"] .st-tree` : `.${within.classList[0]}`) : null, left: r.left - b.left + box.scrollLeft, top: r.bottom - b.top + box.scrollTop + 4 };
+    return { within: within ? (pane ? `[data-pane="${pane.dataset.pane}"] .st-tree` : `.${within.classList[0]}`) : null, left: r.left - b.left + box.scrollLeft, top: r.bottom - b.top + box.scrollTop + 4, above: r.top - b.top + box.scrollTop - 4 };
   };
   const samePrompt = (a, b) => !!a && !!b && a.what === b.what && a.prop === b.prop && a.key === b.key && a.tag === b.tag && a.row === b.row && String(a.tags) === String(b.tags);
   const startPrompt = p => { st.menu = null; st.ask = null; if (samePrompt(justClosed, p)) { justClosed = null; return redraw(); } st.prompt = { text: '', lit: 0, owner: mode, at: pressAt, ...p }; redraw(); };
@@ -871,7 +886,7 @@ function make(holder, mode, app, opts = {}) {
   }
   function finishPrompt(row) {
     const p = st.prompt; if (!row || !row.ok) return;
-    if (row.more) { p.whole = true; wantFocus = true; return redraw(); }
+    if (row.more) { p.whole = true; p.had = new Set(p.shown.filter(r => !r.more).map(r => r.key)); wantFocus = true; return redraw(); }
     st.prompt = null;
     if (p.what === 'tag') { moveTags(p.tags, row.key); }
     else if (p.what === 'prop') { const [tagId, pid] = p.key.split('·').map(Number); if (!tagId) { app.stage({ kind: 'addProp', prop: pid, tags: [row.key] }); st.propCur = `${row.key}·${pid}`; st.cur = row.key; } else if (row.key !== tagId) { app.stage({ kind: 'moveProp', prop: pid, from: [tagId], to: row.key }); st.propCur = `${row.key}·${pid}`; st.cur = row.key; } }
@@ -1185,6 +1200,7 @@ function make(holder, mode, app, opts = {}) {
       if (k === 'Escape') { if (st.prompt.text) { st.prompt.text = ''; st.prompt.lit = 0; draw(); } else { st.prompt = null; redraw(); } }   // one step at a time: the typed text, then the prompt
       else if (k === 'ArrowDown' || k === 'ArrowUp') { const rows = st.prompt.shown || [], by = k === 'ArrowDown' ? 1 : -1; for (let i = st.prompt.lit + by; rows[i]; i += by) if (rows[i].ok) { st.prompt.lit = i; break; } e.preventDefault(); draw(); }
       else if (k === 'Enter') { e.preventDefault(); finishPrompt(st.prompt.shown?.[st.prompt.lit]); }
+      else if (k === 'Tab') { e.preventDefault(); st.prompt = null; redraw(); }   // Tab leaves the picker, as it leaves Logseq's own
       return;
     }
     if (st.edit && st.edit.owner === mode && e.target.matches('[data-edit]')) {

@@ -107,6 +107,16 @@ const { U, load, pencilled } = standIn;
     const long = tip(180, 'Referring consultant at Northgate'), short = tip(90, 'Notes');
     assert.equal(long.getAttribute('title'), 'Referring consultant at Northgate', 'a cut name shows whole'); assert.ok(!short.hasAttribute('title'), 'one that fits has no tooltip');
     Look.kit.sweep(doc); assert.ok(!long.hasAttribute('title'), 'the sweep takes it off'); long.remove(); short.remove(); }
+  // A page in the right sidebar: "Open properties" is pressed once for the item and never again, even when its properties never
+  // show as open (a press is a click, and a click closes Logseq's list in the bullet being written; 6 November 2026).
+  { const side = doc.createElement('div'); side.id = 'right-sidebar';
+    side.innerHTML = '<div class="sidebar-item item-type-page"><div class="ls-sidebar-page-properties"><div><button type="button">Open properties</button></div></div></div>';
+    doc.body.appendChild(side); let presses = 0; side.querySelector('button').addEventListener('click', () => { presses++; });
+    const clocks = [...new Set([Date, doc.defaultView.Date].filter(Boolean))], was = clocks.map(D => D.now); let t = Date.now();
+    clocks.forEach(D => { D.now = () => t; });
+    for (let i = 0; i < 4; i++) { Look.sidebar.openProperties(doc); t += 2000; }   // a pass every two seconds, as while typing
+    clocks.forEach((D, i) => { D.now = was[i]; });
+    assert.equal(presses, 1, 'pressed once, not again on each pass: ' + presses); side.remove(); }
   // Words written read nothing; a tag or a name changed reads the index again.
   let asked = 0; const reads = logseq.DB.datascriptQuery; logseq.DB.datascriptQuery = async q => { asked++; return reads(q); };
   const page = { id: 901, name: 'a page', title: 'A page', tags: [{ id: 1, ident: 'logseq.class/Page' }] };
