@@ -42,10 +42,45 @@ function check() {
   const active = app.host().activeElement;
   for (const session of [...sessions.values()]) {
     if (session.box.isConnected && session.box === active) { look(session.box); continue; }   // Logseq's list puts a name in without an input event
-    sessions.delete(session.uuid);
-    if (session.typed.length) settle(session).catch(error => app.warnOnce('a link could not keep its capitals', error));
+    leave(session);
   }
   if (!sessions.size) { clearInterval(timer); timer = 0; }
+}
+
+/* Left: what was typed is drawn on the bullet's links at once (draw), and written to the graph once Logseq has saved it
+   (settle). Logseq draws the bullet with the page's own name the moment it is left, and the write takes a moment more, so
+   without the drawing Dr. Mei Chen would show before dr. mei chen. The drawing stands until the write is in or given up. */
+const drawing = new Map();   // by the bullet's uuid: the names typed in other capitals than the words now in the box
+function leave(session) {
+  if (!sessions.has(session.uuid) || sessions.get(session.uuid) !== session) return;
+  sessions.delete(session.uuid);
+  if (!session.typed.length || !app.setting('linkKeepCase')) return;
+  const mine = session.typed.slice();
+  drawing.set(session.uuid, mine);
+  draw(app.host());
+  settle(session).catch(error => app.warnOnce('a link could not keep its capitals', error)).finally(() => { if (drawing.get(session.uuid) === mine) drawing.delete(session.uuid); });
+}
+// Each link of a left bullet that shows a typed name in other capitals shows the typed name, before the screen is painted.
+function draw(doc) {
+  for (const [uuid, typed] of drawing) {
+    for (const block of doc.querySelectorAll(`.ls-block[blockid="${uuid}"]`)) {
+      const left = typed.slice();
+      for (const ref of block.querySelectorAll('.page-ref')) {
+        if (ref.closest('.ls-block') !== block) continue;
+        const words = ref.firstElementChild?.childElementCount === 0 ? ref.firstElementChild : null;
+        if (!words) continue;
+        const i = left.findIndex(name => name.toLowerCase() === words.textContent.toLowerCase());
+        if (i < 0) continue;
+        if (words.textContent !== left[i]) words.textContent = left[i];
+        left.splice(i, 1);
+      }
+    }
+  }
+}
+// The text box gone is a bullet left: seen at once, as the screen changes, so the drawing is in before the bullet is painted.
+function onScreen(doc) {
+  for (const session of [...sessions.values()]) if (!session.box.isConnected) leave(session);
+  if (drawing.size) draw(doc);
 }
 
 // Once Logseq has saved the bullet (its links line up with what was typed), the links typed in other capitals get your words.
@@ -77,7 +112,8 @@ function start() {
   const doc = app.host(), win = doc.defaultView || window.parent;
   app.listen(win, ['focusin'], event => { showTyped(event.target); look(event.target); }, true);
   app.listen(win, ['input'], event => look(event.target), true);
-  app.onStop(() => { clearInterval(timer); timer = 0; sessions.clear(); });
+  const unwatch = window.PluginDoor.watch(onScreen, { early: true });
+  app.onStop(() => { clearInterval(timer); timer = 0; sessions.clear(); drawing.clear(); unwatch(); });
   if (doc.activeElement) { showTyped(doc.activeElement); look(doc.activeElement); }
 }
 
