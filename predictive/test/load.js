@@ -287,6 +287,11 @@ for (const file of order) vm.runInContext(fs.readFileSync(path.join(root, file),
     assert.equal(written('dr. Mei', 'Dr. Mei Chen'), 'dr. Mei Chen', 'after a mix: what was typed, then the page\'s own');
     assert.equal(written('mei', 'Dr. Mei Chen'), 'dr. mei chen', 'words inside the name: the whole name follows them');
     assert.equal(written('Fatig', 'Fatigue'), 'Fatigue', 'the page\'s own capitals typed: the page\'s name');
+    const { asTyped } = Flow.typedCase, kept = 'Saw [dr. mei chen]([[Dr. Mei Chen]]) and [my doc]([[Dr. Mei Chen]])', shown = asTyped(kept);
+    assert.equal(shown.text, 'Saw [[dr. mei chen]] and [my doc]([[Dr. Mei Chen]])', 'back in the bullet: as typed; a link with other words left as it is');
+    assert.equal(shown.at(kept.length), shown.text.length, 'the cursor at the end stays at the end');
+    assert.equal(shown.at(6), 7, 'the cursor on a letter of the words stays on it');
+    assert.equal(asTyped('Saw [[Dr. Mei Chen]]'), null, 'nothing to show differently');
     console.log('  ok  a link typed in other capitals keeps them'); }
   process.exit(0);
 })().catch(error => { console.error('FAIL ', error); process.exit(1); });

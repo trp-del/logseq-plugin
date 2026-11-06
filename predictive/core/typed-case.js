@@ -85,7 +85,36 @@ function written(span, title) {
   return rest(span, title);
 }
 
-const api = { plainLinks, carry, keepCase, sameButCase, tagIds, tagsByName, rest, written };
+/* Back in the bullet, Logseq's text box would show such a link as it is kept, [dr. mei chen]([[Dr. Mei Chen]]). It is shown as
+   you typed it, [[dr. mei chen]], and written back with your words when you leave. Only a link whose words are the page's name
+   in other capitals; any other link with its own words is left as it is. Returns { text, at } (at moves a place in the old words
+   to the same place in the new) or null when nothing changes. */
+const LABELLED = /\[([^\[\]]+)\]\(\[\[([^\[\]]+)\]\]\)/g;
+function asTyped(text) {
+  text = String(text ?? '');
+  const cuts = [];   // each link changed: where it was, and how many letters fewer before it
+  let out = '', from = 0, fewer = 0;
+  for (const m of text.matchAll(LABELLED)) {
+    const [whole, words, name] = m;
+    if (!sameButCase(words, name)) continue;
+    const now = `[[${words}]]`;
+    out += text.slice(from, m.index) + now; from = m.index + whole.length;
+    cuts.push({ start: m.index, end: m.index + whole.length, before: fewer, words: words.length }); fewer += whole.length - now.length;
+  }
+  if (!cuts.length) return null;
+  out += text.slice(from);
+  // A place in the words before a link stays; one inside its words keeps its letter; one after moves back by what went.
+  const at = place => {
+    for (const cut of cuts) {
+      if (place <= cut.start) return place - cut.before;
+      if (place < cut.end) return cut.start - cut.before + 2 + Math.max(0, Math.min(place - cut.start - 1, cut.words));
+    }
+    return place - fewer;
+  };
+  return { text: out, at };
+}
+
+const api = { plainLinks, carry, keepCase, sameButCase, tagIds, tagsByName, rest, written, asTyped };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 if (typeof window !== 'undefined') (window.Flow ||= {}).typedCase = api;
 })();

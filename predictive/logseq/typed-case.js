@@ -2,11 +2,12 @@
    through Logseq's list putting in the page's own name when you pick it. When you leave the bullet and Logseq has saved it, a
    link typed with other capitals than the page's is written as a link with your words: [dr. mei chen]([[Dr. Mei Chen]]). It
    looks and opens as any link, and Cmd-Z puts the page's name back. A name that differs in more than its capitals (a few
-   letters typed, then a page picked) is left as Logseq wrote it. Setting: linkKeepCase. */
+   letters typed, then a page picked) is left as Logseq wrote it. Back in the bullet, such a link shows as [[dr. mei chen]]
+   while you edit. Setting: linkKeepCase. */
 (function () {
 const Flow = window.Flow;
 const { app } = Flow;
-const { plainLinks, carry, keepCase, tagIds, tagsByName } = Flow.typedCase;
+const { plainLinks, carry, keepCase, tagIds, tagsByName, asTyped } = Flow.typedCase;
 
 const sessions = new Map();   // by the bullet's uuid: { uuid, box, names, typed }
 let timer = 0;
@@ -22,6 +23,18 @@ function look(box) {
   const names = namesIn(box), was = sessions.get(uuid);
   sessions.set(uuid, { uuid, box, names, value: box.value, typed: was ? carry(was.names, was.typed, names) : names.slice() });
   if (!timer) timer = setInterval(check, 400);
+}
+
+/* Back in the bullet: a link kept with your words shows as you typed it, [[dr. mei chen]], not as Logseq keeps it. The words
+   are put in as typing is (so Logseq's editor takes them), the cursor kept on its letter; leaving writes them back as before. */
+function showTyped(box) {
+  if (!app.isBlockBox(box) || !app.setting('linkKeepCase') || sessions.has(app.uuidOf(box))) return;
+  const shown = asTyped(box.value);
+  if (!shown) return;
+  const [start, end] = [box.selectionStart, box.selectionEnd];
+  Object.getOwnPropertyDescriptor(box.ownerDocument.defaultView.HTMLTextAreaElement.prototype, 'value').set.call(box, shown.text);
+  box.dispatchEvent(new box.ownerDocument.defaultView.InputEvent('input', { bubbles: true, inputType: 'insertReplacementText' }));
+  box.setSelectionRange(shown.at(start), shown.at(end));
 }
 
 // A bullet is left when its text box is gone or no longer has the keys.
@@ -62,9 +75,10 @@ async function settle(session, tries = 0) {
 
 function start() {
   const doc = app.host(), win = doc.defaultView || window.parent;
-  app.listen(win, ['input', 'focusin'], event => look(event.target), true);
+  app.listen(win, ['focusin'], event => { showTyped(event.target); look(event.target); }, true);
+  app.listen(win, ['input'], event => look(event.target), true);
   app.onStop(() => { clearInterval(timer); timer = 0; sessions.clear(); });
-  if (doc.activeElement) look(doc.activeElement);
+  if (doc.activeElement) { showTyped(doc.activeElement); look(doc.activeElement); }
 }
 
 Flow.typedCaseUi = { start };
