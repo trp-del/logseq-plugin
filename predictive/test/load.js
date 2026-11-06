@@ -266,5 +266,21 @@ for (const file of order) vm.runInContext(fs.readFileSync(path.join(root, file),
     assert.equal(nameIn('  Cycle 4 plan '), 'Cycle 4 plan'); assert.equal(nameIn('[[Cycle 4 plan]]'), 'Cycle 4 plan', 'the brackets are not part of the name');
     assert.ok(canName('Cycle 4 plan') && !canName('') && !canName('Saw [[Dr. Mei Chen]] today'), 'a name holds no link');
     console.log('  ok  Cmd-; reads a page\'s name from the bullet'); }
+  { const { plainLinks, carry, keepCase } = Flow.typedCase, M = '1a000000-0000-4000-8000-00000000000e', T = id => id === M ? 'Dr. Mei Chen' : id === U(21) ? 'Ruth Okoro' : '';
+    assert.equal(plainLinks('a [[x]] #[[Two Words]] [w]([[y]]) [[z]]').map(l => l.name).join('|'), 'x|z', 'a tag and a link with its own words are not plain links');
+    assert.equal(carry(['dr. mei chen'], ['dr. mei chen'], ['Dr. Mei Chen']).join('|'), 'dr. mei chen', 'Logseq\'s list putting in the page\'s capitals keeps what was typed');
+    assert.equal(carry(['mei'], ['mei'], ['Dr. Mei Chen']).join('|'), 'Dr. Mei Chen', 'a few letters and a page picked: the page\'s name');
+    assert.equal(carry(['a', 'dr. mei chen'], ['a', 'dr. mei chen'], ['', 'a', 'Dr. Mei Chen']).join('|'), '|a|dr. mei chen', 'a link added before keeps the others\' typing');
+    assert.equal(keepCase(`Saw [[${M}]] and [[${U(21)}]]`, ['dr. mei chen', 'Ruth Okoro'], T), `Saw [dr. mei chen]([[${M}]]) and [[${U(21)}]]`, 'only the link typed in other capitals gets the words');
+    assert.equal(keepCase(`Saw [[${M}]]`, ['DR. MEI CHEN'], T), `Saw [DR. MEI CHEN]([[${M}]])`, 'capitals too');
+    assert.equal(keepCase(`Saw [[${M}]]`, ['Dr. Mei Chen'], T), null, 'the page\'s own capitals: nothing changes');
+    assert.equal(keepCase(`Saw [[${M}]]`, ['mei'], T), null, 'other letters: nothing changes');
+    assert.equal(keepCase(`Saw [[${M}]] #[[${U(21)}]]`, ['dr. mei chen', 'x'], T), null, 'links that do not line up: nothing is guessed');
+    assert.equal(keepCase(`Saw [dr. mei chen]([[${M}]]) with [[${M}]]`, ['dr. mei chen'], T), `Saw [dr. mei chen]([[${M}]]) with [dr. mei chen]([[${M}]])`, 'a link with its words already is left as it is');
+    const { tagsByName } = Flow.typedCase, names = id => ({ a: 'Consultation', b: 'Symptom Log', c: 'Dr. Who' })[id[0]];
+    assert.equal(tagsByName(`x #[[${'a'.repeat(8)}-0000-4000-8000-000000000000]] #[[${'b'.repeat(8)}-0000-4000-8000-000000000000]] #[[${'c'.repeat(8)}-0000-4000-8000-000000000000]] [[${M}]]`, names),
+      `x #Consultation #[[Symptom Log]] #[[Dr. Who]] [[${M}]]`, 'tags handed to Logseq by name, as the text box shows them; a plain link stays by id');
+    assert.equal(tagsByName(`x #[[${'d'.repeat(8)}-0000-4000-8000-000000000000]]`, names), null, 'a tag whose name is not known: nothing written');
+    console.log('  ok  a link typed in other capitals keeps them'); }
   process.exit(0);
 })().catch(error => { console.error('FAIL ', error); process.exit(1); });

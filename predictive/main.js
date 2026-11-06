@@ -63,6 +63,7 @@ const SPECIMENS = {
     return `<span class="sw-dot"></span>Mouth feels like sandpaper, even water stings${tag(value !== 'careful')}<br><span class="sw-dot"></span>Bought bread and milk on the way home${tag(value === 'eager')}`;
   },
   linkSuggest: on => `<span class="sw-dot"></span>Saw Dr. Mei${on ? '<span class="sw-grey"> Chen</span>' : ''}`,
+  linkKeepCase: on => `<span class="sw-dot"></span>Saw <span class="lk-node">${on ? 'dr. mei chen' : 'Dr. Mei Chen'}</span> <span class="sw-faintw">&nbsp; typed as [[dr. mei chen]]</span>`,
   linkSuggestLearn: on => `<span class="sw-dot"></span>Saw ${on ? 'Mei<span class="sw-grey"> Chen</span>' : 'Mei'} <span class="sw-faintw">&nbsp; ${on ? 'offered from three letters, a name the graph usually links' : 'offered only after the usual count of letters'}</span>`,
 };
 /* Under the model's setting, whether Apple's model answers on this Mac: asked as the window draws (at most every two
@@ -117,6 +118,7 @@ async function main() {
   Flow.pageHere.start();
   Flow.proposeUi.start();
   Flow.steps.start();
+  Flow.typedCaseUi.start();
 }
 const stop = () => { Flow.app.stopAll(); };
 // The window's order: what is proposed, then the keys together, then the suggested links.
@@ -126,7 +128,7 @@ window.PluginDoor.describe('predictive', {
     row('proposalsHeading'), row('proposals'), row('proposalsHideEmpty'), row('tagEagerness'), row('proposalsModel'), { type: 'action', key: 'measureModel', title: 'Measure Apple’s model on this graph', run: () => Flow.measureUi.open() }, row('proposalsSkipGraphs'),
     { type: 'heading', title: 'Keys' },
     row('proposalsStepKeys', 'Step through a bullet’s properties'), row('proposalsTagKeys', 'Choose a tag'), row('proposalsAcceptKeys', 'Accept everything shown, without a new bullet'), row('citeKeys', 'Cite a source'), row('pageKeys', 'Make the bullet a page'),
-    row('linkHeading'), row('linkSuggest'), row('linkSuggestLearn'), row('linkSuggestRightArrow'), row('linkSuggestHyperTap', 'A tap of the Hyper key takes it'), row('linkSuggestKeys', 'A plain key that takes it too'), row('linkSuggestMinLetters'), row('linkSuggestPause', 'Pause before a suggestion shows, in milliseconds'),
+    row('linkHeading'), row('linkSuggest'), row('linkSuggestLearn'), row('linkSuggestRightArrow'), row('linkSuggestHyperTap', 'A tap of the Hyper key takes it'), row('linkSuggestKeys', 'A plain key that takes it too'), row('linkSuggestMinLetters'), row('linkSuggestPause', 'Pause before a suggestion shows, in milliseconds'), row('linkKeepCase'),
   ],
   specimen,
 });
