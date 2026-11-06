@@ -295,6 +295,8 @@ Door.NAMES = `${TOKENS}
 .lk-picked .lk-picked-act.lk-del { color: var(--rx-red-10, #dc3e42) !important; }
 .lk-picked-gap { flex: 1; }
 @media (prefers-reduced-motion: reduce) { .lk-fold, .lk-tick, .lk-undo { transition: none; } }
+/* With less motion a revealed press shows at once, without a fade, and still waits its moment before it goes. */
+@media (prefers-reduced-motion: reduce) { .lk-reveal { transition: opacity 0s linear .35s, color 0s; } }
 .lk-icon.lk-web { display: inline-flex; align-items: center; line-height: 1; }
 .lk-icon.lk-web svg { display: block; width: 12px; height: 12px; }
 [class*="lk-i-"]::before, .lk-enter::after { content: ""; display: inline-block; width: 1.05em; height: 1.05em; vertical-align: -.15em; background: currentColor; -webkit-mask: var(--lk-ic) center / contain no-repeat; mask: var(--lk-ic) center / contain no-repeat; }

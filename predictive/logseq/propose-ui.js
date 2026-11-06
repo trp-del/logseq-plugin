@@ -155,10 +155,11 @@ function drawX(doc, g, piece) {
   let x = xOf(g);
   if (!x?.classList.contains('flow-x')) {
     x = doc.createElement('button');
-    x.type = 'button'; x.className = 'flow-x lk-x'; x.textContent = '×';
+    x.type = 'button'; x.className = 'flow-x lk-x lk-reveal'; x.textContent = '×';
     x.setAttribute('contenteditable', 'false');
     if (piece.kind === 'tag') { x.classList.add('flow-x-before'); g.before(x); } else g.after(x);
   }
+  g.closest('.bottom-property-pill, .ls-block-right')?.classList.add('lk-reveals');
   const what = piece.kind === 'tag' ? `the tag ${piece.tag?.title || ''}` : `${piece.prop.title}: ${piece.shown}`;
   x.dataset.flowKey = guessKey(piece);
   if (x.title !== `Take off ${what}`) { x.title = `Take off ${what}`; x.setAttribute('aria-label', x.title); }
@@ -649,7 +650,7 @@ ${PILL}:is(:not(:has(.empty-value)), :has(.lk-pencil)) ~ ${AT}::after { left: 16
 .positioned-properties.flow-made .bottom-properties-row { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: .5rem; row-gap: .25rem; }
 .flow-made-pill { display: inline-flex; align-items: baseline; gap: .3em; }
 /* A proposal's ×, the library's Take off: under the pointer on its property, or on the line for a proposed tag. */
-.flow-x { opacity: 0; font-size: .95em; line-height: 1; transition: opacity .15s ease; display: inline-block; width: 0 !important; min-width: 0 !important; padding: 0 !important; margin: 0 !important; overflow: visible; white-space: nowrap; }
+.flow-x { font-size: .95em; line-height: 1; display: inline-block; width: 0 !important; min-width: 0 !important; padding: 0 !important; margin: 0 !important; overflow: visible; white-space: nowrap; }
 .flow-x-before { direction: rtl; }
 .flow-x { text-indent: 3px; }   /* a hair from the words, on whichever side it stands */
 /* In a value Logseq lays its parts out with a gap: the × gives that gap back, so it takes no room at all. */
@@ -657,7 +658,14 @@ ${PILL}:is(:not(:has(.empty-value)), :has(.lk-pencil)) ~ ${AT}::after { left: 16
 .bottom-property-pill:is([data-flow-proposal], .flow-made-pill) .bottom-property-content { overflow: visible !important; }
 .bottom-property-content > .flow-x { margin-left: calc(-1 * var(--spacing, .25rem)) !important; }
 
-.bottom-property-pill:hover .flow-x, .ls-block-right:hover .flow-x, .flow-x:focus-visible { opacity: 1; }
+/* The × sits past its zero-wide box, to the right, or to the left before a tag: its catch zone goes with it. */
+.flow-x::after { inset: -9px -14px -9px -4px; }
+.flow-x-before::after { inset: -9px -4px -9px -14px; }
+/* The × stands outside its pill's box, so pointing at it would not count as pointing at the pill: the × itself stays
+   pointable at rest (as Look's tag × is inside its tag), and its catch zone wakes only once it shows. */
+.flow-x.lk-reveal { pointer-events: auto; }
+.flow-x.lk-reveal::after { pointer-events: none; }
+.lk-reveals:hover .flow-x.lk-reveal::after { pointer-events: auto; }
 /* The undo arrow at the end of the bullet's line; its fade is Look's, through lk-undo. */
 .flow-undo { border: 0; background: none; padding: 0 4px; margin-left: .25em; font: inherit; line-height: 1; cursor: pointer; color: inherit; vertical-align: -2px; }
 .flow-undo .ti { font-size: 14px; }

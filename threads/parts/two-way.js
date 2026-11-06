@@ -1079,7 +1079,7 @@ function groupHtml(group, part, by) {
   const adding = state.draft?.field === group.name && state.draft.gkey === gkey;
   // The + puts a node here with the row's field pointing at this page and the group's value set (not for a month, nor for "none").
   const addable = group.ident && by !== 'month' && (by === 'tag' || !part.none);
-  const plus = addable ? `<button type="button" class="lk-plus rf-tw-gadd" data-gkey="${esc(gkey)}" data-field="${esc(group.name)}" title="Add a node here: “${esc(group.name)}” set to this page${by === 'tag' ? `, tagged ${esc(part.label)}` : `, ${esc(groupName(by))} set to ${esc(part.label)}`}">+</button>` : '';
+  const plus = addable ? `<button type="button" class="lk-plus lk-reveal rf-tw-gadd" data-gkey="${esc(gkey)}" data-field="${esc(group.name)}" title="Add a node here: “${esc(group.name)}” set to this page${by === 'tag' ? `, tagged ${esc(part.label)}` : `, ${esc(groupName(by))} set to ${esc(part.label)}`}">+</button>` : '';
   const shown = all ? part.items : part.items.slice(0, GROUP_LISTED);
   // The group's heading names the tag, or the list's does when it holds one kind (0.4.462).
   const bare = (by === 'tag' && !part.none) || new Set(group.items.map(item => item.tag)).size === 1;
@@ -1087,7 +1087,7 @@ function groupHtml(group, part, by) {
   const more = open && part.items.length > GROUP_LISTED ? shared.outline.more({ text: all ? 'show fewer' : 'show all', attrs: { 'data-more': gkey }, under: 'name' }) : '';
   // The arrow folds; the words do not. A tag is a tag: it opens its page.
   const label = by === 'tag' && !part.none ? `<a class="rf-tag lk-tag rf-tw-tag rf-tw-gname" data-tag-page="${esc(part.label)}" href="#">${esc(part.label)}</a>` : `<span class="rf-tw-gname">${esc(part.label)}</span>`;
-  return `<div class="rf-tw-group"${open ? ' data-open=""' : ''}><div class="rf-tw-ghead">${shared.outline.chev({ open, label: part.label, attrs: { 'data-gkey': gkey } })}<span class="rf-tw-gwords">${label}<span class="rf-note rf-tw-gn lk-count">${part.items.length}</span></span>${plus}</div>${open && adding ? draftLineHtml(group, state.draft) : ''}${open ? `<div class="rf-tw-gitems">${shown.map(item => itemHtml(group, item, `r:${group.name}`, '', bare, tell)).join('')}${more}</div>` : more}</div>`;
+  return `<div class="rf-tw-group"${open ? ' data-open=""' : ''}><div class="rf-tw-ghead${plus ? ' lk-reveals' : ''}">${shared.outline.chev({ open, label: part.label, attrs: { 'data-gkey': gkey } })}<span class="rf-tw-gwords">${label}<span class="rf-note rf-tw-gn lk-count">${part.items.length}</span></span>${plus}</div>${open && adding ? draftLineHtml(group, state.draft) : ''}${open ? `<div class="rf-tw-gitems">${shown.map(item => itemHtml(group, item, `r:${group.name}`, '', bare, tell)).join('')}${more}</div>` : more}</div>`;
 }
 // A few nodes have nothing to group: Group shows above INLINE nodes, as the right-click's Group by… (1.0.2).
 const groupBtn = group => { if (drawingTop || group.items.length <= INLINE) return ''; const by = groupOf(group); return `<button type="button" class="rf-quiet rf-faint rf-tw-groupby"${by ? ' data-on=""' : ''} data-field="${esc(group.name)}" title="Group the list by a tag, a month or a property">${by ? `By ${esc(groupName(by))}` : 'Group'}${iconHtml('chevron-down')}</button>`; };
@@ -2432,8 +2432,7 @@ const twoWayCss = `
 .refinement-two-way .rf-tw-group:first-child .rf-tw-ghead { margin-top: .1rem; }
 .refinement-two-way .rf-tw-gwords { display: inline-flex; align-items: baseline; gap: .35em; padding-right: .25em; color: var(--rf-quiet); }
 .refinement-two-way .rf-tw-gn { font-size: .88em; }
-.refinement-two-way .rf-tw-gadd { visibility: hidden; }
-.refinement-two-way .rf-tw-ghead:hover .rf-tw-gadd, .refinement-two-way .rf-tw-gadd:focus-visible { visibility: visible; }
+/* A group's + is the library's lk-reveal. */
 .refinement-two-way .rf-tw-group .rf-tw-draft { padding-left: .35rem; }
 .refinement-two-way .rf-tw-group .rf-tw-draft-plus { display: none; }
 /* The chevron before a node's name (0.4.435): always there, faint; full under the pointer or while the node is open. */

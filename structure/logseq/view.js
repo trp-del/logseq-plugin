@@ -570,7 +570,7 @@ function make(holder, mode, app, opts = {}) {
       const open = g.open !== false;
       let x = `<div class="st-grp lk-reveals" data-group="${esc(g.id)}" draggable="true" style="--d:${d}"><span class="lk-fold" data-gfold="${esc(g.id)}" aria-expanded="${open}">${CHEVRON}</span>` +
         (field('gname', g.id) ? `<input class="st-in" data-edit value="${esc(st.edit.text)}" autocomplete="off" spellcheck="false">` : `<span class="gn" data-gname="${esc(g.id)}">${esc(g.name)}</span>`) +
-        `<span class="ct">${countIn(g.id) || ''}</span><span class="lk-x lk-reveal" data-gdrop="${esc(g.id)}" title="Take the group away; what it holds goes up a level">×</span></div>`;
+        `<span class="ct">${countIn(g.id) || ''}</span><span class="lk-x lk-reveal" role="button" tabindex="0" aria-label="Take the group ${esc(g.name)} away" data-gdrop="${esc(g.id)}" title="Take the group away; what it holds goes up a level">×</span></div>`;
       if (open) x += kidsOf(g.id).map(k => groupHtml(k, d + 1)).join('') + propsIn(g.id).map(r => tr(r, d + 1)).join('');
       return x;
     };
@@ -1198,6 +1198,7 @@ function make(holder, mode, app, opts = {}) {
       return;
     }
     if (e.target.tagName === 'INPUT') return;
+    if ((k === 'Enter' || k === ' ') && e.target.closest?.('[data-gdrop]')) { e.preventDefault(); e.target.closest('[data-gdrop]').click(); return; }
     if (st.menu && k === 'Escape') { st.menu = null; redraw(); return; }
     if (st.paim && mode === 'page' && k === 'Escape') { e.preventDefault(); st.paim = false; return redraw(); }
     if (st.aim && mode === 'page') { if (k === 'Escape') { e.preventDefault(); st.aim = null; return redraw(); } if (k === 'Enter') { e.preventDefault(); return finishAim(st.cur); } }

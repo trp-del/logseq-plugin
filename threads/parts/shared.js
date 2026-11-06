@@ -451,7 +451,8 @@ function tick(doc, { checked = false, label, title, change, cls } = {}) {
 // Words for chips: a filter (pressed or not) or a removable item (a × on hover).
 function chip(doc, { label, pressed, run, remove, title, cls } = {}) {
   const word = el(doc, run ? 'button' : 'span', { type: run ? 'button' : null, class: `rf-chip${cls ? ' ' + cls : ''}`, 'aria-pressed': pressed == null ? null : String(!!pressed), title: title || null, click: run || null }, String(label));
-  if (remove) word.append(el(doc, 'button', { type: 'button', class: 'rf-chip-x', title: 'Remove', 'aria-label': `Remove ${label}`, click: event => { event.stopPropagation(); remove(); } }, icon(doc, 'remove')));
+  if (remove) word.classList.add('lk-reveals');
+  if (remove) word.append(el(doc, 'button', { type: 'button', class: 'rf-chip-x lk-x lk-reveal', title: 'Remove', 'aria-label': `Remove ${label}`, click: event => { event.stopPropagation(); remove(); } }, icon(doc, 'remove')));
   return word;
 }
 const note = (doc, text, cls) => el(doc, 'div', { class: `rf-note${cls ? ' ' + cls : ''}` }, text);
@@ -1205,8 +1206,8 @@ input.rf-check:focus-visible { outline: none; border-color: currentColor !import
 .rf-chip { display: inline-flex; align-items: center; gap: 2px; padding: 0; border: 0; background: none; color: var(--rf-quiet); font: inherit; font-size: 14px; cursor: default; }
 button.rf-chip { cursor: pointer; }
 .rf-chip[aria-pressed="true"] { color: inherit; font-weight: 600; }
-.rf-chip-x { display: inline-flex; border: 0; padding: 0 2px; background: none; color: var(--rf-faint); font-size: 12px; cursor: pointer; opacity: 0; }
-.rf-chip:hover .rf-chip-x, .rf-chip-x:focus-visible { opacity: 1; }
+/* A chip's × is the library's lk-reveal: its colour, ground and fade come from there. */
+.rf-chip-x { display: inline-flex; border: 0; padding: 0 2px !important; font-size: 12px; cursor: pointer; }
 /* A tag as a class: mono, the tag grey, no #, no underline (0.4.332: the mono face says it is a tag, and every tag is a
    link); darker under the pointer. */
 /* A tag's look (mono, small capitals, grey) is Look's, through lk-tag; only its shape stays here. */

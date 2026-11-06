@@ -31,9 +31,7 @@ const CSS = `
 /* The find line: the pieces, then the letters. */
 .fd-find { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; padding: 14px 16px; border-bottom: 1px solid var(--fd-hair); font-size: 16px; cursor: text; }
 .fd-piece { display: inline-flex; align-items: baseline; gap: 5px; position: relative; }
-/* A pick's ×, lk-x, only under the pointer: until then it takes no room. */
-.fd-piece .fd-x { transition: opacity .12s; }
-.fd-piece:not(:hover) .fd-x:not(:focus-visible) { opacity: 0; width: 0; padding: 0; overflow: hidden; }
+/* A pick's × is the library's lk-reveal and keeps its place, so nothing moves when it shows. */
 .fd-piece .lk-tag { font-size: 14px !important; }
 .fd-piece .fd-month { color: var(--fd-quiet); }
 .fd-sep { visibility: hidden; }   /* space sorts these, not dots */
@@ -148,7 +146,7 @@ const CSS = `
 .fd-foot .fd-right { margin-left: auto; padding: 0; }
 .fd-foot .lk-lone { margin: -3px -6px; }
 .fd-wait { color: var(--fd-faint); padding: 6px 0; }
-@media (prefers-reduced-motion: reduce) { .fd-piece .fd-x, .fd-r .lk-fold { transition: none; } }`;
+@media (prefers-reduced-motion: reduce) { .fd-r .lk-fold { transition: none; } }`;
 
 const NEAR_SHOWN = 5;   // near rows listed before "show all"
 const S = {
@@ -585,8 +583,8 @@ function drawSentence(doc) {
     // The pieces: each pick as the thing it is, its × under the pointer.
     S.picks.forEach((p, i) => {
       if (i) find.insertBefore(el(doc, 'span', { class: 'fd-sep' }, '·'), sentence);
-      const piece = el(doc, 'span', { class: 'fd-piece' });
-      piece.append(el(doc, 'button', { class: 'fd-x lk-x', type: 'button', title: 'Take this off', 'aria-label': 'Take off ' + (p.title || p.label), click: () => removePick(i) }, '×'));
+      const piece = el(doc, 'span', { class: 'fd-piece lk-reveals' });
+      piece.append(el(doc, 'button', { class: 'fd-x lk-x lk-reveal', type: 'button', title: 'Take this off', 'aria-label': 'Take off ' + (p.title || p.label), click: () => removePick(i) }, '×'));
       if (p.kind === 'tag') piece.append(el(doc, 'span', { class: 'lk-tag' }, p.title));
       else if (p.kind === 'who') { piece.append(el(doc, 'span', { class: 'lk-prop' }, p.name)); piece.append(p.uuid ? el(doc, 'span', { class: 'lk-node', 'data-uuid': p.uuid }, p.label) : el(doc, 'span', {}, p.label)); }
       else piece.append(el(doc, 'span', { class: 'fd-month' }, p.label));

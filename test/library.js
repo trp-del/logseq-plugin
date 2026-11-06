@@ -45,6 +45,19 @@ for (const file of FILES) {
   for (const rule of text.matchAll(/[^\n{}]*:focus-visible[^{}\n]*\{[^}]*\}/g)) if (/outline:\s*\d/.test(rule[0])) boxes.push(`${path.relative(ROOT, file)}: ${rule[0].slice(0, 90)}`);
   for (const key of text.matchAll(/[^\n]*(<kbd>[^<]*⌘|class="ky">[^<]*⌘|class="sw-k">⌘)[^\n]{0,20}/g)) symbols.push(`${path.relative(ROOT, file)}: ${key[1]}`);
 }
+// A press that shows under the pointer is the library's lk-reveal: a :hover on one thing bringing in another after it, by
+// opacity or visibility, is a reveal of its own.
+const splitTop = list => { const out = []; let depth = 0, from = 0; for (let i = 0; i < list.length; i++) { const c = list[i]; if (c === '(') depth++; else if (c === ')') depth--; else if (c === ',' && !depth) { out.push(list.slice(from, i)); from = i + 1; } } return [...out, list.slice(from)]; };
+const reaches = selector => { const at = selector.indexOf(':hover'); if (at < 0) return false; let i = at + 6, depth = 0; for (let j = 0; j < at; j++) depth += selector[j] === '(' ? 1 : selector[j] === ')' ? -1 : 0; for (; i < selector.length && (depth > 0 || !/[\s>+~]/.test(selector[i])); i++) depth += selector[i] === '(' ? 1 : selector[i] === ')' ? -1 : 0; return /[\w.#\[*:]/.test(selector.slice(i)); };
+const ownReveals = [];
+for (const file of FILES) {
+  const text = fs.readFileSync(file, 'utf8');
+  for (const rule of text.matchAll(/([^\n{}]*:hover[^{}]*)\{([^}]*)\}/g)) {
+    if (/lk-fold|lk-tick|rf-check|fd-nb/.test(rule[1]) || !/opacity:\s*(1\b|0?\.\d)|visibility:\s*visible/.test(rule[2])) continue;
+    if (splitTop(rule[1]).some(reaches)) ownReveals.push(`${path.relative(ROOT, file)}: ${rule[0].trim().slice(0, 110)}`);
+  }
+}
+if (ownReveals.length) { console.error('A press brought in by a :hover of its own, not lk-reveal:\n  ' + ownReveals.join('\n  ')); process.exit(1); }
 if (boxes.length) { console.error('A box round a control under the keyboard:\n  ' + boxes.join('\n  ')); process.exit(1); }
 if (symbols.length) { console.error('A key as a symbol:\n  ' + symbols.join('\n  ')); process.exit(1); }
 // Words that are not Logseq's or are old, on what the person reads.
