@@ -35,6 +35,6 @@ Flow.settingsSchema = [
   { key: 'linkSuggestLearn', type: 'boolean', title: 'Learn from the graph and from what you take', default: true,
     description: 'A name the graph usually links is offered from three letters; one it usually writes plain is not offered. A page that would fill one of the bullet’s empty properties comes first. What you take or pass over is remembered for this graph.' },
   { key: 'linkKeepCase', type: 'boolean', title: 'Keep my capitals in a link I type', default: true,
-    description: 'Logseq shows a [[link]] by the page’s own name. Type [[dr. mei chen]] for the page Dr. Mei Chen and, when you leave the bullet, the link keeps your words: it is written as [dr. mei chen]([[Dr. Mei Chen]]), which opens the page as any link does. Only when the name differs in its capitals alone. Cmd-Z puts the page’s name back.' },
+    description: 'Logseq shows a [[link]] by the page’s own name. Type [[dr. mei chen]] for the page Dr. Mei Chen and, when you leave the bullet, the link keeps your words: it is written as [dr. mei chen]([[Dr. Mei Chen]]), which opens the page as any link does. Only when the name differs in its capitals alone. A suggested link taken with Right arrow is written in the capitals you were typing in. Cmd-Z puts the page’s name back.' },
 ];
 })();

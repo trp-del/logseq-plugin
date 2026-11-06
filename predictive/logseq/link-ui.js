@@ -24,10 +24,13 @@ function layOver(box, over, hit) {
   // After the space that ends a name (hit.after): nothing grey, a dotted line under the words until the next letter.
   typed.replaceChildren(doc.createTextNode(box.value.slice(0, hit.after ? hit.start : hit.end)));
   if (hit.after) typed.append(el(doc, 'u', { class: 'flow-offer' }, box.value.slice(hit.start, hit.end)), doc.createTextNode(box.value.slice(hit.end, box.selectionStart)));
-  grey.textContent = hit.after ? '' : hit.ghost;
+  grey.textContent = hit.after ? '' : setting('linkKeepCase') ? Flow.typedCase.rest(hit.span, hit.ghost) : hit.ghost;   // in your capitals (core/typed-case.js)
   if (hit.name && !hit.after) grey.setAttribute('data-name', hit.name); else grey.removeAttribute('data-name');
-  grey.title = `Right arrow: [[${hit.title}]]`;
+  grey.title = `Right arrow: [[${nameFor(hit)}]]`;
 }
+// The name as it is written: in the capitals you were typing in, the link then keeping them when you leave the bullet
+// (logseq/typed-case.js); the page's own with that setting off.
+const nameFor = hit => setting('linkKeepCase') ? Flow.typedCase.written(hit.span, hit.title) : hit.title;
 function clear() { if (!showing) return; showing.ghost.remove(); showing = null; }
 function draw(box, hit) {
   const doc = box.ownerDocument;
@@ -138,7 +141,7 @@ function accept(event) {
   // The screen may be behind the words: what is suggested for the words as they are now.
   if (box.value.slice(hit.start, hit.end) !== hit.span || box.selectionStart !== hit.end) hit = box.selectionStart === box.selectionEnd ? link.suggestFor(box.value, box.selectionStart, lastPages, { min: minLetters() }) : null;
   if (!hit) return false;
-  const text = `[[${hit.title}]]`;
+  const text = `[[${nameFor(hit)}]]`;
   box.focus();
   box.setSelectionRange(hit.start, hit.end);
   let typed = false;

@@ -65,7 +65,27 @@ function tagsByName(words, titleOf) {
   return missing ? null : out;
 }
 
-const api = { plainLinks, carry, keepCase, sameButCase, tagIds, tagsByName };
+/* A suggested link taken (Right arrow, a tap of the Hyper key) is written in the capitals you were typing in: the letters you
+   typed stay as typed, and the rest of the name follows them, all small after small letters ("dr. mei" gives dr. mei chen), all
+   capitals after capitals ("MR" gives MRI), the page's own after anything else ("dr. Mei" gives dr. Mei Chen). When the words
+   typed are inside the name ("mei" for Dr. Mei Chen), the whole name follows them the same way. rest(span, words) is the grey
+   words as they will be written; written(span, title) the whole name. */
+function styleOf(span) {
+  const all = String(span).match(/\p{L}/gu) || [];
+  if (!all.length) return 'own';
+  if (all.every(c => c === c.toLowerCase() && c !== c.toUpperCase())) return 'lower';
+  if (all.length > 1 && all.every(c => c === c.toUpperCase() && c !== c.toLowerCase())) return 'upper';
+  return 'own';
+}
+const styled = (style, words) => style === 'lower' ? words.toLowerCase() : style === 'upper' ? words.toUpperCase() : words;
+const rest = (span, words) => styled(styleOf(span), String(words));
+function written(span, title) {
+  span = String(span); title = String(title);
+  if (lower(title).startsWith(lower(span))) return span + rest(span, title.slice(span.length));
+  return rest(span, title);
+}
+
+const api = { plainLinks, carry, keepCase, sameButCase, tagIds, tagsByName, rest, written };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 if (typeof window !== 'undefined') (window.Flow ||= {}).typedCase = api;
 })();

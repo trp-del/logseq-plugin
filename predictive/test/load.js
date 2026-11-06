@@ -281,6 +281,12 @@ for (const file of order) vm.runInContext(fs.readFileSync(path.join(root, file),
     assert.equal(tagsByName(`x #[[${'a'.repeat(8)}-0000-4000-8000-000000000000]] #[[${'b'.repeat(8)}-0000-4000-8000-000000000000]] #[[${'c'.repeat(8)}-0000-4000-8000-000000000000]] [[${M}]]`, names),
       `x #Consultation #[[Symptom Log]] #[[Dr. Who]] [[${M}]]`, 'tags handed to Logseq by name, as the text box shows them; a plain link stays by id');
     assert.equal(tagsByName(`x #[[${'d'.repeat(8)}-0000-4000-8000-000000000000]]`, names), null, 'a tag whose name is not known: nothing written');
+    const { written } = Flow.typedCase;
+    assert.equal(written('dr. mei', 'Dr. Mei Chen'), 'dr. mei chen', 'a suggested link taken after small letters: small letters');
+    assert.equal(written('DR. MEI', 'Dr. Mei Chen'), 'DR. MEI CHEN', 'after capitals: capitals');
+    assert.equal(written('dr. Mei', 'Dr. Mei Chen'), 'dr. Mei Chen', 'after a mix: what was typed, then the page\'s own');
+    assert.equal(written('mei', 'Dr. Mei Chen'), 'dr. mei chen', 'words inside the name: the whole name follows them');
+    assert.equal(written('Fatig', 'Fatigue'), 'Fatigue', 'the page\'s own capitals typed: the page\'s name');
     console.log('  ok  a link typed in other capitals keeps them'); }
   process.exit(0);
 })().catch(error => { console.error('FAIL ', error); process.exit(1); });
