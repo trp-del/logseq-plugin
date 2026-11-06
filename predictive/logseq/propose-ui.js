@@ -666,9 +666,7 @@ ${PILL}:is(:not(:has(.empty-value)), :has(.lk-pencil)) ~ ${AT}::after { left: 16
 .flow-x.lk-reveal { pointer-events: auto; }
 .flow-x.lk-reveal::after { pointer-events: none; }
 .lk-reveals:hover .flow-x.lk-reveal::after { pointer-events: auto; }
-/* The undo arrow at the end of the bullet's line; its fade is Look's, through lk-undo. */
-.flow-undo { border: 0; background: none; padding: 0 4px; margin-left: .25em; font: inherit; line-height: 1; cursor: pointer; color: inherit; vertical-align: -2px; }
-.flow-undo .ti { font-size: 14px; }
+/* The undo arrow at the end of the bullet's line is the library's (lk-undo). */
 `;
 // Empty properties hidden until something is proposed, only in graphs where the proposals write (elsewhere nothing would ever
 // bring them back). Under the bullet being written they stay, so nothing comes and goes; where an empty property shows it is

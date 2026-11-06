@@ -23,7 +23,7 @@ const host = () => { try { return window.parent.document; } catch (error) { retu
 const CSS = `
 .xp { position: fixed; inset: 0; z-index: 9990; display: flex; flex-direction: column; box-sizing: border-box; margin: 0;
   background: color-mix(in srgb, var(--lk-paper, #fff) 84%, #000); color: var(--lk-text, #222);
-  font-family: var(--ls-font-family, -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif); font-size: 13.5px; line-height: 1.35;
+  font-family: var(--ls-font-family, -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif); font-size: 14px; line-height: 1.35;
   --xp-quiet: var(--lk-quiet); --xp-faint: var(--lk-faint); --xp-hair: var(--lk-hair); --xp-line: var(--lk-line); --xp-wash: var(--lk-wash); }
 .xp * { box-sizing: border-box; }
 .xp[hidden] { display: none; }
@@ -41,32 +41,25 @@ const CSS = `
 .xp .it:first-child, .xp .it[hidden] + .it { --pl: 0px; } .xp .it:last-child { padding-right: 0; }
 .xp .it.lk-pick:not(:first-child) { border-left: 1px solid var(--xp-hair); }
 .xp .it[hidden] + .it.lk-pick { border-left: 0; }
-.xp .lk-name { font-size: 11px; color: var(--xp-faint); letter-spacing: .02em; min-height: 15px; }
+.xp .lk-name { min-height: 15px; }
 .xp .lk-value { all: unset; display: inline-flex; align-items: center; cursor: pointer; color: var(--lk-text, #222); font: inherit; line-height: 1.35; }
-.xp .lk-value:hover { color: var(--xp-quiet); }
-.xp .lk-value.off { color: var(--xp-faint); }
 .xp .lk-value:focus-visible { outline: none; background: var(--lk-wash); box-shadow: 0 0 0 3px var(--lk-wash); border-radius: 1em; }
 /* The mark: a small faint chevron tight after a value that unfolds. */
 .xp .lk-value .m { width: 8px; height: 8px; margin-left: 4px; color: var(--xp-faint); flex: none; }
 /* What a value can become: a line of faint words under it, the one in force in the text colour. It takes its room below the
    row (the pick grows by the line's height while open, see unfold), never beside the pick: nothing moves sideways. */
-.xp .lk-alts { position: absolute; left: var(--pl); top: 100%; margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--xp-faint); width: max-content; max-width: 420px; white-space: normal; }
-.xp .lk-alts[hidden] { display: none; }
-.xp .lk-alts span { cursor: pointer; } .xp .lk-alts span:hover, .xp .lk-alts .on { color: var(--lk-text, #222); }
-/* A field: a value not yet written is faint and reads its own name; a hairline under it only while it has the keyboard. */
-.xp input.lk-value { cursor: text; border: 0; border-bottom: 1px solid transparent; padding: 0 0 1px; background: none; min-width: 9em; outline: none; box-shadow: none; border-radius: 0; }
-.xp input.lk-value::placeholder { color: var(--xp-faint); }
-.xp input.lk-value:focus { border-bottom-color: currentColor; color: var(--lk-text, #222); }
+.xp .lk-pick .lk-alts { position: absolute; left: var(--pl); top: 100%; margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--xp-faint); width: max-content; max-width: 420px; white-space: normal; }
+.xp .lk-pick .lk-alts[hidden] { display: none; }
+.xp .lk-alts span { cursor: pointer; }
+/* A field is the Pressing set's input.lk-value (the library): a hairline under it only while it has the keyboard. */
 /* A switch: a hidden box; its word reads the state. */
 .xp .lk-switch input { position: absolute; opacity: 0; width: 0; height: 0; margin: 0; }
 .xp .lk-switch .lk-value { position: relative; }
 .xp .lk-switch:has(:focus-visible) .lk-value { background: var(--lk-wash); box-shadow: 0 0 0 3px var(--lk-wash); border-radius: 1em; }
-/* A choice that stays open (where the export goes), the one in force in the text colour. */
+/* A choice that stays open (where the export goes): the library's alternatives (lk-alts), the one in force (on) in the text colour. */
 .xp-where { display: flex; gap: 14px; }
-.xp-where > * { position: relative; cursor: pointer; color: var(--xp-faint); white-space: nowrap; }
-.xp-where > :hover { color: var(--xp-quiet); }
+.xp-where > * { position: relative; cursor: pointer; white-space: nowrap; }
 .xp-where input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
-.xp-where label:has(:checked) { color: var(--lk-text, #222); }
 .xp-where label:has(:focus-visible) { background: var(--lk-wash); box-shadow: 0 0 0 3px var(--lk-wash); border-radius: 1em; }
 /* A panel's own controls, unfolded in a row under the bar; a pick whose panel is open shows it by its value going quiet. */
 .xp-fold { flex: none; padding: 0 28px 16px; background: var(--lk-paper, #fff); }
@@ -87,17 +80,11 @@ const CSS = `
 .xp-kind { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; font-size: 14px; color: var(--xp-faint); flex: none; }
 .xp-kind .lk-icon.lk-web svg { width: 11px; height: 11px; }
 .xp-list .lk-count { margin-left: auto; color: var(--xp-faint); font-size: .85em; }
-/* The tick box, as Threads' kit draws it: the browser's checkbox as a small rounded square with a check mark inside when on.
-   Logseq's own forms rule paints a checked box blue; this square keeps to the text colour. */
-.xp input[type=checkbox].lk-tick { appearance: none; -webkit-appearance: none; position: relative; width: 13px; height: 13px; margin: 0; padding: 0; flex: none; border: 1px solid var(--xp-line); border-radius: 3px; background: none; color: inherit; vertical-align: -1px; cursor: pointer; outline: none; box-shadow: none; }
-.xp input[type=checkbox].lk-tick:checked, .xp input[type=checkbox].lk-tick:focus { background-color: transparent !important; background-image: none !important; border-color: currentColor !important; color: inherit !important; box-shadow: none !important; }
-.xp input[type=checkbox].lk-tick:checked::before { content: ""; position: absolute; left: 3.5px; top: .5px; width: 3.5px; height: 7px; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg); }
-.xp input[type=checkbox].lk-tick:focus-visible { outline: none; border-color: currentColor !important; }
+/* The tick box is the library's (lk-tick). */
 /* The accent: the one action, its key beside it; a second action lk-btn, its words level with the accent's and the gap
    between them measured from its words; × the way out. */
 .xp-bar button:where(:not(.lk-btn)) { all: unset; cursor: pointer; font: inherit; color: var(--lk-text, #222); white-space: nowrap; }
 .xp-bar button[hidden] { display: none; }
-.xp-bar button:hover { color: var(--xp-quiet); }
 .xp-bar button:focus-visible { outline: none; background: var(--lk-wash); box-shadow: 0 0 0 3px var(--lk-wash); border-radius: 1em; }
 .xp-bar .lk-btn { margin: -2px -6px; }
 .xp-bar button.lk-accent kbd { font: inherit; font-size: .85em; margin-left: 8px; }
@@ -181,7 +168,7 @@ function open({ doc, what, act }) {
     const CHEV = '<svg class="m" viewBox="0 0 8 8" aria-hidden="true"><path d="M1.5 3l2.5 2.5L6.5 3" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>';
     const nm = name => `<div class="lk-name">${esc(name)}</div>`;
     // Where the export goes: a choice that stays open.
-    const where = (items, chosen) => `<div class="it lk-choice">${nm('export as')}<div class="xp-where" role="radiogroup" aria-label="Export as">${items.map(i => `<label><input type="radio" name="xp-target" value="${i.key}" ${i.key === chosen ? 'checked' : ''}>${esc(i.name)}</label>`).join('')}</div></div>`;
+    const where = (items, chosen) => `<div class="it lk-choice">${nm('export as')}<div class="xp-where lk-alts" role="radiogroup" aria-label="Export as">${items.map(i => `<label><input type="radio" name="xp-target" value="${i.key}" ${i.key === chosen ? 'checked' : ''}>${esc(i.name)}</label>`).join('')}</div></div>`;
     // A pick: the name, the value with the chevron, the select it stands for (hidden), and what it can become, unfolded under it when pressed.
     const pick = (cls, name, items, chosen, title = '') => `<div class="it lk-pick" data-pick="${cls}">${nm(name)}<button type="button" class="lk-value" ${title ? `title="${esc(title)}"` : ''}>${esc((items.find(([k]) => k === chosen) || items[0])[1])}${CHEV}</button><select class="${cls}" hidden>${items.map(([k, n]) => `<option value="${esc(k)}" ${k === chosen ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select><div class="lk-alts" hidden>${items.map(([k, n]) => `<span data-v="${esc(k)}" class="${k === chosen ? 'on' : ''}">${esc(n)}</span>`).join('')}</div></div>`;
     // A panel: a pick whose value is its state in a few words (describe fills them) and whose unfolding is a row of its own controls under the bar.
@@ -190,7 +177,7 @@ function open({ doc, what, act }) {
     // A switch: the name, and a value that reads the state; the box is hidden and the word turns it.
     const sw = (cls, name, on, offWord, onWord) => `<div class="it lk-switch">${nm(name)}<label class="lk-value ${on ? '' : 'off'}" data-on="${esc(onWord)}" data-off="${esc(offWord)}"><input type="checkbox" class="${cls}" ${on ? 'checked' : ''}>${esc(on ? onWord : offWord)}</label></div>`;
     // A field: the name, and a value faint until written.
-    const field = (cls, name, value, placeholder) => `<div class="it lk-field">${nm(name)}<input type="text" class="lk-value ${cls}" placeholder="${esc(placeholder)}" value="${esc(value)}"></div>`;
+    const field = (cls, name, value, placeholder) => `<div class="it xp-field">${nm(name)}<input type="text" class="lk-value ${cls}" placeholder="${esc(placeholder)}" value="${esc(value)}"></div>`;
     // A list of properties, headed by whose they are over all / none (a small bar); then the grammar's row, a tick box at the left, the icon of what it holds, the name, the count.
     const list = (role, label, ps, hidden) => `<div class="it">${nm(label)}<div class="xp-all lk-bar" data-role="${role}"><a class="lk-btn lk-i-tick" data-all="1" data-role="${role}">all</a><a class="lk-btn lk-i-x" data-all="0" data-role="${role}">none</a></div>
       <div class="xp-list lk-list${ps.length > 10 ? ' two' : ''}" data-role="${role}">${ps.map(p => `<label class="xp-prop lk-row"><input type="checkbox" class="lk-tick" value="${esc(p.ident)}" ${hidden.has(p.ident) ? '' : 'checked'}><span class="lk-prop">${kindIconHtml(p.type)}<span>${esc(p.name)}</span></span><span class="lk-count">${p.count}</span></label>`).join('')}</div></div>`;
@@ -238,6 +225,7 @@ function open({ doc, what, act }) {
         if (v.firstChild?.nodeType === 3) v.firstChild.nodeValue = text; else v.insertBefore(hostDoc.createTextNode(text), v.firstChild);
         for (const a of it.querySelectorAll('.lk-alts span')) a.classList.toggle('on', a.dataset.v === sel.value);
       }
+      for (const l of root.querySelectorAll('.xp-where label')) l.classList.toggle('on', l.querySelector('input').checked);
       for (const v of root.querySelectorAll('.lk-switch .lk-value')) { const on = v.querySelector('input').checked; v.classList.toggle('off', !on); v.lastChild.nodeValue = on ? v.dataset.on : v.dataset.off; }
       for (const h of root.querySelectorAll('.xp-all')) { const bs = boxes(h.dataset.role), on = bs.filter(b => b.checked).length; h.querySelector('[data-all="1"]').classList.toggle('on', on === bs.length); h.querySelector('[data-all="0"]').classList.toggle('on', on === 0); }
     };

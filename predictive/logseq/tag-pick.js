@@ -21,11 +21,11 @@ function draw() {
   list.replaceChildren(
     ...items.map((item, i) => {
       const note = [item.how === 'model' ? 'by Apple’s model' : item.how === 'mentioned' ? item.via.join(', ') : 'by its words', item.fields.slice(0, 3).join(', ')].filter(Boolean).join(' · ');
-      const row = el(doc, 'div', { class: 'flow-pick-row' + (i === at ? ' on' : ''), role: 'option', 'aria-selected': String(i === at), 'data-i': String(i) },
-        el(doc, 'span', { class: 'flow-pick-tag lk-tag' }, item.tag.title), el(doc, 'span', { class: 'flow-pick-note' }, note));
+      const row = el(doc, 'div', { class: 'flow-pick-row lk-item' + (i === at ? ' on' : ''), role: 'option', 'aria-selected': String(i === at), 'data-i': String(i) },
+        el(doc, 'span', { class: 'flow-pick-tag lk-tag' }, item.tag.title), el(doc, 'span', { class: 'flow-pick-note lk-note' }, note));
       return row;
     }));
-  Object.assign(list.style, { left: rect.left + 'px', top: (rect.bottom + 4) + 'px', maxWidth: Math.max(260, rect.width) + 'px' });
+  Object.assign(list.style, { left: rect.left + 'px', top: (rect.bottom + 4) + 'px', maxWidth: Math.min(Math.max(360, rect.width), doc.documentElement.clientWidth - rect.left - 16) + 'px' });
   if (!list.isConnected) doc.body.append(list);
 }
 
@@ -53,7 +53,7 @@ async function show(box) {
   if (!items.length) return notify('No tag to suggest for this line.');
   if (host().activeElement !== box || box.value !== words) return;   // moved on while it was being worked out
   close();
-  open = { box, uuid, items, at: 0, list: el(box.ownerDocument, 'div', { class: 'flow-pick', role: 'listbox' }) };
+  open = { box, uuid, items, at: 0, list: el(box.ownerDocument, 'div', { class: 'flow-pick lk-pop lk-menu', role: 'listbox' }) };
   draw();
 }
 
@@ -94,14 +94,12 @@ function onPress(event) {
   if (event.type === 'click') pick(Number(row.dataset.i));
 }
 
+/* The picker is the library's pop-up and menu (lk-pop, lk-menu, a row lk-item lit with on, its note lk-note); here its place under the bullet. */
 const css = `
-.flow-pick { position: fixed; z-index: 30; min-width: 240px; padding: 4px; font-size: .85em; line-height: 1.35; border-radius: 6px; user-select: none;
-  background: var(--lk-paper, #fff); color: var(--lk-text, inherit);
-  border: 1px solid color-mix(in srgb, currentColor 16%, transparent); box-shadow: 0 6px 18px color-mix(in srgb, currentColor 14%, transparent); }
-.flow-pick-row { display: flex; gap: .6em; align-items: baseline; padding: 3px 8px; border-radius: 4px; cursor: pointer; }
-.flow-pick-row.on, .flow-pick-row:hover { background: color-mix(in srgb, currentColor 9%, transparent); }
+.flow-pick { position: fixed; z-index: 30; min-width: 240px; width: max-content; user-select: none; }
+.flow-pick-row { align-items: baseline; cursor: pointer; white-space: normal; }
 .flow-pick-tag { white-space: nowrap; }
-.flow-pick-note { opacity: .5; font-size: .92em; margin-left: auto; padding-left: 1em; text-align: right; }
+.flow-pick-note { padding-left: 1em; text-align: right; min-width: 0; }
 `;
 
 function start() {

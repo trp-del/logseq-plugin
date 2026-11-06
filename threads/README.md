@@ -30,7 +30,7 @@ How the section's pieces look (a tag in mono, the underline a node's name takes 
 
 | Part | What it is | Needed by two-way? |
 |---|---|---|
-| `shared.js` | the kit: outline lines, pop-ups, fields, Undo, icons | yes |
+| `shared.js` | the kit: where the library's pieces stand in Threads (outline lines, pop-ups, fields, tick boxes, Undo), the icons | yes |
 | `model.js` | the one place that reads and writes the graph | yes |
 | `diagnostics.js` | troubleshooting commands (what the plugin finds on this page, warnings, the tour) | yes (foundation) |
 | `two-way.js` | the two-way section | the feature |

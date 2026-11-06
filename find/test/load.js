@@ -106,12 +106,12 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
   await key('ArrowRight'); await settle();
   assert.deepEqual(text('.fd-kids .fd-g .fd-nm'), ['ProviderConsultation3'], 'what points at her, as a line with its number after the words');
   doc.querySelector('.fd-kids .fd-g .fd-nm').click(); await settle();
-  assert.ok(doc.querySelector('.fd-kids .fd-g .fd-bul.fd-folded') && !doc.querySelector('.fd-gn .fd-r'), 'a click on a line\'s words does not unfold it');
-  assert.ok(doc.querySelector('.fd-kids .fd-g.fd-on'), 'it moves the cursor there'); await key('ArrowUp');
-  assert.ok(doc.querySelector('.fd-kids .fd-g .fd-bul.fd-folded'), 'the dot is ringed while the line is closed');
+  assert.ok(doc.querySelector('.fd-kids .fd-g .fd-bul.folded') && !doc.querySelector('.fd-gn .fd-r'), 'a click on a line\'s words does not unfold it');
+  assert.ok(doc.querySelector('.fd-kids .fd-g.on'), 'it moves the cursor there'); await key('ArrowUp');
+  assert.ok(doc.querySelector('.fd-kids .fd-g .fd-bul.folded'), 'the dot is ringed while the line is closed');
   assert.equal(doc.querySelector('.fd-kids .fd-g .fd-ct').parentElement.className, 'fd-nm', 'the number sits with the words, not at the edge');
   await key('ArrowDown'); await key('ArrowRight');
-  assert.ok(!doc.querySelector('.fd-kids .fd-g .fd-bul.fd-folded'), 'open, the dot is plain');
+  assert.ok(!doc.querySelector('.fd-kids .fd-g .fd-bul.folded'), 'open, the dot is plain');
   assert.equal(doc.querySelectorAll('.fd-gn .fd-r').length, 3, 'her three consultations under the line');
   assert.equal(doc.querySelector('.fd-gn .fd-showall'), null, 'no "show all" when the three are all');
   await key('ArrowLeft'); await key('ArrowUp'); await key('ArrowLeft');
@@ -141,8 +141,8 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
   await type('s'); assert.equal(Find.window.state.facets, counted, 'a letter does not count the choices again'); await type('');
   const rowOne = doc.querySelector('.fd-r');
   await key('ArrowDown');
-  assert.ok(rowOne.isConnected && !rowOne.classList.contains('fd-on'), 'an arrow leaves the row where it is, unlit');
-  assert.ok(doc.querySelectorAll('.fd-r')[1].classList.contains('fd-on') && doc.querySelectorAll('.fd-r.fd-on').length === 1, 'and lights the next');
+  assert.ok(rowOne.isConnected && !rowOne.classList.contains('on'), 'an arrow leaves the row where it is, unlit');
+  assert.ok(doc.querySelectorAll('.fd-r')[1].classList.contains('on') && doc.querySelectorAll('.fd-r.on').length === 1, 'and lights the next');
   assert.ok(text('.fd-foot')[0].includes('open Saw'), 'the foot follows the cursor: ' + text('.fd-foot')[0]);
   await key('ArrowUp');
   // "mei" lights Dr. Mei Chen under Provider; Enter picks; the rows narrow
@@ -179,7 +179,7 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
   await type('mei');
   assert.equal(doc.querySelectorAll('.fd-r').length, 2, 'Logseq\'s results as rows');
   assert.deepEqual(text('.fd-c'), ['Consultation1', 'Doctor1'], 'the kinds among the results, by name when counts tie');
-  assert.deepEqual([...doc.querySelectorAll('.fd-r')].map(r => r.querySelector('.fd-sign')?.classList[2] || (r.querySelector('.fd-d') ? 'dot' : '')), ['fd-page', 'dot'], 'a page its sign, a bullet its dot');
+  assert.deepEqual([...doc.querySelectorAll('.fd-r')].map(r => r.querySelector('.fd-sign')?.classList[2] || (r.querySelector('.lk-bul') ? 'dot' : '')), ['fd-page', 'dot'], 'a page its sign, a bullet its dot');
   { const signs = (await Find.db.details([1, 50], [])).map(n => [n.id, n.sign, n.propType]).sort((a, b) => a[0] - b[0]);
     assert.deepEqual(signs, [[1, 'tag', ''], [50, 'property', 'node']], 'a tag reads as a tag, a property as a property with what it holds'); }
   await type('>');
@@ -241,7 +241,7 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
   Find.window.open(); await settle(); await type('cons'); await key('Tab'); await settle();
   Find.window.state.cache.kind.get(2).cutFrom = 9;
   await type('s'); await type('');
-  assert.deepEqual(text('.fd-none'), ['the newest 4 of 9'], 'the list says it is cut');
+  assert.deepEqual(text('.fd-none'), ['The newest 4 of 9'], 'the list says it is cut');
   await key('Escape'); Find.window.forget();
   // The margin says when a node happened: the property titled Date, else the earliest date, else the day it is written on, whatever its tag.
   DATED = [[40, 20260815, 'Visited'], [40, 20260903, 'Date'], [41, 20260601, 'Noted'], [41, 20260501, 'Seen']]; Find.db.forget();
@@ -416,9 +416,9 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
       assert.ok(text('.fd-foot').join(' ').includes('into it'), 'Down would step into it');
       await key('ArrowDown'); assert.deepEqual([S.mode, S.rowAt], ['rows', 0], 'Down again steps the cursor into what opened');
       await key('Escape'); await settle(); assert.deepEqual([S.lineDug, S.dug.length, S.mode], [null, 0, 'line'], 'Escape closes what was dug and the cursor is back on the dot');
-      await key('ArrowUp'); assert.deepEqual([S.line, text('.fd-line .fd-lane'), text('.fd-line .fd-by')], [2, ['Dr. Mei Chen', 'Dr. Sofia Alvarez', 'others'], ['one lane']], 'Up lays the lanes out: the first choice line\'s values, then the rest');
+      await key('ArrowUp'); assert.deepEqual([S.line, text('.fd-line .fd-lane'), text('.fd-line .fd-by .on')], [2, ['Dr. Mei Chen', 'Dr. Sofia Alvarez', 'others'], ['by Provider']], 'Up lays the lanes out: the first choice line\'s values, then the rest');
       assert.equal(line().getAttribute('height'), String(24 + 3 * 44 + 28), 'a lane a value');
-      await key('ArrowUp'); assert.deepEqual([S.line, text('.fd-line .fd-by')], [1, ['by Provider']], 'Up again gathers them');
+      await key('ArrowUp'); assert.deepEqual([S.line, text('.fd-line .fd-by .on')], [1, ['one lane']], 'Up again gathers them');
       await key('Escape'); assert.deepEqual([S.line, S.mode, line().getAttribute('height')], [0, 'rows', '52'], 'Escape folds the line to the strip');
       line().dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true })); assert.deepEqual([S.line, S.mode], [1, 'line'], 'a click on the strip opens it');
       await key('ArrowLeft'); await key('ArrowRight');
@@ -426,7 +426,7 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
       Find.window.sentence(); await settle(); }
     // Down past the last row found steps on to the near rows; → digs one of them too.
     await type('Consultation in September 2026'); await settle();
-    await key('ArrowDown'); await key('ArrowDown'); assert.ok(doc.querySelectorAll('.fd-r')[2].classList.contains('fd-on'), 'the cursor steps on to the near rows');
+    await key('ArrowDown'); await key('ArrowDown'); assert.ok(doc.querySelectorAll('.fd-r')[2].classList.contains('on'), 'the cursor steps on to the near rows');
     await key('ArrowRight'); await settle(); assert.ok(doc.querySelector('.fd-kids'), 'a near row digs'); await key('ArrowLeft'); await settle();
     // The When choice says the month with its year, so it reads as that month.
     await type('Consultation '); await settle(); await key('Tab'); await key('ArrowDown'); await key('ArrowDown');

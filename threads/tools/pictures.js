@@ -31,7 +31,7 @@ async function scenes(page) {
       scripts: [`window.parent = window; window.logseq = { settings: {}, DB: {}, UI: {}, App: {}, Editor: {} };`, read('../plugin.js'), read('parts/shared.js'),
         exposeAtEnd(read('parts/two-way.js'), ['rowHtml', 'twoWayCss', 'state'], 'parts/two-way.js')],
       draw: async groups => {
-        const style = document.createElement('style'); style.textContent = window.PluginDoor.NAMES + window.Threads.shared.kitCss + window.__twoWayCss; document.head.append(style);
+        const style = document.createElement('style'); style.textContent = window.PluginDoor.THEME + window.PluginDoor.NAMES + window.Threads.shared.kitCss + window.__twoWayCss; document.head.append(style);
         window.__state.pageUuid = 'page-mei-chen';
         const box = document.createElement('div');
         box.className = 'refinement-two-way';
@@ -45,7 +45,7 @@ async function scenes(page) {
       scripts: [`window.parent = window; window.logseq = { settings: {}, DB: {}, UI: {}, App: {}, Editor: {} };`, read('../plugin.js'), read('parts/shared.js'),
         exposeAtEnd(read('parts/two-way.js'), ['rowHtml', 'twoWayCss', 'noDaysCss', 'state'], 'parts/two-way.js')],
       draw: async groups => {
-        const style = document.createElement('style'); style.textContent = window.PluginDoor.NAMES + window.Threads.shared.kitCss + window.__twoWayCss + window.__noDaysCss; document.head.append(style);
+        const style = document.createElement('style'); style.textContent = window.PluginDoor.THEME + window.PluginDoor.NAMES + window.Threads.shared.kitCss + window.__twoWayCss + window.__noDaysCss; document.head.append(style);
         window.__state.pageUuid = 'page-mei-chen';
         const box = document.createElement('div');
         box.className = 'refinement-two-way';
@@ -59,7 +59,7 @@ async function scenes(page) {
       scripts: [`window.parent = window; window.logseq = { settings: {}, DB: {}, UI: {}, App: {}, Editor: {} };`, read('../plugin.js'), read('parts/shared.js')],
       draw: async () => {
         const shared = window.Threads.shared;
-        const style = document.createElement('style'); style.textContent = window.PluginDoor.NAMES + shared.kitCss; document.head.append(style);
+        const style = document.createElement('style'); style.textContent = window.PluginDoor.THEME + window.PluginDoor.NAMES + shared.kitCss; document.head.append(style);
         const stage = document.getElementById('stage');
         stage.style.height = '560px';
         stage.textContent = 'Linked references, Chemo cycle 7, Date: Dec 2nd, 2026, drugs: Oxaliplatin, Leucovorin. '.repeat(40);

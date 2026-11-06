@@ -1,10 +1,11 @@
 /* Notices, Logseq's own and the plugin's alike. Logseq 2.0.2 draws them with Base UI's toasts (.ui__toaster-viewport, each
    .ui__toast) 360 px wide under the toolbar at the top right, 16 px words in a card with a large shadow, the next one
    peeking below; an error, and any notice given a timeout, stays until its × is pressed (measured: info, warning and
-   success go after about 3 s). Here: one line of 13 px words, at the bottom centre of the window, the stack peeking upward;
-   it fades in and out where it stands, no slide; and every notice goes after 4 s, held while the pointer or the keyboard is
-   on it. The owner, 3 Nov 2026: the notice "gets in the way a lot and doesn't go away often", large, blocking the top right;
-   Logseq's own made small and moved too, not a second look beside them. */
+   success go after about 3 s). Here: a capsule of 13 px words, as wide as its words, at the bottom centre of the window,
+   the stack peeking upward; it fades in and out where it stands, no slide; and every notice goes after
+   4 s, held while the pointer or the keyboard is on it. The owner, 3 Nov 2026: the notice "gets in the way a lot and doesn't
+   go away often", large, blocking the top right; Logseq's own made small and moved too, not a second look beside them. The
+   owner, 6 Nov 2026: "make it capsule size"; the top was tried (centre, then right) and sent back: "do it at bottom". */
 (function () {
 const Look = window.Look;
 const { style, watchScreen } = Look.kit;
@@ -13,13 +14,13 @@ const LAST = 4000;   // how long a notice stays, in ms
 
 const V = '.ui__toaster-viewport', T = `${V} .ui__toast`;
 const css = `
-${V} { inset: auto auto 20px 50% !important; transform: translateX(-50%); width: min(30rem, calc(100vw - 2rem)) !important; }
-${T} { top: auto !important; bottom: 0; transform-origin: center bottom !important;
+${V} { inset: auto auto 20px 50% !important; transform: translateX(-50%); width: min(30rem, calc(100vw - 2rem)) !important; display: flex; flex-direction: column; align-items: center; }
+${T} { top: auto !important; bottom: 0 !important; left: auto !important; right: auto !important; width: max-content !important; max-width: 100%; transform-origin: center bottom !important;
   transform: translateY(calc(-1 * (var(--toast-index) * var(--peek) + var(--shrink) * var(--height)))) scale(var(--scale)) !important;
-  border-color: var(--lk-hair) !important; box-shadow: 0 2px 10px rgb(0 0 0 / .08) !important; transition: transform .25s, opacity .25s, height .15s !important; }
+  border-radius: 999px !important; border-color: var(--lk-hair) !important; box-shadow: 0 2px 10px rgb(0 0 0 / .08) !important; transition: transform .25s, opacity .25s, height .15s !important; }
 ${T}[data-expanded] { transform: translateY(calc(-1 * var(--offset-y))) !important; }
 ${T}:is([data-starting-style], [data-ending-style]) { opacity: 0; transform: translateY(calc(-1 * (var(--toast-index) * var(--peek) + var(--shrink) * var(--height)))) scale(var(--scale)) !important; }
-${T} .ui__toast-content { padding: 7px 36px 7px 12px !important; gap: 0 !important; }
+${T} .ui__toast-content { padding: 5px 34px 5px 14px !important; gap: 0 !important; }
 ${T} .ui__toast-content.untitled .ui__toast-body { padding-block: 0 !important; }
 ${T} .ui__toast-text { align-items: center !important; gap: 8px !important; }
 ${T} .ui__toast-description { font-size: 13px !important; line-height: 18px !important; opacity: 1 !important; }

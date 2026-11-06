@@ -63,9 +63,8 @@ async function main() {
     notify('Logseq Plugin cannot reach Logseq’s page from here. Uninstall it, then install it again with the "effect" box ticked.', 'error');
     return;
   }
-  // The text colour and the window's ground, for every module whichever are switched on. Logseq 2.0.2 sets neither
-  // --ls-primary-* any more, though a theme may; its own are --foreground and --background, which follow light and dark.
-  logseq.provideStyle({ key: 'plugin-theme', style: ':root { --lk-text: var(--ls-primary-text-color, hsl(var(--foreground))); --lk-paper: var(--ls-primary-background-color, hsl(var(--background))); }' });
+  // The text colour and the window's ground (Door.THEME), for every module whichever are switched on.
+  logseq.provideStyle({ key: 'plugin-theme', style: Door.THEME });
   logseq.provideStyle({ key: 'plugin-names', style: Door.NAMES });
   // What a module needs nothing of, and what must stand even if a start never answers, comes before the first start.
   const letFrameGo = keepFrameInPlace();

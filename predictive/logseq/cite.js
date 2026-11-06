@@ -45,19 +45,19 @@ function close() { const line = open?.line; open = null; if (line) window.Plugin
 function drawFound() {
   const { line, found, on } = open, doc = line.ownerDocument;
   line.querySelector('.flow-cite-found').replaceChildren(...found.map((source, i) =>
-    el(doc, 'div', { class: 'flow-cite-row' + (i === on ? ' on' : ''), role: 'option', 'aria-selected': String(i === on), 'data-i': String(i) },
+    el(doc, 'div', { class: 'flow-cite-row lk-item' + (i === on ? ' on' : ''), role: 'option', 'aria-selected': String(i === on), 'data-i': String(i) },
       source.uuid ? el(doc, 'span', { class: 'lk-node', 'data-uuid': source.uuid }, source.title)
         : el(doc, 'span', {}, el(doc, 'span', { class: 'flow-cite-word' }, source.web ? 'Link ' : 'Words '), source.web ? source.url : source.title))));
 }
 function askName() {
-  const doc = open.line.ownerDocument, field = el(doc, 'input', { class: 'flow-cite-field', 'aria-label': 'Find a source', spellcheck: 'false' });
+  const doc = open.line.ownerDocument, field = el(doc, 'input', { class: 'flow-cite-field lk-field', 'aria-label': 'Find a source', spellcheck: 'false' });
   open.source = null; open.found = []; open.on = 0;
   open.line.replaceChildren(field, el(doc, 'div', { class: 'flow-cite-found', role: 'listbox' }));
   field.addEventListener('input', () => { if (!open) return; const found = finds(open.sources, field.value), own = offer(field.value, found); open.found = own ? [...found, own] : found; open.on = 0; drawFound(); });
   field.focus();
 }
 function askPage(source) {
-  const doc = open.line.ownerDocument, field = el(doc, 'input', { class: 'flow-cite-page', 'aria-label': 'Page', inputmode: 'numeric' });
+  const doc = open.line.ownerDocument, field = el(doc, 'input', { class: 'flow-cite-page lk-field', 'aria-label': 'Page', inputmode: 'numeric' });
   open.source = source;
   open.line.replaceChildren(el(doc, 'div', { class: 'flow-cite-asked' }, el(doc, 'span', {}, source.title), el(doc, 'span', { class: 'flow-cite-word' }, ' · page '), field));
   field.addEventListener('input', () => { field.value = field.value.replace(/\D/g, ''); });
@@ -163,15 +163,14 @@ function onCitationPress(event) {
   if (page) goToPage(page);
 }
 
+/* The fields are the library's (lk-field), the sources found its menu lines (lk-item, lit with on); here only their places under the bullet. */
 const css = `
 .flow-cite { margin: 2px 0 6px 31px; padding: 2px 0 2px 10px; border-left: 1px solid var(--lk-line); max-width: 460px; font-size: .95em; }
-.flow-cite-field, .flow-cite-page { border: 0; outline: 0; box-shadow: none; padding: 0; margin: 0; background: none; color: inherit; font: inherit; }
-.flow-cite-field { display: block; width: 100%; border-bottom: 1px solid var(--lk-line); }
+.flow-cite-field { display: block; width: 100%; }
 .flow-cite-page { width: 5ch; }
 .flow-cite-word { color: var(--lk-faint); }
 .flow-cite-found:not(:empty) { margin-top: 4px; }
-.flow-cite-row { padding: 1px 0; color: var(--lk-quiet); cursor: pointer; }
-.flow-cite-row.on, .flow-cite-row:hover { color: var(--lk-text, inherit); }
+.flow-cite-row { padding: 2px 6px; margin-left: -6px; cursor: pointer; }
 `;
 
 function start() {

@@ -102,11 +102,9 @@ async function run(progress, signal) {
   return { text: measure.text(measure.tally(records), about, details, measure.outsideRange(ctx)), stopped: signal.aborted, count: records.length, test: !!details };
 }
 
-/* The window: one real dialog in Logseq's own window, in the grammar's look, as the settings window is. */
+/* The window: one real dialog in Logseq's own window, the library's lk-window; here its place and size. */
 const CSS = `.pm-dialog { position: fixed !important; top: 50% !important; left: 50% !important; transform: translate(-50%, -50%) !important; margin: 0 !important;
-  width: min(820px, 92vw); max-height: 86vh; box-sizing: border-box; padding: 0; border: 1px solid var(--lk-hair); border-radius: 8px;
-  background: var(--lk-paper, #fff); color: var(--lk-text, #222); font-size: 14px; line-height: 1.5; box-shadow: 0 10px 30px rgba(0,0,0,.14); }
-.pm-dialog::backdrop { background: rgba(0,0,0,.18); }
+  width: min(820px, 92vw); max-height: 86vh; box-sizing: border-box; padding: 0; }
 .pm-dialog[open] { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
 .pm-head { display: flex; align-items: baseline; gap: 10px; padding: 14px 18px 8px 22px; }
 .pm-head b { font-size: 16px; font-weight: 600; }
@@ -129,7 +127,7 @@ async function open() {
   const doc = host();
   if (!doc.getElementById('pm-style')) { const st = doc.createElement('style'); st.id = 'pm-style'; st.textContent = CSS; doc.head.appendChild(st); }
   S.dlg = doc.createElement('dialog');
-  S.dlg.className = 'pm-dialog';
+  S.dlg.className = 'pm-dialog lk-window';
   S.dlg.innerHTML = `<div class="pm-head"><b>Measuring Apple’s model</b><span class="pm-quiet">on this graph</span><button type="button" class="lk-close" aria-label="Close" title="Close (Esc)">×</button></div><div class="pm-body"></div><div class="pm-foot"></div>`;
   doc.body.appendChild(S.dlg);
   const stopper = S.stop = new AbortController();

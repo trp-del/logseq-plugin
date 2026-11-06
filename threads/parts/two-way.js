@@ -396,7 +396,7 @@ function rowHtml(group, top = null) {
     if (grouping) list = grouping.parts.map(part => groupHtml(group, part, grouping.by)).join('');
     else {
       const bare = !!only || counts.size === 1, tell = bare ? tellingProp(group, items) : '';
-      list = shown.map((item, i) => (i > 0 && item.day && item.day < today && shown[i - 1].day >= today ? '<div class="rf-tw-earlier rf-note">earlier</div>' : '') + itemHtml(group, item, base, '', bare, tell)).join('')
+      list = shown.map((item, i) => (i > 0 && item.day && item.day < today && shown[i - 1].day >= today ? '<div class="rf-tw-earlier rf-note lk-note">earlier</div>' : '') + itemHtml(group, item, base, '', bare, tell)).join('')
         + (items.length > LISTED ? O.more({ text: all ? 'show fewer' : 'show all', attrs: { class: null, 'data-more': key }, under: 'name' }) : '');
     }
   }
@@ -1087,10 +1087,10 @@ function groupHtml(group, part, by) {
   const more = open && part.items.length > GROUP_LISTED ? shared.outline.more({ text: all ? 'show fewer' : 'show all', attrs: { 'data-more': gkey }, under: 'name' }) : '';
   // The arrow folds; the words do not. A tag is a tag: it opens its page.
   const label = by === 'tag' && !part.none ? `<a class="rf-tag lk-tag rf-tw-tag rf-tw-gname" data-tag-page="${esc(part.label)}" href="#">${esc(part.label)}</a>` : `<span class="rf-tw-gname">${esc(part.label)}</span>`;
-  return `<div class="rf-tw-group"${open ? ' data-open=""' : ''}><div class="rf-tw-ghead${plus ? ' lk-reveals' : ''}">${shared.outline.chev({ open, label: part.label, attrs: { 'data-gkey': gkey } })}<span class="rf-tw-gwords">${label}<span class="rf-note rf-tw-gn lk-count">${part.items.length}</span></span>${plus}</div>${open && adding ? draftLineHtml(group, state.draft) : ''}${open ? `<div class="rf-tw-gitems">${shown.map(item => itemHtml(group, item, `r:${group.name}`, '', bare, tell)).join('')}${more}</div>` : more}</div>`;
+  return `<div class="rf-tw-group"${open ? ' data-open=""' : ''}><div class="rf-tw-ghead${plus ? ' lk-reveals' : ''}">${shared.outline.chev({ open, label: part.label, attrs: { 'data-gkey': gkey } })}<span class="rf-tw-gwords">${label}<span class="rf-note lk-note rf-tw-gn lk-count">${part.items.length}</span></span>${plus}</div>${open && adding ? draftLineHtml(group, state.draft) : ''}${open ? `<div class="rf-tw-gitems">${shown.map(item => itemHtml(group, item, `r:${group.name}`, '', bare, tell)).join('')}${more}</div>` : more}</div>`;
 }
 // A few nodes have nothing to group: Group shows above INLINE nodes, as the right-click's Group by… (1.0.2).
-const groupBtn = group => { if (drawingTop || group.items.length <= INLINE) return ''; const by = groupOf(group); return `<button type="button" class="rf-quiet rf-faint rf-tw-groupby"${by ? ' data-on=""' : ''} data-field="${esc(group.name)}" title="Group the list by a tag, a month or a property">${by ? `By ${esc(groupName(by))}` : 'Group'}${iconHtml('chevron-down')}</button>`; };
+const groupBtn = group => { if (drawingTop || group.items.length <= INLINE) return ''; const by = groupOf(group); return `<button type="button" class="lk-btn lk-low rf-tw-groupby"${by ? ' data-on=""' : ''} data-field="${esc(group.name)}" title="Group the list by a tag, a month or a property">${by ? `By ${esc(groupName(by))}` : 'Group'}${iconHtml('chevron-down')}</button>`; };
 // The values of these nodes, read through the model (400 at a time) into the cache the groups are made from.
 async function readValues(uuids) {
   // The kinds of the properties, for the one telling a list's nodes apart (tellingProp).
@@ -1450,8 +1450,6 @@ function draw(doc) {
     box.addEventListener('mouseover', onOver);
     box.addEventListener('mouseout', onOut);
     box.addEventListener('contextmenu', onRename);
-    // What unrolled lets go of its clipping once it has (the kit clips it while it grows), so a day in the margin shows.
-    box.addEventListener('animationend', event => { if (event.target.classList?.contains('rf-ol-unroll')) event.target.classList.remove('rf-ol-unroll'); });
     // A node is read while the pointer comes to its chevron, so it opens at once.
     box.addEventListener('pointerover', event => { const c = event.target.closest?.('.rf-chev[data-dig]'); if (c && !state.node.has(c.dataset.uuid)) readNode(c.dataset.uuid, c.dataset.id, { look: true }).catch(() => {}); });
     state.html = '';
@@ -1481,7 +1479,7 @@ function draw(doc) {
     const active = box.contains(box.ownerDocument.activeElement) ? box.ownerDocument.activeElement : null;
     const typing = active?.matches('.rf-tw-draft-name'), typingNode = active?.matches('.rf-tw-node-field') ? active.dataset.key : '';
     const finding = active?.matches('.rf-tw-find') ? active.selectionStart : null;
-    const redraw = () => { state.html = bare; box.innerHTML = html; keepDraft(box); keepNodeField(box); keepFind(box, finding); };
+    const redraw = () => { state.html = bare; box.innerHTML = html; shared.outline.unrolled(box); keepDraft(box); keepNodeField(box); keepFind(box, finding); };
     const inPlace = box.querySelector('.rf-in-place');
     if (inPlace) inPlace.across(redraw); else redraw();
     if (typing) focusDraft();
@@ -1691,8 +1689,8 @@ function draftLineHtml(group, d) {
   const kind = d ? d.kind : kindsOf(group)[0] || '';
   const tag = `<a class="rf-tag lk-tag rf-tw-tag rf-tw-draft-tag" href="#" data-draft="tag" title="The tag it gets (click for the others)">${kind ? esc(kind) : 'no tag'}</a>`;
   const field = d?.step === 'where'
-    ? `<span class="rf-tw-draft-typed">${esc(d.name)}</span><span class="rf-field rf-field-inline"><input type="text" class="rf-tw-draft-field rf-tw-draft-where" placeholder="Where? Enter: today’s journal" spellcheck="false" aria-label="Where the new node goes"></span>`
-    : `<span class="rf-field rf-field-inline"><input type="text" class="rf-tw-draft-field rf-tw-draft-name" placeholder="Add a${/^[aeiou]/i.test(kind) ? 'n' : ''} ${esc(kind || 'node')}" spellcheck="false" aria-label="Name of a new node"></span>`;
+    ? `<span class="rf-tw-draft-typed">${esc(d.name)}</span><span class="rf-field lk-field rf-field-inline"><input type="text" class="rf-tw-draft-field rf-tw-draft-where" placeholder="Where? Enter: today’s journal" spellcheck="false" aria-label="Where the new node goes"></span>`
+    : `<span class="rf-field lk-field rf-field-inline"><input type="text" class="rf-tw-draft-field rf-tw-draft-name" placeholder="Add a${/^[aeiou]/i.test(kind) ? 'n' : ''} ${esc(kind || 'node')}" spellcheck="false" aria-label="Name of a new node"></span>`;
   return `<div class="rf-tw-draft rf-tw-drafting" data-field="${esc(group.name)}"><span class="rf-tw-draft-plus rf-faint" aria-hidden="true">+</span><span class="rf-tw-draft-main">${field}</span>${tag}<div class="rf-tw-draft-props">${propsHtml(group, d)}</div></div>`;
 }
 /* The rest of the new node, under the line (0.4.406, the owner's pick from docs/history/TWO-WAY-ADD-PROPOSALS-2026-10-25.html):
@@ -2426,7 +2424,7 @@ const twoWayCss = `
    under it. Write into a node (0.4.369): the small arrow before a node, its bullets under its line. */
 /* Group shows all along (0.4.403, the owner: "can keep Group there all along, capitalize G"); before it showed only with
    the pointer on the row. */
-.refinement-two-way .rf-tw-groupby { margin-left: .6em; height: 20px; padding: 0 5px; gap: 2px; }
+.refinement-two-way .rf-tw-groupby { margin-left: .6em; }
 .refinement-two-way .rf-tw-groupby .ti { font-size: 12px; }
 .refinement-two-way .rf-tw-ghead { display: flex; align-items: baseline; gap: var(--rf-ol-gap); margin: .85rem 0 .1rem; }
 .refinement-two-way .rf-tw-group:first-child .rf-tw-ghead { margin-top: .1rem; }
@@ -2476,7 +2474,7 @@ const twoWayCss = `
    chevron right before the name; a list opens under its count with no line of its own; what a node holds opens under
    its name (the kit's kids). The section keeps Logseq's value column: the outline starts where Logseq's values do. */
 .refinement-two-way .rf-tw-value { display: block; font-size: inherit; }
-.refinement-two-way .rf-tw-value.rf-ol { --rf-ol-day: 48px; font-size: inherit; line-height: 1.5; }
+.refinement-two-way .rf-tw-value.rf-ol { --rf-ol-day: var(--lk-day, 48px); font-size: inherit; line-height: 1.5; }
 .refinement-two-way .rf-ol-line { min-height: 30px; padding-top: 3px; padding-bottom: 3px; }
 .refinement-two-way .rf-ol-line > input.rf-check[type=checkbox] { top: 8px; }
 .refinement-two-way .rf-tw-head { cursor: default; }
@@ -2506,7 +2504,7 @@ const twoWayCss = `
 .refinement-two-way .rf-tw-value { padding-left: calc(var(--rf-tw-in) + var(--rf-ol-day) + 12px); }
 /* With no day on any line of the section (a day's own page leaves its own date out) the margin gives its room back to the words. */
 .refinement-two-way[data-no-days] .rf-tw-value.rf-ol { --rf-ol-day: 0px; }
-.refinement-two-way[data-no-days] .rf-tw-value.rf-ol .rf-ol-kids:not(.rf-tw-list) { --rf-ol-day: 48px; }
+.refinement-two-way[data-no-days] .rf-tw-value.rf-ol .rf-ol-kids:not(.rf-tw-list) { --rf-ol-day: var(--lk-day, 48px); }
 /* A heading's chevron is never over its nodes' chevrons (the owner, 2026-10-27: "the heading chevron cannot be over other
    chevrons"): everything a list holds steps in one step, dated or not, and a group's nodes once more under the group;
    a day stays in the margin left of its node's chevron. */

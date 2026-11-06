@@ -151,6 +151,10 @@ Door.ICONS = {
 };
 const iconUrl = d => `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='#000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><path d='${d}'/></svg>`)}")`;
 
+/* The text colour and the window's ground, for every module whichever are switched on, sent by main.js and by every stand-in that
+   draws with the shared names. Logseq 2.0.2 sets neither --ls-primary-* any more, though a theme may; its own are --foreground
+   and --background, which follow light and dark. */
+Door.THEME = ':root { --lk-text: var(--ls-primary-text-color, hsl(var(--foreground))); --lk-paper: var(--ls-primary-background-color, hsl(var(--background))); }';
 // The greys, mixed from Logseq's text colour so they follow any theme: quiet, faint, a hairline and a firmer line; and the
 // underline of a link to a node, half a pixel (one dot of a sharp screen), so a stronger grey than the line to be seen
 // (at 16% it read as none, the owner 3 Nov 2026).
@@ -160,7 +164,8 @@ const TOKENS = `
   --lk-link: color-mix(in srgb, currentColor 45%, transparent); --lk-link-width: .5px;
   --lk-wash: color-mix(in srgb, currentColor 7%, transparent);
   --lk-soft: color-mix(in srgb, var(--lk-text, currentColor) 70%, transparent); --lk-dim: color-mix(in srgb, var(--lk-text, currentColor) 70%, transparent);
-  --lk-mono: var(--ls-font-family-mono, ui-monospace, "SF Mono", Menlo, Consolas, monospace); }`;
+  --lk-mono: var(--ls-font-family-mono, ui-monospace, "SF Mono", Menlo, Consolas, monospace);
+  --lk-day: 48px; }`;
 /* The shared names: one per word of the grammar. A module puts these on what it draws and carries no look of its own
    for them; these words are final (hence !important where a module still has a rule). They stand whichever modules run:
    Look's switch takes off what Look draws on Logseq's own page, never what they mean on what the others draw.
@@ -186,7 +191,10 @@ const TOKENS = `
    only darken under the pointer, no ground behind them); lk-reveal on any of them, with lk-reveals on what it acts on: shown
    only while that is pointed at, light grey, darker near it, kept while the hand wavers; lk-more: show all; lk-views with lk-view
    (.on): other contents of one place; lk-trail with lk-step: the places you came through; lk-head (.on): a sort head;
-   lk-menu with lk-item (.off, .gap, a faint lk-note): a menu. */
+   lk-menu with lk-item (.off, .gap, a faint lk-note): a menu.
+   Drawn whole here since 6 November 2026, so no module draws them again: lk-window (a window mid-screen) and lk-pop (a pop-up at
+   the thing pressed), the frames; lk-tick, the tick box; lk-fold, the fold arrow, its markup empty; lk-bul (.folded), the bullet;
+   lk-field, a field on a hairline; lk-none, the nothing-here line; lk-undo, the arrow as a press; --lk-day, the day column's width. */
 Door.NAMES = `${TOKENS}
 .lk-tag { color: inherit !important; opacity: .7; font-family: var(--lk-mono) !important; font-size: .85em !important; text-decoration: none !important; }
 .lk-tag:hover { opacity: 1; }
@@ -201,7 +209,9 @@ Door.NAMES = `${TOKENS}
 .lk-undo { opacity: .28 !important; transition: opacity .15s; }
 .lk-undo:hover, .lk-undo:focus-visible { opacity: .85 !important; }
 .lk-row .lk-fold { opacity: 0 !important; transition: opacity .12s; }
-.lk-row:hover .lk-fold, .lk-fold[aria-expanded="true"], .lk-fold:focus-visible { opacity: .6 !important; }
+.lk-row:hover .lk-fold, .lk-row.on .lk-fold, .lk-fold[aria-expanded="true"], .lk-fold:focus-visible { opacity: .6 !important; }
+/* The row the keyboard is on (on), or the pointer: the one wash. */
+.lk-row:hover, .lk-row.on { background: var(--lk-wash); }
 .lk-row:hover .lk-fold:hover { opacity: 1 !important; }
 .lk-list .lk-tick { opacity: 0 !important; transition: opacity .12s; }
 .lk-list:hover .lk-tick, .lk-list:focus-within .lk-tick, .lk-list[data-picking] .lk-tick { opacity: .55 !important; }
@@ -210,6 +220,9 @@ Door.NAMES = `${TOKENS}
 .lk-value:not(input) { color: inherit !important; cursor: pointer; }
 .lk-value:not(input):hover { color: var(--lk-quiet) !important; }
 .lk-value.off, input.lk-value::placeholder { color: var(--lk-off) !important; }
+/* The Pressing set's field: a value typed in a bar, faint and reading its own name until written, a hairline under it only while it has the keyboard. */
+input.lk-value { cursor: text; border: 0; border-bottom: 1px solid transparent; border-radius: 0; padding: 0 0 1px; background: none; color: inherit; font: inherit; outline: none; box-shadow: none; }
+input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-shadow: none; }
 .lk-pick:not(:first-child) { border-left: 1px solid var(--lk-hair); }
 .lk-pick .lk-value svg { color: var(--lk-faint); }
 /* The faint goes on each alternative, not on the line, so the one in force can take the text colour back. */
@@ -264,6 +277,8 @@ Door.NAMES = `${TOKENS}
 /* Delete is red, at whatever level it stands (the owner, 1 November). */
 .lk-del, .lk-btn.lk-i-bin, .lk-fix.lk-i-bin, .lk-fix.lk-i-minus, .lk-item.lk-del { color: var(--rx-red-10, #dc3e42) !important; }
 .lk-btn.lk-low:hover, .lk-fix:hover, .lk-btn.lk-low:focus-visible, .lk-fix:focus-visible { background: var(--lk-wash) !important; }
+.lk-btn.lk-low[aria-pressed="true"] { font-weight: 600; }   /* a third-level press in force (a kind picked, a sort on) */
+.lk-row .lk-btn.lk-low { padding-block: 1px !important; }   /* on a row it takes the row's height, so the row never grows for it */
 .lk-views { display: flex; gap: 4px; }
 .lk-view { color: var(--lk-soft) !important; padding: 3px 8px; }
 /* The one in force reads at a glance (the owner, 6 November 2026: "you can hardly tell the selected heading"): full ink,
@@ -280,6 +295,9 @@ Door.NAMES = `${TOKENS}
 .lk-menu { border: 1px solid var(--lk-hair); border-radius: 6px; padding: 4px; }
 .lk-item { display: flex; justify-content: space-between; gap: 16px; width: 100%; text-align: left; color: var(--lk-text, currentColor) !important; padding: 5px 8px; white-space: nowrap; }
 .lk-item.off { color: var(--lk-off) !important; pointer-events: none; }
+.lk-item.on { background: var(--lk-wash); }   /* the line the keyboard is on */
+/* A press that cannot be taken now: at the off strength, and no hand. */
+:is(.lk-btn, .lk-lone, .lk-accent, .lk-fix, .lk-item):disabled { opacity: .45; cursor: default; pointer-events: none; }
 .lk-item.gap { height: 8px; padding: 0; pointer-events: none; background: none; }
 .lk-note { color: var(--lk-dim); font-size: 12.5px; font-variant-numeric: tabular-nums; }
 /* lk-picked: what you can do with what you picked, right above the picked rows on the same grey as them, so the picks and what
@@ -296,7 +314,46 @@ Door.NAMES = `${TOKENS}
 .lk-picked :is(.lk-picked-act, .lk-picked-x):is(:hover, :focus-visible) { background: color-mix(in srgb, currentColor 9%, transparent); color: var(--lk-text, currentColor); outline: none; }
 .lk-picked .lk-picked-act.lk-del { color: var(--rx-red-10, #dc3e42) !important; }
 .lk-picked-gap { flex: 1; }
-@media (prefers-reduced-motion: reduce) { .lk-fold, .lk-tick, .lk-undo { transition: none; } }
+/* The pieces every module used to draw for itself, each drawn once here (6 November 2026, the audit of the Frankenstein's monster):
+   the frames, the tick box, the fold arrow, the bullet, the field, the Undo arrow, the nothing-here line and the day's column
+   (--lk-day). A module gives each only its place; the look is final here. */
+/* lk-window: a window in the middle of the screen (Find, the settings window, a measure report, an ask that needs the whole
+   screen), the page dimmed the same behind each; lk-pop: a pop-up or picker beside the thing pressed (a menu, a tag picker,
+   the # list, a name over a dot). Both on the page's paper, a hairline round them, one shadow each. */
+.lk-window { background: var(--lk-paper, #fff); color: var(--lk-text, #222); border: 1px solid var(--lk-hair); border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,.14); font-size: 14px; line-height: 1.5; text-align: left; }
+.lk-window::backdrop { background: rgba(0,0,0,.16); }
+.lk-pop { background: var(--lk-paper, #fff); color: var(--lk-text, #222); border: 1px solid var(--lk-hair); border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,.12); font-size: 14px; line-height: 1.4; text-align: left; }
+/* lk-tick, drawn: the browser's checkbox as a small rounded square, its edge and its check mark in the text colour when on; a
+   half-mark for a list ticked in part. Logseq's own forms rule paints a ticked box blue, so each piece is overridden. When it
+   shows is lk-list's word above. */
+input.lk-tick[type=checkbox] { appearance: none !important; -webkit-appearance: none !important; position: relative; box-sizing: border-box; width: 13px !important; height: 13px !important; margin: 0 !important; padding: 0 !important; flex: none; border: 1px solid var(--lk-line) !important; border-radius: 3px !important; background: none !important; color: inherit !important; cursor: pointer; vertical-align: -1px; }
+input.lk-tick[type=checkbox]:is(:checked, :indeterminate, :focus, :hover) { background-color: transparent !important; background-image: none !important; border-color: currentColor !important; color: inherit !important; box-shadow: none !important; outline: none !important; }
+input.lk-tick[type=checkbox]:checked::before { content: ""; position: absolute; left: 3.5px; top: .5px; width: 3.5px; height: 7px; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg); }
+input.lk-tick[type=checkbox]:indeterminate::before { content: ""; position: absolute; left: 2px; right: 2px; top: 5px; height: 1.5px; background: currentColor; }
+/* lk-fold, drawn: the chevron in a 16 by 20 place (Logseq's own width), pointing right while closed, down while open, turning in .12s; keyed, the
+   round wash. Its markup is empty: the library draws the mark. */
+.lk-fold { appearance: none; background: none; border: 0; padding: 0; margin: 0; font: inherit; color: inherit; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 20px; flex: none; border-radius: 3px; }
+.lk-fold::before { content: ""; width: 10px; height: 10px; background: currentColor; -webkit-mask: var(--lk-ic) center / contain no-repeat; mask: var(--lk-ic) center / contain no-repeat; --lk-ic: ${iconUrl(Door.ICONS.chevron)}; transform: rotate(-90deg); transition: transform .12s; }
+.lk-fold[aria-expanded="true"]::before { transform: none; }
+.lk-fold > * { display: none !important; }   /* a mark a module still puts inside (an svg, an icon) gives way to the library's */
+.lk-fold:focus-visible { outline: none; background: var(--lk-wash); }
+/* lk-bul, drawn as Logseq draws its own bullet: a 6 px dot in a 16 px round place, the place washed grey while what is under it is folded. */
+.lk-bul { display: inline-flex; width: 16px; height: 16px; border-radius: 50%; align-items: center; justify-content: center; flex: none; }
+.lk-bul::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: .55; }
+.lk-bul.folded { background: color-mix(in srgb, currentColor 11%, transparent); }
+/* lk-field, drawn: the letters on a hairline, firmer while the field has the keyboard, the placeholder faint; the browser's box,
+   outline and shadow taken away. On the input itself, or on a span that holds the input beside an icon or a count. */
+.lk-field:not(input, textarea) { display: flex; align-items: center; gap: 6px; }
+.lk-field { box-sizing: border-box; min-width: 0; border: 0; border-bottom: 1px solid var(--lk-line); border-radius: 0; background: none; color: inherit; font: inherit; padding: 2px 0; outline: none; box-shadow: none; }
+.lk-field:is(:focus, :focus-within) { border-bottom-color: currentColor; outline: none; box-shadow: none; }
+.lk-field :is(input, textarea) { flex: 1; width: 100%; min-width: 0; margin: 0; padding: 0; border: 0; border-radius: 0; background: none; color: inherit; font: inherit; outline: none; box-shadow: none; }
+.lk-field::placeholder, .lk-field :is(input, textarea)::placeholder { color: var(--lk-faint); opacity: 1; }
+/* lk-none: nothing here, one line at the off strength where the things would stand, no box. */
+.lk-none { color: var(--lk-off); padding: 6px 0; }
+/* lk-undo, the press: the arrow alone, no ground, at the end of what changed. */
+.lk-undo { appearance: none; border: 0; background: none; padding: 0 4px; margin: 0 0 0 .4em; font: inherit; line-height: 1; color: inherit; cursor: pointer; vertical-align: -2px; display: inline-flex; align-items: center; gap: 6px; }
+.lk-undo .ti { font-size: 14px; }
+@media (prefers-reduced-motion: reduce) { .lk-fold, .lk-fold::before, .lk-tick, .lk-undo { transition: none; } }
 /* With less motion a revealed press shows at once, without a fade, and still waits its moment before it goes. */
 @media (prefers-reduced-motion: reduce) { .lk-reveal { transition: opacity 0s linear .35s, color 0s; } }
 .lk-icon.lk-web { display: inline-flex; align-items: center; line-height: 1; }

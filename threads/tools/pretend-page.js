@@ -6,8 +6,8 @@ const tablerCss = require('./logseq-bundle').tablerStyle();
 // Logseq 2.0.2 sets its newer theme colours (--background, --popover, --border, as "h s% l%") and, in dark mode, leaves
 // the older --ls-* names unset (read in the app on 2026-10-19); the pretend page does the same.
 const THEMES = {
-  light: { attrs: '', css: ':root { --background: 0 0% 100%; --popover: 0 0% 100%; --popover-foreground: 0 0% 15%; --border: 0 0% 89%; } body { background: #fff; color: #262626; }' },
-  dark: { attrs: ' data-theme="dark" class="dark"', css: ':root { --background: 0 0% 11%; --popover: 0 0% 7%; --popover-foreground: 0 0% 95%; --border: 0 0% 16%; } body { background: rgb(28, 28, 28); color: #d6d8db; }' },
+  light: { attrs: '', css: ':root { --background: 0 0% 100%; --foreground: 0 0% 15%; --popover: 0 0% 100%; --popover-foreground: 0 0% 15%; --border: 0 0% 89%; } body { background: #fff; color: #262626; }' },
+  dark: { attrs: ' data-theme="dark" class="dark"', css: ':root { --background: 0 0% 11%; --foreground: 0 0% 95%; --popover: 0 0% 7%; --popover-foreground: 0 0% 95%; --border: 0 0% 16%; } body { background: rgb(28, 28, 28); color: #d6d8db; }' },
 };
 
 // A small graph shaped like the Illness Test Graph, run inside the page as a pretend Logseq.

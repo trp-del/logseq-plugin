@@ -54,8 +54,8 @@ const schema = [
   { key: 'sidebarFlat', type: 'boolean', default: true, title: 'Items flat, a line between them',
     description: 'The pages and blocks in the right sidebar lie flat on it, with no card, shadow or rounded corner, and a line separates one from the next.' },
   { key: 'noticesHeading', type: 'heading', default: null, title: 'Notices', description: 'The messages Logseq and the plugin show for a moment.' },
-  { key: 'quietNotices', type: 'boolean', default: true, title: 'Notices small, at the bottom, gone after a few seconds',
-    description: 'A notice, Logseq’s own or the plugin’s, is one line of small words at the bottom centre of the window, where Logseq puts a large card under the toolbar at the top right. Every notice goes after four seconds, a failure too, and stays while you point at it; its × still closes it at once.' },
+  { key: 'quietNotices', type: 'boolean', default: true, title: 'Notices as a small capsule at the bottom, gone after a few seconds',
+    description: 'A notice, Logseq’s own or the plugin’s, is a small capsule of words at the bottom centre of the window, where Logseq puts a large card under the toolbar at the top right. Every notice goes after four seconds, a failure too, and stays while you point at it; its × still closes it at once.' },
 ];
 const setting = key => { const item = schema.find(s => s.key === key); const v = logseq.settings?.[key]; return item && typeof v === typeof item.default ? v : item?.default; };
 /* The specimens the settings window shows: each setting as the thing itself, drawn with Look's own pieces as it will look
@@ -85,7 +85,7 @@ const SPECIMENS = {
   litBranch: on => `<span class="sw-dot"${on ? ' style="opacity:1"' : ''}></span>Consultation with Dr. Mei Chen<br><span style="display:inline-block;margin-left:3px;padding-left:14px;border-left:1px solid ${on ? 'var(--sw-line)' : 'var(--sw-hair)'}"><span class="sw-dot"${on ? ' style="opacity:1"' : ''}></span>Fatigue since September<br><span class="sw-dot"></span>Asked for the CT report</span>`,
   foldedNote: on => `<span class="sw-ring"><span class="sw-dot" style="margin:0"></span></span>This week${on ? ` <span class="lk-folded" style="margin-left:.5em"><span class="lk-lead">↳</span><span class="lk-pair">${Look.kit.iconHtml('circle')}<span>3</span></span><span class="lk-pair">${Look.kit.iconHtml('photo')}<span>2</span></span><span class="lk-pair">${Look.kit.iconHtml('link')}<span>4</span></span><span class="lk-sep">·</span><a class="lk-tag">Consultation</a><span class="lk-sep">·</span><span>due Oct 19</span></span>` : ''}`,
   quietNotices: on => on
-  ? `<span class="sw-line" style="justify-content:center"><span class="sw-chip" style="font-size:12px;padding:3px 10px">✓ Copied as Markdown <span class="sw-faintw">×</span></span></span>`
+  ? `<span class="sw-line" style="justify-content:center"><span class="sw-cap" style="font-size:12px;padding:3px 12px">✓ Copied as Markdown <span class="sw-faintw">×</span></span></span>`
   : `<span class="sw-line" style="justify-content:flex-end"><span class="sw-chip" style="display:inline-block;width:70%;padding:10px 12px;box-shadow:0 6px 14px rgb(0 0 0 / .12)">✓ Copied as Markdown <span class="sw-faintw" style="float:right">×</span></span></span>`,
 };
 const specimen = (item, value) => SPECIMENS[item.key] ? SPECIMENS[item.key](!!value) : '';

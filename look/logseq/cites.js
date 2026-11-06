@@ -79,7 +79,7 @@ function onOver(event) {
   if (!note || state.card?.number === number) return;
   hideCard();
   const doc = number.ownerDocument, at = number.getBoundingClientRect();
-  const card = el(doc, 'div', { class: 'lk-cite-card lk-own' }, el(doc, 'div', {}, el(doc, 'span', { class: note.uuid || note.url ? 'lk-cite-source' : '' }, note.title), note.page ? `, p. ${note.page}` : null),
+  const card = el(doc, 'div', { class: 'lk-cite-card lk-pop lk-own' }, el(doc, 'div', {}, el(doc, 'span', { class: note.uuid || note.url ? 'lk-cite-source' : '' }, note.title), note.page ? `, p. ${note.page}` : null),
     note.pdf || note.url ? el(doc, 'div', { class: 'lk-cite-how' }, note.url ? 'A press opens the link' : note.page ? `A press opens the PDF at page ${note.page}` : 'A press opens the PDF') : null);
   card.number = number;
   doc.body.append(card);
@@ -102,8 +102,7 @@ const css = `
 [data-lk-cite] { display: none !important; }
 .lk-cite-n { font-size: .68em; line-height: 0; vertical-align: .55em; padding: 0 1px; margin-left: 0; border-radius: 3px; color: var(--lk-quiet); font-variant-numeric: tabular-nums; cursor: pointer; }
 .lk-cite-n:hover { background: var(--lk-wash); color: var(--lk-text, currentColor); }
-.lk-cite-card { position: fixed; z-index: 40; max-width: 320px; padding: 8px 10px; font-size: 14px; line-height: 1.4; pointer-events: none; border-radius: 6px; background: var(--lk-paper, Canvas); color: var(--lk-text, CanvasText);
-  border: 1px solid var(--lk-hair); box-shadow: 0 4px 14px var(--lk-hair); }
+.lk-cite-card { position: fixed; z-index: 40; max-width: 320px; padding: 8px 10px; pointer-events: none; }   /* the library's pop-up (lk-pop) */
 .lk-cite-source { text-decoration: underline; text-decoration-color: var(--lk-link); text-decoration-thickness: var(--lk-link-width); text-underline-offset: 3px; }
 .lk-cite-how { color: var(--lk-soft); font-size: 13px; margin-top: 2px; }`;
 

@@ -20,13 +20,10 @@ const CSS = `
 .fd { --fd-quiet: var(--lk-quiet); --fd-faint: var(--lk-faint); --fd-hair: var(--lk-hair); --fd-line: var(--lk-line); --fd-wash: var(--lk-wash);
   --fd-ring: color-mix(in srgb, currentColor 11%, transparent); --fd-mono: var(--lk-mono);
   position: fixed !important; left: 50% !important; right: auto !important; transform: translateX(-50%); margin: 0 !important; width: min(900px, 92vw); max-height: 78vh;
-  box-sizing: border-box; padding: 0; border: 1px solid var(--fd-hair); border-radius: 8px; display: flex; flex-direction: column;
-  background: var(--lk-paper, #fff); color: var(--lk-text, #222); font-size: 14px; line-height: 1.5;
-  box-shadow: 0 10px 30px rgba(0,0,0,.14); }
+  box-sizing: border-box; padding: 0; display: flex; flex-direction: column; }   /* the window's look is the library's lk-window */
 .fd:not([open]) { display: none; }
 .fd.fd-high { top: max(10vh, 60px) !important; bottom: auto !important; }
 .fd.fd-centred { top: 50% !important; bottom: auto !important; transform: translate(-50%, -50%); }
-.fd::backdrop { background: rgba(0,0,0,.12); }
 .fd * { box-sizing: border-box; }
 /* The find line: the pieces, then the letters. */
 .fd-find { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; padding: 14px 16px; border-bottom: 1px solid var(--fd-hair); font-size: 16px; cursor: text; }
@@ -63,9 +60,11 @@ const CSS = `
 .fd-line .fd-lane { font-size: 11px; fill: var(--fd-quiet); }
 .fd-line .fd-sep { stroke: var(--fd-hair); stroke-width: 1; }
 .fd-line .fd-count { font-size: 10px; fill: var(--fd-faint); }
-.fd-name { position: absolute; max-width: 60%; background: var(--lk-paper, #fff); border: 1px solid var(--fd-hair); border-radius: 6px; padding: 4px 9px; font-size: 12.5px; line-height: 1.4; box-shadow: 0 4px 14px rgba(0,0,0,.08); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+.fd-name { position: absolute; max-width: 60%; padding: 4px 9px; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
 .fd-name .lk-day { margin-right: 8px; }
-.fd-by { all: unset; cursor: pointer; position: absolute; right: 16px; top: 6px; font-size: 12px; color: var(--fd-faint); }
+/* The two ways the line can be drawn, the library's alternatives (lk-alts): the one in force in the text colour. */
+.fd-by { position: absolute; right: 16px; top: 6px; font-size: 12.5px; display: flex; gap: 12px; }
+.fd-by > span { cursor: pointer; }
 .fd-line .fd-base, .fd-line .fd-tick { stroke: var(--fd-line); stroke-width: 1; }
 .fd-line .fd-band { fill: var(--fd-wash); }
 .fd-line .fd-dot { fill: currentColor; opacity: .8; }
@@ -76,7 +75,7 @@ const CSS = `
    lighter than its values, which are quiet. */
 .fd-body { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 16px 10px; transition: opacity .1s; }
 .fd-body.fd-reading { opacity: .5; transition: opacity .15s ease .25s; }
-.fd-head { font-size: 12px; color: var(--fd-faint); letter-spacing: .03em; margin: 6px 0 2px; }
+.fd-head { margin: 6px 0 2px; }   /* the library's small faint name (lk-name) */
 /* A group's head: a bold word after a gap of one line (the grammar). */
 .fd-near { font-weight: 600; margin: 20px 0 2px calc(var(--fd-day) + 36px); }
 .fd-ch { display: grid; grid-template-columns: 118px minmax(0, 1fr); gap: 2px 10px; font-size: 13px; padding: 3px 0 7px; align-items: baseline; }
@@ -87,7 +86,7 @@ const CSS = `
 .fd-c { all: unset; cursor: pointer; display: inline-flex; align-items: baseline; gap: 3px; padding: 0 4px; margin: 0 -4px; border-radius: 3px; }
 .fd-c:hover { color: inherit; }
 /* A number stands only on the choice that is lit or pointed at; its room is kept, so nothing moves when it comes. */
-.fd-c .fd-nb { color: var(--fd-faint); font-size: 12px; font-variant-numeric: tabular-nums; visibility: hidden; }
+.fd-c .fd-nb { color: var(--fd-faint); font-size: 12.5px; font-variant-numeric: tabular-nums; visibility: hidden; }
 .fd-c:hover .fd-nb, .fd-c.fd-lit .fd-nb { visibility: visible; }
 .fd-c.fd-lit { color: inherit; }
 .fd-cv .fd-dot { visibility: hidden; }
@@ -106,13 +105,10 @@ const CSS = `
 .fd-body { --fd-day: 52px; }
 .fd-body.fd-noday { --fd-day: 0px; }
 .fd-r { display: grid; grid-template-columns: var(--fd-day) 16px 18px minmax(0, 1fr) auto; align-items: baseline; column-gap: 2px; min-height: 32px; padding: 5px 6px 6px 0; border-radius: 3px; cursor: default; }
-.fd-r.fd-on { background: var(--fd-wash); }
 .fd-r .fd-day { font-size: 12.5px; color: var(--fd-faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.fd-fold { all: unset; cursor: pointer; display: inline-flex; width: 16px; height: 20px; align-items: center; justify-content: center; font-size: 11px; color: inherit; align-self: start; margin-top: .5px; }
-.fd-r .lk-fold { opacity: 0; } .fd-r:hover .lk-fold, .fd-r.fd-on .lk-fold, .lk-fold[aria-expanded="true"] { opacity: .6; }
-.fd-bul { display: inline-flex; width: 16px; height: 16px; border-radius: 50%; align-items: center; justify-content: center; align-self: start; margin-top: 2.5px; }
-.fd-bul .fd-d { width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: .55; }
-.fd-bul.fd-folded { background: var(--fd-ring); }
+/* The fold arrow and the bullet are the library's (lk-fold, lk-bul); here only where they stand on the row. */
+.fd-fold { width: 16px; align-self: start; margin-top: .5px; }
+.fd-bul { align-self: start; margin-top: 2.5px; }
 /* A page, a tag, a property: Logseq's own signs from its left sidebar, and Look's property icon, in the faint grey. */
 .fd-sign { color: var(--fd-faint); font-size: 14px; line-height: 1; margin-top: 3px; }
 .fd-sign .ti, .fd-sign .lk-icon { font-size: 14px; }
@@ -127,7 +123,7 @@ const CSS = `
 .fd-body .fd-showall { display: block; padding: 5px 0 6px calc(var(--fd-day) + 36px); }
 .fd-cut { display: flex; align-items: baseline; padding: 5px 0 6px calc(var(--fd-day) + 36px); }
 .fd-cut .fd-showall { padding: 0; }
-.fd-none { color: var(--fd-faint); padding: 6px 0 6px calc(var(--fd-day) + 36px); }
+.fd-none, .fd-wait { padding-left: calc(var(--fd-day) + 36px); }   /* the library's nothing-here line (lk-none), under the words */
 /* A node opened in place: its properties, then what points at it, each a line that opens: the grammar's row, the dot
    ringed while closed, the number after the words as faint as on a lit choice. */
 .fd-kids { margin: 2px 0 6px calc(var(--fd-day) + 24px); padding-left: 10px; border-left: 1px solid var(--fd-hair); }
@@ -138,14 +134,12 @@ const CSS = `
 .fd-kids .fd-g .lk-tag { margin-left: 2px; }
 .fd-gn { margin-left: 16px; }
 .fd-gn .fd-showall { padding-left: calc(var(--fd-day) + 34px); }
-.fd-ct { color: var(--fd-faint); font-size: 12px; font-variant-numeric: tabular-nums; }
+.fd-ct { color: var(--fd-faint); font-size: 12.5px; font-variant-numeric: tabular-nums; }
 .fd-faint { color: var(--fd-faint); }
 .fd-foot { display: flex; gap: 16px; flex-wrap: wrap; padding: 8px 16px 10px; border-top: 1px solid var(--fd-hair); font-size: 12.5px; color: var(--lk-text, #222); }
 .fd-foot:empty { display: none; }
 .fd-foot .fd-k { color: var(--fd-faint); margin-left: .4em; }
 .fd-foot .fd-right { margin-left: auto; padding: 0; }
-.fd-foot .lk-lone { margin: -3px -6px; }
-.fd-wait { color: var(--fd-faint); padding: 6px 0; }
 @media (prefers-reduced-motion: reduce) { .fd-r .lk-fold { transition: none; } }`;
 
 const NEAR_SHOWN = 5;   // near rows listed before "show all"
@@ -461,7 +455,7 @@ function render() {
   const dayOf = n => (n.journal ? '' : db.dayLabel(n.day));
   body.classList.toggle('fd-noday', !isCommandMode() && ![...rows.filter(r => r.kind === 'node').map(r => r.node), ...S.shown].some(dayOf));
   body.replaceChildren();
-  if (S.failed) body.append(el(doc, 'div', { class: 'fd-none' }, 'The graph could not be read: ' + S.failed));
+  if (S.failed) body.append(el(doc, 'div', { class: 'fd-none lk-none' }, 'The graph could not be read: ' + S.failed));
   const lineNode = lineDugNode(), lineBox = lineNode ? dugBox(doc, lineNode) : null;
   if (lineBox) body.append(lineBox);
   if (!isCommandMode() && groups.length) {
@@ -487,17 +481,17 @@ function render() {
     body.append(wrap);
   }
   // With nothing typed the rows are the pages opened last, and a head says so; otherwise the rows are what was found.
-  if (!isCommandMode() && rows.length && atRest()) body.append(el(doc, 'div', { class: 'fd-head fd-head-rows' }, 'recently opened'));
+  if (!isCommandMode() && rows.length && atRest()) body.append(el(doc, 'div', { class: 'fd-head fd-head-rows lk-name' }, 'recently opened'));
   const ws = words();
   // What ends the list found: nothing found, "show all", a kind cut to its newest.
   const tail = () => {
     if (isCommandMode() || atRest()) return;
     const total = S.shown.length, limit = setting('rowsShown') || 12, tag = kindPick();
-    if (!S.loading && !total && !S.failed) body.append(el(doc, 'div', { class: 'fd-none' }, 'nothing with these words here'));
+    if (!S.loading && !total && !S.failed) body.append(el(doc, 'div', { class: 'fd-none lk-none' }, 'Nothing with these words here'));
     const more = total > limit && !S.allShown ? el(doc, 'button', { class: 'fd-showall lk-more', type: 'button', click: () => { S.allShown = true; render(); } }, `show all ${total}`) : null;
     // A kind too long to read whole says so where the list ends, and which part it holds.
     const cutFrom = tag && S.cache.kind.get(tag.id)?.cutFrom;
-    const line = more && cutFrom ? el(doc, 'div', { class: 'fd-cut' }, more, el(doc, 'span', { class: 'fd-faint' }, ` · the newest of ${cutFrom}`)) : more || (cutFrom ? el(doc, 'div', { class: 'fd-none' }, `the newest ${S.cache.kind.get(tag.id).length} of ${cutFrom}`) : null);
+    const line = more && cutFrom ? el(doc, 'div', { class: 'fd-cut' }, more, el(doc, 'span', { class: 'fd-faint' }, ` · the newest of ${cutFrom}`)) : more || (cutFrom ? el(doc, 'div', { class: 'fd-none lk-none' }, `The newest ${S.cache.kind.get(tag.id).length} of ${cutFrom}`) : null);
     if (line) body.append(line);
   };
   // A dug node's lines (its properties, the groups pointing at it, their nodes) go into its box; the next top row ends it.
@@ -509,9 +503,9 @@ function render() {
     if (r.near && !tailed) { tailed = true; tail(); body.append(el(doc, 'div', { class: 'fd-near' }, 'Near')); container = body; }
     if (r.kind === 'group') {
       const open = S.openGroups.has(r.key);
-      const row = el(doc, 'div', { class: 'fd-r fd-g lk-row' + (on ? ' fd-on' : ''), 'data-i': i });
-      row.append(el(doc, 'button', { class: 'fd-fold lk-fold', type: 'button', 'aria-expanded': String(open), title: open ? 'Close' : 'Open the nodes', click: event => { event.stopPropagation(); toggleGroup(r); } }, open ? '▾' : '▸'));
-      row.append(el(doc, 'span', { class: 'fd-bul' + (open ? '' : ' fd-folded') }, el(doc, 'i', { class: 'fd-d' })));
+      const row = el(doc, 'div', { class: 'fd-r fd-g lk-row' + (on ? ' on' : ''), 'data-i': i });
+      row.append(el(doc, 'button', { class: 'fd-fold lk-fold', type: 'button', 'aria-expanded': String(open), title: open ? 'Close' : 'Open the nodes', click: event => { event.stopPropagation(); toggleGroup(r); } }));
+      row.append(el(doc, 'span', { class: 'fd-bul lk-bul' + (open ? '' : ' folded') }));
       const nm = el(doc, 'span', { class: 'fd-nm' }, el(doc, 'span', { class: 'lk-prop' }, r.name));
       if (r.tag) nm.append(el(doc, 'span', { class: 'lk-tag' }, r.tag));
       nm.append(el(doc, 'span', { class: 'fd-ct' }, String(r.count)));
@@ -522,12 +516,12 @@ function render() {
     }
     const node = r.node, dug = r.top && S.dug.includes(node.uuid) && S.lineDug !== node.uuid;
     if (r.top) container = body;
-    const row = el(doc, 'div', { class: 'fd-r lk-row' + (on ? ' fd-on' : ''), 'data-i': i, 'data-uuid': node.uuid });
+    const row = el(doc, 'div', { class: 'fd-r lk-row' + (on ? ' on' : ''), 'data-i': i, 'data-uuid': node.uuid });
     row.append(el(doc, 'span', { class: 'fd-day lk-day' }, node.journal ? '' : db.dayLabel(node.day)));   // a journal page's name is its day
-    if (r.top) row.append(el(doc, 'button', { class: 'fd-fold lk-fold', type: 'button', 'aria-expanded': String(dug), title: dug ? 'Close' : 'Open in place', click: event => { event.stopPropagation(); S.rowAt = i; S.mode = 'rows'; toggleDig(node); } }, dug ? '▾' : '▸'));
+    if (r.top) row.append(el(doc, 'button', { class: 'fd-fold lk-fold', type: 'button', 'aria-expanded': String(dug), title: dug ? 'Close' : 'Open in place', click: event => { event.stopPropagation(); S.rowAt = i; S.mode = 'rows'; toggleDig(node); } }));
     else row.append(el(doc, 'span', {}));
     // What the row is, in the bullet's place: a page Logseq's page sign, a tag its #, a property the icon of what it holds; a bullet its dot.
-    row.append(node.sign ? el(doc, 'span', { class: 'fd-bul fd-sign fd-' + node.sign, title: SIGN_SAYS[node.sign], html: signHtml(node) }) : el(doc, 'span', { class: 'fd-bul' }, el(doc, 'i', { class: 'fd-d' })));
+    row.append(node.sign ? el(doc, 'span', { class: 'fd-bul fd-sign fd-' + node.sign, title: SIGN_SAYS[node.sign], html: signHtml(node) }) : el(doc, 'span', { class: 'fd-bul lk-bul' }));
     const nm = el(doc, 'span', { class: 'fd-nm' });
     // Under a kind read, or a group's head naming one, the kind has been said: no mark before the name.
     const named = r.top ? kindPick() : rows.find(x => x.key === r.under)?.tag;
@@ -687,9 +681,11 @@ function drawLine(doc) {
     if (S.mode === 'line' && S.lineDots[S.lineAt]) { const d = S.lineDots[S.lineAt]; parts.push(`<circle class="fd-ring" cx="${d.cx.toFixed(1)}" cy="${d.cy}" r="7"/>`); }
   }
   box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-label="The years, with what was found on its days">${parts.join('')}</svg>`;
-  if (S.line && laneProp()) box.append(el(doc, 'button', { class: 'fd-by lk-more', type: 'button', click: event => { event.stopPropagation(); setLine(S.line === 2 ? 1 : 2); } }, S.line === 2 ? 'one lane' : 'by ' + laneProp().name));
+  if (S.line && laneProp()) box.append(el(doc, 'span', { class: 'fd-by lk-alts' },
+    el(doc, 'span', { class: S.line === 2 ? '' : 'on', click: event => { event.stopPropagation(); setLine(1); } }, 'one lane'),
+    el(doc, 'span', { class: S.line === 2 ? 'on' : '', click: event => { event.stopPropagation(); setLine(2); } }, 'by ' + laneProp().name)));
   if (S.line) {
-    const name = el(doc, 'div', { class: 'fd-name' }); name.hidden = true; box.append(name);
+    const name = el(doc, 'div', { class: 'fd-name lk-pop' }); name.hidden = true; box.append(name);
     const show = d => { if (!d) { name.hidden = true; return; } name.replaceChildren(el(doc, 'span', { class: 'lk-day' }, db.dayLabel(d.node.day)), doc.createTextNode(d.node.text)); name.hidden = false; let left = Math.max(0, Math.min(16 + d.cx - 10, box.clientWidth - name.offsetWidth - 16));
       // The name stands above every dot it would otherwise cover, so no dot is ever hidden by it; and clear of the word at the right end.
       const topFor = left => { const under = S.lineDots.filter(o => o.cx + 4 >= left - 16 && o.cx - 4 <= left - 16 + name.offsetWidth).map(o => o.cy); return Math.max(0, 6 + Math.min(d.cy, ...under) - 8 - name.offsetHeight); };
@@ -745,9 +741,9 @@ function drawFoot(groups, rows) { S.dlg.querySelector('.fd-foot').replaceChildre
 function litRow(at, groups, rows) {
   S.rowAt = at;
   const body = S.dlg.querySelector('.fd-body');
-  body.querySelector('.fd-r.fd-on')?.classList.remove('fd-on');
+  body.querySelector('.fd-r.on')?.classList.remove('on');
   const cur = body.querySelector(`.fd-r[data-i="${at}"]`);
-  cur?.classList.add('fd-on');
+  cur?.classList.add('on');
   cur?.scrollIntoView?.({ block: 'nearest' });
   drawFoot(groups, rows);
 }
@@ -757,7 +753,7 @@ function wrapIn(doc, row, r) {
   return row;
 }
 function commandRow(doc, r, i, on) {
-  const row = el(doc, 'div', { class: 'fd-r fd-cmd lk-row' + (on ? ' fd-on' : ''), 'data-i': i });
+  const row = el(doc, 'div', { class: 'fd-r fd-cmd lk-row' + (on ? ' on' : ''), 'data-i': i });
   // No picture before a command and no margin: the > in the find line already says what these are, and the words start under it.
   row.append(el(doc, 'span', { class: 'fd-nm' }, el(doc, 'span', { class: 'fd-w', html: markWords(esc(r.label), S.typed.slice(1).trim().toLowerCase().split(/\s+/).filter(Boolean)) })));
   row.append(el(doc, 'span', { class: 'fd-right' }, el(doc, 'span', { class: 'fd-key' }, r.key)));
@@ -774,7 +770,7 @@ function markWords(html, ws) {
 function dugBox(doc, node) {
   const data = S.dugData.get(node.uuid);
   const box = el(doc, 'div', { class: 'fd-kids', 'data-dug': node.uuid });
-  if (!data) { box.append(el(doc, 'div', { class: 'fd-wait' }, 'reading…')); return box; }
+  if (!data) { box.append(el(doc, 'div', { class: 'fd-wait lk-none' }, 'Reading…')); return box; }
   if (data.properties.length) {
     const kv = el(doc, 'div', { class: 'fd-kv' });
     for (const p of data.properties) {
@@ -1013,7 +1009,7 @@ function open(typed = '', say = false) {
   S.commands = null;
   if (S.stale) { S.stale = false; S.kinds = []; S.pages = null; S.tree = null; S.recents = []; S.dugData.clear(); S.pointers.clear(); S.noteOf.clear(); }
   style('find', CSS);
-  const dlg = el(doc, 'dialog', { class: 'fd fd-own ' + (setting('windowPlace') === 'centred' ? 'fd-centred' : 'fd-high') + (S.say ? ' fd-say' : ''), 'aria-label': S.say ? 'Find by sentence' : 'Find' });
+  const dlg = el(doc, 'dialog', { class: 'fd lk-window fd-own ' + (setting('windowPlace') === 'centred' ? 'fd-centred' : 'fd-high') + (S.say ? ' fd-say' : ''), 'aria-label': S.say ? 'Find by sentence' : 'Find' });
   const find = el(doc, 'div', { class: 'fd-find' });
   const sentence = el(doc, 'div', { class: 'fd-sentence' });
   const mirror = el(doc, 'div', { class: 'fd-mirror', 'aria-hidden': 'true' });

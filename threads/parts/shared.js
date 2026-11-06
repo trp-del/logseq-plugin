@@ -62,19 +62,18 @@
    - tag(doc, title, props)       a tag as a class: its name alone, no #, mono, the tag grey, a link to its page (plain:
                                   true where a click already chooses; a click of its own never follows the "#");
                                   tagLinkHtml(title) the same as words.
-   - quiet(doc, { icon, label, title, faint, pressed, run })   the quiet button; go(doc, { label, run }) the one that
-                                  does what was asked, the library's lk-accent; pressed is a quiet button with aria-pressed="true".
-   - field(doc, { placeholder, value, icon, kbd, inline, multiline, keys, input })   THE field: a real text box drawn
-                                  as a hairline underneath (a few lines tall with multiline); keys typed in it never
+   - quiet(doc, { icon, label, title, pressed, run })   a press of the library's third level (lk-btn lk-low); go(doc, { label, run })
+                                  the one that does what was asked, the library's lk-accent; pressed is in force, aria-pressed="true".
+   - field(doc, { placeholder, value, icon, kbd, inline, multiline, keys, input })   the library's field (lk-field), a real
+                                  text box on a hairline (a few lines tall with multiline); keys typed in it never
                                   reach Logseq; .input is the box.
    - drawnField(doc, { text, placeholder, fresh, kbd })   the same look with drawn text and a drawn caret: only for the
                                   link box, whose keystrokes must keep going to the bullet.
-   - tick(doc, { checked, label, title, change })   the browser's tick box as a small rounded square.
+   - tick(doc, { checked, label, title, change })   the library's tick box (lk-tick).
    - chip(doc, { label, pressed, run, remove })     a filter (greyed, the one in force in the text colour) or a
                                   removable item (a word with a × on hover); never a pill.
-   - note(doc, text), guide(doc, paragraphs)        the quiet line; the help paragraph with a hairline down its left.
-   - choices(doc, { items, picked, pick })          quiet words to pick one of, on a line, with their icons.
-   - popup({ at, kind, head, items, field, rows, manual, hint, cls, width, onClose })   THE pop-up: the browser's
+   - note(doc, text), guide(doc, paragraphs)        the library's quiet line (lk-note); the help paragraph with a hairline down its left.
+   - popup({ at, kind, head, items, field, rows, manual, hint, cls, width, onClose })   THE pop-up, the library's lk-pop: the browser's
                                   popover, placed under its anchor (an element or a rect) by CSS anchor positioning
                                   and flipped when there is no room, dismissed by the browser on Escape or a click
                                   outside; a menu filling (items: icon, label, kbd, on, run) or a list filling (the
@@ -85,9 +84,7 @@
    - ask({ at, question, note, go, cancel, field })   a question beside what it is about: Cancel and the one that
                                   does it as words; resolves true/false, or the field's text / null (field.select
                                   starts with its words selected; multiline takes Shift-Enter for a new line).
-   - dialog({ build, cls, width })   THE window: the browser's <dialog>, shown modal, dressed; for settings only.
-   - bar(doc, { count, total, actions, clear, all })   the picking bar: the count with its tick box, the actions as
-                                  quiet words with icons, a hairline under it; .update({ count, total }).
+   - dialog({ build, cls, width })   THE window: the browser's <dialog>, shown modal, in the library's lk-window.
    - tagTreeRows(matches, opened, sibs, tags, query, builtInLast, byName)   THE tag tree's rows: matches under the tags
                                   above them, child tags one level below; the tag list after a # and the tag map's pickers.
    - card({ at, title, tag, day, fields, lines, empty, open })   the hover card: a node's preview, every piece clickable
@@ -408,9 +405,9 @@ function tag(doc, title, props = {}) {
 }
 // The same as words for a paragraph (the help paragraph opens it, guide below).
 const tagLinkHtml = title => { const name = esc(String(title ?? '').replace(/^#/, '')); return `<a class="rf-tag lk-tag" href="#" data-tag-page="${name}">${name}</a>`; };
-// The three buttons: quiet (an icon or greyed words, lit on hover), go (the one that does it: the library's main button), pressed (quiet, in force).
-function quiet(doc, { icon: name, label, title, faint, pressed, run, cls } = {}) {
-  return el(doc, 'button', { type: 'button', class: `rf-quiet${faint ? ' rf-faint' : ''}${cls ? ' ' + cls : ''}`, title: title || null, 'aria-pressed': pressed == null ? null : String(!!pressed), click: run || null },
+// The two buttons, both the library's: quiet (the third level, lk-low: the word alone, the wash under the pointer), go (lk-accent, the one that does it); pressed is in force.
+function quiet(doc, { icon: name, label, title, pressed, run, cls } = {}) {
+  return el(doc, 'button', { type: 'button', class: `lk-btn lk-low${cls ? ' ' + cls : ''}`, title: title || null, 'aria-pressed': pressed == null ? null : String(!!pressed), click: run || null },
     name ? icon(doc, name) : null, label != null ? String(label) : null);
 }
 const go = (doc, { label, title, run, cls } = {}) => el(doc, 'button', { type: 'button', class: `lk-accent${cls ? ' ' + cls : ''}`, title: title || null, click: run || null }, label);
@@ -424,7 +421,7 @@ function field(doc, { placeholder = '', value = '', icon: name, kbd, inline, mul
   const box = multiline ? el(doc, 'textarea', { rows: '3', placeholder, spellcheck: 'true', title: title || null }) : el(doc, 'input', { type: 'text', placeholder, spellcheck: 'false', autocomplete: 'off', title: title || null });
   box.value = value;
   const counted = count == null ? null : el(doc, 'span', { class: 'rf-field-count lk-count' }, String(count));
-  const wrap = el(doc, 'span', { class: `rf-field${inline ? ' rf-field-inline' : ''}${multiline ? ' rf-field-tall' : ''}${cls ? ' ' + cls : ''}` }, name ? icon(doc, name) : null, box, counted, kbd ? el(doc, 'kbd', {}, kbd) : null);
+  const wrap = el(doc, 'span', { class: `rf-field lk-field${inline ? ' rf-field-inline' : ''}${multiline ? ' rf-field-tall' : ''}${cls ? ' ' + cls : ''}` }, name ? icon(doc, name) : null, box, counted, kbd ? el(doc, 'kbd', {}, kbd) : null);
   wrap.count = text => { if (counted) counted.textContent = String(text ?? ''); };
   keepKeys(box);
   if (keys) box.addEventListener('keydown', event => { if (keys(event) === true) { event.preventDefault(); event.stopPropagation(); } });
@@ -433,11 +430,11 @@ function field(doc, { placeholder = '', value = '', icon: name, kbd, inline, mul
   return wrap;
 }
 const fieldHtml = ({ placeholder = '', value = '', icon: name, count, cls = '', inputCls = '', label = '' } = {}) =>
-  `<span class="rf-field${cls ? ' ' + cls : ''}">${name ? iconHtml(name) : ''}<input type="text"${inputCls ? ` class="${esc(inputCls)}"` : ''} value="${esc(value)}" placeholder="${esc(placeholder)}" spellcheck="false" autocomplete="off"${label ? ` aria-label="${esc(label)}"` : ''}>${count == null ? '' : `<span class="rf-field-count lk-count">${esc(count)}</span>`}</span>`;
+  `<span class="rf-field lk-field${cls ? ' ' + cls : ''}">${name ? iconHtml(name) : ''}<input type="text"${inputCls ? ` class="${esc(inputCls)}"` : ''} value="${esc(value)}" placeholder="${esc(placeholder)}" spellcheck="false" autocomplete="off"${label ? ` aria-label="${esc(label)}"` : ''}>${count == null ? '' : `<span class="rf-field-count lk-count">${esc(count)}</span>`}</span>`;
 /* The drawn field (0.4.314): the field's look with drawn text and a drawn caret, for the one box whose keystrokes must keep
    going to the bullet (the link box, so that Logseq's own Cmd+Z takes the link back); fresh marks text the next key replaces. */
 function drawnField(doc, { text = '', placeholder = '', fresh = false, kbd, cls } = {}) {
-  return el(doc, 'span', { class: `rf-field rf-field-drawn${cls ? ' ' + cls : ''}` },
+  return el(doc, 'span', { class: `rf-field lk-field rf-field-drawn${cls ? ' ' + cls : ''}` },
     text ? el(doc, 'span', { class: `rf-typed${fresh ? ' rf-typed-fresh' : ''}` }, text) : el(doc, 'span', { class: 'rf-placeholder' }, placeholder),
     el(doc, 'span', { class: 'rf-caret', 'aria-hidden': 'true' }), kbd ? el(doc, 'kbd', {}, kbd) : null);
 }
@@ -455,7 +452,7 @@ function chip(doc, { label, pressed, run, remove, title, cls } = {}) {
   if (remove) word.append(el(doc, 'button', { type: 'button', class: 'rf-chip-x lk-x lk-reveal', title: 'Remove', 'aria-label': `Remove ${label}`, click: event => { event.stopPropagation(); remove(); } }, icon(doc, 'remove')));
   return word;
 }
-const note = (doc, text, cls) => el(doc, 'div', { class: `rf-note${cls ? ' ' + cls : ''}` }, text);
+const note = (doc, text, cls) => el(doc, 'div', { class: `rf-note lk-note${cls ? ' ' + cls : ''}` }, text);
 const guide = (doc, paragraphs) => el(doc, 'div', { class: 'rf-guide', role: 'note', click: openTagIn }, ...[].concat(paragraphs).map(p => typeof p === 'string' ? el(doc, 'p', {}, p) : p));
 // A tag written as words (tagLinkHtml) opens its page.
 function openTagIn(event) {
@@ -463,24 +460,6 @@ function openTagIn(event) {
   if (!link) return;
   event.preventDefault(); event.stopPropagation();
   openPageNamed(link.dataset.tagPage, event.shiftKey);
-}
-/* Quiet words to pick one of, on a line (the kinds of a new property, the tags a + may give): items [{ icon, label,
-   value, title }]; pick(value, item). The returned row has key(event): Left/Right move, Enter picks; true when taken. */
-function choices(doc, { items, picked, pick, cls } = {}) {
-  const row = el(doc, 'span', { class: `rf-pick${cls ? ' ' + cls : ''}`, role: 'group' });
-  const buttons = items.map(item => quiet(doc, { icon: item.icon, label: item.label, title: item.title, faint: item.faint, pressed: item.value === picked, run: () => pick(item.value, item) }));
-  row.append(...buttons);
-  const at = () => buttons.findIndex(b => b.getAttribute('aria-pressed') === 'true');
-  row.key = event => {
-    if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
-      const i = at(), n = i < 0 ? 0 : (i + (event.key === 'ArrowRight' ? 1 : buttons.length - 1)) % buttons.length;
-      buttons.forEach((b, k) => b.setAttribute('aria-pressed', String(k === n)));
-      return true;
-    }
-    if (event.key === 'Enter') { const i = at(); if (i >= 0) { pick(items[i].value, items[i]); return true; } }
-    return false;
-  };
-  return row;
 }
 
 /* THE pop-up: the browser's popover (dismissed by it on Escape or a click outside, in the top layer), placed under
@@ -525,7 +504,7 @@ function anchorFor(doc, at) {
 function popup({ at, kind = 'menu', head, items, field: fieldOptions, rows, keys, manual = false, hint = false, cls = '', width, onClose, doc } = {}) {
   let waitUp = null; // set while the pop-up waits for the mouse button that opened it to be let go
   doc = doc || host();
-  const pop = el(doc, 'div', { class: `rf-pop${items || rows ? ' lk-menu' : ''}${cls ? ' ' + cls : ''}`, role: hint ? 'tooltip' : fieldOptions ? 'listbox' : 'menu', tabindex: hint ? null : '-1' });
+  const pop = el(doc, 'div', { class: `rf-pop lk-pop${items || rows ? ' lk-menu' : ''}${cls ? ' ' + cls : ''}`, role: hint ? 'tooltip' : fieldOptions ? 'listbox' : 'menu', tabindex: hint ? null : '-1' });
   pop.setAttribute('popover', manual ? 'manual' : hint ? 'hint' : 'auto');
   if (width) pop.style.width = typeof width === 'number' ? `${width}px` : width;
   const anchor = anchorFor(doc, at);
@@ -556,8 +535,8 @@ function popup({ at, kind = 'menu', head, items, field: fieldOptions, rows, keys
   const body = el(doc, 'div', { class: 'rf-pop-body' });
   pop.append(body);
   const buttons = () => [...body.querySelectorAll('.rf-item')];
-  const lit = i => { const all = buttons(); all.forEach((b, k) => b.classList.toggle('rf-on', k === i)); all[i]?.scrollIntoView?.({ block: 'nearest' }); };
-  const litAt = () => buttons().findIndex(b => b.classList.contains('rf-on'));
+  const lit = i => { const all = buttons(); all.forEach((b, k) => b.classList.toggle('on', k === i)); all[i]?.scrollIntoView?.({ block: 'nearest' }); };
+  const litAt = () => buttons().findIndex(b => b.classList.contains('on'));
   const run = item => { if (item.disabled) return; const keep = item.run?.(item) === 'keep' || item.keep; if (!keep) close(); };
   function drawItems(list = []) {
     body.replaceChildren();
@@ -568,8 +547,8 @@ function popup({ at, kind = 'menu', head, items, field: fieldOptions, rows, keys
       // A row of a tree (the tag tree, 0.4.431): indented by its depth, faded when it shows only where a match is, its
       // child tags counted with the fold chevron at the end (a click on it opens or closes them, the list staying).
       const fold = item.fold ? el(doc, 'span', { class: 'rf-end rf-tree-kids', title: item.fold.open ? 'Close its child tags (←)' : 'Show its child tags (→)',
-        click: event => { event.preventDefault(); event.stopPropagation(); item.fold.toggle(); } }, String(item.fold.count), el(doc, 'span', { class: 'rf-tree-tri' + (item.fold.open ? ' rf-tree-open' : '') }, icon(doc, 'fold'))) : null;
-      const b = el(doc, 'button', { type: 'button', class: `rf-item lk-item${item.on ? ' rf-on' : ''}${item.faint ? ' rf-faint' : ''}${item.dim ? ' rf-tree-dim' : ''}${item.cls ? ' ' + item.cls : ''}`, role: 'menuitem', title: item.title || null, disabled: item.disabled || null,
+        click: event => { event.preventDefault(); event.stopPropagation(); item.fold.toggle(); } }, String(item.fold.count), el(doc, 'span', { class: 'rf-tree-tri lk-fold', 'aria-expanded': String(!!item.fold.open) })) : null;
+      const b = el(doc, 'button', { type: 'button', class: `rf-item lk-item${item.on ? ' on' : ''}${item.faint ? ' rf-faint' : ''}${item.dim ? ' rf-tree-dim' : ''}${item.cls ? ' ' + item.cls : ''}`, role: 'menuitem', title: item.title || null, disabled: item.disabled || null,
         style: item.depth != null ? `padding-left: ${8 + item.depth * 16}px` : null, click: () => run(item) },
         item.icon ? icon(doc, item.icon) : null, item.html ? el(doc, 'span', { class: 'rf-item-words', html: item.html }) : el(doc, 'span', { class: 'rf-item-words' }, String(item.label ?? '')),
         item.chosen && item.depth != null ? el(doc, 'span', { class: 'rf-end rf-tree-chosen' }, icon(doc, 'chosen')) : null,
@@ -594,7 +573,7 @@ function popup({ at, kind = 'menu', head, items, field: fieldOptions, rows, keys
   });
   for (const type of ['keyup', 'keypress']) pop.addEventListener(type, event => event.stopPropagation());
   // The pointer over a row lights it, as in Logseq's own lists.
-  body.addEventListener('mousemove', event => { const b = event.target.closest?.('.rf-item'); if (b && !b.classList.contains('rf-on')) lit(buttons().indexOf(b)); });
+  body.addEventListener('mousemove', event => { const b = event.target.closest?.('.rf-item'); if (b && !b.classList.contains('on')) lit(buttons().indexOf(b)); });
   doc.body.append(pop);
   const show = () => {
     if (closed) return;
@@ -762,7 +741,7 @@ function ask({ at, question, note: hint, go: goWord = 'OK', cancel = 'Cancel', f
 function dialog({ build, cls = '', width, doc } = {}) {
   doc = doc || host();
   return new Promise(resolve => {
-    const box = el(doc, 'dialog', { class: `rf-dialog${cls ? ' ' + cls : ''}` });
+    const box = el(doc, 'dialog', { class: `rf-dialog lk-window${cls ? ' ' + cls : ''}` });
     if (width) box.style.width = width;
     let done = false;
     const finish = value => { if (done) return; done = true; try { if (box.open) box.close(); } catch (error) { /* not open */ } box.remove(); resolve(value); };
@@ -774,32 +753,6 @@ function dialog({ build, cls = '', width, doc } = {}) {
     build(box, finish, doc);
     try { if (box.showModal) box.showModal(); else box.setAttribute('open', ''); } catch (error) { box.setAttribute('open', ''); }
   });
-}
-/* The picking bar: the count with its tick box (ticked while something is picked; a click picks all or clears),
-   the actions as quiet words with icons, Clear faint at the end; one line with a hairline under it. */
-/* One line (0.4.443, docs/REWORK.md 4): its room is kept where it sits (box.idle(true) hides it in place, so nothing
-   moves when something is picked); the actions marked more: true wait under ⋯; box.extra is a place for the part's own
-   words after the count (what one ticked thing is tied to). */
-function bar(doc, { count = 0, total = 0, actions = [], clear, all, cls } = {}) {
-  const box = el(doc, 'div', { class: `rf-bar${actions.some(a => a.more) ? ' rf-bar-hasmore' : ''}${cls ? ' ' + cls : ''}`, role: 'toolbar' });
-  const words = el(doc, 'span');
-  const box1 = tick(doc, { checked: count > 0, title: 'Pick all, or none', change: on => (on ? all : clear)?.() });
-  box.append(el(doc, 'label', { class: 'rf-count' }, box1, words));
-  box.extra = el(doc, 'span', { class: 'rf-bar-extra' });
-  box.append(box.extra);
-  const shown = actions.filter(a => !a.more);
-  shown.forEach(action => box.append(quiet(doc, { icon: action.icon, label: action.label, title: action.title, faint: action.faint, run: action.run, cls: 'rf-bar-later' })));
-  // ⋯ holds the actions marked more, and while the part's own words show (box.extra) every action but the first.
-  const later = () => actions.filter(a => a.more || box.extra.childNodes.length);
-  if (actions.length > 1) box.append(quiet(doc, { icon: 'more', title: 'More actions', cls: 'rf-bar-more', run: event => {
-    const at = event.currentTarget;
-    popup({ doc, at, items: later().map(a => ({ icon: a.icon, label: a.label, title: a.title, run: () => a.run({ currentTarget: at }) })) });
-  } }));
-  if (clear) box.append(quiet(doc, { label: 'Clear', faint: true, title: 'Clear what is picked (Escape)', run: clear, cls: 'rf-bar-later' }));
-  box.idle = on => { box.classList.toggle('rf-bar-idle', !!on); box.toggleAttribute('aria-hidden', !!on); };
-  box.update = ({ count: n = count, total: t = total } = {}) => { count = n; total = t; words.textContent = t && t !== n ? `${n} of ${t} picked` : `${n} picked`; box1.checked = n > 0; box1.indeterminate = n > 0 && t > 0 && n < t; };
-  box.update();
-  return box;
 }
 /* THE tag tree for a list of tags (0.4.388 in the tag list after a #; the kit's since 0.4.431, so the tag map's pickers
    show the same tree, the owner: "use the tag selector that have indented hierarchy that was already developed").
@@ -930,20 +883,24 @@ const outline = {
      once with reduced motion); focus(root, key) moves the wash to the unit of that key, in place. */
   close(kids, done) {
     const win = kids?.ownerDocument?.defaultView;
-    if (!kids?.isConnected || !win?.matchMedia || win.matchMedia('(prefers-reduced-motion: reduce)').matches) { done(); return; }
-    let over = false; const end = () => { if (over) return; over = true; done(); };
-    kids.classList.remove('rf-ol-unroll'); kids.classList.add('rf-ol-rollup');
-    kids.addEventListener('animationend', end, { once: true }); win.setTimeout(end, 220);
+    if (!kids?.isConnected || !kids.animate || !win?.matchMedia || win.matchMedia('(prefers-reduced-motion: reduce)').matches) { done(); return; }
+    window.PluginDoor.rollUp(kids).then(done);
+  },
+  // After a drawing lands: what came marked fresh (rf-ol-unroll) unrolls with the plugin's one motion (PluginDoor.unroll), once.
+  unrolled(root) {
+    const fresh = [...root?.querySelectorAll?.('.rf-ol-kids.rf-ol-unroll') || []];
+    for (const kids of fresh) kids.classList.remove('rf-ol-unroll');
+    window.PluginDoor?.unroll?.(fresh);
   },
   focus(root, key) { for (const unit of root?.querySelectorAll('.rf-ol-unit') || []) unit.classList.toggle('rf-ol-focus', unit.dataset.key === key); },
-  chev: ({ open = false, label = '', attrs, cls = '' } = {}) => `<button type="button" class="rf-chev lk-fold${cls ? ' ' + cls : ''}" aria-expanded="${open}" aria-label="${esc(`${open ? 'Close' : 'Open'} ${label}`.trim())}" title="${open ? 'Close' : 'Open here'}"${attrsHtml(attrs)}>${iconHtml('fold')}</button>`,
+  chev: ({ open = false, label = '', attrs, cls = '' } = {}) => `<button type="button" class="rf-chev lk-fold${cls ? ' ' + cls : ''}" aria-expanded="${open}" aria-label="${esc(`${open ? 'Close' : 'Open'} ${label}`.trim())}" title="${open ? 'Close' : 'Open here'}"${attrsHtml(attrs)}></button>`,
   room: () => '<span class="rf-chev-room" aria-hidden="true"></span>',
   line: ({ body = '', chev = '', day, tick = '', end = '', cls = '', attrs } = {}) => `<div class="rf-ol-line lk-row${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}>${tick}${day == null ? '' : `<span class="rf-ol-day lk-day">${esc(day)}</span>`}${chev || outline.room()}<span class="rf-ol-body">${body}</span>${end ? `<span class="rf-ol-end">${end}</span>` : ''}</div>`,
   kids: ({ html = '', from = '', fresh = false, attrs, cls = '' } = {}) => `<div class="rf-ol-kids${from ? ' rf-ol-from-' + from : ''}${fresh ? ' rf-ol-unroll' : ''}${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}><div class="rf-ol-in">${html}</div></div>`,
   unit: ({ html = '', focus = false, attrs, cls = '' } = {}) => `<div class="rf-ol-unit${focus ? ' rf-ol-focus' : ''}${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}>${html}</div>`,
   prop: ({ kind = 'text', name = '', value = '', chev = '', attrs, cls = '', nameAttrs } = {}) => `<div class="rf-ol-line lk-row rf-ol-prop${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}><span class="rf-ol-pname lk-prop"${attrsHtml(nameAttrs)}>${name ? `${kind ? `<span class="rf-kind">${kindIconHtml(kind)}</span>` : ''}${esc(name)}` : ''}</span><span class="rf-ol-pv">${chev}${value}</span></div>`,
   bullet: ({ html = '', attrs, cls = '' } = {}) => `<div class="rf-ol-bullet${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}><span class="rf-ol-dot" aria-hidden="true"></span><span class="rf-ol-words">${html}</span></div>`,
-  newBullet: ({ attrs, label = 'A new bullet', text = '' } = {}) => `<div class="rf-ol-bullet rf-ol-new"><span class="rf-ol-dot" aria-hidden="true"></span><span class="rf-field rf-ol-words rf-ol-write"><input type="text" value="${esc(text)}" spellcheck="true" autocomplete="off" aria-label="${esc(label)}"${attrsHtml(attrs)}></span></div>`,
+  newBullet: ({ attrs, label = 'A new bullet', text = '' } = {}) => `<div class="rf-ol-bullet rf-ol-new"><span class="rf-ol-dot" aria-hidden="true"></span><span class="rf-field lk-field rf-ol-words rf-ol-write"><input type="text" value="${esc(text)}" spellcheck="true" autocomplete="off" aria-label="${esc(label)}"${attrsHtml(attrs)}></span></div>`,
   more: ({ text = '', attrs, under = 'name', cls = 'lk-more' } = {}) => { const b = `<button type="button" class="${cls} rf-ol-more"${attrsHtml(attrs)}>${esc(text)}</button>`; return under === 'value' ? `<div class="rf-ol-line rf-ol-prop rf-ol-moreline"><span class="rf-ol-pname"></span><span class="rf-ol-pv">${b}</span></div>` : under === 'flush' ? `<div class="rf-ol-line rf-ol-moreline">${b}</div>` : under === 'leads' ? `<div class="rf-ol-line lk-row rf-ol-leads rf-ol-moreline">${outline.room()}<span class="rf-ol-lname"></span><span class="rf-ol-to">${b}</span></div>` : `<div class="rf-ol-line rf-ol-moreline">${under === 'bare' ? '' : '<span class="rf-ol-day lk-day"></span>'}${outline.room()}${b}</div>`; },
   name: ({ text = '', title = '', open = false, tag: tagTitle = '', attrs, cls = '' } = {}) => `<a href="#" class="rf-ol-name lk-node${open ? ' rf-ol-open' : ''}${cls ? ' ' + cls : ''}"${title && title !== text ? ` title="${esc(title)}"` : ''}${attrsHtml(attrs)}>${esc(text)}</a>${tagTitle ? '<wbr>' + tagLinkHtml(tagTitle) : ''}`,
   pencil: (text, attrs, cls = '') => `<button type="button" class="rf-pencil lk-pencil${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}>${esc(text)}</button>`,
@@ -1097,19 +1054,16 @@ const undo = {
 
 /* THE stylesheet of the kit. Sent by main.js before any part (the foundation's own boxes must look right under
    Foundation only). Greys from currentColor, so the same rules hold on the page and in a pop-up, light and dark. */
-const kitCss = `/* The kit (parts/shared.js, 0.4.311; docs/LAYERS.md section 3): one pop-up, one dialog, three buttons, one field, one
-   tick box, words for chips, the tag as a class, kinds as icons, the picking bar, the hover card, the Undo arrow, the
-   quiet line and the help paragraph. No colour of the plugin's own: Logseq's pop-up colours (--popover and its
-   partner) and four greys mixed from the text colour. Logseq's own icon font (.ti) draws every icon. */
-:root { --rf-fg: hsl(var(--popover-foreground, 0 0% 9%)); --rf-bg: hsl(var(--popover, 0 0% 100%));
-  --rf-quiet: color-mix(in srgb, currentColor 70%, transparent); --rf-faint: color-mix(in srgb, currentColor 70%, transparent);
-  --rf-hair: color-mix(in srgb, currentColor 12%, transparent); --rf-line: color-mix(in srgb, currentColor 26%, transparent);
-  --rf-wash: color-mix(in srgb, currentColor 7%, transparent); --rf-focus: color-mix(in srgb, currentColor 3%, transparent); --rf-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-/* The pop-up: Logseq's own [[ menu look (6px corners, its light shadow, 14px rows), in the top layer, placed by the
-   browser under its anchor and flipped when there is no room. */
-.rf-pop { position: fixed; inset: auto; margin: 0; z-index: 10001; box-sizing: border-box; min-width: 160px; max-width: min(420px, 92vw); padding: 4px; overflow: visible;
-  background: var(--rf-bg); color: var(--rf-fg); border: 1px solid var(--rf-hair); border-radius: 6px; box-shadow: 0 4px 6px -1px rgba(0,0,0,.1), 0 2px 4px -2px rgba(0,0,0,.1);
-  font-size: 14px; line-height: 1.4; text-align: left; outline: none; }
+const kitCss = `/* The kit (parts/shared.js, 0.4.311; docs/LAYERS.md section 3): where the library's pieces stand in Threads. Since
+   6 November 2026 every piece is drawn by the plugin's library (plugin.js): the pop-up (lk-pop), the window (lk-window), the
+   presses (lk-btn lk-low, lk-accent), the field (lk-field), the tick box (lk-tick), the fold arrow (lk-fold), the Undo arrow
+   (lk-undo), the quiet line (lk-note), the greys and the one motion. Here only the kit's own names, each with its place
+   and its room, never a look of its own. The rf- greys are the library's under the kit's old names. */
+:root { --rf-fg: var(--lk-text, currentColor); --rf-bg: var(--lk-paper, #fff);
+  --rf-quiet: var(--lk-quiet); --rf-faint: var(--lk-faint); --rf-hair: var(--lk-hair); --rf-line: var(--lk-line); --rf-wash: var(--lk-wash);
+  --rf-focus: color-mix(in srgb, currentColor 3%, transparent); --rf-mono: var(--lk-mono); }
+/* The pop-up (the library's lk-pop) in the top layer, placed by the browser under its anchor and flipped when there is no room. */
+.rf-pop { position: fixed; inset: auto; margin: 0; z-index: 10001; box-sizing: border-box; min-width: 160px; max-width: min(420px, 92vw); padding: 4px; overflow: visible; outline: none; }
 .rf-pop.rf-anchored { top: anchor(bottom); left: anchor(left); margin-top: 4px; position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline; }
 .rf-lsq-pop { position: fixed; inset: auto; margin: 0; padding: 0; width: 14rem; overflow: visible; }
 .rf-lsq-pop .menu-link .flex-row > div:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1122,13 +1076,11 @@ const kitCss = `/* The kit (parts/shared.js, 0.4.311; docs/LAYERS.md section 3):
 .rf-pop:not(.rf-anchored) { top: 12vh; left: 50%; transform: translateX(-50%); }
 .rf-pop-head { padding: 3px 8px; font-size: 12px; color: var(--rf-quiet); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rf-pop-body { max-height: 320px; overflow-y: auto; }
-/* A line of a menu is the library's lk-item; here only how its icon and words stand, and the lit line. */
+/* A line of a menu is the library's lk-item (lit: on); here only how its icon and words stand. */
 .rf-item { align-items: center; gap: 8px; box-sizing: border-box; }
 .rf-item > :is(.ti, .rf-drawn) { width: 16px; flex: none; color: var(--rf-faint); font-size: 15px; }
 .rf-item > .rf-drawn { justify-content: center; align-self: center; }
-.rf-item.rf-on { background: var(--rf-wash); }
 .rf-item.rf-faint { color: var(--rf-faint) !important; }
-.rf-item:disabled { opacity: .45; cursor: default; }
 .rf-item-words { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rf-item kbd, .rf-end { margin-left: auto; flex: none; font: inherit; font-size: 12px; color: var(--rf-faint); }
 .rf-pop .rf-field { margin: 0 8px 4px; }
@@ -1154,28 +1106,15 @@ const kitCss = `/* The kit (parts/shared.js, 0.4.311; docs/LAYERS.md section 3):
    stands first, as the library draws it, and its wash reaches past the row's edge, so the body does not clip it. */
 .rf-ask > .rf-pop-body { margin-inline: -8px; padding-inline: 8px; }
 .rf-ask .lk-answers > .lk-accent { order: -1; }
-/* The window: the browser's dialog in the kit's colours; the settings window only. */
-.rf-dialog { position: fixed; inset: 0; margin: auto; padding: 0; box-sizing: border-box; width: min(700px, 92vw); max-height: 86vh; overflow: auto;
-  background: var(--rf-bg); color: var(--rf-fg); border: 1px solid var(--rf-hair); border-radius: 8px; box-shadow: 0 8px 28px rgba(0,0,0,.14); font-size: 14px; line-height: 1.4; text-align: left; }
-.rf-dialog::backdrop { background: rgba(0,0,0,.18); }
-/* The quiet button and quiet in force. No fills, no edges. The one that does it, go, is the library's lk-accent. */
-.rf-quiet { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 6px; border: 0; border-radius: 4px; background: none; color: var(--rf-quiet); font: inherit; font-size: 14px; line-height: 1; cursor: pointer; white-space: nowrap; }
-.rf-quiet > .ti { font-size: 15px; }
-.rf-quiet > .rf-drawn { width: 15px; justify-content: center; }
-.rf-quiet:hover { background: var(--rf-wash); color: inherit; }
-.rf-quiet[aria-pressed="true"] { color: inherit; font-weight: 600; background: none; }
-.rf-quiet:disabled { opacity: .45; cursor: default; background: none; }
-:is(.rf-quiet, .rf-item, .rf-chip, .rf-ol-more, .rf-ask button):focus-visible { outline: none; background: var(--lk-wash); }
+/* The window (the library's lk-window): the browser's dialog, mid-screen. */
+.rf-dialog { position: fixed; inset: 0; margin: auto; padding: 0; box-sizing: border-box; width: min(700px, 92vw); max-height: 86vh; overflow: auto; }
+/* A press's icon stands as the library's line icons do: 15px, before the word. */
+.lk-btn > .ti { font-size: 15px; }
+.lk-btn > .rf-drawn { width: 15px; justify-content: center; }
+:is(.rf-chip, .rf-ol-more, .rf-ask button):focus-visible { outline: none; background: var(--lk-wash); }
 .rf-faint { color: var(--rf-faint); }
-/* Two or three quiet words with a hairline between them: a two-way choice. */
-.rf-seg { display: inline-flex; }
-.rf-seg > .rf-quiet + .rf-quiet { border-left: 1px solid var(--rf-line); border-radius: 0 4px 4px 0; }
-.rf-seg > .rf-quiet:first-child { border-radius: 4px 0 0 4px; }
-/* The field: a hairline underneath, firmer while typing. */
-.rf-field { display: flex; align-items: center; gap: 6px; box-sizing: border-box; padding: 2px; border: 0; border-bottom: 1px solid var(--rf-line); background: transparent; min-height: 26px; font-size: 14px; line-height: 1.4; }
-.rf-field:focus-within { border-bottom-color: currentColor; }
-.rf-field > :is(input, textarea) { flex: 1; min-width: 0; width: 100%; margin: 0; padding: 0; border: 0; border-radius: 0; background: none; color: inherit; font: inherit; outline: none; box-shadow: none; }
-.rf-field > :is(input, textarea)::placeholder { color: var(--rf-faint); }
+/* The field is the library's lk-field; here its room on a line. */
+.rf-field { min-height: 26px; }
 .rf-field-tall { align-items: flex-start; }
 .rf-field-tall > textarea { resize: vertical; line-height: 1.4; }
 .rf-pop-list { max-height: 300px; overflow-y: auto; }
@@ -1194,13 +1133,7 @@ const kitCss = `/* The kit (parts/shared.js, 0.4.311; docs/LAYERS.md section 3):
 .rf-field-drawn > kbd { margin-left: auto; padding-left: 6px; }
 @keyframes rf-blink { 50% { opacity: 0; } }
 .rf-item.rf-new > .rf-item-words { font-style: italic; }
-/* The tick box: the browser's checkbox as a small rounded square, a check mark inside when on. */
-input.rf-check[type=checkbox] { appearance: none; -webkit-appearance: none; position: relative; box-sizing: border-box; width: 13px; height: 13px; margin: 0; padding: 0; flex: none; border: 1px solid var(--rf-line); border-radius: 3px; background: none; color: inherit; vertical-align: -1px; cursor: pointer; outline: none; box-shadow: none; }
-/* Logseq's own forms rule paints a checked box blue with a drawn tick (Tailwind forms); the kit's square keeps its own. */
-input.rf-check[type=checkbox]:checked, input.rf-check[type=checkbox]:indeterminate, input.rf-check[type=checkbox]:focus { background-color: transparent !important; background-image: none !important; border-color: currentColor !important; color: inherit !important; box-shadow: none !important; }
-input.rf-check:checked::before { content: ""; position: absolute; left: 3.5px; top: .5px; width: 3.5px; height: 7px; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg); }
-input.rf-check:indeterminate::before { content: ""; position: absolute; left: 2px; right: 2px; top: 5px; height: 1.5px; background: currentColor; }
-input.rf-check:focus-visible { outline: none; border-color: currentColor !important; }
+/* The tick box is the library's lk-tick; with a label, in a label. */
 .rf-tick { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 /* Words for chips: a filter, or a removable item with a × on hover. */
 .rf-chip { display: inline-flex; align-items: center; gap: 2px; padding: 0; border: 0; background: none; color: var(--rf-quiet); font: inherit; font-size: 14px; cursor: default; }
@@ -1220,20 +1153,13 @@ a.rf-tag:hover { opacity: 1; }
 /* A cell changed where it sits (0.4.430; the table it came with is gone since 0.4.456). */
 .rf-tedit { cursor: pointer; border-radius: 2px; }
 .rf-tedit:hover { text-decoration: underline; text-decoration-color: var(--rf-line); text-underline-offset: 3px; }
-@keyframes rf-unroll { from { grid-template-rows: 0fr; } to { grid-template-rows: 1fr; } }
-@keyframes rf-rollup { from { grid-template-rows: 1fr; } to { grid-template-rows: 0fr; } }
-@keyframes rf-unroll-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
-/* THE chevron (0.4.441): the one control that opens what is under it. A 16 px mark in a 24 px place to click, faint at
-   rest and never hidden, full on its line, turned down while open. */
-.rf-chev { all: unset; box-sizing: border-box; position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 20px; cursor: pointer; color: inherit; border-radius: 3px; transition: opacity .12s; }
-.rf-chev::before { content: ''; position: absolute; inset: -2px -4px; }
-.rf-chev .ti { font-size: 15px; transition: transform .16s ease; }
-.rf-chev[aria-expanded="true"] .ti { transform: rotate(90deg); }
-.rf-chev:focus-visible { outline: none; background: var(--lk-wash); }
+/* The chevron is the library's fold arrow (lk-fold: shown while its row is pointed at, turned down while open); rf-chev
+   names its place on a line. */
+.rf-chev { position: relative; }
 .rf-chev-room { flex: none; display: inline-block; width: 16px; }
 /* THE outline: lines, what opens under them, the focus. --rf-ol-day is the days' column (a list with a day of another year sets it wider), --rf-ol-name the property names'
    column, one width at every depth so the names of nodes at one depth line up. */
-.rf-ol { --rf-ol-day: 48px; --rf-ol-name: 12em; --rf-ol-gap: 6px; font-size: 14px; line-height: 1.5; }
+.rf-ol { --rf-ol-day: var(--lk-day, 48px); --rf-ol-name: 12em; --rf-ol-gap: 6px; font-size: 14px; line-height: 1.5; }
 .rf-ol-line { position: relative; display: flex; align-items: baseline; gap: var(--rf-ol-gap); min-height: 28px; box-sizing: border-box; padding: 3px 4px; margin-left: -4px; border-radius: 4px; }
 .rf-ol-line:hover { background: var(--rf-wash); }
 .rf-ol-line > .rf-chev, .rf-ol-pv > .rf-chev { align-self: flex-start; top: 0; height: 1.5em; }
@@ -1251,12 +1177,8 @@ a.rf-tag:hover { opacity: 1; }
 .rf-ol-from-day { --rf-ol-cx: calc(var(--rf-ol-day) + var(--rf-ol-gap) + 8px); }
 .rf-ol-from-prop { --rf-ol-cx: calc(var(--rf-ol-name) - 8px); }
 .rf-ol-from-back { --rf-ol-cx: calc(var(--rf-ol-name) + var(--rf-ol-day) + 2 * var(--rf-ol-gap) + 8px); }
-/* Opening grows the room under the line from nothing, so what is below slides down with it; closing
-   rolls it back up before it goes (outline.close). */
-.rf-ol-kids.rf-ol-unroll { animation: rf-unroll .18s ease-out; }
-.rf-ol-kids.rf-ol-rollup { animation: rf-rollup .14s ease-in forwards; }
-:is(.rf-ol-unroll, .rf-ol-rollup) > .rf-ol-in { overflow: hidden; }
-.rf-ol-unroll > .rf-ol-in { animation: rf-unroll-in .18s ease-out; }
+/* Opening grows the room under the line from nothing, so what is below slides down with it; closing rolls it back up before
+   it goes: the plugin's one motion (PluginDoor.unroll and rollUp, through outline.unrolled and outline.close). */
 .rf-ol-unit { margin: 0 -6px; padding: 0 6px; border-radius: 6px; transition: background-color .16s ease; }
 .rf-ol-unit.rf-ol-focus { background: var(--rf-focus); }
 .rf-ol-prop > .rf-ol-pname { flex: none; box-sizing: border-box; width: var(--rf-ol-name); padding-right: calc(16px + var(--rf-ol-gap)); display: inline-flex; gap: 6px; align-items: baseline; color: var(--rf-quiet); overflow-wrap: anywhere; }   /* the padding is the room of the fold arrow that overhangs from the value (.rf-ol-pv > .rf-chev): a long name wraps before it */
@@ -1318,8 +1240,6 @@ a.rf-tag:hover { opacity: 1; }
 .rf-ol.rf-ol-margin { position: relative; padding-left: 24px; }
 .rf-ol-margin .rf-ol-line { position: static; }
 .rf-ol-margin .rf-ol-line > input.rf-check[type=checkbox] { left: 2px; top: auto; margin-top: 5px; }
-.rf-ol-margin .rf-ol-unroll > .rf-ol-in { animation-name: rf-unroll-fade; }
-@keyframes rf-unroll-fade { from { opacity: 0; } to { opacity: 1; } }
 .rf-ol-end { flex: none; margin-left: auto; padding-left: 12px; min-width: 5.2em; text-align: right; font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .rf-ol-count { color: inherit; text-decoration: underline; text-decoration-color: var(--rf-line); text-decoration-thickness: 1px; text-underline-offset: 3px; cursor: pointer; }
 .rf-ol-count:hover { text-decoration-color: currentColor; }
@@ -1351,7 +1271,7 @@ span.rf-ol-count { text-decoration: none; cursor: default; }
 .rf-ol-line:hover > .rf-ol-act { color: var(--rf-quiet); }
 .rf-ol-done > .rf-ol-body { color: var(--rf-quiet); }
 .rf-field-count { flex: none; color: var(--rf-faint); font-size: 12.5px; font-variant-numeric: tabular-nums; padding-left: 6px; }
-@media (prefers-reduced-motion: reduce) { .rf-chev .ti, .rf-ol-unit { transition: none; } .rf-ol-kids.rf-ol-unroll, .rf-ol-kids.rf-ol-rollup, .rf-ol-unroll > .rf-ol-in { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .rf-ol-unit { transition: none; } }
 .rf-tree-dim .rf-item-words { opacity: .45; }
 /* A kind's mark (0.4.473), 10 px in the quiet grey; a kind's row in a list of tags: its mark and its word in weight, as
    the map's headings, the count of its nodes at the end in the quiet grey. */
@@ -1359,21 +1279,9 @@ span.rf-ol-count { text-decoration: none; cursor: default; }
 .rf-tree-n { color: var(--rf-quiet); font-variant-numeric: tabular-nums; }
 .rf-tree-dim .rf-kindrow { opacity: .45; }
 .rf-tree-kids { display: inline-flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; cursor: pointer; }
-.rf-tree-tri { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; }
-.rf-tree-tri .ti { font-size: 15px; color: var(--rf-faint); transition: transform .12s ease; }
-.rf-tree-tri.rf-tree-open .ti { transform: rotate(90deg); }
+.rf-tree-tri { height: 16px; }
 .rf-tree-chosen { margin-left: 6px; }
-.rf-bar { display: flex; flex-wrap: nowrap; align-items: center; gap: 2px 6px; padding: 2px 0 6px; margin-bottom: 6px; border-bottom: 1px solid var(--rf-hair); font-size: 14px; white-space: nowrap; min-width: 0; overflow: hidden; }
-.rf-bar.rf-bar-idle { visibility: hidden; }
-.rf-bar > * { flex: none; }
-.rf-bar > .rf-bar-extra { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; display: inline-flex; align-items: center; gap: 2px 10px; }
-.rf-bar > .rf-bar-extra:empty { display: none; }
-.rf-bar:has(> .rf-bar-extra:not(:empty)) > .rf-bar-later { display: none; }
-.rf-bar:not(.rf-bar-hasmore):not(:has(> .rf-bar-extra:not(:empty))) > .rf-bar-more { display: none; }
-.rf-bar > .rf-bar-extra { flex: 1 1 auto; }
-.rf-bar-extra .rf-bar-extra > * { flex: none; }
-.rf-bar-extra > :not(:last-child):not(.rf-note) { flex: 0 1 auto; min-width: 0; overflow: hidden; }
-.rf-count { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.rf-count { cursor: pointer; }
 /* The hover card: a node's preview with a little room. */
 .rf-card { padding: 10px 12px; font-size: 14px; }
 .rf-card a { color: inherit; text-decoration: none; }
@@ -1386,21 +1294,14 @@ span.rf-ol-count { text-decoration: none; cursor: default; }
 .rf-card-line { display: block; border-radius: 4px; margin: 0 -4px; padding: 0 4px; }
 .rf-card-line:hover { background: var(--rf-wash); text-decoration: none; }
 .rf-card-line::before { content: '• '; color: var(--rf-faint); }
-/* The quiet line and the help paragraph. */
-.rf-note { font-size: 12px; line-height: 1.45; color: var(--rf-faint); padding: 2px 0; }
+/* The quiet line (the library's lk-note) and the help paragraph. */
+.rf-note { line-height: 1.45; padding: 2px 0; }
 .rf-pop .rf-note { padding: 4px 8px; }
-.rf-day { color: var(--rf-faint); font-size: 12.5px; font-variant-numeric: tabular-nums; }
 .rf-guide { padding: 2px 0 2px 10px; border-left: 1px solid var(--rf-line); font-size: 14px; color: var(--rf-quiet); }
 .rf-guide p { margin: 0 0 4px; }
 .rf-guide p:last-child { margin-bottom: 0; }
-/* Quiet words to pick one of. */
-.rf-pick { display: inline-flex; flex-wrap: wrap; gap: 2px; }
-.rf-pick .rf-quiet { font-size: 13px; height: 22px; padding: 0 5px; }
-/* THE Undo (undo.offer): a faded arrow at the end of what changed, clearer under the pointer; with nothing on screen to
-   sit beside, it waits at the bottom right with its words, as quiet. */
-.rf-undo { display: inline-flex; align-items: center; gap: 6px; vertical-align: -2px; margin-left: .4em; color: currentColor; cursor: pointer; transition: opacity .15s; }
-.rf-undo > .ti { font-size: 14px; }
-.rf-undo:hover { opacity: .75; }
+/* THE Undo (undo.offer): the library's arrow (lk-undo) at the end of what changed; with nothing on screen to sit beside,
+   it waits at the bottom right with its words, as quiet. */
 .rf-undo-dock { position: fixed; z-index: 10002; right: 20px; bottom: 20px; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; max-width: min(420px, 60vw); color: var(--rf-fg); font-size: 12px; }
 .rf-undo-docked { margin: 0; padding: 3px 9px; border-radius: 6px; opacity: 1; background: var(--rf-bg); border: 1px solid var(--rf-hair); color: var(--rf-quiet); }
 .rf-undo-docked:hover { color: var(--rf-fg); }
@@ -1431,7 +1332,7 @@ function ownMarks(doc) {
 
 (window.Threads ||= {}).shared = {
   host, notify, lifecycle, sweepLeftovers, take, feature, screen, openEntity, openPageNamed, settingReader, graphNamedIn, perf, warnings,
-  kitCss, el, esc, fragmentOf, ICONS, icon, iconHtml, kindIconHtml, tag, tagLinkHtml, quiet, go, keepKeys, field, fieldHtml, drawnField, outline, chevron, tick, chip, note, guide, choices, popup, popups, pickValue, editInPlace, ask, dialog, bar, cellEdit, tagTreeRows, card, undo,
+  kitCss, el, esc, fragmentOf, ICONS, icon, iconHtml, kindIconHtml, tag, tagLinkHtml, quiet, go, keepKeys, field, fieldHtml, drawnField, outline, chevron, tick, chip, note, guide, popup, popups, pickValue, editInPlace, ask, dialog, cellEdit, tagTreeRows, card, undo,
   MARK_CLASS, MARK_ATTR, isOwnMark, ownMarks, lifeCounts,
 };
 })();

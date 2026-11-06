@@ -11,21 +11,16 @@ const REOPEN_KEY = 'logseq-plugin-settings-reopen';
 const esc = text => String(text ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
 const host = () => window.parent.document;
 const CSS = `.sw-dialog { --sw-quiet: var(--lk-quiet); --sw-faint: var(--lk-faint); --sw-hair: var(--lk-hair); --sw-line: var(--lk-line); --sw-wash: var(--lk-wash);
-  position: fixed !important; top: 50% !important; left: 50% !important; right: auto !important; bottom: auto !important; transform: translate(-50%, -50%) !important; margin: 0 !important; width: min(860px, 92vw); height: min(700px, 88vh); max-height: 88vh; overflow: hidden; box-sizing: border-box; padding: 0; border: 1px solid var(--sw-hair); border-radius: 8px;
-  background: var(--lk-paper, #fff); color: var(--lk-text, #222); font-size: 14px; line-height: 1.5;
-  box-shadow: 0 10px 30px rgba(0,0,0,.14); }
-.sw-dialog::backdrop { background: rgba(0,0,0,.18); }
+  position: fixed !important; top: 50% !important; left: 50% !important; right: auto !important; bottom: auto !important; transform: translate(-50%, -50%) !important; margin: 0 !important; width: min(860px, 92vw); height: min(700px, 88vh); max-height: 88vh; overflow: hidden; box-sizing: border-box; padding: 0; }   /* the window's look is the library's lk-window */
 .sw-dialog[open] { display: grid; grid-template-columns: 204px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); pointer-events: auto; }
 .sw-head { grid-column: 1 / -1; display: grid; grid-template-columns: 204px minmax(0, 1fr) auto; align-items: center; padding: 14px 16px 10px 22px; }
 .sw-head b { font-size: 16px; font-weight: 600; }
-.sw-find { border: 0; border-bottom: 1px solid transparent; background: none; color: inherit; font: inherit; padding: 2px 0; outline: none; box-shadow: none; width: 100%; max-width: calc(100% - 22px); }
-.sw-find::placeholder { color: var(--sw-faint); opacity: 1; }
-.sw-find:focus { border-bottom-color: var(--sw-line); outline: none; box-shadow: none; }
+.sw-find { width: 100%; max-width: calc(100% - 22px); }   /* the library's field (lk-field) */
 .sw-close { all: unset; cursor: pointer; font-size: 18px; line-height: 1; padding: 0 6px; }
 .sw-side { display: flex; flex-direction: column; padding: 8px 12px 16px 14px; min-height: 0; overflow: auto; }
-.sw-mod { display: grid; grid-template-columns: 22px minmax(0, 1fr); align-items: center; padding: 5px 8px; border-radius: 4px; cursor: pointer; }
-.sw-mod:hover { background: var(--sw-wash); }
-.sw-mod[aria-current="true"] { background: var(--sw-wash); font-weight: 500; }
+/* A part is a line of the library's menu (lk-item), the one open lit (on). */
+.sw-mod { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 0; align-items: center; padding: 5px 8px; cursor: pointer; }
+.sw-mod[aria-current="true"] { font-weight: 500; }
 .sw-mod.off .sw-name { color: var(--sw-faint); }
 .sw-mod .lk-pencil { font-style: italic; }
 .sw-nomatch { opacity: .4; }
@@ -33,7 +28,7 @@ const CSS = `.sw-dialog { --sw-quiet: var(--lk-quiet); --sw-faint: var(--lk-fain
 .sw-word.on { font-weight: 500; }
 .sw-body { min-height: 0; overflow: auto; padding: 0 22px 22px; scrollbar-gutter: stable; }
 .sw-resting .sw-row, .sw-resting h3 { opacity: .5; }
-.sw-none { color: var(--sw-quiet); padding-top: 18px; margin: 0; }
+.sw-none { padding-top: 18px; margin: 0; }
 .sw-part { font-weight: 600; font-size: 16px; padding-top: 18px; }
 .sw-part:first-child { padding-top: 8px; }
 .sw-do { justify-self: start; margin-top: -3px; margin-bottom: -3px; }
@@ -68,18 +63,12 @@ const CSS = `.sw-dialog { --sw-quiet: var(--lk-quiet); --sw-faint: var(--lk-fain
 .sw-spec .sw-faintw { color: var(--sw-faint); }
 .sw-spec .sw-grey { opacity: .45; }
 .sw-spec .sw-sep { color: var(--sw-faint); margin: 0 6px; } .sw-spec .sw-gap { display: inline-block; width: 18px; }
-.sw-tick { appearance: none !important; -webkit-appearance: none !important; width: 13px !important; height: 13px !important; margin: 0 !important; align-self: center; border: 1px solid var(--sw-line) !important; border-radius: 3px !important; background: none !important; box-shadow: none !important; color: inherit !important; cursor: pointer; position: relative; }
-.sw-tick:checked { background: none !important; border-color: var(--sw-line) !important; }
-.sw-tick:checked::after { content: ''; position: absolute; left: 3.5px; top: 0.5px; width: 4px; height: 7px; border-right: 1.5px solid var(--lk-text, #222); border-bottom: 1.5px solid var(--lk-text, #222); transform: rotate(45deg); }
-.sw-tick:focus-visible { outline: none; border-color: currentColor !important; }
-.sw-field { border: 0; border-bottom: 1px solid transparent; background: none; color: inherit; font: inherit; padding: 1px 0; min-width: 6em; outline: none; }
-.sw-field:focus { border-bottom-color: var(--sw-line); outline: none; box-shadow: none; }
-.sw-field::placeholder { color: var(--sw-faint); opacity: 1; }
+.sw-tick { align-self: center; }   /* the library's tick box (lk-tick) */
+.sw-field { min-width: 6em; }   /* the Pressing set's field (input.lk-value): a hairline only while it has the keyboard */
 .sw-field.sw-wide { width: min(100%, 36em); }
 .sw-choices { display: flex; gap: 14px; flex-wrap: wrap; }
-.sw-choice { all: unset; cursor: pointer; color: var(--sw-faint); }
-.sw-choice:hover { color: inherit; }
-.sw-choice[aria-pressed="true"] { color: inherit; font-weight: 500; }
+.sw-choice { all: unset; cursor: pointer; }   /* the library's alternatives (lk-alts): the one in force (on) in the text colour */
+.sw-choice.on { font-weight: 500; }
 /* It stands beside a title and must not take the title's weight, or make the row taller when it comes. */
 .sw-row .sw-default { font-weight: 400; margin-top: -3px; margin-bottom: -3px; }
 .sw-row:hover { background: var(--sw-wash); margin: 0 -8px; padding-left: 8px; padding-right: 8px; border-radius: 4px; }`;
@@ -136,12 +125,12 @@ function rowHtml(row) {
   const reset = changed(item) ? `<button type="button" class="sw-default lk-lone lk-i-undo" data-reset="${key}" title="Back to the default">default</button>` : '';
   const spec = specimen ? specimen(item, value) : '';
   const drawn = spec ? `<div class="sw-spec" title="${about}">${spec}</div>` : '';
-  if (item.type === 'boolean') return `<label class="sw-row"><input type="checkbox" class="sw-tick" id="sw-${key}" data-key="${key}"${value ? ' checked' : ''}><span class="sw-title" title="${about}">${esc(item.title)} ${reset}</span>${drawn}</label>`;
+  if (item.type === 'boolean') return `<label class="sw-row"><input type="checkbox" class="sw-tick lk-tick" id="sw-${key}" data-key="${key}"${value ? ' checked' : ''}><span class="sw-title" title="${about}">${esc(item.title)} ${reset}</span>${drawn}</label>`;
   if (item.type === 'enum') return `<div class="sw-row"><span></span><span class="sw-title" title="${about}">${esc(item.title)}</span><span class="sw-value sw-choices lk-alts">${(item.enumChoices || []).map(choice => `<button type="button" class="sw-choice lk-value${String(choice) === String(value) ? ' on' : ' off'}" data-key="${key}" data-choice="${esc(choice)}" aria-pressed="${String(choice) === String(value)}">${esc(choice)}</button>`).join('')}${reset}</span>${drawn}</div>`;
   if (item.list) return `<div class="sw-row"><span></span><span class="sw-title" title="${about}">${esc(item.title)}</span><span class="sw-value">${listHtml(item, value)}</span></div>`;
   if (item.inputAs === 'textarea') return `<div class="sw-row"><span></span><label class="sw-title" for="sw-${key}" title="${about}">${esc(item.title)}</label><span class="sw-value"><textarea class="sw-css" id="sw-${key}" data-key="${key}" spellcheck="false" placeholder="${esc(item.placeholder || '')}">${esc(value)}</textarea></span></div>`;
   const number = item.type === 'number';
-  return `<div class="sw-row"><span></span><label class="sw-title" for="sw-${key}" title="${about}">${esc(item.title)}</label><span class="sw-value"><input type="${number ? 'number' : 'text'}" class="sw-field${number ? '' : ' sw-wide'}" id="sw-${key}" data-key="${key}" value="${esc(item.keys ? keyWords(value) : value)}" placeholder="none" spellcheck="false" autocomplete="off">${reset}</span>${drawn}</div>`;
+  return `<div class="sw-row"><span></span><label class="sw-title" for="sw-${key}" title="${about}">${esc(item.title)}</label><span class="sw-value"><input type="${number ? 'number' : 'text'}" class="sw-field lk-value${number ? '' : ' sw-wide'}" id="sw-${key}" data-key="${key}" value="${esc(item.keys ? keyWords(value) : value)}" placeholder="none" spellcheck="false" autocomplete="off">${reset}</span>${drawn}</div>`;
 }
 const rowsByPart = rows => parts().filter(part => rows.some(row => row.part === part)).map(part => `<div class="sw-part">${esc(part.title)}</div>${rows.filter(row => row.part === part).map(rowHtml).join('')}`).join('');
 
@@ -151,18 +140,18 @@ function drawBody(dlg) {
   body.classList.remove('sw-resting');
   if (words) {
     const rows = everyRow().filter(row => matches(row, words));
-    body.innerHTML = rows.length ? rowsByPart(rows) : '<p class="sw-none">Nothing by that name.</p>';
+    body.innerHTML = rows.length ? rowsByPart(rows) : '<p class="sw-none lk-none">Nothing by that name</p>';
     return;
   }
   if (state.view === 'changed') {
     const rows = everyRow().filter(row => changed(row.item));
-    body.innerHTML = rows.length ? rowsByPart(rows) : '<p class="sw-none">Everything is as it started.</p>';
+    body.innerHTML = rows.length ? rowsByPart(rows) : '<p class="sw-none lk-none">Everything is as it started</p>';
     return;
   }
   const part = parts().find(p => p.key === state.cur) || parts()[0];
   body.classList.toggle('sw-resting', !wanted(part));
   const none = Door.described[part.key].none;
-  body.innerHTML = none ? `<p class="sw-none">${esc(none)}</p>` : sectionsOf(part).map(section => `<section class="sw-section"><h3>${esc(section.title)}</h3>${section.items.map(item => rowHtml({ item, part, section })).join('')}</section>`).join('');
+  body.innerHTML = none ? `<p class="sw-none lk-none">${esc(none)}</p>` : sectionsOf(part).map(section => `<section class="sw-section"><h3>${esc(section.title)}</h3>${section.items.map(item => rowHtml({ item, part, section })).join('')}</section>`).join('');
   body.scrollTop = at;
 }
 function drawSide(dlg) {
@@ -171,7 +160,7 @@ function drawSide(dlg) {
   dlg.querySelector('.sw-side').innerHTML = rows(part => {
     const none = words && !everyRow().some(row => row.part === part && matches(row, words));
     const here = !words && state.view === 'part' && state.cur === part.key;
-    return `<div class="sw-mod${wanted(part) ? '' : ' off'}${none ? ' sw-nomatch' : ''}" data-part="${part.key}" aria-current="${here}"><input type="checkbox" class="sw-tick" id="sw-run-${part.key}" data-run="${part.key}"${wanted(part) ? ' checked' : ''} aria-label="${esc(part.title)} runs"><span class="sw-name${waiting(part) ? ' lk-pencil' : ''}">${esc(part.title)}</span></div>`;
+    return `<div class="sw-mod lk-item${here ? ' on' : ''}${wanted(part) ? '' : ' off'}${none ? ' sw-nomatch' : ''}" data-part="${part.key}" aria-current="${here}"><input type="checkbox" class="sw-tick lk-tick" id="sw-run-${part.key}" data-run="${part.key}"${wanted(part) ? ' checked' : ''} aria-label="${esc(part.title)} runs"><span class="sw-name${waiting(part) ? ' lk-pencil' : ''}">${esc(part.title)}</span></div>`;
   }) + `<div class="sw-foot">${parts().some(waiting) ? '<button type="button" class="sw-reload lk-lone lk-i-reload" id="sw-reload">Reload to apply</button>' : ''}${anyChanged() || state.view === 'changed' ? `<button type="button" class="sw-word lk-lone${state.view === 'changed' ? ' on' : ''}" id="sw-changed">Changed by you</button>` : ''}<button type="button" class="sw-word lk-lone" id="sw-plain">Logseq’s list</button></div>`;
 }
 // A redraw replaces what had the keyboard: hand it back, so Escape and the arrows keep working.
@@ -265,8 +254,8 @@ function openWindow(partKey) {
   if (partKey) { state.cur = partKey; state.view = 'part'; }
   state.find = '';
   const dlg = doc.createElement('dialog');
-  dlg.className = 'sw-dialog';
-  dlg.innerHTML = `<div class="sw-head"><b>Plugin settings</b><input class="sw-find" type="text" id="sw-find" placeholder="find a setting" aria-label="Find a setting" spellcheck="false" autocomplete="off"><button type="button" class="sw-close lk-close" aria-label="Close" title="Close (Esc)">×</button></div><nav class="sw-side" aria-label="The six parts"></nav><div class="sw-body"></div>`;
+  dlg.className = 'sw-dialog lk-window';
+  dlg.innerHTML = `<div class="sw-head"><b>Plugin settings</b><input class="sw-find lk-field" type="text" id="sw-find" placeholder="find a setting" aria-label="Find a setting" spellcheck="false" autocomplete="off"><button type="button" class="sw-close lk-close" aria-label="Close" title="Close (Esc)">×</button></div><nav class="sw-side" aria-label="The six parts"></nav><div class="sw-body"></div>`;
   dlg.querySelector('.sw-find').addEventListener('input', event => { state.find = event.target.value; draw(); });
   dlg.addEventListener('change', onChange);
   dlg.addEventListener('click', event => onClick(dlg, event));

@@ -87,7 +87,8 @@ const key = (dlg, name, target = dlg.querySelector('.sw-tick')) => target.dispat
   assert.equal(Door.settings.keyWords('mod+ctrl+alt+shift+space'), 'Cmd Ctrl Option Shift Space'); assert.equal(Door.settings.keySpelling('Cmd Ctrl Option Shift Space'), 'mod+ctrl+alt+shift+space');
   await sleep(80); assert.equal(dlg.querySelector('#sw-linkSuggestKeys').placeholder, 'none', 'an empty field still reads');
   const sheet = doc.getElementById('sw-style').textContent;
-  assert.ok(/\.sw-field \{[^}]*border-bottom: 1px solid transparent/.test(sheet) && /\.sw-field:focus \{ border-bottom-color[^}]*box-shadow: none/.test(sheet), 'a field\'s line only while it has the keyboard');
+  assert.ok(/input\.lk-value \{[^}]*border-bottom: 1px solid transparent/.test(Door.NAMES) && /input\.lk-value:focus \{ border-bottom-color[^}]*box-shadow: none/.test(Door.NAMES), 'a field\'s line only while it has the keyboard (the library\'s input.lk-value)');
+  assert.ok(dlg.querySelector('input.sw-field.lk-value'), 'a settings field is the library\'s input.lk-value');
   // Logseq's list stays a word away
   dlg.querySelector('#sw-plain').click();
   assert.equal(written.at(-1), 'list'); assert.equal(Door.settings.current, null, 'and the window closes');

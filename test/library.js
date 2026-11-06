@@ -21,7 +21,7 @@ const LIBRARY = new RegExp(KINDS.join('|'));
 // Choices and things that are not buttons: tick boxes, fold and dig arrows, a value (Group ▾, a draft's property), Find's
 // choices, Threads' kind words, a word's own × in the kit (a chip nothing draws yet), and the kit's helpers, which take the
 // name from whoever calls them.
-const NOT_A_LIBRARY_BUTTON = /tick|lk-tick|lk-fold|fold|dig|lk-row|rf-tw-chip|rf-tw-groupby|rf-tw-dpick|rf-chip-x|rf-ol-act|fd-c\b|rf-quiet\$\{faint|ps-|xp-tab|xp-cho|choice/;
+const NOT_A_LIBRARY_BUTTON = /tick|lk-tick|lk-fold|fold|dig|lk-row|rf-tw-chip|rf-tw-dpick|rf-chip-x|rf-ol-act|fd-c\b|choice/;
 
 const strays = [];
 for (const file of FILES) {
@@ -64,4 +64,26 @@ if (symbols.length) { console.error('A key as a symbol:\n  ' + symbols.join('\n 
 const WORDS = [...FILES, path.join(ROOT, 'threads/main.js')].map(file => [file, fs.readFileSync(file, 'utf8')]);
 const OLD = [/notify\([^\n]*\brecords?\b/, /Refinements plugin/, /Refinements: troubleshooting/, /Pointed at by/, /type to find/, /&gt; for a command/, /(link|links) to <span/, /\(Shift: in the sidebar\)[`"]/, /Shift-click: in the sidebar\)">/, /return 'a record'/, /a name opens the node/, /a fix first says/, /name: 'Phenomenon'/, /in their field/];
 for (const [file, text] of WORDS) for (const word of OLD) assert.ok(!word.test(text), `${path.relative(ROOT, file)} still says ${word}`);
-console.log(`library: ${KINDS.length} kinds drawn, every button in ${FILES.length} files draws from them`);
+/* The pieces the library draws whole since 6 November 2026 (plugin.js: lk-window, lk-pop, lk-tick, lk-fold, lk-bul, lk-field, lk-none,
+   lk-undo, the one motion): a module's stylesheet draws none again. A shadow is a frame of the module's own; a ::backdrop a window's
+   own dimming; a keyframe or animation a motion of its own; appearance: none on a checkbox a tick box of its own; a hex colour
+   outside a var() fallback a colour of its own. What a module may still carry is named here with its reason. */
+for (const name of ['.lk-window', '.lk-pop', 'input.lk-tick[type=checkbox]', '.lk-fold::before', '.lk-bul::before', '.lk-field', '.lk-none', 'input.lk-value']) assert.ok(NAMES.includes(name), `the library draws ${name}`);
+const OWN = [
+  // A shadow that is not a frame: the printed sheet on the desk, a wash ring under the keyboard, Logseq's own notices and sidebar restyled by Look, a specimen in the settings window.
+  [/box-shadow:\s*0 [^;}]*/, /xp-desk iframe|\.pv-page|0 0 0 3px var\(--lk-wash\)|look\/logseq\/(notices|sidebar|settings)\.js/, 'a shadow of its own'],
+  [/::backdrop/, /^$/, 'a backdrop of its own'],
+  [/@keyframes|\banimation:/, /rf-blink/, 'a motion of its own'],   // the drawn caret blinks as the browser's does
+  [/appearance:\s*none[^}]*\}/, /^$/, 'a tick box or control drawn again'],
+  [/(color|background|stroke|fill|border)[^;:]*:\s*[^;]*#[0-9a-fA-F]{3,6}\b/, /var\(--[\w-]+,\s*#|export\/logseq\/preview\.js|xp-desk iframe|color-mix\([^)]*#000\)|<!doctype html>|look\/logseq\/settings\.js/, 'a colour of its own'],
+];
+const own = [];
+for (const file of FILES) {
+  const rel = path.relative(ROOT, file);
+  fs.readFileSync(file, 'utf8').split('\n').forEach((line, i) => {
+    if (line.trimStart().startsWith('//') || line.trimStart().startsWith('*') || line.trimStart().startsWith('/*')) return;
+    for (const [what, allowed, says] of OWN) { const m = line.match(what); if (m && !allowed.test(rel + ' ' + line)) own.push(`${rel}:${i + 1} ${says}: ${line.trim().slice(0, 100)}`); }
+  });
+}
+if (own.length) { console.error('A look drawn by a module that the library draws whole:\n  ' + own.join('\n  ')); process.exit(1); }
+console.log(`library: ${KINDS.length} kinds drawn, every button in ${FILES.length} files draws from them; no module draws a frame, a tick box, a colour or a motion of its own`);

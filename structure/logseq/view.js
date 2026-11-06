@@ -4,7 +4,7 @@
    Every property, a property's card, a tag's nodes and the log open in the place of the areas. Nothing a single letter does: letters
    typed on the outline find a tag; what a thing can take is in its right-click menu. A fix first says what it would do, with the nodes
    it touches, and is staged only on a second yes. A change waiting is pencilled in where it will happen. It is drawn into Logseq's own
-   document, so the shared names (lk-row, lk-fold, lk-list, lk-tick, lk-node, lk-undo) sit on what they name and carry no look here. */
+   document, so the shared names (lk-row, lk-fold, lk-bul, lk-list, lk-tick, lk-field, lk-pop, lk-none, lk-node, lk-undo) sit on what they name and carry no look here. */
 (function () {
 const S = window.Structure;
 const Mo = S.model, R = S.rules;
@@ -13,7 +13,6 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 
 // Logseq's fold chevron, as it draws it: a small right-pointing angle that turns down when open.
-const CHEVRON = `<svg viewBox="0 0 10 10" aria-hidden="true"><path d="M3.5 2 7 5 3.5 8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 // The icon of what a property holds is the door's, as for every module.
 const Door = window.PluginDoor;
 const KIND_OF = { rel: 'node', num: 'number', date: 'date', choice: 'choice', text: 'text' };
@@ -25,8 +24,8 @@ const dayWords = d => d ? day(new Date(Math.floor(d / 10000), Math.floor(d / 100
 const ACT_ICON = { page: 'go', ppage: 'go', rename: 'rename', prename: 'rename', move: 'move', pmove: 'move', new: 'child', addprop: 'plus', addpropall: 'plus', merge: 'merge', remove: 'bin', pullup: 'up', split: 'split', pdrop: 'minus' };
 const fixIcon = word => [[/^(remove|delete)/i, 'bin'], [/^drop/i, 'minus'], [/^(pull|lift)/i, 'up'], [/^(move|place|put)/i, 'move'], [/^merge/i, 'merge'], [/^rename/i, 'rename'], [/^(add|new)/i, 'plus']].find(([re]) => re.test(word))?.[1] || 'tick';
 const CSS = `
-.st { --st-quiet: currentColor; --st-faint: var(--lk-faint); --st-hair: var(--lk-hair); --st-line: var(--lk-line); --st-wash: var(--lk-wash);
-  --st-ring: color-mix(in srgb, currentColor 11%, transparent); --st-mono: var(--lk-mono);
+.st { --st-quiet: var(--lk-quiet); --st-faint: var(--lk-faint); --st-hair: var(--lk-hair); --st-line: var(--lk-line); --st-wash: var(--lk-wash);
+  --st-mono: var(--lk-mono);
   color: var(--lk-text, #222); font-size: 14px; line-height: 1.5; outline: none; position: relative; }
 .st * { box-sizing: border-box; }
 .st-page { display: flex; flex-direction: column; height: 600px; min-height: 360px; }
@@ -87,7 +86,7 @@ const CSS = `
 .st-tray .tl span i { color: var(--st-quiet); font-style: normal; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .st-tray .tl .lk-x { justify-self: end; padding: 0 2px; }
 .st-tray .st-wait .lk-accent { padding: 2px 6px; margin: 0 -6px; }
-.st-tray .ky { font-weight: 400; font-size: 12px; margin-left: 6px; }
+.st-tray .ky { font-weight: 400; font-size: 12.5px; margin-left: 6px; }
 /* The yes to what Undo cannot put back whole (the library's), under the lines it answers for. */
 /* A count that opens its nodes: what opens has an underline. */
 .st-card .sum .lk-lone { padding: 0; margin: 0; text-decoration: underline; text-decoration-color: var(--st-line, var(--lk-line)); text-underline-offset: 3px; }
@@ -103,37 +102,29 @@ const CSS = `
 .st-tray .st-wait + .tl + .st-saying, .st-tray .st-wait + .tl + .more + .st-saying { margin-top: 4px; }
 .st-tray .st-done .lk-undo { cursor: pointer; margin-left: 6px; font-size: 16px; }
 .st-tray .busy { color: var(--st-faint); }
-.st-find { border-bottom: 1px solid var(--st-line); color: var(--st-faint); font-size: 13.5px; display: flex; min-height: 24px; padding: 0 2px; margin: 0 0 10px; align-items: center; gap: 6px; }
-.st-find input, .st-in { all: unset; flex: 1; color: var(--lk-text, #222); min-width: 0; font: inherit; }
-.st-find input::placeholder { color: var(--st-faint); }
-.st-find .n { font-size: 12px; color: var(--st-faint); font-variant-numeric: tabular-nums; }
-.st-in { border-bottom: 1px solid var(--st-line); width: 100%; }
+/* The find line and a name typed in place are the library's field (lk-field); here their room. */
+.st-find { color: var(--st-faint); font-size: 13.5px; min-height: 24px; padding: 0 2px; margin: 0 0 10px; }
+.st-find .n { font-size: 12.5px; color: var(--st-faint); font-variant-numeric: tabular-nums; }
+.st-in { width: 100%; }
 .st-tree { flex: 1; min-height: 0; overflow: auto; }
 /* A row is built as Logseq builds a block (the grammar): the tick in the margin, the fold arrow shown under the pointer, the
    bullet ringed while folded, then the name; at the right edge only what tells the rows apart (here the count). */
 /* A long name wraps like text, so the row's pieces stand at its first line. Each level is one step in, as deep as the tree goes. */
 .st-row { display: grid; grid-template-columns: 14px 14px 16px minmax(0, 1fr) 46px 12px; align-items: start; min-height: 26px; padding-left: calc(var(--d, 0) * 12px); border-radius: 3px; position: relative; }
 .st-side .st-row { grid-template-columns: 14px 16px minmax(0, 1fr) 40px 12px; }
-.st-bul { display: inline-flex; width: 14px; height: 14px; margin-top: 6px; border-radius: 50%; align-items: center; justify-content: center; justify-self: center; }
-.st-bul.folded { background: var(--st-ring); }
-.st-bul i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: .55; }
-.st-row.kind .st-bul i { opacity: .8; }
-.st-row:hover { background: var(--st-wash); }
+/* The bullet is the library's (lk-bul); here its place on the row. A row's wash under the pointer is the library's (lk-row). */
+.st-bul { margin-top: 5px; justify-self: center; }
+.st-row.kind .st-bul::before { opacity: .8; }
 .st-row.cur { background: var(--st-wash); }
 .st-row.cur::before { content: ""; position: absolute; left: -8px; top: 5px; bottom: 5px; width: 2px; background: var(--st-line); border-radius: 1px; }
-/* The tick box drawn as Threads draws it (parts/shared.js, rf-check): Logseq paints a ticked checkbox blue with its own
-   !important rules, so each is overridden here. When it shows is Look's word (on the list under the pointer, or while picking). */
-.st input.lk-tick[type=checkbox] { appearance: none !important; -webkit-appearance: none !important; position: relative; box-sizing: border-box; width: 13px !important; height: 13px !important; margin: 0 !important; padding: 0; flex: none; border: 1px solid var(--st-line) !important; border-radius: 3px !important; background: none !important; color: inherit !important; vertical-align: -1px; cursor: pointer; outline: none; box-shadow: none !important; }
-.st input.lk-tick[type=checkbox]:checked, .st input.lk-tick[type=checkbox]:focus, .st input.lk-tick[type=checkbox]:hover { background-color: transparent !important; background-image: none !important; border-color: currentColor !important; color: inherit !important; box-shadow: none !important; }
-.st input.lk-tick:checked::before { content: ""; position: absolute; left: 3.5px; top: .5px; width: 3.5px; height: 7px; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg); }
-.st input.lk-tick:focus-visible { outline: none; border-color: currentColor !important; }
+/* The tick box is the library's (lk-tick); when it shows is Look's word (on the list under the pointer, or while picking). */
 /* Every box at the middle of its row's first line, in one straight column at the left edge whatever the row's depth, so a
    top-level row, which can be ticked like any (the top is open), keeps its fold arrow beside its box. */
 .st .st-row > input.lk-tick[type=checkbox] { margin-top: 6.5px !important; margin-left: calc(0px - var(--d, 0) * 12px - var(--st-in, 0px)) !important; }
 /* Under a top-level tag a name starts a step right of the top-level name. */
 .st-tree .st-row:not(.kind):not(.loose) { --st-in: 9px; padding-left: calc(var(--d, 0) * 12px + var(--st-in)); }
-.st-row .lk-fold { display: inline-flex; width: 14px; height: 20px; margin-top: 3px; align-items: center; justify-content: center; cursor: pointer; }
-.st-row .lk-fold svg { width: 10px; height: 10px; transition: transform .12s; } .st-row .lk-fold[aria-expanded="true"] svg { transform: rotate(90deg); }
+/* The fold arrow is the library's (lk-fold); here its place in the row's 14 px column. */
+.st-row .lk-fold { width: 14px; margin-top: 3px; }
 .st-row .nm { min-width: 0; padding: 3px 0; line-height: 20px; overflow-wrap: anywhere; display: flex; gap: 7px; align-items: baseline; }
 .st-row.kind .nm { font-weight: 500; }
 .st-row.dim .nm, .st-row.dim .ct, .st-row.loose .nm { color: var(--lk-off); }
@@ -184,7 +175,7 @@ const CSS = `
 .st-pi { display: inline-flex; width: 11px; height: 11px; color: var(--st-faint); align-self: center; } .st-ln > .st-pi { align-self: start; margin-top: 5px; } .st-pi .lk-icon.lk-web, .st-pi .lk-icon.lk-web svg { width: 100%; height: 100%; } .st-pi .ti { font-size: 12px; line-height: 1; margin: -.5px; }
 .st-ln .w { display: flex; gap: 8px; align-items: baseline; min-width: 0; flex-wrap: wrap; }
 .st-ln .w .k { color: inherit; }
-.st-ln .w .to { color: var(--st-faint); font-size: 12px; }
+.st-ln .w .to { color: var(--st-faint); font-size: 12.5px; }
 .st .lk { text-decoration: underline; text-decoration-color: var(--st-line); text-underline-offset: 3px; cursor: pointer; }
 .st .lk:hover { text-decoration-color: currentColor; }
 .st .lk-tag { white-space: nowrap; cursor: pointer; }
@@ -219,7 +210,6 @@ const CSS = `
 .st-tbl .hd, .st-tbl .tr { display: grid; grid-template-columns: minmax(140px, 1fr) minmax(0, 1.5fr) minmax(0, 1.5fr) 100px; gap: 0; align-items: center; min-height: 32px; border-bottom: 1px solid var(--st-hair); }
 .st-tbl .hd > *, .st-tbl .tr > * { padding: 4px 12px; min-width: 0; border-left: 1px solid var(--st-hair); } .st-tbl .hd > :first-child, .st-tbl .tr > :first-child { border-left: 0; padding-left: 4px; }
 .st-tbl .hd { font-weight: 600; } .st-tbl .hd .lk-head { cursor: pointer; } .st-tbl .hd .sortmark { color: inherit; font-weight: 400; margin-left: 5px; }
-.st-tbl .tr:hover { background: var(--st-wash); }
 .st-tbl .tr > span:first-child { position: relative; } .st-tbl .tr .lk-tick { position: absolute !important; left: -34px !important; top: 50%; transform: translateY(-50%); margin: 0 !important; } .st-tbl .tr.dim { opacity: .45; } .st-tbl .st-q { margin: 6px 0 14px 4px; }
 .st-acts .st-in { flex: 0 0 280px; width: 280px; }
 .st-q .st-two .h .lk-icon, .st-q .st-two .h .st-pi { margin-right: 2px; }
@@ -227,8 +217,7 @@ const CSS = `
 .st-tbl .tr > span:first-child { white-space: nowrap; } .st-tbl .tr .k.lk { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }   /* the name is cut, not the cell, so the tick and the arrow in the margin stay in view */
 .st-tbl .tr .k.lk { cursor: pointer; }
 .st-tbl .tr.cur { background: var(--st-wash); }
-.st-tbl .tr .lk-fold { position: absolute; left: -17px; top: 50%; transform: translateY(-50%); display: inline-flex; width: 14px; height: 20px; align-items: center; justify-content: center; cursor: pointer; }
-.st-tbl .tr .lk-fold svg { width: 10px; height: 10px; transition: transform .12s; } .st-tbl .tr .lk-fold[aria-expanded="true"] svg { transform: rotate(90deg); }
+.st-tbl .tr .lk-fold { position: absolute; left: -17px; top: 50%; transform: translateY(-50%); width: 14px; }
 .st-popen { padding: 8px 12px 14px 20px; border-bottom: 1px solid var(--st-hair); }
 /* The keys at rest (the owner's pick 1 of structure-table-keys-mockup.html, 5 November 2026): a cell that changes here ends with a faint chevron. */
 .st-tbl .tr .st-cell { display: flex; align-items: center; justify-content: flex-start; gap: 6px; } .st-tbl .tr .st-cell > span:first-child { min-width: 0; }
@@ -243,8 +232,7 @@ const CSS = `
 .st-tbl .tr .ct { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
 /* The groups of Every property: a name that folds like a bullet, its count at the right; what it holds one step in. */
 .st-tbl .tr > :first-child { padding-left: var(--pd, 4px); }   /* inside a group: one step past its name, as a child bullet */
-.st-tbl .st-grp .lk-fold { display: inline-flex; width: 14px; height: 20px; align-items: center; justify-content: center; cursor: pointer; }
-.st-tbl .st-grp .lk-fold svg { width: 10px; height: 10px; transition: transform .12s; } .st-tbl .st-grp .lk-fold[aria-expanded="true"] svg { transform: rotate(90deg); }
+.st-tbl .st-grp .lk-fold { width: 14px; }
 .st-tbl .st-grp { display: grid; grid-template-columns: 14px minmax(0, 1fr) auto 22px; gap: 6px; align-items: center; min-height: 32px; padding-left: calc(var(--d, 0) * 16px); border-bottom: 1px solid var(--st-hair); }
 .st-tbl .st-grp .gn { font-weight: 600; cursor: text; } .st-tbl .st-grp.none .gn { font-weight: 500; cursor: default; }
 .st-tbl .st-grp .ct { font-variant-numeric: tabular-nums; padding-right: 12px; }
@@ -260,12 +248,12 @@ const CSS = `
 .st-nodes .st-ln.cur { background: var(--st-wash); }
 .st-nodes .st-ln > input.lk-tick[type=checkbox] { align-self: start; margin-top: 4px !important; } .st-nodes .st-ln > .st-bul { align-self: start; margin-top: 3.5px; }
 .st-nodes .more, .st-hl .more, .st-tbl .more { padding: 4px 2px; }
-.st-menu { position: absolute; background: var(--lk-paper, #fff); box-shadow: 0 6px 18px rgba(0,0,0,.12); min-width: 230px; width: max-content; max-width: 360px; font-size: 13.5px; z-index: 30; }
+.st-menu { position: absolute; min-width: 230px; width: max-content; max-width: 360px; font-size: 13.5px; z-index: 30; }   /* the library's pop-up and menu (lk-pop, lk-menu) */
 /* The prompt is a picker at the thing pressed (the owner, 5 November 2026), with the menu's look, anchored in the scrolling box
    the press was in so it moves with its row and moves nothing else. One drawing everywhere: a find line reading the ask as its
    own name, the rows; a row that cannot take the thing stays at the off strength with the reason in its title; one row is lit,
    the one Enter takes, moved by the arrows and by the pointer (as Logseq's own picker moves it); "show all" is the opener. */
-.st-prompt { position: absolute; z-index: 30; width: min(320px, calc(100% - 8px)); max-height: 60vh; overflow: auto; padding: 6px; background: var(--lk-paper, #fff); border: 1px solid var(--st-hair); border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,.12); font-size: 13.5px; }
+.st-prompt { position: absolute; z-index: 30; width: min(320px, calc(100% - 8px)); max-height: 60vh; overflow: auto; padding: 6px; font-size: 13.5px; }   /* the library's pop-up (lk-pop) */
 .st-right, .st-tree { position: relative; }
 .st-prompt .st-find { margin-bottom: 4px; padding: 0 4px; }
 .st-prompt .st-row { grid-template-columns: minmax(0, 1fr) minmax(40px, max-content); column-gap: 8px; padding-left: calc(var(--d, 0) * 14px + 4px); padding-right: 4px; }
@@ -278,11 +266,11 @@ const CSS = `
 .st-prompt .more.lit { background: var(--st-wash); }
 .st-prompt .q { padding: 4px 2px; color: var(--st-quiet); } .st-prompt .q .hint { color: var(--st-faint); }
 .st-prompt .st-find .ti-search { font-size: 14px; color: var(--st-faint); flex: none; }
-.st-prompt .st-find .ask { font-size: 12px; color: var(--st-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 55%; }
-.st-prompt .nm .up { margin-left: .5em; font-size: 12px; color: var(--st-faint); }
+.st-prompt .st-find .ask { font-size: 12.5px; color: var(--st-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 55%; }
+.st-prompt .nm .up { margin-left: .5em; font-size: 12.5px; color: var(--st-faint); }
 /* A faint row's count gives way to its reason under the pointer, so why it cannot take it is read where its number stood. */
 .st-prompt .ct .why { display: none; } .st-prompt .st-row.off:hover .ct .n { display: none; } .st-prompt .st-row.off:hover .ct .why { display: inline; }
-.st-empty { color: var(--st-quiet); max-width: 60ch; }
+.st-empty { max-width: 60ch; }   /* the library's nothing-here line (lk-none) */
 @media (max-width: 760px) { .st-page { height: auto; } }`;
 
 function ensureStyle(doc) {
@@ -339,22 +327,22 @@ function make(holder, mode, app, opts = {}) {
   function rowHtml(r) {
     const t = r.n === LOOSE ? null : T(r.n), isTop = r.d === 0, side = mode === 'side';
     const o = own(r.n), b = below(r.n);
-    const arrow = r.kids ? `<span class="lk-fold" data-fold="${esc(r.n)}" aria-expanded="${r.open}">${CHEVRON}</span>` : '<span></span>';
-    const bullet = `<span class="st-bul ${r.kids && !r.open ? 'folded' : ''}"><i></i></span>`;
+    const arrow = r.kids ? `<span class="lk-fold" data-fold="${esc(r.n)}" aria-expanded="${r.open}"></span>` : '<span></span>';
+    const bullet = `<span class="st-bul lk-bul ${r.kids && !r.open ? 'folded' : ''}"></span>`;
     const editing = !inPane2 && st.edit && st.edit.what === 'rename' && st.edit.on === r.n;
-    const nm = editing ? `<input class="st-in" data-edit value="${esc(st.edit.text)}" autocomplete="off" spellcheck="false">` : esc(name(r.n));
+    const nm = editing ? `<input class="st-in lk-field" data-edit value="${esc(st.edit.text)}" autocomplete="off" spellcheck="false">` : esc(name(r.n));
     const canDrag = t && !editing;   // any tag, a top-level one too: the top is open
     let h = `<div class="st-row lk-row ${isTop ? 'kind' : ''} ${r.n === LOOSE ? 'loose' : ''} ${r.dim || (st.aim && !aimOk(r.n)) ? 'dim' : ''} ${loc.cur === r.n ? 'cur' : ''} ${waitTag(r.n)}" style="--d:${r.d}" data-row="${esc(r.n)}" ${canDrag ? 'draggable="true"' : ''}>` +
       (side ? '' : `<input type="checkbox" class="lk-tick" data-tick="${esc(r.n)}" ${st.ticks.has(r.n) ? 'checked' : ''} ${r.n === LOOSE ? 'disabled style="visibility:hidden"' : ''}>`) +
       arrow + bullet +
       `<span class="nm"><span class="${waitTag(r.n) ? 'lk-pencil' : ''} ${t?.uuid && !editing ? 'st-name' : ''}" ${t?.uuid && !editing ? `data-tpage="${esc(r.n)}"` : ''}>${nm}</span></span><span class="ct">${Mo.count(M(), r.n) || ''}</span><span class="iss ${o ? 'own' : b ? 'on' : ''}"></span></div>`;
-    if (!inPane2 && st.edit && st.edit.what === 'new' && st.edit.on === r.n && st.edit.owner === mode) h += `<div class="st-row lk-row" style="--d:${r.d + 1}"><span></span><span></span><span class="st-bul"><i></i></span><span class="nm"><input class="st-in" data-edit value="${esc(st.edit.text)}" placeholder="a new tag under ${esc(name(r.n))}" autocomplete="off" spellcheck="false"></span><span class="ct"></span><span class="iss"></span></div>`;
+    if (!inPane2 && st.edit && st.edit.what === 'new' && st.edit.on === r.n && st.edit.owner === mode) h += `<div class="st-row lk-row" style="--d:${r.d + 1}"><span></span><span></span><span class="st-bul lk-bul"></span><span class="nm"><input class="st-in lk-field" data-edit value="${esc(st.edit.text)}" placeholder="a new tag under ${esc(name(r.n))}" autocomplete="off" spellcheck="false"></span><span class="ct"></span><span class="iss"></span></div>`;
     return h;
   }
   function treeHtml() {
     const rows = visibleRows();
     const views = '';
-    return `<div class="st-left">${views}<div class="st-find"><input data-find placeholder="Find a tag" value="${esc(loc.find)}" autocomplete="off" spellcheck="false"><span class="n">${loc.find.trim() ? rows.filter(r => !r.dim).length : ''}</span></div>` +
+    return `<div class="st-left">${views}<div class="st-find lk-field"><input data-find placeholder="Find a tag" value="${esc(loc.find)}" autocomplete="off" spellcheck="false"><span class="n">${loc.find.trim() ? rows.filter(r => !r.dim).length : ''}</span></div>` +
       `<div class="st-tree lk-list" ${st.ticks.size ? 'data-picking' : ''}>${rows.map(rowHtml).join('')}</div></div>`;
   }
 
@@ -366,7 +354,7 @@ function make(holder, mode, app, opts = {}) {
     const pane = n => {
       inPane2 = n === 2;
       const rows = visibleRows(n), q = n === 2 ? st.pane2.find : loc.find;
-      const h = `<div class="st-pane" data-pane="${n}"><div class="st-find"><input ${n === 2 ? 'data-find2' : 'data-find'} placeholder="Find a tag" value="${esc(q)}" autocomplete="off" spellcheck="false"></div>` +
+      const h = `<div class="st-pane" data-pane="${n}"><div class="st-find lk-field"><input ${n === 2 ? 'data-find2' : 'data-find'} placeholder="Find a tag" value="${esc(q)}" autocomplete="off" spellcheck="false"></div>` +
         `<div class="st-tree lk-list" ${st.ticks.size ? 'data-picking' : ''}>${rows.map(rowHtml).join('')}<div class="st-row st-topdrop" data-row="${LOOSE}"><span></span><span></span><span></span><span class="nm">to the top</span></div></div></div>`;
       inPane2 = false;
       return h;
@@ -379,7 +367,7 @@ function make(holder, mode, app, opts = {}) {
     const v = ['table', 'log'].includes(st.view) ? st.view : 'tree';
     const views = `<div class="st-views lk-views">${[['tree', 'Regions'], ['table', 'Every property'], ['log', 'Log']].map(([k, w]) => `<span class="lk-view ${v === k ? 'here on' : 'act'}" ${v === k ? '' : `data-show="${k}"`}>${w}</span>`).join('')}</div>`;
     const split = st.view === 'tree' ? `<span class="st-split act lk-btn lk-low lk-i-side" data-split>${st.split ? 'One pane' : 'Two panes'}</span>` : '';
-    const find = st.view === 'tree' && st.split ? '' : `<div class="st-find"><input data-find placeholder="${st.view === 'table' ? 'Find a property' : 'Find a tag'}" value="${esc(loc.find)}" autocomplete="off" spellcheck="false"></div>`;
+    const find = st.view === 'tree' && st.split ? '' : `<div class="st-find lk-field"><input data-find placeholder="${st.view === 'table' ? 'Find a property' : 'Find a tag'}" value="${esc(loc.find)}" autocomplete="off" spellcheck="false"></div>`;
     return `<div class="st-top">${views}${find}${split}${st.view === 'tree' ? `<span class="st-new act lk-add lk-i-plus" data-do="new" data-on="${LOOSE}">New top-level tag</span>` : ''}</div>${st.view === 'tree' ? actsHtml() : st.view === 'table' ? pactsHtml() : ''}`;
   }
   // What can be done stays in view, faint until it can be (the research: what you can do is recognised, not remembered), so nothing moves when a tag is picked.
@@ -394,7 +382,7 @@ function make(holder, mode, app, opts = {}) {
   function pactsHtml() {
     const ids = [...st.pticks].filter(id => P(id)), names = ids.length > 3 ? `${ids.length} properties` : R.list(ids.map(id => P(id).title));
     if (st.paim) return `<div class="st-acts lk-bar"><b class="lk-said">Merge ${esc(names)} into: press a property</b><span class="act lk-btn lk-low lk-i-x" data-paimoff>Leave it</span></div>`;
-    if (st.edit?.what === 'pcombine' && st.edit.owner === mode) return `<div class="st-acts lk-bar"><b class="lk-said">Combine ${esc(names)} as</b><input class="st-in" data-edit value="${esc(st.edit.text)}" placeholder="Name of the property they become" autocomplete="off" spellcheck="false"><span class="act lk-btn lk-low lk-i-x" data-paimoff>Leave it</span></div>`;
+    if (st.edit?.what === 'pcombine' && st.edit.owner === mode) return `<div class="st-acts lk-bar"><b class="lk-said">Combine ${esc(names)} as</b><input class="st-in lk-field" data-edit value="${esc(st.edit.text)}" placeholder="Name of the property they become" autocomplete="off" spellcheck="false"><span class="act lk-btn lk-low lk-i-x" data-paimoff>Leave it</span></div>`;
     const n = ids.length;
     return `<div class="st-acts lk-bar">${n ? `<b class="lk-said">${n} picked</b>` : '<span class="say">Pick properties to merge or combine</span>'}<span class="act lk-btn lk-i-merge ${n ? '' : 'waits'}" data-paim>Merge into…</span><span class="act lk-btn lk-i-rename ${n > 1 ? '' : 'waits'}" data-pcombine>Combine as…</span></div>`;
   }
@@ -402,7 +390,7 @@ function make(holder, mode, app, opts = {}) {
     const areas = [];
     for (const r of visibleRows()) { if (!r.d) areas.push([]); areas[areas.length - 1]?.push(r); }
     const asking = st.edit && st.edit.owner === mode && (st.edit.what === 'kids' || st.edit.on === LOOSE);
-    const edit = asking ? `<div class="st-area"><div class="st-row lk-row kind"><span></span><span></span><span></span><span class="nm"><input class="st-in" data-edit value="${esc(st.edit.text)}" placeholder="${st.edit.what === 'kids' ? `The first child tags of ${esc(name(st.edit.on))}, with commas` : 'Name of the new top-level tag'}" autocomplete="off" spellcheck="false"></span></div></div>` : '';
+    const edit = asking ? `<div class="st-area"><div class="st-row lk-row kind"><span></span><span></span><span></span><span class="nm"><input class="st-in lk-field" data-edit value="${esc(st.edit.text)}" placeholder="${st.edit.what === 'kids' ? `The first child tags of ${esc(name(st.edit.on))}, with commas` : 'Name of the new top-level tag'}" autocomplete="off" spellcheck="false"></span></div></div>` : '';
     return `<div class="st-regions lk-list" ${st.ticks.size ? 'data-picking' : ''}><svg class="st-lines" aria-hidden="true"></svg>${areas.map(a => `<div class="st-area">${a.map(rowHtml).join('')}</div>`).join('')}${edit}</div>${st.aim ? '' : focusHtml(st.cur)}`;
   }
   // The relationships of a tag, read left to right: the tag that holds the property, the property and what it holds, how many nodes.
@@ -427,7 +415,7 @@ function make(holder, mode, app, opts = {}) {
     const adding = st.edit?.what === 'new' && st.edit.on === id && st.edit.owner === mode;
     const extendsWord = `<span class="act lk-pick" data-do="move" data-on="${id}">${up.length ? up.map(tagLink).join('<span class="to"> / </span>') : 'Nothing'}<span class="chev">⌄</span></span>`;
     return `<dl class="st-lines-t"><dt>Extends</dt><dd>${extendsWord}</dd>${beside.length ? `<dt>Beside</dt><dd><span>${ranges(beside)}</span></dd>` : ''}` +
-      `<dt>Child tags</dt><dd>${kids.length ? `<span>${ranges(kids)}</span>` : ''}${adding ? `<input class="st-in" data-edit value="${esc(st.edit.text)}" placeholder="Name of the child tag" autocomplete="off" spellcheck="false">` : `<span class="act lk-add lk-i-child" data-do="new" data-on="${id}">Add child tag</span>`}</dd>` +
+      `<dt>Child tags</dt><dd>${kids.length ? `<span>${ranges(kids)}</span>` : ''}${adding ? `<input class="st-in lk-field" data-edit value="${esc(st.edit.text)}" placeholder="Name of the child tag" autocomplete="off" spellcheck="false">` : `<span class="act lk-add lk-i-child" data-do="new" data-on="${id}">Add child tag</span>`}</dd>` +
       `<dt>Relationships</dt><dd>${relsHtml(id)}</dd></dl>${mergeAskHtml(id)}${changeAskHtml(id)}${suggestHtml(id)}`;
   }
   // A property's own page: the same short lines above what Logseq shows. Each action sits on what it acts on.
@@ -473,7 +461,7 @@ function make(holder, mode, app, opts = {}) {
     const editing = st.edit && st.edit.what === 'prename' && st.edit.on === `${tagId}·${pid}`;
     const fx = inh ? { cls: '', word: '', ask: '' } : lineFix(tagId, pid);
     return `<div class="st-ln ${inh ? 'inh' : ''} ${low ? 'low' : ''} ${fx.cls} ${waitProp(pid)}" data-prop="${tagId}·${pid}">${pi(p)}<span class="w">` +
-      (editing ? `<input class="st-in" data-edit value="${esc(st.edit.text)}" autocomplete="off" spellcheck="false">` : `<span class="k lk ${waitProp(pid) ? 'lk-pencil' : ''}">${esc(p.title)}</span>`) +
+      (editing ? `<input class="st-in lk-field" data-edit value="${esc(st.edit.text)}" autocomplete="off" spellcheck="false">` : `<span class="k lk ${waitProp(pid) ? 'lk-pencil' : ''}">${esc(p.title)}</span>`) +
       (p.type === 'node' ? `<span class="to">Node tags</span>${p.range.length ? ranges(p.range) : '<span class="to">any node</span>'}` : '') +
       (inh ? `<span class="to">inherited from ${esc(name(inh))}</span>` : '') +
       `</span><span class="ct">${f} of ${of}</span>${fx.word}</div>${fx.ask}`;
@@ -559,8 +547,8 @@ function make(holder, mode, app, opts = {}) {
     let h = `<div class="st-tbl lk-list" ${st.pticks.size ? 'data-picking' : ''}><div class="hd">${['name', 'on', 'to', 'filled'].map(c => `<span class="lk-head ${s === c ? 'on' : ''}" data-sort="${c}">${{ name: 'Property', on: 'On tags', to: 'Holds', filled: 'Filled' }[c]}${s === c ? `<span class="sortmark">${c === 'to' ? '↓' : '↑'}</span>` : ''}</span>`).join('')}</div>`;
     // A property's name, or the field renaming it (Rename in its right-click menu).
     const nameCell = (key, title, wait, page) => st.edit?.what === 'prename' && st.edit.on === key && st.edit.owner === mode
-      ? `<input class="st-in" data-edit value="${esc(st.edit.text)}" autocomplete="off" spellcheck="false">` : `<span class="k lk ${wait ? 'lk-pencil' : ''}" ${page ? `data-ppage="${esc(page)}"` : ''}>${esc(title)}</span>`;
-    const tr = (r, d) => { const key = `${r.tag}·${r.prop}`, open = st.popen.has(r.prop); return `<div class="tr lk-row ${waitProp(r.prop)} ${st.paim && st.pticks.has(r.prop) ? 'dim' : ''} ${st.propCur === key ? 'cur' : ''}" data-prop="${key}" data-gprop="${esc(r.p.ident)}" draggable="true" style="--pd:${d ? 20 + d * 16 : 4}px"><span><input type="checkbox" class="lk-tick" data-ptick="${r.prop}" ${st.pticks.has(r.prop) ? 'checked' : ''}><span class="lk-fold" data-pfold="${r.prop}" aria-expanded="${open}" title="${open ? 'Close' : 'Open'} ${esc(r.p.title)} here">${CHEVRON}</span>${nameCell(key, r.p.title, waitProp(r.prop), key)}</span><span class="st-cell"><span>${r.on.length ? ranges(r.on.map(x => x.tag)) : '<span class="f">No tag</span>'}</span><span class="chev st-chev" data-pon="${r.prop}" title="Put ${esc(r.p.title)} on a tag…">⌄</span></span><span class="st-cell"><span>${r.p.type === 'node' ? (r.p.range.length ? ranges(r.p.range) : 'any node') : esc(Mo.kindWord(r.p.choice ? 'choice' : r.p.type))}</span>${r.p.type === 'node' ? `<span class="chev st-chev" data-prange="${r.prop}" title="Node tags of ${esc(r.p.title)}…">⌄</span>` : ''}</span><span class="ct">${r.tag ? `${r.filled} of ${r.of}` : plural(r.filled, 'node')}</span></div>${open ? `<div class="st-popen" data-popen="${r.prop}">${propLinesHtml(r.prop)}</div>` : ''}${pmergeAskHtml(r.prop)}`; };
+      ? `<input class="st-in lk-field" data-edit value="${esc(st.edit.text)}" autocomplete="off" spellcheck="false">` : `<span class="k lk ${wait ? 'lk-pencil' : ''}" ${page ? `data-ppage="${esc(page)}"` : ''}>${esc(title)}</span>`;
+    const tr = (r, d) => { const key = `${r.tag}·${r.prop}`, open = st.popen.has(r.prop); return `<div class="tr lk-row ${waitProp(r.prop)} ${st.paim && st.pticks.has(r.prop) ? 'dim' : ''} ${st.propCur === key ? 'cur' : ''}" data-prop="${key}" data-gprop="${esc(r.p.ident)}" draggable="true" style="--pd:${d ? 20 + d * 16 : 4}px"><span><input type="checkbox" class="lk-tick" data-ptick="${r.prop}" ${st.pticks.has(r.prop) ? 'checked' : ''}><span class="lk-fold" data-pfold="${r.prop}" aria-expanded="${open}" title="${open ? 'Close' : 'Open'} ${esc(r.p.title)} here"></span>${nameCell(key, r.p.title, waitProp(r.prop), key)}</span><span class="st-cell"><span>${r.on.length ? ranges(r.on.map(x => x.tag)) : '<span class="f">No tag</span>'}</span><span class="chev st-chev" data-pon="${r.prop}" title="Put ${esc(r.p.title)} on a tag…">⌄</span></span><span class="st-cell"><span>${r.p.type === 'node' ? (r.p.range.length ? ranges(r.p.range) : 'any node') : esc(Mo.kindWord(r.p.choice ? 'choice' : r.p.type))}</span>${r.p.type === 'node' ? `<span class="chev st-chev" data-prange="${r.prop}" title="Node tags of ${esc(r.p.title)}…">⌄</span>` : ''}</span><span class="ct">${r.tag ? `${r.filled} of ${r.of}` : plural(r.filled, 'node')}</span></div>${open ? `<div class="st-popen" data-popen="${r.prop}">${propLinesHtml(r.prop)}</div>` : ''}${pmergeAskHtml(r.prop)}`; };
     // A prompt about this property (Put on a tag…, Node tags…, from the cell's chevron or the opened lines) rolls out under its row.
     /* The groups: an outline of names, each folding like a bullet, holding properties and other groups, for order only
        (app.groups, kept on this computer). A property dragged onto a group's name goes into it; a group dragged onto another
@@ -573,8 +561,8 @@ function make(holder, mode, app, opts = {}) {
     const field = (what, on) => st.edit?.what === what && st.edit.on === on && st.edit.owner === mode;
     const groupHtml = (g, d) => {
       const open = g.open !== false;
-      let x = `<div class="st-grp lk-reveals" data-group="${esc(g.id)}" draggable="true" style="--d:${d}"><span class="lk-fold" data-gfold="${esc(g.id)}" aria-expanded="${open}">${CHEVRON}</span>` +
-        (field('gname', g.id) ? `<input class="st-in" data-edit value="${esc(st.edit.text)}" autocomplete="off" spellcheck="false">` : `<span class="gn" data-gname="${esc(g.id)}">${esc(g.name)}</span>`) +
+      let x = `<div class="st-grp lk-reveals" data-group="${esc(g.id)}" draggable="true" style="--d:${d}"><span class="lk-fold" data-gfold="${esc(g.id)}" aria-expanded="${open}"></span>` +
+        (field('gname', g.id) ? `<input class="st-in lk-field" data-edit value="${esc(st.edit.text)}" autocomplete="off" spellcheck="false">` : `<span class="gn" data-gname="${esc(g.id)}">${esc(g.name)}</span>`) +
         `<span class="ct">${countIn(g.id) || ''}</span><span class="lk-x lk-reveal" role="button" tabindex="0" aria-label="Take the group ${esc(g.name)} away" data-gdrop="${esc(g.id)}" title="Take the group away; what it holds goes up a level">×</span></div>`;
       if (open) x += kidsOf(g.id).map(k => groupHtml(k, d + 1)).join('') + propsIn(g.id).map(r => tr(r, d + 1)).join('');
       return x;
@@ -583,7 +571,7 @@ function make(holder, mode, app, opts = {}) {
       const free = propsIn(null);
       h += kidsOf(null).map(g => groupHtml(g, 0)).join('') + `<div class="st-grp none" data-group="" style="--d:0"><span></span><span class="gn">No group</span><span class="ct">${free.length || ''}</span><span></span></div>` + few('table', free).map(r => tr(r, 1)).join('') + moreOf('table', free);
     } else h += few('table', rows).map(r => tr(r, 0)).join('') + moreOf('table', rows);
-    h += `<div class="st-gnew">${field('gnew', '') ? `<input class="st-in" data-edit value="${esc(st.edit.text)}" placeholder="Name of the group" autocomplete="off" spellcheck="false">` : '<span class="act lk-add lk-i-plus" data-gnew>New group</span><span class="act lk-add lk-i-plus" data-pnew>New property</span>'}</div>`;
+    h += `<div class="st-gnew">${field('gnew', '') ? `<input class="st-in lk-field" data-edit value="${esc(st.edit.text)}" placeholder="Name of the group" autocomplete="off" spellcheck="false">` : '<span class="act lk-add lk-i-plus" data-gnew>New group</span><span class="act lk-add lk-i-plus" data-pnew>New property</span>'}</div>`;
     return h + `</div>`;
   }
   // A long list: a few, then "show all", as a tag's nodes.
@@ -593,13 +581,13 @@ function make(holder, mode, app, opts = {}) {
   // ---------- a tag's nodes ----------
   function nodesHtml() {
     const n = st.nodes, t = n && T(n.tag);
-    if (!t) return `<div class="st-empty">No nodes to show.</div>`;
+    if (!t) return `<div class="st-empty lk-none">No nodes to show</div>`;
     const list = n.all ? n.list : n.list.slice(0, 20);
     let h = `<div class="st-card st-nodes lk-list" ${n.ticks.size ? 'data-picking' : ''}><div class="st-h" style="margin-top:0"><span class="lk" data-go="${n.tag}">${esc(t.title)}</span>, ${plural(n.list.length, 'node')}</div>`;
     // Nothing ticked: the bar's room stays empty, so a tick moves no row.
     if (!n.ticks.size) h += `<div class="st-pick"></div>`;
     else h += `<div class="st-pick lk-bar"><b class="lk-said">${n.ticks.size} picked</b><span class="act lk-btn lk-i-move" data-do="nmove" data-on="${n.tag}">Move to another tag…</span><span class="act lk-btn lk-i-child" data-do="nsplit" data-on="${n.tag}">New child tag of ${esc(t.title)} with them…</span></div>`;
-    h += list.map((x, i) => `<div class="st-ln ${i === n.cur ? 'cur' : ''}" data-node="${i}"><span class="lk-day">${dayWords(x.day)}</span><input type="checkbox" class="lk-tick" data-ntick="${i}" ${n.ticks.has(x.uuid) ? 'checked' : ''}><span class="st-bul"><i></i></span><span class="w"><span class="lk-node lk-bare lk" data-uuid="${esc(x.uuid)}" data-open="${esc(x.uuid)}">${esc(x.title.slice(0, 120) || '…')}</span></span></div>`).join('');
+    h += list.map((x, i) => `<div class="st-ln ${i === n.cur ? 'cur' : ''}" data-node="${i}"><span class="lk-day">${dayWords(x.day)}</span><input type="checkbox" class="lk-tick" data-ntick="${i}" ${n.ticks.has(x.uuid) ? 'checked' : ''}><span class="st-bul lk-bul"></span><span class="w"><span class="lk-node lk-bare lk" data-uuid="${esc(x.uuid)}" data-open="${esc(x.uuid)}">${esc(x.title.slice(0, 120) || '…')}</span></span></div>`).join('');
     if (!n.all && n.list.length > 20) h += `<div class="more lk-more" data-more>show all ${n.list.length}</div>`;
     return h + `</div>`;
   }
@@ -702,7 +690,7 @@ function make(holder, mode, app, opts = {}) {
     const none = !rows.length ? `<div class="q">No ${kind} matches “${esc(p.text.trim())}”<span class="hint"> · Esc clears</span></div>` :
       !rows.some(r => r.ok) ? `<div class="q">None of these can take it<span class="hint"> · point at one to see why</span></div>` : '';
     // The magnifier says this line finds; once letters are typed the ask stays, faint, at the line's right, so it is not lost.
-    return `<div class="st-prompt"><div class="st-find"><i class="ti ti-search" aria-hidden="true"></i><input data-pin placeholder="${esc(ask)}" title="Find a ${kind}" value="${esc(p.text)}" autocomplete="off" spellcheck="false">${p.text ? `<span class="ask" title="${esc(ask)}">${esc(ask)}</span>` : ''}</div>` +
+    return `<div class="st-prompt lk-pop"><div class="st-find lk-field"><i class="ti ti-search" aria-hidden="true"></i><input data-pin placeholder="${esc(ask)}" title="Find a ${kind}" value="${esc(p.text)}" autocomplete="off" spellcheck="false">${p.text ? `<span class="ask" title="${esc(ask)}">${esc(ask)}</span>` : ''}</div>` +
       rows.map((r, i) => r.more ? `<div class="more lk-more ${i === p.lit ? 'lit' : ''}" data-pick="${i}">${esc(r.nm)}</div>` :
         `<div class="st-row ${r.ok ? '' : 'off'} ${r.loose ? 'loose' : ''} ${i === p.lit ? 'lit' : ''}" style="--d:${Math.min(r.d, 6)}" data-pick="${i}" ${r.why ? `title="${esc(r.why)}"` : ''}><span class="nm">${r.icon || ''}<span class="t">${esc(r.nm)}</span>${r.up ? `<span class="up">${esc(r.up)}</span>` : ''}</span><span class="ct"><span class="n"${r.ctt ? ` title="${esc(r.ctt)}"` : ''}>${esc(r.ct)}</span>${r.why ? `<span class="why">${esc(r.why)}</span>` : ''}</span></div>`).join('') +
       none + `</div>`;
@@ -711,7 +699,7 @@ function make(holder, mode, app, opts = {}) {
   function menuHtml() {
     const mn = st.menu, m = M(), ticked = st.ticks.size;
     const it = (t, act, off, k) => `<div class="lk-item ${off ? 'off' : ''} ${/^(Remove|Delete)/.test(t) ? 'lk-del' : ''}" data-act="${act}">${esc(t)}${k ? `<span class="rt lk-note">${k}</span>` : ''}</div>`;
-    let h = `<div class="st-menu lk-menu" style="left:${mn.x}px;top:${mn.y}px">`;
+    let h = `<div class="st-menu lk-pop lk-menu" style="left:${mn.x}px;top:${mn.y}px">`;
     if (mn.kind === 'row') {
       const t = T(mn.on), none = !t, loose = mn.on === LOOSE;   // none: nothing behind the row
       const n = Mo.count(m, mn.on), nodesOf = ids => plural(ids.reduce((s, x) => s + Mo.count(m, x), 0), 'node');

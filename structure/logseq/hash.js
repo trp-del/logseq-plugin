@@ -10,11 +10,11 @@ const CSS = `
 .st-hc { padding: 3px 10px; font-size: 13px; pointer-events: none; }
 .st-hc.up { font-weight: 600; }
 .st-hc.more { padding-top: 0; }
-.st-hp { font-size: 12px; margin-left: 3px; }
+.st-hp { font-size: 12.5px; margin-left: 3px; }
 #ui__ac-inner .menu-link-wrap.st-in-tree { padding-left: var(--st-pad, 0); }
-.st-where { position: fixed; z-index: 9999; width: 280px; max-height: 340px; overflow: auto; background: var(--lk-paper, var(--ls-primary-background-color, #fff)); color: var(--lk-text, #222); border: 1px solid var(--lk-hair); border-radius: 6px; font-size: 14px; padding: 5px 0; outline: none; }
+.st-where { position: fixed; z-index: 9999; width: 280px; max-height: 340px; overflow: auto; outline: none; }   /* the library's pop-up and menu (lk-pop, lk-menu); a line lk-item, the lit one on */
 .st-where .h { padding: 4px 10px 6px; font-weight: 600; border-bottom: 1px solid var(--lk-hair); margin-bottom: 4px; }
-.st-where .r { padding: 3px 10px; cursor: pointer; } .st-where .r.lit { background: var(--lk-wash); font-weight: 600; } .st-where .r:hover { background: var(--lk-wash); }`;
+.st-where .r.on { font-weight: 600; }`;
 const MANY = 6;
 
 function start(app, doc) {
@@ -79,13 +79,13 @@ function start(app, doc) {
     await app.reread();
     const writing = doc.activeElement, box = writing?.getBoundingClientRect?.() || { left: 200, bottom: 200 };
     const pos = writing?.selectionStart;
-    const list = doc.createElement('div'); list.className = 'st-where'; list.tabIndex = 0;
+    const list = doc.createElement('div'); list.className = 'st-where lk-pop lk-menu'; list.tabIndex = 0;
     list.style.left = `${Math.min(box.left + 18, win.innerWidth - 300)}px`; list.style.top = `${Math.min(box.bottom + 6, win.innerHeight - 350)}px`;
     const m = M(), rows = [];
     const walk = (id, d) => { rows.push({ id, d }); if (d < 1) Mo.kids(m, id).forEach(k => walk(k, d + 1)); };
     Mo.tops(m).filter(id => m.tags.get(id).uuid !== t).forEach(id => walk(id, 0));
     let lit = 0;
-    const draw = () => { list.innerHTML = `<div class="h">Put ${esc(name)} under</div>` + rows.map((r, i) => `<div class="r ${i === lit ? 'lit' : ''}" data-i="${i}" style="padding-left:${10 + r.d * 18}px">${esc(m.tags.get(r.id).title)}</div>`).join(''); list.querySelector('.lit')?.scrollIntoView({ block: 'nearest' }); };
+    const draw = () => { list.innerHTML = `<div class="h">Put ${esc(name)} under</div>` + rows.map((r, i) => `<div class="r lk-item ${i === lit ? 'on' : ''}" data-i="${i}" style="padding-left:${10 + r.d * 18}px">${esc(m.tags.get(r.id).title)}</div>`).join(''); list.querySelector('.lit')?.scrollIntoView({ block: 'nearest' }); };
     const done = async pick => {
       list.remove();
       if (pick) { await S.db.addExtends(t, m.tags.get(pick.id).uuid); await app.reread(); }
