@@ -1074,7 +1074,7 @@ const kitCss = `/* The kit (parts/shared.js, 0.4.311; docs/LAYERS.md section 3):
 .rf-in-place { font: inherit; color: inherit; height: auto; width: 100%; min-width: 4em; padding: 0; box-shadow: none; }
 /* With nothing to sit under (a pop-up opened from the palette): near the top, in the middle. */
 .rf-pop:not(.rf-anchored) { top: 12vh; left: 50%; transform: translateX(-50%); }
-.rf-pop-head { padding: 3px 8px; font-size: 12px; color: var(--rf-quiet); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rf-pop-head { padding: 3px 8px; font-size: var(--lk-label); color: var(--rf-quiet); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rf-pop-body { max-height: 320px; overflow-y: auto; }
 /* A line of a menu is the library's lk-item (lit: on); here only how its icon and words stand. */
 .rf-item { align-items: center; gap: 8px; box-sizing: border-box; }
@@ -1082,7 +1082,7 @@ const kitCss = `/* The kit (parts/shared.js, 0.4.311; docs/LAYERS.md section 3):
 .rf-item > .rf-drawn { justify-content: center; align-self: center; }
 .rf-item.rf-faint { color: var(--rf-faint) !important; }
 .rf-item-words { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rf-item kbd, .rf-end { margin-left: auto; flex: none; font: inherit; font-size: 12px; color: var(--rf-faint); }
+.rf-item kbd, .rf-end { margin-left: auto; flex: none; font: inherit; font-size: var(--lk-small); color: var(--rf-faint); }
 .rf-pop .rf-field { margin: 0 8px 4px; }
 /* A report to copy (the troubleshooting tools): the text in a quiet box, Copy as the one word. */
 .rf-report { padding: 8px 10px; max-width: min(720px, 92vw); }
@@ -1092,7 +1092,7 @@ const kitCss = `/* The kit (parts/shared.js, 0.4.311; docs/LAYERS.md section 3):
 .rf-recycle > .rf-pop-body { max-height: calc(84vh - 60px); }
 .rf-recycle .rf-recycle-acts { gap: 2px; }
 /* The ask under a row of the Recycle: joined to it by a line from the margin, a bold line, what goes, then the answers. */
-.rf-recycle-ask { margin: 2px 8px 8px 30px; padding: 4px 0 4px 12px; border-left: 1px solid var(--rf-line); font-size: 13.5px; }
+.rf-recycle-ask { margin: 2px 8px 8px 30px; padding: 4px 0 4px 12px; border-left: 1px solid var(--rf-line); font-size: 14px; }
 .rf-recycle-ask-h { font-weight: 600; }
 .rf-recycle-ask-l { color: var(--rf-quiet); }
 .rf-recycle-ask .lk-answers { margin-top: 6px; }
@@ -1118,7 +1118,7 @@ const kitCss = `/* The kit (parts/shared.js, 0.4.311; docs/LAYERS.md section 3):
 .rf-field-tall { align-items: flex-start; }
 .rf-field-tall > textarea { resize: vertical; line-height: 1.4; }
 .rf-pop-list { max-height: 300px; overflow-y: auto; }
-.rf-field > :is(.ti, .rf-drawn), .rf-field > kbd { flex: none; color: var(--rf-faint); font: inherit; font-size: 12px; }
+.rf-field > :is(.ti, .rf-drawn), .rf-field > kbd { flex: none; color: var(--rf-faint); font: inherit; font-size: var(--lk-small); }
 .rf-field > .ti { font-size: 15px; }
 .rf-field-inline { display: inline-flex; min-height: 22px; vertical-align: baseline; }
 /* The drawn field: the same look, the text and the caret drawn, so nothing takes the keyboard from the bullet. */
@@ -1170,7 +1170,7 @@ a.rf-tag:hover { opacity: 1; }
 .rf-ol-line:hover > input.rf-check[type=checkbox], .rf-ol-line > input.rf-check[type=checkbox]:checked, .rf-ol-line > input.rf-check[type=checkbox]:focus-visible { opacity: 1; }
 .rf-ol-day { flex: none; width: var(--rf-ol-day); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .rf-ol-body { min-width: 0; overflow-wrap: normal; }
-.rf-ol-body > .rf-tag, .rf-ol-pv .rf-tag { margin-left: 6px; font-size: 12.5px; white-space: nowrap; }
+.rf-ol-body > .rf-tag, .rf-ol-pv .rf-tag { margin-left: 6px; white-space: nowrap; }
 .rf-ol-open { font-weight: 600; }
 .rf-ol-kids { --rf-ol-cx: 8px; display: grid; grid-template-rows: 1fr; margin: 0 0 0 var(--rf-ol-cx); padding-left: 16px; border-left: 1px solid var(--rf-line); }
 .rf-ol-kids > .rf-ol-in { min-width: 0; min-height: 0; padding-bottom: 2px; }
@@ -1240,23 +1240,21 @@ a.rf-tag:hover { opacity: 1; }
 .rf-ol.rf-ol-margin { position: relative; padding-left: 24px; }
 .rf-ol-margin .rf-ol-line { position: static; }
 .rf-ol-margin .rf-ol-line > input.rf-check[type=checkbox] { left: 2px; top: auto; margin-top: 5px; }
-.rf-ol-end { flex: none; margin-left: auto; padding-left: 12px; min-width: 5.2em; text-align: right; font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rf-ol-end { flex: none; margin-left: auto; padding-left: 12px; min-width: 5.2em; text-align: right; font-size: var(--lk-small); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .rf-ol-count { color: inherit; text-decoration: underline; text-decoration-color: var(--rf-line); text-decoration-thickness: 1px; text-underline-offset: 3px; cursor: pointer; }
 .rf-ol-count:hover { text-decoration-color: currentColor; }
 .rf-ol-count.rf-ol-none { color: var(--rf-faint); }
 span.rf-ol-count { text-decoration: none; cursor: default; }
-.rf-ol-tagname { opacity: 1; cursor: pointer; font-size: 13.5px; }
+.rf-ol-tagname { opacity: 1; cursor: pointer; }
 .rf-ol-tagname.rf-ol-open { font-weight: 700; }
 .rf-ol-leads > .rf-ol-lname { flex: none; width: var(--rf-ol-lname); display: inline-flex; gap: 6px; align-items: baseline; }
 .rf-ol-lwords { min-width: 0; overflow-wrap: normal; word-break: normal; }
 .rf-ol-inh > .rf-ol-lname { color: var(--rf-quiet); }
-.rf-ol-inhw { color: var(--rf-faint); font-size: 12.5px; white-space: nowrap; }
+.rf-ol-inhw { color: var(--rf-faint); font-size: var(--lk-small); white-space: nowrap; }
 .rf-ol-to { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: var(--rf-ol-gap); }
 .rf-ol-to > .rf-chev { align-self: flex-start; top: 1px; }
-.rf-ol-to .rf-tag { font-size: 13px; }
 .rf-ol-to .rf-ol-open { font-weight: 700; }
-.rf-ol-count.rf-ol-n { margin-left: 6px; color: var(--rf-faint); font-size: 12.5px; font-variant-numeric: tabular-nums; text-decoration-color: var(--rf-line); }
-.rf-ol-pointing > .rf-ol-lname .rf-tag { font-size: 13px; }
+.rf-ol-count.rf-ol-n { margin-left: 6px; color: var(--rf-faint); font-size: var(--lk-small); font-variant-numeric: tabular-nums; text-decoration-color: var(--rf-line); }
 .rf-ol-pointing > .rf-ol-lname { width: var(--rf-ol-lname); } /* one column for every line of a list; a tag longer than it wraps between its words */
 .rf-ol-pointing > .rf-ol-lname .rf-tag { white-space: normal; overflow-wrap: normal; word-break: normal; }
 .rf-ol-sum { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 6px; font-size: 14px; color: var(--rf-quiet); }
@@ -1264,13 +1262,13 @@ span.rf-ol-count { text-decoration: none; cursor: default; }
 .rf-ol-sumword:hover { text-decoration-color: currentColor; }
 .rf-ol-sumword[aria-pressed="true"] { color: inherit; font-weight: 600; text-decoration-color: currentColor; }
 .rf-ol-from-leads { --rf-ol-cx: calc(16px + 2 * var(--rf-ol-gap) + var(--rf-ol-lname) + 8px); }
-.rf-ol-group { box-sizing: border-box; min-height: 24px; padding: 6px 0 0 calc(16px + var(--rf-ol-gap)); font-size: 12.5px; color: var(--rf-faint); }
+.rf-ol-group { box-sizing: border-box; min-height: 24px; padding: 6px 0 0 calc(16px + var(--rf-ol-gap)); font-size: var(--lk-small); color: var(--rf-faint); }
 .rf-ol-finding > .rf-ol-body { flex: 1 1 auto; }
-.rf-ol-finding .rf-tag { margin: 0; font-size: 13px; }
-.rf-ol-act { flex: none; margin-left: auto; height: 22px; font-size: 13.5px; }
+.rf-ol-finding .rf-tag { margin: 0; }
+.rf-ol-act { flex: none; margin-left: auto; height: 22px; font-size: var(--lk-small); }
 .rf-ol-line:hover > .rf-ol-act { color: var(--rf-quiet); }
 .rf-ol-done > .rf-ol-body { color: var(--rf-quiet); }
-.rf-field-count { flex: none; color: var(--rf-faint); font-size: 12.5px; font-variant-numeric: tabular-nums; padding-left: 6px; }
+.rf-field-count { flex: none; color: var(--rf-faint); font-size: var(--lk-small); font-variant-numeric: tabular-nums; padding-left: 6px; }
 @media (prefers-reduced-motion: reduce) { .rf-ol-unit { transition: none; } }
 .rf-tree-dim .rf-item-words { opacity: .45; }
 /* A kind's mark (0.4.473), 10 px in the quiet grey; a kind's row in a list of tags: its mark and its word in weight, as
@@ -1302,7 +1300,7 @@ span.rf-ol-count { text-decoration: none; cursor: default; }
 .rf-guide p:last-child { margin-bottom: 0; }
 /* THE Undo (undo.offer): the library's arrow (lk-undo) at the end of what changed; with nothing on screen to sit beside,
    it waits at the bottom right with its words, as quiet. */
-.rf-undo-dock { position: fixed; z-index: 10002; right: 20px; bottom: 20px; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; max-width: min(420px, 60vw); color: var(--rf-fg); font-size: 12px; }
+.rf-undo-dock { position: fixed; z-index: 10002; right: 20px; bottom: 20px; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; max-width: min(420px, 60vw); color: var(--rf-fg); font-size: var(--lk-small); }
 .rf-undo-docked { margin: 0; padding: 3px 9px; border-radius: 6px; opacity: 1; background: var(--rf-bg); border: 1px solid var(--rf-hair); color: var(--rf-quiet); }
 .rf-undo-docked:hover { color: var(--rf-fg); }
 .rf-undo-words { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

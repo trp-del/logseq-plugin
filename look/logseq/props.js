@@ -62,7 +62,7 @@ function start() {
   style('props', css);
   watchScreen(draw, drawIcons);
   // An empty property folds away until it has the keyboard: about four groups before you open anything (the owner, 1 November). "+ Add property" brings it back.
-  watchScreen(() => { for (const row of host().querySelectorAll(ROWS)) { const box = row.querySelector('.property-value-container'); row.classList.toggle('lk-empty', !!box && !box.textContent.trim() && !!box.querySelector('.is-blank, .empty-value')); } });   // the icons before the screen is drawn, so Logseq's dot never shows first
+  watchScreen(() => { for (const row of host().querySelectorAll(ROWS)) { const box = row.querySelector('.property-value-container'); const empty = !!box && !box.textContent.trim() && !!box.querySelector('.is-blank, .empty-value'); row.classList.toggle('lk-empty', empty); row.classList.toggle('lk-filled', !empty); } });   // the icons before the screen is drawn, so Logseq's dot never shows first
   host().defaultView.addEventListener('mouseover', onOver);
   onGraphChange(pages => { if (pages && !stopped) load(); });
   load();

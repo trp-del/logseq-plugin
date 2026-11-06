@@ -51,7 +51,9 @@ ${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill > div
 ${AREA} .ls-properties-area .property-pair .property-key-panel *:not(.tag) { color: inherit !important; }`;
 /* The faint dot stands before every property that follows a filled one. A property holding a pencil (a value proposed by
    Predictive) counts as filled, so the row does not re-space when the pencil turns solid. */
-const EMPTY_ROWS = `.ls-page-properties .property-pair.lk-empty:not(:focus-within) { display: none; }`;
+/* An empty property is hidden from Logseq's first paint (the stylesheet sees the blank marker), so the rows below never jump up
+   when the script's check (lk-empty, in props.js) lands a frame later; a row the check finds holding words is kept (lk-filled). */
+const EMPTY_ROWS = `.ls-page-properties .property-pair:is(.lk-empty, .property-panel-row-empty, .property-panel-row:has(> .property-value-container :is(.is-blank, .empty-value)):not(:has(.ls-empty-text-property))):not(.lk-filled):not(:focus-within) { display: none; }`;
 const FILLED = ':is(:not(:has(.empty-value)), :has(.lk-pencil))';
 const capsules = `
 ${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill { background: transparent !important; padding-left: 4px !important; padding-right: 4px !important; margin-inline: -4px; overflow: visible !important; }

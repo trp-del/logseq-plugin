@@ -6,7 +6,7 @@
 const Look = window.Look;
 const { host, style, watchScreen, onGraphChange, el, iconHtml, openPage } = Look.kit, { setting } = Look.settings;
 const css = `
-.lk-folded { display: inline-flex; align-items: baseline; gap: .25em; margin-left: .5em; font-size: .85em; color: var(--lk-quiet); white-space: nowrap; user-select: none; cursor: default; }
+.lk-folded { display: inline-flex; align-items: baseline; gap: .25em; margin-left: .5em; font-size: var(--lk-small); color: var(--lk-quiet); white-space: nowrap; user-select: none; cursor: default; }
 .lk-folded .lk-icon { font-size: .95em; align-self: center; }
 /* An icon and its number are one pair; a wider gap between pairs than inside one. */
 .lk-folded .lk-pair { display: inline-flex; align-items: baseline; gap: .15em; }

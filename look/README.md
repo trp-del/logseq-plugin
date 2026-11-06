@@ -50,6 +50,8 @@ There is one short list of class names, one per word of the grammar. They and th
 
 The buttons have a library of their own: `button-library.html` beside the plugin shows every kind, one per job, and the names (`lk-strip`, `lk-btn`, `lk-bar`, `lk-answers`, `lk-lone`, `lk-add`, `lk-more`, `lk-fix`, `lk-x`, `lk-plus`, `lk-views`, `lk-trail`, `lk-head`, `lk-menu`) are drawn in `plugin.js` with the others. `test/library.js` fails on a button drawn by hand.
 
+Text has one scale, as in Logseq: the body is the place's own (16 px on a page, 14 px in a window, a pop-up or the sidebar), `--lk-small` (13 px) is everything secondary (days, counts, notes, keys, trails), `--lk-label` (12 px) the small name over a value, and a tag is .85em. The greys are measured from the text colour, so a grey inside a grey stays the same grey. `test/library.js` fails on a text size of a module's own.
+
 Threads and Predictive use them; DB Export's toolbar is built on the last six, the Pressing set, settled on 30 October 2026 and drawn in `buttons-mockup.html` beside the plugins: a control is a small name over its value, space does the separating, one accent per screen. Look's own settings window follows it.
 
 ## How it is built

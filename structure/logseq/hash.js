@@ -7,10 +7,10 @@ const S = window.Structure;
 const Mo = S.model;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const CSS = `
-.st-hc { padding: 3px 10px; font-size: 13px; pointer-events: none; }
+.st-hc { padding: 3px 10px; font-size: var(--lk-small); pointer-events: none; }
 .st-hc.up { font-weight: 600; }
 .st-hc.more { padding-top: 0; }
-.st-hp { font-size: 12.5px; margin-left: 3px; }
+.st-hp { font-size: var(--lk-small); margin-left: 3px; }
 #ui__ac-inner .menu-link-wrap.st-in-tree { padding-left: var(--st-pad, 0); }
 .st-where { position: fixed; z-index: 9999; width: 280px; max-height: 340px; overflow: auto; outline: none; }   /* the library's pop-up and menu (lk-pop, lk-menu); a line lk-item, the lit one on */
 .st-where .h { padding: 4px 10px 6px; font-weight: 600; border-bottom: 1px solid var(--lk-hair); margin-bottom: 4px; }

@@ -114,7 +114,7 @@ const CSS = `.pm-dialog { position: fixed !important; top: 50% !important; left:
 .pm-quiet { color: var(--lk-quiet); }
 .pm-report { font: 12.5px/1.55 var(--lk-mono, ui-monospace, monospace); white-space: pre; overflow-x: auto; margin: 4px 0 0; }
 .pm-foot { display: flex; align-items: baseline; gap: 18px; padding: 10px 22px 16px; }
-.pm-foot .pm-quiet { margin-right: auto; font-size: 13px; }`;
+.pm-foot .pm-quiet { margin-right: auto; font-size: var(--lk-small); }`;
 
 function draw(body, foot) {
   S.dlg.querySelector('.pm-body').innerHTML = body;

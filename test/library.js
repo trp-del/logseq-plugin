@@ -75,6 +75,11 @@ const OWN = [
   [/::backdrop/, /^$/, 'a backdrop of its own'],
   [/@keyframes|\banimation:/, /rf-blink/, 'a motion of its own'],   // the drawn caret blinks as the browser's does
   [/appearance:\s*none[^}]*\}/, /^$/, 'a tick box or control drawn again'],
+  // A text size off the scale (6 November 2026, measured in Logseq): the body is the place's own (16 px on a page, 14 px in a window,
+  // a pop-up or the sidebar, as Logseq's own), the small size is --lk-small (13 px: days, counts, notes, keys, trails) and the label
+  // --lk-label (12 px: the small name over a value, a pop-up's head, the year line's words); a tag is .85em, as Logseq's own. A glyph
+  // (an icon, a chevron, a ×, a superscript number), a heading, monospaced text, a specimen of Logseq's look and the printed page keep theirs.
+  [/font-size:\s*(?!\s|14px|16px|inherit|var\(--lk-(small|label)\)|var\(--rf-name, 1em\)|\.85em)[^;}`'"]+/, /\.ti\b|icon|kind|chev|close|-x\b|flow-x|cite-n|flow-model|st-pi|rf-drawn|lk-undo|h2|picked|sw-head|sw-part|sw-spec|look\/logseq\/settings\.js|export\/(core|logseq\/preview)|mono|Georgia/, 'a text size of its own'],
   [/(color|background|stroke|fill|border)[^;:]*:\s*[^;]*#[0-9a-fA-F]{3,6}\b/, /var\(--[\w-]+,\s*#|export\/logseq\/preview\.js|xp-desk iframe|color-mix\([^)]*#000\)|<!doctype html>|look\/logseq\/settings\.js/, 'a colour of its own'],
 ];
 const own = [];

@@ -159,13 +159,14 @@ Door.THEME = ':root { --lk-text: var(--ls-primary-text-color, hsl(var(--foregrou
 // underline of a link to a node, half a pixel (one dot of a sharp screen), so a stronger grey than the line to be seen
 // (at 16% it read as none, the owner 3 Nov 2026).
 const TOKENS = `
-:root { --lk-quiet: color-mix(in srgb, currentColor 70%, transparent); --lk-faint: color-mix(in srgb, currentColor 70%, transparent); --lk-off: color-mix(in srgb, currentColor 46%, transparent);
+:root { --lk-quiet: color-mix(in srgb, var(--lk-text, currentColor) 70%, transparent); --lk-faint: color-mix(in srgb, var(--lk-text, currentColor) 70%, transparent); --lk-off: color-mix(in srgb, var(--lk-text, currentColor) 46%, transparent);
   --lk-hair: color-mix(in srgb, currentColor 12%, transparent); --lk-line: color-mix(in srgb, currentColor 26%, transparent);
   --lk-link: color-mix(in srgb, currentColor 45%, transparent); --lk-link-width: .5px;
   --lk-wash: color-mix(in srgb, currentColor 7%, transparent);
   --lk-soft: color-mix(in srgb, var(--lk-text, currentColor) 70%, transparent); --lk-dim: color-mix(in srgb, var(--lk-text, currentColor) 70%, transparent);
   --lk-mono: var(--ls-font-family-mono, ui-monospace, "SF Mono", Menlo, Consolas, monospace);
-  --lk-day: 48px; }`;
+  --lk-day: 48px;
+  --lk-small: 13px; --lk-label: 12px; }`;
 /* The shared names: one per word of the grammar. A module puts these on what it draws and carries no look of its own
    for them; these words are final (hence !important where a module still has a rule). They stand whichever modules run:
    Look's switch takes off what Look draws on Logseq's own page, never what they mean on what the others draw.
@@ -201,7 +202,7 @@ Door.NAMES = `${TOKENS}
 .lk-node { color: inherit; text-decoration: underline !important; text-decoration-color: var(--lk-link) !important; text-decoration-thickness: var(--lk-link-width) !important; text-underline-offset: 3px; cursor: pointer; }
 .lk-node:hover { text-decoration-color: currentColor !important; }
 .lk-prop { color: var(--lk-quiet); }
-.lk-day { color: var(--lk-faint) !important; font-size: 13px !important; font-variant-numeric: tabular-nums; }
+.lk-day { color: var(--lk-faint) !important; font-size: var(--lk-small) !important; font-variant-numeric: tabular-nums; }
 .lk-count { display: none !important; }
 .lk-pencil { font-style: italic !important; color: var(--lk-faint) !important; text-decoration: underline dotted !important; text-decoration-color: var(--lk-line) !important; text-underline-offset: 3px; background: none !important; }
 /* A pencilled tag fades once: the pencil's grey, not the tag's own fade on top of it. */
@@ -216,7 +217,7 @@ Door.NAMES = `${TOKENS}
 .lk-list .lk-tick { opacity: 0 !important; transition: opacity .12s; }
 .lk-list:hover .lk-tick, .lk-list:focus-within .lk-tick, .lk-list[data-picking] .lk-tick { opacity: .55 !important; }
 .lk-list .lk-tick:checked, .lk-list .lk-tick:hover { opacity: 1 !important; }
-.lk-name { font-size: 11px !important; color: var(--lk-faint) !important; letter-spacing: .02em; font-weight: 400 !important; }
+.lk-name { font-size: var(--lk-label) !important; color: var(--lk-faint) !important; letter-spacing: .02em; font-weight: 400 !important; }
 .lk-value:not(input) { color: inherit !important; cursor: pointer; }
 .lk-value:not(input):hover { color: var(--lk-quiet) !important; }
 .lk-value.off, input.lk-value::placeholder { color: var(--lk-off) !important; }
@@ -239,7 +240,7 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
 .lk-answers { flex-basis: 100%; margin-top: 4px; }
 .lk-btn { color: var(--lk-text, currentColor) !important; padding: 2px 6px; margin: 0 -6px; white-space: nowrap; }
 .lk-said { font-weight: 500; padding-right: 6px; color: var(--lk-text, currentColor); }
-.lk-hint { color: var(--lk-dim) !important; font-size: 12.5px; margin-left: auto; padding-left: 12px; white-space: nowrap; }
+.lk-hint { color: var(--lk-dim) !important; font-size: var(--lk-small); margin-left: auto; padding-left: 12px; white-space: nowrap; }
 .lk-accent { cursor: pointer; border-radius: 1em; color: var(--lk-text, currentColor) !important; white-space: nowrap; }
 .lk-answers > .lk-accent { padding: 2px 6px; margin: 0 -6px; }
 .lk-big { appearance: none; border: 0; font: inherit; font-weight: 600; cursor: pointer; border-radius: 1em; padding: 3px 12px; margin-right: 8px; white-space: nowrap; background: color-mix(in srgb, var(--rx-blue-09, #0091ff) 80%, #000); color: #fff !important; }
@@ -284,7 +285,7 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
 /* The one in force reads at a glance (the owner, 6 November 2026: "you can hardly tell the selected heading"): full ink,
    and a line under the word in the text colour; the others stay grey. */
 .lk-view.on { color: var(--lk-text, currentColor) !important; font-weight: 500; text-decoration: underline !important; text-decoration-color: currentColor !important; text-decoration-thickness: 2px !important; text-underline-offset: 6px; }
-.lk-trail { display: flex; flex-wrap: wrap; gap: 2px 6px; align-items: center; font-size: 13px; }
+.lk-trail { display: flex; flex-wrap: wrap; gap: 2px 6px; align-items: center; font-size: var(--lk-small); }
 .lk-trail > :not(.lk-step) { color: var(--lk-dim); }
 .lk-step { color: var(--lk-soft) !important; padding: 0; text-decoration: underline !important; text-decoration-color: var(--lk-hair) !important; text-underline-offset: 3px; }
 .lk-step:hover { color: var(--lk-text, currentColor) !important; text-decoration-color: var(--lk-line) !important; }
@@ -299,7 +300,7 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
 /* A press that cannot be taken now: at the off strength, and no hand. */
 :is(.lk-btn, .lk-lone, .lk-accent, .lk-fix, .lk-item):disabled { opacity: .45; cursor: default; pointer-events: none; }
 .lk-item.gap { height: 8px; padding: 0; pointer-events: none; background: none; }
-.lk-note { color: var(--lk-dim); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.lk-note { color: var(--lk-dim); font-size: var(--lk-small); font-variant-numeric: tabular-nums; }
 /* lk-picked: what you can do with what you picked, right above the picked rows on the same grey as them, so the picks and what
    acts on them read as one block, the only filled area in a list (the owner, 5 November 2026, the grey block of picking-redesign.html:
    "build 2"). lk-picked-count holds the number (lk-picked-n), lk-picked-x clears the picks, lk-picked-act is an action, a plain word

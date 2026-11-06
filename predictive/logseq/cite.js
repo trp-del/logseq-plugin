@@ -165,7 +165,7 @@ function onCitationPress(event) {
 
 /* The fields are the library's (lk-field), the sources found its menu lines (lk-item, lit with on); here only their places under the bullet. */
 const css = `
-.flow-cite { margin: 2px 0 6px 31px; padding: 2px 0 2px 10px; border-left: 1px solid var(--lk-line); max-width: 460px; font-size: .95em; }
+.flow-cite { margin: 2px 0 6px 31px; padding: 2px 0 2px 10px; border-left: 1px solid var(--lk-line); max-width: 460px; font-size: 14px; }
 .flow-cite-field { display: block; width: 100%; }
 .flow-cite-page { width: 5ch; }
 .flow-cite-word { color: var(--lk-faint); }

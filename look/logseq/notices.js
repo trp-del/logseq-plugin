@@ -23,7 +23,7 @@ ${T}:is([data-starting-style], [data-ending-style]) { opacity: 0; transform: tra
 ${T} .ui__toast-content { padding: 5px 34px 5px 14px !important; gap: 0 !important; }
 ${T} .ui__toast-content.untitled .ui__toast-body { padding-block: 0 !important; }
 ${T} .ui__toast-text { align-items: center !important; gap: 8px !important; }
-${T} .ui__toast-description { font-size: 13px !important; line-height: 18px !important; opacity: 1 !important; }
+${T} .ui__toast-description { font-size: var(--lk-small) !important; line-height: 18px !important; opacity: 1 !important; }
 ${T} .ui__toast-status-icon { width: 14px !important; height: 14px !important; }
 ${T} .ui__toast-status-icon svg { width: 14px; height: 14px; }
 ${T} .ui__toast-content.untitled .ui__toast-header { top: 50% !important; right: 6px !important; transform: translateY(-50%); }

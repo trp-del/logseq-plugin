@@ -807,7 +807,8 @@ function highlightFind(box) {
 }
 /* While the section is on a page, the page's scroll bar keeps its room (frame by frame, 2026-10-27, the owner: "things
    shift left or right"): finding, opening or folding made the page short enough to lose its scroll bar, and the whole
-   page moved 8 px sideways and back. Let go when the section goes; a new page is drawn anew anyway. */
+   page moved 8 px sideways and back. Kept from the start for as long as Threads runs, on every page (6 November 2026: let go when the
+   section went, a short page widened by 16 px two seconds after it opened). */
 function steadyWidth(doc, on) {
   const pane = doc?.querySelector('#main-content-container');
   if (!pane) return;
@@ -1439,7 +1440,7 @@ function draw(doc) {
   // A page with an alias has more than one block in its title area; the page is the one the rows were read for.
   const page = shown.includes(state.pageUuid) ? state.pageUuid : shown.length === 1 ? shown[0] : '';
   const mode = anchor ? settling(page) : '';
-  if (!anchor || (!rows && !mode)) { state.box?.remove(); highlightFind(state.box); steadyWidth(doc, false); return; }
+  if (!anchor || (!rows && !mode)) { state.box?.remove(); highlightFind(state.box); return; }   // the gutter stays: let go, a short page widened by 16 px a moment after it opened (motion-check, 6 November 2026)
   let box = state.box;
   if (!box || box.ownerDocument !== doc) {
     box = state.box = doc.createElement('div');
@@ -2368,7 +2369,7 @@ const twoWayCss = `
    with the row's own words ("Mentioned in"), which have none. */
 .refinement-two-way .rf-tw-name > .rf-kind { font-size: 15px; width: 15px; justify-content: center; margin-left: -19px; margin-right: 4px; opacity: .5; vertical-align: -1px; }
 /* The names stand in one column you can scan down, lined up with the page's properties, in the quiet strength; only the head is bold (the owner, 1 November). */
-.refinement-two-way .rf-tw-name { color: var(--rf-quiet); font-size: var(--rf-name, .94em); white-space: nowrap; cursor: default; padding-left: 19px; position: relative; }
+.refinement-two-way .rf-tw-name { color: var(--rf-quiet); font-size: var(--rf-name, 1em); white-space: nowrap; cursor: default; padding-left: 19px; position: relative; }
 .refinement-two-way .rf-tw-sep { visibility: hidden; }
 .refinement-two-way .rf-tw-value { min-width: 0; padding-left: 22px; display: flex; flex-wrap: wrap; column-gap: 1.1em; row-gap: 4px; position: relative; }
 .refinement-two-way a { color: inherit; text-decoration: none; cursor: pointer; }
@@ -2409,7 +2410,7 @@ const twoWayCss = `
 .refinement-two-way .rf-tw-draft-typed { flex: none; max-width: 50%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .refinement-two-way .rf-tw-draft .rf-tw-draft-tag { margin-left: 0; white-space: nowrap; }
 /* The rest of the new node under the line (0.4.406): the proposals' look (parts/proposals.js), the row's height kept. */
-.refinement-two-way .rf-tw-draft-props { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 1.1em; row-gap: .1em; min-height: 1.5em; font-size: .92em; line-height: 1.5; }
+.refinement-two-way .rf-tw-draft-props { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 1.1em; row-gap: .1em; min-height: 1.5em; font-size: 14px; line-height: 1.5; }
 .refinement-two-way .rf-tw-dprop { display: inline-flex; align-items: baseline; gap: .35em; margin: 0; padding: 0; border: 0; background: none; font: inherit; color: inherit; cursor: default; text-align: left; }
 .refinement-two-way button.rf-tw-dpick { cursor: pointer; }
 .refinement-two-way .rf-tw-dname { color: var(--rf-faint); }
@@ -2419,7 +2420,7 @@ const twoWayCss = `
 .refinement-two-way .rf-tw-ghost-over { position: absolute; box-sizing: border-box; pointer-events: none; white-space: pre; overflow: hidden; }
 .refinement-two-way .rf-tw-ghost-typed { color: transparent; }
 .refinement-two-way .rf-tw-ghost-rest { color: var(--rf-faint); }
-.refinement-two-way .rf-tw-ghost-rest[data-name]::after { content: "  " attr(data-name); font-size: .8em; }
+.refinement-two-way .rf-tw-ghost-rest[data-name]::after { content: "  " attr(data-name); font-size: var(--lk-small); }
 /* Group a row by anything (0.4.369): the word after the count, a group's name with its count and its +, the lines
    under it. Write into a node (0.4.369): the small arrow before a node, its bullets under its line. */
 /* Group shows all along (0.4.403, the owner: "can keep Group there all along, capitalize G"); before it showed only with
@@ -2429,7 +2430,7 @@ const twoWayCss = `
 .refinement-two-way .rf-tw-ghead { display: flex; align-items: baseline; gap: var(--rf-ol-gap); margin: .85rem 0 .1rem; }
 .refinement-two-way .rf-tw-group:first-child .rf-tw-ghead { margin-top: .1rem; }
 .refinement-two-way .rf-tw-gwords { display: inline-flex; align-items: baseline; gap: .35em; padding-right: .25em; color: var(--rf-quiet); }
-.refinement-two-way .rf-tw-gn { font-size: .88em; }
+.refinement-two-way .rf-tw-gn { font-size: 14px; }
 /* A group's + is the library's lk-reveal. */
 .refinement-two-way .rf-tw-group .rf-tw-draft { padding-left: .35rem; }
 .refinement-two-way .rf-tw-group .rf-tw-draft-plus { display: none; }
@@ -2540,10 +2541,10 @@ const twoWayCss = `
 .refinement-two-way a.rf-ol-name.lk-node:is(:hover, :focus-visible) { text-decoration-color: currentColor !important; }
 .refinement-two-way .rf-ol-body { display: inline; }
 .refinement-two-way .rf-ol-body > .rf-tw-add, .refinement-two-way .rf-ol-body > .rf-tw-groupby { margin-left: .5em; }
-.refinement-two-way .rf-tw-tell { margin-left: 6px; color: var(--rf-faint); font-size: 13px; white-space: nowrap; }
+.refinement-two-way .rf-tw-tell { margin-left: 6px; color: var(--rf-faint); font-size: var(--lk-small); white-space: nowrap; }
 /* Inside an opened node, the nodes that link to it (0.4.462): their line in words, then their rows one step in; each
    day hangs in the section's margin, placed by placeDays (absolute in its line, so it takes no room in the value). */
-.refinement-two-way .rf-tw-links { color: var(--rf-quiet); font-size: 13px; line-height: 1.5; padding: 4px 0 1px; }
+.refinement-two-way .rf-tw-links { color: var(--rf-quiet); font-size: var(--lk-small); line-height: 1.5; padding: 4px 0 1px; }
 .refinement-two-way .rf-tw-linked { padding-left: var(--rf-tw-in); }
 .refinement-two-way .rf-tw-mday { position: absolute; width: var(--rf-ol-day); margin: 0; text-align: right; }
 .refinement-two-way .rf-tw-mday:not([style]) { visibility: hidden; }
@@ -2555,11 +2556,11 @@ const twoWayCss = `
 .refinement-two-way .rf-tw-stepbody { padding-left: calc(var(--rf-ol-day) + 16px); }
 /* A shifted section's top (0.4.463): the trail ends on it in bold; its properties; then "N nodes link here" on the
    find field's hairline, and its rows as the page's. */
-.refinement-two-way .rf-tw-toplinks { grid-column: 1 / -1; color: var(--rf-quiet); font-size: 13px; padding: 6px 0 5px; margin-bottom: 4px; border-bottom: 1px solid var(--rf-hair); }
+.refinement-two-way .rf-tw-toplinks { grid-column: 1 / -1; color: var(--rf-quiet); font-size: var(--lk-small); padding: 6px 0 5px; margin-bottom: 4px; border-bottom: 1px solid var(--rf-hair); }
 ::highlight(rf-find) { background-color: var(--rx-blue-04, #e1f0ff); } /* a very subtle blue, Logseq's own (the owner: "I don't like a yellow highlight, do very subtle blue") */
-.refinement-two-way .rf-tw-crumb { color: var(--rf-faint); font-size: .82em; line-height: 1.3; padding: 0 0 3px calc(16px + var(--rf-ol-gap)); overflow-wrap: anywhere; }
+.refinement-two-way .rf-tw-crumb { color: var(--rf-faint); font-size: var(--lk-small); line-height: 1.3; padding: 0 0 3px calc(16px + var(--rf-ol-gap)); overflow-wrap: anywhere; }
 .refinement-two-way .rf-tw-crumb .lk-step { font-size: inherit; }
-.refinement-two-way .rf-tw-raise { display: flex; flex-wrap: wrap; column-gap: 1.1em; align-items: baseline; margin: 0 0 .2rem calc(16px + var(--rf-ol-gap)); font-size: .92em; line-height: 1.5; }
+.refinement-two-way .rf-tw-raise { display: flex; flex-wrap: wrap; column-gap: 1.1em; align-items: baseline; margin: 0 0 .2rem calc(16px + var(--rf-ol-gap)); font-size: 14px; line-height: 1.5; }
 .refinement-two-way .rf-tw-npvalue { all: unset; cursor: pointer; border-radius: 3px; }
 .refinement-two-way .rf-tw-npvalue.rf-faint { color: var(--rf-faint); }
 .refinement-two-way .rf-tw-npvalue:hover, .refinement-two-way .rf-tw-npvalue:focus-visible { text-decoration: underline; text-decoration-color: var(--rf-line); text-underline-offset: 3px; }
@@ -2671,7 +2672,8 @@ function start() {
   host().addEventListener('scroll', onScroll, { capture: true, passive: true });
   onUnload(() => host().removeEventListener('scroll', onScroll, { capture: true }));
   onUnload(() => host().removeEventListener('keydown', escape));
-  onUnload(() => { steadyWidth(state.box?.ownerDocument, false); stopped = true; clearTimeout(timer); clearTimeout(indexTimer); clearTimeout(settle.timer); clearTimeout(settle.ease); clearTimeout(settle.wait); if (settle.frame) cancelAnimationFrame(settle.frame); hidePeek(); closeAdd(); state.box?.remove(); state.box = null; });
+  steadyWidth(host(), true);
+  onUnload(() => { steadyWidth(host(), false); stopped = true; clearTimeout(timer); clearTimeout(indexTimer); clearTimeout(settle.timer); clearTimeout(settle.ease); clearTimeout(settle.wait); if (settle.frame) cancelAnimationFrame(settle.frame); hidePeek(); closeAdd(); state.box?.remove(); state.box = null; });
   later(0);
   indexLater(1500);
 }

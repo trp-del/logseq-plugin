@@ -222,7 +222,7 @@ const css = `
 #right-sidebar .lk-side .sidebar-item-header { min-height: 32px; }
 #right-sidebar .lk-side .sidebar-item-header i.ti { width: 18px; font-size: 18px; text-align: center; }
 #right-sidebar .lk-side .lk-close { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; }
-#right-sidebar .lk-side .sidebar-panel-content { padding-top: 6px; padding-bottom: 8px; font-size: 14.5px; line-height: 1.5; }
+#right-sidebar .lk-side .sidebar-panel-content { padding-top: 6px; padding-bottom: 8px; font-size: 14px; line-height: 1.5; }
 #right-sidebar .lk-side .lk-views { margin: 0 0 8px -8px; }
 #right-sidebar .lk-links-group + .lk-links-group { margin-top: 12px; }
 #right-sidebar .lk-links-head { font-weight: 600; font-size: 14px; margin-bottom: 2px; }

@@ -195,7 +195,7 @@ const css = `
 .flow-link-suggest .flow-typed { color: transparent; }
 .flow-link-suggest .flow-typed .flow-offer { text-decoration: underline dotted; text-decoration-color: color-mix(in srgb, var(--flow-ink, currentColor) 55%, transparent); text-decoration-thickness: 1px; text-underline-offset: .22em; }
 .flow-link-suggest .flow-grey { opacity: .45; }
-.flow-link-suggest .flow-grey[data-name]::after { content: "  " attr(data-name); font-size: .8em; opacity: .75; }
+.flow-link-suggest .flow-grey[data-name]::after { content: "  " attr(data-name); font-size: var(--lk-small); opacity: .75; }
 `;
 
 async function start() {

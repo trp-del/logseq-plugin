@@ -213,38 +213,61 @@ async function main() {
   adopt();
   tagPage();
   const doc = host();
-  pageWatch = new doc.defaultView.MutationObserver(() => { if (!tagTimer) tagTimer = setTimeout(() => { tagTimer = 0; tagPage(); }, 150); });
+  // Called in the same turn as Logseq's own drawing (a MutationObserver's callback runs before the browser paints), so the lines stand
+  // above Logseq's table in its first frame and nothing below them is pushed down a moment later (motion-check, 6 November 2026).
+  pageWatch = new doc.defaultView.MutationObserver(() => tagPage());
   pageWatch.observe(doc.querySelector('#main-content-container') || doc.body, { childList: true, subtree: true });
   stopHash = S.hash.start(app, doc);
 }
 const stop = () => { pageWatch?.disconnect(); stopHash?.(); for (const v of [...app.views]) v.destroy(); host().querySelectorAll('.st-tagholder').forEach(n => n.remove()); host().getElementById('st-style')?.remove(); };
 /* The lines on a tag's own page: set above Logseq's table, in the page's own column, each time Logseq draws a tag's page. */
 let pageWatch = null, stopHash = null, tagTimer = 0, tagAsking = 0;
-async function tagPage() {
-  const doc = host(), inner = doc.querySelector('#main-content-container .page-inner'), ask = ++tagAsking;
-  const here = inner && (inner.querySelector(':scope > .page-tabs') || inner.querySelector(':scope > .ls-page-blocks'));
-  const had = doc.querySelector('.st-tagholder');
-  if (!here) { had?.remove(); return; }
-  let id = null, prop = null;
-  /* A journal day is never a tag's page, even where the graph holds the day as a tag, or a tag shares the day's name: nothing is
-     set above it. The page is the one drawn on screen (its title's block), since Logseq's answer to which page is current can
-     still name the last one; the day is told three ways: Logseq's mark on the page, its journal date, a journal day of its name. */
-  try {
-    const shown = doc.querySelector('#main-content-container .ls-page-title .ls-block[blockid]')?.getAttribute('blockid') || '';
-    const page = shown ? null : await logseq.Editor.getCurrentPage();
-    const uuid = shown || String(page?.uuid || '');
-    const day = !!inner.closest('.page')?.classList.contains('is-journals') || !!page?.journalDay || await S.db.isDay(uuid);
-    if (uuid && !day) { id = [...tray.model.tags.values()].find(t => t.uuid === uuid)?.id ?? null; prop = id == null ? [...tray.model.props.values()].find(p => p.uuid === uuid)?.id ?? null : null; }
-  } catch (error) { /* no page on screen */ }
-  if (ask !== tagAsking) return;
+const days = new Set();   // pages found to be journal days, which a tag's lines never stand on
+const lookup = uuid => { const id = [...tray.model.tags.values()].find(t => t.uuid === uuid)?.id ?? null; return { id, prop: id == null ? [...tray.model.props.values()].find(p => p.uuid === uuid)?.id ?? null : null }; };
+function place(doc, inner, here, id, prop) {
   const view = [...app.views].find(v => v.mode === 'tag');
   if (id == null && prop == null) { view?.destroy(); doc.querySelector('.st-tagholder')?.remove(); return; }
-  if (view?.tag === (id ?? undefined) && view?.prop === (prop ?? undefined) && view.root.isConnected) { if (view.root.parentElement.nextElementSibling !== here) inner.insertBefore(view.root.parentElement, here); return; }
+  if (view?.tag === (id ?? undefined) && view?.prop === (prop ?? undefined) && view.root.isConnected) { if (view.root.parentElement.nextElementSibling !== here) inner.insertBefore(view.root.parentElement, here); return false; }
   view?.destroy(); doc.querySelector('.st-tagholder')?.remove();
   const holder = doc.createElement('div'); holder.className = 'st-tagholder st-holder-tag';
   inner.insertBefore(holder, here);
   if (id != null) app.st.cur = id;
   app.mounted(S.view.make(holder, 'tag', app, id != null ? { tag: id } : { prop }));
+  return true;
+}
+function tagPage() {
+  const doc = host(), inner = doc.querySelector('#main-content-container .page-inner'), ask = ++tagAsking;
+  const here = inner && (inner.querySelector(':scope > .page-tabs') || inner.querySelector(':scope > .ls-page-blocks'));
+  if (!here) { doc.querySelector('.st-tagholder')?.remove(); return; }
+  /* A journal day is never a tag's page, even where the graph holds the day as a tag, or a tag shares the day's name: nothing is
+     set above it. The page is the one drawn on screen (its title's block), since Logseq's answer to which page is current can
+     still name the last one; the day is told three ways: Logseq's mark on the page, its journal date, a journal day of its name.
+     With the title's block on screen everything is known at once and the lines are placed in the same turn; only a journal day
+     that is also a tag needs the graph's answer, which takes them away again. */
+  const shown = doc.querySelector('#main-content-container .ls-page-title .ls-block[blockid]')?.getAttribute('blockid') || '';
+  if (shown) {
+    if (inner.closest('.page')?.classList.contains('is-journals')) return place(doc, inner, here, null, null);
+    if (days.has(shown)) return place(doc, inner, here, null, null);
+    const { id, prop } = lookup(shown);
+    if (place(doc, inner, here, id, prop)) S.db.isDay(shown).then(day => { if (!day) return; days.add(shown); tagPage(); }).catch(() => {});
+    return;
+  }
+  if (!tagTimer) tagTimer = setTimeout(() => { tagTimer = 0; tagPageAsked(); }, 150);
+}
+// No title's block on screen yet: Logseq is asked which page is current.
+async function tagPageAsked() {
+  const doc = host(), inner = doc.querySelector('#main-content-container .page-inner'), ask = ++tagAsking;
+  const here = inner && (inner.querySelector(':scope > .page-tabs') || inner.querySelector(':scope > .ls-page-blocks'));
+  if (!here) { doc.querySelector('.st-tagholder')?.remove(); return; }
+  let id = null, prop = null;
+  try {
+    const page = await logseq.Editor.getCurrentPage();
+    const uuid = String(page?.uuid || '');
+    const day = !!inner.closest('.page')?.classList.contains('is-journals') || !!page?.journalDay || await S.db.isDay(uuid);
+    if (uuid && !day) ({ id, prop } = lookup(uuid));
+  } catch (error) { /* no page on screen */ }
+  if (ask !== tagAsking) return;
+  place(doc, inner, here, id, prop);
 }
 // A holder Logseq already shows (the map's page or the sidebar panel, left from before a reload of the plugin) gets its drawing.
 function adopt() {

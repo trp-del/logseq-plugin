@@ -27,7 +27,7 @@ const CSS = `
   --xp-quiet: var(--lk-quiet); --xp-faint: var(--lk-faint); --xp-hair: var(--lk-hair); --xp-line: var(--lk-line); --xp-wash: var(--lk-wash); }
 .xp * { box-sizing: border-box; }
 .xp[hidden] { display: none; }
-.xp-titlebar { display: flex; align-items: center; justify-content: center; flex: none; height: 48px; font-size: 12.5px; color: var(--xp-faint); background: var(--lk-paper, #fff); }
+.xp-titlebar { display: flex; align-items: center; justify-content: center; flex: none; height: 48px; font-size: var(--lk-small); color: var(--xp-faint); background: var(--lk-paper, #fff); }
 /* The bar: a row of controls, nothing between them but space, a wider space between groups; the accent and the × at the end. */
 .xp-bar { display: flex; align-items: flex-start; flex-wrap: wrap; flex: none; padding: 2px 28px 14px; background: var(--lk-paper, #fff); }
 .xp-bar .g { display: flex; align-items: flex-start; }
@@ -79,7 +79,7 @@ const CSS = `
 .xp-list .lk-prop { display: inline-flex; align-items: center; gap: 5px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .xp-kind { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; font-size: 14px; color: var(--xp-faint); flex: none; }
 .xp-kind .lk-icon.lk-web svg { width: 11px; height: 11px; }
-.xp-list .lk-count { margin-left: auto; color: var(--xp-faint); font-size: .85em; }
+.xp-list .lk-count { margin-left: auto; color: var(--xp-faint); font-size: var(--lk-small); }
 /* The tick box is the library's (lk-tick). */
 /* The accent: the one action, its key beside it; a second action lk-btn, its words level with the accent's and the gap
    between them measured from its words; × the way out. */
@@ -87,13 +87,13 @@ const CSS = `
 .xp-bar button[hidden] { display: none; }
 .xp-bar button:focus-visible { outline: none; background: var(--lk-wash); box-shadow: 0 0 0 3px var(--lk-wash); border-radius: 1em; }
 .xp-bar .lk-btn { margin: -2px -6px; }
-.xp-bar button.lk-accent kbd { font: inherit; font-size: .85em; margin-left: 8px; }
+.xp-bar button.lk-accent kbd { font: inherit; font-size: var(--lk-small); margin-left: 8px; }
 .xp-bar button.lk-close { font-size: 17px; line-height: 1; margin-top: -2px; }
 .xp-desk { flex: 1; overflow: auto; padding: 26px 24px 48px; }
 .xp-desk iframe { display: block; margin: 0 auto; width: 794px; max-width: 100%; height: 600px; border: 0; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.12), 0 10px 36px rgba(0,0,0,.22); }
 .xp-desk iframe.sheets { background: transparent; box-shadow: none; }
 /* Over the desk, at its right, alone: how large the sheets are drawn. */
-.xp-note { display: flex; justify-content: flex-end; align-items: center; font-size: .85em; padding: 0 0 12px; }
+.xp-note { display: flex; justify-content: flex-end; align-items: center; font-size: var(--lk-small); padding: 0 0 12px; }
 .xp-note .it { padding: 0; } .xp-note .lk-name { display: none; } .xp-note .lk-value { color: var(--xp-quiet); }
 .xp-note .lk-alts { left: auto; right: 0; justify-content: flex-end; }`;
 

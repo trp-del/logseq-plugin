@@ -104,7 +104,7 @@ const css = `
 .lk-cite-n:hover { background: var(--lk-wash); color: var(--lk-text, currentColor); }
 .lk-cite-card { position: fixed; z-index: 40; max-width: 320px; padding: 8px 10px; pointer-events: none; }   /* the library's pop-up (lk-pop) */
 .lk-cite-source { text-decoration: underline; text-decoration-color: var(--lk-link); text-decoration-thickness: var(--lk-link-width); text-underline-offset: 3px; }
-.lk-cite-how { color: var(--lk-soft); font-size: 13px; margin-top: 2px; }`;
+.lk-cite-how { color: var(--lk-soft); font-size: var(--lk-small); margin-top: 2px; }`;
 
 let listening = null;
 function start() {

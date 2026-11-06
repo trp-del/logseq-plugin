@@ -57,20 +57,20 @@ const CSS = `
 .fd-line svg { display: block; width: 100%; overflow: visible; }
 .fd-line circle[data-i] { cursor: pointer; }
 .fd-line .fd-ring { fill: none; stroke: var(--lk-text, #222); stroke-width: 1.2; }
-.fd-line .fd-lane { font-size: 11px; fill: var(--fd-quiet); }
+.fd-line .fd-lane { font-size: var(--lk-label); fill: var(--fd-quiet); }
 .fd-line .fd-sep { stroke: var(--fd-hair); stroke-width: 1; }
-.fd-line .fd-count { font-size: 10px; fill: var(--fd-faint); }
-.fd-name { position: absolute; max-width: 60%; padding: 4px 9px; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+.fd-line .fd-count { font-size: var(--lk-label); fill: var(--fd-faint); }
+.fd-name { position: absolute; max-width: 60%; padding: 4px 9px; font-size: var(--lk-small); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
 .fd-name .lk-day { margin-right: 8px; }
 /* The two ways the line can be drawn, the library's alternatives (lk-alts): the one in force in the text colour. */
-.fd-by { position: absolute; right: 16px; top: 6px; font-size: 12.5px; display: flex; gap: 12px; }
+.fd-by { position: absolute; right: 16px; top: 6px; font-size: var(--lk-small); display: flex; gap: 12px; }
 .fd-by > span { cursor: pointer; }
 .fd-line .fd-base, .fd-line .fd-tick { stroke: var(--fd-line); stroke-width: 1; }
 .fd-line .fd-band { fill: var(--fd-wash); }
 .fd-line .fd-dot { fill: currentColor; opacity: .8; }
 .fd-line .fd-hollow { fill: var(--lk-paper, #fff); stroke: var(--fd-quiet); stroke-width: 1.2; }
 .fd-line .fd-today { stroke: var(--fd-quiet); stroke-width: 1; }
-.fd-line text { font-size: 10.5px; fill: var(--fd-faint); }
+.fd-line text { font-size: var(--lk-label); fill: var(--fd-faint); }
 /* The body scrolls; the choices sit above the rows, a gap of one line between them. A property's name here stays a shade
    lighter than its values, which are quiet. */
 .fd-body { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 16px 10px; transition: opacity .1s; }
@@ -78,7 +78,7 @@ const CSS = `
 .fd-head { margin: 6px 0 2px; }   /* the library's small faint name (lk-name) */
 /* A group's head: a bold word after a gap of one line (the grammar). */
 .fd-near { font-weight: 600; margin: 20px 0 2px calc(var(--fd-day) + 36px); }
-.fd-ch { display: grid; grid-template-columns: 118px minmax(0, 1fr); gap: 2px 10px; font-size: 13px; padding: 3px 0 7px; align-items: baseline; }
+.fd-ch { display: grid; grid-template-columns: 118px minmax(0, 1fr); gap: 2px 10px; font-size: var(--lk-small); padding: 3px 0 7px; align-items: baseline; }
 .fd-choices { padding-bottom: 14px; }
 .fd-head-rows { margin-top: 8px; }
 .fd-ck { color: var(--fd-faint); display: flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -86,7 +86,7 @@ const CSS = `
 .fd-c { all: unset; cursor: pointer; display: inline-flex; align-items: baseline; gap: 3px; padding: 0 4px; margin: 0 -4px; border-radius: 3px; }
 .fd-c:hover { color: inherit; }
 /* A number stands only on the choice that is lit or pointed at; its room is kept, so nothing moves when it comes. */
-.fd-c .fd-nb { color: var(--fd-faint); font-size: 12.5px; font-variant-numeric: tabular-nums; visibility: hidden; }
+.fd-c .fd-nb { color: var(--fd-faint); font-size: var(--lk-small); font-variant-numeric: tabular-nums; visibility: hidden; }
 .fd-c:hover .fd-nb, .fd-c.fd-lit .fd-nb { visibility: visible; }
 .fd-c.fd-lit { color: inherit; }
 .fd-cv .fd-dot { visibility: hidden; }
@@ -105,7 +105,7 @@ const CSS = `
 .fd-body { --fd-day: 52px; }
 .fd-body.fd-noday { --fd-day: 0px; }
 .fd-r { display: grid; grid-template-columns: var(--fd-day) 16px 18px minmax(0, 1fr) auto; align-items: baseline; column-gap: 2px; min-height: 32px; padding: 5px 6px 6px 0; border-radius: 3px; cursor: default; }
-.fd-r .fd-day { font-size: 12.5px; color: var(--fd-faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fd-r .fd-day { font-size: var(--lk-small); color: var(--fd-faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
 /* The fold arrow and the bullet are the library's (lk-fold, lk-bul); here only where they stand on the row. */
 .fd-fold { width: 16px; align-self: start; margin-top: .5px; }
 .fd-bul { align-self: start; margin-top: 2.5px; }
@@ -117,7 +117,7 @@ const CSS = `
 .fd-nm .fd-w { min-width: 0; cursor: pointer; }
 .fd-nm .fd-w b { font-weight: 600; }
 .fd-nm .lk-node { cursor: pointer; }
-.fd-right { color: var(--fd-faint); font-size: 12.5px; white-space: nowrap; padding-left: 12px; font-variant-numeric: tabular-nums; }
+.fd-right { color: var(--fd-faint); font-size: var(--lk-small); white-space: nowrap; padding-left: 12px; font-variant-numeric: tabular-nums; }
 .fd-right .fd-key { font-family: var(--fd-mono); }
 .fd-r.fd-cmd { grid-template-columns: minmax(0, 1fr) auto; padding-left: 8px; margin-left: -8px; }
 .fd-body .fd-showall { display: block; padding: 5px 0 6px calc(var(--fd-day) + 36px); }
@@ -127,16 +127,16 @@ const CSS = `
 /* A node opened in place: its properties, then what points at it, each a line that opens: the grammar's row, the dot
    ringed while closed, the number after the words as faint as on a lit choice. */
 .fd-kids { margin: 2px 0 6px calc(var(--fd-day) + 24px); padding-left: 10px; border-left: 1px solid var(--fd-hair); }
-.fd-kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 5px 12px; font-size: 13.5px; align-items: baseline; padding: 4px 0 10px; }
+.fd-kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 5px 12px; font-size: 14px; align-items: baseline; padding: 4px 0 10px; }
 .fd-kv .fd-k { display: inline-flex; align-items: center; gap: 5px; }
 .fd-kv .fd-v { display: flex; gap: 8px; flex-wrap: wrap; }
 .fd-kids .fd-g { grid-template-columns: 16px 18px minmax(0, 1fr); }
 .fd-kids .fd-g .lk-tag { margin-left: 2px; }
 .fd-gn { margin-left: 16px; }
 .fd-gn .fd-showall { padding-left: calc(var(--fd-day) + 34px); }
-.fd-ct { color: var(--fd-faint); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.fd-ct { color: var(--fd-faint); font-size: var(--lk-small); font-variant-numeric: tabular-nums; }
 .fd-faint { color: var(--fd-faint); }
-.fd-foot { display: flex; gap: 16px; flex-wrap: wrap; padding: 8px 16px 10px; border-top: 1px solid var(--fd-hair); font-size: 12.5px; color: var(--lk-text, #222); }
+.fd-foot { display: flex; gap: 16px; flex-wrap: wrap; padding: 8px 16px 10px; border-top: 1px solid var(--fd-hair); font-size: var(--lk-small); color: var(--lk-text, #222); }
 .fd-foot:empty { display: none; }
 .fd-foot .fd-k { color: var(--fd-faint); margin-left: .4em; }
 .fd-foot .fd-right { margin-left: auto; padding: 0; }
