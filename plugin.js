@@ -266,13 +266,15 @@ Door.NAMES = `${TOKENS}
 .lk-btn.lk-low:hover, .lk-fix:hover, .lk-btn.lk-low:focus-visible, .lk-fix:focus-visible { background: var(--lk-wash) !important; }
 .lk-views { display: flex; gap: 4px; }
 .lk-view { color: var(--lk-soft) !important; padding: 3px 8px; }
-.lk-view.on { font-weight: 600; }
-.lk-view.on { color: var(--lk-text, currentColor) !important; font-weight: 500; }
+/* The one in force reads at a glance (the owner, 6 November 2026: "you can hardly tell the selected heading"): full ink,
+   and a line under the word in the text colour; the others stay grey. */
+.lk-view.on { color: var(--lk-text, currentColor) !important; font-weight: 500; text-decoration: underline !important; text-decoration-color: currentColor !important; text-decoration-thickness: 2px !important; text-underline-offset: 6px; }
 .lk-trail { display: flex; flex-wrap: wrap; gap: 2px 6px; align-items: center; font-size: 13px; }
 .lk-trail > :not(.lk-step) { color: var(--lk-dim); }
 .lk-step { color: var(--lk-soft) !important; padding: 0; text-decoration: underline !important; text-decoration-color: var(--lk-hair) !important; text-underline-offset: 3px; }
 .lk-step:hover { color: var(--lk-text, currentColor) !important; text-decoration-color: var(--lk-line) !important; }
-.lk-head { color: var(--lk-soft) !important; text-align: left; }
+/* A sort head: the others grey and of the body's weight, the sorted one dark and bold, so it stands out from them. */
+.lk-head { color: var(--lk-soft) !important; text-align: left; font-weight: 400; }
 .lk-head:hover, .lk-head.on { color: var(--lk-text, currentColor) !important; }
 .lk-head.on { font-weight: 600; }
 .lk-menu { border: 1px solid var(--lk-hair); border-radius: 6px; padding: 4px; }

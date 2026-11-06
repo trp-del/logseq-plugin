@@ -218,7 +218,7 @@ const CSS = `
 .st-tbl { font-size: 13.5px; margin-left: 36px; }
 .st-tbl .hd, .st-tbl .tr { display: grid; grid-template-columns: minmax(140px, 1fr) minmax(0, 1.5fr) minmax(0, 1.5fr) 100px; gap: 0; align-items: center; min-height: 32px; border-bottom: 1px solid var(--st-hair); }
 .st-tbl .hd > *, .st-tbl .tr > * { padding: 4px 12px; min-width: 0; border-left: 1px solid var(--st-hair); } .st-tbl .hd > :first-child, .st-tbl .tr > :first-child { border-left: 0; padding-left: 4px; }
-.st-tbl .hd { font-weight: 600; } .st-tbl .hd .lk-head { cursor: pointer; } .st-tbl .hd .sortmark { color: var(--st-faint); font-weight: 400; margin-left: 5px; }
+.st-tbl .hd { font-weight: 600; } .st-tbl .hd .lk-head { cursor: pointer; } .st-tbl .hd .sortmark { color: inherit; font-weight: 400; margin-left: 5px; }
 .st-tbl .tr:hover { background: var(--st-wash); }
 .st-tbl .tr > span:first-child { position: relative; } .st-tbl .tr .lk-tick { position: absolute !important; left: -34px !important; top: 50%; transform: translateY(-50%); margin: 0 !important; } .st-tbl .tr.dim { opacity: .45; } .st-tbl .st-q { margin: 6px 0 14px 4px; }
 .st-acts .st-in { flex: 0 0 280px; width: 280px; }
