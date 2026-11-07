@@ -47,10 +47,12 @@ const twoWayCss = `
 .th-two-way .th-tw-findrow + .th-tw-row { margin-top: 14px; }
 .th-two-way .th-tw-row > .th-tw-name { padding-bottom: 2px; }
 /* A property's name starts with its icon (0.4.477), hung in the room left of the name so the names stay on one edge
-   with the row's own words ("Mentioned in"), which have none. */
-.th-two-way .th-tw-name > .th-kind { font-size: 15px; width: 15px; justify-content: center; margin-left: -19px; margin-right: 4px; opacity: .5; vertical-align: -1px; }
+   with the row's own words ("Mentioned in"), which have none. The section has two edges (the owner, 7 November 2026: the
+   cough page's lines started at five places): the icons, chevrons and the + stand on the section's edge; every name,
+   list head, new node and its properties start one step in (--th-tw-in), where the nodes' chevrons stand. */
+.th-two-way .th-tw-name > .th-kind { font-size: 15px; width: 15px; justify-content: center; margin-left: calc(-1 * var(--th-tw-in)); margin-right: calc(var(--th-tw-in) - 15px); opacity: .5; vertical-align: -1px; }
 /* The names stand in one column you can scan down, lined up with the page's properties, in the quiet strength; only the head is bold (the owner, 1 November). */
-.th-two-way .th-tw-name { color: var(--lk-quiet); font-size: var(--th-name, 1em); cursor: default; padding-left: 19px; position: relative; }
+.th-two-way .th-tw-name { color: var(--lk-quiet); font-size: var(--th-name, 1em); cursor: default; padding-left: var(--th-tw-in); position: relative; }
 .th-two-way .th-tw-sep { visibility: hidden; }
 .th-two-way .th-tw-value { min-width: 0; padding-left: 22px; display: flex; flex-wrap: wrap; column-gap: 1.1em; row-gap: 4px; position: relative; }
 .th-two-way a { color: inherit; text-decoration: none; cursor: pointer; }
@@ -78,14 +80,16 @@ const twoWayCss = `
    field inline, the tag right after it. */
 /* A node's tag sits right after its name (0.4.320, the owner: "move tags for two-way
    link next to item, not right aligned"); the last column takes the rest of the row. */
-.th-two-way .th-tw-draft { position: relative; display: grid; grid-template-columns: minmax(8em, 22em) auto 1.4em 1fr; column-gap: .5em; align-items: baseline; margin: 0 -.35rem; padding: 0 .35rem 0 calc(22px + .35rem); cursor: text; }
+.th-two-way .th-tw-draft { position: relative; display: grid; grid-template-columns: minmax(0, max-content) auto 1.4em 1fr; column-gap: .5em; align-items: baseline; margin: 0 -.35rem; padding: 0 .35rem 0 calc(var(--th-tw-in) + .35rem); cursor: text; }
 .th-two-way .th-tw-row { position: relative; }
 .th-two-way .th-tw-add { margin-left: .6em; }
 /* Date first in a short row, name first in a list (0.4.304): the same columns as the other kind, the other way round. */
-.th-two-way .th-tw-draft-plus { position: absolute; left: calc(.35rem + 3px); width: 16px; height: 1.8em; display: inline-flex; align-items: center; justify-content: center; }   /* as tall as the words beside it */
+.th-two-way .th-tw-draft-plus { position: absolute; left: .35rem; width: 16px; height: 1.8em; display: inline-flex; align-items: center; justify-content: center; }   /* as tall as the words beside it */
 .th-two-way .th-tw-draft-plus::before { margin-right: 0; width: .75em; height: .75em; vertical-align: 0; }   /* the library's + mark, alone, centred in the line */
 .th-two-way .th-tw-draft-main { display: flex; align-items: baseline; gap: .5em; min-width: 0; }
-.th-two-way .th-tw-draft-main .th-field { flex: 1; min-width: 0; }
+.th-two-way .th-tw-draft-main .th-field { flex: none; min-width: 0; max-width: 100%; }
+/* The box is as wide as its words (or the "Add a …" in it), so the tag sits right after them as on a node's line. */
+.th-two-way .th-tw-draft-field { field-sizing: content; min-width: 3ch; max-width: 100%; }
 /* No line under the box for a new node (0.4.400, the owner: it read as a link or a filled value beside the real links); its
    pixel is kept so nothing moves. */
 .th-two-way .th-tw-draft .th-field { border-bottom-color: transparent; }
@@ -209,11 +213,15 @@ const twoWayCss = `
    node's chevron sits under its heading's words, one step in, and its day ends 4px short of the heading's chevron; under
    Group by the nodes step in once more under their group. */
 /* The margin is the section's: room for a tick box and a day before the outline's edge, on every row, so a day never
-   reaches the property names; a row with no heading has its chevron on the edge. */
+   reaches the property names. *
 /* Each node a bullet, as Logseq draws one (the owner, 7 November 2026): its chevron, its dot, then its day in a column of
    one width, so the words of a list's lines start at one place; a list with no day has no column. The list's head stands
    on the property's edge, its chevron under the property's mark, and its nodes one step in, their chevrons under its words. */
 .th-two-way .th-tw-value { padding-left: 0; }
+/* A list with no head (a single node, "Mentioned in") steps in as one with a head does, so every node's chevron stands
+   one step in, its dot after it, at one place down the whole section; its line for a new node stays on the edge. */
+.th-two-way .th-tw-value:not(:has(> .th-tw-head)) { padding-left: var(--th-tw-in); }
+.th-two-way .th-tw-value:not(:has(> .th-tw-head)) > .th-tw-draft { margin-left: calc(-.35rem - var(--th-tw-in)); }
 /* A heading's chevron is never over its nodes' chevrons (the owner, 2026-10-27: "the heading chevron cannot be over other
    chevrons"): everything a list holds steps in one step, dated or not, and a group's nodes once more under the group;
    a day stays in the margin left of its node's chevron. */
