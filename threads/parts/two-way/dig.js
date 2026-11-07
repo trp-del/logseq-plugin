@@ -71,7 +71,7 @@ function nodeHtml(uuid, key, data, asTop = false) {
     }
     values.forEach((v, i) => {
       const k = `${key}>${v.uuid}`, open = state.dig.has(k);
-      const item = { uuid: v.uuid, title: v.text, tag: data.tags.get(v.id) || '' };
+      const item = { uuid: v.uuid, title: v.text, words: v.words, tag: data.tags.get(v.id) || '' };
       const line = O.prop({ kind, many: prop.many, name: i ? '' : prop.title, nameAttrs: i ? null : nameAttrs, cls: found, chev: isUuid(v.uuid) ? digChev(k, v.uuid, v.id, v.text, open) : '', value: `<span class="th-ol-body">${isUuid(v.uuid) ? twoWay.nameHtml(item, open) : esc(v.text)}</span>` });
       html += open ? O.unit({ html: line + digKids(k, v.uuid, 'prop'), focus: state.focus === k, attrs: { 'data-key': k } }) : line;
     });

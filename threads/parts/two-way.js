@@ -181,12 +181,15 @@ async function groupsFor(id) {
 }
 // A node's stored words as they read: links as the words they show (0.4.147), "saw [[Dr. Joe]]" as "saw Dr. Joe",
 // "[the scan]([[CT]])" as "the scan", tags written in the words left out.
-async function wordsOf(stored) {
+async function wordsOf(stored) { return plainWords(await linkedWordsOf(stored)); }
+// The same words with their links kept ([[Page]], [words]([[Page]])), for a name that underlines them (7 November 2026, the
+// owner: "lines in threads should contain under for the wikilinks"); tags written in the words are left out.
+async function linkedWordsOf(stored) {
   let title = stored;
   try { title = await provided.readableTitle(title); } catch { /* the stored words, then */ }
-  return String(title).replace(/\s+#(?:\[\[[^\]]*\]\]|[^\s#\[\]]+)/g, '').replace(/\[([^\[\]]+)\]\(\[\[[^\]]*\]\]\)/g, '$1')
-    .replace(/\[\[([^\]]+)\]\]/g, '$1').trim() || 'Untitled';
+  return String(title).replace(/\s+#(?:\[\[[^\]]*\]\]|[^\s#\[\]]+)/g, '').trim();
 }
+const plainWords = words => String(words).replace(/\[([^\[\]]+)\]\(\[\[[^\]]*\]\]\)/g, '$1').replace(/\[\[([^\]]+)\]\]/g, '$1').trim() || 'Untitled';
 // Coming up first (nearest first), then the past (latest first), then nodes with no date.
 const byWhen = today => (a, b) => (a.day >= today ? 0 : a.day ? 1 : 2) - (b.day >= today ? 0 : b.day ? 1 : 2) ||
   (a.day >= today ? a.day - b.day : b.day - a.day) || a.title.localeCompare(b.title);
@@ -212,8 +215,8 @@ async function mentionsGroup(id, groups) {
   if (askQuietly.uuids.length) state.quiet = setTimeout(askQuietly, provided.earlierLinesRead?.() ? 0 : QUIET);
   // Each with the page and bullets it sits in, as Linked references shows it (0.4.437).
   const crumbs = provided.crumbsInto ? await provided.crumbsInto(id).catch(() => new Map()) : new Map();
-  const items = await Promise.all(found.map(async m => ({ uuid: m.uuid, title: await wordsOf(m.title), tag: m.tag || 'note', day: m.day,
-    crumbs: await Promise.all((crumbs.get(m.uuid) || []).map(async c => ({ uuid: c.uuid, name: shortName(await wordsOf(c.title)) }))) })));
+  const items = await Promise.all(found.map(async m => { const words = await linkedWordsOf(m.title); return { uuid: m.uuid, title: plainWords(words), words, tag: m.tag || 'note', day: m.day,
+    crumbs: await Promise.all((crumbs.get(m.uuid) || []).map(async c => ({ uuid: c.uuid, name: shortName(await wordsOf(c.title)) }))) }; }));
   items.sort(byWhen(todayNumber()));
   return { name: MENTIONS, label: 'Mentioned in', items, fieldUuid: '', ident: '', mentions: true };
 }
@@ -233,7 +236,7 @@ async function groupsByPage(id) {
   if (!found.size) return new Map();
   const records = new Map();
   // The titles are made readable together (0.4.150): each one with a link in it asks the database for that link's name.
-  await Promise.all([...found].map(async ([b, record]) => { records.set(b, { uuid: record.uuid, title: await wordsOf(record.title), tag: record.tag || 'note', day: record.day }); }));
+  await Promise.all([...found].map(async ([b, record]) => { const words = await linkedWordsOf(record.title); records.set(b, { uuid: record.uuid, title: plainWords(words), words, tag: record.tag || 'note', day: record.day }); }));
   const names = backwardsNames(), today = todayNumber(), oneEnd = oneEndNames();
   // What each property holds, for the icon before its name (0.4.477): a Date row on a journal day is a calendar, not the
   // triangle of a link to a node.
@@ -333,7 +336,9 @@ const dayCell = item => item.day && item.day !== state.pageDay ? dayText(item.da
 /* The day a node's line shows, by its place (the row's or the node's key), so what it opens leaves out a Date saying it
    again (0.4.462, the owner's pick 3 of the two-way fixes: "each line drops what its heading already says"). */
 const lineDay = new Map();
-const nameHtml = (item, open = false, bare = false) => `<a class="th-tw-record th-ol-name lk-node${bare ? ' lk-bare' : ''}${open ? ' th-ol-open' : ''}" data-uuid="${esc(item.uuid)}" href="#">${esc(item.title)}</a>${item.tag && item.tag !== 'note' ? '<wbr>' + tagLink(item) : ''}`;
+// A name's words: a wikilink in them is underlined and opens its page, as in a bullet's words; the name itself, its own click.
+const nameWords = item => item.words && item.words.includes('[[') ? twoWay.lineHtml(item.words, Infinity) : esc(item.title);
+const nameHtml = (item, open = false, bare = false) => `<a class="th-tw-record th-ol-name lk-node${bare ? ' lk-bare' : ''}${open ? ' th-ol-open' : ''}" data-uuid="${esc(item.uuid)}" href="#">${nameWords(item)}</a>${item.tag && item.tag !== 'note' ? '<wbr>' + tagLink(item) : ''}`;
 /* top: the node at the top of a shifted section (0.4.463): its rows are drawn as the page's are, keyed under it; nothing
    in them acts on the page (no tick boxes, no +, no Group). */
 function rowHtml(group, top = null) {

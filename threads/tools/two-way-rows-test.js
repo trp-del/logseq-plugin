@@ -391,7 +391,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     const box = kidsOf(doc, node);
     const bulletWords = () => [...(kidsOf(doc, node)?.querySelectorAll('.th-ol-bullet:not(.th-ol-new) .th-ol-words') || [])].map(el => el.textContent);
     check(!!box && bulletWords().join('|') === 'Cepeda reviewed 254 studies.|See Testing effect.', 'the node’s bullets should show under its line: ' + box?.textContent);
-    check(!!box?.querySelector('.th-tw-peek-open[data-open-page="Testing effect"]'), 'a link in a bullet should open its page');
+    check(!!box?.querySelector('.th-tw-peek-open.lk-node[data-open-page="Testing effect"]'), 'a link in a bullet should open its page, and read as a link (underlined, the library’s)');
     check(isOpenChev(arrow()), 'the chevron should show it is open');
     check(!!box?.closest('.th-ol-unit.th-ol-focus'), 'the node opened last should be the focus, its line and what it holds on the faint grey');
     check(!!box?.querySelector('.th-ol-new .th-ol-dot') && !box?.querySelector('.th-field-inline'), 'a bullet should be written as a bullet: a faint dot, no field with a line under it');
@@ -486,6 +486,31 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     click(window, doc.querySelector(`.th-ol-bullet[data-bullet="${second}"] > .th-ol-dot`));
     await wait(40);
     check(calls.some(c => c[0] === 'pushState' && c[1] === second) && !words(second).querySelector('.th-in-place'), 'the dot should open the bullet');
+    part.stop();
+  }
+  // 5c. A wikilink in a line's words (7 November 2026, the owner: "lines in threads should contain under for the wikilinks"): the
+  //     link words are underlined, as the library draws a link, and open their page; the rest of the name opens the node.
+  {
+    const { window, doc, calls, part } = world('');
+    window.logseq.App = { pushState: (kind, args) => calls.push(['pushState', args.name]) };
+    await wait(120);
+    const twoWay = part.inner, node = U(150);
+    const row = doc.createElement('div');
+    row.innerHTML = twoWay.nameHtml({ uuid: node, title: 'Spoke with Dr. Chen about Blood in stool', words: 'Spoke with [[Dr. Chen]] about [the scan]([[CT scan]]) and [[Blood in stool]]', tag: '' });
+    doc.querySelector('.th-two-way').append(row);
+    const name = row.querySelector('a.th-tw-record');
+    const links = [...row.querySelectorAll('.th-tw-peek-open')];
+    check(name?.textContent === 'Spoke with Dr. Chen about the scan and Blood in stool', 'the name should read as its words, the brackets off: ' + name?.textContent);
+    check(links.length === 3 && links.every(a => a.classList.contains('lk-node')) && links.map(a => a.dataset.openPage).join('|') === 'Dr. Chen|CT scan|Blood in stool' && links[1].textContent === 'the scan', 'each wikilink should be a link of the library’s kind to its page: ' + row.innerHTML);
+    check(!twoWay.nameHtml({ uuid: node, title: 'No links here', words: 'No links here', tag: '' }).includes('th-tw-peek-open'), 'a name with no wikilink should draw none');
+    check(twoWay.nameHtml({ uuid: node, title: 'A <b>name</b>', tag: '' }).includes('A &lt;b&gt;name&lt;/b&gt;'), 'a name with no words kept should draw its title, escaped');
+    click(window, links[0]);
+    await wait(40);
+    check(calls.some(c => c[0] === 'pushState' && c[1] === 'Dr. Chen') && !calls.some(c => c[0] === 'pushState' && c[1] === node), 'a click on a wikilink should open its page and not the node');
+    calls.length = 0;
+    click(window, name);
+    await wait(40);
+    check(calls.some(c => c[0] === 'pushState' && c[1] === node), 'a click on the rest of the name should open the node');
     part.stop();
   }
   // 6. The + line proposes the rest (0.4.406): under the line, the row's property on this page, then what the rules

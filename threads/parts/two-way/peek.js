@@ -42,7 +42,7 @@ function lineHtml(text, limit = 140) {
   const short = text.length > limit ? text.slice(0, limit - 1) + '…' : text;
   let html = '', at = 0;
   for (const m of short.matchAll(/\[([^\[\]]+)\]\(\[\[([^\]]+)\]\]\)|\[\[([^\]]+)\]\]/g)) {
-    html += esc(short.slice(at, m.index)) + `<span class="th-tw-peek-open" data-open-page="${esc(m[2] ?? m[3])}">${esc(m[1] ?? m[3])}</span>`;
+    html += esc(short.slice(at, m.index)) + `<span class="th-tw-peek-open lk-node" data-open-page="${esc(m[2] ?? m[3])}">${esc(m[1] ?? m[3])}</span>`;
     at = m.index + m[0].length;
   }
   return html + esc(short.slice(at));
