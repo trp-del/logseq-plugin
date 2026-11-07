@@ -721,6 +721,8 @@ const pageLines = async uuid => !UUID.test(uuid) ? [] : (await dsQuery(`[:find ?
 const pagesAmong = async (uuids, uuidsIn) => (await dsQuery(`[:find ?u :where ${uuidsIn('?u', uuids)} [?b :block/uuid ?u] [?b :block/name _]]`)).length;
 const tagUuidNamed = async title => String((await dsQuery(`[:find ?u :where [?t :block/tags :logseq.class/Tag] [?t :block/title ${JSON.stringify(title)}] [?t :db/ident ?ti] [(namespace ?ti) ?ns] [(= ?ns "user.class")] [?t :block/uuid ?u]]`))[0]?.[0] || '');
 const uuidById = async id => { const [[u] = []] = await dsQuery(`[:find ?u :where [(identity ${id}) ?p] [?p :block/uuid ?u]]`); return u ? String(u) : ''; };
+// A command in Logseq's palette (7 November 2026), for a part that may not call Logseq itself.
+const registerCommand = (key, label, run) => logseq.App.registerCommandPalette({ key, label }, run);
 
 /* Days. A value typed for a Date: today, tomorrow, yesterday, a weekday (the next one after today), "next" and a
    weekday (a week later), +3 or -2 (days from today), 2026-10-23, 23 oct, oct 23 (this year, or next year when
@@ -1069,7 +1071,7 @@ function provide(core) {
     tagGraph, propInfo, ownProps, inheritedProps, tagPropIds, acceptedIds, choicesOf, choiceUse, choiceCounts, choiceNodes, idByUuid,
     descriptionOf, titleNow, valuesOf, userValues, mergeFacts, TAG_PROPS, ACCEPTS, DESCRIPTION,
     linksInto, mentionsInto, pageHasList, firstTags, nodesOfTag, nodeLines, nodeFields, nodeValues, firstLines, pagesAmong, tagUuidNamed, uuidById,
-    hasTag, pageLines,
+    hasTag, pageLines, registerCommand,
     propTextValues, propTextBlocks, propValueBlocks, propNamed, propUse, propUses, structureUse, propNodeIds, choiceIds, crumbsInto, propHolders, pdfSources, heldBelow, linkRates, linkRatesOf, journalIdFor, journalTitleFor, formatJournalTitle, CHECKED_WITH, PAGE_TITLE, screenChecks, pageTitles, titleAnchor });
 }
 function start() {

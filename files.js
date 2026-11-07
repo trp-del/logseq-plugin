@@ -9,7 +9,7 @@ window.PluginFiles = [
   'structure/core/model.js', 'structure/core/rules.js', 'structure/core/values.js', 'structure/core/changes.js', 'structure/logseq/db.js', 'structure/logseq/apply.js', 'structure/logseq/view.js', 'structure/logseq/regions.js', 'structure/logseq/mount.js', 'structure/logseq/hash.js', 'structure/main.js',
   'export/core/inline.js', 'export/core/dates.js', 'export/core/doc.js', 'export/core/markdown.js', 'export/core/html.js', 'export/core/themes.js',
   'export/logseq/db.js', 'export/logseq/files.js', 'export/logseq/clipboard.js', 'export/logseq/print.js', 'export/logseq/preview.js', 'export/logseq/ui.js', 'export/main.js',
-  'threads/parts/shared.js', 'threads/parts/model.js', 'threads/parts/diagnostics.js', 'threads/parts/two-way.js', 'threads/parts/two-way/look.js', 'threads/parts/two-way/group.js', 'threads/parts/two-way/find.js', 'threads/parts/two-way/peek.js', 'threads/parts/two-way/dig.js', 'threads/parts/two-way/add.js', 'threads/parts/two-way/pick.js', 'threads/parts/proposals.js', 'threads/settings.js', 'threads/main.js',
+  'threads/parts/shared.js', 'threads/parts/model.js', 'threads/parts/diagnostics.js', 'threads/parts/two-way.js', 'threads/parts/two-way/look.js', 'threads/parts/two-way/group.js', 'threads/parts/two-way/find.js', 'threads/parts/two-way/peek.js', 'threads/parts/two-way/dig.js', 'threads/parts/two-way/add.js', 'threads/parts/two-way/pick.js', 'threads/parts/two-way/beside.js', 'threads/parts/proposals.js', 'threads/settings.js', 'threads/main.js',
   'main.js',
 ];
 // Any of them failing to load, or stopping as it loads, is kept here for main.js to say. Only main.js itself failing has nobody

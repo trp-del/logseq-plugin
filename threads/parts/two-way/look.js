@@ -17,9 +17,15 @@ const twoWayCss = `
    size (the names .94 of it, as theirs), a 150px name column, a 12px gap, the values 22px in where theirs start
    after their bullet, 28px rows; the name starts where theirs does, after the room of their property icon (15px and a 4px gap), and the → follows it.
    Only the rows' own layout is here (0.4.318): the tag, the tick box, the filter words, the icons, the field, the card
-   and the pop-ups are the kit's, the bar and the buttons the library's (plugin.js). */
+   and the pop-ups are the kit's, the bar and the buttons the library's (plugin.js).
+   The gaps say what belongs together (7 November 2026, the owner: "make the spacing among everything more logical
+   groupings"), the same at every depth: nothing between a head and its list or between the lines of one list; 4px
+   between rows, as between property rows; a line's gap, 14px (the grammar's gap between groups), after whatever opened
+   (a list, a node's box, a list inside a node) and between groups (the page's own properties and these rows; a node's
+   properties, what links to it, its bullets; the groups under Group; the nodes since a day); every line 30px, "show all"
+   and a bullet too. */
 .th-two-way {
-  margin: calc(.15rem + var(--th-tw-hold, 0px)) 0 .5rem; padding: 0;
+  margin: calc(14px + var(--th-tw-hold, 0px)) 0 .5rem; padding: 0;
   line-height: 1.5; user-select: text;
   /* One name column for every row (0.4.377, the owner: "alignment of second column"): each row is a subgrid of the box,
      so the longest name sets where every row's values start, as in Logseq's own property list. */
@@ -30,7 +36,7 @@ const twoWayCss = `
 .th-two-way[data-th-waiting] { visibility: hidden; }
 #main-content-container:has(.th-two-way[data-th-waiting]) .ls-page-blocks { visibility: hidden; }
 /* Only holding room while the page settles: no field, no rows. */
-.th-two-way:not(:has(.th-tw-row)) { margin: var(--th-tw-hold, 0px) 0 0; }
+.th-two-way:not(:has(.th-tw-row, .th-tw-beside)) { margin: var(--th-tw-hold, 0px) 0 0; }
 /* The room held while the page settled eases away (0.4.283), only then: while the page settles the held room shrinks in the same frame Logseq's list grows, and must not lag. */
 .th-two-way[data-th-settling] { transition: margin-top .25s ease; }
 .th-two-way .th-tw-row { display: grid; grid-template-columns: subgrid; column-gap: 12px; align-items: first baseline; padding: 2px 0; }
@@ -62,7 +68,7 @@ const twoWayCss = `
 .th-two-way .th-tw-chips { display: inline-flex; flex-wrap: wrap; gap: .3rem .9rem; }
 /* The days after the kinds, quiet and in the kinds' own size, so the line reads as one summary. */
 .th-two-way .th-tw-toggle.th-tw-when { color: var(--lk-quiet); font-size: 14px; }
-.th-two-way .th-tw-earlier { display: flex; align-items: center; gap: .5em; margin: .2rem 0 .1rem calc(16px + var(--th-ol-gap)); padding: 0; } /* at the chevrons of the nodes it parts (the owner: "start it at chevron") */
+.th-two-way .th-tw-earlier { display: flex; align-items: center; gap: .5em; margin: 14px 0 2px calc(16px + var(--th-ol-gap)); padding: 0; } /* a line's gap before it; at the chevrons of the nodes it parts (the owner: "start it at chevron") */
 .th-two-way .th-tw-earlier::after { content: ''; flex: 1; border-top: 1px solid var(--lk-hair); }
 /* The line for adding a node (0.4.303): under the row's values, in the value column; a + at its left, the kit's
    field inline, the tag right after it. */
@@ -99,8 +105,8 @@ const twoWayCss = `
    the pointer on the row. */
 .th-two-way .th-tw-groupby { margin-left: .6em; }
 .th-two-way .th-tw-groupby .ti { font-size: 12px; }
-.th-two-way .th-tw-ghead { display: flex; align-items: baseline; gap: var(--th-ol-gap); margin: .85rem 0 .1rem; }
-.th-two-way .th-tw-group:first-child .th-tw-ghead { margin-top: .1rem; }
+.th-two-way .th-tw-ghead { display: flex; align-items: baseline; gap: var(--th-ol-gap); margin: 14px 0 2px; }
+.th-two-way .th-tw-group:first-child .th-tw-ghead { margin-top: 2px; }
 .th-two-way .th-tw-gwords { display: inline-flex; align-items: baseline; gap: .35em; padding-right: .25em; color: var(--lk-quiet); }
 .th-two-way .th-tw-gn { font-size: 14px; }
 /* A group's + is the library's lk-reveal. */
@@ -139,6 +145,12 @@ const twoWayCss = `
 .th-two-way .th-ol .th-tw-bar { margin: 4px -12px 0 calc(-56px - var(--th-ol-day, 48px) - var(--th-tw-back, 0px)); padding-left: 18px; border-radius: 8px 8px 0 0; }
 .th-two-way > .th-tw-bar { margin: 0 0 6px; border-radius: 8px; }
 .th-two-way .th-tw-chev::before { margin: 0 0 0 .1em !important; opacity: .75; }
+/* The fold arrows stand on every line, faint (the owner, 7 November 2026: "can the chevrons be there permanently just faded?"),
+   at the strength the Undo arrow rests at; the library's .6 comes back under the line's pointer and while the line is open, full
+   under the arrow itself. Only in this section: the library's other lists keep their arrow for the pointer. */
+.th-two-way .lk-row .lk-fold { opacity: .3 !important; }
+.th-two-way .lk-row:hover .lk-fold, .th-two-way .lk-row.on .lk-fold, .th-two-way .lk-fold[aria-expanded="true"], .th-two-way .lk-fold:focus-visible { opacity: .6 !important; }
+.th-two-way .lk-row:hover .lk-fold:hover, .th-two-way .lk-fold:hover { opacity: 1 !important; }
 /* The picked nodes on one grey ground, so the eye sees which they are. */
 .th-two-way .th-tw-line:has(> input.th-tw-pick:checked) { background: var(--lk-wash); box-shadow: -40px 0 0 var(--lk-wash), 12px 0 0 var(--lk-wash); border-radius: 0; }
 
@@ -148,6 +160,21 @@ const twoWayCss = `
 .th-two-way .th-tw-value { display: block; font-size: inherit; }
 .th-two-way .th-tw-value.th-ol { --th-ol-day: var(--lk-day, 48px); font-size: inherit; line-height: 1.5; }
 .th-two-way .th-ol-line { min-height: 30px; padding-top: 3px; padding-bottom: 3px; }
+/* "show all" and a bullet stand on the lines' 30px too (the library's lk-more carries its own 3px; the kit's bullet 1px). */
+.th-two-way .th-ol-line.th-ol-moreline { padding-top: 0; padding-bottom: 0; }
+.th-two-way .th-ol-bullet { min-height: 30px; padding-top: 3px; padding-bottom: 3px; }
+/* What opened ends with a line's gap, inside its box: the next line of the list stands clear of it. */
+.th-two-way .th-ol-kids:not(.th-ol-bare) > .th-ol-in { padding-bottom: 14px; }
+/* Inside an opened node, a line's gap parts its groups: its properties, what links to it, its bullets; and each list of
+   what links to it (its first line carries the name) from the one before. */
+.th-two-way .th-ol-in > .th-tw-links:first-child { margin-top: 0; }
+.th-two-way .th-ol-in > :not(.th-ol-bullet) + .th-ol-bullet { margin-top: 14px; }
+.th-two-way .th-tw-linked > :is(.th-ol-prop, .th-ol-unit):not(:first-child):has(> .th-ol-pname:not(:empty), > .th-ol-prop > .th-ol-pname:not(:empty)) { margin-top: 14px; }
+/* A bullet's words are written in where they stand (the owner, 7 November 2026): the text cursor says so, as in Logseq; the
+   dot, which opens the bullet, is the one thing there to press. Tab reaches the words, Enter changes them. */
+.th-two-way .th-ol-words[data-edit-bullet] { cursor: text; border-radius: 4px; padding: 0 4px; margin: 0 -4px; }
+.th-two-way .th-ol-words[data-edit-bullet]:focus-visible { background: var(--lk-wash); }
+.th-two-way .th-ol-bullet[data-bullet] > .th-ol-dot { cursor: pointer; }
 .th-two-way .th-ol-line > input.lk-tick[type=checkbox] { top: 8px; }
 .th-two-way .th-tw-head { cursor: default; }
 .th-two-way .th-tw-head:hover { background: transparent; }
@@ -216,7 +243,7 @@ const twoWayCss = `
 .th-two-way .th-tw-tell { margin-left: 6px; color: var(--lk-faint); font-size: var(--lk-small); white-space: nowrap; }
 /* Inside an opened node, the nodes that link to it (0.4.462): their line in words, then their rows one step in; each
    day hangs in the section's margin, placed by placeDays (absolute in its line, so it takes no room in the value). */
-.th-two-way .th-tw-links { color: var(--lk-quiet); font-size: var(--lk-small); line-height: 1.5; padding: 4px 0 1px; }
+.th-two-way .th-tw-links { color: var(--lk-quiet); font-size: var(--lk-small); line-height: 1.5; margin-top: 14px; padding: 0 0 1px; }
 .th-two-way .th-tw-linked { padding-left: var(--th-tw-in); }
 .th-two-way .th-tw-mday { position: absolute; width: var(--th-ol-day); margin: 0; text-align: right; }
 .th-two-way .th-tw-mday:not([style]) { visibility: hidden; }
@@ -228,7 +255,7 @@ const twoWayCss = `
 .th-two-way .th-tw-stepbody { padding-left: calc(var(--th-ol-day) + 16px); }
 /* A shifted section's top (0.4.463): the trail ends on it in bold; its properties; then "N nodes link here" on the
    find field's hairline, and its rows as the page's. */
-.th-two-way .th-tw-toplinks { grid-column: 1 / -1; color: var(--lk-quiet); font-size: var(--lk-small); padding: 6px 0 5px; margin-bottom: 4px; border-bottom: 1px solid var(--lk-hair); }
+.th-two-way .th-tw-toplinks { grid-column: 1 / -1; color: var(--lk-quiet); font-size: var(--lk-small); padding: 0 0 5px; margin: 14px 0 4px; border-bottom: 1px solid var(--lk-hair); }
 ::highlight(th-find) { background-color: var(--rx-blue-04, #e1f0ff); } /* a very subtle blue, Logseq's own (the owner: "I don't like a yellow highlight, do very subtle blue") */
 .th-two-way .th-tw-crumb { color: var(--lk-faint); font-size: var(--lk-small); line-height: 1.3; padding: 0 0 3px calc(16px + var(--th-ol-gap)); overflow-wrap: anywhere; }
 .th-two-way .th-tw-crumb .lk-step { font-size: inherit; }
@@ -250,6 +277,22 @@ const twoWayCss = `
 /* Where you are (0.4.442): the names opened on the way, pinned at the top of the section once they scroll off; no room. */
 .th-two-way .th-tw-pin { grid-column: 1 / -1; position: sticky; top: var(--th-tw-pin-top, 0px); height: 0; z-index: 3; }
 .th-two-way .th-tw-pin > .th-ol-trail { position: absolute; left: -12px; right: -12px; top: 0; padding: 5px 12px; background: var(--lk-paper, var(--lk-paper, #fff)); border-bottom: 1px solid var(--lk-hair); }
+/* On a day (7 November 2026): the nodes after it stand faint under a "since" line; the head says how many there are today. */
+.th-two-way .th-tw-since { opacity: .55; }
+.th-two-way .th-tw-since .th-tw-earlier { opacity: 1; }
+.th-two-way .th-tw-was { margin-left: .2em; }
+/* Two pages side by side (7 November 2026): the property names in the rows' name column, each page a column. */
+.th-two-way .th-tw-beside { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(150px, max-content) minmax(0, 1fr) minmax(0, 1fr); column-gap: 12px; row-gap: 4px; align-items: first baseline; padding: 2px 0; }
+.th-two-way .th-tw-bhead { font-weight: 600; padding-bottom: 10px; min-width: 0; overflow-wrap: anywhere; }   /* a line's gap under the titles, and under each list, with the grid's 4px */
+.th-two-way .th-tw-bhead .th-tw-bpage { text-decoration-color: transparent; }
+.th-two-way .th-tw-bhead .th-tw-bpage:hover { text-decoration-color: var(--lk-line); }
+.th-two-way .th-tw-bown, .th-two-way .th-tw-bcell { min-width: 0; overflow-wrap: anywhere; }
+.th-two-way .th-tw-bcell { padding-bottom: 10px; }
+.th-two-way .th-tw-bcell .th-tw-chips { display: inline; }
+.th-two-way .th-tw-bnone { color: var(--lk-faint); }
+.th-two-way .th-tw-bside { margin-top: 2px; padding-left: calc(16px + var(--th-ol-day)); } /* the days hang in the column's own margin, not the column before it */
+.th-two-way .th-tw-bside .th-tw-bline { padding-left: 0; }
+.th-two-way .th-tw-bside .th-ol-body > .th-tag { white-space: normal; }
 `;
 /* Logseq's own far end (0.4.146, the owner's pick): the tag-named tabs below a page's blocks list the same records
    as the rows, without the field that links them. Left out in the main view while the rows are drawn there, so a page

@@ -71,7 +71,8 @@
                                   field, then rows(query)); Up, Down and Enter handled here. Returns { el, close,
                                   items, lit, field, query, closed }. popups.closeAll() closes every open one (unload).
    - pickValue({ at, placeholder, options, clearLabel, free })   Logseq's own value picker, in Logseq's own classes.
-   - editInPlace({ at, value, type, placeholder })    a value typed where it sits, as Logseq does for a number.
+   - editInPlace({ at, value, type, placeholder, wrap })    a value typed where it sits, as Logseq does for a number.
+     wrap: the words wrap as they are written (a bullet's): a box as tall as they are, growing line by line; Shift-Enter breaks a line.
    - ask({ at, question, note, go, cancel, field })   a question beside what it is about: Cancel and the one that
                                   does it as words; resolves true/false, or the field's text / null (field.select
                                   starts with its words selected; multiline takes Shift-Enter for a new line).
@@ -594,17 +595,19 @@ function pickValue({ at, placeholder = '', options = [], clearLabel = '', free =
    border and no fill, at the line's own size). Enter keeps it, Escape leaves it as it was, a click away keeps what was
    typed. Resolves with the words, or null when nothing changed. A redraw of the rows does not end it: again() finds the
    place in the new drawing and the box goes on there, words and caret as they were. */
-function editInPlace({ at, value = '', type = 'text', placeholder = '', doc, again } = {}) {
+function editInPlace({ at, value = '', type = 'text', placeholder = '', doc, again, wrap = false } = {}) {
   const numeric = type === 'number';
   type = 'text';
   doc = doc || host();
   return new Promise(resolve => {
     let was = [...at.childNodes];
-    // Words with a line break keep it: an input would flatten them.
+    // Words with a line break keep it: an input would flatten them. Words that wrap (a bullet's) are a box that grows with them.
     const lines = String(value).split('\n').length;
-    const input = el(doc, lines > 1 ? 'textarea' : 'input', { class: 'ui__input flex w-full rounded-md border-none bg-transparent px-0 !py-0 min-h-0 leading-6 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 th-in-place', ...(lines > 1 ? { rows: lines } : { type }), placeholder });
+    const box = wrap || lines > 1;
+    const input = el(doc, box ? 'textarea' : 'input', { class: `ui__input flex w-full rounded-md border-none bg-transparent px-0 !py-0 min-h-0 leading-6 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 th-in-place${wrap ? ' th-in-wrap' : ''}`, ...(box ? { rows: wrap ? 1 : lines } : { type }), placeholder });
     input.value = value;
     if (numeric) input.setAttribute('inputmode', 'decimal');
+    const grow = () => { if (!wrap) return; input.style.height = 'auto'; input.style.height = `${input.scrollHeight}px`; };
     let finished = false, moving = false;
     const finish = answer => { if (finished) return; finished = true; at.replaceChildren(...was); resolve(answer); };
     input.across = redraw => {
@@ -612,19 +615,22 @@ function editInPlace({ at, value = '', type = 'text', placeholder = '', doc, aga
       moving = true; redraw(); moving = false;
       const next = again?.();
       if (!next) { finish(input.value === value ? null : input.value); return; }
-      at = next; was = [...at.childNodes]; at.replaceChildren(input);
+      at = next; was = [...at.childNodes]; at.replaceChildren(input); grow();
       input.focus({ preventScroll: true }); input.setSelectionRange(from, to);
     };
     input.addEventListener('keydown', event => {
       event.stopPropagation();
       if (event.isComposing) return;
+      if (event.key === 'Enter' && wrap && event.shiftKey) return;   // a line break, as in Logseq's own bullets
       if (event.key === 'Enter') { event.preventDefault(); finish(input.value === value ? null : input.value); }
       else if (event.key === 'Escape') { event.preventDefault(); finish(null); }
     });
+    if (wrap) input.addEventListener('input', grow);
     for (const type of ['keyup', 'keypress']) input.addEventListener(type, event => event.stopPropagation());
     for (const type of ['mousedown', 'click']) input.addEventListener(type, event => event.stopPropagation());
     input.addEventListener('blur', () => { if (!moving) finish(input.value === value ? null : input.value); });
     at.replaceChildren(input);
+    grow();
     input.focus({ preventScroll: true });
     try { input.setSelectionRange(input.value.length, input.value.length); } catch (error) { /* a field that has no caret */ }
   });
@@ -667,7 +673,8 @@ function ask({ at, question, note: hint, go: goWord = 'OK', cancel = 'Cancel', f
      have had a much fainter grey"); a tick shows in its box only.
    - prop({ kind, many, name, value, attrs }): a property's line, Logseq's look: a node property's mark (three dots joined in a
      triangle; a fact none, its room kept), its name quieter than its value (kind '': a row pointing back, named by its property with no room for a mark, so it does not read as the node's own), the names of one node on one column (--th-ol-name); a value never breaks inside a word.
-   - bullet({ html, attrs }), newBullet({ attrs, label }): a bullet as Logseq draws one, its dot and words; the empty one
+   - bullet({ html, attrs, wordsAttrs }), newBullet({ attrs, label }): a bullet as Logseq draws one, its dot and words
+     (wordsAttrs go on the words: a bullet changed where it stands is found and focused by them); the empty one
      at the end is faint, written in like a bullet: a caret on the line, no box, no line under it (a bare text box, so
      what is typed keeps the field's helpers, the grey name completed after the caret among them).
    - more({ text, attrs, under, cls }): "show all 13" under a list, on its edge: under 'name' (the names after a day), 'bare'
@@ -726,7 +733,7 @@ const outline = {
   kids: ({ html = '', from = '', fresh = false, attrs, cls = '' } = {}) => `<div class="th-ol-kids${from ? ' th-ol-from-' + from : ''}${fresh ? ' th-ol-unroll' : ''}${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}><div class="th-ol-in">${html}</div></div>`,
   unit: ({ html = '', focus = false, attrs, cls = '' } = {}) => `<div class="th-ol-unit${focus ? ' th-ol-focus' : ''}${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}>${html}</div>`,
   prop: ({ kind = 'text', name = '', value = '', chev = '', attrs, cls = '', nameAttrs } = {}) => `<div class="th-ol-line lk-row th-ol-prop${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}><span class="th-ol-pname lk-prop"${attrsHtml(nameAttrs)}>${name ? `${kind ? `<span class="th-kind">${kindIconHtml(kind)}</span>` : ''}${esc(name)}` : ''}</span><span class="th-ol-pv">${chev}${value}</span></div>`,
-  bullet: ({ html = '', attrs, cls = '' } = {}) => `<div class="th-ol-bullet${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}><span class="th-ol-dot" aria-hidden="true"></span><span class="th-ol-words">${html}</span></div>`,
+  bullet: ({ html = '', attrs, cls = '', wordsAttrs } = {}) => `<div class="th-ol-bullet${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}><span class="th-ol-dot" aria-hidden="true"></span><span class="th-ol-words"${attrsHtml(wordsAttrs)}>${html}</span></div>`,
   newBullet: ({ attrs, label = 'A new bullet', text = '' } = {}) => `<div class="th-ol-bullet th-ol-new"><span class="th-ol-dot" aria-hidden="true"></span><span class="th-field lk-field th-ol-words th-ol-write"><input type="text" value="${esc(text)}" spellcheck="true" autocomplete="off" aria-label="${esc(label)}"${attrsHtml(attrs)}></span></div>`,
   more: ({ text = '', attrs, under = 'name', cls = 'lk-more' } = {}) => { const b = `<button type="button" class="${cls} th-ol-more"${attrsHtml(attrs)}>${esc(text)}</button>`; return under === 'value' ? `<div class="th-ol-line th-ol-prop th-ol-moreline"><span class="th-ol-pname"></span><span class="th-ol-pv">${b}</span></div>` : under === 'flush' ? `<div class="th-ol-line th-ol-moreline">${b}</div>` : under === 'leads' ? `<div class="th-ol-line lk-row th-ol-leads th-ol-moreline">${outline.room()}<span class="th-ol-lname"></span><span class="th-ol-to">${b}</span></div>` : `<div class="th-ol-line th-ol-moreline">${under === 'bare' ? '' : '<span class="th-ol-day lk-day"></span>'}${outline.room()}${b}</div>`; },
   pencil: (text, attrs, cls = '') => `<button type="button" class="th-pencil lk-pencil${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}>${esc(text)}</button>`,
@@ -786,6 +793,7 @@ const kitCss = `/* The kit (parts/shared.js, 0.4.311; docs/LAYERS.md section 3):
 /* Clear is the library's lone word, standing on the list's own edge. */
 .th-lsq-pop .menu-link.lk-lone { margin-left: 0; }
 .th-in-place { font: inherit; color: inherit; height: auto; width: 100%; min-width: 4em; padding: 0; box-shadow: none; }
+.th-in-place.th-in-wrap { display: block; resize: none; overflow: hidden; line-height: inherit; }   /* a bullet's words wrap; the box is as tall as they are (editInPlace's grow) */
 /* With nothing to sit under (a pop-up opened from the palette): near the top, in the middle. */
 .th-pop:not(.th-anchored) { top: 12vh; left: 50%; transform: translateX(-50%); }
 .th-pop-head { padding: 3px 8px; font-size: var(--lk-label); color: var(--lk-quiet); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -881,7 +889,7 @@ a.th-tag:hover { opacity: 1; }
    it goes: the plugin's one motion (PluginDoor.unroll and rollUp, through outline.unrolled and outline.close). */
 .th-ol-unit { margin: 0 -6px; padding: 0 6px; border-radius: 6px; transition: background-color .16s ease; }
 .th-ol-unit.th-ol-focus { background: color-mix(in srgb, currentColor 3%, transparent); }
-.th-ol-prop > .th-ol-pname { flex: none; box-sizing: border-box; width: var(--th-ol-name); padding-right: calc(16px + var(--th-ol-gap)); display: inline-flex; gap: 6px; align-items: baseline; color: var(--lk-quiet); overflow-wrap: anywhere; }   /* the padding is the room of the fold arrow that overhangs from the value (.th-ol-pv > .th-chev): a long name wraps before it */
+.th-ol-prop > .th-ol-pname { flex: none; box-sizing: border-box; width: var(--th-ol-name); padding-right: calc(16px + var(--th-ol-gap)); display: inline-flex; gap: 6px; align-items: baseline; color: var(--lk-quiet); overflow-wrap: normal; }   /* the padding is the room of the fold arrow that overhangs from the value (.th-ol-pv > .th-chev): a long name wraps before it, between its words, never inside one (7 November 2026: "Confirmatio / n Status") */
 .th-ol-prop > .th-ol-pname .th-kind { font-size: 13px; vertical-align: 0; width: 13px; justify-content: center; flex: none; opacity: .6; } /* as faint as on a page's rows */
 /* A drawn mark sits like a font icon: on the words' line, in their colour (the kit's ICONS, DRAWN). */
 .th-drawn { display: inline-flex; align-items: center; line-height: 1; }
@@ -890,7 +898,7 @@ a.th-tag:hover { opacity: 1; }
 .th-ol-pv > .th-ol-body { flex: 1 1 auto; }
 /* From the second level down the names' column is narrower, so three levels leave the names room at a page's width; set
    on what a second-level node holds, so the lines and the hairline under them read the same width. */
-.th-ol-kids .th-ol-kids > .th-ol-in { --th-ol-name: 8.5em; }
+.th-ol-kids .th-ol-kids > .th-ol-in { --th-ol-name: 9.5em; }   /* 8.5em until 7 November 2026: "Symptom type", "Diagnosed by" and "Confirmation" took two lines at the rows' size, and the lines lost their rhythm */
 /* A list that opens with no line of its own (a row's list): the same unrolling, no hairline. */
 .th-ol-kids.th-ol-bare { margin-left: 0; padding-left: 0; border-left: 0; }
 .th-ol-pv > .th-ol-day { margin-right: 0; }

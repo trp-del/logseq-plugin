@@ -82,7 +82,9 @@ function world(grouping) {
     journalTitleFor: async () => 'Oct 24th, 2026',
     journalIdFor: async () => 900,
     uuidById: async () => JOURNAL,
-    titleNow: async () => 'Spaced repetition',
+    // A bullet's own words (a node's first lines); anything else reads as the page's title.
+    titleNow: async uuid => { for (const list of bullets.values()) { const b = list.find(line => line.uuid === uuid); if (b) return b.title; } return 'Spaced repetition'; },
+    setWords: async (uuid, text) => { calls.push(['setWords', uuid, text]); for (const [node, list] of bullets) bullets.set(node, list.map(b => b.uuid === uuid ? { ...b, title: text } : b)); },
     idByUuid: async () => 5,
     nodeFields: async () => new Map(),
     // A node's own properties (0.4.410): the tag gives about, Confidence, Severity and Source (a link to a source page).
@@ -411,6 +413,79 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     click(window, arrow());
     await wait(300);
     check(!kidsOf(doc, node) && !isOpenChev(arrow()), 'the chevron again should close it');
+    part.stop();
+  }
+  // 5b. A bullet changed where it stands (7 November 2026, the owner: "Allow me to edit bullet in the thread"): a click on its
+  //     words, or Enter on them, opens a box on the same place; Enter keeps, Escape leaves it, an emptied or unchanged box writes
+  //     nothing; one Undo puts the old words back unless the bullet changed since; a link in the words and the dot still open.
+  {
+    const { window, doc, calls, part, bullets, notices } = world('');
+    window.logseq.App = { pushState: (kind, args) => calls.push(['pushState', args.name]) };
+    await wait(120);
+    const node = U(101), first = U(701), second = U(702);
+    click(window, chevOf(doc, node));
+    await wait(80);
+    const words = id => doc.querySelector(`[data-edit-bullet="${id}"]`);
+    const box = () => words(first)?.querySelector('.th-in-place');
+    const writes = () => calls.filter(c => c[0] === 'setWords');
+    const key = (el, name) => el.dispatchEvent(new window.KeyboardEvent('keydown', { key: name, bubbles: true, cancelable: true }));
+    check(words(first)?.getAttribute('tabindex') === '0' && words(second)?.getAttribute('tabindex') === '0', 'a bullet’s words should be reachable by Tab');
+    check(!words(first)?.closest('.th-ol-new') && !doc.querySelector('.th-ol-new [data-edit-bullet]'), 'the empty bullet to write in is not one to change');
+    click(window, words(first));
+    await wait(60);
+    check(!!box() && box().value === 'Cepeda reviewed 254 studies.' && box().tagName === 'TEXTAREA' && !calls.some(c => c[0] === 'pushState'), 'a click on the words should open a box on the same place holding them, and not open the bullet: ' + words(first)?.innerHTML);
+    type(window, box(), 'Changed but not kept');
+    key(box(), 'Escape');
+    await wait(60);
+    check(!box() && words(first).textContent === 'Cepeda reviewed 254 studies.' && !writes().length, 'Escape should leave the bullet as it was');
+    click(window, words(first));
+    await wait(60);
+    key(box(), 'Enter');
+    await wait(60);
+    check(!box() && !writes().length, 'Enter on words not changed should write nothing');
+    click(window, words(first));
+    await wait(60);
+    type(window, box(), '   ');
+    key(box(), 'Enter');
+    await wait(60);
+    check(!writes().length && words(first).textContent === 'Cepeda reviewed 254 studies.', 'emptied words should write nothing');
+    click(window, words(first));
+    await wait(60);
+    type(window, box(), 'Cepeda reviewed 254 studies. Checked in the library.');
+    check(!writes().length, 'typing should write nothing until Enter');
+    key(box(), 'Enter');
+    await wait(150);
+    check(writes().length === 1 && writes()[0][1] === first && writes()[0][2] === 'Cepeda reviewed 254 studies. Checked in the library.', 'Enter should write the new words into the bullet: ' + JSON.stringify(calls));
+    check(words(first).textContent === 'Cepeda reviewed 254 studies. Checked in the library.' && !box(), 'the bullet should read the new words');
+    check(doc.activeElement === words(first), 'the words take the keyboard back, so Enter changes them again');
+    const undo = doc.querySelector('.lk-undo[data-lk-undo]');
+    check(!!undo, 'the faded Undo arrow should be offered');
+    click(window, undo);
+    await wait(150);
+    check(writes().length === 2 && writes()[1][2] === 'Cepeda reviewed 254 studies.' && words(first).textContent === 'Cepeda reviewed 254 studies.', 'Undo should put the old words back: ' + JSON.stringify(writes()));
+    // The bullet changed in Logseq since: the arrow leaves it and says so.
+    words(first).dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
+    await wait(60);
+    type(window, box(), 'Second change');
+    key(box(), 'Enter');
+    await wait(150);
+    bullets.get(node)[0].title = 'Changed in Logseq since';
+    click(window, doc.querySelector('.lk-undo[data-lk-undo]'));
+    await wait(150);
+    check(writes().length === 3 && notices.some(t => t.includes('so it stays')), 'a bullet changed since should stay as it is, and Undo should say so: ' + JSON.stringify(writes()) + JSON.stringify(notices));
+    // The keyboard: Enter on words Tab has reached.
+    key(words(second), 'Enter');
+    await wait(60);
+    check(!!words(second).querySelector('.th-in-place') && words(second).querySelector('.th-in-place').value === 'See [[Testing effect]].', 'Enter on the words should open the box with the link whole: ' + words(second).innerHTML);
+    key(words(second).querySelector('.th-in-place'), 'Escape');
+    await wait(60);
+    // A link in the words opens its page; the dot opens the bullet; neither starts a change.
+    click(window, words(second).querySelector('.th-tw-peek-open'));
+    await wait(40);
+    check(calls.some(c => c[0] === 'pushState' && c[1] === 'Testing effect') && !words(second).querySelector('.th-in-place'), 'a link in the words should open its page, not start a change');
+    click(window, doc.querySelector(`.th-ol-bullet[data-bullet="${second}"] > .th-ol-dot`));
+    await wait(40);
+    check(calls.some(c => c[0] === 'pushState' && c[1] === second) && !words(second).querySelector('.th-in-place'), 'the dot should open the bullet');
     part.stop();
   }
   // 6. The + line proposes the rest (0.4.406): under the line, the row's property on this page, then what the rules
@@ -774,36 +849,44 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     check(!!links[0]?.nextElementSibling?.matches('.th-tw-linked') && !!links[0].nextElementSibling.querySelector('.th-tw-back'), 'the lines linking to it should sit under that line');
     check(![...(box(U(61))?.querySelectorAll('.th-tw-linked .th-ol-prop:not(.th-tw-back)') || [])].filter(own).length, 'its own properties should not sit under that line');
     check(!chev(U(61), U(103)) && !!chev(U(61), U(104)), 'the node on the way should not be listed again, another node should');
-    // Two levels at once, the page's title always on top (7 November 2026, the owner): a node opened inside the node
-    // opened from the row already shifted the outline by one level.
-    const trailText = () => doc.querySelector('.th-tw-stepped .th-ol-trail')?.textContent || '';
-    const stepsN = () => doc.querySelectorAll('.th-tw-stepped .th-ol-trail [data-step]').length;
-    check(stepsN() === 1 && /Spacing does not help/.test(trailText()), 'a node opened inside the first should shift by one: the page in the trail, the node opened from the row at the top: ' + trailText());
-    check(!doc.querySelector('.th-tw-findrow') && !doc.querySelector('.th-tw-bar:not([data-idle])'), 'shifted, the page’s own find field and picking bar should be away');
-    check(doc.querySelector('.th-two-way')?.hasAttribute('data-th-rows'), 'shifted, the section should still stand for the page, so Logseq’s lists stay hidden');
-    click(window, chev(U(61), U(104))); await wait(400);
-    check(stepsN() === 2 && /Cepeda 2006/.test(trailText()) && !!box(U(104)), 'one deeper should shift again: the node you came through at the top, the one you opened under it: ' + trailText());
+    click(window, chev(U(61), U(104))); await wait(150);
+    // A level whose lines would break (0.4.464; 0.4.463 at the fourth): the same chevron; opening it shifts the outline by
+    // one level: the node opened from the row becomes the section's top, the page goes into the trail, the levels under
+    // it stay open.
     const stepper = chev(U(104), U(62));
-    check(!!stepper && stepper.matches('.th-chev'), 'three nodes deep the next node should have the same chevron');
+    check(!!box(U(104)) && !!stepper && stepper.matches('.th-chev'), 'three nodes deep the next node should have the same chevron');
     if (stepper) {
+      // The pretend window lays nothing out: a line four opened levels deep (five boxes, with the row's list) is made
+      // wider than the section, as at the owner's width.
+      const deep = el => { let n = 0; for (let k = el.closest('.th-ol-kids'); k; k = k.parentElement?.closest('.th-ol-kids')) n++; return n; };
+      Object.defineProperty(window.HTMLElement.prototype, 'scrollWidth', { configurable: true, get() { return this.matches('.th-ol-line') && deep(this) >= 5 ? 999 : 0; } });
       click(window, stepper); await wait(400);
-      check(stepsN() === 3 && /The best gap/.test(trailText()) && !!box(U(62)) && !box(U(61)), 'and again: only two levels show: ' + trailText());
+      const trail = doc.querySelector('.th-tw-stepped .th-ol-trail');
+      check(!!trail && doc.querySelectorAll('.th-tw-stepped .th-ol-trail [data-step]').length === 1 && /Spacing does not help/.test(trail.textContent), 'a fourth level should shift by one: the page in the trail, the node opened from the row at the top: ' + trail?.textContent);
+      check(!!box(U(61)) && !!box(U(104)) && !!box(U(62)), 'the three levels under the new top should stay open, the new one with them');
+      check(!doc.querySelector('.th-tw-findrow') && !doc.querySelector('.th-tw-bar:not([data-idle])'), 'shifted, the page’s own find field and picking bar should be away: ' + [...doc.querySelector('.th-two-way').children].map(c => c.className).join(' / '));
+      check(doc.querySelector('.th-two-way')?.hasAttribute('data-th-rows'), 'shifted, the section should still stand for the page, so Logseq’s lists stay hidden');
       // Esc does one thing: it closes the deepest node, and the section stays shifted.
       doc.body.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       await wait(300);
-      check(!box(U(62)) && stepsN() === 3, 'Esc should close only the deepest node');
+      check(!box(U(62)) && !!box(U(104)) && !!doc.querySelector('.th-tw-stepped'), 'Esc should close only the deepest node: ' + !!box(U(62)) + ' ' + !!doc.querySelector('.th-tw-stepped'));
+      // The trail's page goes back to the rows, what was open still open.
+      click(window, doc.querySelector('.th-tw-stepped .th-ol-trail [data-step="-1"]')); await wait(100);
+      check(!doc.querySelector('.th-tw-stepped') && !!box(U(104)), 'the trail should go back to the rows, what was open still open');
       doc.body.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       await wait(300);
-      check(stepsN() === 2 && !!box(U(104)), 'the next Esc should step back one level, the node that was the top open again under the new top: ' + trailText());
-      // The trail's page goes back to the rows, with the node opened from the row open and nothing deeper.
-      click(window, doc.querySelector('.th-tw-stepped .th-ol-trail [data-step="-1"]')); await wait(100);
-      check(!doc.querySelector('.th-tw-stepped') && !!box(U(103)) && !box(U(61)), 'the trail should go back to the rows, one level open');
+      check(!box(U(104)) && !!box(U(61)), 'back by the trail, Esc should still close one level at a time');
+      delete window.HTMLElement.prototype.scrollWidth;
+      click(window, chev(U(61), U(104))); await wait(150);
     }
     check(calls.length === 0, 'following the chain should write nothing: ' + JSON.stringify(calls));
+    click(window, chev(U(103), U(61))); await wait(300);
+    check(!box(U(61)) && !box(U(104)), 'the chevron should close the node and everything under it');
+    click(window, chev(U(103), U(61))); await wait(150);
+    check(!!box(U(61)) && !box(U(104)), 'opened again it should come back without what was under it');
     click(window, chevOf(doc, U(103))); await wait(300);
-    check(!box(U(103)) && !box(U(61)), 'the chevron should close the node and everything under it');
     click(window, chevOf(doc, U(103))); await wait(150);
-    check(!!box(U(103)) && !box(U(61)), 'opened again it should come back without what was under it');
+    check(!box(U(61)), 'closing the node opened from the row should close its chain too');
     part.stop();
   }
   // The find field (0.4.436; on every page since 0.4.458): typing keeps the nodes whose words hold it, or one of their
@@ -1061,6 +1144,40 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     check(graphHooks.length === 1, 'the rows listen for another graph');
     reads.length = 0; graphHooks.forEach(fn => fn()); await wait(120);
     check(reads.length >= 1, 'another graph reads the rows afresh: ' + reads.length);
+    part.stop();
+  }
+  // The page on a day, two pages side by side, the walk kept (7 November 2026, the owner: "ok build each").
+  {
+    const { window, doc, calls, part } = world('');
+    await wait(120);
+    const twoWay = window.Threads.parts.find(p => p.name === 'two-way').inner;
+    twoWay.state.findShown = true; twoWay.state.html = null; twoWay.draw(doc);
+    const field = doc.querySelector('.th-tw-find');
+    check(!!field, 'the find line can be called up on a page with few rows');
+    // On a day: the nodes up to it are the list, the later ones faint under "since", the head says how many today.
+    type(window, field, 'on 2026-09-20'); await wait(200);
+    const head = doc.querySelector('.th-tw-head')?.textContent.replace(/\s+/g, ' ') || '';
+    check(/All 3/.test(head) && /6 today/.test(head) && /from Sep 1 to Sep 15/.test(head), 'on a day the head counts the nodes up to it and says how many there are today: ' + head);
+    const since = doc.querySelector('.th-tw-since');
+    check(!!since && since.querySelectorAll('.th-tw-line').length === 3 && /since/.test(since.textContent), 'the later nodes stand under a "since" line: ' + since?.querySelectorAll('.th-tw-line').length);
+    check(/3 of 6 up to Sep 20/.test(doc.querySelector('.th-tw-findrow .th-field-count')?.textContent || ''), 'the find line says the count up to the day: ' + doc.querySelector('.th-tw-findrow .th-field-count')?.textContent);
+    check(twoWay.readFind().asOf === 20260920 && twoWay.readFind().q === '', 'the day is read out of the words, nothing left to find by');
+    type(window, field, 'claim on Sep 20'); await wait(200);
+    check(twoWay.readFind().q === 'claim' && twoWay.readFind().asOf === 20260920 && doc.querySelectorAll('.th-tw-since .th-tw-line').length === 2, 'words and a day together: the words narrow, the day parts: ' + doc.querySelectorAll('.th-tw-since .th-tw-line').length);
+    // Esc in the line lets the words go: back to today.
+    field.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); await wait(150);
+    check(!twoWay.state.find && !doc.querySelector('.th-tw-since'), 'Esc comes back to today');
+    // Beside: "and <page>" draws two columns, the same property on one line, the other page's rows read.
+    type(window, field, 'and Cepeda'); await wait(300);
+    const beside = doc.querySelector('.th-tw-beside');
+    check(!!beside, 'a page named after "and" stands beside this one');
+    check(beside?.querySelectorAll('.th-tw-bhead').length === 2 && /Cepeda 2006/.test(beside?.textContent || ''), 'both pages head their columns');
+    check(beside?.querySelectorAll('.th-tw-bcell').length === 2 && /none/.test(beside?.querySelector('.th-tw-bcell.th-tw-bnone')?.textContent || ''), 'a property only one page has reads "none", quiet, on the other side');
+    check(/beside Cepeda 2006/.test(doc.querySelector('.th-tw-findrow .th-field-count')?.textContent || ''), 'the find line says which page stands beside');
+    check(beside?.querySelectorAll('.th-tw-bside .th-tw-line').length === 3 && !!beside?.querySelector('[data-more]'), 'three nodes a side, then show all: ' + beside?.querySelectorAll('.th-tw-bside .th-tw-line').length);
+    type(window, field, 'and Nobody'); await wait(200);
+    check(!doc.querySelector('.th-tw-beside') && /no page/.test(doc.querySelector('.th-tw-findrow .th-field-count')?.textContent || ''), 'a name that is no page: the rows stay, the line says so');
+    type(window, field, ''); await wait(150);
     part.stop();
   }
   console.log(problems.length ? `two-way-rows-test: ${problems.length} of ${cases} checks failed` : `two-way-rows-test: OK (${cases} checks)`);

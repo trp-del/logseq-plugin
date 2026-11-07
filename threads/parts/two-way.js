@@ -32,7 +32,7 @@ const settingsSchema = [
     zone: '<div><span class="m">doctor of →</span> &nbsp;<u>9 Appointments</u> <span class="m">· next Nov 12</span></div>',
     description: 'Changes here apply right away.' },
   { key: 'twoWayRows', type: 'boolean', title: 'Links read the same from both ends', default: true,
-    description: 'On a page that one of your properties points to (a doctor named as the “doctor” of visits, a report named as the “report” of a scan), each such property becomes a row in the page’s own property list, with an arrow after its name: “doctor of →   9 Appointments · next Nov 12”. Up to three nodes show by name; more show as a count that opens into the list. Click a node’s name to open it (Shift-click: in the sidebar); rest the pointer on it to see its properties and first lines. Click the property’s name to open the property; right-click it to change how it reads here. In a list with several kinds of nodes, click a kind to show only those. The + at the end of a row adds a new node with that property pointing here (Undo is the faded arrow after the row’s name). Tick the box before nodes (Shift-click a box: every one between) to act on them together: open in the sidebar, change this page to another one in their property, take the link off, add a tag, copy, set or clear a property, or delete them. A list of more than three can be grouped: the word “group” after its count (or right-click the name, “Group by…”) groups it by tag, month or any property its nodes hold, each group folding, and the + at the end of a group adds a node with that group’s tag or value already set. The chevron before a node’s name opens it under its name: its properties, what points at it and its first bullets, with a faint empty bullet to write a new one in; two levels show at once: a node opened inside an opened node shifts the outline by one level, so the node you came through reads like a page at the top, the one you opened under it, and the outer levels go into the way back under the page’s title. While you type a new node’s words in the + line, what it would get shows under the line in grey, as the proposals do in a bullet (a guess with a dotted line under it): Enter takes everything shown, a click on a guess keeps that one and lets the other guesses go, Escape clears them until you type again; a page’s name typed in the words completes in grey after the cursor, and the Right arrow links it. The same in the empty bullet of an opened node. The node’s properties show above its bullets there; click what one holds to change it (the likely values first), and the faded Undo arrow puts it back. After Enter the + line stays open, empty, for the next node; Escape closes it. Changing this page to another for the picked nodes lists first the pages their own words name.' },
+    description: 'On a page that one of your properties points to (a doctor named as the “doctor” of visits, a report named as the “report” of a scan), each such property becomes a row in the page’s own property list, with an arrow after its name: “doctor of →   9 Appointments · next Nov 12”. Up to three nodes show by name; more show as a count that opens into the list. Click a node’s name to open it (Shift-click: in the sidebar); rest the pointer on it to see its properties and first lines. Click the property’s name to open the property; right-click it to change how it reads here. In a list with several kinds of nodes, click a kind to show only those. The + at the end of a row adds a new node with that property pointing here (Undo is the faded arrow after the row’s name). Tick the box before nodes (Shift-click a box: every one between) to act on them together: open in the sidebar, change this page to another one in their property, take the link off, add a tag, copy, set or clear a property, or delete them. A list of more than three can be grouped: the word “group” after its count (or right-click the name, “Group by…”) groups it by tag, month or any property its nodes hold, each group folding, and the + at the end of a group adds a node with that group’s tag or value already set. The chevron before a node’s name opens it under its name: its properties, what points at it and its first bullets, with a faint empty bullet to write a new one in; nodes open in place until one would break its lines, then the outline shifts by one level: the outermost goes into the way back above, the next reads like a page at the top. While you type a new node’s words in the + line, what it would get shows under the line in grey, as the proposals do in a bullet (a guess with a dotted line under it): Enter takes everything shown, a click on a guess keeps that one and lets the other guesses go, Escape clears them until you type again; a page’s name typed in the words completes in grey after the cursor, and the Right arrow links it. The same in the empty bullet of an opened node. The node’s properties show above its bullets there; click what one holds to change it (the likely values first), and the faded Undo arrow puts it back. After Enter the + line stays open, empty, for the next node; Escape closes it. Changing this page to another for the picked nodes lists first the pages their own words name.' },
   { key: 'twoWayDays', type: 'boolean', title: 'Show each node’s day in the margin', default: true,
     description: 'Each node in the rows shows its day (its own date, or the day it was written on) in a column at the left. Off, the column goes and the rows move left into its place; the day still shows in the card when you point at a node, and the find line still finds it.' },
   { key: 'twoWayNames', hidden: true, type: 'string', title: 'How properties read on the other page', default: '',
@@ -64,6 +64,8 @@ const take = (core, names) => shared.take(core, names, warnOnce);
 // opened for the first time gets its rows in the same frame as its title instead of half a second later.
 // open, all and only (0.4.184): per row, whether its list is open, shows every record, or only one kind ("Infusion").
 const state = { kindsAll: new Set(), listed: [], findDug: new Map(), findAsked: new Set(), version: 0, pageUuid: '', groups: [], byPage: new Map(), indexed: false, open: new Map(), all: new Set(), only: new Map(), box: null, html: '', picked: new Set(), lastPick: '', group: new Map(), values: new Map(), nodeDraft: null, mentionsOf: new Map(), raise: new Map(), dig: new Map(), focus: '', fresh: '', node: new Map(), nall: new Set(), ball: new Set(), steps: [], pageTitle: '', kept: new Map(), find: '', drawingTop: false, pagesRead: null };
+// Where the pieces join the part's load and start (7 November 2026): loadHooks(page, groups) may give the groups back changed, settledHooks() run once the page's state stands, starters() when the part starts.
+const loadHooks = [], settledHooks = [], starters = [];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const todayNumber = () => { const d = new Date(); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); };
 const dayText = day => {
@@ -140,6 +142,7 @@ async function load() {
           // properties, which the rows do not read.
           state.replaces = read && !state.pageJournal && !(await provided.kindOfPage?.(page.id).catch(() => null))?.isTag;
         }
+        for (const hook of loadHooks) groups = (await hook(page, groups).catch(error => { warnOnce('a piece could not read for this page', error); return null; })) || groups;
         await twoWay.readValues(twoWay.groupedUuids(groups)).catch(error => warnOnce('could not read the values the rows are grouped by', error));
       }
     }
@@ -152,6 +155,7 @@ async function load() {
   state.readAt = performance.now();
   twoWay.peek.cache.clear();
   if (pageUuid) { state.byPage.set(pageUuid, groups); state.mentionsOf.set(pageUuid, groups.find(isMentions) || null); }
+  for (const hook of settledHooks) { try { hook(); } catch (error) { warnOnce('a piece could not settle on this page', error); } }
   // What the open nodes hold, read again (each once), drawn when read.
   readOpen2();
   draw(host());
@@ -358,8 +362,11 @@ function rowHtml(group, top = null) {
   // "Consultation · Infusion · Scan" became "Infusion · Consultation" and "Admissions · from Aug 13 to Sep 12" became
   // "Admission · on Aug 13" as letters were typed), so the eye keeps its place.
   const whole = (group.found && state.groups.find(g => g.name === group.name)) || group;
+  // On a day (7 November 2026, "on Oct 7" in the find line): the head counts the nodes up to that day, says how many
+  // there are today, and the later nodes stand faint under a "since" line; the list is turned back, not narrowed.
+  const headItems = group.since ? group.items : whole.items;
   const counts = new Map();
-  for (const item of whole.items) counts.set(item.tag, (counts.get(item.tag) || 0) + 1);
+  for (const item of headItems) counts.set(item.tag, (counts.get(item.tag) || 0) + 1);
   const only = counts.has(state.only.get(key)) ? state.only.get(key) : '';
   const items = only ? group.items.filter(item => item.tag === only) : group.items;
   const shown = all ? items : items.slice(0, LISTED);
@@ -371,13 +378,14 @@ function rowHtml(group, top = null) {
   /* One style for every list (1.0.2): the count and what they are first, in one weight ("11 Symptom Logs", or "4 nodes"
      when they are of several kinds); after it, quiet and parted by a dot, the kinds as filter words and the days. With several kinds the count is the old "All": it folds and unfolds the
      list, and shows every node again when one kind is picked. */
-  const total = whole.items.length;
-  const when = summary(whole.items, true);
+  const total = headItems.length;
+  const when = summary(headItems, true);
+  const was = group.since ? `<span class="th-tw-was lk-note" title="On this page today, with every day">${whole.items.length} today</span>` : '';
   // The mentions row's head is its days alone (the review, 31 October: "notes" was the plugin's word for an untagged
   // mention, under a row already called "Mentioned in"); where the mentions are of several kinds, the kinds stay.
   const daysOnly = isMentions(group) && !kinds && !!when;
   // The number is a count (the grammar: none shown, lk-count); it is there for the words' sake.
-  const leadText = kinds ? `All ${total}` : `${total} ${esc(plural(tagWord(whole.items[0]?.tag || 'note'), total))}`;   // the number shows on a closed head (the owner, 1 November, the research's rule that a head says what it holds)
+  const leadText = kinds ? `All ${total}` : `${total} ${esc(plural(tagWord((headItems[0] || group.since?.[0])?.tag || 'note'), total))}`;   // the number shows on a closed head (the owner, 1 November, the research's rule that a head says what it holds)
   const lead = daysOnly ? '' : kinds ? chip('', leadText, ' th-tw-lead', true)
     : `<a class="th-tw-toggle th-tw-lead" data-key="${esc(key)}" href="#" title="Click to ${open ? 'fold' : 'open'} the list.">${leadText}</a>`;
   const whenHtml = when ? `<a class="th-tw-toggle th-tw-when" data-key="${esc(key)}" href="#" title="${WHEN_TIP}. Click to ${open ? 'fold' : 'open'} the list.">${esc(when).replace(/ (?=\d)/g, '&nbsp;')}</a>` : '';
@@ -386,18 +394,21 @@ function rowHtml(group, top = null) {
   const byCount = [...counts].sort((a, b) => b[1] - a[1]);
   const named = state.kindsAll.has(key) || byCount.length <= 3 ? byCount : byCount.findIndex(([tag]) => tag === only) > 2 ? [...byCount.slice(0, 2), byCount.find(([tag]) => tag === only)] : byCount.slice(0, 3);
   const rest = byCount.length - named.length;
-  const tail = [...(kinds ? named.map(([tag, n]) => chip(tag, `${esc(tag === 'note' ? 'No tag' : tag)} <span class="lk-count">${n}</span>`, '', true)) : []), ...(kinds && rest ? [`<button type="button" class="lk-more th-tw-kinds" data-kinds="${esc(key)}">and ${rest} more</button>`] : []), whenHtml].filter(Boolean);
+  const tail = [...(kinds ? named.map(([tag, n]) => chip(tag, `${esc(tag === 'note' ? 'No tag' : tag)} <span class="lk-count">${n}</span>`, '', true)) : []), ...(kinds && rest ? [`<button type="button" class="lk-more th-tw-kinds" data-kinds="${esc(key)}">and ${rest} more</button>`] : []), whenHtml, was].filter(Boolean);
   // Each piece keeps its dot in the gap before it, and the head clips what stands before its left edge: a line that wraps starts on
   // its words, never on a dot (the stylesheet).
   const head = `<span class="th-tw-chips">${lead}${tail.map((piece, i) => `<span class="th-tw-piece">${lead || i ? sep : ''}${piece}</span>`).join('')}</span>`;
-  let list = '';
+  let list = '', since = '';
+  const bare = !!only || counts.size === 1, tell = bare ? twoWay.tellingProp(group, items) : '';
   if (open) {
     const today = todayNumber();
+    // The nodes after the day, faint under a line that says so; "show all" is the list's.
+    const later = only ? (group.since || []).filter(item => item.tag === only) : group.since || [];
+    if (later.length) since = `<div class="th-tw-since"><div class="th-tw-earlier lk-note">since</div>${(all ? later : later.slice(0, LISTED)).map(item => itemHtml(group, item, base, '', bare, tell)).join('')}${later.length > LISTED && !all && items.length <= LISTED ? O.more({ text: 'show all', attrs: { class: null, 'data-more': key }, under: 'name' }) : ''}</div>`;
     // Grouped (0.4.369): the nodes in groups by a tag, a month or a property's value, each group folding.
     const grouping = twoWay.groupingOf(group, items);
     if (grouping) list = grouping.parts.map(part => twoWay.groupHtml(group, part, grouping.by)).join('');
     else {
-      const bare = !!only || counts.size === 1, tell = bare ? twoWay.tellingProp(group, items) : '';
       list = shown.map((item, i) => (i > 0 && item.day && item.day < today && shown[i - 1].day >= today ? '<div class="th-tw-earlier lk-note">earlier</div>' : '') + itemHtml(group, item, base, '', bare, tell)).join('')
         + (items.length > LISTED ? O.more({ text: all ? 'show fewer' : 'show all', attrs: { class: null, 'data-more': key }, under: 'name' }) : '');
     }
@@ -406,7 +417,7 @@ function rowHtml(group, top = null) {
   // The list's own line is the parent of its nodes (the owner, 2026-10-27: "header chevron is over the other chevrons of
   // its children"): its chevron starts where the days do, its words right after; the nodes, their days too, one step in.
   const headLine = O.line({ day: null, chev: fold, body: `${head}${addLink(group)}${twoWay.groupBtn(group)}`, cls: 'th-tw-head' });
-  const listHtml = open ? O.kids({ html: list, cls: 'th-ol-bare th-tw-list', fresh: state.fresh === key }) : '';
+  const listHtml = open ? O.kids({ html: list + since, cls: 'th-ol-bare th-tw-list', fresh: state.fresh === key }) : '';
   return `<div class="th-tw-row" data-field="${esc(group.name)}"${open ? ' data-open=""' : ''}>${name}<div class="${listCls}"${picking}>${headLine}${listHtml}${twoWay.addLineHtml(group)}</div></div>`;
 }
 // One node of a row: its line, where it sits (a mention's page and bullets), what it could be, and what it holds when open.
@@ -556,7 +567,7 @@ function onRoute() {
   state.findDug.clear(); state.findAsked.clear(); state.findKeep = 0; state.findHold = 0;
   if (state.box) state.box.style.minHeight = '';
   keepOpen();
-  state.find = ''; state.findRead = '';
+  state.find = ''; state.findRead = ''; state.findShown = false;
   twoWay.hidePeek(); twoWay.closeAdd(); state.draft = null; state.kindsAll.clear(); state.picked.clear(); state.lastPick = ''; state.dig.clear(); state.focus = ''; state.steps = []; state.openFor = ''; state.nodeDraft = null;
   // The page being left, which may still be on screen for a moment and must not take the new page's place.
   // Only a page still on screen is being left: the same page opened again after it went is a new visit, held as one.
@@ -607,7 +618,8 @@ function draw(doc) {
   if (!rows) state.picked.clear();
   const stepped = rows && state.steps.length ? twoWay.steppedHtml() : null;
   state.listed = [];   // filled as the rows are drawn, so the rows come before the bar that reads it
-  const rowsHtml = rows && stepped == null ? twoWay.openHits(twoWay.foundGroups()).map(g => rowHtml(g)).join('') : '';
+  // A piece may draw in the rows' place (two pages side by side).
+  const rowsHtml = rows && stepped == null ? (twoWay.rowsInstead?.() ?? twoWay.openHits(twoWay.foundGroups()).map(g => rowHtml(g)).join('')) : '';
   const html = rows ? '<div class="th-tw-pin" aria-hidden="true"></div>' + (stepped ?? (twoWay.barHtml() + twoWay.findHtml() + rowsHtml)) : '';
   // What unrolls does so once: the drawing kept is the one without it, so the next drawing does not replace it.
   const bare = html.replace(/ th-ol-unroll/g, '');
@@ -701,6 +713,7 @@ function onClick(event) {
   if (dpick) { event.preventDefault(); event.stopPropagation(); return twoWay.keepPiece(dpick.dataset.pkey); }
   const lineEl = event.target.closest?.('.th-tw-draft');
   if (lineEl && !event.target.closest('a, input, button')) { lineEl.querySelector('.th-tw-draft-field')?.focus(); return; }
+  if (twoWay.pieceClick?.(event)) return;
   // The name opens, the arrow unfolds: the blank part of a row does nothing, and the page stays.
   const target = event.target.closest?.('a, button');
   if (!target) return;
@@ -826,6 +839,7 @@ function start() {
   twoWay.forgetOrder();
   twoWay.readOpen();
   twoWay.readGroup();
+  for (const starter of starters) { try { starter(); } catch (error) { warnOnce('a piece could not start', error); } }
   watchDomEarly(drawEarly);
   draw(host());
   // At once (0.4.150): the look-up waits in line behind Logseq loading the page anyway. The box stays until the next
@@ -857,6 +871,8 @@ function start() {
     else if (state.focus && state.dig.has(state.focus) && state.focus !== twoWay.topStep()?.key) { event.preventDefault(); const key = state.focus; shared.outline.close(state.box?.querySelector(`.th-ol-kids[data-key="${CSS.escape(key)}"]`), () => twoWay.closeDig(key)); }
     // Nothing open under the top: one step back along the trail (0.4.463: Esc does one thing at a time).
     else if (state.steps.length) { event.preventDefault(); twoWay.stepBack(state.steps.length - 2); }
+    // Then the find line's words (a day, a page beside, letters): back to today's whole page (7 November 2026).
+    else if (state.find) { event.preventDefault(); state.find = ''; draw(host()); }
   };
   host().addEventListener('keydown', escape);
   let pinFrame = 0;
@@ -871,5 +887,5 @@ function start() {
 }
 ((window.Threads ||= {}).parts ||= []).push({ name: 'two-way', says: 'the rows on a page', schema: settingsSchema, start, stop: runUnloadTasks, inner: twoWay });
 // What the pieces reach of the part, and of the core once it starts (useCore).
-Object.assign(twoWay, { INLINE, UUID, dayCell, dayText, draw, groupsFor, inBox, isMentions, itemHtml, later, lineDay, model, nameHtml, offerMade, offerUndo, onUnload, provided, rowHtml, setting, shortName, state, tagLink, todayNumber, uuidsIn, valueBox, warnOnce, useCore });
+Object.assign(twoWay, { INLINE, LISTED, UUID, dayCell, loadHooks, settledHooks, starters, summary, plural, tagWord, dayText, draw, groupsFor, inBox, isMentions, itemHtml, later, lineDay, model, nameHtml, offerMade, offerUndo, onUnload, provided, rowHtml, setting, shortName, state, tagLink, todayNumber, uuidsIn, valueBox, warnOnce, useCore });
 })();

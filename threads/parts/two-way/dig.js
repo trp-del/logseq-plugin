@@ -1,5 +1,5 @@
 /* Digging: a node opened in place under its line (its properties, what points at it, its first bullets), the shift
-   into a node opened two levels under the top, the trail back, and writing a bullet or a value into an opened node.
+   into a node when its lines would break, the trail back, and writing a bullet or a value into an opened node.
    A piece of Threads' two-way part: parts/two-way.js is the part (the rows, their drawing, the start) and holds twoWay,
    where its pieces meet. What this piece uses of the part or another piece it reaches through twoWay when it runs; what
    it gives them is listed at its end. */
@@ -13,8 +13,8 @@ const { state, warnOnce } = twoWay;
 
 /* Digging, one model (0.4.442, docs/REWORK.md 4; it replaces the node opened in a row, the chain opened inside it and the
    step into a node, three models drawn three ways). state.dig: every node open, by its place: the row ('r:Provider'),
-   then '>uuid' for each node down, the whole path from the page. A node opens in place under its own name one level
-   under the top; one opened deeper shifts the outline (0.4.463; since 7 November 2026 always, two levels at once,
+   then '>uuid' for each node down, the whole path from the page. A node opens in place under its own name for three
+   levels or less: once a node just opened has a line that would break, the outline shifts (0.4.463, 0.4.464 by fit,
    fitOrShift): the node below the top becomes the top and the top goes into the trail (state.steps, each with its key, a click back; Esc one step back
    once nothing is open under the top). state.focus is the place opened last: its line and what it holds
    sit on the light grey wash; a click inside another open node moves it there, closing it or Esc hands it to its
@@ -59,7 +59,7 @@ function nodeHtml(uuid, key, data, asTop = false) {
     const linked = (kind === 'node' || kind === 'page') && values.some(v => isUuid(v.uuid));
     const guess = !values.length ? data.guesses.get(prop.ident) : null;
     const found = twoWay.findsLine(prop, values) ? 'th-tw-match' : '';
-    if (onlyFound && (!found || (prop.type === 'date' && !twoWay.has(prop.title, state.find.trim().toLowerCase())))) continue;
+    if (onlyFound && (!found || (prop.type === 'date' && !twoWay.has(prop.title, twoWay.readFind().q)))) continue;
     const nameAttrs = { 'data-edit': prop.ident, 'data-uuid': uuid, title: `Change “${prop.title}”`, class: null };
     if (guess) { html += O.prop({ kind, many: prop.many, name: prop.title, nameAttrs, cls: found, value: O.pencil(guess.shown || '', { 'data-take': prop.ident, 'data-uuid': uuid, title: `${guess.guess ? 'A guess from its words' : 'From its words'}: click to fill it in` }) }); continue; }
     if (!linked) {
@@ -98,7 +98,8 @@ function nodeHtml(uuid, key, data, asTop = false) {
     }
     html += `<div class="th-tw-links" title="${esc(`${many} ${many === 1 ? 'node links' : 'nodes link'} to ${twoWay.shortName(titleOf(uuid))}`)}"><span class="lk-count">${many}</span> ${many === 1 ? 'node links' : 'nodes link'} here</div><div class="th-tw-linked">${lines}</div>`;
   }
-  for (const line of data.bullets) html += O.bullet({ html: twoWay.lineHtml(line.text, 400), attrs: { 'data-bullet': line.uuid } });
+  // Its words are changed where they stand (editBullet): a click, or Enter once Tab has reached them; its dot opens it.
+  for (const line of data.bullets) html += O.bullet({ html: twoWay.lineHtml(line.text, 400), attrs: { 'data-bullet': line.uuid }, wordsAttrs: { tabindex: '0', 'data-edit-bullet': line.uuid } });
   if (data.more) html += O.more({ text: 'show all its bullets', attrs: { 'data-ball': uuid } });
   html += O.newBullet({ label: `A new bullet inside ${twoWay.shortName(titleOf(uuid))}`, attrs: { class: 'th-tw-node-field', 'data-uuid': uuid, 'data-key': key } });
   return html;
@@ -185,17 +186,38 @@ function shiftOnce(key) {
   state.steps = [...state.steps, { uuid: first.uuid, id: first.id, title: first.title, key: firstKey, entered: true }];
   return true;
 }
-/* Two levels at once, the page always on top (7 November 2026, the owner: "there should be two levels seen at once and
-   the top always seen"; it replaces the shift by fit of 0.4.464): a node opened one level under the top opens in place;
-   one opened deeper shifts the outline until it is one level under the top, so the node you came through is the top
-   and the node you opened stands under it at the section's width. The levels passed go into the trail, under the
-   page's own title, which never moves. */
+/* When the shift comes (0.4.464, the owner: "shift as soon as lines would break, rather than always at the fourth
+   level"): a node just opened is measured as drawn; while one of its own lines breaks (a name on two lines, its tag
+   dropped under it, a line wider than the section) and it is more than one level below the top, the outline shifts by
+   one level. Then the section slides once from where the clicked line was. */
+function breaks(key) {
+  const kids = state.box?.querySelector(`.th-ol-kids[data-key="${CSS.escape(key)}"]`);
+  if (!kids) return false;
+  for (const line of kids.querySelectorAll('.th-ol-line')) {
+    if (line.closest('.th-ol-kids') !== kids) continue;
+    const name = line.querySelector('.th-ol-name, .th-tw-record'), pname = line.querySelector(':scope > .th-ol-pname');
+    if (line.scrollWidth > line.clientWidth + 1) return true;
+    // A property's name on two lines is a break too (the reviewer: "Therapy regimen" split under cisplatin).
+    if (pname?.textContent.trim() && pname.getBoundingClientRect().height > 1.6 * (parseFloat(getComputedStyle(pname).lineHeight) || 21)) return true;
+    if (!name) continue;
+    if (name.getClientRects().length > 1) return true;
+    const tag = name.parentElement?.querySelector(':scope > .th-tag');
+    if (tag && tag.getBoundingClientRect().top > name.getBoundingClientRect().top + 4) return true;
+  }
+  return false;
+}
+// When even one level under the top would break (a narrow section), shifting all the way gives nothing back (the
+// reviewer: at 445 px every click shifted): the lines wrap, as Logseq's own outline does, and the outline shifts only
+// as far as keeps two levels under the top, the parent still in view.
 function fitOrShift(key, from) {
-  const before = state.steps.length;
-  while (state.dig.has(key) && below(key) > 1 && shiftOnce(key)) { /* one level at a time, each into the trail */ }
-  if (state.steps.length === before) return;
-  state.html = null; twoWay.draw(host());
-  glide(key, from);
+  const before = state.steps.slice();
+  while (state.dig.has(key) && below(key) > 1 && breaks(key) && shiftOnce(key)) { state.html = null; twoWay.draw(host()); }
+  if (state.dig.has(key) && breaks(key)) {
+    state.steps = before;
+    while (state.dig.has(key) && below(key) > 2 && shiftOnce(key)) { /* to two levels under the top */ }
+    state.html = null; twoWay.draw(host());
+  }
+  if (state.steps.length !== before.length) glide(key, from);
 }
 const nameRect = key => state.box?.querySelector(`.th-chev[data-dig="${CSS.escape(key)}"]`)?.closest('.th-ol-line')?.getBoundingClientRect() || null;
 // The section slides from where the clicked line was to where it is now, as one piece.
@@ -209,8 +231,15 @@ function glide(key, from) {
 function stepBack(to) {
   const was = topStep();
   state.steps = to < 0 ? [] : state.steps.slice(0, to + 1);
-  // Two levels at once, as on the way down: what is open more than one level under the new top closes.
-  for (const k of [...state.dig.keys()]) if (below(k) > 1) state.dig.delete(k);
+  // Measured as on the way down (the reviewer: back by the trail reopened lines that break): what is open under the new
+  // top stays open as deep as its lines fit; a deeper level that would break is closed, the deepest first.
+  state.html = null; twoWay.draw(host());
+  for (let guard = 0; guard < 50; guard++) {
+    const deepest = [...state.dig.keys()].filter(k => below(k) > 1).sort((a, b) => b.split('>').length - a.split('>').length)[0];
+    if (!deepest || !breaks(deepest)) break;
+    for (const k of [...state.dig.keys()]) if (k === deepest || k.startsWith(deepest + '>')) state.dig.delete(k);
+    state.html = null; twoWay.draw(host());
+  }
   // The focus goes to the deepest node still open on the way down (the reviewer: with the outermost, one Esc closed all
   // three levels at once).
   const on = was?.key ? [...state.dig.keys()].filter(k => k === was.key || k.startsWith(was.key + '>')) : [];
@@ -337,6 +366,54 @@ async function writeBullet(uuid, key, typed) {
   }
   twoWay.later(300);
 }
+/* A bullet of an opened node changed where it stands (7 November 2026, the owner: "Allow me to edit bullet in the thread"):
+   a click on its words, or Enter on them once Tab has reached them, turns them into a box on the same place, as a value's is
+   (editInPlace); Enter keeps, Shift-Enter breaks a line, Escape leaves it as it was, a click away keeps what was typed. The
+   words are as written, a link whole ([[Page]]), a reference ((id)) left as it is, and are written back as Logseq holds a
+   link; emptied, or unchanged, nothing is written. The faded Undo arrow puts the old words back, unless the bullet has
+   changed since (in Logseq, say), when it stays and says so. The bullet's dot opens it, as the whole line did before. */
+const ownerOf = bullet => { for (const [uuid, data] of state.node) if (data.bullets.some(line => line.uuid === bullet)) return uuid; return ''; };
+async function editBullet(uuid) {
+  const find = twoWay.inBox(`[data-edit-bullet="${CSS.escape(uuid)}"]`);
+  if (!find() || find().querySelector('.th-in-place')) return;
+  const stored = await twoWay.provided.titleNow(uuid);
+  if (stored == null || !find()) return;
+  const words = String(await twoWay.provided.readableTitle(stored, { pagesOnly: true, asShown: true }) ?? stored);
+  const typed = await shared.editInPlace({ at: find(), value: words, wrap: true, again: find });
+  const next = typed?.trim();
+  if (!next || next === words.trim()) return;
+  const now = await twoWay.provided.storedWords(next);
+  if (now === stored.trim()) return;
+  const owner = ownerOf(uuid);
+  try { await twoWay.model.setWords(uuid, now); }
+  catch (error) { warnOnce('could not change the bullet', error); notify('The bullet could not be changed', 'warning'); return; }
+  const wrote = await twoWay.provided.titleNow(uuid);
+  twoWay.peek.cache.clear();
+  if (owner) await readAgain(owner); else twoWay.later(0);
+  // Enter took the box away and left nothing in focus: the words take it, so Enter again changes them again. A click away left it elsewhere.
+  const doc = host();
+  if (!doc.activeElement || doc.activeElement === doc.body) find()?.focus({ preventScroll: true });
+  const group = state.groups.find(g => g.items.some(item => item.uuid === owner));
+  twoWay.offerUndo(`Changed a bullet of “${twoWay.shortName(titleOf(owner))}”`, async () => {
+    if (await twoWay.provided.titleNow(uuid) !== wrote) return notify('It has changed since, so it stays', 'warning');
+    await twoWay.model.setWords(uuid, stored);
+    twoWay.peek.cache.clear();
+    if (owner) await readAgain(owner);
+    twoWay.later(300);
+  }, group?.name, find);
+  twoWay.later(300);
+}
+// The way in from the keyboard: Enter on a bullet's words, as Enter on a selected bullet in Logseq.
+twoWay.starters.push(() => {
+  const onKey = event => {
+    const words = event.key === 'Enter' && !event.isComposing && !event.shiftKey && event.target.closest?.('[data-edit-bullet]');
+    if (!words) return;
+    event.preventDefault(); event.stopPropagation();
+    editBullet(words.dataset.editBullet).catch(error => { warnOnce('could not change the bullet', error); notify('The bullet could not be changed', 'warning'); });
+  };
+  host().addEventListener('keydown', onKey);
+  twoWay.onUnload(() => host().removeEventListener('keydown', onKey));
+});
 /* Taking what the proposals pencilled into an opened node (0.4.438): a click on one, or "Take what is proposed" for all;
    the faded Undo arrow empties them again. */
 async function takeGuesses(uuid, idents) {
@@ -448,7 +525,10 @@ function onOutlineClick(event) {
   if (page) { stop(); twoWay.openPage(page, event.shiftKey); return true; }
   const step = t.closest('[data-open-uuid]')?.dataset.openUuid;
   if (step) { stop(); openEntity(step, event.shiftKey); return true; }
-  const bullet = !t.closest('a, button, input') && t.closest('[data-bullet]');
+  // A bullet's words change where they stand; its dot opens it (Shift: in the sidebar).
+  const words = !t.closest('a, button, input, textarea') && t.closest('[data-edit-bullet]');
+  if (words) { stop(); editBullet(words.dataset.editBullet).catch(error => { warnOnce('could not change the bullet', error); notify('The bullet could not be changed', 'warning'); }); return true; }
+  const bullet = !t.closest('a, button, input, textarea') && t.closest('.th-ol-bullet[data-bullet] > .th-ol-dot')?.parentElement;
   if (bullet) { stop(); openEntity(bullet.dataset.bullet, event.shiftKey); return true; }
   // A click inside another open node, not on anything that acts, moves the focus there.
   const inside = !t.closest('a, button, input') && t.closest('.th-ol-kids[data-key]');
@@ -456,5 +536,5 @@ function onOutlineClick(event) {
   return false;
 }
 
-Object.assign(twoWay, { closeDig, digChev, digKids, focusNodeField, keepNodeField, onOutlineClick, pinNow, placeDays, readNode, reading, stepBack, steppedHtml, topStep });
+Object.assign(twoWay, { closeDig, digChev, digKids, editBullet, focusNodeField, keepNodeField, onOutlineClick, pinNow, placeDays, readNode, reading, stepBack, steppedHtml, topStep });
 })();

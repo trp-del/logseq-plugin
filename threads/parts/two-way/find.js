@@ -19,9 +19,41 @@ const FIND_FROM = 20; // the find line stands only when there are enough rows to
 const allPointing = () => new Set(state.groups.flatMap(g => g.items.map(item => item.uuid))).size;
 function findHtml() {
   const n = allPointing();
-  if (n < FIND_FROM && !state.find) return '';
-  const found = state.find ? foundGroups().reduce((sum, g) => sum + g.items.length, 0) : 0;
-  return `<div class="th-tw-findrow">${shared.fieldHtml({ icon: 'find', value: state.find, placeholder: 'Find in what points here', count: state.find ? `${found} of ${n}` : n, inputCls: 'th-tw-find', label: 'Find in what points here' })}</div>`;
+  if (n < FIND_FROM && !state.find && !state.findShown) return '';
+  const read = readFind(), found = state.find ? foundGroups().reduce((sum, g) => sum + g.items.length, 0) : 0;
+  // The count says what the words did: the nodes found of all; on a day, up to it; a page named that is not there.
+  const other = read.beside ? twoWay.besidePage?.() : null;
+  const count = !state.find ? n : read.beside && !other ? `no page “${read.beside}”` : other ? `beside ${other.title}` : read.asOf && !read.q ? `${found} of ${n} up to ${twoWay.dayText(read.asOf)}` : `${found} of ${n}`;
+  return `<div class="th-tw-findrow">${shared.fieldHtml({ icon: 'find', value: state.find, placeholder: 'Find in what points here', count, inputCls: 'th-tw-find', label: 'Find in what points here' })}</div>`;
+}
+/* The find line's words read (7 November 2026): "and Dr. Helen Brooks" names a page to stand beside this one (parts/two-way/beside.js);
+   "on Oct 7", "up to 7 Oct", "until 2026-10-07" turn the page back to that day, the later nodes faint; whatever is left
+   finds as before. A day with no year is this year's, or last year's when this year's is still to come. */
+const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+const readCache = { text: null, read: null };
+function readFind() {
+  if (readCache.text === state.find) return readCache.read;
+  let text = String(state.find || '').trim(), beside = '', asOf = 0;
+  const and = text.match(/(?:^|\s)and\s+(\S.*)$/i);
+  if (and) { beside = and[1].trim(); text = text.slice(0, and.index).trim(); }
+  const on = text.match(/(?:^|\s)(?:on|up to|until|before)\s+(\d{4}-\d{1,2}-\d{1,2}|(?:\d{1,2}\s+[a-z]{3,9}|[a-z]{3,9}\.?\s+\d{1,2})(?:,?\s+\d{4})?)\s*$/i);
+  if (on) { asOf = dayOf(on[1]); if (asOf) text = text.slice(0, on.index).trim(); }
+  return (readCache.text = state.find, readCache.read = { q: text.toLowerCase(), beside, asOf });
+}
+function dayOf(words) {
+  const today = twoWay.todayNumber(), thisYear = Math.floor(today / 10000);
+  let y = 0, m = 0, d = 0;
+  const iso = words.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (iso) [y, m, d] = [Number(iso[1]), Number(iso[2]), Number(iso[3])];
+  else {
+    const parts = words.replace(/[.,]/g, ' ').trim().split(/\s+/);
+    const month = parts.findIndex(w => /^[a-z]/i.test(w)), day = parts.findIndex(w => /^\d{1,2}$/.test(w)), year = parts.findIndex(w => /^\d{4}$/.test(w));
+    if (month < 0 || day < 0) return 0;
+    m = MONTHS.indexOf(parts[month].slice(0, 3).toLowerCase()) + 1; d = Number(parts[day]); y = year >= 0 ? Number(parts[year]) : 0;
+    if (!y) { y = thisYear; if (y * 10000 + m * 100 + d > today) y--; }
+  }
+  if (!m || m > 12 || !d || d > 31) return 0;
+  return y * 10000 + m * 100 + d;
 }
 // What is typed matches at the start of a word ("4" finds a severity of 4, not "Oct 4"; "ct" no "Doctor").
 const has = (text, q) => { const t = String(text ?? '').toLowerCase(); let at = t.indexOf(q); while (at > 0 && /[\p{L}\p{N}]/u.test(t[at - 1])) at = t.indexOf(q, at + 1); return at >= 0; };
@@ -38,17 +70,20 @@ function propHit(item, q, row) {
   return null;
 }
 function foundGroups() {
-  const q = state.find.trim().toLowerCase();
-  if (!q) return state.groups;
+  const { q, asOf } = readFind();
+  if (!q && !asOf) return state.groups;
   return state.groups.map(g => {
-    const whole = has(g.label, q) || has(g.name, q);
-    const items = g.items.map(item => {
+    const whole = !!q && (has(g.label, q) || has(g.name, q));
+    let items = !q ? g.items : g.items.map(item => {
       // A property that holds the words opens the node even when its title holds them too ("chen" shows the Provider).
       const hit = propHit(item, q, g.name);
       return hit ? { ...item, hit } : whole || has(item.title, q) || has(item.tag, q) || has(twoWay.dayCell(item), q) ? item : null;
     }).filter(Boolean);
-    return { ...g, items, found: true, total: g.items.length, whole };
-  }).filter(g => g.items.length);
+    // On a day: the nodes up to it stay the list; the later ones go under it, faint (rowHtml). A node with no day stays.
+    const since = asOf ? items.filter(item => item.day > asOf) : null;
+    if (asOf) items = items.filter(item => !(item.day > asOf));
+    return { ...g, items, since, found: true, total: g.items.length, whole };
+  }).filter(g => g.items.length || g.since?.length);
 }
 /* A node found by one of its own properties opens as when dug (the owner, 2026-10-27: "it should show me the actual
    Provider properties as they are seen in the outline already developed"), its matching property's name in the text's
@@ -63,7 +98,7 @@ const OPEN_FROM = 3;
 const opensNow = q => q.length >= OPEN_FROM || /^\d+$/.test(q);
 function openHits(groups) {
   const want = new Map();
-  const q = state.find.trim().toLowerCase();
+  const { q } = readFind();
   if (q && opensNow(q)) for (const g of groups) for (const item of g.items) if (item.hit && want.size < FIND_OPENS) want.set(`r:${g.name}>${item.uuid}`, item);
   // What the field opened closes when no longer found, "show the rest" too; one closed by its chevron is closed already.
   for (const k of [...state.findDug.keys()]) if (!want.has(k)) { closeQuietly(k); state.findDug.delete(k); }
@@ -84,7 +119,7 @@ const closeQuietly = key => { for (const k of [...state.dig.keys()]) if (k === k
 function highlightFind(box) {
   const win = box?.ownerDocument?.defaultView, reg = win?.CSS?.highlights;
   if (!reg || !win.Highlight) return;
-  const q = state.find.trim().toLowerCase();
+  const { q } = readFind();
   if (!q || !opensNow(q) || !box.isConnected) { reg.delete('th-find'); return; }
   const words = [...new Set([q, ...q.split(/\s+/)])].filter(Boolean);
   const doc = box.ownerDocument, ranges = [];
@@ -109,7 +144,7 @@ function steadyWidth(doc, on) {
   else if (pane.style.scrollbarGutter) pane.style.scrollbarGutter = '';
 }
 // While finding, a node's property line whose name or a value holds the words.
-const findsLine = (prop, values) => { const q = state.find.trim().toLowerCase(); return !!q && (everyWord(q, [prop.title, ...values.map(v => v.day ? twoWay.dayText(v.day) : v.text)]) || has(prop.title, q) || values.some(v => has(v.day ? twoWay.dayText(v.day) : v.text, q))); };
+const findsLine = (prop, values) => { const { q } = readFind(); return !!q && (everyWord(q, [prop.title, ...values.map(v => v.day ? twoWay.dayText(v.day) : v.text)]) || has(prop.title, q) || values.some(v => has(v.day ? twoWay.dayText(v.day) : v.text, q))); };
 // The values of every node pointing here, read once a page, the first time the field is used.
 function readForFind() {
   if (state.findRead === state.pageUuid) return;
@@ -129,5 +164,11 @@ function keepFind(box, caret) {
   for (const type of ['keyup', 'keypress']) field.addEventListener(type, event => event.stopPropagation());
 }
 
-Object.assign(twoWay, { closeQuietly, findHtml, findsLine, foundGroups, has, highlightFind, keepFind, openHits, steadyWidth });
+// The find line called up where it does not stand by itself (fewer than twenty rows): Logseq's command palette.
+twoWay.starters.push(() => twoWay.provided.registerCommand?.('threads-find', 'Threads: find in what points here', () => {
+  state.findShown = true; state.html = null; twoWay.draw(host());
+  state.box?.querySelector('.th-tw-find')?.focus({ preventScroll: false });
+}));
+
+Object.assign(twoWay, { closeQuietly, findHtml, findsLine, foundGroups, has, highlightFind, keepFind, openHits, readFind, steadyWidth });
 })();
