@@ -375,7 +375,7 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
    shows the pointer has it, as on a level-3 button; a press that shows only near its holder (lk-reveal) takes it too, on the press itself. */
 .lk-change::before, .lk-plus::before { margin-right: 0 !important; }
 /* The + is the size of the chevron beside it (the owner, 7 November 2026: "it should be size of chevron"): its arms span the chevron's width. */
-.lk-plus:is(.lk-i-plus, :has(> .lk-i-plus)), .lk-plus > .lk-i-plus { display: inline-flex; align-items: center; justify-content: center; }
+.lk-plus.lk-i-plus, .lk-plus > .lk-i-plus { display: inline-flex; align-items: center; justify-content: center; }   /* the mark centred in its own place; a press holding it (Look's after a value) keeps its own layout, so a press of no width under a bullet does not pull the mark back over the value */
 .lk-plus.lk-i-plus { width: 20px; height: 20px; padding: 0 !important; flex: none; }   /* a round place the size of the fold arrow's, so the wash is a small square, not a strip */
 .lk-plus.lk-i-plus::before, .lk-plus > .lk-i-plus::before { width: .75em !important; height: .75em !important; vertical-align: middle; }
 /* A press that shows only while what it acts on is pointed at (the owner, 4 November 2026: "it disappears when I move the cursor over

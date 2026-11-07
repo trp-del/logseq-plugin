@@ -1,5 +1,5 @@
 /* Digging: a node opened in place under its line (its properties, what points at it, its first bullets), the shift
-   into a node when its lines would break, the trail back, and writing a bullet or a value into an opened node.
+   into a node opened two levels under the top, the trail back, and writing a bullet or a value into an opened node.
    A piece of Threads' two-way part: parts/two-way.js is the part (the rows, their drawing, the start) and holds twoWay,
    where its pieces meet. What this piece uses of the part or another piece it reaches through twoWay when it runs; what
    it gives them is listed at its end. */
@@ -13,8 +13,8 @@ const { state, warnOnce } = twoWay;
 
 /* Digging, one model (0.4.442, docs/REWORK.md 4; it replaces the node opened in a row, the chain opened inside it and the
    step into a node, three models drawn three ways). state.dig: every node open, by its place: the row ('r:Provider'),
-   then '>uuid' for each node down, the whole path from the page. A node opens in place under its own name for three
-   levels or less: once a node just opened has a line that would break, the outline shifts (0.4.463, 0.4.464 by fit,
+   then '>uuid' for each node down, the whole path from the page. A node opens in place under its own name one level
+   under the top; one opened deeper shifts the outline (0.4.463; since 7 November 2026 always, two levels at once,
    fitOrShift): the node below the top becomes the top and the top goes into the trail (state.steps, each with its key, a click back; Esc one step back
    once nothing is open under the top). state.focus is the place opened last: its line and what it holds
    sit on the light grey wash; a click inside another open node moves it there, closing it or Esc hands it to its
@@ -185,38 +185,17 @@ function shiftOnce(key) {
   state.steps = [...state.steps, { uuid: first.uuid, id: first.id, title: first.title, key: firstKey, entered: true }];
   return true;
 }
-/* When the shift comes (0.4.464, the owner: "shift as soon as lines would break, rather than always at the fourth
-   level"): a node just opened is measured as drawn; while one of its own lines breaks (a name on two lines, its tag
-   dropped under it, a line wider than the section) and it is more than one level below the top, the outline shifts by
-   one level. Then the section slides once from where the clicked line was. */
-function breaks(key) {
-  const kids = state.box?.querySelector(`.th-ol-kids[data-key="${CSS.escape(key)}"]`);
-  if (!kids) return false;
-  for (const line of kids.querySelectorAll('.th-ol-line')) {
-    if (line.closest('.th-ol-kids') !== kids) continue;
-    const name = line.querySelector('.th-ol-name, .th-tw-record'), pname = line.querySelector(':scope > .th-ol-pname');
-    if (line.scrollWidth > line.clientWidth + 1) return true;
-    // A property's name on two lines is a break too (the reviewer: "Therapy regimen" split under cisplatin).
-    if (pname?.textContent.trim() && pname.getBoundingClientRect().height > 1.6 * (parseFloat(getComputedStyle(pname).lineHeight) || 21)) return true;
-    if (!name) continue;
-    if (name.getClientRects().length > 1) return true;
-    const tag = name.parentElement?.querySelector(':scope > .th-tag');
-    if (tag && tag.getBoundingClientRect().top > name.getBoundingClientRect().top + 4) return true;
-  }
-  return false;
-}
-// When even one level under the top would break (a narrow section), shifting all the way gives nothing back (the
-// reviewer: at 445 px every click shifted): the lines wrap, as Logseq's own outline does, and the outline shifts only
-// as far as keeps two levels under the top, the parent still in view.
+/* Two levels at once, the page always on top (7 November 2026, the owner: "there should be two levels seen at once and
+   the top always seen"; it replaces the shift by fit of 0.4.464): a node opened one level under the top opens in place;
+   one opened deeper shifts the outline until it is one level under the top, so the node you came through is the top
+   and the node you opened stands under it at the section's width. The levels passed go into the trail, under the
+   page's own title, which never moves. */
 function fitOrShift(key, from) {
-  const before = state.steps.slice();
-  while (state.dig.has(key) && below(key) > 1 && breaks(key) && shiftOnce(key)) { state.html = null; twoWay.draw(host()); }
-  if (state.dig.has(key) && breaks(key)) {
-    state.steps = before;
-    while (state.dig.has(key) && below(key) > 2 && shiftOnce(key)) { /* to two levels under the top */ }
-    state.html = null; twoWay.draw(host());
-  }
-  if (state.steps.length !== before.length) glide(key, from);
+  const before = state.steps.length;
+  while (state.dig.has(key) && below(key) > 1 && shiftOnce(key)) { /* one level at a time, each into the trail */ }
+  if (state.steps.length === before) return;
+  state.html = null; twoWay.draw(host());
+  glide(key, from);
 }
 const nameRect = key => state.box?.querySelector(`.th-chev[data-dig="${CSS.escape(key)}"]`)?.closest('.th-ol-line')?.getBoundingClientRect() || null;
 // The section slides from where the clicked line was to where it is now, as one piece.
@@ -230,15 +209,8 @@ function glide(key, from) {
 function stepBack(to) {
   const was = topStep();
   state.steps = to < 0 ? [] : state.steps.slice(0, to + 1);
-  // Measured as on the way down (the reviewer: back by the trail reopened lines that break): what is open under the new
-  // top stays open as deep as its lines fit; a deeper level that would break is closed, the deepest first.
-  state.html = null; twoWay.draw(host());
-  for (let guard = 0; guard < 50; guard++) {
-    const deepest = [...state.dig.keys()].filter(k => below(k) > 1).sort((a, b) => b.split('>').length - a.split('>').length)[0];
-    if (!deepest || !breaks(deepest)) break;
-    for (const k of [...state.dig.keys()]) if (k === deepest || k.startsWith(deepest + '>')) state.dig.delete(k);
-    state.html = null; twoWay.draw(host());
-  }
+  // Two levels at once, as on the way down: what is open more than one level under the new top closes.
+  for (const k of [...state.dig.keys()]) if (below(k) > 1) state.dig.delete(k);
   // The focus goes to the deepest node still open on the way down (the reviewer: with the outermost, one Esc closed all
   // three levels at once).
   const on = was?.key ? [...state.dig.keys()].filter(k => k === was.key || k.startsWith(was.key + '>')) : [];

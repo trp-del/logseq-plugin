@@ -128,9 +128,13 @@ async function groupMenu(group, anchor) {
   const items = [{ label: 'Nothing', chosen: !by, run: () => choose('') }];
   if (new Set(group.items.map(item => item.tag)).size > 1) items.push({ icon: 'tag', label: 'Tag', chosen: by === 'tag', run: () => choose('tag') });
   if (group.items.some(item => item.day)) items.push({ icon: 'date', label: 'Month', chosen: by === 'month', run: () => choose('month') });
-  const props = [...held].filter(([, h]) => h.values.size > 1 || h.nodes < group.items.length).sort((a, b) => b[1].nodes - a[1].nodes || a[0].localeCompare(b[0]));
+  /* A property whose values are nearly all different groups nothing (7 November 2026, the owner: "Good" to leaving out
+     Fatigue's "Date, 44 values" for 49 logs; Month already groups by time): offered only while its groups would hold two
+     nodes each on the whole. The one the list is grouped by stays, so it can be seen and let go. */
+  const groups = (name, h) => by === `p:${name}` || h.values.size * 2 <= h.nodes;
+  const props = [...held].filter(([name, h]) => (h.values.size > 1 || h.nodes < group.items.length) && groups(name, h)).sort((a, b) => b[1].nodes - a[1].nodes || a[0].localeCompare(b[0]));
   if (props.length) items.push({ sep: true }, ...props.map(([name, h]) => ({ icon: 'property', label: name, right: `${h.values.size} ${h.values.size === 1 ? 'value' : 'values'}`, chosen: by === `p:${name}`, run: () => choose(`p:${name}`) })));
-  else items.push({ note: 'These nodes hold no property to group by' });
+  else items.push({ note: held.size ? 'Their properties differ on nearly every node, so none groups them' : 'These nodes hold no property to group by' });
   twoWay.adding.pop = shared.popup({ at: anchor, head: `Group “${group.label}” by`, width: 250, items, onClose: () => { twoWay.adding.pop = null; } });
 }
 // The + in a group: the line to type in opens under the group's name, with what the group has in common set when it is made.

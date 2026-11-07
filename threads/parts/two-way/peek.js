@@ -72,14 +72,25 @@ async function openPage(name, inSidebar) {
 }
 const hidePeekSoon = () => { clearTimeout(peek.hide); peek.hide = setTimeout(hidePeek, 200); };
 function hidePeek() { clearTimeout(peek.timer); clearTimeout(peek.hide); peek.card?.close(); peek.card = null; peek.anchor = null; }
-/* The card sits clear of the rows: to the right of the words on the lines it stands beside, else above the row. */
+/* The card sits clear of the rows: to the right of the words on the lines it stands beside; else under the row, so it
+   never covers the list's head above (7 November 2026, the owner: "Good"); above the row only where the window has no
+   room under it. */
 function placePeek(card, link) {
   const box = card.getBoundingClientRect(), at = link.getBoundingClientRect(), pane = link.closest('.th-two-way').getBoundingClientRect();
   const top = Math.max(48, at.top - 10), bottom = top + box.height;
   const words = [...card.ownerDocument.querySelectorAll('.th-two-way .th-ol-line')].filter(line => { const r = line.getBoundingClientRect(); return r.bottom > top && r.top < bottom; })
     .flatMap(line => [...line.querySelectorAll('.th-ol-body > *')]).map(part => part.getBoundingClientRect().right);
   const left = Math.max(at.right, ...words) + 16, room = left + box.width <= pane.right;
-  Object.assign(card.style, { margin: '0', left: `${room ? left : at.left}px`, top: `${room ? top : Math.max(48, at.top - box.height - 6)}px` });
+  // Under or above, whichever covers no list's head (the next list's head can stand right under a row); under first.
+  const heads = [...card.ownerDocument.querySelectorAll('.th-two-way .th-tw-head')].map(head => head.getBoundingClientRect());
+  const x0 = at.left, x1 = at.left + box.width, clear = y => !heads.some(r => r.bottom > y && r.top < y + box.height && r.right > x0 && r.left < x1);
+  const under = at.bottom + 6, above = at.top - box.height - 6;
+  const fits = under + box.height <= card.ownerDocument.defaultView.innerHeight - 8, aboveFits = above >= 48;
+  // Neither clear (a row just above the next list): under, past that list's head.
+  const past = Math.max(under, ...heads.filter(r => r.bottom > under && r.top < under + box.height && r.right > x0 && r.left < x1).map(r => r.bottom + 6));
+  const pastFits = past + box.height <= card.ownerDocument.defaultView.innerHeight - 8;
+  const y = fits && clear(under) ? under : aboveFits && clear(above) ? above : pastFits ? past : fits ? under : Math.max(48, above);
+  Object.assign(card.style, { margin: '0', left: `${room ? left : at.left}px`, top: `${room ? top : y}px` });
 }
 async function showPeek(link) {
   const { group, item } = findItem(link.dataset.uuid, link.closest('.th-tw-row'));

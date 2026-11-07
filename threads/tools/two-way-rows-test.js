@@ -341,6 +341,8 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     check(/\.th-ol-body > \.th-tw-record \{ min-width: 0; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; \}/.test(source), 'a name runs to two lines, then is cut');
     check(!/title: item\.title/.test(source.slice(source.indexOf('async function showPeek'))) && !/\bday: item\.day/.test(source.slice(source.indexOf('async function showPeek'))), 'the card leaves out what the row says');
     check(/placePeek\(card\.el, link\)/.test(source), 'the card is placed clear of the rows');
+    check(/fits && clear\(under\) \? under : aboveFits && clear\(above\) \? above/.test(source), 'the card goes under the row, or above where under would cover a list\'s head');
+    check(/h\.values\.size \* 2 <= h\.nodes/.test(source), 'Group leaves out a property whose values are nearly all different');
     check(/settle\.stood = true; box\.removeAttribute\('data-th-waiting'\)/.test(source) && /!settle\.stood && \(!state\.mentionsOf\.has\(page\) \|\| \(!heights\.has\(page\)/.test(source), 'a first visit waits only until the place stands still and the page is read');
     check(/!listThere \|\| !state\.mentionsOf\.has\(page\) \|\| \(!noList && performance\.now\(\) - since < STILL_MS\)/.test(source), 'and until the property list is there: stillness alone can come before it');
     check(/:has\(\.th-two-way\[data-th-waiting\]\) \.ls-page-blocks \{ visibility: hidden; \}/.test(source), 'the page\'s words wait with the rows, so what comes with the reading pushes nothing');
@@ -772,44 +774,36 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     check(!!links[0]?.nextElementSibling?.matches('.th-tw-linked') && !!links[0].nextElementSibling.querySelector('.th-tw-back'), 'the lines linking to it should sit under that line');
     check(![...(box(U(61))?.querySelectorAll('.th-tw-linked .th-ol-prop:not(.th-tw-back)') || [])].filter(own).length, 'its own properties should not sit under that line');
     check(!chev(U(61), U(103)) && !!chev(U(61), U(104)), 'the node on the way should not be listed again, another node should');
-    click(window, chev(U(61), U(104))); await wait(150);
-    // A level whose lines would break (0.4.464; 0.4.463 at the fourth): the same chevron; opening it shifts the outline by
-    // one level: the node opened from the row becomes the section's top, the page goes into the trail, the levels under
-    // it stay open.
+    // Two levels at once, the page's title always on top (7 November 2026, the owner): a node opened inside the node
+    // opened from the row already shifted the outline by one level.
+    const trailText = () => doc.querySelector('.th-tw-stepped .th-ol-trail')?.textContent || '';
+    const stepsN = () => doc.querySelectorAll('.th-tw-stepped .th-ol-trail [data-step]').length;
+    check(stepsN() === 1 && /Spacing does not help/.test(trailText()), 'a node opened inside the first should shift by one: the page in the trail, the node opened from the row at the top: ' + trailText());
+    check(!doc.querySelector('.th-tw-findrow') && !doc.querySelector('.th-tw-bar:not([data-idle])'), 'shifted, the page’s own find field and picking bar should be away');
+    check(doc.querySelector('.th-two-way')?.hasAttribute('data-th-rows'), 'shifted, the section should still stand for the page, so Logseq’s lists stay hidden');
+    click(window, chev(U(61), U(104))); await wait(400);
+    check(stepsN() === 2 && /Cepeda 2006/.test(trailText()) && !!box(U(104)), 'one deeper should shift again: the node you came through at the top, the one you opened under it: ' + trailText());
     const stepper = chev(U(104), U(62));
-    check(!!box(U(104)) && !!stepper && stepper.matches('.th-chev'), 'three nodes deep the next node should have the same chevron');
+    check(!!stepper && stepper.matches('.th-chev'), 'three nodes deep the next node should have the same chevron');
     if (stepper) {
-      // The pretend window lays nothing out: a line four opened levels deep (five boxes, with the row's list) is made
-      // wider than the section, as at the owner's width.
-      const deep = el => { let n = 0; for (let k = el.closest('.th-ol-kids'); k; k = k.parentElement?.closest('.th-ol-kids')) n++; return n; };
-      Object.defineProperty(window.HTMLElement.prototype, 'scrollWidth', { configurable: true, get() { return this.matches('.th-ol-line') && deep(this) >= 5 ? 999 : 0; } });
       click(window, stepper); await wait(400);
-      const trail = doc.querySelector('.th-tw-stepped .th-ol-trail');
-      check(!!trail && doc.querySelectorAll('.th-tw-stepped .th-ol-trail [data-step]').length === 1 && /Spacing does not help/.test(trail.textContent), 'a fourth level should shift by one: the page in the trail, the node opened from the row at the top: ' + trail?.textContent);
-      check(!!box(U(61)) && !!box(U(104)) && !!box(U(62)), 'the three levels under the new top should stay open, the new one with them');
-      check(!doc.querySelector('.th-tw-findrow') && !doc.querySelector('.th-tw-bar:not([data-idle])'), 'shifted, the page’s own find field and picking bar should be away: ' + [...doc.querySelector('.th-two-way').children].map(c => c.className).join(' / '));
-      check(doc.querySelector('.th-two-way')?.hasAttribute('data-th-rows'), 'shifted, the section should still stand for the page, so Logseq’s lists stay hidden');
+      check(stepsN() === 3 && /The best gap/.test(trailText()) && !!box(U(62)) && !box(U(61)), 'and again: only two levels show: ' + trailText());
       // Esc does one thing: it closes the deepest node, and the section stays shifted.
       doc.body.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       await wait(300);
-      check(!box(U(62)) && !!box(U(104)) && !!doc.querySelector('.th-tw-stepped'), 'Esc should close only the deepest node: ' + !!box(U(62)) + ' ' + !!doc.querySelector('.th-tw-stepped'));
-      // The trail's page goes back to the rows, what was open still open.
-      click(window, doc.querySelector('.th-tw-stepped .th-ol-trail [data-step="-1"]')); await wait(100);
-      check(!doc.querySelector('.th-tw-stepped') && !!box(U(104)), 'the trail should go back to the rows, what was open still open');
+      check(!box(U(62)) && stepsN() === 3, 'Esc should close only the deepest node');
       doc.body.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       await wait(300);
-      check(!box(U(104)) && !!box(U(61)), 'back by the trail, Esc should still close one level at a time');
-      delete window.HTMLElement.prototype.scrollWidth;
-      click(window, chev(U(61), U(104))); await wait(150);
+      check(stepsN() === 2 && !!box(U(104)), 'the next Esc should step back one level, the node that was the top open again under the new top: ' + trailText());
+      // The trail's page goes back to the rows, with the node opened from the row open and nothing deeper.
+      click(window, doc.querySelector('.th-tw-stepped .th-ol-trail [data-step="-1"]')); await wait(100);
+      check(!doc.querySelector('.th-tw-stepped') && !!box(U(103)) && !box(U(61)), 'the trail should go back to the rows, one level open');
     }
     check(calls.length === 0, 'following the chain should write nothing: ' + JSON.stringify(calls));
-    click(window, chev(U(103), U(61))); await wait(300);
-    check(!box(U(61)) && !box(U(104)), 'the chevron should close the node and everything under it');
-    click(window, chev(U(103), U(61))); await wait(150);
-    check(!!box(U(61)) && !box(U(104)), 'opened again it should come back without what was under it');
     click(window, chevOf(doc, U(103))); await wait(300);
+    check(!box(U(103)) && !box(U(61)), 'the chevron should close the node and everything under it');
     click(window, chevOf(doc, U(103))); await wait(150);
-    check(!box(U(61)), 'closing the node opened from the row should close its chain too');
+    check(!!box(U(103)) && !box(U(61)), 'opened again it should come back without what was under it');
     part.stop();
   }
   // The find field (0.4.436; on every page since 0.4.458): typing keeps the nodes whose words hold it, or one of their
