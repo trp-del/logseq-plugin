@@ -202,6 +202,8 @@ async function learnNodes(ctx, ids) {
     // Tagged only with tags that are not yours: not learned from. Plain (no tag at all): learned as a plain line.
     learnEntry(ctx, id, raw.tags.length || !anyTags ? raw : null);
   }
+  // The matcher learns the same nodes, a moment later (logseq/meaning.js).
+  Flow.meaningAsk?.learnIds?.(ctx, list);
 }
 
 // The title of a node's value under a property (a text value is a small block of its own).
@@ -247,6 +249,21 @@ async function journalTitleFor(year, month, day) {
 // The journal page of a day, made when the graph has none yet.
 const journalPageFor = async day => journalIdFor(day, await journalTitleFor(Math.floor(day / 10000), Math.floor(day / 100) % 100, day % 100));
 
+// A page made for a name (core/people.js), with its tag: { id, uuid, title }. And taken back by Undo, only while nothing has been
+// written on it (a page the person has since filled is theirs, and stays).
+async function makePage(title, tagUuid) {
+  const page = await logseq.Editor.createPage(title, {}, { redirect: false, createFirstBlock: false });
+  if (!page?.uuid) throw new Error('the page could not be made');
+  if (tagUuid) await logseq.Editor.addBlockTag(page.uuid, tagUuid);
+  return { id: page.id, uuid: String(page.uuid), title: String(page.title ?? page.originalName ?? title) };
+}
+async function dropPage(page) {
+  const rows = await dsQuery(`[:find ?b ?t :where [?p :block/uuid #uuid "${page.uuid}"] [?b :block/page ?p] [?b :block/title ?t]]`).catch(() => []);
+  if (rows.some(([, t]) => String(t || '').trim())) return false;
+  await logseq.Editor.deletePage(page.title);
+  return true;
+}
+
 // THE writes: Logseq's own editor calls, here only.
 const setValue = (uuid, ident, value, opts) => logseq.Editor.upsertBlockProperty(uuid, ident, value, opts);
 const unsetValue = (uuid, ident) => logseq.Editor.removeBlockProperty(uuid, ident);
@@ -255,5 +272,5 @@ const removeTag = (uuid, tagUuid) => logseq.Editor.removeBlockTag(uuid, tagUuid)
 const currentGraph = () => Promise.resolve(logseq.App.getCurrentGraph?.()).catch(() => null);
 
 Flow.db = { forget, dsQuery, bare, pick, idOf, valuesOf, loadSchema, loadPages, loadPdfs, pagesNamed, pullBlock, pullBlockById, valueEntities, bulletOf, readContext, learnNodes,
-  currentIds, valueTitle, journalPageFor, setValue, unsetValue, addTag, removeTag, currentGraph };
+  currentIds, valueTitle, journalPageFor, makePage, dropPage, setValue, unsetValue, addTag, removeTag, currentGraph };
 })();

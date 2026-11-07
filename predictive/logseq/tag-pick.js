@@ -20,7 +20,7 @@ function draw() {
   const { box, items, at, list } = open, doc = box.ownerDocument, rect = box.getBoundingClientRect();
   list.replaceChildren(
     ...items.map((item, i) => {
-      const note = [item.how === 'model' ? 'by Apple’s model' : item.how === 'mentioned' ? item.via.join(', ') : 'by its words', item.fields.slice(0, 3).join(', ')].filter(Boolean).join(' · ');
+      const note = [item.how === 'model' ? 'by Apple’s model' : item.how === 'meaning' ? 'by its meaning' : item.how === 'mentioned' ? item.via.join(', ') : 'by its words', item.fields.slice(0, 3).join(', ')].filter(Boolean).join(' · ');
       const row = el(doc, 'div', { class: 'flow-pick-row lk-item' + (i === at ? ' on' : ''), role: 'option', 'aria-selected': String(i === at), 'data-i': String(i) },
         el(doc, 'span', { class: 'flow-pick-tag lk-tag' }, item.tag.title), el(doc, 'span', { class: 'flow-pick-note lk-note' }, note));
       return row;
@@ -44,10 +44,15 @@ async function show(box) {
   const items = propose.tagChoices(ctx, bullet), words = box.value;
   // Apple's model, when it is on this Mac: the tag it reads the line as goes first (core/model.js, tagRequest). The list waits
   // for it a moment rather than move a row under the pointer once it is open.
-  const read = Flow.modelAsk && app.setting('proposalsModel') ? await Flow.modelAsk.tagFor(ctx, bullet).catch(() => null) : null;
-  if (read) {
-    const at = items.findIndex(item => item.tag.id === read.id), was = at < 0 ? null : items.splice(at, 1)[0];
-    items.unshift({ ...(was || { score: 0, via: [], fields: Flow.schema.fieldsOfTags([read.id], ctx.schema).map(p => p.title) }), tag: { id: read.id, uuid: read.uuid, title: read.title }, how: 'model' });
+  // Apple's model, when it is on this Mac: the tag it reads the line as goes first (core/model.js, tagRequest); the tag the earlier
+  // notes nearest in meaning carry (core/meaning.js) before it. The list waits for them a moment rather than move a row under
+  // the pointer once it is open.
+  const on = app.setting('proposalsModel');
+  const [meant, read] = on ? await Promise.all([Flow.meaningAsk ? Flow.meaningAsk.tagFor(ctx, bullet).catch(() => null) : null, Flow.modelAsk ? Flow.modelAsk.tagFor(ctx, bullet).catch(() => null) : null]) : [null, null];
+  for (const [found, how] of [[read, 'model'], [meant, 'meaning']]) {
+    if (!found) continue;
+    const at = items.findIndex(item => item.tag.id === found.id), was = at < 0 ? null : items.splice(at, 1)[0];
+    items.unshift({ ...(was || { score: 0, via: [], fields: Flow.schema.fieldsOfTags([found.id], ctx.schema).map(p => p.title) }), tag: { id: found.id, uuid: found.uuid, title: found.title }, how });
     if (items.length > 5) items.length = 5;
   }
   if (!items.length) return notify('No tag to suggest for this line.');

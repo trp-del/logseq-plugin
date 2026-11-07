@@ -102,7 +102,7 @@ async function status() {
   try {
     const r = await fetch(HELPER + '/status', { signal: AbortSignal.timeout(800) }).then(response => response.json());
     S.ready = !!r.ready; S.at = Date.now();
-    return { reached: true, ready: !!r.ready, reason: r.reason || '' };
+    return { reached: true, ready: !!r.ready, reason: r.reason || '', meaning: !!r.meaning, names: !!r.names, version: Number(r.version) || 1 };
   } catch (error) { S.ready = false; S.at = Date.now(); return { reached: false }; }
 }
 

@@ -59,24 +59,48 @@ async function noteOf(ctx, id) {
   };
 }
 
+/* The note asked by meaning and by the name finder, as Predictive asks: untagged and empty for the tag (core/meaning.js), tagged
+   and empty for the properties the rules leave open, and the finder on the tagged note (a new page it offers is a double, since
+   the note's names all had pages). { tag, props: [{ title, result }], doubles, named } */
+async function byMeaning(ctx, note) {
+  const { sameIds } = Flow.text;
+  const bare = { ...note.b, tags: [], values: new Map() }, bareResult = { pieces: [], record: bare, quiet: [] };
+  const tagPieces = await Flow.meaningAsk.ask(ctx, bare, bareResult);
+  const tag = tagPieces.find(p => p.kind === 'tag');
+  const tagged = { ...note.b, values: new Map() }, result = Flow.propose.propose(ctx, tagged);
+  const pieces = await Flow.meaningAsk.ask(ctx, tagged, result);
+  const props = [];
+  for (const prop of Flow.meaning.openProps(ctx, tagged, result)) {
+    const truth = note.truth.get(prop.ident);
+    if (!truth || truth.kind !== 'ids') continue;
+    const said = pieces.find(p => p.ident === prop.ident);
+    props.push({ title: `${ctx.byId.get(note.b.tags[0])?.title || ''} · ${prop.title}`, result: !said ? 'silent' : sameIds(said.ids, truth.ids) ? 'right' : 'wrong' });
+  }
+  const found = Flow.peopleAsk ? await Flow.peopleAsk.ask(ctx, tagged, result).catch(() => []) : [];
+  const named = Flow.peopleAsk ? (await Flow.peopleAsk.namesIn(ctx, tagged).catch(() => [])).length > 0 : false;
+  return { tag: !tag ? 'silent' : note.b.tags.includes(tag.tag.id) ? 'right' : 'wrong', props, doubles: found.length, named: named ? 1 : 0 };
+}
+
 /* The run. progress(done, of, left ms) is called after each note; signal stops it between questions. */
 async function run(progress, signal) {
   const status = await helperStatus();
   if (!status) return { error: 'The helper for Apple’s model is not running on this Mac. Plugin settings, Predictive, says how to start it.' };
-  if (!status.ready) return { error: `Apple’s model is not ready on this Mac (${status.reason || 'no reason given'}).` };
-  const oldHelper = !(status.version >= 3), noTagger = !oldHelper && status.tagging === false;
+  // Without Apple's model (no Apple Intelligence on this Mac), the matcher and the name finder are measured alone, as they work.
+  if (!status.ready && !status.meaning) return { error: `Apple’s model is not ready on this Mac (${status.reason || 'no reason given'}).` };
+  const modelHere = !!status.ready, oldHelper = !(status.version >= 3), noTagger = !oldHelper && status.tagging === false;
   // Only the settings this helper can take: an older one would answer every setting as it comes.
   const allowed = ({ req }) => { const setting = req.fill.model || 'default'; return setting === 'default' || !oldHelper && !(setting === 'tagging' && noTagger); };
   const ctx = await app.context();
   if (!ctx?.index?.entries.length) return { error: 'This graph has no tagged notes to measure on yet.' };
+  if (status.meaning) await Flow.meaningAsk.teach(ctx);   // the matcher must know the whole graph before it is measured
   const records = [], details = measure.isTestGraph(ctx) ? [] : null, started = performance.now();
   for (const id of measure.candidates(ctx)) {
     if (signal.aborted || records.length >= NOTES) break;
     const note = await noteOf(ctx, id).catch(() => null);
     if (!note) continue;
     const q = measure.questions(ctx, note);
-    q.props = q.props.filter(allowed);
-    q.tags = q.tags.filter(allowed);
+    q.props = modelHere ? q.props.filter(allowed) : [];
+    q.tags = modelHere ? q.tags.filter(allowed) : [];
     if (!q.asked.some(a => note.truth.has(a.prop.ident))) continue;
     const rec = { tagTitle: ctx.byId.get(note.b.tags[0])?.title || '', asked: q.asked, props: [], tags: [] };
     for (const { way, req } of q.props) {
@@ -92,6 +116,7 @@ async function run(progress, signal) {
       rec.tags.push({ way, ms, size: measure.size(req.fill), error: reply ? null : error || 'no answer', result: measure.judgeTag(note, req, reply, reply ? null : error), said: reply ? measure.tagSaid(req, reply) : null });
     }
     if (signal.aborted) break;
+    if (status.meaning) rec.meaning = await byMeaning(ctx, note).catch(() => null);
     records.push(rec);
     if (details) details.push(measure.detailOf(ctx, note, q.asked, rec.props, rec.tags));
     const each = (performance.now() - started) / records.length;
@@ -144,7 +169,7 @@ async function open() {
   S.dlg.showModal();
   // The keyboard rests on the window, not on its ×, so nothing is ringed when it opens; Escape still closes it.
   const body = S.dlg.querySelector('.pm-body'); body.tabIndex = -1; body.style.outline = 'none'; body.focus();
-  draw(`<p>Each note is asked as if it held nothing, as Predictive asks, and the answers are set against what you wrote. Nothing is written to the graph.</p><p class="pm-quiet" id="pm-progress">Reading the graph…</p>`,
+  draw(`<p>Each note is asked as if it held nothing, as Predictive asks (Apple’s model, the matcher and the name finder, those on this Mac), and the answers are set against what you wrote. Nothing is written to the graph.</p><p class="pm-quiet" id="pm-progress">Reading the graph…</p>`,
     `<span class="pm-quiet">Only numbers and the names of tags and properties are kept, never your words.</span><button type="button" class="lk-lone lk-i-x" data-pm="stop">Stop</button>`);
   const result = await run((done, of, left) => {
     const line = S.dlg?.querySelector('#pm-progress');

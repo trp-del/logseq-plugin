@@ -87,7 +87,8 @@ const REASONS = {
   alike: p => `Earlier bullets like this one had ${p.shown}`, 'alike-tag': () => 'Earlier lines like this one have this tag',
   words: () => 'Named in your words', parent: () => 'The bullet above has it', day: () => 'The day this is written on', 'guess-day': () => 'The day this is written on; change it if it happens another day',
   'words-day': () => 'A day named in your words', 'words-number': p => `The number beside “${p.prop.title.toLowerCase()}” in your words`,
-  model: () => 'Read from your words by Apple’s model, on this Mac', untagged: () => 'A page linked in your words that has no tag yet; taking it gives the page the tag too',
+  model: () => 'Read from your words by Apple’s model, on this Mac', meaning: () => 'Earlier notes that mean the same, matched by Apple’s tools on this Mac',
+  names: () => 'A name Apple’s name finder read in your words, with no page yet; taking it makes the page, with this tag', untagged: () => 'A page linked in your words that has no tag yet; taking it gives the page the tag too',
   linked: () => 'A page linked in your words', 'linked-wide': () => 'A page linked in your words', page: () => 'The page this is written on', 'page-wide': () => 'The page this is written on',
 };
 function reasonOf(piece) {
@@ -100,8 +101,9 @@ function ghostLook(piece, live) {
     : piece.guess ? 'A guess: Enter fills it in with the rest; Option-Enter stops on it to check; a click accepts it'
     : live?.changed === false ? 'Enter fills it in with the rest; a click accepts it' : 'Filled in when you leave the bullet';
   const why = reasonOf(piece);
-  // From Apple's model: the asterisk after the value (the stylesheet draws it, and takes it off once the value is taken).
-  const model = String(piece.how || '').split('+').includes('model');
+  // From Apple's tools (the model, the matcher, the name finder): the asterisk after the value (the stylesheet draws it, and
+  // takes it off once the value is taken).
+  const model = Flow.apple.fromApple(piece);
   return { cls: `flow-ghost${piece.guess ? ' flow-guess' : ''}${model ? ' flow-model' : ''}`, title: why ? `${why}.\n${what}` : what };
 }
 // A proposal whose value changes in place (more words typed, Apple's model reading the line): the old words fade out where
@@ -129,7 +131,7 @@ function fillGhost(g, piece) {
     if (g.dataset.flowWords !== title) { crossFade(g); g.dataset.flowWords = title; g.replaceChildren(Object.assign(doc.createElement('span'), { className: 'flow-tag lk-tag', textContent: title })); }
     return;
   }
-  const words = piece.kind === 'tag' ? '' : piece.shown, tagTitle = piece.kind === 'tag' ? piece.tag?.title || String(piece.shown).replace(/^#/, '') : piece.tagPage?.tag.title || '';
+  const words = piece.kind === 'tag' ? '' : piece.shown, tagTitle = piece.kind === 'tag' ? piece.tag?.title || String(piece.shown).replace(/^#/, '') : piece.tagPage?.tag.title || piece.newPage?.tag.title || '';
   if (g.dataset.flowWords === words && g.dataset.flowTag === tagTitle) return;
   crossFade(g);
   g.dataset.flowWords = words; g.dataset.flowTag = tagTitle;
@@ -305,10 +307,10 @@ async function compute(box) {
   const bullet = db.bulletOf(block, words, ctx.schema), result = propose.propose(ctx, bullet), { record } = result;
   const refused = S.refused.get(String(record.uuid || '')), open = p => !refused?.has(guessKey(p));
   const rules = result.pieces.filter(open).filter((p, i, kept) => !p.needsTag || kept.some(q => q.kind === 'tag'));
-  // Apple's model (logseq/model.js), for what the rules left open: its answer for these words if it is in, else asked now and
-  // drawn when it comes, as long as the bullet and its words are still the same.
-  // A tag it reads comes first, the tag's properties as its second answer comes.
-  const asking = Flow.modelAsk, had = asking?.had(ctx, bullet, result);
+  // Apple's tools (logseq/apple.js: the matcher, the name finder, then the model), for what the rules left open: what is in for
+  // these words at once, the rest asked now and drawn as it comes, as long as the bullet and its words are still the same.
+  // A tag read comes first, the tag's properties as the next answer comes.
+  const asking = Flow.apple, had = asking?.had(ctx, bullet, result);
   show(box, uuid, words, record, rules, (had || []).filter(open));
   if ((had && asking.done(ctx, bullet, result)) || !asking?.wanted(ctx, bullet, result)) return;
   const drawn = more => {
@@ -320,7 +322,7 @@ async function compute(box) {
 }
 // The proposals of the bullet being written: the rules' and the model's (core/model.js, merge).
 function show(box, uuid, words, record, rules, more) {
-  const pieces = Flow.model.merge(rules, more), fromModel = pieces.filter(p => p.how === 'model');
+  const pieces = Flow.model.merge(rules, more), fromModel = pieces.filter(Flow.apple.fromApple);
   if (!pieces.length) { S.live = null; return hide(); }
   if (S.accepted.uuid !== uuid) S.accepted = { uuid, at: 0, keys: new Set() };
   // What was clicked or picked stays while the words change, for the proposals still there.
@@ -380,7 +382,7 @@ async function takeShadow(live) {
   if (propose.inWords(live.text, ctx).tags.some(tag => !savedTags.has(tag))) return lost('the tag typed in the words is not on the bullet');
   const { record, pieces: found } = propose.propose(ctx, db.bulletOf(block, db.pick(block, 'block/title'), ctx.schema));
   const recordUuid = String(record.uuid || ''), refused = S.refused.get(recordUuid);
-  // The model's guesses go with them, for the words they were given (the rules do not ask the model again here).
+  // The guesses of Apple's tools go with them, for the words they were given (the rules do not ask them again here).
   const again = Flow.model.merge(found, live.model?.words === live.text ? live.model.pieces : []);
   // What was shown is what is written: the rules worked out again on the saved bullet, and where they now come out otherwise
   // for a property (another page, names in another order), the value that was on screen. The tag first, which the rest wait for.
@@ -405,7 +407,9 @@ async function writePieces(recordUuid, pieces) {
     try {
       if (piece.kind === 'tag') { await db.addTag(recordUuid, piece.tag.uuid); written.push(piece); continue; }
       if (piece.tagPage) for (const uuid of piece.tagPage.uuids) { await db.addTag(uuid, piece.tagPage.tag.uuid); gave.push(uuid); }
-      if (piece.kind === 'day') { piece.wrote = [piece.journalId ?? await db.journalPageFor(piece.day)]; await db.setValue(recordUuid, piece.ident, piece.wrote[0]); }
+      // A new page for a name no page had (core/people.js): made with its tag, then filled in.
+      if (piece.newPage) { const made = await db.makePage(piece.newPage.title, piece.newPage.tag.uuid); piece.madePage = made; piece.wrote = [made.id]; await db.setValue(recordUuid, piece.ident, made.id, { entityId: true }); }
+      else if (piece.kind === 'day') { piece.wrote = [piece.journalId ?? await db.journalPageFor(piece.day)]; await db.setValue(recordUuid, piece.ident, piece.wrote[0]); }
       else if (piece.kind === 'number') await db.setValue(recordUuid, piece.ident, piece.ids[0]);
       else if (piece.prop.many) await db.setValue(recordUuid, piece.ident, piece.ids, { entityId: true, reset: true });
       else await db.setValue(recordUuid, piece.ident, piece.ids[0], { entityId: true });
@@ -426,6 +430,7 @@ async function writePieces(recordUuid, pieces) {
         const now = await db.currentIds(recordUuid, piece.prop);
         const same = piece.kind === 'number' ? now.length === 1 && now[0] === Number(piece.ids[0]) : textLib.sameIds(now, piece.wrote);
         if (same) await db.unsetValue(recordUuid, piece.ident);
+        if (piece.madePage) await db.dropPage(piece.madePage);   // the page made for this fill goes again, if nothing was written on it
         if (piece.tagPage) for (const uuid of piece.tagPage.uuids) await db.removeTag(uuid, piece.tagPage.tag.uuid);
       } catch (error) { failed.push(error); }
     }

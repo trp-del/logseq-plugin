@@ -87,10 +87,11 @@ const WORDS_FREE = 3, COVER = 1 / 3;
    above); boost, the ids of pages that would fill one of the bullet's empty properties. */
 function suggestFor(text, caret, pages, { min = 0, rates = null, memory = null, boost = null } = {}) {
   let head = text.slice(0, caret), next = text[caret] || '';
+  const lastOpen = head.lastIndexOf('[[');
+  if (lastOpen >= 0 && head.indexOf(']]', lastOpen) < 0) return inLink(text, caret, lastOpen + 2, pages, { rates, memory, boost });   // inside [[ ]]
   if (text.slice(caret).trim()) return null;                                 // only while writing on, not editing inside the words
   const after = / $/.test(head) && !/ {2}$/.test(head);
   if (after) head = head.slice(0, -1); else if (!WORD.test(head.slice(-1)) || WORD.test(next)) return null; // not at the end of a word
-  const lastOpen = head.lastIndexOf('[['); if (lastOpen >= 0 && head.indexOf(']]', lastOpen) < 0) return null; // inside [[ ]]
   const lastTick = head.lastIndexOf('`'); if (lastTick >= 0 && (head.match(/`/g) || []).length % 2) return null; // inside `code`
   const run = /(\S+(?:\s+\S+){0,3})$/.exec(head); if (!run) return null;
   const base = head.length - run[1].length, words = [];
@@ -128,6 +129,61 @@ function suggestFor(text, caret, pages, { min = 0, rates = null, memory = null, 
     return { start, end: head.length, span, title: hit.page.title, ghost, name, after };
   }
   return null;
+}
+
+/* Inside [[ ]], a near name: the page you have, offered while you type a name that is nearly its name, so a second page is not
+   made for the same thing (a second Dr. Mei Chen as "Dr Chen", a second Cisplatin as "Cisplatine"). Logseq's own list under the
+   brackets finds a name that starts with the words; this finds the rest: the words in the page's name but not from its start
+   ("Mei Chen", "Dr Chen"), with gaps and without the punctuation, and a word one letter off a one-word page's name. The page's
+   whole name shows after the words, with an arrow, and Right arrow writes it. A name typed exactly, or from its start, is
+   Logseq's own list's to link.
+   After the cursor may stand the ]] Logseq pairs, or nothing. Returns a hit with inLink true, or null. */
+const NEAR_WORD = 4, OFF_FROM = 5, OFF_TWO_FROM = 9;
+// Words (with their start letters) matched in order into the name's words, each typed word a start of one name word.
+function wordsIn(typed, name) {
+  let at = 0;
+  for (const w of typed) { while (at < name.length && !name[at].startsWith(w)) at++; if (at >= name.length) return false; at++; }
+  return true;
+}
+// Damerau-style edit distance, stopped at 3.
+function editsBetween(a, b) {
+  if (Math.abs(a.length - b.length) > 2) return 3;
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...new Array(b.length).fill(0)]);
+  for (let j = 0; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) {
+    const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+    d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
+    if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+  }
+  return Math.min(3, d[a.length][b.length]);
+}
+function inLink(text, caret, from, pages, { rates = null, memory = null, boost = null } = {}) {
+  const rest = text.slice(caret);
+  if (rest.trim() && !rest.startsWith(']]')) return null;                     // editing inside the name, not writing it
+  const span = text.slice(from, caret);
+  if (!span.trim() || /[\[\]#]/.test(span) || span !== span.trimStart()) return null;
+  const q = span.trim().toLowerCase().replace(/\s+/g, ' '), typed = bareWords(q);
+  if (!typed.length) return null;
+  if (pages.some(page => page.lower === q)) return null;                       // Logseq links a name typed whole
+  const sure = page => (boost?.has(page.id) ? 3 : 0) + (usual(page.lower, rates, memory) ? 2 : 0);
+  const found = [];
+  for (const page of pages) {
+    if (page.day) continue;
+    const name = bareWords(page.lower);
+    if (!name.length) continue;
+    let how = null;
+    if (page.lower.startsWith(q)) continue;                                   // a name that starts with the words is in Logseq's own list
+    if (typed.length >= 2 ? wordsIn(typed, name) : typed[0].length >= NEAR_WORD && name.length > 1 && name.some(w => w.startsWith(typed[0]))) how = 'words';
+    else if (typed.length === 1 && name.length === 1 && typed[0].length >= OFF_FROM && editsBetween(typed[0], name[0]) <= (typed[0].length >= OFF_TWO_FROM ? 2 : 1)) how = 'off';
+    if (!how) continue;
+    if (!sure(page) && rarelyLinked(page.lower, rates, memory)) continue;
+    found.push({ page, how, s: sure(page) });
+  }
+  if (!found.length) return null;
+  found.sort((a, b) => (b.s - a.s) || ((a.how === 'off') - (b.how === 'off')) || better(a, b));
+  const hit = found[0];
+  const name = hit.page.aliasOf?.title ? `→ ${hit.page.title} → ${hit.page.aliasOf.title}` : `→ ${hit.page.title}`;
+  return { start: from, end: caret, span, title: hit.page.title, ghost: '', name, after: false, inLink: true, how: hit.how };
 }
 
 /* How often each page's name is linked, and how often written plain: each [[uuid]] or [[Name]] counted for its page, and
@@ -176,7 +232,7 @@ function linkRatesOf(pages, titles) {
   return counter.rates;
 }
 
-const api = { suggestFor, takeNameWords, boostFor, fitsTags, usual, rarelyLinked, rateCounter, linkRatesOf, letters };
+const api = { suggestFor, inLink, editsBetween, takeNameWords, boostFor, fitsTags, usual, rarelyLinked, rateCounter, linkRatesOf, letters };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 if (typeof window !== 'undefined') (window.Flow ||= {}).link = api;
 })();

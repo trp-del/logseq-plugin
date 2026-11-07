@@ -233,9 +233,26 @@ function tally(records) {
       }
     }
     for (const q of rec.tags) { t.tagWays[q.way][q.result]++; asked('tag ' + q.way, q); }
+    // By meaning (core/meaning.js) and the name finder (core/people.js), where the helper has them: the tag the near notes carry,
+    // the open page properties they agree on, and new pages the finder would have offered for a name the note already linked.
+    if (rec.meaning) {
+      const m = (t.meaning ||= { notes: 0, tag: blank(), props: blank(), byProp: new Map(), doubles: 0, named: 0 });
+      m.notes++;
+      m.tag[rec.meaning.tag]++;
+      for (const p of rec.meaning.props) { m.props[p.result]++; const c = m.byProp.get(p.title) || blank(); c[p.result]++; m.byProp.set(p.title, c); }
+      m.doubles += rec.meaning.doubles || 0; m.named += rec.meaning.named || 0;
+    }
   }
   return t;
 }
+const meaningLines = m => !m ? [] : (() => {
+  const rws = c => `${c.right} / ${c.wrong} / ${c.silent}`;
+  const row = (label, cells) => label.padEnd(30) + cells.map(c => String(c).padStart(14)).join('');
+  return ['', 'BY MEANING (Apple\'s matcher on this Mac, no filter): right / wrong / silent', row('', ['tag', 'properties']),
+    row(`${m.notes} notes`, [rws(m.tag), rws(m.props)]),
+    ...[...m.byProp].sort((x, y) => (y[1].right + y[1].wrong) - (x[1].right + x[1].wrong)).slice(0, 20).map(([name, c]) => row(name.length > 29 ? name.slice(0, 28) + '…' : name, ['', rws(c)])),
+    `NEW PAGES BY THE NAME FINDER: ${m.doubles} offered for a name the note already had a page for (a double), in ${m.named} notes with a name read.`];
+})();
 
 const pct = (n, of) => of ? Math.round(100 * n / of) + '%' : '–';
 const median = list => { if (!list.length) return null; const s = [...list].sort((a, b) => a - b); return s[Math.floor(s.length / 2)]; };
@@ -283,6 +300,7 @@ function text(t, about = {}, details = null, outside = []) {
     '', 'NOT OFFERED: the right page was not among the choices, as its tags are not ones the property takes; for a date, the day is not named in the words.',
     'PARTLY: the model named some of the right pages, not all; counted wrong.',
     ...outsideLines(outside),
+    ...meaningLines(t.meaning),
   ];
   if (details?.length) {
     lines.push('', 'DETAILS (a test graph only: these notes are about no one real)');

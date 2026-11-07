@@ -48,7 +48,9 @@ async function context({ wait = true } = {}) {
         const ctx = await db.readContext({ limits: limitsFor(graph), locale: localeNow(), linkRates: setting('linkSuggest') && setting('linkSuggestLearn') });
         if (generation !== state.generation) return context({ wait });
         ctx.graph = graph;
-        return (state.ctx = ctx);
+        state.ctx = ctx;
+        Flow.meaningAsk?.teach(ctx).catch(() => {});   // the matcher learns the graph in the background (logseq/meaning.js)
+        return ctx;
       })().catch(error => { warnOnce('the graph could not be read', error); return state.ctx; }).finally(() => { if (state.loading === job) state.loading = null; });
       state.loading = job;
     }
@@ -66,7 +68,7 @@ async function dateFormat() {
     .then(value => { format.value = value; format.at = Date.now(); format.asking = null; return value; });
   return format.asking;
 }
-const forget = () => { state.generation++; state.ctx = null; state.loading = null; state.pages.list = null; state.pages.at = 0; state.pages.loading = null; learning.ids.clear(); clearTimeout(learning.timer); db.forget(); };
+const forget = () => { state.generation++; state.ctx = null; Flow.meaningAsk?.forget(); Flow.peopleAsk?.forget(); state.loading = null; state.pages.list = null; state.pages.at = 0; state.pages.loading = null; learning.ids.clear(); clearTimeout(learning.timer); db.forget(); };
 
 // The page list for suggested links, read again at most every 30 s, so a page made a moment ago is offered soon.
 async function pages() {

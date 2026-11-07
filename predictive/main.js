@@ -81,11 +81,17 @@ const helperLine = () => {
   const folder = url.startsWith('/') ? url.replace(/\/?$/, '/') : `~/.logseq/plugins/${logseq.baseInfo?.id || 'logseq-plugin'}/`;
   return `sh ${folder.replace(/^\/Users\/[^/]+\//, '~/')}predictive/helper/install.sh`;
 };
-// The answer first, in the words a person asks with (connected or not), then why and what to do, faint.
-const modelWords = s => !s ? '&nbsp;'
-  : !s.reached ? `Not connected. <span class="sw-faintw">Predictive’s helper is not running on this Mac. In Terminal:</span><br><span class="pr-model-line">${helperLine()}</span>`
-  : s.ready ? 'Connected to Apple’s model.'
-  : `Not connected. <span class="sw-faintw">${REASONS[s.reason] || `Apple’s model is not ready: ${s.reason || 'no reason given'}.`}</span>`;
+// The answer first, in the words a person asks with (connected or not), then why and what to do, faint. The three tools each
+// say whether they answer: the matcher and the name finder need only the helper (version 4), the model Apple Intelligence too.
+const modelWords = s => {
+  if (!s) return '&nbsp;';
+  if (!s.reached) return `Not connected. <span class="sw-faintw">Predictive’s helper is not running on this Mac. In Terminal:</span><br><span class="pr-model-line">${helperLine()}</span>`;
+  const have = [s.meaning ? 'the matcher' : '', s.names ? 'the name finder' : '', s.ready ? 'Apple’s model' : ''].filter(Boolean);
+  const why = s.ready ? '' : `<span class="sw-faintw">${REASONS[s.reason] || `Apple’s model is not ready: ${s.reason || 'no reason given'}.`}</span>`;
+  const old = s.version < 4 ? `<span class="sw-faintw">The helper is older than this release, so the matcher and the name finder are not here. In Terminal:</span><br><span class="pr-model-line">${helperLine()}</span>` : '';
+  const head = have.length ? `Connected to ${have.join(', ').replace(/, ([^,]*)$/, ' and $1')}.` : 'Not connected.';
+  return [head, old || why].filter(Boolean).join(' ');
+};
 const model = { last: null, at: 0 };
 function modelLine() {
   const doc = window.parent.document;
@@ -106,7 +112,7 @@ async function main() {
   logseq.App.registerCommandPalette({ key: 'flow-score', label: 'Predictive: how well do proposals work on this graph?' }, scoreCommand);
   logseq.App.registerCommandPalette({ key: 'flow-tune', label: 'Predictive: tune proposals to this graph' }, tuneCommand);
   logseq.App.registerCommandPalette({ key: 'flow-model-speed', label: 'Predictive: how fast is Apple’s model?' }, speedCommand);
-  logseq.App.registerCommandPalette({ key: 'flow-model-measure', label: 'Predictive: measure Apple’s model on this graph' }, () => Flow.measureUi.open());
+  logseq.App.registerCommandPalette({ key: 'flow-model-measure', label: 'Predictive: measure Apple’s tools on this graph' }, () => Flow.measureUi.open());
   logseq.App.registerCommandPalette({ key: 'flow-reread', label: 'Predictive: read the graph again' }, async () => { Flow.app.forget(); await Flow.app.context(); Flow.app.notify('Read the graph again.'); });
   logseq.DB.onChanged(({ blocks }) => Flow.app.learnSoon(blocks));
   logseq.onSettingsChanged?.((now, before) => { if (!window.PluginDoor.settingChanged(['tagEagerness'], now, before)) return; const ctx = Flow.app.state.ctx; if (ctx) Object.assign(ctx.limits, Flow.app.tagLimits()); });   // applies at once, no new reading
@@ -125,7 +131,7 @@ const stop = () => { Flow.app.stopAll(); };
 const row = (key, title) => ({ ...Flow.settingsSchema.find(item => item.key === key), ...(title ? { title } : {}) });
 window.PluginDoor.describe('predictive', {
   schema: [
-    row('proposalsHeading'), row('proposals'), row('proposalsHideEmpty'), row('tagEagerness'), row('proposalsModel'), { type: 'action', key: 'measureModel', title: 'Measure Apple’s model on this graph', run: () => Flow.measureUi.open() }, row('proposalsSkipGraphs'),
+    row('proposalsHeading'), row('proposals'), row('proposalsHideEmpty'), row('tagEagerness'), row('proposalsModel'), { type: 'action', key: 'measureModel', title: 'Measure Apple’s tools on this graph', run: () => Flow.measureUi.open() }, row('proposalsSkipGraphs'),
     { type: 'heading', title: 'Keys' },
     row('proposalsStepKeys', 'Step through a bullet’s properties'), row('proposalsTagKeys', 'Choose a tag'), row('proposalsAcceptKeys', 'Accept everything shown, without a new bullet'), row('citeKeys', 'Cite a source'), row('pageKeys', 'Make the bullet a page'),
     row('linkHeading'), row('linkSuggest'), row('linkSuggestLearn'), row('linkSuggestRightArrow'), row('linkSuggestHyperTap', 'A tap of the Hyper key takes it'), row('linkSuggestKeys', 'A plain key that takes it too'), row('linkSuggestMinLetters'), row('linkSuggestPause', 'Pause before a suggestion shows, in milliseconds'), row('linkKeepCase'),

@@ -16,5 +16,6 @@ fi
 echo "built predictive-helper"
 if [ "${1:-}" = test ]; then
   ./predictive-helper --status
+  ./predictive-helper --meaning
   printf '%s' '{"text":"Saw Dr. Mei Chen with Ruth about the fatigue, 5 mg from Monday until Friday","tags":["Consultation"],"today":"2026-11-02","properties":[{"key":"a","title":"Provider","kind":"page","choices":["Dr. Mei Chen","Ruth Okoro"]},{"key":"b","title":"Spoke with","kind":"page","many":true,"choices":["Dr. Mei Chen","Ruth Okoro"]},{"key":"c","title":"Dose","kind":"number"},{"key":"d","title":"Start","kind":"date"},{"key":"e","title":"End","kind":"date"}]}' | ./predictive-helper --fill
 fi

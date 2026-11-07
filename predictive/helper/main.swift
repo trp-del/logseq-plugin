@@ -4,8 +4,17 @@
    answers only requests from Logseq's own window (origin lsp://logseq.com), and runs the model on the Mac. Nothing
    leaves the Mac.
 
-   GET  /status  -> { "ready": true } or { "ready": false, "reason": "..." }, with "version" (3: "model", dates without a pattern, failures by name), "tagging" (whether Apple's tagging model is here), "cloud": whether Apple's larger model in Private Cloud Compute can be asked (for the
-                    ontology only, later; never a note's words), and "cloudReason"
+   GET  /status  -> { "ready": true } or { "ready": false, "reason": "..." }, with "version" (3: "model", dates without a pattern, failures by name;
+                    4: /meaning and /names), "tagging" (whether Apple's tagging model is here), "meaning" (whether Apple's sentence matcher
+                    is here, which needs no Apple Intelligence), "names" (Apple's name finder, likewise), "cloud": whether Apple's larger model
+                    in Private Cloud Compute can be asked (for the ontology only, later; never a note's words), and "cloudReason"
+   POST /meaning <- { "graph", "learn": [{ "id", "text" }], "replace" } learns the graph's notes as meaning vectors (replace: the
+                    graph's earlier set goes first) -> { "learned": n, "held": n }. Kept in memory only, by id and vector; the words
+                    are not kept.
+                 <- { "graph", "text", "k", "skip": [ids] } -> { "near": [{ "id", "sim" }], "held": n }: the k learned notes nearest in
+                    meaning to the text, cosine similarity, best first. held 0: nothing learned for this graph yet (learn first).
+   POST /names   <- { "texts": [..] } -> { "names": [[{ "text", "kind": "person" | "place" | "organization", "at", "to" }], ...] }:
+                    the names Apple's name finder reads in each text, in order, at and to as character offsets.
    POST /fill    <- { "text", "page", "tags": [..], "today": "YYYY-MM-DD", "instructions", "context", "properties": [
                         { "key", "title", "kind": "page" | "tag" | "choice" | "number" | "date", "many", "choices": [titles], "about" } ] }
                    (a "tag" is which of the graph's tags the note is, a "choice" one of a property's own list (Status), each
@@ -17,16 +26,18 @@
    every answer again before it shows it, and shows it as a guess.
 
    Build: sh build.sh (in this folder). Runs at login once install.sh has been run. */
+import Accelerate
 import Foundation
 import FoundationModels
+import NaturalLanguage
 import Network
 
 let PORT: UInt16 = 47615
 let ORIGIN = "lsp://logseq.com"
 let NONE = "none"
 // Raised when the plugin may ask something an older helper cannot answer (2: a property with a list of choices; 3: "model",
-// a date without a pattern, failures by name).
-let VERSION = 3
+// a date without a pattern, failures by name; 4: /meaning and /names).
+let VERSION = 4
 
 // MARK: - the request
 
@@ -47,6 +58,8 @@ func status() -> [String: Any] {
   case .unavailable(let reason): out = ["ready": false, "reason": String(describing: reason)]
   }
   out["version"] = VERSION
+  out["meaning"] = MEANING.ready
+  out["names"] = true
   if case .available = SystemLanguageModel(useCase: .contentTagging).availability { out["tagging"] = true } else { out["tagging"] = false }
   // Apple's larger model, in Private Cloud Compute: whether this Mac can ask it (macOS 27 and later, and a helper built with
   // the macOS 27 tools, Swift 6.4; built with older tools it has none).
@@ -188,6 +201,83 @@ func run(_ fill: Fill) async throws -> [String: Any] {
   return ["values": values, "ms": Int(Date().timeIntervalSince(started) * 1000)]
 }
 
+// MARK: - meaning: Apple's sentence matcher, on the Mac, with no filter and no Apple Intelligence needed
+
+/* Each note as a vector of what it means (NLEmbedding.sentenceEmbedding, 512 numbers), so a note can be matched to earlier
+   notes that say the same thing in other words. Chosen over NLContextualEmbedding on 7 November 2026: on six fresh symptom and
+   visit lines against ten earlier ones it put the right earlier note first five times (the contextual one four, with the wrong
+   ones nearly as close), it takes 6 ms a note, and it needs no download. The vectors live in memory only, by note id; the
+   words are turned into a vector and let go. One set per graph. */
+struct Learn: Decodable { let id: Int; let text: String }
+struct MeaningAsk: Decodable { let graph: String; let learn: [Learn]?; let replace: Bool?; let text: String?; let k: Int?; let skip: [Int]? }
+final class Meaning: @unchecked Sendable {
+  private let lock = NSLock()
+  private var embedding: NLEmbedding?
+  private var language: NLLanguage = .english
+  private var graphs: [String: [Int: [Float]]] = [:]
+  init() { embedding = NLEmbedding.sentenceEmbedding(for: .english) }
+  var ready: Bool { embedding != nil }
+  // The matcher for the language most of the notes are in, found from a sample of them; English when Apple has none for it.
+  private func use(_ sample: [String]) {
+    let recognizer = NLLanguageRecognizer()
+    recognizer.processString(sample.prefix(40).joined(separator: "\n"))
+    if let found = recognizer.dominantLanguage, found != language, let made = NLEmbedding.sentenceEmbedding(for: found) { embedding = made; language = found }
+  }
+  func vector(_ text: String) -> [Float]? {
+    guard let e = embedding, let v = e.vector(for: text) else { return nil }
+    var out = v.map { Float($0) }
+    var norm: Float = 0
+    vDSP_dotpr(out, 1, out, 1, &norm, vDSP_Length(out.count))
+    if norm > 0 { var s = 1 / norm.squareRoot(); vDSP_vsmul(out, 1, &s, &out, 1, vDSP_Length(out.count)) }
+    return out
+  }
+  func learn(_ ask: MeaningAsk) -> [String: Any] {
+    let items = ask.learn ?? []
+    if ask.replace == true { use(items.map { $0.text }) }
+    var made: [Int: [Float]] = [:]
+    for item in items { if let v = vector(item.text) { made[item.id] = v } else { made[item.id] = [] } }
+    lock.lock(); defer { lock.unlock() }
+    if ask.replace == true { graphs[ask.graph] = [:] }
+    var set = graphs[ask.graph] ?? [:]
+    for (id, v) in made { if v.isEmpty { set.removeValue(forKey: id) } else { set[id] = v } }
+    graphs[ask.graph] = set
+    return ["learned": made.count, "held": set.count]
+  }
+  func near(_ ask: MeaningAsk) -> [String: Any] {
+    lock.lock(); let set = graphs[ask.graph] ?? [:]; lock.unlock()
+    guard let text = ask.text, let q = vector(text) else { return ["near": [], "held": set.count] }
+    let skip = Set(ask.skip ?? []), k = max(1, min(ask.k ?? 10, 50))
+    var found: [(Int, Float)] = []
+    found.reserveCapacity(set.count)
+    for (id, v) in set where !skip.contains(id) {
+      var d: Float = 0
+      vDSP_dotpr(q, 1, v, 1, &d, vDSP_Length(q.count))
+      found.append((id, d))
+    }
+    found.sort { $0.1 > $1.1 }
+    return ["near": found.prefix(k).map { ["id": $0.0, "sim": Double(round($0.1 * 1000) / 1000)] }, "held": set.count]
+  }
+}
+let MEANING = Meaning()
+
+// MARK: - names: Apple's name finder (people, places, organizations), on the Mac
+
+struct NamesAsk: Decodable { let texts: [String] }
+func namesIn(_ text: String) -> [[String: Any]] {
+  let tagger = NLTagger(tagSchemes: [.nameType])
+  tagger.string = text
+  var out: [[String: Any]] = []
+  tagger.enumerateTags(in: text.startIndex..<text.endIndex, unit: .word, scheme: .nameType, options: [.omitWhitespace, .omitPunctuation, .joinNames]) { tag, range in
+    let kind: String?
+    switch tag { case .personalName?: kind = "person"; case .placeName?: kind = "place"; case .organizationName?: kind = "organization"; default: kind = nil }
+    if let kind {
+      out.append(["text": String(text[range]), "kind": kind, "at": text.distance(from: text.startIndex, to: range.lowerBound), "to": text.distance(from: text.startIndex, to: range.upperBound)])
+    }
+    return true
+  }
+  return out
+}
+
 // MARK: - the door: a little HTTP on 127.0.0.1
 
 func reply(_ connection: NWConnection, _ code: Int, _ body: [String: Any], origin: String?) {
@@ -224,8 +314,21 @@ func handle(_ connection: NWConnection, _ buffer: Data = Data()) {
     if origin != nil && origin != ORIGIN { return reply(connection, 403, ["error": "not Logseq"], origin: origin) }
     if method == "OPTIONS" { return reply(connection, 204, [:], origin: origin) }
     if method == "GET" && path == "/status" { return reply(connection, 200, status(), origin: origin) }
-    guard method == "POST" && path == "/fill", origin == ORIGIN || origin == nil else { return reply(connection, 404, ["error": "no such thing"], origin: origin) }
+    guard method == "POST", origin == ORIGIN || origin == nil else { return reply(connection, 404, ["error": "no such thing"], origin: origin) }
     let data = Data(body.prefix(length))
+    if path == "/meaning" {
+      do {
+        let ask = try JSONDecoder().decode(MeaningAsk.self, from: data)
+        return reply(connection, 200, ask.learn != nil ? MEANING.learn(ask) : MEANING.near(ask), origin: origin)
+      } catch { return reply(connection, 200, ["error": String(describing: error)], origin: origin) }
+    }
+    if path == "/names" {
+      do {
+        let ask = try JSONDecoder().decode(NamesAsk.self, from: data)
+        return reply(connection, 200, ["names": ask.texts.map(namesIn)], origin: origin)
+      } catch { return reply(connection, 200, ["error": String(describing: error)], origin: origin) }
+    }
+    guard path == "/fill" else { return reply(connection, 404, ["error": "no such thing"], origin: origin) }
     Task {
       do {
         let fill = try JSONDecoder().decode(Fill.self, from: data)
@@ -249,6 +352,13 @@ func handle(_ connection: NWConnection, _ buffer: Data = Data()) {
     }
     if CommandLine.arguments.dropFirst().first == "--status" {
       print(status()); exit(0)
+    }
+    // sh build.sh test: the matcher and the name finder on a few lines, printed.
+    if CommandLine.arguments.dropFirst().first == "--meaning" {
+      _ = MEANING.learn(MeaningAsk(graph: "test", learn: [Learn(id: 1, text: "Mouth so dry I could not swallow the toast"), Learn(id: 2, text: "Pins and needles in both hands after the drip"), Learn(id: 3, text: "Sick twice before lunch, kept nothing down")], replace: true, text: nil, k: nil, skip: nil))
+      print(MEANING.near(MeaningAsk(graph: "test", learn: nil, replace: nil, text: "Threw up twice after dinner", k: 3, skip: nil)))
+      print(namesIn("Saw Dr. Okafor at St Mary's about the scan with Ruth Okoro"))
+      exit(0)
     }
 
     // On the loopback only: nothing from the network reaches it.

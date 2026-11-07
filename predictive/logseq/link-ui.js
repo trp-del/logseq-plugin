@@ -26,7 +26,7 @@ function layOver(box, over, hit) {
   if (hit.after) typed.append(el(doc, 'u', { class: 'flow-offer' }, box.value.slice(hit.start, hit.end)), doc.createTextNode(box.value.slice(hit.end, box.selectionStart)));
   grey.textContent = hit.after ? '' : setting('linkKeepCase') ? Flow.typedCase.rest(hit.span, hit.ghost) : hit.ghost;   // in your capitals (core/typed-case.js)
   if (hit.name && !hit.after) grey.setAttribute('data-name', hit.name); else grey.removeAttribute('data-name');
-  grey.title = `Right arrow: [[${nameFor(hit)}]]`;
+  grey.title = `Right arrow: [[${hit.inLink ? hit.title : nameFor(hit)}]]`;
 }
 // The name as it is written: in the capitals you were typing in, the link then keeping them when you leave the bullet
 // (logseq/typed-case.js); the page's own with that setting off.
@@ -91,12 +91,13 @@ async function look(box) {
   const mine = ++version;
   const pages = lastPages = await app.pages();
   if (mine !== version || !box.isConnected || box.value !== text || box.selectionStart !== caret || host().activeElement !== box) return;
-  if (app.popupOpen()) return clear();                             // Logseq's own list ([[, /, a picker) has the keys
+  const popup = app.popupOpen();                                   // Logseq's own list ([[, /, a picker) has the keys
   const learn = setting('linkSuggestLearn');
   const [rates, boost] = learn ? await Promise.all([ratesNow(), boostOf(box, pages)]) : [null, null];
   if (mine !== version || !box.isConnected || box.value !== text || box.selectionStart !== caret) return;
   const hit = link.suggestFor(text, caret, pages, { min: minLetters(), rates, memory: learn ? memoryNow() : null, boost });
-  if (!hit) return clear();
+  // Inside [[ ]] Logseq's list is open under the brackets; a near name shows all the same, in the box, and Right arrow takes it.
+  if (!hit || (popup && !hit.inLink)) return clear();
   draw(box, hit);
 }
 // How often each name is linked: counted with the graph's reading, and kept up line by line as lines change. Never waited for.
@@ -141,7 +142,9 @@ function accept(event) {
   // The screen may be behind the words: what is suggested for the words as they are now.
   if (box.value.slice(hit.start, hit.end) !== hit.span || box.selectionStart !== hit.end) hit = box.selectionStart === box.selectionEnd ? link.suggestFor(box.value, box.selectionStart, lastPages, { min: minLetters() }) : null;
   if (!hit) return false;
-  const text = `[[${nameFor(hit)}]]`;
+  // Inside [[ ]] the brackets are there: the name alone goes in, and the cursor past the ]] Logseq paired (or they are added).
+  const closed = hit.inLink && box.value.startsWith(']]', hit.end);
+  const text = hit.inLink ? hit.title + (closed ? '' : ']]') : `[[${nameFor(hit)}]]`;
   box.focus();
   box.setSelectionRange(hit.start, hit.end);
   let typed = false;
@@ -150,7 +153,7 @@ function accept(event) {
     box.setRangeText(text, hit.start, hit.end, 'end');
     box.dispatchEvent(new box.ownerDocument.defaultView.InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
   }
-  const after = hit.start + text.length + (hit.after && box.value[hit.start + text.length] === ' ' ? 1 : 0);
+  const after = hit.start + text.length + (closed ? 2 : 0) + (hit.after && box.value[hit.start + text.length] === ' ' ? 1 : 0);
   box.setSelectionRange(after, after);
   remember(hit.title.toLowerCase(), true);
   return true;
@@ -195,7 +198,7 @@ const css = `
 .flow-link-suggest .flow-typed { color: transparent; }
 .flow-link-suggest .flow-typed .flow-offer { text-decoration: underline dotted; text-decoration-color: color-mix(in srgb, var(--flow-ink, currentColor) 55%, transparent); text-decoration-thickness: 1px; text-underline-offset: .22em; }
 .flow-link-suggest .flow-grey { opacity: .45; }
-.flow-link-suggest .flow-grey[data-name]::after { content: "  " attr(data-name); font-size: var(--lk-small); opacity: .75; }
+.flow-link-suggest .flow-grey[data-name]::after { content: attr(data-name); margin-left: .5em; font-size: var(--lk-small); opacity: .75; }
 `;
 
 async function start() {

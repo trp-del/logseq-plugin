@@ -287,11 +287,13 @@ function withFollowUp(ctx, first, req, reply) {
 
 /* The proposals shown: the rules', and the model's for what the rules left open. A model guess for a property the rules
    guessed from plain words alone takes its place; a plain-words guess holding a page the model put elsewhere goes, so one
-   person is not in two places. */
+   person is not in two places. A new page from a name in the words (core/people.js, how 'names') takes the place of a guess
+   from look-alike bullets alone: a doctor named is stronger than the usual doctor. */
+const byAlikeAlone = p => p.kind === 'node' && p.guess && p.how === 'alike';
 function merge(rules, model) {
   if (!model?.length) return rules;
   const byModel = new Map(model.map(p => [p.ident, p])), placed = new Set(model.filter(p => p.kind === 'node').flatMap(p => p.ids));
-  const kept = rules.filter(q => !(byWordsAlone(q) && (byModel.has(q.ident) || q.ids.some(id => placed.has(id)))));
+  const kept = rules.filter(q => !(byWordsAlone(q) && (byModel.has(q.ident) || q.ids.some(id => placed.has(id)))) && !(byAlikeAlone(q) && byModel.get(q.ident)?.how === 'names'));
   return [...kept, ...model.filter(p => !kept.some(q => q.ident === p.ident))];
 }
 

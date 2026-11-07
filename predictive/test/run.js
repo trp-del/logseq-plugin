@@ -107,10 +107,22 @@ test('a word inside a name shows the whole name', () => {
   assert.equal(hit.title, 'Riverside General Hospital');
   assert.match(hit.name, /Riverside General Hospital/);
 });
-test('quiet inside [[ ]], after #, and for short lower-case words', () => {
+test('quiet inside [[ ]] for a name from its start (Logseq\'s own list has it), after #, and for short lower-case words', () => {
   assert.equal(link.suggestFor('see [[Dr. Me', 12, pages), null);
   assert.equal(link.suggestFor('tagged #Dr', 10, pages), null);
   assert.equal(link.suggestFor('the', 3, pages), null);
+});
+test('inside [[ ]] a near name offers the page you have: words of the name out of order or with gaps, a word one letter off', () => {
+  const near = [...pages, { id: 4, title: 'Cisplatin', lower: 'cisplatin', tags: [], isTag: false }];
+  const at = (t, c = t.indexOf(']]') > 0 ? t.indexOf(']]') : t.length) => link.suggestFor(t, c, near);
+  assert.equal(at('see [[Dr Chen').title, 'Dr. Mei Chen');
+  assert.equal(at('see [[Dr Chen').name, '→ Dr. Mei Chen');
+  assert.equal(at('see [[Mei Chen]]').title, 'Dr. Mei Chen', 'with the ]] Logseq pairs after the cursor');
+  assert.equal(at('see [[Cisplatine]]').title, 'Cisplatin');
+  assert.equal(at('see [[Cisplatin]]'), null, 'typed whole: Logseq links it');
+  assert.equal(at('see [[Mei Chen]] and', 'see [[Mei Chen]] and'.length), null, 'a closed link is left alone');
+  assert.equal(at('see [[Dr. Mei Chen]] then [[Cisp'), null, 'from the start: Logseq\'s list');
+  assert.equal(link.suggestFor('see [[Dr Chen]] again', 9, near), null, 'editing inside a name, not writing it');
 });
 test('a name the graph writes plain is not offered unless it is typed whole', () => {
   const rates = new Map([['meeting notes', { linked: 0, plain: 9 }]]);
@@ -468,6 +480,71 @@ test('not asked: a linked page the rules placed, a note under a record, plain wo
   assert.equal(modelLib.tagRequest(clinic.ctx, bullet({ id: -6, text: 'Ruth Okoro came too, 5 mg', parent }), 20261102), null, 'no tag is asked for a note under a record');
 });
 
+section('Matching by meaning (core/meaning.js, with pretend near notes)');
+{
+  const meaningLib = require('../core/meaning.js');
+  const C = clinic.ctx, entries = C.index.entries, mei = clinic.page.get('Dr. Mei Chen'), ruth = clinic.page.get('Ruth Okoro');
+  const ofMei = entries.find(e => (e.values.get('user.property/provider') || [])[0] === mei.id), ofRuth = entries.find(e => (e.values.get('user.property/provider') || [])[0] === ruth.id);
+  const plain = entries.find(e => e.values.get('block/tags')?.[0] === 0);
+  const fresh = (text, over = {}) => bullet({ id: -7, text, page: { id: 9902, uuid: synthetic.uuid(9902), title: 'Nov 2', day: 20261102, tags: [] }, ...over });
+  test('an untagged line the rules find nothing for: the tag of the near notes, with its properties as guesses under it', () => {
+    const b = fresh('Talked things through with the oncologist this morning'), result = propose(C, b);
+    assert.equal(result.pieces.length, 0, 'the rules say nothing: no shared word');
+    assert.ok(meaningLib.wanted(C, b, result));
+    const near = [{ entry: ofMei, sim: .58 }, { entry: ofMei, sim: .52 }, { entry: plain, sim: .41 }];
+    const got = meaningLib.pieces(C, b, result, near);
+    assert.equal(got[0].kind, 'tag'); assert.equal(got[0].tag.title, 'Consultation'); assert.equal(got[0].how, 'meaning');
+    assert.ok(got.slice(1).every(p => p.needsTag), 'the rest wait for the tag');
+    assert.equal(got.find(p => p.prop.title === 'Provider')?.shown, 'Dr. Mei Chen', 'and the near notes\' Provider comes under it');
+  });
+  test('too far, a tie between two values, or plain notes nearest: nothing', () => {
+    const b = fresh('Talked things through with the oncologist this morning'), result = propose(C, b);
+    assert.deepEqual(meaningLib.pieces(C, b, result, [{ entry: ofMei, sim: .3 }]), [], 'too far');
+    const t = visit('Talked things through this morning'), rt = propose(C, t);
+    assert.deepEqual(meaningLib.pieces(C, t, rt, [{ entry: ofMei, sim: .55 }, { entry: ofRuth, sim: .54 }]), [], 'a tie between two values says nothing');
+    assert.deepEqual(meaningLib.pieces(C, b, result, [{ entry: plain, sim: .7 }, { entry: ofMei, sim: .5 }]), [], 'a plain note nearest: no tag');
+  });
+  test('a tagged line: only the open page properties, never one the rules filled or held back', () => {
+    const b = visit('Talked things through this morning'), result = propose(C, b);
+    const got = meaningLib.pieces(C, b, result, [{ entry: ofRuth, sim: .6 }, { entry: ofRuth, sim: .5 }]);
+    assert.deepEqual(got.map(p => [p.prop.title, p.shown, p.how]), [['Provider', 'Ruth Okoro', 'meaning']]);
+    const held = visit(`Saw [[${mei.uuid}]] this morning`), r2 = propose(C, held);
+    assert.deepEqual(meaningLib.pieces(C, held, r2, [{ entry: ofRuth, sim: .6 }]), [], 'Provider is filled by the link: not asked');
+  });
+  test('the words a note is learned by: a saved link as its name, tags left out', () => {
+    assert.equal(meaningLib.textOf(C, `Saw [[${mei.uuid}]] about it #Consultation`), 'Saw Dr. Mei Chen about it');
+  });
+}
+
+section('New people and places (core/people.js, with pretend names)');
+{
+  const peopleLib = require('../core/people.js');
+  const C = clinic.ctx, Person = clinic.tagPage.Person, Place = clinic.tagPage.Place;
+  const kinds = new Map([[Person.id, { kind: 'person', lead: 'dr.' }], [Place.id, { kind: 'place', lead: null }]]);
+  test('a tag\'s kind and lead word from its pages\' titles', () => {
+    assert.deepEqual(peopleLib.kindOfTitles([{ title: 'Dr. Mei Chen', kind: 'person' }, { title: 'Dr. Raj Patel', kind: 'person' }, { title: 'Dr. Ada Okafor', kind: 'person' }, { title: 'Nurse Ruth', kind: null }]), { kind: 'person', lead: 'dr.' });
+    assert.deepEqual(peopleLib.kindOfTitles([{ title: 'Fatigue', kind: null }, { title: 'Nausea', kind: null }]), { kind: null, lead: null });
+  });
+  test('a person no page has, pencilled as a new page in the property that takes a person, with the lead word; a place likewise', () => {
+    const b = visit('Saw Dr. Okafor at St Mary\'s about the scan'), result = propose(C, b);
+    const found = [{ text: 'Okafor', kind: 'person', at: 8, to: 14 }, { text: 'St Mary\'s', kind: 'place', at: 18, to: 27 }];
+    const got = peopleLib.pieces(C, b, result, found, kinds);
+    assert.deepEqual(got.map(p => [p.prop.title, p.shown, p.newPage.tag.title, p.how]), [['Provider', 'Dr. Okafor', 'Person', 'names'], ['Where', 'St Mary\'s', 'Place', 'names']]);
+    assert.ok(got.every(p => p.guess && p.ids.length === 0));
+    const joined = peopleLib.pieces(C, b, result, [{ text: 'Saw Dr. Okafor', kind: 'person', at: 0, to: 14 }], kinds);
+    assert.equal(joined[0]?.shown, 'Dr. Okafor', 'the tag\'s lead word inside the found name starts the title');
+    const noLead = new Map([[Person.id, { kind: 'person', lead: null }]]);
+    const v = visit('Visit Nadia Okafor about the scan'), verb = peopleLib.pieces(C, v, propose(C, v), [{ text: 'Visit Nadia Okafor', kind: 'person', at: 0, to: 18 }], noLead);
+    assert.equal(verb[0]?.shown, 'Nadia Okafor', 'a first word the graph\'s lines use as a word, and no page holds, is dropped');
+  });
+  test('a name the graph has (whole, or a word of a name) is not a new page; two new people for one place say nothing', () => {
+    const b = visit('Saw Dr. Chen about the scan'), result = propose(C, b);
+    assert.deepEqual(peopleLib.pieces(C, b, result, [{ text: 'Chen', kind: 'person', at: 8, to: 12 }], kinds), [], 'Chen is a word of Dr. Mei Chen');
+    const two = visit('Saw Dr. Okafor and Dr. Lindqvist'), r2 = propose(C, two);
+    assert.deepEqual(peopleLib.pieces(C, two, r2, [{ text: 'Okafor', kind: 'person', at: 8, to: 14 }, { text: 'Lindqvist', kind: 'person', at: 23, to: 32 }], kinds).filter(p => p.prop.title === 'Provider'), []);
+  });
+}
+
 section('scoring each graph (leave-one-out on its own lines)');
 for (const [name, g] of [['work', work], ['libros', libros]]) {
   const s = score(g.ctx, { sample: 800 });
@@ -573,11 +650,14 @@ const measureLib = require('../core/measure.js');
   });
   test('the report holds numbers and names, never a note\'s words', () => {
     const rec = { tagTitle: 'Consultation', asked: q.asked, tags: [], props: q.props.map(({ way, req }) => ({ way, ms: 900, results: measureLib.judge(C, note, req, { values: { [keyOf(req, 'Provider')]: 'Dr. Mei Chen' } }) })) };
+    rec.meaning = { tag: 'right', props: [{ title: 'Consultation · Provider', result: 'wrong' }], doubles: 1, named: 1 };
     const t = measureLib.tally([rec]);
     assert.equal(t.notes, 1);
+    assert.equal(t.meaning.tag.right, 1); assert.equal(t.meaning.props.wrong, 1);
     assert.equal(t.ways.today.all.right, 1);
     const text = measureLib.text(t, { version: '0.3.13', helper: 2, date: '2026-11-05' });
     assert.match(text, /Consultation · Provider/);
+    assert.match(text, /BY MEANING/); assert.match(text, /1 offered for a name/);
     for (const word of ['Talked', 'wants', 'Slept', 'clinic']) assert.ok(!text.includes(word), `no words of the note in the report: ${word}`);
   });
 }
