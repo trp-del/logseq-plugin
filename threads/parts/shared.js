@@ -595,8 +595,10 @@ function pickValue({ at, placeholder = '', options = [], clearLabel = '', free =
 /* A value typed where it sits, as Logseq does for a number on a bullet (copied from Logseq 2.0.2: its input with no
    border and no fill, at the line's own size). Enter keeps it, Escape leaves it as it was, a click away keeps what was
    typed. Resolves with the words, or null when nothing changed. A redraw of the rows does not end it: again() finds the
-   place in the new drawing and the box goes on there, words and caret as they were. */
-function editInPlace({ at, value = '', type = 'text', placeholder = '', doc, again, wrap = false } = {}) {
+   place in the new drawing and the box goes on there, words and caret as they were. onType(words) hears each change as it is
+   typed (a bullet saves as it is written); show(words) gives the html that stands in the box's place once new words are kept,
+   so the old words never come back for a moment before the redraw. */
+function editInPlace({ at, value = '', type = 'text', placeholder = '', doc, again, wrap = false, onType, show } = {}) {
   const numeric = type === 'number';
   type = 'text';
   doc = doc || host();
@@ -610,7 +612,7 @@ function editInPlace({ at, value = '', type = 'text', placeholder = '', doc, aga
     if (numeric) input.setAttribute('inputmode', 'decimal');
     const grow = () => { if (!wrap) return; input.style.height = 'auto'; input.style.height = `${input.scrollHeight}px`; };
     let finished = false, moving = false;
-    const finish = answer => { if (finished) return; finished = true; at.replaceChildren(...was); resolve(answer); };
+    const finish = answer => { if (finished) return; finished = true; const html = answer != null && show ? show(answer) : null; if (html != null) at.innerHTML = html; else at.replaceChildren(...was); resolve(answer); };
     input.across = redraw => {
       const from = input.selectionStart, to = input.selectionEnd;
       moving = true; redraw(); moving = false;
@@ -627,6 +629,7 @@ function editInPlace({ at, value = '', type = 'text', placeholder = '', doc, aga
       else if (event.key === 'Escape') { event.preventDefault(); finish(null); }
     });
     if (wrap) input.addEventListener('input', grow);
+    if (onType) input.addEventListener('input', () => onType(input.value));
     for (const type of ['keyup', 'keypress']) input.addEventListener(type, event => event.stopPropagation());
     for (const type of ['mousedown', 'click']) input.addEventListener(type, event => event.stopPropagation());
     input.addEventListener('blur', () => { if (!moving) finish(input.value === value ? null : input.value); });

@@ -269,7 +269,9 @@ const twoWayCss = `
    find field's hairline, and its rows as the page's. */
 .th-two-way .th-tw-toplinks { grid-column: 1 / -1; color: var(--lk-quiet); font-size: var(--lk-small); padding: 0 0 5px; margin: 14px 0 4px; border-bottom: 1px solid var(--lk-hair); }
 ::highlight(th-find) { background-color: var(--rx-blue-04, #e1f0ff); } /* a very subtle blue, Logseq's own (the owner: "I don't like a yellow highlight, do very subtle blue") */
-.th-two-way .th-tw-crumb { color: var(--lk-faint); font-size: var(--lk-small); line-height: 1.3; padding: 0 0 3px var(--th-tw-words); overflow-wrap: anywhere; }
+/* The grey line under a node (where it sits) keeps its whole words and runs the width of the line (the owner, 7 November
+   2026: "the subtitle should get full width"), to two lines, then is cut, as a node's own words are. */
+.th-two-way .th-tw-crumb { color: var(--lk-faint); font-size: var(--lk-small); line-height: 1.3; margin: 0 0 3px var(--th-tw-words); overflow-wrap: anywhere; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 /* Where a node's words start: after its chevron and its dot, and the day's column in a list that has days. */
 .th-two-way .th-tw-value { --th-tw-words: calc(32px + 2 * var(--th-ol-gap)); }
 .th-two-way .th-tw-value[data-dated] { --th-tw-words: calc(32px + 3 * var(--th-ol-gap) + var(--th-ol-day)); }

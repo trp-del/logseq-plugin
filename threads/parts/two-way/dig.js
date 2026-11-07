@@ -349,9 +349,10 @@ async function writeBullet(uuid, key, typed) {
 }
 /* A bullet of an opened node changed where it stands (7 November 2026, the owner: "Allow me to edit bullet in the thread"):
    a click on its words, or Enter on them once Tab has reached them, turns them into a box on the same place, as a value's is
-   (editInPlace); Enter keeps, Shift-Enter breaks a line, Escape leaves it as it was, a click away keeps what was typed. The
-   words are as written, a link whole ([[Page]]), a reference ((id)) left as it is, and are written back as Logseq holds a
-   link; emptied, or unchanged, nothing is written. The faded Undo arrow puts the old words back, unless the bullet has
+   (editInPlace); the words are saved as they are typed, at each pause, as in Logseq; Enter or a click away ends it, Shift-Enter
+   breaks a line, Escape puts back the words it had. The words are as written, a link whole ([[Page]]), a reference ((id)) left
+   as it is, and are written back as Logseq holds a link; emptied, the bullet keeps its words. Ending it shows the new words in
+   place at once, never the old ones for a moment. The faded Undo arrow puts the old words back, unless the bullet has
    changed since (in Logseq, say), when it stays and says so. The bullet's dot opens it, as the whole line did before. */
 const ownerOf = bullet => { for (const [uuid, data] of state.node) if (data.bullets.some(line => line.uuid === bullet)) return uuid; return ''; };
 async function editBullet(uuid) {
@@ -360,14 +361,28 @@ async function editBullet(uuid) {
   const stored = await twoWay.provided.titleNow(uuid);
   if (stored == null || !find()) return;
   const words = String(await twoWay.provided.readableTitle(stored, { pagesOnly: true, asShown: true }) ?? stored);
-  const typed = await shared.editInPlace({ at: find(), value: words, wrap: true, again: find });
+  // The words are saved as they are typed, as in Logseq's own bullets (the owner, 7 November 2026: "you shouldn't need to press
+  // enter for text to save"): a pause in typing writes them; Enter, a click away or leaving the page keeps the last of them.
+  let written = stored.trim(), timer = 0, saving = Promise.resolve();
+  const save = text => (saving = saving.then(async () => {
+    const t = String(text || '').trim();
+    if (!t) return;
+    const now = (await twoWay.provided.storedWords(t)).trim();
+    if (now === written) return;
+    await twoWay.model.setWords(uuid, now);
+    written = now;
+    twoWay.peek.cache.clear();
+  }).catch(error => { warnOnce('could not change the bullet', error); notify('The bullet could not be changed', 'warning'); }));
+  const onType = text => { clearTimeout(timer); timer = setTimeout(() => save(text), 400); };
+  const typed = await shared.editInPlace({ at: find(), value: words, wrap: true, again: find, onType, show: text => text.trim() ? twoWay.lineHtml(text.trim(), 400) : null });
+  clearTimeout(timer);
   const next = typed?.trim();
-  if (!next || next === words.trim()) return;
-  const now = await twoWay.provided.storedWords(next);
-  if (now === stored.trim()) return;
+  // Escape, or the words emptied: the bullet goes back to what it was, even if a pause had saved some of the typing.
+  let reverted = false;
+  if (next) await save(next); else { await saving; if (written !== stored.trim()) { await twoWay.model.setWords(uuid, stored); written = stored.trim(); reverted = true; } }
+  await saving;
   const owner = ownerOf(uuid);
-  try { await twoWay.model.setWords(uuid, now); }
-  catch (error) { warnOnce('could not change the bullet', error); notify('The bullet could not be changed', 'warning'); return; }
+  if (written === stored.trim()) { if (reverted && owner) await readAgain(owner); return; }
   const wrote = await twoWay.provided.titleNow(uuid);
   twoWay.peek.cache.clear();
   if (owner) await readAgain(owner); else twoWay.later(0);

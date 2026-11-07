@@ -467,7 +467,7 @@ input.lk-tick[type=checkbox]:indeterminate::before { content: ""; position: abso
 .lk-fold::before { content: ""; width: 10px; height: 10px; background: currentColor; -webkit-mask: var(--lk-ic) center / contain no-repeat; mask: var(--lk-ic) center / contain no-repeat; --lk-ic: ${iconUrl(Door.ICONS.chevron)}; transform: rotate(-90deg); transition: transform .12s; }
 .lk-fold[aria-expanded="true"]::before { transform: none; }
 .lk-fold > * { display: none !important; }   /* a mark a module still puts inside (an svg, an icon) gives way to the library's */
-.lk-fold:hover, .lk-fold:focus-visible { outline: none; background: var(--lk-wash); }   /* the pointer on it: the round wash, as on Logseq's own arrow */
+.lk-fold:focus-visible { outline: none; background: var(--lk-wash); }   /* keyed, the wash; under the pointer none, its showing is enough (the owner, 7 November 2026) */
 /* lk-bul, Logseq's own bullet, by Logseq's numbers and colours (2.0.2, measured 7 November 2026; the owner: "create in library a
    logseq bullet that can be used elsewhere"): a .4em dot (6.4 px) at .8 in Logseq's bullet grey, in a 16 px round place; the
    place washed with Logseq's ring while what is under it is folded (.folded). One that opens something (.opens: a press opens

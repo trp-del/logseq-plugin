@@ -461,8 +461,11 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     click(window, words(first));
     await wait(60);
     type(window, box(), 'Cepeda reviewed 254 studies. Checked in the library.');
-    check(!writes().length, 'typing should write nothing until Enter');
+    check(!writes().length, 'typing should write nothing while the keys come');
+    await wait(500);
+    check(writes().length === 1 && !!box(), 'a pause in typing should save the words, the box staying open: ' + JSON.stringify(writes()));
     key(box(), 'Enter');
+    check(words(first).textContent === 'Cepeda reviewed 254 studies. Checked in the library.', 'Enter should show the new words at once, never the old ones: ' + words(first).textContent);
     await wait(150);
     check(writes().length === 1 && writes()[0][1] === first && writes()[0][2] === 'Cepeda reviewed 254 studies. Checked in the library.', 'Enter should write the new words into the bullet: ' + JSON.stringify(calls));
     check(words(first).textContent === 'Cepeda reviewed 254 studies. Checked in the library.' && !box(), 'the bullet should read the new words');
@@ -482,6 +485,14 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     click(window, doc.querySelector('.lk-undo[data-lk-undo]'));
     await wait(150);
     check(writes().length === 3 && notices.some(t => t.includes('so it stays')), 'a bullet changed since should stay as it is, and Undo should say so: ' + JSON.stringify(writes()) + JSON.stringify(notices));
+    // Escape after a pause saved some typing puts the words back as they were.
+    click(window, words(first));
+    await wait(60);
+    type(window, box(), 'A typo');
+    await wait(500);
+    key(box(), 'Escape');
+    await wait(150);
+    check(writes().length === 5 && writes()[3][2] === 'A typo' && writes()[4][2] === 'Changed in Logseq since', 'Escape should put back the words the bullet had: ' + JSON.stringify(writes()));
     // The keyboard: Enter on words Tab has reached.
     key(words(second), 'Enter');
     await wait(60);

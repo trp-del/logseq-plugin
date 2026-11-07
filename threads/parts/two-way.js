@@ -229,7 +229,7 @@ async function mentionsGroup(id, groups) {
   // Each with the page and bullets it sits in, as Linked references shows it (0.4.437).
   const crumbs = provided.crumbsInto ? await provided.crumbsInto(id).catch(() => new Map()) : new Map();
   const items = await Promise.all(found.map(async m => { const words = await linkedWordsOf(m.title); return { uuid: m.uuid, title: plainWords(words), words, tag: m.tag || 'note', day: m.day,
-    crumbs: await Promise.all((crumbs.get(m.uuid) || []).map(async c => ({ uuid: c.uuid, name: shortName(await wordsOf(c.title)) }))) }; }));
+    crumbs: await Promise.all((crumbs.get(m.uuid) || []).map(async c => ({ uuid: c.uuid, name: await wordsOf(c.title) }))) }; }));
   items.sort(byWhen(todayNumber()));
   return { name: MENTIONS, label: 'Mentioned in', items, fieldUuid: '', ident: '', mentions: true };
 }
