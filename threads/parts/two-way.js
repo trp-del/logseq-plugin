@@ -42,7 +42,9 @@ const settingsSchema = [
     list: { split: ';', suggest: 'properties', about: 'Properties whose link is not shown as a row on the page they point to, for a property that points at a busy page (a status, a city with hundreds of people). The link stays in that page’s Linked references and in searches. Set from the tag tree as well.' },
     description: 'Properties whose link is not shown as a row on the page they point to, as “property; property”. Useful for a property that points at a busy page (a status, a city with hundreds of people). The link itself stays: it still shows in that page’s Linked references and in searches. Set from the tag tree as well.' },
   { key: 'twoWayMentions', type: 'boolean', title: 'Mentions come up to the rows', default: true,
-    description: 'On a page, the nodes whose words link it (“Called [[Dr. Mei Chen]] about the scan”) show as one more row under the rows from properties, “Mentioned in”, with their day and tag, folding, grouping and tick boxes like the other rows. Logseq still lists them under Linked references too. A node that points here through a property shows in that property’s row only. Tick a mention that has no tag and the bar offers to make it a node: the tag its words look like first, with the property that would point at this page (“Make it a Conversation · Spoke with Dr. Mei Chen”). Its words stay as they are; the faded Undo arrow takes it back. Right-click “mentioned in” to hide the row on that page.' },
+    description: 'On a page, the nodes whose words link it (“Called [[Dr. Mei Chen]] about the scan”) show as one more row under the rows from properties, “Mentioned in”, with their day and tag, folding, grouping and tick boxes like the other rows. Logseq still lists them under Linked references too. A node that points here through a property shows in that property’s row only. Tick a mention that has no tag and the bar offers to make it a node: the tag its words look like first, with the property that would point at this page (“Make it a Conversation · Spoke with Dr. Mei Chen”). Its words stay as they are; the faded Undo arrow takes it back. A mention whose words look like a kind says so after its line, pencilled (“could be a Consultation · Provider”); its ×, under the pointer, says no: the suggestion goes and is not shown again, the faded arrow puts it back, and right-click “Mentioned in”, Show the suggestions taken off, brings the page’s back. Right-click “mentioned in” to hide the row on that page.' },
+  { key: 'twoWayCouldBeOff', hidden: true, type: 'string', title: 'Mentions whose “could be” suggestion was taken off', default: '',
+    description: 'The mentions (by id) whose pencilled “could be a …” was taken off with its ×, so it is not shown again. Right-click “Mentioned in”, Show the suggestions taken off, brings this page’s back.' },
   { key: 'twoWayMentionsHidden', type: 'string', title: 'Pages without the mentions row', default: '',
     list: { split: ';', about: 'Pages where the “Mentioned in” row is left out, for a page almost everything names. Set from the row itself: right-click “Mentioned in”, Hide mentions on this page. The mentions stay in the page’s Linked references.' },
     description: 'Pages where the “Mentioned in” row is left out, as “page; page”, for a page almost everything names. Set from the row itself: right-click “Mentioned in”, then Hide mentions on this page. The mentions stay in the page’s Linked references.' },
@@ -466,10 +468,30 @@ function itemHtml(group, item, base, end = '', bare = false, tell = '') {
 /* Where a mention sits (0.4.437): its page and the bullets above it, small, under its line. A mention with no tag whose
    words look like a known kind (0.4.438) says so, pencilled in where its tag would stand, on its own line, so that coming late
    moves nothing (the review, 31 October: it came after the rows and pushed them down): a click opens Make it… for that one mention. */
+// Its × (the library's Take off, under the pointer) says no: the suggestion goes, is remembered as refused (twoWayCouldBeOff)
+// and is not shown again; the faded arrow puts it back, and the row's right-click brings the page's refused ones back.
+const couldBeOff = () => new Set(String(setting('twoWayCouldBeOff') || '').split(/[;\n]/).map(s => s.trim()).filter(Boolean));
 const couldBeHtml = item => {
-  const best = (!item.tag || item.tag === 'note') ? state.raise.get(item.uuid)?.best : null;
-  return best ? O.pencil(`could be a ${best.tag.title} · ${best.prop.title}`, { 'data-could': item.uuid, title: `Its words look like a ${best.tag.title}: click to make it one, with “${best.prop.title}” set to this page` }) : '';
+  const best = (!item.tag || item.tag === 'note') && !couldBeOff().has(item.uuid) ? state.raise.get(item.uuid)?.best : null;
+  if (!best) return '';
+  const pencil = O.pencil(`could be a ${best.tag.title} · ${best.prop.title}`, { 'data-could': item.uuid, title: `Its words look like a ${best.tag.title}: click to make it one, with “${best.prop.title}” set to this page` });
+  return `<span class="th-tw-could lk-reveals">${pencil}<button type="button" class="lk-x lk-reveal" data-could-off="${esc(item.uuid)}" title="Not this: the suggestion goes and is not shown again" aria-label="Take off the suggestion">×</button></span>`;
 };
+function refuseCouldBe(uuid, nameEl) {
+  const before = String(setting('twoWayCouldBeOff') || '');
+  saveSettings({ twoWayCouldBeOff: [...couldBeOff(), uuid].join('; ') });
+  state.html = null; draw(host());
+  offerUndo('The suggestion is off this mention', () => { saveSettings({ twoWayCouldBeOff: before }); state.html = null; draw(host()); }, MENTIONS, () => nameEl);
+}
+// The refused suggestions of this page's mentions, shown again.
+function showCouldBeAgain() {
+  const group = state.groups.find(isMentions), here = new Set((group?.items || []).map(item => item.uuid));
+  const before = String(setting('twoWayCouldBeOff') || '');
+  saveSettings({ twoWayCouldBeOff: [...couldBeOff()].filter(uuid => !here.has(uuid)).join('; ') });
+  state.html = null; draw(host());
+  offerUndo('The suggestions taken off on this page are back', () => { saveSettings({ twoWayCouldBeOff: before }); state.html = null; draw(host()); }, MENTIONS);
+}
+const refusedHere = () => { const off = couldBeOff(); return (state.groups.find(isMentions)?.items || []).filter(item => off.has(item.uuid)).length; };
 // A crumb that is only the journal day the node is written on says the day again: left out. Each place is a step (lk-step,
 // the faint underline of the trail): a press opens its page or bullet, Shift in the right sidebar.
 const crumbsOf = item => (item.crumbs || []).filter((c, i) => !(i === 0 && item.day && /^[A-Z][a-z]{2} \d{1,2}(st|nd|rd|th), \d{4}$/.test(c.name)));
@@ -695,6 +717,8 @@ const drawEarly = (doc, records) => { if (performance.now() - settle.since < SET
 function onClick(event) {
   const pickEl = event.target.closest?.('.th-tw-bar [data-act]') || event.target.closest?.('.th-tw-row .th-tw-pick');
   if (pickEl) { event.preventDefault(); event.stopPropagation(); twoWay.hidePeek(); return pickEl.dataset.act ? twoWay.act(pickEl.dataset.act, pickEl) : twoWay.togglePick(pickEl, event.shiftKey); }
+  const couldOff = event.target.closest?.('[data-could-off]');
+  if (couldOff) { event.preventDefault(); event.stopPropagation(); twoWay.hidePeek(); return refuseCouldBe(couldOff.dataset.couldOff, couldOff.closest('.th-tw-line') || couldOff); }
   const could = event.target.closest?.('[data-could]');
   if (could) {
     event.preventDefault(); event.stopPropagation(); twoWay.hidePeek();
@@ -804,6 +828,7 @@ function onRename(event) {
     isMentions(group)
       ? { icon: 'remove', label: 'Hide mentions on this page', run: () => { hideMentionsHere().catch(error => warnOnce('could not hide the mentions row', error)); } }
       : provided.tagTree?.showProp ? { icon: 'map', label: 'Open in the map', run: () => provided.tagTree.showProp(group.name) } : null,
+    ...(isMentions(group) && refusedHere() ? [{ icon: 'show', label: `Show the ${refusedHere()} suggestion${refusedHere() === 1 ? '' : 's'} taken off`, run: showCouldBeAgain }] : []),
     ...(isMentions(group) ? [] : [{ icon: 'rename', label: 'Reads back as …', run: () => { renameRow(group, nameEl).catch(error => warnOnce('could not rename the row', error)); } }]),
     // The same two words as the tag map's (0.4.444, one word for each idea); the head above already names the row.
     ...(isMentions(group) ? [] : [{ icon: 'hide', label: 'Hide on the pages it points to', run: () => {
@@ -910,5 +935,5 @@ function start() {
 }
 ((window.Threads ||= {}).parts ||= []).push({ name: 'two-way', says: 'the rows on a page', schema: settingsSchema, start, stop: runUnloadTasks, inner: twoWay });
 // What the pieces reach of the part, and of the core once it starts (useCore).
-Object.assign(twoWay, { INLINE, LISTED, UUID, stopPicking, dayCell, isDated, readKids, hasKids, loadHooks, settledHooks, starters, summary, plural, tagWord, dayText, draw, groupsFor, inBox, isMentions, itemHtml, later, lineDay, model, nameHtml, offerMade, offerUndo, onUnload, provided, rowHtml, setting, shortName, state, tagLink, todayNumber, uuidsIn, valueBox, warnOnce, useCore });
+Object.assign(twoWay, { INLINE, LISTED, UUID, stopPicking, dayCell, isDated, readKids, hasKids, loadHooks, settledHooks, starters, summary, plural, tagWord, dayText, draw, groupsFor, inBox, isMentions, couldBeOff, itemHtml, later, lineDay, model, nameHtml, offerMade, offerUndo, onUnload, provided, rowHtml, setting, shortName, state, tagLink, todayNumber, uuidsIn, valueBox, warnOnce, useCore });
 })();

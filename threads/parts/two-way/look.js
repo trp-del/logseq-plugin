@@ -253,7 +253,8 @@ const twoWayCss = `
 /* The mark stays on the first line of a name that wraps (an opened node's), not in the middle of the words. */
 .th-two-way .th-ol-body > .th-tw-record.th-ol-open, .th-two-way[data-finding] .th-ol-body > .th-tw-record { display: block; -webkit-line-clamp: none; }
 .th-two-way .th-ol-body > .th-tw-record ~ * { flex: none; }
-.th-two-way .th-ol-body > .th-pencil { margin-left: 8px; }
+.th-two-way .th-ol-body > .th-pencil, .th-two-way .th-ol-body > .th-tw-could { margin-left: 8px; }
+.th-two-way .th-tw-could { display: inline-flex; align-items: baseline; }
 /* No underline at rest in this section, under the pointer the firm one (the owner, 1 November 2026: long names, each underlined in full, striped it). */
 .th-two-way a.th-ol-name.lk-node { text-decoration-color: transparent !important; }
 .th-two-way a.th-ol-name.lk-node:is(:hover, :focus-visible) { text-decoration-color: currentColor !important; }

@@ -100,6 +100,7 @@ async function raisePairs() {
 }
 async function prepareRaise(uuid) {
   if (state.raise.has(uuid)) return;
+  if (twoWay.couldBeOff().has(uuid)) return;   // its suggestion was taken off: not asked
   state.raise.set(uuid, { pairs: [], best: null });
   const [pairs, guess] = await Promise.all([raisePairs(), twoWay.provided.tagGuess ? twoWay.provided.tagGuess(uuid).catch(error => { warnOnce('the tag a mention looks like could not be read', error); return null; }) : null]);
   const best = guess ? pairs.find(p => p.tag.id === guess.id) || null : null;
