@@ -39,6 +39,7 @@
                                                                     read went to Predictive's core on 5 November 2026)
    - propTextValues, propNamed                                     turning a property into links (0.4.241)
    - propTextBlocks, propValueBlocks                               merging and deleting properties (0.4.422)
+   - withKids(uuids)                                               the nodes among them with a bullet under them
    - heldBelow(uuids)                                              what folded nodes hold: open tasks, tags, the nearest due day, files, quotes
    - setValue, unsetValue, addTag, removeTag, setWords, editBlock, exitEditing, insertBlock, addLineTo, currentPage, currentGraph, tagTitles,
      getPage, createPage, deletePage, appendBlock, removeBlock, renamePage, moveBlock, pageBlocksTree, addTagExtends,
@@ -1063,6 +1064,17 @@ async function heldBelow(uuids) {
   return held;
 }
 
+/* The nodes among these with a bullet under them (the owner, 7 November 2026: a node with nothing in it but its properties
+   gets Logseq's plain dot, not the ring of a folded block): a child block with words in it, not one Logseq made to hold a property's
+   value, and not an empty bullet. */
+async function withKids(uuids) {
+  const list = [...new Set(uuids)].map(String).filter(u => UUID.test(u));
+  if (!list.length) return new Set();
+  const rows = await dsQuery(`[:find ?u :where [(ground [${list.map(u => `#uuid "${u}"`).join(' ')}]) [?u ...]] [?r :block/uuid ?u] [?c :block/parent ?r]
+      (not [?c :logseq.property/created-from-property _]) [?c :block/title ?t] [(not= ?t "")]]`);
+  return new Set(rows.map(([u]) => String(u).toLowerCase()));
+}
+
 function provide(core) {
   core.provide({ aliasesOf, madeState, storedWords, inRecycle, restorePage, setValue, unsetValue, addTag, removeTag, setWords, editBlock, exitEditing, insertBlock, addLineTo, currentPage, currentBlock, pickedBlocks, getBlock, currentGraph, tagTitles, getPage, createPage, deletePage, appendBlock, removeBlock, inRecycle, restorePage,
     renamePage, moveBlock, pageBlocksTree, EXTENDS, ALIAS, ICON, PARENT_TAGS, addTagExtends, removeTagExtends, openInSidebar, showSidebar,
@@ -1072,7 +1084,7 @@ function provide(core) {
     descriptionOf, titleNow, valuesOf, userValues, mergeFacts, TAG_PROPS, ACCEPTS, DESCRIPTION,
     linksInto, mentionsInto, pageHasList, firstTags, nodesOfTag, nodeLines, nodeFields, nodeValues, firstLines, pagesAmong, tagUuidNamed, uuidById,
     hasTag, pageLines, registerCommand,
-    propTextValues, propTextBlocks, propValueBlocks, propNamed, propUse, propUses, structureUse, propNodeIds, choiceIds, crumbsInto, propHolders, pdfSources, heldBelow, linkRates, linkRatesOf, journalIdFor, journalTitleFor, formatJournalTitle, CHECKED_WITH, PAGE_TITLE, screenChecks, pageTitles, titleAnchor });
+    propTextValues, propTextBlocks, propValueBlocks, propNamed, propUse, propUses, structureUse, propNodeIds, choiceIds, crumbsInto, propHolders, pdfSources, heldBelow, withKids, linkRates, linkRatesOf, journalIdFor, journalTitleFor, formatJournalTitle, CHECKED_WITH, PAGE_TITLE, screenChecks, pageTitles, titleAnchor });
 }
 function start() {
   window.Threads.core.onGraphChange(() => { journalFormat.value = null; });   // each graph has its own

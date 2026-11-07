@@ -114,6 +114,14 @@ const click = (window, el) => el.dispatchEvent(new window.MouseEvent('click', { 
 // The bar's More (5 November 2026): every action but Open in sidebar sits in it. Opens it and gives its items.
 const moreItems = async (window, doc) => { doc.querySelectorAll('.th-pop').forEach(p => p.remove()); click(window, doc.querySelector('.th-tw-bar [data-act="more"]')); await new Promise(r => setTimeout(r, 40)); return [...doc.querySelectorAll('.th-pop .th-item')]; };
 const moreItem = async (window, doc, re) => (await moreItems(window, doc)).find(el => re.test(el.textContent.trim()));
+// Picking is turned on from a list's View menu (the owner, 7 November 2026): the tick boxes are drawn only then. field: the row's, else the first with a menu.
+const startPicking = async (window, doc, field) => {
+  doc.querySelectorAll('.th-pop').forEach(p => p.remove());
+  click(window, doc.querySelector(field == null ? '.th-tw-groupby' : `.th-tw-row[data-field="${field}"] .th-tw-groupby`));
+  await new Promise(r => setTimeout(r, 60));
+  click(window, [...doc.querySelectorAll('.th-pop .th-item')].find(el => /Pick nodes/.test(el.textContent)));
+  await new Promise(r => setTimeout(r, 40));
+};
 const type = (window, input, text) => { input.value = text; input.dispatchEvent(new window.Event('input', { bubbles: true })); };
 const enter = (window, input) => input.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
 // The outline (0.4.442): a node's chevron by its uuid (inside: under the node of that uuid), what an open node holds.
@@ -212,9 +220,10 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     check(!!doc.querySelector('.th-two-way .th-tw-row'), 'the rows should be drawn');
     check(!doc.querySelector('.th-tw-group'), 'with no grouping chosen the list should not be in groups');
     check(doc.querySelectorAll('.th-tw-line').length === 5 && !!doc.querySelector('[data-more]'), 'the plain list should show five lines and "show all"');
-    check(doc.querySelector('.th-tw-groupby')?.textContent.trim() === 'Group' && !doc.querySelector('.th-tw-groupby[data-on]'), 'the word to group by should read "Group"');
+    check(doc.querySelector('.th-tw-groupby')?.textContent.trim() === 'View' && !doc.querySelector('.th-tw-groupby[data-on]'), 'the one menu should read "View" while nothing is chosen');
     check(doc.querySelectorAll('.th-tw-line .th-chev[data-dig]').length === 5, 'every line should have its chevron, right before its name');
-    check([...doc.querySelectorAll('.th-tw-line')].every(l => l.querySelector('.th-chev + .th-ol-body > .th-ol-name')), 'the chevron should sit right before the name it opens');
+    // Each node a bullet, as Logseq draws one: the chevron, the dot, the day's column (where the list has days), the name.
+    check([...doc.querySelectorAll('.th-tw-line')].every(l => l.querySelector(':is(.th-chev + .th-ol-dot + .th-ol-day + .th-ol-body, .th-chev + .th-ol-dot + .th-ol-body) > .th-ol-name')), 'each line should read chevron, dot, day, name');
     // The tags' words on the line by the chevron: All folds and unfolds; a tag shows only its nodes, without the tag on each line.
     const chip = tag => doc.querySelector(`.th-tw-value .th-tw-chip[data-tag="${tag}"]`);
     const row = () => doc.querySelector('.th-tw-row[data-open], .th-tw-row:has(.th-tw-chip)');
@@ -731,6 +740,8 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     window.Threads.core.provided.namedPages = async (text, tagIds) => { asked.push([text, tagIds]); return /recall/.test(text) ? [62, 61] : /review/.test(text) ? [62] : []; };
     window.Threads.core.provided.propSchema = async () => ({ props: [{ ident: 'user.property/about', title: 'about', lower: 'about', type: 'node', many: false, choices: [], classes: [{ id: 60 }] }] });
     window.Threads.core.provided.valuesOf = async () => [5];
+    check(!doc.querySelector('.th-tw-pick'), 'no tick box before picking is turned on');
+    await startPicking(window, doc, 'about');
     const pick = uuid => click(window, doc.querySelector(`.th-tw-pick[data-pick="${uuid}|about"]`));
     pick(U(101)); await wait(20); pick(U(102)); await wait(20);
     click(window, await moreItem(window, doc, /^Change/));
@@ -776,6 +787,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     check(!row()?.querySelector('.th-tw-add'), 'the mentions row should have no +');
     { const heads = [...row().querySelectorAll('.th-tw-chip')].map(el => el.textContent.trim().replace(/\s*\d+$/, ''));
       check(heads.includes('No tag') && !heads.includes('note'), 'mentions of several kinds should read "No tag", never "note": ' + heads); }
+    await startPicking(window, doc, ' mentioned in');
     const pick = uuid => click(window, doc.querySelector(`.th-tw-pick[data-pick="${uuid}| mentioned in"]`));
     pick(U(202)); await wait(80);
     { const offered = (await moreItems(window, doc)).map(el => el.textContent.trim()); doc.querySelectorAll('.th-pop').forEach(p => p.remove());
@@ -1013,6 +1025,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     const provided = window.Threads.core.provided;
     provided.getPage = async uuid => uuid === U(102) ? { name: 'gap', title: 'gap' } : { id: 5, uuid: PAGE };
     provided.deletePage = async name => { calls.push(['deletePage', name]); };
+    await startPicking(window, doc);
     click(window, doc.querySelector('.th-tw-pick'));
     await wait(20);
     click(window, await moreItem(window, doc, /^Select all/));

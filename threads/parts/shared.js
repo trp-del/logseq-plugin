@@ -466,6 +466,7 @@ function popup({ at, kind = 'menu', head, items, field: fieldOptions, rows, keys
       if (!item) continue;
       if (item.sep) { body.append(el(doc, 'div', { class: 'lk-item gap' })); continue; }
       if (item.note) { body.append(note(doc, item.note)); continue; }
+      if (item.group) { body.append(el(doc, 'div', { class: 'lk-group', role: 'presentation' }, item.group)); continue; }
       const b = el(doc, 'button', { type: 'button', class: `th-item lk-item${item.on ? ' on' : ''}${item.faint ? ' th-faint' : ''}${item.cls ? ' ' + item.cls : ''}`, role: 'menuitem', title: item.title || null, disabled: item.disabled || null,
         click: () => run(item) },
         item.icon ? icon(doc, item.icon) : null, item.html ? el(doc, 'span', { class: 'th-item-words', html: item.html }) : el(doc, 'span', { class: 'th-item-words' }, String(item.label ?? '')),
@@ -661,7 +662,9 @@ function ask({ at, question, note: hint, go: goWord = 'OK', cancel = 'Cancel', f
    section, the tag map and the sidebar. Markup, as the two-way section draws (a DOM part wraps it with fragmentOf).
    - chev({ open, label, attrs }): the one chevron, a 16 px mark in a 24 px place to click, faint at rest (never hidden),
      full on its line, turned down while open (160 ms, none with reduced motion).
-   - line({ body, chev, day, tick, cls, attrs }): one line of a tree; the tick box hangs in the margin, then the day in a
+   - line({ body, chev, day, tick, cls, attrs, dot }): one line of a tree; with dot (a node, as a Logseq bullet: true, or
+     { uuid, closed, title }, see dot), the
+     chevron, the dot, the day in a column of one width (none when day is null) and the name. Without, the tick box hangs in the margin, then the day in a
      column of one width, the chevron right before the name it opens, the name with its tag (body).
    - kids({ html, from, fresh, attrs }): what an opened line holds, under its name, one hairline down from its chevron.
      from says what stands before that chevron: 'day' (a day), 'prop' (a property's name column), 'back' (a property's
@@ -673,11 +676,11 @@ function ask({ at, question, note: hint, go: goWord = 'OK', cancel = 'Cancel', f
      have had a much fainter grey"); a tick shows in its box only.
    - prop({ kind, many, name, value, attrs }): a property's line, Logseq's look: a node property's mark (three dots joined in a
      triangle; a fact none, its room kept), its name quieter than its value (kind '': a row pointing back, named by its property with no room for a mark, so it does not read as the node's own), the names of one node on one column (--th-ol-name); a value never breaks inside a word.
-   - bullet({ html, attrs, wordsAttrs }), newBullet({ attrs, label }): a bullet as Logseq draws one, its dot and words
+   - bullet({ html, attrs, wordsAttrs, closed }), newBullet({ attrs, label }): a bullet as Logseq draws one, its dot and words
      (wordsAttrs go on the words: a bullet changed where it stands is found and focused by them); the empty one
      at the end is faint, written in like a bullet: a caret on the line, no box, no line under it (a bare text box, so
      what is typed keeps the field's helpers, the grey name completed after the caret among them).
-   - more({ text, attrs, under, cls }): "show all 13" under a list, on its edge: under 'name' (the names after a day), 'bare'
+   - more({ text, attrs, under, cls }): "show all 13" under a list, on its edge: under 'dot' or 'dotday' (the names of dotted lines, with no day column or after one), 'name' (the names after a day), 'bare'
      (names with no day before them) or 'value' (a property's values); the library's lk-more, or the kind cls names.
    - name({ text, title, open, tag, attrs }): a node's name, the faint underline of a link, bold while open, its tag after.
    - pencil(text, attrs): what the proposals fill in, sure or guessed alike: italic, faint, a dotted line; with the class
@@ -729,13 +732,19 @@ const outline = {
   focus(root, key) { for (const unit of root?.querySelectorAll('.th-ol-unit') || []) unit.classList.toggle('th-ol-focus', unit.dataset.key === key); },
   chev: ({ open = false, label = '', attrs, cls = '' } = {}) => `<button type="button" class="th-chev lk-fold${cls ? ' ' + cls : ''}" aria-expanded="${open}" aria-label="${esc(`${open ? 'Close' : 'Open'} ${label}`.trim())}" title="${open ? 'Close' : 'Open here'}"${attrsHtml(attrs)}></button>`,
   room: () => '<span class="th-chev-room" aria-hidden="true"></span>',
-  line: ({ body = '', chev = '', day, tick = '', end = '', cls = '', attrs } = {}) => `<div class="th-ol-line lk-row${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}>${tick}${day == null ? '' : `<span class="th-ol-day lk-day">${esc(day)}</span>`}${chev || outline.room()}<span class="th-ol-body">${body}</span>${end ? `<span class="th-ol-end">${end}</span>` : ''}</div>`,
+  /* A bullet's dot: the library's lk-bul, Logseq's own bullet (plugin.js), here in its place on the line. closed: what it holds
+     is folded (the ring). uuid: a press opens the node, as a press on Logseq's bullet opens the block (Shift: the sidebar);
+     opens: it opens something its line says (a bullet's own dot). hidden: only a dot's room (a "show all" under dotted lines). */
+  dot: (hidden = false, { uuid = '', closed = false, title = '', opens = false } = {}) => `<span class="th-ol-dot${hidden ? ' th-ol-dot-room' : ''}" aria-hidden="${uuid ? 'false' : 'true'}"><span class="lk-bul${closed ? ' folded' : ''}${uuid || opens ? ' opens' : ''}"${uuid ? ` data-open-uuid="${esc(uuid)}" title="${esc(title ? `Open ${title}` : 'Open')}"` : ''}></span></span>`,
+  // The day's column: nothing when the list has no days (null), else the day, or its room where a line has none ('').
+  day: day => day == null ? '' : `<span class="th-ol-day lk-day">${esc(day)}</span>`,
+  line: ({ body = '', chev = '', day, tick = '', end = '', cls = '', attrs, dot = false } = {}) => `<div class="th-ol-line lk-row${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}>${tick}${dot ? `${chev || outline.room()}${outline.dot(false, dot === true ? {} : dot)}${outline.day(day)}` : `${outline.day(day)}${chev || outline.room()}`}<span class="th-ol-body">${body}</span>${end ? `<span class="th-ol-end">${end}</span>` : ''}</div>`,
   kids: ({ html = '', from = '', fresh = false, attrs, cls = '' } = {}) => `<div class="th-ol-kids${from ? ' th-ol-from-' + from : ''}${fresh ? ' th-ol-unroll' : ''}${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}><div class="th-ol-in">${html}</div></div>`,
   unit: ({ html = '', focus = false, attrs, cls = '' } = {}) => `<div class="th-ol-unit${focus ? ' th-ol-focus' : ''}${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}>${html}</div>`,
   prop: ({ kind = 'text', name = '', value = '', chev = '', attrs, cls = '', nameAttrs } = {}) => `<div class="th-ol-line lk-row th-ol-prop${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}><span class="th-ol-pname lk-prop"${attrsHtml(nameAttrs)}>${name ? `${kind ? `<span class="th-kind">${kindIconHtml(kind)}</span>` : ''}${esc(name)}` : ''}</span><span class="th-ol-pv">${chev}${value}</span></div>`,
-  bullet: ({ html = '', attrs, cls = '', wordsAttrs } = {}) => `<div class="th-ol-bullet${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}><span class="th-ol-dot" aria-hidden="true"></span><span class="th-ol-words"${attrsHtml(wordsAttrs)}>${html}</span></div>`,
-  newBullet: ({ attrs, label = 'A new bullet', text = '' } = {}) => `<div class="th-ol-bullet th-ol-new"><span class="th-ol-dot" aria-hidden="true"></span><span class="th-field lk-field th-ol-words th-ol-write"><input type="text" value="${esc(text)}" spellcheck="true" autocomplete="off" aria-label="${esc(label)}"${attrsHtml(attrs)}></span></div>`,
-  more: ({ text = '', attrs, under = 'name', cls = 'lk-more' } = {}) => { const b = `<button type="button" class="${cls} th-ol-more"${attrsHtml(attrs)}>${esc(text)}</button>`; return under === 'value' ? `<div class="th-ol-line th-ol-prop th-ol-moreline"><span class="th-ol-pname"></span><span class="th-ol-pv">${b}</span></div>` : under === 'flush' ? `<div class="th-ol-line th-ol-moreline">${b}</div>` : under === 'leads' ? `<div class="th-ol-line lk-row th-ol-leads th-ol-moreline">${outline.room()}<span class="th-ol-lname"></span><span class="th-ol-to">${b}</span></div>` : `<div class="th-ol-line th-ol-moreline">${under === 'bare' ? '' : '<span class="th-ol-day lk-day"></span>'}${outline.room()}${b}</div>`; },
+  bullet: ({ html = '', attrs, cls = '', wordsAttrs, closed = false } = {}) => `<div class="th-ol-bullet${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}>${outline.dot(false, { closed, opens: !!attrs?.['data-bullet'] })}<span class="th-ol-words"${attrsHtml(wordsAttrs)}>${html}</span></div>`,
+  newBullet: ({ attrs, label = 'A new bullet', text = '' } = {}) => `<div class="th-ol-bullet th-ol-new">${outline.dot()}<span class="th-field lk-field th-ol-words th-ol-write"><input type="text" value="${esc(text)}" spellcheck="true" autocomplete="off" aria-label="${esc(label)}"${attrsHtml(attrs)}></span></div>`,
+  more: ({ text = '', attrs, under = 'name', cls = 'lk-more' } = {}) => { const b = `<button type="button" class="${cls} th-ol-more"${attrsHtml(attrs)}>${esc(text)}</button>`; return under === 'value' ? `<div class="th-ol-line th-ol-prop th-ol-moreline"><span class="th-ol-pname"></span><span class="th-ol-pv">${b}</span></div>` : under === 'flush' ? `<div class="th-ol-line th-ol-moreline">${b}</div>` : under === 'leads' ? `<div class="th-ol-line lk-row th-ol-leads th-ol-moreline">${outline.room()}<span class="th-ol-lname"></span><span class="th-ol-to">${b}</span></div>` : under === 'dot' || under === 'dotday' ? `<div class="th-ol-line th-ol-moreline">${outline.room()}${outline.dot(true)}${under === 'dotday' ? outline.day('') : ''}${b}</div>` : `<div class="th-ol-line th-ol-moreline">${under === 'bare' ? '' : '<span class="th-ol-day lk-day"></span>'}${outline.room()}${b}</div>`; },
   pencil: (text, attrs, cls = '') => `<button type="button" class="th-pencil lk-pencil${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}>${esc(text)}</button>`,
   trail: (steps = [], here = '', end = '') => `<div class="th-ol-trail lk-trail">${steps.map(s => `<a href="#" class="th-ol-step lk-step"${attrsHtml(s.attrs)}>${esc(s.text)}</a><span class="th-ol-sep" aria-hidden="true">›</span>`).join('')}${here ? `<span class="th-ol-here">${here}</span>` : ''}${end}</div>`,
 };
@@ -903,10 +912,13 @@ a.th-tag:hover { opacity: 1; }
 .th-ol-kids.th-ol-bare { margin-left: 0; padding-left: 0; border-left: 0; }
 .th-ol-pv > .th-ol-day { margin-right: 0; }
 .th-ol-bullet { display: flex; align-items: baseline; gap: 8px; min-height: 26px; padding: 1px 4px; margin-left: -4px; }
-.th-ol-dot { flex: none; width: 16px; text-align: center; color: var(--lk-faint); }
-.th-ol-dot::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: currentColor; vertical-align: 2px; }
+/* The dot is the library's lk-bul (outline.dot): only its place here, centred on the first line of the words as Logseq centres it on
+   its row. A dot that opens something points as Logseq's does. */
+.th-ol-dot { flex: none; width: 16px; height: 1.5em; align-self: flex-start; display: inline-flex; align-items: center; justify-content: center; }
+.th-ol-bullet[data-bullet] > .th-ol-dot { cursor: pointer; }
 .th-ol-words { min-width: 0; flex: 1; outline: none; }
 .th-ol-new > .th-ol-dot { opacity: .45; }
+.th-ol-dot-room { visibility: hidden; }
 .th-field.th-ol-write { display: flex; border: 0; padding: 0; min-height: 21px; font-size: inherit; line-height: inherit; }
 .th-field.th-ol-write > input { cursor: text; caret-color: currentColor; }
 .th-ol-line.th-ol-moreline { min-height: 24px; padding-top: 0; padding-bottom: 0; }

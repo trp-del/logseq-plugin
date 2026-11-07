@@ -81,17 +81,18 @@ function nodeHtml(uuid, key, data, asTop = false) {
   /* The nodes that link to it, after its own properties, under a line saying so: "2 nodes link here"
      (0.4.462, the owner's pick 2 of the two-way fixes: the same property
      name, one line apart, read as the node's own and as what links to it). Under it one step in, a row per property, one
-     name per line, three then "show all"; each node's day in the section's margin, as on the rows (placeDays). */
+     name per line, three then "show all"; each node a dot, then its day in a column where any of them has one, as on the rows. */
   const linking = asTop ? [] : data.rows.map(g => ({ g, items: g.items.filter(item => !onTheWay(path, item.uuid)) })).filter(r => r.items.length);
   const many = linking.reduce((n, r) => n + r.items.length, 0);
   if (many) {
     let lines = '';
     for (const { g, items } of linking) {
+      const dated = items.some(twoWay.dayCell);   // the day's column, right of the dot, where any of these has a day
       const allKey = `${key}|${g.name}`, all = state.nall.has(allKey);
       (all ? items : items.slice(0, twoWay.INLINE)).forEach((item, i) => {
         const k = `${key}>${item.uuid}`, open = state.dig.has(k);
         twoWay.lineDay.set(k, twoWay.dayCell(item));
-        const line = O.prop({ kind: g.kind || 'node', many: g.many, name: i ? '' : g.label, cls: 'th-tw-back', value: `${digChev(k, item.uuid, 0, twoWay.shortName(item.title), open)}<span class="th-ol-body">${twoWay.nameHtml(item, open)}</span>${item.day ? `<span class="th-ol-day th-tw-mday">${esc(twoWay.dayCell(item))}</span>` : ''}` });
+        const line = O.prop({ kind: g.kind || 'node', many: g.many, name: i ? '' : g.label, cls: 'th-tw-back', value: `${digChev(k, item.uuid, 0, twoWay.shortName(item.title), open)}${O.dot(false, { uuid: item.uuid, closed: !open && twoWay.hasKids(item.uuid), title: twoWay.shortName(item.title) })}${O.day(twoWay.dayCell(item) || (dated ? '' : null))}<span class="th-ol-body">${twoWay.nameHtml(item, open)}</span>` });
         lines += open ? O.unit({ html: line + digKids(k, item.uuid, 'prop'), focus: state.focus === k, attrs: { 'data-key': k } }) : line;
       });
       if (items.length > twoWay.INLINE) lines += O.more({ text: all ? 'show fewer' : 'show all', attrs: { 'data-nall': allKey }, under: 'value' });
@@ -99,7 +100,7 @@ function nodeHtml(uuid, key, data, asTop = false) {
     html += `<div class="th-tw-links" title="${esc(`${many} ${many === 1 ? 'node links' : 'nodes link'} to ${twoWay.shortName(titleOf(uuid))}`)}"><span class="lk-count">${many}</span> ${many === 1 ? 'node links' : 'nodes link'} here</div><div class="th-tw-linked">${lines}</div>`;
   }
   // Its words are changed where they stand (editBullet): a click, or Enter once Tab has reached them; its dot opens it.
-  for (const line of data.bullets) html += O.bullet({ html: twoWay.lineHtml(line.text, 400), attrs: { 'data-bullet': line.uuid }, wordsAttrs: { tabindex: '0', 'data-edit-bullet': line.uuid } });
+  for (const line of data.bullets) html += O.bullet({ html: twoWay.lineHtml(line.text, 400), closed: twoWay.hasKids(line.uuid), attrs: { 'data-bullet': line.uuid }, wordsAttrs: { tabindex: '0', 'data-edit-bullet': line.uuid } });
   if (data.more) html += O.more({ text: 'show all its bullets', attrs: { 'data-ball': uuid } });
   html += O.newBullet({ label: `A new bullet inside ${twoWay.shortName(titleOf(uuid))}`, attrs: { class: 'th-tw-node-field', 'data-uuid': uuid, 'data-key': key } });
   return html;
@@ -146,6 +147,10 @@ function readNode(uuid, id, { look = false } = {}) {
       Promise.all(lines.map(async line => ({ uuid: line.uuid, text: await readable(line.title) }))),
       !look && kept.some(r => !r.values.length) && twoWay.provided.nodeProposals ? twoWay.provided.nodeProposals(uuid).catch(() => []) : []]);
     const empty = new Set(kept.filter(r => !r.values.length).map(r => r.prop.ident));
+    // Which of the nodes that link here, and of its own bullets, hold bullets of their own: those get the folded ring.
+    await twoWay.readKids([...rows.flatMap(g => g.items.map(item => item.uuid)), ...lines.map(line => line.uuid)]);
+    // And the node itself, read again here after a bullet is written in it or emptied, so its own dot is right once it folds.
+    if (bullets.some(line => line.text)) state.kids.add(String(uuid).toLowerCase()); else state.kids.delete(String(uuid).toLowerCase());
     state.node.set(uuid, { props: kept, rows, tags, bullets: bullets.filter(line => line.text).slice(0, most), more: lines.length > most,
       guesses: new Map(guesses.filter(g => empty.has(g.ident) && (g.kind !== 'day' || g.journalId)).map(g => [g.ident, g])) });
   })().finally(() => reading.delete(key));
@@ -247,30 +252,6 @@ function stepBack(to) {
   const top = topStep();
   if (top && !state.node.has(top.uuid)) readNode(top.uuid, top.id).then(() => { state.html = null; twoWay.draw(host()); }).catch(() => {});
   state.html = null; twoWay.draw(host());
-}
-/* The days of the nodes that link to an opened node hang in the section's margin, ending on the edge every row's day
-   ends on (0.4.462, the owner's pick 1 of the two-way fixes: "the left edge always means time", at every depth). Each
-   sits absolute in its line, so it takes no room in the value; placed after every drawing, before it is painted. In a
-   node stepped into, the margin is the one its body keeps. */
-function placeDays(box) {
-  const days = box.querySelectorAll('.th-tw-mday');
-  if (!days.length) return;
-  const edges = new Map();
-  for (const day of days) {
-    const root = day.closest('.th-tw-value, .th-tw-stepbody'), line = day.closest('.th-ol-line'), name = line?.querySelector('.th-ol-pv');
-    if (!root || !line || !name) continue;
-    // The edge a row's own day ends on, where one is drawn; in a shifted section's top, the margin its body keeps.
-    if (!edges.has(root)) {
-      const seen = root.matches('.th-tw-value') && box.querySelector('.th-tw-value .th-tw-line > .th-ol-day'), r = root.getBoundingClientRect();
-      edges.set(root, seen ? seen.getBoundingClientRect().right : r.left + parseFloat(getComputedStyle(root).paddingLeft || '0') - 12);
-    }
-    const at = line.getBoundingClientRect();
-    const left = Math.round(edges.get(root) - day.offsetWidth - at.left);
-    day.style.left = `${left}px`;
-    line.style.setProperty('--th-tw-day-reach', `${Math.max(0, -left) + 6}px`);   // the row's wash reaches its day in the margin
-    day.style.top = `${name.offsetTop}px`;
-    day.style.lineHeight = getComputedStyle(name).lineHeight;
-  }
 }
 // The section stepped into a node: the trail (the page, each step, the one shown with its tag), then what it holds.
 function steppedHtml() {
@@ -536,5 +517,5 @@ function onOutlineClick(event) {
   return false;
 }
 
-Object.assign(twoWay, { closeDig, digChev, digKids, editBullet, focusNodeField, keepNodeField, onOutlineClick, pinNow, placeDays, readNode, reading, stepBack, steppedHtml, topStep });
+Object.assign(twoWay, { closeDig, digChev, digKids, editBullet, focusNodeField, keepNodeField, onOutlineClick, pinNow, readNode, reading, stepBack, steppedHtml, topStep });
 })();

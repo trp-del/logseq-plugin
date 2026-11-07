@@ -311,9 +311,9 @@ const TOKENS = `
    only darken under the pointer, no ground behind them); lk-reveal on any of them, with lk-reveals on what it acts on: shown
    only while that is pointed at, light grey, darker near it, kept while the hand wavers; lk-more: show all; lk-views with lk-view
    (.on): other contents of one place; lk-trail with lk-step: the places you came through; lk-head (.on): a sort head;
-   lk-menu with lk-item (.off, .gap, a faint lk-note): a menu.
+   lk-menu with lk-item (.off, .gap, a faint lk-note) and lk-group, the heading of a part of it: a menu.
    Drawn whole here since 6 November 2026, so no module draws them again: lk-window (a window mid-screen) and lk-pop (a pop-up at
-   the thing pressed), the frames; lk-tick, the tick box; lk-fold, the fold arrow, its markup empty; lk-bul (.folded), the bullet;
+   the thing pressed), the frames; lk-tick, the tick box; lk-fold, the fold arrow, its markup empty; lk-bul (.folded, .opens), Logseq's bullet;
    lk-field, a field on a hairline; lk-none, the nothing-here line; lk-undo, the arrow as a press; --lk-day, the day column's width. */
 Door.NAMES = `${TOKENS}
 .lk-tag { color: inherit !important; opacity: .7; font-family: var(--lk-mono) !important; font-size: .85em !important; text-decoration: none !important; }
@@ -425,6 +425,11 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
 /* A press that cannot be taken now: at the off strength, and no hand. */
 :is(.lk-btn, .lk-lone, .lk-accent, .lk-fix, .lk-item):disabled { opacity: .45; cursor: default; pointer-events: none; }
 .lk-item.gap { height: 8px; padding: 0; pointer-events: none; background: none; }
+/* lk-group: the heading of a part of a menu (the owner, 7 November 2026, of the View menu's "Group by" and "Date": "the headers
+   need to be more prominent"): the menu's words in the text colour, a step heavier, a hairline over each part after the first,
+   so the parts read apart before a word is read; a faint lk-note stays for a word of help. */
+.lk-group { padding: 6px 8px 3px; font-size: var(--lk-small); font-weight: 600; color: var(--lk-text, currentColor); cursor: default; }
+.lk-item.gap + .lk-group { border-top: 1px solid var(--lk-hair); margin-top: -4px; padding-top: 8px; }
 .lk-note { color: var(--lk-dim); font-size: var(--lk-small); font-variant-numeric: tabular-nums; }
 /* lk-picked: what you can do with what you picked, right above the picked rows on the same grey as them, so the picks and what
    acts on them read as one block, the only filled area in a list (the owner, 5 November 2026, the grey block of picking-redesign.html:
@@ -463,10 +468,16 @@ input.lk-tick[type=checkbox]:indeterminate::before { content: ""; position: abso
 .lk-fold[aria-expanded="true"]::before { transform: none; }
 .lk-fold > * { display: none !important; }   /* a mark a module still puts inside (an svg, an icon) gives way to the library's */
 .lk-fold:hover, .lk-fold:focus-visible { outline: none; background: var(--lk-wash); }   /* the pointer on it: the round wash, as on Logseq's own arrow */
-/* lk-bul, drawn as Logseq draws its own bullet: a 6 px dot in a 16 px round place, the place washed grey while what is under it is folded. */
-.lk-bul { display: inline-flex; width: 16px; height: 16px; border-radius: 50%; align-items: center; justify-content: center; flex: none; }
-.lk-bul::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: .55; }
-.lk-bul.folded { background: color-mix(in srgb, currentColor 11%, transparent); }
+/* lk-bul, Logseq's own bullet, by Logseq's numbers and colours (2.0.2, measured 7 November 2026; the owner: "create in library a
+   logseq bullet that can be used elsewhere"): a .4em dot (6.4 px) at .8 in Logseq's bullet grey, in a 16 px round place; the
+   place washed with Logseq's ring while what is under it is folded (.folded). One that opens something (.opens: a press opens
+   the node, as a press on Logseq's bullet opens the block) shows the ring and a dot a fifth larger under the pointer. Logseq's
+   own variables first, so a theme that recolours its bullets recolours these; a mix of the text colour where they are missing. */
+.lk-bul { display: inline-flex; width: 16px; height: 16px; min-width: 16px; border-radius: 50%; align-items: center; justify-content: center; flex: none; transition: background-color .15s; }
+.lk-bul::before { content: ""; width: 6.4px; height: 6.4px; border-radius: 50%; opacity: .8; transition: transform .2s; background: var(--lx-gray-08, var(--ls-block-bullet-color, var(--rx-gray-08, color-mix(in srgb, var(--lk-text, currentColor) 28%, transparent)))); }
+.lk-bul.folded, .lk-bul.opens:hover { background: var(--lx-gray-04-alpha, var(--ls-block-bullet-border-color, var(--rx-gray-04-alpha, color-mix(in srgb, currentColor 7%, transparent)))); }
+.lk-bul.opens { cursor: pointer; }
+.lk-bul.opens:hover::before { transform: scale(1.2); }
 /* lk-field, drawn: the letters on a hairline, firmer while the field has the keyboard, the placeholder faint; the browser's box,
    outline and shadow taken away. On the input itself, or on a span that holds the input beside an icon or a count. */
 .lk-field:not(input, textarea) { display: flex; align-items: center; gap: 6px; }

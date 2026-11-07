@@ -63,7 +63,7 @@ const take = (core, names) => shared.take(core, names, warnOnce);
 // indexed (0.4.182): every page's rows were read in one look-up, so a page not in byPage has none, and a page
 // opened for the first time gets its rows in the same frame as its title instead of half a second later.
 // open, all and only (0.4.184): per row, whether its list is open, shows every record, or only one kind ("Infusion").
-const state = { kindsAll: new Set(), listed: [], findDug: new Map(), findAsked: new Set(), version: 0, pageUuid: '', groups: [], byPage: new Map(), indexed: false, open: new Map(), all: new Set(), only: new Map(), box: null, html: '', picked: new Set(), lastPick: '', group: new Map(), values: new Map(), nodeDraft: null, mentionsOf: new Map(), raise: new Map(), dig: new Map(), focus: '', fresh: '', node: new Map(), nall: new Set(), ball: new Set(), steps: [], pageTitle: '', kept: new Map(), find: '', drawingTop: false, pagesRead: null };
+const state = { kindsAll: new Set(), listed: [], findDug: new Map(), findAsked: new Set(), version: 0, pageUuid: '', groups: [], byPage: new Map(), indexed: false, open: new Map(), all: new Set(), only: new Map(), box: null, html: '', picked: new Set(), lastPick: '', group: new Map(), values: new Map(), nodeDraft: null, mentionsOf: new Map(), raise: new Map(), kids: new Set(), selecting: new Set(), dig: new Map(), focus: '', fresh: '', node: new Map(), nall: new Set(), ball: new Set(), steps: [], pageTitle: '', kept: new Map(), find: '', drawingTop: false, pagesRead: null };
 // Where the pieces join the part's load and start (7 November 2026): loadHooks(page, groups) may give the groups back changed, settledHooks() run once the page's state stands, starters() when the part starts.
 const loadHooks = [], settledHooks = [], starters = [];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -144,6 +144,8 @@ async function load() {
         }
         for (const hook of loadHooks) groups = (await hook(page, groups).catch(error => { warnOnce('a piece could not read for this page', error); return null; })) || groups;
         await twoWay.readValues(twoWay.groupedUuids(groups)).catch(error => warnOnce('could not read the values the rows are grouped by', error));
+        // Which nodes have bullets under them, read before the rows are drawn, so no ring comes or goes after.
+        await readKids(groups.flatMap(g => [...g.items, ...(g.since || [])].map(item => item.uuid)));
       }
     }
   } catch (error) { warnOnce('could not find the fields that point at this page', error); }
@@ -163,6 +165,15 @@ async function load() {
   const shown = shownPage(host());
   if (shown && shown !== pageUuid && state.retried !== shown) { state.retried = shown; later(0); }
 }
+// Which of these nodes have a bullet under them (model.withKids), kept for every draw: only those get the folded ring.
+async function readKids(uuids) {
+  const ask = uuids.filter(u => UUID.test(String(u)));
+  if (!ask.length || !model.withKids) return;
+  const held = await model.withKids(ask).catch(error => { warnOnce('could not read which nodes hold bullets', error); return null; });
+  if (!held) return;
+  for (const u of ask) { if (held.has(String(u).toLowerCase())) state.kids.add(String(u).toLowerCase()); else state.kids.delete(String(u).toLowerCase()); }
+}
+const hasKids = uuid => state.kids.has(String(uuid).toLowerCase());
 const shownPage = doc => {
   const shown = doc ? [...doc.querySelectorAll('#main-content-container :is(.ls-page-title, .page-title) .ls-block[blockid]')].map(el => el.getAttribute('blockid')) : [];
   return shown.length === 1 ? shown[0] : '';
@@ -319,8 +330,11 @@ function shortName(title) {
    the line to type the new node in. Since 0.4.297 a short row's nodes span the row so their tags line up, so the + sits
    just after the last node's date (or name). The library's lk-plus. */
 const addLink = group => group.ident && state.draft?.field !== group.name ? `<button type="button" class="lk-plus lk-i-plus th-tw-add" aria-label="Add" data-field="${esc(group.name)}" title="Add a${/^[aeiou]/i.test(twoWay.kindsOf(group)[0] || '') ? 'n' : ''} ${esc(twoWay.kindsOf(group)[0] || 'node')} with “${esc(group.name)}” set to this page"></button>` : '';
-// The kit's tick box, in the margin left of the record (0.4.228; the kit's since 0.4.318).
-const pickBox = (group, item) => state.drawingTop ? '' : pickOn(group, item);
+// The kit's tick box, in the margin left of the record (0.4.228; the kit's since 0.4.318), drawn only on a list where picking was
+// turned on from its View menu (the owner, 7 November 2026: "the select boxes now should only be shown when activated by a menu
+// combined with the other ones"). Picking ends with the picks: Escape, the bar's box, or an action done.
+const pickBox = (group, item) => state.drawingTop || !state.selecting.has(group.name) ? '' : pickOn(group, item);
+const stopPicking = () => { state.picked.clear(); state.selecting.clear(); };
 const pickOn = (group, item) => { const key = `${item.uuid}|${group.name}`, on = state.picked.has(key); state.listed.push(key); return `<input type="checkbox" class="lk-tick th-tw-pick" data-pick="${esc(key)}"${on ? ' checked' : ''} aria-label="Pick" title="Pick (Shift-click: every one from the last picked)">`; };
 // A record's tag at the right opens the tag's page, Shift-click in the sidebar (0.4.297, the owner: "should be able to
 // click on tag in two-way area on right side"); a tag reads as a class, mono with no # (the kit's tag, 0.4.318).
@@ -333,6 +347,12 @@ const tagLink = item => item.tag && item.tag !== 'note' ? `<a class="th-tag lk-t
 const O = shared.outline;
 // On a journal day, a node of that day shows no day: the page's title says it (0.4.462).
 const dayCell = item => item.day && item.day !== state.pageDay ? dayText(item.day) : '';
+/* A list with a day on any of its nodes gives every line the day's column, right of the dot, so the words of each line
+   start at one place; a list with none has no column and its words follow the dot (the owner, 7 November 2026). A day of
+   another year widens the column for the whole list. */
+const daysOf = group => [...group.items, ...(group.since || [])].map(item => twoWay.dayOf(group, item)).filter(Boolean);
+const isDated = group => daysOf(group).length > 0;
+const datedAttrs = group => { const days = daysOf(group); return !days.length ? '' : days.some(d => d.includes(',')) ? ' data-dated="" style="--th-ol-day: 90px"' : ' data-dated=""'; };
 /* The day a node's line shows, by its place (the row's or the node's key), so what it opens leaves out a Date saying it
    again (0.4.462, the owner's pick 3 of the two-way fixes: "each line drops what its heading already says"). */
 const lineDay = new Map();
@@ -351,12 +371,12 @@ function rowHtml(group, top = null) {
   const base = top ? top.key : `r:${group.name}`;
   // Each row's list is a list of its own for the tick boxes (Look's lk-list): the pointer on it raises its boxes and no
   // other's; while anything is ticked every list shows its boxes, as before.
-  const listCls = `th-tw-value th-ol lk-list`, picking = state.picked.size && !state.drawingTop ? ' data-picking=""' : '';
+  const listCls = `th-tw-value th-ol lk-list`, picking = state.selecting.has(group.name) && !state.drawingTop ? ' data-picking=""' : '';
   // A row of one is the node itself, in place (its name, then its tag), not a header (1.0.2, the owner: "it is fine
   // that not everyone looked the same, especially since it is header v node"); every list of two or more has the one header.
   if (group.items.length === 1 && !(group.found && group.total > 1)) {
     const lines = group.items.map(item => itemHtml(group, item, base, addLink(group))).join('');
-    return `<div class="th-tw-row" data-field="${esc(group.name)}">${name}<div class="${listCls}"${picking}>${lines}${twoWay.addLineHtml(group)}</div></div>`;
+    return `<div class="th-tw-row" data-field="${esc(group.name)}">${name}<div class="${listCls}"${picking}${datedAttrs(group)}>${lines}${twoWay.addLineHtml(group)}</div></div>`;
   }
   // While finding, a list opens in full only once something of it is left out (the reviewer: one letter made the list
   // longer, 323 → 535 px, a folded list unfolding though nothing was filtered).
@@ -409,13 +429,13 @@ function rowHtml(group, top = null) {
     const today = todayNumber();
     // The nodes after the day, faint under a line that says so; "show all" is the list's.
     const later = only ? (group.since || []).filter(item => item.tag === only) : group.since || [];
-    if (later.length) since = `<div class="th-tw-since"><div class="th-tw-earlier lk-note">since</div>${(all ? later : later.slice(0, LISTED)).map(item => itemHtml(group, item, base, '', bare, tell)).join('')}${later.length > LISTED && !all && items.length <= LISTED ? O.more({ text: 'show all', attrs: { class: null, 'data-more': key }, under: 'name' }) : ''}</div>`;
+    if (later.length) since = `<div class="th-tw-since"><div class="th-tw-earlier lk-note">since</div>${(all ? later : later.slice(0, LISTED)).map(item => itemHtml(group, item, base, '', bare, tell)).join('')}${later.length > LISTED && !all && items.length <= LISTED ? O.more({ text: 'show all', attrs: { class: null, 'data-more': key }, under: isDated(group) ? 'dotday' : 'dot' }) : ''}</div>`;
     // Grouped (0.4.369): the nodes in groups by a tag, a month or a property's value, each group folding.
     const grouping = twoWay.groupingOf(group, items);
     if (grouping) list = grouping.parts.map(part => twoWay.groupHtml(group, part, grouping.by)).join('');
     else {
       list = shown.map((item, i) => (i > 0 && item.day && item.day < today && shown[i - 1].day >= today ? '<div class="th-tw-earlier lk-note">earlier</div>' : '') + itemHtml(group, item, base, '', bare, tell)).join('')
-        + (items.length > LISTED ? O.more({ text: all ? 'show fewer' : 'show all', attrs: { class: null, 'data-more': key }, under: 'name' }) : '');
+        + (items.length > LISTED ? O.more({ text: all ? 'show fewer' : 'show all', attrs: { class: null, 'data-more': key }, under: isDated(group) ? 'dotday' : 'dot' }) : '');
     }
   }
   const fold = O.chev({ open, label: group.label, attrs: { 'data-fold': key } });
@@ -423,7 +443,7 @@ function rowHtml(group, top = null) {
   // its children"): its chevron starts where the days do, its words right after; the nodes, their days too, one step in.
   const headLine = O.line({ day: null, chev: fold, body: `${head}${addLink(group)}${twoWay.groupBtn(group)}`, cls: 'th-tw-head' });
   const listHtml = open ? O.kids({ html: list + since, cls: 'th-ol-bare th-tw-list', fresh: state.fresh === key }) : '';
-  return `<div class="th-tw-row" data-field="${esc(group.name)}"${open ? ' data-open=""' : ''}>${name}<div class="${listCls}"${picking}>${headLine}${listHtml}${twoWay.addLineHtml(group)}</div></div>`;
+  return `<div class="th-tw-row" data-field="${esc(group.name)}"${open ? ' data-open=""' : ''}>${name}<div class="${listCls}"${picking}${datedAttrs(group)}>${headLine}${listHtml}${twoWay.addLineHtml(group)}</div></div>`;
 }
 // One node of a row: its line, where it sits (a mention's page and bullets), what it could be, and what it holds when open.
 // bare: the heading above names the one tag, so the lines leave it out (0.4.404; 0.4.462 for a list of one kind); tell:
@@ -439,7 +459,7 @@ function itemHtml(group, item, base, end = '', bare = false, tell = '') {
   lineDay.set(key, dayCell(item));
   // Opened, the node's properties show the telling value: the line lets go of it.
   const body = `${nameHtml(shown, open && state.findDug.get(key) !== true, bare)}${couldBeHtml(item)}${tell && !open ? twoWay.tellHtml(item, tell) : ''}${end}`;
-  const line = O.line({ tick: pickBox(group, item), day: dayCell(item), chev: twoWay.digChev(key, item.uuid, 0, shortName(item.title), open), body, cls: 'th-tw-line', attrs: { 'data-uuid': item.uuid } });
+  const line = O.line({ tick: pickBox(group, item), dot: { uuid: item.uuid, closed: !open && hasKids(item.uuid), title: shortName(item.title) }, day: twoWay.dayOf(group, item) || (isDated(group) ? '' : null), chev: twoWay.digChev(key, item.uuid, 0, shortName(item.title), open), body, cls: 'th-tw-line', attrs: { 'data-uuid': item.uuid } });
   const under = `${crumbHtml(item)}${twoWay.raiseHtml(group, item)}`;
   return open ? O.unit({ html: line + under + twoWay.digKids(key, item.uuid, 'in'), focus: state.focus === key, attrs: { 'data-key': key } }) : line + under;
 }
@@ -573,7 +593,7 @@ function onRoute() {
   if (state.box) state.box.style.minHeight = '';
   keepOpen();
   state.find = ''; state.findRead = ''; state.findShown = false;
-  twoWay.hidePeek(); twoWay.closeAdd(); state.draft = null; state.kindsAll.clear(); state.picked.clear(); state.lastPick = ''; state.dig.clear(); state.focus = ''; state.steps = []; state.openFor = ''; state.nodeDraft = null;
+  twoWay.hidePeek(); twoWay.closeAdd(); state.draft = null; state.kindsAll.clear(); stopPicking(); state.lastPick = ''; state.dig.clear(); state.focus = ''; state.steps = []; state.openFor = ''; state.nodeDraft = null;
   // The page being left, which may still be on screen for a moment and must not take the new page's place.
   // Only a page still on screen is being left: the same page opened again after it went is a new visit, held as one.
   settle.leaving = shownPage(host());
@@ -653,12 +673,10 @@ function draw(doc) {
     if (typingNode) twoWay.focusNodeField(typingNode);
   }
   twoWay.highlightFind(box);
-  twoWay.placeDays(box);
   twoWay.steadyWidth(box.ownerDocument, true);
   // The room held grows with the tallest the section has been while finding, so a page scrolled down to read the found
   // nodes keeps its place when the next letter makes them fewer (the reviewer: 214 px).
   if (state.find.trim() && state.findHold) state.findHold = Math.max(state.findHold, box.getBoundingClientRect().height);
-  box.toggleAttribute('data-picking', state.picked.size > 0);
   twoWay.placeBar(box);
   box.toggleAttribute('data-th-replaces', rows && !!state.replaces);
   // The section stands for the page, stepped into a node or not (0.4.442): Logseq's lists it repeats stay hidden.
@@ -781,7 +799,7 @@ function onRename(event) {
   event.preventDefault(); event.stopPropagation(); twoWay.hidePeek(); twoWay.closeAdd();
   // As wide as its longest words (the review, 31 October: a set width cut the widest action short).
   twoWay.adding.pop = shared.popup({ at: nameEl.querySelector('.th-tw-field') || nameEl, head: group.label, onClose: () => { twoWay.adding.pop = null; }, items: [
-    ...(group.items.length > INLINE ? [{ icon: 'order', label: 'Group by…', run: () => { twoWay.groupMenu(group, nameEl.querySelector('.th-tw-field') || nameEl).catch(error => warnOnce('could not open the group menu', error)); } }] : []),
+    ...(!state.drawingTop ? [{ icon: 'order', label: 'View…', run: () => { twoWay.groupMenu(group, nameEl.querySelector('.th-tw-field') || nameEl).catch(error => warnOnce('could not open the group menu', error)); } }] : []),
     { sep: true },
     isMentions(group)
       ? { icon: 'remove', label: 'Hide mentions on this page', run: () => { hideMentionsHere().catch(error => warnOnce('could not hide the mentions row', error)); } }
@@ -871,7 +889,7 @@ function start() {
   onUnload(() => host().removeEventListener('mousedown', away, true));
   const escape = event => {
     if (event.key !== 'Escape' || event.target.closest?.('input, textarea, [contenteditable="true"]')) return;
-    if (state.picked.size) { state.picked.clear(); draw(host()); }
+    if (state.picked.size || state.selecting.size) { stopPicking(); draw(host()); }
     // The focus closes and hands the grey to its parent (0.4.442).
     else if (state.focus && state.dig.has(state.focus) && state.focus !== twoWay.topStep()?.key) { event.preventDefault(); const key = state.focus; shared.outline.close(state.box?.querySelector(`.th-ol-kids[data-key="${CSS.escape(key)}"]`), () => twoWay.closeDig(key)); }
     // Nothing open under the top: one step back along the trail (0.4.463: Esc does one thing at a time).
@@ -892,5 +910,5 @@ function start() {
 }
 ((window.Threads ||= {}).parts ||= []).push({ name: 'two-way', says: 'the rows on a page', schema: settingsSchema, start, stop: runUnloadTasks, inner: twoWay });
 // What the pieces reach of the part, and of the core once it starts (useCore).
-Object.assign(twoWay, { INLINE, LISTED, UUID, dayCell, loadHooks, settledHooks, starters, summary, plural, tagWord, dayText, draw, groupsFor, inBox, isMentions, itemHtml, later, lineDay, model, nameHtml, offerMade, offerUndo, onUnload, provided, rowHtml, setting, shortName, state, tagLink, todayNumber, uuidsIn, valueBox, warnOnce, useCore });
+Object.assign(twoWay, { INLINE, LISTED, UUID, stopPicking, dayCell, isDated, readKids, hasKids, loadHooks, settledHooks, starters, summary, plural, tagWord, dayText, draw, groupsFor, inBox, isMentions, itemHtml, later, lineDay, model, nameHtml, offerMade, offerUndo, onUnload, provided, rowHtml, setting, shortName, state, tagLink, todayNumber, uuidsIn, valueBox, warnOnce, useCore });
 })();

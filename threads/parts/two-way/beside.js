@@ -76,8 +76,8 @@ function sideList(group, key) {
   const all = state.all.has(key), shown = all ? group.items : group.items.slice(0, SHOWN);
   // The head names the one kind: the lines leave the tag out, as the rows do.
   const bare = new Set(group.items.map(item => item.tag)).size === 1;
-  const lines = shown.map(item => O.line({ day: twoWay.dayCell(item), body: twoWay.nameHtml(bare ? { ...item, tag: '' } : item, false, bare), cls: 'th-tw-line th-tw-bline', attrs: { 'data-uuid': item.uuid } })).join('');
-  const more = group.items.length > SHOWN ? O.more({ text: all ? 'show fewer' : `show all ${group.items.length}`, attrs: { class: null, 'data-more': key }, under: 'bare' }) : '';
+  const lines = shown.map(item => O.line({ dot: { uuid: item.uuid, title: twoWay.shortName(item.title) }, day: twoWay.dayCell(item) || (group.items.some(twoWay.dayCell) ? '' : null), body: twoWay.nameHtml(bare ? { ...item, tag: '' } : item, false, bare), cls: 'th-tw-line th-tw-bline', attrs: { 'data-uuid': item.uuid } })).join('');
+  const more = group.items.length > SHOWN ? O.more({ text: all ? 'show fewer' : `show all ${group.items.length}`, attrs: { class: null, 'data-more': key }, under: group.items.some(twoWay.dayCell) ? 'dotday' : 'dot' }) : '';
   return `<div class="th-ol th-tw-bside">${lines}${more}</div>`;
 }
 function besideHtml(b) {

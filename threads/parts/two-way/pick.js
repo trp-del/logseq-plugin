@@ -176,7 +176,7 @@ async function writeAll(text, steps) {
   for (const step of steps) {
     try { const undo = await step(); if (undo) undos.push(undo); } catch (error) { failed++; warnOnce('a picked node could not be changed', error); }
   }
-  state.picked.clear(); twoWay.later(300); twoWay.draw(host());
+  twoWay.stopPicking(); twoWay.later(300); twoWay.draw(host());
   if (failed) notify(`${failed} of the picked nodes could not be changed`, 'warning');
   if (undos.length) twoWay.offerUndo(text, async () => {
     let missed = 0;
@@ -211,7 +211,7 @@ async function act(what, at = null) {
   // followed by a menu shown over the page).
   if (at?.closest?.('.th-tw-bar')) { const r = at.getBoundingClientRect(); at = { left: r.left, top: r.top, right: r.right, bottom: r.bottom }; }
   const chosen = picks(), nodes = nodesPicked();
-  if (what === 'clear') { state.picked.clear(); return twoWay.draw(host()); }
+  if (what === 'clear') { twoWay.stopPicking(); return twoWay.draw(host()); }
   if (what === 'all') { for (const key of state.listed) state.picked.add(key); readTitle().catch(() => {}); return twoWay.draw(host()); }
   if (!chosen.length) return;
   // The two words with a menu (0.4.327): the menu opens under the word, and what is picked from it acts as its own word did.
@@ -241,13 +241,13 @@ async function act(what, at = null) {
     shared.popup({ at, width: 'max-content', items });
     return;
   }
-  if (what === 'sidebar') { for (const uuid of nodes) openEntity(uuid, true); state.picked.clear(); return twoWay.draw(host()); }
+  if (what === 'sidebar') { for (const uuid of nodes) openEntity(uuid, true); twoWay.stopPicking(); return twoWay.draw(host()); }
   try {
     if (what === 'copy') {
       const lines = await Promise.all(nodes.map(async uuid => { const page = await twoWay.model.getPage(uuid).catch(() => null); return page?.name ? `[[${page.title || page.originalName || page.name}]]` : `((${uuid}))`; }));
       await host().defaultView.navigator.clipboard.writeText(lines.join('\n'));
       notify(`Copied ${counted(nodes.length)}`);
-      state.picked.clear(); return twoWay.draw(host());
+      twoWay.stopPicking(); return twoWay.draw(host());
     }
     const schema = await twoWay.provided.propSchema();
     const here = await twoWay.provided.idByUuid(state.pageUuid);

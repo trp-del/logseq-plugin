@@ -19,7 +19,36 @@ const GROUP_KEY = 'refinementTwoWayGroup', GROUP_LISTED = 12;
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const groupOf = group => state.group.get(group.name) || '';
 const groupName = by => by === 'tag' ? 'tag' : by === 'month' ? 'month' : by.slice(2);
-function readGroup() { try { state.group = new Map(Object.entries(JSON.parse(host().defaultView.localStorage.getItem(GROUP_KEY) || '{}'))); } catch { state.group = new Map(); } }
+function readGroup() {
+  try { state.group = new Map(Object.entries(JSON.parse(host().defaultView.localStorage.getItem(GROUP_KEY) || '{}'))); } catch { state.group = new Map(); }
+  try { state.dayBy = new Map(Object.entries(JSON.parse(host().defaultView.localStorage.getItem(DAY_KEY) || '{}'))); } catch { state.dayBy = new Map(); }
+}
+/* Which day a section's lines show, by section (the owner, 7 November 2026: "add ability to show or hide date column per
+   section and which date as well"): '' the node's Date, else the day it is written on (as always); 'none' no day, so the
+   column goes and the words follow the dot; 'p:Name' that date property of the node. Kept per property, as Group is. */
+const DAY_KEY = 'refinementTwoWayDay';
+const dayChoice = group => state.drawingTop ? '' : state.dayBy?.get(group.name) || '';
+function setDayChoice(field, by) {
+  if (!state.dayBy) state.dayBy = new Map();
+  if (by) state.dayBy.set(field, by); else state.dayBy.delete(field);
+  try { host().defaultView.localStorage.setItem(DAY_KEY, JSON.stringify(Object.fromEntries(state.dayBy))); } catch { /* kept for this session */ }
+}
+// The earliest day a node holds in a date property, by the property's name; 0 when it holds none (or it is not read yet).
+const heldDay = (uuid, name) => Math.min(...(state.values.get(uuid)?.get(name)?.values || []).map(v => Number(v.day) || Infinity), Infinity);
+// The day a line shows in its section: the choice above, then left out on that day's own page as always.
+function dayOf(group, item) {
+  const by = dayChoice(group);
+  if (by === 'none') return '';
+  if (!by.startsWith('p:')) return twoWay.dayCell(item);
+  const day = heldDay(item.uuid, by.slice(2));
+  return Number.isFinite(day) && day !== state.pageDay ? twoWay.dayText(day) : '';
+}
+// The date properties these nodes hold, by name, with how many hold each.
+function datePropsOf(items) {
+  const held = new Map();
+  for (const item of items) for (const [name, entry] of state.values.get(item.uuid) || []) if (entry.values.some(v => v.day)) held.set(name, (held.get(name) || 0) + 1);
+  return held;
+}
 function setGroup(field, by) {
   if (by) state.group.set(field, by); else state.group.delete(field);
   try { host().defaultView.localStorage.setItem(GROUP_KEY, JSON.stringify(Object.fromEntries(state.group))); } catch { /* kept for this session */ }
@@ -65,13 +94,22 @@ function groupHtml(group, part, by) {
   // The group's heading names the tag, or the list's does when it holds one kind (0.4.462).
   const bare = (by === 'tag' && !part.none) || new Set(group.items.map(item => item.tag)).size === 1;
   const tell = bare ? tellingProp(group, part.items, by.startsWith('p:') ? by.slice(2) : '') : '';
-  const more = open && part.items.length > GROUP_LISTED ? shared.outline.more({ text: all ? 'show fewer' : 'show all', attrs: { 'data-more': gkey }, under: 'name' }) : '';
+  const more = open && part.items.length > GROUP_LISTED ? shared.outline.more({ text: all ? 'show fewer' : 'show all', attrs: { 'data-more': gkey }, under: twoWay.isDated(group) ? 'dotday' : 'dot' }) : '';
   // The arrow folds; the words do not. A tag is a tag: it opens its page.
   const label = by === 'tag' && !part.none ? `<a class="th-tag lk-tag th-tw-tag th-tw-gname" data-tag-page="${esc(part.label)}" href="#">${esc(part.label)}</a>` : `<span class="th-tw-gname">${esc(part.label)}</span>`;
   return `<div class="th-tw-group"${open ? ' data-open=""' : ''}><div class="th-tw-ghead${plus ? ' lk-reveals' : ''}">${shared.outline.chev({ open, label: part.label, attrs: { 'data-gkey': gkey } })}<span class="th-tw-gwords">${label}<span class="lk-note th-tw-gn lk-count">${part.items.length}</span></span>${plus}</div>${open && adding ? twoWay.draftLineHtml(group, state.draft) : ''}${open ? `<div class="th-tw-gitems">${shown.map(item => twoWay.itemHtml(group, item, `r:${group.name}`, '', bare, tell)).join('')}${more}</div>` : more}</div>`;
 }
 // A few nodes have nothing to group: Group shows above INLINE nodes, as the right-click's Group by… (1.0.2).
-const groupBtn = group => { if (state.drawingTop || group.items.length <= twoWay.INLINE) return ''; const by = groupOf(group); return `<button type="button" class="lk-btn lk-low th-tw-groupby"${by ? ' data-on=""' : ''} data-field="${esc(group.name)}" title="Group the list by a tag, a month or a property">${by ? `By ${esc(groupName(by))}` : 'Group'}${iconHtml('chevron-down')}</button>`; };
+/* One menu on a list's heading for how the list is shown (the owner, 7 November 2026: "the grouping and date and other things
+   should be under one menu item"): what it is grouped by, which date its lines show, and picking its nodes. Its word says what is in force, or
+   "View" when nothing is; offered where the list has something to choose. */
+const viewHas = group => !state.drawingTop && group.items.length > 1;   // picking is offered on every list of two or more
+const groupBtn = group => {
+  if (!viewHas(group)) return '';
+  const by = groupOf(group), day = dayChoice(group);
+  const said = [by ? `By ${groupName(by)}` : '', day === 'none' ? 'No date' : day ? day.slice(2) : '', state.selecting.has(group.name) ? 'Picking' : ''].filter(Boolean).join(' · ');
+  return `<button type="button" class="lk-btn lk-low th-tw-groupby"${said ? ' data-on=""' : ''} data-field="${esc(group.name)}" title="Group the list, and choose the date its lines show">${esc(said || 'View')}${iconHtml('chevron-down')}</button>`;
+};
 // The values of these nodes, read through the model (400 at a time) into the cache the groups are made from.
 async function readValues(uuids) {
   // The kinds of the properties, for the one telling a list's nodes apart (tellingProp).
@@ -84,7 +122,7 @@ async function readValues(uuids) {
 }
 // Read ahead for every list (not the mentions): grouped by a property, or of one kind (by itself, or one tag's word
 // picked), its lines say the property telling its nodes apart (0.4.462).
-const groupedUuids = groups => groups.filter(g => g.items.length > twoWay.INLINE && !twoWay.isMentions(g)).flatMap(g => g.items.map(item => item.uuid));
+const groupedUuids = groups => groups.filter(g => (g.items.length > twoWay.INLINE && !twoWay.isMentions(g)) || dayChoice(g).startsWith('p:')).flatMap(g => g.items.map(item => item.uuid));
 /* The property that tells a list's nodes apart, said where the tag was once the heading names the tag (0.4.462, the
    owner's pick 3 of the two-way fixes; Severity under "13 Symptom Logs"): of the properties the nodes hold, not the one
    linking here, a number, a choice or a few words, never a node (its name is mostly in the node's own words already,
@@ -113,29 +151,45 @@ const tellHtml = (item, name) => {
   if (!text || String(item.title || '').toLowerCase().includes(text.toLowerCase())) return '';
   return `<span class="th-tw-tell">${esc(name)} ${esc(text)}</span>`;
 };
-// What a row can be grouped by, as the kit's menu: nothing, the tag, the month, then each property its nodes hold.
+// The list's one menu: what it is grouped by (nothing, the tag, the month, then each property its nodes hold), then which date its
+// lines show (the node's Date else the day written, a date property of theirs, or none, which takes the column away).
 async function groupMenu(group, anchor) {
   twoWay.closeAdd(); twoWay.hidePeek();
   await readValues(group.items.map(item => item.uuid)).catch(error => warnOnce('could not read the values to group by', error));
-  const by = groupOf(group), held = new Map();
-  for (const item of group.items) for (const [name, entry] of state.values.get(item.uuid) || []) {
-    if (name === group.name) continue;
-    if (!held.has(name)) held.set(name, { nodes: 0, values: new Set() });
-    const h = held.get(name); h.nodes++;
-    for (const v of entry.values) h.values.add(v.day ? `d${v.day}` : v.text);
+  const items = [];
+  if (group.items.length > twoWay.INLINE) {
+    const by = groupOf(group), held = new Map();
+    for (const item of group.items) for (const [name, entry] of state.values.get(item.uuid) || []) {
+      if (name === group.name) continue;
+      if (!held.has(name)) held.set(name, { nodes: 0, values: new Set() });
+      const h = held.get(name); h.nodes++;
+      for (const v of entry.values) h.values.add(v.day ? `d${v.day}` : v.text);
+    }
+    const choose = to => { setGroup(group.name, to); if (state.draft?.gkey) { state.draft = null; twoWay.closeAdd(); } state.html = null; twoWay.draw(host()); };
+    items.push({ group: 'Group by' }, { label: 'Nothing', chosen: !by, run: () => choose('') });
+    if (new Set(group.items.map(item => item.tag)).size > 1) items.push({ icon: 'tag', label: 'Tag', chosen: by === 'tag', run: () => choose('tag') });
+    if (group.items.some(item => item.day)) items.push({ icon: 'date', label: 'Month', chosen: by === 'month', run: () => choose('month') });
+    /* A property whose values are nearly all different groups nothing (7 November 2026, the owner: "Good" to leaving out
+       Fatigue's "Date, 44 values" for 49 logs; Month already groups by time): offered only while its groups would hold two
+       nodes each on the whole. The one the list is grouped by stays, so it can be seen and let go. */
+    const groups = (name, h) => by === `p:${name}` || h.values.size * 2 <= h.nodes;
+    const props = [...held].filter(([name, h]) => (h.values.size > 1 || h.nodes < group.items.length) && groups(name, h)).sort((a, b) => b[1].nodes - a[1].nodes || a[0].localeCompare(b[0]));
+    items.push(...props.map(([name, h]) => ({ icon: 'property', label: name, right: `${h.values.size} ${h.values.size === 1 ? 'value' : 'values'}`, chosen: by === `p:${name}`, run: () => choose(`p:${name}`) })));
   }
-  const choose = to => { setGroup(group.name, to); if (state.draft?.gkey) { state.draft = null; twoWay.closeAdd(); } state.html = null; twoWay.draw(host()); };
-  const items = [{ label: 'Nothing', chosen: !by, run: () => choose('') }];
-  if (new Set(group.items.map(item => item.tag)).size > 1) items.push({ icon: 'tag', label: 'Tag', chosen: by === 'tag', run: () => choose('tag') });
-  if (group.items.some(item => item.day)) items.push({ icon: 'date', label: 'Month', chosen: by === 'month', run: () => choose('month') });
-  /* A property whose values are nearly all different groups nothing (7 November 2026, the owner: "Good" to leaving out
-     Fatigue's "Date, 44 values" for 49 logs; Month already groups by time): offered only while its groups would hold two
-     nodes each on the whole. The one the list is grouped by stays, so it can be seen and let go. */
-  const groups = (name, h) => by === `p:${name}` || h.values.size * 2 <= h.nodes;
-  const props = [...held].filter(([name, h]) => (h.values.size > 1 || h.nodes < group.items.length) && groups(name, h)).sort((a, b) => b[1].nodes - a[1].nodes || a[0].localeCompare(b[0]));
-  if (props.length) items.push({ sep: true }, ...props.map(([name, h]) => ({ icon: 'property', label: name, right: `${h.values.size} ${h.values.size === 1 ? 'value' : 'values'}`, chosen: by === `p:${name}`, run: () => choose(`p:${name}`) })));
-  else items.push({ note: held.size ? 'Their properties differ on nearly every node, so none groups them' : 'These nodes hold no property to group by' });
-  twoWay.adding.pop = shared.popup({ at: anchor, head: `Group “${group.label}” by`, width: 250, items, onClose: () => { twoWay.adding.pop = null; } });
+  const dates = [...datePropsOf(group.items)].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  if (dayChoice(group) || group.items.some(twoWay.dayCell) || dates.length) {
+    const day = dayChoice(group);
+    const pick = to => { setDayChoice(group.name, to); state.html = null; twoWay.draw(host()); };
+    if (items.length) items.push({ sep: true });
+    items.push({ group: 'Date' }, { label: 'Date, else the day written', chosen: !day, run: () => pick('') },
+      ...dates.map(([name, n]) => ({ icon: 'date', label: name, right: `${n} of ${group.items.length}`, chosen: day === `p:${name}`, run: () => pick(`p:${name}`) })),
+      { label: 'No date', chosen: day === 'none', run: () => pick('none') });
+  }
+  // Picking: the tick boxes on this list's lines, until the picks end (twoWay.stopPicking).
+  const picking = state.selecting.has(group.name);
+  if (items.length) items.push({ sep: true });
+  items.push({ group: 'Pick' }, { icon: 'picked', label: 'Pick nodes', chosen: picking, run: () => { if (picking) { state.selecting.delete(group.name); for (const key of [...state.picked]) if (key.endsWith('|' + group.name)) state.picked.delete(key); } else state.selecting.add(group.name); state.html = null; twoWay.draw(host()); } });
+  twoWay.adding.pop = shared.popup({ at: anchor, width: 260, items, onClose: () => { twoWay.adding.pop = null; } });
 }
 // The + in a group: the line to type in opens under the group's name, with what the group has in common set when it is made.
 function startGroupDraft(group, gkey) {
@@ -173,5 +227,5 @@ function setOpen(key, open) {
   try { host().defaultView.localStorage.setItem(OPEN_KEY, JSON.stringify(Object.fromEntries(state.open))); } catch { /* kept for this session */ }
 }
 
-Object.assign(twoWay, { forgetOrder, groupBtn, groupHtml, groupMenu, groupName, groupOf, groupedUuids, groupingOf, isOpen, readGroup, readOpen, readValues, setGroupValue, setOpen, startGroupDraft, tellHtml, tellingProp });
+Object.assign(twoWay, { dayChoice, dayOf, forgetOrder, groupBtn, groupHtml, groupMenu, groupName, groupOf, groupedUuids, groupingOf, isOpen, readGroup, readOpen, readValues, setGroupValue, setOpen, startGroupDraft, tellHtml, tellingProp });
 })();
