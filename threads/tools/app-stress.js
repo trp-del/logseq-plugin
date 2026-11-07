@@ -16,11 +16,10 @@
             plugin off (a dropped or doubled key); a proposal shown and gone more than once between two keys; a long
             frame (over 50 ms) with the plugin's code; the proposals after the fast typing differing from after the
             slow. The scratch bullets are removed and the graph compared with its fingerprint.
-   undo     Turn into links on Location (its three address pages are in Logseq's Recycle from an earlier try): the pages
-            must come back from the Recycle and be used, never linked while still in it; Undo; again; Undo. Proposals
-            accepted with Enter in six bullets on each of five journal days, each undone through its faded arrow, newest
-            first: the bullet's properties as before. Ten nodes added through a two-way row's +, each undone. Everything
-            the test made is removed (pages it made, for good, from the Recycle too) and the graph compared.
+   undo     Proposals accepted with Enter in six bullets on each of five journal days, each undone at once through its faded
+            arrow (the plugin keeps one arrow, the newest change's): the bullet's properties as before. Ten nodes added
+            through a two-way row's +, each undone the same way.
+            Everything the test made is removed (pages it made, for good, from the Recycle too) and the graph compared.
    view     On Dr. Mei Chen, plugin off then on: the theme light/dark ten times, the right sidebar open/shut ten times,
             the window from 900 to 1600 px wide and back in 100 px steps. Fails on: any flash of the plugin's; a jump of
             the plugin's while the theme changes; a horizontal scroll bar; a piece of the plugin's outside the window;
@@ -61,8 +60,7 @@ const rowsNow = page => page.evaluate(() => {
   const title = document.querySelector('#main-content-container .ls-page-title')?.textContent?.trim() || '';
   const shown = boxes.filter(b => !b.hasAttribute('data-th-waiting'));
   return { title, boxes: boxes.length, rows: shown.flatMap(b => [...b.querySelectorAll('.th-tw-row')].map(r => `${r.querySelector('.th-tw-name')?.textContent?.trim()}|${r.querySelectorAll('[data-uuid].th-tw-item, .th-tw-line[data-uuid], .th-tw-toggle').length}`)).join(' ; '),
-    chains: document.querySelectorAll('#main-content-container .th-tag-path').length,
-    doubled: [...document.querySelectorAll('.property-m')].filter(b => b.querySelectorAll(':scope > .th-kind').length > 1).length };
+    doubled: [...document.querySelectorAll('.property-m')].filter(b => b.querySelectorAll(':scope > .lk-kind').length > 1).length };
 });
 const titleKey = text => String(text || '').replace(/\s+/g, ' ').trim().toLowerCase();
 
@@ -95,7 +93,7 @@ async function pagesPart(page, session) {
       if (interval === 1000) { const q = await settled(page, 300, 950); const r = [...ref.values()].find(x => x.name === name); if (r && q > r.settle + 200) slowSettles.push(`${name}: ${q} ms (alone ${r.settle} ms)`); }
       await sleep(interval === 1000 ? 50 : interval);
       const now = await rowsNow(page);
-      if (now.boxes > 1 || now.chains > 1 || now.doubled) { doubled++; if (doubled <= 3) problem(`drawn twice on ${now.title}: ${now.boxes} two-way boxes, ${now.chains} tag chains, ${now.doubled} property buttons with two kind icons`); }
+      if (now.boxes > 1 || now.doubled) { doubled++; if (doubled <= 3) problem(`drawn twice on ${now.title}: ${now.boxes} two-way boxes, ${now.doubled} property buttons with two kind icons`); }
       const r = ref.get(titleKey(now.title));
       if (r && now.rows && now.rows !== r.rows) { stale++; if (stale <= 3) problem(`stale two-way rows on ${now.title} after ${interval} ms: “${now.rows.slice(0, 120)}”, alone “${r.rows.slice(0, 120)}”`); }
       if (visit === 5 || visit === 60) heapAt[visit] = await D.heap(session);
@@ -284,42 +282,7 @@ async function undoPart(page) {
   say('undo depth:');
   const frame = D.plugin(page);
   const forGood = uuids => page.evaluate(async list => { for (const u of list) { try { await window.logseq.api.delete_recycled_page_permanently(u); } catch (error) { /* already gone */ } } }, uuids.filter(Boolean));
-  // 1. Turn into links, twice, each undone.
-  const made = [];
-  for (const round of [1, 2]) {
-    const r = await frame.evaluate(async round => {
-      const TM = window.Threads.shared.feature('tagMap'), m = window.Threads.core.provided, out = { round };
-      const data = await TM.loadTags();
-      const prop = [...(await m.propInfo()).values()].find(p => p.title === 'Location');
-      if (!prop) return { error: 'no property Location' };
-      const tag = prop.givenBy?.find(t => !t.builtIn) || [...data.tags.values()].find(t => (t.propList || []).some(p => p.id === prop.id));
-      const plan = await TM.planLinks(tag, data.propInfo?.get?.(prop.id) || prop, data);
-      out.titles = plan.titles; out.recycled = [...(plan.recycled?.keys() || [])]; out.live = [...plan.pages.keys()];
-      let result;
-      try { result = await TM.runLinks(plan, 'Zz Address kind', 'Zz Location link'); } catch (error) { return { ...out, error: 'runLinks: ' + error.message }; }
-      out.made = [result.done.newProp?.uuid, result.done.madeTag?.uuid, ...result.done.made];
-      // Whatever the checks find, or if one throws, the change is undone before anything else.
-      try {
-        out.linkedInRecycle = [];
-        for (const title of plan.titles) { const p = await m.getPage(title); if (!p || await m.inRecycle(p.uuid)) out.linkedInRecycle.push(title); }
-        out.filled = result.done.filled.length; out.nodes = plan.byNode.size;
-      } catch (error) { out.error = 'checking: ' + error.message; }
-      finally { await result.undo(); }
-      if (out.error) return out;
-      out.backInRecycle = [];
-      for (const title of out.recycled) { const p = await m.getPage(title); if (p && await m.inRecycle(p.uuid)) out.backInRecycle.push(title); }
-      return out;
-    }, round);
-    made.push(...(r.made || []));
-    if (r.error) { problem(`Turn into links, round ${round}: ${r.error}`); break; }
-    if (r.linkedInRecycle.length) problem(`Turn into links, round ${round}: nodes linked to pages still in the Recycle: ${r.linkedInRecycle.join(', ')}`);
-    if (r.filled !== r.nodes) problem(`Turn into links, round ${round}: ${r.filled} of ${r.nodes} nodes got their link`);
-    if (r.backInRecycle.length !== r.recycled.length) problem(`Turn into links, round ${round}: after Undo ${r.backInRecycle.length} of ${r.recycled.length} pages back in the Recycle`);
-    say(`  Turn into links on Location, round ${round}: ${r.titles.length} pages (${r.recycled.length} brought back from the Recycle), ${r.filled} nodes linked, undone`);
-  }
-  await forGood(made);
-  await page.keyboard.press('Escape');
-  // 2. Proposals accepted in six bullets on each of five journal days, each undone through its arrow.
+  // 1. Proposals accepted in six bullets on each of five journal days, each undone through its arrow.
   const days = await page.evaluate(async () => {
     const rows = await window.logseq.api.datascript_query('[:find ?d ?t :where [?p :block/journal-day ?d] [?p :block/title ?t]]');
     const today = Number(new Date().toISOString().slice(0, 10).replace(/-/g, ''));
@@ -340,10 +303,8 @@ async function undoPart(page) {
       const next = await page.evaluate(async u => (await window.logseq.api.get_next_sibling_block(u))?.uuid, uuid).catch(() => null);
       if (next) bullets.push(next);
       await page.keyboard.press('Escape'); await sleep(300);
-    }
-    // Each bullet's arrow, newest first: its properties go back to none.
-    for (const uuid of [...here].reverse()) {
-      const clicked = await page.evaluate(u => { const a = document.querySelector(`[data-lk-undo="proposals:${u}"]`); a?.click(); return !!a; }, uuid);
+      // The bullet's arrow, at once (one arrow stands, the newest change's): its properties go back to none.
+      const clicked = await page.evaluate(u => { const a = document.querySelector(`[data-lk-undo="predictive:${u}"]`); a?.click(); return !!a; }, uuid);
       if (!clicked) { wrong++; if (wrong <= 3) problem(`no Undo arrow for a bullet on ${day}`); continue; }
       await sleep(900);
       const props = await page.evaluate(async u => Object.keys((await window.logseq.api.get_block_properties(u)) || {}).filter(k => /^:?user\.property|^[a-z]/.test(k) && !/^:?logseq/.test(k)), uuid);
@@ -352,17 +313,23 @@ async function undoPart(page) {
   }
   for (const u of bullets) await page.evaluate(u => window.logseq.api.remove_block(u), u).catch(() => {});
   say(`  proposals accepted in ${days.length * 6} bullets on ${days.length} journal days; ${undone} undone through their arrows`);
-  // 3. Ten nodes added through a two-way row's +, each undone.
+  // 2. Ten nodes added through a two-way row's +, each undone.
   await D.go(page, 'all-pages'); await sleep(600); await D.go(page, 'Dr. Mei Chen'); await sleep(2500);
   let added = 0, addUndone = 0;
   for (let k = 1; k <= 10; k++) {
     const name = `Zz stress note ${k}`;
-    const plus = await page.evaluate(() => { const b = document.querySelector('.th-two-way .th-tw-add'); if (!b) return false; b.click(); return true; });
+    // After Enter the line stays open, empty, for the next node; the + is pressed only when no line is open. The words
+    // are set on the line and Enter sent to it (keys over the debugging port land on the body when Logseq is not in front).
+    const plus = await page.evaluate(() => { if (document.querySelector('.th-two-way .th-tw-draft-name')) return true; const b = document.querySelector('.th-two-way .th-tw-add'); if (!b) return false; b.click(); return true; });
     if (!plus) { problem('no + on the two-way rows of Dr. Mei Chen'); break; }
     await sleep(400);
-    const field = await page.evaluate(() => { const i = document.querySelector('.th-two-way .th-tw-draft-name'); i?.focus(); return !!i; });
+    const field = await page.evaluate(n => { const i = document.querySelector('.th-two-way .th-tw-draft-name'); if (!i) return false; i.focus(); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, n); i.dispatchEvent(new Event('input', { bubbles: true })); return true; }, name);
     if (!field) { problem('the + opened no line to type in'); break; }
-    await page.keyboard.type(name, { delay: 15 }); await page.keyboard.press('Enter'); await sleep(500); await page.keyboard.press('Enter'); await sleep(1500);
+    await sleep(1500);   // the proposals come a moment after the typing pauses
+    // Enter on the words asks where the node goes (today's journal first); Enter there makes it.
+    const enter = sel => page.evaluate(sel => { const i = document.querySelector(sel); if (!i) return false; i.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })); return true; }, sel);
+    await enter('.th-two-way .th-tw-draft-name'); await sleep(600);
+    if (await enter('.th-two-way .th-tw-draft-where')) await sleep(2000);
     const found = await page.evaluate(async n => (await window.logseq.api.datascript_query(`[:find ?u :where [?b :block/title "${n}"] [?b :block/uuid ?u]]`)) || [], name);
     if (!found.length) { problem(`“${name}” was not made`); continue; }
     added++;
@@ -374,6 +341,7 @@ async function undoPart(page) {
   // Anything named so left anywhere, the Recycle too, removed for good.
   const leftovers = await page.evaluate(async () => (await window.logseq.api.datascript_query('[:find ?u ?n :where [?b :block/title ?n] [(clojure.string/starts-with? ?n "Zz stress note")] [?b :block/uuid ?u]]')) || []);
   for (const [u] of leftovers) { await page.evaluate(u => window.logseq.api.remove_block(u), String(u)).catch(() => {}); await forGood([String(u)]); }
+  await page.evaluate(() => document.querySelector('.th-two-way .th-tw-draft-name')?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })));
   say(`  ten nodes through the two-way +: ${added} made, ${addUndone} undone`);
 }
 
@@ -433,7 +401,7 @@ async function darkPart(page) {
     await page.evaluate(() => window.logseq.api.set_theme_mode('dark')); await sleep(800);
     await D.go(page, 'Dr. Mei Chen'); await sleep(2500);
     await shot('page-dr-mei-chen');
-    await frame.evaluate(() => window.Threads.core.provided.settingsPanel.open()); await shot('settings-window'); await closeAll();
+    await frame.evaluate(() => window.PluginDoor.settings.open('threads')); await shot('settings-window'); await closeAll();
     await frame.evaluate(() => window.Threads.core.provided.diagnostics.openTroubleshooting?.()); await shot('troubleshooting'); await closeAll();
     await frame.evaluate(() => window.Threads.core.provided.diagnostics.checkWhatIsFound()); await shot('report'); await closeAll();
     // The two-way rows: a right-click on a field's name, the hover card on a node, a tick and the picking bar.
@@ -443,13 +411,6 @@ async function darkPart(page) {
     await page.evaluate(() => document.querySelector('.th-two-way input.lk-tick')?.click()); await shot('two-way-picking-bar');
     await page.evaluate(() => document.querySelector('.th-two-way [data-act="page-menu"], .th-two-way .th-tw-bar .lk-btn')?.click()); await shot('two-way-bar-menu'); await closeAll();
     await page.keyboard.press('Escape'); await sleep(300);
-    // The tag map: a tag's menu, a property's menu, its kind menu, a question.
-    await D.go(page, '#/th-tags'); await sleep(2000); await shot('tag-map');
-    await page.evaluate(() => { const row = document.querySelector('.th-tags .rtg-row .rtg-main'); row?.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: row.getBoundingClientRect().left + 40, clientY: row.getBoundingClientRect().top + 8 })); }); await shot('tag-map-tag-menu'); await closeAll();
-    await page.evaluate(() => { const row = document.querySelector('.th-tags .rtg-prow, .th-tags [data-key*="|"] .rtg-main'); row?.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: row.getBoundingClientRect().left + 60, clientY: row.getBoundingClientRect().top + 8 })); }); await shot('tag-map-property-menu'); await closeAll();
-    await page.evaluate(() => document.querySelector('.th-tags .th-kind')?.click()); await shot('tag-map-kind-menu'); await closeAll();
-    await page.evaluate(() => [...document.querySelectorAll('.th-tags .rtg-by')][1]?.click()); await shot('tag-map-properties-view');
-    await page.evaluate(() => [...document.querySelectorAll('.th-tags .rtg-by')][0]?.click()); await sleep(300);
     say(`  ${fs.readdirSync(dir).length} pictures in check.log/frames/dark/ (to be looked at)`);
   } finally {
     await closeAll().catch(() => {});

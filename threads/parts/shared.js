@@ -26,7 +26,6 @@
        listen(win, types, handler)     a capture-phase listener on Logseq's window, removed on unload.
    - take(core, names, warn)      the core's and the parts' things in one object, warning once (through the part's own
                                   warnOnce) for each name missing; every part's take() is this (0.4.294).
-   - feature(name)                the bag the pieces of one feature share (the proposals, the tag map), by name.
    - screen                       THE screen door (core.screen): waitFor, press, typeInto, key, floating, item, sidebarItems,
                                   popupOpen, escapeMenus: the one way to work Logseq's own boxes.
    - openEntity(uuid, inSidebar)  opens a page or block by uuid, in the right sidebar when asked.
@@ -202,10 +201,6 @@ function lifecycle({ prefix, stopKey, before, sweep, leaves }) {
   }
   return { warnOnce, onUnload, runUnloadTasks, takeOverFromEarlierCopy, updaterFailed, listen };
 }
-/* The pieces of one feature share one bag (0.4.315): the proposals' four files, the tag map's three. Asked for by name,
-   made on the first ask, the same object for every piece; no name on the window. */
-const features = new Map();
-const feature = name => { if (!features.has(name)) features.set(name, {}); return features.get(name); };
 const take = (core, names, warn) => { const all = { ...core, ...core.provided }; for (const name of names) if (all[name] === undefined) warn(`${name} is missing from the core`); return all; };
 
 // Opens a page or block by uuid; in the right sidebar when asked (Shift-click).
@@ -1004,7 +999,7 @@ function ownMarks(doc) {
 }
 
 (window.Threads ||= {}).shared = {
-  host, notify, lifecycle, sweepLeftovers, take, feature, screen, openEntity, openPageNamed, settingReader, perf, warnings,
+  host, notify, lifecycle, sweepLeftovers, take, screen, openEntity, openPageNamed, settingReader, perf, warnings,
   kitCss, el, esc, ICONS, icon, iconHtml, kindIconHtml, tag, quiet, go, keepKeys, field, fieldHtml, outline, note, popup, popups, pickValue, editInPlace, ask, card, undo,
   MARK_CLASS, MARK_ATTR, isOwnMark, ownMarks, lifeCounts,
 };
