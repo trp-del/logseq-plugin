@@ -45,7 +45,6 @@ let chromium; try { ({ chromium } = require('playwright')); } catch (error) { co
     chain: [...document.querySelectorAll('.lk-path')].map(b => b.textContent.replace(/\s+/g, ' ').trim()),
     propertyIcons: document.querySelectorAll('.lk-kind').length,
     foldedNotes: [...document.querySelectorAll('.lk-folded')].map(n => n.getAttribute('title')),
-    refinements: { chain: document.querySelectorAll('.rf-tag-path').length, notes: document.querySelectorAll('.rf-folded').length, kinds: document.querySelectorAll('.rf-kind, .rf-pill-kind').length, marks: document.querySelectorAll('[data-rf-cat]').length },
     tagsOnScreen: [...document.querySelectorAll('#main-content-container a.tag')].slice(0, 6).map(a => a.textContent),
     titleRowHtml: document.querySelector('#main-content-container .ls-page-title .is-page-title-row')?.outerHTML.slice(0, 1200) || null,
   }));

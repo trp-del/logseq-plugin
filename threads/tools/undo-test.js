@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* The plugin's one Undo (shared.undo in parts/shared.js, 0.4.258) in a pretend Logseq window: an arrow at the end of what
+/* The plugin's one Undo (PluginDoor.undo in plugin.js, Threads' of 0.4.258 until 6 November 2026) in a pretend Logseq window: an arrow at the end of what
    changed, two changes keeping two arrows (the old bar lost the first), a change at the same place adding to its arrow,
    the arrow put back when Logseq draws the place again, waiting at the bottom right when nothing is left to sit beside,
    a click taking the change back, and nothing left after clear and stop.
@@ -23,37 +23,37 @@ window.logseq = { settings: {}, UI: { showMsg() {} } };
 window.eval(fs.readFileSync(path.join(root, '../plugin.js'), 'utf8'));
 window.eval(fs.readFileSync(path.join(root, 'parts/shared.js'), 'utf8'));
 const { undo } = window.Threads.shared;
-const arrows = () => [...doc.querySelectorAll('.rf-undo')];
+const arrows = () => [...doc.querySelectorAll('.lk-undo[data-lk-undo]')];
 const ran = [];
 
 (async () => {
   undo.offer({ key: 'one', at: () => doc.getElementById('a'), text: 'Provider: Dr. Mei Chen', run: () => ran.push('one') });
   undo.offer({ key: 'two', at: () => doc.getElementById('b'), text: 'Agent: Oxaliplatin', run: () => ran.push('two') });
-  check(arrows().length === 1 && !!doc.querySelector('#b > .rf-undo'), 'a new change’s arrow should take the last one’s place: ' + arrows().length);
+  check(arrows().length === 1 && !!doc.querySelector('#b > .lk-undo'), 'a new change’s arrow should take the last one’s place: ' + arrows().length);
   undo.clear();
   undo.offer({ key: 'one', at: () => doc.getElementById('a'), text: 'Provider: Dr. Mei Chen', run: () => ran.push('one') });
-  check(doc.querySelector('#a > .rf-undo')?.title === 'Undo: Provider: Dr. Mei Chen', 'the arrow should sit at the end of what changed and say what it takes back');
+  check(doc.querySelector('#a > .lk-undo')?.title === 'Undo: Provider: Dr. Mei Chen', 'the arrow should sit at the end of what changed and say what it takes back');
   // A change at the same place adds to its arrow: one click takes both back, the later first.
   undo.offer({ key: 'one', at: () => doc.getElementById('a'), text: 'Date: Oct 21', run: () => ran.push('one-later') });
-  check(doc.querySelectorAll('#a > .rf-undo').length === 1 && /Date: Oct 21 · Provider/.test(doc.querySelector('#a > .rf-undo').title), 'a second change at the same place adds to its arrow');
+  check(doc.querySelectorAll('#a > .lk-undo').length === 1 && /Date: Oct 21 · Provider/.test(doc.querySelector('#a > .lk-undo').title), 'a second change at the same place adds to its arrow');
   // Logseq draws the place again: the arrow comes back on the new one.
   const fresh = doc.createElement('div'); fresh.id = 'a'; fresh.className = 'line'; fresh.textContent = 'Provider';
   doc.getElementById('a').replaceWith(fresh);
-  await wait(10);
-  check(!!doc.querySelector('#a > .rf-undo'), 'the arrow should come back when the place is drawn again');
+  await wait(60);
+  check(!!doc.querySelector('#a > .lk-undo'), 'the arrow should come back when the place is drawn again');
   // A click takes the change back, and only that one.
-  doc.querySelector('#a > .rf-undo').dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
+  doc.querySelector('#a > .lk-undo').dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
   await wait(10);
   check(ran.join() === 'one-later,one', 'the click should take back both changes made there, the later first: ' + ran.join());
-  check(!doc.querySelector('#a > .rf-undo'), 'and its arrow goes');
+  check(!doc.querySelector('#a > .lk-undo'), 'and its arrow goes');
   undo.offer({ key: 'two', at: () => doc.getElementById('b'), text: 'Agent: Oxaliplatin', run: () => ran.push('two') });
   // Nothing on screen to sit beside: it waits at the bottom right, with its words.
   undo.offer({ key: 'gone', at: () => null, text: 'Deleted 3 records', run: () => ran.push('gone') });
-  check(doc.querySelector('.rf-undo-dock .rf-undo')?.textContent.includes('Deleted 3 records'), 'with nothing to sit beside, the arrow waits at the bottom right with its words');
+  check(doc.querySelector('.lk-undo-dock .lk-undo')?.textContent.includes('Deleted 3 records'), 'with nothing to sit beside, the arrow waits at the bottom right with its words');
   undo.forget('two');
-  check(!doc.querySelector('#b > .rf-undo') && undo.size === 1, 'forgetting one takes only its arrow');
+  check(!doc.querySelector('#b > .lk-undo') && undo.size === 1, 'forgetting one takes only its arrow');
   undo.clear();
-  check(!arrows().length && !doc.querySelector('.rf-undo-dock') && undo.size === 0, 'clear (leaving the page) takes every arrow away');
+  check(!arrows().length && !doc.querySelector('.lk-undo-dock') && undo.size === 0, 'clear (leaving the page) takes every arrow away');
   undo.offer({ key: 'last', at: () => doc.getElementById('a'), text: 'x', run: () => {} });
   undo.stop();
   check(!arrows().length && undo.size === 0, 'stop (the plugin unloading) leaves nothing');

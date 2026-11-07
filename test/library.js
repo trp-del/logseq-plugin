@@ -19,9 +19,9 @@ assert.ok(NAMES.includes('.lk-enter'), 'the library draws the return sign');
 const BUTTON = /<button\b[^>]*>|\bcreateElement\('button'\)|\bel\(\s*\w+,\s*'button'|class="[^"]*\bact\b[^"]*"/g;
 const LIBRARY = new RegExp(KINDS.join('|'));
 // Choices and things that are not buttons: tick boxes, fold and dig arrows, a value (Group ▾, a draft's property), Find's
-// choices, Threads' kind words, a word's own × in the kit (a chip nothing draws yet), and the kit's helpers, which take the
+// choices, Threads' kind words and a draft's property choice, and the kit's helpers, which take the
 // name from whoever calls them.
-const NOT_A_LIBRARY_BUTTON = /tick|lk-tick|lk-fold|fold|dig|lk-row|rf-tw-chip|rf-tw-dpick|rf-chip-x|rf-ol-act|fd-c\b|choice/;
+const NOT_A_LIBRARY_BUTTON = /tick|lk-tick|lk-fold|fold|dig|lk-row|th-tw-chip|th-tw-dpick|fd-c\b|choice/;
 
 const strays = [];
 for (const file of FILES) {
@@ -68,18 +68,18 @@ for (const [file, text] of WORDS) for (const word of OLD) assert.ok(!word.test(t
    lk-undo, the one motion): a module's stylesheet draws none again. A shadow is a frame of the module's own; a ::backdrop a window's
    own dimming; a keyframe or animation a motion of its own; appearance: none on a checkbox a tick box of its own; a hex colour
    outside a var() fallback a colour of its own. What a module may still carry is named here with its reason. */
-for (const name of ['.lk-window', '.lk-pop', 'input.lk-tick[type=checkbox]', '.lk-fold::before', '.lk-bul::before', '.lk-field', '.lk-none', 'input.lk-value']) assert.ok(NAMES.includes(name), `the library draws ${name}`);
+for (const name of ['.lk-window', '.lk-pop', 'input.lk-tick[type=checkbox]', '.lk-fold::before', '.lk-bul::before', '.lk-field', '.lk-none', 'input.lk-value', '.lk-undo-dock']) assert.ok(NAMES.includes(name), `the library draws ${name}`);
 const OWN = [
   // A shadow that is not a frame: the printed sheet on the desk, a wash ring under the keyboard, Logseq's own notices and sidebar restyled by Look, a specimen in the settings window.
   [/box-shadow:\s*0 [^;}]*/, /xp-desk iframe|\.pv-page|0 0 0 3px var\(--lk-wash\)|look\/logseq\/(notices|sidebar|settings)\.js/, 'a shadow of its own'],
   [/::backdrop/, /^$/, 'a backdrop of its own'],
-  [/@keyframes|\banimation:/, /rf-blink/, 'a motion of its own'],   // the drawn caret blinks as the browser's does
+  [/@keyframes|\banimation:/, /^$/, 'a motion of its own'],
   [/appearance:\s*none[^}]*\}/, /^$/, 'a tick box or control drawn again'],
   // A text size off the scale (6 November 2026, measured in Logseq): the body is the place's own (16 px on a page, 14 px in a window,
   // a pop-up or the sidebar, as Logseq's own), the small size is --lk-small (13 px: days, counts, notes, keys, trails) and the label
   // --lk-label (12 px: the small name over a value, a pop-up's head, the year line's words); a tag is .85em, as Logseq's own. A glyph
   // (an icon, a chevron, a ×, a superscript number), a heading, monospaced text, a specimen of Logseq's look and the printed page keep theirs.
-  [/font-size:\s*(?!\s|14px|16px|inherit|var\(--lk-(small|label)\)|var\(--rf-name, 1em\)|\.85em)[^;}`'"]+/, /\.ti\b|icon|kind|chev|close|-x\b|flow-x|cite-n|flow-model|st-pi|rf-drawn|lk-undo|h2|picked|sw-head|sw-part|sw-spec|look\/logseq\/settings\.js|export\/(core|logseq\/preview)|mono|Georgia/, 'a text size of its own'],
+  [/font-size:\s*(?!\s|14px|16px|inherit|var\(--lk-(small|label)\)|var\(--th-name, 1em\)|\.85em)[^;}`'"]+/, /\.ti\b|icon|kind|chev|close|-x\b|flow-x|cite-n|flow-model|st-pi|th-drawn|lk-undo|h2|picked|sw-head|sw-part|sw-spec|look\/logseq\/settings\.js|export\/(core|logseq\/preview)|mono|Georgia/, 'a text size of its own'],
   [/(color|background|stroke|fill|border)[^;:]*:\s*[^;]*#[0-9a-fA-F]{3,6}\b/, /var\(--[\w-]+,\s*#|export\/logseq\/preview\.js|xp-desk iframe|color-mix\([^)]*#000\)|<!doctype html>|look\/logseq\/settings\.js/, 'a colour of its own'],
 ];
 const own = [];

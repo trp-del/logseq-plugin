@@ -367,7 +367,7 @@ async function main() {
     return took;
   };
   const base = await timings(20000, 300);
-  // The stress run (tools/stress.sh): five times the pages, twice the properties. A door may take up to ten times its
+  // A bigger graph (--big: five times the pages, twice the properties). A door may take up to ten times its
   // time on 20,000 pages (about linear; a door taking the square would take 25 to 50 times). Doors under 5 ms on the
   // small graph are left out of the ratio (their time is mostly noise).
   if (process.argv.includes('--big')) {

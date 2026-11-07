@@ -57,12 +57,12 @@ const settled = (page, quietMs = 300, most = 5000) => page.evaluate(([q, most]) 
 }), [quietMs, most]);
 // The two-way rows as shown: each field's words and how many nodes it lists (empty while they wait unseen).
 const rowsNow = page => page.evaluate(() => {
-  const boxes = [...document.querySelectorAll('#main-content-container .refinement-two-way')];
+  const boxes = [...document.querySelectorAll('#main-content-container .th-two-way')];
   const title = document.querySelector('#main-content-container .ls-page-title')?.textContent?.trim() || '';
-  const shown = boxes.filter(b => !b.hasAttribute('data-rf-waiting'));
-  return { title, boxes: boxes.length, rows: shown.flatMap(b => [...b.querySelectorAll('.rf-tw-row')].map(r => `${r.querySelector('.rf-tw-name')?.textContent?.trim()}|${r.querySelectorAll('[data-uuid].rf-tw-item, .rf-tw-line[data-uuid], .rf-tw-toggle').length}`)).join(' ; '),
-    chains: document.querySelectorAll('#main-content-container .rf-tag-path').length,
-    doubled: [...document.querySelectorAll('.property-m')].filter(b => b.querySelectorAll(':scope > .rf-kind').length > 1).length };
+  const shown = boxes.filter(b => !b.hasAttribute('data-th-waiting'));
+  return { title, boxes: boxes.length, rows: shown.flatMap(b => [...b.querySelectorAll('.th-tw-row')].map(r => `${r.querySelector('.th-tw-name')?.textContent?.trim()}|${r.querySelectorAll('[data-uuid].th-tw-item, .th-tw-line[data-uuid], .th-tw-toggle').length}`)).join(' ; '),
+    chains: document.querySelectorAll('#main-content-container .th-tag-path').length,
+    doubled: [...document.querySelectorAll('.property-m')].filter(b => b.querySelectorAll(':scope > .th-kind').length > 1).length };
 });
 const titleKey = text => String(text || '').replace(/\s+/g, ' ').trim().toLowerCase();
 
@@ -180,7 +180,7 @@ async function typingPart(page, session) {
     const keys = ledger.inputs.map(([t]) => t);
     let toggles = 0;
     for (const [id, line] of K.timelines(ledger)) {
-      if (!/rfs-ghost|data-refinement-proposal/.test(ledger.names[id])) continue;
+      if (!/rfs-ghost|data-th-proposal/.test(ledger.names[id])) continue;
       for (let k = 1; k < keys.length; k++) {
         const between = line.filter(([t]) => t > keys[k - 1] && t <= keys[k]);
         let flips = 0; for (let i = 1; i < between.length; i++) if (K.shownRow(between[i][1]) !== K.shownRow(between[i - 1][1])) flips++;
@@ -343,7 +343,7 @@ async function undoPart(page) {
     }
     // Each bullet's arrow, newest first: its properties go back to none.
     for (const uuid of [...here].reverse()) {
-      const clicked = await page.evaluate(u => { const a = document.querySelector(`[data-rf-undo="proposals:${u}"]`); a?.click(); return !!a; }, uuid);
+      const clicked = await page.evaluate(u => { const a = document.querySelector(`[data-lk-undo="proposals:${u}"]`); a?.click(); return !!a; }, uuid);
       if (!clicked) { wrong++; if (wrong <= 3) problem(`no Undo arrow for a bullet on ${day}`); continue; }
       await sleep(900);
       const props = await page.evaluate(async u => Object.keys((await window.logseq.api.get_block_properties(u)) || {}).filter(k => /^:?user\.property|^[a-z]/.test(k) && !/^:?logseq/.test(k)), uuid);
@@ -357,16 +357,16 @@ async function undoPart(page) {
   let added = 0, addUndone = 0;
   for (let k = 1; k <= 10; k++) {
     const name = `Zz stress note ${k}`;
-    const plus = await page.evaluate(() => { const b = document.querySelector('.refinement-two-way .rf-tw-add'); if (!b) return false; b.click(); return true; });
+    const plus = await page.evaluate(() => { const b = document.querySelector('.th-two-way .th-tw-add'); if (!b) return false; b.click(); return true; });
     if (!plus) { problem('no + on the two-way rows of Dr. Mei Chen'); break; }
     await sleep(400);
-    const field = await page.evaluate(() => { const i = document.querySelector('.refinement-two-way .rf-tw-draft-name'); i?.focus(); return !!i; });
+    const field = await page.evaluate(() => { const i = document.querySelector('.th-two-way .th-tw-draft-name'); i?.focus(); return !!i; });
     if (!field) { problem('the + opened no line to type in'); break; }
     await page.keyboard.type(name, { delay: 15 }); await page.keyboard.press('Enter'); await sleep(500); await page.keyboard.press('Enter'); await sleep(1500);
     const found = await page.evaluate(async n => (await window.logseq.api.datascript_query(`[:find ?u :where [?b :block/title "${n}"] [?b :block/uuid ?u]]`)) || [], name);
     if (!found.length) { problem(`“${name}” was not made`); continue; }
     added++;
-    const arrow = await page.evaluate(() => { const keys = [...document.querySelectorAll('[data-rf-undo^="two-way:"]')]; const a = keys.at(-1); a?.click(); return !!a; });
+    const arrow = await page.evaluate(() => { const keys = [...document.querySelectorAll('[data-lk-undo^="two-way:"]')]; const a = keys.at(-1); a?.click(); return !!a; });
     await sleep(1200);
     const left = await page.evaluate(async n => ((await window.logseq.api.datascript_query(`[:find ?u :where [?b :block/title "${n}"] [?b :block/uuid ?u] (not [?b :logseq.property/deleted-at _])]`)) || []).length, name);
     if (arrow && !left) addUndone++; else problem(`“${name}” is still there after its Undo`);
@@ -407,7 +407,7 @@ async function reloadsPart(page) {
         await sleep(5000);
         const after = (await frameCounts())?.startedAt;
         await D.go(page, 'all-pages'); await sleep(500); await D.go(page, 'Dr. Mei Chen'); await sleep(2500);
-        const rows = await page.evaluate(() => document.querySelectorAll('#main-content-container .refinement-two-way .rf-tw-row').length);
+        const rows = await page.evaluate(() => document.querySelectorAll('#main-content-container .th-two-way .th-tw-row').length);
         if (!after || after === before || (v ? rows : !rows)) { foundationMissed++; problem(`Foundation only ${v ? 'on' : 'off'}, try ${k + 1}: the reload ${after && after !== before ? 'took effect' : 'did not take effect'}, ${rows} two-way rows shown`); }
       }
     }
@@ -428,7 +428,7 @@ async function darkPart(page) {
   const was = await page.evaluate(() => ({ theme: document.documentElement.dataset.theme, system: localStorage.getItem('system-theme?') === 'true' }));
   const frame = D.plugin(page);
   const shot = async name => { await sleep(400); await page.screenshot({ path: path.join(dir, name + '.png') }); };
-  const closeAll = async () => { await frame.evaluate(() => { window.Threads.shared.popups.closeAll(); document.querySelector('dialog')?.close?.(); }).catch(() => {}); await page.evaluate(() => { for (const d of document.querySelectorAll('dialog.rf-dialog, dialog.refinement-settings')) { d.close?.(); d.remove(); } }); await page.keyboard.press('Escape'); await sleep(200); };
+  const closeAll = async () => { await frame.evaluate(() => { window.Threads.shared.popups.closeAll(); document.querySelector('dialog')?.close?.(); }).catch(() => {}); await page.evaluate(() => { for (const d of document.querySelectorAll('dialog.th-dialog, dialog.th-settings')) { d.close?.(); d.remove(); } }); await page.keyboard.press('Escape'); await sleep(200); };
   try {
     await page.evaluate(() => window.logseq.api.set_theme_mode('dark')); await sleep(800);
     await D.go(page, 'Dr. Mei Chen'); await sleep(2500);
@@ -437,19 +437,19 @@ async function darkPart(page) {
     await frame.evaluate(() => window.Threads.core.provided.diagnostics.openTroubleshooting?.()); await shot('troubleshooting'); await closeAll();
     await frame.evaluate(() => window.Threads.core.provided.diagnostics.checkWhatIsFound()); await shot('report'); await closeAll();
     // The two-way rows: a right-click on a field's name, the hover card on a node, a tick and the picking bar.
-    await page.evaluate(() => { const n = document.querySelector('.refinement-two-way .rf-tw-field'); n?.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: n.getBoundingClientRect().left + 5, clientY: n.getBoundingClientRect().top + 5 })); }); await shot('two-way-rename'); await closeAll();
-    const rec = await page.evaluate(() => { const r = document.querySelector('.refinement-two-way .rf-tw-record')?.getBoundingClientRect(); return r ? [r.left + 10, r.top + 6] : null; });
+    await page.evaluate(() => { const n = document.querySelector('.th-two-way .th-tw-field'); n?.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: n.getBoundingClientRect().left + 5, clientY: n.getBoundingClientRect().top + 5 })); }); await shot('two-way-rename'); await closeAll();
+    const rec = await page.evaluate(() => { const r = document.querySelector('.th-two-way .th-tw-record')?.getBoundingClientRect(); return r ? [r.left + 10, r.top + 6] : null; });
     if (rec) { await page.mouse.move(rec[0], rec[1]); await sleep(1200); await shot('two-way-card'); await page.mouse.move(5, 5); await sleep(400); }
-    await page.evaluate(() => document.querySelector('.refinement-two-way input.lk-tick')?.click()); await shot('two-way-picking-bar');
-    await page.evaluate(() => document.querySelector('.refinement-two-way [data-act="page-menu"], .refinement-two-way .rf-tw-bar .lk-btn')?.click()); await shot('two-way-bar-menu'); await closeAll();
+    await page.evaluate(() => document.querySelector('.th-two-way input.lk-tick')?.click()); await shot('two-way-picking-bar');
+    await page.evaluate(() => document.querySelector('.th-two-way [data-act="page-menu"], .th-two-way .th-tw-bar .lk-btn')?.click()); await shot('two-way-bar-menu'); await closeAll();
     await page.keyboard.press('Escape'); await sleep(300);
     // The tag map: a tag's menu, a property's menu, its kind menu, a question.
-    await D.go(page, '#/refinement-tags'); await sleep(2000); await shot('tag-map');
-    await page.evaluate(() => { const row = document.querySelector('.refinement-tags .rtg-row .rtg-main'); row?.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: row.getBoundingClientRect().left + 40, clientY: row.getBoundingClientRect().top + 8 })); }); await shot('tag-map-tag-menu'); await closeAll();
-    await page.evaluate(() => { const row = document.querySelector('.refinement-tags .rtg-prow, .refinement-tags [data-key*="|"] .rtg-main'); row?.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: row.getBoundingClientRect().left + 60, clientY: row.getBoundingClientRect().top + 8 })); }); await shot('tag-map-property-menu'); await closeAll();
-    await page.evaluate(() => document.querySelector('.refinement-tags .rf-kind')?.click()); await shot('tag-map-kind-menu'); await closeAll();
-    await page.evaluate(() => [...document.querySelectorAll('.refinement-tags .rtg-by')][1]?.click()); await shot('tag-map-properties-view');
-    await page.evaluate(() => [...document.querySelectorAll('.refinement-tags .rtg-by')][0]?.click()); await sleep(300);
+    await D.go(page, '#/th-tags'); await sleep(2000); await shot('tag-map');
+    await page.evaluate(() => { const row = document.querySelector('.th-tags .rtg-row .rtg-main'); row?.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: row.getBoundingClientRect().left + 40, clientY: row.getBoundingClientRect().top + 8 })); }); await shot('tag-map-tag-menu'); await closeAll();
+    await page.evaluate(() => { const row = document.querySelector('.th-tags .rtg-prow, .th-tags [data-key*="|"] .rtg-main'); row?.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: row.getBoundingClientRect().left + 60, clientY: row.getBoundingClientRect().top + 8 })); }); await shot('tag-map-property-menu'); await closeAll();
+    await page.evaluate(() => document.querySelector('.th-tags .th-kind')?.click()); await shot('tag-map-kind-menu'); await closeAll();
+    await page.evaluate(() => [...document.querySelectorAll('.th-tags .rtg-by')][1]?.click()); await shot('tag-map-properties-view');
+    await page.evaluate(() => [...document.querySelectorAll('.th-tags .rtg-by')][0]?.click()); await sleep(300);
     say(`  ${fs.readdirSync(dir).length} pictures in check.log/frames/dark/ (to be looked at)`);
   } finally {
     await closeAll().catch(() => {});

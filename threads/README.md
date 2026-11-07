@@ -10,11 +10,11 @@ With nodes picked, the picked nodes stand on a grey ground, and a bar stands rig
 
 Logseq's Linked references gives way to the rows only where the mentions were really read: with **Mentions come up to the rows** off, or a read that failed, it stays. A link to a page's alias counts as a link to the page, in the rows and in Mentioned in, as Logseq counts it. A node's tag is one of yours, or Logseq's Task, so a task reads as a Task among the kinds, not as No tag. Under a mention, the line of where it sits ("Library › Oct 23rd, 2026") is steps: each place, with the faint underline of a step, opens its page or bullet, Shift in the right sidebar.
 
-One Undo arrow stands, on the last change; a new change's arrow takes its place. An arrow on something made, a bullet, a node or a page, goes as soon as that thing is written in, renamed or given a bullet, and pressed after a change it takes nothing and says so: what was written is never taken with it. A date in a node's words reads as Predictive reads it: a past day stays past, and a weekday in words that tell of what has been proposes nothing.
+One Undo arrow stands, on the last change, the plugin's one Undo (plugin.js): a new change's arrow takes its place, another module's too. An arrow on something made, a bullet, a node or a page, goes as soon as that thing is written in, renamed or given a bullet, and pressed after a change it takes nothing and says so: what was written is never taken with it. A date in a node's words reads as Predictive reads it: a past day stays past, and a weekday in words that tell of what has been proposes nothing.
 
 As the graph grows: a list of values shows forty, then "show all 3000", and typing narrows it; a property that takes Person offers pages under the tags beneath Person too. A section reads again only when a change reaches it: words in one of its nodes, a line that links this page, or anything that is not writing. A node's day is the property titled Date, whatever its ident, else the earliest. The pencilled tag on an untagged mention stands where its tag would, on its own line, so nothing moves when it comes; it comes after a quiet moment the first time, since it rests on reading the graph's earlier lines, which a look at a page never starts; an opened node shows at once and its proposals follow.
 
-It began as the two-way section of the old plugin, DB Refinements, and has since been reshaped here. Its code still uses the old `rf-` names beside Look's.
+It began as the two-way section of the old plugin, DB Refinements, and has since been reshaped here. Its own class names carry the prefix `th-` (since 7 November 2026; `rf-` and `refinement-` before), beside the library's `lk-`.
 
 ## What it writes
 
@@ -33,7 +33,7 @@ How the section's pieces look (a tag in mono, the underline a node's name takes 
 | `shared.js` | the kit: where the library's pieces stand in Threads (outline lines, pop-ups, fields, tick boxes, Undo), the icons | yes |
 | `model.js` | the one place that reads and writes the graph | yes |
 | `diagnostics.js` | troubleshooting commands (what the plugin finds on this page, warnings, the tour) | yes (foundation) |
-| `two-way.js` | the two-way section | the feature |
+| `two-way.js` | the two-way section: the rows, their drawing, the page's settling, the clicks and the start; its pieces in `two-way/`, loaded after it and meeting it through one bag (`twoWay`): `look.js` (the stylesheets), `group.js` (grouping, folds), `find.js` (the find line), `peek.js` (the hover card), `dig.js` (a node opened in place, the shift, the trail, writing into a node), `add.js` (the **+** line), `pick.js` (the tick boxes, the bar, Delete) | the feature |
 | `proposals.js` | what the **+** line, an opened node and the pick lists propose: Threads' questions put to Predictive's core (its engine, its rules, its one reading of the graph), nothing of its own | optional; the pencilled values in the **+** line and the order of pick lists |
 
 Each optional part can be left out and the module still starts, runs and unloads (`node tools/parts-apart-test.js`). A part that fails to start leaves the rest running, and one notice says which.

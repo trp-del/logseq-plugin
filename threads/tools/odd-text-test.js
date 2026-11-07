@@ -12,6 +12,7 @@
    Needs Playwright and Chromium; skipped quietly where they are missing. Run: node tools/odd-text-test.js */
 const fs = require('fs');
 const path = require('path');
+const twoWay = require('./two-way-files');
 const ODD = require('./odd-names');
 
 let chromium;
@@ -60,7 +61,7 @@ function oddLogseq(names) {
   const drawn = ODD.filter(n => n.trim());
   for (const content of [`(${oddLogseq})(${JSON.stringify(drawn)});`, read('../plugin.js'), read('parts/shared.js'), read('parts/model.js'), require('./pretend-model')]) await page.addScriptTag({ content });
   // The two-way part needs a bare window of its own (it reads no pretend graph): its rowHtml is reached the same way.
-  await page.addScriptTag({ content: exposeAtEnd(read('parts/two-way.js'), ['rowHtml', 'state']) });
+  for (const content of [...twoWay.sources(), twoWay.reach(['rowHtml', 'state'])]) await page.addScriptTag({ content });
 
   const result = await page.evaluate(async ({ names, all }) => {
     const shared = window.Threads.shared, doc = document, out = { faults: [], counts: {} };
@@ -76,8 +77,7 @@ function oddLogseq(names) {
     // 1. The kit's pieces.
     try {
       for (const name of names) {
-        const box = shared.el(doc, 'div', {}, shared.tag(doc, name), ' ', shared.chip(doc, { label: name }), shared.quiet(doc, { label: name }), shared.note(doc, name));
-        box.insertAdjacentHTML('beforeend', `<p>${shared.tagLinkHtml(name)} ${shared.esc(name)}</p>`);
+        const box = shared.el(doc, 'div', {}, shared.tag(doc, name), ' ', shared.quiet(doc, { label: name }), shared.note(doc, name));
         stage.append(box);
         check('the kit', box, [name]);
         box.remove();
@@ -86,17 +86,17 @@ function oddLogseq(names) {
       check('a pop-up', pop.el, names.slice(0, 20));
       pop.close();
       const asked = shared.ask({ question: names[1], note: names[2] });
-      const askEl = [...doc.querySelectorAll('.rf-pop')].pop();
+      const askEl = [...doc.querySelectorAll('.th-pop')].pop();
       if (askEl) check('a question', askEl, [names[1]]);
       shared.popups.closeAll();
       void asked;
       const card = shared.card({ at: stage, title: names[3], fields: [{ name: names[5], uuid: 'u', values: [{ text: names[6], uuid: 'v' }] }], lines: [{ uuid: 'l', html: shared.esc(names[7]) }], open() {} });
-      const cardEl = card?.el || doc.querySelector('.rf-card, .rf-pop');
+      const cardEl = card?.el || doc.querySelector('.th-card, .th-pop');
       if (cardEl) check('the hover card', cardEl, [names[3], names[5], names[6], names[7]]);
       card?.close?.();
       const markup = names.find(n => /<img/.test(n));
       shared.undo.offer({ key: 'odd', at: () => null, text: markup, run: () => {} });
-      const dock = doc.querySelector('.rf-undo-dock');
+      const dock = doc.querySelector('.lk-undo-dock');
       if (!dock) out.faults.push('the Undo arrow was not drawn'); else check('the Undo arrow', dock, [markup]);
       shared.undo.clear?.();
     } catch (error) { out.faults.push('the kit threw: ' + error.message); }
@@ -105,11 +105,11 @@ function oddLogseq(names) {
       window.__state.pageUuid = 'p';
       const item = (i, title) => ({ uuid: 'r' + i, title, tag: names[(i + 3) % names.length], day: 20261001 + (i % 20) });
       const groups = names.map((name, i) => ({ name, label: name + ' of', ident: 'user.property/x' + i, fieldUuid: 'f' + i, items: (i % 2 ? names.slice(0, 6) : names.slice(i, i + 2)).map((t, k) => item(k, t)) }));
-      const box = shared.el(doc, 'div', { class: 'refinement-two-way' });
+      const box = shared.el(doc, 'div', { class: 'th-two-way' });
       box.innerHTML = groups.map(window.__rowHtml).join('');
       stage.append(box);
       check('the two-way rows', box, names.slice(0, 6));
-      out.counts.rows = box.querySelectorAll('.rf-tw-row').length;
+      out.counts.rows = box.querySelectorAll('.th-tw-row').length;
       box.remove();
     } catch (error) { out.faults.push('the two-way rows threw: ' + error.message); }
     // 4. The model's readers, on every name and on the names inside links and tags.

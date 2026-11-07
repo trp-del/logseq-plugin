@@ -86,7 +86,7 @@ function describeElement(el, depth, lines, blockIds) {
 // A report: the kit's pop-up with the text to copy and one quiet word, Copy (it is copied as it opens, too).
 function showDiagnostics(text) {
   const doc = host();
-  const pop = shared.popup({ doc, cls: 'rf-report', width: 'min(720px, 92vw)', head: 'Report from the plugin. Copy and paste it into your chat.' });
+  const pop = shared.popup({ doc, cls: 'th-report', width: 'min(720px, 92vw)', head: 'Report from the plugin. Copy and paste it into your chat.' });
   const area = el(doc, 'textarea', { readonly: true, spellcheck: 'false', 'aria-label': 'The report' });
   area.value = text;
   const hint = note(doc, '');
@@ -97,7 +97,7 @@ function showDiagnostics(text) {
     hint.textContent = copied ? 'Copied to the clipboard · Esc to close' : 'Press Cmd+C (Ctrl+C) to copy · Esc to close';
   };
   // Copy is the one thing the report is for: the library's main button (lk-accent).
-  pop.body.append(area, el(doc, 'div', { class: 'rf-btns' }, hint, shared.go(doc, { label: 'Copy', cls: 'lk-i-copy', run: copy })));
+  pop.body.append(area, el(doc, 'div', { class: 'th-btns' }, hint, shared.go(doc, { label: 'Copy', cls: 'lk-i-copy', run: copy })));
   shared.keepKeys(area);
   copy();
   return pop;
@@ -361,13 +361,13 @@ async function tourVisit(stop) {
   const begun = now();
   let lastChange = begun, titleAt = 0, rowsAt = 0;
   // The plugin's pieces: when each first showed after the title, and how often it was added (0.4.331).
-  const PIECES = [['tag chain', '.rf-tag-path'], ['two-way box', '.refinement-two-way'], ['two-way row', '.refinement-two-way .rf-tw-row'], ['page properties', '.ls-page-properties'], ["Logseq's tag corner", '.ls-page-title .ls-block-right > .block-tags']];
+  const PIECES = [['tag chain', '.th-tag-path'], ['two-way box', '.th-two-way'], ['two-way row', '.th-two-way .th-tw-row'], ['page properties', '.ls-page-properties'], ["Logseq's tag corner", '.ls-page-title .ls-block-right > .block-tags']];
   const pieces = new Map(PIECES.map(([name, selector]) => [name, { selector, at: 0, added: 0 }]));
   const changes = new win.MutationObserver(records => {
     lastChange = now();
     const title = doc.querySelector(titleSelector);
     if (!titleAt && title && (title !== oldTitle || stop.startsWith('#'))) titleAt = lastChange;
-    if (titleAt && !rowsAt && doc.querySelector('#main-content-container :is([class*="refinement-"], [class*="rf-"])')) rowsAt = lastChange;
+    if (titleAt && !rowsAt && doc.querySelector('#main-content-container :is([class*="th-"], [class*="th-"])')) rowsAt = lastChange;
     for (const piece of pieces.values()) {
       if (!piece.at && titleAt && doc.querySelector('#main-content-container ' + piece.selector)) piece.at = lastChange;
       for (const record of records) for (const node of record.addedNodes) if (node.nodeType === 1 && (node.matches?.(piece.selector) || node.querySelector?.(piece.selector))) piece.added++;
@@ -380,8 +380,8 @@ async function tourVisit(stop) {
   tour.stopVisit = stopWatching;
   // Where the two-way rows sit, every 50 ms (0.4.333): a slide is a change of their top with nothing added above.
   const trail = [];
-  // Only while they can be seen: on a first visit they wait unseen for Logseq's property list (data-rf-waiting).
-  const rowsTop = () => { const box = doc.querySelector('#main-content-container .refinement-two-way:not([data-rf-waiting]) .rf-tw-row'); return box ? Math.round(box.getBoundingClientRect().top) : null; };
+  // Only while they can be seen: on a first visit they wait unseen for Logseq's property list (data-th-waiting).
+  const rowsTop = () => { const box = doc.querySelector('#main-content-container .th-two-way:not([data-th-waiting]) .th-tw-row'); return box ? Math.round(box.getBoundingClientRect().top) : null; };
   for (;;) {
     if (stopped || run !== tour.run) break;
     await sleep(50);
@@ -398,7 +398,7 @@ async function tourVisit(stop) {
   const lines = [`${stop}  ${ms(titleAt)} · ${ms(rowsAt)} · ${ms(lastChange)}${lastChange - begun >= TOUR_LONGEST - TOUR_STILL ? ' (still moving at 8 s)' : ''} · ${shifts.length} (${score.toFixed(4)}) · ${seen.length}`];
   const moved = new Map();
   for (const entry of shifts) for (const source of entry.sources || []) {
-    const node = source.node, own = node?.nodeType === 1 && node.closest('[class*="refinement-"], [class*="rf-"]') ? ' (the plugin\'s)' : '';
+    const node = source.node, own = node?.nodeType === 1 && node.closest('[class*="th-"], [class*="th-"]') ? ' (the plugin\'s)' : '';
     const name = describeNode(node) + own;
     moved.set(name, (moved.get(name) || 0) + 1);
   }
@@ -467,8 +467,8 @@ async function openRecycleList() {
   const damaged = rows.filter(row => row.damage.length).length;
   const done = (item, words) => {
     item.done = true;
-    const button = [...pop.body.querySelectorAll('.rf-item')].find(b => b.item === item);
-    if (button) { button.disabled = true; button.classList.add('rf-faint'); (button.querySelector('.rf-end') || button.appendChild(el(host(), 'span', { class: 'rf-end' }))).textContent = words; }
+    const button = [...pop.body.querySelectorAll('.th-item')].find(b => b.item === item);
+    if (button) { button.disabled = true; button.classList.add('th-faint'); (button.querySelector('.th-end') || button.appendChild(el(host(), 'span', { class: 'th-end' }))).textContent = words; }
   };
   const restore = async (item, row) => {
     if (item.done || !row.uuid) return 'keep';
@@ -481,12 +481,12 @@ async function openRecycleList() {
   let asking = null;
   const leave = () => { const box = asking; asking = null; if (box) window.PluginDoor.rollUp(box).then(() => box.remove()); };
   const askUnder = (item, { head, words, yes, run }) => {
-    const doc = host(), row = [...pop.body.querySelectorAll('.rf-item')].find(b => b.item === item);
+    const doc = host(), row = [...pop.body.querySelectorAll('.th-item')].find(b => b.item === item);
     if (!row) return;
     leave();
     const yesPress = el(doc, 'button', { type: 'button', class: 'lk-big', click: event => { event.stopPropagation(); leave(); run(); } }, yes);
-    const box = el(doc, 'div', { class: 'rf-recycle-ask', role: 'group', 'aria-label': head },
-      el(doc, 'div', { class: 'rf-recycle-ask-h' }, head), el(doc, 'div', { class: 'rf-recycle-ask-l' }, words),
+    const box = el(doc, 'div', { class: 'th-recycle-ask', role: 'group', 'aria-label': head },
+      el(doc, 'div', { class: 'th-recycle-ask-h' }, head), el(doc, 'div', { class: 'th-recycle-ask-l' }, words),
       el(doc, 'div', { class: 'lk-answers' }, yesPress, el(doc, 'button', { type: 'button', class: 'lk-btn lk-low lk-i-x', click: event => { event.stopPropagation(); leave(); row.focus?.(); } }, 'Leave it')));
     box.addEventListener('keydown', event => {
       if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); leave(); row.focus?.(); }
@@ -537,7 +537,7 @@ async function openRecycleList() {
   const actions = (item, row) => {
     const doc = host();
     const press = (cls, words, run) => el(doc, 'span', { class: `lk-fix ${cls}`, role: 'button', click: event => { event.preventDefault(); event.stopPropagation(); run(); } }, words);
-    return el(doc, 'span', { class: 'lk-strip rf-recycle-acts' },
+    return el(doc, 'span', { class: 'lk-strip th-recycle-acts' },
       press('lk-i-undo', 'Restore', () => restore(item, row)),
       press('lk-del', 'Delete', () => { if (!item.done) askUnder(item, { head: `Delete “${recycleLine(row)}” for good`, words: 'Undo cannot bring it back.', yes: 'Delete for good', run: () => removeForGood(item, row) }); }));
   };
@@ -555,7 +555,7 @@ async function openRecycleList() {
       return item;
     }),
   ];
-  const pop = shared.popup({ head: `The Recycle · ${rows.length} deleted node${rows.length === 1 ? '' : 's'}`, cls: 'rf-recycle', width: 'min(600px, 92vw)', items });
+  const pop = shared.popup({ head: `The Recycle · ${rows.length} deleted node${rows.length === 1 ? '' : 's'}`, cls: 'th-recycle', width: 'min(600px, 92vw)', items });
   return pop;
 }
 /* Logseq's Recycle page opened while the errors Logseq writes are recorded (0.4.408): when it breaks, Logseq writes

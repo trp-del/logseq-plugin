@@ -10,6 +10,7 @@
    elsewhere this is skipped. Needs Playwright and Chromium; skipped quietly where they are missing. */
 const fs = require('fs');
 const path = require('path');
+const twoWay = require('./two-way-files');
 
 let chromium;
 for (const where of ['playwright', '/opt/node-tools/node_modules/playwright']) { try { ({ chromium } = require(where)); break; } catch (error) { /* try the next */ } }
@@ -29,12 +30,12 @@ async function scenes(page) {
   return {
     'two-way-rows': {
       scripts: [`window.parent = window; window.logseq = { settings: {}, DB: {}, UI: {}, App: {}, Editor: {} };`, read('../plugin.js'), read('parts/shared.js'),
-        exposeAtEnd(read('parts/two-way.js'), ['rowHtml', 'twoWayCss', 'state'], 'parts/two-way.js')],
+        ...twoWay.sources(), twoWay.reach(['rowHtml', 'twoWayCss', 'state'])],
       draw: async groups => {
         const style = document.createElement('style'); style.textContent = window.PluginDoor.THEME + window.PluginDoor.NAMES + window.Threads.shared.kitCss + window.__twoWayCss; document.head.append(style);
         window.__state.pageUuid = 'page-mei-chen';
         const box = document.createElement('div');
-        box.className = 'refinement-two-way';
+        box.className = 'th-two-way';
         box.innerHTML = groups.map(window.__rowHtml).join('');
         document.getElementById('stage').append(box);
       },
@@ -43,12 +44,12 @@ async function scenes(page) {
     // The same rows with the days' column off (twoWayDays): the rows move left into its place.
     'two-way-rows-no-days': {
       scripts: [`window.parent = window; window.logseq = { settings: {}, DB: {}, UI: {}, App: {}, Editor: {} };`, read('../plugin.js'), read('parts/shared.js'),
-        exposeAtEnd(read('parts/two-way.js'), ['rowHtml', 'twoWayCss', 'noDaysCss', 'state'], 'parts/two-way.js')],
+        ...twoWay.sources(), twoWay.reach(['rowHtml', 'twoWayCss', 'noDaysCss', 'state'])],
       draw: async groups => {
         const style = document.createElement('style'); style.textContent = window.PluginDoor.THEME + window.PluginDoor.NAMES + window.Threads.shared.kitCss + window.__twoWayCss + window.__noDaysCss; document.head.append(style);
         window.__state.pageUuid = 'page-mei-chen';
         const box = document.createElement('div');
-        box.className = 'refinement-two-way';
+        box.className = 'th-two-way';
         box.innerHTML = groups.map(window.__rowHtml).join('');
         document.getElementById('stage').append(box);
       },

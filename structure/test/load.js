@@ -128,7 +128,9 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   if (!app.tray.changes.length) app.stage({ kind: 'move', tag: id('Scan'), to: id('Conversation') });
   for (let i = 0; i < 40 && !app.tray.done; i++) await sleep(25);
   assert.ok(app.tray.done && app.tray.changes.length === 0, 'one safe change is written at once'); assert.ok(calls.some(c => c[0] === 'addTagExtends'), 'through Logseq\'s own call');
-  assert.ok(R.querySelector('.st-tray [data-undo]'), 'the Undo arrow waits in the tray'); click(R.querySelector('[data-undo]')); for (let i = 0; i < 40 && app.tray.done; i++) await sleep(25);
+  const undoArrow = () => R.querySelector('.st-tray .st-done [data-lk-undo="structure"]');   // the door's one Undo, drawn on the next frame
+  for (let i = 0; i < 40 && !undoArrow(); i++) await sleep(25);
+  assert.ok(undoArrow(), 'the Undo arrow waits in the tray'); click(undoArrow()); for (let i = 0; i < 40 && app.tray.done; i++) await sleep(25);
   assert.ok(!app.tray.done, 'Undo puts it back');
   // Two moves staged together wait for Apply: pencilled, in the tray, with the plain count; Old and new; one Undo for the lot.
   app.stage({ kind: 'move', tag: id('Scan'), to: id('Conversation') }); app.stage({ kind: 'move', tag: id('Call'), to: id('Treatment') }); app.draw(); await sleep(30);
@@ -142,7 +144,7 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   key(R, 'Enter', { metaKey: true }); for (let i = 0; i < 40 && !app.tray.done; i++) await sleep(25);
   assert.ok(app.tray.done, 'Apply leaves one Undo'); assert.equal(app.tray.changes.length, 0);
   assert.ok(calls.some(c => c[0] === 'addTagExtends'), 'written through Logseq\'s own call');
-  click(R.querySelector('[data-undo]')); for (let i = 0; i < 40 && app.tray.done; i++) await sleep(25);
+  for (let i = 0; i < 40 && !undoArrow(); i++) await sleep(25); click(undoArrow()); for (let i = 0; i < 40 && app.tray.done; i++) await sleep(25);
   assert.ok(!app.tray.done, 'Undo puts it back');
 
   // Every property and a tag's nodes open in the place of the areas.
@@ -214,7 +216,7 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
       for (let i = 0; i < 40 && !app.tray.done; i++) await sleep(25);
       assert.ok(app.tray.done && app.tray.changes.length === 0, 'Enter takes the lit row and the property is put on the tag at once');
       assert.ok(calls.slice(wrote).some(c => c[0] === 'upsertBlockProperty' && String(c[2]).endsWith('class/properties')), 'written as a declared property');
-      click(R.querySelector('[data-undo]')); for (let i = 0; i < 40 && app.tray.done; i++) await sleep(25); assert.ok(!app.tray.done, 'Undo takes it off again');
+      for (let i = 0; i < 40 && !undoArrow(); i++) await sleep(25); click(undoArrow()); for (let i = 0; i < 40 && app.tray.done; i++) await sleep(25); assert.ok(!app.tray.done, 'Undo takes it off again');
       click(tr().querySelector('[data-pon]')); await sleep(10); assert.ok(P());
       key(pin(), 'Tab'); await sleep(10); assert.ok(!P(), 'Tab closes the picker');
       click(tr().querySelector('[data-pon]')); await sleep(10); assert.ok(P()); }

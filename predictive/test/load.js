@@ -151,7 +151,7 @@ for (const file of order) vm.runInContext(fs.readFileSync(path.join(root, file),
   const enter = async uuid => { box(uuid).focus(); await wait(320); };
   const leave = async () => { hostDoc.activeElement.blur(); await wait(350); };
   const type = async (uuid, more) => { box(uuid).value += more; saved.get(uuid)['block/title'] = line(more); box(uuid).dispatchEvent(new page.window.Event('input', { bubbles: true })); await wait(320); };
-  const arrows = () => [...hostDoc.querySelectorAll('.flow-undo')];
+  const arrows = () => [...hostDoc.querySelectorAll('.lk-undo[data-lk-undo]')];
 
   // How often names are linked is counted with the graph's reading, and one changed line changes only its own count.
   const read = await Flow.app.context(), rate = () => read.linkLines.counter.rates.get('ruth okoro').linked;

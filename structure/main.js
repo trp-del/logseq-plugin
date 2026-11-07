@@ -90,11 +90,13 @@ const app = {
     app.st.busy = 'Undoing…'; app.draw();
     try {
       const failures = await done.undo();
-      if (failures.length) { done.text = `${stepsWord(done.left())} not undone`; notify(`Could not undo ${failures.length} of ${stepsWord(of)}: ${failures[0].message}. The arrow tries again.`, 'error'); }
+      if (failures.length) { done.text = `${stepsWord(done.left())} not undone`; syncUndo(); notify(`Could not undo ${failures.length} of ${stepsWord(of)}: ${failures[0].message}. The arrow tries again.`, 'error'); }
       else { if (tray.done === done) tray.done = null; else dones.delete(done.graph); tray.note = ''; }
+      syncUndo();
     } catch (error) {
       console.error('Structure: undo failed', error);
       if (done.left()) done.text = `${stepsWord(done.left())} not undone`;
+      syncUndo();
       notify(error.elsewhere ? `Another graph was opened: the Undo waits in ${done.graph.replace(/^logseq_db_/, '')}` : `Could not undo: ${error.message}`, 'error');
     } finally { app.st.busy = ''; }
     await app.reread();
@@ -167,7 +169,19 @@ function settle(was, up) {
   if (app.st.side.cur != null && app.st.side.cur !== Mo.LOOSE && !m.tags.has(app.st.side.cur)) app.st.side.cur = app.st.cur;
   if (app.st.propCur && !m.props.has(Number(app.st.propCur.split('·')[1]))) app.st.propCur = null;
 }
-function keepDone(graph, done) { if (graph === app.graph) tray.done = done; else dones.set(graph, done); }
+function keepDone(graph, done) { if (graph === app.graph) tray.done = done; else dones.set(graph, done); syncUndo(); }
+/* The arrow is the door's one Undo (PluginDoor.undo): offered at the end of the tray's done line whenever the tray has a done, taken
+   away when it has none, and when another module's change has taken the arrow's place the done line goes too (one Undo in the plugin). */
+let undoOffered = false;
+function syncUndo() {
+  const door = window.PluginDoor.undo;
+  if (tray.done) {
+    if (undoOffered && !door.has('structure')) { tray.done = null; undoOffered = false; return; }
+    door.forget('structure');
+    door.offer({ owner: 'structure', key: 'structure', at: () => host().querySelector('.st-tray .st-done'), text: tray.done.text, run: () => app.undo() });
+    undoOffered = true;
+  } else if (undoOffered) { door.forget('structure'); undoOffered = false; }
+}
 // Another graph: its ids mean other tags, so nothing of the map's state carries over. What waited in the tray was never written, and goes with a word;
 // the last Undo waits for its graph. The new graph may not answer at once.
 async function otherGraph() {
@@ -175,7 +189,7 @@ async function otherGraph() {
   if (tray.done) dones.set(tray.done.graph, tray.done);
   tray.discard(); tray.lost = [];
   app.graph = await S.db.graph().catch(() => '');
-  tray.done = dones.get(app.graph) || null; dones.delete(app.graph);
+  tray.done = dones.get(app.graph) || null; dones.delete(app.graph); syncUndo();
   say(waiting ? `${changesWord(waiting)} dropped: another graph opened` : '');
   if (waiting && !mounts.onPage()) notify(tray.note, 'warning');
   const { side, ...rest } = startState();

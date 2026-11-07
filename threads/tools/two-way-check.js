@@ -12,6 +12,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const twoWay = require('./two-way-files');
 const { execFile } = require('child_process');
 
 const GRAPH = process.env.GRAPH || 'Illness Test Graph';
@@ -79,10 +80,10 @@ async function pluginRows() {
   window.eval(fs.readFileSync(path.join(root, 'parts/shared.js'), 'utf8'));
   window.eval(fs.readFileSync(path.join(root, 'parts/model.js'), 'utf8'));
   window.eval(require('./pretend-model')); // the model answers through ask (0.4.225)
-  const source = fs.readFileSync(path.join(root, 'parts/two-way.js'), 'utf8');
-  const exposed = source.replace(/\}\)\(\);\s*$/, `window.__tw = { groupsByPage, summary, init: core => ({ UUID, isEntityId, provided } = core) }; })();`);
-  if (exposed === source) throw new Error('the end of parts/two-way.js changed; tools/two-way-check.js cannot reach it');
-  window.eval(exposed);
+  let reached = false;
+  const sources = twoWay.sources(source => source.replace(/\}\)\(\);\s*$/, () => { reached = true; return `window.__tw = { groupsByPage, summary, init: core => { ({ UUID, isEntityId, provided } = core); Object.assign(twoWay, { UUID, isEntityId, provided, model: provided }); } }; })();`; }));
+  if (!reached) throw new Error('the end of parts/two-way.js changed; tools/two-way-check.js cannot reach it');
+  for (const source of sources) window.eval(source);
   window.__tw.init({
     UUID: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
     isEntityId: id => Number.isSafeInteger(id) && id > 0,

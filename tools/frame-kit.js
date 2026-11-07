@@ -7,7 +7,7 @@
    - THE LEDGER: a requestAnimationFrame loop in the page that writes, every frame, what changed about each tracked
      element: its rect, whether it is in the document, its opacity (with its ancestors'), visibility, colour and
      background. Tracked: every element a module marks (MARKS below: Look's lk-, Find's fd-, Predictive's flow-, Structure's
-     st-, DB Export's xp, Threads' rf- and refinement-; or Threads' own two patterns, from threads/tools/marks.js, for its
+     st-, DB Export's xp, Threads' th-; or Threads' own two patterns, from threads/tools/marks.js, for its
      pretend page) and Logseq's landmarks (LANDMARKS below). Inputs the test makes are written to it too.
    - THE BLAME LOG (blameSource): in a run of its own, every change made to Logseq's page (a node put in or taken out, an
      attribute, a class, a style, words set) with the script and function that made it, read from the stack. Each jump or
@@ -56,16 +56,16 @@ const LANDMARKS = {
 };
 // The plugin's pieces whose arrival is timed (section 3.3), by name, as the modules draw them now.
 const PIECES = {
-  'two-way rows': '.refinement-two-way:not([data-rf-waiting]) .rf-tw-row',
+  'two-way rows': '.th-two-way:not([data-th-waiting]) .th-tw-row',
   'tag chain': '.lk-path',
   'kind icons': '.property-m > .lk-kind, .lk-kind',
 };
 /* Every module's marks on Logseq's screen, so the ledger tracks the whole plugin: the class and attribute prefixes each
    module puts on what it draws or claims (Look claims Logseq's own links and tags with lk-node and lk-tag). The shared names
    (lk-row, lk-tag …) stand on every module's elements, so a module is named by its own prefix first, Look last. */
-const MARKS = { class: /^(?:lk-|fd-|fd$|flow-|st-|xp$|xp-|rf-|refinement-)/, attr: /^data-(?:lk|fd|flow|st|rf|refinement)-/ };
-const MODULES = [['Threads', /(?:^|[ .])(?:rf-|refinement-)/], ['Find', /(?:^|[ .])fd(?:-|$)/], ['Predictive', /(?:^|[ .])flow-/], ['Structure', /(?:^|[ .])st-/], ['DB Export', /(?:^|[ .])xp(?:-|$)/], ['Look', /(?:^|[ .])lk-/]];
-// The module an element belongs to, from its ledger name ('span.lk-path', 'div.rf-tw-row.lk-row') or a class list; '' for Logseq's own.
+const MARKS = { class: /^(?:lk-|fd-|fd$|flow-|st-|xp$|xp-|th-)/, attr: /^data-(?:lk|fd|flow|st|th)-/ };
+const MODULES = [['Threads', /(?:^|[ .])(?:th-|th-)/], ['Find', /(?:^|[ .])fd(?:-|$)/], ['Predictive', /(?:^|[ .])flow-/], ['Structure', /(?:^|[ .])st-/], ['DB Export', /(?:^|[ .])xp(?:-|$)/], ['Look', /(?:^|[ .])lk-/]];
+// The module an element belongs to, from its ledger name ('span.lk-path', 'div.th-tw-row.lk-row') or a class list; '' for Logseq's own.
 function moduleOf(name) {
   if (!name || /^(?:landmark|logseq): /.test(name)) return '';
   for (const [module, re] of MODULES) if (re.test(name)) return module;

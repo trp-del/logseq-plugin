@@ -33,8 +33,6 @@
    - openPageNamed(name, inSidebar)   opens a page by its name the same way.
    - settingReader(schema)        returns setting(key): the saved value, or the schema's default when
                                   the saved value is missing or of another type.
-   - graphNamedIn(list)           true when the open graph is named in the comma-separated list (an "Only in
-                                  these graphs" setting); false while the list is empty.
    - perf                         measuring hooks (add, time, seen, style, frameState, pass, passDone,
                                   ownSettingsOnly): no-ops until the diagnostics part measures.
    - warnings                     every distinct warnOnce message of this session (message, first time, count).
@@ -61,18 +59,12 @@
                                   one node or several, a calendar, Aa, 123, a box with a chevron for a choice.
    - tag(doc, title, props)       a tag as a class: its name alone, no #, mono, the tag grey, a link to its page (plain:
                                   true where a click already chooses; a click of its own never follows the "#");
-                                  tagLinkHtml(title) the same as words.
    - quiet(doc, { icon, label, title, pressed, run })   a press of the library's third level (lk-btn lk-low); go(doc, { label, run })
                                   the one that does what was asked, the library's lk-accent; pressed is in force, aria-pressed="true".
    - field(doc, { placeholder, value, icon, kbd, inline, multiline, keys, input })   the library's field (lk-field), a real
                                   text box on a hairline (a few lines tall with multiline); keys typed in it never
                                   reach Logseq; .input is the box.
-   - drawnField(doc, { text, placeholder, fresh, kbd })   the same look with drawn text and a drawn caret: only for the
-                                  link box, whose keystrokes must keep going to the bullet.
-   - tick(doc, { checked, label, title, change })   the library's tick box (lk-tick).
-   - chip(doc, { label, pressed, run, remove })     a filter (greyed, the one in force in the text colour) or a
-                                  removable item (a word with a × on hover); never a pill.
-   - note(doc, text), guide(doc, paragraphs)        the library's quiet line (lk-note); the help paragraph with a hairline down its left.
+   - note(doc, text)              the library's quiet line (lk-note).
    - popup({ at, kind, head, items, field, rows, manual, hint, cls, width, onClose })   THE pop-up, the library's lk-pop: the browser's
                                   popover, placed under its anchor (an element or a rect) by CSS anchor positioning
                                   and flipped when there is no room, dismissed by the browser on Escape or a click
@@ -84,14 +76,10 @@
    - ask({ at, question, note, go, cancel, field })   a question beside what it is about: Cancel and the one that
                                   does it as words; resolves true/false, or the field's text / null (field.select
                                   starts with its words selected; multiline takes Shift-Enter for a new line).
-   - dialog({ build, cls, width })   THE window: the browser's <dialog>, shown modal, in the library's lk-window.
-   - tagTreeRows(matches, opened, sibs, tags, query, builtInLast, byName)   THE tag tree's rows: matches under the tags
-                                  above them, child tags one level below; the tag list after a # and the tag map's pickers.
    - card({ at, title, tag, day, fields, lines, empty, open })   the hover card: a node's preview, every piece clickable
                                   (open(what, value, event): 'node', 'prop', 'value', 'line').
-   - undo                         THE Undo (0.4.258): undo.offer({ key, at, text, run, onFail, cls, data }) puts a
-                                  faded arrow at the end of at()'s element(s), or at the bottom right when there is
-                                  none; forget, clear, draw, size, has, stop.
+   - undo                         the door's one Undo (PluginDoor.undo), every offer with owner 'threads'; undo.near({ root,
+                                  key, col }) names an arrow's place by a row's key, found again after every redraw.
 
    WHAT EVERY OTHER PART MUST DO:
    - wrap itself in its own scope, `(() => { … })();`
@@ -253,18 +241,6 @@ const perf = {
   },
 };
 
-/* Plugin settings are shared by every graph; a part that writes to notes keeps to the graphs named in one of its
-   settings ("Only in these graphs", a comma-separated list). True when the open graph is one of them. */
-async function graphNamedIn(list) {
-  const names = String(list || '').split(',').map(n => n.trim().toLowerCase()).filter(Boolean);
-  if (!names.length) return false;
-  const graph = await logseq.App.getCurrentGraph().catch(() => null);
-  // A DB graph's name may carry an internal prefix ("logseq_db_"), and its url or path ends in the name.
-  const strip = value => String(value || '').toLowerCase().replace(/^logseq_db_/, '');
-  const candidates = [graph?.name, graph?.url, String(graph?.path || '').split(/[\\/]/).pop()]
-    .map(strip).map(value => value.replace(/^.*[\\/]/, '')).filter(Boolean);
-  return candidates.some(value => names.includes(value));
-}
 
 // A part's settings: the saved value, or the default when the saved value is missing or of the wrong type.
 function settingReader(schema) {
@@ -308,7 +284,7 @@ const screen = {
   // A key to an element (Escape to a menu, Enter to a row).
   key: (el, name, init = {}) => !!el?.dispatchEvent(new el.ownerDocument.defaultView.KeyboardEvent('keydown', { key: name, code: name, bubbles: true, cancelable: true, ...init })),
   // What floats over the page (Logseq's boxes and lists): not the sidebars, the main view, the header or the plugin's own.
-  floating: el => el.getClientRects().length > 0 && !el.closest('#right-sidebar, #main-content-container, #left-sidebar, .cp__header, .rf-pop, .refinement-tags'),
+  floating: el => el.getClientRects().length > 0 && !el.closest('#right-sidebar, #main-content-container, #left-sidebar, .cp__header, .th-pop, .th-tags'),
   // A floating item (a menu row, an option, a button) whose words pass test(text); null when none.
   item(test, doc = host()) {
     return [...doc.querySelectorAll('[role="menuitem"], [role="option"], [role="menuitemcheckbox"], .menu-link, .cp__select-main .menu-link, button, li, a')].filter(screen.floating).find(el => test(el.textContent.trim())) || null;
@@ -342,14 +318,7 @@ const screen = {
 // HTML given to el (an icon, a tag's words) is parsed once per document and copied after (2026-10-23: the tag map of
 // 600 tags parsed the same few icons thousands of times a redraw, its slowest step). At most 500 kept.
 const parsed = new WeakMap();
-function fragmentOf(doc, html) {
-  let cache = parsed.get(doc);
-  if (!cache) parsed.set(doc, cache = new Map());
-  let t = cache.get(html);
-  if (!t) { t = doc.createElement('template'); t.innerHTML = html; if (cache.size >= 500) cache.delete(cache.keys().next().value); cache.set(html, t); }
-  return t.content.cloneNode(true);
-}
-// THE element builder: el(doc, 'button', { class: 'rf-quiet', title: 'Undo', click: () => … }, icon, 'Undo').
+// THE element builder: el(doc, 'button', { class: 'th-quiet', title: 'Undo', click: () => … }, icon, 'Undo').
 const el = window.PluginDoor.el;
 
 /* THE icon list: what each icon means, by the name of its Tabler icon in Logseq's own font (loaded on every page;
@@ -372,9 +341,9 @@ const DRAWN = {
   blank: '<svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"></svg>',
   joins: window.PluginDoor.WEB,
 };
-const iconHtml = name => { const n = ICONS[name] || name; return DRAWN[n] ? `<i class="rf-drawn rf-drawn-${n}" aria-hidden="true">${DRAWN[n]}</i>` : `<i class="ti ti-${esc(n)}" aria-hidden="true"></i>`; };
+const iconHtml = name => { const n = ICONS[name] || name; return DRAWN[n] ? `<i class="th-drawn th-drawn-${n}" aria-hidden="true">${DRAWN[n]}</i>` : `<i class="ti ti-${esc(n)}" aria-hidden="true"></i>`; };
 const icon = (doc, name, title) => { const n = ICONS[name] || name;
-  return el(doc, 'i', { class: DRAWN[n] ? `rf-drawn rf-drawn-${n}` : `ti ti-${n}`, html: DRAWN[n] || null, 'aria-hidden': title ? null : 'true', title: title || null }); };
+  return el(doc, 'i', { class: DRAWN[n] ? `th-drawn th-drawn-${n}` : `ti ti-${n}`, html: DRAWN[n] || null, 'aria-hidden': title ? null : 'true', title: title || null }); };
 // A value's kind as an icon left of the property's name: the door's, the one drawing every module uses.
 const kindIconHtml = kind => window.PluginDoor.kindIconHtml(kind);
 // A tag as a class: its name alone, no #. Always a link to its page (0.4.332, the owner: "they should always be
@@ -382,16 +351,15 @@ const kindIconHtml = kind => window.PluginDoor.kindIconHtml(kind);
 // plain. A caller with its own href or click handles the click itself.
 function tag(doc, title, props = {}) {
   const { plain, ...rest } = props, name = String(title ?? '').replace(/^#/, '');
-  if (plain) return el(doc, 'span', { class: 'rf-tag lk-tag', ...rest }, name);
+  if (plain) return el(doc, 'span', { class: 'th-tag lk-tag', ...rest }, name);
   const own = rest.href || rest.click;
   // A click of the caller's own on the bare "#" link never follows it: Logseq reads "#" as its home, the Journals, and the
   // tag map left for there under an "also under" or a child tag's click (0.4.427).
   const click = !rest.click ? null : rest.href && rest.href !== '#' ? rest.click : event => { event.preventDefault(); rest.click(event); };
-  return el(doc, 'a', { class: 'rf-tag lk-tag', href: '#', ...rest,
+  return el(doc, 'a', { class: 'th-tag lk-tag', href: '#', ...rest,
     click: own ? click : event => { event.preventDefault(); event.stopPropagation(); openPageNamed(name, event.shiftKey); } }, name);
 }
 // The same as words for a paragraph (the help paragraph opens it, guide below).
-const tagLinkHtml = title => { const name = esc(String(title ?? '').replace(/^#/, '')); return `<a class="rf-tag lk-tag" href="#" data-tag-page="${name}">${name}</a>`; };
 // The two buttons, both the library's: quiet (the third level, lk-low: the word alone, the wash under the pointer), go (lk-accent, the one that does it); pressed is in force.
 function quiet(doc, { icon: name, label, title, pressed, run, cls } = {}) {
   return el(doc, 'button', { type: 'button', class: `lk-btn lk-low${cls ? ' ' + cls : ''}`, title: title || null, 'aria-pressed': pressed == null ? null : String(!!pressed), click: run || null },
@@ -407,8 +375,8 @@ const keepKeys = box => { for (const type of ['keydown', 'keyup', 'keypress']) b
 function field(doc, { placeholder = '', value = '', icon: name, kbd, inline, multiline, keys, input, title, cls, count } = {}) {
   const box = multiline ? el(doc, 'textarea', { rows: '3', placeholder, spellcheck: 'true', title: title || null }) : el(doc, 'input', { type: 'text', placeholder, spellcheck: 'false', autocomplete: 'off', title: title || null });
   box.value = value;
-  const counted = count == null ? null : el(doc, 'span', { class: 'rf-field-count lk-count' }, String(count));
-  const wrap = el(doc, 'span', { class: `rf-field lk-field${inline ? ' rf-field-inline' : ''}${multiline ? ' rf-field-tall' : ''}${cls ? ' ' + cls : ''}` }, name ? icon(doc, name) : null, box, counted, kbd ? el(doc, 'kbd', {}, kbd) : null);
+  const counted = count == null ? null : el(doc, 'span', { class: 'th-field-count lk-count' }, String(count));
+  const wrap = el(doc, 'span', { class: `th-field lk-field${inline ? ' th-field-inline' : ''}${multiline ? ' th-field-tall' : ''}${cls ? ' ' + cls : ''}` }, name ? icon(doc, name) : null, box, counted, kbd ? el(doc, 'kbd', {}, kbd) : null);
   wrap.count = text => { if (counted) counted.textContent = String(text ?? ''); };
   keepKeys(box);
   if (keys) box.addEventListener('keydown', event => { if (keys(event) === true) { event.preventDefault(); event.stopPropagation(); } });
@@ -417,37 +385,8 @@ function field(doc, { placeholder = '', value = '', icon: name, kbd, inline, mul
   return wrap;
 }
 const fieldHtml = ({ placeholder = '', value = '', icon: name, count, cls = '', inputCls = '', label = '' } = {}) =>
-  `<span class="rf-field lk-field${cls ? ' ' + cls : ''}">${name ? iconHtml(name) : ''}<input type="text"${inputCls ? ` class="${esc(inputCls)}"` : ''} value="${esc(value)}" placeholder="${esc(placeholder)}" spellcheck="false" autocomplete="off"${label ? ` aria-label="${esc(label)}"` : ''}>${count == null ? '' : `<span class="rf-field-count lk-count">${esc(count)}</span>`}</span>`;
-/* The drawn field (0.4.314): the field's look with drawn text and a drawn caret, for the one box whose keystrokes must keep
-   going to the bullet (the link box, so that Logseq's own Cmd+Z takes the link back); fresh marks text the next key replaces. */
-function drawnField(doc, { text = '', placeholder = '', fresh = false, kbd, cls } = {}) {
-  return el(doc, 'span', { class: `rf-field lk-field rf-field-drawn${cls ? ' ' + cls : ''}` },
-    text ? el(doc, 'span', { class: `rf-typed${fresh ? ' rf-typed-fresh' : ''}` }, text) : el(doc, 'span', { class: 'rf-placeholder' }, placeholder),
-    el(doc, 'span', { class: 'rf-caret', 'aria-hidden': 'true' }), kbd ? el(doc, 'kbd', {}, kbd) : null);
-}
-// The browser's tick box as a small rounded square; with a label, in a label.
-function tick(doc, { checked = false, label, title, change, cls } = {}) {
-  const box = el(doc, 'input', { type: 'checkbox', class: `lk-tick${label == null && cls ? ' ' + cls : ''}`, title: title || null, change: change ? () => change(box.checked) : null });
-  box.checked = !!checked;
-  if (label == null) return box;
-  return el(doc, 'label', { class: `rf-tick${cls ? ' ' + cls : ''}` }, box, String(label));
-}
-// Words for chips: a filter (pressed or not) or a removable item (a × on hover).
-function chip(doc, { label, pressed, run, remove, title, cls } = {}) {
-  const word = el(doc, run ? 'button' : 'span', { type: run ? 'button' : null, class: `rf-chip${cls ? ' ' + cls : ''}`, 'aria-pressed': pressed == null ? null : String(!!pressed), title: title || null, click: run || null }, String(label));
-  if (remove) word.classList.add('lk-reveals');
-  if (remove) word.append(el(doc, 'button', { type: 'button', class: 'rf-chip-x lk-x lk-reveal', title: 'Remove', 'aria-label': `Remove ${label}`, click: event => { event.stopPropagation(); remove(); } }, icon(doc, 'remove')));
-  return word;
-}
+  `<span class="th-field lk-field${cls ? ' ' + cls : ''}">${name ? iconHtml(name) : ''}<input type="text"${inputCls ? ` class="${esc(inputCls)}"` : ''} value="${esc(value)}" placeholder="${esc(placeholder)}" spellcheck="false" autocomplete="off"${label ? ` aria-label="${esc(label)}"` : ''}>${count == null ? '' : `<span class="th-field-count lk-count">${esc(count)}</span>`}</span>`;
 const note = (doc, text, cls) => el(doc, 'div', { class: `lk-note${cls ? ' ' + cls : ''}` }, text);
-const guide = (doc, paragraphs) => el(doc, 'div', { class: 'rf-guide', role: 'note', click: openTagIn }, ...[].concat(paragraphs).map(p => typeof p === 'string' ? el(doc, 'p', {}, p) : p));
-// A tag written as words (tagLinkHtml) opens its page.
-function openTagIn(event) {
-  const link = event.target.closest?.('a.rf-tag[data-tag-page]');
-  if (!link) return;
-  event.preventDefault(); event.stopPropagation();
-  openPageNamed(link.dataset.tagPage, event.shiftKey);
-}
 
 /* THE pop-up: the browser's popover (dismissed by it on Escape or a click outside, in the top layer), placed under
    its anchor by CSS anchor positioning and flipped up or sideways when there is no room; the box is Logseq's own [[
@@ -479,23 +418,23 @@ function anchorFor(doc, at) {
   let node = at, made = false;
   if (!isElement) {
     const rect = typeof at.getBoundingClientRect === 'function' ? at.getBoundingClientRect() : at;
-    node = el(doc, 'span', { class: 'rf-anchor', 'aria-hidden': 'true' });
+    node = el(doc, 'span', { class: 'th-anchor', 'aria-hidden': 'true' });
     Object.assign(node.style, { position: 'fixed', left: `${rect.left}px`, top: `${rect.top}px`, width: `${Math.max(0, (rect.right ?? rect.left) - rect.left)}px`, height: `${Math.max(0, (rect.bottom ?? rect.top) - rect.top)}px`, pointerEvents: 'none' });
     doc.body.append(node);
     made = true;
   }
-  const name = `--rf-anchor-${++anchorCount}`, before = node.style.getPropertyValue('anchor-name');
+  const name = `--th-anchor-${++anchorCount}`, before = node.style.getPropertyValue('anchor-name');
   node.style.setProperty('anchor-name', name);
   return { name, cleanup: () => { if (made) node.remove(); else if (node.style.getPropertyValue('anchor-name') === name) { if (before) node.style.setProperty('anchor-name', before); else node.style.removeProperty('anchor-name'); } } };
 }
 function popup({ at, kind = 'menu', head, items, field: fieldOptions, rows, keys, manual = false, hint = false, cls = '', width, onClose, doc } = {}) {
   let waitUp = null; // set while the pop-up waits for the mouse button that opened it to be let go
   doc = doc || host();
-  const pop = el(doc, 'div', { class: `rf-pop lk-pop${items || rows ? ' lk-menu' : ''}${cls ? ' ' + cls : ''}`, role: hint ? 'tooltip' : fieldOptions ? 'listbox' : 'menu', tabindex: hint ? null : '-1' });
+  const pop = el(doc, 'div', { class: `th-pop lk-pop${items || rows ? ' lk-menu' : ''}${cls ? ' ' + cls : ''}`, role: hint ? 'tooltip' : fieldOptions ? 'listbox' : 'menu', tabindex: hint ? null : '-1' });
   pop.setAttribute('popover', manual ? 'manual' : hint ? 'hint' : 'auto');
   if (width) pop.style.width = typeof width === 'number' ? `${width}px` : width;
   const anchor = anchorFor(doc, at);
-  if (anchor) { pop.classList.add('rf-anchored'); pop.style.setProperty('position-anchor', anchor.name); }
+  if (anchor) { pop.classList.add('th-anchored'); pop.style.setProperty('position-anchor', anchor.name); }
   const wasActive = doc.activeElement;
   let closed = false, resolveClosed;
   const closedPromise = new Promise(resolve => { resolveClosed = resolve; });
@@ -513,15 +452,15 @@ function popup({ at, kind = 'menu', head, items, field: fieldOptions, rows, keys
     resolveClosed();
   };
   pop.addEventListener('toggle', event => { if (event.newState === 'closed') close(); });
-  if (head) pop.append(el(doc, 'div', { class: 'rf-pop-head' }, head));
+  if (head) pop.append(el(doc, 'div', { class: 'th-pop-head' }, head));
   let fieldEl = null;
   if (fieldOptions) {
     fieldEl = field(doc, { ...fieldOptions, input: value => { fieldOptions.input?.(value); if (rows) drawItems(rows(value)); } });
     pop.append(fieldEl);
   }
-  const body = el(doc, 'div', { class: 'rf-pop-body' });
+  const body = el(doc, 'div', { class: 'th-pop-body' });
   pop.append(body);
-  const buttons = () => [...body.querySelectorAll('.rf-item')];
+  const buttons = () => [...body.querySelectorAll('.th-item')];
   const lit = i => { const all = buttons(); all.forEach((b, k) => b.classList.toggle('on', k === i)); all[i]?.scrollIntoView?.({ block: 'nearest' }); };
   const litAt = () => buttons().findIndex(b => b.classList.contains('on'));
   const run = item => { if (item.disabled) return; const keep = item.run?.(item) === 'keep' || item.keep; if (!keep) close(); };
@@ -531,15 +470,10 @@ function popup({ at, kind = 'menu', head, items, field: fieldOptions, rows, keys
       if (!item) continue;
       if (item.sep) { body.append(el(doc, 'div', { class: 'lk-item gap' })); continue; }
       if (item.note) { body.append(note(doc, item.note)); continue; }
-      // A row of a tree (the tag tree, 0.4.431): indented by its depth, faded when it shows only where a match is, its
-      // child tags counted with the fold chevron at the end (a click on it opens or closes them, the list staying).
-      const fold = item.fold ? el(doc, 'span', { class: 'rf-end rf-tree-kids', title: item.fold.open ? 'Close its child tags (←)' : 'Show its child tags (→)',
-        click: event => { event.preventDefault(); event.stopPropagation(); item.fold.toggle(); } }, String(item.fold.count), el(doc, 'span', { class: 'rf-tree-tri lk-fold', 'aria-expanded': String(!!item.fold.open) })) : null;
-      const b = el(doc, 'button', { type: 'button', class: `rf-item lk-item${item.on ? ' on' : ''}${item.faint ? ' rf-faint' : ''}${item.dim ? ' rf-tree-dim' : ''}${item.cls ? ' ' + item.cls : ''}`, role: 'menuitem', title: item.title || null, disabled: item.disabled || null,
-        style: item.depth != null ? `padding-left: ${8 + item.depth * 16}px` : null, click: () => run(item) },
-        item.icon ? icon(doc, item.icon) : null, item.html ? el(doc, 'span', { class: 'rf-item-words', html: item.html }) : el(doc, 'span', { class: 'rf-item-words' }, String(item.label ?? '')),
-        item.chosen && item.depth != null ? el(doc, 'span', { class: 'rf-end rf-tree-chosen' }, icon(doc, 'chosen')) : null,
-        fold || (item.kbd ? el(doc, 'kbd', {}, item.kbd) : item.right ? el(doc, 'span', { class: 'rf-end' }, typeof item.right === 'string' ? item.right : '', typeof item.right === 'string' ? null : item.right) : item.chosen && item.depth == null ? el(doc, 'span', { class: 'rf-end' }, icon(doc, 'chosen')) : null));
+      const b = el(doc, 'button', { type: 'button', class: `th-item lk-item${item.on ? ' on' : ''}${item.faint ? ' th-faint' : ''}${item.cls ? ' ' + item.cls : ''}`, role: 'menuitem', title: item.title || null, disabled: item.disabled || null,
+        click: () => run(item) },
+        item.icon ? icon(doc, item.icon) : null, item.html ? el(doc, 'span', { class: 'th-item-words', html: item.html }) : el(doc, 'span', { class: 'th-item-words' }, String(item.label ?? '')),
+        item.kbd ? el(doc, 'kbd', {}, item.kbd) : item.right ? el(doc, 'span', { class: 'th-end' }, typeof item.right === 'string' ? item.right : '', typeof item.right === 'string' ? null : item.right) : item.chosen ? el(doc, 'span', { class: 'th-end' }, icon(doc, 'chosen')) : null);
       b.item = item;
       body.append(b);
     }
@@ -560,7 +494,7 @@ function popup({ at, kind = 'menu', head, items, field: fieldOptions, rows, keys
   });
   for (const type of ['keyup', 'keypress']) pop.addEventListener(type, event => event.stopPropagation());
   // The pointer over a row lights it, as in Logseq's own lists.
-  body.addEventListener('mousemove', event => { const b = event.target.closest?.('.rf-item'); if (b && !b.classList.contains('on')) lit(buttons().indexOf(b)); });
+  body.addEventListener('mousemove', event => { const b = event.target.closest?.('.th-item'); if (b && !b.classList.contains('on')) lit(buttons().indexOf(b)); });
   doc.body.append(pop);
   const show = () => {
     if (closed) return;
@@ -596,13 +530,13 @@ function pickValue({ at, placeholder = '', options = [], clearLabel = '', free =
   doc = doc || host();
   return new Promise(resolve => {
     let answer = null, finished = false, lit = 0, shown = [], all = false;
-    const pop = el(doc, 'div', { class: 'ui__popover-content z-50 rounded-md border bg-popover text-popover-foreground shadow-md outline-none animate-in fade-in-0 zoom-in-95 data-[side=bottom]:slide-in-from-top-2 rf-lsq-pop',
+    const pop = el(doc, 'div', { class: 'ui__popover-content z-50 rounded-md border bg-popover text-popover-foreground shadow-md outline-none animate-in fade-in-0 zoom-in-95 data-[side=bottom]:slide-in-from-top-2 th-lsq-pop',
       role: 'dialog', tabindex: '-1', 'data-side': 'bottom', 'data-state': 'open' });
     pop.setAttribute('popover', 'auto');
     const anchor = anchorFor(doc, at);
-    if (anchor) { pop.classList.add('rf-anchored'); pop.style.setProperty('position-anchor', anchor.name); }
+    if (anchor) { pop.classList.add('th-anchored'); pop.style.setProperty('position-anchor', anchor.name); }
     const input = el(doc, 'input', { class: '!p-1.5 cp__select-input w-full', type: 'text', placeholder });
-    const list = el(doc, 'div', { class: 'rf-lsq-list hide-scrollbar' });
+    const list = el(doc, 'div', { class: 'th-lsq-list hide-scrollbar' });
     pop.append(el(doc, 'div', { class: 'property-select' }, el(doc, 'div', { class: 'cp__select-main cp__select' },
       el(doc, 'div', { class: 'input-wrap' }, input),
       el(doc, 'div', { class: 'py-1' }, el(doc, 'div', { class: 'item-results-wrap' }, el(doc, 'div', { class: 'cp__select-results' }, list))))));
@@ -616,7 +550,7 @@ function pickValue({ at, placeholder = '', options = [], clearLabel = '', free =
     };
     const take = value => { answer = value; finish(); };
     const row = (item, i) => {
-      const words = item.clear ? [el(doc, 'span', { class: 'ui__icon ti', html: X_SVG }), el(doc, 'span', {}, item.label)] : [el(doc, 'div', { class: item.more ? 'rf-faint' : null }, item.label)];
+      const words = item.clear ? [el(doc, 'span', { class: 'ui__icon ti', html: X_SVG }), el(doc, 'span', {}, item.label)] : [el(doc, 'div', { class: item.more ? 'th-faint' : null }, item.label)];
       const link = el(doc, 'a', { class: `${i === lit ? 'chosen ' : ''}flex justify-between menu-link${item.clear ? ' lk-lone' : ''}`, tabindex: '-1',
         mousedown: event => event.preventDefault(), click: event => { event.preventDefault(); choose(item); },
         mousemove: () => { if (lit !== i) light(i); } },
@@ -673,7 +607,7 @@ function editInPlace({ at, value = '', type = 'text', placeholder = '', doc, aga
     let was = [...at.childNodes];
     // Words with a line break keep it: an input would flatten them.
     const lines = String(value).split('\n').length;
-    const input = el(doc, lines > 1 ? 'textarea' : 'input', { class: 'ui__input flex w-full rounded-md border-none bg-transparent px-0 !py-0 min-h-0 leading-6 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 rf-in-place', ...(lines > 1 ? { rows: lines } : { type }), placeholder });
+    const input = el(doc, lines > 1 ? 'textarea' : 'input', { class: 'ui__input flex w-full rounded-md border-none bg-transparent px-0 !py-0 min-h-0 leading-6 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 th-in-place', ...(lines > 1 ? { rows: lines } : { type }), placeholder });
     input.value = value;
     if (numeric) input.setAttribute('inputmode', 'decimal');
     let finished = false, moving = false;
@@ -706,12 +640,12 @@ function ask({ at, question, note: hint, go: goWord = 'OK', cancel = 'Cancel', f
   doc = doc || host();
   return new Promise(resolve => {
     let answer = fieldOptions ? null : false;
-    const p = popup({ at, doc, cls: `rf-ask${cls ? ' ' + cls : ''}`, width, onClose: () => resolve(answer) });
+    const p = popup({ at, doc, cls: `th-ask${cls ? ' ' + cls : ''}`, width, onClose: () => resolve(answer) });
     const done = () => { answer = fieldOptions ? f.input.value : true; p.close(); };
     const f = fieldOptions ? field(doc, { ...fieldOptions, keys: event => { if (event.key === 'Enter' && !event.isComposing && !(fieldOptions.multiline && event.shiftKey)) { done(); return true; } return fieldOptions.keys?.(event) === true; } }) : null;
     // Only what is there: the browser writes an empty piece out as the word "null" (0.4.326).
-    p.body.append(...[el(doc, 'div', { class: 'rf-ask-words' }, question), hint ? note(doc, hint) : null, f,
-      el(doc, 'div', { class: 'rf-btns lk-answers' }, el(doc, 'button', { type: 'button', class: 'lk-btn lk-i-x', click: () => p.close() }, cancel), go(doc, { label: goWord, run: done, cls: 'lk-i-tick lk-enter' }))].filter(Boolean));
+    p.body.append(...[el(doc, 'div', { class: 'th-ask-words' }, question), hint ? note(doc, hint) : null, f,
+      el(doc, 'div', { class: 'th-btns lk-answers' }, el(doc, 'button', { type: 'button', class: 'lk-btn lk-i-x', click: () => p.close() }, cancel), go(doc, { label: goWord, run: done, cls: 'lk-i-tick lk-enter' }))].filter(Boolean));
     if (f) { f.input.focus({ preventScroll: true }); if (fieldOptions.select && f.input.value) f.input.select(); }
     // Enter takes what is offered: with the keyboard on a button, that button, so on Cancel it cancels. Pressed here, since Logseq takes Enter before the browser would.
     p.el.addEventListener('keydown', event => {
@@ -722,95 +656,6 @@ function ask({ at, question, note: hint, go: goWord = 'OK', cancel = 'Cancel', f
     });
   });
 }
-/* THE window: the browser's own dialog, shown modal (it keeps the keyboard, closes on Escape, draws the backdrop),
-   dressed by the kit; the settings window is its one user. build(box, finish, doc) fills it; the promise resolves
-   with what finish() is given, or undefined on Escape or a click on the backdrop. */
-function dialog({ build, cls = '', width, doc } = {}) {
-  doc = doc || host();
-  return new Promise(resolve => {
-    const box = el(doc, 'dialog', { class: `rf-dialog lk-window${cls ? ' ' + cls : ''}` });
-    if (width) box.style.width = width;
-    let done = false;
-    const finish = value => { if (done) return; done = true; try { if (box.open) box.close(); } catch (error) { /* not open */ } box.remove(); resolve(value); };
-    box.addEventListener('cancel', event => { event.preventDefault(); finish(undefined); });
-    box.addEventListener('close', () => finish(undefined));
-    box.addEventListener('mousedown', event => { if (event.target === box) finish(undefined); }); // the backdrop: the box has no edge of its own
-    for (const type of ['keydown', 'keyup', 'keypress']) box.addEventListener(type, event => { if (type !== 'keydown' || event.key !== 'Escape') event.stopPropagation(); });
-    doc.body.append(box);
-    build(box, finish, doc);
-    try { if (box.showModal) box.showModal(); else box.setAttribute('open', ''); } catch (error) { box.setAttribute('open', ''); }
-  });
-}
-/* THE tag tree for a list of tags (0.4.388 in the tag list after a #; the kit's since 0.4.431, so the tag map's pickers
-   show the same tree, the owner: "use the tag selector that have indented hierarchy that was already developed").
-   tags: { byId } of the model's tags (each with parents and kids). One parent per tag in the tree (a tag that extends
-   two sits under the first by name, as the title's corner reads it). Returns the rows to show, each
-   { t, depth, dim (shown only for where a match is), match, count (its child tags), kidsShown }. */
-const parentOf = t => [...(t.parents || [])].sort((a, b) => a.title.localeCompare(b.title))[0] || null;
-const kidsOf = t => t.kids || [];
-// What to show: Logseq's matches in Logseq's order, each under its parents, plus what → and ← opened. A match whose name
-// holds the words typed opens its child tags; one Logseq lists only because its letters come in that order (Phenomena
-// for "pe", seen in the app) stays closed, as do Logseq's own tags (Page holds Journal and Whiteboard), so the list
-// stays short; → opens them.
-function tagTreeRows(matches, opened, sibs, tags, query = '', builtInLast = false, byName = false) {
-  const rank = new Map(), visible = new Set(), dimOk = new Set();
-  matches.forEach((t, i) => { if (!rank.has(t.id)) rank.set(t.id, i); });
-  const showWithParents = t => { for (let p = t, seen = new Set(); p && !seen.has(p.id); seen.add(p.id), p = parentOf(p)) visible.add(p.id); };
-  const openKids = t => { for (const k of kidsOf(t)) { visible.add(k.id); dimOk.add(k.id); } };
-  const q = query.trim().toLowerCase();
-  for (const t of matches) { showWithParents(t); dimOk.add(t.id); if (q && !t.builtIn && t.title.toLowerCase().includes(q)) openKids(t); }
-  for (const id of opened) { const t = tags.byId.get(id); if (t && visible.has(id)) openKids(t); }
-  for (const id of sibs) {
-    const t = tags.byId.get(id); if (!t || !visible.has(id)) continue;
-    const p = parentOf(t);
-    const family = p ? kidsOf(p) : [...tags.byId.values()].filter(x => !parentOf(x) && !x.builtIn);
-    for (const s of family) { visible.add(s.id); dimOk.add(s.id); }
-  }
-  // A branch is ordered by its best match (Logseq's order), then by name.
-  const best = new Map();
-  const bestOf = t => {
-    if (best.has(t.id)) return best.get(t.id);
-    best.set(t.id, Infinity);
-    let b = rank.has(t.id) ? rank.get(t.id) : Infinity;
-    for (const k of kidsOf(t)) if (visible.has(k.id)) b = Math.min(b, bestOf(k));
-    best.set(t.id, b);
-    return b;
-  };
-  const order = list => list.slice().sort((a, b) => (byName ? 0 : bestOf(a) - bestOf(b)) || a.title.localeCompare(b.title));
-  const rows = [], placed = new Set();
-  const walk = (t, depth) => {
-    if (placed.has(t.id)) return;
-    placed.add(t.id);
-    const kids = kidsOf(t).filter(k => visible.has(k.id));
-    // The chevron points down when child tags show below, opened or shown as matches of their own (a Tags list with
-    // nothing typed shows every tag; seen in the app with every chevron pointing right).
-    rows.push({ t, depth, dim: !dimOk.has(t.id), match: rank.has(t.id), count: kidsOf(t).length, kidsShown: kids.length > 0,
-      nodes: t.nodes ? nodesUnder(t).size : null });
-    for (const k of order(kids)) walk(k, depth + 1);
-  };
-  const roots = [...visible].map(id => tags.byId.get(id)).filter(t => t && !(parentOf(t) && visible.has(parentOf(t).id)));
-  // Your tags first, by name (or by best match while typing), then Logseq's own; no tag of yours stands first for its name
-  // (the four kinds stopped being built in on 4 November 2026).
-  const rootOrder = list => order(list).sort((a, b) => !!a.builtIn - !!b.builtIn);
-  for (const t of rootOrder(roots)) walk(t, 0);
-  return rows;
-}
-
-// The nodes carrying a tag or a tag under it, each once (a tag graph's tag with its nodes): the one count a tag shows,
-// in the map and in every list.
-const underMemo = new WeakMap();
-function nodesUnder(t) {
-  if (underMemo.has(t)) return underMemo.get(t);
-  const all = new Set(t.nodes || []);
-  underMemo.set(t, all);
-  for (const k of kidsOf(t)) for (const b of nodesUnder(k)) all.add(b);
-  return all;
-}
-tagTreeRows.nodesUnder = nodesUnder;
-tagTreeRows.parentOf = parentOf;
-tagTreeRows.kidsOf = kidsOf;
-// A cell that can be changed where it sits: the text colour on the pointer, an underline of the line grey.
-const cellEdit = (node, title, run) => { node.classList.add('rf-tedit'); if (title) node.title = title; node.addEventListener('click', event => { event.stopPropagation(); run(event); }); return node; };
 /* THE outline (0.4.441, docs/REWORK.md sections 4 and 6): one way for something to open under something, for the two-way
    section, the tag map and the sidebar. Markup, as the two-way section draws (a DOM part wraps it with fragmentOf).
    - chev({ open, label, attrs }): the one chevron, a 16 px mark in a 24 px place to click, faint at rest (never hidden),
@@ -826,7 +671,7 @@ const cellEdit = (node, title, run) => { node.classList.add('rf-tedit'); if (tit
      pointer's wash (the owner, 2026-10-26: "grey was only meant for the deep dive of the two-way link, and it should
      have had a much fainter grey"); a tick shows in its box only.
    - prop({ kind, many, name, value, attrs }): a property's line, Logseq's look: a node property's mark (three dots joined in a
-     triangle; a fact none, its room kept), its name quieter than its value (kind '': a row pointing back, named by its property with no room for a mark, so it does not read as the node's own), the names of one node on one column (--rf-ol-name); a value never breaks inside a word.
+     triangle; a fact none, its room kept), its name quieter than its value (kind '': a row pointing back, named by its property with no room for a mark, so it does not read as the node's own), the names of one node on one column (--th-ol-name); a value never breaks inside a word.
    - bullet({ html, attrs }), newBullet({ attrs, label }): a bullet as Logseq draws one, its dot and words; the empty one
      at the end is faint, written in like a bullet: a caret on the line, no box, no line under it (a bare text box, so
      what is typed keeps the field's helpers, the grey name completed after the caret among them).
@@ -834,7 +679,7 @@ const cellEdit = (node, title, run) => { node.classList.add('rf-tedit'); if (tit
      (names with no day before them) or 'value' (a property's values); the library's lk-more, or the kind cls names.
    - name({ text, title, open, tag, attrs }): a node's name, the faint underline of a link, bold while open, its tag after.
    - pencil(text, attrs): what the proposals fill in, sure or guessed alike: italic, faint, a dotted line; with the class
-     rf-pencil-taken, kept (it will be set), in the words' own look.
+     th-pencil-taken, kept (it will be set), in the words' own look.
    - trail(steps, here): where you are, the names on the way, each a click back, the deepest last.
    The tag map's pieces (0.4.448, docs/MAP-DESIGN.md 5), the structure walked as the content is:
    - line({ …, end }): end is what sits in the count column on the line's right edge, one width for every line.
@@ -845,7 +690,7 @@ const cellEdit = (node, title, run) => { node.classList.add('rf-tedit'); if (tit
    - leads({ name, nameAttrs, inherited, to, count, tick, chev, attrs }): a property in the map, one line: its
      own chevron (chev, opening what it is: its tags, how it reads back), its name, with no kind icon (0.4.465: the icons
      said how Logseq stores a value, which nobody thinks in, docs/DESIGN-AXIOMS.md 14; the line's own words say it) (a link, in the
-     map's full colour; one step quieter and "inherited" when it comes from above) in one column (--rf-ol-lname), then
+     map's full colour; one step quieter and "inherited" when it comes from above) in one column (--th-ol-lname), then
      the tag it leads to ({ text, open, n, chevAttrs }: a chevron right before it to walk on; n, given only when it leads
      to several tags, a count of the nodes pointing at that one), then its count. A property leading to several tags takes
      a line for each, the name left out after the first ('' as name): one name per line where a name can open. What
@@ -856,7 +701,7 @@ const cellEdit = (node, title, run) => { node.classList.add('rf-tedit'); if (tit
      that tag's nodes point here ("4 of 6").
    - more({ under: 'leads' }): "show all 15" under a property's tags; under 'flush', on a list's own edge (the findings).
    - group(text): a quiet heading over the lines of one kind under a tag ("Points at it", "Child tags").
-   - the class rf-ol-margin on the outline's root (the map): the tick boxes of every level stand in one column in the
+   - the class th-ol-margin on the outline's root (the map): the tick boxes of every level stand in one column in the
      margin, as the map's rows had them, instead of each at its own indent on the hairline; what unrolls there fades in
      without the small slide, so no tick box moves while it comes.
    - sum(parts): one line of counts as words, "22 tags · 22 properties · 4 to look at", each part { text, attrs } a
@@ -873,171 +718,61 @@ const outline = {
     if (!kids?.isConnected || !kids.animate || !win?.matchMedia || win.matchMedia('(prefers-reduced-motion: reduce)').matches) { done(); return; }
     window.PluginDoor.rollUp(kids).then(done);
   },
-  // After a drawing lands: what came marked fresh (rf-ol-unroll) unrolls with the plugin's one motion (PluginDoor.unroll), once.
+  // After a drawing lands: what came marked fresh (th-ol-unroll) unrolls with the plugin's one motion (PluginDoor.unroll), once.
   unrolled(root) {
-    const fresh = [...root?.querySelectorAll?.('.rf-ol-kids.rf-ol-unroll') || []];
-    for (const kids of fresh) kids.classList.remove('rf-ol-unroll');
+    const fresh = [...root?.querySelectorAll?.('.th-ol-kids.th-ol-unroll') || []];
+    for (const kids of fresh) kids.classList.remove('th-ol-unroll');
     window.PluginDoor?.unroll?.(fresh);
   },
-  focus(root, key) { for (const unit of root?.querySelectorAll('.rf-ol-unit') || []) unit.classList.toggle('rf-ol-focus', unit.dataset.key === key); },
-  chev: ({ open = false, label = '', attrs, cls = '' } = {}) => `<button type="button" class="rf-chev lk-fold${cls ? ' ' + cls : ''}" aria-expanded="${open}" aria-label="${esc(`${open ? 'Close' : 'Open'} ${label}`.trim())}" title="${open ? 'Close' : 'Open here'}"${attrsHtml(attrs)}></button>`,
-  room: () => '<span class="rf-chev-room" aria-hidden="true"></span>',
-  line: ({ body = '', chev = '', day, tick = '', end = '', cls = '', attrs } = {}) => `<div class="rf-ol-line lk-row${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}>${tick}${day == null ? '' : `<span class="rf-ol-day lk-day">${esc(day)}</span>`}${chev || outline.room()}<span class="rf-ol-body">${body}</span>${end ? `<span class="rf-ol-end">${end}</span>` : ''}</div>`,
-  kids: ({ html = '', from = '', fresh = false, attrs, cls = '' } = {}) => `<div class="rf-ol-kids${from ? ' rf-ol-from-' + from : ''}${fresh ? ' rf-ol-unroll' : ''}${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}><div class="rf-ol-in">${html}</div></div>`,
-  unit: ({ html = '', focus = false, attrs, cls = '' } = {}) => `<div class="rf-ol-unit${focus ? ' rf-ol-focus' : ''}${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}>${html}</div>`,
-  prop: ({ kind = 'text', name = '', value = '', chev = '', attrs, cls = '', nameAttrs } = {}) => `<div class="rf-ol-line lk-row rf-ol-prop${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}><span class="rf-ol-pname lk-prop"${attrsHtml(nameAttrs)}>${name ? `${kind ? `<span class="rf-kind">${kindIconHtml(kind)}</span>` : ''}${esc(name)}` : ''}</span><span class="rf-ol-pv">${chev}${value}</span></div>`,
-  bullet: ({ html = '', attrs, cls = '' } = {}) => `<div class="rf-ol-bullet${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}><span class="rf-ol-dot" aria-hidden="true"></span><span class="rf-ol-words">${html}</span></div>`,
-  newBullet: ({ attrs, label = 'A new bullet', text = '' } = {}) => `<div class="rf-ol-bullet rf-ol-new"><span class="rf-ol-dot" aria-hidden="true"></span><span class="rf-field lk-field rf-ol-words rf-ol-write"><input type="text" value="${esc(text)}" spellcheck="true" autocomplete="off" aria-label="${esc(label)}"${attrsHtml(attrs)}></span></div>`,
-  more: ({ text = '', attrs, under = 'name', cls = 'lk-more' } = {}) => { const b = `<button type="button" class="${cls} rf-ol-more"${attrsHtml(attrs)}>${esc(text)}</button>`; return under === 'value' ? `<div class="rf-ol-line rf-ol-prop rf-ol-moreline"><span class="rf-ol-pname"></span><span class="rf-ol-pv">${b}</span></div>` : under === 'flush' ? `<div class="rf-ol-line rf-ol-moreline">${b}</div>` : under === 'leads' ? `<div class="rf-ol-line lk-row rf-ol-leads rf-ol-moreline">${outline.room()}<span class="rf-ol-lname"></span><span class="rf-ol-to">${b}</span></div>` : `<div class="rf-ol-line rf-ol-moreline">${under === 'bare' ? '' : '<span class="rf-ol-day lk-day"></span>'}${outline.room()}${b}</div>`; },
-  name: ({ text = '', title = '', open = false, tag: tagTitle = '', attrs, cls = '' } = {}) => `<a href="#" class="rf-ol-name lk-node${open ? ' rf-ol-open' : ''}${cls ? ' ' + cls : ''}"${title && title !== text ? ` title="${esc(title)}"` : ''}${attrsHtml(attrs)}>${esc(text)}</a>${tagTitle ? '<wbr>' + tagLinkHtml(tagTitle) : ''}`,
-  pencil: (text, attrs, cls = '') => `<button type="button" class="rf-pencil lk-pencil${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}>${esc(text)}</button>`,
-  trail: (steps = [], here = '', end = '') => `<div class="rf-ol-trail lk-trail">${steps.map(s => `<a href="#" class="rf-ol-step lk-step"${attrsHtml(s.attrs)}>${esc(s.text)}</a><span class="rf-ol-sep" aria-hidden="true">›</span>`).join('')}${here ? `<span class="rf-ol-here">${here}</span>` : ''}${end}</div>`,
-  count: ({ held, of, title = 'Open these nodes', attrs } = {}) => {
-    if (held == null) return '<span class="rf-ol-count lk-count rf-ol-none">—</span>';
-    const words = of == null ? countWord(held) : `${countWord(held)} of ${countWord(of)}`;
-    return `<a href="#" class="rf-ol-count lk-count${Number(held) === 0 ? ' rf-ol-none' : ''}" title="${esc(attrs?.title ?? title)}"${attrsHtml({ ...attrs, title: null })}>${words}</a>`;
-  },
-  tag: ({ text = '', open = false, attrs } = {}) => { const name = esc(String(text).replace(/^#/, '')); return `<a class="rf-tag lk-tag rf-ol-tagname${open ? ' rf-ol-open' : ''}" href="#" data-tag-page="${name}"${attrsHtml(attrs)}>${name}</a>`; },
-  leads: ({ name = '', nameAttrs, inherited = false, to = null, count = '', tick = '', chev = '', attrs, cls = '' } = {}) =>
-    `<div class="rf-ol-line lk-row rf-ol-leads${inherited ? ' rf-ol-inh' : ''}${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}>${tick}${chev || outline.room()}<span class="rf-ol-lname">${name ? `<span class="rf-ol-lwords"><a href="#" class="rf-ol-name lk-node"${attrsHtml(nameAttrs)}>${esc(name)}</a>${inherited ? ' <span class="rf-ol-inhw">inherited</span>' : ''}</span>` : ''}</span>`
-    + `<span class="rf-ol-to">${to ? `${outline.chev({ open: !!to.open, label: to.text, attrs: to.chevAttrs })}<span class="rf-ol-body">${outline.tag({ text: to.text, open: !!to.open, attrs: to.attrs })}${to.n != null ? `<a href="#" class="rf-ol-count lk-count rf-ol-n" title="${esc(to.nAttrs?.title ?? 'Open these nodes')}"${attrsHtml({ ...to.nAttrs, title: null })}>${countWord(to.n)}</a>` : ''}</span>` : ''}</span>${count ? `<span class="rf-ol-end">${count}</span>` : ''}</div>`,
-  pointing: ({ from = {}, name = '', nameAttrs, count = '', tick = '', attrs, cls = '' } = {}) =>
-    `<div class="rf-ol-line lk-row rf-ol-leads rf-ol-pointing${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}>${tick}${outline.chev({ open: !!from.open, label: from.text, attrs: from.chevAttrs })}<span class="rf-ol-lname"><span class="rf-ol-lwords">${outline.tag({ text: from.text, open: !!from.open, attrs: from.attrs })}</span></span>`
-    + `<span class="rf-ol-to"><span class="rf-ol-body"><a href="#" class="rf-ol-name lk-node"${attrsHtml(nameAttrs)}>${esc(name)}</a></span></span>${count ? `<span class="rf-ol-end">${count}</span>` : ''}</div>`,
-  group: (text = '') => `<div class="rf-ol-group">${esc(text)}</div>`,
-  sum: (parts = []) => `<div class="rf-ol-sum">${parts.map((p, i) => `${i ? '<span class="rf-ol-sep" aria-hidden="true">·</span>' : ''}${p.plain ? `<span>${esc(p.text)}</span>` : `<a href="#" class="rf-ol-sumword"${attrsHtml(p.attrs)}>${esc(p.text)}</a>`}`).join('')}</div>`,
-  finding: ({ html = '', act = '', actAttrs, done = false, attrs, cls = '' } = {}) => `<div class="rf-ol-line rf-ol-finding${done ? ' rf-ol-done' : ''}${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}><span class="rf-ol-body">${html}</span>${act && !done ? `<button type="button" class="rf-quiet rf-faint rf-ol-act"${attrsHtml(actAttrs)}>${esc(act)}</button>` : ''}</div>`,
+  focus(root, key) { for (const unit of root?.querySelectorAll('.th-ol-unit') || []) unit.classList.toggle('th-ol-focus', unit.dataset.key === key); },
+  chev: ({ open = false, label = '', attrs, cls = '' } = {}) => `<button type="button" class="th-chev lk-fold${cls ? ' ' + cls : ''}" aria-expanded="${open}" aria-label="${esc(`${open ? 'Close' : 'Open'} ${label}`.trim())}" title="${open ? 'Close' : 'Open here'}"${attrsHtml(attrs)}></button>`,
+  room: () => '<span class="th-chev-room" aria-hidden="true"></span>',
+  line: ({ body = '', chev = '', day, tick = '', end = '', cls = '', attrs } = {}) => `<div class="th-ol-line lk-row${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}>${tick}${day == null ? '' : `<span class="th-ol-day lk-day">${esc(day)}</span>`}${chev || outline.room()}<span class="th-ol-body">${body}</span>${end ? `<span class="th-ol-end">${end}</span>` : ''}</div>`,
+  kids: ({ html = '', from = '', fresh = false, attrs, cls = '' } = {}) => `<div class="th-ol-kids${from ? ' th-ol-from-' + from : ''}${fresh ? ' th-ol-unroll' : ''}${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}><div class="th-ol-in">${html}</div></div>`,
+  unit: ({ html = '', focus = false, attrs, cls = '' } = {}) => `<div class="th-ol-unit${focus ? ' th-ol-focus' : ''}${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}>${html}</div>`,
+  prop: ({ kind = 'text', name = '', value = '', chev = '', attrs, cls = '', nameAttrs } = {}) => `<div class="th-ol-line lk-row th-ol-prop${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}><span class="th-ol-pname lk-prop"${attrsHtml(nameAttrs)}>${name ? `${kind ? `<span class="th-kind">${kindIconHtml(kind)}</span>` : ''}${esc(name)}` : ''}</span><span class="th-ol-pv">${chev}${value}</span></div>`,
+  bullet: ({ html = '', attrs, cls = '' } = {}) => `<div class="th-ol-bullet${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}><span class="th-ol-dot" aria-hidden="true"></span><span class="th-ol-words">${html}</span></div>`,
+  newBullet: ({ attrs, label = 'A new bullet', text = '' } = {}) => `<div class="th-ol-bullet th-ol-new"><span class="th-ol-dot" aria-hidden="true"></span><span class="th-field lk-field th-ol-words th-ol-write"><input type="text" value="${esc(text)}" spellcheck="true" autocomplete="off" aria-label="${esc(label)}"${attrsHtml(attrs)}></span></div>`,
+  more: ({ text = '', attrs, under = 'name', cls = 'lk-more' } = {}) => { const b = `<button type="button" class="${cls} th-ol-more"${attrsHtml(attrs)}>${esc(text)}</button>`; return under === 'value' ? `<div class="th-ol-line th-ol-prop th-ol-moreline"><span class="th-ol-pname"></span><span class="th-ol-pv">${b}</span></div>` : under === 'flush' ? `<div class="th-ol-line th-ol-moreline">${b}</div>` : under === 'leads' ? `<div class="th-ol-line lk-row th-ol-leads th-ol-moreline">${outline.room()}<span class="th-ol-lname"></span><span class="th-ol-to">${b}</span></div>` : `<div class="th-ol-line th-ol-moreline">${under === 'bare' ? '' : '<span class="th-ol-day lk-day"></span>'}${outline.room()}${b}</div>`; },
+  pencil: (text, attrs, cls = '') => `<button type="button" class="th-pencil lk-pencil${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}>${esc(text)}</button>`,
+  trail: (steps = [], here = '', end = '') => `<div class="th-ol-trail lk-trail">${steps.map(s => `<a href="#" class="th-ol-step lk-step"${attrsHtml(s.attrs)}>${esc(s.text)}</a><span class="th-ol-sep" aria-hidden="true">›</span>`).join('')}${here ? `<span class="th-ol-here">${here}</span>` : ''}${end}</div>`,
 };
-// A count as people read it: 1,173, not 1173.
-const countWord = n => typeof n === 'number' ? n.toLocaleString('en') : String(n ?? '');
-// The chevron as an element, for the parts that build with el.
-const chevron = (doc, { open = false, label = '', click, cls = '' } = {}) => { const b = fragmentOf(doc, outline.chev({ open, label, cls })).firstElementChild; if (click) b.addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); click(event); }); return b; };
 /* The hover card: a node's preview, every piece clickable (open(what, value): 'node', 'prop' with the
    name, 'line' with the text). A browser popover of the hint kind, placed under what the pointer rests on. */
 function card({ at, title, fields = [], lines = [], open, width = 300, cls = '', doc } = {}) {
   doc = doc || host();
-  const p = popup({ at, doc, hint: true, cls: `rf-card${cls ? ' ' + cls : ''}`, width });
+  const p = popup({ at, doc, hint: true, cls: `th-card${cls ? ' ' + cls : ''}`, width });
   const act = (what, value) => event => { event.preventDefault(); event.stopPropagation(); open?.(what, value, event); };
   // A field is [name, value] or { name, uuid, values: [{ text, uuid }] }; a line a string or { uuid, text | html }.
   const fieldRow = f => {
     const name = Array.isArray(f) ? f[0] : f.name, values = Array.isArray(f) ? [{ text: f[1] }] : f.values || [];
     const cell = el(doc, 'span');
     values.forEach((v, i) => { if (i) cell.append(', '); cell.append(el(doc, 'a', { href: '#', click: act('value', { name, ...v }) }, v.text)); });
-    return [el(doc, 'a', { href: '#', class: 'rf-card-name', click: act('prop', Array.isArray(f) ? { name } : f) }, name), cell];
+    return [el(doc, 'a', { href: '#', class: 'th-card-name', click: act('prop', Array.isArray(f) ? { name } : f) }, name), cell];
   };
-  const lineRow = line => el(doc, 'a', { href: '#', class: 'rf-card-line', html: typeof line === 'object' && line.html ? line.html : null, click: act('line', line) }, typeof line === 'string' ? line : line.html ? null : line.text);
+  const lineRow = line => el(doc, 'a', { href: '#', class: 'th-card-line', html: typeof line === 'object' && line.html ? line.html : null, click: act('line', line) }, typeof line === 'string' ? line : line.html ? null : line.text);
   // Only what is there (0.4.326): a node with no properties and no lines showed "nullnull" in its card.
   p.body.append(...[
-    title ? el(doc, 'a', { href: '#', class: 'rf-card-title', click: act('node') }, title) : null,
-    fields.length ? el(doc, 'div', { class: 'rf-card-fields' }, ...fields.flatMap(fieldRow)) : null,
-    lines.length ? el(doc, 'div', { class: 'rf-card-lines' }, ...lines.map(lineRow)) : null].filter(Boolean));
+    title ? el(doc, 'a', { href: '#', class: 'th-card-title', click: act('node') }, title) : null,
+    fields.length ? el(doc, 'div', { class: 'th-card-fields' }, ...fields.flatMap(fieldRow)) : null,
+    lines.length ? el(doc, 'div', { class: 'th-card-lines' }, ...lines.map(lineRow)) : null].filter(Boolean));
   return p;
 }
 
-/* THE Undo of the plugin (0.4.258, at the owner's word: "make one pop-up, one Undo and one dialog"; its look is the
-   proposals' faded arrow of 0.4.218, which the owner chose over the bar: "the undo toast notification is in an awful place
-   and loud and too far down and distracting. it should be something just where text is but very subtle, like a faded
-   icon"). After a change, a faded arrow sits beside what changed and says what it takes back when pointed at; a click
-   takes it back. Each change keeps its own arrow until it is used, the page is left (main.js clears them), or the part
-   forgets it, so a second change never takes the first one's Undo away (the bar did). A change offered again under the
-   same key adds to that arrow: one click takes both back, the later first. When nothing of the change is on screen to
-   sit beside (the nodes were deleted), the arrow waits at the bottom right with its words beside it, quiet, until used
-   or the page is left. The old dark bar at the bottom is gone (0.4.311).
-   undo.offer({ key, at, text, run, onFail, cls, data })  at() returns the element(s) to sit at the end of, or null;
-   undo.forget(key or entry => bool), undo.clear(), undo.draw(), undo.size, undo.stop(). */
+/* THE Undo is the door's (PluginDoor.undo, since 6 November 2026; it was this kit's from 0.4.258). Here only the kit's way of
+   naming a place: undo.near({ root, key, col }) finds the arrow's place again by the row's key after every redraw, not as an
+   element a redraw replaces: in root() the row [data-key=key], then its cell [data-col=col] or the row's name. Every offer from
+   Threads carries owner 'threads', so leaving the page clears Threads' arrows and no other module's. */
 const attr = text => String(text).replace(/["\\]/g, '\\$&');
-const undoState = { entries: new Map(), observer: null, listening: false, drawing: false };
-const undoTargets = entry => { try { const at = entry.at?.(); return (Array.isArray(at) ? at : at ? [at] : []).filter(el => el?.isConnected); } catch (error) { return []; } };
-function undoArrow(doc, key, entry, docked) {
-  const arrow = doc.createElement('span');
-  arrow.className = `rf-undo lk-undo${entry.cls ? ' ' + entry.cls : ''}${docked ? ' rf-undo-docked' : ''}`;
-  arrow.dataset.rfUndo = key;
-  arrow.setAttribute('role', 'button');
-  arrow.setAttribute('contenteditable', 'false');
-  arrow.setAttribute('aria-label', `Undo: ${entry.text}`);
-  arrow.title = `Undo: ${entry.text}`;
-  arrow.innerHTML = window.PluginDoor.UNDO + (docked ? `<span class="rf-undo-words"></span>` : '');
-  if (docked) arrow.querySelector('.rf-undo-words').textContent = entry.text;
-  return arrow;
-}
-function drawUndoArrows() {
-  const doc = host();
-  if (undoState.drawing) return;
-  undoState.drawing = true;
-  try {
-    const { entries } = undoState;
-    for (const arrow of doc.querySelectorAll('.rf-undo')) {
-      const entry = entries.get(arrow.dataset.rfUndo);
-      if (!entry) { arrow.remove(); continue; }
-      const targets = undoTargets(entry);
-      if (arrow.classList.contains('rf-undo-docked') ? targets.length : !targets.includes(arrow.parentElement)) arrow.remove();
-    }
-    let dock = doc.querySelector('.rf-undo-dock');
-    for (const [key, entry] of entries) {
-      const targets = undoTargets(entry);
-      for (const target of targets) if (![...target.children].some(child => child.dataset?.rfUndo === key)) target.appendChild(undoArrow(doc, key, entry, false));
-      if (!targets.length && !doc.querySelector(`.rf-undo-dock [data-rf-undo="${attr(key)}"]`)) {
-        if (!dock) { dock = doc.createElement('div'); dock.className = 'rf-undo-dock'; doc.body.appendChild(dock); }
-        dock.appendChild(undoArrow(doc, key, entry, true));
-      }
-    }
-    if (dock && !dock.children.length) dock.remove();
-  } finally { undoState.drawing = false; }
-  undoState.observer?.takeRecords();
-}
-// A press on an arrow is the plugin's (inside a bullet Logseq would start editing it); the click takes the change back.
-function onUndoArrow(event) {
-  const arrow = event.target?.closest?.('.rf-undo');
-  if (!arrow) return;
-  event.stopImmediatePropagation();
-  if (event.type !== 'pointerdown') event.preventDefault();
-  if (event.type !== 'click') return;
-  const key = arrow.dataset.rfUndo, entry = undoState.entries.get(key);
-  undoState.entries.delete(key);
-  drawUndoArrows();
-  watchUndos();
-  if (entry) Promise.resolve().then(entry.run).catch(error => { if (entry.onFail) entry.onFail(error); else notify('The change could not be undone', 'warning'); });
-}
-// The arrows are put back whenever Logseq draws the place again; the watcher runs only while there is an arrow.
-function watchUndos() {
-  const doc = host(), win = doc.defaultView, on = undoState.entries.size > 0;
-  if (on && !undoState.observer) {
-    undoState.observer = new win.MutationObserver(() => drawUndoArrows());
-    undoState.observer.observe(doc.body, { childList: true, subtree: true });
-  } else if (!on && undoState.observer) { undoState.observer.disconnect(); undoState.observer = null; }
-  if (on && !undoState.listening) { for (const type of ['pointerdown', 'mousedown', 'mouseup', 'click']) win.addEventListener(type, onUndoArrow, true); undoState.listening = true; }
-  else if (!on && undoState.listening) { for (const type of ['pointerdown', 'mousedown', 'mouseup', 'click']) win.removeEventListener(type, onUndoArrow, true); undoState.listening = false; }
-}
-const undo = {
-  offer({ key, at, text, run, onFail, cls, data }) {
-    const before = undoState.entries.get(key);
-    for (const other of [...undoState.entries.keys()]) if (other !== key) undoState.entries.delete(other);   // a new change's arrow takes the last one's place
-    const all = before ? async () => { let failed = null; try { await run(); } catch (error) { failed = error; } await before.run(); if (failed) throw failed; } : run;
-    undoState.entries.set(key, { at, text: before ? `${text} · ${before.text}` : text, run: all, onFail: onFail || before?.onFail, cls, data: data ?? before?.data });
-    // Drawn again, so an arrow with the old words is replaced.
-    for (const arrow of host().querySelectorAll(`[data-rf-undo="${attr(key)}"]`)) arrow.remove();
-    watchUndos();
-    drawUndoArrows();
-  },
-  forget(which) {
-    let gone = false;
-    for (const [key, entry] of undoState.entries) if (typeof which === 'function' ? which({ key, ...entry }) : key === which) { undoState.entries.delete(key); gone = true; }
-    if (gone) { drawUndoArrows(); watchUndos(); }
-  },
-  /* Undo by name (0.4.441): the place of an arrow found again by the row's key after every redraw, not held as an
-     element a redraw replaces: in root() the row [data-key=key], then its cell [data-col=col] or the row's name. */
-  near: ({ root, key, col } = {}) => () => {
+const undo = Object.create(window.PluginDoor.undo, {
+  offer: { value: entry => window.PluginDoor.undo.offer({ owner: 'threads', ...entry }) },
+  clear: { value: () => window.PluginDoor.undo.clear('threads') },
+  near: { value: ({ root, key, col } = {}) => () => {
     const box = typeof root === 'function' ? root() : root;
     const row = box?.isConnected ? box.querySelector(`[data-key="${attr(key)}"]`) : null;
-    return row ? (col && row.querySelector(`[data-col="${attr(col)}"]`)) || row.querySelector('.rf-ol-body, .rf-ttreeval') || row : null;
-  },
-  clear() { if (!undoState.entries.size) return; undoState.entries.clear(); drawUndoArrows(); watchUndos(); },
-  draw: () => drawUndoArrows(),
-  get size() { return undoState.entries.size; },
-  has: key => undoState.entries.has(key),
-  keys: () => [...undoState.entries.keys()],
-  stop() { undoState.entries.clear(); try { drawUndoArrows(); watchUndos(); host().querySelector('.rf-undo-dock')?.remove(); } catch (error) { /* Logseq's window is gone */ } },
-};
+    return row ? (col && row.querySelector(`[data-col="${attr(col)}"]`)) || row.querySelector('.th-ol-body, .th-ttreeval') || row : null;
+  } },
+});
 
 /* THE stylesheet of the kit. Sent by main.js before any part (the foundation's own boxes must look right under
    Foundation only). Greys from currentColor, so the same rules hold on the page and in a pop-up, light and dark. */
@@ -1047,257 +782,218 @@ const kitCss = `/* The kit (parts/shared.js, 0.4.311; docs/LAYERS.md section 3):
    (lk-undo), the quiet line (lk-note), the greys and the one motion. Here only the kit's own names, each with its place
    and its room, never a look of its own; the greys are the library's by the library's names. */
 /* The pop-up (the library's lk-pop) in the top layer, placed by the browser under its anchor and flipped when there is no room. */
-.rf-pop { position: fixed; inset: auto; margin: 0; z-index: 10001; box-sizing: border-box; min-width: 160px; max-width: min(420px, 92vw); padding: 4px; overflow: visible; outline: none; }
-.rf-pop.rf-anchored { top: anchor(bottom); left: anchor(left); margin-top: 4px; position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline; }
-.rf-lsq-pop { position: fixed; inset: auto; margin: 0; padding: 0; width: 14rem; overflow: visible; }
-.rf-lsq-pop .menu-link .flex-row > div:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rf-lsq-pop.rf-anchored { top: anchor(bottom); left: anchor(left); margin-top: 4px; position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline; }
-.rf-lsq-pop .rf-lsq-list { max-height: 18rem; overflow-y: auto; }
+.th-pop { position: fixed; inset: auto; margin: 0; z-index: 10001; box-sizing: border-box; min-width: 160px; max-width: min(420px, 92vw); padding: 4px; overflow: visible; outline: none; }
+.th-pop.th-anchored { top: anchor(bottom); left: anchor(left); margin-top: 4px; position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline; }
+.th-lsq-pop { position: fixed; inset: auto; margin: 0; padding: 0; width: 14rem; overflow: visible; }
+.th-lsq-pop .menu-link .flex-row > div:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.th-lsq-pop.th-anchored { top: anchor(bottom); left: anchor(left); margin-top: 4px; position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline; }
+.th-lsq-pop .th-lsq-list { max-height: 18rem; overflow-y: auto; }
 /* Clear is the library's lone word, standing on the list's own edge. */
-.rf-lsq-pop .menu-link.lk-lone { margin-left: 0; }
-.rf-in-place { font: inherit; color: inherit; height: auto; width: 100%; min-width: 4em; padding: 0; box-shadow: none; }
+.th-lsq-pop .menu-link.lk-lone { margin-left: 0; }
+.th-in-place { font: inherit; color: inherit; height: auto; width: 100%; min-width: 4em; padding: 0; box-shadow: none; }
 /* With nothing to sit under (a pop-up opened from the palette): near the top, in the middle. */
-.rf-pop:not(.rf-anchored) { top: 12vh; left: 50%; transform: translateX(-50%); }
-.rf-pop-head { padding: 3px 8px; font-size: var(--lk-label); color: var(--lk-quiet); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rf-pop-body { max-height: 320px; overflow-y: auto; }
+.th-pop:not(.th-anchored) { top: 12vh; left: 50%; transform: translateX(-50%); }
+.th-pop-head { padding: 3px 8px; font-size: var(--lk-label); color: var(--lk-quiet); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.th-pop-body { max-height: 320px; overflow-y: auto; }
 /* A line of a menu is the library's lk-item (lit: on); here only how its icon and words stand. */
-.rf-item { align-items: center; gap: 8px; box-sizing: border-box; }
-.rf-item > :is(.ti, .rf-drawn) { width: 16px; flex: none; color: var(--lk-faint); font-size: 15px; }
-.rf-item > .rf-drawn { justify-content: center; align-self: center; }
-.rf-item.rf-faint { color: var(--lk-faint) !important; }
-.rf-item-words { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rf-item kbd, .rf-end { margin-left: auto; flex: none; font: inherit; font-size: var(--lk-small); color: var(--lk-faint); }
-.rf-pop .rf-field { margin: 0 8px 4px; }
+.th-item { align-items: center; gap: 8px; box-sizing: border-box; }
+.th-item > :is(.ti, .th-drawn) { width: 16px; flex: none; color: var(--lk-faint); font-size: 15px; }
+.th-item > .th-drawn { justify-content: center; align-self: center; }
+.th-item.th-faint { color: var(--lk-faint) !important; }
+.th-item-words { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.th-item kbd, .th-end { margin-left: auto; flex: none; font: inherit; font-size: var(--lk-small); color: var(--lk-faint); }
+.th-pop .th-field { margin: 0 8px 4px; }
 /* A report to copy (the troubleshooting tools): the text in a quiet box, Copy as the one word. */
-.rf-report { padding: 8px 10px; max-width: min(720px, 92vw); }
-.rf-report > .rf-pop-body { max-height: none; }
+.th-report { padding: 8px 10px; max-width: min(720px, 92vw); }
+.th-report > .th-pop-body { max-height: none; }
 /* The Recycle list (troubleshooting): as tall as the window allows below the pop-up's place, so many lines show at once. */
-.rf-recycle { max-width: min(640px, 92vw); }
-.rf-recycle > .rf-pop-body { max-height: calc(84vh - 60px); }
-.rf-recycle .rf-recycle-acts { gap: 2px; }
+.th-recycle { max-width: min(640px, 92vw); }
+.th-recycle > .th-pop-body { max-height: calc(84vh - 60px); }
+.th-recycle .th-recycle-acts { gap: 2px; }
 /* The ask under a row of the Recycle: joined to it by a line from the margin, a bold line, what goes, then the answers. */
-.rf-recycle-ask { margin: 2px 8px 8px 30px; padding: 4px 0 4px 12px; border-left: 1px solid var(--lk-line); font-size: 14px; }
-.rf-recycle-ask-h { font-weight: 600; }
-.rf-recycle-ask-l { color: var(--lk-quiet); }
-.rf-recycle-ask .lk-answers { margin-top: 6px; }
-.rf-report textarea { display: block; box-sizing: border-box; width: 100%; height: min(50vh, 420px); margin: 6px 0 0; padding: 6px 8px; border: 0; border-radius: 4px; background: var(--lk-wash); color: inherit; font: 12px/1.45 var(--lk-mono); resize: vertical; outline: none; }
+.th-recycle-ask { margin: 2px 8px 8px 30px; padding: 4px 0 4px 12px; border-left: 1px solid var(--lk-line); font-size: 14px; }
+.th-recycle-ask-h { font-weight: 600; }
+.th-recycle-ask-l { color: var(--lk-quiet); }
+.th-recycle-ask .lk-answers { margin-top: 6px; }
+.th-report textarea { display: block; box-sizing: border-box; width: 100%; height: min(50vh, 420px); margin: 6px 0 0; padding: 6px 8px; border: 0; border-radius: 4px; background: var(--lk-wash); color: inherit; font: 12px/1.45 var(--lk-mono); resize: vertical; outline: none; }
 /* A question beside what it is about. */
-.rf-ask { padding: 8px 10px; }
-.rf-ask-words { font-weight: 600; margin: 2px 0; }
-.rf-ask .rf-field { margin: 6px 0 2px; width: 100%; }
-.rf-btns:not(.lk-answers) { display: flex; justify-content: flex-end; gap: 4px; margin-top: 8px; }
+.th-ask { padding: 8px 10px; }
+.th-ask-words { font-weight: 600; margin: 2px 0; }
+.th-ask .th-field { margin: 6px 0 2px; width: 100%; }
+.th-btns:not(.lk-answers) { display: flex; justify-content: flex-end; gap: 4px; margin-top: 8px; }
 /* The answers are the library's. Cancel stays first in the markup, so Tab and Enter reach what they did; the main answer
    stands first, as the library draws it, and its wash reaches past the row's edge, so the body does not clip it. */
-.rf-ask > .rf-pop-body { margin-inline: -8px; padding-inline: 8px; }
-.rf-ask .lk-answers > .lk-accent { order: -1; }
+.th-ask > .th-pop-body { margin-inline: -8px; padding-inline: 8px; }
+.th-ask .lk-answers > .lk-accent { order: -1; }
 /* The window (the library's lk-window): the browser's dialog, mid-screen. */
-.rf-dialog { position: fixed; inset: 0; margin: auto; padding: 0; box-sizing: border-box; width: min(700px, 92vw); max-height: 86vh; overflow: auto; }
+.th-dialog { position: fixed; inset: 0; margin: auto; padding: 0; box-sizing: border-box; width: min(700px, 92vw); max-height: 86vh; overflow: auto; }
 /* A press's icon stands as the library's line icons do: 15px, before the word. */
 .lk-btn > .ti { font-size: 15px; }
-.lk-btn > .rf-drawn { width: 15px; justify-content: center; }
-:is(.rf-chip, .rf-ol-more, .rf-ask button):focus-visible { outline: none; background: var(--lk-wash); }
-.rf-faint { color: var(--lk-faint); }
+.lk-btn > .th-drawn { width: 15px; justify-content: center; }
+:is(.th-chip, .th-ol-more, .th-ask button):focus-visible { outline: none; background: var(--lk-wash); }
+.th-faint { color: var(--lk-faint); }
 /* The field is the library's lk-field; here its room on a line. */
-.rf-field { min-height: 26px; }
-.rf-field-tall { align-items: flex-start; }
-.rf-field-tall > textarea { resize: vertical; line-height: 1.4; }
-.rf-field > :is(.ti, .rf-drawn), .rf-field > kbd { flex: none; color: var(--lk-faint); font: inherit; font-size: var(--lk-small); }
-.rf-field > .ti { font-size: 15px; }
-.rf-field-inline { display: inline-flex; min-height: 22px; vertical-align: baseline; }
+.th-field { min-height: 26px; }
+.th-field-tall { align-items: flex-start; }
+.th-field-tall > textarea { resize: vertical; line-height: 1.4; }
+.th-field > :is(.ti, .th-drawn), .th-field > kbd { flex: none; color: var(--lk-faint); font: inherit; font-size: var(--lk-small); }
+.th-field > .ti { font-size: 15px; }
+.th-field-inline { display: inline-flex; min-height: 22px; vertical-align: baseline; }
 /* The drawn field: the same look, the text and the caret drawn, so nothing takes the keyboard from the bullet. */
 /* The drawn caret sits right against the letters (0.4.321, the owner: "the cursor is a couple spaces ahead of text"): no gap
    between the pieces of the drawn field, the key hint kept apart by its own room. */
-.rf-field-drawn { align-items: baseline; gap: 0; }
-.rf-field-drawn > .rf-typed { flex: 0 1 auto; min-width: 0; white-space: pre; overflow: hidden; text-overflow: ellipsis; }
-.rf-field-drawn > .rf-typed-fresh { background: var(--lk-wash); border-radius: 2px; }
-.rf-field-drawn > .rf-placeholder { flex: 1; min-width: 0; color: var(--lk-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rf-field-drawn > .rf-caret { display: inline-block; flex: none; width: 1.5px; height: 1.1em; margin-left: 1px; transform: translateY(.2em); background: currentColor; animation: rf-blink 1s steps(1) infinite; }
-.rf-field-drawn > .rf-placeholder + .rf-caret { order: -1; margin: 0 1px 0 0; }
-.rf-field-drawn > kbd { margin-left: auto; padding-left: 6px; }
-@keyframes rf-blink { 50% { opacity: 0; } }
 /* The tick box is the library's lk-tick; with a label, in a label. */
-.rf-tick { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 /* Words for chips: a filter, or a removable item with a × on hover. */
-.rf-chip { display: inline-flex; align-items: center; gap: 2px; padding: 0; border: 0; background: none; color: var(--lk-quiet); font: inherit; font-size: 14px; cursor: default; }
-button.rf-chip { cursor: pointer; }
-.rf-chip[aria-pressed="true"] { color: inherit; font-weight: 600; }
+.th-chip { display: inline-flex; align-items: center; gap: 2px; padding: 0; border: 0; background: none; color: var(--lk-quiet); font: inherit; font-size: 14px; cursor: default; }
+button.th-chip { cursor: pointer; }
+.th-chip[aria-pressed="true"] { color: inherit; font-weight: 600; }
 /* A chip's × is the library's lk-reveal: its colour, ground and fade come from there. */
-.rf-chip-x { display: inline-flex; border: 0; padding: 0 2px !important; font-size: 12px; cursor: pointer; }
 /* A tag as a class: mono, the tag grey, no #, no underline (0.4.332: the mono face says it is a tag, and every tag is a
    link); darker under the pointer. */
 /* A tag's look (mono, small capitals, grey) is Look's, through lk-tag; only its shape stays here. */
-.rf-tag { font-style: normal; font-weight: 400; color: inherit; text-decoration: none; border: 0; cursor: default; }
-a.rf-tag { cursor: pointer; }
-a.rf-tag:hover { opacity: 1; }
+.th-tag { font-style: normal; font-weight: 400; color: inherit; text-decoration: none; border: 0; cursor: default; }
+a.th-tag { cursor: pointer; }
+a.th-tag:hover { opacity: 1; }
 /* A value's kind as an icon left of the property's name. */
-.rf-kind { display: inline-flex; color: var(--lk-faint); font-size: 15px; vertical-align: -2px; }
+.th-kind { display: inline-flex; color: var(--lk-faint); font-size: 15px; vertical-align: -2px; }
 /* The picking bar: one line of words above the list, a hairline under it. */
 /* A cell changed where it sits (0.4.430; the table it came with is gone since 0.4.456). */
-.rf-tedit { cursor: pointer; border-radius: 2px; }
-.rf-tedit:hover { text-decoration: underline; text-decoration-color: var(--lk-line); text-underline-offset: 3px; }
-/* The chevron is the library's fold arrow (lk-fold: shown while its row is pointed at, turned down while open); rf-chev
+/* The chevron is the library's fold arrow (lk-fold: shown while its row is pointed at, turned down while open); th-chev
    names its place on a line. */
-.rf-chev { position: relative; }
-.rf-chev-room { flex: none; display: inline-block; width: 16px; }
-/* THE outline: lines, what opens under them, the focus. --rf-ol-day is the days' column (a list with a day of another year sets it wider), --rf-ol-name the property names'
+.th-chev { position: relative; }
+.th-chev-room { flex: none; display: inline-block; width: 16px; }
+/* THE outline: lines, what opens under them, the focus. --th-ol-day is the days' column (a list with a day of another year sets it wider), --th-ol-name the property names'
    column, one width at every depth so the names of nodes at one depth line up. */
-.rf-ol { --rf-ol-day: var(--lk-day, 48px); --rf-ol-name: 12em; --rf-ol-gap: 6px; font-size: 14px; line-height: 1.5; }
-.rf-ol-line { position: relative; display: flex; align-items: baseline; gap: var(--rf-ol-gap); min-height: 28px; box-sizing: border-box; padding: 3px 4px; margin-left: -4px; border-radius: 4px; }
-.rf-ol-line:hover { background: var(--lk-wash); }
-.rf-ol-line > .rf-chev, .rf-ol-pv > .rf-chev { align-self: flex-start; top: 0; height: 1.5em; }
+.th-ol { --th-ol-day: var(--lk-day, 48px); --th-ol-name: 12em; --th-ol-gap: 6px; font-size: 14px; line-height: 1.5; }
+.th-ol-line { position: relative; display: flex; align-items: baseline; gap: var(--th-ol-gap); min-height: 28px; box-sizing: border-box; padding: 3px 4px; margin-left: -4px; border-radius: 4px; }
+.th-ol-line:hover { background: var(--lk-wash); }
+.th-ol-line > .th-chev, .th-ol-pv > .th-chev { align-self: flex-start; top: 0; height: 1.5em; }
 /* A value that opens hangs its chevron just left of the value (the drawing; the owner, 2026-10-27: the values of one
    column start at one edge), so "cisplatin" starts where "1" and "Oct 20" do. */
-.rf-ol-pv > .rf-chev:first-child { margin-left: calc(-16px - var(--rf-ol-gap)); }
-.rf-ol-line > input.lk-tick[type=checkbox] { position: absolute; left: -20px; top: 6px; margin: 0; opacity: .3; }
-.rf-ol-line:hover > input.lk-tick[type=checkbox], .rf-ol-line > input.lk-tick[type=checkbox]:checked, .rf-ol-line > input.lk-tick[type=checkbox]:focus-visible { opacity: 1; }
-.rf-ol-day { flex: none; width: var(--rf-ol-day); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.rf-ol-body { min-width: 0; overflow-wrap: normal; }
-.rf-ol-body > .rf-tag, .rf-ol-pv .rf-tag { margin-left: 6px; white-space: nowrap; }
-.rf-ol-open { font-weight: 600; }
-.rf-ol-kids { --rf-ol-cx: 8px; display: grid; grid-template-rows: 1fr; margin: 0 0 0 var(--rf-ol-cx); padding-left: 16px; border-left: 1px solid var(--lk-line); }
-.rf-ol-kids > .rf-ol-in { min-width: 0; min-height: 0; padding-bottom: 2px; }
-.rf-ol-from-day { --rf-ol-cx: calc(var(--rf-ol-day) + var(--rf-ol-gap) + 8px); }
-.rf-ol-from-prop { --rf-ol-cx: calc(var(--rf-ol-name) - 8px); }
-.rf-ol-from-back { --rf-ol-cx: calc(var(--rf-ol-name) + var(--rf-ol-day) + 2 * var(--rf-ol-gap) + 8px); }
+.th-ol-pv > .th-chev:first-child { margin-left: calc(-16px - var(--th-ol-gap)); }
+.th-ol-line > input.lk-tick[type=checkbox] { position: absolute; left: -20px; top: 6px; margin: 0; opacity: .3; }
+.th-ol-line:hover > input.lk-tick[type=checkbox], .th-ol-line > input.lk-tick[type=checkbox]:checked, .th-ol-line > input.lk-tick[type=checkbox]:focus-visible { opacity: 1; }
+.th-ol-day { flex: none; width: var(--th-ol-day); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.th-ol-body { min-width: 0; overflow-wrap: normal; }
+.th-ol-body > .th-tag, .th-ol-pv .th-tag { margin-left: 6px; white-space: nowrap; }
+.th-ol-open { font-weight: 600; }
+.th-ol-kids { --th-ol-cx: 8px; display: grid; grid-template-rows: 1fr; margin: 0 0 0 var(--th-ol-cx); padding-left: 16px; border-left: 1px solid var(--lk-line); }
+.th-ol-kids > .th-ol-in { min-width: 0; min-height: 0; padding-bottom: 2px; }
+.th-ol-from-day { --th-ol-cx: calc(var(--th-ol-day) + var(--th-ol-gap) + 8px); }
+.th-ol-from-prop { --th-ol-cx: calc(var(--th-ol-name) - 8px); }
+.th-ol-from-back { --th-ol-cx: calc(var(--th-ol-name) + var(--th-ol-day) + 2 * var(--th-ol-gap) + 8px); }
 /* Opening grows the room under the line from nothing, so what is below slides down with it; closing rolls it back up before
    it goes: the plugin's one motion (PluginDoor.unroll and rollUp, through outline.unrolled and outline.close). */
-.rf-ol-unit { margin: 0 -6px; padding: 0 6px; border-radius: 6px; transition: background-color .16s ease; }
-.rf-ol-unit.rf-ol-focus { background: color-mix(in srgb, currentColor 3%, transparent); }
-.rf-ol-prop > .rf-ol-pname { flex: none; box-sizing: border-box; width: var(--rf-ol-name); padding-right: calc(16px + var(--rf-ol-gap)); display: inline-flex; gap: 6px; align-items: baseline; color: var(--lk-quiet); overflow-wrap: anywhere; }   /* the padding is the room of the fold arrow that overhangs from the value (.rf-ol-pv > .rf-chev): a long name wraps before it */
-.rf-ol-prop > .rf-ol-pname .rf-kind { font-size: 13px; vertical-align: 0; width: 13px; justify-content: center; flex: none; opacity: .6; } /* as faint as on a page's rows */
+.th-ol-unit { margin: 0 -6px; padding: 0 6px; border-radius: 6px; transition: background-color .16s ease; }
+.th-ol-unit.th-ol-focus { background: color-mix(in srgb, currentColor 3%, transparent); }
+.th-ol-prop > .th-ol-pname { flex: none; box-sizing: border-box; width: var(--th-ol-name); padding-right: calc(16px + var(--th-ol-gap)); display: inline-flex; gap: 6px; align-items: baseline; color: var(--lk-quiet); overflow-wrap: anywhere; }   /* the padding is the room of the fold arrow that overhangs from the value (.th-ol-pv > .th-chev): a long name wraps before it */
+.th-ol-prop > .th-ol-pname .th-kind { font-size: 13px; vertical-align: 0; width: 13px; justify-content: center; flex: none; opacity: .6; } /* as faint as on a page's rows */
 /* A drawn mark sits like a font icon: on the words' line, in their colour (the kit's ICONS, DRAWN). */
-.rf-drawn { display: inline-flex; align-items: center; line-height: 1; }
-.rf-drawn > svg { display: block; width: 12px; height: 12px; }
-.rf-ol-pv { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: var(--rf-ol-gap); overflow-wrap: normal; word-break: normal; }
-.rf-ol-pv > .rf-ol-body { flex: 1 1 auto; }
+.th-drawn { display: inline-flex; align-items: center; line-height: 1; }
+.th-drawn > svg { display: block; width: 12px; height: 12px; }
+.th-ol-pv { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: var(--th-ol-gap); overflow-wrap: normal; word-break: normal; }
+.th-ol-pv > .th-ol-body { flex: 1 1 auto; }
 /* From the second level down the names' column is narrower, so three levels leave the names room at a page's width; set
    on what a second-level node holds, so the lines and the hairline under them read the same width. */
-.rf-ol-kids .rf-ol-kids > .rf-ol-in { --rf-ol-name: 8.5em; }
+.th-ol-kids .th-ol-kids > .th-ol-in { --th-ol-name: 8.5em; }
 /* A list that opens with no line of its own (a row's list): the same unrolling, no hairline. */
-.rf-ol-kids.rf-ol-bare { margin-left: 0; padding-left: 0; border-left: 0; }
-.rf-ol-pv > .rf-ol-day { margin-right: 0; }
-.rf-ol-bullet { display: flex; align-items: baseline; gap: 8px; min-height: 26px; padding: 1px 4px; margin-left: -4px; }
-.rf-ol-dot { flex: none; width: 16px; text-align: center; color: var(--lk-faint); }
-.rf-ol-dot::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: currentColor; vertical-align: 2px; }
-.rf-ol-words { min-width: 0; flex: 1; outline: none; }
-.rf-ol-new > .rf-ol-dot { opacity: .45; }
-.rf-field.rf-ol-write { display: flex; border: 0; padding: 0; min-height: 21px; font-size: inherit; line-height: inherit; }
-.rf-field.rf-ol-write > input { cursor: text; caret-color: currentColor; }
-.rf-ol-line.rf-ol-moreline { min-height: 24px; padding-top: 0; padding-bottom: 0; }
-.rf-ol-line.rf-ol-moreline:hover { background: transparent; }
-.rf-ol-name { color: inherit; cursor: pointer; } /* its underline and mark are Look's, through lk-node */
+.th-ol-kids.th-ol-bare { margin-left: 0; padding-left: 0; border-left: 0; }
+.th-ol-pv > .th-ol-day { margin-right: 0; }
+.th-ol-bullet { display: flex; align-items: baseline; gap: 8px; min-height: 26px; padding: 1px 4px; margin-left: -4px; }
+.th-ol-dot { flex: none; width: 16px; text-align: center; color: var(--lk-faint); }
+.th-ol-dot::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: currentColor; vertical-align: 2px; }
+.th-ol-words { min-width: 0; flex: 1; outline: none; }
+.th-ol-new > .th-ol-dot { opacity: .45; }
+.th-field.th-ol-write { display: flex; border: 0; padding: 0; min-height: 21px; font-size: inherit; line-height: inherit; }
+.th-field.th-ol-write > input { cursor: text; caret-color: currentColor; }
+.th-ol-line.th-ol-moreline { min-height: 24px; padding-top: 0; padding-bottom: 0; }
+.th-ol-line.th-ol-moreline:hover { background: transparent; }
+.th-ol-name { color: inherit; cursor: pointer; } /* its underline and mark are Look's, through lk-node */
 /* Narrow (the sidebar, a narrow window): inside an opened node a property's name sits on its own line above the nodes it
    holds or that point through it,
    and the indent gives way, so three levels still fit with whole words. Only where the section is truly narrow: at
    the page's width the values' column is about 540 px wide in a 1100 px window, and 560 put every linked property on
    two lines there (the review, 31 October); below 420 the names' column would take a third of the room. */
-.rf-ol { container: rf-ol / inline-size; }
-@container rf-ol (max-width: 420px) {
-  .rf-ol-kids { padding-left: 10px; }
-  .rf-ol-kids .rf-ol-prop:has(> .rf-ol-pv > :is(.rf-chev, .rf-ol-day)) { flex-wrap: wrap; }
-  .rf-ol-kids .rf-ol-prop:has(> .rf-ol-pv > :is(.rf-chev, .rf-ol-day)) > .rf-ol-pname { width: auto; flex-basis: 100%; }
-  .rf-ol-kids .rf-ol-prop > .rf-ol-pname:empty { display: none; }
-  .rf-ol-kids .rf-ol-from-prop { --rf-ol-cx: 8px; }
-  .rf-ol-kids .rf-ol-prop:has(> .rf-ol-pv > :is(.rf-chev, .rf-ol-day)) > .rf-ol-pv > .rf-chev:first-child { margin-left: 0; }
-  .rf-ol-kids .rf-ol-from-back { --rf-ol-cx: calc(var(--rf-ol-day) + var(--rf-ol-gap) + 8px); }
-  .rf-ol-leads, .rf-ol-kids { --rf-ol-lname: 7.5em; }
-  .rf-ol-leads:not(.rf-ol-pointing) { flex-wrap: wrap; }
-  .rf-ol-leads:not(.rf-ol-pointing) > .rf-ol-lname { flex: 1 1 auto; width: auto; }
-  .rf-ol-leads:not(.rf-ol-pointing) > .rf-ol-lname:empty { display: none; }
-  .rf-ol-leads:not(.rf-ol-pointing) > .rf-ol-end { order: 1; }
-  .rf-ol-leads:not(.rf-ol-pointing) > .rf-ol-to { order: 2; flex-basis: 100%; padding-left: calc(16px + var(--rf-ol-gap)); box-sizing: border-box; }
-  .rf-ol-from-leads, .rf-ol-kids .rf-ol-from-leads { --rf-ol-cx: calc(16px + var(--rf-ol-gap) + 8px); }
-  .rf-ol-end { min-width: 3.6em; padding-left: 8px; } }
-.rf-pencil { all: unset; cursor: pointer; } /* italic, grey and dotted are Look's, through lk-pencil */
-.rf-pencil:hover { color: var(--lk-quiet); }
-.rf-pencil.rf-pencil-taken { font-style: normal; color: inherit; text-decoration: none; }
-.rf-pencil:focus-visible { outline: none; background: var(--lk-wash) !important; }
+.th-ol { container: th-ol / inline-size; }
+@container th-ol (max-width: 420px) {
+  .th-ol-kids { padding-left: 10px; }
+  .th-ol-kids .th-ol-prop:has(> .th-ol-pv > :is(.th-chev, .th-ol-day)) { flex-wrap: wrap; }
+  .th-ol-kids .th-ol-prop:has(> .th-ol-pv > :is(.th-chev, .th-ol-day)) > .th-ol-pname { width: auto; flex-basis: 100%; }
+  .th-ol-kids .th-ol-prop > .th-ol-pname:empty { display: none; }
+  .th-ol-kids .th-ol-from-prop { --th-ol-cx: 8px; }
+  .th-ol-kids .th-ol-prop:has(> .th-ol-pv > :is(.th-chev, .th-ol-day)) > .th-ol-pv > .th-chev:first-child { margin-left: 0; }
+  .th-ol-kids .th-ol-from-back { --th-ol-cx: calc(var(--th-ol-day) + var(--th-ol-gap) + 8px); }
+  .th-ol-leads, .th-ol-kids { --th-ol-lname: 7.5em; }
+  .th-ol-leads:not(.th-ol-pointing) { flex-wrap: wrap; }
+  .th-ol-leads:not(.th-ol-pointing) > .th-ol-lname { flex: 1 1 auto; width: auto; }
+  .th-ol-leads:not(.th-ol-pointing) > .th-ol-lname:empty { display: none; }
+  .th-ol-leads:not(.th-ol-pointing) > .th-ol-end { order: 1; }
+  .th-ol-leads:not(.th-ol-pointing) > .th-ol-to { order: 2; flex-basis: 100%; padding-left: calc(16px + var(--th-ol-gap)); box-sizing: border-box; }
+  .th-ol-from-leads, .th-ol-kids .th-ol-from-leads { --th-ol-cx: calc(16px + var(--th-ol-gap) + 8px); }
+  .th-ol-end { min-width: 3.6em; padding-left: 8px; } }
+.th-pencil { all: unset; cursor: pointer; } /* italic, grey and dotted are Look's, through lk-pencil */
+.th-pencil:hover { color: var(--lk-quiet); }
+.th-pencil.th-pencil-taken { font-style: normal; color: inherit; text-decoration: none; }
+.th-pencil:focus-visible { outline: none; background: var(--lk-wash) !important; }
 /* The trail is the library's lk-trail with lk-step; the place you are at ends it, in the text colour. */
-.rf-ol-sep { color: var(--lk-faint); }
-.rf-ol-trail > .rf-ol-here { color: var(--lk-text, currentColor); font-weight: 600; }
-.rf-ol-here .rf-tag { margin-left: 6px; font-weight: 400; }
+.th-ol-sep { color: var(--lk-faint); }
+.th-ol-trail > .th-ol-here { color: var(--lk-text, currentColor); font-weight: 600; }
+.th-ol-here .th-tag { margin-left: 6px; font-weight: 400; }
 /* The tag map's pieces (0.4.448): the count column, a property with the tag it leads to, a group's heading, a finding.
-   --rf-ol-lname is the property names' column, so the tags they lead to start on one column and open under themselves. */
-.rf-ol { --rf-ol-lname: 9.5em; }
-.rf-ol.rf-ol-margin { position: relative; padding-left: 24px; }
-.rf-ol-margin .rf-ol-line { position: static; }
-.rf-ol-margin .rf-ol-line > input.lk-tick[type=checkbox] { left: 2px; top: auto; margin-top: 5px; }
-.rf-ol-end { flex: none; margin-left: auto; padding-left: 12px; min-width: 5.2em; text-align: right; font-size: var(--lk-small); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.rf-ol-count { color: inherit; text-decoration: underline; text-decoration-color: var(--lk-line); text-decoration-thickness: 1px; text-underline-offset: 3px; cursor: pointer; }
-.rf-ol-count:hover { text-decoration-color: currentColor; }
-.rf-ol-count.rf-ol-none { color: var(--lk-faint); }
-span.rf-ol-count { text-decoration: none; cursor: default; }
-.rf-ol-tagname { opacity: 1; cursor: pointer; }
-.rf-ol-tagname.rf-ol-open { font-weight: 700; }
-.rf-ol-leads > .rf-ol-lname { flex: none; width: var(--rf-ol-lname); display: inline-flex; gap: 6px; align-items: baseline; }
-.rf-ol-lwords { min-width: 0; overflow-wrap: normal; word-break: normal; }
-.rf-ol-inh > .rf-ol-lname { color: var(--lk-quiet); }
-.rf-ol-inhw { color: var(--lk-faint); font-size: var(--lk-small); white-space: nowrap; }
-.rf-ol-to { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: var(--rf-ol-gap); }
-.rf-ol-to > .rf-chev { align-self: flex-start; top: 1px; }
-.rf-ol-to .rf-ol-open { font-weight: 700; }
-.rf-ol-count.rf-ol-n { margin-left: 6px; color: var(--lk-faint); font-size: var(--lk-small); font-variant-numeric: tabular-nums; text-decoration-color: var(--lk-line); }
-.rf-ol-pointing > .rf-ol-lname { width: var(--rf-ol-lname); } /* one column for every line of a list; a tag longer than it wraps between its words */
-.rf-ol-pointing > .rf-ol-lname .rf-tag { white-space: normal; overflow-wrap: normal; word-break: normal; }
-.rf-ol-sum { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 6px; font-size: 14px; color: var(--lk-quiet); }
-.rf-ol-sumword { color: inherit; text-decoration: underline; text-decoration-color: var(--lk-line); text-decoration-thickness: 1px; text-underline-offset: 3px; cursor: pointer; }
-.rf-ol-sumword:hover { text-decoration-color: currentColor; }
-.rf-ol-sumword[aria-pressed="true"] { color: inherit; font-weight: 600; text-decoration-color: currentColor; }
-.rf-ol-from-leads { --rf-ol-cx: calc(16px + 2 * var(--rf-ol-gap) + var(--rf-ol-lname) + 8px); }
-.rf-ol-group { box-sizing: border-box; min-height: 24px; padding: 6px 0 0 calc(16px + var(--rf-ol-gap)); font-size: var(--lk-small); color: var(--lk-faint); }
-.rf-ol-finding > .rf-ol-body { flex: 1 1 auto; }
-.rf-ol-finding .rf-tag { margin: 0; }
-.rf-ol-act { flex: none; margin-left: auto; height: 22px; font-size: var(--lk-small); }
-.rf-ol-line:hover > .rf-ol-act { color: var(--lk-quiet); }
-.rf-ol-done > .rf-ol-body { color: var(--lk-quiet); }
-.rf-field-count { flex: none; color: var(--lk-faint); font-size: var(--lk-small); font-variant-numeric: tabular-nums; padding-left: 6px; }
-@media (prefers-reduced-motion: reduce) { .rf-ol-unit { transition: none; } }
-.rf-tree-dim .rf-item-words { opacity: .45; }
+   --th-ol-lname is the property names' column, so the tags they lead to start on one column and open under themselves. */
+.th-ol { --th-ol-lname: 9.5em; }
+.th-ol.th-ol-margin { position: relative; padding-left: 24px; }
+.th-ol-margin .th-ol-line { position: static; }
+.th-ol-margin .th-ol-line > input.lk-tick[type=checkbox] { left: 2px; top: auto; margin-top: 5px; }
+.th-ol-end { flex: none; margin-left: auto; padding-left: 12px; min-width: 5.2em; text-align: right; font-size: var(--lk-small); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.th-ol-count { color: inherit; text-decoration: underline; text-decoration-color: var(--lk-line); text-decoration-thickness: 1px; text-underline-offset: 3px; cursor: pointer; }
+.th-ol-count:hover { text-decoration-color: currentColor; }
+span.th-ol-count { text-decoration: none; cursor: default; }
+.th-ol-leads > .th-ol-lname { flex: none; width: var(--th-ol-lname); display: inline-flex; gap: 6px; align-items: baseline; }
+.th-ol-lwords { min-width: 0; overflow-wrap: normal; word-break: normal; }
+.th-ol-inh > .th-ol-lname { color: var(--lk-quiet); }
+.th-ol-inhw { color: var(--lk-faint); font-size: var(--lk-small); white-space: nowrap; }
+.th-ol-to { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: var(--th-ol-gap); }
+.th-ol-to > .th-chev { align-self: flex-start; top: 1px; }
+.th-ol-to .th-ol-open { font-weight: 700; }
+.th-ol-count.th-ol-n { margin-left: 6px; color: var(--lk-faint); font-size: var(--lk-small); font-variant-numeric: tabular-nums; text-decoration-color: var(--lk-line); }
+.th-ol-pointing > .th-ol-lname { width: var(--th-ol-lname); } /* one column for every line of a list; a tag longer than it wraps between its words */
+.th-ol-pointing > .th-ol-lname .th-tag { white-space: normal; overflow-wrap: normal; word-break: normal; }
+.th-ol-from-leads { --th-ol-cx: calc(16px + 2 * var(--th-ol-gap) + var(--th-ol-lname) + 8px); }
+.th-field-count { flex: none; color: var(--lk-faint); font-size: var(--lk-small); font-variant-numeric: tabular-nums; padding-left: 6px; }
+@media (prefers-reduced-motion: reduce) { .th-ol-unit { transition: none; } }
 /* A kind's mark (0.4.473), 10 px in the quiet grey; a kind's row in a list of tags: its mark and its word in weight, as
    the map's headings, the count of its nodes at the end in the quiet grey. */
-.rf-tree-kids { display: inline-flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; cursor: pointer; }
-.rf-tree-tri { height: 16px; }
-.rf-tree-chosen { margin-left: 6px; }
-.rf-count { cursor: pointer; }
 /* The hover card: a node's preview with a little room. */
-.rf-card { padding: 10px 12px; font-size: 14px; }
-.rf-card a { color: inherit; text-decoration: none; }
-.rf-card-title { display: block; font-weight: 600; margin-bottom: 3px; }
-.rf-card-title:hover, .rf-card-fields a:hover, .rf-card-line:hover { text-decoration: underline; text-decoration-color: var(--lk-line); text-underline-offset: 3px; }
-.rf-card-fields { display: grid; grid-template-columns: max-content minmax(0, 1fr); column-gap: 12px; row-gap: 4px; margin-top: 8px; }
-.rf-card-name { color: var(--lk-faint); }
-.rf-card-lines { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--lk-hair); color: var(--lk-quiet); }
-.rf-card :first-child:is(.rf-card-fields, .rf-card-lines) { margin-top: 0; padding-top: 0; border-top: 0; }
-.rf-card-line { display: block; border-radius: 4px; margin: 0 -4px; padding: 0 4px; }
-.rf-card-line:hover { background: var(--lk-wash); text-decoration: none; }
-.rf-card-line::before { content: '• '; color: var(--lk-faint); }
+.th-card { padding: 10px 12px; font-size: 14px; }
+.th-card a { color: inherit; text-decoration: none; }
+.th-card-title { display: block; font-weight: 600; margin-bottom: 3px; }
+.th-card-title:hover, .th-card-fields a:hover, .th-card-line:hover { text-decoration: underline; text-decoration-color: var(--lk-line); text-underline-offset: 3px; }
+.th-card-fields { display: grid; grid-template-columns: max-content minmax(0, 1fr); column-gap: 12px; row-gap: 4px; margin-top: 8px; }
+.th-card-name { color: var(--lk-faint); }
+.th-card-lines { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--lk-hair); color: var(--lk-quiet); }
+.th-card :first-child:is(.th-card-fields, .th-card-lines) { margin-top: 0; padding-top: 0; border-top: 0; }
+.th-card-line { display: block; border-radius: 4px; margin: 0 -4px; padding: 0 4px; }
+.th-card-line:hover { background: var(--lk-wash); text-decoration: none; }
+.th-card-line::before { content: '• '; color: var(--lk-faint); }
 /* The quiet line (the library's lk-note) and the help paragraph. */
 .lk-note { line-height: 1.45; padding: 2px 0; }
-.rf-pop .lk-note { padding: 4px 8px; }
-.rf-guide { padding: 2px 0 2px 10px; border-left: 1px solid var(--lk-line); font-size: 14px; color: var(--lk-quiet); }
-.rf-guide p { margin: 0 0 4px; }
-.rf-guide p:last-child { margin-bottom: 0; }
-/* THE Undo (undo.offer): the library's arrow (lk-undo) at the end of what changed; with nothing on screen to sit beside,
-   it waits at the bottom right with its words, as quiet. */
-.rf-undo-dock { position: fixed; z-index: 10002; right: 20px; bottom: 20px; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; max-width: min(420px, 60vw); color: var(--lk-text, currentColor); font-size: var(--lk-small); }
-.rf-undo-docked { margin: 0; padding: 3px 9px; border-radius: 6px; opacity: 1; background: var(--lk-paper, #fff); border: 1px solid var(--lk-hair); color: var(--lk-quiet); }
-.rf-undo-docked:hover { color: var(--lk-text, currentColor); }
-.rf-undo-words { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rf-anchor { position: fixed; width: 0; height: 0; pointer-events: none; }
+.th-pop .lk-note { padding: 4px 8px; }
+.th-anchor { position: fixed; width: 0; height: 0; pointer-events: none; }
 
 `;
 
 // This file's own boxes: the kit's pop-ups, anchors and dialog, and the Undo dock.
-leftovers.push({ prefix: 'Threads: ', elements: '.rf-pop, .rf-anchor, dialog.rf-dialog, .rf-undo-dock' });
+leftovers.push({ prefix: 'Threads: ', elements: '.th-pop, .th-anchor, dialog.th-dialog' });
 
 // THE finder of the plugin's marks on Logseq's screen (2026-10-23): every class and attribute prefix any part uses.
 // The troubleshooting box counts with it, the boot test looks for leftovers with it and the frame tests
 // (tools/frames.js, the plugin's tools/motion-check.js) track with it, so a new prefix is never counted by one and missed by another.
 // A new prefix goes here and nowhere else.
-const MARK_CLASS = /^(refinement-|rf-)/, MARK_ATTR = /^data-(refinement|rf)-/;
+const MARK_CLASS = /^th-/, MARK_ATTR = /^data-th-/;
 const isOwnMark = node => node?.nodeType === 1 && ([...node.attributes].some(attr => MARK_ATTR.test(attr.name))
   || (typeof node.className === 'string' && [...node.classList].some(cls => MARK_CLASS.test(cls))));
-// Every mark in doc, counted: 'data-rf-x' → n, '.rf-y' → n.
+// Every mark in doc, counted: 'data-th-x' → n, '.th-y' → n.
 function ownMarks(doc) {
   const marks = new Map();
   for (const node of doc.querySelectorAll('*')) {
@@ -1308,8 +1004,8 @@ function ownMarks(doc) {
 }
 
 (window.Threads ||= {}).shared = {
-  host, notify, lifecycle, sweepLeftovers, take, feature, screen, openEntity, openPageNamed, settingReader, graphNamedIn, perf, warnings,
-  kitCss, el, esc, fragmentOf, ICONS, icon, iconHtml, kindIconHtml, tag, tagLinkHtml, quiet, go, keepKeys, field, fieldHtml, drawnField, outline, chevron, tick, chip, note, guide, popup, popups, pickValue, editInPlace, ask, dialog, cellEdit, tagTreeRows, card, undo,
+  host, notify, lifecycle, sweepLeftovers, take, feature, screen, openEntity, openPageNamed, settingReader, perf, warnings,
+  kitCss, el, esc, ICONS, icon, iconHtml, kindIconHtml, tag, quiet, go, keepKeys, field, fieldHtml, outline, note, popup, popups, pickValue, editInPlace, ask, card, undo,
   MARK_CLASS, MARK_ATTR, isOwnMark, ownMarks, lifeCounts,
 };
 })();

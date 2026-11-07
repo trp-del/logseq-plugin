@@ -20,10 +20,11 @@ const root = path.resolve(__dirname, '..');
 const LEAVE_OUT = (process.env.LEAVE_OUT || '').split(',').filter(Boolean);
 const ALLOW_WARN = process.env.ALLOW_WARN ? new RegExp(process.env.ALLOW_WARN) : null;
 const PART_FILES = (() => {
-  const listed = fs.readFileSync(path.join(root, '..', 'files.js'), 'utf8').match(/threads\/parts\/[a-z-]+\.js/g);
+  // A part's pieces (parts/two-way/*.js) are left out with it.
+  const listed = fs.readFileSync(path.join(root, '..', 'files.js'), 'utf8').match(/threads\/parts\/[a-z/-]+\.js/g);
   if (!listed) throw new Error('no parts of Threads in files.js');
   return listed.map(file => file.replace(/^threads\//, ''))
-    .filter(file => !LEAVE_OUT.includes(file.replace(/^parts\/|\.js$/g, '')));
+    .filter(file => !LEAVE_OUT.includes(file.replace(/^parts\/|\.js$/g, '').split('/')[0]));
 })();
 
 // Which parts main.js loads now (0.4.175: the resting parts are left out); checks of a feature run only when it is loaded.
@@ -170,7 +171,7 @@ async function main() {
     process.exit(problems.length ? 1 : 0);
   }
   console.log(`loaded ${parts.length} parts, ${logseq._settingsSchema.length} settings`);
-  const wantParts = PART_FILES.length - 1 - Number(process.env.QUIET_PARTS || 0);
+  const wantParts = PART_FILES.filter(file => !file.slice('parts/'.length).includes('/')).length - 1 - Number(process.env.QUIET_PARTS || 0);
   if (parts.length !== wantParts) problem(`expected ${wantParts} parts to register, found ${parts.length}`);
   try { logseq._main(); } catch (error) { problem('main() threw: ' + (error && error.stack || error)); }
   if (!logseq._unload) problem('no beforeunload callback registered');
@@ -187,7 +188,7 @@ async function main() {
   // Each feature does something of its own at start (0.4.279, the audit): its stylesheet goes to Logseq and the tag
   // map's command is registered, exactly when the part is loaded; left out, nothing of it shows (parts-apart-test).
   const styleKeys = logseq.calls.filter(call => call.name === 'provideStyle').map(call => call.args[0]?.key);
-  const SIGNS = { 'two-way': 'refinement-two-way', 'tag-path': 'refinement-tag-path', 'title-row': 'refinement-title-row', 'pdf-quote': 'refinement-pdf-quote', 'folded-note': 'refinement-folded-note', sidebar: 'refinement-sidebar-titles', chrome: 'refinement-chrome-sidebar', 'palette-icons': 'refinement-palette-icons', 'search-look': 'refinement-search-tidy', 'page-look': 'refinement-page-look-links', tags: 'refinement-tags', shadow: 'refinement-shadow', picker: 'refinement-picker', 'tag-menu': 'refinement-tag-menu', 'settings-panel': 'refinement-settings-panel' };
+  const SIGNS = { 'two-way': 'th-two-way', 'tag-path': 'th-tag-path', 'title-row': 'th-title-row', 'pdf-quote': 'th-pdf-quote', 'folded-note': 'th-folded-note', sidebar: 'th-sidebar-titles', chrome: 'th-chrome-sidebar', 'palette-icons': 'th-palette-icons', 'search-look': 'th-search-tidy', 'page-look': 'th-page-look-links', tags: 'th-tags', shadow: 'th-shadow', picker: 'th-picker', 'tag-menu': 'th-tag-menu', 'settings-panel': 'th-settings-panel' };
   // The bullet's piece of the proposals stays off, and says so, without the rules (0.4.269).
   const expected = part => part === 'shadow' ? has('shadow') && has('shadow-rules') : part === 'tags' ? tagMap() : has(part);
   for (const [part, key] of Object.entries(SIGNS)) if (expected(part) !== styleKeys.includes(key)) problem(`${expected(part) ? 'with' : 'without'} ${part}, its stylesheet ${key} was ${styleKeys.includes(key) ? 'still' : 'not'} sent`);
@@ -196,14 +197,14 @@ async function main() {
   if (has('link-text') !== registered.includes('link-selected-text')) problem(`${has('link-text') ? 'with' : 'without'} link-text, its command was ${registered.includes('link-selected-text') ? 'still' : 'not'} in the register`);
   if (has('block-commands') !== registered.includes('new-outermost-block')) problem(`${has('block-commands') ? 'with' : 'without'} block-commands, its command was ${registered.includes('new-outermost-block') ? 'still' : 'not'} in the register`);
   if (tagMap() !== keys.includes('show-tag-tree')) problem(`${tagMap() ? 'with' : 'without'} the tag map, its command was ${keys.includes('show-tag-tree') ? 'still' : 'not'} registered`);
-  if (has('two-way') !== logseq.calls.some(call => call.name === 'provideStyle' && call.args[0]?.key === 'refinement-two-way' && /rf-tw-row/.test(call.args[0]?.style || ''))) problem('the two-way rows did not send their look');
+  if (has('two-way') !== logseq.calls.some(call => call.name === 'provideStyle' && call.args[0]?.key === 'th-two-way' && /th-tw-row/.test(call.args[0]?.style || ''))) problem('the two-way rows did not send their look');
   // The troubleshooting tools (0.4.172): the generic ones from the troubleshooting part, each feature's own from that feature.
   const toolKeys = logseq.calls.filter(call => call.name === 'App.registerCommand').map(call => call.args[1]?.key).sort();
   const wantTools = ['check-what-is-found', 'copy-perf-report', 'copy-styling-details', 'copy-warnings', 'recycle-list', 'take-the-tour', 'toggle-perf',
     ...(has('links') ? ['check-link-labels'] : []), ...(has('pages') ? ['copy-header-details'] : [])].sort();
   if (toolKeys.join() !== wantTools.join())
     problem('troubleshooting tools: ' + toolKeys.join(', '));
-  pluginWindow.Threads.shared.popups.closeAll(); doc.querySelector('dialog.refinement-settings')?.remove();
+  pluginWindow.Threads.shared.popups.closeAll(); doc.querySelector('dialog.th-settings')?.remove();
   // Its screen report holds every running feature's rows, each thing once, with every feature that needs it.
   await pluginWindow.Threads.core.provided.diagnostics.checkWhatIsFound();
   const report = doc.querySelector('textarea')?.value || '';
@@ -211,9 +212,9 @@ async function main() {
   for (const row of ['the page area', 'reference areas', 'title row', 'fold state', 'nesting lines', 'right sidebar', 'toolbar'])
     if (!report.includes(` · ${row} · `)) problem(`the screen report misses the row “${row}”`);
   if (!/ · blocks · (?=.*cues)(?=.*fold all).*\n/.test(report)) problem('the screen report did not join the features needing blocks');
-  if (report.split('\n').filter(line => / · \D/.test(line) && /^ +\d+ · /.test(line) && !/data-refinement|\.refinement-/.test(line)).length !== 36) problem('the screen report should hold 36 rows of Logseq parts');
+  if (report.split('\n').filter(line => / · \D/.test(line) && /^ +\d+ · /.test(line) && !/data-refinement|\.th-/.test(line)).length !== 36) problem('the screen report should hold 36 rows of Logseq parts');
   } else if (!report.includes(' · the page area · ')) problem('the screen report misses the row “the page area”');
-  const backdrop = doc.querySelector('.refinement-prompt-backdrop');
+  const backdrop = doc.querySelector('.th-prompt-backdrop');
   backdrop?.dispatchEvent(Object.assign(new host.window.MouseEvent('mousedown', { bubbles: true })));
   await sleep(50);
 

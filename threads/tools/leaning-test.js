@@ -33,7 +33,7 @@ const BASELINE = {
 };
 
 const main = fs.readFileSync(path.join(root, 'main.js'), 'utf8');
-const PART_FILES = fs.readFileSync(path.join(root, '..', 'files.js'), 'utf8').match(/threads\/parts\/[a-z-]+\.js/g).map(file => file.replace(/^threads\//, ''));
+const PART_FILES = fs.readFileSync(path.join(root, '..', 'files.js'), 'utf8').match(/threads\/parts\/[a-z/-]+\.js/g).map(file => file.replace(/^threads\//, ''));
 const features = PART_FILES.filter(file => !LAYER_1.includes(file));
 // The code without its comments (a // inside a string, as in a web address, is kept: only a // after a space or at the start of a line counts).
 const code = file => fs.readFileSync(path.join(root, file), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\s)\/\/.*$/gm, '$1');
@@ -53,7 +53,8 @@ found.names = published.size;
 
 for (const kind of ['logseq', 'sideways']) {
   for (const file of features) {
-    const want = BASELINE[kind][file], got = found[kind][file];
+    // A piece of a part (parts/two-way/*.js) leans no more than its part may.
+    const want = BASELINE[kind][file] ?? BASELINE[kind][file.replace(/\/[a-z-]+\.js$/, '.js')], got = found[kind][file];
     if (want === undefined) { problems.push(`${file} is loaded but has no baseline for ${kind}: add it`); continue; }
     if (got > want) problems.push(`${file} leans where it must not: ${got} ${kind === 'logseq' ? 'direct Logseq calls' : 'reads of a name on the window'} (the baseline is ${want})`);
     else if (got < want) problems.push(`${file} leans less than its baseline (${got} ${kind}, baseline ${want}): lower the baseline in tools/leaning-test.js`);

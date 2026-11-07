@@ -10,24 +10,24 @@ problem() { echo "PROBLEM: $1"; fail=1; }
 full=0; [ "$1" = "--full" ] && full=1
 
 # 1. Syntax of every script file: JavaScriptCore on a Mac, node elsewhere.
-for f in main.js parts/*.js; do
+for f in main.js parts/*.js parts/*/*.js; do
   if [ -x "$JSC" ]; then "$JSC" tools/check.js -- "$f" || fail=1
   elif command -v node >/dev/null 2>&1; then node --check "$f" >/dev/null 2>&1 && echo "OK $f" || { echo "ERROR $f: syntax"; fail=1; }
   else problem "no JavaScriptCore and no node to check the syntax of $f"; fi
 done
 
 # 2. No leftover TEMP-DEV block.
-found=$(grep -l TEMP-DEV main.js parts/*.js tools/*.js 2>/dev/null | tr '\n' ' ')
+found=$(grep -l TEMP-DEV main.js parts/*.js parts/*/*.js tools/*.js 2>/dev/null | tr '\n' ' ')
 if [ -n "$found" ]; then problem "TEMP-DEV found in: $found"; fi
 
 # 3. Counts that should stay the same unless a setting or a publication was added on purpose.
-settings=$(cat main.js parts/*.js | grep -c "key: '")
-windows=$(cat main.js parts/*.js | grep -c "window\.[a-zA-Z]* = ")
+settings=$(cat main.js parts/*.js parts/*/*.js | grep -c "key: '")
+windows=$(cat main.js parts/*.js parts/*/*.js | grep -c "window\.[a-zA-Z]* = ")
 echo "settings keys (grep \"key: '\"): $settings; window.* publications: $windows"
 
 # 4. Every file in parts/ is in the plugin's files.js, and the reverse.
-listed=$(grep -o "threads/parts/[a-z-]*\.js" ../files.js | sed 's#^threads/parts/##' | sort)
-present=$(ls parts | sort)
+listed=$(grep -o "threads/parts/[a-z/-]*\.js" ../files.js | sed 's#^threads/parts/##' | sort)
+present=$(cd parts && ls *.js */*.js | sort)
 if [ "$listed" != "$present" ]; then
   problem "parts/ and files.js differ. In files.js: $(echo $listed). In parts/: $(echo $present)"
 fi

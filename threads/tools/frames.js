@@ -27,6 +27,7 @@
    Needs Playwright and Chromium; skipped quietly where they are missing. */
 const fs = require('fs');
 const path = require('path');
+const twoWay = require('./two-way-files');
 const K = require('../../tools/frame-kit');
 const { THEMES, pretendLogseq, exposeAtEnd, tablerCss } = require('./pretend-page');
 
@@ -44,11 +45,11 @@ const W = 900, H = 700;
 
 // The two-way part with its inner pieces reachable (the same way tools/pictures.js reaches rowHtml).
 const twoWaySource = () => {
-  const src = read('parts/two-way.js');
-  const out = src.replace(/\}\)\(\);\s*$/, `window.__tw = { draw, state, onRoute, settle, twoWayCss, rowHtml, forget: () => { heights = new Map(); },
-    setUp: core => { provided = core.provided; addsElements = core.addsElements; sendStyle = core.sendStyle; } }; })();`);
-  if (out === src) throw new Error('the end of parts/two-way.js changed; tools/frames.js cannot reach it');
-  return out;
+  let reached = false;
+  const out = twoWay.sources(src => src.replace(/\}\)\(\);\s*$/, () => { reached = true; return `window.__tw = { draw, state, onRoute, settle, twoWayCss: '', rowHtml, forget: () => { heights = new Map(); },
+    setUp: core => { provided = core.provided; model = core.provided; addsElements = core.addsElements; sendStyle = core.sendStyle; Object.assign(twoWay, { provided, model }); } }; })();`; }));
+  if (!reached) throw new Error('the end of parts/two-way.js changed; tools/frames.js cannot reach it');
+  return out.join('\n') + `\n{ const twoWay = window.Threads.parts.find(part => part.name === 'two-way').inner; window.__tw.twoWayCss = twoWay.twoWayCss; }`;
 };
 
 /* A pretend Logseq page that opens in steps, as Logseq 2.0.2 does (measured: the title first, the property list
@@ -97,7 +98,7 @@ function twoWaySetUp(groups, pageUuid) {
   // The core's early watcher: draw before the browser paints, on every change, while the page settles.
   window.__drawCount = 0;
   window.__watch = new MutationObserver(records => {
-    if (records.every(r => [...r.addedNodes, ...r.removedNodes].every(n => n.nodeType !== 1 || n.closest?.('.refinement-two-way') || n.matches?.('.refinement-two-way')))) return;
+    if (records.every(r => [...r.addedNodes, ...r.removedNodes].every(n => n.nodeType !== 1 || n.closest?.('.th-two-way') || n.matches?.('.th-two-way')))) return;
     if (++window.__drawCount > 500) { window.__watch.disconnect(); throw new Error('the two-way rows redrew 500 times: a loop'); }
     tw.draw(document);
   });
@@ -230,7 +231,7 @@ async function record(browser, theme, name, scene, withPlugin) {
       for (const f of K.attributeFlashes(picB.flashes, picA.flashes)) if (f.whose === 'plugin') fails.push(`picture flash at ${Math.round(f.t - B.t0)} ms in [${f.box.join(', ')}]`);
       const seen = K.appearances(B.ledger);
       if (scene.budget && seen.title !== undefined) {
-        const rows = Object.entries(B.ledger.names).filter(([, n]) => n === 'div.rf-tw-row').map(([id]) => K.timelines(B.ledger).get(Number(id))?.find(([, r]) => K.shownRow(r))?.[0]).filter(t => t !== undefined);
+        const rows = Object.entries(B.ledger.names).filter(([, n]) => n === 'div.th-tw-row').map(([id]) => K.timelines(B.ledger).get(Number(id))?.find(([, r]) => K.shownRow(r))?.[0]).filter(t => t !== undefined);
         if (!rows.length) fails.push('the two-way rows never showed');
         else { const late = Math.min(...rows) - seen.title; if (late > scene.budget) fails.push(`the two-way rows showed ${Math.round(late)} ms after the title (budget ${scene.budget} ms)`); }
       }

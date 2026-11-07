@@ -15,6 +15,7 @@
    Run from the repo root: node tools/two-way-rows-test.js   (tools/check.sh runs it) */
 const fs = require('fs');
 const path = require('path');
+const twoWay = require('./two-way-files');
 const { JSDOM } = require('jsdom');
 
 const root = path.resolve(__dirname, '..');
@@ -48,7 +49,7 @@ function world(grouping) {
   window.eval(fs.readFileSync(path.join(root, '../plugin.js'), 'utf8'));
   window.eval(fs.readFileSync(path.join(root, '../plugin.js'), 'utf8'));
   window.eval(fs.readFileSync(path.join(root, 'parts/shared.js'), 'utf8'));
-  window.eval(fs.readFileSync(path.join(root, 'parts/two-way.js'), 'utf8'));
+  for (const source of twoWay.sources()) window.eval(source);
   const calls = [], reads = [], changed = [], graphHooks = [], madeNow = new Map(), recycled = new Set(), notices = [];
   window.logseq.UI.showMsg = text => notices.push(text);
   const bullets = new Map([[U(101), [{ uuid: U(701), title: 'Cepeda reviewed 254 studies.' }, { uuid: U(702), title: 'See [[Testing effect]].' }]]]);
@@ -104,29 +105,28 @@ function world(grouping) {
     provide(things) { Object.assign(provided, things); },
   };
   const part = window.Threads.parts.find(p => p.name === 'two-way');
-  part.provide(window.Threads.core);
   part.start();
   return { window, doc, calls, part, bullets, saved, reads, changed, provided, graphHooks, madeNow, recycled, notices };
 }
 const click = (window, el) => el.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
 // The bar's More (5 November 2026): every action but Open in sidebar sits in it. Opens it and gives its items.
-const moreItems = async (window, doc) => { doc.querySelectorAll('.rf-pop').forEach(p => p.remove()); click(window, doc.querySelector('.rf-tw-bar [data-act="more"]')); await new Promise(r => setTimeout(r, 40)); return [...doc.querySelectorAll('.rf-pop .rf-item')]; };
+const moreItems = async (window, doc) => { doc.querySelectorAll('.th-pop').forEach(p => p.remove()); click(window, doc.querySelector('.th-tw-bar [data-act="more"]')); await new Promise(r => setTimeout(r, 40)); return [...doc.querySelectorAll('.th-pop .th-item')]; };
 const moreItem = async (window, doc, re) => (await moreItems(window, doc)).find(el => re.test(el.textContent.trim()));
 const type = (window, input, text) => { input.value = text; input.dispatchEvent(new window.Event('input', { bubbles: true })); };
 const enter = (window, input) => input.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
 // The outline (0.4.442): a node's chevron by its uuid (inside: under the node of that uuid), what an open node holds.
 const parentOf = key => key.split('>').slice(0, -1).join('>');
-const chevOf = (doc, uuid, inside) => [...doc.querySelectorAll(`.rf-chev[data-dig][data-uuid="${uuid}"]`)].find(c => !inside || parentOf(c.dataset.dig).endsWith(inside));
-const kidsOf = (doc, uuid) => [...doc.querySelectorAll('.rf-ol-kids[data-key]')].find(k => k.dataset.key.endsWith('>' + uuid));
+const chevOf = (doc, uuid, inside) => [...doc.querySelectorAll(`.th-chev[data-dig][data-uuid="${uuid}"]`)].find(c => !inside || parentOf(c.dataset.dig).endsWith(inside));
+const kidsOf = (doc, uuid) => [...doc.querySelectorAll('.th-ol-kids[data-key]')].find(k => k.dataset.key.endsWith('>' + uuid));
 const isOpenChev = c => c?.getAttribute('aria-expanded') === 'true';
-const names = doc => [...doc.querySelectorAll('.rf-tw-gname')].map(el => el.textContent.trim());
-const counts = doc => [...doc.querySelectorAll('.rf-tw-gn')].map(el => el.textContent.trim());
-const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g => g.querySelector('.rf-tw-gname')?.textContent.trim() === name);
+const names = doc => [...doc.querySelectorAll('.th-tw-gname')].map(el => el.textContent.trim());
+const counts = doc => [...doc.querySelectorAll('.th-tw-gn')].map(el => el.textContent.trim());
+const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g => g.querySelector('.th-tw-gname')?.textContent.trim() === name);
 
 (async () => {
   // Rules on names: a tag of any spelling, and a name that is not cut at an initial or an hour.
   {
-    const source = fs.readFileSync(path.join(root, 'parts/two-way.js'), 'utf8');
+    const source = twoWay.text();
     const { plural, shortName } = new Function(source.match(/^const plural = .*$/m)[0] + '\n' + source.match(/^const NAME_ROOM = .*$/m)[0] + '\n' + source.match(/^function shortName[\s\S]*?^}$/m)[0] + '\nreturn { plural, shortName };')();
     check(plural('Diagnosis', 2) === 'Diagnoses' && plural('Metastasis', 2) === 'Metastases', 'a word in -sis should turn to -ses: ' + plural('Diagnosis', 2));
     check(plural('Measles', 2) === 'Measles' && plural('Series', 2) === 'Series', 'a word that ends in s stays: ' + plural('Measles', 2));
@@ -145,7 +145,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     const options = Array.from({ length: 300 }, (_, i) => ({ label: `Page ${i + 1}` }));
     const picked = shared.pickValue({ at: doc.body, options, doc });
     await wait(10);
-    const rows = () => [...doc.querySelectorAll('.rf-lsq-pop .menu-link')], box = doc.querySelector('.rf-lsq-pop input');
+    const rows = () => [...doc.querySelectorAll('.th-lsq-pop .menu-link')], box = doc.querySelector('.th-lsq-pop input');
     const press = key => box.dispatchEvent(new window.KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
     check(rows().length === 41 && rows().at(-1).textContent.trim() === 'show all 300', 'a long list should show a few, then show all: ' + rows().length);
     const first = rows()[0];
@@ -154,7 +154,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     rows()[5].dispatchEvent(new window.MouseEvent('mousemove', { bubbles: true }));
     check(first.isConnected && rows()[5].classList.contains('chosen') && !rows()[1].classList.contains('chosen'), 'the pointer should too');
     rows().at(-1).dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
-    check(rows().length === 300 && doc.querySelector('.rf-lsq-pop'), '"show all" should list them all and keep the list open');
+    check(rows().length === 300 && doc.querySelector('.th-lsq-pop'), '"show all" should list them all and keep the list open');
     box.value = 'page 29'; box.dispatchEvent(new window.Event('input', { bubbles: true }));
     check(rows().length === 11 && rows()[0].textContent.trim() === 'Page 29', 'typing should narrow it: ' + rows().length);
     press('Enter');
@@ -194,77 +194,77 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     fire([{ uuid: U(703), id: 703, title: 'x', page: { id: 9 } }], 'set-block-property');
     await wait(1000);
     check(guessed === 1, 'once they are read, a mention asks at once: ' + guessed);
-    const chev = doc.querySelector('.rf-chev[data-dig]');
+    const chev = doc.querySelector('.th-chev[data-dig]');
     chev.dispatchEvent(new window.Event('pointerover', { bubbles: true }));
     await wait(30);
     check(learned === 0, 'the pointer passing over a fold arrow should not read the earlier lines');
     click(window, chev);
     await wait(60);
-    check(doc.querySelector('.rf-ol-kids[data-key]') && learned >= 0, 'a click opens the node');
+    check(doc.querySelector('.th-ol-kids[data-key]') && learned >= 0, 'a click opens the node');
     part.stop();
   }
   // 1. Nothing chosen: the list as it was, with the quiet word to group it by.
   {
     const { window, doc, part } = world('');
     await wait(120);
-    check(!!doc.querySelector('.refinement-two-way .rf-tw-row'), 'the rows should be drawn');
-    check(!doc.querySelector('.rf-tw-group'), 'with no grouping chosen the list should not be in groups');
-    check(doc.querySelectorAll('.rf-tw-line').length === 5 && !!doc.querySelector('[data-more]'), 'the plain list should show five lines and "show all"');
-    check(doc.querySelector('.rf-tw-groupby')?.textContent.trim() === 'Group' && !doc.querySelector('.rf-tw-groupby[data-on]'), 'the word to group by should read "Group"');
-    check(doc.querySelectorAll('.rf-tw-line .rf-chev[data-dig]').length === 5, 'every line should have its chevron, right before its name');
-    check([...doc.querySelectorAll('.rf-tw-line')].every(l => l.querySelector('.rf-chev + .rf-ol-body > .rf-ol-name')), 'the chevron should sit right before the name it opens');
+    check(!!doc.querySelector('.th-two-way .th-tw-row'), 'the rows should be drawn');
+    check(!doc.querySelector('.th-tw-group'), 'with no grouping chosen the list should not be in groups');
+    check(doc.querySelectorAll('.th-tw-line').length === 5 && !!doc.querySelector('[data-more]'), 'the plain list should show five lines and "show all"');
+    check(doc.querySelector('.th-tw-groupby')?.textContent.trim() === 'Group' && !doc.querySelector('.th-tw-groupby[data-on]'), 'the word to group by should read "Group"');
+    check(doc.querySelectorAll('.th-tw-line .th-chev[data-dig]').length === 5, 'every line should have its chevron, right before its name');
+    check([...doc.querySelectorAll('.th-tw-line')].every(l => l.querySelector('.th-chev + .th-ol-body > .th-ol-name')), 'the chevron should sit right before the name it opens');
     // The tags' words on the line by the chevron: All folds and unfolds; a tag shows only its nodes, without the tag on each line.
-    const chip = tag => doc.querySelector(`.rf-tw-value .rf-tw-chip[data-tag="${tag}"]`);
-    const row = () => doc.querySelector('.rf-tw-row[data-open], .rf-tw-row:has(.rf-tw-chip)');
-    const tagsShown = () => [...doc.querySelectorAll('.rf-tw-line .rf-tw-tag')].map(el => el.textContent.trim()).filter(Boolean);
+    const chip = tag => doc.querySelector(`.th-tw-value .th-tw-chip[data-tag="${tag}"]`);
+    const row = () => doc.querySelector('.th-tw-row[data-open], .th-tw-row:has(.th-tw-chip)');
+    const tagsShown = () => [...doc.querySelectorAll('.th-tw-line .th-tw-tag')].map(el => el.textContent.trim()).filter(Boolean);
     check(!!chip('') && !!chip('Claim') && tagsShown().length === 5, 'with two tags, the words by the chevron and a tag on every line: ' + tagsShown());
     click(window, chip('')); await wait(20);
-    check(!row()?.hasAttribute('data-open') && !doc.querySelector('.rf-tw-line'), 'a click on All should fold the list');
+    check(!row()?.hasAttribute('data-open') && !doc.querySelector('.th-tw-line'), 'a click on All should fold the list');
     click(window, chip('')); await wait(20);
-    check(row()?.hasAttribute('data-open') && doc.querySelectorAll('.rf-tw-line').length === 5, 'a second click on All should open it again');
+    check(row()?.hasAttribute('data-open') && doc.querySelectorAll('.th-tw-line').length === 5, 'a second click on All should open it again');
     click(window, chip('Claim')); await wait(20);
-    check(doc.querySelectorAll('.rf-tw-line').length > 0 && tagsShown().length === 0, 'with one tag picked the lines should leave the tag out: ' + tagsShown());
+    check(doc.querySelectorAll('.th-tw-line').length > 0 && tagsShown().length === 0, 'with one tag picked the lines should leave the tag out: ' + tagsShown());
     // 0.4.462: in the tag's place, the property telling them apart: Confidence (held by all four Claims, two values).
-    const tells = () => [...doc.querySelectorAll('.rf-tw-line .rf-tw-tell')].map(el => el.textContent.trim());
+    const tells = () => [...doc.querySelectorAll('.th-tw-line .th-tw-tell')].map(el => el.textContent.trim());
     check(tells().length === 4 && tells().every(t => t === 'Confidence Strong' || t === 'Confidence Disputed'), 'with one tag picked each line should say its Confidence, named: ' + tells());
     click(window, chip('')); await wait(20);
     check(row()?.hasAttribute('data-open') && tagsShown().length === 5, 'All with a tag picked should show every node again, still open');
     check(tells().length === 0, 'with two tags on the lines no property should stand in for them: ' + tells());
-    check([...doc.querySelectorAll('.rf-tw-line')].every(l => !l.querySelector('.rf-ol-name ~ .rf-ol-day, .rf-tw-after')), 'a day should never follow a name (0.4.462)');
+    check([...doc.querySelectorAll('.th-tw-line')].every(l => !l.querySelector('.th-ol-name ~ .th-ol-day, .th-tw-after')), 'a day should never follow a name (0.4.462)');
     // The order is gone (0.4.462): the right-click offers no Date first or Name first.
-    row().querySelector('.rf-tw-name').dispatchEvent(new window.MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    row().querySelector('.th-tw-name').dispatchEvent(new window.MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
     await wait(40);
-    const menu = [...doc.querySelectorAll('.rf-pop .rf-item')].map(el => el.textContent.trim());
+    const menu = [...doc.querySelectorAll('.th-pop .th-item')].map(el => el.textContent.trim());
     check(menu.length > 0 && !menu.some(t => /Date first|Name first/.test(t)), 'the right-click should offer no Date first or Name first: ' + menu);
     doc.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await wait(20);
     part.stop(); await wait(10);
-    check(!doc.querySelector('.refinement-two-way'), 'nothing should be left on stop');
+    check(!doc.querySelector('.th-two-way'), 'nothing should be left on stop');
   }
   // 2. Grouped by Confidence: biggest first, the two with none last, the + in a group but not in "none".
   {
     const { window, doc, calls, part } = world('p:Confidence');
     await wait(150);
-    check(doc.querySelector('.rf-tw-groupby[data-on]')?.textContent.trim() === 'By Confidence', 'the word should say what it is grouped by: ' + doc.querySelector('.rf-tw-groupby')?.textContent);
+    check(doc.querySelector('.th-tw-groupby[data-on]')?.textContent.trim() === 'By Confidence', 'the word should say what it is grouped by: ' + doc.querySelector('.th-tw-groupby')?.textContent);
     check(names(doc).join() === 'Disputed,Strong,No Confidence', 'groups should be Disputed, Strong (two each, by name) then No Confidence: ' + names(doc));
     check(counts(doc).join() === '2,2,2', 'each group should say how many: ' + counts(doc));
-    check(groupEl(doc, 'Strong')?.querySelectorAll('.rf-tw-line').length === 2, 'a group should list its nodes');
-    check(!!groupEl(doc, 'Disputed')?.querySelector('.rf-tw-gadd') && !groupEl(doc, 'No Confidence')?.querySelector('.rf-tw-gadd'), 'a + in a group with a value, none in the group of those with none');
+    check(groupEl(doc, 'Strong')?.querySelectorAll('.th-tw-line').length === 2, 'a group should list its nodes');
+    check(!!groupEl(doc, 'Disputed')?.querySelector('.th-tw-gadd') && !groupEl(doc, 'No Confidence')?.querySelector('.th-tw-gadd'), 'a + in a group with a value, none in the group of those with none');
     // Folding: the arrow, never the words.
-    click(window, groupEl(doc, 'Strong').querySelector('.rf-tw-gname'));
+    click(window, groupEl(doc, 'Strong').querySelector('.th-tw-gname'));
     await wait(20);
-    check(groupEl(doc, 'Strong').querySelectorAll('.rf-tw-line').length === 2, 'a click on a group’s words should not fold it');
-    check(!doc.querySelector('.rf-tw-ghead a:not(.rf-tag)'), 'a group’s words should not be a link');
-    click(window, groupEl(doc, 'Strong').querySelector('.rf-chev[data-gkey]'));
+    check(groupEl(doc, 'Strong').querySelectorAll('.th-tw-line').length === 2, 'a click on a group’s words should not fold it');
+    check(!doc.querySelector('.th-tw-ghead a:not(.th-tag)'), 'a group’s words should not be a link');
+    click(window, groupEl(doc, 'Strong').querySelector('.th-chev[data-gkey]'));
     await wait(20);
-    check(groupEl(doc, 'Strong').querySelectorAll('.rf-tw-line').length === 0 && !groupEl(doc, 'Strong').hasAttribute('data-open'), 'a click on a group’s arrow should fold it');
-    click(window, groupEl(doc, 'Strong').querySelector('.rf-chev[data-gkey]'));
+    check(groupEl(doc, 'Strong').querySelectorAll('.th-tw-line').length === 0 && !groupEl(doc, 'Strong').hasAttribute('data-open'), 'a click on a group’s arrow should fold it');
+    click(window, groupEl(doc, 'Strong').querySelector('.th-chev[data-gkey]'));
     await wait(20);
-    check(groupEl(doc, 'Strong').querySelectorAll('.rf-tw-line').length === 2, 'and open it again');
+    check(groupEl(doc, 'Strong').querySelectorAll('.th-tw-line').length === 2, 'and open it again');
     // The + in Disputed: the line opens in the group; Enter makes the node with the tag, about and Confidence.
-    click(window, groupEl(doc, 'Disputed').querySelector('.rf-tw-gadd'));
+    click(window, groupEl(doc, 'Disputed').querySelector('.th-tw-gadd'));
     await wait(20);
-    const field = groupEl(doc, 'Disputed').querySelector('.rf-tw-draft-name');
-    check(!!field && doc.querySelectorAll('.rf-tw-draft').length === 1, 'the line to type in should open inside the group');
+    const field = groupEl(doc, 'Disputed').querySelector('.th-tw-draft-name');
+    check(!!field && doc.querySelectorAll('.th-tw-draft').length === 1, 'the line to type in should open inside the group');
     check(calls.length === 0, 'nothing should be written before Enter');
     type(window, field, 'Spacing fails when the items look alike');
     enter(window, field);
@@ -277,8 +277,8 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     check(calls.some(c => c[0] === 'setValue' && c[1] === uuid && c[2] === 'user.property/confidence' && c[3] === '302' && /entityId/.test(c[4])), 'its Confidence should be the group’s value, Disputed: ' + JSON.stringify(calls.filter(c => c[0] === 'setValue')));
     // The line stays open for the next one (0.4.413): empty, in the same group, with the keyboard in it; a second node
     // gets the group's value too.
-    const next = groupEl(doc, 'Disputed')?.querySelector('.rf-tw-draft-name');
-    check(!!next && next.value === '' && doc.activeElement === next && doc.querySelectorAll('.rf-tw-draft').length === 1, 'the line should stay open, empty, in the group, ready to type: ' + (next ? JSON.stringify(next.value) : 'none'));
+    const next = groupEl(doc, 'Disputed')?.querySelector('.th-tw-draft-name');
+    check(!!next && next.value === '' && doc.activeElement === next && doc.querySelectorAll('.th-tw-draft').length === 1, 'the line should stay open, empty, in the group, ready to type: ' + (next ? JSON.stringify(next.value) : 'none'));
     type(window, next, 'Spacing helps little with maths');
     enter(window, next);
     await wait(80);
@@ -286,8 +286,8 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     check(second && second[2] === 'Spacing helps little with maths' && calls.some(c => c[0] === 'setValue' && c[1] === second[3] && c[2] === 'user.property/confidence' && c[3] === '302'), 'a second node from the line left open should get the group’s value too: ' + JSON.stringify(calls.filter(c => c[1] === second?.[3])));
     next.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
     await wait(20);
-    check(!doc.querySelector('.rf-tw-draft'), 'Escape on the empty line should close it');
-    check(!!doc.querySelector('.rf-undo'), 'the faded Undo arrow should be offered');
+    check(!doc.querySelector('.th-tw-draft'), 'Escape on the empty line should close it');
+    check(!!doc.querySelector('.lk-undo[data-lk-undo]'), 'the faded Undo arrow should be offered');
     part.stop();
   }
   // 3. Grouped by tag: the + gives the group's tag and sets no other value.
@@ -295,10 +295,10 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     const { window, doc, calls, part } = world('tag');
     await wait(120);
     check(names(doc).join() === 'Claim,Question', 'groups by tag, biggest first: ' + names(doc));
-    check(!!doc.querySelector('.rf-tw-group a.rf-tag.rf-tw-gname[data-tag-page="Question"]'), 'a tag should read as a tag in its group’s name, and open its page');
-    click(window, groupEl(doc, 'Question').querySelector('.rf-tw-gadd'));
+    check(!!doc.querySelector('.th-tw-group a.th-tag.th-tw-gname[data-tag-page="Question"]'), 'a tag should read as a tag in its group’s name, and open its page');
+    click(window, groupEl(doc, 'Question').querySelector('.th-tw-gadd'));
     await wait(20);
-    const field = groupEl(doc, 'Question').querySelector('.rf-tw-draft-name');
+    const field = groupEl(doc, 'Question').querySelector('.th-tw-draft-name');
     type(window, field, 'Does it need sleep?');
     enter(window, field);
     await wait(80);
@@ -312,7 +312,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     const { doc, part } = world('month');
     await wait(120);
     check(names(doc).join() === 'October 2026,September 2026,No date', 'groups by month, newest first: ' + names(doc));
-    check(counts(doc).join() === '3,2,1' && !doc.querySelector('.rf-tw-gadd'), 'with their counts and no +: ' + counts(doc));
+    check(counts(doc).join() === '3,2,1' && !doc.querySelector('.th-tw-gadd'), 'with their counts and no +: ' + counts(doc));
     part.stop();
   }
   // 4b. Grouped by a number: a scale in order (not biggest first), named with its property; the + writes the number itself.
@@ -321,9 +321,9 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     await wait(150);
     check(names(doc).join() === 'Severity 1,Severity 2,Severity 3,No Severity', 'numbers should be in order, named with their property: ' + names(doc));
     check(counts(doc).join() === '1,1,2,2', 'with their counts: ' + counts(doc));
-    click(window, groupEl(doc, 'Severity 3').querySelector('.rf-tw-gadd'));
+    click(window, groupEl(doc, 'Severity 3').querySelector('.th-tw-gadd'));
     await wait(20);
-    const field = groupEl(doc, 'Severity 3').querySelector('.rf-tw-draft-name');
+    const field = groupEl(doc, 'Severity 3').querySelector('.th-tw-draft-name');
     type(window, field, 'Spacing needs sleep');
     enter(window, field);
     await wait(80);
@@ -333,43 +333,43 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
   }
   // The moves and the head (the review, 31 October): what comes late, the bar's room, the card, a head of fifteen kinds.
   {
-    const source = fs.readFileSync(path.join(root, 'parts/two-way.js'), 'utf8'), kit = fs.readFileSync(path.join(root, 'parts/shared.js'), 'utf8');
-    check(!/data-picking\] \.rf-tw-bar \{[^}]*padding-top/.test(source), 'the bar takes no more room when something is ticked');
-    check(/couldBeHtml\(item\)\}\$\{tell/.test(source) && !/rf-tw-crumb">[^`]*couldBeHtml/.test(source), 'what a mention could be stands on its own line, so coming late moves nothing');
-    check(/\.rf-tw-head \.rf-tw-sep \{ position: absolute; right: 100%/.test(source) && /\.rf-tw-head \.rf-tw-chips \{[^}]*overflow: hidden/.test(source), 'a dot stands in the gap before its piece, clipped at a line\'s start');
-    check(/\.rf-tw-head > \.rf-ol-body \{ display: flex; align-items: baseline;/.test(source), 'the head does not wrap the + and Group onto a line of their own');
-    check(/\.rf-ol-body > \.rf-tw-record \{ min-width: 0; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; \}/.test(source), 'a name runs to two lines, then is cut');
+    const source = twoWay.text(), kit = fs.readFileSync(path.join(root, 'parts/shared.js'), 'utf8');
+    check(!/data-picking\] \.th-tw-bar \{[^}]*padding-top/.test(source), 'the bar takes no more room when something is ticked');
+    check(/couldBeHtml\(item\)\}\$\{tell/.test(source) && !/th-tw-crumb">[^`]*couldBeHtml/.test(source), 'what a mention could be stands on its own line, so coming late moves nothing');
+    check(/\.th-tw-head \.th-tw-sep \{ position: absolute; right: 100%/.test(source) && /\.th-tw-head \.th-tw-chips \{[^}]*overflow: hidden/.test(source), 'a dot stands in the gap before its piece, clipped at a line\'s start');
+    check(/\.th-tw-head > \.th-ol-body \{ display: flex; align-items: baseline;/.test(source), 'the head does not wrap the + and Group onto a line of their own');
+    check(/\.th-ol-body > \.th-tw-record \{ min-width: 0; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; \}/.test(source), 'a name runs to two lines, then is cut');
     check(!/title: item\.title/.test(source.slice(source.indexOf('async function showPeek'))) && !/\bday: item\.day/.test(source.slice(source.indexOf('async function showPeek'))), 'the card leaves out what the row says');
     check(/placePeek\(card\.el, link\)/.test(source), 'the card is placed clear of the rows');
-    check(/settle\.stood = true; box\.removeAttribute\('data-rf-waiting'\)/.test(source) && /!settle\.stood && \(!state\.mentionsOf\.has\(page\) \|\| \(!heights\.has\(page\)/.test(source), 'a first visit waits only until the place stands still and the page is read');
+    check(/settle\.stood = true; box\.removeAttribute\('data-th-waiting'\)/.test(source) && /!settle\.stood && \(!state\.mentionsOf\.has\(page\) \|\| \(!heights\.has\(page\)/.test(source), 'a first visit waits only until the place stands still and the page is read');
     check(/!listThere \|\| !state\.mentionsOf\.has\(page\) \|\| \(!noList && performance\.now\(\) - since < STILL_MS\)/.test(source), 'and until the property list is there: stillness alone can come before it');
-    check(/:has\(\.refinement-two-way\[data-rf-waiting\]\) \.ls-page-blocks \{ visibility: hidden; \}/.test(source), 'the page\'s words wait with the rows, so what comes with the reading pushes nothing');
+    check(/:has\(\.th-two-way\[data-th-waiting\]\) \.ls-page-blocks \{ visibility: hidden; \}/.test(source), 'the page\'s words wait with the rows, so what comes with the reading pushes nothing');
     check(!/querySelectorAll\('\.ls-page-blocks'\)/.test(source), 'the rows stand under the title and the properties, above the page\'s words');
-    check(/state\.box\?\.removeAttribute\('data-rf-settling'\)/.test(source.slice(source.indexOf('function onRoute'))), 'leaving a page lets go of the easing, or every page after it slides');
-    check(/a\.rf-ol-name\.lk-node \{ text-decoration-color: transparent !important; \}/.test(source), 'a name in the section has no underline at rest');
-    check(!/rf-card-day/.test(kit), 'the card has no day of its own');
+    check(/state\.box\?\.removeAttribute\('data-th-settling'\)/.test(source.slice(source.indexOf('function onRoute'))), 'leaving a page lets go of the easing, or every page after it slides');
+    check(/a\.th-ol-name\.lk-node \{ text-decoration-color: transparent !important; \}/.test(source), 'a name in the section has no underline at rest');
+    check(!/th-card-day/.test(kit), 'the card has no day of its own');
     const { window, doc, part } = world('');
     await wait(120);
-    const line = doc.querySelector('.rf-tw-line .rf-tw-record');
+    const line = doc.querySelector('.th-tw-line .th-tw-record');
     check(!line?.hasAttribute('title'), 'the name carries no tip saying the same words');
-    { const row = line.closest('.rf-tw-line'), blank = new window.MouseEvent('click', { bubbles: true, cancelable: true, clientX: 500 });
+    { const row = line.closest('.th-tw-line'), blank = new window.MouseEvent('click', { bubbles: true, cancelable: true, clientX: 500 });
       row.dispatchEvent(blank);
       check(!blank.defaultPrevented, 'a click on the blank part of a row should do nothing, and the page stays'); }
-    check(!/\.rf-tw-line \{ cursor: pointer/.test(source), 'and the row should not offer it');
+    check(!/\.th-tw-line \{ cursor: pointer/.test(source), 'and the row should not offer it');
     part.stop();
     // Five kinds in a list: three, then how many more, the days still there; the more is a click, and a kind in force stays named.
     const tags = NODES.map(n => n.tag);
     NODES.forEach(n => { n.tag = ''; });
     { const plain = world(''); await wait(120);
-      const lead = plain.doc.querySelector('.rf-tw-lead')?.textContent.trim();
+      const lead = plain.doc.querySelector('.th-tw-lead')?.textContent.trim();
       check(/nodes$/.test(lead || ''), 'nodes with no tag should be called nodes: ' + lead);
       plain.part.stop(); }
     NODES.forEach((n, i) => { n.tag = 'Kind' + i; });
     const many = world('');
     await wait(120);
-    const words = () => [...many.doc.querySelectorAll('.rf-tw-head .rf-tw-chip:not(.rf-tw-lead)')].map(el => el.textContent.trim());
-    const more = () => many.doc.querySelector('.rf-tw-head [data-kinds]');
-    const head = () => many.doc.querySelector('.rf-tw-head').textContent;
+    const words = () => [...many.doc.querySelectorAll('.th-tw-head .th-tw-chip:not(.th-tw-lead)')].map(el => el.textContent.trim());
+    const more = () => many.doc.querySelector('.th-tw-head [data-kinds]');
+    const head = () => many.doc.querySelector('.th-tw-head').textContent;
     check(words().length === 3 && /^and \d+ more$/.test(more()?.textContent || '') && /(from|on|next) /.test(head()), 'three kinds, "and N more", and the days: ' + head());
     click(many.window, more()); await wait(20);
     check(words().length === NODES.length && !more(), 'a click shows them all: ' + words());
@@ -385,22 +385,22 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     click(window, arrow());
     await wait(80);
     const box = kidsOf(doc, node);
-    const bulletWords = () => [...(kidsOf(doc, node)?.querySelectorAll('.rf-ol-bullet:not(.rf-ol-new) .rf-ol-words') || [])].map(el => el.textContent);
+    const bulletWords = () => [...(kidsOf(doc, node)?.querySelectorAll('.th-ol-bullet:not(.th-ol-new) .th-ol-words') || [])].map(el => el.textContent);
     check(!!box && bulletWords().join('|') === 'Cepeda reviewed 254 studies.|See Testing effect.', 'the node’s bullets should show under its line: ' + box?.textContent);
-    check(!!box?.querySelector('.rf-tw-peek-open[data-open-page="Testing effect"]'), 'a link in a bullet should open its page');
+    check(!!box?.querySelector('.th-tw-peek-open[data-open-page="Testing effect"]'), 'a link in a bullet should open its page');
     check(isOpenChev(arrow()), 'the chevron should show it is open');
-    check(!!box?.closest('.rf-ol-unit.rf-ol-focus'), 'the node opened last should be the focus, its line and what it holds on the faint grey');
-    check(!!box?.querySelector('.rf-ol-new .rf-ol-dot') && !box?.querySelector('.rf-field-inline'), 'a bullet should be written as a bullet: a faint dot, no field with a line under it');
+    check(!!box?.closest('.th-ol-unit.th-ol-focus'), 'the node opened last should be the focus, its line and what it holds on the faint grey');
+    check(!!box?.querySelector('.th-ol-new .th-ol-dot') && !box?.querySelector('.th-field-inline'), 'a bullet should be written as a bullet: a faint dot, no field with a line under it');
     check(calls.length === 0, 'opening should write nothing');
-    const field = doc.querySelector(`.rf-tw-node-field[data-uuid="${node}"]`);
+    const field = doc.querySelector(`.th-tw-node-field[data-uuid="${node}"]`);
     type(window, field, 'Check the anatomy course.');
     check(calls.length === 0, 'typing should write nothing until Enter');
     enter(window, field);
     await wait(100);
     check(calls.some(c => c[0] === 'addLineTo' && c[1] === node && c[2] === 'Check the anatomy course.'), 'Enter should write the bullet into the node: ' + JSON.stringify(calls));
     check(bulletWords().length === 3, 'the new bullet should show in the list');
-    check(doc.querySelector(`.rf-tw-node-field[data-uuid="${node}"]`)?.value === '', 'the line to type in should be empty again');
-    const arrowUndo = doc.querySelector('.rf-undo');
+    check(doc.querySelector(`.th-tw-node-field[data-uuid="${node}"]`)?.value === '', 'the line to type in should be empty again');
+    const arrowUndo = doc.querySelector('.lk-undo[data-lk-undo]');
     check(!!arrowUndo, 'the faded Undo arrow should be offered');
     click(window, arrowUndo);
     await wait(100);
@@ -428,10 +428,10 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
       ];
     };
     const esc = (window, input) => input.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
-    click(window, doc.querySelector('.rf-tw-add'));
+    click(window, doc.querySelector('.th-tw-add'));
     await wait(40);
-    const field = () => doc.querySelector('.rf-tw-draft-name');
-    const props = () => [...doc.querySelectorAll('.rf-tw-draft-props .rf-tw-dprop')].map(el => el.textContent.trim());
+    const field = () => doc.querySelector('.th-tw-draft-name');
+    const props = () => [...doc.querySelectorAll('.th-tw-draft-props .th-tw-dprop')].map(el => el.textContent.trim());
     check(!!field() && props().length === 1 && /^about/.test(props()[0]), 'the line should say what the row sets before anything is typed: ' + props());
     const first = props()[0];
     type(window, field(), 'Follow-up about the scan results');
@@ -439,25 +439,25 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     const last = asked[asked.length - 1];
     check(!!last && last.tag === 'Claim' && last.set.some(s => s.ident === 'user.property/about' && s.ids[0] === 5) && last.journalDay > 20260000, 'the rules should be asked with the tag, the row’s property set and today: ' + JSON.stringify(last));
     check(props().join('|') === `${first}|TopicColon cancer|withRuth Okoro|DateOct 24`, 'the proposals should show under the line: ' + props());
-    check(doc.querySelectorAll('.rf-tw-dpick .rf-pencil.lk-pencil').length === 3, 'a value pencilled in the + line should carry the shared pencil');
-    check(doc.querySelectorAll('.rf-tw-dpick .rf-pencil').length === 3 && !doc.querySelector('.rf-tw-dghost, .rf-tw-dguess'), 'every value pencilled in should be the one pencilled look, sure and guessed alike (0.4.315)');
+    check(doc.querySelectorAll('.th-tw-dpick .th-pencil.lk-pencil').length === 3, 'a value pencilled in the + line should carry the shared pencil');
+    check(doc.querySelectorAll('.th-tw-dpick .th-pencil').length === 3 && !doc.querySelector('.th-tw-dghost, .th-tw-dguess'), 'every value pencilled in should be the one pencilled look, sure and guessed alike (0.4.315)');
     check(calls.length === 0, 'nothing should be written while they show');
     esc(window, field());
-    check(props().length === 1 && !!doc.querySelector('.rf-tw-draft'), 'Escape should clear the proposals and keep the line: ' + props());
+    check(props().length === 1 && !!doc.querySelector('.th-tw-draft'), 'Escape should clear the proposals and keep the line: ' + props());
     type(window, field(), 'Follow-up about the scan results.');
     await wait(400);
     check(props().length === 4, 'typing again should bring them back: ' + props());
-    click(window, doc.querySelector('.rf-tw-dpick[data-pkey="user.property/topic|77"]'));
-    check(!!doc.querySelector('.rf-tw-dpick[data-pkey="user.property/topic|77"] .rf-pencil-taken:not(.lk-pencil)') && !!doc.querySelector('.rf-tw-dpick[data-pkey="user.property/with|78"] .rf-tw-dpassed'), 'the kept guess should read solid and the other faded');
+    click(window, doc.querySelector('.th-tw-dpick[data-pkey="user.property/topic|77"]'));
+    check(!!doc.querySelector('.th-tw-dpick[data-pkey="user.property/topic|77"] .th-pencil-taken:not(.lk-pencil)') && !!doc.querySelector('.th-tw-dpick[data-pkey="user.property/with|78"] .th-tw-dpassed'), 'the kept guess should read solid and the other faded');
     enter(window, field());
     await wait(40);
-    check(!!doc.querySelector('.rf-tw-draft-where') && props().length === 4, 'the where step should keep the proposals under the line: ' + props());
-    enter(window, doc.querySelector('.rf-tw-draft-where'));
+    check(!!doc.querySelector('.th-tw-draft-where') && props().length === 4, 'the where step should keep the proposals under the line: ' + props());
+    enter(window, doc.querySelector('.th-tw-draft-where'));
     await wait(150);
     const uuid = calls.find(c => c[0] === 'appendBlock')?.[3];
     const sets = calls.filter(c => c[0] === 'setValue' && c[1] === uuid).map(c => c.slice(2).join(' '));
     check(sets.includes('user.property/about 5 {"entityId":true}') && sets.includes('user.property/topic 77 {"entityId":true}') && sets.includes('user.property/date 900 null') && !sets.some(x => x.startsWith('user.property/with')), 'Enter should set the row’s property, the kept guess and the sure day, not the guess let go: ' + JSON.stringify(sets));
-    check(doc.querySelector('.rf-tw-draft-name')?.value === '' && !doc.querySelector('.rf-tw-dpick') && !!doc.querySelector('.rf-undo'), 'the line should be open again, empty, with nothing proposed, and the Undo arrow offered');
+    check(doc.querySelector('.th-tw-draft-name')?.value === '' && !doc.querySelector('.th-tw-dpick') && !!doc.querySelector('.lk-undo[data-lk-undo]'), 'the line should be open again, empty, with nothing proposed, and the Undo arrow offered');
     part.stop();
   }
   // 6b. Nothing kept: Enter takes every proposal shown, several at once for a property that holds several; with a
@@ -466,42 +466,42 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     const { window, doc, calls, part } = world('');
     await wait(120);
     window.Threads.core.provided.draftProposals = async () => [{ ident: 'user.property/topic', title: 'Topic', kind: 'node', ids: [77], shown: 'Colon cancer', guess: true, many: false }, { ident: 'user.property/with', title: 'with', kind: 'node', ids: [78, 79], shown: 'Ruth Okoro, Tunde Okoro', guess: true, many: true }];
-    click(window, doc.querySelector('.rf-tw-add'));
+    click(window, doc.querySelector('.th-tw-add'));
     await wait(40);
-    const field = doc.querySelector('.rf-tw-draft-name');
+    const field = doc.querySelector('.th-tw-draft-name');
     type(window, field, 'Spoke about the next cycle');
     await wait(400);
     enter(window, field);
     await wait(40);
-    enter(window, doc.querySelector('.rf-tw-draft-where'));
+    enter(window, doc.querySelector('.th-tw-draft-where'));
     await wait(150);
     const uuid = calls.find(c => c[0] === 'appendBlock')?.[3];
     const sets = calls.filter(c => c[0] === 'setValue' && c[1] === uuid).map(c => c.slice(2).join(' '));
     check(sets.includes('user.property/topic 77 {"entityId":true}') && sets.includes('user.property/with [78,79] {"entityId":true,"reset":true}'), 'Enter with nothing kept should set every guess: ' + JSON.stringify(sets));
     // The line left open: a node put on this page (Down, Enter in the where step); the next one lights this page again.
-    const again = doc.querySelector('.rf-tw-draft-name');
-    check(!!again && !doc.querySelector('.rf-tw-add[data-field="about"]'), 'the line should be open again in place of the +');
+    const again = doc.querySelector('.th-tw-draft-name');
+    check(!!again && !doc.querySelector('.th-tw-add[data-field="about"]'), 'the line should be open again in place of the +');
     type(window, again, 'Put here');
     enter(window, again);
     await wait(40);
-    const where1 = doc.querySelector('.rf-tw-draft-where');
+    const where1 = doc.querySelector('.th-tw-draft-where');
     where1.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
     enter(window, where1);
     await wait(150);
     check(calls.filter(c => c[0] === 'appendBlock').pop()?.[1] === PAGE, 'Down, Enter should put the node on this page');
-    const again2 = doc.querySelector('.rf-tw-draft-name');
+    const again2 = doc.querySelector('.th-tw-draft-name');
     type(window, again2, 'Put here too');
     enter(window, again2);
     await wait(40);
-    enter(window, doc.querySelector('.rf-tw-draft-where'));
+    enter(window, doc.querySelector('.th-tw-draft-where'));
     await wait(150);
     check(calls.filter(c => c[0] === 'appendBlock').pop()?.[1] === PAGE, 'the next node should go where the last one went, its place lit: ' + JSON.stringify(calls.filter(c => c[0] === 'appendBlock').map(c => c[1])));
-    const again3 = doc.querySelector('.rf-tw-draft-name');
+    const again3 = doc.querySelector('.th-tw-draft-name');
     type(window, again3, 'Another');
     await wait(400);
     again3.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
     again3.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
-    check(!doc.querySelector('.rf-tw-draft'), 'a second Escape should close the line');
+    check(!doc.querySelector('.th-tw-draft'), 'a second Escape should close the line');
     part.stop();
   }
   // 7. A page's name in the words (0.4.406): the rest in grey after the cursor through the suggested links' own reading
@@ -511,18 +511,18 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     await wait(120);
     const seen = [];
     window.Threads.core.provided.linkSuggestInner = { suggestFor: (text, caret, pages, opts) => { seen.push([text, caret, opts]); return /Dr\. Pat$/.test(text) ? { start: text.length - 7, end: text.length, span: 'Dr. Pat', title: 'Dr. Raj Patel', ghost: 'el', name: 'Dr. Raj Patel' } : null; } };
-    click(window, doc.querySelector('.rf-tw-add'));
+    click(window, doc.querySelector('.th-tw-add'));
     await wait(40);
-    const field = doc.querySelector('.rf-tw-draft-name');
+    const field = doc.querySelector('.th-tw-draft-name');
     type(window, field, 'Spoke with Dr. Pat');
     await wait(80);
-    const rest = doc.querySelector('.rf-tw-ghost-rest');
-    check(seen.length > 0 && rest?.textContent === 'el' && rest.getAttribute('data-name') === 'Dr. Raj Patel' && doc.querySelector('.rf-tw-ghost-typed')?.textContent === 'Spoke with Dr. Pat', 'the rest of the name should show in grey after the words: ' + rest?.textContent);
+    const rest = doc.querySelector('.th-tw-ghost-rest');
+    check(seen.length > 0 && rest?.textContent === 'el' && rest.getAttribute('data-name') === 'Dr. Raj Patel' && doc.querySelector('.th-tw-ghost-typed')?.textContent === 'Spoke with Dr. Pat', 'the rest of the name should show in grey after the words: ' + rest?.textContent);
     field.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
-    check(field.value === 'Spoke with [[Dr. Raj Patel]]' && !doc.querySelector('.rf-tw-ghost-over'), 'the Right arrow should write the link in the line: ' + field.value);
+    check(field.value === 'Spoke with [[Dr. Raj Patel]]' && !doc.querySelector('.th-tw-ghost-over'), 'the Right arrow should write the link in the line: ' + field.value);
     type(window, field, 'Spoke with [[Dr. Raj Patel]] about');
     await wait(80);
-    check(!doc.querySelector('.rf-tw-ghost-over'), 'with no name to complete, nothing grey should show');
+    check(!doc.querySelector('.th-tw-ghost-over'), 'with no name to complete, nothing grey should show');
     check(calls.length === 0, 'nothing should be written by the name');
     part.stop();
   }
@@ -542,14 +542,14 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     const node = U(101);
     click(window, chevOf(doc, node));
     await wait(80);
-    const field = () => doc.querySelector(`.rf-tw-node-field[data-uuid="${node}"]`);
+    const field = () => doc.querySelector(`.th-tw-node-field[data-uuid="${node}"]`);
     field().focus(); // a click on the faint empty bullet
     type(window, field(), 'Ask Dr. Pat');
     await wait(80);
-    check(kidsOf(doc, node)?.querySelector('.rf-tw-ghost-rest')?.textContent === 'el', 'the rest of the name should show in grey in the node’s line: ' + doc.querySelector('.rf-tw-ghost-rest')?.textContent);
+    check(kidsOf(doc, node)?.querySelector('.th-tw-ghost-rest')?.textContent === 'el', 'the rest of the name should show in grey in the node’s line: ' + doc.querySelector('.th-tw-ghost-rest')?.textContent);
     check(seen.length > 0 && seen[seen.length - 1][1]?.boost?.has(41), 'the name should be asked for with the node’s own tag');
     field().dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
-    check(!doc.querySelector('.rf-tw-ghost-over') && doc.activeElement === field(), 'Escape should take the grey name away and keep the line');
+    check(!doc.querySelector('.th-tw-ghost-over') && doc.activeElement === field(), 'Escape should take the grey name away and keep the line');
     type(window, field(), 'Ask Dr. Pat');
     await wait(80);
     field().dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
@@ -571,22 +571,22 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     const node = U(103);
     click(window, chevOf(doc, node));
     await wait(120);
-    const propLines = () => [...(kidsOf(doc, node)?.querySelectorAll('.rf-ol-prop:not(.rf-tw-back)') || [])].filter(l => l.querySelector('.rf-ol-pname').textContent.trim());
-    const rows = () => propLines().map(l => l.querySelector('.rf-ol-pname').textContent.trim() + '=' + l.querySelector('.rf-ol-pv').textContent.trim());
+    const propLines = () => [...(kidsOf(doc, node)?.querySelectorAll('.th-ol-prop:not(.th-tw-back)') || [])].filter(l => l.querySelector('.th-ol-pname').textContent.trim());
+    const rows = () => propLines().map(l => l.querySelector('.th-ol-pname').textContent.trim() + '=' + l.querySelector('.th-ol-pv').textContent.trim());
     check(rows().join('|') === 'Confidence=Disputed|Severity=1|Source=empty', 'the node’s own properties should show above its bullets, the one pointing back at this page left out (0.4.451: the row it opened from names it): ' + rows());
-    check(!!kidsOf(doc, node)?.querySelector('.rf-tw-npvalue.rf-faint'), 'an empty one should read "empty" in grey');
+    check(!!kidsOf(doc, node)?.querySelector('.th-tw-npvalue.th-faint'), 'an empty one should read "empty" in grey');
     // A node property carries the triangle of dots; a fact carries the icon of what it holds (0.4.477, the owner: "a
     // property always shows its icon, on pages too"), never the triangle.
-    const marked = propLines().filter(l => l.querySelector('.rf-ol-pname .rf-kind .lk-web')).map(l => l.querySelector('.rf-ol-pname').textContent.trim());
-    const iconed = propLines().filter(l => l.querySelector('.rf-ol-pname .rf-kind i')).map(l => l.querySelector('.rf-ol-pname').textContent.trim());
+    const marked = propLines().filter(l => l.querySelector('.th-ol-pname .th-kind .lk-web')).map(l => l.querySelector('.th-ol-pname').textContent.trim());
+    const iconed = propLines().filter(l => l.querySelector('.th-ol-pname .th-kind i')).map(l => l.querySelector('.th-ol-pname').textContent.trim());
     check(marked.join('|') === 'Source' && iconed.join('|') === 'Confidence|Severity|Source', 'every property should carry its icon, only the node property the triangle of dots: ' + marked + ' / ' + iconed);
     check(calls.length === 0, 'opening should write nothing');
-    const value = name => propLines().find(l => l.querySelector('.rf-ol-pname').textContent.trim() === name)?.querySelector('.rf-ol-pv [data-edit]');
+    const value = name => propLines().find(l => l.querySelector('.th-ol-pname').textContent.trim() === name)?.querySelector('.th-ol-pv [data-edit]');
     // Since 1.0.3 a value is changed as Logseq does it: a link or a choice in Logseq's own picker (its classes), a
     // number typed where it sits.
-    const popRows = () => [...doc.querySelectorAll('.rf-lsq-pop .menu-link')].map(el => el.textContent.trim());
-    const popField = () => doc.querySelector('.rf-lsq-pop input');
-    const inPlace = () => doc.querySelector('.rf-in-place');
+    const popRows = () => [...doc.querySelectorAll('.th-lsq-pop .menu-link')].map(el => el.textContent.trim());
+    const popField = () => doc.querySelector('.th-lsq-pop input');
+    const inPlace = () => doc.querySelector('.th-in-place');
     // A link: the likely one first.
     click(window, value('Source'));
     await wait(80);
@@ -594,8 +594,8 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     popField().dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
     await wait(150);
     check(calls.some(c => c[0] === 'setValue' && c[1] === node && c[2] === 'user.property/source' && c[3] === '[62]'), 'Enter should set the lit page, as a list for a property that holds several: ' + JSON.stringify(calls));
-    const undo = [...doc.querySelectorAll('.rf-undo')].find(u => /Set “Source” on/.test(u.title || ''));
-    check(!!undo, 'the faded Undo arrow should be offered: ' + [...doc.querySelectorAll('.rf-undo')].map(u => u.title));
+    const undo = [...doc.querySelectorAll('.lk-undo[data-lk-undo]')].find(u => /Set “Source” on/.test(u.title || ''));
+    check(!!undo, 'the faded Undo arrow should be offered: ' + [...doc.querySelectorAll('.lk-undo[data-lk-undo]')].map(u => u.title));
     // Undo of the Source pick puts back what it held (nothing).
     window.Threads.core.provided.unsetValue = async (uuid, ident) => { calls.push(['unsetValue', uuid, ident]); };
     click(window, undo); await wait(150);
@@ -603,7 +603,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     // A number: shown ready to change; the same words again change nothing; a new one is written as a number.
     click(window, value('Severity'));
     await wait(80);
-    check(inPlace()?.value === '1' && !!inPlace()?.closest('.rf-ol-pv') && !doc.querySelector('.rf-lsq-pop, .rf-pop'), 'a number should be typed where it sits, ready to change, with no pop-up: ' + inPlace()?.value);
+    check(inPlace()?.value === '1' && !!inPlace()?.closest('.th-ol-pv') && !doc.querySelector('.th-lsq-pop, .th-pop'), 'a number should be typed where it sits, ready to change, with no pop-up: ' + inPlace()?.value);
     inPlace().value = '3'; inPlace().dispatchEvent(new window.Event('input', { bubbles: true }));
     inPlace().dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
     await wait(150);
@@ -613,11 +613,11 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     await wait(80);
     check(popRows().join('|') === 'Disputed|Strong|Clear', 'a choice should list what it holds first, then the other choices, then Clear (as Logseq lists them): ' + popRows());
     const unsets = calls.length;
-    click(window, [...doc.querySelectorAll('.rf-lsq-pop .menu-link')].find(el => el.textContent.trim() === 'Clear'));
+    click(window, [...doc.querySelectorAll('.th-lsq-pop .menu-link')].find(el => el.textContent.trim() === 'Clear'));
     await wait(150);
     check(calls.slice(unsets).some(c => c[0] === 'unsetValue' && c[1] === node && c[2] === 'user.property/confidence') && !calls.slice(unsets).some(c => c[0] === 'setValue'), 'Clear should clear it and set nothing: ' + JSON.stringify(calls.slice(unsets)));
     // A new change's arrow takes the last one's place: Severity's went when Confidence was cleared.
-    check(doc.querySelectorAll('.rf-undo').length === 1 && /Confidence/.test(doc.querySelector('.rf-undo').title), 'one arrow stands, on the last change: ' + [...doc.querySelectorAll('.rf-undo')].map(u => u.title));
+    check(doc.querySelectorAll('.lk-undo[data-lk-undo]').length === 1 && /Confidence/.test(doc.querySelector('.lk-undo[data-lk-undo]').title), 'one arrow stands, on the last change: ' + [...doc.querySelectorAll('.lk-undo[data-lk-undo]')].map(u => u.title));
     part.stop();
   }
   // 10. The picking bar's "Change … to…" (0.4.414): the pages the picked nodes' words name come first, the most named
@@ -629,16 +629,16 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     window.Threads.core.provided.namedPages = async (text, tagIds) => { asked.push([text, tagIds]); return /recall/.test(text) ? [62, 61] : /review/.test(text) ? [62] : []; };
     window.Threads.core.provided.propSchema = async () => ({ props: [{ ident: 'user.property/about', title: 'about', lower: 'about', type: 'node', many: false, choices: [], classes: [{ id: 60 }] }] });
     window.Threads.core.provided.valuesOf = async () => [5];
-    const pick = uuid => click(window, doc.querySelector(`.rf-tw-pick[data-pick="${uuid}|about"]`));
+    const pick = uuid => click(window, doc.querySelector(`.th-tw-pick[data-pick="${uuid}|about"]`));
     pick(U(101)); await wait(20); pick(U(102)); await wait(20);
     click(window, await moreItem(window, doc, /^Change/));
     await wait(120);
-    const listed = [...doc.querySelectorAll('.rf-lsq-pop .menu-link')].map(el => el.textContent.trim());
-    const hint = doc.querySelector('.rf-lsq-pop input')?.placeholder || '';
+    const listed = [...doc.querySelectorAll('.th-lsq-pop .menu-link')].map(el => el.textContent.trim());
+    const hint = doc.querySelector('.th-lsq-pop input')?.placeholder || '';
     check(asked.length === 2 && asked.every(a => a[1].join() === '60'), 'each picked node’s words should be read, with the field’s tags: ' + JSON.stringify(asked));
     check(listed.join('|') === 'Rohrer 2015|Cepeda 2006', 'the page both nodes name should come first, then the one named once: ' + listed);
     check(/^Change “.+” to …$/.test(hint), 'the field should say what it asks, as Logseq’s does (“Set Works at”), with no hint: ' + hint);
-    doc.querySelector('.rf-lsq-pop input').dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+    doc.querySelector('.th-lsq-pop input').dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
     await wait(150);
     check(calls.filter(c => c[0] === 'setValue' && c[2] === 'user.property/about').every(c => c[3] === '62') && calls.filter(c => c[0] === 'setValue').length === 2, 'Enter should point both at the first page: ' + JSON.stringify(calls.filter(c => c[0] === 'setValue')));
     part.stop();
@@ -666,45 +666,45 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     p.removeTag = async (uuid, tag) => { calls.push(['removeTag', uuid, tag]); };
     p.unsetValue = async (uuid, ident) => { calls.push(['unsetValue', uuid, ident]); };
     await wait(150);
-    const row = () => doc.querySelector('.rf-tw-row[data-field=" mentioned in"]');
-    check(!!row() && row().querySelector('.rf-tw-name')?.textContent.trim() === 'Mentioned in', 'a "Mentioned in" row should be drawn: ' + row()?.querySelector('.rf-tw-name')?.textContent);
-    check(doc.querySelectorAll('.rf-tw-row')[doc.querySelectorAll('.rf-tw-row').length - 1] === row(), 'the mentions should come after the rows from properties');
-    const listed = () => [...(row()?.querySelectorAll('.rf-tw-record') || [])].map(a => a.textContent.trim());
+    const row = () => doc.querySelector('.th-tw-row[data-field=" mentioned in"]');
+    check(!!row() && row().querySelector('.th-tw-name')?.textContent.trim() === 'Mentioned in', 'a "Mentioned in" row should be drawn: ' + row()?.querySelector('.th-tw-name')?.textContent);
+    check(doc.querySelectorAll('.th-tw-row')[doc.querySelectorAll('.th-tw-row').length - 1] === row(), 'the mentions should come after the rows from properties');
+    const listed = () => [...(row()?.querySelectorAll('.th-tw-record') || [])].map(a => a.textContent.trim());
     check(listed().join('|') === 'Spaced repetition felt easier today|Called Spaced repetition about the scan', 'the two mentions, latest first, links read as words, the node already in "about" left out: ' + listed());
-    check(!row()?.querySelector('.rf-tw-add'), 'the mentions row should have no +');
-    { const heads = [...row().querySelectorAll('.rf-tw-chip')].map(el => el.textContent.trim().replace(/\s*\d+$/, ''));
+    check(!row()?.querySelector('.th-tw-add'), 'the mentions row should have no +');
+    { const heads = [...row().querySelectorAll('.th-tw-chip')].map(el => el.textContent.trim().replace(/\s*\d+$/, ''));
       check(heads.includes('No tag') && !heads.includes('note'), 'mentions of several kinds should read "No tag", never "note": ' + heads); }
-    const pick = uuid => click(window, doc.querySelector(`.rf-tw-pick[data-pick="${uuid}| mentioned in"]`));
+    const pick = uuid => click(window, doc.querySelector(`.th-tw-pick[data-pick="${uuid}| mentioned in"]`));
     pick(U(202)); await wait(80);
-    { const offered = (await moreItems(window, doc)).map(el => el.textContent.trim()); doc.querySelectorAll('.rf-pop').forEach(p => p.remove());
+    { const offered = (await moreItems(window, doc)).map(el => el.textContent.trim()); doc.querySelectorAll('.th-pop').forEach(p => p.remove());
       check(!offered.some(t => /^(Make it|Change|Take out)/.test(t)), 'a mention with a tag should be offered nothing, and the page’s own actions should not show for a mention: ' + offered); }
     pick(U(202)); pick(U(201)); await wait(120);
-    { const raise = await moreItem(window, doc, /^Make it/); doc.querySelectorAll('.rf-pop').forEach(p => p.remove());
+    { const raise = await moreItem(window, doc, /^Make it/); doc.querySelectorAll('.th-pop').forEach(p => p.remove());
       check(/Make it a Conversation/.test(raise?.textContent || ''), 'a mention with no tag should be offered the tag its words look like: ' + raise?.textContent); }
     // On its line too (0.4.438): "could be a Conversation · …" in italic, a click opening Make it… for that mention alone.
-    const could = doc.querySelector(`.rf-pencil[data-could="${U(201)}"]`);
+    const could = doc.querySelector(`.th-pencil[data-could="${U(201)}"]`);
     check(/could be a Conversation/.test(could?.textContent || ''), 'the untagged mention should say what it could be on its line: ' + could?.textContent);
     check(!doc.querySelector(`[data-could="${U(202)}"]`), 'a mention with a tag should not say what it could be');
-    const preview = [...(doc.querySelector('.rf-tw-raise')?.querySelectorAll('.rf-tw-dprop') || [])].map(el => el.textContent.trim());
-    check(doc.querySelectorAll('.rf-tw-raise .rf-pencil.lk-pencil').length === 2, 'what a mention would get should carry the shared pencil');
+    const preview = [...(doc.querySelector('.th-tw-raise')?.querySelectorAll('.th-tw-dprop') || [])].map(el => el.textContent.trim());
+    check(doc.querySelectorAll('.th-tw-raise .th-pencil.lk-pencil').length === 2, 'what a mention would get should carry the shared pencil');
     check(preview.join('|') === 'TagsConversation|Spoke withSpaced repetition', 'what it would get should show under it in grey: ' + preview);
     check(calls.length === 0, 'picking should write nothing');
     click(window, await moreItem(window, doc, /^Make it/)); await wait(80);
-    const items = [...doc.querySelectorAll('.rf-pop .rf-item')];
+    const items = [...doc.querySelectorAll('.th-pop .th-item')];
     check(/Conversation · Spoke with/.test(items[0]?.textContent || '') && /look like/.test(items[0]?.textContent || ''), 'the menu should offer the guessed tag first: ' + items.map(i => i.textContent));
     click(window, items[0]); await wait(200);
     check(calls.some(c => c[0] === 'addTag' && c[1] === U(201) && c[2] === U(71)), 'the tag should be added: ' + JSON.stringify(calls));
     check(calls.some(c => c[0] === 'setValue' && c[1] === U(201) && c[2] === 'user.property/spoke-with' && c[3] === '[5]'), 'the property should point at this page: ' + JSON.stringify(calls));
     check(!calls.some(c => c[1] === U(202)), 'the mention with a tag should be left alone');
-    const undo = [...doc.querySelectorAll('.rf-undo')].find(u => /Conversation/.test(u.title || ''));
-    check(!!undo, 'the faded Undo arrow should be offered: ' + [...doc.querySelectorAll('.rf-undo')].map(u => u.title));
+    const undo = [...doc.querySelectorAll('.lk-undo[data-lk-undo]')].find(u => /Conversation/.test(u.title || ''));
+    check(!!undo, 'the faded Undo arrow should be offered: ' + [...doc.querySelectorAll('.lk-undo[data-lk-undo]')].map(u => u.title));
     if (undo) { click(window, undo); await wait(200); }
     check(calls.some(c => c[0] === 'unsetValue' && c[1] === U(201)) && calls.some(c => c[0] === 'removeTag' && c[1] === U(201) && c[2] === U(71)), 'Undo should take the property and the tag off again: ' + JSON.stringify(calls));
     // Hide the row on this page from its right-click.
-    row().querySelector('.rf-tw-name').dispatchEvent(new window.MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    row().querySelector('.th-tw-name').dispatchEvent(new window.MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
     await wait(40);
-    const hide = [...doc.querySelectorAll('.rf-pop .rf-item')].find(el => /Hide mentions on this page/.test(el.textContent));
-    check(!!hide && ![...doc.querySelectorAll('.rf-pop .rf-item')].some(el => /Rename/.test(el.textContent)), 'the right-click should offer to hide the row, not to rename it');
+    const hide = [...doc.querySelectorAll('.th-pop .th-item')].find(el => /Hide mentions on this page/.test(el.textContent));
+    check(!!hide && ![...doc.querySelectorAll('.th-pop .th-item')].some(el => /Rename/.test(el.textContent)), 'the right-click should offer to hide the row, not to rename it');
     if (hide) { click(window, hide); await wait(120); }
     check(saved.some(x => x.twoWayMentionsHidden === 'Spaced repetition'), 'the page should be added to the pages without the row: ' + JSON.stringify(saved));
     part.stop();
@@ -714,27 +714,27 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
   {
     const { window, doc, part, saved } = world('');
     await wait(120);
-    const prow = [...doc.querySelectorAll('.rf-tw-row')].find(r => r.querySelector('.rf-tw-field'));
-    const nameEl = prow?.querySelector('.rf-tw-name');
+    const prow = [...doc.querySelectorAll('.th-tw-row')].find(r => r.querySelector('.th-tw-field'));
+    const nameEl = prow?.querySelector('.th-tw-name');
     const label = nameEl?.textContent.trim();
     nameEl.dispatchEvent(new window.MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
     await wait(40);
-    const item = [...doc.querySelectorAll('.rf-pop .rf-item')].find(el => /Reads back as/.test(el.textContent));
+    const item = [...doc.querySelectorAll('.th-pop .th-item')].find(el => /Reads back as/.test(el.textContent));
     check(!!item, 'the right-click on a property row should offer Reads back as …');
     click(window, item); await wait(80);
-    const field = () => nameEl.querySelector('.rf-in-place');
-    check(!!field() && field().value === label && !doc.querySelector('.rf-pop:popover-open, .rf-lsq-pop'), 'the words should be typed on the row’s own name, holding its name, with no pop-up: ' + field()?.value);
+    const field = () => nameEl.querySelector('.th-in-place');
+    check(!!field() && field().value === label && !doc.querySelector('.th-pop:popover-open, .th-lsq-pop'), 'the words should be typed on the row’s own name, holding its name, with no pop-up: ' + field()?.value);
     field().dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
     await wait(40);
     check(!field() && nameEl.textContent.trim() === label && !saved.some(x => 'twoWayNames' in x), 'Escape should leave the name as it was and save nothing');
     nameEl.dispatchEvent(new window.MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
     await wait(40);
-    click(window, [...doc.querySelectorAll('.rf-pop .rf-item')].find(el => /Reads back as/.test(el.textContent))); await wait(80);
+    click(window, [...doc.querySelectorAll('.th-pop .th-item')].find(el => /Reads back as/.test(el.textContent))); await wait(80);
     field().value = 'doctor of';
     field().dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
     await wait(120);
     check(saved.some(x => /doctor of/.test(x.twoWayNames || '')), 'Enter should save the words for the property: ' + JSON.stringify(saved));
-    check([...doc.querySelectorAll('.rf-undo')].some(u => /doctor of/.test(u.title || '')), 'the faded Undo arrow should be offered');
+    check([...doc.querySelectorAll('.lk-undo[data-lk-undo]')].some(u => /doctor of/.test(u.title || '')), 'the faded Undo arrow should be offered');
     part.stop();
   }
   // 12. Follow a chain (0.4.423): in an opened node a chevron before a value that is another node; a click opens that node
@@ -758,44 +758,44 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     const chev = (inside, uuid) => chevOf(doc, uuid, inside);
     const box = uuid => kidsOf(doc, uuid);
     check(!!chev(U(103), U(61)), 'a value that is another node should have the one chevron');
-    check(!!box(U(103))?.querySelector('.rf-ol-prop .rf-tag'), 'a value that is a node should show its tag after its name');
+    check(!!box(U(103))?.querySelector('.th-ol-prop .th-tag'), 'a value that is a node should show its tag after its name');
     click(window, chev(U(103), U(61))); await wait(150);
     check(!!box(U(61)) && box(U(61)).parentElement.firstElementChild.contains(chev(U(103), U(61))), 'the chevron should open that node under its own line, which stays where it was');
-    const own = el => el.closest('.rf-ol-kids') === box(U(61));
-    const names61 = [...(box(U(61))?.querySelectorAll('.rf-ol-pname') || [])].filter(own).map(el => el.textContent.trim()).filter(Boolean);
+    const own = el => el.closest('.th-ol-kids') === box(U(61));
+    const names61 = [...(box(U(61))?.querySelectorAll('.th-ol-pname') || [])].filter(own).map(el => el.textContent.trim()).filter(Boolean);
     check(names61.filter(n => n === 'Source').length === 2, 'it should show its property and, named by that property itself, what points at it: ' + names61);
-    check(!doc.querySelector('.rf-tw-name .rf-tw-arrow') && [...doc.querySelectorAll('.rf-tw-name')].every(n => !/ of$/.test(n.textContent.trim())), 'a row should be named by its property, nothing added, no arrow (0.4.444)');
-    check([...box(U(61)).querySelectorAll('.rf-tw-back .rf-tw-record')].filter(own).length === 1, 'what points at it should be listed one name per line, the way back left out');
+    check(!doc.querySelector('.th-tw-name .th-tw-arrow') && [...doc.querySelectorAll('.th-tw-name')].every(n => !/ of$/.test(n.textContent.trim())), 'a row should be named by its property, nothing added, no arrow (0.4.444)');
+    check([...box(U(61)).querySelectorAll('.th-tw-back .th-tw-record')].filter(own).length === 1, 'what points at it should be listed one name per line, the way back left out');
     // 0.4.462: the nodes that link to it under a line saying so, the arrow for the node above, after its own properties.
-    const links = [...(box(U(61))?.querySelectorAll('.rf-tw-links') || [])].filter(own);
+    const links = [...(box(U(61))?.querySelectorAll('.th-tw-links') || [])].filter(own);
     check(links.length === 1 && links[0].textContent.trim() === '1 node links here', 'the nodes linking to it should come under "1 node links here": ' + links.map(l => l.textContent));
-    check(!!links[0]?.nextElementSibling?.matches('.rf-tw-linked') && !!links[0].nextElementSibling.querySelector('.rf-tw-back'), 'the lines linking to it should sit under that line');
-    check(![...(box(U(61))?.querySelectorAll('.rf-tw-linked .rf-ol-prop:not(.rf-tw-back)') || [])].filter(own).length, 'its own properties should not sit under that line');
+    check(!!links[0]?.nextElementSibling?.matches('.th-tw-linked') && !!links[0].nextElementSibling.querySelector('.th-tw-back'), 'the lines linking to it should sit under that line');
+    check(![...(box(U(61))?.querySelectorAll('.th-tw-linked .th-ol-prop:not(.th-tw-back)') || [])].filter(own).length, 'its own properties should not sit under that line');
     check(!chev(U(61), U(103)) && !!chev(U(61), U(104)), 'the node on the way should not be listed again, another node should');
     click(window, chev(U(61), U(104))); await wait(150);
     // A level whose lines would break (0.4.464; 0.4.463 at the fourth): the same chevron; opening it shifts the outline by
     // one level: the node opened from the row becomes the section's top, the page goes into the trail, the levels under
     // it stay open.
     const stepper = chev(U(104), U(62));
-    check(!!box(U(104)) && !!stepper && stepper.matches('.rf-chev'), 'three nodes deep the next node should have the same chevron');
+    check(!!box(U(104)) && !!stepper && stepper.matches('.th-chev'), 'three nodes deep the next node should have the same chevron');
     if (stepper) {
       // The pretend window lays nothing out: a line four opened levels deep (five boxes, with the row's list) is made
       // wider than the section, as at the owner's width.
-      const deep = el => { let n = 0; for (let k = el.closest('.rf-ol-kids'); k; k = k.parentElement?.closest('.rf-ol-kids')) n++; return n; };
-      Object.defineProperty(window.HTMLElement.prototype, 'scrollWidth', { configurable: true, get() { return this.matches('.rf-ol-line') && deep(this) >= 5 ? 999 : 0; } });
+      const deep = el => { let n = 0; for (let k = el.closest('.th-ol-kids'); k; k = k.parentElement?.closest('.th-ol-kids')) n++; return n; };
+      Object.defineProperty(window.HTMLElement.prototype, 'scrollWidth', { configurable: true, get() { return this.matches('.th-ol-line') && deep(this) >= 5 ? 999 : 0; } });
       click(window, stepper); await wait(400);
-      const trail = doc.querySelector('.rf-tw-stepped .rf-ol-trail');
-      check(!!trail && doc.querySelectorAll('.rf-tw-stepped .rf-ol-trail [data-step]').length === 1 && /Spacing does not help/.test(trail.textContent), 'a fourth level should shift by one: the page in the trail, the node opened from the row at the top: ' + trail?.textContent);
+      const trail = doc.querySelector('.th-tw-stepped .th-ol-trail');
+      check(!!trail && doc.querySelectorAll('.th-tw-stepped .th-ol-trail [data-step]').length === 1 && /Spacing does not help/.test(trail.textContent), 'a fourth level should shift by one: the page in the trail, the node opened from the row at the top: ' + trail?.textContent);
       check(!!box(U(61)) && !!box(U(104)) && !!box(U(62)), 'the three levels under the new top should stay open, the new one with them');
-      check(!doc.querySelector('.rf-tw-findrow') && !doc.querySelector('.rf-tw-bar:not([data-idle])'), 'shifted, the page’s own find field and picking bar should be away: ' + [...doc.querySelector('.refinement-two-way').children].map(c => c.className).join(' / '));
-      check(doc.querySelector('.refinement-two-way')?.hasAttribute('data-rf-rows'), 'shifted, the section should still stand for the page, so Logseq’s lists stay hidden');
+      check(!doc.querySelector('.th-tw-findrow') && !doc.querySelector('.th-tw-bar:not([data-idle])'), 'shifted, the page’s own find field and picking bar should be away: ' + [...doc.querySelector('.th-two-way').children].map(c => c.className).join(' / '));
+      check(doc.querySelector('.th-two-way')?.hasAttribute('data-th-rows'), 'shifted, the section should still stand for the page, so Logseq’s lists stay hidden');
       // Esc does one thing: it closes the deepest node, and the section stays shifted.
       doc.body.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       await wait(300);
-      check(!box(U(62)) && !!box(U(104)) && !!doc.querySelector('.rf-tw-stepped'), 'Esc should close only the deepest node: ' + !!box(U(62)) + ' ' + !!doc.querySelector('.rf-tw-stepped'));
+      check(!box(U(62)) && !!box(U(104)) && !!doc.querySelector('.th-tw-stepped'), 'Esc should close only the deepest node: ' + !!box(U(62)) + ' ' + !!doc.querySelector('.th-tw-stepped'));
       // The trail's page goes back to the rows, what was open still open.
-      click(window, doc.querySelector('.rf-tw-stepped .rf-ol-trail [data-step="-1"]')); await wait(100);
-      check(!doc.querySelector('.rf-tw-stepped') && !!box(U(104)), 'the trail should go back to the rows, what was open still open');
+      click(window, doc.querySelector('.th-tw-stepped .th-ol-trail [data-step="-1"]')); await wait(100);
+      check(!doc.querySelector('.th-tw-stepped') && !!box(U(104)), 'the trail should go back to the rows, what was open still open');
       doc.body.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       await wait(300);
       check(!box(U(104)) && !!box(U(61)), 'back by the trail, Esc should still close one level at a time');
@@ -817,39 +817,39 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
   {
     const { doc, window, part } = world('');
     await wait(120);
-    const small = doc.querySelector('.rf-tw-find');
+    const small = doc.querySelector('.th-tw-find');
     check(!small, 'six nodes get no find field: it stands from twenty rows up (the owner, 2026-10-31)');
     if (small) {
       small.focus(); small.value = 'severity'; small.dispatchEvent(new window.Event('input', { bubbles: true }));
       await wait(200);
-      const lines = [...doc.querySelectorAll('.rf-tw-line, .rf-tw-item')];
-      const opened = [...doc.querySelectorAll('.rf-chev[data-dig][aria-expanded="true"]')];
-      const marked = [...doc.querySelectorAll('.rf-ol-prop.rf-tw-match .rf-ol-pname')].map(n => n.textContent.trim());
+      const lines = [...doc.querySelectorAll('.th-tw-line, .th-tw-item')];
+      const opened = [...doc.querySelectorAll('.th-chev[data-dig][aria-expanded="true"]')];
+      const marked = [...doc.querySelectorAll('.th-ol-prop.th-tw-match .th-ol-pname')].map(n => n.textContent.trim());
       check(lines.length > 0 && opened.length === lines.length && marked.length === lines.length && marked.every(n => n === 'Severity'), 'typing a property’s name should keep the nodes holding it, each opened as when dug, its “Severity” line marked: ' + lines.length + ' found, ' + opened.length + ' open, ' + marked);
       small.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       await wait(60);
-      check(!doc.querySelector('.rf-chev[data-dig][aria-expanded="true"]'), 'emptying the field should close what it opened');
+      check(!doc.querySelector('.th-chev[data-dig][aria-expanded="true"]'), 'emptying the field should close what it opened');
     }
     part.stop(); await wait(10);
     const extra = Array.from({ length: 20 }, (_, i) => ({ id: 120 + i, title: `Note ${i + 1} on review timing.`, tag: 'Claim', day: 20260801 + i }));
     NODES.push(...extra);
     const many = world('');
     await wait(150);
-    const field = many.doc.querySelector('.rf-tw-find');
-    check(!!field && many.doc.querySelector('.rf-tw-findrow .rf-field-count')?.textContent === '26' && !/26/.test(field.placeholder), 'twenty-six nodes should get the kit’s find field, the count at its end, not in the grey words');
+    const field = many.doc.querySelector('.th-tw-find');
+    check(!!field && many.doc.querySelector('.th-tw-findrow .th-field-count')?.textContent === '26' && !/26/.test(field.placeholder), 'twenty-six nodes should get the kit’s find field, the count at its end, not in the grey words');
     if (field) {
       // The field finds a node's whole words, not only the name its line shows.
       field.focus(); field.value = 'knows'; field.dispatchEvent(new many.window.Event('input', { bubbles: true }));
       await wait(30);
-      check(many.doc.querySelectorAll('.rf-tw-line').length === 1, 'words after the first sentence should find their node');
+      check(many.doc.querySelectorAll('.th-tw-line').length === 1, 'words after the first sentence should find their node');
       field.value = 'gap'; field.dispatchEvent(new many.window.Event('input', { bubbles: true }));
       await wait(30);
-      const names = [...many.doc.querySelectorAll('.rf-tw-line .rf-tw-record, .rf-tw-item .rf-tw-record')].map(a => a.textContent);
+      const names = [...many.doc.querySelectorAll('.th-tw-line .th-tw-record, .th-tw-item .th-tw-record')].map(a => a.textContent);
       check(names.length === 3 && names.every(n => /gap/i.test(n)), 'typing “gap” should keep the three nodes with it: ' + names);
-      check(many.doc.activeElement?.matches('.rf-tw-find') && many.doc.activeElement.value === 'gap', 'the field should keep the keys and its words while the rows are drawn again');
+      check(many.doc.activeElement?.matches('.th-tw-find') && many.doc.activeElement.value === 'gap', 'the field should keep the keys and its words while the rows are drawn again');
       many.doc.activeElement.dispatchEvent(new many.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       await wait(30);
-      check(many.doc.querySelectorAll('.rf-tw-line, .rf-tw-item').length > 3, 'Esc in the field should show every node again');
+      check(many.doc.querySelectorAll('.th-tw-line, .th-tw-item').length > 3, 'Esc in the field should show every node again');
     }
     many.part.stop();
     NODES.splice(NODES.length - extra.length, extra.length);
@@ -871,12 +871,12 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     provided.dayNumber = () => 20261106;
     click(window, chevOf(doc, node));
     await wait(120);
-    const lines = () => [...kidsOf(doc, node).querySelectorAll('.rf-ol-prop:not(.rf-tw-back)')];
-    const line = name => lines().find(l => l.querySelector('.rf-ol-pname').textContent.trim() === name);
-    check(/Nov 3/.test(line('Deadline')?.querySelector('.rf-ol-pv').textContent || ''), 'a Deadline should read its day, not "empty": ' + line('Deadline')?.textContent);
-    const inPlace = () => doc.querySelector('.rf-in-place');
-    const write = async (name, typed) => { click(window, line(name).querySelector('.rf-ol-pv [data-edit]')); await wait(80); inPlace().value = typed; inPlace().dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })); await wait(150); };
-    const undo = async sentence => { click(window, [...doc.querySelectorAll('.rf-undo')].find(u => sentence.test(u.title || ''))); await wait(150); };
+    const lines = () => [...kidsOf(doc, node).querySelectorAll('.th-ol-prop:not(.th-tw-back)')];
+    const line = name => lines().find(l => l.querySelector('.th-ol-pname').textContent.trim() === name);
+    check(/Nov 3/.test(line('Deadline')?.querySelector('.th-ol-pv').textContent || ''), 'a Deadline should read its day, not "empty": ' + line('Deadline')?.textContent);
+    const inPlace = () => doc.querySelector('.th-in-place');
+    const write = async (name, typed) => { click(window, line(name).querySelector('.th-ol-pv [data-edit]')); await wait(80); inPlace().value = typed; inPlace().dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })); await wait(150); };
+    const undo = async sentence => { click(window, [...doc.querySelectorAll('.lk-undo[data-lk-undo]')].find(u => sentence.test(u.title || ''))); await wait(150); };
     const lastSet = () => calls.filter(c => c[0] === 'setValue').at(-1)?.slice(1);
     await write('Deadline', 'friday');
     check(lastSet()?.[2] === String(new Date(2026, 10, 6).getTime()) && !/entityId/.test(lastSet()[3]), 'a day written into a Date-and-time should be a moment, not an id: ' + lastSet());
@@ -889,14 +889,14 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     // Enter on one value, the next pressed at once: its box stays through the redraw the first write brings, words and caret kept.
     words = false;
     await wait(1100);
-    click(window, line('Note').querySelector('.rf-ol-pv [data-edit]')); await wait(20);
+    click(window, line('Note').querySelector('.th-ol-pv [data-edit]')); await wait(20);
     inPlace().value = 'new words'; inPlace().dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
     words = true;
-    click(window, line('Deadline').querySelector('.rf-ol-pv [data-edit]')); await wait(1);
+    click(window, line('Deadline').querySelector('.th-ol-pv [data-edit]')); await wait(1);
     const box = inPlace();
     box.value = 'friday'; box.setSelectionRange(3, 3);
     await wait(1200);
-    check(/the words/.test(line('Note')?.querySelector('.rf-ol-pv').textContent || ''), 'the row should show the first value meanwhile: ' + line('Note')?.textContent);
+    check(/the words/.test(line('Note')?.querySelector('.th-ol-pv').textContent || ''), 'the row should show the first value meanwhile: ' + line('Note')?.textContent);
     check(inPlace() === box && line('Deadline').contains(box) && doc.activeElement === box, 'the box should stay through the redraw, in its row, with the keyboard');
     check(box.value === 'friday' && box.selectionStart === 3, 'and keep its words and caret: ' + box.value);
     box.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
@@ -911,22 +911,22 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     const provided = window.Threads.core.provided;
     provided.getPage = async uuid => uuid === U(102) ? { name: 'gap', title: 'gap' } : { id: 5, uuid: PAGE };
     provided.deletePage = async name => { calls.push(['deletePage', name]); };
-    click(window, doc.querySelector('.rf-tw-pick'));
+    click(window, doc.querySelector('.th-tw-pick'));
     await wait(20);
     click(window, await moreItem(window, doc, /^Select all/));
     await wait(20);
-    check(/5 picked/.test(doc.querySelector('.rf-tw-bar .rf-count').textContent) && !(await moreItems(window, doc)).some(el => /^Select all/.test(el.textContent.trim())), 'Select all should pick the five shown, not the one behind "show all": ' + doc.querySelector('.rf-tw-bar .rf-count').textContent);
-    click(window, doc.querySelector('.rf-tw-bar [data-act="delete"]'));
+    check(/5 picked/.test(doc.querySelector('.th-tw-bar .th-count').textContent) && !(await moreItems(window, doc)).some(el => /^Select all/.test(el.textContent.trim())), 'Select all should pick the five shown, not the one behind "show all": ' + doc.querySelector('.th-tw-bar .th-count').textContent);
+    click(window, doc.querySelector('.th-tw-bar [data-act="delete"]'));
     await wait(60);
-    check(doc.querySelector('.rf-ask-words')?.textContent === 'Delete 1 page with all its bullets and 4 bullets? This cannot be undone from here.', 'the question should name the page apart from the bullets: ' + doc.querySelector('.rf-ask-words')?.textContent);
+    check(doc.querySelector('.th-ask-words')?.textContent === 'Delete 1 page with all its bullets and 4 bullets? This cannot be undone from here.', 'the question should name the page apart from the bullets: ' + doc.querySelector('.th-ask-words')?.textContent);
     const press = el => el.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
-    const cancel = [...doc.querySelectorAll('.rf-ask .rf-btns button')].find(b => b.textContent === 'Cancel');
+    const cancel = [...doc.querySelectorAll('.th-ask .th-btns button')].find(b => b.textContent === 'Cancel');
     press(cancel);
     await wait(60);
-    check(!doc.querySelector('.rf-ask') && !calls.some(c => c[0] === 'removeBlock' || c[0] === 'deletePage'), 'Enter on Cancel should close the question and delete nothing');
-    click(window, doc.querySelector('.rf-tw-bar [data-act="delete"]'));
+    check(!doc.querySelector('.th-ask') && !calls.some(c => c[0] === 'removeBlock' || c[0] === 'deletePage'), 'Enter on Cancel should close the question and delete nothing');
+    click(window, doc.querySelector('.th-tw-bar [data-act="delete"]'));
     await wait(60);
-    press(doc.querySelector('.rf-ask'));
+    press(doc.querySelector('.th-ask'));
     await wait(120);
     check(calls.filter(c => c[0] === 'removeBlock').length === 4 && calls.some(c => c[0] === 'deletePage' && c[1] === 'gap'), 'Enter on the question should delete what it names: ' + JSON.stringify(calls));
     part.stop();
@@ -934,7 +934,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
   // Linked references goes only when the mentions were read; a node holding the page's alias is in the rows.
   {
     const { window, doc, part, provided, changed } = world('');
-    const again = async () => { changed.forEach(fn => fn({ blocks: [], txMeta: { outlinerOp: 'x' } })); await wait(1050); return doc.querySelector('.refinement-two-way').hasAttribute('data-rf-replaces'); };
+    const again = async () => { changed.forEach(fn => fn({ blocks: [], txMeta: { outlinerOp: 'x' } })); await wait(1050); return doc.querySelector('.th-two-way').hasAttribute('data-th-replaces'); };
     provided.mentionsInto = async () => []; provided.kindOfPage = async () => ({ isTag: false });
     check(await again(), 'with the mentions read, the rows replace Linked references');
     window.logseq.settings.twoWayMentions = false;
@@ -947,7 +947,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     await again();
     click(window, doc.querySelector('[data-more]') || doc.body);
     await wait(20);
-    check(doc.querySelector('.refinement-two-way').textContent.includes('Held through the alias') && doc.querySelectorAll('.refinement-two-way .rf-tw-row').length === 1, 'a node holding an alias is in the page’s row');
+    check(doc.querySelector('.th-two-way').textContent.includes('Held through the alias') && doc.querySelectorAll('.th-two-way .th-tw-row').length === 1, 'a node holding an alias is in the page’s row');
     part.stop();
   }
   // Words: one value at a time, as written; a link stays one; the box is never inside the button, where a space would press it.
@@ -961,9 +961,9 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     provided.nodeValues = async () => new Map([[U(101), new Map([['Words', { ident: many.ident, values: held.map(text => ({ text })) }], ['Note', { ident: one.ident, values: [{ text: `to [[${U(40)}]]` }] }]])]]);
     await wait(100);
     click(window, chevOf(doc, U(101))); await wait(120);
-    const button = i => doc.querySelector(`.rf-tw-npvalue[data-edit="${many.ident}"][data-value="${i}"]`), box = () => doc.querySelector('.rf-in-place');
+    const button = i => doc.querySelector(`.th-tw-npvalue[data-edit="${many.ident}"][data-value="${i}"]`), box = () => doc.querySelector('.th-in-place');
     check(button(0)?.textContent === 'a one' && button(1)?.textContent === 'see Dr. X soon', 'each value its own, as it reads: ' + button(1)?.textContent);
-    check(button(0).parentElement.parentElement === button(1).parentElement.parentElement && !button(0).closest('.rf-ol-pv > span > span + span'), 'the values one run of text, with no gap before a comma');
+    check(button(0).parentElement.parentElement === button(1).parentElement.parentElement && !button(0).closest('.th-ol-pv > span > span + span'), 'the values one run of text, with no gap before a comma');
     click(window, button(1)); await wait(30);
     check(box()?.value === 'see [[Dr. X]] soon', 'the box starts from the words as written, one value: ' + box()?.value);
     check(!box().closest('button'), 'the box is not inside a button');
@@ -971,7 +971,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     let set = calls.filter(c => c[0] === 'setValue' && c[2] === many.ident).at(-1);
     check(set?.[3] === JSON.stringify(['a one', `see [[${U(40)}]] later`]) && /reset/.test(set[4]), 'that value changed in its place, the other left, the link kept: ' + set?.[3]);
     held = JSON.parse(set[3]); await wait(1000);
-    click(window, doc.querySelector(`.rf-ol-pname[data-edit="${many.ident}"]`)); await wait(30);
+    click(window, doc.querySelector(`.th-ol-pname[data-edit="${many.ident}"]`)); await wait(30);
     check(box()?.value === '', 'the name adds another: an empty box');
     box().value = 'c three'; enter(window, box()); await wait(80);
     set = calls.filter(c => c[0] === 'setValue' && c[2] === many.ident).at(-1);
@@ -980,7 +980,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     click(window, button(0)); await wait(30); box().value = 'a two'; enter(window, box()); await wait(80);
     set = calls.filter(c => c[0] === 'setValue' && c[2] === many.ident).at(-1);
     check(JSON.parse(set[3])[0] === 'a two' && JSON.parse(set[3]).length === 3, 'a changed value keeps its place: ' + set?.[3]);
-    click(window, doc.querySelector(`.rf-tw-npvalue[data-edit="${one.ident}"]`)); await wait(30);
+    click(window, doc.querySelector(`.th-tw-npvalue[data-edit="${one.ident}"]`)); await wait(30);
     check(box()?.value === 'to [[Dr. X]]', 'one value: as written too: ' + box()?.value);
     box().value = 'to [[Dr. X]] now'; enter(window, box()); await wait(80);
     set = calls.filter(c => c[0] === 'setValue' && c[2] === one.ident).at(-1);
@@ -988,7 +988,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     await wait(1000);
     provided.nodeValues = async () => new Map([[U(101), new Map([['Note', { ident: one.ident, values: [{ text: 'two\nlines' }] }]])]]);
     click(window, chevOf(doc, U(101))); await wait(60); click(window, chevOf(doc, U(101))); await wait(120);
-    click(window, doc.querySelector(`.rf-tw-npvalue[data-edit="${one.ident}"]`)); await wait(30);
+    click(window, doc.querySelector(`.th-tw-npvalue[data-edit="${one.ident}"]`)); await wait(30);
     check(box()?.tagName === 'TEXTAREA' && box().value === 'two\nlines', 'a line break stays in the box');
     part.stop();
   }
@@ -997,13 +997,13 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     const { window, doc, part, calls } = world('p:Confidence');
     await wait(100);
     click(window, chevOf(doc, U(101))); await wait(120);
-    const field = doc.querySelector(`.rf-tw-node-field[data-uuid="${U(101)}"]`);
+    const field = doc.querySelector(`.th-tw-node-field[data-uuid="${U(101)}"]`);
     field.value = 'Once'; field.dispatchEvent(new window.Event('input', { bubbles: true })); enter(window, field); check(field.value === '', 'the field empties on Enter'); enter(window, field); await wait(120);
     check(calls.filter(c => c[0] === 'addLineTo' && c[2] === 'Once').length === 1, 'Enter twice adds one bullet');
     await wait(1000);
     click(window, chevOf(doc, U(101))); await wait(60);
-    click(window, doc.querySelector('.rf-tw-gadd')); await wait(40);
-    const line = doc.querySelector('.rf-tw-draft-name');
+    click(window, doc.querySelector('.th-tw-gadd')); await wait(40);
+    const line = doc.querySelector('.th-tw-draft-name');
     type(window, line, 'Twice over'); enter(window, line); enter(window, line); await wait(150);
     check(calls.filter(c => c[0] === 'appendBlock' && c[2] === 'Twice over').length === 1, 'Enter twice makes one node: ' + calls.filter(c => c[0] === 'appendBlock').length);
     part.stop();
@@ -1013,7 +1013,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     const { window, doc, part, calls, changed, madeNow, notices, recycled, provided } = world('');
     await wait(100);
     click(window, chevOf(doc, U(101))); await wait(120);
-    const field = () => doc.querySelector(`.rf-tw-node-field[data-uuid="${U(101)}"]`), arrow = () => doc.querySelector('.rf-undo');
+    const field = () => doc.querySelector(`.th-tw-node-field[data-uuid="${U(101)}"]`), arrow = () => doc.querySelector('.lk-undo[data-lk-undo]');
     field().value = 'Made'; enter(window, field()); await wait(150);
     const bullet = calls.find(c => c[0] === 'addLineTo')[3];
     check(!!arrow(), 'the arrow stands');
@@ -1039,11 +1039,11 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     provided.getPage = async key => key === 'In the bin' ? { id: 950, uuid: gone, name: 'in the bin' } : key === 'Standing' ? { id: 951, uuid: U(951), name: 'standing' } : getPage(key);
     recycled.add(gone);
     await wait(100);
-    click(window, doc.querySelector('.rf-tw-add')); await wait(60);
-    const name = () => doc.querySelector('.rf-tw-draft-name');
+    click(window, doc.querySelector('.th-tw-add')); await wait(60);
+    const name = () => doc.querySelector('.th-tw-draft-name');
     type(window, name(), 'Standing'); enter(window, name()); await wait(120);
     check(notices.some(t => t.includes('already exists')), 'a page that stands refuses the name');
-    click(window, doc.querySelector('.rf-tw-add') || doc.body); await wait(60);
+    click(window, doc.querySelector('.th-tw-add') || doc.body); await wait(60);
     type(window, name(), 'In the bin'); enter(window, name()); await wait(150);
     check(calls.some(c => c[0] === 'restorePage' && c[1] === gone) && notices.filter(t => t.includes('already exists')).length === 1, 'a name in the Recycle brings that page back, not a refusal: ' + JSON.stringify(notices));
     check(calls.some(c => c[0] === 'setValue' && c[1] === gone), 'and the row’s property is set on it');
@@ -1056,9 +1056,9 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.rf-tw-group')].find(g 
     recycled.add(bin);
     const popup = window.Threads.shared.popup; window.Threads.shared.popup = options => { const pop = popup(options); doc.activeElement?.blur(); return pop; };   // as a list opening does in Logseq
     await wait(100);
-    click(window, doc.querySelector('.rf-tw-add')); await wait(60);
-    const name = doc.querySelector('.rf-tw-draft-name'); type(window, name, 'Into the bin'); enter(window, name); await wait(80);
-    const where = doc.querySelector('.rf-tw-draft-where');
+    click(window, doc.querySelector('.th-tw-add')); await wait(60);
+    const name = doc.querySelector('.th-tw-draft-name'); type(window, name, 'Into the bin'); enter(window, name); await wait(80);
+    const where = doc.querySelector('.th-tw-draft-where');
     check(doc.activeElement === where, 'the keyboard stays in the where box');
     type(window, where, 'Binned'); await wait(60);
     where.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })); await wait(150);

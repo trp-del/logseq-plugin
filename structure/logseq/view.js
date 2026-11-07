@@ -98,7 +98,7 @@ const CSS = `
 .st-tray .st-saying { display: flex; gap: 16px; justify-content: flex-end; }
 .st-tray .st-done, .st-tray .note { color: var(--lk-quiet); white-space: nowrap; font-size: 14px; }   /* the Undo arrow waits at the right, at the top of the card (the grammar) */
 .st-tray .st-wait + .tl + .st-saying, .st-tray .st-wait + .tl + .more + .st-saying { margin-top: 4px; }
-.st-tray .st-done .lk-undo { cursor: pointer; margin-left: 6px; font-size: 16px; }
+.st-tray .st-done .lk-undo { margin-left: 6px; font-size: 16px; }   /* the door's one Undo sits at the end of this line */
 .st-tray .busy { color: var(--lk-faint); }
 /* The find line and a name typed in place are the library's field (lk-field); here their room. */
 .st-find { color: var(--lk-faint); font-size: 14px; min-height: 24px; padding: 0 2px; margin: 0 0 10px; }
@@ -595,7 +595,7 @@ function make(holder, mode, app, opts = {}) {
     if (st.ask?.apply && !tr.lasting().length) st.ask = null;   // the line it asked about was taken out
     if (st.busy) return `<div class="busy lk-hint">${esc(st.busy)}</div>`;
     // The last Apply's arrow stays until a new Apply takes its place, whatever is staged or discarded in between.
-    const done = tr.done ? `<div class="st-done">${esc(tr.done.text)} <span class="lk-undo" title="Undo" data-undo>${Door.UNDO}</span></div>` : '';
+    const done = tr.done ? `<div class="st-done">${esc(tr.done.text)}</div>` : '';
     const saying = tr.note || done ? `<div class="st-saying">${tr.note ? `<div class="note">${esc(tr.note)}</div>` : ''}${done}</div>` : '';
     if (!tr.changes.length) return saying;
     // The newest lines, since the newest is what was just done and what Cmd-Z takes; the rest behind "show all".
@@ -1069,7 +1069,6 @@ function make(holder, mode, app, opts = {}) {
     if (t.dataset.node) { st.nodes.cur = +t.dataset.node; return redraw(); }
     if (t.hasAttribute('data-apply')) return pressApply();
     if (t.hasAttribute('data-discard')) return app.discard();
-    if (t.hasAttribute('data-undo')) return app.undo();
     if (t.dataset.drop !== undefined) return app.dropChange(+t.dataset.drop);
     if (t.dataset.row) { const id = keyOf(t.dataset.row); st.menu = null; if (st.aim && mode === 'page') return finishAim(id); if (mode === 'side') { loc.cur = id; return redraw(); } st.cur = id; st.propCur = null; st.view = 'tree'; st.nodes = null; st.trail = []; st.ask = null; return redraw(); }   // a press on the tree starts a new way: the trail is for jumps
   });

@@ -258,7 +258,7 @@ function drawInPlace(doc = host()) {
   }
   // A pill marked with nothing of ours left in it (a copy cut short) is given back to Logseq.
   for (const pill of doc.querySelectorAll('[data-flow-proposal]')) if (!pill.querySelector('.flow-ghost')) pill.removeAttribute('data-flow-proposal');
-  drawUndo(doc);
+  drawUndo();
 }
 const hide = () => drawInPlace();
 // A row of pills the plugin made, its proposals gone: it rolls closed as it stands, so the bullets under it slide up rather than
@@ -280,7 +280,7 @@ function rollClosed(el) {
 function onMutations(records) {
   const doc = host();
   if (!S.live && !S.filling.size && !S.undo && !doc.querySelector('.flow-ghost, .flow-made, [data-flow-proposal]')) return;
-  const ours = n => n.nodeType === 1 && n.matches?.('.flow-ghost, .flow-made, .flow-undo, .flow-x, .flow-old');
+  const ours = n => n.nodeType === 1 && n.matches?.('.flow-ghost, .flow-made, .lk-undo, .flow-x, .flow-old');
   if (records.some(r => r.type === 'childList' && ![...r.addedNodes, ...r.removedNodes].every(ours))) { drawInPlace(doc); watcher?.takeRecords(); }
 }
 let watcher = null;
@@ -439,41 +439,28 @@ async function writePieces(recordUuid, pieces) {
 // stays until that bullet is edited again or the page is left. A second fill on the same bullet adds to its undo; a fill on
 // another takes the arrow's place. An arrow runs its own change only, and what it took off is not proposed there again.
 const bulletLine = uuid => { const row = host().querySelector(`.ls-block[blockid="${uuid}"]`); return row && ([...row.querySelectorAll('.block-title-wrap')].find(ownRow(row)) || row); };
+// The door's one Undo (PluginDoor.undo) draws the arrow and takes the press; here what Predictive remembers with it: the pieces, so
+// what an Undo took off is not proposed on that bullet again. One entry at a time, keyed by the record it was filled in on.
+const undoDoor = () => window.PluginDoor.undo;
 function rememberUndo(recordUuid, bulletUuid, written, undo) {
   const before = S.undo?.record === recordUuid ? S.undo : null;
-  if (!before) S.undo?.button?.remove();
-  const text = [...(before?.pieces || []), ...written].map(p => `${p.kind === 'tag' ? 'Tag' : p.prop.title}: ${p.kind === 'tag' ? String(p.shown).replace(/^#/, '') : p.shown}`).join(' · ');
-  const run = before ? async () => { await undo(); await before.run(); } : undo;
-  S.undo = { record: recordUuid, bullet: bulletUuid, pieces: [...(before?.pieces || []), ...written], text, run, button: before?.button || null };
-  drawUndo(host());
-}
-function forgetUndo(uuid) { if (S.undo && (S.undo.record === uuid || S.undo.bullet === uuid)) { S.undo.button?.remove(); S.undo = null; } }
-function drawUndo(doc) {
-  const u = S.undo;
-  if (!u) return;
-  const line = bulletLine(u.bullet);
-  if (!line) { u.button?.remove(); u.button = null; return; }   // not on screen (another page): it comes back with the bullet
-  if (!u.button?.isConnected) {
-    const button = doc.createElement('button');
-    button.type = 'button'; button.className = 'flow-undo lk-undo'; button.innerHTML = window.PluginDoor.UNDO;
-    button.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); });
-    button.addEventListener('click', async e => {
-      e.preventDefault(); e.stopPropagation();
-      const mine = button.undo;
+  const pieces = [...(before?.pieces || []), ...written];
+  const text = written.map(p => `${p.kind === 'tag' ? 'Tag' : p.prop.title}: ${p.kind === 'tag' ? String(p.shown).replace(/^#/, '') : p.shown}`).join(' · ');
+  S.undo = { record: recordUuid, bullet: bulletUuid, pieces };
+  const mine = S.undo;
+  undoDoor().offer({ owner: 'predictive', key: `predictive:${recordUuid}`, at: () => bulletLine(bulletUuid), text,
+    run: async () => {
       if (S.undo === mine) S.undo = null;
-      button.remove();
       const refused = S.refused.get(mine.record) || new Set();
       for (const piece of mine.pieces) refused.add(guessKey(piece));
       S.refused.set(mine.record, refused);
       S.filling.delete(mine.record);
-      try { await mine.run(); } catch (error) { warnOnce('the filled-in values could not be taken off again', error); notify('The values could not be taken off again', 'warning'); }
-    });
-    u.button = button;
-  }
-  u.button.undo = u;
-  u.button.title = `Undo: ${u.text}`; u.button.setAttribute('aria-label', `Undo what was filled in: ${u.text}`);
-  if (u.button.parentElement !== line) line.append(u.button);
+      await undo();
+    },
+    onFail: error => { warnOnce('the filled-in values could not be taken off again', error); notify('The values could not be taken off again', 'warning'); } });
 }
+function forgetUndo(uuid) { if (S.undo && (S.undo.record === uuid || S.undo.bullet === uuid)) { undoDoor().forget(`predictive:${S.undo.record}`); S.undo = null; } }
+function drawUndo() { undoDoor().draw(); }
 
 /* ---------- events ---------- */
 function onInput(event) {
@@ -666,7 +653,6 @@ ${PILL}:is(:not(:has(.empty-value)), :has(.lk-pencil)) ~ ${AT}::after { left: 16
 .flow-x.lk-reveal { pointer-events: auto; }
 .flow-x.lk-reveal::after { pointer-events: none; }
 .lk-reveals:hover .flow-x.lk-reveal::after { pointer-events: auto; }
-/* The undo arrow at the end of the bullet's line is the library's (lk-undo). */
 `;
 // Empty properties hidden until something is proposed, only in graphs where the proposals write (elsewhere nothing would ever
 // bring them back). Under the bullet being written they stay, so nothing comes and goes; where an empty property shows it is
@@ -698,7 +684,8 @@ function start() {
   logseq.App.onRouteChanged?.(() => { S.live = null; hide(); applyHide(); });
   app.onStop(() => {
     S.stopped = true; clearTimeout(S.timer); S.version++; watcher?.disconnect(); watcher = null; S.live = null; S.filling.clear();
-    for (const el of doc.querySelectorAll('.flow-ghost, .flow-made, .flow-undo, .flow-x, .flow-old')) el.remove();
+    undoDoor().clear('predictive');
+    for (const el of doc.querySelectorAll('.flow-ghost, .flow-made, .flow-x, .flow-old')) el.remove();
     for (const el of doc.querySelectorAll('[data-flow-proposal], [data-flow-at]')) { el.removeAttribute('data-flow-proposal'); el.removeAttribute('data-flow-at'); }
     doc.documentElement.classList.remove('flow-hide-empty');
   });

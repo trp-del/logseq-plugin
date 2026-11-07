@@ -155,6 +155,107 @@ Door.regrow = (el, from, ms = MOTION_MS) => {
 };
 // The Undo arrow: the grammar's one shape, from Logseq's icon font. Its fade is the shared name lk-undo.
 Door.UNDO = '<i class="ti ti-arrow-back-up" aria-hidden="true"></i>';
+/* THE Undo of the plugin, one for every module (6 November 2026; until then Threads, Predictive and Structure each kept their own;
+   the logic is Threads' of 0.4.258, at the owner's word "make one pop-up, one Undo and one dialog"; the look the owner chose: "something
+   just where text is but very subtle, like a faded icon"). After a change a faded arrow sits at the end of what changed and says what it
+   takes back when pointed at; a click takes it back. One arrow stands in the whole plugin: a new change's arrow takes the last one's
+   place (the grammar). A change offered again under the same key adds to that arrow: one click takes both back, the later first. When
+   nothing of the change is on screen to sit beside, the arrow waits at the bottom right with its words beside it, quiet, until it is
+   used, forgotten or cleared. The arrows are put back whenever Logseq draws the place again (the one screen watcher), so a module
+   gives at() as a function finding the place afresh.
+   undo.offer({ owner, key, at, text, run, onFail, cls })   owner: the module's key, so it can clear its own when its page is left;
+     at(): the element(s) to sit at the end of, or null; run(): the inverse, async; onFail(error): said instead of the plain notice.
+   undo.forget(key or entry => bool), undo.take(key) (run it as a press would), undo.clear(owner or nothing: every one), undo.has(key),
+   undo.keys(), undo.size, undo.draw(), undo.stop(). The arrow is lk-undo with data-lk-undo=key; the dock lk-undo-dock. */
+const undoState = { entries: new Map(), unwatch: null, listening: false, drawing: false };
+const undoAttr = text => String(text).replace(/["\\]/g, '\\$&');
+const undoTargets = entry => { try { const at = entry.at?.(); return (Array.isArray(at) ? at : at ? [at] : []).filter(el => el?.isConnected); } catch (error) { return []; } };
+function undoArrow(doc, key, entry, docked) {
+  const arrow = doc.createElement('span');
+  arrow.className = `lk-undo${entry.cls ? ' ' + entry.cls : ''}${docked ? ' lk-undo-docked' : ''}`;
+  arrow.dataset.lkUndo = key;
+  arrow.setAttribute('role', 'button');
+  arrow.setAttribute('contenteditable', 'false');
+  arrow.setAttribute('aria-label', `Undo: ${entry.text}`);
+  arrow.title = `Undo: ${entry.text}`;
+  arrow.innerHTML = Door.UNDO + (docked ? '<span class="lk-undo-words"></span>' : '');
+  if (docked) arrow.querySelector('.lk-undo-words').textContent = entry.text;
+  return arrow;
+}
+function drawUndoArrows() {
+  const doc = Door.host();
+  if (undoState.drawing) return;
+  undoState.drawing = true;
+  try {
+    const { entries } = undoState;
+    for (const arrow of doc.querySelectorAll('.lk-undo[data-lk-undo]')) {
+      const entry = entries.get(arrow.dataset.lkUndo);
+      if (!entry) { arrow.remove(); continue; }
+      const targets = undoTargets(entry);
+      if (arrow.classList.contains('lk-undo-docked') ? targets.length : !targets.includes(arrow.parentElement)) arrow.remove();
+    }
+    let dock = doc.querySelector('.lk-undo-dock');
+    for (const [key, entry] of entries) {
+      const targets = undoTargets(entry);
+      for (const target of targets) if (![...target.children].some(child => child.dataset?.lkUndo === key)) target.appendChild(undoArrow(doc, key, entry, false));
+      if (!targets.length && !doc.querySelector(`.lk-undo-dock [data-lk-undo="${undoAttr(key)}"]`)) {
+        if (!dock) { dock = doc.createElement('div'); dock.className = 'lk-undo-dock'; doc.body.appendChild(dock); }
+        dock.appendChild(undoArrow(doc, key, entry, true));
+      }
+    }
+    if (dock && !dock.children.length) dock.remove();
+  } finally { undoState.drawing = false; }
+}
+function takeUndo(key) {
+  const entry = undoState.entries.get(key);
+  undoState.entries.delete(key);
+  drawUndoArrows();
+  watchUndos();
+  if (entry) return Promise.resolve().then(entry.run).catch(error => { if (entry.onFail) entry.onFail(error); else Door.notify('The change could not be undone', 'warning'); });
+}
+// A press on an arrow is the plugin's (inside a bullet Logseq would start editing it); the click takes the change back.
+function onUndoArrow(event) {
+  const arrow = event.target?.closest?.('.lk-undo[data-lk-undo]');
+  if (!arrow) return;
+  event.stopImmediatePropagation();
+  if (event.type !== 'pointerdown') event.preventDefault();
+  if (event.type === 'click') takeUndo(arrow.dataset.lkUndo);
+}
+// The arrows are put back whenever Logseq draws the place again; the pass runs only while there is an arrow.
+function watchUndos() {
+  const win = Door.host().defaultView, on = undoState.entries.size > 0;
+  if (on && !undoState.unwatch) undoState.unwatch = Door.watch(function undoArrows() { drawUndoArrows(); });
+  else if (!on && undoState.unwatch) { undoState.unwatch(); undoState.unwatch = null; }
+  if (on && !undoState.listening) { for (const type of ['pointerdown', 'mousedown', 'mouseup', 'click']) win.addEventListener(type, onUndoArrow, true); undoState.listening = true; }
+  else if (!on && undoState.listening) { for (const type of ['pointerdown', 'mousedown', 'mouseup', 'click']) win.removeEventListener(type, onUndoArrow, true); undoState.listening = false; }
+}
+Door.undo = {
+  offer({ owner = '', key, at, text, run, onFail, cls }) {
+    const before = undoState.entries.get(key);
+    for (const other of [...undoState.entries.keys()]) if (other !== key) undoState.entries.delete(other);   // a new change's arrow takes the last one's place
+    const all = before ? async () => { let failed = null; try { await run(); } catch (error) { failed = error; } await before.run(); if (failed) throw failed; } : run;
+    undoState.entries.set(key, { owner, at, text: before ? `${text} · ${before.text}` : text, run: all, onFail: onFail || before?.onFail, cls });
+    for (const arrow of Door.host().querySelectorAll(`[data-lk-undo="${undoAttr(key)}"]`)) arrow.remove();   // drawn again, so an arrow with the old words is replaced
+    watchUndos();
+    drawUndoArrows();
+  },
+  forget(which) {
+    let gone = false;
+    for (const [key, entry] of undoState.entries) if (typeof which === 'function' ? which({ key, ...entry }) : key === which) { undoState.entries.delete(key); gone = true; }
+    if (gone) { drawUndoArrows(); watchUndos(); }
+  },
+  take: key => takeUndo(key),
+  clear(owner) {
+    if (!undoState.entries.size) return;
+    if (owner == null) undoState.entries.clear(); else for (const [key, entry] of undoState.entries) if (entry.owner === owner) undoState.entries.delete(key);
+    drawUndoArrows(); watchUndos();
+  },
+  draw: () => drawUndoArrows(),
+  get size() { return undoState.entries.size; },
+  has: key => undoState.entries.has(key),
+  keys: () => [...undoState.entries.keys()],
+  stop() { undoState.entries.clear(); try { drawUndoArrows(); watchUndos(); Door.host().querySelector('.lk-undo-dock')?.remove(); } catch (error) { /* Logseq's window is gone */ } },
+};
 /* The press's icons: one even line, the most literal drawing of what the press does, and anything that moves is an arrow. None
    is a ring, a wave or three dots, so none can be taken for a sort's mark. A press takes one by the shared name lk-i-<name>. */
 Door.ICONS = {
@@ -369,7 +470,12 @@ input.lk-tick[type=checkbox]:indeterminate::before { content: ""; position: abso
 .lk-field::placeholder, .lk-field :is(input, textarea)::placeholder { color: var(--lk-faint); opacity: 1; }
 /* lk-none: nothing here, one line at the off strength where the things would stand, no box. */
 .lk-none { color: var(--lk-off); padding: 6px 0; }
-/* lk-undo, the press: the arrow alone, no ground, at the end of what changed. */
+/* lk-undo, the press: the arrow alone, no ground, at the end of what changed; with nothing on screen to sit beside, it waits at
+   the bottom right (lk-undo-dock) with its words (lk-undo-words), as quiet. */
+.lk-undo-dock { position: fixed; z-index: 10002; right: 20px; bottom: 20px; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; max-width: min(420px, 60vw); color: var(--lk-text, currentColor); font-size: var(--lk-small); }
+.lk-undo.lk-undo-docked { margin: 0; padding: 3px 9px; border-radius: 6px; opacity: 1 !important; background: var(--lk-paper, #fff); border: 1px solid var(--lk-hair); color: var(--lk-quiet); }
+.lk-undo.lk-undo-docked:hover { color: var(--lk-text, currentColor); }
+.lk-undo-words { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lk-undo { appearance: none; border: 0; background: none; padding: 0 4px; margin: 0 0 0 .4em; font: inherit; line-height: 1; color: inherit; cursor: pointer; vertical-align: -2px; display: inline-flex; align-items: center; gap: 6px; }
 .lk-undo .ti { font-size: 14px; }
 @media (prefers-reduced-motion: reduce) { .lk-fold, .lk-fold::before, .lk-tick, .lk-undo { transition: none; } }

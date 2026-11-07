@@ -146,7 +146,7 @@ const placementSource = `(() => {
   const main = document.querySelector('#main-content-container');
   if (!main) return out;
   const mainRect = main.getBoundingClientRect();
-  const desc = n => n.tagName.toLowerCase() + [...n.classList].filter(c => /^(lk-|fd-|flow-|st-|xp|rf-|refinement-)/.test(c)).slice(0, 2).map(c => '.' + c).join('');
+  const desc = n => n.tagName.toLowerCase() + [...n.classList].filter(c => /^(lk-|fd-|flow-|st-|xp|th-|th-)/.test(c)).slice(0, 2).map(c => '.' + c).join('');
   const shown = n => { const r = n.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(n).visibility === 'visible'; };
   const edge = (nodes, side, what, within = 1) => {
     const xs = nodes.filter(shown).map(n => n.getBoundingClientRect()[side]);
@@ -159,18 +159,18 @@ const placementSource = `(() => {
   const tagEdges = [...main.querySelectorAll('.ls-block .block-tags, .ls-block-right')].filter(shown);
   edge(tagEdges, 'right', 'a bullet’s tags off the one right edge', 2);
   // Days in a list's margin, and chevrons in a list, each on one column.
-  for (const list of main.querySelectorAll('.refinement-two-way .rf-tw-list, .refinement-two-way')) {
+  for (const list of main.querySelectorAll('.th-two-way .th-tw-list, .th-two-way')) {
     edge([...list.querySelectorAll(':scope .lk-day')], 'right', 'a day off the margin’s right edge');
-    edge([...list.querySelectorAll(':scope .rf-tw-line > .rf-chev, :scope .rf-tw-line > .rf-chev-room')], 'left', 'a chevron off its list’s column');
+    edge([...list.querySelectorAll(':scope .th-tw-line > .th-chev, :scope .th-tw-line > .th-chev-room')], 'left', 'a chevron off its list’s column');
   }
   // Nothing of a module's past the main pane's right edge.
-  for (const n of main.querySelectorAll('[class*="lk-"], [class*="fd-"], [class*="flow-"], [class*="st-"], [class*="rf-"], [class*="refinement-"]')) {
+  for (const n of main.querySelectorAll('[class*="lk-"], [class*="fd-"], [class*="flow-"], [class*="st-"], [class*="th-"], [class*="th-"]')) {
     if (!shown(n)) continue;
     const r = n.getBoundingClientRect();
     if (r.right > mainRect.right + 1 && r.width < mainRect.width) { out.push({ what: 'reaches past the pane’s right edge', name: desc(n), text: (n.textContent || '').trim().slice(0, 40), by: Math.round(r.right - mainRect.right) }); if (out.length > 60) break; }
   }
   // A module's own element lying over Logseq's words (neither holding the other).
-  const own = [...main.querySelectorAll('.lk-own, .lk-path, .fd-own, .flow-ghost, .flow-made, .refinement-two-way .rf-tw-row, .lk-picked, .st-holder')].filter(shown).slice(0, 300);
+  const own = [...main.querySelectorAll('.lk-own, .lk-path, .fd-own, .flow-ghost, .flow-made, .th-two-way .th-tw-row, .lk-picked, .st-holder')].filter(shown).slice(0, 300);
   const words = [...main.querySelectorAll('.ls-block .block-title-wrap, .ls-page-title .title, .property-key, .property-value-container')].filter(shown).slice(0, 400);
   const over = (a, b) => a.left < b.right - 2 && b.left < a.right - 2 && a.top < b.bottom - 2 && b.top < a.bottom - 2;
   let n = 0;
@@ -236,7 +236,7 @@ function judge(run, A, vp, second) {
     notes.push(`${label} ${late} ms after the ${from}`);
     if (late > budget) fails.push(`${label} shown ${late} ms after the ${from} (budget ${budget} ms)`);
   };
-  piece('two-way rows', ['div.rf-tw-row'], second ? BUDGET.rowsAgain : BUDGET.rowsFirst);
+  piece('two-way rows', ['div.th-tw-row'], second ? BUDGET.rowsAgain : BUDGET.rowsFirst);
   piece('tag chain', ['span.lk-path', 'div.lk-path'], BUDGET.withTitle);
   piece('kind icons', ['i.lk-kind', 'span.lk-kind'], BUDGET.withTitle, 'property button');
   const nameLine = [...lines].find(([id]) => run.ledger.names[id] === 'landmark: property name')?.[1] || [];

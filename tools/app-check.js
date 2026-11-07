@@ -48,7 +48,7 @@ let chromium; try { ({ chromium } = require('playwright')); } catch (error) { co
     look: { chain: [...document.querySelectorAll('.lk-path')].map(b => b.textContent.replace(/\s+/g, ' ').trim()), propertyIcons: document.querySelectorAll('.lk-kind').length },
     find: { toolbar: !!document.querySelector('[data-on-click="findOpen"]') },
     structure: { toolbar: !!document.querySelector('[data-on-click="structureOpen"]') },
-    threads: { heads: document.querySelectorAll('.rf-tw-head').length, rows: document.querySelectorAll('.rf-tw-row').length },
+    threads: { heads: document.querySelectorAll('.th-tw-head').length, rows: document.querySelectorAll('.th-tw-row').length },
     oldPlugins: [...document.querySelectorAll('iframe[src*="logseq-look"], iframe[src*="logseq-find"], iframe[src*="logseq-predictive"], iframe[src*="logseq-structure"], iframe[src*="logseq-db-export"], iframe[src*="logseq-threads"]')].map(f => f.src.match(/logseq-[a-z-]+/)[0]),
     notices: [...document.querySelectorAll('.ui__notifications .notification-content, .ui__toast')].map(n => n.textContent.trim().slice(0, 120)),
   }));
