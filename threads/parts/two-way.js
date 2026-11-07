@@ -65,9 +65,14 @@ const take = (core, names) => shared.take(core, names, warnOnce);
 // indexed (0.4.182): every page's rows were read in one look-up, so a page not in byPage has none, and a page
 // opened for the first time gets its rows in the same frame as its title instead of half a second later.
 // open, all and only (0.4.184): per row, whether its list is open, shows every record, or only one kind ("Infusion").
-const state = { kindsAll: new Set(), listed: [], findDug: new Map(), findAsked: new Set(), version: 0, pageUuid: '', groups: [], byPage: new Map(), indexed: false, open: new Map(), all: new Set(), only: new Map(), box: null, html: '', picked: new Set(), lastPick: '', group: new Map(), values: new Map(), nodeDraft: null, mentionsOf: new Map(), raise: new Map(), kids: new Set(), selecting: new Set(), dig: new Map(), focus: '', fresh: '', node: new Map(), nall: new Set(), ball: new Set(), steps: [], pageTitle: '', kept: new Map(), find: '', drawingTop: false, pagesRead: null };
+const state = { kindsAll: new Set(), listed: [], findDug: new Map(), findAsked: new Set(), version: 0, pageUuid: '', groups: [], byPage: new Map(), indexed: false, open: new Map(), all: new Set(), only: new Map(), box: null, html: '', picked: new Set(), lastPick: '', group: new Map(), values: new Map(), nodeDraft: null, mentionsOf: new Map(), raise: new Map(), kids: new Set(), selecting: new Set(), dig: new Map(), focus: '', fresh: '', node: new Map(), nall: new Set(), ball: new Set(), steps: [], pageTitle: '', kept: new Map(), find: '', drawingTop: false, pagesRead: null, linksShut: new Set(), emptyOpen: new Set(), keepEmpty: new Set() };
 // Where the pieces join the part's load and start (7 November 2026): loadHooks(page, groups) may give the groups back changed, settledHooks() run once the page's state stands, starters() when the part starts.
-const loadHooks = [], settledHooks = [], starters = [];
+const loadHooks = [], settledHooks = [], starters = [], clickHooks = [];
+/* Where the pieces join a list's drawing (7 November 2026, the forty): listHooks(group, key, items) may give the nodes back
+   narrowed or reordered; headHooks(group, key, items) add words to a head; underHeadHooks(group, key, items) a line under it
+   while open; leadHooks(group, item) a mark before a node's name; betweenHooks(group, item, prev) a line before a node;
+   lineMenuHooks(group, item) and rowMenuHooks(group) items for the right-click menus. */
+const tailHooks = [], viewMenuHooks = [], listHooks = [], headHooks = [], underHeadHooks = [], leadHooks = [], betweenHooks = [], lineMenuHooks = [], rowMenuHooks = [];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const todayNumber = () => { const d = new Date(); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); };
 const dayText = day => {
@@ -132,6 +137,9 @@ async function load() {
         pageUuid = String(page.uuid || '');
         state.pageId = page.id;
         state.pageTitle = String(page.title || page.originalName || page.name || '');
+        // The page's own names, plain in its lines (C1, 7 November 2026): its title, then its aliases once read.
+        state.ownNames = new Set([state.pageTitle.toLowerCase()]);
+        ownNamesOf(page.id).catch(() => {});
         groups = await groupsFor(page.id);
         const title = String(page.title || page.originalName || page.name || '').toLowerCase();
         if (!hiddenMentions().has(title)) {
@@ -331,7 +339,7 @@ function shortName(title) {
    end of the last node of a short row, after the summary of a list. A click opens
    the line to type the new node in. Since 0.4.297 a short row's nodes span the row so their tags line up, so the + sits
    just after the last node's date (or name). The library's lk-plus. */
-const addLink = group => group.ident && state.draft?.field !== group.name ? `<button type="button" class="lk-plus lk-i-plus th-tw-add" aria-label="Add" data-field="${esc(group.name)}" title="Add a${/^[aeiou]/i.test(twoWay.kindsOf(group)[0] || '') ? 'n' : ''} ${esc(twoWay.kindsOf(group)[0] || 'node')} with “${esc(group.name)}” set to this page"></button>` : '';
+const addLink = group => group.ident && state.draft?.field !== group.name ? `<button type="button" class="lk-plus lk-i-plus th-tw-add" aria-label="Add a${/^[aeiou]/i.test(twoWay.kindsOf(group)[0] || '') ? 'n' : ''} ${esc(twoWay.kindsOf(group)[0] || 'node')}" data-field="${esc(group.name)}" data-what="Add a${/^[aeiou]/i.test(twoWay.kindsOf(group)[0] || '') ? 'n' : ''} ${esc(twoWay.kindsOf(group)[0] || 'node')}"></button>` : '';
 // The kit's tick box, in the margin left of the record (0.4.228; the kit's since 0.4.318), drawn only on a list where picking was
 // turned on from its View menu (the owner, 7 November 2026: "the select boxes now should only be shown when activated by a menu
 // combined with the other ones"). Picking ends with the picks: Escape, the bar's box, or an action done.
@@ -354,10 +362,23 @@ const dayCell = item => item.day && item.day !== state.pageDay ? dayText(item.da
    another year widens the column for the whole list. */
 const daysOf = group => [...group.items, ...(group.since || [])].map(item => twoWay.dayOf(group, item)).filter(Boolean);
 const isDated = group => daysOf(group).length > 0;
-const datedAttrs = group => { const days = daysOf(group); return !days.length ? '' : days.some(d => d.includes(',')) ? ' data-dated="" style="--th-ol-day: 90px"' : ' data-dated=""'; };
+const datedAttrs = group => daysOf(group).length ? ' data-dated=""' : '';
+// A day of another year: the line shows the day alone, and a faint line with the year stands where the years change (C10).
+const shortDay = text => String(text || '').replace(/, \d{4}$/, '');
+const yearOf = text => (String(text || '').match(/, (\d{4})$/) || [])[1] || '';
+const yearLine = (group, item, prev) => { const y = yearOf(twoWay.dayOf(group, item)), was = prev ? yearOf(twoWay.dayOf(group, prev)) : ''; return y && y !== was ? `<div class="th-tw-earlier lk-note th-tw-year">${y}</div>` : ''; };
 /* The day a node's line shows, by its place (the row's or the node's key), so what it opens leaves out a Date saying it
    again (0.4.462, the owner's pick 3 of the two-way fixes: "each line drops what its heading already says"). */
 const lineDay = new Map();
+async function ownNamesOf(id) {
+  const ids = await provided.aliasesOf?.(id) || [];
+  let added = false;
+  for (const other of ids) {
+    const uuid = await provided.uuidById?.(other).catch(() => ''), title = uuid && await provided.titleNow(uuid).catch(() => '');
+    if (title && state.pageId === id && !state.ownNames.has(title.toLowerCase())) { state.ownNames.add(title.toLowerCase()); added = true; }
+  }
+  if (added) { state.html = null; draw(host()); }
+}
 // A name's words: a wikilink in them is underlined and opens its page, as in a bullet's words; the name itself, its own click.
 const nameWords = item => item.words && item.words.includes('[[') ? twoWay.lineHtml(item.words, Infinity) : esc(item.title);
 const nameHtml = (item, open = false, bare = false) => `<a class="th-tw-record th-ol-name lk-node${bare ? ' lk-bare' : ''}${open ? ' th-ol-open' : ''}" data-uuid="${esc(item.uuid)}" href="#">${nameWords(item)}</a>${item.tag && item.tag !== 'note' ? '<wbr>' + tagLink(item) : ''}`;
@@ -368,8 +389,8 @@ function rowHtml(group, top = null) {
   const tip = isMentions(group) ? 'These nodes name this page in their words. Right-click to hide this row here.' : `“${esc(group.name)}” on the nodes listed here points to this page. Change it on the node.`;
   const label = group.found && group.whole ? `<span class="th-tw-matchname">${esc(group.label)}</span>` : esc(group.label);
   const name = group.fieldUuid
-    ? `<div class="th-tw-name lk-prop"><span class="th-kind">${shared.kindIconHtml(group.kind || 'node')}</span><a class="th-tw-field" data-uuid="${esc(group.fieldUuid)}" href="#" title="${tip} Click to open the property “${esc(group.name)}”.">${label}</a></div>`
-    : `<div class="th-tw-name lk-prop" title="${tip}">${label}</div>`;
+    ? `<div class="th-tw-name lk-prop" draggable="true"><span class="th-kind">${shared.kindIconHtml(group.kind || 'node')}</span><a class="th-tw-field" data-uuid="${esc(group.fieldUuid)}" href="#" title="${tip} Click to open the property “${esc(group.name)}”.">${label}</a></div>`
+    : `<div class="th-tw-name lk-prop" draggable="true" title="${tip}">${label}</div>`;
   const base = top ? top.key : `r:${group.name}`;
   // Each row's list is a list of its own for the tick boxes (Look's lk-list): the pointer on it raises its boxes and no
   // other's; while anything is ticked every list shows its boxes, as before.
@@ -395,7 +416,7 @@ function rowHtml(group, top = null) {
   const counts = new Map();
   for (const item of headItems) counts.set(item.tag, (counts.get(item.tag) || 0) + 1);
   const only = counts.has(state.only.get(key)) ? state.only.get(key) : '';
-  const items = only ? group.items.filter(item => item.tag === only) : group.items;
+  const items = listHooks.reduce((xs, hook) => hook(group, key, xs) || xs, only ? group.items.filter(item => item.tag === only) : group.items);
   const shown = all ? items : items.slice(0, LISTED);
   /* The kinds as the kit's filter words, the one in force in the text colour. With several kinds they are the line by the
      chevron itself, the days at the end (0.4.399, the owner: the header "3 Therapeutic sessions, 3 Cancer Drugs" said what
@@ -424,26 +445,30 @@ function rowHtml(group, top = null) {
   const tail = [...(kinds ? named.map(([tag, n]) => chip(tag, `${esc(tag === 'note' ? 'No tag' : tag)} <span class="lk-count">${n}</span>`, '', true)) : []), ...(kinds && rest ? [`<button type="button" class="lk-more th-tw-kinds" data-kinds="${esc(key)}">and ${rest} more</button>`] : []), whenHtml, was].filter(Boolean);
   // Each piece keeps its dot in the gap before it, and the head clips what stands before its left edge: a line that wraps starts on
   // its words, never on a dot (the stylesheet).
-  const head = `<span class="th-tw-chips">${lead}${tail.map((piece, i) => `<span class="th-tw-piece">${lead || i ? sep : ''}${piece}</span>`).join('')}</span>`;
+  const extra = headHooks.map(hook => hook(group, key, items) || '').join('');
+  const head = `<span class="th-tw-chips">${lead}${tail.map((piece, i) => `<span class="th-tw-piece">${lead || i ? sep : ''}${piece}</span>`).join('')}${extra}</span>`;
   let list = '', since = '';
   const bare = !!only || counts.size === 1, tell = bare ? twoWay.tellingProp(group, items) : '';
   if (open) {
     const today = todayNumber();
     // The nodes after the day, faint under a line that says so; "show all" is the list's.
     const later = only ? (group.since || []).filter(item => item.tag === only) : group.since || [];
-    if (later.length) since = `<div class="th-tw-since"><div class="th-tw-earlier lk-note">since</div>${(all ? later : later.slice(0, LISTED)).map(item => itemHtml(group, item, base, '', bare, tell)).join('')}${later.length > LISTED && !all && items.length <= LISTED ? O.more({ text: 'show all', attrs: { class: null, 'data-more': key }, under: isDated(group) ? 'dotday' : 'dot' }) : ''}</div>`;
+    if (later.length) since = `<div class="th-tw-since"><div class="th-tw-earlier lk-note">since ${esc(dayText(twoWay.readFind().asOf))}</div>${(all ? later : later.slice(0, LISTED)).map(item => itemHtml(group, item, base, '', bare, tell)).join('')}${later.length > LISTED && !all && items.length <= LISTED ? O.more({ text: `show ${later.length - LISTED} more`, attrs: { class: null, 'data-more': key }, under: isDated(group) ? 'dotday' : 'dot' }) : ''}</div>`;
     // Grouped (0.4.369): the nodes in groups by a tag, a month or a property's value, each group folding.
     const grouping = twoWay.groupingOf(group, items);
-    if (grouping) list = grouping.parts.map(part => twoWay.groupHtml(group, part, grouping.by)).join('');
+    if (grouping) list = underHeadHooks.map(hook => hook(group, key, items) || '').join('') + grouping.parts.map(part => twoWay.groupHtml(group, part, grouping.by)).join('');
     else {
-      list = shown.map((item, i) => (i > 0 && item.day && item.day < today && shown[i - 1].day >= today ? '<div class="th-tw-earlier lk-note">earlier</div>' : '') + itemHtml(group, item, base, '', bare, tell)).join('')
-        + (items.length > LISTED ? O.more({ text: all ? 'show fewer' : 'show all', attrs: { class: null, 'data-more': key }, under: isDated(group) ? 'dotday' : 'dot' }) : '');
+      list = underHeadHooks.map(hook => hook(group, key, items) || '').join('') + shown.map((item, i) => (i > 0 && item.day && item.day < today && shown[i - 1].day >= today ? '<div class="th-tw-earlier lk-note">earlier</div>' : '') + yearLine(group, item, shown[i - 1]) + betweenHooks.map(hook => hook(group, item, shown[i - 1], key) || '').join('') + itemHtml(group, item, base, '', bare, tell)).join('')
+        + (items.length > LISTED ? O.more({ text: all ? 'show fewer' : `show ${items.length - LISTED} more`, attrs: { class: null, 'data-more': key }, under: isDated(group) ? 'dotday' : 'dot' }) : '');
     }
   }
   const fold = O.chev({ open, label: group.label, attrs: { 'data-fold': key } });
   // The list's own line is the parent of its nodes (the owner, 2026-10-27: "header chevron is over the other chevrons of
   // its children"): its chevron starts where the days do, its words right after; the nodes, their days too, one step in.
-  const headLine = O.line({ day: null, chev: fold, body: `${head}${addLink(group)}${twoWay.groupBtn(group)}`, cls: 'th-tw-head' });
+  // The mentions' sure proposals, all at once (C19): a quiet word at the head once two or more are pencilled in.
+  const proposed = isMentions(group) ? group.items.filter(item => couldBeHtml(item)).length : 0;
+  const takeAll = proposed > 1 ? `<button type="button" class="lk-btn lk-low th-tw-takeall" data-takeall-could="" title="Make each what its words look like, with one Undo">Take the ${proposed} proposed</button>` : '';
+  const headLine = O.line({ day: null, chev: fold, body: `${head}${addLink(group)}${takeAll}${twoWay.groupBtn(group)}`, cls: 'th-tw-head' });
   const listHtml = open ? O.kids({ html: list + since, cls: 'th-ol-bare th-tw-list', fresh: state.fresh === key }) : '';
   return `<div class="th-tw-row" data-field="${esc(group.name)}"${open ? ' data-open=""' : ''}>${name}<div class="${listCls}"${picking}${datedAttrs(group)}>${headLine}${listHtml}${twoWay.addLineHtml(group)}</div></div>`;
 }
@@ -460,8 +485,8 @@ function itemHtml(group, item, base, end = '', bare = false, tell = '') {
   // are typed (the reviewer: 4 to 9 px).
   lineDay.set(key, dayCell(item));
   // Opened, the node's properties show the telling value: the line lets go of it.
-  const body = `${nameHtml(shown, open && state.findDug.get(key) !== true, bare)}${couldBeHtml(item)}${tell && !open ? twoWay.tellHtml(item, tell) : ''}${end}`;
-  const line = O.line({ tick: pickBox(group, item), dot: { uuid: item.uuid, closed: !open && hasKids(item.uuid), title: shortName(item.title) }, day: twoWay.dayOf(group, item) || (isDated(group) ? '' : null), chev: twoWay.digChev(key, item.uuid, 0, shortName(item.title), open), body, cls: 'th-tw-line', attrs: { 'data-uuid': item.uuid } });
+  const body = `${leadHooks.map(hook => hook(group, item) || '').join('')}${nameHtml(shown, open && state.findDug.get(key) !== true, bare)}${couldBeHtml(item)}${tailHooks.map(hook => hook(group, item) || '').join('')}${tell && !open ? twoWay.tellHtml(item, tell) : ''}${end}`;
+  const line = O.line({ tick: pickBox(group, item), dot: { uuid: item.uuid, closed: !open && hasKids(item.uuid), title: shortName(item.title) }, day: shortDay(twoWay.dayOf(group, item)) || (isDated(group) ? '' : null), chev: twoWay.digChev(key, item.uuid, 0, shortName(item.title), open), body, cls: 'th-tw-line', attrs: { 'data-uuid': item.uuid } });
   const under = `${crumbHtml(item)}${twoWay.raiseHtml(group, item)}`;
   return open ? O.unit({ html: line + under + twoWay.digKids(key, item.uuid, 'in'), focus: state.focus === key, attrs: { 'data-key': key } }) : line + under;
 }
@@ -761,6 +786,8 @@ function onClick(event) {
   const lineEl = event.target.closest?.('.th-tw-draft');
   if (lineEl && !event.target.closest('a, input, button')) { lineEl.querySelector('.th-tw-draft-field')?.focus(); return; }
   if (twoWay.pieceClick?.(event)) return;
+  for (const hook of clickHooks) if (hook(event)) return;
+  if (event.target.closest?.('[data-takeall-could]')) { event.preventDefault(); event.stopPropagation(); twoWay.raiseAll().catch(error => { warnOnce('could not take the proposals', error); notify('The proposals could not all be taken', 'warning'); }); return; }
   // The name opens, the arrow unfolds: the blank part of a row does nothing, and the page stays.
   const target = event.target.closest?.('a, button');
   if (!target) return;
@@ -817,7 +844,17 @@ const valueBox = (uuid, prop) => inBox(`.th-ol-pname[data-edit="${CSS.escape(pro
 /* The right-click on a row's name opens a short menu under it, the kit's pop-up (0.4.304): Group by…, Open in the map,
    Reads back as …, Hide …. */
 function onRename(event) {
-  const nameEl = event.target.closest?.('.th-tw-name');
+  // A node's line: its own menu, from the pieces (pin, compare, …); nothing when none has an item for it.
+  const lineEl = !event.target.closest?.('.th-tw-name') && event.target.closest?.('.th-tw-line[data-uuid]');
+  if (lineEl) {
+    const row = lineEl.closest('.th-tw-row'), group = state.groups.find(g => g.name === row?.dataset.field), item = group?.items.find(i => i.uuid === lineEl.dataset.uuid);
+    const items = item ? lineMenuHooks.flatMap(hook => hook(group, item) || []) : [];
+    if (!items.length) return;
+    event.preventDefault(); event.stopPropagation(); twoWay.hidePeek(); twoWay.closeAdd();
+    twoWay.adding.pop = shared.popup({ at: lineEl.querySelector('.th-tw-record') || lineEl, head: shortName(item.title), onClose: () => { twoWay.adding.pop = null; }, items });
+    return;
+  }
+  const nameEl = event.target.closest?.('.th-tw-name') || event.target.closest?.('.th-tw-head')?.closest('.th-tw-row')?.querySelector('.th-tw-name');
   const group = nameEl && state.groups.find(g => g.name === nameEl.closest('.th-tw-row')?.dataset.field);
   if (!group) return;
   event.preventDefault(); event.stopPropagation(); twoWay.hidePeek(); twoWay.closeAdd();
@@ -829,6 +866,7 @@ function onRename(event) {
       ? { icon: 'remove', label: 'Hide mentions on this page', run: () => { hideMentionsHere().catch(error => warnOnce('could not hide the mentions row', error)); } }
       : provided.tagTree?.showProp ? { icon: 'map', label: 'Open in the map', run: () => provided.tagTree.showProp(group.name) } : null,
     ...(isMentions(group) && refusedHere() ? [{ icon: 'show', label: `Show the ${refusedHere()} suggestion${refusedHere() === 1 ? '' : 's'} taken off`, run: showCouldBeAgain }] : []),
+    ...rowMenuHooks.flatMap(hook => hook(group) || []),
     ...(isMentions(group) ? [] : [{ icon: 'rename', label: 'Reads back as …', run: () => { renameRow(group, nameEl).catch(error => warnOnce('could not rename the row', error)); } }]),
     // The same two words as the tag map's (0.4.444, one word for each idea); the head above already names the row.
     ...(isMentions(group) ? [] : [{ icon: 'hide', label: 'Hide on the pages it points to', run: () => {
@@ -935,5 +973,5 @@ function start() {
 }
 ((window.Threads ||= {}).parts ||= []).push({ name: 'two-way', says: 'the rows on a page', schema: settingsSchema, start, stop: runUnloadTasks, inner: twoWay });
 // What the pieces reach of the part, and of the core once it starts (useCore).
-Object.assign(twoWay, { INLINE, LISTED, UUID, stopPicking, dayCell, isDated, readKids, hasKids, loadHooks, settledHooks, starters, summary, plural, tagWord, dayText, draw, groupsFor, inBox, isMentions, couldBeOff, itemHtml, later, lineDay, model, nameHtml, offerMade, offerUndo, onUnload, provided, rowHtml, setting, shortName, state, tagLink, todayNumber, uuidsIn, valueBox, warnOnce, useCore });
+Object.assign(twoWay, { INLINE, LISTED, UUID, stopPicking, clickHooks, tailHooks, viewMenuHooks, listHooks, headHooks, underHeadHooks, leadHooks, betweenHooks, lineMenuHooks, rowMenuHooks, saveSettings: changes => saveSettings(changes), dayCell, isDated, readKids, hasKids, loadHooks, settledHooks, starters, summary, plural, tagWord, dayText, draw, groupsFor, inBox, isMentions, couldBeOff, itemHtml, later, lineDay, model, nameHtml, offerMade, offerUndo, onUnload, provided, rowHtml, setting, shortName, state, tagLink, todayNumber, uuidsIn, valueBox, warnOnce, useCore });
 })();

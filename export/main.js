@@ -62,6 +62,8 @@ async function act(doc, ch, action, editedBody) {
 async function readWhat(event) {
   await E.files.currentGraph();
   const over = { columnsOf, order: orderOf };
+  // A list of nodes from another module (Threads' Export list, 7 November 2026), in the order given, under the title given.
+  if (Array.isArray(event?.uuids) && event.uuids.length) { const doc = await E.db.readBlocks(event.uuids, over); if (event.title) doc.title = event.title; return { doc, what: event.what || `${event.uuids.length} nodes` }; }
   const uuid = typeof event?.uuid === 'string' ? event.uuid : null;
   if (uuid) return { doc: await E.db.readBlocks([uuid], over), what: 'this block' };
   const selected = await Promise.resolve(logseq.Editor.getSelectedBlocks()).catch(() => null);

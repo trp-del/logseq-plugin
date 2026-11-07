@@ -598,7 +598,7 @@ function pickValue({ at, placeholder = '', options = [], clearLabel = '', free =
    place in the new drawing and the box goes on there, words and caret as they were. onType(words) hears each change as it is
    typed (a bullet saves as it is written); show(words) gives the html that stands in the box's place once new words are kept,
    so the old words never come back for a moment before the redraw. */
-function editInPlace({ at, value = '', type = 'text', placeholder = '', doc, again, wrap = false, onType, show } = {}) {
+function editInPlace({ at, value = '', type = 'text', placeholder = '', doc, again, wrap = false, onType, show, onEnd } = {}) {
   const numeric = type === 'number';
   type = 'text';
   doc = doc || host();
@@ -611,8 +611,9 @@ function editInPlace({ at, value = '', type = 'text', placeholder = '', doc, aga
     input.value = value;
     if (numeric) input.setAttribute('inputmode', 'decimal');
     const grow = () => { if (!wrap) return; input.style.height = 'auto'; input.style.height = `${input.scrollHeight}px`; };
-    let finished = false, moving = false;
-    const finish = answer => { if (finished) return; finished = true; const html = answer != null && show ? show(answer) : null; if (html != null) at.innerHTML = html; else at.replaceChildren(...was); resolve(answer); };
+    // How it ended, for onEnd: 'enter', 'escape', or 'away' (a click elsewhere, or the box gone with a redraw).
+    let finished = false, moving = false, ended = 'away';
+    const finish = answer => { if (finished) return; finished = true; onEnd?.(ended); const html = answer != null && show ? show(answer) : null; if (html != null) at.innerHTML = html; else at.replaceChildren(...was); resolve(answer); };
     input.across = redraw => {
       const from = input.selectionStart, to = input.selectionEnd;
       moving = true; redraw(); moving = false;
@@ -625,8 +626,8 @@ function editInPlace({ at, value = '', type = 'text', placeholder = '', doc, aga
       event.stopPropagation();
       if (event.isComposing) return;
       if (event.key === 'Enter' && wrap && event.shiftKey) return;   // a line break, as in Logseq's own bullets
-      if (event.key === 'Enter') { event.preventDefault(); finish(input.value === value ? null : input.value); }
-      else if (event.key === 'Escape') { event.preventDefault(); finish(null); }
+      if (event.key === 'Enter') { event.preventDefault(); ended = 'enter'; finish(input.value === value ? null : input.value); }
+      else if (event.key === 'Escape') { event.preventDefault(); ended = 'escape'; finish(null); }
     });
     if (wrap) input.addEventListener('input', grow);
     if (onType) input.addEventListener('input', () => onType(input.value));
@@ -746,7 +747,7 @@ const outline = {
   unit: ({ html = '', focus = false, attrs, cls = '' } = {}) => `<div class="th-ol-unit${focus ? ' th-ol-focus' : ''}${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}>${html}</div>`,
   prop: ({ kind = 'text', name = '', value = '', chev = '', attrs, cls = '', nameAttrs } = {}) => `<div class="th-ol-line lk-row th-ol-prop${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}><span class="th-ol-pname lk-prop"${attrsHtml(nameAttrs)}>${name ? `${kind ? `<span class="th-kind">${kindIconHtml(kind)}</span>` : ''}${esc(name)}` : ''}</span><span class="th-ol-pv">${chev}${value}</span></div>`,
   bullet: ({ html = '', attrs, cls = '', wordsAttrs, closed = false } = {}) => `<div class="th-ol-bullet${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}>${outline.dot(false, { closed, opens: !!attrs?.['data-bullet'] })}<span class="th-ol-words"${attrsHtml(wordsAttrs)}>${html}</span></div>`,
-  newBullet: ({ attrs, label = 'A new bullet', text = '' } = {}) => `<div class="th-ol-bullet th-ol-new">${outline.dot()}<span class="th-field lk-field th-ol-words th-ol-write"><input type="text" value="${esc(text)}" spellcheck="true" autocomplete="off" aria-label="${esc(label)}"${attrsHtml(attrs)}></span></div>`,
+  newBullet: ({ attrs, label = 'A new bullet', text = '' } = {}) => `<div class="th-ol-bullet th-ol-new">${outline.dot()}<span class="th-field lk-field th-ol-words th-ol-write"><input type="text" value="${esc(text)}" spellcheck="true" autocomplete="off" aria-label="${esc(label)}" placeholder="${esc(label)}"${attrsHtml(attrs)}></span></div>`,
   more: ({ text = '', attrs, under = 'name', cls = 'lk-more' } = {}) => { const b = `<button type="button" class="${cls} th-ol-more"${attrsHtml(attrs)}>${esc(text)}</button>`; return under === 'value' ? `<div class="th-ol-line th-ol-prop th-ol-moreline"><span class="th-ol-pname"></span><span class="th-ol-pv">${b}</span></div>` : under === 'flush' ? `<div class="th-ol-line th-ol-moreline">${b}</div>` : under === 'leads' ? `<div class="th-ol-line lk-row th-ol-leads th-ol-moreline">${outline.room()}<span class="th-ol-lname"></span><span class="th-ol-to">${b}</span></div>` : under === 'dot' || under === 'dotday' ? `<div class="th-ol-line th-ol-moreline">${outline.room()}${outline.dot(true)}${under === 'dotday' ? outline.day('') : ''}${b}</div>` : `<div class="th-ol-line th-ol-moreline">${under === 'bare' ? '' : '<span class="th-ol-day lk-day"></span>'}${outline.room()}${b}</div>`; },
   pencil: (text, attrs, cls = '') => `<button type="button" class="th-pencil lk-pencil${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}>${esc(text)}</button>`,
   trail: (steps = [], here = '', end = '') => `<div class="th-ol-trail lk-trail">${steps.map(s => `<a href="#" class="th-ol-step lk-step"${attrsHtml(s.attrs)}>${esc(s.text)}</a><span class="th-ol-sep" aria-hidden="true">›</span>`).join('')}${here ? `<span class="th-ol-here">${here}</span>` : ''}${end}</div>`,

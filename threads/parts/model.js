@@ -670,6 +670,13 @@ async function nodeFields(uuid) {
   for (const [name, v] of raw) if (!known.has(`${name}|${v}`) && !(typeof v === 'number' && Number.isSafeInteger(v) && v > 0)) add(name, { text: String(v) });
   return fields;
 }
+// When each of these nodes was made and last changed (ms), for "since you last looked" and Sort (7 November 2026).
+async function createdAt(uuids) {
+  const list = [...new Set((uuids || []).map(String))].filter(u => UUID.test(u));
+  if (!list.length) return new Map();
+  const rows = await dsQuery(`[:find ?u ?c ?m :where [(ground [${list.map(u => `#uuid "${u}"`).join(' ')}]) [?u ...]] [?b :block/uuid ?u] [(get-else $ ?b :block/created-at 0) ?c] [(get-else $ ?b :block/updated-at 0) ?m]]`);
+  return new Map(rows.map(([u, c, m]) => [String(u), { created: Number(c), updated: Number(m) }]));
+}
 async function firstLines(uuid, n, withIds = false) {
   const entity = await logseq.Editor.getBlock(uuid, { includeChildren: true });
   const children = entity?.name || entity?.originalName ? await logseq.Editor.getPageBlocksTree(uuid) : entity?.children;
@@ -1082,7 +1089,7 @@ function provide(core) {
     propSchema, propPages, fieldsOf, fits, kindOfPage, tagChain, tagChains, tagChainIndex, parseDay, dayNumber, sameDay, dayAfter, DAYS,
     tagGraph, propInfo, ownProps, inheritedProps, tagPropIds, acceptedIds, choicesOf, choiceUse, choiceCounts, choiceNodes, idByUuid,
     descriptionOf, titleNow, valuesOf, userValues, mergeFacts, TAG_PROPS, ACCEPTS, DESCRIPTION,
-    linksInto, mentionsInto, pageHasList, firstTags, nodesOfTag, nodeLines, nodeFields, nodeValues, firstLines, pagesAmong, tagUuidNamed, uuidById,
+    linksInto, mentionsInto, pageHasList, createdAt, firstTags, nodesOfTag, nodeLines, nodeFields, nodeValues, firstLines, pagesAmong, tagUuidNamed, uuidById,
     hasTag, pageLines, registerCommand,
     propTextValues, propTextBlocks, propValueBlocks, propNamed, propUse, propUses, structureUse, propNodeIds, choiceIds, crumbsInto, propHolders, pdfSources, heldBelow, withKids, linkRates, linkRatesOf, journalIdFor, journalTitleFor, formatJournalTitle, CHECKED_WITH, PAGE_TITLE, screenChecks, pageTitles, titleAnchor });
 }

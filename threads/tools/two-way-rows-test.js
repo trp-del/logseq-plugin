@@ -93,6 +93,7 @@ function world(grouping) {
     firstLines: async uuid => (bullets.get(uuid) || []).slice(0, 9),
     appendBlock: async (target, text) => { const block = { uuid: U(++nextBlock) }; calls.push(['appendBlock', target, text, block.uuid]); return block; },
     addLineTo: async (uuid, text) => { const block = { uuid: U(++nextBlock) }; calls.push(['addLineTo', uuid, text, block.uuid]); bullets.set(uuid, [...(bullets.get(uuid) || []), { uuid: block.uuid, title: text }]); return block; },
+    insertBlock: async (uuid, text) => { const block = { uuid: U(++nextBlock) }; calls.push(['insertBlock', uuid, text, block.uuid]); for (const [node, list] of bullets) { const i = list.findIndex(b => b.uuid === uuid); if (i >= 0) bullets.set(node, [...list.slice(0, i + 1), { uuid: block.uuid, title: text }, ...list.slice(i + 1)]); } return block; },
     removeBlock: async uuid => { calls.push(['removeBlock', uuid]); for (const [node, list] of bullets) bullets.set(node, list.filter(b => b.uuid !== uuid)); },
     addTag: async (uuid, tag) => { calls.push(['addTag', uuid, tag]); },
     setValue: async (uuid, ident, value, opts) => { calls.push(['setValue', uuid, ident, JSON.stringify(value), JSON.stringify(opts || null)]); },
@@ -346,7 +347,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
   {
     const source = twoWay.text(), kit = fs.readFileSync(path.join(root, 'parts/shared.js'), 'utf8');
     check(!/data-picking\] \.th-tw-bar \{[^}]*padding-top/.test(source), 'the bar takes no more room when something is ticked');
-    check(/couldBeHtml\(item\)\}\$\{tell/.test(source) && !/th-tw-crumb">[^`]*couldBeHtml/.test(source), 'what a mention could be stands on its own line, so coming late moves nothing');
+    check(/couldBeHtml\(item\)\}\$\{(tailHooks\.map\(hook => hook\(group, item\) \|\| ''\)\.join\(''\)\}\$\{)?tell/.test(source) && !/th-tw-crumb">[^`]*couldBeHtml/.test(source), 'what a mention could be stands on its own line, so coming late moves nothing');
     check(/\.th-tw-head \.th-tw-sep \{ position: absolute; right: 100%/.test(source) && /\.th-tw-head \.th-tw-chips \{[^}]*overflow: hidden/.test(source), 'a dot stands in the gap before its piece, clipped at a line\'s start');
     check(/\.th-tw-head > \.th-ol-body \{ display: flex; align-items: baseline;/.test(source), 'the head does not wrap the + and Group onto a line of their own');
     check(/\.th-ol-body > \.th-tw-record \{ min-width: 0; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; \}/.test(source), 'a name runs to two lines, then is cut');
@@ -450,13 +451,18 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     click(window, words(first));
     await wait(60);
     key(box(), 'Enter');
-    await wait(60);
-    check(!box() && !writes().length, 'Enter on words not changed should write nothing');
+    await wait(200);
+    const next = () => doc.querySelector('.th-in-place');
+    check(!box() && !writes().length && !!next() && calls.some(c => c[0] === 'insertBlock' && c[1] === first), 'Enter on words not changed should write nothing, and start the next bullet under them, the caret in it (C12)');
+    key(next(), 'Escape');
+    await wait(200);
+    check(!next() && calls.some(c => c[0] === 'removeBlock') && !writes().length, 'Escape in the new, empty bullet takes it away again');
+    const leaveNext = async () => { await wait(200); if (next()) { key(next(), 'Escape'); await wait(200); } };
     click(window, words(first));
     await wait(60);
     type(window, box(), '   ');
     key(box(), 'Enter');
-    await wait(60);
+    await leaveNext();
     check(!writes().length && words(first).textContent === 'Cepeda reviewed 254 studies.', 'emptied words should write nothing');
     click(window, words(first));
     await wait(60);
@@ -469,7 +475,8 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     await wait(150);
     check(writes().length === 1 && writes()[0][1] === first && writes()[0][2] === 'Cepeda reviewed 254 studies. Checked in the library.', 'Enter should write the new words into the bullet: ' + JSON.stringify(calls));
     check(words(first).textContent === 'Cepeda reviewed 254 studies. Checked in the library.' && !box(), 'the bullet should read the new words');
-    check(doc.activeElement === words(first), 'the words take the keyboard back, so Enter changes them again');
+    check(!!next() && next().closest('[data-edit-bullet]') !== words(first), 'the caret goes on to the next bullet, under the changed one');
+    await leaveNext();
     const undo = doc.querySelector('.lk-undo[data-lk-undo]');
     check(!!undo, 'the faded Undo arrow should be offered');
     click(window, undo);
@@ -481,6 +488,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     type(window, box(), 'Second change');
     key(box(), 'Enter');
     await wait(150);
+    await leaveNext();
     bullets.get(node)[0].title = 'Changed in Logseq since';
     click(window, doc.querySelector('.lk-undo[data-lk-undo]'));
     await wait(150);
@@ -531,6 +539,63 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     click(window, name);
     await wait(40);
     check(calls.some(c => c[0] === 'pushState' && c[1] === node), 'a click on the rest of the name should open the node');
+    part.stop();
+  }
+  // 5d. Threads Forty, the new things on a list (7 November 2026): since you last looked, pin, sort, what the list keeps saying,
+  //     the year line, gaps, the lists' order, the day steps.
+  {
+    const { window, doc, calls, part, provided } = world('');
+    await wait(150);
+    const tw = part.inner, st = tw.state;
+    const lines = () => [...doc.querySelectorAll('.th-tw-row[data-field="about"] .th-tw-line a.th-tw-record')].map(a => a.textContent);
+    const head = () => doc.querySelector('.th-tw-row[data-field="about"] .th-tw-head')?.textContent || '';
+    // Open the list.
+    const lead = doc.querySelector('.th-tw-row[data-field="about"] .th-tw-lead, .th-tw-row[data-field="about"] .th-tw-chip.th-tw-lead');
+    if (!doc.querySelector('.th-tw-row[data-field="about"][data-open]')) { click(window, lead); await wait(80); }
+    check(lines().length === 5 && /show 1 more/.test(doc.querySelector('.th-tw-row[data-field="about"] .th-ol-more')?.textContent || ''), '"show all" says how many more (C9): ' + doc.querySelector('.th-tw-row[data-field="about"] .th-ol-more')?.textContent);
+    // N6: what the list keeps saying.
+    const keeps = () => doc.querySelector('.th-tw-row[data-field="about"] .th-tw-keeps');
+    check(!!keeps() && /Confidence/.test(keeps().textContent), 'an open list of five or more says what its nodes often share (N6): ' + keeps()?.textContent);
+    const strong = [...(keeps()?.querySelectorAll('.th-tw-keep') || [])].find(b => /Strong/.test(b.textContent));
+    click(window, strong); await wait(80);
+    check(lines().length === 2 && /Only these 2/.test(keeps()?.textContent || ''), 'a click on a shared value narrows the list to its nodes: ' + lines());
+    click(window, keeps().querySelector('.th-tw-keep')); await wait(80);
+    check(lines().length === 5, 'a click again gives the whole list back');
+    // N20: sort by name.
+    const all = JSON.parse(window.localStorage.getItem('thTwoWaySort') || '{}'); all[`${PAGE}|about`] = 'name'; window.localStorage.setItem('thTwoWaySort', JSON.stringify(all));
+    st.html = null; tw.draw(doc); await wait(40);
+    check(lines()[0].startsWith('Does it work') && /by name/.test(head()), 'sorted by name, the list and its head say so (N20): ' + lines()[0]);
+    window.localStorage.removeItem('thTwoWaySort'); st.html = null; tw.draw(doc); await wait(40);
+    // N2: pin a line from its menu.
+    const pinItem = tw.lineMenuHooks.flatMap(h => h(st.groups.find(g => g.name === 'about'), st.groups.find(g => g.name === 'about').items[3]) || []).find(i => /Pin/.test(i.label));
+    pinItem.run(); await wait(40);
+    check(lines()[0] === st.groups.find(g => g.name === 'about').items[3].title && !!doc.querySelector('.th-tw-pinned') && !!doc.querySelector('.th-tw-pingap'), 'a pinned node leads its list, with its pin and a gap under it (N2): ' + lines()[0]);
+    click(window, doc.querySelector('.lk-undo[data-lk-undo]')); await wait(60);
+    check(!doc.querySelector('.th-tw-pinned'), 'Undo lets the pin go');
+    // N3: the year line from the head's days.
+    click(window, doc.querySelector('.th-tw-row[data-field="about"] .th-tw-head a.th-tw-when')); await wait(60);
+    const dots = [...doc.querySelectorAll('.th-tw-row[data-field="about"] .th-tw-ydot')];
+    check(dots.length === 5, 'the days open a year line, a dot for each dated node (N3): ' + dots.length);
+    click(window, dots.find(d => d.dataset.yday === '20261012')); await wait(60);
+    check(lines().join('|') === 'Does it work for skills?|The best gap is a tenth of the time until the test.' && /showing/.test(head()), 'a dot narrows the list to its week: ' + lines());
+    click(window, doc.querySelector('.th-tw-row[data-field="about"] .th-tw-head a.th-tw-when')); await wait(60);
+    check(!doc.querySelector('.th-tw-ydot') && lines().length === 5, 'the days again fold the line and give the list back');
+    // N1: since you last looked.
+    provided.createdAt = async uuids => new Map(uuids.map((u, i) => [u, { created: u === U(102) ? Date.now() : 1000, updated: 1000 }]));
+    window.localStorage.setItem('thTwoWaySeen', JSON.stringify({ [PAGE]: 5000 }));
+    st.visitPage = ''; tw.later(0); await wait(200);
+    check(doc.querySelectorAll('.th-tw-new').length === 1 && /1 new/.test(head()), 'a node made since the last look carries a dot, the head says how many (N1): ' + head());
+    click(window, doc.querySelector('.th-tw-newcount')); await wait(60);
+    check(lines().join('|') === 'The gap should grow with each review.', 'the count narrows the list to the new: ' + lines());
+    // C17: lists in your order; C15: the day steps.
+    tw.moveList('about', ''); await wait(40);
+    check([...doc.querySelectorAll('.th-tw-row')].map(r => r.dataset.field).pop() === 'about', 'a list moved to the end stays there (C17)');
+    click(window, doc.querySelector('.lk-undo[data-lk-undo]')); await wait(200);
+    st.find = 'on Oct 7'; st.html = null; tw.draw(doc); await wait(40);
+    click(window, doc.querySelector('[data-daystep="-7"]')); await wait(40);
+    check(st.find === 'on Sep 30', 'a week earlier steps the day (C15): ' + st.find);
+    click(window, doc.querySelector('[data-daystep="0"]')); await wait(40);
+    check(st.find === '', 'Today takes the day away');
     part.stop();
   }
   // 6. The + line proposes the rest (0.4.406): under the line, the row's property on this page, then what the rules
@@ -695,6 +760,9 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     await wait(120);
     const propLines = () => [...(kidsOf(doc, node)?.querySelectorAll('.th-ol-prop:not(.th-tw-back)') || [])].filter(l => l.querySelector('.th-ol-pname').textContent.trim());
     const rows = () => propLines().map(l => l.querySelector('.th-ol-pname').textContent.trim() + '=' + l.querySelector('.th-ol-pv').textContent.trim());
+    check(rows().join('|') === 'Confidence=Disputed|Severity=1' && /1 empty/.test(kidsOf(doc, node)?.querySelector('.th-tw-empties')?.textContent || ''), 'an empty property folds into one quiet line (C5): ' + rows());
+    click(window, kidsOf(doc, node).querySelector('.th-tw-emptyword'));
+    await wait(80);
     check(rows().join('|') === 'Confidence=Disputed|Severity=1|Source=empty', 'the node’s own properties should show above its bullets, the one pointing back at this page left out (0.4.451: the row it opened from names it): ' + rows());
     check(!!kidsOf(doc, node)?.querySelector('.th-tw-npvalue.th-faint'), 'an empty one should read "empty" in grey');
     // A node property carries the triangle of dots; a fact carries the icon of what it holds (0.4.477, the owner: "a
@@ -893,8 +961,11 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     check([...box(U(61)).querySelectorAll('.th-tw-back .th-tw-record')].filter(own).length === 1, 'what points at it should be listed one name per line, the way back left out');
     // 0.4.462: the nodes that link to it under a line saying so, the arrow for the node above, after its own properties.
     const links = [...(box(U(61))?.querySelectorAll('.th-tw-links') || [])].filter(own);
-    check(links.length === 1 && links[0].textContent.trim() === '1 node links here', 'the nodes linking to it should come under "1 node links here": ' + links.map(l => l.textContent));
-    check(!!links[0]?.nextElementSibling?.matches('.th-tw-linked') && !!links[0].nextElementSibling.querySelector('.th-tw-back'), 'the lines linking to it should sit under that line');
+    check(links.length === 1 && links[0].querySelector('.th-tw-linkword')?.textContent === '1 link here' && links[0].querySelector('.th-tw-linkkinds')?.textContent === 'Claims', 'the nodes linking to it should come under a head, "1 link here" and their kind (C4): ' + links.map(l => l.textContent));
+    click(window, links[0].querySelector('.th-tw-linkword')); await wait(80);
+    check(!box(U(61))?.querySelector('.th-tw-linked'), 'the head folds what links here');
+    click(window, box(U(61)).querySelector('.th-tw-linkword')); await wait(80);
+    check(!![...box(U(61)).querySelectorAll('.th-tw-links')].filter(own)[0]?.nextElementSibling?.matches('.th-tw-linked') && !![...box(U(61)).querySelectorAll('.th-tw-links')].filter(own)[0].nextElementSibling.querySelector('.th-tw-back'), 'the lines linking to it should sit under that line');
     check(![...(box(U(61))?.querySelectorAll('.th-tw-linked .th-ol-prop:not(.th-tw-back)') || [])].filter(own).length, 'its own properties should not sit under that line');
     check(!chev(U(61), U(103)) && !!chev(U(61), U(104)), 'the node on the way should not be listed again, another node should');
     click(window, chev(U(61), U(104))); await wait(150);
@@ -1014,6 +1085,8 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     // Enter on one value, the next pressed at once: its box stays through the redraw the first write brings, words and caret kept.
     words = false;
     await wait(1100);
+    // Note was just emptied, so it stands in the folded empties (C5): unfolded first.
+    if (!line('Note') && doc.querySelector('.th-tw-emptyword')) { click(window, doc.querySelector('.th-tw-emptyword')); await wait(80); }
     click(window, line('Note').querySelector('.th-ol-pv [data-edit]')); await wait(20);
     inPlace().value = 'new words'; inPlace().dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
     words = true;

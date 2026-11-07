@@ -41,7 +41,7 @@ function barHtml() {
      nodes; More, which holds the rest; Delete at the right end, apart. Drawn here at the top, moved into place by placeBar. */
   const b = (act, text, title, name, cls = '') => `<button type="button" class="lk-picked-act lk-i-${name}${cls ? ' ' + cls : ''}" data-act="${act}" title="${esc(title)}">${text}</button>`;
   return `<div class="lk-picked th-tw-bar"${idle ? ' data-idle="" aria-hidden="true"' : ''} role="toolbar" aria-label="What to do with the picked nodes"><span class="lk-picked-count th-count"><b class="lk-picked-n">${n}</b> picked</span><button type="button" class="lk-picked-x" data-act="clear" title="Clear the picks (Escape)" aria-label="Clear the picks">×</button>${
-    b('sidebar', 'Open in sidebar', 'Open them in the right sidebar', 'side')}<button type="button" class="lk-picked-act th-tw-menu" data-act="more" title="Everything else you can do with them" aria-haspopup="menu">More<span class="lk-i-chevron th-tw-chev" aria-hidden="true"></span></button><span class="lk-picked-gap"></span>${
+    b('sidebar', 'Open in sidebar', 'Open them in the right sidebar', 'side')}${n === 2 ? b('compare', 'Compare', 'The two side by side: their properties and first bullets', 'eq') : ''}<button type="button" class="lk-picked-act th-tw-menu" data-act="more" title="Everything else you can do with them" aria-haspopup="menu">More<span class="lk-i-chevron th-tw-chev" aria-hidden="true"></span></button><span class="lk-picked-gap"></span>${
     b('delete', 'Delete', 'Delete them', 'bin', 'lk-del')}</div>`;
 }
 // The page's own name, for More's "Change “Dr. Mei Chen” to…" (0.4.233, the owner: "make it clear"), read once per page.
@@ -102,7 +102,10 @@ async function prepareRaise(uuid) {
   if (state.raise.has(uuid)) return;
   if (twoWay.couldBeOff().has(uuid)) return;   // its suggestion was taken off: not asked
   state.raise.set(uuid, { pairs: [], best: null });
+  const page = state.pageUuid;
   const [pairs, guess] = await Promise.all([raisePairs(), twoWay.provided.tagGuess ? twoWay.provided.tagGuess(uuid).catch(error => { warnOnce('the tag a mention looks like could not be read', error); return null; }) : null]);
+  // Worked out for the page it was asked on: a page left meanwhile drops it, to be asked again for the page now open.
+  if (state.pageUuid !== page) { if (state.raise.get(uuid)?.pairs?.length === 0) state.raise.delete(uuid); return; }
   const best = guess ? pairs.find(p => p.tag.id === guess.id) || null : null;
   state.raise.set(uuid, { pairs: best ? [best, ...pairs.filter(p => p !== best)] : pairs, best });
   state.html = null; twoWay.draw(host());
@@ -131,6 +134,22 @@ async function raise(pair, uuids) {
   if (!here) return;
   const kind = pair.tag.title;
   return writeAll(`Made ${counted(uuids.length)} ${kind}, “${pair.prop.title}” set to “${pageTitle()}”`, uuids.map(uuid => async () => {
+    const had = await twoWay.provided.valuesOf(uuid, pair.prop.ident);
+    const tagged = await twoWay.provided.hasTag(uuid, pair.tag.uuid);
+    if (!tagged) await twoWay.model.addTag(uuid, pair.tag.uuid);
+    if (!had.includes(here)) await setValues(uuid, pair.prop, pair.prop.many ? [...had, here] : [here]);
+    state.raise.delete(uuid);
+    return async () => { await setValues(uuid, pair.prop, had); if (!tagged) await twoWay.model.removeTag(uuid, pair.tag.uuid); };
+  }));
+}
+// Every sure proposal of the mentions row taken at once, with one Undo (C19, 7 November 2026); a refused one is left.
+async function raiseAll() {
+  const here = await twoWay.provided.idByUuid(state.pageUuid);
+  if (!here) return;
+  const off = twoWay.couldBeOff(), group = state.groups.find(twoWay.isMentions);
+  const todo = (group?.items || []).filter(item => (!item.tag || item.tag === 'note') && !off.has(item.uuid) && state.raise.get(item.uuid)?.best).map(item => ({ uuid: item.uuid, pair: state.raise.get(item.uuid).best }));
+  if (!todo.length) return;
+  return writeAll(`Made ${counted(todo.length)} what their words looked like`, todo.map(({ uuid, pair }) => async () => {
     const had = await twoWay.provided.valuesOf(uuid, pair.prop.ident);
     const tagged = await twoWay.provided.hasTag(uuid, pair.tag.uuid);
     if (!tagged) await twoWay.model.addTag(uuid, pair.tag.uuid);
@@ -217,6 +236,7 @@ async function act(what, at = null) {
   if (!chosen.length) return;
   // The two words with a menu (0.4.327): the menu opens under the word, and what is picked from it acts as its own word did.
   if (what === 'raise') return raiseMenu(at);
+  if (what === 'compare') return twoWay.compare?.(nodes, at);
   // More (5 November 2026): Select all, then every action but Open in sidebar and Delete, which stand on the bar; the page's own
   // two only with a node from a property's row picked, Make it… only with a mention that has no tag.
   if (what === 'more') {
@@ -344,5 +364,5 @@ async function act(what, at = null) {
   } catch (error) { warnOnce(`could not ${what} the picked nodes`, error); notify('That could not be done', 'warning'); }
 }
 
-Object.assign(twoWay, { act, barHtml, dayValue, heldById, heldNow, named, pageNamed, placeBar, prepareRaise, raiseHtml, raiseMenu, readTitle, setValues, takerOf, togglePick });
+Object.assign(twoWay, { raise, raiseAll, act, barHtml, dayValue, heldById, heldNow, named, pageNamed, placeBar, prepareRaise, raiseHtml, raiseMenu, readTitle, setValues, takerOf, togglePick });
 })();

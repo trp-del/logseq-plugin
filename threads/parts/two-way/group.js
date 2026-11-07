@@ -94,7 +94,7 @@ function groupHtml(group, part, by) {
   // The group's heading names the tag, or the list's does when it holds one kind (0.4.462).
   const bare = (by === 'tag' && !part.none) || new Set(group.items.map(item => item.tag)).size === 1;
   const tell = bare ? tellingProp(group, part.items, by.startsWith('p:') ? by.slice(2) : '') : '';
-  const more = open && part.items.length > GROUP_LISTED ? shared.outline.more({ text: all ? 'show fewer' : 'show all', attrs: { 'data-more': gkey }, under: twoWay.isDated(group) ? 'dotday' : 'dot' }) : '';
+  const more = open && part.items.length > GROUP_LISTED ? shared.outline.more({ text: all ? 'show fewer' : `show ${part.items.length - GROUP_LISTED} more`, attrs: { 'data-more': gkey }, under: twoWay.isDated(group) ? 'dotday' : 'dot' }) : '';
   // The arrow folds; the words do not. A tag is a tag: it opens its page.
   const label = by === 'tag' && !part.none ? `<a class="th-tag lk-tag th-tw-tag th-tw-gname" data-tag-page="${esc(part.label)}" href="#">${esc(part.label)}</a>` : `<span class="th-tw-gname">${esc(part.label)}</span>`;
   return `<div class="th-tw-group"${open ? ' data-open=""' : ''}><div class="th-tw-ghead${plus ? ' lk-reveals' : ''}">${shared.outline.chev({ open, label: part.label, attrs: { 'data-gkey': gkey } })}<span class="th-tw-gwords">${label}<span class="lk-note th-tw-gn lk-count">${part.items.length}</span></span>${plus}</div>${open && adding ? twoWay.draftLineHtml(group, state.draft) : ''}${open ? `<div class="th-tw-gitems">${shown.map(item => twoWay.itemHtml(group, item, `r:${group.name}`, '', bare, tell)).join('')}${more}</div>` : more}</div>`;
@@ -185,6 +185,8 @@ async function groupMenu(group, anchor) {
       ...dates.map(([name, n]) => ({ icon: 'date', label: name, right: `${n} of ${group.items.length}`, chosen: day === `p:${name}`, run: () => pick(`p:${name}`) })),
       { label: 'No date', chosen: day === 'none', run: () => pick('none') });
   }
+  // What other pieces add to the menu (Sort, …), each in its own part of it.
+  for (const hook of twoWay.viewMenuHooks) { const more = hook(group) || []; if (more.length) { if (items.length) items.push({ sep: true }); items.push(...more); } }
   // Picking: the tick boxes on this list's lines, until the picks end (twoWay.stopPicking).
   const picking = state.selecting.has(group.name);
   if (items.length) items.push({ sep: true });
@@ -227,5 +229,45 @@ function setOpen(key, open) {
   try { host().defaultView.localStorage.setItem(OPEN_KEY, JSON.stringify(Object.fromEntries(state.open))); } catch { /* kept for this session */ }
 }
 
-Object.assign(twoWay, { dayChoice, dayOf, forgetOrder, groupBtn, groupHtml, groupMenu, groupName, groupOf, groupedUuids, groupingOf, isOpen, readGroup, readOpen, readValues, setGroupValue, setOpen, startGroupDraft, tellHtml, tellingProp });
+/* Lists in your order (C17, 7 November 2026): a list's name is dragged above or below another's; the order is kept for the
+   page (in Logseq's window storage, as the lists' open state is), and lists not placed keep Threads' own order after them. */
+const ORDER_KEY = 'thTwoWayListOrder';
+const readOrder = () => { try { return JSON.parse(host().defaultView.localStorage.getItem(ORDER_KEY) || '{}'); } catch { return {}; } };
+const saveOrder = all => { try { host().defaultView.localStorage.setItem(ORDER_KEY, JSON.stringify(all)); } catch { /* kept for this session */ } };
+function ordered(page, groups) {
+  const order = readOrder()[page?.uuid || state.pageUuid];
+  if (!Array.isArray(order) || !order.length) return groups;
+  const at = name => { const i = order.indexOf(name); return i < 0 ? order.length : i; };
+  return [...groups].sort((a, b) => at(a.name) - at(b.name));
+}
+twoWay.loadHooks.push(async (page, groups) => ordered(page, groups));
+function moveList(name, before) {
+  const names = state.groups.map(g => g.name).filter(n => n !== name);
+  const i = before ? names.indexOf(before) : names.length;
+  names.splice(i < 0 ? names.length : i, 0, name);
+  const was = readOrder(), all = { ...was, [state.pageUuid]: names };
+  saveOrder(all);
+  state.groups = ordered(null, state.groups); state.html = null; twoWay.draw(host());
+  twoWay.offerUndo(`“${name}” moved`, () => { saveOrder(was); state.groups = ordered(null, state.groups); if (!was[state.pageUuid]) twoWay.later(0); state.html = null; twoWay.draw(host()); }, name);
+}
+twoWay.starters.push(() => {
+  const doc = host();
+  let dragging = '';
+  const rowOf = t => t?.closest?.('.th-two-way .th-tw-row');
+  const start = e => { const nm = e.target.closest?.('.th-two-way .th-tw-name'); const row = nm && rowOf(nm); if (!row) return; dragging = row.dataset.field; e.dataTransfer?.setData('text/plain', dragging); if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'; row.classList.add('th-tw-dragging'); };
+  const over = e => { if (!dragging) return; const row = rowOf(e.target); if (!row) return; e.preventDefault(); e.stopPropagation(); for (const r of doc.querySelectorAll('.th-tw-row[data-drop]')) r.removeAttribute('data-drop'); const r = row.getBoundingClientRect(); row.setAttribute('data-drop', e.clientY < r.top + r.height / 2 ? 'above' : 'below'); };
+  const end = () => { dragging = ''; for (const r of doc.querySelectorAll('.th-tw-row[data-drop], .th-tw-dragging')) { r.removeAttribute('data-drop'); r.classList.remove('th-tw-dragging'); } };
+  const drop = e => {
+    if (!dragging) return; const row = rowOf(e.target); if (!row) return end(); e.preventDefault(); e.stopPropagation();
+    const name = dragging, where = row.getAttribute('data-drop'), target = row.dataset.field;
+    end();
+    if (target === name) return;
+    const names = state.groups.map(g => g.name), i = names.indexOf(target);
+    moveList(name, where === 'above' ? target : names[i + 1] === name ? names[i + 2] || '' : names[i + 1] || '');
+  };
+  // Taken before Logseq's own drag handling (it takes dragover on the page for moving blocks).
+  doc.addEventListener('dragstart', start, true); doc.addEventListener('dragover', over, true); doc.addEventListener('drop', drop, true); doc.addEventListener('dragend', end, true);
+  twoWay.onUnload(() => { doc.removeEventListener('dragstart', start, true); doc.removeEventListener('dragover', over, true); doc.removeEventListener('drop', drop, true); doc.removeEventListener('dragend', end, true); });
+});
+Object.assign(twoWay, { moveList, setGroup, dayChoice, dayOf, forgetOrder, groupBtn, groupHtml, groupMenu, groupName, groupOf, groupedUuids, groupingOf, isOpen, readGroup, readOpen, readValues, setGroupValue, setOpen, startGroupDraft, tellHtml, tellingProp });
 })();

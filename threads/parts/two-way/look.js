@@ -83,6 +83,66 @@ const twoWayCss = `
 .th-two-way .th-tw-draft { position: relative; display: grid; grid-template-columns: minmax(0, max-content) auto 1.4em 1fr; column-gap: .5em; align-items: baseline; margin: 0 -.35rem; padding: 0 .35rem 0 calc(var(--th-tw-in) + .35rem); cursor: text; }
 .th-two-way .th-tw-row { position: relative; }
 .th-two-way .th-tw-add { margin-left: .6em; }
+/* The + says what it adds under the pointer, in place, over what follows it (C20, 7 November 2026); nothing moves. */
+.th-two-way .th-tw-add { position: relative; }
+.th-two-way .th-tw-add::after { content: attr(data-what); position: absolute; left: 100%; top: 50%; transform: translateY(-50%); margin-left: 4px; padding: 0 6px 0 2px; white-space: nowrap; font-size: var(--lk-small); font-weight: 400; color: var(--lk-quiet); background: var(--ls-primary-background-color, var(--lk-paper, #fff)); opacity: 0; pointer-events: none; transition: opacity .12s; z-index: 2; }
+.th-two-way .th-tw-add:is(:hover, :focus-visible)::after { opacity: 1; }
+/* The quiet lines inside a list (earlier, since, a year, a gap) start at the nodes' dots, so they read as the list's own. */
+.th-two-way .th-tw-list .th-tw-earlier { margin-left: calc(2 * var(--th-tw-in)); }
+/* Since you last looked (N1): a small dot before a new node's name, in the link colour of Logseq, quiet. */
+.th-two-way .th-tw-new { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--rx-blue-09, #3b82f6); margin: 0 6px 0 0; vertical-align: 2px; }
+.th-two-way .th-tw-newcount { font-weight: 400; font-size: inherit; }
+.th-two-way .th-tw-newcount[aria-pressed="true"] { color: var(--lk-text, currentColor) !important; }
+/* A pinned node (N2): its pin before the name, faint; a gap of a line under the last pinned one. */
+.th-two-way .th-tw-pinned { color: var(--lk-faint); font-size: var(--lk-label); margin-right: 4px; }
+.th-two-way .th-tw-pingap { height: 10px; }
+/* What the list keeps saying (N6): one quiet line under the head; a value in force reads in the text colour. */
+.th-two-way .th-tw-keeps { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; margin: 0 0 4px calc(16px + var(--th-ol-gap)); font-size: var(--lk-small); color: var(--lk-quiet); }
+.th-two-way .th-tw-keepsword { color: var(--lk-faint); }
+.th-two-way .th-tw-keep { all: unset; cursor: pointer; color: var(--lk-quiet); text-decoration: underline; text-decoration-color: var(--lk-line); text-underline-offset: 3px; }
+.th-two-way .th-tw-keep:hover, .th-two-way .th-tw-keep[aria-pressed="true"] { color: var(--lk-text, currentColor); text-decoration-color: currentColor; }
+.th-two-way .th-tw-kname { color: var(--lk-faint); }
+.th-two-way .th-tw-sorted { color: var(--lk-quiet); font-weight: 400; }
+/* The year line (N3): a hairline-framed strip under the head, a dot per node at its day, the months under it; a picked week a wash. */
+.th-two-way .th-tw-yearline { position: relative; height: 34px; margin: 2px 0 8px calc(2 * var(--th-tw-in)); border-top: 1px solid var(--lk-hair); border-bottom: 1px solid var(--lk-hair); }
+.th-two-way .th-tw-ydot { all: unset; position: absolute; top: 8px; width: 7px; height: 7px; margin-left: -3.5px; border-radius: 50%; background: var(--lk-quiet); cursor: pointer; }
+.th-two-way .th-tw-ydot:hover, .th-two-way .th-tw-ydot:focus-visible { background: var(--lk-text, currentColor); box-shadow: 0 0 0 3px var(--lk-wash); }
+.th-two-way .th-tw-ydot.th-tw-yoff { opacity: .3; }
+.th-two-way .th-tw-ymonth { position: absolute; bottom: 1px; font-size: var(--lk-label); color: var(--lk-faint); transform: translateX(-2px); pointer-events: none; }
+.th-two-way .th-tw-yband { position: absolute; top: 0; bottom: 0; background: var(--lk-wash); pointer-events: none; }
+/* Saved views (N9): a quiet line under the find line. */
+.th-two-way .th-tw-views { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; margin-top: 4px; font-size: var(--lk-small); }
+.th-two-way .th-tw-viewname { all: unset; cursor: pointer; color: var(--lk-quiet); text-decoration: underline; text-decoration-color: var(--lk-line); text-underline-offset: 3px; }
+.th-two-way .th-tw-viewname:hover { color: var(--lk-text, currentColor); }
+/* The keyboard walk (N14): the name the keyboard is on reads with its underline and the line's wash. */
+.th-two-way a.th-tw-record:focus-visible { outline: none; text-decoration-color: currentColor !important; background: var(--lk-wash); border-radius: 3px; }
+/* Compare (N4): the two in a card, one property to a line; what differs in the text colour, what is the same quiet. */
+.th-tw-cmp { display: grid; grid-template-columns: max-content minmax(0, 1fr) minmax(0, 1fr); gap: 4px 14px; padding: 6px 12px 10px; font-size: var(--lk-small); line-height: 1.45; }
+.th-tw-cmph { font-weight: 600; padding-bottom: 4px; }
+.th-tw-cmpk { color: var(--lk-quiet); }
+.th-tw-cmpv.th-tw-cmpsame { color: var(--lk-quiet); }
+.th-tw-cmpnone { color: var(--lk-faint); }
+.th-tw-cmpline { padding-bottom: 2px; }
+/* A line dragged onto another list (N5): that list's head reads in the wash where it would land. */
+.th-two-way .th-tw-row[data-dropnode] > .th-tw-value > .th-tw-head { background: var(--lk-wash); border-radius: 4px; }
+.th-two-way .th-tw-line.th-tw-dragging { opacity: .45; }
+/* A list kept beside you (N15): a small panel at the window's right edge, Logseq's own paper and hairline. */
+.th-tw-dock { position: fixed; right: 16px; bottom: 56px; width: 280px; max-height: 46vh; overflow: auto; z-index: 9; padding: 8px 10px 10px; }   /* its frame is the library's lk-pop */
+.th-tw-dockhead { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding-bottom: 6px; }
+.th-tw-dockpage { color: var(--lk-quiet); }
+.th-tw-dockline { display: grid; grid-template-columns: 3.4em 1fr; gap: 6px; padding: 2px 4px; margin: 0 -4px; border-radius: 4px; color: inherit; text-decoration: none; }
+.th-tw-dockline:hover { background: var(--lk-wash); }
+.th-tw-dockday { color: var(--lk-faint); font-variant-numeric: tabular-nums; text-align: right; }
+/* A list dragged by its name (C17): where it would land, a hairline above or below the list it is over. */
+.th-two-way .th-tw-name[draggable="true"] { cursor: grab; }
+.th-two-way .th-tw-row.th-tw-dragging { opacity: .45; }
+.th-two-way .th-tw-row[data-drop="above"] { box-shadow: inset 0 2px 0 var(--lk-line); }
+.th-two-way .th-tw-row[data-drop="below"] { box-shadow: inset 0 -2px 0 var(--lk-line); }
+/* A week back, a week on, Today, under the find line while it holds a day (C15). */
+.th-two-way .th-tw-daysteps { margin-top: 4px; }
+/* The empty bullet at a node's end says what it is while the pointer is in the node or the caret in it (C13). */
+.th-two-way .th-ol-new input::placeholder { color: transparent; }
+.th-two-way .th-ol-kids:hover > .th-ol-in > .th-ol-new input::placeholder, .th-two-way .th-ol-new input:focus::placeholder { color: var(--lk-faint); }
 /* Date first in a short row, name first in a list (0.4.304): the same columns as the other kind, the other way round. */
 .th-two-way .th-tw-draft-plus { position: absolute; left: .35rem; width: 16px; height: 1.8em; display: inline-flex; align-items: center; justify-content: center; }   /* as tall as the words beside it */
 .th-two-way .th-tw-draft-plus::before { margin-right: 0; width: .75em; height: .75em; vertical-align: 0; }   /* the library's + mark, alone, centred in the line */
@@ -159,6 +219,11 @@ const twoWayCss = `
 .th-two-way .lk-row .lk-fold { opacity: 0 !important; }
 .th-two-way .lk-row:hover .lk-fold, .th-two-way .lk-fold:focus-visible { opacity: .6 !important; }
 .th-two-way .lk-row:hover .lk-fold:hover, .th-two-way .lk-fold:hover { opacity: 1 !important; }
+/* A list's head keeps its fold arrow in sight, faint, open or closed (7 November 2026, the owner: "make sure these chevrons are
+   always visible", beside "All 6"): the head is what folds the list, so its arrow is there to be seen; a node's arrow still waits for the pointer. */
+.th-two-way .lk-row.th-tw-head .lk-fold, .th-two-way .th-tw-ghead .lk-fold { opacity: .45 !important; }
+.th-two-way .lk-row.th-tw-head:hover .lk-fold, .th-two-way .th-tw-ghead:hover .lk-fold { opacity: .7 !important; }
+.th-two-way .lk-row.th-tw-head .lk-fold:hover, .th-two-way .th-tw-ghead .lk-fold:hover { opacity: 1 !important; }
 /* No grey under the pointer on a line (the owner, 7 November 2026: "lets remove the highlight as the cursor"); a line lit from the
    keyboard (.on) keeps it, and the picked lines keep theirs. */
 .th-two-way .lk-row:hover:not(.on) { background: transparent; }
@@ -262,7 +327,18 @@ const twoWayCss = `
 .th-two-way .th-ol-body > :is(.th-tw-add, .th-tw-groupby) { margin-left: .5em; }
 .th-two-way .th-tw-tell { margin-left: 6px; color: var(--lk-faint); font-size: var(--lk-small); white-space: nowrap; }
 /* Inside an opened node, the nodes that link to it (0.4.462): their line in words, then their rows one step in, each a dot and its day as on the rows. */
-.th-two-way .th-tw-links { color: var(--lk-quiet); font-size: var(--lk-small); line-height: 1.5; margin-top: 14px; padding: 0 0 1px; }
+.th-two-way .th-tw-links { margin-top: 14px; align-items: baseline; gap: 6px; }
+/* What links to an opened node, as a head (C4): its words in the head's weight, the kinds quiet after them. */
+.th-two-way :is(.th-tw-linkword, .th-tw-emptyword) { all: unset; cursor: pointer; }
+.th-two-way .th-tw-linkword { font-weight: 500; }
+.th-two-way :is(.th-tw-linkkinds, .th-tw-emptynames) { color: var(--lk-quiet); font-size: var(--lk-small); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The empty properties of an opened node, folded into one quiet line (C5). */
+.th-two-way .th-tw-empties { gap: 6px; align-items: baseline; color: var(--lk-quiet); }
+.th-two-way .th-tw-emptyword { color: var(--lk-quiet); }
+/* The names' column of an opened node fits its longest name (C6). */
+.th-two-way .th-ol-kids[style*="--th-tw-name"] > .th-ol-in { --th-ol-name: var(--th-tw-name); }
+/* Inside an opened node a name is never cut (C8): at any width it wraps whole. */
+.th-two-way .th-ol-kids .th-ol-body > .th-tw-record { display: block; -webkit-line-clamp: none; overflow: visible; }
 .th-two-way .th-tw-linked { padding-left: var(--th-tw-in); }
 
 /* A shifted section's top (0.4.463): the trail ends on it in bold; its properties; then "N nodes link here" on the

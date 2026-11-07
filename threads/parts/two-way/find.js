@@ -19,12 +19,14 @@ const FIND_FROM = 20; // the find line stands only when there are enough rows to
 const allPointing = () => new Set(state.groups.flatMap(g => g.items.map(item => item.uuid))).size;
 function findHtml() {
   const n = allPointing();
-  if (n < FIND_FROM && !state.find && !state.findShown) return '';
+  if (n < FIND_FROM && !state.find && !state.findShown && !twoWay.hasViews?.()) return '';
   const read = readFind(), found = state.find ? foundGroups().reduce((sum, g) => sum + g.items.length, 0) : 0;
   // The count says what the words did: the nodes found of all; on a day, up to it; a page named that is not there.
   const other = read.beside ? twoWay.besidePage?.() : null;
-  const count = !state.find ? n : read.beside && !other ? `no page “${read.beside}”` : other ? `beside ${other.title}` : read.asOf && !read.q ? `${found} of ${n} up to ${twoWay.dayText(read.asOf)}` : `${found} of ${n}`;
-  return `<div class="th-tw-findrow">${shared.fieldHtml({ icon: 'find', value: state.find, placeholder: 'Find in what points here', count, inputCls: 'th-tw-find', label: 'Find in what points here' })}</div>`;
+  const count = twoWay.askCount?.() || (!state.find ? n : read.beside && !other ? `no page “${read.beside}”` : other ? `beside ${other.title}` : read.asOf && !read.q ? `${found} of ${n} up to ${twoWay.dayText(read.asOf)}` : `${found} of ${n}`);
+  // On a day: a week back, a week on, and Today, so the day can be walked without typing it again (C15, 7 November 2026).
+  const steps = read.asOf ? `<div class="th-tw-daysteps lk-strip"><button type="button" class="lk-btn lk-low" data-daystep="-7" title="The page a week earlier">‹ a week earlier</button><button type="button" class="lk-btn lk-low" data-daystep="7" title="The page a week later">a week later ›</button><button type="button" class="lk-btn lk-low" data-daystep="0" title="Back to today's whole page">Today</button></div>` : '';
+  return `<div class="th-tw-findrow">${shared.fieldHtml({ icon: 'find', value: state.find, placeholder: 'Find in what points here', count, inputCls: 'th-tw-find', label: 'Find in what points here' })}${steps}${twoWay.viewsHtml?.() || ''}</div>`;
 }
 /* The find line's words read (7 November 2026): "and Dr. Helen Brooks" names a page to stand beside this one (parts/two-way/beside.js);
    "on Oct 7", "up to 7 Oct", "until 2026-10-07" turn the page back to that day, the later nodes faint; whatever is left
@@ -38,8 +40,30 @@ function readFind() {
   if (and) { beside = and[1].trim(); text = text.slice(0, and.index).trim(); }
   const on = text.match(/(?:^|\s)(?:on|up to|until|before)\s+(\d{4}-\d{1,2}-\d{1,2}|(?:\d{1,2}\s+[a-z]{3,9}|[a-z]{3,9}\.?\s+\d{1,2})(?:,?\s+\d{4})?)\s*$/i);
   if (on) { asOf = dayOf(on[1]); if (asOf) text = text.slice(0, on.index).trim(); }
+  // A question ("? when did the dose change") is asked of the matcher (parts/two-way/more.js), not found as letters.
+  if (text.startsWith('?')) text = '';
   return (readCache.text = state.find, readCache.read = { q: text.toLowerCase(), beside, asOf });
 }
+const DAY_WORDS = /\s*(?:^|\s)(?:on|up to|until|before)\s+(?:\d{4}-\d{1,2}-\d{1,2}|(?:\d{1,2}\s+[a-z]{3,9}|[a-z]{3,9}\.?\s+\d{1,2})(?:,?\s+\d{4})?)(?=\s+and\s+|\s*$)/i;
+// A week back or on from the day in force, written into the find line; 0 takes the day away.
+function stepDay(by) {
+  const { asOf } = readFind();
+  if (!asOf) return;
+  if (!by) state.find = String(state.find).replace(DAY_WORDS, '').trim();
+  else {
+    const d = new Date(Math.floor(asOf / 10000), Math.floor(asOf / 100) % 100 - 1, asOf % 100 + by);
+    const y = d.getFullYear(), label = `${MONTHS[d.getMonth()][0].toUpperCase()}${MONTHS[d.getMonth()].slice(1)} ${d.getDate()}${y !== Math.floor(twoWay.todayNumber() / 10000) ? ` ${y}` : ''}`;
+    state.find = String(state.find).replace(DAY_WORDS, ` on ${label}`).trim();
+  }
+  state.html = null; twoWay.draw(host());
+}
+twoWay.clickHooks.push(event => {
+  const b = event.target.closest?.('[data-daystep]');
+  if (!b) return false;
+  event.preventDefault(); event.stopPropagation();
+  stepDay(Number(b.dataset.daystep));
+  return true;
+});
 function dayOf(words) {
   const today = twoWay.todayNumber(), thisYear = Math.floor(today / 10000);
   let y = 0, m = 0, d = 0;

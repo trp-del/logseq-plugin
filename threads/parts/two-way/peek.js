@@ -42,7 +42,9 @@ function lineHtml(text, limit = 140) {
   const short = text.length > limit ? text.slice(0, limit - 1) + '…' : text;
   let html = '', at = 0;
   for (const m of short.matchAll(/\[([^\[\]]+)\]\(\[\[([^\]]+)\]\]\)|\[\[([^\]]+)\]\]/g)) {
-    html += esc(short.slice(at, m.index)) + `<span class="th-tw-peek-open lk-node" data-open-page="${esc(m[2] ?? m[3])}">${esc(m[1] ?? m[3])}</span>`;
+    const page = m[2] ?? m[3], words = m[1] ?? m[3];
+    // The page's own name reads plain on its page (C1, 7 November 2026): the title already says it, and it would open where you are.
+    html += esc(short.slice(at, m.index)) + (state.ownNames?.has(page.toLowerCase()) ? esc(words) : `<span class="th-tw-peek-open lk-node" data-open-page="${esc(page)}">${esc(words)}</span>`);
     at = m.index + m[0].length;
   }
   return html + esc(short.slice(at));
@@ -52,6 +54,15 @@ function findItem(uuid, rowEl) {
   return group ? { group, item: group.items.find(item => item.uuid === uuid) } : {};
 }
 function onOver(event) {
+  // A link in a line's words (N10, 7 November 2026): resting on it raises that page's card, as resting on a name raises the node's.
+  const wiki = event.target.closest?.('.th-two-way .th-tw-peek-open[data-open-page]');
+  if (wiki) {
+    clearTimeout(peek.hide);
+    if (peek.anchor === wiki && peek.card && !peek.card.isClosed) return;
+    clearTimeout(peek.timer);
+    peek.timer = setTimeout(() => showLinkPeek(wiki).catch(error => warnOnce('could not show the page card', error)), PEEK_MS);
+    return;
+  }
   const link = event.target.closest?.('a.th-tw-record');
   if (!link) return;
   clearTimeout(peek.hide);
@@ -60,7 +71,7 @@ function onOver(event) {
   peek.timer = setTimeout(() => showPeek(link).catch(error => warnOnce('could not show the node card', error)), PEEK_MS);
 }
 function onOut(event) {
-  if (!event.target.closest?.('a.th-tw-record')) return;
+  if (!event.target.closest?.('a.th-tw-record, .th-two-way .th-tw-peek-open')) return;
   clearTimeout(peek.timer);
   hidePeekSoon();
 }
@@ -91,6 +102,33 @@ function placePeek(card, link) {
   const pastFits = past + box.height <= card.ownerDocument.defaultView.innerHeight - 8;
   const y = fits && clear(under) ? under : aboveFits && clear(above) ? above : pastFits ? past : fits ? under : Math.max(48, above);
   Object.assign(card.style, { margin: '0', left: `${room ? left : at.left}px`, top: `${room ? top : y}px` });
+}
+// The card of the page a link names: its tag, its properties, its first lines; each piece opens what it names.
+async function showLinkPeek(wiki) {
+  const name = wiki.dataset.openPage;
+  const page = (await twoWay.provided.propPages().catch(() => [])).find(p => p.lower === name.toLowerCase());
+  if (!page?.uuid) return;
+  const data = await peekData(page.uuid, '');
+  if (!wiki.isConnected || !wiki.matches(':hover')) return;
+  // What points at that page, from the look-up of every page: its lists, by the property they come through.
+  const lists = (state.byPage.get(page.uuid) || []).filter(g => !twoWay.isMentions(g)).slice(0, 4)
+    .map(g => ({ name: g.label, uuid: '', values: [{ text: `${g.items.length} ${twoWay.plural(twoWay.tagWord(g.items[0]?.tag || 'note'), g.items.length)}`, uuid: '' }] }));
+  if (!data.rows.length && !data.lines.length && !lists.length) return;
+  hidePeek();
+  const card = peek.card = shared.card({ doc: wiki.ownerDocument, at: wiki, title: page.title,
+    fields: [...data.rows.map(row => ({ name: row.name, uuid: row.uuid, values: row.values })), ...lists],
+    lines: data.lines.map(line => ({ uuid: line.uuid, html: lineHtml(line.text) })),
+    open: (what, value, event) => {
+      const inner = event?.target?.closest?.('[data-open-page]')?.dataset.openPage;
+      hidePeek();
+      if (inner) return openPage(inner, event.shiftKey);
+      return openEntity((what === 'prop' || what === 'value' || what === 'line') && value?.uuid ? value.uuid : page.uuid, event.shiftKey);
+    } });
+  card.el.classList.add('th-two-way-peek');
+  placePeek(card.el, wiki);
+  card.el.addEventListener('mouseenter', () => clearTimeout(peek.hide));
+  card.el.addEventListener('mouseleave', hidePeekSoon);
+  peek.anchor = wiki;
 }
 async function showPeek(link) {
   const { group, item } = findItem(link.dataset.uuid, link.closest('.th-tw-row'));

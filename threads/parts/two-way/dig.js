@@ -38,13 +38,17 @@ function digKids(key, uuid, from) {
   const data = state.node.get(uuid);
   if (!data) return '';
   const fresh = state.fresh === key;
-  return O.kids({ html: nodeHtml(uuid, key, data), from, fresh, attrs: { 'data-key': key } });
+  // The names' column as wide as the longest name it holds, so none breaks onto two lines (C6, 7 November 2026), within
+  // 7em and 16em: past that a name wraps between its words.
+  const longest = Math.max(0, ...data.props.filter(r => r.values.length || state.emptyOpen.has(key) || data.guesses.has(r.prop.ident)).map(r => r.prop.title.length), ...data.rows.map(g => String(g.label || '').length));
+  const name = `clamp(7em, calc(${longest} * .56em + 42px), 16em)`;
+  return O.kids({ html: nodeHtml(uuid, key, data), from, fresh, attrs: { 'data-key': key, style: `--th-tw-name: ${name}` } });
 }
 function nodeHtml(uuid, key, data, asTop = false) {
   const path = [...state.steps.map(s => s.uuid), ...pathOf(key)];
   // Opened by the find field: only its lines that hold the words, as they read when the node is dug.
   const onlyFound = state.findDug.get(key) === true && !!state.find.trim();
-  let html = '';
+  let html = '', empties = '', emptyNames = [];
   // A value that is the way back (this page, or the node above) is left out: the row's property, on the left of the line
   // it opened from, already says how the node is tied here, and a thread cannot loop back on itself (the owner, 0.4.451:
   // the line saying it again inside was "not right"). A property holding only the way back goes with it.
@@ -66,6 +70,8 @@ function nodeHtml(uuid, key, data, asTop = false) {
       // Several words or numbers: each its own, changed one at a time; the property's name adds another.
       const one = (text, at = '') => `<button type="button" class="th-tw-npvalue${values.length ? '' : ' th-faint'}" data-edit="${esc(prop.ident)}" data-uuid="${esc(uuid)}"${at} title="Change “${esc(prop.title)}”">${esc(text)}</button>`;
       const typed = !['choice', 'checkbox', 'date', 'datetime'].includes(kind);
+      // Empty, it folds with the others into one line (C5, 7 November 2026: an empty property folds until you want it).
+      if (!values.length && !onlyFound) { emptyNames.push(prop.title); empties += O.prop({ kind, many: prop.many, name: prop.title, nameAttrs, cls: found, value: one('empty') }); continue; }
       html += O.prop({ kind, many: prop.many, name: prop.title, nameAttrs, cls: found, value: !values.length ? one('empty') : typed && prop.many ? `<span>${values.map((v, i) => `<span>${one(v.text, ` data-value="${i}"`)}</span>`).join(', ')}</span>` : one(values.map(v => v.text).join(', ')) });
       continue;
     }
@@ -77,6 +83,10 @@ function nodeHtml(uuid, key, data, asTop = false) {
     });
   }
   if (onlyFound) return html + O.more({ text: 'show the rest', attrs: { 'data-findall': key } });
+  if (emptyNames.length) {
+    const open = state.emptyOpen.has(key);
+    html += `<div class="th-ol-line th-tw-empties">${O.chev({ open, label: `${emptyNames.length} empty`, attrs: { 'data-empties': key } })}<a href="#" class="th-tw-toggle th-tw-emptyword" data-empties="${esc(key)}" title="${esc(emptyNames.join(', '))}">${emptyNames.length} empty</a>${open ? '' : `<span class="th-tw-emptynames">${esc(emptyNames.join(', '))}</span>`}</div>${open ? empties : ''}`;
+  }
   if (data.guesses.size > 1 && data.props.filter(r => !r.values.length && data.guesses.has(r.prop.ident)).length > 1) html += O.more({ text: 'Take what is proposed', cls: 'lk-lone lk-i-tick', attrs: { 'data-takeall': uuid } });
   /* The nodes that link to it, after its own properties, under a line saying so: "2 nodes link here"
      (0.4.462, the owner's pick 2 of the two-way fixes: the same property
@@ -95,12 +105,15 @@ function nodeHtml(uuid, key, data, asTop = false) {
         const line = O.prop({ kind: g.kind || 'node', many: g.many, name: i ? '' : g.label, cls: 'th-tw-back', value: `${digChev(k, item.uuid, 0, twoWay.shortName(item.title), open)}${O.dot(false, { uuid: item.uuid, closed: !open && twoWay.hasKids(item.uuid), title: twoWay.shortName(item.title) })}${O.day(twoWay.dayCell(item) || (dated ? '' : null))}<span class="th-ol-body">${twoWay.nameHtml(item, open)}</span>` });
         lines += open ? O.unit({ html: line + digKids(k, item.uuid, 'prop'), focus: state.focus === k, attrs: { 'data-key': k } }) : line;
       });
-      if (items.length > twoWay.INLINE) lines += O.more({ text: all ? 'show fewer' : 'show all', attrs: { 'data-nall': allKey }, under: 'value' });
+      if (items.length > twoWay.INLINE) lines += O.more({ text: all ? 'show fewer' : `show ${items.length - twoWay.INLINE} more`, attrs: { 'data-nall': allKey }, under: 'value' });
     }
-    html += `<div class="th-tw-links" title="${esc(`${many} ${many === 1 ? 'node links' : 'nodes link'} to ${twoWay.shortName(titleOf(uuid))}`)}"><span class="lk-count">${many}</span> ${many === 1 ? 'node links' : 'nodes link'} here</div><div class="th-tw-linked">${lines}</div>`;
+    // A head like a list's (C4, 7 November 2026): its fold arrow, its count in the words, what kinds; folded, it says them.
+    const shut = state.linksShut.has(key);
+    const kinds = [...new Set(linking.flatMap(r => r.items.map(item => item.tag && item.tag !== 'note' ? twoWay.plural(twoWay.tagWord(item.tag), 2) : '')).filter(Boolean))].slice(0, 3).join(', ');
+    html += `<div class="th-ol-line th-tw-links" title="${esc(`${many} ${many === 1 ? 'node links' : 'nodes link'} to ${twoWay.shortName(titleOf(uuid))}`)}">${O.chev({ open: !shut, label: `${many} link here`, attrs: { 'data-links': key } })}<a href="#" class="th-tw-toggle th-tw-linkword" data-links="${esc(key)}">${many} link here</a>${kinds ? `<span class="th-tw-linkkinds">${esc(kinds)}</span>` : ''}</div>${shut ? '' : `<div class="th-tw-linked">${lines}</div>`}`;
   }
   // Its words are changed where they stand (editBullet): a click, or Enter once Tab has reached them; its dot opens it.
-  for (const line of data.bullets) html += O.bullet({ html: twoWay.lineHtml(line.text, 400), closed: twoWay.hasKids(line.uuid), attrs: { 'data-bullet': line.uuid }, wordsAttrs: { tabindex: '0', 'data-edit-bullet': line.uuid } });
+  for (const line of data.bullets) html += O.bullet({ html: twoWay.lineHtml(line.text, 400) + (twoWay.bulletTail?.(line.uuid) || ''), closed: twoWay.hasKids(line.uuid), attrs: { 'data-bullet': line.uuid }, wordsAttrs: { tabindex: '0', 'data-edit-bullet': line.uuid } });
   if (data.more) html += O.more({ text: 'show all its bullets', attrs: { 'data-ball': uuid } });
   html += O.newBullet({ label: `A new bullet inside ${twoWay.shortName(titleOf(uuid))}`, attrs: { class: 'th-tw-node-field', 'data-uuid': uuid, 'data-key': key } });
   return html;
@@ -151,7 +164,7 @@ function readNode(uuid, id, { look = false } = {}) {
     await twoWay.readKids([...rows.flatMap(g => g.items.map(item => item.uuid)), ...lines.map(line => line.uuid)]);
     // And the node itself, read again here after a bullet is written in it or emptied, so its own dot is right once it folds.
     if (bullets.some(line => line.text)) state.kids.add(String(uuid).toLowerCase()); else state.kids.delete(String(uuid).toLowerCase());
-    state.node.set(uuid, { props: kept, rows, tags, bullets: bullets.filter(line => line.text).slice(0, most), more: lines.length > most,
+    state.node.set(uuid, { props: kept, rows, tags, bullets: bullets.filter(line => line.text || state.keepEmpty.has(line.uuid)).slice(0, most), more: lines.length > most,
       guesses: new Map(guesses.filter(g => empty.has(g.ident) && (g.kind !== 'day' || g.journalId)).map(g => [g.ident, g])) });
   })().finally(() => reading.delete(key));
   reading.set(key, job);
@@ -355,11 +368,34 @@ async function writeBullet(uuid, key, typed) {
    place at once, never the old ones for a moment. The faded Undo arrow puts the old words back, unless the bullet has
    changed since (in Logseq, say), when it stays and says so. The bullet's dot opens it, as the whole line did before. */
 const ownerOf = bullet => { for (const [uuid, data] of state.node) if (data.bullets.some(line => line.uuid === bullet)) return uuid; return ''; };
+/* Enter keeps the words and starts the next bullet under them, the caret in it, as Enter does in Logseq (C12, 7 November 2026);
+   Escape, or the new bullet left empty, takes the new one away again. A click away just keeps. */
 async function editBullet(uuid) {
+  const how = await editBulletOnce(uuid);
+  if (how !== 'enter') return;
+  const owner = ownerOf(uuid);
+  if (!owner) return;
+  const block = await twoWay.model.insertBlock(uuid, '', { sibling: true, focus: false }).catch(error => { warnOnce('could not start the next bullet', error); return null; });
+  if (!block?.uuid) return;
+  const made = String(block.uuid);
+  state.keepEmpty.add(made);
+  await readAgain(owner);
+  await editBulletOnce(made, { fresh: true });
+  state.keepEmpty.delete(made);
+  const words = await twoWay.provided.titleNow(made).catch(() => '');
+  if (!String(words || '').trim()) { await twoWay.model.removeBlock(made).catch(() => {}); await readAgain(owner); return; }
+  await readAgain(owner);
+  const group = state.groups.find(g => g.items.some(item => item.uuid === owner));
+  await twoWay.offerMade(made, `Added a bullet to “${twoWay.shortName(titleOf(owner))}”`, async () => { await twoWay.model.removeBlock(made); await readAgain(owner); twoWay.later(300); }, group?.name, twoWay.inBox(`[data-edit-bullet="${CSS.escape(made)}"]`));
+  twoWay.later(300);
+}
+async function editBulletOnce(uuid, { fresh = false } = {}) {
   const find = twoWay.inBox(`[data-edit-bullet="${CSS.escape(uuid)}"]`);
-  if (!find() || find().querySelector('.th-in-place')) return;
-  const stored = await twoWay.provided.titleNow(uuid);
-  if (stored == null || !find()) return;
+  if (!find() || find().querySelector('.th-in-place')) return '';
+  // A bullet just made empty has no words stored yet: it starts from nothing.
+  const stored = (await twoWay.provided.titleNow(uuid)) ?? (fresh ? '' : null);
+  if (stored == null || !find()) return '';
+  let ended = '';
   const words = String(await twoWay.provided.readableTitle(stored, { pagesOnly: true, asShown: true }) ?? stored);
   // The words are saved as they are typed, as in Logseq's own bullets (the owner, 7 November 2026: "you shouldn't need to press
   // enter for text to save"): a pause in typing writes them; Enter, a click away or leaving the page keeps the last of them.
@@ -374,7 +410,7 @@ async function editBullet(uuid) {
     twoWay.peek.cache.clear();
   }).catch(error => { warnOnce('could not change the bullet', error); notify('The bullet could not be changed', 'warning'); }));
   const onType = text => { clearTimeout(timer); timer = setTimeout(() => save(text), 400); };
-  const typed = await shared.editInPlace({ at: find(), value: words, wrap: true, again: find, onType, show: text => text.trim() ? twoWay.lineHtml(text.trim(), 400) : null });
+  const typed = await shared.editInPlace({ at: find(), value: words, wrap: true, again: find, onType, onEnd: how => { ended = how; }, show: text => text.trim() ? twoWay.lineHtml(text.trim(), 400) : null });
   clearTimeout(timer);
   const next = typed?.trim();
   // Escape, or the words emptied: the bullet goes back to what it was, even if a pause had saved some of the typing.
@@ -382,7 +418,8 @@ async function editBullet(uuid) {
   if (next) await save(next); else { await saving; if (written !== stored.trim()) { await twoWay.model.setWords(uuid, stored); written = stored.trim(); reverted = true; } }
   await saving;
   const owner = ownerOf(uuid);
-  if (written === stored.trim()) { if (reverted && owner) await readAgain(owner); return; }
+  if (written === stored.trim()) { if (reverted && owner) await readAgain(owner); return ended; }
+  if (fresh) return ended;   // a bullet just started by Enter: its Undo is the one that takes it away
   const wrote = await twoWay.provided.titleNow(uuid);
   twoWay.peek.cache.clear();
   if (owner) await readAgain(owner); else twoWay.later(0);
@@ -398,7 +435,24 @@ async function editBullet(uuid) {
     twoWay.later(300);
   }, group?.name, find);
   twoWay.later(300);
+  return ended;
 }
+/* Cmd-Z (Ctrl-Z) presses Threads' faded arrow while the keyboard is in the section and the arrow is on screen (C18, 7 November
+   2026); anywhere else, or while typing, the key stays Logseq's. */
+twoWay.starters.push(() => {
+  const doc = host();
+  const onKey = event => {
+    if (event.key?.toLowerCase() !== 'z' || !(event.metaKey || event.ctrlKey) || event.shiftKey || event.altKey) return;
+    const at = doc.activeElement;
+    if (!at?.closest?.('.th-two-way') || at.closest('input, textarea, [contenteditable="true"]')) return;
+    const keys = [...(shared.undo.keys?.() || [])].filter(k => String(k).startsWith('two-way:'));
+    if (!keys.length) return;
+    event.preventDefault(); event.stopPropagation();
+    shared.undo.take(keys[keys.length - 1]);
+  };
+  doc.addEventListener('keydown', onKey, true);
+  twoWay.onUnload(() => doc.removeEventListener('keydown', onKey, true));
+});
 // The way in from the keyboard: Enter on a bullet's words, as Enter on a selected bullet in Logseq.
 twoWay.starters.push(() => {
   const onKey = event => {
@@ -509,6 +563,10 @@ function onOutlineClick(event) {
   // The rest of a node the find field opened: it stays open, whole, as if dug.
   const findall = t.closest('[data-findall]');
   if (findall) { stop(); state.findDug.set(findall.dataset.findall, false); state.html = null; twoWay.draw(host()); return true; }
+  const links = t.closest('[data-links]');
+  if (links) { stop(); const k = links.dataset.links; if (state.linksShut.has(k)) state.linksShut.delete(k); else state.linksShut.add(k); state.html = null; twoWay.draw(host()); return true; }
+  const emp = t.closest('[data-empties]');
+  if (emp) { stop(); const k = emp.dataset.empties; if (state.emptyOpen.has(k)) state.emptyOpen.delete(k); else state.emptyOpen.add(k); state.html = null; twoWay.draw(host()); return true; }
   const nall = t.closest('[data-nall]');
   if (nall) { stop(); const key = nall.dataset.nall; if (state.nall.has(key)) state.nall.delete(key); else state.nall.add(key); state.html = null; twoWay.draw(host()); return true; }
   const ball = t.closest('[data-ball]');

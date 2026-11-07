@@ -77,7 +77,7 @@ function sideList(group, key) {
   // The head names the one kind: the lines leave the tag out, as the rows do.
   const bare = new Set(group.items.map(item => item.tag)).size === 1;
   const lines = shown.map(item => O.line({ dot: { uuid: item.uuid, title: twoWay.shortName(item.title) }, day: twoWay.dayCell(item) || (group.items.some(twoWay.dayCell) ? '' : null), body: twoWay.nameHtml(bare ? { ...item, tag: '' } : item, false, bare), cls: 'th-tw-line th-tw-bline', attrs: { 'data-uuid': item.uuid } })).join('');
-  const more = group.items.length > SHOWN ? O.more({ text: all ? 'show fewer' : `show all ${group.items.length}`, attrs: { class: null, 'data-more': key }, under: group.items.some(twoWay.dayCell) ? 'dotday' : 'dot' }) : '';
+  const more = group.items.length > SHOWN ? O.more({ text: all ? 'show fewer' : `show ${group.items.length - SHOWN} more`, attrs: { class: null, 'data-more': key }, under: group.items.some(twoWay.dayCell) ? 'dotday' : 'dot' }) : '';
   return `<div class="th-ol th-tw-bside">${lines}${more}</div>`;
 }
 function besideHtml(b) {
@@ -87,10 +87,16 @@ function besideHtml(b) {
   const held = fields => name => (fields.get(name) || []).some(v => valueText(v));
   const own = [...new Set([...b.mine.keys(), ...b.theirs.keys()])].filter(name => held(b.mine)(name) || held(b.theirs)(name));
   const prop = name => `<div class="th-tw-name lk-prop th-tw-bprop"><span class="th-kind">${shared.kindIconHtml('node')}</span>${esc(name)}</div>`;
-  let html = `<div class="th-tw-beside" data-beside="${esc(b.uuid)}"><div></div><div class="th-tw-bhead"><span class="th-tw-btitle">${esc(state.pageTitle)}</span></div><div class="th-tw-bhead"><a href="#" class="th-tw-btitle th-tw-bpage lk-node" data-uuid="${esc(b.uuid)}" title="Open ${esc(b.title)}, with ${esc(state.pageTitle)} beside it">${esc(b.title)}</a></div>`;
-  for (const name of own) html += `${prop(name)}<div class="th-tw-bown">${fieldsHtml(b.mine, name)}</div><div class="th-tw-bown">${fieldsHtml(b.theirs, name)}</div>`;
+  // Only what differs (C14, 7 November 2026): a property both pages hold alike, or a list holding the same nodes on both, is left out.
+  const diff = !!state.besideDiff;
+  const sameOwn = name => fieldsHtml(b.mine, name) === fieldsHtml(b.theirs, name);
+  const sameRow = (a, c) => !!a && !!c && a.items.length === c.items.length && a.items.every(item => c.items.some(x => x.uuid === item.uuid));
+  const toggle = `<button type="button" class="lk-btn lk-low th-tw-bdiff" data-bdiff="" aria-pressed="${diff}" title="Leave out what the two pages hold alike">${diff ? 'only what differs ✓' : 'only what differs'}</button>`;
+  let html = `<div class="th-tw-beside" data-beside="${esc(b.uuid)}"><div>${toggle}</div><div class="th-tw-bhead"><span class="th-tw-btitle">${esc(state.pageTitle)}</span></div><div class="th-tw-bhead"><a href="#" class="th-tw-btitle th-tw-bpage lk-node" data-uuid="${esc(b.uuid)}" title="Open ${esc(b.title)}, with ${esc(state.pageTitle)} beside it">${esc(b.title)}</a></div>`;
+  for (const name of own) if (!diff || !sameOwn(name)) html += `${prop(name)}<div class="th-tw-bown">${fieldsHtml(b.mine, name)}</div><div class="th-tw-bown">${fieldsHtml(b.theirs, name)}</div>`;
   for (const name of names) {
     const a = mine.find(g => g.name === name), c = b.groups.find(g => g.name === name);
+    if (diff && sameRow(a, c)) continue;
     const label = (a || c).label;
     html += `${prop(label)}<div class="th-tw-bcell${a ? '' : ' th-tw-bnone'}">${sideHead(a)}${sideList(a, `${state.pageUuid}|${name}|beside`)}</div><div class="th-tw-bcell${c ? '' : ' th-tw-bnone'}">${sideHead(c)}${sideList(c, `${b.uuid}|${name}|beside`)}</div>`;
   }
@@ -98,6 +104,7 @@ function besideHtml(b) {
 }
 // The other page's title opens that page with this one beside it; the pair stays, the other way round.
 function pieceClick(event) {
+  if (event.target.closest?.('[data-bdiff]')) { event.preventDefault(); event.stopPropagation(); state.besideDiff = !state.besideDiff; state.html = null; twoWay.draw(host()); return true; }
   const other = event.target.closest?.('.th-tw-bpage');
   if (!other) return false;
   event.preventDefault(); event.stopPropagation();
