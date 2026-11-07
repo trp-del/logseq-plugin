@@ -311,7 +311,7 @@ function shortName(title) {
    end of the last node of a short row, after the summary of a list. A click opens
    the line to type the new node in. Since 0.4.297 a short row's nodes span the row so their tags line up, so the + sits
    just after the last node's date (or name). The library's lk-plus. */
-const addLink = group => group.ident && state.draft?.field !== group.name ? `<button type="button" class="lk-plus th-tw-add" data-field="${esc(group.name)}" title="Add a${/^[aeiou]/i.test(twoWay.kindsOf(group)[0] || '') ? 'n' : ''} ${esc(twoWay.kindsOf(group)[0] || 'node')} with “${esc(group.name)}” set to this page">+</button>` : '';
+const addLink = group => group.ident && state.draft?.field !== group.name ? `<button type="button" class="lk-plus lk-i-plus th-tw-add" aria-label="Add" data-field="${esc(group.name)}" title="Add a${/^[aeiou]/i.test(twoWay.kindsOf(group)[0] || '') ? 'n' : ''} ${esc(twoWay.kindsOf(group)[0] || 'node')} with “${esc(group.name)}” set to this page"></button>` : '';
 // The kit's tick box, in the margin left of the record (0.4.228; the kit's since 0.4.318).
 const pickBox = (group, item) => state.drawingTop ? '' : pickOn(group, item);
 const pickOn = (group, item) => { const key = `${item.uuid}|${group.name}`, on = state.picked.has(key); state.listed.push(key); return `<input type="checkbox" class="lk-tick th-tw-pick" data-pick="${esc(key)}"${on ? ' checked' : ''} aria-label="Pick" title="Pick (Shift-click: every one from the last picked)">`; };

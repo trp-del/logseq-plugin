@@ -26,9 +26,11 @@ const css = `
 .lk-valpress:focus-visible { outline: none !important; box-shadow: none !important; }
 /* With the keyboard on the press, the property's capsule takes the press in. */
 ${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill:has(.lk-valpress:focus-visible)::after { right: -26px !important; }
-/* How it shows, grey then darker near it, is the library's lk-reveal; the + a size up. */
+/* How it shows, grey then darker near it, is the library's lk-reveal; the +'s size is the library's, the chevron's. */
 .lk-valpress > span { color: inherit; background: none !important; }
-.lk-valpress.lk-plus > span::before { width: 1.3em; height: 1.3em; }
+/* On the press itself the round wash sits on its mark, not on the room before it. */
+.lk-valpress.lk-reveal:is(:hover, :focus-visible) { background: none !important; }
+.lk-valpress:is(:hover, :focus-visible) > span { background: var(--lk-wash) !important; }
 .lk-valpress > span::before { margin-right: 0 !important; }
 /* Logseq greys the whole value box under the pointer, a sign the box opens its list; the name opens its page now, so only the
    name's own wash shows (style.js), as on any link. */

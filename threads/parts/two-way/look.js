@@ -72,7 +72,8 @@ const twoWayCss = `
 .th-two-way .th-tw-row { position: relative; }
 .th-two-way .th-tw-add { margin-left: .6em; }
 /* Date first in a short row, name first in a list (0.4.304): the same columns as the other kind, the other way round. */
-.th-two-way .th-tw-draft-plus { position: absolute; left: calc(.35rem + 3px); width: 16px; text-align: center; }
+.th-two-way .th-tw-draft-plus { position: absolute; left: calc(.35rem + 3px); width: 16px; height: 1.8em; display: inline-flex; align-items: center; justify-content: center; }   /* as tall as the words beside it */
+.th-two-way .th-tw-draft-plus::before { margin-right: 0; width: .75em; height: .75em; vertical-align: 0; }   /* the library's + mark, alone, centred in the line */
 .th-two-way .th-tw-draft-main { display: flex; align-items: baseline; gap: .5em; min-width: 0; }
 .th-two-way .th-tw-draft-main .th-field { flex: 1; min-width: 0; }
 /* No line under the box for a new node (0.4.400, the owner: it read as a link or a filled value beside the real links); its
@@ -140,7 +141,6 @@ const twoWayCss = `
 .th-two-way .th-tw-chev::before { margin: 0 0 0 .1em !important; opacity: .75; }
 /* The picked nodes on one grey ground, so the eye sees which they are. */
 .th-two-way .th-tw-line:has(> input.th-tw-pick:checked) { background: var(--lk-wash); box-shadow: -40px 0 0 var(--lk-wash), 12px 0 0 var(--lk-wash); border-radius: 0; }
-.th-two-way :is(.th-tw-add, .th-tw-gadd):focus-visible { outline: none; background: var(--lk-wash); }
 
 /* The rows on the kit's outline (0.4.442): each node a line, the tick box in the margin, the day in its column, the one
    chevron right before the name; a list opens under its count with no line of its own; what a node holds opens under
@@ -158,6 +158,8 @@ const twoWayCss = `
 .th-two-way { --th-tw-in: 22px; } /* the chevron and its gap (16px + 6px, --th-ol-gap is set further in) */
 .th-two-way .th-tw-head .th-tw-toggle, .th-two-way .th-tw-head .th-tw-chips { font-weight: 500; }
 .th-two-way .th-tw-head .th-tw-chips { gap: .3rem 1.05rem; align-items: baseline; min-width: 0; overflow: hidden; }
+/* The words' wash reaches .25em past them (padding given back by margin): the clip edge stands that far out too, so the first letter is never cut. */
+.th-two-way .th-tw-head .th-tw-chips { padding-inline: .25em; margin-inline: -.25em; }
 .th-two-way .th-tw-head .th-tw-toggle.th-tw-lead, .th-two-way .th-tw-head .th-chip.th-tw-lead[aria-pressed="true"] { color: inherit; font-weight: 500; font-size: inherit; }
 .th-two-way .th-tw-head :is(.th-tw-chip:not(.th-tw-lead), .th-tw-when) { font-weight: 400; color: var(--lk-quiet); font-size: inherit; }
 .th-two-way .th-tw-head .th-tw-chip[aria-pressed="true"] { color: inherit; font-weight: 600; }

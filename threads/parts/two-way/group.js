@@ -60,7 +60,7 @@ function groupHtml(group, part, by) {
   const adding = state.draft?.field === group.name && state.draft.gkey === gkey;
   // The + puts a node here with the row's field pointing at this page and the group's value set (not for a month, nor for "none").
   const addable = group.ident && by !== 'month' && (by === 'tag' || !part.none);
-  const plus = addable ? `<button type="button" class="lk-plus lk-reveal th-tw-gadd" data-gkey="${esc(gkey)}" data-field="${esc(group.name)}" title="Add a node here: “${esc(group.name)}” set to this page${by === 'tag' ? `, tagged ${esc(part.label)}` : `, ${esc(groupName(by))} set to ${esc(part.label)}`}">+</button>` : '';
+  const plus = addable ? `<button type="button" class="lk-plus lk-i-plus lk-reveal th-tw-gadd" aria-label="Add" data-gkey="${esc(gkey)}" data-field="${esc(group.name)}" title="Add a node here: “${esc(group.name)}” set to this page${by === 'tag' ? `, tagged ${esc(part.label)}` : `, ${esc(groupName(by))} set to ${esc(part.label)}`}"></button>` : '';
   const shown = all ? part.items : part.items.slice(0, GROUP_LISTED);
   // The group's heading names the tag, or the list's does when it holds one kind (0.4.462).
   const bare = (by === 'tag' && !part.none) || new Set(group.items.map(item => item.tag)).size === 1;

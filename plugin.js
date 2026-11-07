@@ -332,7 +332,7 @@ Door.NAMES = `${TOKENS}
 .lk-row:hover .lk-fold, .lk-row.on .lk-fold, .lk-fold[aria-expanded="true"], .lk-fold:focus-visible { opacity: .6 !important; }
 /* The row the keyboard is on (on), or the pointer: the one wash. */
 .lk-row:hover, .lk-row.on { background: var(--lk-wash); }
-.lk-row:hover .lk-fold:hover { opacity: 1 !important; }
+.lk-row:hover .lk-fold:hover, .lk-fold:hover { opacity: 1 !important; }
 .lk-list .lk-tick { opacity: 0 !important; transition: opacity .12s; }
 .lk-list:hover .lk-tick, .lk-list:focus-within .lk-tick, .lk-list[data-picking] .lk-tick { opacity: .55 !important; }
 .lk-list .lk-tick:checked, .lk-list .lk-tick:hover { opacity: 1 !important; }
@@ -370,8 +370,14 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
 .lk-more { text-decoration: underline !important; text-decoration-color: var(--lk-line) !important; text-underline-offset: 3px; }   /* it opens, so it reads as what opens */
 .lk-add:hover, .lk-more:hover, .lk-add:focus-visible, .lk-more:focus-visible { color: var(--lk-text, currentColor) !important; }
 .lk-x, .lk-plus, .lk-change { color: var(--lk-dim) !important; padding: 0 4px; }
-.lk-x:hover, .lk-plus:hover, .lk-change:hover, .lk-x:focus-visible, .lk-plus:focus-visible, .lk-change:focus-visible { color: var(--lk-text, currentColor) !important; }
-.lk-change::before { margin-right: 0 !important; }   /* the chevron alone, lk-i-chevron, no word after it */
+.lk-x:hover, .lk-plus:hover, .lk-change:hover, .lk-x:focus-visible, .lk-plus:focus-visible, .lk-change:focus-visible { color: var(--lk-text, currentColor) !important; background: var(--lk-wash); }
+/* Their mark alone (lk-i-plus, lk-i-chevron), no word after it. The faint grey sits close to the text colour, so the round wash is what
+   shows the pointer has it, as on a level-3 button; a press that shows only near its holder (lk-reveal) takes it too, on the press itself. */
+.lk-change::before, .lk-plus::before { margin-right: 0 !important; }
+/* The + is the size of the chevron beside it (the owner, 7 November 2026: "it should be size of chevron"): its arms span the chevron's width. */
+.lk-plus:is(.lk-i-plus, :has(> .lk-i-plus)), .lk-plus > .lk-i-plus { display: inline-flex; align-items: center; justify-content: center; }
+.lk-plus.lk-i-plus { width: 20px; height: 20px; padding: 0 !important; flex: none; }   /* a round place the size of the fold arrow's, so the wash is a small square, not a strip */
+.lk-plus.lk-i-plus::before, .lk-plus > .lk-i-plus::before { width: .75em !important; height: .75em !important; vertical-align: middle; }
 /* A press that shows only while what it acts on is pointed at (the owner, 4 November 2026: "it disappears when I move the cursor over
    it", "grey, then darker upon closer, more drastic"). It is light grey while its holder is pointed at and the text colour near it; a
    zone round it (::after) catches the pointer, so moving onto it never loses it; it fades only after a moment. Hidden, it takes no
@@ -379,7 +385,7 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
 .lk-reveal { position: relative; opacity: 0; pointer-events: none; transition: opacity .12s ease .35s, color .1s ease; color: color-mix(in srgb, var(--lk-text, currentColor) 30%, transparent) !important; background: none !important; }
 .lk-reveal::after { content: ''; position: absolute; inset: -9px -6px; }
 .lk-reveals:hover .lk-reveal, .lk-reveal:focus-visible { opacity: 1; pointer-events: auto; transition-delay: 0s, 0s; }
-.lk-reveal:is(:hover, :focus-visible) { color: var(--lk-text, currentColor) !important; }
+.lk-reveal:is(:hover, :focus-visible) { color: var(--lk-text, currentColor) !important; background: var(--lk-wash) !important; }   /* on the press itself: the round wash too, as on every press */
 .lk-reveal:focus-visible { outline: none; }
 .lk-btn:hover, .lk-btn:focus-visible, .lk-accent:hover, .lk-accent:focus-visible, .lk-lone:hover, .lk-lone:focus-visible, .lk-fix:hover, .lk-fix:focus-visible, .lk-view:hover, .lk-view:focus-visible, .lk-item:hover, .lk-item:focus-visible { background: var(--lk-wash); }
 .lk-btn:focus-visible, .lk-accent:focus-visible, .lk-lone:focus-visible, .lk-fix:focus-visible, .lk-view:focus-visible, .lk-item:focus-visible { outline: none; }
@@ -456,7 +462,7 @@ input.lk-tick[type=checkbox]:indeterminate::before { content: ""; position: abso
 .lk-fold::before { content: ""; width: 10px; height: 10px; background: currentColor; -webkit-mask: var(--lk-ic) center / contain no-repeat; mask: var(--lk-ic) center / contain no-repeat; --lk-ic: ${iconUrl(Door.ICONS.chevron)}; transform: rotate(-90deg); transition: transform .12s; }
 .lk-fold[aria-expanded="true"]::before { transform: none; }
 .lk-fold > * { display: none !important; }   /* a mark a module still puts inside (an svg, an icon) gives way to the library's */
-.lk-fold:focus-visible { outline: none; background: var(--lk-wash); }
+.lk-fold:hover, .lk-fold:focus-visible { outline: none; background: var(--lk-wash); }   /* the pointer on it: the round wash, as on Logseq's own arrow */
 /* lk-bul, drawn as Logseq draws its own bullet: a 6 px dot in a 16 px round place, the place washed grey while what is under it is folded. */
 .lk-bul { display: inline-flex; width: 16px; height: 16px; border-radius: 50%; align-items: center; justify-content: center; flex: none; }
 .lk-bul::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: .55; }

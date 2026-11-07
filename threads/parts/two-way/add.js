@@ -55,7 +55,7 @@ function draftLineHtml(group, d) {
   const field = d?.step === 'where'
     ? `<span class="th-tw-draft-typed">${esc(d.name)}</span><span class="th-field lk-field th-field-inline"><input type="text" class="th-tw-draft-field th-tw-draft-where" placeholder="Where? Enter: today’s journal" spellcheck="false" aria-label="Where the new node goes"></span>`
     : `<span class="th-field lk-field th-field-inline"><input type="text" class="th-tw-draft-field th-tw-draft-name" placeholder="Add a${/^[aeiou]/i.test(kind) ? 'n' : ''} ${esc(kind || 'node')}" spellcheck="false" aria-label="Name of a new node"></span>`;
-  return `<div class="th-tw-draft th-tw-drafting" data-field="${esc(group.name)}"><span class="th-tw-draft-plus th-faint" aria-hidden="true">+</span><span class="th-tw-draft-main">${field}</span>${tag}<div class="th-tw-draft-props">${propsHtml(group, d)}</div></div>`;
+  return `<div class="th-tw-draft th-tw-drafting" data-field="${esc(group.name)}"><span class="th-tw-draft-plus th-faint lk-i-plus" aria-hidden="true"></span><span class="th-tw-draft-main">${field}</span>${tag}<div class="th-tw-draft-props">${propsHtml(group, d)}</div></div>`;
 }
 /* The rest of the new node, under the line (0.4.406, the owner's pick from docs/history/TWO-WAY-ADD-PROPOSALS-2026-10-25.html):
    what the node will get, as the proposals read in a bullet, italic grey with a dotted line under a guess: the row's
