@@ -293,6 +293,26 @@ test('Logseq\'s own Deadline and Scheduled are filled from "due" and "scheduled 
   assert.equal(piece(plain, 'logseq.property/scheduled'), undefined);
 });
 
+test('with two money properties, earlier bullets like this one say which takes the sum; with none like it, nothing is guessed', () => {
+  const g = synthetic.build({
+    tags: ['Expense'],
+    props: [{ title: 'Amount', type: 'number', on: ['Expense'] }, { title: 'Payment', type: 'number', on: ['Expense'] }],
+    people: {},
+    lines({ tagPage, add, pick }) {
+      for (let i = 0; i < 30; i++) add({ title: `${pick(['Electricity', 'Water', 'Gas', 'Phone'])} bill came in at $${40 + i}`, tags: [tagPage.Expense.id], values: new Map(), numbers: ['user.property/amount'] });
+      for (let i = 0; i < 30; i++) add({ title: `Paid the ${pick(['plumber', 'cleaner', 'gardener', 'painter'])} $${20 + i} cash`, tags: [tagPage.Expense.id], values: new Map(), numbers: ['user.property/payment'] });
+    },
+    plain() {},
+  });
+  const ask = t => propose(g.ctx, bullet({ text: t, tags: [g.tagPage.Expense.id] }));
+  const bill = ask('Gas bill came in at $61'), paid = ask('Paid the gardener $35 cash');
+  assert.equal(piece(bill, 'user.property/amount')?.ids[0], 61); assert.equal(piece(bill, 'user.property/payment'), undefined);
+  assert.equal(piece(paid, 'user.property/payment')?.ids[0], 35); assert.equal(piece(paid, 'user.property/amount'), undefined);
+  assert.equal(piece(paid, 'user.property/payment').how, 'alike-money');
+  const odd = ask('Zebra quilt $12');
+  assert.equal(odd.pieces.filter(p => p.kind === 'number').length, 0, 'two money names and no bullet like it: nothing');
+});
+
 section('a tag waits for enough words');
 test('a line of three words gets no tag, the same line of four does', () => {
   const g = synthetic.work(), loose = { ...g.ctx, limits: { ...g.ctx.limits, tagNearLeast: .2, tagLead: .5 } };

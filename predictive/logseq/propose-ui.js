@@ -87,7 +87,7 @@ const REASONS = {
   alike: p => `Earlier bullets like this one had ${p.shown}`, 'alike-tag': () => 'Earlier lines like this one have this tag',
   words: () => 'Named in your words', parent: () => 'The bullet above has it', day: () => 'The day this is written on', 'guess-day': () => 'The day this is written on; change it if it happens another day',
   'words-day': () => 'A day named in your words', 'words-deadline': () => 'The day your words say it is due', 'words-scheduled': () => 'The day your words say it is set for',
-  'words-money': () => 'The sum of money in your words', 'words-number': p => `The number beside “${p.prop.title.toLowerCase()}” in your words`,
+  'words-money': () => 'The sum of money in your words', 'alike-money': p => `The sum of money in your words; earlier bullets like this one put theirs in ${p.prop.title}`, 'words-number': p => `The number beside “${p.prop.title.toLowerCase()}” in your words`,
   model: () => 'Read from your words by Apple’s model, on this Mac', meaning: () => 'Earlier notes that mean the same, matched by Apple’s tools on this Mac',
   names: () => 'A name Apple’s name finder read in your words, with no page yet; taking it makes the page, with this tag', untagged: () => 'A page linked in your words that has no tag yet; taking it gives the page the tag too',
   linked: () => 'A page linked in your words', 'linked-wide': () => 'A page linked in your words', page: () => 'The page this is written on', 'page-wide': () => 'The page this is written on',

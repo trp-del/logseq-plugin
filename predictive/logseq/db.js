@@ -149,23 +149,26 @@ async function datedByTag(dateIdent) {
   return dated;
 }
 
-const rawEntry = (node, learned, known) => {
+// numbers: the number properties the node holds a value in (which, not the value), for learning which property a sum of money
+// in the words goes to (core/propose.js, money).
+const rawEntry = (node, learned, known, numberProps = []) => {
   const tags = listOf(pick(node, 'block/tags')).map(idOf).filter(id => known.has(id));
-  return { id: idOf(node), title: String(pick(node, 'block/title') ?? ''), tags, values: new Map(learned.map(p => [p.ident, valuesOf(node, p.ident)]).filter(([, v]) => v.length)) };
+  return { id: idOf(node), title: String(pick(node, 'block/title') ?? ''), tags, values: new Map(learned.map(p => [p.ident, valuesOf(node, p.ident)]).filter(([, v]) => v.length)),
+    numbers: numberProps.filter(p => valuesOf(node, p.ident).length).map(p => p.ident) };
 };
 
 // The whole reading: the schema, the pages, the earlier lines, the days. A few hundred milliseconds on a large graph; done in
 // the background every few minutes and never while a key is being handled.
 async function readContext({ limits = {}, locale, linkRates = true } = {}) {
   const [schema, pages] = await Promise.all([loadSchema(), loadPages()]);
-  const learned = schema.props.filter(isLinkProp);
+  const learned = schema.props.filter(isLinkProp), numberProps = schema.props.filter(p => p.type === 'number');
   const tagIds = await userTagIds(), known = new Set(tagIds);
-  const [nodes, aliases, plain, days] = await Promise.all([taggedNodes(tagIds, learned.map(p => p.ident)).catch(() => []), aliasPairs(), plainLines(), journalDays()]);
+  const [nodes, aliases, plain, days] = await Promise.all([taggedNodes(tagIds, [...learned, ...numberProps].map(p => p.ident)).catch(() => []), aliasPairs(), plainLines(), journalDays()]);
   const dated = new Map();
   for (const prop of schema.props.filter(isDateProp)) dated.set(prop.ident, await datedByTag(prop.ident));
-  const entries = [...plain.map(({ id, title }) => ({ id, title, tags: [], values: new Map() })), ...nodes.map(n => rawEntry(n, learned, known))];
+  const entries = [...plain.map(({ id, title }) => ({ id, title, tags: [], values: new Map() })), ...nodes.map(n => rawEntry(n, learned, known, numberProps))];
   const ctx = buildContext({ schema, pages, aliases, userTagIds: tagIds, entries, days, dated, limits, locale });
-  ctx.learned = learned; ctx.readAt = Date.now(); ctx.dayTitles = new Map(dayTitles);
+  ctx.learned = learned; ctx.numberProps = numberProps; ctx.readAt = Date.now(); ctx.dayTitles = new Map(dayTitles);
   if (linkRates) ctx.linkLines = await countLinks(pages);
   return ctx;
 }
@@ -193,12 +196,12 @@ async function learnNodes(ctx, ids) {
   const list = [...new Set(ids)].filter(isEntityId);
   if (!ctx?.index || !list.length) return;
   const known = ctx.knownTags;
-  const nodes = new Map((await nodesById(list, ctx.learned.map(p => p.ident))).map(n => [idOf(n), n]));
+  const nodes = new Map((await nodesById(list, [...ctx.learned, ...(ctx.numberProps || [])].map(p => p.ident))).map(n => [idOf(n), n]));
   for (const id of list) {
     const node = nodes.get(id);
     if (ctx.linkLines) learnLine(ctx, id, node && pick(node, 'block/page') ? String(pick(node, 'block/title') ?? '') : '');
     if (!node) { learnEntry(ctx, id, null); continue; }
-    const raw = rawEntry(node, ctx.learned, known), anyTags = listOf(pick(node, 'block/tags')).length;
+    const raw = rawEntry(node, ctx.learned, known, ctx.numberProps || []), anyTags = listOf(pick(node, 'block/tags')).length;
     // Tagged only with tags that are not yours: not learned from. Plain (no tag at all): learned as a plain line.
     learnEntry(ctx, id, raw.tags.length || !anyTags ? raw : null);
   }

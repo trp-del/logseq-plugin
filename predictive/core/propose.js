@@ -146,6 +146,23 @@ function looksLike(ctx, text, links, tagIds, prop, skip) {
   const tokens = engine.tokensOf(shownWords(text, ctx), links.map(p => p.id), tagIds, ctx.limits);
   return engine.neighbours(ctx.index, tokens, { k: ctx.limits.k, skip, keep: entry => entry.values.get(prop.ident)?.length > 0 });
 }
+/* The number property a sum of money goes to, learned: among the earlier bullets nearest this one that had a sum in their words and
+   a value in one of these properties, the property they filled, each counted with the square of its likeness. Speaks only when the
+   nearest is near enough and the leader holds the vote, as for a page (ctx.limits nearLeast, lead). { prop, from } or null. */
+function moneyLearned(ctx, text, links, tagIds, numbers, skip) {
+  if (!ctx.index || !numbers.length) return null;
+  const idents = new Set(numbers.map(p => p.ident));
+  const tokens = engine.tokensOf(shownWords(text, ctx), links.map(p => p.id), tagIds, ctx.limits);
+  const near = engine.neighbours(ctx.index, tokens, { k: ctx.limits.k, skip, keep: e => e.numbers?.some(i => idents.has(i)) && ctx.reader.moneyInWords(e.title) != null });
+  if (!near.length || near[0].sim < ctx.limits.nearLeast) return null;
+  const votes = new Map();
+  let total = 0;
+  for (const { entry, sim } of near) for (const ident of entry.numbers) if (idents.has(ident)) { votes.set(ident, (votes.get(ident) || 0) + sim * sim); total += sim * sim; }
+  const [lead] = [...votes].sort((a, b) => b[1] - a[1]);
+  if (!lead || lead[1] / total < ctx.limits.lead) return null;
+  const from = near.filter(x => x.entry.numbers.includes(lead[0])).slice(0, 2).map(x => String(x.entry.title || '').replace(/\[\[([^\]]+)\]\]/g, (m, k) => (UUID.test(k) ? ctx.byKey.get(k.toLowerCase())?.title || '' : k)).replace(/\s+/g, ' ').trim());
+  return { prop: numbers.find(p => p.ident === lead[0]), from: [...new Set(from)].filter(Boolean) };
+}
 // The meaning a date property's name gives it: 'deadline' (Logseq's Deadline, a Due date), 'scheduled', or null.
 const meaningOf = (prop, reader) => prop.ident === 'logseq.property/deadline' || reader.nameMeans?.('deadline', prop.title) ? 'deadline'
   : prop.ident === 'logseq.property/scheduled' || reader.nameMeans?.('scheduled', prop.title) ? 'scheduled' : null;
@@ -230,8 +247,17 @@ function guessesFor(ctx, { b, text, record, fields, recordTags, links, free, use
     if (day) meant.set(prop.ident, { day, how: 'words-' + meaning });
   }
   const meantDays = new Set([...meant.values()].map(m => m.day));
-  const moneyProps = own && reader.moneyInWords ? fields.filter(p => open(p) && isNumberProp(p) && reader.nameMeans('money', p.title)) : [];
-  const money = moneyProps.length === 1 ? reader.moneyInWords(text) : null;
+  // Which number takes the sum: the one earlier bullets like this one, with a sum in their words, filled (learned from the graph,
+  // so Amount, Payment and Cost are told apart by how you used them); else the one number named for money.
+  const money = own && reader.moneyInWords ? reader.moneyInWords(text) : null;
+  let moneyPiece = null;
+  if (money != null) {
+    const numbers = fields.filter(p => open(p) && isNumberProp(p) && reader.numberInWords(text, p.title) == null);
+    const learned = moneyLearned(ctx, text, links, recordTags, numbers, skip);
+    const named = numbers.filter(p => reader.nameMeans('money', p.title));
+    if (learned) moneyPiece = { prop: learned.prop, how: 'alike-money', from: learned.from };
+    else if (named.length === 1) moneyPiece = { prop: named[0], how: 'words-money' };
+  }
   for (const prop of fields) {
     if (!open(prop)) continue;
     const m = meant.get(prop.ident);
@@ -248,7 +274,7 @@ function guessesFor(ctx, { b, text, record, fields, recordTags, links, free, use
     if (isNumber) {
       const n = own ? reader.numberInWords(text, prop.title) : null;
       if (n != null) out.push({ ident: prop.ident, prop, kind: 'number', ids: [n], shown: String(n), how: 'words-number', guess: true });
-      else if (money != null && moneyProps[0] === prop) out.push({ ident: prop.ident, prop, kind: 'number', ids: [money], shown: String(money), how: 'words-money', guess: true });
+      else if (moneyPiece?.prop === prop) out.push({ ident: prop.ident, prop, kind: 'number', ids: [money], shown: String(money), how: moneyPiece.how, ...(moneyPiece.from ? { from: moneyPiece.from } : {}), guess: true });
       continue;
     }
     if (parentTags.length) { const v = valuesOf(b.parent, prop.ident); if (v.length) said.push({ ids: v, how: 'parent' }); }
@@ -359,7 +385,7 @@ function tagChoices(ctx, b, { max = 5 } = {}) {
   return out.slice(0, max);
 }
 
-const api = { enoughForTag, tellingWords, TAG_WORDS_LEAST, meaningOf, dayText, tagChoices, tagScores, mentionedPages, candidateTags, propose, inWords, recordOf, tagFor, looksLike, datedEvidence, datedWhenWritten, fewDatedAllSameDay, mostlyAhead, datedAhead, dayIdFor, valuesOf, freeWords };
+const api = { moneyLearned, enoughForTag, tellingWords, TAG_WORDS_LEAST, meaningOf, dayText, tagChoices, tagScores, mentionedPages, candidateTags, propose, inWords, recordOf, tagFor, looksLike, datedEvidence, datedWhenWritten, fewDatedAllSameDay, mostlyAhead, datedAhead, dayIdFor, valuesOf, freeWords };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 if (typeof window !== 'undefined') (window.Flow ||= {}).propose = api;
 })();

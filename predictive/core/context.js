@@ -32,7 +32,7 @@ function historyEntry(ctx, raw) {
   const tags = raw.tags || [];
   const values = new Map(raw.values || []);
   values.set('block/tags', tags.length ? tags : [0]);   // 0: a plain line, no tag (so plain lines vote "no tag")
-  return { entry: { id: raw.id, title: raw.title, tokens: engine.tokensOf(words, linkIdsIn(raw.title, ctx), tags, ctx.limits), values }, words };
+  return { entry: { id: raw.id, title: raw.title, tokens: engine.tokensOf(words, linkIdsIn(raw.title, ctx), tags, ctx.limits), values, ...(raw.numbers?.length ? { numbers: raw.numbers } : {}) }, words };
 }
 
 function buildContext({ schema, pages = [], aliases = [], userTagIds = [], entries = [], days = new Map(), dated = new Map(), limits = {}, locale = dates.en } = {}) {
