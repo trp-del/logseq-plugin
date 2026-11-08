@@ -127,14 +127,18 @@ async function main() {
   Flow.typedCaseUi.start();
 }
 const stop = () => { Flow.app.stopAll(); };
-// The window's order: what is proposed, then the keys together, then the suggested links.
+// The window's order: what is proposed, the suggested links, then the keys together (the links' keys among them).
 const row = (key, title) => ({ ...Flow.settingsSchema.find(item => item.key === key), ...(title ? { title } : {}) });
 window.PluginDoor.describe('predictive', {
   schema: [
-    row('proposalsHeading'), row('proposals'), row('proposalsHideEmpty'), row('tagEagerness'), row('proposalsModel'), { type: 'action', key: 'measureModel', title: 'Measure Apple’s tools on this graph', run: () => Flow.measureUi.open() }, row('proposalsSkipGraphs'),
-    { type: 'heading', title: 'Keys' },
+    { type: 'heading', title: 'Proposals', place: 'writing' },
+    row('proposals', 'Propose values for a bullet’s properties'), row('proposalsHideEmpty', 'Hide empty properties'), row('tagEagerness', 'Suggest a tag'), row('proposalsModel', 'Use Apple’s language tools on this Mac'),
+    { type: 'action', key: 'measureModel', title: 'Measure Apple’s tools on this graph', run: () => Flow.measureUi.open() }, row('proposalsSkipGraphs', 'Leave these graphs alone'),
+    { type: 'heading', title: 'Suggested links', place: 'writing' },
+    row('linkSuggest', 'Suggest a link as I type'), row('linkSuggestLearn', 'Learn which pages I link'), row('linkSuggestMinLetters', 'Letters before a suggestion shows'), row('linkSuggestPause', 'Pause before a suggestion shows, in milliseconds'), row('linkKeepCase', 'Keep my capitals in a link'),
+    { type: 'heading', title: 'Keys', place: 'keys' },
     row('proposalsStepKeys', 'Step through a bullet’s properties'), row('proposalsTagKeys', 'Choose a tag'), row('proposalsAcceptKeys', 'Accept everything shown, without a new bullet'), row('citeKeys', 'Cite a source'), row('pageKeys', 'Make the bullet a page'),
-    row('linkHeading'), row('linkSuggest'), row('linkSuggestLearn'), row('linkSuggestRightArrow'), row('linkSuggestHyperTap', 'A tap of the Hyper key takes it'), row('linkSuggestKeys', 'A plain key that takes it too'), row('linkSuggestMinLetters'), row('linkSuggestPause', 'Pause before a suggestion shows, in milliseconds'), row('linkKeepCase'),
+    row('linkSuggestRightArrow', 'Right arrow takes the suggested link'), row('linkSuggestHyperTap', 'A tap of Hyper takes it'), row('linkSuggestKeys', 'Another key takes it'),
   ],
   specimen,
 });

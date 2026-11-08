@@ -1,15 +1,33 @@
 /* The one settings window, for the whole plugin. One real dialog (the browser's) in Logseq's own window, in the grammar's
-   look. Down the left the six parts, each with a tick for whether it runs; on the right the part's settings, each drawn as
-   the thing itself (the part gives a specimen per setting), with its switch in the margin and its name; no paragraphs.
-   A letter typed anywhere finds, through every part. A part describes its settings at the door (PluginDoor.describe), and
-   nothing here knows what any of them does, so the window keeps working whichever parts are switched off. Every change
-   applies at once through the plugin's own settings; a part switched on or off waits, pencilled, for the reload. */
+   look. Down the left the places where you meet things (what you see, what you do, everything else), not the six parts that
+   draw them; on the right the place's settings, each drawn as the thing itself (a part gives a specimen per setting) or a
+   choice between its looks. A part says at the door (PluginDoor.describe) which place each of its sections belongs to, and
+   nothing here knows what any of them does, so the window keeps working whichever parts are switched off. A letter typed
+   anywhere finds, through every place. Every change applies at once through the plugin's own settings; a part switched on
+   or off, under Parts, waits, pencilled, for the reload.
+   Spacing is one scale: 8 inside a row, 12 between rows, 32 between sections, 40 between a place's head and its first row. */
 (function () {
 const Door = window.PluginDoor;
 const ORDER = ['look', 'find', 'threads', 'predictive', 'structure', 'export'];
+// The places, in plain words: what a person is doing or looking at when they want a setting. A part sends each of its
+// sections to one of these (the section's `place`); the part it came from does not show.
+const GROUPS = [['What you see', ['window', 'page', 'sidebar']], ['What you do', ['writing', 'finding', 'following', 'out']], ['Everything else', ['keys', 'parts']]];
+const PLACES = {
+  window: ['The window', 'How Logseq’s own screens look: type, sidebar, tables, search and menus.'],
+  page: ['A page', 'How links, tags, properties and bullets read on a page.'],
+  sidebar: ['The right sidebar', 'The panel on the right: its bar, its pages, its links and endnotes.'],
+  writing: ['Writing', 'What the plugin offers while you type.'],
+  finding: ['Finding', 'The search window.'],
+  following: ['Following links', 'The rows under a page that show everything pointing at it.'],
+  out: ['Taking a page out', 'The PDF, Markdown and rich-text export.'],
+  keys: ['Keys', 'Every keyboard shortcut, in one list.'],
+  parts: ['Parts', 'Switch a part off, and find a fault.'],
+};
+const HOME = { look: 'window', find: 'finding', threads: 'following', predictive: 'writing', export: 'out', structure: 'parts' };   // where a part's own name leads
+const placeOf = key => PLACES[key] ? key : HOME[key] || 'window';
 const REOPEN_KEY = 'logseq-plugin-settings-reopen';
 const { esc, host } = window.PluginDoor;
-const CSS = `.sw-dialog { position: fixed !important; top: 50% !important; left: 50% !important; right: auto !important; bottom: auto !important; transform: translate(-50%, -50%) !important; margin: 0 !important; width: min(860px, 92vw); height: min(700px, 88vh); max-height: 88vh; overflow: hidden; box-sizing: border-box; padding: 0; }   /* the window's look is the library's lk-window */
+const CSS = `.sw-dialog { position: fixed !important; top: 50% !important; left: 50% !important; right: auto !important; bottom: auto !important; transform: translate(-50%, -50%) !important; margin: 0 !important; width: min(1360px, 94vw); height: 90vh; max-height: 90vh; overflow: hidden; box-sizing: border-box; padding: 0; }   /* the window's look is the library's lk-window */
 .sw-dialog[open] { display: grid; grid-template-columns: 204px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); pointer-events: auto; }
 .sw-head { grid-column: 1 / -1; display: grid; grid-template-columns: 204px minmax(0, 1fr) auto; align-items: center; padding: 14px 16px 10px 22px; }
 .sw-head b { font-size: 16px; font-weight: 600; }
@@ -17,7 +35,12 @@ const CSS = `.sw-dialog { position: fixed !important; top: 50% !important; left:
 .sw-close { all: unset; cursor: pointer; font-size: 18px; line-height: 1; padding: 0 6px; }
 .sw-side { display: flex; flex-direction: column; padding: 8px 12px 16px 14px; min-height: 0; overflow: auto; }
 /* A part is a line of the library's menu (lk-item), the one open lit (on). */
-.sw-mod { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 0; align-items: center; padding: 5px 8px; cursor: pointer; }
+.sw-mod { display: grid; grid-template-columns: minmax(0, 1fr); padding: 5px 8px; cursor: pointer; }
+.sw-group { font-size: var(--lk-label); color: var(--lk-quiet); padding: 20px 8px 4px; }
+.sw-group:first-child { padding-top: 4px; }
+.sw-placehead { padding: 8px 0 28px; }
+.sw-placehead h2 { font-size: 20px; font-weight: 600; margin: 0 0 4px; letter-spacing: -.01em; }
+.sw-placehead p { margin: 0; color: var(--lk-quiet); }
 .sw-mod[aria-current="true"] { font-weight: 500; }
 .sw-mod.off .sw-name { color: var(--lk-faint); }
 .sw-mod .lk-pencil { font-style: italic; }
@@ -25,7 +48,6 @@ const CSS = `.sw-dialog { position: fixed !important; top: 50% !important; left:
 .sw-foot { margin-top: auto; padding: 16px 8px 0; display: grid; gap: 2px; justify-items: start; }
 .sw-word.on { font-weight: 500; }
 .sw-body { min-height: 0; overflow: auto; padding: 0 22px 22px; scrollbar-gutter: stable; }
-.sw-resting .sw-row, .sw-resting h3 { opacity: .5; }
 .sw-none { padding-top: 18px; margin: 0; }
 .sw-part { font-weight: 600; font-size: 16px; padding-top: 18px; }
 .sw-part:first-child { padding-top: 8px; }
@@ -36,10 +58,10 @@ const CSS = `.sw-dialog { position: fixed !important; top: 50% !important; left:
 .sw-word-x { color: inherit; }
 .sw-drop { margin-left: 1px; }
 .sw-add { flex: 1; min-width: 12em; }
-.sw-section { padding-top: 14px; }
-.sw-section + .sw-section { margin-top: 22px; }
-.sw-section h3 { font-size: 14px; font-weight: 600; margin: 0; }
-.sw-row { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 2px 8px; align-items: baseline; padding: 9px 0; }
+/* One scale for the space: 8 inside a row, 12 between rows, 32 between sections. */
+.sw-section + .sw-section { margin-top: 32px; }
+.sw-section h3 { font-size: 16px; font-weight: 600; margin: 0 0 6px; }
+.sw-row { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 4px 8px; align-items: baseline; padding: 12px 0; }
 .sw-row .sw-title { font-weight: 500; }
 .sw-row .sw-value { grid-column: 2; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 /* The specimen: the thing drawn as it will look, at the page's size, under its name. */
@@ -67,9 +89,24 @@ const CSS = `.sw-dialog { position: fixed !important; top: 50% !important; left:
 .sw-choice.on { font-weight: 500; }
 /* It stands beside a title and must not take the title's weight, or make the row taller when it comes. */
 .sw-row .sw-default { font-weight: 400; margin-top: -3px; margin-bottom: -3px; }
-.sw-row:hover { background: var(--lk-wash); margin: 0 -8px; padding-left: 8px; padding-right: 8px; border-radius: 4px; }`;
+.sw-ba { grid-column: 2; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px 16px; margin: 6px -8px 0; }
+.sw-opt { all: unset; box-sizing: border-box; display: grid; align-content: start; gap: 4px; padding: 6px 8px; border-radius: 6px; cursor: pointer; min-width: 0; }
+.sw-opt:hover, .sw-opt:focus-visible { background: var(--lk-wash); }
+.sw-opt .sw-spec { grid-column: auto; margin-top: 0; min-width: 0; overflow: hidden; }
+.sw-opt .sw-lab { font-size: var(--lk-label); color: var(--lk-quiet); }
+/* The look in force stands on the wash, as the line in force in a menu does; the others are quiet until pointed at. */
+.sw-opt.on { background: var(--lk-wash); }
+.sw-opt:not(.on) .sw-spec { color: var(--lk-quiet); }
+.sw-opt:not(.on):hover .sw-spec { color: var(--lk-text); }
+.sw-row:hover { background: var(--lk-wash); margin: 0 -8px; padding-left: 8px; padding-right: 8px; border-radius: 4px; }
+.sw-rest { opacity: .5; }
+.sw-partrow .sw-spec { margin-top: 0; color: var(--lk-quiet); font-size: 14px; }`;
 
-const state = { cur: 'look', view: 'part', find: '' };
+const state = { cur: 'window', view: 'part', find: '' };
+/* What a setting does, without moving (the owner, 8 November 2026: "why not just show what it will look like checked and not
+   checked side by side"; "remove ticked boxes and just have selection of the things"): a setting with a drawing is a choice
+   between its looks, side by side, no tick box and no words for them; the one in force stands on the wash, the others quiet; a
+   press on a look takes it. A setting with no drawing keeps its tick box. */
 let open = null;
 let names = {};   // what a list offers as you type, by the setting's key
 
@@ -95,15 +132,17 @@ function sectionsOf(part) {
   const sections = [];
   let current = null;
   for (const item of Door.described[part.key].schema || []) {
-    if (item.type === 'heading') { current = { title: item.title, items: [] }; sections.push(current); continue; }
-    if (!current) { current = { title: part.title, items: [] }; sections.push(current); }
+    if (item.type === 'heading') { current = { title: item.title, place: placeOf(item.place || Door.described[part.key].place || part.key), part, items: [] }; sections.push(current); continue; }
+    if (!current) { current = { title: part.title, place: placeOf(Door.described[part.key].place || part.key), part, items: [] }; sections.push(current); }
     current.items.push(item);
   }
   return sections;
 }
-const everyRow = () => parts().flatMap(part => sectionsOf(part).flatMap(section => section.items.map(item => ({ part, section, item }))));
+const everyRow = () => parts().flatMap(part => sectionsOf(part).flatMap(section => section.items.map(item => ({ part, section, item, place: section.place }))));
 const byKey = key => everyRow().find(row => row.item.key === key);
-const matches = (row, words) => `${row.item.title} ${row.item.description || ''} ${row.section.title} ${row.part.title}`.toLowerCase().includes(words);
+const matches = (row, words) => `${row.item.title} ${row.item.description || ''} ${row.section.title} ${PLACES[row.place][0]}`.toLowerCase().includes(words);
+// A place's sections, from every part that sends one there, in the order the parts are listed.
+const sectionsAt = place => parts().flatMap(part => sectionsOf(part).filter(section => section.place === place));
 const anyChanged = () => everyRow().some(row => changed(row.item));
 
 // A list held as "a; b" or "a = b; c = d", drawn as its words, each with its ×, and a field to add one.
@@ -115,49 +154,64 @@ function listHtml(item, value) {
 }
 function rowHtml(row) {
   const { item, part } = row;
+  const html = rowHtmlRaw(row);
+  return wanted(part) ? html : html.replace(/^<(div|label) class="sw-row/, '<$1 class="sw-rest sw-row');
+}
+function rowHtmlRaw(row) {
+  const { item, part } = row;
   const { specimen } = Door.described[part.key];
   if (item.type === 'action') return `<div class="sw-row"><span></span><button type="button" class="sw-do lk-lone lk-i-go" data-action="${esc(item.key)}">${esc(item.title)}</button></div>`;
   const value = read(item), key = esc(item.key), about = esc(item.description || '');
   const reset = changed(item) ? `<button type="button" class="sw-default lk-lone lk-i-undo" data-reset="${key}" title="Back to the default">default</button>` : '';
   const spec = specimen ? specimen(item, value) : '';
-  const drawn = spec ? `<div class="sw-spec" title="${about}">${spec}</div>` : '';
+  const words = v => item.type === 'boolean' ? (v ? 'On' : 'Off') : esc(item.keys ? keyWords(v) : String(v ?? ''));
+  const shown = (v, s) => s ? `<div class="sw-spec">${s}</div>` : `<div class="sw-spec">${words(v)}</div>`;
+  const looks = item.type === 'boolean' ? [[true, ''], [false, '']] : item.type === 'enum' ? (item.enumChoices || []).map(choice => [choice, choice]) : null;
+  const pictured = !!(spec && looks);
+  const drawn = pictured ? `<div class="sw-ba">${looks.map(([v, label]) => `<button type="button" class="sw-opt lk-value${JSON.stringify(v) === JSON.stringify(value) ? ' on' : ''}" data-pick="${key}" data-val="${esc(JSON.stringify(v))}" aria-pressed="${JSON.stringify(v) === JSON.stringify(value)}">${label ? `<span class="sw-lab">${esc(label)}</span>` : ''}${shown(v, specimen(item, v))}</button>`).join('')}</div>`
+    : spec ? `<div class="sw-spec" title="${about}">${spec}</div>` : '';
+  if (item.type === 'boolean' && pictured) return `<div class="sw-row"><span></span><span class="sw-title" title="${about}">${esc(item.title)} ${reset}</span>${drawn}</div>`;
   if (item.type === 'boolean') return `<label class="sw-row"><input type="checkbox" class="sw-tick lk-tick" id="sw-${key}" data-key="${key}"${value ? ' checked' : ''}><span class="sw-title" title="${about}">${esc(item.title)} ${reset}</span>${drawn}</label>`;
-  if (item.type === 'enum') return `<div class="sw-row"><span></span><span class="sw-title" title="${about}">${esc(item.title)}</span><span class="sw-value sw-choices lk-alts">${(item.enumChoices || []).map(choice => `<button type="button" class="sw-choice lk-value${String(choice) === String(value) ? ' on' : ' off'}" data-key="${key}" data-choice="${esc(choice)}" aria-pressed="${String(choice) === String(value)}">${esc(choice)}</button>`).join('')}${reset}</span>${drawn}</div>`;
+  if (item.type === 'enum') return `<div class="sw-row"><span></span><span class="sw-title" title="${about}">${esc(item.title)}</span>${pictured ? `<span class="sw-value">${reset}</span>` : `<span class="sw-value sw-choices lk-alts">${(item.enumChoices || []).map(choice => `<button type="button" class="sw-choice lk-value${String(choice) === String(value) ? ' on' : ' off'}" data-key="${key}" data-choice="${esc(choice)}" aria-pressed="${String(choice) === String(value)}">${esc(choice)}</button>`).join('')}${reset}</span>`}${drawn}</div>`;
   if (item.list) return `<div class="sw-row"><span></span><span class="sw-title" title="${about}">${esc(item.title)}</span><span class="sw-value">${listHtml(item, value)}</span></div>`;
   if (item.inputAs === 'textarea') return `<div class="sw-row"><span></span><label class="sw-title" for="sw-${key}" title="${about}">${esc(item.title)}</label><span class="sw-value"><textarea class="sw-css" id="sw-${key}" data-key="${key}" spellcheck="false" placeholder="${esc(item.placeholder || '')}">${esc(value)}</textarea></span></div>`;
   const number = item.type === 'number';
   return `<div class="sw-row"><span></span><label class="sw-title" for="sw-${key}" title="${about}">${esc(item.title)}</label><span class="sw-value"><input type="${number ? 'number' : 'text'}" class="sw-field lk-value${number ? '' : ' sw-wide'}" id="sw-${key}" data-key="${key}" value="${esc(item.keys ? keyWords(value) : value)}" placeholder="none" spellcheck="false" autocomplete="off">${reset}</span>${drawn}</div>`;
 }
-const rowsByPart = rows => parts().filter(part => rows.some(row => row.part === part)).map(part => `<div class="sw-part">${esc(part.title)}</div>${rows.filter(row => row.part === part).map(rowHtml).join('')}`).join('');
+const rowsByPlace = rows => Object.keys(PLACES).filter(place => rows.some(row => row.place === place)).map(place => `<div class="sw-part">${esc(PLACES[place][0])}</div>${rows.filter(row => row.place === place).map(rowHtml).join('')}`).join('');
 
+function partsHtml() {
+  return `<section class="sw-section"><h3>Switch on or off</h3>${parts().map(part => `<label class="sw-row sw-partrow"><input type="checkbox" class="sw-tick lk-tick" id="sw-run-${part.key}" data-run="${part.key}"${wanted(part) ? ' checked' : ''}><span class="sw-title${waiting(part) ? ' lk-pencil' : ''}">${esc(part.title)}</span><div class="sw-spec">${esc(part.about || '')}</div></label>`).join('')}</section>`;
+}
 function drawBody(dlg) {
   const body = dlg.querySelector('.sw-body'), at = body.scrollTop;
   const words = state.find.trim().toLowerCase();
-  body.classList.remove('sw-resting');
   if (words) {
     const rows = everyRow().filter(row => matches(row, words));
-    body.innerHTML = rows.length ? rowsByPart(rows) : '<p class="sw-none lk-none">Nothing by that name</p>';
+    body.innerHTML = rows.length ? rowsByPlace(rows) : '<p class="sw-none lk-none">Nothing by that name</p>';
     return;
   }
   if (state.view === 'changed') {
     const rows = everyRow().filter(row => changed(row.item));
-    body.innerHTML = rows.length ? rowsByPart(rows) : '<p class="sw-none lk-none">Everything is as it started</p>';
+    body.innerHTML = rows.length ? rowsByPlace(rows) : '<p class="sw-none lk-none">Everything is as it started</p>';
     return;
   }
-  const part = parts().find(p => p.key === state.cur) || parts()[0];
-  body.classList.toggle('sw-resting', !wanted(part));
-  const none = Door.described[part.key].none;
-  body.innerHTML = none ? `<p class="sw-none lk-none">${esc(none)}</p>` : sectionsOf(part).map(section => `<section class="sw-section"><h3>${esc(section.title)}</h3>${section.items.map(item => rowHtml({ item, part, section })).join('')}</section>`).join('');
+  const place = placeOf(state.cur), sections = sectionsAt(place);
+  const lonely = sections.length === 1 && place !== 'parts';   // one section under the place's own name needs no second heading
+  const head = `<div class="sw-placehead"><h2>${esc(PLACES[place][0])}</h2><p>${esc(PLACES[place][1])}</p></div>`;
+  const drawn = sections.map(section => `<section class="sw-section">${lonely ? '' : `<h3>${esc(section.title)}</h3>`}${section.items.map(item => rowHtml({ item, part: section.part, section, place })).join('')}</section>`).join('');
+  body.innerHTML = head + (place === 'parts' ? partsHtml() : '') + (drawn || (place === 'parts' ? '' : '<p class="sw-none lk-none">Nothing to set here.</p>'));
   body.scrollTop = at;
 }
 function drawSide(dlg) {
   const words = state.find.trim().toLowerCase();
-  const rows = els => parts().map(part => els(part)).join('');
-  dlg.querySelector('.sw-side').innerHTML = rows(part => {
-    const none = words && !everyRow().some(row => row.part === part && matches(row, words));
-    const here = !words && state.view === 'part' && state.cur === part.key;
-    return `<div class="sw-mod lk-item${here ? ' on' : ''}${wanted(part) ? '' : ' off'}${none ? ' sw-nomatch' : ''}" data-part="${part.key}" aria-current="${here}"><input type="checkbox" class="sw-tick lk-tick" id="sw-run-${part.key}" data-run="${part.key}"${wanted(part) ? ' checked' : ''} aria-label="${esc(part.title)} runs"><span class="sw-name${waiting(part) ? ' lk-pencil' : ''}">${esc(part.title)}</span></div>`;
-  }) + `<div class="sw-foot">${parts().some(waiting) ? '<button type="button" class="sw-reload lk-lone lk-i-reload" id="sw-reload">Reload to apply</button>' : ''}${anyChanged() || state.view === 'changed' ? `<button type="button" class="sw-word lk-lone${state.view === 'changed' ? ' on' : ''}" id="sw-changed">Changed by you</button>` : ''}<button type="button" class="sw-word lk-lone" id="sw-plain">Logseq’s list</button></div>`;
+  const rows = everyRow();
+  dlg.querySelector('.sw-side').innerHTML = GROUPS.map(([group, places]) => `<div class="sw-group">${esc(group)}</div>${places.map(place => {
+    const none = words && !rows.some(row => row.place === place && matches(row, words));
+    const here = !words && state.view === 'part' && placeOf(state.cur) === place;
+    const wait = place === 'parts' && parts().some(waiting);
+    return `<div class="sw-mod lk-item${here ? ' on' : ''}${none ? ' sw-nomatch' : ''}" data-place="${place}" aria-current="${here}"><span class="sw-name${wait ? ' lk-pencil' : ''}">${esc(PLACES[place][0])}</span></div>`;
+  }).join('')}`).join('') + `<div class="sw-foot">${parts().some(waiting) ? '<button type="button" class="sw-reload lk-lone lk-i-reload" id="sw-reload">Reload to apply</button>' : ''}${anyChanged() || state.view === 'changed' ? `<button type="button" class="sw-word lk-lone${state.view === 'changed' ? ' on' : ''}" id="sw-changed">Changed by you</button>` : ''}<button type="button" class="sw-word lk-lone" id="sw-plain">Logseq’s list</button></div>`;
 }
 // A redraw replaces what had the keyboard: hand it back, so Escape and the arrows keep working.
 function draw() {
@@ -205,10 +259,11 @@ function onClick(dlg, event) {
   if (t.id === 'sw-changed') { state.view = state.view === 'changed' ? 'part' : 'changed'; state.find = ''; dlg.querySelector('.sw-find').value = ''; return draw(); }
   if (t.dataset.run) return undefined;
   const choice = t.closest('.sw-choice'); if (choice) { write(byKey(choice.dataset.key).item, choice.dataset.choice); return later(); }
+  const look = t.closest('.sw-opt'); if (look) { event.preventDefault(); write(byKey(look.dataset.pick).item, JSON.parse(look.dataset.val)); return later(); }
   const reset = t.closest('.sw-default'); if (reset) { event.preventDefault(); const { item } = byKey(reset.dataset.reset); write(item, item.default); return later(); }
   const drop = t.closest('.sw-drop'); if (drop) { const { item } = byKey(drop.dataset.key); write(item, listWords(item, read(item)).filter(word => word !== drop.dataset.word).join('; ')); return later(); }
   const action = t.closest('[data-action]'); if (action) { const { item } = byKey(action.dataset.action); close(); return item.run(); }
-  const mod = t.closest('.sw-mod'); if (mod) { state.cur = mod.dataset.part; state.view = 'part'; state.find = ''; dlg.querySelector('.sw-find').value = ''; dlg.querySelector('.sw-body').scrollTop = 0; draw(); }
+  const mod = t.closest('.sw-mod'); if (mod) { state.cur = mod.dataset.place; state.view = 'part'; state.find = ''; dlg.querySelector('.sw-find').value = ''; dlg.querySelector('.sw-body').scrollTop = 0; draw(); }
   return undefined;
 }
 // While the window is open Escape is the window's: it is taken before Logseq sees it, which would otherwise close its own
@@ -229,8 +284,8 @@ function onKey(dlg, event) {
   if (event.key.length === 1 && event.key !== ' ' && !event.metaKey && !event.ctrlKey && !event.altKey && t !== find) { find.focus(); return; }
   if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
     event.preventDefault();
-    const list = parts(), at = list.findIndex(part => part.key === state.cur), step = event.key === 'ArrowDown' ? 1 : -1;
-    state.cur = list[(at + step + list.length) % list.length].key; state.view = 'part'; dlg.querySelector('.sw-body').scrollTop = 0; draw();
+    const list = GROUPS.flatMap(([, places]) => places), at = Math.max(0, list.indexOf(placeOf(state.cur))), step = event.key === 'ArrowDown' ? 1 : -1;
+    state.cur = list[(at + step + list.length) % list.length]; state.view = 'part'; dlg.querySelector('.sw-body').scrollTop = 0; draw();
   }
 }
 async function loadNames() {
@@ -247,11 +302,11 @@ function openWindow(partKey) {
   let sheet = doc.getElementById('sw-style');
   if (!sheet) { sheet = doc.createElement('style'); sheet.id = 'sw-style'; doc.head.appendChild(sheet); }
   if (sheet.textContent !== CSS) sheet.textContent = CSS;
-  if (partKey) { state.cur = partKey; state.view = 'part'; }
+  if (partKey) { state.cur = placeOf(partKey); state.view = 'part'; }
   state.find = '';
   const dlg = doc.createElement('dialog');
   dlg.className = 'sw-dialog lk-window';
-  dlg.innerHTML = `<div class="sw-head"><b>Plugin settings</b><input class="sw-find lk-field" type="text" id="sw-find" placeholder="find a setting" aria-label="Find a setting" spellcheck="false" autocomplete="off"><button type="button" class="sw-close lk-close" aria-label="Close" title="Close (Esc)">×</button></div><nav class="sw-side" aria-label="The six parts"></nav><div class="sw-body"></div>`;
+  dlg.innerHTML = `<div class="sw-head"><b>Plugin settings</b><input class="sw-find lk-field" type="text" id="sw-find" placeholder="find a setting" aria-label="Find a setting" spellcheck="false" autocomplete="off"><button type="button" class="sw-close lk-close" aria-label="Close" title="Close (Esc)">×</button></div><nav class="sw-side" aria-label="Where in Logseq"></nav><div class="sw-body"></div>`;
   dlg.querySelector('.sw-find').addEventListener('input', event => { state.find = event.target.value; draw(); });
   dlg.addEventListener('change', onChange);
   dlg.addEventListener('click', event => onClick(dlg, event));

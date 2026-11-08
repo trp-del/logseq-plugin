@@ -342,8 +342,9 @@ const TOKENS = `
    the thing pressed), the frames; lk-tick, the tick box; lk-fold, the fold arrow, its markup empty; lk-bul (.folded, .opens), Logseq's bullet;
    lk-field, a field on a hairline; lk-none, the nothing-here line; lk-undo, the arrow as a press; --lk-day, the day column's width. */
 Door.NAMES = `${TOKENS}
-.lk-tag { color: inherit !important; opacity: .7; font-family: var(--lk-mono) !important; font-size: .85em !important; text-decoration: none !important; }
-.lk-tag:hover { opacity: 1; }
+/* A tag: its name in mono, in the text colour and the words' own size, the mono's small letters matched to theirs (the owner,
+   8 November 2026: "no reason why tags should be fainter ... or why there is an odd size discrepancy"). */
+.lk-tag { color: inherit !important; font-family: var(--lk-mono) !important; font-size: inherit !important; font-size-adjust: 0.51; text-decoration: none !important; }
 .lk-node { color: inherit; text-decoration: underline !important; text-decoration-color: var(--lk-link) !important; text-decoration-thickness: var(--lk-link-width) !important; text-underline-offset: 3px; cursor: pointer; }
 .lk-node:hover { text-decoration-color: currentColor !important; }
 .lk-prop { color: var(--lk-quiet); }

@@ -190,7 +190,8 @@ const CSS = `
 .st .lk { text-decoration: underline; text-decoration-color: var(--lk-line); text-underline-offset: 3px; cursor: pointer; }
 .st .lk:hover { text-decoration-color: currentColor; }
 .st .lk-tag { white-space: nowrap; cursor: pointer; }
-.st-tbl .lk-tag { opacity: 1; }   /* in the table a tag is a column's whole content, not a mark after words: full strength (the owner, 5 November 2026) */
+.st-tbl .lk-tag { opacity: 1; }
+.st .act .lk-tag { color: var(--lk-text, currentColor) !important; }   /* a tag in a value you can change reads like any tag, the text colour (the owner, 8 November 2026) */   /* in the table a tag is a column's whole content, not a mark after words: full strength (the owner, 5 November 2026) */
 .st-ln .ct { text-align: right; font-size: var(--lk-small); color: var(--lk-quiet); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .st-ln.low .ct { color: var(--lk-faint); }
 .st-ln.rng .x { margin-left: 2px; }

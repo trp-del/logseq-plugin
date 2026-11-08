@@ -41,7 +41,7 @@ function stop() {
   if (keyListener) Find.kit.host().removeEventListener('keydown', keyListener, true);
   Find.kit.sweep();
 }
-window.PluginDoor.describe('find', { schema: [{ type: 'heading', title: 'The window' }, ...Find.settings.schema], specimen: Find.settings.specimen });
+window.PluginDoor.describe('find', { schema: [{ type: 'heading', title: 'The search window', place: 'finding' }, ...Find.settings.schema], specimen: Find.settings.specimen });
 window.PluginDoor.register({
   key: 'find', title: 'Find', about: 'The search window as the first step of a walk: a name, then the kinds and the time, then the thread from what you found.',
   schema: Find.settings.schema.map(({ key, type, title, description, default: def, enumChoices }) => ({ key, type, title, description, default: def, ...(enumChoices ? { enumChoices } : {}) })),

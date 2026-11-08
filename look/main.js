@@ -4,7 +4,7 @@
 (function () {
 const Look = window.Look;
 async function main() {
-  Look.style.apply();
+  Look.style.apply(); Look.calm.apply();
   Look.marks.start();
   Look.props.start();
   Look.title.start();
@@ -16,12 +16,12 @@ async function main() {
   Look.notices.start();
   logseq.DB.onChanged(change => Look.kit.graphChanged(change));
   const own = Look.settings.schema.map(item => item.key);
-  logseq.onSettingsChanged?.((now, before) => { if (!window.PluginDoor.settingChanged(own, now, before)) return; Look.style.apply(); Look.sidebar.apply(); Look.notices.apply(); Look.kit.run(Look.kit.host()); Look.links.load(); });
+  logseq.onSettingsChanged?.((now, before) => { if (!window.PluginDoor.settingChanged(own, now, before)) return; Look.style.apply(); Look.calm.apply(); Look.sidebar.apply(); Look.notices.apply(); Look.kit.run(Look.kit.host()); Look.links.load(); });
   logseq.App.onCurrentGraphChanged(() => { Look.marks.load(); Look.props.load(); });
 }
 function stop() {
   // Each on its own: a part that never started must not leave the others running.
-  for (const part of ['marks', 'props', 'title', 'folded', 'sidebar', 'links', 'cites', 'values', 'notices']) { try { Look[part].stop(); } catch (error) { console.error(`Look: ${part} could not stop`, error); } }
+  for (const part of ['marks', 'props', 'title', 'folded', 'sidebar', 'links', 'cites', 'values', 'notices', 'calm']) { try { Look[part].stop(); } catch (error) { console.error(`Look: ${part} could not stop`, error); } }
   Look.kit.stopWatching();
   Look.kit.sweep();
 }

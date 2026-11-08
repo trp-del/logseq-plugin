@@ -45,7 +45,7 @@ function graphChanged(change) {
 }
 
 // Everything the plugin leaves in Logseq's window, taken out when it stops: elements of its own, its attributes.
-const LEAVES = { elements: '.lk-own', attributes: ['data-lk-sort', 'data-lk-kind', 'data-lk-icon', 'data-lk-dev', 'data-lk-line', 'data-lk-closed', 'data-lk-timed'] };
+const LEAVES = { elements: '.lk-own', attributes: ['data-lk-sort', 'data-lk-kind', 'data-lk-icon', 'data-lk-dev', 'data-lk-line', 'data-lk-closed', 'data-lk-timed', 'data-lk-wide'] };
 function sweep(doc = host()) {
   for (const node of doc.querySelectorAll(LEAVES.elements)) node.remove();
   for (const name of LEAVES.attributes) for (const node of doc.querySelectorAll(`[${name}]`)) node.removeAttribute(name);

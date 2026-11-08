@@ -93,9 +93,11 @@ const { U, load, pencilled } = standIn;
   assert.ok(!note.querySelector('.ti-link'), 'no count of links');
   // the settings window draws from Look's description: a heading per section, the one row for the property icon
   const described = window_described();
-  assert.equal(described.schema.filter(i => i.type === 'heading').length, 8, 'eight sections');
+  assert.equal(described.schema.filter(i => i.type === 'heading').length, 9, 'nine sections');
+  assert.ok(described.schema.filter(i => i.type === 'heading').every(i => ['window', 'page', 'sidebar'].includes(i.place)), 'every section of Look is sent to a place');
   const rowsOf = heading => { const at = described.schema.findIndex(i => i.title === heading); const next = described.schema.findIndex((i, n) => n > at && i.type === 'heading'); return described.schema.slice(at + 1, next < 0 ? undefined : next).map(i => i.key); };
   assert.equal(rowsOf('Notices').join(), 'quietNotices', 'Notices holds how a notice shows');
+  assert.equal(rowsOf('Look and feel').join(), 'calmType,readingWidth,calmSidebar,calmToolbar,calmPage,calmTables,calmSearch,calmMenus', 'Look and feel holds a switch per part and the reading width');
   assert.equal(rowsOf('The outline').join(), 'litBranch', 'The outline holds the way to the bullet you edit');
   assert.equal(rowsOf('Folded nodes').join(), 'foldedNote', 'Folded nodes holds only what a folded node says');
   for (const key of ['propertyIcons', 'propertyNameTips', 'quietAddProperty', 'hideDatePencil', 'hideTwoWayList']) assert.ok(rowsOf('Properties').includes(key), key + ' under Properties');

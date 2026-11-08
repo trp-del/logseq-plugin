@@ -21,19 +21,19 @@ const properties = async () => (await window.Threads.core.provided.propSchema())
 window.PluginDoor.describe('threads', {
   get schema() {
     return [
-      { type: 'heading', title: 'The rows on a page' },
-      item('twoWayRows', { title: 'Everything that points at a page, as rows under its words' }),
-      item('twoWayDays', { title: 'Each node’s day in the margin' }),
-      item('twoWayMentions'),
-      { type: 'heading', title: 'What the rows replace' },
-      item('twoWayHideLinkedRefs'),
-      item('twoWayHideTagLists'),
-      { type: 'heading', title: 'Names' },
-      item('twoWayNames', { list: { hint: 'Provider = provider of', offer: properties } }),
-      item('twoWayOneEnd', { list: { hint: 'add a property', offer: properties } }),
-      item('twoWayMentionsHidden', { list: { hint: 'add a page' } }),
-      { type: 'heading', title: 'Troubleshooting' },
-      item('foundationOnly'),
+      { type: 'heading', title: 'Rows under a page', place: 'following' },
+      item('twoWayRows', { title: 'Show everything that points here' }),
+      item('twoWayDays', { title: 'A day beside each row' }),
+      item('twoWayMentions', { title: 'Mentions as rows' }),
+      { type: 'heading', title: 'Logseq’s own lists', place: 'following' },
+      item('twoWayHideLinkedRefs', { title: 'Hide Linked references' }),
+      item('twoWayHideTagLists', { title: 'Hide Logseq’s lists of tagged nodes' }),
+      { type: 'heading', title: 'Names', place: 'following' },
+      item('twoWayNames', { title: 'How a property reads on the other page', list: { hint: 'Provider = provider of', offer: properties } }),
+      item('twoWayOneEnd', { title: 'Properties left out on the other page', list: { hint: 'add a property', offer: properties } }),
+      item('twoWayMentionsHidden', { title: 'Pages that get no mentions row', list: { hint: 'add a page' } }),
+      { type: 'heading', title: 'When something is wrong', place: 'parts' },
+      item('foundationOnly', { title: 'Run only the base, to find a fault' }),
       // Only while Threads runs: there is nothing to open otherwise.
       ...(window.Threads.core?.provided?.openTroubleshooting ? [{ type: 'action', key: 'troubleshoot', title: 'Open troubleshooting', run: () => window.Threads.core.provided.openTroubleshooting() }] : []),
     ];
