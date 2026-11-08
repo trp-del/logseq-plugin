@@ -66,6 +66,19 @@ const CSS = `
 .st-tag .sug { align-items: center; } .st-rel .lk-more { margin-top: 2px; }
 .st-lines-t .rg { display: inline-flex; gap: 4px; align-items: baseline; }
 .st-tag .st-in { max-width: 240px; }
+.st-holder-insp { display: grid; gap: 18px; padding: 4px 2px 12px; }
+.st-holder-insp .st-lines-t { grid-template-columns: 120px minmax(0, 1fr); }
+.st-holder-insp .st-lines-t .ont { grid-template-columns: minmax(0, auto) minmax(0, 1fr) auto; }
+.st-insp-node { border-top: 1px solid var(--lk-hair); padding-top: 16px; }
+.st-insp-node:empty { display: none; }
+.st-insp-words { margin-bottom: 12px; line-height: 1.5; }
+.st-insp-none { margin: 0; color: var(--lk-faint); }
+.st-insp-outline { margin-top: 16px; display: grid; gap: 4px; line-height: 1.5; }
+.st-insp-b { display: flex; gap: 6px; align-items: baseline; padding-left: calc(var(--d) * 22px); }
+.st-insp-b .lk-bul { position: relative; top: 3px; }
+.st-insp-b .w { min-width: 0; overflow-wrap: anywhere; }
+.st-insp-outline .lk-more { justify-self: start; margin-top: 4px; }
+.ls-table-row[data-st-picked] { background: var(--lk-wash); }
 .st-lines-t .to { margin: 0 .35em; }
 .st-sb { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; font-size: 14px; margin: 10px 0 2px; }
 .st-sb .h { font-weight: 600; margin-bottom: 4px; } .st-sb .o { padding-left: calc(var(--d, 0) * 16px); }

@@ -201,7 +201,7 @@ async function otherGraph() {
   }
   await app.reread();
 }
-let mounts = { onPage: () => false, openPage() {}, openSidebar() {} };
+let mounts = { onPage: () => false, openPage() {}, openSidebar() {}, openInspector() {} };
 
 let reReadTimer = 0;
 const reachesMap = window.PluginDoor.structureWatch();
@@ -214,8 +214,12 @@ function graphChanged(change) {
 }
 
 async function main() {
+  S.inspector.model = () => tray.model;
+  S.inspector.changed = () => tagPage();   // the inspector opened, closed or folded: the lines go to it or back above the table
+  S.inspector.start();
   mounts = S.mount.mount(app);
   logseq.App.registerCommandPalette({ key: 'structure-open', label: 'Structure: the map of tags and properties' }, () => app.openMain());
+  logseq.App.registerCommandPalette({ key: 'structure-inspector', label: 'Structure: the inspector in the right sidebar' }, () => mounts.openInspector());
   logseq.App.registerCommandPalette({ key: 'structure-sidebar', label: 'Structure: the tree in the right sidebar' }, () => mounts.openSidebar());
   logseq.provideModel({ structureOpen: () => app.openMain() });
   logseq.App.registerUIItem('toolbar', { key: 'structure-open', template: '<a class="button" data-on-click="structureOpen" title="Structure: the map of tags and properties"><i class="ti ti-hierarchy"></i></a>' });
@@ -233,26 +237,29 @@ async function main() {
   pageWatch.observe(doc.querySelector('#main-content-container') || doc.body, { childList: true, subtree: true });
   stopHash = S.hash.start(app, doc);
 }
-const stop = () => { pageWatch?.disconnect(); stopHash?.(); for (const v of [...app.views]) v.destroy(); host().querySelectorAll('.st-tagholder').forEach(n => n.remove()); host().getElementById('st-style')?.remove(); };
+const stop = () => { S.inspector.stop(); pageWatch?.disconnect(); stopHash?.(); for (const v of [...app.views]) v.destroy(); host().querySelectorAll('.st-tagholder').forEach(n => n.remove()); host().getElementById('st-style')?.remove(); };
 /* The lines on a tag's own page: set above Logseq's table, in the page's own column, each time Logseq draws a tag's page. */
 let pageWatch = null, stopHash = null, tagTimer = 0, tagAsking = 0;
 const days = new Set();   // pages found to be journal days, which a tag's lines never stand on
 const lookup = uuid => { const id = [...tray.model.tags.values()].find(t => t.uuid === uuid)?.id ?? null; return { id, prop: id == null ? [...tray.model.props.values()].find(p => p.uuid === uuid)?.id ?? null : null }; };
 function place(doc, inner, here, id, prop) {
-  const view = [...app.views].find(v => v.mode === 'tag');
+  const view = [...app.views].find(v => v.mode === 'tag' && v.root.parentElement?.classList.contains('st-tagholder'));
   if (id == null && prop == null) { view?.destroy(); doc.querySelector('.st-tagholder')?.remove(); return; }
-  if (view?.tag === (id ?? undefined) && view?.prop === (prop ?? undefined) && view.root.isConnected) { if (view.root.parentElement.nextElementSibling !== here) inner.insertBefore(view.root.parentElement, here); return false; }
+  // While the inspector stands in the right sidebar the lines stand at its top, not above the table; closed, they come back here.
+  const box = S.inspector.top(), parent = box || inner, before = box ? null : here;
+  if (view?.tag === (id ?? undefined) && view?.prop === (prop ?? undefined) && view.root.isConnected && view.root.parentElement.parentElement === parent) { if (!box && view.root.parentElement.nextElementSibling !== here) inner.insertBefore(view.root.parentElement, here); return false; }
   view?.destroy(); doc.querySelector('.st-tagholder')?.remove();
   const holder = doc.createElement('div'); holder.className = 'st-tagholder st-holder-tag';
-  inner.insertBefore(holder, here);
+  parent.insertBefore(holder, before);
   if (id != null) app.st.cur = id;
   app.mounted(S.view.make(holder, 'tag', app, id != null ? { tag: id } : { prop }));
   return true;
 }
 function tagPage() {
+  setTimeout(() => S.inspector.idle());   // after the lines are placed: the faint line under them says what the panel waits for
   const doc = host(), inner = doc.querySelector('#main-content-container .page-inner'), ask = ++tagAsking;
   const here = inner && (inner.querySelector(':scope > .page-tabs') || inner.querySelector(':scope > .ls-page-blocks'));
-  if (!here) { doc.querySelector('.st-tagholder')?.remove(); return; }
+  if (!here) return place(doc, null, null, null, null);
   /* A journal day is never a tag's page, even where the graph holds the day as a tag, or a tag shares the day's name: nothing is
      set above it. The page is the one drawn on screen (its title's block), since Logseq's answer to which page is current can
      still name the last one; the day is told three ways: Logseq's mark on the page, its journal date, a journal day of its name.
@@ -272,7 +279,7 @@ function tagPage() {
 async function tagPageAsked() {
   const doc = host(), inner = doc.querySelector('#main-content-container .page-inner'), ask = ++tagAsking;
   const here = inner && (inner.querySelector(':scope > .page-tabs') || inner.querySelector(':scope > .ls-page-blocks'));
-  if (!here) { doc.querySelector('.st-tagholder')?.remove(); return; }
+  if (!here) return place(doc, null, null, null, null);
   let id = null, prop = null;
   try {
     const page = await logseq.Editor.getCurrentPage();
@@ -285,6 +292,7 @@ async function tagPageAsked() {
 }
 // A holder Logseq already shows (the map's page or the sidebar panel, left from before a reload of the plugin) gets its drawing.
 function adopt() {
+  for (const holder of host().querySelectorAll('.st-holder-insp')) if (!holder.firstChild) S.inspector.mounted(holder);
   for (const holder of host().querySelectorAll('.st-holder')) if (!holder.querySelector('.st')) { try { app.mounted(S.view.make(holder, holder.classList.contains('st-holder-side') ? 'side' : 'page', app)); } catch (error) { console.error('Structure: could not draw into a holder', error); } }
 }
 window.PluginDoor.describe('structure', { none: 'Structure has nothing to set.' });

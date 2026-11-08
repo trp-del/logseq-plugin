@@ -117,7 +117,9 @@ const LOGSEQ_POPUPS = '.cp__select, .ui__popover-content, [data-radix-popper-con
 const floating = el => el.getClientRects().length > 0 && !el.closest('#right-sidebar, #main-content-container, #left-sidebar, .cp__header');
 const popupOpen = (doc = host()) => [...doc.querySelectorAll(LOGSEQ_POPUPS)].some(floating);
 // A bullet's own box only: never a page's title or a property's value.
-const NOT_A_BULLET = '.ls-page-title, .page-title, h1.title, .property-pair, .bottom-property-pill, .property-block-container, .property-value-container';
+// A table's cell being written (.ls-table-block, the editor Logseq opens over a table row) is a plain edit: nothing is pencilled in
+// there (the owner, 8 November 2026: "remove the suggestion row in the edit", a screenshot of a Name cell being written).
+const NOT_A_BULLET = '.ls-page-title, .page-title, h1.title, .property-pair, .bottom-property-pill, .property-block-container, .property-value-container, .ls-table-block';
 const isBlockBox = node => node?.tagName === 'TEXTAREA' && !!node.closest('.ls-block') && !node.closest(NOT_A_BULLET);
 const uuidOf = box => box?.closest('.ls-block[blockid]')?.getAttribute('blockid') || '';
 // Logseq's own lists while writing ([[ pages, / commands, #tags): they have the keys.

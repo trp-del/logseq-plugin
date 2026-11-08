@@ -282,6 +282,14 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
     assert.equal(P.querySelector('[data-pin]').getAttribute('placeholder'), 'Move Consultation to…'); }
   key(tagView.root.querySelector('[data-pin]'), 'Escape'); assert.ok(!tagView.root.querySelector('.st-prompt'));
   tagView.destroy(); holder.remove();
+
+  // The inspector: Logseq hands it a holder; with no row pressed and no table on screen it says what it waits for. jsdom draws no
+  // size, so it counts as not shown and the lines stay above the table (the app check sees it shown).
+  { const box = doc.createElement('div'); doc.body.appendChild(box); S.inspector.mounted(box);
+    assert.ok(box.querySelector('.st-insp-top') && box.querySelector('.st-insp-node'), 'the inspector has its two parts');
+    assert.equal(S.inspector.top(), null, 'a holder with no size is not shown');
+    S.inspector.idle(); assert.match(text(box.querySelector('.st-insp-node')), /Open a tag’s or a property’s page/);
+    S.inspector.gone(box); box.remove(); }
   // A property's page: each prompt under the line it concerns: Node tags, a tag's own row in On tags, Put on a tag….
   { const h2 = doc.createElement('div'); doc.body.appendChild(h2);
     const pv = S.view.make(h2, 'tag', app, { prop: pid('With') }); app.mounted(pv); await sleep(30); const Rp = pv.root;
