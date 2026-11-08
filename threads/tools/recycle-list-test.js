@@ -83,6 +83,13 @@ const d = core.provided.diagnostics;
   const ask = pop.body.querySelector('.th-recycle-ask');
   check(ask && ask.previousElementSibling === bullet && /for good/.test(ask.querySelector('.th-recycle-ask-h')?.textContent) && ask.querySelector('.lk-big')?.textContent === 'Delete for good' && /Leave it/.test(ask.querySelector('.lk-btn')?.textContent), 'the ask stands under the line: a bold line, the blue yes, Leave it: ' + ask?.textContent);
   check(!removed.length && !restored.includes(BULLET), 'asking deletes nothing, restores nothing');
+  // Enter belongs to Leave it (8 November 2026): Enter pressed in the ask deletes nothing; only a press of the blue yes does.
+  check(ask.querySelector('.lk-enter')?.textContent.includes('Leave it') && !ask.querySelector('.lk-big.lk-enter'), 'the return sign stands on Leave it, not on the blue yes');
+  ask.dispatchEvent(new ask.ownerDocument.defaultView.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+  await wait(20);
+  check(!removed.length && !pop.body.querySelector('.th-recycle-ask'), 'Enter in the ask leaves it and deletes nothing');
+  bullet.querySelector('.lk-del').click();
+  await wait(20);
   await answerAsk(pop, false);
   check(!removed.length && !restored.includes(BULLET) && !bullet.disabled && !pop.body.querySelector('.th-recycle-ask'), 'Leave it deletes nothing and the ask goes');
   bullet.querySelector('.lk-del').click();

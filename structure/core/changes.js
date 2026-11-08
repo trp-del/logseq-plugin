@@ -11,8 +11,10 @@ const list = names => S.rules.list(names);
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const name = (M, id) => tag(M, id)?.title ?? '?';
 
-// What goes with a tag's deletion for good, in the words the merge's sentence and the Apply's question share.
-const losses = t => [t?.bullets && (t.bullets === 1 ? '1 bullet on its page goes' : `${t.bullets} bullets on its page go`), t?.links && (t.links === 1 ? '1 link becomes words' : `${t.links} links become words`)].filter(Boolean);
+// What goes with a tag's deletion for good, in the words the merge's sentence and the Apply's question share. A merge moves the
+// bullets on the tag's page to the kept tag's page (8 November 2026), so only a removal loses them.
+const losses = (t, merged) => [!merged && t?.bullets && (t.bullets === 1 ? '1 bullet on its page goes' : `${t.bullets} bullets on its page go`), t?.links && (t.links === 1 ? '1 link becomes words' : `${t.links} links become words`)].filter(Boolean);
+const moved = (M, c) => { const n = tag(M, c.from)?.bullets; return n ? [`${n === 1 ? '1 bullet on its page moves' : `${n} bullets on its page move`} to ${name(M, c.into)}`] : []; };
 // A change Undo cannot put back whole: a tag with something on it deleted. Undo makes a new one; what is lost stays lost.
 function lasting(M, c) {
   const id = c.kind === 'merge' ? c.from : c.kind === 'remove' ? c.tag : null, t = id != null ? tag(M, id) : null;
@@ -28,7 +30,7 @@ function sentence(M, c) {
     case 'rename': return { text: `Rename ${name(M, c.tag)} to ${c.name}`, nodes: count(M, c.tag) };
     case 'renameProp': return { text: `Rename ${prop(M, c.prop).title} to ${c.name}`, nodes: prop(M, c.prop).on.reduce((s, t) => s + filled(M, t, c.prop), 0) };
     case 'merge': {   // the count sits in the tray's own column; what no Undo brings back is said here, as the ask reads this sentence too
-      return { text: [`Merge ${name(M, c.from)} into ${name(M, c.into)}, ${name(M, c.from)} removed`, ...losses(tag(M, c.from))].join(' · '), nodes: count(M, c.from), ask: `Merge ${name(M, c.from)} into ${name(M, c.into)}`, lost: losses(tag(M, c.from)) }; }
+      return { text: [`Merge ${name(M, c.from)} into ${name(M, c.into)}, ${name(M, c.from)} removed`, ...moved(M, c), ...losses(tag(M, c.from), true)].join(' · '), nodes: count(M, c.from), ask: `Merge ${name(M, c.from)} into ${name(M, c.into)}`, lost: [...moved(M, c), ...losses(tag(M, c.from), true)] }; }
     case 'retag': return { text: `Move ${plural(c.nodes.length, 'node')} from ${name(M, c.from)} to ${name(M, c.to)}`, nodes: c.nodes.length };
     case 'moveProp': { const from = c.from.filter(id => tag(M, id)); return { text: `Move ${prop(M, c.prop).title} from ${list(from.map(id => name(M, id)))} to ${name(M, c.to)}`, nodes: from.reduce((s, id) => s + filled(M, id, c.prop), 0) }; }
     case 'addProp': return { text: c.under != null ? `Add ${prop(M, c.prop).title} to every tag under ${name(M, c.under)}` : `Add ${prop(M, c.prop).title} to ${list(c.tags.map(id => name(M, id)))}`, nodes: (c.under != null ? [c.under] : c.tags).reduce((s, id) => s + count(M, id), 0) };
@@ -54,7 +56,7 @@ function applyToModel(M, c) {
     case 'rename': if (t) t.title = c.name; break;
     case 'renameProp': { const p = prop(M, c.prop); if (p) p.title = c.name; break; }
     case 'merge': { const from = tag(M, c.from), into = tag(M, c.into); if (!from || !into) break;
-      for (const n of from.nodes) into.nodes.add(n); into.nodeUuids = [...new Set([...into.nodeUuids, ...from.nodeUuids])];
+      for (const n of from.nodes) into.nodes.add(n); into.nodeUuids = [...new Set([...into.nodeUuids, ...from.nodeUuids])]; into.bullets = (into.bullets || 0) + (from.bullets || 0);
       for (const k of from.kids) { const kt = tag(M, k); if (!Mo.under(M, c.into, k)) kt.parents = [c.into, ...kt.parents.filter(p => p !== c.from && p !== c.into)]; else kt.parents = kt.parents.filter(p => p !== c.from); }
       for (const pid of from.props) if (!into.props.includes(pid)) into.props.push(pid);
       if (into.parents.includes(c.from)) into.parents = [...from.parents.filter(p => p !== c.into), ...into.parents.filter(p => p !== c.from)];
@@ -108,6 +110,7 @@ function steps(M, c) {
       for (const p of M.props.values()) if (p.range.includes(c.from)) out.push({ op: 'setRange', prop: propHandle(M, p.id), to: swapped(p.range, c.from, c.into).map(H), was: p.range.map(H) });
       // Taken off first, or Logseq leaves its Root Tag on them when the tag goes. Undone after the tag is back, so on its new uuid.
       for (const k of M.tags.values()) if (k.parents.includes(c.from)) out.push({ op: 'removeExtends', tag: H(k.id), parent: H(c.from) });
+      out.push({ op: 'moveBullets', from: H(c.from), into: H(c.into) });
       out.push({ op: 'deleteTag', tag: H(c.from), into: H(c.into), restore: restoreOf(M, c.from) }); break; }
     case 'retag': for (const n of stillOn(M, c.from, c.nodes)) { if (!tag(M, c.to)?.nodeUuids.includes(n.uuid)) out.push({ op: 'addTag', node: n.uuid, tag: H(c.to) }); out.push({ op: 'removeTag', node: n.uuid, tag: H(c.from) }); } break;
     case 'moveProp': { const to = tag(M, c.to); if (to && !to.props.includes(c.prop)) out.push({ op: 'addClassProp', tag: H(c.to), prop: propHandle(M, c.prop) }); for (const id of c.from) if (id !== c.to && tag(M, id)?.props.includes(c.prop)) out.push({ op: 'removeClassProp', tag: H(id), prop: propHandle(M, c.prop) }); break; }

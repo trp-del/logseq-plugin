@@ -417,7 +417,7 @@ async function joinTwin(keepUuid, goneUuid, groupName, at) {
   if (prop && here) await twoWay.setValues(goneUuid, prop, had.filter(v => v !== here));
   await twoWay.provided.moveBlock(goneUuid, keepUuid, { children: true });
   twoWay.later(200);
-  twoWay.offerUndo('Joined two nodes', async () => {
+  await twoWay.offerKept(prop ? [[goneUuid, prop.ident]] : [], 'Joined two nodes', async () => {
     if (left && left !== parent) await twoWay.provided.moveBlock(goneUuid, left, { before: false }); else if (parent) await twoWay.provided.moveBlock(goneUuid, parent, { children: true });
     if (prop) await twoWay.setValues(goneUuid, prop, had);
     twoWay.later(200);

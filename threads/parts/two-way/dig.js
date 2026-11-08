@@ -485,7 +485,7 @@ async function takeGuesses(uuid, idents) {
   twoWay.peek.cache.clear();
   await readAgain(uuid);
   const group = state.groups.find(g => g.items.some(item => item.uuid === uuid));
-  twoWay.offerUndo(`Filled ${taken.map(t => `“${t.title}”`).join(', ')} on “${twoWay.shortName(titleOf(uuid))}”`, async () => { for (const t of taken) await twoWay.model.unsetValue(uuid, t.ident); twoWay.peek.cache.clear(); await readAgain(uuid); twoWay.later(300); }, group?.name, twoWay.inBox(`.th-ol-pname[data-edit="${CSS.escape(taken[taken.length - 1].ident)}"][data-uuid="${CSS.escape(uuid)}"] + .th-ol-pv`));
+  await twoWay.offerKept(taken.map(t => [uuid, t.ident]), `Filled ${taken.map(t => `“${t.title}”`).join(', ')} on “${twoWay.shortName(titleOf(uuid))}”`, async () => { for (const t of taken) await twoWay.model.unsetValue(uuid, t.ident); twoWay.peek.cache.clear(); await readAgain(uuid); twoWay.later(300); }, group?.name, twoWay.inBox(`.th-ol-pname[data-edit="${CSS.escape(taken[taken.length - 1].ident)}"][data-uuid="${CSS.escape(uuid)}"] + .th-ol-pv`));
   twoWay.later(300);
 }
 /* A node's properties changed where they sit (0.4.410): a click on a property's name, or on what a plain one holds, asks
@@ -546,7 +546,7 @@ async function editNodeProp(uuid, ident, at) {
   twoWay.peek.cache.clear();
   await readAgain(uuid);
   const group = state.groups.find(g => g.items.some(item => item.uuid === uuid));
-  twoWay.offerUndo(`${done} on “${name}”`, async () => { await twoWay.setValues(uuid, prop, had); twoWay.peek.cache.clear(); await readAgain(uuid); twoWay.later(300); }, group?.name, twoWay.valueBox(uuid, prop));
+  await twoWay.offerKept([[uuid, prop.ident]], `${done} on “${name}”`, async () => { await twoWay.setValues(uuid, prop, had); twoWay.peek.cache.clear(); await readAgain(uuid); twoWay.later(300); }, group?.name, twoWay.valueBox(uuid, prop));
   twoWay.later(300);
 }
 // A click inside the outline: a chevron opens or closes, a pencilled value is taken, "show all" shows all, a property's

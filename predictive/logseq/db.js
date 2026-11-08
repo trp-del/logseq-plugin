@@ -258,8 +258,8 @@ async function makePage(title, tagUuid) {
   return { id: page.id, uuid: String(page.uuid), title: String(page.title ?? page.originalName ?? title) };
 }
 async function dropPage(page) {
-  const rows = await dsQuery(`[:find ?b ?t :where [?p :block/uuid #uuid "${page.uuid}"] [?b :block/page ?p] [?b :block/title ?t]]`).catch(() => []);
-  if (rows.some(([, t]) => String(t || '').trim())) return false;
+  // The door's one check (8 November 2026): no words on it, nothing pointing at it, no value of its own.
+  if (!await window.PluginDoor.pageUntouched(page.uuid)) return false;
   await logseq.Editor.deletePage(page.title);
   return true;
 }

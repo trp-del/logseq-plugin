@@ -181,10 +181,25 @@ async function remakeTag(name) {
   return makeTag(free);
 }
 const deleteTag = uuid => logseq.Editor.deletePage(uuid);
+/* What an Undo may take away again (8 November 2026): a page or tag Apply made, only while nothing has been written on it or
+   pointed at it since (PluginDoor.pageUntouched: a tagged node points at its tag too) and no tag extends it. */
+const untouched = async uuid => await window.PluginDoor.pageUntouched(uuid, query) && !(await query(`[:find ?k :where [?t :block/uuid #uuid "${uuid}"] [?k :${EXTENDS} ?t]]`)).length;
+// What a node holds under a property, to compare before an Undo writes over it (PluginDoor.valueStamp).
+const stamp = (uuid, ident) => window.PluginDoor.valueStamp(uuid, ident, query);
+// The bullets on a page's top level, in order, without the ones Logseq keeps for the page's own property values.
+const pageBullets = async uuid => ((await logseq.Editor.getPageBlocksTree(uuid)) || []).filter(b => !b?.['logseq.property/created-from-property'] && !b?.createdFromProperty).map(b => String(b.uuid));
+// Bullets moved, in their order, after the last bullet on another page (or as its first when it has none), with their children.
+async function moveBullets(uuids, pageUuid) {
+  let last = (await pageBullets(pageUuid)).at(-1);
+  for (const uuid of uuids) {
+    if (last) await logseq.Editor.moveBlock(uuid, last, { before: false }); else await logseq.Editor.moveBlock(uuid, pageUuid, { children: true });
+    last = uuid;
+  }
+}
 const graph = async () => (await logseq.App.getCurrentGraph())?.name || '';
 const editing = () => Promise.resolve(logseq.Editor.checkEditing?.()).then(v => !!v).catch(() => false);
 
 // A journal day, or a page that shares a day's name (a tag made with a day's name): Structure sets nothing above it.
 const isDay = async uuid => /^[0-9a-f-]{36}$/i.test(uuid) && (await query(`[:find ?d :where [?p :block/uuid #uuid "${uuid}"] [?p :block/name ?n] [?j :block/name ?n] [?j :block/journal-day ?d]]`)).length > 0;
-S.db = { propValues, choicesOf, uuidOfNode, pageNamed, dayPage, putValues, query, read, isDay, nodesOf, valuesOf, nodesWhere, tagOfPage, tagIdByUuid, titleOf, nodeUuids, graph, valueRefs, valueIds, rangeIds, classPropIds, putClassProps, setValues, addExtends, removeExtends, rename, addTag, removeTag, addClassProp, removeClassProp, setRange, nameTaken, makeTag, remakeTag, deleteTag, editing, bare, pick, idOf };
+S.db = { propValues, choicesOf, uuidOfNode, pageNamed, dayPage, putValues, query, read, isDay, nodesOf, valuesOf, nodesWhere, tagOfPage, tagIdByUuid, titleOf, nodeUuids, graph, valueRefs, valueIds, rangeIds, classPropIds, putClassProps, setValues, addExtends, removeExtends, rename, addTag, removeTag, addClassProp, removeClassProp, setRange, nameTaken, makeTag, remakeTag, deleteTag, untouched, stamp, pageBullets, moveBullets, editing, bare, pick, idOf };
 })();

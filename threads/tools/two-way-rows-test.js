@@ -50,7 +50,7 @@ function world(grouping) {
   window.eval(fs.readFileSync(path.join(root, '../plugin.js'), 'utf8'));
   window.eval(fs.readFileSync(path.join(root, 'parts/shared.js'), 'utf8'));
   for (const source of twoWay.sources()) window.eval(source);
-  const calls = [], reads = [], changed = [], graphHooks = [], madeNow = new Map(), recycled = new Set(), notices = [];
+  const calls = [], reads = [], changed = [], graphHooks = [], madeNow = new Map(), stampNow = new Map(), recycled = new Set(), notices = [];
   window.logseq.UI.showMsg = text => notices.push(text);
   const bullets = new Map([[U(101), [{ uuid: U(701), title: 'Cepeda reviewed 254 studies.' }, { uuid: U(702), title: 'See [[Testing effect]].' }]]]);
   let nextBlock = 800;
@@ -75,7 +75,7 @@ function world(grouping) {
       { ident: 'user.property/source', title: 'Source', lower: 'source', type: 'node', many: true, choices: [], classes: [{ id: 60 }] },
     ], parentsOf: new Map([[64, [60]]]) }),
     propPages: async () => [{ id: 61, uuid: U(61), title: 'Cepeda 2006', lower: 'cepeda 2006', tags: [{ id: 60 }] }, { id: 64, uuid: U(64), title: 'A child tag’s page', lower: 'a child tag’s page', tags: [{ id: 64 }] }, { id: 62, uuid: U(62), title: 'Rohrer 2015', lower: 'rohrer 2015', tags: [{ id: 60 }] }, { id: 63, uuid: U(63), title: 'Memory techniques', lower: 'memory techniques', tags: [] }],
-    aliasesOf: async () => [], madeState: async uuid => madeNow.get(uuid) || 'as made', inRecycle: async uuid => recycled.has(uuid), restorePage: async uuid => { calls.push(['restorePage', uuid]); recycled.delete(uuid); }, storedWords: async text => text,
+    aliasesOf: async () => [], madeState: async uuid => madeNow.get(uuid) || 'as made', valueStamp: async (uuid, ident) => stampNow.get(`${uuid}|${ident}`) || 'as left', inRecycle: async uuid => recycled.has(uuid), restorePage: async uuid => { calls.push(['restorePage', uuid]); recycled.delete(uuid); }, storedWords: async text => text,
     fits: (page, ids, schema) => { const seen = new Set(), queue = page.tags.map(t => t.id); while (queue.length) { const c = queue.shift(); if (seen.has(c)) continue; seen.add(c); if (ids.has(c)) return true; queue.push(...(schema.parentsOf?.get(c) || [])); } return false; },
     pagesAmong: async () => 0,
     tagUuidNamed: async title => `tag-${title.toLowerCase()}`,
@@ -109,7 +109,7 @@ function world(grouping) {
   };
   const part = window.Threads.parts.find(p => p.name === 'two-way');
   part.start();
-  return { window, doc, calls, part, bullets, saved, reads, changed, provided, graphHooks, madeNow, recycled, notices };
+  return { window, doc, calls, part, bullets, saved, reads, changed, provided, graphHooks, madeNow, stampNow, recycled, notices };
 }
 const click = (window, el) => el.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
 // The bar's More (5 November 2026): every action but Open in sidebar sits in it. Opens it and gives its items.
@@ -751,7 +751,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
   //    pickerOrder); a pick sets it, Undo puts back what it held; a number is shown ready to change; Clear at the end of
   //    a list clears it (empty and Enter would take the lit row).
   {
-    const { window, doc, calls, part } = world('');
+    const { window, doc, calls, part, stampNow, notices } = world('');
     await wait(120);
     const asked = [];
     window.Threads.core.provided.pickerOrder = async (uuid, title) => { asked.push([uuid, title]); return title === 'Source' ? [62] : []; };
@@ -808,6 +808,11 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     check(calls.slice(unsets).some(c => c[0] === 'unsetValue' && c[1] === node && c[2] === 'user.property/confidence') && !calls.slice(unsets).some(c => c[0] === 'setValue'), 'Clear should clear it and set nothing: ' + JSON.stringify(calls.slice(unsets)));
     // A new change's arrow takes the last one's place: Severity's went when Confidence was cleared.
     check(doc.querySelectorAll('.lk-undo[data-lk-undo]').length === 1 && /Confidence/.test(doc.querySelector('.lk-undo[data-lk-undo]').title), 'one arrow stands, on the last change: ' + [...doc.querySelectorAll('.lk-undo[data-lk-undo]')].map(u => u.title));
+    // Confidence set again by hand in Logseq after the Clear (8 November 2026): the arrow leaves it, writes nothing and says so.
+    stampNow.set(`${node}|user.property/confidence`, 'set by hand since');
+    const before = calls.length;
+    click(window, doc.querySelector('.lk-undo[data-lk-undo]')); await wait(150);
+    check(!calls.slice(before).some(c => /Value$/.test(c[0])) && notices.some(t => t.includes('so it stays')), 'a value changed since the change should stay, and Undo should say so: ' + JSON.stringify(calls.slice(before)) + JSON.stringify(notices));
     part.stop();
   }
   // 10. The picking bar's "Change … to…" (0.4.414): the pages the picked nodes' words name come first, the most named
@@ -1102,12 +1107,15 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     check(!inPlace() && lastSet()?.[2] === String(new Date(2026, 10, 6).getTime()), 'Enter should then write it whole: ' + lastSet());
     part.stop();
   }
-  // Select all takes what is shown; the question names pages apart from bullets; Enter on Cancel cancels, and Enter on the question deletes.
+  // Select all takes what is shown; the question names pages apart from bullets. Bullets are deleted for good (8 November 2026),
+  // so the keyboard waits on Cancel and Enter anywhere in the question cancels; only the blue yes deletes. Pages alone go to the
+  // Recycle, Enter deletes them as before, and the faded arrow brings them back.
   {
     const { window, doc, calls, part } = world('');
     await wait(120);
     const provided = window.Threads.core.provided;
-    provided.getPage = async uuid => uuid === U(102) ? { name: 'gap', title: 'gap' } : { id: 5, uuid: PAGE };
+    provided.getPage = async uuid => uuid === U(102) ? { id: 9, name: 'gap', title: 'gap', uuid: U(102) } : null;
+    provided.kindOfPage = async () => ({ isTag: false });
     provided.deletePage = async name => { calls.push(['deletePage', name]); };
     await startPicking(window, doc);
     click(window, doc.querySelector('.th-tw-pick'));
@@ -1117,17 +1125,24 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     check(/5 picked/.test(doc.querySelector('.th-tw-bar .th-count').textContent) && !(await moreItems(window, doc)).some(el => /^Select all/.test(el.textContent.trim())), 'Select all should pick the five shown, not the one behind "show all": ' + doc.querySelector('.th-tw-bar .th-count').textContent);
     click(window, doc.querySelector('.th-tw-bar [data-act="delete"]'));
     await wait(60);
-    check(doc.querySelector('.th-ask-words')?.textContent === 'Delete 1 page with all its bullets and 4 bullets? This cannot be undone from here.', 'the question should name the page apart from the bullets: ' + doc.querySelector('.th-ask-words')?.textContent);
+    check(doc.querySelector('.th-ask-words')?.textContent === 'Delete 1 page with all its bullets and 4 bullets?', 'the question should name the page apart from the bullets: ' + doc.querySelector('.th-ask-words')?.textContent);
+    check(/4 bullets are deleted for good: nothing can bring them back\. The page goes to the Recycle\./.test(doc.querySelector('.th-ask')?.textContent || ''), 'the question should say the bullets cannot come back: ' + doc.querySelector('.th-ask')?.textContent);
+    // The keyboard's place is seen in Logseq (8 November 2026: Cancel had it); a stand-in pop-up cannot take the keyboard.
+    check(doc.querySelector('.th-ask .th-btns .lk-enter')?.textContent === 'Cancel' && !!doc.querySelector('.th-ask .lk-big') && !doc.querySelector('.th-ask .lk-accent'), 'Enter should belong to Cancel, the yes being the blue one for what Undo cannot put back');
     const press = el => el.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
-    const cancel = [...doc.querySelectorAll('.th-ask .th-btns button')].find(b => b.textContent === 'Cancel');
-    press(cancel);
+    press(doc.querySelector('.th-ask'));
     await wait(60);
-    check(!doc.querySelector('.th-ask') && !calls.some(c => c[0] === 'removeBlock' || c[0] === 'deletePage'), 'Enter on Cancel should close the question and delete nothing');
+    check(!doc.querySelector('.th-ask') && !calls.some(c => c[0] === 'removeBlock' || c[0] === 'deletePage'), 'Enter on the question should cancel and delete nothing');
     click(window, doc.querySelector('.th-tw-bar [data-act="delete"]'));
     await wait(60);
-    press(doc.querySelector('.th-ask'));
+    click(window, doc.querySelector('.th-ask .lk-big'));
     await wait(120);
-    check(calls.filter(c => c[0] === 'removeBlock').length === 4 && calls.some(c => c[0] === 'deletePage' && c[1] === 'gap'), 'Enter on the question should delete what it names: ' + JSON.stringify(calls));
+    check(calls.filter(c => c[0] === 'removeBlock').length === 4 && calls.some(c => c[0] === 'deletePage' && c[1] === 'gap'), 'the blue Delete should delete what it names: ' + JSON.stringify(calls));
+    const arrow = doc.querySelector('.lk-undo[data-lk-undo]');
+    check(!!arrow, 'the page deleted should have the faded arrow');
+    click(window, arrow);
+    await wait(120);
+    check(calls.some(c => c[0] === 'restorePage' && c[1] === U(102)), 'the arrow should bring the page back from the Recycle: ' + JSON.stringify(calls.filter(c => c[0] === 'restorePage')));
     part.stop();
   }
   // Linked references goes only when the mentions were read; a node holding the page's alias is in the rows.

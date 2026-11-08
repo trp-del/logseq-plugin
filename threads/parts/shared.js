@@ -387,7 +387,7 @@ const note = (doc, text, cls) => el(doc, 'div', { class: `lk-note${cls ? ' ' + c
 /* THE pop-up: the browser's popover (dismissed by it on Escape or a click outside, in the top layer), placed under
    its anchor by CSS anchor positioning and flipped up or sideways when there is no room; the box is Logseq's own [[
    menu look. Two fillings: a menu (items) and a list (a field, then rows). With a rect for `at`, a 0×0 anchor is put
-   there. `manual`: the part dismisses it itself (the link box, whose keys stay in the bullet); `hint`: a card that
+   there. `focusOn`: a selector inside it that takes the keyboard when it shows, in place of the pop-up itself. `manual`: the part dismisses it itself (the link box, whose keys stay in the bullet); `hint`: a card that
    takes no focus (the hover card). Keys typed inside never reach Logseq. */
 let anchorCount = 0;
 // Every pop-up open now, so an unload closes them all (main.js calls popups.closeAll; the boot test looks for leftovers).
@@ -423,7 +423,7 @@ function anchorFor(doc, at) {
   node.style.setProperty('anchor-name', name);
   return { name, cleanup: () => { if (made) node.remove(); else if (node.style.getPropertyValue('anchor-name') === name) { if (before) node.style.setProperty('anchor-name', before); else node.style.removeProperty('anchor-name'); } } };
 }
-function popup({ at, kind = 'menu', head, items, field: fieldOptions, rows, keys, manual = false, hint = false, cls = '', width, onClose, doc } = {}) {
+function popup({ at, kind = 'menu', head, items, field: fieldOptions, rows, keys, manual = false, hint = false, cls = '', width, onClose, doc, focusOn = '' } = {}) {
   let waitUp = null; // set while the pop-up waits for the mouse button that opened it to be let go
   doc = doc || host();
   const pop = el(doc, 'div', { class: `th-pop lk-pop${items || rows ? ' lk-menu' : ''}${cls ? ' ' + cls : ''}`, role: hint ? 'tooltip' : fieldOptions ? 'listbox' : 'menu', tabindex: hint ? null : '-1' });
@@ -496,7 +496,7 @@ function popup({ at, kind = 'menu', head, items, field: fieldOptions, rows, keys
   const show = () => {
     if (closed) return;
     try { if (pop.showPopover) pop.showPopover(); } catch (error) { /* shown as a plain box */ }
-    if (!hint) { if (fieldEl) fieldEl.input.focus({ preventScroll: true }); else if (!manual) pop.focus({ preventScroll: true }); }
+    if (!hint) { if (fieldEl) fieldEl.input.focus({ preventScroll: true }); else if (!manual) ((focusOn && pop.querySelector(focusOn)) || pop).focus({ preventScroll: true }); }
   };
   /* Opened while a mouse button is still down (a right-click opens its menu on the press, on a Mac): shown once the button
      is let go (0.4.323, the owner: "menu appear for less than a second and then disappears. you can get it to stay if you
@@ -641,24 +641,28 @@ function editInPlace({ at, value = '', type = 'text', placeholder = '', doc, aga
   });
 }
 /* A question beside what it is about: the question, a quiet note, the library's answers under it, Cancel and the one
-   that does it (no backdrop, no fill). Resolves true or false; with a field, the text typed (Enter or the go word) or null. */
-function ask({ at, question, note: hint, go: goWord = 'OK', cancel = 'Cancel', field: fieldOptions, width, cls, doc } = {}) {
+   that does it (no backdrop, no fill). Resolves true or false; with a field, the text typed (Enter or the go word) or null.
+   lasting: what nothing can put back (a bullet deleted). Then the yes is lk-big, the library's yes to a change Undo cannot put
+   back, and the keyboard waits on Cancel, so Enter cancels and only a press says yes. */
+function ask({ at, question, note: hint, go: goWord = 'OK', cancel = 'Cancel', field: fieldOptions, width, cls, doc, lasting = false } = {}) {
   doc = doc || host();
   return new Promise(resolve => {
     let answer = fieldOptions ? null : false;
-    const p = popup({ at, doc, cls: `th-ask${cls ? ' ' + cls : ''}`, width, onClose: () => resolve(answer) });
+    const p = popup({ at, doc, cls: `th-ask${cls ? ' ' + cls : ''}`, width, onClose: () => resolve(answer), focusOn: lasting ? '.th-btns .lk-i-x' : '' });
     const done = () => { answer = fieldOptions ? f.input.value : true; p.close(); };
     const f = fieldOptions ? field(doc, { ...fieldOptions, keys: event => { if (event.key === 'Enter' && !event.isComposing && !(fieldOptions.multiline && event.shiftKey)) { done(); return true; } return fieldOptions.keys?.(event) === true; } }) : null;
     // Only what is there: the browser writes an empty piece out as the word "null" (0.4.326).
     p.body.append(...[el(doc, 'div', { class: 'th-ask-words' }, question), hint ? note(doc, hint) : null, f,
-      el(doc, 'div', { class: 'th-btns lk-answers' }, el(doc, 'button', { type: 'button', class: 'lk-btn lk-i-x', click: () => p.close() }, cancel), go(doc, { label: goWord, run: done, cls: 'lk-i-tick lk-enter' }))].filter(Boolean));
+      el(doc, 'div', { class: 'th-btns lk-answers' }, el(doc, 'button', { type: 'button', class: `lk-btn lk-i-x${lasting ? ' lk-enter' : ''}`, click: () => p.close() }, cancel),
+        lasting ? el(doc, 'button', { type: 'button', class: 'lk-big', click: done }, goWord) : go(doc, { label: goWord, run: done, cls: 'lk-i-tick lk-enter' }))].filter(Boolean));
     if (f) { f.input.focus({ preventScroll: true }); if (fieldOptions.select && f.input.value) f.input.select(); }
+    else if (lasting) p.body.querySelector('.th-btns .lk-i-x')?.focus({ preventScroll: true });
     // Enter takes what is offered: with the keyboard on a button, that button, so on Cancel it cancels. Pressed here, since Logseq takes Enter before the browser would.
     p.el.addEventListener('keydown', event => {
       if (event.key !== 'Enter' || event.isComposing || event.target === f?.input) return;
       event.preventDefault(); event.stopPropagation();
       const button = event.target.closest?.('button');
-      if (button) button.click(); else done();
+      if (button) button.click(); else if (lasting) p.close(); else done();
     });
   });
 }

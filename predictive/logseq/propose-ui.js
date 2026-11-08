@@ -406,6 +406,9 @@ async function writePieces(recordUuid, pieces) {
     const gave = [];
     try {
       if (piece.kind === 'tag') { await db.addTag(recordUuid, piece.tag.uuid); written.push(piece); continue; }
+      // A guess fills only what is still empty as it is written (8 November 2026): a value set by hand while the guess was on
+      // screen is yours, and stays.
+      if ((await db.currentIds(recordUuid, piece.prop)).length) continue;
       if (piece.tagPage) for (const uuid of piece.tagPage.uuids) { await db.addTag(uuid, piece.tagPage.tag.uuid); gave.push(uuid); }
       // A new page for a name no page had (core/people.js): made with its tag, then filled in.
       if (piece.newPage) { const made = await db.makePage(piece.newPage.title, piece.newPage.tag.uuid); piece.madePage = made; piece.wrote = [made.id]; await db.setValue(recordUuid, piece.ident, made.id, { entityId: true }); }

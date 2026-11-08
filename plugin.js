@@ -53,6 +53,32 @@ Door.el = (doc, tag, props = {}, ...children) => {
   return node;
 };
 Door.notify = (text, status = 'info') => { try { return logseq.UI.showMsg(text, status); } catch (error) { console.log(`Logseq Plugin: ${text}`); } };
+/* Two checks every Undo makes before it writes, so an Undo never takes away what was written after the change it undoes (8 November
+   2026, the data-safety review). valueStamp(uuid, ident): what a node holds under a property this moment, as words to compare (a
+   value's id with its words, a number's number), taken right after a change and again at Undo: the same stamp, nothing touched
+   since. pageUntouched(uuid): a page a change made can go again only while no bullet on it has words, nothing else points at it
+   (a link, a property's value) and it holds no value of its own.
+   ask: the module's own query call, one query in, the rows out (Logseq's datascriptQuery when none is given). */
+const dsAsk = query => logseq.DB.datascriptQuery(query);
+Door.valueStamp = async (uuid, ident, ask = dsAsk) => {
+  const at = String(ident).replace(/^:/, '');
+  const values = (await ask(`[:find ?v :where [?b :block/uuid #uuid "${uuid}"] [?b :${at} ?v]]`) || []).map(([v]) => v);
+  const ids = values.filter(Number.isInteger), words = new Map();
+  if (ids.length) {
+    const these = `[(ground [${ids.join(' ')}]) [?v ...]]`;
+    for (const [v, t] of await ask(`[:find ?v ?t :where ${these} [?v :block/title ?t]]`) || []) words.set(v, `${v}:${t}`);
+    for (const [v, n] of await ask(`[:find ?v ?n :where ${these} [?v :logseq.property/value ?n]]`) || []) words.set(v, `${v}=${JSON.stringify(n)}`);
+  }
+  return JSON.stringify(values.map(v => words.get(v) ?? JSON.stringify(v)).sort());
+};
+Door.pageUntouched = async (uuid, ask = dsAsk) => {
+  const page = `[?p :block/uuid #uuid "${uuid}"]`, USER = '[?pr :db/ident ?a] [?pr :block/tags :logseq.class/Property] [(namespace ?a) ?ns] [(= ?ns "user.property")]';
+  const words = await ask(`[:find ?t :where ${page} [?b :block/page ?p] [?b :block/title ?t]]`) || [];
+  if (words.some(([t]) => String(t ?? '').trim())) return false;
+  if ((await ask(`[:find ?b :where ${page} [?b :block/refs ?p] (not [?b :block/page ?p])]`) || []).length) return false;
+  if ((await ask(`[:find ?b :where ${page} [?b ?a ?p] ${USER}]`) || []).length) return false;
+  return !(await ask(`[:find ?a :where ${page} [?p ?a _] ${USER}]`) || []).length;
+};
 // Whether a module is switched on (its switch in the settings). The switches are read as the plugin starts.
 Door.runs = key => logseq.settings?.[key + 'On'] !== false;
 /* The day a node shows, from its date properties ([node, day, the property's name]): the one titled Date, whatever its ident, else

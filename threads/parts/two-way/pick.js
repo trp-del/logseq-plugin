@@ -139,7 +139,7 @@ async function raise(pair, uuids) {
     if (!tagged) await twoWay.model.addTag(uuid, pair.tag.uuid);
     if (!had.includes(here)) await setValues(uuid, pair.prop, pair.prop.many ? [...had, here] : [here]);
     state.raise.delete(uuid);
-    return async () => { await setValues(uuid, pair.prop, had); if (!tagged) await twoWay.model.removeTag(uuid, pair.tag.uuid); };
+    return twoWay.guard([[uuid, pair.prop.ident], [uuid, 'block/tags']], async () => { await setValues(uuid, pair.prop, had); if (!tagged) await twoWay.model.removeTag(uuid, pair.tag.uuid); });
   }));
 }
 // Every sure proposal of the mentions row taken at once, with one Undo (C19, 7 November 2026); a refused one is left.
@@ -155,7 +155,7 @@ async function raiseAll() {
     if (!tagged) await twoWay.model.addTag(uuid, pair.tag.uuid);
     if (!had.includes(here)) await setValues(uuid, pair.prop, pair.prop.many ? [...had, here] : [here]);
     state.raise.delete(uuid);
-    return async () => { await setValues(uuid, pair.prop, had); if (!tagged) await twoWay.model.removeTag(uuid, pair.tag.uuid); };
+    return twoWay.guard([[uuid, pair.prop.ident], [uuid, 'block/tags']], async () => { await setValues(uuid, pair.prop, had); if (!tagged) await twoWay.model.removeTag(uuid, pair.tag.uuid); });
   }));
 }
 const picks = () => [...state.picked].map(key => { const at = key.indexOf('|'); return { uuid: key.slice(0, at), group: state.groups.find(g => g.name === key.slice(at + 1)) }; }).filter(p => p.group);
@@ -169,7 +169,6 @@ const ask = async (heading, hint, options, button = 'OK', value = '', allowEmpty
   const picked = await shared.pickValue({ at, placeholder: heading, options: options.map(label => ({ label, held: !!value && label === value })), clearLabel, free: true });
   return picked == null ? null : picked.clear ? '' : (picked.typed ?? picked.label);
 };
-const sure = (heading, button, at = null) => shared.ask({ at, question: heading, go: button });
 // A link, a choice or a day is held by its id; anything else by what it says.
 const heldById = prop => !!prop.choices?.length || ['node', 'page', 'date'].includes(prop.type);
 /* What a node holds under a property, so it can be put back exactly: ids (the tag tree's way, parts/tags.js), or what it says.
@@ -199,10 +198,11 @@ async function writeAll(text, steps) {
   twoWay.stopPicking(); twoWay.later(300); twoWay.draw(host());
   if (failed) notify(`${failed} of the picked nodes could not be changed`, 'warning');
   if (undos.length) twoWay.offerUndo(text, async () => {
-    let missed = 0;
-    for (const undo of undos.reverse()) { try { await undo(); } catch (error) { missed++; warnOnce('a picked node could not be put back', error); } }
+    let missed = 0, kept = 0;
+    for (const undo of undos.reverse()) { try { if (await undo() === 'kept') kept++; } catch (error) { missed++; warnOnce('a picked node could not be put back', error); } }
     twoWay.later(300);
     if (missed) notify(`${missed} of the nodes could not be put back`, 'warning');
+    if (kept) notify(`${kept === 1 ? '1 node has' : `${kept} nodes have`} changed since, so ${kept === 1 ? 'it stays' : 'they stay'}`, 'warning');
   });
 }
 const propNamed = async name => (await twoWay.provided.propSchema()).props.find(p => p.lower === name.toLowerCase());
@@ -346,20 +346,33 @@ async function act(what, at = null) {
         if (what === 'unset') { if (!had.length) return null; await twoWay.model.unsetValue(uuid, prop.ident); }
         else if (entity) await setValues(uuid, prop, prop.many ? [...new Set([...had, value])] : [value]);
         else await twoWay.model.setValue(uuid, prop.ident, value);
-        return () => setValues(uuid, prop, had);
+        return twoWay.guard([[uuid, prop.ident]], () => setValues(uuid, prop, had));
       }));
     }
     if (what === 'delete') {
-      // A page goes with all its bullets: the question says so, the pages apart from the bullets.
-      const pages = (await Promise.all(nodes.map(uuid => twoWay.model.getPage(uuid).catch(() => null)))).filter(page => page?.name).length, bullets = nodes.length - pages;
-      const one = nodes.length === 1 ? (pages ? `the page “${titleFor(nodes[0])}” with all its bullets` : `“${titleFor(nodes[0])}”`)
-        : [pages && `${pages} ${pages === 1 ? 'page' : 'pages'} with all ${pages === 1 ? 'its' : 'their'} bullets`, bullets && `${bullets} ${bullets === 1 ? 'bullet' : 'bullets'}`].filter(Boolean).join(' and ');
-      if (!await sure(`Delete ${one}? This cannot be undone from here.`, 'Delete', at)) return;
-      return writeAll('', nodes.map(uuid => async () => {
+      /* A page goes to Logseq's Recycle with all its bullets, and the faded arrow brings it back. A bullet, and a tag's page,
+         Logseq deletes for good (seen in 2.0.2, 8 November 2026: no Recycle, no way back), so then the question says so, its
+         yes is the library's yes to what Undo cannot put back, and Enter cancels. */
+      const kinds = await Promise.all(nodes.map(async uuid => {
         const page = await twoWay.model.getPage(uuid).catch(() => null);
-        if (page?.name) await twoWay.model.deletePage(page.name); else await twoWay.model.removeBlock(uuid);
+        return { uuid, page: page?.name ? page : null, lasting: !page?.name || !!(await twoWay.provided.kindOfPage(Number(page.id)).catch(() => null))?.isTag };
+      }));
+      const pages = kinds.filter(k => k.page && !k.lasting).length, tags = kinds.filter(k => k.page && k.lasting).length, bullets = kinds.filter(k => !k.page).length;
+      const count = (n, one, many) => n && `${n} ${n === 1 ? one : many}`;
+      const one = nodes.length === 1 ? (pages ? `the page “${titleFor(nodes[0])}” with all its bullets` : tags ? `the tag “${titleFor(nodes[0])}” with its page` : `“${titleFor(nodes[0])}”`)
+        : [count(pages, 'page with all its bullets', 'pages with all their bullets'), count(tags, 'tag with its page', 'tags with their pages'), count(bullets, 'bullet', 'bullets')].filter(Boolean).join(' and ');
+      const lasting = bullets + tags;
+      const why = !lasting ? (nodes.length === 1 ? 'It goes to the Recycle, and the faded arrow brings it back.' : 'They go to the Recycle, and the faded arrow brings them back.')
+        : lasting === nodes.length ? `${nodes.length === 1 ? 'It is' : 'They are'} deleted for good: nothing can bring ${nodes.length === 1 ? 'it' : 'them'} back.`
+        : `The ${[count(tags, 'tag', 'tags'), count(bullets, 'bullet', 'bullets')].filter(Boolean).join(' and ')} ${lasting === 1 ? 'is' : 'are'} deleted for good: nothing can bring ${lasting === 1 ? 'it' : 'them'} back. ${pages === 1 ? 'The page goes' : 'The pages go'} to the Recycle.`;
+      if (!await shared.ask({ at, question: `Delete ${one}?`, note: why, go: 'Delete', lasting: lasting > 0 })) return;
+      const gone = [];
+      await writeAll('', kinds.map(k => async () => {
+        if (k.page) { await twoWay.model.deletePage(k.page.name); if (!k.lasting) gone.push(String(k.page.uuid)); } else await twoWay.model.removeBlock(k.uuid);
         return null;
       }));
+      if (gone.length) twoWay.offerUndo(`Deleted ${count(gone.length, 'page', 'pages')}`, async () => { for (const uuid of gone) await twoWay.model.restorePage(uuid); twoWay.later(300); });
+      return;
     }
   } catch (error) { warnOnce(`could not ${what} the picked nodes`, error); notify('That could not be done', 'warning'); }
 }

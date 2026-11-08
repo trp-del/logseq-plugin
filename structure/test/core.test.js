@@ -127,12 +127,12 @@ const pair = S.changes.makeTray();
 pair.setBase({ tags: [{ id: 1, uuid: 'from', title: 'From', parents: [], props: [], bullets: 3, links: 12 }, { id: 2, uuid: 'kept', title: 'Kept', parents: [], props: [] }, { id: 3, uuid: 'kid', title: 'Kid', parents: [1], props: [] }, { id: 4, uuid: 'to', title: 'To', parents: [], props: [] }],
   props: [], nodes: { 1: [{ id: 10, uuid: 'both' }, { id: 11, uuid: 'one' }], 2: [{ id: 10, uuid: 'both' }] } });
 pair.stage({ kind: 'merge', from: 1, into: 2 });
-assert.equal(pair.lines()[0].text, 'Merge From into Kept, From removed · 3 bullets on its page go · 12 links become words');
-deq(pair.plan().map(s => [s.op, s.node ?? s.tag.title, s.parent?.title ?? s.tag?.title]), [['removeTag', 'both', 'From'], ['addTag', 'one', 'Kept'], ['removeTag', 'one', 'From'], ['addExtends', 'Kid', 'Kept'], ['removeExtends', 'Kid', 'From'], ['deleteTag', 'From', 'From']]);
+assert.equal(pair.lines()[0].text, 'Merge From into Kept, From removed · 3 bullets on its page move to Kept · 12 links become words');
+deq(pair.plan().map(s => [s.op, s.node ?? s.tag?.title ?? s.from.title, s.parent?.title ?? s.tag?.title ?? s.into.title]), [['removeTag', 'both', 'From'], ['addTag', 'one', 'Kept'], ['removeTag', 'one', 'From'], ['addExtends', 'Kid', 'Kept'], ['removeExtends', 'Kid', 'From'], ['moveBullets', 'From', 'Kept'], ['deleteTag', 'From', 'From']]);
 assert.equal(pair.model.tags.get(2).nodeUuids.length, 2, 'a node held twice is one');
 pair.discard(); pair.stage({ kind: 'retag', from: 1, to: 2, nodes: [{ id: 10, uuid: 'both' }] });
 deq(pair.plan().map(s => s.op), ['removeTag'], 'a retag leaves alone a node that already holds the tag');
-console.log('  ok  a merge: what a node held is left, child tags taken off first, what cannot come back said');
+console.log('  ok  a merge: what a node held is left, child tags taken off first, the bullets on its page moved, what cannot come back said');
 // Out from under one parent: the other stays, the sentence says what goes with it, and one step is written.
 { const two = S.changes.makeTray();
   two.setBase({ tags: [{ id: 1, uuid: 'a', title: 'First', parents: [], props: [7] }, { id: 2, uuid: 'b', title: 'Second', parents: [], props: [8] }, { id: 3, uuid: 'c', title: 'Under both', parents: [1, 2], props: [] }],

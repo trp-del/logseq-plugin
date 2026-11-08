@@ -90,6 +90,7 @@ const app = {
     app.st.busy = 'Undoing…'; app.draw();
     try {
       const failures = await done.undo();
+      if (failures.kept) notify(`${failures.kept === 1 ? 'One node or page' : `${failures.kept} nodes or pages`} changed after Apply, so Undo left ${failures.kept === 1 ? 'it' : 'them'} as ${failures.kept === 1 ? 'it is' : 'they are'}`, 'warning');
       if (failures.length) { done.text = `${stepsWord(done.left())} not undone`; syncUndo(); notify(`Could not undo ${failures.length} of ${stepsWord(of)}: ${failures[0].message}. The arrow tries again.`, 'error'); }
       else { if (tray.done === done) tray.done = null; else dones.delete(done.graph); tray.note = ''; }
       syncUndo();

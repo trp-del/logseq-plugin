@@ -927,6 +927,8 @@ async function madeState(uuid) {
   const [[kids] = [0]] = await dsQuery(`[:find (count ?k) :where [?k :block/parent ${id}] (not [?k :logseq.property/created-from-property _])]`);
   return JSON.stringify([words, at, kids]);
 }
+// What a node holds under a property, as words to compare before an Undo writes over it (the door's one check, read through this door).
+const valueStamp = (uuid, ident) => window.PluginDoor.valueStamp(uuid, ident, query => dsQuery(query));
 const createPage = (name, props, opts) => logseq.Editor.createPage(name, props, opts);
 const deletePage = name => logseq.Editor.deletePage(name);
 const appendBlock = (pageUuid, text) => logseq.Editor.appendBlockInPage(pageUuid, text);
@@ -1083,7 +1085,7 @@ async function withKids(uuids) {
 }
 
 function provide(core) {
-  core.provide({ aliasesOf, madeState, storedWords, inRecycle, restorePage, setValue, unsetValue, addTag, removeTag, setWords, editBlock, exitEditing, insertBlock, addLineTo, currentPage, currentBlock, pickedBlocks, getBlock, currentGraph, tagTitles, getPage, createPage, deletePage, appendBlock, removeBlock, inRecycle, restorePage,
+  core.provide({ aliasesOf, madeState, valueStamp, storedWords, inRecycle, restorePage, setValue, unsetValue, addTag, removeTag, setWords, editBlock, exitEditing, insertBlock, addLineTo, currentPage, currentBlock, pickedBlocks, getBlock, currentGraph, tagTitles, getPage, createPage, deletePage, appendBlock, removeBlock, inRecycle, restorePage,
     renamePage, moveBlock, pageBlocksTree, EXTENDS, ALIAS, ICON, PARENT_TAGS, addTagExtends, removeTagExtends, openInSidebar, showSidebar,
     titleOf, trailingTags, storedRef, readableTitle, bare, pick, idOf,
     propSchema, propPages, fieldsOf, fits, kindOfPage, tagChain, tagChains, tagChainIndex, parseDay, dayNumber, sameDay, dayAfter, DAYS,

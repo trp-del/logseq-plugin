@@ -826,6 +826,18 @@ async function offerMade(uuid, text, run, field, near) {
   offerUndo(text, async () => { if (await model.madeState(uuid) !== was) return notify('It has changed since it was made, so it stays', 'warning'); await run(); }, field, near);
   Object.assign(made, { key: `two-way:${undoCount}`, uuid, was });
 }
+/* The arrow on a value changed puts it back only while the value is as the change left it (8 November 2026): what was written
+   after, by hand or by another plugin, is never written over. spots are [node, property] pairs; guard gives the undo to keep,
+   which answers 'kept' when something changed since and leaves it. */
+const stampOf = spots => Promise.all(spots.map(([uuid, ident]) => model.valueStamp(uuid, ident))).then(JSON.stringify);
+async function guard(spots, undo) {
+  const was = await stampOf(spots);
+  return async () => { if (await stampOf(spots) !== was) return 'kept'; await undo(); };
+}
+async function offerKept(spots, text, run, field, near) {
+  const undo = await guard(spots, run);
+  offerUndo(text, async () => { if (await undo() === 'kept') notify('It has changed since, so it stays', 'warning'); }, field, near);
+}
 function checkMade() {
   if (made.key && !shared.undo.has(made.key)) made.key = '';   // used, replaced or left behind with the page
   if (!made.key) return;
@@ -973,5 +985,5 @@ function start() {
 }
 ((window.Threads ||= {}).parts ||= []).push({ name: 'two-way', says: 'the rows on a page', schema: settingsSchema, start, stop: runUnloadTasks, inner: twoWay });
 // What the pieces reach of the part, and of the core once it starts (useCore).
-Object.assign(twoWay, { INLINE, LISTED, UUID, stopPicking, clickHooks, tailHooks, viewMenuHooks, listHooks, headHooks, underHeadHooks, leadHooks, betweenHooks, lineMenuHooks, rowMenuHooks, saveSettings: changes => saveSettings(changes), dayCell, isDated, readKids, hasKids, loadHooks, settledHooks, starters, summary, plural, tagWord, dayText, draw, groupsFor, inBox, isMentions, couldBeOff, itemHtml, later, lineDay, model, nameHtml, offerMade, offerUndo, onUnload, provided, rowHtml, setting, shortName, state, tagLink, todayNumber, uuidsIn, valueBox, warnOnce, useCore });
+Object.assign(twoWay, { INLINE, LISTED, UUID, stopPicking, clickHooks, tailHooks, viewMenuHooks, listHooks, headHooks, underHeadHooks, leadHooks, betweenHooks, lineMenuHooks, rowMenuHooks, saveSettings: changes => saveSettings(changes), dayCell, isDated, readKids, hasKids, loadHooks, settledHooks, starters, summary, plural, tagWord, dayText, draw, groupsFor, inBox, isMentions, couldBeOff, itemHtml, later, lineDay, model, nameHtml, offerKept, offerMade, offerUndo, guard, onUnload, provided, rowHtml, setting, shortName, state, tagLink, todayNumber, uuidsIn, valueBox, warnOnce, useCore });
 })();

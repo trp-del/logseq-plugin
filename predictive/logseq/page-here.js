@@ -60,26 +60,32 @@ async function putBack(uuid, words) {
   await logseq.Editor.exitEditingMode();
   await logseq.Editor.updateBlock(uuid, words);
 }
-// Logseq puts an embed in the bullet only if the bullet is empty, and under it otherwise, so the words go first.
+// Logseq puts an embed in the bullet only if the bullet is empty, and under it otherwise, so the words go first. They come back
+// whatever goes wrong on the way (8 November 2026): a step that stops or throws puts them back before it says so.
 async function showPage(box, uuid, name) {
   const words = box.value, lower = name.toLowerCase();
   await logseq.Editor.exitEditingMode();
   await logseq.Editor.updateBlock(uuid, '');
-  await logseq.Editor.editBlock(uuid);
-  await sleep(250);
-  const empty = host().activeElement;
-  if (!app.isBlockBox(empty) || app.uuidOf(empty) !== uuid) { await putBack(uuid, words); return notify('The bullet could not be opened to show the page.', 'warning'); }
-  typeKey(empty, '/');
-  const command = await rowFor(row => row.innerText.trim() === 'Node embed');
-  if (!command) { await putBack(uuid, words); return notify('Logseq’s Node embed did not open.', 'warning'); }
-  press(command);
-  await sleep(300);
-  for (const letter of name) typeKey(empty, letter);
-  const row = await rowFor(row => row.innerText.trim().split('\n').pop().trim().toLowerCase() === lower);
-  if (!row) { await putBack(uuid, words); return notify(`“${name}” could not be found to show here.`, 'warning'); }
-  press(row);
-  await sleep(300);
-  await logseq.Editor.exitEditingMode();
+  try {
+    await logseq.Editor.editBlock(uuid);
+    await sleep(250);
+    const empty = host().activeElement;
+    if (!app.isBlockBox(empty) || app.uuidOf(empty) !== uuid) { await putBack(uuid, words); return notify('The bullet could not be opened to show the page.', 'warning'); }
+    typeKey(empty, '/');
+    const command = await rowFor(row => row.innerText.trim() === 'Node embed');
+    if (!command) { await putBack(uuid, words); return notify('Logseq’s Node embed did not open.', 'warning'); }
+    press(command);
+    await sleep(300);
+    for (const letter of name) typeKey(empty, letter);
+    const row = await rowFor(row => row.innerText.trim().split('\n').pop().trim().toLowerCase() === lower);
+    if (!row) { await putBack(uuid, words); return notify(`“${name}” could not be found to show here.`, 'warning'); }
+    press(row);
+    await sleep(300);
+    await logseq.Editor.exitEditingMode();
+  } catch (error) {
+    await putBack(uuid, words).catch(() => {});
+    throw error;
+  }
 }
 
 async function make(box) {
@@ -117,5 +123,5 @@ function start() {
   app.listen(win, ['keydown'], onKey, true);
   app.listen(win, ['pointerdown', 'mousedown', 'mouseup', 'click'], onPress, true);
 }
-Flow.pageHere = { start, nameIn, canName };
+Flow.pageHere = { start, nameIn, canName, showPage };
 })();

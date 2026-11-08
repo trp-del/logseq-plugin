@@ -477,7 +477,7 @@ async function openRecycleList() {
     return 'keep';
   };
   /* The big change asks under what it answers for (the grammar, the owner 1 November): a bold line, what goes, the blue yes
-     and "Leave it". It rolls out under the row; Enter says yes, Escape leaves it. One open at a time. */
+     and "Leave it". It rolls out under the row; the keyboard waits on Leave it, so Enter and Escape leave it and only a press of the yes deletes. One open at a time. */
   let asking = null;
   const leave = () => { const box = asking; asking = null; if (box) window.PluginDoor.rollUp(box).then(() => box.remove()); };
   const askUnder = (item, { head, words, yes, run }) => {
@@ -485,18 +485,19 @@ async function openRecycleList() {
     if (!row) return;
     leave();
     const yesPress = el(doc, 'button', { type: 'button', class: 'lk-big', click: event => { event.stopPropagation(); leave(); run(); } }, yes);
+    const leavePress = el(doc, 'button', { type: 'button', class: 'lk-btn lk-low lk-i-x lk-enter', click: event => { event.stopPropagation(); leave(); row.focus?.(); } }, 'Leave it');
     const box = el(doc, 'div', { class: 'th-recycle-ask', role: 'group', 'aria-label': head },
       el(doc, 'div', { class: 'th-recycle-ask-h' }, head), el(doc, 'div', { class: 'th-recycle-ask-l' }, words),
-      el(doc, 'div', { class: 'lk-answers' }, yesPress, el(doc, 'button', { type: 'button', class: 'lk-btn lk-low lk-i-x', click: event => { event.stopPropagation(); leave(); row.focus?.(); } }, 'Leave it')));
+      el(doc, 'div', { class: 'lk-answers' }, yesPress, leavePress));
     box.addEventListener('keydown', event => {
       if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); leave(); row.focus?.(); }
       else if (event.key === 'Enter' && event.target === yesPress) { event.preventDefault(); event.stopPropagation(); yesPress.click(); }
-      else if (event.key === 'Enter') event.stopPropagation();
+      else if (event.key === 'Enter') { event.preventDefault(); event.stopPropagation(); leavePress.click(); }
     });
     row.after(box);
     asking = box;
     window.PluginDoor.unroll(box);
-    yesPress.focus({ preventScroll: true });
+    leavePress.focus({ preventScroll: true });   // what cannot be undone is only pressed: Enter leaves it (8 November 2026)
     box.scrollIntoView?.({ block: 'nearest' });
   };
   /* Delete for good (0.4.411): Logseq's own, the one its Recycle page's Delete uses (deleteRecycledPagePermanently),

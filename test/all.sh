@@ -14,6 +14,7 @@ run find node test/load.js
 run predictive node test/run.js
 run predictive node test/load.js
 run structure node test/core.test.js
+run structure node test/apply.test.js
 run structure node test/load.js
 run export node test/core.test.js
 run export node test/load.js

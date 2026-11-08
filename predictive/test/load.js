@@ -215,6 +215,20 @@ for (const file of order) vm.runInContext(fs.readFileSync(path.join(root, file),
   box(C).dispatchEvent(new page.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })); await leave();
   assert.deepEqual(writes, [['set', C]], 'Enter on a passed-through bullet takes what is shown');
   console.log('  ok  Enter still takes everything shown');
+  // A value set by hand while the guess was on screen is the person's (8 November 2026): taken or not, the guess writes nothing over it.
+  { writes.length = 0;
+    const own = U(404), ownRow = hostDoc.createElement('div'); ownRow.innerHTML = rowHtml(own);
+    hostDoc.querySelector('#main-content-container').append(ownRow.firstElementChild);
+    saved.set(own, block('Saw nobody', { 'db/id': 414, 'block/uuid': own })); box(own).value = 'Saw nobody';
+    await enter(own);
+    box(own).value = 'Saw nobody [[Ruth Okoro]]'; saved.get(own)['block/title'] = `Saw nobody [[${U(21)}]]`;
+    box(own).dispatchEvent(new page.window.Event('input', { bubbles: true })); await wait(320);
+    assert.ok(hostDoc.querySelector(`[blockid="${own}"] .flow-ghost`), 'the guess is on screen');
+    saved.get(own)[ident] = [{ 'db/id': 20 }];   // Doctor set by hand meanwhile, in Logseq's own property row
+    box(own).dispatchEvent(new page.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })); await leave();
+    assert.deepEqual(writes, [], 'a value set by hand is not written over: ' + JSON.stringify(writes));
+    assert.deepEqual(saved.get(own)[ident], [{ 'db/id': 20 }]);
+    console.log('  ok  a guess never writes over a value set by hand'); }
 
   // Down is Logseq's, also at the very end of a bullet that has properties.
   const row = hostDoc.querySelector(`[blockid="${A}"]`), under = hostDoc.createElement('div');
@@ -265,7 +279,14 @@ for (const file of order) vm.runInContext(fs.readFileSync(path.join(root, file),
   { const { nameIn, canName } = Flow.pageHere;
     assert.equal(nameIn('  Cycle 4 plan '), 'Cycle 4 plan'); assert.equal(nameIn('[[Cycle 4 plan]]'), 'Cycle 4 plan', 'the brackets are not part of the name');
     assert.ok(canName('Cycle 4 plan') && !canName('') && !canName('Saw [[Dr. Mei Chen]] today'), 'a name holds no link');
-    console.log('  ok  Cmd-; reads a page\'s name from the bullet'); }
+    console.log('  ok  Cmd-; reads a page\'s name from the bullet');
+    // The words go back whatever stops the embed on the way (8 November 2026): here Logseq refuses to open the emptied bullet.
+    const wrote = [], E = logseq.Editor, was = { ...E };
+    Object.assign(E, { exitEditingMode: async () => {}, updateBlock: async (uuid, words) => { wrote.push([uuid, words]); }, editBlock: async () => { throw new Error('refused'); } });
+    await assert.rejects(Flow.pageHere.showPage({ value: 'Cycle 4 plan' }, 'u1', 'Cycle 4 plan'));
+    Object.keys(E).forEach(k => delete E[k]); Object.assign(E, was);
+    assert.deepEqual(wrote, [['u1', ''], ['u1', 'Cycle 4 plan']], 'the bullet is emptied for the embed, and its words put back when a step throws: ' + JSON.stringify(wrote));
+    console.log('  ok  Cmd-; puts the bullet\'s words back when a step fails'); }
   { const { plainLinks, carry, keepCase } = Flow.typedCase, M = '1a000000-0000-4000-8000-00000000000e', T = id => id === M ? 'Dr. Mei Chen' : id === U(21) ? 'Ruth Okoro' : '';
     assert.equal(plainLinks('a [[x]] #[[Two Words]] [w]([[y]]) [[z]]').map(l => l.name).join('|'), 'x|z', 'a tag and a link with its own words are not plain links');
     assert.equal(carry(['dr. mei chen'], ['dr. mei chen'], ['Dr. Mei Chen']).join('|'), 'dr. mei chen', 'Logseq\'s list putting in the page\'s capitals keeps what was typed');
