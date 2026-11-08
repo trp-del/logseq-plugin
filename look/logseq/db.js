@@ -102,8 +102,14 @@ async function heldBelow(uuids) {
   const ids = [...new Set([...below.values()].flat())];
   if (!ids.length) return held;
   const among = ground('?b', ids);
+  // A tag that extends Task, at any depth (7 November 2026, the owner: "include not just #tasks but other children of tasks"),
+  // counts its nodes as tasks too, done or cancelled ones left out as for Task itself.
+  const taskKinds = new Set();
+  const extendsRows = await query(`[:find ?c ?p :where [?c :${EXTENDS} ?p]]`).catch(() => []);
+  const [[taskId] = []] = await query('[:find ?t :where [?t :db/ident :logseq.class/Task]]').catch(() => []);
+  if (taskId != null) { taskKinds.add(taskId); for (let grew = true; grew;) { grew = false; for (const [c, parent] of extendsRows) if (taskKinds.has(parent) && !taskKinds.has(c)) { taskKinds.add(c); grew = true; } } }
   const [tagRows, statusRows, dayRows, stampRows, fileRows, quoteRows] = await Promise.all([
-    query(`[:find ?b ?title ?ident :where ${among} [?b :block/tags ?t] [?t :block/title ?title] [(get-else $ ?t :db/ident :none) ?ident]]`),
+    query(`[:find ?b ?title ?ident ?t :where ${among} [?b :block/tags ?t] [?t :block/title ?title] [(get-else $ ?t :db/ident :none) ?ident]]`),
     query(`[:find ?b ?sid :where ${among} [?b :logseq.property/status ?s] [(get-else $ ?s :db/ident :none) ?sid]]`),
     query(`[:find ?b ?day :where ${among} (or [?b :logseq.property/deadline ?d] [?b :logseq.property/scheduled ?d]) [?d :block/journal-day ?day]]`),
     query(`[:find ?b ?ms :where ${among} (or [?b :logseq.property/deadline ?ms] [?b :logseq.property/scheduled ?ms]) [(> ?ms 100000000000)]]`),
@@ -112,7 +118,7 @@ async function heldBelow(uuids) {
   ]);
   const tagsOf = new Map(), taskIds = new Set(), dueOf = new Map(), filesOf = new Map(), quoteOf = new Map();
   const add = (map, key, value) => { if (!map.has(key)) map.set(key, []); map.get(key).push(value); };
-  for (const [b, title, ident] of tagRows) { if (String(ident) === ':logseq.class/Task') taskIds.add(b); else if (!/^:?logseq\.class\//.test(String(ident))) add(tagsOf, b, String(title)); }
+  for (const [b, title, ident, t] of tagRows) { if (String(ident) === ':logseq.class/Task' || taskKinds.has(t)) taskIds.add(b); if (!/^:?logseq\.class\//.test(String(ident))) add(tagsOf, b, String(title)); }
   const closed = new Set();
   for (const [b, status] of statusRows) { if (/\.(done|canceled|cancelled)$/.test(String(status))) closed.add(b); else taskIds.add(b); }
   for (const b of closed) taskIds.delete(b);
