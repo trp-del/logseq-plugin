@@ -59,8 +59,11 @@ function setSort(group, to) {
 }
 twoWay.listHooks.push((group, key, items) => {
   const by = sortOf(group);
-  if (!by) return items;
+  // By day, the list's own order, unless a date property is chosen in View: then by that one (8 November 2026), as the rows
+  // come, the days still to come first, the soonest first, then the past, the latest first, then those with none.
+  if (!by && !twoWay.dayChoice(group).startsWith('p:')) return items;
   const list = [...items];
+  if (!by) { const today = twoWay.todayNumber(), d = item => twoWay.dayIn(group, item), rank = n => n >= today ? 0 : n ? 1 : 2; return list.sort((a, b) => rank(d(a)) - rank(d(b)) || (d(a) >= today ? d(a) - d(b) : d(b) - d(a)) || a.title.localeCompare(b.title)); }
   if (by === 'changed') list.sort((a, b) => (state.stamps.get(b.uuid)?.updated || 0) - (state.stamps.get(a.uuid)?.updated || 0));
   else if (by === 'name') list.sort((a, b) => a.title.localeCompare(b.title));
   else if (by === 'tag') list.sort((a, b) => String(a.tag).localeCompare(String(b.tag)) || a.title.localeCompare(b.title));
@@ -104,18 +107,20 @@ twoWay.lineMenuHooks.push((group, item) => {
 const daysBetween = (a, b) => Math.round((new Date(Math.floor(a / 10000), Math.floor(a / 100) % 100 - 1, a % 100) - new Date(Math.floor(b / 10000), Math.floor(b / 100) % 100 - 1, b % 100)) / 86400000);
 const usualGap = new WeakMap();
 function usual(group) {
-  if (usualGap.has(group)) return usualGap.get(group);
-  const days = group.items.map(item => item.day).filter(Boolean).sort((a, b) => b - a);
+  const by = twoWay.dayChoice(group), was = usualGap.get(group);
+  if (was && was.by === by) return was.median;
+  const days = group.items.map(item => twoWay.dayIn(group, item)).filter(Boolean).sort((a, b) => b - a);
   const gaps = days.slice(1).map((d, i) => daysBetween(days[i], d)).filter(g => g > 0).sort((a, b) => a - b);
   const median = gaps.length >= 3 ? gaps[Math.floor(gaps.length / 2)] : 0;
-  usualGap.set(group, median);
+  usualGap.set(group, { by, median });
   return median;
 }
 twoWay.betweenHooks.push((group, item, prev, key) => {
   // Only on the whole list in day order: a narrowed list's gaps are the narrowing's, not a silence.
-  if (!prev?.day || !item.day || sortOf(group) || pinsOf(group).includes(prev.uuid) || state.keeps.has(key) || state.onlyNew?.has(key) || String(state.find || '').trim()) return '';
-  const gap = Math.abs(daysBetween(prev.day, item.day)), median = usual(group);
-  return median && gap >= 14 && gap >= 3 * median ? `<div class="th-tw-earlier lk-note th-tw-gap" title="No node of this list between ${esc(twoWay.dayText(Math.min(prev.day, item.day)))} and ${esc(twoWay.dayText(Math.max(prev.day, item.day)))}">quiet for ${gap} days</div>` : '';
+  const was = prev && twoWay.dayIn(group, prev), day = twoWay.dayIn(group, item);
+  if (!was || !day || sortOf(group) || pinsOf(group).includes(prev.uuid) || state.keeps.has(key) || state.onlyNew?.has(key) || String(state.find || '').trim()) return '';
+  const gap = Math.abs(daysBetween(was, day)), median = usual(group);
+  return median && gap >= 14 && gap >= 3 * median ? `<div class="th-tw-earlier lk-note th-tw-gap" title="No node of this list between ${esc(twoWay.dayText(Math.min(was, day)))} and ${esc(twoWay.dayText(Math.max(was, day)))}">quiet for ${gap} days</div>` : '';
 });
 
 /* What the list keeps saying (N6): values held by two nodes or more and by at least a third of the list, not by all of it
@@ -155,18 +160,19 @@ const dateOf = n => new Date(Math.floor(n / 10000), Math.floor(n / 100) % 100 - 
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 twoWay.underHeadHooks.unshift((group, key) => {
   if (!state.yearOn.has(key)) return '';
-  const dated = group.items.filter(item => item.day);
+  const dayOf = item => twoWay.dayIn(group, item);
+  const dated = group.items.filter(dayOf);
   if (dated.length < 2) return '';
-  const days = dated.map(item => item.day), lo = Math.min(...days), hi = Math.max(...days);
+  const days = dated.map(dayOf), lo = Math.min(...days), hi = Math.max(...days);
   const t0 = dateOf(lo).getTime(), span = Math.max(1, dateOf(hi).getTime() - t0);
   const x = n => ((dateOf(n).getTime() - t0) / span * 100).toFixed(2);
   const pick = state.yearPick.get(key);
   const months = []; for (let d = new Date(dateOf(lo).getFullYear(), dateOf(lo).getMonth() + 1, 1); d.getTime() <= dateOf(hi).getTime(); d.setMonth(d.getMonth() + 1)) months.push(`<span class="th-tw-ymonth" style="left:${x(dayNum(d))}%">${MON[d.getMonth()]}${d.getMonth() === 0 ? ' ' + d.getFullYear() : ''}</span>`);
   const band = pick ? `<span class="th-tw-yband" style="left:${x(Math.max(lo, pick[0]))}%;width:${Math.max(.8, x(Math.min(hi, pick[1])) - x(Math.max(lo, pick[0])))}%"></span>` : '';
-  const dots = dated.map(item => `<a href="#" role="button" class="th-tw-ydot${pick && (item.day < pick[0] || item.day > pick[1]) ? ' th-tw-yoff' : ''}" style="left:${x(item.day)}%" data-yday="${item.day}" data-ykey="${esc(key)}" title="${esc(`${twoWay.dayText(item.day)}: ${twoWay.shortName(item.title)}`)}" aria-label="${esc(twoWay.dayText(item.day))}"></a>`).join('');
+  const dots = dated.map(item => { const day = dayOf(item); return `<a href="#" role="button" class="th-tw-ydot${pick && (day < pick[0] || day > pick[1]) ? ' th-tw-yoff' : ''}" style="left:${x(day)}%" data-yday="${day}" data-ykey="${esc(key)}" title="${esc(`${twoWay.dayText(day)}: ${twoWay.shortName(item.title)}`)}" aria-label="${esc(twoWay.dayText(day))}"></a>`; }).join('');
   return `<div class="th-tw-yearline" role="group" aria-label="Where in time the nodes fall">${band}${dots}${months.join('')}</div>`;
 });
-twoWay.listHooks.push((group, key, items) => { const p = state.yearPick.get(key); return p ? items.filter(item => item.day >= p[0] && item.day <= p[1]) : items; });
+twoWay.listHooks.push((group, key, items) => { const p = state.yearPick.get(key); return p ? items.filter(item => twoWay.dayIn(group, item) >= p[0] && twoWay.dayIn(group, item) <= p[1]) : items; });
 twoWay.headHooks.push((group, key) => { const p = state.yearPick.get(key); return p ? `<span class="th-tw-piece"><span class="th-tw-sep" aria-hidden="true">·</span><span class="th-tw-sorted">showing ${esc(twoWay.dayText(p[0]))} to ${esc(twoWay.dayText(p[1]))}</span></span>` : ''; });
 
 /* Compare two nodes (N4): with two picked, the bar's Compare lays them side by side in a card, one property to a line, the

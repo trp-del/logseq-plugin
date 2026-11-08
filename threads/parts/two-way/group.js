@@ -35,14 +35,41 @@ function setDayChoice(field, by) {
 }
 // The earliest day a node holds in a date property, by the property's name; 0 when it holds none (or it is not read yet).
 const heldDay = (uuid, name) => Math.min(...(state.values.get(uuid)?.get(name)?.values || []).map(v => Number(v.day) || Infinity), Infinity);
+/* A node's day in its section, as a number, and the property it comes from (8 November 2026, the owner: "option to see
+   dates by any of the date properties in a subsection. make it clear what the date is of"). dayIn is what the list's
+   time goes by (its order, its months, its year line, its gaps, its "earlier"), whether or not the day is shown: the
+   chosen date property, else the node's Date, else the day it is written on. dayFrom names it: the property's name, or
+   Journal for the day written. */
+const JOURNAL = 'Journal';
+function dayIn(group, item) {
+  const by = dayChoice(group);
+  if (!by.startsWith('p:')) return item.day || 0;
+  const day = heldDay(item.uuid, by.slice(2));
+  return Number.isFinite(day) ? day : 0;
+}
+const dayFrom = (group, item) => { const by = dayChoice(group); return by.startsWith('p:') ? by.slice(2) : item.dayFrom || JOURNAL; };
 // The day a line shows in its section: the choice above, then left out on that day's own page as always.
 function dayOf(group, item) {
-  const by = dayChoice(group);
-  if (by === 'none') return '';
-  if (!by.startsWith('p:')) return twoWay.dayCell(item);
-  const day = heldDay(item.uuid, by.slice(2));
-  return Number.isFinite(day) && day !== state.pageDay ? twoWay.dayText(day) : '';
+  if (dayChoice(group) === 'none') return '';
+  const day = dayIn(group, item);
+  return day && day !== state.pageDay ? twoWay.dayText(day) : '';
 }
+/* What a list's days are of, said once (its head, or its one line when it has none): the property most of its shown days
+   come from. A line whose day comes from another says its own, after the day. */
+const fromOf = new WeakMap();
+function listFrom(group) {
+  const by = dayChoice(group);
+  if (by.startsWith('p:')) return by.slice(2);
+  const was = fromOf.get(group);
+  if (was && was.by === by) return was.most;
+  const counts = new Map();
+  for (const item of [...group.items, ...(group.since || [])]) if (dayOf(group, item)) { const f = dayFrom(group, item); counts.set(f, (counts.get(f) || 0) + 1); }
+  const most = [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0] || '';
+  fromOf.set(group, { by, most });
+  return most;
+}
+// A line's day for the day column: { text, from } where it is dated otherwise than its list says, or alone (said: false).
+const lineDayOf = (group, item, said = true) => { const text = dayOf(group, item); if (!text) return ''; const from = dayFrom(group, item); return !said || from !== listFrom(group) ? { text, from } : text; };
 // The date properties these nodes hold, by name, with how many hold each.
 function datePropsOf(items) {
   const held = new Map();
@@ -59,7 +86,7 @@ function groupingOf(group, items) {
   const buckets = new Map();
   const put = (key, label, item, value, none) => { let b = buckets.get(key); if (!b) buckets.set(key, b = { key: String(key), label, items: [], value, none: !!none }); b.items.push(item); };
   if (by === 'tag') for (const item of items) { const none = !item.tag || item.tag === 'note'; put(none ? '' : item.tag, none ? 'No tag' : item.tag, item, null, none); }
-  else if (by === 'month') for (const item of items) { if (!item.day) put('', 'No date', item, null, true); else { const m = Math.floor(item.day / 100); put(m, `${MONTH_NAMES[m % 100 - 1]} ${Math.floor(m / 100)}`, item, null); } }
+  else if (by === 'month') for (const item of items) { const day = dayIn(group, item); if (!day) put('', 'No date', item, null, true); else { const m = Math.floor(day / 100); put(m, `${MONTH_NAMES[m % 100 - 1]} ${Math.floor(m / 100)}`, item, null); } }
   else if (by.startsWith('p:')) {
     const name = by.slice(2);
     // Not read yet: the plain list until it is.
@@ -107,7 +134,8 @@ const viewHas = group => !state.drawingTop && group.items.length > 1;   // picki
 const groupBtn = group => {
   if (!viewHas(group)) return '';
   const by = groupOf(group), day = dayChoice(group);
-  const said = [by ? `By ${groupName(by)}` : '', day === 'none' ? 'No date' : day ? day.slice(2) : '', state.selecting.has(group.name) ? 'Picking' : ''].filter(Boolean).join(' · ');
+  // A date property chosen is said at the head, before the days ("Deadline from Aug 20 to Oct 29"), so not here again.
+  const said = [by ? `By ${groupName(by)}` : '', day === 'none' ? 'No date' : '', state.selecting.has(group.name) ? 'Picking' : ''].filter(Boolean).join(' · ');
   return `<button type="button" class="lk-btn lk-low th-tw-groupby"${said ? ' data-on=""' : ''} data-field="${esc(group.name)}" title="Group the list, and choose the date its lines show">${esc(said || 'View')}${iconHtml('chevron-down')}</button>`;
 };
 // The values of these nodes, read through the model (400 at a time) into the cache the groups are made from.
@@ -116,7 +144,7 @@ async function readValues(uuids) {
   if (!state.schema) state.schema = await twoWay.provided.propSchema().catch(() => null);
   const need = [...new Set(uuids)].filter(uuid => twoWay.UUID.test(uuid));
   for (let at = 0; at < need.length; at += 400) {
-    const part = need.slice(at, at + 400), found = await twoWay.provided.nodeValues(part);
+    const part = need.slice(at, at + 400), found = await twoWay.provided.nodeValues(part, { dates: true });
     for (const uuid of part) state.values.set(uuid, found.get(uuid) || new Map());
   }
 }
@@ -168,7 +196,7 @@ async function groupMenu(group, anchor) {
     const choose = to => { setGroup(group.name, to); if (state.draft?.gkey) { state.draft = null; twoWay.closeAdd(); } state.html = null; twoWay.draw(host()); };
     items.push({ group: 'Group by' }, { label: 'Nothing', chosen: !by, run: () => choose('') });
     if (new Set(group.items.map(item => item.tag)).size > 1) items.push({ icon: 'tag', label: 'Tag', chosen: by === 'tag', run: () => choose('tag') });
-    if (group.items.some(item => item.day)) items.push({ icon: 'date', label: 'Month', chosen: by === 'month', run: () => choose('month') });
+    if (group.items.some(item => dayIn(group, item))) items.push({ icon: 'date', label: 'Month', chosen: by === 'month', run: () => choose('month') });
     /* A property whose values are nearly all different groups nothing (7 November 2026, the owner: "Good" to leaving out
        Fatigue's "Date, 44 values" for 49 logs; Month already groups by time): offered only while its groups would hold two
        nodes each on the whole. The one the list is grouped by stays, so it can be seen and let go. */
@@ -181,7 +209,7 @@ async function groupMenu(group, anchor) {
     const day = dayChoice(group);
     const pick = to => { setDayChoice(group.name, to); state.html = null; twoWay.draw(host()); };
     if (items.length) items.push({ sep: true });
-    items.push({ group: 'Date' }, { label: 'Date, else the day written', chosen: !day, run: () => pick('') },
+    items.push({ group: 'Date' }, { label: 'Date, else the journal day', chosen: !day, run: () => pick('') },
       ...dates.map(([name, n]) => ({ icon: 'date', label: name, right: `${n} of ${group.items.length}`, chosen: day === `p:${name}`, run: () => pick(`p:${name}`) })),
       { label: 'No date', chosen: day === 'none', run: () => pick('none') });
   }
@@ -269,5 +297,5 @@ twoWay.starters.push(() => {
   doc.addEventListener('dragstart', start, true); doc.addEventListener('dragover', over, true); doc.addEventListener('drop', drop, true); doc.addEventListener('dragend', end, true);
   twoWay.onUnload(() => { doc.removeEventListener('dragstart', start, true); doc.removeEventListener('dragover', over, true); doc.removeEventListener('drop', drop, true); doc.removeEventListener('dragend', end, true); });
 });
-Object.assign(twoWay, { moveList, setGroup, dayChoice, dayOf, forgetOrder, groupBtn, groupHtml, groupMenu, groupName, groupOf, groupedUuids, groupingOf, isOpen, readGroup, readOpen, readValues, setGroupValue, setOpen, startGroupDraft, tellHtml, tellingProp });
+Object.assign(twoWay, { moveList, setGroup, dayChoice, dayOf, dayIn, dayFrom, listFrom, lineDayOf, forgetOrder, groupBtn, groupHtml, groupMenu, groupName, groupOf, groupedUuids, groupingOf, isOpen, readGroup, readOpen, readValues, setGroupValue, setOpen, startGroupDraft, tellHtml, tellingProp });
 })();

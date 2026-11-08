@@ -127,6 +127,8 @@ const type = (window, input, text) => { input.value = text; input.dispatchEvent(
 const enter = (window, input) => input.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
 // The outline (0.4.442): a node's chevron by its uuid (inside: under the node of that uuid), what an open node holds.
 const parentOf = key => key.split('>').slice(0, -1).join('>');
+// A node's empty properties draw nothing until something opens them (8 November 2026; a list's "no Topic?" does): opened here as that does.
+const openEmpties = (window, doc, uuid) => { const tw = window.Threads.parts.find(p => p.name === 'two-way').inner; for (const c of doc.querySelectorAll(`.th-chev[data-dig][data-uuid="${uuid}"]`)) tw.state.emptyOpen.add(c.dataset.dig); tw.state.html = null; tw.draw(doc); };
 const chevOf = (doc, uuid, inside) => [...doc.querySelectorAll(`.th-chev[data-dig][data-uuid="${uuid}"]`)].find(c => !inside || parentOf(c.dataset.dig).endsWith(inside));
 const kidsOf = (doc, uuid) => [...doc.querySelectorAll('.th-ol-kids[data-key]')].find(k => k.dataset.key.endsWith('>' + uuid));
 const isOpenChev = c => c?.getAttribute('aria-expanded') === 'true';
@@ -760,8 +762,8 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     await wait(120);
     const propLines = () => [...(kidsOf(doc, node)?.querySelectorAll('.th-ol-prop:not(.th-tw-back)') || [])].filter(l => l.querySelector('.th-ol-pname').textContent.trim());
     const rows = () => propLines().map(l => l.querySelector('.th-ol-pname').textContent.trim() + '=' + l.querySelector('.th-ol-pv').textContent.trim());
-    check(rows().join('|') === 'Confidence=Disputed|Severity=1' && /1 empty/.test(kidsOf(doc, node)?.querySelector('.th-tw-empties')?.textContent || ''), 'an empty property folds into one quiet line (C5): ' + rows());
-    click(window, kidsOf(doc, node).querySelector('.th-tw-emptyword'));
+    check(rows().join('|') === 'Confidence=Disputed|Severity=1' && !/empty/.test(kidsOf(doc, node)?.textContent || ''), 'an empty property draws nothing, no "1 empty" line: ' + rows());
+    openEmpties(window, doc, node);
     await wait(80);
     check(rows().join('|') === 'Confidence=Disputed|Severity=1|Source=empty', 'the node’s own properties should show above its bullets, the one pointing back at this page left out (0.4.451: the row it opened from names it): ' + rows());
     check(!!kidsOf(doc, node)?.querySelector('.th-tw-npvalue.th-faint'), 'an empty one should read "empty" in grey');
@@ -984,7 +986,9 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
       // wider than the section, as at the owner's width.
       const deep = el => { let n = 0; for (let k = el.closest('.th-ol-kids'); k; k = k.parentElement?.closest('.th-ol-kids')) n++; return n; };
       Object.defineProperty(window.HTMLElement.prototype, 'scrollWidth', { configurable: true, get() { return this.matches('.th-ol-line') && deep(this) >= 5 ? 999 : 0; } });
-      click(window, stepper); await wait(400);
+      // Its only lines are its empty properties, drawn only once opened (8 November 2026): opened, as "no Topic?" does.
+      openEmpties(window, doc, U(62));
+      click(window, chev(U(104), U(62))); await wait(400);
       const trail = doc.querySelector('.th-tw-stepped .th-ol-trail');
       check(!!trail && doc.querySelectorAll('.th-tw-stepped .th-ol-trail [data-step]').length === 1 && /Spacing does not help/.test(trail.textContent), 'a fourth level should shift by one: the page in the trail, the node opened from the row at the top: ' + trail?.textContent);
       check(!!box(U(61)) && !!box(U(104)) && !!box(U(62)), 'the three levels under the new top should stay open, the new one with them');
@@ -1090,8 +1094,8 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     // Enter on one value, the next pressed at once: its box stays through the redraw the first write brings, words and caret kept.
     words = false;
     await wait(1100);
-    // Note was just emptied, so it stands in the folded empties (C5): unfolded first.
-    if (!line('Note') && doc.querySelector('.th-tw-emptyword')) { click(window, doc.querySelector('.th-tw-emptyword')); await wait(80); }
+    // Note was just emptied, so it draws nothing until its node's empties are opened.
+    if (!line('Note')) { openEmpties(window, doc, node); await wait(80); }
     click(window, line('Note').querySelector('.th-ol-pv [data-edit]')); await wait(20);
     inPlace().value = 'new words'; inPlace().dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
     words = true;
@@ -1162,6 +1166,26 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     click(window, doc.querySelector('[data-more]') || doc.body);
     await wait(20);
     check(doc.querySelector('.th-two-way').textContent.includes('Held through the alias') && doc.querySelectorAll('.th-two-way .th-tw-row').length === 1, 'a node holding an alias is in the page’s row');
+    part.stop();
+  }
+  // A task shows Logseq's circle for its status; the head says what its days are of, and a line dated otherwise says its own.
+  {
+    const { window, doc, part, provided, changed } = world('');
+    provided.mentionsInto = async () => [
+      { id: 211, uuid: U(211), title: 'Ring the pharmacy', tag: 'Task', day: 20260804, dayFrom: '', status: 'todo' },
+      { id: 212, uuid: U(212), title: 'Clinic on Friday', tag: 'Task', day: 20260806, dayFrom: 'Date', status: 'done' },
+      { id: 213, uuid: U(213), title: 'Clinic next week', tag: 'Task', day: 20260812, dayFrom: 'Date', status: '' },
+    ];
+    changed.forEach(fn => fn({ blocks: [], txMeta: { outlinerOp: 'x' } })); await wait(1050);
+    const row = [...doc.querySelectorAll('.th-two-way .th-tw-row')].find(r => r.textContent.includes('Mentioned in'));
+    const fold = row?.querySelector('.th-tw-head .th-chev');
+    if (fold && fold.getAttribute('aria-expanded') !== 'true') { click(window, fold); await wait(30); }
+    const box = [...doc.querySelectorAll('.th-two-way .th-tw-row')].find(r => r.textContent.includes('Mentioned in'));
+    check(!!box?.querySelector('.th-task.ls-icon-Todo svg') && !!box?.querySelector('.th-task.ls-icon-Done svg'), 'a task shows Logseq’s circle for its status');
+    check(box?.querySelectorAll('.th-task').length === 2, 'a node with no status shows no circle');
+    check(/^Date /.test(box?.querySelector('.th-tw-when')?.textContent || ''), 'the head says what its days are of: ' + box?.querySelector('.th-tw-when')?.textContent);
+    const froms = [...box?.querySelectorAll('.th-ol-dfrom') || []].map(e => e.textContent);
+    check(froms.length === 1 && froms[0] === 'Journal', 'only the line dated otherwise says its own: ' + JSON.stringify(froms));
     part.stop();
   }
   // Words: one value at a time, as written; a link stays one; the box is never inside the button, where a space would press it.

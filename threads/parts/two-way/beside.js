@@ -68,17 +68,20 @@ function sideHead(group) {
   for (const item of group.items) counts.set(item.tag, (counts.get(item.tag) || 0) + 1);
   const n = group.items.length, kinds = counts.size > 1;
   const lead = kinds ? `All ${n}` : `${n} ${esc(twoWay.plural(twoWay.tagWord(group.items[0]?.tag || 'note'), n))}`;
-  const when = twoWay.summary(group.items, true);
-  return `<span class="th-tw-chips"><span class="th-tw-lead">${lead}</span>${when ? `<span class="th-tw-piece"><span class="th-tw-sep" aria-hidden="true">·</span><span class="th-tw-when">${esc(when).replace(/ (?=\d)/g, '&nbsp;')}</span></span>` : ''}</span>`;
+  const { when, from } = twoWay.headWhen(group, group.items);
+  return `<span class="th-tw-chips"><span class="th-tw-lead">${lead}</span>${when ? `<span class="th-tw-piece"><span class="th-tw-sep" aria-hidden="true">·</span><span class="th-tw-when"${from ? ` title="${esc(twoWay.whenTip(from))}"` : ''}>${from ? `${esc(from)} ` : ''}${esc(when).replace(/ (?=\d)/g, '&nbsp;')}</span></span>` : ''}</span>`;
 }
 function sideList(group, key) {
   if (!group) return '';
   const all = state.all.has(key), shown = all ? group.items : group.items.slice(0, SHOWN);
   // The head names the one kind: the lines leave the tag out, as the rows do.
   const bare = new Set(group.items.map(item => item.tag)).size === 1;
-  const lines = shown.map(item => O.line({ dot: { uuid: item.uuid, title: twoWay.shortName(item.title) }, day: twoWay.dayCell(item) || (group.items.some(twoWay.dayCell) ? '' : null), body: twoWay.nameHtml(bare ? { ...item, tag: '' } : item, false, bare), cls: 'th-tw-line th-tw-bline', attrs: { 'data-uuid': item.uuid } })).join('');
-  const more = group.items.length > SHOWN ? O.more({ text: all ? 'show fewer' : `show ${group.items.length - SHOWN} more`, attrs: { class: null, 'data-more': key }, under: group.items.some(twoWay.dayCell) ? 'dotday' : 'dot' }) : '';
-  return `<div class="th-ol th-tw-bside">${lines}${more}</div>`;
+  // Each line's day as on the rows: the side's head says what the days are of, a line dated otherwise says its own (8 November 2026).
+  const dated = group.items.some(item => twoWay.dayOf(group, item)), days = shown.map(item => twoWay.dayCellOf(group, item));
+  const width = Math.max(0, ...days.map(d => d && d.from ? d.from.length : 0));
+  const lines = shown.map((item, i) => O.line({ dot: { uuid: item.uuid, title: twoWay.shortName(item.title) }, day: days[i] || (dated ? '' : null), body: twoWay.nameHtml(bare ? { ...item, tag: '' } : item, false, bare), cls: 'th-tw-line th-tw-bline', attrs: { 'data-uuid': item.uuid } })).join('');
+  const more = group.items.length > SHOWN ? O.more({ text: all ? 'show fewer' : `show ${group.items.length - SHOWN} more`, attrs: { class: null, 'data-more': key }, under: dated ? 'dotday' : 'dot' }) : '';
+  return `<div class="th-ol th-tw-bside"${width ? ` style="--th-tw-from: ${width}"` : ''}>${lines}${more}</div>`;
 }
 function besideHtml(b) {
   const mine = state.groups.filter(g => !twoWay.isMentions(g));

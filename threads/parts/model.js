@@ -466,6 +466,22 @@ const UUID_SHAPE = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 const YOUR_TAG = '[?t :db/ident ?ti] (or-join [?ti] (and [(namespace ?ti) ?ns] [(= ?ns "user.class")]) [(= ?ti :logseq.class/Task)])';
 const LIVE = '(not [?b :logseq.property/deleted-at]) (not-join [?b] [?b :block/page ?pg] [?pg :logseq.property/deleted-at])';
 const USER_PROP = /^:?user\.property\//;
+/* A node's day and the property it comes from (8 November 2026, the owner: "make it clear what the date is of"): a Date
+   property of yours, the one titled Date first, else the earliest; else the journal day it is written on, from ''. */
+function daysFrom(dated, written) {
+  const days = new Map();
+  for (const [b, attr, day, name] of dated) {
+    if (!/^user\.property\//.test(bare(attr))) continue;
+    const rank = String(name).trim().toLowerCase() === 'date' ? 0 : 1, had = days.get(b);
+    if (!had || rank < had.rank || (rank === had.rank && day < had.day)) days.set(b, { rank, day, from: String(name).trim() });
+  }
+  for (const [b, day] of written) if (!days.has(b)) days.set(b, { rank: 2, day, from: '' });
+  return days;
+}
+/* A task's status (8 November 2026, the owner: "threads should be able to show tasks status circles"): the last word of
+   Logseq's own status value (todo, doing, in-review, done, canceled, backlog), drawn as Logseq draws its circle. */
+const STATUS = '[?b :logseq.property/status ?s] [?s :db/ident ?si]';
+const statusOf = rows => new Map(rows.map(([b, si]) => [b, String(si).replace(/^:?logseq\.property\/status\./, '')]));
 async function linksInto(id) {
   // One round of questions (0.4.150): each is asked about the blocks that point here through a property of yours,
   // rather than waiting for that list first, since every wait right after a page change is long. For every page the
@@ -475,12 +491,13 @@ async function linksInto(id) {
     ? `${fields} [?b ?attr ?page] [?page :block/name] (not [?page :block/journal-day]) [(not= ?b ?page)] (not [?b :block/page ?page]) ${LIVE}`
     : `[(identity ${id}) ?page] [?b ?attr ?page] ${fields} [(not= ?b ?page)] (not [?b :block/page ?page]) ${LIVE}`;
   // Plain finds (a pull here was refused by Logseq's query call: "Extra inputs passed").
-  const [links, titled, tagged, dated, written] = await Promise.all([
+  const [links, titled, tagged, dated, written, statuses] = await Promise.all([
     dsQuery(`[:find ?page ?pu ?b ?attr ?name ?fu :where ${these} [?prop :block/title ?name] [?page :block/uuid ?pu] [?prop :block/uuid ?fu]]`),
     dsQuery(`[:find ?b ?uuid ?title :where ${these} [?b :block/uuid ?uuid] [?b :block/title ?title]]`),
     dsQuery(`[:find ?b ?tag :where ${these} [?b :block/tags ?t] ${YOUR_TAG} [?t :block/title ?tag]]`),
     dsQuery(`[:find ?b ?dattr ?day ?dname :where ${these} [?dprop :logseq.property/type :date] [?dprop :db/ident ?dattr] [?dprop :block/title ?dname] [?b ?dattr ?d] [?d :block/journal-day ?day]]`),
     dsQuery(`[:find ?b ?day :where ${these} [?b :block/page ?p] [?p :block/journal-day ?day]]`),
+    dsQuery(`[:find ?b ?si :where ${these} ${STATUS}]`).catch(() => []),
   ]);
   const isId = v => Number.isSafeInteger(v) && v > 0;
   const pages = new Map(), fieldsByName = new Map(), ids = new Set();
@@ -498,16 +515,10 @@ async function linksInto(id) {
   }
   const records = new Map();
   if (!ids.size) return { pages, fields: fieldsByName, records };
-  const days = new Map();
-  for (const [b, attr, day, name] of dated) {
-    if (!/^user\.property\//.test(bare(attr))) continue;
-    const rank = String(name).trim().toLowerCase() === 'date' ? 0 : 1, had = days.get(b);
-    if (!had || rank < had.rank || (rank === had.rank && day < had.day)) days.set(b, { rank, day });
-  }
-  for (const [b, day] of written) if (!days.has(b)) days.set(b, { rank: 2, day });
+  const days = daysFrom(dated, written), status = statusOf(statuses);
   const tags = new Map();
   for (const [b, tag] of tagged) if (!tags.has(b) || tag < tags.get(b)) tags.set(b, tag);
-  for (const [b, uuid, title] of titled) if (isId(b)) records.set(b, { uuid: String(uuid), title: title || '', tag: tags.get(b) || '', day: days.get(b)?.day || 0 });
+  for (const [b, uuid, title] of titled) if (isId(b)) records.set(b, { uuid: String(uuid), title: title || '', tag: tags.get(b) || '', day: days.get(b)?.day || 0, dayFrom: days.get(b)?.from || '', status: status.get(b) || '' });
   return { pages, fields: fieldsByName, records };
 }
 // Whether Logseq will draw a property list on a page: it holds a value of a property of yours, or a tag of yours, or a tag above it, declares one.
@@ -531,22 +542,17 @@ async function mentionsInto(id) {
   if (!Number.isSafeInteger(id) || id <= 0) return [];
   const ids = [id, ...await aliasesOf(id)];
   const these = `[(ground [${ids.join(' ')}]) [?page ...]] [?b :block/refs ?page] ${ids.map(one => `[(not= ?b ${one})] (not [?b :block/page ${one}])`).join(' ')} [?b :block/page _] ${LIVE}`;
-  const [titled, tagged, dated, written, uuids] = await Promise.all([
+  const [titled, tagged, dated, written, uuids, statuses] = await Promise.all([
     dsQuery(`[:find ?b ?uuid ?title :where ${these} [?b :block/uuid ?uuid] [?b :block/title ?title]]`),
     dsQuery(`[:find ?b ?tag :where ${these} [?b :block/tags ?t] ${YOUR_TAG} [?t :block/title ?tag]]`),
     dsQuery(`[:find ?b ?dattr ?day ?dname :where ${these} [?dprop :logseq.property/type :date] [?dprop :db/ident ?dattr] [?dprop :block/title ?dname] [?b ?dattr ?d] [?d :block/journal-day ?day]]`),
     dsQuery(`[:find ?b ?day :where ${these} [?b :block/page ?p] [?p :block/journal-day ?day]]`),
     dsQuery(`[:find ?pu :where [(ground [${ids.join(' ')}]) [?page ...]] [?page :block/uuid ?pu]]`),
+    dsQuery(`[:find ?b ?si :where ${these} ${STATUS}]`).catch(() => []),
   ]);
   const links = uuids.map(([uuid]) => `[[${String(uuid).toLowerCase()}]]`);
   if (!links.length) return [];
-  const days = new Map();
-  for (const [b, attr, day, name] of dated) {
-    if (!/^user\.property\//.test(bare(attr))) continue;
-    const rank = String(name).trim().toLowerCase() === 'date' ? 0 : 1, had = days.get(b);
-    if (!had || rank < had.rank || (rank === had.rank && day < had.day)) days.set(b, { rank, day });
-  }
-  for (const [b, day] of written) if (!days.has(b)) days.set(b, { rank: 2, day });
+  const days = daysFrom(dated, written), status = statusOf(statuses);
   const tags = new Map();
   for (const [b, tag] of tagged) if (!tags.has(b) || tag < tags.get(b)) tags.set(b, tag);
   const out = [];
@@ -555,7 +561,7 @@ async function mentionsInto(id) {
     // In the words, and not only as a tag: some [[link]] that has no # before it.
     let said = false;
     for (const link of links) { let at = words.indexOf(link); while (at >= 0 && !said) { if (words[at - 1] !== '#') said = true; at = words.indexOf(link, at + 1); } }
-    if (said) out.push({ id: b, uuid: String(uuid), title: String(title || ''), tag: tags.get(b) || '', day: days.get(b)?.day || 0 });
+    if (said) out.push({ id: b, uuid: String(uuid), title: String(title || ''), tag: tags.get(b) || '', day: days.get(b)?.day || 0, dayFrom: days.get(b)?.from || '', status: status.get(b) || '' });
   }
   return out;
 }
@@ -691,12 +697,14 @@ async function firstLines(uuid, n, withIds = false) {
    itself, { day, time }. A node holding nothing of yours has no entry. logseqs: Logseq's four as well (Deadline, Scheduled, Status,
    Priority), for a node opened in a row, which lists them; a list's grouping and what tells its rows apart stay with yours. */
 const STAMP = 100000000000;   // a ref is a small entity id, a timestamp is past this
-async function nodeValues(uuids, { logseqs = false } = {}) {
+async function nodeValues(uuids, { logseqs = false, dates = false } = {}) {
   const list = [...new Set((uuids || []).map(String))].filter(u => UUID.test(u));
   const out = new Map();
   if (!list.length) return out;
   const mine = '[(namespace ?attr) ?ns] [(= ?ns "user.property")]';
-  const whose = logseqs ? `(or-join [?attr] (and ${mine}) [(contains? #{:logseq.property/deadline :logseq.property/scheduled :logseq.property/status :logseq.property/priority} ?attr)])` : mine;
+  // dates: Logseq's Deadline and Scheduled beside yours, for a list dated by any of its date properties (8 November 2026).
+  const theirs = logseqs ? ':logseq.property/deadline :logseq.property/scheduled :logseq.property/status :logseq.property/priority' : dates ? ':logseq.property/deadline :logseq.property/scheduled' : '';
+  const whose = theirs ? `(or-join [?attr] (and ${mine}) [(contains? #{${theirs}} ?attr)])` : mine;
   const where = `[(ground [${list.map(u => `#uuid "${u}"`).join(' ')}]) [?u ...]] [?b :block/uuid ?u] [?b ?attr ?v] [?prop :db/ident ?attr] ${whose} [?prop :block/title ?name]`;
   const [raw, titled, dated, typed] = await Promise.all([
     dsQuery(`[:find ?u ?name ?attr ?v :where ${where}]`),

@@ -108,7 +108,7 @@ function fakeDb(graph, log) {
     [/:find \?o \?a :where \[\?o :block\/alias \?a\]/, () => USE.alias || []], [/^\[:find \?pu :where \[\(ground \[([\d ]+)\]/, m => m[1].split(' ').map(n => [U(Number(n))])],
     [/^\[:find \?b \?w \?at :where/, () => USE.madeRow || []], [/^\[:find \(count \?k\)/, () => [[USE.madeKids || 0]]],
     [/^\[:find \?page \?pu \?b \?attr \?name \?fu/, () => USE.link.links], [/^\[:find \?b \?uuid \?title/, () => USE.link.titled], [/^\[:find \?b \?tag :where/, () => []],
-    [/^\[:find \?b \?dattr \?day \?dname/, () => USE.link.dated], [/^\[:find \?b \?day :where/, () => []],
+    [/^\[:find \?b \?dattr \?day \?dname/, () => USE.link.dated], [/^\[:find \?b \?day :where/, () => []], [/^\[:find \?b \?si :where/, () => []],
     [/^\[:find \?u \?t \?n :where \[\(ground/, (m, query) => askedUuids(query).map(u => all().find(x => x.uuid === u)).filter(Boolean).map(x => [x.uuid, x.title, x.name || ''])],
     [/\(pull \?p \[:db\/id :db\/ident :block\/uuid :block\/title :logseq\.property\/type :db\/cardinality :logseq\.property\/icon[\s\S]*:where \[\?p :block\/tags :logseq\.class\/Property\] \[\?p :db\/ident _\]/,
       () => all().filter(x => isProperty(x) && x.ident).map(x => [{ id: x.id, ident: ':' + x.ident, uuid: x.uuid, title: x.title,

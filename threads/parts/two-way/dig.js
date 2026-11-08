@@ -83,10 +83,10 @@ function nodeHtml(uuid, key, data, asTop = false) {
     });
   }
   if (onlyFound) return html + O.more({ text: 'show the rest', attrs: { 'data-findall': key } });
-  if (emptyNames.length) {
-    const open = state.emptyOpen.has(key);
-    html += `<div class="th-ol-line th-tw-empties">${O.chev({ open, label: `${emptyNames.length} empty`, attrs: { 'data-empties': key } })}<a href="#" class="th-tw-toggle th-tw-emptyword" data-empties="${esc(key)}" title="${esc(emptyNames.join(', '))}">${emptyNames.length} empty</a>${open ? '' : `<span class="th-tw-emptynames">${esc(emptyNames.join(', '))}</span>`}</div>${open ? empties : ''}`;
-  }
+  /* An empty property draws nothing (8 November 2026, the owner: "remove the place holder for empty bullet"; the "3 empty"
+     line went): only what the node holds shows. A list's "no Topic?" still opens the node with its empty properties shown
+     (state.emptyOpen), to be filled in. */
+  if (emptyNames.length && state.emptyOpen.has(key)) html += empties;
   if (data.guesses.size > 1 && data.props.filter(r => !r.values.length && data.guesses.has(r.prop.ident)).length > 1) html += O.more({ text: 'Take what is proposed', cls: 'lk-lone lk-i-tick', attrs: { 'data-takeall': uuid } });
   /* The nodes that link to it, after its own properties, under a line saying so: "2 nodes link here"
      (0.4.462, the owner's pick 2 of the two-way fixes: the same property
@@ -97,12 +97,17 @@ function nodeHtml(uuid, key, data, asTop = false) {
   if (many) {
     let lines = '';
     for (const { g, items } of linking) {
-      const dated = items.some(twoWay.dayCell);   // the day's column, right of the dot, where any of these has a day
+      const dated = items.some(item => twoWay.dayOf(g, item));   // the day's column, right of the dot, where any of these has a day
       const allKey = `${key}|${g.name}`, all = state.nall.has(allKey);
-      (all ? items : items.slice(0, twoWay.INLINE)).forEach((item, i) => {
+      /* With no head, the first dated line says what the days are of, and a line dated otherwise says its own (8 November
+         2026); the column widens by the longest such name for each line of the property. */
+      const shownItems = all ? items : items.slice(0, twoWay.INLINE), first = shownItems.find(item => twoWay.dayOf(g, item));
+      const days = shownItems.map(item => { const d = twoWay.lineDayOf(g, item, item !== first); return d && typeof d === 'object' ? { text: d.text.replace(/, \d{4}$/, ''), from: d.from } : String(d || '').replace(/, \d{4}$/, ''); });
+      const width = Math.max(0, ...days.map(d => d && d.from ? d.from.length : 0));
+      shownItems.forEach((item, i) => {
         const k = `${key}>${item.uuid}`, open = state.dig.has(k);
         twoWay.lineDay.set(k, twoWay.dayCell(item));
-        const line = O.prop({ kind: g.kind || 'node', many: g.many, name: i ? '' : g.label, cls: 'th-tw-back', value: `${digChev(k, item.uuid, 0, twoWay.shortName(item.title), open)}${O.dot(false, { uuid: item.uuid, closed: !open && twoWay.hasKids(item.uuid), title: twoWay.shortName(item.title) })}${O.day(twoWay.dayCell(item) || (dated ? '' : null))}<span class="th-ol-body">${twoWay.nameHtml(item, open)}</span>` });
+        const line = O.prop({ kind: g.kind || 'node', many: g.many, name: i ? '' : g.label, cls: 'th-tw-back', attrs: width ? { style: `--th-tw-from: ${width}` } : undefined, value: `${digChev(k, item.uuid, 0, twoWay.shortName(item.title), open)}${O.dot(false, { uuid: item.uuid, closed: !open && twoWay.hasKids(item.uuid), title: twoWay.shortName(item.title) })}${O.day(days[i] || (dated ? '' : null))}<span class="th-ol-body">${twoWay.nameHtml(item, open)}</span>` });
         lines += open ? O.unit({ html: line + digKids(k, item.uuid, 'prop'), focus: state.focus === k, attrs: { 'data-key': k } }) : line;
       });
       if (items.length > twoWay.INLINE) lines += O.more({ text: all ? 'show fewer' : `show ${items.length - twoWay.INLINE} more`, attrs: { 'data-nall': allKey }, under: 'value' });
@@ -565,8 +570,6 @@ function onOutlineClick(event) {
   if (findall) { stop(); state.findDug.set(findall.dataset.findall, false); state.html = null; twoWay.draw(host()); return true; }
   const links = t.closest('[data-links]');
   if (links) { stop(); const k = links.dataset.links; if (state.linksShut.has(k)) state.linksShut.delete(k); else state.linksShut.add(k); state.html = null; twoWay.draw(host()); return true; }
-  const emp = t.closest('[data-empties]');
-  if (emp) { stop(); const k = emp.dataset.empties; if (state.emptyOpen.has(k)) state.emptyOpen.delete(k); else state.emptyOpen.add(k); state.html = null; twoWay.draw(host()); return true; }
   const nall = t.closest('[data-nall]');
   if (nall) { stop(); const key = nall.dataset.nall; if (state.nall.has(key)) state.nall.delete(key); else state.nall.add(key); state.html = null; twoWay.draw(host()); return true; }
   const ball = t.closest('[data-ball]');

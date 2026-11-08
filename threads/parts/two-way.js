@@ -236,7 +236,7 @@ async function mentionsGroup(id, groups) {
   if (askQuietly.uuids.length) state.quiet = setTimeout(askQuietly, provided.earlierLinesRead?.() ? 0 : QUIET);
   // Each with the page and bullets it sits in, as Linked references shows it (0.4.437).
   const crumbs = provided.crumbsInto ? await provided.crumbsInto(id).catch(() => new Map()) : new Map();
-  const items = await Promise.all(found.map(async m => { const words = await linkedWordsOf(m.title); return { uuid: m.uuid, title: plainWords(words), words, tag: m.tag || 'note', day: m.day,
+  const items = await Promise.all(found.map(async m => { const words = await linkedWordsOf(m.title); return { uuid: m.uuid, title: plainWords(words), words, tag: m.tag || 'note', day: m.day, dayFrom: m.dayFrom || '', status: m.status || '',
     crumbs: await Promise.all((crumbs.get(m.uuid) || []).map(async c => ({ uuid: c.uuid, name: await wordsOf(c.title) }))) }; }));
   items.sort(byWhen(todayNumber()));
   return { name: MENTIONS, label: 'Mentioned in', items, fieldUuid: '', ident: '', mentions: true };
@@ -257,7 +257,7 @@ async function groupsByPage(id) {
   if (!found.size) return new Map();
   const records = new Map();
   // The titles are made readable together (0.4.150): each one with a link in it asks the database for that link's name.
-  await Promise.all([...found].map(async ([b, record]) => { const words = await linkedWordsOf(record.title); records.set(b, { uuid: record.uuid, title: plainWords(words), words, tag: record.tag || 'note', day: record.day }); }));
+  await Promise.all([...found].map(async ([b, record]) => { const words = await linkedWordsOf(record.title); records.set(b, { uuid: record.uuid, title: plainWords(words), words, tag: record.tag || 'note', day: record.day, dayFrom: record.dayFrom || '', status: record.status || '' }); }));
   const names = backwardsNames(), today = todayNumber(), oneEnd = oneEndNames();
   // What each property holds, for the icon before its name (0.4.477): a Date row on a journal day is a calendar, not the
   // triangle of a link to a node.
@@ -307,18 +307,28 @@ async function loadIndex() {
 // "9 Appointments · next on Nov 12", "4 Lab panels, 3 Imaging studies · from Aug 2 to Oct 9"; whenOnly: the day part alone.
 // The days said in words (0.4.402, the owner: "unclear from the visuals what the date mean"): from the first to the last,
 // or the next one still to come; the tip says where a node's day comes from (WHEN_TIP).
-function summary(items, whenOnly = false) {
+// dayOf: a node's day as the list goes by it (twoWay.dayIn, a date property chosen in View), else its own.
+function summary(items, whenOnly = false, dayOf = item => item.day) {
   const counts = new Map();
   for (const item of items) counts.set(item.tag, (counts.get(item.tag) || 0) + 1);
   const kinds = [...counts].sort((a, b) => b[1] - a[1]).map(([tag, n]) => `${n} ${plural(tag, n)}`).join(', ');
-  const today = todayNumber(), days = items.map(item => item.day).filter(Boolean);
+  const today = todayNumber(), days = items.map(dayOf).filter(Boolean);
   const next = days.filter(day => day >= today).sort((a, b) => a - b)[0];
   let when = '';
   if (next) when = `next on ${dayText(next)}`;
   else if (days.length) { const first = Math.min(...days), last = Math.max(...days); when = first === last ? `on ${dayText(first)}` : `from ${dayText(first)} to ${dayText(last)}`; }
   return whenOnly ? when : [kinds, when].filter(Boolean).join(' · ');
 }
-const WHEN_TIP = 'The days of these nodes: each node’s date, or the journal day it is written on';
+// The head says what its days are of, before them ("Deadline from Aug 20 to Oct 29"; 8 November 2026, the owner: "make it
+// clear what the date is of"): the property most of them come from, or Journal for the day a node is written on.
+const whenTip = from => from === 'Journal' ? 'The journal day each node is written on' : `Each node’s ${from}`;
+function headWhen(group, items) {
+  const by = twoWay.dayChoice?.(group) || '';
+  const when = summary(items, true, by === 'none' || !twoWay.dayIn ? undefined : item => twoWay.dayIn(group, item));
+  if (!when) return { when: '', from: '' };
+  if (by === 'none' || !twoWay.listFrom) return { when, from: '' };
+  return { when, from: twoWay.listFrom(group) };
+}
 const INLINE = 3, LISTED = 5;
 /* Moving around the rows (0.4.184, the + and the hovers 0.4.185, the owner asked for the rows to be more interactive). A record's name
    opens it; Shift-click opens it in the sidebar (the icon at its
@@ -362,7 +372,14 @@ const dayCell = item => item.day && item.day !== state.pageDay ? dayText(item.da
    another year widens the column for the whole list. */
 const daysOf = group => [...group.items, ...(group.since || [])].map(item => twoWay.dayOf(group, item)).filter(Boolean);
 const isDated = group => daysOf(group).length > 0;
-const datedAttrs = group => daysOf(group).length ? ' data-dated=""' : '';
+// A list of one has no head, so its line says what its day is of; so does any line dated otherwise than its list's head says.
+const aloneIn = group => group.items.length === 1 && !(group.found && group.total > 1) && !(group.since || []).length;
+// The day column widens by the longest such name, for the whole list, so the words of its lines still start at one place.
+const fromWidth = group => { const alone = aloneIn(group); let w = 0; for (const item of [...group.items, ...(group.since || [])]) { const d = twoWay.lineDayOf?.(group, item, !alone); if (d && d.from) w = Math.max(w, d.from.length); } return w; };
+const datedAttrs = group => { if (!daysOf(group).length) return ''; const w = fromWidth(group); return ` data-dated=""${w ? ` style="--th-tw-from: ${w}"` : ''}`; };
+const dayIn = (group, item) => twoWay.dayIn ? twoWay.dayIn(group, item) : item.day;
+// A line's day, short, with what it is of where its list does not say it.
+const dayCellOf = (group, item) => { const d = twoWay.lineDayOf ? twoWay.lineDayOf(group, item, !aloneIn(group)) : twoWay.dayOf(group, item); return d && typeof d === 'object' ? { text: shortDay(d.text), from: d.from } : shortDay(d); };
 // A day of another year: the line shows the day alone, and a faint line with the year stands where the years change (C10).
 const shortDay = text => String(text || '').replace(/, \d{4}$/, '');
 const yearOf = text => (String(text || '').match(/, (\d{4})$/) || [])[1] || '';
@@ -381,7 +398,20 @@ async function ownNamesOf(id) {
 }
 // A name's words: a wikilink in them is underlined and opens its page, as in a bullet's words; the name itself, its own click.
 const nameWords = item => item.words && item.words.includes('[[') ? twoWay.lineHtml(item.words, Infinity) : esc(item.title);
-const nameHtml = (item, open = false, bare = false) => `<a class="th-tw-record th-ol-name lk-node${bare ? ' lk-bare' : ''}${open ? ' th-ol-open' : ''}" data-uuid="${esc(item.uuid)}" href="#">${nameWords(item)}</a>${item.tag && item.tag !== 'note' ? '<wbr>' + tagLink(item) : ''}`;
+/* A task's circle (8 November 2026, the owner: "threads should be able to show tasks status circles"): Logseq's own, drawn
+   before the words as Logseq draws it after a task's bullet, with Logseq's own class for its colour (ls-icon-…), so it
+   follows the theme as Logseq's does. The shapes are Logseq's (its tabler.ext.js, 2.0.2). It shows; it does not change the status. */
+const CIRCLE = '<circle cx="10" cy="10" r="8" stroke-width="2"/>';
+const TASK = {
+  backlog: ['Backlog', 'Backlog', '<circle cx="10" cy="10" r="8" stroke-width="2" stroke-dasharray="4 4"/>'],
+  todo: ['Todo', 'Todo', CIRCLE],
+  doing: ['InProgress50', 'Doing', `${CIRCLE}<path d="M10 15C11.3261 15 12.5979 14.4732 13.5355 13.5355C14.4732 12.5979 15 11.3261 15 10C15 8.67392 14.4732 7.40215 13.5355 6.46447C12.5979 5.52678 11.3261 5 10 5L10 10V15Z" fill="currentColor"/>`],
+  'in-review': ['InReview', 'In Review', '<circle cx="10" cy="10" r="9" fill="currentColor"/><path d="M14 9.5V11C14 11.3978 13.842 11.7794 13.5607 12.0607C13.2794 12.342 12.8978 12.5 12.5 12.5H8L6 14.5V8C6 7.60218 6.15804 7.22064 6.43934 6.93934C6.72064 6.65804 7.10218 6.5 7.5 6.5H11M12.5 6H14.5M14.5 6V8M14.5 6L12 8.5" stroke="white" stroke-width="1.333"/>'],
+  done: ['Done', 'Done', '<circle cx="10" cy="10" r="9" fill="currentColor"/><path d="M6.5 10L9 12.5L14 7.5" stroke="white" stroke-width="1.333"/>'],
+  canceled: ['Cancelled', 'Canceled', `${CIRCLE}<path d="M13 7L7 13M7 7L13 13" stroke-width="1.333"/>`],
+};
+const taskHtml = item => { const t = TASK[item.status]; return t ? `<span class="th-task ls-icon-${t[0]}" title="${t[1]}" aria-label="${t[1]}"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${t[2]}</svg></span>` : ''; };
+const nameHtml = (item, open = false, bare = false) => `${taskHtml(item)}<a class="th-tw-record th-ol-name lk-node${bare ? ' lk-bare' : ''}${open ? ' th-ol-open' : ''}" data-uuid="${esc(item.uuid)}" href="#">${nameWords(item)}</a>${item.tag && item.tag !== 'note' ? '<wbr>' + tagLink(item) : ''}`;
 /* top: the node at the top of a shifted section (0.4.463): its rows are drawn as the page's are, keyed under it; nothing
    in them acts on the page (no tick boxes, no +, no Group). */
 function rowHtml(group, top = null) {
@@ -427,7 +457,7 @@ function rowHtml(group, top = null) {
      when they are of several kinds); after it, quiet and parted by a dot, the kinds as filter words and the days. With several kinds the count is the old "All": it folds and unfolds the
      list, and shows every node again when one kind is picked. */
   const total = headItems.length;
-  const when = summary(headItems, true);
+  const { when, from } = headWhen(group, headItems);
   const was = group.since ? `<span class="th-tw-was lk-note" title="On this page today, with every day">${whole.items.length} today</span>` : '';
   // The mentions row's head is its days alone (the review, 31 October: "notes" was the plugin's word for an untagged
   // mention, under a row already called "Mentioned in"); where the mentions are of several kinds, the kinds stay.
@@ -436,7 +466,7 @@ function rowHtml(group, top = null) {
   const leadText = kinds ? `All ${total}` : `${total} ${esc(plural(tagWord((headItems[0] || group.since?.[0])?.tag || 'note'), total))}`;   // the number shows on a closed head (the owner, 1 November, the research's rule that a head says what it holds)
   const lead = daysOnly ? '' : kinds ? chip('', leadText, ' th-tw-lead', true)
     : `<a class="th-tw-toggle th-tw-lead" data-key="${esc(key)}" href="#" title="Click to ${open ? 'fold' : 'open'} the list.">${leadText}</a>`;
-  const whenHtml = when ? `<a class="th-tw-toggle th-tw-when" data-key="${esc(key)}" href="#" title="${WHEN_TIP}. Click to ${open ? 'fold' : 'open'} the list.">${esc(when).replace(/ (?=\d)/g, '&nbsp;')}</a>` : '';
+  const whenHtml = when ? `<a class="th-tw-toggle th-tw-when" data-key="${esc(key)}" href="#" title="${esc(from ? whenTip(from) : 'The days of these nodes')}. Click to ${open ? 'fold' : 'open'} the list.">${from ? `<span class="th-tw-from">${esc(from)}</span> ` : ''}${esc(when).replace(/ (?=\d)/g, '&nbsp;')}</a>` : '';
   const sep = '<span class="th-tw-sep" aria-hidden="true">·</span>';
   // Three kinds, then "and 12 more" (the grammar; a click shows them all), the one in force always among them. The days stay.
   const byCount = [...counts].sort((a, b) => b[1] - a[1]);
@@ -458,7 +488,7 @@ function rowHtml(group, top = null) {
     const grouping = twoWay.groupingOf(group, items);
     if (grouping) list = underHeadHooks.map(hook => hook(group, key, items) || '').join('') + grouping.parts.map(part => twoWay.groupHtml(group, part, grouping.by)).join('');
     else {
-      list = underHeadHooks.map(hook => hook(group, key, items) || '').join('') + shown.map((item, i) => (i > 0 && item.day && item.day < today && shown[i - 1].day >= today ? '<div class="th-tw-earlier lk-note">earlier</div>' : '') + yearLine(group, item, shown[i - 1]) + betweenHooks.map(hook => hook(group, item, shown[i - 1], key) || '').join('') + itemHtml(group, item, base, '', bare, tell)).join('')
+      list = underHeadHooks.map(hook => hook(group, key, items) || '').join('') + shown.map((item, i) => (i > 0 && dayIn(group, item) && dayIn(group, item) < today && dayIn(group, shown[i - 1]) >= today ? '<div class="th-tw-earlier lk-note">earlier</div>' : '') + yearLine(group, item, shown[i - 1]) + betweenHooks.map(hook => hook(group, item, shown[i - 1], key) || '').join('') + itemHtml(group, item, base, '', bare, tell)).join('')
         + (items.length > LISTED ? O.more({ text: all ? 'show fewer' : `show ${items.length - LISTED} more`, attrs: { class: null, 'data-more': key }, under: isDated(group) ? 'dotday' : 'dot' }) : '');
     }
   }
@@ -486,7 +516,7 @@ function itemHtml(group, item, base, end = '', bare = false, tell = '') {
   lineDay.set(key, dayCell(item));
   // Opened, the node's properties show the telling value: the line lets go of it.
   const body = `${leadHooks.map(hook => hook(group, item) || '').join('')}${nameHtml(shown, open && state.findDug.get(key) !== true, bare)}${couldBeHtml(item)}${tailHooks.map(hook => hook(group, item) || '').join('')}${tell && !open ? twoWay.tellHtml(item, tell) : ''}${end}`;
-  const line = O.line({ tick: pickBox(group, item), dot: { uuid: item.uuid, closed: !open && hasKids(item.uuid), title: shortName(item.title) }, day: shortDay(twoWay.dayOf(group, item)) || (isDated(group) ? '' : null), chev: twoWay.digChev(key, item.uuid, 0, shortName(item.title), open), body, cls: 'th-tw-line', attrs: { 'data-uuid': item.uuid } });
+  const line = O.line({ tick: pickBox(group, item), dot: { uuid: item.uuid, closed: !open && hasKids(item.uuid), title: shortName(item.title) }, day: dayCellOf(group, item) || (isDated(group) ? '' : null), chev: twoWay.digChev(key, item.uuid, 0, shortName(item.title), open), body, cls: 'th-tw-line', attrs: { 'data-uuid': item.uuid } });
   const under = `${crumbHtml(item)}${twoWay.raiseHtml(group, item)}`;
   return open ? O.unit({ html: line + under + twoWay.digKids(key, item.uuid, 'in'), focus: state.focus === key, attrs: { 'data-key': key } }) : line + under;
 }
@@ -985,5 +1015,5 @@ function start() {
 }
 ((window.Threads ||= {}).parts ||= []).push({ name: 'two-way', says: 'the rows on a page', schema: settingsSchema, start, stop: runUnloadTasks, inner: twoWay });
 // What the pieces reach of the part, and of the core once it starts (useCore).
-Object.assign(twoWay, { INLINE, LISTED, UUID, stopPicking, clickHooks, tailHooks, viewMenuHooks, listHooks, headHooks, underHeadHooks, leadHooks, betweenHooks, lineMenuHooks, rowMenuHooks, saveSettings: changes => saveSettings(changes), dayCell, isDated, readKids, hasKids, loadHooks, settledHooks, starters, summary, plural, tagWord, dayText, draw, groupsFor, inBox, isMentions, couldBeOff, itemHtml, later, lineDay, model, nameHtml, offerKept, offerMade, offerUndo, guard, onUnload, provided, rowHtml, setting, shortName, state, tagLink, todayNumber, uuidsIn, valueBox, warnOnce, useCore });
+Object.assign(twoWay, { taskHtml, dayCellOf, headWhen, whenTip, INLINE, LISTED, UUID, stopPicking, clickHooks, tailHooks, viewMenuHooks, listHooks, headHooks, underHeadHooks, leadHooks, betweenHooks, lineMenuHooks, rowMenuHooks, saveSettings: changes => saveSettings(changes), dayCell, isDated, readKids, hasKids, loadHooks, settledHooks, starters, summary, plural, tagWord, dayText, draw, groupsFor, inBox, isMentions, couldBeOff, itemHtml, later, lineDay, model, nameHtml, offerKept, offerMade, offerUndo, guard, onUnload, provided, rowHtml, setting, shortName, state, tagLink, todayNumber, uuidsIn, valueBox, warnOnce, useCore });
 })();

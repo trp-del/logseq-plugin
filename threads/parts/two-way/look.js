@@ -140,9 +140,10 @@ const twoWayCss = `
 .th-two-way .th-tw-row[data-drop="below"] { box-shadow: inset 0 -2px 0 var(--lk-line); }
 /* A week back, a week on, Today, under the find line while it holds a day (C15). */
 .th-two-way .th-tw-daysteps { margin-top: 4px; }
-/* The empty bullet at a node's end says what it is while the pointer is in the node or the caret in it (C13). */
-.th-two-way .th-ol-new input::placeholder { color: transparent; }
-.th-two-way .th-ol-kids:hover > .th-ol-in > .th-ol-new input::placeholder, .th-two-way .th-ol-new input:focus::placeholder { color: var(--lk-faint); }
+/* The empty bullet at a node's end draws nothing until it is written in (8 November 2026, the owner: "remove the place holder
+   for empty bullet"): no dot, no words, no room, at rest or under the pointer. It is there for the caret, as Logseq's next
+   bullet is: Enter after a bullet's words, or Tab, brings it, and it shows while it has the caret or words. */
+.th-two-way .th-ol-new:not(:focus-within):not(:has(input:not(:placeholder-shown))) { height: 0; min-height: 0; margin: 0; padding: 0; overflow: hidden; opacity: 0; }
 /* Date first in a short row, name first in a list (0.4.304): the same columns as the other kind, the other way round. */
 .th-two-way .th-tw-draft-plus { position: absolute; left: .35rem; width: 16px; height: 1.8em; display: inline-flex; align-items: center; justify-content: center; }   /* as tall as the words beside it */
 .th-two-way .th-tw-draft-plus::before { margin-right: 0; width: .75em; height: .75em; vertical-align: 0; }   /* the library's + mark, alone, centred in the line */
@@ -318,6 +319,10 @@ const twoWayCss = `
 /* The mark stays on the first line of a name that wraps (an opened node's), not in the middle of the words. */
 .th-two-way .th-ol-body > .th-tw-record.th-ol-open, .th-two-way[data-finding] .th-ol-body > .th-tw-record { display: block; -webkit-line-clamp: none; }
 .th-two-way .th-ol-body > .th-tw-record ~ * { flex: none; }
+/* A task's circle, Logseq's own, before its words as in Logseq (8 November 2026): its size beside 16px words, the gap after
+   it the gap Logseq leaves; the colour is Logseq's (its ls-icon- class). On the first line of words that wrap. */
+.th-two-way .th-task { flex: none; align-self: flex-start; display: inline-flex; align-items: center; height: 1.5em; margin-right: 6px; }
+.th-two-way .th-task svg { width: 1.05em; height: 1.05em; display: block; }
 .th-two-way .th-ol-body > .th-pencil, .th-two-way .th-ol-body > .th-tw-could { margin-left: 8px; }
 .th-two-way .th-tw-could { display: inline-flex; align-items: baseline; }
 /* No underline at rest in this section, under the pointer the firm one (the owner, 1 November 2026: long names, each underlined in full, striped it). */
@@ -329,12 +334,10 @@ const twoWayCss = `
 /* Inside an opened node, the nodes that link to it (0.4.462): their line in words, then their rows one step in, each a dot and its day as on the rows. */
 .th-two-way .th-tw-links { margin-top: 14px; align-items: baseline; gap: 6px; }
 /* What links to an opened node, as a head (C4): its words in the head's weight, the kinds quiet after them. */
-.th-two-way :is(.th-tw-linkword, .th-tw-emptyword) { all: unset; cursor: pointer; }
+.th-two-way .th-tw-linkword { all: unset; cursor: pointer; }
 .th-two-way .th-tw-linkword { font-weight: 500; }
-.th-two-way :is(.th-tw-linkkinds, .th-tw-emptynames) { color: var(--lk-quiet); font-size: var(--lk-small); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.th-two-way .th-tw-linkkinds { color: var(--lk-quiet); font-size: var(--lk-small); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* The empty properties of an opened node, folded into one quiet line (C5). */
-.th-two-way .th-tw-empties { gap: 6px; align-items: baseline; color: var(--lk-quiet); }
-.th-two-way .th-tw-emptyword { color: var(--lk-quiet); }
 /* The names' column of an opened node fits its longest name (C6). */
 .th-two-way .th-ol-kids[style*="--th-tw-name"] > .th-ol-in { --th-ol-name: var(--th-tw-name); }
 /* Inside an opened node a name is never cut (C8): at any width it wraps whole. */
@@ -350,6 +353,8 @@ const twoWayCss = `
 .th-two-way .th-tw-crumb { color: var(--lk-faint); font-size: var(--lk-small); line-height: 1.3; margin: 0 0 3px var(--th-tw-words); overflow-wrap: anywhere; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 /* Where a node's words start: after its chevron and its dot, and the day's column in a list that has days. */
 .th-two-way .th-tw-value { --th-tw-words: calc(32px + 2 * var(--th-ol-gap)); }
+/* A list where a line says what its day is of: the day column widens by the longest name, for every line of it. */
+.th-two-way :is(.th-tw-value.th-ol, .th-tw-bside, .th-ol-prop)[style*="--th-tw-from"] { --th-ol-day: calc(var(--lk-day, 48px) + 8px + var(--th-tw-from) * 1ch); }
 .th-two-way .th-tw-value[data-dated] { --th-tw-words: calc(32px + 3 * var(--th-ol-gap) + var(--th-ol-day)); }
 .th-two-way .th-tw-crumb .lk-step { font-size: inherit; }
 .th-two-way .th-tw-raise { display: flex; flex-wrap: wrap; column-gap: 1.1em; align-items: baseline; margin: 0 0 .2rem var(--th-tw-words); font-size: 14px; line-height: 1.5; }
