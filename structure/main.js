@@ -41,7 +41,7 @@ const app = {
   stage(change, { wait = false } = {}) {
     if (app.st.busy) { notify('Wait for this to finish, then try again', 'warning'); return null; }
     const c = tray.stage(change); tray.note = ''; tray.version = (tray.version || 0) + 1;
-    const onTag = [...app.views].some(v => v.mode === 'tag');
+    const onTag = [...app.views].some(v => v.mode === 'tag' || v.mode === 'line');
     if (!onTag && !mounts.onPage()) mounts.openPage();
     if (!wait && AT_ONCE.has(c.kind) && !c.lasting && tray.changes.length === 1) setTimeout(() => { if (tray.changes.length === 1 && tray.changes[0] === c && !app.st.busy) app.apply(); });
     return c;
@@ -243,16 +243,27 @@ let pageWatch = null, stopHash = null, tagTimer = 0, tagAsking = 0;
 const days = new Set();   // pages found to be journal days, which a tag's lines never stand on
 const lookup = uuid => { const id = [...tray.model.tags.values()].find(t => t.uuid === uuid)?.id ?? null; return { id, prop: id == null ? [...tray.model.props.values()].find(p => p.uuid === uuid)?.id ?? null : null }; };
 function place(doc, inner, here, id, prop) {
-  const view = [...app.views].find(v => v.mode === 'tag' && v.root.parentElement?.classList.contains('st-tagholder'));
-  if (id == null && prop == null) { view?.destroy(); doc.querySelector('.st-tagholder')?.remove(); return; }
-  // While the inspector stands in the right sidebar the lines stand at its top, not above the table; closed, they come back here.
-  const box = S.inspector.top(), parent = box || inner, before = box ? null : here;
-  if (view?.tag === (id ?? undefined) && view?.prop === (prop ?? undefined) && view.root.isConnected && view.root.parentElement.parentElement === parent) { if (!box && view.root.parentElement.nextElementSibling !== here) inner.insertBefore(view.root.parentElement, here); return false; }
-  view?.destroy(); doc.querySelector('.st-tagholder')?.remove();
-  const holder = doc.createElement('div'); holder.className = 'st-tagholder st-holder-tag';
-  parent.insertBefore(holder, before);
+  const views = [...app.views].filter(v => (v.mode === 'tag' || v.mode === 'line') && v.root.parentElement?.classList.contains('st-tagholder'));
+  const clear = () => { for (const v of views) v.destroy(); doc.querySelectorAll('.st-tagholder').forEach(n => n.remove()); };
+  if (id == null && prop == null) { clear(); return; }
+  /* A tag's page: Parent and Child tags on one line above its title, always; all its lines in the inspector while that stands in
+     the right sidebar. A property's page: its lines above the table, or at the inspector's top while it is open. */
+  const box = S.inspector.top(), title = [...inner.children].find(c => !c.classList.contains('st-tagholder')) || null;
+  const want = id != null
+    ? [{ mode: 'line', parent: inner, before: title, cls: 'st-holder-line' }, ...(box ? [{ mode: 'tag', parent: box, before: null, cls: '' }] : [])]
+    : [{ mode: 'tag', parent: box || inner, before: box ? null : here, cls: '' }];
+  const same = want.length === views.length && want.every(w => views.some(v => v.mode === w.mode && v.tag === (id ?? undefined) && v.prop === (prop ?? undefined) && v.root.isConnected && v.root.parentElement.parentElement === w.parent));
+  if (same) {
+    for (const w of want) { const holder = views.find(v => v.mode === w.mode).root.parentElement; if (w.parent === inner && w.before !== holder && holder.nextElementSibling !== w.before) inner.insertBefore(holder, w.before); }
+    return false;
+  }
+  clear();
   if (id != null) app.st.cur = id;
-  app.mounted(S.view.make(holder, 'tag', app, id != null ? { tag: id } : { prop }));
+  for (const w of want) {
+    const holder = doc.createElement('div'); holder.className = `st-tagholder st-holder-tag ${w.cls}`;
+    w.parent.insertBefore(holder, w.before);
+    app.mounted(S.view.make(holder, w.mode, app, id != null ? { tag: id } : { prop }));
+  }
   return true;
 }
 function tagPage() {

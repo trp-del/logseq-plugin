@@ -11,7 +11,7 @@ const en = {
   name: 'en',
   weekdays: ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'],   // index = Date.getDay()
   months: ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'],
-  relative: { today: 0, tomorrow: 1, tmr: 1, yesterday: -1 },
+  relative: { today: 0, tonight: 0, tomorrow: 1, tmr: 1, yesterday: -1 },
   next: 'next',
   // A short weekday ("fri") counts only after one of these ("on fri"); a whole name ("friday") counts anywhere.
   before: ['on', 'this', 'by', 'until', 'till'],
@@ -31,9 +31,32 @@ const en = {
   unitPattern: 'days?|weeks?|fortnights?',
   small: { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 },
   // Words that point ahead without naming a day: today's date would be wrong for them.
-  ahead: /\b(?:next|tomorrow|later|soon|upcoming|coming up|in (?:a|an|\d+|a few|two|three) (?:days?|weeks?|months?|fortnight))\b/i,
+  ahead: /\b(?:next|tomorrow|later|soon|upcoming|coming up|in (?:a|an|\d+|a few|two|three|four|five|six|seven|eight|nine|ten|twelve) (?:days?|weeks?|months?|years?|fortnights?)|(?:a|\w+) weeks? from|end of (?:the|this|next) month)\b/i,
   // Words that tell of what has been: a weekday among them may be the one gone or the one coming ("was moved to Friday").
   past: /\b(?:was|were|had|did|went|saw|came|got|felt|showed|told|last)\b/i,
+  /* Days told in a phrase (8 November 2026, the owner: "it should understand most of the dates using natural language"). Each is
+     read before the single words, and the words it used are not read again: "the day after tomorrow" is not also tomorrow. */
+  phrases: {
+    dayAfterTomorrow: 'the day after tomorrow|day after tomorrow',
+    dayBeforeYesterday: 'the day before yesterday|day before yesterday',
+    partOfToday: 'this (?:morning|afternoon|evening)',
+    nextUnit: 'next (week|month|year)',
+    lastUnit: 'last (week|month|year)',
+    from: 'from',                                // "a week from Monday", "two weeks from Friday"
+    ago: 'ago',                                  // "three weeks ago"
+    endOf: '(?:the )?end of (?:the |this )?(month|next month|the year|this year)',
+    startOf: '(?:the )?(?:start|beginning) of (next month|the month|this month|next year)',
+    partOfMonth: '(early|mid|late)[ -]',         // "early December", "mid-January"
+    partDay: { early: 1, mid: 15, late: 25 },
+    nth: { first: 1, '1st': 1, second: 2, '2nd': 2, third: 3, '3rd': 3, fourth: 4, '4th': 4, last: -1 },   // "the first Monday of December"
+    // Days with a fixed date that a person names by name; the next one, or the one that just went (JUST_WENT).
+    named: { 'christmas eve': [11, 24], 'christmas day': [11, 25], christmas: [11, 25], "new year's eve": [11, 31], "new years eve": [11, 31],
+      "new year's day": [0, 1], "new years day": [0, 1], halloween: [9, 31], "valentine's day": [1, 14], "valentines day": [1, 14] },
+  },
+  monthUnit: 'months?',                          // "in six months", "two months ago": calendar months
+  yearUnit: 'years?',
+  // 20/11, 11/20/2026, 20.11.2026: only where the numbers can be read one way (a number over 12 is the day); else nothing.
+  numericDate: true,
   numberJoiners: ['and', 'or', 'to', '&', '-'],     // "cycles 3 and 4" names two numbers
   numberMarks: ['no\\.?\\s*', '#'],                 // "cycle no. 5", "cycle #5"
   /* Basic meanings: what a value in the words is, and which property's name says it takes such a value. A property is matched by a
@@ -53,6 +76,8 @@ const en = {
 };
 
 const dayAfter = (date, n) => { const d = new Date(date.getFullYear(), date.getMonth(), date.getDate()); d.setDate(d.getDate() + n); return d; };
+// The same day so many months on (or back), held to the month's last day: a month after 31 January is 28 or 29 February.
+const monthsAfter = (date, n) => { const first = new Date(date.getFullYear(), date.getMonth() + n, 1), last = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate(); return new Date(first.getFullYear(), first.getMonth(), Math.min(date.getDate(), last)); };
 // A date only when the day exists: 30 February is no day (it must not roll over into March).
 const exactDay = (year, month, day) => { const d = new Date(year, month, day); return d.getFullYear() === year && d.getMonth() === month && d.getDate() === day ? d : null; };
 const dayNumber = d => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
@@ -102,9 +127,11 @@ function makeReader(locale = en) {
   // weekday in words that tell of what has been; "the 4th" the
   // next 4th; a day and a month the next such day, or the one that just went (JUST_WENT); "in two weeks".
   function daysInWords(text, base) {
-    const words = ' ' + cleanWords(text).toLowerCase().replace(/[.,;:!?()]/g, ' ') + ' ', today = asDate(base), found = new Set();
+    let words = ' ' + cleanWords(text).toLowerCase().replace(/(\d)[./](?=\d)/g, '$1/').replace(/[.,;:!?()]/g, ' ') + ' ';
+    const today = asDate(base), found = new Set();
     const add = date => { if (date && !Number.isNaN(date.getTime())) found.add(dayNumber(date)); };
     const pointsAhead = L.ahead.test(text), tellsPast = !pointsAhead && L.past.test(text);
+    words = phrasesRead(words, today, add, pointsAhead);
     for (const [, word] of words.matchAll(new RegExp(`\\s(${Object.keys(L.relative).join('|')})\\s`, 'g'))) add(parseDay(word, today));
     for (const [, next, on, day] of words.matchAll(new RegExp(`\\s(?:(${escape(L.next)})\\s+|(${L.before.map(escape).join('|')})\\s+)?(${L.weekdayPattern})(?=\\s)`, 'g'))) {
       if (!next && !on && !day.endsWith(L.wholeWeekdaySuffix)) continue;
@@ -133,6 +160,55 @@ function makeReader(locale = en) {
     }
     for (const [, iso] of words.matchAll(/\s(\d{4}-\d{1,2}-\d{1,2})\s/g)) add(parseDay(iso, today));
     return [...found];
+  }
+
+  /* The phrases (L.phrases), read first: each day found is added, and the words it used are blanked, so the single words after
+     do not read them again. Returns the words left. */
+  function phrasesRead(words, today, add, pointsAhead) {
+    const P = L.phrases;
+    if (!P) return words;
+    const nums = `\\d{1,3}|${smallWords}`, num = n => L.small[n] ?? Number(n);
+    const unitDays = unit => Object.entries(L.units).find(([name]) => unit.startsWith(name))?.[1];
+    const isMonth = unit => new RegExp(`^(?:${L.monthUnit})$`).test(unit), isYear = unit => new RegExp(`^(?:${L.yearUnit})$`).test(unit);
+    const span = (date, unit, n) => isMonth(unit) ? monthsAfter(date, n) : isYear(unit) ? monthsAfter(date, 12 * n) : dayAfter(date, n * (unitDays(unit) || 1));
+    const monthOf = word => L.months.findIndex(m => m.startsWith(word.slice(0, 3)) && word.length >= 3);
+    const units = `${L.unitPattern}|${L.monthUnit}|${L.yearUnit}`;
+    const weekday = `(${L.weekdayPattern})`, month = `(${L.monthPattern.replace(/\(\?=\\s\)$/, '')})`;
+    const blank = m => ' '.repeat(m.length);
+    const read = (pattern, day) => { words = words.replace(new RegExp(`(?<=\\s)(?:${pattern})(?=\\s)`, 'g'), (...m) => { const d = day(...m.slice(1)); if (d === undefined) return m[0]; add(d); return blank(m[0]); }); };
+    // The next such day, or the one that just went where the words do not point ahead.
+    const nearest = (mo, d) => { let date = exactDay(today.getFullYear(), mo, d); if (!date) return null; if (date < today) { const back = date; date = exactDay(today.getFullYear() + 1, mo, d); if (!pointsAhead && dayAfter(back, JUST_WENT) >= today) return back; } return date; };
+    read(P.dayAfterTomorrow, () => dayAfter(today, 2));
+    read(P.dayBeforeYesterday, () => dayAfter(today, -2));
+    read(P.partOfToday, () => today);
+    // "a week from Monday": the weekday coming, then the span.
+    read(`(${nums})\\s+(${units})\\s+${escape(P.from)}\\s+${weekday}`, (n, unit, wd) => { const d = parseDay(wd, today); return d ? span(d, unit, num(n)) : null; });
+    read(`(${nums})\\s+(${units})\\s+${escape(P.ago)}`, (n, unit) => span(today, unit, -num(n)));
+    read(`${escape(L.inWord)}\\s+(${nums})\\s+(${L.monthUnit}|${L.yearUnit})`, (n, unit) => span(today, unit, num(n)));
+    // "the first Monday of December", "the last Friday of the month".
+    read(`(?:${escape(L.the)}\\s+)?(${Object.keys(P.nth).join('|')})\\s+${weekday}\\s+(?:${escape(L.of)}|in)\\s+(?:${month}|(?:the|this|(next)) month)`, (nth, wd, mo, next) => {
+      const which = P.nth[nth], w = weekdayIndex(wd); if (w < 0) return null;
+      const pick = (y, m) => { if (which > 0) { const first = new Date(y, m, 1); return exactDay(y, m, 1 + (w - first.getDay() + 7) % 7 + 7 * (which - 1)); } const last = new Date(y, m + 1, 0); return exactDay(y, m, last.getDate() - (last.getDay() - w + 7) % 7); };
+      const said = mo ? monthOf(mo) : -1;
+      if (said < 0) { const from = next ? monthsAfter(today, 1) : today; return pick(from.getFullYear(), from.getMonth()); }
+      let date = pick(today.getFullYear(), said); if (date && date < today) date = pick(today.getFullYear() + 1, said); return date;
+    });
+    read(P.endOf, which => which.includes('next') ? new Date(today.getFullYear(), today.getMonth() + 2, 0) : which.includes('year') ? new Date(today.getFullYear(), 11, 31) : new Date(today.getFullYear(), today.getMonth() + 1, 0));
+    read(P.startOf, which => which.includes('year') ? new Date(today.getFullYear() + 1, 0, 1) : which.includes('next') ? new Date(today.getFullYear(), today.getMonth() + 1, 1) : new Date(today.getFullYear(), today.getMonth(), 1));
+    read(`${P.partOfMonth}${month}`, (part, mo) => { const m = monthOf(mo); return m < 0 ? null : nearest(m, P.partDay[part]); });
+    // "next week" alone: a week on; with a weekday too ("Monday next week") the weekday says the day.
+    const weekdayToo = new RegExp(`\\s${L.weekdayPattern}\\s`).test(words);
+    read(P.nextUnit, unit => unit === 'week' ? (weekdayToo ? undefined : dayAfter(today, 7)) : unit === 'month' ? monthsAfter(today, 1) : monthsAfter(today, 12));
+    read(P.lastUnit, unit => unit === 'week' ? (weekdayToo ? undefined : dayAfter(today, -7)) : unit === 'month' ? monthsAfter(today, -1) : monthsAfter(today, -12));
+    for (const [name, [mo, d]] of Object.entries(P.named).sort((a, b) => b[0].length - a[0].length)) read(escape(name), () => nearest(mo, d));
+    if (L.numericDate) read('(\\d{1,2})/(\\d{1,2})(?:/(\\d{4}|\\d{2}))?', (a, b, y) => {
+      a = Number(a); b = Number(b);
+      const [d, m] = a > 12 && b <= 12 ? [a, b] : b > 12 && a <= 12 ? [b, a] : a === b && a <= 12 ? [a, b] : [0, 0];
+      if (!d) return null;
+      if (y) return exactDay(y.length === 2 ? 2000 + Number(y) : Number(y), m - 1, d);
+      return nearest(m - 1, d);
+    });
+    return words;
   }
 
   // The number written beside a number property's name ("cycle 5", "5 cycles"), or null; two different ones, null.

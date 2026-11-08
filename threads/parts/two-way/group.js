@@ -127,16 +127,18 @@ function groupHtml(group, part, by) {
   return `<div class="th-tw-group"${open ? ' data-open=""' : ''}><div class="th-tw-ghead${plus ? ' lk-reveals' : ''}">${shared.outline.chev({ open, label: part.label, attrs: { 'data-gkey': gkey } })}<span class="th-tw-gwords">${label}<span class="lk-note th-tw-gn lk-count">${part.items.length}</span></span>${plus}</div>${open && adding ? twoWay.draftLineHtml(group, state.draft) : ''}${open ? `<div class="th-tw-gitems">${shown.map(item => twoWay.itemHtml(group, item, `r:${group.name}`, '', bare, tell)).join('')}${more}</div>` : more}</div>`;
 }
 // A few nodes have nothing to group: Group shows above INLINE nodes, as the right-click's Group by… (1.0.2).
-/* One menu on a list's heading for how the list is shown (the owner, 7 November 2026: "the grouping and date and other things
-   should be under one menu item"): what it is grouped by, which date its lines show, and picking its nodes. Its word says what is in force, or
-   "View" when nothing is; offered where the list has something to choose. */
+/* One menu for how the list is shown (the owner, 7 November 2026: "the grouping and date and other things should be under one
+   menu item"): what it is grouped by, which date its lines show, and picking its nodes. It is View in the list's right-click
+   menu, its options to the side (the owner, 8 November 2026: no View button, "a combo menu" with View as a parent item); on
+   the heading only a quiet word says what is in force, and opens the same options. */
 const viewHas = group => !state.drawingTop && group.items.length > 1;   // picking is offered on every list of two or more
 const groupBtn = group => {
   if (!viewHas(group)) return '';
   const by = groupOf(group), day = dayChoice(group);
   // A date property chosen is said at the head, before the days ("Deadline from Aug 20 to Oct 29"), so not here again.
   const said = [by ? `By ${groupName(by)}` : '', day === 'none' ? 'No date' : '', state.selecting.has(group.name) ? 'Picking' : ''].filter(Boolean).join(' · ');
-  return `<button type="button" class="lk-btn lk-low th-tw-groupby"${said ? ' data-on=""' : ''} data-field="${esc(group.name)}" title="Group the list, and choose the date its lines show">${esc(said || 'View')}${iconHtml('chevron-down')}</button>`;
+  if (!said) return '';
+  return `<button type="button" class="lk-btn lk-low th-tw-groupby" data-on="" data-field="${esc(group.name)}" title="How the list is shown">${esc(said)}${iconHtml('chevron-down')}</button>`;
 };
 // The values of these nodes, read through the model (400 at a time) into the cache the groups are made from.
 async function readValues(uuids) {
@@ -181,8 +183,7 @@ const tellHtml = (item, name) => {
 };
 // The list's one menu: what it is grouped by (nothing, the tag, the month, then each property its nodes hold), then which date its
 // lines show (the node's Date else the day written, a date property of theirs, or none, which takes the column away).
-async function groupMenu(group, anchor) {
-  twoWay.closeAdd(); twoWay.hidePeek();
+async function viewItems(group) {
   await readValues(group.items.map(item => item.uuid)).catch(error => warnOnce('could not read the values to group by', error));
   const items = [];
   if (group.items.length > twoWay.INLINE) {
@@ -219,6 +220,12 @@ async function groupMenu(group, anchor) {
   const picking = state.selecting.has(group.name);
   if (items.length) items.push({ sep: true });
   items.push({ group: 'Pick' }, { icon: 'picked', label: 'Pick nodes', chosen: picking, run: () => { if (picking) { state.selecting.delete(group.name); for (const key of [...state.picked]) if (key.endsWith('|' + group.name)) state.picked.delete(key); } else state.selecting.add(group.name); state.html = null; twoWay.draw(host()); } });
+  return items;
+}
+// The same options as a menu of their own, from the word on the heading.
+async function groupMenu(group, anchor) {
+  twoWay.closeAdd(); twoWay.hidePeek();
+  const items = await viewItems(group);
   twoWay.adding.pop = shared.popup({ at: anchor, width: 260, items, onClose: () => { twoWay.adding.pop = null; } });
 }
 // The + in a group: the line to type in opens under the group's name, with what the group has in common set when it is made.
@@ -297,5 +304,5 @@ twoWay.starters.push(() => {
   doc.addEventListener('dragstart', start, true); doc.addEventListener('dragover', over, true); doc.addEventListener('drop', drop, true); doc.addEventListener('dragend', end, true);
   twoWay.onUnload(() => { doc.removeEventListener('dragstart', start, true); doc.removeEventListener('dragover', over, true); doc.removeEventListener('drop', drop, true); doc.removeEventListener('dragend', end, true); });
 });
-Object.assign(twoWay, { moveList, setGroup, dayChoice, dayOf, dayIn, dayFrom, listFrom, lineDayOf, forgetOrder, groupBtn, groupHtml, groupMenu, groupName, groupOf, groupedUuids, groupingOf, isOpen, readGroup, readOpen, readValues, setGroupValue, setOpen, startGroupDraft, tellHtml, tellingProp });
+Object.assign(twoWay, { moveList, setGroup, dayChoice, dayOf, dayIn, dayFrom, listFrom, lineDayOf, forgetOrder, groupBtn, groupHtml, groupMenu, viewItems, groupName, groupOf, groupedUuids, groupingOf, isOpen, readGroup, readOpen, readValues, setGroupValue, setOpen, startGroupDraft, tellHtml, tellingProp });
 })();

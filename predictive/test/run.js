@@ -61,6 +61,28 @@ test('a day that just went stays past, today\'s weekday stays silent, and a word
   assert.deepEqual(r.daysInWords('Scan on Dec 28 showed a shadow', 20270103), [20261228], 'across the new year');
   assert.deepEqual(r.daysInWords('Bloods on Oct 23', written), [20261023], 'today is today');
 });
+test('dates told in phrases (8 November 2026)', () => {
+  const sunday = 20261108, day = (t, b = sunday) => r.daysInWords(t, b);
+  assert.deepEqual(day('Bloods the day after tomorrow'), [20261110], 'not also tomorrow');
+  assert.deepEqual(day('Scan a week from Monday'), [20261116]);
+  assert.deepEqual(day('Follow-up next week'), [20261115]);
+  assert.deepEqual(day('Appointment next month'), [20261208]);
+  assert.deepEqual(day('Results end of the month'), [20261130]);
+  assert.deepEqual(day('Chemo restarts early December'), [20261201]);
+  assert.deepEqual(day('Review mid-January'), [20270115]);
+  assert.deepEqual(day('Follow-up in six months'), [20270508]);
+  assert.deepEqual(day('Was there three weeks ago'), [20261018]);
+  assert.deepEqual(day('Tonight the pain was worse'), [20261108]);
+  assert.deepEqual(day('Recheck on Christmas Eve'), [20261224]);
+  assert.deepEqual(day('Scan the first Monday of December'), [20261207]);
+  assert.deepEqual(day('Bloods the last Friday of the month'), [20261127]);
+  assert.deepEqual(day('MRI on 20/11'), [20261120], 'a number over 12 is the day');
+  assert.deepEqual(day('MRI on 11/20/2026'), [20261120]);
+  assert.deepEqual(day('MRI on 5/6'), [], 'two ways to read it: nothing');
+  assert.deepEqual(day('Took 2/3 of the dose'), []);
+  assert.deepEqual(day('Monday next week'), [20261109], 'the weekday says the day, next week does not add another');
+  assert.deepEqual(day('Jan 31 then a month on', 20270131), [20270131]);
+});
 test('words that only look like dates are left alone', () => {
   assert.deepEqual(r.daysInWords('Ran 5 marathons', base), []);
   assert.deepEqual(r.daysInWords('Dose 4 may need lowering', base), []);

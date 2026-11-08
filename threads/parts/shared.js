@@ -423,7 +423,7 @@ function anchorFor(doc, at) {
   node.style.setProperty('anchor-name', name);
   return { name, cleanup: () => { if (made) node.remove(); else if (node.style.getPropertyValue('anchor-name') === name) { if (before) node.style.setProperty('anchor-name', before); else node.style.removeProperty('anchor-name'); } } };
 }
-function popup({ at, kind = 'menu', head, items, field: fieldOptions, rows, keys, manual = false, hint = false, cls = '', width, onClose, doc, focusOn = '' } = {}) {
+function popup({ at, kind = 'menu', head, items, field: fieldOptions, rows, keys, manual = false, hint = false, cls = '', width, onClose, doc, focusOn = '', inside = null } = {}) {
   let waitUp = null; // set while the pop-up waits for the mouse button that opened it to be let go
   doc = doc || host();
   const pop = el(doc, 'div', { class: `th-pop lk-pop${items || rows ? ' lk-menu' : ''}${cls ? ' ' + cls : ''}`, role: hint ? 'tooltip' : fieldOptions ? 'listbox' : 'menu', tabindex: hint ? null : '-1' });
@@ -437,6 +437,7 @@ function popup({ at, kind = 'menu', head, items, field: fieldOptions, rows, keys
   const close = () => {
     if (closed) return;
     closed = true;
+    closeSub();
     const hadFocus = pop.contains(doc.activeElement);
     try { if (pop.hidePopover && pop.matches(':popover-open')) pop.hidePopover(); } catch (error) { /* already hidden */ }
     pop.remove();
@@ -459,7 +460,21 @@ function popup({ at, kind = 'menu', head, items, field: fieldOptions, rows, keys
   const buttons = () => [...body.querySelectorAll('.th-item')];
   const lit = i => { const all = buttons(); all.forEach((b, k) => b.classList.toggle('on', k === i)); all[i]?.scrollIntoView?.({ block: 'nearest' }); };
   const litAt = () => buttons().findIndex(b => b.classList.contains('on'));
-  const run = item => { if (item.disabled) return; const keep = item.run?.(item) === 'keep' || item.keep; if (!keep) close(); };
+  /* An item with sub (a function giving its items) is a parent, as View is in a menu bar (the owner, 8 November 2026): its
+     items open to its side, on a press, on → or Enter, or when the pointer rests on it; ← or Escape closes them again, and
+     choosing one of them closes both. */
+  let sub = null, subOf = null, subTimer = 0;
+  const closeSub = () => { win?.clearTimeout(subTimer); sub?.close(); sub = null; subOf = null; };
+  const openSub = async (item, b) => {
+    if (subOf === item && sub && !sub.isClosed) return;
+    closeSub(); subOf = item;
+    const list = await item.sub();
+    if (closed || subOf !== item || !b.isConnected) return;
+    const wrap = x => x && x.run ? { ...x, run: y => { const r = x.run(y); if (r !== 'keep' && !x.keep) close(); return r; } } : x;
+    b.classList.add('th-sub-open');
+    sub = popup({ at: b, doc, inside: controller, cls: 'th-side', width: item.subWidth, items: list.map(wrap), onClose: () => { b.classList.remove('th-sub-open'); if (subOf === item) { sub = null; subOf = null; } if (!closed) pop.focus({ preventScroll: true }); } });
+  };
+  const run = item => { if (item.disabled) return; if (item.sub) { const b = buttons().find(x => x.item === item); if (b) openSub(item, b); return; } const keep = item.run?.(item) === 'keep' || item.keep; if (!keep) close(); };
   function drawItems(list = []) {
     body.replaceChildren();
     for (const item of list) {
@@ -470,7 +485,7 @@ function popup({ at, kind = 'menu', head, items, field: fieldOptions, rows, keys
       const b = el(doc, 'button', { type: 'button', class: `th-item lk-item${item.on ? ' on' : ''}${item.faint ? ' th-faint' : ''}${item.cls ? ' ' + item.cls : ''}`, role: 'menuitem', title: item.title || null, disabled: item.disabled || null,
         click: () => run(item) },
         item.icon ? icon(doc, item.icon) : null, item.html ? el(doc, 'span', { class: 'th-item-words', html: item.html }) : el(doc, 'span', { class: 'th-item-words' }, String(item.label ?? '')),
-        item.kbd ? el(doc, 'kbd', {}, item.kbd) : item.right ? el(doc, 'span', { class: 'th-end' }, typeof item.right === 'string' ? item.right : '', typeof item.right === 'string' ? null : item.right) : item.chosen ? el(doc, 'span', { class: 'th-end' }, icon(doc, 'chosen')) : null);
+        item.sub ? el(doc, 'span', { class: 'th-end th-sub-arrow' }, icon(doc, 'fold')) : item.kbd ? el(doc, 'kbd', {}, item.kbd) : item.right ? el(doc, 'span', { class: 'th-end' }, typeof item.right === 'string' ? item.right : '', typeof item.right === 'string' ? null : item.right) : item.chosen ? el(doc, 'span', { class: 'th-end' }, icon(doc, 'chosen')) : null);
       b.item = item;
       body.append(b);
     }
@@ -481,8 +496,9 @@ function popup({ at, kind = 'menu', head, items, field: fieldOptions, rows, keys
   // Draw the rows again (a tree's row opened or closed), the same row lit.
   const redraw = () => { if (!rows || !fieldEl) return; const was = buttons()[litAt()]?.item?.key; drawItems(rows(fieldEl.input.value)); const i = buttons().findIndex(b => b.item?.key != null && b.item.key === was); if (i >= 0) lit(i); };
   pop.addEventListener('keydown', event => {
-    if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(); return; }
+    if (event.key === 'Escape' || (event.key === 'ArrowLeft' && inside && !fieldEl)) { event.preventDefault(); event.stopPropagation(); close(); return; }
     const all = buttons();
+    if (event.key === 'ArrowRight' && all[litAt()]?.item?.sub) { event.preventDefault(); event.stopPropagation(); openSub(all[litAt()].item, all[litAt()]).then(() => sub && sub.lit(0)); return; }
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { if (!all.length) return; event.preventDefault(); event.stopPropagation(); const i = litAt(); lit(i < 0 ? 0 : (i + (event.key === 'ArrowDown' ? 1 : all.length - 1)) % all.length); return; }
     if (event.key === 'Enter' && !event.isComposing) { const b = all[litAt()]; if (b) { event.preventDefault(); event.stopPropagation(); run(b.item); return; } }
     // The caller's own keys on the lit row (the tag tree's → and ←); true: taken, the rows drawn again with the same row lit.
@@ -491,8 +507,11 @@ function popup({ at, kind = 'menu', head, items, field: fieldOptions, rows, keys
   });
   for (const type of ['keyup', 'keypress']) pop.addEventListener(type, event => event.stopPropagation());
   // The pointer over a row lights it, as in Logseq's own lists.
-  body.addEventListener('mousemove', event => { const b = event.target.closest?.('.th-item'); if (b && !b.classList.contains('on')) lit(buttons().indexOf(b)); });
-  doc.body.append(pop);
+  body.addEventListener('mousemove', event => { const b = event.target.closest?.('.th-item'); if (!b || b.parentElement !== body) return; if (!b.classList.contains('on')) lit(buttons().indexOf(b));
+    if (b.item?.sub) { if (subOf !== b.item) { win?.clearTimeout(subTimer); subTimer = win?.setTimeout(() => openSub(b.item, b), 160); } }
+    else if (sub) { win?.clearTimeout(subTimer); subTimer = win?.setTimeout(closeSub, 160); } });
+  // A menu inside another (a parent's items) stands in its pop-up, so the browser keeps the two open together.
+  (inside ? inside.el : doc.body).append(pop);
   const show = () => {
     if (closed) return;
     try { if (pop.showPopover) pop.showPopover(); } catch (error) { /* shown as a plain box */ }
@@ -804,6 +823,10 @@ const kitCss = `/* The kit (parts/shared.js, 0.4.311; docs/LAYERS.md section 3):
 /* The pop-up (the library's lk-pop) in the top layer, placed by the browser under its anchor and flipped when there is no room. */
 .th-pop { position: fixed; inset: auto; margin: 0; z-index: 10001; box-sizing: border-box; min-width: 160px; max-width: min(420px, 92vw); padding: 4px; overflow: visible; outline: none; }
 .th-pop.th-anchored { top: anchor(bottom); left: anchor(left); margin-top: 4px; position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline; }
+/* A parent item's own items, to its side, their first item level with it; turned to the left where the right has no room. */
+.th-pop.th-anchored.th-side { top: anchor(top); left: anchor(right); margin: -5px 0 0 6px; position-try-fallbacks: flip-inline; }
+.th-pop .th-sub-arrow { opacity: .55; }
+.th-pop .th-item.th-sub-open { background: var(--lk-wash, rgba(0,0,0,.05)); }
 .th-lsq-pop { position: fixed; inset: auto; margin: 0; padding: 0; width: 14rem; overflow: visible; }
 .th-lsq-pop .menu-link .flex-row > div:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .th-lsq-pop.th-anchored { top: anchor(bottom); left: anchor(left); margin-top: 4px; position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline; }

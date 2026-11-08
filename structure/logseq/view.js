@@ -49,7 +49,17 @@ const CSS = `
 .st-rel .num, .st-lines-t .num { font-variant-numeric: tabular-nums; }
 /* A tag's own page: the lines above Logseq's table. */
 .st-tagholder { min-width: 0; }
-.page-inner:has(> .st-tagholder) .lk-path { display: none; }   /* the Extends line says it */
+.page-inner:has(> .st-tagholder) .lk-path { display: none; }   /* the Parent line says it */
+/* The one line stands in the band above the title, which the page leaves empty, so the title stays where Logseq puts it: the
+   holder is pulled up by the band and gives the same back below. Only what opens under the line (a name being typed, an ask)
+   moves the title down, and back. */
+/* The page's grid keeps its gap after any holder, so the line stands out of the flow, in the band; once the tray or an ask stands
+   with it, it joins the flow and the title moves down for as long as they stand. */
+.page-inner:has(> .st-holder-line) { position: relative; }
+.st-holder-line { position: absolute; top: -30px; left: 0; right: 0; }
+.st-holder-line:has(.st-tray:not(:empty)), .st-holder-line:has(.st-line1 ~ :not(.st-prompt)), .st-holder-line:has([data-edit]) { position: static; margin-top: -30px; }
+.st-lines-t.st-line1 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 14px; min-height: 24px; }
+.st-line1 dt { font-weight: 600; } .st-lines-t.st-line1 dd { margin: 0 18px 0 0; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; }
 .st-tag { font-size: 14px; }
 .st-page .st-tray { padding-left: 6px; }
 .st-tag .st-tray { padding: 0 0 10px; margin-bottom: 12px; }
@@ -303,7 +313,8 @@ function make(holder, mode, app, opts = {}) {
   const keyOfShown = e => `${e.closest('[data-pane]')?.dataset.pane || ''}|${e.dataset.row ?? ''}|${e.dataset.group ?? ''}|${e.dataset.prop ?? ''}`;
   const loc = mode === 'side' ? st.side : st;   // the cursor and the find text this view uses
   const root = doc.createElement('div');
-  root.className = `st ${mode === 'side' ? 'st-side' : mode === 'tag' ? 'st-tag' : 'st-page'}`;
+  const TAGISH = mode === 'tag' || mode === 'line';   // 'line': the one line above a tag's title; 'tag': all its lines, in the inspector
+  root.className = `st ${mode === 'side' ? 'st-side' : TAGISH ? `st-tag${mode === 'line' ? ' st-line' : ''}` : 'st-page'}`;
   root.tabIndex = 0;
   holder.appendChild(root);
   const M = () => app.tray.model;
@@ -419,14 +430,21 @@ function make(holder, mode, app, opts = {}) {
     return `<div class="st-focus"><div class="f-h"><span class="lk" data-go="${esc(id)}">${esc(t.title)}</span></div>${relsHtml(id)}${mergeAskHtml(id)}${changeAskHtml(id)}${suggestHtml(id)}</div>`;
   }
   const suggestHtml = id => R.issuesOn(ISS(), id).map(i => { const n = ISS().indexOf(i); return `<div class="sug"><b>Suggested</b><span>${partsHtml(i.parts)}</span><span class="fix act lk-fix lk-i-${fixIcon(i.fix)}" data-fix="${n}">${esc(fixWord(i.fix))}</span></div>${askHtml(n)}`; }).join('');
-  // ---------- a tag's own page: the lines above Logseq's table ----------
+  // ---------- a tag's lines: Parent and Child tags on one line above its title; all of them in the inspector ----------
+  // (the owner, 8 November 2026: Extends is called Parent; Parent and Child tags stay on the page, on one line, without moving
+  // the title down; Beside and Relationships live in the inspector alone.)
+  const parentHtml = id => { const up = Mo.pathOf(M(), id).slice(0, -1).reverse(); return `<span class="act lk-pick" data-do="move" data-on="${id}">${up.length ? up.map(tagLink).join('<span class="to"> / </span>') : 'Nothing'}<span class="chev">⌄</span></span>`; };
+  const kidsHtml = id => { const kids = Mo.kids(M(), id), adding = st.edit?.what === 'new' && st.edit.on === id && st.edit.owner === mode;
+    return `${kids.length ? `<span>${ranges(kids)}</span>` : ''}${adding ? `<input class="st-in lk-field" data-edit value="${esc(st.edit.text)}" placeholder="Name of the child tag" autocomplete="off" spellcheck="false">` : `<span class="act lk-add lk-i-child" data-do="new" data-on="${id}">Add child tag</span>`}`; };
+  function lineHtml(id) {
+    if (!T(id)) return '';
+    return `<dl class="st-lines-t st-line1"><dt>Parent</dt><dd>${parentHtml(id)}</dd><dt>Child tags</dt><dd>${kidsHtml(id)}</dd></dl>${mergeAskHtml(id)}${changeAskHtml(id)}`;
+  }
   function linesHtml(id) {
-    const t = T(id); if (!t) return '';
-    const up = Mo.pathOf(M(), id).slice(0, -1).reverse(), kids = Mo.kids(M(), id), beside = up.length ? Mo.kids(M(), up[0]).filter(k => k !== id) : [];
-    const adding = st.edit?.what === 'new' && st.edit.on === id && st.edit.owner === mode;
-    const extendsWord = `<span class="act lk-pick" data-do="move" data-on="${id}">${up.length ? up.map(tagLink).join('<span class="to"> / </span>') : 'Nothing'}<span class="chev">⌄</span></span>`;
-    return `<dl class="st-lines-t"><dt>Extends</dt><dd>${extendsWord}</dd>${beside.length ? `<dt>Beside</dt><dd><span>${ranges(beside)}</span></dd>` : ''}` +
-      `<dt>Child tags</dt><dd>${kids.length ? `<span>${ranges(kids)}</span>` : ''}${adding ? `<input class="st-in lk-field" data-edit value="${esc(st.edit.text)}" placeholder="Name of the child tag" autocomplete="off" spellcheck="false">` : `<span class="act lk-add lk-i-child" data-do="new" data-on="${id}">Add child tag</span>`}</dd>` +
+    if (!T(id)) return '';
+    const up = Mo.pathOf(M(), id).slice(0, -1).reverse(), beside = up.length ? Mo.kids(M(), up[0]).filter(k => k !== id) : [];
+    return `<dl class="st-lines-t"><dt>Parent</dt><dd>${parentHtml(id)}</dd>${beside.length ? `<dt>Beside</dt><dd><span>${ranges(beside)}</span></dd>` : ''}` +
+      `<dt>Child tags</dt><dd>${kidsHtml(id)}</dd>` +
       `<dt>Relationships</dt><dd>${relsHtml(id)}</dd></dl>${mergeAskHtml(id)}${changeAskHtml(id)}${suggestHtml(id)}`;
   }
   // A property's own page: the same short lines above what Logseq shows. Each action sits on what it acts on.
@@ -522,7 +540,7 @@ function make(holder, mode, app, opts = {}) {
      tags each is on, which move to the kept one), then what becomes of the values: their kind, what stays behind, and, where
      the kept property takes one value and a node would hold two, the way to Logseq's own page to let it take several. */
   function pmergeAskHtml(pid) {
-    const a = st.ask?.pmerge; if (!a || a.into !== pid && !(mode === 'tag' && a.froms.includes(pid)) || st.ask.owner !== mode) return '';
+    const a = st.ask?.pmerge; if (!a || a.into !== pid && !(TAGISH && a.froms.includes(pid)) || st.ask.owner !== mode) return '';
     const m = M(), into = P(a.into); if (!into) return '';
     const held = id => m.holders.get(P(id).ident)?.size || 0;
     const col = (p, other, gone) => `<div><div class="h">${pi(p)}${esc(p.title)}<span class="ct">${[held(p.id) ? plural(held(p.id), 'node') : '', gone ? 'emptied' : 'kept'].filter(Boolean).join(', ')}</span></div>` +
@@ -743,7 +761,8 @@ function make(holder, mode, app, opts = {}) {
     if (mode === 'page') {
       const card = st.view === 'table' ? tableHtml() : st.view === 'log' ? logHtml() : st.view === 'nodes' ? nodesHtml() : st.split ? panesHtml() : regionsHtml();
       h = `${topHtml()}<div class="st-tray">${trayHtml()}</div><div class="st-right">${card}</div>`;
-    } else if (mode === 'tag') h = `<div class="st-tray">${trayHtml()}</div>${opts.prop != null ? propLinesHtml(opts.prop) : linesHtml(opts.tag)}`;
+    } else if (mode === 'line') h = `<div class="st-tray">${trayHtml()}</div>${lineHtml(opts.tag)}`;
+    else if (mode === 'tag') h = opts.prop != null ? `<div class="st-tray">${trayHtml()}</div>${propLinesHtml(opts.prop)}` : linesHtml(opts.tag);
     else h = treeHtml();
     if (st.menu && st.menu.owner === mode) h += menuHtml();
     // What a fold opens rolls out (the grammar), as Threads' rows do: the rows, groups and properties that were not there before.
@@ -1184,14 +1203,14 @@ function make(holder, mode, app, opts = {}) {
     return e.altKey || !OWN.test(e.key);
   };
   const standing = () => st.prompt?.owner === mode || st.edit?.owner === mode || !!st.ask;
-  for (const type of ['keyup', 'keypress']) root.addEventListener(type, e => { if (mode === 'tag' && !standing()) return; if (!passes(e)) e.stopPropagation(); });
+  for (const type of ['keyup', 'keypress']) root.addEventListener(type, e => { if (TAGISH && !standing()) return; if (!passes(e)) e.stopPropagation(); });
   // Where Cmd-O and Shift-Enter go: the node or property on screen, else the row the cursor is on.
   function openHere(inSidebar) {
     const n = st.view === 'nodes' && mode === 'page' ? st.nodes?.list[st.nodes.cur] : null, pid = mode === 'page' && st.propCur ? Number(st.propCur.split('·')[1]) : null;
     app.openNode(n?.uuid || (pid != null ? P(pid)?.uuid : T(loc.cur)?.uuid), inSidebar);
   }
   root.addEventListener('keydown', e => {
-    if (mode === 'tag' && !standing()) return;
+    if (TAGISH && !standing()) return;
     if (!passes(e)) e.stopPropagation(); else if (doc.querySelector('.ui__dialog-overlay')) return;
     const k = e.key;
     if (st.prompt && st.prompt.owner === mode) {
@@ -1230,7 +1249,7 @@ function make(holder, mode, app, opts = {}) {
       if (k === 'Enter') { e.preventDefault(); return stageAsk(); }
       if (k === 'Escape') { e.preventDefault(); st.ask = null; return redraw(); }
     }
-    if (mode === 'tag') return;
+    if (TAGISH) return;
     if (st.view === 'nodes' && mode === 'page') {
       const n = st.nodes, shown = n.all ? n.list : n.list.slice(0, 20);
       if (k === 'ArrowDown') n.cur = Math.min(shown.length - 1, n.cur + 1);
@@ -1269,7 +1288,7 @@ function make(holder, mode, app, opts = {}) {
   };
   if (mode === 'page') { win.addEventListener('hashchange', toPlace); doc.addEventListener('keydown', undoKey, true); }
   if (mode === 'page') win.addEventListener('resize', draw);
-  const view = { root, mode, tag: opts.tag, prop: opts.prop, draw, destroy: () => { app.views.delete(view); win.removeEventListener('hashchange', toPlace); win.removeEventListener('resize', draw); doc.removeEventListener('keydown', undoKey, true); root.remove(); }, focus: () => { if (mode === 'tag') return; if (!doc.activeElement?.matches('input, textarea, [contenteditable="true"]')) root.focus({ preventScroll: true }); } };
+  const view = { root, mode, tag: opts.tag, prop: opts.prop, draw, destroy: () => { app.views.delete(view); win.removeEventListener('hashchange', toPlace); win.removeEventListener('resize', draw); doc.removeEventListener('keydown', undoKey, true); root.remove(); }, focus: () => { if (TAGISH) return; if (!doc.activeElement?.matches('input, textarea, [contenteditable="true"]')) root.focus({ preventScroll: true }); } };
   app.views.add(view);
   return view;
 }

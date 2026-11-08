@@ -222,9 +222,9 @@ const twoWayCss = `
 .th-two-way .lk-row:hover .lk-fold:hover, .th-two-way .lk-fold:hover { opacity: 1 !important; }
 /* A list's head keeps its fold arrow in sight, faint, open or closed (7 November 2026, the owner: "make sure these chevrons are
    always visible", beside "All 6"): the head is what folds the list, so its arrow is there to be seen; a node's arrow still waits for the pointer. */
-.th-two-way .lk-row.th-tw-head .lk-fold, .th-two-way .th-tw-ghead .lk-fold { opacity: .45 !important; }
-.th-two-way .lk-row.th-tw-head:hover .lk-fold, .th-two-way .th-tw-ghead:hover .lk-fold { opacity: .7 !important; }
-.th-two-way .lk-row.th-tw-head .lk-fold:hover, .th-two-way .th-tw-ghead .lk-fold:hover { opacity: 1 !important; }
+.th-two-way .lk-row.th-tw-head .lk-fold, .th-two-way .th-tw-ghead .lk-fold, .th-two-way .th-tw-whole-line .lk-fold { opacity: .45 !important; }
+.th-two-way .lk-row.th-tw-head:hover .lk-fold, .th-two-way .th-tw-ghead:hover .lk-fold, .th-two-way .th-tw-whole-line:hover .lk-fold { opacity: .7 !important; }
+.th-two-way .lk-row.th-tw-head .lk-fold:hover, .th-two-way .th-tw-ghead .lk-fold:hover, .th-two-way .th-tw-whole-line .lk-fold:hover { opacity: 1 !important; }
 /* No grey under the pointer on a line (the owner, 7 November 2026: "lets remove the highlight as the cursor"); a line lit from the
    keyboard (.on) keeps it, and the picked lines keep theirs. */
 .th-two-way .lk-row:hover:not(.on) { background: transparent; }
@@ -364,6 +364,10 @@ const twoWayCss = `
 .th-two-way .th-ol-pname[data-edit] { cursor: pointer; }
 .th-two-way .th-ol-pname[data-edit]:hover { color: inherit; }
 .th-two-way .th-tw-findrow { grid-column: 1 / -1; padding: 0 0 6px; }
+/* The section's own line, the whole of it folding under it, as Logseq's Linked references head does. */
+.th-two-way .th-tw-whole { grid-column: 1 / -1; padding: 0 0 6px; }
+.th-two-way .th-tw-whole-name { color: inherit; font-weight: 500; text-decoration: none; cursor: pointer; }
+.th-two-way .th-tw-whole-name:hover { text-decoration: none; }
 /* The whole width of the section, its line a hairline even while typing (the owner: "weirdly short", "bottom of it can be
    hairline"). */
 .th-two-way .th-tw-findrow > .th-field, .th-two-way .th-tw-findrow > .th-field:focus-within { border-bottom-color: var(--lk-hair); }

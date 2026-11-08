@@ -297,8 +297,10 @@ function guessesFor(ctx, { b, text, record, fields, recordTags, links, free, use
       // The journal day, as a guess, where the graph has too few dated nodes to be sure but at least one, none of them
       // dated another day. A tag whose nodes are dated other days (written ahead) still gets nothing.
       if (!said.length && journalDay && fewDatedAllSameDay(ev)) said.push({ ids: [b.page.id], how: 'day' });
-      // A date written in the words, counted from the day the bullet is written on (else today); one, or nothing.
-      if (own && oneDate && datedAhead(ev)) {
+      // A date written in the words, counted from the day the bullet is written on (else today); one, or nothing. Off a journal
+      // page nothing else can say the day, so the words speak for any tag (8 November 2026: "Scan results with Dr. Mei Chen next
+      // Friday" on a page left the Date of a Consultation empty, since Consultations are mostly dated the day written).
+      if (own && oneDate && (datedAhead(ev) || !journalDay)) {
         const days = reader.daysInWords(text, journalDay || dayNumber(new Date()));
         if (days.length === 1 && !meantDays.has(days[0])) { const id = dayIdFor(ctx, days[0]); said.push({ ids: [id ?? -days[0]], day: days[0], how: 'words-day' }); }
       }

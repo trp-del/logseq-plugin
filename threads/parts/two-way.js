@@ -722,7 +722,11 @@ function draw(doc) {
   state.listed = [];   // filled as the rows are drawn, so the rows come before the bar that reads it
   // A piece may draw in the rows' place (two pages side by side).
   const rowsHtml = rows && stepped == null ? (twoWay.rowsInstead?.() ?? twoWay.openHits(twoWay.foundGroups()).map(g => rowHtml(g)).join('')) : '';
-  const html = rows ? '<div class="th-tw-pin" aria-hidden="true"></div>' + (stepped ?? (twoWay.barHtml() + twoWay.findHtml() + rowsHtml)) : '';
+  /* The whole section folds to one line under its name (the owner, 8 November 2026: "allow it to be folded in, the whole
+     thing"), kept per page as a list's fold is; while letters are in the find line it stays open. */
+  const wholeKey = `${state.pageUuid}|*`, wholeOpen = !!state.find.trim() || twoWay.isOpen(wholeKey);
+  const wholeHtml = `<div class="th-tw-whole">${O.line({ day: null, chev: O.chev({ open: wholeOpen, label: 'what points here', attrs: { 'data-whole': wholeKey } }), body: `<a class="th-tw-whole-name" data-whole="${esc(wholeKey)}" href="#" title="Click to ${wholeOpen ? 'fold' : 'open'} what points here.">What points here</a>`, cls: 'th-tw-whole-line' })}</div>`;
+  const html = rows ? '<div class="th-tw-pin" aria-hidden="true"></div>' + (stepped ?? (wholeHtml + (wholeOpen ? twoWay.barHtml() + twoWay.findHtml() + rowsHtml : ''))) : '';
   // What unrolls does so once: the drawing kept is the one without it, so the next drawing does not replace it.
   const bare = html.replace(/ th-ol-unroll/g, '');
   box.toggleAttribute('data-finding', !!state.find.trim());
@@ -785,6 +789,8 @@ function onClick(event) {
   }
   const back = event.target.closest?.('[data-step]');
   if (back) { event.preventDefault(); event.stopPropagation(); twoWay.hidePeek(); return twoWay.stepBack(Number(back.dataset.step)); }
+  const whole = event.target.closest?.('[data-whole]');
+  if (whole) { event.preventDefault(); event.stopPropagation(); twoWay.hidePeek(); const key = whole.dataset.whole; twoWay.setOpen(key, !twoWay.isOpen(key)); state.html = null; draw(host()); return; }
   if (twoWay.onOutlineClick(event)) return;
   const fold = event.target.closest?.('.th-chev[data-fold]');
   if (fold) { event.preventDefault(); event.stopPropagation(); twoWay.hidePeek(); const key = fold.dataset.fold; if (twoWay.isOpen(key)) { const list = fold.closest('.th-tw-row')?.querySelector('.th-tw-list'); shared.outline.close(list, () => { twoWay.setOpen(key, false); draw(host()); }); } else { twoWay.setOpen(key, true); state.fresh = key; state.html = null; draw(host()); state.fresh = ''; } return; }
@@ -902,7 +908,7 @@ function onRename(event) {
   event.preventDefault(); event.stopPropagation(); twoWay.hidePeek(); twoWay.closeAdd();
   // As wide as its longest words (the review, 31 October: a set width cut the widest action short).
   twoWay.adding.pop = shared.popup({ at: nameEl.querySelector('.th-tw-field') || nameEl, head: group.label, onClose: () => { twoWay.adding.pop = null; }, items: [
-    ...(!state.drawingTop ? [{ icon: 'order', label: 'View…', run: () => { twoWay.groupMenu(group, nameEl.querySelector('.th-tw-field') || nameEl).catch(error => warnOnce('could not open the group menu', error)); } }] : []),
+    ...(!state.drawingTop ? [{ icon: 'order', label: 'View', sub: () => twoWay.viewItems(group), subWidth: 260 }] : []),
     { sep: true },
     isMentions(group)
       ? { icon: 'remove', label: 'Hide mentions on this page', run: () => { hideMentionsHere().catch(error => warnOnce('could not hide the mentions row', error)); } }

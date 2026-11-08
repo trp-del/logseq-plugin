@@ -268,14 +268,24 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   deq(app.tray.lines().map(l => l.text), ['Make Finances at the top', 'Make Bill under Finances', 'Make Payment under Finances']);
   click(R.querySelector('[data-discard]')); assert.equal(app.tray.changes.length, 0);
 
-  // A tag's own page: the lines above Logseq's table, in Logseq's words.
+  // A tag's lines, in Logseq's words: all of them in the inspector ('tag'), Parent and Child tags alone on the page's one line ('line').
+  { const h = doc.createElement('div'); doc.body.appendChild(h);
+    const full = S.view.make(h, 'tag', app, { tag: id('Consultation') }); app.mounted(full); await sleep(30);
+    const all = text(full.root.querySelector('.st-lines-t'));
+    for (const word of ['Parent', 'Child tags', 'Relationships']) assert.ok(all.includes(word), word);
+    assert.ok(!all.includes('Extends'), 'the parent is called Parent');
+    full.destroy(); h.remove(); }
   const holder = doc.createElement('div'); doc.body.appendChild(holder);
-  const tagView = S.view.make(holder, 'tag', app, { tag: id('Consultation') }); app.mounted(tagView); await sleep(30);
+  const tagView = S.view.make(holder, 'line', app, { tag: id('Consultation') }); app.mounted(tagView); await sleep(30);
   const lines = text(tagView.root.querySelector('.st-lines-t'));
-  for (const word of ['Extends', 'Child tags', 'Relationships']) assert.ok(lines.includes(word), word);
+  for (const word of ['Parent', 'Child tags']) assert.ok(lines.includes(word), word);
+  for (const word of ['Beside', 'Relationships', 'Suggested']) assert.ok(!text(tagView.root).includes(word), `${word} stands in the inspector alone`);
+  assert.ok(tagView.root.querySelector('.st-line1') && tagView.root.querySelector('.st-tray'), 'one line, under the tray');
   assert.ok(!tagView.root.querySelector('.st-card'));
-  click(tagView.root.querySelector('[data-do="move"]')); assert.ok(tagView.root.querySelector('.st-prompt'), 'the Extends line opens the choice in place');
-  { let P = tagView.root.querySelector('.st-prompt'); assert.ok(!P.closest('dl') && P.parentElement === tagView.root && P.style.top !== '', 'a picker anchored at the Extends chevron, not a line between the lines');
+  click(tagView.root.querySelector('[data-do="new"]')); assert.ok(tagView.root.querySelector('.st-line1 [data-edit]'), 'Add child tag asks for the name in the line');
+  key(tagView.root.querySelector('[data-edit]'), 'Escape'); assert.ok(!tagView.root.querySelector('[data-edit]'), 'Escape takes the name field away');
+  click(tagView.root.querySelector('[data-do="move"]')); assert.ok(tagView.root.querySelector('.st-prompt'), 'the Parent line opens the choice in place');
+  { let P = tagView.root.querySelector('.st-prompt'); assert.ok(!P.closest('dl') && P.parentElement === tagView.root && P.style.top !== '', 'a picker anchored at the Parent chevron, not a line between the lines');
     click(P.querySelector('.more')); await sleep(10); P = tagView.root.querySelector('.st-prompt');
     const off = n => [...P.querySelectorAll('.st-row.off')].find(r => text(r.querySelector('.nm .t')) === n);
     assert.equal(off('Consultation')?.title, 'the tag itself'); assert.equal(off('Medical event')?.title, 'Consultation is already under it'); assert.ok(!off('Conversation'));
@@ -327,6 +337,8 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
       return !!main.querySelector('.st-tagholder');
     };
     assert.ok(await show(false), 'a tag\'s page gets its lines');
+    { const h = main.querySelector('.st-tagholder'); assert.ok(h.classList.contains('st-holder-line') && h.nextElementSibling?.classList.contains('ls-page-title'), 'the one line stands above the title');
+      assert.equal(main.querySelectorAll('.st-tagholder').length, 1, 'with the inspector closed, only the line'); }
     assert.ok(!(await show(true)), 'a journal day gets none, though the page drawn is a tag');
     dayNamed = tag.uuid;
     assert.ok(!(await show(false)), 'a tag that shares a journal day\'s name gets none');

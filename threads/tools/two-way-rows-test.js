@@ -115,12 +115,19 @@ const click = (window, el) => el.dispatchEvent(new window.MouseEvent('click', { 
 // The bar's More (5 November 2026): every action but Open in sidebar sits in it. Opens it and gives its items.
 const moreItems = async (window, doc) => { doc.querySelectorAll('.th-pop').forEach(p => p.remove()); click(window, doc.querySelector('.th-tw-bar [data-act="more"]')); await new Promise(r => setTimeout(r, 40)); return [...doc.querySelectorAll('.th-pop .th-item')]; };
 const moreItem = async (window, doc, re) => (await moreItems(window, doc)).find(el => re.test(el.textContent.trim()));
-// Picking is turned on from a list's View menu (the owner, 7 November 2026): the tick boxes are drawn only then. field: the row's, else the first with a menu.
-const startPicking = async (window, doc, field) => {
+// A list's View (8 November 2026): a parent item in the list's right-click menu, its options to the side. field: the row's, else the first list of two or more.
+const openView = async (window, doc, field) => {
   doc.querySelectorAll('.th-pop').forEach(p => p.remove());
-  click(window, doc.querySelector(field == null ? '.th-tw-groupby' : `.th-tw-row[data-field="${field}"] .th-tw-groupby`));
+  const row = field == null ? [...doc.querySelectorAll('.th-tw-row')].find(r => r.querySelector('.th-tw-head')) : doc.querySelector(`.th-tw-row[data-field="${field}"]`);
+  row.querySelector('.th-tw-name').dispatchEvent(new window.MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+  await new Promise(r => setTimeout(r, 40));
+  click(window, [...doc.querySelectorAll('.th-pop .th-item')].find(el => el.textContent.trim() === 'View'));
   await new Promise(r => setTimeout(r, 60));
-  click(window, [...doc.querySelectorAll('.th-pop .th-item')].find(el => /Pick nodes/.test(el.textContent)));
+  return [...doc.querySelectorAll('.th-pop.th-side .th-item')];
+};
+// Picking is turned on from a list's View (the owner, 7 November 2026): the tick boxes are drawn only then.
+const startPicking = async (window, doc, field) => {
+  click(window, (await openView(window, doc, field)).find(el => /Pick nodes/.test(el.textContent)));
   await new Promise(r => setTimeout(r, 40));
 };
 const type = (window, input, text) => { input.value = text; input.dispatchEvent(new window.Event('input', { bubbles: true })); };
@@ -223,7 +230,18 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     check(!!doc.querySelector('.th-two-way .th-tw-row'), 'the rows should be drawn');
     check(!doc.querySelector('.th-tw-group'), 'with no grouping chosen the list should not be in groups');
     check(doc.querySelectorAll('.th-tw-line').length === 5 && !!doc.querySelector('[data-more]'), 'the plain list should show five lines and "show all"');
-    check(doc.querySelector('.th-tw-groupby')?.textContent.trim() === 'View' && !doc.querySelector('.th-tw-groupby[data-on]'), 'the one menu should read "View" while nothing is chosen');
+    check(!doc.querySelector('.th-tw-groupby'), 'no View button on a heading while nothing is chosen (8 November 2026)');
+    { const side = await openView(window, doc);
+      check(side.some(el => /Pick nodes/.test(el.textContent)) && doc.querySelector('.th-pop.th-side')?.parentElement?.classList.contains('th-pop'), 'View in the right-click opens its options to the side, inside the menu: ' + side.map(el => el.textContent.trim()));
+      doc.querySelector('.th-pop.th-side').dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true })); await wait(20);
+      check(!doc.querySelector('.th-pop.th-side') && !!doc.querySelector('.th-pop'), '← closes the options to the side and keeps the menu');
+      doc.querySelector('.th-pop').dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); await wait(20);
+      check(!doc.querySelector('.th-pop'), 'Escape closes the menu'); }
+    // The whole section folds under its line (8 November 2026), kept for the page, and opens again.
+    click(window, doc.querySelector('.th-tw-whole-name')); await wait(40);
+    check(!doc.querySelector('.th-two-way .th-tw-row') && doc.querySelector('.th-tw-whole .th-chev')?.getAttribute('aria-expanded') === 'false', 'folded, only the section\'s line stands');
+    click(window, doc.querySelector('.th-tw-whole .th-chev')); await wait(40);
+    check(!!doc.querySelector('.th-two-way .th-tw-row') && doc.querySelector('.th-tw-whole .th-chev')?.getAttribute('aria-expanded') === 'true', 'its arrow opens it again');
     check(doc.querySelectorAll('.th-tw-line .th-chev[data-dig]').length === 5, 'every line should have its chevron, right before its name');
     // Each node a bullet, as Logseq draws one: the chevron, the dot, the day's column (where the list has days), the name.
     check([...doc.querySelectorAll('.th-tw-line')].every(l => l.querySelector(':is(.th-chev + .th-ol-dot + .th-ol-day + .th-ol-body, .th-chev + .th-ol-dot + .th-ol-body) > .th-ol-name')), 'each line should read chevron, dot, day, name');
