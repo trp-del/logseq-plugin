@@ -184,7 +184,7 @@ test('an untagged line that reads like the meetings is offered the Meeting tag, 
   assert.ok(res.pieces.filter(p => p.kind !== 'tag').every(p => p.guess && p.needsTag));
 });
 test('a lower tag threshold offers a tag that the strict one holds back, and a plain note still gets none', () => {
-  const g = synthetic.work(), line = bullet({ text: 'Sync about database', page: journal(g, 20261028) });
+  const g = synthetic.work(), line = bullet({ text: 'Sync about the database', page: journal(g, 20261028) });
   const tagOf = () => propose(g.ctx, line).pieces.find(p => p.kind === 'tag');
   assert.equal(g.ctx.limits.tagNearLeast, .6);
   g.ctx.limits.tagGap = 0;   // the vote alone (the profile is tried below)
@@ -246,6 +246,59 @@ test('learning a new line changes the next answer at once', () => {
   const delta = g.peoplePages.Project.find(p => p.title === 'Delta');
   learnEntry(g.ctx, 999001, { title: 'Rehearse the quarterly zeppelin demo run', tags: [g.tagPage.Meeting.id], values: new Map([[g.prop('Project').ident, [delta.id]]]) });
   assert.deepEqual(ask().ids, [delta.id]);
+});
+
+section('basic meanings: money is an amount, "due" is a deadline');
+test('the reader finds a sum of money, and never a dose or two sums', () => {
+  assert.equal(r.moneyInWords('Paid $84 for the scan'), 84);
+  assert.equal(r.moneyInWords('Copay €12.50'), 12.5);
+  assert.equal(r.moneyInWords('Taxi home, 40 dollars'), 40);
+  assert.equal(r.moneyInWords('1,200 EUR deposit'), 1200);
+  assert.equal(r.moneyInWords('Dose 5 mg'), null);
+  assert.equal(r.moneyInWords('$5 and $6'), null);
+});
+test('the reader finds the day right after "due", "by" or "scheduled for", and not a cause or a person', () => {
+  assert.equal(r.dayMeant('deadline', 'Electricity bill, due Friday', base), 20261030);
+  assert.equal(r.dayMeant('deadline', 'Report due by the 4th', base), 20261104);
+  assert.equal(r.dayMeant('deadline', 'Renew the passport by Nov 20', base), 20261120);
+  assert.equal(r.dayMeant('deadline', 'Nausea due to the cisplatin on Friday', base), null);
+  assert.equal(r.dayMeant('deadline', 'Diagnosed by Dr Chen on Friday', base), null);
+  assert.equal(r.dayMeant('scheduled', 'Scan scheduled for Friday', base), 20261030);
+  assert.ok(r.nameMeans('money', 'Total paid') && r.nameMeans('money', 'Cost') && !r.nameMeans('money', 'Severity'));
+  assert.ok(r.nameMeans('deadline', 'Due date') && !r.nameMeans('deadline', 'Date'));
+});
+const bills = synthetic.build({
+  tags: ['Bill', 'Task'],
+  props: [
+    { title: 'Amount', type: 'number', on: ['Bill'] }, { title: 'Severity', type: 'number', on: ['Bill'] },
+    { title: 'Date', type: 'date', on: ['Bill'] }, { title: 'Due date', type: 'date', on: ['Bill'] },
+    { title: 'Deadline', type: 'datetime', on: ['Task'] }, { title: 'Scheduled', type: 'datetime', on: ['Task'] },
+  ],
+  people: {}, lines() {}, plain() {},
+});
+for (const p of bills.schema.props) if (p.title === 'Deadline' || p.title === 'Scheduled') p.ident = 'logseq.property/' + p.title.toLowerCase();
+test('a sum goes to the number named for money, a due day to the date named for it, and the other date stays out of it', () => {
+  const res = propose(bills.ctx, bullet({ text: 'Electricity, $84.20 due Friday', tags: [bills.tagPage.Bill.id], page: journal(bills, base) }));
+  assert.equal(piece(res, bills.prop('Amount').ident)?.ids[0], 84.2);
+  assert.equal(piece(res, bills.prop('Severity').ident), undefined, 'a number not named for money is left alone');
+  assert.equal(piece(res, bills.prop('Due date').ident)?.day, 20261030);
+  assert.notEqual(piece(res, bills.prop('Date').ident)?.day, 20261030, 'the due day is not also the Date');
+});
+test('Logseq\'s own Deadline and Scheduled are filled from "due" and "scheduled for", and a plain day fills neither', () => {
+  const task = t => propose(bills.ctx, bullet({ text: t, tags: [bills.tagPage.Task.id], page: journal(bills, base) }));
+  assert.equal(piece(task('Send the tax form, due next Friday'), 'logseq.property/deadline')?.day, 20261106);
+  assert.equal(piece(task('Bloods scheduled for the 4th'), 'logseq.property/scheduled')?.day, 20261104);
+  const plain = task('Call the pharmacy on Friday');
+  assert.equal(piece(plain, 'logseq.property/deadline'), undefined);
+  assert.equal(piece(plain, 'logseq.property/scheduled'), undefined);
+});
+
+section('a tag waits for enough words');
+test('a line of three words gets no tag, the same line of four does', () => {
+  const g = synthetic.work(), loose = { ...g.ctx, limits: { ...g.ctx.limits, tagNearLeast: .2, tagLead: .5 } };
+  const tagOf = t => propose(loose, bullet({ text: t, page: journal(g, 20261028) })).pieces.find(p => p.kind === 'tag');
+  assert.equal(tagOf('Sync about database'), undefined);
+  assert.ok(tagOf('Sync about the database'));
 });
 
 section('choosing a tag from the pages a line names');

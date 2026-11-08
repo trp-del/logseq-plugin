@@ -107,8 +107,17 @@ const dayText = (ctx, day) => {
 // The tag an untagged bullet reads like, in two stages: the nearest earlier lines vote (a near-twin, almost never wrong);
 // when they find none, the tags' word profiles (core/profile.js) are asked, which know the words a tag's lines use as a
 // whole. Either way a tag of yours that bullets carry, or nothing.
+/* Enough words to suggest a tag: four words (each once, a page's name counted by its words), for every source of a tag (the vote,
+   the word profiles, Apple's matcher and model); Option-T, asked for, lists at any length. Measured 8 November 2026 on the 59
+   held-out lines typed a word at a time on the Illness Test Graph: with no such wait, 36 wrong tags showed on the way and the tag
+   changed 10 times; waiting for four words, 15 and 3, and the tag each line ends with is the same (16 right, 1 wrong). Most wrong
+   ones came from Apple's matcher on one to three words. Plain word count, not the graph's uncommon words: a graph of look-alike
+   lines finds half its words common, and the wait would never end there. */
+const TAG_WORDS_LEAST = 4;
+const tellingWords = (ctx, text) => engine.tokensOf(shownWords(text, ctx), [], [], ctx.limits).length;
+const enoughForTag = (ctx, text) => tellingWords(ctx, text) >= (ctx.limits?.tagWordsLeast ?? TAG_WORDS_LEAST);
 function tagFor(ctx, b, text) {
-  if (!ctx.index) return null;
+  if (!ctx.index || !enoughForTag(ctx, text)) return null;
   const { links } = inWords(text, ctx);
   const tokens = engine.tokensOf(shownWords(text, ctx), ctx.limits.tagLinks === false ? [] : links.map(p => p.id), [], ctx.limits);
   if (tokens.length < 2) return null;
@@ -137,6 +146,9 @@ function looksLike(ctx, text, links, tagIds, prop, skip) {
   const tokens = engine.tokensOf(shownWords(text, ctx), links.map(p => p.id), tagIds, ctx.limits);
   return engine.neighbours(ctx.index, tokens, { k: ctx.limits.k, skip, keep: entry => entry.values.get(prop.ident)?.length > 0 });
 }
+// The meaning a date property's name gives it: 'deadline' (Logseq's Deadline, a Due date), 'scheduled', or null.
+const meaningOf = (prop, reader) => prop.ident === 'logseq.property/deadline' || reader.nameMeans?.('deadline', prop.title) ? 'deadline'
+  : prop.ident === 'logseq.property/scheduled' || reader.nameMeans?.('scheduled', prop.title) ? 'scheduled' : null;
 const namesOf = pages => pages.length > 1 ? { names: pages.map(p => ({ id: p.id, title: p.title })) } : {};
 const freeWords = text => wordsOf(String(text || '').replace(/#?\[\[[^\[\]]*\]\]/g, ' ').replace(TAG, ' '));
 
@@ -209,8 +221,25 @@ function guessesFor(ctx, { b, text, record, fields, recordTags, links, free, use
   const openDates = fields.filter(p => isDateProp(p) && open(p));
   const oneDate = openDates.length === 1;
   const nodeOf = id => ctx.byId.get(id);
+  // Basic meanings (core/dates.js): a day the words say something is due or set for goes to the date named for it (Logseq's
+  // Deadline and Scheduled too), and that day is then no other date's; a sum of money goes to the one number named for money.
+  const base = journalDay || dayNumber(new Date()), meant = new Map();
+  if (own) for (const prop of fields) {
+    if (!open(prop) || !(isDateProp(prop) || prop.type === 'datetime')) continue;
+    const meaning = meaningOf(prop, reader), day = meaning && reader.dayMeant?.(meaning, text, base);
+    if (day) meant.set(prop.ident, { day, how: 'words-' + meaning });
+  }
+  const meantDays = new Set([...meant.values()].map(m => m.day));
+  const moneyProps = own && reader.moneyInWords ? fields.filter(p => open(p) && isNumberProp(p) && reader.nameMeans('money', p.title)) : [];
+  const money = moneyProps.length === 1 ? reader.moneyInWords(text) : null;
   for (const prop of fields) {
     if (!open(prop)) continue;
+    const m = meant.get(prop.ident);
+    if (m) {
+      const id = dayIdFor(ctx, m.day);
+      out.push({ ident: prop.ident, prop, kind: 'day', ids: [id ?? -m.day], day: m.day, journalId: id, shown: dayText(ctx, m.day), how: m.how, guess: true });
+      continue;
+    }
     const isNode = isLinkProp(prop), isDate = isDateProp(prop), isNumber = isNumberProp(prop);
     if (!isNode && !isDate && !isNumber) continue;
     if (isChoiceProp(prop)) continue;   // a choice (Status ...) is never proposed: where a thing stands is rarely in its words
@@ -219,6 +248,7 @@ function guessesFor(ctx, { b, text, record, fields, recordTags, links, free, use
     if (isNumber) {
       const n = own ? reader.numberInWords(text, prop.title) : null;
       if (n != null) out.push({ ident: prop.ident, prop, kind: 'number', ids: [n], shown: String(n), how: 'words-number', guess: true });
+      else if (money != null && moneyProps[0] === prop) out.push({ ident: prop.ident, prop, kind: 'number', ids: [money], shown: String(money), how: 'words-money', guess: true });
       continue;
     }
     if (parentTags.length) { const v = valuesOf(b.parent, prop.ident); if (v.length) said.push({ ids: v, how: 'parent' }); }
@@ -244,7 +274,7 @@ function guessesFor(ctx, { b, text, record, fields, recordTags, links, free, use
       // A date written in the words, counted from the day the bullet is written on (else today); one, or nothing.
       if (own && oneDate && datedAhead(ev)) {
         const days = reader.daysInWords(text, journalDay || dayNumber(new Date()));
-        if (days.length === 1) { const id = dayIdFor(ctx, days[0]); said.push({ ids: [id ?? -days[0]], day: days[0], how: 'words-day' }); }
+        if (days.length === 1 && !meantDays.has(days[0])) { const id = dayIdFor(ctx, days[0]); said.push({ ids: [id ?? -days[0]], day: days[0], how: 'words-day' }); }
       }
       // Nothing else said a day, and the graph has no evidence either way: on a journal page, the journal day, as a guess to
       // check. Only for the bullet's own and only date, not when the words name two days or point ahead without naming one
@@ -329,7 +359,7 @@ function tagChoices(ctx, b, { max = 5 } = {}) {
   return out.slice(0, max);
 }
 
-const api = { dayText, tagChoices, tagScores, mentionedPages, candidateTags, propose, inWords, recordOf, tagFor, looksLike, datedEvidence, datedWhenWritten, fewDatedAllSameDay, mostlyAhead, datedAhead, dayIdFor, valuesOf, freeWords };
+const api = { enoughForTag, tellingWords, TAG_WORDS_LEAST, meaningOf, dayText, tagChoices, tagScores, mentionedPages, candidateTags, propose, inWords, recordOf, tagFor, looksLike, datedEvidence, datedWhenWritten, fewDatedAllSameDay, mostlyAhead, datedAhead, dayIdFor, valuesOf, freeWords };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 if (typeof window !== 'undefined') (window.Flow ||= {}).propose = api;
 })();

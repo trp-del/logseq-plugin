@@ -185,7 +185,7 @@ function request(ctx, b, result, today = dayNumber(new Date())) {
     const asked = request(ctx, tagged, proposeLib.propose(ctx, tagged, result.assume), today);
     return asked ? { ...asked, needsTag: true } : null;
   }
-  if (!result.pieces.length && ctx.limits?.modelTag !== false) { const asked = tagRequest(ctx, b, today); if (asked) return asked; }
+  if (!result.pieces.length && ctx.limits?.modelTag !== false && proposeLib.enoughForTag(ctx, b.text)) { const asked = tagRequest(ctx, b, today); if (asked) return asked; }
   if (result.record !== b) return null;
   const text = String(b.text || '');
   const words = freeWords(text);

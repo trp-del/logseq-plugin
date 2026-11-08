@@ -1,6 +1,6 @@
 {
   "name": "logseq-plugin",
-  "version": "0.3.50",
+  "version": "0.3.51",
   "description": "Six tools for a Logseq DB graph in one plugin: Look, Find, Predictive, Structure, DB Export and Threads",
   "license": "MIT",
   "repository": {

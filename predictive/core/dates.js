@@ -36,6 +36,20 @@ const en = {
   past: /\b(?:was|were|had|did|went|saw|came|got|felt|showed|told|last)\b/i,
   numberJoiners: ['and', 'or', 'to', '&', '-'],     // "cycles 3 and 4" names two numbers
   numberMarks: ['no\\.?\\s*', '#'],                 // "cycle no. 5", "cycle #5"
+  /* Basic meanings: what a value in the words is, and which property's name says it takes such a value. A property is matched by a
+     word of its own name, so "Amount", "Cost", "Total paid" and "Due date" each find theirs, in any graph.
+     money: a sum with its currency ("$84", "€12.50", "40 dollars"), for a number property named for money.
+     deadline: a day right after a word that says by when ("due Friday", "due by the 4th", "deadline in two weeks"), for a date named
+     for a deadline (Logseq's own Deadline too). scheduled: a day right after a word that says it is set for then ("scheduled for
+     Friday"), for Logseq's Scheduled or a date named so. */
+  money: {
+    before: '[$€£¥₹]|(?:us|usd|eur|gbp|chf|cad|aud)\\s?\\$?',
+    after: '[$€£¥₹]|dollars?|bucks|euros?|pounds?|quid|usd|eur|gbp|chf|cad|aud|yen|francs?|rupees?',
+    names: ['amount', 'cost', 'costs', 'price', 'fee', 'fees', 'paid', 'payment', 'pay', 'total', 'spent', 'spend', 'charge', 'charged', 'bill', 'billed',
+      'budget', 'expense', 'expenses', 'balance', 'refund', 'refunded', 'owed', 'owe', 'debt', 'fare', 'rent', 'copay', 'co-pay', 'deposit', 'sum', 'invoice', 'salary', 'income'],
+  },
+  deadline: { words: ['due', 'deadline', 'by'], not: ['to'], names: ['deadline', 'due'] },   // "due to the pain" is a cause
+  scheduled: { words: ['scheduled for', 'scheduled on', 'scheduled', 'planned for', 'booked for', 'set for'], names: ['scheduled', 'schedule', 'planned'] },
 };
 
 const dayAfter = (date, n) => { const d = new Date(date.getFullYear(), date.getMonth(), date.getDate()); d.setDate(d.getDate() + n); return d; };
@@ -132,7 +146,40 @@ function makeReader(locale = en) {
     for (const [, n] of words.matchAll(new RegExp(`\\s(\\d+(?:\\.\\d+)?)\\s+${esc}s?\\s`, 'g'))) found.add(Number(n));
     return found.size === 1 ? [...found][0] : null;
   }
-  return { locale: L, parseDay, daysInWords, numberInWords, ahead: L.ahead };
+
+  // A sum of money in the words ("$84", "€12.50", "84 dollars", "1,200 EUR"), as a number, or null; two different sums, null.
+  function moneyInWords(text) {
+    const M = L.money;
+    if (!M) return null;
+    const words = ' ' + cleanWords(text).toLowerCase() + ' ', found = new Set(), num = '(\\d{1,3}(?:,\\d{3})+|\\d+)(?:\\.(\\d{1,2}))?';
+    const add = (whole, cents) => { const n = Number(String(whole).replace(/,/g, '') + (cents ? '.' + cents : '')); if (Number.isFinite(n)) found.add(n); };
+    for (const m of words.matchAll(new RegExp(`(?:^|[\\s(])(?:${M.before})\\s?${num}(?![\\d.,]?\\d)`, 'g'))) add(m[1], m[2]);
+    for (const m of words.matchAll(new RegExp(`(?:^|[\\s(])${num}\\s?(?:${M.after})(?=[\\s.,;:!?)]|$)`, 'g'))) add(m[1], m[2]);
+    return found.size === 1 ? [...found][0] : null;
+  }
+  // Does a property's name say it takes this meaning? By a whole word of the name: "Amount paid", "Due date".
+  function nameMeans(meaning, propTitle) {
+    const names = L[meaning]?.names;
+    if (!names) return false;
+    const own = String(propTitle).toLowerCase().split(/[^\p{L}\p{N}-]+/u).filter(Boolean);
+    return own.some(w => names.includes(w));
+  }
+  // A word a day can start with: a weekday, a month, a number, "next", "the", "in", a relative day, a word like "on" or "by".
+  const startsDay = new RegExp(`^(?:\\d|${L.weekdayPattern}$|${L.monthPattern.replace(/\(\?=\\s\)$/, '')}$|${[L.next, L.the, L.inWord, ...L.before, ...Object.keys(L.relative)].map(escape).join('|')}$)`);
+  // The day named right after a word of this meaning ("due Friday", "scheduled for the 4th"): one day, or null.
+  function dayMeant(meaning, text, base) {
+    const W = L[meaning];
+    if (!W?.words) return null;
+    const words = ' ' + cleanWords(text).toLowerCase().replace(/[,;:!?()]/g, ' ') + ' ', found = new Set();
+    for (const m of words.matchAll(new RegExp(`\\s(?:${W.words.map(escape).join('|')})\\s+((?:\\S+\\s+){0,5})`, 'g'))) {
+      // Up to the end of the sentence, and the day must start right after the word: "diagnosed by Dr. Chen on Friday" is no deadline.
+      const rest = m[1].trim().split(/\.(?=\s|$)/)[0].trim(), first = rest.split(/\s+/)[0] || '';
+      if (W.not?.includes(first) || !startsDay.test(first)) continue;
+      for (const day of daysInWords(`${L.before.includes('by') ? 'by' : L.before[0]} ${rest}`, base)) found.add(day);
+    }
+    return found.size === 1 ? [...found][0] : null;
+  }
+  return { locale: L, parseDay, daysInWords, numberInWords, moneyInWords, nameMeans, dayMeant, ahead: L.ahead };
 }
 
 /* A day written in a date format of Logseq's (its preferredDateFormat, "MMM do, yyyy" unless set otherwise), as Logseq titles

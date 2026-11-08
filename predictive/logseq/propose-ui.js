@@ -24,7 +24,7 @@ const ENTER_LEAVES = 500, FILLING_MS = 6000, SAVE_TRIES = 40;
 // live: the bullet being written { uuid, text, changed, recordUuid, pieces, drawn, clicked, picked, left }. filling: bullets left a
 // moment ago whose values are being written, kept on screen, solid, until Logseq shows its own (no flash of empty). entered:
 // the bullet in edit and its words when it was entered. refused: what an Undo took off, by the record it was on.
-const S = { live: null, hushed: { uuid: '' }, accepted: { uuid: '', at: 0, keys: new Set() }, filling: new Map(), allowedNow: false, version: 0, timer: 0, stopped: false, undo: null, visiting: { live: null, timer: 0, out: 0 }, entered: { uuid: '', words: '' }, refused: new Map() };
+const S = { live: null, hushed: { uuid: '' }, accepted: { uuid: '', at: 0, keys: new Set() }, filling: new Map(), allowedNow: false, version: 0, timer: 0, stopped: false, undo: null, visiting: { live: null, timer: 0, out: 0 }, entered: { uuid: '', words: '' }, asked: '', refused: new Map() };
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const { esc } = window.PluginDoor;
 const guessKey = p => p.key ?? `${p.kind}:${p.ident}:${p.ids.join(',')}`;
@@ -86,7 +86,8 @@ function makePill(doc, row, piece) {
 const REASONS = {
   alike: p => `Earlier bullets like this one had ${p.shown}`, 'alike-tag': () => 'Earlier lines like this one have this tag',
   words: () => 'Named in your words', parent: () => 'The bullet above has it', day: () => 'The day this is written on', 'guess-day': () => 'The day this is written on; change it if it happens another day',
-  'words-day': () => 'A day named in your words', 'words-number': p => `The number beside “${p.prop.title.toLowerCase()}” in your words`,
+  'words-day': () => 'A day named in your words', 'words-deadline': () => 'The day your words say it is due', 'words-scheduled': () => 'The day your words say it is set for',
+  'words-money': () => 'The sum of money in your words', 'words-number': p => `The number beside “${p.prop.title.toLowerCase()}” in your words`,
   model: () => 'Read from your words by Apple’s model, on this Mac', meaning: () => 'Earlier notes that mean the same, matched by Apple’s tools on this Mac',
   names: () => 'A name Apple’s name finder read in your words, with no page yet; taking it makes the page, with this tag', untagged: () => 'A page linked in your words that has no tag yet; taking it gives the page the tag too',
   linked: () => 'A page linked in your words', 'linked-wide': () => 'A page linked in your words', page: () => 'The page this is written on', 'page-wide': () => 'The page this is written on',
@@ -287,16 +288,39 @@ function onMutations(records) {
 }
 let watcher = null;
 
+/* ---------- what was said no to, kept ---------- */
+// What a × or an Undo took off stays off that bullet for good, across a restart of Logseq: kept in this Mac's storage for the plugin,
+// by graph and by the bullet's id, the newest 2000 bullets. Only ids and the kind of value, never words.
+const REFUSED_MOST = 2000, refusedKey = graph => `predictive.refused.${graph}`;
+function loadRefused(graph) {
+  if (!graph || S.refusedGraph === graph) return;
+  S.refusedGraph = graph; S.refused = new Map();
+  try { for (const [uuid, keys] of JSON.parse(localStorage.getItem(refusedKey(graph)) || '[]')) S.refused.set(uuid, new Set(keys)); } catch (error) { /* none kept */ }
+}
+function refuse(recordUuid, keys) {
+  if (!recordUuid) return;
+  const set = S.refused.get(recordUuid) || new Set();
+  for (const key of keys) set.add(key);
+  S.refused.delete(recordUuid); S.refused.set(recordUuid, set);   // the newest last
+  while (S.refused.size > REFUSED_MOST) S.refused.delete(S.refused.keys().next().value);
+  if (!S.refusedGraph) return;
+  try { localStorage.setItem(refusedKey(S.refusedGraph), JSON.stringify([...S.refused].map(([uuid, set]) => [uuid, [...set]]))); } catch (error) { warnOnce('what was taken off could not be kept', error); }
+}
+
 /* ---------- working out what to show ---------- */
 async function compute(box) {
   const uuid = uuidOf(box);
   if (!uuid || S.hushed.uuid === uuid) { S.live = null; return hide(); }
   const version = ++S.version, words = box.value;
+  // Back in a bullet whose words are as they were when it was entered: nothing is proposed until they change (the owner, 8 November
+  // 2026: a suggestion passed over should not come back on a bullet that has not changed). A tag picked with Option-T asks again.
+  if (S.entered.uuid === uuid && words === S.entered.words && S.asked !== uuid) { S.live = null; return hide(); }
   const ok = await app.allowed();
   S.allowedNow = ok;
   if (!ok) { S.live = null; return hide(); }
   const ctx0 = await app.context({ wait: false });   // never waited for while typing
   if (!ctx0) return;
+  loadRefused(ctx0.graph);
   const ctx = await app.freshLinks(ctx0, words);
   const block = await db.pullBlock(uuid);
   // Still the newest check, not cleared by Escape meanwhile, and the bullet still the one in edit.
@@ -332,7 +356,9 @@ function show(box, uuid, words, record, rules, more) {
 }
 // Once typing pauses: longer than the gap between two letters, so a proposal is not worked out after every key.
 const PAUSE = 200;
-const soon = box => {
+// asked: proposals wanted on this bullet though its words have not changed (a tag just picked with Option-T).
+const soon = (box, { asked = false } = {}) => {
+  if (asked) S.asked = uuidOf(box);
   clearTimeout(S.timer);
   const mine = S.dueId = (S.dueId || 0) + 1;
   S.due = uuidOf(box);   // this bullet's proposals are still to come
@@ -383,7 +409,7 @@ async function takeShadow(live) {
   const { record, pieces: found } = propose.propose(ctx, db.bulletOf(block, db.pick(block, 'block/title'), ctx.schema));
   const recordUuid = String(record.uuid || ''), refused = S.refused.get(recordUuid);
   // The guesses of Apple's tools go with them, for the words they were given (the rules do not ask them again here).
-  const again = Flow.model.merge(found, live.model?.words === live.text ? live.model.pieces : []);
+  const again = Flow.model.merge(found, live.model?.words === (live.boxText ?? live.text) ? live.model.pieces : []);
   // What was shown is what is written: the rules worked out again on the saved bullet, and where they now come out otherwise
   // for a property (another page, names in another order), the value that was on screen. The tag first, which the rest wait for.
   const chosen = new Map();
@@ -412,6 +438,8 @@ async function writePieces(recordUuid, pieces) {
       if (piece.tagPage) for (const uuid of piece.tagPage.uuids) { await db.addTag(uuid, piece.tagPage.tag.uuid); gave.push(uuid); }
       // A new page for a name no page had (core/people.js): made with its tag, then filled in.
       if (piece.newPage) { const made = await db.makePage(piece.newPage.title, piece.newPage.tag.uuid); piece.madePage = made; piece.wrote = [made.id]; await db.setValue(recordUuid, piece.ident, made.id, { entityId: true }); }
+      // Logseq's Deadline and Scheduled hold a moment, not a journal page: the day's start, as Logseq's own date picker writes it.
+      else if (piece.kind === 'day' && piece.prop.type === 'datetime') { const d = Flow.dates.asDate(piece.day).getTime(); piece.wrote = [d]; await db.setValue(recordUuid, piece.ident, d); }
       else if (piece.kind === 'day') { piece.wrote = [piece.journalId ?? await db.journalPageFor(piece.day)]; await db.setValue(recordUuid, piece.ident, piece.wrote[0]); }
       else if (piece.kind === 'number') await db.setValue(recordUuid, piece.ident, piece.ids[0]);
       else if (piece.prop.many) await db.setValue(recordUuid, piece.ident, piece.ids, { entityId: true, reset: true });
@@ -459,9 +487,7 @@ function rememberUndo(recordUuid, bulletUuid, written, undo) {
   undoDoor().offer({ owner: 'predictive', key: `predictive:${recordUuid}`, at: () => bulletLine(bulletUuid), text,
     run: async () => {
       if (S.undo === mine) S.undo = null;
-      const refused = S.refused.get(mine.record) || new Set();
-      for (const piece of mine.pieces) refused.add(guessKey(piece));
-      S.refused.set(mine.record, refused);
+      refuse(mine.record, mine.pieces.map(guessKey));
       S.filling.delete(mine.record);
       await undo();
     },
@@ -482,7 +508,7 @@ function onFocusIn(event) {
   if (!box) return;
   const uuid = uuidOf(box);
   forgetUndo(uuid);   // editing the bullet again ends the undo of what was filled in on it
-  if (S.live?.uuid !== uuid) S.entered = { uuid, words: box.value };   // back from its own properties is not entering it
+  if (S.live?.uuid !== uuid) { S.entered = { uuid, words: box.value }; if (S.asked !== uuid) S.asked = ''; }   // back from its own properties is not entering it
   soon(box);
 }
 function onFocusOut(event) {
@@ -503,6 +529,7 @@ function onFocusOut(event) {
   S.live.text = box.value; S.live.changed ||= written; S.live.unseen = unseen;
   // Enter's taking counts only when the bullet is left right after it.
   const live = S.live, taken = Date.now() - (S.accepted.at || 0) < ENTER_LEAVES && S.accepted.uuid === uuid ? new Set(S.accepted.keys) : new Set();
+  if (taken.size && S.accepted.words != null) { live.boxText = live.text; live.text = S.accepted.words; }
   S.version++;
   setTimeout(() => {
     const active = host().activeElement, now = editingBox(active);
@@ -556,7 +583,9 @@ function onKey(event) {
     // Enter (plain, with no list of Logseq's open) takes the guesses too: the bullet is then left as usual. Nothing of Enter
     // is held back: Logseq still makes the next bullet.
     if (event.shiftKey || event.metaKey || event.ctrlKey || event.altKey) return;
-    S.accepted = { uuid: S.live.uuid, at: Date.now(), keys: shownPieces(S.live) };
+    // Enter splits the bullet at the cursor: the words before it are what this bullet keeps (a "$" Logseq paired after the cursor
+    // goes on to the next bullet), so they are what the saved words are waited for.
+    S.accepted = { uuid: S.live.uuid, at: Date.now(), keys: shownPieces(S.live), words: box.value.slice(0, box.selectionStart) };
     return;
   }
   // Escape hides the proposals until something is typed in the bullet again; the caret stays (a second Escape is Logseq's).
@@ -597,9 +626,7 @@ function onTakeOff(event) {
   if (event.type !== 'click') return;
   const live = S.live, key = event.target.closest('.flow-x').dataset.flowKey, piece = live?.pieces.find(p => guessKey(p) === key);
   if (!piece) return;
-  const refused = S.refused.get(live.recordUuid) || new Set();
-  refused.add(key);
-  S.refused.set(live.recordUuid, refused);
+  refuse(live.recordUuid, [key]);
   live.pieces = live.pieces.filter(p => p !== piece && !(piece.kind === 'tag' && p.needsTag));
   live.clicked?.delete(key); live.picked?.delete(key);
   if (live.model) live.model.pieces = live.model.pieces.filter(p => live.pieces.includes(p));
@@ -688,7 +715,7 @@ function start() {
   S.stopped = false;
   applyHide();
   logseq.onSettingsChanged?.((now, before) => { if (window.PluginDoor.settingChanged(['proposals', 'proposalsSkipGraphs', 'proposalsHideEmpty'], now, before)) applyHide(); });
-  logseq.App.onCurrentGraphChanged?.(() => { S.version++; S.live = null; S.filling.clear(); S.refused.clear(); forgetUndo(S.undo?.record); applyHide(); });
+  logseq.App.onCurrentGraphChanged?.(() => { S.version++; S.live = null; S.filling.clear(); S.refused.clear(); S.refusedGraph = ''; forgetUndo(S.undo?.record); applyHide(); });
   logseq.App.onRouteChanged?.(() => { S.live = null; hide(); applyHide(); });
   app.onStop(() => {
     S.stopped = true; clearTimeout(S.timer); S.version++; watcher?.disconnect(); watcher = null; S.live = null; S.filling.clear();

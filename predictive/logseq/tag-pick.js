@@ -70,7 +70,7 @@ async function pick(i) {
     await db.addTag(chosen.uuid, item.tag.uuid);
   } catch (error) { warnOnce('the tag could not be given', error); return notify('The tag could not be given', 'warning'); }
   P.rememberUndo(chosen.uuid, chosen.uuid, [{ kind: 'tag', ident: 'block/tags', ids: [item.tag.id], tag: item.tag, shown: '#' + item.tag.title }], () => db.removeTag(chosen.uuid, item.tag.uuid));
-  P.soon(chosen.box);   // the bullet has the tag now: its properties are proposed as for any tagged bullet
+  P.soon(chosen.box, { asked: true });   // the bullet has the tag now: its properties are proposed as for any tagged bullet
 }
 
 const MODIFIERS = new Set(['Shift', 'Control', 'Alt', 'Meta', 'CapsLock']);

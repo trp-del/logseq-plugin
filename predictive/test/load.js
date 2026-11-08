@@ -165,10 +165,10 @@ for (const file of order) vm.runInContext(fs.readFileSync(path.join(root, file),
   console.log('  ok  link rates come with the graph and follow one changed line');
 
   await enter(A);
-  assert.ok(hostDoc.querySelector('.flow-ghost'), 'an old bullet still shows its pencils');
+  assert.ok(!hostDoc.querySelector('.flow-ghost'), 'an old bullet entered with its words unchanged shows nothing (8 November 2026)');
   await leave();
   assert.deepEqual(writes, [], 'a bullet only passed through is not written to');
-  console.log('  ok  passing through a bullet writes nothing');
+  console.log('  ok  passing through a bullet shows and writes nothing');
 
   // Nothing is worked out while letters keep coming; a bullet left within the pause keeps what was shown.
   await enter(A);
@@ -211,10 +211,12 @@ for (const file of order) vm.runInContext(fs.readFileSync(path.join(root, file),
   console.log('  ok  an Undo keeps that bullet quiet');
 
   await enter(C);
-  assert.ok(hostDoc.querySelector(`[blockid="${C}"] .flow-ghost`));
+  assert.ok(!hostDoc.querySelector(`[blockid="${C}"] .flow-ghost`), 'back in a bullet whose words are as they were: nothing comes back');
+  await type(C, ' again');
+  assert.ok(hostDoc.querySelector(`[blockid="${C}"] .flow-ghost`), 'its words changed: the proposals come');
   box(C).dispatchEvent(new page.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })); await leave();
-  assert.deepEqual(writes, [['set', C]], 'Enter on a passed-through bullet takes what is shown');
-  console.log('  ok  Enter still takes everything shown');
+  assert.deepEqual(writes, [['set', C]], 'Enter takes what is shown');
+  console.log('  ok  nothing comes back on an unchanged bullet; Enter still takes everything shown');
   // A value set by hand while the guess was on screen is the person's (8 November 2026): taken or not, the guess writes nothing over it.
   { writes.length = 0;
     const own = U(404), ownRow = hostDoc.createElement('div'); ownRow.innerHTML = rowHtml(own);

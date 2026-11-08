@@ -48,7 +48,7 @@ const examples = (ctx, from) => [...new Set(from.slice(0, 2).map(e => String(e.t
 // Whether there is anything meaning could fill: an untagged bullet the rules pencilled nothing for, or open page properties.
 function wanted(ctx, b, result) {
   if (!result || !ctx.index) return false;
-  if (!result.pieces.length && !result.assume) return !b.tags.length && !proposeLib.inWords(b.text, ctx).tags.length && proposeLib.recordOf(b, [], ctx.schema).fields.length === 0;
+  if (!result.pieces.length && !result.assume) return !b.tags.length && !proposeLib.inWords(b.text, ctx).tags.length && proposeLib.recordOf(b, [], ctx.schema).fields.length === 0 && proposeLib.enoughForTag(ctx, b.text);
   return openProps(ctx, b, result).length > 0;
 }
 // The page properties of the bullet's own tags that nothing filled: not held, not proposed, not held back (quiet), not wide.
@@ -68,6 +68,7 @@ function pieces(ctx, b, result, near) {
   const known = id => { const page = ctx.byId.get(id); return page?.isTag && page.uuid && ctx.knownTags.has(page.id) ? page : null; };
   // No tag and nothing from the rules: the tag the near notes carry, with its properties as guesses that wait for it.
   if (!result.pieces.length && !result.assume && !b.tags.length) {
+    if (!proposeLib.enoughForTag(ctx, b.text)) return [];   // a tag waits for enough words (core/propose.js)
     const voted = vote(near, 'block/tags', limits), tag = voted && voted.ids.length === 1 && known(voted.ids[0]);
     if (!tag) return [];
     const from = examples(ctx, voted.from);
