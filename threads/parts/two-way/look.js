@@ -242,13 +242,14 @@ const twoWayCss = `
    its name (the kit's kids). The section keeps Logseq's value column: the outline starts where Logseq's values do. */
 .th-two-way .th-tw-value { display: block; font-size: inherit; }
 .th-two-way .th-tw-value.th-ol { --th-ol-day: calc(var(--lk-day, 48px) + 6px); font-size: inherit; line-height: 1.5; }
-/* Every line 32px (8 November 2026: 36px was tried, the owner: "line can be tighter, but group spacing is good"). */
-.th-two-way .th-ol-line { min-height: 32px; padding-top: 4px; padding-bottom: 4px; }
+/* Every line 28px, Logseq's own (9 November 2026: 36px then 32px were tried; the owner: "this needs to be tighter. lines in
+   general"). The groups keep their wide gaps; the lines inside them sit close. */
+.th-two-way .th-ol-line { min-height: 28px; padding-top: 2px; padding-bottom: 2px; }
 /* "show all" and a bullet stand on the lines' 30px too (the library's lk-more carries its own 3px; the kit's bullet 1px). */
-.th-two-way .th-ol-line.th-ol-moreline { padding-top: 4px; padding-bottom: 0; }
+.th-two-way .th-ol-line.th-ol-moreline { padding-top: 2px; padding-bottom: 0; }
 /* The list's head is its title: a little more room under it than between its nodes. */
-.th-two-way .th-ol-line.th-tw-head { padding-bottom: 8px; }
-.th-two-way .th-ol-bullet { min-height: 32px; padding-top: 4px; padding-bottom: 4px; }
+.th-two-way .th-ol-line.th-tw-head { padding-bottom: 6px; }
+.th-two-way .th-ol-bullet { min-height: 28px; padding-top: 2px; padding-bottom: 2px; }
 /* What opened ends with a line's gap, inside its box: the next line of the list stands clear of it. */
 .th-two-way .th-ol-kids:not(.th-ol-bare) > .th-ol-in { padding-bottom: 20px; }
 /* Inside an opened node, a line's gap parts its groups: its properties, what links to it, its bullets; and each list of
@@ -261,7 +262,7 @@ const twoWayCss = `
 .th-two-way .th-ol-words[data-edit-bullet] { cursor: text; border-radius: 4px; padding: 0 4px; margin: 0 -4px; }
 .th-two-way .th-ol-words[data-edit-bullet]:focus-visible { background: var(--lk-wash); }
 .th-two-way .th-ol-bullet[data-bullet] > .th-ol-dot { cursor: pointer; }
-.th-two-way .th-ol-line > input.lk-tick[type=checkbox] { top: 9px; }
+.th-two-way .th-ol-line > input.lk-tick[type=checkbox] { top: 7px; }
 .th-two-way .th-tw-head { cursor: default; }
 .th-two-way .th-tw-head:hover { background: transparent; }
 /* An outline (the owner, 2026-10-27: "have [date] [chevron] [bullet]"; "13 symptom logs chevron should be aligned with
