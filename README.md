@@ -15,7 +15,7 @@ Built for Logseq 2.0.2 DB graphs. It reads the graph and writes to it only here:
 
 In Logseq, open the command palette and run **Install plugin from GitHub release**. Paste this repository's address, tick the **effect** box, and press Install. Without the tick the plugin runs in a sealed frame and can draw nothing; uninstall and install again with it ticked. **Check update** on the plugin's card brings the next version.
 
-Find and Structure each have a toolbar icon, off at first: pin them from the puzzle icon at the top right, where they are listed as `find-open` and `structure-open`.
+Find, Structure and Inspector head Logseq's ··· menu at the top right; Logseq's magnifier at the top left opens Find too. With Look's calm toolbar off, Structure also has a toolbar icon, pinned from the puzzle icon, listed as `structure-open`.
 
 Or download the zip from the latest release, unzip it, and load the folder with **Load unpacked plugin** (Developer mode, effect ticked).
 

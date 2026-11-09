@@ -46,7 +46,7 @@ let chromium; try { ({ chromium } = require('playwright')); } catch (error) { co
   const counts = await page.evaluate(() => ({
     route: location.hash,
     look: { chain: [...document.querySelectorAll('.lk-path')].map(b => b.textContent.replace(/\s+/g, ' ').trim()), propertyIcons: document.querySelectorAll('.lk-kind').length },
-    find: { toolbar: !!document.querySelector('[data-on-click="findOpen"]') },
+    find: { searchButton: !!document.getElementById('search-button') },
     structure: { toolbar: !!document.querySelector('[data-on-click="structureOpen"]') },
     threads: { heads: document.querySelectorAll('.th-tw-head').length, rows: document.querySelectorAll('.th-tw-row').length },
     oldPlugins: [...document.querySelectorAll('iframe[src*="logseq-look"], iframe[src*="logseq-find"], iframe[src*="logseq-predictive"], iframe[src*="logseq-structure"], iframe[src*="logseq-db-export"], iframe[src*="logseq-threads"]')].map(f => f.src.match(/logseq-[a-z-]+/)[0]),

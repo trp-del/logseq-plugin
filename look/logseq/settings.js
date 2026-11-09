@@ -10,7 +10,7 @@ const schema = [
   { key: 'calmSidebar', type: 'boolean', default: true, title: 'Left sidebar',
     description: 'One fine line at its edge where Logseq paints a grey panel (lighter than the page in dark mode); the page you are on a little heavier; “Navigations” left out, its edit press still there under the pointer.' },
   { key: 'calmToolbar', type: 'boolean', default: true, title: 'Toolbar and scroll bars',
-    description: 'The icons at the top drawn with a finer line at Logseq’s own strength; the ? at the bottom right without its circle; scroll bars thin and faint, firmer under the pointer.' },
+    description: 'The icons at the top drawn with a finer line at Logseq’s own strength, two where Logseq has eight: the ··· menu, which the plugin’s places head (Find, Structure, Inspector), and the sidebar button; back and forward are Cmd [ and Cmd ]; the ? at the bottom right without its circle; scroll bars thin and faint, firmer under the pointer.' },
   { key: 'calmPage', type: 'boolean', default: true, title: 'Page titles and journal days',
     description: 'A page’s title at 30 px, a little heavier and tighter; journal days parted by space, not a line; Linked references with a medium heading, not a bold one.' },
   { key: 'calmTables', type: 'boolean', default: true, title: 'Tables',

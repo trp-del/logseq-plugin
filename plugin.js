@@ -101,6 +101,20 @@ Door.kindIconHtml = kind => {
   if (KIND_ICONS[k] === null) return `<i class="lk-icon lk-web" aria-hidden="true">${Door.WEB}</i>`;
   return `<i class="lk-icon ti ti-${KIND_ICONS[k] || 'letter-case'}" aria-hidden="true"></i>`;
 };
+/* A module's button in Logseq's top toolbar, drawn as Logseq draws its own there (Tabler's line icons as SVG, 20 px, the same
+   stroke), so it stands among Home, the arrows and the sidebar button as one of them; a font glyph came out heavier. The drawings
+   say what the button opens: Structure a tree of tags, the inspector an i in a circle (Logseq's
+   Contents already has the list beside a box) (9 November 2026). */
+Door.TOOLBAR_ICONS = {
+  structure: 'M3 17a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2zM15 17a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2zM9 5a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2zM6 15v-1a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v1M12 9v3',
+  inspector: 'M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0M12 9h.01M11 12h1v4h1',
+};
+Door.toolbarButton = (model, title, icon) => `<a class="button lk-tool" data-on-click="${model}" title="${title}" aria-label="${title}"><svg class="tabler-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${Door.TOOLBAR_ICONS[icon]}"/></svg></a>`;
+/* The plugin's places in Logseq's ··· menu at the top right (the owner, 9 November 2026: "put different plugin features under
+   three dots"), where the toolbar had a button for each: a module adds { key, label, icon, run } and gets back what takes it off.
+   settings/ways-in.js draws them at the head of the menu each time it opens, in the order added, as Logseq draws its own lines. */
+Door.menuItems = [];
+Door.addMenuItem = item => { Door.menuItems = Door.menuItems.filter(x => x.key !== item.key).concat(item); return () => { Door.menuItems = Door.menuItems.filter(x => x !== item); }; };
 /* One watcher of Logseq's screen for every module (until 5 November 2026 Look and Threads each kept an observer of their own).
    Door.watch(fn, { early }) registers a pass and returns what takes it off. A pass runs once at registration and then once per
    frame after the screen changed, so many changes cost one pass; a change of class alone (pointing, selecting) runs none. An

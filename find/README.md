@@ -6,7 +6,7 @@ The search window as the first step of a walk. You find things the way you think
 
 ## What it does
 
-**Open it** with Cmd+K (Ctrl+K elsewhere); Logseq's own search moves to Cmd+Shift+K. **Find by sentence** opens with Cmd+Option+K (Ctrl+Alt+K elsewhere), or from the command palette; pressed while Find is open it turns the window into a sentence, pressed again it closes. Cmd+Shift+. (Ctrl+Shift+. elsewhere) opens it with `>` already typed, Logseq's commands listed, as a command palette; pressed again it closes. Or the route icon in the toolbar's plugin menu (the puzzle piece at the top right; pin it from there), or **Find** in the command palette. A setting turns the key the other way round.
+**Open it** with Cmd+K (Ctrl+K elsewhere), Logseq's magnifier at the top left, or Find in the ··· menu at the top right; Logseq's own search moves to Cmd+Shift+K, or Shift and the magnifier. **Find by sentence** opens with Cmd+Option+K (Ctrl+Alt+K elsewhere), or from the command palette; pressed while Find is open it turns the window into a sentence, pressed again it closes. Cmd+Shift+. (Ctrl+Shift+. elsewhere) opens it with `>` already typed, Logseq's commands listed, as a command palette; pressed again it closes. Or the route icon in the toolbar's plugin menu (the puzzle piece at the top right; pin it from there), or **Find** in the command palette. A setting turns the key the other way round.
 
 **Nothing typed:** the kinds in your graph (your tags, and Task), most used first, with how many nodes each holds, counting the tags under it; then the pages you opened last. Pick a kind with Up, Down and Enter, or a click. "more" opens every kind, laid out as Structure has them: a column under each top-level tag, by name, each tag beneath its parent and stepped in, Task under a head "Logseq" at the foot of the last column. Up and Down run down a column and on to the next, Left and Right go to the column beside.
 
@@ -76,7 +76,7 @@ The root `files.js` lists these in order, each adding to `window.Find`:
 | `logseq/settings.js` | the switches |
 | `logseq/commands.js` | Logseq's commands as the app lists them, with their keys; their English names from Logseq's dictionary |
 | `logseq/find.js` | the window: the find line of pieces, or the sentence with its mirror and notes and the year line; the choices, the rows and the near rows, digging, the keys |
-| `main.js` | registers at the plugin's door, listens for the key, registers the command and the toolbar icon, forgets what it read when the graph changes, stops |
+| `main.js` | registers at the plugin's door, listens for the key, registers the commands, takes Logseq's magnifier at the top left, forgets what it read when the graph changes, stops |
 
 Nothing is kept on Logseq's page when the module stops: its elements carry `fd-own` and are swept.
 

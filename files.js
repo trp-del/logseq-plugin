@@ -1,7 +1,7 @@
 // The plugin's files, in the order they load (loader.js reads this list). plugin.js first: the door each module comes in
 // by. Then what stands whichever modules run (the settings window, what comes in from outside). Then each module's files, its own main.js last, in the order the modules start: Look first, Threads last. main.js, last of all, starts them.
 window.PluginFiles = [
-  'plugin.js', 'settings/window.js', 'settings/ways-in.js', 'outside.js',
+  'plugin.js', 'sidebar-tabs.js', 'settings/window.js', 'settings/ways-in.js', 'outside.js',
   'look/logseq/kit.js', 'look/logseq/db.js', 'look/logseq/settings.js', 'look/logseq/style.js', 'look/logseq/calm.js', 'look/logseq/marks.js', 'look/logseq/props.js', 'look/logseq/title.js', 'look/logseq/folded.js', 'look/logseq/sidebar.js', 'look/logseq/cites.js', 'look/logseq/links.js', 'look/logseq/values.js', 'look/logseq/notices.js', 'look/main.js',
   'find/logseq/kit.js', 'find/logseq/sentence.js', 'find/logseq/db.js', 'find/logseq/settings.js', 'find/logseq/commands.js', 'find/logseq/find.js', 'find/main.js',
   'predictive/core/text.js', 'predictive/core/engine.js', 'predictive/core/profile.js', 'predictive/core/dates.js', 'predictive/core/schema.js', 'predictive/core/context.js', 'predictive/core/names.js', 'predictive/core/link.js', 'predictive/core/propose.js', 'predictive/core/model.js', 'predictive/core/meaning.js', 'predictive/core/lessons.js', 'predictive/core/people.js', 'predictive/core/score.js', 'predictive/core/measure.js', 'predictive/core/typed-case.js',

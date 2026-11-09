@@ -44,6 +44,13 @@ body { font-family: var(--ls-font-family) !important; -webkit-font-smoothing: an
 /* The toolbar at Logseq's own strength, its icons drawn finer. */
 #head :is(button, a.button) { opacity: .7 !important; }
 .cp__sidebar-help-btn { opacity: .7; }
+/* The toolbar streamlined (the owner, 9 November 2026: "you are suppose to streamline not just move icons around", then "cut back
+   and forth. put different plugin features under three dots"): two buttons where Logseq has eight, Logseq's ··· menu and the
+   sidebar button. The plugin's places (Find, Structure, the inspector) head the ··· menu (Door.menuItems); Logseq's magnifier at
+   the top left opens Find; back and forward are Cmd [ and Cmd ]; Home goes (Journals heads the left sidebar); the puzzle goes
+   (Plugins and Plugin settings are in the ··· menu). Another plugin's button stays, before the ···. */
+#head .r > .flex.items-center > button:has(.ls-icon-home), #head .r > .flex.items-center .toolbar-plugins-manager,
+#head .r .nav-left, #head .r .nav-right, #head [id^="injected-ui-item-structure-open"], #head [id^="injected-ui-item-find-open"] { display: none !important; }
 /* Scroll bars thin and faint, firmer under the pointer. */
 ::-webkit-scrollbar { width: 8px; height: 8px; background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--lk-hair); border-radius: 4px; }
@@ -118,6 +125,22 @@ ${AREA} :is(.ls-table-row, .ls-table-header) .sticky-columns button { background
 .cp__settings-inner .panel-wrap .ui__button[class~="bg-primary/90"]:hover { background: color-mix(in srgb, var(--lk-text) 15%, transparent) !important; }
 .cp__settings-inner .panel-wrap :is(select, [role=combobox], input:not([type=checkbox]):not([type=radio])) { background: transparent !important; border-color: var(--lk-hair) !important; box-shadow: none !important; }`,
 };
+/* Menu icons in colour (the owner, 9 November 2026: "you can add color to icons for menus", then "don't seem to have much semantic
+   meaning for color"): colour only where it says something the words do not. Red: the line deletes, it can lose what you wrote.
+   Amber: the star of a favourite, the colour a favourite has. Blue: the plugin's own places (Find, Structure, the inspector), so
+   they are found at a glance among Logseq's lines. Every other icon keeps the quiet grey. The icons are told by their names:
+   Logseq's ls-icon-<name>, the plugin's ti-<name>, and the ones the plugin draws (data-lk-menu-icon, settings/ways-in.js). */
+const MENU_HUES = {
+  blue: ['search', 'sitemap', 'info-circle'],
+  amber: ['star', 'star-off'],
+  red: ['trash'],
+};
+const MENUS = ':is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content, .ui__context-menu-sub-content)';
+const menuHuesCss = `
+:root { --lk-hue-blue: hsl(212 62% 50%); --lk-hue-amber: hsl(38 85% 46%); --lk-hue-red: hsl(2 62% 52%); }
+:root[data-theme="dark"] { --lk-hue-blue: hsl(212 70% 66%); --lk-hue-amber: hsl(40 80% 60%); --lk-hue-red: hsl(2 70% 66%); }
+` + Object.entries(MENU_HUES).map(([hue, names]) => `${MENUS} :is(${names.map(n => `.ls-icon-${n}, i.ti-${n}`).join(', ')}), ${names.map(n => `${MENUS} [data-lk-menu-icon="${n}"]::before`).join(', ')} { color: var(--lk-hue-${hue}) !important; }`).join('\n');
+PARTS.calmMenus += menuHuesCss;
 /* Width by kind (the owner, 8 November 2026: "certain things need to be wide like a table but others like outline can
    benefit from readable width"; "the readable width needs to be centered"). The page is one column at reading width,
    centred, so the title, the properties, Structure's lines, Threads' rows, the outline and the references share one left

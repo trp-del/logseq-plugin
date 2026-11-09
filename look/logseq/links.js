@@ -1,4 +1,4 @@
-/* Links and Endnotes, two words in the right sidebar's bar beside Contents, each opening a section of the sidebar above its items, built as Logseq
+/* Links and Endnotes, two tabs of the right sidebar (sidebar-tabs.js), each opening a section of the sidebar above its items, built as Logseq
    builds one, that folds by its head and goes by its ×, for the page you are on.
 
    Links: the links in the page's words, each once. Two orders, as words at the top of the section: By kind, a group for each top-level tag
@@ -169,20 +169,6 @@ function draw(doc) {
     for (const { key } of SECTIONS) { state.words[key]?.remove(); state.words[key] = null; state.panels[key]?.remove(); state.panels[key] = null; state.open[key] = false; }
     return;
   }
-  let after = contents;
-  for (const { key, word } of SECTIONS) {
-    if (!state.words[key]?.isConnected) {
-      const box = contents.cloneNode(true), press = box.querySelector('button');
-      box.classList.add('lk-own', 'lk-links-word');
-      press.textContent = word;
-      press.addEventListener('click', () => setOpen(key, !state.open[key]));
-      state.words[key] = box;
-    }
-    const box = state.words[key];
-    if (after.nextElementSibling !== box) after.after(box);
-    after = box;
-    box.classList.toggle('on', state.open[key]);
-  }
   let made = false, next = list?.firstElementChild;
   if (list) for (const section of SECTIONS) {
     const { key } = section;
@@ -235,8 +221,13 @@ const css = `
 #right-sidebar .lk-notes-words { min-width: 0; overflow-wrap: anywhere; }
 #right-sidebar .lk-links-none { color: var(--lk-soft); }`;
 
+/* Links and Endnotes are tabs of the right sidebar, after Inspector (sidebar-tabs.js, the owner, 9 November 2026): picked, the
+   section opens if it is not open yet, and stands alone, without its head. */
+let offTabs = [];
 function start() {
   state.stopped = false;
+  offTabs = SECTIONS.map(({ key, word }, i) => window.PluginDoor.sideTabs?.add({ key, word, order: 3 + i,
+    find: () => (state.panels[key]?.isConnected ? state.panels[key] : null), open: () => { if (!state.open[key]) setOpen(key, true); } }));
   style('sidebar-links', css);
   watchScreen(draw);
   host().defaultView.addEventListener('click', onItemClosed, true);
@@ -244,6 +235,6 @@ function start() {
   onGraphChange(load);
   load();
 }
-function stop() { state.stopped = true; host().defaultView.removeEventListener('click', onItemClosed, true); Object.assign(state, { open: { links: false, notes: false }, words: {}, panels: {} }); style('sidebar-links', ''); }
+function stop() { offTabs.forEach(off => off?.()); offTabs = []; state.stopped = true; host().defaultView.removeEventListener('click', onItemClosed, true); Object.assign(state, { open: { links: false, notes: false }, words: {}, panels: {} }); style('sidebar-links', ''); }
 Look.links = { start, stop, load, linksIn, citationsIn, byKind };
 })();

@@ -56,14 +56,18 @@ async function drawNode() {
   if (ask !== insp.ask) return;
   const tags = [].concat(props.tags || []).filter(t => t?.uuid && /^:?user\.class\//.test(String(t.ident || '')));
   const said = b.page === null ? `<span class="lk" data-uuid="${esc(uuid)}">${esc(name(b))}</span>` : words(b.fullTitle ?? b.title ?? b.content);
-  let h = `<div class="st-insp-words">${said || '<span class="st-insp-none">No words</span>'}</div><dl class="st-lines-t">`;
-  if (tags.length) h += `<dt>Tags</dt><dd>${tags.map(t => `<span class="lk-tag" data-uuid="${esc(t.uuid)}">${esc(name(t))}</span>`).join('')}</dd>`;
+  // The part's head: the node's words after its bullet, or a page's name after the page's icon, as Logseq marks each.
+  const mark = b.page === null ? '<i class="ti ti-file" aria-hidden="true"></i>' : '<span class="lk-bul" aria-hidden="true"></span>';
+  let h = `<div class="st-insp-words">${mark}<span class="st-insp-said">${said || '<span class="st-insp-none">No words</span>'}</span></div><dl class="st-lines-t">`;
+  // Each line's name with the icon Look gives it on a page: a property by what it holds, Tags a #, On page a page.
+  const icon = key => { const p = propOf(key); return p ? S.view.pi(p) : '<i class="st-pi" aria-hidden="true">' + window.PluginDoor.kindIconHtml('text') + '</i>'; };
+  if (tags.length) h += `<dt><i class="ti ti-hash" aria-hidden="true"></i>Tags</dt><dd>${tags.map(t => `<span class="lk-tag" data-uuid="${esc(t.uuid)}">${esc(name(t))}</span>`).join('')}</dd>`;
   for (const [key, v] of Object.entries(props)) {
     if (!/^:?user\.property\//.test(key)) continue;
     const shown = value(v); if (!shown) continue;
-    h += `<dt>${esc(propTitle(key))}</dt><dd><span>${shown}</span></dd>`;
+    h += `<dt>${icon(key)}<span>${esc(propTitle(key))}</span></dt><dd><span>${shown}</span></dd>`;
   }
-  if (page?.uuid) h += `<dt>On page</dt><dd><span class="lk" data-uuid="${esc(page.uuid)}">${esc(name(page))}</span></dd>`;
+  if (page?.uuid) h += `<dt><i class="ti ti-file" aria-hidden="true"></i>On page</dt><dd><span class="lk" data-uuid="${esc(page.uuid)}">${esc(name(page))}</span></dd>`;
   insp.seen = new Set([uuid]); insp.pageId = page?.id ?? b.id;   // a change on this page, a new bullet included, draws it again
   box.innerHTML = h + '</dl>' + outline(kids);
 }

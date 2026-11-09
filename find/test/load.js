@@ -87,7 +87,7 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
   const Find = sandbox.window.Find;
   assert.ok(Find.kit && Find.db && Find.settings && Find.window, 'the parts are on window.Find');
   assert.deepEqual(commands, ['Find', 'Find by sentence'], 'the commands are registered');
-  assert.deepEqual(items, ['find-open'], 'the toolbar word is registered');
+  assert.deepEqual(items, [], 'no toolbar button: Logseq\'s own magnifier opens Find');
   // open: the kinds and the recents
   Find.window.open();
   await settle();

@@ -1,6 +1,6 @@
 /* Find: the search window as the first step of a walk. Loaded by loader.js after the kit, the graph reader, the settings,
-   the settings window and the window (files.js). Opens from Logseq's search key (a setting), the command palette and a
-   word in the toolbar; forgets what it read when the graph changes. */
+   the settings window and the window (files.js). Opens from Logseq's search key and Logseq's own magnifier at the top left (a
+   setting), and the command palette; forgets what it read when the graph changes. */
 (function () {
 const Find = window.Find;
 const isMac = /Mac/i.test(navigator.platform || '');
@@ -27,18 +27,35 @@ function listenForKeys() {
   };
   doc.addEventListener('keydown', keyListener, true);
 }
+/* Logseq's magnifier at the top left opens Find too, while Find takes the search key: one search, where the toolbar had a second
+   button for it (the owner, 9 November 2026: "streamline not just move icons around"). Shift and the magnifier is Logseq's own
+   search, as Cmd Shift K is. */
+let searchPress = null, offMenu = null;
+function takeSearchButton() {
+  const doc = Find.kit.host();
+  if (searchPress) doc.removeEventListener('click', searchPress, true);
+  searchPress = event => {
+    if (!event.target?.closest?.('#search-button') || event.shiftKey || !Find.settings.setting('takesSearchKey')) return;
+    event.preventDefault(); event.stopImmediatePropagation();
+    Find.window.toggle();
+  };
+  doc.addEventListener('click', searchPress, true);
+}
 async function main() {
+  takeSearchButton();
+  offMenu = window.PluginDoor.addMenuItem({ key: 'find', label: 'Find', icon: 'search', run: () => Find.window.open() });
   listenForKeys();
   logseq.App.registerCommandPalette({ key: 'find-open', label: 'Find' }, () => Find.window.open());
   logseq.App.registerCommandPalette({ key: 'find-sentence', label: 'Find by sentence' }, () => Find.window.sentence());
   logseq.provideModel({ findOpen: () => Find.window.open() });
-  logseq.App.registerUIItem('toolbar', { key: 'find-open', template: '<a class="button" data-on-click="findOpen" title="Find (Cmd+K)"><i class="ti ti-route"></i></a>' });
   logseq.DB.onChanged(() => Find.window.forget());
   logseq.App.onCurrentGraphChanged(() => { Find.window.close(); Find.window.forget(); });
 }
 function stop() {
   try { Find.window.close(); } catch (error) { console.error('Find: the window could not close', error); }
   if (keyListener) Find.kit.host().removeEventListener('keydown', keyListener, true);
+  if (searchPress) Find.kit.host().removeEventListener('click', searchPress, true);
+  offMenu?.();
   Find.kit.sweep();
 }
 window.PluginDoor.describe('find', { schema: [{ type: 'heading', title: 'The search window', place: 'finding' }, ...Find.settings.schema], specimen: Find.settings.specimen });

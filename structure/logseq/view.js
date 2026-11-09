@@ -76,12 +76,32 @@ const CSS = `
 .st-tag .sug { align-items: center; } .st-rel .lk-more { margin-top: 2px; }
 .st-lines-t .rg { display: inline-flex; gap: 4px; align-items: baseline; }
 .st-tag .st-in { max-width: 240px; }
-.st-holder-insp { display: grid; gap: 18px; padding: 4px 2px 12px; }
-.st-holder-insp .st-lines-t { grid-template-columns: 120px minmax(0, 1fr); }
-.st-holder-insp .st-lines-t .ont { grid-template-columns: minmax(0, auto) minmax(0, 1fr) auto; }
+/* The inspector: two parts, each under its head, a hairline and space between them. The heads in the heading weight; the names
+   of the lines in the quiet grey at the body weight, as Logseq writes a property's name, so what you read is the values. */
+.st-holder-insp { display: grid; gap: 24px; padding: 4px 2px 12px; }
+.st-holder-insp .st-lines-t { grid-template-columns: 112px minmax(0, 1fr); gap: 10px 14px; }
+.st-holder-insp .st-lines-t dt { font-weight: 400; color: var(--lk-quiet); display: flex; gap: 6px; align-items: baseline; min-width: 0; }
+.st-insp-h { display: none; }
+/* The sidebar's views as words only: the cube with a + listed the plugin's panels in a menu; the inspector is a word in the row now
+   (mount.js), and the plugin's panel heads keep their fold and their ×, without Logseq's ··· menu, as Links and Endnotes have them. */
+#right-sidebar .cp__right-sidebar-settings > div:has(> button .ls-icon-cube-plus) { display: none !important; }
+#right-sidebar .sidebar-item:has(h3[id^="_sidebar.structure"]) [data-testid="sidebar-item-more"] { display: none !important; }
+.st-holder-insp .st-insp-h { display: flex; gap: 8px; align-items: baseline; font-weight: 600; font-size: 16px; line-height: 1.4; margin: 0 0 12px; overflow-wrap: anywhere; }
+.st-holder-insp .st-insp-h .lk-tag { font-weight: 600; }
+.st-holder-insp .st-insp-h .st-pi { width: 13px; height: 13px; color: var(--lk-quiet); }
+.st-holder-insp dt .st-pi, .st-holder-insp dt .ti { flex: none; width: 13px; font-size: 13px; color: var(--lk-faint); position: relative; top: 1px; }
+.st-insp-top:not(:has(.st-insp-h, .st-lines-t)) { display: none; }
+.st-insp-top:not(:has(.st-insp-h, .st-lines-t)) + .st-insp-node { border-top: 0; padding-top: 0; }
+/* A tag the property is on: its name and count on one line, what you can do with it under them, so the narrow panel never
+   squeezes the count into a column of single letters. */
+.st-holder-insp .st-lines-t .ont { grid-template-columns: minmax(0, 1fr) auto; }
+.st-holder-insp .st-lines-t .ont .acts-r { grid-column: 1 / -1; flex-wrap: wrap; gap: 2px 8px; margin-left: -6px; }
+.st-holder-insp .st-lines-t .ont .acts-r:empty { display: none; }
 .st-insp-node { border-top: 1px solid var(--lk-hair); padding-top: 16px; }
 .st-insp-node:empty { display: none; }
-.st-insp-words { margin-bottom: 12px; line-height: 1.5; }
+.st-insp-words { display: flex; gap: 8px; align-items: baseline; margin-bottom: 12px; line-height: 1.4; font-weight: 600; font-size: 16px; }
+.st-insp-words .lk-bul { flex: none; position: relative; top: -2px; }
+.st-insp-words .st-insp-said { min-width: 0; overflow-wrap: anywhere; }
 .st-insp-none { margin: 0; color: var(--lk-faint); }
 .st-insp-outline { margin-top: 16px; display: grid; gap: 4px; line-height: 1.5; }
 .st-insp-b { display: flex; gap: 6px; align-items: baseline; padding-left: calc(var(--d) * 22px); }
@@ -462,6 +482,11 @@ function make(holder, mode, app, opts = {}) {
       (p.type === 'node' ? `<dt>Relationships</dt><dd>${rels.length ? `<div class="st-rel">${shown.map(r => `${relWord(r.from)}${relProp(r)}<span class="num">${r.n}</span>`).join('')}${shown.length < rels.length ? `<span class="all lk-more" data-all="${key}">and ${rels.length - shown.length} more</span>` : ''}</div>` : '<span>No relationships yet</span>'}</dd>` : '') + `</dl>${pmergeAskHtml(pid)}` +
       R.issuesOfProp(ISS(), pid).filter(i => !(i.line && i.line.kid != null)).map(i => { const n = ISS().indexOf(i); return `<div class="sug"><b>Suggested</b><span>${partsHtml(i.parts)}</span><span class="fix act lk-fix lk-i-${fixIcon(i.fix)}" data-fix="${n}">${esc(fixWord(i.fix))}</span></div>${askHtml(n)}`; }).join('');
   }
+  /* In the inspector each part is headed by what it describes (the owner, 9 November 2026: "how the section appear"): the tag in
+     its mono, or the property with its icon. Above the table the page's own title says it, so the head shows in the inspector only. */
+  const inspHeadHtml = o => { const p = o.prop != null ? P(o.prop) : null;
+    if (o.prop != null) return p ? `<div class="st-insp-h">${pi(p)}<span>${esc(p.title)}</span></div>` : '';
+    return T(o.tag) ? `<div class="st-insp-h">${tagLink(o.tag)}</div>` : ''; };
   function logHtml() {
     const all = app.logged();
     return `<div class="st-log">${all.length ? all.map(x => `<div class="ln"><span>${esc(new Date(x.at).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }))}</span><span>${esc(x.text)}</span><span>${x.nodes ? plural(x.nodes, 'node') : ''}</span></div>`).join('') : '<div class="st-empty">Nothing has been changed yet.</div>'}</div>`;
@@ -762,7 +787,7 @@ function make(holder, mode, app, opts = {}) {
       const card = st.view === 'table' ? tableHtml() : st.view === 'log' ? logHtml() : st.view === 'nodes' ? nodesHtml() : st.split ? panesHtml() : regionsHtml();
       h = `${topHtml()}<div class="st-tray">${trayHtml()}</div><div class="st-right">${card}</div>`;
     } else if (mode === 'line') h = `<div class="st-tray">${trayHtml()}</div>${lineHtml(opts.tag)}`;
-    else if (mode === 'tag') h = opts.prop != null ? `<div class="st-tray">${trayHtml()}</div>${propLinesHtml(opts.prop)}` : linesHtml(opts.tag);
+    else if (mode === 'tag') h = opts.prop != null ? `${inspHeadHtml(opts)}<div class="st-tray">${trayHtml()}</div>${propLinesHtml(opts.prop)}` : inspHeadHtml(opts) + linesHtml(opts.tag);
     else h = treeHtml();
     if (st.menu && st.menu.owner === mode) h += menuHtml();
     // What a fold opens rolls out (the grammar), as Threads' rows do: the rows, groups and properties that were not there before.
@@ -1293,5 +1318,5 @@ function make(holder, mode, app, opts = {}) {
   return view;
 }
 
-S.view = { make, ensureStyle, CSS };
+S.view = { make, ensureStyle, CSS, pi };
 })();

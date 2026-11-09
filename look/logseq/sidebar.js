@@ -22,7 +22,10 @@ const barCss = `
 const flatCss = `
 #right-sidebar .sidebar-item-list > .sidebar-item, #right-sidebar .sidebar-item-list > .sidebar-item .sidebar-item-header { box-shadow: none !important; background: transparent !important; border-radius: 0 !important; }
 #right-sidebar .sidebar-item-list > .sidebar-item ~ .sidebar-item { border-top: 1px solid var(--lk-line) !important; margin-top: 10px; padding-top: 6px; }
-#right-sidebar .sidebar-item-list { padding-top: 24px !important; }`;
+#right-sidebar .sidebar-item-list { padding-top: 24px !important; }
+/* The whole sidebar on the page's own ground (the owner, 9 November 2026: "inspector should be same color as main view … as well
+   whole sidebar"), where Logseq paints it a grey of its own; the line at its edge parts it from the page. */
+#right-sidebar, #right-sidebar .right-sidebar-container, #right-sidebar-container { background-color: var(--lk-paper, Canvas) !important; }`;
 const PAGE_ITEM = '#right-sidebar .sidebar-item.item-type-page';
 const NAME = `${PAGE_ITEM} .sidebar-item-header .page-title > span:last-child`;
 const PROPS_TOGGLE = `${PAGE_ITEM} .ls-sidebar-page-properties > div:first-child:has(> button:only-child)`;
@@ -31,11 +34,13 @@ ${NAME} { cursor: pointer; text-decoration: underline; text-decoration-color: va
 ${NAME}:hover { text-decoration-color: currentColor; }
 ${PROPS_TOGGLE} { display: none !important; }`;
 
-// The developer views are told by their words; the mark is swept with the plugin's attributes.
+// The developer views and Help are told by their words; the mark is swept with the plugin's attributes.
 function markDevViews(doc) {
   const on = setting('sidebarBar');
   for (const box of doc.querySelectorAll('#right-sidebar .cp__right-sidebar-settings > div')) {
-    const dev = on && /^\(Dev\)/.test(box.textContent.trim());
+    // Help goes too: the ? at the window's bottom right opens Logseq's help too; and Contents and Page graph (the owner, 9 November
+    // 2026: "remove contents, page, graph"), so the row holds the plugin's views: Inspector, Links, Endnotes.
+    const dev = on && /^(\(Dev\)|Help|Contents|Page graph)$|^\(Dev\)/.test(box.textContent.trim());
     if (dev) { if (!box.hasAttribute('data-lk-dev')) box.setAttribute('data-lk-dev', ''); }
     else if (box.hasAttribute('data-lk-dev')) box.removeAttribute('data-lk-dev');
   }
