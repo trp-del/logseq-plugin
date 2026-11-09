@@ -55,7 +55,20 @@ const twoWayCss = `
 .th-two-way .th-tw-row + .th-tw-row { margin-top: 64px; }
 /* The first group stands a line's gap under the find line, so the name does not sit on its hairline. */
 .th-two-way .th-tw-findrow + .th-tw-row { margin-top: 36px; }
-.th-two-way .th-tw-row > .th-tw-name { padding-bottom: 0; line-height: 1.2; margin-bottom: -4px; }
+/* The name sits over its list, the list one step in under it (9 November 2026, the owner: the name was "way to close to
+   headers"; a head beside the name was tried and taken back: "under it still, just indented"): the head's chevron stands
+   under the name's words, so the head reads as inside the property, as a child bullet under its parent. The nodes keep
+   the width that is left. */
+.th-two-way .th-tw-row > .th-tw-name { padding-bottom: 2px; }
+/* The icons beside the names were taken out and put back the same day (9 November 2026, the owner: "put icons of
+   properties in threads back"). */
+.th-two-way .th-tw-row > .th-tw-value { margin-left: var(--th-tw-level); }
+/* The name's words at Logseq's words edge: its icon 15px at the mark edge, the words 20px in (the field's wash reaches 4px out). */
+.th-two-way .th-tw-row > .th-tw-name { --th-tw-in: 17px; }   /* the words at 305, where Logseq's own property names start (its bullets' words are at 308) */
+/* The heading's words at the same edge. */
+.th-two-way .th-tw-whole-line > .th-ol-body { margin-left: 1px; }
+/* The list's words 20px right of its chevron, as Logseq's words from a bullet. */
+.th-two-way .th-tw-row > .th-tw-value > .th-tw-head > .th-ol-body { margin-left: -2px; }
 /* A property's name starts with its icon (0.4.477), hung in the room left of the name so the names stay on one edge
    with the row's own words ("Mentioned in"), which have none. The section has two edges (the owner, 7 November 2026: the
    cough page's lines started at five places): the icons, chevrons and the + stand on the section's edge; every name,
@@ -97,6 +110,10 @@ const twoWayCss = `
 .th-two-way .th-tw-add { position: relative; }
 .th-two-way .th-tw-add::after { content: attr(data-what); position: absolute; left: 100%; top: 50%; transform: translateY(-50%); margin-left: 4px; padding: 0 6px 0 2px; white-space: nowrap; font-size: var(--lk-small); font-weight: 400; color: var(--lk-quiet); background: var(--ls-primary-background-color, var(--lk-paper, #fff)); opacity: 0; pointer-events: none; transition: opacity .12s; z-index: 2; }
 .th-two-way .th-tw-add:is(:hover, :focus-visible)::after { opacity: 1; }
+/* At rest the word takes no room at all, so a head standing right of its name (9 November 2026) never widens the page past
+   its edge; it still fades in, from nothing, under the pointer. */
+.th-two-way .th-tw-add:not(:hover, :focus-visible)::after { display: none; }
+@starting-style { .th-two-way .th-tw-add:is(:hover, :focus-visible)::after { opacity: 0; } }
 /* The quiet lines inside a list (earlier, since, a year, a gap) start at the nodes' dots, so they read as the list's own. */
 .th-two-way .th-tw-list .th-tw-earlier { margin-left: calc(2 * var(--th-tw-in)); }
 /* Since you last looked (N1): a small dot before a new node's name, in the link colour of Logseq, quiet. */
@@ -107,13 +124,9 @@ const twoWayCss = `
 .th-two-way .th-tw-pinned { color: var(--lk-faint); font-size: var(--lk-label); margin-right: 4px; }
 .th-two-way .th-tw-pingap { height: 10px; }
 /* What the list keeps saying (N6): one quiet line under the head; a value in force reads in the text colour. */
-.th-two-way .th-tw-keeps { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; margin: 0 0 4px calc(16px + var(--th-ol-gap)); font-size: var(--lk-small); color: var(--lk-quiet); }
+.th-two-way .th-tw-keeps { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; margin: 0 0 4px calc(2 * var(--th-tw-in)); font-size: var(--lk-small); color: var(--lk-quiet); }   /* at the days' edge, as the quiet lines of the list */
 .th-two-way .th-tw-keepsword { color: var(--lk-faint); }
 .th-two-way .th-tw-keep { all: unset; cursor: pointer; color: var(--lk-quiet); text-decoration: underline; text-decoration-color: var(--lk-line); text-underline-offset: 3px; }
-/* At rest the word takes no room at all, so a head standing right of its name (9 November 2026) never widens the page past
-   its edge; it still fades in, from nothing, under the pointer. */
-.th-two-way .th-tw-add:not(:hover, :focus-visible)::after { display: none; }
-@starting-style { .th-two-way .th-tw-add:is(:hover, :focus-visible)::after { opacity: 0; } }
 .th-two-way .th-tw-keep:hover, .th-two-way .th-tw-keep[aria-pressed="true"] { color: var(--lk-text, currentColor); text-decoration-color: currentColor; }
 .th-two-way .th-tw-kname { color: var(--lk-faint); }
 .th-two-way .th-tw-sorted { color: var(--lk-quiet); font-weight: 400; }
@@ -125,7 +138,7 @@ const twoWayCss = `
 .th-two-way .th-tw-ymonth { position: absolute; bottom: 1px; font-size: var(--lk-label); color: var(--lk-faint); transform: translateX(-2px); pointer-events: none; }
 .th-two-way .th-tw-yband { position: absolute; top: 0; bottom: 0; background: var(--lk-wash); pointer-events: none; }
 /* Saved views (N9): a quiet line under the find line. */
-.th-two-way .th-tw-views { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; margin-top: 4px; font-size: var(--lk-small); }
+.th-two-way .th-tw-views { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; margin: 4px 0 0 9px; font-size: var(--lk-small); }   /* its words at the words edge */
 .th-two-way .th-tw-viewname { all: unset; cursor: pointer; color: var(--lk-quiet); text-decoration: underline; text-decoration-color: var(--lk-line); text-underline-offset: 3px; }
 .th-two-way .th-tw-viewname:hover { color: var(--lk-text, currentColor); }
 /* The keyboard walk (N14): the name the keyboard is on reads with its underline and the line's wash. */
@@ -314,6 +327,7 @@ const twoWayCss = `
 /* A list with no head (a single node, "Mentioned in") steps in as one with a head does, so every node's chevron stands
    one step in, its dot after it, at one place down the whole section; its line for a new node stays on the edge. */
 .th-two-way .th-tw-value:not(:has(> .th-tw-head)) { padding-left: var(--th-tw-in); }
+.th-two-way .th-tw-row > .th-tw-value:not(:has(> .th-tw-head)) { padding-left: 0; }
 .th-two-way .th-tw-value:not(:has(> .th-tw-head)) > .th-tw-draft { margin-left: calc(-.35rem - var(--th-tw-in)); }
 /* A heading's chevron is never over its nodes' chevrons (the owner, 2026-10-27: "the heading chevron cannot be over other
    chevrons"): everything a list holds steps in one step, dated or not, and a group's nodes once more under the group;
@@ -329,7 +343,6 @@ const twoWayCss = `
 .th-two-way .th-ol-from-in { --th-ol-cx: calc(16px + var(--th-ol-gap) + 8px); }
 .th-two-way .th-tw-back + .th-ol-kids { --th-ol-cx: calc(var(--th-ol-name) + 8px); }
 /* Digging steps the same 22px as a list under its heading: a node's lines start under its words (8px to the hairline,
-.th-two-way .th-tw-row > .th-tw-value:not(:has(> .th-tw-head)) { padding-left: 0; }
    1px of it, 13px after). The faint grey of an opened node stops at the section's right edge. */
 .th-two-way .th-ol-kids:not(.th-ol-bare) { padding-left: 13px; }
 .th-two-way .th-ol-unit { margin-right: 0; }
@@ -355,6 +368,7 @@ const twoWayCss = `
 .th-two-way .th-task { background: none; border: 0; padding: 0; font: inherit; flex: none; align-self: flex-start; display: inline-flex; align-items: center; height: 1.5em; margin-right: 6px; cursor: pointer; border-radius: 50%; }
 .th-two-way .th-task:focus-visible { background: var(--lk-wash); }
 .th-two-way .th-task svg { width: 1.05em; height: 1.05em; display: block; }
+.th-two-way .th-task .ti { font-size: 1.05em; line-height: 1; }
 .th-two-way .th-ol-body > .th-pencil, .th-two-way .th-ol-body > .th-tw-could { margin-left: 8px; }
 .th-two-way .th-tw-could { display: inline-flex; align-items: baseline; }
 /* No underline at rest in this section, under the pointer the firm one (the owner, 1 November 2026: long names, each underlined in full, striped it). */
@@ -368,7 +382,6 @@ const twoWayCss = `
 /* What links to an opened node, as a head (C4): its words in the head's weight, the kinds quiet after them. */
 .th-two-way .th-tw-linkword { all: unset; cursor: pointer; }
 .th-two-way .th-tw-linkword { font-weight: 500; }
-.th-two-way .th-task .ti { font-size: 1.05em; line-height: 1; }
 .th-two-way .th-tw-linkkinds { color: var(--lk-quiet); font-size: var(--lk-small); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* The empty properties of an opened node, folded into one quiet line (C5). */
 /* The names' column of an opened node fits its longest name (C6). */
@@ -399,11 +412,14 @@ const twoWayCss = `
 .th-two-way .th-tw-findrow { grid-column: 1 / -1; padding: 0; }
 /* The section's own line, the whole of it folding under it, as Logseq's Linked references head does. */
 .th-two-way .th-tw-whole { grid-column: 1 / -1; padding: 0 0 8px; }
-.th-two-way .th-tw-whole-name { color: inherit; font-weight: 500; text-decoration: none; cursor: pointer; }
+/* The section's heading reads as a heading, a step above the page's own words (9 November 2026, the owner: "Linked doesn't
+   even look like anything substantial"): 20px, semibold, the size of a heading in a page. */
+.th-two-way .th-tw-whole-name { color: inherit; font-size: 20px; font-weight: 600; line-height: 1.3; text-decoration: none; cursor: pointer; }
 .th-two-way .th-tw-whole-name:hover { text-decoration: none; }
 /* The whole width of the section, its line a hairline even while typing (the owner: "weirdly short", "bottom of it can be
    hairline"). */
 .th-two-way .th-tw-findrow > .th-field, .th-two-way .th-tw-findrow > .th-field:focus-within { border-bottom-color: var(--lk-hair); }
+.th-two-way .th-tw-findrow > .th-field { gap: 2px; }   /* the glass 15px at the mark edge, the words at 305, as a name after its icon */
 .th-two-way .th-tw-stepped { grid-column: 1 / -1; }
 .th-two-way .th-tw-stepped > .th-ol-trail { padding: 2px 0 8px; }
 .th-two-way .th-tw-ghead .th-chev { align-self: center; }

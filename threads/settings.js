@@ -22,7 +22,7 @@ window.PluginDoor.describe('threads', {
   get schema() {
     return [
       { type: 'heading', title: 'Rows under a page', place: 'following' },
-      item('twoWayRows', { title: 'Show everything that points here' }),
+      item('twoWayRows', { title: 'Show Linked: everything that links to the page' }),
       item('twoWayDays', { title: 'A day beside each row' }),
       item('twoWayMentions', { title: 'Mentions as rows' }),
       { type: 'heading', title: 'Logseq’s own lists', place: 'following' },

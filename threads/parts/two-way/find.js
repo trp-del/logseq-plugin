@@ -26,7 +26,7 @@ function findHtml() {
   const count = twoWay.askCount?.() || (!state.find ? n : read.beside && !other ? `no page “${read.beside}”` : other ? `beside ${other.title}` : read.asOf && !read.q ? `${found} of ${n} up to ${twoWay.dayText(read.asOf)}` : `${found} of ${n}`);
   // On a day: a week back, a week on, and Today, so the day can be walked without typing it again (C15, 7 November 2026).
   const steps = read.asOf ? `<div class="th-tw-daysteps lk-strip"><button type="button" class="lk-btn lk-low" data-daystep="-7" title="The page a week earlier">‹ a week earlier</button><button type="button" class="lk-btn lk-low" data-daystep="7" title="The page a week later">a week later ›</button><button type="button" class="lk-btn lk-low" data-daystep="0" title="Back to today's whole page">Today</button></div>` : '';
-  return `<div class="th-tw-findrow">${shared.fieldHtml({ icon: 'find', value: state.find, placeholder: 'Find in what points here', count, inputCls: 'th-tw-find', label: 'Find in what points here' })}${steps}${twoWay.viewsHtml?.() || ''}</div>`;
+  return `<div class="th-tw-findrow">${shared.fieldHtml({ icon: 'find', value: state.find, placeholder: 'Find in these', count, inputCls: 'th-tw-find', label: 'Find in what points here' })}${steps}${twoWay.viewsHtml?.() || ''}</div>`;
 }
 /* The find line's words read (7 November 2026): "and Dr. Helen Brooks" names a page to stand beside this one (parts/two-way/beside.js);
    "on Oct 7", "up to 7 Oct", "until 2026-10-07" turn the page back to that day, the later nodes faint; whatever is left
@@ -189,7 +189,7 @@ function keepFind(box, caret) {
 }
 
 // The find line called up where it does not stand by itself (fewer than twenty rows): Logseq's command palette.
-twoWay.starters.push(() => twoWay.provided.registerCommand?.('threads-find', 'Threads: find in what points here', () => {
+twoWay.starters.push(() => twoWay.provided.registerCommand?.('threads-find', 'Threads: find in Linked', () => {
   state.findShown = true; state.html = null; twoWay.draw(host());
   state.box?.querySelector('.th-tw-find')?.focus({ preventScroll: false });
 }));
