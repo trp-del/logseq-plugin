@@ -87,6 +87,7 @@ const REASONS = {
   alike: p => `Earlier bullets like this one had ${p.shown}`, 'alike-tag': () => 'Earlier lines like this one have this tag',
   words: () => 'Named in your words', parent: () => 'The bullet above has it', day: () => 'The day this is written on', 'guess-day': () => 'The day this is written on; change it if it happens another day',
   'words-day': () => 'A day named in your words', 'words-deadline': () => 'The day your words say it is due', 'words-scheduled': () => 'The day your words say it is set for',
+  lesson: p => `put in ${p.prop?.title} because you moved such values there before (the Predictive lessons page)`,
   'words-money': () => 'The sum of money in your words', 'alike-money': p => `The sum of money in your words; earlier bullets like this one put theirs in ${p.prop.title}`, 'words-number': p => `The number beside “${p.prop.title.toLowerCase()}” in your words`,
   model: () => 'Read from your words by Apple’s model, on this Mac', meaning: () => 'Earlier notes that mean the same, matched by Apple’s tools on this Mac',
   names: () => 'A name Apple’s name finder read in your words, with no page yet; taking it makes the page, with this tag', untagged: () => 'A page linked in your words that has no tag yet; taking it gives the page the tag too',
@@ -320,7 +321,7 @@ async function compute(box) {
   if (!ok) { S.live = null; return hide(); }
   const ctx0 = await app.context({ wait: false });   // never waited for while typing
   if (!ctx0) return;
-  loadRefused(ctx0.graph);
+  loadRefused(ctx0.graph); Flow.lessonsStore?.load(ctx0.graph);
   const ctx = await app.freshLinks(ctx0, words);
   const block = await db.pullBlock(uuid);
   // Still the newest check, not cleared by Escape meanwhile, and the bullet still the one in edit.
@@ -335,6 +336,7 @@ async function compute(box) {
   // these words at once, the rest asked now and drawn as it comes, as long as the bullet and its words are still the same.
   // A tag read comes first, the tag's properties as the next answer comes.
   const asking = Flow.apple, had = asking?.had(ctx, bullet, result);
+  S.ctx = ctx;
   show(box, uuid, words, record, rules, (had || []).filter(open));
   if ((had && asking.done(ctx, bullet, result)) || !asking?.wanted(ctx, bullet, result)) return;
   const drawn = more => {
@@ -344,9 +346,42 @@ async function compute(box) {
   };
   asking.ask(ctx, bullet, result, drawn).then(drawn, error => warnOnce('Apple’s model could not be asked', error));
 }
+/* The lessons of this graph (core/lessons.js) applied to what is proposed: a suggestion you keep saying no to is held back, and a
+   value you keep moving to another property is proposed there. The record's properties as its tags (a proposed tag's too) give them. */
+function byLessons(ctx, record, pieces) {
+  const store = Flow.lessonsStore;
+  if (!ctx || !store || !store.lessons().size) return pieces;
+  const tags = [...new Set([...(record.tags || []), ...pieces.filter(p => p.kind === 'tag').flatMap(p => p.ids)])];
+  const fields = Flow.schema.fieldsOfTags(tags, ctx.schema);
+  return Flow.lessons.apply(pieces, store.lessons(), { fields, open: f => !(record.values?.get(f.ident) || []).length });
+}
+// What you did with a suggestion you left untaken, learned once the bullet is saved: another tag, or another value set by hand in
+// its property, is a no; the same sum or day set by hand in another property of the same kind is a move.
+async function learnLeft(live, block, ctx, record) {
+  const store = Flow.lessonsStore, recordUuid = String(record.uuid || '');
+  if (!store || !textLib.UUID.test(recordUuid)) return;
+  const left = live.pieces.filter(p => p.guess && live.drawn?.has(guessKey(p)) && !wanted(live, p));
+  if (!left.length) return;
+  const tags = new Set((db.pick(block, 'block/tags') || []).map(db.idOf));
+  const holds = (prop, ids, p) => !ids.length ? false : p.kind === 'number' ? Number(ids[0]) === Number(p.ids[0])
+    : p.kind === 'day' ? (prop.type === 'datetime' ? Flow.dates.dayNumber(new Date(Number(ids[0]))) : ctx.days?.get(ids[0])) === p.day
+    : textLib.sameIds(ids, p.ids);
+  const fields = Flow.schema.fieldsOfTags(record.tags || [], ctx.schema);
+  for (const p of left) {
+    if (p.kind === 'tag') { if (!tags.has(p.tag.id) && [...tags].some(id => ctx.knownTags.has(id))) store.note(p, 'no'); continue; }
+    if (!p.prop) continue;
+    const own = await db.currentIds(recordUuid, p.prop);
+    if (own.length) { if (!holds(p.prop, own, p)) store.note(p, 'no'); continue; }
+    if (p.kind !== 'number' && p.kind !== 'day') continue;
+    for (const f of fields) {
+      if (f.ident === p.ident || !Flow.lessons.sameKind(f, p.prop)) continue;
+      if (holds(f, await db.currentIds(recordUuid, f), p)) { store.note(p, 'moved', f.title); break; }
+    }
+  }
+}
 // The proposals of the bullet being written: the rules' and the model's (core/model.js, merge).
 function show(box, uuid, words, record, rules, more) {
-  const pieces = Flow.model.merge(rules, more), fromModel = pieces.filter(Flow.apple.fromApple);
+  const pieces = byLessons(S.ctx, record, Flow.model.merge(rules, more)), fromModel = pieces.filter(Flow.apple.fromApple);
   if (!pieces.length) { S.live = null; return hide(); }
   if (S.accepted.uuid !== uuid) S.accepted = { uuid, at: 0, keys: new Set() };
   // What was clicked or picked stays while the words change, for the proposals still there.
@@ -409,7 +444,8 @@ async function takeShadow(live) {
   const { record, pieces: found } = propose.propose(ctx, db.bulletOf(block, db.pick(block, 'block/title'), ctx.schema));
   const recordUuid = String(record.uuid || ''), refused = S.refused.get(recordUuid);
   // The guesses of Apple's tools go with them, for the words they were given (the rules do not ask them again here).
-  const again = Flow.model.merge(found, live.model?.words === (live.boxText ?? live.text) ? live.model.pieces : []);
+  const again = byLessons(ctx, record, Flow.model.merge(found, live.model?.words === (live.boxText ?? live.text) ? live.model.pieces : []));
+  learnLeft(live, block, ctx, record).catch(error => warnOnce('a lesson could not be learned', error));
   // What was shown is what is written: the rules worked out again on the saved bullet, and where they now come out otherwise
   // for a property (another page, names in another order), the value that was on screen. The tag first, which the rest wait for.
   const chosen = new Map();
@@ -467,6 +503,7 @@ async function writePieces(recordUuid, pieces) {
     }
     if (failed.length) throw failed[0];
   };
+  for (const piece of written) Flow.lessonsStore?.note(piece, 'taken');
   return { written, undo };
 }
 
@@ -488,6 +525,7 @@ function rememberUndo(recordUuid, bulletUuid, written, undo) {
     run: async () => {
       if (S.undo === mine) S.undo = null;
       refuse(mine.record, mine.pieces.map(guessKey));
+      for (const piece of mine.pieces) Flow.lessonsStore?.note(piece, 'no');
       S.filling.delete(mine.record);
       await undo();
     },
@@ -627,6 +665,7 @@ function onTakeOff(event) {
   const live = S.live, key = event.target.closest('.flow-x').dataset.flowKey, piece = live?.pieces.find(p => guessKey(p) === key);
   if (!piece) return;
   refuse(live.recordUuid, [key]);
+  Flow.lessonsStore?.note(piece, 'no');
   live.pieces = live.pieces.filter(p => p !== piece && !(piece.kind === 'tag' && p.needsTag));
   live.clicked?.delete(key); live.picked?.delete(key);
   if (live.model) live.model.pieces = live.model.pieces.filter(p => live.pieces.includes(p));

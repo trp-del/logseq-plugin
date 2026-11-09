@@ -132,7 +132,9 @@ const taggedNodes = (tagIds, idents) => !tagIds.length ? Promise.resolve([]) : d
 const nodesById = (ids, idents) => !ids.length ? Promise.resolve([]) : dsQuery(`[:find (pull ?b ${NODE_PULL(idents)})
       :where [(ground #{${ids.join(' ')}}) [?b ...]] [?b :block/uuid _] (not [?b :logseq.property/deleted-at _])]`).then(rows => rows.map(([n]) => n));
 const aliasPairs = async () => (await dsQuery('[:find ?o ?a :where [?o :block/alias ?a]]').catch(() => [])).map(([o, a]) => [Number(o), Number(a)]);
-const plainLines = async () => (await dsQuery('[:find ?b ?t :where [?b :block/page _] [?b :block/title ?t] [(not= ?t "")] (not [?b :block/tags _]) (not [?b :logseq.property/deleted-at _])]').catch(() => []))
+// The page Predictive keeps its lessons on (logseq/lessons.js) is not writing of yours: its lines are never learned from.
+const LESSONS_PAGE = 'predictive lessons';
+const plainLines = async () => (await dsQuery(`[:find ?b ?t :where [?b :block/page ?pg] [?b :block/title ?t] [(not= ?t "")] (not [?b :block/tags _]) (not [?b :logseq.property/deleted-at _]) (not [?pg :block/name "${LESSONS_PAGE}"])]`).catch(() => []))
   .map(([id, title]) => ({ id: Number(id), title: String(title) }));
 // The journal days, by page; and each day's own title, which Logseq keeps when the date format changes (the pencil copies it).
 const dayTitles = new Map();
@@ -192,13 +194,16 @@ function learnLine(ctx, id, title) {
 }
 // Nodes changed a moment ago take their new place in what the guesses learn from, so a value filled in counts for the next
 // bullet at once instead of at the next full reading.
+let lessonsPage = 0;
+const lessonsPageId = async () => lessonsPage || (lessonsPage = Number((await dsQuery(`[:find ?p :where [?p :block/name "${LESSONS_PAGE}"]]`).catch(() => []))[0]?.[0] || 0));
 async function learnNodes(ctx, ids) {
   const list = [...new Set(ids)].filter(isEntityId);
   if (!ctx?.index || !list.length) return;
-  const known = ctx.knownTags;
+  const known = ctx.knownTags, lessonsId = await lessonsPageId();
   const nodes = new Map((await nodesById(list, [...ctx.learned, ...(ctx.numberProps || [])].map(p => p.ident))).map(n => [idOf(n), n]));
   for (const id of list) {
-    const node = nodes.get(id);
+    let node = nodes.get(id);
+    if (node && lessonsId && idOf(pick(node, 'block/page')) === lessonsId) node = null;   // a line of the lessons page: not yours, never learned
     if (ctx.linkLines) learnLine(ctx, id, node && pick(node, 'block/page') ? String(pick(node, 'block/title') ?? '') : '');
     if (!node) { learnEntry(ctx, id, null); continue; }
     const raw = rawEntry(node, ctx.learned, known, ctx.numberProps || []), anyTags = listOf(pick(node, 'block/tags')).length;

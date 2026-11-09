@@ -335,6 +335,45 @@ test('with two money properties, earlier bullets like this one say which takes t
   assert.equal(odd.pieces.filter(p => p.kind === 'number').length, 0, 'two money names and no bullet like it: nothing');
 });
 
+section('lessons: what you do with a suggestion (core/lessons.js)');
+test('a lesson is written as a plain line and read back the same', () => {
+  const L = require('../core/lessons.js'), lessons = new Map();
+  const tag = { kind: 'tag', tag: { title: 'Conversation' }, ids: [7], how: 'meaning', guess: true };
+  for (let i = 0; i < 5; i++) L.note(lessons, tag, 'no');
+  L.note(lessons, tag, 'taken');
+  const line = L.lineOf(lessons.get(L.keyOf(tag)));
+  assert.equal(line, 'Apple’s matcher · tag Conversation: taken 1, said no 5');
+  const back = L.parseLine(line);
+  assert.equal(back.taken, 1); assert.equal(back.no, 5); assert.equal(L.parseLine('What Predictive has learned.'), null);
+  assert.equal(L.note(lessons, { ...tag, guess: false }, 'no'), null, 'a sure value teaches nothing');
+});
+test('said no to often enough, a guess is held back, with the guesses that rested on its tag; a sure value never', () => {
+  const L = require('../core/lessons.js'), lessons = new Map();
+  const tag = { kind: 'tag', ident: 'block/tags', tag: { title: 'Conversation' }, ids: [7], how: 'meaning', guess: true };
+  const under = { kind: 'node', ident: 'p', prop: { title: 'Spoke with', type: 'node' }, ids: [9], how: 'meaning', guess: true, needsTag: true };
+  const sure = { kind: 'node', ident: 'q', prop: { title: 'Topic', type: 'node' }, ids: [3], how: 'linked' };
+  L.note(lessons, tag, 'no'); L.note(lessons, tag, 'no');
+  assert.equal(L.apply([tag, under], lessons).length, 2, 'twice is not yet a lesson');
+  L.note(lessons, tag, 'no');
+  assert.deepEqual(L.apply([tag, under, sure], lessons), [sure]);
+  for (let i = 0; i < 2; i++) L.note(lessons, tag, 'taken');
+  assert.equal(L.apply([tag], lessons).length, 1, 'taken often enough, it comes back');
+});
+test('a sum moved by hand to another property twice is proposed there, if that property is open', () => {
+  const L = require('../core/lessons.js'), lessons = new Map();
+  const amount = { ident: 'a', title: 'Amount', type: 'number' }, payment = { ident: 'b', title: 'Payment', type: 'number' }, deadline = { ident: 'd', title: 'Deadline', type: 'datetime' }, due = { ident: 'e', title: 'Due date', type: 'date' };
+  const sum = { kind: 'number', ident: 'a', prop: amount, ids: [35], how: 'words-money', guess: true };
+  L.note(lessons, sum, 'moved', 'Payment');
+  assert.equal(L.apply([sum], lessons, { fields: [amount, payment] })[0].ident, 'a', 'once is not yet a lesson');
+  L.note(lessons, sum, 'moved', 'Payment');
+  const moved = L.apply([sum], lessons, { fields: [amount, payment] })[0];
+  assert.equal(moved.ident, 'b'); assert.equal(moved.ids[0], 35); assert.equal(moved.how, 'words-money+lesson');
+  assert.equal(L.apply([sum], lessons, { fields: [amount, payment], open: f => f !== payment })[0].ident, 'a', 'not over a filled one');
+  const day = { kind: 'day', ident: 'd', prop: deadline, ids: [-20261113], day: 20261113, how: 'words-deadline', guess: true };
+  L.note(lessons, day, 'moved', 'Due date'); L.note(lessons, day, 'moved', 'Due date');
+  assert.equal(L.apply([day], lessons, { fields: [deadline, due] })[0].ident, 'e', 'a day moves between a date and Logseq\'s Deadline too');
+});
+
 section('a tag waits for enough words');
 test('a line of three words gets no tag, the same line of four does', () => {
   const g = synthetic.work(), loose = { ...g.ctx, limits: { ...g.ctx.limits, tagNearLeast: .2, tagLead: .5 } };
