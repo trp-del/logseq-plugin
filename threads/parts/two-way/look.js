@@ -25,7 +25,8 @@ const twoWayCss = `
    properties, what links to it, its bullets; the groups under Group; the nodes since a day); every line 30px, "show all"
    and a bullet too. */
 .th-two-way {
-  margin: calc(14px + var(--th-tw-hold, 0px)) 0 .5rem; padding: 0;
+  /* The section stands well apart from the page's properties above and its words below (8 November 2026). */
+  margin: calc(56px + var(--th-tw-hold, 0px)) 0 24px; padding: 0;
   line-height: 1.5; user-select: text;
   /* One column (the owner, 7 November 2026: one column, not two): each property's name stands on a line of its own,
      its list under it at the section's full width, so a long name never pushes the lists right and the words have room. */
@@ -40,12 +41,15 @@ const twoWayCss = `
 .th-two-way[data-th-settling] { transition: margin-top .25s ease; }
 .th-two-way .th-tw-row { display: block; padding: 0; }
 /* Each property's group stands apart (the owner, 7 November 2026: "generous spacing between sections so it doesn't feel
-   packed"): two lines' gap between one group and the next, open or closed, well over the gap inside a group, so the
-   groups read as separate sections at a glance. The name sits right on its list, 2px over it. */
-.th-two-way .th-tw-row + .th-tw-row { margin-top: 28px; }
+   packed"; 8 November 2026: "better spacing both in terms of readability and logical groups"): a gap of about two
+   lines between one group and the next, open or closed, many times the gap inside a group, so the groups read as
+   separate sections at a glance. The name sits right on its list: its line is cut to the words' own height, so the
+   space over the head is less than the space between two nodes, and the name reads as the list's caption, not a line
+   of its own. */
+.th-two-way .th-tw-row + .th-tw-row { margin-top: 64px; }
 /* The first group stands a line's gap under the find line, so the name does not sit on its hairline. */
-.th-two-way .th-tw-findrow + .th-tw-row { margin-top: 14px; }
-.th-two-way .th-tw-row > .th-tw-name { padding-bottom: 2px; }
+.th-two-way .th-tw-findrow + .th-tw-row { margin-top: 36px; }
+.th-two-way .th-tw-row > .th-tw-name { padding-bottom: 0; line-height: 1.2; margin-bottom: -4px; }
 /* A property's name starts with its icon (0.4.477), hung in the room left of the name so the names stay on one edge
    with the row's own words ("Mentioned in"), which have none. The section has two edges (the owner, 7 November 2026: the
    cough page's lines started at five places): the icons, chevrons and the + stand on the section's edge; every name,
@@ -238,12 +242,15 @@ const twoWayCss = `
    its name (the kit's kids). The section keeps Logseq's value column: the outline starts where Logseq's values do. */
 .th-two-way .th-tw-value { display: block; font-size: inherit; }
 .th-two-way .th-tw-value.th-ol { --th-ol-day: calc(var(--lk-day, 48px) + 6px); font-size: inherit; line-height: 1.5; }
-.th-two-way .th-ol-line { min-height: 30px; padding-top: 3px; padding-bottom: 3px; }
+/* Every line 32px (8 November 2026: 36px was tried, the owner: "line can be tighter, but group spacing is good"). */
+.th-two-way .th-ol-line { min-height: 32px; padding-top: 4px; padding-bottom: 4px; }
 /* "show all" and a bullet stand on the lines' 30px too (the library's lk-more carries its own 3px; the kit's bullet 1px). */
-.th-two-way .th-ol-line.th-ol-moreline { padding-top: 0; padding-bottom: 0; }
-.th-two-way .th-ol-bullet { min-height: 30px; padding-top: 3px; padding-bottom: 3px; }
+.th-two-way .th-ol-line.th-ol-moreline { padding-top: 4px; padding-bottom: 0; }
+/* The list's head is its title: a little more room under it than between its nodes. */
+.th-two-way .th-ol-line.th-tw-head { padding-bottom: 8px; }
+.th-two-way .th-ol-bullet { min-height: 32px; padding-top: 4px; padding-bottom: 4px; }
 /* What opened ends with a line's gap, inside its box: the next line of the list stands clear of it. */
-.th-two-way .th-ol-kids:not(.th-ol-bare) > .th-ol-in { padding-bottom: 14px; }
+.th-two-way .th-ol-kids:not(.th-ol-bare) > .th-ol-in { padding-bottom: 20px; }
 /* Inside an opened node, a line's gap parts its groups: its properties, what links to it, its bullets; and each list of
    what links to it (its first line carries the name) from the one before. */
 .th-two-way .th-ol-in > .th-tw-links:first-child { margin-top: 0; }
@@ -254,7 +261,7 @@ const twoWayCss = `
 .th-two-way .th-ol-words[data-edit-bullet] { cursor: text; border-radius: 4px; padding: 0 4px; margin: 0 -4px; }
 .th-two-way .th-ol-words[data-edit-bullet]:focus-visible { background: var(--lk-wash); }
 .th-two-way .th-ol-bullet[data-bullet] > .th-ol-dot { cursor: pointer; }
-.th-two-way .th-ol-line > input.lk-tick[type=checkbox] { top: 8px; }
+.th-two-way .th-ol-line > input.lk-tick[type=checkbox] { top: 9px; }
 .th-two-way .th-tw-head { cursor: default; }
 .th-two-way .th-tw-head:hover { background: transparent; }
 /* An outline (the owner, 2026-10-27: "have [date] [chevron] [bullet]"; "13 symptom logs chevron should be aligned with
@@ -363,9 +370,9 @@ const twoWayCss = `
 .th-two-way .th-tw-npvalue:hover, .th-two-way .th-tw-npvalue:focus-visible { text-decoration: underline; text-decoration-color: var(--lk-line); text-underline-offset: 3px; }
 .th-two-way .th-ol-pname[data-edit] { cursor: pointer; }
 .th-two-way .th-ol-pname[data-edit]:hover { color: inherit; }
-.th-two-way .th-tw-findrow { grid-column: 1 / -1; padding: 0 0 6px; }
+.th-two-way .th-tw-findrow { grid-column: 1 / -1; padding: 0; }
 /* The section's own line, the whole of it folding under it, as Logseq's Linked references head does. */
-.th-two-way .th-tw-whole { grid-column: 1 / -1; padding: 0 0 6px; }
+.th-two-way .th-tw-whole { grid-column: 1 / -1; padding: 0 0 8px; }
 .th-two-way .th-tw-whole-name { color: inherit; font-weight: 500; text-decoration: none; cursor: pointer; }
 .th-two-way .th-tw-whole-name:hover { text-decoration: none; }
 /* The whole width of the section, its line a hairline even while typing (the owner: "weirdly short", "bottom of it can be

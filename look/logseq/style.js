@@ -55,6 +55,15 @@ ${AREA} .ls-properties-area .property-pair .property-key-panel *:not(.tag) { col
 const EMPTY_ROWS = `.ls-page-properties .property-pair:is(.lk-empty, .property-panel-row-empty, .property-panel-row:has(> .property-value-container :is(.is-blank, .empty-value)):not(:has(.ls-empty-text-property))):not(.lk-filled):not(:focus-within) { display: none; }`;
 const FILLED = ':is(:not(:has(.empty-value)), :has(.lk-pencil))';
 const capsules = `
+/* A bullet's properties under its words belong to that bullet (8 November 2026, the owner: "better spacing ... logical
+   groups"): a little room after them, so the next bullet stands apart from them instead of as close as they stand to their own words. */
+${AREA} .ls-block .positioned-properties.block-below { margin-bottom: 6px; }
+/* Room to read (8 November 2026, the owner; 34px lines were tried, then "line can be tighter"): a page's properties stand 30px
+   apart, not Logseq's 24, with a little more before "+ Add property"; every bullet of an outline gets 3px over and under its
+   words, 30px a line where Logseq gives 28. */
+${AREA} .ls-properties-area .property-pair:not(.lk-empty) { padding-block: 3px; }
+${AREA} .ls-new-property { margin-top: 10px; }
+${AREA} :is(.ls-page-blocks, .references) .ls-block:not(.ls-table-row *) { padding-top: 3px !important; padding-bottom: 3px !important; }
 ${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill { background: transparent !important; padding-left: 4px !important; padding-right: 4px !important; margin-inline: -4px; overflow: visible !important; }
 ${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill:not(:focus-within)::after { box-shadow: none !important; border: 0 !important; }
 ${AREA} .ls-block .positioned-properties.block-below,
