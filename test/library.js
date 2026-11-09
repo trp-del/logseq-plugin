@@ -21,7 +21,8 @@ const LIBRARY = new RegExp(KINDS.join('|'));
 // Choices and things that are not buttons: tick boxes, fold and dig arrows, a value (Group ▾, a draft's property), Find's
 // choices, Threads' kind words and a draft's property choice, and the kit's helpers, which take the
 // name from whoever calls them.
-const NOT_A_LIBRARY_BUTTON = /tick|lk-tick|lk-fold|fold|dig|lk-row|th-tw-chip|th-tw-dpick|fd-c\b|choice/;
+// Threads' task circle is Logseq's own (th-task), drawn in Logseq's shapes and colours.
+const NOT_A_LIBRARY_BUTTON = /tick|lk-tick|lk-fold|fold|dig|lk-row|th-tw-chip|th-tw-dpick|th-task|fd-c\b|choice/;
 
 const strays = [];
 for (const file of FILES) {

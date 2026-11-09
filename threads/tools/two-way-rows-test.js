@@ -98,6 +98,7 @@ function world(grouping) {
     addTag: async (uuid, tag) => { calls.push(['addTag', uuid, tag]); },
     setValue: async (uuid, ident, value, opts) => { calls.push(['setValue', uuid, ident, JSON.stringify(value), JSON.stringify(opts || null)]); },
     unsetValue: async () => {},
+    STATUS_IDENT: 'logseq.property/status',
     removeTag: async () => {}, createPage: async () => ({ uuid: U(++nextBlock) }), deletePage: async () => {}, editBlock: async () => {},
   };
   const early = [], saved = [];
@@ -1188,22 +1189,37 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
   }
   // A task shows Logseq's circle for its status; the head says what its days are of, and a line dated otherwise says its own.
   {
-    const { window, doc, part, provided, changed } = world('');
+    const { window, doc, part, provided, changed, calls } = world('');
+    // The statuses as Logseq keeps them, each with its icon; a renamed one with an icon of the user's choosing too.
+    const icon = id => ({ type: 'tabler-icon', id });
+    provided.statusChoices = async () => [[76, 'Backlog', 'Backlog'], [77, 'Todo', 'Todo'], [78, 'Doing', 'InProgress50'], [79, 'In Review', 'InReview'], [80, 'Done', 'Done'], [81, 'Canceled', 'Cancelled'], [82, 'Waiting', 'hourglass']]
+      .map(([id, title, i], n) => ({ id, title, order: 'b0' + n, icon: icon(i) }));
     provided.mentionsInto = async () => [
-      { id: 211, uuid: U(211), title: 'Ring the pharmacy', tag: 'Task', day: 20260804, dayFrom: '', status: 'todo' },
-      { id: 212, uuid: U(212), title: 'Clinic on Friday', tag: 'Task', day: 20260806, dayFrom: 'Date', status: 'done' },
-      { id: 213, uuid: U(213), title: 'Clinic next week', tag: 'Task', day: 20260812, dayFrom: 'Date', status: '' },
+      { id: 211, uuid: U(211), title: 'Ring the pharmacy', tag: 'Task', day: 20260804, dayFrom: '', status: 77 },
+      { id: 212, uuid: U(212), title: 'Clinic on Friday', tag: 'Task', day: 20260806, dayFrom: 'Date', status: 80 },
+      { id: 213, uuid: U(213), title: 'Clinic next week', tag: 'Task', day: 20260812, dayFrom: 'Date', status: 0 },
+      { id: 214, uuid: U(214), title: 'Wait for the letter', tag: 'Task', day: 20260813, dayFrom: 'Date', status: 82 },
     ];
     changed.forEach(fn => fn({ blocks: [], txMeta: { outlinerOp: 'x' } })); await wait(1050);
     const row = [...doc.querySelectorAll('.th-two-way .th-tw-row')].find(r => r.textContent.includes('Mentioned in'));
     const fold = row?.querySelector('.th-tw-head .th-chev');
     if (fold && fold.getAttribute('aria-expanded') !== 'true') { click(window, fold); await wait(30); }
     const box = [...doc.querySelectorAll('.th-two-way .th-tw-row')].find(r => r.textContent.includes('Mentioned in'));
-    check(!!box?.querySelector('.th-task.ls-icon-Todo svg') && !!box?.querySelector('.th-task.ls-icon-Done svg'), 'a task shows Logseq’s circle for its status');
-    check(box?.querySelectorAll('.th-task').length === 2, 'a node with no status shows no circle');
+    check(!!box?.querySelector('.th-task.ls-icon-Todo') && !!box?.querySelector('.th-task.ls-icon-Done'), 'a task shows Logseq’s circle for its status');
+    check(!!box?.querySelector('.th-task.ls-icon-hourglass .ti.ti-hourglass'), 'a status with an icon chosen in Logseq shows that icon');
+    check(box?.querySelectorAll('.th-task').length === 3, 'a node with no status shows no circle');
     check(/^Date /.test(box?.querySelector('.th-tw-when')?.textContent || ''), 'the head says what its days are of: ' + box?.querySelector('.th-tw-when')?.textContent);
     const froms = [...box?.querySelectorAll('.th-ol-dfrom') || []].map(e => e.textContent);
     check(froms.length === 1 && froms[0] === 'Journal', 'only the line dated otherwise says its own: ' + JSON.stringify(froms));
+    // A press on the circle opens Logseq's Set Status list; a pick writes the status, and the faded arrow puts the old one back.
+    click(window, box.querySelector('.th-task.ls-icon-Todo')); await wait(30);
+    const rowsOf = () => [...doc.querySelectorAll('.th-lsq-pop .menu-link')].map(a => a.textContent.trim());
+    check(rowsOf().join('|') === 'Backlog|Todo|Doing|In Review|Done|Canceled|Waiting|Clear', 'the circle opens Logseq’s statuses and Clear, in Logseq’s order: ' + rowsOf());
+    click(window, [...doc.querySelectorAll('.th-lsq-pop .menu-link')].find(a => a.textContent.trim() === 'Done')); await wait(120);
+    check(calls.some(c => c[0] === 'setValue' && c[1] === U(211) && c[2] === 'logseq.property/status' && c[3] === '"Done"'), 'picking Done writes the status: ' + JSON.stringify(calls.filter(c => c[0] === 'setValue')));
+    check(!!doc.querySelector(`.th-task.ls-icon-Done[data-task="${U(211)}"]`), 'the line shows the new status at once');
+    click(window, [...doc.querySelectorAll('.lk-undo[data-lk-undo]')].find(u => /Set “Ring the pharmacy” to Done/.test(u.title || ''))); await wait(150);
+    check(calls.filter(c => c[0] === 'setValue' && c[2] === 'logseq.property/status').at(-1)?.[3] === '"Todo"', 'the faded arrow puts Todo back');
     part.stop();
   }
   // Words: one value at a time, as written; a link stays one; the box is never inside the button, where a space would press it.

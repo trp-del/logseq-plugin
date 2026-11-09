@@ -478,10 +478,18 @@ function daysFrom(dated, written) {
   for (const [b, day] of written) if (!days.has(b)) days.set(b, { rank: 2, day, from: '' });
   return days;
 }
-/* A task's status (8 November 2026, the owner: "threads should be able to show tasks status circles"): the last word of
-   Logseq's own status value (todo, doing, in-review, done, canceled, backlog), drawn as Logseq draws its circle. */
-const STATUS = '[?b :logseq.property/status ?s] [?s :db/ident ?si]';
-const statusOf = rows => new Map(rows.map(([b, si]) => [b, String(si).replace(/^:?logseq\.property\/status\./, '')]));
+/* A task's status (8 November 2026, the owner: "threads should be able to show tasks status circles"): the id of the value
+   Logseq's Status holds, looked up in statusChoices, so its name and icon are always Logseq's own. */
+const STATUS = '[?b :logseq.property/status ?s]';
+const statusOf = rows => new Map(rows.map(([b, s]) => [b, Number(s) || 0]));
+/* The values Logseq's Status can take, in Logseq's order, each with its name and its icon as Logseq keeps it ({ type, id },
+   on the value itself), read afresh with the rows (9 November 2026, the owner: "have it just stay in sync with whatever icons
+   are chosen or changed"): a status added, renamed or given another icon in Logseq shows so in Threads. */
+async function statusChoices() {
+  const rows = await dsQuery('[:find ?v ?t ?o ?icon :where [?v :block/closed-value-property ?p] [?p :db/ident :logseq.property/status] [?v :block/title ?t] [(get-else $ ?v :block/order "") ?o] [(get-else $ ?v :logseq.property/icon "") ?icon]]');
+  return rows.map(([id, title, order, icon]) => ({ id: Number(id), title: String(title || ''), order: String(order || ''), icon: icon && typeof icon === 'object' ? icon : null }))
+    .sort((a, b) => (a.order < b.order ? -1 : a.order > b.order ? 1 : a.id - b.id));
+}
 async function linksInto(id) {
   // One round of questions (0.4.150): each is asked about the blocks that point here through a property of yours,
   // rather than waiting for that list first, since every wait right after a page change is long. For every page the
@@ -497,7 +505,7 @@ async function linksInto(id) {
     dsQuery(`[:find ?b ?tag :where ${these} [?b :block/tags ?t] ${YOUR_TAG} [?t :block/title ?tag]]`),
     dsQuery(`[:find ?b ?dattr ?day ?dname :where ${these} [?dprop :logseq.property/type :date] [?dprop :db/ident ?dattr] [?dprop :block/title ?dname] [?b ?dattr ?d] [?d :block/journal-day ?day]]`),
     dsQuery(`[:find ?b ?day :where ${these} [?b :block/page ?p] [?p :block/journal-day ?day]]`),
-    dsQuery(`[:find ?b ?si :where ${these} ${STATUS}]`).catch(() => []),
+    dsQuery(`[:find ?b ?s :where ${these} ${STATUS}]`).catch(() => []),
   ]);
   const isId = v => Number.isSafeInteger(v) && v > 0;
   const pages = new Map(), fieldsByName = new Map(), ids = new Set();
@@ -518,7 +526,7 @@ async function linksInto(id) {
   const days = daysFrom(dated, written), status = statusOf(statuses);
   const tags = new Map();
   for (const [b, tag] of tagged) if (!tags.has(b) || tag < tags.get(b)) tags.set(b, tag);
-  for (const [b, uuid, title] of titled) if (isId(b)) records.set(b, { uuid: String(uuid), title: title || '', tag: tags.get(b) || '', day: days.get(b)?.day || 0, dayFrom: days.get(b)?.from || '', status: status.get(b) || '' });
+  for (const [b, uuid, title] of titled) if (isId(b)) records.set(b, { uuid: String(uuid), title: title || '', tag: tags.get(b) || '', day: days.get(b)?.day || 0, dayFrom: days.get(b)?.from || '', status: status.get(b) || 0 });
   return { pages, fields: fieldsByName, records };
 }
 // Whether Logseq will draw a property list on a page: it holds a value of a property of yours, or a tag of yours, or a tag above it, declares one.
@@ -548,7 +556,7 @@ async function mentionsInto(id) {
     dsQuery(`[:find ?b ?dattr ?day ?dname :where ${these} [?dprop :logseq.property/type :date] [?dprop :db/ident ?dattr] [?dprop :block/title ?dname] [?b ?dattr ?d] [?d :block/journal-day ?day]]`),
     dsQuery(`[:find ?b ?day :where ${these} [?b :block/page ?p] [?p :block/journal-day ?day]]`),
     dsQuery(`[:find ?pu :where [(ground [${ids.join(' ')}]) [?page ...]] [?page :block/uuid ?pu]]`),
-    dsQuery(`[:find ?b ?si :where ${these} ${STATUS}]`).catch(() => []),
+    dsQuery(`[:find ?b ?s :where ${these} ${STATUS}]`).catch(() => []),
   ]);
   const links = uuids.map(([uuid]) => `[[${String(uuid).toLowerCase()}]]`);
   if (!links.length) return [];
@@ -561,7 +569,7 @@ async function mentionsInto(id) {
     // In the words, and not only as a tag: some [[link]] that has no # before it.
     let said = false;
     for (const link of links) { let at = words.indexOf(link); while (at >= 0 && !said) { if (words[at - 1] !== '#') said = true; at = words.indexOf(link, at + 1); } }
-    if (said) out.push({ id: b, uuid: String(uuid), title: String(title || ''), tag: tags.get(b) || '', day: days.get(b)?.day || 0, dayFrom: days.get(b)?.from || '', status: status.get(b) || '' });
+    if (said) out.push({ id: b, uuid: String(uuid), title: String(title || ''), tag: tags.get(b) || '', day: days.get(b)?.day || 0, dayFrom: days.get(b)?.from || '', status: status.get(b) || 0 });
   }
   return out;
 }
@@ -892,6 +900,8 @@ const tagChain = async uuid => (await tagChains(uuid))?.own || null;
    another, the page and the graph open now. */
 const setValue = (uuid, ident, value, opts) => logseq.Editor.upsertBlockProperty(uuid, ident, value, opts);
 const unsetValue = (uuid, ident) => logseq.Editor.removeBlockProperty(uuid, ident);
+// A task's status, Logseq's own property, set from Threads' circle by its value's title (Todo, Done …) (9 November 2026).
+const STATUS_IDENT = 'logseq.property/status';
 const addTag = (uuid, tagUuid) => logseq.Editor.addBlockTag(uuid, tagUuid);
 const removeTag = (uuid, tagUuid) => logseq.Editor.removeBlockTag(uuid, tagUuid);
 const setWords = (uuid, text) => logseq.Editor.updateBlock(uuid, text);
@@ -1093,7 +1103,7 @@ async function withKids(uuids) {
 }
 
 function provide(core) {
-  core.provide({ aliasesOf, madeState, valueStamp, storedWords, inRecycle, restorePage, setValue, unsetValue, addTag, removeTag, setWords, editBlock, exitEditing, insertBlock, addLineTo, currentPage, currentBlock, pickedBlocks, getBlock, currentGraph, tagTitles, getPage, createPage, deletePage, appendBlock, removeBlock, inRecycle, restorePage,
+  core.provide({ aliasesOf, madeState, valueStamp, storedWords, inRecycle, restorePage, setValue, unsetValue, STATUS_IDENT, statusChoices, addTag, removeTag, setWords, editBlock, exitEditing, insertBlock, addLineTo, currentPage, currentBlock, pickedBlocks, getBlock, currentGraph, tagTitles, getPage, createPage, deletePage, appendBlock, removeBlock, inRecycle, restorePage,
     renamePage, moveBlock, pageBlocksTree, EXTENDS, ALIAS, ICON, PARENT_TAGS, addTagExtends, removeTagExtends, openInSidebar, showSidebar,
     titleOf, trailingTags, storedRef, readableTitle, bare, pick, idOf,
     propSchema, propPages, fieldsOf, fits, kindOfPage, tagChain, tagChains, tagChainIndex, parseDay, dayNumber, sameDay, dayAfter, DAYS,

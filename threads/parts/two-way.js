@@ -140,6 +140,7 @@ async function load() {
         // The page's own names, plain in its lines (C1, 7 November 2026): its title, then its aliases once read.
         state.ownNames = new Set([state.pageTitle.toLowerCase()]);
         ownNamesOf(page.id).catch(() => {});
+        await readStatuses();
         groups = await groupsFor(page.id);
         const title = String(page.title || page.originalName || page.name || '').toLowerCase();
         if (!hiddenMentions().has(title)) {
@@ -236,7 +237,7 @@ async function mentionsGroup(id, groups) {
   if (askQuietly.uuids.length) state.quiet = setTimeout(askQuietly, provided.earlierLinesRead?.() ? 0 : QUIET);
   // Each with the page and bullets it sits in, as Linked references shows it (0.4.437).
   const crumbs = provided.crumbsInto ? await provided.crumbsInto(id).catch(() => new Map()) : new Map();
-  const items = await Promise.all(found.map(async m => { const words = await linkedWordsOf(m.title); return { uuid: m.uuid, title: plainWords(words), words, tag: m.tag || 'note', day: m.day, dayFrom: m.dayFrom || '', status: m.status || '',
+  const items = await Promise.all(found.map(async m => { const words = await linkedWordsOf(m.title); return { uuid: m.uuid, title: plainWords(words), words, tag: m.tag || 'note', day: m.day, dayFrom: m.dayFrom || '', status: m.status || 0,
     crumbs: await Promise.all((crumbs.get(m.uuid) || []).map(async c => ({ uuid: c.uuid, name: await wordsOf(c.title) }))) }; }));
   items.sort(byWhen(todayNumber()));
   return { name: MENTIONS, label: 'Mentioned in', items, fieldUuid: '', ident: '', mentions: true };
@@ -257,7 +258,7 @@ async function groupsByPage(id) {
   if (!found.size) return new Map();
   const records = new Map();
   // The titles are made readable together (0.4.150): each one with a link in it asks the database for that link's name.
-  await Promise.all([...found].map(async ([b, record]) => { const words = await linkedWordsOf(record.title); records.set(b, { uuid: record.uuid, title: plainWords(words), words, tag: record.tag || 'note', day: record.day, dayFrom: record.dayFrom || '', status: record.status || '' }); }));
+  await Promise.all([...found].map(async ([b, record]) => { const words = await linkedWordsOf(record.title); records.set(b, { uuid: record.uuid, title: plainWords(words), words, tag: record.tag || 'note', day: record.day, dayFrom: record.dayFrom || '', status: record.status || 0 }); }));
   const names = backwardsNames(), today = todayNumber(), oneEnd = oneEndNames();
   // What each property holds, for the icon before its name (0.4.477): a Date row on a journal day is a calendar, not the
   // triangle of a link to a node.
@@ -288,6 +289,7 @@ let indexVersion = 0, indexSize = 0;
 async function loadIndex() {
   const version = ++indexVersion;
   if (!setting('twoWayRows')) { state.indexed = false; return; }
+  await readStatuses();   // so a page shown from the index draws its circles from its first frame
   const all = await groupsByPage(null);
   if (version !== indexVersion) return;
   indexSize = 0;
@@ -398,19 +400,63 @@ async function ownNamesOf(id) {
 }
 // A name's words: a wikilink in them is underlined and opens its page, as in a bullet's words; the name itself, its own click.
 const nameWords = item => item.words && item.words.includes('[[') ? twoWay.lineHtml(item.words, Infinity) : esc(item.title);
-/* A task's circle (8 November 2026, the owner: "threads should be able to show tasks status circles"): Logseq's own, drawn
-   before the words as Logseq draws it after a task's bullet, with Logseq's own class for its colour (ls-icon-…), so it
-   follows the theme as Logseq's does. The shapes are Logseq's (its tabler.ext.js, 2.0.2). It shows; it does not change the status. */
-const CIRCLE = '<circle cx="10" cy="10" r="8" stroke-width="2"/>';
-const TASK = {
-  backlog: ['Backlog', 'Backlog', '<circle cx="10" cy="10" r="8" stroke-width="2" stroke-dasharray="4 4"/>'],
-  todo: ['Todo', 'Todo', CIRCLE],
-  doing: ['InProgress50', 'Doing', `${CIRCLE}<path d="M10 15C11.3261 15 12.5979 14.4732 13.5355 13.5355C14.4732 12.5979 15 11.3261 15 10C15 8.67392 14.4732 7.40215 13.5355 6.46447C12.5979 5.52678 11.3261 5 10 5L10 10V15Z" fill="currentColor"/>`],
-  'in-review': ['InReview', 'In Review', '<circle cx="10" cy="10" r="9" fill="currentColor"/><path d="M14 9.5V11C14 11.3978 13.842 11.7794 13.5607 12.0607C13.2794 12.342 12.8978 12.5 12.5 12.5H8L6 14.5V8C6 7.60218 6.15804 7.22064 6.43934 6.93934C6.72064 6.65804 7.10218 6.5 7.5 6.5H11M12.5 6H14.5M14.5 6V8M14.5 6L12 8.5" stroke="white" stroke-width="1.333"/>'],
-  done: ['Done', 'Done', '<circle cx="10" cy="10" r="9" fill="currentColor"/><path d="M6.5 10L9 12.5L14 7.5" stroke="white" stroke-width="1.333"/>'],
-  canceled: ['Cancelled', 'Canceled', `${CIRCLE}<path d="M13 7L7 13M7 7L13 13" stroke-width="1.333"/>`],
-};
-const taskHtml = item => { const t = TASK[item.status]; return t ? `<span class="th-task ls-icon-${t[0]}" title="${t[1]}" aria-label="${t[1]}"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${t[2]}</svg></span>` : ''; };
+/* A task's circle (8 November 2026, the owner: "threads should be able to show tasks status circles"): Logseq's own, before
+   the words as Logseq draws it after a task's bullet. Its name and icon are the ones Logseq keeps on the status value, read with
+   the rows (statusChoices), so a status renamed, added or given another icon in Logseq shows so here (9 November 2026, the owner:
+   "have it just stay in sync with whatever icons are chosen or changed"); Logseq's own class gives it Logseq's colour (ls-icon-…).
+   A press on it (or Enter, Space) opens Logseq's Set Status list, as a press on Logseq's circle does (9 November 2026, "can you
+   make the status circle interactive"): every status in Logseq's order, the one in force ticked, and Clear; what is picked is
+   written with the faded Undo arrow (setStatus). */
+state.statuses = new Map();
+const readStatuses = async () => { if (!provided.statusChoices) return; const list = await provided.statusChoices().catch(error => { warnOnce('could not read the statuses', error); return null; }); if (list) state.statuses = new Map(list.map(s => [s.id, s])); };
+// An icon as Logseq draws it from what it keeps ({ type, id, color }): one of Logseq's own drawn ones (its tablerIcons, such as
+// Todo or Done), else Tabler's font Logseq loads (ti-star), or an emoji. Nothing of the icon is copied into Threads.
+const pascal = id => String(id).replace(/(^|[-_ ])(\w)/g, (m, s, c) => c.toUpperCase());
+const KEBAB = /^(viewBox|xmlns)$/;
+function elementHtml(node) {
+  if (node == null || node === false) return '';
+  if (Array.isArray(node)) return node.map(elementHtml).join('');
+  if (typeof node !== 'object') return esc(String(node));
+  if (typeof node.type === 'function') return elementHtml(node.type(node.props || {}));
+  const { children, ...props } = node.props || {};
+  const attrs = Object.entries(props).filter(([, v]) => v != null && v !== false && typeof v !== 'function' && typeof v !== 'object')
+    .map(([k, v]) => ` ${k === 'className' ? 'class' : KEBAB.test(k) ? k : k.replace(/[A-Z]/g, c => '-' + c.toLowerCase())}="${esc(String(v))}"`).join('');
+  return `<${node.type}${attrs}>${elementHtml(children)}</${node.type}>`;
+}
+function statusIconHtml(icon) {
+  if (!icon?.id) return '';
+  if (icon.type === 'emoji') return `<em-emoji id="${esc(icon.id)}" size="1em"></em-emoji>`;
+  const drawn = host().defaultView?.tablerIcons?.['Icon' + pascal(icon.id)];
+  if (drawn) { try { return elementHtml(drawn({ size: 18 })); } catch { /* the font below */ } }
+  return `<i class="ti ti-${esc(String(icon.id).replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase())}" aria-hidden="true"></i>`;
+}
+const taskHtml = item => { const s = state.statuses.get(item.status); if (!s) return ''; const color = s.icon?.color ? ` style="color: ${esc(s.icon.color)}"` : ''; return `<button type="button" class="th-task ls-icon-${esc(s.icon?.id || '')}"${color} data-task="${esc(item.uuid)}" data-status="${s.id}" title="${esc(s.title)}: click to set the status" aria-label="Status: ${esc(s.title)}">${statusIconHtml(s.icon) || esc(s.title)}</button>`; };
+// Every line of this node, in the rows and in opened nodes, takes the new status at once; the read that the write brings confirms it.
+function statusEverywhere(uuid, status) {
+  for (const g of state.groups) for (const item of g.items) if (item.uuid === uuid) item.status = status;
+  for (const data of state.node.values()) for (const g of data.rows || []) for (const item of g.items) if (item.uuid === uuid) item.status = status;
+  state.html = null; draw(host());
+}
+async function setStatus(button) {
+  const uuid = button.dataset.task, had = Number(button.dataset.status) || 0;
+  twoWay.hidePeek?.();
+  await readStatuses();
+  const picked = await shared.pickValue({ at: button, placeholder: 'Set Status', clearLabel: 'Clear', keepOrder: true,
+    options: [...state.statuses.values()].map(s => ({ label: s.title, id: s.id, iconHtml: statusIconHtml(s.icon), held: s.id === had })) });
+  if (!picked || (!picked.clear && picked.id === had)) return;
+  const name = shortName(state.groups.flatMap(g => g.items).find(item => item.uuid === uuid)?.title || '');
+  const before = state.statuses.get(had)?.title || '';
+  try {
+    if (picked.clear) await model.unsetValue(uuid, model.STATUS_IDENT); else await model.setValue(uuid, model.STATUS_IDENT, picked.label);
+  } catch (error) { warnOnce('could not set the status', error); return notify('The status could not be set', 'warning'); }
+  statusEverywhere(uuid, picked.clear ? 0 : picked.id);
+  const field = state.groups.find(g => g.items.some(item => item.uuid === uuid))?.name;
+  await offerKept([[uuid, model.STATUS_IDENT]], picked.clear ? `Cleared the status of “${name}”` : `Set “${name}” to ${picked.label}`, async () => {
+    if (before) await model.setValue(uuid, model.STATUS_IDENT, before); else await model.unsetValue(uuid, model.STATUS_IDENT);
+    statusEverywhere(uuid, had); later(300);
+  }, field, inBox(`[data-task="${CSS.escape(uuid)}"]`));
+  later(300);
+}
 const nameHtml = (item, open = false, bare = false) => `${taskHtml(item)}<a class="th-tw-record th-ol-name lk-node${bare ? ' lk-bare' : ''}${open ? ' th-ol-open' : ''}" data-uuid="${esc(item.uuid)}" href="#">${nameWords(item)}</a>${item.tag && item.tag !== 'note' ? '<wbr>' + tagLink(item) : ''}`;
 /* top: the node at the top of a shifted section (0.4.463): its rows are drawn as the page's are, keyed under it; nothing
    in them acts on the page (no tick boxes, no +, no Group). */
@@ -462,8 +508,10 @@ function rowHtml(group, top = null) {
   // The mentions row's head is its days alone (the review, 31 October: "notes" was the plugin's word for an untagged
   // mention, under a row already called "Mentioned in"); where the mentions are of several kinds, the kinds stay.
   const daysOnly = isMentions(group) && !kinds && !!when;
-  // The number is a count (the grammar: none shown, lk-count); it is there for the words' sake.
-  const leadText = kinds ? `All ${total}` : `${total} ${esc(plural(tagWord((headItems[0] || group.since?.[0])?.tag || 'note'), total))}`;   // the number shows on a closed head (the owner, 1 November, the research's rule that a head says what it holds)
+  /* With several kinds, each kind is a tab with its count beside it, All's too (9 November 2026, the owner: "there should be
+     numbers next to each tab"), the number a step lighter than its word, so the words still lead. */
+  const tabCount = n => `<span class="th-tw-n">${n}</span>`;
+  const leadText = kinds ? `All ${tabCount(total)}` : `${total} ${esc(plural(tagWord((headItems[0] || group.since?.[0])?.tag || 'note'), total))}`;   // the number shows on a closed head (the owner, 1 November, the research's rule that a head says what it holds)
   const lead = daysOnly ? '' : kinds ? chip('', leadText, ' th-tw-lead', true)
     : `<a class="th-tw-toggle th-tw-lead" data-key="${esc(key)}" href="#" title="Click to ${open ? 'fold' : 'open'} the list.">${leadText}</a>`;
   const whenHtml = when ? `<a class="th-tw-toggle th-tw-when" data-key="${esc(key)}" href="#" title="${esc(from ? whenTip(from) : 'The days of these nodes')}. Click to ${open ? 'fold' : 'open'} the list.">${from ? `<span class="th-tw-from">${esc(from)}</span> ` : ''}${esc(when).replace(/ (?=\d)/g, '&nbsp;')}</a>` : '';
@@ -472,7 +520,7 @@ function rowHtml(group, top = null) {
   const byCount = [...counts].sort((a, b) => b[1] - a[1]);
   const named = state.kindsAll.has(key) || byCount.length <= 3 ? byCount : byCount.findIndex(([tag]) => tag === only) > 2 ? [...byCount.slice(0, 2), byCount.find(([tag]) => tag === only)] : byCount.slice(0, 3);
   const rest = byCount.length - named.length;
-  const tail = [...(kinds ? named.map(([tag, n]) => chip(tag, `${esc(tag === 'note' ? 'No tag' : tag)} <span class="lk-count">${n}</span>`, '', true)) : []), ...(kinds && rest ? [`<button type="button" class="lk-more th-tw-kinds" data-kinds="${esc(key)}">and ${rest} more</button>`] : []), whenHtml, was].filter(Boolean);
+  const tail = [...(kinds ? named.map(([tag, n]) => chip(tag, `${esc(tag === 'note' ? 'No tag' : tag)} ${tabCount(n)}`, '', true)) : []), ...(kinds && rest ? [`<button type="button" class="lk-more th-tw-kinds" data-kinds="${esc(key)}">and ${rest} more</button>`] : []), whenHtml, was].filter(Boolean);
   // Each piece keeps its dot in the gap before it, and the head clips what stands before its left edge: a line that wraps starts on
   // its words, never on a dot (the stylesheet).
   const extra = headHooks.map(hook => hook(group, key, items) || '').join('');
@@ -710,6 +758,8 @@ function draw(doc) {
     box.setAttribute('contenteditable', 'false');
     box.addEventListener('mousedown', event => { event.stopPropagation(); if (state.find && event.target.closest?.('.th-chev, [data-findall]')) event.preventDefault(); });
     box.addEventListener('click', onClick);
+    // Enter or Space on a task's circle opens its list: Logseq takes Enter on the page before a button can make it a click.
+    box.addEventListener('keydown', event => { const task = (event.key === 'Enter' || event.key === ' ') && !event.isComposing && event.target.closest?.('[data-task]'); if (!task) return; event.preventDefault(); event.stopPropagation(); setStatus(task).catch(error => warnOnce('could not set the status', error)); });
     box.addEventListener('mouseover', twoWay.onOver);
     box.addEventListener('mouseout', twoWay.onOut);
     box.addEventListener('contextmenu', onRename);
@@ -822,6 +872,8 @@ function onClick(event) {
   const lineEl = event.target.closest?.('.th-tw-draft');
   if (lineEl && !event.target.closest('a, input, button')) { lineEl.querySelector('.th-tw-draft-field')?.focus(); return; }
   if (twoWay.pieceClick?.(event)) return;
+  const task = event.target.closest?.('[data-task]');
+  if (task) { event.preventDefault(); event.stopPropagation(); setStatus(task).catch(error => warnOnce('could not set the status', error)); return; }
   for (const hook of clickHooks) if (hook(event)) return;
   if (event.target.closest?.('[data-takeall-could]')) { event.preventDefault(); event.stopPropagation(); twoWay.raiseAll().catch(error => { warnOnce('could not take the proposals', error); notify('The proposals could not all be taken', 'warning'); }); return; }
   // The name opens, the arrow unfolds: the blank part of a row does nothing, and the page stays.
@@ -961,7 +1013,7 @@ const indexLater = ms => { clearTimeout(indexTimer); indexTimer = setTimeout(() 
 let stopped = false;
 // The core's things, taken when the part starts; the pieces reach the ones they use through twoWay.
 function useCore(core) {
-  ({ UUID, isEntityId, watchDomEarly, addsElements, sendStyle, provided, uuidsIn, saveSettings, onPageChange, onDatabaseChange, onSettingsChange } = take(core, ['UUID', 'isEntityId', 'watchDomEarly', 'addsElements', 'sendStyle', 'provided', 'uuidsIn', 'saveSettings', 'onPageChange', 'onDatabaseChange', 'onSettingsChange', 'currentPage', 'getPage', 'createPage', 'deletePage', 'appendBlock', 'removeBlock', 'addTag', 'removeTag', 'setValue', 'unsetValue', 'editBlock']));
+  ({ UUID, isEntityId, watchDomEarly, addsElements, sendStyle, provided, uuidsIn, saveSettings, onPageChange, onDatabaseChange, onSettingsChange } = take(core, ['UUID', 'isEntityId', 'watchDomEarly', 'addsElements', 'sendStyle', 'provided', 'uuidsIn', 'saveSettings', 'onPageChange', 'onDatabaseChange', 'onSettingsChange', 'currentPage', 'getPage', 'createPage', 'deletePage', 'appendBlock', 'removeBlock', 'addTag', 'removeTag', 'setValue', 'unsetValue', 'STATUS_IDENT', 'editBlock']));
   model = core.provided; // the graph is read and written through the model's doors (0.4.318)
   Object.assign(twoWay, { UUID, isEntityId, provided, model, uuidsIn });
 }

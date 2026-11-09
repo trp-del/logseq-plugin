@@ -26,7 +26,13 @@ const twoWayCss = `
    and a bullet too. */
 .th-two-way {
   /* The section stands well apart from the page's properties above and its words below (8 November 2026). */
-  margin: calc(56px + var(--th-tw-hold, 0px)) 0 24px; padding: 0;
+  /* The section stands on Logseq's own grid (9 November 2026, the owner: "you've made a mess of alignment ... think deeply
+     about things and logseq", measured on a page: a bullet at 288, its words at 308, a child's bullet 30px further in, its
+     fold arrow 22px left of the bullet). So: every mark (the heading's chevron, the find glass, a name's icon) stands at
+     Logseq's bullet edge, 2px in from the section; every word at the first level at Logseq's words edge, 20px further;
+     each level 30px in. */
+  margin: calc(56px + var(--th-tw-hold, 0px)) 0 24px; padding: 0 0 0 2px;
+  --th-tw-level: 30px;
   line-height: 1.5; user-select: text;
   /* One column (the owner, 7 November 2026: one column, not two): each property's name stands on a line of its own,
      its list under it at the section's full width, so a long name never pushes the lists right and the words have room. */
@@ -104,6 +110,10 @@ const twoWayCss = `
 .th-two-way .th-tw-keeps { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; margin: 0 0 4px calc(16px + var(--th-ol-gap)); font-size: var(--lk-small); color: var(--lk-quiet); }
 .th-two-way .th-tw-keepsword { color: var(--lk-faint); }
 .th-two-way .th-tw-keep { all: unset; cursor: pointer; color: var(--lk-quiet); text-decoration: underline; text-decoration-color: var(--lk-line); text-underline-offset: 3px; }
+/* At rest the word takes no room at all, so a head standing right of its name (9 November 2026) never widens the page past
+   its edge; it still fades in, from nothing, under the pointer. */
+.th-two-way .th-tw-add:not(:hover, :focus-visible)::after { display: none; }
+@starting-style { .th-two-way .th-tw-add:is(:hover, :focus-visible)::after { opacity: 0; } }
 .th-two-way .th-tw-keep:hover, .th-two-way .th-tw-keep[aria-pressed="true"] { color: var(--lk-text, currentColor); text-decoration-color: currentColor; }
 .th-two-way .th-tw-kname { color: var(--lk-faint); }
 .th-two-way .th-tw-sorted { color: var(--lk-quiet); font-weight: 400; }
@@ -278,7 +288,16 @@ const twoWayCss = `
 .th-two-way .th-tw-head :is(.th-tw-chip:not(.th-tw-lead), .th-tw-when) { font-weight: 400; color: var(--lk-quiet); font-size: inherit; }
 .th-two-way .th-tw-head .th-tw-chip[aria-pressed="true"] { color: inherit; font-weight: 600; }
 .th-two-way .th-tw-head .th-chip.th-tw-lead[aria-pressed="false"] { color: var(--lk-quiet); font-weight: 400; font-size: inherit; }
-.th-two-way .th-tw-head .th-tw-sep { position: absolute; right: 100%; margin-right: .42rem; color: var(--lk-faint); font-weight: 400; }
+/* Between the tabs, a hairline (9 November 2026, the owner: "there should be hairline vertical separators for the different tab
+   pickers"), standing in the gap before each piece, half the gap from either side; the days, at the line's right end, need none. */
+.th-two-way .th-tw-head .th-tw-sep { position: absolute; right: 100%; margin-right: .52rem; visibility: visible; overflow: hidden; width: 0; height: 14px; align-self: center; border-left: 1px solid var(--lk-hair); }
+.th-two-way .th-tw-head .th-tw-piece:has(> .th-tw-when) > .th-tw-sep { display: none; }
+/* A tab's count, beside its word, a step lighter. */
+.th-two-way .th-tw-head .th-tw-n { margin-left: .3em; color: var(--lk-faint); font-weight: 400; font-variant-numeric: tabular-nums; }
+/* The days stand at the right end of the head (9 November 2026, the owner: "date range in threads should be right aligned"). */
+.th-two-way .th-tw-head > .th-ol-body { flex: 1 1 auto; min-width: 0; }
+.th-two-way .th-tw-head > .th-ol-body > .th-tw-chips { flex: 1 1 auto; }
+.th-two-way .th-tw-head .th-tw-piece:has(> .th-tw-when) { margin-left: auto; }
 .th-two-way .th-tw-head .lk-more { padding: 0; font-weight: 400; }
 .th-two-way .th-tw-head .th-tw-piece { position: relative; display: inline-flex; align-items: baseline; white-space: nowrap; }
 /* The days' words wrap as words do where the kinds' room is shorter than they are, never cut through a letter. */
@@ -299,7 +318,9 @@ const twoWayCss = `
 /* A heading's chevron is never over its nodes' chevrons (the owner, 2026-10-27: "the heading chevron cannot be over other
    chevrons"): everything a list holds steps in one step, dated or not, and a group's nodes once more under the group;
    a day stays in the margin left of its node's chevron. */
-.th-two-way .th-tw-list > .th-ol-in { padding-left: var(--th-tw-in); --th-tw-back: var(--th-tw-in); }
+/* A list's nodes one level under its head: the dot 30px right of the head's chevron, so the node's own chevron (16px and a
+   gap) stands 8px right of the head's, as Logseq's fold arrow stands 8px right of the parent's bullet. */
+.th-two-way .th-tw-list > .th-ol-in { padding-left: calc(var(--th-tw-level) - var(--th-tw-in)); --th-tw-back: calc(var(--th-tw-level) - var(--th-tw-in)); }
 .th-two-way .th-tw-group > .th-tw-gitems { --th-tw-back: calc(2 * var(--th-tw-in)); }
 /* Every day of the section ends on one edge, 12px short of the outline's edge, however far in its node's chevron is
    (--th-tw-back: how far the room it sits in starts right of that edge), so the margin reads as one column of time. */
@@ -308,10 +329,11 @@ const twoWayCss = `
 .th-two-way .th-ol-from-in { --th-ol-cx: calc(16px + var(--th-ol-gap) + 8px); }
 .th-two-way .th-tw-back + .th-ol-kids { --th-ol-cx: calc(var(--th-ol-name) + 8px); }
 /* Digging steps the same 22px as a list under its heading: a node's lines start under its words (8px to the hairline,
+.th-two-way .th-tw-row > .th-tw-value:not(:has(> .th-tw-head)) { padding-left: 0; }
    1px of it, 13px after). The faint grey of an opened node stops at the section's right edge. */
 .th-two-way .th-ol-kids:not(.th-ol-bare) { padding-left: 13px; }
 .th-two-way .th-ol-unit { margin-right: 0; }
-.th-two-way .th-tw-group > .th-tw-gitems { padding-left: var(--th-tw-in); }
+.th-two-way .th-tw-group > .th-tw-gitems { padding-left: var(--th-tw-level); }
 
 /* The tick boxes show when the pointer is on their row, and all of them while anything is ticked (the owner, 2026-10-27:
    "checkboxes can be revealed on hover", in place of the faint box of 2026-10-25 for these). */
@@ -329,7 +351,9 @@ const twoWayCss = `
 .th-two-way .th-ol-body > .th-tw-record ~ * { flex: none; }
 /* A task's circle, Logseq's own, before its words as in Logseq (8 November 2026): its size beside 16px words, the gap after
    it the gap Logseq leaves; the colour is Logseq's (its ls-icon- class). On the first line of words that wrap. */
-.th-two-way .th-task { flex: none; align-self: flex-start; display: inline-flex; align-items: center; height: 1.5em; margin-right: 6px; }
+/* A button by its keys, its colour Logseq's (ls-icon-…): nothing here sets a colour. */
+.th-two-way .th-task { background: none; border: 0; padding: 0; font: inherit; flex: none; align-self: flex-start; display: inline-flex; align-items: center; height: 1.5em; margin-right: 6px; cursor: pointer; border-radius: 50%; }
+.th-two-way .th-task:focus-visible { background: var(--lk-wash); }
 .th-two-way .th-task svg { width: 1.05em; height: 1.05em; display: block; }
 .th-two-way .th-ol-body > .th-pencil, .th-two-way .th-ol-body > .th-tw-could { margin-left: 8px; }
 .th-two-way .th-tw-could { display: inline-flex; align-items: baseline; }
@@ -344,6 +368,7 @@ const twoWayCss = `
 /* What links to an opened node, as a head (C4): its words in the head's weight, the kinds quiet after them. */
 .th-two-way .th-tw-linkword { all: unset; cursor: pointer; }
 .th-two-way .th-tw-linkword { font-weight: 500; }
+.th-two-way .th-task .ti { font-size: 1.05em; line-height: 1; }
 .th-two-way .th-tw-linkkinds { color: var(--lk-quiet); font-size: var(--lk-small); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* The empty properties of an opened node, folded into one quiet line (C5). */
 /* The names' column of an opened node fits its longest name (C6). */

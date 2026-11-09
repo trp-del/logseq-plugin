@@ -542,7 +542,8 @@ function popup({ at, kind = 'menu', head, items, field: fieldOptions, rows, keys
 const CHECK_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5l10 -10"></path></svg>';
 const X_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6l-12 12"></path><path d="M6 6l12 12"></path></svg>';
 const FEW = 40;
-function pickValue({ at, placeholder = '', options = [], clearLabel = '', free = false, doc } = {}) {
+// keepOrder: the options stay in the order given, the held one ticked in its place (Logseq's Set Status); iconHtml: a row's icon before its words.
+function pickValue({ at, placeholder = '', options = [], clearLabel = '', free = false, doc, keepOrder = false } = {}) {
   doc = doc || host();
   return new Promise(resolve => {
     let answer = null, finished = false, lit = 0, shown = [], all = false;
@@ -566,7 +567,7 @@ function pickValue({ at, placeholder = '', options = [], clearLabel = '', free =
     };
     const take = value => { answer = value; finish(); };
     const row = (item, i) => {
-      const words = item.clear ? [el(doc, 'span', { class: 'ui__icon ti', html: X_SVG }), el(doc, 'span', {}, item.label)] : [el(doc, 'div', { class: item.more ? 'th-faint' : null }, item.label)];
+      const words = item.clear ? [el(doc, 'span', { class: 'ui__icon ti', html: X_SVG }), el(doc, 'span', {}, item.label)] : [...(item.iconHtml ? [el(doc, 'span', { class: 'ui__icon ti th-lsq-icon', html: item.iconHtml })] : []), el(doc, 'div', { class: item.more ? 'th-faint' : null }, item.label)];
       const link = el(doc, 'a', { class: `${i === lit ? 'chosen ' : ''}flex justify-between menu-link${item.clear ? ' lk-lone' : ''}`, tabindex: '-1',
         mousedown: event => event.preventDefault(), click: event => { event.preventDefault(); choose(item); },
         mousemove: () => { if (lit !== i) light(i); } },
@@ -579,7 +580,7 @@ function pickValue({ at, placeholder = '', options = [], clearLabel = '', free =
       const q = input.value.trim().toLowerCase();
       const starts = o => o.label.toLowerCase().startsWith(q);
       const found = q ? options.filter(o => o.label.toLowerCase().includes(q)).sort((a, b) => (starts(b) - starts(a)) || a.label.length - b.label.length)
-        : [...options.filter(o => o.held), ...options.filter(o => !o.held)]; // what it holds first, ticked, as Logseq lists it
+        : keepOrder ? options : [...options.filter(o => o.held), ...options.filter(o => !o.held)]; // what it holds first, ticked, as Logseq lists it
       // A few, then "show all": a list of thousands costs more to draw than anyone reads, and typing narrows it.
       const few = all || found.length <= FEW ? found : [...found.slice(0, FEW), { label: `show all ${found.length}`, more: true }];
       shown = [...few, ...(clearLabel && !q ? [{ label: clearLabel, clear: true }] : [])];
@@ -831,6 +832,8 @@ const kitCss = `/* The kit (parts/shared.js, 0.4.311; docs/LAYERS.md section 3):
 .th-lsq-pop .menu-link .flex-row > div:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .th-lsq-pop.th-anchored { top: anchor(bottom); left: anchor(left); margin-top: 4px; position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline; }
 .th-lsq-pop .th-lsq-list { max-height: 18rem; overflow-y: auto; }
+.th-lsq-pop .th-lsq-icon svg { width: 16px; height: 16px; display: block; }
+.th-lsq-pop .th-lsq-icon .ti { font-size: 16px; line-height: 1; }
 /* Clear is the library's lone word, standing on the list's own edge. */
 .th-lsq-pop .menu-link.lk-lone { margin-left: 0; }
 .th-in-place { font: inherit; color: inherit; height: auto; width: 100%; min-width: 4em; padding: 0; box-shadow: none; }
