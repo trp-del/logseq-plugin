@@ -100,14 +100,21 @@ const quoteBullets = `
 ${AREA} ${QUOTED} > .block-control-wrap .bullet { display: flex; align-items: center; justify-content: center; width: 16px !important; height: 16px !important; background: none !important; color: var(--lk-quiet); }
 ${AREA} ${QUOTED} > .block-control-wrap .bullet::before { content: "\\201C"; font: 19px/16px Georgia, "Times New Roman", serif; height: 16px; transform: translateY(.28em); }
 ${AREA} ${QUOTED} > .block-control-wrap[data-has-children="false"] .block-control { visibility: hidden; }`;
-/* The branch being written in: the lines and bullets above the bullet you edit are a shade darker, so you see where you are
-   in a deep outline. The words are never touched. A .block-main-container never holds its block's children, so only the
-   bullet being edited and those above it match. */
+/* The path to the bullet you edit (9 November 2026, the owner picked A in where-you-are-mockup.html; a shade darker, before,
+   was too faint to see): the bullets above it and its own take the words' colour, and a darker line runs down Logseq's guide
+   line only from each of them to the next, so the way from the top to you reads as one thread. Nothing new is drawn, the
+   words are never touched, the rest of the outline stays as Logseq draws it. A .block-main-container never holds its
+   block's children, so only the bullet being edited and those above it match. The line is drawn on the blocks it passes
+   (each earlier sibling whole, the step itself down to its bullet), over the guide line at the block's left edge. */
 const branch = `
-${AREA} .block-children-container:has(.editor-inner) > .block-children { border-left-color: var(--lk-line) !important; }
-${AREA} .ls-block:has(.editor-inner) > .block-main-container .bullet-container .bullet { background-color: var(--lk-off) !important; }
-${AREA} .block-children, ${AREA} .bullet-container .bullet { transition: border-color .15s, background-color .15s; }
-@media (prefers-reduced-motion: reduce) { ${AREA} .block-children, ${AREA} .bullet-container .bullet { transition: none; } }`;
+${AREA} .ls-block:has(.editor-inner) > .block-main-container .bullet-container .bullet { background-color: var(--lk-text) !important; }
+${AREA} .block-children .ls-block:is(:has(.editor-inner), :has(~ .ls-block .editor-inner))::before {
+  content: ""; position: absolute; left: -1px; top: 0; width: 1.5px; pointer-events: none; z-index: 1;
+  background: color-mix(in srgb, var(--lk-text) 55%, transparent); }
+${AREA} .block-children .ls-block:has(~ .ls-block .editor-inner)::before { bottom: 0; }
+${AREA} .block-children .ls-block:has(.editor-inner)::before { height: 14px; }
+${AREA} .bullet-container .bullet { transition: background-color .15s; }
+@media (prefers-reduced-motion: reduce) { ${AREA} .bullet-container .bullet { transition: none; } }`;
 /* Logseq's two-way list under a node (a two-way tag's nodes pointing at it, in tabs), inside the node's own block. A page's own
    list stands outside the page's blocks and is Threads' to hide where its rows replace it. */
 const twoWay = `
