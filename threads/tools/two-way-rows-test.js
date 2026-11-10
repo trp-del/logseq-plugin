@@ -75,7 +75,7 @@ function world(grouping) {
       { ident: 'user.property/source', title: 'Source', lower: 'source', type: 'node', many: true, choices: [], classes: [{ id: 60 }] },
     ], parentsOf: new Map([[64, [60]]]) }),
     propPages: async () => [{ id: 61, uuid: U(61), title: 'Cepeda 2006', lower: 'cepeda 2006', tags: [{ id: 60 }] }, { id: 64, uuid: U(64), title: 'A child tag’s page', lower: 'a child tag’s page', tags: [{ id: 64 }] }, { id: 62, uuid: U(62), title: 'Rohrer 2015', lower: 'rohrer 2015', tags: [{ id: 60 }] }, { id: 63, uuid: U(63), title: 'Memory techniques', lower: 'memory techniques', tags: [] }],
-    aliasesOf: async () => [], madeState: async uuid => madeNow.get(uuid) || 'as made', valueStamp: async (uuid, ident) => stampNow.get(`${uuid}|${ident}`) || 'as left', inRecycle: async uuid => recycled.has(uuid), restorePage: async uuid => { calls.push(['restorePage', uuid]); recycled.delete(uuid); }, storedWords: async text => text,
+    aliasesOf: async () => [], madeState: async uuid => madeNow.get(uuid) || 'as made', pageUnlinked: async () => true, valueStamp: async (uuid, ident) => stampNow.get(`${uuid}|${ident}`) || 'as left', inRecycle: async uuid => recycled.has(uuid), restorePage: async uuid => { calls.push(['restorePage', uuid]); recycled.delete(uuid); }, storedWords: async text => text,
     fits: (page, ids, schema) => { const seen = new Set(), queue = page.tags.map(t => t.id); while (queue.length) { const c = queue.shift(); if (seen.has(c)) continue; seen.add(c); if (ids.has(c)) return true; queue.push(...(schema.parentsOf?.get(c) || [])); } return false; },
     pagesAmong: async () => 0,
     tagUuidNamed: async title => `tag-${title.toLowerCase()}`,
@@ -1160,7 +1160,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     await wait(60);
     click(window, doc.querySelector('.th-ask .lk-big'));
     await wait(120);
-    check(calls.filter(c => c[0] === 'removeBlock').length === 4 && calls.some(c => c[0] === 'deletePage' && c[1] === 'gap'), 'the blue Delete should delete what it names: ' + JSON.stringify(calls));
+    check(calls.filter(c => c[0] === 'removeBlock').length === 4 && calls.some(c => c[0] === 'deletePage' && c[1] === U(102)), 'the blue Delete should delete what it names, a page by its id and never by its name: ' + JSON.stringify(calls));
     const arrow = doc.querySelector('.lk-undo[data-lk-undo]');
     check(!!arrow, 'the page deleted should have the faded arrow');
     click(window, arrow);
@@ -1302,6 +1302,31 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     let asked = 0; const state = provided.madeState; provided.madeState = async uuid => { asked++; return state(uuid); };
     changed.forEach(fn => fn({ blocks: [], txMeta: { outlinerOp: 'save-block' } })); await wait(400);
     check(asked === 0, 'with no arrow left, nothing is asked: ' + asked);
+    part.stop();
+  }
+  // A page made stays once anything has come to link to it, as Predictive's and Structure's do (10 November 2026): its Undo
+  // would leave the link pointing at nothing. Unlinked and unchanged, the arrow takes it away.
+  {
+    const { window, doc, part, notices, provided } = world('');
+    await wait(100);
+    const inner = part.inner, page = U(970), arrow = () => doc.querySelector('.lk-undo[data-lk-undo]');
+    let linked = false, ran = 0;
+    provided.pageUnlinked = async () => !linked;
+    await inner.offerMade(page, 'Added “Dr. Lee” as a page', async () => { ran++; }, null, null, true);
+    linked = true; click(window, arrow()); await wait(100);
+    check(ran === 0 && notices.some(t => t.includes('linked to')), 'a made page something links to stays, and it says so: ' + JSON.stringify(notices));
+    linked = false;
+    await inner.offerMade(page, 'Added “Dr. Lee” as a page', async () => { ran++; }, null, null, true);
+    click(window, arrow()); await wait(100);
+    check(ran === 1, 'a made page nothing links to goes with its arrow');
+    // A pick of several nodes is a change of many things: a change of one thing after it leaves its arrow standing.
+    const door = window.PluginDoor.undo;
+    inner.offerUndo('Tagged 3 nodes', async () => {}, undefined, undefined, true);
+    inner.offerUndo('Pinned “Fatigue”', async () => {});
+    check(door.size === 2, 'the pick of several keeps its Undo beside the Undo of one thing: ' + door.size);
+    inner.offerUndo('Unpinned “Fatigue”', async () => {});
+    check(door.size === 2, 'a second change of one thing takes the place of the first only');
+    door.clear();
     part.stop();
   }
   {

@@ -203,7 +203,7 @@ async function writeAll(text, steps) {
     twoWay.later(300);
     if (missed) notify(`${missed} of the nodes could not be put back`, 'warning');
     if (kept) notify(`${kept === 1 ? '1 node has' : `${kept} nodes have`} changed since, so ${kept === 1 ? 'it stays' : 'they stay'}`, 'warning');
-  });
+  }, undefined, undefined, steps.length > 1);   // several nodes at once: a change of many things, which keeps its own Undo
 }
 const propNamed = async name => (await twoWay.provided.propSchema()).props.find(p => p.lower === name.toLowerCase());
 // Whether a page fits a property: any page when it takes no tag, else a page with one of its tags or a tag beneath.
@@ -368,10 +368,10 @@ async function act(what, at = null) {
       if (!await shared.ask({ at, question: `Delete ${one}?`, note: why, go: 'Delete', lasting: lasting > 0 })) return;
       const gone = [];
       await writeAll('', kinds.map(k => async () => {
-        if (k.page) { await twoWay.model.deletePage(k.page.name); if (!k.lasting) gone.push(String(k.page.uuid)); } else await twoWay.model.removeBlock(k.uuid);
+        if (k.page) { await twoWay.model.deletePage(String(k.page.uuid)); if (!k.lasting) gone.push(String(k.page.uuid)); } else await twoWay.model.removeBlock(k.uuid);
         return null;
       }));
-      if (gone.length) twoWay.offerUndo(`Deleted ${count(gone.length, 'page', 'pages')}`, async () => { for (const uuid of gone) await twoWay.model.restorePage(uuid); twoWay.later(300); });
+      if (gone.length) twoWay.offerUndo(`Deleted ${count(gone.length, 'page', 'pages')}`, async () => { for (const uuid of gone) await twoWay.model.restorePage(uuid); twoWay.later(300); }, undefined, undefined, gone.length > 1);
       return;
     }
   } catch (error) { warnOnce(`could not ${what} the picked nodes`, error); notify('That could not be done', 'warning'); }

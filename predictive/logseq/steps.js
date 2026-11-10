@@ -225,7 +225,7 @@ async function finishBullet() {
     // Where Logseq's own Enter puts it: the first child of a bullet whose children show, else the next sibling.
     const row = recordRow(host(), uuid);
     const kids = row && [...row.querySelectorAll('.block-children-container .ls-block[blockid]')].some(el => el.parentElement?.closest('.ls-block[blockid]') === row);
-    const next = kids ? await logseq.Editor.insertBlock(uuid, '', { sibling: false, before: true }) : await logseq.Editor.insertBlock(uuid, '', { sibling: true });
+    const next = kids ? await window.PluginDoor.write.insertBlock(uuid, '', { sibling: false, before: true }) : await window.PluginDoor.write.insertBlock(uuid, '', { sibling: true });
     if (next?.uuid) await logseq.Editor.editBlock(next.uuid);
   } catch (error) { warnOnce('could not go on to the next bullet', error); }
   later(() => { if (picking.returning === uuid) picking.returning = ''; }, 400);

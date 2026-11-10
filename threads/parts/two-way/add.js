@@ -319,8 +319,8 @@ async function addRecord({ group, page, name, kind, open, asPage, where = 'journ
     if (recycled) { await twoWay.model.restorePage(String(named.uuid)); block = named; }
     else block = await twoWay.model.createPage(name, {}, { redirect: false, createFirstBlock: false });
     if (!block?.uuid) throw new Error('the page was not made');
-    // By name, as Properties in the line does: Logseq 2.0.2 left the page in place when asked by its uuid here.
-    undo = async () => { await twoWay.model.deletePage(name); twoWay.later(300); };
+    // By its id (10 November 2026): the door deletes by the uuid, and by the name only once the name is seen to answer to this very page.
+    undo = async () => { await twoWay.model.deletePage(String(block.uuid)); twoWay.later(300); };
     // A page made now is not in the look-up of every page: it has no rows of its own yet.
     state.byPage.set(String(block.uuid), []);
   } else {
@@ -359,7 +359,7 @@ async function addRecord({ group, page, name, kind, open, asPage, where = 'journ
     } catch (error) { warnOnce(`“${piece.title}” could not be filled in on the new node`, error); notify(`“${piece.title}” could not be filled in on the new node`, 'warning'); }
   }
   twoWay.later(300);
-  await twoWay.offerMade(String(block.uuid), `Added “${name}”${kind ? ` (${kind})` : ''}${asPage ? ' as a page' : where === 'here' ? ' to this page' : where === 'page' ? ` to ${other}` : ' to today’s journal'}${filled.length ? `, with ${filled.join(', ')}` : ''}`, undo, group.name);
+  await twoWay.offerMade(String(block.uuid), `Added “${name}”${kind ? ` (${kind})` : ''}${asPage ? ' as a page' : where === 'here' ? ' to this page' : where === 'page' ? ` to ${other}` : ' to today’s journal'}${filled.length ? `, with ${filled.join(', ')}` : ''}`, undo, group.name, null, asPage);
   if (open) openEntity(block.uuid, true);
   // Into its words at once (0.4.302): the sidebar draws it a moment after it opens.
   if (edit && !asPage) { const uuid = block.uuid; window.Threads.core.screen.waitFor(() => host().querySelector(`#right-sidebar .ls-block[blockid="${uuid}"]`), 3000).then(found => found && twoWay.model.editBlock(uuid, { pos: 0 })).catch(error => warnOnce('the new record could not be put in edit', error)); }

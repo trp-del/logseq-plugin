@@ -105,7 +105,7 @@ async function settle(session, tries = 0) {
     return;
   }
   if (String((await logseq.Editor.getBlock(session.uuid))?.title ?? '') !== saved) return;   // changed meanwhile: nothing guessed
-  await logseq.Editor.updateBlock(session.uuid, words);
+  await window.PluginDoor.write.setWords(session.uuid, words);
 }
 
 function start() {

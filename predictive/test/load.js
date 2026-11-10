@@ -282,13 +282,19 @@ for (const file of order) vm.runInContext(fs.readFileSync(path.join(root, file),
     assert.equal(nameIn('  Cycle 4 plan '), 'Cycle 4 plan'); assert.equal(nameIn('[[Cycle 4 plan]]'), 'Cycle 4 plan', 'the brackets are not part of the name');
     assert.ok(canName('Cycle 4 plan') && !canName('') && !canName('Saw [[Dr. Mei Chen]] today'), 'a name holds no link');
     console.log('  ok  Cmd-; reads a page\'s name from the bullet');
-    // The words go back whatever stops the embed on the way (8 November 2026): here Logseq refuses to open the emptied bullet.
-    const wrote = [], E = logseq.Editor, was = { ...E };
-    Object.assign(E, { exitEditingMode: async () => {}, updateBlock: async (uuid, words) => { wrote.push([uuid, words]); }, editBlock: async () => { throw new Error('refused'); } });
-    await assert.rejects(Flow.pageHere.showPage({ value: 'Cycle 4 plan' }, 'u1', 'Cycle 4 plan'));
-    Object.keys(E).forEach(k => delete E[k]); Object.assign(E, was);
-    assert.deepEqual(wrote, [['u1', ''], ['u1', 'Cycle 4 plan']], 'the bullet is emptied for the embed, and its words put back when a step throws: ' + JSON.stringify(wrote));
-    console.log('  ok  Cmd-; puts the bullet\'s words back when a step fails'); }
+    // The bullet shows the page by one write, its link to the page, and its words are never written (10 November 2026).
+    const wrote = [], E = logseq.Editor, was = { ...E }, ask = Flow.db.dsQuery;
+    let link = null;
+    Object.assign(E, { exitEditingMode: async () => {}, updateBlock: async (uuid, words) => { wrote.push(['words', uuid, words]); },
+      upsertBlockProperty: async (uuid, ident, value) => { wrote.push([ident, uuid, value]); link = value; }, removeBlockProperty: async (uuid, ident) => { wrote.push(['off ' + ident, uuid]); link = null; } });
+    Flow.db.dsQuery = async q => /:block\/link/.test(q) ? (link == null ? [] : [[link]]) : ask(q);
+    await Flow.pageHere.showPage('u1', { id: 77, title: 'Cycle 4 plan' });
+    assert.deepEqual(wrote, [['block/link', 'u1', 77]], 'one write, the link to the page; the words are never touched: ' + JSON.stringify(wrote));
+    assert.ok(window.PluginDoor.undo.has('predictive:here:u1'), 'and the faded Undo arrow is offered');
+    await window.PluginDoor.undo.take('predictive:here:u1');
+    assert.deepEqual(wrote.at(-1), ['off block/link', 'u1'], 'Undo takes the page off the bullet again');
+    Object.keys(E).forEach(k => delete E[k]); Object.assign(E, was); Flow.db.dsQuery = ask;
+    console.log('  ok  Cmd-; shows a page in the bullet with one write and never touches its words'); }
   { const { plainLinks, carry, keepCase } = Flow.typedCase, M = '1a000000-0000-4000-8000-00000000000e', T = id => id === M ? 'Dr. Mei Chen' : id === U(21) ? 'Ruth Okoro' : '';
     assert.equal(plainLinks('a [[x]] #[[Two Words]] [w]([[y]]) [[z]]').map(l => l.name).join('|'), 'x|z', 'a tag and a link with its own words are not plain links');
     assert.equal(carry(['dr. mei chen'], ['dr. mei chen'], ['Dr. Mei Chen']).join('|'), 'dr. mei chen', 'Logseq\'s list putting in the page\'s capitals keeps what was typed');

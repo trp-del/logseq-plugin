@@ -905,14 +905,18 @@ const rowNames = field => [...host().querySelectorAll('#main-content-container .
 let undoCount = 0;
 // near: where the change sits in an opened node (0.4.442), found again by its key after each drawing; the row's name
 // when it is not on screen.
-const offerUndo = (text, run, field, near) => { made.key = ''; shared.undo.offer({ key: `two-way:${++undoCount}`, at: () => near?.() || (field == null ? rowNames().slice(0, 1) : rowNames(field)), text, run }); };
+// many: a change of several nodes at once (the pick bar), which keeps its own Undo beside the arrow of a change of one thing.
+const offerUndo = (text, run, field, near, many = false) => { if (!many) made.key = ''; shared.undo.offer({ key: `two-way:${++undoCount}`, at: () => near?.() || (field == null ? rowNames().slice(0, 1) : rowNames(field)), text, run, many }); };
 // The arrow on something just made takes the thing away, so it lasts only while the thing is as it was made: written in,
 // renamed or given a bullet, it goes (asked after a change, and again when pressed). What was written is never taken with it.
-const made = { key: '', uuid: '', was: '', timer: 0 };
-async function offerMade(uuid, text, run, field, near) {
-  const was = await model.madeState(uuid);
-  offerUndo(text, async () => { if (await model.madeState(uuid) !== was) return notify('It has changed since it was made, so it stays', 'warning'); await run(); }, field, near);
-  Object.assign(made, { key: `two-way:${undoCount}`, uuid, was });
+// A page made is kept too once anything has come to point at it (a link, a property's value), as Predictive and Structure keep
+// theirs (10 November 2026, the door's one rule): its Undo would leave that link pointing at nothing.
+const made = { key: '', uuid: '', was: '', page: false, timer: 0 };
+const asMade = async m => await model.madeState(m.uuid) === m.was && (!m.page || await model.pageUnlinked(m.uuid));
+async function offerMade(uuid, text, run, field, near, page = false) {
+  const mine = { uuid, was: await model.madeState(uuid), page };
+  offerUndo(text, async () => { if (!await asMade(mine)) return notify(page ? 'It has changed or been linked to since it was made, so it stays' : 'It has changed since it was made, so it stays', 'warning'); await run(); }, field, near);
+  Object.assign(made, { key: `two-way:${undoCount}`, ...mine });
 }
 /* The arrow on a value changed puts it back only while the value is as the change left it (8 November 2026): what was written
    after, by hand or by another plugin, is never written over. spots are [node, property] pairs; guard gives the undo to keep,
@@ -932,7 +936,7 @@ function checkMade() {
   clearTimeout(made.timer);
   made.timer = setTimeout(async () => {
     const key = made.key;
-    if (key && await model.madeState(made.uuid).catch(() => made.was) !== made.was && key === made.key) { shared.undo.forget(key); made.key = ''; }
+    if (key && !await asMade(made).catch(() => true) && key === made.key) { shared.undo.forget(key); made.key = ''; }
   }, 300);
 }
 const inBox = selector => () => state.box?.isConnected ? state.box.querySelector(selector) : null;

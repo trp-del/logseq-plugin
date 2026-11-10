@@ -103,7 +103,8 @@ function world() {
     const out = await w.add({ files: ['/Users/x/Scan.pdf'], where: 'open' });
     assert.equal(out.page, 'Report');
   }
-  // A file that cannot be read, a file Logseq does not take: said, and no empty bullet left.
+  // A file that cannot be read: said, and no empty bullet left. A file Logseq has not taken when the wait runs out keeps its
+  // bullet (10 November 2026): Logseq may only be slow, and a file that lands later then has its node.
   {
     const w = world();
     await assert.rejects(() => w.add({ files: ['/Users/x/Missing.pdf'], where: 'today' }), /Missing\.pdf could not be read/);
@@ -112,8 +113,9 @@ function world() {
     const before = Object.keys(w.blocks).length;
     same(await w.add({ files: ['/Users/x/Stuck.pdf'], where: 'today' }), { pending: true });   // the caller's time ran out first
     await sleep(2200);
-    assert.equal(Object.keys(w.blocks).length, before, 'the empty bullet was taken back once Logseq was given up on');
-    assert.ok(w.log.some(([k, text]) => k === 'notice' && /did not take Stuck\.pdf/.test(text)), 'and it is said in Logseq, since the caller is gone');
+    assert.equal(Object.keys(w.blocks).length, before + 1, 'the bullet stays when the wait runs out, for a file that lands late');
+    assert.ok(!w.log.some(([k]) => k === 'removeBlock'), 'nothing is removed: ' + JSON.stringify(w.log));
+    assert.ok(w.log.some(([k, text]) => k === 'notice' && /has not taken Stuck\.pdf yet; its bullet is kept/.test(text)), 'and it is said in Logseq, since the caller is gone');
   }
   // A file Logseq is slow to take: answered as pending before the caller's time runs out, and still taken.
   {

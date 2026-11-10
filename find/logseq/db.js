@@ -298,7 +298,7 @@ async function recents(limit = 8) {
 }
 // A page made from the find line, through Logseq's own call; opened once made.
 async function makePage(name) {
-  const page = await logseq.Editor.createPage(name, {}, { redirect: true, createFirstBlock: true });
+  const page = await window.PluginDoor.write.createPage(name, {}, { redirect: true, createFirstBlock: true });
   return page?.uuid ? String(page.uuid) : null;
 }
 const forget = () => { tags = null; };

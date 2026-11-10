@@ -227,7 +227,7 @@ async function currentIds(uuid, prop) {
 async function journalIdFor(day, title) {
   const [[p] = []] = await dsQuery(`[:find (pull ?p [:db/id]) :where [?p :block/journal-day ${day}]]`);
   if (p && idOf(p)) return idOf(p);
-  const page = await logseq.Editor.createPage(title, {}, { redirect: false, createFirstBlock: false, journal: true });
+  const page = await window.PluginDoor.write.createPage(title, {}, { redirect: false, createFirstBlock: false, journal: true });
   return page?.id ?? null;
 }
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -260,23 +260,20 @@ const journalPageFor = async day => journalIdFor(day, await journalTitleFor(Math
 // A page made for a name (core/people.js), with its tag: { id, uuid, title }. And taken back by Undo, only while nothing has been
 // written on it (a page the person has since filled is theirs, and stays).
 async function makePage(title, tagUuid) {
-  const page = await logseq.Editor.createPage(title, {}, { redirect: false, createFirstBlock: false });
+  const page = await window.PluginDoor.write.createPage(title, {}, { redirect: false, createFirstBlock: false });
   if (!page?.uuid) throw new Error('the page could not be made');
-  if (tagUuid) await logseq.Editor.addBlockTag(page.uuid, tagUuid);
+  if (tagUuid) await window.PluginDoor.write.addTag(page.uuid, tagUuid);
   return { id: page.id, uuid: String(page.uuid), title: String(page.title ?? page.originalName ?? title) };
 }
-async function dropPage(page) {
-  // The door's one check (8 November 2026): no words on it, nothing pointing at it, no value of its own.
-  if (!await window.PluginDoor.pageUntouched(page.uuid)) return false;
-  await logseq.Editor.deletePage(page.title);
-  return true;
-}
+// The door's one check and one delete (10 November 2026): no words on it, nothing pointing at it, no value of its own; and it goes
+// by its id, never by a name another page could share.
+const dropPage = page => window.PluginDoor.write.dropMade(page);
 
 // THE writes: Logseq's own editor calls, here only.
-const setValue = (uuid, ident, value, opts) => logseq.Editor.upsertBlockProperty(uuid, ident, value, opts);
-const unsetValue = (uuid, ident) => logseq.Editor.removeBlockProperty(uuid, ident);
-const addTag = (uuid, tagUuid) => logseq.Editor.addBlockTag(uuid, tagUuid);
-const removeTag = (uuid, tagUuid) => logseq.Editor.removeBlockTag(uuid, tagUuid);
+const setValue = (uuid, ident, value, opts) => window.PluginDoor.write.setValue(uuid, ident, value, opts);
+const unsetValue = (uuid, ident) => window.PluginDoor.write.unsetValue(uuid, ident);
+const addTag = (uuid, tagUuid) => window.PluginDoor.write.addTag(uuid, tagUuid);
+const removeTag = (uuid, tagUuid) => window.PluginDoor.write.removeTag(uuid, tagUuid);
 const currentGraph = () => Promise.resolve(logseq.App.getCurrentGraph?.()).catch(() => null);
 
 Flow.db = { forget, dsQuery, bare, pick, idOf, valuesOf, loadSchema, loadPages, loadPdfs, pagesNamed, pullBlock, pullBlockById, valueEntities, bulletOf, readContext, learnNodes,

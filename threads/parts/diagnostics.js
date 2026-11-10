@@ -472,7 +472,7 @@ async function openRecycleList() {
   };
   const restore = async (item, row) => {
     if (item.done || !row.uuid) return 'keep';
-    try { await logseq.Editor.restorePage(row.uuid); } catch (error) { console.error(error); notify(`Could not restore “${recycleLine(row)}”: ${error.message}`, 'error'); return 'keep'; }
+    try { await window.PluginDoor.write.restorePage(row.uuid); } catch (error) { console.error(error); notify(`Could not restore “${recycleLine(row)}”: ${error.message}`, 'error'); return 'keep'; }
     done(item, 'Restored');
     return 'keep';
   };
@@ -509,7 +509,7 @@ async function openRecycleList() {
     if (item.done || !row.uuid) return;
     const win = host().defaultView;
     await awayFromRecycle(win);
-    try { await logseq.Editor.deleteRecycledPagePermanently(row.uuid); } catch (error) { console.error(error); notify(`Could not delete “${recycleLine(row)}”: ${error.message}`, 'error'); return; }
+    try { await window.PluginDoor.write.deleteForGood(row.uuid); } catch (error) { console.error(error); notify(`Could not delete “${recycleLine(row)}”: ${error.message}`, 'error'); return; }
     done(item, 'Deleted');
   };
   /* Delete all (0.4.412, the owner: "yes I want delete all"): every line not yet restored or deleted, one question for
@@ -528,7 +528,7 @@ async function openRecycleList() {
     let failed = 0;
     for (const [item, row] of left) {
       if (item.done) continue;
-      try { await logseq.Editor.deleteRecycledPagePermanently(row.uuid); done(item, 'Deleted'); } catch (error) { console.error(error); failed++; }
+      try { await window.PluginDoor.write.deleteForGood(row.uuid); done(item, 'Deleted'); } catch (error) { console.error(error); failed++; }
     }
     done(allItem, failed ? `${failed} could not be deleted` : 'Done');
     notify(failed ? `Deleted ${left.length - failed} of ${left.length}; ${failed} could not be deleted` : `Deleted all ${left.length} from the Recycle`, failed ? 'warning' : 'success');

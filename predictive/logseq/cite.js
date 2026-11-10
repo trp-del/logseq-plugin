@@ -92,7 +92,7 @@ async function takeOff(uuid, words) {
   const title = String((await logseq.Editor.getBlock(uuid))?.title ?? '');
   const at = title.indexOf(words);
   if (at < 0) return;
-  await logseq.Editor.updateBlock(uuid, (title.slice(0, at).replace(/ $/, '') + title.slice(at + words.length)).trim());
+  await window.PluginDoor.write.setWords(uuid, (title.slice(0, at).replace(/ $/, '') + title.slice(at + words.length)).trim());
 }
 
 async function show({ uuid } = {}) {

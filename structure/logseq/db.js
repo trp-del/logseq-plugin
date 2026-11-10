@@ -105,23 +105,23 @@ const uuidOfNode = async id => (await query(`[:find ?u :where [${id} :block/uuid
 async function pageNamed(name) {
   const found = (await query(`[:find ?p :where [?p :block/name ${JSON.stringify(String(name).trim().toLowerCase())}] (not [?p :logseq.property/deleted-at _])]`))[0]?.[0];
   if (found != null) return { id: found };
-  const page = await logseq.Editor.createPage(name, {}, { redirect: false, createFirstBlock: false });
+  const page = await window.PluginDoor.write.createPage(name, {}, { redirect: false, createFirstBlock: false });
   return { id: page.id ?? (await query(`[:find ?p :where [?p :block/uuid #uuid "${page.uuid}"]]`))[0]?.[0], made: String(page.uuid) };
 }
 async function dayPage(day) {
   const found = (await query(`[:find ?p :where [?p :block/journal-day ${day}]]`))[0]?.[0];
   if (found != null) return { id: found };
-  const page = await logseq.Editor.createJournalPage(new Date(Math.floor(day / 10000), Math.floor(day / 100) % 100 - 1, day % 100));
+  const page = await window.PluginDoor.write.createJournalPage(new Date(Math.floor(day / 10000), Math.floor(day / 100) % 100 - 1, day % 100));
   return { id: page.id ?? (await query(`[:find ?p :where [?p :block/journal-day ${day}]]`))[0]?.[0], made: String(page.uuid) };
 }
 /* A node's values of a property become exactly these. Ids point at entities; words and numbers are written as words, each its
    own value; a yes or no raw. None: the property comes off the node. */
 async function putValues(node, ident, list) {
-  if (!list.length) return logseq.Editor.removeBlockProperty(node, ident);
+  if (!list.length) return window.PluginDoor.write.unsetValue(node, ident);
   if (list.every(v => v.id != null)) return setValues(node, ident, [...new Set(list.map(v => v.id))]);
-  if (list.length === 1 || list.every(v => v.raw != null)) return logseq.Editor.upsertBlockProperty(node, ident, list[0].raw ?? list[0].num ?? list[0].text ?? list[0].title, { reset: true });
-  await logseq.Editor.removeBlockProperty(node, ident);
-  for (const v of list) await logseq.Editor.upsertBlockProperty(node, ident, v.id != null ? v.id : v.num ?? v.text ?? v.title, v.id != null ? { entityId: true } : {});
+  if (list.length === 1 || list.every(v => v.raw != null)) return window.PluginDoor.write.setValue(node, ident, list[0].raw ?? list[0].num ?? list[0].text ?? list[0].title, { reset: true });
+  await window.PluginDoor.write.unsetValue(node, ident);
+  for (const v of list) await window.PluginDoor.write.setValue(node, ident, v.id != null ? v.id : v.num ?? v.text ?? v.title, v.id != null ? { entityId: true } : {});
 }
 // The tag a page holds, for the sidebar opening on the page's tag: the page on screen, by its uuid or name.
 async function tagOfPage(page) {
@@ -133,7 +133,7 @@ async function tagOfPage(page) {
 const valueRefs = async pageId => (await query(`[:find ?u ?a :where [?b ?a ${pageId}] [?p :db/ident ?a] [?p :block/tags :logseq.class/Property] [(namespace ?a) ?ns] [(= ?ns "user.property")] [?b :block/uuid ?u]]`)).map(([u, a]) => ({ uuid: String(u), ident: bare(a) }));
 const valueIds = async (uuid, ident) => (await query(`[:find ?v :where [?b :block/uuid #uuid "${uuid}"] [?b :${ident} ?v]]`)).map(([v]) => v);
 const rangeIds = async propUuid => (await query(`[:find ?c :where [?p :block/uuid #uuid "${propUuid}"] [?p :${RANGE} ?c]]`)).map(([c]) => c);
-const setValues = (uuid, ident, ids) => logseq.Editor.upsertBlockProperty(uuid, ident, ids.length === 1 ? ids[0] : ids, { entityId: true, reset: true });
+const setValues = (uuid, ident, ids) => window.PluginDoor.write.setValue(uuid, ident, ids.length === 1 ? ids[0] : ids, { entityId: true, reset: true });
 const tagIdByUuid = async uuid => (await query(`[:find ?t :where [?t :block/uuid #uuid "${uuid}"] [?t :block/tags :logseq.class/Tag] (not [?t :logseq.property/deleted-at _])]`))[0]?.[0] ?? null;
 const titleOf = async uuid => (await query(`[:find ?w :where [?b :block/uuid #uuid "${uuid}"] [?b :block/title ?w]]`))[0]?.[0];
 // The nodes a tag holds this moment, fresh, for the last look before it is deleted.
@@ -142,16 +142,16 @@ const classPropIds = async tagUuid => (await query(`[:find ?p :where [?t :block/
 
 /* THE writes. A tag's declared properties and a property's range are lists Logseq lets a plugin only clear and fill
    again, so taking one value out reads the list, clears it and puts the others back. */
-const addExtends = (tagUuid, parentUuid) => logseq.Editor.addTagExtends(tagUuid, parentUuid);
-const removeExtends = (tagUuid, parentUuid) => logseq.Editor.removeTagExtends(tagUuid, parentUuid);
-const rename = (uuid, name) => logseq.Editor.renamePage(uuid, name);
-const addTag = (nodeUuid, tagUuid) => logseq.Editor.addBlockTag(nodeUuid, tagUuid);
-const removeTag = (nodeUuid, tagUuid) => logseq.Editor.removeBlockTag(nodeUuid, tagUuid);
-const addClassProp = (tagUuid, propId) => logseq.Editor.upsertBlockProperty(tagUuid, CLASS_PROPS, propId, { entityId: true });
+const addExtends = (tagUuid, parentUuid) => window.PluginDoor.write.addExtends(tagUuid, parentUuid);
+const removeExtends = (tagUuid, parentUuid) => window.PluginDoor.write.removeExtends(tagUuid, parentUuid);
+const rename = (uuid, name) => window.PluginDoor.write.renamePage(uuid, name);
+const addTag = (nodeUuid, tagUuid) => window.PluginDoor.write.addTag(nodeUuid, tagUuid);
+const removeTag = (nodeUuid, tagUuid) => window.PluginDoor.write.removeTag(nodeUuid, tagUuid);
+const addClassProp = (tagUuid, propId) => window.PluginDoor.write.setValue(tagUuid, CLASS_PROPS, propId, { entityId: true });
 async function removeClassProp(tagUuid, propId) {
   const had = await classPropIds(tagUuid);
   if (!had.includes(propId)) return;
-  await logseq.Editor.removeBlockProperty(tagUuid, CLASS_PROPS);
+  await window.PluginDoor.write.unsetValue(tagUuid, CLASS_PROPS);
   for (const id of had) if (id !== propId) await addClassProp(tagUuid, id);
 }
 // Declared again, each one missing: what a failed clear left short gets its properties back.
@@ -163,14 +163,14 @@ async function putClassProps(tagUuid, ids) {
 async function setRange(propUuid, tagIds) {
   const now = await rangeIds(propUuid);
   const leaves = now.some(id => !tagIds.includes(id));
-  if (leaves) await logseq.Editor.removeBlockProperty(propUuid, RANGE);
-  for (const id of tagIds) if (leaves || !now.includes(id)) await logseq.Editor.upsertBlockProperty(propUuid, RANGE, id, { entityId: true });
+  if (leaves) await window.PluginDoor.write.unsetValue(propUuid, RANGE);
+  for (const id of tagIds) if (leaves || !now.includes(id)) await window.PluginDoor.write.setValue(propUuid, RANGE, id, { entityId: true });
 }
 // Logseq's createPage hands back whatever already holds a name, a tag, a page or a property, with no error (seen in 2.0.2).
 const nameTaken = async name => (await query(`[:find ?p :where [?p :block/name ${JSON.stringify(String(name).trim().toLowerCase())}] (not [?p :logseq.property/deleted-at _])]`)).length > 0;
 async function makeTag(name) {
   if (await nameTaken(name)) throw new Error(`“${name}” is already in the graph`);
-  const page = await logseq.Editor.createPage(name, {}, { redirect: false, class: true, createFirstBlock: false });
+  const page = await window.PluginDoor.write.createPage(name, {}, { redirect: false, class: true, createFirstBlock: false });
   if (!page?.uuid) throw new Error(`${name} could not be made a tag`);
   return { uuid: String(page.uuid), id: page.id ?? (await tagIdByUuid(String(page.uuid))) };
 }
@@ -180,7 +180,7 @@ async function remakeTag(name) {
   for (let n = 2; await nameTaken(free); n++) free = `${name} ${n}`;
   return makeTag(free);
 }
-const deleteTag = uuid => logseq.Editor.deletePage(uuid);
+const deleteTag = uuid => window.PluginDoor.write.deletePage(uuid, query);
 /* What an Undo may take away again (8 November 2026): a page or tag Apply made, only while nothing has been written on it or
    pointed at it since (PluginDoor.pageUntouched: a tagged node points at its tag too) and no tag extends it. */
 const untouched = async uuid => await window.PluginDoor.pageUntouched(uuid, query) && !(await query(`[:find ?k :where [?t :block/uuid #uuid "${uuid}"] [?k :${EXTENDS} ?t]]`)).length;
@@ -192,7 +192,7 @@ const pageBullets = async uuid => ((await logseq.Editor.getPageBlocksTree(uuid))
 async function moveBullets(uuids, pageUuid) {
   let last = (await pageBullets(pageUuid)).at(-1);
   for (const uuid of uuids) {
-    if (last) await logseq.Editor.moveBlock(uuid, last, { before: false }); else await logseq.Editor.moveBlock(uuid, pageUuid, { children: true });
+    if (last) await window.PluginDoor.write.moveBlock(uuid, last, { before: false }); else await window.PluginDoor.write.moveBlock(uuid, pageUuid, { children: true });
     last = uuid;
   }
 }

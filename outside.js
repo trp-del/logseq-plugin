@@ -10,7 +10,7 @@
      logseq.App.invokeExternalPluginCmd  ["logseq-plugin", "models", "add", [{ files: [absolute paths], where }]]
    where `where` is "today", "open" or { page: "its name" }, and is answered { page, added: [titles] }, or { pending: true }
    when the files are still going in as Logseq's ten seconds for the call run out, or an error with the reason, which the
-   caller shows. Words, links and pages the caller writes through Logseq's own API; only files need this. */
+   caller shows. A file Logseq is slow to take keeps its bullet: only a bullet the file was never pasted into is taken back. Words, links and pages the caller writes through Logseq's own API; only files need this. */
 (function () {
 const Door = window.PluginDoor;
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -36,7 +36,7 @@ async function page(where) {
   if (!name) throw new Error('No page was named');
   const found = await logseq.Editor.getPage(name);
   if (found?.uuid) return found;
-  const made = await logseq.Editor.createPage(name, {}, { redirect: false, createFirstBlock: false });
+  const made = await window.PluginDoor.write.createPage(name, {}, { redirect: false, createFirstBlock: false });
   if (!made?.uuid) throw new Error(`The page “${name}” could not be made`);
   return made;
 }
@@ -66,10 +66,10 @@ async function twin(bytes, name) {
 // One file into one page: an empty bullet, opened, the file pasted, the bullet watched until it is the asset.
 async function paste(target, { path, bytes }, screen) {
   const name = fileName(path);
-  const block = await logseq.Editor.appendBlockInPage(target.uuid, '');
+  const block = await window.PluginDoor.write.appendBlock(target.uuid, '');
   if (!block?.uuid) throw new Error(`A bullet for ${name} could not be added`);
   const doc = window.parent.document, win = doc.defaultView;
-  const takeBack = async () => { try { await logseq.Editor.exitEditingMode(true); } catch (error) { /* it was not open */ } try { await logseq.Editor.removeBlock(block.uuid); } catch (error) { /* it was already gone */ } };
+  const takeBack = async () => { try { await logseq.Editor.exitEditingMode(true); } catch (error) { /* it was not open */ } try { await window.PluginDoor.write.removeBlock(block.uuid); } catch (error) { /* it was already gone */ } };
   let shown = await until(() => doc.querySelector(`[blockid="${block.uuid}"]`), screen.moved ? 3000 : 400);
   if (!shown) {
     await screen.show(target);
@@ -90,7 +90,9 @@ async function paste(target, { path, bytes }, screen) {
   // Copying a large file and reading it for its checksum takes Logseq a while.
   const asset = await until(async () => { const now = await logseq.Editor.getBlock(block.uuid).catch(() => null); return hasAssetType(now) ? now : null; }, Door.outside.patience, 200);
   try { await logseq.Editor.exitEditingMode(true); } catch (error) { /* it closed itself */ }
-  if (!asset) { await takeBack(); throw new Error(`Logseq did not take ${name}`); }
+  // Still not the file's node when the wait runs out: the bullet stays (10 November 2026). Logseq may only be slow with a large file,
+  // and a file that lands a moment later then has its node; removing the bullet left the file in the graph with nothing pointing at it.
+  if (!asset) throw new Error(`Logseq has not taken ${name} yet; its bullet is kept on the page for when it does`);
   return asset.title || asset.content || name.replace(/\.[^.]+$/, '');
 }
 // Where the owner was: the route, and the bullet being written in, put back once the files are in.

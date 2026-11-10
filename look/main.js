@@ -17,7 +17,7 @@ async function main() {
   logseq.DB.onChanged(change => Look.kit.graphChanged(change));
   const own = Look.settings.schema.map(item => item.key);
   logseq.onSettingsChanged?.((now, before) => { if (!window.PluginDoor.settingChanged(own, now, before)) return; Look.style.apply(); Look.calm.apply(); Look.sidebar.apply(); Look.notices.apply(); Look.kit.run(Look.kit.host()); Look.links.load(); });
-  logseq.App.onCurrentGraphChanged(() => { Look.marks.load(); Look.props.load(); });
+  logseq.App.onCurrentGraphChanged(() => { window.PluginDoor.undo.clear('look'); Look.marks.load(); Look.props.load(); });   // an arrow would act on the graph left behind
 }
 function stop() {
   // Each on its own: a part that never started must not leave the others running.

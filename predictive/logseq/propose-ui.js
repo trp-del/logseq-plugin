@@ -754,7 +754,7 @@ function start() {
   S.stopped = false;
   applyHide();
   logseq.onSettingsChanged?.((now, before) => { if (window.PluginDoor.settingChanged(['proposals', 'proposalsSkipGraphs', 'proposalsHideEmpty'], now, before)) applyHide(); });
-  logseq.App.onCurrentGraphChanged?.(() => { S.version++; S.live = null; S.filling.clear(); S.refused.clear(); S.refusedGraph = ''; forgetUndo(S.undo?.record); applyHide(); });
+  logseq.App.onCurrentGraphChanged?.(() => { S.version++; S.live = null; S.filling.clear(); S.refused.clear(); S.refusedGraph = ''; forgetUndo(S.undo?.record); undoDoor().clear('predictive'); applyHide(); });
   logseq.App.onRouteChanged?.(() => { S.live = null; hide(); applyHide(); });
   app.onStop(() => {
     S.stopped = true; clearTimeout(S.timer); S.version++; watcher?.disconnect(); watcher = null; S.live = null; S.filling.clear();

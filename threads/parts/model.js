@@ -792,7 +792,7 @@ const dayNumber = d => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.ge
 async function journalIdFor(day, title) {
   const [[p] = []] = await dsQuery(`[:find (pull ?p [:db/id]) :where [?p :block/journal-day ${day}]]`);
   if (p && idOf(p)) return idOf(p);
-  const page = await logseq.Editor.createPage(title, {}, { redirect: false, createFirstBlock: false, journal: true });
+  const page = await window.PluginDoor.write.createPage(title, {}, { redirect: false, createFirstBlock: false, journal: true });
   return page?.id ?? null;
 }
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -898,25 +898,25 @@ const tagChain = async uuid => (await tagChains(uuid))?.own || null;
    place. A property's value (an entity id with { entityId: true }, several with { reset: true }), a value taken off,
    a tag given or taken from a node, a block's words, a block put in edit or left, a block made after or inside
    another, the page and the graph open now. */
-const setValue = (uuid, ident, value, opts) => logseq.Editor.upsertBlockProperty(uuid, ident, value, opts);
-const unsetValue = (uuid, ident) => logseq.Editor.removeBlockProperty(uuid, ident);
+const setValue = (uuid, ident, value, opts) => window.PluginDoor.write.setValue(uuid, ident, value, opts);
+const unsetValue = (uuid, ident) => window.PluginDoor.write.unsetValue(uuid, ident);
 // A task's status, Logseq's own property, set from Threads' circle by its value's title (Todo, Done …) (9 November 2026).
 const STATUS_IDENT = 'logseq.property/status';
-const addTag = (uuid, tagUuid) => logseq.Editor.addBlockTag(uuid, tagUuid);
-const removeTag = (uuid, tagUuid) => logseq.Editor.removeBlockTag(uuid, tagUuid);
-const setWords = (uuid, text) => logseq.Editor.updateBlock(uuid, text);
+const addTag = (uuid, tagUuid) => window.PluginDoor.write.addTag(uuid, tagUuid);
+const removeTag = (uuid, tagUuid) => window.PluginDoor.write.removeTag(uuid, tagUuid);
+const setWords = (uuid, text) => window.PluginDoor.write.setWords(uuid, text);
 const editBlock = (uuid, opts) => logseq.Editor.editBlock(uuid, opts);
 const exitEditing = () => logseq.Editor.exitEditingMode();
-const insertBlock = (uuid, text, opts) => logseq.Editor.insertBlock(uuid, text, opts);
+const insertBlock = (uuid, text, opts) => window.PluginDoor.write.insertBlock(uuid, text, opts);
 /* A new last bullet inside a node (0.4.369, "write into a node without leaving", parts/two-way.js): at the end of a
    page's blocks, after the last child of a block, or as a block's first child when it has none. Not put in edit.
    Returns the new block, which removeBlock takes away again. */
 async function addLineTo(uuid, text) {
   const entity = await logseq.Editor.getBlock(uuid, { includeChildren: true });
   if (!entity) throw new Error('the node was not found');
-  if (entity.name || entity.originalName) return logseq.Editor.appendBlockInPage(uuid, text);
+  if (entity.name || entity.originalName) return window.PluginDoor.write.appendBlock(uuid, text);
   const last = (entity.children || []).filter(child => child && child.uuid).slice(-1)[0];
-  return last ? logseq.Editor.insertBlock(String(last.uuid), text, { sibling: true, focus: false }) : logseq.Editor.insertBlock(uuid, text, { sibling: false, focus: false });
+  return last ? window.PluginDoor.write.insertBlock(String(last.uuid), text, { sibling: true, focus: false }) : window.PluginDoor.write.insertBlock(uuid, text, { sibling: false, focus: false });
 }
 const currentPage = () => logseq.Editor.getCurrentPage();
 // The block being written in, the blocks picked, and a block by its id (with its parent and page), for a command (0.4.357).
@@ -928,7 +928,7 @@ const getPage = key => logseq.Editor.getPage(key);
 // name hands it back still in the Recycle (seen in the app, 2026-10-23), so a part that makes pages by name asks this
 // first and brings it back with restorePage.
 const inRecycle = async uuid => UUID.test(String(uuid)) && (await dsQuery(`[:find ?d :where [?p :block/uuid #uuid "${uuid}"] [?p :logseq.property/deleted-at ?d]]`)).length > 0;
-const restorePage = uuid => logseq.Editor.restorePage(uuid);
+const restorePage = uuid => window.PluginDoor.write.restorePage(uuid);
 // Words typed with a link: stored as Logseq stores a link, by the page's uuid, so it stays a link. A name that holds no page stays as typed.
 async function storedWords(text) {
   let out = String(text);
@@ -939,30 +939,29 @@ async function storedWords(text) {
   return out;
 }
 // A thing just made, as it stands: its words, when it last changed, the bullets inside it. Changed since, it is no longer only what was made.
-async function madeState(uuid) {
-  const [[id, words, at] = []] = await dsQuery(`[:find ?b ?w ?at :where [?b :block/uuid #uuid "${uuid}"] [?b :block/title ?w] [?b :block/updated-at ?at]]`);
-  if (id == null) return '';
-  const [[kids] = [0]] = await dsQuery(`[:find (count ?k) :where [?k :block/parent ${id}] (not [?k :logseq.property/created-from-property _])]`);
-  return JSON.stringify([words, at, kids]);
-}
+// (The door's rule, read through this door.)
+const madeState = uuid => window.PluginDoor.write.madeStamp(uuid, query => dsQuery(query));
+// Whether anything has come to point at a page since it was made (a link in a bullet, a property's value): then it is no longer only what was made.
+const pageUnlinked = uuid => window.PluginDoor.write.untouched(uuid, query => dsQuery(query), { own: false });
 // What a node holds under a property, as words to compare before an Undo writes over it (the door's one check, read through this door).
 const valueStamp = (uuid, ident) => window.PluginDoor.valueStamp(uuid, ident, query => dsQuery(query));
-const createPage = (name, props, opts) => logseq.Editor.createPage(name, props, opts);
-const deletePage = name => logseq.Editor.deletePage(name);
-const appendBlock = (pageUuid, text) => logseq.Editor.appendBlockInPage(pageUuid, text);
-const removeBlock = uuid => logseq.Editor.removeBlock(uuid);
+const createPage = (name, props, opts) => window.PluginDoor.write.createPage(name, props, opts);
+// A page goes by its id, never by a name another page could share (10 November 2026): its uuid, or the page itself.
+const deletePage = page => window.PluginDoor.write.deletePage(page, query => dsQuery(query));
+const appendBlock = (pageUuid, text) => window.PluginDoor.write.appendBlock(pageUuid, text);
+const removeBlock = uuid => window.PluginDoor.write.removeBlock(uuid);
 const currentGraph = () => Promise.resolve(logseq.App.getCurrentGraph?.()).catch(() => null);
 // The tag map's doors (0.4.319): a page's new name, a block moved after another, a page's blocks as a tree, a tag put
 // under or taken out from under another (its Extends), a page or block opened in the right sidebar, the sidebar shown.
-const renamePage = (uuid, name) => logseq.Editor.renamePage(uuid, name);
-const moveBlock = (uuid, target, opts) => logseq.Editor.moveBlock(uuid, target, opts);
+const renamePage = (uuid, name) => window.PluginDoor.write.renamePage(uuid, name);
+const moveBlock = (uuid, target, opts) => window.PluginDoor.write.moveBlock(uuid, target, opts);
 const pageBlocksTree = uuid => logseq.Editor.getPageBlocksTree(uuid);
 const EXTENDS = 'logseq.property.class/extends';
 // A page's aliases and icon, and Logseq's own tags another tag may extend (Task, Card; its others, Page, Journal …, cannot be parents).
 const ALIAS = 'logseq.property/alias', ICON = 'logseq.property/icon';
 const PARENT_TAGS = new Set(['logseq.class/Task', 'logseq.class/Card']);
-const addTagExtends = (uuid, parentUuid) => logseq.Editor.addTagExtends(uuid, parentUuid);
-const removeTagExtends = (uuid, parentUuid) => logseq.Editor.removeTagExtends(uuid, parentUuid);
+const addTagExtends = (uuid, parentUuid) => window.PluginDoor.write.addExtends(uuid, parentUuid);
+const removeTagExtends = (uuid, parentUuid) => window.PluginDoor.write.removeExtends(uuid, parentUuid);
 const openInSidebar = uuid => logseq.Editor.openInRightSidebar(uuid);
 const showSidebar = (on = true) => Promise.resolve(logseq.App.setRightSidebarVisible?.(on));
 // Every tag's title, for a list to offer (the settings window).
@@ -1103,7 +1102,7 @@ async function withKids(uuids) {
 }
 
 function provide(core) {
-  core.provide({ aliasesOf, madeState, valueStamp, storedWords, inRecycle, restorePage, setValue, unsetValue, STATUS_IDENT, statusChoices, addTag, removeTag, setWords, editBlock, exitEditing, insertBlock, addLineTo, currentPage, currentBlock, pickedBlocks, getBlock, currentGraph, tagTitles, getPage, createPage, deletePage, appendBlock, removeBlock, inRecycle, restorePage,
+  core.provide({ aliasesOf, madeState, pageUnlinked, valueStamp, storedWords, inRecycle, restorePage, setValue, unsetValue, STATUS_IDENT, statusChoices, addTag, removeTag, setWords, editBlock, exitEditing, insertBlock, addLineTo, currentPage, currentBlock, pickedBlocks, getBlock, currentGraph, tagTitles, getPage, createPage, deletePage, appendBlock, removeBlock, inRecycle, restorePage,
     renamePage, moveBlock, pageBlocksTree, EXTENDS, ALIAS, ICON, PARENT_TAGS, addTagExtends, removeTagExtends, openInSidebar, showSidebar,
     titleOf, trailingTags, storedRef, readableTitle, bare, pick, idOf,
     propSchema, propPages, fieldsOf, fits, kindOfPage, tagChain, tagChains, tagChainIndex, parseDay, dayNumber, sameDay, dayAfter, DAYS,

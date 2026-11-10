@@ -71,13 +71,82 @@ Door.valueStamp = async (uuid, ident, ask = dsAsk) => {
   }
   return JSON.stringify(values.map(v => words.get(v) ?? JSON.stringify(v)).sort());
 };
-Door.pageUntouched = async (uuid, ask = dsAsk) => {
+Door.pageUntouched = async (uuid, ask = dsAsk, { own = true } = {}) => {
   const page = `[?p :block/uuid #uuid "${uuid}"]`, USER = '[?pr :db/ident ?a] [?pr :block/tags :logseq.class/Property] [(namespace ?a) ?ns] [(= ?ns "user.property")]';
   const words = await ask(`[:find ?t :where ${page} [?b :block/page ?p] [?b :block/title ?t]]`) || [];
   if (words.some(([t]) => String(t ?? '').trim())) return false;
   if ((await ask(`[:find ?b :where ${page} [?b :block/refs ?p] (not [?b :block/page ?p])]`) || []).length) return false;
   if ((await ask(`[:find ?b :where ${page} [?b ?a ?p] ${USER}]`) || []).length) return false;
-  return !(await ask(`[:find ?a :where ${page} [?p ?a _] ${USER}]`) || []).length;
+  // own: false for a page the change itself gave values (Threads' "+" line), whose own state the maker compares (madeStamp).
+  return !own || !(await ask(`[:find ?a :where ${page} [?p ?a _] ${USER}]`) || []).length;
+};
+/* THE one way the plugin writes to the graph (10 November 2026, the code review's "one write layer"; until then Look, Predictive,
+   Structure, Threads and the outside door each wrapped Logseq's write calls for themselves). Every write a module makes goes
+   through Door.write, and test/writes.js fails on a write call anywhere else, as test/library.js does on a hand-drawn button.
+   The writes are Logseq's own editor calls under the plugin's names, so a Logseq update that changes one is mended here once.
+   The Undo guard is built in beside them, so no module keeps a rule of its own for what an Undo may take away:
+     stamp(uuid, ident), untouched(uuid, ask, { own })   the two checks above;
+     madeStamp(uuid)        a thing just made, as it stands: its words, when it last changed, the bullets inside it;
+     guarded(spots, undo)   resolves to an undo that runs only while each [node, property] holds what the change left, and answers
+                            'kept' otherwise;
+     deletePage(page)       a page is deleted by its id, never by a name another page could share: by its uuid, and where
+                            Logseq leaves the page in place when asked so (seen in 2.0.2), by its name only once that name is
+                            seen to answer to this very page. Answers whether it went;
+     dropMade(page, { own })  a page a change made goes again only while untouched. Answers whether it went.
+   ask is the caller's query call where it has one of its own (a stand-in's), Logseq's otherwise. */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+Door.UUID = UUID;
+const pageGone = async (uuid, ask = dsAsk) => !(await ask(`[:find ?p :where [?p :block/uuid #uuid "${uuid}"] (not [?p :logseq.property/deleted-at _])]`) || []).length;
+Door.write = {
+  addTag: (uuid, tagUuid) => logseq.Editor.addBlockTag(uuid, tagUuid),
+  removeTag: (uuid, tagUuid) => logseq.Editor.removeBlockTag(uuid, tagUuid),
+  setValue: (uuid, ident, value, opts) => logseq.Editor.upsertBlockProperty(uuid, ident, value, opts),
+  unsetValue: (uuid, ident) => logseq.Editor.removeBlockProperty(uuid, ident),
+  setWords: (uuid, words, opts) => logseq.Editor.updateBlock(uuid, words, opts),
+  insertBlock: (uuid, words, opts) => logseq.Editor.insertBlock(uuid, words, opts),
+  appendBlock: (page, words, opts) => logseq.Editor.appendBlockInPage(page, words, opts),
+  removeBlock: uuid => logseq.Editor.removeBlock(uuid),
+  moveBlock: (uuid, target, opts) => logseq.Editor.moveBlock(uuid, target, opts),
+  createPage: (name, props, opts) => logseq.Editor.createPage(name, props, opts),
+  createJournalPage: date => logseq.Editor.createJournalPage(date),
+  renamePage: (uuid, name) => logseq.Editor.renamePage(uuid, name),
+  restorePage: uuid => logseq.Editor.restorePage(uuid),
+  deleteForGood: uuid => logseq.Editor.deleteRecycledPagePermanently(uuid),   // out of Logseq's Recycle: nothing brings it back
+  addExtends: (tagUuid, parentUuid) => logseq.Editor.addTagExtends(tagUuid, parentUuid),
+  removeExtends: (tagUuid, parentUuid) => logseq.Editor.removeTagExtends(tagUuid, parentUuid),
+  /* A bullet shows a page (Logseq's Node embed is the bullet's link to the page): one write, and the bullet's words stay in the
+     graph under it, so taking the link off again shows them as they were (seen in Logseq 2.0.2, 10 November 2026). */
+  showPage: (uuid, pageId) => logseq.Editor.upsertBlockProperty(uuid, 'block/link', pageId, { entityId: true }),
+  unshowPage: uuid => logseq.Editor.removeBlockProperty(uuid, 'block/link'),
+  async deletePage(page, ask = dsAsk) {
+    const uuid = String(page?.uuid ?? page ?? '');
+    if (!UUID.test(uuid)) throw new Error('a page is deleted by its id, and none was given');
+    if (await pageGone(uuid, ask)) return false;
+    await logseq.Editor.deletePage(uuid);
+    if (await pageGone(uuid, ask)) return true;
+    const found = await Promise.resolve(logseq.Editor.getPage(uuid)).catch(() => null), name = found?.name || found?.title || found?.originalName;
+    const named = name ? await Promise.resolve(logseq.Editor.getPage(name)).catch(() => null) : null;
+    if (String(named?.uuid ?? '').toLowerCase() !== uuid.toLowerCase()) throw new Error('another page answers to its name, so it stays');
+    await logseq.Editor.deletePage(name);
+    return pageGone(uuid, ask);
+  },
+  async dropMade(page, { own = true, ask = dsAsk } = {}) {
+    if (!await Door.pageUntouched(String(page?.uuid ?? page), ask, { own })) return false;
+    return Door.write.deletePage(page, ask);
+  },
+  stamp: (uuid, ident, ask) => Door.valueStamp(uuid, ident, ask),
+  untouched: (uuid, ask, opts) => Door.pageUntouched(uuid, ask, opts),
+  async madeStamp(uuid, ask = dsAsk) {
+    const [[id, words, at] = []] = await ask(`[:find ?b ?w ?at :where [?b :block/uuid #uuid "${uuid}"] [?b :block/title ?w] [?b :block/updated-at ?at]]`) || [];
+    if (id == null) return '';
+    const [[kids] = [0]] = await ask(`[:find (count ?k) :where [?k :block/parent ${id}] (not [?k :logseq.property/created-from-property _])]`) || [];
+    return JSON.stringify([words, at, kids]);
+  },
+  async guarded(spots, undo, ask) {
+    const read = () => Promise.all(spots.map(([uuid, ident]) => Door.valueStamp(uuid, ident, ask))).then(JSON.stringify);
+    const was = await read();
+    return async () => { if (await read() !== was) return 'kept'; return undo(); };
+  },
 };
 // Whether a module is switched on (its switch in the settings). The switches are read as the plugin starts.
 Door.runs = key => logseq.settings?.[key + 'On'] !== false;
@@ -198,13 +267,17 @@ Door.UNDO = '<i class="ti ti-arrow-back-up" aria-hidden="true"></i>';
 /* THE Undo of the plugin, one for every module (6 November 2026; until then Threads, Predictive and Structure each kept their own;
    the logic is Threads' of 0.4.258, at the owner's word "make one pop-up, one Undo and one dialog"; the look the owner chose: "something
    just where text is but very subtle, like a faded icon"). After a change a faded arrow sits at the end of what changed and says what it
-   takes back when pointed at; a click takes it back. One arrow stands in the whole plugin: a new change's arrow takes the last one's
-   place (the grammar). A change offered again under the same key adds to that arrow: one click takes both back, the later first. When
+   takes back when pointed at; a click takes it back. One arrow stands for a change of one thing and one for a change of many things:
+   a new change's arrow takes the place of the last one of its size (the grammar, and `many` below). A change offered again under the same key adds to that arrow: one click takes both back, the later first. When
    nothing of the change is on screen to sit beside, the arrow waits at the bottom right with its words beside it, quiet, until it is
    used, forgotten or cleared. The arrows are put back whenever Logseq draws the place again (the one screen watcher), so a module
    gives at() as a function finding the place afresh.
-   undo.offer({ owner, key, at, text, run, onFail, cls })   owner: the module's key, so it can clear its own when its page is left;
+   undo.offer({ owner, key, at, text, run, onFail, cls, many, docks })   owner: the module's key, so it can clear its own when its page is left;
      at(): the element(s) to sit at the end of, or null; run(): the inverse, async; onFail(error): said instead of the plain notice.
+     many: a change of many things (Structure's Apply, a pick of several nodes in Threads). It keeps its own Undo (the owner, 9 November
+     2026): a change of one thing takes the place of the last change of one thing only, a change of many things that of the last change
+     of many things only, so filling in one value never takes a merge's way back. docks: false for an arrow that lives at the end of
+     the line saying what was done and nowhere else (Structure's), so it never waits at the bottom right while its line is out of sight.
    undo.forget(key or entry => bool), undo.take(key) (run it as a press would), undo.clear(owner or nothing: every one), undo.has(key),
    undo.keys(), undo.size, undo.draw(), undo.stop(). The arrow is lk-undo with data-lk-undo=key; the dock lk-undo-dock. */
 const undoState = { entries: new Map(), unwatch: null, listening: false, drawing: false };
@@ -238,7 +311,7 @@ function drawUndoArrows() {
     for (const [key, entry] of entries) {
       const targets = undoTargets(entry);
       for (const target of targets) if (![...target.children].some(child => child.dataset?.lkUndo === key)) target.appendChild(undoArrow(doc, key, entry, false));
-      if (!targets.length && !doc.querySelector(`.lk-undo-dock [data-lk-undo="${undoAttr(key)}"]`)) {
+      if (!targets.length && entry.docks !== false && !doc.querySelector(`.lk-undo-dock [data-lk-undo="${undoAttr(key)}"]`)) {
         if (!dock) { dock = doc.createElement('div'); dock.className = 'lk-undo-dock'; doc.body.appendChild(dock); }
         dock.appendChild(undoArrow(doc, key, entry, true));
       }
@@ -270,11 +343,11 @@ function watchUndos() {
   else if (!on && undoState.listening) { for (const type of ['pointerdown', 'mousedown', 'mouseup', 'click']) win.removeEventListener(type, onUndoArrow, true); undoState.listening = false; }
 }
 Door.undo = {
-  offer({ owner = '', key, at, text, run, onFail, cls }) {
+  offer({ owner = '', key, at, text, run, onFail, cls, many = false, docks = true }) {
     const before = undoState.entries.get(key);
-    for (const other of [...undoState.entries.keys()]) if (other !== key) undoState.entries.delete(other);   // a new change's arrow takes the last one's place
+    for (const [other, entry] of [...undoState.entries]) if (other !== key && !!entry.many === !!many) undoState.entries.delete(other);   // a new change's arrow takes the place of the last one of its size
     const all = before ? async () => { let failed = null; try { await run(); } catch (error) { failed = error; } await before.run(); if (failed) throw failed; } : run;
-    undoState.entries.set(key, { owner, at, text: before ? `${text} · ${before.text}` : text, run: all, onFail: onFail || before?.onFail, cls });
+    undoState.entries.set(key, { owner, at, text: before ? `${text} · ${before.text}` : text, run: all, onFail: onFail || before?.onFail, cls, many: !!many, docks });
     for (const arrow of Door.host().querySelectorAll(`[data-lk-undo="${undoAttr(key)}"]`)) arrow.remove();   // drawn again, so an arrow with the old words is replaced
     watchUndos();
     drawUndoArrows();

@@ -172,14 +172,16 @@ function settle(was, up) {
 }
 function keepDone(graph, done) { if (graph === app.graph) tray.done = done; else dones.set(graph, done); syncUndo(); }
 /* The arrow is the door's one Undo (PluginDoor.undo): offered at the end of the tray's done line whenever the tray has a done, taken
-   away when it has none, and when another module's change has taken the arrow's place the done line goes too (one Undo in the plugin). */
+   away when it has none. An Apply is a change of many things, so it keeps its arrow until the next change of many things (the owner, 9 November
+   2026): a value filled in elsewhere no longer takes it. When such a change has taken its place the done line goes too. The arrow lives at
+   the end of the done line only, so it never waits at the bottom right while the map is out of sight. */
 let undoOffered = false;
 function syncUndo() {
   const door = window.PluginDoor.undo;
   if (tray.done) {
     if (undoOffered && !door.has('structure')) { tray.done = null; undoOffered = false; return; }
     door.forget('structure');
-    door.offer({ owner: 'structure', key: 'structure', at: () => host().querySelector('.st-tray .st-done'), text: tray.done.text, run: () => app.undo() });
+    door.offer({ owner: 'structure', key: 'structure', at: () => host().querySelector('.st-tray .st-done'), text: tray.done.text, run: () => app.undo(), many: true, docks: false });
     undoOffered = true;
   } else if (undoOffered) { door.forget('structure'); undoOffered = false; }
 }

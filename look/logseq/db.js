@@ -150,8 +150,8 @@ async function heldBelow(uuids) {
 }
 
 // The two writes the title row makes, through Logseq's own calls.
-const removeTag = (pageUuid, tagUuid) => logseq.Editor.removeBlockTag(pageUuid, tagUuid);
-const addTag = (pageUuid, tagUuid) => logseq.Editor.addBlockTag(pageUuid, tagUuid);
+const removeTag = (pageUuid, tagUuid) => window.PluginDoor.write.removeTag(pageUuid, tagUuid);
+const addTag = (pageUuid, tagUuid) => window.PluginDoor.write.addTag(pageUuid, tagUuid);
 const getPage = name => Promise.resolve(logseq.Editor.getPage(name)).catch(() => null);
 
 Look.db = { query, tagIndex, chainOf, pageIndex, propIndex, heldBelow, removeTag, addTag, getPage, UUID, EXTENDS, PAGE_KINDS };

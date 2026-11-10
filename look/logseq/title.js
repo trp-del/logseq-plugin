@@ -31,7 +31,10 @@ const css = `
 .ls-block-right:has(> .lk-path) > .block-tags { display: none; }
 /* In the right sidebar: a line of its own under the page's name, wrapping between names. */
 .lk-path.lk-path-sb { display: block; max-width: none; margin: 4px 0 0 4px; white-space: normal; overflow: visible; }
-.lk-path.lk-path-sb .lk-held { white-space: nowrap; }`;
+.lk-path.lk-path-sb .lk-held { white-space: nowrap; }
+/* The Undo arrow of a tag taken off, at the right end of the title row: on the line the tags stand on. */
+.ls-block-right > .lk-undo.lk-undo-title { align-self: flex-start; margin: 21px 0 0 6px; }
+.sidebar-item-header .page-title > .lk-undo.lk-undo-title { text-decoration: none !important; }   /* beside a sidebar page's name: the name's underline is not the arrow's */`;
 
 const state = { box: null, page: '', tagPage: false, boxes: new Map() };
 const PAGE_TITLE = '#main-content-container :is(.ls-page-title, .page-title, h1.title)';
@@ -72,17 +75,29 @@ function open(event) {
   event.preventDefault(); event.stopPropagation();
   const own = pageOf(event.currentTarget);
   const x = event.target.closest('.lk-x');
-  if (x) return takeOff(x.getAttribute('data-take'), own || { page: state.page, tagPage: state.tagPage });
+  if (x) return takeOff(x.getAttribute('data-take'), own || { page: state.page, tagPage: state.tagPage }, x.closest('.lk-held')?.querySelector('a.lk-tag')?.textContent || 'The tag');
   const a = event.target.closest('a[data-uuid]');
   if (a) openPage(a.getAttribute('data-uuid'), event.shiftKey);
 }
 const press = event => { if ((event.key === 'Enter' || event.key === ' ') && event.target.closest?.('.lk-x')) open(event); };
-async function takeOff(tagUuid, { page, tagPage }) {
+/* Where the Undo arrow of a tag taken off sits: at the right end of the page's title row, where the tag was; in the right sidebar,
+   at the end of the page's line of tags, or of its name when no tag is left. With the page off screen it waits at the bottom right. */
+function undoPlace(page) {
+  const doc = host(), title = shownTitle(doc);
+  if (title?.querySelector('.ls-block[blockid]')?.getAttribute('blockid') === page) { const row = title.querySelector('.is-page-title-row'); return row?.querySelector('.ls-block-right') || row; }
+  for (const [item, box] of state.boxes) if (box.dataset.page === page && item.isConnected) return box.isConnected && box.childElementCount ? box : item.querySelector('.sidebar-item-header .page-title');
+  return null;
+}
+// The × and its key take the tag off the same way, and leave the same faded Undo arrow every other change leaves (10 November 2026).
+async function takeOff(tagUuid, { page, tagPage }, name = 'The tag') {
   if (!page || !tagUuid) return;
   try {
     if (tagPage) return await window.Structure.app.askTakeOut(page, tagUuid);
     await Look.db.removeTag(page, tagUuid);
     setTimeout(() => Look.marks.load(), 300);
+    window.PluginDoor.undo.offer({ owner: 'look', key: `look:${page}:${tagUuid}`, at: () => undoPlace(page), text: `${name} taken off this page`, cls: 'lk-undo-title',
+      run: async () => { await Look.db.addTag(page, tagUuid); setTimeout(() => Look.marks.load(), 300); },
+      onFail: error => { console.error('Look: a tag could not be put back', error); notify('The tag could not be put back', 'warning'); } });
   } catch (error) { console.error('Look: a tag could not be taken off', error); notify('The tag could not be taken off', 'warning'); }
 }
 function drawTitle(doc, index) {
@@ -121,6 +136,6 @@ function drawSidebar(doc, index) {
 }
 function draw(doc) { const index = Look.index; if (!index) return; drawTitle(doc, index); drawSidebar(doc, index); }
 function start() { style('title', css); watchScreen(draw); }
-function stop() { state.box?.remove(); state.box = null; for (const box of state.boxes.values()) box.remove(); state.boxes.clear(); }
+function stop() { window.PluginDoor.undo.clear('look'); state.box?.remove(); state.box = null; for (const box of state.boxes.values()) box.remove(); state.boxes.clear(); }
 Look.title = { start, stop, draw, groupsOf };
 })();
