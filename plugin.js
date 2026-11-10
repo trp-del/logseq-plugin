@@ -706,6 +706,7 @@ const TOKENS = `
   --lk-link: color-mix(in srgb, currentColor 45%, transparent); --lk-link-width: .5px;
   --lk-wash: color-mix(in srgb, currentColor 7%, transparent);
   --lk-mono: var(--ls-font-family-mono, ui-monospace, "SF Mono", Menlo, Consolas, monospace);
+  --lk-tag-face: "New York", ui-serif, Georgia, serif; --lk-tag-adjust: none;
   --lk-day: 48px;
   --lk-small: 13px; --lk-label: 12px; }`;
 /* The shared names: one per word of the grammar. A module puts these on what it draws and carries no look of its own
@@ -738,17 +739,20 @@ const TOKENS = `
    the thing pressed), the frames; lk-tick, the tick box; lk-fold, the fold arrow, its markup empty; lk-bul (.folded, .opens), Logseq's bullet;
    lk-field, a field on a hairline; lk-none, the nothing-here line; lk-undo, the arrow as a press; --lk-day, the day column's width. */
 Door.NAMES = `${TOKENS}
-/* A tag: its name in mono, in the text colour and the words' own size, the mono's small letters matched to theirs (the owner,
-   8 November 2026: "no reason why tags should be fainter ... or why there is an odd size discrepancy"). */
-.lk-tag { color: inherit !important; font-family: var(--lk-mono) !important; font-size: inherit !important; font-size-adjust: 0.51; text-decoration: none !important; }
+/* A tag: its name in the Mac's serif italic (New York, --lk-tag-face), in the text colour and the words' own size (the owner,
+   8 November 2026: "no reason why tags should be fainter ... or why there is an odd size discrepancy"; 10 November 2026: the
+   mono read too close to the words, a box would distract). Its line height is the words', so a tag never makes its row taller. */
+.lk-tag { color: inherit !important; font-family: var(--lk-tag-face) !important; font-style: italic !important; font-size: inherit !important; font-size-adjust: var(--lk-tag-adjust); line-height: 1; text-decoration: none !important; }
 .lk-node { color: inherit; text-decoration: underline !important; text-decoration-color: var(--lk-link) !important; text-decoration-thickness: var(--lk-link-width) !important; text-underline-offset: 3px; cursor: pointer; }
 .lk-node:hover { text-decoration-color: currentColor !important; }
 .lk-prop { color: var(--lk-quiet); }
 .lk-day { color: var(--lk-quiet) !important; font-size: var(--lk-small) !important; font-variant-numeric: tabular-nums; }
 .lk-count { display: none !important; }
-.lk-pencil { font-style: italic !important; color: var(--lk-quiet) !important; text-decoration: underline dotted !important; text-decoration-color: var(--lk-line) !important; text-underline-offset: 3px; background: none !important; }
+/* A pencilled value, a proposal: in mono, grey, a dotted line under it; a pencilled tag too, so a proposal never reads as a
+   written tag (the owner, 10 November 2026: "I want proposed to be mono"). */
+.lk-pencil { font-family: var(--lk-mono) !important; font-style: normal !important; font-size-adjust: 0.51; color: var(--lk-quiet) !important; text-decoration: underline dotted !important; text-decoration-color: var(--lk-line) !important; text-underline-offset: 3px; background: none !important; }
 /* A pencilled tag fades once: the pencil's grey, not the tag's own fade on top of it. */
-.lk-pencil .lk-tag, .lk-tag.lk-pencil { opacity: 1; }
+.lk-pencil .lk-tag, .lk-tag.lk-pencil { opacity: 1; font-family: var(--lk-mono) !important; font-style: normal !important; font-size-adjust: 0.51; }
 .lk-undo { opacity: .28 !important; transition: opacity .15s; }
 .lk-undo:hover, .lk-undo:focus-visible { opacity: .85 !important; }
 .lk-row .lk-fold { opacity: 0 !important; transition: opacity .12s; }

@@ -86,7 +86,7 @@ The settings are in the plugin's one settings window, under Predictive (**Plugin
 
 ## The look is Look's
 
-The pencilled values (italic, grey, the dotted line), the proposed tag (its name in mono, no #), the tags in the Option-T list and the Undo arrow's fade take their look from the shared class names on what Predictive draws (`lk-pencil`, `lk-tag`, `lk-prop`, `lk-undo`; the list is in Look's README), which stand whichever modules run. With Look switched off a pencil still reads as a pencil; Logseq's own property line around it goes back to its capsules.
+The pencilled values (mono, grey, the dotted line), the proposed tag (its name in mono too, no #), the tags in the Option-T list and the Undo arrow's fade take their look from the shared class names on what Predictive draws (`lk-pencil`, `lk-tag`, `lk-prop`, `lk-undo`; the list is in Look's README), which stand whichever modules run. With Look switched off a pencil still reads as a pencil; Logseq's own property line around it goes back to its capsules.
 
 ## Commands
 

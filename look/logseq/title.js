@@ -11,12 +11,13 @@ const { host, style, watchScreen, el, esc, openPage, notify } = Look.kit, { sett
 const css = `
 .lk-path { display: inline-flex; align-items: baseline; align-self: flex-start; max-width: 24em; margin: 17px 0 0 -6px; padding-left: 18px; overflow: hidden; white-space: nowrap; line-height: 1.6; vertical-align: middle; font-size: 14px; }
 /* Too long for the row, the line gives way from the middle, then the nearest tag if it alone is too long; the kind stays whole.
-   How far a tag gives way is never more than its name is long (--lk-n, its letters; a tag is mono, a letter is 1ch), so a
+   How far a tag gives way is never more than its name is long (--lk-n, its letters, each counted .4em, a little under a letter of the tag's serif italic), so a
    short name keeps no room after it: a floor of 4em once left a wide gap after "Doctor". */
-.lk-path > a.lk-tag { flex: 0 1000 auto; min-width: min(3ch, calc(var(--lk-n, 3) * 1ch)); overflow: hidden; text-overflow: ellipsis; }
+/* The italic's last letter leans past its box and its tail hangs below (the y of Entity): room for both inside the clip, given back outside. */
+.lk-path > a.lk-tag { flex: 0 1000 auto; min-width: min(1.2em, calc(var(--lk-n, 3) * .4em)); overflow: hidden; text-overflow: ellipsis; padding-right: .15em; margin-right: -.15em; line-height: inherit; }
 .lk-path > a.lk-end { flex-shrink: 0; }
 .lk-path > .lk-held { display: inline-flex; flex: 0 1 auto; }
-.lk-path > .lk-held > a.lk-tag { min-width: min(8ch, calc(var(--lk-n, 8) * 1ch)); overflow: hidden; text-overflow: ellipsis; }
+.lk-path > .lk-held > a.lk-tag { min-width: min(3.2em, calc(var(--lk-n, 8) * .4em)); overflow: hidden; text-overflow: ellipsis; }
 .lk-path > .lk-sep { flex: none; }
 .lk-path .lk-sep { margin: 0 .35em; color: var(--lk-quiet); }
 .lk-path .lk-own { position: relative; }

@@ -26,12 +26,12 @@ ${AREA} a.page-ref${DAY}, ${AREA} .ls-datetime a { color: var(--lk-quiet) !impor
 ${AREA} a.page-ref${DAY}:hover, ${AREA} .ls-datetime a:hover { color: inherit !important; }
 ${AREA} ${VALUE} a.page-ref${DAY}, ${AREA} ${VALUE} .ls-datetime a { color: inherit !important; }
 ${AREA} ${VALUE} a.page-ref${DAY}:hover, ${AREA} ${VALUE} .ls-datetime a:hover { color: var(--lk-quiet) !important; }`;
-/* A tag: its name alone, as written, in mono, in the text colour and the words' size, where Logseq puts it. Logseq draws a # link before the name and swaps it
+/* A tag: its name alone, as written, in the serif italic (New York, --lk-tag-face), in the text colour and the words' size, where Logseq puts it. Logseq draws a # link before the name and swaps it
    for an × under the pointer; the # is made invisible in a fixed slot and the × takes the same slot, so the name never moves. */
 const tags = `
 ${AREA} .block-tag :is(a.hash-symbol, a[title="Remove this tag"]) { display: inline-flex !important; align-items: center; justify-content: center; width: 1.1em; margin: 0 !important; padding: 0 !important; }
 ${AREA} .block-tag a.hash-symbol { visibility: hidden; }
-${AREA} a.tag:not(mark *) { color: inherit !important; opacity: 1; font-family: var(--lk-mono); font-size: inherit; font-size-adjust: 0.51; text-decoration: none !important; }
+${AREA} a.tag:not(mark *) { color: inherit !important; opacity: 1; font-family: var(--lk-tag-face); font-style: italic; font-size: inherit; font-size-adjust: var(--lk-tag-adjust); text-decoration: none !important; }
 ${AREA} .block-tag:hover { background: var(--lk-wash) !important; }
 /* In a pane under 600px Logseq stacks a bullet's tag under its words, however short they are. It stays beside them while they keep 20em, and only then
    drops, keeping the right edge it has beside them, so tags read as one column at any width. */
@@ -41,15 +41,24 @@ ${AREA} .block-row > .ls-block-right { margin-left: auto !important; }
 /* A tag by a title is the size of any other tag, not the title's. A day's own tag shows only under the pointer, so its row holds no line of its own under the title. */
 ${AREA} .ls-page-title-container .block-tag { font-size: 16px; line-height: 1.5; }
 ${AREA} .ls-page-title-container .block-row:not(:has(.lk-path)) { flex-direction: row !important; }
-/* In Logseq's tables a tag's cell writes the # into the name itself ("#Consultation"); the name is mono, so the # is one ch wide and is
-   clipped off in place, the name standing where it stood (10 November 2026, the audit's 22). Only a name that starts with # is marked. */
-${AREA} .ls-table-cell a.tag > span[data-lk-hash] { display: inline-block; margin-left: -1ch; clip-path: inset(0 0 0 1ch); }`;
+/* In Logseq's tables a tag's cell writes the # into the name itself ("#Consultation"); the # is clipped off in place, the name
+   standing where it stood (10 November 2026, the audit's 22). Its width in the tag's face, --lk-hash (in em), is measured once
+   below. Only a name that starts with # is marked. */
+${AREA} .ls-table-cell a.tag > span[data-lk-hash] { display: inline-block; margin-left: calc(-1 * var(--lk-hash, .6em)); clip-path: inset(0 -.2em 0 var(--lk-hash, .6em)); }`;
 // Marks a table's tag name that starts with #, so the stylesheet above can clip it; unmarks it when the setting is off.
-const hashes = doc => { const on = !!setting('tagsAsClasses'); for (const span of doc.querySelectorAll('.ls-table-cell a.tag > span')) { const want = on && span.textContent.startsWith('#'); if (want !== span.hasAttribute('data-lk-hash')) span.toggleAttribute('data-lk-hash', want); } };
+// The # in the tag's own face, as a share of its size, set once on the page's root for the clip above.
+const hashWidth = doc => {
+  const root = doc.documentElement; if (root.style.getPropertyValue('--lk-hash')) return;
+  const view = doc.defaultView; if (!view?.getComputedStyle) return;
+  const face = view.getComputedStyle(root).getPropertyValue('--lk-tag-face').trim(); if (!face) return;
+  let ctx = null; try { ctx = doc.createElement('canvas').getContext('2d'); } catch {} if (!ctx) return;
+  ctx.font = `italic 100px ${face}`; root.style.setProperty('--lk-hash', `${(ctx.measureText('#').width / 100).toFixed(3)}em`);
+};
+const hashes = doc => { hashWidth(doc); const on = !!setting('tagsAsClasses'); for (const span of doc.querySelectorAll('.ls-table-cell a.tag > span')) { const want = on && span.textContent.startsWith('#'); if (want !== span.hasAttribute('data-lk-hash')) span.toggleAttribute('data-lk-hash', want); } };
 let hashWatched = false;
 function watchHashes() {
   const doc = Look.kit.host();
-  if (!hashWatched) { hashWatched = true; Look.kit.watchScreen(hashes, hashes); Look.kit.onStop(() => { hashWatched = false; for (const span of Look.kit.host().querySelectorAll('[data-lk-hash]')) span.removeAttribute('data-lk-hash'); }); }
+  if (!hashWatched) { hashWatched = true; Look.kit.watchScreen(hashes, hashes); Look.kit.onStop(() => { hashWatched = false; for (const span of Look.kit.host().querySelectorAll('[data-lk-hash]')) span.removeAttribute('data-lk-hash'); Look.kit.host().documentElement.style.removeProperty('--lk-hash'); }); }
   hashes(doc);
 }
 /* The greys are mixed from currentColor, so they are set once per box and inherited, never on every descendant. The

@@ -36,7 +36,7 @@ const { U, load, pencilled } = standIn;
     const rows = [{ title: 'Zed', top: 'Visit' }, { title: 'Scan', top: 'Report' }, { title: 'Ada', top: 'Visit' }, { title: 'Entity thing', top: 'Entity' }, { title: 'Note', top: '' }];
     assert.equal(byKind(rows).map(group => `${group.head}: ${group.rows.map(row => row.title).join(', ')}`).join(' | '), 'Entity: Entity thing | Report: Scan | Visit: Ada, Zed | No tag: Note', 'by kind: a head for each top-level tag, by name, no tag first for its name; the untagged last'); }
   assert.ok(styles['look-quote-bullets'].includes('[data-type="annotation"]') && styles['look-quote-bullets'].includes('.hl-page'), 'a highlight and a bullet that only cites one carry the quotation mark');
-  assert.ok(styles['look-tags'].includes('--lk-mono') && !styles['look-tags'].includes('uppercase'), 'tags in mono, as written');
+  assert.ok(styles['look-tags'].includes('--lk-tag-face') && !styles['look-tags'].includes('uppercase'), 'tags in mono, as written');
   assert.ok(/\.ls-page-blocks \.ls-block :is\(\.ls-bidirectional-properties/.test(styles['look-two-way'] || '') && !/right-sidebar/.test(styles['look-two-way']), 'Logseq\'s two-way list goes from under a node, a page\'s own list left to Threads');
   // a day in a property's value keeps the value's colour; the quiet grey stays for a day in the words
   assert.ok(/\.property-value-container, \.bottom-property-pill\)[^{]*a\.page-ref[^{]*\{ color: inherit !important; \}/.test(styles['look-days']), 'a day in a value keeps the value’s colour');
@@ -47,7 +47,7 @@ const { U, load, pencilled } = standIn;
   assert.ok(/\.bottom-properties-pills-strip \{[^}]*flex-wrap: wrap !important/.test(styles['look-capsules']), 'a long line of properties wraps like words, so nothing runs past the pane');
   assert.ok(/\.bottom-properties-row \{[^}]*max-height: none !important/.test(styles['look-capsules']), 'and its row grows to hold the lines: Logseq caps it at one');
   // the shared names: a pencilled tag fades once; the one alternative in force takes the text colour
-  assert.ok(door.NAMES.includes('.lk-pencil .lk-tag, .lk-tag.lk-pencil { opacity: 1; }'), 'a pencilled tag fades once');
+  assert.ok(door.NAMES.includes('.lk-pencil .lk-tag, .lk-tag.lk-pencil { opacity: 1; font-family: var(--lk-mono) !important;'), 'a pencilled tag fades once, in the proposals\' mono');
   assert.ok(door.NAMES.includes('.lk-alts > * { color: var(--lk-quiet) !important; }') && door.NAMES.includes('.lk-alts { color: inherit !important; }'), 'the alternatives faint one by one, the line itself in the text colour');
   // the index: chains, and no sort of any kind (the four kinds are tags like any other since 4 November 2026)
   const index = Look.index; assert.ok(index, 'the page index was read');
@@ -158,7 +158,7 @@ const { U, load, pencilled } = standIn;
     doc.getElementById('main-content-container')?.append(cell) ?? doc.body.append(cell); Look.kit.run(doc);
     const [hash, plainName] = cell.querySelectorAll('span');
     assert.ok(hash.hasAttribute('data-lk-hash') && !plainName.hasAttribute('data-lk-hash'), 'only a name that starts with # is marked');
-    assert.ok(styles['look-tags'].includes('span[data-lk-hash]') && styles['look-tags'].includes('clip-path: inset(0 0 0 1ch)'), 'and its # clipped off in place'); }
+    assert.ok(styles['look-tags'].includes('span[data-lk-hash]') && styles['look-tags'].includes('clip-path: inset(0 -.2em 0 var(--lk-hash, .6em))'), 'and its # clipped off in place, by its width in the tag\'s face'); }
   // stop: everything swept
   await logseq._unload();
   assert.equal(doc.querySelectorAll('.lk-own, [data-lk-sort], [data-lk-kind], [data-lk-hash]').length, 0, 'nothing left on the page');

@@ -43,7 +43,6 @@ const CSS = `.sw-dialog { position: fixed !important; top: 50% !important; left:
 .sw-placehead p { margin: 0; color: var(--lk-quiet); }
 .sw-mod[aria-current="true"] { font-weight: 500; }
 .sw-mod.off .sw-name { color: var(--lk-quiet); }
-.sw-mod .lk-pencil { font-style: italic; }
 .sw-nomatch { opacity: .4; }
 .sw-foot { margin-top: auto; padding: 16px 8px 0; display: grid; gap: 2px; justify-items: start; }
 .sw-word.on { font-weight: 500; }
