@@ -104,6 +104,11 @@ const { U, load, pencilled } = standIn;
   assert.ok(!described.schema.some(i => i.key === 'quietEmptyProps'), 'one row for empty properties, Predictive’s');
   assert.ok(!described.schema.some(i => i.key === 'linkMarks' || i.key === 'pageMark'), 'no setting for marks');
   assert.ok(described.specimen({ key: 'valuesOpen' }, true).includes('lk-change'), 'a specimen of the thing itself');
+  // Logseq's own look in a specimen follows light and dark: no fixed colour but the blue of Logseq's chosen row and a shadow (the audit's 14)
+  for (const item of described.schema) for (const v of item.type === 'enum' ? item.enumChoices || [] : [true, false]) {
+    const fixed = (described.specimen(item, v).match(/#[0-9a-f]{3,8}\b|rgb\(\s*\d/gi) || []).filter(c => !['#3b82f6', 'rgb(0'].includes(c.toLowerCase()));   // a black shadow reads in both
+    assert.deepEqual(fixed, [], `${item.key} (${v}) draws a fixed colour, which reads wrong in one of the two themes`);
+  }
   // a cut property name shows whole as a tooltip under the pointer, one that fits does not, and the sweep takes it off
   { const tip = (scroll, words) => { const n = doc.createElement('span'); n.className = 'property-key-inner'; n.textContent = words; Object.defineProperty(n, 'scrollWidth', { value: scroll }); Object.defineProperty(n, 'clientWidth', { value: 100 }); doc.body.append(n); n.dispatchEvent(new (doc.defaultView.MouseEvent)('mouseover', { bubbles: true })); return n; };
     const long = tip(180, 'Referring consultant at Northgate'), short = tip(90, 'Notes');
@@ -139,9 +144,15 @@ const { U, load, pencilled } = standIn;
   assert.ok(styles['look-title'].includes('flex: 0 1000 auto') && styles['look-title'].includes('.lk-path > a.lk-end { flex-shrink: 0; }'), 'the middle gives way first');
   const placed = [...doc.querySelectorAll('.lk-path:not(.lk-path-sb) > a.lk-tag')];
   assert.ok(placed.length && placed.at(-1).classList.contains('lk-end'), 'the last of the chain is kept: ' + placed.map(a => a.textContent));
+  // A tag in Logseq's table reads without the # it writes into the name (the audit's 22); a name without one is left alone.
+  { const cell = doc.createElement('div'); cell.className = 'ls-table-cell'; cell.innerHTML = '<a class="tag"><span>#Consultation</span></a><a class="tag"><span>Untitled</span></a>';
+    doc.getElementById('main-content-container')?.append(cell) ?? doc.body.append(cell); Look.kit.run(doc);
+    const [hash, plainName] = cell.querySelectorAll('span');
+    assert.ok(hash.hasAttribute('data-lk-hash') && !plainName.hasAttribute('data-lk-hash'), 'only a name that starts with # is marked');
+    assert.ok(styles['look-tags'].includes('span[data-lk-hash]') && styles['look-tags'].includes('clip-path: inset(0 0 0 1ch)'), 'and its # clipped off in place'); }
   // stop: everything swept
   await logseq._unload();
-  assert.equal(doc.querySelectorAll('.lk-own, [data-lk-sort], [data-lk-kind]').length, 0, 'nothing left on the page');
+  assert.equal(doc.querySelectorAll('.lk-own, [data-lk-sort], [data-lk-kind], [data-lk-hash]').length, 0, 'nothing left on the page');
   assert.equal(errors.length, 0, errors.join('\n'));
   // a bullet as Predictive leaves it: Look adds nothing inside the pencils, and the markup keeps the names its rules go by
   const other = await load({ html: pencilled });

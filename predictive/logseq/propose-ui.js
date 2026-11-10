@@ -520,7 +520,7 @@ function rememberUndo(recordUuid, bulletUuid, written, undo) {
   const text = written.map(p => `${p.kind === 'tag' ? 'Tag' : p.prop.title}: ${p.kind === 'tag' ? String(p.shown).replace(/^#/, '') : p.shown}`).join(' · ');
   S.undo = { record: recordUuid, bullet: bulletUuid, pieces };
   const mine = S.undo;
-  undoDoor().offer({ owner: 'predictive', key: `predictive:${recordUuid}`, at: () => bulletLine(bulletUuid), text,
+  undoDoor().offer({ owner: 'predictive', key: `predictive:${recordUuid}`, at: () => bulletLine(bulletUuid), node: bulletUuid, text,
     run: async () => {
       if (S.undo === mine) S.undo = null;
       refuse(mine.record, mine.pieces.map(guessKey));

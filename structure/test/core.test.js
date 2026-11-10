@@ -185,7 +185,10 @@ console.log('  ok  a tray read again, a failed Apply tried again, the arrow kept
 { const M = S.model.build({ tags: [{ id: 1, title: 'Organization' }, { id: 2, title: 'Hospital', parents: [1] }, { id: 3, title: 'Doctor', props: [9] }, { id: 4, title: 'Report' }], props: [{ id: 9, ident: 'p/works', title: 'Works at', type: 'node', range: [1, 4] }], roads: [[3, 'p/works', 2, 9]] });
   const of = id => S.model.roadsOf(M, id);
   assert.deepEqual(plain(of(1).in.map(r => [r.from, r.to, r.n])), [[3, 2, 9]], 'a tag answers with the tags beneath it, and a range already used beneath stands no second time');
-  assert.deepEqual(plain(of(4).in.map(r => [r.from, r.to, r.n])), [[3, 4, 0]], 'set up and not used yet stands with 0'); }
+  assert.deepEqual(plain(of(4).in.map(r => [r.from, r.to, r.n])), [], 'a relation set up and not used yet is no relationship (the audit\'s 13)'); }
+{ const M = S.model.build({ tags: [{ id: 1, title: 'Doctor' }, { id: 2, title: 'Treatment' }, { id: 3, title: 'Consultation', props: [9] }], props: [{ id: 9, ident: 'p/provider', title: 'Provider', type: 'node', range: [1] }], roads: [[3, 'p/provider', 1, 12], [3, 'p/provider', 2, 1]] });
+  assert.deepEqual(plain(S.model.roads(M).map(r => [r.from, r.to, r.n])), [[3, 1, 12]], 'a value outside the range is a bad value, not a relationship (the audit\'s 13)');
+  assert.deepEqual(plain(S.model.roadsOf(M, 2).in), [], 'Treatment is reached by no relationship'); }
 // Properties merged: each value as the kept property takes it, what stays behind, what would clash; the tray's line, the model, the steps.
 { const V = S.values, text = { type: 'default' }, node = { type: 'node' }, num = { type: 'number' }, date = { type: 'date' }, yes = { type: 'checkbox' };
   deq(V.convert(text, text, { id: 5, title: 'tired' }), { text: 'tired' });

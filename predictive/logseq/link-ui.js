@@ -163,6 +163,8 @@ function onKey(event) {
   const extra = setting('linkSuggestKeys');
   if (extra && app.keyMatches(event, extra) && event.target === showing.box && accept(event)) { event.preventDefault(); event.stopImmediatePropagation(); return; }
   // Escape lets go one step at a time: the grey words alone; the proposals, then Logseq, have the next ones.
+  // The tag list (Option-T) open over the bullet is nearer: its Escape comes first (10 November 2026, the audit's 18).
+  if (event.key === 'Escape' && Flow.tagPick?.state?.()) return;
   if (event.key === 'Escape') { quiet = { box: showing.box, text: showing.box.value }; clear(); event.preventDefault(); event.stopImmediatePropagation(); return; }
   if (/^(Arrow|Enter|Home|End|Page)/.test(event.key)) clear();                                            // moving on leaves the words as typed
 }

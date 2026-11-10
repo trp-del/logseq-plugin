@@ -538,15 +538,42 @@ Door.UNDO = '<i class="ti ti-arrow-back-up" aria-hidden="true"></i>';
    nothing of the change is on screen to sit beside, the arrow waits at the bottom right with its words beside it, quiet, until it is
    used, forgotten or cleared. The arrows are put back whenever Logseq draws the place again (the one screen watcher), so a module
    gives at() as a function finding the place afresh.
-   undo.offer({ owner, key, at, text, run, onFail, cls, many, docks })   owner: the module's key, so it can clear its own when its page is left;
+   undo.offer({ owner, key, at, text, run, onFail, cls, many, docks, node })   owner: the module's key, so it can clear its own when its page is left;
      at(): the element(s) to sit at the end of, or null; run(): the inverse, async; onFail(error): said instead of the plain notice.
      many: a change of many things (Structure's Apply, a pick of several nodes in Threads). It keeps its own Undo (the owner, 9 November
      2026): a change of one thing takes the place of the last change of one thing only, a change of many things that of the last change
      of many things only, so filling in one value never takes a merge's way back. docks: false for an arrow that lives at the end of
      the line saying what was done and nowhere else (Structure's), so it never waits at the bottom right while its line is out of sight.
    undo.forget(key or entry => bool), undo.take(key) (run it as a press would), undo.clear(owner or nothing: every one), undo.has(key),
-   undo.keys(), undo.size, undo.draw(), undo.stop(). The arrow is lk-undo with data-lk-undo=key; the dock lk-undo-dock. */
+   undo.keys(), undo.size, undo.draw(), undo.stop(). The arrow is lk-undo with data-lk-undo=key; the dock lk-undo-dock.
+   The bottom right is for the page the change was made on (10 November 2026, the audit's 12: an arrow from another page stayed
+   there for good and covered the right sidebar's words): an arrow waits there only while that page is open, goes for good once
+   the node it changed (node: its uuid, block or page) is gone from the graph, and stands left of the right sidebar, never on it. */
 const undoState = { entries: new Map(), unwatch: null, listening: false, drawing: false };
+// The page in front, by its route without the graph's query: the place a change was made, and where its arrow may wait.
+// A page reached by its name in other capitals is the same page.
+const routeNow = () => { try { const at = String(Door.host().defaultView.location.hash || '').split('?')[0]; try { return decodeURIComponent(at).toLowerCase(); } catch (error) { return at.toLowerCase(); } } catch (error) { return ''; } };
+// Whether the node a waiting arrow changed is still in the graph (not deleted, not in the Recycle, nor on a page that is), asked at
+// most once a second per arrow, again a second later while it waits; a node gone forgets the arrow. A look-up that fails says nothing.
+async function undoNodeGone(key, entry) {
+  if (!entry.node || entry.asking) return;
+  const wait = 1000 - (Date.now() - (entry.asked || 0));
+  if (wait > 0) { if (!entry.again) entry.again = setTimeout(() => { entry.again = null; if (undoState.entries.get(key) === entry) drawUndoArrows(); }, wait + 20); return; }
+  entry.asking = true;
+  try {
+    const uuid = String(entry.node);
+    if (!UUID.test(uuid)) return;
+    const live = await dsAsk(`[:find ?b :where [?b :block/uuid #uuid "${uuid}"] (not [?b :logseq.property/deleted-at _]) (not [?b :block/page ?p] [?p :logseq.property/deleted-at _])]`);
+    if (Array.isArray(live) && !live.length && undoState.entries.get(key) === entry) Door.undo.forget(key);
+  } catch (error) { /* not known: the arrow waits */
+  } finally { entry.asking = false; entry.asked = Date.now(); }
+}
+// The dock's right edge: clear of the right sidebar while it is open.
+function seatDock(doc, dock) {
+  const side = doc.getElementById('right-sidebar'), open = side && !side.classList.contains('closed') ? side.getBoundingClientRect().width : 0;
+  const right = `${Math.round(open) + 20}px`;
+  if (dock.style.right !== right) dock.style.right = right;
+}
 const undoAttr = text => String(text).replace(/["\\]/g, '\\$&');
 const undoTargets = entry => { try { const at = entry.at?.(); return (Array.isArray(at) ? at : at ? [at] : []).filter(el => el?.isConnected); } catch (error) { return []; } };
 function undoArrow(doc, key, entry, docked) {
@@ -561,6 +588,7 @@ function undoArrow(doc, key, entry, docked) {
   if (docked) arrow.querySelector('.lk-undo-words').textContent = entry.text;
   return arrow;
 }
+const mayWait = entry => entry.docks !== false && entry.route === routeNow();
 function drawUndoArrows() {
   const doc = Door.host();
   if (undoState.drawing) return;
@@ -571,18 +599,21 @@ function drawUndoArrows() {
       const entry = entries.get(arrow.dataset.lkUndo);
       if (!entry) { arrow.remove(); continue; }
       const targets = undoTargets(entry);
-      if (arrow.classList.contains('lk-undo-docked') ? targets.length : !targets.includes(arrow.parentElement)) arrow.remove();
+      if (arrow.classList.contains('lk-undo-docked') ? targets.length || !mayWait(entry) : !targets.includes(arrow.parentElement)) arrow.remove();
     }
     let dock = doc.querySelector('.lk-undo-dock');
     for (const [key, entry] of entries) {
       const targets = undoTargets(entry);
       for (const target of targets) if (![...target.children].some(child => child.dataset?.lkUndo === key)) target.appendChild(undoArrow(doc, key, entry, false));
-      if (!targets.length && entry.docks !== false && !doc.querySelector(`.lk-undo-dock [data-lk-undo="${undoAttr(key)}"]`)) {
+      if (!targets.length && mayWait(entry)) {
+        undoNodeGone(key, entry);
+        if (doc.querySelector(`.lk-undo-dock [data-lk-undo="${undoAttr(key)}"]`)) continue;
         if (!dock) { dock = doc.createElement('div'); dock.className = 'lk-undo-dock'; doc.body.appendChild(dock); }
         dock.appendChild(undoArrow(doc, key, entry, true));
       }
     }
     if (dock && !dock.children.length) dock.remove();
+    else if (dock) seatDock(doc, dock);
   } finally { undoState.drawing = false; }
 }
 function takeUndo(key) {
@@ -609,11 +640,11 @@ function watchUndos() {
   else if (!on && undoState.listening) { for (const type of ['pointerdown', 'mousedown', 'mouseup', 'click']) win.removeEventListener(type, onUndoArrow, true); undoState.listening = false; }
 }
 Door.undo = {
-  offer({ owner = '', key, at, text, run, onFail, cls, many = false, docks = true }) {
+  offer({ owner = '', key, at, text, run, onFail, cls, many = false, docks = true, node = null }) {
     const before = undoState.entries.get(key);
     for (const [other, entry] of [...undoState.entries]) if (other !== key && !!entry.many === !!many) undoState.entries.delete(other);   // a new change's arrow takes the place of the last one of its size
     const all = before ? async () => { let failed = null; try { await run(); } catch (error) { failed = error; } await before.run(); if (failed) throw failed; } : run;
-    undoState.entries.set(key, { owner, at, text: before ? `${text} · ${before.text}` : text, run: all, onFail: onFail || before?.onFail, cls, many: !!many, docks });
+    undoState.entries.set(key, { owner, at, text: before ? `${text} · ${before.text}` : text, run: all, onFail: onFail || before?.onFail, cls, many: !!many, docks, node: node || before?.node || null, route: before?.route || routeNow() });
     for (const arrow of Door.host().querySelectorAll(`[data-lk-undo="${undoAttr(key)}"]`)) arrow.remove();   // drawn again, so an arrow with the old words is replaced
     watchUndos();
     drawUndoArrows();

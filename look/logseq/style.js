@@ -1,4 +1,4 @@
-/* The rules that are only a stylesheet: links, journal days, tags, property names and capsules, the words by a title, empty
+/* The rules that are a stylesheet (with one pass, marking the # a table writes before a tag): links, journal days, tags, property names and capsules, the words by a title, empty
    properties, the pencil after a date. Nothing is read from the graph and nothing moves on the page: the pills keep their
    height, the hidden # its slot. */
 (function () {
@@ -40,7 +40,18 @@ ${AREA} .block-row:not(.ls-page-title-container *) > .block-content-wrapper { fl
 ${AREA} .block-row > .ls-block-right { margin-left: auto !important; }
 /* A tag by a title is the size of any other tag, not the title's. A day's own tag shows only under the pointer, so its row holds no line of its own under the title. */
 ${AREA} .ls-page-title-container .block-tag { font-size: 16px; line-height: 1.5; }
-${AREA} .ls-page-title-container .block-row:not(:has(.lk-path)) { flex-direction: row !important; }`;
+${AREA} .ls-page-title-container .block-row:not(:has(.lk-path)) { flex-direction: row !important; }
+/* In Logseq's tables a tag's cell writes the # into the name itself ("#Consultation"); the name is mono, so the # is one ch wide and is
+   clipped off in place, the name standing where it stood (10 November 2026, the audit's 22). Only a name that starts with # is marked. */
+${AREA} .ls-table-cell a.tag > span[data-lk-hash] { display: inline-block; margin-left: -1ch; clip-path: inset(0 0 0 1ch); }`;
+// Marks a table's tag name that starts with #, so the stylesheet above can clip it; unmarks it when the setting is off.
+const hashes = doc => { const on = !!setting('tagsAsClasses'); for (const span of doc.querySelectorAll('.ls-table-cell a.tag > span')) { const want = on && span.textContent.startsWith('#'); if (want !== span.hasAttribute('data-lk-hash')) span.toggleAttribute('data-lk-hash', want); } };
+let hashWatched = false;
+function watchHashes() {
+  const doc = Look.kit.host();
+  if (!hashWatched) { hashWatched = true; Look.kit.watchScreen(hashes, hashes); Look.kit.onStop(() => { hashWatched = false; for (const span of Look.kit.host().querySelectorAll('[data-lk-hash]')) span.removeAttribute('data-lk-hash'); }); }
+  hashes(doc);
+}
 /* The greys are mixed from currentColor, so they are set once per box and inherited, never on every descendant. The
    value keeps the text colour; the name, one level in, is a shade lighter. */
 const names = `
@@ -123,6 +134,7 @@ function apply() {
   style('links', setting('quietLinks') ? links : '');
   style('days', setting('quietDays') ? days : '');
   style('tags', setting('tagsAsClasses') ? tags : '');
+  watchHashes();
   style('names', setting('quietNames') ? names : '');
   style('capsules', setting('noCapsules') ? capsules : '');
   style('title-words', setting('hideTitleWords') ? titleWords : '');

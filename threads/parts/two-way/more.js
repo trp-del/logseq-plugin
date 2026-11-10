@@ -375,7 +375,7 @@ function drawBeside() {
   if (!panel) { panel = doc.createElement('div'); panel.className = 'th-tw-dock lk-pop'; doc.body.append(panel); }
   panel.innerHTML = `<div class="th-tw-dockhead"><span><b>${esc(kept.label)}</b> <span class="th-tw-dockpage">${esc(kept.title)}</span></span><button type="button" class="lk-x" data-dockoff="" aria-label="Let this list go" title="Let this list go">×</button></div><div class="th-tw-docklist">${items.map(item => `<a href="#" class="th-tw-dockline" data-dockopen="${esc(item.uuid)}"><span class="th-tw-dockday">${esc(item.day || '')}</span><span>${esc(item.title)}</span></a>`).join('')}</div>`;
 }
-twoWay.rowMenuHooks.push(group => state.drawingTop ? [] : [{ icon: 'sidebar', label: 'Keep this list beside you', run: () => keepBeside(group) }, { icon: 'export', label: 'Export list…', run: () => exportList(group) }]);
+twoWay.rowMenuHooks.push(group => state.drawingTop ? [] : [{ icon: 'sidebar', label: 'Keep in the corner', run: () => keepBeside(group) }, { icon: 'export', label: 'Export list…', run: () => exportList(group) }]);
 twoWay.settledHooks.push(() => drawBeside());
 twoWay.starters.push(() => {
   const doc = host();

@@ -90,7 +90,8 @@ for (const name of Object.keys(logseq.Editor)) {
     return out;
   };
 }
-const sandbox = { window: win, document: doc, logseq, console, setTimeout, clearTimeout, Promise, Date, Map, Set, JSON, Math, Number, String, Array, Object, RegExp, Error };
+const store = new Map(), localStorage = { getItem: k => store.has(k) ? store.get(k) : null, setItem: (k, v) => store.set(k, String(v)), removeItem: k => store.delete(k) };
+const sandbox = { window: win, document: doc, logseq, localStorage, console, setTimeout, clearTimeout, Promise, Date, Map, Set, JSON, Math, Number, String, Array, Object, RegExp, Error };
 Object.defineProperty(win, 'parent', { value: win });
 vm.createContext(sandbox);
 for (const f of order) vm.runInContext(fs.readFileSync(path.join(root, f), 'utf8'), sandbox, { filename: f });
@@ -344,7 +345,29 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
     assert.ok(!(await show(false)), 'a tag that shares a journal day\'s name gets none');
     dayNamed = '-'; main.querySelectorAll('.page').forEach(p => p.remove()); logseq.routeChanged(); await sleep(50);
   }
+  // A group of Every property: made, renamed and taken away, each by the one way the row and the field share, each with the
+  // faded Undo arrow (the audit's 16); a fold leaves none.
+  { const S = win.Structure, undo = win.PluginDoor.undo, groups = () => S.app.groups().list.map(g => g.name).join(), mine = () => undo.keys().filter(k => k.startsWith('structure:groups')), take = () => undo.take(mine()[0]);
+    const gh = doc.createElement('div'); doc.body.append(gh);
+    const gv = S.view.make(gh, 'page', S.app); S.app.mounted(gv); await sleep(30); const R = gv.root;
+    click(R.querySelector('[data-show="table"]')); await sleep(10);
+    const field = async words => { const f = R.querySelector('input[data-edit]'); f.value = words; key(f, 'Enter'); await sleep(10); };
+    click(R.querySelector('[data-gnew]')); await field('Visits');
+    assert.equal(groups(), 'Visits', 'New group makes the group'); assert.equal(mine().length, 1, 'with the Undo arrow');
+    const id = S.app.groups().list[0].id;
+    await sleep(30); assert.ok(R.querySelector(`.st-grp[data-group="${id}"] .lk-undo`), 'the arrow sits at the group\'s name');
+    click(R.querySelector(`[data-gname="${id}"]`)); await field('Appointments');
+    assert.equal(groups(), 'Appointments', 'its name renames it');
+    assert.equal(mine().length, 1, 'one arrow: the rename\'s took the place of the last'); await take(); await sleep(10);
+    assert.equal(groups(), 'Visits', 'Undo puts the old name back');
+    click(R.querySelector(`[data-gfold="${id}"]`)); await sleep(10);
+    assert.equal(mine().length, 0, 'a fold leaves no arrow');
+    click(R.querySelector(`[data-gdrop="${id}"]`)); await sleep(10);
+    assert.equal(groups(), '', 'the × takes the group away'); assert.equal(mine().length, 1);
+    await take(); await sleep(10);
+    assert.equal(groups(), 'Visits', 'Undo brings it back');
+    store.clear(); undo.clear(); gv.destroy(); gh.remove(); }
   deq(unclosed, [], 'every box the plugin drew is closed');
-  console.log('load: every check passed (the areas, a move, tray, apply, undo, Every property, finding, a new top-level tag, a tag\'s lines, the sidebar)');
+  console.log('load: every check passed (the areas, a move, tray, apply, undo, Every property, its groups with Undo, finding, a new top-level tag, a tag\'s lines, the sidebar)');
 })().catch(error => { console.error(error); process.exit(1); });
 function Mo() { return win.Structure.model; }

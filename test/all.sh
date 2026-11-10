@@ -13,6 +13,7 @@ run . node test/library.js
 run . node test/logseq-contract.js
 run . node test/writes.js
 run . node test/risks.js
+run . node test/undo.js
 run . node test/base.js
 run . node test/watcher.js
 run . node test/screen.js

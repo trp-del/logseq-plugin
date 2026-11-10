@@ -190,7 +190,7 @@ const ICONS = {
   map: 'hierarchy', tag: 'tag', property: 'forms', rename: 'cursor-text', copy: 'copy', to: 'arrow-right', picked: 'square-check',
   warning: 'alert-triangle', show: 'eye', hide: 'eye-off', shortcut: 'keyboard', twoWay: 'arrows-left-right', order: 'arrows-sort',
   proposals: 'bulb', date: 'calendar', text: 'letter-case', number: '123', choice: 'select', several: 'stack-2', yesNo: 'checkbox', web: 'world',
-  node: 'joins', nodes: 'joins', fact: 'blank', link: 'link', task: 'circle', image: 'photo', pdf: 'file-type-pdf', file: 'file', quote: 'blockquote',
+  export: 'file-export', node: 'joins', nodes: 'joins', fact: 'blank', link: 'link', task: 'circle', image: 'photo', pdf: 'file-type-pdf', file: 'file', quote: 'blockquote',
 };
 /* The shape the font lacks, drawn once: a node property's mark, three filled dots at a triangle's corners joined by thin
    lines, a small web (the owner, 2026-10-28, docs/ONTOLOGY.md 8: a node is a point, a node property what joins nodes

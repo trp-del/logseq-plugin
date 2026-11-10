@@ -105,11 +105,14 @@ function valueOf(p, v) {
   return { text: String(v), ...(p.type === 'url' ? { url: String(v) } : {}) };
 }
 const isUserProp = ident => ident.startsWith('user.property/');
+// A page's alias is Logseq's own property, not one of yours, yet it is shown on the page and belongs in the export (the audit's 20).
+const SHOWN_BUILT_IN = new Set(['block/alias', 'alias']);   // with or without the namespace, as the query hands it back
+const isShownProp = ident => isUserProp(ident) || SHOWN_BUILT_IN.has(ident);
 function propertiesOf(attrs) {
   // One order everywhere (the database keeps none): dates first, then by name.
   const isDate = p => p.type === 'date' || p.type === 'datetime';
-  return [...attrs.values()].filter(p => isUserProp(p.ident)).sort((a, b) => (isDate(b) - isDate(a)) || a.name.localeCompare(b.name))
-    .map(p => ({ ident: p.ident, name: p.name || p.ident.replace(/^user\.property\//, ''), type: p.type, values: p.values.map(v => valueOf(p, v)).filter(Boolean) }))
+  return [...attrs.values()].filter(p => isShownProp(p.ident)).sort((a, b) => (isDate(b) - isDate(a)) || a.name.localeCompare(b.name))
+    .map(p => ({ ident: p.ident, name: p.name || (SHOWN_BUILT_IN.has(p.ident) ? 'Alias' : p.ident.replace(/^user\.property\//, '')), type: p.type, values: p.values.map(v => valueOf(p, v)).filter(Boolean) }))
     .filter(p => p.values.length);
 }
 // Every id the attributes point at, to describe before building: tags, status, priority, the page, the query, assets, your properties' values.
@@ -117,7 +120,7 @@ function pointedAt(attrsByBlock) {
   const ids = [];
   for (const attrs of attrsByBlock.values()) for (const p of attrs.values()) {
     const wanted = isUserProp(p.ident) ? !['checkbox', 'datetime', 'raw-number'].includes(p.type)
-      : /(^|\/)(tags|page|link|status|priority|query|asset|deadline|scheduled|hl-image)$/.test(p.ident);   // with or without the namespace
+      : /(^|\/)(tags|page|link|status|priority|query|asset|deadline|scheduled|hl-image|alias)$/.test(p.ident);   // with or without the namespace
     if (wanted) for (const v of p.values) { const id = idOf(v); if (id != null) ids.push(id); }
   }
   return ids;

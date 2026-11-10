@@ -27,16 +27,20 @@ const fixIcon = word => [[/^(remove|delete)/i, 'bin'], [/^drop/i, 'minus'], [/^(
 const CSS = `
 .st { color: var(--lk-text, #222); font-size: 14px; line-height: 1.5; outline: none; position: relative; }
 .st * { box-sizing: border-box; }
-.st-page { display: flex; flex-direction: column; height: 600px; min-height: 360px; }
+.st-page { display: flex; flex-direction: column; min-height: 360px; }
+.st-page:not(.st-fill) .st-right { overflow: visible; }
+/* With the page scrolling, the tray stays at the top of Logseq's page while it scrolls, so Apply is always in reach. */
+.st-page:not(.st-fill) .st-tray:not(:empty) { position: sticky; top: 0; z-index: 3; background: var(--lk-paper, #fff); }
 .st-top { display: flex; align-items: center; gap: 18px; padding: 0 22px 8px 6px; min-height: 37px; }
 .st-acts { display: flex; align-items: center; gap: 8px; padding: 0 22px 10px 6px; min-height: 38px; }
 .st-acts .lk-said { font-weight: 600; margin-right: 8px; } .st-acts .say { margin-right: 8px; }
 .st-acts .waits { opacity: .45; pointer-events: none; }
 .st-top .st-views, .st-top .st-pick { margin: 0; flex: none; } .st-top .st-pick { gap: 8px; } .st-top .lk-said { margin-right: 8px; } .st-top .st-find { margin: 0; flex: 0 1 200px; min-width: 80px; }
 .st-top .st-new { margin-left: auto; white-space: nowrap; flex: none; }
-/* The areas: one line of columns, a band above them for the lines that cross, gaps wide enough for the lines between neighbours. */
-.st-regions { position: relative; display: flex; gap: 48px; padding: 30px 30px 12px 6px; overflow-x: auto; min-width: 0; }
-.st-area { flex: 1 0 220px; min-width: 220px; max-width: 320px; position: relative; z-index: 1; }
+/* The areas: columns sharing the page's width, onto a second row when they cannot fit, never past the edge; a band above each row for
+   the lines that cross, gaps wide enough for the lines between neighbours. */
+.st-regions { position: relative; display: flex; flex-wrap: wrap; gap: 40px 40px; padding: 30px 30px 12px 6px; min-width: 0; }
+.st-area { flex: 1 1 160px; min-width: 160px; max-width: 320px; position: relative; z-index: 1; }
 .st-regions .st-lines { position: absolute; left: 0; top: 0; pointer-events: none; color: var(--lk-text, #222); }
 .st-regions .st-row { grid-template-columns: 14px 14px 12px minmax(0, 1fr) 40px 8px; }
 .st-regions .st-row.kind .nm { font-weight: 600; }
@@ -174,7 +178,7 @@ const CSS = `
 .st-row .iss { width: 5px; height: 5px; margin-top: 10.5px; border-radius: 50%; background: currentColor; opacity: 0; justify-self: center; }
 .st-row .iss.on { opacity: .35; } .st-row .iss.own { opacity: .7; }
 /* Everything that presses shows it under the pointer, and nothing else does: a line or a row that opens a card, a number, the rest of a list. */
-.st [data-row], .st [data-prop], .st [data-nodes], .st [data-node], .st [data-pick], .st [data-all], .st [data-more], .st [data-go], .st [data-back], .st [data-open] { cursor: pointer; }
+.st [data-row], .st [data-prop], .st [data-nodes], .st [data-node], .st [data-pick], .st [data-all], .st [data-more], .st [data-go], .st [data-open] { cursor: pointer; }
 .st .lk-view.on { cursor: default; } .st-row.off[data-pick] { cursor: default; }
 .st-row.dragging { opacity: .4; }
 .st-row.over { background: var(--lk-wash); box-shadow: inset 0 2px 0 var(--lk-line); }
@@ -191,10 +195,6 @@ const CSS = `
 /* The pick bar, as the grammar draws it: above the list, how many and what can be done as quiet words, Esc clears. */
 .st-pick { margin: 0 0 8px; min-height: 27px; flex-wrap: nowrap; }
 .st-nodes .st-pick { margin: 0 0 6px; min-height: 0; }
-/* The trail, as the grammar draws it: where you came through, each a step back, › between; Escape goes back one step. */
-.st-trail { margin: 0 0 4px; flex-wrap: nowrap; white-space: nowrap; overflow: hidden; }
-.st-trail .lk-step { min-width: 3em; overflow: hidden; text-overflow: ellipsis; }
-.st-trail .sep { flex: none; }
 /* The three views as words above the tree, the one in force in the text colour (the grammar's narrowing words). */
 .st-views { margin: 0 0 8px; min-height: 27px; }
 /* The title row: the name, and at its right end the thing's place in the tree, nearest first, as Look draws it on a page. */
@@ -489,12 +489,6 @@ function make(holder, mode, app, opts = {}) {
     return `<div class="st-log">${all.length ? all.map(x => `<div class="ln"><span>${esc(new Date(x.at).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }))}</span><span>${esc(x.text)}</span><span>${x.nodes ? plural(x.nodes, 'node') : ''}</span></div>`).join('') : '<div class="st-empty">Nothing has been changed yet.</div>'}</div>`;
   }
   // ---------- the top line of every content: the path, ending on the thing itself; where to go back; the two lists ----------
-  const placeName = p => p.view === 'table' ? 'Every property' : p.view === 'log' ? 'Log' : p.view === 'nodes' ? `the nodes of ${name(p.nodes?.tag)}` : p.propCur ? P(Number(p.propCur.split('·')[1]))?.title ?? '' : name(p.cur);
-  // The trail (the grammar's): the places you came through, each a step back (a click goes back to it). It ends with ›:
-  // the title under it is where you are, so the name is not said twice (the owner, 31 October 2026, on a property's card).
-  // One line in one place: the last few places, the ones before them a faint "…".
-  const TRAIL = 4;
-  const trailHtml = () => { const steps = st.trail.map((p, i) => [placeName(p), i]).filter(([w]) => w); return steps.length ? `<div class="st-trail lk-trail">${steps.length > TRAIL ? '<span class="sep">…</span>' : ''}${steps.slice(-TRAIL).map(([w, i]) => `<span class="lk-step" data-back="${i}">${esc(w)}</span>`).join('<span class="sep">›</span>')}<span class="sep">›</span></div>` : ''; };
   // The title row: the name, and at the right end the place in the tree, nearest first, each a tag that opens (as Look draws a page's).
   const titleHtml = (mark, title, above, cls) => `<div class="st-ttl"><h2 class="${cls || ''}">${mark}<span class="${cls ? 'lk-pencil' : ''}">${title}</span></h2>${above.length ? `<span class="st-place">${above.map(tagLink).join('<span class="sep">/</span>')}</span>` : ''}</div>`;
   const acts = (on, list) => { const l = list.filter(Boolean); return l.length ? `<div class="acts lk-strip">${l.map(([word, a]) => `<span class="act lk-btn lk-i-${ACT_ICON[a]}" data-do="${a}" data-on="${esc(on)}">${word}</span>`).join('')}</div>` : ''; };
@@ -805,8 +799,10 @@ function make(holder, mode, app, opts = {}) {
     window.PluginDoor.unroll(rolled);
     // The map's lines are measured from where the rows stand: once more when they have rolled out.
     if (rolled.length && mode === 'page') setTimeout(() => { if (root.isConnected) S.regions?.lines(root, M(), st.cur, !!st.aim); }, 200);
-    // The screen takes the room Logseq gives it: from where the holder sits to the bottom of the window.
-    if (mode === 'page') { const top = root.getBoundingClientRect().top, win = doc.defaultView; if (win?.innerHeight && top >= 0) root.style.height = Math.max(360, win.innerHeight - top - 24) + 'px'; }
+    /* The map scrolls with Logseq's page, one scroll bar, nothing cut off at its foot (10 November 2026, the audit's 17: the table
+       and the Log stood in a box of their own, with a second scroll bar, and New group was cut off). Only Two panes keeps the
+       window's height, since each pane scrolls on its own there. */
+    if (mode === 'page') { const panes = !!root.querySelector('.st-panes'), top = root.getBoundingClientRect().top, win = doc.defaultView; root.classList.toggle('st-fill', panes); root.style.height = panes && win?.innerHeight && top >= 0 ? Math.max(360, win.innerHeight - top - 24) + 'px' : ''; }
     slideTray(trayWas);
     if (mode === 'page') S.regions?.lines(root, M(), st.cur, !!st.aim);
     if (scroll) root.querySelector('.st-tree').scrollTop = scroll;
@@ -969,12 +965,8 @@ function make(holder, mode, app, opts = {}) {
       if (e.what === 'rename' && v !== name(e.on)) app.stage({ kind: 'rename', tag: e.on, name: v });
       else if (e.what === 'new') { const c = app.stage({ kind: 'make', name: v, under: e.on === LOOSE ? null : e.on }, { wait: e.on === LOOSE }); st.open.add(e.on); if (c?.made != null) { loc.cur = c.made; if (mode === 'side') st.cur = c.made; if (e.on === LOOSE) { st.edit = { what: 'kids', on: c.made, text: '', owner: mode }; } } }
       else if (e.what === 'kids') { for (const w of v.split(',').map(x => x.trim()).filter(Boolean)) if (!Mo.titled(M(), w).length) app.stage({ kind: 'make', name: w, under: e.on }); st.open.add(e.on); }
-      else if (e.what === 'gnew' || e.what === 'gname') {
-        const G = app.groups();
-        if (e.what === 'gnew') G.list.push({ id: 'g' + Date.now().toString(36), name: v, under: null, open: true });
-        else { const g = G.list.find(x => x.id === e.on); if (g) g.name = v; }
-        app.saveGroups(G);
-      }
+      else if (e.what === 'gnew') { const id = 'g' + Date.now().toString(36); app.changeGroups(`New group ${v}`, G => { G.list.push({ id, name: v, under: null, open: true }); }, id); }
+      else if (e.what === 'gname') { const old = app.groups().list.find(x => x.id === e.on)?.name; if (old != null && old !== v) app.changeGroups(`Group ${old} renamed ${v}`, G => { const g = G.list.find(x => x.id === e.on); if (!g) return false; g.name = v; }, e.on); }
       else if (e.what === 'prename') { const [, pid] = e.on.split('·').map(Number); if (v !== P(pid).title) app.stage({ kind: 'renameProp', prop: pid, name: v }); }
       else if (e.what === 'split') {
         const n = st.nodes, ticked = n.list.filter(x => n.ticks.has(x.uuid));
@@ -1061,7 +1053,7 @@ function make(holder, mode, app, opts = {}) {
   
   // ---------- events ----------
   root.addEventListener('click', e => {
-    const t = e.target.closest('[data-ppage],[data-tpage],[data-pfold],[data-pon],[data-prange],[data-all],[data-fold],[data-tick],[data-ptick],[data-paim],[data-paimoff],[data-pcombine],[data-ntick],[data-row],[data-go],[data-open],[data-unrange],[data-addrange],[data-prop],[data-fix],[data-stage],[data-leave],[data-sort],[data-apply],[data-discard],[data-drop],[data-undo],[data-act],[data-do],[data-show],[data-compare],[data-aim],[data-aimtop],[data-aimoff],[data-back],[data-pick],[data-nodes],[data-more],[data-node],[data-split],[data-gfold],[data-gname],[data-gdrop],[data-gnew],[data-pnew]');
+    const t = e.target.closest('[data-ppage],[data-tpage],[data-pfold],[data-pon],[data-prange],[data-all],[data-fold],[data-tick],[data-ptick],[data-paim],[data-paimoff],[data-pcombine],[data-ntick],[data-row],[data-go],[data-open],[data-unrange],[data-addrange],[data-prop],[data-fix],[data-stage],[data-leave],[data-sort],[data-apply],[data-discard],[data-drop],[data-undo],[data-act],[data-do],[data-show],[data-compare],[data-aim],[data-aimtop],[data-aimoff],[data-pick],[data-nodes],[data-more],[data-node],[data-split],[data-gfold],[data-gname],[data-gdrop],[data-gnew],[data-pnew]');
     const outside = st.prompt?.owner === mode && !e.target.closest('.st-prompt');
     if (!t) { if (st.menu || outside) { st.menu = null; if (outside) st.prompt = null; redraw(); } return; }
     if (e.target.matches?.('[data-edit]')) return;   // a click in a field being written stays in the field
@@ -1087,10 +1079,14 @@ function make(holder, mode, app, opts = {}) {
     if (t.hasAttribute('data-gnew')) return startEdit('gnew', '', '');
     if (t.hasAttribute('data-pnew')) return startPrompt({ what: 'pnew', list: 'tags', row: null });
     if (t.dataset.gdrop) {   // the group goes; what it held goes up a level, nothing else changes
-      const G = app.groups(), g = G.list.find(x => x.id === t.dataset.gdrop); if (!g) return redraw();
-      for (const k of G.list) if (k.under === g.id) k.under = g.under ?? null;
-      for (const [ident, id] of Object.entries(G.of)) if (id === g.id) { if (g.under) G.of[ident] = g.under; else delete G.of[ident]; }
-      G.list = G.list.filter(x => x !== g); app.saveGroups(G); return redraw();
+      const drop = t.dataset.gdrop, gone = app.groups().list.find(x => x.id === drop); if (!gone) return redraw();
+      app.changeGroups(`Group ${gone.name} taken away`, G => {
+        const g = G.list.find(x => x.id === drop); if (!g) return false;
+        for (const k of G.list) if (k.under === g.id) k.under = g.under ?? null;
+        for (const [ident, id] of Object.entries(G.of)) if (id === g.id) { if (g.under) G.of[ident] = g.under; else delete G.of[ident]; }
+        G.list = G.list.filter(x => x !== g);
+      }, gone.under);
+      return redraw();
     }
     if (t.dataset.fold) { if (t.closest('[data-pane="2"]')) { const id = keyOf(t.dataset.fold), o = st.pane2.open; if (o.has(id)) o.delete(id); else { o.add(id); st.glide = true; } return redraw(); } return fold(keyOf(t.dataset.fold)); }
     if (t.dataset.tick) return tick(keyOf(t.dataset.tick));
@@ -1115,7 +1111,6 @@ function make(holder, mode, app, opts = {}) {
     if (t.dataset.prop) { if (mode !== 'page') return; const [tagId] = t.dataset.prop.split('·').map(Number); st.propCur = t.dataset.prop; if (T(tagId)) st.cur = tagId; st.menu = null; return redraw(); }   // the rest of a row selects
     if (t.dataset.do) return act(t.dataset.do, t.dataset.do.startsWith('p') && t.dataset.do !== 'page' || t.dataset.do === 'split' ? t.dataset.on : keyOf(t.dataset.on), e.shiftKey);
     if (t.dataset.show) return show(t.dataset.show);
-    if (t.dataset.back !== undefined) { const to = +t.dataset.back; while (st.trail.length > to + 1) st.trail.pop(); return back(); }
     if (t.dataset.pick) return finishPrompt(st.prompt.shown[+t.dataset.pick]);
     if (t.dataset.act) return act(t.dataset.act, st.menu.on, e.shiftKey);
     if (t.dataset.nodes) return openNodes(keyOf(t.dataset.nodes));
@@ -1175,11 +1170,14 @@ function make(holder, mode, app, opts = {}) {
     if (st.gdrag) {
       const el = gTarget(e), d = st.gdrag; if (!gCanDrop(el)) return;
       e.preventDefault(); e.stopPropagation(); st.gdrag = null;
-      const G = app.groups(), to = el.dataset.group || null;
-      if (d.prop != null) { if (to) G.of[d.prop] = to; else delete G.of[d.prop]; }
-      else { const g = G.list.find(x => x.id === d.group); if (g) { g.under = to; G.list = [...G.list.filter(x => x !== g), g]; } }
-      if (to) { const g = G.list.find(x => x.id === to); if (g) g.open = true; }
-      app.saveGroups(G); redraw(); return;
+      const to = el.dataset.group || null, Gn = app.groups(), toName = to ? Gn.list.find(x => x.id === to)?.name : 'No group';
+      const what = d.prop != null ? (M().byIdent.get(d.prop)?.title || 'A property') : `Group ${Gn.list.find(x => x.id === d.group)?.name || ''}`.trim();
+      app.changeGroups(`${what} moved to ${toName}`, G => {
+        if (d.prop != null) { if (to) G.of[d.prop] = to; else delete G.of[d.prop]; }
+        else { const g = G.list.find(x => x.id === d.group); if (g) { g.under = to; G.list = [...G.list.filter(x => x !== g), g]; } }
+        if (to) { const g = G.list.find(x => x.id === to); if (g) g.open = true; }
+      }, to || d.group);
+      redraw(); return;
     }
     const dest = dragOf(e); if (!canDrop(dest)) return;
     e.preventDefault(); e.stopPropagation();

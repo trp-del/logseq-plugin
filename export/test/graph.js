@@ -13,7 +13,7 @@ prop(9, 'logseq.property/status', 'Status', 'default'); prop(10, 'logseq.propert
 prop(13, 'logseq.property.node/display-type', 'Display type', 'keyword'); prop(14, 'logseq.property.code/lang', 'Language', 'default'); prop(15, 'logseq.property/order-list-type', 'List type', 'default');
 prop(16, 'logseq.property/query', 'Query', 'default'); prop(17, 'logseq.property/created-from-property', 'Created from', 'entity'); prop(18, 'logseq.property/value', 'Value', 'any');
 prop(19, 'logseq.property.asset/type', 'Asset type', 'string'); prop(20, 'logseq.property.pdf/hl-page', 'Page', 'number'); prop(21, 'logseq.property/asset', 'Asset', 'node'); prop(22, 'logseq.property.pdf/hl-image', 'Image', 'node');
-prop(23, 'block/link', 'Link', 'entity'); prop(24, 'logseq.property/heading', 'Heading', 'number'); prop(25, 'block/collapsed?', 'Collapsed', 'checkbox'); prop(26, 'block/updated-at', 'Updated', 'number');
+prop(23, 'block/link', 'Link', 'entity'); prop(24, 'logseq.property/heading', 'Heading', 'number'); prop(25, 'block/collapsed?', 'Collapsed', 'checkbox'); prop(27, 'block/alias', 'Alias', 'page'); prop(26, 'block/updated-at', 'Updated', 'number');
 // Classes, choices.
 add(40, { 'db/ident': 'logseq.class/Tag', 'block/title': 'Tag', 'block/uuid': U(40) }); add(41, { 'db/ident': 'logseq.class/Task', 'block/title': 'Task', 'block/uuid': U(41) });
 add(42, { 'db/ident': 'logseq.class/Page', 'block/title': 'Page', 'block/uuid': U(42) }); add(43, { 'db/ident': 'logseq.class/Asset', 'block/title': 'Asset', 'block/uuid': U(43) });
@@ -27,7 +27,8 @@ prop(70, 'user.property/provider', 'Provider', 'node'); prop(71, 'user.property/
 prop(73, 'user.property/specialty', 'Specialty', 'default'); prop(74, 'user.property/notes', 'Notes', 'default'); prop(75, 'user.property/site', 'Site', 'url');
 add(80, { 'block/title': 'Oncology', 'block/uuid': U(80), 'block/closed-value-property': [73], 'logseq.property/created-from-property': 73 });   // a choice
 // Pages.
-add(100, { 'block/title': 'Dr. Mei Chen', 'block/name': 'dr. mei chen', 'block/uuid': U(100), 'block/tags': [42, 60], 'user.property/specialty': 80, 'user.property/notes': 101, 'user.property/site': 'https://northgate.example/chen' });
+add(100, { 'block/title': 'Dr. Mei Chen', 'block/name': 'dr. mei chen', 'block/uuid': U(100), 'block/tags': [42, 60], 'user.property/specialty': 80, 'user.property/notes': 101, 'user.property/site': 'https://northgate.example/chen', 'block/alias': 102 });
+add(102, { 'block/title': 'Dr. Chen', 'block/name': 'dr. chen', 'block/uuid': U(102), 'block/tags': [42] });   // the page's alias
 add(101, { 'block/uuid': U(101), 'logseq.property/value': 'Secretary Paula', 'logseq.property/created-from-property': 74, 'block/parent': 100, 'block/page': 100, 'block/order': 'a0' });   // a text value
 add(110, { 'block/title': 'Oct 23rd, 2026', 'block/name': 'oct 23rd, 2026', 'block/uuid': U(110), 'block/journal-day': 20261023 });
 add(120, { 'block/title': 'Fatigue', 'block/name': 'fatigue', 'block/uuid': U(120), 'block/tags': [42] });

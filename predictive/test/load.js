@@ -12,7 +12,11 @@ const vm = require('node:vm');
 const { root, order } = require('../../test/module.js')('predictive');
 // The Option-T list: Enter and the arrows only. A digit is something you might be typing: it closes the list and goes on as typing.
 { const pick = fs.readFileSync(path.join(root, 'predictive/logseq/tag-pick.js'), 'utf8');
-  assert.ok(!/Number\(event\.key\)/.test(pick) && !/\[1-9\]/.test(pick) && !/flow-pick-n\b/.test(pick), 'no digit picks, and no number is shown beside a row'); }
+  assert.ok(!/Number\(event\.key\)/.test(pick) && !/\[1-9\]/.test(pick) && !/flow-pick-n\b/.test(pick), 'no digit picks, and no number is shown beside a row');
+  // Escape closes the open list first: the grey words' Escape (link-ui.js, loaded before) steps aside while it is open (the audit's 18).
+  const words = fs.readFileSync(path.join(root, 'predictive/logseq/link-ui.js'), 'utf8');
+  assert.ok(/Flow\.tagPick = \{[^}]*state: \(\) => open/.test(pick) && /if \(event\.key === 'Escape' && Flow\.tagPick\?\.state\?\.\(\)\) return;/.test(words), 'the open tag list has Escape before the grey words');
+  assert.ok(order.indexOf('predictive/logseq/link-ui.js') < order.indexOf('predictive/logseq/tag-pick.js'), 'the grey words listen first, so they must step aside'); }
 const listeners = [], styles = {}, commands = [], shown = [], palette = {}, slash = [];
 
 // A tiny graph in the shapes Logseq's datascript queries return.

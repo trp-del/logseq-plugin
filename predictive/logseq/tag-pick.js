@@ -117,5 +117,5 @@ function start() {
   app.onStop(logseq.App.onRouteChanged?.(close));
   logseq.App.registerCommandPalette?.({ key: 'flow-choose-tag', label: 'Predictive: choose a tag for this bullet' }, () => { const box = host().activeElement; if (app.isBlockBox(box)) show(box); else notify('Put the cursor in a bullet first.'); });
 }
-Flow.tagPick = { start, close, state: () => open };
+Flow.tagPick = { start, close, state: () => open };   // state(): the open list, whose Escape comes before the grey words' (link-ui.js)
 })();

@@ -42,7 +42,7 @@ async function showPage(uuid, page) {
   if (page?.id == null) return notify(`“${page?.title || 'The page'}” could not be found to show here.`, 'warning');
   await window.PluginDoor.write.showPage(uuid, page.id);
   if (await shownIn(uuid) !== page.id) return notify(`“${page.title}” could not be shown here.`, 'warning');
-  window.PluginDoor.undo.offer({ owner: 'predictive', key: `predictive:here:${uuid}`, at: () => lineOf(uuid), text: `“${page.title}” shown in this bullet`,
+  window.PluginDoor.undo.offer({ owner: 'predictive', key: `predictive:here:${uuid}`, at: () => lineOf(uuid), node: uuid, text: `“${page.title}” shown in this bullet`,
     run: async () => { if (await shownIn(uuid) !== page.id) return notify('The bullet has changed since, so it stays', 'warning'); await window.PluginDoor.write.unshowPage(uuid); },
     onFail: error => { warnOnce('the page could not be taken off the bullet again', error); notify('The page could not be taken off the bullet again', 'warning'); } });
 }

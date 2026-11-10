@@ -99,13 +99,11 @@ function pointedAt(M, id) {
 // The top of the outline: every tag that extends nothing, by name. Any of them can be renamed, moved, replaced or removed.
 const tops = M => [...M.loose];
 // A relationship: nodes of one tag hold nodes of another in a property. Counted from the real values, so "Topic: Cancer 12" is twelve nodes.
-const roads = M => {
-  const real = M.roads.filter(r => M.tags.has(r.from) && M.tags.has(r.to) && M.byIdent.has(r.ident)).map(r => ({ ...r, prop: M.byIdent.get(r.ident).id, title: M.byIdent.get(r.ident).title }));
-  // One set up on a tag and not used yet stands with 0, unless nodes already hold a tag beneath the one set up.
-  const set = [];
-  for (const p of M.props.values()) for (const from of p.on) for (const to of p.range) if (M.tags.has(from) && M.tags.has(to) && !real.some(r => r.prop === p.id && r.from === from && under(M, r.to, to))) set.push({ from, ident: p.ident, to, n: 0, prop: p.id, title: p.title });
-  return [...real, ...set];
-};
+// Only what nodes really hold is one (10 November 2026, the audit's 13): a relation set up and not used yet is no relationship, and a
+// value outside the property's range (a Treatment held in Provider, whose range is Doctor) is a bad value, not a relationship.
+const inRange = (M, p, to) => !p.range.length || p.range.some(r => under(M, to, r));
+const roads = M => M.roads.filter(r => r.n > 0 && M.tags.has(r.from) && M.tags.has(r.to) && M.byIdent.has(r.ident) && inRange(M, M.byIdent.get(r.ident), r.to))
+  .map(r => ({ ...r, prop: M.byIdent.get(r.ident).id, title: M.byIdent.get(r.ident).title }));
 // Everything of a tag: its relationships and those of the tags beneath it, since a node of Hospital is a node of Organization too.
 const within = (M, id) => { const seen = new Set(), walk = x => { if (seen.has(x)) return; seen.add(x); (M.tags.get(x)?.kids || []).forEach(walk); }; walk(id); return seen; };
 const roadsOf = (M, id) => { const all = roads(M).sort((a, b) => b.n - a.n), mine = within(M, id); return { out: all.filter(r => mine.has(r.from)), in: all.filter(r => mine.has(r.to) && !mine.has(r.from)) }; };

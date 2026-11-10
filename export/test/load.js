@@ -30,7 +30,7 @@ for (const file of order) vm.runInContext(fs.readFileSync(path.join(root, file),
   const page = await E.db.readPage(null);
   assert.equal(page.title, 'Dr. Mei Chen'); assert.equal(page.kind, 'page'); eq(page.tags, ['Doctor']);
   const props = Object.fromEntries(page.properties.map(p => [p.name, p.values.map(v => v.text)]));
-  eq(props, { Specialty: ['Oncology'], Notes: ['Secretary Paula'], Site: ['https://northgate.example/chen'] }, 'a choice, a text value and a URL read as words');
+  eq(props, { Alias: ['Dr. Chen'], Specialty: ['Oncology'], Notes: ['Secretary Paula'], Site: ['https://northgate.example/chen'] }, 'the alias, a choice, a text value and a URL read as words (the alias: the audit\'s 20)');
   const [intro, appointments, code, papers, query, embed, ref, cites] = page.nodes.filter(n => n.kind !== 'value');
   assert.equal(page.nodes.length, 9, 'the value block is kept as a node (hidden)');
   assert.equal(intro.text, 'Consultant oncologist. Explains with **drawings**.');
@@ -55,7 +55,7 @@ for (const file of order) vm.runInContext(fs.readFileSync(path.join(root, file),
   console.log('  ok  a page with every kind of node reads into the document');
 
   const tagPage = await E.db.readPage('doctor');
-  assert.equal(tagPage.title, 'Doctor'); eq(tagPage.tagged.map(n => n.text), ['Dr. Kim, radiologist', 'Dr. Mei Chen'], 'a block and a page carrying the tag, the tag itself not repeated'); assert.equal(tagPage.tagged[0].journalDay, 20261020); assert.equal(tagPage.tagged[1].properties[0].name, 'Notes');
+  assert.equal(tagPage.title, 'Doctor'); eq(tagPage.tagged.map(n => n.text), ['Dr. Kim, radiologist', 'Dr. Mei Chen'], 'a block and a page carrying the tag, the tag itself not repeated'); assert.equal(tagPage.tagged[0].journalDay, 20261020); assert.equal(tagPage.tagged[1].properties[0].name, 'Alias');
   const blocks = await E.db.readBlocks([U(201), U(202)]);
   assert.equal(blocks.nodes.length, 1, 'a block inside a chosen block is not repeated');
   console.log('  ok  a tag page lists its nodes; chosen blocks do not repeat');

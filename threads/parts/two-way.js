@@ -317,15 +317,18 @@ function summary(items, whenOnly = false, dayOf = item => item.day) {
   else if (days.length) { const first = Math.min(...days), last = Math.max(...days); when = first === last ? `on ${dayText(first)}` : `from ${dayText(first)} to ${dayText(last)}`; }
   return whenOnly ? when : [kinds, when].filter(Boolean).join(' · ');
 }
-// The head says what its days are of, before them ("Deadline from Aug 20 to Oct 29"; 8 November 2026, the owner: "make it
-// clear what the date is of"): the property most of them come from, or Journal for the day a node is written on.
+// What the head's days are of (8 November 2026, the owner: "make it clear what the date is of"): the property most of them come
+// from, or Journal for the day a node is written on; said in the tip under the pointer since 10 November (the audit's 26).
 const whenTip = from => from === 'Journal' ? 'The journal day each node is written on' : `Each node’s ${from}`;
 function headWhen(group, items) {
   const by = twoWay.dayChoice?.(group) || '';
   const when = summary(items, true, by === 'none' || !twoWay.dayIn ? undefined : item => twoWay.dayIn(group, item));
   if (!when) return { when: '', from: '' };
-  if (by === 'none' || !twoWay.listFrom) return { when, from: '' };
-  return { when, from: twoWay.listFrom(group) };
+  // The days alone, "Aug 20 to Oct 29" (10 November 2026, the audit's 26: "Date from Aug 20 to Oct 29" glued the property's name to
+  // the days; the grammar never shows a property's name with a day). What they are the days of is said under the pointer.
+  const days = when.replace(/^from /, '');
+  if (by === 'none' || !twoWay.listFrom) return { when: days, from: '' };
+  return { when: days, from: twoWay.listFrom(group) };
 }
 const INLINE = 3, LISTED = 5;
 /* Moving around the rows (0.4.184, the + and the hovers 0.4.185, the owner asked for the rows to be more interactive). A record's name
@@ -510,7 +513,7 @@ function rowHtml(group, top = null) {
   const leadText = kinds ? `All ${tabCount(total)}` : `${total} ${esc(plural(tagWord((headItems[0] || group.since?.[0])?.tag || 'note'), total))}`;   // the number shows on a closed head (the owner, 1 November, the research's rule that a head says what it holds)
   const lead = daysOnly ? '' : kinds ? chip('', leadText, ' th-tw-lead', true)
     : `<a class="th-tw-toggle th-tw-lead" data-key="${esc(key)}" href="#" title="Click to ${open ? 'fold' : 'open'} the list.">${leadText}</a>`;
-  const whenHtml = when ? `<a class="th-tw-toggle th-tw-when" data-key="${esc(key)}" href="#" title="${esc(from ? whenTip(from) : 'The days of these nodes')}. Click to ${open ? 'fold' : 'open'} the list.">${from ? `<span class="th-tw-from">${esc(from)}</span> ` : ''}${esc(when).replace(/ (?=\d)/g, '&nbsp;')}</a>` : '';
+  const whenHtml = when ? `<a class="th-tw-toggle th-tw-when" data-key="${esc(key)}" href="#" title="${esc(from ? whenTip(from) : 'The days of these nodes')}. Click to ${open ? 'fold' : 'open'} the list.">${esc(when).replace(/ (?=\d)/g, '&nbsp;')}</a>` : '';
   const sep = '<span class="th-tw-sep" aria-hidden="true">·</span>';
   // Three kinds, then "and 12 more" (the grammar; a click shows them all), the one in force always among them. The days stay.
   const byCount = [...counts].sort((a, b) => b[1] - a[1]);
@@ -944,7 +947,7 @@ const valueBox = (uuid, prop) => inBox(`.th-ol-pname[data-edit="${CSS.escape(pro
    “report of of” and edit display name"). Saved in "Fields read backwards", as the tag map's box does; empty goes
    back to how the name reads by itself. Undo is the arrow after the row's name. */
 /* The right-click on a row's name opens a short menu under it, the kit's pop-up (0.4.304): Group by…, Open in the map,
-   Reads back as …, Hide …. */
+   Reads back as…, Hide where it points. One “…” for every item that asks before it acts; every item has its icon (the audit's 25). */
 function onRename(event) {
   // A node's line: its own menu, from the pieces (pin, compare, …); nothing when none has an item for it.
   const lineEl = !event.target.closest?.('.th-tw-name') && event.target.closest?.('.th-tw-line[data-uuid]');
@@ -969,9 +972,9 @@ function onRename(event) {
       : provided.tagTree?.showProp ? { icon: 'map', label: 'Open in the map', run: () => provided.tagTree.showProp(group.name) } : null,
     ...(isMentions(group) && refusedHere() ? [{ icon: 'show', label: `Show the ${refusedHere()} suggestion${refusedHere() === 1 ? '' : 's'} taken off`, run: showCouldBeAgain }] : []),
     ...rowMenuHooks.flatMap(hook => hook(group) || []),
-    ...(isMentions(group) ? [] : [{ icon: 'rename', label: 'Reads back as …', run: () => { renameRow(group, nameEl).catch(error => warnOnce('could not rename the row', error)); } }]),
+    ...(isMentions(group) ? [] : [{ icon: 'rename', label: 'Reads back as…', run: () => { renameRow(group, nameEl).catch(error => warnOnce('could not rename the row', error)); } }]),
     // The same two words as the tag map's (0.4.444, one word for each idea); the head above already names the row.
-    ...(isMentions(group) ? [] : [{ icon: 'hide', label: 'Hide on the pages it points to', run: () => {
+    ...(isMentions(group) ? [] : [{ icon: 'hide', label: 'Hide where it points', run: () => {
       setShownAtOtherEnd(group.name, false);
       offerUndo(`“${group.label}” is hidden on every page it points to; the links stay`, () => { setShownAtOtherEnd(group.name, true); later(0); });
       later(0);

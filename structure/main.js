@@ -58,6 +58,17 @@ const app = {
   // { list: [{ id, name, under: id or null, open }], of: { property ident: group id } }.
   groups() { try { const g = JSON.parse(localStorage.getItem(`structure-groups:${app.graph}`) || 'null'); return g && Array.isArray(g.list) ? { list: g.list, of: g.of || {} } : { list: [], of: {} }; } catch (error) { return { list: [], of: {} }; } },
   saveGroups(g) { try { localStorage.setItem(`structure-groups:${app.graph}`, JSON.stringify(g)); } catch (error) { console.error('Structure: the groups could not be kept', error); } },
+  /* Every change to the groups, by any way in (the name field, the ×, a drag, New group), goes through here and leaves the faded
+     Undo arrow at the group's row, as every other change does (10 November 2026, the audit's 16). A group folding is the view, as
+     a bullet folding is, and leaves none. The groups are this computer's, so the Undo puts back what was kept, nothing in the graph. */
+  changeGroups(text, change, at) {   // each its own arrow, taking the place of the last change of one thing, as anywhere
+    const graph = app.graph, before = JSON.stringify(app.groups()), G = app.groups();
+    if (change(G) === false) return;
+    app.saveGroups(G);
+    window.PluginDoor.undo.offer({ owner: 'structure', key: `structure:groups:${++groupChanges}`, text, at: () => (at && host().querySelector(`.st-tbl .st-grp[data-group="${String(at).replace(/["\\]/g, '')}"] .gn`)) || host().querySelector('.st-tbl .st-gnew'),
+      run: async () => { if (graph !== app.graph) return; localStorage.setItem(`structure-groups:${graph}`, before); app.draw(); },
+      onFail: error => { console.error('Structure: the groups could not be put back', error); notify("The groups could not be put back", "warning"); } });
+  },
   async apply() {
     if (app.st.busy || !tray.changes.length) return;
     const n = tray.changes.length;
@@ -175,7 +186,7 @@ function keepDone(graph, done) { if (graph === app.graph) tray.done = done; else
    away when it has none. An Apply is a change of many things, so it keeps its arrow until the next change of many things (the owner, 9 November
    2026): a value filled in elsewhere no longer takes it. When such a change has taken its place the done line goes too. The arrow lives at
    the end of the done line only, so it never waits at the bottom right while the map is out of sight. */
-let undoOffered = false;
+let undoOffered = false, groupChanges = 0;
 function syncUndo() {
   const door = window.PluginDoor.undo;
   if (tray.done) {

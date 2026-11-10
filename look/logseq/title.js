@@ -95,7 +95,7 @@ async function takeOff(tagUuid, { page, tagPage }, name = 'The tag') {
     if (tagPage) return await window.Structure.app.askTakeOut(page, tagUuid);
     await Look.db.removeTag(page, tagUuid);
     setTimeout(() => Look.marks.load(), 300);
-    window.PluginDoor.undo.offer({ owner: 'look', key: `look:${page}:${tagUuid}`, at: () => undoPlace(page), text: `${name} taken off this page`, cls: 'lk-undo-title',
+    window.PluginDoor.undo.offer({ owner: 'look', key: `look:${page}:${tagUuid}`, at: () => undoPlace(page), node: page, text: `${name} taken off this page`, cls: 'lk-undo-title',
       run: async () => { await Look.db.addTag(page, tagUuid); setTimeout(() => Look.marks.load(), 300); },
       onFail: error => { console.error('Look: a tag could not be put back', error); notify('The tag could not be put back', 'warning'); } });
   } catch (error) { console.error('Look: a tag could not be taken off', error); notify('The tag could not be taken off', 'warning'); }

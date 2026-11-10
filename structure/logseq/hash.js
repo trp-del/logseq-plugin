@@ -1,5 +1,5 @@
 /* The hierarchy in the list that opens on #. Logseq's list stays Logseq's, with its keys: this only writes into it. Each tag
-   gets its path on the empty line Logseq keeps above a row; when letters narrow the list, the first tag stands in its place
+   gets its path on its own line, after its name, quiet; when letters narrow the list, the first tag stands in its place
    among the tags above it and beside them, as rows the arrow keys pass over. A new tag then asks where it goes, in the same
    place, and Escape leaves it with no parent. */
 (function () {
@@ -10,7 +10,8 @@ const CSS = `
 .st-hc { padding: 3px 10px; font-size: var(--lk-small); pointer-events: none; }
 .st-hc.up { font-weight: 600; }
 .st-hc.more { padding-top: 0; }
-.st-hp { font-size: var(--lk-small); margin-left: 3px; }
+.st-hp { font-size: var(--lk-small); margin-left: .6em; color: var(--lk-quiet); }
+#ui__ac-inner .flex-row:has(> .st-hp) { align-items: baseline; }
 #ui__ac-inner .menu-link-wrap.st-in-tree { padding-left: var(--st-pad, 0); }
 .st-where { position: fixed; z-index: 9999; width: 280px; max-height: 340px; overflow: auto; outline: none; }   /* the library's pop-up and menu (lk-pop, lk-menu); a line lk-item, the lit one on */
 .st-where .h { padding: 4px 10px 6px; font-weight: 600; border-bottom: 1px solid var(--lk-hair); margin-bottom: 4px; }
@@ -43,8 +44,10 @@ function start(app, doc) {
       if (!t) continue;
       const path = Mo.pathOf(m, t.id).slice(0, -1);
       if (!path.length || w === first) continue;
-      const slot = w.querySelector('.text-xs') || w.querySelector('span');
-      if (slot) { const span = doc.createElement('span'); span.className = 'st-hp'; span.textContent = path.map(id => m.tags.get(id).title).join(' / '); slot.prepend(span); }
+      // On the tag's own line, after its name (10 November 2026, the audit's 24: on the empty line above the row, a place read as
+      // the foot of the row before it).
+      const line = w.querySelector('.flex-row') || w.querySelector('span');
+      if (line) { const span = doc.createElement('span'); span.className = 'st-hp'; span.textContent = path.map(id => m.tags.get(id).title).join(' / '); line.append(span); }
     }
     if (!first) return;
     // The first tag in its place: each tag above it with the tags beside that one.

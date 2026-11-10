@@ -450,7 +450,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     const words = () => [...many.doc.querySelectorAll('.th-tw-head .th-tw-chip:not(.th-tw-lead)')].map(el => el.textContent.trim());
     const more = () => many.doc.querySelector('.th-tw-head [data-kinds]');
     const head = () => many.doc.querySelector('.th-tw-head').textContent;
-    check(words().length === 3 && /^and \d+ more$/.test(more()?.textContent || '') && /(from|on|next) /.test(head()), 'three kinds, "and N more", and the days: ' + head());
+    check(words().length === 3 && /^and \d+ more$/.test(more()?.textContent || '') && /(\w{3}\s\d+ to \w{3}\s\d+|on |next )/.test(head()), 'three kinds, "and N more", and the days: ' + head());
     click(many.window, more()); await wait(20);
     check(words().length === NODES.length && !more(), 'a click shows them all: ' + words());
     many.part.stop();
@@ -973,7 +973,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     check(saved.some(x => x.twoWayMentionsHidden === 'Spaced repetition'), 'the page should be added to the pages without the row: ' + JSON.stringify(saved));
     part.stop();
   }
-  // 11b. Reads back as … (1.0.4): from a property row's right-click, the words are typed on the row's own name, as a page
+  // 11b. Reads back as… (1.0.4): from a property row's right-click, the words are typed on the row's own name, as a page
   //      is renamed in Logseq (no pop-up); Enter keeps them and saves the setting, with the Undo arrow; Escape leaves it.
   {
     const { window, doc, part, saved } = world('');
@@ -984,7 +984,13 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     nameEl.dispatchEvent(new window.MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
     await wait(40);
     const item = [...doc.querySelectorAll('.th-pop .th-item')].find(el => /Reads back as/.test(el.textContent));
-    check(!!item, 'the right-click on a property row should offer Reads back as …');
+    check(!!item, 'the right-click on a property row should offer Reads back as…');
+    // The audit's 25: every item has its icon, one "…" with no space before it, and the words stay short.
+    { const items = [...doc.querySelectorAll('.th-pop .th-item')].filter(el => el.textContent.trim());
+      const iconless = items.filter(el => !el.querySelector('.ti, svg, [class*="ti-"]') || /ti-export\b/.test(el.innerHTML)).map(el => el.textContent.trim());
+      check(!iconless.length, 'every item of the row\'s right-click should have its icon: ' + iconless.join(', '));
+      const odd = items.map(el => el.textContent.trim()).filter(t => / …|\.\.\./.test(t) || t.length > 24);
+      check(!odd.length, 'no " …", no "...", no long words in the row\'s right-click: ' + odd.join(', ')); }
     click(window, item); await wait(80);
     const field = () => nameEl.querySelector('.th-in-place');
     check(!!field() && field().value === label && !doc.querySelector('.th-pop:popover-open, .th-lsq-pop'), 'the words should be typed on the row’s own name, holding its name, with no pop-up: ' + field()?.value);
@@ -1253,7 +1259,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     check(!!box?.querySelector('.th-task.ls-icon-Todo') && !!box?.querySelector('.th-task.ls-icon-Done'), 'a task shows Logseq’s circle for its status');
     check(!!box?.querySelector('.th-task.ls-icon-hourglass .ti.ti-hourglass'), 'a status with an icon chosen in Logseq shows that icon');
     check(box?.querySelectorAll('.th-task').length === 3, 'a node with no status shows no circle');
-    check(/^Date /.test(box?.querySelector('.th-tw-when')?.textContent || ''), 'the head says what its days are of: ' + box?.querySelector('.th-tw-when')?.textContent);
+    { const when = box?.querySelector('.th-tw-when'); check(/^\w{3}\s\d+ to /.test(when?.textContent || '') && /Date/.test(when?.title || ''), 'the head says the days alone, and what they are of under the pointer (the audit\'s 26): ' + when?.textContent + ' | ' + when?.title); }
     const froms = [...box?.querySelectorAll('.th-ol-dfrom') || []].map(e => e.textContent);
     check(froms.length === 1 && froms[0] === 'Journal', 'only the line dated otherwise says its own: ' + JSON.stringify(froms));
     // A press on the circle opens Logseq's Set Status list; a pick writes the status, and the faded arrow puts the old one back.
@@ -1422,7 +1428,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     // On a day: the nodes up to it are the list, the later ones faint under "since", the head says how many today.
     type(window, field, 'on 2026-09-20'); await wait(200);
     const head = doc.querySelector('.th-tw-head')?.textContent.replace(/\s+/g, ' ') || '';
-    check(/All 3/.test(head) && /6 today/.test(head) && /from Sep 1 to Sep 15/.test(head), 'on a day the head counts the nodes up to it and says how many there are today: ' + head);
+    check(/All 3/.test(head) && /6 today/.test(head) && /Sep 1 to Sep 15/.test(head), 'on a day the head counts the nodes up to it and says how many there are today: ' + head);
     const since = doc.querySelector('.th-tw-since');
     check(!!since && since.querySelectorAll('.th-tw-line').length === 3 && /since/.test(since.textContent), 'the later nodes stand under a "since" line: ' + since?.querySelectorAll('.th-tw-line').length);
     check(/3 of 6 up to Sep 20/.test(doc.querySelector('.th-tw-findrow .th-field-count')?.textContent || ''), 'the find line says the count up to the day: ' + doc.querySelector('.th-tw-findrow .th-field-count')?.textContent);

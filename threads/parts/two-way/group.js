@@ -135,8 +135,9 @@ const viewHas = group => !state.drawingTop && group.items.length > 1;   // picki
 const groupBtn = group => {
   if (!viewHas(group)) return '';
   const by = groupOf(group), day = dayChoice(group);
-  // A date property chosen is said at the head, before the days ("Deadline from Aug 20 to Oct 29"), so not here again.
-  const said = [by ? `By ${groupName(by)}` : '', day === 'none' ? 'No date' : '', state.selecting.has(group.name) ? 'Picking' : ''].filter(Boolean).join(' · ');
+  // A date property chosen in View is said here, quietly, with what else is in force ("Days of Deadline"); the head says the days alone
+  // (the audit's 26), and with the list's own dates nothing is said.
+  const said = [by ? `By ${groupName(by)}` : '', day === 'none' ? 'No date' : day.startsWith('p:') ? `Days of ${day.slice(2)}` : '', state.selecting.has(group.name) ? 'Picking' : ''].filter(Boolean).join(' · ');
   if (!said) return '';
   return `<button type="button" class="lk-btn lk-low th-tw-groupby" data-on="" data-field="${esc(group.name)}" title="How the list is shown">${esc(said)}${iconHtml('chevron-down')}</button>`;
 };
