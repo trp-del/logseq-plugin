@@ -199,7 +199,7 @@ function onItemClosed(event) {
 }
 function letHiddenGo() {
   if (state.open.links || state.open.notes) return;
-  for (const item of hidden()) { item.removeAttribute('data-lk-closed'); item.querySelector('.ls-icon-x')?.closest('button')?.click(); }
+  for (const item of hidden()) { item.removeAttribute('data-lk-closed'); window.PluginDoor.screen.click(item.querySelector('.ls-icon-x')?.closest('button')); }
 }
 
 const css = `
@@ -230,11 +230,11 @@ function start() {
     find: () => (state.panels[key]?.isConnected ? state.panels[key] : null), open: () => { if (!state.open[key]) setOpen(key, true); } }));
   style('sidebar-links', css);
   watchScreen(draw);
-  host().defaultView.addEventListener('click', onItemClosed, true);
-  logseq.App.onRouteChanged?.(load);
+  Look.kit.listen(host().defaultView, 'click', onItemClosed, true);
+  Look.kit.onStop(logseq.App.onRouteChanged?.(load));
   onGraphChange(load);
   load();
 }
-function stop() { offTabs.forEach(off => off?.()); offTabs = []; state.stopped = true; host().defaultView.removeEventListener('click', onItemClosed, true); Object.assign(state, { open: { links: false, notes: false }, words: {}, panels: {} }); style('sidebar-links', ''); }
+function stop() { offTabs.forEach(off => off?.()); offTabs = []; state.stopped = true; Object.assign(state, { open: { links: false, notes: false }, words: {}, panels: {} }); style('sidebar-links', ''); }
 Look.links = { start, stop, load, linksIn, citationsIn, byKind };
 })();

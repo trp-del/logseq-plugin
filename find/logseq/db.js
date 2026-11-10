@@ -6,10 +6,7 @@
    found letters between $pfts_2lqh>$ and $<pfts_2lqh$. */
 (function () {
 const Find = window.Find;
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const bare = value => String(value ?? '').replace(/^:/, '');
-const query = async q => { const rows = await logseq.DB.datascriptQuery(q); return Array.isArray(rows) ? rows : []; };
-const pick = (node, name) => node?.[name] ?? node?.[':' + name] ?? node?.[name.slice(name.indexOf('/') + 1)];
+const { UUID, bare, query, pick } = window.PluginDoor;   // the small readers every module shares (plugin.js)
 const LIVE = '(not [?b :logseq.property/deleted-at _])';
 const USER_PROP = '[?prop :db/ident ?a] [(namespace ?a) ?ns] [(= ?ns "user.property")]';
 // An entity id is below 2^31; a larger number held by a property is no id (a date and time is its milliseconds).
@@ -18,7 +15,7 @@ const isId = id => Number.isSafeInteger(id) && id > 0 && id <= 2147483647;
    others are ids to read; read as ids, 1791874800000, the 13th of October 2026, made Logseq throw "Highest supported entity id". */
 const IN_PLACE = new Set(['datetime', 'checkbox', 'raw-number', 'string', 'keyword', 'map', 'coll', 'any']);
 const inPlace = type => IN_PLACE.has(bare(type));
-const inPlaceLabel = (type, v) => { const t = bare(type); if (t === 'datetime') { const d = new Date(Number(v)); return isNaN(d) ? '' : dayLabel(d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate()); } return t === 'raw-number' || t === 'string' ? String(v ?? '').trim() : ''; };
+const inPlaceLabel = (type, v) => { const t = bare(type); if (t === 'datetime') { const d = new Date(Number(v)); return isNaN(d) ? '' : dayLabel(window.PluginDoor.dates.number(d)); } return t === 'raw-number' || t === 'string' ? String(v ?? '').trim() : ''; };
 const idsIn = (variable, ids) => `[(ground [${[...new Set(ids)].filter(isId).join(' ')}]) [${variable} ...]]`;
 const uuidsIn = (variable, uuids) => `[(ground [${[...new Set(uuids)].map(String).filter(u => UUID.test(u)).map(u => `#uuid "${u}"`).join(' ')}]) [${variable} ...]]`;
 const MARKERS = /\$pfts_2lqh>\$|\$<pfts_2lqh\$/g;
@@ -220,9 +217,8 @@ function months(nodes) {
   for (const n of nodes) { if (!n.day) continue; const key = Math.floor(n.day / 100); map.set(key, (map.get(key) || 0) + 1); }
   return [...map].sort((a, b) => b[0] - a[0]).map(([key, count]) => ({ key, label: monthLabel(key), count }));
 }
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-function monthLabel(key) { const y = Math.floor(key / 100), m = key % 100; return MONTHS[m - 1] + (y === new Date().getFullYear() ? '' : ' ' + y); }
-function dayLabel(day) { if (!day) return ''; const y = Math.floor(day / 10000), m = Math.floor(day / 100) % 100, d = day % 100; return `${MONTHS[m - 1]} ${d}${y === new Date().getFullYear() ? '' : ', ' + y}`; }
+// A month and a day in words: the door's one rule (plugin.js, Door.dates), the same in every module.
+const monthLabel = key => window.PluginDoor.dates.month(key), dayLabel = day => window.PluginDoor.dates.words(day);
 
 /* Logseq's own search for the words: its index and its order, up to `limit`, each result read in full. */
 async function search(words, limit = 80) {

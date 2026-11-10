@@ -4,11 +4,9 @@
 (function () {
 const Find = window.Find;
 const isMac = /Mac/i.test(navigator.platform || '');
-let keyListener = null;
 function listenForKeys() {
   const doc = Find.kit.host();
-  if (keyListener) doc.removeEventListener('keydown', keyListener, true);
-  keyListener = event => {
+  const keyListener = event => {
     const mod = isMac ? event.metaKey : event.ctrlKey;
     // Cmd Shift . (Ctrl elsewhere): the window with > typed, Logseq's commands listed; again, it closes. The period by its place
     // on the keyboard, since with Shift it reads > on most layouts. No key of Logseq's uses it.
@@ -25,38 +23,36 @@ function listenForKeys() {
     }
     if (takes) { event.preventDefault(); event.stopPropagation(); Find.window.toggle(); }
   };
-  doc.addEventListener('keydown', keyListener, true);
+  Find.kit.listen(doc, 'keydown', keyListener, true);
 }
 /* Logseq's magnifier at the top left opens Find too, while Find takes the search key: one search, where the toolbar had a second
    button for it (the owner, 9 November 2026: "streamline not just move icons around"). Shift and the magnifier is Logseq's own
    search, as Cmd Shift K is. */
-let searchPress = null, offMenu = null;
 function takeSearchButton() {
   const doc = Find.kit.host();
-  if (searchPress) doc.removeEventListener('click', searchPress, true);
-  searchPress = event => {
+  const searchPress = event => {
     if (!event.target?.closest?.('#search-button') || event.shiftKey || !Find.settings.setting('takesSearchKey')) return;
     event.preventDefault(); event.stopImmediatePropagation();
     Find.window.toggle();
   };
-  doc.addEventListener('click', searchPress, true);
+  Find.kit.listen(doc, 'click', searchPress, true);
 }
 async function main() {
   takeSearchButton();
-  offMenu = window.PluginDoor.addMenuItem({ key: 'find', label: 'Find', icon: 'search', run: () => Find.window.open() });
+  const { onStop } = Find.kit;
+  onStop(window.PluginDoor.addMenuItem({ key: 'find', label: 'Find', icon: 'search', run: () => Find.window.open() }));
   listenForKeys();
   logseq.App.registerCommandPalette({ key: 'find-open', label: 'Find' }, () => Find.window.open());
   logseq.App.registerCommandPalette({ key: 'find-sentence', label: 'Find by sentence' }, () => Find.window.sentence());
   logseq.provideModel({ findOpen: () => Find.window.open() });
-  logseq.DB.onChanged(() => Find.window.forget());
-  logseq.App.onCurrentGraphChanged(() => { Find.window.close(); Find.window.forget(); });
+  onStop(logseq.DB.onChanged(() => Find.window.forget()));
+  onStop(logseq.App.onCurrentGraphChanged(() => { Find.window.close(); Find.window.forget(); }));
 }
 function stop() {
   try { Find.window.close(); } catch (error) { console.error('Find: the window could not close', error); }
-  if (keyListener) Find.kit.host().removeEventListener('keydown', keyListener, true);
-  if (searchPress) Find.kit.host().removeEventListener('click', searchPress, true);
-  offMenu?.();
+  const done = Find.kit.stopAll();   // the base: its listeners, Logseq's hooks and its line in the ··· menu
   Find.kit.sweep();
+  return done;
 }
 window.PluginDoor.describe('find', { schema: [{ type: 'heading', title: 'The search window', place: 'finding' }, ...Find.settings.schema], specimen: Find.settings.specimen });
 window.PluginDoor.register({

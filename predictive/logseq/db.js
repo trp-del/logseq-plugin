@@ -10,16 +10,9 @@ const { isLinkProp, isDateProp } = Flow.schema;
 const { rateCounter } = Flow.link;
 
 const UUID = Flow.text.UUID;
-const isEntityId = id => Number.isSafeInteger(id) && id > 0;
-const dsQuery = async query => {
-  const rows = await logseq.DB.datascriptQuery(query);
-  return Array.isArray(rows) ? rows : [];
-};
+const { isEntityId, query: dsQuery } = window.PluginDoor;   // the small readers every module shares (plugin.js)
 // Readers of a pulled map: keys come back shortened ("db/id" as "id", "block/title" as "title"), sometimes with a colon.
-const bare = value => String(value ?? '').replace(/^:/, '');
-const pick = (node, name) => node?.[name] ?? node?.[':' + name] ?? node?.[name.slice(name.indexOf('/') + 1)];
-const idOf = value => typeof value === 'number' ? value : pick(value, 'db/id');
-const listOf = value => value == null ? [] : Array.isArray(value) ? value : [value];
+const { bare, pick, idOf, listOf } = window.PluginDoor;
 // A pulled map's values under a property, by its ident, whatever the key's spelling; [] when the property is empty.
 function valuesOf(node, ident) {
   for (const key of Object.keys(node || {})) if (bare(key) === ident) return listOf(node[key]).map(idOf).filter(id => id != null);
@@ -224,38 +217,10 @@ async function currentIds(uuid, prop) {
 
 /* Journal pages. A day's page by its number (made when it does not exist yet, as Logseq would), and a day's title in the
    format the graph uses (MMM do, yyyy; E, dd.MM.yyyy; yyyyMMdd ...), read once from Logseq's settings. */
-async function journalIdFor(day, title) {
-  const [[p] = []] = await dsQuery(`[:find (pull ?p [:db/id]) :where [?p :block/journal-day ${day}]]`);
-  if (p && idOf(p)) return idOf(p);
-  const page = await window.PluginDoor.write.createPage(title, {}, { redirect: false, createFirstBlock: false, journal: true });
-  return page?.id ?? null;
-}
-const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-const ordinal = n => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th');
-function formatJournalTitle(date, format) {
-  const pad = n => String(n).padStart(2, '0');
-  const parts = {
-    yyyy: date.getFullYear(), yy: pad(date.getFullYear() % 100),
-    MMMM: MONTH_NAMES[date.getMonth()], MMM: MONTH_NAMES[date.getMonth()].slice(0, 3), MM: pad(date.getMonth() + 1), M: date.getMonth() + 1,
-    do: ordinal(date.getDate()), dd: pad(date.getDate()), d: date.getDate(),
-    EEEE: DAY_NAMES[date.getDay()], EEE: DAY_NAMES[date.getDay()].slice(0, 3), E: DAY_NAMES[date.getDay()].slice(0, 3),
-  };
-  return format.replace(/yyyy|yy|MMMM|MMM|MM|M|do|dd|d|EEEE|EEE|E/g, token => parts[token]);
-}
-let journalFormat = null;
-const forget = () => { journalFormat = null; };   // each graph has its own
-async function journalTitleFor(year, month, day) {
-  const journalDay = year * 10000 + month * 100 + day;
-  try {
-    const [[title] = []] = await dsQuery(`[:find ?t :where [?p :block/journal-day ${journalDay}] [?p :block/title ?t]]`);
-    if (title) return String(title);
-  } catch (error) { /* no such journal yet: use the format below */ }
-  if (!journalFormat) { try { journalFormat = (await logseq.App.getUserConfigs())?.preferredDateFormat || null; } catch (error) { /* default below */ } }
-  return formatJournalTitle(new Date(year, month - 1, day), journalFormat || 'MMM do, yyyy');
-}
-// The journal page of a day, made when the graph has none yet.
-const journalPageFor = async day => journalIdFor(day, await journalTitleFor(Math.floor(day / 10000), Math.floor(day / 100) % 100, day % 100));
+// A day's journal page, made when the graph has none yet, and its title in the graph's date format: the door's date service
+// (plugin.js, Door.dates), the same in every module.
+const forget = () => window.PluginDoor.dates.forget();   // each graph has its own format
+const journalPageFor = day => window.PluginDoor.dates.pageFor(day, dsQuery);
 
 // A page made for a name (core/people.js), with its tag: { id, uuid, title }. And taken back by Undo, only while nothing has been
 // written on it (a page the person has since filled is theirs, and stays).

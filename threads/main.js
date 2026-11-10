@@ -6,38 +6,35 @@
    of old defaults went the same day, since no part used them.
    Logseq keeps only the most recent beforeunload callback a plugin registers, so every part keeps its own clean-up list and
    the module's stop runs them all. */
-let host, notify, warnOnce, onUnload, runUnloadTasks, takeOverFromEarlierCopy, setting, perf;
+let host, notify, warnOnce, onUnload, runUnloadTasks, setting, perf, base;
 function useShared() {
   const shared = window.Threads?.shared;
   if (!shared) throw new Error('parts/shared.js did not load');
   ({ host, notify, perf } = shared);
-  // The clean-up takes Threads' screen updaters off the door's watcher first, so nothing re-applies while the steps undo their
-  // changes; a new copy runs the earlier copy's clean-up and sweeps what it left on screen.
-  ({ warnOnce, onUnload, runUnloadTasks, takeOverFromEarlierCopy } = shared.lifecycle({ prefix: 'Threads: ', stopKey: STOP_KEY, before: stopWatchingDom, sweep: sweepEarlierCopy }));
+  // The core's base (plugin.js, Door.base). Its stop takes Threads' screen updaters off the door's watcher first, so nothing
+  // re-applies while the steps undo their changes; every stylesheet it sends is counted for the troubleshooting tools.
+  base = window.PluginDoor.base('threads', { prefix: 'Threads: ', styled: (key, style, changed) => perf.style(key, style, changed) });
+  warnOnce = base.warnOnce; onUnload = base.onStop; runUnloadTasks = () => { screen.count = 0; return base.stop(); };
 }
 
 /* Threads' screen updaters on the door's one watcher. An early one (watchDomEarly) runs at once on every change, before the
-   screen is drawn, given the changes; it must be quick. Each is timed for the troubleshooting tools, and what takes it off is
-   kept, so Threads' stop takes off only Threads'. A failing one is retired by the door after five errors. */
-const screen = { offs: [], count: 0 };
+   screen is drawn, given the changes; it must be quick. Each is timed for the troubleshooting tools; the base takes them off at
+   Threads' stop, so only Threads' go. A failing one is retired by the door after five errors. */
+const screen = { count: 0 };
 function watchDomEarly(update) {
   const timed = (doc, records) => { perf.seen('screen watcher', records); perf.time(update.name, () => update(doc, records)); };
-  screen.offs.push(window.PluginDoor.watch(timed, { early: true }));
+  base.watch(timed, { early: true });
   screen.count++;
 }
 const addsElements = records => window.PluginDoor.addsElements(records);
-function stopWatchingDom() {
-  while (screen.offs.length) screen.offs.pop()();
-  screen.count = 0;
-}
 
 /* The plugin's hooks live in Logseq's window, so they outlive the plugin's own frame. If an earlier copy was removed without
    its clean-up finishing (an error, or Logseq's ten-second limit), they would keep running beside this copy. Each copy
-   therefore leaves its clean-up where the next one can find it (takeOverFromEarlierCopy, from shared.js), and a new copy
+   therefore leaves its clean-up where the next one can find it (the base's takeOver, plugin.js), and a new copy
    runs it and removes anything still left on screen (sweepEarlierCopy). */
 const STOP_KEY = '__threadsStop';
-// Each part declares what it may leave on screen in its lifecycle (leaves); shared.js sweeps it all.
-const sweepEarlierCopy = doc => window.Threads.shared.sweepLeftovers(doc);
+// Each part declares what it may leave on screen in its lifecycle (leaves); the door sweeps it all.
+const sweepEarlierCopy = doc => window.PluginDoor.sweep('threads', doc);
 
 // Logseq ignores an empty stylesheet, which would leave the previous rules in place. A comment
 // counts as content, so sending one is how a stylesheet is cleared.
@@ -45,16 +42,8 @@ const orNoRules = style => style.trim() ? style : '/* no rules */';
 
 /* Database queries. Datascript with Logseq's own idents (:logseq.class/Tag, :block/title...), as
    the plugin SDK's DB guides do. Lists of ids are written into the query text, so only whole
-   numbers and well-formed uuids are let in. */
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const isEntityId = id => Number.isSafeInteger(id) && id > 0;
-const idsIn = (variable, ids) => `[(identity [${[...new Set(ids)].filter(isEntityId).join(' ')}]) [${variable} ...]]`;
-const uuidsIn = (variable, uuids) => `[(identity [${[...new Set(uuids)].map(String).filter(u => UUID.test(u)).map(u => `#uuid "${u}"`).join(' ')}]) [${variable} ...]]`;
-// Rows of a query, or [] when it returns nothing.
-const dsQuery = async query => {
-  const rows = await logseq.DB.datascriptQuery(query);
-  return Array.isArray(rows) ? rows : [];
-};
+   numbers and well-formed uuids are let in. The helpers are the door's (plugin.js); dsQuery gives a query's rows, or [] for none. */
+const { UUID, isEntityId, idsIn, uuidsIn, query: dsQuery } = window.PluginDoor;
 
 /* Self-check after a Logseq update. Once a page has settled, a few pairs are compared (screenChecks, from
    parts/model.js: what a drawn page must hold): when the page plainly has a thing (blocks, a title,
@@ -93,16 +82,9 @@ function startSelfCheck() {
   onUnload(logseq.App.onRouteChanged(scheduleSelfCheck));
   onUnload(() => clearTimeout(selfCheck.timer));
 }
-// Stylesheets that depend on settings are sent again only when their text has changed: every send
+// Stylesheets that depend on settings are sent again only when their text has changed (the base's style): every send
 // makes Logseq work out the look of the whole page again.
-const sentStyles = new Map();
-function sendStyle(key, style) {
-  const changed = sentStyles.get(key) !== style;
-  perf.style(key, style, changed);
-  if (!changed) return;
-  sentStyles.set(key, style);
-  logseq.provideStyle({ key, style: orNoRules(style) });
-}
+const sendStyle = (key, style) => { base.style(key, style); };
 /* The settings are the parts': each declares its own (schema), with the heading of its section saying which
    group of the settings window it sits in (group, rank). setting(key), from shared.js, reads the joined list:
    a setting's current value, or its default when unset or of the wrong type. A setting that only takes effect
@@ -199,8 +181,8 @@ function publishCore() {
     onGraphChange: fn => hooks.graph.push(fn), // another graph opened (0.4.315)
     // A hidden door for the stress tests (2026-10-23, tools/app-stress.js): what this copy has set going, and when it
     // started, so twenty reloads or sixty pages can be checked to leave one of everything and nothing growing.
-    counts: () => ({ startedAt, cleanUps: window.Threads.shared.lifeCounts(), watchers: screen.count,
-      hooks: Object.fromEntries(Object.entries(hooks).map(([k, list]) => [k, list.length])), dbJobs: dbJobs.length, styles: sentStyles.size,
+    counts: () => ({ startedAt, cleanUps: window.Threads.shared.lifeCounts(), watchers: base.watching(),
+      hooks: Object.fromEntries(Object.entries(hooks).map(([k, list]) => [k, list.length])), dbJobs: dbJobs.length, styles: base.styles(),
       popups: window.Threads.shared.popups.size, undos: window.Threads.shared.undo.size }),
   };
 }
@@ -216,9 +198,9 @@ function main() {
     return;
   }
   // The clean-up (runUnloadTasks) is run by the plugin's own beforeunload (main.js at the root), as this module's stop.
-  takeOverFromEarlierCopy();
+  base.takeOver(STOP_KEY, sweepEarlierCopy);
   publishCore();
-  logseq.provideStyle({ key: 'threads-kit', style: window.Threads.shared.kitCss }); // the kit's look, before any part (0.4.169, the kit since 0.4.311)
+  base.style('threads-kit', window.Threads.shared.kitCss); // the kit's look, before any part (0.4.169, the kit since 0.4.311)
   // THE Undo (parts/shared.js, 0.4.258): its arrows belong to the page they were made on, and go with the plugin.
   onUnload(logseq.App.onRouteChanged(() => window.Threads.shared.undo.clear()));
   onUnload(() => window.Threads.shared.undo.stop());
@@ -276,9 +258,9 @@ let plugInParts = [];
 useShared();
 plugInParts = window.Threads.parts || [];
 schemaAll = plugInParts.flatMap(part => part.schema);
-setting = window.Threads.shared.settingReader(schemaAll);
+setting = window.PluginDoor.settingReader(schemaAll);
 RELOAD_SETTINGS = reloadOnly(schemaAll);
 window.PluginDoor.register({
   key: 'threads', title: 'Threads', about: 'On a page, everything that points at it, named by the property it came through, to follow and dig along.',
-  schema: schemaAll, start: main, stop: runUnloadTasks,
+  schema: schemaAll, start: main, stop: () => runUnloadTasks(),
 });

@@ -58,7 +58,7 @@ function openProperties(doc) {
     const toggle = box.querySelector(':scope > div:first-child > button:only-child');
     if (!toggle) continue;
     pressed.add(box);
-    toggle.click();
+    window.PluginDoor.screen.click(toggle);
   }
 }
 // A press on a page's name in an item's head opens the page in the main view, before Logseq takes it to fold the item.
@@ -77,8 +77,7 @@ function apply() {
   style('sidebar-flat', setting('sidebarFlat') ? flatCss : '');
   style('sidebar-pages', setting('sidebarPages') ? pagesCss : '');
 }
-let listening = null;
-function start() { apply(); watchScreen(pass); listening = Look.kit.host(); listening.addEventListener('click', openName, true); }
-function stop() { style('sidebar-bar', ''); style('sidebar-flat', ''); style('sidebar-pages', ''); listening?.removeEventListener('click', openName, true); listening = null; }
+function start() { apply(); watchScreen(pass); Look.kit.listen(Look.kit.host(), 'click', openName, true); }
+function stop() { style('sidebar-bar', ''); style('sidebar-flat', ''); style('sidebar-pages', ''); }
 Look.sidebar = { apply, start, stop, markDevViews, openProperties, openName };
 })();

@@ -6,7 +6,7 @@
    the brackets and the page are taken out of those nodes in place and put back when the number goes; the link is hidden and the number stands after it. */
 (function () {
 const Look = window.Look;
-const { el, style, host, watchScreen, openPage } = Look.kit;
+const { el, style, host, watchScreen, listen, openPage } = Look.kit;
 const setting = key => Look.settings.setting(key);
 
 const REFS = '#main-content-container .ls-page-blocks .block-title-wrap > :is(.page-reference, a.external-link, i)';
@@ -106,20 +106,17 @@ const css = `
 .lk-cite-source { text-decoration: underline; text-decoration-color: var(--lk-link); text-decoration-thickness: var(--lk-link-width); text-underline-offset: 3px; }
 .lk-cite-how { color: var(--lk-soft); font-size: var(--lk-small); margin-top: 2px; }`;
 
-let listening = null;
 function start() {
   style('cite-numbers', css);
   watchScreen(draw);
   const win = host().defaultView;
-  listening = { win, types: ['pointerdown', 'mousedown', 'mouseup', 'click'] };
-  for (const type of listening.types) win.addEventListener(type, onPress, true);
-  win.addEventListener('pointerover', onOver, true);
+  listen(win, ['pointerdown', 'mousedown', 'mouseup', 'click'], onPress, true);
+  listen(win, 'pointerover', onOver, true);
 }
 function stop() {
   for (const ref of [...state.drawn.keys()]) putBack(ref);
   hideCard();
   state.numbers = new Map();
-  if (listening) { for (const type of listening.types) listening.win.removeEventListener(type, onPress, true); listening.win.removeEventListener('pointerover', onOver, true); listening = null; }
   style('cite-numbers', '');
 }
 Look.cites = { start, stop, setNotes, showNumber, goTo, citedAt };

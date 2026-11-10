@@ -363,7 +363,10 @@ async function tourVisit(stop) {
   // The plugin's pieces: when each first showed after the title, and how often it was added (0.4.331).
   const PIECES = [['tag chain', '.th-tag-path'], ['two-way box', '.th-two-way'], ['two-way row', '.th-two-way .th-tw-row'], ['page properties', '.ls-page-properties'], ["Logseq's tag corner", '.ls-page-title .ls-block-right > .block-tags']];
   const pieces = new Map(PIECES.map(([name, selector]) => [name, { selector, at: 0, added: 0 }]));
-  const changes = new win.MutationObserver(records => {
+  // A witness on the one screen watcher (plugin.js): it is shown every change, what the plugin's own passes drew included, and draws nothing.
+  const offChanges = window.PluginDoor.watch(function tourWitness(page, all) {
+    const records = all.filter(record => record.type !== 'attributes');
+    if (!records.length) return;
     lastChange = now();
     const title = doc.querySelector(titleSelector);
     if (!titleAt && title && (title !== oldTitle || stop.startsWith('#'))) titleAt = lastChange;
@@ -372,11 +375,10 @@ async function tourVisit(stop) {
       if (!piece.at && titleAt && doc.querySelector('#main-content-container ' + piece.selector)) piece.at = lastChange;
       for (const record of records) for (const node of record.addedNodes) if (node.nodeType === 1 && (node.matches?.(piece.selector) || node.querySelector?.(piece.selector))) piece.added++;
     }
-  });
-  changes.observe(doc.body, { childList: true, subtree: true, characterData: true });
+  }, { witness: true });
   if (stop.startsWith('#')) win.location.hash = stop; else logseq.App.pushState('page', { name: stop });
   let stopped = false;
-  const stopWatching = () => { stopped = true; changes.disconnect(); shiftWatch.disconnect(); };
+  const stopWatching = () => { stopped = true; offChanges(); shiftWatch.disconnect(); };
   tour.stopVisit = stopWatching;
   // Where the two-way rows sit, every 50 ms (0.4.333): a slide is a change of their top with nothing added above.
   const trail = [];
@@ -436,7 +438,7 @@ onUnload(() => { if (tour.doc) tourEnd('ended by a reload'); });
    click. The nodes in the Recycle are the ones with a deletion time; the bullets under one move with it. */
 const DELETED_AT = ':logseq.property/deleted-at', ORIGINAL_PAGE = ':logseq.property.recycle/original-page';
 const RECYCLE_QUERY = `[:find (pull ?b [:block/uuid :block/title :block/name ${DELETED_AT} {:block/parent [:block/title]} {${ORIGINAL_PAGE} [:block/title ${DELETED_AT}]}]) :where [?b ${DELETED_AT}]]`;
-const dayWords = at => new Date(at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+const dayWords = at => window.PluginDoor.dates.words(window.PluginDoor.dates.number(new Date(at)), { year: 'always' });
 // Logseq's answer as rows, newest first: { uuid, title, page, at, from, damage: [what looks wrong, in words] }.
 function recycleRows(answer) {
   const rows = [];

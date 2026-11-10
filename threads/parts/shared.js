@@ -9,32 +9,23 @@
    and the screen door are in main.js; the graph in parts/model.js):
    - host()                      the Logseq document (the plugin runs in a frame inside Logseq's window).
    - notify(message, level)      THE notice: an in-app message at the top, through Logseq's own.
-   - lifecycle({ prefix, stopKey, before, sweep, leaves })   one per part; returns
-       warnOnce(message, ...details)   a console warning written once per session per message, with the
-                                       part's prefix ('Threads: ', 'Threads (search): ', …);
-       onUnload(task)                  adds a clean-up step (also takes the "off" function of a Logseq hook);
-       runUnloadTasks()                runs the steps in reverse order (after `before`, if given) and
-                                       returns a promise that waits for any step that finishes later;
-       takeOverFromEarlierCopy()       runs the earlier copy's clean-up left under window[stopKey] in
-                                       Logseq's window, leaves this one there, then calls sweep(doc);
-       leaves: { elements, attributes, reset }   what the part may leave on screen if a copy is cut short:
-                                       a selector list of its own elements, the names of the attributes it
-                                       sets on Logseq's elements, and a reset(doc) for anything else. The
-                                       core sweeps every part's leaves before it starts (sweepLeftovers).
-   - sweepLeftovers(doc)          removes what every part declared in its leaves, part by part.
-       updaterFailed(fn, error, list)  retires a screen updater that threw five times;
-       listen(win, types, handler)     a capture-phase listener on Logseq's window, removed on unload.
+   - lifecycle({ prefix, leaves })   one per part: the part's base on the plugin's door (plugin.js, Door.base), under Threads'
+       words: warnOnce(message, ...details), onUnload(task) (also takes the "off" of a Logseq hook), runUnloadTasks()
+       (every step, the last set up first; the promise waits for any that ends later), listen(win, types, handler) (capture
+       phase, taken off at unload); leaves: { elements, attributes, reset } is what the part may leave on screen if a copy
+       is cut short.
+   - sweepLeftovers(doc)          removes what every part declared in its leaves (the door's sweep).
    - take(core, names, warn)      the core's and the parts' things in one object, warning once (through the part's own
                                   warnOnce) for each name missing; every part's take() is this (0.4.294).
-   - screen                       THE screen door (core.screen): waitFor, press, typeInto, key, floating, item, sidebarItems,
-                                  popupOpen, escapeMenus: the one way to work Logseq's own boxes.
+   - screen                       THE screen door, the door's (plugin.js, Door.screen; core.screen): waitFor, press, typeInto, key,
+                                  floating, item, sidebarItems, popupOpen, escapeMenus: the one way to work Logseq's own boxes.
    - openEntity(uuid, inSidebar)  opens a page or block by uuid, in the right sidebar when asked.
    - openPageNamed(name, inSidebar)   opens a page by its name the same way.
-   - settingReader(schema)        returns setting(key): the saved value, or the schema's default when
+   - settingReader(schema)        the door's reader: setting(key) is the saved value, or the schema's default when
                                   the saved value is missing or of another type.
    - perf                         measuring hooks (add, time, seen, style, frameState, pass, passDone,
                                   ownSettingsOnly): no-ops until the diagnostics part measures.
-   - warnings                     every distinct warnOnce message of this session (message, first time, count).
+   - warnings                     every distinct warnOnce message of this session (message, first time, count): the door's list.
    - lifeCounts()                 every part's clean-up steps waiting, by part: the stress tests' count of what a part has
                                   set going (listeners, hooks, timers given to onUnload); one that grows with use leaks.
    - MARK_CLASS, MARK_ATTR, isOwnMark(node), ownMarks(doc)   THE finder of the plugin's marks on Logseq's screen: every
@@ -116,91 +107,21 @@
 // The Logseq window. The plugin runs in a frame inside it.
 const { host, notify, esc } = window.PluginDoor;
 
-/* A warning is written once per session for each distinct message, so a part that fails after every
-   change (a look-up after each edit, a screen update on each redraw) does not fill the console. */
+/* The module's base is the door's (plugin.js, Door.base) since 10 November 2026: the warning written once, the clean-up list, the
+   listeners, the settings reader, the sweep of what a copy cut short left on screen and the take-over from an earlier copy were
+   Threads' own until then, a second kit beside the plugin's. What stays here are Threads' names for them, so a part asks as before:
+   lifecycle({ prefix, leaves }) gives a part its base under Threads' words (warnOnce, onUnload, runUnloadTasks, listen). */
+const Door = window.PluginDoor;
 // Every distinct warning of this session, for "Copy warnings": message (with its prefix), first time, count.
-const warnings = [];
-function warner(prefix) {
-  const warned = new Map();
-  return (message, ...details) => {
-    const earlier = warned.get(message);
-    if (earlier) { earlier.count++; return; }
-    const entry = { message: prefix + message, at: new Date(), count: 1 };
-    warned.set(message, entry);
-    warnings.push(entry);
-    console.warn(prefix + message, ...details);
-  };
-}
-
-/* Logseq keeps only the most recent beforeunload callback a plugin registers, so every part of the
-   plugin keeps its clean-up in a list of its own and main() registers one callback that runs them all.
-   The plugin's watchers live in Logseq's window, so they outlive the plugin's own frame. If an earlier
-   copy was removed without its clean-up finishing (an error, or Logseq's ten-second limit), they would
-   keep running beside this copy. Each copy therefore leaves its clean-up where the next one can find it
-   (window[stopKey]), and a new copy runs it and sweeps anything still left on screen. */
-const UPDATER_TRIES = 5;
-/* What each part may leave on screen, declared by the part in its lifecycle (leaves). A new copy of the
-   plugin sweeps all of it before it starts, so an earlier copy cut short (an error, Logseq's ten-second
-   limit) leaves no mark behind. The core used to keep one list of every part's marks; each part now
-   names its own, beside the code that writes them. */
-const leftovers = [];
-function sweepLeftovers(doc) {
-  for (const { prefix, elements, attributes, reset } of leftovers) {
-    try {
-      if (reset) reset(doc);
-      if (elements) for (const el of doc.querySelectorAll(elements)) el.remove();
-      for (const name of attributes || []) for (const el of doc.querySelectorAll(`[${name}]`)) el.removeAttribute(name);
-    } catch (error) { console.warn(prefix + 'leftovers could not be cleared', error); }
-  }
-}
-// Every part's clean-up list, by its prefix, so the stress tests can see one that grows with use (lifeCounts).
-const lives = [];
-// Several parts share a prefix (the proposals' four, the tag map's three, the core and the troubleshooting tools): their
-// steps are added up under it, so none hides another's (the second reading of 2026-10-23).
-const lifeCounts = () => lives.reduce((out, { prefix, unloadTasks }) => { const key = prefix.replace(/^Threads ?\(?|\)?: $/g, '') || 'core'; out[key] = (out[key] || 0) + unloadTasks.length; return out; }, {});
-function lifecycle({ prefix, stopKey, before, sweep, leaves }) {
-  const warnOnce = warner(prefix);
-  if (leaves) leftovers.push({ prefix, ...leaves });
-  const unloadTasks = [];
-  lives.push({ prefix, unloadTasks });
-  // Also takes the "off" function every logseq.*.onXxx hook returns.
-  const onUnload = task => { if (typeof task === 'function') unloadTasks.push(task); };
-  // Every step starts at once, in reverse order of set-up, so the screen is clean by the time this
-  // returns; the promise it returns waits for any step that finishes later.
-  function runUnloadTasks() {
-    if (before) before(); // for example: stop the screen watcher, so nothing re-applies while the steps undo their changes
-    const failed = error => warnOnce('clean-up step failed', error);
-    const pending = [];
-    for (const task of unloadTasks.splice(0).reverse()) {
-      try { pending.push(Promise.resolve(task()).catch(failed)); } catch (error) { failed(error); }
-    }
-    return Promise.all(pending);
-  }
-  function takeOverFromEarlierCopy() {
-    let win;
-    try { win = host().defaultView; } catch (error) { return; }
-    try { win[stopKey]?.(); } catch (error) { warnOnce('an earlier copy could not be stopped', error); }
-    win[stopKey] = runUnloadTasks;
-    onUnload(() => { if (win[stopKey] === runUnloadTasks) delete win[stopKey]; });
-    if (sweep) try { sweep(win.document); } catch (error) { warnOnce('leftovers could not be cleared', error); }
-  }
-  /* A screen update that throws again and again is switched off for the rest of the session, with one
-     note saying which part stopped. The others carry on; a reload starts it again. */
-  const updaterFailures = new Map();
-  function updaterFailed(fn, error, list) {
-    const n = (updaterFailures.get(fn) || 0) + 1;
-    updaterFailures.set(fn, n);
-    if (n < UPDATER_TRIES) return warnOnce(`a screen update failed (${fn.name || 'unnamed'})`, error);
-    if (list instanceof Set) list.delete(fn);
-    else { const at = list.indexOf(fn); if (at >= 0) list.splice(at, 1); }
-    warnOnce(`${fn.name || 'a screen update'} stopped for this session after ${n} errors`, error);
-  }
-  // Listens on Logseq's window before Logseq does (capture phase), until the part unloads.
-  function listen(win, types, handler) {
-    for (const type of types) win.addEventListener(type, handler, true);
-    onUnload(() => { for (const type of types) win.removeEventListener(type, handler, true); });
-  }
-  return { warnOnce, onUnload, runUnloadTasks, takeOverFromEarlierCopy, updaterFailed, listen };
+const warnings = Door.warnings;
+const sweepLeftovers = doc => Door.sweep('threads', doc);
+// Every part's clean-up steps waiting, by its prefix, so the stress tests can see one that grows with use. Several parts share a
+// prefix: their steps are added up under it, so none hides another's.
+const lifeCounts = () => Door.bases('threads').reduce((out, base) => { const key = base.prefix.replace(/^Threads ?\(?|\)?: $/g, '') || 'core'; out[key] = (out[key] || 0) + base.waiting(); return out; }, {});
+function lifecycle({ prefix, leaves }) {
+  const base = Door.base('threads', { prefix, leaves });
+  // listen: before Logseq does (capture phase), until the part unloads.
+  return { base, warnOnce: base.warnOnce, onUnload: base.onStop, runUnloadTasks: base.stop, listen: (win, types, handler) => base.listen(win, types, handler, true) };
 }
 const take = (core, names, warn) => { const all = { ...core, ...core.provided }; for (const name of names) if (all[name] === undefined) warn(`${name} is missing from the core`); return all; };
 
@@ -238,69 +159,12 @@ const perf = {
 };
 
 
-// A part's settings: the saved value, or the default when the saved value is missing or of the wrong type.
-function settingReader(schema) {
-  const settingDefaults = Object.fromEntries(schema.map(item => [item.key, item.default]));
-  return function setting(key) {
-    const value = logseq.settings?.[key];
-    return typeof value === typeof settingDefaults[key] ? value : settingDefaults[key];
-  };
-}
+// A part's settings: the saved value, or the default when the saved value is missing or of the wrong type (the door's reader).
+const settingReader = Door.settingReader;
 
-/* THE screen door (0.4.311, docs/LAYERS.md layer 1; here since 0.4.315, published by main.js as core.screen): the one way a part waits for Logseq to draw something, presses one
-   of its buttons, types into one of its fields, finds one of its floating items by its words, finds a page's item in the
-   right sidebar, asks whether one of its pop-ups is open, and closes what floats. Every part that has to work Logseq's
-   own boxes (the tag map's Add property and Add choice, the proposals' Option-Enter) goes through here; the three
-   copies of waitFor, the two of press and the three "is a pop-up open" that the parts carried are gone with it.
-   Checked with Logseq 2.0.2: its lists are .cp__select, its menus and pickers float in .ui__popover-content or a
-   [data-radix-popper-content-wrapper], its windows are .ui__modal. */
-const LOGSEQ_POPUPS = '.cp__select, .ui__popover-content, [data-radix-popper-content-wrapper], .ui__modal-panel, .ui__modal, [role="menu"], [role="dialog"], [role="listbox"]';
-const screen = {
-  // Polls find() every 50 ms until it returns something or ms pass; null then.
-  waitFor: (find, ms = 1500) => new Promise(resolve => {
-    const started = Date.now();
-    const tick = () => { let found = null; try { found = find(); } catch (error) { found = null; } if (found || Date.now() - started > ms) resolve(found || null); else setTimeout(tick, 50); };
-    tick();
-  }),
-  // Presses an element as the mouse does: Logseq opens its lists on the press, not on a click alone (found in the app).
-  press(el) {
-    const win = el.ownerDocument.defaultView;
-    for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'])
-      el.dispatchEvent(new (type.startsWith('pointer') && win.PointerEvent ? win.PointerEvent : win.MouseEvent)(type, { bubbles: true, cancelable: true, view: win, button: 0, buttons: type.endsWith('down') ? 1 : 0, pointerType: 'mouse', isPrimary: true }));
-  },
-  // Types words into one of Logseq's boxes as typing would (its boxes listen for input); selects them when asked, so the
-  // next key typed replaces them.
-  typeInto(box, words, { select = false } = {}) {
-    const win = box.ownerDocument.defaultView, proto = box.matches('textarea') ? win.HTMLTextAreaElement.prototype : win.HTMLInputElement.prototype;
-    const set = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
-    if (set) set.call(box, words); else box.value = words;
-    box.dispatchEvent(new win.Event('input', { bubbles: true }));
-    if (select) box.select?.();
-  },
-  // A key to an element (Escape to a menu, Enter to a row).
-  key: (el, name, init = {}) => !!el?.dispatchEvent(new el.ownerDocument.defaultView.KeyboardEvent('keydown', { key: name, code: name, bubbles: true, cancelable: true, ...init })),
-  // What floats over the page (Logseq's boxes and lists): not the sidebars, the main view, the header or the plugin's own.
-  floating: el => el.getClientRects().length > 0 && !el.closest('#right-sidebar, #main-content-container, #left-sidebar, .cp__header, .th-pop, .th-tags'),
-  // A floating item (a menu row, an option, a button) whose words pass test(text); null when none.
-  item(test, doc = host()) {
-    return [...doc.querySelectorAll('[role="menuitem"], [role="option"], [role="menuitemcheckbox"], .menu-link, .cp__select-main .menu-link, button, li, a')].filter(screen.floating).find(el => test(el.textContent.trim())) || null;
-  },
-  // The items of the right sidebar whose header names a page (Logseq's .sidebar-item with its .sidebar-item-header).
-  sidebarItems(title, doc = host()) {
-    const named = text => text.replace(/^[#\s]+/, '').trim().toLowerCase();
-    return [...doc.querySelectorAll('#right-sidebar .sidebar-item')].filter(item => named(item.querySelector('.sidebar-item-header')?.textContent || '').startsWith(String(title).toLowerCase()));
-  },
-  // Is one of Logseq's own pop-ups open (a list, a menu, a picker, a window)? With an element: does it sit in one?
-  popupOpen(el, doc = host()) {
-    if (el) return !!el.closest?.(LOGSEQ_POPUPS);
-    return [...doc.querySelectorAll(LOGSEQ_POPUPS)].some(screen.floating);
-  },
-  // Closes what floats: Escape to each open menu and to whatever has the keyboard.
-  escapeMenus(doc = host()) {
-    for (const menu of [...doc.querySelectorAll('[role="menu"], [role="dialog"], .cp__select')].filter(screen.floating)) screen.key(menu, 'Escape');
-    screen.key(doc.activeElement, 'Escape');
-  },
-};
+/* THE screen door is the door's (plugin.js, Door.screen) since 10 November 2026; it began here (0.4.311). The core publishes it as
+   core.screen: the one way a part waits for Logseq to draw something, presses one of its buttons, types into one of its fields. */
+const screen = Door.screen;
 
 // ===== Layer 2: the kit =====
 
@@ -1036,7 +900,7 @@ span.th-ol-count { text-decoration: none; cursor: default; }
 `;
 
 // This file's own boxes: the kit's pop-ups, anchors and dialog, and the Undo dock.
-leftovers.push({ prefix: 'Threads: ', elements: '.th-pop, .th-anchor, dialog.th-dialog' });
+Door.base('threads', { prefix: 'Threads: ', leaves: { elements: '.th-pop, .th-anchor, dialog.th-dialog' } });   // what the kit itself may leave on screen
 
 // THE finder of the plugin's marks on Logseq's screen (2026-10-23): every class and attribute prefix any part uses.
 // The troubleshooting box counts with it, the boot test looks for leftovers with it and the frame tests

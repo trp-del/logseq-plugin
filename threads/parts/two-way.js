@@ -73,13 +73,9 @@ const loadHooks = [], settledHooks = [], starters = [], clickHooks = [];
    while open; leadHooks(group, item) a mark before a node's name; betweenHooks(group, item, prev) a line before a node;
    lineMenuHooks(group, item) and rowMenuHooks(group) items for the right-click menus. */
 const tailHooks = [], viewMenuHooks = [], listHooks = [], headHooks = [], underHeadHooks = [], leadHooks = [], betweenHooks = [], lineMenuHooks = [], rowMenuHooks = [];
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const todayNumber = () => { const d = new Date(); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); };
-const dayText = day => {
-  if (!day) return '';
-  const year = Math.floor(day / 10000), text = `${MONTHS[Math.floor(day / 100) % 100 - 1]} ${day % 100}`;
-  return year === Math.floor(todayNumber() / 10000) ? text : `${text}, ${year}`;
-};
+// Today's number and a day in words are the door's (plugin.js, Door.dates): one rule in every module.
+const todayNumber = () => window.PluginDoor.dates.today();
+const dayText = day => window.PluginDoor.dates.words(day);
 // A tag's name is a singular noun, or an illness that ends in s whatever the number: Diagnosis, Diagnoses; Measles, Measles.
 // The kind of a node as a word: a node with no tag has none.
 const tagWord = tag => tag === 'note' ? 'node' : tag;

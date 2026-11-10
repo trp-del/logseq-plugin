@@ -42,8 +42,7 @@ function keepFrameInPlace() {
     if (!el || el.nodeType !== 1 || !el.scrollTop || !frame(el)) return;
     el.scrollTop = 0;
   };
-  win.addEventListener('scroll', onScroll, true);
-  return () => win.removeEventListener('scroll', onScroll, true);
+  return Door.root.listen(win, 'scroll', onScroll, true);
 }
 // One module's start, given its time: one that does not answer is said, and the next starts. If it answers later it still runs.
 const STILL_STARTING = 15000;
@@ -64,8 +63,8 @@ async function main() {
     return;
   }
   // The text colour and the window's ground (Door.THEME), for every module whichever are switched on.
-  logseq.provideStyle({ key: 'plugin-theme', style: Door.THEME });
-  logseq.provideStyle({ key: 'plugin-names', style: Door.NAMES });
+  Door.root.style('plugin-theme', Door.THEME);
+  Door.root.style('plugin-names', Door.NAMES);
   // What a module needs nothing of, and what must stand even if a start never answers, comes before the first start.
   const letFrameGo = keepFrameInPlace();
   logseq.beforeunload?.(async () => {
@@ -74,16 +73,17 @@ async function main() {
     for (const module of [...began].reverse()) {
       try { await module.stop?.(); } catch (error) { console.error(`${module.title}: could not stop`, error); }
     }
+    try { await Door.root.stop(); } catch (error) { console.error('The plugin’s own listeners: could not stop', error); }
   });
   try { Door.settingsWays.start(); } catch (error) { console.error('The settings window: could not start', error); notify(`The settings window could not start: ${error.message}`, 'warning'); }
   try { Door.outside?.start(); } catch (error) { console.error('From outside: could not start', error); notify(`Adding from outside could not start: ${error.message}`, 'warning'); }
   try { logseq.App.registerCommandPalette({ key: 'update-plugins', label: 'Update plugins', keybinding: { binding: 'u p' } }, updatePlugins); } catch (error) { console.error('Update plugins: the command could not be registered', error); }
   // A switch flipped: nothing starts or stops live (a module's commands and menu items cannot be taken back), so say so.
-  logseq.onSettingsChanged?.((now, before) => {
+  Door.root.onStop(logseq.onSettingsChanged?.((now, before) => {
     if (!before) return;   // Logseq rewrites every setting as the plugin starts: a default being filled in, not a change
     if (Door.settings.current) return;   // the window says so itself
     if (Door.modules.some(module => switchKey(module) in before && now?.[switchKey(module)] !== before[switchKey(module)])) notify('Reload the plugin to apply what runs');
-  });
+  }));
   const failed = window.PluginFilesFailed || [];
   window.removeEventListener('error', window.PluginFilesWatch, true);
   if (failed.length) notify(`Logseq Plugin: ${window.PluginFilesSaid()} did not load, so part of it may not work.`, 'warning');

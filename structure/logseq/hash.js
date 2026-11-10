@@ -19,9 +19,7 @@ const MANY = 6;
 
 function start(app, doc) {
   const win = doc.defaultView;
-  let sheet = doc.getElementById('st-hash-style');
-  if (!sheet) { sheet = doc.createElement('style'); sheet.id = 'st-hash-style'; sheet.className = 'st-own'; doc.head.appendChild(sheet); }
-  sheet.textContent = CSS;
+  const sheet = S.base.sheet('st-hash-style', CSS, 'st-own', doc);
   const M = () => app.tray.model;
   const byTitle = title => [...M().tags.values()].find(t => t.title === title);
   // What is being typed after a #, or null when the list open is not the tag list.
@@ -68,8 +66,8 @@ function start(app, doc) {
     first.classList.add('st-in-tree'); first.style.setProperty('--st-pad', `${(path.length - 1) * step}px`);
     after.reverse().forEach(n => first.after(n));
   }
-  const watch = new win.MutationObserver(records => { if (records.some(r => r.target.id === 'ui__ac-inner' || r.target.closest?.('#ui__ac-inner') || [...r.addedNodes].some(n => n.id === 'ui__ac' || n.querySelector?.('#ui__ac-inner')))) { if (![...records].every(r => [...r.addedNodes, ...r.removedNodes].every(n => n.classList?.contains('st-hc') || n.classList?.contains('st-hp')))) pass(); } });
-  watch.observe(doc.body, { subtree: true, childList: true });
+  // A pass on the one screen watcher (plugin.js), run at once when Logseq's list changes, before it is drawn; what the pass writes is set aside by the watcher.
+  const offWatch = S.base.watch((page, changes) => { const records = changes.filter(r => r.type === 'childList'); if (records.some(r => r.target.id === 'ui__ac-inner' || r.target.closest?.('#ui__ac-inner') || [...r.addedNodes].some(n => n.id === 'ui__ac' || n.querySelector?.('#ui__ac-inner')))) { if (![...records].every(r => [...r.addedNodes, ...r.removedNodes].every(n => n.classList?.contains('st-hc') || n.classList?.contains('st-hp')))) pass(); } }, { early: true });
 
   // ---------- a new tag asks where it goes ----------
   async function where(name) {
@@ -103,8 +101,8 @@ function start(app, doc) {
   }
   const newName = () => { const chosen = doc.querySelector('#ui__ac-inner a.chosen'), m = chosen && /^New tag (.+)$/.exec(chosen.textContent.trim()); return m ? m[1] : null; };
   const press = e => { if (e.key !== 'Enter' || typed() == null) return; const n = newName(); if (n) where(n); };
-  doc.addEventListener('keydown', press, true);
-  return () => { watch.disconnect(); doc.removeEventListener('keydown', press, true); sheet.remove(); doc.querySelectorAll('.st-where, .st-hc').forEach(n => n.remove()); };
+  const offKey = S.base.listen(doc, 'keydown', press, true);
+  return () => { offWatch(); offKey(); sheet.remove(); doc.querySelectorAll('.st-where, .st-hc').forEach(n => n.remove()); };
 }
 S.hash = { start };
 })();

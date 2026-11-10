@@ -10,7 +10,7 @@
 const Flow = (window.Flow ||= {});
 const { app, db, measure } = Flow;
 
-const HELPER = 'http://127.0.0.1:47615', GIVE_UP = 20000, NOTES = 60, BEFORE = 2;
+const { HELPER } = window.PluginDoor, GIVE_UP = 20000, NOTES = 60, BEFORE = 2;
 const { esc, host } = window.PluginDoor;
 const S = { dlg: null, stop: null, report: '' };
 
@@ -149,7 +149,7 @@ const minutes = ms => ms < 60000 ? 'under a minute' : `about ${Math.round(ms / 6
 async function open() {
   if (S.dlg?.open) return;
   const doc = host();
-  if (!doc.getElementById('pm-style')) { const st = doc.createElement('style'); st.id = 'pm-style'; st.textContent = CSS; doc.head.appendChild(st); }
+  app.sheet('pm-style', CSS, '', doc);   // the base's own stylesheet in Logseq's page, taken out at stop
   S.dlg = doc.createElement('dialog');
   S.dlg.className = 'pm-dialog lk-window';
   S.dlg.innerHTML = `<div class="pm-head"><b>Measuring Apple’s model</b><span class="pm-quiet">on this graph</span><button type="button" class="lk-close" aria-label="Close" title="Close (Esc)">×</button></div><div class="pm-body"></div><div class="pm-foot"></div>`;
@@ -183,7 +183,7 @@ async function open() {
 }
 
 // Gone with the plugin: the window and its stylesheet.
-app.onStop(() => { S.stop?.abort(); S.dlg?.remove(); S.dlg = null; try { host().getElementById('pm-style')?.remove(); } catch (error) { /* Logseq's window is gone */ } });
+app.onStop(() => { S.stop?.abort(); S.dlg?.remove(); S.dlg = null; });
 
 Flow.measureUi = { open, run };
 })();

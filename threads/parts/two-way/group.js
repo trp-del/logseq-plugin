@@ -16,7 +16,7 @@ const { state, warnOnce } = twoWay;
    nothing is written. The values are read through the model (nodeValues) when a property is chosen and again whenever
    the rows are read, so a row grouped on a page opens grouped. */
 const GROUP_KEY = 'refinementTwoWayGroup', GROUP_LISTED = 12;
-const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const MONTH_NAMES = window.PluginDoor.dates.MONTHS;   // the door's month names (plugin.js)
 const groupOf = group => state.group.get(group.name) || '';
 const groupName = by => by === 'tag' ? 'tag' : by === 'month' ? 'month' : by.slice(2);
 function readGroup() {

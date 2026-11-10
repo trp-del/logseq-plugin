@@ -203,7 +203,6 @@ async function otherGraph() {
   }
   await app.reread();
 }
-let offMenu = [];
 let mounts = { onPage: () => false, openPage() {}, openSidebar() {}, openInspector() {} };
 
 let reReadTimer = 0;
@@ -226,26 +225,28 @@ async function main() {
   logseq.App.registerCommandPalette({ key: 'structure-sidebar', label: 'Structure: the tree in the right sidebar' }, () => mounts.openSidebar());
   logseq.provideModel({ structureOpen: () => app.openMain() });
   // In Logseq's ··· menu, where the plugin's places stand (the owner, 9 November 2026), the map and the inspector.
-  offMenu = [window.PluginDoor.addMenuItem({ key: 'structure', label: 'Structure', icon: 'sitemap', run: () => app.openMain() }),
-    window.PluginDoor.addMenuItem({ key: 'inspector', label: 'Inspector', icon: 'info-circle', run: () => mounts.openInspector() })];
+  const { onStop } = S.base;
+  onStop(window.PluginDoor.addMenuItem({ key: 'structure', label: 'Structure', icon: 'sitemap', run: () => app.openMain() }));
+  onStop(window.PluginDoor.addMenuItem({ key: 'inspector', label: 'Inspector', icon: 'info-circle', run: () => mounts.openInspector() }));
   logseq.App.registerUIItem('toolbar', { key: 'structure-open', template: window.PluginDoor.toolbarButton('structureOpen', 'Structure: the map of tags and properties', 'structure') });
-  logseq.DB.onChanged(change => graphChanged(change));
-  logseq.App.onCurrentGraphChanged(() => otherGraph());
-  logseq.App.onRouteChanged?.(() => { app.followPage(); tagPage(); });
+  onStop(logseq.DB.onChanged(change => graphChanged(change)));
+  onStop(logseq.App.onCurrentGraphChanged(() => otherGraph()));
+  onStop(logseq.App.onRouteChanged?.(() => { app.followPage(); tagPage(); }));
   app.graph = await S.db.graph().catch(() => '');
   await app.reread();
   adopt();
   tagPage();
   const doc = host();
-  // Called in the same turn as Logseq's own drawing (a MutationObserver's callback runs before the browser paints), so the lines stand
+  // An early pass on the one screen watcher (plugin.js): called in the same turn as Logseq's own drawing, before the browser paints, so the lines stand
   // above Logseq's table in its first frame and nothing below them is pushed down a moment later (motion-check, 6 November 2026).
-  pageWatch = new doc.defaultView.MutationObserver(() => tagPage());
-  pageWatch.observe(doc.querySelector('#main-content-container') || doc.body, { childList: true, subtree: true });
+  // Only elements coming or going in the main view count, as when Structure kept a watcher of its own there.
+  const main = doc.querySelector('#main-content-container') || doc.body;
+  S.base.watch(function tagPagePass(page, records) { if (records.some(r => r.type === 'childList' && main.contains(r.target))) tagPage(); }, { early: true });
   stopHash = S.hash.start(app, doc);
 }
-const stop = () => { S.inspector.stop(); mounts.stop?.(); offMenu.forEach(off => off()); pageWatch?.disconnect(); stopHash?.(); for (const v of [...app.views]) v.destroy(); host().querySelectorAll('.st-tagholder').forEach(n => n.remove()); host().getElementById('st-style')?.remove(); };
+const stop = () => { S.inspector.stop(); mounts.stop?.(); stopHash?.(); for (const v of [...app.views]) v.destroy(); host().querySelectorAll('.st-tagholder').forEach(n => n.remove()); return S.base.stop(); };   // the base: the passes, the hooks, the menu's lines and the stylesheets
 /* The lines on a tag's own page: set above Logseq's table, in the page's own column, each time Logseq draws a tag's page. */
-let pageWatch = null, stopHash = null, tagTimer = 0, tagAsking = 0;
+let stopHash = null, tagTimer = 0, tagAsking = 0;
 const days = new Set();   // pages found to be journal days, which a tag's lines never stand on
 const lookup = uuid => { const id = [...tray.model.tags.values()].find(t => t.uuid === uuid)?.id ?? null; return { id, prop: id == null ? [...tray.model.props.values()].find(p => p.uuid === uuid)?.id ?? null : null }; };
 function place(doc, inner, here, id, prop) {

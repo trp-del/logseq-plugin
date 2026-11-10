@@ -268,6 +268,7 @@ function onClick(dlg, event) {
 }
 // While the window is open Escape is the window's: it is taken before Logseq sees it, which would otherwise close its own
 // Plugins panel behind the window. It lets go one step at a time: the words in the find line, then the window.
+let offEscape = null;   // what takes the Escape listener off Logseq's window again
 function onEscape(event) {
   if (event.key !== 'Escape' || !open) return;
   event.preventDefault(); event.stopImmediatePropagation();
@@ -299,9 +300,7 @@ function openWindow(partKey) {
   const doc = host();
   close();
   // The stylesheet is written afresh on every opening: a reload of the plugin leaves the old one in Logseq's head.
-  let sheet = doc.getElementById('sw-style');
-  if (!sheet) { sheet = doc.createElement('style'); sheet.id = 'sw-style'; doc.head.appendChild(sheet); }
-  if (sheet.textContent !== CSS) sheet.textContent = CSS;
+  Door.root.sheet('sw-style', CSS, '', doc);
   if (partKey) { state.cur = placeOf(partKey); state.view = 'part'; }
   state.find = '';
   const dlg = doc.createElement('dialog');
@@ -311,8 +310,8 @@ function openWindow(partKey) {
   dlg.addEventListener('change', onChange);
   dlg.addEventListener('click', event => onClick(dlg, event));
   dlg.addEventListener('keydown', event => onKey(dlg, event));
-  dlg.addEventListener('close', () => { if (open === dlg) open = null; dlg.remove(); doc.defaultView.removeEventListener('keydown', onEscape, true); });
-  doc.defaultView.addEventListener('keydown', onEscape, true);
+  dlg.addEventListener('close', () => { if (open === dlg) open = null; dlg.remove(); offEscape?.(); offEscape = null; });
+  offEscape?.(); offEscape = Door.root.listen(doc.defaultView, 'keydown', onEscape, true);
   doc.body.appendChild(dlg);
   open = dlg;
   if (typeof dlg.showModal === 'function') dlg.showModal(); else dlg.setAttribute('open', '');
@@ -325,7 +324,7 @@ function close() {
   if (!open) return;
   const dlg = open;
   open = null;
-  dlg.ownerDocument.defaultView.removeEventListener('keydown', onEscape, true);
+  offEscape?.(); offEscape = null;
   try { dlg.close(); } catch (error) { /* not open */ }
   dlg.remove();
 }

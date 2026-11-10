@@ -281,13 +281,12 @@ function rollClosed(el) {
   setTimeout(() => el.remove(), ROLL_MS + 40);
 }
 // Drawn again as soon as Logseq redraws the row, before the screen is painted, so its redraw cannot lose a proposal.
-function onMutations(records) {
-  const doc = host();
+// A pass on the one screen watcher (plugin.js), run at once on every change, before the screen is drawn; what it draws itself is set aside by the watcher.
+function onMutations(doc, records) {
   if (!S.live && !S.filling.size && !S.undo && !doc.querySelector('.flow-ghost, .flow-made, [data-flow-proposal]')) return;
   const ours = n => n.nodeType === 1 && n.matches?.('.flow-ghost, .flow-made, .lk-undo, .flow-x, .flow-old');
-  if (records.some(r => r.type === 'childList' && ![...r.addedNodes, ...r.removedNodes].every(ours))) { drawInPlace(doc); watcher?.takeRecords(); }
+  if (records.some(r => r.type === 'childList' && ![...r.addedNodes, ...r.removedNodes].every(ours))) drawInPlace(doc);
 }
-let watcher = null;
 
 /* ---------- what was said no to, kept ---------- */
 // What a × or an Undo took off stays off that bullet for good, across a restart of Logseq: kept in this Mac's storage for the plugin,
@@ -749,15 +748,14 @@ function start() {
   app.listen(win, ['focusout'], onFocusOut);
   app.listen(win, ['keydown'], onKey, true);
   app.listen(win, ['pointerdown', 'mousedown', 'mouseup', 'click'], onGhostPress, true);
-  watcher = new win.MutationObserver(onMutations);
-  watcher.observe(doc.body, { subtree: true, childList: true });
+  app.watch(onMutations, { early: true });
   S.stopped = false;
   applyHide();
-  logseq.onSettingsChanged?.((now, before) => { if (window.PluginDoor.settingChanged(['proposals', 'proposalsSkipGraphs', 'proposalsHideEmpty'], now, before)) applyHide(); });
-  logseq.App.onCurrentGraphChanged?.(() => { S.version++; S.live = null; S.filling.clear(); S.refused.clear(); S.refusedGraph = ''; forgetUndo(S.undo?.record); undoDoor().clear('predictive'); applyHide(); });
-  logseq.App.onRouteChanged?.(() => { S.live = null; hide(); applyHide(); });
+  app.onStop(logseq.onSettingsChanged?.((now, before) => { if (window.PluginDoor.settingChanged(['proposals', 'proposalsSkipGraphs', 'proposalsHideEmpty'], now, before)) applyHide(); }));
+  app.onStop(logseq.App.onCurrentGraphChanged?.(() => { S.version++; S.live = null; S.filling.clear(); S.refused.clear(); S.refusedGraph = ''; forgetUndo(S.undo?.record); undoDoor().clear('predictive'); applyHide(); }));
+  app.onStop(logseq.App.onRouteChanged?.(() => { S.live = null; hide(); applyHide(); }));
   app.onStop(() => {
-    S.stopped = true; clearTimeout(S.timer); S.version++; watcher?.disconnect(); watcher = null; S.live = null; S.filling.clear();
+    S.stopped = true; clearTimeout(S.timer); S.version++; S.live = null; S.filling.clear();
     undoDoor().clear('predictive');
     for (const el of doc.querySelectorAll('.flow-ghost, .flow-made, .flow-x, .flow-old')) el.remove();
     for (const el of doc.querySelectorAll('[data-flow-proposal], [data-flow-at]')) { el.removeAttribute('data-flow-proposal'); el.removeAttribute('data-flow-at'); }

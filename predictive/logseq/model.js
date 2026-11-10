@@ -9,7 +9,7 @@ const Flow = (window.Flow ||= {});
 const { app, model } = Flow;
 
 // WAIT: after the rules' own pause in typing, how much longer before the model is asked (each question is cancelled by a newer one).
-const HELPER = 'http://127.0.0.1:47615', LOOK_AGAIN = 30000, WAIT = 250, GIVE_UP = 8000, KEEP = 60;
+const { HELPER } = window.PluginDoor, LOOK_AGAIN = 30000, WAIT = 250, GIVE_UP = 8000, KEEP = 60;
 const S = { ready: null, at: 0, checking: null, asking: null, answers: new Map() };
 
 // Whether the helper is there and its model ready, looked at again every 30 seconds.

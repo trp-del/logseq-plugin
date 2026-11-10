@@ -155,9 +155,9 @@ twoWay.clickHooks.push(event => {
    under the line; the pointer on a dot names its node, a click on a dot narrows the list to that week, a click in it again
    gives the whole list back. A click on the days again folds the line away. */
 state.yearOn = new Set(); state.yearPick = new Map();
-const dayNum = d => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+const dayNum = window.PluginDoor.dates.number;
 const dateOf = n => new Date(Math.floor(n / 10000), Math.floor(n / 100) % 100 - 1, n % 100);
-const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MON = window.PluginDoor.dates.MONTHS.map(name => name.slice(0, 3));   // the door's month names (plugin.js)
 twoWay.underHeadHooks.unshift((group, key) => {
   if (!state.yearOn.has(key)) return '';
   const dayOf = item => twoWay.dayIn(group, item);
@@ -332,7 +332,7 @@ async function joinList(uuid, group) {
 /* Ask this page (N13): a question after a "?" in the find line finds the page's nodes nearest to it in meaning, by Apple's
    sentence matcher in Predictive's helper on this Mac (nothing leaves it); the lists narrow to them, nearest first. Apple's
    model that writes an answer in words is not on every Mac (this one says "device not eligible"), so the answer is the nodes. */
-const HELPER = 'http://127.0.0.1:47615';
+const { HELPER } = window.PluginDoor;   // where Predictive's helper answers (plugin.js)
 state.ask = { q: '', page: '', hits: null, asking: false };
 const askOf = () => { const t = String(state.find || '').trim(); return t.startsWith('?') ? t.slice(1).trim() : ''; };
 async function askPage(q) {

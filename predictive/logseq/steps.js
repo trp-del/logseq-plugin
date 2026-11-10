@@ -25,19 +25,10 @@ const { S, ownRow, pillName, pillsOf, uuidOf, editingBox } = P;
 const picking = { uuid: '', text: '', live: null, rowUuid: '', names: [], stops: new Set(), restEl: null, wasOpen: false, at: -1, keyAt: 0, lastKey: '', timer: 0, moving: 0, tab: 0, returning: '', pickerRoot: null, settle: 0, guesses: null, prefill: '', ownKey: false };
 const later = (fn, ms) => setTimeout(() => { if (!S.stopped) fn(); }, ms);
 const recordRow = (doc, rowUuid) => [...doc.querySelectorAll(`.ls-block[blockid="${rowUuid}"]`)].find(r => r.offsetParent !== null) || doc.querySelector(`.ls-block[blockid="${rowUuid}"]`);
-const press = el => {
-  const win = el.ownerDocument.defaultView;
-  for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'])
-    el.dispatchEvent(new (type.startsWith('pointer') && win.PointerEvent ? win.PointerEvent : win.MouseEvent)(type, { bubbles: true, cancelable: true, view: win, button: 0, buttons: type.endsWith('down') ? 1 : 0, pointerType: 'mouse', isPrimary: true }));
-};
-// Types words into one of Logseq's boxes as typing would (its boxes listen for input); selects them, so the next key typed replaces them.
-function typeInto(box, words) {
-  const win = box.ownerDocument.defaultView, proto = box.matches('textarea') ? win.HTMLTextAreaElement.prototype : win.HTMLInputElement.prototype;
-  const set = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
-  if (set) set.call(box, words); else box.value = words;
-  box.dispatchEvent(new win.Event('input', { bubbles: true }));
-  box.select?.();
-}
+// Logseq's own lists and boxes are worked through the door's screen door (plugin.js): a press as the mouse makes it, and words
+// typed into a box and selected, so the next key typed replaces them.
+const { press } = window.PluginDoor.screen;
+const typeInto = (box, words) => window.PluginDoor.screen.typeInto(box, words, { select: true });
 
 // An empty value's own trigger, for the kinds whose list, box or picker is followed here: a link, a text (or choice), a web
 // address, a number, a date. A checkbox's trigger is the box itself, which a press would tick.
@@ -243,7 +234,7 @@ function closeThen(target, next) {
   const doc = target.ownerDocument;
   picking.moving = Date.now();
   picking.ownKey = true;   // not a way back to the words
-  target.dispatchEvent(new doc.defaultView.KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true }));
+  window.PluginDoor.screen.key(target, 'Escape');
   picking.ownKey = false;
   picking.tab = setTimeout(() => { picking.tab = 0; if (picking.uuid) next(doc); }, 60);
 }

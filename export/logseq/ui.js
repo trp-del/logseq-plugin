@@ -141,11 +141,7 @@ function dragBand(doc) {
   } catch (error) { return 48; }
 }
 // The window's stylesheet, once, in the document the window is drawn in.
-function ensureStyle(doc) {
-  if (doc.getElementById('xp-style')) return;
-  const style = doc.createElement('style'); style.id = 'xp-style'; style.textContent = CSS;
-  doc.head.appendChild(style);
-}
+const ensureStyle = doc => { E.base.sheet('xp-style', CSS, '', doc); };
 // Keys typed in the window stay in it: Logseq's own shortcuts never see them (Escape goes on to the window's own handler).
 function keepKeys(el) { for (const type of ['keydown', 'keyup', 'keypress']) el.addEventListener(type, event => { if (event.key !== 'Escape') event.stopPropagation(); }); }
 // Everything the window leaves in Logseq's document, taken out when the plugin stops.
@@ -260,7 +256,7 @@ function open({ doc, what, act }) {
       frame.style.maxWidth = 'none';
     };
     const fit = () => { try { frame.style.height = Math.max(600, frame.contentDocument.documentElement.scrollHeight + 2) + 'px'; } catch (error) { /* keeps its height */ } zoomIt(); };
-    win.addEventListener('resize', zoomIt);
+    const offResize = E.base.listen(win, 'resize', zoomIt);
     const sheetOpts = ch => ({ paper: ch.paper, margins: themes.MARGINS[ch.margins], footer: ch.footer, pageNumbers: ch.pageNumbers });
     let timer = null, run = 0, edited = null, drawn = null;
     // What decides the words on the sheet. Anything else (the look, the paper, the footer) leaves words changed in the preview where they are.
@@ -321,8 +317,8 @@ function open({ doc, what, act }) {
     root.addEventListener('change', event => { if (event.target.closest('.xp-zoom')) { syncValues(); remember(choice(), doc.title); zoomIt(); } else refresh(); });
     root.addEventListener('click', event => { const all = event.target.closest('[data-all]'); if (all) { boxes(all.dataset.role).forEach(b => { b.checked = all.dataset.all === '1'; }); refresh(); } });
     refresh();
-    let finished = false;
-    const close = () => { if (finished) return; finished = true; hostDoc.removeEventListener('keydown', onKey, true); win.removeEventListener('resize', zoomIt); root.remove(); resolve(); };
+    let finished = false, offKey = () => {};
+    const close = () => { if (finished) return; finished = true; offKey(); offResize(); root.remove(); resolve(); };
     const go = async action => {
       if (finished) return;
       const ch = choice();
@@ -336,7 +332,7 @@ function open({ doc, what, act }) {
       if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); if (openOnes().length) { closePops(); return; } close(); }
       else if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) { event.preventDefault(); event.stopPropagation(); go(target()); }
     };
-    hostDoc.addEventListener('keydown', onKey, true);
+    offKey = E.base.listen(hostDoc, 'keydown', onKey, true);
     root.addEventListener('click', event => {
       if (event.target.closest('.xp-cancel')) close();
       const b = event.target.closest('[data-act]'); if (b) go(b.dataset.act);

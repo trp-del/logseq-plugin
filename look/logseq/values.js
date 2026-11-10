@@ -91,19 +91,16 @@ function onPress(event) {
   event.stopPropagation(); event.preventDefault();
   // Passed on once this event is over, so Logseq takes it as a click of its own and not one it is still handling; the rest of the
   // press (up, click) is kept from Logseq, so its list stays open.
-  if (press) { if (event.type === 'pointerdown' && event.button === 0) { const box = innerOf(press)?.querySelector('.jtrigger'); host().defaultView.setTimeout(() => box?.click(), 0); } return; }
+  if (press) { if (event.type === 'pointerdown' && event.button === 0) { const box = innerOf(press)?.querySelector('.jtrigger'); host().defaultView.setTimeout(() => window.PluginDoor.screen.click(box), 0); } return; }
   if (event.type !== 'click') return;
   const uuid = name.getAttribute('data-uuid');
   if (uuid) openPage(uuid, event.shiftKey);
 }
 function start() {
   watchScreen(draw, draw);
-  const win = host().defaultView;
-  for (const type of KEYS) win.addEventListener(type, onPress, true);
+  Look.kit.listen(host().defaultView, KEYS, onPress, true);
 }
 function stop() {
-  const win = host().defaultView;
-  for (const type of KEYS) win.removeEventListener(type, onPress, true);
   for (const press of host().querySelectorAll('.lk-valpress')) press.remove();
 }
 Look.values = { start, stop };

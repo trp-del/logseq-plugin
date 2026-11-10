@@ -6,12 +6,10 @@
    logseq.class/Tag, logseq.property.class/extends and /properties, logseq.property/classes). Checked against Logseq 2.0.2. */
 (function () {
 const S = window.Structure;
-const query = async q => { const rows = await logseq.DB.datascriptQuery(q); return Array.isArray(rows) ? rows : []; };
-// A pulled map's keys come back shortened ("block/title" as "title"), sometimes with a colon; idents sometimes with one.
-const bare = v => String(v ?? '').replace(/^:/, '');
-const pick = (node, name) => node?.[name] ?? node?.[':' + name] ?? node?.[name.slice(name.indexOf('/') + 1)];
-const idOf = v => typeof v === 'number' ? v : pick(v, 'db/id');
-const listOf = v => v == null ? [] : Array.isArray(v) ? v : [v];
+// Structure's base (plugin.js, Door.base): its listeners, its passes on the screen watcher, Logseq's hooks and its stylesheets, taken off at stop.
+S.base = window.PluginDoor.base('structure', { prefix: 'Structure: ' });
+// The small readers are the door's (plugin.js). A pulled map's keys come back shortened ("block/title" as "title"), sometimes with a colon; idents sometimes with one.
+const { query, bare, pick, idOf, listOf } = window.PluginDoor;
 const LIVE = '(not [?b :logseq.property/deleted-at _])';
 const EXTENDS = 'logseq.property.class/extends', CLASS_PROPS = 'logseq.property.class/properties', RANGE = 'logseq.property/classes';
 

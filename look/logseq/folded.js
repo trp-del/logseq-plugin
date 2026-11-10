@@ -23,7 +23,7 @@ function dueLabel(day, now = new Date()) {
   const date = new Date(Math.floor(day / 10000), Math.floor(day / 100) % 100 - 1, day % 100);
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const days = Math.round((date - today) / 86400000);
-  const word = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const word = window.PluginDoor.dates.words(day, { year: false });   // the door's one rule for a day in words
   return days === 0 ? 'due today' : days < 0 ? 'was due ' + word : 'due ' + word;
 }
 const MOST = 3;

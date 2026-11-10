@@ -31,7 +31,7 @@ function findHtml() {
 /* The find line's words read (7 November 2026): "and Dr. Helen Brooks" names a page to stand beside this one (parts/two-way/beside.js);
    "on Oct 7", "up to 7 Oct", "until 2026-10-07" turn the page back to that day, the later nodes faint; whatever is left
    finds as before. A day with no year is this year's, or last year's when this year's is still to come. */
-const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+const MONTHS = window.PluginDoor.dates.MONTHS.map(name => name.slice(0, 3).toLowerCase());   // the door's month names (plugin.js), as they are typed
 const readCache = { text: null, read: null };
 function readFind() {
   if (readCache.text === state.find) return readCache.read;
@@ -52,7 +52,7 @@ function stepDay(by) {
   if (!by) state.find = String(state.find).replace(DAY_WORDS, '').trim();
   else {
     const d = new Date(Math.floor(asOf / 10000), Math.floor(asOf / 100) % 100 - 1, asOf % 100 + by);
-    const y = d.getFullYear(), label = `${MONTHS[d.getMonth()][0].toUpperCase()}${MONTHS[d.getMonth()].slice(1)} ${d.getDate()}${y !== Math.floor(twoWay.todayNumber() / 10000) ? ` ${y}` : ''}`;
+    const label = window.PluginDoor.dates.words(window.PluginDoor.dates.number(d));   // a day in words by the door's one rule
     state.find = String(state.find).replace(DAY_WORDS, ` on ${label}`).trim();
   }
   state.html = null; twoWay.draw(host());

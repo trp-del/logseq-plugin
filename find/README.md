@@ -70,7 +70,7 @@ The root `files.js` lists these in order, each adding to `window.Find`:
 
 | File | What it is |
 |---|---|
-| `logseq/kit.js` | Logseq's window, one stylesheet door, one element builder, the greys, the property icons, the sweep |
+| `logseq/kit.js` | Logseq's window, Find's base on the door (its stylesheet, settings, listeners and sweep), one element builder, the property icons |
 | `logseq/sentence.js` | how the sentence is read: the stretches that name a kind, a value, a page or a time, the notes over them, the words left to narrow by, the trail that lights a choice; a time's window and its near band. Pure |
 | `logseq/db.js` | the one place that reads the graph: the kinds with their counts, the kinds as a tree, the nodes under a kind, what they hold as choices (and every value by name, for the sentence), the pages by name, the months, Logseq's search, a node's properties and what points at it, the recent pages |
 | `logseq/settings.js` | the switches |

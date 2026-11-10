@@ -17,8 +17,9 @@ const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 const Door = window.PluginDoor;
 const KIND_OF = { rel: 'node', num: 'number', date: 'date', choice: 'choice', text: 'text' };
 const pi = p => `<i class="st-pi" aria-hidden="true">${Door.kindIconHtml(KIND_OF[Mo.propKind(p)])}</i>`;
-const day = ms => ms ? new Date(ms).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '';
-const dayWords = d => d ? day(new Date(Math.floor(d / 10000), Math.floor(d / 100) % 100 - 1, d % 100).getTime()) : '';   // a journal day, 20261023
+// A day in words by the door's one rule (plugin.js, Door.dates), with no year: from a time, and from a journal day, 20261023.
+const day = ms => ms ? Door.dates.words(Door.dates.number(new Date(ms)), { year: false }) : '';
+const dayWords = d => d ? Door.dates.words(d, { year: false }) : '';
 
 // The icon of a press: by what it does, and for a fix by its first word.
 const ACT_ICON = { page: 'go', ppage: 'go', rename: 'rename', prename: 'rename', move: 'move', pmove: 'move', new: 'child', addprop: 'plus', addpropall: 'plus', merge: 'merge', remove: 'bin', pullup: 'up', split: 'split', pdrop: 'minus' };
@@ -314,11 +315,7 @@ const CSS = `
 .st-empty { max-width: 60ch; }   /* the library's nothing-here line (lk-none) */
 @media (max-width: 760px) { .st-page { height: auto; } }`;
 
-function ensureStyle(doc) {
-  let sheet = doc.getElementById('st-style');
-  if (!sheet) { sheet = doc.createElement('style'); sheet.id = 'st-style'; sheet.className = 'st-own'; doc.head.appendChild(sheet); }
-  if (sheet.textContent !== CSS) sheet.textContent = CSS;
-}
+const ensureStyle = doc => { S.base.sheet('st-style', CSS, 'st-own', doc); };
 
 /* make(holder, mode, app): draws the screen into holder; mode is 'page' (tree, card, tray) or 'side' (the tree alone).
    app holds the state every view shares (logseq/main.js): the tray with its model, the cursor, what is open and ticked,
@@ -1311,9 +1308,8 @@ function make(holder, mode, app, opts = {}) {
     e.preventDefault(); e.stopPropagation();
     if (e.key.toLowerCase() === 'z' && !e.shiftKey) app.takeBack();
   };
-  if (mode === 'page') { win.addEventListener('hashchange', toPlace); doc.addEventListener('keydown', undoKey, true); }
-  if (mode === 'page') win.addEventListener('resize', draw);
-  const view = { root, mode, tag: opts.tag, prop: opts.prop, draw, destroy: () => { app.views.delete(view); win.removeEventListener('hashchange', toPlace); win.removeEventListener('resize', draw); doc.removeEventListener('keydown', undoKey, true); root.remove(); }, focus: () => { if (TAGISH) return; if (!doc.activeElement?.matches('input, textarea, [contenteditable="true"]')) root.focus({ preventScroll: true }); } };
+  const offs = mode === 'page' ? [S.base.listen(win, 'hashchange', toPlace), S.base.listen(doc, 'keydown', undoKey, true), S.base.listen(win, 'resize', draw)] : [];
+  const view = { root, mode, tag: opts.tag, prop: opts.prop, draw, destroy: () => { app.views.delete(view); for (const off of offs.splice(0)) off(); root.remove(); }, focus: () => { if (TAGISH) return; if (!doc.activeElement?.matches('input, textarea, [contenteditable="true"]')) root.focus({ preventScroll: true }); } };
   app.views.add(view);
   return view;
 }

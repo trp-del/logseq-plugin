@@ -114,7 +114,7 @@ function start() {
   app.listen(win, ['pointerdown', 'mousedown', 'mouseup', 'click'], onPress, true);
   app.listen(win, ['scroll', 'resize', 'focusout'], () => { if (open) close(); }, true);
   app.onStop(close);
-  logseq.App.onRouteChanged?.(close);
+  app.onStop(logseq.App.onRouteChanged?.(close));
   logseq.App.registerCommandPalette?.({ key: 'flow-choose-tag', label: 'Predictive: choose a tag for this bullet' }, () => { const box = host().activeElement; if (app.isBlockBox(box)) show(box); else notify('Put the cursor in a bullet first.'); });
 }
 Flow.tagPick = { start, close, state: () => open };

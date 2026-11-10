@@ -94,12 +94,12 @@ function draw(doc = host()) {
 
 function start() {
   if (tabs.off) return;
-  logseq.provideStyle({ key: 'sidebar-tabs', style: CSS });
-  tabs.off = Door.watch(draw);
+  Door.root.style('sidebar-tabs', CSS);
+  tabs.off = Door.root.watch(draw);
 }
 function stop() {
   tabs.off?.(); tabs.off = null;
-  logseq.provideStyle({ key: 'sidebar-tabs', style: '' });
+  Door.root.style('sidebar-tabs', '');
   const doc = host();
   doc.getElementById('right-sidebar')?.removeAttribute('data-lk-tabs');
   doc.querySelectorAll('#right-sidebar .lk-tabs').forEach(n => n.remove());

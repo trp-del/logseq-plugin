@@ -141,7 +141,7 @@ const LABELS = {
 };
 // The app's api on the parent window; the plugin's frame shares its origin.
 const hostApi = () => { try { return window.parent?.logseq?.api || null; } catch (error) { return null; } };
-const idOf = raw => String(raw ?? '').replace(/^:/, '');
+const idOf = window.PluginDoor.bare;   // a command's id without its leading colon
 const humanize = id => { const n = id.split('/').pop().replace(/-/g, ' '); return n.charAt(0).toUpperCase() + n.slice(1); };
 /* The key as Logseq shows it ("⌘+⇧+k", "g j", "t s | ⌘+,"), in the window's own form: the + between keys goes, a letter
    after a modifier is upper-case, the first of two bindings is shown ("⌘⇧K", "g j", "t s"); a disabled one is blank. */

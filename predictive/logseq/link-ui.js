@@ -145,14 +145,7 @@ function accept(event) {
   // Inside [[ ]] the brackets are there: the name alone goes in, and the cursor past the ]] Logseq paired (or they are added).
   const closed = hit.inLink && box.value.startsWith(']]', hit.end);
   const text = hit.inLink ? hit.title + (closed ? '' : ']]') : `[[${nameFor(hit)}]]`;
-  box.focus();
-  box.setSelectionRange(hit.start, hit.end);
-  let typed = false;
-  try { typed = box.ownerDocument.execCommand('insertText', false, text); } catch (error) { typed = false; }
-  if (!typed || box.value.slice(hit.start, hit.start + text.length) !== text) {
-    box.setRangeText(text, hit.start, hit.end, 'end');
-    box.dispatchEvent(new box.ownerDocument.defaultView.InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
-  }
+  window.PluginDoor.screen.insert(box, text, hit.start, hit.end);
   const after = hit.start + text.length + (closed ? 2 : 0) + (hit.after && box.value[hit.start + text.length] === ' ' ? 1 : 0);
   box.setSelectionRange(after, after);
   remember(hit.title.toLowerCase(), true);
@@ -215,9 +208,9 @@ async function start() {
   app.listen(win, ['scroll', 'resize'], clear, true);
   app.listen(win, ['focusout'], event => { if (app.isBlockBox(event.target)) saveMemory(); });
   app.onStop(() => { clear(); clearTimeout(pauseTimer); version++; saveMemory(true); });
-  logseq.App.onCurrentGraphChanged?.(async () => { saveMemory(true); graph = await app.graphName(); boosts.clear(); });
-  logseq.DB.onChanged?.(() => boosts.clear());
-  logseq.App.onRouteChanged?.(clear);
+  app.onStop(logseq.App.onCurrentGraphChanged?.(async () => { saveMemory(true); graph = await app.graphName(); boosts.clear(); }));
+  app.onStop(logseq.DB.onChanged?.(() => boosts.clear()));
+  app.onStop(logseq.App.onRouteChanged?.(clear));
 }
 Flow.linkUi = { start, accept, suggestState: () => showing };
 })();

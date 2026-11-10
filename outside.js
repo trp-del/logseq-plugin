@@ -86,7 +86,7 @@ async function paste(target, { path, bytes }, screen) {
   if (doc.activeElement !== box) box.focus();
   const transfer = new win.DataTransfer();
   transfer.items.add(new win.File([bytes], name, {}));
-  box.dispatchEvent(new win.ClipboardEvent('paste', { clipboardData: transfer, bubbles: true, cancelable: true }));
+  Door.screen.paste(box, transfer);
   // Copying a large file and reading it for its checksum takes Logseq a while.
   const asset = await until(async () => { const now = await logseq.Editor.getBlock(block.uuid).catch(() => null); return hasAssetType(now) ? now : null; }, Door.outside.patience, 200);
   try { await logseq.Editor.exitEditingMode(true); } catch (error) { /* it closed itself */ }

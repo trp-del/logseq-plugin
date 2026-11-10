@@ -6,8 +6,9 @@
    screen of after-kenya-hara.html: "I like the find feature".) */
 (function () {
 const Find = window.Find;
-const MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
-const SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+// The month names are the door's (plugin.js, Door.dates): in small letters as they are typed, and cut to three for a label.
+const MONTHS = window.PluginDoor.dates.MONTHS.map(name => name.toLowerCase());
+const SHORT = window.PluginDoor.dates.MONTHS.map(name => name.slice(0, 3));
 // Words that join the parts and say nothing of their own: they neither narrow the rows nor light a choice.
 const STOP = new Set(['with', 'about', 'and', 'the', 'a', 'an', 'of', 'on', 'in', 'at', 'for', 'by', 'to', 'from', 'or', 'around', 'near', 'roughly', 'circa', 'between', 'since', 'until', 'till', 'through', 'what', 'who', 'when', 'where', 'which', 'that', 'was', 'were', 'is', 'did', 'her', 'his', 'their', 'my', 'our']);
 const AROUND = new Set(['around', 'about', 'near', 'roughly', 'circa']);
@@ -23,7 +24,7 @@ const tokens = text => [...String(text).matchAll(/\S+/g)].flatMap(m => {
 });
 
 /* Days as the graph keeps them, yyyymmdd. */
-const toInt = d => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+const toInt = window.PluginDoor.dates.number;
 const ymd = (y, m, d) => toInt(new Date(y, m - 1, d));   // the Date rolls a month 13 or a day 0 over
 const monthOf = word => { const w = String(word).replace(/\.$/, ''); if (w.length < 3) return 0; const i = MONTHS.findIndex(m => m.startsWith(w)); return i < 0 ? 0 : i + 1; };
 const yearOf = key => (/^(19|20)\d\d$/.test(key) ? Number(key) : 0);

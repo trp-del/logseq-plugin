@@ -24,9 +24,9 @@ function value(v) {
   if (isPage(v) && v.uuid) return `<span class="lk" data-uuid="${esc(v.uuid)}">${esc(name(v))}</span>`;
   return words(name(v));
 }
-const propOf = key => { const ident = String(key).replace(/^:/, ''); return [...(S.inspector.model?.()?.props?.values() || [])].find(x => x.ident === ident); };
+const propOf = key => { const ident = window.PluginDoor.bare(key); return [...(S.inspector.model?.()?.props?.values() || [])].find(x => x.ident === ident); };
 function propTitle(key) {
-  const ident = String(key).replace(/^:/, '');
+  const ident = window.PluginDoor.bare(key);
   const p = propOf(key);
   return p?.title || ident.replace(/^user\.property\//, '').replace(/-[A-Za-z0-9_]{8}$/, '').replace(/-/g, ' ');
 }
@@ -126,9 +126,9 @@ function press(e) {
 function twice(e) {
   const cell = cellOf(e); if (!cell) return;
   e.preventDefault(); e.stopImmediatePropagation();
-  const win = e.view || host().defaultView, at = { bubbles: true, cancelable: true, composed: true, view: win, clientX: e.clientX, clientY: e.clientY, button: 0, detail: 1 };
+  // The press held back is played again where it was made, through the door's screen door (plugin.js).
   replaying = true;
-  try { for (const t of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) e.target.dispatchEvent(new (t.startsWith('pointer') ? win.PointerEvent : win.MouseEvent)(t, { ...at, buttons: /down/.test(t) ? 1 : 0 })); }
+  try { window.PluginDoor.screen.press(e.target, { composed: true, clientX: e.clientX, clientY: e.clientY, detail: 1 }); }
   finally { replaying = false; }
 }
 // A row of Logseq's table is pressed, or reached with the arrows: its node is the one shown. Only rows in the main view count.
@@ -144,12 +144,11 @@ function open(e) {
 function start() {
   const doc = host();
   const HELD = ['pointerdown', 'mousedown', 'pointerup', 'mouseup'];
-  for (const t of HELD) doc.addEventListener(t, hold, true);
-  doc.addEventListener('click', press, true); doc.addEventListener('dblclick', twice, true);
-  doc.addEventListener('focusin', onRow, true); doc.addEventListener('click', onRow, true);
-  const offRoute = logseq.App.onRouteChanged?.(() => pick(''));
-  const offDb = logseq.DB.onChanged?.(change => { if (insp.uuid && (change?.blocks || []).some(b => insp.seen?.has(b?.uuid) || (insp.pageId && b?.page?.id === insp.pageId))) { clearTimeout(insp.later); insp.later = setTimeout(drawNode, 400); } });
-  insp.stops = [() => { for (const t of HELD) doc.removeEventListener(t, hold, true); doc.removeEventListener('click', press, true); doc.removeEventListener('dblclick', twice, true); doc.removeEventListener('focusin', onRow, true); doc.removeEventListener('click', onRow, true); mark(''); }, offRoute, offDb];
+  const { listen } = S.base;
+  const offKeys = [listen(doc, HELD, hold, true), listen(doc, 'click', press, true), listen(doc, 'dblclick', twice, true), listen(doc, ['focusin', 'click'], onRow, true)];
+  const offRoute = S.base.onStop(logseq.App.onRouteChanged?.(() => pick('')));
+  const offDb = S.base.onStop(logseq.DB.onChanged?.(change => { if (insp.uuid && (change?.blocks || []).some(b => insp.seen?.has(b?.uuid) || (insp.pageId && b?.page?.id === insp.pageId))) { clearTimeout(insp.later); insp.later = setTimeout(drawNode, 400); } }));
+  insp.stops = [...offKeys, () => mark(''), offRoute, offDb];
 }
 function stop() { for (const s of insp.stops) { try { s?.(); } catch (error) { /* already gone */ } } insp.stops = []; if (insp.holder) insp.holder.innerHTML = ''; insp.watch?.disconnect(); }
 

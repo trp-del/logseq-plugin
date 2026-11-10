@@ -124,10 +124,8 @@ async function readableTitle(text, { pagesOnly = false, depth = 2, asShown = fal
 }
 
 // Readers of a pulled map: a value comes back with its keys shortened ("db/id" as "id", "block/title" as "title").
-const bare = value => String(value ?? '').replace(/^:/, '');
-const pick = (node, name) => node?.[name] ?? node?.[':' + name] ?? node?.[name.slice(name.indexOf('/') + 1)];
-const idOf = value => typeof value === 'number' ? value : pick(value, 'db/id');
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// They are the door's (plugin.js), shared by every module.
+const { bare, pick, idOf, UUID } = window.PluginDoor;
 
 /* The schema: your properties (and the four of Logseq's that a record takes: Deadline, Scheduled, Status,
    Priority) with their type, cardinality, class and choices; and which tag has which fields. Remembered for the
@@ -460,7 +458,6 @@ async function mergeFacts(source, target) {
    first, whatever its ident, else the earliest), else the journal day it is written on. Deleted nodes and nodes on deleted pages are left
    out, and a page's own blocks do not count as pointing at it. nodeFields(uuid) is what a node's own properties of
    yours hold, by name, each value a day, a title or plain text; firstLines(uuid, n) its first children's words. */
-const UUID_SHAPE = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 // A tag a row is named by: one of yours, or Logseq's Task, since tasks are things people look for (as Find keeps it). Logseq's
 // other tags (Page, Journal, Tag …) say nothing a row needs.
 const YOUR_TAG = '[?t :db/ident ?ti] (or-join [?ti] (and [(namespace ?ti) ?ns] [(= ?ns "user.class")]) [(= ?ti :logseq.class/Task)])';
@@ -531,7 +528,7 @@ async function linksInto(id) {
 }
 // Whether Logseq will draw a property list on a page: it holds a value of a property of yours, or a tag of yours, or a tag above it, declares one.
 async function pageHasList(uuid) {
-  if (!UUID_SHAPE.test(uuid)) return true;
+  if (!UUID.test(uuid)) return true;
   const page = `[?p :block/uuid #uuid "${uuid}"]`;
   if ((await dsQuery(`[:find ?a :where ${page} [?p ?a _] [?f :db/ident ?a] [(namespace ?a) ?ns] [(= ?ns "user.property")]]`)).length) return true;
   let tags = (await dsQuery(`[:find ?t :where ${page} [?p :block/tags ?t] [?t :db/ident ?i] [(namespace ?i) ?ns] [(= ?ns "user.class")]]`)).map(([t]) => t);
@@ -754,8 +751,8 @@ const registerCommand = (key, label, run) => logseq.App.registerCommandPalette({
 /* Days. A value typed for a Date: today, tomorrow, yesterday, a weekday (the next one after today), "next" and a
    weekday (a week later), +3 or -2 (days from today), 2026-10-23, 23 oct, oct 23 (this year, or next year when
    that day has passed). */
-const DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-const MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+// The names are the door's (plugin.js, Door.dates), in small letters as they are typed.
+const DAYS = window.PluginDoor.dates.WEEKDAYS.map(name => name.toLowerCase()), MONTHS = window.PluginDoor.dates.MONTHS.map(name => name.toLowerCase());
 const dayAfter = (date, n) => { const d = new Date(date.getFullYear(), date.getMonth(), date.getDate()); d.setDate(d.getDate() + n); return d; };
 // A date only when the day exists: 30 February or 31 September is no day (0.4.168: they used to roll over into the
 // next month, so "31 sep" read as 1 October).
@@ -788,41 +785,13 @@ function parseDay(text, today) {
   return null;
 }
 const sameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-const dayNumber = d => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+const dayNumber = window.PluginDoor.dates.number;
 
-/* Journal pages. A day's page by its number (made when it does not exist yet, as Logseq would), and a day's title
-   in the format the graph uses (MMM do, yyyy; E, dd.MM.yyyy; yyyyMMdd ...), read once from Logseq's settings. */
-async function journalIdFor(day, title) {
-  const [[p] = []] = await dsQuery(`[:find (pull ?p [:db/id]) :where [?p :block/journal-day ${day}]]`);
-  if (p && idOf(p)) return idOf(p);
-  const page = await window.PluginDoor.write.createPage(title, {}, { redirect: false, createFirstBlock: false, journal: true });
-  return page?.id ?? null;
-}
-const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-const ordinal = n => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th');
-function formatJournalTitle(date, format) {
-  const pad = n => String(n).padStart(2, '0');
-  const parts = {
-    yyyy: date.getFullYear(), yy: pad(date.getFullYear() % 100),
-    MMMM: MONTH_NAMES[date.getMonth()], MMM: MONTH_NAMES[date.getMonth()].slice(0, 3), MM: pad(date.getMonth() + 1), M: date.getMonth() + 1,
-    do: ordinal(date.getDate()), dd: pad(date.getDate()), d: date.getDate(),
-    EEEE: DAY_NAMES[date.getDay()], EEE: DAY_NAMES[date.getDay()].slice(0, 3), E: DAY_NAMES[date.getDay()].slice(0, 3),
-  };
-  return format.replace(/yyyy|yy|MMMM|MMM|MM|M|do|dd|d|EEEE|EEE|E/g, token => parts[token]);
-}
-const journalFormat = { value: null };
-async function journalTitleFor(year, month, day) {
-  const journalDay = year * 10000 + month * 100 + day;
-  try {
-    const [[title] = []] = await dsQuery(`[:find ?t :where [?p :block/journal-day ${journalDay}] [?p :block/title ?t]]`);
-    if (title) return String(title);
-  } catch (error) { /* no such journal yet: use the format below */ }
-  if (!journalFormat.value) {
-    try { journalFormat.value = (await logseq.App.getUserConfigs())?.preferredDateFormat || null; } catch (error) { /* default below */ }
-  }
-  return formatJournalTitle(new Date(year, month - 1, day), journalFormat.value || 'MMM do, yyyy');
-}
+/* Journal pages: the door's date service (plugin.js, Door.dates), the same in every module. A day's page by its number (made when
+   it does not exist yet, as Logseq would), and a day's title in the format the graph uses (MMM do, yyyy; E, dd.MM.yyyy; yyyyMMdd ...). */
+const journalIdFor = (day, title) => window.PluginDoor.dates.pageFor(day, dsQuery, title);
+const formatJournalTitle = (date, format) => window.PluginDoor.dates.title(date, format);
+const journalTitleFor = (year, month, day) => window.PluginDoor.dates.titleFor(year * 10000 + month * 100 + day, dsQuery);
 
 /* What kind of page a page is (0.4.170, moved from parts/pages.js): a tag page, a property page, an ordinary page with
    no tag of its own (plain), and the pages it is an alias of, as [uuid, title] by title. Logseq records an alias only on
@@ -1069,7 +1038,7 @@ async function heldBelow(uuids) {
   for (const [b, a, type] of fileRows) {
     // A highlight holds its PDF as its asset, and an area highlight its picture as a child: both are the quote, not files.
     if (quoteOf.has(b) || quoteOf.has(parentOf.get(b))) continue;
-    const t = String(type).replace(/^:/, '').toLowerCase();
+    const t = bare(type).toLowerCase();
     add(filesOf, b, [t === 'pdf' ? 'pdf' : /^(png|jpe?g|gif|webp|svg|avif|heic|bmp|tiff?)$/.test(t) ? 'image' : 'file', a]);
   }
   for (const [u, r] of roots) {
@@ -1116,7 +1085,7 @@ function provide(core) {
     propTextValues, propTextBlocks, propValueBlocks, propNamed, propUse, propUses, structureUse, propNodeIds, choiceIds, crumbsInto, propHolders, pdfSources, heldBelow, withKids, linkRates, linkRatesOf, journalIdFor, journalTitleFor, formatJournalTitle, CHECKED_WITH, PAGE_TITLE, screenChecks, pageTitles, titleAnchor });
 }
 function start() {
-  window.Threads.core.onGraphChange(() => { journalFormat.value = null; });   // each graph has its own
+  window.Threads.core.onGraphChange(() => window.PluginDoor.dates.forget());   // each graph has its own
   ({ dsQuery, graphWide } = take(window.Threads.core, ['dsQuery', 'graphWide']));
 }
 ((window.Threads ||= {}).parts ||= []).push({ name: 'model', says: 'its reading of the graph', foundation: true, schema: [], provide, start, stop: runUnloadTasks });

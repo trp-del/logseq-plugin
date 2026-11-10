@@ -14,16 +14,19 @@ async function main() {
   Look.links.start();
   Look.values.start();
   Look.notices.start();
-  logseq.DB.onChanged(change => Look.kit.graphChanged(change));
+  const { onStop } = Look.kit;
+  onStop(logseq.DB.onChanged(change => Look.kit.graphChanged(change)));
   const own = Look.settings.schema.map(item => item.key);
-  logseq.onSettingsChanged?.((now, before) => { if (!window.PluginDoor.settingChanged(own, now, before)) return; Look.style.apply(); Look.calm.apply(); Look.sidebar.apply(); Look.notices.apply(); Look.kit.run(Look.kit.host()); Look.links.load(); });
-  logseq.App.onCurrentGraphChanged(() => { window.PluginDoor.undo.clear('look'); Look.marks.load(); Look.props.load(); });   // an arrow would act on the graph left behind
+  onStop(logseq.onSettingsChanged?.((now, before) => { if (!window.PluginDoor.settingChanged(own, now, before)) return; Look.style.apply(); Look.calm.apply(); Look.sidebar.apply(); Look.notices.apply(); Look.kit.run(Look.kit.host()); Look.links.load(); }));
+  onStop(logseq.App.onCurrentGraphChanged(() => { window.PluginDoor.undo.clear('look'); Look.marks.load(); Look.props.load(); }));   // an arrow would act on the graph left behind
 }
 function stop() {
   // Each on its own: a part that never started must not leave the others running.
   for (const part of ['marks', 'props', 'title', 'folded', 'sidebar', 'links', 'cites', 'values', 'notices', 'calm']) { try { Look[part].stop(); } catch (error) { console.error(`Look: ${part} could not stop`, error); } }
-  Look.kit.stopWatching();
+  // The base: Look's passes off the screen watcher, its listeners and Logseq's hooks off, then what it left on the page.
+  const done = Look.kit.stopAll();
   Look.kit.sweep();
+  return done;
 }
 window.PluginDoor.describe('look', { schema: Look.settings.schema, specimen: Look.settings.specimen });
 window.PluginDoor.register({

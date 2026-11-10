@@ -124,11 +124,11 @@ function main() {
   logseq.App.registerCommandPalette({ key: 'db-export-pdf', label: 'Export: save this page as PDF' }, () => quick('pdf'));
   logseq.Editor.registerBlockContextMenuItem('Export as PDF or Markdown…', event => exportWindow(event));
   logseq.App.registerPageMenuItem?.('Export as PDF or Markdown…', event => exportWindow({ page: event?.page }));
-  logseq.App.onCurrentGraphChanged(() => { E.db.forget(); E.files.forget(); E.ui.sweep(); });
-  logseq.DB.onChanged(() => E.db.forget());   // names and days may change; they are cheap to read again
+  E.base.onStop(logseq.App.onCurrentGraphChanged(() => { E.db.forget(); E.files.forget(); E.ui.sweep(); }));
+  E.base.onStop(logseq.DB.onChanged(() => E.db.forget()));   // names and days may change; they are cheap to read again
   E.app = { pageHtml, markdown, richText, act, readWhat, exportWindow, quick, settingsSchema };
 }
-const stop = () => { try { E.ui.sweep(); } catch (error) { /* Logseq's window is gone */ } };   // the window and its stylesheet live in Logseq's document
+const stop = () => { try { E.ui.sweep(); } catch (error) { /* Logseq's window is gone */ } return E.base.stop(); };   // the window and its stylesheet live in Logseq's document
 // Everything else is chosen in the export window, beside the preview that shows it.
 window.PluginDoor.describe('export', { schema: [{ type: 'heading', title: 'The PDF', place: 'out' }, { ...settingsSchema.find(item => item.key === 'customCss'), placeholder: '.x-title { letter-spacing: -.01em; }' }] });
 window.PluginDoor.register({

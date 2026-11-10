@@ -63,11 +63,11 @@ function start() {
   watchScreen(draw, drawIcons);
   // An empty property folds away until it has the keyboard: about four groups before you open anything (the owner, 1 November). "+ Add property" brings it back.
   watchScreen(() => { for (const row of host().querySelectorAll(ROWS)) { const box = row.querySelector('.property-value-container'); const empty = !!box && !box.textContent.trim() && !!box.querySelector('.is-blank, .empty-value'); row.classList.toggle('lk-empty', empty); row.classList.toggle('lk-filled', !empty); } });   // the icons before the screen is drawn, so Logseq's dot never shows first
-  host().defaultView.addEventListener('mouseover', onOver);
+  Look.kit.listen(host().defaultView, 'mouseover', onOver);
   onGraphChange(pages => { if (pages && !stopped) load(); });
   load();
 }
-function stop() { stopped = true; loading = null; byTitle = null; host().defaultView.removeEventListener('mouseover', onOver); }
+function stop() { stopped = true; loading = null; byTitle = null; }
 // What the index knows of a property by its title ({ kind, many, icon }), or null while it is being read.
 const prop = title => byTitle?.get(title) || null;
 Look.props = { start, stop, draw, load, prop };

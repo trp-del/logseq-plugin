@@ -14,14 +14,7 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const nameIn = words => String(words).trim().replace(/^\[\[(.+)\]\]$/, '$1').trim();
 const canName = name => !!name && !/\[\[|\]\]|\n/.test(name);
 const pageTagUuid = async () => String((await db.dsQuery('[:find ?u :where [?t :db/ident :logseq.class/Page] [?t :block/uuid ?u]]'))[0]?.[0] ?? '');
-function retype(box, words) {
-  box.focus(); box.setSelectionRange(0, box.value.length);
-  let typed = false;
-  try { typed = box.ownerDocument.execCommand('insertText', false, words); } catch (error) { typed = false; }
-  if (typed) return;
-  box.setRangeText(words, 0, box.value.length, 'end');
-  box.dispatchEvent(new box.ownerDocument.defaultView.InputEvent('input', { bubbles: true, inputType: 'insertText', data: words }));
-}
+const retype = (box, words) => window.PluginDoor.screen.insert(box, words);
 
 // The bullet becomes the page by #Page typed in its words, which Logseq turns into the tag as the bullet is left: its API refuses that tag. Logseq folds a
 // bullet as it gets the tag, so it is opened again once the tag has landed.

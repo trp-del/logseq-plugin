@@ -191,7 +191,7 @@ Door.addMenuItem = item => { Door.menuItems = Door.menuItems.filter(x => x.key !
    first; it must be quick. What the early passes change is set aside, and what a frame's passes change is shown to the early
    ones once, so the watcher never answers itself. A pass that throws five times is retired for the session. The observer stands
    while any pass is registered and goes with the last. */
-const screen = { early: new Set(), passes: new Set(), observer: null, frame: 0, doc: null, win: null, failures: new Map() };
+const screen = { early: new Set(), passes: new Set(), witnesses: new Set(), observer: null, frame: 0, doc: null, win: null, failures: new Map() };
 const SCREEN_ATTRS = ['data-uuid', 'blockid', 'data-collapsed', 'data-page-tags', 'data-ref', 'class', 'data-hl-type'];
 function passFailed(fn, set, error) {
   const n = (screen.failures.get(fn) || 0) + 1;
@@ -202,7 +202,9 @@ function passFailed(fn, set, error) {
 }
 function runEarly(records) {
   for (const fn of [...screen.early]) { try { fn(screen.doc, records); } catch (error) { passFailed(fn, screen.early, error); } }
-  screen.observer?.takeRecords();
+  const own = screen.observer?.takeRecords() || [];
+  // A witness only looks (a measuring tool): it is given every change, what the early passes just made included, and changes nothing.
+  if (screen.witnesses.size) { const all = own.length ? [...records, ...own] : records; for (const fn of [...screen.witnesses]) { try { fn(screen.doc, all); } catch (error) { passFailed(fn, screen.witnesses, error); } } }
 }
 function ensureScreen() {
   if (screen.observer) return;
@@ -220,19 +222,283 @@ function ensureScreen() {
   });
   screen.observer.observe(doc.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: SCREEN_ATTRS });
 }
-Door.watch = (fn, { early = false } = {}) => {
+Door.watch = (fn, { early = false, witness = false } = {}) => {
   ensureScreen();
-  const set = early ? screen.early : screen.passes;
+  const set = witness ? screen.witnesses : early ? screen.early : screen.passes;
   set.add(fn);
-  if (!early) { try { fn(screen.doc); } catch (error) { passFailed(fn, set, error); } }
-  return () => { set.delete(fn); if (!screen.early.size && !screen.passes.size) Door.stopWatching(); };
+  if (!early && !witness) { try { fn(screen.doc); } catch (error) { passFailed(fn, set, error); } }
+  return () => { set.delete(fn); if (!Door.watching()) Door.stopWatching(); };
 };
 Door.addsElements = records => records.some(r => r.type === 'childList');
-Door.watching = () => screen.early.size + screen.passes.size;
+Door.watching = () => screen.early.size + screen.passes.size + screen.witnesses.size;
 Door.stopWatching = () => {
   screen.observer?.disconnect();
   if (screen.frame) screen.win?.cancelAnimationFrame(screen.frame);
-  screen.observer = null; screen.frame = 0; screen.early.clear(); screen.passes.clear();
+  screen.observer = null; screen.frame = 0; screen.early.clear(); screen.passes.clear(); screen.witnesses.clear();
+};
+/* THE base of a module (10 November 2026, the code review's "one module base"; until then Predictive's app.js, Threads' shared.js,
+   Look's and Find's kits and Structure's and DB Export's main.js each carried a small framework of their own for the same jobs).
+   const base = Door.base(key, { prefix, schema, stylePrefix, leaves, styled }) gives a module, or a part of one:
+     warnOnce(message, ...details)   a console warning written once per session per message, under the prefix; every one is kept
+                                     in Door.warnings (message, first time, count);
+     onStop(task)                    a clean-up step; also takes the "off" a Logseq hook returns (anything else is let go);
+     listen(target, types, fn, opts) a listener on Logseq's window or page, taken off at stop; both give back what runs the
+                                     step now and forgets it, for a part switched off while the module runs;
+     watch(pass, opts)               a pass on the one screen watcher (Door.watch), taken off at stop, before the other steps,
+                                     so nothing draws again while they undo;
+     setting(key)                    a setting's saved value, or its default from the schema when it is missing or of another
+                                     type; a key the schema does not hold is given as saved. schema: a list, or what gives one;
+     style(key, css)                 a stylesheet through Logseq, sent only when its words changed (every send makes Logseq lay
+                                     the page out again); empty words clear it; answers whether it was sent;
+     sheet(id, css, cls, doc)        a stylesheet of the module's own in Logseq's page, there at once (a window that opens this
+                                     turn cannot wait for Logseq's), taken out at stop; css null leaves its words as they are;
+     sweep(doc)                      takes out what the module may leave on Logseq's page (leaves: { elements, attributes, reset });
+     stop()                          the watcher's passes off, then every step, the last set up first; the promise waits for
+                                     any step that ends later;
+     waiting()                       how many steps wait (a count that grows with use is a leak);
+     takeOver(stopKey, sweep)        runs the clean-up an earlier copy of the module left in Logseq's window (a copy cut short
+                                     by an error or Logseq's ten-second limit), leaves this one there, then sweeps.
+   Door.settingReader(schema) is the reader alone; Door.sweep(key, doc) sweeps every base of a module; Door.bases(key) lists them. */
+Door.warnings = [];
+const bases = [];
+Door.settingReader = schema => {
+  let list = null, map = null;   // read again only when what gives the schema gives another list
+  const defaults = () => {
+    const now = (typeof schema === 'function' ? schema() : schema) || [];
+    if (now !== list) { list = now; map = new Map(now.map(item => [item.key, item.default])); }
+    return map;
+  };
+  return key => {
+    const value = logseq.settings?.[key], known = defaults();
+    if (!known.has(key)) return value ?? undefined;
+    return typeof value === typeof known.get(key) && value !== null ? value : known.get(key);
+  };
+};
+Door.base = (key, { prefix = '', schema, stylePrefix = '', leaves = null, styled = null } = {}) => {
+  const warned = new Map(), tasks = [], offs = [], sent = new Map(), sheets = new Set();
+  const base = { key, prefix, leaves };
+  base.warnOnce = (message, ...details) => {
+    const earlier = warned.get(message);
+    if (earlier) { earlier.count++; return; }
+    const entry = { message: prefix + message, at: new Date(), count: 1 };
+    warned.set(message, entry);
+    Door.warnings.push(entry);
+    console.warn(prefix + message, ...details.filter(detail => detail !== undefined));
+  };
+  // What onStop and listen give back runs the step now and takes it off the list, for a part that is switched off while the module runs.
+  base.onStop = task => {
+    if (typeof task !== 'function') return () => {};
+    tasks.push(task);
+    return () => { const at = tasks.indexOf(task); if (at < 0) return; tasks.splice(at, 1); return task(); };
+  };
+  base.listen = (target, types, fn, options) => {
+    for (const type of [].concat(types)) target.addEventListener(type, fn, options);
+    return base.onStop(() => { for (const type of [].concat(types)) target.removeEventListener(type, fn, options); });
+  };
+  base.watch = (pass, options) => { const off = Door.watch(pass, options); offs.push(off); return () => { const at = offs.indexOf(off); if (at >= 0) offs.splice(at, 1); off(); }; };
+  base.watching = () => offs.length;
+  base.setting = Door.settingReader(schema);
+  base.style = (name, css) => {
+    const text = css && css.trim() ? css : '/* no rules */', changed = sent.get(name) !== text;
+    if (styled) styled(name, css, changed);
+    if (!changed) return false;
+    sent.set(name, text);
+    logseq.provideStyle({ key: stylePrefix + name, style: text });
+    return true;
+  };
+  base.styles = () => sent.size;
+  base.sheet = (id, css, cls = '', doc = Door.host()) => {
+    let sheet = doc.getElementById(id);
+    if (!sheet) { sheet = doc.createElement('style'); sheet.id = id; if (cls) sheet.className = cls; doc.head.appendChild(sheet); }
+    if (css != null && sheet.textContent !== css) sheet.textContent = css;
+    if (!sheets.has(id)) { sheets.add(id); base.onStop(() => { sheets.delete(id); doc.getElementById(id)?.remove(); }); }
+    return sheet;
+  };
+  base.sweep = (doc = Door.host()) => {
+    if (!leaves) return;
+    try {
+      if (leaves.reset) leaves.reset(doc);
+      if (leaves.elements) for (const el of doc.querySelectorAll(leaves.elements)) el.remove();
+      for (const name of leaves.attributes || []) for (const el of doc.querySelectorAll(`[${name}]`)) el.removeAttribute(name);
+    } catch (error) { console.warn(prefix + 'leftovers could not be cleared', error); }
+  };
+  base.stop = () => {
+    while (offs.length) { try { offs.pop()(); } catch (error) { /* the watcher is gone already */ } }
+    const failed = error => base.warnOnce('clean-up step failed', error), pending = [];
+    for (const task of tasks.splice(0).reverse()) { try { pending.push(Promise.resolve(task()).catch(failed)); } catch (error) { failed(error); } }
+    return Promise.all(pending);
+  };
+  base.waiting = () => tasks.length;
+  base.takeOver = (stopKey, sweep) => {
+    let win;
+    try { win = Door.host().defaultView; } catch (error) { return; }
+    try { win[stopKey]?.(); } catch (error) { base.warnOnce('an earlier copy could not be stopped', error); }
+    win[stopKey] = base.stop;
+    base.onStop(() => { if (win[stopKey] === base.stop) delete win[stopKey]; });
+    if (sweep) try { sweep(win.document); } catch (error) { base.warnOnce('leftovers could not be cleared', error); }
+  };
+  bases.push(base);
+  return base;
+};
+Door.bases = key => bases.filter(base => key == null || base.key === key);
+// The base of what stands whichever modules run (main.js, the settings window and its ways in, the sidebar's tabs): stopped last.
+Door.root = Door.base('plugin', { prefix: 'Logseq Plugin: ' });
+Door.sweep = (key, doc) => { for (const base of Door.bases(key)) base.sweep(doc); };
+
+/* THE one way to work Logseq's own boxes (10 November 2026, the code review's "one way to drive Logseq's menus"; it was Threads'
+   screen door, with copies in Predictive's steps and the settings' menu): waiting for Logseq to draw something, pressing one of
+   its buttons, typing into one of its fields, sending it a key, asking whether one of its pop-ups is open, closing what floats.
+   Every made-up press or key the plugin sends Logseq is sent from here (test/screen.js fails on one anywhere else), so a Logseq
+   update that renames a menu or changes what it listens for is mended in this one place.
+   Checked with Logseq 2.0.2: its lists are .cp__select, its menus and pickers float in .ui__popover-content or a
+   [data-radix-popper-content-wrapper], its windows are .ui__modal; its lists while writing ([[ pages, / commands, # tags) are
+   #ui__ac, .absolute-modal or [data-editor-popup-ref]. */
+const LOGSEQ_POPUPS = '.cp__select, .ui__popover-content, [data-radix-popper-content-wrapper], .ui__modal-panel, .ui__modal, [role="menu"], [role="dialog"], [role="listbox"]';
+const LOGSEQ_FRAME = '#right-sidebar, #main-content-container, #left-sidebar, .cp__header', OWN_POPUPS = '.lk-pop, .th-pop';
+Door.screen = {
+  POPUPS: LOGSEQ_POPUPS,
+  // Looks for find() until it gives something or ms pass (null then): every 50 ms, or with frames: true once a frame, for what must
+  // be there before the screen is next drawn.
+  waitFor: (find, ms = 1500, { frames = false } = {}) => new Promise(resolve => {
+    const started = Date.now(), win = frames ? Door.host().defaultView : null;
+    const tick = () => { let found = null; try { found = find(); } catch (error) { found = null; } if (found || Date.now() - started > ms) resolve(found || null); else if (win) win.requestAnimationFrame(tick); else setTimeout(tick, 50); };
+    if (win) win.requestAnimationFrame(tick); else tick();
+  }),
+  // Presses an element as the mouse does: Logseq opens its lists on the press, not on a click alone (found in the app). at: where
+  // the pointer is, and anything else the events should say, for a press played again where one was held back.
+  press(el, at = {}) {
+    const win = el.ownerDocument.defaultView;
+    for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'])
+      el.dispatchEvent(new (type.startsWith('pointer') && win.PointerEvent ? win.PointerEvent : win.MouseEvent)(type, { bubbles: true, cancelable: true, view: win, button: 0, buttons: type.endsWith('down') ? 1 : 0, pointerType: 'mouse', isPrimary: true, ...at }));
+  },
+  // A plain click on one of Logseq's own buttons (its × on a sidebar item, a notice's close), where a click alone is what it takes.
+  click: el => { el?.click(); return !!el; },
+  // Types words into one of Logseq's boxes as typing would (its boxes listen for input); selects them when asked, so the
+  // next key typed replaces them.
+  // inputType: said with the input, where Logseq's editor should take the words as a replacement.
+  typeInto(box, words, { select = false, inputType = '' } = {}) {
+    const win = box.ownerDocument.defaultView, proto = box.matches('textarea') ? win.HTMLTextAreaElement.prototype : win.HTMLInputElement.prototype;
+    const set = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+    if (set) set.call(box, words); else box.value = words;
+    if (inputType) Door.screen.typed(box, inputType); else box.dispatchEvent(new win.Event('input', { bubbles: true }));
+    if (select) box.select?.();
+  },
+  // Puts words into a box Logseq is editing, over what stands from start to end, as typing would, so Logseq keeps them with the
+  // rest and its own Undo holds them: the browser's own insert first, and where that does nothing, the words set and Logseq told.
+  insert(box, words, start = 0, end = box.value.length) {
+    box.focus(); box.setSelectionRange(start, end);
+    let typed = false;
+    try { typed = box.ownerDocument.execCommand('insertText', false, words); } catch (error) { typed = false; }
+    if (typed && box.value.slice(start, start + words.length) === words) return;
+    box.setRangeText(words, start, end, 'end');
+    Door.screen.typed(box, 'insertText', words);
+  },
+  // Tells Logseq a box's words were changed by the plugin (a link put in, a name's capitals), as typing would: Logseq saves a
+  // bullet on the input it hears. inputType and data as the browser names them.
+  typed: (box, inputType = 'insertText', data) => box.dispatchEvent(new box.ownerDocument.defaultView.InputEvent('input', data === undefined ? { bubbles: true, inputType } : { bubbles: true, inputType, data })),
+  // Hands a box what a paste would (files, words): Logseq takes it as its own paste.
+  paste: (box, clipboardData) => box.dispatchEvent(new box.ownerDocument.defaultView.ClipboardEvent('paste', { clipboardData, bubbles: true, cancelable: true })),
+  // A key to an element (Escape to a menu, Enter to a row).
+  key: (el, name, init = {}) => !!el?.dispatchEvent(new el.ownerDocument.defaultView.KeyboardEvent('keydown', { key: name, code: name, bubbles: true, cancelable: true, ...init })),
+  // What floats over the page: not the sidebars, the main view or the header; the plugin's own pop-ups only when asked (own: true).
+  floating: (el, { own = false } = {}) => el.getClientRects().length > 0 && !el.closest(own ? LOGSEQ_FRAME : `${LOGSEQ_FRAME}, ${OWN_POPUPS}`),
+  // A floating item (a menu row, an option, a button) whose words pass test(text); null when none.
+  item(test, doc = Door.host()) {
+    return [...doc.querySelectorAll('[role="menuitem"], [role="option"], [role="menuitemcheckbox"], .menu-link, .cp__select-main .menu-link, button, li, a')].filter(el => Door.screen.floating(el)).find(el => test(el.textContent.trim())) || null;
+  },
+  // The items of the right sidebar whose header names a page (Logseq's .sidebar-item with its .sidebar-item-header).
+  sidebarItems(title, doc = Door.host()) {
+    const named = text => text.replace(/^[#\s]+/, '').trim().toLowerCase();
+    return [...doc.querySelectorAll('#right-sidebar .sidebar-item')].filter(item => named(item.querySelector('.sidebar-item-header')?.textContent || '').startsWith(String(title).toLowerCase()));
+  },
+  // Is something floating open (a list, a menu, a picker, a window)? With an element: does it sit in one? own: the plugin's count too.
+  popupOpen(el, doc = Door.host(), options) {
+    if (el) return !!el.closest?.(LOGSEQ_POPUPS);
+    return [...doc.querySelectorAll(LOGSEQ_POPUPS)].some(node => Door.screen.floating(node, options));
+  },
+  // Logseq's own lists while writing ([[ pages, / commands, # tags): they have the keys.
+  editorPopupOpen: (doc = Door.host()) => !!doc.querySelector('#ui__ac, .absolute-modal, [data-editor-popup-ref]'),
+  // Closes what floats: Escape to each open menu and to whatever has the keyboard.
+  escapeMenus(doc = Door.host()) {
+    for (const menu of [...doc.querySelectorAll('[role="menu"], [role="dialog"], .cp__select')].filter(el => Door.screen.floating(el))) Door.screen.key(menu, 'Escape');
+    Door.screen.key(doc.activeElement, 'Escape');
+  },
+};
+
+/* The small things every module needs to read the graph, once (10 November 2026; each module had copied them): bare(ident) an
+   ident without its leading colon; pick(node, name) an attribute of a pulled map whatever its key's spelling (:block/title,
+   block/title, title); idOf(value) a node's number, from the number or the map; listOf(value) always a list; query(q) the rows
+   of a query, [] when it gives none; isEntityId(id); idsIn and uuidsIn write a list into a query, letting in only whole numbers
+   and well-formed ids; HELPER, where Predictive's helper for Apple's tools answers on this Mac. The id pattern is Door.UUID. */
+Door.bare = value => String(value ?? '').replace(/^:/, '');
+Door.pick = (node, name) => node?.[name] ?? node?.[':' + name] ?? node?.[name.slice(name.indexOf('/') + 1)];
+Door.idOf = value => typeof value === 'number' ? value : Door.pick(value, 'db/id');
+Door.listOf = value => value == null ? [] : Array.isArray(value) ? value : [value];
+Door.query = async query => { const rows = await logseq.DB.datascriptQuery(query); return Array.isArray(rows) ? rows : []; };
+Door.isEntityId = id => Number.isSafeInteger(id) && id > 0;
+Door.idsIn = (variable, ids) => `[(identity [${[...new Set(ids)].filter(Door.isEntityId).join(' ')}]) [${variable} ...]]`;
+Door.uuidsIn = (variable, uuids) => `[(identity [${[...new Set(uuids)].map(String).filter(u => UUID.test(u)).map(u => `#uuid "${u}"`).join(' ')}]) [${variable} ...]]`;
+Door.HELPER = 'http://127.0.0.1:47615';
+
+/* THE dates of the plugin (10 November 2026, the code review's "one date service"; Predictive and Threads each named a journal's
+   title, and Find, Threads, Structure and Look each put a day in words by a rule of their own). A day is its number, 20261023.
+     MONTHS, WEEKDAYS        the names in full, the first letter large; a module that reads typed words takes them from here;
+     number(date), date(day), today()   between a day's number and a Date;
+     words(day, { year })    a day in words, one rule everywhere: "Oct 23", and "Oct 23, 2025" when it is not this year's
+                             (year: false never says the year, where the place already does; 'always' says it every time);
+     month(key)              a month (202610) the same way: "Oct", "Oct 2025";
+     title(date, format)     a day as Logseq titles its journal page in a date format (MMM do, yyyy; E, dd.MM.yyyy; yyyyMMdd ...);
+     format()                the format the open graph names new journal days in (Settings, Editor), read again when a second
+                             old, so a change there shows with nothing to reload;
+     titleFor(day, ask)      the title of a day's journal page: the page's own when the graph has it, else as it will be named;
+     pageFor(day, ask, title)  the journal page of a day, its number in the graph, made when the graph has none yet (under the
+                             title given, else as titleFor names it);
+     forget()                another graph opened: its format is read afresh. */
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const ordinal = n => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th');
+const dateFormat = { value: '', at: 0, asking: null };
+Door.dates = {
+  MONTHS, WEEKDAYS,
+  number: date => date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate(),
+  date: day => new Date(Math.floor(day / 10000), Math.floor(day / 100) % 100 - 1, day % 100),
+  today: () => Door.dates.number(new Date()),
+  words(day, { year = true } = {}) {
+    if (!day) return '';
+    const y = Math.floor(day / 10000), text = `${MONTHS[Math.floor(day / 100) % 100 - 1].slice(0, 3)} ${day % 100}`;
+    return !year || (year !== 'always' && y === new Date().getFullYear()) ? text : `${text}, ${y}`;
+  },
+  month(key) { const y = Math.floor(key / 100); return MONTHS[key % 100 - 1].slice(0, 3) + (y === new Date().getFullYear() ? '' : ' ' + y); },
+  title(date, format = 'MMM do, yyyy') {
+    const pad = n => String(n).padStart(2, '0');
+    const parts = {
+      yyyy: date.getFullYear(), yy: pad(date.getFullYear() % 100),
+      MMMM: MONTHS[date.getMonth()], MMM: MONTHS[date.getMonth()].slice(0, 3), MM: pad(date.getMonth() + 1), M: date.getMonth() + 1,
+      do: ordinal(date.getDate()), dd: pad(date.getDate()), d: date.getDate(),
+      EEEE: WEEKDAYS[date.getDay()], EEE: WEEKDAYS[date.getDay()].slice(0, 3), E: WEEKDAYS[date.getDay()].slice(0, 3),
+    };
+    return String(format || 'MMM do, yyyy').replace(/yyyy|yy|MMMM|MMM|MM|M|do|dd|d|EEEE|EEE|E/g, token => parts[token]);
+  },
+  format() {
+    if (Date.now() - dateFormat.at < 1000) return Promise.resolve(dateFormat.value);
+    dateFormat.asking ||= Promise.resolve().then(() => logseq.App.getUserConfigs()).then(configs => configs?.preferredDateFormat || '', () => dateFormat.value)
+      .then(value => { dateFormat.value = value; dateFormat.at = Date.now(); dateFormat.asking = null; return value; });
+    return dateFormat.asking;
+  },
+  forget() { dateFormat.at = 0; dateFormat.value = ''; },
+  async titleFor(day, ask = Door.query) {
+    try {
+      const [[title] = []] = await ask(`[:find ?t :where [?p :block/journal-day ${Number(day)}] [?p :block/title ?t]]`) || [];
+      if (title) return String(title);
+    } catch (error) { /* no such journal yet: as it will be named */ }
+    return Door.dates.title(Door.dates.date(day), await Door.dates.format() || 'MMM do, yyyy');
+  },
+  async pageFor(day, ask = Door.query, title) {
+    const [[page] = []] = await ask(`[:find (pull ?p [:db/id]) :where [?p :block/journal-day ${Number(day)}]]`) || [];
+    if (page && Door.idOf(page)) return Door.idOf(page);
+    const made = await Door.write.createPage(title ?? await Door.dates.titleFor(day, ask), {}, { redirect: false, createFirstBlock: false, journal: true });
+    return made?.id ?? null;
+  },
 };
 /* What opens rolls out (the grammar), as Threads' section does: the room it takes grows from nothing in 180 ms while it fades
    in, so what is below glides down instead of jumping; closing rolls it back up before it goes. One motion for every module,

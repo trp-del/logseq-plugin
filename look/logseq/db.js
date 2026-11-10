@@ -3,9 +3,7 @@
    Logseq's own editor calls. */
 (function () {
 const Look = window.Look;
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const bare = value => String(value ?? '').replace(/^:/, '');
-const query = async q => { const rows = await logseq.DB.datascriptQuery(q); return Array.isArray(rows) ? rows : []; };
+const { UUID, bare, query } = window.PluginDoor;   // the small readers every module shares (plugin.js)
 const EXTENDS = 'logseq.property.class/extends';
 // Logseq's kinds of page say what a page is, not a tag of yours.
 const PAGE_KINDS = new Set(['logseq.class/Page', 'logseq.class/Journal', 'logseq.class/Tag', 'logseq.class/Property', 'logseq.class/Whiteboard']);
@@ -71,7 +69,7 @@ async function propIndex() {
     query(`[:find ?p :where [?v :block/closed-value-property ?p]]`),
   ]);
   const withChoices = new Set(choices.map(([p]) => p));
-  const pick = (node, name) => node?.[name] ?? node?.[':' + name] ?? node?.[name.slice(name.indexOf('/') + 1)];
+  const { pick } = window.PluginDoor;
   const byTitle = new Map();
   for (const [p] of rows) {
     const id = pick(p, 'db/id'), title = String(pick(p, 'block/title') || '');
@@ -85,7 +83,7 @@ async function propIndex() {
 /* What folded nodes hold, at any depth: how many unfinished tasks, how many files of each kind (picture, PDF, other),
    how many quotes, the tags inside (most used first, no numbers), and the nearest due day of an unfinished
    task. A picture shown twice, or a passage cited twice, counts once. */
-const dayNumber = d => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+const dayNumber = window.PluginDoor.dates.number;
 async function heldBelow(uuids) {
   const list = [...new Set(uuids)].map(String).filter(u => UUID.test(u));
   const held = new Map();
@@ -128,7 +126,7 @@ async function heldBelow(uuids) {
   for (const [b, q] of quoteRows) add(quoteOf, b, q);
   for (const [b, a, type] of fileRows) {
     if (quoteOf.has(b) || quoteOf.has(parentOf.get(b))) continue;
-    const t = String(type).replace(/^:/, '').toLowerCase();
+    const t = bare(type).toLowerCase();
     add(filesOf, b, [t === 'pdf' ? 'pdf' : /^(png|jpe?g|gif|webp|svg|avif|heic|bmp|tiff?)$/.test(t) ? 'image' : 'file', a]);
   }
   for (const [u, r] of roots) {

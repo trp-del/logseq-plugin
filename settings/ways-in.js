@@ -45,7 +45,7 @@ function addMenuItem(menu) {
   item.addEventListener('click', event => {
     event.preventDefault(); event.stopPropagation();
     // Escape closes the menu the way Logseq's own items do.
-    menu.dispatchEvent(new (doc.defaultView.KeyboardEvent)('keydown', { key: 'Escape', bubbles: true }));
+    Door.screen.key(menu, 'Escape');
     open();
   });
   (plugins || items[items.length - 1]).after(item);
@@ -75,7 +75,7 @@ function addPlaces(menu) {
     item.addEventListener('pointerleave', () => item.removeAttribute('data-highlighted'));
     item.addEventListener('click', event => {
       event.preventDefault(); event.stopPropagation();
-      menu.dispatchEvent(new (doc.defaultView.KeyboardEvent)('keydown', { key: 'Escape', bubbles: true }));
+      Door.screen.key(menu, 'Escape');
       run();
     });
     return item;
@@ -102,7 +102,7 @@ const ICON_ATTR = 'data-lk-menu-icon';
 const SWAP = { Recycle: 'recycle' };
 function iconRules(doc, size, width, gap) {
   let sheet = doc.getElementById('lk-menu-icons');
-  if (!sheet) { sheet = doc.createElement('style'); sheet.id = 'lk-menu-icons'; doc.head.appendChild(sheet); }
+  if (!sheet) sheet = Door.root.sheet('lk-menu-icons', null, '', doc);
   if (sheet.dataset.size === `${size}/${width}/${gap}`) return;
   const probe = doc.createElement('i'); probe.className = 'ti'; probe.style.cssText = 'position:absolute;visibility:hidden'; doc.body.appendChild(probe);
   const rules = [];
@@ -155,27 +155,23 @@ function addPageIcons(menu) {
 // Every menu Logseq opens (the ··· menu, a bullet's, a page's in the left sidebar), each time it opens.
 const MENU = '.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content, .ui__context-menu-sub-content';
 const menusPass = doc => { for (const menu of doc.querySelectorAll(MENU)) if (menu.querySelector('[role="menuitem"]:not([data-lk-menu-icon]):not(:has(.ui__icon, i.ti))')) addPageIcons(menu); };
-let offMenus = null;
-function onDots(event) {
+let offs = [];
+// The menu is looked for once a frame for half a second (the screen door's wait), so the lines are in it before it is first drawn.
+async function onDots(event) {
   if (!event.target.closest?.('.toolbar-dots-btn')) return;
-  const doc = host(), win = doc.defaultView;
-  let tries = 0;
-  const look = () => {
-    const menu = [...doc.querySelectorAll('[role="menu"]')].find(m => m.querySelector('[role="menuitem"]'));
-    if (menu) { if (!menu.querySelector(`.${ITEM_CLASS}[data-copy="${COPY}"]`)) addMenuItem(menu); if (!menu.querySelector(`.${PLACE_CLASS}[data-copy="${COPY}"]`)) addPlaces(menu); }
-    else if (++tries < 30) win.requestAnimationFrame(look);
-  };
-  win.requestAnimationFrame(look);
+  const doc = host();
+  const menu = await Door.screen.waitFor(() => [...doc.querySelectorAll('[role="menu"]')].find(m => m.querySelector('[role="menuitem"]')), 500, { frames: true });
+  if (!menu) return;
+  if (!menu.querySelector(`.${ITEM_CLASS}[data-copy="${COPY}"]`)) addMenuItem(menu);
+  if (!menu.querySelector(`.${PLACE_CLASS}[data-copy="${COPY}"]`)) addPlaces(menu);
 }
 
 function start() {
   const doc = host();
   // g then , ("go to settings", as Cmd-, in a Mac app): two keys, as Logseq's own g pairs, pressed outside a bullet.
   logseq.App.registerCommandPalette({ key: 'plugin-settings', label: LABEL, keybinding: { binding: 'g ,' } }, open);
-  logseq.provideStyle({ key: 'plugin-settings-menu', style: `:is(.${ITEM_CLASS}, .${PLACE_CLASS})[data-highlighted] { background: color-mix(in srgb, currentColor 7%, transparent); }` });
-  doc.addEventListener('click', onGear, true);
-  doc.addEventListener('click', onDots, true);
-  offMenus = Door.watch(menusPass);
+  Door.root.style('plugin-settings-menu', `:is(.${ITEM_CLASS}, .${PLACE_CLASS})[data-highlighted] { background: color-mix(in srgb, currentColor 7%, transparent); }`);
+  offs = [Door.root.listen(doc, 'click', onGear, true), Door.root.listen(doc, 'click', onDots, true), Door.root.watch(menusPass)];
 }
 // A reload pressed in the window comes back to the window, at the part it was on, once the parts have started.
 function reopen() {
@@ -186,12 +182,10 @@ function reopen() {
 }
 function stop() {
   const doc = host();
-  doc.removeEventListener('click', onGear, true);
-  doc.removeEventListener('click', onDots, true);
+  for (const off of offs.splice(0)) off();
   for (const item of doc.querySelectorAll(`.${ITEM_CLASS}, .${PLACE_CLASS}`)) item.remove();
   for (const item of doc.querySelectorAll(`[${ICON_ATTR}]`)) item.removeAttribute(ICON_ATTR);
   doc.getElementById('lk-menu-icons')?.remove();
-  offMenus?.(); offMenus = null;
   Door.settings.stop();
 }
 Door.settingsWays = { start, reopen, stop };

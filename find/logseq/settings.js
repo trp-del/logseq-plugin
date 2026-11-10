@@ -9,7 +9,7 @@ const schema = [
   { key: 'rowsShown', type: 'number', default: 12, title: 'Rows before “show all”',
     description: 'How many matches are listed at first; “show all” lists the rest.' },
 ];
-const setting = key => { const item = schema.find(s => s.key === key); const v = logseq.settings?.[key]; return item && typeof v === typeof item.default ? v : item?.default; };
+const setting = Find.kit.setting;   // the saved value, or the schema's default (the base's reader, plugin.js)
 // One specimen, the keys: it is the thing itself. The other two settings are their own specimen (a word, a number).
 const SPECIMENS = {
   windowPlace: v => `<span style="display:block;width:150px;height:62px;border:1px solid var(--lk-hair);border-radius:4px;position:relative"><span style="position:absolute;left:25%;width:50%;height:20px;border:1px solid var(--lk-line);border-radius:3px;top:${v === 'centred' ? 20 : 6}px;background:var(--lk-wash)"></span></span>`,

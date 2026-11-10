@@ -95,7 +95,7 @@ const modelWords = s => {
 const model = { last: null, at: 0 };
 function modelLine() {
   const doc = window.parent.document;
-  if (!model.guarded) { model.guarded = true; doc.addEventListener('click', event => { if (event.target.closest?.('.pr-model')) event.preventDefault(); }, true); }
+  if (!model.guarded) { model.guarded = true; Flow.app.listen(doc, 'click', event => { if (event.target.closest?.('.pr-model')) event.preventDefault(); }, true); Flow.app.onStop(() => { model.guarded = false; }); }
   if (Date.now() - model.at > 2000 && Flow.modelAsk?.status) {
     model.at = Date.now();
     Flow.modelAsk.status().then(s => {
@@ -114,9 +114,10 @@ async function main() {
   logseq.App.registerCommandPalette({ key: 'flow-model-speed', label: 'Predictive: how fast is Apple’s model?' }, speedCommand);
   logseq.App.registerCommandPalette({ key: 'flow-model-measure', label: 'Predictive: measure Apple’s tools on this graph' }, () => Flow.measureUi.open());
   logseq.App.registerCommandPalette({ key: 'flow-reread', label: 'Predictive: read the graph again' }, async () => { Flow.app.forget(); await Flow.app.context(); Flow.app.notify('Read the graph again.'); });
-  logseq.DB.onChanged(({ blocks }) => Flow.app.learnSoon(blocks));
-  logseq.onSettingsChanged?.((now, before) => { if (!window.PluginDoor.settingChanged(['tagEagerness'], now, before)) return; const ctx = Flow.app.state.ctx; if (ctx) Object.assign(ctx.limits, Flow.app.tagLimits()); });   // applies at once, no new reading
-  logseq.App.onCurrentGraphChanged(() => Flow.app.forget());
+  const { onStop } = Flow.app;
+  onStop(logseq.DB.onChanged(({ blocks }) => Flow.app.learnSoon(blocks)));
+  onStop(logseq.onSettingsChanged?.((now, before) => { if (!window.PluginDoor.settingChanged(['tagEagerness'], now, before)) return; const ctx = Flow.app.state.ctx; if (ctx) Object.assign(ctx.limits, Flow.app.tagLimits()); }));   // applies at once, no new reading
+  onStop(logseq.App.onCurrentGraphChanged(() => Flow.app.forget()));
   Flow.app.context().catch(() => {});   // the first reading starts at once and is never waited for while typing
   await Flow.linkUi.start();
   Flow.tagPick.start();   // before the proposals: its keys are looked at first
@@ -126,7 +127,7 @@ async function main() {
   Flow.steps.start();
   Flow.typedCaseUi.start();
 }
-const stop = () => { Flow.app.stopAll(); };
+const stop = () => Flow.app.stopAll();
 // The window's order: what is proposed, the suggested links, then the keys together (the links' keys among them).
 const row = (key, title) => ({ ...Flow.settingsSchema.find(item => item.key === key), ...(title ? { title } : {}) });
 window.PluginDoor.describe('predictive', {

@@ -5,12 +5,13 @@
 (function () {
 const E = (window.DbExport ||= {});
 const { doc: D } = E;
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// DB Export's base (plugin.js, Door.base): its window's listeners on Logseq's page, Logseq's hooks and its stylesheet, taken off at stop.
+E.base = window.PluginDoor.base('export', { prefix: 'DB Export: ' });
+const { UUID } = window.PluginDoor;
 const IMAGE = /^(png|jpe?g|gif|webp|svg|avif|heic|bmp|tiff?)$/i;
 
-const dsQuery = async query => { const rows = await logseq.DB.datascriptQuery(query); return Array.isArray(rows) ? rows : []; };
-const idOf = v => typeof v === 'number' ? v : (v && typeof v === 'object' ? v.id ?? v['db/id'] ?? v[':db/id'] ?? null : null);
-const keyName = v => String(v ?? '').replace(/^:/, '');
+const dsQuery = window.PluginDoor.query, keyName = window.PluginDoor.bare;
+const idOf = v => window.PluginDoor.idOf(v) ?? null;   // null, not undefined, where a thing has no number
 const ground = (variable, values) => `[(ground [${values.join(' ')}]) [${variable} ...]]`;
 const uuidsOf = list => [...new Set(list.map(u => String(u).toLowerCase()))].filter(u => UUID.test(u));
 // An attribute by its ident, or by its last part: Logseq's API hands :block/tags back as "tags" (seen 2026-10-29).

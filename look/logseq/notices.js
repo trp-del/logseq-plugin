@@ -39,7 +39,7 @@ function time(toast) {
     timers.delete(id);
     if (!toast.isConnected || !setting('quietNotices')) return;
     if (toast.matches(':hover, :focus-within, [data-limited]') || toast.closest(V)?.matches(':hover')) return time(toast);
-    toast.querySelector('.ui__toast-close')?.click();
+    window.PluginDoor.screen.click(toast.querySelector('.ui__toast-close'));
   }, LAST);
   timers.add(id);
 }

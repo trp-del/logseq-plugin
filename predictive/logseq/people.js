@@ -5,7 +5,7 @@
 const Flow = (window.Flow ||= {});
 const { app, people } = Flow;
 
-const HELPER = 'http://127.0.0.1:47615', LOOK_AGAIN = 30000, MOST_TITLES = 30, KEEP = 60;
+const { HELPER } = window.PluginDoor, LOOK_AGAIN = 30000, MOST_TITLES = 30, KEEP = 60;
 const S = { ready: null, at: 0, checking: null, kinds: null, answers: new Map() };
 
 async function ready() {

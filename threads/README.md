@@ -45,7 +45,7 @@ How the section's pieces look (a tag in mono, the underline a node's name takes 
 
 | Part | What it is | Needed by two-way? |
 |---|---|---|
-| `shared.js` | the kit: where the library's pieces stand in Threads (outline lines, pop-ups, fields, tick boxes, Undo), the icons | yes |
+| `shared.js` | the kit: where the library's pieces stand in Threads (outline lines, pop-ups, fields, tick boxes, Undo), the icons; its plumbing (clean-up, warnings, settings, the screen door) is the door's since 10 November 2026 | yes |
 | `model.js` | the one place that reads and writes the graph | yes |
 | `diagnostics.js` | troubleshooting commands (what the plugin finds on this page, warnings, the tour) | yes (foundation) |
 | `two-way.js` | the two-way section: the rows, their drawing, the page's settling, the clicks and the start; its pieces in `two-way/`, loaded after it and meeting it through one bag (`twoWay`): `look.js` (the stylesheets), `group.js` (grouping, folds), `find.js` (the find line, the day and the page it reads out of the words), `peek.js` (the hover card), `dig.js` (a node opened in place, the shift, the trail, writing into a node), `add.js` (the **+** line), `pick.js` (the tick boxes, the bar, Delete), `beside.js` (two pages side by side), `more.js` (Threads Forty's new things on a list) | the feature |

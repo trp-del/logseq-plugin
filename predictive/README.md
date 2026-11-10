@@ -116,7 +116,7 @@ core/        pure: no Logseq, no screen. Runs in Node, so it is tested there.
   score.js     leave-one-out scorer and tuner
 logseq/      the only code that knows Logseq
   db.js        reads Logseq into the core's data; the writes
-  app.js       settings, the context kept fresh, shared helpers
+  app.js       Predictive's base on the door (settings, listeners, stylesheets), the context kept fresh
   link-ui.js   the grey words and the keys
   propose-ui.js proposals drawn in Logseq's property pills, leaving a bullet, writing, Undo
   model.js     asking the helper, once typing pauses; silent when it is not there

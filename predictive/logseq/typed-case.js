@@ -32,8 +32,7 @@ function showTyped(box) {
   const shown = asTyped(box.value);
   if (!shown) return;
   const [start, end] = [box.selectionStart, box.selectionEnd];
-  Object.getOwnPropertyDescriptor(box.ownerDocument.defaultView.HTMLTextAreaElement.prototype, 'value').set.call(box, shown.text);
-  box.dispatchEvent(new box.ownerDocument.defaultView.InputEvent('input', { bubbles: true, inputType: 'insertReplacementText' }));
+  window.PluginDoor.screen.typeInto(box, shown.text, { inputType: 'insertReplacementText' });
   box.setSelectionRange(shown.at(start), shown.at(end));
 }
 
@@ -112,8 +111,8 @@ function start() {
   const doc = app.host(), win = doc.defaultView || window.parent;
   app.listen(win, ['focusin'], event => { showTyped(event.target); look(event.target); }, true);
   app.listen(win, ['input'], event => look(event.target), true);
-  const unwatch = window.PluginDoor.watch(onScreen, { early: true });
-  app.onStop(() => { clearInterval(timer); timer = 0; sessions.clear(); drawing.clear(); unwatch(); });
+  app.watch(onScreen, { early: true });
+  app.onStop(() => { clearInterval(timer); timer = 0; sessions.clear(); drawing.clear(); });
   if (doc.activeElement) { showTyped(doc.activeElement); look(doc.activeElement); }
 }
 

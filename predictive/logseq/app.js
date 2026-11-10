@@ -5,13 +5,12 @@ const Flow = (window.Flow ||= {});
 const { db } = Flow;
 
 const { host, notify } = window.PluginDoor;
-const warned = new Set();
-const warnOnce = (what, error) => { if (warned.has(what)) return; warned.add(what); console.warn(`Flow: ${what}`, error || ''); };
-
-// Settings. The schema (settings.js) holds the defaults; the plugin's own memory (what was taken, what was tuned) lives in
-// keys the schema does not show.
-const defaults = () => Object.fromEntries((Flow.settingsSchema || []).filter(s => s.type !== 'heading').map(s => [s.key, s.default]));
-const setting = key => { const v = logseq.settings?.[key]; return v === undefined || v === null ? defaults()[key] : v; };
+/* Predictive's base (plugin.js, Door.base): a warning written once, its settings read with their defaults, its stylesheets sent
+   only when changed, its listeners on Logseq's window and its clean-up steps, taken off and run when the plugin stops.
+   Settings: the schema (settings.js) holds the defaults; the plugin's own memory (what was taken, what was tuned) lives in keys
+   the schema does not show. */
+const base = window.PluginDoor.base('predictive', { prefix: 'Flow: ', schema: () => Flow.settingsSchema });
+const { warnOnce, setting, listen, onStop } = base;
 const remember = (key, value) => logseq.updateSettings({ [key]: value });
 
 const state = { ctx: null, loading: null, graph: '', generation: 0, pages: { at: 0, list: null, loading: null } };
@@ -61,13 +60,7 @@ async function context({ wait = true } = {}) {
 }
 /* The date format Logseq names new journal days in (Settings, Editor), so a day is pencilled as it will be written. Read
    again when it is a second old: a change there shows at the next pause in typing, with nothing to reload. */
-const format = { value: '', at: 0, asking: null };
-async function dateFormat() {
-  if (Date.now() - format.at < 1000) return format.value;
-  format.asking ||= logseq.App.getUserConfigs().then(c => c?.preferredDateFormat || '', () => format.value)
-    .then(value => { format.value = value; format.at = Date.now(); format.asking = null; return value; });
-  return format.asking;
-}
+const dateFormat = () => window.PluginDoor.dates.format();   // the door's date service (plugin.js)
 const forget = () => { state.generation++; state.ctx = null; Flow.meaningAsk?.forget(); Flow.peopleAsk?.forget(); state.loading = null; state.pages.list = null; state.pages.at = 0; state.pages.loading = null; learning.ids.clear(); clearTimeout(learning.timer); db.forget(); };
 
 // The page list for suggested links, read again at most every 30 s, so a page made a moment ago is offered soon.
@@ -113,9 +106,8 @@ function learnSoon(blocks) {
 }
 
 // The floating things of Logseq itself (a list, a menu, a picker, a window) have the keys while they are open.
-const LOGSEQ_POPUPS = '.cp__select, .ui__popover-content, [data-radix-popper-content-wrapper], .ui__modal-panel, .ui__modal, [role="menu"], [role="dialog"], [role="listbox"]';
-const floating = el => el.getClientRects().length > 0 && !el.closest('#right-sidebar, #main-content-container, #left-sidebar, .cp__header');
-const popupOpen = (doc = host()) => [...doc.querySelectorAll(LOGSEQ_POPUPS)].some(floating);
+// Asked of the door's screen door (plugin.js); a pop-up of the plugin's own counts too.
+const popupOpen = (doc = host()) => window.PluginDoor.screen.popupOpen(null, doc, { own: true });
 // A bullet's own box only: never a page's title or a property's value.
 // A table's cell being written (.ls-table-block, the editor Logseq opens over a table row) is a plain edit: nothing is pencilled in
 // there (the owner, 8 November 2026: "remove the suggestion row in the edit", a screenshot of a Name cell being written).
@@ -123,7 +115,7 @@ const NOT_A_BULLET = '.ls-page-title, .page-title, h1.title, .property-pair, .bo
 const isBlockBox = node => node?.tagName === 'TEXTAREA' && !!node.closest('.ls-block') && !node.closest(NOT_A_BULLET);
 const uuidOf = box => box?.closest('.ls-block[blockid]')?.getAttribute('blockid') || '';
 // Logseq's own lists while writing ([[ pages, / commands, #tags): they have the keys.
-const editorPopupOpen = (doc = host()) => !!doc.querySelector('#ui__ac, .absolute-modal, [data-editor-popup-ref]');
+const editorPopupOpen = (doc = host()) => window.PluginDoor.screen.editorPopupOpen(doc);
 
 // A key as the settings spell it ("mod+alt+enter"; mod is Cmd on a Mac and Ctrl elsewhere): does the event match? Empty: never.
 const isMac = () => /Mac|iPhone|iPad/.test(String(window.navigator?.platform || host().defaultView?.navigator?.platform || ''));
@@ -139,15 +131,5 @@ function keyMatches(event, spec) {
   return got === (key === 'space' ? ' ' : key) || (code !== null && event.code === code);
 }
 
-// Stylesheets, sent again only when changed.
-const sent = new Map();
-function sendStyle(key, style) { if (sent.get(key) === style) return; sent.set(key, style); logseq.provideStyle({ key, style }); }
-
-// A listener on Logseq's window, taken off when the plugin stops.
-const cleanups = [];
-function listen(win, types, fn, options) { for (const t of types) { win.addEventListener(t, fn, options); cleanups.push(() => win.removeEventListener(t, fn, options)); } }
-const onStop = fn => cleanups.push(fn);
-const stopAll = () => { while (cleanups.length) { try { cleanups.pop()(); } catch (error) { /* going away anyway */ } } };
-
-Flow.app = { tagLimits, host, warnOnce, notify, setting, remember, state, graphName, allowed, context, forget, pages, freshLinks, learnSoon, popupOpen, editorPopupOpen, keyMatches, isBlockBox, uuidOf, sendStyle, listen, onStop, stopAll, limitsFor };
+Flow.app = { watch: base.watch, sendStyle: base.style, sheet: base.sheet, stopAll: base.stop, tagLimits, host, warnOnce, notify, setting, remember, state, graphName, allowed, context, forget, pages, freshLinks, learnSoon, popupOpen, editorPopupOpen, keyMatches, isBlockBox, uuidOf, listen, onStop, limitsFor };
 })();

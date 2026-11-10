@@ -25,7 +25,7 @@ const BULLETS = 8;
 const topStep = () => state.steps[state.steps.length - 1] || null;
 const below = key => { const t = topStep(); return t?.key ? (key.startsWith(t.key + '>') ? pathOf(key).length - pathOf(t.key).length : -1) : pathOf(key).length; };
 // The core's uuid test; a drawing made before the part starts (the odd-names test) uses the same shape.
-const isUuid = text => (twoWay.UUID || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i).test(String(text || ''));
+const isUuid = text => (twoWay.UUID || window.PluginDoor.UUID).test(String(text || ''));
 const pathOf = key => key.split('>').slice(1);
 const parentKey = key => key.split('>').slice(0, -1).join('>');
 const onTheWay = (path, uuid) => path.includes(uuid) || uuid === state.pageUuid || state.steps.some(s => s.uuid === uuid);

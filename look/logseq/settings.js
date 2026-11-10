@@ -74,7 +74,7 @@ const schema = [
   { key: 'quietNotices', type: 'boolean', default: true, title: 'Small notices at the bottom',
     description: 'A notice, Logseq’s own or the plugin’s, is a small capsule of words at the bottom centre of the window, where Logseq puts a large card under the toolbar at the top right. Every notice goes after four seconds, a failure too, and stays while you point at it; its × still closes it at once.' },
 ];
-const setting = key => { const item = schema.find(s => s.key === key); const v = logseq.settings?.[key]; return item && typeof v === typeof item.default ? v : item?.default; };
+const setting = Look.kit.setting;   // the saved value, or the schema's default (the base's reader, plugin.js)
 /* The specimens the settings window shows: each setting as the thing itself, drawn with Look's own pieces as it will look
    with the setting on, and as Logseq leaves it with the setting off. */
 const link = (name, sort, on = true) => `<span class="lk-node${on ? '' : ' sw-blue'}">${name}</span>`;   // sort: kept for the callers, no mark is drawn

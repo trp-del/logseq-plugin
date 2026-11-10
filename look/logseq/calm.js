@@ -176,14 +176,14 @@ function place(doc) {
     node.setAttribute('data-lk-wide', out + ',' + wide);
   }
 }
-let watching = false, onResize = null;
+let watching = false;
 function apply() {
   for (const [key, css] of Object.entries(PARTS)) style(key, setting(key) ? css : '');
   style('readingWidth', reading() ? widthCss(reading()) : '');
   const doc = Look.kit.host();
-  if (!watching) { watching = true; Look.kit.watchScreen(place, place); onResize = () => place(doc); doc.defaultView.addEventListener('resize', onResize); }
+  if (!watching) { watching = true; Look.kit.watchScreen(place, place); Look.kit.listen(doc.defaultView, 'resize', () => place(doc)); }
   place(doc);
 }
-function stop() { if (onResize) Look.kit.host().defaultView.removeEventListener('resize', onResize); onResize = null; watching = false; }
+function stop() { watching = false; }   // the pass and the listener go with Look's base
 Look.calm = { apply, stop };
 })();

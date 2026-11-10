@@ -67,13 +67,7 @@ const take = source => { if (source.pdf || source.words) askPage(source); else w
 
 /* The words go in through the box, where the /Cite was, as if typed, so Logseq keeps them with the rest and its own Undo holds. */
 function typeIn(box, at, text) {
-  const doc = box.ownerDocument;
-  box.focus(); box.setSelectionRange(at, at);
-  let typed = false;
-  try { typed = doc.execCommand('insertText', false, text); } catch (error) { typed = false; }
-  if (typed) return;
-  box.setRangeText(text, at, at, 'end');
-  box.dispatchEvent(new doc.defaultView.InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
+  window.PluginDoor.screen.insert(box, text, at, at);
 }
 const citation = (uuid, page) => `([[${uuid}]]${page ? `, p. ${page}` : ''})`;
 // A link and italic words are drawn by Logseq as elements of their own, which is what lets Look find them as it finds a [[link]].
@@ -181,7 +175,7 @@ function start() {
   app.listen(win, ['keydown'], onKey, true);
   app.listen(win, ['pointerdown', 'mousedown', 'mouseup', 'click'], onPress, true);
   app.listen(win, ['click'], onCitationPress, true);
-  logseq.App.onRouteChanged?.(close);
+  app.onStop(logseq.App.onRouteChanged?.(close));
   if (!registered) { registered = true; logseq.Editor.registerSlashCommand('Cite', show); }   // Logseq keeps it for as long as the plugin runs
 }
 Flow.cite = { start, close, finds, citation, offer, wording, goToPage, state: () => open };

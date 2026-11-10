@@ -9,7 +9,7 @@
 const Flow = (window.Flow ||= {});
 const { app, meaning } = Flow;
 
-const HELPER = 'http://127.0.0.1:47615', LOOK_AGAIN = 30000, SLICE = 400, KEEP = 60;
+const { HELPER } = window.PluginDoor, LOOK_AGAIN = 30000, SLICE = 400, KEEP = 60;
 const S = { ready: null, at: 0, checking: null, taught: null, teaching: null, answers: new Map(), graph: '' };
 
 // Whether the helper is there with the matcher, looked at again every 30 seconds. Shares the setting with Apple's model.

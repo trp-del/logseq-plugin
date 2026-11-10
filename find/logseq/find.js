@@ -647,7 +647,7 @@ function drawLine(doc) {
     if (labelMonths) parts.push(`<text x="${(xm(m) + 2).toFixed(1)}" y="${Y + 20}">${Find.sentence.SHORT[m % 12]}</text>`);
     if (jan && (labelMonths || n <= 120)) parts.push(`<text x="${(xm(m) + (labelMonths ? 0 : 2)).toFixed(1)}" y="${S.line ? 14 : Y - 20}">${Math.floor(m / 12)}</text>`);
   }
-  const today = new Date(), t = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+  const today = new Date(), t = window.PluginDoor.dates.number(today);
   if (month(t) >= lo && month(t) <= hi) parts.push(`<line class="fd-today" x1="${x(t).toFixed(1)}" y1="${S.line ? top - 2 : Y - 11}" x2="${x(t).toFixed(1)}" y2="${Y + 11}"/><text x="${(x(t) + 6).toFixed(1)}" y="${S.line ? top - 5 : Y - 14}">today</text>`);
   if (!S.line) {
     const seen = new Set();
@@ -1020,8 +1020,7 @@ function open(typed = '', say = false) {
   dlg.append(find, el(doc, 'div', { class: 'fd-line' }), el(doc, 'div', { class: 'fd-body' }), el(doc, 'div', { class: 'fd-foot' }));
   // The keys are taken at the document, before Logseq's own handlers see them (a Tab that reached Logseq first never
   // came back); only keys from inside the window are taken.
-  S.keys = event => { if (S.dlg === dlg && dlg.contains(event.target)) onKey(event); };
-  doc.addEventListener('keydown', S.keys, true);
+  S.keys = Find.kit.listen(doc, 'keydown', event => { if (S.dlg === dlg && dlg.contains(event.target)) onKey(event); }, true);   // what takes the listener off again
   for (const type of ['keyup', 'keypress']) dlg.addEventListener(type, event => event.stopPropagation());
   dlg.addEventListener('click', () => input.focus(), true);   // whatever was pressed, the keyboard stays in the one box
   dlg.addEventListener('click', event => { if (event.target === dlg) close(); });
@@ -1041,7 +1040,7 @@ function open(typed = '', say = false) {
 function close() {
   if (!S.dlg) return;
   const d = S.dlg; S.dlg = null;
-  if (S.keys) { S.doc?.removeEventListener('keydown', S.keys, true); S.keys = null; }
+  if (S.keys) { S.keys(); S.keys = null; }
   try { d.close(); } catch (error) { /* not open */ }
   d.remove();
 }
