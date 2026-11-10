@@ -54,7 +54,7 @@ else
 fi
 
 # 7. The odd names, drawn (tools/odd-text-test.js), in a real browser where Playwright and Chromium are installed; skipped quietly elsewhere.
-if command -v node >/dev/null 2>&1 && [ $full -eq 1 ]; then
+if command -v node >/dev/null 2>&1; then
   node tools/odd-text-test.js || problem "odd names broke a drawing (see above)"
 fi
 
@@ -64,13 +64,15 @@ if command -v node >/dev/null 2>&1 && [ $full -eq 1 ]; then
   node tools/frames.js || problem "a frame test failed: something the plugin draws jumped, flashed or changed (see check.log/frames/; approve a meant change with node tools/frames.js --approve after looking)"
 fi
 # 8b. Pictures of what the plugin draws (tools/pictures.js), light and dark, compared with the approved ones in test/pictures/.
-if command -v node >/dev/null 2>&1 && [ $full -eq 1 ]; then
+#     Three seconds, so every run (9 November 2026: run only with --full, they had gone two days out of date unnoticed).
+if command -v node >/dev/null 2>&1; then
   node tools/pictures.js || problem "a picture changed (see above); look at check.log/pictures/, and approve it with node tools/pictures.js --approve only if the change was meant"
 fi
 
 # 9. The two-way rows against the real Illness Test Graph (tools/two-way-check.js), through Logseq's command line;
-#    skipped quietly where the command line or the graph cannot be read.
-if command -v node >/dev/null 2>&1 && node -e "require('jsdom')" 2>/dev/null; then
+#    skipped quietly where the command line or the graph cannot be read. With --full only (9 November 2026): it fails
+#    whenever anyone is editing the test graph, so it belongs with the rounds in the app, not the routine run.
+if [ $full -eq 1 ] && command -v node >/dev/null 2>&1 && node -e "require('jsdom')" 2>/dev/null; then
   node tools/two-way-check.js || problem "the two-way rows differ from the graph (see above)"
 fi
 
