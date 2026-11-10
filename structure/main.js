@@ -238,6 +238,8 @@ async function main() {
   // In Logseq's ··· menu, where the plugin's places stand (the owner, 9 November 2026), the map and the inspector.
   const { onStop } = S.base;
   onStop(window.PluginDoor.addMenuItem({ key: 'structure', label: 'Structure', icon: 'sitemap', run: () => app.openMain() }));
+  // Look's × on a tag's own page asks for the tag to leave its place: the map asks first (askTakeOut).
+  onStop(window.PluginDoor.offerAsk('structure.takeOut', (tagUuid, parentUuid) => app.askTakeOut(tagUuid, parentUuid)));
   onStop(window.PluginDoor.addMenuItem({ key: 'inspector', label: 'Inspector', icon: 'info-circle', run: () => mounts.openInspector() }));
   logseq.App.registerUIItem('toolbar', { key: 'structure-open', template: window.PluginDoor.toolbarButton('structureOpen', 'Structure: the map of tags and properties', 'structure') });
   onStop(logseq.DB.onChanged(change => graphChanged(change)));

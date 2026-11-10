@@ -148,6 +148,15 @@ Door.write = {
     return async () => { if (await read() !== was) return 'kept'; return undo(); };
   },
 };
+/* What one module asks of another goes through here, never by a name on the window (10 November 2026; Look's × on a tag's page
+   called Structure straight). The module that answers offers the ask by name as it starts and gets back what takes it off at
+   stop; Door.ask(name, ...args) runs it and resolves to its answer, or to Door.UNANSWERED when no module offers it (the one that
+   would is switched off or has not started). Door.answers(name) says whether one does. */
+const offeredAsks = new Map();
+Door.UNANSWERED = Symbol('unanswered');
+Door.offerAsk = (name, fn) => { offeredAsks.set(name, fn); return () => { if (offeredAsks.get(name) === fn) offeredAsks.delete(name); }; };
+Door.answers = name => offeredAsks.has(name);
+Door.ask = async (name, ...args) => { const fn = offeredAsks.get(name); return fn ? fn(...args) : Door.UNANSWERED; };
 // Whether a module is switched on (its switch in the settings). The switches are read as the plugin starts.
 Door.runs = key => logseq.settings?.[key + 'On'] !== false;
 /* The day a node shows, from its date properties ([node, day, the property's name]): the one titled Date, whatever its ident, else
@@ -451,8 +460,9 @@ Door.HELPER = 'http://127.0.0.1:47615';
      format()                the format the open graph names new journal days in (Settings, Editor), read again when a second
                              old, so a change there shows with nothing to reload;
      titleFor(day, ask)      the title of a day's journal page: the page's own when the graph has it, else as it will be named;
-     pageFor(day, ask, title)  the journal page of a day, its number in the graph, made when the graph has none yet (under the
-                             title given, else as titleFor names it);
+     page(day, ask)          the journal page of a day: { id, made }, made by Logseq's own journal call when the graph has none
+                             yet (made: its uuid, for an Undo that takes it back; null when it was there);
+     pageFor(day, ask)       the same, its number in the graph alone;
      forget()                another graph opened: its format is read afresh. */
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -493,12 +503,15 @@ Door.dates = {
     } catch (error) { /* no such journal yet: as it will be named */ }
     return Door.dates.title(Door.dates.date(day), await Door.dates.format() || 'MMM do, yyyy');
   },
-  async pageFor(day, ask = Door.query, title) {
-    const [[page] = []] = await ask(`[:find (pull ?p [:db/id]) :where [?p :block/journal-day ${Number(day)}]]`) || [];
-    if (page && Door.idOf(page)) return Door.idOf(page);
-    const made = await Door.write.createPage(title ?? await Door.dates.titleFor(day, ask), {}, { redirect: false, createFirstBlock: false, journal: true });
-    return made?.id ?? null;
+  async page(day, ask = Door.query) {
+    const look = async () => { const [[page] = []] = await ask(`[:find (pull ?p [:db/id]) :where [?p :block/journal-day ${Number(day)}]]`) || []; return page ? Door.idOf(page) : null; };
+    const found = await look();
+    if (found) return { id: found, made: null };
+    // Logseq's own journal call: it names the page in the graph's format and marks it a journal day itself (10 November 2026).
+    const made = await Door.write.createJournalPage(Door.dates.date(day));
+    return { id: made?.id ?? await look(), made: made?.uuid ? String(made.uuid) : null };
   },
+  async pageFor(day, ask = Door.query) { return (await Door.dates.page(day, ask)).id; },
 };
 /* What opens rolls out (the grammar), as Threads' section does: the room it takes grows from nothing in 180 ms while it fades
    in, so what is below glides down instead of jumping; closing rolls it back up before it goes. One motion for every module,
@@ -531,7 +544,7 @@ Door.regrow = (el, from, ms = MOTION_MS) => {
 // The Undo arrow: the grammar's one shape, from Logseq's icon font. Its fade is the shared name lk-undo.
 Door.UNDO = '<i class="ti ti-arrow-back-up" aria-hidden="true"></i>';
 /* THE Undo of the plugin, one for every module (6 November 2026; until then Threads, Predictive and Structure each kept their own;
-   the logic is Threads' of 0.4.258, at the owner's word "make one pop-up, one Undo and one dialog"; the look the owner chose: "something
+   the logic is Threads', at the owner's word "make one pop-up, one Undo and one dialog"; the look the owner chose: "something
    just where text is but very subtle, like a faded icon"). After a change a faded arrow sits at the end of what changed and says what it
    takes back when pointed at; a click takes it back. One arrow stands for a change of one thing and one for a change of many things:
    a new change's arrow takes the place of the last one of its size (the grammar, and `many` below). A change offered again under the same key adds to that arrow: one click takes both back, the later first. When
@@ -688,11 +701,10 @@ Door.THEME = ':root { --lk-text: var(--ls-primary-text-color, hsl(var(--foregrou
 // underline of a link to a node, half a pixel (one dot of a sharp screen), so a stronger grey than the line to be seen
 // (at 16% it read as none, the owner 3 Nov 2026).
 const TOKENS = `
-:root { --lk-quiet: color-mix(in srgb, var(--lk-text, currentColor) 70%, transparent); --lk-faint: color-mix(in srgb, var(--lk-text, currentColor) 70%, transparent); --lk-off: color-mix(in srgb, var(--lk-text, currentColor) 46%, transparent);
+:root { --lk-quiet: color-mix(in srgb, var(--lk-text, currentColor) 70%, transparent); --lk-off: color-mix(in srgb, var(--lk-text, currentColor) 46%, transparent);
   --lk-hair: color-mix(in srgb, currentColor 12%, transparent); --lk-line: color-mix(in srgb, currentColor 26%, transparent);
   --lk-link: color-mix(in srgb, currentColor 45%, transparent); --lk-link-width: .5px;
   --lk-wash: color-mix(in srgb, currentColor 7%, transparent);
-  --lk-soft: color-mix(in srgb, var(--lk-text, currentColor) 70%, transparent); --lk-dim: color-mix(in srgb, var(--lk-text, currentColor) 70%, transparent);
   --lk-mono: var(--ls-font-family-mono, ui-monospace, "SF Mono", Menlo, Consolas, monospace);
   --lk-day: 48px;
   --lk-small: 13px; --lk-label: 12px; }`;
@@ -732,9 +744,9 @@ Door.NAMES = `${TOKENS}
 .lk-node { color: inherit; text-decoration: underline !important; text-decoration-color: var(--lk-link) !important; text-decoration-thickness: var(--lk-link-width) !important; text-underline-offset: 3px; cursor: pointer; }
 .lk-node:hover { text-decoration-color: currentColor !important; }
 .lk-prop { color: var(--lk-quiet); }
-.lk-day { color: var(--lk-faint) !important; font-size: var(--lk-small) !important; font-variant-numeric: tabular-nums; }
+.lk-day { color: var(--lk-quiet) !important; font-size: var(--lk-small) !important; font-variant-numeric: tabular-nums; }
 .lk-count { display: none !important; }
-.lk-pencil { font-style: italic !important; color: var(--lk-faint) !important; text-decoration: underline dotted !important; text-decoration-color: var(--lk-line) !important; text-underline-offset: 3px; background: none !important; }
+.lk-pencil { font-style: italic !important; color: var(--lk-quiet) !important; text-decoration: underline dotted !important; text-decoration-color: var(--lk-line) !important; text-underline-offset: 3px; background: none !important; }
 /* A pencilled tag fades once: the pencil's grey, not the tag's own fade on top of it. */
 .lk-pencil .lk-tag, .lk-tag.lk-pencil { opacity: 1; }
 .lk-undo { opacity: .28 !important; transition: opacity .15s; }
@@ -747,7 +759,7 @@ Door.NAMES = `${TOKENS}
 .lk-list .lk-tick { opacity: 0 !important; transition: opacity .12s; }
 .lk-list:hover .lk-tick, .lk-list:focus-within .lk-tick, .lk-list[data-picking] .lk-tick { opacity: .55 !important; }
 .lk-list .lk-tick:checked, .lk-list .lk-tick:hover { opacity: 1 !important; }
-.lk-name { font-size: var(--lk-label) !important; color: var(--lk-faint) !important; letter-spacing: .02em; font-weight: 400 !important; }
+.lk-name { font-size: var(--lk-label) !important; color: var(--lk-quiet) !important; letter-spacing: .02em; font-weight: 400 !important; }
 .lk-value:not(input) { color: inherit !important; cursor: pointer; }
 .lk-value:not(input):hover { color: var(--lk-quiet) !important; }
 .lk-value.off, input.lk-value::placeholder { color: var(--lk-off) !important; }
@@ -755,14 +767,14 @@ Door.NAMES = `${TOKENS}
 input.lk-value { cursor: text; border: 0; border-bottom: 1px solid transparent; border-radius: 0; padding: 0 0 1px; background: none; color: inherit; font: inherit; outline: none; box-shadow: none; }
 input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-shadow: none; }
 .lk-pick:not(:first-child) { border-left: 1px solid var(--lk-hair); }
-.lk-pick .lk-value svg { color: var(--lk-faint); }
+.lk-pick .lk-value svg { color: var(--lk-quiet); }
 /* The faint goes on each alternative, not on the line, so the one in force can take the text colour back. */
 .lk-alts { color: inherit !important; }
-.lk-alts > * { color: var(--lk-faint) !important; }
+.lk-alts > * { color: var(--lk-quiet) !important; }
 .lk-alts > *:hover, .lk-alts > .on { color: inherit !important; }
 .lk-accent { color: inherit !important; }
-.lk-accent kbd { font-weight: 400 !important; color: var(--lk-faint) !important; }
-.lk-close { color: var(--lk-faint) !important; }
+.lk-accent kbd { font-weight: 400 !important; color: var(--lk-quiet) !important; }
+.lk-close { color: var(--lk-quiet) !important; }
 .lk-close:hover, .lk-close:focus-visible { color: inherit !important; }
 .lk-btn, .lk-accent, .lk-lone, .lk-add, .lk-fix, .lk-x, .lk-plus, .lk-change, .lk-more, .lk-view, .lk-step, .lk-head, .lk-item { appearance: none; background: none; border: 0; font: inherit; cursor: pointer; border-radius: 4px; }
 .lk-btn, .lk-accent, .lk-lone, .lk-add, .lk-fix { border-radius: 1em; }
@@ -770,17 +782,17 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
 .lk-answers { flex-basis: 100%; margin-top: 4px; }
 .lk-btn { color: var(--lk-text, currentColor) !important; padding: 2px 6px; margin: 0 -6px; white-space: nowrap; }
 .lk-said { font-weight: 500; padding-right: 6px; color: var(--lk-text, currentColor); }
-.lk-hint { color: var(--lk-dim) !important; font-size: var(--lk-small); margin-left: auto; padding-left: 12px; white-space: nowrap; }
+.lk-hint { color: var(--lk-quiet) !important; font-size: var(--lk-small); margin-left: auto; padding-left: 12px; white-space: nowrap; }
 .lk-accent { cursor: pointer; border-radius: 1em; color: var(--lk-text, currentColor) !important; white-space: nowrap; }
 .lk-answers > .lk-accent { padding: 2px 6px; margin: 0 -6px; }
 .lk-big { appearance: none; border: 0; font: inherit; font-weight: 600; cursor: pointer; border-radius: 1em; padding: 3px 12px; margin-right: 8px; white-space: nowrap; background: color-mix(in srgb, var(--rx-blue-09, #0091ff) 80%, #000); color: #fff !important; }
 .lk-big:hover, .lk-big:focus-visible { background: color-mix(in srgb, var(--rx-blue-09, #0091ff) 68%, #000); outline: none; }
 .lk-lone { color: var(--lk-text, currentColor) !important; padding: 3px 6px; margin-left: -6px; white-space: nowrap; }
 .lk-fix { color: var(--lk-text, currentColor) !important; padding: 2px 6px; white-space: nowrap; }
-.lk-add, .lk-more { color: var(--lk-soft) !important; padding: 3px 0; }
+.lk-add, .lk-more { color: var(--lk-quiet) !important; padding: 3px 0; }
 .lk-more { text-decoration: underline !important; text-decoration-color: var(--lk-line) !important; text-underline-offset: 3px; }   /* it opens, so it reads as what opens */
 .lk-add:hover, .lk-more:hover, .lk-add:focus-visible, .lk-more:focus-visible { color: var(--lk-text, currentColor) !important; }
-.lk-x, .lk-plus, .lk-change { color: var(--lk-dim) !important; padding: 0 4px; }
+.lk-x, .lk-plus, .lk-change { color: var(--lk-quiet) !important; padding: 0 4px; }
 .lk-x:hover, .lk-plus:hover, .lk-change:hover, .lk-x:focus-visible, .lk-plus:focus-visible, .lk-change:focus-visible { color: var(--lk-text, currentColor) !important; background: var(--lk-wash); }
 /* Their mark alone (lk-i-plus, lk-i-chevron), no word after it. The faint grey sits close to the text colour, so the round wash is what
    shows the pointer has it, as on a level-3 button; a press that shows only near its holder (lk-reveal) takes it too, on the press itself. */
@@ -817,16 +829,16 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
 .lk-btn.lk-low[aria-pressed="true"] { font-weight: 600; }   /* a third-level press in force (a kind picked, a sort on) */
 .lk-row .lk-btn.lk-low { padding-block: 1px !important; }   /* on a row it takes the row's height, so the row never grows for it */
 .lk-views { display: flex; gap: 4px; }
-.lk-view { color: var(--lk-soft) !important; padding: 3px 8px; }
+.lk-view { color: var(--lk-quiet) !important; padding: 3px 8px; }
 /* The one in force reads at a glance (the owner, 6 November 2026: "you can hardly tell the selected heading"): full ink,
    and a line under the word in the text colour; the others stay grey. */
 .lk-view.on { color: var(--lk-text, currentColor) !important; font-weight: 500; text-decoration: underline !important; text-decoration-color: currentColor !important; text-decoration-thickness: 2px !important; text-underline-offset: 6px; }
 .lk-trail { display: flex; flex-wrap: wrap; gap: 2px 6px; align-items: center; font-size: var(--lk-small); }
-.lk-trail > :not(.lk-step) { color: var(--lk-dim); }
-.lk-step { color: var(--lk-soft) !important; padding: 0; text-decoration: underline !important; text-decoration-color: var(--lk-hair) !important; text-underline-offset: 3px; }
+.lk-trail > :not(.lk-step) { color: var(--lk-quiet); }
+.lk-step { color: var(--lk-quiet) !important; padding: 0; text-decoration: underline !important; text-decoration-color: var(--lk-hair) !important; text-underline-offset: 3px; }
 .lk-step:hover { color: var(--lk-text, currentColor) !important; text-decoration-color: var(--lk-line) !important; }
 /* A sort head: the others grey and of the body's weight, the sorted one dark and bold, so it stands out from them. */
-.lk-head { color: var(--lk-soft) !important; text-align: left; font-weight: 400; }
+.lk-head { color: var(--lk-quiet) !important; text-align: left; font-weight: 400; }
 .lk-head:hover, .lk-head.on { color: var(--lk-text, currentColor) !important; }
 .lk-head.on { font-weight: 600; }
 .lk-menu { border: 1px solid var(--lk-hair); border-radius: 6px; padding: 4px; }
@@ -841,7 +853,7 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
    so the parts read apart before a word is read; a faint lk-note stays for a word of help. */
 .lk-group { padding: 6px 8px 3px; font-size: var(--lk-small); font-weight: 600; color: var(--lk-text, currentColor); cursor: default; }
 .lk-item.gap + .lk-group { border-top: 1px solid var(--lk-hair); margin-top: -4px; padding-top: 8px; }
-.lk-note { color: var(--lk-dim); font-size: var(--lk-small); font-variant-numeric: tabular-nums; }
+.lk-note { color: var(--lk-quiet); font-size: var(--lk-small); font-variant-numeric: tabular-nums; }
 /* lk-picked: what you can do with what you picked, right above the picked rows on the same grey as them, so the picks and what
    acts on them read as one block, the only filled area in a list (the owner, 5 November 2026, the grey block of picking-redesign.html:
    "build 2"). lk-picked-count holds the number (lk-picked-n), lk-picked-x clears the picks, lk-picked-act is an action, a plain word
@@ -850,7 +862,7 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
 .lk-picked-count { display: inline-flex; align-items: baseline; gap: 6px; color: var(--lk-quiet); font-size: 14px; margin-right: 2px; }
 .lk-picked-n { font-size: 20px; font-weight: 600; color: var(--lk-text, currentColor); font-variant-numeric: tabular-nums; line-height: 1; }
 .lk-picked-x, .lk-picked-act { appearance: none; background: none; border: 0; font: inherit; cursor: pointer; border-radius: 999px; }
-.lk-picked-x { font-size: 16px; line-height: 1; color: var(--lk-dim); padding: 4px 8px 4px 4px; }
+.lk-picked-x { font-size: 16px; line-height: 1; color: var(--lk-quiet); padding: 4px 8px 4px 4px; }
 .lk-picked-act { font-weight: 500; color: var(--lk-text, currentColor); display: inline-flex; align-items: center; gap: 7px; padding: 5px 10px; }
 .lk-picked-act::before { margin-right: 0 !important; }
 .lk-picked :is(.lk-picked-act, .lk-picked-x):is(:hover, :focus-visible) { background: color-mix(in srgb, currentColor 9%, transparent); color: var(--lk-text, currentColor); outline: none; }
@@ -895,7 +907,7 @@ input.lk-tick[type=checkbox]:indeterminate::before { content: ""; position: abso
 .lk-field { box-sizing: border-box; min-width: 0; border: 0; border-bottom: 1px solid var(--lk-line); border-radius: 0; background: none; color: inherit; font: inherit; padding: 2px 0; outline: none; box-shadow: none; }
 .lk-field:is(:focus, :focus-within) { border-bottom-color: currentColor; outline: none; box-shadow: none; }
 .lk-field :is(input, textarea) { flex: 1; width: 100%; min-width: 0; margin: 0; padding: 0; border: 0; border-radius: 0; background: none; color: inherit; font: inherit; outline: none; box-shadow: none; }
-.lk-field::placeholder, .lk-field :is(input, textarea)::placeholder { color: var(--lk-faint); opacity: 1; }
+.lk-field::placeholder, .lk-field :is(input, textarea)::placeholder { color: var(--lk-quiet); opacity: 1; }
 /* lk-none: nothing here, one line at the off strength where the things would stand, no box. */
 .lk-none { color: var(--lk-off); padding: 6px 0; }
 /* lk-undo, the press: the arrow alone, no ground, at the end of what changed; with nothing on screen to sit beside, it waits at

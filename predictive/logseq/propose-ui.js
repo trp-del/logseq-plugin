@@ -687,7 +687,7 @@ const css = `
 /* From Apple's model: a small asterisk raised at the end of the value, in the pencil's grey. It takes no room, so nothing moves
    when it goes, and it goes once the value is taken. */
 .flow-ghost.flow-model { position: relative; }
-.flow-ghost.flow-model::after { content: '*'; position: absolute; left: 100%; top: -.35em; margin-left: 1px; font-size: .8em; font-style: normal; line-height: 1; color: var(--lk-faint); text-decoration: none; pointer-events: none; }
+.flow-ghost.flow-model::after { content: '*'; position: absolute; left: 100%; top: -.35em; margin-left: 1px; font-size: .8em; font-style: normal; line-height: 1; color: var(--lk-quiet); text-decoration: none; pointer-events: none; }
 .flow-ghost.flow-model.flow-taken::after { content: none; }
 .bottom-property-pill:hover .flow-ghost.flow-model::after { opacity: 0; }   /* the × stands there under the pointer */
 /* A pill row the plugin made rolls open out of the bullet and closed into it (rollClosed), so the bullets under it slide. */

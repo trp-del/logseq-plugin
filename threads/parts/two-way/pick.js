@@ -10,7 +10,7 @@ const shared = window.Threads.shared;
 const { host, openEntity, notify, esc } = shared;
 const { state, warnOnce } = twoWay;
 
-/* Picking records and acting on them together (0.4.228, the owner's ask: "selected in groups and be acted on", like
+/* Picking records and acting on them together (the owner's ask: "selected in groups and be acted on", like
    Logseq's own tables). A tick box before each record, shown under the pointer and on every record while any is
    ticked; Shift-click ticks every record from the last one ticked. A pick is a record under one field ("uuid|field"),
    since a record can point here through two fields. The bar above the rows, the library's: how many are picked with its
@@ -18,7 +18,7 @@ const { state, warnOnce } = twoWay;
    record's own field), add a tag, copy, set a property, clear a property, delete, as the library's words with their icons.
    Every change but delete has Undo (the faded arrow); delete asks first. Escape or the bar's box clears
    the picks; going to another page does too. */
-/* The bar's room is always kept above the rows, the bar shown in it only while something is picked (0.4.325, the owner:
+/* The bar's room is always kept above the rows, the bar shown in it only while something is picked (the owner:
    "the toolbar jumps in and causes the link table to jump down … that space is fine. allows breathing room"). */
 /* The bar moves to just above the first picked node, where the picks are. The node just ticked keeps its place on the screen:
    the page scrolls by what the bar added or took above it, so the next tick box is where the hand left it. */
@@ -44,7 +44,7 @@ function barHtml() {
     b('sidebar', 'Open in sidebar', 'Open them in the right sidebar', 'side')}${n === 2 ? b('compare', 'Compare', 'The two side by side: their properties and first bullets', 'eq') : ''}<button type="button" class="lk-picked-act th-tw-menu" data-act="more" title="Everything else you can do with them" aria-haspopup="menu">More<span class="lk-i-chevron th-tw-chev" aria-hidden="true"></span></button><span class="lk-picked-gap"></span>${
     b('delete', 'Delete', 'Delete them', 'bin', 'lk-del')}</div>`;
 }
-// The page's own name, for More's "Change “Dr. Mei Chen” to…" (0.4.233, the owner: "make it clear"), read once per page.
+// The page's own name, for More's "Change “Dr. Mei Chen” to…" (the owner: "make it clear"), read once per page.
 const named = { uuid: '', title: '' };
 const pageTitle = () => named.uuid === state.pageUuid && named.title ? named.title : 'this page';
 async function readTitle() {
@@ -67,7 +67,7 @@ function togglePick(el, range) {
   readTitle().catch(() => {});
   for (const uuid of raisablePicked()) prepareRaise(uuid).catch(error => warnOnce('could not work out what a mention could be made', error));
 }
-/* Making a mention a node (0.4.423, state 3 and 4 of pick A, the owner: "are you then proposing to change the tag from
+/* Making a mention a node (state 3 and 4 of pick A, the owner: "are you then proposing to change the tag from
    symptom log to consultation" — no: a mention that has a tag of yours keeps it and is offered nothing). For a picked
    mention with no tag of yours: every tag with a property that takes this page (Conversation · Spoke with, Consultation ·
    Provider, Decision · Decided by for a doctor), the one its words look like first (the proposals' tag vote, tagGuess,
@@ -186,7 +186,7 @@ async function setValues(uuid, prop, values) {
 async function dayValue(typed, kind) {
   const day = twoWay.provided.parseDay(typed, new Date());
   if (!day || kind === 'datetime') return day?.getTime();
-  return twoWay.provided.journalIdFor(twoWay.provided.dayNumber(day), await twoWay.provided.journalTitleFor(day.getFullYear(), day.getMonth() + 1, day.getDate()));
+  return twoWay.provided.journalIdFor(twoWay.provided.dayNumber(day));
 }
 // Runs one change on every picked node; a node that fails is left as it was and the rest go on. Undo puts back the rest.
 async function writeAll(text, steps) {
@@ -234,7 +234,7 @@ async function act(what, at = null) {
   if (what === 'clear') { twoWay.stopPicking(); return twoWay.draw(host()); }
   if (what === 'all') { for (const key of state.listed) state.picked.add(key); readTitle().catch(() => {}); return twoWay.draw(host()); }
   if (!chosen.length) return;
-  // The two words with a menu (0.4.327): the menu opens under the word, and what is picked from it acts as its own word did.
+  // The two words with a menu: the menu opens under the word, and what is picked from it acts as its own word did.
   if (what === 'raise') return raiseMenu(at);
   if (what === 'compare') return twoWay.compare?.(nodes, at);
   // More (5 November 2026): Select all, then every action but Open in sidebar and Delete, which stand on the bar; the page's own
@@ -258,7 +258,7 @@ async function act(what, at = null) {
     const items = what === 'page-menu'
       ? [{ icon: 'to', label: `Change “${pageTitle()}” to…`, run: () => { act('point', at); } }, { icon: 'remove', label: `Remove “${pageTitle()}”`, run: () => { act('unlink', at); } }]
       : [{ icon: 'property', label: 'Set property…', run: () => { act('set', at); } }, { icon: 'remove', label: 'Unset property…', run: () => { act('unset', at); } }];
-    // As wide as its longest item, so a long page name reads whole (0.4.397).
+    // As wide as its longest item, so a long page name reads whole.
     shared.popup({ at, width: 'max-content', items });
     return;
   }
@@ -280,7 +280,7 @@ async function act(what, at = null) {
       if (what === 'point') {
         const takers = await Promise.all(fields.map(takerOf));
         const fits = (await twoWay.provided.propPages()).filter(page => page.id !== here && takers.some(takes => takes(page)));
-        // The pages the picked nodes' own words name first (0.4.414, idea 4 of the brainstorm of 2026-10-25): a node
+        // The pages the picked nodes' own words name first (idea 4 of the brainstorm of 2026-10-25): a node
         // pointing here while its words say "Spoke with Dr. Patel" offers Dr. Raj Patel at the top. Through the
         // proposals' reader of names (namedPages, parts/proposals.js) when it is loaded; the most named first.
         const named = await namedFirst(chosen.map(p => p.uuid), fields, fits.map(page => page.id));

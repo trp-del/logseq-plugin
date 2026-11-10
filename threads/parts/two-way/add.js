@@ -10,13 +10,13 @@ const shared = window.Threads.shared;
 const { host, openEntity, notify, esc } = shared;
 const { state, warnOnce } = twoWay;
 
-/* Adding from the far end (0.4.185, the owner's pick of "Add only"): the + at the end of a row opens a small box,
+/* Adding from the far end (the owner's pick of "Add only"): the + at the end of a row opens a small box,
    "New record · doctor: Dr. Mei Chen", with the kinds the row already holds (the most common chosen) and a name.
    Enter (or Add) makes the record with that name and tag and the field pointing at this page: a page of its own when
    most records in the row are pages (people, places), else a block on today's journal (visits, tests). Add and open
    also opens it in the sidebar to fill in. The bar at the bottom offers Undo, which removes what was made.
    Nothing is unlinked from here: a link is changed on the record that holds it. */
-/* Adding a node from the page (0.4.303, the owner: "a line under each section that once upon hover a plus appears you
+/* Adding a node from the page (the owner: "a line under each section that once upon hover a plus appears you
    can start typing. you hit enter, another logseq input appears about where if it is a node. otherwise it is just a
    page"). Under each row a quiet line; with the pointer on the row a + shows at its left and the words "Add a …".
    Typing there is the new node's name. Enter: where most of the linked nodes are pages, the page is made at once;
@@ -43,9 +43,9 @@ function draftFor(group) {
 function addLineHtml(group) {
   if (!group.ident) return '';
   const d = state.draft?.field === group.name ? state.draft : null;
-  // The + in the gap under the row (0.4.303, the owner: "you can just have a plus in the gap that then open input"):
+  // The + in the gap under the row (the owner: "you can just have a plus in the gap that then open input"):
   // shown with the pointer on the row, it takes no room; the line comes only once it is clicked. A line begun from a
-  // group's + is drawn in that group (0.4.369).
+  // group's + is drawn in that group.
   if (!d || d.gkey) return '';
   return draftLineHtml(group, d);
 }
@@ -57,13 +57,13 @@ function draftLineHtml(group, d) {
     : `<span class="th-field lk-field th-field-inline"><input type="text" class="th-tw-draft-field th-tw-draft-name" placeholder="Add a${/^[aeiou]/i.test(kind) ? 'n' : ''} ${esc(kind || 'node')}" spellcheck="false" aria-label="Name of a new node"></span>`;
   return `<div class="th-tw-draft th-tw-drafting" data-field="${esc(group.name)}"><span class="th-tw-draft-plus th-faint lk-i-plus" aria-hidden="true"></span><span class="th-tw-draft-main">${field}</span>${tag}<div class="th-tw-draft-props">${propsHtml(group, d)}</div></div>`;
 }
-/* The rest of the new node, under the line (0.4.406, the owner's pick from docs/history/TWO-WAY-ADD-PROPOSALS-2026-10-25.html):
+/* The rest of the new node, under the line (the owner's pick):
    what the node will get, as the proposals read in a bullet, italic grey with a dotted line under a guess: the row's
    property pointing at this page and a group's value (set, never a proposal), then what the proposals' rules say for
    the words typed (a linked or named page, the nodes it looks like, the day), read through the core when the rules are
    loaded and nothing without them. Enter takes everything shown; a click on a guess keeps that one and lets the other
    guesses go (a second click lets go of it again); Escape clears them until something is typed again. The row keeps
-   its height while the line is open, so proposals coming and going move nothing under them (as under a bullet, 0.4.322). */
+   its height while the line is open, so proposals coming and going move nothing under them (as under a bullet). */
 const pieceKey = piece => `${piece.ident}|${(piece.ids || []).join(',')}`;
 function propsHtml(group, d) {
   if (!d) return '';
@@ -118,7 +118,7 @@ async function proposeNow(group) {
   d.proposals = Array.isArray(pieces) ? pieces : [];
   drawDraftProps();
 }
-/* A page's name typed in a line of the rows (0.4.406 in the + line; 0.4.409 also in the line that writes a bullet into
+/* A page's name typed in a line of the rows (in the + line,  also in the line that writes a bullet into
    a node, idea 2 of the brainstorm of 2026-10-25): the rest of the name in grey after the cursor, laid over the box,
    through the suggested links' own reading when that part is loaded (the pages that would fill one of the tag's
    properties first: the new node's tag, or the opened node's); the Right arrow writes [[the page]] in the line.
@@ -190,7 +190,7 @@ const leaveGhost = field => setTimeout(() => { if (field.isConnected && looking.
 // The tag of a node listed in the rows, by its uuid ('' for none).
 const tagOfNode = uuid => { for (const g of state.groups) for (const item of g.items) if (item.uuid === uuid) return item.tag && item.tag !== 'note' ? item.tag : ''; return ''; };
 async function journalPageFor(day) {
-  return twoWay.provided.journalIdFor(day, await twoWay.provided.journalTitleFor(Math.floor(day / 10000), Math.floor(day / 100) % 100, day % 100));
+  return twoWay.provided.journalIdFor(day);
 }
 // The line is drawn again with the rows; what was typed and the caret come back with it.
 function keepDraft(box) {
@@ -198,7 +198,7 @@ function keepDraft(box) {
     const line = field.closest('.th-tw-draft'), group = state.groups.find(g => g.name === line.dataset.field);
     const d = state.draft?.field === line.dataset.field ? state.draft : null;
     if (d) field.value = field.matches('.th-tw-draft-where') ? d.where : d.name;
-    // The grey name comes back with the line (0.4.406): the rows are drawn again now and then while the line is open.
+    // The grey name comes back with the line: the rows are drawn again now and then while the line is open.
     if (d && field.matches('.th-tw-draft-name')) keepGhost(field);
     field.addEventListener('focus', () => { if (group && state.draft?.field !== group.name) { closeAdd(); draftFor(group); twoWay.draw(host()); focusDraft(); } else if (field.matches('.th-tw-draft-where')) whereList(field); });
     field.addEventListener('input', () => {
@@ -256,7 +256,7 @@ async function whereList(field) {
   const q = d.where.trim().toLowerCase();
   const rows = [['journal', 'Today’s journal', 'date'], ['here', pageTitleNow(), 'page']].filter(([, text]) => !q || text.toLowerCase().includes(q));
   if (q) for (const p of state.pagesRead.filter(p => p.lower.includes(q) && p.uuid !== state.pageUuid).sort((a, b) => (b.lower.startsWith(q) - a.lower.startsWith(q)) || a.lower.length - b.lower.length).slice(0, 6)) rows.push(['page:' + p.title, p.title, 'page']);
-  // The place chosen for the node before, lit until the arrows or typing move the light (0.4.413).
+  // The place chosen for the node before, lit until the arrows or typing move the light.
   if (d.lastWhere && !d.moved) { const at = rows.findIndex(([act]) => act === d.lastWhere); if (at >= 0) d.lit = at; }
   d.lit = Math.min(d.lit, Math.max(0, rows.length - 1));
   const items = rows.length ? rows.map(([act, text, name]) => ({ icon: name, label: text, act, run: item => makeDraft(item.act, false) })) : [{ note: 'No page by that name' }];
@@ -282,7 +282,7 @@ async function makeDraft(target, open) {
   let made = false;
   try { made = await addRecord({ group, page, name, kind: d.kind, open, asPage, where, other, set: d.set, pieces: takenPieces(d) }) === true; }
   catch (error) { warnOnce('could not add the new node', error); notify('The new node could not be added', 'warning'); }
-  // The line stays open for the next one (0.4.413, idea 5 of the brainstorm of 2026-10-25): empty, in the same place,
+  // The line stays open for the next one (idea 5 of the brainstorm of 2026-10-25): empty, in the same place,
   // with the same tag and group, the place chosen last lit in the where step. Not after Cmd-Enter, which opens the new
   // node in the sidebar; Escape on the empty line closes it, as before.
   if (made && !open && state.groups.some(g => g.name === group.name)) openAgain(group, again);
@@ -324,7 +324,7 @@ async function addRecord({ group, page, name, kind, open, asPage, where = 'journ
     // A page made now is not in the look-up of every page: it has no rows of its own yet.
     state.byPage.set(String(block.uuid), []);
   } else {
-    // Where it goes (0.4.298): today's journal, this page, or another page named in the box (an existing one only).
+    // Where it goes: today's journal, this page, or another page named in the box (an existing one only).
     let target = '';
     if (where === 'here') target = String(page.uuid);
     else if (where === 'page') {
@@ -332,8 +332,7 @@ async function addRecord({ group, page, name, kind, open, asPage, where = 'journ
       if (!found?.uuid || await twoWay.model.inRecycle(String(found.uuid))) return notify(`There is no page named “${other}”, so nothing was added`, 'warning');
       target = String(found.uuid);
     } else {
-      const now = new Date();
-      const journalId = await twoWay.provided.journalIdFor(twoWay.todayNumber(), await twoWay.provided.journalTitleFor(now.getFullYear(), now.getMonth() + 1, now.getDate()));
+      const journalId = await twoWay.provided.journalIdFor(twoWay.todayNumber());
       target = journalId ? String(await twoWay.provided.uuidById(journalId)) : '';
       if (!target) throw new Error('no journal page for today');
     }
@@ -347,7 +346,7 @@ async function addRecord({ group, page, name, kind, open, asPage, where = 'journ
     else await twoWay.model.setValue(block.uuid, group.ident, page.id, { entityId: true });
     if (set?.ident) await twoWay.setGroupValue(block.uuid, set);
   } catch (error) { await undo().catch(() => {}); throw error; }
-  // The proposals shown under the line (0.4.406), each on its own: one that fails leaves the node made, and says so.
+  // The proposals shown under the line, each on its own: one that fails leaves the node made, and says so.
   const filled = [];
   for (const piece of pieces) {
     try {
@@ -361,7 +360,7 @@ async function addRecord({ group, page, name, kind, open, asPage, where = 'journ
   twoWay.later(300);
   await twoWay.offerMade(String(block.uuid), `Added “${name}”${kind ? ` (${kind})` : ''}${asPage ? ' as a page' : where === 'here' ? ' to this page' : where === 'page' ? ` to ${other}` : ' to today’s journal'}${filled.length ? `, with ${filled.join(', ')}` : ''}`, undo, group.name, null, asPage);
   if (open) openEntity(block.uuid, true);
-  // Into its words at once (0.4.302): the sidebar draws it a moment after it opens.
+  // Into its words at once: the sidebar draws it a moment after it opens.
   if (edit && !asPage) { const uuid = block.uuid; window.Threads.core.screen.waitFor(() => host().querySelector(`#right-sidebar .ls-block[blockid="${uuid}"]`), 3000).then(found => found && twoWay.model.editBlock(uuid, { pos: 0 })).catch(error => warnOnce('the new record could not be put in edit', error)); }
   return true;
 }

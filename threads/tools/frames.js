@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* Frames of what the plugin draws, in Chromium (2026-10-23, docs/history/FINISHING-PROMPT-2026-10-23.md section 3.5): the pretend pages of
+/* Frames of what the plugin draws, in Chromium (2026-10-23): the pretend pages of
    tools/pictures.js (tools/pretend-page.js) made to move, recorded with the three witnesses of the plugin's tools/frame-kit.js (the
    ledger, the shift log, the screencast's pictures). Each scene runs twice in each theme: A, the pretend Logseq page
    alone, doing what Logseq does (a page opening in steps, a list filling); B, the same with the plugin's piece drawing
@@ -32,7 +32,7 @@ const K = require('../../tools/frame-kit');
 const { THEMES, pretendLogseq, exposeAtEnd, tablerCss } = require('./pretend-page');
 
 let chromium;
-for (const where of ['playwright', '/opt/node-tools/node_modules/playwright']) { try { ({ chromium } = require(where)); break; } catch (error) { /* try the next */ } }
+for (const where of ['playwright', '/Users/admin/logseq-value/logseq-plugin-old/node_modules/playwright']) { try { ({ chromium } = require(where)); break; } catch (error) { /* try the next */ } }
 if (!chromium) { console.log('frames skipped (needs Playwright and Chromium)'); process.exit(0); }
 
 const root = path.resolve(__dirname, '..');
@@ -216,7 +216,7 @@ async function record(browser, theme, name, scene, withPlugin) {
       const { mask, share } = K.noiseMask(idle);
       if (share > 0.02) fails.push(`the noise mask covers ${(share * 100).toFixed(1)}% of the page (blind)`);
       const known = [...K.jumps(A.ledger), ...K.shiftJumps(A.ledger)].map(K.signature);
-      // A revisit judges only the second visit (0.4.442): the pictures from its route on, as the ledger already was; the
+      // A revisit judges only the second visit: the pictures from its route on, as the ledger already was; the
       // page the test itself emptied before it is not the plugin's flash.
       const judged = R => R.frames.filter(f => f.t >= (scene.again ? R.t0 : -Infinity) && f.t < R.settleEnd);
       const picA = K.pictureFlashes(judged(A), mask, A.ledger.inputs);

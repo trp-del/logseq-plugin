@@ -6,7 +6,7 @@
    The fingerprint is every fact about every page and block, with links written as the uuid of what they point to
    (an undo can give a block a new number but keeps its uuid), leaving out the times Logseq stamps on a save.
    The fingerprint is kept in check.log/ (ignored by git). Exits non-zero when the graph differs.
-   One kind of difference is Logseq's own and named apart, not failed (2026-10-23, docs/PROCESS.md's lessons): the first
+   One kind of difference is Logseq's own and named apart, not failed (2026-10-23): the first
    time a page is opened Logseq saves view blocks on it ("Linked references", "Unlinked references", "All"), each
    marked with logseq.property.view/feature-type and view-for. Only such a block newly added counts so; one changed or
    gone, or any other block, fails as before. Likewise Logseq's Recycle bookkeeping: a page in the Recycle before and

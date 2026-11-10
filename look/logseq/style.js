@@ -97,7 +97,7 @@ const emptyProps = `
 ${AREA} .ls-block > .block-main-container .positioned-properties.block-below .bottom-property-pill:has(.empty-value):not(:focus-within) { opacity: .5; }`;
 /* Logseq's "+ Add property" under a page's list, a filled bold button, as a faint word. */
 const addProperty = `
-${AREA} .ls-new-property button { background: none !important; box-shadow: none !important; border: 0 !important; color: var(--lk-faint) !important; font-weight: 400 !important; padding-left: 0 !important; }
+${AREA} .ls-new-property button { background: none !important; box-shadow: none !important; border: 0 !important; color: var(--lk-quiet) !important; font-weight: 400 !important; padding-left: 0 !important; }
 ${AREA} .ls-new-property button:hover { color: inherit !important; }`;
 const pencil = `
 ${AREA} .ls-block .bottom-property-edit-icon { display: none !important; }`;

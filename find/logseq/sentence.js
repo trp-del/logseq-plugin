@@ -71,7 +71,8 @@ function spanOf(w, around) {
   else if (unit === 'month') { const k = around ? 1 : 0; from = ymd(y, m - k, 1); to = ymd(y, m + k + 1, 0); near = 92; }
   else { const k = around ? 3 : 0; from = ymd(y, 1 - k, 1); to = ymd(y, 13 + k, 0); near = 183; }
   const nearFrom = ymd(Math.floor(from / 10000), Math.floor(from / 100) % 100, from % 100 - near), nearTo = ymd(Math.floor(to / 10000), Math.floor(to / 100) % 100, to % 100 + near);
-  const label = unit === 'year' ? String(y) : unit === 'month' ? SHORT[m - 1] + ' ' + y : `${d} ${SHORT[m - 1]} ${y}`;
+  // A day reads as everywhere else, month first ("Aug 5, 2026"), by the door's one rule (10 November 2026).
+  const label = unit === 'year' ? String(y) : unit === 'month' ? SHORT[m - 1] + ' ' + y : window.PluginDoor.dates.words(y * 10000 + m * 100 + d, { year: 'always' });
   return { from, to, nearFrom, nearTo, label: (around ? 'around ' : '') + label };
 }
 
@@ -94,7 +95,7 @@ function period(toks, i, today) {
   return { len: j + 1 + b.len - i, a, b };
 }
 /* The window a period names: from the start of its first time to the end of its last; near reaches as far as the longer of
-   the two. "around" widens both ends. The label: "May–Aug 2026", "7–21 May 2026", "2024–2025", "since Mar 2026". */
+   the two. "around" widens both ends. The label: "May–Aug 2026", "May 7–21, 2026", "May 7, 2026", "2024–2025", "since Mar 2026". */
 function periodSpan(p, around) {
   const A = spanOf(p.a, around), B = spanOf(p.b, around);
   const from = A.from, to = B.to;
@@ -105,8 +106,8 @@ function periodSpan(p, around) {
   if (p.since) label = 'since ' + A.label;
   else if (a.unit === 'year' && b.unit === 'year') label = `${a.y}–${b.y}`;
   else if (a.unit === 'month' && b.unit === 'month' && a.y === b.y) label = `${SHORT[a.m - 1]}–${SHORT[b.m - 1]} ${a.y}`;
-  else if (a.unit === 'day' && b.unit === 'day' && a.y === b.y && a.m === b.m) label = `${a.d}–${b.d} ${SHORT[a.m - 1]} ${a.y}`;
-  else if (a.unit === 'day' && b.unit === 'day' && a.y === b.y) label = `${a.d} ${SHORT[a.m - 1]}–${b.d} ${SHORT[b.m - 1]} ${a.y}`;
+  else if (a.unit === 'day' && b.unit === 'day' && a.y === b.y && a.m === b.m) label = `${SHORT[a.m - 1]} ${a.d}–${b.d}, ${a.y}`;
+  else if (a.unit === 'day' && b.unit === 'day' && a.y === b.y) label = `${SHORT[a.m - 1]} ${a.d}–${SHORT[b.m - 1]} ${b.d}, ${a.y}`;
   else label = `${A.label}–${B.label}`;
   return { from, to, nearFrom, nearTo, label: (around ? 'around ' : '') + label, period: true };
 }

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Checks the plugin before a commit. Run from the repo root: sh tools/check.sh   (sh tools/check.sh --full for the slow ones)
+# Checks the plugin before a commit. Run from threads/: sh tools/check.sh   (sh tools/check.sh --full for the slow ones)
 # Exits non-zero on any problem, with a plain message.
 # Trimmed from DB Refinements' check.sh to what the two-way links plugin still has: the kit, the model, the two-way section
 # and the part that asks Predictive's core what the + line proposes.
@@ -41,7 +41,7 @@ if command -v node >/dev/null 2>&1 && node -e "require('jsdom')" 2>/dev/null; th
   node tools/two-way-rows-test.js || problem "the two-way rows' grouping, + in a group or writing into a node failed its checks (see above)"
   if [ $full -eq 1 ]; then node tools/parts-apart-test.js || problem "a part could not be left out without the others failing (see above)"
   else echo "SKIPPED parts-apart: it runs with --full"; fi
-  node tools/leaning-test.js || problem "a part leans where it must not: a direct Logseq call, a name on the window (see above; docs/LAYERS.md)"
+  node tools/leaning-test.js || problem "a part leans where it must not: a direct Logseq call, a name on the window (see above)"
 else
   echo "boot test skipped (needs node and: npm install --no-save --no-package-lock jsdom)"
 fi

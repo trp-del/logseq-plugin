@@ -1,18 +1,18 @@
 #!/usr/bin/env node
-/* The two-way rows' grouping, the + inside a group and writing into a node (parts/two-way.js, 0.4.369) in a pretend
+/* The two-way rows' grouping, the + inside a group and writing into a node (parts/two-way.js) in a pretend
    Logseq window: a page with six nodes pointing at it through one property ("about"), their tags, days and a
    property of their own (Confidence), behind a stand-in for the model's doors that records every write.
    Checks: the plain list when nothing is chosen; groups by a property's value (biggest first, none last, each group
    folding), by tag and by month; the + in a group (not in a month or a "none" group) opening its line in the group and
    making the node with the row's property, the group's tag or value and nothing else; a node's arrow opening its
    bullets, the links in them, a new bullet written into the node (and nothing before Enter), the faded Undo taking it
-   away, and the arrow closing it; and nothing left on stop. Since 0.4.423 also the "mentioned in" row (the nodes whose
+   away, and the arrow closing it; and nothing left on stop. Also the "mentioned in" row (the nodes whose
    words link the page, a node already in a property's row left out, no +, a mention with no tag offered to be made the
    node its words look like, with Undo, one with a tag offered nothing, the row hidden on the page from its right-click),
    and following a chain from an opened node (a chevron before a value that is another node, that node opened under the
    property with its properties and what points at it, no chevron for a node open above, none three deep, closing
    with the chevron or the node). Needs node and jsdom.
-   Run from the repo root: node tools/two-way-rows-test.js   (tools/check.sh runs it) */
+   Run from threads/: node tools/two-way-rows-test.js   (tools/check.sh runs it) */
 const fs = require('fs');
 const path = require('path');
 const twoWay = require('./two-way-files');
@@ -79,7 +79,6 @@ function world(grouping) {
     fits: (page, ids, schema) => { const seen = new Set(), queue = page.tags.map(t => t.id); while (queue.length) { const c = queue.shift(); if (seen.has(c)) continue; seen.add(c); if (ids.has(c)) return true; queue.push(...(schema.parentsOf?.get(c) || [])); } return false; },
     pagesAmong: async () => 0,
     tagUuidNamed: async title => `tag-${title.toLowerCase()}`,
-    journalTitleFor: async () => 'Oct 24th, 2026',
     journalIdFor: async () => 900,
     uuidById: async () => JOURNAL,
     // A bullet's own words (a node's first lines); anything else reads as the page's title.
@@ -87,7 +86,7 @@ function world(grouping) {
     setWords: async (uuid, text) => { calls.push(['setWords', uuid, text]); for (const [node, list] of bullets) bullets.set(node, list.map(b => b.uuid === uuid ? { ...b, title: text } : b)); },
     idByUuid: async () => 5,
     nodeFields: async () => new Map(),
-    // A node's own properties (0.4.410): the tag gives about, Confidence, Severity and Source (a link to a source page).
+    // A node's own properties: the tag gives about, Confidence, Severity and Source (a link to a source page).
     fieldsOf: async () => (await provided.propSchema()).props,
     valuesOf: async (uuid, ident) => calls.filter(c => c[0] === 'setValue' && c[1] === uuid && c[2] === ident).slice(-1).map(c => JSON.parse(c[3])).flat().filter(v => typeof v === 'number').concat(ident === 'user.property/confidence' && !calls.some(c => c[1] === uuid && c[2] === ident) ? (NODES.find(n => U(n.id) === uuid)?.confidence ? [NODES.find(n => U(n.id) === uuid).confidence[1]] : []) : []),
     firstLines: async uuid => (bullets.get(uuid) || []).slice(0, 9),
@@ -133,7 +132,7 @@ const startPicking = async (window, doc, field) => {
 };
 const type = (window, input, text) => { input.value = text; input.dispatchEvent(new window.Event('input', { bubbles: true })); };
 const enter = (window, input) => input.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
-// The outline (0.4.442): a node's chevron by its uuid (inside: under the node of that uuid), what an open node holds.
+// The outline: a node's chevron by its uuid (inside: under the node of that uuid), what an open node holds.
 const parentOf = key => key.split('>').slice(0, -1).join('>');
 // A node's empty properties draw nothing until something opens them (8 November 2026; a list's "no Topic?" does): opened here as that does.
 const openEmpties = (window, doc, uuid) => { const tw = window.Threads.parts.find(p => p.name === 'two-way').inner; for (const c of doc.querySelectorAll(`.th-chev[data-dig][data-uuid="${uuid}"]`)) tw.state.emptyOpen.add(c.dataset.dig); tw.state.html = null; tw.draw(doc); };
@@ -302,14 +301,14 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     check(row()?.hasAttribute('data-open') && doc.querySelectorAll('.th-tw-line').length === 5, 'a second click on All should open it again');
     click(window, chip('Claim')); await wait(20);
     check(doc.querySelectorAll('.th-tw-line').length > 0 && tagsShown().length === 0, 'with one tag picked the lines should leave the tag out: ' + tagsShown());
-    // 0.4.462: in the tag's place, the property telling them apart: Confidence (held by all four Claims, two values).
+    //: in the tag's place, the property telling them apart: Confidence (held by all four Claims, two values).
     const tells = () => [...doc.querySelectorAll('.th-tw-line .th-tw-tell')].map(el => el.textContent.trim());
     check(tells().length === 4 && tells().every(t => t === 'Confidence Strong' || t === 'Confidence Disputed'), 'with one tag picked each line should say its Confidence, named: ' + tells());
     click(window, chip('')); await wait(20);
     check(row()?.hasAttribute('data-open') && tagsShown().length === 5, 'All with a tag picked should show every node again, still open');
     check(tells().length === 0, 'with two tags on the lines no property should stand in for them: ' + tells());
-    check([...doc.querySelectorAll('.th-tw-line')].every(l => !l.querySelector('.th-ol-name ~ .th-ol-day, .th-tw-after')), 'a day should never follow a name (0.4.462)');
-    // The order is gone (0.4.462): the right-click offers no Date first or Name first.
+    check([...doc.querySelectorAll('.th-tw-line')].every(l => !l.querySelector('.th-ol-name ~ .th-ol-day, .th-tw-after')), 'a day should never follow a name');
+    // The order is gone: the right-click offers no Date first or Name first.
     row().querySelector('.th-tw-name').dispatchEvent(new window.MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
     await wait(40);
     const menu = [...doc.querySelectorAll('.th-pop .th-item')].map(el => el.textContent.trim());
@@ -353,7 +352,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     check(calls.some(c => c[0] === 'addTag' && c[1] === uuid && c[2] === 'tag-claim'), 'it should get the row’s commonest tag');
     check(calls.some(c => c[0] === 'setValue' && c[1] === uuid && c[2] === 'user.property/about' && c[3] === '5'), 'its property should point at this page');
     check(calls.some(c => c[0] === 'setValue' && c[1] === uuid && c[2] === 'user.property/confidence' && c[3] === '302' && /entityId/.test(c[4])), 'its Confidence should be the group’s value, Disputed: ' + JSON.stringify(calls.filter(c => c[0] === 'setValue')));
-    // The line stays open for the next one (0.4.413): empty, in the same group, with the keyboard in it; a second node
+    // The line stays open for the next one: empty, in the same group, with the keyboard in it; a second node
     // gets the group's value too.
     const next = groupEl(doc, 'Disputed')?.querySelector('.th-tw-draft-name');
     check(!!next && next.value === '' && doc.activeElement === next && doc.querySelectorAll('.th-tw-draft').length === 1, 'the line should stay open, empty, in the group, ready to type: ' + (next ? JSON.stringify(next.value) : 'none'));
@@ -664,7 +663,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     check(st.find === '', 'Today takes the day away');
     part.stop();
   }
-  // 6. The + line proposes the rest (0.4.406): under the line, the row's property on this page, then what the rules
+  // 6. The + line proposes the rest: under the line, the row's property on this page, then what the rules
   //    say for the words (through a pretend draftProposals); Escape clears them until typing again; a click on a guess
   //    keeps that one and the other guess fades; Enter sets the row's property, the kept guess and the sure day.
   {
@@ -693,7 +692,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     check(!!last && last.tag === 'Claim' && last.set.some(s => s.ident === 'user.property/about' && s.ids[0] === 5) && last.journalDay > 20260000, 'the rules should be asked with the tag, the row’s property set and today: ' + JSON.stringify(last));
     check(props().join('|') === `${first}|TopicColon cancer|withRuth Okoro|DateOct 24`, 'the proposals should show under the line: ' + props());
     check(doc.querySelectorAll('.th-tw-dpick .th-pencil.lk-pencil').length === 3, 'a value pencilled in the + line should carry the shared pencil');
-    check(doc.querySelectorAll('.th-tw-dpick .th-pencil').length === 3 && !doc.querySelector('.th-tw-dghost, .th-tw-dguess'), 'every value pencilled in should be the one pencilled look, sure and guessed alike (0.4.315)');
+    check(doc.querySelectorAll('.th-tw-dpick .th-pencil').length === 3 && !doc.querySelector('.th-tw-dghost, .th-tw-dguess'), 'every value pencilled in should be the one pencilled look, sure and guessed alike');
     check(calls.length === 0, 'nothing should be written while they show');
     esc(window, field());
     check(props().length === 1 && !!doc.querySelector('.th-tw-draft'), 'Escape should clear the proposals and keep the line: ' + props());
@@ -757,7 +756,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     check(!doc.querySelector('.th-tw-draft'), 'a second Escape should close the line');
     part.stop();
   }
-  // 7. A page's name in the words (0.4.406): the rest in grey after the cursor through the suggested links' own reading
+  // 7. A page's name in the words: the rest in grey after the cursor through the suggested links' own reading
   //    (a pretend one here), with whose name it is; the Right arrow writes [[the page]]; nothing without a name.
   {
     const { window, doc, calls, part } = world('');
@@ -779,7 +778,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     check(calls.length === 0, 'nothing should be written by the name');
     part.stop();
   }
-  // 8. A page's name in the line that writes a bullet into a node (0.4.409): the same grey rest of the name, asked with
+  // 8. A page's name in the line that writes a bullet into a node: the same grey rest of the name, asked with
   //    the node's own tag; the Right arrow writes the link; Escape takes the grey away first and leaves the line;
   //    Enter writes the bullet with the link in it.
   {
@@ -812,7 +811,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     check(calls.some(c => c[0] === 'addLineTo' && c[1] === node && c[2] === 'Ask [[Dr. Raj Patel]]'), 'Enter should write the bullet with the link: ' + JSON.stringify(calls));
     part.stop();
   }
-  // 9. A node's properties in its opened box (0.4.410): the tag's properties but the row's own ("about", pointing here),
+  // 9. A node's properties in its opened box: the tag's properties but the row's own ("about", pointing here),
   //    each with what it holds or "empty"; a click asks in the kit's list, the likely ones first for a link (a pretend
   //    pickerOrder); a pick sets it, Undo puts back what it held; a number is shown ready to change; Clear at the end of
   //    a list clears it (empty and Enter would take the lit row).
@@ -829,9 +828,9 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     check(rows().join('|') === 'Confidence=Disputed|Severity=1' && !/empty/.test(kidsOf(doc, node)?.textContent || ''), 'an empty property draws nothing, no "1 empty" line: ' + rows());
     openEmpties(window, doc, node);
     await wait(80);
-    check(rows().join('|') === 'Confidence=Disputed|Severity=1|Source=empty', 'the node’s own properties should show above its bullets, the one pointing back at this page left out (0.4.451: the row it opened from names it): ' + rows());
+    check(rows().join('|') === 'Confidence=Disputed|Severity=1|Source=empty', 'the node’s own properties should show above its bullets, the one pointing back at this page left out (the row it opened from names it): ' + rows());
     check(!!kidsOf(doc, node)?.querySelector('.th-tw-npvalue.th-faint'), 'an empty one should read "empty" in grey');
-    // A node property carries the triangle of dots; a fact carries the icon of what it holds (0.4.477, the owner: "a
+    // A node property carries the triangle of dots; a fact carries the icon of what it holds (the owner: "a
     // property always shows its icon, on pages too"), never the triangle.
     const marked = propLines().filter(l => l.querySelector('.th-ol-pname .th-kind .lk-web')).map(l => l.querySelector('.th-ol-pname').textContent.trim());
     const iconed = propLines().filter(l => l.querySelector('.th-ol-pname .th-kind i')).map(l => l.querySelector('.th-ol-pname').textContent.trim());
@@ -881,7 +880,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     check(!calls.slice(before).some(c => /Value$/.test(c[0])) && notices.some(t => t.includes('so it stays')), 'a value changed since the change should stay, and Undo should say so: ' + JSON.stringify(calls.slice(before)) + JSON.stringify(notices));
     part.stop();
   }
-  // 10. The picking bar's "Change … to…" (0.4.414): the pages the picked nodes' words name come first, the most named
+  // 10. The picking bar's "Change … to…": the pages the picked nodes' words name come first, the most named
   //     first, asked with the field's tags (a pretend namedPages); without the reader, the list as it was.
   {
     const { window, doc, calls, part } = world('');
@@ -906,7 +905,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     check(calls.filter(c => c[0] === 'setValue' && c[2] === 'user.property/about').every(c => c[3] === '62') && calls.filter(c => c[0] === 'setValue').length === 2, 'Enter should point both at the first page: ' + JSON.stringify(calls.filter(c => c[0] === 'setValue')));
     part.stop();
   }
-  // 11. Mentions come up to the rows (0.4.423): the nodes whose words link the page, one already pointing here through
+  // 11. Mentions come up to the rows: the nodes whose words link the page, one already pointing here through
   //     "about" left out; no + in the row; a mention with a tag gets no offer; one without is offered the tag its words
   //     look like (a pretend tagGuess) with the property that takes this page, shown under it before anything is
   //     written, made with a click and taken back with Undo; the row hidden on this page from its right-click.
@@ -945,7 +944,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     pick(U(202)); pick(U(201)); await wait(120);
     { const raise = await moreItem(window, doc, /^Make it/); doc.querySelectorAll('.th-pop').forEach(p => p.remove());
       check(/Make it a Conversation/.test(raise?.textContent || ''), 'a mention with no tag should be offered the tag its words look like: ' + raise?.textContent); }
-    // On its line too (0.4.438): "could be a Conversation · …" in italic, a click opening Make it… for that mention alone.
+    // On its line too: "could be a Conversation · …" in italic, a click opening Make it… for that mention alone.
     const could = doc.querySelector(`.th-pencil[data-could="${U(201)}"]`);
     check(/could be a Conversation/.test(could?.textContent || ''), 'the untagged mention should say what it could be on its line: ' + could?.textContent);
     check(!doc.querySelector(`[data-could="${U(202)}"]`), 'a mention with a tag should not say what it could be');
@@ -1007,7 +1006,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     check([...doc.querySelectorAll('.lk-undo[data-lk-undo]')].some(u => /doctor of/.test(u.title || '')), 'the faded Undo arrow should be offered');
     part.stop();
   }
-  // 12. Follow a chain (0.4.423): in an opened node a chevron before a value that is another node; a click opens that node
+  // 12. Follow a chain: in an opened node a chevron before a value that is another node; a click opens that node
   //     under the property, with its properties and the rows that point at it; no chevron for a node open above, none
   //     three deep; the chevron and closing the node close it; nothing written.
   {
@@ -1034,9 +1033,9 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     const own = el => el.closest('.th-ol-kids') === box(U(61));
     const names61 = [...(box(U(61))?.querySelectorAll('.th-ol-pname') || [])].filter(own).map(el => el.textContent.trim()).filter(Boolean);
     check(names61.filter(n => n === 'Source').length === 2, 'it should show its property and, named by that property itself, what points at it: ' + names61);
-    check(!doc.querySelector('.th-tw-name .th-tw-arrow') && [...doc.querySelectorAll('.th-tw-name')].every(n => !/ of$/.test(n.textContent.trim())), 'a row should be named by its property, nothing added, no arrow (0.4.444)');
+    check(!doc.querySelector('.th-tw-name .th-tw-arrow') && [...doc.querySelectorAll('.th-tw-name')].every(n => !/ of$/.test(n.textContent.trim())), 'a row should be named by its property, nothing added, no arrow');
     check([...box(U(61)).querySelectorAll('.th-tw-back .th-tw-record')].filter(own).length === 1, 'what points at it should be listed one name per line, the way back left out');
-    // 0.4.462: the nodes that link to it under a line saying so, the arrow for the node above, after its own properties.
+    //: the nodes that link to it under a line saying so, the arrow for the node above, after its own properties.
     const links = [...(box(U(61))?.querySelectorAll('.th-tw-links') || [])].filter(own);
     check(links.length === 1 && links[0].querySelector('.th-tw-linkword')?.textContent === '1 link here' && links[0].querySelector('.th-tw-linkkinds')?.textContent === 'Claims', 'the nodes linking to it should come under a head, "1 link here" and their kind (C4): ' + links.map(l => l.textContent));
     click(window, links[0].querySelector('.th-tw-linkword')); await wait(80);
@@ -1046,7 +1045,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     check(![...(box(U(61))?.querySelectorAll('.th-tw-linked .th-ol-prop:not(.th-tw-back)') || [])].filter(own).length, 'its own properties should not sit under that line');
     check(!chev(U(61), U(103)) && !!chev(U(61), U(104)), 'the node on the way should not be listed again, another node should');
     click(window, chev(U(61), U(104))); await wait(150);
-    // A level whose lines would break (0.4.464; 0.4.463 at the fourth): the same chevron; opening it shifts the outline by
+    // A level whose lines would break (at the fourth): the same chevron; opening it shifts the outline by
     // one level: the node opened from the row becomes the section's top, the page goes into the trail, the levels under
     // it stay open.
     const stepper = chev(U(104), U(62));
@@ -1087,7 +1086,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     check(!box(U(61)), 'closing the node opened from the row should close its chain too');
     part.stop();
   }
-  // The find field (0.4.436; on every page since 0.4.458): typing keeps the nodes whose words hold it, or one of their
+  // The find field: typing keeps the nodes whose words hold it, or one of their
   // own properties by its name or a value, that property said under the node.
   {
     const { doc, window, part } = world('');

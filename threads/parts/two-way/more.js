@@ -272,8 +272,7 @@ twoWay.starters.push(() => {
     event.preventDefault(); event.stopPropagation();
     if (to) to.focus({ preventScroll: false });
   };
-  doc.addEventListener('keydown', onKey, true);
-  twoWay.onUnload(() => doc.removeEventListener('keydown', onKey, true));
+  twoWay.listen(doc, 'keydown', onKey, true);
 });
 
 twoWay.clickHooks.push(event => {
@@ -315,8 +314,7 @@ twoWay.starters.push(() => {
     joinList(node.uuid, t.group).catch(error => { warnOnce('could not move the node into the list', error); shared.notify('The node could not be put in that list', 'warning'); });
   };
   const end = () => { dragNode = null; clear(); };
-  doc.addEventListener('dragstart', start, true); doc.addEventListener('dragover', over, true); doc.addEventListener('drop', drop, true); doc.addEventListener('dragend', end, true);
-  twoWay.onUnload(() => { doc.removeEventListener('dragstart', start, true); doc.removeEventListener('dragover', over, true); doc.removeEventListener('drop', drop, true); doc.removeEventListener('dragend', end, true); });
+  twoWay.listen(doc, 'dragstart', start, true); twoWay.listen(doc, 'dragover', over, true); twoWay.listen(doc, 'drop', drop, true); twoWay.listen(doc, 'dragend', end, true);
 });
 async function joinList(uuid, group) {
   const prop = (await twoWay.provided.propSchema()).props.find(p => p.ident === group.ident);
@@ -384,8 +382,8 @@ twoWay.starters.push(() => {
     if (off) { e.preventDefault(); const before = stored(BESIDE_KEY, null); keep(BESIDE_KEY, null); drawBeside(); twoWay.offerUndo('The list beside you is gone', () => { keep(BESIDE_KEY, before); drawBeside(); }); }
     else if (open) { e.preventDefault(); shared.openEntity(open.dataset.dockopen, e.shiftKey); }
   };
-  doc.addEventListener('click', onDock, true);
-  twoWay.onUnload(() => { doc.removeEventListener('click', onDock, true); doc.querySelector('.th-tw-dock')?.remove(); });
+  twoWay.listen(doc, 'click', onDock, true);
+  twoWay.onUnload(() => doc.querySelector('.th-tw-dock')?.remove());
   setTimeout(drawBeside, 1500);
 });
 

@@ -42,7 +42,7 @@ const CSS = `.sw-dialog { position: fixed !important; top: 50% !important; left:
 .sw-placehead h2 { font-size: 20px; font-weight: 600; margin: 0 0 4px; letter-spacing: -.01em; }
 .sw-placehead p { margin: 0; color: var(--lk-quiet); }
 .sw-mod[aria-current="true"] { font-weight: 500; }
-.sw-mod.off .sw-name { color: var(--lk-faint); }
+.sw-mod.off .sw-name { color: var(--lk-quiet); }
 .sw-mod .lk-pencil { font-style: italic; }
 .sw-nomatch { opacity: .4; }
 .sw-foot { margin-top: auto; padding: 16px 8px 0; display: grid; gap: 2px; justify-items: start; }
@@ -66,7 +66,7 @@ const CSS = `.sw-dialog { position: fixed !important; top: 50% !important; left:
 .sw-row .sw-value { grid-column: 2; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 /* The specimen: the thing drawn as it will look, at the page's size, under its name. */
 .sw-spec { grid-column: 2; margin-top: 3px; font-size: 15px; line-height: 1.6; color: var(--lk-text, #222); }
-.sw-spec .sw-off { color: var(--lk-faint); }
+.sw-spec .sw-off { color: var(--lk-quiet); }
 .sw-spec .sw-blue { color: var(--ls-link-text-color, #3b6fc9) !important; text-decoration: none !important; }
 .sw-spec .sw-chip { background: color-mix(in srgb, currentColor 8%, transparent); border-radius: 4px; padding: 0 6px; }
 .sw-spec .sw-cap { background: color-mix(in srgb, currentColor 8%, transparent); border-radius: 10px; padding: 0 8px; }
@@ -78,9 +78,9 @@ const CSS = `.sw-dialog { position: fixed !important; top: 50% !important; left:
 .sw-spec .sw-k { color: var(--lk-quiet); }
 .sw-spec .sw-pill { display: inline-flex; gap: .4em; }
 .sw-spec .sw-line { display: flex; align-items: baseline; gap: 10px; }
-.sw-spec .sw-faintw { color: var(--lk-faint); }
+.sw-spec .sw-faintw { color: var(--lk-quiet); }
 .sw-spec .sw-grey { opacity: .45; }
-.sw-spec .sw-sep { color: var(--lk-faint); margin: 0 6px; } .sw-spec .sw-gap { display: inline-block; width: 18px; }
+.sw-spec .sw-sep { color: var(--lk-quiet); margin: 0 6px; } .sw-spec .sw-gap { display: inline-block; width: 18px; }
 .sw-tick { align-self: center; }   /* the library's tick box (lk-tick) */
 .sw-field { min-width: 6em; }   /* the Pressing set's field (input.lk-value): a hairline only while it has the keyboard */
 .sw-field.sw-wide { width: min(100%, 36em); }

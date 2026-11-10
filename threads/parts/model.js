@@ -1,6 +1,6 @@
 /* Loaded by main.js right after parts/shared.js, before the other parts. Kept in its own scope. */
 (() => {
-/* The Logseq model (0.4.164): the one place that knows what a page, block, tag, property, journal day and
+/* The Logseq model: the one place that knows what a page, block, tag, property, journal day and
    link are in a DB graph, so that the parts above read the graph through it instead of each working it out.
    Gathered from main.js (the title helpers, the stored-link form, the version and screen checks), from
    parts/inline-props.js (the property schema, the pages, the fields of a record, the day reader, the journal
@@ -18,7 +18,7 @@
                                                                     tags, the fields a record's tags give it (remembered
                                                                     for the session; read again when the graph changes)
    - parseDay(text, today), dayNumber(d), sameDay(a, b), dayAfter(d, n), DAYS   a day typed in words, and days as numbers
-   - journalIdFor(day, title), journalTitleFor(y, m, d), formatJournalTitle(date, format)   journal pages and their titles
+   - journalIdFor(day)                                             a day's journal page, made when missing
    - pageTitles(doc), titleAnchor(doc, title)                      the page titles drawn in the page area, and the row a title sits in
    - CHECKED_WITH, PAGE_TITLE, screenChecks()                       the Logseq version the plugin was checked with, the
                                                                     title selector, and what a drawn page must hold
@@ -26,28 +26,29 @@
    - tagGraph(), propInfo(), ownProps(), inheritedProps(tag)        every tag as a tree with its properties, read fresh
    - tagPropIds, acceptedIds, choicesOf, choiceUse, choiceCounts, choiceNodes, idByUuid, descriptionOf, titleNow,
      valuesOf, userValues, mergeFacts                               what a tag, property, choice or node holds right now
-   - propUses()                                                     how many nodes hold each property, in one question (0.4.429)
+   - propUses()                                                     how many nodes hold each property, in one question
    - structureUse()                                                 every value, the tags on every node, text words, the pages named
-                                                                    in the words: what the map's counts and findings rest on (0.4.448)
-   - propNodeIds(ident), choiceIds(prop)                            merging a link or a choice property (0.4.430)
-   - crumbsInto(pageId)                                             where each node naming a page sits: its parents (0.4.437)
+                                                                    in the words: what the map's counts and findings rest on
+   - propNodeIds(ident), choiceIds(prop)                            merging a link or a choice property
+   - crumbsInto(pageId)                                             where each node naming a page sits: its parents
    - linksInto(pageId), mentionsInto(pageId), nodeFields(uuid),     the nodes pointing at a page through your properties or
-     firstLines(uuid, n)                                            naming it in their words (0.4.423),
+     firstLines(uuid, n)                                            naming it in their words,
      nodeValues(uuids), firstTags(ids), nodesOfTag(id), pagesAmong,  a node's own values and first lines, many nodes' values and
      tagUuidNamed, uuidById, nodeLines(ids)                         first tags at once, a tag's nodes, many nodes as lines
    - hasTag, pageLines                                             whether a page has a tag; a page's lines (what the proposals
                                                                     read went to Predictive's core on 5 November 2026)
-   - propTextValues, propNamed                                     turning a property into links (0.4.241)
-   - propTextBlocks, propValueBlocks                               merging and deleting properties (0.4.422)
+   - propTextValues, propNamed                                     turning a property into links
+   - propTextBlocks, propValueBlocks                               merging and deleting properties
    - withKids(uuids)                                               the nodes among them with a bullet under them
    - heldBelow(uuids)                                              what folded nodes hold: open tasks, tags, the nearest due day, files, quotes
    - setValue, unsetValue, addTag, removeTag, setWords, editBlock, exitEditing, insertBlock, addLineTo, currentPage, currentGraph, tagTitles,
      getPage, createPage, deletePage, appendBlock, removeBlock, renamePage, moveBlock, pageBlocksTree, addTagExtends,
      removeTagExtends, openInSidebar, showSidebar, EXTENDS, ALIAS, ICON, PARENT_TAGS
-                                                                    THE writes (0.4.315, docs/LAYERS.md layer 1): the one door a
+                                                                    THE writes: the one door a
                                                                     part writes the graph through; Logseq's own calls live here only */
 const shared = window.Threads.shared;
-const { warnOnce, runUnloadTasks } = shared.lifecycle({ prefix: 'Threads (model): ' });
+const base = window.PluginDoor.base('threads', { prefix: 'Threads (model): ' });
+const { warnOnce } = base, runUnloadTasks = () => base.stop();
 // From the core, taken when the part starts.
 let dsQuery, graphWide;
 const take = (core, names) => shared.take(core, names, warnOnce);
@@ -56,7 +57,7 @@ const take = (core, names) => shared.take(core, names, warnOnce);
 // plugin draws depends on names Logseq uses inside its own pages, which can change in any release.
 const CHECKED_WITH = '2.0.2';
 const PAGE_TITLE = '.ls-page-title, .page-title, h1.title';
-// Every page title drawn in the page area (moved from parts/pages.js in 0.4.177).
+// Every page title drawn in the page area (moved from parts/pages.js).
 function pageTitles(doc) {
   return doc.querySelectorAll(`#main-content-container :is(${PAGE_TITLE})`);
 }
@@ -132,7 +133,7 @@ const { bare, pick, idOf, UUID } = window.PluginDoor;
    session (graphWide) and read again when the graph has changed. */
 const OWN_PROP = /^(?:user\.property\/|logseq\.property\/(?:deadline|scheduled|status|priority)$)/;
 // Every property as Logseq holds it, and every choice with the property it belongs to: the one reading of the
-// properties, which propSchema, propInfo and ownProps shape each their own way (0.4.224).
+// properties, which propSchema, propInfo and ownProps shape each their own way.
 const readProps = async () => (await dsQuery(`[:find (pull ?p [:db/id :db/ident :block/uuid :block/title :logseq.property/type :db/cardinality :logseq.property/icon
       {:logseq.property/classes [:db/id :block/uuid :block/title]}
       {:logseq.property/description [:block/title]}])
@@ -160,14 +161,14 @@ async function loadSchema() {
   for (const [c, p] of await dsQuery(`[:find ?c ?p :where [?c :logseq.property.class/properties ?p]]`)) { if (!classProps.has(c)) classProps.set(c, []); classProps.get(c).push(p); }
   const parentsOf = new Map();
   for (const [child, parent] of await dsQuery(`[:find ?child ?parent :where [?child :logseq.property.class/extends ?parent]]`)) { if (!parentsOf.has(child)) parentsOf.set(child, []); parentsOf.get(child).push(parent); }
-  // Logseq's own tags (Root, Page, Task, …; 0.4.220): every tag of yours extends Root in the end, so the top of your
+  // Logseq's own tags (Root, Page, Task, …): every tag of yours extends Root in the end, so the top of your
   // own chains is the tag just under one of these.
   const builtIn = new Set((await tagIdents()).filter(([, ident]) => !/^:?user\.class\//.test(String(ident))).map(([c]) => idOf(c)));
   return { props, byId, classProps, parentsOf, builtIn };
 }
 // Pages a page-valued field can point at: every page with its tags (journals left out: a day is a Date's business).
 // A pulled page as the parts see it: null for Logseq's own hidden pages ($$$…). A second name of another page (an
-// alias) says whose: aliasOf { id, title } (0.4.383; opening it opens that page, and a link to it means that page).
+// alias) says whose: aliasOf { id, title } (opening it opens that page, and a link to it means that page).
 function pageOf(p) {
   const title = String(pick(p, 'block/title') ?? '');
   if (!title || title.startsWith('$$$')) return null;
@@ -195,7 +196,7 @@ async function aliasesOf(id) {
 }
 // Whether a page has a tag.
 const hasTag = async (pageUuid, tagUuid) => (await dsQuery(`[:find ?t :where [?p :block/uuid #uuid "${pageUuid}"] [?p :block/tags ?t] [?t :block/uuid #uuid "${tagUuid}"]]`)).length > 0;
-// The cache keys are the ones Properties in the line used, so nothing else changes (0.4.164).
+// The cache keys are the ones Properties in the line used, so nothing else changes.
 const propSchema = () => graphWide('inlinePropsSchema', loadSchema);
 const propPages = () => graphWide('inlinePropsPages', loadPages);
 // The fields of the block's own tags, own tags first, then what they inherit, without repeats.
@@ -226,7 +227,7 @@ function fits(page, classIds, schema) {
   return false;
 }
 
-/* The tags (0.4.224, moved here from parts/tags.js so that the tag tree reads the graph through the model like the
+/* The tags (moved here from parts/tags.js so that the tag tree reads the graph through the model like the
    other parts). tagGraph() is every tag with its parents, children, own properties, description and node count, read
    fresh each time (the tree reads again at every change), with propInfo beside it: your properties with what they
    hold. inheritedProps and ownProps shape the same. The small readers after them are what the tree checks before and
@@ -261,7 +262,7 @@ async function tagGraph(onPropInfoFailed) {
                 {:logseq.property.class/properties [:db/id :db/ident :block/title :block/uuid]}
                 {:logseq.property/description [:block/title]}])
       :where [?t :block/tags :logseq.class/Tag]]`),
-    // Each tag's nodes, those in the Recycle left out (0.4.473): count is how many, nodes the ids, so a tag and those under
+    // Each tag's nodes, those in the Recycle left out: count is how many, nodes the ids, so a tag and those under
     // it are counted without a node with two of them counted twice (the map's counts and the tag lists' agree).
     dsQuery(`[:find ?t ?b :where [?t :block/tags :logseq.class/Tag] [?b :block/tags ?t] ${LIVE}]`),
     propInfo().catch(error => { onPropInfoFailed?.(error); return new Map(); }),
@@ -341,11 +342,11 @@ async function choiceCounts(tag, prop) {
 }
 // The nodes of a tag that hold a choice, as uuids; and the choice's id.
 const choiceNodes = async (tag, prop, choice) => (await dsQuery(`[:find ?u :where [?t :block/uuid #uuid "${tag.uuid}"] [?v :block/uuid #uuid "${choice.uuid}"] [?b :block/tags ?t] [?b :${prop.ident} ?v] [?b :block/uuid ?u]]`)).map(([u]) => String(u));
-// Turning a property into links (0.4.241): every node holding it, with the words of each value (a text value is a small
+// Turning a property into links: every node holding it, with the words of each value (a text value is a small
 // block of its own, a choice has its title); and your own property of a name and kind, once Logseq has made it.
 const propTextValues = async ident => (await dsQuery(`[:find ?u ?vt :where [?b :${ident} ?v] [?b :block/uuid ?u] [?v :block/title ?vt] (not [?b :logseq.property/deleted-at _])]`))
   .map(([u, t]) => ({ uuid: String(u), value: String(t).trim() })).filter(r => r.value);
-// The same with each value's own block (0.4.422, merging text properties): a value is changed by changing its words.
+// The same with each value's own block (merging text properties): a value is changed by changing its words.
 const propTextBlocks = async ident => (await dsQuery(`[:find ?u ?vu ?vt :where [?b :${ident} ?v] [?b :block/uuid ?u] [?v :block/uuid ?vu] [?v :block/title ?vt] (not [?b :logseq.property/deleted-at _])]`))
   .map(([u, vu, t]) => ({ uuid: String(u), valueUuid: String(vu), value: String(t).trim() }));
 // Every value block a property made (a text or a number is a small block of its own): Logseq deleting the property leaves
@@ -367,9 +368,7 @@ const titleNow = async uuid => { const [[title] = []] = await dsQuery(`[:find ?t
 const valuesOf = async (uuid, ident) => (await dsQuery(`[:find ?v :where [?b :block/uuid #uuid "${uuid}"] [?b :${ident} ?v]]`)).map(([v]) => idOf(v) ?? v);
 const userValues = async uuid => (await dsQuery(`[:find ?a :where [?b :block/uuid #uuid "${uuid}"] [?b ?a _] [?p :db/ident ?a] [?p :block/tags :logseq.class/Property]]`))
   .map(([a]) => bare(a)).filter(a => TREE_PROP.test(a));
-// How many nodes hold a property at all (the property map's "on 12 nodes", 0.4.305).
-const propUse = async ident => Number((await dsQuery(`[:find (count ?b) :where [?b :${ident} _] (not [?b :logseq.property/deleted-at _])]`))[0]?.[0]) || 0;
-// Merging a link or a choice property (0.4.430): every node holding it with the ids of its values; a property's choices
+// Merging a link or a choice property: every node holding it with the ids of its values; a property's choices
 // by their words, with their ids.
 async function propNodeIds(ident) {
   const rows = await dsQuery(`[:find ?u ?v :where [?b :${ident} ?v] [?b :block/uuid ?u] (not [?b :logseq.property/deleted-at _])]`);
@@ -381,36 +380,11 @@ async function choiceIds(prop) {
   const rows = await dsQuery(`[:find ?v ?t :where [?p :block/uuid #uuid "${prop.uuid}"] [?v :block/closed-value-property ?p] [?v :block/title ?t]]`);
   return new Map(rows.map(([v, title]) => [idOf(v) ?? v, String(title)]));
 }
-// Every property of yours with how many nodes hold it, in one question (0.4.429, the tag map's tables): a property no
+// Every property of yours with how many nodes hold it, in one question (the tag map's tables): a property no
 // node holds is left out, so it reads as 0.
 async function propUses() {
   const rows = await dsQuery('[:find ?a (count ?b) :where [?p :logseq.property/type _] [?p :db/ident ?a] [(namespace ?a) ?ns] [(= ?ns "user.property")] [?b ?a _] (not [?b :logseq.property/deleted-at _])]');
   return new Map(rows.map(([ident, n]) => [bare(ident), Number(n) || 0]));
-}
-// The nodes that hold a property, newest day first, each with its words and the words of its values (a page's or
-// choice's title, a day's title, a number, yes or no): the property map's Nodes line (0.4.307, the owner: "show the
-// nodes that have the properties").
-async function propHolders(ident) {
-  const where = `[?b :${ident} ?v] [?b :block/uuid ?u] [?b :block/title ?t] (not [?b :logseq.property/deleted-at _]) (not-join [?b] [?b :block/page ?pg] [?pg :logseq.property/deleted-at _])`;
-  const [raw, titled, numbered, written] = await Promise.all([
-    dsQuery(`[:find ?u ?t ?v :where ${where}]`),
-    dsQuery(`[:find ?u ?v ?vt :where ${where} [?v :block/title ?vt]]`),
-    dsQuery(`[:find ?u ?v ?n :where ${where} [?v :logseq.property/value ?n]]`),
-    dsQuery(`[:find ?u ?day :where ${where} [?b :block/page ?p] [?p :block/journal-day ?day]]`),
-  ]);
-  const nodes = new Map(), known = new Set();
-  const node = (u, t) => { const key = String(u); if (!nodes.has(key)) nodes.set(key, { uuid: key, title: String(t ?? ''), values: [], day: 0 }); return nodes.get(key); };
-  for (const [u, t] of raw) node(u, t);
-  for (const [u, v, vt] of titled) { known.add(`${u}|${v}`); node(u).values.push(String(vt)); }
-  for (const [u, v, n] of numbered) { if (known.has(`${u}|${v}`)) continue; known.add(`${u}|${v}`); node(u).values.push(String(n)); }
-  for (const [u, , v] of raw) if (typeof v === 'boolean') node(u).values.push(v ? 'yes' : 'no');
-  for (const [u, day] of written) { const n = nodes.get(String(u)); if (n) n.day = Number(day) || 0; }
-  // Links in the words read as their names, resolved in one question for all the nodes at once (hundreds of nodes
-  // would otherwise be hundreds of look-ups), and brackets taken off.
-  const names = await namesOfRefs([...nodes.values()].flatMap(n => [n.title, ...n.values]));
-  const plain = text => String(text).replace(storedRef, (m, open, uuid) => names.get(uuid.toLowerCase()) ?? m).replace(/\[\[([^\]]*)\]\]/g, '$1').trim();
-  for (const n of nodes.values()) { n.title = plain(n.title); n.values = n.values.map(plain); }
-  return [...nodes.values()].sort((a, b) => b.day - a.day || a.title.localeCompare(b.title, undefined, { sensitivity: 'base', numeric: true }));
 }
 // The titles of the pages and blocks that some texts link, by uuid, in one question (two rounds: a title can link on).
 async function namesOfRefs(texts, depth = 2) {
@@ -452,7 +426,7 @@ async function mergeFacts(source, target) {
   };
 }
 
-/* Links into pages (0.4.225, moved here from parts/two-way.js). linksInto(id) is every node that points at the page
+/* Links into pages (moved here from parts/two-way.js). linksInto(id) is every node that points at the page
    (every page but journals when id is null) through a property of yours, with the property's name and ident, the
    node's words as stored, its first tag of yours by name, and its day: a Date property of yours (the one titled Date
    first, whatever its ident, else the earliest), else the journal day it is written on. Deleted nodes and nodes on deleted pages are left
@@ -488,9 +462,9 @@ async function statusChoices() {
     .sort((a, b) => (a.order < b.order ? -1 : a.order > b.order ? 1 : a.id - b.id));
 }
 async function linksInto(id) {
-  // One round of questions (0.4.150): each is asked about the blocks that point here through a property of yours,
+  // One round of questions: each is asked about the blocks that point here through a property of yours,
   // rather than waiting for that list first, since every wait right after a page change is long. For every page the
-  // properties come first, so the database walks only their values (0.4.182).
+  // properties come first, so the database walks only their values.
   const fields = '[?prop :db/ident ?attr] [(namespace ?attr) ?pns] [(= ?pns "user.property")]';
   const these = id == null
     ? `${fields} [?b ?attr ?page] [?page :block/name] (not [?page :block/journal-day]) [(not= ?b ?page)] (not [?b :block/page ?page]) ${LIVE}`
@@ -539,7 +513,7 @@ async function pageHasList(uuid) {
   }
   return false;
 }
-/* Mentions (0.4.423, the owner's pick A from docs/history/TWO-WAY-POTENTIALS-2026-10-25.html): the nodes whose own words
+/* Mentions (the owner's pick A): the nodes whose own words
    link the page, [[its uuid]] in their stored words, as linksInto describes its nodes (uuid, words, first tag of yours,
    day). A tag written in the words (#[[…]]) is no mention, a page's own blocks do not count, deleted ones are left out.
    Whether a node also points here through a property is the caller's to say. One page only, never every page. */
@@ -570,7 +544,7 @@ async function mentionsInto(id) {
   }
   return out;
 }
-/* What the structure is used for (0.4.448, docs/MAP-DESIGN.md 4): the evidence the tag map's counts and findings rest
+/* What the structure is used for: the evidence the tag map's counts and findings rest
    on, for the whole graph, in four questions asked at once. values: property ident -> [[node, value]] (a value is the id
    of a node, a page, a choice or a text block, or a number); tagsOf: node -> [ids of your tags on it]; texts: text block
    id -> its words; named: node -> Set of the pages it names in its words (its property values, its tags, its own page,
@@ -602,7 +576,7 @@ async function structureUse() {
   }
   return out;
 }
-/* Where each node that names a page sits (0.4.437, the two-way section taking over Linked references, which shows a
+/* Where each node that names a page sits (the two-way section taking over Linked references, which shows a
    mention under its page and parent bullets): for every block that links the page, its parents from the page down,
    each { uuid, title } (titles as stored). Five levels at most, each one question. */
 async function crumbsInto(id) {
@@ -616,7 +590,7 @@ async function crumbsInto(id) {
   }
   return out;
 }
-// The nodes that carry one tag (0.4.445, the tag map's Nodes count): [{ id, uuid, title, day }], the journal day each is
+// The nodes that carry one tag (the tag map's Nodes count): [{ id, uuid, title, day }], the journal day each is
 // written on, newest first; deleted ones left out.
 async function nodesOfTag(tagId) {
   if (!Number.isSafeInteger(tagId) || tagId <= 0) return [];
@@ -636,7 +610,7 @@ async function namedIn(titles) {
     .map(([u, t]) => [String(u).toLowerCase(), String(t || '')]) : []);
   return t => String(t || '').replace(storedRef, (match, open, uuid) => names.get(uuid.toLowerCase()) ?? match).replace(/\[\[([^\]]*)\]\]/g, '$1').trim();
 }
-/* Many nodes as lines (0.4.457, the map's counts opening their nodes): id -> { id, uuid, title, day }, the title as
+/* Many nodes as lines (the map's counts opening their nodes): id -> { id, uuid, title, day }, the title as
    people read it, the journal day it is written on (0 for a page). A value node gives its words too: a text value its
    title, a number its value, a day its journal day's title. Deleted ones left out. */
 async function nodeLines(ids) {
@@ -654,7 +628,7 @@ async function nodeLines(ids) {
   for (const [b, u, t] of titled) out.set(b, { id: b, uuid: String(u), title: words(t), day: days.get(b) || 0 });
   return out;
 }
-// The first tag of yours on each of these nodes, by id (0.4.442, the tag after every node in the two-way section's
+// The first tag of yours on each of these nodes, by id (the tag after every node in the two-way section's
 // digging): id -> tag title, the first by name, as linksInto gives a node's tag.
 async function firstTags(ids) {
   const list = [...new Set((ids || []).filter(id => Number.isSafeInteger(id) && id > 0))];
@@ -667,7 +641,7 @@ async function firstTags(ids) {
 async function nodeFields(uuid) {
   const where = `[?b :block/uuid #uuid "${uuid}"] [?b ?attr ?v] [?prop :db/ident ?attr] [(namespace ?attr) ?ns] [(= ?ns "user.property")] [?prop :block/title ?name]`;
   // Each value with its node's uuid, and each property's own page (fields.props, name -> uuid), so a card can open
-  // them (0.4.262, the owner: "make the different links and elements of the hover clickable").
+  // them (the owner: "make the different links and elements of the hover clickable").
   const [raw, titled, dated] = await Promise.all([
     dsQuery(`[:find ?name ?v ?pu :where ${where} [?prop :block/uuid ?pu]]`),
     dsQuery(`[:find ?name ?v ?t ?vu :where ${where} [?v :block/title ?t] [?v :block/uuid ?vu]]`),
@@ -694,10 +668,10 @@ async function firstLines(uuid, n, withIds = false) {
   // empty in a row, its bullet unread), so its bullets are read as a page's.
   const page = !entity && await logseq.Editor.getPage(uuid).catch(() => null);
   const children = entity?.name || entity?.originalName || page ? await logseq.Editor.getPageBlocksTree(uuid) : entity?.children;
-  // withIds (0.4.262): { uuid, title } each, so a card can open the bullet a line is.
+  // withIds: { uuid, title } each, so a card can open the bullet a line is.
   return (children || []).slice(0, n).map(child => withIds ? { uuid: String(child?.uuid || ''), title: titleOf(child) } : titleOf(child));
 }
-/* What many nodes hold under each of your properties, at once (0.4.369, for grouping a row, parts/two-way.js):
+/* What many nodes hold under each of your properties, at once (for grouping a row, parts/two-way.js):
    uuid -> property name -> { ident, values }, each value { text } with { id, uuid } when it is a node or a choice (a
    text value is a node of its own in Logseq, so it has an id too), { day, id } for a day, and for a number or a yes/no
    { text, number } or { text, boolean }: Logseq keeps those in a small value node of their own, the number in its
@@ -738,7 +712,7 @@ async function nodeValues(uuids, { logseqs = false, dates = false } = {}) {
   }
   return out;
 }
-// The words of the bullets written straight on a page, for the page's own proposals (0.4.239); a property's text value
+// The words of the bullets written straight on a page, for the page's own proposals; a property's text value
 // is not one (it has a property of its own pointing at it).
 const pageLines = async uuid => !UUID.test(uuid) ? [] : (await dsQuery(`[:find ?t :where [?p :block/uuid #uuid "${uuid}"] [?b :block/parent ?p] [?b :block/page ?p] [?b :block/title ?t] (not [?b :logseq.property/created-from-property _])]`).catch(() => [])).map(([t]) => String(t));
 // How many of these nodes are pages; the uuid of the tag of yours with this name; a node's uuid by its id.
@@ -754,7 +728,7 @@ const registerCommand = (key, label, run) => logseq.App.registerCommandPalette({
 // The names are the door's (plugin.js, Door.dates), in small letters as they are typed.
 const DAYS = window.PluginDoor.dates.WEEKDAYS.map(name => name.toLowerCase()), MONTHS = window.PluginDoor.dates.MONTHS.map(name => name.toLowerCase());
 const dayAfter = (date, n) => { const d = new Date(date.getFullYear(), date.getMonth(), date.getDate()); d.setDate(d.getDate() + n); return d; };
-// A date only when the day exists: 30 February or 31 September is no day (0.4.168: they used to roll over into the
+// A date only when the day exists: 30 February or 31 September is no day (they used to roll over into the
 // next month, so "31 sep" read as 1 October).
 const exactDay = (year, month, day) => { const d = new Date(year, month, day); return d.getFullYear() === year && d.getMonth() === month && d.getDate() === day ? d : null; };
 const weekdayIndex = word => DAYS.findIndex(d => d.startsWith(word) && word.length >= 2);
@@ -787,16 +761,14 @@ function parseDay(text, today) {
 const sameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 const dayNumber = window.PluginDoor.dates.number;
 
-/* Journal pages: the door's date service (plugin.js, Door.dates), the same in every module. A day's page by its number (made when
-   it does not exist yet, as Logseq would), and a day's title in the format the graph uses (MMM do, yyyy; E, dd.MM.yyyy; yyyyMMdd ...). */
-const journalIdFor = (day, title) => window.PluginDoor.dates.pageFor(day, dsQuery, title);
-const formatJournalTitle = (date, format) => window.PluginDoor.dates.title(date, format);
-const journalTitleFor = (year, month, day) => window.PluginDoor.dates.titleFor(year * 10000 + month * 100 + day, dsQuery);
+/* Journal pages: the door's date service (plugin.js, Door.dates), the same in every module. A day's page by its number, made by
+   Logseq's own journal call when it does not exist yet. */
+const journalIdFor = day => window.PluginDoor.dates.pageFor(day, dsQuery);
 
-/* What kind of page a page is (0.4.170, moved from parts/pages.js): a tag page, a property page, an ordinary page with
+/* What kind of page a page is (moved from parts/pages.js): a tag page, a property page, an ordinary page with
    no tag of its own (plain), and the pages it is an alias of, as [uuid, title] by title. Logseq records an alias only on
    the original page, so it is looked up from the alias's side. Both asked together: right after a page change each
-   answer waits behind Logseq loading the page (0.4.150). */
+   answer waits behind Logseq loading the page. */
 async function kindOfPage(pageId) {
   if (!Number.isSafeInteger(pageId) || pageId <= 0) return { isTag: false, isProperty: false, plain: false, aliasOf: [] };
   const [rows, originals] = await Promise.all([
@@ -814,10 +786,10 @@ async function kindOfPage(pageId) {
   };
 }
 
-/* Where a tag sits (0.4.328): the tag with this uuid and the tags above it, nearest first, following at each step the
+/* Where a tag sits: the tag with this uuid and the tags above it, nearest first, following at each step the
    first parent by title, and the tag's other direct parents; null when the page is not a tag. Logseq's Root, which every
    tag without a parent of yours sits under, is left out, so a top-level tag's chain is the tag alone.
-   tagChains(uuid) (0.4.329) gives the same for the page itself (own, when it is a tag) and for each tag it has (tags),
+   tagChains(uuid) gives the same for the page itself (own, when it is a tag) and for each tag it has (tags),
    leaving out Logseq's kinds of page (Page, Journal, Tag, Property, Whiteboard), which say what a page is, not a tag. */
 const PAGE_KINDS = new Set(['logseq.class/Page', 'logseq.class/Journal', 'logseq.class/Tag', 'logseq.class/Property', 'logseq.class/Whiteboard']);
 async function tagIndex() {
@@ -847,7 +819,7 @@ function chainOf({ byId, parents }, id) {
   }
   return { chain, others: (parents.get(id) || []).slice(1).map(p => shown(byId.get(p))) };
 }
-// The index as a thing a part keeps (0.4.331): the chain of any tag by its uuid, with no wait, so the title's corner can be
+// The index as a thing a part keeps: the chain of any tag by its uuid, with no wait, so the title's corner can be
 // drawn in the same frame as the title. Read again when the graph changes.
 async function tagChainIndex() {
   const index = await tagIndex();
@@ -866,7 +838,7 @@ async function tagChains(uuid) {
   return { own: me ? chainOf(index, me[0]) : null, tags: tags.map(id => chainOf(index, id)) };
 }
 const tagChain = async uuid => (await tagChains(uuid))?.own || null;
-/* THE writes (0.4.315): every write a part makes to the graph goes through here, so Logseq's own calls live in one
+/* THE writes: every write a part makes to the graph goes through here, so Logseq's own calls live in one
    place. A property's value (an entity id with { entityId: true }, several with { reset: true }), a value taken off,
    a tag given or taken from a node, a block's words, a block put in edit or left, a block made after or inside
    another, the page and the graph open now. */
@@ -880,7 +852,7 @@ const setWords = (uuid, text) => window.PluginDoor.write.setWords(uuid, text);
 const editBlock = (uuid, opts) => logseq.Editor.editBlock(uuid, opts);
 const exitEditing = () => logseq.Editor.exitEditingMode();
 const insertBlock = (uuid, text, opts) => window.PluginDoor.write.insertBlock(uuid, text, opts);
-/* A new last bullet inside a node (0.4.369, "write into a node without leaving", parts/two-way.js): at the end of a
+/* A new last bullet inside a node ("write into a node without leaving", parts/two-way.js): at the end of a
    page's blocks, after the last child of a block, or as a block's first child when it has none. Not put in edit.
    Returns the new block, which removeBlock takes away again. */
 async function addLineTo(uuid, text) {
@@ -891,9 +863,7 @@ async function addLineTo(uuid, text) {
   return last ? window.PluginDoor.write.insertBlock(String(last.uuid), text, { sibling: true, focus: false }) : window.PluginDoor.write.insertBlock(uuid, text, { sibling: false, focus: false });
 }
 const currentPage = () => logseq.Editor.getCurrentPage();
-// The block being written in, the blocks picked, and a block by its id (with its parent and page), for a command (0.4.357).
-const currentBlock = () => Promise.resolve(logseq.Editor.getCurrentBlock()).catch(() => null);
-const pickedBlocks = () => Promise.resolve(logseq.Editor.getSelectedBlocks()).then(list => list || []).catch(() => []);
+// A block by its id (with its parent and page).
 const getBlock = (uuid, opts) => logseq.Editor.getBlock(uuid, opts);
 const getPage = key => logseq.Editor.getPage(key);
 // A page in Logseq's Recycle (deleted, kept for a while): Logseq still finds it by its name, and "making" a page of that
@@ -923,7 +893,7 @@ const deletePage = page => window.PluginDoor.write.deletePage(page, query => dsQ
 const appendBlock = (pageUuid, text) => window.PluginDoor.write.appendBlock(pageUuid, text);
 const removeBlock = uuid => window.PluginDoor.write.removeBlock(uuid);
 const currentGraph = () => Promise.resolve(logseq.App.getCurrentGraph?.()).catch(() => null);
-// The tag map's doors (0.4.319): a page's new name, a block moved after another, a page's blocks as a tree, a tag put
+// The tag map's doors: a page's new name, a block moved after another, a page's blocks as a tree, a tag put
 // under or taken out from under another (its Extends), a page or block opened in the right sidebar, the sidebar shown.
 const renamePage = (uuid, name) => window.PluginDoor.write.renamePage(uuid, name);
 const moveBlock = (uuid, target, opts) => window.PluginDoor.write.moveBlock(uuid, target, opts);
@@ -939,7 +909,7 @@ const showSidebar = (on = true) => Promise.resolve(logseq.App.setRightSidebarVis
 // Every tag's title, for a list to offer (the settings window).
 const tagTitles = async () => [...new Set(((await logseq.Editor.getAllTags?.()) || []).map(tag => tag.title || tag.originalName || tag.name).filter(Boolean))].sort();
 
-/* How often each page's name is linked, and how often written plain (0.4.373, for the suggested links' learning): every
+/* How often each page's name is linked, and how often written plain (for the suggested links' learning): every
    block's words read once, each [[uuid]] counted for its page, and each page's name counted where it stands as whole
    words outside a link. By the page's lower-case name: { linked, plain }. Pages are the model's own list (journals and
    properties left out). Read at most every 30 s (graphWide), as the page list is. */
@@ -967,26 +937,14 @@ function linkRatesOf(pages, titles) {
 }
 const linkRates = () => graphWide('linkRates', loadLinkRates);
 
-/* PDF highlights (0.4.364, for parts/pdf-quote.js): for highlight nodes by uuid, the page of the PDF they are on, the PDF
-   they come from (its uuid) and its title. In a DB graph a highlight is a child of its PDF, tagged Pdf-annotation, with
-   the page in logseq.property.pdf/hl-page and the PDF in logseq.property/asset (seen in Logseq 2.0.2, 2026-10-23). */
-async function pdfSources(uuids) {
-  const list = [...new Set(uuids)].filter(u => UUID.test(u));
-  const sources = new Map();
-  if (!list.length) return sources;
-  const rows = await dsQuery(`[:find ?u ?page ?su ?title :where [(ground [${list.map(u => `#uuid "${u}"`).join(' ')}]) [?u ...]] [?a :block/uuid ?u]
-      [?a :logseq.property.pdf/hl-page ?page] [?a :logseq.property/asset ?s] [?s :block/uuid ?su] [(get-else $ ?s :block/title "PDF") ?title]]`);
-  for (const [uuid, page, sourceUuid, title] of rows || []) sources.set(String(uuid).toLowerCase(), { page: Number(page), sourceUuid: String(sourceUuid).toLowerCase(), title: String(title || 'PDF') });
-  return sources;
-}
 
-/* What a folded node holds (0.4.393, the folded-node note; first made at 0.4.75 in the old links part): for each node,
+/* What a folded node holds (the folded-node note of the old links part): for each node,
    everything under it at any depth. task: the unfinished tasks; tags: the owner's tags, counted, most first (Logseq's
    own classes such as Task left out); due: the nearest Deadline or Scheduled of an unfinished task, as a day number
    (a journal page, or a Date-and-time value, which is a timestamp); files: each kind of file at any depth with its count
    ([['image', 2], ['pdf', 1]], in that order: 'image', 'pdf', 'file'), each file counted once however many nodes show
    or link it; quotes: how many passages are under it, a PDF highlight, one cited by a node there, or a node Logseq shows
-   as a quote, each counted once (0.4.466). A highlight's own PDF and an area highlight's picture belong to the quote and
+   as a quote, each counted once. A highlight's own PDF and an area highlight's picture belong to the quote and
    are not counted as files. The tree under each node is worked out here from one look-up of its page's nodes and their parents,
    instead of one look-up per level. A property's text value is a node of the page too, and is left out. */
 async function heldBelow(uuids) {
@@ -1016,7 +974,7 @@ async function heldBelow(uuids) {
     // A ref is a small entity id, a timestamp is past 1e11: the comparison tells them apart without a type predicate.
     dsQuery(`[:find ?b ?ms :where ${among} (or [?b :logseq.property/deadline ?ms] [?b :logseq.property/scheduled ?ms]) [(> ?ms 100000000000)]]`),
     dsQuery(`[:find ?b ?a ?type :where ${among} (or-join [?b ?a] [(identity ?b) ?a] [?b :logseq.property/asset ?a] [?b :block/refs ?a]) [?a :logseq.property.asset/type ?type]]`),
-    // A quote (0.4.466): a PDF highlight, a node citing one, or a node Logseq shows as a quote (written with >); ?q is
+    // A quote: a PDF highlight, a node citing one, or a node Logseq shows as a quote (written with >); ?q is
     // the passage itself, so a highlight and a note citing it under the same node count as one quote.
     dsQuery(`[:find ?b ?q :where ${among} (or-join [?b ?q] (and [?b :logseq.property.pdf/hl-page _] [(identity ?b) ?q])
       (and [?b :block/refs ?q] [?q :logseq.property.pdf/hl-page _]) (and [?b :logseq.property.node/display-type :quote] [(identity ?b) ?q]))]`),
@@ -1054,7 +1012,7 @@ async function heldBelow(uuids) {
       task++;
       if (dueOf.has(b) && (!due || dueOf.get(b) < due)) due = dueOf.get(b);
     }
-    // Pictures, PDFs and other files at any depth, counted (0.4.466; before, one icon per kind just below).
+    // Pictures, PDFs and other files at any depth, counted (before, one icon per kind just below).
     const files = ['image', 'pdf', 'file'].filter(kind => fileSets.has(kind)).map(kind => [kind, fileSets.get(kind).size]);
     const tags = [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
     held.set(String(u).toLowerCase(), { task, tags, due, files, quotes: passages.size });
@@ -1074,7 +1032,7 @@ async function withKids(uuids) {
 }
 
 function provide(core) {
-  core.provide({ aliasesOf, madeState, pageUnlinked, valueStamp, storedWords, inRecycle, restorePage, setValue, unsetValue, STATUS_IDENT, statusChoices, addTag, removeTag, setWords, editBlock, exitEditing, insertBlock, addLineTo, currentPage, currentBlock, pickedBlocks, getBlock, currentGraph, tagTitles, getPage, createPage, deletePage, appendBlock, removeBlock, inRecycle, restorePage,
+  core.provide({ aliasesOf, madeState, pageUnlinked, valueStamp, storedWords, inRecycle, restorePage, setValue, unsetValue, STATUS_IDENT, statusChoices, addTag, removeTag, setWords, editBlock, exitEditing, insertBlock, addLineTo, currentPage, getBlock, currentGraph, tagTitles, getPage, createPage, deletePage, appendBlock, removeBlock, inRecycle, restorePage,
     renamePage, moveBlock, pageBlocksTree, EXTENDS, ALIAS, ICON, PARENT_TAGS, addTagExtends, removeTagExtends, openInSidebar, showSidebar,
     titleOf, trailingTags, storedRef, readableTitle, bare, pick, idOf,
     propSchema, propPages, fieldsOf, fits, kindOfPage, tagChain, tagChains, tagChainIndex, parseDay, dayNumber, sameDay, dayAfter, DAYS,
@@ -1082,7 +1040,7 @@ function provide(core) {
     descriptionOf, titleNow, valuesOf, userValues, mergeFacts, TAG_PROPS, ACCEPTS, DESCRIPTION,
     linksInto, mentionsInto, pageHasList, createdAt, firstTags, nodesOfTag, nodeLines, nodeFields, nodeValues, firstLines, pagesAmong, tagUuidNamed, uuidById,
     hasTag, pageLines, registerCommand,
-    propTextValues, propTextBlocks, propValueBlocks, propNamed, propUse, propUses, structureUse, propNodeIds, choiceIds, crumbsInto, propHolders, pdfSources, heldBelow, withKids, linkRates, linkRatesOf, journalIdFor, journalTitleFor, formatJournalTitle, CHECKED_WITH, PAGE_TITLE, screenChecks, pageTitles, titleAnchor });
+    propTextValues, propTextBlocks, propValueBlocks, propNamed, propUses, structureUse, propNodeIds, choiceIds, crumbsInto, heldBelow, withKids, linkRates, linkRatesOf, journalIdFor, CHECKED_WITH, PAGE_TITLE, screenChecks, pageTitles, titleAnchor });
 }
 function start() {
   window.Threads.core.onGraphChange(() => window.PluginDoor.dates.forget());   // each graph has its own

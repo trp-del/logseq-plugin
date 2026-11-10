@@ -48,7 +48,7 @@ const { U, load, pencilled } = standIn;
   assert.ok(/\.bottom-properties-row \{[^}]*max-height: none !important/.test(styles['look-capsules']), 'and its row grows to hold the lines: Logseq caps it at one');
   // the shared names: a pencilled tag fades once; the one alternative in force takes the text colour
   assert.ok(door.NAMES.includes('.lk-pencil .lk-tag, .lk-tag.lk-pencil { opacity: 1; }'), 'a pencilled tag fades once');
-  assert.ok(door.NAMES.includes('.lk-alts > * { color: var(--lk-faint) !important; }') && door.NAMES.includes('.lk-alts { color: inherit !important; }'), 'the alternatives faint one by one, the line itself in the text colour');
+  assert.ok(door.NAMES.includes('.lk-alts > * { color: var(--lk-quiet) !important; }') && door.NAMES.includes('.lk-alts { color: inherit !important; }'), 'the alternatives faint one by one, the line itself in the text colour');
   // the index: chains, and no sort of any kind (the four kinds are tags like any other since 4 November 2026)
   const index = Look.index; assert.ok(index, 'the page index was read');
   assert.equal(index.chainByUuid(U(3)).chain.map(t => t.title).join('/'), 'Doctor/Person/Entity');
@@ -63,14 +63,23 @@ const { U, load, pencilled } = standIn;
   assert.ok(pathBox.querySelector('.lk-held .lk-x'), 'the held tag has an ×');
   // On a tag's own page the × reaches every node under the tag, so it writes nothing: it opens Structure's ask, and with Structure off it is not there.
   { const title = doc.querySelector('.ls-page-title .ls-block[blockid]'), was = title.getAttribute('blockid');
-    title.setAttribute('blockid', U(3)); Look.title.draw(doc);
+    const settings = logseq.settings, was2 = settings.structureOn;
+    settings.structureOn = false; title.setAttribute('blockid', U(3)); Look.title.draw(doc);
     const box = doc.querySelector('.ls-block-right > .lk-path');
     assert.equal(box.textContent.replace(/\s+/g, ''), 'Person/Entity', 'only the tags above it');
-    assert.ok(!box.querySelector('.lk-x'), 'with no Structure, no ×');
-    const asked = []; win.Structure = { app: { askTakeOut: async (...a) => { asked.push(a); } } }; box.dataset.key = ''; Look.title.draw(doc);
-    const x = box.querySelector('.lk-x'); assert.ok(x, 'with Structure, the ×'); x.click(); await new Promise(r => setTimeout(r, 0));
-    assert.deepEqual(asked, [[U(3), U(2)]], 'a press asks Structure, the tag and the tag above it');
-    title.setAttribute('blockid', was); delete win.Structure; box.dataset.key = ''; Look.title.draw(doc); }
+    assert.ok(!box.querySelector('.lk-x'), 'with Structure switched off, no ×');
+    settings.structureOn = true; box.dataset.key = ''; Look.title.draw(doc);
+    const x = box.querySelector('.lk-x'); assert.ok(x, 'with Structure, the ×');
+    // Structure not started yet: the press says what is needed, through the door, never by a name on the window.
+    const said = []; const notify0 = logseq.UI.showMsg; logseq.UI.showMsg = (...a) => { said.push(a[0]); };
+    x.click(); await new Promise(r => setTimeout(r, 0));
+    assert.ok(said.some(m => /Switch on Structure/.test(m)), 'no Structure answering: it says so');
+    const asked = []; const off = door.offerAsk('structure.takeOut', async (...a) => { asked.push(a); });
+    x.click(); await new Promise(r => setTimeout(r, 0));
+    assert.deepEqual(asked, [[U(3), U(2)]], 'a press asks Structure through the door, the tag and the tag above it');
+    off(); assert.ok(!door.answers('structure.takeOut'), 'the offer is taken off at stop');
+    logseq.UI.showMsg = notify0; settings.structureOn = was2;
+    title.setAttribute('blockid', was); box.dataset.key = ''; Look.title.draw(doc); }
   // property icons in the page's list: the web for a link to nodes, a calendar for a date, 123, a box for a choice, letters; nothing under a node
   const kind = name => doc.querySelector(`.ls-page-properties [data-property-title="${name}"] .property-m[data-lk-kind] > .lk-kind`);
   assert.ok(kind('Works at')?.querySelector('.lk-web'), 'the web mark on Works at');

@@ -315,7 +315,7 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
     assert.ok(doc.querySelector('.fd-w.lk-node') && !doc.querySelector('.fd-w.lk-node:not(.lk-bare)'), 'under a kind picked, no mark');
     await key('Escape'); await settle(); }
   // The foot: the words in the text colour, the key faint.
-  assert.ok(styles['find-find'].includes('.fd-foot .fd-k { color: var(--lk-faint);') && /\.fd-foot \{[^}]*color: var\(--lk-text/.test(styles['find-find']), 'the key faint, what it does in the text colour');
+  assert.ok(styles['find-find'].includes('.fd-foot .fd-k { color: var(--lk-quiet);') && /\.fd-foot \{[^}]*color: var\(--lk-text/.test(styles['find-find']), 'the key faint, what it does in the text colour');
   // A date and time is kept as its milliseconds, not as a node: read as an id it made Logseq throw (the tag Symptomatic Event,
   // "Highest supported entity id is 2147483647, got 1791874800000"). Now no line says the graph could not be read, and the value reads as its day.
   { BLOCKS[40].onset = 1791874800000; BLOCKS[41].onset = 1791874800000; Find.window.forget(); Find.db.forget();
@@ -344,6 +344,7 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
     r = read('Consultation with mei', names, today);
     assert.deepEqual([r.trail, r.trailFrom], [['mei'], 18], 'the last words, less the joining one, are the trail Tab completes');
     r = read('7 May', names, today); assert.deepEqual([r.picks[0].from, r.picks[0].to, r.picks[0].around], [20260507, 20260507, false], 'a day');
+    assert.equal(r.picks[0].label, 'May 7, 2026', 'a day reads month first, as everywhere else');
     r = read('May', names, today); assert.equal(r.picks[0].from, 20260501, 'a month alone is the latest one up to today');
     r = read('Dec', names, today); assert.equal(r.picks[0].from, 20251201, 'December, in November, is last year\'s');
     r = read('2025', names, today); assert.deepEqual([r.picks[0].from, r.picks[0].to], [20250101, 20251231], 'a year');
@@ -356,7 +357,7 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
     assert.deepEqual(read('Consultation from May to August 2026', names, today).spans.map(x => [x.cls, x.note]), [['fd-kind', 'kind'], ['fd-stop', ''], ['fd-when', 'when']], 'the period one stretch, "from" quiet before it');
     assert.deepEqual(span(read('between 2024 and 2025', names, today)), [20240101, 20251231, '2024–2025'], 'between two years');
     assert.deepEqual(span(read('May–August', names, today)), [20260501, 20260831, 'May–Aug 2026'], 'a dash joins them too');
-    assert.deepEqual(span(read('7–21 May', names, today)), [20260507, 20260521, '7–21 May 2026'], 'two days of one month');
+    assert.deepEqual(span(read('7–21 May', names, today)), [20260507, 20260521, 'May 7–21, 2026'], 'two days of one month, month first as everywhere');
     assert.deepEqual(span(read('Nov to Feb', names, today)), [20251101, 20260228, 'Nov 2025–Feb 2026'], 'a start that would follow its end moves a year back');
     assert.deepEqual(span(read('since March', names, today)), [20260301, 20261105, 'since Mar 2026'], 'since: up to today');
     assert.deepEqual(span(read('around May to June 2026', names, today)), [20260401, 20260731, 'around May–Jun 2026'], 'around widens both ends');

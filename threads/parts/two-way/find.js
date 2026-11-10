@@ -9,7 +9,7 @@ const shared = window.Threads.shared;
 const { host } = shared;
 const { state, warnOnce } = twoWay;
 
-/* Find among what points here (0.4.436; the kit's field since 0.4.442, the count at its end; the owner, 2026-10-27: "there
+/* Find among what points here (the kit's field, the count at its end; the owner, 2026-10-27: "there
    should be a way to search like properties … it does not appear everywhere and it seems very limited"): a field above
    the rows on every page that something points at. Typing keeps a whole row whose name holds what is typed, and in the
    others the nodes whose title or tag hold it, or one of their own properties, by its name or a value ("Findings",

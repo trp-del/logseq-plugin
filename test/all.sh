@@ -19,6 +19,7 @@ run . node test/watcher.js
 run . node test/screen.js
 run . node test/dates.js
 run . node test/helpers.js
+run . node test/tidy.js
 run look node test/load.js
 run find node test/load.js
 run predictive node test/run.js

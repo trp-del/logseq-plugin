@@ -10,12 +10,12 @@ const shared = window.Threads.shared;
 const { openEntity, openPageNamed, esc } = shared;
 const { state, warnOnce } = twoWay;
 
-/* Peek (0.4.184): resting the pointer on a record for a moment shows a card beside it, with the record's tag and
+/* Peek: resting the pointer on a record for a moment shows a card beside it, with the record's tag and
    day, its fields (the one that points here left out) and its first lines, read when asked and kept until the
-   graph changes. It goes when the pointer leaves the record and the card. The card is the kit's (0.4.318). */
+   graph changes. It goes when the pointer leaves the record and the card. The card is the kit's. */
 const PEEK_MS = 450;
 const peek = { timer: 0, hide: 0, card: null, uuid: '', anchor: null, cache: new Map() };
-/* Every piece of the card opens what it names (0.4.262, the owner: "make the different links and elements of the hover
+/* Every piece of the card opens what it names (the owner: "make the different links and elements of the hover
    clickable"): the title the node itself, its tag the tag's page, a property's name the property's page, a value the
    page it points to, a line the bullet it is, a link in a line its page; Shift-click opens it in the right sidebar.
    Words that name nothing (a text value) open the node, as the card always did. */

@@ -1,5 +1,5 @@
-/* Starts parts/model.js in a pretend window the way main.js does (0.4.224), for the tests that load a part on its own
-   (tools/tags-test.js, tag-drag-test.js, tags-speed.js, pictures.js, shadow-test.js, shadow-write-test.js): the core's
+/* Starts parts/model.js in a pretend window the way main.js does, for the tests that load a part on its own
+   (tools/odd-text-test.js, tools/two-way-check.js): the core's
    dsQuery reads window.logseq.DB unless the test gave the core one, graphWide remembers nothing, and what the test put
    on the core itself wins over the model's own. Load parts/shared.js and parts/model.js first, then this, then the part.
    From node: require('./pretend-model') is the script's text, to eval in the window or add to the page. */
@@ -9,7 +9,7 @@ module.exports = `(() => {
   core.provide = things => Object.assign(core.provided, things);
   core.dsQuery ||= async query => { const rows = await logseq.DB.datascriptQuery(query); return Array.isArray(rows) ? rows : []; };
   core.graphWide ||= (name, load) => Promise.resolve().then(load);
-  // What a part on the kit asks of the core (0.4.319): the hooks, the screen door, the settings' save, a style sent.
+  // What a part on the kit asks of the core: the hooks, the screen door, the settings' save, a style sent.
   for (const hook of ['onPageChange', 'onDatabaseChange', 'onSettingsChange', 'onGraphChange']) core[hook] ||= () => {};
   core.screen ||= window.Threads.shared.screen;
   core.saveSettings ||= patch => logseq.updateSettings(patch);

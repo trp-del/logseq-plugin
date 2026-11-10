@@ -9,14 +9,13 @@ const twoWay = window.Threads.parts?.find(part => part.name === 'two-way')?.inne
 if (!twoWay) return;   // the two-way part did not load, so nothing of it runs
 
 const twoWayCss = `
-/* Under the page's own properties, as more property rows (the light field around them went at the design audit,
-   0.4.286, docs/history/DESIGN-AUDIT-2026-10-22.md: a box around rows meant to read as rows): these rows are the far end of a field held by other
-   records, so they read like properties but are not this page's own; the → after the name, pointing at the records that hold the field, says so (a ← before the name until 0.4.186). The names are
-   the grey of every property name and the days plain grey words (0.4.141, the owner's pick: no blue, no date box).
-   Sizes and columns are Logseq's own property rows above, as measured in 2.0.2 (0.4.144): the text at the page's
+/* Under the page's own properties, as more property rows (the light field around them went at the design audit: a box around rows meant to read as rows): these rows are the far end of a field held by other
+   records, so they read like properties but are not this page's own; the → after the name, pointing at the records that hold the field, says so (a ← before the name). The names are
+   the grey of every property name and the days plain grey words (the owner's pick: no blue, no date box).
+   Sizes and columns are Logseq's own property rows above, as measured in 2.0.2: the text at the page's
    size (the names .94 of it, as theirs), a 150px name column, a 12px gap, the values 22px in where theirs start
    after their bullet, 28px rows; the name starts where theirs does, after the room of their property icon (15px and a 4px gap), and the → follows it.
-   Only the rows' own layout is here (0.4.318): the tag, the tick box, the filter words, the icons, the field, the card
+   Only the rows' own layout is here: the tag, the tick box, the filter words, the icons, the field, the card
    and the pop-ups are the kit's, the bar and the buttons the library's (plugin.js).
    The gaps say what belongs together (7 November 2026, the owner: "make the spacing among everything more logical
    groupings"), the same at every depth: nothing between a head and its list or between the lines of one list; 4px
@@ -38,12 +37,12 @@ const twoWayCss = `
      its list under it at the section's full width, so a long name never pushes the lists right and the words have room. */
   display: block;
 }
-/* Waiting unseen in its place for Logseq's property list on a first visit (0.4.333), the page's words below it with it. */
+/* Waiting unseen in its place for Logseq's property list on a first visit, the page's words below it with it. */
 .th-two-way[data-th-waiting] { visibility: hidden; }
 #main-content-container:has(.th-two-way[data-th-waiting]) .ls-page-blocks { visibility: hidden; }
 /* Only holding room while the page settles: no field, no rows. */
 .th-two-way:not(:has(.th-tw-row, .th-tw-beside)) { margin: var(--th-tw-hold, 0px) 0 0; }
-/* The room held while the page settled eases away (0.4.283), only then: while the page settles the held room shrinks in the same frame Logseq's list grows, and must not lag. */
+/* The room held while the page settled eases away, only then: while the page settles the held room shrinks in the same frame Logseq's list grows, and must not lag. */
 .th-two-way[data-th-settling] { transition: margin-top .25s ease; }
 .th-two-way .th-tw-row { display: block; padding: 0; }
 /* Each property's group stands apart (the owner, 7 November 2026: "generous spacing between sections so it doesn't feel
@@ -69,7 +68,7 @@ const twoWayCss = `
 .th-two-way .th-tw-whole-line > .th-ol-body { margin-left: 1px; }
 /* The list's words 20px right of its chevron, as Logseq's words from a bullet. */
 .th-two-way .th-tw-row > .th-tw-value > .th-tw-head > .th-ol-body { margin-left: -2px; }
-/* A property's name starts with its icon (0.4.477), hung in the room left of the name so the names stay on one edge
+/* A property's name starts with its icon, hung in the room left of the name so the names stay on one edge
    with the row's own words ("Mentioned in"), which have none. The section has two edges (the owner, 7 November 2026: the
    cough page's lines started at five places): the icons, chevrons and the + stand on the section's edge; every name,
    list head, new node and its properties start one step in (--th-tw-in), where the nodes' chevrons stand. */
@@ -79,17 +78,17 @@ const twoWayCss = `
 .th-two-way .th-tw-sep { visibility: hidden; }
 .th-two-way .th-tw-value { min-width: 0; padding-left: 22px; display: flex; flex-wrap: wrap; column-gap: 1.1em; row-gap: 4px; position: relative; }
 .th-two-way a { color: inherit; text-decoration: none; cursor: pointer; }
-/* The underline under the words, on every line of a name that wraps (0.4.377, the owner: "you can underline the words of a whole
+/* The underline under the words, on every line of a name that wraps (the owner: "you can underline the words of a whole
    sentence not just the bottom part of wrapped line"). */
 /* In an open list the name keeps the pixel the old underline (a border) took, so the lines stay where they were. */
-/* A little more room between records (0.4.230, the owner: "just increase line spacing of items", in place of taking the line away). */
+/* A little more room between records (the owner: "just increase line spacing of items", in place of taking the line away). */
 .th-two-way .th-tw-tag { margin-left: .5em; }
 .th-two-way .th-tw-toggle:hover { color: inherit; }
 /* The list a count opens into: date, record, tag, one per line, under the value. */
-/* The line drops from under the fold arrow (centred 11px in, 0.4.196), as Logseq's own guide lines drop from theirs; the words stay where they were. */
-/* Moving around (0.4.184): a record's line lit under the pointer, the field's name
+/* The line drops from under the fold arrow (centred 11px in), as Logseq's own guide lines drop from theirs; the words stay where they were. */
+/* Moving around: a record's line lit under the pointer, the field's name
    and the kinds as quiet words, the kinds row above an open list, "earlier" before what is past. */
-/* The field's name and the count that opens a list get the same soft patch under the pointer (0.4.185), drawn in the
+/* The field's name and the count that opens a list get the same soft patch under the pointer, drawn in the
    padding a negative margin gives back, so nothing moves. */
 .th-two-way :is(.th-tw-field, .th-tw-toggle) { border-radius: 4px; padding: 0 .25em; margin-left: -.25em; margin-right: -.25em; transition: background-color .1s ease, color .1s ease; }
 .th-two-way :is(.th-tw-field, .th-tw-toggle):hover { color: inherit; background: var(--lk-wash); }
@@ -99,9 +98,9 @@ const twoWayCss = `
 .th-two-way .th-tw-toggle.th-tw-when { color: var(--lk-quiet); font-size: 14px; }
 .th-two-way .th-tw-earlier { display: flex; align-items: center; gap: .5em; margin: 14px 0 2px 0; padding: 0; } /* a line's gap before it; at the chevrons of the nodes it parts (the owner: "start it at chevron") */
 .th-two-way .th-tw-earlier::after { content: ''; flex: 1; border-top: 1px solid var(--lk-hair); }
-/* The line for adding a node (0.4.303): under the row's values, in the value column; a + at its left, the kit's
+/* The line for adding a node: under the row's values, in the value column; a + at its left, the kit's
    field inline, the tag right after it. */
-/* A node's tag sits right after its name (0.4.320, the owner: "move tags for two-way
+/* A node's tag sits right after its name (the owner: "move tags for two-way
    link next to item, not right aligned"); the last column takes the rest of the row. */
 .th-two-way .th-tw-draft { position: relative; display: grid; grid-template-columns: minmax(0, max-content) auto 1.4em 1fr; column-gap: .5em; align-items: baseline; margin: 0 -.35rem; padding: 0 .35rem 0 calc(var(--th-tw-in) + .35rem); cursor: text; }
 .th-two-way .th-tw-row { position: relative; }
@@ -121,21 +120,21 @@ const twoWayCss = `
 .th-two-way .th-tw-newcount { font-weight: 400; font-size: inherit; }
 .th-two-way .th-tw-newcount[aria-pressed="true"] { color: var(--lk-text, currentColor) !important; }
 /* A pinned node (N2): its pin before the name, faint; a gap of a line under the last pinned one. */
-.th-two-way .th-tw-pinned { color: var(--lk-faint); font-size: var(--lk-label); margin-right: 4px; }
+.th-two-way .th-tw-pinned { color: var(--lk-quiet); font-size: var(--lk-label); margin-right: 4px; }
 .th-two-way .th-tw-pingap { height: 10px; }
 /* What the list keeps saying (N6): one quiet line under the head; a value in force reads in the text colour. */
 .th-two-way .th-tw-keeps { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; margin: 0 0 4px calc(2 * var(--th-tw-in)); font-size: var(--lk-small); color: var(--lk-quiet); }   /* at the days' edge, as the quiet lines of the list */
-.th-two-way .th-tw-keepsword { color: var(--lk-faint); }
+.th-two-way .th-tw-keepsword { color: var(--lk-quiet); }
 .th-two-way .th-tw-keep { all: unset; cursor: pointer; color: var(--lk-quiet); text-decoration: underline; text-decoration-color: var(--lk-line); text-underline-offset: 3px; }
 .th-two-way .th-tw-keep:hover, .th-two-way .th-tw-keep[aria-pressed="true"] { color: var(--lk-text, currentColor); text-decoration-color: currentColor; }
-.th-two-way .th-tw-kname { color: var(--lk-faint); }
+.th-two-way .th-tw-kname { color: var(--lk-quiet); }
 .th-two-way .th-tw-sorted { color: var(--lk-quiet); font-weight: 400; }
 /* The year line (N3): a hairline-framed strip under the head, a dot per node at its day, the months under it; a picked week a wash. */
 .th-two-way .th-tw-yearline { position: relative; height: 34px; margin: 2px 0 8px calc(2 * var(--th-tw-in)); border-top: 1px solid var(--lk-hair); border-bottom: 1px solid var(--lk-hair); }
 .th-two-way .th-tw-ydot { all: unset; position: absolute; top: 8px; width: 7px; height: 7px; margin-left: -3.5px; border-radius: 50%; background: var(--lk-quiet); cursor: pointer; }
 .th-two-way .th-tw-ydot:hover, .th-two-way .th-tw-ydot:focus-visible { background: var(--lk-text, currentColor); box-shadow: 0 0 0 3px var(--lk-wash); }
 .th-two-way .th-tw-ydot.th-tw-yoff { opacity: .3; }
-.th-two-way .th-tw-ymonth { position: absolute; bottom: 1px; font-size: var(--lk-label); color: var(--lk-faint); transform: translateX(-2px); pointer-events: none; }
+.th-two-way .th-tw-ymonth { position: absolute; bottom: 1px; font-size: var(--lk-label); color: var(--lk-quiet); transform: translateX(-2px); pointer-events: none; }
 .th-two-way .th-tw-yband { position: absolute; top: 0; bottom: 0; background: var(--lk-wash); pointer-events: none; }
 /* Saved views (N9): a quiet line under the find line. */
 .th-two-way .th-tw-views { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; margin: 4px 0 0 9px; font-size: var(--lk-small); }   /* its words at the words edge */
@@ -148,7 +147,7 @@ const twoWayCss = `
 .th-tw-cmph { font-weight: 600; padding-bottom: 4px; }
 .th-tw-cmpk { color: var(--lk-quiet); }
 .th-tw-cmpv.th-tw-cmpsame { color: var(--lk-quiet); }
-.th-tw-cmpnone { color: var(--lk-faint); }
+.th-tw-cmpnone { color: var(--lk-quiet); }
 .th-tw-cmpline { padding-bottom: 2px; }
 /* A line dragged onto another list (N5): that list's head reads in the wash where it would land. */
 .th-two-way .th-tw-row[data-dropnode] > .th-tw-value > .th-tw-head { background: var(--lk-wash); border-radius: 4px; }
@@ -159,7 +158,7 @@ const twoWayCss = `
 .th-tw-dockpage { color: var(--lk-quiet); }
 .th-tw-dockline { display: grid; grid-template-columns: 3.4em 1fr; gap: 6px; padding: 2px 4px; margin: 0 -4px; border-radius: 4px; color: inherit; text-decoration: none; }
 .th-tw-dockline:hover { background: var(--lk-wash); }
-.th-tw-dockday { color: var(--lk-faint); font-variant-numeric: tabular-nums; text-align: right; }
+.th-tw-dockday { color: var(--lk-quiet); font-variant-numeric: tabular-nums; text-align: right; }
 /* A list dragged by its name (C17): where it would land, a hairline above or below the list it is over. */
 .th-two-way .th-tw-name[draggable="true"] { cursor: grab; }
 .th-two-way .th-tw-row.th-tw-dragging { opacity: .45; }
@@ -171,33 +170,33 @@ const twoWayCss = `
    for empty bullet"): no dot, no words, no room, at rest or under the pointer. It is there for the caret, as Logseq's next
    bullet is: Enter after a bullet's words, or Tab, brings it, and it shows while it has the caret or words. */
 .th-two-way .th-ol-new:not(:focus-within):not(:has(input:not(:placeholder-shown))) { height: 0; min-height: 0; margin: 0; padding: 0; overflow: hidden; opacity: 0; }
-/* Date first in a short row, name first in a list (0.4.304): the same columns as the other kind, the other way round. */
+/* Date first in a short row, name first in a list: the same columns as the other kind, the other way round. */
 .th-two-way .th-tw-draft-plus { position: absolute; left: .35rem; width: 16px; height: 1.8em; display: inline-flex; align-items: center; justify-content: center; }   /* as tall as the words beside it */
 .th-two-way .th-tw-draft-plus::before { margin-right: 0; width: .75em; height: .75em; vertical-align: 0; }   /* the library's + mark, alone, centred in the line */
 .th-two-way .th-tw-draft-main { display: flex; align-items: baseline; gap: .5em; min-width: 0; }
 .th-two-way .th-tw-draft-main .th-field { flex: none; min-width: 0; max-width: 100%; }
 /* The box is as wide as its words (or the "Add a …" in it), so the tag sits right after them as on a node's line. */
 .th-two-way .th-tw-draft-field { field-sizing: content; min-width: 3ch; max-width: 100%; }
-/* No line under the box for a new node (0.4.400, the owner: it read as a link or a filled value beside the real links); its
+/* No line under the box for a new node (the owner: it read as a link or a filled value beside the real links); its
    pixel is kept so nothing moves. */
 .th-two-way .th-tw-draft .th-field { border-bottom-color: transparent; }
 .th-two-way .th-tw-draft-typed { flex: none; max-width: 50%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .th-two-way .th-tw-draft .th-tw-draft-tag { margin-left: 0; white-space: nowrap; }
-/* The rest of the new node under the line (0.4.406): the proposals' look (parts/proposals.js), the row's height kept. */
+/* The rest of the new node under the line: the proposals' look (parts/proposals.js), the row's height kept. */
 .th-two-way .th-tw-draft-props { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 1.1em; row-gap: .1em; min-height: 1.5em; font-size: 14px; line-height: 1.5; }
 .th-two-way .th-tw-dprop { display: inline-flex; align-items: baseline; gap: .35em; margin: 0; padding: 0; border: 0; background: none; font: inherit; color: inherit; cursor: default; text-align: left; }
 .th-two-way button.th-tw-dpick { cursor: pointer; }
-.th-two-way .th-tw-dname { color: var(--lk-faint); }
+.th-two-way .th-tw-dname { color: var(--lk-quiet); }
 .th-two-way .th-tw-dpassed { opacity: .45; }
-/* A page's name completed in grey after the cursor (0.4.406): a copy of the words laid over the box, the typed part clear. */
+/* A page's name completed in grey after the cursor: a copy of the words laid over the box, the typed part clear. */
 .th-two-way .th-tw-draft .th-field { position: relative; }
 .th-two-way .th-tw-ghost-over { position: absolute; box-sizing: border-box; pointer-events: none; white-space: pre; overflow: hidden; }
 .th-two-way .th-tw-ghost-typed { color: transparent; }
-.th-two-way .th-tw-ghost-rest { color: var(--lk-faint); }
+.th-two-way .th-tw-ghost-rest { color: var(--lk-quiet); }
 .th-two-way .th-tw-ghost-rest[data-name]::after { content: "  " attr(data-name); font-size: var(--lk-small); }
-/* Group a row by anything (0.4.369): the word after the count, a group's name with its count and its +, the lines
-   under it. Write into a node (0.4.369): the small arrow before a node, its bullets under its line. */
-/* Group shows all along (0.4.403, the owner: "can keep Group there all along, capitalize G"); before it showed only with
+/* Group a row by anything: the word after the count, a group's name with its count and its +, the lines
+   under it. Write into a node: the small arrow before a node, its bullets under its line. */
+/* Group shows all along (the owner: "can keep Group there all along, capitalize G"); before it showed only with
    the pointer on the row. */
 .th-two-way .th-tw-groupby { margin-left: .6em; }
 .th-two-way .th-tw-groupby .ti { font-size: 12px; }
@@ -208,26 +207,26 @@ const twoWayCss = `
 /* A group's + is the library's lk-reveal. */
 .th-two-way .th-tw-group .th-tw-draft { padding-left: .35rem; }
 .th-two-way .th-tw-group .th-tw-draft-plus { display: none; }
-/* The chevron before a node's name (0.4.435): always there, faint; full under the pointer or while the node is open. */
-/* A node's properties in its opened box (0.4.410): two columns as Logseq's own property list, the name lighter than the
+/* The chevron before a node's name: always there, faint; full under the pointer or while the node is open. */
+/* A node's properties in its opened box: two columns as Logseq's own property list, the name lighter than the
    value, a node property's mark before the name (a fact none); a value a quiet button, a wash under the pointer; "empty" in grey. */
-/* Follow a chain (0.4.423): a value that is another node has a small chevron before it, turning down when it is open;
+/* Follow a chain: a value that is another node has a small chevron before it, turning down when it is open;
    the node opened through it sits under the property, across both columns, with its properties, the rows that point at
    it and its bullets, a line down its left like an opened node's. Its size is the row's again, not the properties'. */
-/* A mention made a node (0.4.423): what it would get, under the one picked, in the proposals' grey. */
-/* Picking (0.4.228): the kit's tick box before each record, in the room left of it; shown under the pointer and on
+/* A mention made a node: what it would get, under the one picked, in the proposals' grey. */
+/* Picking: the kit's tick box before each record, in the room left of it; shown under the pointer and on
    every record while any is picked. The bar is the library's, above the rows. */
-/* The box answers 6px round it as well (0.4.297); the room left of the record ticks it too (onClick). */
-/* In an open list the box sits left of the outline's line (0.4.229, the owner: "to the left of the outline, not within it"). */
-/* Records not in a list too, one to a line so their boxes share that column (0.4.230, the owner: "even those not in a outline"). */
-/* Each record on a line of its own, as in an open list (0.4.297); its tag right after its name since 0.4.320 (it was at
-   the right edge from 0.4.297, the owner then: "the tags under decided should be right aligned"). */
-/* In the wrapping row a negative margin shifts a node instead of widening it (measured in the app, 0.4.299: its right edge
+/* The box answers 6px round it as well; the room left of the record ticks it too (onClick). */
+/* In an open list the box sits left of the outline's line (the owner: "to the left of the outline, not within it"). */
+/* Records not in a list too, one to a line so their boxes share that column (the owner: "even those not in a outline"). */
+/* Each record on a line of its own, as in an open list; its tag right after its name (it was at
+   the right edge, the owner then: "the tags under decided should be right aligned"). */
+/* In the wrapping row a negative margin shifts a node instead of widening it (measured in the app: its right edge
    5 px and its tag 10 px short of an open list's): so it is widened by the margins themselves, the open list's .35rem. */
 /* The same room as in an open list: half a letter before the day, a letter before the tag. */
 /* The room between the words and the day, and before the tag: a space, widened, which a line may break at and which
    leaves no gap at the start of a line. */
-/* a long name wraps, never cut (0.4.263) */
+/* a long name wraps, never cut */
 /* The room left of a record, where its box sits, counts as the record under the pointer, so the box shows there too. */
 .th-two-way { position: relative; }
 /* Drawn again whole on each change, so the browser's scroll anchoring would pick a new line to hold the page by and move
@@ -260,7 +259,7 @@ const twoWayCss = `
 /* The picked nodes on one grey ground, so the eye sees which they are. */
 .th-two-way .th-tw-line:has(> input.th-tw-pick:checked) { background: var(--lk-wash); box-shadow: -40px 0 0 var(--lk-wash), 12px 0 0 var(--lk-wash); border-radius: 0; }
 
-/* The rows on the kit's outline (0.4.442): each node a line, the tick box in the margin, the day in its column, the one
+/* The rows on the kit's outline: each node a line, the tick box in the margin, the day in its column, the one
    chevron right before the name; a list opens under its count with no line of its own; what a node holds opens under
    its name (the kit's kids). The section keeps Logseq's value column: the outline starts where Logseq's values do. */
 .th-two-way .th-tw-value { display: block; font-size: inherit; }
@@ -306,7 +305,7 @@ const twoWayCss = `
 .th-two-way .th-tw-head .th-tw-sep { position: absolute; right: 100%; margin-right: .52rem; visibility: visible; overflow: hidden; width: 0; height: 14px; align-self: center; border-left: 1px solid var(--lk-hair); }
 .th-two-way .th-tw-head .th-tw-piece:has(> .th-tw-when) > .th-tw-sep { display: none; }
 /* A tab's count, beside its word, a step lighter. */
-.th-two-way .th-tw-head .th-tw-n { margin-left: .3em; color: var(--lk-faint); font-weight: 400; font-variant-numeric: tabular-nums; }
+.th-two-way .th-tw-head .th-tw-n { margin-left: .3em; color: var(--lk-quiet); font-weight: 400; font-variant-numeric: tabular-nums; }
 /* The days stand at the right end of the head (9 November 2026, the owner: "date range in threads should be right aligned"). */
 .th-two-way .th-tw-head > .th-ol-body { flex: 1 1 auto; min-width: 0; }
 .th-two-way .th-tw-head > .th-ol-body > .th-tw-chips { flex: 1 1 auto; }
@@ -376,8 +375,8 @@ const twoWayCss = `
 .th-two-way a.th-ol-name.lk-node:is(:hover, :focus-visible) { text-decoration-color: currentColor !important; }
 .th-two-way .th-ol-body { display: inline; }
 .th-two-way .th-ol-body > :is(.th-tw-add, .th-tw-groupby) { margin-left: .5em; }
-.th-two-way .th-tw-tell { margin-left: 6px; color: var(--lk-faint); font-size: var(--lk-small); white-space: nowrap; }
-/* Inside an opened node, the nodes that link to it (0.4.462): their line in words, then their rows one step in, each a dot and its day as on the rows. */
+.th-two-way .th-tw-tell { margin-left: 6px; color: var(--lk-quiet); font-size: var(--lk-small); white-space: nowrap; }
+/* Inside an opened node, the nodes that link to it: their line in words, then their rows one step in, each a dot and its day as on the rows. */
 .th-two-way .th-tw-links { margin-top: 14px; align-items: baseline; gap: 6px; }
 /* What links to an opened node, as a head (C4): its words in the head's weight, the kinds quiet after them. */
 .th-two-way .th-tw-linkword { all: unset; cursor: pointer; }
@@ -390,13 +389,13 @@ const twoWayCss = `
 .th-two-way .th-ol-kids .th-ol-body > .th-tw-record { display: block; -webkit-line-clamp: none; overflow: visible; }
 .th-two-way .th-tw-linked { padding-left: var(--th-tw-in); }
 
-/* A shifted section's top (0.4.463): the trail ends on it in bold; its properties; then "N nodes link here" on the
+/* A shifted section's top: the trail ends on it in bold; its properties; then "N nodes link here" on the
    find field's hairline, and its rows as the page's. */
 .th-two-way .th-tw-toplinks { grid-column: 1 / -1; color: var(--lk-quiet); font-size: var(--lk-small); padding: 0 0 5px; margin: 14px 0 4px; border-bottom: 1px solid var(--lk-hair); }
 ::highlight(th-find) { background-color: var(--rx-blue-04, #e1f0ff); } /* a very subtle blue, Logseq's own (the owner: "I don't like a yellow highlight, do very subtle blue") */
 /* The grey line under a node (where it sits) keeps its whole words and runs the width of the line (the owner, 7 November
    2026: "the subtitle should get full width"), to two lines, then is cut, as a node's own words are. */
-.th-two-way .th-tw-crumb { color: var(--lk-faint); font-size: var(--lk-small); line-height: 1.3; margin: 0 0 3px var(--th-tw-words); overflow-wrap: anywhere; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.th-two-way .th-tw-crumb { color: var(--lk-quiet); font-size: var(--lk-small); line-height: 1.3; margin: 0 0 3px var(--th-tw-words); overflow-wrap: anywhere; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 /* Where a node's words start: after its chevron and its dot, and the day's column in a list that has days. */
 .th-two-way .th-tw-value { --th-tw-words: calc(32px + 2 * var(--th-ol-gap)); }
 /* A list where a line says what its day is of: the day column widens by the longest name, for every line of it. */
@@ -405,7 +404,7 @@ const twoWayCss = `
 .th-two-way .th-tw-crumb .lk-step { font-size: inherit; }
 .th-two-way .th-tw-raise { display: flex; flex-wrap: wrap; column-gap: 1.1em; align-items: baseline; margin: 0 0 .2rem var(--th-tw-words); font-size: 14px; line-height: 1.5; }
 .th-two-way .th-tw-npvalue { all: unset; cursor: pointer; border-radius: 3px; }
-.th-two-way .th-tw-npvalue.th-faint { color: var(--lk-faint); }
+.th-two-way .th-tw-npvalue.th-faint { color: var(--lk-quiet); }
 .th-two-way .th-tw-npvalue:hover, .th-two-way .th-tw-npvalue:focus-visible { text-decoration: underline; text-decoration-color: var(--lk-line); text-underline-offset: 3px; }
 .th-two-way .th-ol-pname[data-edit] { cursor: pointer; }
 .th-two-way .th-ol-pname[data-edit]:hover { color: inherit; }
@@ -423,9 +422,9 @@ const twoWayCss = `
 .th-two-way .th-tw-stepped { grid-column: 1 / -1; }
 .th-two-way .th-tw-stepped > .th-ol-trail { padding: 2px 0 8px; }
 .th-two-way .th-tw-ghead .th-chev { align-self: center; }
-/* The tick box of a node sits in the margin left of the outline (0.4.229, the owner: "to the left of the outline"). */
+/* The tick box of a node sits in the margin left of the outline (the owner: "to the left of the outline"). */
 .th-two-way .th-tw-line > input.lk-tick.th-tw-pick { left: -22px; }
-/* Where you are (0.4.442): the names opened on the way, pinned at the top of the section once they scroll off; no room. */
+/* Where you are: the names opened on the way, pinned at the top of the section once they scroll off; no room. */
 .th-two-way .th-tw-pin { grid-column: 1 / -1; position: sticky; top: var(--th-tw-pin-top, 0px); height: 0; z-index: 3; }
 .th-two-way .th-tw-pin > .th-ol-trail { position: absolute; left: -12px; right: -12px; top: 0; padding: 5px 12px; background: var(--lk-paper, var(--lk-paper, #fff)); border-bottom: 1px solid var(--lk-hair); }
 /* On a day (7 November 2026): the nodes after it stand faint under a "since" line; the head says how many there are today. */
@@ -440,16 +439,16 @@ const twoWayCss = `
 .th-two-way .th-tw-bown, .th-two-way .th-tw-bcell { min-width: 0; overflow-wrap: anywhere; }
 .th-two-way .th-tw-bcell { padding-bottom: 10px; }
 .th-two-way .th-tw-bcell .th-tw-chips { display: inline; }
-.th-two-way .th-tw-bnone { color: var(--lk-faint); }
+.th-two-way .th-tw-bnone { color: var(--lk-quiet); }
 .th-two-way .th-tw-bside { margin-top: 2px; }
 .th-two-way .th-tw-bside :is(.th-tw-bline, .th-ol-moreline) { padding-left: 0; }
 .th-two-way .th-tw-bside .th-ol-body > .th-tag { white-space: normal; }
 `;
-/* Logseq's own far end (0.4.146, the owner's pick): the tag-named tabs below a page's blocks list the same records
+/* Logseq's own far end (the owner's pick): the tag-named tabs below a page's blocks list the same records
    as the rows, without the field that links them. Left out in the main view while the rows are drawn there, so a page
-   with none keeps Logseq's list; and in the right sidebar always (0.4.421, the owner: "hide that bi-directional section
+   with none keeps Logseq's list; and in the right sidebar always (the owner: "hide that bi-directional section
    that is already hidden in main views"), though it gets no rows: the same records are in its Linked references. */
-// Logseq's Linked references (only that: Unlinked references sits outside .references) where the rows replace it (0.4.437).
+// Logseq's Linked references (only that: Unlinked references sits outside .references) where the rows replace it.
 const hideLinkedRefsCss = `
 #main-content-container:has(.th-two-way[data-th-replaces][data-th-rows]) .references { display: none !important; }
 `;

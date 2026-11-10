@@ -9,21 +9,22 @@
    - togglePerf, copyPerfReport  measuring of the plugin's own work (perf), with logPerfReport for the
      hidden debugPerfEvery setting;
    - copyWarnings         every warnOnce message of this session;
-   - openRecycleList      Logseq's Recycle as a plain list, with Restore (0.4.407) and a red Delete (0.4.411), the
+   - openRecycleList      Logseq's Recycle as a plain list, with Restore and a red Delete, the
                           library's presses, on each line: the one tool that changes notes, and only when one of those is
                           clicked; Delete, and Delete all, ask first under their line, the blue yes and Leave it.
-   A feature brings its own tools and screen rows (0.4.172): in its start() it calls
+   A feature brings its own tools and screen rows: in its start() it calls
    core.provided.addTroubleshooting({ tools: [{ key, label, run, icon? }], checks: [[what, selector, neededFor]] }),
    and its tools show their report with showReport(text), whose first line is versionLine(). A feature that
    is not running (Foundation only) adds nothing, so the list holds only what is running.
-   On the kit since 0.4.316 (docs/LAYERS.md; the views page): the tools are a list pop-up from the palette, each
+   On the kit (the views page): the tools are a list pop-up from the palette, each
    with its icon from the kit's list, measuring ticked while it is on; a report opens the same pop-up with the
    text to copy and Copy, the library's main button. No window, no box of this part's own. This part is layer 1 (diagnostics
    belong to talking to Logseq), so its own Logseq calls stay. */
 const shared = window.Threads.shared;
 const { host, notify, el, quiet, note } = shared;
 // Warnings keep the plain "Refinements: " prefix these tools always had.
-const { warnOnce, onUnload, runUnloadTasks } = shared.lifecycle({ prefix: 'Threads: ' });
+const base = window.PluginDoor.base('threads', { prefix: 'Threads: ' });
+const { warnOnce, onStop: onUnload } = base, runUnloadTasks = () => base.stop();
 // From the model part, taken when the part starts.
 let CHECKED_WITH;
 
@@ -291,7 +292,7 @@ async function copyWarnings() {
   showDiagnostics(lines.join('\n'));
 }
 
-/* The tour (0.4.187), for checking a change in the real app one stop at a time. The stops are the hidden setting
+/* The tour, for checking a change in the real app one stop at a time. The stops are the hidden setting
    tourStops: "Page; Page; theme: dark; #/route; …" (a page's title, a view of its own by its address, or a theme).
    "Take the tour" opens the first stop and F8 goes on to the next, so whoever checks can look at each stop before
    moving on. At each stop it waits until the page has been still for a second (at most 8 s), and records how long
@@ -299,7 +300,7 @@ async function copyWarnings() {
    Logseq wrote to its console as errors or warnings meanwhile. The report so far is saved as tourReport in the
    settings file after every stop; after the last one the theme is put back and the F8 key let go. Running "Take the
    tour" again while it runs ends it. It reads the screen only: nothing in your notes is changed.
-   Since 0.4.331 it also records when each of the plugin's pieces first showed (the tag chain in the title corner, the
+   It also records when each of the plugin's pieces first showed (the tag chain in the title corner, the
    two-way rows' box and its first row, the page's own property box) and how many times each was put on and taken
    off the screen while the stop settled (a piece that comes and goes is a flicker); with the hidden setting tourAuto
    true it goes on to the next stop by itself. */
@@ -360,7 +361,7 @@ async function tourVisit(stop) {
   shiftWatch.observe({ type: 'layout-shift' });
   const begun = now();
   let lastChange = begun, titleAt = 0, rowsAt = 0;
-  // The plugin's pieces: when each first showed after the title, and how often it was added (0.4.331).
+  // The plugin's pieces: when each first showed after the title, and how often it was added.
   const PIECES = [['tag chain', '.th-tag-path'], ['two-way box', '.th-two-way'], ['two-way row', '.th-two-way .th-tw-row'], ['page properties', '.ls-page-properties'], ["Logseq's tag corner", '.ls-page-title .ls-block-right > .block-tags']];
   const pieces = new Map(PIECES.map(([name, selector]) => [name, { selector, at: 0, added: 0 }]));
   // A witness on the one screen watcher (plugin.js): it is shown every change, what the plugin's own passes drew included, and draws nothing.
@@ -380,7 +381,7 @@ async function tourVisit(stop) {
   let stopped = false;
   const stopWatching = () => { stopped = true; offChanges(); shiftWatch.disconnect(); };
   tour.stopVisit = stopWatching;
-  // Where the two-way rows sit, every 50 ms (0.4.333): a slide is a change of their top with nothing added above.
+  // Where the two-way rows sit, every 50 ms: a slide is a change of their top with nothing added above.
   const trail = [];
   // Only while they can be seen: on a first visit they wait unseen for Logseq's property list (data-th-waiting).
   const rowsTop = () => { const box = doc.querySelector('#main-content-container .th-two-way:not([data-th-waiting]) .th-tw-row'); return box ? Math.round(box.getBoundingClientRect().top) : null; };
@@ -430,7 +431,7 @@ async function tourEnd(how) {
 }
 onUnload(() => { if (tour.doc) tourEnd('ended by a reload'); });
 
-/* The Recycle as a plain list (0.4.407). Logseq's own Recycle page draws every deleted node in full, so one damaged
+/* The Recycle as a plain list. Logseq's own Recycle page draws every deleted node in full, so one damaged
    node stops the whole page: the owner's graph showed Logseq's "Something went wrong" each time, the plugin off too,
    and Logseq's four repair steps did not help (2026-10-25). This list reads the same nodes as names and dates only,
    marks one that looks damaged, and brings any back with Restore: Logseq's own restore, the one its Recycle page
@@ -502,7 +503,7 @@ async function openRecycleList() {
     leavePress.focus({ preventScroll: true });   // what cannot be undone is only pressed: Enter leaves it (8 November 2026)
     box.scrollIntoView?.({ block: 'nearest' });
   };
-  /* Delete for good (0.4.411): Logseq's own, the one its Recycle page's Delete uses (deleteRecycledPagePermanently),
+  /* Delete for good: Logseq's own, the one its Recycle page's Delete uses (deleteRecycledPagePermanently),
      asked first under the row. Logseq's Recycle page breaks when a node it shows is deleted for good
      ("Missing direct-children parent", seen in the test graph, 2026-10-25), so if it is open behind the list, Logseq
      goes to the journals first. */
@@ -514,7 +515,7 @@ async function openRecycleList() {
     try { await window.PluginDoor.write.deleteForGood(row.uuid); } catch (error) { console.error(error); notify(`Could not delete “${recycleLine(row)}”: ${error.message}`, 'error'); return; }
     done(item, 'Deleted');
   };
-  /* Delete all (0.4.412, the owner: "yes I want delete all"): every line not yet restored or deleted, one question for
+  /* Delete all (the owner: "yes I want delete all"): every line not yet restored or deleted, one question for
      all, one after another, each line reading Deleted as it goes; a node Logseq refuses is left and counted. */
   const rowItems = [];
   const removeAll = async allItem => {
@@ -561,7 +562,7 @@ async function openRecycleList() {
   const pop = shared.popup({ head: `The Recycle · ${rows.length} deleted node${rows.length === 1 ? '' : 's'}`, cls: 'th-recycle', width: 'min(600px, 92vw)', items });
   return pop;
 }
-/* Logseq's Recycle page opened while the errors Logseq writes are recorded (0.4.408): when it breaks, Logseq writes
+/* Logseq's Recycle page opened while the errors Logseq writes are recorded: when it breaks, Logseq writes
    the error to its console (ui.cljs catch-error: log/error :exception) and shows "Something went wrong"; the error is
    what says which node it could not draw, so it is shown as a report to copy, over Logseq's crash screen. Six seconds
    at most; Logseq's console is put back after. It changes nothing in the notes. */
@@ -613,7 +614,7 @@ function openTroubleshooting() {
 
 function provide(core) {
   core.provide({ addTroubleshooting, openTroubleshooting, showReport: showDiagnostics, versionLine,
-    // For tools/boot-test.js (read-only): the tools themselves, through the core, not a name on the window (0.4.316).
+    // For tools/boot-test.js (read-only): the tools themselves, through the core, not a name on the window.
     diagnostics: { checkWhatIsFound, copyDiagnostics, togglePerf, copyPerfReport, copyWarnings, openTroubleshooting, openRecycleList, watchRecycle, recycleRows, recycleReport, tools: TOOLS } });
 }
 function start() {
@@ -627,7 +628,7 @@ function ready() {
   // One palette entry opens the box that lists the tools (registered here since 5 November 2026, when the engine's command register went).
   logseq.App.registerCommandPalette({ key: 'troubleshooting', label: 'Threads: troubleshooting' }, () => openTroubleshooting());
 }
-/* Foundation only (0.4.167): the plugin runs just its foundation, the engine and the Logseq model (parts/model.js),
+/* Foundation only: the plugin runs just its foundation, the engine and the Logseq model (parts/model.js),
    with these tools and the settings window, so the foundation can be measured alone before the layers above it are
    built on it. The core reads the setting; the parts that stay mark themselves `foundation: true`. */
 const settingsSchema = [

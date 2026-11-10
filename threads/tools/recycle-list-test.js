@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-/* The Recycle as a plain list (parts/diagnostics.js, 0.4.407) in a pretend Logseq window, on the answer Logseq 2.0.2
+/* The Recycle as a plain list (parts/diagnostics.js) in a pretend Logseq window, on the answer Logseq 2.0.2
    gives a plugin for the Recycle's nodes (copied from the Illness Test Graph, 2026-10-25): newest first, a page and a
    bullet named in words, the damaged ones marked, the report, and Restore asking Logseq once for that node only.
-   Needs node and jsdom. Run from the repo root: node tools/recycle-list-test.js   (tools/check.sh runs it) */
+   Needs node and jsdom. Run from threads/: node tools/recycle-list-test.js   (tools/check.sh runs it) */
 const fs = require('fs');
 const path = require('path');
 const { JSDOM } = require('jsdom');

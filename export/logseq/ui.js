@@ -27,7 +27,7 @@ const CSS = `
   }
 .xp * { box-sizing: border-box; }
 .xp[hidden] { display: none; }
-.xp-titlebar { display: flex; align-items: center; justify-content: center; flex: none; height: 48px; font-size: var(--lk-small); color: var(--lk-faint); background: var(--lk-paper, #fff); }
+.xp-titlebar { display: flex; align-items: center; justify-content: center; flex: none; height: 48px; font-size: var(--lk-small); color: var(--lk-quiet); background: var(--lk-paper, #fff); }
 /* The bar: a row of controls, nothing between them but space, a wider space between groups; the accent and the × at the end. */
 .xp-bar { display: flex; align-items: flex-start; flex-wrap: wrap; flex: none; padding: 2px 28px 14px; background: var(--lk-paper, #fff); }
 .xp-bar .g { display: flex; align-items: flex-start; }
@@ -45,10 +45,10 @@ const CSS = `
 .xp .lk-value { all: unset; display: inline-flex; align-items: center; cursor: pointer; color: var(--lk-text, #222); font: inherit; line-height: 1.35; }
 .xp .lk-value:focus-visible { outline: none; background: var(--lk-wash); box-shadow: 0 0 0 3px var(--lk-wash); border-radius: 1em; }
 /* The mark: a small faint chevron tight after a value that unfolds. */
-.xp .lk-value .m { width: 8px; height: 8px; margin-left: 4px; color: var(--lk-faint); flex: none; }
+.xp .lk-value .m { width: 8px; height: 8px; margin-left: 4px; color: var(--lk-quiet); flex: none; }
 /* What a value can become: a line of faint words under it, the one in force in the text colour. It takes its room below the
    row (the pick grows by the line's height while open, see unfold), never beside the pick: nothing moves sideways. */
-.xp .lk-pick .lk-alts { position: absolute; left: var(--pl); top: 100%; margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--lk-faint); width: max-content; max-width: 420px; white-space: normal; }
+.xp .lk-pick .lk-alts { position: absolute; left: var(--pl); top: 100%; margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--lk-quiet); width: max-content; max-width: 420px; white-space: normal; }
 .xp .lk-pick .lk-alts[hidden] { display: none; }
 .xp .lk-alts span { cursor: pointer; }
 /* A field is the Pressing set's input.lk-value (the library): a hairline under it only while it has the keyboard. */
@@ -77,9 +77,9 @@ const CSS = `
 .xp-list .xp-prop { display: flex; align-items: center; gap: 6px; padding: 2px 0; cursor: pointer; min-width: 0; }
 .xp-list .xp-prop input { margin: 0; flex: none; }
 .xp-list .lk-prop { display: inline-flex; align-items: center; gap: 5px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.xp-kind { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; font-size: 14px; color: var(--lk-faint); flex: none; }
+.xp-kind { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; font-size: 14px; color: var(--lk-quiet); flex: none; }
 .xp-kind .lk-icon.lk-web svg { width: 11px; height: 11px; }
-.xp-list .lk-count { margin-left: auto; color: var(--lk-faint); font-size: var(--lk-small); }
+.xp-list .lk-count { margin-left: auto; color: var(--lk-quiet); font-size: var(--lk-small); }
 /* The tick box is the library's (lk-tick). */
 /* The accent: the one action, its key beside it; a second action lk-btn, its words level with the accent's and the gap
    between them measured from its words; × the way out. */

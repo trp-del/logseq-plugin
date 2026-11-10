@@ -79,7 +79,7 @@ async function pluginRows() {
   window.eval(fs.readFileSync(path.join(root, '../plugin.js'), 'utf8'));
   window.eval(fs.readFileSync(path.join(root, 'parts/shared.js'), 'utf8'));
   window.eval(fs.readFileSync(path.join(root, 'parts/model.js'), 'utf8'));
-  window.eval(require('./pretend-model')); // the model answers through ask (0.4.225)
+  window.eval(require('./pretend-model')); // the model answers through ask
   let reached = false;
   const sources = twoWay.sources(source => source.replace(/\}\)\(\);\s*$/, () => { reached = true; return `window.__tw = { groupsByPage, summary, init: core => { ({ UUID, isEntityId, provided } = core); Object.assign(twoWay, { UUID, isEntityId, provided, model: provided }); } }; })();`; }));
   if (!reached) throw new Error('the end of parts/two-way.js changed; tools/two-way-check.js cannot reach it');
@@ -132,7 +132,7 @@ async function pluginRows() {
     }
   }
   // A fact from the test graph's plan: Dr. Mei Chen is the provider of consultations, read from the answer key, with the
-  // row named by the property itself, "Provider" (0.4.444), unless the settings word it otherwise or turn it off.
+  // row named by the property itself, "Provider", unless the settings word it otherwise or turn it off.
   const chen = [...titles].find(([, t]) => t === 'Dr. Mei Chen')?.[0];
   const field = [...(key.get(chen) || new Map())].find(([name]) => /^(provider|doctor)$/i.test(name));
   const mentioned = /(^|[;\n])\s*(provider|doctor)\s*(=|;|$)/i;

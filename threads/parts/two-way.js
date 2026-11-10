@@ -1,10 +1,10 @@
 /* Loaded by main.js with the other parts. Kept in its own scope; main.js starts and stops it. */
 (() => {
-/* Two-way links part of Threads (0.4.137). A link made by a field reads the same from both ends.
+/* Two-way links part of Threads. A link made by a field reads the same from both ends.
    On the record that holds the field it is a property row, "report: Chest X-ray 2026-08-03". On the page it
    points to, Logseq lists the record under a tab named after the record's tag ("Appointment"), below the
    page's own blocks, so nothing there says how the two belong together. This part draws the far end as a
-   row in the page's own property list, with grey names like any property's (0.4.141), read-only:
+   row in the page's own property list, with grey names like any property's, read-only:
      report of →    Chest X-ray Aug 3 · Appointment
      doctor of →    9 Appointments · next Nov 12 ▾   (opens into the list of those records)
    One row per field that points here, named by the field read backwards ("doctor" → "doctor of", "prescribed
@@ -13,10 +13,10 @@
    should by default be unfolded"). Only your own Node properties count; tags, aliases and mentions in
    sentences stay in Linked references. Drawn for the page in the main view only. Reading the rows writes nothing; what
    writes is what you press: the + that adds a node, the picking bar's actions and writing into a node, each through
-   the model with an Undo arrow (0.4.228, 0.4.303, 0.4.376). The tag tree
-   (0.4.174) changes how a field reads backwards, and turns its row off, through this part's settings.
-   On the kit since 0.4.318 (docs/LAYERS.md; the pages): the rows keep their own layout (one set of columns: the
-   day where Logseq's values start, the name, its tag right after it (0.4.320), the tick box in the margin) and draw
+   the model with an Undo arrow. The tag tree
+   changes how a field reads backwards, and turns its row off, through this part's settings.
+   On the kit (the pages): the rows keep their own layout (one set of columns: the
+   day where Logseq's values start, the name, its tag right after it, the tick box in the margin) and draw
    everything else with the kit: a tag as a class (mono, no #), the tick box, the picking bar as the library's lk-bar
    above the rows, filters as words, the fold chevron and the arrow after a name from Logseq's font, the +
    as the library's lk-plus, the draft line's field, the menus and the lists as the kit's pop-up
@@ -24,7 +24,8 @@
    through the model's doors, the page and settings changes come from the core; no logseq.* call here. */
 const shared = window.Threads.shared;
 const { host, openEntity, openPageNamed, notify, esc, iconHtml } = shared;
-const { warnOnce, onUnload, runUnloadTasks } = shared.lifecycle({ prefix: 'Threads (two-way): ', leaves: { elements: '.th-two-way' } });
+const base = window.PluginDoor.base('threads', { prefix: 'Threads (two-way): ', leaves: { elements: '.th-two-way' } });
+const { warnOnce, onStop: onUnload, listen } = base, runUnloadTasks = () => base.stop();
 
 const settingsSchema = [
   { key: 'twoWayHeading', type: 'heading', group: 'reading', rank: 3, title: 'Threads', default: null,
@@ -61,10 +62,10 @@ const twoWay = {};
 const take = (core, names) => shared.take(core, names, warnOnce);
 
 // What is known about the page on screen: its uuid and one group per field that points at it.
-// byPage: each page's rows as last read this session, drawn at once when you come back to it (0.4.150).
-// indexed (0.4.182): every page's rows were read in one look-up, so a page not in byPage has none, and a page
+// byPage: each page's rows as last read this session, drawn at once when you come back to it.
+// indexed: every page's rows were read in one look-up, so a page not in byPage has none, and a page
 // opened for the first time gets its rows in the same frame as its title instead of half a second later.
-// open, all and only (0.4.184): per row, whether its list is open, shows every record, or only one kind ("Infusion").
+// open, all and only: per row, whether its list is open, shows every record, or only one kind ("Infusion").
 const state = { kindsAll: new Set(), listed: [], findDug: new Map(), findAsked: new Set(), version: 0, pageUuid: '', groups: [], byPage: new Map(), indexed: false, open: new Map(), all: new Set(), only: new Map(), box: null, html: '', picked: new Set(), lastPick: '', group: new Map(), values: new Map(), nodeDraft: null, mentionsOf: new Map(), raise: new Map(), kids: new Set(), selecting: new Set(), dig: new Map(), focus: '', fresh: '', node: new Map(), nall: new Set(), ball: new Set(), steps: [], pageTitle: '', kept: new Map(), find: '', drawingTop: false, pagesRead: null, linksShut: new Set(), emptyOpen: new Set(), keepEmpty: new Set() };
 // Where the pieces join the part's load and start (7 November 2026): loadHooks(page, groups) may give the groups back changed, settledHooks() run once the page's state stands, starters() when the part starts.
 const loadHooks = [], settledHooks = [], starters = [], clickHooks = [];
@@ -80,9 +81,9 @@ const dayText = day => window.PluginDoor.dates.words(day);
 // The kind of a node as a word: a node with no tag has none.
 const tagWord = tag => tag === 'note' ? 'node' : tag;
 const plural = (word, n) => n === 1 ? word : /[^aeiou]y$/i.test(word) ? word.slice(0, -1) + 'ies' : /sis$/i.test(word) ? word.slice(0, -2) + 'es' : /(ss|us|x|z|ch|sh)$/i.test(word) ? word + 'es' : /s$/i.test(word) ? word : word + 's';
-/* How a row is named (0.4.444, the owner, 2026-10-26: "we should get rid by default of adding these prepositions like of",
+/* How a row is named (the owner, 2026-10-26: "we should get rid by default of adding these prepositions like of",
    "but still keep features of changing name"; "why are you adding an arrow?"): by the property's own name, as it is
-   written, nothing added ("Provider", not "provider of"; the readings of 0.4.237 and 0.4.264 are gone). Other words are
+   written, nothing added ("Provider", not "provider of"; the older readings are gone). Other words are
    given in the twoWayNames setting, from the row's right-click or the Properties table's Reads back as cell. The pairs
    this setting held by default until now ("works at = works here" and the like) were never chosen, so they are passed
    over; a pair giving a property its own name again is no renaming. */
@@ -98,12 +99,11 @@ function backwardsNames() {
 }
 const readBackwards = (name, names) => names.get(name.toLowerCase()) || name;
 
-// Fields shown from one end only (0.4.174): "status; city" -> Set of lower-case names.
+// Fields shown from one end only: "status; city" -> Set of lower-case names.
 const oneEndNames = () => new Set(String(setting('twoWayOneEnd') || '').split(/[;\n]/).map(name => name.trim().toLowerCase()).filter(Boolean));
 // For the tag tree (parts/tags.js): how a field reads from the other end, and whether it shows there. Both
 // are written to the settings above, so a change in the tree shows in the settings window too.
 const backwardsLabel = name => readBackwards(name, backwardsNames());
-const shownAtOtherEnd = name => !oneEndNames().has(name.toLowerCase());
 function setBackwards(name, words) {
   words = String(words || '').replace(/[;=\n]/g, ' ').replace(/\s+/g, ' ').trim();
   const pairs = String(setting('twoWayNames') || '').split(/[;\n]/).map(pair => pair.split('=').map(part => part?.trim())).filter(([field, said]) => field && said && field.toLowerCase() !== name.toLowerCase());
@@ -124,7 +124,7 @@ async function load() {
     if (setting('twoWayRows')) {
       const page = await model.currentPage();
       // A zoomed-in block comes back with a page of its own; only a page gets the rows.
-      // A journal day too (0.4.437: Linked references shows on a day, so the rows do); the Journals list, with many days
+      // A journal day too (Linked references shows on a day, so the rows do); the Journals list, with many days
       // on screen, gets none (see draw).
       if (page && !page.page && isEntityId(page.id)) {
         state.pageJournal = !!(page['journal?'] || page.journalDay);
@@ -143,7 +143,7 @@ async function load() {
           let read = !!(setting('twoWayMentions') && provided.mentionsInto);
           const mentions = await mentionsGroup(page.id, groups).catch(error => { read = false; warnOnce('could not read the nodes that name this page', error); return null; });
           if (mentions) groups = [...groups, mentions];
-          // The rows replace Linked references on a page that is not a tag, once its mentions were really read (0.4.437): with
+          // The rows replace Linked references on a page that is not a tag, once its mentions were really read: with
           // them off, or a read that failed, Linked references is the only place they are.
           // Not on a journal day: its Linked references also lists the tasks scheduled or due that day, through Logseq's own
           // properties, which the rows do not read.
@@ -197,7 +197,7 @@ async function groupsFor(id) {
   }
   return groups;
 }
-// A node's stored words as they read: links as the words they show (0.4.147), "saw [[Dr. Joe]]" as "saw Dr. Joe",
+// A node's stored words as they read: links as the words they show, "saw [[Dr. Joe]]" as "saw Dr. Joe",
 // "[the scan]([[CT]])" as "the scan", tags written in the words left out.
 async function wordsOf(stored) { return plainWords(await linkedWordsOf(stored)); }
 // The same words with their links kept ([[Page]], [words]([[Page]])), for a name that underlines them (7 November 2026, the
@@ -211,7 +211,7 @@ const plainWords = words => String(words).replace(/\[([^\[\]]+)\]\(\[\[[^\]]*\]\
 // Coming up first (nearest first), then the past (latest first), then nodes with no date.
 const byWhen = today => (a, b) => (a.day >= today ? 0 : a.day ? 1 : 2) - (b.day >= today ? 0 : b.day ? 1 : 2) ||
   (a.day >= today ? a.day - b.day : b.day - a.day) || a.title.localeCompare(b.title);
-/* Mentions come up to the rows (0.4.423, the owner's pick A from docs/history/TWO-WAY-POTENTIALS-2026-10-25.html, "do A
+/* Mentions come up to the rows (the owner's pick A, "do A
    and B"): the nodes whose own words link this page, which Logseq shows only in Linked references at the foot, as one
    more row after the rows from properties, "Mentioned in", drawn and worked like them (folding, grouping, tick boxes,
    the arrow into a node). A mention stays a mention: nothing is written by showing it. A node that points here through
@@ -226,12 +226,12 @@ async function mentionsGroup(id, groups) {
   const filed = new Set(groups.flatMap(g => g.items.map(item => item.uuid)));
   const found = (await provided.mentionsInto(id)).filter(m => UUID.test(m.uuid) && !filed.has(m.uuid));
   if (!found.length) return null;
-  // What an untagged mention looks like, asked once each, a few at a time (0.4.438): at once when the earlier lines are
+  // What an untagged mention looks like, asked once each, a few at a time: at once when the earlier lines are
   // read, else after a quiet moment, since asking reads them, and a look at a page reads no whole graph.
   askQuietly.uuids = found.filter(m => !m.tag).slice(0, 30).map(m => m.uuid);
   clearTimeout(state.quiet);
   if (askQuietly.uuids.length) state.quiet = setTimeout(askQuietly, provided.earlierLinesRead?.() ? 0 : QUIET);
-  // Each with the page and bullets it sits in, as Linked references shows it (0.4.437).
+  // Each with the page and bullets it sits in, as Linked references shows it.
   const crumbs = provided.crumbsInto ? await provided.crumbsInto(id).catch(() => new Map()) : new Map();
   const items = await Promise.all(found.map(async m => { const words = await linkedWordsOf(m.title); return { uuid: m.uuid, title: plainWords(words), words, tag: m.tag || 'note', day: m.day, dayFrom: m.dayFrom || '', status: m.status || 0,
     crumbs: await Promise.all((crumbs.get(m.uuid) || []).map(async c => ({ uuid: c.uuid, name: await wordsOf(c.title) }))) }; }));
@@ -248,15 +248,15 @@ function touchesRows({ blocks = [] } = {}) {
   return blocks.some(b => shown.has(b.uuid) || shown.has(b.parent?.uuid) || (state.pageUuid && String(b.rawTitle || b.title || '').includes(state.pageUuid)) || b.refs?.some(ref => (ref?.id ?? ref) === state.pageId));
 }
 // The rows of one page (id), or of every page that is not a journal (no id), as a Map of page id to { uuid, groups }.
-// The nodes that point at the pages come from the model (linksInto, 0.4.225); this shapes them into rows.
+// The nodes that point at the pages come from the model (linksInto); this shapes them into rows.
 async function groupsByPage(id) {
   const { pages, fields, records: found } = await provided.linksInto(id);
   if (!found.size) return new Map();
   const records = new Map();
-  // The titles are made readable together (0.4.150): each one with a link in it asks the database for that link's name.
+  // The titles are made readable together: each one with a link in it asks the database for that link's name.
   await Promise.all([...found].map(async ([b, record]) => { const words = await linkedWordsOf(record.title); records.set(b, { uuid: record.uuid, title: plainWords(words), words, tag: record.tag || 'note', day: record.day, dayFrom: record.dayFrom || '', status: record.status || 0 }); }));
   const names = backwardsNames(), today = todayNumber(), oneEnd = oneEndNames();
-  // What each property holds, for the icon before its name (0.4.477): a Date row on a journal day is a calendar, not the
+  // What each property holds, for the icon before its name: a Date row on a journal day is a calendar, not the
   // triangle of a link to a node.
   const schema = !provided.propSchema ? null : await provided.propSchema().catch(error => { warnOnce('the properties’ kinds could not be read', error); return null; });
   const propOf = new Map((schema?.props || []).map(p => [p.title, p]));
@@ -277,7 +277,7 @@ async function groupsByPage(id) {
   return result;
 }
 
-// Every page's rows in one look-up (0.4.182), at the start and again when the graph has been still for a while. The
+// Every page's rows in one look-up, at the start and again when the graph has been still for a while. The
 // page on screen still asks for its own rows, which are newer; this only lets a page show its rows from its first
 // frame. In a graph with very many links it is read once, at the start, so typing never waits behind it.
 const BIG_INDEX = 5000;
@@ -303,7 +303,7 @@ async function loadIndex() {
 }
 
 // "9 Appointments · next on Nov 12", "4 Lab panels, 3 Imaging studies · from Aug 2 to Oct 9"; whenOnly: the day part alone.
-// The days said in words (0.4.402, the owner: "unclear from the visuals what the date mean"): from the first to the last,
+// The days said in words (the owner: "unclear from the visuals what the date mean"): from the first to the last,
 // or the next one still to come; the tip says where a node's day comes from (WHEN_TIP).
 // dayOf: a node's day as the list goes by it (twoWay.dayIn, a date property chosen in View), else its own.
 function summary(items, whenOnly = false, dayOf = item => item.day) {
@@ -331,7 +331,7 @@ function headWhen(group, items) {
   return { when: days, from: twoWay.listFrom(group) };
 }
 const INLINE = 3, LISTED = 5;
-/* Moving around the rows (0.4.184, the + and the hovers 0.4.185, the owner asked for the rows to be more interactive). A record's name
+/* Moving around the rows (the + and the hovers, the owner asked for the rows to be more interactive). A record's name
    opens it; Shift-click opens it in the sidebar (the icon at its
    end that did the same went on 31 October 2026). Resting on a record shows a card with its fields and first lines (peek, below). The field's
    name opens the field's own page. In an open list, a row of kinds ("All 13 · Infusion 8 · Scan 1") shows only
@@ -346,27 +346,27 @@ function shortName(title) {
   const text = String(title || '').trim();
   return text.length > NAME_ROOM ? text.slice(0, NAME_ROOM).replace(/\s+\S*$/, '') + '…' : text;
 }
-/* The + (as it was until 0.4.296, at the owner's word, 0.4.303: "return that code before we moved around the plus"): at the
+/* The + (at the owner's word: "return that code before we moved around the plus"): at the
    end of the last node of a short row, after the summary of a list. A click opens
-   the line to type the new node in. Since 0.4.297 a short row's nodes span the row so their tags line up, so the + sits
+   the line to type the new node in. A short row's nodes span the row so their tags line up, so the + sits
    just after the last node's date (or name). The library's lk-plus. */
 const addLink = group => group.ident && state.draft?.field !== group.name ? `<button type="button" class="lk-plus lk-i-plus th-tw-add" aria-label="Add a${/^[aeiou]/i.test(twoWay.kindsOf(group)[0] || '') ? 'n' : ''} ${esc(twoWay.kindsOf(group)[0] || 'node')}" data-field="${esc(group.name)}" data-what="Add a${/^[aeiou]/i.test(twoWay.kindsOf(group)[0] || '') ? 'n' : ''} ${esc(twoWay.kindsOf(group)[0] || 'node')}"></button>` : '';
-// The kit's tick box, in the margin left of the record (0.4.228; the kit's since 0.4.318), drawn only on a list where picking was
+// The kit's tick box, in the margin left of the record (the kit's), drawn only on a list where picking was
 // turned on from its View menu (the owner, 7 November 2026: "the select boxes now should only be shown when activated by a menu
 // combined with the other ones"). Picking ends with the picks: Escape, the bar's box, or an action done.
 const pickBox = (group, item) => state.drawingTop || !state.selecting.has(group.name) ? '' : pickOn(group, item);
 const stopPicking = () => { state.picked.clear(); state.selecting.clear(); };
 const pickOn = (group, item) => { const key = `${item.uuid}|${group.name}`, on = state.picked.has(key); state.listed.push(key); return `<input type="checkbox" class="lk-tick th-tw-pick" data-pick="${esc(key)}"${on ? ' checked' : ''} aria-label="Pick" title="Pick (Shift-click: every one from the last picked)">`; };
-// A record's tag at the right opens the tag's page, Shift-click in the sidebar (0.4.297, the owner: "should be able to
-// click on tag in two-way area on right side"); a tag reads as a class, mono with no # (the kit's tag, 0.4.318).
+// A record's tag at the right opens the tag's page, Shift-click in the sidebar (the owner: "should be able to
+// click on tag in two-way area on right side"); a tag reads as a class, mono with no # (the kit's tag).
 const tagLink = item => item.tag && item.tag !== 'note' ? `<a class="th-tag lk-tag th-tw-tag" data-tag-page="${esc(item.tag)}" href="#">${esc(item.tag)}</a>` : `<span class="th-tag lk-tag th-tw-tag">${esc(item.tag)}</span>`;
 // No sidebar icon at the end of a line (the review, 31 October: a control per row, and a long name left a blank line
 // under itself where the icon wrapped); Shift-click on the name opens it in the sidebar, as everywhere in Logseq.
-/* The rows on the kit's outline (0.4.442, docs/REWORK.md 4, the owner's drawings of 2026-10-26): every node on a line of its
+/* The rows on the kit's outline (the owner's drawings of 2026-10-26): every node on a line of its
    own, the tick box in the margin, its day in a column of one width, the one chevron right before its name, its tag
    after it. A row of more than three folds by the chevron before its count; its list opens under it. */
 const O = shared.outline;
-// On a journal day, a node of that day shows no day: the page's title says it (0.4.462).
+// On a journal day, a node of that day shows no day: the page's title says it.
 const dayCell = item => item.day && item.day !== state.pageDay ? dayText(item.day) : '';
 /* A list with a day on any of its nodes gives every line the day's column, right of the dot, so the words of each line
    start at one place; a list with none has no column and its words follow the dot (the owner, 7 November 2026). A day of
@@ -386,7 +386,7 @@ const shortDay = text => String(text || '').replace(/, \d{4}$/, '');
 const yearOf = text => (String(text || '').match(/, (\d{4})$/) || [])[1] || '';
 const yearLine = (group, item, prev) => { const y = yearOf(twoWay.dayOf(group, item)), was = prev ? yearOf(twoWay.dayOf(group, prev)) : ''; return y && y !== was ? `<div class="th-tw-earlier lk-note th-tw-year">${y}</div>` : ''; };
 /* The day a node's line shows, by its place (the row's or the node's key), so what it opens leaves out a Date saying it
-   again (0.4.462, the owner's pick 3 of the two-way fixes: "each line drops what its heading already says"). */
+   again (the owner's pick 3 of the two-way fixes: "each line drops what its heading already says"). */
 const lineDay = new Map();
 async function ownNamesOf(id) {
   const ids = await provided.aliasesOf?.(id) || [];
@@ -457,7 +457,7 @@ async function setStatus(button) {
   later(300);
 }
 const nameHtml = (item, open = false, bare = false) => `${taskHtml(item)}<a class="th-tw-record th-ol-name lk-node${bare ? ' lk-bare' : ''}${open ? ' th-ol-open' : ''}" data-uuid="${esc(item.uuid)}" href="#">${nameWords(item)}</a>${item.tag && item.tag !== 'note' ? '<wbr>' + tagLink(item) : ''}`;
-/* top: the node at the top of a shifted section (0.4.463): its rows are drawn as the page's are, keyed under it; nothing
+/* top: the node at the top of a shifted section: its rows are drawn as the page's are, keyed under it; nothing
    in them acts on the page (no tick boxes, no +, no Group). */
 function rowHtml(group, top = null) {
   const key = `${top ? top.uuid : state.pageUuid}|${group.name}`;
@@ -494,7 +494,7 @@ function rowHtml(group, top = null) {
   const items = listHooks.reduce((xs, hook) => hook(group, key, xs) || xs, only ? group.items.filter(item => item.tag === only) : group.items);
   const shown = all ? items : items.slice(0, LISTED);
   /* The kinds as the kit's filter words, the one in force in the text colour. With several kinds they are the line by the
-     chevron itself, the days at the end (0.4.399, the owner: the header "3 Therapeutic sessions, 3 Cancer Drugs" said what
+     chevron itself, the days at the end (the owner: the header "3 Therapeutic sessions, 3 Cancer Drugs" said what
      the words under it said again): folded it reads as the summary, and a click on a kind opens the list with only those. */
   const chip = (tag, text, cls = '', raw = false) => `<button type="button" class="th-chip th-tw-chip${cls}" data-key="${esc(key)}" data-tag="${esc(tag)}" aria-pressed="${tag === only}">${raw ? text : esc(text)}</button>`;
   const kinds = counts.size > 1;
@@ -531,7 +531,7 @@ function rowHtml(group, top = null) {
     // The nodes after the day, faint under a line that says so; "show all" is the list's.
     const later = only ? (group.since || []).filter(item => item.tag === only) : group.since || [];
     if (later.length) since = `<div class="th-tw-since"><div class="th-tw-earlier lk-note">since ${esc(dayText(twoWay.readFind().asOf))}</div>${(all ? later : later.slice(0, LISTED)).map(item => itemHtml(group, item, base, '', bare, tell)).join('')}${later.length > LISTED && !all && items.length <= LISTED ? O.more({ text: `show ${later.length - LISTED} more`, attrs: { class: null, 'data-more': key }, under: isDated(group) ? 'dotday' : 'dot' }) : ''}</div>`;
-    // Grouped (0.4.369): the nodes in groups by a tag, a month or a property's value, each group folding.
+    // Grouped: the nodes in groups by a tag, a month or a property's value, each group folding.
     const grouping = twoWay.groupingOf(group, items);
     if (grouping) list = underHeadHooks.map(hook => hook(group, key, items) || '').join('') + grouping.parts.map(part => twoWay.groupHtml(group, part, grouping.by)).join('');
     else {
@@ -550,14 +550,14 @@ function rowHtml(group, top = null) {
   return `<div class="th-tw-row" data-field="${esc(group.name)}"${open ? ' data-open=""' : ''}>${name}<div class="${listCls}"${picking}${datedAttrs(group)}>${headLine}${listHtml}${twoWay.addLineHtml(group)}</div></div>`;
 }
 // One node of a row: its line, where it sits (a mention's page and bullets), what it could be, and what it holds when open.
-// bare: the heading above names the one tag, so the lines leave it out (0.4.404; 0.4.462 for a list of one kind); tell:
+// bare: the heading above names the one tag, so the lines leave it out (for a list of one kind); tell:
 // the property whose value tells these nodes apart, said in the tag's place.
 function itemHtml(group, item, base, end = '', bare = false, tell = '') {
   const key = `${base}>${item.uuid}`, open = state.dig.has(key);
   const shown = bare ? { ...item, tag: '' } : item;
   // [day] [chevron] [node] (the owner, 2026-10-27: "have [date] [chevron] [bullet]"), on every line: the day always in
-  // the margin, so the left edge means time (0.4.462; "Name first", the day after the tag, is gone). What a node opens
-  // hangs from its chevron (0.4.454).
+  // the margin, so the left edge means time ("Name first", the day after the tag, is gone). What a node opens
+  // hangs from its chevron.
   // Opened by the find field, its name keeps its weight, so the tag and day after it do not slide right as letters
   // are typed (the reviewer: 4 to 9 px).
   lineDay.set(key, dayCell(item));
@@ -567,8 +567,8 @@ function itemHtml(group, item, base, end = '', bare = false, tell = '') {
   const under = `${crumbHtml(item)}${twoWay.raiseHtml(group, item)}`;
   return open ? O.unit({ html: line + under + twoWay.digKids(key, item.uuid, 'in'), focus: state.focus === key, attrs: { 'data-key': key } }) : line + under;
 }
-/* Where a mention sits (0.4.437): its page and the bullets above it, small, under its line. A mention with no tag whose
-   words look like a known kind (0.4.438) says so, pencilled in where its tag would stand, on its own line, so that coming late
+/* Where a mention sits: its page and the bullets above it, small, under its line. A mention with no tag whose
+   words look like a known kind says so, pencilled in where its tag would stand, on its own line, so that coming late
    moves nothing (the review, 31 October: it came after the rows and pushed them down): a click opens Make it… for that one mention. */
 // Its × (the library's Take off, under the pointer) says no: the suggestion goes, is remembered as refused (twoWayCouldBeOff)
 // and is not shown again; the faded arrow puts it back, and the row's right-click brings the page's refused ones back.
@@ -611,21 +611,21 @@ function anchorFor(doc) {
   const title = titles.length === 1 ? titles[0] : null;
   return title ? (title.querySelector('.is-page-title-row') || provided.titleAnchor?.(doc, title) || title) : null;
 }
-/* A page opening in steps (0.4.182). Logseq draws a page's title and its blocks first and its property list in two
+/* A page opening in steps. Logseq draws a page's title and its blocks first and its property list in two
    or three steps over the next half second, so the page's own words were pushed down each time, and once more when
    the rows came. Seen in the owner's Logseq: Oxaliplatin's blocks at 223px, then 303, 495 and 820. Now the rows are
    known before the page opens (loadIndex), and for the first two seconds after a page change the box keeps, above
    the rows, the room that lay between the title and the rows when the page was last seen settled, less what is
    there so far: the rows and the blocks start where they end. The room is kept in Logseq's window storage, so this
    works from the second visit on, across restarts. */
-/* The keys end in 2 since 0.4.333: the rooms remembered before were measured while proposals still brought hidden
+/* The keys end in 2: the rooms remembered before were measured while proposals still brought hidden
    property rows up and down, and a room remembered too large is let go at settle as a slide up (measured on Marcus
    Bell: 168 px, two seconds after the page). The old ones are dropped. */
 const SETTLE_MS = 2000, HEIGHTS_KEY = 'refinementTwoWayRoom4', OLD_KEYS = ['refinementTwoWayRoom', 'refinementTwoWayLeast', 'refinementTwoWayRoom2', 'refinementTwoWayRoom3'];
-/* A first visit (0.4.333, measured with the tour): the rows came under the title some 50 ms before Logseq's own property
+/* A first visit (measured with the tour): the rows came under the title some 50 ms before Logseq's own property
    list, which then pushed them down (Dr. Raj Patel: 109 px). Now, on a page with no room remembered, they wait unseen in
    their place until that list is there, at most WAIT_MS, and no room is held for them: the least room of any page seen,
-   held since 0.4.283, could be more than this page takes, and was let go at settle as a slide up (Marcus Bell: 56 px). */
+   held, could be more than this page takes, and was let go at settle as a slide up (Marcus Bell: 56 px). */
 const WAIT_MS = 900, STILL_MS = 200;
 const settle = { since: 0, page: '', leaving: '', saved: false, timer: 0, ease: 0, wait: 0, frame: 0, stood: false };
 /* The wait ends once Logseq's property list is there and the rows' place has stood still a moment, or at once for a page that will
@@ -672,7 +672,7 @@ function holdRoom(doc, box, mode, page) {
   if (!mode || !title) { setHold(box, 0); return; }
   const held = parseFloat(box.style.getPropertyValue('--th-tw-hold')) || 0;
   const room = box.getBoundingClientRect().top - title.getBoundingClientRect().bottom - held;
-  // Settled: the room still held, if any, eases away over a moment instead of snapping (0.4.283); then the room
+  // Settled: the room still held, if any, eases away over a moment instead of snapping; then the room
   // is kept for next time, so the next visit holds the right amount from the start.
   if (mode === 'save') { settle.saved = true; if (room >= 0) remember(page, room); if (held) easeHold(box); else setHold(box, 0); return; }
   setHold(box, heights.has(page) ? Math.max(0, Math.round(heights.get(page) - room)) : 0);
@@ -684,7 +684,7 @@ function easeHold(box) {
   clearTimeout(settle.ease);
   settle.ease = setTimeout(() => { box.removeAttribute('data-th-settling'); if (box.style.getPropertyValue('--th-tw-hold') === '0px') setHold(box, 0); }, 300);
 }
-/* What is open is kept per page (0.4.436, the second break: "leaving closes everything"): the nodes opened in the
+/* What is open is kept per page (the second break: "leaving closes everything"): the nodes opened in the
    rows, the chain under them, the steps and the lists shown whole, put back when the page is shown again, for the
    session. */
 const KEPT_PAGES = 50;
@@ -741,9 +741,9 @@ function draw(doc) {
     if (id) { state.pageUuid = id; state.groups = state.byPage.get(id) || []; state.html = null; putBackOpen(id); }
   }
   const anchor = on ? anchorFor(doc) : null;
-  // A view with no page title the rows know (the Journals list), reached after the rows were read, has none of them (0.4.185).
+  // A view with no page title the rows know (the Journals list), reached after the rows were read, has none of them.
   const stale = !shown.length && settle.since > (state.readAt || 0);
-  // The Journals list shows many days at once: no rows there (a day of its own gets them, 0.4.437). Days by their uuid: a
+  // The Journals list shows many days at once: no rows there (a day of its own gets them). Days by their uuid: a
   // page's alias is a second block in the title area too, and on the way from a journal day it read as that list.
   const rows = state.groups.length > 0 && !stale && !(shown.length && !shown.includes(state.pageUuid)) && shown.filter(uuid => uuid.startsWith('00000001-')).length < 2;
   // A page with an alias has more than one block in its title area; the page is the one the rows were read for.
@@ -811,7 +811,7 @@ function draw(doc) {
   if (state.find.trim() && state.findHold) state.findHold = Math.max(state.findHold, box.getBoundingClientRect().height);
   twoWay.placeBar(box);
   box.toggleAttribute('data-th-replaces', rows && !!state.replaces);
-  // The section stands for the page, stepped into a node or not (0.4.442): Logseq's lists it repeats stay hidden.
+  // The section stands for the page, stepped into a node or not: Logseq's lists it repeats stay hidden.
   box.toggleAttribute('data-th-rows', !!rows);
   twoWay.pinNow();
   if (anchor.nextElementSibling !== box) anchor.after(box);
@@ -821,7 +821,7 @@ function draw(doc) {
   if (!waited && box.hasAttribute('data-th-waiting')) endWaitWhenStill(box, page);
   if (!rows && mode === 'save') box.remove();
 }
-// Before the screen is drawn (0.4.182), so the rows come in the same frame as the property list they sit under. Only
+// Before the screen is drawn, so the rows come in the same frame as the property list they sit under. Only
 // when elements came or went, or while a page settles.
 const drawEarly = (doc, records) => { if (performance.now() - settle.since < SETTLE_MS || addsElements(records)) draw(doc); };
 function onClick(event) {
@@ -860,7 +860,7 @@ function onClick(event) {
   }
   const groupAdd = event.target.closest?.('.th-tw-gadd');
   if (groupAdd) { event.preventDefault(); event.stopPropagation(); twoWay.hidePeek(); const group = state.groups.find(g => g.name === groupAdd.dataset.field); if (group) twoWay.startGroupDraft(group, groupAdd.dataset.gkey); return; }
-  // A click that just misses the box, anywhere in the room left of the record, ticks it too (0.4.297, the owner: "make
+  // A click that just misses the box, anywhere in the room left of the record, ticks it too (the owner: "make
   // checkbox tap area bigger"): before, it opened the record and took you off the page.
   const rowEl = !event.target.closest?.('a, button') && event.target.closest?.('.th-tw-line');
   const first = rowEl && rowEl.querySelector(':scope > :not(.th-tw-pick)');
@@ -890,7 +890,7 @@ function onClick(event) {
   const turn = () => { if (twoWay.isOpen(key)) shared.outline.close(target.closest('.th-tw-row')?.querySelector('.th-tw-list'), () => { twoWay.setOpen(key, false); draw(host()); }); else { twoWay.setOpen(key, true); state.fresh = key; state.html = null; draw(host()); state.fresh = ''; } };
   if (target.matches('.th-tw-toggle')) return turn();
   else if (target.matches('.th-tw-chip')) {
-    // All folds and unfolds the list (0.4.401, the owner: "clicking All # should fold/unfold"); with one tag picked
+    // All folds and unfolds the list (the owner: "clicking All # should fold/unfold"); with one tag picked
     // it first shows every node again. A tag's word opens the list with only its nodes, a second click shows all.
     const tag = target.dataset.tag || '';
     if (!tag) { if (state.only.has(key)) { state.only.delete(key); twoWay.setOpen(key, true); } else return turn(); }
@@ -899,12 +899,12 @@ function onClick(event) {
   draw(host());
 }
 
-// Where an Undo sits (shared.undo, 0.4.258): at the end of a row's name on the page in the main view; the first row's
+// Where an Undo sits (shared.undo): at the end of a row's name on the page in the main view; the first row's
 // when the change was to several rows at once; at the bottom right when no row is left to sit beside.
 const rowNames = field => [...host().querySelectorAll('#main-content-container .th-two-way .th-tw-row')]
   .filter(row => field == null || row.dataset.field === field).map(row => row.querySelector('.th-tw-name')).filter(Boolean);
 let undoCount = 0;
-// near: where the change sits in an opened node (0.4.442), found again by its key after each drawing; the row's name
+// near: where the change sits in an opened node, found again by its key after each drawing; the row's name
 // when it is not on screen.
 // many: a change of several nodes at once (the pick bar), which keeps its own Undo beside the arrow of a change of one thing.
 const offerUndo = (text, run, field, near, many = false) => { if (!many) made.key = ''; shared.undo.offer({ key: `two-way:${++undoCount}`, at: () => near?.() || (field == null ? rowNames().slice(0, 1) : rowNames(field)), text, run, many }); };
@@ -943,10 +943,10 @@ function checkMade() {
 const inBox = selector => () => state.box?.isConnected ? state.box.querySelector(selector) : null;
 const valueBox = (uuid, prop) => inBox(`.th-ol-pname[data-edit="${CSS.escape(prop.ident)}"][data-uuid="${CSS.escape(uuid)}"] + .th-ol-pv`);
 
-/* Right-click a row's name to change how it reads here (0.4.237, the owner: "I should be able to right click
+/* Right-click a row's name to change how it reads here (the owner: "I should be able to right click
    “report of of” and edit display name"). Saved in "Fields read backwards", as the tag map's box does; empty goes
    back to how the name reads by itself. Undo is the arrow after the row's name. */
-/* The right-click on a row's name opens a short menu under it, the kit's pop-up (0.4.304): Group by…, Open in the map,
+/* The right-click on a row's name opens a short menu under it, the kit's pop-up: Group by…, Open in the map,
    Reads back as…, Hide where it points. One “…” for every item that asks before it acts; every item has its icon (the audit's 25). */
 function onRename(event) {
   // A node's line: its own menu, from the pieces (pin, compare, …); nothing when none has an item for it.
@@ -973,7 +973,7 @@ function onRename(event) {
     ...(isMentions(group) && refusedHere() ? [{ icon: 'show', label: `Show the ${refusedHere()} suggestion${refusedHere() === 1 ? '' : 's'} taken off`, run: showCouldBeAgain }] : []),
     ...rowMenuHooks.flatMap(hook => hook(group) || []),
     ...(isMentions(group) ? [] : [{ icon: 'rename', label: 'Reads back as…', run: () => { renameRow(group, nameEl).catch(error => warnOnce('could not rename the row', error)); } }]),
-    // The same two words as the tag map's (0.4.444, one word for each idea); the head above already names the row.
+    // The same two words as the tag map's (one word for each idea); the head above already names the row.
     ...(isMentions(group) ? [] : [{ icon: 'hide', label: 'Hide where it points', run: () => {
       setShownAtOtherEnd(group.name, false);
       offerUndo(`“${group.label}” is hidden on every page it points to; the links stay`, () => { setShownAtOtherEnd(group.name, true); later(0); });
@@ -981,7 +981,7 @@ function onRename(event) {
     } }]),
   ].filter(Boolean) });
 }
-// The mentions row left out on this page (0.4.423): its name added to "Pages without the mentions row"; Undo takes it out.
+// The mentions row left out on this page: its name added to "Pages without the mentions row"; Undo takes it out.
 async function hideMentionsHere() {
   const uuid = state.pageUuid, stored = await provided.titleNow(uuid).catch(() => '');
   const title = String(await provided.readableTitle(stored).catch(() => stored) || '').trim();
@@ -1009,7 +1009,7 @@ function applyStyles() {
 
 let timer = 0, indexTimer = 0;
 const later = (ms = 600) => { clearTimeout(timer); timer = setTimeout(() => load().catch(error => warnOnce('could not refresh the two-way rows', error)), ms); };
-// Right after Logseq starts its database is not ready for a while (the audit, 0.4.275: the read 1.5 s after a cold
+// Right after Logseq starts its database is not ready for a while (the audit: the read 1.5 s after a cold
 // start failed, and nothing read again until the graph changed): a few quiet tries before saying so.
 let indexTries = 0;
 const indexLater = ms => { clearTimeout(indexTimer); indexTimer = setTimeout(() => loadIndex().then(() => { indexTries = 0; }, error => {
@@ -1019,7 +1019,7 @@ let stopped = false;
 // The core's things, taken when the part starts; the pieces reach the ones they use through twoWay.
 function useCore(core) {
   ({ UUID, isEntityId, watchDomEarly, addsElements, sendStyle, provided, uuidsIn, saveSettings, onPageChange, onDatabaseChange, onSettingsChange } = take(core, ['UUID', 'isEntityId', 'watchDomEarly', 'addsElements', 'sendStyle', 'provided', 'uuidsIn', 'saveSettings', 'onPageChange', 'onDatabaseChange', 'onSettingsChange', 'currentPage', 'getPage', 'createPage', 'deletePage', 'appendBlock', 'removeBlock', 'addTag', 'removeTag', 'setValue', 'unsetValue', 'STATUS_IDENT', 'editBlock']));
-  model = core.provided; // the graph is read and written through the model's doors (0.4.318)
+  model = core.provided; // the graph is read and written through the model's doors
   Object.assign(twoWay, { UUID, isEntityId, provided, model, uuidsIn });
 }
 function start() {
@@ -1033,8 +1033,8 @@ function start() {
   for (const starter of starters) { try { starter(); } catch (error) { warnOnce('a piece could not start', error); } }
   watchDomEarly(drawEarly);
   draw(host());
-  // At once (0.4.150): the look-up waits in line behind Logseq loading the page anyway. The box stays until the next
-  // page is drawn (0.4.182): draw() moves it, or takes it away, in the same frame. The hooks are the core's.
+  // At once: the look-up waits in line behind Logseq loading the page anyway. The box stays until the next
+  // page is drawn: draw() moves it, or takes it away, in the same frame. The hooks are the core's.
   onPageChange(() => { if (stopped) return; onRoute(); later(0); });
   onDatabaseChange(change => {
     if (stopped) return;
@@ -1053,24 +1053,21 @@ function start() {
   });
   // A click away from an empty draft line drops it; one with words keeps them.
   const away = event => { if (state.draft && !state.draft.name.trim() && !event.target.closest?.('.th-tw-draft, .th-two-way-add, .th-tw-add, .th-tw-gadd')) { state.draft = null; twoWay.closeAdd(); draw(host()); } };
-  host().addEventListener('mousedown', away, true);
-  onUnload(() => host().removeEventListener('mousedown', away, true));
+  listen(host(), 'mousedown', away, true);
   const escape = event => {
     if (event.key !== 'Escape' || event.target.closest?.('input, textarea, [contenteditable="true"]')) return;
     if (state.picked.size || state.selecting.size) { stopPicking(); draw(host()); }
-    // The focus closes and hands the grey to its parent (0.4.442).
+    // The focus closes and hands the grey to its parent.
     else if (state.focus && state.dig.has(state.focus) && state.focus !== twoWay.topStep()?.key) { event.preventDefault(); const key = state.focus; shared.outline.close(state.box?.querySelector(`.th-ol-kids[data-key="${CSS.escape(key)}"]`), () => twoWay.closeDig(key)); }
-    // Nothing open under the top: one step back along the trail (0.4.463: Esc does one thing at a time).
+    // Nothing open under the top: one step back along the trail (Esc does one thing at a time).
     else if (state.steps.length) { event.preventDefault(); twoWay.stepBack(state.steps.length - 2); }
     // Then the find line's words (a day, a page beside, letters): back to today's whole page (7 November 2026).
     else if (state.find) { event.preventDefault(); state.find = ''; draw(host()); }
   };
-  host().addEventListener('keydown', escape);
+  listen(host(), 'keydown', escape);
   let pinFrame = 0;
   const onScroll = () => { cancelAnimationFrame(pinFrame); pinFrame = requestAnimationFrame(twoWay.pinNow); };
-  host().addEventListener('scroll', onScroll, { capture: true, passive: true });
-  onUnload(() => host().removeEventListener('scroll', onScroll, { capture: true }));
-  onUnload(() => host().removeEventListener('keydown', escape));
+  listen(host(), 'scroll', onScroll, { capture: true, passive: true });
   twoWay.steadyWidth(host(), true);
   onUnload(() => { twoWay.steadyWidth(host(), false); stopped = true; clearTimeout(timer); clearTimeout(indexTimer); clearTimeout(settle.timer); clearTimeout(settle.ease); clearTimeout(settle.wait); if (settle.frame) cancelAnimationFrame(settle.frame); twoWay.hidePeek(); twoWay.closeAdd(); state.box?.remove(); state.box = null; });
   later(0);
@@ -1078,5 +1075,5 @@ function start() {
 }
 ((window.Threads ||= {}).parts ||= []).push({ name: 'two-way', says: 'the rows on a page', schema: settingsSchema, start, stop: runUnloadTasks, inner: twoWay });
 // What the pieces reach of the part, and of the core once it starts (useCore).
-Object.assign(twoWay, { taskHtml, dayCellOf, headWhen, whenTip, INLINE, LISTED, UUID, stopPicking, clickHooks, tailHooks, viewMenuHooks, listHooks, headHooks, underHeadHooks, leadHooks, betweenHooks, lineMenuHooks, rowMenuHooks, saveSettings: changes => saveSettings(changes), dayCell, isDated, readKids, hasKids, loadHooks, settledHooks, starters, summary, plural, tagWord, dayText, draw, groupsFor, inBox, isMentions, couldBeOff, itemHtml, later, lineDay, model, nameHtml, offerKept, offerMade, offerUndo, guard, onUnload, provided, rowHtml, setting, shortName, state, tagLink, todayNumber, uuidsIn, valueBox, warnOnce, useCore });
+Object.assign(twoWay, { taskHtml, dayCellOf, headWhen, whenTip, INLINE, LISTED, UUID, stopPicking, clickHooks, tailHooks, viewMenuHooks, listHooks, headHooks, underHeadHooks, leadHooks, betweenHooks, lineMenuHooks, rowMenuHooks, saveSettings: changes => saveSettings(changes), dayCell, isDated, readKids, hasKids, loadHooks, settledHooks, starters, summary, plural, tagWord, dayText, draw, groupsFor, inBox, isMentions, couldBeOff, itemHtml, later, lineDay, model, nameHtml, offerKept, offerMade, offerUndo, guard, onUnload, listen, provided, rowHtml, setting, shortName, state, tagLink, todayNumber, uuidsIn, valueBox, warnOnce, useCore });
 })();

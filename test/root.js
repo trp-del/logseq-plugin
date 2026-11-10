@@ -75,7 +75,7 @@ const part = (key, start, stop) => ({ key, title: key, start, stop });
   assert.ok(!r.events.includes('look starts'), 'a module switched off does not start');
   await r.unload(); assert.ok(!r.events.includes('look stops'), 'and is not stopped');
   // With Look off the shared names still reach Logseq.
-  for (const name of ['--lk-faint', '.lk-count', '.lk-list .lk-tick', '.lk-pencil', '.lk-row .lk-fold', '.lk-day']) assert.ok(r.styles['plugin-names'].includes(name), name + ' stands with Look off');
+  for (const name of ['--lk-quiet', '.lk-count', '.lk-list .lk-tick', '.lk-pencil', '.lk-row .lk-fold', '.lk-day']) assert.ok(r.styles['plugin-names'].includes(name), name + ' stands with Look off');
   // The frame goes back when scrolled, with no module asked; a view that scrolls is left; the guard goes with the plugin.
   r = await run({ settings: { threadsOn: false }, modules: () => [] });
   await sleep(10);

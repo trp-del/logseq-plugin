@@ -1,4 +1,4 @@
-/* The frame kit (2026-10-23, Threads' docs/history/FINISHING-PROMPT-2026-10-23.md section 3; the plugin's since 5 November 2026):
+/* The frame kit (2026-10-23, Threads'; the plugin's since 5 November 2026):
    what threads/tools/frames.js (Chromium, a pretend page) and tools/motion-check.js (the real Logseq, over its debugging port)
    both use to record a page settling and to say whether anything jumped or flashed, whose it was, and what caused it. Not a
    test by itself.

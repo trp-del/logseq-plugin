@@ -216,10 +216,10 @@ const css = `
 #right-sidebar .lk-links-row .lk-node { min-width: 0; overflow-wrap: anywhere; }
 #right-sidebar .lk-links-row .lk-tag { flex: none; }
 #right-sidebar .lk-notes-row { display: grid; grid-template-columns: 1.6em minmax(0, 1fr); align-items: baseline; padding: 2px 0; }
-#right-sidebar .lk-notes-n { color: var(--lk-soft) !important; font-variant-numeric: tabular-nums; text-decoration: none; }
+#right-sidebar .lk-notes-n { color: var(--lk-quiet) !important; font-variant-numeric: tabular-nums; text-decoration: none; }
 #right-sidebar .lk-notes-n:hover { color: var(--lk-text, currentColor) !important; }
 #right-sidebar .lk-notes-words { min-width: 0; overflow-wrap: anywhere; }
-#right-sidebar .lk-links-none { color: var(--lk-soft); }`;
+#right-sidebar .lk-links-none { padding: 0; }   /* the library's nothing-here line (lk-none), at the top of the tab */`;
 
 /* Links and Endnotes are tabs of the right sidebar, after Inspector (sidebar-tabs.js, the owner, 9 November 2026): picked, the
    section opens if it is not open yet, and stands alone, without its head. */

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* The real Logseq under stress (2026-10-23, docs/history/FINISHING-PROMPT-2026-10-23.md section 4), over its debugging port
+/* The real Logseq under stress (2026-10-23), over its debugging port
    (tools/app-door.js), on the Illness Test Graph: the two scratch graphs are made with the command line and Logseq
    lists only graphs it made itself, so they cannot be opened in the app (DECISIONS-AUTONOMOUS.md, 8). Each part can be
    run alone: node tools/app-stress.js pages | typing | undo | view | reloads | dark   (none: all, in that order).

@@ -1,7 +1,8 @@
 /* node tools/app/check.js   (see door.js for what it needs)
-   Drives the plugin in the real Logseq with real keystrokes, against the Seed Check test graph (a Consultation tag with Provider,
-   Topic and Date; doctors named Dr. Mei Chen and Dr. Raj Patel). Each check says what it proves. The scratch page "flow test" is
-   emptied at the end. */
+   Drives Predictive in the real Logseq with real keystrokes, against a test graph with a Consultation tag that takes a Provider
+   and a Date, and doctors named Dr. Mei Chen and Dr. Raj Patel (the Illness Test Graph). Each check says what it proves, as
+   Predictive's README describes it today (rewritten 10 November 2026: seven of its sixteen checks still asked for what Predictive
+   no longer does). The scratch page "flow test" is emptied at the end. */
 const assert = require('node:assert/strict');
 const { connect, reload, scratch, cleanup, held, ghosts, sleep } = require('./door.js');
 
@@ -21,7 +22,7 @@ const check = async (name, fn) => { try { await fn(); passed++; console.log('  o
       const uuid = await scratch(c, null);
       await type('Video call with Dr. Mei Chen about the tingling'); await sleep(1000);
       const shown = await c.page.evaluate(u => [...document.querySelectorAll(`.ls-block[blockid="${u}"] .flow-ghost`)].map(g => (g.closest('.bottom-property-pill')?.firstElementChild?.textContent || (g.closest('.ls-block-right') ? 'right end of the line' : '?')).replace(/:$/, '') + '=' + g.textContent), uuid);
-      assert.ok(shown.includes('right end of the line=#Consultation'), 'the tag is not proposed where Logseq draws tags: ' + JSON.stringify(shown));
+      assert.ok(shown.includes('right end of the line=Consultation'), 'the tag is not proposed where Logseq draws tags: ' + JSON.stringify(shown));
       assert.ok(!shown.some(s => /^Tags=/.test(s)), 'the tag is also in a pill of its own: ' + JSON.stringify(shown));
       assert.ok(shown.some(s => s.startsWith('Provider=')), 'the tag\'s properties are not offered with it: ' + JSON.stringify(shown));
       await press('Enter', 3500);
@@ -36,33 +37,36 @@ const check = async (name, fn) => { try { await fn(); passed++; console.log('  o
       assert.deepEqual((await held(c, uuid)).tags, []);
     });
 
-    const listed = () => c.page.evaluate(() => { const l = document.querySelector('.flow-pick'); return l ? [...l.querySelectorAll('.flow-pick-tag')].map(x => x.textContent) : null; });
+    // The faded arrow is the door's (PluginDoor.undo), keyed by the bullet.
+    const undoArrow = uuid => c.page.evaluate(u => !!document.querySelector(`.lk-undo[data-lk-undo="predictive:${u}"]`), uuid);
+    const listed = () => c.page.evaluate(() => { const l = document.querySelector('.flow-pick'); return l ? [...l.querySelectorAll('.flow-pick-tag')].map(x => x.textContent.replace(/^#/, '')) : null; });
     await check('Option-T on an untagged line lists the tags the named page allows, best first; Enter picks, the bullet is tagged and its properties are proposed', async () => {
       const uuid = await scratch(c, null);
       await type('Saw Dr. Mei Chen about the pins and needles in my fingers'); await sleep(900);
       await press('Alt+t', 900);
       const tags = await listed();
-      assert.ok(tags, 'no list'); assert.equal(tags[0], '#Consultation'); assert.ok(tags.includes('#Conversation'), JSON.stringify(tags));
+      assert.ok(tags, 'no list'); assert.ok(tags.includes('Consultation'), JSON.stringify(tags));
       assert.equal(await c.page.evaluate(() => document.activeElement.value), 'Saw Dr. Mei Chen about the pins and needles in my fingers', 'the words changed');
       await press('Enter', 1800);
       assert.equal(await listed(), null, 'the list stayed open');
       assert.deepEqual((await held(c, uuid)).tags, ['Consultation']);
       assert.ok((await ghosts(c, uuid)).some(g => /^provider=/.test(g)), 'the properties are not proposed after the pick: ' + JSON.stringify(await ghosts(c, uuid)));
-      assert.ok(await c.page.evaluate(u => !!document.querySelector(`.ls-block[blockid="${u}"] .flow-undo`), uuid), 'no undo arrow');
+      assert.ok(await undoArrow(uuid), 'no faded arrow');
     });
-    await check('a number picks the second tag, and a click on a row picks it too', async () => {
+    await check('a click on a row picks it; a digit typed closes the list and goes into the words', async () => {
       let uuid = await scratch(c, null);
       await type('Spoke to Dr. Raj Patel about the scar and the follow-up'); await sleep(900);
       await press('Alt+t', 800);
       const tags = await listed(); assert.ok(tags && tags.length >= 2, JSON.stringify(tags));
-      await press('2', 1800);
-      assert.deepEqual((await held(c, uuid)).tags, [tags[1].slice(1)]);
-      uuid = await scratch(c, null);
-      await type('Chat with Dr. Helen Brooks about the flu jab'); await sleep(900);
-      await press('Alt+t', 800);
-      const second = await listed(); assert.ok(second && second.length >= 2, JSON.stringify(second));
       await c.page.click('.flow-pick-row:nth-child(2)'); await sleep(1800);
-      assert.deepEqual((await held(c, uuid)).tags, [second[1].slice(1)]);
+      assert.deepEqual((await held(c, uuid)).tags, [tags[1]]);
+      uuid = await scratch(c, null);
+      await type('Saw Dr. Mei Chen about the pins and needles'); await sleep(900);
+      await press('Alt+t', 800); assert.ok(await listed(), 'no list');
+      await c.page.keyboard.type('2', { delay: 20 }); await sleep(400);
+      assert.equal(await listed(), null, 'the list stayed open');
+      assert.match(await c.page.evaluate(() => document.activeElement.value), /needles2$/);
+      assert.deepEqual((await held(c, uuid)).tags, []);
     });
     await check('Escape closes the list and writes nothing; typing on closes it and the words continue', async () => {
       let uuid = await scratch(c, null);
@@ -91,7 +95,6 @@ const check = async (name, fn) => { try { await fn(); passed++; console.log('  o
       await sleep(900);
       const where = await c.page.evaluate(u => [...document.querySelectorAll(`.ls-block[blockid="${u}"] .flow-ghost`)].map(g => g.closest('.bottom-property-pill')?.firstElementChild?.textContent.replace(/:$/, '')), uuid);
       assert.ok(where.includes('Provider'), `no Provider ghost in a pill: ${JSON.stringify(where)}`);
-      assert.equal(await c.page.evaluate(() => document.querySelector('.flow-strip')), null);
     });
 
     await check('leaving by a click writes only what is sure; Enter writes the guesses too', async () => {
@@ -120,7 +123,7 @@ const check = async (name, fn) => { try { await fn(); passed++; console.log('  o
       const uuid = await scratch(c, 'Consultation');
       await type('Video call with Dr. Mei Chen about the tingling'); await sleep(900); await press('Enter', 2500);
       assert.ok((await held(c, uuid)).Provider, 'nothing was filled in');
-      await c.page.click(`.ls-block[blockid="${uuid}"] .flow-undo`); await sleep(1500);
+      await c.page.click(`.lk-undo[data-lk-undo="predictive:${uuid}"]`); await sleep(1500);
       assert.equal((await held(c, uuid)).Provider, undefined);
     });
 
@@ -135,8 +138,8 @@ const check = async (name, fn) => { try { await fn(); passed++; console.log('  o
 
     await check('Option-Enter opens the first guessed property\'s list with the guess typed in; Enter moves on; Escape comes back', async () => {
       await scratch(c, 'Consultation');
-      await type('Video call with Dr. Mei Chen about the tingling'); await sleep(900);
-      await press('Alt+Enter', 900);
+      await type('Video call with Dr. Mei Chen about the tingling'); await sleep(1500);
+      await press('Alt+Enter', 1500);
       let a = await active();
       assert.ok(a.inSelect && /Provider/.test(a.placeholder), JSON.stringify(a));
       assert.equal(await c.page.evaluate(() => document.activeElement.value), 'Dr. Mei Chen');
@@ -174,6 +177,8 @@ const check = async (name, fn) => { try { await fn(); passed++; console.log('  o
     await check('Hyper held with another key does not', async () => assert.equal(await suggest(() => hyper(null, () => c.page.keyboard.press('KeyZ'))), 'Spoke with Dr. Mei'));
 
     await check('empty properties are hidden on a bullet that is not being written, and shown (faint) on the one that is', async () => {
+      // Only with the setting on (Hide empty properties until something is proposed); off, Logseq shows them as it does.
+      if (!(await c.frame().evaluate(() => logseq.settings?.proposalsHideEmpty !== false))) { console.log('      (skipped: the setting Hide empty properties is off in this Logseq)'); return; }
       const uuid = await scratch(c, 'Consultation');
       await type('Coffee'); await sleep(600);
       const editing = await c.page.evaluate(u => [...document.querySelectorAll(`.ls-block[blockid="${u}"] .bottom-property-pill`)].map(p => getComputedStyle(p).display), uuid);

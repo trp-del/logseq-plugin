@@ -1,5 +1,6 @@
 #!/bin/sh
-# Builds the zip Logseq installs, by hand, with no GitHub Actions: sh tools/release.sh
+# Builds the zip Logseq installs, by hand, with no GitHub Actions: sh tools/release.sh. It runs every check first (test/all.sh)
+# and builds nothing if one fails.
 # The zip holds a folder logseq-plugin/ with exactly what Logseq needs: package.json, loader.js, files.js, plugin.js,
 # main.js, every file files.js names, README.md and LICENSE. It is written to dist/logseq-plugin-v<version>.zip, the
 # version read from package.json. Then: git tag v<version>, push, and attach the zip to a release of that tag on GitHub
@@ -8,6 +9,8 @@ set -eu
 cd "$(dirname "$0")/.."
 version=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' package.json | head -1)
 [ -n "$version" ] || { echo "no version in package.json"; exit 1; }
+# Every module's checks first: a zip is built only from a plugin that passes them (10 November 2026).
+NODE_PATH="${NODE_PATH:-$(cd .. && pwd)/logseq-plugin-old/node_modules}" sh test/all.sh || { echo "the checks failed: no zip built"; exit 1; }
 stage=dist/stage/logseq-plugin
 rm -rf dist/stage && mkdir -p "$stage"
 cp package.json loader.js files.js plugin.js main.js README.md LICENSE "$stage/"

@@ -18,7 +18,7 @@ const css = `
 .lk-path > .lk-held { display: inline-flex; flex: 0 1 auto; }
 .lk-path > .lk-held > a.lk-tag { min-width: min(8ch, calc(var(--lk-n, 8) * 1ch)); overflow: hidden; text-overflow: ellipsis; }
 .lk-path > .lk-sep { flex: none; }
-.lk-path .lk-sep { margin: 0 .35em; color: var(--lk-faint); }
+.lk-path .lk-sep { margin: 0 .35em; color: var(--lk-quiet); }
 .lk-path .lk-own { position: relative; }
 .lk-path .lk-sep:has(+ .lk-held) { display: inline-block; min-width: 22px; margin: 0; text-align: center; }
 /* The × is the library's lk-reveal: shown while its tag is pointed at, kept while the hand moves onto it, darker near it. It stands
@@ -54,7 +54,7 @@ function groupsOf(index, uuid) {
   return groups;
 }
 const link = (doc, t, end) => el(doc, 'a', { class: end ? 'lk-tag lk-end' : 'lk-tag', href: '#', 'data-uuid': t.uuid, style: `--lk-n: ${[...String(t.title)].length}` }, t.title);
-const asks = () => window.PluginDoor.runs('structure') && !!window.Structure?.app;
+const asks = () => window.PluginDoor.runs('structure');
 function held(doc, t, tagPage) {
   if (tagPage && !asks()) return link(doc, t);
   const words = tagPage ? `Take this tag out from under ${t.title}` : `Remove ${t.title} from this page`;
@@ -92,7 +92,10 @@ function undoPlace(page) {
 async function takeOff(tagUuid, { page, tagPage }, name = 'The tag') {
   if (!page || !tagUuid) return;
   try {
-    if (tagPage) return await window.Structure.app.askTakeOut(page, tagUuid);
+    if (tagPage) {
+      if (await window.PluginDoor.ask('structure.takeOut', page, tagUuid) === window.PluginDoor.UNANSWERED) notify('Switch on Structure to take a tag out of its place');
+      return;
+    }
     await Look.db.removeTag(page, tagUuid);
     setTimeout(() => Look.marks.load(), 300);
     window.PluginDoor.undo.offer({ owner: 'look', key: `look:${page}:${tagUuid}`, at: () => undoPlace(page), node: page, text: `${name} taken off this page`, cls: 'lk-undo-title',

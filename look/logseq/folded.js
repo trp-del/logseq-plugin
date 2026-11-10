@@ -1,7 +1,7 @@
 /* What a folded node holds, after its words, small and grey: a circle with the number of unfinished tasks at any depth;
    then its pictures, quotes, PDFs and other files, each an icon with its number; then the tags of what is inside, the
    most used first, up to three, with no number on them; then the nearest due day of a task, or "was due" once it has
-   passed. A ↳ leads it (the owner, 2026-10-29, bringing back the arrow of the original before 0.4.466). Shown only while folded. */
+   passed. A ↳ leads it (the owner, 2026-10-29, bringing back the arrow of the original). Shown only while folded. */
 (function () {
 const Look = window.Look;
 const { host, style, watchScreen, onGraphChange, el, iconHtml, openPage } = Look.kit, { setting } = Look.settings;
@@ -13,7 +13,7 @@ const css = `
 .lk-folded .lk-pair + .lk-pair { margin-left: .35em; }
 /* A font keeps a quotation mark high in its line, so the drop is measured: the ink's middle on the number's. */
 .lk-folded .lk-quote { display: inline-block; font: 1.4em/1 Georgia, "Times New Roman", serif; height: .7em; transform: translateY(.35em); }
-.lk-folded .lk-sep { color: var(--lk-faint); margin: 0 .1em; }
+.lk-folded .lk-sep { color: var(--lk-quiet); margin: 0 .1em; }
 .lk-folded a.lk-tag { cursor: pointer; }
 .block-head-wrap > a.asset-ref + .lk-folded { margin-right: auto; align-self: center; flex: none; }
 .ls-block:not([data-collapsed="true"]) > .block-main-container .lk-folded { display: none; }`;

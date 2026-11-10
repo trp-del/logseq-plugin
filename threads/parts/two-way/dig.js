@@ -11,11 +11,10 @@ const { host, openEntity, notify, esc } = shared;
 const O = shared.outline;
 const { state, warnOnce } = twoWay;
 
-/* Digging, one model (0.4.442, docs/REWORK.md 4; it replaces the node opened in a row, the chain opened inside it and the
+/* Digging, one model (; it replaces the node opened in a row, the chain opened inside it and the
    step into a node, three models drawn three ways). state.dig: every node open, by its place: the row ('r:Provider'),
    then '>uuid' for each node down, the whole path from the page. A node opens in place under its own name for three
-   levels or less: once a node just opened has a line that would break, the outline shifts (0.4.463, 0.4.464 by fit,
-   fitOrShift): the node below the top becomes the top and the top goes into the trail (state.steps, each with its key, a click back; Esc one step back
+   levels or less: once a node just opened has a line that would break, the outline shifts (fitOrShift): the node below the top becomes the top and the top goes into the trail (state.steps, each with its key, a click back; Esc one step back
    once nothing is open under the top). state.focus is the place opened last: its line and what it holds
    sit on the light grey wash; a click inside another open node moves it there, closing it or Esc hands it to its
    parent. The way down is never listed again under a node (a node on the way, or this page, is left out). What a node
@@ -59,10 +58,10 @@ function nodeHtml(uuid, key, data, asTop = false, field = true) {
   const onlyFound = state.findDug.get(key) === true && !!state.find.trim();
   let html = '', empties = '', emptyNames = [];
   // A value that is the way back (this page, or the node above) is left out: the row's property, on the left of the line
-  // it opened from, already says how the node is tied here, and a thread cannot loop back on itself (the owner, 0.4.451:
+  // it opened from, already says how the node is tied here, and a thread cannot loop back on itself (the owner:
   // the line saying it again inside was "not right"). A property holding only the way back goes with it.
   const back = v => isUuid(v.uuid) && onTheWay(path, v.uuid);
-  // A Date saying the day its line already shows in the margin is left out (0.4.462).
+  // A Date saying the day its line already shows in the margin is left out.
   const day = twoWay.lineDay.get(key) || '';
   for (const { prop, values: all } of data.props) {
     const values = all.filter(v => !back(v));
@@ -98,7 +97,7 @@ function nodeHtml(uuid, key, data, asTop = false, field = true) {
   if (emptyNames.length && state.emptyOpen.has(key)) html += empties;
   if (data.guesses.size > 1 && data.props.filter(r => !r.values.length && data.guesses.has(r.prop.ident)).length > 1) html += O.more({ text: 'Take what is proposed', cls: 'lk-lone lk-i-tick', attrs: { 'data-takeall': uuid } });
   /* The nodes that link to it, after its own properties, under a line saying so: "2 nodes link here"
-     (0.4.462, the owner's pick 2 of the two-way fixes: the same property
+     (the owner's pick 2 of the two-way fixes: the same property
      name, one line apart, read as the node's own and as what links to it). Under it one step in, a row per property, one
      name per line, three then "show all"; each node a dot, then its day in a column where any of them has one, as on the rows. */
   const linking = asTop ? [] : data.rows.map(g => ({ g, items: g.items.filter(item => !onTheWay(path, item.uuid)) })).filter(r => r.items.length);
@@ -143,7 +142,7 @@ function titleOf(uuid) {
   }
   return 'a node';
 }
-/* Read in one go (0.4.442): its properties with the tags of what they point at, what points at it, its first bullets and
+/* Read in one go: its properties with the tags of what they point at, what points at it, its first bullets and
    what the proposals would fill in; kept by node, so a node opened again draws at once and is read again behind. */
 const reading = new Map();
 // look: the pointer passing over a fold arrow, which reads the node but not the earlier lines the proposals learn from.
@@ -160,7 +159,7 @@ function readNode(uuid, id, { look = false } = {}) {
     const byIdent = new Map([...(held.get(uuid) || new Map()).values()].map(h => [h.ident, h.values]));
     const readable = async text => { try { return String(await twoWay.provided.readableTitle(String(text ?? ''))).trim(); } catch { return String(text ?? '').trim(); } };
     // Its tags' properties, then any other property it holds (a value set without the tag giving it, as a Treatment holding
-    // "Side effects"), so whatever it holds shows (0.4.450; the way back itself is left out when drawn, 0.4.451).
+    // "Side effects"), so whatever it holds shows (the way back itself is left out when drawn).
     const given = new Set(fields.map(p => p.ident));
     const extra = [...byIdent.keys()].filter(ident => !given.has(ident)).map(ident => schema.props.find(p => p.ident === ident)).filter(Boolean);
     // text as it reads; words as written, links whole, for the box that changes it; stored as Logseq holds it.
@@ -213,7 +212,7 @@ function closeDig(key) {
   if (state.focus === key || state.focus.startsWith(key + '>')) state.focus = state.dig.has(parentKey(key)) ? parentKey(key) : '';
   state.html = null; twoWay.draw(host());
 }
-/* The shift (0.4.463, the owner's mockup https://claude.ai/artifact/J4RLe8Kmo6dbXp2nUmfUfG): the node one level below the
+/* The shift (the owner's mockup https://claude.ai/artifact/J4RLe8Kmo6dbXp2nUmfUfG): the node one level below the
    top becomes the section's top, read like a page (its properties, then the nodes linking to it as rows), and the top
    goes into the trail; the levels open under it stay open, the new one with them. Every opened node keeps its key, the
    whole path from the page, so nothing is moved between keys: a step only says where the view starts. The outline
@@ -225,7 +224,7 @@ function shiftOnce(key) {
   state.steps = [...state.steps, { uuid: first.uuid, id: first.id, title: first.title, key: firstKey, entered: true }];
   return true;
 }
-/* When the shift comes (0.4.464, the owner: "shift as soon as lines would break, rather than always at the fourth
+/* When the shift comes (the owner: "shift as soon as lines would break, rather than always at the fourth
    level"): a node just opened is measured as drawn; while one of its own lines breaks (a name on two lines, its tag
    dropped under it, a line wider than the section) and it is more than one level below the top, the outline shifts by
    one level. Then the section slides once from where the clicked line was. */
@@ -290,7 +289,7 @@ function stepBack(to) {
 // The section stepped into a node: the trail (the page, each step, the one shown with its tag), then what it holds.
 function steppedHtml() {
   const top = state.steps[state.steps.length - 1];
-  if (!top.key) { state.steps = []; return null; } // kept from before 0.4.463: back on the page
+  if (!top.key) { state.steps = []; return null; } // kept from: back on the page
   const tagOf = state.node.get(state.steps[state.steps.length - 2]?.uuid)?.tags;
   const tag = [...(tagOf?.entries() || [])].find(([id]) => id === top.id)?.[1] || twoWay.tagOfNode(top.uuid);
   const steps = [{ text: state.pageTitle || 'this page', attrs: { 'data-step': '-1' } }, ...state.steps.slice(0, -1).map((s, i) => ({ text: s.title, attrs: { 'data-step': String(i) } }))];
@@ -312,7 +311,7 @@ function setFocus(key) {
   state.focus = key;
   shared.outline.focus(state.box, key);
 }
-/* Where you are (0.4.442): once the names on the way scroll off, they stay pinned at the top of the section, the deepest
+/* Where you are: once the names on the way scroll off, they stay pinned at the top of the section, the deepest
    last, each a click back to its line. Drawn on scroll into a line that takes no room. */
 function pinNow() {
   const box = state.box, pin = box?.querySelector('.th-tw-pin');
@@ -331,7 +330,7 @@ function pinNow() {
   // Each name with its tag, as on its line.
   const tagOn = unit => unit.firstElementChild.querySelector('.th-tag')?.textContent || '';
   const last = passed[passed.length - 1];
-  // Shifted, the way back comes first: the page and every step, as the trail above shows them (0.4.463).
+  // Shifted, the way back comes first: the page and every step, as the trail above shows them.
   const way = state.steps.length ? [{ text: state.pageTitle || 'this page', attrs: { 'data-step': '-1' } }, ...state.steps.map((s, i) => ({ text: s.title, attrs: { 'data-step': String(i) } }))] : [];
   const html = passed.length ? O.trail([...way, ...passed.slice(0, -1).map(unit => ({ text: titleOf(state.dig.get(unit.dataset.key)?.uuid || ''), attrs: { 'data-goto': unit.dataset.key } }))], esc(titleOf(state.dig.get(last.dataset.key)?.uuid || '')) + (tagOn(last) ? twoWay.tagLink({ tag: tagOn(last) }) : '')) : '';
   if (pin.innerHTML !== html) pin.innerHTML = html;
@@ -471,8 +470,7 @@ twoWay.starters.push(() => {
     event.preventDefault(); event.stopPropagation();
     shared.undo.take(keys[keys.length - 1]);
   };
-  doc.addEventListener('keydown', onKey, true);
-  twoWay.onUnload(() => doc.removeEventListener('keydown', onKey, true));
+  twoWay.listen(doc, 'keydown', onKey, true);
 });
 // The way in from the keyboard: Enter on a bullet's words, as Enter on a selected bullet in Logseq.
 twoWay.starters.push(() => {
@@ -482,10 +480,9 @@ twoWay.starters.push(() => {
     event.preventDefault(); event.stopPropagation();
     editBullet(words.dataset.editBullet).catch(error => { warnOnce('could not change the bullet', error); notify('The bullet could not be changed', 'warning'); });
   };
-  host().addEventListener('keydown', onKey);
-  twoWay.onUnload(() => host().removeEventListener('keydown', onKey));
+  twoWay.listen(host(), 'keydown', onKey);
 });
-/* Taking what the proposals pencilled into an opened node (0.4.438): a click on one, or "Take what is proposed" for all;
+/* Taking what the proposals pencilled into an opened node: a click on one, or "Take what is proposed" for all;
    the faded Undo arrow empties them again. */
 async function takeGuesses(uuid, idents) {
   const data = state.node.get(uuid);
@@ -509,7 +506,7 @@ async function takeGuesses(uuid, idents) {
   await twoWay.offerKept(taken.map(t => [uuid, t.ident]), `Filled ${taken.map(t => `“${t.title}”`).join(', ')} on “${twoWay.shortName(titleOf(uuid))}”`, async () => { for (const t of taken) await twoWay.model.unsetValue(uuid, t.ident); twoWay.peek.cache.clear(); await readAgain(uuid); twoWay.later(300); }, group?.name, twoWay.inBox(`.th-ol-pname[data-edit="${CSS.escape(taken[taken.length - 1].ident)}"][data-uuid="${CSS.escape(uuid)}"] + .th-ol-pv`));
   twoWay.later(300);
 }
-/* A node's properties changed where they sit (0.4.410): a click on a property's name, or on what a plain one holds, asks
+/* A node's properties changed where they sit: a click on a property's name, or on what a plain one holds, asks
    for a new value in the kit's list, the likely ones first for a link (pickerOrder, when loaded), the choices for a
    choice, a day in words for a date, the words or the number as they are. A pick replaces one value, or for a property
    that holds several is added (one held already is taken off); Clear at the list's end, or empty and Enter where there

@@ -1,4 +1,4 @@
-/* The "looks like" engine. Ported from logseq-db-refinements (parts/alike.js, docs/ALIKE.md) and made explicit about
+/* The "looks like" engine. Ported from logseq-db-refinements (parts/alike.js) and made explicit about
    its limits: nothing here reads a global, so the same engine can be tuned for each graph.
 
    A new bullet is filled the way the nodes it most resembles were filled. Every remembered node is a bag of tokens:

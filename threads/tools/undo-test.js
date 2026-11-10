@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-/* The plugin's one Undo (PluginDoor.undo in plugin.js, Threads' of 0.4.258 until 6 November 2026) in a pretend Logseq window: an arrow at the end of what
+/* The plugin's one Undo (PluginDoor.undo in plugin.js, Threads'  until 6 November 2026) in a pretend Logseq window: an arrow at the end of what
    changed, two changes keeping two arrows (the old bar lost the first), a change at the same place adding to its arrow,
    the arrow put back when Logseq draws the place again, waiting at the bottom right when nothing is left to sit beside,
    a click taking the change back, and nothing left after clear and stop.
-   Needs node and jsdom. Run from the repo root: node tools/undo-test.js   (tools/check.sh runs it) */
+   Needs node and jsdom. Run from threads/: node tools/undo-test.js   (tools/check.sh runs it) */
 const fs = require('fs');
 const path = require('path');
 const { JSDOM } = require('jsdom');

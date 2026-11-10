@@ -20,11 +20,11 @@ found = strays(/\b(?:win|doc|hostDoc|document)\.addEventListener\(|defaultView\.
   'export/logseq/clipboard.js': 1,          // set and taken off inside one copy, in the same turn
   'threads/parts/shared.js': 3,             // the kit's own: the mouse buttons followed while Threads runs (its stop is a clean-up step), a pop-up waiting for the release
   'threads/parts/diagnostics.js': 3,        // the troubleshooting tools: a key for the length of a tour, two for the length of one check
-  // Threads' rows: each is taken off by a clean-up step of the part's own base. To fold onto listen() with Threads' next change
-  // (another thread was working in these files on 10 November 2026).
-  'threads/parts/two-way.js': 3, 'threads/parts/two-way/group.js': 1, 'threads/parts/two-way/dig.js': 2, 'threads/parts/two-way/more.js': 3,
 } });
 if (found.length) fail('a listener on Logseq’s window or page set by hand (use the base’s listen)', found);
+// 4b. Threads' parts take their base from the door themselves: no forwarding kit in its shared file (10 November 2026).
+found = strays(/\blifecycle\(/, { allow: {} });
+if (found.length) fail('a base taken through a forwarding name (take PluginDoor.base)', found);
 // 5. Every module has a base under its own key.
 const MODULES = { look: 'look/logseq/kit.js', find: 'find/logseq/kit.js', predictive: 'predictive/logseq/app.js', structure: 'structure/logseq/db.js', export: 'export/logseq/db.js', threads: 'threads/main.js' };
 for (const [key, file] of Object.entries(MODULES)) assert.ok(linesOf(file).some(line => new RegExp(`PluginDoor\\.base\\('${key}'`).test(line)), `${key} takes its base in ${file}`);

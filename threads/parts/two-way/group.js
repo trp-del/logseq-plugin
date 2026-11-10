@@ -9,7 +9,7 @@ const shared = window.Threads.shared;
 const { host, esc, iconHtml } = shared;
 const { state, warnOnce } = twoWay;
 
-/* Group a row by anything (0.4.369, the owner kept it from the ideas page): a list of nodes (more than three) can be
+/* Group a row by anything (the owner kept it from the ideas page): a list of nodes (more than three) can be
    grouped by their tag, their month, or the value of any property they hold (a claim's Confidence, a task's Project),
    each group folding, biggest first, those with none last. Chosen from the word after the count ("group", then "by
    Confidence") or from the right-click menu on the row's name, and remembered per property. Only how the row is shown:
@@ -118,7 +118,7 @@ function groupHtml(group, part, by) {
   const addable = group.ident && by !== 'month' && (by === 'tag' || !part.none);
   const plus = addable ? `<button type="button" class="lk-plus lk-i-plus lk-reveal th-tw-gadd" aria-label="Add" data-gkey="${esc(gkey)}" data-field="${esc(group.name)}" title="Add a node here: “${esc(group.name)}” set to this page${by === 'tag' ? `, tagged ${esc(part.label)}` : `, ${esc(groupName(by))} set to ${esc(part.label)}`}"></button>` : '';
   const shown = all ? part.items : part.items.slice(0, GROUP_LISTED);
-  // The group's heading names the tag, or the list's does when it holds one kind (0.4.462).
+  // The group's heading names the tag, or the list's does when it holds one kind.
   const bare = (by === 'tag' && !part.none) || new Set(group.items.map(item => item.tag)).size === 1;
   const tell = bare ? tellingProp(group, part.items, by.startsWith('p:') ? by.slice(2) : '') : '';
   const more = open && part.items.length > GROUP_LISTED ? shared.outline.more({ text: all ? 'show fewer' : `show ${part.items.length - GROUP_LISTED} more`, attrs: { 'data-more': gkey }, under: twoWay.isDated(group) ? 'dotday' : 'dot' }) : '';
@@ -152,9 +152,9 @@ async function readValues(uuids) {
   }
 }
 // Read ahead for every list (not the mentions): grouped by a property, or of one kind (by itself, or one tag's word
-// picked), its lines say the property telling its nodes apart (0.4.462).
+// picked), its lines say the property telling its nodes apart.
 const groupedUuids = groups => groups.filter(g => (g.items.length > twoWay.INLINE && !twoWay.isMentions(g)) || dayChoice(g).startsWith('p:')).flatMap(g => g.items.map(item => item.uuid));
-/* The property that tells a list's nodes apart, said where the tag was once the heading names the tag (0.4.462, the
+/* The property that tells a list's nodes apart, said where the tag was once the heading names the tag (the
    owner's pick 3 of the two-way fixes; Severity under "13 Symptom Logs"): of the properties the nodes hold, not the one
    linking here, a number, a choice or a few words, never a node (its name is mostly in the node's own words already,
    the reviewer: "about Blood in stool Blood in stool") nor a day (the margin has it), held by at least half of them, with
@@ -251,12 +251,12 @@ async function setGroupValue(uuid, set) {
   if (twoWay.heldById(prop)) await twoWay.setValues(uuid, prop, [value]); else await twoWay.model.setValue(uuid, prop.ident, value);
 }
 
-// Open or folded, per page and field, kept in Logseq's window storage (0.4.184): open unless you folded it.
-/* Date first or name first per property (0.4.304 to 0.4.461) is gone (0.4.462, the owner's pick 1 of the two-way fixes):
+// Open or folded, per page and field, kept in Logseq's window storage: open unless you folded it.
+/* Date first or name first per property is gone (the owner's pick 1 of the two-way fixes):
    the day is always in the margin. What it kept is let go once. */
 function forgetOrder() { try { host().defaultView.localStorage.removeItem('refinementTwoWayOrder'); } catch { /* nothing kept */ } }
 const OPEN_KEY = 'refinementTwoWayOpen';
-const isOpen = key => state.open.get(key) ?? true; // while finding, a row opens itself once narrowed (rowHtml, 0.4.458)
+const isOpen = key => state.open.get(key) ?? true; // while finding, a row opens itself once narrowed (rowHtml)
 function readOpen() { try { state.open = new Map(Object.entries(JSON.parse(host().defaultView.localStorage.getItem(OPEN_KEY) || '{}'))); } catch { state.open = new Map(); } }
 function setOpen(key, open) {
   state.open.delete(key);
@@ -302,8 +302,7 @@ twoWay.starters.push(() => {
     moveList(name, where === 'above' ? target : names[i + 1] === name ? names[i + 2] || '' : names[i + 1] || '');
   };
   // Taken before Logseq's own drag handling (it takes dragover on the page for moving blocks).
-  doc.addEventListener('dragstart', start, true); doc.addEventListener('dragover', over, true); doc.addEventListener('drop', drop, true); doc.addEventListener('dragend', end, true);
-  twoWay.onUnload(() => { doc.removeEventListener('dragstart', start, true); doc.removeEventListener('dragover', over, true); doc.removeEventListener('drop', drop, true); doc.removeEventListener('dragend', end, true); });
+  twoWay.listen(doc, 'dragstart', start, true); twoWay.listen(doc, 'dragover', over, true); twoWay.listen(doc, 'drop', drop, true); twoWay.listen(doc, 'dragend', end, true);
 });
 Object.assign(twoWay, { moveList, setGroup, dayChoice, dayOf, dayIn, dayFrom, listFrom, lineDayOf, forgetOrder, groupBtn, groupHtml, groupMenu, viewItems, groupName, groupOf, groupedUuids, groupingOf, isOpen, readGroup, readOpen, readValues, setGroupValue, setOpen, startGroupDraft, tellHtml, tellingProp });
 })();

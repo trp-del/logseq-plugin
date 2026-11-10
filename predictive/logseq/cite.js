@@ -162,7 +162,7 @@ const css = `
 .flow-cite { margin: 2px 0 6px 31px; padding: 2px 0 2px 10px; border-left: 1px solid var(--lk-line); max-width: 460px; font-size: 14px; }
 .flow-cite-field { display: block; width: 100%; }
 .flow-cite-page { width: 5ch; }
-.flow-cite-word { color: var(--lk-faint); }
+.flow-cite-word { color: var(--lk-quiet); }
 .flow-cite-found:not(:empty) { margin-top: 4px; }
 .flow-cite-row { padding: 2px 6px; margin-left: -6px; cursor: pointer; }
 `;

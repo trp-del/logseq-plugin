@@ -106,11 +106,10 @@ async function pageNamed(name) {
   const page = await window.PluginDoor.write.createPage(name, {}, { redirect: false, createFirstBlock: false });
   return { id: page.id ?? (await query(`[:find ?p :where [?p :block/uuid #uuid "${page.uuid}"]]`))[0]?.[0], made: String(page.uuid) };
 }
+// The page of a day, made by Logseq's own journal call when the graph has none (the door's dates), with what Undo takes back.
 async function dayPage(day) {
-  const found = (await query(`[:find ?p :where [?p :block/journal-day ${day}]]`))[0]?.[0];
-  if (found != null) return { id: found };
-  const page = await window.PluginDoor.write.createJournalPage(new Date(Math.floor(day / 10000), Math.floor(day / 100) % 100 - 1, day % 100));
-  return { id: page.id ?? (await query(`[:find ?p :where [?p :block/journal-day ${day}]]`))[0]?.[0], made: String(page.uuid) };
+  const page = await window.PluginDoor.dates.page(day, query);
+  return page.made ? page : { id: page.id };
 }
 /* A node's values of a property become exactly these. Ids point at entities; words and numbers are written as words, each its
    own value; a yes or no raw. None: the property comes off the node. */

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* Odd names, drawn (2026-10-23, docs/history/FINISHING-PROMPT-2026-10-23.md section 4, "Odd text"): page, tag and property names with
+/* Odd names, drawn (2026-10-23, "Odd text"): page, tag and property names with
    [[, ]], #, ::, quotes, back slashes, emoji, right-to-left words, 500 letters, Logseq's own names, markup, an empty name
    and a name of spaces (tools/odd-names.js), put through what draws a name, in Chromium:
    - the kit's pieces (the tag word, the tag as words in a paragraph, the pop-up's items and head, a question, a chip,
@@ -7,8 +7,7 @@
    - the two-way rows (a field and its nodes, short and as an open list);
    - the model's readers (titles, stored links, trailing tags, days in words).
    Nothing may throw; no name may become markup (no element made from a name: the kit's one esc() at work); every name
-   drawn must be readable on the page as written (its words, spaces folded). The proposals read the same names in
-   tools/shadow-stress.js (2b).
+   drawn must be readable on the page as written (its words, spaces folded).
    Needs Playwright and Chromium; skipped quietly where they are missing. Run: node tools/odd-text-test.js */
 const fs = require('fs');
 const path = require('path');
@@ -16,7 +15,7 @@ const twoWay = require('./two-way-files');
 const ODD = require('./odd-names');
 
 let chromium;
-for (const where of ['playwright', '/opt/node-tools/node_modules/playwright']) { try { ({ chromium } = require(where)); break; } catch (error) { /* try the next */ } }
+for (const where of ['playwright', '/Users/admin/logseq-value/logseq-plugin-old/node_modules/playwright']) { try { ({ chromium } = require(where)); break; } catch (error) { /* try the next */ } }
 if (!chromium) { console.log('odd-text-test skipped (needs Playwright and Chromium)'); process.exit(0); }
 const root = path.resolve(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
@@ -46,7 +45,7 @@ function oddLogseq(names) {
       : q.includes('closed-value') ? [] : q.includes('class/extends [:db/id]') ? tags.map(t => [t]) : q.includes('count') ? tags.map(t => [t[':db/id'], 2]) : [], onChanged: () => () => {} },
     UI: { showMsg() {} }, App: { pushState() {} }, Editor: {},
   };
-  (window.Threads ||= {}).core = { provided: { backwardsLabel: n => n + ' of', setBackwards() {}, shownAtOtherEnd: () => true, setShownAtOtherEnd() {} } };
+  (window.Threads ||= {}).core = { provided: { backwardsLabel: n => n + ' of', setBackwards() {} } };
 }
 
 (async () => {

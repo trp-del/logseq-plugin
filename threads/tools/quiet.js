@@ -1,4 +1,4 @@
-/* Is the Mac quiet enough to measure speed? (2026-10-23, docs/history/FINISHING-PROMPT-2026-10-23.md section 4, "Load"; the loose end of
+/* Is the Mac quiet enough to measure speed? (2026-10-23, "Load"; the loose end of
    CLAUDE.md section 7: the tag map's speed limits failed whenever the Mac's load was above about 2, as it is while the
    Claude app renders a long session.)
    - load():  the one-minute load average (sysctl vm.loadavg on a Mac, os.loadavg() elsewhere);

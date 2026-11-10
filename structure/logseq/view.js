@@ -94,7 +94,7 @@ const CSS = `
 .st-holder-insp .st-insp-h { display: flex; gap: 8px; align-items: baseline; font-weight: 600; font-size: 16px; line-height: 1.4; margin: 0 0 12px; overflow-wrap: anywhere; }
 .st-holder-insp .st-insp-h .lk-tag { font-weight: 600; }
 .st-holder-insp .st-insp-h .st-pi { width: 13px; height: 13px; color: var(--lk-quiet); }
-.st-holder-insp dt .st-pi, .st-holder-insp dt .ti { flex: none; width: 13px; font-size: 13px; color: var(--lk-faint); position: relative; top: 1px; }
+.st-holder-insp dt .st-pi, .st-holder-insp dt .ti { flex: none; width: 13px; font-size: 13px; color: var(--lk-quiet); position: relative; top: 1px; }
 .st-insp-top:not(:has(.st-insp-h, .st-lines-t)) { display: none; }
 .st-insp-top:not(:has(.st-insp-h, .st-lines-t)) + .st-insp-node { border-top: 0; padding-top: 0; }
 /* A tag the property is on: its name and count on one line, what you can do with it under them, so the narrow panel never
@@ -107,7 +107,7 @@ const CSS = `
 .st-insp-words { display: flex; gap: 8px; align-items: baseline; margin-bottom: 12px; line-height: 1.4; font-weight: 600; font-size: 16px; }
 .st-insp-words .lk-bul { flex: none; position: relative; top: -2px; }
 .st-insp-words .st-insp-said { min-width: 0; overflow-wrap: anywhere; }
-.st-insp-none { margin: 0; color: var(--lk-faint); }
+.st-insp-none { margin: 0; } .st-insp-none.lk-none { padding: 0; }   /* the library's nothing-here line, at the top of the tab, as Links' and Endnotes' (the audit's 32) */
 .st-insp-outline { margin-top: 16px; display: grid; gap: 4px; line-height: 1.5; }
 .st-insp-b { display: flex; gap: 6px; align-items: baseline; padding-left: calc(var(--d) * 22px); }
 .st-insp-b .lk-bul { position: relative; top: 3px; }
@@ -147,10 +147,10 @@ const CSS = `
 .st-tray .st-done, .st-tray .note { color: var(--lk-quiet); white-space: nowrap; font-size: 14px; }   /* the Undo arrow waits at the right, at the top of the card (the grammar) */
 .st-tray .st-wait + .tl + .st-saying, .st-tray .st-wait + .tl + .more + .st-saying { margin-top: 4px; }
 .st-tray .st-done .lk-undo { margin-left: 6px; font-size: 16px; }   /* the door's one Undo sits at the end of this line */
-.st-tray .busy { color: var(--lk-faint); }
+.st-tray .busy { color: var(--lk-quiet); }
 /* The find line and a name typed in place are the library's field (lk-field); here their room. */
-.st-find { color: var(--lk-faint); font-size: 14px; min-height: 24px; padding: 0 2px; margin: 0 0 10px; }
-.st-find .n { font-size: var(--lk-small); color: var(--lk-faint); font-variant-numeric: tabular-nums; }
+.st-find { color: var(--lk-quiet); font-size: 14px; min-height: 24px; padding: 0 2px; margin: 0 0 10px; }
+.st-find .n { font-size: var(--lk-small); color: var(--lk-quiet); font-variant-numeric: tabular-nums; }
 .st-in { width: 100%; }
 .st-tree { flex: 1; min-height: 0; overflow: auto; }
 /* A row is built as Logseq builds a block (the grammar): the tick in the margin, the fold arrow shown under the pointer, the
@@ -203,7 +203,7 @@ const CSS = `
 .st-ttl .st-place { display: flex; align-items: baseline; margin-left: auto; font-size: var(--lk-small); white-space: nowrap; min-width: 0; flex: 0 1 auto; }
 .st-ttl .st-place > * { flex: 0 1000 auto; min-width: 2em; overflow: hidden; text-overflow: ellipsis; }
 .st-ttl .st-place > :first-child { flex-shrink: 1; } .st-ttl .st-place > :last-child { flex-shrink: 0; }
-.st-ttl .st-place .sep { flex: none; min-width: 0; color: var(--lk-faint); margin: 0 .4em; }
+.st-ttl .st-place .sep { flex: none; min-width: 0; color: var(--lk-quiet); margin: 0 .4em; }
 .st-card h2 { font-size: 20px; font-weight: 600; margin: 0; display: flex; gap: 10px; align-items: center; line-height: 1.3; min-width: 0; }
 .st-card h2 .st-pi { width: 13px; height: 13px; }
 .st-card .sum { font-size: var(--lk-small); color: var(--lk-quiet); margin: 0 0 6px; display: flex; gap: 14px; flex-wrap: wrap; align-items: baseline; }
@@ -214,17 +214,17 @@ const CSS = `
 .st-card h3:first-of-type { margin-top: 0; }
 .st-ln { display: grid; grid-template-columns: 16px minmax(0, 1fr) 84px; gap: 0 8px; align-items: baseline; min-height: 25px; border-radius: 3px; padding: 0 4px 0 2px; margin-left: -2px; }
 .st-ln:hover { background: var(--lk-wash); }
-.st-pi { display: inline-flex; width: 11px; height: 11px; color: var(--lk-faint); align-self: center; } .st-ln > .st-pi { align-self: start; margin-top: 5px; } .st-pi .lk-icon.lk-web, .st-pi .lk-icon.lk-web svg { width: 100%; height: 100%; } .st-pi .ti { font-size: 12px; line-height: 1; margin: -.5px; }
+.st-pi { display: inline-flex; width: 11px; height: 11px; color: var(--lk-quiet); align-self: center; } .st-ln > .st-pi { align-self: start; margin-top: 5px; } .st-pi .lk-icon.lk-web, .st-pi .lk-icon.lk-web svg { width: 100%; height: 100%; } .st-pi .ti { font-size: 12px; line-height: 1; margin: -.5px; }
 .st-ln .w { display: flex; gap: 8px; align-items: baseline; min-width: 0; flex-wrap: wrap; }
 .st-ln .w .k { color: inherit; }
-.st-ln .w .to { color: var(--lk-faint); font-size: var(--lk-small); }
+.st-ln .w .to { color: var(--lk-quiet); font-size: var(--lk-small); }
 .st .lk { text-decoration: underline; text-decoration-color: var(--lk-line); text-underline-offset: 3px; cursor: pointer; }
 .st .lk:hover { text-decoration-color: currentColor; }
 .st .lk-tag { white-space: nowrap; cursor: pointer; }
 .st-tbl .lk-tag { opacity: 1; }
 .st .act .lk-tag { color: var(--lk-text, currentColor) !important; }   /* a tag in a value you can change reads like any tag, the text colour (the owner, 8 November 2026) */   /* in the table a tag is a column's whole content, not a mark after words: full strength (the owner, 5 November 2026) */
 .st-ln .ct { text-align: right; font-size: var(--lk-small); color: var(--lk-quiet); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.st-ln.low .ct { color: var(--lk-faint); }
+.st-ln.low .ct { color: var(--lk-quiet); }
 .st-ln.rng .x { margin-left: 2px; }
 .st-ln.add .ct { text-align: left; white-space: normal; }
 /* An issue's row, each part keyed by its role (the owner, 31 October 2026): the thing to settle in the text colour with the underline
@@ -243,9 +243,9 @@ const CSS = `
 .st-two .h { font-weight: 600; padding-bottom: 4px; display: flex; gap: 8px; align-items: baseline; color: var(--lk-text, #222); } .st-two .h .ct { font-weight: 400; color: var(--lk-quiet); font-size: var(--lk-small); }
 .st-two .pr { display: flex; gap: 8px; min-height: 24px; align-items: center; color: var(--lk-quiet); }   /* the name at the left of its column, "on both" at the right */
 .st-two .pr .n { display: inline-flex; gap: 6px; align-items: center; min-width: 0; }
-.st-two .pr .ct { font-size: var(--lk-small); color: var(--lk-faint); margin-left: auto; white-space: nowrap; }
-.st-two .pr.moves, .st-two .pr.shared { color: var(--lk-text, #222); } .st-two .pr.gone { text-decoration: line-through; color: var(--lk-faint); } .st-two .pr.new { font-style: italic; }
-.st .q { color: var(--lk-quiet); } .st .f { color: var(--lk-faint); }
+.st-two .pr .ct { font-size: var(--lk-small); color: var(--lk-quiet); margin-left: auto; white-space: nowrap; }
+.st-two .pr.moves, .st-two .pr.shared { color: var(--lk-text, #222); } .st-two .pr.gone { text-decoration: line-through; color: var(--lk-quiet); } .st-two .pr.new { font-style: italic; }
+.st .q { color: var(--lk-quiet); } .st .f { color: var(--lk-quiet); }
 /* Baked in one pass (the owner, 5 November 2026: "the table feels half-baked"): the tick and the fold arrow stand in a margin at the
    table's left, as on a Regions row, so the head Property stands over the names; the chevron sits tight after the value it keys;
    the columns are sized to what they hold; the sorted head carries Logseq's arrow. */
@@ -264,7 +264,7 @@ const CSS = `
 .st-popen { padding: 8px 12px 14px 20px; border-bottom: 1px solid var(--lk-hair); }
 /* The keys at rest (the owner's pick 1 of structure-table-keys-mockup.html, 5 November 2026): a cell that changes here ends with a faint chevron. */
 .st-tbl .tr .st-cell { display: flex; align-items: center; justify-content: flex-start; gap: 6px; } .st-tbl .tr .st-cell > span:first-child { min-width: 0; }
-.st-tbl .tr .st-chev { color: var(--lk-faint); font-size: 11px; cursor: pointer; padding: 0 2px; flex: none; } .st-tbl .tr .st-chev:hover { color: var(--lk-quiet); }
+.st-tbl .tr .st-chev { color: var(--lk-quiet); font-size: 11px; cursor: pointer; padding: 0 2px; flex: none; } .st-tbl .tr .st-chev:hover { color: var(--lk-quiet); }
 .st-popen .st-lines-t { margin: 0; font-size: 14px; }
 /* On a tree row the name is the door (the grammar's row): the words carry the faint line under the pointer, since a line on every row would multiply. */
 .st-row .nm .st-name { cursor: pointer; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 3px; transition: text-decoration-color .12s; }
@@ -306,10 +306,10 @@ const CSS = `
 .st-prompt .st-row.lit, .st-prompt .st-row.lit:hover { background: var(--lk-wash); }
 .st-prompt .more { display: block; padding: 3px 4px; border-radius: 3px; width: 100%; text-align: left; }
 .st-prompt .more.lit { background: var(--lk-wash); }
-.st-prompt .q { padding: 4px 2px; color: var(--lk-quiet); } .st-prompt .q .hint { color: var(--lk-faint); }
-.st-prompt .st-find .ti-search { font-size: 14px; color: var(--lk-faint); flex: none; }
-.st-prompt .st-find .ask { font-size: var(--lk-small); color: var(--lk-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 55%; }
-.st-prompt .nm .up { margin-left: .5em; font-size: var(--lk-small); color: var(--lk-faint); }
+.st-prompt .q { padding: 4px 2px; color: var(--lk-quiet); } .st-prompt .q .hint { color: var(--lk-quiet); }
+.st-prompt .st-find .ti-search { font-size: 14px; color: var(--lk-quiet); flex: none; }
+.st-prompt .st-find .ask { font-size: var(--lk-small); color: var(--lk-quiet); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 55%; }
+.st-prompt .nm .up { margin-left: .5em; font-size: var(--lk-small); color: var(--lk-quiet); }
 /* A faint row's count gives way to its reason under the pointer, so why it cannot take it is read where its number stood. */
 .st-prompt .ct .why { display: none; } .st-prompt .st-row.off:hover .ct .n { display: none; } .st-prompt .st-row.off:hover .ct .why { display: inline; }
 .st-empty { max-width: 60ch; }   /* the library's nothing-here line (lk-none) */

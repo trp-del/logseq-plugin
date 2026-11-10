@@ -9,13 +9,13 @@
    cannot check what anything looks like; that is still done in the running app.
 
    Needs node and jsdom:   npm install --no-save --no-package-lock jsdom
-   Run from the repo root: node tools/boot-test.js   (tools/check.sh runs it when node and jsdom are there) */
+   Run from threads/: node tools/boot-test.js   (tools/check.sh runs it when node and jsdom are there) */
 const fs = require('fs');
 const path = require('path');
 const { JSDOM } = require('jsdom');
 
 const root = path.resolve(__dirname, '..');
-// For tools/parts-apart-test.js (0.4.269): LEAVE_OUT=two-way,picker boots without those parts; ALLOW_WARN is a
+// For tools/parts-apart-test.js: LEAVE_OUT=two-way,picker boots without those parts; ALLOW_WARN is a
 // pattern for the warnings that leaving them out should give; QUIET_PARTS how many parts then stay out by themselves.
 const LEAVE_OUT = (process.env.LEAVE_OUT || '').split(',').filter(Boolean);
 const ALLOW_WARN = process.env.ALLOW_WARN ? new RegExp(process.env.ALLOW_WARN) : null;
@@ -27,7 +27,7 @@ const PART_FILES = (() => {
     .filter(file => !LEAVE_OUT.includes(file.replace(/^parts\/|\.js$/g, '').split('/')[0]));
 })();
 
-// Which parts main.js loads now (0.4.175: the resting parts are left out); checks of a feature run only when it is loaded.
+// Which parts main.js loads now (the resting parts are left out); checks of a feature run only when it is loaded.
 const has = name => PART_FILES.includes('parts/' + name + '.js');
 const ALL_PARTS = ['pages', 'links', 'chrome', 'search', 'inline-props', 'rich-copy', 'todos'].every(has);
 const problems = [];
@@ -138,7 +138,7 @@ async function main() {
   host.window.addEventListener('error', onWindowError);
 
   // Timers the plugin sets and listeners it adds to Logseq's window and document, so the unload can be checked for
-  // what boot-test.js could not see before (0.4.279, the audit): every interval cleared, every listener removed.
+  // what boot-test.js could not see before (the audit): every interval cleared, every listener removed.
   const timers = { intervals: new Set(), timeouts: new Set() };
   const realSetInterval = global.setInterval, realClearInterval = global.clearInterval, realSetTimeout = global.setTimeout, realClearTimeout = global.clearTimeout;
   global.setInterval = (fn, ms, ...rest) => { const id = realSetInterval(fn, ms, ...rest); timers.intervals.add(id); return id; };
@@ -180,25 +180,25 @@ async function main() {
   const menu = logseq.calls.filter(call => call.name === 'Editor.registerBlockContextMenuItem').map(call => call.args[0]);
   console.log(`${palette.length} palette commands, ${palette.filter(c => c.keybinding).length} with a shortcut, ${menu.length} bullet-menu items`);
   const wanted = [['new-outermost-block', 'block-commands'], ['troubleshooting'], ['search-in-sidebar', 'search'], ['show-tag-tree', 'tags']];
-  // The tag map starts only with its three pieces (0.4.295).
+  // The tag map starts only with its three pieces.
   const tagMap = () => has('tags') && has('tags-graph') && has('tags-props');
   for (const [key, part] of wanted) if ((!part || (part === 'tags' ? tagMap() : has(part))) && !palette.some(c => c.key === key)) problem(`palette command ${key} was not registered`);
   const keys = palette.map(c => c.key);
   if (new Set(keys).size !== keys.length) problem('a palette command was registered twice');
-  // Each feature does something of its own at start (0.4.279, the audit): its stylesheet goes to Logseq and the tag
+  // Each feature does something of its own at start (the audit): its stylesheet goes to Logseq and the tag
   // map's command is registered, exactly when the part is loaded; left out, nothing of it shows (parts-apart-test).
   const styleKeys = logseq.calls.filter(call => call.name === 'provideStyle').map(call => call.args[0]?.key);
   const SIGNS = { 'two-way': 'th-two-way', 'tag-path': 'th-tag-path', 'title-row': 'th-title-row', 'pdf-quote': 'th-pdf-quote', 'folded-note': 'th-folded-note', sidebar: 'th-sidebar-titles', chrome: 'th-chrome-sidebar', 'palette-icons': 'th-palette-icons', 'search-look': 'th-search-tidy', 'page-look': 'th-page-look-links', tags: 'th-tags', shadow: 'th-shadow', picker: 'th-picker', 'tag-menu': 'th-tag-menu', 'settings-panel': 'th-settings-panel' };
-  // The bullet's piece of the proposals stays off, and says so, without the rules (0.4.269).
+  // The bullet's piece of the proposals stays off, and says so, without the rules.
   const expected = part => part === 'shadow' ? has('shadow') && has('shadow-rules') : part === 'tags' ? tagMap() : has(part);
   for (const [part, key] of Object.entries(SIGNS)) if (expected(part) !== styleKeys.includes(key)) problem(`${expected(part) ? 'with' : 'without'} ${part}, its stylesheet ${key} was ${styleKeys.includes(key) ? 'still' : 'not'} sent`);
-  // Link selected text (on the kit, 0.4.314) sends no stylesheet of its own: its sign is its command in the one register.
+  // Link selected text (on the kit) sends no stylesheet of its own: its sign is its command in the one register.
   const registered = (pluginWindow.Threads.core?.commands?.() || []).map(c => c.key);
   if (has('link-text') !== registered.includes('link-selected-text')) problem(`${has('link-text') ? 'with' : 'without'} link-text, its command was ${registered.includes('link-selected-text') ? 'still' : 'not'} in the register`);
   if (has('block-commands') !== registered.includes('new-outermost-block')) problem(`${has('block-commands') ? 'with' : 'without'} block-commands, its command was ${registered.includes('new-outermost-block') ? 'still' : 'not'} in the register`);
   if (tagMap() !== keys.includes('show-tag-tree')) problem(`${tagMap() ? 'with' : 'without'} the tag map, its command was ${keys.includes('show-tag-tree') ? 'still' : 'not'} registered`);
   if (has('two-way') !== logseq.calls.some(call => call.name === 'provideStyle' && call.args[0]?.key === 'th-two-way' && /th-tw-row/.test(call.args[0]?.style || ''))) problem('the two-way rows did not send their look');
-  // The troubleshooting tools (0.4.172): the generic ones from the troubleshooting part, each feature's own from that feature.
+  // The troubleshooting tools: the generic ones from the troubleshooting part, each feature's own from that feature.
   const toolKeys = logseq.calls.filter(call => call.name === 'App.registerCommand').map(call => call.args[1]?.key).sort();
   const wantTools = ['check-what-is-found', 'copy-perf-report', 'copy-styling-details', 'copy-warnings', 'recycle-list', 'take-the-tour', 'toggle-perf',
     ...(has('links') ? ['check-link-labels'] : []), ...(has('pages') ? ['copy-header-details'] : [])].sort();
@@ -269,7 +269,7 @@ async function main() {
   const left2 = leftovers(doc);
   if (left2.length) problem('left on screen after the take-over and unload: ' + [...new Set(left2)].join(', '));
 
-  // 5. Foundation only (0.4.167): the same page, with only the foundation running. Nothing may be drawn, only the
+  // 5. Foundation only: the same page, with only the foundation running. Nothing may be drawn, only the
   // foundation's commands registered, and the unload must still leave nothing behind.
   const logseq4 = fakeLogseq(log);
   logseq4.settings.foundationOnly = true;

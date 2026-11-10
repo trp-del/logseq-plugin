@@ -33,7 +33,7 @@ const addsElements = records => window.PluginDoor.addsElements(records);
    therefore leaves its clean-up where the next one can find it (the base's takeOver, plugin.js), and a new copy
    runs it and removes anything still left on screen (sweepEarlierCopy). */
 const STOP_KEY = '__threadsStop';
-// Each part declares what it may leave on screen in its lifecycle (leaves); the door sweeps it all.
+// Each part declares what it may leave on screen in its base (leaves); the door sweeps it all.
 const sweepEarlierCopy = doc => window.PluginDoor.sweep('threads', doc);
 
 // Logseq ignores an empty stylesheet, which would leave the previous rules in place. A comment
@@ -110,7 +110,7 @@ const dbWork = { timer: 0, since: 0, slowTimer: 0, slowAt: 0 };
 // Lists that cover the whole graph (every linked block, every property value,
 // page titles, journals, property names) change rarely; while you edit, they are read again at most
 // this often, plus once more after you stop. Looking at a new page reads them fresh only when something
-// changed since they were read (0.4.150): read on every page change they held up the page's own extras.
+// changed since they were read: read on every page change they held up the page's own extras.
 const GRAPH_WIDE_EVERY = 30000;
 const graphCache = new Map();
 function graphWide(name, load) {
@@ -169,7 +169,7 @@ function publishCore() {
   window.Threads.core = {
     host, setting, notify, graphWide, scheduleDbWork, sendStyle, orNoRules, watchDomEarly, addsElements,
     screen: window.Threads.shared.screen,
-    // The settings as the settings window reads and writes them (0.4.317): the values now, the joined schema, a save,
+    // The settings as the settings window reads and writes them: the values now, the joined schema, a save,
     // Logseq's own settings page, a reload of this plugin, its version.
     settingsNow: () => logseq.settings || {}, settingsSchema: () => schemaAll, saveSettings: patch => logseq.updateSettings(patch),
     openLogseqSettings: () => logseq.showSettingsUI(), pluginVersion: () => logseq.baseInfo?.version || '',
@@ -178,7 +178,7 @@ function publishCore() {
     provided, provide: things => Object.assign(provided, things),
     onDbRound: (name, fn, { scope = 'page', before } = {}) => { dbJobs.push({ name, fn, scope, before }); },
     onPageChange: fn => hooks.page.push(fn), onDatabaseChange: fn => hooks.database.push(fn), onSettingsChange: fn => hooks.settings.push(fn),
-    onGraphChange: fn => hooks.graph.push(fn), // another graph opened (0.4.315)
+    onGraphChange: fn => hooks.graph.push(fn), // another graph opened
     // A hidden door for the stress tests (2026-10-23, tools/app-stress.js): what this copy has set going, and when it
     // started, so twenty reloads or sixty pages can be checked to leave one of everything and nothing growing.
     counts: () => ({ startedAt, cleanUps: window.Threads.shared.lifeCounts(), watchers: base.watching(),
@@ -186,13 +186,13 @@ function publishCore() {
       popups: window.Threads.shared.popups.size, undos: window.Threads.shared.undo.size }),
   };
 }
-// THE screen door lives in parts/shared.js (layer 1's plumbing, 0.4.315, so the pretend windows of the tests have it too); the core publishes it.
+// THE screen door lives in parts/shared.js (layer 1's plumbing, so the pretend windows of the tests have it too); the core publishes it.
 let startedAt = 0; // when this copy started (the counts' door: a reload that took effect has a new one)
 function main() {
   startedAt = Date.now();
   // Installed from GitHub without the "effect" box ticked, Logseq keeps the plugin in a sealed frame on another
   // address (lsp://logseq.io), where Logseq's own page cannot be reached and nothing of the plugin can draw (seen
-  // 0.4.282 on the owner's other computer: no rows, no map, no settings item). Say so once, instead of failing part by part.
+  // on the owner's other computer: no rows, no map, no settings item). Say so once, instead of failing part by part.
   try { host(); } catch (error) {
     logseq.UI.showMsg('Threads cannot reach Logseq\'s page from here. Uninstall it, then install it again with the "effect" box ticked (Install plugin from GitHub release).', 'error', { timeout: 0 });
     return;
@@ -200,19 +200,19 @@ function main() {
   // The clean-up (runUnloadTasks) is run by the plugin's own beforeunload (main.js at the root), as this module's stop.
   base.takeOver(STOP_KEY, sweepEarlierCopy);
   publishCore();
-  base.style('threads-kit', window.Threads.shared.kitCss); // the kit's look, before any part (0.4.169, the kit since 0.4.311)
-  // THE Undo (parts/shared.js, 0.4.258): its arrows belong to the page they were made on, and go with the plugin.
+  base.style('threads-kit', window.Threads.shared.kitCss); // the kit's look, before any part (the kit)
+  // THE Undo (parts/shared.js): its arrows belong to the page they were made on, and go with the plugin.
   onUnload(logseq.App.onRouteChanged(() => window.Threads.shared.undo.clear()));
   onUnload(() => window.Threads.shared.undo.stop());
-  onUnload(() => window.Threads.shared.popups.closeAll()); // no pop-up outlives the plugin (0.4.316)
-  // The kit follows the mouse buttons itself, so a right-click menu waits for the release in an installed copy too (0.4.360).
+  onUnload(() => window.Threads.shared.popups.closeAll()); // no pop-up outlives the plugin
+  // The kit follows the mouse buttons itself, so a right-click menu waits for the release in an installed copy too.
   window.Threads.shared.popups.followButtons(host().defaultView);
   onUnload(() => window.Threads.shared.popups.stopFollowing());
   // The parts (parts/*.js, loaded before this file). Each keeps its own clean-up, run from here; one
   // that fails to start leaves the rest of the plugin working. Three steps, each over every part before the
   // next: provide() gives the core the part's functions and state; start() takes the others' things and
   // registers with the core; ready() starts what draws on screen, once every part has started. The core
-  // starts no part by name. With the setting Foundation only (0.4.167), only the parts marked foundation run:
+  // starts no part by name. With the setting Foundation only, only the parts marked foundation run:
   // the model, the troubleshooting tools and the settings window; the others stay loaded (their settings
   // keep their place) but are never started.
   const foundationOnly = setting('foundationOnly') === true;

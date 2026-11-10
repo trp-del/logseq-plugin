@@ -62,8 +62,6 @@ function momentText(ctx, note) {
   if (note.pageTitle) lines.push(`On the page: ${note.pageTitle}`);
   return lines.length ? `Around this note:\n${lines.join('\n')}` : '';
 }
-const MOMENT_INSTRUCTIONS = model.INSTRUCTIONS + ' The notes around it may say who or what a word like "she", "he", "it" or ' +
-  '"the scan" means; use them for that, and only for that.';
 
 /* Up to three earlier notes of the same tag, nearest by words, with the values they hold under the properties asked. */
 function examplesText(ctx, b, props) {

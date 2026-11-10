@@ -2,7 +2,8 @@
    The app half of test/logseq-contract.js (9 November 2026), read-only: what the plugin relies on in Logseq, looked at in the
    running Logseq rather than in its bundle.
      - every plugin call on the list answers in Logseq (its handler is on logseq.api);
-     - every database name on the list is in the open graph's schema;
+     - every database name on the list is in Logseq's own schema: an entity of the open graph (a property, a class), else a name
+       in the running app's database worker (a built-in such as :block/link, there whether or not a bullet of this graph uses it);
      - every Logseq class name on the list is drawn somewhere on a round of Logseq's own screens: a person's page, a tag's page,
        a journal day, All pages, the right sidebar. A class drawn only inside a menu or a dialog cannot be seen without opening
        one; those are said as not seen, for a person to look at, and do not fail.
@@ -42,7 +43,11 @@ let chromium; try { ({ chromium } = require('playwright')); } catch (error) { co
   }
   const idents = await page.evaluate(async () => (await window.logseq.api.datascript_query('[:find ?i :where [_ :db/ident ?i]]')).flat().map(String));
   const plainAttrs = new Set(['db/id', 'db/ident', 'db/cardinality', 'block/uuid', 'block/name', 'block/title', 'block/page', 'block/parent', 'block/order', 'block/refs', 'block/tags', 'block/alias', 'block/created-at', 'block/updated-at', 'block/journal-day', 'block/closed-value-property']);
-  for (const a of list.attributes) if (!plainAttrs.has(a) && !idents.some(i => i.replace(/^:/, '') === a)) problems.push(`the database name :${a} is not in this graph's schema`);
+  // Logseq's built-in names live in its database worker's schema, not as entities of the graph (10 November 2026: :block/link failed
+  // on a graph where no bullet showed a page). The worker read is the installed app's, the one running.
+  let worker = ''; try { worker = require(path.join(__dirname, '../threads/tools/logseq-bundle.js')).open()?.read('js/db-worker.js').toString('utf8') || ''; } catch (error) { worker = ''; }
+  const inWorker = a => { const [ns, n] = a.split('/'); return worker.includes(`"${ns}","${n}","${a}"`) || worker.includes(`"${ns}","${n}"`); };
+  for (const a of list.attributes) if (!plainAttrs.has(a) && !idents.some(i => i.replace(/^:/, '') === a) && !inWorker(a)) problems.push(`the database name :${a} is not in Logseq's schema (not in this graph, not in its database worker)`);
 
   const start = page.url(), sidebarWas = await page.evaluate(() => !!document.querySelector('#right-sidebar.open, .cp__right-sidebar.open'));
   const seen = new Set();

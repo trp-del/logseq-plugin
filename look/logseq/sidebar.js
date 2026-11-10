@@ -5,7 +5,7 @@
    .rounded-md.shadow-lg, its header .color-level.rounded-t-md). Here: the bar takes the page's own ground with a hairline
    under it, the views are quiet words in the text colour, the developer views are left out (marked by a screen pass,
    since a stylesheet cannot read their words), and the items lie flat on the sidebar, no card, shadow or rounded corner,
-   with a line between one and the next. Two switches. The old plugin's sidebar part drew the same (0.4.419, 0.4.420, the
+   with a line between one and the next. Two switches. The old plugin's sidebar part drew the same (the
    owner: "flattened design of sidebar, removing shadows and adding lines"; "where is this blue coming from?"). A page in it
    (sidebarPages): its name in the item's head reads as a link and opens the page in the main view, where Logseq would fold the
    item (its arrow still folds it); its properties stand open, Logseq's "Open properties" pressed once for it and left out. */

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* The leaning-down check (docs/LAYERS.md section 4, step 3; 0.4.313). A layer may use the layers below it, never the ones
+/* The leaning-down check. A layer may use the layers below it, never the ones
    above and never its neighbours: a feature (layer 3) talks to Logseq only through layer 1 (main.js, parts/shared.js's
    plumbing, parts/model.js, parts/diagnostics.js), draws only through the kit, and finds nothing by a name on the
    window. This counts, in every loaded part outside layer 1 (PART_FILES in main.js):
@@ -11,8 +11,8 @@
      names     publications on the window (`window.x = `) beyond the engine's own three.
    The counts must be exactly the baseline below: a count above it fails (a part leaned where it must not), and a count
    below it fails too, with the word to lower the baseline, so the baseline is always the truth and only ever goes
-   down. It started at the true count when the first feature was moved (0.4.312).
-   Run from the repo root: node tools/leaning-test.js   (tools/check.sh runs it) */
+   down. It started at the true count when the first feature was moved.
+   Run from threads/: node tools/leaning-test.js   (tools/check.sh runs it) */
 const fs = require('fs');
 const path = require('path');
 

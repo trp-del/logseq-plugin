@@ -17,7 +17,7 @@
    - tagGuess(uuid)                                  the tag an untagged node's words look like, { id, uuid, title } or null
    A piece: { ident, title, kind: 'node' | 'day' | 'number', ids, shown, names, guess, many, day, journalId }. */
 const shared = window.Threads.shared;
-const { runUnloadTasks } = shared.lifecycle({ prefix: 'Threads (proposals): ' });
+const base = window.PluginDoor.base('threads', { prefix: 'Threads (proposals): ' }), runUnloadTasks = () => base.stop();
 const Flow = window.Flow;
 const ready = () => !!(Flow?.propose && Flow.app && Flow.db && Flow.names && Flow.schema && Flow.text);
 

@@ -6,12 +6,12 @@
 
    What it cannot test is the query text itself: the stand-in recognises each query by its shape and answers from
    the pretend graph, so whether Logseq answers that query the same way is checked in the app (the measuring
-   round in docs/history/NEXT-2026-10-19.md). A query the stand-in does not recognise fails the test, so a new query is noticed.
+   round). A query the stand-in does not recognise fails the test, so a new query is noticed.
 
    It also times the model's own work on a large pretend graph (20,000 pages, 300 properties), Logseq's own
    query time left out, and prints it; it fails only when that is far beyond any reasonable figure.
 
-   Needs node only. Run from the repo root: node tools/model-test.js (tools/check.sh runs it when node is there).
+   Needs node only. Run from threads/: node tools/model-test.js (tools/check.sh runs it when node is there).
    Days are tested in a time zone with summer time (Europe/London) whatever the machine's own. */
 process.env.TZ = 'Europe/London';
 const fs = require('fs');
@@ -80,7 +80,7 @@ function smallGraph() {
   return e;
 }
 // A large graph for the timing: 300 properties with choices and fields, 20,000 pages with tags (with --big, also
-// 600 properties and 100,000 pages: the stress run of docs/history/FINISHING-PROMPT-2026-10-23.md section 4).
+// 600 properties and 100,000 pages: the stress run).
 function largeGraph(pages = 20000, propCount = 300) {
   const e = smallGraph();
   let id = 1000;
@@ -95,9 +95,9 @@ function largeGraph(pages = 20000, propCount = 300) {
 
 /* The stand-in for Logseq's datascriptQuery: it recognises each query the model sends by its shape and answers
    from the pretend graph, in Logseq's shape (pulled maps with shortened keys). */
-// What nodeValues (0.4.369) reads: rows of what nodes hold under your properties, in the four shapes of its four queries.
+// What nodeValues reads: rows of what nodes hold under your properties, in the four shapes of its four queries.
 let VALUE_ROWS = [];
-// What structureUse (0.4.448) reads: every value, the tags on nodes, the words of text values, the links in the words.
+// What structureUse reads: every value, the tags on nodes, the words of text values, the links in the words.
 let USE = { values: [], tagged: [], texts: [], refs: [], link: { links: [], titled: [], dated: [] } };
 const askedUuids = query => [...query.matchAll(/#uuid "([^"]+)"/g)].map(m => m[1]);
 function fakeDb(graph, log) {
@@ -117,15 +117,15 @@ function fakeDb(graph, log) {
     [/:where \[\?v :block\/closed-value-property \?p\]/, () => all().filter(x => x.closedFor).map(x => [x.closedFor, { id: x.id, title: x.title, order: x.order }])],
     [/:find \?c \?p :where \[\?c :logseq\.property\.class\/properties \?p\]/, () => all().flatMap(x => (x.fields || []).map(p => [x.id, p]))],
     [/:find \?child \?parent :where \[\?child :logseq\.property\.class\/extends \?parent\]/, () => all().flatMap(x => (x.extends || []).map(p => [x.id, p]))],
-    // Where a tag sits (0.4.328, tagChain): every tag with its uuid, title and ident, and every Extends.
+    // Where a tag sits (tagChain): every tag with its uuid, title and ident, and every Extends.
     [/:find \?t \?u \?title \?ident :where \[\?t :block\/tags :logseq\.class\/Tag\]/, () => all().filter(x => (x.tags || []).includes(2)).map(x => [x.id, x.uuid, x.title, ':' + (x.ident || 'user.class/' + x.title)])],
     [/:find \?c \?p :where \[\?c :logseq\.property\.class\/extends \?p\]/, () => all().flatMap(x => (x.extends || []).map(p => [x.id, p]))],
-    // The tags and their idents (0.4.220: which are Logseq's own).
+    // The tags and their idents (which are Logseq's own).
     [/:find \?t \?i :where \[\?t :block\/tags :logseq\.class\/Tag\] \[\?t :db\/ident \?i\]/, () => all().filter(x => (x.tags || []).includes(2) && x.ident).map(x => [x.id, ':' + x.ident])],
     [/:where \[\?p :block\/name _\] \(not \[\?p :block\/tags :logseq\.class\/Property\]\) \(not \[\?p :block\/journal-day _\]\)/,
       () => all().filter(x => x.name && !isProperty(x) && !x.journalDay && !x.deleted).map(x => [{ id: x.id, uuid: x.uuid, title: x.title,
         ...(x.tags ? { tags: x.tags.map(t => ({ id: t, title: graph[t].title, ...(graph[t].ident ? { ident: ':' + graph[t].ident } : {}) })) } : {}) }])],
-    // A page's category (0.4.469): every page with its tags.
+    // A page's category: every page with its tags.
     [/:find \?u \?t :where \[\?p :block\/name\] \[\?p :block\/tags \?t\] \[\?p :block\/uuid \?u\]/, () => all().filter(x => x.name).flatMap(x => (x.tags || []).map(t => [x.uuid, t]))],
     [/:find \?t :where \[\?b :block\/uuid #uuid "([^"]+)"\] \[\?b :block\/tags \?t\]/, m => { const b = all().find(x => x.uuid === m[1]); return (b?.tags || []).map(t => [t]); }],
     [/:find \?t :where \[\?p :block\/journal-day (\d+)\] \[\?p :block\/title \?t\]/, m => all().filter(x => x.journalDay === Number(m[1])).map(x => [x.title])],
@@ -165,6 +165,7 @@ function fakeLogseq(graph, made, config) {
       getPage: async key => { const x = byUuid(key) || Object.values(graph).find(p => p.name === String(key).toLowerCase()); return x?.name ? entity(x) : null; },
       getBlock: async key => entity(byUuid(key)),
       createPage: async (title, props, opts) => { made.push({ title, opts }); const id = 9000 + made.length; graph[id] = { id, uuid: U(id), title, name: title.toLowerCase(), ...(opts?.journal ? { journalDay: -id } : {}) }; return { id }; },
+      createJournalPage: async date => { const day = date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate(); made.push({ journal: day }); const id = 9000 + made.length; graph[id] = { id, uuid: U(id), title: String(day), name: String(day), journalDay: day }; return { id, uuid: U(id) }; },
     },
     App: { getUserConfigs: async () => { if (config.fails) throw new Error('no configs'); return { preferredDateFormat: config.format }; } },
     UI: { showMsg() {} },
@@ -259,27 +260,11 @@ async function main() {
   same(model.sameDay(new Date(2026, 9, 19, 23, 59), today), true, 'sameDay ignores the time');
   same(model.DAYS[today.getDay()], 'monday', 'DAYS starts on Sunday');
 
-  // Journal titles.
-  same(model.formatJournalTitle(today, 'MMM do, yyyy'), 'Oct 19th, 2026', 'format MMM do, yyyy');
-  same(model.formatJournalTitle(today, 'E, dd.MM.yyyy'), 'Mon, 19.10.2026', 'format E, dd.MM.yyyy');
-  same(model.formatJournalTitle(today, 'yyyyMMdd'), '20261019', 'format yyyyMMdd');
-  same(model.formatJournalTitle(today, 'EEEE, MMMM do'), 'Monday, October 19th', 'format EEEE, MMMM do');
-  same(model.formatJournalTitle(new Date(2026, 0, 5), 'dd-MM-yy'), '05-01-26', 'format dd-MM-yy');
-  same(model.formatJournalTitle(new Date(2026, 0, 5), 'M/d/yyyy'), '1/5/2026', 'format M/d/yyyy');
-  for (const [n, want] of [[1, '1st'], [2, '2nd'], [3, '3rd'], [4, '4th'], [11, '11th'], [12, '12th'], [13, '13th'], [21, '21st'], [22, '22nd'], [23, '23rd'], [31, '31st']])
-    same(model.formatJournalTitle(new Date(2026, 0, n), 'do'), want, `ordinal ${n}`);
-  same(await model.journalTitleFor(2026, 10, 19), 'Oct 19th, 2026', 'journalTitleFor, an existing journal');
-  same(await model.journalTitleFor(2026, 10, 20), 'Oct 20th, 2026', 'journalTitleFor, a new day in the graph’s format');
-  const other = loadModel(smallGraph(), { config: { format: 'yyyy-MM-dd' } }).model;
-  same(await other.journalTitleFor(2026, 10, 20), '2026-10-20', 'journalTitleFor follows the graph’s date format');
-  const noConfig = loadModel(smallGraph(), { config: { fails: true } }).model;
-  same(await noConfig.journalTitleFor(2026, 10, 20), 'Oct 20th, 2026', 'journalTitleFor falls back when the configs cannot be read');
-
   // Journal pages.
-  same(await model.journalIdFor(20261019, 'Oct 19th, 2026'), 44, 'journalIdFor finds the existing page');
+  same(await model.journalIdFor(20261019), 44, 'journalIdFor finds the existing page');
   same(made.length, 0, 'journalIdFor made nothing for an existing day');
-  const madeId = await model.journalIdFor(20261020, 'Oct 20th, 2026');
-  same([madeId > 9000, made.length, made[0]?.title, made[0]?.opts?.journal, made[0]?.opts?.redirect], [true, 1, 'Oct 20th, 2026', true, false], 'journalIdFor makes a missing day as a journal, without leaving the page');
+  const madeId = await model.journalIdFor(20261020);
+  same([madeId > 9000, made.length, made[0]?.journal], [true, 1, 20261020], 'journalIdFor makes a missing day by Logseq’s own journal call');
 
   // The schema.
   const before = queries.length;
@@ -294,7 +279,7 @@ async function main() {
   same(schema.parentsOf.get(11), [10], 'propSchema: Doctor extends Person');
   same([10, 11, 12, 13].some(id => schema.builtIn.has(id)), false, 'propSchema: the owner\'s tags are not counted as Logseq\'s own');
   await model.propSchema();
-  same(queries.length - before, 5, 'propSchema asks the graph once (5 queries; the tag idents since 0.4.220), then remembers');
+  same(queries.length - before, 5, 'propSchema asks the graph once (5 queries), then remembers');
 
   // The pages.
   const pages = await model.propPages();
@@ -379,7 +364,7 @@ async function main() {
     }
   }
 
-  // What many nodes hold (nodeValues, 0.4.369): a node, a choice, text, a day, a number and a yes/no, each as its own kind of value.
+  // What many nodes hold (nodeValues): a node, a choice, text, a day, a number and a yes/no, each as its own kind of value.
   VALUE_ROWS = [
     { u: U(60), name: 'Confidence', attr: 'user.property/confidence', v: 301, title: 'Strong', vu: U(301) },
     { u: U(60), name: 'Severity', attr: 'user.property/severity', v: 410, n: 3 },
@@ -401,7 +386,7 @@ async function main() {
   same(held.get(U(60)).get('Notes').values, [{ text: 'a text value is a node', id: 412, uuid: U(412) }, { text: 'plain words' }], 'nodeValues: text, whether a node or plain');
   same(held.get(U(61)).get('Confidence').values.length, 1, 'nodeValues: a value asked twice is one');
   same((await model.nodeValues([])).size, 0, 'nodeValues of no nodes');
-  // What the structure is used for (structureUse, 0.4.448): values by property, tags by node, text words, and the pages a
+  // What the structure is used for (structureUse): values by property, tags by node, text words, and the pages a
   // node names in its words, less what its properties already point at.
   USE = { values: [[60, ':user.property/provider', 40], [61, ':user.property/provider', 40], [60, ':user.property/status', 412], [60, ':logseq.property/created-by', 7]],
     tagged: [[60, 20], [61, 20], [61, 21]], texts: [[412, 'Planned']], refs: [[60, 40], [60, 41], [62, 41]] };

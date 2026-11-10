@@ -19,7 +19,6 @@ const APP = '/Applications/Logseq.app';
 // Selectors kept on purpose though nothing draws their class today, each with its reason. A leftover found here is removed
 // from the code, not added to this list.
 const KNOWN_LEFTOVERS = {
-  'th-ttreeval': 'Threads\' old tree value, gone; found 9 November 2026, to take out of parts/shared.js',
 };
 
 // The plugin's running code: every file Logseq loads (files.js), and the root files.

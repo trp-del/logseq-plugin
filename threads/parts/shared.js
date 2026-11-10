@@ -1,6 +1,6 @@
 /* Loaded by main.js first, before the other parts. Kept in its own scope. */
 (() => {
-/* The plumbing of layer 1 that lives in the plugin's frame, and THE KIT (layer 2, docs/LAYERS.md section 3): the
+/* The plumbing of layer 1 that lives in the plugin's frame, and THE KIT (layer 2): the
    pieces every part draws with, each drawn once, with one stylesheet. This header is the contract between the files.
 
    WHAT THIS FILE PROVIDES, on window.Threads.shared (and nothing else):
@@ -9,14 +9,9 @@
    and the screen door are in main.js; the graph in parts/model.js):
    - host()                      the Logseq document (the plugin runs in a frame inside Logseq's window).
    - notify(message, level)      THE notice: an in-app message at the top, through Logseq's own.
-   - lifecycle({ prefix, leaves })   one per part: the part's base on the plugin's door (plugin.js, Door.base), under Threads'
-       words: warnOnce(message, ...details), onUnload(task) (also takes the "off" of a Logseq hook), runUnloadTasks()
-       (every step, the last set up first; the promise waits for any that ends later), listen(win, types, handler) (capture
-       phase, taken off at unload); leaves: { elements, attributes, reset } is what the part may leave on screen if a copy
-       is cut short.
    - sweepLeftovers(doc)          removes what every part declared in its leaves (the door's sweep).
    - take(core, names, warn)      the core's and the parts' things in one object, warning once (through the part's own
-                                  warnOnce) for each name missing; every part's take() is this (0.4.294).
+                                  warnOnce) for each name missing; every part's take() is this.
    - screen                       THE screen door, the door's (plugin.js, Door.screen; core.screen): waitFor, press, typeInto, key,
                                   floating, item, sidebarItems, popupOpen, escapeMenus: the one way to work Logseq's own boxes.
    - openEntity(uuid, inSidebar)  opens a page or block by uuid, in the right sidebar when asked.
@@ -32,7 +27,7 @@
                                   class and attribute prefix a part uses; the troubleshooting box, the boot test and the
                                   frame tests all count with it.
 
-   Layer 2, the kit (0.4.311; the picture is docs/ELEMENTS.html and docs/VIEWS.html, the words docs/LAYERS.md). A part
+   Layer 2, the kit. A part
    draws nothing of its own: it uses these and adds only its own layout. A new kind of thing goes in here first.
    - kitCss                       THE stylesheet: the greys, the pop-up, the dialog, the quiet button, the field,
                                   the tick box, the words for chips, the tag, the kind icons, the picking bar, the
@@ -75,8 +70,9 @@
    WHAT EVERY OTHER PART MUST DO:
    - wrap itself in its own scope, `(() => { … })();`
    - take what it needs from window.Threads.shared (`const shared = window.Threads.shared;`), and
-     make its own lifecycle with its own prefix and, when it cleans up Logseq's window, its own stopKey,
-     so that a reload still stops each part's earlier copy on its own;
+     take its own base from the plugin's door, PluginDoor.base('threads', { prefix, leaves }) (plugin.js: warnOnce, onStop,
+     listen, stop; leaves is what the part may leave on screen if a copy is cut short), so that a reload still stops each
+     part's earlier copy on its own;
    - push { name, schema, provide?, start, ready?, commands?, moved?, foundation?, stop } onto window.Threads.parts
      (foundation: true keeps the part running under the setting Foundation only: the model, the troubleshooting
      tools and the settings window);
@@ -86,9 +82,9 @@
      binding, icon, places }: main.js says what each is) and moves a saved setting named in moved
      ({ key: [old default, new default] }). The core starts no part by name.
    - call Logseq only through layer 1: the graph through parts/model.js, the screen through core.screen, a
-     command through the register, a notice through notify; never logseq.* itself (docs/LAYERS.md section 1);
+     command through the register, a notice through notify; never logseq.* itself;
    - bring its own troubleshooting: what it looks for on screen and any tool of its own, through
-     core.provided.addTroubleshooting({ checks, tools }) from parts/diagnostics.js (0.4.172), never by
+     core.provided.addTroubleshooting({ checks, tools }) from parts/diagnostics.js, never by
      the troubleshooting part reaching into it.
 
    LOAD ORDER AND WHY: loader.js → main.js → parts/shared.js → parts/model.js → the other parts → main().
@@ -109,8 +105,7 @@ const { host, notify, esc } = window.PluginDoor;
 
 /* The module's base is the door's (plugin.js, Door.base) since 10 November 2026: the warning written once, the clean-up list, the
    listeners, the settings reader, the sweep of what a copy cut short left on screen and the take-over from an earlier copy were
-   Threads' own until then, a second kit beside the plugin's. What stays here are Threads' names for them, so a part asks as before:
-   lifecycle({ prefix, leaves }) gives a part its base under Threads' words (warnOnce, onUnload, runUnloadTasks, listen). */
+   Threads' own until then, a second kit beside the plugin's. Each part takes its base from the door itself. */
 const Door = window.PluginDoor;
 // Every distinct warning of this session, for "Copy warnings": message (with its prefix), first time, count.
 const warnings = Door.warnings;
@@ -118,11 +113,6 @@ const sweepLeftovers = doc => Door.sweep('threads', doc);
 // Every part's clean-up steps waiting, by its prefix, so the stress tests can see one that grows with use. Several parts share a
 // prefix: their steps are added up under it, so none hides another's.
 const lifeCounts = () => Door.bases('threads').reduce((out, base) => { const key = base.prefix.replace(/^Threads ?\(?|\)?: $/g, '') || 'core'; out[key] = (out[key] || 0) + base.waiting(); return out; }, {});
-function lifecycle({ prefix, leaves }) {
-  const base = Door.base('threads', { prefix, leaves });
-  // listen: before Logseq does (capture phase), until the part unloads.
-  return { base, warnOnce: base.warnOnce, onUnload: base.onStop, runUnloadTasks: base.stop, listen: (win, types, handler) => base.listen(win, types, handler, true) };
-}
 const take = (core, names, warn) => { const all = { ...core, ...core.provided }; for (const name of names) if (all[name] === undefined) warn(`${name} is missing from the core`); return all; };
 
 // Opens a page or block by uuid; in the right sidebar when asked (Shift-click).
@@ -131,7 +121,7 @@ function openEntity(uuid, inSidebar = false) {
   if (inSidebar) logseq.Editor.openInRightSidebar(uuid);
   else logseq.App.pushState('page', { name: uuid });
 }
-// Opens a page by its name (0.4.318); in the right sidebar when asked, where Logseq has to find it first.
+// Opens a page by its name; in the right sidebar when asked, where Logseq has to find it first.
 async function openPageNamed(name, inSidebar = false) {
   if (!name) return;
   if (inSidebar) { const found = await Promise.resolve(logseq.Editor.getPage(name)).catch(() => null); if (found?.uuid) return logseq.Editor.openInRightSidebar(found.uuid); }
@@ -162,13 +152,13 @@ const perf = {
 // A part's settings: the saved value, or the default when the saved value is missing or of the wrong type (the door's reader).
 const settingReader = Door.settingReader;
 
-/* THE screen door is the door's (plugin.js, Door.screen) since 10 November 2026; it began here (0.4.311). The core publishes it as
+/* THE screen door is the door's (plugin.js, Door.screen) since 10 November 2026; it began here. The core publishes it as
    core.screen: the one way a part waits for Logseq to draw something, presses one of its buttons, types into one of its fields. */
 const screen = Door.screen;
 
 // ===== Layer 2: the kit =====
 
-/* The grammar the kit keeps (the owner's, docs/LAYERS.md section 2): the plugin fades away; differences by weight and
+/* The grammar the kit keeps (the owner's): the plugin fades away; differences by weight and
    grey, not by boxes; no colour of the plugin's own; a tag is a class, not a tag; property names lighter than their
    values; a value's kind is an icon left of the name; an action happens in stages, in place; italic only for a
    proposed value; Undo is the faded arrow. Three sources, in this order: Logseq's own (its colours, pills, lists,
@@ -193,9 +183,9 @@ const ICONS = {
   export: 'file-export', node: 'joins', nodes: 'joins', fact: 'blank', link: 'link', task: 'circle', image: 'photo', pdf: 'file-type-pdf', file: 'file', quote: 'blockquote',
 };
 /* The shape the font lacks, drawn once: a node property's mark, three filled dots at a triangle's corners joined by thin
-   lines, a small web (the owner, 2026-10-28, docs/ONTOLOGY.md 8: a node is a point, a node property what joins nodes
+   lines, a small web (the owner, 2026-10-28: a node is a point, a node property what joins nodes
    into the web; Tabler's topology-ring-3 is a square, its vector-triangle hollow squares). 12 px, in the colour around
-   it; it replaces 0.4.467's dot, ring and dotted ring ("I am not a fan"). 'fact' is a blank of the same size: a fact
+   it; it replaces the earlier dot, ring and dotted ring ("I am not a fan"). 'fact' is a blank of the same size: a fact
    listed among node properties carries no mark, and its name keeps their edge. */
 const DRAWN = {
   blank: '<svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"></svg>',
@@ -206,7 +196,7 @@ const icon = (doc, name, title) => { const n = ICONS[name] || name;
   return el(doc, 'i', { class: DRAWN[n] ? `th-drawn th-drawn-${n}` : `ti ti-${n}`, html: DRAWN[n] || null, 'aria-hidden': title ? null : 'true', title: title || null }); };
 // A value's kind as an icon left of the property's name: the door's, the one drawing every module uses.
 const kindIconHtml = kind => window.PluginDoor.kindIconHtml(kind);
-// A tag as a class: its name alone, no #. Always a link to its page (0.4.332, the owner: "they should always be
+// A tag as a class: its name alone, no #. Always a link to its page (the owner: "they should always be
 // clickable"; Shift: in the sidebar), unless it sits where a click already chooses something (a list's row, a proposal):
 // plain. A caller with its own href or click handles the click itself.
 function tag(doc, title, props = {}) {
@@ -214,7 +204,7 @@ function tag(doc, title, props = {}) {
   if (plain) return el(doc, 'span', { class: 'th-tag lk-tag', ...rest }, name);
   const own = rest.href || rest.click;
   // A click of the caller's own on the bare "#" link never follows it: Logseq reads "#" as its home, the Journals, and the
-  // tag map left for there under an "also under" or a child tag's click (0.4.427).
+  // tag map left for there under an "also under" or a child tag's click.
   const click = !rest.click ? null : rest.href && rest.href !== '#' ? rest.click : event => { event.preventDefault(); rest.click(event); };
   return el(doc, 'a', { class: 'th-tag lk-tag', href: '#', ...rest,
     click: own ? click : event => { event.preventDefault(); event.stopPropagation(); openPageNamed(name, event.shiftKey); } }, name);
@@ -230,7 +220,7 @@ const go = (doc, { label, title, run, cls } = {}) => el(doc, 'button', { type: '
 const keepKeys = box => { for (const type of ['keydown', 'keyup', 'keypress']) box.addEventListener(type, event => { if (event.key !== 'Escape') event.stopPropagation(); }); };
 /* THE field: a real text box drawn as a hairline underneath, firmer while typing; an icon on the left and a key hint
    on the right when given; inline on a line. keys(event) sees every keydown first (return true to take it). */
-/* count (0.4.441, the find field of docs/REWORK.md 6): a number at the field's right end ("546", "12 of 546"), never in
+/* count (the find field): a number at the field's right end ("546", "12 of 546"), never in
    the grey words; wrap.count(text) changes it. fieldHtml is the markup twin for a part that draws by markup. */
 function field(doc, { placeholder = '', value = '', icon: name, kbd, inline, multiline, keys, input, title, cls, count } = {}) {
   const box = multiline ? el(doc, 'textarea', { rows: '3', placeholder, spellcheck: 'true', title: title || null }) : el(doc, 'input', { type: 'text', placeholder, spellcheck: 'false', autocomplete: 'off', title: title || null });
@@ -256,7 +246,7 @@ const note = (doc, text, cls) => el(doc, 'div', { class: `lk-note${cls ? ' ' + c
 let anchorCount = 0;
 // Every pop-up open now, so an unload closes them all (main.js calls popups.closeAll; the boot test looks for leftovers).
 const openPops = new Set();
-/* Which mouse buttons are down on Logseq's window, followed by the kit itself (0.4.360). The pop-up used to read the
+/* Which mouse buttons are down on Logseq's window, followed by the kit itself. The pop-up used to read the
    window's current event, which an installed copy cannot see: it runs in a frame of its own, so a right-click menu there
    opened while the button was still down and the release closed it at once (the owner's tag map, on their main computer).
    Started by the core with the plugin, so the press that opens the first menu is already counted. */
@@ -382,7 +372,7 @@ function popup({ at, kind = 'menu', head, items, field: fieldOptions, rows, keys
     if (!hint) { if (fieldEl) fieldEl.input.focus({ preventScroll: true }); else if (!manual) ((focusOn && pop.querySelector(focusOn)) || pop).focus({ preventScroll: true }); }
   };
   /* Opened while a mouse button is still down (a right-click opens its menu on the press, on a Mac): shown once the button
-     is let go (0.4.323, the owner: "menu appear for less than a second and then disappears. you can get it to stay if you
+     is let go (the owner: "menu appear for less than a second and then disappears. you can get it to stay if you
      hold down click"). The browser closes an open pop-up when a press ends outside it, and the press that opened it had
      begun outside, so the release closed the menu it had just opened. */
   const win = doc.defaultView;
@@ -535,7 +525,7 @@ function ask({ at, question, note: hint, go: goWord = 'OK', cancel = 'Cancel', f
     const p = popup({ at, doc, cls: `th-ask${cls ? ' ' + cls : ''}`, width, onClose: () => resolve(answer), focusOn: lasting ? '.th-btns .lk-i-x' : '' });
     const done = () => { answer = fieldOptions ? f.input.value : true; p.close(); };
     const f = fieldOptions ? field(doc, { ...fieldOptions, keys: event => { if (event.key === 'Enter' && !event.isComposing && !(fieldOptions.multiline && event.shiftKey)) { done(); return true; } return fieldOptions.keys?.(event) === true; } }) : null;
-    // Only what is there: the browser writes an empty piece out as the word "null" (0.4.326).
+    // Only what is there: the browser writes an empty piece out as the word "null".
     p.body.append(...[el(doc, 'div', { class: 'th-ask-words' }, question), hint ? note(doc, hint) : null, f,
       el(doc, 'div', { class: 'th-btns lk-answers' }, el(doc, 'button', { type: 'button', class: `lk-btn lk-i-x${lasting ? ' lk-enter' : ''}`, click: () => p.close() }, cancel),
         lasting ? el(doc, 'button', { type: 'button', class: 'lk-big', click: done }, goWord) : go(doc, { label: goWord, run: done, cls: 'lk-i-tick lk-enter' }))].filter(Boolean));
@@ -550,7 +540,7 @@ function ask({ at, question, note: hint, go: goWord = 'OK', cancel = 'Cancel', f
     });
   });
 }
-/* THE outline (0.4.441, docs/REWORK.md sections 4 and 6): one way for something to open under something, for the two-way
+/* THE outline: one way for something to open under something, for the two-way
    section, the tag map and the sidebar. Markup, as the two-way section draws (a DOM part wraps it with fragmentOf).
    - chev({ open, label, attrs }): the one chevron, a 16 px mark in a 24 px place to click, faint at rest (never hidden),
      full on its line, turned down while open (160 ms, none with reduced motion).
@@ -578,15 +568,15 @@ function ask({ at, question, note: hint, go: goWord = 'OK', cancel = 'Cancel', f
    - pencil(text, attrs): what the proposals fill in, sure or guessed alike: italic, faint, a dotted line; with the class
      th-pencil-taken, kept (it will be set), in the words' own look.
    - trail(steps, here): where you are, the names on the way, each a click back, the deepest last.
-   The tag map's pieces (0.4.448, docs/MAP-DESIGN.md 5), the structure walked as the content is:
+   The tag map's pieces, the structure walked as the content is:
    - line({ …, end }): end is what sits in the count column on the line's right edge, one width for every line.
    - count({ held, of, title, attrs }): how much a property or a tag is used, "14 of 17" (held of of) or "575" (held
      alone), a word that opens the nodes it counts; faint when nothing holds it ("0 of 9"), a faint "—" (not a link) when
      there is nothing to count.
    - tag({ text, open, attrs }): a tag line's name, the tag in mono as everywhere, bold while open.
    - leads({ name, nameAttrs, inherited, to, count, tick, chev, attrs }): a property in the map, one line: its
-     own chevron (chev, opening what it is: its tags, how it reads back), its name, with no kind icon (0.4.465: the icons
-     said how Logseq stores a value, which nobody thinks in, docs/DESIGN-AXIOMS.md 14; the line's own words say it) (a link, in the
+     own chevron (chev, opening what it is: its tags, how it reads back), its name, with no kind icon (the icons
+     said how Logseq stores a value, which nobody thinks in, the line's own words say it) (a link, in the
      map's full colour; one step quieter and "inherited" when it comes from above) in one column (--th-ol-lname), then
      the tag it leads to ({ text, open, n, chevAttrs }: a chevron right before it to walk on; n, given only when it leads
      to several tags, a count of the nodes pointing at that one), then its count. A property leading to several tags takes
@@ -655,7 +645,7 @@ function card({ at, title, fields = [], lines = [], open, width = 300, cls = '',
     return [el(doc, 'a', { href: '#', class: 'th-card-name', click: act('prop', Array.isArray(f) ? { name } : f) }, name), cell];
   };
   const lineRow = line => el(doc, 'a', { href: '#', class: 'th-card-line', html: typeof line === 'object' && line.html ? line.html : null, click: act('line', line) }, typeof line === 'string' ? line : line.html ? null : line.text);
-  // Only what is there (0.4.326): a node with no properties and no lines showed "nullnull" in its card.
+  // Only what is there: a node with no properties and no lines showed "nullnull" in its card.
   p.body.append(...[
     title ? el(doc, 'a', { href: '#', class: 'th-card-title', click: act('node') }, title) : null,
     fields.length ? el(doc, 'div', { class: 'th-card-fields' }, ...fields.flatMap(fieldRow)) : null,
@@ -663,7 +653,7 @@ function card({ at, title, fields = [], lines = [], open, width = 300, cls = '',
   return p;
 }
 
-/* THE Undo is the door's (PluginDoor.undo, since 6 November 2026; it was this kit's from 0.4.258). Here only the kit's way of
+/* THE Undo is the door's (PluginDoor.undo, since 6 November 2026; it was this kit's). Here only the kit's way of
    naming a place: undo.near({ root, key, col }) finds the arrow's place again by the row's key after every redraw, not as an
    element a redraw replaces: in root() the row [data-key=key], then its cell [data-col=col] or the row's name. Every offer from
    Threads carries owner 'threads', so leaving the page clears Threads' arrows and no other module's. */
@@ -674,13 +664,13 @@ const undo = Object.create(window.PluginDoor.undo, {
   near: { value: ({ root, key, col } = {}) => () => {
     const box = typeof root === 'function' ? root() : root;
     const row = box?.isConnected ? box.querySelector(`[data-key="${attr(key)}"]`) : null;
-    return row ? (col && row.querySelector(`[data-col="${attr(col)}"]`)) || row.querySelector('.th-ol-body, .th-ttreeval') || row : null;
+    return row ? (col && row.querySelector(`[data-col="${attr(col)}"]`)) || row.querySelector('.th-ol-body') || row : null;
   } },
 });
 
 /* THE stylesheet of the kit. Sent by main.js before any part (the foundation's own boxes must look right under
    Foundation only). Greys from currentColor, so the same rules hold on the page and in a pop-up, light and dark. */
-const kitCss = `/* The kit (parts/shared.js, 0.4.311; docs/LAYERS.md section 3): where the library's pieces stand in Threads. Since
+const kitCss = `/* The kit (parts/shared.js): where the library's pieces stand in Threads. Since
    6 November 2026 every piece is drawn by the plugin's library (plugin.js): the pop-up (lk-pop), the window (lk-window), the
    presses (lk-btn lk-low, lk-accent), the field (lk-field), the tick box (lk-tick), the fold arrow (lk-fold), the Undo arrow
    (lk-undo), the quiet line (lk-note), the greys and the one motion. Here only the kit's own names, each with its place
@@ -708,11 +698,11 @@ const kitCss = `/* The kit (parts/shared.js, 0.4.311; docs/LAYERS.md section 3):
 .th-pop-body { max-height: 320px; overflow-y: auto; }
 /* A line of a menu is the library's lk-item (lit: on); here only how its icon and words stand. */
 .th-item { align-items: center; gap: 8px; box-sizing: border-box; }
-.th-item > :is(.ti, .th-drawn) { width: 16px; flex: none; color: var(--lk-faint); font-size: 15px; }
+.th-item > :is(.ti, .th-drawn) { width: 16px; flex: none; color: var(--lk-quiet); font-size: 15px; }
 .th-item > .th-drawn { justify-content: center; align-self: center; }
-.th-item.th-faint { color: var(--lk-faint) !important; }
+.th-item.th-faint { color: var(--lk-quiet) !important; }
 .th-item-words { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.th-item kbd, .th-end { margin-left: auto; flex: none; font: inherit; font-size: var(--lk-small); color: var(--lk-faint); }
+.th-item kbd, .th-end { margin-left: auto; flex: none; font: inherit; font-size: var(--lk-small); color: var(--lk-quiet); }
 .th-pop .th-field { margin: 0 8px 4px; }
 /* A report to copy (the troubleshooting tools): the text in a quiet box, Copy as the one word. */
 .th-report { padding: 8px 10px; max-width: min(720px, 92vw); }
@@ -742,16 +732,16 @@ const kitCss = `/* The kit (parts/shared.js, 0.4.311; docs/LAYERS.md section 3):
 .lk-btn > .ti { font-size: 15px; }
 .lk-btn > .th-drawn { width: 15px; justify-content: center; }
 :is(.th-chip, .th-ol-more, .th-ask button):focus-visible { outline: none; background: var(--lk-wash); }
-.th-faint { color: var(--lk-faint); }
+.th-faint { color: var(--lk-quiet); }
 /* The field is the library's lk-field; here its room on a line. */
 .th-field { min-height: 26px; }
 .th-field-tall { align-items: flex-start; }
 .th-field-tall > textarea { resize: vertical; line-height: 1.4; }
-.th-field > :is(.ti, .th-drawn), .th-field > kbd { flex: none; color: var(--lk-faint); font: inherit; font-size: var(--lk-small); }
+.th-field > :is(.ti, .th-drawn), .th-field > kbd { flex: none; color: var(--lk-quiet); font: inherit; font-size: var(--lk-small); }
 .th-field > .ti { font-size: 15px; }
 .th-field-inline { display: inline-flex; min-height: 22px; vertical-align: baseline; }
 /* The drawn field: the same look, the text and the caret drawn, so nothing takes the keyboard from the bullet. */
-/* The drawn caret sits right against the letters (0.4.321, the owner: "the cursor is a couple spaces ahead of text"): no gap
+/* The drawn caret sits right against the letters (the owner: "the cursor is a couple spaces ahead of text"): no gap
    between the pieces of the drawn field, the key hint kept apart by its own room. */
 /* The tick box is the library's lk-tick; with a label, in a label. */
 /* Words for chips: a filter, or a removable item with a × on hover. */
@@ -759,16 +749,16 @@ const kitCss = `/* The kit (parts/shared.js, 0.4.311; docs/LAYERS.md section 3):
 button.th-chip { cursor: pointer; }
 .th-chip[aria-pressed="true"] { color: inherit; font-weight: 600; }
 /* A chip's × is the library's lk-reveal: its colour, ground and fade come from there. */
-/* A tag as a class: mono, the tag grey, no #, no underline (0.4.332: the mono face says it is a tag, and every tag is a
+/* A tag as a class: mono, the tag grey, no #, no underline (the mono face says it is a tag, and every tag is a
    link); darker under the pointer. */
 /* A tag's look (mono, small capitals, grey) is Look's, through lk-tag; only its shape stays here. */
 .th-tag { font-style: normal; font-weight: 400; color: inherit; text-decoration: none; border: 0; cursor: default; }
 a.th-tag { cursor: pointer; }
 a.th-tag:hover { opacity: 1; }
 /* A value's kind as an icon left of the property's name. */
-.th-kind { display: inline-flex; color: var(--lk-faint); font-size: 15px; vertical-align: -2px; }
+.th-kind { display: inline-flex; color: var(--lk-quiet); font-size: 15px; vertical-align: -2px; }
 /* The picking bar: one line of words above the list, a hairline under it. */
-/* A cell changed where it sits (0.4.430; the table it came with is gone since 0.4.456). */
+/* A cell changed where it sits (the table it came with is gone). */
 /* The chevron is the library's fold arrow (lk-fold: shown while its row is pointed at, turned down while open); th-chev
    names its place on a line. */
 .th-chev { position: relative; }
@@ -852,10 +842,10 @@ a.th-tag:hover { opacity: 1; }
 .th-pencil.th-pencil-taken { font-style: normal; color: inherit; text-decoration: none; }
 .th-pencil:focus-visible { outline: none; background: var(--lk-wash) !important; }
 /* The trail is the library's lk-trail with lk-step; the place you are at ends it, in the text colour. */
-.th-ol-sep { color: var(--lk-faint); }
+.th-ol-sep { color: var(--lk-quiet); }
 .th-ol-trail > .th-ol-here { color: var(--lk-text, currentColor); font-weight: 600; }
 .th-ol-here .th-tag { margin-left: 6px; font-weight: 400; }
-/* The tag map's pieces (0.4.448): the count column, a property with the tag it leads to, a group's heading, a finding.
+/* The tag map's pieces: the count column, a property with the tag it leads to, a group's heading, a finding.
    --th-ol-lname is the property names' column, so the tags they lead to start on one column and open under themselves. */
 .th-ol { --th-ol-lname: 9.5em; }
 .th-ol.th-ol-margin { position: relative; padding-left: 24px; }
@@ -868,17 +858,17 @@ span.th-ol-count { text-decoration: none; cursor: default; }
 .th-ol-leads > .th-ol-lname { flex: none; width: var(--th-ol-lname); display: inline-flex; gap: 6px; align-items: baseline; }
 .th-ol-lwords { min-width: 0; overflow-wrap: normal; word-break: normal; }
 .th-ol-inh > .th-ol-lname { color: var(--lk-quiet); }
-.th-ol-inhw { color: var(--lk-faint); font-size: var(--lk-small); white-space: nowrap; }
+.th-ol-inhw { color: var(--lk-quiet); font-size: var(--lk-small); white-space: nowrap; }
 .th-ol-to { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: var(--th-ol-gap); }
 .th-ol-to > .th-chev { align-self: flex-start; top: 1px; }
 .th-ol-to .th-ol-open { font-weight: 700; }
-.th-ol-count.th-ol-n { margin-left: 6px; color: var(--lk-faint); font-size: var(--lk-small); font-variant-numeric: tabular-nums; text-decoration-color: var(--lk-line); }
+.th-ol-count.th-ol-n { margin-left: 6px; color: var(--lk-quiet); font-size: var(--lk-small); font-variant-numeric: tabular-nums; text-decoration-color: var(--lk-line); }
 .th-ol-pointing > .th-ol-lname { width: var(--th-ol-lname); } /* one column for every line of a list; a tag longer than it wraps between its words */
 .th-ol-pointing > .th-ol-lname .th-tag { white-space: normal; overflow-wrap: normal; word-break: normal; }
 .th-ol-from-leads { --th-ol-cx: calc(16px + 2 * var(--th-ol-gap) + var(--th-ol-lname) + 8px); }
-.th-field-count { flex: none; color: var(--lk-faint); font-size: var(--lk-small); font-variant-numeric: tabular-nums; padding-left: 6px; }
+.th-field-count { flex: none; color: var(--lk-quiet); font-size: var(--lk-small); font-variant-numeric: tabular-nums; padding-left: 6px; }
 @media (prefers-reduced-motion: reduce) { .th-ol-unit { transition: none; } }
-/* A kind's mark (0.4.473), 10 px in the quiet grey; a kind's row in a list of tags: its mark and its word in weight, as
+/* A kind's mark, 10 px in the quiet grey; a kind's row in a list of tags: its mark and its word in weight, as
    the map's headings, the count of its nodes at the end in the quiet grey. */
 /* The hover card: a node's preview with a little room. */
 .th-card { padding: 10px 12px; font-size: 14px; }
@@ -886,12 +876,12 @@ span.th-ol-count { text-decoration: none; cursor: default; }
 .th-card-title { display: block; font-weight: 600; margin-bottom: 3px; }
 .th-card-title:hover, .th-card-fields a:hover, .th-card-line:hover { text-decoration: underline; text-decoration-color: var(--lk-line); text-underline-offset: 3px; }
 .th-card-fields { display: grid; grid-template-columns: max-content minmax(0, 1fr); column-gap: 12px; row-gap: 4px; margin-top: 8px; }
-.th-card-name { color: var(--lk-faint); }
+.th-card-name { color: var(--lk-quiet); }
 .th-card-lines { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--lk-hair); color: var(--lk-quiet); }
 .th-card :first-child:is(.th-card-fields, .th-card-lines) { margin-top: 0; padding-top: 0; border-top: 0; }
 .th-card-line { display: block; border-radius: 4px; margin: 0 -4px; padding: 0 4px; }
 .th-card-line:hover { background: var(--lk-wash); text-decoration: none; }
-.th-card-line::before { content: '• '; color: var(--lk-faint); }
+.th-card-line::before { content: '• '; color: var(--lk-quiet); }
 /* The quiet line (the library's lk-note) and the help paragraph. */
 .lk-note { line-height: 1.45; padding: 2px 0; }
 .th-pop .lk-note { padding: 4px 8px; }
@@ -920,7 +910,7 @@ function ownMarks(doc) {
 }
 
 (window.Threads ||= {}).shared = {
-  host, notify, lifecycle, sweepLeftovers, take, screen, openEntity, openPageNamed, settingReader, perf, warnings,
+  host, notify, sweepLeftovers, take, screen, openEntity, openPageNamed, settingReader, perf, warnings,
   kitCss, el, esc, ICONS, icon, iconHtml, kindIconHtml, tag, quiet, go, keepKeys, field, fieldHtml, outline, note, popup, popups, pickValue, editInPlace, ask, card, undo,
   MARK_CLASS, MARK_ATTR, isOwnMark, ownMarks, lifeCounts,
 };

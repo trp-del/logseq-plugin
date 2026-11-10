@@ -17,18 +17,19 @@ found = strays(/toLocaleDateString|Intl\.DateTimeFormat/, { only: pure });
 if (found.length) fail('a day put in words by a rule of its own (use PluginDoor.dates.words)', found);
 found = strays(/getFullYear\(\) \* 10000/, { only: pure });
 if (found.length) fail('a day’s number worked out outside the door (use PluginDoor.dates.number or today)', found);
-found = strays(/:block\/journal-day \$\{/, { only: pure, allow: {
-  // Structure's Apply makes a day's page by Logseq's own journal call and keeps the page's id, which its Undo needs to take the page
-  // back. Its two look-ups stay with it.
-  'structure/logseq/db.js': 2,
-} });
+found = strays(/:block\/journal-day \$\{/, { only: pure, allow: {} });
+// One way to make a day's page: Logseq's own journal call, in the door (10 November 2026; Structure used it, Predictive and Threads
+// made a page with the day's title).
+const making = strays(/createJournalPage\(|journal: true/, { only: pure, allow: {} });
+if (making.length) fail('a day’s page made outside the door (use PluginDoor.dates.page or pageFor)', making);
 if (found.length) fail('a journal page looked up by its day outside the door (use PluginDoor.dates.titleFor or pageFor)', found);
 console.log(`  ok  no file of ${files.length} keeps a date rule of its own`);
 
 (async () => {
   let format = 'MMM do, yyyy', asked = 0; const made = [], journals = new Map([[20261019, [44, 'Oct 19th, 2026']]]);
   const logseq = { App: { getUserConfigs: async () => { asked++; if (format === 'fail') throw new Error('no configs'); return { preferredDateFormat: format }; } },
-    Editor: { createPage: async (title, props, opts) => { made.push({ title, opts }); return { id: 9000 + made.length }; } },
+    Editor: { createPage: async (title, props, opts) => { made.push({ title, opts }); return { id: 9000 + made.length }; },
+      createJournalPage: async date => { made.push({ journal: date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate() }); return { id: 9000 + made.length, uuid: 'u' + made.length }; } },
     DB: { datascriptQuery: async q => { const day = Number(/journal-day (\d+)/.exec(q)?.[1]), hit = journals.get(day); return !hit ? [] : /pull/.test(q) ? [[{ id: hit[0] }]] : [[hit[1]]]; } } };
   const D = doorWith(logseq).dates, year = new Date().getFullYear();
 
@@ -63,8 +64,9 @@ console.log(`  ok  no file of ${files.length} keeps a date rule of its own`);
   format = 'MMM do, yyyy'; D.forget();
   assert.equal(await D.pageFor(20261019), 44); assert.equal(made.length, 0, 'nothing is made for a day the graph has');
   const id = await D.pageFor(20261020); assert.ok(id > 9000);
-  assert.equal(JSON.stringify(made), JSON.stringify([{ title: 'Oct 20th, 2026', opts: { redirect: false, createFirstBlock: false, journal: true } }]));   // by what it holds: the door's context made it
-  await D.pageFor(20261022, undefined, 'Given by the caller'); assert.equal(made[1].title, 'Given by the caller');
-  console.log('  ok  a day’s journal page is found, or made once in the graph’s format');
+  assert.equal(JSON.stringify(made), JSON.stringify([{ journal: 20261020 }]), 'a missing day is made by Logseq’s own journal call');   // by what it holds: the door's context made it
+  assert.equal(JSON.stringify(await D.page(20261019)), JSON.stringify({ id: 44, made: null }), 'a day the graph has: nothing made, nothing for Undo');
+  assert.equal(JSON.stringify(await D.page(20261022)), JSON.stringify({ id: 9002, made: 'u2' }), 'a day made: its uuid, for the Undo that takes it back');
+  console.log('  ok  a day’s journal page is found, or made once by Logseq’s own journal call');
   console.log('dates: all checks passed');
 })().catch(error => { console.error('FAIL  ' + (error.stack || error)); process.exit(1); });

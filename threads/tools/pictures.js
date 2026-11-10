@@ -13,7 +13,7 @@ const path = require('path');
 const twoWay = require('./two-way-files');
 
 let chromium;
-for (const where of ['playwright', '/opt/node-tools/node_modules/playwright']) { try { ({ chromium } = require(where)); break; } catch (error) { /* try the next */ } }
+for (const where of ['playwright', '/Users/admin/logseq-value/logseq-plugin-old/node_modules/playwright']) { try { ({ chromium } = require(where)); break; } catch (error) { /* try the next */ } }
 if (!chromium) { console.log('pictures skipped (needs Playwright and Chromium)'); process.exit(0); }
 if (process.platform !== 'darwin') { console.log('pictures skipped (approved on the Mac; fonts differ elsewhere)'); process.exit(0); }
 
@@ -55,7 +55,7 @@ async function scenes(page) {
       },
       arg: TWO_WAY_GROUPS,
     },
-    // The troubleshooting tools as the kit's list pop-up (0.4.316), over a page full of words, so a see-through box shows.
+    // The troubleshooting tools as the kit's list pop-up, over a page full of words, so a see-through box shows.
     'dialog': {
       scripts: [`window.parent = window; window.logseq = { settings: {}, DB: {}, UI: {}, App: {}, Editor: {} };`, read('../plugin.js'), read('parts/shared.js')],
       draw: async () => {
@@ -64,7 +64,7 @@ async function scenes(page) {
         const stage = document.getElementById('stage');
         stage.style.height = '560px';
         stage.textContent = 'Linked references, Chemo cycle 7, Date: Dec 2nd, 2026, drugs: Oxaliplatin, Leucovorin. '.repeat(40);
-        // The plugin's one Undo (0.4.258): an arrow at the end of a line, and one waiting at the bottom right with its words.
+        // The plugin's one Undo: an arrow at the end of a line, and one waiting at the bottom right with its words.
         const line = document.createElement('div'); line.textContent = 'Review of the tingling'; line.style.cssText = 'position:absolute;left:24px;top:470px;padding:2px 6px;background:inherit;';
         stage.append(line);
         shared.undo.offer({ key: 'p', at: () => line, text: 'Provider: Dr. Mei Chen', run: () => {} });
@@ -92,7 +92,7 @@ async function scenes(page) {
     await page.clock.setFixedTime(new Date('2026-10-19T10:00:00'));
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
-    // Logseq's own icon font, from the app's bundle (the kit draws every icon with it, 0.4.311); without the app, the pictures have no icons.
+    // Logseq's own icon font, from the app's bundle (the kit draws every icon with it); without the app, the pictures have no icons.
     await page.setContent(`<!doctype html><html${look.attrs}><head><style>${look.css} body { margin: 0; font: 16px -apple-system, system-ui, sans-serif; } #stage { padding: 16px 24px; width: 712px; }</style><style>${tablerCss}</style></head><body><div id="stage"></div></body></html>`);
     for (const content of scene.scripts) await page.addScriptTag({ content });
     await page.evaluate(scene.draw, scene.arg);
