@@ -224,6 +224,51 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     check(doc.querySelector('.th-ol-kids[data-key]') && learned >= 0, 'a click opens the node');
     part.stop();
   }
+  // The audit's two broken things (10 November 2026). A node with nothing more to show than its line (only the way back
+  // here, nothing linking to it, no bullets) offers no fold arrow once read, and a press on its arrow before it is read
+  // opens nothing; a node with bullets still opens. And "same as the next?" is gone: a doctor's page and a consultation
+  // naming her, on one day, carry no offer to join.
+  {
+    const { window, doc, part, provided } = world('');
+    const bare = U(105), blank = U(104), idBy = provided.idByUuid, fieldsBy = provided.fieldsOf;
+    provided.idByUuid = async uuid => uuid === bare || uuid === blank ? 0 : idBy(uuid);
+    const valuesBy = provided.nodeValues;
+    provided.nodeValues = async (uuids, opts) => { const got = await valuesBy(uuids, opts); for (const u of [bare, blank]) if (uuids.includes(u)) got.set(u, new Map([['about', { ident: 'user.property/about', values: [{ text: 'Spaced repetition', id: 5, uuid: PAGE }] }]])); return got; };
+    provided.fieldsOf = async (uuid, schema) => uuid === bare ? (await fieldsBy(uuid, schema)).filter(p => p.title === 'about') : uuid === blank ? (await fieldsBy(uuid, schema)).filter(p => p.title === 'about' || p.title === 'Source') : fieldsBy(uuid, schema);
+    await wait(120);
+    const tw = window.Threads.parts.find(p => p.name === 'two-way').inner;
+    check(!!chevOf(doc, bare), 'an unread node should offer its arrow');
+    click(window, chevOf(doc, bare));
+    await wait(80);
+    check(!kidsOf(doc, bare) && !chevOf(doc, bare), 'a press on a node with nothing more to show should open nothing, and its arrow go');
+    check(!!doc.querySelector(`.th-tw-line[data-uuid="${bare}"] .th-chev-room`), 'the line keeps the arrow’s room, so its dot and name stay in place');
+    tw.state.node.delete(bare); tw.state.html = null; tw.draw(doc);
+    await wait(60);
+    const c = chevOf(doc, bare);
+    check(!!c, 'unread again, the node should offer its arrow again');
+    c.dispatchEvent(new window.Event('pointerover', { bubbles: true }));
+    await wait(60);
+    check(!c.isConnected && !chevOf(doc, bare), 'the pointer coming to the arrow of a node with nothing more should take the arrow away');
+    // A node with an empty property, read by a look: a proposal might fill it, so its arrow stays; pressed, it is read whole
+    // first, and no empty box is drawn on the way.
+    const b = chevOf(doc, blank);
+    b.dispatchEvent(new window.Event('pointerover', { bubbles: true }));
+    await wait(60);
+    check(b.isConnected, 'a node whose empty property a proposal might fill keeps its arrow after a look');
+    let boxes = 0;
+    const seen = new window.MutationObserver(() => { if (kidsOf(doc, blank)) boxes++; });
+    seen.observe(doc.body, { childList: true, subtree: true });
+    click(window, chevOf(doc, blank));
+    await wait(120);
+    seen.disconnect();
+    check(boxes === 0 && !kidsOf(doc, blank) && !chevOf(doc, blank), 'pressed, with nothing proposed, it opens nothing at any moment and its arrow goes: ' + boxes);
+    click(window, chevOf(doc, U(101)));
+    await wait(80);
+    check(!!kidsOf(doc, U(101))?.querySelector('[data-bullet]'), 'a node with bullets should still open');
+    const twins = { name: 'about', items: [{ uuid: U(101), title: 'Dr. Mei Chen', day: 20261023 }, { uuid: U(102), title: 'Spoke with Dr. Mei Chen about the fatigue', day: 20261023 }] };
+    check(tw.tailHooks.every(h => !/same as the next/.test(String(h(twins, twins.items[0]) || ''))) && !doc.querySelector('[data-twin]'), '"same as the next?" should be gone');
+    part.stop();
+  }
   // 1. Nothing chosen: the list as it was, with the quiet word to group it by.
   {
     const { window, doc, part } = world('');

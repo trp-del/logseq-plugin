@@ -693,7 +693,10 @@ async function createdAt(uuids) {
 }
 async function firstLines(uuid, n, withIds = false) {
   const entity = await logseq.Editor.getBlock(uuid, { includeChildren: true });
-  const children = entity?.name || entity?.originalName ? await logseq.Editor.getPageBlocksTree(uuid) : entity?.children;
+  // A page: Logseq 2.0.2's getBlock gives nothing for one (seen 10 November 2026: a Decision that is a page of its own opened
+  // empty in a row, its bullet unread), so its bullets are read as a page's.
+  const page = !entity && await logseq.Editor.getPage(uuid).catch(() => null);
+  const children = entity?.name || entity?.originalName || page ? await logseq.Editor.getPageBlocksTree(uuid) : entity?.children;
   // withIds (0.4.262): { uuid, title } each, so a card can open the bullet a line is.
   return (children || []).slice(0, n).map(child => withIds ? { uuid: String(child?.uuid || ''), title: titleOf(child) } : titleOf(child));
 }

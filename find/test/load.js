@@ -334,8 +334,13 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
     assert.deepEqual(r.spans.map(x => [x.cls, x.note]), [['fd-kind', 'kind'], ['fd-stop', ''], ['fd-who', 'node'], ['fd-when', 'when']], 'each stretch with its note, the joining word quiet, "around" part of the time');
     assert.deepEqual([r.picks[2].from, r.picks[2].to, r.picks[2].nearFrom, r.picks[2].nearTo, r.picks[2].label], [20260401, 20260630, 20251230, 20260930, 'around May 2026'], 'around May: April to June, near from the turn of the year to September');
     assert.deepEqual(r.words, [], 'nothing left to narrow by letters');
-    r = read('mei chen consultation', names, today);
-    assert.deepEqual([r.picks.map(p => p.kind), r.words, r.trail], [['tag'], ['mei', 'chen'], []], 'letters that name nothing narrow the rows; after the kind nothing trails');
+    // The kind said in the plural and a person without the title before her name (10 November 2026: only the time was read).
+    r = read('consultations with mei chen since august', names, today);
+    assert.deepEqual([r.picks.map(p => p.kind), r.picks[1].label, r.words], [['tag', 'who', 'when'], 'Dr. Mei Chen', []], 'consultations with mei chen since august: kind, who, when');
+    assert.equal(Find.sentence.look(new Map([['diagnosis', 1], ['study', 2], ['class', 3]]), 'diagnoses') + Find.sentence.look(new Map([['study', 2]]), 'studies') * 10, 21, 'diagnoses and studies read as their one');
+    assert.equal(Find.sentence.look(new Map([['class', 3]]), 'clas'), null, 'a word is not cut to fit');
+    r = read('tired legs consultation', names, today);
+    assert.deepEqual([r.picks.map(p => p.kind), r.words, r.trail], [['tag'], ['tired', 'legs'], []], 'letters that name nothing narrow the rows; after the kind nothing trails');
     r = read('Consultation with mei', names, today);
     assert.deepEqual([r.trail, r.trailFrom], [['mei'], 18], 'the last words, less the joining one, are the trail Tab completes');
     r = read('7 May', names, today); assert.deepEqual([r.picks[0].from, r.picks[0].to, r.picks[0].around], [20260507, 20260507, false], 'a day');
@@ -372,6 +377,11 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
     assert.deepEqual([...doc.querySelectorAll('.fd-mirror .fd-part')].map(e => e.className), ['fd-part fd-kind', 'fd-part fd-stop', 'fd-part fd-who'], 'the kind, the joining word quiet, the node');
     assert.ok(doc.querySelector('.fd-mirror .fd-note.lk-name'), 'the note is the shared small name over a value');
     assert.equal(doc.querySelectorAll('.fd-r').length, 3, 'her three consultations');
+    await type('consultations with mei chen'); assert.deepEqual(text('.fd-mirror .fd-note'), ['kind', 'Provider'], 'the plural and her name without "Dr." are read'); assert.equal(doc.querySelectorAll('.fd-r').length, 3, 'her three consultations, so read');
+    // A sentence that finds nothing is never made a page by a plain Enter; Cmd Enter, as named at the foot, makes it.
+    await type('words nothing in the graph holds'); await settle();
+    assert.deepEqual([doc.querySelectorAll('.fd-r').length, text('.fd-foot .fd-right .fd-k')], [0, ['Cmd Enter']], 'nothing found, the foot names Cmd Enter for making a page');
+    await key('Enter'); await settle(); assert.ok(doc.querySelector('dialog.fd') && made.length === 0, 'Enter makes no page of the sentence and keeps the window: ' + made);
     await type('Consultation with '); assert.deepEqual(text('.fd-mirror .fd-note'), ['kind'], 'taking her name out of the sentence reads the kind alone'); assert.equal(doc.querySelectorAll('.fd-r').length, 4, 'and widens the list');
     await key('ArrowRight'); await settle(); assert.ok(doc.querySelector('.fd-kids'), '→ at the end of the sentence digs'); await key('ArrowLeft'); await settle(); assert.ok(!doc.querySelector('.fd-kids'), '← closes');
     await type('Consultation in September 2026'); await settle();

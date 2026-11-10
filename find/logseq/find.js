@@ -863,8 +863,9 @@ async function makePage(name) {
 }
 // Words typed that the sentence did not read, and no kind: a page can be made of them, whatever is listed, with Cmd Enter (Ctrl elsewhere).
 const canMake = () => !!words().length && !kindPick() && !isCommandMode();
-// With no rows at all, making a page is the one thing offered, so Enter does it.
-const makesPage = rows => !rows.length && canMake() && !S.loading && !S.failed;
+// With no rows at all, making a page is the one thing offered, so Enter does it; never in the sentence, where Enter opens and
+// Cmd Enter makes (10 November 2026, the owner: a whole sentence that found nothing became a page on a plain Enter).
+const makesPage = rows => !S.say && !rows.length && canMake() && !S.loading && !S.failed;
 // Down past the last row of a list shows the rest of that list.
 function showRest(rows) {
   const cur = rows[S.rowAt], next = rows[S.rowAt + 1];

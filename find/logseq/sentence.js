@@ -110,6 +110,27 @@ function periodSpan(p, around) {
   return { from, to, nearFrom, nearTo, label: (around ? 'around ' : '') + label, period: true };
 }
 
+/* A name as the sentence may say it (10 November 2026: "consultations with mei chen since august" read only the time):
+   as typed; its last word as one of (consultations, diagnoses, studies, boxes); and a person's name without the title
+   before it in the graph (mei chen for Dr. Mei Chen). The name as typed wins; the others are tried only when it is not there. */
+const TITLES = ['dr.', 'dr', 'prof.', 'prof', 'mr.', 'mr', 'mrs.', 'mrs', 'ms.', 'ms', 'mx.', 'mx'];
+function singulars(key) {
+  const m = key.match(/^(.*?)(\S+)$/), head = m[1], w = m[2], out = [];
+  if (w.length < 4 || !w.endsWith('s') || w.endsWith('ss')) return out;
+  if (w.endsWith('ies')) out.push(w.slice(0, -3) + 'y');
+  if (w.endsWith('ses')) out.push(w.slice(0, -2) + 'is');
+  if (/(s|x|z|ch|sh)es$/.test(w)) out.push(w.slice(0, -2));
+  out.push(w.slice(0, -1));
+  return out.map(x => head + x);
+}
+function look(map, key) {
+  if (!map) return null;
+  const said = [key, ...singulars(key)];
+  for (const k of said) { const got = map.get(k); if (got) return got; }
+  for (const k of said) for (const t of TITLES) { const got = map.get(t + ' ' + k); if (got) return got; }
+  return null;
+}
+
 /* read(text, names, today): what the sentence holds.
    names: { kinds: Map(name -> { id, uuid, title }), values: Map(name -> { name, key, label, uuid, type }) or null until a kind
    is read, pages: Map(name -> { id, uuid, title }), noteOf(uuid): what a page was last read as }.
@@ -132,11 +153,11 @@ function read(text, names, today = new Date()) {
     for (let len = Math.min(6, toks.length - i); len >= 1 && !got; len--) {
       const key = toks.slice(i, i + len).map(t => t.key).join(' ');
       if (!key) continue;
-      const kind = !has('tag') && names.kinds?.get(key);
+      const kind = !has('tag') && look(names.kinds, key);
       if (kind) { got = { len, pick: { kind: 'tag', id: kind.id, uuid: kind.uuid, title: kind.title }, note: 'kind', cls: 'fd-kind' }; break; }
-      const value = has('tag') && names.values?.get(key);
+      const value = has('tag') && look(names.values, key);
       if (value) { got = { len, pick: { kind: 'who', name: value.name, key: value.key, label: value.label, uuid: value.uuid, type: value.type }, note: value.name, cls: value.uuid ? 'fd-who' : 'fd-value' }; break; }
-      const page = names.pages?.get(key);
+      const page = look(names.pages, key);
       if (page) { got = { len, pick: { kind: 'who', uuid: page.uuid, id: page.id, label: page.title }, note: names.noteOf?.(page.uuid) || 'node', cls: 'fd-who' }; break; }
     }
     if (got) {
@@ -155,5 +176,5 @@ function read(text, names, today = new Date()) {
   return { picks, spans, words, trail: trail.map(t => t.key).filter(Boolean), trailFrom: trail.length ? trail[0].at : text.length };
 }
 
-Find.sentence = { read, tokens, norm, when, period, spanOf, STOP, SHORT };
+Find.sentence = { read, look, tokens, norm, when, period, spanOf, STOP, SHORT };
 })();

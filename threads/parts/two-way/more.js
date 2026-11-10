@@ -399,37 +399,6 @@ function exportList(group) {
   app.exportWindow({ uuids: shown.map(item => item.uuid), title: `${group.label} · ${state.pageTitle}`, what: `${shown.length} nodes of “${group.label}”` });
 }
 
-/* Same as… (N18): two nodes of one list on one day whose words are nearly the same; the first carries a pencil. Joined, the
-   second goes under the first as one of its bullets, with all it holds, and leaves this page's list; nothing is deleted, and
-   the faded arrow puts it back where it was. */
-const wordsSet = t => new Set(String(t).toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter(w => w.length > 2));
-const alike = (a, b) => { const x = wordsSet(a), y = wordsSet(b); if (!x.size || !y.size) return false; let n = 0; for (const w of x) if (y.has(w)) n++; return n / Math.min(x.size, y.size) >= .75; };
-const twinOf = (group, item) => item.day ? group.items.find(other => other !== item && other.day === item.day && alike(other.title, item.title) && group.items.indexOf(other) > group.items.indexOf(item)) : null;
-twoWay.tailHooks.push((group, item) => {
-  if (state.drawingTop) return '';
-  const twin = twinOf(group, item);
-  return twin ? shared.outline.pencil('same as the next?', { 'data-twin': item.uuid, 'data-twinof': twin.uuid, 'data-twinfield': group.name, title: `“${twoWay.shortName(twin.title)}”, the same day, reads almost the same. Click to join it into this one.` }) : '';
-});
-async function joinTwin(keepUuid, goneUuid, groupName, at) {
-  const group = state.groups.find(g => g.name === groupName), gone = group?.items.find(i => i.uuid === goneUuid);
-  if (!group || !gone) return;
-  const ok = await shared.ask({ at, question: `Join “${twoWay.shortName(gone.title)}” into this one?`, note: 'It goes under this node as one of its bullets, with all it holds, and leaves this list. Nothing is deleted.', go: 'Join' });
-  if (!ok) return;
-  const block = await twoWay.provided.getBlock(goneUuid, { includeChildren: false });
-  const parent = block?.parent?.uuid || block?.page?.uuid, left = block?.left?.uuid;
-  const prop = group.ident ? (await twoWay.provided.propSchema()).props.find(p => p.ident === group.ident) : null;
-  const here = await twoWay.provided.idByUuid(state.pageUuid);
-  const had = prop ? await twoWay.heldNow(goneUuid, prop) : [];
-  if (prop && here) await twoWay.setValues(goneUuid, prop, had.filter(v => v !== here));
-  await twoWay.provided.moveBlock(goneUuid, keepUuid, { children: true });
-  twoWay.later(200);
-  await twoWay.offerKept(prop ? [[goneUuid, prop.ident]] : [], 'Joined two nodes', async () => {
-    if (left && left !== parent) await twoWay.provided.moveBlock(goneUuid, left, { before: false }); else if (parent) await twoWay.provided.moveBlock(goneUuid, parent, { children: true });
-    if (prop) await twoWay.setValues(goneUuid, prop, had);
-    twoWay.later(200);
-  }, groupName);
-}
-
 /* A bullet becomes a node (N19): a bullet of an opened node whose words look like one of your kinds (Predictive's guess, as for
    an untagged mention) carries a pencil, "could be a Symptom Log · Symptom type"; a click gives it that tag and that property
    pointing at this page, so it stands in this page's list; the faded arrow takes both off. */
@@ -441,8 +410,6 @@ twoWay.bulletTail = uuid => {
 
 twoWay.clickHooks.push(event => {
   const t = event.target, stop = () => { event.preventDefault(); event.stopPropagation(); twoWay.hidePeek(); };
-  const twin = t.closest?.('[data-twin]');
-  if (twin) { stop(); joinTwin(twin.dataset.twin, twin.dataset.twinof, twin.dataset.twinfield, twin).catch(error => { warnOnce('could not join the nodes', error); shared.notify('The two could not be joined', 'warning'); }); return true; }
   const bnode = t.closest?.('[data-bnode]');
   if (bnode) { stop(); const best = state.raise.get(bnode.dataset.bnode)?.best; if (best) twoWay.raise?.(best, [bnode.dataset.bnode]).then(() => twoWay.later(200)).catch(error => warnOnce('could not make the bullet a node', error)); return true; }
   return false;

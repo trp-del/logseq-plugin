@@ -764,7 +764,9 @@ function draw(doc) {
     box.addEventListener('mouseout', twoWay.onOut);
     box.addEventListener('contextmenu', onRename);
     // A node is read while the pointer comes to its chevron, so it opens at once.
-    box.addEventListener('pointerover', event => { const c = event.target.closest?.('.th-chev[data-dig]'); if (c && !state.node.has(c.dataset.uuid)) twoWay.readNode(c.dataset.uuid, c.dataset.id, { look: true }).catch(() => {}); });
+    // Read and found to hold nothing more, its arrow goes where it stands (a room keeps a line's place), as Logseq draws none.
+    const bare = c => { if (!c.isConnected || c.getAttribute('aria-expanded') === 'true' || twoWay.holdsMore(c.dataset.uuid, c.dataset.dig)) return; if (c.parentElement?.classList.contains('th-ol-line')) c.replaceWith(Object.assign(c.ownerDocument.createElement('span'), { className: 'th-chev-room', ariaHidden: 'true' })); else c.remove(); };
+    box.addEventListener('pointerover', event => { const c = event.target.closest?.('.th-chev[data-dig]'); if (!c) return; if (state.node.has(c.dataset.uuid)) bare(c); else twoWay.readNode(c.dataset.uuid, c.dataset.id, { look: true }).then(() => bare(c), () => {}); });
     state.html = '';
   }
   if (!rows) state.picked.clear();

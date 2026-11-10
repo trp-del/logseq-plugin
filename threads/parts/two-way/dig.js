@@ -30,7 +30,7 @@ const pathOf = key => key.split('>').slice(1);
 const parentKey = key => key.split('>').slice(0, -1).join('>');
 const onTheWay = (path, uuid) => path.includes(uuid) || uuid === state.pageUuid || state.steps.some(s => s.uuid === uuid);
 function digChev(key, uuid, id, title, open = state.dig.has(key)) {
-  if (!isUuid(uuid)) return '';
+  if (!isUuid(uuid) || (!open && !holdsMore(uuid, key))) return '';
   return O.chev({ open, label: title, attrs: { 'data-dig': key, 'data-uuid': uuid, 'data-id': id ? String(id) : null, 'data-title': title } });
 }
 // What an opened node holds, under its name; the hairline starts at the chevron of its line ('day', 'prop', 'back', '').
@@ -44,7 +44,16 @@ function digKids(key, uuid, from) {
   const name = `clamp(7em, calc(${longest} * .56em + 42px), 16em)`;
   return O.kids({ html: nodeHtml(uuid, key, data), from, fresh, attrs: { 'data-key': key, style: `--th-tw-name: ${name}` } });
 }
-function nodeHtml(uuid, key, data, asTop = false) {
+/* Whether a node, opened at this place, would show anything beyond what its line says (10 November 2026, the owner's yes to
+   the audit's "opens to an empty box": as in Logseq, a node with nothing under it has no fold arrow). Unread, it is
+   taken to hold something; once read (the pointer coming to its arrow reads it) a node holding only the way back and the
+   day its line shows offers no arrow, and a press that reads it first opens nothing. */
+function holdsMore(uuid, key) {
+  const data = state.node.get(uuid);
+  // Read only by a look, its empty properties have not been asked what they would be filled with: it may hold a proposal.
+  return !data || (data.looked && data.props.some(r => !r.values.length)) || !!nodeHtml(uuid, key, data, false, false).trim();
+}
+function nodeHtml(uuid, key, data, asTop = false, field = true) {
   const path = [...state.steps.map(s => s.uuid), ...pathOf(key)];
   // Opened by the find field: only its lines that hold the words, as they read when the node is dug.
   const onlyFound = state.findDug.get(key) === true && !!state.find.trim();
@@ -120,6 +129,7 @@ function nodeHtml(uuid, key, data, asTop = false) {
   // Its words are changed where they stand (editBullet): a click, or Enter once Tab has reached them; its dot opens it.
   for (const line of data.bullets) html += O.bullet({ html: twoWay.lineHtml(line.text, 400) + (twoWay.bulletTail?.(line.uuid) || ''), closed: twoWay.hasKids(line.uuid), attrs: { 'data-bullet': line.uuid }, wordsAttrs: { tabindex: '0', 'data-edit-bullet': line.uuid } });
   if (data.more) html += O.more({ text: 'show all its bullets', attrs: { 'data-ball': uuid } });
+  if (!field) return html;
   html += O.newBullet({ label: `A new bullet inside ${twoWay.shortName(titleOf(uuid))}`, attrs: { class: 'th-tw-node-field', 'data-uuid': uuid, 'data-key': key } });
   return html;
 }
@@ -169,7 +179,7 @@ function readNode(uuid, id, { look = false } = {}) {
     await twoWay.readKids([...rows.flatMap(g => g.items.map(item => item.uuid)), ...lines.map(line => line.uuid)]);
     // And the node itself, read again here after a bullet is written in it or emptied, so its own dot is right once it folds.
     if (bullets.some(line => line.text)) state.kids.add(String(uuid).toLowerCase()); else state.kids.delete(String(uuid).toLowerCase());
-    state.node.set(uuid, { props: kept, rows, tags, bullets: bullets.filter(line => line.text || state.keepEmpty.has(line.uuid)).slice(0, most), more: lines.length > most,
+    state.node.set(uuid, { looked: look, props: kept, rows, tags, bullets: bullets.filter(line => line.text || state.keepEmpty.has(line.uuid)).slice(0, most), more: lines.length > most,
       guesses: new Map(guesses.filter(g => empty.has(g.ident) && (g.kind !== 'day' || g.journalId)).map(g => [g.ident, g])) });
   })().finally(() => reading.delete(key));
   reading.set(key, job);
@@ -186,10 +196,16 @@ async function toggleDig(key, uuid, id, title) {
   const had = state.node.has(uuid);
   if (!had) { state.html = null; twoWay.draw(host()); await readNode(uuid, id, { look: true }).catch(error => warnOnce('could not read a node', error)); }
   if (!state.dig.has(key)) return;
+  // Read by a look and nothing to show yet but empty properties: what the proposals would fill in decides, so it is read
+  // whole before anything opens, and an empty box is never drawn while it is asked.
+  const data = state.node.get(uuid);
+  if (data?.looked && !nodeHtml(uuid, key, data, false, false).trim()) { await readNode(uuid, id).catch(error => warnOnce('could not read a node', error)); if (!state.dig.has(key)) return; }
+  // Nothing more to show: nothing opens, and the arrow goes, as in Logseq for a bullet with nothing under it.
+  if (!holdsMore(uuid, key)) { closeDig(key); return; }
   state.fresh = key; state.html = null; twoWay.draw(host()); state.fresh = '';
   fitOrShift(key, from);
   // Read again behind what is drawn, this time with what the proposals would fill in: opening never waits for the earlier lines.
-  readNode(uuid, id).then(() => { state.html = null; twoWay.draw(host()); }).catch(() => {});
+  readNode(uuid, id).then(() => { if (state.dig.has(key) && !holdsMore(uuid, key)) return closeDig(key); state.html = null; twoWay.draw(host()); }).catch(() => {});
 }
 function closeDig(key) {
   if (state.findDug.has(key)) state.findDug.set(key, false);
@@ -593,5 +609,5 @@ function onOutlineClick(event) {
   return false;
 }
 
-Object.assign(twoWay, { closeDig, digChev, digKids, editBullet, focusNodeField, keepNodeField, onOutlineClick, pinNow, readNode, reading, stepBack, steppedHtml, topStep });
+Object.assign(twoWay, { closeDig, digChev, holdsMore, digKids, editBullet, focusNodeField, keepNodeField, onOutlineClick, pinNow, readNode, reading, stepBack, steppedHtml, topStep });
 })();
