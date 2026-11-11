@@ -15,6 +15,7 @@
                     meaning to the text, cosine similarity, best first. held 0: nothing learned for this graph yet (learn first).
    POST /names   <- { "texts": [..] } -> { "names": [[{ "text", "kind": "person" | "place" | "organization", "at", "to" }], ...] }:
                     the names Apple's name finder reads in each text, in order, at and to as character offsets.
+   POST /reads-back <- { "property", "from", "to" } -> { "names": [..] }: how a property reads from the node it points to (version 5).
    POST /fill    <- { "text", "page", "tags": [..], "today": "YYYY-MM-DD", "instructions", "context", "properties": [
                         { "key", "title", "kind": "page" | "tag" | "choice" | "number" | "date", "many", "choices": [titles], "about" } ] }
                    (a "tag" is which of the graph's tags the note is, a "choice" one of a property's own list (Status), each
@@ -36,8 +37,8 @@ let PORT: UInt16 = 47615
 let ORIGIN = "lsp://logseq.com"
 let NONE = "none"
 // Raised when the plugin may ask something an older helper cannot answer (2: a property with a list of choices; 3: "model",
-// a date without a pattern, failures by name; 4: /meaning and /names).
-let VERSION = 4
+// a date without a pattern, failures by name; 4: /meaning and /names; 5: /reads-back).
+let VERSION = 5
 
 // MARK: - the request
 
@@ -278,6 +279,49 @@ func namesIn(_ text: String) -> [[String: Any]] {
   return out
 }
 
+// MARK: - how a property reads from the other end
+
+/* POST /reads-back <- { "property", "from": [tags it is on], "to": [tags of its values] } -> { "names": [..], "ms" }: three
+   short names for the property seen from the node it points to (Threads' row on that page, "Reads back as…"). Only the
+   ontology is sent, a property's name and tags' names; never a note's words. */
+struct ReadsBackAsk: Decodable { let property: String; let from: [String]?; let to: [String]? }
+// The answer's shape: a list of three names (the schema built by hand, as /fill's is: the macros need Xcode).
+let READS_BACK_SCHEMA: GenerationSchema? = {
+  let names = DynamicGenerationSchema(arrayOf: DynamicGenerationSchema(type: String.self), minimumElements: 3, maximumElements: 3)
+  let root = DynamicGenerationSchema(name: "Headings", description: "Three different short headings, each one to four words, best first.", properties: [.init(name: "names", description: "The headings, best first.", schema: names)])
+  return try? GenerationSchema(root: root, dependencies: [])
+}()
+let READS_BACK = """
+In someone's notes, a property links one note to another. On the page of the note it points to, the notes that point \
+there are listed under one heading. You name that heading: the property read from the other end, as a connector that \
+says how those notes stand to this one. Prefer a relational phrase, a role or a verb with its preposition: "Provider of", \
+"Location of", "Seen by", "Prescribed", "Decided", "Member of". Avoid a plain noun for the notes themselves ("Patients", \
+"Decisions", "Staff"). Add a preposition only where the phrase needs one: "Decided by" read back is "Decided", \
+"Prescribed by" read back is "Prescribed", "Located in" read back is "Location of". Keep it one to four words, with the \
+same capitals as the property's own name.
+"""
+func readsBack(_ ask: ReadsBackAsk) async -> [String: Any] {
+  let started = Date()
+  if case .unavailable = SystemLanguageModel.default.availability { return ["error": "modelNotReady"] }
+  var prompt = "Property: \(ask.property)\n"
+  if let from = ask.from, !from.isEmpty { prompt += "It is on notes tagged: \(from.joined(separator: ", "))\n" }
+  if let to = ask.to, !to.isEmpty { prompt += "It points to notes tagged: \(to.joined(separator: ", "))\n" }
+  prompt += "Name the heading on the page of the note it points to."
+  do {
+    guard let schema = READS_BACK_SCHEMA else { return ["error": "schema"] }
+    let answer = try await READY.take(instructions: READS_BACK, model: nil).respond(to: prompt, schema: schema, options: GenerationOptions(sampling: .greedy))
+    let object = (try? JSONSerialization.jsonObject(with: Data(answer.content.jsonString.utf8))) as? [String: Any] ?? [:]
+    let strip = CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: "\"'“”."))
+    var seen = Set<String>(), names: [String] = []
+    for name in (object["names"] as? [Any] ?? []).compactMap({ $0 as? String }) {
+      let n = name.trimmingCharacters(in: strip)
+      if n.isEmpty || n.count > 40 || n.lowercased() == ask.property.lowercased() || !seen.insert(n.lowercased()).inserted { continue }
+      names.append(n)
+    }
+    return ["names": names, "ms": Int(Date().timeIntervalSince(started) * 1000)]
+  } catch { return ["error": failureName(error)] }
+}
+
 // MARK: - the door: a little HTTP on 127.0.0.1
 
 func reply(_ connection: NWConnection, _ code: Int, _ body: [String: Any], origin: String?) {
@@ -328,6 +372,13 @@ func handle(_ connection: NWConnection, _ buffer: Data = Data()) {
         return reply(connection, 200, ["names": ask.texts.map(namesIn)], origin: origin)
       } catch { return reply(connection, 200, ["error": String(describing: error)], origin: origin) }
     }
+    if path == "/reads-back" {
+      Task {
+        do { reply(connection, 200, await readsBack(try JSONDecoder().decode(ReadsBackAsk.self, from: data)), origin: origin) }
+        catch { reply(connection, 200, ["error": String(describing: error)], origin: origin) }
+      }
+      return
+    }
     guard path == "/fill" else { return reply(connection, 404, ["error": "no such thing"], origin: origin) }
     Task {
       do {
@@ -349,6 +400,11 @@ func handle(_ connection: NWConnection, _ buffer: Data = Data()) {
       let out = try await run(fill)
       print(String(decoding: try JSONSerialization.data(withJSONObject: out, options: [.prettyPrinted, .sortedKeys]), as: UTF8.self))
       exit(0)
+    }
+    // One property read back, from the command line: --reads-back '{"property":"Located in","from":["Hospital"],"to":["City"]}'.
+    if CommandLine.arguments.dropFirst().first == "--reads-back", CommandLine.arguments.count > 2 {
+      let out = await readsBack(try JSONDecoder().decode(ReadsBackAsk.self, from: Data(CommandLine.arguments[2].utf8)))
+      print(String(decoding: try JSONSerialization.data(withJSONObject: out, options: [.sortedKeys]), as: UTF8.self)); exit(0)
     }
     if CommandLine.arguments.dropFirst().first == "--status" {
       print(status()); exit(0)

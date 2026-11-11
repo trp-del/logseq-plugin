@@ -471,8 +471,10 @@ function pickValue({ at, placeholder = '', options = [], clearLabel = '', free =
    typed. Resolves with the words, or null when nothing changed. A redraw of the rows does not end it: again() finds the
    place in the new drawing and the box goes on there, words and caret as they were. onType(words) hears each change as it is
    typed (a bullet saves as it is written); show(words) gives the html that stands in the box's place once new words are kept,
-   so the old words never come back for a moment before the redraw. */
-function editInPlace({ at, value = '', type = 'text', placeholder = '', doc, again, wrap = false, onType, show, onEnd } = {}) {
+   so the old words never come back for a moment before the redraw. offers: words (or a promise of them, or a function giving
+   one) listed under the box once they come, the library's menu rows: ↓ and ↑ light one, Enter or a press takes it, typing goes
+   on as before (Threads' "Reads back as…", Apple's names for a row). */
+function editInPlace({ at, value = '', type = 'text', placeholder = '', doc, again, wrap = false, onType, show, onEnd, offers } = {}) {
   const numeric = type === 'number';
   type = 'text';
   doc = doc || host();
@@ -487,7 +489,10 @@ function editInPlace({ at, value = '', type = 'text', placeholder = '', doc, aga
     const grow = () => { if (!wrap) return; input.style.height = 'auto'; input.style.height = `${input.scrollHeight}px`; };
     // How it ended, for onEnd: 'enter', 'escape', or 'away' (a click elsewhere, or the box gone with a redraw).
     let finished = false, moving = false, ended = 'away';
-    const finish = answer => { if (finished) return; finished = true; onEnd?.(ended); const html = answer != null && show ? show(answer) : null; if (html != null) at.innerHTML = html; else at.replaceChildren(...was); resolve(answer); };
+    let list = null;
+    const closeList = () => { const open = list; list = null; open?.close(); };
+    const take = words => { input.value = words; ended = 'enter'; finish(words === value ? null : words); };
+    const finish = answer => { if (finished) return; finished = true; closeList(); onEnd?.(ended); const html = answer != null && show ? show(answer) : null; if (html != null) at.innerHTML = html; else at.replaceChildren(...was); resolve(answer); };
     input.across = redraw => {
       const from = input.selectionStart, to = input.selectionEnd;
       moving = true; redraw(); moving = false;
@@ -500,11 +505,16 @@ function editInPlace({ at, value = '', type = 'text', placeholder = '', doc, aga
       event.stopPropagation();
       if (event.isComposing) return;
       if (event.key === 'Enter' && wrap && event.shiftKey) return;   // a line break, as in Logseq's own bullets
+      const rows = list ? list.body.querySelectorAll('.th-item').length : 0;
+      if (rows && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) { event.preventDefault(); const i = list.litAt; list.lit(event.key === 'ArrowDown' ? (i < 0 ? 0 : (i + 1) % rows) : (i <= 0 ? rows - 1 : i - 1)); return; }
+      if (event.key === 'Enter' && rows && list.litAt >= 0) { event.preventDefault(); take(list.body.querySelectorAll('.th-item')[list.litAt].item.label); return; }
       if (event.key === 'Enter') { event.preventDefault(); ended = 'enter'; finish(input.value === value ? null : input.value); }
       else if (event.key === 'Escape') { event.preventDefault(); ended = 'escape'; finish(null); }
     });
     if (wrap) input.addEventListener('input', grow);
     if (onType) input.addEventListener('input', () => onType(input.value));
+    // Typing lights none of the offered words again, so Enter keeps what was typed.
+    input.addEventListener('input', () => list?.lit(-1));
     for (const type of ['keyup', 'keypress']) input.addEventListener(type, event => event.stopPropagation());
     for (const type of ['mousedown', 'click']) input.addEventListener(type, event => event.stopPropagation());
     input.addEventListener('blur', () => { if (!moving) finish(input.value === value ? null : input.value); });
@@ -512,6 +522,13 @@ function editInPlace({ at, value = '', type = 'text', placeholder = '', doc, aga
     grow();
     input.focus({ preventScroll: true });
     try { input.setSelectionRange(input.value.length, input.value.length); } catch (error) { /* a field that has no caret */ }
+    if (offers) Promise.resolve(typeof offers === 'function' ? offers() : offers).then(words => {
+      words = [...new Set((words || []).map(w => String(w).trim()).filter(Boolean))];
+      if (finished || !words.length || !input.isConnected) return;
+      // Under the box, the keyboard staying in it (manual: the list takes no focus); a press keeps the caret where it is.
+      list = popup({ at: input, doc, manual: true, cls: 'th-offers', items: words.map(words => ({ label: words, run: () => take(words) })) });
+      list.el.addEventListener('mousedown', event => event.preventDefault());
+    }).catch(() => {});
   });
 }
 /* A question beside what it is about: the question, a quiet note, the library's answers under it, Cancel and the one

@@ -88,15 +88,24 @@ const plural = (word, n) => n === 1 ? word : /[^aeiou]y$/i.test(word) ? word.sli
    this setting held by default until now ("works at = works here" and the like) were never chosen, so they are passed
    over; a pair giving a property its own name again is no renaming. */
 const OLD_DEFAULTS = new Set(['symptoms|logged in', 'ask|asked', 'works at|works here', 'insurer|insurer of', 'related|related to']);
+/* Apple's names (11 November 2026, the owner: "I want it to happen automatically"): a row with no name of the owner's reads by
+   the best of Apple's three names for it (readsBackOffers), asked once for each property and kept in twoWayAppleNames, in the
+   same "Provider = Patients" pairs. A name the owner gives, their own property name too, always wins; with "Read my words with
+   Apple's tools" off, or no answer, the row reads by the property's own name as before. */
+const pairsOf = text => String(text || '').split(/[;\n]/).map(pair => pair.split('=').map(part => part?.trim())).filter(([field, words]) => field && words);
+const appleOn = () => setting('proposalsModel') !== false;
 function backwardsNames() {
   const names = new Map();
-  for (const pair of String(setting('twoWayNames') || '').split(/[;\n]/)) {
-    const [field, words] = pair.split('=').map(part => part?.trim());
-    if (!field || !words || OLD_DEFAULTS.has(`${field.toLowerCase()}|${words.toLowerCase()}`) || words.toLowerCase() === field.toLowerCase()) continue;
+  if (appleOn()) for (const [field, words] of pairsOf(setting('twoWayAppleNames'))) names.set(field.toLowerCase(), words);
+  // The owner's own, over Apple's; their property's own name typed in keeps the row on it.
+  for (const [field, words] of pairsOf(setting('twoWayNames'))) {
+    if (OLD_DEFAULTS.has(`${field.toLowerCase()}|${words.toLowerCase()}`)) continue;
     names.set(field.toLowerCase(), words);
   }
   return names;
 }
+const ownedName = name => pairsOf(setting('twoWayNames')).some(([field, words]) => field.toLowerCase() === name.toLowerCase() && !OLD_DEFAULTS.has(`${field.toLowerCase()}|${words.toLowerCase()}`));
+const appleHas = name => pairsOf(setting('twoWayAppleNames')).some(([field]) => field.toLowerCase() === name.toLowerCase());
 const readBackwards = (name, names) => names.get(name.toLowerCase()) || name;
 
 // Fields shown from one end only: "status; city" -> Set of lower-case names.
@@ -107,8 +116,9 @@ const backwardsLabel = name => readBackwards(name, backwardsNames());
 function setBackwards(name, words) {
   words = String(words || '').replace(/[;=\n]/g, ' ').replace(/\s+/g, ' ').trim();
   const pairs = String(setting('twoWayNames') || '').split(/[;\n]/).map(pair => pair.split('=').map(part => part?.trim())).filter(([field, said]) => field && said && field.toLowerCase() !== name.toLowerCase());
-  // Back to its own name: no pair needed.
-  if (words && words.toLowerCase() !== name.toLowerCase()) pairs.push([name, words]);
+  // Empty: no pair, so the row reads as it does by itself (Apple's name, else its own). The property's own name typed in is
+  // kept as a pair, so Apple's name does not come back over it.
+  if (words) pairs.push([name, words]);
   saveSettings({ twoWayNames: pairs.map(([field, said]) => `${field} = ${said}`).join('; ') });
 }
 function setShownAtOtherEnd(name, shown) {
@@ -274,7 +284,32 @@ async function groupsByPage(id) {
     groups.sort((a, b) => b.items.length - a.items.length || a.label.localeCompare(b.label));
     result.set(page, { uuid, groups });
   }
+  nameByApple([...result.values()].flatMap(page => page.groups));
   return result;
+}
+/* Asks Apple for the rows that have no name yet, one property at a time, in the background, once a session each; the names
+   are saved together when the round is over and the rows drawn again with them. */
+const appleAsked = new Set();
+let appleRound = null;
+function nameByApple(groups) {
+  if (!appleOn() || appleRound) return;
+  const wanting = [...new Map(groups.filter(g => !isMentions(g) && !appleAsked.has(g.name.toLowerCase()) && !ownedName(g.name) && !appleHas(g.name)).map(g => [g.name.toLowerCase(), g])).values()];
+  if (!wanting.length) return;
+  appleRound = (async () => {
+    const got = [];
+    // No helper, or no Apple Intelligence on this Mac: nothing is asked, and these rows not again this session.
+    if (!await appleReady()) { for (const group of wanting) appleAsked.add(group.name.toLowerCase()); return; }
+    for (const group of wanting) {
+      if (stopped) return;
+      appleAsked.add(group.name.toLowerCase());
+      const [best] = await readsBackOffers(group).catch(() => []);
+      if (best) got.push([group.name, String(best).replace(/[;=\n]/g, ' ').trim()]);
+    }
+    if (!got.length || stopped) return;
+    const kept = pairsOf(setting('twoWayAppleNames')).filter(([field]) => !got.some(([name]) => name.toLowerCase() === field.toLowerCase()));
+    saveSettings({ twoWayAppleNames: [...kept, ...got].map(([field, words]) => `${field} = ${words}`).join('; ') });
+    later(0); indexLater(0);
+  })().catch(error => warnOnce('could not ask Apple for the rows’ names', error)).finally(() => { appleRound = null; });
 }
 
 // Every page's rows in one look-up, at the start and again when the graph has been still for a while. The
@@ -994,13 +1029,43 @@ async function hideMentionsHere() {
   saveSettings({ twoWayMentionsHidden: [...names, title].join('; ') });
   offerUndo(`The mentions row is hidden on “${title}”`, () => { saveSettings({ twoWayMentionsHidden: before }); later(0); });
 }
+/* How the row could read, from Apple's model on this Mac (Predictive's helper, /reads-back, version 5): three names for the
+   property seen from the page it points to ("Located in" → "Location of"). Only the property's name and tags' names go to the
+   model, never a node's words, and nothing leaves the Mac. [] when the helper or its model is not here, or "Read my words with
+   Apple's tools" is off; kept for each property until the plugin reloads, asked again after a miss. */
+const { HELPER } = window.PluginDoor || {};
+const readsBackKept = new Map();
+// No fetch (a test's stand-in window) or the setting off: never asked.
+const canAsk = () => appleOn() && typeof fetch === 'function' && typeof AbortSignal?.timeout === 'function';
+// Whether the helper answers with Apple's model ready and knows /reads-back (version 5).
+const appleReady = async () => canAsk() && !!await fetch(HELPER + '/status', { signal: AbortSignal.timeout(800) }).then(r => r.json()).then(status => status?.ready && (status.version || 0) >= 5, () => false);
+function readsBackOffers(group) {
+  if (!canAsk()) return Promise.resolve([]);
+  const key = group.name.toLowerCase();
+  if (!readsBackKept.has(key)) {
+    const asking = (async () => {
+      if (!await appleReady()) return [];
+      const schema = provided.propSchema ? await provided.propSchema().catch(() => null) : null;
+      const prop = schema?.props.find(p => p.title.toLowerCase() === key);
+      const from = [...new Set(group.items.map(item => item.tag).filter(tag => tag && tag !== 'note'))].slice(0, 6);
+      const to = (prop?.classes || []).map(c => c.title).filter(Boolean).slice(0, 6);
+      const reply = await fetch(HELPER + '/reads-back', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ property: group.name, from, to }), signal: AbortSignal.timeout(8000) }).then(r => r.json()).catch(() => null);
+      return Array.isArray(reply?.names) ? reply.names.filter(name => typeof name === 'string' && name.trim()).slice(0, 3) : [];
+    })().catch(() => []);
+    readsBackKept.set(key, asking);
+    asking.then(names => { if (!names.length && readsBackKept.get(key) === asking) readsBackKept.delete(key); });
+  }
+  return readsBackKept.get(key);
+}
 async function renameRow(group, nameEl) {
   const before = backwardsLabel(group.name);
-  // Typed on the row's own name, as a page is renamed in Logseq (1.0.4); empty goes back to the property's own name.
-  const typed = await shared.editInPlace({ at: nameEl, value: before, placeholder: group.name });
+  // Typed on the row's own name, as a page is renamed in Logseq (1.0.4); empty goes back to the property's own name. Apple's
+  // names come under the box when they are in, with the property's own name last when the row reads otherwise now.
+  const offers = () => readsBackOffers(group).then(names => [...names, ...(before !== group.name ? [group.name] : [])].filter(name => name !== before));
+  const typed = await shared.editInPlace({ at: nameEl, value: before, placeholder: group.name, offers });
   if (typed == null || typed.trim() === before) return;
   setBackwards(group.name, typed.trim());
-  offerUndo(typed.trim() && typed.trim() !== group.name ? `${group.name} reads “${typed.trim()}” on every page it points to` : `${group.name} reads as its own name again on every page it points to`, () => setBackwards(group.name, before), group.name);
+  offerUndo(typed.trim() ? `${group.name} reads “${typed.trim()}” on every page it points to` : `${group.name} reads as it does by itself again on every page it points to`, () => setBackwards(group.name, before), group.name);
 }
 
 function applyStyles() {
