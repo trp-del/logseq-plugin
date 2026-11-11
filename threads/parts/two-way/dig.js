@@ -86,7 +86,11 @@ function nodeHtml(uuid, key, data, asTop = false, field = true) {
     values.forEach((v, i) => {
       const k = `${key}>${v.uuid}`, open = state.dig.has(k);
       const item = { uuid: v.uuid, title: v.text, words: v.words, tag: data.tags.get(v.id) || '' };
-      const line = O.prop({ kind, many: prop.many, name: i ? '' : prop.title, nameAttrs: i ? null : nameAttrs, cls: found, chev: isUuid(v.uuid) ? digChev(k, v.uuid, v.id, v.text, open) : '', value: `<span class="th-ol-body">${isUuid(v.uuid) ? twoWay.nameHtml(item, open) : esc(v.text)}</span>` });
+      // One outline (the owner, 10 November 2026: "the property values can have bullets like normally, then a chevron can
+      // appear next"): a value that is a node is a bullet, its fold arrow before it, as on a page's own properties.
+      const vchev = isUuid(v.uuid) ? digChev(k, v.uuid, v.id, v.text, open) : '';
+      const vdot = isUuid(v.uuid) ? O.dot(false, { uuid: v.uuid, closed: !open && !!vchev, title: v.text }) : '';
+      const line = O.prop({ kind, many: prop.many, name: i ? '' : prop.title, nameAttrs: i ? null : nameAttrs, cls: found, chev: vchev || (vdot ? O.room() : ''), value: `${vdot}<span class="th-ol-body">${isUuid(v.uuid) ? twoWay.nameHtml(item, open) : esc(v.text)}</span>` });
       html += open ? O.unit({ html: line + digKids(k, v.uuid, 'prop'), focus: state.focus === k, attrs: { 'data-key': k } }) : line;
     });
   }
@@ -103,30 +107,43 @@ function nodeHtml(uuid, key, data, asTop = false, field = true) {
   const linking = asTop ? [] : data.rows.map(g => ({ g, items: g.items.filter(item => !onTheWay(path, item.uuid)) })).filter(r => r.items.length);
   const many = linking.reduce((n, r) => n + r.items.length, 0);
   if (many) {
-    let lines = '';
+    /* One outline (the owner, 10 November 2026: "all chevrons, bullets, etc to be aligned and consistent with how an
+       outline would look"): each property that links here is a line, its fold arrow before it and its name where a
+       bullet's words start; its nodes are bullets one step in under it, each with its day as the first words. The
+       "N link here" line went (10 November 2026), then came back as "Linked", Logseq's word and the page's own, after the
+       owner: "no idea about why those properties are there": the properties under it are other nodes' that point here. */
+    const linkedShut = state.linksShut.has(key);
+    html += `<div class="th-ol-line lk-row th-tw-lhead th-tw-linkedline" title="${esc(`${many} ${many === 1 ? 'node links' : 'nodes link'} to ${twoWay.shortName(titleOf(uuid))}`)}">${O.chev({ open: !linkedShut, label: 'Linked', attrs: { 'data-links': key } })}${O.dot(true)}<span class="th-ol-body">Linked</span></div>`;
+    const outer = html; html = '';
     for (const { g, items } of linking) {
-      const dated = items.some(item => twoWay.dayOf(g, item));   // the day's column, right of the dot, where any of these has a day
-      const allKey = `${key}|${g.name}`, all = state.nall.has(allKey);
-      /* With no head, the first dated line says what the days are of, and a line dated otherwise says its own (8 November
-         2026); the column widens by the longest such name for each line of the property. */
+      const dated = items.some(item => twoWay.dayOf(g, item));
+      const allKey = `${key}|${g.name}`, all = state.nall.has(allKey), shutKey = `${key}|links|${g.name}`, shut = state.linksShut.has(shutKey);
       const shownItems = all ? items : items.slice(0, twoWay.INLINE), first = shownItems.find(item => twoWay.dayOf(g, item));
       const days = shownItems.map(item => { const d = twoWay.lineDayOf(g, item, item !== first); return d && typeof d === 'object' ? { text: d.text.replace(/, \d{4}$/, ''), from: d.from } : String(d || '').replace(/, \d{4}$/, ''); });
-      const width = Math.max(0, ...days.map(d => d && d.from ? d.from.length : 0));
+      html += `<div class="th-ol-line lk-row th-tw-lhead">${O.chev({ open: !shut, label: g.label, attrs: { 'data-links': shutKey } })}<span class="th-ol-dot th-tw-lkind" aria-hidden="true">${shared.kindIconHtml(g.kind || 'node')}</span><span class="th-ol-body">${esc(g.label)}</span></div>`;
+      if (shut) continue;
+      let lines = '';
       shownItems.forEach((item, i) => {
         const k = `${key}>${item.uuid}`, open = state.dig.has(k);
         twoWay.lineDay.set(k, twoWay.dayCell(item));
-        const line = O.prop({ kind: g.kind || 'node', many: g.many, name: i ? '' : g.label, cls: 'th-tw-back', attrs: width ? { style: `--th-tw-from: ${width}` } : undefined, value: `${digChev(k, item.uuid, 0, twoWay.shortName(item.title), open)}${O.dot(false, { uuid: item.uuid, closed: !open && twoWay.hasKids(item.uuid), title: twoWay.shortName(item.title) })}${O.day(days[i] || (dated ? '' : null))}<span class="th-ol-body">${twoWay.nameHtml(item, open)}</span>` });
-        lines += open ? O.unit({ html: line + digKids(k, item.uuid, 'prop'), focus: state.focus === k, attrs: { 'data-key': k } }) : line;
+        const line = O.line({ dot: { uuid: item.uuid, closed: !open && twoWay.hasKids(item.uuid), title: twoWay.shortName(item.title) }, chev: digChev(k, item.uuid, 0, twoWay.shortName(item.title), open), day: days[i] || (dated ? '' : null), body: `${twoWay.nameHtml(item, open)}${O.from(days[i])}` });
+        lines += open ? O.unit({ html: line + digKids(k, item.uuid, 'in'), focus: state.focus === k, attrs: { 'data-key': k } }) : line;
       });
-      if (items.length > twoWay.INLINE) lines += O.more({ text: all ? 'show fewer' : `show ${items.length - twoWay.INLINE} more`, attrs: { 'data-nall': allKey }, under: 'value' });
+      if (items.length > twoWay.INLINE) lines += O.more({ text: all ? 'show fewer' : `show ${items.length - twoWay.INLINE} more`, attrs: { 'data-nall': allKey }, under: dated ? 'dotday' : 'dot' });
+      html += O.kids({ html: lines, cls: 'th-tw-lkids' });
     }
-    // A head like a list's (C4, 7 November 2026): its fold arrow, its count in the words, what kinds; folded, it says them.
-    const shut = state.linksShut.has(key);
-    const kinds = [...new Set(linking.flatMap(r => r.items.map(item => item.tag && item.tag !== 'note' ? twoWay.plural(twoWay.tagWord(item.tag), 2) : '')).filter(Boolean))].slice(0, 3).join(', ');
-    html += `<div class="th-ol-line th-tw-links" title="${esc(`${many} ${many === 1 ? 'node links' : 'nodes link'} to ${twoWay.shortName(titleOf(uuid))}`)}">${O.chev({ open: !shut, label: `${many} link here`, attrs: { 'data-links': key } })}<a href="#" class="th-tw-toggle th-tw-linkword" data-links="${esc(key)}">${many} link here</a>${kinds ? `<span class="th-tw-linkkinds">${esc(kinds)}</span>` : ''}</div>${shut ? '' : `<div class="th-tw-linked">${lines}</div>`}`;
+    html = outer + (linkedShut ? '' : O.kids({ html, cls: 'th-tw-linkedkids' }));
   }
   // Its words are changed where they stand (editBullet): a click, or Enter once Tab has reached them; its dot opens it.
-  for (const line of data.bullets) html += O.bullet({ html: twoWay.lineHtml(line.text, 400) + (twoWay.bulletTail?.(line.uuid) || ''), closed: twoWay.hasKids(line.uuid), attrs: { 'data-bullet': line.uuid }, wordsAttrs: { tabindex: '0', 'data-edit-bullet': line.uuid } });
+  // A bullet holding bullets has Logseq's fold arrow and opens in place, one step in (the owner, 10 November 2026: "now we
+  // cannot see children of bullets as we go deeper").
+  for (const line of data.bullets) {
+    const k = `${key}>${line.uuid}`, open = state.dig.has(k), kids = twoWay.hasKids(line.uuid);
+    const label = twoWay.shortName(line.text || 'the bullet');
+    const chev = kids || open ? O.chev({ open, label, attrs: { 'data-dig': k, 'data-uuid': line.uuid, 'data-title': label } }) : O.room();
+    const row = O.bullet({ html: twoWay.lineHtml(line.text, 400) + (twoWay.bulletTail?.(line.uuid) || ''), closed: kids && !open, attrs: { 'data-bullet': line.uuid }, wordsAttrs: { tabindex: '0', 'data-edit-bullet': line.uuid } }).replace('<div class="th-ol-bullet"', '<div class="th-ol-bullet th-ol-chevved"').replace(/(<div class="th-ol-bullet[^>]*>)/, `$1${chev}`);
+    html += open ? O.unit({ html: row + digKids(k, line.uuid, 'in'), focus: state.focus === k, attrs: { 'data-key': k } }) : row;
+  }
   if (data.more) html += O.more({ text: 'show all its bullets', attrs: { 'data-ball': uuid } });
   if (!field) return html;
   html += O.newBullet({ label: `A new bullet inside ${twoWay.shortName(titleOf(uuid))}`, attrs: { class: 'th-tw-node-field', 'data-uuid': uuid, 'data-key': key } });

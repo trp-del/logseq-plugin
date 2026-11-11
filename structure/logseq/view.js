@@ -52,6 +52,7 @@ const CSS = `
 .st-rel { display: grid; grid-template-columns: auto auto auto; gap: 3px 14px; justify-content: start; align-items: baseline; font-size: 14px; }
 .st-rel .self { font-weight: 700; color: inherit; } .st-rel .gap { grid-column: 1 / -1; height: 6px; } .st-rel .all { grid-column: 1 / -1; }
 .st-rel .num, .st-lines-t .num { font-variant-numeric: tabular-nums; }
+.st-rel:not(:has(> .lk-tag)) { grid-template-columns: auto auto; } .st-rel:not(:has(> .lk-tag)) > span:empty { display: none; }   /* only roads out: no column for the tag itself */
 /* A tag's own page: the lines above Logseq's table. */
 .st-tagholder { min-width: 0; }
 .page-inner:has(> .st-tagholder) .lk-path { display: none; }   /* the Parent line says it */
@@ -284,6 +285,9 @@ const CSS = `
 .st-tbl .dragging { opacity: .4; }
 .st-gnew { padding: 8px 2px 0; } .st-gnew .act + .act { margin-left: 20px; }
 .st-tbl .to, .st-lines-t .to { margin: 0 .35em; }
+/* Between the tags of a list, a comma (the audit's 33; the owner, 10 November 2026, of Every property's table: "just put a comma,
+   instead of blank space"), quiet, tight after the name; the inspector's Beside draws the same list. */
+.to.sp { margin: 0 !important; color: var(--lk-quiet); font-family: inherit; }
 /* A node's row: the day in the left margin (the margin is time), the tick, the bullet, the name. */
 .st-nodes .st-ln { grid-template-columns: 46px 14px 16px minmax(0, 1fr); }
 .st-nodes .st-ln .lk-day { white-space: nowrap; }
@@ -412,9 +416,9 @@ function make(holder, mode, app, opts = {}) {
   // What can be done stays in view, faint until it can be (the research: what you can do is recognised, not remembered), so nothing moves when a tag is picked.
   function actsHtml() {
     const aim = st.aim, names = aim && (aim.tags.length > 3 ? `${aim.tags.length} tags` : R.list(aim.tags.map(name)));
-    if (aim) return `<div class="st-acts lk-bar"><b class="lk-said">${aim.what === 'move' ? `Move ${esc(names)} to` : `Merge ${esc(names)} into`}: press a tag</b><span class="act lk-btn lk-low lk-i-x" data-aimoff>Leave it</span>${aim.what === 'move' ? '<span class="act lk-btn lk-i-up" data-aimtop>To the top</span>' : ''}</div>`;
+    if (aim) return `<div class="st-acts lk-bar"><b class="lk-said">${aim.what === 'move' ? `Move ${esc(names)} to` : `Merge ${esc(names)} into`}: press a tag</b><span class="act lk-btn lk-low lk-i-x" data-aimoff>Leave it</span>${aim.what === 'move' ? '<span class="act lk-btn lk-low lk-i-up" data-aimtop>To the top</span>' : ''}</div>`;
     const n = st.ticks.size;
-    return `<div class="st-acts lk-bar">${n ? `<b class="lk-said">${n} picked</b>` : '<span class="say">Pick tags to move or merge</span>'}<span class="act lk-btn lk-i-move ${n ? '' : 'waits'}" data-aim="move">Move to…</span><span class="act lk-btn lk-i-merge ${n > 1 ? '' : 'waits'}" data-aim="merge">Merge into…</span></div>`;
+    return `<div class="st-acts lk-bar">${n ? `<b class="lk-said">${n} picked</b>` : '<span class="say">Pick tags to move or merge</span>'}<span class="act lk-btn lk-low lk-i-move ${n ? '' : 'waits'}" data-aim="move">Move to…</span><span class="act lk-btn lk-low lk-i-merge ${n > 1 ? '' : 'waits'}" data-aim="merge">Merge into…</span></div>`;
   }
   /* Every property's bar, as Regions' is for tags: what is picked and what it can take, waiting faintly until it can. Merging,
      the rows are the choice ("press a property"); combining, the bar asks the name of the property they become. */
@@ -423,7 +427,7 @@ function make(holder, mode, app, opts = {}) {
     if (st.paim) return `<div class="st-acts lk-bar"><b class="lk-said">Merge ${esc(names)} into: press a property</b><span class="act lk-btn lk-low lk-i-x" data-paimoff>Leave it</span></div>`;
     if (st.edit?.what === 'pcombine' && st.edit.owner === mode) return `<div class="st-acts lk-bar"><b class="lk-said">Combine ${esc(names)} as</b><input class="st-in lk-field" data-edit value="${esc(st.edit.text)}" placeholder="Name of the property they become" autocomplete="off" spellcheck="false"><span class="act lk-btn lk-low lk-i-x" data-paimoff>Leave it</span></div>`;
     const n = ids.length;
-    return `<div class="st-acts lk-bar">${n ? `<b class="lk-said">${n} picked</b>` : '<span class="say">Pick properties to merge or combine</span>'}<span class="act lk-btn lk-i-merge ${n ? '' : 'waits'}" data-paim>Merge into…</span><span class="act lk-btn lk-i-rename ${n > 1 ? '' : 'waits'}" data-pcombine>Combine as…</span></div>`;
+    return `<div class="st-acts lk-bar">${n ? `<b class="lk-said">${n} picked</b>` : '<span class="say">Pick properties to merge or combine</span>'}<span class="act lk-btn lk-low lk-i-merge ${n ? '' : 'waits'}" data-paim>Merge into…</span><span class="act lk-btn lk-low lk-i-rename ${n > 1 ? '' : 'waits'}" data-pcombine>Combine as…</span></div>`;
   }
   function regionsHtml() {
     const areas = [];
@@ -435,7 +439,11 @@ function make(holder, mode, app, opts = {}) {
   // The relationships of a tag, read left to right: the tag that holds the property, the property and what it holds, how many nodes.
   const relWord = (id, t) => `<span class="lk-tag ${id === t ? 'self' : ''}" data-go="${esc(id)}">${esc(name(id))}</span>`;
   const relProp = (r, t) => `<span><span class="lk" data-open="${esc(P(r.prop)?.uuid || '')}">${esc(r.title)}</span>: ${relWord(r.to, t)}</span>`;
-  const relLine = (r, t) => `${relWord(r.from, t)}${relProp(r, t)}<span class="num">${r.n}</span>`;
+  // The tag itself, which the heading above already names, is left out of its own lines (the audit's 31): "Provider: Doctor 74"
+// for a road out of it, "Report  About" for a road into it.
+const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span class="num">${r.n}</span>`
+    : r.to === t ? `${relWord(r.from, t)}<span><span class="lk" data-open="${esc(P(r.prop)?.uuid || '')}">${esc(r.title)}</span></span><span class="num">${r.n}</span>`
+    : `${relWord(r.from, t)}${relProp(r, t)}<span class="num">${r.n}</span>`;
   function relsHtml(id) {
     const { out, in: inn } = Mo.roadsOf(M(), id), key = `rels${id}`;
     const part = (list, k) => { const shown = st.whole.has(key + k) ? list : list.slice(0, 3); return shown.map(r => relLine(r, id)).join('') + (shown.length < list.length ? `<span class="all lk-more" data-all="${key + k}">and ${list.length - shown.length} more</span>` : ''); };
@@ -460,8 +468,9 @@ function make(holder, mode, app, opts = {}) {
   function linesHtml(id) {
     if (!T(id)) return '';
     const up = Mo.pathOf(M(), id).slice(0, -1).reverse(), beside = up.length ? Mo.kids(M(), up[0]).filter(k => k !== id) : [];
-    return `<dl class="st-lines-t"><dt>Parent</dt><dd>${parentHtml(id)}</dd>${beside.length ? `<dt>Beside</dt><dd><span>${ranges(beside)}</span></dd>` : ''}` +
-      `<dt>Child tags</dt><dd>${kidsHtml(id)}</dd>` +
+    // Parent and Child tags are said once, on the line above the page's title (the owner, 9 November 2026, the audit's B2); the
+    // inspector beside it says what that line does not.
+    return `<dl class="st-lines-t">${beside.length ? `<dt>Beside</dt><dd><span>${ranges(beside)}</span></dd>` : ''}` +
       `<dt>Relationships</dt><dd>${relsHtml(id)}</dd></dl>${mergeAskHtml(id)}${changeAskHtml(id)}${suggestHtml(id)}`;
   }
   // A property's own page: the same short lines above what Logseq shows. Each action sits on what it acts on.
@@ -498,7 +507,7 @@ function make(holder, mode, app, opts = {}) {
   // names was hard to read, the owner, 30 October 2026); where it stands already says it is a tag.
   const tagLink = id => `<span class="lk-tag tg ${waitTag(id) ? 'lk-pencil' : ''}" data-go="${esc(id)}">${esc(name(id))}</span>`;
   // A range of many tags (Topic, on purpose, takes fifteen): the first three, then how many more; the property's card lists them all.
-  const ranges = ids => ids.slice(0, 3).map(tagLink).join('<span class="to">·</span>') + (ids.length > 3 ? `<span class="to">and ${ids.length - 3} more</span>` : '');
+  const ranges = ids => ids.slice(0, 3).map(tagLink).join('<span class="to sp">, </span>') + (ids.length > 3 ? `<span class="to">and ${ids.length - 3} more</span>` : '');
   // An issue that belongs to a line puts its fix word at the line's right end, after the faint count, with its ask under the line.
   const lineFix = (tagId, pid, kid) => { const i = R.issueOnLine(ISS(), tagId, pid, kid); return i ? { cls: 'fx', word: `<span class="fix act lk-fix lk-i-${fixIcon(i.fix)}" data-fix="${ISS().indexOf(i)}">${esc(fixWord(i.fix))}</span>`, ask: askHtml(ISS().indexOf(i)) } : { cls: '', word: '', ask: '' }; };
   function propLine(tagId, pid, of, inh) {

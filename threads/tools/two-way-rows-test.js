@@ -275,13 +275,18 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     check(!!doc.querySelector('.th-two-way .th-tw-row'), 'the rows should be drawn');
     check(!doc.querySelector('.th-tw-group'), 'with no grouping chosen the list should not be in groups');
     check(doc.querySelectorAll('.th-tw-line').length === 5 && !!doc.querySelector('[data-more]'), 'the plain list should show five lines and "show all"');
-    check(!doc.querySelector('.th-tw-groupby'), 'no View button on a heading while nothing is chosen (8 November 2026)');
+    check(!!doc.querySelector('.th-tw-head .th-tw-groupby .ti-dots') && !doc.querySelector('.th-tw-said'), 'the heading ends in one ⋯ and says nothing of the view while nothing is changed (the owner, 10 November 2026: 2 of heads.html)');
+    { const head = doc.querySelector('.th-tw-head .th-ol-body'), kids = [...head.children]; check(kids.indexOf(head.querySelector('.th-tw-groupby')) === kids.length - 1, 'the ⋯ is the last thing on the heading, after the +'); }
     { const side = await openView(window, doc);
       check(side.some(el => /Pick nodes/.test(el.textContent)) && doc.querySelector('.th-pop.th-side')?.parentElement?.classList.contains('th-pop'), 'View in the right-click opens its options to the side, inside the menu: ' + side.map(el => el.textContent.trim()));
       doc.querySelector('.th-pop.th-side').dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true })); await wait(20);
       check(!doc.querySelector('.th-pop.th-side') && !!doc.querySelector('.th-pop'), '← closes the options to the side and keeps the menu');
       doc.querySelector('.th-pop').dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); await wait(20);
       check(!doc.querySelector('.th-pop'), 'Escape closes the menu'); }
+    { doc.querySelector('.th-tw-head .th-tw-groupby').click(); await wait(40);
+      const rows = [...doc.querySelectorAll('.th-pop .th-item')].map(el => el.textContent.trim());
+      check(rows.some(t => /^Group by\s*Nothing$/.test(t)) && rows.some(t => /^Date\s*Date or journal$/.test(t)) && rows.some(t => /^Sort by\s*Day$/.test(t)) && rows.some(t => /Pick nodes/.test(t)), 'the ⋯ opens a short list, each setting with its value beside it: ' + rows.join(' | '));
+      doc.querySelector('.th-pop').dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); await wait(20); }
     // The whole section folds under its line (8 November 2026), kept for the page, and opens again.
     click(window, doc.querySelector('.th-tw-whole-name')); await wait(40);
     check(!doc.querySelector('.th-two-way .th-tw-row') && doc.querySelector('.th-tw-whole .th-chev')?.getAttribute('aria-expanded') === 'false', 'folded, only the section\'s line stands');
@@ -321,7 +326,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
   {
     const { window, doc, calls, part } = world('p:Confidence');
     await wait(150);
-    check(doc.querySelector('.th-tw-groupby[data-on]')?.textContent.trim() === 'By Confidence', 'the word should say what it is grouped by: ' + doc.querySelector('.th-tw-groupby')?.textContent);
+    check(doc.querySelector('.th-tw-said')?.textContent.trim() === 'By Confidence', 'the heading should say what it is grouped by, a setting not the default: ' + doc.querySelector('.th-tw-said')?.textContent);
     check(names(doc).join() === 'Disputed,Strong,No Confidence', 'groups should be Disputed, Strong (two each, by name) then No Confidence: ' + names(doc));
     check(counts(doc).join() === '2,2,2', 'each group should say how many: ' + counts(doc));
     check(groupEl(doc, 'Strong')?.querySelectorAll('.th-tw-line').length === 2, 'a group should list its nodes');
@@ -412,8 +417,8 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
   {
     const source = twoWay.text(), kit = fs.readFileSync(path.join(root, 'parts/shared.js'), 'utf8');
     check(!/data-picking\] \.th-tw-bar \{[^}]*padding-top/.test(source), 'the bar takes no more room when something is ticked');
-    check(/couldBeHtml\(item\)\}\$\{(tailHooks\.map\(hook => hook\(group, item\) \|\| ''\)\.join\(''\)\}\$\{)?tell/.test(source) && !/th-tw-crumb">[^`]*couldBeHtml/.test(source), 'what a mention could be stands on its own line, so coming late moves nothing');
-    check(/\.th-tw-head \.th-tw-sep \{ position: absolute; right: 100%/.test(source) && /\.th-tw-head \.th-tw-chips \{[^}]*overflow: hidden/.test(source), 'a dot stands in the gap before its piece, clipped at a line\'s start');
+    check(/couldBeHtml\(item\)\}\$\{(tailHooks\.map\(hook => hook\(group, item\) \|\| ''\)\.join\(''\)\}\$\{)?(O\.from\(day\)\}\$\{)?tell/.test(source) && !/th-tw-crumb">[^`]*couldBeHtml/.test(source), 'what a mention could be stands on its own line, so coming late moves nothing');
+    check(/\.th-tw-head \.th-tw-sep \{ display: none; \}/.test(source) && /\.th-tw-head \.th-tw-chips \{[^}]*overflow: hidden/.test(source), 'space alone between the head\'s pieces, no hairline (the audit\'s 33), a line\'s start clipped');
     check(/\.th-tw-head > \.th-ol-body \{ display: flex; align-items: baseline;/.test(source), 'the head does not wrap the + and Group onto a line of their own');
     check(/\.th-ol-body > \.th-tw-record \{ min-width: 0; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; \}/.test(source), 'a name runs to two lines, then is cut');
     check(!/title: item\.title/.test(source.slice(source.indexOf('async function showPeek'))) && !/\bday: item\.day/.test(source.slice(source.indexOf('async function showPeek'))), 'the card leaves out what the row says');
@@ -607,7 +612,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     part.stop();
   }
   // 5d. Threads Forty, the new things on a list (7 November 2026): since you last looked, pin, sort, what the list keeps saying,
-  //     the year line, gaps, the lists' order, the day steps.
+  //     the year line, the lists' order, the day steps.
   {
     const { window, doc, calls, part, provided } = world('');
     await wait(150);
@@ -643,6 +648,35 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     check(dots.length === 5, 'the days open a year line, a dot for each dated node (N3): ' + dots.length);
     click(window, dots.find(d => d.dataset.yday === '20261012')); await wait(60);
     check(lines().join('|') === 'Does it work for skills?|The best gap is a tenth of the time until the test.' && /showing/.test(head()), 'a dot narrows the list to its week: ' + lines());
+    // Lanes and spans (10 November 2026): the line laid out by a property, a lane narrowing the list, a drag picking days, Escape letting go.
+    click(window, doc.querySelector('.th-tw-row[data-field="about"] .th-tw-ydot[data-yday="20261012"]')); await wait(60);
+    check(lines().length === 5 && !/showing/.test(head()), 'a click inside the picked week gives the whole list back: ' + lines().length);
+    const about = () => st.groups.find(g => g.name === 'about'), timeline = () => tw.viewMenuHooks.flatMap(h => h(about()) || []).filter((it, i, all) => i > all.findIndex(x => x.group === 'Timeline') && !it.group).filter((it, i, all) => !all.slice(0, i).some(x => x.sep) && !it.sep);
+    const by = timeline().map(i => i.label);
+    check(by.join('|') === 'Hidden|One line|By Confidence|By Severity' && timeline().find(i => i.label === 'One line').chosen, 'the View menu offers the timeline hidden, as one line or in lanes by the properties its nodes share: ' + by);
+    timeline().find(i => i.label === 'By Confidence').run(); await wait(60);
+    const laneNames = () => [...doc.querySelectorAll('.th-tw-row[data-field="about"] .th-tw-ylane')].map(a => a.textContent.replace(/\s+\d+$/, ''));
+    check(laneNames().slice().sort().join('|') === 'Disputed|Strong|others' && laneNames()[2] === 'others' && JSON.parse(window.localStorage.getItem('thTwoWayYearLanes') || '{}').about === 'Confidence', 'by Confidence: a lane a value, others last, kept for the row: ' + laneNames());
+    check(new Set([...doc.querySelectorAll('.th-tw-row[data-field="about"] .th-tw-ydot')].map(d => d.style.getPropertyValue('--lane'))).size === 3, 'each dot stands in its lane');
+    check(/Timeline by Confidence/.test(doc.querySelector('.th-tw-row[data-field="about"] .th-tw-said')?.textContent || ''), 'the heading says the timeline in force: ' + doc.querySelector('.th-tw-row[data-field="about"] .th-tw-said')?.textContent);
+    click(window, doc.querySelector('.th-tw-row[data-field="about"] .th-tw-groupby')); await wait(80);
+    check([...doc.querySelectorAll('.th-pop .th-item')].some(el => /By Confidence/.test(el.textContent)), 'a click on the words opens the View menu, the timeline among its options');
+    doc.querySelectorAll('.th-pop').forEach(p => p.remove());
+    click(window, [...doc.querySelectorAll('.th-tw-row[data-field="about"] .th-tw-ylane')].find(a => a.textContent.startsWith('Strong'))); await wait(60);
+    check(lines().length === 2 && lines().every(l => /^Spacing beats|^The gap/.test(l)) && /showing Confidence Strong/.test(head()), 'a lane\'s name narrows the list to it, the head says so: ' + lines() + ' | ' + head());
+    doc.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); await wait(60);
+    check(lines().length === 5 && !/showing/.test(head()) && laneNames().length === 3, 'Escape lets go of the lane, the lanes stay: ' + lines().length);
+    { const track = doc.querySelector('.th-tw-row[data-field="about"] .th-tw-ytrack'); track.getBoundingClientRect = () => ({ left: 0, top: 0, width: 100, height: 70, right: 100, bottom: 70 });
+      const m = (type, x) => track.dispatchEvent(new window.MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, button: 0 }));
+      m('mousedown', 0); m('mousemove', 20); m('mousemove', 50); m('mouseup', 50); await wait(60); }
+    check(lines().length === 2 && /showing Sep 1 to/.test(head()), 'a drag across the line picks the days under it: ' + lines() + ' | ' + head());
+    doc.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); await wait(60);
+    check(lines().length === 5 && !/showing/.test(head()), 'Escape lets go of the span');
+    timeline().find(i => i.label === 'One line').run(); await wait(60);
+    check(!doc.querySelector('.th-tw-row[data-field="about"] .th-tw-ylane') && !window.localStorage.getItem('thTwoWayYearLanes')?.includes('about'), 'One line takes the lanes away');
+    timeline().find(i => i.label === 'Hidden').run(); await wait(60);
+    check(!doc.querySelector('.th-tw-row[data-field="about"] .th-tw-yearline'), 'Hidden folds the timeline away');
+    timeline().find(i => i.label === 'One line').run(); await wait(60);
     click(window, doc.querySelector('.th-tw-row[data-field="about"] .th-tw-head a.th-tw-when')); await wait(60);
     check(!doc.querySelector('.th-tw-ydot') && lines().length === 5, 'the days again fold the line and give the list back');
     // N1: since you last looked.
@@ -1027,22 +1061,23 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     const chev = (inside, uuid) => chevOf(doc, uuid, inside);
     const box = uuid => kidsOf(doc, uuid);
     check(!!chev(U(103), U(61)), 'a value that is another node should have the one chevron');
-    check(!!box(U(103))?.querySelector('.th-ol-prop .th-tag'), 'a value that is a node should show its tag after its name');
+    check(!!box(U(103))?.querySelector('.th-ol-line .th-tag'), 'a node in an opened node should show its tag after its name');
     click(window, chev(U(103), U(61))); await wait(150);
     check(!!box(U(61)) && box(U(61)).parentElement.firstElementChild.contains(chev(U(103), U(61))), 'the chevron should open that node under its own line, which stays where it was');
-    const own = el => el.closest('.th-ol-kids') === box(U(61));
-    const names61 = [...(box(U(61))?.querySelectorAll('.th-ol-pname') || [])].filter(own).map(el => el.textContent.trim()).filter(Boolean);
+    // One outline (10 November 2026): what links here hangs, a line per property, in its own step (th-tw-lkids) inside the node.
+    const own = el => el.closest('.th-ol-kids:not(.th-tw-lkids):not(.th-tw-linkedkids)') === box(U(61));
+    const names61 = [...(box(U(61))?.querySelectorAll('.th-ol-pname, .th-tw-lhead > .th-ol-body') || [])].filter(own).map(el => el.textContent.trim()).filter(Boolean);
     check(names61.filter(n => n === 'Source').length === 2, 'it should show its property and, named by that property itself, what points at it: ' + names61);
     check(!doc.querySelector('.th-tw-name .th-tw-arrow') && [...doc.querySelectorAll('.th-tw-name')].every(n => !/ of$/.test(n.textContent.trim())), 'a row should be named by its property, nothing added, no arrow');
-    check([...box(U(61)).querySelectorAll('.th-tw-back .th-tw-record')].filter(own).length === 1, 'what points at it should be listed one name per line, the way back left out');
-    //: the nodes that link to it under a line saying so, the arrow for the node above, after its own properties.
-    const links = [...(box(U(61))?.querySelectorAll('.th-tw-links') || [])].filter(own);
-    check(links.length === 1 && links[0].querySelector('.th-tw-linkword')?.textContent === '1 link here' && links[0].querySelector('.th-tw-linkkinds')?.textContent === 'Claims', 'the nodes linking to it should come under a head, "1 link here" and their kind (C4): ' + links.map(l => l.textContent));
-    click(window, links[0].querySelector('.th-tw-linkword')); await wait(80);
-    check(!box(U(61))?.querySelector('.th-tw-linked'), 'the head folds what links here');
-    click(window, box(U(61)).querySelector('.th-tw-linkword')); await wait(80);
-    check(!![...box(U(61)).querySelectorAll('.th-tw-links')].filter(own)[0]?.nextElementSibling?.matches('.th-tw-linked') && !![...box(U(61)).querySelectorAll('.th-tw-links')].filter(own)[0].nextElementSibling.querySelector('.th-tw-back'), 'the lines linking to it should sit under that line');
-    check(![...(box(U(61))?.querySelectorAll('.th-tw-linked .th-ol-prop:not(.th-tw-back)') || [])].filter(own).length, 'its own properties should not sit under that line');
+    check([...box(U(61)).querySelectorAll('.th-tw-lkids .th-tw-record')].filter(own).length === 1, 'what points at it should be listed one name per line, the way back left out');
+    //: the nodes that link to it under their property's line, a fold arrow before it, after its own properties; no "N link here" line.
+    const heads = () => [...(box(U(61))?.querySelectorAll('.th-tw-lhead:not(.th-tw-linkedline)') || [])].filter(own);
+    check(heads().length === 1 && !!box(U(61)).querySelector('.th-tw-linkedline') && !box(U(61)).querySelector('.th-tw-links'), 'the nodes linking to it should come under their property\'s line, with no "N link here" line: ' + heads().map(l => l.textContent));
+    click(window, heads()[0].querySelector('.th-chev[data-links]')); await wait(80);
+    check(!heads()[0]?.nextElementSibling?.matches('.th-tw-lkids'), 'the line\'s fold arrow folds what links here');
+    click(window, heads()[0].querySelector('.th-chev[data-links]')); await wait(80);
+    check(!!heads()[0]?.nextElementSibling?.matches('.th-tw-lkids') && !!heads()[0].nextElementSibling.querySelector('.th-tw-record'), 'the lines linking to it should sit one step in under that line');
+    check(![...(box(U(61))?.querySelectorAll('.th-tw-lkids .th-ol-prop') || [])].filter(own).length, 'its own properties should not sit under that line');
     check(!chev(U(61), U(103)) && !!chev(U(61), U(104)), 'the node on the way should not be listed again, another node should');
     click(window, chev(U(61), U(104))); await wait(150);
     // A level whose lines would break (at the fourth): the same chevron; opening it shifts the outline by
@@ -1259,8 +1294,9 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     check(!!box?.querySelector('.th-task.ls-icon-hourglass .ti.ti-hourglass'), 'a status with an icon chosen in Logseq shows that icon');
     check(box?.querySelectorAll('.th-task').length === 3, 'a node with no status shows no circle');
     { const when = box?.querySelector('.th-tw-when'); check(/^\w{3}\s\d+ to /.test(when?.textContent || '') && /Date/.test(when?.title || ''), 'the head says the days alone, and what they are of under the pointer (the audit\'s 26): ' + when?.textContent + ' | ' + when?.title); }
-    const froms = [...box?.querySelectorAll('.th-ol-dfrom') || []].map(e => e.textContent);
-    check(froms.length === 1 && froms[0] === 'Journal', 'only the line dated otherwise says its own: ' + JSON.stringify(froms));
+    const froms = [...box?.querySelectorAll('.th-ol-from') || []].map(e => e.textContent);
+    check(froms.length === 1 && froms[0] === 'Journal', 'only the line dated otherwise says its own, after its words (the audit\'s 30): ' + JSON.stringify(froms));
+    check(!box?.querySelector('.th-ol-day .th-ol-from, .th-ol-dfrom'), 'the day column holds the day alone');
     // A press on the circle opens Logseq's Set Status list; a pick writes the status, and the faded arrow puts the old one back.
     click(window, box.querySelector('.th-task.ls-icon-Todo')); await wait(30);
     const rowsOf = () => [...doc.querySelectorAll('.th-lsq-pop .menu-link')].map(a => a.textContent.trim());

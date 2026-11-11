@@ -706,8 +706,9 @@ const css = `
 /* Its ring, the one Look gives a property holding the keyboard: here the keyboard is in the list, outside the pill. */
 ${PILL}${AT}::after { inset: -2px 0 !important; border-radius: 6px !important; box-shadow: inset 0 0 0 1px var(--lk-line) !important; }
 ${PILL}:is(:not(:has(.empty-value)), :has(.lk-pencil)) ~ ${AT}::after { left: 16px !important; }
-/* A pill row the plugin made (an untagged bullet): the pills side by side, as Logseq lays out its own. */
-.positioned-properties.flow-made .bottom-properties-row { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: .5rem; row-gap: .25rem; }
+/* A pill row the plugin made (an untagged bullet): the pills side by side, centred on one line as Logseq lays out its own (items-center);
+   on their baselines the first pill stood 5 px above the others (the audit's 36). */
+.positioned-properties.flow-made .bottom-properties-row { display: flex; flex-wrap: wrap; align-items: center; column-gap: .5rem; row-gap: .25rem; }
 .flow-made-pill { display: inline-flex; align-items: baseline; gap: .3em; }
 /* A proposal's ×, the library's Take off: under the pointer on its property, or on the line for a proposed tag. */
 .flow-x { font-size: .95em; line-height: 1; display: inline-block; width: 0 !important; min-width: 0 !important; padding: 0 !important; margin: 0 !important; overflow: visible; white-space: nowrap; }
@@ -732,12 +733,47 @@ ${PILL}:is(:not(:has(.empty-value)), :has(.lk-pencil)) ~ ${AT}::after { left: 16
 // faint, which is Look's.
 const hideCss = `
 html.flow-hide-empty .ls-block .positioned-properties .bottom-property-pill:has(.empty-value):not([data-flow-proposal]):not([data-flow-at]):not(:focus-within):not(.block-main-container:has(textarea) *) { display: none !important; }
+/* A row under a bullet whose every property is so hidden goes too: left standing, empty, it opened a gap under the bullet
+   (11 November 2026, the owner: "bullets have this open view but empty so just have a gap"). A property shows while its value
+   holds something, a proposal, the keyboard, or the bullet is being written. */
+html.flow-hide-empty .ls-block .positioned-properties.block-below:not(:has(.bottom-property-content > :not(.empty-value, button, .lk-own), [data-flow-proposal], [data-flow-at], .flow-made-pill, :focus-within)):not(.block-main-container:has(textarea) *) { display: none !important; }
+/* A folded bullet with nothing under it but properties that are all empty (bare): Logseq's ring said something was folded, and
+   opening it showed nothing, so it gets Logseq's plain dot. */
+html.flow-hide-empty .block-control-wrap[data-has-children="false"][data-flow-bare] .bullet-container.bullet-closed:not(.typed-list) { background-color: transparent !important; }
 `;
 let hideVersion = 0;
 async function applyHide() {
   const version = ++hideVersion;
   const on = !S.stopped && setting('proposals') && setting('proposalsHideEmpty') && await app.allowed().catch(() => false);
   if (version === hideVersion) host().documentElement.classList.toggle('flow-hide-empty', !!on);
+}
+/* Which folded bullets with no bullets under them hold a value in a property Logseq would show under them once opened: a property
+   of your own not placed beside the words, or Deadline or Scheduled. The others are bare. Read once per bullet, again after a change. */
+const bare = { held: new Map(), asking: false };
+const FOLDED_LEAF = '.block-control-wrap.bullet-closed[data-has-children="false"]';
+async function readBare(uuids) {
+  bare.asking = true;
+  try {
+    const rows = await window.PluginDoor.query(`[:find ?u :where ${window.PluginDoor.uuidsIn('?u', uuids)} [?b :block/uuid ?u] [?b ?a _] [?p :db/ident ?a]
+      (or-join [?a] (and [(namespace ?a) ?ns] [(= ?ns "user.property")]) [(contains? #{:logseq.property/deadline :logseq.property/scheduled} ?a)])
+      (not [?p :logseq.property/ui-position :block-left]) (not [?p :logseq.property/ui-position :block-right])]`);
+    const holding = new Set(rows.map(([u]) => String(u).toLowerCase()));
+    for (const u of uuids) bare.held.set(u, holding.has(u));
+  } catch (error) { warnOnce('could not read which folded bullets hold values', error); for (const u of uuids) bare.held.set(u, true); }
+  finally { bare.asking = false; }
+  markBare(host());
+}
+function markBare(doc) {
+  if (S.stopped) return;
+  const ask = [];
+  for (const wrap of doc.querySelectorAll(FOLDED_LEAF)) {
+    const uuid = wrap.closest('.ls-block[blockid]')?.getAttribute('blockid')?.toLowerCase();
+    if (!uuid) continue;
+    if (!bare.held.has(uuid)) { ask.push(uuid); continue; }
+    wrap.toggleAttribute('data-flow-bare', !bare.held.get(uuid));
+  }
+  for (const wrap of doc.querySelectorAll('[data-flow-bare]:not(.bullet-closed)')) wrap.removeAttribute('data-flow-bare');
+  if (ask.length && !bare.asking) readBare([...new Set(ask)].slice(0, 200));
 }
 
 function start() {
@@ -750,6 +786,8 @@ function start() {
   app.listen(win, ['pointerdown', 'mousedown', 'mouseup', 'click'], onGhostPress, true);
   app.watch(onMutations, { early: true });
   S.stopped = false;
+  app.watch(markBare);
+  app.onStop(logseq.DB.onChanged?.(() => { bare.held.clear(); markBare(host()); }));
   applyHide();
   app.onStop(logseq.onSettingsChanged?.((now, before) => { if (window.PluginDoor.settingChanged(['proposals', 'proposalsSkipGraphs', 'proposalsHideEmpty'], now, before)) applyHide(); }));
   app.onStop(logseq.App.onCurrentGraphChanged?.(() => { S.version++; S.live = null; S.filling.clear(); S.refused.clear(); S.refusedGraph = ''; forgetUndo(S.undo?.record); undoDoor().clear('predictive'); applyHide(); }));
@@ -760,6 +798,8 @@ function start() {
     for (const el of doc.querySelectorAll('.flow-ghost, .flow-made, .flow-x, .flow-old')) el.remove();
     for (const el of doc.querySelectorAll('[data-flow-proposal], [data-flow-at]')) { el.removeAttribute('data-flow-proposal'); el.removeAttribute('data-flow-at'); }
     doc.documentElement.classList.remove('flow-hide-empty');
+    for (const el of doc.querySelectorAll('[data-flow-bare]')) el.removeAttribute('data-flow-bare');
+    bare.held.clear();
   });
 }
 // What the stepping piece (logseq/steps.js) works with.

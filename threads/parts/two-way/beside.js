@@ -78,8 +78,8 @@ function sideList(group, key) {
   const bare = new Set(group.items.map(item => item.tag)).size === 1;
   // Each line's day as on the rows: the side's head says what the days are of, a line dated otherwise says its own (8 November 2026).
   const dated = group.items.some(item => twoWay.dayOf(group, item)), days = shown.map(item => twoWay.dayCellOf(group, item));
-  const width = Math.max(0, ...days.map(d => d && d.from ? d.from.length : 0));
-  const lines = shown.map((item, i) => O.line({ dot: { uuid: item.uuid, title: twoWay.shortName(item.title) }, day: days[i] || (dated ? '' : null), body: twoWay.nameHtml(bare ? { ...item, tag: '' } : item, false, bare), cls: 'th-tw-line th-tw-bline', attrs: { 'data-uuid': item.uuid } })).join('');
+  const width = 0;   // what a day is of stands after the words (O.from)
+  const lines = shown.map((item, i) => O.line({ dot: { uuid: item.uuid, title: twoWay.shortName(item.title) }, day: days[i] || (dated ? '' : null), body: twoWay.nameHtml(bare ? { ...item, tag: '' } : item, false, bare) + O.from(days[i]), cls: 'th-tw-line th-tw-bline', attrs: { 'data-uuid': item.uuid } })).join('');
   const more = group.items.length > SHOWN ? O.more({ text: all ? 'show fewer' : `show ${group.items.length - SHOWN} more`, attrs: { class: null, 'data-more': key }, under: dated ? 'dotday' : 'dot' }) : '';
   return `<div class="th-ol th-tw-bside"${width ? ` style="--th-tw-from: ${width}"` : ''}>${lines}${more}</div>`;
 }

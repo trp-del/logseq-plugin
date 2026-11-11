@@ -376,7 +376,7 @@ const isDated = group => daysOf(group).length > 0;
 // A list of one has no head, so its line says what its day is of; so does any line dated otherwise than its list's head says.
 const aloneIn = group => group.items.length === 1 && !(group.found && group.total > 1) && !(group.since || []).length;
 // The day column widens by the longest such name, for the whole list, so the words of its lines still start at one place.
-const fromWidth = group => { const alone = aloneIn(group); let w = 0; for (const item of [...group.items, ...(group.since || [])]) { const d = twoWay.lineDayOf?.(group, item, !alone); if (d && d.from) w = Math.max(w, d.from.length); } return w; };
+const fromWidth = () => 0;   // what a day is of stands after the words now, so no list's day column widens for it (the audit's 30)
 const datedAttrs = group => { if (!daysOf(group).length) return ''; const w = fromWidth(group); return ` data-dated=""${w ? ` style="--th-tw-from: ${w}"` : ''}`; };
 const dayIn = (group, item) => twoWay.dayIn ? twoWay.dayIn(group, item) : item.day;
 // A line's day, short, with what it is of where its list does not say it.
@@ -496,7 +496,7 @@ function rowHtml(group, top = null) {
   /* The kinds as the kit's filter words, the one in force in the text colour. With several kinds they are the line by the
      chevron itself, the days at the end (the owner: the header "3 Therapeutic sessions, 3 Cancer Drugs" said what
      the words under it said again): folded it reads as the summary, and a click on a kind opens the list with only those. */
-  const chip = (tag, text, cls = '', raw = false) => `<button type="button" class="th-chip th-tw-chip${cls}" data-key="${esc(key)}" data-tag="${esc(tag)}" aria-pressed="${tag === only}">${raw ? text : esc(text)}</button>`;
+  const chip = (tag, text, cls = '', raw = false) => `<button type="button" class="th-chip th-tw-chip lk-view${tag === only ? ' on' : ''}${cls}" data-key="${esc(key)}" data-tag="${esc(tag)}" aria-pressed="${tag === only}">${raw ? text : esc(text)}</button>`;
   const kinds = counts.size > 1;
   /* One style for every list (1.0.2): the count and what they are first, in one weight ("11 Symptom Logs", or "4 nodes"
      when they are of several kinds); after it, quiet and parted by a dot, the kinds as filter words and the days. With several kinds the count is the old "All": it folds and unfolds the
@@ -519,7 +519,9 @@ function rowHtml(group, top = null) {
   const byCount = [...counts].sort((a, b) => b[1] - a[1]);
   const named = state.kindsAll.has(key) || byCount.length <= 3 ? byCount : byCount.findIndex(([tag]) => tag === only) > 2 ? [...byCount.slice(0, 2), byCount.find(([tag]) => tag === only)] : byCount.slice(0, 3);
   const rest = byCount.length - named.length;
-  const tail = [...(kinds ? named.map(([tag, n]) => chip(tag, `${esc(tag === 'note' ? 'No tag' : tag)} ${tabCount(n)}`, '', true)) : []), ...(kinds && rest ? [`<button type="button" class="lk-more th-tw-kinds" data-kinds="${esc(key)}">and ${rest} more</button>`] : []), whenHtml, was].filter(Boolean);
+  // What the list is set to, the View menu's words, stands before the days at the head's right (10 November 2026, the owner: B).
+  const view = twoWay.viewSaid(group), right = view || whenHtml ? `<span class="th-tw-right">${view}${whenHtml}</span>` : '';
+  const tail = [...(kinds ? named.map(([tag, n]) => chip(tag, `${esc(tag === 'note' ? 'No tag' : tag)} ${tabCount(n)}`, '', true)) : []), ...(kinds && rest ? [`<button type="button" class="lk-more th-tw-kinds" data-kinds="${esc(key)}">and ${rest} more</button>`] : []), right, was].filter(Boolean);
   // Each piece keeps its dot in the gap before it, and the head clips what stands before its left edge: a line that wraps starts on
   // its words, never on a dot (the stylesheet).
   const extra = headHooks.map(hook => hook(group, key, items) || '').join('');
@@ -561,9 +563,10 @@ function itemHtml(group, item, base, end = '', bare = false, tell = '') {
   // Opened by the find field, its name keeps its weight, so the tag and day after it do not slide right as letters
   // are typed (the reviewer: 4 to 9 px).
   lineDay.set(key, dayCell(item));
+  const day = dayCellOf(group, item);
   // Opened, the node's properties show the telling value: the line lets go of it.
-  const body = `${leadHooks.map(hook => hook(group, item) || '').join('')}${nameHtml(shown, open && state.findDug.get(key) !== true, bare)}${couldBeHtml(item)}${tailHooks.map(hook => hook(group, item) || '').join('')}${tell && !open ? twoWay.tellHtml(item, tell) : ''}${end}`;
-  const line = O.line({ tick: pickBox(group, item), dot: { uuid: item.uuid, closed: !open && hasKids(item.uuid), title: shortName(item.title) }, day: dayCellOf(group, item) || (isDated(group) ? '' : null), chev: twoWay.digChev(key, item.uuid, 0, shortName(item.title), open), body, cls: 'th-tw-line', attrs: { 'data-uuid': item.uuid } });
+  const body = `${leadHooks.map(hook => hook(group, item) || '').join('')}${nameHtml(shown, open && state.findDug.get(key) !== true, bare)}${couldBeHtml(item)}${tailHooks.map(hook => hook(group, item) || '').join('')}${O.from(day)}${tell && !open ? twoWay.tellHtml(item, tell) : ''}${end}`;
+  const line = O.line({ tick: pickBox(group, item), dot: { uuid: item.uuid, closed: !open && hasKids(item.uuid), title: shortName(item.title) }, day: day || (isDated(group) ? '' : null), chev: twoWay.digChev(key, item.uuid, 0, shortName(item.title), open), body, cls: 'th-tw-line', attrs: { 'data-uuid': item.uuid } });
   const under = `${crumbHtml(item)}${twoWay.raiseHtml(group, item)}`;
   return open ? O.unit({ html: line + under + twoWay.digKids(key, item.uuid, 'in'), focus: state.focus === key, attrs: { 'data-key': key } }) : line + under;
 }
@@ -965,7 +968,7 @@ function onRename(event) {
   event.preventDefault(); event.stopPropagation(); twoWay.hidePeek(); twoWay.closeAdd();
   // As wide as its longest words (the review, 31 October: a set width cut the widest action short).
   twoWay.adding.pop = shared.popup({ at: nameEl.querySelector('.th-tw-field') || nameEl, head: group.label, onClose: () => { twoWay.adding.pop = null; }, items: [
-    ...(!state.drawingTop ? [{ icon: 'order', label: 'View', sub: () => twoWay.viewItems(group), subWidth: 260 }] : []),
+    ...(!state.drawingTop ? [{ icon: 'order', label: 'View', sub: async () => twoWay.shortView(await twoWay.viewItems(group)), subWidth: 260 }] : []),
     { sep: true },
     isMentions(group)
       ? { icon: 'remove', label: 'Hide mentions on this page', run: () => { hideMentionsHere().catch(error => warnOnce('could not hide the mentions row', error)); } }

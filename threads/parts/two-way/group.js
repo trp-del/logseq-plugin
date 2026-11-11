@@ -130,17 +130,22 @@ function groupHtml(group, part, by) {
 /* One menu for how the list is shown (the owner, 7 November 2026: "the grouping and date and other things should be under one
    menu item"): what it is grouped by, which date its lines show, and picking its nodes. It is View in the list's right-click
    menu, its options to the side (the owner, 8 November 2026: no View button, "a combo menu" with View as a parent item); on
-   the heading only a quiet word says what is in force, and opens the same options. */
+   the heading quiet words say what is in force, and open the same options. Since 10 November 2026 (the owner picked B of
+   header-menu-options.html) the words stand on every list's heading, before its days, so the menu can be seen: "Day order ⌄"
+   while nothing is changed, else what is ("By month · Timeline by Topic ⌄"). */
 const viewHas = group => !state.drawingTop && group.items.length > 1;   // picking is offered on every list of two or more
-const groupBtn = group => {
+// What the list is set to, when it is not the default, said quietly on the heading before its days ("By month · Sorted by name");
+// nothing while nothing is changed (10 November 2026, the owner picked 2 of heads.html: one ⋯, a setting shown only when changed).
+const viewSaid = group => {
   if (!viewHas(group)) return '';
   const by = groupOf(group), day = dayChoice(group);
   // A date property chosen in View is said here, quietly, with what else is in force ("Days of Deadline"); the head says the days alone
   // (the audit's 26), and with the list's own dates nothing is said.
-  const said = [by ? `By ${groupName(by)}` : '', day === 'none' ? 'No date' : day.startsWith('p:') ? `Days of ${day.slice(2)}` : '', state.selecting.has(group.name) ? 'Picking' : ''].filter(Boolean).join(' · ');
-  if (!said) return '';
-  return `<button type="button" class="lk-btn lk-low th-tw-groupby" data-on="" data-field="${esc(group.name)}" title="How the list is shown">${esc(said)}${iconHtml('chevron-down')}</button>`;
+  const said = [by ? `By ${groupName(by)}` : '', day === 'none' ? 'No date' : day.startsWith('p:') ? `Days of ${day.slice(2)}` : '', twoWay.sortSaid?.(group) || '', twoWay.timelineSaid?.(group) || '', state.selecting.has(group.name) ? 'Picking' : ''].filter(Boolean).join(' · ');
+  return said ? `<span class="th-tw-said lk-note">${esc(said)}</span>` : '';
 };
+// The one ⋯ at the end of the heading: everything else about the list, in one short menu (groupMenu).
+const groupBtn = group => viewHas(group) || state.groups.length > 1 ? `<button type="button" class="lk-btn lk-low th-tw-groupby" data-field="${esc(group.name)}" aria-label="View and more" title="View and more">${iconHtml('more')}</button>` : '';
 // The values of these nodes, read through the model (400 at a time) into the cache the groups are made from.
 async function readValues(uuids) {
   // The kinds of the properties, for the one telling a list's nodes apart (tellingProp).
@@ -223,11 +228,38 @@ async function viewItems(group) {
   items.push({ group: 'Pick' }, { icon: 'picked', label: 'Pick nodes', chosen: picking, run: () => { if (picking) { state.selecting.delete(group.name); for (const key of [...state.picked]) if (key.endsWith('|' + group.name)) state.picked.delete(key); } else state.selecting.add(group.name); state.html = null; twoWay.draw(host()); } });
   return items;
 }
-// The same options as a menu of their own, from the word on the heading.
+/* The View options as a short list (10 November 2026, the owner picked "short list, submenus" in heads.html): one line per
+   setting with what is in force beside it, its choices opening to its side; a setting with one choice stays a line of its own. */
+function shortView(items) {
+  const out = [], parts = [];
+  let part = null;
+  for (const item of items) {
+    if (item.sep) { part = null; continue; }
+    if (item.group) { part = { name: item.group, items: [] }; parts.push(part); continue; }
+    if (!part) { part = { name: '', items: [] }; parts.push(part); }
+    part.items.push(item);
+  }
+  for (const p of parts) {
+    if (p.items.length < 2 || !p.name) { out.push(...p.items); continue; }
+    const chosen = p.items.find(x => x.chosen);
+    out.push({ label: p.name, right: chosen ? String(chosen.label).replace(', else the journal day', ' or journal') : '', sub: () => p.items });
+  }
+  return out;
+}
+// Up or down one place among the page's lists, through moveList (one Undo, the same as a drag).
+function moveItems(group) {
+  const names = state.groups.map(g => g.name), i = names.indexOf(group.name);
+  if (names.length < 2 || i < 0) return [];
+  return [...(i > 0 ? [{ icon: 'arrow-up', label: 'Move up', run: () => moveList(group.name, names[i - 1]) }] : []),
+    ...(i < names.length - 1 ? [{ icon: 'arrow-down', label: 'Move down', run: () => moveList(group.name, names[i + 2] || '') }] : [])];
+}
+// The ⋯ menu: the View options as a short list, then moving the list.
 async function groupMenu(group, anchor) {
   twoWay.closeAdd(); twoWay.hidePeek();
-  const items = await viewItems(group);
-  twoWay.adding.pop = shared.popup({ at: anchor, width: 260, items, onClose: () => { twoWay.adding.pop = null; } });
+  const view = viewHas(group) ? shortView(await viewItems(group)) : [], move = moveItems(group);
+  const items = [...view, ...(view.length && move.length ? [{ sep: true }] : []), ...move];
+  if (!items.length) return;
+  twoWay.adding.pop = shared.popup({ at: anchor, items, onClose: () => { twoWay.adding.pop = null; } });
 }
 // The + in a group: the line to type in opens under the group's name, with what the group has in common set when it is made.
 function startGroupDraft(group, gkey) {
@@ -304,5 +336,5 @@ twoWay.starters.push(() => {
   // Taken before Logseq's own drag handling (it takes dragover on the page for moving blocks).
   twoWay.listen(doc, 'dragstart', start, true); twoWay.listen(doc, 'dragover', over, true); twoWay.listen(doc, 'drop', drop, true); twoWay.listen(doc, 'dragend', end, true);
 });
-Object.assign(twoWay, { moveList, setGroup, dayChoice, dayOf, dayIn, dayFrom, listFrom, lineDayOf, forgetOrder, groupBtn, groupHtml, groupMenu, viewItems, groupName, groupOf, groupedUuids, groupingOf, isOpen, readGroup, readOpen, readValues, setGroupValue, setOpen, startGroupDraft, tellHtml, tellingProp });
+Object.assign(twoWay, { moveList, shortView, viewSaid, setGroup, dayChoice, dayOf, dayIn, dayFrom, listFrom, lineDayOf, forgetOrder, groupBtn, groupHtml, groupMenu, viewItems, groupName, groupOf, groupedUuids, groupingOf, isOpen, readGroup, readOpen, readValues, setGroupValue, setOpen, startGroupDraft, tellHtml, tellingProp });
 })();

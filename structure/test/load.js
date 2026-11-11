@@ -269,12 +269,15 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   deq(app.tray.lines().map(l => l.text), ['Make Finances at the top', 'Make Bill under Finances', 'Make Payment under Finances']);
   click(R.querySelector('[data-discard]')); assert.equal(app.tray.changes.length, 0);
 
-  // A tag's lines, in Logseq's words: all of them in the inspector ('tag'), Parent and Child tags alone on the page's one line ('line').
+  // A tag's lines, in Logseq's words: Parent and Child tags said once, on the page's one line ('line'); the inspector ('tag') says
+  // the rest, and leaves the tag itself, which its heading names, out of its relationships (the audit's 31).
   { const h = doc.createElement('div'); doc.body.appendChild(h);
     const full = S.view.make(h, 'tag', app, { tag: id('Consultation') }); app.mounted(full); await sleep(30);
     const all = text(full.root.querySelector('.st-lines-t'));
-    for (const word of ['Parent', 'Child tags', 'Relationships']) assert.ok(all.includes(word), word);
-    assert.ok(!all.includes('Extends'), 'the parent is called Parent');
+    assert.ok(all.includes('Relationships'), 'Relationships');
+    for (const word of ['Parent', 'Child tags', 'Extends']) assert.ok(!all.includes(word), 'said once, on the page: ' + word);
+    const rels = full.root.querySelector('.st-rel');
+    assert.ok(!rels || ![...rels.querySelectorAll('.lk-tag')].some(t => t.textContent === 'Consultation'), 'the inspector\'s relationships do not repeat the tag');
     full.destroy(); h.remove(); }
   const holder = doc.createElement('div'); doc.body.appendChild(holder);
   const tagView = S.view.make(holder, 'line', app, { tag: id('Consultation') }); app.mounted(tagView); await sleep(30);

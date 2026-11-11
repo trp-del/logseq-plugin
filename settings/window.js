@@ -161,7 +161,7 @@ function rowHtmlRaw(row) {
   const { specimen } = Door.described[part.key];
   if (item.type === 'action') return `<div class="sw-row"><span></span><button type="button" class="sw-do lk-lone lk-i-go" data-action="${esc(item.key)}">${esc(item.title)}</button></div>`;
   const value = read(item), key = esc(item.key), about = esc(item.description || '');
-  const reset = changed(item) ? `<button type="button" class="sw-default lk-lone lk-i-undo" data-reset="${key}" title="Back to the default">default</button>` : '';
+  const reset = changed(item) ? `<button type="button" class="sw-default lk-btn lk-low lk-i-undo" data-reset="${key}" title="Back to the default">default</button>` : '';
   const spec = specimen ? specimen(item, value) : '';
   const words = v => item.type === 'boolean' ? (v ? 'On' : 'Off') : esc(item.keys ? keyWords(v) : String(v ?? ''));
   const shown = (v, s) => s ? `<div class="sw-spec">${s}</div>` : `<div class="sw-spec">${words(v)}</div>`;
@@ -210,7 +210,7 @@ function drawSide(dlg) {
     const here = !words && state.view === 'part' && placeOf(state.cur) === place;
     const wait = place === 'parts' && parts().some(waiting);
     return `<div class="sw-mod lk-item${here ? ' on' : ''}${none ? ' sw-nomatch' : ''}" data-place="${place}" aria-current="${here}"><span class="sw-name${wait ? ' lk-pencil' : ''}">${esc(PLACES[place][0])}</span></div>`;
-  }).join('')}`).join('') + `<div class="sw-foot">${parts().some(waiting) ? '<button type="button" class="sw-reload lk-lone lk-i-reload" id="sw-reload">Reload to apply</button>' : ''}${anyChanged() || state.view === 'changed' ? `<button type="button" class="sw-word lk-lone${state.view === 'changed' ? ' on' : ''}" id="sw-changed">Changed by you</button>` : ''}<button type="button" class="sw-word lk-lone" id="sw-plain">Logseq’s list</button></div>`;
+  }).join('')}`).join('') + `<div class="sw-foot">${parts().some(waiting) ? '<button type="button" class="sw-reload lk-lone lk-i-reload" id="sw-reload">Reload to apply</button>' : ''}${anyChanged() || state.view === 'changed' ? `<button type="button" class="sw-word lk-btn lk-low${state.view === 'changed' ? ' on' : ''}" id="sw-changed">Changed by you</button>` : ''}<button type="button" class="sw-word lk-btn lk-low" id="sw-plain">Logseq’s list</button></div>`;
 }
 // A redraw replaces what had the keyboard: hand it back, so Escape and the arrows keep working.
 function draw() {

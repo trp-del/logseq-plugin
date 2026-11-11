@@ -76,7 +76,9 @@ const CSS = `
 .fd-head { margin: 6px 0 2px; }   /* the library's small faint name (lk-name) */
 /* A group's head: a bold word after a gap of one line (the grammar). */
 .fd-near { font-weight: 600; margin: 20px 0 2px calc(var(--fd-day) + 36px); }
-.fd-ch { display: grid; grid-template-columns: 118px minmax(0, 1fr); gap: 2px 10px; font-size: var(--lk-small); padding: 3px 0 7px; align-items: baseline; }
+/* Each choice line: its small name above its values, as the sentence's notes stand above its words (the audit's 35). */
+.fd-ch { display: grid; grid-template-columns: minmax(0, 1fr); gap: 3px 0; font-size: var(--lk-small); padding: 3px 0 7px; align-items: baseline; }
+.fd-ch > .fd-ck { font-size: var(--lk-label); }
 .fd-choices { padding-bottom: 14px; }
 .fd-head-rows { margin-top: 8px; }
 .fd-ck { color: var(--lk-quiet); display: flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -122,6 +124,7 @@ const CSS = `
 .fd-cut { display: flex; align-items: baseline; padding: 5px 0 6px calc(var(--fd-day) + 36px); }
 .fd-cut .fd-showall { padding: 0; }
 .fd-none, .fd-wait { padding-left: calc(var(--fd-day) + 36px); }   /* the library's nothing-here line (lk-none), under the words */
+.fd-say :is(.fd-none, .fd-wait) { padding-left: 0; }   /* the sentence has no rows to stand under: the line starts where the sentence does (the audit's 38) */
 /* A node opened in place: its properties, then what points at it, each a line that opens: the grammar's row, the dot
    ringed while closed, the number after the words as faint as on a lit choice. */
 .fd-kids { margin: 2px 0 6px calc(var(--fd-day) + 24px); padding-left: 10px; border-left: 1px solid var(--lk-hair); }
@@ -816,7 +819,7 @@ function foot(doc, groups, rows) {
   if (cur?.kind === 'node' && cur.top) add(KEY(S.dug.includes(cur.node.uuid) ? '←' : '→', S.dug.includes(cur.node.uuid) ? 'close' : 'dig'));
   if (cur?.kind === 'group') add(KEY(S.openGroups.has(cur.key) ? '←' : '→', S.openGroups.has(cur.key) ? 'close' : 'open'));
   if (!S.say && S.picks.length && !S.typed) add(KEY('Backspace', `take ${esc(S.picks[S.picks.length - 1].title || S.picks[S.picks.length - 1].label)} off`));
-  if (canMake()) { const name = S.typed.trim(); items.push(el(doc, 'span', { class: 'fd-right' }, el(doc, 'button', { class: 'lk-lone lk-i-plus', type: 'button', title: 'Make a page with these words as its name', click: () => makePage(name) }, `make a page “${name}”`, el(doc, 'span', { class: 'fd-k' }, makesPage(rows) ? 'Enter' : MOD + ' Enter')))); }
+  if (canMake()) { const name = S.typed.trim(); items.push(el(doc, 'span', { class: 'fd-right' }, el(doc, 'button', { class: 'lk-btn lk-low lk-i-plus', type: 'button', title: 'Make a page with these words as its name', click: () => makePage(name) }, `make a page “${name}”`, el(doc, 'span', { class: 'fd-k' }, makesPage(rows) ? 'Enter' : MOD + ' Enter')))); }
   return items;
 }
 

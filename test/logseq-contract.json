@@ -1,6 +1,6 @@
 {
  "checkedWith": "2.0.2",
- "acceptedOn": "2026-11-10",
+ "acceptedOn": "2026-11-11",
  "api": [
   "App.getCurrentGraph",
   "App.getCurrentGraphRecent",
@@ -72,6 +72,7 @@
   "bottom-properties-row",
   "bottom-property-content",
   "bottom-property-pill",
+  "bullet-closed",
   "bullet-container",
   "cp__header",
   "cp__plugins-item-card",
@@ -171,6 +172,7 @@
   "logseq.property/scheduled",
   "logseq.property/status",
   "logseq.property/type",
+  "logseq.property/ui-position",
   "logseq.property/value"
  ]
 }

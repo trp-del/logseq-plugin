@@ -24,8 +24,7 @@ const CSS = `
 #right-sidebar[data-lk-tabs] .lk-tabs { display: flex; align-items: center; gap: 4px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
 #right-sidebar[data-lk-tabs] .lk-tabs::-webkit-scrollbar { display: none; }
 #right-sidebar[data-lk-tabs] .lk-tab { display: inline-flex; align-items: center; flex: none; max-width: 180px; }
-#right-sidebar[data-lk-tabs] .lk-tab .cp__right-sidebar-settings-btn { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-#right-sidebar[data-lk-tabs] .lk-tab.on .cp__right-sidebar-settings-btn { opacity: 1 !important; font-weight: 500; }
+#right-sidebar[data-lk-tabs] .lk-tab .lk-view { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 #right-sidebar[data-lk-tabs] .sidebar-item-list > .sidebar-item:not([data-lk-tab-on]) { display: none !important; }
 #right-sidebar[data-lk-tabs] .sidebar-item-list > .sidebar-item[data-lk-tab-view] .sidebar-item-header { display: none !important; }
 #right-sidebar[data-lk-tabs] .sidebar-item-list > .sidebar-item[data-lk-tab-view] { border-top: 0 !important; margin-top: 0 !important; padding-top: 0 !important; }`;
@@ -44,8 +43,9 @@ function pickView(doc, view) {
   pick(doc, view.key);
 }
 function tabEl(doc, { word, on, title, click }) {
+  // The library's view (lk-view): the tab in force in the text colour with its short bar, the others quiet, as every view of the plugin.
   const box = doc.createElement('div'); box.className = `text-sm lk-tab${on ? ' on' : ''}`;
-  const press = doc.createElement('button'); press.type = 'button'; press.className = 'button cp__right-sidebar-settings-btn'; press.textContent = word;
+  const press = doc.createElement('button'); press.type = 'button'; press.className = `lk-view${on ? ' on' : ''}`; press.textContent = word;
   if (title) press.title = title;
   press.addEventListener('click', click);
   box.appendChild(press);

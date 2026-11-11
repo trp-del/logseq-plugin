@@ -814,7 +814,7 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
 .lk-reveals:hover .lk-reveal, .lk-reveal:focus-visible { opacity: 1; pointer-events: auto; transition-delay: 0s, 0s; }
 .lk-reveal:is(:hover, :focus-visible) { color: var(--lk-text, currentColor) !important; background: var(--lk-wash) !important; }   /* on the press itself: the round wash too, as on every press */
 .lk-reveal:focus-visible { outline: none; }
-.lk-btn:hover, .lk-btn:focus-visible, .lk-accent:hover, .lk-accent:focus-visible, .lk-lone:hover, .lk-lone:focus-visible, .lk-fix:hover, .lk-fix:focus-visible, .lk-view:hover, .lk-view:focus-visible, .lk-item:hover, .lk-item:focus-visible { background: var(--lk-wash); }
+.lk-btn:hover, .lk-btn:focus-visible, .lk-accent:hover, .lk-accent:focus-visible, .lk-lone:hover, .lk-lone:focus-visible, .lk-fix:hover, .lk-fix:focus-visible, .lk-item:hover, .lk-item:focus-visible { background: var(--lk-wash); }
 .lk-btn:focus-visible, .lk-accent:focus-visible, .lk-lone:focus-visible, .lk-fix:focus-visible, .lk-view:focus-visible, .lk-item:focus-visible { outline: none; }
 /* Three levels, so a button's weight says how much it matters before it is read (the owner, 1 November: "change the hierarchy of buttons").
    1, lk-accent: the one step that decides, filled in the text colour, one on a screen. Above it only lk-big, what Undo cannot put back.
@@ -833,10 +833,14 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
 .lk-btn.lk-low[aria-pressed="true"] { font-weight: 600; }   /* a third-level press in force (a kind picked, a sort on) */
 .lk-row .lk-btn.lk-low { padding-block: 1px !important; }   /* on a row it takes the row's height, so the row never grows for it */
 .lk-views { display: flex; gap: 4px; }
-.lk-view { color: var(--lk-quiet) !important; padding: 3px 8px; }
-/* The one in force reads at a glance (the owner, 6 November 2026: "you can hardly tell the selected heading"): full ink,
-   and a line under the word in the text colour; the others stay grey. */
-.lk-view.on { color: var(--lk-text, currentColor) !important; font-weight: 500; text-decoration: underline !important; text-decoration-color: currentColor !important; text-decoration-thickness: 2px !important; text-underline-offset: 6px; }
+/* lk-view: other contents of one place, drawn one way everywhere (the sidebar's tabs, Links, Structure, Linked's kinds): the one in
+   force in the text colour with a short bar under its word, the others quiet (the owner, 9 November 2026, C1b: "a short bar under
+   the view in force"). No underline, which means "opens"; no ground, no change of weight, so no name shifts when another is picked.
+   The bar is the word's width (--lk-view-pad, the press's own side padding, keeps it off the padding) and stands below the letters. */
+.lk-view { position: relative; color: var(--lk-quiet) !important; padding: 3px var(--lk-view-pad, 8px) 6px; font-weight: inherit; }
+.lk-view:hover, .lk-view:focus-visible { color: var(--lk-text, currentColor) !important; }
+.lk-view.on { color: var(--lk-text, currentColor) !important; }
+.lk-view.on::after { content: ""; position: absolute; left: var(--lk-view-pad, 8px); right: var(--lk-view-pad, 8px); bottom: 0; height: 2px; border-radius: 1px; background: currentColor; }
 .lk-trail { display: flex; flex-wrap: wrap; gap: 2px 6px; align-items: center; font-size: var(--lk-small); }
 .lk-trail > :not(.lk-step) { color: var(--lk-quiet); }
 .lk-step { color: var(--lk-quiet) !important; padding: 0; text-decoration: underline !important; text-decoration-color: var(--lk-hair) !important; text-underline-offset: 3px; }

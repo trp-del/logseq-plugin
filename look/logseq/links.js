@@ -102,10 +102,12 @@ function noteOf(doc, note, number) {
 }
 function linksBody(doc) {
   const view = (key, words) => el(doc, 'button', { class: `lk-view${state.view === key ? ' on' : ''}`, type: 'button', click: () => { state.view = key; render(doc); } }, words);
+  // Nothing to show: the one nothing-here line, at the top of the tab, as in every tab of the sidebar (the audit's 32); the two ways
+  // of ordering come only with something to order.
+  if (!state.page) return [el(doc, 'div', { class: 'lk-links-none lk-none' }, 'Open a page to see its links.')];
+  if (!state.rows.length) return [el(doc, 'div', { class: 'lk-links-none lk-none' }, 'No links in this page’s words.')];
   const body = [el(doc, 'div', { class: 'lk-views' }, view('kind', 'By kind'), view('page', 'Order on page'))];
-  if (!state.page) body.push(el(doc, 'div', { class: 'lk-links-none' }, 'Open a page to see its links.'));
-  else if (!state.rows.length) body.push(el(doc, 'div', { class: 'lk-links-none' }, 'No links in this page’s words.'));
-  else if (state.view === 'kind') for (const group of byKind(state.rows)) {
+  if (state.view === 'kind') for (const group of byKind(state.rows)) {
     const open = state.all.has(group.head), shown = open ? group.rows : group.rows.slice(0, FEW);
     body.push(el(doc, 'div', { class: 'lk-links-group' }, el(doc, 'div', { class: 'lk-links-head' }, group.head), ...shown.map(row => rowOf(doc, row, group.head !== NO_TAG)),
       shown.length < group.rows.length ? el(doc, 'button', { class: 'lk-more', type: 'button', click: () => { state.all.add(group.head); render(doc); unrollRest(doc, group.head); } }, `show all ${group.rows.length}`) : null));
@@ -113,8 +115,8 @@ function linksBody(doc) {
   return body;
 }
 function notesBody(doc) {
-  if (!state.page) return [el(doc, 'div', { class: 'lk-links-none' }, 'Open a page to see its citations.')];
-  if (!state.notes.length) return [el(doc, 'div', { class: 'lk-links-none' }, 'No citations on this page.')];
+  if (!state.page) return [el(doc, 'div', { class: 'lk-links-none lk-none' }, 'Open a page to see its citations.')];
+  if (!state.notes.length) return [el(doc, 'div', { class: 'lk-links-none lk-none' }, 'No citations on this page.')];
   return state.notes.map((note, i) => noteOf(doc, note, i + 1));
 }
 // read: the page was read for a section just opened, so what it holds grows on from the empty section (window.PluginDoor.regrow).

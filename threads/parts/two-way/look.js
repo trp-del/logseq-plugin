@@ -51,7 +51,7 @@ const twoWayCss = `
    separate sections at a glance. The name sits right on its list: its line is cut to the words' own height, so the
    space over the head is less than the space between two nodes, and the name reads as the list's caption, not a line
    of its own. */
-.th-two-way .th-tw-row + .th-tw-row { margin-top: 64px; }
+.th-two-way .th-tw-row + .th-tw-row { margin-top: 28px; }   /* the owner picked Tighter in heads.html, 10 November 2026 */
 /* The first group stands a line's gap under the find line, so the name does not sit on its hairline. */
 .th-two-way .th-tw-findrow + .th-tw-row { margin-top: 36px; }
 /* The name sits over its list, the list one step in under it (9 November 2026, the owner: the name was "way to close to
@@ -61,13 +61,13 @@ const twoWayCss = `
 .th-two-way .th-tw-row > .th-tw-name { padding-bottom: 2px; }
 /* The icons beside the names were taken out and put back the same day (9 November 2026, the owner: "put icons of
    properties in threads back"). */
-.th-two-way .th-tw-row > .th-tw-value { margin-left: var(--th-tw-level); }
+.th-two-way .th-tw-row > .th-tw-value { margin-left: 0; }   /* the list's head at the property name's edge, its chevron under the name's icon, not a level in (10 November 2026, the owner: "you still have everything indented all below the properties. I don't want that") */
 /* The name's words at Logseq's words edge: its icon 15px at the mark edge, the words 20px in (the field's wash reaches 4px out). */
 .th-two-way .th-tw-row > .th-tw-name { --th-tw-in: 17px; }   /* the words at 305, where Logseq's own property names start (its bullets' words are at 308) */
 /* The heading's words at the same edge. */
 .th-two-way .th-tw-whole-line > .th-ol-body { margin-left: 1px; }
 /* The list's words 20px right of its chevron, as Logseq's words from a bullet. */
-.th-two-way .th-tw-row > .th-tw-value > .th-tw-head > .th-ol-body { margin-left: -2px; }
+.th-two-way .th-tw-row > .th-tw-value > .th-tw-head > .th-ol-body { margin-left: -5px; }   /* its words on the property name's words */
 /* A property's name starts with its icon, hung in the room left of the name so the names stay on one edge
    with the row's own words ("Mentioned in"), which have none. The section has two edges (the owner, 7 November 2026: the
    cough page's lines started at five places): the icons, chevrons and the + stand on the section's edge; every name,
@@ -129,13 +129,23 @@ const twoWayCss = `
 .th-two-way .th-tw-keep:hover, .th-two-way .th-tw-keep[aria-pressed="true"] { color: var(--lk-text, currentColor); text-decoration-color: currentColor; }
 .th-two-way .th-tw-kname { color: var(--lk-quiet); }
 .th-two-way .th-tw-sorted { color: var(--lk-quiet); font-weight: 400; }
-/* The year line (N3): a hairline-framed strip under the head, a dot per node at its day, the months under it; a picked week a wash. */
-.th-two-way .th-tw-yearline { position: relative; height: 34px; margin: 2px 0 8px calc(2 * var(--th-tw-in)); border-top: 1px solid var(--lk-hair); border-bottom: 1px solid var(--lk-hair); }
-.th-two-way .th-tw-ydot { all: unset; position: absolute; top: 8px; width: 7px; height: 7px; margin-left: -3.5px; border-radius: 50%; background: var(--lk-quiet); cursor: pointer; }
+/* The year line (N3), shape A (10 November 2026, the owner's pick): no box; a hairline a lane through the dots, a tick where
+   each month starts and its name under it; the line in the words' column (after the days' column), 6px in at both ends so no
+   dot meets its end; with lanes, each lane's name right-aligned before the line, in the days' column. A picked span a wash.
+   What it shows is chosen in the list's View menu (Timeline). A drag across it picks days. */
+.th-two-way .th-tw-yearline { position: relative; height: calc(var(--lanes, 1) * 18px + 16px); margin: 4px 0 8px var(--th-tw-in); --th-tw-yname: 0px; }   /* starts at the bullets' left edge (the owner, 10 November 2026: "to the edge of where bullets go") */
+.th-two-way .th-tw-yearline.th-tw-ylaned { --th-tw-yname: 6.5rem; }   /* room for a lane name and its count, such as "Weight loss 2" */
+.th-two-way .th-tw-ytrack { position: absolute; inset: 0 0 0 var(--th-tw-yname); cursor: crosshair; user-select: none; }
+.th-two-way .th-tw-yrule { position: absolute; left: 0; right: 0; top: calc(var(--lane) * 18px + 9px); height: 1px; background: var(--lk-line); pointer-events: none; }
+.th-two-way .th-tw-ydot { all: unset; position: absolute; top: calc(var(--lane, 0) * 18px + 6px); width: 7px; height: 7px; margin-left: -3.5px; border-radius: 50%; background: var(--lk-quiet); cursor: pointer; }
 .th-two-way .th-tw-ydot:hover, .th-two-way .th-tw-ydot:focus-visible { background: var(--lk-text, currentColor); box-shadow: 0 0 0 3px var(--lk-wash); }
-.th-two-way .th-tw-ydot.th-tw-yoff { opacity: .3; }
-.th-two-way .th-tw-ymonth { position: absolute; bottom: 1px; font-size: var(--lk-label); color: var(--lk-quiet); transform: translateX(-2px); pointer-events: none; }
-.th-two-way .th-tw-yband { position: absolute; top: 0; bottom: 0; background: var(--lk-wash); pointer-events: none; }
+.th-two-way .th-tw-ydot.th-tw-yoff, .th-two-way .th-tw-ylane.th-tw-yoff { opacity: .3; }
+.th-two-way .th-tw-ylane { all: unset; position: absolute; left: 0; top: calc(var(--lane) * 18px + 1px); max-width: calc(var(--th-tw-yname) - 6px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--lk-label); line-height: 16px; color: var(--lk-quiet); cursor: pointer; }
+.th-two-way .th-tw-ylane:hover, .th-two-way .th-tw-ylane.on { color: var(--lk-text, currentColor); }
+.th-two-way .th-tw-ycount { color: var(--lk-quiet); opacity: .7; }
+.th-two-way .th-tw-ymonth { position: absolute; bottom: 0; font-size: var(--lk-label); line-height: 14px; color: var(--lk-quiet); transform: translateX(-50%); pointer-events: none; }
+.th-two-way .th-tw-ymonth::before { content: ""; position: absolute; left: 50%; top: -10px; height: 8px; border-left: 1px solid var(--lk-line); }
+.th-two-way .th-tw-yband { position: absolute; top: 0; bottom: 14px; background: var(--lk-wash); border-radius: 3px; pointer-events: none; }
 /* Saved views (N9): a quiet line under the find line. */
 .th-two-way .th-tw-views { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; margin: 4px 0 0 9px; font-size: var(--lk-small); }   /* its words at the words edge */
 .th-two-way .th-tw-viewname { all: unset; cursor: pointer; color: var(--lk-quiet); text-decoration: underline; text-decoration-color: var(--lk-line); text-underline-offset: 3px; }
@@ -198,8 +208,12 @@ const twoWayCss = `
    under it. Write into a node: the small arrow before a node, its bullets under its line. */
 /* Group shows all along (the owner: "can keep Group there all along, capitalize G"); before it showed only with
    the pointer on the row. */
-.th-two-way .th-tw-groupby { margin-left: .6em; }
-.th-two-way .th-tw-groupby .ti { font-size: 12px; }
+.th-two-way .th-tw-groupby { margin: 0; }   /* the ⋯ at the head's end: View, then moving the list (10 November 2026) */
+.th-two-way .th-tw-head .th-tw-right { display: inline-flex; align-items: baseline; gap: 1.05rem; }
+.th-two-way .th-tw-head .th-tw-groupby { font-weight: 400; color: var(--lk-quiet) !important; padding: 0 2px !important; opacity: .7; }   /* the one faint ⋯ at the head's end */
+.th-two-way .th-tw-head .th-tw-said { font-weight: 400; font-size: inherit; color: var(--lk-quiet); }   /* a setting not the default, said before the days, quiet as the days */
+.th-two-way .th-tw-head .th-tw-groupby:hover, .th-two-way .th-tw-head .th-tw-groupby:focus-visible { color: var(--lk-text, currentColor) !important; opacity: 1; }
+.th-two-way .th-tw-groupby .ti { font-size: 16px; }
 .th-two-way .th-tw-ghead { display: flex; align-items: baseline; gap: var(--th-ol-gap); margin: 14px 0 2px; }
 .th-two-way .th-tw-group:first-child .th-tw-ghead { margin-top: 2px; }
 .th-two-way .th-tw-gwords { display: inline-flex; align-items: baseline; gap: .35em; padding-right: .25em; color: var(--lk-quiet); }
@@ -296,24 +310,25 @@ const twoWayCss = `
 .th-two-way .th-tw-head .th-tw-chips { gap: .3rem 1.05rem; align-items: baseline; min-width: 0; overflow: hidden; }
 /* The words' wash reaches .25em past them (padding given back by margin): the clip edge stands that far out too, so the first letter is never cut. */
 .th-two-way .th-tw-head .th-tw-chips { padding-inline: .25em; margin-inline: -.25em; }
-.th-two-way .th-tw-head .th-tw-toggle.th-tw-lead, .th-two-way .th-tw-head .th-chip.th-tw-lead[aria-pressed="true"] { color: inherit; font-weight: 500; font-size: inherit; }
-.th-two-way .th-tw-head :is(.th-tw-chip:not(.th-tw-lead), .th-tw-when) { font-weight: 400; color: var(--lk-quiet); font-size: inherit; }
-.th-two-way .th-tw-head .th-tw-chip[aria-pressed="true"] { color: inherit; font-weight: 600; }
-.th-two-way .th-tw-head .th-chip.th-tw-lead[aria-pressed="false"] { color: var(--lk-quiet); font-weight: 400; font-size: inherit; }
-/* Between the tabs, a hairline (9 November 2026, the owner: "there should be hairline vertical separators for the different tab
-   pickers"), standing in the gap before each piece, half the gap from either side; the days, at the line's right end, need none. */
-.th-two-way .th-tw-head .th-tw-sep { position: absolute; right: 100%; margin-right: .52rem; visibility: visible; overflow: hidden; width: 0; height: 14px; align-self: center; border-left: 1px solid var(--lk-hair); }
-.th-two-way .th-tw-head .th-tw-piece:has(> .th-tw-when) > .th-tw-sep { display: none; }
+.th-two-way .th-tw-head .th-tw-toggle.th-tw-lead { color: inherit; font-weight: 500; font-size: inherit; }
+.th-two-way .th-tw-head .th-tw-when { font-weight: 400; color: var(--lk-quiet); font-size: inherit; }
+/* The kinds are the library's views (lk-view), as every "pick a view" of the plugin (the audit's 27 and 33, the owner, 10 November 2026):
+   the one in force in the text colour with the short bar under its word, the others quiet, all of one weight, so nothing shifts when
+   another is picked; space alone between them, no hairline (the audit's 33; the owner's comma is for the table's lists, 10 November 2026). The bar stands in room the line keeps below the words. */
+.th-two-way .th-tw-head .th-tw-chips { padding-bottom: 6px; margin-bottom: -6px; }
+.th-two-way .th-tw-head .th-tw-chip.lk-view { --lk-view-pad: 0px; padding: 0 !important; font-weight: 400; font-size: inherit; }
+.th-two-way .th-tw-head .th-tw-chip.lk-view.on::after { bottom: -5px; }
+.th-two-way .th-tw-head .th-tw-sep { display: none; }
 /* A tab's count, beside its word, a step lighter. */
 .th-two-way .th-tw-head .th-tw-n { margin-left: .3em; color: var(--lk-quiet); font-weight: 400; font-variant-numeric: tabular-nums; }
 /* The days stand at the right end of the head (9 November 2026, the owner: "date range in threads should be right aligned"). */
 .th-two-way .th-tw-head > .th-ol-body { flex: 1 1 auto; min-width: 0; }
 .th-two-way .th-tw-head > .th-ol-body > .th-tw-chips { flex: 1 1 auto; }
-.th-two-way .th-tw-head .th-tw-piece:has(> .th-tw-when) { margin-left: auto; }
+.th-two-way .th-tw-head .th-tw-piece:has(> .th-tw-right) { margin-left: auto; }
 .th-two-way .th-tw-head .lk-more { padding: 0; font-weight: 400; }
 .th-two-way .th-tw-head .th-tw-piece { position: relative; display: inline-flex; align-items: baseline; white-space: nowrap; }
 /* The days' words wrap as words do where the kinds' room is shorter than they are, never cut through a letter. */
-.th-two-way .th-tw-head .th-tw-piece:has(> .th-tw-when) { white-space: normal; min-width: 0; }
+.th-two-way .th-tw-head .th-tw-piece:has(> .th-tw-right) { white-space: normal; min-width: 0; }
 /* A list's days hang in the margin left of the outline (the owner, 2026-10-27: "dates … should not be in the way"): a
    node's chevron sits under its heading's words, one step in, and its day ends 4px short of the heading's chevron; under
    Group by the nodes step in once more under their group. */
@@ -411,9 +426,9 @@ const twoWayCss = `
 .th-two-way .th-tw-findrow { grid-column: 1 / -1; padding: 0; }
 /* The section's own line, the whole of it folding under it, as Logseq's Linked references head does. */
 .th-two-way .th-tw-whole { grid-column: 1 / -1; padding: 0 0 8px; }
-/* The section's heading reads as a heading, a step above the page's own words (9 November 2026, the owner: "Linked doesn't
-   even look like anything substantial"): 20px, semibold, the size of a heading in a page. */
-.th-two-way .th-tw-whole-name { color: inherit; font-size: 20px; font-weight: 600; line-height: 1.3; text-decoration: none; cursor: pointer; }
+/* The section's name in the size and weight of Logseq's own heading beside it, Unlinked references (the owner, 10 November 2026,
+   the audit's 34; it was 20px semibold from 9 November). */
+.th-two-way .th-tw-whole-name { color: inherit; font-size: 14px; font-weight: 500; line-height: 20px; text-decoration: none; cursor: pointer; }
 .th-two-way .th-tw-whole-name:hover { text-decoration: none; }
 /* The whole width of the section, its line a hairline even while typing (the owner: "weirdly short", "bottom of it can be
    hairline"). */
@@ -443,6 +458,34 @@ const twoWayCss = `
 .th-two-way .th-tw-bside { margin-top: 2px; }
 .th-two-way .th-tw-bside :is(.th-tw-bline, .th-ol-moreline) { padding-left: 0; }
 .th-two-way .th-tw-bside .th-ol-body > .th-tag { white-space: normal; }
+/* One outline (the owner, 10 November 2026, with Logseq's own outline as the example: "I just want all chevrons, bullets,
+   etc to be aligned and consistent with how an outline would look"). Every line inside an opened node is Logseq's line:
+   the fold arrow (16px), the gap (6px), the bullet (16px), the gap, the words; so a bullet's centre stands 30px in from its
+   line. What a line holds starts one step in: its hairline drops from the centre of the bullet above (29px + 1px), so
+   each level is 30px, as Logseq's. A property's name stands in a line of its own kind: its icon in the bullets' column,
+   its name where words start; a node it holds is a bullet in the value's place, and what that node holds hangs from that
+   bullet the same way. */
+.th-two-way .th-ol-kids.th-ol-kids:not(.th-ol-bare) { --th-ol-cx: 29px; margin-left: 29px; padding-left: 0; border-left: 1px solid var(--lk-line); }
+.th-two-way .th-ol-kids.th-ol-kids.th-ol-from-prop { margin-left: calc(var(--th-ol-name) + var(--th-ol-gap) + 7px); }   /* the value's bullet stands after the name's column and the line's gap */
+.th-two-way .th-ol-in > .th-ol-unit:has(> .th-ol-bullet) + .th-ol-bullet { margin-top: 0; }   /* a bullet after an opened bullet keeps the outline's rhythm */
+.th-two-way .th-ol-kids.th-ol-kids:not(.th-ol-bare) > .th-ol-in { padding-left: 0; }
+.th-two-way .th-ol-kids .th-ol-bullet { gap: var(--th-ol-gap); }
+.th-two-way .th-ol-kids .th-ol-bullet:not(.th-ol-chevved) { padding-left: calc(4px + 16px + var(--th-ol-gap)); }
+.th-two-way .th-ol-kids .th-ol-prop > .th-ol-pname { padding-left: calc(16px + var(--th-ol-gap) + 1.5px); }
+.th-two-way .th-ol-kids .th-ol-prop > .th-ol-pv > .th-chev-room:first-child { margin-left: calc(-16px - var(--th-ol-gap)); flex: none; }
+.th-two-way .th-tw-lhead { color: var(--lk-quiet); }
+.th-two-way .th-tw-lhead > .th-tw-lkind { opacity: .6; font-size: 13px; }
+.th-two-way .th-ol-in > .th-tw-lhead:not(:first-child) { margin-top: 8px; }
+.th-two-way .th-tw-lkids.th-ol-kids { margin-bottom: 2px; }
+.th-two-way .th-tw-lhead.th-tw-linkedline { color: inherit; font-weight: 500; }   /* "Linked" as the page's own Linked line: what is under it points here */
+.th-two-way .th-ol-in > .th-tw-linkedline:not(:first-child) { margin-top: 8px; }
+.th-two-way .th-ol-bullet > .lk-fold { opacity: 0 !important; transition: opacity .12s; }   /* a bullet's fold arrow as a line's: under the pointer, or while open */
+.th-two-way .th-ol-bullet:hover > .lk-fold, .th-two-way .th-ol-bullet > .lk-fold[aria-expanded="true"], .th-two-way .th-ol-bullet > .lk-fold:focus-visible { opacity: .6 !important; }
+.th-two-way .th-ol-bullet > .lk-fold:hover { opacity: 1 !important; }
+/* The words of the + appear on its left, inside the list's right edge, not past it (the owner, 10 November 2026: "this is
+   totally to the right of every thing"). */
+.th-two-way .th-tw-add::after { left: auto; right: 100%; margin-left: 0; margin-right: 4px; padding: 0 2px 0 6px; }
+.th-two-way .th-tw-head:has(.th-tw-add:hover) .th-tw-piece { visibility: hidden; }   /* the head's days give their place to the words while they show */
 `;
 /* Logseq's own far end (the owner's pick): the tag-named tabs below a page's blocks list the same records
    as the rows, without the field that links them. Left out in the main view while the rows are drawn there, so a page

@@ -2,7 +2,6 @@
    - Since you last looked (N1): a quiet dot before a node made since this page was last open, and "· 2 new" at the head,
      which narrows the list to them; the next visit starts again from then.
    - Pin a line (N2): a node's right-click menu pins it above the others of its list, on this page, until unpinned.
-   - Gaps (N7): a long silence between two dated nodes, far longer than the list's usual gap, says so on a quiet line.
    - Sort (N20): the View menu's Sort by: the day (Threads' own order), last changed, name or tag; the head says which.
    - What the list keeps saying (N6): under an open list's head, the values most of its nodes share, a click narrows to one.
    A piece of Threads' two-way part: parts/two-way.js is the part (the rows, their drawing, the start) and holds twoWay,
@@ -69,7 +68,8 @@ twoWay.listHooks.push((group, key, items) => {
   else if (by === 'tag') list.sort((a, b) => String(a.tag).localeCompare(String(b.tag)) || a.title.localeCompare(b.title));
   return list;
 });
-twoWay.headHooks.push(group => sortOf(group) ? `<span class="th-tw-piece"><span class="th-tw-sep" aria-hidden="true">·</span><span class="th-tw-sorted">by ${SORTS[sortOf(group)]}</span></span>` : '');
+// The order in force is said once, in the View menu's words on the heading (group.js).
+twoWay.sortSaid = group => sortOf(group) ? `Sorted by ${SORTS[sortOf(group)]}` : '';
 twoWay.viewMenuHooks.push(group => {
   const by = sortOf(group);
   return [{ group: 'Sort by' }, { label: 'Day', chosen: !by, run: () => setSort(group, '') },
@@ -103,25 +103,7 @@ twoWay.lineMenuHooks.push((group, item) => {
   return [{ icon: 'pin', label: on ? 'Unpin' : 'Pin to the top', run: () => pin(group, item, !on) }];
 });
 
-/* Gaps (N7): between two dated nodes, a silence of three times the list's usual gap, and two weeks at least. */
-const daysBetween = (a, b) => Math.round((new Date(Math.floor(a / 10000), Math.floor(a / 100) % 100 - 1, a % 100) - new Date(Math.floor(b / 10000), Math.floor(b / 100) % 100 - 1, b % 100)) / 86400000);
-const usualGap = new WeakMap();
-function usual(group) {
-  const by = twoWay.dayChoice(group), was = usualGap.get(group);
-  if (was && was.by === by) return was.median;
-  const days = group.items.map(item => twoWay.dayIn(group, item)).filter(Boolean).sort((a, b) => b - a);
-  const gaps = days.slice(1).map((d, i) => daysBetween(days[i], d)).filter(g => g > 0).sort((a, b) => a - b);
-  const median = gaps.length >= 3 ? gaps[Math.floor(gaps.length / 2)] : 0;
-  usualGap.set(group, { by, median });
-  return median;
-}
-twoWay.betweenHooks.push((group, item, prev, key) => {
-  // Only on the whole list in day order: a narrowed list's gaps are the narrowing's, not a silence.
-  const was = prev && twoWay.dayIn(group, prev), day = twoWay.dayIn(group, item);
-  if (!was || !day || sortOf(group) || pinsOf(group).includes(prev.uuid) || state.keeps.has(key) || state.onlyNew?.has(key) || String(state.find || '').trim()) return '';
-  const gap = Math.abs(daysBetween(was, day)), median = usual(group);
-  return median && gap >= 14 && gap >= 3 * median ? `<div class="th-tw-earlier lk-note th-tw-gap" title="No node of this list between ${esc(twoWay.dayText(Math.min(was, day)))} and ${esc(twoWay.dayText(Math.max(was, day)))}">quiet for ${gap} days</div>` : '';
-});
+/* Gaps (N7), "quiet for 25 days" between two dated nodes, were taken out at the owner's word (10 November 2026). */
 
 /* What the list keeps saying (N6): values held by two nodes or more and by at least a third of the list, not by all of it
    (that says nothing the head does not), the three most held; a click narrows the list to the nodes holding one. */
@@ -153,11 +135,41 @@ twoWay.clickHooks.push(event => {
 
 /* A year line (N3): the days in a list's head open a thin line under it, one dot per node where its day falls, the months
    under the line; the pointer on a dot names its node, a click on a dot narrows the list to that week, a click in it again
-   gives the whole list back. A click on the days again folds the line away. */
-state.yearOn = new Set(); state.yearPick = new Map();
+   gives the whole list back. A click on the days again folds the line away.
+   Lanes and spans (10 November 2026, the owner picked lanes "but allow time span to still be selected"): the list's View
+   menu, under Timeline, hides the line, shows it as one line, or lays it out by a property the nodes hold, one lane per value
+   (its three most held values, then "others"), as Find's opened timeline does, remembered per property row (the owner: "in
+   one menu"); a click on a lane's name narrows the list to that lane, a second click gives it back. A drag across the line
+   picks any span of days, the list narrowing as it goes. Escape lets go of the lane, then of the span, one at a time.
+   Its shape (the owner's pick A of timeline-shape-options.html): no box, a hairline a lane with the dots on it, a tick where
+   each month starts with its name under it, the line in the words' column, kept 6px in from both ends. */
+state.yearOn = new Set(); state.yearPick = new Map(); state.yearLaneOn = new Map();
 const dayNum = window.PluginDoor.dates.number;
 const dateOf = n => new Date(Math.floor(n / 10000), Math.floor(n / 100) % 100 - 1, n % 100);
 const MON = window.PluginDoor.dates.MONTHS.map(name => name.slice(0, 3));   // the door's month names (plugin.js)
+const LANES_KEY = 'thTwoWayYearLanes';   // { property row's name: the property its line is laid out by }
+const lanesBy = group => stored(LANES_KEY, {})[group.name] || '';
+const setLanesBy = (group, name) => { const all = stored(LANES_KEY, {}); if (name) all[group.name] = name; else delete all[group.name]; keep(LANES_KEY, all); };
+// The properties a list's nodes hold that could make lanes: two values at least, one held twice, not a value per node.
+function laneProps(group) {
+  const by = new Map();
+  for (const item of group.items) for (const v of new Set(valuesOf(item).filter(v => v.name !== group.name).map(v => `${v.name}\u0000${v.text}`))) {
+    const [name, text] = v.split('\u0000'), counts = by.get(name) || new Map();
+    counts.set(text, (counts.get(text) || 0) + 1); by.set(name, counts);
+  }
+  return [...by].map(([name, counts]) => ({ name, values: [...counts].sort((a, b) => b[1] - a[1]), held: [...counts.values()].reduce((a, b) => a + b, 0) }))
+    .filter(p => p.values.length >= 2 && p.values[0][1] >= 2 && p.values.length < group.items.length)
+    .sort((a, b) => b.held - a.held || a.name.localeCompare(b.name)).slice(0, 3);
+}
+// The lanes in force for a list: the property, its lanes' names ("others" last, when a node holds none of the three), a node's lane.
+function lanesOf(group) {
+  const prop = laneProps(group).find(p => p.name === lanesBy(group));
+  if (!prop) return null;
+  const top = prop.values.slice(0, 3).map(([text]) => text);
+  const laneOf = item => { const held = valuesOf(item).filter(v => v.name === prop.name).map(v => v.text); const i = top.findIndex(t => held.includes(t)); return i < 0 ? top.length : i; };
+  const names = group.items.some(item => twoWay.dayIn(group, item) && laneOf(item) === top.length) ? [...top, 'others'] : top;
+  return { prop, names, laneOf };
+}
 twoWay.underHeadHooks.unshift((group, key) => {
   if (!state.yearOn.has(key)) return '';
   const dayOf = item => twoWay.dayIn(group, item);
@@ -165,15 +177,79 @@ twoWay.underHeadHooks.unshift((group, key) => {
   if (dated.length < 2) return '';
   const days = dated.map(dayOf), lo = Math.min(...days), hi = Math.max(...days);
   const t0 = dateOf(lo).getTime(), span = Math.max(1, dateOf(hi).getTime() - t0);
-  const x = n => ((dateOf(n).getTime() - t0) / span * 100).toFixed(2);
-  const pick = state.yearPick.get(key);
-  const months = []; for (let d = new Date(dateOf(lo).getFullYear(), dateOf(lo).getMonth() + 1, 1); d.getTime() <= dateOf(hi).getTime(); d.setMonth(d.getMonth() + 1)) months.push(`<span class="th-tw-ymonth" style="left:${x(dayNum(d))}%">${MON[d.getMonth()]}${d.getMonth() === 0 ? ' ' + d.getFullYear() : ''}</span>`);
-  const band = pick ? `<span class="th-tw-yband" style="left:${x(Math.max(lo, pick[0]))}%;width:${Math.max(.8, x(Math.min(hi, pick[1])) - x(Math.max(lo, pick[0])))}%"></span>` : '';
-  const dots = dated.map(item => { const day = dayOf(item); return `<a href="#" role="button" class="th-tw-ydot${pick && (day < pick[0] || day > pick[1]) ? ' th-tw-yoff' : ''}" style="left:${x(day)}%" data-yday="${day}" data-ykey="${esc(key)}" title="${esc(`${twoWay.dayText(day)}: ${twoWay.shortName(item.title)}`)}" aria-label="${esc(twoWay.dayText(day))}"></a>`; }).join('');
-  return `<div class="th-tw-yearline" role="group" aria-label="Where in time the nodes fall">${band}${dots}${months.join('')}</div>`;
+  const f = n => (dateOf(n).getTime() - t0) / span, x = n => `calc(6px + (100% - 12px) * ${f(n).toFixed(4)})`;
+  const pick = state.yearPick.get(key), lanes = lanesOf(group), on = lanes ? state.yearLaneOn.get(key) : undefined;
+  const months = []; for (let d = new Date(dateOf(lo).getFullYear(), dateOf(lo).getMonth() + 1, 1); d.getTime() <= dateOf(hi).getTime(); d.setMonth(d.getMonth() + 1)) months.push(`<span class="th-tw-ymonth" style="left:${x(dayNum(d))}">${MON[d.getMonth()]}${d.getMonth() === 0 ? ' ' + d.getFullYear() : ''}</span>`);
+  const band = pick ? `<span class="th-tw-yband" style="left:${x(Math.max(lo, pick[0]))};width:max(6px, calc((100% - 12px) * ${(f(Math.min(hi, pick[1])) - f(Math.max(lo, pick[0]))).toFixed(4)}))"></span>` : '';
+  const dots = dated.map(item => {
+    const day = dayOf(item), lane = lanes ? lanes.laneOf(item) : 0;
+    const off = (pick && (day < pick[0] || day > pick[1])) || (on !== undefined && lane !== on);
+    return `<a href="#" role="button" class="th-tw-ydot${off ? ' th-tw-yoff' : ''}" style="left:${x(day)};--lane:${lane}" data-yday="${day}" data-ykey="${esc(key)}" title="${esc(`${twoWay.dayText(day)}: ${twoWay.shortName(item.title)}`)}" aria-label="${esc(twoWay.dayText(day))}"></a>`;
+  }).join('');
+  const names = lanes ? lanes.names.map((name, i) => { const n = dated.filter(item => lanes.laneOf(item) === i).length; return `<a href="#" role="button" class="th-tw-ylane${on === i ? ' on' : on !== undefined ? ' th-tw-yoff' : ''}" style="--lane:${i}" data-ylane="${i}" data-ykey="${esc(key)}" title="${on === i ? 'Show every lane' : `Only the nodes whose ${esc(lanes.prop.name)} is ${esc(name)}`}">${esc(name)} <span class="th-tw-ycount">${n}</span></a>`; }).join('') : '';
+  const rules = Array.from({ length: lanes ? lanes.names.length : 1 }, (_, i) => `<span class="th-tw-yrule" style="--lane:${i}"></span>`).join('');
+  return `<div class="th-tw-yearline${lanes ? ' th-tw-ylaned' : ''}" style="--lanes:${lanes ? lanes.names.length : 1}" role="group" aria-label="Where in time the nodes fall; drag across it to pick days">${names}<div class="th-tw-ytrack" data-ykey="${esc(key)}" data-ylo="${lo}" data-yhi="${hi}">${band}${rules}${months.join('')}${dots}</div></div>`;
 });
-twoWay.listHooks.push((group, key, items) => { const p = state.yearPick.get(key); return p ? items.filter(item => twoWay.dayIn(group, item) >= p[0] && twoWay.dayIn(group, item) <= p[1]) : items; });
-twoWay.headHooks.push((group, key) => { const p = state.yearPick.get(key); return p ? `<span class="th-tw-piece"><span class="th-tw-sep" aria-hidden="true">·</span><span class="th-tw-sorted">showing ${esc(twoWay.dayText(p[0]))} to ${esc(twoWay.dayText(p[1]))}</span></span>` : ''; });
+twoWay.listHooks.push((group, key, items) => {
+  const p = state.yearPick.get(key), on = state.yearLaneOn.get(key), lanes = on !== undefined ? lanesOf(group) : null;
+  return items.filter(item => (!p || (twoWay.dayIn(group, item) >= p[0] && twoWay.dayIn(group, item) <= p[1])) && (!lanes || lanes.laneOf(item) === on));
+});
+twoWay.headHooks.push((group, key) => {
+  const p = state.yearPick.get(key), on = state.yearLaneOn.get(key), lanes = on !== undefined ? lanesOf(group) : null;
+  const said = [lanes ? `${lanes.prop.name} ${lanes.names[on]}` : '', p ? `${twoWay.dayText(p[0])} to ${twoWay.dayText(p[1])}` : ''].filter(Boolean).join(', ');
+  return said ? `<span class="th-tw-piece"><span class="th-tw-sep" aria-hidden="true">·</span><span class="th-tw-sorted">showing ${esc(said)}</span></span>` : '';
+});
+// The timeline in force, for the View menu's words on the heading: "Timeline", "Timeline by Topic", or nothing while hidden.
+twoWay.timelineSaid = group => { const key = listKey(group); if (!state.yearOn.has(key)) return ''; const lanes = lanesOf(group); return lanes ? `Timeline by ${lanes.prop.name}` : 'Timeline'; };
+// The list's View menu, under Timeline: hidden, one line, or lanes by a property (the owner: "organize view in one menu").
+twoWay.viewMenuHooks.push(group => {
+  if (group.items.filter(item => twoWay.dayIn(group, item)).length < 2) return [];
+  const key = listKey(group), open = state.yearOn.has(key), by = open ? lanesOf(group)?.prop.name || '' : null;
+  const show = name => { state.yearOn.add(key); twoWay.setOpen?.(key, true); setLanesBy(group, name); state.yearLaneOn.delete(key); redraw(); };
+  return [{ group: 'Timeline' }, { label: 'Hidden', chosen: !open, run: () => { state.yearOn.delete(key); state.yearPick.delete(key); state.yearLaneOn.delete(key); redraw(); } },
+    { label: 'One line', chosen: by === '', run: () => show('') },
+    ...laneProps(group).map(p => ({ icon: 'property', label: `By ${p.name}`, chosen: by === p.name, run: () => show(p.name) }))];
+});
+// A drag across the line: the band follows the pointer, and letting go picks the days under it.
+twoWay.starters.push(() => {
+  const doc = host();
+  let drag = null;
+  const dayAt = (track, clientX) => {
+    const r = track.getBoundingClientRect(), f = Math.min(1, Math.max(0, (clientX - r.left) / r.width));
+    const lo = dateOf(Number(track.dataset.ylo)).getTime(), hi = dateOf(Number(track.dataset.yhi)).getTime();
+    return dayNum(new Date(lo + f * (hi - lo) + 43200000));
+  };
+  const down = event => {
+    const track = event.button === 0 && event.target.closest?.('.th-two-way .th-tw-ytrack');
+    if (track) drag = { track, x: event.clientX, from: dayAt(track, event.clientX), moved: false };
+  };
+  const move = event => {
+    if (!drag) return;
+    if (!drag.moved && Math.abs(event.clientX - drag.x) < 5) return;
+    if (!drag.moved) { drag.moved = true; drag.band = drag.track.querySelector('.th-tw-yband') || drag.track.insertAdjacentElement('afterbegin', doc.createElement('span')); drag.band.className = 'th-tw-yband'; }
+    const r = drag.track.getBoundingClientRect(), a = Math.max(0, Math.min(drag.x, event.clientX) - r.left), b = Math.min(r.width, Math.max(drag.x, event.clientX) - r.left);
+    drag.band.style.left = `${a / r.width * 100}%`; drag.band.style.width = `${(b - a) / r.width * 100}%`;
+    event.preventDefault();
+  };
+  const up = event => {
+    if (!drag) return;
+    const was = drag; drag = null;
+    if (!was.moved) return;
+    const to = dayAt(was.track, event.clientX);
+    state.yearPick.set(was.track.dataset.ykey, [Math.min(was.from, to), Math.max(was.from, to)]);
+    state.yearDragged = true; setTimeout(() => { state.yearDragged = false; }, 0);   // the click that ends a drag is not a click on a dot
+    redraw();
+  };
+  // Escape lets go of a lane, then of a span, before anything else it does on these rows.
+  const escape = event => {
+    if (event.key !== 'Escape' || event.target.closest?.('input, textarea, [contenteditable="true"]') || state.picked.size || state.selecting.size) return;
+    const lane = [...state.yearLaneOn.keys()].pop(), span = [...state.yearPick.keys()].pop();
+    if (lane !== undefined) state.yearLaneOn.delete(lane); else if (span !== undefined) state.yearPick.delete(span); else return;
+    event.preventDefault(); event.stopImmediatePropagation(); redraw();
+  };
+  twoWay.listen(doc, 'mousedown', down, true); twoWay.listen(doc, 'mousemove', move, true); twoWay.listen(doc, 'mouseup', up, true);
+  twoWay.listen(doc, 'keydown', escape, true);
+});
 
 /* Compare two nodes (N4): with two picked, the bar's Compare lays them side by side in a card, one property to a line, the
    values that differ in the text colour and the same ones quiet, then their first bullets. */
@@ -278,7 +354,10 @@ twoWay.starters.push(() => {
 twoWay.clickHooks.push(event => {
   const t = event.target, stop = () => { event.preventDefault(); event.stopPropagation(); twoWay.hidePeek(); };
   const when = t.closest?.('.th-tw-head a.th-tw-when');
-  if (when) { stop(); const k = when.dataset.key; if (state.yearOn.has(k)) { state.yearOn.delete(k); state.yearPick.delete(k); } else { state.yearOn.add(k); twoWay.setOpen?.(k, true); } redraw(); return true; }
+  if (when) { stop(); const k = when.dataset.key; if (state.yearOn.has(k)) { state.yearOn.delete(k); state.yearPick.delete(k); state.yearLaneOn.delete(k); } else { state.yearOn.add(k); twoWay.setOpen?.(k, true); } redraw(); return true; }
+  if (state.yearDragged && t.closest?.('.th-tw-ytrack')) { stop(); return true; }
+  const ylane = t.closest?.('[data-ylane]');
+  if (ylane) { stop(); const k = ylane.dataset.ykey, i = Number(ylane.dataset.ylane); if (state.yearLaneOn.get(k) === i) state.yearLaneOn.delete(k); else state.yearLaneOn.set(k, i); redraw(); return true; }
   const ydot = t.closest?.('[data-yday]');
   if (ydot) {
     stop(); const k = ydot.dataset.ykey, d = Number(ydot.dataset.yday), p = state.yearPick.get(k);
@@ -412,7 +491,7 @@ twoWay.clickHooks.push(event => {
   if (bnode) { stop(); const best = state.raise.get(bnode.dataset.bnode)?.best; if (best) twoWay.raise?.(best, [bnode.dataset.bnode]).then(() => twoWay.later(200)).catch(error => warnOnce('could not make the bullet a node', error)); return true; }
   return false;
 });
-twoWay.starters.push(() => { state.stamps = new Map(); state.keeps = new Map(); state.visitPage = ''; state.yearOn = new Set(); state.yearPick = new Map(); });
+twoWay.starters.push(() => { state.stamps = new Map(); state.keeps = new Map(); state.visitPage = ''; state.yearOn = new Set(); state.yearPick = new Map(); state.yearLaneOn = new Map(); });
 
 Object.assign(twoWay, { exportList, keepBeside, compare, hasViews, isNew, pinsOf, sortOf, viewsHtml });
 })();

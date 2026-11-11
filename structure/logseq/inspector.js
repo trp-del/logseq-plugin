@@ -44,7 +44,7 @@ async function drawNode() {
     else if (b) kids = await logseq.Editor.getPageBlocksTree(uuid) || [];   // the row is a page: its content is its outline
   } catch (error) { /* gone meanwhile */ }
   if (ask !== insp.ask) return;
-  if (!b) { box.innerHTML = '<p class="st-insp-none">This row’s node is gone.</p>'; return; }
+  if (!b) { box.innerHTML = '<p class="st-insp-none lk-none">This row’s node is gone.</p>'; return; }
   const props = { ...(b.properties || {}) };
   // A page is handed with its values as bare ids: each is read, so it shows by its name. A number property keeps its number.
   const whole = async (v, key) => {
@@ -91,7 +91,7 @@ function idle() {
   const doc = box.ownerDocument, table = !!doc.querySelector(ROW), lines = !!insp.top?.querySelector('.st-lines-t');
   const say = table ? 'Press a row in the table to see it here.' : lines ? '' : 'Open a tag’s or a property’s page to see it here.';
   if (box.textContent === say) return;
-  box.innerHTML = say ? `<p class="st-insp-none">${say}</p>` : '';
+  box.innerHTML = say ? `<p class="st-insp-none lk-none">${say}</p>` : '';
 }
 function pick(uuid) {
   mark(uuid);

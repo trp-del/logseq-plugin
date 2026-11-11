@@ -339,7 +339,7 @@ function popup({ at, kind = 'menu', head, items, field: fieldOptions, rows, keys
       const b = el(doc, 'button', { type: 'button', class: `th-item lk-item${item.on ? ' on' : ''}${item.faint ? ' th-faint' : ''}${item.cls ? ' ' + item.cls : ''}`, role: 'menuitem', title: item.title || null, disabled: item.disabled || null,
         click: () => run(item) },
         item.icon ? icon(doc, item.icon) : null, item.html ? el(doc, 'span', { class: 'th-item-words', html: item.html }) : el(doc, 'span', { class: 'th-item-words' }, String(item.label ?? '')),
-        item.sub ? el(doc, 'span', { class: 'th-end th-sub-arrow' }, icon(doc, 'fold')) : item.kbd ? el(doc, 'kbd', {}, item.kbd) : item.right ? el(doc, 'span', { class: 'th-end' }, typeof item.right === 'string' ? item.right : '', typeof item.right === 'string' ? null : item.right) : item.chosen ? el(doc, 'span', { class: 'th-end' }, icon(doc, 'chosen')) : null);
+        item.sub ? el(doc, 'span', { class: 'th-end th-sub-arrow' }, item.right ? el(doc, 'span', { class: 'th-sub-now' }, String(item.right)) : null, icon(doc, 'fold')) : item.kbd ? el(doc, 'kbd', {}, item.kbd) : item.right ? el(doc, 'span', { class: 'th-end' }, typeof item.right === 'string' ? item.right : '', typeof item.right === 'string' ? null : item.right) : item.chosen ? el(doc, 'span', { class: 'th-end' }, icon(doc, 'chosen')) : null);
       b.item = item;
       body.append(b);
     }
@@ -619,8 +619,12 @@ const outline = {
      opens: it opens something its line says (a bullet's own dot). hidden: only a dot's room (a "show all" under dotted lines). */
   dot: (hidden = false, { uuid = '', closed = false, title = '', opens = false } = {}) => `<span class="th-ol-dot${hidden ? ' th-ol-dot-room' : ''}" aria-hidden="${uuid ? 'false' : 'true'}"><span class="lk-bul${closed ? ' folded' : ''}${uuid || opens ? ' opens' : ''}"${uuid ? ` data-open-uuid="${esc(uuid)}" title="${esc(title ? `Open ${title}` : 'Open')}"` : ''}></span></span>`,
   // The day's column: nothing when the list has no days (null), else the day, or its room where a line has none ('').
-  // A day that says what it is of ({ text, from }: "Oct 7 Journal", 8 November 2026) carries the property's name after it, smaller.
-  day: day => day == null ? '' : day && typeof day === 'object' ? `<span class="th-ol-day lk-day" title="${esc(`${day.from}: ${day.text}`)}"><span class="th-ol-dtext">${esc(day.text)}</span><span class="th-ol-dfrom lk-name">${esc(day.from)}</span></span>` : `<span class="th-ol-day lk-day">${esc(day)}</span>`,
+  // A day that says what it is of ({ text, from }) shows only the day; what it is of is said under the pointer and, after the
+  // line's words, by outline.from (the audit's 30, the owner, 9 November 2026: the kind in one place, every list on one grid).
+  day: day => day == null ? '' : day && typeof day === 'object' ? `<span class="th-ol-day lk-day" title="${esc(`${day.from}: ${day.text}`)}">${esc(day.text)}</span>` : `<span class="th-ol-day lk-day">${esc(day)}</span>`,
+  // What a line's day is of, where it differs from its list's, after the words: a journal day as the kind it is (Journal, in a tag's
+  // mono, where a tag stands), a date property by its name, quiet.
+  from: day => day && typeof day === 'object' && day.from ? (day.from === 'Journal' ? `<span class="th-tag lk-tag th-ol-from">Journal</span>` : `<span class="th-ol-from lk-note">${esc(day.from)}</span>`) : '',
   line: ({ body = '', chev = '', day, tick = '', end = '', cls = '', attrs, dot = false } = {}) => `<div class="th-ol-line lk-row${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}>${tick}${dot ? `${chev || outline.room()}${outline.dot(false, dot === true ? {} : dot)}${outline.day(day)}` : `${outline.day(day)}${chev || outline.room()}`}<span class="th-ol-body">${body}</span>${end ? `<span class="th-ol-end">${end}</span>` : ''}</div>`,
   kids: ({ html = '', from = '', fresh = false, attrs, cls = '' } = {}) => `<div class="th-ol-kids${from ? ' th-ol-from-' + from : ''}${fresh ? ' th-ol-unroll' : ''}${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}><div class="th-ol-in">${html}</div></div>`,
   unit: ({ html = '', focus = false, attrs, cls = '' } = {}) => `<div class="th-ol-unit${focus ? ' th-ol-focus' : ''}${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}>${html}</div>`,
@@ -680,7 +684,8 @@ const kitCss = `/* The kit (parts/shared.js): where the library's pieces stand i
 .th-pop.th-anchored { top: anchor(bottom); left: anchor(left); margin-top: 4px; position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline; }
 /* A parent item's own items, to its side, their first item level with it; turned to the left where the right has no room. */
 .th-pop.th-anchored.th-side { top: anchor(top); left: anchor(right); margin: -5px 0 0 6px; position-try-fallbacks: flip-inline; }
-.th-pop .th-sub-arrow { opacity: .55; }
+.th-pop .th-sub-arrow { display: inline-flex; align-items: center; gap: 8px; }
+.th-pop .th-sub-arrow > :is(i, .th-drawn) { opacity: .55; }   /* the value in force beside a parent stays readable; only its arrow is faint */
 .th-pop .th-item.th-sub-open { background: var(--lk-wash, rgba(0,0,0,.05)); }
 .th-lsq-pop { position: fixed; inset: auto; margin: 0; padding: 0; width: 14rem; overflow: visible; }
 .th-lsq-pop .menu-link .flex-row > div:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -776,7 +781,7 @@ a.th-tag:hover { opacity: 1; }
 .th-ol-line:hover > input.lk-tick[type=checkbox], .th-ol-line > input.lk-tick[type=checkbox]:checked, .th-ol-line > input.lk-tick[type=checkbox]:focus-visible { opacity: 1; }
 .th-ol-day { flex: none; width: var(--th-ol-day); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .th-ol-dtext { display: inline-block; min-width: var(--lk-day, 48px); }
-.th-ol-dfrom { margin-left: 2px; }
+.th-ol-body > .th-ol-from { margin-left: 6px; white-space: nowrap; }
 .th-ol-body { min-width: 0; overflow-wrap: normal; }
 .th-ol-body > .th-tag, .th-ol-pv .th-tag { margin-left: 6px; white-space: nowrap; }
 .th-ol-open { font-weight: 600; }
