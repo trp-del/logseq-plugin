@@ -26,13 +26,14 @@ ${AREA} a.page-ref${DAY}, ${AREA} .ls-datetime a { color: var(--lk-quiet) !impor
 ${AREA} a.page-ref${DAY}:hover, ${AREA} .ls-datetime a:hover { color: inherit !important; }
 ${AREA} ${VALUE} a.page-ref${DAY}, ${AREA} ${VALUE} .ls-datetime a { color: inherit !important; }
 ${AREA} ${VALUE} a.page-ref${DAY}:hover, ${AREA} ${VALUE} .ls-datetime a:hover { color: var(--lk-quiet) !important; }`;
-/* A tag: its name alone, as written, in the serif, upright (New York, --lk-tag-face), in the text colour and the words' size, where Logseq puts it. Logseq draws a # link before the name and swaps it
+/* A tag: its name alone, as written, in the serif, upright (New York, --lk-tag-face), in the quiet grey (the text colour under the pointer), the words' size, where Logseq puts it. Logseq draws a # link before the name and swaps it
    for an × under the pointer; the # is made invisible in a fixed slot and the × takes the same slot, so the name never moves. */
 const tags = `
 ${AREA} .block-tag :is(a.hash-symbol, a[title="Remove this tag"]) { display: inline-flex !important; align-items: center; justify-content: center; width: 1.1em; margin: 0 !important; padding: 0 !important; }
 ${AREA} .block-tag a.hash-symbol { visibility: hidden; }
-${AREA} a.tag:not(mark *) { color: inherit !important; opacity: 1; font-family: var(--lk-tag-face); font-style: normal; font-size: inherit; font-size-adjust: var(--lk-tag-adjust); text-decoration: none !important; }
+${AREA} a.tag:not(mark *) { color: var(--lk-quiet) !important; opacity: 1; font-family: var(--lk-tag-face); font-style: normal; font-size: inherit; font-size-adjust: var(--lk-tag-adjust); text-decoration: none !important; }
 ${AREA} .block-tag:hover { background: var(--lk-wash) !important; }
+${AREA} a.tag:not(mark *):hover { color: var(--lk-text, currentColor) !important; }
 /* In a pane under 600px Logseq stacks a bullet's tag under its words, however short they are. It stays beside them while they keep 20em, or half
    the pane in a narrower one (the right sidebar: the audit's 37), and only then drops, keeping the right edge it has beside them, so tags read
    as one column at any width. */

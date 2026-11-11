@@ -739,10 +739,11 @@ const TOKENS = `
    the thing pressed), the frames; lk-tick, the tick box; lk-fold, the fold arrow, its markup empty; lk-bul (.folded, .opens), Logseq's bullet;
    lk-field, a field on a hairline; lk-none, the nothing-here line; lk-undo, the arrow as a press; --lk-day, the day column's width. */
 Door.NAMES = `${TOKENS}
-/* A tag: its name in the Mac's serif, upright (New York, --lk-tag-face), in the text colour and the words' own size (the owner,
+/* A tag: its name in the Mac's serif, upright (New York, --lk-tag-face), in the quiet grey, the words' own size (the owner,
    8 November 2026: "no reason why tags should be fainter ... or why there is an odd size discrepancy"; 10 November 2026: the
-   mono read too close to the words, a box would distract; 11 November 2026: not italic). Its line height is the words', so a tag never makes its row taller. */
-.lk-tag { color: inherit !important; font-family: var(--lk-tag-face) !important; font-style: normal !important; font-size: inherit !important; font-size-adjust: var(--lk-tag-adjust); line-height: 1; text-decoration: none !important; }
+   mono read too close to the words, a box would distract; 11 November 2026: not italic, and in the quiet grey, "do new york quiet grey"; the text colour under the pointer). Its line height is the words', so a tag never makes its row taller. */
+.lk-tag { color: var(--lk-quiet) !important; font-family: var(--lk-tag-face) !important; font-style: normal !important; font-size: inherit !important; font-size-adjust: var(--lk-tag-adjust); line-height: 1; text-decoration: none !important; }
+.lk-tag:hover { color: var(--lk-text, currentColor) !important; }
 .lk-node { color: inherit; text-decoration: underline !important; text-decoration-color: var(--lk-link) !important; text-decoration-thickness: var(--lk-link-width) !important; text-underline-offset: 3px; cursor: pointer; }
 .lk-node:hover { text-decoration-color: currentColor !important; }
 .lk-prop { color: var(--lk-quiet); }
