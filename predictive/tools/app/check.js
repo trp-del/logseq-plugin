@@ -14,6 +14,11 @@ const check = async (name, fn) => { try { await fn(); passed++; console.log('  o
   const type = (text, delay = 15) => c.page.keyboard.type(text, { delay });
   const press = async (key, wait = 800) => { await c.page.keyboard.press(key); await sleep(wait); };
   const active = () => c.page.evaluate(() => { const a = document.activeElement; return { tag: a.tagName, placeholder: a.placeholder || '', inSelect: !!a.closest('.cp__select') }; });
+  // What Predictive learns from the check's own presses is not the owner's: the lessons page is read now and put back at the
+  // end, and the plugin reloaded so it forgets them too (11 November 2026: the check had added its presses to two lessons).
+  const LESSONS = 'Predictive lessons';
+  const lessonsNow = () => c.page.evaluate(async name => Object.fromEntries(((await window.logseq.api.get_page_blocks_tree(name)) || []).map(b => [String(b.uuid), String(b.title ?? b.content ?? '')])), LESSONS);
+  const lessonsBefore = await lessonsNow();
   try {
     await reload(c);
 
@@ -189,6 +194,13 @@ const check = async (name, fn) => { try { await fn(); passed++; console.log('  o
     });
   } finally {
     await cleanup(c);
+    await sleep(2500);   // Predictive saves what it learned 1.5 s after it learns it
+    const after = await lessonsNow();
+    for (const [uuid, words] of Object.entries(after)) {
+      if (!(uuid in lessonsBefore)) await c.page.evaluate(u => window.logseq.api.remove_block(u), uuid);
+      else if (lessonsBefore[uuid] !== words) await c.page.evaluate(([u, w]) => window.logseq.api.update_block(u, w), [uuid, lessonsBefore[uuid]]);
+    }
+    await reload(c).catch(() => {});
     await c.close();
   }
   console.log(`\n${passed} passed, ${failed} failed`);

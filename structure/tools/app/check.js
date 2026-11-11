@@ -2,7 +2,7 @@
    (open -a Logseq --args --remote-debugging-port=9222) on one of the test graphs, and Playwright reachable (NODE_PATH).
      NODE_PATH=/Users/admin/logseq-value/logseq-plugin-old/node_modules node tools/app/check.js <out dir> [tag name]
    Loads the plugin unpacked from this folder if Logseq does not have it yet (what Load unpacked plugin does), reloads it,
-   opens the map on the tag named (or the first kind), reads what is drawn (the rows with their counts, the card's lines,
+   opens the map on the tag named (or the top), reads what is drawn (the rows with their counts, the row lit, the lines,
    the issues) and writes a screenshot into <out dir>. Nothing is typed into the app and nothing is written to the graph:
    the tray is never applied here. It refuses to run while a block is being edited. */
 const fs = require('node:fs'), path = require('node:path');
@@ -48,17 +48,16 @@ let chromium; try { ({ chromium } = require('playwright')); } catch (error) { co
       rows: [...document.querySelectorAll('.st-page .st-row[data-row]')].map(r => `${'  '.repeat(Number(r.className.match(/\bd(\d)/)?.[1] || 0))}${text(r.querySelector('.nm'))} ${text(r.querySelector('.ct'))}${r.querySelector('.iss.own') ? ' !' : r.querySelector('.iss.on') ? ' ·' : ''}`),
       focus: text(document.querySelector('.st-focus') || document.createElement('i')), lines: document.querySelectorAll('.st-lines path').length,
       tray: text(document.querySelector('.st-tray') || document.createElement('i')),
-      issues: window.frames.length,
-      lookRuns: !!document.getElementById('look-shared') || [...document.querySelectorAll('style')].some(s => s.textContent.includes('.lk-tag')),
+            lookRuns: !!document.getElementById('look-shared') || [...document.querySelectorAll('style')].some(s => s.textContent.includes('.lk-tag')),
     };
   });
-  const issues = await frame().evaluate(() => window.Structure.app.issues().map(i => `${i.rule}: ${i.text} → ${i.fix} [${i.key}]`));
+  const issues = await frame().evaluate(() => window.Structure.app.issues().map(i => `${i.rule}: ${i.text} → ${i.fix}`));
   fs.mkdirSync(out, { recursive: true });
   const name = (TAG || 'map').replace(/[^\w-]+/g, '_');
   await page.screenshot({ path: path.join(out, name + '.png') });
   fs.writeFileSync(path.join(out, name + '.json'), JSON.stringify({ ...seen, issues }, null, 2));
   console.log(seen.rows.join('\n'));
-  console.log('card:', seen.card.title, '|', seen.card.path, '|', seen.card.sum); for (const l of seen.card.lines) console.log('  ', l);
+  console.log('lit:', seen.focus.slice(0, 80) || '(none)', '| lines drawn:', seen.lines);
   console.log('issues:'); for (const i of issues) console.log('  ', i);
   console.log('tray:', seen.tray || '(empty)', '| Look runs:', seen.lookRuns);
   console.log('wrote', path.join(out, name + '.png'));

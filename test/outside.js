@@ -43,7 +43,7 @@ function world() {
     const file = event.clipboardData?.files?.[0]; const uuid = event.target.id.replace('edit-block-', ''); const b = blocks[uuid];
     if (!file || !b || b.content !== '') return;
     if (file.name === 'Stuck.pdf') return;
-    const wait = file.name === 'Slow.pdf' ? 2200 : 50;
+    const wait = file.name === 'Slow.pdf' ? 5000 : 50;
     file.arrayBuffer().then(bytes => setTimeout(() => { const type = file.name.split('.').pop(); b.title = file.name.replace(/\.[^.]+$/, ''); b.properties = { 'logseq.property.asset/type': type, size: bytes.byteLength }; held['/graph/assets/' + uuid + '.' + type] = new win.TextDecoder().decode(bytes); }, wait));
   });
   // jsdom has no DataTransfer or ClipboardEvent: the two the paste needs, as Chromium has them
@@ -53,8 +53,11 @@ function world() {
   plugin.window = plugin;
   const context = vm.createContext({ window: plugin, parent: win, logseq, console, setTimeout, clearTimeout, Promise, fetch: win.fetch, Date, Array, Object, String, Boolean, Error, JSON });
   for (const file of ['plugin.js', 'outside.js']) vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context, { filename: file });
-  plugin.PluginDoor.outside.patience = 3000;
-  plugin.PluginDoor.outside.answerWithin = 1500;
+  // The caller's wait is well above the slowest plain case (one file onto today about 1 s on a quiet Mac, the second of two
+  // calls at once about 1.3 s), so a busy Mac does not turn a plain answer into "pending" (11 November 2026: it did at 1.5 s).
+  // Slow.pdf lands after the caller's wait and before Logseq's patience runs out; Stuck.pdf never lands.
+  plugin.PluginDoor.outside.patience = 8000;
+  plugin.PluginDoor.outside.answerWithin = 4000;
   plugin.PluginDoor.outside.start();
   return { win, doc, log, blocks, pages, add: logseq.model.add, setOpen: p => { open = p; }, setEditing: uuid => { editing = uuid; } };
 }
@@ -112,7 +115,7 @@ function world() {
     await assert.rejects(() => w.add({ files: [], where: 'today' }), /No file/);
     const before = Object.keys(w.blocks).length;
     same(await w.add({ files: ['/Users/x/Stuck.pdf'], where: 'today' }), { pending: true });   // the caller's time ran out first
-    await sleep(2200);
+    await sleep(5000);
     assert.equal(Object.keys(w.blocks).length, before + 1, 'the bullet stays when the wait runs out, for a file that lands late');
     assert.ok(!w.log.some(([k]) => k === 'removeBlock'), 'nothing is removed: ' + JSON.stringify(w.log));
     assert.ok(w.log.some(([k, text]) => k === 'notice' && /has not taken Stuck\.pdf yet; its bullet is kept/.test(text)), 'and it is said in Logseq, since the caller is gone');
@@ -122,7 +125,7 @@ function world() {
     const w = world();
     const out = await w.add({ files: ['/Users/x/Slow.pdf'], where: 'today' });
     same(out, { pending: true });
-    await sleep(2000);
+    await sleep(3000);
     assert.ok(Object.values(w.blocks).some(b => b.title === 'Slow' && b.properties), 'the file went in after the answer');
   }
   // Two calls at once go one after the other.

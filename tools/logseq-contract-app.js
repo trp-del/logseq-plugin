@@ -17,7 +17,8 @@ const list = require(path.join(__dirname, '../test/logseq-contract.json'));
 const ONLY_ON_DEMAND = new Set(['absolute-modal', 'cp__select', 'cp__select-main', 'select-item', 'menu-link', 'menu-link-wrap', 'ui__dialog-overlay',
   'ui__dropdown-menu-item', 'ui__dropdown-menu-sub-trigger', 'ui__popover-content', 'ui__toast-close', 'cp__plugins-item-card', 'cp__right-sidebar-settings',
   'extensions__pdf-viewer', 'pdfViewer', 'jtrigger', 'escape', 'embed-block', 'custom-query', 'ls-table', 'ls-table-header', 'ls-table-header-cell', 'ls-view-head',
-  'ls-block-properties']);   // a block's properties drawn as rows, not pills: only where a page shows them so
+  'ls-block-properties',     // a block's properties drawn as rows, not pills: only where a page shows them so
+  'ls-sidebar-page-properties']);   // a page opened in the right sidebar; since the sidebar became tabs (0.3.60) it may hold none
 let chromium; try { ({ chromium } = require('playwright')); } catch (error) { console.log('skipped: needs Playwright (set NODE_PATH)'); process.exit(2); }
 
 (async () => {
