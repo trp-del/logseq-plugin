@@ -94,9 +94,13 @@ const OLD_DEFAULTS = new Set(['symptoms|logged in', 'ask|asked', 'works at|works
    Apple's tools" off, or no answer, the row reads by the property's own name as before. */
 const pairsOf = text => String(text || '').split(/[;\n]/).map(pair => pair.split('=').map(part => part?.trim())).filter(([field, words]) => field && words);
 const appleOn = () => setting('proposalsModel') !== false;
+/* Held off (11 November 2026): on the owner's Mac Apple's model gave 2 good names of 16, mostly the instructions' own examples
+   copied back, so rows read by the property's own name again and the names 0.3.70 kept are passed over, until a way of asking
+   passes the owner's trial. The three offers under Reads back as… stay. */
+const APPLE_AUTO = false;
 function backwardsNames() {
   const names = new Map();
-  if (appleOn()) for (const [field, words] of pairsOf(setting('twoWayAppleNames'))) names.set(field.toLowerCase(), words);
+  if (APPLE_AUTO && appleOn()) for (const [field, words] of pairsOf(setting('twoWayAppleNames'))) names.set(field.toLowerCase(), words);
   // The owner's own, over Apple's; their property's own name typed in keeps the row on it.
   for (const [field, words] of pairsOf(setting('twoWayNames'))) {
     if (OLD_DEFAULTS.has(`${field.toLowerCase()}|${words.toLowerCase()}`)) continue;
@@ -292,7 +296,7 @@ async function groupsByPage(id) {
 const appleAsked = new Set();
 let appleRound = null;
 function nameByApple(groups) {
-  if (!appleOn() || appleRound) return;
+  if (!APPLE_AUTO || !appleOn() || appleRound) return;
   const wanting = [...new Map(groups.filter(g => !isMentions(g) && !appleAsked.has(g.name.toLowerCase()) && !ownedName(g.name) && !appleHas(g.name)).map(g => [g.name.toLowerCase(), g])).values()];
   if (!wanting.length) return;
   appleRound = (async () => {
