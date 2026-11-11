@@ -737,9 +737,11 @@ html.flow-hide-empty .ls-block .positioned-properties .bottom-property-pill:has(
    (11 November 2026, the owner: "bullets have this open view but empty so just have a gap"). A property shows while its value
    holds something, a proposal, the keyboard, or the bullet is being written. */
 html.flow-hide-empty .ls-block .positioned-properties.block-below:not(:has(.bottom-property-content > :not(.empty-value, button, .lk-own), [data-flow-proposal], [data-flow-at], .flow-made-pill, :focus-within)):not(.block-main-container:has(textarea) *) { display: none !important; }
-/* A folded bullet with nothing under it but properties that are all empty (bare): Logseq's ring said something was folded, and
-   opening it showed nothing, so it gets Logseq's plain dot. */
+/* A bullet with nothing under it but properties that are all empty (bare): Logseq's ring said something was folded, and its fold
+   arrow opened nothing (11 November 2026, the owner: "why do chevrons appear on bullets that upon opening still show nothing?"),
+   so it gets Logseq's plain dot and no fold arrow, folded or open. */
 html.flow-hide-empty .block-control-wrap[data-has-children="false"][data-flow-bare] .bullet-container.bullet-closed:not(.typed-list) { background-color: transparent !important; }
+html.flow-hide-empty .block-control-wrap[data-has-children="false"][data-flow-bare] .block-control .rotating-arrow { visibility: hidden !important; }
 `;
 let hideVersion = 0;
 async function applyHide() {
@@ -747,10 +749,10 @@ async function applyHide() {
   const on = !S.stopped && setting('proposals') && setting('proposalsHideEmpty') && await app.allowed().catch(() => false);
   if (version === hideVersion) host().documentElement.classList.toggle('flow-hide-empty', !!on);
 }
-/* Which folded bullets with no bullets under them hold a value in a property Logseq would show under them once opened: a property
+/* Which bullets with no bullets under them, folded or showing a row of properties, hold a value in a property Logseq would show under them once opened: a property
    of your own not placed beside the words, or Deadline or Scheduled. The others are bare. Read once per bullet, again after a change. */
 const bare = { held: new Map(), asking: false };
-const FOLDED_LEAF = '.block-control-wrap.bullet-closed[data-has-children="false"]';
+const FOLDED_LEAF = ':is(.block-control-wrap.bullet-closed, .block-main-container:has(.positioned-properties.block-below) > .block-control-wrap)[data-has-children="false"]';
 async function readBare(uuids) {
   bare.asking = true;
   try {
@@ -765,14 +767,14 @@ async function readBare(uuids) {
 }
 function markBare(doc) {
   if (S.stopped) return;
-  const ask = [];
-  for (const wrap of doc.querySelectorAll(FOLDED_LEAF)) {
+  const ask = [], seen = new Set(doc.querySelectorAll(FOLDED_LEAF));
+  for (const wrap of seen) {
     const uuid = wrap.closest('.ls-block[blockid]')?.getAttribute('blockid')?.toLowerCase();
     if (!uuid) continue;
     if (!bare.held.has(uuid)) { ask.push(uuid); continue; }
     wrap.toggleAttribute('data-flow-bare', !bare.held.get(uuid));
   }
-  for (const wrap of doc.querySelectorAll('[data-flow-bare]:not(.bullet-closed)')) wrap.removeAttribute('data-flow-bare');
+  for (const wrap of doc.querySelectorAll('[data-flow-bare]')) if (!seen.has(wrap)) wrap.removeAttribute('data-flow-bare');
   if (ask.length && !bare.asking) readBare([...new Set(ask)].slice(0, 200));
 }
 
