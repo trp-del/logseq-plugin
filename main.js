@@ -67,6 +67,15 @@ async function main() {
   Door.root.style('plugin-names', Door.NAMES);
   // What a module needs nothing of, and what must stand even if a start never answers, comes before the first start.
   const letFrameGo = keepFrameInPlace();
+  // A web address a module drew (lk-url, Door.urlHtml) opens in the browser, caught on the way down so the row, card or
+  // result it stands in neither opens nor starts editing.
+  const openUrl = event => {
+    const url = event.target.closest?.('.lk-url[data-open-url]')?.dataset.openUrl;
+    if (!url) return;
+    event.preventDefault(); event.stopPropagation();
+    if (event.type === 'click') logseq.App.openExternalLink(url);
+  };
+  Door.root.listen(window.parent, ['pointerdown', 'mousedown', 'click'], openUrl, true);
   logseq.beforeunload?.(async () => {
     try { letFrameGo(); } catch (error) { console.error('The frame guard: could not stop', error); }
     try { Door.settingsWays.stop(); } catch (error) { console.error('The settings window: could not stop', error); }

@@ -36,5 +36,10 @@ const same = (got, want, why) => assert.equal(JSON.stringify(got), JSON.stringif
   assert.equal(D.uuidsIn('?u', ['6a000000-0000-4000-8000-000000000001', '"] [?e :block/title ?t] ;', '6a000000-0000-4000-8000-000000000001']), '[(identity [#uuid "6a000000-0000-4000-8000-000000000001"]) [?u ...]]');
   assert.match(D.HELPER, /^http:\/\/127\.0\.0\.1:\d+$/, 'the helper answers on this Mac only');
   console.log('  ok  each helper reads what it should, and a list in a query lets in only numbers and ids');
+  // A web address in words: bare or as Markdown, a sentence's full stop left outside, and drawn as lk-url with its address.
+  same(D.webParts('see https://nih.gov/a. and [the trial](https://ct.gov/x?y=1) done'), [{ text: 'see ' }, { text: 'https://nih.gov/a', url: 'https://nih.gov/a' }, { text: '. and ' }, { text: 'the trial', url: 'https://ct.gov/x?y=1' }, { text: ' done' }], 'web addresses cut out of the words');
+  same(D.webParts('no address'), [{ text: 'no address' }]); same(D.webParts(''), [{ text: '' }]);
+  assert.equal(D.urlHtml('https://a.b/"x', 'a.b'), '<span class="lk-url" data-open-url="https://a.b/&quot;x" title="https://a.b/&quot;x">a.b</span>');
+  console.log('  ok  a web address is cut out of words and drawn as lk-url');
   console.log('helpers: all checks passed');
 })().catch(error => { console.error('FAIL  ' + (error.stack || error)); process.exit(1); });

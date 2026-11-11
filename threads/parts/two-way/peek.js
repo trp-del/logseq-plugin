@@ -37,9 +37,13 @@ async function peekData(uuid, field) {
   peek.cache.set(key, data);
   return data;
 }
-// A line's words with its links open: [[Page]] as Page, [words]([[Page]]) as words, each opening the page.
+// A line's words with its links open: [[Page]] as Page, [words]([[Page]]) as words, each opening the page; a web address, bare
+// or as [words](address), with ↗ after it, opening the browser (the door's webParts and urlHtml, as every module draws one).
 function lineHtml(text, limit = 140) {
   const short = text.length > limit ? text.slice(0, limit - 1) + '…' : text;
+  return window.PluginDoor.webParts(short).map(part => part.url ? window.PluginDoor.urlHtml(part.url, esc(part.text)) : pageLinksHtml(part.text)).join('');
+}
+function pageLinksHtml(short) {
   let html = '', at = 0;
   for (const m of short.matchAll(/\[([^\[\]]+)\]\(\[\[([^\]]+)\]\]\)|\[\[([^\]]+)\]\]/g)) {
     const page = m[2] ?? m[3], words = m[1] ?? m[3];

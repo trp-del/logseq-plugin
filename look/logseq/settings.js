@@ -21,7 +21,7 @@ const schema = [
     description: 'Logseq’s menus, pop-ups, Settings and dialogs with one fine edge and one shadow, tighter rows, a soft wash on the row you are on; in Settings, the dark buttons on a soft grey.' },
   { key: 'linksHeading', type: 'heading', default: null, title: 'Links', place: 'page', description: 'What a link looks like.' },
   { key: 'quietLinks', type: 'boolean', default: true, title: 'Page links',
-    description: 'A link to a page, or to a file in the graph such as a PDF, is the text colour with a faint line under it, firmer while you point at it, instead of blue; a PDF has “PDF” after its name, small and grey: in a bullet’s words, in a property’s value, in Logseq’s tables and in the Linked references.' },
+    description: 'A link to a page, or to a file in the graph such as a PDF, is the text colour with a faint line under it, firmer while you point at it, instead of blue; a PDF has “PDF” after its name, small and grey; a web address has a grey ↗ after it: in a bullet’s words, in a property’s value, in Logseq’s tables and in the Linked references.' },
   { key: 'quietDays', type: 'boolean', default: true, title: 'Journal days',
     description: 'A link to a journal day (“Oct 21st, 2026”) is grey words with no underline, the text colour while you point at it.' },
   { key: 'tagsHeading', type: 'heading', default: null, title: 'Tags', place: 'page', description: 'A tag as a class name, and a page’s place in the tree beside its title.' },

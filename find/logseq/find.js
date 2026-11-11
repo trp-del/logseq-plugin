@@ -530,7 +530,8 @@ function render() {
     if (node.isPage) w.innerHTML = markWords(esc(node.text), ws);
     else for (const part of node.parts) {
       if (part.uuid) w.append(el(doc, 'span', { class: 'lk-node', 'data-uuid': part.uuid, html: markWords(esc(part.text), ws), click: event => { event.stopPropagation(); openPage(part.uuid, event.shiftKey); close(); } }));
-      else w.append(el(doc, 'span', { html: markWords(esc(part.text), ws) }));
+      // A web address in the words is a link out, ↗ after it; a press opens the browser (the door's webParts, urlHtml).
+      else w.append(el(doc, 'span', { html: window.PluginDoor.webParts(part.text).map(p => p.url ? window.PluginDoor.urlHtml(p.url, markWords(esc(p.text), ws)) : markWords(esc(p.text), ws)).join('') }));
     }
     w.addEventListener('click', event => { event.stopPropagation(); openPage(node.uuid, event.shiftKey); close(); });
     nm.append(w);

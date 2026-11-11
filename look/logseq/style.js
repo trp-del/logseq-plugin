@@ -17,6 +17,11 @@ ${AREA} a.asset-ref:not(a.page-ref *):hover { text-decoration-color: currentColo
 /* A PDF says so after its name, small and grey as the other things after a bullet's words, beside Logseq's book icon before it
    (the owner, 11 November 2026: "in addition to book"). Inline-block, so the link's underline stops at the name. */
 ${AREA} a.asset-ref.is-pdf:not(a.page-ref *)::after { content: "PDF"; display: inline-block; margin-left: .5em; font-size: var(--lk-small); color: var(--lk-quiet); text-decoration: none; }
+/* A web address is a link like the others, the words' colour with the faint line under it, and a ↗ after it in the quiet
+   grey says it leaves Logseq (the owner, 11 November 2026: first before it, then "put it at end of link"). Inline-block, so the underline stops at the words. */
+${AREA} a.external-link { color: inherit !important; border-bottom: none !important; text-decoration: underline !important; text-decoration-color: var(--lk-link) !important; text-decoration-thickness: var(--lk-link-width) !important; text-underline-offset: .2em; }
+${AREA} a.external-link:hover { text-decoration-color: currentColor !important; }
+${AREA} a.external-link::after { content: "\\2197"; display: inline-block; margin-left: .2em; color: var(--lk-quiet); text-decoration: none; }
 /* A bullet that is a page, or shows one: its words read as a link. A press opens the page (Predictive's page-here.js). */
 ${AREA} :is(.embed-block:not(.embed-block .embed-block) > .block-main-container, .block-main-container:not(.is-page-title-row):has(> .block-control-wrap :is(.ls-icon-file, .ls-icon-page))) .block-title-wrap { text-decoration: underline; text-decoration-color: var(--lk-link); text-decoration-thickness: var(--lk-link-width); text-underline-offset: 3px; cursor: pointer; }
 ${AREA} :is(.embed-block:not(.embed-block .embed-block) > .block-main-container, .block-main-container:not(.is-page-title-row):has(> .block-control-wrap :is(.ls-icon-file, .ls-icon-page))) .block-title-wrap:hover { text-decoration-color: currentColor; }

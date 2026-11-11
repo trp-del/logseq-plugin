@@ -449,6 +449,25 @@ Door.idsIn = (variable, ids) => `[(identity [${[...new Set(ids)].filter(Door.isE
 Door.uuidsIn = (variable, uuids) => `[(identity [${[...new Set(uuids)].map(String).filter(u => UUID.test(u)).map(u => `#uuid "${u}"`).join(' ')}]) [${variable} ...]]`;
 Door.HELPER = 'http://127.0.0.1:47615';
 
+/* A web address in words a module draws (a Threads line, a Find result): bare ("https://nih.gov/x") or as Markdown
+   ("[the trial](https://…)"). webParts cuts words into plain stretches ({ text }) and web addresses ({ text, url }); urlHtml
+   draws one as lk-url, a span (it may stand inside a node's own link) whose press main.js sends to the browser, from one place
+   for every module. A full stop or a bracket after a bare address is the sentence's, not the address's. */
+const WEB_ADDRESS = /\[([^\[\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<>()\[\]]*[^\s<>()\[\].,;:!?'"…])/g;
+Door.webParts = text => {
+  const parts = [], words = String(text ?? '');
+  let at = 0;
+  for (const m of words.matchAll(WEB_ADDRESS)) {
+    if (m.index > at) parts.push({ text: words.slice(at, m.index) });
+    parts.push({ text: m[1] ?? m[3], url: m[2] ?? m[3] });
+    at = m.index + m[0].length;
+  }
+  if (at < words.length || !parts.length) parts.push({ text: words.slice(at) });
+  return parts;
+};
+const escAttr = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+Door.urlHtml = (url, inner) => `<span class="lk-url" data-open-url="${escAttr(url)}" title="${escAttr(url)}">${inner}</span>`;
+
 /* THE dates of the plugin (10 November 2026, the code review's "one date service"; Predictive and Threads each named a journal's
    title, and Find, Threads, Structure and Look each put a day in words by a rule of their own). A day is its number, 20261023.
      MONTHS, WEEKDAYS        the names in full, the first letter large; a module that reads typed words takes them from here;
@@ -713,7 +732,7 @@ const TOKENS = `
    for them; these words are final (hence !important where a module still has a rule). They stand whichever modules run:
    Look's switch takes off what Look draws on Logseq's own page, never what they mean on what the others draw.
    lk-row: a row; lk-fold: its fold arrow, only under the pointer; lk-list: a list that can be picked from; lk-tick: a
-   tick box, appearing when the pointer is on the list; lk-node: a node's name (with data-uuid: Look adds its sort mark);
+   tick box, appearing when the pointer is on the list; lk-node: a node's name (with data-uuid: Look adds its sort mark); lk-url: a web address, ↗ after it;
    lk-tag: a tag; lk-prop: a property's name; lk-day: a day in the margin; lk-count: a number of things, never shown;
    lk-pencil: a pencilled value; lk-undo: the faded arrow.
    The Pressing set (buttons-mockup.html beside the plugins, 30 October 2026), for the controls of a bar or a window:
@@ -746,6 +765,11 @@ Door.NAMES = `${TOKENS}
 .lk-tag:hover { color: var(--lk-text, currentColor) !important; }
 .lk-node { color: inherit; text-decoration: underline !important; text-decoration-color: var(--lk-link) !important; text-decoration-thickness: var(--lk-link-width) !important; text-underline-offset: 3px; cursor: pointer; }
 .lk-node:hover { text-decoration-color: currentColor !important; }
+/* A web address is a link like a node's name with a ↗ after it in the quiet grey, saying it leaves Logseq (the owner, 11 November
+   2026: a right-up arrow, then "put it at end of link"); Look gives Logseq's own web links the same. */
+.lk-url { color: inherit; overflow-wrap: anywhere; text-decoration: underline !important; text-decoration-color: var(--lk-link) !important; text-decoration-thickness: var(--lk-link-width) !important; text-underline-offset: 3px; cursor: pointer; }
+.lk-url:hover { text-decoration-color: currentColor !important; }
+.lk-url::after { content: "\\2197"; display: inline-block; margin-left: .2em; color: var(--lk-quiet); text-decoration: none; }
 .lk-prop { color: var(--lk-quiet); }
 .lk-day { color: var(--lk-quiet) !important; font-size: var(--lk-small) !important; font-variant-numeric: tabular-nums; }
 .lk-count { display: none !important; }

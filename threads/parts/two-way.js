@@ -280,7 +280,7 @@ async function linkedWordsOf(stored) {
   try { title = await provided.readableTitle(title); } catch { /* the stored words, then */ }
   return String(title).replace(/\s+#(?:\[\[[^\]]*\]\]|[^\s#\[\]]+)/g, '').trim();
 }
-const plainWords = words => String(words).replace(/\[([^\[\]]+)\]\(\[\[[^\]]*\]\]\)/g, '$1').replace(/\[\[([^\]]+)\]\]/g, '$1').trim() || 'Untitled';
+const plainWords = words => String(words).replace(/\[([^\[\]]+)\]\((?:\[\[[^\]]*\]\]|https?:\/\/[^\s)]+)\)/g, '$1').replace(/\[\[([^\]]+)\]\]/g, '$1').trim() || 'Untitled';
 // Coming up first (nearest first), then the past (latest first), then nodes with no date.
 const byWhen = today => (a, b) => (a.day >= today ? 0 : a.day ? 1 : 2) - (b.day >= today ? 0 : b.day ? 1 : 2) ||
   (a.day >= today ? a.day - b.day : b.day - a.day) || a.title.localeCompare(b.title);
@@ -495,8 +495,8 @@ async function ownNamesOf(id) {
   }
   if (added) { state.html = null; draw(host()); }
 }
-// A name's words: a wikilink in them is underlined and opens its page, as in a bullet's words; the name itself, its own click.
-const nameWords = item => item.words && item.words.includes('[[') ? twoWay.lineHtml(item.words, Infinity) : esc(item.title);
+// A name's words: a wikilink in them is underlined and opens its page, a web address the browser, as in a bullet's words; the name itself, its own click.
+const nameWords = item => item.words && /\[\[|https?:\/\//.test(item.words) ? twoWay.lineHtml(item.words, Infinity) : esc(item.title);
 /* A task's circle (8 November 2026, the owner: "threads should be able to show tasks status circles"): Logseq's own, before
    the words as Logseq draws it after a task's bullet. Its name and icon are the ones Logseq keeps on the status value, read with
    the rows (statusChoices), so a status renamed, added or given another icon in Logseq shows so here (9 November 2026, the owner:

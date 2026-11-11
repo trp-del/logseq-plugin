@@ -58,7 +58,9 @@ In the plugin's one settings window (**Plugin settings** in the command palette,
 
 ## The look is Look's
 
-What Find draws carries the shared class names (`lk-row`, `lk-node`, `lk-tag`, `lk-day`, `lk-fold`, `lk-prop`, listed in Look's README) and no look of its own for those pieces, so with Look switched off it reads the same, but for the sort's mark before a node, which Look works out.
+A web address in a found node's words, bare or as [words](address), is a link with a grey ↗ after it; a press opens it in the browser and leaves the window open.
+
+What Find draws carries the shared class names (`lk-row`, `lk-node`, `lk-url`, `lk-tag`, `lk-day`, `lk-fold`, `lk-prop`, listed in Look's README) and no look of its own for those pieces, so with Look switched off it reads the same, but for the sort's mark before a node, which Look works out.
 
 ## Where it comes from
 
