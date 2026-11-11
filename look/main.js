@@ -30,7 +30,7 @@ function stop() {
 }
 window.PluginDoor.describe('look', { schema: Look.settings.schema, specimen: Look.settings.specimen });
 window.PluginDoor.register({
-  key: 'look', title: 'Look', about: 'How things look: a link in the text colour, a page in a property that opens it, a tag in serif italic, a page’s place beside its title, an icon of what a property holds, notices small at the bottom.',
+  key: 'look', title: 'Look', about: 'How things look: a link in the text colour, a page in a property that opens it, a tag in serif, a page’s place beside its title, an icon of what a property holds, notices small at the bottom.',
   schema: Look.settings.schema.map(({ key, type, title, description, default: def }) => ({ key, type, title, description, default: def })),
   start: main, stop,
 });

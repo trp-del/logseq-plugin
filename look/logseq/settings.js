@@ -26,7 +26,7 @@ const schema = [
     description: 'A link to a journal day (“Oct 21st, 2026”) is grey words with no underline, the text colour while you point at it.' },
   { key: 'tagsHeading', type: 'heading', default: null, title: 'Tags', place: 'page', description: 'A tag as a class name, and a page’s place in the tree beside its title.' },
   { key: 'tagsAsClasses', type: 'boolean', default: true, title: 'Tag names',
-    description: 'A tag reads as its name alone, as you wrote it, in the Mac’s serif italic (New York), in the text colour and the size of the words around it, without the #, where Logseq puts it: at the end of a bullet’s words and at the right end of a page’s title row. The × that removes it takes the #’s place under the pointer, so the name does not move.' },
+    description: 'A tag reads as its name alone, as you wrote it, in the Mac’s serif (New York), in the text colour and the size of the words around it, without the #, where Logseq puts it: at the end of a bullet’s words and at the right end of a page’s title row. The × that removes it takes the #’s place under the pointer, so the name does not move.' },
   { key: 'tagChain', type: 'boolean', default: true, title: 'A page’s tags beside its title',
     description: 'The right end of a page’s title row reads its tag and the tags that tag sits under, nearest first: “Doctor / Person / Entity” on Dr. Mei Chen; on a tag’s own page, only the tags above it. Each name opens its page; Shift-click opens it in the right sidebar. Under the pointer, an × before a tag the page holds takes it off.' },
   { key: 'tagChainSidebar', type: 'boolean', default: true, title: 'The same line in the right sidebar',
