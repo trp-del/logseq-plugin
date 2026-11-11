@@ -97,34 +97,66 @@ const OLD_DEFAULTS = new Set(['symptoms|logged in', 'ask|asked', 'works at|works
    the property's own name too, always wins. twoWayAppleNames, the on-device model's names of 0.3.70 (2 good of 16), is passed over. */
 const pairsOf = text => String(text || '').split(/[;\n]/).map(pair => pair.split('=').map(part => part?.trim())).filter(([field, words]) => field && words);
 const appleOn = () => setting('proposalsModel') !== false;
-/* The property read from the other end by English grammar alone: "Prescribed by" → "Prescribed", "Symptom of" → "Symptoms",
-   "Located in" → "Location of", "Diagnosed with" → "Diagnosis of", "Works at" → "Works here", "Treats" → "Treated by",
-   "Mentions" → "Mentioned in", a role ("Provider", "Insurer", "Parent") → "Provider of"; a link both ways ("Spoke with") and
-   any other noun ("Topic", "Hospital") keep their name. */
-const plainPlural = word => /[^aeiou]y$/i.test(word) ? word.slice(0, -1) + 'ies' : /(s|x|z|ch|sh)$/i.test(word) ? word + 'es' : word + 's';
-const pastOf = verb => /e$/.test(verb) ? verb + 'd' : /[^aeiou]y$/.test(verb) ? verb.slice(0, -1) + 'ied' : verb + 'ed';
-const BOTH_WAYS = /^(spoke|talked|met|married|related|linked|connected|worked|sibling|friend|partner|colleague)( (with|to|of))?$/i;
-const VERBS = /^(treats|mentions|includes|causes|cites|lists|shows|features|contains|follows|supports|references|describes|affects|uses|requires|replaces|prescribes|manages|owns|funds|attends|visits|cares|teaches|employs|hosts|covers|tracks|measures|monitors|reports|records|answers|blocks|precedes)$/;
-const ROLE = /^(parent|child|owner|author|guardian|carer|nurse|doctor|partner|mother|father|spouse|manager|editor|host)$/i;
-function byGrammar(name) {
-  const words = String(name).trim().split(/\s+/), low = words.map(w => w.toLowerCase()), last = low[low.length - 1], cap = w => w ? w[0].toUpperCase() + w.slice(1) : w;
-  if (!words[0] || BOTH_WAYS.test(name)) return name;
-  if (words.length >= 2 && last === 'by') return words.slice(0, -1).join(' ');
-  if (words.length >= 2 && last === 'of') return cap(plainPlural(words.slice(0, -1).join(' ').toLowerCase()));
-  if (words.length === 2 && ['in', 'at', 'with', 'on', 'from', 'to', 'for'].includes(last)) {
-    if (/ated$/.test(low[0])) return cap(low[0].replace(/ated$/, 'ation')) + ' of';
-    if (/osed$/.test(low[0])) return cap(low[0].replace(/osed$/, 'osis')) + ' of';
-    if (/[^s]s$/.test(low[0])) return cap(low[0]) + ' here';
-    return name;
-  }
-  // A verb (Treats), not a plural (Symptoms): only the verbs a property is commonly named by.
-  if (words.length === 1 && VERBS.test(low[0])) {
-    const verb = low[0].slice(0, -1);
-    return cap(pastOf(verb)) + (/^(mention|cite|name|list|show|include|feature)$/.test(verb) ? ' in' : ' by');
-  }
-  if (words.length === 1 && !/ment$/.test(low[0]) && (/(er|or|ist|ian)$/.test(low[0]) || ROLE.test(low[0]))) return name + ' of';
-  return name;
+/* The property read from the other end by English grammar (11 November 2026, the owner: "a more sophisticated way ... by having a
+   set of words or libraries rather than simple heuristics"): compromise (vendor/compromise.js) gives the verb forms, plurals and
+   parts of speech, and word lists below give what grammar alone cannot know: the noun a verb makes ("Located in" → "Location
+   of"), what an active verb with its preposition reads as ("Works at" → "Employer of"), which links run both ways ("Spoke with"),
+   the roles ("Provider" → "Provider of") and the verbs a property is named by ("Treats" → "Treated by", where "Notes" stays a
+   plural). Any other noun ("Topic", "Hospital") keeps its name. Without the library (a test's stand-in), every name as it is. */
+function makeReadsBack(nlp) {
+  // A link that reads the same from both ends.
+  const BOTH = new Set(['spoke with', 'talked to', 'talked with', 'met', 'met with', 'married to', 'related to', 'linked to', 'connected to', 'sibling', 'friend', 'partner', 'colleague', 'spouse', 'neighbour', 'neighbor', 'see also', 'related', 'same as', 'similar to']);
+  // The noun a verb makes, for "<verb>ed in/with/at" ("Located in" → "Location of").
+  const NOUN = { locate: 'location', diagnose: 'diagnosis', specialize: 'specialty', specialise: 'specialty', specialized: 'specialty', specialised: 'specialty', born: 'birthplace', prescribe: 'prescription', treat: 'treatment', admit: 'admission', publish: 'publication', base: 'base', bear: 'birthplace', bury: 'burial place', hold: 'venue', host: 'host', store: 'storage', record: 'record', mention: 'mention', file: 'file', list: 'list', train: 'training', educate: 'school', employ: 'employer', register: 'register', enrol: 'school', enroll: 'school', insure: 'insurer', house: 'home', set: 'setting', found: 'founding', stage: 'venue', infect: 'infection', vaccinate: 'vaccine', expose: 'exposure', involve: 'involvement', interest: 'interest', qualify: 'qualification' };
+  // What an active verb with its preposition reads as from the other end ("Works at" → "Employer of").
+  const ACTIVE = { 'work at': 'Employer of', 'work for': 'Employer of', 'work in': 'Workplace of', 'live in': 'Home of', 'live at': 'Home of', 'belong to': 'Owner of', 'report to': 'Manager of', 'come from': 'Origin of', 'refer to': 'Referred to in', 'study at': 'School of', 'stay at': 'Stay of', 'take place in': 'Place of', 'take place at': 'Place of', 'happen at': 'Place of', 'happen in': 'Place of', 'occur in': 'Place of', 'lead to': 'Led to by', 'result in': 'Resulting from', 'depend on': 'Needed by', 'rely on': 'Relied on by', 'respond to': 'Response from', 'point to': 'Pointed to by', 'apply to': 'Applies to', 'go to': 'Visited by', 'attend at': 'Attended by' };
+  // A verb whose passive takes "in" ("Mentioned in"), not "by".
+  const IN = new Set(['mention', 'include', 'cite', 'list', 'feature', 'contain', 'show', 'name', 'describe', 'record', 'note', 'quote', 'reference']);
+  // A role whose other end is another role ("Parent" → its other end lists the children: "Parent of").
+  const ROLE = /^(parent|child|mother|father|son|daughter|owner|author|guardian|carer|caregiver|nurse|doctor|physician|surgeon|therapist|manager|editor|host|teacher|student|patient|client|employer|employee|tenant|landlord|mentor|supervisor|sponsor|insurer|provider|prescriber|referrer|member|founder|leader|head|chair|lead)$/i;
+  const cap = s => s ? s[0].toUpperCase() + s.slice(1) : s;
+  const like = (src, out) => /^[A-Z]/.test(src) ? cap(out) : out;   // the property's own capitals
+  const conj = verb => { try { return nlp(verb).verbs().conjugate()[0] || {}; } catch (e) { return {}; } };
+  const participle = verb => { const c = conj(verb); return c.Participle || c.PastTense || verb; };
+  const infinitive = word => { const c = conj(word); return c.Infinitive || word; };
+  const plural = noun => { try { return nlp(`the ${noun}`).nouns().toPlural().text().replace(/^the /, '') || noun; } catch (e) { return noun; } };
+  // The verbs a property is named by in the present ("Treats"); any other word ending in s is read as a plural ("Notes").
+  const RELATION_VERBS = new Set(['treat', 'mention', 'include', 'cause', 'cite', 'contain', 'use', 'own', 'cover', 'visit', 'prescribe', 'require', 'support', 'follow', 'affect', 'replace', 'manage', 'employ', 'attend', 'describe', 'reference', 'precede', 'block', 'fund', 'host', 'teach', 'monitor', 'measure', 'track', 'answer', 'refute', 'contradict', 'confirm', 'explain', 'diagnose', 'administer', 'order', 'perform', 'produce', 'create', 'influence', 'trigger', 'prevent', 'relieve', 'worsen', 'improve', 'feature', 'list', 'quote', 'summarize', 'summarise', 'review', 'supervise', 'insure', 'serve', 'see', 'refer', 'cure', 'target', 'inhibit', 'interact']);
+  const isParticiple = word => { const t = nlp(`It was ${word} by them.`).terms().json()[2]?.terms[0].tags || []; return t.includes('Verb') && (t.includes('PastTense') || t.includes('Participle') || t.includes('Passive')); };
+
+  return function readsBack(name) {
+    const said = String(name || '').trim(), low = said.toLowerCase().replace(/\s+/g, ' ');
+    if (!said) return said;
+    if (BOTH.has(low)) return said;
+    const words = low.split(' '), last = words[words.length - 1], head = words.slice(0, -1).join(' ');
+    const PREP = new Set(['by', 'in', 'at', 'with', 'on', 'from', 'to', 'for', 'of', 'into', 'about', 'under', 'through']);
+    if (words.length >= 2 && PREP.has(last)) {
+      if (last === 'of') return like(said, plural(head));                                                    // Symptom of → Symptoms
+      const first = words[0];
+      if (last === 'by' && isParticiple(first)) return like(said, head);                                    // Prescribed by → Prescribed
+      const noun = words.length === 2 && last !== 'by' && (NOUN[first] || (isParticiple(first) && NOUN[infinitive(first)]));
+      if (noun) return like(said, `${noun} of`);                                                            // Located in → Location of
+      if (words.length === 2 && isParticiple(first)) return said;
+      const verb = infinitive(first), key = [verb, ...words.slice(1)].join(' ');
+      if (ACTIVE[key]) return like(said, ACTIVE[key]);                                                      // Works at → Employer of
+      return said;
+    }
+    if (words.length === 1 && /s$/.test(low)) {                                                              // Treats → Treated by
+      const verb = [infinitive(low), low.slice(0, -1), low.slice(0, -2)].find(v => v !== low && RELATION_VERBS.has(v));
+      if (verb) return like(said, `${participle(verb)} ${IN.has(verb) ? 'in' : 'by'}`);
+    }
+    if (words.length === 1 && ROLE.test(low)) return `${said} of`;                                           // Provider → Provider of
+    return said;                                                                                              // Topic, Hospital: as it is
+  };
 }
+const byGrammar = (() => {
+  const read = typeof window.nlp === 'function' ? makeReadsBack(window.nlp) : null, kept = new Map();
+  return name => {
+    if (!read) return name;
+    if (!kept.has(name)) { let out = name; try { out = read(name) || name; } catch (error) { out = name; } kept.set(name, out); }
+    return kept.get(name);
+  };
+})();
 function backwardsNames() {
   const names = new Map();
   if (appleOn()) for (const [field, words] of pairsOf(setting('twoWayCloudNames'))) names.set(field.toLowerCase(), words);
