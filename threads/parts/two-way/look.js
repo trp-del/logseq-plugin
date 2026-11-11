@@ -129,6 +129,9 @@ const twoWayCss = `
 .th-two-way .th-tw-keep:hover, .th-two-way .th-tw-keep[aria-pressed="true"] { color: var(--lk-text, currentColor); text-decoration-color: currentColor; }
 .th-two-way .th-tw-kname { color: var(--lk-quiet); }
 .th-two-way .th-tw-sorted { color: var(--lk-quiet); font-weight: 400; }
+/* What the timeline narrowed, on a line of its own under the tabs, smaller and quiet, its × to give the list back (the owner, 11 November 2026). */
+.th-two-way .th-tw-head .th-tw-piece.th-tw-showing { flex: 0 0 100%; order: 99; display: inline-flex; align-items: baseline; gap: 4px; margin: 0; font-size: var(--lk-small); font-weight: 400; }
+.th-two-way .th-tw-head .th-tw-showing .lk-x { font-size: var(--lk-small); line-height: 1; }
 /* The year line (N3), shape A (10 November 2026, the owner's pick): no box; a hairline a lane through the dots, a tick where
    each month starts and its name under it; the line in the words' column (after the days' column), 6px in at both ends so no
    dot meets its end; with lanes, each lane's name right-aligned before the line, in the days' column. A picked span a wash.
@@ -209,7 +212,7 @@ const twoWayCss = `
 /* Group shows all along (the owner: "can keep Group there all along, capitalize G"); before it showed only with
    the pointer on the row. */
 .th-two-way .th-tw-groupby { margin: 0; }   /* the ⋯ at the head's end: View, then moving the list (10 November 2026) */
-.th-two-way .th-tw-head .th-tw-right { display: inline-flex; align-items: baseline; gap: 1.05rem; }
+.th-two-way .th-tw-head .th-tw-right { display: inline-flex; align-items: baseline; gap: 1.05rem; font-size: var(--lk-small); font-weight: 400; }   /* settings, a step smaller than the tabs and the count, so a wrapped line never reads as more tabs (the owner, 11 November 2026) */
 .th-two-way .th-tw-head .th-tw-groupby { font-weight: 400; color: var(--lk-quiet) !important; padding: 0 2px !important; opacity: .7; }   /* the one faint ⋯ at the head's end */
 .th-two-way .th-tw-head .th-tw-said { font-weight: 400; font-size: inherit; color: var(--lk-quiet); }   /* a setting not the default, said before the days, quiet as the days */
 .th-two-way .th-tw-head .th-tw-groupby:hover, .th-two-way .th-tw-head .th-tw-groupby:focus-visible { color: var(--lk-text, currentColor) !important; opacity: 1; }

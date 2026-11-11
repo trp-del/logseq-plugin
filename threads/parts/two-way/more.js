@@ -162,23 +162,26 @@ function laneProps(group) {
     .sort((a, b) => b.held - a.held || a.name.localeCompare(b.name)).slice(0, 3);
 }
 // The lanes in force for a list: the property, its lanes' names ("others" last, when a node holds none of the three), a node's lane.
-function lanesOf(group) {
+function lanesOf(group, items = group.items) {
   const prop = laneProps(group).find(p => p.name === lanesBy(group));
   if (!prop) return null;
   const top = prop.values.slice(0, 3).map(([text]) => text);
   const laneOf = item => { const held = valuesOf(item).filter(v => v.name === prop.name).map(v => v.text); const i = top.findIndex(t => held.includes(t)); return i < 0 ? top.length : i; };
-  const names = group.items.some(item => twoWay.dayIn(group, item) && laneOf(item) === top.length) ? [...top, 'others'] : top;
+  const names = items.some(item => twoWay.dayIn(group, item) && laneOf(item) === top.length) ? [...top, 'others'] : top;
   return { prop, names, laneOf };
 }
 twoWay.underHeadHooks.unshift((group, key) => {
   if (!state.yearOn.has(key)) return '';
   const dayOf = item => twoWay.dayIn(group, item);
-  const dated = group.items.filter(dayOf);
+  // A tab that narrows the list to one kind narrows the line too (11 November 2026, the owner: "items should disappear from
+  // timeline if tab is selected that filters"); the span and the lane only fade the dots they leave out.
+  const only = state.only.get(key), mine = only && group.items.some(item => item.tag === only) ? group.items.filter(item => item.tag === only) : group.items;
+  const dated = mine.filter(dayOf);
   if (dated.length < 2) return '';
   const days = dated.map(dayOf), lo = Math.min(...days), hi = Math.max(...days);
   const t0 = dateOf(lo).getTime(), span = Math.max(1, dateOf(hi).getTime() - t0);
   const f = n => (dateOf(n).getTime() - t0) / span, x = n => `calc(6px + (100% - 12px) * ${f(n).toFixed(4)})`;
-  const pick = state.yearPick.get(key), lanes = lanesOf(group), on = lanes ? state.yearLaneOn.get(key) : undefined;
+  const pick = state.yearPick.get(key), lanes = lanesOf(group, mine), on = lanes ? state.yearLaneOn.get(key) : undefined;
   const months = []; for (let d = new Date(dateOf(lo).getFullYear(), dateOf(lo).getMonth() + 1, 1); d.getTime() <= dateOf(hi).getTime(); d.setMonth(d.getMonth() + 1)) months.push(`<span class="th-tw-ymonth" style="left:${x(dayNum(d))}">${MON[d.getMonth()]}${d.getMonth() === 0 ? ' ' + d.getFullYear() : ''}</span>`);
   const band = pick ? `<span class="th-tw-yband" style="left:${x(Math.max(lo, pick[0]))};width:max(6px, calc((100% - 12px) * ${(f(Math.min(hi, pick[1])) - f(Math.max(lo, pick[0]))).toFixed(4)}))"></span>` : '';
   const dots = dated.map(item => {
@@ -197,7 +200,10 @@ twoWay.listHooks.push((group, key, items) => {
 twoWay.headHooks.push((group, key) => {
   const p = state.yearPick.get(key), on = state.yearLaneOn.get(key), lanes = on !== undefined ? lanesOf(group) : null;
   const said = [lanes ? `${lanes.prop.name} ${lanes.names[on]}` : '', p ? `${twoWay.dayText(p[0])} to ${twoWay.dayText(p[1])}` : ''].filter(Boolean).join(', ');
-  return said ? `<span class="th-tw-piece"><span class="th-tw-sep" aria-hidden="true">·</span><span class="th-tw-sorted">showing ${esc(said)}</span></span>` : '';
+  /* Its own quieter, smaller line under the tabs, with a × that gives the whole list back (11 November 2026, the owner: "the second
+     line needs to look different if it has different function than top"): the tabs pick what kind, this line says what the
+     timeline narrowed. */
+  return said ? `<span class="th-tw-piece th-tw-showing"><span class="th-tw-sorted">Showing ${esc(said)}</span><button type="button" class="lk-x" data-yclear="${esc(key)}" title="Show the whole list again (Escape)" aria-label="Show the whole list again">×</button></span>` : '';
 });
 // The timeline in force, for the View menu's words on the heading: "Timeline", "Timeline by Topic", or nothing while hidden.
 twoWay.timelineSaid = group => { const key = listKey(group); if (!state.yearOn.has(key)) return ''; const lanes = lanesOf(group); return lanes ? `Timeline by ${lanes.prop.name}` : 'Timeline'; };
@@ -356,6 +362,8 @@ twoWay.clickHooks.push(event => {
   const when = t.closest?.('.th-tw-head a.th-tw-when');
   if (when) { stop(); const k = when.dataset.key; if (state.yearOn.has(k)) { state.yearOn.delete(k); state.yearPick.delete(k); state.yearLaneOn.delete(k); } else { state.yearOn.add(k); twoWay.setOpen?.(k, true); } redraw(); return true; }
   if (state.yearDragged && t.closest?.('.th-tw-ytrack')) { stop(); return true; }
+  const yclear = t.closest?.('[data-yclear]');
+  if (yclear) { stop(); const k = yclear.dataset.yclear; state.yearPick.delete(k); state.yearLaneOn.delete(k); redraw(); return true; }
   const ylane = t.closest?.('[data-ylane]');
   if (ylane) { stop(); const k = ylane.dataset.ykey, i = Number(ylane.dataset.ylane); if (state.yearLaneOn.get(k) === i) state.yearLaneOn.delete(k); else state.yearLaneOn.set(k, i); redraw(); return true; }
   const ydot = t.closest?.('[data-yday]');

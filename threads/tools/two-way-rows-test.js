@@ -647,10 +647,10 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     const dots = [...doc.querySelectorAll('.th-tw-row[data-field="about"] .th-tw-ydot')];
     check(dots.length === 5, 'the days open a year line, a dot for each dated node (N3): ' + dots.length);
     click(window, dots.find(d => d.dataset.yday === '20261012')); await wait(60);
-    check(lines().join('|') === 'Does it work for skills?|The best gap is a tenth of the time until the test.' && /showing/.test(head()), 'a dot narrows the list to its week: ' + lines());
+    check(lines().join('|') === 'Does it work for skills?|The best gap is a tenth of the time until the test.' && /showing/i.test(head()), 'a dot narrows the list to its week: ' + lines());
     // Lanes and spans (10 November 2026): the line laid out by a property, a lane narrowing the list, a drag picking days, Escape letting go.
     click(window, doc.querySelector('.th-tw-row[data-field="about"] .th-tw-ydot[data-yday="20261012"]')); await wait(60);
-    check(lines().length === 5 && !/showing/.test(head()), 'a click inside the picked week gives the whole list back: ' + lines().length);
+    check(lines().length === 5 && !/showing/i.test(head()), 'a click inside the picked week gives the whole list back: ' + lines().length);
     const about = () => st.groups.find(g => g.name === 'about'), timeline = () => tw.viewMenuHooks.flatMap(h => h(about()) || []).filter((it, i, all) => i > all.findIndex(x => x.group === 'Timeline') && !it.group).filter((it, i, all) => !all.slice(0, i).some(x => x.sep) && !it.sep);
     const by = timeline().map(i => i.label);
     check(by.join('|') === 'Hidden|One line|By Confidence|By Severity' && timeline().find(i => i.label === 'One line').chosen, 'the View menu offers the timeline hidden, as one line or in lanes by the properties its nodes share: ' + by);
@@ -663,15 +663,27 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     check([...doc.querySelectorAll('.th-pop .th-item')].some(el => /By Confidence/.test(el.textContent)), 'a click on the words opens the View menu, the timeline among its options');
     doc.querySelectorAll('.th-pop').forEach(p => p.remove());
     click(window, [...doc.querySelectorAll('.th-tw-row[data-field="about"] .th-tw-ylane')].find(a => a.textContent.startsWith('Strong'))); await wait(60);
-    check(lines().length === 2 && lines().every(l => /^Spacing beats|^The gap/.test(l)) && /showing Confidence Strong/.test(head()), 'a lane\'s name narrows the list to it, the head says so: ' + lines() + ' | ' + head());
+    check(lines().length === 2 && lines().every(l => /^Spacing beats|^The gap/.test(l)) && /showing Confidence Strong/i.test(head()), 'a lane\'s name narrows the list to it, the head says so: ' + lines() + ' | ' + head());
     doc.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); await wait(60);
-    check(lines().length === 5 && !/showing/.test(head()) && laneNames().length === 3, 'Escape lets go of the lane, the lanes stay: ' + lines().length);
+    check(lines().length === 5 && !/showing/i.test(head()) && laneNames().length === 3, 'Escape lets go of the lane, the lanes stay: ' + lines().length);
     { const track = doc.querySelector('.th-tw-row[data-field="about"] .th-tw-ytrack'); track.getBoundingClientRect = () => ({ left: 0, top: 0, width: 100, height: 70, right: 100, bottom: 70 });
       const m = (type, x) => track.dispatchEvent(new window.MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, button: 0 }));
       m('mousedown', 0); m('mousemove', 20); m('mousemove', 50); m('mouseup', 50); await wait(60); }
-    check(lines().length === 2 && /showing Sep 1 to/.test(head()), 'a drag across the line picks the days under it: ' + lines() + ' | ' + head());
+    check(lines().length === 2 && /showing Sep 1 to/i.test(head()), 'a drag across the line picks the days under it: ' + lines() + ' | ' + head());
     doc.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); await wait(60);
-    check(lines().length === 5 && !/showing/.test(head()), 'Escape lets go of the span');
+    check(lines().length === 5 && !/showing/i.test(head()), 'Escape lets go of the span');
+    { const track = doc.querySelector('.th-tw-row[data-field="about"] .th-tw-ytrack'); track.getBoundingClientRect = () => ({ left: 0, top: 0, width: 100, height: 70, right: 100, bottom: 70 });
+      const m = (type, x) => track.dispatchEvent(new window.MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, button: 0 }));
+      m('mousedown', 0); m('mousemove', 20); m('mousemove', 50); m('mouseup', 50); await wait(60); }
+    check(!!doc.querySelector('.th-tw-row[data-field="about"] .th-tw-showing [data-yclear]'), 'the narrowing stands on its own line with a ×');
+    click(window, doc.querySelector('.th-tw-row[data-field="about"] [data-yclear]')); await wait(60);
+    check(lines().length === 5 && !/showing/i.test(head()), 'the × gives the whole list back');
+    { const dots = () => doc.querySelectorAll('.th-tw-row[data-field="about"] .th-tw-ydot').length, before = dots();
+      const tab = doc.querySelector('.th-tw-row[data-field="about"] .th-tw-chip[data-tag="Claim"]');
+      click(window, tab); await wait(60);
+      check(dots() > 0 && dots() < before, 'a tab narrows the timeline to its own nodes: ' + before + ' → ' + dots());
+      click(window, doc.querySelector('.th-tw-row[data-field="about"] .th-tw-chip[data-tag="Claim"]')); await wait(60);
+      check(dots() === before, 'the tab let go, every dot is back'); }
     timeline().find(i => i.label === 'One line').run(); await wait(60);
     check(!doc.querySelector('.th-tw-row[data-field="about"] .th-tw-ylane') && !window.localStorage.getItem('thTwoWayYearLanes')?.includes('about'), 'One line takes the lanes away');
     timeline().find(i => i.label === 'Hidden').run(); await wait(60);
