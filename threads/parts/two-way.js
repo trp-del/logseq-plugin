@@ -88,20 +88,47 @@ const plural = (word, n) => n === 1 ? word : /[^aeiou]y$/i.test(word) ? word.sli
    this setting held by default until now ("works at = works here" and the like) were never chosen, so they are passed
    over; a pair giving a property its own name again is no renaming. */
 const OLD_DEFAULTS = new Set(['symptoms|logged in', 'ask|asked', 'works at|works here', 'insurer|insurer of', 'related|related to']);
-/* Apple's names (11 November 2026, the owner: "I want it to happen automatically"): a row with no name of the owner's reads by
-   the best of Apple's three names for it (readsBackOffers), asked once for each property and kept in twoWayAppleNames, in the
-   same "Provider = Patients" pairs. A name the owner gives, their own property name too, always wins; with "Read my words with
-   Apple's tools" off, or no answer, the row reads by the property's own name as before. */
+/* Names from the other end (11 November 2026, the owner: "I want it to happen automatically", and "I preferred more connector
+   type names with preposition or relational, but not always"; then their pick of the cloud model with grammar behind it). A row
+   with no name of the owner's reads by the name Apple's larger model in Private Cloud Compute gives for it ("Located in" →
+   "Location of"), asked once for each property in the background (nameByCloud) and kept in twoWayCloudNames, in the same
+   "Located in = Location of" pairs; until it has answered, or where it cannot be reached, by grammar (byGrammar). The model is sent
+   only the property's and tags' names (the owner, 3 November 2026: the cloud for the ontology alone). A name the owner gives,
+   the property's own name too, always wins. twoWayAppleNames, the on-device model's names of 0.3.70 (2 good of 16), is passed over. */
 const pairsOf = text => String(text || '').split(/[;\n]/).map(pair => pair.split('=').map(part => part?.trim())).filter(([field, words]) => field && words);
 const appleOn = () => setting('proposalsModel') !== false;
-/* Held off (11 November 2026): on the owner's Mac Apple's model gave 2 good names of 16, mostly the instructions' own examples
-   copied back, so rows read by the property's own name again and the names 0.3.70 kept are passed over, until a way of asking
-   passes the owner's trial. The three offers under Reads back as… stay. */
-const APPLE_AUTO = false;
+/* The property read from the other end by English grammar alone: "Prescribed by" → "Prescribed", "Symptom of" → "Symptoms",
+   "Located in" → "Location of", "Diagnosed with" → "Diagnosis of", "Works at" → "Works here", "Treats" → "Treated by",
+   "Mentions" → "Mentioned in", a role ("Provider", "Insurer", "Parent") → "Provider of"; a link both ways ("Spoke with") and
+   any other noun ("Topic", "Hospital") keep their name. */
+const plainPlural = word => /[^aeiou]y$/i.test(word) ? word.slice(0, -1) + 'ies' : /(s|x|z|ch|sh)$/i.test(word) ? word + 'es' : word + 's';
+const pastOf = verb => /e$/.test(verb) ? verb + 'd' : /[^aeiou]y$/.test(verb) ? verb.slice(0, -1) + 'ied' : verb + 'ed';
+const BOTH_WAYS = /^(spoke|talked|met|married|related|linked|connected|worked|sibling|friend|partner|colleague)( (with|to|of))?$/i;
+const VERBS = /^(treats|mentions|includes|causes|cites|lists|shows|features|contains|follows|supports|references|describes|affects|uses|requires|replaces|prescribes|manages|owns|funds|attends|visits|cares|teaches|employs|hosts|covers|tracks|measures|monitors|reports|records|answers|blocks|precedes)$/;
+const ROLE = /^(parent|child|owner|author|guardian|carer|nurse|doctor|partner|mother|father|spouse|manager|editor|host)$/i;
+function byGrammar(name) {
+  const words = String(name).trim().split(/\s+/), low = words.map(w => w.toLowerCase()), last = low[low.length - 1], cap = w => w ? w[0].toUpperCase() + w.slice(1) : w;
+  if (!words[0] || BOTH_WAYS.test(name)) return name;
+  if (words.length >= 2 && last === 'by') return words.slice(0, -1).join(' ');
+  if (words.length >= 2 && last === 'of') return cap(plainPlural(words.slice(0, -1).join(' ').toLowerCase()));
+  if (words.length === 2 && ['in', 'at', 'with', 'on', 'from', 'to', 'for'].includes(last)) {
+    if (/ated$/.test(low[0])) return cap(low[0].replace(/ated$/, 'ation')) + ' of';
+    if (/osed$/.test(low[0])) return cap(low[0].replace(/osed$/, 'osis')) + ' of';
+    if (/[^s]s$/.test(low[0])) return cap(low[0]) + ' here';
+    return name;
+  }
+  // A verb (Treats), not a plural (Symptoms): only the verbs a property is commonly named by.
+  if (words.length === 1 && VERBS.test(low[0])) {
+    const verb = low[0].slice(0, -1);
+    return cap(pastOf(verb)) + (/^(mention|cite|name|list|show|include|feature)$/.test(verb) ? ' in' : ' by');
+  }
+  if (words.length === 1 && !/ment$/.test(low[0]) && (/(er|or|ist|ian)$/.test(low[0]) || ROLE.test(low[0]))) return name + ' of';
+  return name;
+}
 function backwardsNames() {
   const names = new Map();
-  if (APPLE_AUTO && appleOn()) for (const [field, words] of pairsOf(setting('twoWayAppleNames'))) names.set(field.toLowerCase(), words);
-  // The owner's own, over Apple's; their property's own name typed in keeps the row on it.
+  if (appleOn()) for (const [field, words] of pairsOf(setting('twoWayCloudNames'))) names.set(field.toLowerCase(), words);
+  // The owner's own, over the model's; their property's own name typed in keeps the row on it.
   for (const [field, words] of pairsOf(setting('twoWayNames'))) {
     if (OLD_DEFAULTS.has(`${field.toLowerCase()}|${words.toLowerCase()}`)) continue;
     names.set(field.toLowerCase(), words);
@@ -109,8 +136,8 @@ function backwardsNames() {
   return names;
 }
 const ownedName = name => pairsOf(setting('twoWayNames')).some(([field, words]) => field.toLowerCase() === name.toLowerCase() && !OLD_DEFAULTS.has(`${field.toLowerCase()}|${words.toLowerCase()}`));
-const appleHas = name => pairsOf(setting('twoWayAppleNames')).some(([field]) => field.toLowerCase() === name.toLowerCase());
-const readBackwards = (name, names) => names.get(name.toLowerCase()) || name;
+const cloudHas = name => pairsOf(setting('twoWayCloudNames')).some(([field]) => field.toLowerCase() === name.toLowerCase());
+const readBackwards = (name, names) => names.get(name.toLowerCase()) || byGrammar(name);
 
 // Fields shown from one end only: "status; city" -> Set of lower-case names.
 const oneEndNames = () => new Set(String(setting('twoWayOneEnd') || '').split(/[;\n]/).map(name => name.trim().toLowerCase()).filter(Boolean));
@@ -120,8 +147,8 @@ const backwardsLabel = name => readBackwards(name, backwardsNames());
 function setBackwards(name, words) {
   words = String(words || '').replace(/[;=\n]/g, ' ').replace(/\s+/g, ' ').trim();
   const pairs = String(setting('twoWayNames') || '').split(/[;\n]/).map(pair => pair.split('=').map(part => part?.trim())).filter(([field, said]) => field && said && field.toLowerCase() !== name.toLowerCase());
-  // Empty: no pair, so the row reads as it does by itself (Apple's name, else its own). The property's own name typed in is
-  // kept as a pair, so Apple's name does not come back over it.
+  // Empty: no pair, so the row reads as it does by itself (the model's name, else by grammar). The property's own name typed in
+  // is kept as a pair, so neither comes back over it.
   if (words) pairs.push([name, words]);
   saveSettings({ twoWayNames: pairs.map(([field, said]) => `${field} = ${said}`).join('; ') });
 }
@@ -288,32 +315,32 @@ async function groupsByPage(id) {
     groups.sort((a, b) => b.items.length - a.items.length || a.label.localeCompare(b.label));
     result.set(page, { uuid, groups });
   }
-  nameByApple([...result.values()].flatMap(page => page.groups));
+  nameByCloud([...result.values()].flatMap(page => page.groups));
   return result;
 }
-/* Asks Apple for the rows that have no name yet, one property at a time, in the background, once a session each; the names
-   are saved together when the round is over and the rows drawn again with them. */
-const appleAsked = new Set();
-let appleRound = null;
-function nameByApple(groups) {
-  if (!APPLE_AUTO || !appleOn() || appleRound) return;
-  const wanting = [...new Map(groups.filter(g => !isMentions(g) && !appleAsked.has(g.name.toLowerCase()) && !ownedName(g.name) && !appleHas(g.name)).map(g => [g.name.toLowerCase(), g])).values()];
+/* Asks the cloud model for the rows that have no name yet, one property at a time, in the background, once a session each; the
+   names are saved together when the round is over and the rows drawn again with them. */
+const cloudAsked = new Set();
+let cloudRound = null;
+function nameByCloud(groups) {
+  if (!appleOn() || cloudRound) return;
+  const wanting = [...new Map(groups.filter(g => !isMentions(g) && !cloudAsked.has(g.name.toLowerCase()) && !ownedName(g.name) && !cloudHas(g.name)).map(g => [g.name.toLowerCase(), g])).values()];
   if (!wanting.length) return;
-  appleRound = (async () => {
+  cloudRound = (async () => {
     const got = [];
-    // No helper, or no Apple Intelligence on this Mac: nothing is asked, and these rows not again this session.
-    if (!await appleReady()) { for (const group of wanting) appleAsked.add(group.name.toLowerCase()); return; }
+    // No helper, or no cloud model for this Mac: nothing is asked, and these rows not again this session; grammar names them.
+    if (!await cloudReady()) { for (const group of wanting) cloudAsked.add(group.name.toLowerCase()); return; }
     for (const group of wanting) {
       if (stopped) return;
-      appleAsked.add(group.name.toLowerCase());
+      cloudAsked.add(group.name.toLowerCase());
       const [best] = await readsBackOffers(group).catch(() => []);
       if (best) got.push([group.name, String(best).replace(/[;=\n]/g, ' ').trim()]);
     }
     if (!got.length || stopped) return;
-    const kept = pairsOf(setting('twoWayAppleNames')).filter(([field]) => !got.some(([name]) => name.toLowerCase() === field.toLowerCase()));
-    saveSettings({ twoWayAppleNames: [...kept, ...got].map(([field, words]) => `${field} = ${words}`).join('; ') });
+    const kept = pairsOf(setting('twoWayCloudNames')).filter(([field]) => !got.some(([name]) => name.toLowerCase() === field.toLowerCase()));
+    saveSettings({ twoWayCloudNames: [...kept, ...got].map(([field, words]) => `${field} = ${words}`).join('; ') });
     later(0); indexLater(0);
-  })().catch(error => warnOnce('could not ask Apple for the rows’ names', error)).finally(() => { appleRound = null; });
+  })().catch(error => warnOnce('could not ask for the rows’ names', error)).finally(() => { cloudRound = null; });
 }
 
 // Every page's rows in one look-up, at the start and again when the graph has been still for a while. The
@@ -1033,27 +1060,26 @@ async function hideMentionsHere() {
   saveSettings({ twoWayMentionsHidden: [...names, title].join('; ') });
   offerUndo(`The mentions row is hidden on “${title}”`, () => { saveSettings({ twoWayMentionsHidden: before }); later(0); });
 }
-/* How the row could read, from Apple's model on this Mac (Predictive's helper, /reads-back, version 5): three names for the
-   property seen from the page it points to ("Located in" → "Location of"). Only the property's name and tags' names go to the
-   model, never a node's words, and nothing leaves the Mac. [] when the helper or its model is not here, or "Read my words with
+/* The cloud model's name for a row (Predictive's helper, /reads-back, version 6): the property seen from the page it points to.
+   Only the property's name and tags' names are sent. [] when the helper or the cloud model is not there, or "Read my words with
    Apple's tools" is off; kept for each property until the plugin reloads, asked again after a miss. */
 const { HELPER } = window.PluginDoor || {};
 const readsBackKept = new Map();
 // No fetch (a test's stand-in window) or the setting off: never asked.
 const canAsk = () => appleOn() && typeof fetch === 'function' && typeof AbortSignal?.timeout === 'function';
-// Whether the helper answers with Apple's model ready and knows /reads-back (version 5).
-const appleReady = async () => canAsk() && !!await fetch(HELPER + '/status', { signal: AbortSignal.timeout(800) }).then(r => r.json()).then(status => status?.ready && (status.version || 0) >= 5, () => false);
+// Whether the helper answers, knows /reads-back from the cloud (version 6) and the cloud model is there for this Mac.
+const cloudReady = async () => canAsk() && !!await fetch(HELPER + '/status', { signal: AbortSignal.timeout(800) }).then(r => r.json()).then(status => status?.cloud && (status.version || 0) >= 6, () => false);
 function readsBackOffers(group) {
   if (!canAsk()) return Promise.resolve([]);
   const key = group.name.toLowerCase();
   if (!readsBackKept.has(key)) {
     const asking = (async () => {
-      if (!await appleReady()) return [];
+      if (!await cloudReady()) return [];
       const schema = provided.propSchema ? await provided.propSchema().catch(() => null) : null;
       const prop = schema?.props.find(p => p.title.toLowerCase() === key);
       const from = [...new Set(group.items.map(item => item.tag).filter(tag => tag && tag !== 'note'))].slice(0, 6);
       const to = (prop?.classes || []).map(c => c.title).filter(Boolean).slice(0, 6);
-      const reply = await fetch(HELPER + '/reads-back', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ property: group.name, from, to }), signal: AbortSignal.timeout(8000) }).then(r => r.json()).catch(() => null);
+      const reply = await fetch(HELPER + '/reads-back', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ property: group.name, from, to }), signal: AbortSignal.timeout(20000) }).then(r => r.json()).catch(() => null);
       return Array.isArray(reply?.names) ? reply.names.filter(name => typeof name === 'string' && name.trim()).slice(0, 3) : [];
     })().catch(() => []);
     readsBackKept.set(key, asking);
@@ -1063,9 +1089,9 @@ function readsBackOffers(group) {
 }
 async function renameRow(group, nameEl) {
   const before = backwardsLabel(group.name);
-  // Typed on the row's own name, as a page is renamed in Logseq (1.0.4); empty goes back to the property's own name. Apple's
-  // names come under the box when they are in, with the property's own name last when the row reads otherwise now.
-  const offers = () => readsBackOffers(group).then(names => [...names, ...(before !== group.name ? [group.name] : [])].filter(name => name !== before));
+  // Typed on the row's own name, as a page is renamed in Logseq (1.0.4); empty goes back to how it reads by itself. Under the
+  // box: the cloud model's name, grammar's and the property's own, each once, leaving out what the row reads now.
+  const offers = () => readsBackOffers(group).catch(() => []).then(names => [...new Set([...names, byGrammar(group.name), group.name])].filter(name => name !== before));
   const typed = await shared.editInPlace({ at: nameEl, value: before, placeholder: group.name, offers });
   if (typed == null || typed.trim() === before) return;
   setBackwards(group.name, typed.trim());

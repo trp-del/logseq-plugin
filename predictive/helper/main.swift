@@ -15,7 +15,9 @@
                     meaning to the text, cosine similarity, best first. held 0: nothing learned for this graph yet (learn first).
    POST /names   <- { "texts": [..] } -> { "names": [[{ "text", "kind": "person" | "place" | "organization", "at", "to" }], ...] }:
                     the names Apple's name finder reads in each text, in order, at and to as character offsets.
-   POST /reads-back <- { "property", "from", "to" } -> { "names": [..] }: how a property reads from the node it points to (version 5).
+   POST /reads-back <- { "property", "from", "to" } -> { "names": [one] }: how a property reads from the node it points to, from
+                    Apple's larger model in Private Cloud Compute, sent only the property's and tags' names (version 6; 5 asked the
+                    on-device model).
    POST /fill    <- { "text", "page", "tags": [..], "today": "YYYY-MM-DD", "instructions", "context", "properties": [
                         { "key", "title", "kind": "page" | "tag" | "choice" | "number" | "date", "many", "choices": [titles], "about" } ] }
                    (a "tag" is which of the graph's tags the note is, a "choice" one of a property's own list (Status), each
@@ -37,8 +39,8 @@ let PORT: UInt16 = 47615
 let ORIGIN = "lsp://logseq.com"
 let NONE = "none"
 // Raised when the plugin may ask something an older helper cannot answer (2: a property with a list of choices; 3: "model",
-// a date without a pattern, failures by name; 4: /meaning and /names; 5: /reads-back).
-let VERSION = 5
+// a date without a pattern, failures by name; 4: /meaning and /names; 5: /reads-back; 6: /reads-back from the larger model in Private Cloud Compute).
+let VERSION = 6
 
 // MARK: - the request
 
@@ -281,45 +283,52 @@ func namesIn(_ text: String) -> [[String: Any]] {
 
 // MARK: - how a property reads from the other end
 
-/* POST /reads-back <- { "property", "from": [tags it is on], "to": [tags of its values] } -> { "names": [..], "ms" }: three
-   short names for the property seen from the node it points to (Threads' row on that page, "Reads back as…"). Only the
-   ontology is sent, a property's name and tags' names; never a note's words. */
+/* POST /reads-back <- { "property", "from": [tags it is on], "to": [tags of its values] } -> { "names": [one], "ms" } or
+   { "error" }: the property's name read from the node it points to (Threads' rows), from Apple's larger model in Private
+   Cloud Compute (macOS 27). Only the ontology is sent, a property's name and tags' names; never a note's words (the owner,
+   3 November 2026). The on-device model gave 2 to 8 good names of 16 on the owner's Mac; the larger one 8 of 10 (11 November
+   2026), so it alone answers, and the plugin names the row by grammar when it cannot. Examples sit in the question, not the
+   instructions (Apple: the model holds to its instructions above all, and copied examples kept there), and come from far
+   away, so none is an answer to copy. */
 struct ReadsBackAsk: Decodable { let property: String; let from: [String]?; let to: [String]? }
-// The answer's shape: a list of three names (the schema built by hand, as /fill's is: the macros need Xcode).
-let READS_BACK_SCHEMA: GenerationSchema? = {
-  let names = DynamicGenerationSchema(arrayOf: DynamicGenerationSchema(type: String.self), minimumElements: 3, maximumElements: 3)
-  let root = DynamicGenerationSchema(name: "Headings", description: "Three different short headings, each one to four words, best first.", properties: [.init(name: "names", description: "The headings, best first.", schema: names)])
-  return try? GenerationSchema(root: root, dependencies: [])
-}()
-let READS_BACK = """
-In someone's notes, a property links one note to another. On the page of the note it points to, the notes that point \
-there are listed under one heading. You name that heading: the property read from the other end, as a connector that \
-says how those notes stand to this one. Prefer a relational phrase, a role or a verb with its preposition: "Provider of", \
-"Location of", "Seen by", "Prescribed", "Decided", "Member of". Avoid a plain noun for the notes themselves ("Patients", \
-"Decisions", "Staff"). Add a preposition only where the phrase needs one: "Decided by" read back is "Decided", \
-"Prescribed by" read back is "Prescribed", "Located in" read back is "Location of". Keep it one to four words, with the \
-same capitals as the property's own name.
-"""
+func readsBackPrompt(_ ask: ReadsBackAsk) -> String {
+  let from = ask.from?.first ?? "Note", to = ask.to?.first ?? "Note"
+  return """
+  Rename a link so it reads from the other end. Prefer a connector with its preposition (like 'Author of', 'Owner of') or \
+  a past participle (like 'Written', 'Approved'); use a plain verb only when nothing else reads naturally. Answer with the \
+  new link name only, one to four words.
+
+  Examples:
+  Book --Written by--> Person becomes Person --Wrote--> Book
+  Village --Part of--> County becomes County --Includes--> Village
+  Employee --Reports to--> Manager becomes Manager --Manager of--> Employee
+  Person --Mother--> Person becomes Person --Mother of--> Person
+
+  Now: \(from) --\(ask.property)--> \(to) becomes \(to) --?--> \(from)
+  """
+}
+// The name alone, from an answer that may repeat the link ("City --Location of--> Hospital") or end in a full stop.
+func cleanName(_ said: String) -> String {
+  var name = said.split(whereSeparator: \.isNewline).first.map(String.init) ?? ""
+  if let start = name.range(of: "--"), let end = name.range(of: "-->", range: start.upperBound..<name.endIndex) { name = String(name[start.upperBound..<end.lowerBound]) }
+  return name.trimmingCharacters(in: CharacterSet.whitespaces.union(CharacterSet(charactersIn: "\"'“”.`*")))
+}
 func readsBack(_ ask: ReadsBackAsk) async -> [String: Any] {
-  let started = Date()
-  if case .unavailable = SystemLanguageModel.default.availability { return ["error": "modelNotReady"] }
-  var prompt = "Property: \(ask.property)\n"
-  if let from = ask.from, !from.isEmpty { prompt += "It is on notes tagged: \(from.joined(separator: ", "))\n" }
-  if let to = ask.to, !to.isEmpty { prompt += "It points to notes tagged: \(to.joined(separator: ", "))\n" }
-  prompt += "Name the heading on the page of the note it points to."
-  do {
-    guard let schema = READS_BACK_SCHEMA else { return ["error": "schema"] }
-    let answer = try await READY.take(instructions: READS_BACK, model: nil).respond(to: prompt, schema: schema, options: GenerationOptions(sampling: .greedy))
-    let object = (try? JSONSerialization.jsonObject(with: Data(answer.content.jsonString.utf8))) as? [String: Any] ?? [:]
-    let strip = CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: "\"'“”."))
-    var seen = Set<String>(), names: [String] = []
-    for name in (object["names"] as? [Any] ?? []).compactMap({ $0 as? String }) {
-      let n = name.trimmingCharacters(in: strip)
-      if n.isEmpty || n.count > 40 || n.lowercased() == ask.property.lowercased() || !seen.insert(n.lowercased()).inserted { continue }
-      names.append(n)
-    }
-    return ["names": names, "ms": Int(Date().timeIntervalSince(started) * 1000)]
-  } catch { return ["error": failureName(error)] }
+  #if compiler(>=6.4)
+  if #available(macOS 27.0, *) {
+    let model = PrivateCloudComputeLanguageModel()
+    guard case .available = model.availability else { return ["error": "cloudNotReady"] }
+    let started = Date()
+    do {
+      let session = LanguageModelSession(model: model, instructions: nil as String?)
+      let answer = try await session.respond(to: readsBackPrompt(ask), contextOptions: ContextOptions())
+      let name = cleanName(answer.content)
+      if name.isEmpty || name.count > 40 || name.split(separator: " ").count > 5 { return ["error": "noName"] }
+      return ["names": [name], "ms": Int(Date().timeIntervalSince(started) * 1000), "model": "cloud"]
+    } catch { return ["error": failureName(error)] }
+  }
+  #endif
+  return ["error": "cloudNotReady"]
 }
 
 // MARK: - the door: a little HTTP on 127.0.0.1
