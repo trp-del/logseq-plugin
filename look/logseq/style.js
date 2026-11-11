@@ -11,6 +11,12 @@ const links = `
 ${AREA} a.page-ref:not(.tag):not(${DAY}) { color: inherit !important; text-decoration: underline !important; text-decoration-color: var(--lk-link) !important; text-decoration-thickness: var(--lk-link-width) !important; text-underline-offset: .2em; }
 ${AREA} a.page-ref:not(.tag):not(${DAY}):hover { text-decoration-color: currentColor !important; }
 ${AREA} a.page-ref a.asset-ref { color: inherit !important; }
+/* A file in the graph (a PDF, a document) is a link like any other: the words' colour, underlined, not Logseq's slate. */
+${AREA} a.asset-ref:not(a.page-ref *) { color: inherit !important; text-decoration: underline !important; text-decoration-color: var(--lk-link) !important; text-decoration-thickness: var(--lk-link-width) !important; text-underline-offset: .2em; }
+${AREA} a.asset-ref:not(a.page-ref *):hover { text-decoration-color: currentColor !important; }
+/* A PDF says so after its name, small and grey as the other things after a bullet's words, beside Logseq's book icon before it
+   (the owner, 11 November 2026: "in addition to book"). Inline-block, so the link's underline stops at the name. */
+${AREA} a.asset-ref.is-pdf:not(a.page-ref *)::after { content: "PDF"; display: inline-block; margin-left: .5em; font-size: var(--lk-small); color: var(--lk-quiet); text-decoration: none; }
 /* A bullet that is a page, or shows one: its words read as a link. A press opens the page (Predictive's page-here.js). */
 ${AREA} :is(.embed-block:not(.embed-block .embed-block) > .block-main-container, .block-main-container:not(.is-page-title-row):has(> .block-control-wrap :is(.ls-icon-file, .ls-icon-page))) .block-title-wrap { text-decoration: underline; text-decoration-color: var(--lk-link); text-decoration-thickness: var(--lk-link-width); text-underline-offset: 3px; cursor: pointer; }
 ${AREA} :is(.embed-block:not(.embed-block .embed-block) > .block-main-container, .block-main-container:not(.is-page-title-row):has(> .block-control-wrap :is(.ls-icon-file, .ls-icon-page))) .block-title-wrap:hover { text-decoration-color: currentColor; }
@@ -122,6 +128,55 @@ const quoteBullets = `
 ${AREA} ${QUOTED} > .block-control-wrap .bullet { display: flex; align-items: center; justify-content: center; width: 16px !important; height: 16px !important; background: none !important; color: var(--lk-quiet); }
 ${AREA} ${QUOTED} > .block-control-wrap .bullet::before { content: "\\201C"; font: 19px/16px Georgia, "Times New Roman", serif; height: 16px; transform: translateY(.28em); }
 ${AREA} ${QUOTED} > .block-control-wrap[data-has-children="false"] .block-control { visibility: hidden; }`;
+/* A PDF quote's page (11 November 2026, the owner: "get rid of emoji", the page "at the end of bullet", "style like (p. 1)"): Logseq's
+   coloured dot and bold "P2" before the words go, and "(p. 2)" stands after them, small and grey as the other things that
+   follow a bullet's words (a folded node's ↳ line). Logseq's own "P2" is only hidden, so a press on "(p. 2)" is passed to it
+   and opens the PDF at the quote as before. Where a quote is cited inside a link, the page stands after the quote's words, in the link. */
+const quotePageCss = `
+${AREA} .block-title-wrap[data-lk-page] > .prefix-link { display: none !important; }
+.lk-quote-page { display: inline-block; margin-left: .5em; font-size: var(--lk-small); color: var(--lk-quiet); font-variant-numeric: tabular-nums; white-space: nowrap; text-decoration: none; cursor: alias; user-select: none; }
+.lk-quote-page:hover { color: var(--lk-text, currentColor); }`;
+const QUOTE_PAGES = `${AREA} .block-title-wrap > .prefix-link > .hl-page`;
+function quotePages(doc) {
+  const on = setting('quotePages');
+  for (const page of on ? doc.querySelectorAll(QUOTE_PAGES) : []) {
+    const wrap = page.parentElement.parentElement, n = /\d+/.exec(page.textContent || '')?.[0];
+    if (!n) continue;
+    let mark = [...wrap.children].find(child => child.classList.contains('lk-quote-page'));
+    if (!mark) {
+      mark = Look.kit.el(doc, 'span', { class: 'lk-quote-page lk-own' });
+      const folded = [...wrap.children].find(child => child.classList.contains('lk-folded'));
+      wrap.insertBefore(mark, folded || null);
+    }
+    if (mark.textContent !== `(p. ${n})`) mark.textContent = `(p. ${n})`;
+    if (wrap.getAttribute('data-lk-page') !== n) wrap.setAttribute('data-lk-page', n);
+  }
+  for (const wrap of doc.querySelectorAll('[data-lk-page]')) {
+    if (on && wrap.querySelector(':scope > .prefix-link > .hl-page')) continue;
+    wrap.removeAttribute('data-lk-page');
+    for (const mark of wrap.querySelectorAll(':scope > .lk-quote-page')) mark.remove();
+  }
+}
+// The press is held back from Logseq, which would open the bullet to edit it, and played on Logseq's own page number instead.
+function pressPage(event) {
+  const mark = event.target?.closest?.('.lk-quote-page');
+  if (!mark) return;
+  event.preventDefault(); event.stopImmediatePropagation();
+  if (event.type !== 'click') return;
+  const page = mark.parentElement?.querySelector(':scope > .prefix-link > .hl-page');
+  if (page) window.PluginDoor.screen.press(page, { shiftKey: event.shiftKey });
+}
+let pagesWatched = false;
+function watchQuotePages() {
+  const doc = Look.kit.host();
+  if (!pagesWatched) {
+    pagesWatched = true;
+    Look.kit.watchScreen(quotePages, quotePages);
+    Look.kit.listen(doc.defaultView, ['pointerdown', 'mousedown', 'mouseup', 'click'], pressPage, true);
+    Look.kit.onStop(() => { pagesWatched = false; for (const wrap of Look.kit.host().querySelectorAll('[data-lk-page]')) wrap.removeAttribute('data-lk-page'); });
+  }
+  quotePages(doc);
+}
 /* The path to the bullet you edit (9 November 2026, the owner picked A in where-you-are-mockup.html; a shade darker, before,
    was too faint to see): the bullets above it and its own take the words' colour, and a darker line runs down Logseq's guide
    line only from each of them to the next, so the way from the top to you reads as one thread. Nothing new is drawn, the
@@ -154,6 +209,8 @@ function apply() {
   style('two-way', setting('hideTwoWayList') ? twoWay : '');
   style('add-property', setting('quietAddProperty') ? addProperty : '');
   style('quote-bullets', setting('quoteBullets') ? quoteBullets : '');
+  style('quote-pages', setting('quotePages') ? quotePageCss : '');
+  watchQuotePages();
   style('branch', setting('litBranch') ? branch : '');
 }
 Look.style = { apply };

@@ -12,7 +12,7 @@ const iconHtml = name => `<i class="lk-icon ti ti-${name}" aria-hidden="true"></
 /* Look's base (plugin.js, Door.base): its stylesheets, each sent only when its words changed, its listeners and passes taken off
    at stop, its settings read with their defaults, and what it may leave in Logseq's window, taken out when it stops: elements of
    its own, its attributes, and the titles it gave cut-off names. */
-const LEAVES = { elements: '.lk-own', attributes: ['data-lk-sort', 'data-lk-kind', 'data-lk-icon', 'data-lk-dev', 'data-lk-line', 'data-lk-closed', 'data-lk-timed', 'data-lk-wide'],
+const LEAVES = { elements: '.lk-own', attributes: ['data-lk-sort', 'data-lk-kind', 'data-lk-icon', 'data-lk-dev', 'data-lk-line', 'data-lk-closed', 'data-lk-timed', 'data-lk-wide', 'data-lk-page'],
   reset: doc => { for (const node of doc.querySelectorAll('[data-lk-title]')) { node.removeAttribute('title'); node.removeAttribute('data-lk-title'); } } };
 const base = window.PluginDoor.base('look', { prefix: 'Look: ', stylePrefix: 'look-', schema: () => Look.settings?.schema, leaves: LEAVES });
 const { style, listen, sweep } = base;
