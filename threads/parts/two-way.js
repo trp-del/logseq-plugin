@@ -602,14 +602,14 @@ function rowHtml(group, top = null) {
   const total = headItems.length;
   const { when, from } = headWhen(group, headItems);
   const was = group.since ? `<span class="th-tw-was lk-note" title="On this page today, with every day">${whole.items.length} today</span>` : '';
-  // The mentions row's head is its days alone (the review, 31 October: "notes" was the plugin's word for an untagged
-  // mention, under a row already called "Mentioned in"); where the mentions are of several kinds, the kinds stay.
-  const daysOnly = isMentions(group) && !kinds && !!when;
+  /* The mentions row's head says its count like every row ("5 nodes"), Logseq's word for an untagged node, never the plugin's
+     old "notes" (the review, 31 October). Its days alone stood there once; once the days moved to the head's right (10 November)
+     the head's left stood empty, an empty line under "Mentioned in" (11 November 2026, the owner: "why is there an empty line"). */
   /* With several kinds, each kind is a tab with its count beside it, All's too (9 November 2026, the owner: "there should be
      numbers next to each tab"), the number a step lighter than its word, so the words still lead. */
   const tabCount = n => `<span class="th-tw-n">${n}</span>`;
   const leadText = kinds ? `All ${tabCount(total)}` : `${total} ${esc(plural(tagWord((headItems[0] || group.since?.[0])?.tag || 'note'), total))}`;   // the number shows on a closed head (the owner, 1 November, the research's rule that a head says what it holds)
-  const lead = daysOnly ? '' : kinds ? chip('', leadText, ' th-tw-lead', true)
+  const lead = kinds ? chip('', leadText, ' th-tw-lead', true)
     : `<a class="th-tw-toggle th-tw-lead" data-key="${esc(key)}" href="#" title="Click to ${open ? 'fold' : 'open'} the list.">${leadText}</a>`;
   const whenHtml = when ? `<a class="th-tw-toggle th-tw-when" data-key="${esc(key)}" href="#" title="${esc(from ? whenTip(from) : 'The days of these nodes')}. Click to ${open ? 'fold' : 'open'} the list.">${esc(when).replace(/ (?=\d)/g, '&nbsp;')}</a>` : '';
   const sep = '<span class="th-tw-sep" aria-hidden="true">·</span>';
