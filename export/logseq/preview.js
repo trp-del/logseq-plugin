@@ -67,6 +67,7 @@ function paginate(doc, opts) {
   newPage();
   let i = 0;
   while (i < units.length) {
+    if (onPage > 0 && units[i].el.classList?.contains('x-newsheet')) newPage();   // a title sheet, or a section that starts its own
     place(units[i]); onPage += 1;
     if (overflows() && onPage > 1) {
       let back = 1;   // this unit goes to the next page, with any heading that would be left at the foot of this one
@@ -116,5 +117,13 @@ function repaginate(doc, opts) {
   if (caret && caret.node?.isConnected) { try { sel.collapse(caret.node, caret.offset); } catch (error) { /* the caret is lost */ } }
   return n;
 }
-E.preview = { paginate, gather, repaginate, sizes, PAPERS };
+/* A part of the sheet lit, while its name is pointed at in the export window (part: its class without the x-, or nothing to put the light out). */
+function light(doc, part) {
+  if (!doc.getElementById('pv-lit')) { const style = el(doc, 'style'); style.id = 'pv-lit'; style.textContent = '.pv-lit { outline: 1.5px solid #c26a00 !important; outline-offset: 1px; background-color: #fff1d6 !important; }'; doc.head.appendChild(style); }
+  for (const lit of doc.querySelectorAll('.pv-lit')) lit.classList.remove('pv-lit');
+  const parts = part ? [...doc.querySelectorAll(`.x-${part}`)] : [];
+  for (const one of parts) one.classList.add('pv-lit');
+  parts[0]?.scrollIntoView?.({ block: 'nearest' });
+}
+E.preview = { light, paginate, gather, repaginate, sizes, PAPERS };
 })();

@@ -4,6 +4,7 @@
    What a block's text can hold in a Logseq DB graph, after the adapter has swapped stored ids for names:
      [[Page]]  #[[Tag]]  [label]([[Page]])  [label](url)  ![alt](url)  bare URLs  `code`  **bold**  __bold__  *italic*
      _italic_  ~~struck~~  ==marked==  ^^marked^^  $math$  line breaks.
+   A citation, as /Cite writes it and Endnotes reads it (look/logseq/links.js): ([[Page]], p. 3)  ([title](url))  (*words*, p. 2).
    A bare #word is plain text: a real tag is stored as #[[id]] and comes here as #[[Name]]. */
 (function () {
 const E = (window.DbExport ||= {});
@@ -13,6 +14,9 @@ const rules = [
   ['br', /\n|<br\s*\/?>/y, m => ({ t: 'br' })],
   ['code', /`([^`\n]+)`/y, m => ({ t: 'code', s: m[1] })],
   ['image', /!\[([^\]]*)\]\(([^)\s]+)\)/y, m => ({ t: 'image', alt: m[1], url: m[2] })],
+  // A citation: a source in brackets with an optional page. id is what Endnotes tells sources apart by; k the source as written.
+  ['cite', /\((\[\[([^[\]]+)\]\]|\[([^\]]+)\]\((https?:[^)\s]+)\)|\*([^*]+)\*)(?:, p\. (\d+))?\)/y, m => ({ t: 'cite', k: parse(m[1]), page: m[6] || '',
+    url: m[4] || '', id: m[2] ? m[2].toLowerCase() : m[4] ? m[4].toLowerCase() : `words:${m[5].toLowerCase()}` })],
   // [label]([[Page]]) is a page link with its own words; [label](((id))) a block link, read as its label.
   ['link', /\[([^\]]+)\]\((\[\[[^\]]*\]\]|\(\([^)]*\)\)|[^)\s]+)\)/y, m => /^\[\[(.*)\]\]$/.test(m[2])
     ? { t: 'page', name: m[2].slice(2, -2), k: parse(m[1]) } : /^\(\(/.test(m[2]) ? { t: 'text', s: m[1] } : { t: 'link', k: parse(m[1]), url: m[2] }],
@@ -73,6 +77,7 @@ function toHtml(tokens, opts = {}) {
       case 'mark': return `<span${cls('mark')}>${go(tok.k)}</span>`;
       case 'math': return `<span${cls('math')}>${escapeHtml(tok.s)}</span>`;
       case 'link': return `<a${cls('a')} href="${escapeHtml(tok.url)}">${go(tok.k)}</a>`;
+      case 'cite': return opts.cite ? opts.cite(tok) : `(${go(tok.k)}${tok.page ? `, p. ${tok.page}` : ''})`;   // as written, unless the caller numbers it
       case 'page': return tok.k ? go(tok.k) : escapeHtml(tok.name); // a link to a page reads as its words
       case 'tag': return opts.tags === false ? '' : `<span${cls('tag')}>${escapeHtml(tok.name)}</span>`;
       case 'image': return opts.images === false ? '' : `<img${cls('img')} src="${escapeHtml(opts.images ? opts.images(tok.url) : tok.url)}" alt="${escapeHtml(tok.alt)}">`;
@@ -99,6 +104,7 @@ function toMarkdown(tokens, opts = {}) {
       case 'mark': return `==${go(tok.k)}==`;
       case 'math': return `$${tok.s}$`;
       case 'link': { const label = go(tok.k); return label === tok.url ? `<${tok.url}>` : `[${label}](${tok.url})`; }
+      case 'cite': return opts.cite ? opts.cite(tok) : `(${go(tok.k)}${tok.page ? `, p. ${tok.page}` : ''})`;
       case 'page': {
         const words = tok.k ? go(tok.k) : mdEscape(tok.name);
         if (links === 'wiki') return tok.k ? `[[${tok.name}|${words}]]` : `[[${tok.name}]]`;
@@ -119,6 +125,7 @@ function toPlain(tokens, opts = {}) {
       case 'text': case 'code': case 'math': return tok.s;
       case 'br': return '\n';
       case 'link': return go(tok.k) === tok.url ? tok.url : `${go(tok.k)} (${tok.url})`;
+      case 'cite': return `(${go(tok.k)}${tok.page ? `, p. ${tok.page}` : ''})`;
       case 'page': return tok.k ? go(tok.k) : tok.name;
       case 'tag': return opts.tags === false ? '' : `#${tok.name}`;
       case 'image': return opts.images === false ? '' : `[${tok.alt || 'picture'}]`;
@@ -128,8 +135,34 @@ function toPlain(tokens, opts = {}) {
   return go(tokens);
 }
 
+/* The words made ready for a numbered reference where each citation stood: the space before a citation goes, and a full
+   stop or comma after it moves before it ("cycle ([[X]])." reads "cycle.¹"). close: the words end as a sentence, for a
+   line joined to others in one paragraph: a full stop is added where none is, before any citation or tag that ends the line. */
+const ENDS = /[.!?:;…]["'”’)\]]*$/;
+function refs(tokens, close = false) {
+  let out = tokens.map(tok => tok.k && tok.t !== 'cite' ? { ...tok, k: refs(tok.k) } : { ...tok });
+  out.forEach((tok, i) => { if (tok.t === 'cite' && out[i - 1]?.t === 'text') out[i - 1].s = out[i - 1].s.replace(/\s+$/, ''); });
+  out = out.filter(tok => tok.t !== 'text' || tok.s);
+  for (let i = 0; i < out.length; i++) {
+    if (out[i].t !== 'cite') continue;
+    let j = i; while (out[j + 1]?.t === 'cite') j += 1;
+    const next = out[j + 1], m = next?.t === 'text' && /^[.,;:!?]+/.exec(next.s);
+    if (m) { next.s = next.s.slice(m[0].length); out.splice(i, 0, { t: 'text', s: m[0] }); j += 1; }
+    i = j;
+  }
+  if (close) {
+    let k = out.length - 1;
+    while (k >= 0 && (out[k].t === 'cite' || out[k].t === 'tag' || out[k].t === 'br' || out[k].t === 'text' && !out[k].s.trim())) k -= 1;
+    if (k >= 0) {
+      if (out[k].t === 'text') { const s = out[k].s.replace(/\s+$/, ''), tail = out[k].s.slice(s.length); out[k].s = (ENDS.test(s) ? s : s + '.') + (out[k + 1]?.t === 'tag' ? tail || ' ' : ''); }
+      else out.splice(k + 1, 0, { t: 'text', s: '.' });
+    }
+  }
+  return out.filter(tok => tok.t !== 'text' || tok.s);
+}
+
 // The words only, with nothing of the markup: for a file name, a heading test, a search.
 const words = text => toPlain(parse(text)).replace(/\s+/g, ' ').trim();
 
-E.inline = { parse, toHtml, toMarkdown, toPlain, words, escapeHtml, mdEscape, fileName };
+E.inline = { parse, refs, toHtml, toMarkdown, toPlain, words, escapeHtml, mdEscape, fileName };
 })();

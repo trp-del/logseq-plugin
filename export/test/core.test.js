@@ -100,4 +100,65 @@ for (const look of themes.looks) {   // a variable font (the system font) prints
   assert.doesNotMatch(themes.inliner(look.key, {}).root, themes.VARIABLE_FONTS, `${look.name} names a variable font inline`);
 }
 console.log('  ok  HTML, the looks’ stylesheets and their inline form');
+
+// Prose: # headings as sections, bullets as paragraphs, citations as numbered notes; the other styles keep a citation as written.
+{
+  const N = D.node;
+  const page = D.document({ title: 'Fatigue', kind: 'page', nodes: [
+    N({ text: 'Summary', heading: 1, children: [
+      N({ text: 'Worse after the second cycle ([[Consultation, 2 Oct]]). Ferritin was low ([[Blood panel]], p. 3).' }),
+      N({ text: 'Common in this setting ([ESMO](https://example.org/esmo)), walks advised (*Ward leaflet*, p. 2)' }) ] }),
+    N({ text: 'Findings', heading: 1, children: [
+      N({ text: 'Blood', heading: 3, children: [N({ text: 'Haemoglobin 104, down from 121 ([[Blood panel]], p. 3)', children: [N({ text: 'Repeat in four weeks' }), N({ text: 'Ask about iron?' })] })] }),
+      N({ text: 'Steps', numbered: true, children: [N({ text: 'One' }), N({ text: 'Two' })] }),
+      N({ text: 'Ring the ward', task: { status: 'todo', priority: '', deadline: null, scheduled: null }, tags: ['Task'] }) ] }),
+  ] });
+  const cited = inline.parse('a ([[B]], p. 3) (*w*) ([t](https://x.y)) (plain)').filter(tok => tok.t === 'cite');
+  assert.deepEqual(plain(cited.map(tok => [tok.id, tok.page])), [['b', '3'], ['words:w', ''], ['https://x.y', '']], 'the three citations /Cite writes are read; plain brackets are not one');
+  assert.ok(html.toHtml(page, { layout: 'document' }).includes('(Blood panel, p. 3)') && markdown.toMarkdown(page, { layout: 'outline' }).includes('(*Ward leaflet*, p. 2)'), 'outside Prose a citation stays as written');
+  const h = html.toHtml(page, { layout: 'prose' });
+  for (const piece of ['<h2 class="x-h2"><span class="x-num">1</span>Summary</h2>', '<h3 class="x-h3"><span class="x-num">2.1</span>Blood</h3>',
+    'second cycle.<sup class="x-ref">1</sup> Ferritin was low.<sup class="x-ref">2</sup></p>', 'this setting,<sup class="x-ref">3</sup> walks advised<sup class="x-ref">4</sup></p>',
+    '<p class="x-p">Haemoglobin 104, down from 121.<sup class="x-ref">2</sup> Repeat in four weeks. Ask about iron?</p>',
+    '<p class="x-p">Steps</p>\n<ol class="x-ol">', '<span class="x-task">☐</span> Ring the ward',
+    '<p class="x-toc-row x-toc-first"><span class="x-num">1</span>Summary</p>', '<p class="x-toc-row x-toc-in x-toc-last"><span class="x-num">2.1</span>Blood</p>',
+    '<h2 class="x-h2 x-notes-head">Notes</h2>\n<p class="x-note"><span class="x-note-n">1</span>Consultation, 2 Oct.</p>\n<p class="x-note"><span class="x-note-n">2</span>Blood panel, p. 3.</p>',
+    '<span class="x-note-n">3</span><a class="x-a" href="https://example.org/esmo">ESMO</a>, https://example.org/esmo.</p>', '<span class="x-note-n">4</span><em>Ward leaflet</em>, p. 2.</p>'])
+    assert.ok(h.includes(piece), `the prose page holds: ${piece}\n${h}`);
+  assert.equal((h.match(/x-note-n/g) || []).length, 4, 'the same source at the same page is one note');
+  const each = html.toHtml(page, { layout: 'prose', prose: { children: 'each' } }), list = html.toHtml(page, { layout: 'prose', prose: { children: 'list' } });
+  assert.ok(each.includes('<p class="x-p">Repeat in four weeks</p>') && each.includes('<p class="x-p">Ask about iron?</p>'), 'a paragraph each, as written');
+  assert.ok(list.includes('down from 121<sup class="x-ref">2</sup></p>\n<ul class="x-ul">\n<li class="x-li">Repeat in four weeks'), 'or the bullets stay');
+  const bare = html.toHtml(page, { layout: 'prose', prose: { contents: false, numbered: false, runIn: true, notesHead: '', titleSheet: true, sectionSheets: true } });
+  assert.ok(!bare.includes('x-toc') && !bare.includes('x-num') && !bare.includes('x-notes-head'), 'no contents, no numbers, no heading over the notes');
+  assert.ok(bare.includes('<p class="x-p"><strong>Blood.</strong> Haemoglobin 104'), 'a heading under a # leads its paragraph');
+  assert.ok(bare.includes('<p class="x-note x-note-first">'), 'the first note carries the line the heading would');
+  assert.ok(bare.includes('</header>\n<h2 class="x-newsheet x-h2">Summary') && bare.includes('<h2 class="x-h2 x-newsheet">Findings'), 'the title on its own sheet, each # on a new one');
+  assert.ok(!html.toHtml(page, { layout: 'prose', prose: { sectionSheets: true, contents: false } }).includes('newsheet">Summary'), 'the first section stays under the title');
+  const m = markdown.toMarkdown(page, { layout: 'prose' });
+  for (const piece of ['## 1 Summary\n\nWorse after the second cycle.[^1] Ferritin was low.[^2]\n', '### 2.1 Blood\n\nHaemoglobin 104, down from 121.[^2] Repeat in four weeks. Ask about iron?\n', '1. One\n2. Two', '- [ ] Ring the ward',
+    '[^1]: Consultation, 2 Oct.\n[^2]: Blood panel, p. 3.\n[^3]: [ESMO](https://example.org/esmo).\n[^4]: *Ward leaflet*, p. 2.\n'])
+    assert.ok(m.includes(piece), `the prose Markdown holds: ${piece}\n${m}`);
+  assert.ok(themes.stylesheet('plain', {}).includes('.x-newsheet { break-before: page; }'));
+  assert.ok(themes.PARTS.every(([part]) => themes.ruleText('plain', part).includes(': ')), 'every part named in the window has a rule to write');
+  assert.equal(themes.ruleText('plain', 'title').split('\n')[0], '.x-title {');
+  console.log('  ok  Prose: sections, paragraphs, numbered notes, footnotes in Markdown');
+}
+// Templates: the plugin's three, the person's own beside them, a set compared key by key.
+{
+  const T = E.templates;
+  assert.deepEqual(plain(T.names({})), ['Report', 'Paper', 'Brief']);
+  const choice = { target: 'pdf', layout: 'prose', look: 'book', hiddenHead: new Set(['b', 'a']), prose: D.proseOpts({}), customCss: '', zoom: '125' };
+  let store = T.save({}, 'Letter', choice);
+  assert.deepEqual(plain(store.Letter.hiddenHead), ['a', 'b']); assert.ok(!('zoom' in store.Letter), 'only a template’s keys are held');
+  assert.deepEqual(plain(T.names(store)), ['Report', 'Paper', 'Brief', 'Letter']);
+  assert.equal(T.changed(T.get(store, 'Letter'), choice), false); assert.equal(T.changed(T.get(store, 'Letter'), { ...choice, look: 'plain' }), true);
+  assert.equal(T.changed(T.get(store, 'Report'), { ...choice, look: 'plain', margins: 'normal', size: 'normal', prose: D.proseOpts(T.BUILT_IN.Report.prose) }), false, 'a key the template does not hold never counts');
+  store = T.rename(store, 'Letter', 'Clinic letter'); assert.deepEqual(plain(T.names(store)), ['Report', 'Paper', 'Brief', 'Clinic letter']);
+  store = T.save(store, 'Report', choice); assert.ok(T.isOwn(store, 'Report') && T.get(store, 'Report').look === 'book', 'one of the plugin’s saved is the person’s');
+  store = T.remove(store, 'Report'); assert.equal(T.get(store, 'Report').look, 'plain', 'deleted, the plugin’s comes back');
+  assert.equal(T.clean('  My   letter '), 'My letter');
+  for (const set of Object.values(T.BUILT_IN)) { assert.ok(D.layouts.some(l => l.key === set.layout) && themes.looks.some(l => l.key === set.look) && themes.MARGINS[set.margins] && themes.SIZES[set.size]); assert.deepEqual(plain(D.proseOpts(set.prose)), plain(set.prose)); }
+  console.log('  ok  templates');
+}
 console.log('core: all good');

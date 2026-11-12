@@ -75,6 +75,18 @@ function common(b, font) {
     time: `color:${QUIET};font-variant-numeric:tabular-nums;`,
     embed: `list-style:none;`,
     pic: `list-style:none;`,
+    // Prose: a heading's number, a citation's number, the contents rows, the notes.
+    num: `color:${FAINT};font-weight:400;margin-right:0.5em;font-variant-numeric:tabular-nums;`,
+    ref: `font-size:0.7em;line-height:0;vertical-align:super;color:${QUIET};font-variant-numeric:tabular-nums;`,
+    'toc-row': `margin:0;line-height:1.6;`,
+    'toc-in': `padding-left:${s(1.7)};color:${QUIET};`,
+    'toc-in2': `padding-left:${s(3.4)};`,
+    'toc-first': `border-top:0.5pt solid ${HAIR};padding-top:${s(0.6)};`,
+    'toc-last': `border-bottom:0.5pt solid ${HAIR};padding-bottom:${s(0.6)};margin-bottom:${s(1.6)};`,
+    'notes-head': `margin-top:${s(2.2)};padding-top:${s(0.9)};border-top:0.5pt solid ${HAIR};border-bottom:0;font-size:${s(1.15)};text-transform:none;letter-spacing:0;`,
+    note: `margin:0 0 ${s(0.25)};padding-left:${s(1.9)};text-indent:${s(-1.9)};font-size:${s(0.9)};text-align:left;`,
+    'note-first': `margin-top:${s(1.8)};padding-top:${s(0.8)};border-top:0.5pt solid ${HAIR};`,
+    'note-n': `display:inline-block;width:${s(1.9)};text-indent:0;color:${QUIET};font-variant-numeric:tabular-nums;`,
   };
 }
 
@@ -120,6 +132,8 @@ function stylesheet(key, p = {}) {
     `.x-p, .x-li, .x-figure, .x-pre, .x-quote, .x-entry, .x-calrow, .x-calitem, tr { break-inside: avoid; }`,
     `.x-title, .x-h2, .x-h3, .x-h4, .x-month, .x-query { break-after: avoid; }`,
     `.x-head { break-after: avoid; }`,
+    `.x-newsheet { break-before: page; }`,
+    `.x-note, .x-toc-row { break-inside: avoid; } .x-notes-head { break-after: avoid; }`,
     `img { max-width: 100%; }`,
     pg.customCss ? `/* your own rules */\n${pg.customCss}` : '',
   ].filter(Boolean).join('\n');
@@ -130,5 +144,15 @@ function inliner(key, p = {}) {
   const cls = names => { const decl = names.split(' ').map(n => rules[n] || '').join(''); return decl ? ` style="${decl.replace(/"/g, "'")}"` : ''; };
   return { cls, root: rules.doc.replace(/max-width:[^;]+;|margin:0 auto;/g, '').replace(/"/g, "'") };
 }
-E.themes = { looks, look, page, stylesheet, inliner, SIZES, MARGINS, VARIABLE_FONTS };
+/* The parts of a sheet a rule of your own can change, in plain words, each with the class core/html.js writes on it. The
+   export window lists them: pointed at, the part lights on the sheet; pressed, its rule in the look in force is written
+   into the box, to change from there. */
+const PARTS = [['doc', 'The whole text'], ['kicker', 'Line above the title'], ['title', 'Title'], ['subtitle', 'Subtitle'], ['byline', 'Date and prepared by'], ['props', 'The page’s properties'],
+  ['toc-row', 'Contents row'], ['h2', 'Heading'], ['h3', 'Heading inside it'], ['h4', 'Smallest heading'], ['num', 'A heading’s number'], ['p', 'Paragraph'], ['li', 'Bullet'],
+  ['ref', 'Citation number'], ['notes-head', 'Heading over the notes'], ['note', 'Note'], ['note-n', 'A note’s number'], ['tag', 'Tag'], ['meta', 'Properties under a line'], ['task', 'Task box'],
+  ['quote', 'Quotation'], ['cite', 'A quotation’s source'], ['pre', 'Code'], ['table', 'Table'], ['th', 'Table heading'], ['td', 'Table cell'], ['figure', 'Picture'], ['caption', 'Caption'], ['a', 'Web link'],
+  ['month', 'Month heading'], ['date', 'Date of an entry']];
+// A part's rule as the look writes it, one line a declaration, ready to change.
+const ruleText = (key, part, p = {}) => { const decl = look(key).rules(SIZES[page(p).size])[part] || ''; return `.x-${part} {\n${decl.split(';').map(d => d.trim()).filter(Boolean).map(d => `  ${d.replace(/:\s*/, ': ')};`).join('\n')}\n}`; };
+E.themes = { PARTS, ruleText, looks, look, page, stylesheet, inliner, SIZES, MARGINS, VARIABLE_FONTS };
 })();

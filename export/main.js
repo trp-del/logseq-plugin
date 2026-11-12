@@ -15,7 +15,7 @@ const orderOf = async uuid => { try { const b = host()?.querySelector(`.ls-block
 
 // What a choice from the window (or the remembered settings) means for each writer.
 const allBut = (doc, role, hidden) => hidden?.size ? new Set(D.propertiesIn(doc, role).map(p => p.ident).filter(i => !hidden.has(i))) : null;
-const writerOpts = (doc, ch) => ({ layout: ch.layout, tags: ch.tags, tasks: ch.tasks, shownHead: ch.shownHead ?? allBut(doc, 'head', ch.hiddenHead), shownNodes: ch.shownNodes ?? allBut(doc, 'nodes', ch.hiddenNodes),
+const writerOpts = (doc, ch) => ({ layout: ch.layout, prose: ch.prose, tags: ch.tags, tasks: ch.tasks, shownHead: ch.shownHead ?? allBut(doc, 'head', ch.hiddenHead), shownNodes: ch.shownNodes ?? allBut(doc, 'nodes', ch.hiddenNodes),
   dateKey: ch.dated?.dateKey || 'auto', under: ch.dated?.under || '', newestFirst: !!ch.dated?.newestFirst,
   titleBlock: doc.title ? { kicker: ch.kicker || '', subtitle: ch.subtitle || '', date: ch.titleDate ? today() : null, preparedBy: ch.preparedBy || '' } : {} });
 const pageOpts = ch => ({ paper: ch.paper, margins: ch.margins, size: ch.size, footer: ch.footer, pageNumbers: ch.pageNumbers, customCss: ch.customCss });
@@ -93,7 +93,7 @@ async function quick(action, event) {
 const settingsSchema = [
   { key: 'exportHeading', type: 'heading', title: 'DB Export', description: 'Export a page or blocks as a PDF, Markdown or rich text: the command palette (Export…), a bullet’s right-click menu, or the page’s … menu. The style, look and page choices are made in the export window and remembered here.' },
   { key: 'target', type: 'enum', enumChoices: ['pdf', 'md', 'rich'], enumPicker: 'radio', default: 'pdf', title: 'Export as', description: 'What the window starts on: a PDF, Markdown, or rich text.' },
-  { key: 'layout', type: 'enum', enumChoices: ['document', 'outline', 'timeline', 'calendar'], enumPicker: 'radio', default: 'document', title: 'Style', description: 'The style the window starts on.' },
+  { key: 'layout', type: 'enum', enumChoices: ['document', 'outline', 'prose', 'timeline', 'calendar'], enumPicker: 'radio', default: 'document', title: 'Style', description: 'The style the window starts on.' },
   { key: 'look', type: 'enum', enumChoices: ['plain', 'book', 'compact', 'typewriter'], enumPicker: 'radio', default: 'plain', title: 'Look', description: 'The look of the PDF and rich text.' },
   { key: 'paper', type: 'enum', enumChoices: ['A4', 'Letter'], enumPicker: 'radio', default: 'A4', title: 'Paper' },
   { key: 'margins', type: 'enum', enumChoices: ['narrow', 'normal', 'wide'], enumPicker: 'radio', default: 'normal', title: 'Margins' },
@@ -111,6 +111,10 @@ const settingsSchema = [
   { key: 'hiddenHeadProperties', type: 'object', default: [], title: 'Page properties left out', description: 'The page’s own properties (for blocks, the chosen blocks’) unticked in the export window; change them there.' },
   { key: 'hiddenNodeProperties', type: 'object', default: [], title: 'Node properties left out', description: 'The properties of the nodes under, unticked in the export window.' },
   { key: 'dated', type: 'object', default: { dateKey: 'auto', under: '', newestFirst: false }, title: 'Timeline and calendar dates', description: 'Chosen in the export window.' },
+  { key: 'prose', type: 'object', default: { children: 'join', contents: true, numbered: true, titleSheet: false, sectionSheets: false, runIn: false, notesHead: 'Notes' }, title: 'Prose', description: 'What the bullets under a line become, the contents list, numbered headings and the sheets; chosen in the export window.' },
+  { key: 'sideOpen', type: 'boolean', default: false, title: 'The column of choices is open', description: 'Adjust, in the export window.' },
+  { key: 'template', type: 'string', default: '', title: 'Template in force', description: 'Chosen in the export window.' },
+  { key: 'templates', type: 'object', default: {}, title: 'Your templates', description: 'Saved, renamed and deleted in the export window.' },
   { key: 'titleLines', type: 'object', default: {}, title: 'Lines above and under each page’s title', description: 'Kept per page from the export window.' },
   { key: 'saveFolder', type: 'string', default: '', title: 'Folder files were last saved in', description: 'The save dialog starts there.' },
 ];

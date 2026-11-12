@@ -35,30 +35,39 @@ const key = (target, name, init = {}) => target.dispatchEvent(new dom.window.Key
   assert.deepEqual(rows.map(r => r.querySelector('.lk-prop').textContent), ['Date', 'Deadline', 'End', 'Hospital', 'Provider', 'Severity', 'Topic']);
   assert.ok(rows.every(r => r.querySelector('input.lk-tick[type=checkbox]') && r.querySelector('.lk-count')), 'a tick and a count on every row');
   assert.ok(rows[0].querySelector('.xp-kind .ti-calendar') && rows[4].querySelector('.xp-kind svg') && rows[5].querySelector('.xp-kind .ti-123'), 'a calendar before Date, the web before Provider, 123 before Severity');
-  // The Pressing set: every control a small name over a value; a pick wears the chevron and stands for a hidden select; a switch reads its state; a panel unfolds its row under the bar.
+  // The bar at rest: Adjust, the template, where the export goes as tabs (the library's lk-view, the one in force "on"), the accent. The choices are in the column, put away until Adjust is pressed.
+  assert.deepEqual([...win.querySelectorAll('.xp-bar .g:not(.end) .lk-name')].map(n => n.textContent), ['', 'template', 'export as']);
+  assert.ok([...win.querySelectorAll('.xp-where label')].every(l => l.classList.contains('lk-view')) && win.querySelector('.xp-where label.on input').value === 'pdf', 'tabs, PDF in force');
+  const side = win.querySelector('.xp-side'), adjust = win.querySelector('.xp-adjust');
+  assert.ok(side.hidden && adjust.getAttribute('aria-pressed') === 'false', 'the column is put away at rest');
+  adjust.click(); assert.ok(!side.hidden && adjust.classList.contains('on') && logseq.settings.sideOpen === true, 'Adjust shows the column, and it is remembered');
+  adjust.click(); assert.ok(side.hidden && logseq.settings.sideOpen === false, 'pressed again, it is put away'); adjust.click();
+  assert.deepEqual([...side.querySelectorAll('.xp-group')].map(g => g.querySelector('.xp-gh').textContent), ['Text', 'Look', 'Page', 'Title', 'Markdown', 'Show', 'Your CSS']);
+  assert.ok(side.querySelector('.xp-group[data-for=md]').hidden && !side.querySelector('.xp-group[data-for=pdf]').hidden, 'only the groups of the destination');
+  // A pick: its name, its value with the chevron, a hidden select behind it; pressed, its alternatives unfold under its row, and one pressed is taken.
   const style = win.querySelector('.it[data-pick=xp-layout]');
   assert.equal(style.querySelector('.lk-name').textContent, 'style'); assert.equal(style.querySelector('.lk-value').firstChild.nodeValue, 'Document'); assert.ok(style.querySelector('.lk-value svg.m'), 'the chevron after the value');
   assert.ok(style.querySelector('select.xp-layout[hidden]'), 'the select stands behind the value'); assert.ok(style.querySelector('.lk-alts').hidden, 'folded at rest');
   style.querySelector('.lk-value').click(); assert.ok(!style.querySelector('.lk-alts').hidden && style.classList.contains('open'), 'pressed, it unfolds');
-  const prose = [...style.querySelectorAll('.lk-alts span')].find(a => a.textContent === 'Outline'); prose.click();
-  assert.equal(win.querySelector('select.xp-layout').value, prose.dataset.v, 'an alternative pressed sets the select'); assert.equal(style.querySelector('.lk-value').firstChild.nodeValue, 'Outline', 'and the value reads it'); assert.ok(style.querySelector('.lk-alts').hidden, 'and it folds');
-  const tags = win.querySelector('.xp-tags').closest('.lk-value'); assert.equal(tags.lastChild.nodeValue, 'Tags'); tags.querySelector('input').checked = false; tags.querySelector('input').dispatchEvent(new hostDoc.defaultView.Event('change', { bubbles: true }));
-  assert.equal(tags.lastChild.nodeValue, 'No tags', 'a switch reads its state'); assert.ok(tags.classList.contains('off'));
-  assert.equal(tags.closest('.it').querySelector('.lk-name').textContent, '', 'no name over a switch in Show: the value says its own word');
-  // The Page row stays folded until Page is pressed, and a choice elsewhere does not open it; the Show lists are headed by whose they are over all / none, the one in force in the text colour.
-  const pageFold = win.querySelector('.xp-fold[data-panel=xp-page]'); assert.ok(pageFold.hidden, 'the Page row is folded when the window opens'); assert.ok(pageFold.hidden, 'and stays folded after a choice');
-  // Every pick inside a panel's row can be used: pressing it keeps the row, taking a value keeps the row and folds the pick.
+  const outline = [...style.querySelectorAll('.lk-alts span')].find(a => a.textContent === 'Outline'); outline.click();
+  assert.equal(win.querySelector('select.xp-layout').value, 'outline', 'an alternative pressed sets the select'); assert.equal(style.querySelector('.lk-value').firstChild.nodeValue, 'Outline', 'and the value reads it'); assert.ok(style.querySelector('.lk-alts').hidden && !style.classList.contains('open'), 'and the pick folds');
+  const tags = win.querySelector('.xp-tags').closest('.lk-value'); assert.equal(tags.lastChild.nodeValue, 'Yes'); tags.querySelector('input').checked = false; tags.querySelector('input').dispatchEvent(new hostDoc.defaultView.Event('change', { bubbles: true }));
+  assert.equal(tags.lastChild.nodeValue, 'No', 'a switch reads its state'); assert.ok(tags.classList.contains('off'));
+  assert.equal(tags.closest('.it').querySelector('.lk-name').textContent, 'tags');
+  // The rows of a style show only on that style; every pick in the column opens and takes a value, one open at a time.
   const layout = win.querySelector('[data-pick=xp-layout]'), plain = layout.querySelector('select').value;
   const setLayout = v => { layout.querySelector('.lk-value').click(); layout.querySelector(`.lk-alts span[data-v="${v}"]`).click(); };
-  setLayout('timeline'); await sleep(200);   // Dates shows on a dated style
-  for (const fold of win.querySelectorAll('.xp-fold')) for (const it of fold.querySelectorAll('.it[data-pick]')) {
-    const value = win.querySelector(`.it[data-panel=${fold.dataset.panel}] > .lk-value`), was = it.querySelector('select').value, alts = it.querySelectorAll('.lk-alts span');
-    value.click(); assert.ok(!fold.hidden, `${fold.dataset.panel} unfolds`);
-    it.querySelector('.lk-value').click(); assert.ok(!fold.hidden && it.classList.contains('open') && !it.querySelector('.lk-alts').hidden, `${it.dataset.pick} opens in its row`);
-    (alts[1] || alts[0]).click(); assert.ok(!fold.hidden && !it.classList.contains('open') && it.querySelector('.lk-alts').hidden, `taking a value of ${it.dataset.pick} leaves its row open`);
+  const sub = when => side.querySelector(`.xp-sub[data-when=${when}]`);
+  assert.ok(sub('prose').hidden && sub('dated').hidden);
+  setLayout('timeline'); await sleep(200); assert.ok(!sub('dated').hidden && sub('prose').hidden, 'Timeline has its dates');
+  setLayout('prose'); await sleep(200); assert.ok(sub('dated').hidden && !sub('prose').hidden, 'Prose has its rows');
+  for (const it of side.querySelectorAll('.it[data-pick]')) {
+    const was = it.querySelector('select').value, alts = it.querySelectorAll('.lk-alts span');
+    it.querySelector('.lk-value').click(); assert.ok(it.classList.contains('open') && !it.querySelector('.lk-alts').hidden, `${it.dataset.pick} opens`);
+    assert.equal(win.querySelectorAll('.it.open').length, 1, 'one open at a time');
+    (alts[1] || alts[0]).click(); assert.ok(!it.classList.contains('open') && it.querySelector('.lk-alts').hidden, `${it.dataset.pick} folds once a value is taken`);
     assert.equal(it.querySelector('select').value, (alts[1] || alts[0]).dataset.v, 'and the value is taken');
     it.querySelector('.lk-value').click(); it.querySelector(`.lk-alts span[data-v="${was}"]`).click();
-    value.click(); assert.ok(fold.hidden, 'pressed again, the panel folds');
   }
   setLayout(plain); await sleep(200);
   assert.deepEqual([...win.querySelectorAll('.xp-lists .lk-name')].map(n => n.textContent), ['of the page', 'of the nodes']);
@@ -68,8 +77,8 @@ const key = (target, name, init = {}) => target.dispatchEvent(new dom.window.Key
   assert.ok(win.querySelector('button.lk-accent[data-act=pdf]') && win.querySelector('button.lk-close'), 'the accent and the × at the end');
   // Keys typed in the window never reach Logseq; Escape does, and folds an open panel first, then closes the window.
   key(win.querySelector('.xp-footer'), 'e'); assert.equal(reached, 0, 'a letter typed in a field stays in the window');
-  const show = win.querySelector('.it[data-panel=xp-show]'), fold = win.querySelector('.xp-fold[data-panel=xp-show]'); show.querySelector('.lk-value').click(); assert.ok(!fold.hidden, 'the panel unfolds under the bar');
-  key(win.querySelector('.xp-footer'), 'Escape'); assert.ok(fold.hidden, 'Escape folds the open panel'); assert.ok(hostDoc.querySelector('.xp'), 'the window stays');
+  layout.querySelector('.lk-value').click(); assert.ok(layout.classList.contains('open'));
+  key(win.querySelector('.xp-footer'), 'Escape'); assert.ok(!layout.classList.contains('open'), 'Escape folds the open pick'); assert.ok(hostDoc.querySelector('.xp'), 'the window stays');
   // ⌘-Enter presses the button that matches the destination; an unticked property is left out.
   rows[4].querySelector('input').checked = false;
   win.querySelector('input[name=xp-target][value=md]').checked = true;
@@ -93,6 +102,34 @@ const key = (target, name, init = {}) => target.dispatchEvent(new dom.window.Key
   key(hostDoc.body, 'Enter', { metaKey: true }); await kept;
   assert.ok(chosen.hiddenHead.has('user.property/private') && chosen.hiddenHead.has(heads[0].value), 'kept across pages, with this page\'s tick');
   heads[0].checked = true;
+  // Templates: a pick sets the controls; a change reads "· changed"; saved under a name it is the person's; renamed; a delete is asked about first.
+  { const before = JSON.parse(JSON.stringify(logseq.settings)), msgs = [], showMsg = logseq.UI.showMsg; logseq.UI.showMsg = text => msgs.push(text);
+    const w = E.ui.open({ doc, what: 'this page', act: async () => true });
+    const xp = hostDoc.querySelector('.xp'), q = s => xp.querySelector(s), tpl = q('.xp-tpl'), value = () => tpl.querySelector('.lk-value').textContent, words = () => [...tpl.querySelectorAll('.lk-alts > span:not(.ask)')].map(a => a.textContent);
+    const press = text => [...tpl.querySelectorAll('.lk-alts span, .lk-alts b')].find(a => a.textContent === text).click();
+    assert.equal(value(), 'None'); tpl.querySelector('.lk-value').click();
+    assert.deepEqual(words(), ['Report', 'Paper', 'Brief', 'Save as new…']);
+    press('Paper');
+    assert.equal(value(), 'Paper'); assert.equal(q('.xp-layout').value, 'prose'); assert.equal(q('.xp-look').value, 'book'); assert.equal(q('.xp-margins').value, 'wide'); assert.ok(!q('.xp-numbered').checked && !q('.xp-contents').checked);
+    assert.ok(!q('.xp-sub[data-when=prose]').hidden, 'Prose has its rows');
+    q('.xp-look').value = 'plain'; q('.xp-look').dispatchEvent(new hostDoc.defaultView.Event('change', { bubbles: true }));
+    assert.equal(value(), 'Paper · changed'); tpl.querySelector('.lk-value').click();
+    assert.deepEqual(words(), ['Report', 'Paper', 'Brief', 'Save changes to Paper', 'Save as new…']);
+    press('Save as new…'); const name = tpl.querySelector('.ask input'); assert.ok(name, 'a name is asked for in the line');
+    name.value = 'Report'; press('Save'); assert.ok(tpl.querySelector('.ask') && msgs.pop().includes('already'), 'a name in use is refused');
+    name.value = ' Clinic  letter '; key(name, 'Enter');
+    assert.equal(value(), 'Clinic letter'); assert.equal(logseq.settings.templates['Clinic letter'].look, 'plain'); assert.equal(logseq.settings.template, 'Clinic letter');
+    tpl.querySelector('.lk-value').click(); assert.deepEqual(words(), ['Report', 'Paper', 'Brief', 'Clinic letter', 'Save as new…', 'Rename…', 'Delete…']);
+    press('Rename…'); tpl.querySelector('.ask input').value = 'Letter'; press('Rename'); assert.equal(value(), 'Letter'); assert.deepEqual(Object.keys(logseq.settings.templates), ['Letter']);
+    tpl.querySelector('.lk-value').click(); press('Delete…'); press('Keep'); assert.ok(logseq.settings.templates.Letter, 'Keep keeps it');
+    tpl.querySelector('.lk-value').click(); press('Delete…'); key(q('.xp-footer'), 'Escape'); assert.ok(logseq.settings.templates.Letter && hostDoc.querySelector('.xp'), 'Escape leaves it, and the window');
+    tpl.querySelector('.lk-value').click(); press('Delete…'); press('Delete'); assert.deepEqual(Object.keys(logseq.settings.templates), []); assert.equal(value(), 'None');
+    // Rules of your own that no template holds are kept as a template before a pick replaces them.
+    q('.xp-cssbox').value = '.x-title { color: #333; }'; q('.xp-cssbox').dispatchEvent(new hostDoc.defaultView.Event('input', { bubbles: true }));
+    tpl.querySelector('.lk-value').click(); press('Brief');
+    assert.equal(logseq.settings.templates['Earlier CSS'].customCss, '.x-title { color: #333; }'); assert.equal(q('.xp-cssbox').value, ''); assert.ok(q('.xp-runin').checked && q('.xp-noteshead').value === '');
+    key(hostDoc.body, 'Escape'); await w; logseq.UI.showMsg = showMsg;
+    for (const k of Object.keys(logseq.settings)) delete logseq.settings[k]; Object.assign(logseq.settings, before); }
   // A cancel: the window stays, with what was chosen; a finish closes it. A failure the same.
   let answer = false, left = 0;
   const stays = E.ui.open({ doc, what: 'this page', act: async () => { left += 1; if (answer instanceof Error) throw answer; return answer; } });

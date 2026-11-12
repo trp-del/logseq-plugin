@@ -14,7 +14,10 @@ function toHtml(doc, o = {}) {
   const setHead = opts.shownHead !== undefined ? opts.shownHead : opts.shown, setNodes = opts.shownNodes !== undefined ? opts.shownNodes : opts.shown;
   const shownOf = n => D.headNode(doc, n) ? setHead : setNodes;   // the head's properties and the nodes' are switched apart
   const cls = opts.cls || (name => ` class="${name.split(' ').map(n => 'x-' + n).join(' ')}"`);
-  const html = text => inline.toHtml(inline.parse(text), { cls, tags: opts.tags, images: opts.images });
+  // Prose: each citation is its note's number, raised; the notes are written after the text.
+  const isProse = opts.layout === 'prose', pr = D.proseOpts(opts.prose), notes = D.notebook();
+  const cite = isProse ? tok => `<sup${cls('ref')}>${notes.number(tok)}</sup>` : null;
+  const html = (text, close = false) => inline.toHtml(isProse ? inline.refs(inline.parse(text), close) : inline.parse(text), { cls, tags: opts.tags, images: opts.images, cite });
   const out = [];
   const push = (...s) => out.push(...s);
   const title = doc.title ? html(doc.title) : '';
@@ -33,6 +36,7 @@ function toHtml(doc, o = {}) {
     if (pageMeta.length || tagLine) push(`<p${cls('props')}>${[...pageMeta.map(esc), tagLine].filter(Boolean).join('<br>')}</p>`);
     push('</header>');
   }
+  const afterHead = out.length;
 
   const taskMark = n => {
     if (!n.task || !opts.tasks) return '';
@@ -158,7 +162,52 @@ function toHtml(doc, o = {}) {
     if (month !== null && opts.layout === 'calendar') push('</tbody></table>');
   }
 
+  // A node that stands by itself, as the document layout writes it.
+  function standing(n) {
+    if (n.query) return push(query(n, false));
+    const b = body(n), meta = metaHtml(n);
+    if (b.block) push(b.html, meta ? `<p${cls('p meta-line')}>${meta}</p>` : ''); else push(`<p${cls('p')}>${b.html}</p>`);
+  }
+  /* Prose: the pieces of core/doc.js, then the notes. Every piece is a block of its own under the document, so the sheets can break between any two. */
+  function renderProse() {
+    const pieces = D.prose(doc, { children: pr.children, tasks: opts.tasks, hasMeta: n => !!metaHtml(n) });
+    const heads = pieces.filter(piece => piece.kind === 'heading');
+    const num = h => pr.numbered ? `<span${cls('num')}>${esc(h.number)}</span>` : '';
+    if (pr.contents && heads.length > 1) {
+      const rows = heads.filter(h => h.depth <= 3);
+      rows.forEach((h, i) => push(`<p${cls(['toc-row', h.depth > 1 && 'toc-in', h.depth > 2 && 'toc-in2', i === 0 && 'toc-first', i === rows.length - 1 && 'toc-last'].filter(Boolean).join(' '))}>${num(h)}${esc(inline.words(h.node.text.replace(/\(\[\[[^\]]*\]\][^)]*\)/g, '')))}</p>`));
+    }
+    const body0 = out.length;
+    let first = true;
+    for (const [at, piece] of pieces.entries()) {
+      if (piece.ranIn) continue;   // a heading run into the paragraph after it: written there
+      if (piece.kind === 'heading' && pr.runIn && piece.depth > 1 && pieces[at + 1]?.kind === 'para') pieces[at + 1].lead = piece, piece.ranIn = true;
+      else if (piece.kind === 'heading') {
+        const level = Math.min(piece.depth + (title ? 1 : 0), 4), n = piece.node;
+        const sheet = pr.sectionSheets && piece.depth === 1 && !(first && body0 === afterHead);   // not a sheet break right under the title
+        push(`<h${level}${cls(`h${level}${sheet ? ' newsheet' : ''}`)}>${num(piece)}${body(n).html}</h${level}>`);
+      } else if (piece.kind === 'para') {
+        const joined = piece.parts.length > 1, head = piece.parts[0], meta = metaHtml(head);
+        const lead = piece.lead ? `<strong>${num(piece.lead)}${html(piece.lead.node.text, true).trim()}</strong> ` : '';
+        push(`<p${cls('p')}>${lead}${piece.parts.map(n => struck(n, html(n.text, joined).trim()) + tagsOf(n)).join(' ')}${meta ? '<br>' + meta : ''}</p>`);
+      } else if (piece.kind === 'block') standing(piece.node);
+      else if (piece.kind === 'list') render(piece.nodes, 2, piece.numbered);
+      else if (piece.kind === 'rule') push(`<hr${cls('hr')}>`);
+      first = false;
+    }
+    if (notes.list.length) {
+      if (pr.notesHead) push(`<h2${cls('h2 notes-head')}>${esc(pr.notesHead)}</h2>`);
+      for (const { n, tok } of notes.list) {
+        const source = inline.toHtml(tok.k, { cls, tags: false, images: false }), address = tok.url && inline.toPlain(tok.k) !== tok.url ? `, ${esc(tok.url)}` : '';
+        push(`<p${cls(n === 1 && !pr.notesHead ? 'note note-first' : 'note')}><span${cls('note-n')}>${n}</span>${source}${address}${tok.page ? `, p. ${esc(tok.page)}` : ''}.</p>`);
+      }
+    }
+    // The title on a sheet of its own: what follows it starts the next sheet.
+    if (pr.titleSheet && afterHead > 0 && out.length > afterHead) out[afterHead] = out[afterHead].replace(/^<(\w+) class="/, '<$1 class="x-newsheet ');
+  }
+
   if (D.dated(opts.layout)) renderDated();
+  else if (isProse) renderProse();
   else { render(doc.nodes, 0); if (doc.tagged?.length) { if (doc.nodes.length) push(`<hr${cls('hr')}>`); render(doc.tagged, 0); } }
   return out.filter(Boolean).join('\n');
 }

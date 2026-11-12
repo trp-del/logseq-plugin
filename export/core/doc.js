@@ -116,6 +116,7 @@ const taskDone = t => t && (t.status === 'done' || t.status === 'canceled');
 const layouts = [
   { key: 'document', name: 'Document', about: 'Paragraphs, like a report. A short line with lines under it becomes a heading.' },
   { key: 'outline', name: 'Outline', about: 'Bullets, nested as in Logseq.' },
+  { key: 'prose', name: 'Prose', about: 'Flowing paragraphs under your # headings, each citation a number, the notes at the end.' },
   { key: 'timeline', name: 'Timeline', about: 'Every dated node under its date, earliest first, months as headings.' },
   { key: 'calendar', name: 'Calendar', about: 'One row per day: the day on the left, that day’s nodes on the right.' },
 ];
@@ -123,5 +124,59 @@ const dated = key => key === 'timeline' || key === 'calendar';
 // In the document layout, a short top-level line with lines under it reads as a section heading.
 const readsAsHeading = (n, depth, meta) => depth === 0 && kids(n).length > 0 && n.display === '' && !n.task && E.inline.words(n.text).length <= 70 && !/[.!?:,;]$/.test(n.text.trim()) && !meta.length;
 
-E.doc = { tagsToAppend, tagsOf, node, document, shown, kids, isEmpty, collect, valueText, propertyText, metaOf, headNode, propertiesIn, dateChoices, autoKeys, dateOf, entries, TASK_WORDS, taskDone, layouts, dated, readsAsHeading };
+/* Prose: the page as flowing paragraphs. Only a bullet started with # is a heading; every other line of words is a paragraph,
+   and what stands by itself (a picture, code, a quotation, a query, a task with its box, a numbered list) stays as it is.
+   The pieces, in the order of the page, for both writers:
+     { kind: 'heading', node, depth, number }   depth 1.. by the headings it sits under (a ### right under a # is 2), number "2.1"
+     { kind: 'para', parts: [node] }            the lines whose words make one paragraph, the first its own line
+     { kind: 'block', node }                    a thing that stands by itself
+     { kind: 'list', nodes, numbered }          bullets kept as a list
+     { kind: 'rule' }                           between a tag's page and the nodes carrying the tag
+   children: what the bullets under a line become: 'join' (sentences of its paragraph), 'each' (a paragraph each), 'list'
+   (they stay bullets). tasks: a task keeps its box, so it stands alone. hasMeta(node): the node shows properties, so it
+   starts a paragraph of its own, where they can stand under it. */
+const PROSE_CHILDREN = ['join', 'each', 'list'];
+function outline() {
+  const levels = [], counts = [];
+  return level => {
+    while (levels.length && levels[levels.length - 1] >= level) levels.pop();
+    const depth = levels.length + 1;
+    counts[depth - 1] = (counts[depth - 1] || 0) + 1; counts.length = depth; levels.push(level);
+    return { depth, number: counts.join('.') };
+  };
+}
+function prose(doc, { children = 'join', tasks = true, hasMeta = () => false } = {}) {
+  const pieces = [], next = outline();
+  let para = null;
+  const plain = n => n.kind === 'block' && !n.display && !n.query && !(n.task && tasks) && String(n.text || '').trim();
+  const walk = (nodes, under) => {
+    for (const n of (nodes || []).filter(n => shown(n) && !isEmpty(n))) {
+      if (n.kind === 'embed') { walk(n.children, under); continue; }
+      if (n.heading && plain(n)) { para = null; pieces.push({ kind: 'heading', node: n, ...next(n.heading) }); walk(kids(n), null); para = null; continue; }
+      if (!plain(n)) {
+        para = null; pieces.push({ kind: 'block', node: n });
+        if (!n.query && kids(n).length) pieces.push({ kind: 'list', nodes: kids(n), numbered: n.numbered });
+        continue;
+      }
+      if (under && children === 'join' && para && !hasMeta(n)) para.parts.push(n);
+      else { para = { kind: 'para', parts: [n] }; pieces.push(para); }
+      const ks = kids(n);
+      if (ks.length && (n.numbered || children === 'list')) { pieces.push({ kind: 'list', nodes: ks, numbered: n.numbered }); para = null; }
+      else if (ks.length) walk(ks, n);
+      if (!under) para = null;
+    }
+  };
+  walk(doc.nodes, null);
+  if (doc.tagged?.length) { if (pieces.length) pieces.push({ kind: 'rule' }); para = null; walk(doc.tagged, null); }
+  return pieces;
+}
+/* The notes of a document: each citation numbered as it comes, the same source at the same page once (as Endnotes numbers them). */
+function notebook() {
+  const seen = new Map(), list = [];
+  return { list, number(tok) { const key = `${tok.id}|${tok.page}`; if (!seen.has(key)) { seen.set(key, list.length + 1); list.push({ n: list.length + 1, tok }); } return seen.get(key); } };
+}
+const proseOpts = p => ({ children: PROSE_CHILDREN.includes(p?.children) ? p.children : 'join', contents: p?.contents !== false, numbered: p?.numbered !== false, titleSheet: !!p?.titleSheet, sectionSheets: !!p?.sectionSheets,
+  runIn: !!p?.runIn, notesHead: typeof p?.notesHead === 'string' ? p.notesHead.trim() : 'Notes' });   // runIn: a heading under a # leads its first paragraph, in bold; notesHead: the words over the notes, none when empty
+
+E.doc = { prose, notebook, proseOpts, PROSE_CHILDREN, tagsToAppend, tagsOf, node, document, shown, kids, isEmpty, collect, valueText, propertyText, metaOf, headNode, propertiesIn, dateChoices, autoKeys, dateOf, entries, TASK_WORDS, taskDone, layouts, dated, readsAsHeading };
 })();

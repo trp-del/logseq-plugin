@@ -12,7 +12,10 @@ function toMarkdown(doc, o = {}) {
   // shown: one Set of property idents for both (null: all); shownHead / shownNodes: a Set for the head's and the nodes' apart.
   const setHead = opts.shownHead !== undefined ? opts.shownHead : opts.shown, setNodes = opts.shownNodes !== undefined ? opts.shownNodes : opts.shown;
   const shownOf = n => D.headNode(doc, n) ? setHead : setNodes;
-  const md = text => inline.toMarkdown(inline.parse(text), { links: opts.links, tags: opts.tags, images: opts.images });
+  // Prose: each citation is a footnote, [^1], and the footnotes are written after the text.
+  const isProse = opts.layout === 'prose', pr = D.proseOpts(opts.prose), notes = D.notebook();
+  const cite = isProse ? tok => `[^${notes.number(tok)}]` : null;
+  const md = (text, close = false) => inline.toMarkdown(isProse ? inline.refs(inline.parse(text), close) : inline.parse(text), { links: opts.links, tags: opts.tags, images: opts.images, cite });
   const out = [];
   const push = (...lines) => out.push(...lines);
   const title = doc.title ? md(doc.title) : '';
@@ -163,7 +166,32 @@ function toMarkdown(doc, o = {}) {
     }
   }
 
+  /* Prose: the pieces of core/doc.js, then the footnotes. No contents list: a Markdown reader makes its own from the headings. */
+  function renderProse() {
+    const pieces = D.prose(doc, { children: pr.children, tasks: opts.tasks, hasMeta: n => !!meta(n) });
+    for (const [at, piece] of pieces.entries()) {
+      if (piece.ranIn) continue;
+      if (piece.kind === 'heading' && pr.runIn && piece.depth > 1 && pieces[at + 1]?.kind === 'para') pieces[at + 1].lead = piece, piece.ranIn = true;
+      else if (piece.kind === 'heading') { const n = piece.node; blank(); push(`${'#'.repeat(Math.min(6, piece.depth + (title ? 1 : 0)))} ${pr.numbered ? piece.number + ' ' : ''}${struck(n, md(n.text).trim())}${tagsOf(n)}`); blank(); }
+      else if (piece.kind === 'para') {
+        const joined = piece.parts.length > 1, m = meta(piece.parts[0]);
+        const lead = piece.lead ? `**${pr.numbered ? piece.lead.number + ' ' : ''}${md(piece.lead.node.text, true).trim()}** ` : '';
+        blank(); push(lead + piece.parts.map(n => struck(n, md(n.text, joined).trim()) + tagsOf(n)).join(' ') + (m ? `  \n*${m}*` : '')); blank();
+      } else if (piece.kind === 'block') { const n = piece.node; if (n.query) { blank(); push(queryLines(n, 0, false)); blank(); } else { const line = para(n); if (!(isItem(line) && isItem(out[out.length - 1]))) blank(); push(line); if (!isItem(line)) blank(); } }
+      else if (piece.kind === 'list') render(piece.nodes, 2, piece.numbered);
+      else if (piece.kind === 'rule') { blank(); push('---', ''); }
+    }
+    if (notes.list.length) {
+      blank();
+      for (const { n, tok } of notes.list) {
+        const source = inline.toMarkdown(tok.k, { links: opts.links, tags: false, images: false });
+        push(`[^${n}]: ${source}${tok.page ? `, p. ${tok.page}` : ''}.`);
+      }
+    }
+  }
+
   if (D.dated(opts.layout)) renderDated();
+  else if (isProse) renderProse();
   else { render(doc.nodes, 0); if (doc.tagged?.length) { if (doc.nodes.length) push('---', ''); render(doc.tagged, 0); } }
   return out.join('\n').replace(/\n{3,}/g, '\n\n').replace(/[ \t]+$/gm, m => m.length >= 2 ? '  ' : '').trim() + '\n';
 }
