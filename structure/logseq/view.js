@@ -71,7 +71,7 @@ const CSS = `
 .st-tag .st-tray { padding: 0 0 10px; margin-bottom: 12px; }
 .st-lines-t { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 8px 14px; margin: 0; }
 .st-lines-t dt { font-weight: 600; } .st-lines-t dd { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; min-width: 0; }
-.st-lines-t .chev { font-size: 11px; margin-left: 3px; }
+.st-lines-t .chev { margin-left: 2px; padding: 0 2px; }   /* the library's chevron (lk-change), centred on the name it changes */
 .st-tag .sug { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; padding-top: 12px; }
 .st-lines-t dd.col { display: grid; gap: 3px; justify-items: start; }
 .st-lines-t .ont { display: grid; grid-template-columns: 170px 70px auto; gap: 0 14px; align-items: baseline; }
@@ -79,6 +79,7 @@ const CSS = `
 .st-lines-t .ont .num { font-variant-numeric: tabular-nums; text-align: right; }
 .st-lines-t .ont .acts-r { display: flex; gap: 2px; }
 .st-lines-t .ont { padding-block: 2px; }
+.st-lines-t dd.kids { gap: 0; } .st-lines-t dd.kids .ont { padding-block: 0; }   /* child tags: plain lines at the lines' own pitch, the first on its name's baseline */
 .st-tag .sug { align-items: center; } .st-rel .lk-more { margin-top: 2px; }
 .st-lines-t .rg { display: inline-flex; gap: 4px; align-items: baseline; }
 .st-tag .st-in { max-width: 240px; }
@@ -464,22 +465,24 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     return `<div class="st-focus"><div class="f-h"><span class="lk" data-go="${esc(id)}">${esc(t.title)}</span></div>${relsHtml(id)}${mergeAskHtml(id)}${changeAskHtml(id)}${suggestHtml(id)}</div>`;
   }
   const suggestHtml = id => R.issuesOn(ISS(), id).map(i => { const n = ISS().indexOf(i); return `<div class="sug"><b>Suggested</b><span>${partsHtml(i.parts)}</span><span class="fix act lk-fix lk-i-${fixIcon(i.fix)}" data-fix="${n}">${esc(fixWord(i.fix))}</span></div>${askHtml(n)}`; }).join('');
-  // ---------- a tag's lines: Parent and Child tags on one line above its title; all of them in the inspector ----------
-  // (the owner, 8 November 2026: Extends is called Parent; Parent and Child tags stay on the page, on one line, without moving
-  // the title down; Beside and Relationships live in the inspector alone.)
-  const parentHtml = id => { const up = Mo.pathOf(M(), id).slice(0, -1).reverse(); return `<span class="act lk-pick" data-do="move" data-on="${id}">${up.length ? up.map(tagLink).join('<span class="to"> / </span>') : 'Nothing'}<span class="chev">⌄</span></span>`; };
+  // ---------- a tag's lines: Parent alone on one line above its title; the others in the inspector ----------
+  // (the owner, 8 November 2026: Extends is called Parent, on one line above the title without moving the title down; 12 November:
+  // Parent alone there; Child tags, Beside and Relationships live in the inspector alone.)
+  const parentHtml = id => { const up = Mo.pathOf(M(), id).slice(0, -1).reverse(); return `<span class="act lk-pick" data-do="move" data-on="${id}">${up.length ? up.map(tagLink).join('<span class="to"> / </span>') : 'Nothing'}<span class="chev lk-change lk-i-chevron"></span></span>`; };
   const kidsHtml = id => { const kids = Mo.kids(M(), id), adding = st.edit?.what === 'new' && st.edit.on === id && st.edit.owner === mode;
-    return `${kids.length ? `<span>${ranges(kids)}</span>` : ''}${adding ? `<input class="st-in lk-field" data-edit value="${esc(st.edit.text)}" placeholder="Name of the child tag" autocomplete="off" spellcheck="false">` : `<span class="act lk-add lk-i-child" data-do="new" data-on="${id}">Add child tag</span>`}`; };
+    const key = `kids${id}`, shown = st.whole.has(key) ? kids : kids.slice(0, 6);
+    return `${shown.map(k => `<div class="ont">${tagLink(k)}<span class="num">${Mo.count(M(), k)}</span></div>`).join('')}${shown.length < kids.length ? `<span class="lk-more" data-all="${key}">and ${kids.length - shown.length} more</span>` : ''}${adding ? `<input class="st-in lk-field" data-edit value="${esc(st.edit.text)}" placeholder="Name of the child tag" autocomplete="off" spellcheck="false">` : `<span class="act lk-add lk-i-child" data-do="new" data-on="${id}">Add child tag</span>`}`; };
   function lineHtml(id) {
     if (!T(id)) return '';
-    return `<dl class="st-lines-t st-line1"><dt>Parent</dt><dd>${parentHtml(id)}</dd><dt>Child tags</dt><dd>${kidsHtml(id)}</dd></dl>${mergeAskHtml(id)}${changeAskHtml(id)}`;
+    return `<dl class="st-lines-t st-line1"><dt>Parent</dt><dd>${parentHtml(id)}</dd></dl>${mergeAskHtml(id)}${changeAskHtml(id)}`;
   }
   function linesHtml(id) {
     if (!T(id)) return '';
     const up = Mo.pathOf(M(), id).slice(0, -1).reverse(), beside = up.length ? Mo.kids(M(), up[0]).filter(k => k !== id) : [];
-    // Parent and Child tags are said once, on the line above the page's title (the owner, 9 November 2026, the audit's B2); the
-    // inspector beside it says what that line does not.
-    return `<dl class="st-lines-t">${beside.length ? `<dt>Beside</dt><dd><span>${ranges(beside)}</span></dd>` : ''}` +
+    // Parent is said once, on the line above the page's title (the owner, 9 November 2026, the audit's B2); the inspector beside
+    // it says what that line does not, Child tags first (the owner, 12 November 2026: "just have parent and that is all … the
+    // children and other details in a sidebar view"; with several child tags the one line wrapped onto the title).
+    return `<dl class="st-lines-t"><dt>Child tags</dt><dd class="col kids">${kidsHtml(id)}</dd>${beside.length ? `<dt>Beside</dt><dd><span>${ranges(beside)}</span></dd>` : ''}` +
       `<dt>Relationships</dt><dd>${relsHtml(id)}</dd></dl>${mergeAskHtml(id)}${changeAskHtml(id)}${suggestHtml(id)}`;
   }
   // A property's own page: the same short lines above what Logseq shows. Each action sits on what it acts on.

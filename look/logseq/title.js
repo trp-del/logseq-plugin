@@ -94,7 +94,7 @@ async function takeOff(tagUuid, { page, tagPage }, name = 'The tag') {
   if (!page || !tagUuid) return;
   try {
     if (tagPage) {
-      if (await window.PluginDoor.ask('structure.takeOut', page, tagUuid) === window.PluginDoor.UNANSWERED) notify('Switch on Structure to take a tag out of its place');
+      if (await window.PluginDoor.ask('structure.takeOut', page, tagUuid) === window.PluginDoor.UNANSWERED) notify('Switch on Ontology to take a tag out of its place');
       return;
     }
     await Look.db.removeTag(page, tagUuid);

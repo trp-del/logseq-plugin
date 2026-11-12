@@ -73,7 +73,7 @@ const { U, load, pencilled } = standIn;
     // Structure not started yet: the press says what is needed, through the door, never by a name on the window.
     const said = []; const notify0 = logseq.UI.showMsg; logseq.UI.showMsg = (...a) => { said.push(a[0]); };
     x.click(); await new Promise(r => setTimeout(r, 0));
-    assert.ok(said.some(m => /Switch on Structure/.test(m)), 'no Structure answering: it says so');
+    assert.ok(said.some(m => /Switch on Ontology/.test(m)), 'no Structure answering: it says so');
     const asked = []; const off = door.offerAsk('structure.takeOut', async (...a) => { asked.push(a); });
     x.click(); await new Promise(r => setTimeout(r, 0));
     assert.deepEqual(asked, [[U(3), U(2)]], 'a press asks Structure through the door, the tag and the tag above it');

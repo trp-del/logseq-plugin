@@ -269,25 +269,27 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   deq(app.tray.lines().map(l => l.text), ['Make Finances at the top', 'Make Bill under Finances', 'Make Payment under Finances']);
   click(R.querySelector('[data-discard]')); assert.equal(app.tray.changes.length, 0);
 
-  // A tag's lines, in Logseq's words: Parent and Child tags said once, on the page's one line ('line'); the inspector ('tag') says
-  // the rest, and leaves the tag itself, which its heading names, out of its relationships (the audit's 31).
+  // A tag's lines, in Logseq's words: Parent said once, alone on the page's one line ('line'); the inspector ('tag') says
+  // the rest, Child tags first with Add child tag (the owner, 12 November 2026), and leaves the tag itself, which its heading names, out of its relationships (the audit's 31).
   { const h = doc.createElement('div'); doc.body.appendChild(h);
     const full = S.view.make(h, 'tag', app, { tag: id('Consultation') }); app.mounted(full); await sleep(30);
     const all = text(full.root.querySelector('.st-lines-t'));
     assert.ok(all.includes('Relationships'), 'Relationships');
-    for (const word of ['Parent', 'Child tags', 'Extends']) assert.ok(!all.includes(word), 'said once, on the page: ' + word);
+    for (const word of ['Parent', 'Extends']) assert.ok(!all.includes(word), 'said once, on the page: ' + word);
+    assert.ok(all.indexOf('Child tags') === 0, 'Child tags head the inspector\'s lines');
+    click(full.root.querySelector('[data-do="new"]')); assert.ok(full.root.querySelector('.st-lines-t [data-edit]'), 'Add child tag asks for the name in the inspector');
+    key(full.root.querySelector('[data-edit]'), 'Escape'); assert.ok(!full.root.querySelector('[data-edit]'), 'Escape takes the name field away');
     const rels = full.root.querySelector('.st-rel');
     assert.ok(!rels || ![...rels.querySelectorAll('.lk-tag')].some(t => t.textContent === 'Consultation'), 'the inspector\'s relationships do not repeat the tag');
     full.destroy(); h.remove(); }
   const holder = doc.createElement('div'); doc.body.appendChild(holder);
   const tagView = S.view.make(holder, 'line', app, { tag: id('Consultation') }); app.mounted(tagView); await sleep(30);
   const lines = text(tagView.root.querySelector('.st-lines-t'));
-  for (const word of ['Parent', 'Child tags']) assert.ok(lines.includes(word), word);
-  for (const word of ['Beside', 'Relationships', 'Suggested']) assert.ok(!text(tagView.root).includes(word), `${word} stands in the inspector alone`);
+  assert.ok(lines.includes('Parent'), 'Parent');
+  assert.ok(tagView.root.querySelector('.st-line1 .lk-change.lk-i-chevron'), 'the library\'s chevron after the parent');
+  for (const word of ['Child tags', 'Add child tag', 'Beside', 'Relationships', 'Suggested']) assert.ok(!text(tagView.root).includes(word), `${word} stands in the inspector alone`);
   assert.ok(tagView.root.querySelector('.st-line1') && tagView.root.querySelector('.st-tray'), 'one line, under the tray');
   assert.ok(!tagView.root.querySelector('.st-card'));
-  click(tagView.root.querySelector('[data-do="new"]')); assert.ok(tagView.root.querySelector('.st-line1 [data-edit]'), 'Add child tag asks for the name in the line');
-  key(tagView.root.querySelector('[data-edit]'), 'Escape'); assert.ok(!tagView.root.querySelector('[data-edit]'), 'Escape takes the name field away');
   click(tagView.root.querySelector('[data-do="move"]')); assert.ok(tagView.root.querySelector('.st-prompt'), 'the Parent line opens the choice in place');
   { let P = tagView.root.querySelector('.st-prompt'); assert.ok(!P.closest('dl') && P.parentElement === tagView.root && P.style.top !== '', 'a picker anchored at the Parent chevron, not a line between the lines');
     click(P.querySelector('.more')); await sleep(10); P = tagView.root.querySelector('.st-prompt');

@@ -137,7 +137,7 @@ const app = {
   async askTakeOut(tagUuid, parentUuid) {
     await app.reread();
     const of = uuid => [...tray.model.tags.values()].find(t => t.uuid === uuid), t = of(tagUuid), p = of(parentUuid);
-    if (!t || !p || !t.parents.includes(p.id)) return notify('Structure does not list this tag, so it stays where it is', 'warning');
+    if (!t || !p || !t.parents.includes(p.id)) return notify('Ontology does not list this tag, so it stays where it is', 'warning');
     app.openMain(t.id);
     app.st.ask = { change: { kind: 'takeOut', tag: t.id, from: p.id }, owner: 'page' };
     app.draw();
@@ -231,16 +231,16 @@ async function main() {
   S.inspector.changed = () => tagPage();   // the inspector opened, closed or folded: the lines go to it or back above the table
   S.inspector.start();
   mounts = S.mount.mount(app);
-  logseq.App.registerCommandPalette({ key: 'structure-open', label: 'Structure: the map of tags and properties' }, () => app.openMain());
-  logseq.App.registerCommandPalette({ key: 'structure-inspector', label: 'Structure: the inspector in the right sidebar' }, () => mounts.openInspector());
+  logseq.App.registerCommandPalette({ key: 'structure-open', label: 'Ontology: the map of tags and properties' }, () => app.openMain());
+  logseq.App.registerCommandPalette({ key: 'structure-inspector', label: 'Ontology: this page’s part, in the right sidebar' }, () => mounts.openInspector());
   logseq.provideModel({ structureOpen: () => app.openMain() });
   // In Logseq's ··· menu, where the plugin's places stand (the owner, 9 November 2026), the map and the inspector.
   const { onStop } = S.base;
-  onStop(window.PluginDoor.addMenuItem({ key: 'structure', label: 'Structure', icon: 'sitemap', run: () => app.openMain() }));
+  onStop(window.PluginDoor.addMenuItem({ key: 'structure', label: 'Ontology', icon: 'sitemap', run: () => app.openMain() }));
   // Look's × on a tag's own page asks for the tag to leave its place: the map asks first (askTakeOut).
   onStop(window.PluginDoor.offerAsk('structure.takeOut', (tagUuid, parentUuid) => app.askTakeOut(tagUuid, parentUuid)));
-  onStop(window.PluginDoor.addMenuItem({ key: 'inspector', label: 'Inspector', icon: 'info-circle', run: () => mounts.openInspector() }));
-  logseq.App.registerUIItem('toolbar', { key: 'structure-open', template: window.PluginDoor.toolbarButton('structureOpen', 'Structure: the map of tags and properties', 'structure') });
+  onStop(window.PluginDoor.addMenuItem({ key: 'inspector', label: 'Ontology in the sidebar', icon: 'info-circle', run: () => mounts.openInspector() }));
+  logseq.App.registerUIItem('toolbar', { key: 'structure-open', template: window.PluginDoor.toolbarButton('structureOpen', 'Ontology: the map of tags and properties', 'structure') });
   onStop(logseq.DB.onChanged(change => graphChanged(change)));
   onStop(logseq.App.onCurrentGraphChanged(() => otherGraph()));
   onStop(logseq.App.onRouteChanged?.(() => { app.followPage(); tagPage(); }));
@@ -265,7 +265,7 @@ function place(doc, inner, here, id, prop) {
   const views = [...app.views].filter(v => (v.mode === 'tag' || v.mode === 'line') && v.root.parentElement?.classList.contains('st-tagholder'));
   const clear = () => { for (const v of views) v.destroy(); doc.querySelectorAll('.st-tagholder').forEach(n => n.remove()); };
   if (id == null && prop == null) { clear(); return; }
-  /* A tag's page: Parent and Child tags on one line above its title, always; all its lines in the inspector while that stands in
+  /* A tag's page: Parent on one line above its title, always; its other lines (Child tags first) in the inspector while that stands in
      the right sidebar. A property's page: its lines above the table, or at the inspector's top while it is open. */
   const box = S.inspector.top(), title = [...inner.children].find(c => !c.classList.contains('st-tagholder')) || null;
   const want = id != null
@@ -325,9 +325,9 @@ function adopt() {
   for (const holder of host().querySelectorAll('.st-holder-insp')) if (!holder.firstChild) S.inspector.mounted(holder);
   for (const holder of host().querySelectorAll('.st-holder')) if (!holder.querySelector('.st')) { try { app.mounted(S.view.make(holder, holder.classList.contains('st-holder-side') ? 'side' : 'page', app)); } catch (error) { console.error('Structure: could not draw into a holder', error); } }
 }
-window.PluginDoor.describe('structure', { none: 'Structure has nothing to set.', picture: on => `<span class="sw-faintw">The ··· menu</span><br>${on ? 'Structure<br>' : ''}Find` });
+window.PluginDoor.describe('structure', { none: 'Ontology has nothing to set.', picture: on => `<span class="sw-faintw">The ··· menu</span><br>${on ? 'Ontology<br>' : ''}Find` });
 window.PluginDoor.register({
-  key: 'structure', title: 'Structure', about: 'The map of the graph’s tags and properties: one screen to see the whole shape, move things and change many at once, with one Undo.',
+  key: 'structure', title: 'Ontology',   /* the owner, 12 November 2026: "Why don't we call it Ontology. Lets change name of Structure too to that"; the folder, the key and the names in the code stay */ about: 'The map of the graph’s tags and properties: one screen to see the whole shape, move things and change many at once, with one Undo.',
   start: main, stop,
 });
 })();

@@ -475,7 +475,7 @@ function outsideRange(ctx) {
 }
 function outsideLines(outside) {
   if (!outside?.length) return ['', 'VALUES OUTSIDE THEIR PROPERTY\'S RANGE: none in this graph.'];
-  return ['', 'VALUES OUTSIDE THEIR PROPERTY\'S RANGE (the whole graph; fix in Structure: widen the range, or retag the pages)',
+  return ['', 'VALUES OUTSIDE THEIR PROPERTY\'S RANGE (the whole graph; fix in Ontology: widen the range, or retag the pages)',
     ...outside.slice(0, 20).map(o => `${o.name} takes ${o.range}: ${o.outside} of ${o.total} values are not, tagged ${o.byTag.slice(0, 4).map(([t, n]) => `${t} ${n}`).join(', ')}`)];
 }
 
