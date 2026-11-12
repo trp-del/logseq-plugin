@@ -17,7 +17,6 @@ found = strays(/typeof \w+ === typeof \w+(?:\.default|Defaults\[)/, { allow: { '
 if (found.length) fail('a setting read with a rule of its own (use the base’s setting, or PluginDoor.settingReader)', found);
 // 4. A listener set by hand on Logseq's window or page. The ones let be are counted, so a new one cannot come in unseen.
 found = strays(/\b(?:win|doc|hostDoc|document)\.addEventListener\(|defaultView\.addEventListener\(|host\(\)\.addEventListener\(/, { allow: {
-  'export/logseq/clipboard.js': 1,          // set and taken off inside one copy, in the same turn
   'threads/parts/shared.js': 3,             // the kit's own: the mouse buttons followed while Threads runs (its stop is a clean-up step), a pop-up waiting for the release
   'threads/parts/diagnostics.js': 3,        // the troubleshooting tools: a key for the length of a tour, two for the length of one check
 } });

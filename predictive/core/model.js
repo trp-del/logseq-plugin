@@ -12,8 +12,10 @@
      first property that takes such a page, knowing nothing of roles. That one the model is asked about again, and its
      reading replaces the rules' (merge). Where it says nothing, the rules' guess stays.
    - A page property is offered the pages the words name (a whole name, or a telling word of it, as names.js reads them)
-     that fit it, and not one the rules already placed. When the words name none, the pages it can take (rangePages), so
-     the model can read what the words describe in other words; either way only pages of the graph that fit it.
+     that fit it, and not one the rules already placed. When the words name none, the property is not asked about (since
+     12 November 2026). Until then the model was offered the pages the property can take (rangePages), to read what the
+     words describe in other words: on the owner's graph that was right once in 12, wrong 5 times and refused 5, and for
+     6 of the 12 the right page was not among those offered. The measure still asks that way beside this one (range: true).
    - A number is kept only if the words hold it; a day only if the date reader finds that day in the words.
    - Everything kept is a guess: dotted, written only by Enter or a click, as any guess.
    - A bullet with no tag, where the rules found none: which of the graph's tags it is (tagRequest), or none.
@@ -31,10 +33,10 @@ const engine = need('engine');
 const { shownWords } = need('context');
 
 const MOST_PAGES = 12;
-/* When the words name no page for a property, the model is offered the pages the property can take (its range), so it can
-   read what the words describe in other words ("woke up with a bloody nose" for a symptom page Bleeding): pages only,
-   those most often the property's value first, at most MOST_RANGE for one property and MOST_OFFERED in all, which keeps
-   the question inside what the model on the Mac can read. */
+/* For the measure only (request's range: true), as Predictive asked until 12 November 2026: when the words name no page for a
+   property, the model is offered the pages the property can take (its range), so it can read what the words describe in other
+   words ("woke up with a bloody nose" for a symptom page Bleeding): pages only, those most often the property's value first, at
+   most MOST_RANGE for one property and MOST_OFFERED in all, which keeps the question inside what the model on the Mac can read. */
 const MOST_RANGE = 40, MOST_OFFERED = 80;
 function valueUse(ctx, ident) {
   const byProp = ctx.valueUse ||= new Map();
@@ -89,14 +91,15 @@ function tagUse(ctx) {
   for (const entry of ctx.index?.entries || []) for (const id of entry.values.get('block/tags') || []) use.set(id, (use.get(id) || 0) + 1);
   return (ctx.tagUse = use);
 }
-function tagRequest(ctx, b, today = dayNumber(new Date()), { examples = false, described = true } = {}) {
+function tagRequest(ctx, b, today = dayNumber(new Date()), { examples = false, described = true, only = null, turned = false } = {}) {
   const text = String(b.text || '');
   if (b.tags.length || proposeLib.inWords(text, ctx).tags.length || freeWords(text).length < 2) return null;
   if (proposeLib.recordOf(b, [], ctx.schema).fields.length) return null;
   const use = tagUse(ctx), byTitle = new Map();
-  const first = proposeLib.tagChoices(ctx, b).map(item => item.tag.id);
-  const rest = [...ctx.knownTags].filter(id => !first.includes(id)).sort((x, y) => (use.get(y) || 0) - (use.get(x) || 0));
-  for (const id of [...first, ...rest]) {
+  // only: a short list of tags to choose among, in its own order (the measure's "near tags"); turned: the list back to front.
+  const first = only ? [] : proposeLib.tagChoices(ctx, b).map(item => item.tag.id);
+  const rest = only ? only.filter(id => ctx.knownTags.has(id)) : [...ctx.knownTags].filter(id => !first.includes(id)).sort((x, y) => (use.get(y) || 0) - (use.get(x) || 0));
+  for (const id of turned ? [...first, ...rest].reverse() : [...first, ...rest]) {
     const page = ctx.byId.get(id);
     if (page?.isTag && page.uuid && !byTitle.has(page.title.toLowerCase())) byTitle.set(page.title.toLowerCase(), page);
     if (byTitle.size >= MOST_TAGS) break;
@@ -176,13 +179,13 @@ function describe(ctx, req, tagIds = []) {
 // The tag the model read, as a page, or null.
 const tagOf = (req, reply) => { const v = reply?.values?.t; return v == null ? null : req.asked.get('t')?.tags.get(String(v).toLowerCase()) || null; };
 
-function request(ctx, b, result, today = dayNumber(new Date())) {
+function request(ctx, b, result, today = dayNumber(new Date()), { range = false } = {}) {
   if (!result) return null;
   // A tag the rules pencilled: the model is asked about its properties as for a bullet with that tag (its answers wait
   // for the tag, as the rules' guesses for it do).
   if (result.assume) {
     const tagged = { ...b, tags: [...b.tags, result.assume.id] };
-    const asked = request(ctx, tagged, proposeLib.propose(ctx, tagged, result.assume), today);
+    const asked = request(ctx, tagged, proposeLib.propose(ctx, tagged, result.assume), today, { range });
     return asked ? { ...asked, needsTag: true } : null;
   }
   if (!result.pieces.length && ctx.limits?.modelTag !== false && proposeLib.enoughForTag(ctx, b.text)) { const asked = tagRequest(ctx, b, today); if (asked) return asked; }
@@ -208,7 +211,7 @@ function request(ctx, b, result, today = dayNumber(new Date())) {
       if (wide(prop, ctx.schema)) continue;
       const classIds = new Set(prop.classes.map(c => c.id));
       let pages = namedPages(ctx, words, classIds, spoken), how = 'named';
-      if (!pages.length && offered < MOST_OFFERED) { pages = rangePages(ctx, prop, classIds, spoken).slice(0, MOST_OFFERED - offered); how = 'range'; }
+      if (!pages.length && range && offered < MOST_OFFERED) { pages = rangePages(ctx, prop, classIds, spoken).slice(0, MOST_OFFERED - offered); how = 'range'; }
       if (!pages.length) continue;
       offered += pages.length;
       asked.set(key, { prop, kind: 'page', how, pages: new Map(pages.map(p => [p.title.toLowerCase(), p])) });

@@ -266,7 +266,7 @@ async function act(what, at = null) {
   try {
     if (what === 'copy') {
       const lines = await Promise.all(nodes.map(async uuid => { const page = await twoWay.model.getPage(uuid).catch(() => null); return page?.name ? `[[${page.title || page.originalName || page.name}]]` : `((${uuid}))`; }));
-      await host().defaultView.navigator.clipboard.writeText(lines.join('\n'));
+      if (!await window.PluginDoor.copy({ text: lines.join('\n') })) throw new Error('the clipboard could not be reached');
       notify(`Copied ${counted(nodes.length)}`);
       twoWay.stopPicking(); return twoWay.draw(host());
     }

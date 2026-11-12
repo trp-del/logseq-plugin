@@ -462,13 +462,12 @@ const visit = (text, over = {}) => bullet({ id: -5, text, tags: [clinic.tagPage.
 const askAbout = b => { const result = propose(clinic.ctx, b); return { result, req: modelLib.request(clinic.ctx, b, result, 20261102) }; };
 const said = 'Saw Dr. Mei Chen with Ruth Okoro about the fatigue, 5 mg from 9 Nov until 13 Nov';
 const byTitle = req => new Map(req.fill.properties.map(p => [p.title, p]));
-test('asked only what the rules left open or guessed from plain words: the pages the words name, else the pages it can take', () => {
+test('asked only what the rules left open or guessed from plain words: the pages the words name, and nothing where they name none', () => {
   const { result, req } = askAbout(visit(said));
   const asked = byTitle(req), rulesSaid = new Set(result.pieces.filter(p => !modelLib.byWordsAlone(p)).map(p => p.prop.title));
   for (const title of rulesSaid) assert.ok(!asked.has(title), `${title} was already proposed by the rules`);
   for (const title of ['Provider', 'Spoke with']) if (asked.has(title)) assert.ok(asked.get(title).choices.every(c => ['Dr. Mei Chen', 'Ruth Okoro'].includes(c)), 'named people only, where people are named');
-  assert.deepEqual(asked.get('Where')?.choices, ['Northgate Clinic'], 'no place is named, so Where is offered the places it can take');
-  assert.match(asked.get('Where').about, /other words/);
+  assert.ok(!asked.has('Where'), 'no place is named, so Where is not asked about (since 12 November 2026)');
   assert.ok(!asked.has('Topic'), 'a wide property is never asked about');
   assert.ok(asked.has('Dose') && asked.has('Start') && asked.has('End'));
   assert.ok(!JSON.stringify(req.fill).includes('Lena Park'), 'a page the words do not name is never sent');
@@ -512,10 +511,13 @@ test('the model\'s reading of roles replaces the rules\' guess from plain words,
   assert.ok(sure && !sure.guess, 'a linked page is sure');
   assert.deepEqual(modelLib.merge(lr.pieces, [{ ...sure, ids: [clinic.page.get('Ruth Okoro').id], shown: 'Ruth Okoro', how: 'model', guess: true }]).find(p => p.prop.title === 'Provider').shown, 'Dr. Mei Chen', 'a sure value is never replaced');
 });
-test('words that describe a page in other words: the model is offered the pages the property can take, and its pick is kept', () => {
-  const { req } = askAbout(visit('Went to the hospital in the morning, they kept me waiting'));
+test('words that describe a page in other words: not asked while writing; for the measure, offered the pages the property can take', () => {
+  const b = visit('Went to the hospital in the morning, they kept me waiting');
+  assert.ok(!byTitle(askAbout(b).req || { fill: { properties: [] } }).has('Where'), 'while writing, a place the words do not name is not asked about');
+  const req = modelLib.request(clinic.ctx, b, propose(clinic.ctx, b), 20261102, { range: true });
   const where = byTitle(req).get('Where');
-  assert.ok(where, 'Where is asked though no place is named');
+  assert.ok(where, 'the measure\'s old way asks Where though no place is named');
+  assert.match(where.about, /other words/);
   assert.ok(where.choices.every(c => clinic.ctx.pages.some(p => p.title === c && !p.isTag)), 'only pages of the graph');
   assert.ok(where.choices.length <= modelLib.MOST_RANGE);
   const kept = modelLib.pieces(clinic.ctx, req, { values: { [where.key]: 'Northgate Clinic' } });
@@ -554,7 +556,7 @@ test('a bullet with no tag, where the rules found none: asked only which of the 
   assert.equal(modelLib.tagOf(req, { values: { t: 'consultation' } })?.title, 'Consultation', 'Option-T reads the same answer');
 });
 test('a tag read by the model: its properties are the second question, and come under the tag as guesses', () => {
-  const b = bullet({ id: -7, text: 'Talked through the scan with Dr. Mei Chen at length' });
+  const b = bullet({ id: -7, text: 'Talked through the scan with Dr. Mei Chen at Northgate Clinic' });
   const { req } = askAbout(b);
   const reply = { values: { t: 'Consultation' } };
   const next = modelLib.followUp(clinic.ctx, req, reply, 20261102);
@@ -589,9 +591,10 @@ test('a tag the rules pencil: the model is asked about its properties, which wai
   const req = modelLib.request(clinic.ctx, b, result, 20261102);
   assert.ok(req?.needsTag, 'asked, as for a bullet with the tag');
   assert.ok(req.fill.tags.includes(result.assume.title));
-  const where = req.fill.properties.find(p => p.title === 'Where');
-  const kept = modelLib.pieces(clinic.ctx, req, { values: { [where.key]: 'Northgate Clinic' } });
-  assert.equal(kept[0].shown, 'Northgate Clinic'); assert.ok(kept[0].needsTag && kept[0].guess);
+  assert.ok(!req.fill.properties.some(p => p.title === 'Where'), 'no place is named, so Where is not asked');
+  const dose = req.fill.properties.find(p => p.title === 'Dose');
+  const kept = modelLib.pieces(clinic.ctx, req, { values: { [dose.key]: 1 } });
+  assert.equal(kept[0].shown, '1'); assert.ok(kept[0].needsTag && kept[0].guess);
 });
 test('the pencilled tag waits while the setting is careful; Option-T still asks', () => {
   const b = bullet({ id: -7, text: 'Talked through the scan with Dr. Mei Chen at length' });
@@ -620,30 +623,36 @@ section('Matching by meaning (core/meaning.js, with pretend near notes)');
   const C = clinic.ctx, entries = C.index.entries, mei = clinic.page.get('Dr. Mei Chen'), ruth = clinic.page.get('Ruth Okoro');
   const ofMei = entries.find(e => (e.values.get('user.property/provider') || [])[0] === mei.id), ofRuth = entries.find(e => (e.values.get('user.property/provider') || [])[0] === ruth.id);
   const plain = entries.find(e => e.values.get('block/tags')?.[0] === 0);
+  const WITH_PROPS = { ...C, limits: { ...C.limits, meaningProps: true } };   // as the harness can ask: page properties voted by meaning too
   const fresh = (text, over = {}) => bullet({ id: -7, text, page: { id: 9902, uuid: synthetic.uuid(9902), title: 'Nov 2', day: 20261102, tags: [] }, ...over });
   test('an untagged line the rules find nothing for: the tag of the near notes, with its properties as guesses under it', () => {
     const b = fresh('Talked things through with the oncologist this morning'), result = propose(C, b);
     assert.equal(result.pieces.length, 0, 'the rules say nothing: no shared word');
     assert.ok(meaningLib.wanted(C, b, result));
-    const near = [{ entry: ofMei, sim: .58 }, { entry: ofMei, sim: .52 }, { entry: plain, sim: .41 }];
+    const near = [{ entry: ofMei, sim: .58 }, { entry: ofMei, sim: .52 }, { entry: plain, sim: .3 }];
     const got = meaningLib.pieces(C, b, result, near);
     assert.equal(got[0].kind, 'tag'); assert.equal(got[0].tag.title, 'Consultation'); assert.equal(got[0].how, 'meaning');
     assert.ok(got.slice(1).every(p => p.needsTag), 'the rest wait for the tag');
-    assert.equal(got.find(p => p.prop.title === 'Provider')?.shown, 'Dr. Mei Chen', 'and the near notes\' Provider comes under it');
+    assert.ok(!got.some(p => p.how === 'meaning' && p.kind !== 'tag'), 'no page property is voted by meaning (since 12 November 2026)');
+    assert.deepEqual(meaningLib.pieces(C, b, result, [{ entry: ofMei, sim: .58 }, { entry: ofMei, sim: .52 }, { entry: plain, sim: .45 }]), [], 'the tag must hold four fifths of the vote');
+    const withProps = meaningLib.pieces(WITH_PROPS, b, result, near);
+    assert.equal(withProps.find(p => p.prop.title === 'Provider')?.shown, 'Dr. Mei Chen', 'asked for (the harness), the near notes\' Provider comes under it');
   });
   test('too far, a tie between two values, or plain notes nearest: nothing', () => {
     const b = fresh('Talked things through with the oncologist this morning'), result = propose(C, b);
     assert.deepEqual(meaningLib.pieces(C, b, result, [{ entry: ofMei, sim: .3 }]), [], 'too far');
     const t = visit('Talked things through this morning'), rt = propose(C, t);
-    assert.deepEqual(meaningLib.pieces(C, t, rt, [{ entry: ofMei, sim: .55 }, { entry: ofRuth, sim: .54 }]), [], 'a tie between two values says nothing');
+    assert.deepEqual(meaningLib.pieces(WITH_PROPS, t, rt, [{ entry: ofMei, sim: .55 }, { entry: ofRuth, sim: .54 }]), [], 'a tie between two values says nothing');
     assert.deepEqual(meaningLib.pieces(C, b, result, [{ entry: plain, sim: .7 }, { entry: ofMei, sim: .5 }]), [], 'a plain note nearest: no tag');
   });
-  test('a tagged line: only the open page properties, never one the rules filled or held back', () => {
+  test('a tagged line: nothing by meaning; asked for, only the open page properties, never one the rules filled or held back', () => {
     const b = visit('Talked things through this morning'), result = propose(C, b);
-    const got = meaningLib.pieces(C, b, result, [{ entry: ofRuth, sim: .6 }, { entry: ofRuth, sim: .5 }]);
+    assert.deepEqual(meaningLib.pieces(C, b, result, [{ entry: ofRuth, sim: .6 }, { entry: ofRuth, sim: .5 }]), [], 'a page property is not voted by meaning');
+    assert.equal(meaningLib.wanted(C, b, result), false, 'so the matcher is not asked about a tagged line');
+    const got = meaningLib.pieces(WITH_PROPS, b, result, [{ entry: ofRuth, sim: .6 }, { entry: ofRuth, sim: .5 }]);
     assert.deepEqual(got.map(p => [p.prop.title, p.shown, p.how]), [['Provider', 'Ruth Okoro', 'meaning']]);
     const held = visit(`Saw [[${mei.uuid}]] this morning`), r2 = propose(C, held);
-    assert.deepEqual(meaningLib.pieces(C, held, r2, [{ entry: ofRuth, sim: .6 }]), [], 'Provider is filled by the link: not asked');
+    assert.deepEqual(meaningLib.pieces(WITH_PROPS, held, r2, [{ entry: ofRuth, sim: .6 }]), [], 'Provider is filled by the link: not asked');
   });
   test('the words a note is learned by: a saved link as its name, tags left out', () => {
     assert.equal(meaningLib.textOf(C, `Saw [[${mei.uuid}]] about it #Consultation`), 'Saw Dr. Mei Chen about it');
@@ -708,21 +717,22 @@ const measureLib = require('../core/measure.js');
     parent: 'Saw Dr. Mei Chen at the clinic', before: ['Slept badly'], pageTitle: '', day: 20261102,
   };
   const q = measureLib.questions(C, note);
+  const full = q.props.find(x => x.way === 'range too'), named = q.props.find(x => x.way === 'named');
   const keyOf = (req, title) => req.fill.properties.find(p => p.title === title)?.key;
   test('asked as Predictive asks: each property described from the structure, the tag with the tags above it', () => {
-    assert.deepEqual(q.props.map(x => x.way), ['today']);
-    const req = q.props[0].req, titles = req.fill.properties.map(p => p.title);
+    assert.deepEqual(q.props.map(x => x.way), ['named', 'range too']);
+    const req = full.req, titles = req.fill.properties.map(p => p.title);
     assert.ok(titles.includes('Provider') && titles.includes('Dose'));
     assert.ok(!req.fill.context && !req.fill.model, 'from the note\'s words alone, Apple\'s model as it comes');
     const prov = req.fill.properties.find(p => p.title === 'Provider');
     assert.match(prov.about, /^Provider \(a Person\) of this Consultation note, from the choices/);
     assert.match(prov.about, /Its other properties are .*Dose/, 'says what else the note holds, so a name lands in its own place');
-    assert.deepEqual(q.tags.map(x => x.way), ['today']);
+    assert.deepEqual(q.tags.map(x => x.way), ['all tags']);
     assert.ok(!/Earlier notes/.test(q.tags[0].req.fill.context) && /The kinds of note/.test(q.tags[0].req.fill.context), 'the tag question: the kinds and what each holds, no earlier lines');
     assert.ok(!JSON.stringify(req.fill).includes('77001'), 'what was written is never sent');
   });
   test('partly right is marked, and the values outside a property\'s range are counted from the whole graph', () => {
-    const req = q.props[0].req, prov = keyOf(req, 'Provider');
+    const req = full.req, prov = keyOf(req, 'Provider');
     const many = { ...note, truth: new Map([[P('Provider').ident, { kind: 'ids', ids: [mei.id, ruth.id] }]]) };
     const [r] = measureLib.judge(C, many, req, { values: { [prov]: 'Dr. Mei Chen' } }).filter(x => x.key === prov);
     assert.equal(r.result, 'wrong'); assert.equal(r.partly, true);
@@ -735,7 +745,7 @@ const measureLib = require('../core/measure.js');
     assert.match(measureLib.text(measureLib.tally([]), {}, null, [o]), /Provider takes Person: 1 of \d+ values are not, tagged Ward 1/);
   });
   test('answers judged against what was written: right, wrong, silent', () => {
-    const req = q.props[0].req, prov = keyOf(req, 'Provider'), dose = keyOf(req, 'Dose');
+    const req = full.req, prov = keyOf(req, 'Provider'), dose = keyOf(req, 'Dose');
     const by = r => Object.fromEntries(measureLib.judge(C, note, req, r).map(x => [req.fill.properties.find(p => p.key === x.key).title, x.result]));
     assert.equal(by({ values: { [prov]: 'Dr. Mei Chen', [dose]: 5 } }).Provider, 'right');
     assert.equal(by({ values: { [prov]: 'Dr. Mei Chen', [dose]: 5 } }).Dose, 'right');
@@ -745,30 +755,30 @@ const measureLib = require('../core/measure.js');
     assert.ok(ruth);
   });
   test('a question with no answer is failed, not silent, and its reason is a name only', () => {
-    const req = q.props[0].req;
+    const req = full.req;
     const said = 'exceededContextWindowSize(FoundationModels.LanguageModelSession.GenerationError.Context(debugDescription: "Talked it over, she wants"))';
     assert.ok(measureLib.judge(C, note, req, null, said).every(x => x.result === 'failed' || x.result === 'quiet'));
     assert.equal(measureLib.reason(said), 'exceededContextWindowSize');
     assert.equal(measureLib.reason('TimeoutError: signal timed out'), 'timed out');
-    const rec = { tagTitle: 'Consultation', asked: q.asked, tags: [{ way: 'today', result: 'failed', size: 4100, error: said }],
-      props: q.props.map(({ way, req }) => ({ way, ms: 300, size: measureLib.size(req.fill), error: said, results: measureLib.judge(C, note, req, null, said) })) };
+    const rec = { tagTitle: 'Consultation', asked: q.asked, tags: [{ way: 'all tags', result: 'failed', size: 4100, error: said }],
+      props: [full].map(({ way, req }) => ({ way, ms: 300, size: measureLib.size(req.fill), error: said, results: measureLib.judge(C, note, req, null, said) })) };
     const text = measureLib.text(measureLib.tally([rec]), {});
-    assert.match(text, /failed \(no answer at all\)\s+2\n/);
-    assert.match(text, /exceededContextWindowSize\s+1\s+1\n/);
+    assert.match(text, /failed \(no answer at all\)\s+0\s+2\n/);
+    assert.match(text, /exceededContextWindowSize\s+0\s+1\s+1\s+0\s+0\n/);
     assert.ok(!text.includes('wants') && !text.includes('Talked'), 'nothing a reason carries after its name reaches the report');
     assert.ok(measureLib.size(req.fill) > 0);
   });
   test('a graph made for measuring, and only it, gets the details: the note\'s words, what was written and what was said', () => {
     assert.equal(measureLib.isTestGraph(C), false);
     assert.equal(measureLib.isTestGraph({ ...C, pages: [...C.pages, { title: 'Predictive test graph' }] }), true);
-    const props = q.props.map(({ way, req }) => ({ way, error: null, results: measureLib.judge(C, note, req, { values: { [keyOf(req, 'Provider')]: 'Ruth Okoro' } }) }));
+    const props = [full].map(({ way, req }) => ({ way, error: null, results: measureLib.judge(C, note, req, { values: { [keyOf(req, 'Provider')]: 'Ruth Okoro' } }) }));
     const d = measureLib.detailOf(C, note, q.asked, props, [{ result: 'silent', said: null }]);
     assert.equal(d.words, 'Talked it over, she wants 5 mg from 9 Nov');
     const prov = d.props.find(p => p.title === 'Provider');
     assert.equal(prov.wrote, 'Dr. Mei Chen');
-    assert.deepEqual(prov.ways.map(w => [w.way, w.said, w.result]), [['today', 'Ruth Okoro', 'wrong']]);
+    assert.deepEqual(prov.ways.map(w => [w.way, w.said, w.result]), [['range too', 'Ruth Okoro', 'wrong']]);
     const t = measureLib.tally([{ tagTitle: 'Consultation', asked: q.asked, props, tags: [] }]);
-    assert.match(measureLib.text(t, {}, [d]), /"Talked it over, she wants 5 mg from 9 Nov" \(Consultation\)\n  Provider: wrote Dr\. Mei Chen · today said Ruth Okoro \(wrong\)/);
+    assert.match(measureLib.text(t, {}, [d]), /"Talked it over, she wants 5 mg from 9 Nov" \(Consultation\)\n  Provider: wrote Dr\. Mei Chen · range too said Ruth Okoro \(wrong\)/);
     assert.ok(!measureLib.text(t, {}).includes('Talked'), 'without details, no words');
   });
   test('a second name (an alias) is offered and kept as its page', () => {
@@ -783,16 +793,68 @@ const measureLib = require('../core/measure.js');
     assert.deepEqual(modelLib.momentPages(A, 'Saw [[Dr. Chen]] yesterday', new Set(P('Provider').classes.map(c => c.id)), new Set()).map(p => p.title), ['Dr. Mei Chen']);
   });
   test('the report holds numbers and names, never a note\'s words', () => {
-    const rec = { tagTitle: 'Consultation', asked: q.asked, tags: [], props: q.props.map(({ way, req }) => ({ way, ms: 900, results: measureLib.judge(C, note, req, { values: { [keyOf(req, 'Provider')]: 'Dr. Mei Chen' } }) })) };
+    const rec = { tagTitle: 'Consultation', asked: q.asked, tags: [], props: [full].map(({ way, req }) => ({ way, ms: 900, results: measureLib.judge(C, note, req, { values: { [keyOf(req, 'Provider')]: 'Dr. Mei Chen' } }) })) };
     rec.meaning = { tag: 'right', props: [{ title: 'Consultation · Provider', result: 'wrong' }], doubles: 1, named: 1 };
     const t = measureLib.tally([rec]);
     assert.equal(t.notes, 1);
     assert.equal(t.meaning.tag.right, 1); assert.equal(t.meaning.props.wrong, 1);
-    assert.equal(t.ways.today.all.right, 1);
+    assert.equal(t.ways['range too'].all.right, 1);
     const text = measureLib.text(t, { version: '0.3.13', helper: 2, date: '2026-11-05' });
     assert.match(text, /Consultation · Provider/);
     assert.match(text, /BY MEANING/); assert.match(text, /1 offered for a name/);
     for (const word of ['Talked', 'wants', 'Slept', 'clinic']) assert.ok(!text.includes(word), `no words of the note in the report: ${word}`);
+  });
+  test('named asks a page only when the words name it; what it does not ask is silent there, and both ways count the same properties', () => {
+    const titles = named.req.fill.properties.map(p => p.title);
+    assert.ok(!titles.includes('Provider') && titles.includes('Dose'), 'no doctor is named in the words, so Provider is not asked');
+    assert.ok(full.req.fill.properties.some(p => p.title === 'Provider'), 'the old way still offers the pages Provider can take');
+    const live = modelLib.request(C, { ...note.b, values: new Map() }, { pieces: [], record: null, quiet: [] }, 20261102);
+    assert.equal(live, null, 'a result that is not the bullet\'s own asks nothing');
+    const hidden = { ...note.b, values: new Map(), parent: null };
+    const asLive = modelLib.request(C, hidden, { pieces: [], record: hidden, quiet: [] }, 20261102);
+    assert.deepEqual(asLive.fill.properties.map(p => p.title), titles, 'the measure\'s named way is what Predictive asks');
+    const dose = keyOf(named.req, 'Dose');
+    const results = [...measureLib.judge(C, note, named.req, { values: { [dose]: 5 } }), ...measureLib.notAsked(note, full.req, named.req)];
+    const prov = results.find(r => r.key === keyOf(full.req, 'Provider'));
+    assert.equal(prov.result, 'silent'); assert.equal(prov.unasked, true);
+    const rec = { tagTitle: 'Consultation', asked: q.asked, tags: [], props: [{ way: 'named', results }, { way: 'range too', results: measureLib.judge(C, note, full.req, { values: { [keyOf(full.req, 'Provider')]: 'Ruth Okoro', [keyOf(full.req, 'Dose')]: 5 } }) }] };
+    const t = measureLib.tally([rec]);
+    assert.deepEqual([t.ways.named.all.right, t.ways.named.all.wrong, t.ways.named.all.silent, t.ways.named.unasked], [1, 0, 1, 1]);
+    assert.deepEqual([t.ways['range too'].all.right, t.ways['range too'].all.wrong], [1, 1]);
+    assert.equal(t.questions, 2);
+    assert.match(measureLib.text(t, {}), /PROPERTIES YOU FILLED\n\s+named\s+range too\nright\s+1 50%\s+1 50%\n  its 95% range\s+9–91%\s+9–91%/);
+  });
+  test('the share right comes with its range, and the tag is asked from the near notes\' tags both ways round', () => {
+    assert.equal(measureLib.range(22, 40), '40–69%'); assert.equal(measureLib.range(0, 0), '–');
+    const tags = [...C.knownTags].slice(0, 3), own = note.b.tags[0];
+    const near = [{ entry: { values: new Map([['block/tags', [own]]]) }, sim: .9 }, { entry: { values: new Map([['block/tags', [tags.find(id => id !== own)]]]) }, sim: .5 }];
+    const short = measureLib.nearTags(C, near);
+    assert.equal(short[0], own, 'the nearest notes\' tag first');
+    const three = measureLib.questions(C, note, { nearTags: short }).tags;
+    assert.deepEqual(three.map(x => x.way), ['all tags', 'near tags', 'near, turned']);
+    const a = three[1].req.fill.properties[0].choices, b = three[2].req.fill.properties[0].choices;
+    assert.equal(a.length, 2); assert.deepEqual([...a].reverse(), b, 'the same short list, back to front');
+    assert.equal(three[1].listed, true);
+    const title = C.byId.get(own).title;
+    const rec = { tagTitle: title, asked: [], props: [], tags: [{ way: 'all tags', result: 'wrong', said: 'x' }, { way: 'near tags', listed: true, result: 'right', said: title }, { way: 'near, turned', listed: true, result: 'right', said: title }] };
+    const text = measureLib.text(measureLib.tally([rec]), {});
+    assert.match(text, /The right tag was among them in 1 of 1 notes/);
+    assert.match(text, /the same tag 1 times \(1 right, 0 wrong\), two different tags 0 times/);
+  });
+  test('what you would see while writing: every proposal together against what was written, sure and pencilled apart', () => {
+    const provider = P('Provider'), dose = P('Dose');
+    const seen = measureLib.judgeSeen(C, note, [
+      { ident: provider.ident, kind: 'node', ids: [ruth.id], guess: true, how: 'model' },
+      { ident: dose.ident, kind: 'number', ids: [5], how: 'words-number' },
+    ]);
+    const by = Object.fromEntries(seen.map(r => [r.title, r]));
+    assert.deepEqual([by.Provider.result, by.Provider.sure, by.Provider.source], ['wrong', false, 'Apple\'s model']);
+    assert.deepEqual([by.Dose.result, by.Dose.sure, by.Dose.source], ['right', true, 'the rules']);
+    assert.ok(seen.some(r => r.result === 'quiet'), 'a property left empty and not proposed is counted as left empty');
+    const text = measureLib.text(measureLib.tally([{ tagTitle: 'Consultation', asked: [], props: [], tags: [], seen }]), {});
+    assert.match(text, /WHAT YOU WOULD SEE WHILE WRITING/);
+    assert.match(text, /written when you leave\s+1\s+0\npencilled, a guess\s+0\s+1/);
+    assert.match(text, /Apple's model\s+0\s+1\s+0/);
   });
 }
 

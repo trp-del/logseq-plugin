@@ -39,8 +39,9 @@ let PORT: UInt16 = 47615
 let ORIGIN = "lsp://logseq.com"
 let NONE = "none"
 // Raised when the plugin may ask something an older helper cannot answer (2: a property with a list of choices; 3: "model",
-// a date without a pattern, failures by name; 4: /meaning and /names; 5: /reads-back; 6: /reads-back from the larger model in Private Cloud Compute).
-let VERSION = 6
+// a date without a pattern, failures by name; 4: /meaning and /names; 5: /reads-back; 6: /reads-back from the larger model in Private Cloud Compute;
+// 7: the matcher asked one question at a time, as two at once crashed it).
+let VERSION = 7
 
 // MARK: - the request
 
@@ -215,6 +216,9 @@ struct Learn: Decodable { let id: Int; let text: String }
 struct MeaningAsk: Decodable { let graph: String; let learn: [Learn]?; let replace: Bool?; let text: String?; let k: Int?; let skip: [Int]? }
 final class Meaning: @unchecked Sendable {
   private let lock = NSLock()
+  /* Apple's matcher is not safe to use from two questions at once: two at the same moment crashed the helper inside
+     NLEmbedding (12 November 2026), and it came back with nothing learned, so every match after was silent. One at a time. */
+  private let matcher = NSLock()
   private var embedding: NLEmbedding?
   private var language: NLLanguage = .english
   private var graphs: [String: [Int: [Float]]] = [:]
@@ -222,12 +226,16 @@ final class Meaning: @unchecked Sendable {
   var ready: Bool { embedding != nil }
   // The matcher for the language most of the notes are in, found from a sample of them; English when Apple has none for it.
   private func use(_ sample: [String]) {
+    matcher.lock(); defer { matcher.unlock() }
     let recognizer = NLLanguageRecognizer()
     recognizer.processString(sample.prefix(40).joined(separator: "\n"))
     if let found = recognizer.dominantLanguage, found != language, let made = NLEmbedding.sentenceEmbedding(for: found) { embedding = made; language = found }
   }
   func vector(_ text: String) -> [Float]? {
-    guard let e = embedding, let v = e.vector(for: text) else { return nil }
+    matcher.lock()
+    let found = embedding?.vector(for: text)
+    matcher.unlock()
+    guard let v = found else { return nil }
     var out = v.map { Float($0) }
     var norm: Float = 0
     vDSP_dotpr(out, 1, out, 1, &norm, vDSP_Length(out.count))

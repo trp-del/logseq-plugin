@@ -7,20 +7,26 @@
    rules say nothing; by meaning the second is nearest, and its Occurrence (Dry mouth) and its tag (Symptom Log) are offered.
 
    near: [{ entry, sim }] best first, the entries of ctx.index with the cosine similarity of their meaning to the bullet's,
-   the bullet itself left out. Limits (ctx.limits): meaningLeast, how near the nearest holder must be (cosine; .45 as it
+   the bullet itself left out. Limits (ctx.limits): meaningK, how many near notes vote (12); meaningLeast, how near the nearest holder must be (cosine; .45 as it
    comes, since Apple's matcher puts a note that says the same at about .5 and an unrelated one under .4); meaningLead, the
    share of the vote the leading value must hold; meaningGap, how far the nearest holder of the leading value must stand
    ahead of the nearest holder of the runner-up (a tie says nothing).
 
    pieces(ctx, b, result, near) -> the guesses: for an untagged bullet the rules found nothing for, the tag (how 'meaning')
-   with the tag's properties as guesses under it (needsTag), as the rules pencil theirs; for a tagged bullet, each open page
-   property the near holders agree on. Every piece is a guess: dotted, written only by Enter or a click. */
+   with the tag's properties as guesses under it (needsTag), as the rules pencil theirs; for a tagged bullet, nothing since
+   12 November 2026 (with the limit meaningProps, each open page property the near holders agree on). Every piece is a guess: dotted, written only by Enter or a click. */
 (function () {
 const need = n => (typeof require === 'function' && typeof module !== 'undefined') ? require('./' + n + '.js') : window.Flow[n];
 const { fieldsOfTags, wide, isLinkProp, isChoiceProp, isBuiltInProp } = need('schema');
 const proposeLib = need('propose');
 
-const LIMITS = Object.freeze({ meaningLeast: .45, meaningLead: .6, meaningGap: .04, meaningK: 6 });
+/* 12 November 2026, measured on the made-up graph of tools/harness (7,500 notes learned, 600 held-out notes written in other
+   sentences, 150 plain): with the six nearest and a lead of .6 the tag was right 114 times and wrong 28, 11 plain notes were
+   tagged, and a page property voted by meaning was right 22 times and wrong 18, whatever the nearness asked (.45 to .7 moved
+   it by two or three: Apple's matcher puts two notes of one sentence shape nearer than two that mean the same). With the twelve
+   nearest and a lead of .8: the tag right 82, wrong 20, 3 plain notes tagged. So twelve and .8, and the page properties are no
+   longer voted by meaning (meaningProps; the harness can still ask for them, --set meaningProps=true). */
+const LIMITS = Object.freeze({ meaningLeast: .45, meaningLead: .8, meaningGap: .04, meaningK: 12, meaningProps: false });
 const limitsOf = ctx => ({ ...LIMITS, ...(ctx.limits || {}) });
 
 /* What the near entries holding ident agree on: each votes for its value with the square of its similarity, as the engine
@@ -49,7 +55,7 @@ const examples = (ctx, from) => [...new Set(from.slice(0, 2).map(e => String(e.t
 function wanted(ctx, b, result) {
   if (!result || !ctx.index) return false;
   if (!result.pieces.length && !result.assume) return !b.tags.length && !proposeLib.inWords(b.text, ctx).tags.length && proposeLib.recordOf(b, [], ctx.schema).fields.length === 0 && proposeLib.enoughForTag(ctx, b.text);
-  return openProps(ctx, b, result).length > 0;
+  return !!limitsOf(ctx).meaningProps && openProps(ctx, b, result).length > 0;
 }
 // The page properties of the bullet's own tags that nothing filled: not held, not proposed, not held back (quiet), not wide.
 function openProps(ctx, b, result) {
@@ -77,6 +83,7 @@ function pieces(ctx, b, result, near) {
     const rest = pieces(ctx, tagged, { ...assumed, record: tagged }, near).map(piece => ({ ...piece, needsTag: true }));
     return [tagPiece({ ...tag, from }, from), ...under, ...rest.filter(p => !under.some(q => q.ident === p.ident))];
   }
+  if (!limits.meaningProps) return out;   // a page property voted by meaning was wrong nearly as often as right (see LIMITS)
   for (const prop of openProps(ctx, b, result)) {
     const classIds = new Set(prop.classes.map(c => c.id));
     const voted = vote(near, prop.ident, limits);

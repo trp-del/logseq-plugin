@@ -24,19 +24,32 @@
    A page property is also marked by whether the page is named in the note's own words (named), and whether it was among
    the choices the model was given at all (offered).
 
+   Since 12 November 2026 two ways are asked side by side. named: as Predictive asks now, a page property only when the note's
+   words name a page it takes. range too: as it asked until then, a property whose page the words do not name offered the pages
+   it can take. Both are counted over the same properties (one the named way does not ask is silent there), so the two columns
+   can be set against each other. A choice (Status) is asked here and never while writing, so it is counted apart, outside the
+   totals. Properties you left empty are counted too (left empty), with how many the model filled anyway. The share right
+   comes with its 95% range (Wilson), since a few dozen notes cannot place it closer than that.
+
+   The tag is asked three ways: all tags (as Predictive asks), near tags (only the few tags the notes nearest in meaning
+   carry, where the matcher is on the Mac), and near tags with the list back to front. A model that reads the note gives the
+   same tag both ways round; one that takes the first that fits does not, so the report says how often the two agreed and how
+   often an agreed tag was right.
+
    Nothing here is shown to anyone but the person on that Mac: the report (text) holds numbers and the names of tags and
    properties, never a note's words. */
 (function () {
 const need = n => (typeof require === 'function' && typeof module !== 'undefined') ? require('./' + n + '.js') : window.Flow[n];
 const model = need('model');
-const { fieldsOfTags, fits, isChoiceProp, isLinkProp, isNumberProp, isDateProp } = need('schema');
+const { fieldsOfTags, fits, isChoiceProp, isBuiltInProp, isLinkProp, isNumberProp, isDateProp } = need('schema');
 const engine = need('engine');
 const { shownWords } = need('context');
 
 // Apple's settings, by the word the report gives each and the name the helper takes.
 const SETTINGS = [['', 'default']];   // [' loose', 'permissive'], [' tagger', 'tagging'] measured in 0.3.16
-const WAYS = ['today'];   // as Predictive asks; 0.3.20 measured 'one by one', 'described' and 'both' beside it
-const TAG_WAYS = ['today'];   // the tag question as Predictive asks it
+const WAYS = ['named', 'range too'];   // as Predictive asks, and as it asked until 12 November 2026; 0.3.20 measured 'one by one', 'described' and 'both'
+const TAG_WAYS = ['all tags', 'near tags', 'near, turned'];   // as Predictive asks it; among the tags of the nearest notes; those back to front
+const NEAR_TAGS = 5;
 const TEST_PAGE = 'predictive test graph';
 const EXAMPLES = 3, LINE = 160;
 
@@ -81,10 +94,10 @@ function examplesText(ctx, b, props) {
 /* The questions for one note. note: { b (the bullet, values as written), truth: Map(ident -> { kind, ids, number, day }),
    parent, before: [titles], pageTitle, day }. Returns { props: [{ way, req }], tags: [{ way, req }], asked: [{ key, prop,
    kind, named }] } with every request holding the same keys, so the four ways are judged on the same properties. */
-function questions(ctx, note) {
+function questions(ctx, note, { nearTags = null } = {}) {
   const { b, truth } = note;
   const hidden = { ...b, values: new Map(), parent: null };
-  const base = model.request(ctx, hidden, { pieces: [], record: hidden, quiet: [] }, note.day);
+  const base = model.request(ctx, hidden, { pieces: [], record: hidden, quiet: [] }, note.day, { range: true });
   const out = { props: [], tags: [], asked: [] };
   const around = momentText(ctx, note);
   const aroundRaw = [note.parent, ...(note.before || [])].filter(Boolean).join('\n');
@@ -118,14 +131,43 @@ function questions(ctx, note) {
       if (setting !== 'default') fill.model = setting;
       out.props.push({ way: name, req: { ...base, fill, asked } });
     };
-    way('today');
+    // named: the same question without the properties whose page the words do not name (their keys kept, so both ways are
+    // judged property by property); no question at all when nothing is left.
+    const kept = new Set([...base.asked].filter(([, a]) => a.how !== 'range').map(([k]) => k));
+    if (kept.size) out.props.push({ way: 'named', req: { ...base, fill: { ...base.fill, properties: base.fill.properties.filter(p => kept.has(p.key)) }, asked: new Map([...base.asked].filter(([k]) => kept.has(k))) }, full: base });
+    else out.props.push({ way: 'named', req: null, full: base });
+    way('range too');
   }
 
   // The tag, asked of the note as if it had none.
   const bare = { ...b, tags: [], values: new Map(), parent: null };
   const tagReq = model.tagRequest(ctx, bare, note.day);
   if (tagReq) {
-    out.tags.push({ way: 'today', req: tagReq });
+    out.tags.push({ way: 'all tags', req: tagReq });
+    const only = (nearTags || []).slice(0, NEAR_TAGS);
+    if (only.length > 1) for (const [way, turned] of [['near tags', false], ['near, turned', true]]) {
+      const req = model.tagRequest(ctx, bare, note.day, { only, turned });
+      if (req) out.tags.push({ way, req, listed: only.some(id => b.tags.includes(id)) });
+    }
+  }
+  return out;
+}
+
+/* The tags the notes nearest in meaning carry, most voted first (each note votes with the square of its nearness, as
+   core/meaning.js counts): the short list the model is asked to choose among. near: [{ entry, sim }]. */
+function nearTags(ctx, near) {
+  const sum = new Map();
+  for (const { entry, sim } of near || []) for (const id of entry.values?.get('block/tags') || []) if (ctx.knownTags.has(id)) sum.set(id, (sum.get(id) || 0) + sim * sim);
+  return [...sum].sort((x, y) => y[1] - x[1]).map(([id]) => id);
+}
+/* The properties a way did not ask that the fullest question did (full): silent where you wrote a value, quiet where you
+   left it empty, so every way is counted over the same properties. */
+function notAsked(note, full, req) {
+  const out = [];
+  for (const [key, ask] of full.asked) {
+    if (req?.asked.has(key)) continue;
+    const truth = note.truth.get(ask.prop.ident);
+    out.push({ key, result: truth ? 'silent' : 'quiet', offered: true, unasked: true });
   }
   return out;
 }
@@ -179,6 +221,28 @@ function judge(ctx, note, req, reply, error = null) {
   }
   return out;
 }
+/* What you would see while writing, judged: the note's own properties (choices and Logseq's own left out, as nothing ever
+   proposes them) against everything proposed for it, the rules', the matcher's, the name finder's and the model's together
+   (pieces, as the proposals merge them). [{ title, result: 'right' | 'wrong' | 'silent' | 'spoke' | 'quiet', sure, source }]:
+   sure is a value written when you leave the bullet, not sure a pencilled guess; source is who proposed it. */
+const SOURCES = { model: 'Apple\'s model', meaning: 'by meaning', names: 'name finder' };
+const sourceOf = piece => { const how = String(piece.how || '').split('+').find(h => SOURCES[h]); return how ? SOURCES[how] : 'the rules'; };
+function judgeSeen(ctx, note, pieces) {
+  const by = new Map((pieces || []).filter(p => p.kind !== 'tag').map(p => [p.ident, p])), out = [];
+  for (const prop of fieldsOfTags(note.b.tags, ctx.schema)) {
+    if (isChoiceProp(prop) || isBuiltInProp(prop) || prop.ident === 'block/tags') continue;
+    const truth = note.truth.get(prop.ident), piece = by.get(prop.ident);
+    let result;
+    if (!piece) result = truth ? 'silent' : 'quiet';
+    else if (!truth) result = 'spoke';
+    else if (truth.kind === 'number') result = Number(piece.ids[0]) === Number(truth.number) ? 'right' : 'wrong';
+    else if (truth.kind === 'date') result = piece.day === truth.day ? 'right' : 'wrong';
+    else result = sameSet(piece.ids, truth.ids) ? 'right' : 'wrong';
+    out.push({ title: prop.title, result, sure: !!piece && !piece.guess, source: piece ? sourceOf(piece) : null });
+  }
+  return out;
+}
+
 // A value as words, for the details of a test graph: pages and choices by title, a number, a day as YYYY-MM-DD.
 function shownValue(ctx, kind, v) {
   if (!v) return null;
@@ -200,7 +264,9 @@ function tally(records) {
   const blank = () => ({ right: 0, wrong: 0, silent: 0, failed: 0, spoke: 0 });
   const t = { notes: records.length, questions: 0, ways: {}, tagWays: {}, byKind: {}, byProp: new Map(), ms: {}, sizes: {}, failedSizes: {}, answeredSizes: {}, reasons: {} };
   const each = name => { t.ms[name] = []; t.sizes[name] = []; t.failedSizes[name] = []; t.answeredSizes[name] = []; t.reasons[name] = new Map(); };
-  for (const w of WAYS) { t.ways[w] = { all: blank(), named: blank(), unnamed: blank(), notOffered: 0 }; each(w); }
+  for (const w of WAYS) { t.ways[w] = { all: blank(), named: blank(), unnamed: blank(), notOffered: 0, empty: 0, unasked: 0 }; each(w); }
+  t.choices = Object.fromEntries(WAYS.map(w => [w, blank()]));
+  t.turned = { right: 0, wrong: 0, differ: 0, silent: 0 }; t.listed = { yes: 0, of: 0 };
   for (const w of TAG_WAYS) { t.tagWays[w] = blank(); each('tag ' + w); }
   const asked = (name, q) => {
     if (q.size != null) t.sizes[name].push(q.size);
@@ -213,9 +279,13 @@ function tally(records) {
       const { way, results } = q;
       asked(way, q);
       for (const r of results) {
-        if (r.result === 'quiet') continue;
         const a = info.get(r.key), w = t.ways[way];
-        if (way === 'today' && r.result !== 'spoke') t.questions++;
+        // A choice is never asked while writing: counted apart, outside the totals.
+        if (a.kind === 'choice') { if (r.result !== 'quiet') t.choices[way][r.result]++; continue; }
+        if (r.result === 'quiet' || r.result === 'spoke') w.empty++;
+        if (r.result === 'quiet') continue;
+        if (way === WAYS[0] && r.result !== 'spoke') t.questions++;
+        if (r.unasked) w.unasked++;
         w.all[r.result]++;
         if (a.kind === 'page' && r.result !== 'spoke') { w[a.named ? 'named' : 'unnamed'][r.result]++; if (!r.offered) w.notOffered++; }
         const kindName = a.kind === 'date' ? (r.offered ? 'date, day in the words' : 'date, day not in the words') : a.kind;
@@ -231,8 +301,26 @@ function tally(records) {
       }
     }
     for (const q of rec.tags) { t.tagWays[q.way][q.result]++; asked('tag ' + q.way, q); }
+    // The short list both ways round: the same tag twice (right or wrong), two different answers, or none both times.
+    const near = rec.tags.find(q => q.way === 'near tags'), turned = rec.tags.find(q => q.way === 'near, turned');
+    if (near) { t.listed.of++; if (near.listed) t.listed.yes++; }
+    if (near && turned && near.result !== 'failed' && turned.result !== 'failed') {
+      if (near.result === 'silent' && turned.result === 'silent') t.turned.silent++;
+      else if (near.said && near.said === turned.said) t.turned[near.result === 'right' ? 'right' : 'wrong']++;
+      else t.turned.differ++;
+    }
     // By meaning (core/meaning.js) and the name finder (core/people.js), where the helper has them: the tag the near notes carry,
     // the open page properties they agree on, and new pages the finder would have offered for a name the note already linked.
+    if (rec.seen) {
+      const s = (t.seen ||= { sure: blank(), guess: blank(), silent: 0, empty: 0, bySource: new Map() });
+      for (const r of rec.seen) {
+        if (r.result === 'quiet' || r.result === 'spoke') s.empty++;
+        if (r.result === 'quiet') continue;
+        if (r.result === 'silent') { s.silent++; continue; }
+        s[r.sure ? 'sure' : 'guess'][r.result]++;
+        const c = s.bySource.get(r.source) || blank(); c[r.result]++; s.bySource.set(r.source, c);
+      }
+    }
     if (rec.meaning) {
       const m = (t.meaning ||= { notes: 0, tag: blank(), props: blank(), byProp: new Map(), doubles: 0, named: 0 });
       m.notes++;
@@ -246,13 +334,34 @@ function tally(records) {
 const meaningLines = m => !m ? [] : (() => {
   const rws = c => `${c.right} / ${c.wrong} / ${c.silent}`;
   const row = (label, cells) => label.padEnd(30) + cells.map(c => String(c).padStart(14)).join('');
-  return ['', 'BY MEANING (Apple\'s matcher on this Mac, no filter): right / wrong / silent', row('', ['tag', 'properties']),
-    row(`${m.notes} notes`, [rws(m.tag), rws(m.props)]),
+  const props = m.props.right + m.props.wrong + m.props.silent > 0;   // page properties are voted by meaning only where the limit asks
+  return ['', 'BY MEANING (Apple\'s matcher on this Mac, no filter): right / wrong / silent', row('', props ? ['tag', 'properties'] : ['tag']),
+    row(`${m.notes} notes`, props ? [rws(m.tag), rws(m.props)] : [rws(m.tag)]),
     ...[...m.byProp].sort((x, y) => (y[1].right + y[1].wrong) - (x[1].right + x[1].wrong)).slice(0, 20).map(([name, c]) => row(name.length > 29 ? name.slice(0, 28) + '…' : name, ['', rws(c)])),
     `NEW PAGES BY THE NAME FINDER: ${m.doubles} offered for a name the note already had a page for (a double), in ${m.named} notes with a name read.`];
 })();
 
+const seenLines = s => !s ? [] : (() => {
+  const row = (label, cells) => label.padEnd(30) + cells.map(c => String(c).padStart(14)).join('');
+  const filled = s.sure.right + s.sure.wrong + s.guess.right + s.guess.wrong + s.silent;
+  return ['', 'WHAT YOU WOULD SEE WHILE WRITING (the rules, the matcher, the name finder and the model together; choices left out)',
+    row(`of ${filled} you filled`, ['right', 'wrong']),
+    row('written when you leave', [s.sure.right, s.sure.wrong]),
+    row('pencilled, a guess', [s.guess.right, s.guess.wrong]),
+    row('nothing shown', [s.silent]),
+    row(`of ${s.empty} you left empty`, ['written', 'pencilled']),
+    row('filled anyway', [s.sure.spoke, s.guess.spoke]),
+    row('BY WHO PROPOSED IT', ['right', 'wrong', 'empty filled']),
+    ...[...s.bySource].sort((x, y) => (y[1].right + y[1].wrong) - (x[1].right + x[1].wrong)).map(([name, c]) => row(name, [c.right, c.wrong, c.spoke]))];
+})();
+
 const pct = (n, of) => of ? Math.round(100 * n / of) + '%' : '–';
+// Where the true share may lie, from n of of (Wilson's 95% range): "27–56%".
+function range(n, of) {
+  if (!of) return '–';
+  const z = 1.96, p = n / of, mid = (p + z * z / (2 * of)) / (1 + z * z / of), half = z * Math.sqrt(p * (1 - p) / of + z * z / (4 * of * of)) / (1 + z * z / of);
+  return `${Math.round(100 * Math.max(0, mid - half))}–${Math.round(100 * Math.min(1, mid + half))}%`;
+}
 const median = list => { if (!list.length) return null; const s = [...list].sort((a, b) => a - b); return s[Math.floor(s.length / 2)]; };
 const largest = list => list.length ? Math.max(...list) : null;
 const smallest = list => list.length ? Math.min(...list) : null;
@@ -270,13 +379,18 @@ function text(t, about = {}, details = null, outside = []) {
   const reasons = new Set(names.flatMap(n => [...t.reasons[n].keys()]));
   const lines = [
     `Apple's model on this graph · Predictive ${about.version || ''} · helper ${about.helper || '1'} · ${about.date || ''}`.trim(),
-    `${t.notes} notes, ${t.questions} properties asked, as Predictive asks: described from your structure.`,
-    '', 'PROPERTIES', head,
+    `${t.notes} notes, ${t.questions} properties you filled, ${t.ways[WAYS[0]].empty} you left empty.`,
+    'named: as Predictive asks now, a page only when the note\'s words name it. range too: as it asked until 12 November 2026.',
+    '', 'PROPERTIES YOU FILLED', head,
     row('right', WAYS.map(w => `${t.ways[w].all.right} ${pct(t.ways[w].all.right, all(t.ways[w].all))}`)),
+    row('  its 95% range', WAYS.map(w => range(t.ways[w].all.right, all(t.ways[w].all)))),
     row('wrong', WAYS.map(w => `${t.ways[w].all.wrong} ${pct(t.ways[w].all.wrong, all(t.ways[w].all))}`)),
-    row('silent (answered, no value)', WAYS.map(w => t.ways[w].all.silent)),
+    row('silent', WAYS.map(w => t.ways[w].all.silent)),
+    row('  of those, not asked', WAYS.map(w => t.ways[w].unasked)),
     row('failed (no answer at all)', WAYS.map(w => t.ways[w].all.failed)),
-    row('filled one you left empty', WAYS.map(w => t.ways[w].all.spoke)),
+    '', 'PROPERTIES YOU LEFT EMPTY', head,
+    row('left empty', WAYS.map(w => t.ways[w].empty)),
+    row('filled anyway', WAYS.map(w => `${t.ways[w].all.spoke} ${pct(t.ways[w].all.spoke, t.ways[w].empty)}`)),
     '', 'A PAGE NAMED IN THE NOTE (right / wrong / silent / failed)', head,
     row('', WAYS.map(w => rwsf(t.ways[w].named))),
     '', 'A PAGE NOT NAMED IN THE NOTE (right / wrong / silent / failed)', head,
@@ -284,21 +398,26 @@ function text(t, about = {}, details = null, outside = []) {
     row('right page not offered', WAYS.map(w => t.ways[w].notOffered)),
     '', 'BY KIND OF PROPERTY (right / wrong / silent / failed)', head,
     ...Object.entries(t.byKind).map(([kind, c]) => row(kind, WAYS.map(w => rwsf(c[w])))),
+    row('choice (measured only)', WAYS.map(w => rwsf(t.choices[w]))),
     '', 'THE TAG OF A NOTE (right / wrong / silent / failed)', row('', TAG_WAYS),
     row('', TAG_WAYS.map(w => rwsf(t.tagWays[w]))),
+    row('right, 95% range', TAG_WAYS.map(w => range(t.tagWays[w].right, all(t.tagWays[w])))),
+    `NEAR TAGS: the ${NEAR_TAGS} tags the nearest notes carry. The right tag was among them in ${t.listed.yes} of ${t.listed.of} notes.`,
+    `BOTH WAYS ROUND: the same tag ${t.turned.right + t.turned.wrong} times (${t.turned.right} right, ${t.turned.wrong} wrong), two different tags ${t.turned.differ} times, none both times ${t.turned.silent}.`,
     '', 'WHY QUESTIONS FAILED (questions, not properties)', row('', names.map(shortName)),
     ...(reasons.size ? [...reasons].map(r => row(r.length > 29 ? r.slice(0, 28) + '…' : r, names.map(n => t.reasons[n].get(r) || 0))) : [row('none failed', [])]),
     '', 'SIZE OF A QUESTION, ABOUT, IN TOKENS', row('', ['median', 'largest', 'failed min', 'answer max']),
     ...names.map(n => row(shortName(n), [num(median(t.sizes[n])), num(largest(t.sizes[n])), num(smallest(t.failedSizes[n])), num(largest(t.answeredSizes[n]))])),
     '', 'TIME PER QUESTION ANSWERED', row('', ['median', 'slowest']),
     ...names.map(n => row(shortName(n), [secs(median(t.ms[n])), secs(largest(t.ms[n]))])),
-    '', 'BY PROPERTY', row('', ['r/w/s/failed', 'not offered', 'partly']),
-    ...[...t.byProp].sort((x, y) => (y[1].today.right + y[1].today.wrong) - (x[1].today.right + x[1].today.wrong)).slice(0, 30)
-      .map(([name, c]) => row(name.length > 29 ? name.slice(0, 28) + '…' : name, [rwsf(c.today), c.today.notOffered, c.today.partly])),
+    '', `BY PROPERTY (${WAYS[1]}: the fullest question)`, row('', ['r/w/s/failed', 'not offered', 'partly']),
+    ...[...t.byProp].sort((x, y) => (y[1][WAYS[1]].right + y[1][WAYS[1]].wrong) - (x[1][WAYS[1]].right + x[1][WAYS[1]].wrong)).slice(0, 30)
+      .map(([name, c]) => row(name.length > 29 ? name.slice(0, 28) + '…' : name, [rwsf(c[WAYS[1]]), c[WAYS[1]].notOffered, c[WAYS[1]].partly])),
     '', 'NOT OFFERED: the right page was not among the choices, as its tags are not ones the property takes; for a date, the day is not named in the words.',
     'PARTLY: the model named some of the right pages, not all; counted wrong.',
     ...outsideLines(outside),
     ...meaningLines(t.meaning),
+    ...seenLines(t.seen),
   ];
   if (details?.length) {
     lines.push('', 'DETAILS (a test graph only: these notes are about no one real)');
@@ -355,7 +474,7 @@ function detailOf(ctx, note, asked, props, tags) {
     tags: tags.map(x => ({ way: x.way, result: x.result, said: x.said, failed: x.error ? reason(x.error) : null })) };
 }
 
-const api = { outsideRange, isTestGraph, tagSaid, detailOf, WAYS, TAG_WAYS, SETTINGS, candidates, momentText, examplesText, questions, judge, judgeTag, tally, text, size, reason };
+const api = { judgeSeen, nearTags, notAsked, range, NEAR_TAGS, outsideRange, isTestGraph, tagSaid, detailOf, WAYS, TAG_WAYS, SETTINGS, candidates, momentText, examplesText, questions, judge, judgeTag, tally, text, size, reason };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 if (typeof window !== 'undefined') (window.Flow ||= {}).measure = api;
 })();

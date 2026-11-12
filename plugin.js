@@ -629,6 +629,34 @@ Door.idsIn = (variable, ids) => `[(identity [${[...new Set(ids)].filter(Door.isE
 Door.uuidsIn = (variable, uuids) => `[(identity [${[...new Set(uuids)].map(String).filter(u => UUID.test(u)).map(u => `#uuid "${u}"`).join(' ')}]) [${variable} ...]]`;
 Door.HELPER = 'http://127.0.0.1:47615';
 
+/* Words onto the clipboard, once for every module (12 November 2026; DB Export had its own and Predictive's report window copied
+   nothing): text, and html beside it when given. Logseq's own window first, since the plugin's frame never has the keyboard and
+   the browser refuses a copy from a window without it ("Document is not focused"); then the frame. The clipboard API, then the
+   copy event, then plain words. true when one of them took. */
+Door.copy = async ({ text, html } = {}) => {
+  let hostWin = null;
+  try { hostWin = window.parent?.document?.defaultView || null; } catch (error) { hostWin = null; }
+  const wins = [hostWin, window].filter((win, i, all) => win && all.indexOf(win) === i);
+  for (const win of wins) {
+    try {
+      const parts = { 'text/plain': new win.Blob([text], { type: 'text/plain' }) };
+      if (html) parts['text/html'] = new win.Blob([html], { type: 'text/html' });
+      await win.navigator.clipboard.write([new win.ClipboardItem(parts)]);
+      return true;
+    } catch (error) { /* the next way */ }
+  }
+  for (const win of wins) {
+    const doc = win.document;
+    let done = false;
+    const onCopy = event => { if (html) event.clipboardData.setData('text/html', html); event.clipboardData.setData('text/plain', text); event.preventDefault(); done = true; };
+    doc.addEventListener('copy', onCopy, true);
+    try { doc.execCommand('copy'); } catch (error) { /* the next way */ } finally { doc.removeEventListener('copy', onCopy, true); }
+    if (done) return true;
+  }
+  for (const win of wins) { try { await win.navigator.clipboard.writeText(text); return true; } catch (error) { /* give up */ } }
+  return false;
+};
+
 /* A web address in words a module draws (a Threads line, a Find result): bare ("https://nih.gov/x") or as Markdown
    ("[the trial](https://…)"). webParts cuts words into plain stretches ({ text }) and web addresses ({ text, url }); urlHtml
    draws one as lk-url, a span (it may stand inside a node's own link) whose press main.js sends to the browser, from one place

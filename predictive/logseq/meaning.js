@@ -61,15 +61,20 @@ function learnIds(ctx, ids) {
 }
 
 // The near notes for these words: [{ entry, sim }] best first, or [] when the helper is not there or the graph is not taught yet.
-async function near(ctx, b) {
+// many: how many to ask for (the measure's short list of tags asks for more than the vote does).
+async function near(ctx, b, many = 0) {
   if (!ctx?.index || !await ready()) return [];
   if (S.taught !== `${ctx.graph}\n${ctx.readAt}`) { teach(ctx).catch(() => {}); return []; }   // still learning the graph: nothing yet, never a wait
-  const text = meaning.textOf(ctx, b.text), key = `${ctx.graph}\n${text}`;
+  const k = many || ctx.limits?.meaningK || meaning.LIMITS.meaningK;
+  const text = meaning.textOf(ctx, b.text), key = `${ctx.graph}\n${many ? many + '\n' : ''}${text}`;
   if (!text) return [];
   if (!S.answers.has(key)) {
-    const k = (ctx.limits?.meaningK || meaning.LIMITS.meaningK);
-    const found = await post({ graph: ctx.graph || '', text, k, skip: [b.id].filter(id => id > 0) }).then(r => r?.near || [], () => null);
-    if (!found) { S.ready = null; return []; }
+    const answer = await post({ graph: ctx.graph || '', text, k, skip: [b.id].filter(id => id > 0) }).catch(() => null);
+    if (!answer?.near) { S.ready = null; return []; }
+    // The helper holds nothing for this graph though it was taught: it was started again (a crash, a login) and forgot. Taught
+    // again now, as on a new reading; nothing until then, never a wait.
+    if (!answer.held && ctx.index.entries.some(e => e.tokens?.length)) { S.taught = null; S.answers.clear(); teach(ctx).catch(() => {}); return []; }
+    const found = answer.near;
     S.answers.set(key, found);
     if (S.answers.size > KEEP) S.answers.delete(S.answers.keys().next().value);
   }

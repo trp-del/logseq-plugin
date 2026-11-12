@@ -4,8 +4,9 @@
 
    It writes nothing to the graph. The report holds numbers and the names of tags and properties, never a note's words,
    so it can be copied and passed on; only on a graph made for measuring, marked by a page titled "Predictive test graph", does it
-   also list each note's words with what the model said. It takes a minute or two: each note is asked two questions, each under
-   a second. */
+   also list each note's words with what the model said. It takes several minutes: each note is asked up to five questions, each
+   under a second (the properties as Predictive asks now and as it asked before, the tag three ways), then everything Predictive
+   would show for it while writing is put together and judged (seen). */
 (function () {
 const Flow = (window.Flow ||= {});
 const { app, db, measure } = Flow;
@@ -70,7 +71,8 @@ async function byMeaning(ctx, note) {
   const tagged = { ...note.b, values: new Map() }, result = Flow.propose.propose(ctx, tagged);
   const pieces = await Flow.meaningAsk.ask(ctx, tagged, result);
   const props = [];
-  for (const prop of Flow.meaning.openProps(ctx, tagged, result)) {
+  // The page properties only where they are voted by meaning at all (the limit meaningProps; not since 12 November 2026).
+  for (const prop of ctx.limits?.meaningProps ? Flow.meaning.openProps(ctx, tagged, result) : []) {
     const truth = note.truth.get(prop.ident);
     if (!truth || truth.kind !== 'ids') continue;
     const said = pieces.find(p => p.ident === prop.ident);
@@ -82,6 +84,16 @@ async function byMeaning(ctx, note) {
 }
 
 /* The run. progress(done, of, left ms) is called after each note; signal stops it between questions. */
+/* What you would see while writing this note, were it new: the rules' proposals for the tagged note with its values taken out,
+   then Apple's tools for what the rules left open, through the same door the proposals use (logseq/apple.js), judged. */
+async function seen(ctx, note) {
+  const tagged = { ...note.b, values: new Map() }, result = Flow.propose.propose(ctx, tagged);
+  const more = await Flow.apple.ask(ctx, tagged, result).catch(() => []);
+  return measure.judgeSeen(ctx, note, Flow.model.merge(result.pieces, more));
+}
+
+// Twice the notes of the first measures (12 November 2026): forty to sixty notes could not tell one way of asking from another.
+const MOST = NOTES * 2;
 async function run(progress, signal) {
   const status = await helperStatus();
   if (!status) return { error: 'The helper for Apple’s model is not running on this Mac. Plugin settings, Predictive, says how to start it.' };
@@ -92,35 +104,42 @@ async function run(progress, signal) {
   const allowed = ({ req }) => { const setting = req.fill.model || 'default'; return setting === 'default' || !oldHelper && !(setting === 'tagging' && noTagger); };
   const ctx = await app.context();
   if (!ctx?.index?.entries.length) return { error: 'This graph has no tagged notes to measure on yet.' };
-  if (status.meaning) await Flow.meaningAsk.teach(ctx);   // the matcher must know the whole graph before it is measured
+  // The matcher must know the whole graph before it is measured: taught afresh, as the helper may have been started again since.
+  if (status.meaning) { Flow.meaningAsk.forget(); await Flow.meaningAsk.teach(ctx); }
   const records = [], details = measure.isTestGraph(ctx) ? [] : null, started = performance.now();
   for (const id of measure.candidates(ctx)) {
-    if (signal.aborted || records.length >= NOTES) break;
+    if (signal.aborted || records.length >= MOST) break;
     const note = await noteOf(ctx, id).catch(() => null);
     if (!note) continue;
-    const q = measure.questions(ctx, note);
-    q.props = modelHere ? q.props.filter(allowed) : [];
+    // The tags of the notes nearest in meaning, for the tag asked from a short list.
+    const nearest = status.meaning ? await Flow.meaningAsk.near(ctx, { ...note.b, tags: [], values: new Map() }, 20).catch(() => []) : [];
+    const q = measure.questions(ctx, note, { nearTags: measure.nearTags(ctx, nearest) });
+    q.props = modelHere ? q.props.filter(x => !x.req || allowed(x)) : [];
     q.tags = modelHere ? q.tags.filter(allowed) : [];
     if (!q.asked.some(a => note.truth.has(a.prop.ident))) continue;
     const rec = { tagTitle: ctx.byId.get(note.b.tags[0])?.title || '', asked: q.asked, props: [], tags: [] };
-    for (const { way, req } of q.props) {
+    // One answer for one question: the two ways ask the same when every page asked about is named in the words.
+    const had = new Map(), once = async fill => { const key = JSON.stringify(fill); if (!had.has(key)) had.set(key, await ask(fill, signal)); return had.get(key); };
+    for (const { way, req, full } of q.props) {
       if (signal.aborted) break;
-      const { reply, ms, error } = await ask(req.fill, signal);
+      if (!req) { rec.props.push({ way, ms: null, size: null, error: null, results: measure.notAsked(note, full, null) }); continue; }   // nothing named: no question
+      const { reply, ms, error } = await once(req.fill);
       if (signal.aborted) break;
-      rec.props.push({ way, ms, size: measure.size(req.fill), error: reply ? null : error || 'no answer', results: measure.judge(ctx, note, req, reply, reply ? null : error) });
+      rec.props.push({ way, ms, size: measure.size(req.fill), error: reply ? null : error || 'no answer', results: [...measure.judge(ctx, note, req, reply, reply ? null : error), ...(full ? measure.notAsked(note, full, req) : [])] });
     }
-    for (const { way, req } of q.tags) {
+    for (const { way, req, listed } of q.tags) {
       if (signal.aborted) break;
       const { reply, ms, error } = await ask(req.fill, signal);
       if (signal.aborted) break;
-      rec.tags.push({ way, ms, size: measure.size(req.fill), error: reply ? null : error || 'no answer', result: measure.judgeTag(note, req, reply, reply ? null : error), said: reply ? measure.tagSaid(req, reply) : null });
+      rec.tags.push({ way, listed, ms, size: measure.size(req.fill), error: reply ? null : error || 'no answer', result: measure.judgeTag(note, req, reply, reply ? null : error), said: reply ? measure.tagSaid(req, reply) : null });
     }
     if (signal.aborted) break;
     if (status.meaning) rec.meaning = await byMeaning(ctx, note).catch(() => null);
+    rec.seen = await seen(ctx, note).catch(() => null);
     records.push(rec);
     if (details) details.push(measure.detailOf(ctx, note, q.asked, rec.props, rec.tags));
     const each = (performance.now() - started) / records.length;
-    progress(records.length, NOTES, each * (NOTES - records.length));
+    progress(records.length, MOST, each * (MOST - records.length));
   }
   const about = { version: logseq.baseInfo?.version || '', helper: status.version || 1, date: new Date().toISOString().slice(0, 10), oldHelper, noTagger };
   return { text: measure.text(measure.tally(records), about, details, measure.outsideRange(ctx)), stopped: signal.aborted, count: records.length, test: !!details };
@@ -162,8 +181,8 @@ async function open() {
     if (t.closest('.lk-close')) return close();
     if (t.closest('[data-pm="stop"]')) return stopper.abort();
     if (t.closest('[data-pm="copy"]')) {
-      const done = () => { t.closest('[data-pm="copy"]').textContent = 'Copied'; };
-      return navigator.clipboard.writeText(S.report).then(done, () => { const pre = S.dlg.querySelector('.pm-report'); const r = doc.createRange(); r.selectNodeContents(pre); const sel = doc.getSelection(); sel.removeAllRanges(); sel.addRange(r); });
+      const button = t.closest('[data-pm="copy"]');
+      return window.PluginDoor.copy({ text: S.report }).then(ok => { button.textContent = ok ? 'Copied' : 'Could not copy: select the report and press ⌘C'; });
     }
   });
   S.dlg.showModal();
