@@ -101,9 +101,14 @@ const CSS = `
 /* No row pressed: the lines at the top, the faint waiting line under them. A row pressed (data-row): the row first, the lines
    folded under the foot line "About Consultation" until it is opened (data-about); the tag's name is said by that line. */
 .st-holder-insp:not([data-row]) .st-insp-top { order: -1; }
-/* A row pressed: the panel is two tabs (sidebar-tabs.js). Item shows the row alone, Ontology the lines alone. */
-#right-sidebar[data-lk-tab="item"] .st-holder-insp[data-row] .st-insp-top { display: none; }
-#right-sidebar:not([data-lk-tab="item"]) .st-holder-insp[data-row] .st-insp-node { display: none; }
+/* A row pressed: it stands in the Item tab, Logseq's own view of its node (inspector.js), so the line that says what the panel waits for goes. */
+.st-holder-insp[data-row] .st-insp-node { display: none; }
+/* The quiet line on top of the Item tab: where the row stands in the table. */
+/* A page's row: the page's name is in its item's head, so the head stays for it, without its fold arrow, its menu and its ×
+   (a bullet's item starts with the bullet's own words, and its head, the page it is on, stays away as for every tab). */
+#right-sidebar[data-lk-tabs] .sidebar-item-list > .sidebar-item.item-type-page[data-st-item] .sidebar-item-header { display: flex !important; }
+#right-sidebar .sidebar-item.item-type-page[data-st-item] .sidebar-item-header :is(.item-actions, .rotating-arrow) { display: none !important; }
+#right-sidebar .st-item-where { color: var(--lk-quiet); font-size: var(--lk-small); font-variant-numeric: tabular-nums; margin: 0 0 6px 8px; }
 /* A tag the property is on: its name and count on one line, what you can do with it under them, so the narrow panel never
    squeezes the count into a column of single letters. */
 .st-holder-insp .st-lines-t .ont { grid-template-columns: minmax(0, 1fr) auto; }
@@ -111,17 +116,12 @@ const CSS = `
 .st-holder-insp .st-lines-t .ont .acts-r:empty { display: none; }
 .st-holder-insp:not([data-row]):has(.st-insp-top :is(.st-insp-h, .st-lines-t)) .st-insp-node { border-top: 1px solid var(--lk-hair); padding-top: 16px; }
 .st-insp-node:empty { display: none; }
-.st-insp-words { display: flex; gap: 8px; align-items: baseline; margin-bottom: 12px; line-height: 1.4; font-weight: 600; font-size: 16px; }
-.st-insp-words .lk-bul { flex: none; position: relative; top: -2px; }
-.st-insp-words .st-insp-said { min-width: 0; overflow-wrap: anywhere; }
-.st-insp-where { color: var(--lk-quiet); font-size: var(--lk-small); font-variant-numeric: tabular-nums; margin-bottom: 10px; }
 .st-insp-none { margin: 0; } .st-insp-none.lk-none { padding: 0; }   /* the library's nothing-here line, at the top of the tab, as Links' and Endnotes' (the audit's 32) */
-.st-insp-outline { margin-top: 16px; display: grid; gap: 4px; line-height: 1.5; }
-.st-insp-b { display: flex; gap: 6px; align-items: baseline; padding-left: calc(var(--d) * 22px); }
-.st-insp-b .lk-bul { position: relative; top: 3px; }
-.st-insp-b .w { min-width: 0; overflow-wrap: anywhere; }
-.st-insp-outline .lk-more { justify-self: start; margin-top: 4px; }
-.ls-table-row[data-st-picked] { background: var(--lk-wash); }
+/* Two marks in a table beside the Item tab (the owner, 12 November 2026): the row Item shows keeps a blue outline for as long as it is
+   the one shown; the row under the pointer keeps Logseq's own wash.
+   The outline is a frame laid over the row, since the row's cells paint over an outline of its own. */
+.ls-table-row[data-st-picked] { position: relative; }
+.ls-table-row[data-st-picked]::after { content: ""; position: absolute; inset: 0; border: 1.5px solid var(--lk-picked); border-radius: 3px; pointer-events: none; z-index: 20; }
 .st-lines-t .to { margin: 0 .35em; }
 .st-sb { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; font-size: 14px; margin: 10px 0 2px; }
 .st-sb .h { font-weight: 600; margin-bottom: 4px; } .st-sb .o { padding-left: calc(var(--d, 0) * 16px); }
@@ -272,7 +272,9 @@ const CSS = `
 .st-popen { padding: 8px 12px 14px 20px; border-bottom: 1px solid var(--lk-hair); }
 /* The keys at rest (the owner's pick 1 of structure-table-keys-mockup.html, 5 November 2026): a cell that changes here ends with a faint chevron. */
 .st-tbl .tr .st-cell { display: flex; align-items: center; justify-content: flex-start; gap: 6px; } .st-tbl .tr .st-cell > span:first-child { min-width: 0; }
-.st-tbl .tr .st-chev { color: var(--lk-quiet); font-size: 11px; cursor: pointer; padding: 0 2px; flex: none; } .st-tbl .tr .st-chev:hover { color: var(--lk-quiet); }
+/* The chevron is the library's (lk-change), not a letter, centred on the cell's words (the owner, 12 November 2026: "those are not correct
+   downward facing chevrons. they are supposed to be vertically centered"). */
+.st-tbl .tr .st-chev { cursor: pointer; padding: 0 2px; flex: none; display: inline-flex; align-items: center; } .st-tbl .tr .st-chev::before { vertical-align: 0; }
 .st-popen .st-lines-t { margin: 0; font-size: 14px; }
 /* On a tree row the name is the door (the grammar's row): the words carry the faint line under the pointer, since a line on every row would multiply. */
 .st-row .nm .st-name { cursor: pointer; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 3px; transition: text-decoration-color .12s; }
@@ -611,7 +613,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     // A property's name, or the field renaming it (Rename in its right-click menu).
     const nameCell = (key, title, wait, page) => st.edit?.what === 'prename' && st.edit.on === key && st.edit.owner === mode
       ? `<input class="st-in lk-field" data-edit value="${esc(st.edit.text)}" autocomplete="off" spellcheck="false">` : `<span class="k lk ${wait ? 'lk-pencil' : ''}" ${page ? `data-ppage="${esc(page)}"` : ''}>${esc(title)}</span>`;
-    const tr = (r, d) => { const key = `${r.tag}·${r.prop}`, open = st.popen.has(r.prop); return `<div class="tr lk-row ${waitProp(r.prop)} ${st.paim && st.pticks.has(r.prop) ? 'dim' : ''} ${st.propCur === key ? 'cur' : ''}" data-prop="${key}" data-gprop="${esc(r.p.ident)}" draggable="true" style="--pd:${d ? 20 + d * 16 : 4}px"><span><input type="checkbox" class="lk-tick" data-ptick="${r.prop}" ${st.pticks.has(r.prop) ? 'checked' : ''}><span class="lk-fold" data-pfold="${r.prop}" aria-expanded="${open}" title="${open ? 'Close' : 'Open'} ${esc(r.p.title)} here"></span>${nameCell(key, r.p.title, waitProp(r.prop), key)}</span><span class="st-cell"><span>${r.on.length ? ranges(r.on.map(x => x.tag)) : '<span class="f">No tag</span>'}</span><span class="chev st-chev" data-pon="${r.prop}" title="Put ${esc(r.p.title)} on a tag…">⌄</span></span><span class="st-cell"><span>${r.p.type === 'node' ? (r.p.range.length ? ranges(r.p.range) : 'any node') : esc(Mo.kindWord(r.p.choice ? 'choice' : r.p.type))}</span>${r.p.type === 'node' ? `<span class="chev st-chev" data-prange="${r.prop}" title="Node tags of ${esc(r.p.title)}…">⌄</span>` : ''}</span><span class="ct">${r.tag ? `${r.filled} of ${r.of}` : plural(r.filled, 'node')}</span></div>${open ? `<div class="st-popen" data-popen="${r.prop}">${propLinesHtml(r.prop)}</div>` : ''}${pmergeAskHtml(r.prop)}`; };
+    const tr = (r, d) => { const key = `${r.tag}·${r.prop}`, open = st.popen.has(r.prop); return `<div class="tr lk-row ${waitProp(r.prop)} ${st.paim && st.pticks.has(r.prop) ? 'dim' : ''} ${st.propCur === key ? 'cur' : ''}" data-prop="${key}" data-gprop="${esc(r.p.ident)}" draggable="true" style="--pd:${d ? 20 + d * 16 : 4}px"><span><input type="checkbox" class="lk-tick" data-ptick="${r.prop}" ${st.pticks.has(r.prop) ? 'checked' : ''}><span class="lk-fold" data-pfold="${r.prop}" aria-expanded="${open}" title="${open ? 'Close' : 'Open'} ${esc(r.p.title)} here"></span>${nameCell(key, r.p.title, waitProp(r.prop), key)}</span><span class="st-cell"><span>${r.on.length ? ranges(r.on.map(x => x.tag)) : '<span class="f">No tag</span>'}</span><span class="st-chev lk-change lk-i-chevron" data-pon="${r.prop}" title="Put ${esc(r.p.title)} on a tag…"></span></span><span class="st-cell"><span>${r.p.type === 'node' ? (r.p.range.length ? ranges(r.p.range) : 'any node') : esc(Mo.kindWord(r.p.choice ? 'choice' : r.p.type))}</span>${r.p.type === 'node' ? `<span class="st-chev lk-change lk-i-chevron" data-prange="${r.prop}" title="Node tags of ${esc(r.p.title)}…"></span>` : ''}</span><span class="ct">${r.tag ? `${r.filled} of ${r.of}` : plural(r.filled, 'node')}</span></div>${open ? `<div class="st-popen" data-popen="${r.prop}">${propLinesHtml(r.prop)}</div>` : ''}${pmergeAskHtml(r.prop)}`; };
     // A prompt about this property (Put on a tag…, Node tags…, from the cell's chevron or the opened lines) rolls out under its row.
     /* The groups: an outline of names, each folding like a bullet, holding properties and other groups, for order only
        (app.groups, kept on this computer). A property dragged onto a group's name goes into it; a group dragged onto another

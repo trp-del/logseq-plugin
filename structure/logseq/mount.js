@@ -60,10 +60,10 @@ function mount(app) {
   const offTab = Door.sideTabs?.add({ key: 'inspector', word: 'Ontology', order: 1,
     find: doc => doc.getElementById('_sidebar.' + S.inspector.KEY)?.closest('.sidebar-item') || null,
     open: () => { logseq.Editor.openInRightSidebar('_sidebar.' + S.inspector.KEY); } });
-  // Item, the row pressed in a table (the owner, 12 November 2026): the same panel, its other part; there only while a row is pressed.
+  // Item, the row pressed in a table (the owner, 12 November 2026): Logseq's own view of the row's node, which inspector.js opens and
+  // names; there only while a row is pressed.
   const offItem = Door.sideTabs?.add({ key: 'item', word: 'Item', order: 2,
-    find: doc => doc.getElementById('_sidebar.' + S.inspector.KEY)?.closest('.sidebar-item') || null,
-    open: () => { logseq.Editor.openInRightSidebar('_sidebar.' + S.inspector.KEY); },
+    find: doc => S.inspector.item(doc), open: () => {},
     hidden: () => !S.inspector.row() });
   const offMenu = Door.watch(icons);
   const onPage = () => host().defaultView.location.hash.split('?')[0] === '#' + ROUTE;   // the address carries the place (view.js)

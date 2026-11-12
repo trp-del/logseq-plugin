@@ -1034,6 +1034,7 @@ const TOKENS = `
   --lk-hair: color-mix(in srgb, currentColor 12%, transparent); --lk-line: color-mix(in srgb, currentColor 26%, transparent);
   --lk-link: color-mix(in srgb, currentColor 45%, transparent); --lk-link-width: .5px;
   --lk-wash: color-mix(in srgb, currentColor 7%, transparent);
+  --lk-picked: var(--rx-blue-09, #0091ff);   /* the one thing picked among many, kept while it is the one shown (a table's row beside the Item tab) */
   --lk-mono: var(--ls-font-family-mono, ui-monospace, "SF Mono", Menlo, Consolas, monospace);
   --lk-tag-face: "New York", ui-serif, Georgia, serif; --lk-tag-adjust: none;
   --lk-day: 48px;

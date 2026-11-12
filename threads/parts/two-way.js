@@ -467,7 +467,9 @@ function shortName(title) {
    end of the last node of a short row, after the summary of a list. A click opens
    the line to type the new node in. A short row's nodes span the row so their tags line up, so the + sits
    just after the last node's date (or name). The library's lk-plus. */
-const addLink = group => group.ident && state.draft?.field !== group.name ? `<button type="button" class="lk-plus lk-i-plus th-tw-add" aria-label="Add a${/^[aeiou]/i.test(twoWay.kindsOf(group)[0] || '') ? 'n' : ''} ${esc(twoWay.kindsOf(group)[0] || 'node')}" data-field="${esc(group.name)}" data-what="Add a${/^[aeiou]/i.test(twoWay.kindsOf(group)[0] || '') ? 'n' : ''} ${esc(twoWay.kindsOf(group)[0] || 'node')}"></button>` : '';
+// onLine: the + after a lone node's tag says what it adds as a tooltip, not in words beside it: the line's words are cut at its
+// second line, so words after the + cannot show, and before it they lay over the tag and the name (12 November 2026).
+const addLink = (group, onLine = false) => group.ident && state.draft?.field !== group.name ? `<button type="button" class="lk-plus lk-i-plus th-tw-add" aria-label="Add a${/^[aeiou]/i.test(twoWay.kindsOf(group)[0] || '') ? 'n' : ''} ${esc(twoWay.kindsOf(group)[0] || 'node')}" data-field="${esc(group.name)}" ${onLine ? 'title' : 'data-what'}="Add a${/^[aeiou]/i.test(twoWay.kindsOf(group)[0] || '') ? 'n' : ''} ${esc(twoWay.kindsOf(group)[0] || 'node')}"></button>` : '';
 // The kit's tick box, in the margin left of the record (the kit's), drawn only on a list where picking was
 // turned on from its View menu (the owner, 7 November 2026: "the select boxes now should only be shown when activated by a menu
 // combined with the other ones"). Picking ends with the picks: Escape, the bar's box, or an action done.
@@ -590,7 +592,7 @@ function rowHtml(group, top = null) {
   // A row of one is the node itself, in place (its name, then its tag), not a header (1.0.2, the owner: "it is fine
   // that not everyone looked the same, especially since it is header v node"); every list of two or more has the one header.
   if (group.items.length === 1 && !(group.found && group.total > 1)) {
-    const lines = group.items.map(item => itemHtml(group, item, base, addLink(group))).join('');
+    const lines = group.items.map(item => itemHtml(group, item, base, addLink(group, true))).join('');
     return `<div class="th-tw-row" data-field="${esc(group.name)}">${name}<div class="${listCls}"${picking}${datedAttrs(group)}>${lines}${twoWay.addLineHtml(group)}</div></div>`;
   }
   // While finding, a list opens in full only once something of it is left out (the reviewer: one letter made the list

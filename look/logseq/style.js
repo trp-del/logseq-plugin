@@ -84,9 +84,10 @@ ${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill > div
 ${AREA} .ls-properties-area .property-pair .property-key-panel *:not(.tag) { color: inherit !important; }`;
 /* The faint dot stands before every property that follows a filled one. A property holding a pencil (a value proposed by
    Predictive) counts as filled, so the row does not re-space when the pencil turns solid. */
-/* An empty property is hidden from Logseq's first paint (the stylesheet sees the blank marker), so the rows below never jump up
-   when the script's check (lk-empty, in props.js) lands a frame later; a row the check finds holding words is kept (lk-filled). */
-const EMPTY_ROWS = `.ls-page-properties .property-pair:is(.lk-empty, .property-panel-row-empty, .property-panel-row:has(> .property-value-container :is(.is-blank, .empty-value)):not(:has(.ls-empty-text-property))):not(.lk-filled):not(:focus-within) { display: none; }`;
+/* An empty property in a page's list is shown, its name in the faint grey that says empty (the owner, 12 November 2026, on a page
+   that showed only "+ Add property" though its tag gives it Treats and Ordered by: "those are supposed to be seen"). Until then it
+   was folded away until it had the keyboard (1 November), which hid what a tag gives its pages. props.js marks the row (lk-empty). */
+const EMPTY_ROWS = `${AREA} .ls-properties-area.ls-page-properties .property-pair.lk-empty:not(:focus-within) > .property-key-panel { color: var(--lk-off) !important; }`;
 const FILLED = ':is(:not(:has(.empty-value)), :has(.lk-pencil))';
 const capsules = `
 /* A bullet's properties under its words belong to that bullet (8 November 2026, the owner: "better spacing ... logical

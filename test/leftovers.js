@@ -35,10 +35,14 @@ const tw = read('threads/parts/two-way.js');
 assert.ok(/if \(state\.pageJournal\) groups = await duesGroups\(/.test(tw) && /state\.replaces = read && dues &&/.test(tw), 'a journal day: scheduled and due read, then the rows replace Linked references');
 assert.ok(/async function duesOn\(day\)/.test(read('threads/parts/model.js')), 'the model reads what is scheduled or due on a day');
 
-// N1, as the owner changed it on 12 November 2026: the pressed row has a tab of its own, Item; the tag's lines stay on Ontology.
+// N1, as the owner changed it on 12 November 2026: the pressed row has a tab of its own, Item, and that tab is Logseq's own view of
+// the row's node, so it is edited there ("make Item pane fully editable"); the read-only copy is gone. The row keeps a blue outline.
 const insp = read('structure/logseq/inspector.js'), view = read('structure/logseq/view.js');
-assert.ok(/toggleAttribute\('data-row', !!insp\.uuid\)/.test(insp) && !/st-insp-about/.test(insp) && /function whereHtml/.test(insp) && /sideTabs\?\.pick\('item'\)/.test(insp), 'a row pressed picks Item; where it stands; no About line');
-assert.ok(/#right-sidebar\[data-lk-tab="item"\] \.st-holder-insp\[data-row\] \.st-insp-top \{ display: none; \}/.test(view) && /#right-sidebar:not\(\[data-lk-tab="item"\]\) \.st-holder-insp\[data-row\] \.st-insp-node \{ display: none; \}/.test(view), 'Item shows the row alone, Ontology the lines alone');
+assert.ok(/logseq\.Editor\.openInRightSidebar\(uuid\)/.test(insp) && /sideTabs\?\.pick\('item'\)/.test(insp) && /function whereText/.test(insp), 'a row pressed opens Logseq\'s own view of its node and picks Item; where it stands');
+assert.ok(!/function drawNode|function outline|st-insp-words/.test(insp + view), 'no read-only copy of the node is drawn');
+assert.ok(/insp\.opened\.add\(found\)/.test(insp) && /function closeStale/.test(insp) && /if \(uuid && !active\(\)\) return;/.test(insp), 'only an item the plugin opened is closed; with the sidebar shut or on another tab a press is Logseq\'s');
+assert.ok(/find: doc => S\.inspector\.item\(doc\)/.test(read('structure/logseq/mount.js')), 'the Item tab is that view');
+assert.ok(/\.ls-table-row\[data-st-picked\]::after \{[^}]*border: 1\.5px solid var\(--lk-picked\)/.test(view) && /--lk-picked: var\(--rx-blue-09/.test(read('plugin.js')), 'the row shown keeps a blue outline');
 assert.ok(/setAttribute\('data-lk-tab', tabs\.cur \|\| ''\)/.test(read('sidebar-tabs.js')), 'the sidebar says which tab is picked');
 
 // N3: every find box lights the first match and Enter opens it.
