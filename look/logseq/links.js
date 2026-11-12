@@ -8,7 +8,8 @@
    PDF opens at that page. A press on a number goes back to the bullet, where the same number stands (cites.js).
 
    Contents: the page's headings (the bullets started with #, ## or ###), in the order of the page, each level one step in from the
-   heading it sits under (a ### right under a # one step, not two), numbered 1, 1.1, 1.2, 2 in the quiet grey; the top ones in the medium weight, the rest in the quiet grey. A press
+   heading it sits under (a ### right under a # one step, not two), numbered in the quiet grey (1, 1.1 or another way from its ⋯ menu),
+   each section folding by its arrow or all at once from the menu; the top ones in the medium weight, the rest in the quiet grey. A press
    glides the main view to the heading; with Shift it opens in the right sidebar.
 
    A name opens its page, with Shift in the right sidebar. It reads the graph and writes nothing. Each word is a copy of Logseq's own Contents button, so it
@@ -92,7 +93,7 @@ async function readHeads(tree) {
     if (level >= 1) {
       while (stack.length && stack.at(-1) >= level) stack.pop();
       counts.length = stack.length + 1; counts[stack.length] = (counts[stack.length] || 0) + 1;
-      found.push({ uuid: String(node.uuid).toLowerCase(), depth: stack.length, number: counts.join('.'), above, title: String(node.fullTitle ?? node.title ?? '').split('\n')[0] });
+      found.push({ uuid: String(node.uuid).toLowerCase(), depth: stack.length, counts: [...counts], above, title: String(node.fullTitle ?? node.title ?? '').split('\n')[0] });
       stack.push(level);
     }
     walk(node?.children, [...above, String(node.uuid).toLowerCase()]);
@@ -171,12 +172,86 @@ function notesBody(doc) {
   if (!state.notes.length) return [el(doc, 'div', { class: 'lk-links-none lk-none' }, 'No citations on this page.')];
   return state.notes.map((note, i) => noteOf(doc, note, i + 1));
 }
+/* Contents' ⋯ menu (the owner, 12 November 2026: "3 dots in right corner to change numbering system, keep, fold sections"): how the
+   headings are numbered, saved with the plugin's settings; and fold every section or none. A section folds by its arrow too, as an
+   outline's does: the headings inside it go, the heading stays. Folds live while the plugin runs, by the heading's id. */
+const ALPHA = n => { let out = ''; for (; n > 0; n = Math.floor((n - 1) / 26)) out = String.fromCharCode(97 + (n - 1) % 26) + out; return out; };
+const ROMAN = n => [[1000, 'm'], [900, 'cm'], [500, 'd'], [400, 'cd'], [100, 'c'], [90, 'xc'], [50, 'l'], [40, 'xl'], [10, 'x'], [9, 'ix'], [5, 'v'], [4, 'iv'], [1, 'i']]
+  .reduce((out, [value, mark]) => { for (; n >= value; n -= value) out += mark; return out; }, '');
+const NUMBERINGS = [
+  { key: 'decimal', word: '1, 1.1, 1.1.1', label: counts => counts.join('.') },
+  { key: 'outline', word: '1, a, i', label: counts => [String, ALPHA, ROMAN][(counts.length - 1) % 3](counts.at(-1)) },
+  { key: 'classic', word: 'I, A, 1, a', label: counts => [n => ROMAN(n).toUpperCase(), n => ALPHA(n).toUpperCase(), String, ALPHA][(counts.length - 1) % 4](counts.at(-1)) },
+  { key: 'none', word: 'None', label: () => '' },
+];
+let numberedBy = null;   // the choice just taken, until the saved settings say it back
+const numbering = () => NUMBERINGS.find(way => way.key === (numberedBy || setting('contentsNumbers'))) || NUMBERINGS[0];
+const folds = new Set();
+// The headings inside each heading: the ones after it, until one at its depth or nearer the top.
+const inside = (heads, i) => { const out = []; for (let j = i + 1; j < heads.length && heads[j].depth > heads[i].depth; j++) out.push(heads[j]); return out; };
+const shownHeads = () => { const hidden = new Set(); state.heads.forEach((head, i) => { if (folds.has(head.uuid) && !hidden.has(head.uuid)) for (const sub of inside(state.heads, i)) hidden.add(sub.uuid); }); return state.heads.filter(head => !hidden.has(head.uuid)); };
+const rowsOf = uuids => [...(state.panels.contents?.querySelectorAll('.lk-contents-row') || [])].filter(row => uuids.includes(row.dataset.uuid));
+// Folding rolls the headings inside up and away, unfolding rolls them out, as every fold of the plugin.
+async function setFolds(change) {
+  const before = new Set(shownHeads().map(head => head.uuid));
+  change();
+  const after = shownHeads().map(head => head.uuid), going = [...before].filter(uuid => !after.includes(uuid)), coming = after.filter(uuid => !before.has(uuid));
+  if (going.length) await window.PluginDoor.rollUp(rowsOf(going));
+  render(host());
+  if (coming.length) window.PluginDoor.unroll(rowsOf(coming));
+}
 function contentsBody(doc) {
   if (!state.page) return [el(doc, 'div', { class: 'lk-links-none lk-none' }, 'Open a page to see its headings.')];
   if (!state.heads.length) return [el(doc, 'div', { class: 'lk-links-none lk-none' }, 'No headings on this page.')];
-  return state.heads.map(head => el(doc, 'a', { class: `lk-contents-row${head.depth ? '' : ' lk-contents-top'}`, style: `padding-left: ${head.depth * 20}px`, href: '#',
-    click: event => { event.preventDefault(); goToHead(head, event.shiftKey); } },
-    el(doc, 'span', { class: 'lk-contents-n' }, head.number), el(doc, 'span', { class: 'lk-contents-words' }, head.title)));
+  const way = numbering(), holds = new Set(state.heads.filter((head, i) => inside(state.heads, i).length).map(head => head.uuid));
+  // The numbers of one level share one width, right-aligned, so the words of a level start on one line (I, II and III alike).
+  const shown = shownHeads(), widths = [];
+  for (const head of shown) widths[head.depth] = Math.max(widths[head.depth] || 0, way.label(head.counts).length);
+  const rows = shown.map(head => {
+    const go = event => { if (event.target.closest('.lk-fold')) return; event.preventDefault(); goToHead(head, event.shiftKey); };
+    const fold = holds.has(head.uuid) ? el(doc, 'button', { class: 'lk-fold', type: 'button', 'aria-expanded': String(!folds.has(head.uuid)), 'aria-label': folds.has(head.uuid) ? 'Unfold' : 'Fold',
+      click: event => { event.stopPropagation(); setFolds(() => folds.has(head.uuid) ? folds.delete(head.uuid) : folds.add(head.uuid)); } }) : el(doc, 'span', { class: 'lk-contents-nofold' });
+    const label = way.label(head.counts);
+    return el(doc, 'div', { class: `lk-contents-row lk-row${head.depth ? '' : ' lk-contents-top'}`, style: `padding-left: ${head.depth * 20}px`, 'data-uuid': head.uuid, role: 'link', tabindex: '0',
+      click: go, keydown: event => { if (event.key === 'Enter') go(event); } },
+      fold, label ? el(doc, 'span', { class: 'lk-contents-n', style: `min-width: ${widths[head.depth]}ch` }, label) : null, el(doc, 'span', { class: 'lk-contents-words' }, head.title));
+  });
+  const more = el(doc, 'button', { class: 'lk-btn lk-low lk-contents-more', type: 'button', 'aria-label': 'Numbering and folding', title: 'Numbering and folding', 'aria-haspopup': 'menu',
+    html: Look.kit.iconHtml('dots'), click: event => openMenu(doc, event.currentTarget) });
+  return [more, ...rows];
+}
+// The menu, the library's (lk-pop, lk-menu, lk-group, lk-item): under the ⋯, its right edge on the ⋯'s. Up and Down walk it, Enter
+// takes a line, Escape or a press elsewhere closes it, and the ⋯ has the keys again.
+let menu = null;
+function closeMenu(back) { if (!menu) return; menu.box.remove(); menu.off(); if (back) menu.from.focus(); menu = null; }
+function openMenu(doc, from) {
+  if (menu) { closeMenu(); return; }
+  const way = numbering(), folding = state.heads.filter((head, i) => inside(state.heads, i).length);
+  const takes = new Map();   // each line and what taking it does, for the press and for Enter alike
+  const item = (word, pressed, act, off) => { const take = () => { closeMenu(true); act(); }; const line = el(doc, 'button', { class: `lk-item${off ? ' off' : ''}`, type: 'button', role: 'menuitem', click: take }, el(doc, 'span', {}, word), pressed ? el(doc, 'span', { class: 'lk-note' }, '✓') : null); takes.set(line, take); return line; };
+  const box = el(doc, 'div', { class: 'lk-pop lk-menu lk-own lk-contents-menu', role: 'menu' },
+    el(doc, 'div', { class: 'lk-group' }, 'Numbering'),
+    ...NUMBERINGS.map(each => item(each.word, each.key === way.key, () => { numberedBy = each.key; logseq.updateSettings({ contentsNumbers: each.key }); render(host()); })),
+    el(doc, 'div', { class: 'lk-item gap' }), el(doc, 'div', { class: 'lk-group' }, 'Sections'),
+    item('Fold all', false, () => setFolds(() => folding.forEach(head => folds.add(head.uuid))), folding.every(head => folds.has(head.uuid))),
+    item('Unfold all', false, () => setFolds(() => folding.forEach(head => folds.delete(head.uuid))), !folding.some(head => folds.has(head.uuid))));
+  Object.assign(box.style, { position: 'fixed', zIndex: 60, width: 'max-content' });
+  doc.body.append(box);
+  const at = from.getBoundingClientRect();
+  Object.assign(box.style, { top: `${at.bottom + 4}px`, left: `${Math.max(8, at.right - box.offsetWidth)}px` });
+  const lines = [...box.querySelectorAll('.lk-item:not(.gap):not(.off)')];
+  let at_ = 0;
+  const light = i => { lines.forEach((line, j) => line.classList.toggle('on', j === i)); lines[i]?.focus(); at_ = i; };
+  const keys = event => {
+    if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeMenu(true); }
+    else if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); takes.get(lines[at_])?.(); }
+    else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); event.stopPropagation(); light((at_ + (event.key === 'ArrowDown' ? 1 : lines.length - 1)) % lines.length); }
+  };
+  const away = event => { if (!box.contains(event.target) && event.target !== from && !from.contains(event.target)) closeMenu(); };
+  box.addEventListener('keydown', keys);
+  menu = { box, from, off: Look.kit.listen(doc, 'pointerdown', away, true) };
+  window.PluginDoor.unroll(box);
+  light(0);
 }
 // read: the page was read for a section just opened, so what it holds grows on from the empty section (window.PluginDoor.regrow).
 function render(doc, read) {
@@ -280,10 +355,18 @@ const css = `
 #right-sidebar .lk-notes-n { color: var(--lk-quiet) !important; font-variant-numeric: tabular-nums; text-decoration: none; }
 #right-sidebar .lk-notes-n:hover { color: var(--lk-text, currentColor) !important; }
 #right-sidebar .lk-notes-words { min-width: 0; overflow-wrap: anywhere; }
-#right-sidebar .lk-contents-row { display: flex; gap: .5em; align-items: baseline; padding-block: 2px; color: var(--lk-quiet) !important; text-decoration: none !important; overflow-wrap: anywhere; }
+#right-sidebar .lk-side-contents .sidebar-panel-content { position: relative; }
+#right-sidebar .lk-contents-more { position: absolute; top: 0; right: 0; }
+#right-sidebar .lk-side-contents .lk-contents-row:nth-child(2) { margin-right: 36px; }
+#right-sidebar .lk-contents-row .lk-fold, #right-sidebar .lk-contents-nofold { align-self: flex-start; width: 16px; height: 1.5em; flex: none; margin-right: -2px; }
+/* The arrow as Logseq's: only under the pointer, and at rest on a folded section, so a fold is seen. */
+#right-sidebar .lk-contents-row .lk-fold[aria-expanded="true"] { opacity: 0 !important; }
+#right-sidebar .lk-contents-row:is(:hover, :focus-within) .lk-fold, #right-sidebar .lk-contents-row .lk-fold[aria-expanded="false"] { opacity: .6 !important; }
+#right-sidebar .lk-contents-row .lk-fold:hover { opacity: 1 !important; }
+#right-sidebar .lk-contents-row { display: flex; gap: .5em; align-items: baseline; padding-block: 2px; border-radius: 4px; cursor: pointer; color: var(--lk-quiet) !important; text-decoration: none !important; overflow-wrap: anywhere; }
 #right-sidebar .lk-contents-row.lk-contents-top { color: var(--lk-text, currentColor) !important; font-weight: 600; }
 #right-sidebar .lk-contents-row.lk-contents-top:not(:first-child) { margin-top: 8px; }
-#right-sidebar .lk-contents-n { flex: none; color: var(--lk-quiet); font-weight: 400; font-variant-numeric: tabular-nums; }
+#right-sidebar .lk-contents-n { flex: none; text-align: right; color: var(--lk-quiet); font-weight: 400; font-variant-numeric: tabular-nums; }
 #right-sidebar .lk-contents-words { min-width: 0; }
 #right-sidebar .lk-contents-row:hover { color: var(--lk-text, currentColor) !important; }
 #right-sidebar .lk-links-none { padding: 0; }   /* the library's nothing-here line (lk-none), at the top of the tab */`;
@@ -304,6 +387,6 @@ function start() {
   onGraphChange(load);
   load();
 }
-function stop() { offTabs.forEach(off => off?.()); offTabs = []; state.stopped = true; Object.assign(state, { open: closed(), words: {}, panels: {} }); style('sidebar-links', ''); }
-Look.links = { start, stop, load, linksIn, citationsIn, byKind, readHeads };
+function stop() { closeMenu(); offTabs.forEach(off => off?.()); offTabs = []; state.stopped = true; Object.assign(state, { open: closed(), words: {}, panels: {} }); style('sidebar-links', ''); }
+Look.links = { start, stop, load, linksIn, citationsIn, byKind, readHeads, NUMBERINGS };
 })();
