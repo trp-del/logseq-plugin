@@ -877,7 +877,7 @@ function draw(doc) {
   /* The whole section folds to one line under its name (the owner, 8 November 2026: "allow it to be folded in, the whole
      thing"), kept per page as a list's fold is; while letters are in the find line it stays open. */
   const wholeKey = `${state.pageUuid}|*`, wholeOpen = !!state.find.trim() || twoWay.isOpen(wholeKey);
-  const wholeHtml = `<div class="th-tw-whole">${O.line({ day: null, chev: O.chev({ open: wholeOpen, label: 'Linked', attrs: { 'data-whole': wholeKey } }), body: `<a class="th-tw-whole-name" data-whole="${esc(wholeKey)}" href="#" title="Click to ${wholeOpen ? 'fold' : 'open'} Linked.">Linked</a>`, cls: 'th-tw-whole-line' })}</div>`;
+  const wholeHtml = `<div class="th-tw-whole">${O.line({ day: null, chev: O.chev({ open: wholeOpen, label: 'Linked', attrs: { 'data-whole': wholeKey } }), body: `<a class="th-tw-whole-name th-tw-rule th-tw-rule-named" data-whole="${esc(wholeKey)}" href="#" title="Click to ${wholeOpen ? 'fold' : 'open'} Linked."><span>Linked</span></a>`, cls: 'th-tw-whole-line' })}</div>`;   /* "Linked" and a thin line on to the right edge (the owner, 12 November 2026: "Linked––––––" with line going all the way) */
   const html = rows ? '<div class="th-tw-pin" aria-hidden="true"></div>' + (stepped ?? (wholeHtml + (wholeOpen ? twoWay.barHtml() + twoWay.findHtml() + rowsHtml : ''))) : '';
   // What unrolls does so once: the drawing kept is the one without it, so the next drawing does not replace it.
   const bare = html.replace(/ th-ol-unroll/g, '');

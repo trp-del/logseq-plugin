@@ -30,7 +30,7 @@ const twoWayCss = `
      fold arrow 22px left of the bullet). So: every mark (the heading's chevron, the find glass, a name's icon) stands at
      Logseq's bullet edge, 2px in from the section; every word at the first level at Logseq's words edge, 20px further;
      each level 30px in. */
-  margin: calc(56px + var(--th-tw-hold, 0px)) 0 24px; padding: 0 0 0 2px;
+  margin: calc(28px + var(--th-tw-hold, 0px)) 0 24px; padding: 0 0 0 2px;   /* a group's gap above Linked, as between the groups (12 November 2026: the gaps even, the owner's yes); it was 56px */
   --th-tw-level: 30px;
   line-height: 1.5; user-select: text;
   /* One column (the owner, 7 November 2026: one column, not two): each property's name stands on a line of its own,
@@ -53,7 +53,7 @@ const twoWayCss = `
    of its own. */
 .th-two-way .th-tw-row + .th-tw-row { margin-top: 28px; }   /* the owner picked Tighter in heads.html, 10 November 2026 */
 /* The first group stands a line's gap under the find line, so the name does not sit on its hairline. */
-.th-two-way .th-tw-findrow + .th-tw-row { margin-top: 36px; }
+.th-two-way .th-tw-findrow + .th-tw-row { margin-top: 28px; }   /* the groups' own gap (12 November 2026); it was 36px under the find line's hairline */
 /* The name sits over its list, the list one step in under it (9 November 2026, the owner: the name was "way to close to
    headers"; a head beside the name was tried and taken back: "under it still, just indented"): the head's chevron stands
    under the name's words, so the head reads as inside the property, as a child bullet under its parent. The nodes keep
@@ -432,9 +432,27 @@ const twoWayCss = `
    the audit's 34; it was 20px semibold from 9 November). */
 .th-two-way .th-tw-whole-name { color: inherit; font-size: 14px; font-weight: 500; line-height: 20px; text-decoration: none; cursor: pointer; }
 .th-two-way .th-tw-whole-name:hover { text-decoration: none; }
+/* Both "Linked" lines, the page's and an opened node's, are a thin line with their fold arrow (the owner, 12 November 2026:
+   "use this on main threads view instead of Linked", "make horizontal thinner than bullet outline"): half the outline's
+   1px, the whole width a press to fold. */
+.th-two-way :is(.th-tw-whole-line, .th-tw-linkedline) > .th-ol-body:has(> .th-tw-rule) { flex: 1; display: flex; align-self: stretch; margin-left: 0; }
+.th-two-way .th-tw-linkedline > .th-ol-dot { display: none; }   /* the line starts after its fold arrow, as the page's does */
+.th-two-way .th-tw-whole-line .th-tw-rule { margin-left: 6px; }   /* both lines 6px after their arrow */
+.th-two-way .th-tw-rule.th-tw-rule-named { margin-left: 1px; display: flex; align-items: center; gap: 10px; background: none; }   /* the page's: its word, then the line on to the edge */
+.th-two-way .th-tw-linkedline .th-tw-rule { background-image: linear-gradient(var(--lk-hair), var(--lk-hair)); }   /* inside an opened row: a light hairline, no word (the owner, 12 November 2026) */
+.th-two-way .th-tw-rule-named::after { content: ''; flex: 1; height: 0.5px; background: var(--lk-line); }
+.th-two-way .th-tw-rule-named > span { color: var(--lk-quiet); font-weight: 400; }   /* grey as the group names under it, not the loudest word there (12 November 2026) */
+.th-two-way .th-tw-linkedline > .lk-fold { opacity: .45 !important; }   /* a folded line still says it opens, as the page's does */
+.th-two-way .th-tw-linkedline:hover > .lk-fold { opacity: .7 !important; }
+.th-two-way .th-tw-rule { display: block; flex: 1; min-height: 20px; margin-right: -4px; cursor: pointer; background: linear-gradient(var(--lk-line), var(--lk-line)) center / 100% 0.5px no-repeat; }
 /* The whole width of the section, its line a hairline even while typing (the owner: "weirdly short", "bottom of it can be
    hairline"). */
-.th-two-way .th-tw-findrow > .th-field, .th-two-way .th-tw-findrow > .th-field:focus-within { border-bottom-color: var(--lk-hair); }
+/* One line at the top, Linked's (12 November 2026, the owner's yes to "only one line"): the find field has none at rest,
+   its hairline while it has the caret or words. Keep this view and the kept views stand at its right end, on its line. */
+.th-two-way .th-tw-findrow { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; }
+.th-two-way .th-tw-findrow > .th-field { flex: 1 1 240px; min-width: 0; border-bottom-color: transparent; }
+.th-two-way .th-tw-findrow > .th-field:focus-within, .th-two-way[data-finding] .th-tw-findrow > .th-field { border-bottom-color: var(--lk-hair); }
+.th-two-way .th-tw-findrow > .th-tw-views { flex: none; margin: 0; }
 .th-two-way .th-tw-findrow > .th-field { gap: 2px; }   /* the glass 15px at the mark edge, the words at 305, as a name after its icon */
 .th-two-way .th-tw-stepped { grid-column: 1 / -1; }
 .th-two-way .th-tw-stepped > .th-ol-trail { padding: 2px 0 8px; }
