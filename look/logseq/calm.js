@@ -66,9 +66,11 @@ ${AREA} .ls-page-title-container :is(.block-title-wrap, .editor-inner textarea) 
 /* Linked references and its like: a quiet heading, not a bold one. */
 ${AREA} .references :is(h2, .font-medium, .font-bold) { font-weight: 500 !important; }`,
   calmTables: `
-/* Logseq's tables: no ground on the head, no lines between columns (the column edge stays to drag), a hairline under each row,
-   the wash under the pointer. */
-${AREA} .ls-table-header { background: transparent !important; border-top-color: transparent !important; border-bottom-color: var(--lk-hair) !important; }
+/* Logseq's tables: no ground of its own on the head, no lines between columns (the column edge stays to drag), a hairline under
+   each row, the wash under the pointer. The head takes the page's own ground, not none: Logseq pins it at the top while its
+   table scrolls, and with no ground the rows read through the column names (the owner, 12 November 2026: "the table headers
+   look translucent"). */
+${AREA} .ls-table-header { background: var(--lk-paper) !important; border-top-color: transparent !important; border-bottom-color: var(--lk-hair) !important; }
 ${AREA} .ls-table-header-cell, ${AREA} .ls-table-rows .border-r { border-right-color: transparent !important; }
 ${AREA} .ls-table-header-cell { font-weight: 400 !important; }
 ${AREA} .ls-table-row { background: transparent !important; border-bottom-color: var(--lk-hair) !important; }
