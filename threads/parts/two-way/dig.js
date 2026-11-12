@@ -40,7 +40,7 @@ function digKids(key, uuid, from) {
   // The names' column as wide as the longest name it holds, so none breaks onto two lines (C6, 7 November 2026), within
   // 7em and 16em: past that a name wraps between its words.
   const longest = Math.max(0, ...data.props.filter(r => r.values.length || state.emptyOpen.has(key) || data.guesses.has(r.prop.ident)).map(r => r.prop.title.length), ...data.rows.map(g => String(g.label || '').length));
-  const name = `clamp(7em, calc(${longest} * .56em + 42px), 16em)`;
+  const name = `clamp(7em, calc(${longest} * .6em + 58px), 16em)`;   // the letters, the kind's mark and its gap, the fold arrow's room ("Provider" took two lines at .56em + 42px, 11 November 2026)
   return O.kids({ html: nodeHtml(uuid, key, data), from, fresh, attrs: { 'data-key': key, style: `--th-tw-name: ${name}` } });
 }
 /* Whether a node, opened at this place, would show anything beyond what its line says (10 November 2026, the owner's yes to

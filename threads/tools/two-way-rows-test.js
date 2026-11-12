@@ -420,7 +420,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     check(/couldBeHtml\(item\)\}\$\{(tailHooks\.map\(hook => hook\(group, item\) \|\| ''\)\.join\(''\)\}\$\{)?(O\.from\(day\)\}\$\{)?tell/.test(source) && !/th-tw-crumb">[^`]*couldBeHtml/.test(source), 'what a mention could be stands on its own line, so coming late moves nothing');
     check(/\.th-tw-head \.th-tw-sep \{ display: none; \}/.test(source) && /\.th-tw-head \.th-tw-chips \{[^}]*overflow: hidden/.test(source), 'space alone between the head\'s pieces, no hairline (the audit\'s 33), a line\'s start clipped');
     check(/\.th-tw-head > \.th-ol-body \{ display: flex; align-items: baseline;/.test(source), 'the head does not wrap the + and Group onto a line of their own');
-    check(/\.th-ol-body > \.th-tw-record \{ min-width: 0; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; \}/.test(source), 'a name runs to two lines, then is cut');
+    check(/\.th-ol-body:has\(> \.th-tw-record\) \{ display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;/.test(source) && /\.th-ol-body > \.th-tw-record \{ display: inline; \}/.test(source), 'a name and its tag run as one text, two lines, then cut');
     check(!/title: item\.title/.test(source.slice(source.indexOf('async function showPeek'))) && !/\bday: item\.day/.test(source.slice(source.indexOf('async function showPeek'))), 'the card leaves out what the row says');
     check(/placePeek\(card\.el, link\)/.test(source), 'the card is placed clear of the rows');
     check(/fits && clear\(under\) \? under : aboveFits && clear\(above\) \? above/.test(source), 'the card goes under the row, or above where under would cover a list\'s head');

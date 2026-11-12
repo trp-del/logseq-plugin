@@ -811,7 +811,7 @@ a.th-tag:hover { opacity: 1; }
    it goes: the plugin's one motion (PluginDoor.unroll and rollUp, through outline.unrolled and outline.close). */
 .th-ol-unit { margin: 0 -6px; padding: 0 6px; border-radius: 6px; transition: background-color .16s ease; }
 .th-ol-unit.th-ol-focus { background: color-mix(in srgb, currentColor 3%, transparent); }
-.th-ol-prop > .th-ol-pname { flex: none; box-sizing: border-box; width: var(--th-ol-name); padding-right: calc(16px + var(--th-ol-gap)); display: inline-flex; gap: 6px; align-items: baseline; color: var(--lk-quiet); overflow-wrap: normal; }   /* the padding is the room of the fold arrow that overhangs from the value (.th-ol-pv > .th-chev): a long name wraps before it, between its words, never inside one (7 November 2026: "Confirmatio / n Status") */
+.th-ol-prop > .th-ol-pname { flex: none; box-sizing: border-box; width: var(--th-ol-name); padding-right: calc(16px + var(--th-ol-gap)); display: inline-flex; gap: 6px; align-items: baseline; color: var(--lk-quiet); overflow-wrap: normal; word-break: normal; }   /* word-break too: Logseq sets break-word on the page, which split "Provid / er" (11 November 2026). The padding is the room of the fold arrow that overhangs from the value (.th-ol-pv > .th-chev): a long name wraps before it, between its words, never inside one (7 November 2026: "Confirmatio / n Status") */
 .th-ol-prop > .th-ol-pname .th-kind { font-size: 13px; vertical-align: 0; width: 13px; justify-content: center; flex: none; opacity: .6; } /* as faint as on a page's rows */
 /* A drawn mark sits like a font icon: on the words' line, in their colour (the kit's ICONS, DRAWN). */
 .th-drawn { display: inline-flex; align-items: center; line-height: 1; }

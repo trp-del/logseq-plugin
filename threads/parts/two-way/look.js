@@ -372,17 +372,16 @@ const twoWayCss = `
    so only its boxes appear; the find line stands outside the rows and raises none. */
 .th-two-way .th-tw-head > .th-ol-body { display: flex; align-items: baseline; column-gap: .9rem; }
 .th-two-way .th-tw-head > .th-ol-body > :is(.th-tw-add, .th-tw-groupby) { margin-left: 0; flex: none; }
-/* A name is one line, cut at the width the row leaves; its tag and what follows keep theirs. */
-.th-two-way .th-ol-body:has(> .th-tw-record) { display: flex; align-items: baseline; }
-/* A node's words run to two lines, then are cut (the owner, 1 November: a short note reads whole, a long one cannot run away). Opened or found, they read whole. */
-.th-two-way .th-ol-body > .th-tw-record { min-width: 0; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-/* The mark stays on the first line of a name that wraps (an opened node's), not in the middle of the words. */
-.th-two-way .th-ol-body > .th-tw-record.th-ol-open, .th-two-way[data-finding] .th-ol-body > .th-tw-record { display: block; -webkit-line-clamp: none; }
-.th-two-way .th-ol-body > .th-tw-record ~ * { flex: none; }
+/* A node's words and its tag are one run of text: the tag follows the last word and wraps with the words, never a column of
+   its own at the right (the owner, 11 November 2026: the column "wraps the text early and leaves awkward gaps"). The run is
+   two lines, then cut (the owner, 1 November: a short note reads whole, a long one cannot run away); opened or found, it reads whole. */
+.th-two-way .th-ol-body:has(> .th-tw-record) { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; min-width: 0; }
+.th-two-way .th-ol-body > .th-tw-record { display: inline; }
+.th-two-way .th-ol-body:has(> .th-tw-record.th-ol-open), .th-two-way[data-finding] .th-ol-body:has(> .th-tw-record) { display: block; -webkit-line-clamp: none; overflow: visible; }
 /* A task's circle, Logseq's own, before its words as in Logseq (8 November 2026): its size beside 16px words, the gap after
    it the gap Logseq leaves; the colour is Logseq's (its ls-icon- class). On the first line of words that wrap. */
 /* A button by its keys, its colour Logseq's (ls-icon-…): nothing here sets a colour. */
-.th-two-way .th-task { background: none; border: 0; padding: 0; font: inherit; flex: none; align-self: flex-start; display: inline-flex; align-items: center; height: 1.5em; margin-right: 6px; cursor: pointer; border-radius: 50%; }
+.th-two-way .th-task { background: none; border: 0; padding: 0; font: inherit; flex: none; align-self: flex-start; vertical-align: top; display: inline-flex; align-items: center; height: 1.5em; margin-right: 6px; cursor: pointer; border-radius: 50%; }
 .th-two-way .th-task:focus-visible { background: var(--lk-wash); }
 .th-two-way .th-task svg { width: 1.05em; height: 1.05em; display: block; }
 .th-two-way .th-task .ti { font-size: 1.05em; line-height: 1; }
@@ -404,7 +403,7 @@ const twoWayCss = `
 /* The names' column of an opened node fits its longest name (C6). */
 .th-two-way .th-ol-kids[style*="--th-tw-name"] > .th-ol-in { --th-ol-name: var(--th-tw-name); }
 /* Inside an opened node a name is never cut (C8): at any width it wraps whole. */
-.th-two-way .th-ol-kids .th-ol-body > .th-tw-record { display: block; -webkit-line-clamp: none; overflow: visible; }
+.th-two-way .th-ol-kids .th-ol-body:has(> .th-tw-record) { display: block; -webkit-line-clamp: none; overflow: visible; }
 .th-two-way .th-tw-linked { padding-left: var(--th-tw-in); }
 
 /* A shifted section's top: the trail ends on it in bold; its properties; then "N nodes link here" on the
