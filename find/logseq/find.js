@@ -71,8 +71,7 @@ const CSS = `
 .fd-line text { font-size: var(--lk-label); fill: var(--lk-quiet); }
 /* The body scrolls; the choices sit above the rows, a gap of one line between them. A property's name here stays a shade
    lighter than its values, which are quiet. */
-.fd-body { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 16px 10px; transition: opacity .1s; }
-.fd-body.fd-reading { opacity: .5; transition: opacity .15s ease .25s; }
+.fd-body { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 16px 10px; }
 .fd-head { margin: 6px 0 2px; }   /* the library's small faint name (lk-name) */
 /* A group's head: a bold word after a gap of one line (the grammar). */
 .fd-near { font-weight: 600; margin: 20px 0 2px calc(var(--fd-day) + 36px); }
@@ -550,9 +549,6 @@ function render() {
   });
   if (!tailed) tail();
   else if (S.nearShown.length > NEAR_SHOWN && !S.nearAll) body.append(el(doc, 'button', { class: 'fd-showall lk-more', type: 'button', click: () => { S.nearAll = true; render(); } }, `show all ${S.nearShown.length}`));
-  // While the graph is read, the rows that are there stay where they are and go a shade lighter after a moment; no line
-  // is added or taken away, so nothing jumps between one letter and the next.
-  body.classList.toggle('fd-reading', S.loading);
   body.scrollTop = scrollTop;
   const cur = body.querySelector(S.mode === 'choices' ? `[data-c="${S.choiceAt}"]` : `.fd-r[data-i="${S.rowAt}"]`);
   cur?.scrollIntoView?.({ block: 'nearest' });
@@ -978,11 +974,13 @@ function onKey(event) {
 }
 const groupOf = (groups, at) => { let n = 0; for (let i = 0; i < groups.length; i++) { n += groups[i].items.length; if (at < n) return i; } return groups.length - 1; };
 
-function refresh() {
+/* typing: a letter came. Only the find line is drawn at once; the list stays exactly as it stands, at full strength, until
+   what the new letters find has been read, and is then drawn once. Nothing fades and nothing is redrawn between two letters. */
+function refresh(typing) {
   clearTimeout(S.timer);
   S.loading = true;
   const at = ++S.reads;
-  render();
+  if (typing && S.dlg) drawSentence(S.doc); else render();
   S.timer = setTimeout(async () => {
     await compute();
     if (at !== S.reads) return;   // newer letters came: their reading says when it is over
@@ -1000,7 +998,7 @@ function onInput() {
   S.mode = 'rows'; S.rowAt = 0; S.choiceAt = 0; S.allShown = false; S.nearAll = false;
   if (S.lineDug) { S.dug = S.dug.filter(u => u !== S.lineDug); S.lineDug = null; }
   readNow();
-  refresh();
+  refresh(true);
 }
 
 /* Opening and closing. open(typed, say): the window with those letters already in the find line (">" for the commands); say, as
