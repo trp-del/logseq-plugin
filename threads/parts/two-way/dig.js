@@ -39,7 +39,8 @@ function digKids(key, uuid, from) {
   const fresh = state.fresh === key;
   // The names' column as wide as the longest name it holds, so none breaks onto two lines (C6, 7 November 2026), within
   // 7em and 16em: past that a name wraps between its words.
-  const longest = Math.max(0, ...data.props.filter(r => r.values.length || state.emptyOpen.has(key) || data.guesses.has(r.prop.ident)).map(r => r.prop.title.length), ...data.rows.map(g => String(g.label || '').length));
+  const adding = state.addProp?.uuid === uuid && state.addProp.key === key ? state.addProp.prop.title.length : 0;
+  const longest = Math.max(adding, ...data.props.filter(r => r.values.length || state.emptyOpen.has(key) || data.guesses.has(r.prop.ident)).map(r => r.prop.title.length), ...data.rows.map(g => String(g.label || '').length));
   const name = `clamp(7em, calc(${longest} * .6em + 58px), 16em)`;   // the letters, the kind's mark and its gap, the fold arrow's room ("Provider" took two lines at .56em + 42px, 11 November 2026)
   return O.kids({ html: nodeHtml(uuid, key, data), from, fresh, attrs: { 'data-key': key, style: `--th-tw-name: ${name}` } });
 }
@@ -63,7 +64,10 @@ function nodeHtml(uuid, key, data, asTop = false, field = true) {
   const back = v => isUuid(v.uuid) && onTheWay(path, v.uuid);
   // A Date saying the day its line already shows in the margin is left out.
   const day = twoWay.lineDay.get(key) || '';
-  for (const { prop, values: all } of data.props) {
+  // A property being added (addProp) stands as a line of its own while its value is asked for, whether or not the node's tags give it.
+  const adding = state.addProp?.uuid === uuid && state.addProp.key === key ? state.addProp.prop : null;
+  const rows = adding && !data.props.some(r => r.prop.ident === adding.ident) ? [...data.props, { prop: adding, values: [] }] : data.props;
+  for (const { prop, values: all } of rows) {
     const values = all.filter(v => !back(v));
     if (all.length && !values.length) continue;
     if (day && prop.type === 'date' && values.length && values.every(v => v.text === day)) continue;
@@ -71,8 +75,10 @@ function nodeHtml(uuid, key, data, asTop = false, field = true) {
     const linked = (kind === 'node' || kind === 'page') && values.some(v => isUuid(v.uuid));
     const guess = !values.length ? data.guesses.get(prop.ident) : null;
     const found = twoWay.findsLine(prop, values) ? 'th-tw-match' : '';
-    if (onlyFound && (!found || (prop.type === 'date' && !twoWay.has(prop.title, twoWay.readFind().q)))) continue;
-    const nameAttrs = { 'data-edit': prop.ident, 'data-uuid': uuid, title: `Change “${prop.title}”`, class: null };
+    if (onlyFound && adding !== prop && (!found || (prop.type === 'date' && !twoWay.has(prop.title, twoWay.readFind().q)))) continue;
+    // The name opens the property, as a property's name does in Logseq; its value is changed in the value's own area (12 November 2026,
+    // the owner: "how do i go to the property if I have to click it to activate it. that should be in the value input area").
+    const nameAttrs = { 'data-edit': prop.ident, 'data-uuid': uuid, 'data-prop': isUuid(prop.uuid) ? prop.uuid : null, title: isUuid(prop.uuid) ? `Open “${prop.title}”` : null, class: null };
     if (guess) { html += O.prop({ kind, many: prop.many, name: prop.title, nameAttrs, cls: found, chev: O.room(), value: O.dot(true) + O.pencil(guess.shown || '', { 'data-take': prop.ident, 'data-uuid': uuid, title: `${guess.guess ? 'A guess from its words' : 'From its words'}: click to fill it in` }) }); continue; }
     if (!linked) {
       // Several words or numbers: each its own, changed one at a time; the property's name adds another.
@@ -81,7 +87,7 @@ function nodeHtml(uuid, key, data, asTop = false, field = true) {
       // Empty, it folds with the others into one line (C5, 7 November 2026: an empty property folds until you want it).
       // Each value a bullet of its own, in the column where a node's bullet stands, as Logseq draws a property's values (12 November
       // 2026, the owner: "Where are bullets for values?"); an empty property, or a proposal, keeps the bullet's room.
-      if (!values.length) { const line = O.prop({ kind, many: prop.many, name: prop.title, nameAttrs, cls: found, chev: O.room(), value: O.dot(true) + one('empty') }); if (onlyFound) html += line; else { emptyNames.push(prop.title); empties += line; } continue; }
+      if (!values.length) { const line = O.prop({ kind, many: prop.many, name: prop.title, nameAttrs, cls: found, chev: O.room(), value: O.dot(true) + one('empty') }); if (onlyFound || adding === prop) html += line; else { emptyNames.push(prop.title); empties += line; } continue; }
       values.forEach((v, i) => { html += O.prop({ kind, many: prop.many, name: i ? '' : prop.title, nameAttrs: i ? null : nameAttrs, cls: found, chev: O.room(), value: O.dot() + `<span class="th-ol-body">${one(v.text, typed && prop.many ? ` data-value="${i}"` : '')}</span>` }); });
       continue;
     }
@@ -115,7 +121,7 @@ function nodeHtml(uuid, key, data, asTop = false, field = true) {
        "N link here" line went (10 November 2026), then came back as "Linked", Logseq's word and the page's own, after the
        owner: "no idea about why those properties are there": the properties under it are other nodes' that point here. */
     const linkedShut = state.linksShut.has(key);
-    html += `<div class="th-ol-line lk-row th-tw-lhead th-tw-linkedline" title="${esc(`${many} ${many === 1 ? 'node links' : 'nodes link'} to ${twoWay.shortName(titleOf(uuid))}`)}">${O.chev({ open: !linkedShut, label: 'Linked', attrs: { 'data-links': key } })}${O.dot(true)}<span class="th-ol-body"><a class="th-tw-rule" data-links="${esc(key)}" href="#" aria-label="Linked"></a></span></div>`;   // a thin line, not the word (the owner, 12 November 2026)
+    html += `<div class="th-ol-line lk-row th-tw-lhead th-tw-linkedline" title="${esc(`${many} ${many === 1 ? 'node links' : 'nodes link'} to ${twoWay.shortName(titleOf(uuid))}`)}">${O.chev({ open: !linkedShut, label: 'Linked', attrs: { 'data-links': key } })}${O.dot(true)}<span class="th-ol-body"><a class="th-tw-rule th-tw-rule-named" data-links="${esc(key)}" href="#"><span>Linked</span></a></span></div>`;   // the word and its line, as at the page's top (the owner, 12 November 2026: "put Linked----- within threads as well"; a thin line alone that morning)
     const outer = html; html = '';
     for (const { g, items } of linking) {
       const dated = items.some(item => twoWay.dayOf(g, item));
@@ -525,26 +531,29 @@ async function takeGuesses(uuid, idents) {
   await twoWay.offerKept(taken.map(t => [uuid, t.ident]), `Filled ${taken.map(t => `“${t.title}”`).join(', ')} on “${twoWay.shortName(titleOf(uuid))}”`, async () => { for (const t of taken) await twoWay.model.unsetValue(uuid, t.ident); twoWay.peek.cache.clear(); await readAgain(uuid); twoWay.later(300); }, group?.name, twoWay.inBox(`.th-ol-pname[data-edit="${CSS.escape(taken[taken.length - 1].ident)}"][data-uuid="${CSS.escape(uuid)}"] + .th-ol-pv`));
   twoWay.later(300);
 }
-/* A node's properties changed where they sit: a click on a property's name, or on what a plain one holds, asks
-   for a new value in the kit's list, the likely ones first for a link (pickerOrder, when loaded), the choices for a
+/* A node's properties changed where they sit: a click in a value's area, or on what a plain one holds, asks
+   for a new value (the property's name opens the property) in the kit's list, the likely ones first for a link (pickerOrder, when loaded), the choices for a
    choice, a day in words for a date, the words or the number as they are. A pick replaces one value, or for a property
    that holds several is added (one held already is taken off); Clear at the list's end, or empty and Enter where there
    is no list, clears it. The faded Undo arrow puts back what it held. A linked value's name opens what it names. */
 async function editNodeProp(uuid, ident, at) {
-  const row = state.node.get(uuid)?.props.find(r => r.prop.ident === ident);
-  if (!row) return;
+  const row = state.node.get(uuid)?.props.find(r => r.prop.ident === ident) || (state.addProp?.uuid === uuid && state.addProp.prop.ident === ident ? { prop: state.addProp.prop, values: [] } : null);
+  if (!row) return false;
   const { prop } = row, name = twoWay.shortName(titleOf(uuid)), held = row.values.map(v => v.text);
   // Of several words or numbers: the one pressed; the property's name adds another.
   const one = prop.many && at?.dataset?.value != null ? row.values[Number(at.dataset.value)] : null;
   const kind = prop.choices?.length && prop.type !== 'node' ? 'choice' : prop.type;
   const isLink = kind === 'node' || kind === 'page', isDay = kind === 'date' || kind === 'datetime';
-  let options = [];
+  let options = [], known = new Set(), nodes = [];
   if (kind === 'choice') options = prop.choices.map(c => c.title);
   else if (isLink) {
-    const takes = await twoWay.takerOf(prop), pages = (await twoWay.provided.propPages()).filter(p => !p.isTag && takes(p));
+    const everyPage = await twoWay.provided.propPages(), takes = await twoWay.takerOf(prop), pages = everyPage.filter(p => !p.isTag && takes(p));
+    known = new Set(everyPage.map(p => p.lower));
     const first = twoWay.provided.pickerOrder ? await twoWay.provided.pickerOrder(uuid, prop.title).catch(() => []) : [];
     const byId = new Map(pages.map(p => [p.id, p]));
-    options = [...first.map(id => byId.get(id)).filter(Boolean), ...pages.filter(p => !first.includes(p.id))].map(p => p.title);
+    // Bullets that carry a tag stand in the list too, each with its page above, as in Logseq's own.
+    const blocks = twoWay.provided.nodeBlocks ? (await twoWay.provided.nodeBlocks().catch(() => [])).filter(b => b.uuid !== uuid && takes(b)) : [];
+    nodes = [...first.map(id => byId.get(id)).filter(Boolean), ...[...pages.filter(p => !first.includes(p.id)), ...blocks].sort((a, b) => a.lower.localeCompare(b.lower))];
   } else if (kind === 'checkbox') options = ['yes', 'no'];
   const typedKind = !isLink && kind !== 'choice' && !isDay && kind !== 'checkbox', addsOne = typedKind && prop.many && !one && row.values.length > 0;
   const words = !typedKind || addsOne ? '' : one ? one.words : row.values.map(v => v.words).join(', ');   // as written: a link stays a link
@@ -553,41 +562,162 @@ async function editNodeProp(uuid, ident, at) {
   // The words of the value, not its line: its bullet stays where it stands while it is typed into.
   const words_ = pv => pv?.querySelector?.(':scope > .th-ol-body') || pv;
   const valueEl = one ? at.parentElement : at?.matches?.('.th-ol-pname') ? words_(at.nextElementSibling) : (words_(at?.closest?.('.th-ol-pv')) || at);
-  let typed;
-  if (options.length) {
-    const picked = await shared.pickValue({ at: valueEl || at, placeholder: `Set ${prop.title}`, options: options.map(label => ({ label, held: held.includes(label) })),
-      clearLabel: held.length ? 'Clear' : '', free: isLink });
+  let typed, pickedId = null;
+  if (options.length || isLink) {
+    const heldIds = new Set(row.values.map(v => v.id));
+    const picked = await shared.pickValue({ at: valueEl || at, placeholder: `Set ${prop.title}`, options: isLink ? nodes.map(n => ({ label: n.title, id: n.id, crumb: n.crumb || '', held: heldIds.has(n.id) })) : options.map(label => ({ label, held: held.includes(label) })),
+      clearLabel: held.length ? 'Clear' : '', free: isLink,
+      // A name no page has makes the page, as Logseq's own picker does (12 November 2026, the owner: "I want this ability").
+      make: isLink ? words => known.has(words.toLowerCase()) ? '' : `+ New option: ${words}` : null });
     typed = picked == null ? null : picked.clear ? '' : (picked.typed ?? picked.label);
+    if (picked?.id != null && picked.typed == null) pickedId = picked.id;   // the very node picked: two bullets may say the same words
   } else typed = await shared.editInPlace({ at: valueEl || at, value: words, type: kind === 'number' ? 'number' : 'text', placeholder: isDay ? 'today, friday, 4 aug …' : '', again: one ? () => twoWay.inBox(`.th-tw-npvalue[data-edit="${CSS.escape(ident)}"][data-uuid="${CSS.escape(uuid)}"][data-value="${at.dataset.value}"]`)()?.parentElement : () => words_(twoWay.valueBox(uuid, prop)()) });
-  if (typed == null) return;
-  const had = await twoWay.heldNow(uuid, prop);
-  let done = '';
+  if (typed == null) return false;
+  // A property not made yet (addProp, a new name) holds nothing, and is made only once there is a value to give it.
+  const had = prop.pending ? [] : await twoWay.heldNow(uuid, prop);
+  let done = '', made = null, madePage = null;
   const others = one ? had.filter(v => String(v) !== one.stored) : had;
   if (!typed.trim()) {
-    if (!had.length || addsOne) return;
+    if (!had.length || addsOne) return false;
     if (one && others.length) await twoWay.setValues(uuid, prop, others); else await twoWay.model.unsetValue(uuid, prop.ident);
     done = `Cleared “${prop.title}”`;
   } else {
-    if (words && typed.trim() === words) return;
+    if (words && typed.trim() === words) return false;
     let value;
     if (kind === 'choice') value = prop.choices.find(c => c.title.toLowerCase() === typed.trim().toLowerCase())?.id;
-    else if (isLink) value = (await twoWay.pageNamed(typed.trim(), prop))?.id;
+    else if (isLink) {
+      value = pickedId ?? (await twoWay.pageNamed(typed.trim(), prop))?.id;
+      if (value == null) { madePage = await pageFor(typed.trim(), prop); value = madePage?.id; }
+    }
     else if (isDay) value = await twoWay.dayValue(typed, kind);
     else if (kind === 'checkbox') value = /^(y|yes|true|1|on)$/i.test(typed.trim()) ? true : /^(n|no|false|0|off)$/i.test(typed.trim()) ? false : undefined;
     else if (kind === 'number') value = typed.trim() && Number.isFinite(Number(typed)) ? Number(typed) : undefined;
     else value = await twoWay.provided.storedWords(typed.trim());
-    if (value == null) return notify(`“${typed.trim()}” is not a value “${prop.title}” takes, so nothing was changed`, 'warning');
+    if (value == null) { notify(`“${typed.trim()}” is not a value “${prop.title}” takes, so nothing was changed`, 'warning'); return false; }
+    if (prop.pending) {
+      const got = await twoWay.model.makeProperty(prop.title, prop.type).catch(async error => { if (madePage) await twoWay.model.deletePage(madePage.uuid).catch(() => {}); throw error; });
+      Object.assign(prop, { ident: got.ident, id: got.id, uuid: got.uuid, pending: false });
+      if (got.made) made = got;
+    }
     if (kind === 'choice' || isLink || isDay) await twoWay.setValues(uuid, prop, prop.many ? (had.includes(value) ? had.filter(v => v !== value) : [...had, value]) : [value]);
     else if (prop.many) await twoWay.setValues(uuid, prop, one ? had.map(v => String(v) === one.stored ? value : v) : [...had, value]);
     else await twoWay.model.setValue(uuid, prop.ident, value);
-    done = `Set “${prop.title}”`;
+    done = (made ? `Added the new property “${prop.title}”` : `Set “${prop.title}”`) + (madePage ? ` to the new page “${madePage.title}”` : '');
   }
   twoWay.peek.cache.clear();
   await readAgain(uuid);
   const group = state.groups.find(g => g.items.some(item => item.uuid === uuid));
-  await twoWay.offerKept([[uuid, prop.ident]], `${done} on “${name}”`, async () => { await twoWay.setValues(uuid, prop, had); twoWay.peek.cache.clear(); await readAgain(uuid); twoWay.later(300); }, group?.name, twoWay.valueBox(uuid, prop));
+  await twoWay.offerKept([[uuid, prop.ident]], `${done} on “${name}”`, async () => {
+    await twoWay.setValues(uuid, prop, had);
+    // The page this change made goes with its value, to Logseq's Recycle, unless it has been written in or linked to since.
+    if (madePage) { if (await twoWay.model.pageUnlinked(madePage.uuid).catch(() => false)) await twoWay.model.deletePage(madePage.uuid).catch(error => warnOnce('could not take the new page away', error)); else notify(`“${madePage.title}” is in use by now, so the page stays`, 'warning'); }
+    // The property this change made goes with its value, unless something else holds it by now.
+    if (made && !await twoWay.model.dropMadeProperty(made).catch(error => { warnOnce('could not take the new property away', error); return false; })) notify(`“${prop.title}” is in use elsewhere by now, so the property stays`, 'warning');
+    twoWay.peek.cache.clear(); await readAgain(uuid); twoWay.later(300);
+  }, group?.name, twoWay.valueBox(uuid, prop));
   twoWay.later(300);
+  return true;
 }
+/* A page made for a value: a name no page has, typed where a property's page is picked. A page of that name in Logseq's Recycle is
+   brought back instead; a name that something else answers to (a tag, a property, a day) makes nothing. The new page gets the
+   property's tag when the property takes exactly one, as Logseq gives it. Answers { id, uuid, title } or null. */
+async function pageFor(name, prop) {
+  const named = await twoWay.model.getPage(name).catch(() => null);
+  let page = null;
+  if (named?.uuid) { if (!await twoWay.model.inRecycle(String(named.uuid)).catch(() => false)) return null; await twoWay.model.restorePage(String(named.uuid)); page = named; }
+  else page = await twoWay.model.createPage(name, {}, { redirect: false, createFirstBlock: false });
+  if (!page?.uuid) throw new Error('the page was not made');
+  if (!named && prop.classes?.length === 1 && prop.classes[0].uuid) await twoWay.model.addTag(String(page.uuid), prop.classes[0].uuid).catch(error => warnOnce('the new page could not be given its tag', error));
+  window.Threads.core.graphWide?.forget?.('inlinePropsPages');
+  const id = page.id ?? await twoWay.provided.idByUuid(String(page.uuid));
+  return id == null ? null : { id, uuid: String(page.uuid), title: name };
+}
+/* A property added to a node, as Logseq's own "Add property" adds one to a bullet (12 November 2026, the owner: "add properties
+   just like you could on regular logseq node ... or create it if it does not exists already"). The ways in: "Add property…" in
+   the right-click menu of a node's line or of a line inside an opened node, and Logseq's own key for it (Cmd-P unless changed)
+   while the keyboard is on a node's name. One list, Logseq's own picker: the properties its tags give and it has not filled first,
+   then every other property; a name no property has is offered as "+ New option: …", Logseq's own words, second in the list as in Logseq's, and asks its type, in Logseq's words and
+   order. The property then stands as a line in the node, opened for it if it was closed, and its value is asked for where a
+   value is changed (editNodeProp), so a page, a choice, a day, words and a number are each given as they always are. A new
+   property is made only once it has a value; Escape at any step leaves everything as it was. The faded Undo arrow takes the
+   value off again, and the property with it when this change made it and nothing else holds it. */
+const keyOfLine = name => {
+  const line = name?.closest('.th-ol-line, .th-ol-prop'), dug = line?.querySelector('[data-dig]')?.dataset.dig;
+  if (dug) return dug;
+  const kids = name?.closest('.th-ol-kids[data-key]'), row = name?.closest('.th-tw-row');
+  const base = kids ? kids.dataset.key : topStep()?.key || (row ? `r:${row.dataset.field}` : '');
+  return base && name.dataset.uuid ? `${base}>${name.dataset.uuid}` : '';
+};
+const nameAt = (key, uuid) => [...state.box?.querySelectorAll(`a.th-tw-record[data-uuid="${CSS.escape(uuid)}"]`) || []].find(a => keyOfLine(a) === key) || null;
+async function addProp(uuid, key, title = '') {
+  if (!isUuid(uuid) || !key || state.addProp) return;
+  const at = () => nameAt(key, uuid) || state.box?.querySelector(`.th-ol-kids[data-key="${CSS.escape(key)}"]`)?.previousElementSibling || state.box;
+  if (!state.node.has(uuid) || state.node.get(uuid).looked) await readNode(uuid);
+  const data = state.node.get(uuid);
+  if (!data) return;
+  const schema = await twoWay.provided.propSchema();
+  const holds = new Set(data.props.filter(r => r.values.length).map(r => r.prop.ident)), own = data.props.filter(r => !r.values.length).map(r => r.prop);
+  const options = [...own, ...schema.props.filter(p => !holds.has(p.ident) && !own.includes(p))].map(p => ({ label: p.title, prop: p, iconHtml: shared.kindIconHtml(p.choices?.length && p.type !== 'node' ? 'choice' : p.type) }));
+  const picked = await shared.pickValue({ at: at(), placeholder: 'Add or change property', options, keepOrder: true, free: true, make: typed => `+ New option: ${typed}` });
+  const name = String(picked?.typed ?? '').trim().replace(/\s+/g, ' ');
+  let prop = picked?.prop || (name ? schema.props.find(p => p.lower === name.toLowerCase()) : null);
+  if (!prop) {
+    if (!name) return;
+    const type = await shared.pickType({ at: at(), name, options: window.PluginDoor.PROPERTY_TYPES.map(([type, label]) => ({ label, type })) });
+    if (!type?.type) return;
+    prop = { ident: `new:${name}`, title: name, lower: name.toLowerCase(), type: type.type, many: false, classes: [], choices: [], pending: true };
+  }
+  const wasOpen = state.dig.has(key), from = nameRect(key);
+  state.addProp = { uuid, key, prop };
+  try {
+    if (!wasOpen) { state.dig.set(key, { uuid, id: 0, title: title || titleOf(uuid) }); state.focus = key; }
+    state.html = null; twoWay.draw(host());
+    if (!wasOpen) fitOrShift(key, from);
+    const line = twoWay.inBox(`.th-ol-kids[data-key="${CSS.escape(key)}"] .th-ol-pname[data-edit="${CSS.escape(prop.ident)}"][data-uuid="${CSS.escape(uuid)}"]`)();
+    if (line) await editNodeProp(uuid, prop.ident, line);
+  } finally {
+    state.addProp = null; state.html = null;
+    // Opened only to show the line: closed again when the line is not there any more (no value was given, or the value is the way
+    // back, this page, which the node never lists: the page's own list under the property's name shows it).
+    twoWay.draw(host());
+    if (!wasOpen && state.dig.has(key) && !twoWay.inBox(`.th-ol-kids[data-key="${CSS.escape(key)}"] .th-ol-pname[data-edit="${CSS.escape(prop.ident)}"][data-uuid="${CSS.escape(uuid)}"]`)()) closeDig(key);
+  }
+}
+// The right-click of a node's line inside an opened node, or of a property's line there (the node that holds it); the lines of the
+// page's own lists have theirs through lineMenuHooks. True when the menu was opened.
+function onNodeMenu(event) {
+  const line = event.target.closest?.('.th-ol-kids[data-key] :is(.th-ol-line, .th-ol-prop)');
+  if (!line || line.matches('.th-tw-line, .th-tw-lhead, .th-ol-moreline') || event.target.closest('input, textarea')) return false;
+  const name = line.querySelector('a.th-tw-record[data-uuid]'), kids = line.closest('.th-ol-kids[data-key]');
+  const onName = name && (event.target.closest('a.th-tw-record') || !line.matches('.th-ol-prop'));
+  const key = onName ? keyOfLine(name) : kids.dataset.key, uuid = onName ? name.dataset.uuid : state.dig.get(key)?.uuid || topStep()?.uuid;
+  if (!isUuid(uuid) || !key) return false;
+  event.preventDefault(); event.stopPropagation(); twoWay.hidePeek(); twoWay.closeAdd();
+  twoWay.adding.pop = shared.popup({ at: onName ? name : line, head: twoWay.shortName(titleOf(uuid)), onClose: () => { twoWay.adding.pop = null; }, items: [addPropItem(uuid, key)] });
+  return true;
+}
+const addPropItem = (uuid, key, title) => ({ icon: 'property', label: 'Add property…', run: () => { addProp(uuid, key, title).catch(error => { warnOnce('could not add a property to the node', error); notify('The property could not be added', 'warning'); }); } });
+twoWay.lineMenuHooks.push((group, item) => {
+  const name = state.box?.querySelector(`.th-tw-row[data-field="${CSS.escape(group.name)}"] .th-tw-line[data-uuid="${CSS.escape(item.uuid)}"] a.th-tw-record`);
+  const key = keyOfLine(name);
+  return key && isUuid(item.uuid) ? [addPropItem(item.uuid, key, twoWay.shortName(item.title))] : [];
+});
+// Logseq's own key for "Add property", the one in force, while the keyboard is on a node's name.
+twoWay.starters.push(() => {
+  const doc = host();
+  const onKey = event => {
+    const at = doc.activeElement;
+    if (!at?.matches?.('.th-two-way a.th-tw-record[data-uuid]')) return;
+    const spec = window.PluginDoor.logseqCommands?.().find(c => String(c?.id || '').endsWith('editor/add-property'))?.shortcut || 'mod+p';
+    if (![].concat(spec).some(one => window.PluginDoor.keys.matches(event, one))) return;
+    const key = keyOfLine(at);
+    if (!key) return;
+    event.preventDefault(); event.stopPropagation();
+    addPropItem(at.dataset.uuid, key).run();
+  };
+  twoWay.listen(doc, 'keydown', onKey, true);
+});
+
 // A click inside the outline: a chevron opens or closes, a pencilled value is taken, "show all" shows all, a property's
 // name or plain value is changed, a bullet opens itself, a link in a bullet its page. False: not one of these.
 function onOutlineClick(event) {
@@ -608,6 +738,19 @@ function onOutlineClick(event) {
   if (nall) { stop(); const key = nall.dataset.nall; if (state.nall.has(key)) state.nall.delete(key); else state.nall.add(key); state.html = null; twoWay.draw(host()); return true; }
   const ball = t.closest('[data-ball]');
   if (ball) { stop(); state.ball.add(ball.dataset.ball); readAgain(ball.dataset.ball).catch(error => warnOnce('could not read the bullets of a node', error)); return true; }
+  // A property's name opens the property's own page (Shift: the right sidebar).
+  const pname = t.closest('.th-ol-pname[data-edit]');
+  if (pname) { stop(); if (pname.dataset.prop) openEntity(pname.dataset.prop, event.shiftKey); return true; }
+  // A press in a value's area, beside what it holds, changes the value: a page's own name there still opens that page.
+  const area = !t.closest('a, button, input, textarea, .th-chev, .lk-bul, .th-tag') && t.closest('.th-ol-prop > .th-ol-pv');
+  const owner = area && area.parentElement.closest('.th-ol-kids[data-key]');
+  if (area && owner) {
+    // The line's own name, or for a second value's line the name on the first line of that property.
+    const nameOf = el => el?.matches?.('.th-ol-prop') ? el.querySelector(':scope > .th-ol-pname') : el?.matches?.('.th-ol-unit') ? el.querySelector(':scope > .th-ol-prop > .th-ol-pname') : null;
+    let line = area.parentElement.parentElement.matches('.th-ol-unit') ? area.parentElement.parentElement : area.parentElement, named = nameOf(line);
+    while (named && !named.dataset.edit) { line = line.previousElementSibling; named = nameOf(line); }
+    if (named?.dataset.edit) { stop(); editNodeProp(named.dataset.uuid, named.dataset.edit, named).catch(error => { warnOnce('could not change a property of the node', error); notify('That could not be changed', 'warning'); }); return true; }
+  }
   const edit = t.closest('[data-edit]');
   if (edit) { stop(); editNodeProp(edit.dataset.uuid, edit.dataset.edit, edit).catch(error => { warnOnce('could not change a property of the node', error); notify('That could not be changed', 'warning'); }); return true; }
   const goto = t.closest('[data-goto]');
@@ -627,5 +770,5 @@ function onOutlineClick(event) {
   return false;
 }
 
-Object.assign(twoWay, { closeDig, digChev, holdsMore, digKids, editBullet, focusNodeField, keepNodeField, onOutlineClick, pinNow, readNode, reading, stepBack, steppedHtml, topStep });
+Object.assign(twoWay, { addProp, onNodeMenu, closeDig, digChev, holdsMore, digKids, editBullet, focusNodeField, keepNodeField, onOutlineClick, pinNow, readNode, reading, stepBack, steppedHtml, topStep });
 })();

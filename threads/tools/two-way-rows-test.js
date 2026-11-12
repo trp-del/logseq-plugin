@@ -1343,7 +1343,9 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     check(set?.[3] === JSON.stringify(['a one', `see [[${U(40)}]] later`]) && /reset/.test(set[4]), 'that value changed in its place, the other left, the link kept: ' + set?.[3]);
     held = JSON.parse(set[3]); await wait(1000);
     click(window, doc.querySelector(`.th-ol-pname[data-edit="${many.ident}"]`)); await wait(30);
-    check(box()?.value === '', 'the name adds another: an empty box');
+    check(!box(), 'the name opens the property and changes nothing (12 November 2026)');
+    click(window, doc.querySelector(`.th-ol-pname[data-edit="${many.ident}"]`).nextElementSibling); await wait(30);
+    check(box()?.value === '', 'a press in the value’s area, beside what it holds, adds another: an empty box');
     box().value = 'c three'; enter(window, box()); await wait(80);
     set = calls.filter(c => c[0] === 'setValue' && c[2] === many.ident).at(-1);
     check(JSON.parse(set[3]).length === 3 && JSON.parse(set[3])[2] === 'c three', 'added, not folded into one: ' + set?.[3]);

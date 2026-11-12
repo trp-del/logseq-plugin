@@ -1084,6 +1084,7 @@ const valueBox = (uuid, prop) => inBox(`.th-ol-pname[data-edit="${CSS.escape(pro
 /* The right-click on a row's name opens a short menu under it, the kit's pop-up: Group by…, Open in the map,
    Reads back as…, Hide where it points. One “…” for every item that asks before it acts; every item has its icon (the audit's 25). */
 function onRename(event) {
+  if (twoWay.onNodeMenu?.(event)) return;   // a line inside an opened node: its own menu (dig.js)
   // A node's line: its own menu, from the pieces (pin, compare, …); nothing when none has an item for it.
   const lineEl = !event.target.closest?.('.th-tw-name') && event.target.closest?.('.th-tw-line[data-uuid]');
   if (lineEl) {

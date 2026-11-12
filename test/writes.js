@@ -8,7 +8,7 @@ const ROOT = path.resolve(__dirname, '..');
 // Logseq's calls that change the graph. A new one a module needs is added to the door first, then here.
 const WRITES = ['addBlockTag', 'removeBlockTag', 'upsertBlockProperty', 'removeBlockProperty', 'updateBlock', 'insertBlock', 'insertBatchBlock', 'appendBlockInPage',
   'prependBlockInPage', 'removeBlock', 'moveBlock', 'createPage', 'createJournalPage', 'deletePage', 'renamePage', 'restorePage', 'deleteRecycledPagePermanently',
-  'addTagExtends', 'removeTagExtends', 'addTagProperty', 'removeTagProperty', 'upsertProperty', 'removeProperty', 'createTag', 'setBlockIcon', 'removeBlockIcon'];
+  'addTagExtends', 'removeTagExtends', 'addTagProperty', 'removeTagProperty', 'upsertProperty', 'removeProperty', 'importEdn', 'createTag', 'setBlockIcon', 'removeBlockIcon'];
 const listed = fs.readFileSync(path.join(ROOT, 'files.js'), 'utf8').match(/'[a-z/-]+\.js'/g).map(s => s.slice(1, -1));
 const files = [...new Set(['main.js', 'loader.js', ...listed])].filter(f => f !== 'plugin.js' && fs.existsSync(path.join(ROOT, f)));
 const call = new RegExp(`\\b(?:Editor|api)\\s*\\.\\s*(${WRITES.join('|')}|${WRITES.map(w => w.replace(/[A-Z]/g, c => '_' + c.toLowerCase())).join('|')})\\b`);
@@ -68,6 +68,26 @@ function doorWith(logseq) {
     const d2 = await d.write.guarded([[U(5), 'user.property/provider']], async () => { undone++; }, ask);
     await d2(); assert.equal(undone, 1, 'as the change left it: Undo runs');
   }
+  // A property of the person's own is made by its name and type through Logseq's import, never as a plugin's; a name already a
+  // property's makes nothing; and one made goes again only by its id, while nothing holds it and no tag has it.
+  {
+    const sent = [], deleted = []; let there = false, held = false, onTag = false, named = false;
+    const d = doorWith({ Editor: { importEdn: async body => { sent.push(JSON.parse(body)); there = true; }, deletePage: async key => { deleted.push(key); there = false; } }, DB: {} });
+    const P = { id: 9, ident: ':user.property/ordered-by', uuid: U(9), title: 'Ordered by', ':logseq.property/type': 'node' };
+    const ask = async q => /lower-case/.test(q) ? (named ? [[P]] : []) : /pull \?p/.test(q) ? (there ? [[P]] : []) : /class\/properties/.test(q) ? (onTag ? [[1]] : []) : /\[\?b :user\.property\/ordered-by _\]/.test(q) ? (held ? [[1]] : []) : there ? [[9]] : [];
+    await assert.rejects(() => d.write.makeProperty('  ', 'node', ask), /needs a name/);
+    await assert.rejects(() => d.write.makeProperty('Ordered by', 'page', ask), /no type/);
+    const made = await d.write.makeProperty(' Ordered  by ', 'node', ask);
+    assert.deepEqual(sent, [['^ ', '~:properties', ['^ ', '~:user.property/ordered-by', ['^ ', '~:logseq.property/type', '~:node', '~:block/title', 'Ordered by']]]], 'one of yours, its name as typed');
+    assert.deepEqual([made.ident, made.uuid, made.made], ['user.property/ordered-by', U(9), true]);
+    named = true; assert.equal((await d.write.makeProperty('ordered BY', 'default', ask)).made, false, 'a name a property has makes nothing'); assert.equal(sent.length, 1);
+    await assert.rejects(() => d.write.dropMadeProperty({ ident: 'user.property/ordered-by' }, ask), /by its id/);
+    held = true; assert.equal(await d.write.dropMadeProperty(made, ask), false, 'a node holds it: it stays'); held = false;
+    onTag = true; assert.equal(await d.write.dropMadeProperty(made, ask), false, 'a tag has it: it stays'); onTag = false;
+    assert.equal(deleted.length, 0); assert.equal(await d.write.dropMadeProperty(made, ask), true, 'untouched: it goes'); assert.deepEqual(deleted, [U(9)]);
+    assert.equal(await d.write.dropMadeProperty(made, ask), false, 'gone already: nothing is asked again'); assert.equal(deleted.length, 1);
+  }
+  console.log('  ok  a property is made as one of yours, and goes again only while nothing holds it');
   console.log('  ok  the Undo guards: a made page that is linked to stays, a value changed since stays');
   console.log('writes: all checks passed');
 })().catch(error => { console.error('FAIL  ' + (error.message || error)); process.exit(1); });

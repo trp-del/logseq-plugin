@@ -97,6 +97,9 @@ Door.pageUntouched = async (uuid, ask = dsAsk, { own = true } = {}) => {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 Door.UUID = UUID;
 const pageGone = async (uuid, ask = dsAsk) => !(await ask(`[:find ?p :where [?p :block/uuid #uuid "${uuid}"] (not [?p :logseq.property/deleted-at _])]`) || []).length;
+// Logseq's types for a property, by the words its own list shows them under.
+const PROPERTY_TYPES = ['default', 'number', 'date', 'datetime', 'checkbox', 'url', 'node'];
+Door.PROPERTY_TYPES = [['default', 'Text'], ['number', 'Number'], ['date', 'Date'], ['datetime', 'DateTime'], ['checkbox', 'Checkbox'], ['url', 'URL'], ['node', 'Node']];   // Logseq lists Asset too: a file is no value Threads can give, so it is left to Logseq
 Door.write = {
   addTag: (uuid, tagUuid) => logseq.Editor.addBlockTag(uuid, tagUuid),
   removeTag: (uuid, tagUuid) => logseq.Editor.removeBlockTag(uuid, tagUuid),
@@ -118,6 +121,40 @@ Door.write = {
      graph under it, so taking the link off again shows them as they were (seen in Logseq 2.0.2, 10 November 2026). */
   showPage: (uuid, pageId) => logseq.Editor.upsertBlockProperty(uuid, 'block/link', pageId, { entityId: true }),
   unshowPage: uuid => logseq.Editor.removeBlockProperty(uuid, 'block/link'),
+  /* A property of the person's own, made by its name and Logseq's type for it (12 November 2026, the owner: add a property to a
+     node in Threads, "or create it if it does not exists already"). Logseq's upsertProperty makes a plugin's property, its name
+     run together and kept apart from the person's own, so this goes through Logseq's import, which makes it as Logseq's own
+     "Add property" does: one of yours (user.property), its name as typed. A name that a property already has makes nothing new:
+     that property is answered. Answers { ident, uuid, id, title, type, made }. */
+  async makeProperty(title, type = 'default', ask = dsAsk) {
+    const name = String(title || '').trim().replace(/\s+/g, ' ');
+    if (!name) throw new Error('a property needs a name');
+    if (!PROPERTY_TYPES.includes(type)) throw new Error(`“${type}” is no type a property has`);
+    const read = async where => { const [[p] = []] = await ask(`[:find (pull ?p [:db/id :db/ident :block/uuid :block/title :logseq.property/type]) :where ${where} [?p :block/tags :logseq.class/Property]]`) || []; return p ? { ident: String(p.ident ?? p['db/ident'] ?? '').replace(/^:/, ''), uuid: String(p.uuid ?? p['block/uuid'] ?? ''), id: p.id ?? p['db/id'], title: String(p.title ?? p['block/title'] ?? ''), type: String(p[':logseq.property/type'] ?? p['logseq.property/type'] ?? p.type ?? 'default').replace(/^:/, '') } : null; };
+    const lower = name.toLowerCase().replace(/["\\]/g, '');
+    const same = await read(`[?p :db/ident ?i] [(namespace ?i) ?ns] [(= ?ns "user.property")] [?p :block/title ?t] [(clojure.string/lower-case ?t) ?l] [(= ?l "${lower}")]`);
+    if (same) return { ...same, made: false };
+    const slug = name.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'property';
+    let ident = '';
+    for (let i = 0; i < 20 && !ident; i++) { const tryIdent = `user.property/${/^[a-z]/.test(slug) ? slug : 'p-' + slug}${i ? '-' + (i + 1) : ''}`; if (!(await ask(`[:find ?p :where [?p :db/ident :${tryIdent}]]`) || []).length) ident = tryIdent; }
+    if (!ident) throw new Error('no free id for the property');
+    await logseq.Editor.importEdn(JSON.stringify(['^ ', '~:properties', ['^ ', `~:${ident}`, ['^ ', '~:logseq.property/type', `~:${type}`, '~:block/title', name]]]));
+    let made = null;
+    for (let i = 0; i < 20 && !made; i++) { made = await read(`[?p :db/ident :${ident}]`); if (!made) await new Promise(resolve => setTimeout(resolve, 100)); }
+    if (!made?.uuid) throw new Error('the property was not made');
+    return { ...made, made: true };
+  },
+  /* A property a change made goes again only while nothing holds a value under it and no tag has it: its Undo. By its id, and only
+     the very property that was made (the id still answers to its ident). Answers whether it went. */
+  async dropMadeProperty(made, ask = dsAsk) {
+    const uuid = String(made?.uuid ?? ''), ident = String(made?.ident ?? '').replace(/^:/, '');
+    if (!UUID.test(uuid) || !/^user\.property\/[\w.-]+$/.test(ident)) throw new Error('a property is taken away by its id, and none was given');
+    if (!(await ask(`[:find ?p :where [?p :block/uuid #uuid "${uuid}"] [?p :db/ident :${ident}] [?p :block/tags :logseq.class/Property]]`) || []).length) return false;
+    if ((await ask(`[:find ?b :where [?b :${ident} _]]`) || []).length) return false;
+    if ((await ask(`[:find ?c :where [?p :db/ident :${ident}] [?c :logseq.property.class/properties ?p]]`) || []).length) return false;
+    await logseq.Editor.deletePage(uuid);
+    return !(await ask(`[:find ?p :where [?p :db/ident :${ident}]]`) || []).length;
+  },
   async deletePage(page, ask = dsAsk) {
     const uuid = String(page?.uuid ?? page ?? '');
     if (!UUID.test(uuid)) throw new Error('a page is deleted by its id, and none was given');

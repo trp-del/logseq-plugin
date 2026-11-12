@@ -140,6 +140,7 @@ async function showPeek(link) {
   const data = await peekData(item.uuid, group.name);
   if (!link.isConnected || !link.matches(':hover')) return;
   const doc = link.ownerDocument;
+  if (doc.querySelector('.th-lsq-pop')) return;   // a list is open (a value, a new property's type): no card beside it
   hidePeek();
   // Only what the row does not say (the review, 31 October): its tag and day stand on it, and its name unless the row cut it.
   const fields = data.rows.filter(row => !item.day || row.values.map(v => v.text).join(', ') !== twoWay.dayText(item.day));

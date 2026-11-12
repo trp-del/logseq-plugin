@@ -121,6 +121,7 @@ function graphWide(name, load) {
   promise.catch(() => { if (graphCache.get(name)?.promise === promise) graphCache.delete(name); });
   return promise;
 }
+graphWide.forget = name => graphCache.delete(name);   // a list this plugin itself just changed (a property made) is read fresh at once
 const DB_PAUSE = 800, DB_LONGEST = 2500;
 function scheduleDbWork() {
   const now = Date.now();

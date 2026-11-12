@@ -56,7 +56,7 @@
                                   outside; a menu filling (items: icon, label, kbd, on, run) or a list filling (the
                                   field, then rows(query)); Up, Down and Enter handled here. Returns { el, close,
                                   items, lit, field, query, closed }. popups.closeAll() closes every open one (unload).
-   - pickValue({ at, placeholder, options, clearLabel, free })   Logseq's own value picker, in Logseq's own classes.
+   - pickValue({ at, placeholder, options, clearLabel, free, make })   Logseq's own value picker, in Logseq's own classes.
    - editInPlace({ at, value, type, placeholder, wrap })    a value typed where it sits, as Logseq does for a number.
      wrap: the words wrap as they are written (a bullet's): a box as tall as they are, growing line by line; Shift-Enter breaks a line.
    - ask({ at, question, note, go, cancel, field })   a question beside what it is about: Cancel and the one that
@@ -397,7 +397,8 @@ const CHECK_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14
 const X_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6l-12 12"></path><path d="M6 6l12 12"></path></svg>';
 const FEW = 40;
 // keepOrder: the options stay in the order given, the held one ticked in its place (Logseq's Set Status); iconHtml: a row's icon before its words.
-function pickValue({ at, placeholder = '', options = [], clearLabel = '', free = false, doc, keepOrder = false } = {}) {
+// make(words): the words of a last row offering what was typed when no option is named so ("New property: Ordered by"); taken, it answers { typed }.
+function pickValue({ at, placeholder = '', options = [], clearLabel = '', free = false, doc, keepOrder = false, make = null } = {}) {
   doc = doc || host();
   return new Promise(resolve => {
     let answer = null, finished = false, lit = 0, shown = [], all = false;
@@ -422,12 +423,14 @@ function pickValue({ at, placeholder = '', options = [], clearLabel = '', free =
     const take = value => { answer = value; finish(); };
     const row = (item, i) => {
       const words = item.clear ? [el(doc, 'span', { class: 'ui__icon ti', html: X_SVG }), el(doc, 'span', {}, item.label)] : [...(item.iconHtml ? [el(doc, 'span', { class: 'ui__icon ti th-lsq-icon', html: item.iconHtml })] : []), el(doc, 'div', { class: item.more ? 'th-faint' : null }, item.label)];
+      // A bullet's row says the page it is written on, small above its words, as Logseq's own list does.
+      const line = el(doc, 'div', { class: `${i === lit ? 'chosen ' : ''}flex flex-row justify-between w-full` },
+        el(doc, 'div', { class: 'flex flex-row items-center gap-1' }, ...words),
+        el(doc, 'div', { class: 'tip flex items-center gap-1' }, item.held ? el(doc, 'span', { class: 'ls-icon-check ui__icon ti', html: CHECK_SVG }) : null));
       const link = el(doc, 'a', { class: `${i === lit ? 'chosen ' : ''}flex justify-between menu-link${item.clear ? ' lk-lone' : ''}`, tabindex: '-1',
         mousedown: event => event.preventDefault(), click: event => { event.preventDefault(); choose(item); },
         mousemove: () => { if (lit !== i) light(i); } },
-        el(doc, 'span', { class: 'flex-1' }, el(doc, 'div', { class: `${i === lit ? 'chosen ' : ''}flex flex-row justify-between w-full` },
-          el(doc, 'div', { class: 'flex flex-row items-center gap-1' }, ...words),
-          el(doc, 'div', { class: 'tip flex items-center gap-1' }, item.held ? el(doc, 'span', { class: 'ls-icon-check ui__icon ti', html: CHECK_SVG }) : null))));
+        el(doc, 'span', { class: 'flex-1' }, item.crumb ? el(doc, 'div', { class: 'flex flex-col gap-1' }, el(doc, 'div', { class: 'text-xs opacity-70' }, item.crumb), line) : line));
       return el(doc, 'div', { class: 'menu-link-wrap' }, link);
     };
     function draw() {
@@ -437,15 +440,18 @@ function pickValue({ at, placeholder = '', options = [], clearLabel = '', free =
         : keepOrder ? options : [...options.filter(o => o.held), ...options.filter(o => !o.held)]; // what it holds first, ticked, as Logseq lists it
       // A few, then "show all": a list of thousands costs more to draw than anyone reads, and typing narrows it.
       const few = all || found.length <= FEW ? found : [...found.slice(0, FEW), { label: `show all ${found.length}`, more: true }];
-      shown = [...few, ...(clearLabel && !q ? [{ label: clearLabel, clear: true }] : [])];
+      const offer = make && q && !options.some(o => o.label.toLowerCase() === q) ? make(input.value.trim()) : '';   // '' from make: nothing to offer for these words
+      const fresh = offer ? [{ label: offer, make: true }] : [];
+      // As Logseq's own list places it: second, under the best match, so one ↓ reaches it; alone when nothing matches.
+      shown = [...few.slice(0, 1), ...fresh, ...few.slice(1), ...(clearLabel && !q ? [{ label: clearLabel, clear: true }] : [])];
       lit = Math.min(lit, Math.max(0, shown.length - 1));
       list.replaceChildren(...shown.map(row));
       list.querySelector('.chosen')?.scrollIntoView?.({ block: 'nearest' });
     }
     // The lit row moves by its class: nothing is drawn again under the pointer or the arrows.
-    const mark = (i, on) => { const link = list.children[i]?.querySelector('a'); link?.classList.toggle('chosen', on); link?.firstElementChild?.firstElementChild?.classList.toggle('chosen', on); };
+    const mark = (i, on) => { const link = list.children[i]?.querySelector('a'); link?.classList.toggle('chosen', on); link?.querySelector('.flex-row.justify-between')?.classList.toggle('chosen', on); };
     const light = i => { mark(lit, false); lit = i; mark(lit, true); };
-    const choose = item => { if (item.more) { all = true; input.focus(); draw(); } else take(item.clear ? { clear: true } : item); };
+    const choose = item => { if (item.more) { all = true; input.focus(); draw(); } else take(item.clear ? { clear: true } : item.make ? { typed: input.value.trim() } : item); };
     input.addEventListener('input', () => { lit = 0; all = false; draw(); });
     input.addEventListener('keydown', event => {
       event.stopPropagation();
@@ -454,7 +460,7 @@ function pickValue({ at, placeholder = '', options = [], clearLabel = '', free =
       else if (event.key === 'Enter') {
         event.preventDefault();
         const item = shown[lit], typed = input.value.trim();
-        if (item && (item.more || !typed || !free || item.label.toLowerCase().includes(typed.toLowerCase()))) choose(item);
+        if (item && (item.more || item.make || !typed || !free || item.label.toLowerCase().includes(typed.toLowerCase()))) choose(item);
         else if (free && typed) take({ typed });
       } else if (event.key === 'Escape') { event.preventDefault(); finish(); }
     });
@@ -464,6 +470,44 @@ function pickValue({ at, placeholder = '', options = [], clearLabel = '', free =
     doc.body.append(pop);
     try { pop.showPopover(); } catch (error) { /* shown as a plain box */ }
     input.focus({ preventScroll: true });
+  });
+}
+/* The type of a new property, asked as Logseq asks it (12 November 2026, the owner: "just do it how logseq does it"): one bar under
+   the place, the new name after a bullet, then Logseq's own drop-down, "Select a property type", open, its types one under the
+   other in Logseq's words and order. ↓ and ↑ light one, Enter or a press takes it, a letter goes to the type that starts with it,
+   Escape or a press elsewhere leaves. Logseq's own class names throughout, so its stylesheet draws it. Resolves with the option, or null. */
+const CHEVRON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tabler-icon tabler-icon-chevron-down h-4 w-4"><path d="M6 9l6 6l6 -6"></path></svg>';
+function pickType({ at, name = '', options = [], doc } = {}) {
+  doc = doc || host();
+  return new Promise(resolve => {
+    let answer = null, finished = false, lit = 0;
+    const pop = el(doc, 'div', { class: 'ui__popover-content z-50 rounded-md border bg-popover text-popover-foreground shadow-md outline-none animate-in fade-in-0 zoom-in-95 data-[side=bottom]:slide-in-from-top-2 th-lsq-pop th-lsq-type', role: 'dialog', tabindex: '-1', 'data-side': 'bottom', 'data-state': 'open' });
+    pop.setAttribute('popover', 'auto');
+    const anchor = anchorFor(doc, at);
+    if (anchor) { pop.classList.add('th-anchored'); pop.style.setProperty('position-anchor', anchor.name); }
+    const finish = () => { if (finished) return; finished = true; try { if (pop.matches(':popover-open')) pop.hidePopover(); } catch (error) { /* already hidden */ } pop.remove(); anchor?.cleanup(); resolve(answer); };
+    const rows = options.map((option, i) => el(doc, 'div', { role: 'option', class: 'th-lsq-type-row', 'aria-selected': String(i === lit), mousedown: event => event.preventDefault(), mousemove: () => light(i), click: () => { answer = option; finish(); } }, option.label));
+    const light = i => { if (i === lit) return; rows[lit]?.setAttribute('aria-selected', 'false'); lit = i; rows[lit]?.setAttribute('aria-selected', 'true'); };
+    const trigger = el(doc, 'div', { tabindex: '0', role: 'combobox', 'aria-expanded': 'true', 'aria-haspopup': 'listbox', class: 'ui__select-trigger flex w-full items-center justify-between rounded-md border border-input bg-background text-sm ring-offset-background focus:outline-none !px-2 !py-0 !h-8' },
+      el(doc, 'span', {}, 'Select a property type'), el(doc, 'span', { class: 'ui__select-icon shrink-0 text-muted-foreground', 'aria-hidden': 'true', html: CHEVRON_SVG }));
+    const list = el(doc, 'div', { role: 'listbox', class: 'th-lsq-types rounded-md border bg-popover text-popover-foreground shadow-md' }, ...rows);
+    pop.append(el(doc, 'div', { class: 'ls-property-dialog' }, el(doc, 'div', { class: 'ls-property-input flex flex-1 flex-row items-center flex-wrap gap-1' }, el(doc, 'div', { class: 'ls-property-add gap-1 flex flex-1 flex-row items-center' },
+      el(doc, 'div', { class: 'flex flex-row items-center property-key gap-1' }, el(doc, 'span', { class: 'bullet-container' }, el(doc, 'span', { class: 'bullet' })), el(doc, 'div', {}, name)),
+      el(doc, 'div', { class: 'flex flex-row th-lsq-type-pick' }, el(doc, 'div', { class: 'flex items-center' }, trigger), list)))));
+    trigger.addEventListener('keydown', event => {
+      event.stopPropagation();
+      if (event.isComposing) return;
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); light((lit + (event.key === 'ArrowDown' ? 1 : rows.length - 1)) % rows.length); }
+      else if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); answer = options[lit] || null; finish(); }
+      else if (event.key === 'Escape') { event.preventDefault(); finish(); }
+      else if (event.key.length === 1 && !event.metaKey && !event.ctrlKey && !event.altKey) { const i = options.findIndex(o => o.label.toLowerCase().startsWith(event.key.toLowerCase())); if (i >= 0) { event.preventDefault(); light(i); } }
+    });
+    for (const type of ['keyup', 'keypress']) trigger.addEventListener(type, event => event.stopPropagation());
+    trigger.addEventListener('click', event => { event.preventDefault(); finish(); });   // Logseq's closes its list on a second press; here that leaves
+    pop.addEventListener('toggle', event => { if (event.newState === 'closed') finish(); });
+    doc.body.append(pop);
+    try { pop.showPopover(); } catch (error) { /* shown as a plain box */ }
+    trigger.focus({ preventScroll: true });
   });
 }
 /* A value typed where it sits, as Logseq does for a number on a bullet (copied from Logseq 2.0.2: its input with no
@@ -704,10 +748,23 @@ const kitCss = `/* The kit (parts/shared.js): where the library's pieces stand i
 .th-pop .th-sub-arrow { display: inline-flex; align-items: center; gap: 8px; }
 .th-pop .th-sub-arrow > :is(i, .th-drawn) { opacity: .55; }   /* the value in force beside a parent stays readable; only its arrow is faint */
 .th-pop .th-item.th-sub-open { background: var(--lk-wash, rgba(0,0,0,.05)); }
-.th-lsq-pop { position: fixed; inset: auto; margin: 0; padding: 0; width: 14rem; overflow: visible; }
-.th-lsq-pop .menu-link .flex-row > div:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* As wide as its longest row, between Logseq's own two widths (its property list 226px, its list of nodes 602px); a longer row
+   wraps, as Logseq's does (12 November 2026: at a set 14rem a long name ran out of the box). */
+.th-lsq-pop { position: fixed; inset: auto; margin: 0; padding: 0; width: max-content; min-width: 14rem; max-width: min(602px, calc(100vw - 32px)); overflow: visible; }
+.th-lsq-pop .menu-link .flex-row > div:first-child { min-width: 0; }
 .th-lsq-pop.th-anchored { top: anchor(bottom); left: anchor(left); margin-top: 4px; position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline; }
 .th-lsq-pop .th-lsq-list { max-height: 18rem; overflow-y: auto; }
+/* The type step, by Logseq's own numbers (2.0.2): the bar 344px, the name's room 160px at 15px, the drop-down 178 by 32px; its
+   list hangs from the drop-down's left edge, 118px wide, 4px in, each type 30px high at 14px, the lit one on a 7% wash. */
+.th-lsq-pop.th-lsq-type { width: 344px; min-width: 0; padding: 0; }
+.th-lsq-type .property-key { width: 160px; min-height: 32px; padding: 0 4px; gap: 4px; flex: none; }
+.th-lsq-type .property-key > div { min-width: 0; overflow-wrap: anywhere; }
+.th-lsq-type .th-lsq-type-pick { position: relative; flex: 1; }
+.th-lsq-type .th-lsq-type-pick > .flex { flex: 1; }
+.th-lsq-type .ui__select-trigger { cursor: default; }
+.th-lsq-type .th-lsq-types { position: absolute; top: calc(100% + 4px); left: -28px; width: 118px; padding: 4px; z-index: 1; }
+.th-lsq-type .th-lsq-type-row { padding: 5px 8px 5px 30px; font-size: 14px; line-height: 20px; border-radius: 4px; cursor: default; white-space: nowrap; }
+.th-lsq-type .th-lsq-type-row[aria-selected="true"] { background: color-mix(in srgb, currentColor 7%, transparent); }
 .th-lsq-pop .th-lsq-icon svg { width: 16px; height: 16px; display: block; }
 .th-lsq-pop .th-lsq-icon .ti { font-size: 16px; line-height: 1; }
 /* Clear is the library's lone word, standing on the list's own edge. */
@@ -933,7 +990,7 @@ function ownMarks(doc) {
 
 (window.Threads ||= {}).shared = {
   host, notify, sweepLeftovers, take, screen, openEntity, openPageNamed, settingReader, perf, warnings,
-  kitCss, el, esc, ICONS, icon, iconHtml, kindIconHtml, tag, quiet, go, keepKeys, field, fieldHtml, outline, note, popup, popups, pickValue, editInPlace, ask, card, undo,
+  kitCss, el, esc, ICONS, icon, iconHtml, kindIconHtml, tag, quiet, go, keepKeys, field, fieldHtml, outline, note, popup, popups, pickValue, pickType, editInPlace, ask, card, undo,
   MARK_CLASS, MARK_ATTR, isOwnMark, ownMarks, lifeCounts,
 };
 })();

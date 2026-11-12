@@ -199,6 +199,23 @@ const hasTag = async (pageUuid, tagUuid) => (await dsQuery(`[:find ?t :where [?p
 // The cache keys are the ones Properties in the line used, so nothing else changes.
 const propSchema = () => graphWide('inlinePropsSchema', loadSchema);
 const propPages = () => graphWide('inlinePropsPages', loadPages);
+/* The bullets a node property can point at beside the pages, as Logseq's own list offers them (12 November 2026, the owner: "just do
+   it how logseq does it"): every bullet that carries one of your tags, shaped as a page is (pageOf) with the page it is written on
+   (crumb), which Logseq shows small above its words. Its words as they read, a link by its page's name. */
+async function loadNodeBlocks() {
+  const rows = await dsQuery(`[:find (pull ?b [:db/id :block/uuid :block/title {:block/page [:block/title]} {:block/tags [:db/id :block/title :db/ident]}])
+    :where [?b :block/page ?pg] [?b :block/tags ?t] [?t :db/ident ?i] [(namespace ?i) ?ns] [(= ?ns "user.class")] (not [?pg :logseq.property/deleted-at _])]`);
+  const out = [], names = new Map((await propPages()).map(p => [p.uuid.toLowerCase(), p.title]));
+  for (const [b] of rows) {
+    const raw = String(pick(b, 'block/title') ?? '').trim();
+    if (!raw) continue;
+    const title = raw.replace(/\[\[([0-9a-f-]{36})\]\]/gi, (whole, id) => names.has(id.toLowerCase()) ? `[[${names.get(id.toLowerCase())}]]` : whole);   // a link by its page's name, as Logseq's list writes it; read from the page list, since asking Logseq for each bullet took over a second
+    const tags = (pick(b, 'block/tags') || []).map(t => ({ id: idOf(t), title: String(pick(t, 'block/title') ?? ''), ident: bare(pick(t, 'db/ident')) })).filter(t => t.title);
+    out.push({ id: idOf(b), uuid: String(pick(b, 'block/uuid') ?? ''), title, lower: title.toLowerCase(), tags, isTag: false, crumb: String(pick(pick(b, 'block/page') || {}, 'block/title') ?? '') });
+  }
+  return out.sort((a, b) => a.lower.localeCompare(b.lower));
+}
+const nodeBlocks = () => graphWide('inlineNodeBlocks', loadNodeBlocks);
 // The fields of the block's own tags, own tags first, then what they inherit, without repeats.
 async function fieldsOf(uuid, schema) {
   if (!UUID.test(uuid)) return [];
@@ -873,6 +890,10 @@ const tagChain = async uuid => (await tagChains(uuid))?.own || null;
    another, the page and the graph open now. */
 const setValue = (uuid, ident, value, opts) => window.PluginDoor.write.setValue(uuid, ident, value, opts);
 const unsetValue = (uuid, ident) => window.PluginDoor.write.unsetValue(uuid, ident);
+// A property of the person's own made by its name and type, and taken away again by its Undo while nothing holds it; the list of
+// properties is read fresh after either.
+const makeProperty = async (title, type) => { const made = await window.PluginDoor.write.makeProperty(title, type, query => dsQuery(query)); graphWide.forget?.('inlinePropsSchema'); return made; };
+const dropMadeProperty = async made => { const went = await window.PluginDoor.write.dropMadeProperty(made, query => dsQuery(query)); graphWide.forget?.('inlinePropsSchema'); return went; };
 // A task's status, Logseq's own property, set from Threads' circle by its value's title (Todo, Done …) (9 November 2026).
 const STATUS_IDENT = 'logseq.property/status';
 const addTag = (uuid, tagUuid) => window.PluginDoor.write.addTag(uuid, tagUuid);
@@ -1061,10 +1082,10 @@ async function withKids(uuids) {
 }
 
 function provide(core) {
-  core.provide({ aliasesOf, madeState, pageUnlinked, valueStamp, storedWords, inRecycle, restorePage, setValue, unsetValue, STATUS_IDENT, statusChoices, addTag, removeTag, setWords, editBlock, exitEditing, insertBlock, addLineTo, currentPage, getBlock, currentGraph, tagTitles, getPage, createPage, deletePage, appendBlock, removeBlock, inRecycle, restorePage,
+  core.provide({ aliasesOf, madeState, pageUnlinked, valueStamp, storedWords, inRecycle, restorePage, setValue, unsetValue, makeProperty, dropMadeProperty, STATUS_IDENT, statusChoices, addTag, removeTag, setWords, editBlock, exitEditing, insertBlock, addLineTo, currentPage, getBlock, currentGraph, tagTitles, getPage, createPage, deletePage, appendBlock, removeBlock, inRecycle, restorePage,
     renamePage, moveBlock, pageBlocksTree, EXTENDS, ALIAS, ICON, PARENT_TAGS, addTagExtends, removeTagExtends, openInSidebar, showSidebar,
     titleOf, trailingTags, storedRef, readableTitle, bare, pick, idOf,
-    propSchema, propPages, fieldsOf, fits, kindOfPage, tagChain, tagChains, tagChainIndex, parseDay, dayNumber, sameDay, dayAfter, DAYS,
+    propSchema, propPages, nodeBlocks, fieldsOf, fits, kindOfPage, tagChain, tagChains, tagChainIndex, parseDay, dayNumber, sameDay, dayAfter, DAYS,
     tagGraph, propInfo, ownProps, inheritedProps, tagPropIds, acceptedIds, choicesOf, choiceUse, choiceCounts, choiceNodes, idByUuid,
     descriptionOf, titleNow, valuesOf, userValues, mergeFacts, TAG_PROPS, ACCEPTS, DESCRIPTION,
     linksInto, mentionsInto, duesOn, pageHasList, createdAt, firstTags, nodesOfTag, nodeLines, nodeFields, nodeValues, firstLines, pagesAmong, tagUuidNamed, uuidById,

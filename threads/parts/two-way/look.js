@@ -420,6 +420,8 @@ const twoWayCss = `
 .th-two-way .th-tw-npvalue.th-faint { color: var(--lk-quiet); }
 .th-two-way .th-tw-npvalue:hover, .th-two-way .th-tw-npvalue:focus-visible { text-decoration: underline; text-decoration-color: var(--lk-line); text-underline-offset: 3px; }
 .th-two-way .th-ol-pname[data-edit] { cursor: pointer; }
+.th-two-way .th-ol-kids .th-ol-prop > .th-ol-pv { cursor: text; }   /* the value's area is where a value is changed, as in Logseq */
+.th-two-way .th-ol-kids .th-ol-prop > .th-ol-pv :is(a, button, .th-chev, .lk-bul) { cursor: pointer; }
 .th-two-way .th-ol-pname[data-edit]:hover { color: inherit; }
 .th-two-way .th-tw-findrow { grid-column: 1 / -1; padding: 0; }
 /* The section's own line, the whole of it folding under it, as Logseq's Linked references head does. */
@@ -434,8 +436,7 @@ const twoWayCss = `
 .th-two-way :is(.th-tw-whole-line, .th-tw-linkedline) > .th-ol-body:has(> .th-tw-rule) { flex: 1; display: flex; align-self: stretch; margin-left: 0; }
 .th-two-way .th-tw-linkedline > .th-ol-dot { display: none; }   /* the line starts after its fold arrow, as the page's does */
 .th-two-way .th-tw-whole-line .th-tw-rule { margin-left: 6px; }   /* both lines 6px after their arrow */
-.th-two-way .th-tw-rule.th-tw-rule-named { margin-left: 1px; display: flex; align-items: center; gap: 10px; background: none; }   /* the page's: its word, then the line on to the edge */
-.th-two-way .th-tw-linkedline .th-tw-rule { background-image: linear-gradient(var(--lk-hair), var(--lk-hair)); }   /* inside an opened row: a light hairline, no word (the owner, 12 November 2026) */
+.th-two-way .th-tw-rule.th-tw-rule-named { margin-left: 1px; display: flex; align-items: center; gap: 10px; background: none; }   /* the page's, and an opened node's since the owner's "put Linked----- within threads as well": its word, then the line on to the edge */
 .th-two-way .th-tw-rule-named::after { content: ''; flex: 1; height: 0.5px; background: var(--lk-line); }
 .th-two-way .th-tw-rule-named > span { color: var(--lk-quiet); font-weight: 400; }   /* grey as the group names under it, not the loudest word there (12 November 2026) */
 .th-two-way .th-tw-linkedline > .lk-fold { opacity: .45 !important; }   /* a folded line still says it opens, as the page's does */
@@ -490,6 +491,12 @@ const twoWayCss = `
 .th-two-way .th-ol-kids .th-ol-prop > .th-ol-pv > .th-chev-room:first-child { margin-left: calc(-16px - var(--th-ol-gap)); flex: none; }
 .th-two-way .th-tw-lhead { color: var(--lk-quiet); }
 .th-two-way .th-tw-lhead > .th-tw-lkind { opacity: .6; font-size: 13px; }
+/* A property's icon stands the same way against its own name wherever Threads draws one (the owner, 12 November 2026: "the icon
+   of each should be the same x-axis vis-a-vis the text"): as at a list's head on the page, 3.5px before the first letter and
+   1px under the middle of the line. Inside an opened node the name comes to its icon, which keeps the bullets' column; over the
+   nodes that link to it the icon comes to the name, which keeps the words' column. */
+.th-two-way .th-ol-prop > .th-ol-pname .th-kind { margin-right: -3px; position: relative; top: 1px; }
+.th-two-way .th-tw-lhead > .th-tw-lkind { position: relative; left: 4.5px; top: 3.3px; }
 .th-two-way .th-ol-in > .th-tw-lhead:not(:first-child) { margin-top: 8px; }
 .th-two-way .th-tw-lkids.th-ol-kids { margin-bottom: 2px; }
 .th-two-way .th-tw-lhead.th-tw-linkedline { color: inherit; font-weight: 500; }   /* "Linked" as the page's own Linked line: what is under it points here */
