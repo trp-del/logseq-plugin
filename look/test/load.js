@@ -102,12 +102,13 @@ const { U, load, pencilled } = standIn;
   assert.ok(!note.querySelector('.ti-link'), 'no count of links');
   // the settings window draws from Look's description: a heading per section, the one row for the property icon
   const described = window_described();
-  assert.equal(described.schema.filter(i => i.type === 'heading').length, 9, 'nine sections');
-  assert.ok(described.schema.filter(i => i.type === 'heading').every(i => ['window', 'page', 'sidebar'].includes(i.place)), 'every section of Look is sent to a place');
+  assert.equal(described.schema.filter(i => i.type === 'heading').length, 10, 'ten sections');
+  assert.ok(described.schema.filter(i => i.type === 'heading').every(i => ['window', 'page', 'sidebar', 'keys'].includes(i.place)), 'every section of Look is sent to a place');
   const rowsOf = heading => { const at = described.schema.findIndex(i => i.title === heading); const next = described.schema.findIndex((i, n) => n > at && i.type === 'heading'); return described.schema.slice(at + 1, next < 0 ? undefined : next).map(i => i.key); };
   assert.equal(rowsOf('Notices').join(), 'quietNotices', 'Notices holds how a notice shows');
   assert.equal(rowsOf('Look and feel').join(), 'calmType,readingWidth,calmSidebar,calmToolbar,calmPage,calmTables,calmSearch,calmMenus', 'Look and feel holds a switch per part and the reading width');
   assert.equal(rowsOf('The outline').join(), 'litBranch,focusGlide', 'The outline holds the way to the bullet you edit, and focusing in and out');
+  assert.equal(rowsOf('The key sheet').join(), 'keySheet', 'The key sheet, under Keys, holds its switch');
   assert.equal(rowsOf('Folded nodes').join(), 'foldedNote', 'Folded nodes holds only what a folded node says');
   for (const key of ['propertyIcons', 'propertyNameTips', 'quietAddProperty', 'hideDatePencil', 'hideTwoWayList']) assert.ok(rowsOf('Properties').includes(key), key + ' under Properties');
   assert.ok(!described.schema.some(i => i.key === 'quietEmptyProps'), 'one row for empty properties, Predictive’s');
@@ -159,6 +160,36 @@ const { U, load, pencilled } = standIn;
     const [hash, plainName] = cell.querySelectorAll('span');
     assert.ok(hash.hasAttribute('data-lk-hash') && !plainName.hasAttribute('data-lk-hash'), 'only a name that starts with # is marked');
     assert.ok(styles['look-tags'].includes('span[data-lk-hash]') && styles['look-tags'].includes('clip-path: inset(0 -.2em 0 var(--lk-hash, .6em))'), 'and its # clipped off in place, by its width in the tag\'s face'); }
+  // The key sheet: Option held alone brings it after a moment; another key, a quick Option or Option with Cmd does not.
+  { const { keysHtml, HOLD } = Look.keys, wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+    assert.equal(keysHtml(['⌘⇧↑', '⌘⇧↓']), '<span class="lk-ks-k"><span class="lk-ks-m">⌘</span><span class="lk-ks-m">⇧</span><span class="lk-ks-m">↑</span></span><span class="lk-ks-k"><span class="lk-ks-m">⌘</span><span class="lk-ks-m">⇧</span><span class="lk-ks-m">↓</span></span>', 'each key whole');
+    assert.equal(door.keyMarks('mod+alt+enter') + door.keyMarks('⌘+⇧+k') + door.keyMarks('t p | ⌘+,'), '⌥⌘↩⇧⌘Kt p', 'keys as the Mac\'s marks, two letters as Logseq writes them');
+    const key = (type, k, more = {}) => doc.dispatchEvent(new doc.defaultView.KeyboardEvent(type, { key: k, bubbles: true, ...more }));
+    const sheet = () => doc.getElementById('lk-key-sheet');
+    key('keydown', 'Alt', { altKey: true }); await wait(HOLD + 60);
+    assert.ok(sheet()?.classList.contains('lk-window'), 'Option held: the sheet, a window of the library');
+    assert.ok(/Moving around/.test(sheet().textContent) && /⌘\./.test(sheet().textContent), 'its keys as the Mac\'s marks');
+    key('keydown', 't', { altKey: true }); assert.ok(!sheet(), 'another key puts it away');
+    key('keyup', 'Alt');
+    key('keydown', 'Alt', { altKey: true }); await wait(120); key('keydown', 'e', { altKey: true }); key('keyup', 'Alt'); await wait(HOLD);
+    assert.ok(!sheet(), 'a quick Option-E brings nothing');
+    key('keydown', 'Alt', { altKey: true, metaKey: true }); await wait(HOLD + 60); key('keyup', 'Alt');
+    assert.ok(!sheet(), 'Option with Cmd brings nothing');
+    logseq.settings = { ...(logseq.settings || {}), keySheet: false };
+    key('keydown', 'Alt', { altKey: true }); await wait(HOLD + 60); key('keyup', 'Alt');
+    assert.ok(!sheet(), 'switched off, nothing');
+    logseq.settings = { ...logseq.settings, keySheet: true };
+    key('keydown', 'Alt', { altKey: true }); await wait(HOLD + 60); assert.ok(sheet(), 'on again');
+    // Let go once it shows: it stays, finds as you type, Escape clears then closes.
+    key('keyup', 'Alt'); assert.ok(sheet()?.classList.contains('stays'), 'let go, it stays');
+    const find = sheet().querySelector('.lk-ks-find'); assert.equal(doc.activeElement, find, 'the keyboard in its find line');
+    find.value = 'focus'; find.dispatchEvent(new doc.defaultView.Event('input'));
+    const shown = [...sheet().querySelectorAll('.lk-ks-line:not([hidden])')].map(line => line.textContent);
+    assert.ok(shown.length >= 1 && shown.every(text => /focus/i.test(text)) && sheet().querySelector('.lk-ks-line.lit mark'), 'typing finds, the words lit: ' + shown);
+    key('keydown', 'Escape'); assert.ok(sheet() && !find.value && !sheet().querySelector('.lk-ks-line[hidden]'), 'Escape clears what was typed');
+    key('keydown', 'Escape'); assert.ok(!sheet(), 'then closes');
+    assert.equal(Look.keys.spelled({ code: 'KeyT', key: '†', altKey: true, metaKey: false, ctrlKey: false, shiftKey: false }), 'alt+t', 'a key pressed, as the settings spell it');
+    assert.equal(Look.keys.spelled({ code: 'Semicolon', key: '…', altKey: true, metaKey: false, ctrlKey: false, shiftKey: true }), 'alt+shift+;'); }
   // stop: everything swept
   await logseq._unload();
   assert.equal(doc.querySelectorAll('.lk-own, [data-lk-sort], [data-lk-kind], [data-lk-hash]').length, 0, 'nothing left on the page');

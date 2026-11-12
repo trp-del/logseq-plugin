@@ -159,6 +159,186 @@ Door.answers = name => offeredAsks.has(name);
 Door.ask = async (name, ...args) => { const fn = offeredAsks.get(name); return fn ? fn(...args) : Door.UNANSWERED; };
 // Whether a module is switched on (its switch in the settings). The switches are read as the plugin starts.
 Door.runs = key => logseq.settings?.[key + 'On'] !== false;
+/* The English name of each of Logseq's built-in commands, by its id without the colon: the app hands a plugin its state but
+   not its translation. Taken from Logseq's dictionary (`src/resources/dicts/en.edn`, the `:command.*` entries, 130 on 31
+   October 2026). Find's list of commands and Look's key sheet name commands with it. */
+Door.COMMAND_LABELS = {
+  'auto-complete/complete': 'Auto-complete: Choose selected item',
+  'auto-complete/meta-complete': 'Auto-complete: Cmd + Enter to choose selected item',
+  'auto-complete/next': 'Auto-complete: Select next item',
+  'auto-complete/prev': 'Auto-complete: Select previous item',
+  'auto-complete/shift-complete': 'Auto-complete: Open selected item in sidebar',
+  'command-palette/toggle': 'Search commands',
+  'editor/add-comment': 'Add comment',
+  'editor/add-property': 'Add property',
+  'editor/add-property-deadline': 'Add task deadline to selected block',
+  'editor/add-property-icon': 'Add icon',
+  'editor/add-property-priority': 'Add task priority to selected block',
+  'editor/add-property-status': 'Add task status to selected block',
+  'editor/add-reaction': 'Add reaction',
+  'editor/backspace': 'Backspace / Delete backwards',
+  'editor/backward-kill-word': 'Delete a word backwards',
+  'editor/backward-word': 'Move cursor backward a word',
+  'editor/beginning-of-block': 'Move cursor to the beginning of a block',
+  'editor/bold': 'Bold',
+  'editor/clear-block': 'Delete entire block content',
+  'editor/collapse-block-children': 'Collapse',
+  'editor/copy': 'Copy (copies either selection, or block reference)',
+  'editor/copy-embed': 'Copy a block embed pointing to the current block',
+  'editor/copy-page-url': 'Copy page url',
+  'editor/copy-text': 'Copy selections as text',
+  'editor/cut': 'Cut',
+  'editor/cycle-todo': 'Rotate the TODO state',
+  'editor/delete': 'Delete / Delete forwards',
+  'editor/delete-selection': 'Delete selected blocks',
+  'editor/down': 'Move cursor down / Select down',
+  'editor/end-of-block': 'Move cursor to the end of a block',
+  'editor/escape-editing': 'Escape editing',
+  'editor/expand-block-children': 'Expand',
+  'editor/follow-link': 'Follow link under cursor',
+  'editor/forward-kill-word': 'Delete a word forwards',
+  'editor/forward-word': 'Move cursor forward a word',
+  'editor/highlight': 'Highlight',
+  'editor/indent': 'Indent block',
+  'editor/insert-link': 'HTML Link',
+  'editor/insert-youtube-timestamp': 'Insert youtube timestamp',
+  'editor/italics': 'Italics',
+  'editor/jump': 'Jump to a property key or value',
+  'editor/kill-line-after': 'Delete line after cursor position',
+  'editor/kill-line-before': 'Delete line before cursor position',
+  'editor/left': 'Move cursor left / Open selected block at beginning',
+  'editor/move-block-down': 'Move block down',
+  'editor/move-block-up': 'Move block up',
+  'editor/move-blocks': 'Move blocks to',
+  'editor/new-block': 'Create new block',
+  'editor/new-line': 'New line in current block',
+  'editor/open-edit': 'Edit selected block',
+  'editor/open-link-in-sidebar': 'Open link in sidebar',
+  'editor/open-selected-blocks-in-sidebar': 'Open selected block(s) in sidebar',
+  'editor/outdent': 'Outdent block',
+  'editor/paste-text-in-one-block-at-point': 'Paste text into one block at point',
+  'editor/quick-add': 'Quick add',
+  'editor/redo': 'Redo',
+  'editor/right': 'Move cursor right / Open selected block at end',
+  'editor/select-all-blocks': 'Select all blocks',
+  'editor/select-block-down': 'Select block below',
+  'editor/select-block-up': 'Select block above',
+  'editor/select-down': 'Select content below',
+  'editor/select-parent': 'Select parent block',
+  'editor/select-up': 'Select content above',
+  'editor/set-tags': 'Set tags for selected block(s)',
+  'editor/strike-through': 'Strikethrough',
+  'editor/toggle-block-children': 'Toggle expand/collapse',
+  'editor/toggle-display-hidden-properties': 'Toggle display hidden properties',
+  'editor/toggle-number-list': 'Toggle number list',
+  'editor/toggle-open-blocks': 'Toggle open blocks (collapse or expand all blocks)',
+  'editor/undo': 'Undo',
+  'editor/up': 'Move cursor up / Select up',
+  'editor/zoom-in': 'Zoom in editing block / Forwards otherwise',
+  'editor/zoom-out': 'Zoom out editing block / Backwards otherwise',
+  'go/all-graphs': 'Go to all graphs',
+  'go/all-pages': 'Go to all pages',
+  'go/backward': 'Backwards',
+  'go/electron-find-in-page': 'Find text in page',
+  'go/electron-jump-to-the-next': 'Jump to the next match to your Find bar search',
+  'go/electron-jump-to-the-previous': 'Jump to the previous match to your Find bar search',
+  'go/flashcards': 'Toggle flashcards',
+  'go/forward': 'Forwards',
+  'go/graph-view': 'Go to graph view',
+  'go/home': 'Go to home',
+  'go/journals': 'Go to journals',
+  'go/keyboard-shortcuts': 'Go to keyboard shortcuts',
+  'go/next-journal': 'Go to next journal',
+  'go/prev-journal': 'Go to previous journal',
+  'go/search': 'Search pages and blocks',
+  'go/search-in-page': 'Search blocks in page',
+  'go/search-themes': 'Search themes',
+  'go/tomorrow': 'Go to tomorrow',
+  'graph/add': 'Add a graph',
+  'graph/db-add': 'Add a DB graph',
+  'graph/db-save': 'Save the current db to the disk (~/logseq/graphs/your-current-graph)',
+  'graph/export-as-html': 'Export public graph pages as HTML',
+  'graph/open': 'Select graph to open',
+  'graph/remove': 'Remove a graph',
+  'misc/copy': 'Copy',
+  'misc/export-block-data': 'Export block EDN data',
+  'misc/export-graph-ontology-data': 'Export graph\'s tags and properties EDN data',
+  'misc/export-page-data': 'Export page EDN data',
+  'misc/import-edn-data': 'Import EDN data',
+  'page/toggle-favorite': 'Add to/remove from favorites',
+  'pdf/close': 'PDF: Close current pdf doc',
+  'pdf/find': 'PDF: Search text of current pdf doc',
+  'pdf/next-page': 'PDF: Next page of current pdf doc',
+  'pdf/previous-page': 'PDF: Previous page of current pdf doc',
+  'publish/open-dialog': 'Open publish dialog for current page',
+  'search/re-index': 'Rebuild search index',
+  'shell/run': 'Run git command',
+  'sidebar/clear': 'Clear all in the right sidebar',
+  'sidebar/close-top': 'Closes the top item in the right sidebar',
+  'sidebar/open-today-page': 'Open today\'s page in the right sidebar',
+  'ui/clear-all-notifications': 'Clear all notifications',
+  'ui/customize-appearance': 'Customize appearance',
+  'ui/goto-plugins': 'Go to plugins dashboard',
+  'ui/highlight-recent-blocks': 'Toggle highlight recent blocks',
+  'ui/install-plugin-from-github': 'Install plugin from GitHub release',
+  'ui/install-plugins-from-file': 'Install plugins from plugins.edn',
+  'ui/select-theme-color': 'Select available theme colors',
+  'ui/toggle-brackets': 'Toggle whether to display brackets',
+  'ui/toggle-contents': 'Toggle Contents in sidebar',
+  'ui/toggle-document-mode': 'Toggle document mode',
+  'ui/toggle-help': 'Toggle help',
+  'ui/toggle-left-sidebar': 'Toggle left sidebar',
+  'ui/toggle-right-sidebar': 'Toggle right sidebar',
+  'ui/toggle-settings': 'Toggle settings',
+  'ui/toggle-theme': 'Toggle between dark/light theme',
+  'ui/toggle-wide-mode': 'Toggle wide mode',
+  'window/close': 'Close window'
+};
+/* Logseq's commands as its palette keeps them in the app's state ({ id, shortcut, desc, action }), each shortcut the one in force:
+   the palette's state keeps Logseq's own default, and a key changed in the graph's config (its :shortcuts, where Logseq's
+   keymap and the key sheet write) wins over it, an empty one for none. Read on the app's api on the parent window; [] when
+   it cannot be read. */
+Door.logseqConfigKeys = () => { try { const all = window.parent?.logseq?.api?.get_current_graph_configs?.('shortcuts'); return all && typeof all === 'object' ? all : {}; } catch (error) { return {}; } };
+Door.logseqCommands = () => {
+  let all = [];
+  try { all = window.parent?.logseq?.api?.get_state_from_store?.('command-palette/commands'); } catch (error) { all = []; }
+  if (!Array.isArray(all)) return [];
+  const own = Door.logseqConfigKeys();
+  return all.map(command => {
+    const id = String(command?.id ?? '').replace(/^:/, '');
+    if (!(id in own)) return command;
+    const set = own[id], first = Array.isArray(set) ? set[0] : set;
+    return { ...command, shortcut: typeof first === 'string' ? first : '' };
+  });
+};
+/* A key in plain words, as the grammar tells keys: "Option T", "Cmd Shift K", "Cmd Option Enter", "Shift Tab"; two letters
+   pressed one after the other stay as Logseq writes them, "g j". Takes Logseq's spelling ("⌘+⇧+k", "t s | ⌘+,": the first binding) and a
+   setting's ("mod+alt+enter"). None, or Logseq's "Disabled": ''. */
+const ON_MAC = /Mac/i.test(typeof navigator === 'undefined' ? 'Mac' : navigator.platform || '');
+const KEY_WORDS = { mod: ON_MAC ? 'Cmd' : 'Ctrl', cmd: 'Cmd', meta: 'Cmd', command: 'Cmd', '⌘': 'Cmd',
+  alt: ON_MAC ? 'Option' : 'Alt', opt: 'Option', option: 'Option', '⌥': 'Option', shift: 'Shift', '⇧': 'Shift', ctrl: 'Ctrl', control: 'Ctrl', '⌃': 'Ctrl',
+  enter: 'Enter', return: 'Enter', '↩': 'Enter', tab: 'Tab', escape: 'Escape', esc: 'Escape', backspace: 'Backspace', delete: 'Delete', space: 'Space',
+  up: 'Up', down: 'Down', left: 'Left', right: 'Right', arrowup: 'Up', arrowdown: 'Down', arrowleft: 'Left', arrowright: 'Right', '↑': 'Up', '↓': 'Down', '←': 'Left', '→': 'Right' };
+Door.keyWords = spelling => {
+  if (typeof spelling !== 'string' || !spelling.trim() || /disabled/i.test(spelling)) return '';
+  return spelling.split(' | ')[0].trim().split(/\s+/).map(step => step.length === 1 ? step : step.split('+').filter(Boolean)
+    .map(part => KEY_WORDS[part.toLowerCase()] || (part.length === 1 ? part.toUpperCase() : part.charAt(0).toUpperCase() + part.slice(1))).join(' ')).join(' ');
+};
+/* A key as the Mac's marks, as Look's key sheet writes it (the owner, 12 November 2026: "revert to icons from modifiers"):
+   ⌘⌥T, ⌘⇧↑, ⇧⇥, a letter after a mark in capitals; two letters pressed one after the other stay as Logseq writes them, "t p".
+   Takes the same spellings as Door.keyWords. Everywhere else a key is told in words. */
+const KEY_MARKS = { mod: ON_MAC ? '⌘' : 'Ctrl ', cmd: '⌘', meta: '⌘', command: '⌘', alt: '⌥', opt: '⌥', option: '⌥', shift: '⇧', ctrl: '⌃', control: '⌃',
+  enter: '↩', return: '↩', tab: '⇥', escape: '⎋', esc: '⎋', backspace: '⌫', delete: '⌦', space: 'Space', up: '↑', down: '↓', left: '←', right: '→', arrowup: '↑', arrowdown: '↓', arrowleft: '←', arrowright: '→' };
+const MARK_ORDER = ['⌃', '⌥', '⇧', '⌘'];   // the order a Mac menu writes them in
+Door.keyMarks = spelling => {
+  if (typeof spelling !== 'string' || !spelling.trim() || /disabled/i.test(spelling)) return '';
+  return spelling.split(' | ')[0].trim().split(/\s+/).map(step => {
+    if (step.length === 1) return step;
+    const parts = step.split('+').filter(Boolean).map(part => KEY_MARKS[part.toLowerCase()] || (part.length === 1 ? part.toUpperCase() : part));
+    const key = parts.pop();
+    return parts.sort((a, b) => MARK_ORDER.indexOf(a) - MARK_ORDER.indexOf(b)).join('') + key;
+  }).join(' ');
+};
 /* The day a node shows, from its date properties ([node, day, the property's name]): the one titled Date, whatever its ident, else
    the earliest, as Threads reads it. */
 Door.datedDays = rows => {
