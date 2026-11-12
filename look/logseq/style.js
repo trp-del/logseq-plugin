@@ -116,7 +116,11 @@ ${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill${FILL
 const titleWords = `
 ${AREA} .ls-page-title-actions { visibility: hidden !important; pointer-events: none !important; }`;
 const emptyProps = `
-${AREA} .ls-block > .block-main-container .positioned-properties.block-below .bottom-property-pill:has(.empty-value):not(:focus-within) { opacity: .5; }`;
+${AREA} .ls-block > .block-main-container .positioned-properties.block-below .bottom-property-pill:has(.empty-value):not(:focus-within) { opacity: .5; }
+/* A page property's value and its bullet stand level with its name (12 November 2026, the owner, on a Date: "a little higher than
+   its label"): Logseq draws a value of words, a day or a choice 24px tall at the top of a 28px row, its name centred in it, so
+   both stood 2px high. A value that is a block of its own keeps Logseq's place. */
+${AREA} .property-pair > .property-value-container:not(:has(.ls-block)) > :is(.property-panel-bullet, .property-value) { margin-top: 2px; }`;
 /* Logseq's "+ Add property" under a page's list, a filled bold button, as a faint word. */
 const addProperty = `
 ${AREA} .ls-new-property button { background: none !important; box-shadow: none !important; border: 0 !important; color: var(--lk-quiet) !important; font-weight: 400 !important; padding-left: 0 !important; }
