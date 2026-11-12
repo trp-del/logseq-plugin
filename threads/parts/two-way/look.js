@@ -41,7 +41,7 @@ const twoWayCss = `
 .th-two-way[data-th-waiting] { visibility: hidden; }
 #main-content-container:has(.th-two-way[data-th-waiting]) .ls-page-blocks { visibility: hidden; }
 /* Only holding room while the page settles: no field, no rows. */
-.th-two-way:not(:has(.th-tw-row, .th-tw-beside)) { margin: var(--th-tw-hold, 0px) 0 0; }
+.th-two-way:not(:has(.th-tw-row, .th-tw-beside, .th-tw-whole)) { margin: var(--th-tw-hold, 0px) 0 0; }   /* Linked folded keeps its margin: it lost it and leapt 56 px up (11 November 2026) */
 /* The room held while the page settled eases away, only then: while the page settles the held room shrinks in the same frame Logseq's list grows, and must not lag. */
 .th-two-way[data-th-settling] { transition: margin-top .25s ease; }
 .th-two-way .th-tw-row { display: block; padding: 0; }

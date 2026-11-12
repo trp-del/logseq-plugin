@@ -942,7 +942,22 @@ function onClick(event) {
   const back = event.target.closest?.('[data-step]');
   if (back) { event.preventDefault(); event.stopPropagation(); twoWay.hidePeek(); return twoWay.stepBack(Number(back.dataset.step)); }
   const whole = event.target.closest?.('[data-whole]');
-  if (whole) { event.preventDefault(); event.stopPropagation(); twoWay.hidePeek(); const key = whole.dataset.whole; twoWay.setOpen(key, !twoWay.isOpen(key)); state.html = null; draw(host()); return; }
+  if (whole) {
+    event.preventDefault(); event.stopPropagation(); twoWay.hidePeek();
+    const key = whole.dataset.whole, folding = twoWay.isOpen(key);
+    /* Folded while the page is scrolled down, the page would have to scroll up as far as the section shrinks, and the
+       line under the pointer would leap away from it (the owner, 11 November 2026: the jump when Linked folds). So the
+       room below what is on screen goes, and the rest is kept, as an emptied find line keeps it, until the page
+       changes. Opened again, the room stays under the rows: let go then, the page was short for a moment and leapt
+       to its top. */
+    const box = whole.closest('.th-two-way'), pane = box?.ownerDocument.querySelector('#main-content-container');
+    if (folding && box && pane) {
+      const spare = pane.scrollHeight - pane.clientHeight - pane.scrollTop;
+      state.findKeep = Math.max(0, Math.round(box.getBoundingClientRect().height - spare));
+      box.style.minHeight = state.findKeep ? `${state.findKeep}px` : '';
+    }
+    twoWay.setOpen(key, !folding); state.html = null; draw(host()); return;
+  }
   if (twoWay.onOutlineClick(event)) return;
   const fold = event.target.closest?.('.th-chev[data-fold]');
   if (fold) { event.preventDefault(); event.stopPropagation(); twoWay.hidePeek(); const key = fold.dataset.fold; if (twoWay.isOpen(key)) { const list = fold.closest('.th-tw-row')?.querySelector('.th-tw-list'); shared.outline.close(list, () => { twoWay.setOpen(key, false); draw(host()); }); } else { twoWay.setOpen(key, true); state.fresh = key; state.html = null; draw(host()); state.fresh = ''; } return; }
