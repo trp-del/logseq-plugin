@@ -107,7 +107,7 @@ const { U, load, pencilled } = standIn;
   const rowsOf = heading => { const at = described.schema.findIndex(i => i.title === heading); const next = described.schema.findIndex((i, n) => n > at && i.type === 'heading'); return described.schema.slice(at + 1, next < 0 ? undefined : next).map(i => i.key); };
   assert.equal(rowsOf('Notices').join(), 'quietNotices', 'Notices holds how a notice shows');
   assert.equal(rowsOf('Look and feel').join(), 'calmType,readingWidth,calmSidebar,calmToolbar,calmPage,calmTables,calmSearch,calmMenus', 'Look and feel holds a switch per part and the reading width');
-  assert.equal(rowsOf('The outline').join(), 'litBranch', 'The outline holds the way to the bullet you edit');
+  assert.equal(rowsOf('The outline').join(), 'litBranch,focusGlide', 'The outline holds the way to the bullet you edit, and focusing in and out');
   assert.equal(rowsOf('Folded nodes').join(), 'foldedNote', 'Folded nodes holds only what a folded node says');
   for (const key of ['propertyIcons', 'propertyNameTips', 'quietAddProperty', 'hideDatePencil', 'hideTwoWayList']) assert.ok(rowsOf('Properties').includes(key), key + ' under Properties');
   assert.ok(!described.schema.some(i => i.key === 'quietEmptyProps'), 'one row for empty properties, Predictive’s');
