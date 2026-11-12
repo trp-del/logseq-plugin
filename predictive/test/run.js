@@ -617,6 +617,35 @@ test('not asked: a linked page the rules placed, a note under a record, plain wo
   assert.equal(modelLib.tagRequest(clinic.ctx, bullet({ id: -6, text: 'Ruth Okoro came too, 5 mg', parent }), 20261102), null, 'no tag is asked for a note under a record');
 });
 
+section('A linked page and the property the graph shows it belongs in (core/propose.js, linkEvidence)');
+{
+  const make = (performed, referred) => synthetic.build({
+    tags: ['Procedure Event', 'Doctor'],
+    props: [{ title: 'Referred by', type: 'node', accepts: ['Doctor'], on: ['Procedure Event'] }, { title: 'Performed by', type: 'node', accepts: ['Doctor'], on: ['Procedure Event'] }],
+    people: { Doctor: ['Dr. Mei Chen', 'Dr. Samuel Okafor', 'Dr. Priya Raman'] },
+    lines({ tagPage, peoplePages, prop, add, link, pick }) {
+      for (let i = 0; i < performed; i++) { const d = pick(peoplePages.Doctor); add({ title: `Biopsy number ${i} done by ${link(d)} under sedation`, tags: [tagPage['Procedure Event'].id], values: new Map([[prop('Performed by').ident, [d.id]]]) }); }
+      for (let i = 0; i < referred; i++) { const d = pick(peoplePages.Doctor); add({ title: `Endoscopy number ${i} after ${link(d)} referred me`, tags: [tagPage['Procedure Event'].id], values: new Map([[prop('Referred by').ident, [d.id]]]) }); }
+    },
+    plain() {},
+  });
+  const ask = g => { const d = g.peoplePages.Doctor[0]; const b = bullet({ id: -3, text: `Port insertion with [[${d.uuid}]] this morning`, tags: [g.tagPage['Procedure Event'].id] }); return propose(g.ctx, b).pieces.filter(p => p.kind === 'node').map(p => [p.prop.title, p.shown, !!p.guess]); };
+  test('too little to go on: the first property that takes the page, written at once, as a linked page always was', () => {
+    assert.deepEqual(ask(make(2, 1))[0], ['Referred by', 'Dr. Mei Chen', false]);
+  });
+  test('the graph mostly leaves linked doctors out of the first property: it is left alone, and the next one takes the page', () => {
+    assert.deepEqual(ask(make(12, 1)), [['Performed by', 'Dr. Mei Chen', false]], 'Referred by took 1 linked doctor in 13, Performed by 12 in 13: sure');
+    assert.deepEqual(ask(make(12, 3)), [['Performed by', 'Dr. Mei Chen', true]], 'Performed by took 12 in 15: a guess, not written at once');
+  });
+  test('a bullet already in the graph says nothing about itself', () => {
+    const g = make(4, 0), own = g.ctx.index.entries.find(e => (e.values.get(g.prop('Performed by').ident) || []).length);
+    const classIds = new Set(g.prop('Performed by').classes.map(c => c.id)), lib = require('../core/propose.js');
+    const all = lib.linkEvidence(g.ctx, g.prop('Performed by'), [g.tagPage['Procedure Event'].id], classIds, -1), without = lib.linkEvidence(g.ctx, g.prop('Performed by'), [g.tagPage['Procedure Event'].id], classIds, own.id);
+    assert.equal(all.taken, 4); assert.equal(without.taken, 3);
+    assert.equal(lib.linkTrust({ taken: 9, left: 1 }), 'sure'); assert.equal(lib.linkTrust({ taken: 5, left: 5 }), 'guess'); assert.equal(lib.linkTrust({ taken: 1, left: 5 }), 'leave'); assert.equal(lib.linkTrust({ taken: 0, left: 3 }), 'sure');
+  });
+}
+
 section('Matching by meaning (core/meaning.js, with pretend near notes)');
 {
   const meaningLib = require('../core/meaning.js');

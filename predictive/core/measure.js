@@ -238,7 +238,14 @@ function judgeSeen(ctx, note, pieces) {
     else if (truth.kind === 'number') result = Number(piece.ids[0]) === Number(truth.number) ? 'right' : 'wrong';
     else if (truth.kind === 'date') result = piece.day === truth.day ? 'right' : 'wrong';
     else result = sameSet(piece.ids, truth.ids) ? 'right' : 'wrong';
-    out.push({ title: prop.title, result, sure: !!piece && !piece.guess, source: piece ? lessons.sourceOf(piece) : null });
+    // What kind of miss: part of what you wrote (some of several pages, or one too many), a page you put in another property of
+    // the note (the role was misread), or something else.
+    let miss = null;
+    if ((result === 'wrong' || result === 'spoke') && piece.kind === 'node') {
+      const elsewhere = [...note.truth].some(([ident, t]) => ident !== prop.ident && t.kind === 'ids' && piece.ids.some(id => t.ids.includes(id)));
+      miss = result === 'wrong' && truth.kind === 'ids' && piece.ids.some(id => truth.ids.includes(id)) ? 'part' : elsewhere ? 'elsewhere' : 'other';
+    }
+    out.push({ title: prop.title, result, sure: !!piece && !piece.guess, source: piece ? lessons.sourceOf(piece) : null, miss });
   }
   return out;
 }
@@ -312,8 +319,9 @@ function tally(records) {
     // By meaning (core/meaning.js) and the name finder (core/people.js), where the helper has them: the tag the near notes carry,
     // the open page properties they agree on, and new pages the finder would have offered for a name the note already linked.
     if (rec.seen) {
-      const s = (t.seen ||= { sure: blank(), guess: blank(), silent: 0, empty: 0, bySource: new Map(), byProp: new Map() });
+      const s = (t.seen ||= { sure: blank(), guess: blank(), silent: 0, empty: 0, bySource: new Map(), byProp: new Map(), miss: { wrong: { part: 0, elsewhere: 0, other: 0 }, spoke: { elsewhere: 0, other: 0 } } });
       for (const r of rec.seen) {
+        if (r.miss && s.miss[r.result]) s.miss[r.result][r.miss]++;
         if (r.result === 'quiet' || r.result === 'spoke') s.empty++;
         if (r.result === 'quiet') continue;
         const name = `${rec.tagTitle || ''} · ${r.title}`;
@@ -356,6 +364,8 @@ const seenLines = s => !s ? [] : (() => {
     row('nothing shown', [s.silent]),
     row(`of ${s.empty} you left empty`, ['written', 'pencilled']),
     row('filled anyway', [s.sure.spoke, s.guess.spoke]),
+    `OF THE WRONG PAGES: ${s.miss.wrong.part} held part of what you wrote, ${s.miss.wrong.elsewhere} a page you put in another property of the note, ${s.miss.wrong.other} another page.`,
+    `OF THE EMPTY ONES FILLED WITH A PAGE: ${s.miss.spoke.elsewhere} with a page you put in another property of the note, ${s.miss.spoke.other} with a page you put in none.`,
     row('BY WHAT IT WENT ON', ['right', 'wrong', 'empty filled']),
     ...[...s.bySource].sort((x, y) => (y[1].right + y[1].wrong) - (x[1].right + x[1].wrong)).map(([name, c]) => row(name, [c.right, c.wrong, c.spoke])),
     row('BY PROPERTY (right/wrong)', ['written', 'pencilled', 'nothing', 'empty filled']),

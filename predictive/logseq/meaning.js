@@ -45,7 +45,7 @@ async function teach(ctx) {
     const shares = [], k = ctx.limits?.meaningK || meaning.LIMITS.meaningK;
     for (const e of meaning.sampleOf(ctx)) {
       const r = await post({ graph: ctx.graph || '', text: meaning.textOf(ctx, e.title), k, skip: [e.id] }).catch(() => null);
-      if (r?.near) shares.push(meaning.taggedShare(meaning.nearOf(ctx, r.near)));
+      if (r?.near) shares.push(meaning.taggedShare(meaning.nearOf(ctx, r.near), ctx.limits?.meaningPower));
     }
     const bar = meaning.barFrom(shares);
     if (bar != null && ctx.limits && ctx.limits.meaningTagged == null) ctx.limits.meaningTagged = bar;

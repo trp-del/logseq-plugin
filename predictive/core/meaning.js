@@ -26,12 +26,15 @@ const proposeLib = need('propose');
    it by two or three: Apple's matcher puts two notes of one sentence shape nearer than two that mean the same). With the twelve
    nearest and a lead of .8: the tag right 82, wrong 20, 3 plain notes tagged. So twelve and .8, and the page properties are no
    longer voted by meaning (meaningProps; the harness can still ask for them, --set meaningProps=true).
+   meaningPower: a near note votes with its nearness to this power, the square. Tried on 12 November 2026 for a small graph
+   (some 40 tagged notes over nine tags, as the owner's, where the twelve nearest hold every tag and one seldom leads): the
+   eighth power gave more tags on the harness (24 to 43 of 300) but 12 of them wrong where 1 was, so the square stays, and in
+   a small graph the matcher mostly keeps quiet until there is more to go on.
    meaningTagged is not here: it is learned from each graph (barFrom, below), and absent, plain notes vote as they always did. */
-const LIMITS = Object.freeze({ meaningLeast: .45, meaningLead: .8, meaningGap: .04, meaningK: 12, meaningProps: false });
+const LIMITS = Object.freeze({ meaningLeast: .45, meaningLead: .8, meaningGap: .04, meaningK: 12, meaningProps: false, meaningPower: 2 });
 const limitsOf = ctx => ({ ...LIMITS, ...(ctx.limits || {}) });
 
-/* What the near entries holding ident agree on: each votes for its value with the square of its similarity, as the engine
-   does; the leading value wins when the nearest holder is near enough, the value holds the lead's share, and its nearest holder
+/* What the near entries holding ident agree on: each votes for its value with its similarity to the power meaningPower; the leading value wins when the nearest holder is near enough, the value holds the lead's share, and its nearest holder
    stands clear of the runner-up's. null when they do not agree. */
 const vote = (near, ident, limits) => voteWhy(near, ident, limits).best;
 // The same vote with why it gave nothing (why), for the measure: { best } or { best: null, why }.
@@ -45,7 +48,8 @@ function voteWhy(near, ident, limits) {
   for (const { entry, sim } of holders) {
     const ids = entry.values.get(ident), key = [...ids].sort((a, b) => a - b).join(',');
     const t = tally.get(key) || { ids, sum: 0, sim: 0, n: 0, from: [] };
-    t.sum += sim * sim; t.sim = Math.max(t.sim, sim); t.n++; t.from.push(entry); tally.set(key, t); total += sim * sim;
+    const weight = Math.pow(sim, limits.meaningPower);
+    t.sum += weight; t.sim = Math.max(t.sim, sim); t.n++; t.from.push(entry); tally.set(key, t); total += weight;
   }
   /* The tag, where meaningTagged is set: plain notes ("no tag") do not stand against the tags. The tagged notes must hold at
      least that share of the whole vote, or the line is like plain notes; then one tag must lead among the tagged alone. So a
@@ -67,9 +71,9 @@ function voteWhy(near, ident, limits) {
    vote that tagged notes hold. barFrom(shares): from the shares around a sample of the graph's own tagged notes, seven tenths
    of the usual one (the median), never under .15 nor over .8; null with fewer than 20 notes to go on, and then plain notes
    vote as they always did. */
-function taggedShare(near) {
+function taggedShare(near, power = LIMITS.meaningPower) {
   let tagged = 0, total = 0;
-  for (const { entry, sim } of near || []) { const ids = entry.values?.get('block/tags') || []; if (!ids.length) continue; total += sim * sim; if (!(ids.length === 1 && ids[0] === 0)) tagged += sim * sim; }
+  for (const { entry, sim } of near || []) { const ids = entry.values?.get('block/tags') || []; if (!ids.length) continue; const weight = Math.pow(sim, power); total += weight; if (!(ids.length === 1 && ids[0] === 0)) tagged += weight; }
   return total ? tagged / total : 0;
 }
 const SAMPLE = 80, SAMPLE_LEAST = 20;

@@ -87,6 +87,59 @@ function fewDatedAllSameDay(ev) {
   if (ev.same + ev.other >= DATED_LEAST) return ev.same / (ev.same + ev.other) >= DATED_GUESS_SHARE && !datedWhenWritten(ev);
   return ev.same >= 1 && ev.other === 0;
 }
+/* What this graph shows about a linked page and a property: of the earlier nodes with one of these tags whose words link a
+   page the property takes, in how many the property holds that page (taken) and in how many it does not (left). A doctor
+   linked in a Recommendation may be who recommended it or who you were with; a procedure linked in a note may be only
+   mentioned. Counted by node: one that links two such pages and holds one of them has taken a linked page; one that links
+   such a page and holds another, or holds the linked page in another property, has left it out; one whose property is
+   simply empty says nothing, as it may be a note nobody filled in yet. Measured on the owner's graph on 12 November 2026: of 22 values written from a linked page, 7 were not what
+   had been filled in, and 3 went into properties left empty. So a linked page is written at once only where the graph does
+   not say otherwise: with LINK_LEAST such nodes or more, it is sure when the property took the page in at least 9 of 10,
+   a guess from half, and left alone under half (the page then stays free for another property that takes it). */
+const LINK_LEAST = 4, LINK_SURE = .9, LINK_GUESS = .5;
+function linkEvidence(ctx, prop, tagIds, classIds, skipId) {
+  const index = ctx.index;
+  if (!index?.postings) return { taken: 0, left: 0 };
+  const count = entry => {
+    // By node, not by link: a note that links two doctors and puts one in this property has taken a linked page for it.
+    // Left out only where the node shows it: the property holds another page, or the linked page sits in another of the node's
+    // properties. A property simply left empty says nothing: it may be a note nobody filled in yet.
+    const linked = [];
+    let took = false;
+    const held = entry.values.get(prop.ident) || [];
+    for (const token of entry.tokens) {
+      if (!token.startsWith('link:')) continue;
+      const page = ctx.byId.get(Number(token.slice(5)));
+      if (!page || page.isTag || !fits(page, classIds, ctx.schema)) continue;
+      linked.push(page.id); if (held.includes(page.id)) took = true;
+    }
+    if (!linked.length) return { taken: 0, left: 0 };
+    if (took) return { taken: 1, left: 0 };
+    const elsewhere = () => { for (const [ident, ids] of entry.values) if (ident !== prop.ident && ident !== 'block/tags' && ids.some(id => linked.includes(id))) return true; return false; };
+    return { taken: 0, left: held.length || elsewhere() ? 1 : 0 };
+  };
+  const key = `${prop.ident}|${[...tagIds].sort().join(',')}`, kept = (ctx.linkTaken ||= new Map());
+  if (!kept.has(key)) {
+    const seen = new Set(), sum = { taken: 0, left: 0 };
+    for (const id of tagIds) for (const i of index.postings.get('tag:' + id) || []) {
+      if (seen.has(i)) continue; seen.add(i);
+      const c = count(index.entries[i]); sum.taken += c.taken; sum.left += c.left;
+    }
+    kept.set(key, sum);
+  }
+  const all = kept.get(key);
+  // The bullet itself, when it is already in the graph, says nothing about itself.
+  const own = skipId > 0 ? index.entries.find(e => e.id === skipId && tagIds.some(id => (e.values.get('block/tags') || []).includes(id))) : null;
+  const mine = own ? count(own) : { taken: 0, left: 0 };
+  return { taken: all.taken - mine.taken, left: all.left - mine.left };
+}
+// 'sure', 'guess' or 'leave', from the evidence; with too little of it, sure, as a linked page always was.
+function linkTrust(ev) {
+  const n = ev.taken + ev.left;
+  if (n < LINK_LEAST) return 'sure';
+  const share = ev.taken / n;
+  return share >= LINK_SURE ? 'sure' : share >= LINK_GUESS ? 'guess' : 'leave';
+}
 const mostlyAhead = ev => ev.other >= DATED_LEAST && ev.other > ev.same;
 // A date in the words is the record's own only for a tag whose nodes are dated ahead at least as often as on the day
 // written, or that has none dated yet: a visit's "I can drive in two weeks" is another day.
@@ -198,6 +251,9 @@ function propose(ctx, b, assume = null) {
     if (isLinkProp(prop)) {
       const classIds = new Set(prop.classes.map(c => c.id));
       const fitting = free.filter(p => !used.has(p) && fits(p, classIds, schema));
+      // What the graph's earlier nodes say of a linked page and this property: where they mostly leave it out, so does this.
+      const trust = fitting.length && !filled ? linkTrust(linkEvidence(ctx, prop, recordTags, classIds, b.id)) : 'sure';
+      if (fitting.length && trust === 'leave') continue;
       // A filled property still claims the links it takes: a second doctor named when doctor is filled does not become "with".
       if (fitting.length) {
         for (const p of fitting) used.add(p);
@@ -205,7 +261,7 @@ function propose(ctx, b, assume = null) {
         // "spoke with". Into a wide property, only from the record's own words, and only as a guess.
         const isWide = wide(prop, schema);
         if (!filled && (prop.many ? record === b : fitting.length === 1) && !(isWide && record !== b)) {
-          pieces.push({ ident: prop.ident, prop, kind: 'node', ids: fitting.map(p => p.id), shown: fitting.map(p => p.title).join(', '), ...namesOf(fitting), how: 'linked', ...(isWide ? { guess: true, how: 'linked-wide' } : {}) });
+          pieces.push({ ident: prop.ident, prop, kind: 'node', ids: fitting.map(p => p.id), shown: fitting.map(p => p.title).join(', '), ...namesOf(fitting), how: 'linked', ...(trust === 'guess' ? { guess: true } : {}), ...(isWide ? { guess: true, how: 'linked-wide' } : {}) });
         } else quiet.add(prop.ident);   // two names for one place: quiet, and the names are spoken for
         continue;
       }
@@ -288,9 +344,12 @@ function guessesFor(ctx, { b, text, record, fields, recordTags, links, free, use
       // Names a one-value property of the bullet takes too (two doctors where the bullet also has one doctor) are spoken for
       // by that property, as two linked doctors are, so they do not spill over.
       if (several.length > 1 && fields.some(q => q !== prop && !q.many && isLinkProp(q) && !wide(q, ctx.schema) && open(q) && several.every(p => fits(p, new Set(q.classes.map(c => c.id)), ctx.schema)))) several = [];
+      // A page named in plain words is taken for this property only where the graph's earlier nodes do not mostly leave such
+      // a page out of it (linkEvidence): it then stays free for the next property that takes it.
+      const leftOut = () => linkTrust(linkEvidence(ctx, prop, recordTags, classIds, b.id)) === 'leave';
       const named = several.length > 1 || wide(prop, ctx.schema) ? null : names.namedIn(words, classIds, ctx, spoken);
       if (several.length > 1) said.splice(0, said.length, { ids: several.map(p => p.id), how: 'words' });
-      else if (named) said.push({ ids: [named.id], how: 'words' });
+      else if (named && !leftOut()) said.push({ ids: [named.id], how: 'words' });
     }
     if (isDate) {
       const ev = datedEvidence(ctx, prop, recordTags);
@@ -387,7 +446,7 @@ function tagChoices(ctx, b, { max = 5 } = {}) {
   return out.slice(0, max);
 }
 
-const api = { moneyLearned, enoughForTag, tellingWords, TAG_WORDS_LEAST, meaningOf, dayText, tagChoices, tagScores, mentionedPages, candidateTags, propose, inWords, recordOf, tagFor, looksLike, datedEvidence, datedWhenWritten, fewDatedAllSameDay, mostlyAhead, datedAhead, dayIdFor, valuesOf, freeWords };
+const api = { linkEvidence, linkTrust, moneyLearned, enoughForTag, tellingWords, TAG_WORDS_LEAST, meaningOf, dayText, tagChoices, tagScores, mentionedPages, candidateTags, propose, inWords, recordOf, tagFor, looksLike, datedEvidence, datedWhenWritten, fewDatedAllSameDay, mostlyAhead, datedAhead, dayIdFor, valuesOf, freeWords };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 if (typeof window !== 'undefined') (window.Flow ||= {}).propose = api;
 })();

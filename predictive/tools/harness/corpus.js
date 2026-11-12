@@ -68,9 +68,9 @@ const FRAMES = {
     'Went for my {scan}', 'They did the {scan} at {hosp} with contrast', 'Forty minutes inside the machine for the {scan}', 'Drove to {hosp} for the {scan}',
   ]],
   'Procedure Event': [[
-    '{proc} with {doc} at {hosp}', '{doc} did the {proc}', 'Had the {proc} today, sore after', '{proc} at {hosp}, under sedation', '{doc} performed the {proc} this morning', 'Day case for the {proc}',
+    '{proc} with {doc} at {hosp}', '{doc} did the {proc}', 'Had the {proc} today, sore after', '{proc} at {hosp}, under sedation', '{doc} performed the {proc} this morning', 'Day case for the {proc}', '{ref} sent me for the {proc}; {doc} did it', 'Referred by {ref} for the {proc}, done at {hosp}',
   ], [
-    'Came round after the {proc}; {doc} said it went well', 'In theatre at {hosp} for the {proc}', 'The {proc} is done, {doc} was quick', 'Booked in and had the {proc}',
+    'Came round after the {proc}; {doc} said it went well', 'In theatre at {hosp} for the {proc}', 'The {proc} is done, {doc} was quick', 'Booked in and had the {proc}', 'The {proc} went ahead after {ref} referred me',
   ]],
   'Medication Change': [[
     '{doc} started me on {med}, {dose} mg', '{med} raised to {dose} mg', 'New prescription from {doc}: {med} {dose} mg', '{doc} cut the {med} to {dose} mg', 'Switching to {med} from tonight', 'Dose of {med} now {dose} mg, per {doc}',
@@ -118,6 +118,9 @@ const SPEC = {
     { title: 'Dose', type: 'number', on: ['Treatment Session', 'Medication Change'] },
     { title: 'Scan', type: 'node', accepts: ['Scan Type'], on: ['Imaging Session'] },
     { title: 'Procedure', type: 'node', accepts: ['Procedure'], on: ['Procedure Event'] },
+    // Before Performed by on purpose: two properties of one tag that take the same kind of page, the first filled only now and
+    // then (when the note says who referred), so a linked doctor is usually the second's.
+    { title: 'Referred by', type: 'node', accepts: ['Doctor'], on: ['Procedure Event'] },
     { title: 'Performed by', type: 'node', accepts: ['Doctor'], on: ['Procedure Event'] },
     { title: 'Prescribed by', type: 'node', accepts: ['Doctor'], on: ['Medication Change'] },
     { title: 'Spoke with', type: 'node', many: true, accepts: ['Relative'], on: ['Conversation'] },
@@ -132,7 +135,7 @@ const SLOT_PROP = {
   'Symptom Log': { sym: 'Symptom', sev: 'Severity' },
   'Treatment Session': { med: 'Medication', nurse: 'Given by', hosp: 'Where', dose: 'Dose' },
   'Imaging Session': { scan: 'Scan', hosp: 'Where' },
-  'Procedure Event': { proc: 'Procedure', doc: 'Performed by', hosp: 'Where' },
+  'Procedure Event': { proc: 'Procedure', doc: 'Performed by', hosp: 'Where', ref: 'Referred by' },
   'Medication Change': { med: 'Medication', doc: 'Prescribed by', dose: 'Dose' },
   Conversation: { rel: 'Spoke with' },
   Hospitalization: { hosp: 'Where', sym: 'Reason' },
@@ -158,7 +161,8 @@ function make({ notes = 6000, plain = 1500, held = 600, heldPlain = 150, seed = 
         const sym = rand() < .8 && tag === 'Consultation' ? pick(usual.get(doc)) : pick(P.Symptom);
         const hosp = tag === 'Treatment Session' ? ward.get(nurse) : tag === 'Imaging Session' ? (rand() < .7 ? P.Hospital[3] : P.Hospital[0])
           : tag === 'Hospitalization' ? (rand() < .8 ? P.Hospital[0] : P.Hospital[5]) : rand() < .85 ? home.get(doc) : pick(P.Hospital);
-        return { doc, nurse, med, rel, rel2, sym, hosp, proc: pick(P.Procedure), scan: pick(P['Scan Type']), dose: pick(MEDICATIONS[med.title]), sev: 1 + Math.floor(rand() * 10) };
+        const ref = P.Doctor[(P.Doctor.indexOf(doc) + 1 + Math.floor(rand() * (P.Doctor.length - 1))) % P.Doctor.length];
+        return { doc, ref, nurse, med, rel, rel2, sym, hosp, proc: pick(P.Procedure), scan: pick(P['Scan Type']), dose: pick(MEDICATIONS[med.title]), sev: 1 + Math.floor(rand() * 10) };
       };
       // A page said in the words: a link, its whole name, or a telling part of it.
       const said = (p, kind) => {
@@ -175,7 +179,7 @@ function make({ notes = 6000, plain = 1500, held = 600, heldPlain = 150, seed = 
           const key = slot === 'rel2' ? 'rel' : slot, ident = prop(slots[key]).ident;
           if (slot === 'dose' || slot === 'sev') { how.set(ident, 'number'); return String(s[slot]); }
           if (other) { how.set(ident, 'other'); return pick(SYMPTOMS[s.sym.title][heldOut ? 1 : 0]); }
-          const [words, kind] = said(s[slot], key);
+          const [words, kind] = said(s[slot], key === 'ref' ? 'doc' : key);
           if (!(slot === 'rel2' && how.has(ident))) how.set(ident, slot === 'rel2' ? how.get(ident) || kind : kind);
           return words;
         }) + pick(TAILS);
@@ -184,6 +188,7 @@ function make({ notes = 6000, plain = 1500, held = 600, heldPlain = 150, seed = 
         for (const [slot, title] of Object.entries(slots)) {
           const p = prop(title);
           if (slot === 'dose' || slot === 'sev') { if (how.has(p.ident)) truth.set(p.ident, { kind: 'number', number: s[slot] }); continue; }   // a number only when written
+          if (slot === 'ref' && !how.has(p.ident)) continue;   // who referred only when the note says
           const ids = slot === 'rel' && frame.includes('{rel2}') ? [s.rel.id, s.rel2.id] : [s[slot].id];
           truth.set(p.ident, { kind: 'ids', ids }); values.set(p.ident, ids);
           if (!how.has(p.ident)) how.set(p.ident, 'absent');

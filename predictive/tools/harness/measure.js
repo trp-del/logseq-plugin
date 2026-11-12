@@ -46,7 +46,7 @@ const pct = (n, of) => of ? Math.round(100 * n / of) + '%' : '–';
   // As logseq/meaning.js after teaching: how much of a vote tagged notes must hold, from the graph's own tagged notes.
   if (status.meaning && ctx.limits.meaningTagged == null && !args.includes('--plain-votes')) {   // --plain-votes: as before 12 November 2026
     const shares = [], k = ctx.limits.meaningK || meaning.LIMITS.meaningK;
-    for (const e of meaning.sampleOf(ctx)) shares.push(meaning.taggedShare(meaning.nearOf(ctx, (await post('/meaning', { graph: ctx.graph, text: meaning.textOf(ctx, e.title), k, skip: [e.id] })).near)));
+    for (const e of meaning.sampleOf(ctx)) shares.push(meaning.taggedShare(meaning.nearOf(ctx, (await post('/meaning', { graph: ctx.graph, text: meaning.textOf(ctx, e.title), k, skip: [e.id] })).near), ctx.limits.meaningPower));
     const bar = meaning.barFrom(shares);
     if (bar != null) ctx.limits.meaningTagged = bar;
     process.stderr.write(`tagged notes must hold ${bar} of the vote here\n`);

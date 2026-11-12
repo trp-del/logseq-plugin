@@ -65,7 +65,7 @@ function learnEntry(ctx, id, raw) {
   if (!ctx?.index) return;
   const made = raw && historyEntry(ctx, { ...raw, id });
   engine.updateEntry(ctx.index, made ? made.entry : { id, title: '', tokens: [], values: new Map() });
-  ctx.profile = null;
+  ctx.profile = null; ctx.linkTaken = null;
 }
 
 // The per-tag word profile of the graph's lines: pages (learned as lines too) are not bullets, so they make no class.
