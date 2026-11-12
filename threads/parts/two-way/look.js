@@ -426,6 +426,13 @@ const twoWayCss = `
 .th-two-way .th-tw-findrow { grid-column: 1 / -1; padding: 0; }
 /* The section's own line, the whole of it folding under it, as Logseq's Linked references head does. */
 .th-two-way .th-tw-whole { grid-column: 1 / -1; padding: 0 0 8px; }
+/* Folded, only this line stands: the gap that parts the rows from the page's bullets goes with them, eased as the rows roll up
+   (the owner, 12 November 2026: the gap under a folded Linked). */
+.th-two-way { transition: margin-bottom .14s ease; }
+.th-two-way .th-tw-whole { transition: padding-bottom .14s ease; }
+.th-two-way[data-th-folded] { margin-bottom: 0; }
+.th-two-way[data-th-folded] .th-tw-whole { padding-bottom: 0; }
+@media (prefers-reduced-motion: reduce) { .th-two-way, .th-two-way .th-tw-whole { transition: none; } }
 /* The section's name in the size and weight of Logseq's own heading beside it, Unlinked references (the owner, 10 November 2026,
    the audit's 34; it was 20px semibold from 9 November). */
 .th-two-way .th-tw-whole-name { color: inherit; font-size: 14px; font-weight: 500; line-height: 20px; text-decoration: none; cursor: pointer; }

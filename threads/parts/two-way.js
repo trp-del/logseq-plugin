@@ -797,6 +797,37 @@ function holdRoom(doc, box, mode, page) {
   if (mode === 'save') { settle.saved = true; if (room >= 0) remember(page, room); if (held) easeHold(box); else setHold(box, 0); return; }
   setHold(box, heights.has(page) ? Math.max(0, Math.round(heights.get(page) - room)) : 0);
 }
+/* The room a folded Linked leaves behind on a page scrolled down, kept at the foot of the page so the page need not
+   scroll up: no more than the page needs to stay where it is, less as the page is scrolled up, none on another page.
+   Kept as the least height of Logseq's own frame around the page (.page-inner, a grid: its rows stay at its top), since
+   room added to the scrolling pane itself is swallowed by the slack of a short page (measured, 12 November 2026). */
+const foldRoom = {
+  frame: null, pane: null,
+  // Before the section shrinks: the frame keeps the height it has, so the page cannot move while the section rolls up.
+  keep(box, pane) {
+    const frame = box?.closest('.page-inner');
+    if (!frame || !pane) return;
+    if (this.frame && this.frame !== frame) this.clear();
+    this.frame = frame; this.pane = pane;
+    frame.style.minHeight = `${Math.ceil(frame.getBoundingClientRect().height)}px`; frame.style.alignContent = 'start';
+    if (!this.heard) { this.heard = () => this.trim(); pane.addEventListener('scroll', this.heard, { passive: true }); base.onStop?.(() => { this.clear(); pane.removeEventListener('scroll', this.heard); this.heard = null; }); }
+  },
+  // Once it has: only what holds the page where it is scrolled to. Never more than the page is scrolled: a page that fits its window needs none.
+  trim() {
+    const { frame, pane } = this;
+    if (!frame) return;
+    if (!frame.isConnected) { this.frame = null; return; }
+    // What can be scrolled further down is room not needed; it goes. Read again after: a frame taller than the least height
+    // left to it holds the page by its own words, and keeps nothing.
+    const spare = pane.scrollHeight - pane.clientHeight - pane.scrollTop, least = parseFloat(frame.style.minHeight) || 0;
+    if (pane.scrollTop <= 0) return this.clear();
+    if (spare < 1) return;
+    const next = Math.ceil(least - spare);
+    frame.style.minHeight = `${Math.max(0, next)}px`;
+    if (next <= 0 || frame.getBoundingClientRect().height > next + 1) this.clear();
+  },
+  clear() { if (this.frame) { this.frame.style.minHeight = ''; this.frame.style.alignContent = ''; } this.frame = null; },
+};
 const setHold = (box, px) => { if (px) box.style.setProperty('--th-tw-hold', px + 'px'); else box.style.removeProperty('--th-tw-hold'); };
 function easeHold(box) {
   box.setAttribute('data-th-settling', '');
@@ -833,7 +864,7 @@ function readOpen2() {
 }
 function onRoute() {
   for (const [k, mine] of state.findDug) if (mine) twoWay.closeQuietly(k);
-  state.findDug.clear(); state.findAsked.clear(); state.findKeep = 0; state.findHold = 0;
+  state.findDug.clear(); state.findAsked.clear(); state.findKeep = 0; state.findHold = 0; foldRoom.clear(); state.wholeTurning = false;
   if (state.box) state.box.style.minHeight = '';
   keepOpen();
   state.find = ''; state.findRead = ''; state.findShown = false;
@@ -933,6 +964,8 @@ function draw(doc) {
   box.toggleAttribute('data-th-replaces', rows && !!state.replaces);
   // The section stands for the page, stepped into a node or not: Logseq's lists it repeats stay hidden.
   box.toggleAttribute('data-th-rows', !!rows);
+  // Folded to its one line, the section gives up its own gap below: Logseq's space before the page's bullets is enough.
+  box.toggleAttribute('data-th-folded', !!rows && stepped == null && (!wholeOpen || state.wholeTurning === 'fold'));
   twoWay.pinNow();
   if (anchor.nextElementSibling !== box) anchor.after(box);
   holdRoom(doc, box, mode, page);
@@ -966,16 +999,27 @@ function onClick(event) {
     const key = whole.dataset.whole, folding = twoWay.isOpen(key);
     /* Folded while the page is scrolled down, the page would have to scroll up as far as the section shrinks, and the
        line under the pointer would leap away from it (the owner, 11 November 2026: the jump when Linked folds). So the
-       room below what is on screen goes, and the rest is kept, as an emptied find line keeps it, until the page
-       changes. Opened again, the room stays under the rows: let go then, the page was short for a moment and leapt
-       to its top. */
+       room the page needs to stay where it is read is kept, at the foot of the page (foldRoom): kept inside the section
+       it stood as an empty gap between "Linked" and the page's bullets, the open section's whole height on a page that
+       fits its window (the owner, 12 November 2026). What folds rolls up and what opens unrolls, the plugin's one
+       motion, so the bullets below glide instead of leaping. */
     const box = whole.closest('.th-two-way'), pane = box?.ownerDocument.querySelector('#main-content-container');
-    if (folding && box && pane) {
-      const spare = pane.scrollHeight - pane.clientHeight - pane.scrollTop;
-      state.findKeep = Math.max(0, Math.round(box.getBoundingClientRect().height - spare));
-      box.style.minHeight = state.findKeep ? `${state.findKeep}px` : '';
+    const under = b => [...b?.children || []].filter(el => !el.matches('.th-tw-pin, .th-tw-whole'));
+    if (state.wholeTurning) return;
+    // Letters in the find line hold the section open: nothing on screen turns, only what it will be once they go.
+    if (state.find.trim()) { twoWay.setOpen(key, !folding); state.html = null; draw(host()); return; }
+    const still = () => { foldRoom.trim(); state.wholeTurning = false; };
+    state.wholeTurning = folding ? 'fold' : 'open';
+    if (folding) {
+      box.setAttribute('data-th-folded', '');
+      foldRoom.keep(box, pane);
+      window.PluginDoor.rollUp(under(box)).then(() => { twoWay.setOpen(key, false); state.html = null; draw(host()); still(); });
+    } else {
+      twoWay.setOpen(key, true); state.html = null; draw(host());
+      const fresh = under(state.box); window.PluginDoor.unroll(fresh);
+      Promise.all(fresh.flatMap(el => el.getAnimations?.() || []).map(a => a.finished.catch(() => {}))).then(still);
     }
-    twoWay.setOpen(key, !folding); state.html = null; draw(host()); return;
+    return;
   }
   if (twoWay.onOutlineClick(event)) return;
   const fold = event.target.closest?.('.th-chev[data-fold]');

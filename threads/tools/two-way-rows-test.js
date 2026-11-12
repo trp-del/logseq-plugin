@@ -290,6 +290,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     // The whole section folds under its line (8 November 2026), kept for the page, and opens again.
     click(window, doc.querySelector('.th-tw-whole-name')); await wait(40);
     check(!doc.querySelector('.th-two-way .th-tw-row') && doc.querySelector('.th-tw-whole .th-chev')?.getAttribute('aria-expanded') === 'false', 'folded, only the section\'s line stands');
+    check(!doc.querySelector('.th-two-way').style.minHeight, 'folded, the section keeps none of the height it had: it stood as a gap above the page\'s bullets (12 November 2026)');
     click(window, doc.querySelector('.th-tw-whole .th-chev')); await wait(40);
     check(!!doc.querySelector('.th-two-way .th-tw-row') && doc.querySelector('.th-tw-whole .th-chev')?.getAttribute('aria-expanded') === 'true', 'its arrow opens it again');
     check(doc.querySelectorAll('.th-tw-line .th-chev[data-dig]').length === 5, 'every line should have its chevron, right before its name');
