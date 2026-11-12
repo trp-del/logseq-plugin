@@ -19,6 +19,7 @@ run . node test/watcher.js
 run . node test/screen.js
 run . node test/dates.js
 run . node test/helpers.js
+run . node test/keys.js
 run . node test/one-look.js
 run . node test/tidy.js
 run look node test/load.js

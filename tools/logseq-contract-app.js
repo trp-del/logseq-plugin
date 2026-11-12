@@ -5,20 +5,24 @@
      - every database name on the list is in Logseq's own schema: an entity of the open graph (a property, a class), else a name
        in the running app's database worker (a built-in such as :block/link, there whether or not a bullet of this graph uses it);
      - every Logseq class name on the list is drawn somewhere on a round of Logseq's own screens: a person's page, a tag's page,
-       a journal day, All pages, the right sidebar. A class drawn only inside a menu or a dialog cannot be seen without opening
+       a journal day, a bullet focused into, All pages, the right sidebar. A class drawn only inside a menu or a dialog cannot be seen without opening
        one; those are said as not seen, for a person to look at, and do not fail.
    It goes back to the page it found at the end and leaves the right sidebar as it was. Nothing is typed and nothing is written.
    After a Logseq update: run this, look at the plugin in Logseq, then node test/logseq-contract.js --accept. */
 const path = require('node:path');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const TEST_GRAPHS = (process.env.TEST_GRAPHS || 'Seed Check,Illness Test Graph,Stress Check').split(',').map(s => s.trim());
-const list = require(path.join(__dirname, '../test/logseq-contract.json'));
+// The accepted list, or a list not accepted yet: node test/logseq-contract.js --print <file>, then this with <file>.
+const list = require(process.argv[2] ? path.resolve(process.argv[2]) : path.join(__dirname, '../test/logseq-contract.json'));
+const styled = list.styled || [], inside = list.inside || [];
 // Classes Logseq draws only in a menu, a dialog or a notice: not reachable on the round without pressing things.
 const ONLY_ON_DEMAND = new Set(['absolute-modal', 'cp__select', 'cp__select-main', 'select-item', 'menu-link', 'menu-link-wrap', 'ui__dialog-overlay',
   'ui__dropdown-menu-item', 'ui__dropdown-menu-sub-trigger', 'ui__popover-content', 'ui__toast-close', 'cp__plugins-item-card', 'cp__right-sidebar-settings',
   'extensions__pdf-viewer', 'pdfViewer', 'jtrigger', 'escape', 'embed-block', 'custom-query', 'ls-table', 'ls-table-header', 'ls-table-header-cell', 'ls-view-head',
   'ls-block-properties',     // a block's properties drawn as rows, not pills: only where a page shows them so
-  'ls-sidebar-page-properties']);   // a page opened in the right sidebar; since the sidebar became tabs (0.3.60) it may hold none
+  'ls-sidebar-page-properties',
+  'hl-page', 'prefix-link',   // a quote taken from a PDF: only on a page that holds one
+  'selected']);   // a bullet selected: only after a press   // a page opened in the right sidebar; since the sidebar became tabs (0.3.60) it may hold none
 let chromium; try { ({ chromium } = require('playwright')); } catch (error) { console.log('skipped: needs Playwright (set NODE_PATH)'); process.exit(2); }
 
 (async () => {
@@ -52,20 +56,37 @@ let chromium; try { ({ chromium } = require('playwright')); } catch (error) { co
 
   const start = page.url(), sidebarWas = await page.evaluate(() => !!document.querySelector('#right-sidebar.open, .cp__right-sidebar.open'));
   const seen = new Set();
-  const look = async () => { const found = await page.evaluate(classes => classes.filter(c => document.querySelector('.' + CSS.escape(c))), list.classes); found.forEach(c => seen.add(c)); };
+  const look = async () => { const found = await page.evaluate(classes => classes.filter(c => document.querySelector('.' + CSS.escape(c))), [...list.classes, ...styled]); found.forEach(c => seen.add(c)); };
   const go = async (route, args) => { await page.evaluate(([r, a]) => window.logseq.api.push_state(r, a), [route, args]); await sleep(1800); await look(); };
   await look();
   const journal = await page.evaluate(async () => (await window.logseq.api.datascript_query('[:find ?n :where [?p :block/journal-day ?d] [?p :block/name ?n] [(> ?d 20261001)]]'))?.[0]?.[0]);
   const tag = await page.evaluate(async () => (await window.logseq.api.datascript_query('[:find ?n :where [?t :block/tags :logseq.class/Tag] [?t :db/ident ?i] [(namespace ?i) ?ns] [(= ?ns "user.class")] [?t :block/name ?n]]'))?.[0]?.[0]);
   if (tag) await go('page', { name: tag });
   if (journal) await go('page', { name: journal });
+  // A bullet focused into: the line of steps above it (.breadcrumb--block-page), which Look's glide reads.
+  const inner = await page.evaluate(async () => ((await window.logseq.api.datascript_query('[:find ?u :where [?b :block/parent ?p] [?p :block/parent ?g] [?g :block/page _] [?b :block/uuid ?u]]')) || []).slice(0, 8).map(row => String(row[0])));
+  // Not every bullet can be opened (one on a page in the Recycle cannot): the first that shows its line of steps.
+  for (const uuid of inner) { await page.evaluate(u => { window.location.hash = '#/page/' + u; }, uuid); await sleep(1500); await look(); if (seen.has('breadcrumb--block-page')) break; }
   await go('all-pages');
   await page.evaluate(() => window.logseq.api.set_right_sidebar_visible?.(true)); await sleep(800); await look();
   await page.evaluate(was => window.logseq.api.set_right_sidebar_visible?.(was), sidebarWas);
   await page.goto(start).catch(() => {}); await sleep(1500);
 
   for (const c of list.classes) if (!seen.has(c)) (ONLY_ON_DEMAND.has(c) ? notSeen : problems).push(c);
-  console.log(`${list.api.length} plugin calls, ${list.attributes.length} database names, ${seen.size} of ${list.classes.length} class names seen drawn`);
+  // A class only a stylesheet names (Look's calm theme restyles menus, dialogs, notices, the search window): seen where the round
+  // draws it, said as not seen otherwise, never a failure, since most stand only in what opens on a press.
+  const styledUnseen = styled.filter(c => !seen.has(c));
+  // What the plugin reaches for inside Logseq's own window: its api by name, the Electron bridge, the parts of its state and config.
+  const reach = await page.evaluate(names => names.map(item => { const kind = item.slice(0, item.indexOf('.')), name = item.slice(item.indexOf('.') + 1);
+    try {
+      if (kind === 'api') return typeof window.logseq.api[name] === 'function';
+      if (kind === 'apis') return typeof window.apis?.[name] === 'function';
+      if (name === 'shortcuts') { const v = window.logseq.api.get_current_graph_configs(name); return v == null || typeof v === 'object'; }
+      const v = window.logseq.api.get_state_from_store(name); return v != null;
+    } catch (error) { return false; } }), inside);
+  inside.forEach((item, i) => { if (!reach[i]) problems.push(`${item} does not answer inside this Logseq's own window`); });
+  console.log(`${list.api.length} plugin calls, ${list.attributes.length} database names, ${list.classes.filter(c => seen.has(c)).length} of ${list.classes.length} class names seen drawn; ${styled.length - styledUnseen.length} of ${styled.length} that only a stylesheet names; ${reach.filter(Boolean).length} of ${inside.length} reaches inside Logseq's window answer`);
+  if (styledUnseen.length) console.log('restyled but not drawn on the round (a menu, a dialog, a notice, the search window; look at them by hand): ' + styledUnseen.map(c => '.' + c).join(' '));
   if (notSeen.length) console.log('not seen on the round (drawn only in a menu or dialog; look at them by hand): ' + notSeen.map(c => '.' + c).join(' '));
   const missing = problems.filter(p => !p.includes(' '));
   for (const p of problems) console.log('PROBLEM: ' + (p.includes(' ') ? p : `Logseq's class .${p} was not drawn on any screen of the round`));

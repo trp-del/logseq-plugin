@@ -47,7 +47,8 @@ const own = (module, name) => Door.runs(module) ? key(Door.keyMarks(plugin(name)
 /* The lines, in the order a person meets them. Each gives its words and its keys (several for a pair such as indent and
    outdent); a line with no key left, and none that can be set, is not drawn. */
 function groups() {
-  const find = Door.runs('find'), takes = find && plugin('takesSearchKey') !== false;
+  // Find's keys and the glide's are no settings: each part tells the door the keys it listens for, and the sheet reads them there.
+  const find = Door.runs('find'), finds = find ? Door.keys.told('find') : {}, glide = Door.keys.told('look.focus');
   const link = Door.runs('predictive') && plugin('linkSuggest') !== false && plugin('linkSuggestRightArrow') !== false;
   const fixed = mark => key(mark);
   return [
@@ -68,13 +69,13 @@ function groups() {
       ['Select the bullet above, below', [logseqKey('editor/select-block-up'), logseqKey('editor/select-block-down')]],
     ]],
     ['Finding', [
-      ['Find', [fixed(find ? (takes ? '⌘K' : '⇧⌘K') : '')]],
-      ['Find by sentence', [fixed(find ? '⌥⌘K' : '')]],
-      ['Logseq’s search', [find ? fixed(takes ? '⇧⌘K' : '⌘K') : logseqKey('go/search')]],
-      ['Logseq’s commands', [find ? fixed('⇧⌘.') : logseqKey('command-palette/toggle')]],
+      ['Find', [fixed(Door.keyMarks(finds.find))]],
+      ['Find by sentence', [fixed(Door.keyMarks(finds.sentence))]],
+      ['Logseq’s search', [find ? fixed(Door.keyMarks(finds.logseqSearch)) : logseqKey('go/search')]],
+      ['Logseq’s commands', [find ? fixed(Door.keyMarks(finds.commands)) : logseqKey('command-palette/toggle')]],
     ]],
     ['Moving around', [
-      ['Focus into the bullet, out', setting('focusGlide') ? [fixed('⌘.'), fixed('⌘,')] : []],
+      ['Focus into the bullet, out', setting('focusGlide') ? [fixed(Door.keyMarks(glide.in)), fixed(Door.keyMarks(glide.out))] : []],
       ['Back, forward', [logseqKey('go/backward'), logseqKey('go/forward')]],
     ]],
     ['Two letters, outside a bullet', twoLetters()],
@@ -96,7 +97,7 @@ const bodyHtml = () => groups().map(([head, lines]) => `<section class="lk-ks-gr
    where it stands. The find line is the library's field (lk-field) across the top. */
 const CSS = `
 .lk-window.lk-ks { position: fixed; left: 50%; top: 50%; z-index: 9999; pointer-events: none; box-sizing: border-box; width: 94vw; max-width: 1500px; max-height: 92vh; font-size: 16px;
-  display: flex; flex-direction: column; opacity: 0; transform: translate(-50%, -50%) scale(.985); transition: opacity .14s ease, transform .14s ease; }
+  display: flex; flex-direction: column; opacity: 0; transform: translate(-50%, -50%) scale(.985); transition: opacity .12s ease, transform .12s ease; }
 .lk-ks.on { opacity: 1; transform: translate(-50%, -50%); }
 .lk-ks.stays { pointer-events: auto; }
 .lk-ks .lk-ks-find { margin: 22px 36px 0; flex: none; }
@@ -129,7 +130,7 @@ function hide() {
   const box = sheet();
   if (!box) return;
   box.removeAttribute('id'); box.classList.remove('on', 'stays');
-  box.ownerDocument.defaultView.setTimeout(() => box.remove(), 160);
+  box.ownerDocument.defaultView.setTimeout(() => box.remove(), 140);
 }
 // One of the plugin's windows or Logseq's is open: it has its own keys, and the sheet would stand behind it.
 const windowOpen = doc => !!doc.querySelector('dialog[open], [role="dialog"]:not(.lk-ks)');
@@ -187,12 +188,13 @@ function onPress(event) {
   box.querySelector('.lk-ks-find').focus({ preventScroll: true });
 }
 // The box waits for the keys: "type the keys", its edge firmer. A second letter is waited for after a plain one (Logseq's "t y").
-let first = '', firstTimer = 0;
+let first = '', firstTimer = 0, held = '';   // held: what the box showed before it waited for keys
 function startSetting(box, target) {
   if (setting_) endSetting();
   setting_ = target; first = '';
   light(box, target.closest('.lk-ks-line'));
   target.classList.add('lk-ks-setting');
+  held = target.innerHTML;
   target.textContent = 'type the keys';
 }
 // What the box holds now, read again: as it was after Escape, as asked after a key.
@@ -206,27 +208,23 @@ function endSetting(spelling) {
   target.innerHTML = markHtml(mark);
   target.classList.toggle('lk-ks-none', !mark);
 }
-// The keys pressed, as the settings spell them ("mod+alt+t"): a letter or digit by its place, as Option changes what it types.
-const CODES = { Semicolon: ';', Comma: ',', Period: '.', Slash: '/', Backslash: '\\', BracketLeft: '[', BracketRight: ']', Quote: "'", Backquote: '`', Minus: '-', Equal: '=', Space: 'space' };
-const keyName = event => { const code = event.code || ''; return /^Key[A-Z]$/.test(code) ? code.slice(3).toLowerCase() : /^Digit\d$/.test(code) ? code.slice(5) : CODES[code] || String(event.key || '').toLowerCase(); };
-function spelled(event) {
-  const mac = /Mac/i.test(host().defaultView.navigator.platform || '');
-  return [mac && event.metaKey ? 'mod' : '', !mac && event.ctrlKey ? 'mod' : '', mac && event.ctrlKey ? 'ctrl' : '', event.altKey ? 'alt' : '', event.shiftKey ? 'shift' : '', keyName(event)].filter(Boolean).join('+');
-}
-// The same keys as Logseq's config spells them ("meta+shift+p", "alt+up"), its arrows by name.
-const ARROWS = { arrowup: 'up', arrowdown: 'down', arrowleft: 'left', arrowright: 'right' };
-const logseqSpelled = event => [event.ctrlKey ? 'ctrl' : '', event.altKey ? 'alt' : '', event.shiftKey ? 'shift' : '', event.metaKey ? 'meta' : '', ARROWS[keyName(event)] || keyName(event)].filter(Boolean).join('+');
-/* Logseq's key for a command, written into the graph's config (its :shortcuts), every other key there kept: Logseq takes it
-   at once. None is an empty list, as Logseq's keymap writes it. */
+// The keys pressed, as the settings spell them ("mod+alt+t") and as Logseq's config does ("meta+shift+p"): the door's, one way
+// for the whole plugin.
+const { name: keyName, pressed: spelled, logseq: logseqSpelled } = Door.keys;
+/* Logseq's key for a command, written into the graph's config (its :shortcuts) by the door, every other key there kept: Logseq
+   takes it at once. None is an empty list, as Logseq's keymap writes it. Where Logseq's keys could not be read nothing is
+   written, since Logseq would replace them all with this one, and the sheet says so. */
 function saveLogseq(id, spelling) {
-  const keys = { ...Door.logseqConfigKeys(), [id]: spelling ? [spelling] : [] };
-  // Made in Logseq's own window: Logseq reads only an object of its window, and one from the plugin's frame is passed over.
-  window.parent.logseq.api.set_current_graph_configs(window.parent.JSON.parse(JSON.stringify({ shortcuts: keys })));
+  if (Door.setLogseqKey(id, spelling)) return true;
+  Door.notify('Logseq’s keys could not be read, so this key was not changed.', 'warning');
+  return false;
 }
 function save(target, plugin_, logseq_) {
   if (target.dataset.set) { logseq.updateSettings({ [target.dataset.set]: plugin_ }); return endSetting(plugin_); }
-  saveLogseq(target.dataset.cmd, logseq_);
-  endSetting(logseq_);
+  if (saveLogseq(target.dataset.cmd, logseq_)) return endSetting(logseq_);
+  // Not saved: Logseq's keys could not be read, so the box shows what it showed before, not a key read again from nothing.
+  const was = held; endSetting();
+  target.innerHTML = was; target.classList.toggle('lk-ks-none', target.textContent === 'none');
 }
 function setKey(event) {
   const target = setting_;

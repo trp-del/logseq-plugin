@@ -74,6 +74,8 @@ const OWN = [
   // A shadow that is not a frame: the printed sheet on the desk, a wash ring under the keyboard, Logseq's own notices, sidebar and search window restyled by Look, a specimen in the settings window.
   [/box-shadow:\s*0 [^;}]*/, /xp-desk iframe|\.pv-page|0 0 0 3px var\(--lk-wash\)|look\/logseq\/(notices|sidebar|settings|calm)\.js/, 'a shadow of its own'],
   [/::backdrop/, /^$/, 'a backdrop of its own'],
+  // A link's faint line, the ↗ after a web address and a tag's name are the door's (Door.LOOKS, 12 November 2026): written out again, they drift.
+  [/text-decoration-color:\s*var\(--lk-link\)|content:\s*"\\+2197"|font-family:\s*var\(--lk-tag-face\)/, /^$/, 'a link’s line, a web address’s arrow or a tag’s name written again (PluginDoor.LOOKS)'],
   [/@keyframes|\banimation:/, /^$/, 'a motion of its own'],
   [/appearance:\s*none[^}]*\}/, /^$/, 'a tick box or control drawn again'],
   // A text size off the scale (6 November 2026, measured in Logseq): the body is the place's own (16 px on a page, 14 px in a window,
@@ -90,6 +92,18 @@ for (const file of FILES) {
     if (line.trimStart().startsWith('//') || line.trimStart().startsWith('*') || line.trimStart().startsWith('/*')) return;
     for (const [what, allowed, says] of OWN) { const m = line.match(what); if (m && !allowed.test(rel + ' ' + line)) own.push(`${rel}:${i + 1} ${says}: ${line.trim().slice(0, 100)}`); }
   });
+}
+/* A motion made by script (element.animate) is a motion all the same, and the rules above read only stylesheets (12 November 2026,
+   the library review: the focus glide came in unseen). What opens rolls by the door's one motion (Door.unroll, rollUp, regrow); a
+   module that moves something itself is named here with how many and why. One more, anywhere, fails; so does one fewer. */
+const SCRIPTED = {
+  'look/logseq/focus.js': 3,             // the glide into a bullet and out (the owner's pick, 11 November 2026): a move across the view, the old view fading, the new fading in
+  'predictive/logseq/propose-ui.js': 2,  // a pencilled value cross-fades where it stands when the guess changes
+  'structure/logseq/view.js': 2,         // the top bar of waiting changes slides open and shut
+};
+for (const file of FILES) {
+  const rel = path.relative(ROOT, file), n = (fs.readFileSync(file, 'utf8').match(/\.animate\(/g) || []).length;
+  if (n !== (SCRIPTED[rel] || 0)) own.push(`${rel}: ${n} motions made by script where ${SCRIPTED[rel] || 0} are named in test/library.js (use the door's roll, or name it with its reason)`);
 }
 if (own.length) { console.error('A look drawn by a module that the library draws whole:\n  ' + own.join('\n  ')); process.exit(1); }
 console.log(`library: ${KINDS.length} kinds drawn, every button in ${FILES.length} files draws from them; no module draws a frame, a tick box, a colour or a motion of its own`);

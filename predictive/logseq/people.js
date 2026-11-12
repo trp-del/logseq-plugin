@@ -5,17 +5,17 @@
 const Flow = (window.Flow ||= {});
 const { app, people } = Flow;
 
-const { HELPER } = window.PluginDoor, LOOK_AGAIN = 30000, MOST_TITLES = 30, KEEP = 60;
+const { helper } = window.PluginDoor, LOOK_AGAIN = 30000, MOST_TITLES = 30, KEEP = 60;
 const S = { ready: null, at: 0, checking: null, kinds: null, answers: new Map() };
 
 async function ready() {
   if (!app.setting('proposalsModel')) return false;
   if (S.ready !== null && Date.now() - S.at < LOOK_AGAIN) return S.ready;
-  S.checking ||= fetch(HELPER + '/status', { signal: AbortSignal.timeout(800) }).then(r => r.json()).then(r => !!r.names, () => false)
+  S.checking ||= helper.status().then(r => !!r.names, () => false)
     .then(ok => { S.ready = ok; S.at = Date.now(); S.checking = null; return ok; });
   return S.checking;
 }
-const post = (texts, giveUp = 4000) => fetch(HELPER + '/names', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ texts }), signal: AbortSignal.timeout(giveUp) }).then(r => r.json()).then(r => r?.names || null);
+const post = (texts, giveUp = 4000) => helper.post('/names', { texts }, { wait: giveUp }).then(r => r?.names || null);
 
 // The kind of each tag of yours, from its pages' titles: Map(tagId -> { kind, lead }); found once per reading of the graph.
 async function kinds(ctx) {

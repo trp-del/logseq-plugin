@@ -1110,12 +1110,12 @@ async function hideMentionsHere() {
 /* The cloud model's name for a row (Predictive's helper, /reads-back, version 6): the property seen from the page it points to.
    Only the property's name and tags' names are sent. [] when the helper or the cloud model is not there, or "Read my words with
    Apple's tools" is off; kept for each property until the plugin reloads, asked again after a miss. */
-const { HELPER } = window.PluginDoor || {};
+const { helper } = window.PluginDoor || {};
 const readsBackKept = new Map();
 // No fetch (a test's stand-in window) or the setting off: never asked.
-const canAsk = () => appleOn() && typeof fetch === 'function' && typeof AbortSignal?.timeout === 'function';
+const canAsk = () => appleOn() && !!helper?.can();
 // Whether the helper answers, knows /reads-back from the cloud (version 6) and the cloud model is there for this Mac.
-const cloudReady = async () => canAsk() && !!await fetch(HELPER + '/status', { signal: AbortSignal.timeout(800) }).then(r => r.json()).then(status => status?.cloud && (status.version || 0) >= 6, () => false);
+const cloudReady = async () => canAsk() && !!await helper.status().then(status => status?.cloud && (status.version || 0) >= 6, () => false);
 function readsBackOffers(group) {
   if (!canAsk()) return Promise.resolve([]);
   const key = group.name.toLowerCase();
@@ -1126,7 +1126,7 @@ function readsBackOffers(group) {
       const prop = schema?.props.find(p => p.title.toLowerCase() === key);
       const from = [...new Set(group.items.map(item => item.tag).filter(tag => tag && tag !== 'note'))].slice(0, 6);
       const to = (prop?.classes || []).map(c => c.title).filter(Boolean).slice(0, 6);
-      const reply = await fetch(HELPER + '/reads-back', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ property: group.name, from, to }), signal: AbortSignal.timeout(20000) }).then(r => r.json()).catch(() => null);
+      const reply = await helper.post('/reads-back', { property: group.name, from, to }, { wait: 20000 }).catch(() => null);
       return Array.isArray(reply?.names) ? reply.names.filter(name => typeof name === 'string' && name.trim()).slice(0, 3) : [];
     })().catch(() => []);
     readsBackKept.set(key, asking);

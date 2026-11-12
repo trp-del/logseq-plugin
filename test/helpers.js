@@ -15,6 +15,7 @@ const RULES = [
   [/typeof \w+ === 'number' \? \w+ : pick\(/, 'a node’s number read by a copy of idOf (use PluginDoor.idOf)'],
   [/Number\.isSafeInteger\(id\) && id > 0;/, 'isEntityId written again (use PluginDoor.isEntityId)'],
   [/127\.0\.0\.1:47615/, 'the Apple helper’s address written again (use PluginDoor.HELPER)'],
+  [/\bHELPER\s*\+|fetch\([^)]*\/(?:status|fill|meaning|names|reads-back)\b/, 'the Apple helper asked by lines of a file’s own (use PluginDoor.helper.status and .post)'],
 ];
 for (const [pattern, what] of RULES) { const found = strays(pattern, { only: pure }); if (found.length) fail(what, found); }
 console.log(`  ok  no file of ${files.length} keeps a copy of the shared helpers`);
@@ -36,6 +37,12 @@ const same = (got, want, why) => assert.equal(JSON.stringify(got), JSON.stringif
   assert.equal(D.uuidsIn('?u', ['6a000000-0000-4000-8000-000000000001', '"] [?e :block/title ?t] ;', '6a000000-0000-4000-8000-000000000001']), '[(identity [#uuid "6a000000-0000-4000-8000-000000000001"]) [?u ...]]');
   assert.match(D.HELPER, /^http:\/\/127\.0\.0\.1:\d+$/, 'the helper answers on this Mac only');
   console.log('  ok  each helper reads what it should, and a list in a query lets in only numbers and ids');
+  // The one way to ask Apple's helper: its address, the question as JSON (words already made go as they are), a wait that ends.
+  { const sent = []; const H = doorWith({}, null, { fetch: async (url, o) => { sent.push([url, o.method || 'GET', o.body, !!o.signal]); return { json: async () => ({ ready: true }) }; }, AbortSignal }).helper;
+    assert.equal(H.can(), true); assert.equal(doorWith({}).helper.can(), false, 'a window with no fetch cannot ask');
+    same(await H.status(), { ready: true }); same(await H.post('/names', { texts: ['a'] }), { ready: true }); await H.post('/fill', '{"a":1}', { wait: 50, signal: new AbortController().signal });
+    same(sent, [['http://127.0.0.1:47615/status', 'GET', undefined, true], ['http://127.0.0.1:47615/names', 'POST', '{"texts":["a"]}', true], ['http://127.0.0.1:47615/fill', 'POST', '{"a":1}', true]]);
+    console.log('  ok  the helper is asked one way'); }
   // A web address in words: bare or as Markdown, a sentence's full stop left outside, and drawn as lk-url with its address.
   same(D.webParts('see https://nih.gov/a. and [the trial](https://ct.gov/x?y=1) done'), [{ text: 'see ' }, { text: 'https://nih.gov/a', url: 'https://nih.gov/a' }, { text: '. and ' }, { text: 'the trial', url: 'https://ct.gov/x?y=1' }, { text: ' done' }], 'web addresses cut out of the words');
   same(D.webParts('no address'), [{ text: 'no address' }]); same(D.webParts(''), [{ text: '' }]);

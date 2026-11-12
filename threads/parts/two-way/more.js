@@ -417,14 +417,14 @@ async function joinList(uuid, group) {
 /* Ask this page (N13): a question after a "?" in the find line finds the page's nodes nearest to it in meaning, by Apple's
    sentence matcher in Predictive's helper on this Mac (nothing leaves it); the lists narrow to them, nearest first. Apple's
    model that writes an answer in words is not on every Mac (this one says "device not eligible"), so the answer is the nodes. */
-const { HELPER } = window.PluginDoor;   // where Predictive's helper answers (plugin.js)
+const { helper } = window.PluginDoor;   // the one way to ask Predictive's helper (plugin.js)
 state.ask = { q: '', page: '', hits: null, asking: false };
 const askOf = () => { const t = String(state.find || '').trim(); return t.startsWith('?') ? t.slice(1).trim() : ''; };
 async function askPage(q) {
   const items = [...new Map(state.groups.flatMap(g => g.items).map(item => [item.uuid, item])).values()];
   const ids = new Map(items.map((item, i) => [i + 1, item.uuid]));
   const graph = `threads:${state.pageUuid}`;
-  const post = body => fetch(HELPER + '/meaning', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(6000) }).then(r => r.json());
+  const post = body => helper.post('/meaning', body, { wait: 6000 });
   if (state.ask.page !== state.pageUuid) { await post({ graph, learn: items.map((item, i) => ({ id: i + 1, text: item.title })) }); state.ask.page = state.pageUuid; }
   const answer = await post({ graph, text: q, k: 8 });
   const near = (answer.near || []).filter(n => n.sim >= .3);

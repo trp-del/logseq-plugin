@@ -45,7 +45,7 @@ const CSS = `
 .fd-part { position: relative; }
 .fd-note { position: absolute; left: 0; top: -14px; line-height: 1; white-space: nowrap; }
 .fd-stop, .fd-when { color: var(--lk-quiet); }
-.fd-who { text-decoration: underline; text-decoration-color: var(--lk-link); text-decoration-thickness: var(--lk-link-width, .5px); text-underline-offset: 3px; }
+.fd-who { ${window.PluginDoor.LOOKS.link(false)} }
 /* The year line, under the sentence: the months, the nodes found as dots on their days, the time asked for as a band, the near ones
    hollow. Opened (Up from the choices, or a click), it grows in place to its full height: each day a column, its nodes piled; or a
    lane a value of the first choice line. The dot under the pointer or the cursor is named beside it, in the window's own type. */
@@ -162,7 +162,7 @@ const whoPick = () => S.picks.find(p => p.kind === 'who');
 const whenPick = () => S.picks.find(p => p.kind === 'when');
 // Nothing asked yet: no stretch read, no letters that narrow.
 const atRest = () => !isCommandMode() && !S.picks.length && !S.words.length;
-const isMac = /Mac/i.test(navigator.platform || '');
+const isMac = window.PluginDoor.keys.mac;
 const MOD = isMac ? 'Cmd' : 'Ctrl';
 const hasWord = (text, ws) => { const t = text.toLowerCase(); return ws.every(w => t.includes(w)); };
 

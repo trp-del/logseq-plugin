@@ -14,6 +14,8 @@ const { host, style, listen, onStop, watchScreen, el } = Look.kit, { setting } =
 const TIME = 280, EASE = 'cubic-bezier(.2,.7,.2,1)';
 const MOST = 600;   // a view with more blocks than this is not copied for the fade: only the bullet glides
 const ROW = ':scope > .block-main-container';
+// The glide's keys, Logseq's own for focusing in and out, kept once: the listener matches them and the key sheet reads them at the door.
+const Keys = window.PluginDoor.keys, KEYS = { in: 'mod+.', out: 'mod+,' };
 
 const css = `
 .breadcrumb--block-page > .lk-out { margin-left: 4px; }
@@ -162,13 +164,15 @@ function start() {
   watchScreen(arrow, arrow);
   // Cmd-. on the bullet that came back selected focuses into it again, as Cmd-. does on the bullet you write in; so in and out
   // go back and forth by keys alone. Logseq's own Cmd-. is left alone everywhere else.
-  // Cmd-, outside the editor in a focused bullet steps out one level, as the arrow does, where Logseq's own does nothing there.
+  // Cmd-, outside the editor in a focused bullet steps out one level, as the arrow does. Logseq alone opens its settings on that
+  // key there (tried 12 November 2026); the owner was shown both and the glide keeps the key, settings staying on t s and in the menu.
+  onStop(Keys.tell('look.focus', () => KEYS));
   listen(w, 'keydown', event => {
-    if (!setting('focusGlide') || !(event.metaKey || event.ctrlKey) || event.shiftKey || event.altKey || writing()) return;
-    if (event.key === '.' && landed && host().querySelector(`#main-content-container .ls-block.selected[blockid="${landed}"]`)) {
+    if (!setting('focusGlide') || writing()) return;
+    if (Keys.matches(event, KEYS.in) && landed && host().querySelector(`#main-content-container .ls-block.selected[blockid="${landed}"]`)) {
       event.preventDefault(); event.stopImmediatePropagation();
       logseq.App.pushState('page', { name: landed });
-    } else if (event.key === ',' && !landed && main(host())?.querySelector('.breadcrumb--block-page') && !host().querySelector('#main-content-container .ls-block.selected')) {
+    } else if (Keys.matches(event, KEYS.out) && !landed && main(host())?.querySelector('.breadcrumb--block-page') && !host().querySelector('#main-content-container .ls-block.selected')) {
       event.preventDefault(); event.stopImmediatePropagation();
       stepOut(host());
     }

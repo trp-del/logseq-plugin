@@ -4,26 +4,27 @@
 (function () {
 const Look = window.Look;
 const { style } = Look.kit, { setting } = Look.settings;
+const { link, out, tag } = window.PluginDoor.LOOKS;   // a link's line, the ↗ after a web address, a tag's name: the door's, written once
 const AREA = ':is(#main-content-container, #right-sidebar)';
 const DAY = ':is([data-uuid^="00000001-"], .ls-datetime *)'; // Logseq 2.0.2 gives every journal page a uuid starting 00000001-
 
 const links = `
-${AREA} a.page-ref:not(.tag):not(${DAY}) { color: inherit !important; text-decoration: underline !important; text-decoration-color: var(--lk-link) !important; text-decoration-thickness: var(--lk-link-width) !important; text-underline-offset: .2em; }
+${AREA} a.page-ref:not(.tag):not(${DAY}) { color: inherit !important; ${link()} }
 ${AREA} a.page-ref:not(.tag):not(${DAY}):hover { text-decoration-color: currentColor !important; }
 ${AREA} a.page-ref a.asset-ref { color: inherit !important; }
 /* A file in the graph (a PDF, a document) is a link like any other: the words' colour, underlined, not Logseq's slate. */
-${AREA} a.asset-ref:not(a.page-ref *) { color: inherit !important; text-decoration: underline !important; text-decoration-color: var(--lk-link) !important; text-decoration-thickness: var(--lk-link-width) !important; text-underline-offset: .2em; }
+${AREA} a.asset-ref:not(a.page-ref *) { color: inherit !important; ${link()} }
 ${AREA} a.asset-ref:not(a.page-ref *):hover { text-decoration-color: currentColor !important; }
 /* A PDF says so after its name, small and grey as the other things after a bullet's words, beside Logseq's book icon before it
    (the owner, 11 November 2026: "in addition to book"). Inline-block, so the link's underline stops at the name. */
 ${AREA} a.asset-ref.is-pdf:not(a.page-ref *)::after { content: "PDF"; display: inline-block; margin-left: .5em; font-size: var(--lk-small); color: var(--lk-quiet); text-decoration: none; }
 /* A web address is a link like the others, the words' colour with the faint line under it, and a ↗ after it in the quiet
    grey says it leaves Logseq (the owner, 11 November 2026: first before it, then "put it at end of link"). Inline-block, so the underline stops at the words. */
-${AREA} a.external-link { color: inherit !important; border-bottom: none !important; text-decoration: underline !important; text-decoration-color: var(--lk-link) !important; text-decoration-thickness: var(--lk-link-width) !important; text-underline-offset: .2em; }
+${AREA} a.external-link { color: inherit !important; border-bottom: none !important; ${link()} }
 ${AREA} a.external-link:hover { text-decoration-color: currentColor !important; }
-${AREA} a.external-link::after { content: "\\2197"; display: inline-block; margin-left: .2em; color: var(--lk-quiet); text-decoration: none; }
+${AREA} a.external-link::after { ${out} }
 /* A bullet that is a page, or shows one: its words read as a link. A press opens the page (Predictive's page-here.js). */
-${AREA} :is(.embed-block:not(.embed-block .embed-block) > .block-main-container, .block-main-container:not(.is-page-title-row):has(> .block-control-wrap :is(.ls-icon-file, .ls-icon-page))) .block-title-wrap { text-decoration: underline; text-decoration-color: var(--lk-link); text-decoration-thickness: var(--lk-link-width); text-underline-offset: 3px; cursor: pointer; }
+${AREA} :is(.embed-block:not(.embed-block .embed-block) > .block-main-container, .block-main-container:not(.is-page-title-row):has(> .block-control-wrap :is(.ls-icon-file, .ls-icon-page))) .block-title-wrap { ${link(false)} cursor: pointer; }
 ${AREA} :is(.embed-block:not(.embed-block .embed-block) > .block-main-container, .block-main-container:not(.is-page-title-row):has(> .block-control-wrap :is(.ls-icon-file, .ls-icon-page))) .block-title-wrap:hover { text-decoration-color: currentColor; }
 /* Under the pointer Logseq paints a link's box in its accent colour at strength; here the faint wash of a row under the
    pointer, the same for every link. Its colour alone, so the sort's mark, drawn as the link's background image, stays. */
@@ -42,7 +43,7 @@ ${AREA} ${VALUE} a.page-ref${DAY}:hover, ${AREA} ${VALUE} .ls-datetime a:hover {
 const tags = `
 ${AREA} .block-tag :is(a.hash-symbol, a[title="Remove this tag"]) { display: inline-flex !important; align-items: center; justify-content: center; width: 1.1em; margin: 0 !important; padding: 0 !important; }
 ${AREA} .block-tag a.hash-symbol { visibility: hidden; }
-${AREA} a.tag:not(mark *) { color: var(--lk-quiet) !important; opacity: 1; font-family: var(--lk-tag-face); font-style: normal; font-size: inherit; font-size-adjust: var(--lk-tag-adjust); text-decoration: none !important; }
+${AREA} a.tag:not(mark *) { ${tag(false)} opacity: 1; }
 ${AREA} .block-tag:hover { background: var(--lk-wash) !important; }
 ${AREA} a.tag:not(mark *):hover { color: var(--lk-text, currentColor) !important; }
 /* In a pane under 600px Logseq stacks a bullet's tag under its words, however short they are. It stays beside them while they keep 20em, or half

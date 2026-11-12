@@ -103,7 +103,7 @@ const css = `
 .lk-cite-n { font-size: .68em; line-height: 0; vertical-align: .55em; padding: 0 1px; margin-left: 0; border-radius: 3px; color: var(--lk-quiet); font-variant-numeric: tabular-nums; cursor: pointer; }
 .lk-cite-n:hover { background: var(--lk-wash); color: var(--lk-text, currentColor); }
 .lk-cite-card { position: fixed; z-index: 40; max-width: 320px; padding: 8px 10px; pointer-events: none; }   /* the library's pop-up (lk-pop) */
-.lk-cite-source { text-decoration: underline; text-decoration-color: var(--lk-link); text-decoration-thickness: var(--lk-link-width); text-underline-offset: 3px; }
+.lk-cite-source { ${window.PluginDoor.LOOKS.link(false)} }
 .lk-cite-how { color: var(--lk-quiet); font-size: var(--lk-small); margin-top: 2px; }`;
 
 function start() {

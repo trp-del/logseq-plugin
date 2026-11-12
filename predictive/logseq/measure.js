@@ -11,18 +11,18 @@
 const Flow = (window.Flow ||= {});
 const { app, db, measure } = Flow;
 
-const { HELPER } = window.PluginDoor, GIVE_UP = 20000, NOTES = 60, BEFORE = 2;
+const { helper } = window.PluginDoor, GIVE_UP = 20000, NOTES = 60, BEFORE = 2;
 const { esc, host } = window.PluginDoor;
 const S = { dlg: null, stop: null, report: '' };
 
 async function helperStatus() {
-  try { return await fetch(HELPER + '/status', { signal: AbortSignal.timeout(1500) }).then(r => r.json()); }
+  try { return await helper.status(1500); }
   catch (error) { return null; }
 }
 async function ask(fill, signal) {
   const t0 = performance.now();
   try {
-    const reply = await fetch(HELPER + '/fill', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(fill), signal: AbortSignal.any([signal, AbortSignal.timeout(GIVE_UP)]) }).then(r => r.json());
+    const reply = await helper.post('/fill', fill, { wait: GIVE_UP, signal });
     return { reply: reply.error ? null : reply, ms: performance.now() - t0, error: reply.error };
   } catch (error) { return { reply: null, ms: null, error: String(error?.name || error) }; }
 }

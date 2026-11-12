@@ -164,6 +164,12 @@ const { U, load, pencilled } = standIn;
   { const { keysHtml, HOLD } = Look.keys, wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     assert.equal(keysHtml(['⌘⇧↑', '⌘⇧↓']), '<span class="lk-ks-k"><span class="lk-ks-m">⌘</span><span class="lk-ks-m">⇧</span><span class="lk-ks-m">↑</span></span><span class="lk-ks-k"><span class="lk-ks-m">⌘</span><span class="lk-ks-m">⇧</span><span class="lk-ks-m">↓</span></span>', 'each key whole');
     assert.equal(door.keyMarks('mod+alt+enter') + door.keyMarks('⌘+⇧+k') + door.keyMarks('t p | ⌘+,'), '⌥⌘↩⇧⌘Kt p', 'keys as the Mac\'s marks, two letters as Logseq writes them');
+    // Find's keys and the glide's are read at the door, where each part tells them: none written into the sheet from memory.
+    { const lineOf = words => Look.keys.groups().flatMap(([, lines]) => lines).find(([w]) => w === words)?.[1].map(k => k.mark).join(' ');
+      assert.equal(lineOf('Find'), undefined, 'Find tells no keys: no line');
+      const off = door.keys.tell('find', () => ({ find: 'mod+shift+k', logseqSearch: 'mod+k', sentence: 'mod+alt+k', commands: 'mod+shift+.' }));
+      assert.equal([lineOf('Find'), lineOf('Find by sentence'), lineOf('Logseq’s search'), lineOf('Logseq’s commands')].join(' | '), '⇧⌘K | ⌥⌘K | ⌘K | ⇧⌘.', 'the keys Find told');
+      off(); assert.equal(lineOf('Focus into the bullet, out'), '⌘. ⌘,', 'the glide\'s own, told by the glide'); }
     const key = (type, k, more = {}) => doc.dispatchEvent(new doc.defaultView.KeyboardEvent(type, { key: k, bubbles: true, ...more }));
     const sheet = () => doc.getElementById('lk-key-sheet');
     key('keydown', 'Alt', { altKey: true }); await wait(HOLD + 60);

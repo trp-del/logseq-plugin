@@ -683,7 +683,7 @@ const css = `
 /* Taken (clicked, or on its way in): it reads as the value will once written, over the pencil's look, so when Logseq's own value
    takes its place nothing changes: plain words, and a node's name with the link's faint underline (Look's lk-node). */
 .flow-ghost.flow-taken, .flow-ghost > .flow-name.flow-taken { color: inherit !important; font-style: normal !important; text-decoration: none !important; }
-.flow-ghost.flow-taken.flow-node, .flow-ghost > .flow-name.flow-taken { text-decoration: underline !important; text-decoration-color: var(--lk-link) !important; text-decoration-thickness: var(--lk-link-width) !important; text-underline-offset: 3px !important; }
+.flow-ghost.flow-taken.flow-node, .flow-ghost > .flow-name.flow-taken { ${window.PluginDoor.LOOKS.link()} }
 /* From Apple's model: a small asterisk raised at the end of the value, in the pencil's grey. It takes no room, so nothing moves
    when it goes, and it goes once the value is taken. */
 .flow-ghost.flow-model { position: relative; }

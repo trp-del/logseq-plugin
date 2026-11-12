@@ -3,25 +3,24 @@
    setting), and the command palette; forgets what it read when the graph changes. */
 (function () {
 const Find = window.Find;
-const isMac = /Mac/i.test(navigator.platform || '');
+const Keys = window.PluginDoor.keys;
+/* Find's keys, kept once: the listener below matches them and the key sheet reads them at the door. Cmd K (Ctrl elsewhere) is
+   Find's while it takes Logseq's search key, and Cmd Shift K then Logseq's own search; the other way round otherwise.
+   Cmd Option K: the window as a sentence. Cmd Shift .: the window with > typed, Logseq's commands listed; no key of Logseq's
+   uses it. Each is matched by the key's place on the keyboard, since Shift and Option change what a key reads. */
+const keys = () => { const takes = Find.settings.setting('takesSearchKey') !== false; return { find: takes ? 'mod+k' : 'mod+shift+k', logseqSearch: takes ? 'mod+shift+k' : 'mod+k', sentence: 'mod+alt+k', commands: 'mod+shift+.' }; };
 function listenForKeys() {
   const doc = Find.kit.host();
+  Find.kit.onStop?.(Keys.tell('find', keys));
   const keyListener = event => {
-    const mod = isMac ? event.metaKey : event.ctrlKey;
-    // Cmd Shift . (Ctrl elsewhere): the window with > typed, Logseq's commands listed; again, it closes. The period by its place
-    // on the keyboard, since with Shift it reads > on most layouts. No key of Logseq's uses it.
-    if (mod && event.shiftKey && !event.altKey && (event.code === 'Period' || event.key === '>' || event.key === '.')) { event.preventDefault(); event.stopPropagation(); Find.window.commands(); return; }
-    // Cmd Option K (Ctrl Alt elsewhere): the window as a sentence; again, it closes. By the key's place, since Option changes what it reads.
-    if (mod && event.altKey && !event.shiftKey && (event.code === 'KeyK' || String(event.key).toLowerCase() === 'k')) { event.preventDefault(); event.stopPropagation(); Find.window.sentence(); return; }
-    if (!mod || event.altKey || String(event.key).toLowerCase() !== 'k') return;
+    const now = keys(), is = spec => Keys.matches(event, spec), mine = () => { event.preventDefault(); event.stopPropagation(); };
+    // Again, each closes its window.
+    if (is(now.commands)) { mine(); Find.window.commands(); return; }
+    if (is(now.sentence)) { mine(); Find.window.sentence(); return; }
     // Keys typed inside our own window never reach here (its dialog stops them); Logseq's own search box does.
-    const takes = Find.settings.setting('takesSearchKey');
-    if (event.shiftKey) {
-      if (!takes) { event.preventDefault(); event.stopPropagation(); Find.window.toggle(); }
-      else { event.preventDefault(); event.stopPropagation(); Find.window.close(); Promise.resolve(logseq.App.invokeExternalCommand('logseq.go/search')).catch(() => {}); }
-      return;
-    }
-    if (takes) { event.preventDefault(); event.stopPropagation(); Find.window.toggle(); }
+    if (is(now.find)) { mine(); Find.window.toggle(); return; }
+    // Logseq's own search on Cmd Shift K while Find has Cmd K; left on Cmd K, Logseq hears its key itself.
+    if (is(now.logseqSearch) && now.find === 'mod+k') { mine(); Find.window.close(); Promise.resolve(logseq.App.invokeExternalCommand('logseq.go/search')).catch(() => {}); }
   };
   Find.kit.listen(doc, 'keydown', keyListener, true);
 }

@@ -124,18 +124,12 @@ const changed = item => JSON.stringify(read(item)) !== JSON.stringify(item.defau
 const write = (item, value) => logseq.updateSettings({ [item.key]: value });
 /* A key is shown as plain words and recorded from the keys pressed; it is kept in Logseq's spelling ("mod+alt+enter"), mod
    being Cmd on a Mac and Ctrl elsewhere. */
-const MAC = /Mac/.test((typeof navigator !== 'undefined' && navigator.platform) || '');
+const MAC = Door.keys.mac;
 const SPELLED = { cmd: 'mod', command: 'mod', meta: 'mod', option: 'alt', opt: 'alt', control: MAC ? 'ctrl' : 'mod', ctrl: MAC ? 'ctrl' : 'mod' };
-const KEY_WORDS = MAC ? { mod: 'Cmd', alt: 'Option', ctrl: 'Ctrl' } : { mod: 'Ctrl', alt: 'Alt', ctrl: 'Ctrl' };
-const capitalKey = word => word.charAt(0).toUpperCase() + word.slice(1);
-// A key in plain words: the door's, one way for the whole plugin, where the door has it.
-const keyWords = keys => Door.keyWords ? Door.keyWords(keys) : String(keys || '').split('+').map(part => part.trim()).filter(Boolean).map(part => KEY_WORDS[part] || capitalKey(part)).join(' ');
+// A key in plain words, and the keys pressed as a setting spells them: the door's, one way for the whole plugin.
+const keyWords = keys => Door.keyWords(keys);
 const keySpelling = words => String(words || '').toLowerCase().split(/[\s+]+/).filter(Boolean).map(word => SPELLED[word] || word).join('+');
-const SPECIAL = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', Enter: 'enter', Tab: 'tab', Backspace: 'backspace', Delete: 'delete', ' ': 'space' };
-function pressed(event) {
-  const key = SPECIAL[event.key] || (event.code?.startsWith('Key') ? event.code.slice(3).toLowerCase() : event.code?.startsWith('Digit') ? event.code.slice(5) : event.key.length === 1 ? event.key.toLowerCase() : event.key.toLowerCase());
-  return [event.metaKey && (MAC ? 'mod' : 'meta'), event.ctrlKey && (MAC ? 'ctrl' : 'mod'), event.altKey && 'alt', event.shiftKey && 'shift', key].filter(Boolean).join('+');
-}
+const pressed = event => Door.keys.pressed(event);
 
 /* A part's rows, as sections: a heading opens one, the rows under it follow. An action stands under the setting before it
    (Measure under Apple's tools, Open troubleshooting under Run only the base). Under Parts, a switch for each part. */
@@ -159,7 +153,6 @@ function allSections() {
 const everyRow = () => allSections().flatMap(section => section.items.map(item => ({ item, section, place: section.place })));
 const byKey = key => everyRow().find(row => row.item.key === key);
 const matches = (row, words) => `${row.item.title} ${row.item.description || ''} ${row.section.title} ${PLACES[row.place][0]}`.toLowerCase().includes(words);
-const anyChanged = () => everyRow().some(row => changed(row.item));
 // The rows the middle shows: a place's, everything the words find, or what you changed.
 function shownRows() {
   const words = state.find.trim().toLowerCase(), rows = everyRow();
@@ -324,7 +317,8 @@ function onChange(event) {
 }
 function onInput(event) {
   const el = event.target;
-  if (el.classList.contains('sw-find')) { state.find = el.value; state.view = 'place'; drawSide(open); drawList(open); drawBody(open); return; }
+  // The find box works as Find does (the owner, 9 and 12 November 2026): letters light the first setting they leave and show it at the right; Enter goes to it.
+  if (el.classList.contains('sw-find')) { state.find = el.value; state.view = 'place'; const first = state.find.trim() ? shownRows()[0] : null; if (first) state.sel = first.item.key; drawSide(open); drawList(open); drawBody(open); return; }
   // CSS changes its picture as it is typed.
   if (el.classList.contains('sw-css')) { const { item } = byKey(el.dataset.key); write(item, el.value); host().defaultView.setTimeout(() => { if (!open) return; const pic = open.querySelector('.sw-body .sw-pic'); const row = byKey(item.key); if (pic) pic.innerHTML = picture(row, el.value); drawList(open); }, 60); }
 }
@@ -372,6 +366,11 @@ function onKey(dlg, event) {
     write(byKey(state.sel).item, pressed(event)); return void later();
   }
   if (t.dataset?.add && event.key === 'Enter') { event.preventDefault(); return void addWord(t); }
+  if (t === find && event.key === 'Enter' && !event.metaKey && !event.ctrlKey && !event.altKey) {
+    const first = state.find.trim() ? shownRows().find(row => row.item.key === state.sel) || shownRows()[0] : null;
+    if (first) { event.preventDefault(); choose(first.item.key); dlg.querySelector(`.sw-row[data-row="${quote(first.item.key)}"]`)?.focus({ preventScroll: true }); }
+    return;
+  }
   const typing = t.matches('input, textarea') && !(t === find && (event.key === 'ArrowDown' || event.key === 'ArrowUp'));
   if (typing) return;
   if (event.key.length === 1 && event.key !== ' ' && !event.metaKey && !event.ctrlKey && !event.altKey) { find.focus(); return; }

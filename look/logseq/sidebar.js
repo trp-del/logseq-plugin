@@ -30,7 +30,7 @@ const PAGE_ITEM = '#right-sidebar .sidebar-item.item-type-page';
 const NAME = `${PAGE_ITEM} .sidebar-item-header .page-title > span:last-child`;
 const PROPS_TOGGLE = `${PAGE_ITEM} .ls-sidebar-page-properties > div:first-child:has(> button:only-child)`;
 const pagesCss = `
-${NAME} { cursor: pointer; text-decoration: underline; text-decoration-color: var(--lk-link); text-decoration-thickness: var(--lk-link-width); text-underline-offset: 3px; }
+${NAME} { cursor: pointer; ${window.PluginDoor.LOOKS.link(false)} }
 ${NAME}:hover { text-decoration-color: currentColor; }
 ${PROPS_TOGGLE} { display: none !important; }`;
 

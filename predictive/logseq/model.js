@@ -9,14 +9,14 @@ const Flow = (window.Flow ||= {});
 const { app, model } = Flow;
 
 // WAIT: after the rules' own pause in typing, how much longer before the model is asked (each question is cancelled by a newer one).
-const { HELPER } = window.PluginDoor, LOOK_AGAIN = 30000, WAIT = 250, GIVE_UP = 8000, KEEP = 60;
+const { helper } = window.PluginDoor, LOOK_AGAIN = 30000, WAIT = 250, GIVE_UP = 8000, KEEP = 60;
 const S = { ready: null, at: 0, checking: null, asking: null, answers: new Map() };
 
 // Whether the helper is there and its model ready, looked at again every 30 seconds.
 async function ready() {
   if (!app.setting('proposalsModel')) return false;
   if (S.ready !== null && Date.now() - S.at < LOOK_AGAIN) return S.ready;
-  S.checking ||= fetch(HELPER + '/status', { signal: AbortSignal.timeout(800) }).then(r => r.json()).then(r => !!r.ready, () => false)
+  S.checking ||= helper.status().then(r => !!r.ready, () => false)
     .then(ok => { S.ready = ok; S.at = Date.now(); S.checking = null; return ok; });
   return S.checking;
 }
@@ -47,8 +47,7 @@ async function replyTo(req, { wait = WAIT, giveUp = GIVE_UP } = {}) {
   if (wait) await new Promise(r => setTimeout(r, wait));
   if (mine.signal.aborted) return null;
   try {
-    const response = await fetch(HELPER + '/fill', { method: 'POST', headers: { 'content-type': 'application/json' }, body: key, signal: AbortSignal.any([mine.signal, AbortSignal.timeout(giveUp)]) });
-    const reply = await response.json();
+    const reply = await helper.post('/fill', key, { wait: giveUp, signal: mine.signal });
     if (reply.error) { app.warnOnce('Apple’s model did not answer', reply.error); return null; }
     S.answers.set(key, reply);
     if (S.answers.size > KEEP) S.answers.delete(S.answers.keys().next().value);
@@ -89,7 +88,7 @@ async function speed(ctx) {
   const times = [];
   for (let i = 0; i < 3; i++) {
     const t0 = performance.now();
-    const reply = await fetch(HELPER + '/fill', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(req.fill), signal: AbortSignal.timeout(GIVE_UP) }).then(r => r.json()).catch(() => null);
+    const reply = await helper.post('/fill', req.fill, { wait: GIVE_UP }).catch(() => null);
     if (!reply || reply.error) break;
     times.push(performance.now() - t0);
   }
@@ -100,7 +99,7 @@ async function speed(ctx) {
 // else { reached: true, ready, reason }. The ready() above takes the answer too.
 async function status() {
   try {
-    const r = await fetch(HELPER + '/status', { signal: AbortSignal.timeout(800) }).then(response => response.json());
+    const r = await helper.status();
     S.ready = !!r.ready; S.at = Date.now();
     return { reached: true, ready: !!r.ready, reason: r.reason || '', meaning: !!r.meaning, names: !!r.names, version: Number(r.version) || 1 };
   } catch (error) { S.ready = false; S.at = Date.now(); return { reached: false }; }

@@ -298,7 +298,27 @@ Door.COMMAND_LABELS = {
    the palette's state keeps Logseq's own default, and a key changed in the graph's config (its :shortcuts, where Logseq's
    keymap and the key sheet write) wins over it, an empty one for none. Read on the app's api on the parent window; [] when
    it cannot be read. */
-Door.logseqConfigKeys = () => { try { const all = window.parent?.logseq?.api?.get_current_graph_configs?.('shortcuts'); return all && typeof all === 'object' ? all : {}; } catch (error) { return {}; } };
+/* readLogseqConfigKeys: the keys changed in the graph's config, {} where none is changed, and null when they could not be read
+   (no api, a throw, an answer that is no list of keys), which is not the same as none. setLogseqKey writes one command's key
+   into that list, every other key kept: Logseq replaces the whole list with what it is handed, so when the list could not
+   be read nothing is written and false comes back (12 November 2026, the library review: a failed read wrote a list of one). */
+Door.readLogseqConfigKeys = () => {
+  try {
+    const api = window.parent?.logseq?.api;
+    if (typeof api?.get_current_graph_configs !== 'function') return null;
+    const all = api.get_current_graph_configs('shortcuts');
+    if (all == null) return {};
+    return typeof all === 'object' && !Array.isArray(all) ? all : null;
+  } catch (error) { return null; }
+};
+Door.logseqConfigKeys = () => Door.readLogseqConfigKeys() || {};
+Door.setLogseqKey = (id, spelling) => {
+  const kept = Door.readLogseqConfigKeys(), api = window.parent?.logseq?.api;
+  if (!kept || !id || typeof api?.set_current_graph_configs !== 'function') return false;
+  const keys = { ...kept, [id]: spelling ? [spelling] : [] };
+  // Made in Logseq's own window: Logseq reads only an object of its window, and one from the plugin's frame is passed over.
+  try { api.set_current_graph_configs((window.parent.JSON || JSON).parse(JSON.stringify({ shortcuts: keys }))); return true; } catch (error) { console.error('Logseq’s key could not be saved', error); return false; }
+};
 Door.logseqCommands = () => {
   let all = [];
   try { all = window.parent?.logseq?.api?.get_state_from_store?.('command-palette/commands'); } catch (error) { all = []; }
@@ -314,7 +334,7 @@ Door.logseqCommands = () => {
 /* A key in plain words, as the grammar tells keys: "Option T", "Cmd Shift K", "Cmd Option Enter", "Shift Tab"; two letters
    pressed one after the other stay as Logseq writes them, "g j". Takes Logseq's spelling ("⌘+⇧+k", "t s | ⌘+,": the first binding) and a
    setting's ("mod+alt+enter"). None, or Logseq's "Disabled": ''. */
-const ON_MAC = /Mac/i.test(typeof navigator === 'undefined' ? 'Mac' : navigator.platform || '');
+const ON_MAC = /Mac|iPhone|iPad/i.test(typeof navigator === 'undefined' ? 'Mac' : navigator.platform || '');
 const KEY_WORDS = { mod: ON_MAC ? 'Cmd' : 'Ctrl', cmd: 'Cmd', meta: 'Cmd', command: 'Cmd', '⌘': 'Cmd',
   alt: ON_MAC ? 'Option' : 'Alt', opt: 'Option', option: 'Option', '⌥': 'Option', shift: 'Shift', '⇧': 'Shift', ctrl: 'Ctrl', control: 'Ctrl', '⌃': 'Ctrl',
   enter: 'Enter', return: 'Enter', '↩': 'Enter', tab: 'Tab', escape: 'Escape', esc: 'Escape', backspace: 'Backspace', delete: 'Delete', space: 'Space',
@@ -338,6 +358,38 @@ Door.keyMarks = spelling => {
     const key = parts.pop();
     return parts.sort((a, b) => MARK_ORDER.indexOf(a) - MARK_ORDER.indexOf(b)).join('') + key;
   }).join(' ');
+};
+/* THE keys of the plugin (12 November 2026, the library review: the settings window, the key sheet and Predictive each read a
+   pressed key by a rule of their own, so an arrow recorded in the settings window, "up", never matched Predictive's "arrowup",
+   nor Option with a punctuation mark, which a Mac types as another character). A key is kept in Logseq's spelling,
+   "mod+alt+enter": mod is Cmd on a Mac and Ctrl elsewhere.
+     mac                 whether this is a Mac;
+     name(event)         the key pressed, by its place on the keyboard where Option would change what it types: "t", "5", ";",
+                         "up", "enter", "space";
+     pressed(event)      the keys pressed as a setting spells them, "mod+alt+t";
+     logseq(event)       the same keys as Logseq's config spells them, "meta+shift+p", "alt+up";
+     matches(event, spec) whether the keys pressed are a setting's; an empty setting never;
+     tell(part, keys), told(part)  a part's keys that are no setting (Find's, the focus glide's), told once by the part that
+                         listens for them and read by the key sheet, so the sheet never writes one from memory. */
+const KEY_CODES = { Semicolon: ';', Comma: ',', Period: '.', Slash: '/', Backslash: '\\', BracketLeft: '[', BracketRight: ']', Quote: "'", Backquote: '`', Minus: '-', Equal: '=', Space: 'space' };
+const KEY_NAMES = { arrowup: 'up', arrowdown: 'down', arrowleft: 'left', arrowright: 'right', ' ': 'space', spacebar: 'space', return: 'enter', esc: 'escape' };
+const keyNamed = name => { const low = String(name ?? '').toLowerCase(); return KEY_NAMES[low] || low; };
+const toldKeys = new Map();
+Door.keys = {
+  mac: ON_MAC,
+  tell: (part, keys) => { toldKeys.set(part, keys); return () => { if (toldKeys.get(part) === keys) toldKeys.delete(part); }; },
+  told: part => { try { return toldKeys.get(part)?.() || {}; } catch (error) { return {}; } },
+  name: event => { const code = event?.code || ''; return /^Key[A-Z]$/.test(code) ? code.slice(3).toLowerCase() : /^Digit\d$/.test(code) ? code.slice(5) : KEY_CODES[code] || keyNamed(event?.key); },
+  pressed: event => [event.metaKey && (ON_MAC ? 'mod' : 'meta'), event.ctrlKey && (ON_MAC ? 'ctrl' : 'mod'), event.altKey && 'alt', event.shiftKey && 'shift', Door.keys.name(event)].filter(Boolean).join('+'),
+  logseq: event => [event.ctrlKey && 'ctrl', event.altKey && 'alt', event.shiftKey && 'shift', event.metaKey && 'meta', Door.keys.name(event)].filter(Boolean).join('+'),
+  matches: (event, spec) => {
+    const parts = String(spec || '').toLowerCase().split('+').map(part => part.trim()).filter(Boolean);
+    if (!parts.length) return false;
+    const key = keyNamed(parts.pop()), mods = new Set(parts);
+    const meta = mods.has('meta') || mods.has('cmd') || (ON_MAC && mods.has('mod')), ctrl = mods.has('ctrl') || (!ON_MAC && mods.has('mod'));
+    if (!!event.metaKey !== meta || !!event.ctrlKey !== ctrl || !!event.altKey !== (mods.has('alt') || mods.has('opt')) || !!event.shiftKey !== mods.has('shift')) return false;
+    return Door.keys.name(event) === key || keyNamed(event.key) === key;
+  },
 };
 /* The day a node shows, from its date properties ([node, day, the property's name]): the one titled Date, whatever its ident, else
    the earliest, as Threads reads it. */
@@ -628,6 +680,20 @@ Door.isEntityId = id => Number.isSafeInteger(id) && id > 0;
 Door.idsIn = (variable, ids) => `[(identity [${[...new Set(ids)].filter(Door.isEntityId).join(' ')}]) [${variable} ...]]`;
 Door.uuidsIn = (variable, uuids) => `[(identity [${[...new Set(uuids)].map(String).filter(u => UUID.test(u)).map(u => `#uuid "${u}"`).join(' ')}]) [${variable} ...]]`;
 Door.HELPER = 'http://127.0.0.1:47615';
+/* The one way to ask the helper (12 November 2026, the library review: six files each sent to it by lines of their own).
+     can()                          whether this window can ask at all (a test's stand-in may have no fetch);
+     status(wait)                   what the helper says of itself ({ ready, meaning, names, cloud, version, reason }); it throws
+                                    when the helper does not answer within wait ms (0.8 s unless given);
+     post(path, body, { wait, signal })   an answer to a question ("/fill", "/meaning", "/names", "/reads-back"), body an object
+                                    or words already made; it throws on no answer within wait ms (4 s unless given) or when
+                                    signal stops it. What an answer means, and how long each part waits, stays the part's. */
+const helperSignal = (wait, signal) => signal ? AbortSignal.any([signal, AbortSignal.timeout(wait)]) : AbortSignal.timeout(wait);
+Door.helper = {
+  can: () => typeof fetch === 'function' && typeof AbortSignal?.timeout === 'function',
+  status: (wait = 800) => fetch(Door.HELPER + '/status', { signal: AbortSignal.timeout(wait) }).then(reply => reply.json()),
+  post: (path, body, { wait = 4000, signal = null } = {}) => fetch(Door.HELPER + path, { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: typeof body === 'string' ? body : JSON.stringify(body), signal: helperSignal(wait, signal) }).then(reply => reply.json()),
+};
 
 /* Words onto the clipboard, once for every module (12 November 2026; DB Export had its own and Predictive's report window copied
    nothing): text, and html beside it when given. Logseq's own window first, since the plugin's frame never has the keyboard and
@@ -673,8 +739,7 @@ Door.webParts = text => {
   if (at < words.length || !parts.length) parts.push({ text: words.slice(at) });
   return parts;
 };
-const escAttr = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
-Door.urlHtml = (url, inner) => `<span class="lk-url" data-open-url="${escAttr(url)}" title="${escAttr(url)}">${inner}</span>`;
+Door.urlHtml = (url, inner) => `<span class="lk-url" data-open-url="${Door.esc(url)}" title="${Door.esc(url)}">${inner}</span>`;
 
 /* THE dates of the plugin (10 November 2026, the code review's "one date service"; Predictive and Threads each named a journal's
    title, and Find, Threads, Structure and Look each put a day in words by a rule of their own). A day is its number, 20261023.
@@ -965,19 +1030,30 @@ const TOKENS = `
    Drawn whole here since 6 November 2026, so no module draws them again: lk-window (a window mid-screen) and lk-pop (a pop-up at
    the thing pressed), the frames; lk-tick, the tick box; lk-fold, the fold arrow, its markup empty; lk-bul (.folded, .opens), Logseq's bullet;
    lk-field, a field on a hairline; lk-none, the nothing-here line; lk-undo, the arrow as a press; --lk-day, the day column's width. */
+/* The looks more than one stylesheet writes, each once (12 November 2026, the library review: a tag's look and a web address's
+   stood here and again in Look, and both had to change for the quiet grey; a link's faint underline stood in ten places with
+   three distances under the words). Look puts them on Logseq's own links and tags, the door on what the modules draw.
+     link(firm)   a link's line: the faint underline, 3px under the words; firm (unless false) holds against Logseq's own rule;
+     out          the ↗ after a web address, in the quiet grey, outside the underline;
+     tag(firm)    a tag's name: the Mac's serif, upright, the quiet grey, the words' own size. */
+Door.LOOKS = {
+  link: (firm = true) => { const i = firm ? ' !important' : ''; return `text-decoration: underline${i}; text-decoration-color: var(--lk-link)${i}; text-decoration-thickness: var(--lk-link-width)${i}; text-underline-offset: 3px;`; },
+  out: 'content: "\\2197"; display: inline-block; margin-left: .2em; color: var(--lk-quiet); text-decoration: none;',
+  tag: (firm = true) => { const i = firm ? ' !important' : ''; return `color: var(--lk-quiet) !important; font-family: var(--lk-tag-face)${i}; font-style: normal${i}; font-size: inherit${i}; font-size-adjust: var(--lk-tag-adjust); text-decoration: none !important;`; },
+};
 Door.NAMES = `${TOKENS}
 /* A tag: its name in the Mac's serif, upright (New York, --lk-tag-face), in the quiet grey, the words' own size (the owner,
    8 November 2026: "no reason why tags should be fainter ... or why there is an odd size discrepancy"; 10 November 2026: the
    mono read too close to the words, a box would distract; 11 November 2026: not italic, and in the quiet grey, "do new york quiet grey"; the text colour under the pointer). Its line height is the words', so a tag never makes its row taller. */
-.lk-tag { color: var(--lk-quiet) !important; font-family: var(--lk-tag-face) !important; font-style: normal !important; font-size: inherit !important; font-size-adjust: var(--lk-tag-adjust); line-height: 1; text-decoration: none !important; }
+.lk-tag { ${Door.LOOKS.tag()} line-height: 1; }
 .lk-tag:hover { color: var(--lk-text, currentColor) !important; }
-.lk-node { color: inherit; text-decoration: underline !important; text-decoration-color: var(--lk-link) !important; text-decoration-thickness: var(--lk-link-width) !important; text-underline-offset: 3px; cursor: pointer; }
+.lk-node { color: inherit; ${Door.LOOKS.link()} cursor: pointer; }
 .lk-node:hover { text-decoration-color: currentColor !important; }
 /* A web address is a link like a node's name with a ↗ after it in the quiet grey, saying it leaves Logseq (the owner, 11 November
    2026: a right-up arrow, then "put it at end of link"); Look gives Logseq's own web links the same. */
-.lk-url { color: inherit; overflow-wrap: anywhere; text-decoration: underline !important; text-decoration-color: var(--lk-link) !important; text-decoration-thickness: var(--lk-link-width) !important; text-underline-offset: 3px; cursor: pointer; }
+.lk-url { color: inherit; overflow-wrap: anywhere; ${Door.LOOKS.link()} cursor: pointer; }
 .lk-url:hover { text-decoration-color: currentColor !important; }
-.lk-url::after { content: "\\2197"; display: inline-block; margin-left: .2em; color: var(--lk-quiet); text-decoration: none; }
+.lk-url::after { ${Door.LOOKS.out} }
 .lk-prop { color: var(--lk-quiet); }
 .lk-day { color: var(--lk-quiet) !important; font-size: var(--lk-small) !important; font-variant-numeric: tabular-nums; }
 .lk-count { display: none !important; }

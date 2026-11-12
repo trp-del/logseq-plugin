@@ -9,18 +9,18 @@
 const Flow = (window.Flow ||= {});
 const { app, meaning } = Flow;
 
-const { HELPER } = window.PluginDoor, LOOK_AGAIN = 30000, SLICE = 400, KEEP = 60;
+const { helper } = window.PluginDoor, LOOK_AGAIN = 30000, SLICE = 400, KEEP = 60;
 const S = { ready: null, at: 0, checking: null, taught: null, teaching: null, answers: new Map(), graph: '' };
 
 // Whether the helper is there with the matcher, looked at again every 30 seconds. Shares the setting with Apple's model.
 async function ready() {
   if (!app.setting('proposalsModel')) return false;
   if (S.ready !== null && Date.now() - S.at < LOOK_AGAIN) return S.ready;
-  S.checking ||= fetch(HELPER + '/status', { signal: AbortSignal.timeout(800) }).then(r => r.json()).then(r => !!r.meaning, () => false)
+  S.checking ||= helper.status().then(r => !!r.meaning, () => false)
     .then(ok => { S.ready = ok; S.at = Date.now(); S.checking = null; return ok; });
   return S.checking;
 }
-const post = (body, giveUp = 4000) => fetch(HELPER + '/meaning', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(giveUp) }).then(r => r.json());
+const post = (body, giveUp = 4000) => helper.post('/meaning', body, { wait: giveUp });
 
 /* The whole graph taught: every entry of the context's index, in slices. Once per reading (ctx.readAt); a reading already taught
    is not taught again. */

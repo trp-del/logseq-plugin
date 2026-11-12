@@ -118,18 +118,8 @@ const uuidOf = box => box?.closest('.ls-block[blockid]')?.getAttribute('blockid'
 const editorPopupOpen = (doc = host()) => window.PluginDoor.screen.editorPopupOpen(doc);
 
 // A key as the settings spell it ("mod+alt+enter"; mod is Cmd on a Mac and Ctrl elsewhere): does the event match? Empty: never.
-const isMac = () => /Mac|iPhone|iPad/.test(String(window.navigator?.platform || host().defaultView?.navigator?.platform || ''));
-function keyMatches(event, spec) {
-  const parts = String(spec || '').toLowerCase().split('+').map(s => s.trim()).filter(Boolean);
-  if (!parts.length) return false;
-  const key = parts.pop(), mods = new Set(parts), mac = isMac();
-  const want = { meta: mods.has('meta') || (mac && mods.has('mod')), ctrl: mods.has('ctrl') || (!mac && mods.has('mod')), alt: mods.has('alt') || mods.has('opt'), shift: mods.has('shift') };
-  if (event.metaKey !== want.meta || event.ctrlKey !== want.ctrl || event.altKey !== want.alt || event.shiftKey !== want.shift) return false;
-  const got = String(event.key || '').toLowerCase();
-  // With Option held a Mac types another character ("†" for T), so a letter or digit is also matched by the physical key.
-  const code = /^[a-z]$/.test(key) ? 'Key' + key.toUpperCase() : /^[0-9]$/.test(key) ? 'Digit' + key : null;
-  return got === (key === 'space' ? ' ' : key) || (code !== null && event.code === code);
-}
+// The door's, one way for the whole plugin.
+const keyMatches = (event, spec) => window.PluginDoor.keys.matches(event, spec);
 
 Flow.app = { watch: base.watch, sendStyle: base.style, sheet: base.sheet, stopAll: base.stop, tagLimits, host, warnOnce, notify, setting, remember, state, graphName, allowed, context, forget, pages, freshLinks, learnSoon, popupOpen, editorPopupOpen, keyMatches, isBlockBox, uuidOf, listen, onStop, limitsFor };
 })();
