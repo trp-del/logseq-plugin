@@ -20,21 +20,26 @@ const exp = read('export/main.js');
 assert.ok((exp.match(/'PDF or Markdown, your styles…'/g) || []).length === 2 && !exp.includes('Export as PDF or Markdown'), 'the export\'s menu item is named apart from Logseq\'s Export page');
 assert.ok(read('settings/ways-in.js').includes("'PDF or Markdown, your styles…'"), 'its icon follows the name');
 
-// N6: a tab of the right sidebar can say it has nothing to show; Endnotes says so on a page with no citations.
+// N6: a tab of the right sidebar can say it has nothing to show; Outline says so on a page with no headings, Item with no row pressed.
+// Endnotes stand under Links (the owner, 12 November 2026) and have no heading on a page with no citations.
 assert.ok(/filter\(v => !v\.hidden\?\.\(doc\)\)/.test(read('sidebar-tabs.js')), 'a hidden view has no tab');
 const links = read('look/logseq/links.js');
-assert.ok(/hidden: key === 'notes' \? \(\) => state\.read && !state\.notes\.length/.test(links), 'Endnotes is hidden on a page read and found without citations');
-assert.ok(/readNotes\(blocks\)/.test(links) && /const whole = state\.open\.links \|\| state\.open\.notes/.test(links), 'the citations are read with both sections closed');
+assert.ok(/hidden: key === 'contents' \? \(\) => state\.read && !state\.heads\.length/.test(links), 'Outline is hidden on a page read and found without headings');
+assert.ok(/if \(!state\.notes\.length\) return \[\];/.test(links) && !/key: 'notes'/.test(links), 'Endnotes are no tab: a heading under Links, absent without citations');
+assert.ok(/key: 'item', word: 'Item'[\s\S]{0,400}hidden: \(\) => !S\.inspector\.row\(\)/.test(read('structure/logseq/mount.js')), 'Item has no tab with no row pressed');
+assert.ok(/word: 'Opened'/.test(read('sidebar-tabs.js')) && /word: 'Outline'/.test(links), 'the tabs\' names: Opened, Outline');
+assert.ok(/readNotes\(blocks\)/.test(links) && /const whole = state\.open\.links \|\| setting\('citationNumbers'\)/.test(links), 'the citations are read with both sections closed');
 
 // N7: on a journal day the rows read what is scheduled or due first, and only then stand in for Linked references.
 const tw = read('threads/parts/two-way.js');
 assert.ok(/if \(state\.pageJournal\) groups = await duesGroups\(/.test(tw) && /state\.replaces = read && dues &&/.test(tw), 'a journal day: scheduled and due read, then the rows replace Linked references');
 assert.ok(/async function duesOn\(day\)/.test(read('threads/parts/model.js')), 'the model reads what is scheduled or due on a day');
 
-// N1: the inspector puts the pressed row first and folds the tag's lines under one line at the foot.
+// N1, as the owner changed it on 12 November 2026: the pressed row has a tab of its own, Item; the tag's lines stay on Ontology.
 const insp = read('structure/logseq/inspector.js'), view = read('structure/logseq/view.js');
-assert.ok(/toggleAttribute\('data-row', !!insp\.uuid\)/.test(insp) && /st-insp-about/.test(insp) && /function whereHtml/.test(insp), 'the row first, where it stands, the About line');
-assert.ok(/\.st-holder-insp\[data-row\]:not\(\[data-about\]\) \.st-insp-top[^{]*\{ display: none; \}/.test(view), 'the lines wait folded while a row is shown');
+assert.ok(/toggleAttribute\('data-row', !!insp\.uuid\)/.test(insp) && !/st-insp-about/.test(insp) && /function whereHtml/.test(insp) && /sideTabs\?\.pick\('item'\)/.test(insp), 'a row pressed picks Item; where it stands; no About line');
+assert.ok(/#right-sidebar\[data-lk-tab="item"\] \.st-holder-insp\[data-row\] \.st-insp-top \{ display: none; \}/.test(view) && /#right-sidebar:not\(\[data-lk-tab="item"\]\) \.st-holder-insp\[data-row\] \.st-insp-node \{ display: none; \}/.test(view), 'Item shows the row alone, Ontology the lines alone');
+assert.ok(/setAttribute\('data-lk-tab', tabs\.cur \|\| ''\)/.test(read('sidebar-tabs.js')), 'the sidebar says which tab is picked');
 
 // N3: every find box lights the first match and Enter opens it.
 assert.ok(/function lightFirst\(\)/.test(view) && /k === 'Enter'\) \{ e\.preventDefault\(\); if \(loc\.find\.trim\(\) && \(lightFirst\(\), lit\(\)\)\) openHere\(e\.shiftKey\)/.test(view), 'Structure\'s find box');

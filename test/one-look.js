@@ -35,7 +35,7 @@ for (const f of ['threads/parts/two-way.js', 'threads/parts/two-way/dig.js', 'th
 
 // 32: one nothing-here line, the library's, at the top of every sidebar tab; Links shows its two orders only with something to order.
 const links = read('look/logseq/links.js');
-assert.ok((links.match(/lk-links-none lk-none/g) || []).length === 6, 'Links, Endnotes and Contents: the library\'s nothing-here line');
+assert.ok((links.match(/lk-links-none lk-none/g) || []).length === 4, 'Links and Outline: the library\'s nothing-here line');
 assert.ok(links.indexOf("return [el(doc, 'div', { class: 'lk-links-none lk-none' }, 'No links") < links.indexOf("const body = [el(doc, 'div', { class: 'lk-views' }"), 'no views above nothing');
 assert.ok(/<p class="st-insp-none lk-none">\$\{say\}/.test(read('structure/logseq/inspector.js')), 'the inspector\'s nothing-here line');
 
@@ -58,5 +58,9 @@ assert.ok(/\.positioned-properties\.flow-made \.bottom-properties-row \{ display
 
 // 37: a tag stays beside the words in a narrow pane while the words keep half of it.
 assert.ok(/> \.block-content-wrapper \{ flex: 1 1 min\(20em, 50%\);/.test(read('look/logseq/style.js')), 'a tag beside the words in the right sidebar');
+
+// Logseq pins a table's head while the table scrolls: it has the page's ground, never none, or the rows read through the column names
+// (the owner, 12 November 2026: "the table headers look translucent").
+assert.ok(/\.ls-table-header \{ background: var\(--lk-paper\) !important;/.test(read('look/logseq/calm.js')), 'calm tables: the head has the page\'s ground');
 
 console.log('one-look: every check passed (27, 28, 30, 32 to 38; 31 in structure/test/load.js; 39 was Logseq\'s)');

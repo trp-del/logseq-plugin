@@ -25,7 +25,13 @@ const flatCss = `
 #right-sidebar .sidebar-item-list { padding-top: 24px !important; }
 /* The whole sidebar on the page's own ground (the owner, 9 November 2026: "inspector should be same color as main view … as well
    whole sidebar"), where Logseq paints it a grey of its own; the line at its edge parts it from the page. */
-#right-sidebar, #right-sidebar .right-sidebar-container, #right-sidebar-container { background-color: var(--lk-paper, Canvas) !important; }`;
+#right-sidebar, #right-sidebar .right-sidebar-container, #right-sidebar-container { background-color: var(--lk-paper, Canvas) !important; }
+/* The edge between the page and the sidebar is a hairline (the owner, 12 November 2026: "Make divider hairline"), where a grey bar
+   three pixels wide stood. The bar is still Logseq's handle for the sidebar's width: seven pixels to catch, nothing painted but the
+   line, which darkens under the pointer and while it is dragged. */
+#right-sidebar .resizer { left: -3px !important; width: 7px !important; background: none !important; }
+#right-sidebar .resizer::after { content: ""; position: absolute; top: 0; bottom: 0; left: 3px; width: 1px; background: var(--lk-hair); transition: background-color .12s; }
+#right-sidebar .resizer:is(:hover, :active, :focus)::after { background: var(--lk-line); }`;
 const PAGE_ITEM = '#right-sidebar .sidebar-item.item-type-page';
 const NAME = `${PAGE_ITEM} .sidebar-item-header .page-title > span:last-child`;
 const PROPS_TOGGLE = `${PAGE_ITEM} .ls-sidebar-page-properties > div:first-child:has(> button:only-child)`;

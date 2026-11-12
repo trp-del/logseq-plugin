@@ -101,12 +101,9 @@ const CSS = `
 /* No row pressed: the lines at the top, the faint waiting line under them. A row pressed (data-row): the row first, the lines
    folded under the foot line "About Consultation" until it is opened (data-about); the tag's name is said by that line. */
 .st-holder-insp:not([data-row]) .st-insp-top { order: -1; }
-.st-holder-insp:not([data-row]) .st-insp-about, .st-holder-insp:not(:has(.st-insp-top :is(.st-insp-h, .st-lines-t))) .st-insp-about { display: none; }
-.st-holder-insp[data-row]:not([data-about]) .st-insp-top, .st-holder-insp[data-row] .st-insp-h { display: none; }
-.st-holder-insp[data-row] .st-insp-top { margin-top: -12px; padding-left: 22px; }
-.st-insp-about { display: flex; gap: 6px; align-items: center; border-top: 1px solid var(--lk-hair); padding-top: 16px; color: var(--lk-quiet); cursor: pointer; }
-.st-insp-about .lk-fold { opacity: .6 !important; }
-.st-insp-about:hover { color: var(--lk-text, currentColor); }
+/* A row pressed: the panel is two tabs (sidebar-tabs.js). Item shows the row alone, Ontology the lines alone. */
+#right-sidebar[data-lk-tab="item"] .st-holder-insp[data-row] .st-insp-top { display: none; }
+#right-sidebar:not([data-lk-tab="item"]) .st-holder-insp[data-row] .st-insp-node { display: none; }
 /* A tag the property is on: its name and count on one line, what you can do with it under them, so the narrow panel never
    squeezes the count into a column of single letters. */
 .st-holder-insp .st-lines-t .ont { grid-template-columns: minmax(0, 1fr) auto; }

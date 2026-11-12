@@ -1,15 +1,15 @@
 /* The inspector: a panel in Logseq's right sidebar beside a tag's or a property's page (8 November 2026). With no row pressed
    it holds the lines that otherwise stand above the page's table (main.js places the same 'tag' view there while the inspector is
-   shown). Once a row of the table is pressed or moved to, the row comes first (the owner, 9 and 12 November 2026: the inspector is
-   about the content of the row): where it stands in the table, its whole words, its tags, every property it holds, the page it
-   was written on, its outline; the tag's or property's lines fold under one line at the foot, "About Consultation", which opens
-   them. Read only: a change is made in the table, as before. Logseq hosts the panel (mount.js); this file draws the row's part
+   shown). Once a row of the table is pressed or moved to, the row has a tab of its own beside it, Item (the owner, 12 November 2026: "the view
+   of table items" as its own tab), picked at once: where the row stands in the table, its whole words, its tags, every property it
+   holds, the page it was written on, its outline; the tag's or property's lines stay whole on the Ontology tab. Both tabs are this one
+   panel, each showing its part (sidebar-tabs.js says which tab is picked). Read only: a change is made in the table, as before. Logseq hosts the panel (mount.js); this file draws the row's part
    and says where the lines go. */
 (function () {
 const S = window.Structure;
 const { esc, host } = window.PluginDoor;
 const ROW = '#main-content-container .ls-table-row[blockid]';
-const insp = { holder: null, top: null, node: null, about: null, aboutOpen: false, uuid: '', ask: 0, stops: [] };
+const insp = { holder: null, top: null, node: null, uuid: '', ask: 0, stops: [] };
 
 // Shown: the panel is in the page and drawn (Logseq's sidebar open and the panel not folded).
 const shown = () => !!(insp.holder?.isConnected && insp.holder.getClientRects().length);
@@ -33,22 +33,10 @@ function propTitle(key) {
   return p?.title || ident.replace(/^user\.property\//, '').replace(/-[A-Za-z0-9_]{8}$/, '').replace(/-/g, ' ');
 }
 
-/* The row's state of the panel: with a row shown, the lines wait folded under the foot line, named after the tag or property
-   they are about; with none, they stand at the top as before and the foot line is gone. */
+/* The row's state of the panel: with a row pressed the holder says so (data-row), and the stylesheet shows the part the picked tab names. */
 function sync() {
   const holder = insp.holder; if (!holder) return;
-  const of = (insp.top?.querySelector('.st-insp-h')?.textContent || '').trim();
   holder.toggleAttribute('data-row', !!insp.uuid);
-  holder.toggleAttribute('data-about', !!insp.uuid && insp.aboutOpen);
-  const fold = insp.about?.querySelector('.lk-fold'), word = insp.about?.querySelector('.st-insp-aboutw');
-  if (fold) fold.setAttribute('aria-expanded', String(insp.aboutOpen));
-  if (word && word.textContent !== `About ${of}`.trim()) word.textContent = `About ${of}`.trim();
-}
-async function toggleAbout() {
-  const lines = insp.top;
-  if (insp.aboutOpen) await window.PluginDoor.rollUp(lines);
-  insp.aboutOpen = !insp.aboutOpen; sync();
-  if (insp.aboutOpen) window.PluginDoor.unroll(lines);
 }
 async function drawNode() {
   const box = insp.node; if (!box) return;
@@ -103,7 +91,8 @@ function whereHtml(uuid) {
     if (n) all = Number(n);
   }
   if (!row || !(at >= 0) || !(all > 0) || at >= all) return '';
-  const of = (insp.top?.querySelector('.st-insp-h')?.textContent || '').trim();
+  // Whose table it is: the page's own title, which stands whichever tab is picked (the lines' head is away while another tab is).
+  const of = (insp.top?.querySelector('.st-insp-h')?.textContent || host().querySelector('#main-content-container .ls-page-title .block-title-wrap, #main-content-container .ls-page-title h1')?.textContent || '').trim();
   return `<div class="st-insp-where">${of ? `${esc(of)} · ` : ''}${at + 1} of ${all}</div>`;
 }
 /* What is written in the node or on the page, below what describes it: the outline as Logseq shows it, read only, with
@@ -125,13 +114,18 @@ function idle() {
   sync();
   const box = insp.node; if (!box || insp.uuid) return;
   const doc = box.ownerDocument, table = !!doc.querySelector(ROW), lines = !!insp.top?.querySelector('.st-lines-t');
-  const say = table ? 'Press a row in the table to see it here.' : lines ? '' : 'Open a tag’s or a property’s page to see it here.';
+  const say = table ? 'Press a row in the table to see it in the Item tab.' : lines ? '' : 'Open a tag’s or a property’s page to see it here.';
   if (box.textContent === say) return;
   box.innerHTML = say ? `<p class="st-insp-none lk-none">${say}</p>` : '';
 }
 function pick(uuid) {
   mark(uuid);
-  if (uuid === insp.uuid) return; insp.uuid = uuid; insp.all = false; drawNode();
+  if (uuid === insp.uuid) return;
+  const wasShown = shown();
+  insp.uuid = uuid; insp.all = false; drawNode();
+  // The row has a tab of its own, Item: it comes with the row and is picked while the panel is the one looked at; with no row it goes,
+  // and the sidebar falls back to Ontology.
+  if (uuid && wasShown) window.PluginDoor.sideTabs?.pick('item'); else window.PluginDoor.sideTabs?.draw();
 }
 // The row the inspector shows carries a quiet wash, so the eye finds it in the table; the arrows move it with the row.
 function mark(uuid) {
@@ -170,7 +164,6 @@ function twice(e) {
 // A row of Logseq's table is pressed, or reached with the arrows: its node is the one shown. Only rows in the main view count.
 function onRow(e) { const row = e.target?.closest?.(ROW); if (row) pick(row.getAttribute('blockid') || ''); }
 function open(e) {
-  if (e.target.closest('[data-about]')) { e.preventDefault(); return toggleAbout(); }
   if (e.target.closest('[data-all]')) { insp.all = true; return drawNode(); }
   const t = e.target.closest('[data-uuid],[data-name]'); if (!t) return;
   e.preventDefault(); e.stopPropagation();
@@ -193,9 +186,9 @@ function stop() { for (const s of insp.stops) { try { s?.(); } catch (error) { /
 function mounted(holder) {
   const doc = holder.ownerDocument;
   S.view.ensureStyle(doc);
-  holder.innerHTML = '<div class="st st-tag st-insp-node"></div><div class="lk-row st-insp-about" data-about=""><button type="button" class="lk-fold" aria-expanded="false" aria-label="What surrounds it"></button><span class="st-insp-aboutw"></span></div><div class="st-insp-top"></div>';
-  insp.holder = holder; insp.node = holder.firstChild; insp.about = insp.node.nextSibling; insp.top = holder.lastChild;
-  insp.node.addEventListener('click', open); insp.about.addEventListener('click', open);
+  holder.innerHTML = '<div class="st st-tag st-insp-node"></div><div class="st-insp-top"></div>';
+  insp.holder = holder; insp.node = holder.firstChild; insp.top = holder.lastChild;
+  insp.node.addEventListener('click', open);
   // Logseq's sidebar hidden or the panel folded leaves the holder in the page with no size: the lines go back above the table.
   let was = shown();
   insp.watch?.disconnect();
@@ -204,7 +197,7 @@ function mounted(holder) {
   drawNode();
   S.inspector.changed?.();
 }
-function gone(holder) { if (insp.holder !== holder) return; insp.watch?.disconnect(); insp.holder = insp.top = insp.node = insp.about = null; mark(''); S.inspector.changed?.(); }
+function gone(holder) { if (insp.holder !== holder) return; insp.watch?.disconnect(); insp.holder = insp.top = insp.node = null; mark(''); S.inspector.changed?.(); }
 
-S.inspector = { start, stop, mounted, gone, top, shown, idle, KEY: 'structure-inspector', model: null, changed: null };
+S.inspector = { start, stop, mounted, gone, top, shown, idle, row: () => insp.uuid, KEY: 'structure-inspector', model: null, changed: null };
 })();

@@ -22,7 +22,7 @@ const setting = key => Look.settings.setting(key);
 const FEW = 5;
 const LINK = /(?<!#)\[\[([^[\]]+)\]\]/g;
 const CITATION = /\((?:\[\[([^[\]]+)\]\]|\[([^\]]+)\]\((https?:[^)\s]+)\)|\*([^*]+)\*)(?:, p\. (\d+))?\)/g;   // a node, a web address, plain words
-const SECTIONS = [{ key: 'links', word: 'Links', icon: 'link' }, { key: 'notes', word: 'Endnotes', icon: 'notes' }, { key: 'contents', word: 'Contents', icon: 'list' }];
+const SECTIONS = [{ key: 'links', word: 'Links', icon: 'link' }, { key: 'contents', word: 'Outline', icon: 'list' }];   // Endnotes stand under Links; Contents is named Outline (the owner, 12 November 2026)
 const closed = () => Object.fromEntries(SECTIONS.map(({ key }) => [key, false]));
 const anyOpen = () => SECTIONS.some(({ key }) => state.open[key]);
 const state = { growing: new Set(), open: closed(), folded: closed(), words: {}, panels: {}, view: 'kind', page: false, rows: [], notes: [], heads: [], all: new Set(), asked: 0, stopped: true };
@@ -127,7 +127,7 @@ async function goToHead(head, inSidebar) {
 async function load() {
   if (state.stopped) return;
   // With neither section open and no numbers to draw, only the citations are read: the Endnotes tab is there only on a page that has some.
-  const whole = state.open.links || state.open.notes || setting('citationNumbers');
+  const whole = state.open.links || setting('citationNumbers');
   const asked = ++state.asked;
   await new Promise(resolve => setTimeout(resolve, 150));   // Logseq says the route changed a moment before it says which page
   const page = await Promise.resolve(logseq.Editor.getCurrentPage?.()).catch(() => null);
@@ -158,19 +158,20 @@ function linksBody(doc) {
   // Nothing to show: the one nothing-here line, at the top of the tab, as in every tab of the sidebar (the audit's 32); the two ways
   // of ordering come only with something to order.
   if (!state.page) return [el(doc, 'div', { class: 'lk-links-none lk-none' }, 'Open a page to see its links.')];
-  if (!state.rows.length) return [el(doc, 'div', { class: 'lk-links-none lk-none' }, 'No links in this page’s words.')];
+  if (!state.rows.length) return [el(doc, 'div', { class: 'lk-links-none lk-none' }, 'No links in this page’s words.'), ...notesBody(doc)];
   const body = [el(doc, 'div', { class: 'lk-views' }, view('kind', 'By kind'), view('page', 'Order on page'))];
   if (state.view === 'kind') for (const group of byKind(state.rows)) {
     const open = state.all.has(group.head), shown = open ? group.rows : group.rows.slice(0, FEW);
     body.push(el(doc, 'div', { class: 'lk-links-group' }, el(doc, 'div', { class: 'lk-links-head' }, group.head), ...shown.map(row => rowOf(doc, row, group.head !== NO_TAG)),
       shown.length < group.rows.length ? el(doc, 'button', { class: 'lk-more', type: 'button', click: () => { state.all.add(group.head); render(doc); unrollRest(doc, group.head); } }, `show all ${group.rows.length}`) : null));
   } else body.push(...state.rows.map(row => rowOf(doc, row, false)));
+  body.push(...notesBody(doc));
   return body;
 }
 function notesBody(doc) {
-  if (!state.page) return [el(doc, 'div', { class: 'lk-links-none lk-none' }, 'Open a page to see its citations.')];
-  if (!state.notes.length) return [el(doc, 'div', { class: 'lk-links-none lk-none' }, 'No citations on this page.')];
-  return state.notes.map((note, i) => noteOf(doc, note, i + 1));
+  // Under the page's links, one heading and the citations in their order; a page with no citations has no heading (the owner, 12 November 2026).
+  if (!state.notes.length) return [];
+  return [el(doc, 'div', { class: 'lk-links-group lk-notes' }, el(doc, 'div', { class: 'lk-links-head' }, 'Endnotes'), ...state.notes.map((note, i) => noteOf(doc, note, i + 1)))];
 }
 /* Contents' ⋯ menu (the owner, 12 November 2026: "3 dots in right corner to change numbering system, keep, fold sections"): how the
    headings are numbered, saved with the plugin's settings; and fold every section or none. A section folds by its arrow too, as an
@@ -260,7 +261,7 @@ function render(doc, read) {
     if (!body) continue;
     const was = read && state.growing.has(key) && !body.hidden ? body.getBoundingClientRect().height : null;
     panel.classList.toggle('lk-links-flat', key === 'links' && state.view === 'page');
-    body.replaceChildren(...(key === 'links' ? linksBody(doc) : key === 'notes' ? notesBody(doc) : contentsBody(doc)));
+    body.replaceChildren(...(key === 'links' ? linksBody(doc) : contentsBody(doc)));
     if (read) { state.growing.delete(key); window.PluginDoor.regrow(body, was); }
   }
   Look.kit.run(doc);
@@ -347,6 +348,8 @@ const css = `
 #right-sidebar .lk-side .sidebar-panel-content { padding-top: 6px; padding-bottom: 8px; font-size: 14px; line-height: 1.5; }
 #right-sidebar .lk-side .lk-views { margin: 0 0 8px -8px; }
 #right-sidebar .lk-links-group + .lk-links-group { margin-top: 12px; }
+#right-sidebar :is(.lk-links-row, .lk-links-none) + .lk-notes { margin-top: 16px; }   /* Endnotes, after the links in the order of the page or the line that says there are none */
+#right-sidebar .lk-links-group + .lk-notes { margin-top: 20px; }
 #right-sidebar .lk-links-head { font-weight: 600; font-size: 14px; margin-bottom: 2px; }
 #right-sidebar .lk-links-row { display: flex; align-items: baseline; gap: .5em; min-width: 0; padding: 2px 0; }
 #right-sidebar .lk-links-row .lk-node { min-width: 0; overflow-wrap: anywhere; }
@@ -376,10 +379,11 @@ const css = `
 let offTabs = [];
 function start() {
   state.stopped = false;
-  offTabs = SECTIONS.map(({ key, word }, i) => window.PluginDoor.sideTabs?.add({ key, word, order: 3 + i,
+  // Outline stands first on the left (the owner, 12 November 2026), before Structure's Ontology (1) and Item (2); Links after them.
+  offTabs = SECTIONS.map(({ key, word }) => window.PluginDoor.sideTabs?.add({ key, word, order: key === 'contents' ? 0 : 3,
     find: () => (state.panels[key]?.isConnected ? state.panels[key] : null), open: () => { if (!state.open[key]) setOpen(key, true); },
-    // Endnotes has no tab on a page with no citations (the owner, 12 November 2026); until the page is read, it stays as it was.
-    hidden: key === 'notes' ? () => state.read && !state.notes.length : key === 'contents' ? () => state.read && !state.heads.length : undefined }));
+    // Outline has no tab on a page with no headings; until the page is read, it stays as it was.
+    hidden: key === 'contents' ? () => state.read && !state.heads.length : undefined }));
   style('sidebar-links', css);
   watchScreen(draw);
   Look.kit.listen(host().defaultView, 'click', onItemClosed, true);

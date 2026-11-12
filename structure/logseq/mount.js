@@ -60,11 +60,16 @@ function mount(app) {
   const offTab = Door.sideTabs?.add({ key: 'inspector', word: 'Ontology', order: 1,
     find: doc => doc.getElementById('_sidebar.' + S.inspector.KEY)?.closest('.sidebar-item') || null,
     open: () => { logseq.Editor.openInRightSidebar('_sidebar.' + S.inspector.KEY); } });
+  // Item, the row pressed in a table (the owner, 12 November 2026): the same panel, its other part; there only while a row is pressed.
+  const offItem = Door.sideTabs?.add({ key: 'item', word: 'Item', order: 2,
+    find: doc => doc.getElementById('_sidebar.' + S.inspector.KEY)?.closest('.sidebar-item') || null,
+    open: () => { logseq.Editor.openInRightSidebar('_sidebar.' + S.inspector.KEY); },
+    hidden: () => !S.inspector.row() });
   const offMenu = Door.watch(icons);
   const onPage = () => host().defaultView.location.hash.split('?')[0] === '#' + ROUTE;   // the address carries the place (view.js)
   return {
     ...hosted,
-    stop: () => { offMenu(); offTab?.(); },
+    stop: () => { offMenu(); offTab?.(); offItem?.(); },
     openPage: () => { const win = host().defaultView; if (!onPage()) win.location.hash = '#' + ROUTE; },
     onPage,
     openInspector: async () => { Door.sideTabs?.show('inspector'); await logseq.Editor.openInRightSidebar('_sidebar.' + S.inspector.KEY); await logseq.App.setRightSidebarVisible?.(true); },
