@@ -197,6 +197,20 @@ ${AREA} .block-children .ls-block:has(~ .ls-block .editor-inner)::before { botto
 ${AREA} .block-children .ls-block:has(.editor-inner)::before { height: 14px; }
 ${AREA} .bullet-container .bullet { transition: background-color .15s; }
 @media (prefers-reduced-motion: reduce) { ${AREA} .bullet-container .bullet { transition: none; } }`;
+/* The third choice (12 November 2026, the owner asked for it beside Lit): the guide lines along the way are darker, each
+   whole, from the outermost bullet in to the one you edit; the dots stay as Logseq draws them. It began as the shade
+   darker of 8 November, found too faint, so the line takes Lit's strength. */
+const guides = `
+${AREA} .block-children-container:has(.editor-inner) > .block-children { border-left-color: color-mix(in srgb, var(--lk-text) 55%, transparent) !important; }
+${AREA} .block-children { transition: border-color .15s; }
+@media (prefers-reduced-motion: reduce) { ${AREA} .block-children { transition: none; } }`;
+/* Which way the path shows: Off, Lit (dots and steps) or Lines (whole guide lines). Before 12 November the setting was
+   the switch litBranch; a saved Off there still reads Off until a choice is made. */
+const pathChoice = () => {
+  const saved = logseq.settings?.outlinePath;
+  if (typeof saved === 'string') return setting('outlinePath');
+  return logseq.settings?.litBranch === false ? 'Off' : setting('outlinePath');
+};
 /* Logseq's two-way list under a node (a two-way tag's nodes pointing at it, in tabs), inside the node's own block. A page's own
    list stands outside the page's blocks and is Threads' to hide where its rows replace it. */
 const twoWay = `
@@ -216,7 +230,8 @@ function apply() {
   style('quote-bullets', setting('quoteBullets') ? quoteBullets : '');
   style('quote-pages', setting('quotePages') ? quotePageCss : '');
   watchQuotePages();
-  style('branch', setting('litBranch') ? branch : '');
+  const path = pathChoice();
+  style('branch', path === 'Lit' ? branch : path === 'Lines' ? guides : '');
 }
 Look.style = { apply };
 })();
