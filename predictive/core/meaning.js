@@ -25,17 +25,21 @@ const proposeLib = need('propose');
    tagged, and a page property voted by meaning was right 22 times and wrong 18, whatever the nearness asked (.45 to .7 moved
    it by two or three: Apple's matcher puts two notes of one sentence shape nearer than two that mean the same). With the twelve
    nearest and a lead of .8: the tag right 82, wrong 20, 3 plain notes tagged. So twelve and .8, and the page properties are no
-   longer voted by meaning (meaningProps; the harness can still ask for them, --set meaningProps=true). */
+   longer voted by meaning (meaningProps; the harness can still ask for them, --set meaningProps=true).
+   meaningTagged is not here: it is learned from each graph (barFrom, below), and absent, plain notes vote as they always did. */
 const LIMITS = Object.freeze({ meaningLeast: .45, meaningLead: .8, meaningGap: .04, meaningK: 12, meaningProps: false });
 const limitsOf = ctx => ({ ...LIMITS, ...(ctx.limits || {}) });
 
 /* What the near entries holding ident agree on: each votes for its value with the square of its similarity, as the engine
    does; the leading value wins when the nearest holder is near enough, the value holds the lead's share, and its nearest holder
    stands clear of the runner-up's. null when they do not agree. */
-function vote(near, ident, limits) {
+const vote = (near, ident, limits) => voteWhy(near, ident, limits).best;
+// The same vote with why it gave nothing (why), for the measure: { best } or { best: null, why }.
+function voteWhy(near, ident, limits) {
   // For the tag, plain notes vote too (their "no tag", 0): a line like many plain notes stays plain.
   const holders = near.filter(x => x.entry.values?.get(ident)?.length);
-  if (!holders.length || holders[0].sim < limits.meaningLeast) return null;
+  if (!holders.length) return { best: null, why: 'no near notes' };
+  if (holders[0].sim < limits.meaningLeast) return { best: null, why: 'the nearest note is too far' };
   const tally = new Map();
   let total = 0;
   for (const { entry, sim } of holders) {
@@ -43,10 +47,57 @@ function vote(near, ident, limits) {
     const t = tally.get(key) || { ids, sum: 0, sim: 0, n: 0, from: [] };
     t.sum += sim * sim; t.sim = Math.max(t.sim, sim); t.n++; t.from.push(entry); tally.set(key, t); total += sim * sim;
   }
+  /* The tag, where meaningTagged is set: plain notes ("no tag") do not stand against the tags. The tagged notes must hold at
+     least that share of the whole vote, or the line is like plain notes; then one tag must lead among the tagged alone. So a
+     graph where half the notes of a kind were never tagged still gets the kind's tag offered. */
+  if (ident === 'block/tags' && limits.meaningTagged != null) {
+    const plain = tally.get('0'), tagged = total - (plain?.sum || 0);
+    if (!tagged || tagged / total < limits.meaningTagged) return { best: null, why: 'the near notes are plain notes' };
+    tally.delete('0'); total = tagged;
+  }
   const ranked = [...tally.values()].sort((a, b) => b.sum - a.sum), best = ranked[0], second = ranked[1];
-  if (total && best.sum / total < limits.meaningLead) return null;
-  if (second && best.sim - second.sim < limits.meaningGap) return null;
-  return best;
+  if (total && best.sum / total < limits.meaningLead) return { best: null, why: 'no value holds enough of the vote' };
+  if (second && best.sim - second.sim < limits.meaningGap) return { best: null, why: 'two values as near as each other' };
+  return { best };
+}
+/* How much of the vote tagged notes must hold before a tag is offered (meaningTagged), learned from the graph itself, since
+   graphs differ: in one every note of a kind is tagged, in another half of them were never tagged, and there the untagged
+   look-alikes would outvote the tag every time (12 November 2026: on the owner's graph the matcher gave no tag to any of 40
+   notes; the harness did the same once half its notes of each kind were left untagged). taggedShare(near): the share of a
+   vote that tagged notes hold. barFrom(shares): from the shares around a sample of the graph's own tagged notes, seven tenths
+   of the usual one (the median), never under .15 nor over .8; null with fewer than 20 notes to go on, and then plain notes
+   vote as they always did. */
+function taggedShare(near) {
+  let tagged = 0, total = 0;
+  for (const { entry, sim } of near || []) { const ids = entry.values?.get('block/tags') || []; if (!ids.length) continue; total += sim * sim; if (!(ids.length === 1 && ids[0] === 0)) tagged += sim * sim; }
+  return total ? tagged / total : 0;
+}
+const SAMPLE = 80, SAMPLE_LEAST = 20;
+function barFrom(shares) {
+  if (!shares || shares.length < SAMPLE_LEAST) return null;
+  const sorted = [...shares].sort((a, b) => a - b), median = sorted[Math.floor(sorted.length / 2)];
+  return Math.min(.8, Math.max(.15, Math.round(70 * median) / 100));
+}
+// The tagged bullets a graph is sampled by: up to SAMPLE of them, spread evenly over the index (pages left out).
+function sampleOf(ctx) {
+  const tagged = (ctx.index?.entries || []).filter(e => e.tokens?.length && !ctx.byId.has(e.id) && (e.values.get('block/tags') || [])[0] > 0);
+  const step = Math.max(1, Math.floor(tagged.length / SAMPLE));
+  return tagged.filter((e, i) => i % step === 0).slice(0, SAMPLE);
+}
+
+/* Why an untagged bullet got no tag by meaning, in a few plain words, for the measure's report (names of reasons only): null
+   when it would get one. The same steps as wanted and pieces, in their order. */
+function whyNoTag(ctx, b, result, near) {
+  if (!result || !ctx.index) return 'no graph read';
+  if (result.pieces.length || result.assume) return 'the rules already proposed something';
+  if (b.tags.length || proposeLib.inWords(b.text, ctx).tags.length) return 'a tag is already there';
+  if (proposeLib.recordOf(b, [], ctx.schema).fields.length) return 'it sits under a tagged bullet';
+  if (!proposeLib.enoughForTag(ctx, b.text)) return 'too few words';
+  const { best, why } = voteWhy(near || [], 'block/tags', limitsOf(ctx));
+  if (!best) return why;
+  if (best.ids.length === 1 && best.ids[0] === 0) return 'the near notes are plain notes';
+  const page = best.ids.length === 1 && ctx.byId.get(best.ids[0]);
+  return page?.isTag && page.uuid && ctx.knownTags.has(page.id) ? null : 'the near notes\' tag is not one bullets carry';
 }
 // The two nearest earlier notes behind a vote, as words, for saying why (a saved link read as its page's name).
 const examples = (ctx, from) => [...new Set(from.slice(0, 2).map(e => String(e.title || '').replace(/\[\[([^\]]+)\]\]/g, (m, k) => ctx.byKey.get(k.toLowerCase())?.title || k).replace(/\s+/g, ' ').trim()).filter(Boolean))];
@@ -105,7 +156,7 @@ function nearOf(ctx, found) {
 // The words a note is learned by: a saved link read as its page's name, tags left out, so the matcher reads what the person reads.
 const textOf = (ctx, title) => String(title || '').replace(/#?\[\[([^\[\]]+)\]\]/g, (m, key) => ' ' + (ctx.byKey.get(String(key).toLowerCase())?.title || key) + ' ').replace(/(?:^|\s)#[^\s#\[\]]+/g, ' ').replace(/\s+/g, ' ').trim();
 
-const api = { LIMITS, vote, wanted, openProps, pieces, nearOf, textOf, examples };
+const api = { LIMITS, vote, voteWhy, whyNoTag, taggedShare, barFrom, sampleOf, wanted, openProps, pieces, nearOf, textOf, examples };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 if (typeof window !== 'undefined') (window.Flow ||= {}).meaning = api;
 })();

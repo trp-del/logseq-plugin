@@ -644,6 +644,25 @@ section('Matching by meaning (core/meaning.js, with pretend near notes)');
     const t = visit('Talked things through this morning'), rt = propose(C, t);
     assert.deepEqual(meaningLib.pieces(WITH_PROPS, t, rt, [{ entry: ofMei, sim: .55 }, { entry: ofRuth, sim: .54 }]), [], 'a tie between two values says nothing');
     assert.deepEqual(meaningLib.pieces(C, b, result, [{ entry: plain, sim: .7 }, { entry: ofMei, sim: .5 }]), [], 'a plain note nearest: no tag');
+    assert.equal(meaningLib.whyNoTag(C, b, result, [{ entry: ofMei, sim: .3 }]), 'the nearest note is too far');
+    assert.equal(meaningLib.whyNoTag(C, b, result, [{ entry: plain, sim: .7 }]), 'the near notes are plain notes');
+    assert.equal(meaningLib.whyNoTag(C, b, result, [{ entry: ofMei, sim: .58 }, { entry: plain, sim: .5 }]), 'no value holds enough of the vote');
+    assert.equal(meaningLib.whyNoTag(C, b, result, [{ entry: ofMei, sim: .58 }]), null, 'a tag would come: no reason');
+    assert.equal(meaningLib.whyNoTag(C, { ...b, parent: { tags: [clinic.tagPage.Consultation.id], values: new Map() } }, result, []), 'it sits under a tagged bullet');
+  });
+  test('a graph where half the notes of a kind were never tagged: the bar is learned from it, and the tag is still offered', () => {
+    const b = fresh('Talked things through with the oncologist this morning'), result = propose(C, b);
+    const near = [{ entry: ofMei, sim: .6 }, { entry: plain, sim: .6 }, { entry: ofMei, sim: .55 }, { entry: plain, sim: .55 }];
+    assert.deepEqual(meaningLib.pieces(C, b, result, near), [], 'as plain notes always voted: half the vote is "no tag", so nothing');
+    assert.ok(Math.abs(meaningLib.taggedShare(near) - .5) < 1e-9);
+    assert.equal(meaningLib.barFrom(Array(30).fill(.5)), .35, 'seven tenths of the usual share around the graph\'s own tagged notes');
+    assert.equal(meaningLib.barFrom(Array(30).fill(1)), .7); assert.equal(meaningLib.barFrom(Array(30).fill(.1)), .15, 'never under .15');
+    assert.equal(meaningLib.barFrom(Array(5).fill(.5)), null, 'too few tagged notes to go on: plain notes vote as before');
+    const learned = { ...C, limits: { ...C.limits, meaningTagged: .35 } };
+    assert.equal(meaningLib.pieces(learned, b, result, near)[0]?.tag.title, 'Consultation', 'the tagged notes hold enough, and one tag leads among them');
+    assert.deepEqual(meaningLib.pieces(learned, b, result, [{ entry: plain, sim: .7 }, { entry: plain, sim: .65 }, { entry: plain, sim: .6 }, { entry: ofMei, sim: .5 }]), [], 'mostly plain notes near: the line stays plain');
+    assert.equal(meaningLib.whyNoTag(learned, b, result, [{ entry: plain, sim: .7 }, { entry: plain, sim: .65 }, { entry: plain, sim: .6 }, { entry: ofMei, sim: .5 }]), 'the near notes are plain notes');
+    assert.ok(meaningLib.sampleOf(C).length > 0 && meaningLib.sampleOf(C).every(e => e.values.get('block/tags')[0] > 0), 'sampled by its tagged bullets');
   });
   test('a tagged line: nothing by meaning; asked for, only the open page properties, never one the rules filled or held back', () => {
     const b = visit('Talked things through this morning'), result = propose(C, b);
@@ -848,13 +867,14 @@ const measureLib = require('../core/measure.js');
       { ident: dose.ident, kind: 'number', ids: [5], how: 'words-number' },
     ]);
     const by = Object.fromEntries(seen.map(r => [r.title, r]));
-    assert.deepEqual([by.Provider.result, by.Provider.sure, by.Provider.source], ['wrong', false, 'Apple\'s model']);
-    assert.deepEqual([by.Dose.result, by.Dose.sure, by.Dose.source], ['right', true, 'the rules']);
+    assert.deepEqual([by.Provider.result, by.Provider.sure, by.Provider.source], ['wrong', false, 'Apple’s model']);
+    assert.deepEqual([by.Dose.result, by.Dose.sure, by.Dose.source], ['right', true, 'your words']);
     assert.ok(seen.some(r => r.result === 'quiet'), 'a property left empty and not proposed is counted as left empty');
     const text = measureLib.text(measureLib.tally([{ tagTitle: 'Consultation', asked: [], props: [], tags: [], seen }]), {});
     assert.match(text, /WHAT YOU WOULD SEE WHILE WRITING/);
     assert.match(text, /written when you leave\s+1\s+0\npencilled, a guess\s+0\s+1/);
-    assert.match(text, /Apple's model\s+0\s+1\s+0/);
+    assert.match(text, /Apple’s model\s+0\s+1\s+0/);
+    assert.match(text, /Consultation · Provider\s+0\/0\s+0\/1\s+0\s+0/, 'by property: written right/wrong, pencilled right/wrong, nothing, empty filled');
   });
 }
 

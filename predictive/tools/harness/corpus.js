@@ -140,9 +140,9 @@ const SLOT_PROP = {
 };
 const NOTE_TAGS = Object.keys(FRAMES);
 
-/* make({ notes, plain, held, heldPlain, seed }) -> { ctx, g, held: [{ text, tag, truth: Map(ident -> { kind, ids | number }),
+/* make({ notes, plain, held, heldPlain, seed, untagged }) -> { ctx, g, held: [{ text, tag, truth: Map(ident -> { kind, ids | number }),
    how: Map(ident -> how) }], heldPlain: [text] }. */
-function make({ notes = 6000, plain = 1500, held = 600, heldPlain = 150, seed = 7 } = {}) {
+function make({ notes = 6000, plain = 1500, held = 600, heldPlain = 150, seed = 7, untagged = 0 } = {}) {
   const heldNotes = [], heldPlainLines = [];
   const g = synthetic.build({
     ...SPEC, seed, journal: [{ id: 9902, day: 20261102 }],
@@ -189,6 +189,8 @@ function make({ notes = 6000, plain = 1500, held = 600, heldPlain = 150, seed = 
           if (!how.has(p.ident)) how.set(p.ident, 'absent');
         }
         if (heldOut) heldNotes.push({ text, tag: tagPage[tag].id, tagTitle: tag, truth, how });
+        // untagged: the share of the graph's notes of these kinds that were left with no tag and no values, as a person leaves many.
+        else if (rand() < untagged) add({ title: text, tags: [], values: new Map() });
         else add({ title: text, tags: [tagPage[tag].id], values });
       };
       for (let i = 0; i < notes; i++) write(NOTE_TAGS[i % NOTE_TAGS.length], false);

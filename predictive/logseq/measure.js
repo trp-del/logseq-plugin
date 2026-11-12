@@ -1,4 +1,4 @@
-/* Measuring Apple's model on this graph, on the Mac that has it: the command "Predictive: measure Apple's model on this
+/* Measuring Apple's model on this graph, on the Mac that has it: the command "Predictive: measure Apple's tools on this
    graph", and the row of the same name in the settings window. What is asked and how it is judged is core/measure.js;
    this reads the notes, asks the helper one question at a time, and shows the report in a window of its own.
 
@@ -68,6 +68,8 @@ async function byMeaning(ctx, note) {
   const bare = { ...note.b, tags: [], values: new Map() }, bareResult = { pieces: [], record: bare, quiet: [] };
   const tagPieces = await Flow.meaningAsk.ask(ctx, bare, bareResult);
   const tag = tagPieces.find(p => p.kind === 'tag');
+  // No tag: why not, by the name of the reason, so a silent matcher can be told from a careful one.
+  const why = tag ? null : Flow.meaning.whyNoTag(ctx, bare, bareResult, await Flow.meaningAsk.near(ctx, bare).catch(() => []));
   const tagged = { ...note.b, values: new Map() }, result = Flow.propose.propose(ctx, tagged);
   const pieces = await Flow.meaningAsk.ask(ctx, tagged, result);
   const props = [];
@@ -80,7 +82,7 @@ async function byMeaning(ctx, note) {
   }
   const found = Flow.peopleAsk ? await Flow.peopleAsk.ask(ctx, tagged, result).catch(() => []) : [];
   const named = Flow.peopleAsk ? (await Flow.peopleAsk.namesIn(ctx, tagged).catch(() => [])).length > 0 : false;
-  return { tag: !tag ? 'silent' : note.b.tags.includes(tag.tag.id) ? 'right' : 'wrong', props, doubles: found.length, named: named ? 1 : 0 };
+  return { why, tag: !tag ? 'silent' : note.b.tags.includes(tag.tag.id) ? 'right' : 'wrong', props, doubles: found.length, named: named ? 1 : 0 };
 }
 
 /* The run. progress(done, of, left ms) is called after each note; signal stops it between questions. */

@@ -1,4 +1,4 @@
-/* node tools/harness/measure.js [--held 600] [--notes 6000] [--seed 7] [--set meaningLeast=.4 ...] [--no-model] [--json file]
+/* node tools/harness/measure.js [--held 600] [--notes 6000] [--plain 1500] [--untagged 0] [--seed 7] [--set meaningLeast=.4 ...] [--no-model] [--json file]
    Measures Predictive on a large made-up graph (tools/harness/corpus.js: one fictional patient, about no one real), outside
    Logseq: the plugin's own core (the rules, core/meaning.js, core/model.js) with the real helper on this Mac for Apple's
    matcher and, where the Mac has it, Apple's model. Nothing is written anywhere but the report.
@@ -33,7 +33,7 @@ const pct = (n, of) => of ? Math.round(100 * n / of) + '%' : '–';
 (async () => {
   const status = await fetch(HELPER + '/status', { signal: AbortSignal.timeout(2000) }).then(r => r.json()).catch(() => null);
   if (!status) { console.error('Predictive\'s helper is not running on this Mac (predictive/helper/install.sh).'); process.exit(1); }
-  const made = corpus.make({ notes: Number(arg('notes', 6000)), held: Number(arg('held', 600)), seed: Number(arg('seed', 7)) });
+  const made = corpus.make({ notes: Number(arg('notes', 6000)), held: Number(arg('held', 600)), plain: Number(arg('plain', 1500)), untagged: Number(arg('untagged', 0)), seed: Number(arg('seed', 7)) });
   const { ctx } = made;
   Object.assign(ctx.limits, limits);
   const modelHere = !!status.ready && !args.includes('--no-model');
@@ -43,6 +43,14 @@ const pct = (n, of) => of ? Math.round(100 * n / of) + '%' : '–';
   const entries = ctx.index.entries.filter(e => e.tokens?.length);
   if (status.meaning) for (let at = 0; at < entries.length; at += 400)
     await post('/meaning', { graph: ctx.graph, learn: entries.slice(at, at + 400).map(e => ({ id: e.id, text: meaning.textOf(ctx, e.title) })), replace: at === 0 }, 60000);
+  // As logseq/meaning.js after teaching: how much of a vote tagged notes must hold, from the graph's own tagged notes.
+  if (status.meaning && ctx.limits.meaningTagged == null && !args.includes('--plain-votes')) {   // --plain-votes: as before 12 November 2026
+    const shares = [], k = ctx.limits.meaningK || meaning.LIMITS.meaningK;
+    for (const e of meaning.sampleOf(ctx)) shares.push(meaning.taggedShare(meaning.nearOf(ctx, (await post('/meaning', { graph: ctx.graph, text: meaning.textOf(ctx, e.title), k, skip: [e.id] })).near)));
+    const bar = meaning.barFrom(shares);
+    if (bar != null) ctx.limits.meaningTagged = bar;
+    process.stderr.write(`tagged notes must hold ${bar} of the vote here\n`);
+  }
   const nearOf = async (text, k) => !status.meaning ? [] : meaning.nearOf(ctx, (await post('/meaning', { graph: ctx.graph, text: meaning.textOf(ctx, text), k, skip: [] })).near);
   const fill = async req => { const r = await post('/fill', req.fill).catch(() => null); return r && !r.error ? r : null; };
   // As logseq/apple.js: what came before is done when the next tool is asked, and a pencilled tag is the tag assumed.

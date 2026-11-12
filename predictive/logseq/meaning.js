@@ -40,6 +40,15 @@ async function teach(ctx) {
       await new Promise(resolve => setTimeout(resolve));
     }
     if (!entries.length) await post({ graph: ctx.graph || '', learn: [], replace: true });
+    // How much of a vote tagged notes must hold in this graph, from the notes around a sample of its own tagged bullets
+    // (core/meaning.js, barFrom): kept on the reading's limits, where the vote looks for it.
+    const shares = [], k = ctx.limits?.meaningK || meaning.LIMITS.meaningK;
+    for (const e of meaning.sampleOf(ctx)) {
+      const r = await post({ graph: ctx.graph || '', text: meaning.textOf(ctx, e.title), k, skip: [e.id] }).catch(() => null);
+      if (r?.near) shares.push(meaning.taggedShare(meaning.nearOf(ctx, r.near)));
+    }
+    const bar = meaning.barFrom(shares);
+    if (bar != null && ctx.limits && ctx.limits.meaningTagged == null) ctx.limits.meaningTagged = bar;
     S.taught = key; S.answers.clear();
     return true;
   })().catch(error => { S.ready = null; app.warnOnce('the graph could not be taught to the matcher', error); return false; }).finally(() => { if (S.teaching?.key === key) S.teaching = null; });

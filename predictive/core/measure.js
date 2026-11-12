@@ -43,6 +43,7 @@ const need = n => (typeof require === 'function' && typeof module !== 'undefined
 const model = need('model');
 const { fieldsOfTags, fits, isChoiceProp, isBuiltInProp, isLinkProp, isNumberProp, isDateProp } = need('schema');
 const engine = need('engine');
+const lessons = need('lessons');
 const { shownWords } = need('context');
 
 // Apple's settings, by the word the report gives each and the name the helper takes.
@@ -224,9 +225,8 @@ function judge(ctx, note, req, reply, error = null) {
 /* What you would see while writing, judged: the note's own properties (choices and Logseq's own left out, as nothing ever
    proposes them) against everything proposed for it, the rules', the matcher's, the name finder's and the model's together
    (pieces, as the proposals merge them). [{ title, result: 'right' | 'wrong' | 'silent' | 'spoke' | 'quiet', sure, source }]:
-   sure is a value written when you leave the bullet, not sure a pencilled guess; source is who proposed it. */
-const SOURCES = { model: 'Apple\'s model', meaning: 'by meaning', names: 'name finder' };
-const sourceOf = piece => { const how = String(piece.how || '').split('+').find(h => SOURCES[h]); return how ? SOURCES[how] : 'the rules'; };
+   sure is a value written when you leave the bullet, not sure a pencilled guess; source is what it went on, in the words the
+   lessons page uses (core/lessons.js: your words, a linked page, earlier lines, the bullet above, Apple's model ...). */
 function judgeSeen(ctx, note, pieces) {
   const by = new Map((pieces || []).filter(p => p.kind !== 'tag').map(p => [p.ident, p])), out = [];
   for (const prop of fieldsOfTags(note.b.tags, ctx.schema)) {
@@ -238,7 +238,7 @@ function judgeSeen(ctx, note, pieces) {
     else if (truth.kind === 'number') result = Number(piece.ids[0]) === Number(truth.number) ? 'right' : 'wrong';
     else if (truth.kind === 'date') result = piece.day === truth.day ? 'right' : 'wrong';
     else result = sameSet(piece.ids, truth.ids) ? 'right' : 'wrong';
-    out.push({ title: prop.title, result, sure: !!piece && !piece.guess, source: piece ? sourceOf(piece) : null });
+    out.push({ title: prop.title, result, sure: !!piece && !piece.guess, source: piece ? lessons.sourceOf(piece) : null });
   }
   return out;
 }
@@ -312,11 +312,14 @@ function tally(records) {
     // By meaning (core/meaning.js) and the name finder (core/people.js), where the helper has them: the tag the near notes carry,
     // the open page properties they agree on, and new pages the finder would have offered for a name the note already linked.
     if (rec.seen) {
-      const s = (t.seen ||= { sure: blank(), guess: blank(), silent: 0, empty: 0, bySource: new Map() });
+      const s = (t.seen ||= { sure: blank(), guess: blank(), silent: 0, empty: 0, bySource: new Map(), byProp: new Map() });
       for (const r of rec.seen) {
         if (r.result === 'quiet' || r.result === 'spoke') s.empty++;
         if (r.result === 'quiet') continue;
-        if (r.result === 'silent') { s.silent++; continue; }
+        const name = `${rec.tagTitle || ''} · ${r.title}`;
+        const p = s.byProp.get(name) || { sure: blank(), guess: blank(), silent: 0 }; s.byProp.set(name, p);
+        if (r.result === 'silent') { s.silent++; p.silent++; continue; }
+        p[r.sure ? 'sure' : 'guess'][r.result]++;
         s[r.sure ? 'sure' : 'guess'][r.result]++;
         const c = s.bySource.get(r.source) || blank(); c[r.result]++; s.bySource.set(r.source, c);
       }
@@ -327,6 +330,7 @@ function tally(records) {
       m.tag[rec.meaning.tag]++;
       for (const p of rec.meaning.props) { m.props[p.result]++; const c = m.byProp.get(p.title) || blank(); c[p.result]++; m.byProp.set(p.title, c); }
       m.doubles += rec.meaning.doubles || 0; m.named += rec.meaning.named || 0;
+      if (rec.meaning.why) (m.why ||= new Map()).set(rec.meaning.why, (m.why.get(rec.meaning.why) || 0) + 1);
     }
   }
   return t;
@@ -338,6 +342,7 @@ const meaningLines = m => !m ? [] : (() => {
   return ['', 'BY MEANING (Apple\'s matcher on this Mac, no filter): right / wrong / silent', row('', props ? ['tag', 'properties'] : ['tag']),
     row(`${m.notes} notes`, props ? [rws(m.tag), rws(m.props)] : [rws(m.tag)]),
     ...[...m.byProp].sort((x, y) => (y[1].right + y[1].wrong) - (x[1].right + x[1].wrong)).slice(0, 20).map(([name, c]) => row(name.length > 29 ? name.slice(0, 28) + '…' : name, ['', rws(c)])),
+    ...(m.why?.size ? ['WHY NO TAG BY MEANING: ' + [...m.why].sort((x, y) => y[1] - x[1]).map(([why, n]) => `${why} ${n}`).join(' · ')] : []),
     `NEW PAGES BY THE NAME FINDER: ${m.doubles} offered for a name the note already had a page for (a double), in ${m.named} notes with a name read.`];
 })();
 
@@ -351,8 +356,11 @@ const seenLines = s => !s ? [] : (() => {
     row('nothing shown', [s.silent]),
     row(`of ${s.empty} you left empty`, ['written', 'pencilled']),
     row('filled anyway', [s.sure.spoke, s.guess.spoke]),
-    row('BY WHO PROPOSED IT', ['right', 'wrong', 'empty filled']),
-    ...[...s.bySource].sort((x, y) => (y[1].right + y[1].wrong) - (x[1].right + x[1].wrong)).map(([name, c]) => row(name, [c.right, c.wrong, c.spoke]))];
+    row('BY WHAT IT WENT ON', ['right', 'wrong', 'empty filled']),
+    ...[...s.bySource].sort((x, y) => (y[1].right + y[1].wrong) - (x[1].right + x[1].wrong)).map(([name, c]) => row(name, [c.right, c.wrong, c.spoke])),
+    row('BY PROPERTY (right/wrong)', ['written', 'pencilled', 'nothing', 'empty filled']),
+    ...[...s.byProp].sort((x, y) => (y[1].sure.wrong + y[1].guess.wrong + y[1].sure.spoke + y[1].guess.spoke) - (x[1].sure.wrong + x[1].guess.wrong + x[1].sure.spoke + x[1].guess.spoke) || x[0].localeCompare(y[0])).slice(0, 30)
+      .map(([name, p]) => row(name.length > 29 ? name.slice(0, 28) + '…' : name, [`${p.sure.right}/${p.sure.wrong}`, `${p.guess.right}/${p.guess.wrong}`, p.silent, p.sure.spoke + p.guess.spoke]))];
 })();
 
 const pct = (n, of) => of ? Math.round(100 * n / of) + '%' : '–';
