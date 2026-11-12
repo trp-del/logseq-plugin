@@ -1,6 +1,6 @@
 /* node test/settings.js   (needs jsdom: NODE_PATH, see README)
    The one settings window, against a stand-in Logseq with every part's real description: the places down the left, a place's
-   rows, a change written at once, default, a word added to a list, a letter typed finding through all six, a part switched
+   settings one line each, every choice a named picture with what differs marked, a change written at once, the look it came with, a number, keys recorded, a word added to a list, a letter typed finding through all six, a part switched
    off waiting for the reload, Escape letting go one step at a time, and the gear's Open settings taken for this plugin only, by its whole id. */
 const assert = require('node:assert/strict');
 const fs = require('node:fs'), path = require('node:path'), vm = require('node:vm');
@@ -43,57 +43,88 @@ const key = (dlg, name, target = dlg.querySelector('.sw-mod')) => target.dispatc
   }
   assert.equal([...dlg.querySelectorAll('.sw-mod .sw-name')].map(e => e.textContent).join(), 'The window,A page,The right sidebar,Writing,Finding,Following links,Taking a page out,Keys,Parts', 'the places in order');
   assert.equal([...dlg.querySelectorAll('.sw-group')].map(e => e.textContent).join(), 'What you see,What you do,Everything else', 'in three groups');
-  assert.equal(dlg.querySelector('.sw-placehead h2').textContent, 'The window', 'the place named at its head');
-  assert.equal(dlg.querySelectorAll('.sw-section').length, 2, 'the window holds two sections');
-  assert.equal(dlg.querySelectorAll('.sw-section > p, .sw-legend').length, 0, 'no paragraphs');
+  // The window opens on its first place: a list of one line each, the first setting chosen and drawn large
+  assert.ok(dlg.querySelector('.sw-row.on'), 'the first setting is chosen');
+  assert.ok(dlg.querySelectorAll('.sw-row').length >= 8, 'the window place lists its settings, one line each');
+  assert.equal(dlg.querySelector('.sw-body h2').textContent, dlg.querySelector('.sw-row.on .sw-name').textContent, 'the chosen one, large');
   assert.equal(dlg.querySelector('.sw-reload'), null, 'no reload until one waits');
-  // a place gathers its rows from the part; a change is written at once, and the icon's row sets both keys
+  // A page: every choice a picture, named, the one in force ticked, the one it came with said so; a press takes it
   dlg.querySelector('[data-place="page"]').click();
-  assert.ok(dlg.querySelector('.sw-opt[data-pick="propertyIcons"]'), 'A page holds the property rows');
-  dlg.querySelector('.sw-opt[data-pick="propertyIcons"]:not(.on)').click();
-  assert.equal(JSON.stringify(written.at(-1)), JSON.stringify({ propertyIcons: false }), 'one row, one key');
+  dlg.querySelector('.sw-row[data-row="quietLinks"]').click();
+  const looks = [...dlg.querySelectorAll('.sw-body .sw-opt')];
+  assert.equal(looks.map(o => o.querySelector('.sw-nm').textContent).join(), 'Blue,Underlined', 'each look named');
+  assert.ok(looks[1].classList.contains('on') && looks[1].querySelector('.sw-came'), 'the one in force, as it came');
+  assert.ok(dlg.querySelector('.sw-body .sw-pic.sw-marked .sw-mark'), 'only what differs keeps its strength');
+  assert.equal(dlg.querySelector('.sw-row.on .sw-now').textContent, 'Underlined', 'the line says what it is set to');
+  looks[0].click();
+  assert.equal(JSON.stringify(written.at(-1)), JSON.stringify({ quietLinks: false }), 'one press, one key');
   await sleep(80);
-  assert.ok(dlg.querySelector('[data-reset="propertyIcons"]'), 'default shows on what differs');
+  assert.ok(dlg.querySelector('.sw-row.on .sw-now.sw-moved'), 'a changed setting is marked in the list');
   assert.ok(dlg.querySelector('#sw-changed'), 'Changed by you shows');
   dlg.querySelector('#sw-changed').click();
-  assert.equal(dlg.querySelectorAll('.sw-body .sw-row').length, 1, 'only what differs');
-  dlg.querySelector('[data-reset="propertyIcons"]').click(); await sleep(80);
-  assert.equal(settings.propertyIcons, true, 'default puts it back');
+  assert.equal(dlg.querySelectorAll('.sw-list .sw-row').length, 1, 'only what differs');
+  dlg.querySelector('.sw-body .sw-opt:not(.on)').click(); await sleep(80);
+  assert.equal(settings.quietLinks, true, 'the look it came with puts it back');
+  assert.ok(dlg.querySelector('.sw-list .lk-none'), 'nothing differs now');
 
-  // Parts: the six, each with its tick; a part switched off waits for the reload and rests its rows
+  // A number: a picture at each size, and another typed
+  dlg.querySelector('[data-place="finding"]').click();
+  dlg.querySelector('.sw-row[data-row="rowsShown"]').click();
+  assert.equal([...dlg.querySelectorAll('.sw-body .sw-opt .sw-nm')].map(e => e.textContent).join(), '5,12,30', 'three sizes');
+  const other = dlg.querySelector('#sw-rowsShown'); other.value = '20'; other.dispatchEvent(new win.Event('change', { bubbles: true }));
+  assert.equal(settings.rowsShown, 20, 'another number taken'); await sleep(80);
+  assert.equal(dlg.querySelector('.sw-row.on .sw-now').textContent, '20');
+  settings.rowsShown = 12;
+
+  // Parts: the six, each a switch; a part switched off waits for the reload and rests its rows
   dlg.querySelector('[data-place="parts"]').click();
-  assert.equal(dlg.querySelectorAll('.sw-partrow').length, 6, 'the six parts to switch');
-  const run1 = dlg.querySelector('#sw-run-predictive'); run1.checked = false; run1.dispatchEvent(new win.Event('change', { bubbles: true }));
+  assert.equal(dlg.querySelectorAll('.sw-row[data-row$="On"]').length, 6, 'the six parts to switch');
+  dlg.querySelector('.sw-row[data-row="predictiveOn"]').click();
+  dlg.querySelector('.sw-body .sw-opt[data-val="false"]').click();
   assert.equal(settings.predictiveOn, false); await sleep(80);
   assert.ok(dlg.querySelector('[data-place="parts"] .sw-name.lk-pencil'), 'Parts pencilled while one waits');
-  assert.ok(dlg.querySelector('#sw-reload'), 'Reload to apply');
+  assert.ok(dlg.querySelector('.sw-foot [data-reload]'), 'Reload to apply');
   dlg.querySelector('[data-place="writing"]').click();
-  assert.ok(dlg.querySelector('.sw-rest'), 'its rows rest, still there');
+  assert.ok(dlg.querySelector('.sw-row.sw-rest'), 'its rows rest, still there');
   dlg.querySelector('[data-place="parts"]').click();
-  const run2 = dlg.querySelector('#sw-run-predictive'); run2.checked = true; run2.dispatchEvent(new win.Event('change', { bubbles: true })); await sleep(80);
-  assert.equal(dlg.querySelector('#sw-reload'), null, 'put back, nothing waits');
-  // keys: the arrows walk the places; a letter goes to the find line; Escape lets go a step at a time
+  dlg.querySelector('.sw-row[data-row="predictiveOn"]').click();
+  dlg.querySelector('.sw-body .sw-opt[data-val="true"]').click(); await sleep(80);
+  assert.equal(dlg.querySelector('[data-reload]'), null, 'put back, nothing waits');
+  // keys: the arrows walk the settings; a letter goes to the find line; Escape lets go a step at a time
   dlg.querySelector('[data-place="window"]').click();
-  key(dlg, 'ArrowDown'); assert.equal(dlg.querySelector('[aria-current="true"] .sw-name').textContent, 'A page', 'the arrow walks');
+  const first = dlg.querySelector('.sw-row.on').dataset.row;
+  key(dlg, 'ArrowDown', dlg.querySelector('.sw-row.on')); assert.notEqual(dlg.querySelector('.sw-row.on').dataset.row, first, 'the arrow walks the settings');
   const find = dlg.querySelector('.sw-find'); find.value = 'tag'; find.dispatchEvent(new win.Event('input', { bubbles: true }));
-  assert.ok(dlg.querySelectorAll('.sw-part').length >= 2, 'found through more than one place');
+  assert.ok(new Set([...dlg.querySelectorAll('.sw-sec')].map(e => e.textContent.split(' · ')[1])).size >= 2, 'found through more than one place');
   assert.ok(dlg.querySelector('.sw-nomatch'), 'a place with nothing goes faint');
   const esc = new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }); find.dispatchEvent(esc);
   assert.ok(esc.defaultPrevented && find.value === '' && dlg.hasAttribute('open'), 'the first Escape clears the words');
-  // A key reads as plain words and may be typed so; it is kept in Logseq's spelling. A field's line stands only with the keyboard.
+  // A key reads as plain words, shows what pressing it does, and is recorded from the keys pressed, in Logseq's spelling
   dlg.querySelector('[data-place="keys"]').click();
-  const keys = dlg.querySelector('#sw-proposalsAcceptKeys');
-  assert.equal(keys.value, 'Cmd Option Enter', 'keys as plain words');
-  keys.value = 'Cmd Shift K'; keys.dispatchEvent(new win.Event('change', { bubbles: true }));
-  assert.equal(settings.proposalsAcceptKeys, 'mod+shift+k', 'kept in Logseq\'s spelling');
-  await sleep(80); assert.equal(dlg.querySelector('#sw-proposalsAcceptKeys').value, 'Cmd Shift K');
-  const typed = dlg.querySelector('#sw-proposalsAcceptKeys'); typed.value = 'mod+alt+enter'; typed.dispatchEvent(new win.Event('change', { bubbles: true }));
-  assert.equal(settings.proposalsAcceptKeys, 'mod+alt+enter', 'Logseq\'s own spelling still taken');
+  dlg.querySelector('.sw-row[data-row="proposalsAcceptKeys"]').click();
+  assert.equal(dlg.querySelector('.sw-row.on .sw-now').textContent, 'Cmd Option Enter', 'keys as plain words');
+  assert.ok(dlg.querySelector('.sw-body .sw-pic .sw-key'), 'a picture of pressing them');
+  dlg.querySelector('#sw-record').click();
+  dlg.querySelector('#sw-record').dispatchEvent(new win.KeyboardEvent('keydown', { key: 'K', code: 'KeyK', metaKey: true, shiftKey: true, bubbles: true, cancelable: true }));
+  assert.equal(settings.proposalsAcceptKeys, 'mod+shift+k', 'recorded in Logseq\'s spelling'); await sleep(80);
+  assert.equal(dlg.querySelector('.sw-row.on .sw-now').textContent, 'Cmd Shift K');
+  dlg.querySelector('.sw-body [data-set]:last-child').click(); await sleep(80);
+  assert.equal(settings.proposalsAcceptKeys, 'mod+alt+enter', 'back to the keys it came with');
   assert.equal(Door.settings.keyWords('mod+ctrl+alt+shift+space'), 'Cmd Ctrl Option Shift Space'); assert.equal(Door.settings.keySpelling('Cmd Ctrl Option Shift Space'), 'mod+ctrl+alt+shift+space');
-  await sleep(80); assert.equal(dlg.querySelector('#sw-linkSuggestKeys').placeholder, 'none', 'an empty field still reads');
+  dlg.querySelector('.sw-row[data-row="linkSuggestKeys"]').click();
+  assert.equal(dlg.querySelector('.sw-row.on .sw-now').textContent, 'none', 'an empty key still reads');
+  // a list: a word added, then taken out
+  dlg.querySelector('[data-place="following"]').click();
+  if (dlg.querySelector('.sw-row[data-row="twoWayOneEnd"]')) {
+    dlg.querySelector('.sw-row[data-row="twoWayOneEnd"]').click();
+    const add = dlg.querySelector('[data-add="twoWayOneEnd"]'); add.value = 'Lives in';
+    add.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+    assert.equal(settings.twoWayOneEnd, 'Lives in', 'a word added'); await sleep(80);
+    dlg.querySelector('.sw-drop[data-word="Lives in"]').click(); await sleep(80);
+    assert.equal(settings.twoWayOneEnd, '', 'and taken out');
+  }
   const sheet = doc.getElementById('sw-style').textContent;
   assert.ok(/input\.lk-value \{[^}]*border-bottom: 1px solid transparent/.test(Door.NAMES) && /input\.lk-value:focus \{ border-bottom-color[^}]*box-shadow: none/.test(Door.NAMES), 'a field\'s line only while it has the keyboard (the library\'s input.lk-value)');
-  assert.ok(dlg.querySelector('input.sw-field.lk-value'), 'a settings field is the library\'s input.lk-value');
   // Logseq's list stays a word away
   dlg.querySelector('#sw-plain').click();
   assert.equal(written.at(-1), 'list'); assert.equal(Door.settings.current, null, 'and the window closes');
@@ -104,6 +135,6 @@ const key = (dlg, name, target = dlg.querySelector('.sw-mod')) => target.dispatc
   Door.settingsWays.stop();
   assert.equal(doc.querySelector('.sw-dialog, #sw-style'), null, 'nothing left after the stop');
   doc.getElementById('mine').click(); assert.equal(reached, 2, 'after the stop the gear is Logseq’s again');
-  console.log('ok: the window, the places, a change, default, Changed by you, a part waiting, the keys, the gear');
+  console.log('ok: the window, the places, a picture taken, as it came, Changed by you, a number, a part waiting, keys recorded, a list, the gear');
   process.exit(0);
 })().catch(error => { console.error(error); process.exit(1); });

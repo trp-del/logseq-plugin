@@ -326,7 +326,7 @@ function adopt() {
   for (const holder of host().querySelectorAll('.st-holder-insp')) if (!holder.firstChild) S.inspector.mounted(holder);
   for (const holder of host().querySelectorAll('.st-holder')) if (!holder.querySelector('.st')) { try { app.mounted(S.view.make(holder, holder.classList.contains('st-holder-side') ? 'side' : 'page', app)); } catch (error) { console.error('Structure: could not draw into a holder', error); } }
 }
-window.PluginDoor.describe('structure', { none: 'Structure has nothing to set.' });
+window.PluginDoor.describe('structure', { none: 'Structure has nothing to set.', picture: on => `<span class="sw-faintw">The ··· menu</span><br>${on ? 'Structure<br>' : ''}Find` });
 window.PluginDoor.register({
   key: 'structure', title: 'Structure', about: 'The map of the graph’s tags and properties: one screen to see the whole shape, move things and change many at once, with one Undo.',
   start: main, stop,

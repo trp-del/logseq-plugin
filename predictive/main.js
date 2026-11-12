@@ -54,6 +54,8 @@ async function speedCommand() {
 /* The settings window's specimens: each setting as the thing itself, as it looks while you write. The pencil, tag and
    name looks are Look's, through the shared names. */
 const pen = w => `<span class="lk-pencil">${w}</span>`;
+// Keys pressed, between what was and what comes of them.
+const then = k => `<span class="sw-then">${(window.PluginDoor.settings.keyWords(k) || '').split(' ').filter(Boolean).map(w => `<span class="sw-key">${w}</span>`).join('')}</span>`;
 const SPECIMENS = {
   proposals: on => `<span class="sw-dot"></span>Saw <span class="lk-node">Dr. Mei Chen</span> about the fatigue, worse in the evenings<br><span style="padding-left:14px"><span class="sw-k">Provider:</span> ${on ? pen('Dr. Mei Chen') : '<span class="sw-faintw">empty</span>'} <span class="sw-sep">·</span> <span class="sw-k">Date:</span> ${on ? pen('Oct 23rd, 2026') : '<span class="sw-faintw">empty</span>'} <span class="sw-sep">·</span> <span class="sw-k">Symptom:</span> ${on ? pen('Fatigue') : '<span class="sw-faintw">empty</span>'}</span>`,
   proposalsHideEmpty: on => `<span class="sw-dot"></span>Lena Park came to take the pump off<br><span style="padding-left:14px"><span class="sw-k">Spoke with:</span> <span class="lk-node">Lena Park</span>${on ? '' : ' <span class="sw-sep">·</span> <span class="sw-faintw">Date: empty</span> <span class="sw-sep">·</span> <span class="sw-faintw">Topic: empty</span>'}</span>`,
@@ -64,6 +66,19 @@ const SPECIMENS = {
   },
   linkSuggest: on => `<span class="sw-dot"></span>Saw Dr. Mei${on ? '<span class="sw-grey"> Chen</span>' : ''}`,
   linkKeepCase: on => `<span class="sw-dot"></span>Saw <span class="lk-node">${on ? 'dr. mei chen' : 'Dr. Mei Chen'}</span> <span class="sw-faintw">&nbsp; typed as [[dr. mei chen]]</span>`,
+  // The keys, the numbers and the graphs: what pressing, waiting or listing does in a bullet (the settings window, 12 November 2026).
+  proposalsModel: on => `<span class="sw-dot"></span>Lena from the clinic called back<br><span style="padding-left:14px"><span class="sw-k">Spoke with:</span> ${on ? pen('Lena Park') + '<sup>*</sup>' : '<span class="sw-faintw">empty</span>'}</span>${on ? '<br>' + modelLine() : ''}`,
+  proposalsSkipGraphs: value => { const graphs = String(value || '').split(',').map(g => g.trim()).filter(Boolean); return graphs.length ? graphs.map(g => `${g} <span class="sw-faintw">&nbsp; left alone</span>`).join('<br>') : '<span class="sw-faintw">Every graph gets proposals</span>'; },
+  linkSuggestMinLetters: n => { let seen = 0, cut = 0; const name = 'Dr. Mei Chen'; for (; cut < name.length && seen < Number(n); cut++) if (/[a-z0-9]/i.test(name[cut])) seen++; return `<span class="sw-dot"></span>Saw ${name.slice(0, cut)}<span class="sw-caret"></span><span class="sw-grey">${name.slice(cut)}</span>`; },
+  linkSuggestPause: ms => `<span class="sw-dot"></span>Saw Dr. Mei<span class="sw-caret"></span><span class="sw-grey"> Chen</span><span class="sw-then">${Number(ms) ? `shows ${Number(ms) >= 1000 ? (Number(ms) / 1000).toFixed(1) + ' s' : ms + ' ms'} after your last key` : 'shows at once, as you type'}</span>`,
+  proposalsStepKeys: k => `<span class="sw-dot"></span>Saw <span class="lk-node">Dr. Mei Chen</span>${then(k)}<span style="padding-left:14px"><span class="sw-k">Provider:</span> <span class="sw-caret"></span><span class="sw-faintw">choose</span> <span class="sw-sep">·</span> <span class="sw-k">Date:</span> <span class="sw-faintw">empty</span></span>`,
+  proposalsTagKeys: k => `<span class="sw-dot"></span>Mouth feels like sandpaper<span class="sw-caret"></span>${then(k)}<span style="display:inline-grid;margin-left:14px;padding:4px;border:1px solid var(--lk-hair);border-radius:6px;font-size:14px"><span style="padding:0 8px;border-radius:4px;background:var(--lk-wash)"><span class="lk-tag">Symptom Log</span></span><span style="padding:0 8px"><span class="lk-tag">Observation</span></span></span>`,
+  proposalsAcceptKeys: k => `<span class="sw-dot"></span>Saw <span class="lk-node">Dr. Mei Chen</span><br><span style="padding-left:14px"><span class="sw-k">Provider:</span> ${pen('Dr. Mei Chen')}</span>${then(k)}<span class="sw-dot"></span>Saw <span class="lk-node">Dr. Mei Chen</span><br><span style="padding-left:14px"><span class="sw-k">Provider:</span> <span class="lk-node">Dr. Mei Chen</span></span>`,
+  citeKeys: k => `<span class="sw-dot"></span>Iron was low in March${then(k)}<span style="padding-left:14px"><span class="sw-k">Source:</span> <span class="sw-caret"></span></span>`,
+  pageKeys: k => `<span class="sw-dot"></span>Pump trial<span class="sw-caret"></span>${then(k)}<span class="sw-dot"></span><span class="lk-node">Pump trial</span>`,
+  linkSuggestKeys: k => `<span class="sw-dot"></span>Saw Dr. Mei<span class="sw-caret"></span><span class="sw-grey"> Chen</span>${k ? then(k) + '<span class="sw-dot"></span>Saw <span class="lk-node">Dr. Mei Chen</span>' : '<span class="sw-then">no key of your own</span>'}`,
+  linkSuggestRightArrow: on => `<span class="sw-dot"></span>Saw Dr. Mei<span class="sw-caret"></span><span class="sw-grey"> Chen</span>${then('right')}<span class="sw-dot"></span>${on ? 'Saw <span class="lk-node">Dr. Mei Chen</span>' : 'Saw Dr. Mei <span class="sw-caret"></span>'}`,
+  linkSuggestHyperTap: on => `<span class="sw-dot"></span>Saw Dr. Mei<span class="sw-caret"></span><span class="sw-grey"> Chen</span><span class="sw-then"><span class="sw-key">Hyper</span> tapped alone</span><span class="sw-dot"></span>${on ? 'Saw <span class="lk-node">Dr. Mei Chen</span>' : 'Saw Dr. Mei<span class="sw-caret"></span><span class="sw-grey"> Chen</span>'}`,
   linkSuggestLearn: on => `<span class="sw-dot"></span>Saw ${on ? 'Mei<span class="sw-grey"> Chen</span>' : 'Mei'} <span class="sw-faintw">&nbsp; ${on ? 'offered from three letters, a name the graph usually links' : 'offered only after the usual count of letters'}</span>`,
 };
 /* Under the model's setting, whether Apple's model answers on this Mac: asked as the window draws (at most every two
@@ -106,7 +121,7 @@ function modelLine() {
   }
   return `<div class="pr-model" style="user-select:text;cursor:text">${modelWords(model.last)}</div>`;
 }
-const specimen = (item, value) => item.key === 'proposalsModel' ? (value ? modelLine() : '') : SPECIMENS[item.key] ? SPECIMENS[item.key](value) : '';
+const specimen = (item, value) => SPECIMENS[item.key] ? SPECIMENS[item.key](value) : '';
 
 async function main() {
   logseq.App.registerCommandPalette({ key: 'flow-score', label: 'Predictive: how well do proposals work on this graph?' }, scoreCommand);
@@ -129,19 +144,20 @@ async function main() {
 }
 const stop = () => Flow.app.stopAll();
 // The window's order: what is proposed, the suggested links, then the keys together (the links' keys among them).
-const row = (key, title) => ({ ...Flow.settingsSchema.find(item => item.key === key), ...(title ? { title } : {}) });
+const row = (key, title, more = {}) => ({ ...Flow.settingsSchema.find(item => item.key === key), ...(title ? { title } : {}), ...more });
 window.PluginDoor.describe('predictive', {
   schema: [
     { type: 'heading', title: 'Proposals', place: 'writing' },
-    row('proposals', 'Propose values for a bullet’s properties'), row('proposalsHideEmpty', 'Hide empty properties'), row('tagEagerness', 'Suggest a tag'), row('proposalsModel', 'Use Apple’s language tools on this Mac'),
+    row('proposals', 'Propose values for a bullet’s properties'), row('proposalsHideEmpty', 'Hide empty properties', { looks: ['Shown', 'Hidden'] }), row('tagEagerness', 'Suggest a tag'), row('proposalsModel', 'Use Apple’s language tools on this Mac'),
     { type: 'action', key: 'measureModel', title: 'Measure Apple’s tools on this graph', run: () => Flow.measureUi.open() }, row('proposalsSkipGraphs', 'Leave these graphs alone'),
     { type: 'heading', title: 'Suggested links', place: 'writing' },
-    row('linkSuggest', 'Suggest a link as I type'), row('linkSuggestLearn', 'Learn which pages I link'), row('linkSuggestMinLetters', 'Letters before a suggestion shows'), row('linkSuggestPause', 'Pause before a suggestion shows, in milliseconds'), row('linkKeepCase', 'Keep my capitals in a link'),
+    row('linkSuggest', 'Suggest a link as I type'), row('linkSuggestLearn', 'Learn which pages I link'), row('linkSuggestMinLetters', 'Letters before a suggestion shows', { presets: [3, 5, 8] }), row('linkSuggestPause', 'Pause before a suggestion shows', { presets: [0, 350, 800] }), row('linkKeepCase', 'Keep my capitals in a link', { looks: ['The page’s capitals', 'My capitals'] }),
     { type: 'heading', title: 'Keys', place: 'keys' },
     row('proposalsStepKeys', 'Step through a bullet’s properties'), row('proposalsTagKeys', 'Choose a tag'), row('proposalsAcceptKeys', 'Accept everything shown, without a new bullet'), row('citeKeys', 'Cite a source'), row('pageKeys', 'Make the bullet a page'),
     row('linkSuggestRightArrow', 'Right arrow takes the suggested link'), row('linkSuggestHyperTap', 'A tap of Hyper takes it'), row('linkSuggestKeys', 'Another key takes it'),
   ],
   specimen,
+  picture: on => SPECIMENS.proposals(on),
 });
 window.PluginDoor.register({
   key: 'predictive', title: 'Predictive', about: 'Properties filled in and pages predicted while you write, ignorable by carrying on.',

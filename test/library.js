@@ -80,7 +80,7 @@ const OWN = [
   // a pop-up or the sidebar, as Logseq's own), the small size is --lk-small (13 px: days, counts, notes, keys, trails) and the label
   // --lk-label (12 px: the small name over a value, a pop-up's head, the year line's words); a tag is .85em, as Logseq's own. A glyph
   // (an icon, a chevron, a ×, a superscript number), a heading (a page's title, in calm.js; Threads' Linked, 9 November 2026), monospaced text, a specimen of Logseq's look and the printed page keep theirs.
-  [/font-size:\s*(?!\s|14px|16px|inherit|var\(--lk-(small|label)\)|var\(--th-name, 1em\)|\.85em)[^;}`'"]+/, /\.ti\b|icon|kind|chev|close|-x\b|flow-x|cite-n|flow-model|st-pi|th-drawn|lk-undo|h2|th-tw-whole-name|picked|sw-head|sw-part|sw-spec|look\/logseq\/(settings|calm)\.js|export\/(core|logseq\/preview)|mono|Georgia/, 'a text size of its own'],
+  [/font-size:\s*(?!\s|14px|16px|inherit|var\(--lk-(small|label)\)|var\(--th-name, 1em\)|\.85em)[^;}`'"]+/, /\.ti\b|icon|kind|chev|close|-x\b|flow-x|cite-n|flow-model|st-pi|th-drawn|lk-undo|h2|th-tw-whole-name|picked|sw-head|sw-pic|look\/logseq\/(settings|calm)\.js|export\/(core|logseq\/preview)|mono|Georgia/, 'a text size of its own'],
   [/(color|background|stroke|fill|border)[^;:]*:\s*[^;]*#[0-9a-fA-F]{3,6}\b/, /var\(--[\w-]+,\s*#|export\/logseq\/preview\.js|xp-desk iframe|color-mix\([^)]*#000\)|<!doctype html>|look\/logseq\/settings\.js/, 'a colour of its own'],
 ];
 const own = [];

@@ -23,7 +23,7 @@ assert.ok(/th-tw-chip lk-view\$\{tag === only/.test(read('threads/parts/two-way.
 // Combine as are presses with no ground at rest (lk-low).
 assert.ok(/class: 'lk-btn lk-low lk-i-plus', type: 'button', title: 'Make a page/.test(read('find/logseq/find.js')), 'Find\'s make a page');
 const sw = read('settings/window.js');
-assert.ok(/sw-default lk-btn lk-low/.test(sw) && /sw-word lk-btn lk-low\$\{/.test(sw) && /sw-word lk-btn lk-low" id="sw-plain"/.test(sw) && !/sw-(word|default) lk-lone/.test(sw), 'the settings\' foot and default');
+assert.ok(/sw-mod lk-item" id="sw-plain"/.test(sw) && /sw-mod lk-item\$\{[^}]*\}" id="sw-changed"/.test(sw) && /class="sw-row lk-item/.test(sw) && !/sw-default/.test(sw), 'the settings\' foot and its lines are the library\'s menu lines');
 const st = read('structure/logseq/view.js');
 assert.ok(/lk-btn lk-low lk-i-merge \$\{n \? '' : 'waits'\}" data-paim/.test(st) && /lk-btn lk-low lk-i-rename/.test(st) && /lk-btn lk-low lk-i-move \$\{n/.test(st), 'Structure\'s bars');
 

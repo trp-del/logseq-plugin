@@ -54,7 +54,7 @@ function stop() {
   Find.kit.sweep();
   return done;
 }
-window.PluginDoor.describe('find', { schema: [{ type: 'heading', title: 'The search window', place: 'finding' }, ...Find.settings.schema], specimen: Find.settings.specimen });
+window.PluginDoor.describe('find', { schema: [{ type: 'heading', title: 'The search window', place: 'finding' }, ...Find.settings.schema], specimen: Find.settings.specimen, picture: on => on ? Find.settings.specimen({ key: 'takesSearchKey', type: 'boolean' }, true) : '<span class="sw-k">Cmd K</span> Logseq’s search, and no Find' });
 window.PluginDoor.register({
   key: 'find', title: 'Find', about: 'The search window as the first step of a walk: a name, then the kinds and the time, then the thread from what you found.',
   schema: Find.settings.schema.map(({ key, type, title, description, default: def, enumChoices }) => ({ key, type, title, description, default: def, ...(enumChoices ? { enumChoices } : {}) })),

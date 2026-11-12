@@ -130,7 +130,11 @@ function main() {
 }
 const stop = () => { try { E.ui.sweep(); } catch (error) { /* Logseq's window is gone */ } return E.base.stop(); };   // the window and its stylesheet live in Logseq's document
 // Everything else is chosen in the export window, beside the preview that shows it.
-window.PluginDoor.describe('export', { schema: [{ type: 'heading', title: 'The PDF', place: 'out' }, { ...settingsSchema.find(item => item.key === 'customCss'), placeholder: '.x-title { letter-spacing: -.01em; }' }] });
+/* The settings window's picture: a few lines of a printed page with your rules on them, kept to the picture (every selector
+   is put under the picture's own class), so the rules change it as you type. */
+const scoped = css => String(css || '').split('}').filter(rule => rule.includes('{')).map(rule => { const [sel, body] = rule.split('{'); return `${sel.split(',').map(one => `.xp-sample ${one.trim()}`).join(', ')} {${body}}`; }).join('\n');
+const sample = css => `<style>${scoped(css).replace(/<\//g, '')}</style><div class="xp-sample" style="font-family:Georgia,serif;font-size:13px;line-height:1.5"><div class="x-title" style="font-size:20px;font-weight:600">Dr. Mei Chen</div><div class="x-meta" style="color:var(--lk-quiet);font-size:12px">Doctor · St. Mary’s</div><p class="x-p" style="margin:8px 0 0">Oncologist. First seen Oct 2 about the fatigue; follow-up Oct 21.</p></div>`;
+window.PluginDoor.describe('export', { schema: [{ type: 'heading', title: 'The PDF', place: 'out' }, { ...settingsSchema.find(item => item.key === 'customCss'), placeholder: '.x-title { letter-spacing: -.01em; }' }], specimen: (item, value) => item.key === 'customCss' ? sample(value) : '', picture: on => on ? '<span class="sw-faintw">The ··· menu</span><br>Export as PDF or Markdown…' : '<span class="sw-faintw">The ··· menu</span><br><span class="sw-faintw">no export</span>' });
 window.PluginDoor.register({
   key: 'export', title: 'DB Export', about: 'A page or some blocks out as a PDF, as Markdown or as rich text on the clipboard.',
   schema: settingsSchema, start: main, stop,
