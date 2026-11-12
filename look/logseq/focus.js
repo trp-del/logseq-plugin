@@ -73,6 +73,9 @@ function fadeOld(doc, copy, box, hide, rows) {
   const scroller = main(doc);   // the copy stands in Logseq's view at what is on screen now, so it covers what was on screen then
   Object.assign(ghost.style, { left: scroller.scrollLeft + 'px', top: scroller.scrollTop + 'px', width: box.width + 'px', height: box.height + 'px' });
   if (hide) for (const b of copy.querySelectorAll(`.ls-block[blockid="${hide}"]`)) b.style.visibility = 'hidden';
+  // The line of steps never fades (the owner, 12 November 2026: it flashed): it stands where it is and only its words change,
+  // and where it comes or goes with the page's title it simply comes or goes.
+  for (const line of copy.querySelectorAll('.breadcrumb--block-page')) line.style.visibility = 'hidden';
   ghost.append(copy);
   scroller.append(ghost);   // inside Logseq's view, so its rules for what stands in the view still hold for the copy
   for (const played of ghost.getAnimations({ subtree: true })) played.finish();   // Logseq's own fade-ins shown as they ended, not played again
@@ -108,7 +111,7 @@ function move(was, tries = 0) {
     const to = row.getBoundingClientRect();
     if (from) block.animate([{ transform: `translate(${from.x - to.left}px, ${from.y - to.top}px)` }, { transform: 'none' }], { duration: TIME, easing: EASE });
     // Everything else in the new view that is on screen fades in where it stands.
-    const others = [...scroller.querySelectorAll('.block-main-container, .block-children-left-border, .breadcrumb--block-page, .ls-page-title, .page-title, .ls-page-properties')]
+    const others = [...scroller.querySelectorAll('.block-main-container, .block-children-left-border, .ls-page-title, .page-title, .ls-page-properties')]
       .filter(node => !block.contains(node) && !node.contains(block) && inView(node.getBoundingClientRect(), box));
     for (const node of others) node.animate([{ opacity: 0 }, { opacity: 1 }], { duration: TIME * .8, delay: TIME * (out ? .25 : .35), easing: 'ease-out', fill: 'backwards' });
   }
