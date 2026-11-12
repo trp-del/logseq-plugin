@@ -1333,7 +1333,8 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     click(window, chevOf(doc, U(101))); await wait(120);
     const button = i => doc.querySelector(`.th-tw-npvalue[data-edit="${many.ident}"][data-value="${i}"]`), box = () => doc.querySelector('.th-in-place');
     check(button(0)?.textContent === 'a one' && button(1)?.textContent === 'see Dr. X soon', 'each value its own, as it reads: ' + button(1)?.textContent);
-    check(button(0).parentElement.parentElement === button(1).parentElement.parentElement && !button(0).closest('.th-ol-pv > span > span + span'), 'the values one run of text, with no gap before a comma');
+    const lineOf = b => b.closest('.th-ol-prop');
+    check(lineOf(button(0)) !== lineOf(button(1)) && [0, 1].every(i => lineOf(button(i)).querySelector('.th-ol-pv > .th-ol-dot:not(.th-ol-dot-room)')) && !lineOf(button(1)).querySelector('.th-ol-pname').textContent, 'each value a bullet on a line of its own, the name on the first only (12 November 2026: "Where are bullets for values?")');
     click(window, button(1)); await wait(30);
     check(box()?.value === 'see [[Dr. X]] soon', 'the box starts from the words as written, one value: ' + box()?.value);
     check(!box().closest('button'), 'the box is not inside a button');

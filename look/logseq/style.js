@@ -188,6 +188,15 @@ function watchQuotePages() {
    words are never touched, the rest of the outline stays as Logseq draws it. A .block-main-container never holds its
    block's children, so only the bullet being edited and those above it match. The line is drawn on the blocks it passes
    (each earlier sibling whole, the step itself down to its bullet), over the guide line at the block's left edge. */
+/* The same path in Threads' opened rows (12 November 2026, the owner: "the outline doesn't follow the type of outline style
+   of active node"): there the node you are at is the one in the wash (th-ol-focus, the last one opened), or the bullet or
+   value whose words you are typing (th-in-place). Its guide lines are Threads' own (th-ol-kids, a line down the left of
+   what a node holds: its line 3px in from a row's edge, 5px from a node's); the same choice draws them. */
+const TH_HERE = ':is(.th-ol-focus, .th-in-place)';
+const TH_STEP = `:is(${TH_HERE}, :has(${TH_HERE}))`;
+const TH_BEFORE = `:has(~ ${TH_HERE}, ~ * ${TH_HERE})`;   // an earlier sibling of the step (a :has inside a :has is not allowed)
+const TH = `${AREA} .th-two-way`;
+const TH_KID = `${TH} .th-ol-kids:not(.th-ol-bare) > .th-ol-in >`;
 const branch = `
 ${AREA} .ls-block:has(.editor-inner) > .block-main-container .bullet-container .bullet { background-color: var(--lk-text) !important; }
 ${AREA} .block-children .ls-block:is(:has(.editor-inner), :has(~ .ls-block .editor-inner))::before {
@@ -196,14 +205,23 @@ ${AREA} .block-children .ls-block:is(:has(.editor-inner), :has(~ .ls-block .edit
 ${AREA} .block-children .ls-block:has(~ .ls-block .editor-inner)::before { bottom: 0; }
 ${AREA} .block-children .ls-block:has(.editor-inner)::before { height: 14px; }
 ${AREA} .bullet-container .bullet { transition: background-color .15s; }
-@media (prefers-reduced-motion: reduce) { ${AREA} .bullet-container .bullet { transition: none; } }`;
+@media (prefers-reduced-motion: reduce) { ${AREA} .bullet-container .bullet { transition: none; } }
+${TH} .th-ol-unit:is(.th-ol-focus, :has(${TH_HERE})) > :is(.th-ol-line, .th-ol-bullet) .th-ol-dot > .lk-bul::before,
+${TH} :is(.th-ol-line, .th-ol-bullet):has(.th-in-place) .th-ol-dot > .lk-bul::before { background: var(--lk-text); }
+${TH_KID} :is(${TH_STEP}, ${TH_BEFORE}) { position: relative; }
+${TH_KID} :is(${TH_STEP}, ${TH_BEFORE})::before {
+  content: ""; position: absolute; left: 3px; top: 0; bottom: 0; width: 1.5px; pointer-events: none; z-index: 1;
+  background: color-mix(in srgb, var(--lk-text) 55%, transparent); }
+${TH_KID} .th-ol-unit:is(${TH_STEP}, ${TH_BEFORE})::before { left: 5px; }
+${TH_KID} ${TH_STEP}::before { bottom: auto; height: 14px; }`;
 /* The third choice (12 November 2026, the owner asked for it beside Lit): the guide lines along the way are darker, each
    whole, from the outermost bullet in to the one you edit; the dots stay as Logseq draws them. It began as the shade
    darker of 8 November, found too faint, so the line takes Lit's strength. */
 const guides = `
 ${AREA} .block-children-container:has(.editor-inner) > .block-children { border-left-color: color-mix(in srgb, var(--lk-text) 55%, transparent) !important; }
 ${AREA} .block-children { transition: border-color .15s; }
-@media (prefers-reduced-motion: reduce) { ${AREA} .block-children { transition: none; } }`;
+@media (prefers-reduced-motion: reduce) { ${AREA} .block-children { transition: none; } }
+${TH} .th-ol-kids:not(.th-ol-bare):has(${TH_HERE}) { border-left-color: color-mix(in srgb, var(--lk-text) 55%, transparent) !important; }`;
 /* Which way the path shows: Off, Lit (dots and steps) or Lines (whole guide lines). Before 12 November the setting was
    the switch litBranch; a saved Off there still reads Off until a choice is made. */
 const pathChoice = () => {

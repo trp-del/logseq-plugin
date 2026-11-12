@@ -73,14 +73,16 @@ function nodeHtml(uuid, key, data, asTop = false, field = true) {
     const found = twoWay.findsLine(prop, values) ? 'th-tw-match' : '';
     if (onlyFound && (!found || (prop.type === 'date' && !twoWay.has(prop.title, twoWay.readFind().q)))) continue;
     const nameAttrs = { 'data-edit': prop.ident, 'data-uuid': uuid, title: `Change “${prop.title}”`, class: null };
-    if (guess) { html += O.prop({ kind, many: prop.many, name: prop.title, nameAttrs, cls: found, value: O.pencil(guess.shown || '', { 'data-take': prop.ident, 'data-uuid': uuid, title: `${guess.guess ? 'A guess from its words' : 'From its words'}: click to fill it in` }) }); continue; }
+    if (guess) { html += O.prop({ kind, many: prop.many, name: prop.title, nameAttrs, cls: found, chev: O.room(), value: O.dot(true) + O.pencil(guess.shown || '', { 'data-take': prop.ident, 'data-uuid': uuid, title: `${guess.guess ? 'A guess from its words' : 'From its words'}: click to fill it in` }) }); continue; }
     if (!linked) {
       // Several words or numbers: each its own, changed one at a time; the property's name adds another.
       const one = (text, at = '') => `<button type="button" class="th-tw-npvalue${values.length ? '' : ' th-faint'}" data-edit="${esc(prop.ident)}" data-uuid="${esc(uuid)}"${at} title="Change “${esc(prop.title)}”">${esc(text)}</button>`;
       const typed = !['choice', 'checkbox', 'date', 'datetime'].includes(kind);
       // Empty, it folds with the others into one line (C5, 7 November 2026: an empty property folds until you want it).
-      if (!values.length && !onlyFound) { emptyNames.push(prop.title); empties += O.prop({ kind, many: prop.many, name: prop.title, nameAttrs, cls: found, value: one('empty') }); continue; }
-      html += O.prop({ kind, many: prop.many, name: prop.title, nameAttrs, cls: found, value: !values.length ? one('empty') : typed && prop.many ? `<span>${values.map((v, i) => `<span>${one(v.text, ` data-value="${i}"`)}</span>`).join(', ')}</span>` : one(values.map(v => v.text).join(', ')) });
+      // Each value a bullet of its own, in the column where a node's bullet stands, as Logseq draws a property's values (12 November
+      // 2026, the owner: "Where are bullets for values?"); an empty property, or a proposal, keeps the bullet's room.
+      if (!values.length) { const line = O.prop({ kind, many: prop.many, name: prop.title, nameAttrs, cls: found, chev: O.room(), value: O.dot(true) + one('empty') }); if (onlyFound) html += line; else { emptyNames.push(prop.title); empties += line; } continue; }
+      values.forEach((v, i) => { html += O.prop({ kind, many: prop.many, name: i ? '' : prop.title, nameAttrs: i ? null : nameAttrs, cls: found, chev: O.room(), value: O.dot() + `<span class="th-ol-body">${one(v.text, typed && prop.many ? ` data-value="${i}"` : '')}</span>` }); });
       continue;
     }
     values.forEach((v, i) => {
@@ -548,13 +550,15 @@ async function editNodeProp(uuid, ident, at) {
   const words = !typedKind || addsOne ? '' : one ? one.words : row.values.map(v => v.words).join(', ');   // as written: a link stays a link
   // In place, as Logseq does (1.0.3, the owner: "it is not a natural popup"): a page, a choice or yes/no is picked in
   // Logseq's own picker hanging under the value; a number, words or a day are typed where the value sits.
-  const valueEl = one ? at.parentElement : at?.matches?.('.th-ol-pname') ? at.nextElementSibling : (at?.closest?.('.th-ol-pv') || at);
+  // The words of the value, not its line: its bullet stays where it stands while it is typed into.
+  const words_ = pv => pv?.querySelector?.(':scope > .th-ol-body') || pv;
+  const valueEl = one ? at.parentElement : at?.matches?.('.th-ol-pname') ? words_(at.nextElementSibling) : (words_(at?.closest?.('.th-ol-pv')) || at);
   let typed;
   if (options.length) {
     const picked = await shared.pickValue({ at: valueEl || at, placeholder: `Set ${prop.title}`, options: options.map(label => ({ label, held: held.includes(label) })),
       clearLabel: held.length ? 'Clear' : '', free: isLink });
     typed = picked == null ? null : picked.clear ? '' : (picked.typed ?? picked.label);
-  } else typed = await shared.editInPlace({ at: valueEl || at, value: words, type: kind === 'number' ? 'number' : 'text', placeholder: isDay ? 'today, friday, 4 aug …' : '', again: one ? () => twoWay.inBox(`.th-tw-npvalue[data-edit="${CSS.escape(ident)}"][data-uuid="${CSS.escape(uuid)}"][data-value="${at.dataset.value}"]`)()?.parentElement : twoWay.valueBox(uuid, prop) });
+  } else typed = await shared.editInPlace({ at: valueEl || at, value: words, type: kind === 'number' ? 'number' : 'text', placeholder: isDay ? 'today, friday, 4 aug …' : '', again: one ? () => twoWay.inBox(`.th-tw-npvalue[data-edit="${CSS.escape(ident)}"][data-uuid="${CSS.escape(uuid)}"][data-value="${at.dataset.value}"]`)()?.parentElement : () => words_(twoWay.valueBox(uuid, prop)()) });
   if (typed == null) return;
   const had = await twoWay.heldNow(uuid, prop);
   let done = '';

@@ -482,12 +482,17 @@ const twoWayCss = `
 .th-two-way .th-tw-lhead.th-tw-linkedline { color: inherit; font-weight: 500; }   /* "Linked" as the page's own Linked line: what is under it points here */
 .th-two-way .th-ol-in > .th-tw-linkedline:not(:first-child) { margin-top: 8px; }
 .th-two-way .th-ol-bullet > .lk-fold { opacity: 0 !important; transition: opacity .12s; }   /* a bullet's fold arrow as a line's: under the pointer, or while open */
-.th-two-way .th-ol-bullet:hover > .lk-fold, .th-two-way .th-ol-bullet > .lk-fold[aria-expanded="true"], .th-two-way .th-ol-bullet > .lk-fold:focus-visible { opacity: .6 !important; }
+.th-two-way .th-ol-bullet:hover > .lk-fold, .th-two-way .th-ol-bullet > .lk-fold:focus-visible { opacity: .6 !important; }   /* open or closed, as a node's line and as Logseq (12 November 2026: an open bullet's arrow at rest stood out of line beside the node above it, whose arrow hides) */
 .th-two-way .th-ol-bullet > .lk-fold:hover { opacity: 1 !important; }
 /* The words of the + appear on its left, inside the list's right edge, not past it (the owner, 10 November 2026: "this is
    totally to the right of every thing"). */
 .th-two-way .th-tw-add::after { left: auto; right: 100%; margin-left: 0; margin-right: 4px; padding: 0 2px 0 6px; }
 .th-two-way .th-tw-head:has(.th-tw-add:hover) .th-tw-piece { visibility: hidden; }   /* the head's days give their place to the words while they show */
+/* A fold arrow stands beside its bullet as Logseq's does (12 November 2026, the owner: the arrows and bullets of opened rows
+   "out of line" with the guide lines): 2px short of the bullet, so it stands clear of the guide line it sits right of, and
+   level with the bullet on a bullet's line as on a node's. Only the arrow moves; the bullets and words stay where they were. */
+.th-two-way :is(.th-ol-line, .th-ol-bullet, .th-ol-pv) > .lk-fold:has(+ .th-ol-dot) { left: 4px; }
+.th-two-way .th-ol-bullet > .th-chev { align-self: flex-start; top: 0; height: 1.5em; }
 `;
 /* Logseq's own far end (the owner's pick): the tag-named tabs below a page's blocks list the same records
    as the rows, without the field that links them. Left out in the main view while the rows are drawn there, so a page
