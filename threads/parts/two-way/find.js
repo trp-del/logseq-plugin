@@ -19,14 +19,14 @@ const FIND_FROM = 20; // the find line stands only when there are enough rows to
 const allPointing = () => new Set(state.groups.flatMap(g => g.items.map(item => item.uuid))).size;
 function findHtml() {
   const n = allPointing();
-  if (n < FIND_FROM && !state.find && !state.findShown && !twoWay.hasViews?.()) return '';
+  if (n < FIND_FROM && !state.find && !state.findShown) return '';
   const read = readFind(), found = state.find ? foundGroups().reduce((sum, g) => sum + g.items.length, 0) : 0;
   // The count says what the words did: the nodes found of all; on a day, up to it; a page named that is not there.
   const other = read.beside ? twoWay.besidePage?.() : null;
   const count = twoWay.askCount?.() || (!state.find ? n : read.beside && !other ? `no page “${read.beside}”` : other ? `beside ${other.title}` : read.asOf && !read.q ? `${found} of ${n} up to ${twoWay.dayText(read.asOf)}` : `${found} of ${n}`);
   // On a day: a week back, a week on, and Today, so the day can be walked without typing it again (C15, 7 November 2026).
   const steps = read.asOf ? `<div class="th-tw-daysteps lk-strip"><button type="button" class="lk-btn lk-low" data-daystep="-7" title="The page a week earlier">‹ a week earlier</button><button type="button" class="lk-btn lk-low" data-daystep="7" title="The page a week later">a week later ›</button><button type="button" class="lk-btn lk-low" data-daystep="0" title="Back to today's whole page">Today</button></div>` : '';
-  return `<div class="th-tw-findrow">${shared.fieldHtml({ icon: 'find', value: state.find, placeholder: 'Find in these', count, inputCls: 'th-tw-find', label: 'Find in what points here' })}${steps}${twoWay.viewsHtml?.() || ''}</div>`;
+  return `<div class="th-tw-findrow">${shared.fieldHtml({ icon: 'find', value: state.find, placeholder: 'Find in these', count, inputCls: 'th-tw-find', label: 'Find in what points here' })}${steps}</div>`;
 }
 /* The find line's words read (7 November 2026): "and Dr. Helen Brooks" names a page to stand beside this one (parts/two-way/beside.js);
    "on Oct 7", "up to 7 Oct", "until 2026-10-07" turn the page back to that day, the later nodes faint; whatever is left
@@ -184,7 +184,18 @@ function keepFind(box, caret) {
   // keeps its place (the reviewer: the field dropped 43 to 190 px under the cursor when the rows got shorter than the
   // screen). Emptied, it lets go.
   field.addEventListener('input', () => { if (!state.find.trim()) state.findHold = box.getBoundingClientRect().height; state.find = field.value; readForFind(); twoWay.draw(host()); });
-  field.addEventListener('keydown', event => { event.stopPropagation(); if (event.key === 'Escape') { event.preventDefault(); if (state.find) { state.find = ''; twoWay.draw(host()); } else field.blur(); } });
+  /* The find line works as Find does (the owner, 9 and 12 November 2026): with letters in it, the first node they leave is
+     lit; Enter opens its page (Shift Enter in the sidebar), Down goes to its name, where the keyboard walks the lists; Escape
+     empties the line, then lets go of it. */
+  const first = () => (state.find.trim() ? [...box.querySelectorAll('.th-tw-line a.th-tw-record')].find(a => a.offsetParent) || null : null);
+  const lit = first()?.closest('.th-tw-line');
+  if (lit) lit.classList.add('on');
+  field.addEventListener('keydown', event => {
+    event.stopPropagation();
+    if (event.key === 'Escape') { event.preventDefault(); if (state.find) { state.find = ''; twoWay.draw(host()); } else field.blur(); }
+    else if (event.key === 'Enter' && !event.metaKey && !event.ctrlKey && !event.altKey) { const to = first(); if (to) { event.preventDefault(); shared.openEntity(to.dataset.uuid, event.shiftKey); } }
+    else if (event.key === 'ArrowDown') { const to = first(); if (to) { event.preventDefault(); to.focus({ preventScroll: false }); } }
+  });
   for (const type of ['keyup', 'keypress']) field.addEventListener(type, event => event.stopPropagation());
 }
 

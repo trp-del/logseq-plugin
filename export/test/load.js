@@ -23,7 +23,7 @@ for (const file of order) vm.runInContext(fs.readFileSync(path.join(root, file),
   eq(errors, [], 'main() started without an error');
   assert.ok(E.inline && E.doc && E.markdown && E.html && E.themes && E.db && E.files && E.clipboard && E.print && E.ui && E.app, 'every part registered');
   eq(commands.sort(), ['db-export-blocks', 'db-export-md', 'db-export-page', 'db-export-pdf'], 'commands registered');
-  assert.ok(menus.filter(m => m === 'Export as PDF or Markdown…').length === 2, 'menu items registered');
+  assert.ok(menus.filter(m => m === 'PDF or Markdown, your styles…').length === 2, 'menu items registered');
   console.log('  ok  every file loads in order and main() starts');
 
   await E.files.currentGraph();

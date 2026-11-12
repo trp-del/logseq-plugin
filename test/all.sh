@@ -21,6 +21,7 @@ run . node test/dates.js
 run . node test/helpers.js
 run . node test/keys.js
 run . node test/one-look.js
+run . node test/leftovers.js
 run . node test/tidy.js
 run look node test/load.js
 run find node test/load.js

@@ -218,9 +218,12 @@ async function load() {
           if (mentions) groups = [...groups, mentions];
           // The rows replace Linked references on a page that is not a tag, once its mentions were really read: with
           // them off, or a read that failed, Linked references is the only place they are.
-          // Not on a journal day: its Linked references also lists the tasks scheduled or due that day, through Logseq's own
-          // properties, which the rows do not read.
-          state.replaces = read && !state.pageJournal && !(await provided.kindOfPage?.(page.id).catch(() => null))?.isTag;
+          // On a journal day too (the owner, 9 and 12 November 2026: the plugin's Linked there as on every page): its Linked
+          // references also lists the nodes scheduled or due that day, through Logseq's own properties, so the rows read
+          // those first (duesGroups), and stand in only once that read went through.
+          let dues = true;
+          if (state.pageJournal) groups = await duesGroups(state.pageDay, groups).catch(error => { dues = false; warnOnce('could not read what is scheduled or due on this day', error); return groups; });
+          state.replaces = read && dues && !(await provided.kindOfPage?.(page.id).catch(() => null))?.isTag;
         }
         for (const hook of loadHooks) groups = (await hook(page, groups).catch(error => { warnOnce('a piece could not read for this page', error); return null; })) || groups;
         await twoWay.readValues(twoWay.groupedUuids(groups)).catch(error => warnOnce('could not read the values the rows are grouped by', error));
@@ -269,6 +272,22 @@ async function groupsFor(id) {
     }
   }
   return groups;
+}
+/* What Logseq's own Scheduled and Deadline put on a journal day, as a list each, after the lists of your own properties: a
+   node already in a list of the same name (a day held as the journal page comes through linksInto) is not said twice. */
+async function duesGroups(day, groups) {
+  if (!provided.duesOn || !day) throw new Error('the model reads no scheduled or due nodes');
+  const found = (await provided.duesOn(day)).filter(m => UUID.test(m.uuid));
+  const out = [...groups];
+  for (const which of ['Scheduled', 'Deadline']) {
+    const same = out.find(g => g.name.toLowerCase() === which.toLowerCase());
+    const have = new Set((same?.items || []).map(item => item.uuid));
+    const items = await Promise.all(found.filter(m => m.which === which && !have.has(m.uuid)).map(async m => { const words = await linkedWordsOf(m.title); return { uuid: m.uuid, title: plainWords(words), words, tag: m.tag || 'note', day: m.day, dayFrom: which, status: m.status || 0 }; }));
+    if (!items.length) continue;
+    if (same) same.items = [...same.items, ...items];
+    else out.push({ name: which, label: which, items, fieldUuid: '', ident: '', kind: 'date', many: false });   // no ident: nothing is added from here, Logseq's date box sets these
+  }
+  return out;
 }
 // A node's stored words as they read: links as the words they show, "saw [[Dr. Joe]]" as "saw Dr. Joe",
 // "[the scan]([[CT]])" as "the scan", tags written in the words left out.

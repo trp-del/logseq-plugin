@@ -544,6 +544,35 @@ async function mentionsInto(id) {
   }
   return out;
 }
+/* The nodes Logseq's own Scheduled and Deadline put on a journal day (day: its number, 20261106), which its Linked references
+   lists there beside the nodes that link the day: a day held as the journal page, or as a time within that day. As
+   mentionsInto describes its nodes, with which: 'Scheduled' or 'Deadline'. Deleted ones and the day's own bullets are left out. */
+async function duesOn(day) {
+  if (!Number.isSafeInteger(day) || day < 10000101) return [];
+  const from = new Date(Math.floor(day / 10000), Math.floor(day / 100) % 100 - 1, day % 100).getTime(), to = from + 86400000;
+  const out = [], seen = new Set();
+  const pageId = await window.PluginDoor.dates.pageFor(day, dsQuery).catch(() => null);   // the day's journal page, if the graph has one
+  const own = Number.isSafeInteger(pageId) && pageId > 0 ? `(not [?b :block/page ${pageId}])` : '';   // the day's own bullets do not count, as in Linked references
+  for (const [attr, which] of [['scheduled', 'Scheduled'], ['deadline', 'Deadline']]) {
+    const [onPage, atTime] = await Promise.all([
+      Number.isSafeInteger(pageId) && pageId > 0 ? dsQuery(`[:find ?b ?uuid ?title :where [?b :logseq.property/${attr} ${pageId}] ${own} [?b :block/uuid ?uuid] [?b :block/title ?title] ${LIVE}]`).catch(() => []) : [],
+      dsQuery(`[:find ?b ?uuid ?title :where [?b :logseq.property/${attr} ?ms] [(>= ?ms ${from})] [(< ?ms ${to})] ${own} [?b :block/uuid ?uuid] [?b :block/title ?title] ${LIVE}]`).catch(() => []),
+    ]);
+    for (const [b, uuid, title] of [...onPage, ...atTime]) {
+      if (seen.has(`${which}|${b}`)) continue; seen.add(`${which}|${b}`);
+      out.push({ id: b, uuid: String(uuid), title: String(title || ''), which, day });
+    }
+  }
+  if (!out.length) return out;
+  const among = `[(ground [${[...new Set(out.map(o => o.id))].join(' ')}]) [?b ...]]`;
+  const [tagged, statuses] = await Promise.all([
+    dsQuery(`[:find ?b ?tag :where ${among} [?b :block/tags ?t] ${YOUR_TAG} [?t :block/title ?tag]]`).catch(() => []),
+    dsQuery(`[:find ?b ?s :where ${among} ${STATUS}]`).catch(() => []),
+  ]);
+  const tags = new Map(); for (const [b, tag] of tagged) if (!tags.has(b) || tag < tags.get(b)) tags.set(b, tag);
+  const status = statusOf(statuses);
+  return out.map(o => ({ ...o, tag: tags.get(o.id) || '', status: status.get(o.id) || 0 }));
+}
 /* What the structure is used for: the evidence the tag map's counts and findings rest
    on, for the whole graph, in four questions asked at once. values: property ident -> [[node, value]] (a value is the id
    of a node, a page, a choice or a text block, or a number); tagsOf: node -> [ids of your tags on it]; texts: text block
@@ -1038,7 +1067,7 @@ function provide(core) {
     propSchema, propPages, fieldsOf, fits, kindOfPage, tagChain, tagChains, tagChainIndex, parseDay, dayNumber, sameDay, dayAfter, DAYS,
     tagGraph, propInfo, ownProps, inheritedProps, tagPropIds, acceptedIds, choicesOf, choiceUse, choiceCounts, choiceNodes, idByUuid,
     descriptionOf, titleNow, valuesOf, userValues, mergeFacts, TAG_PROPS, ACCEPTS, DESCRIPTION,
-    linksInto, mentionsInto, pageHasList, createdAt, firstTags, nodesOfTag, nodeLines, nodeFields, nodeValues, firstLines, pagesAmong, tagUuidNamed, uuidById,
+    linksInto, mentionsInto, duesOn, pageHasList, createdAt, firstTags, nodesOfTag, nodeLines, nodeFields, nodeValues, firstLines, pagesAmong, tagUuidNamed, uuidById,
     hasTag, pageLines, registerCommand,
     propTextValues, propTextBlocks, propValueBlocks, propNamed, propUses, structureUse, propNodeIds, choiceIds, crumbsInto, heldBelow, withKids, linkRates, linkRatesOf, journalIdFor, CHECKED_WITH, PAGE_TITLE, screenChecks, pageTitles, titleAnchor });
 }

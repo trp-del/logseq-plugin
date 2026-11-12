@@ -149,10 +149,6 @@ const twoWayCss = `
 .th-two-way .th-tw-ymonth { position: absolute; bottom: 0; font-size: var(--lk-label); line-height: 14px; color: var(--lk-quiet); transform: translateX(-50%); pointer-events: none; }
 .th-two-way .th-tw-ymonth::before { content: ""; position: absolute; left: 50%; top: -10px; height: 8px; border-left: 1px solid var(--lk-line); }
 .th-two-way .th-tw-yband { position: absolute; top: 0; bottom: 14px; background: var(--lk-wash); border-radius: 3px; pointer-events: none; }
-/* Saved views (N9): a quiet line under the find line. */
-.th-two-way .th-tw-views { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; margin: 4px 0 0 9px; font-size: var(--lk-small); }   /* its words at the words edge */
-.th-two-way .th-tw-viewname { all: unset; cursor: pointer; color: var(--lk-quiet); text-decoration: underline; text-decoration-color: var(--lk-line); text-underline-offset: 3px; }
-.th-two-way .th-tw-viewname:hover { color: var(--lk-text, currentColor); }
 /* The keyboard walk (N14): the name the keyboard is on reads with its underline and the line's wash. */
 .th-two-way a.th-tw-record:focus-visible { outline: none; text-decoration-color: currentColor !important; background: var(--lk-wash); border-radius: 3px; }
 /* Compare (N4): the two in a card, one property to a line; what differs in the text colour, what is the same quiet. */
@@ -448,11 +444,10 @@ const twoWayCss = `
 /* The whole width of the section, its line a hairline even while typing (the owner: "weirdly short", "bottom of it can be
    hairline"). */
 /* One line at the top, Linked's (12 November 2026, the owner's yes to "only one line"): the find field has none at rest,
-   its hairline while it has the caret or words. Keep this view and the kept views stand at its right end, on its line. */
+   its hairline while it has the caret or words. */
 .th-two-way .th-tw-findrow { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; }
 .th-two-way .th-tw-findrow > .th-field { flex: 1 1 240px; min-width: 0; border-bottom-color: transparent; }
 .th-two-way .th-tw-findrow > .th-field:focus-within, .th-two-way[data-finding] .th-tw-findrow > .th-field { border-bottom-color: var(--lk-hair); }
-.th-two-way .th-tw-findrow > .th-tw-views { flex: none; margin: 0; }
 .th-two-way .th-tw-findrow > .th-field { gap: 2px; }   /* the glass 15px at the mark edge, the words at 305, as a name after its icon */
 .th-two-way .th-tw-stepped { grid-column: 1 / -1; }
 .th-two-way .th-tw-stepped > .th-ol-trail { padding: 2px 0 8px; }

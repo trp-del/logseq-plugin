@@ -90,7 +90,7 @@ function addPlaces(menu) {
    itself is Logseq's and is left as it is. A line this list does not know keeps the column empty, so its words still line up. */
 const PAGE_ICONS = { 'Add to Favorites': 'star', 'Remove from Favorites': 'star-off', 'Copy page URL': 'link', 'Delete page': 'trash',
   'Export page': 'file-export', 'Publish page': 'world-upload', 'Unpublish page': 'world-off', 'Make it public for publishing': 'lock-open',
-  'Make it private': 'lock', 'Export as PDF or Markdown…': 'file-type-pdf', 'Convert to Tag': 'hash', 'Convert Tag to Page': 'file', 'Convert to Page': 'file',
+  'Make it private': 'lock', 'PDF or Markdown, your styles…': 'file-type-pdf', 'Convert to Tag': 'hash', 'Convert Tag to Page': 'file', 'Convert to Page': 'file',
   '(Dev) Show page data': 'code', 'Open in default app': 'external-link', 'Open in directory': 'folder', 'Copy page path': 'copy',
   // A bullet's menu (right-click on its dot), and the same words wherever else they stand.
   'Open in sidebar': 'layout-sidebar-right', 'Add comment': 'message', 'Add reaction': 'mood-smile', 'Set icon': 'icons',

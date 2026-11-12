@@ -9,7 +9,7 @@
    have a tab as the normal sidebar?"). A page or block just opened picks it. Logseq's Contents, Page graph and Help and the
    cube with a + are left out of the row (Contents, which Logseq puts in a sidebar opened empty, is not shown).
 
-   A module adds a view with Door.sideTabs.add({ key, word, order, find(doc) → its .sidebar-item or null, open() }) and gets back
+   A module adds a view with Door.sideTabs.add({ key, word, order, find(doc) → its .sidebar-item or null, open(), hidden(doc)? → true while it has nothing to show }) and gets back
    what takes it off. The bar is drawn by one pass of the shared screen watcher while any view is added. */
 (function () {
 const Door = window.PluginDoor;
@@ -57,7 +57,8 @@ function draw(doc = host()) {
   if (!side || !bar) return;
   if (!side.hasAttribute('data-lk-tabs')) side.setAttribute('data-lk-tabs', '');
   const items = itemsOf(doc);
-  const ordered = [...views].sort((a, b) => a.order - b.order);
+  // A view that says it has nothing to show on this page (hidden) has no tab: Endnotes on a page with no citations (the owner, 12 November 2026).
+  const ordered = [...views].filter(v => !v.hidden?.(doc)).sort((a, b) => a.order - b.order);
   // A page or block just opened in the sidebar is the one shown; a view's item appearing after its tab was picked stays picked.
   for (const item of items) {
     if (tabs.seen.has(item)) continue;
@@ -69,10 +70,10 @@ function draw(doc = host()) {
   const others = items.filter(item => !viewOf(doc, item) && !isContents(item));
   if (tabs.cur === SIDE && !others.length) tabs.cur = null;
   // The tab picked is gone: the first view that is open, else the first view, opened.
-  if (tabs.cur !== SIDE && !views.some(v => v.key === tabs.cur)) tabs.cur = ordered.find(v => v.find(doc))?.key || null;
+  if (tabs.cur !== SIDE && !ordered.some(v => v.key === tabs.cur)) tabs.cur = ordered.find(v => v.find(doc))?.key || null;
   if (!tabs.cur && ordered[0] && !tabs.pending) { pickView(doc, ordered[0]); return; }
   // Which items show: the view picked, alone and without its head; or, on Sidebar, everything else as Logseq stacks it.
-  const view = views.find(v => v.key === tabs.cur), viewItem = view?.find(doc);
+  const view = ordered.find(v => v.key === tabs.cur), viewItem = view?.find(doc);
   const viewItems = new Set(views.map(v => v.find(doc)).filter(Boolean));
   for (const item of doc.querySelectorAll('#right-sidebar .sidebar-item-list > .sidebar-item')) {
     const on = tabs.cur === SIDE ? others.includes(item) : item === viewItem;

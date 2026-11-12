@@ -62,8 +62,6 @@ async function act(doc, ch, action, editedBody) {
 async function readWhat(event) {
   await E.files.currentGraph();
   const over = { columnsOf, order: orderOf };
-  // A list of nodes from another module (Threads' Export list, 7 November 2026), in the order given, under the title given.
-  if (Array.isArray(event?.uuids) && event.uuids.length) { const doc = await E.db.readBlocks(event.uuids, over); if (event.title) doc.title = event.title; return { doc, what: event.what || `${event.uuids.length} nodes` }; }
   const uuid = typeof event?.uuid === 'string' ? event.uuid : null;
   if (uuid) return { doc: await E.db.readBlocks([uuid], over), what: 'this block' };
   const selected = await Promise.resolve(logseq.Editor.getSelectedBlocks()).catch(() => null);
@@ -122,8 +120,8 @@ function main() {
   logseq.App.registerCommandPalette({ key: 'db-export-blocks', label: 'Export: the selected blocks…' }, () => exportWindow({ blockFirst: true }));
   logseq.App.registerCommandPalette({ key: 'db-export-md', label: 'Export: copy this page as Markdown' }, () => quick('md'));
   logseq.App.registerCommandPalette({ key: 'db-export-pdf', label: 'Export: save this page as PDF' }, () => quick('pdf'));
-  logseq.Editor.registerBlockContextMenuItem('Export as PDF or Markdown…', event => exportWindow(event));
-  logseq.App.registerPageMenuItem?.('Export as PDF or Markdown…', event => exportWindow({ page: event?.page }));
+  logseq.Editor.registerBlockContextMenuItem('PDF or Markdown, your styles…', event => exportWindow(event));
+  logseq.App.registerPageMenuItem?.('PDF or Markdown, your styles…', event => exportWindow({ page: event?.page }));
   E.base.onStop(logseq.App.onCurrentGraphChanged(() => { E.db.forget(); E.files.forget(); E.ui.sweep(); }));
   E.base.onStop(logseq.DB.onChanged(() => E.db.forget()));   // names and days may change; they are cheap to read again
   E.app = { pageHtml, markdown, richText, act, readWhat, exportWindow, quick, settingsSchema };
@@ -134,7 +132,7 @@ const stop = () => { try { E.ui.sweep(); } catch (error) { /* Logseq's window is
    is put under the picture's own class), so the rules change it as you type. */
 const scoped = css => String(css || '').split('}').filter(rule => rule.includes('{')).map(rule => { const [sel, body] = rule.split('{'); return `${sel.split(',').map(one => `.xp-sample ${one.trim()}`).join(', ')} {${body}}`; }).join('\n');
 const sample = css => `<style>${scoped(css).replace(/<\//g, '')}</style><div class="xp-sample" style="font-family:Georgia,serif;font-size:13px;line-height:1.5"><div class="x-title" style="font-size:20px;font-weight:600">Dr. Mei Chen</div><div class="x-meta" style="color:var(--lk-quiet);font-size:12px">Doctor · St. Mary’s</div><p class="x-p" style="margin:8px 0 0">Oncologist. First seen Oct 2 about the fatigue; follow-up Oct 21.</p></div>`;
-window.PluginDoor.describe('export', { schema: [{ type: 'heading', title: 'The PDF', place: 'out' }, { ...settingsSchema.find(item => item.key === 'customCss'), placeholder: '.x-title { letter-spacing: -.01em; }' }], specimen: (item, value) => item.key === 'customCss' ? sample(value) : '', picture: on => on ? '<span class="sw-faintw">The ··· menu</span><br>Export as PDF or Markdown…' : '<span class="sw-faintw">The ··· menu</span><br><span class="sw-faintw">no export</span>' });
+window.PluginDoor.describe('export', { schema: [{ type: 'heading', title: 'The PDF', place: 'out' }, { ...settingsSchema.find(item => item.key === 'customCss'), placeholder: '.x-title { letter-spacing: -.01em; }' }], specimen: (item, value) => item.key === 'customCss' ? sample(value) : '', picture: on => on ? '<span class="sw-faintw">The ··· menu</span><br>PDF or Markdown, your styles…' : '<span class="sw-faintw">The ··· menu</span><br><span class="sw-faintw">no export</span>' });
 window.PluginDoor.register({
   key: 'export', title: 'DB Export', about: 'A page or some blocks out as a PDF, as Markdown or as rich text on the clipboard.',
   schema: settingsSchema, start: main, stop,

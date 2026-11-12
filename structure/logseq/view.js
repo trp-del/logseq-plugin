@@ -97,17 +97,26 @@ const CSS = `
 .st-holder-insp .st-insp-h .st-pi { width: 13px; height: 13px; color: var(--lk-quiet); }
 .st-holder-insp dt .st-pi, .st-holder-insp dt .ti { flex: none; width: 13px; font-size: 13px; color: var(--lk-quiet); position: relative; top: 1px; }
 .st-insp-top:not(:has(.st-insp-h, .st-lines-t)) { display: none; }
-.st-insp-top:not(:has(.st-insp-h, .st-lines-t)) + .st-insp-node { border-top: 0; padding-top: 0; }
+/* No row pressed: the lines at the top, the faint waiting line under them. A row pressed (data-row): the row first, the lines
+   folded under the foot line "About Consultation" until it is opened (data-about); the tag's name is said by that line. */
+.st-holder-insp:not([data-row]) .st-insp-top { order: -1; }
+.st-holder-insp:not([data-row]) .st-insp-about, .st-holder-insp:not(:has(.st-insp-top :is(.st-insp-h, .st-lines-t))) .st-insp-about { display: none; }
+.st-holder-insp[data-row]:not([data-about]) .st-insp-top, .st-holder-insp[data-row] .st-insp-h { display: none; }
+.st-holder-insp[data-row] .st-insp-top { margin-top: -12px; padding-left: 22px; }
+.st-insp-about { display: flex; gap: 6px; align-items: center; border-top: 1px solid var(--lk-hair); padding-top: 16px; color: var(--lk-quiet); cursor: pointer; }
+.st-insp-about .lk-fold { opacity: .6 !important; }
+.st-insp-about:hover { color: var(--lk-text, currentColor); }
 /* A tag the property is on: its name and count on one line, what you can do with it under them, so the narrow panel never
    squeezes the count into a column of single letters. */
 .st-holder-insp .st-lines-t .ont { grid-template-columns: minmax(0, 1fr) auto; }
 .st-holder-insp .st-lines-t .ont .acts-r { grid-column: 1 / -1; flex-wrap: wrap; gap: 2px 8px; margin-left: -6px; }
 .st-holder-insp .st-lines-t .ont .acts-r:empty { display: none; }
-.st-insp-node { border-top: 1px solid var(--lk-hair); padding-top: 16px; }
+.st-holder-insp:not([data-row]):has(.st-insp-top :is(.st-insp-h, .st-lines-t)) .st-insp-node { border-top: 1px solid var(--lk-hair); padding-top: 16px; }
 .st-insp-node:empty { display: none; }
 .st-insp-words { display: flex; gap: 8px; align-items: baseline; margin-bottom: 12px; line-height: 1.4; font-weight: 600; font-size: 16px; }
 .st-insp-words .lk-bul { flex: none; position: relative; top: -2px; }
 .st-insp-words .st-insp-said { min-width: 0; overflow-wrap: anywhere; }
+.st-insp-where { color: var(--lk-quiet); font-size: var(--lk-small); font-variant-numeric: tabular-nums; margin-bottom: 10px; }
 .st-insp-none { margin: 0; } .st-insp-none.lk-none { padding: 0; }   /* the library's nothing-here line, at the top of the tab, as Links' and Endnotes' (the audit's 32) */
 .st-insp-outline { margin-top: 16px; display: grid; gap: 4px; line-height: 1.5; }
 .st-insp-b { display: flex; gap: 6px; align-items: baseline; padding-left: calc(var(--d) * 22px); }
@@ -1214,7 +1223,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     p.lit = i; root.querySelectorAll('.st-prompt .lit').forEach(x => x.classList.remove('lit')); r.classList.add('lit');
   });
   root.addEventListener('input', e => {
-    if (e.target.matches('[data-find]')) { loc.find = e.target.value; draw(); }
+    if (e.target.matches('[data-find]')) { loc.find = e.target.value; draw(); if (lightFirst()) draw(); }
     else if (e.target.matches('[data-find2]')) { st.pane2.find = e.target.value; draw(); }
     else if (e.target.matches('[data-pin]')) { st.prompt.text = e.target.value; st.prompt.lit = 0; draw(); }
     else if (e.target.matches('[data-edit]')) st.edit.text = e.target.value;
@@ -1234,6 +1243,16 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
   const standing = () => st.prompt?.owner === mode || st.edit?.owner === mode || !!st.ask;
   for (const type of ['keyup', 'keypress']) root.addEventListener(type, e => { if (TAGISH && !standing()) return; if (!passes(e)) e.stopPropagation(); });
   // Where Cmd-O and Shift-Enter go: the node or property on screen, else the row the cursor is on.
+  /* What the find box lights: the first row its letters leave, a tag in the outline, a property in Every property. lightFirst
+     moves the cursor there and says whether it moved; lit says whether anything is listed for the letters. */
+  const firstProp = () => (st.view === 'table' && mode === 'page' ? root.querySelector('.st-tbl .tr[data-prop]')?.dataset.prop || null : null);
+  const firstTag = () => (st.view !== 'tree' ? null : visibleRows().find(r => !r.dim && r.n !== LOOSE)?.n ?? null);
+  const lit = () => (st.view === 'table' && mode === 'page' ? !!firstProp() : firstTag() != null);
+  function lightFirst() {
+    if (!loc.find.trim()) return false;
+    if (st.view === 'table' && mode === 'page') { const key = firstProp(); if (!key || st.propCur === key) return false; st.propCur = key; return true; }
+    const to = firstTag(); if (to == null || loc.cur === to) return false; loc.cur = to; if (mode === 'page') st.propCur = null; return true;
+  }
   function openHere(inSidebar) {
     const n = st.view === 'nodes' && mode === 'page' ? st.nodes?.list[st.nodes.cur] : null, pid = mode === 'page' && st.propCur ? Number(st.propCur.split('·')[1]) : null;
     app.openNode(n?.uuid || (pid != null ? P(pid)?.uuid : T(loc.cur)?.uuid), inSidebar);
@@ -1255,8 +1274,11 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     }
     if (e.target.matches('[data-find2]')) { if (k === 'Escape') { st.pane2.find = ''; redraw(); } return; }
     if (e.target.matches('[data-find]')) {
+      // The find box works as Find does (the owner, 9 and 12 November 2026): letters light the first match, Enter opens it
+      // (Shift Enter in the sidebar), Escape empties the box.
       if (k === 'Escape') { loc.find = ''; redraw(); }
-      else if (k === 'ArrowDown' || k === 'Enter') { const first = visibleRows().find(r => !r.dim); if (first) loc.cur = first.n; e.preventDefault(); redraw(); }
+      else if (k === 'Enter') { e.preventDefault(); if (loc.find.trim() && (lightFirst(), lit())) openHere(e.shiftKey); }
+      else if (k === 'ArrowDown') { e.preventDefault(); lightFirst(); redraw(); }
       return;
     }
     if (e.target.tagName === 'INPUT') return;

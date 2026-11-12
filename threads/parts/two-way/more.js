@@ -290,39 +290,6 @@ twoWay.tailHooks.push((group, item) => {
   return odd ? shared.outline.pencil(`no ${odd.name}?`, { 'data-odd': item.uuid, 'data-oddfield': group.name, title: `${odd.held} of ${odd.of} here have a ${odd.name}; this one has none. Click to open it and fill it in.` }) : '';
 });
 
-/* Saved views (N9): what the find line holds and how each list is grouped and sorted, kept under a name; the names stand as a
-   quiet line under the find line, on every page, one click brings a view back, its × forgets it. */
-const VIEWS_KEY = 'thTwoWayViews';
-const views = () => stored(VIEWS_KEY, []);
-const hasViews = () => views().length > 0;
-function viewsHtml() {
-  const list = views(), keepNow = String(state.find || '').trim() || state.groups.some(g => sortOf(g) || twoWay.groupOf(g));
-  if (!list.length && !keepNow) return '';
-  return `<div class="th-tw-views">${keepNow ? '<button type="button" class="lk-btn lk-low th-tw-keepview" data-keepview="">Keep this view</button>' : ''}${list.map((v, i) => `<span class="th-tw-view lk-reveals"><a href="#" class="th-tw-viewname" data-view="${i}" title="${esc(v.find ? `“${v.find}”` : 'Grouped and sorted as kept')}">${esc(v.name)}</a><button type="button" class="lk-x lk-reveal" data-viewoff="${i}" aria-label="Forget this view" title="Forget this view">×</button></span>`).join('')}</div>`;
-}
-async function keepView(at) {
-  const name = await shared.ask({ at, question: 'Name this view', go: 'Keep', field: { placeholder: 'Before the dose change' } });
-  if (!name || !String(name).trim()) return;
-  const groups = {}, sorts = {};
-  for (const g of state.groups) { const by = twoWay.groupOf(g); if (by) groups[g.name] = by; if (sortOf(g)) sorts[g.name] = sortOf(g); }
-  const before = views();
-  keep(VIEWS_KEY, [...before, { name: String(name).trim(), find: String(state.find || '').trim(), groups, sorts }]);
-  redraw();
-  twoWay.offerUndo(`Kept the view “${String(name).trim()}”`, () => { keep(VIEWS_KEY, before); redraw(); });
-}
-function applyView(i) {
-  const v = views()[i];
-  if (!v) return;
-  state.find = v.find || '';
-  for (const g of state.groups) { twoWay.setGroup?.(g.name, v.groups?.[g.name] || ''); const all = stored(SORT_KEY, {}); if (v.sorts?.[g.name]) all[listKey(g)] = v.sorts[g.name]; else delete all[listKey(g)]; keep(SORT_KEY, all); }
-  redraw();
-}
-function forgetView(i) {
-  const before = views(), gone = before[i];
-  keep(VIEWS_KEY, before.filter((_, j) => j !== i)); redraw();
-  if (gone) twoWay.offerUndo(`Forgot the view “${gone.name}”`, () => { keep(VIEWS_KEY, before); redraw(); });
-}
-
 /* The keyboard walk (N14): with the keyboard on a node's name, Down and Up go to the next and the one before, Right opens it
    in place, Left closes it (or goes to the node it is in), Space picks it, turning picking on for its list; Enter opens its
    page, as always; Esc lets go. */
@@ -380,9 +347,6 @@ twoWay.clickHooks.push(event => {
     if (chev) { state.emptyOpen.add(chev.dataset.dig); if (chev.getAttribute('aria-expanded') !== 'true') chev.click(); }
     return true;
   }
-  if (t.closest?.('[data-keepview]')) { stop(); keepView(t.closest('[data-keepview]')).catch(error => warnOnce('could not keep the view', error)); return true; }
-  const v = t.closest?.('[data-view]'); if (v) { stop(); applyView(Number(v.dataset.view)); return true; }
-  const off = t.closest?.('[data-viewoff]'); if (off) { stop(); forgetView(Number(off.dataset.viewoff)); return true; }
   return false;
 });
 
@@ -460,7 +424,7 @@ function drawBeside() {
   if (!panel) { panel = doc.createElement('div'); panel.className = 'th-tw-dock lk-pop'; doc.body.append(panel); }
   panel.innerHTML = `<div class="th-tw-dockhead"><span><b>${esc(kept.label)}</b> <span class="th-tw-dockpage">${esc(kept.title)}</span></span><button type="button" class="lk-x" data-dockoff="" aria-label="Let this list go" title="Let this list go">×</button></div><div class="th-tw-docklist">${items.map(item => `<a href="#" class="th-tw-dockline" data-dockopen="${esc(item.uuid)}"><span class="th-tw-dockday">${esc(item.day || '')}</span><span>${esc(item.title)}</span></a>`).join('')}</div>`;
 }
-twoWay.rowMenuHooks.push(group => state.drawingTop ? [] : [{ icon: 'sidebar', label: 'Keep in the corner', run: () => keepBeside(group) }, { icon: 'export', label: 'Export list…', run: () => exportList(group) }]);
+twoWay.rowMenuHooks.push(group => state.drawingTop ? [] : [{ icon: 'sidebar', label: 'Keep in the corner', run: () => keepBeside(group) }]);
 twoWay.settledHooks.push(() => drawBeside());
 twoWay.starters.push(() => {
   const doc = host();
@@ -473,16 +437,6 @@ twoWay.starters.push(() => {
   twoWay.onUnload(() => doc.querySelector('.th-tw-dock')?.remove());
   setTimeout(drawBeside, 1500);
 });
-
-/* Export list (N16): what the list shows, after the find line, the day, the grouping and the order, leaves through DB Export's
-   window, as PDF, Markdown or rich text. */
-function exportList(group) {
-  const app = window.DbExport?.app;
-  if (!app?.exportWindow) return shared.notify('DB Export is off: switch it on to export a list', 'warning');
-  const key = `${state.pageUuid}|${group.name}`;
-  const shown = twoWay.listHooks.reduce((xs, hook) => hook(group, key, xs) || xs, (twoWay.foundGroups?.() || state.groups).find(g => g.name === group.name)?.items || group.items);
-  app.exportWindow({ uuids: shown.map(item => item.uuid), title: `${group.label} · ${state.pageTitle}`, what: `${shown.length} nodes of “${group.label}”` });
-}
 
 /* A bullet becomes a node (N19): a bullet of an opened node whose words look like one of your kinds (Predictive's guess, as for
    an untagged mention) carries a pencil, "could be a Symptom Log · Symptom type"; a click gives it that tag and that property
@@ -501,5 +455,5 @@ twoWay.clickHooks.push(event => {
 });
 twoWay.starters.push(() => { state.stamps = new Map(); state.keeps = new Map(); state.visitPage = ''; state.yearOn = new Set(); state.yearPick = new Map(); state.yearLaneOn = new Map(); });
 
-Object.assign(twoWay, { exportList, keepBeside, compare, hasViews, isNew, pinsOf, sortOf, viewsHtml });
+Object.assign(twoWay, { keepBeside, compare, isNew, pinsOf, sortOf });
 })();

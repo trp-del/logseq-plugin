@@ -75,7 +75,9 @@ async function readNotes(blocks) {
   return notes;
 }
 async function load() {
-  if (!(state.open.links || state.open.notes || setting('citationNumbers')) || state.stopped) return;
+  if (state.stopped) return;
+  // With neither section open and no numbers to draw, only the citations are read: the Endnotes tab is there only on a page that has some.
+  const whole = state.open.links || state.open.notes || setting('citationNumbers');
   const asked = ++state.asked;
   await new Promise(resolve => setTimeout(resolve, 150));   // Logseq says the route changed a moment before it says which page
   const page = await Promise.resolve(logseq.Editor.getCurrentPage?.()).catch(() => null);
@@ -83,12 +85,12 @@ async function load() {
   if (page?.uuid) try {
     const tree = await logseq.Editor.getPageBlocksTree(page.uuid);
     const blocks = tree?.length ? tree : (await logseq.Editor.getBlock(page.uuid, { includeChildren: true }))?.children || [];
-    [rows, notes] = await Promise.all([readRows(blocks, String(page.uuid).toLowerCase()), readNotes(blocks)]);
+    [rows, notes] = await Promise.all([whole ? readRows(blocks, String(page.uuid).toLowerCase()) : [], readNotes(blocks)]);
   } catch (error) { console.error('Look: could not read the page’s links', error); }
   if (asked !== state.asked) return;
-  Object.assign(state, { page: !!page?.uuid, rows, notes });
-  Look.cites.setNotes(notes);
-  render(host(), true);
+  Object.assign(state, { page: !!page?.uuid, rows, notes, read: true });
+  if (whole) { Look.cites.setNotes(notes); render(host(), true); }
+  window.PluginDoor.sideTabs?.draw();
 }
 
 function rowOf(doc, row, bare) {
@@ -229,7 +231,9 @@ let offTabs = [];
 function start() {
   state.stopped = false;
   offTabs = SECTIONS.map(({ key, word }, i) => window.PluginDoor.sideTabs?.add({ key, word, order: 3 + i,
-    find: () => (state.panels[key]?.isConnected ? state.panels[key] : null), open: () => { if (!state.open[key]) setOpen(key, true); } }));
+    find: () => (state.panels[key]?.isConnected ? state.panels[key] : null), open: () => { if (!state.open[key]) setOpen(key, true); },
+    // Endnotes has no tab on a page with no citations (the owner, 12 November 2026); until the page is read, it stays as it was.
+    hidden: key === 'notes' ? () => state.read && !state.notes.length : undefined }));
   style('sidebar-links', css);
   watchScreen(draw);
   Look.kit.listen(host().defaultView, 'click', onItemClosed, true);

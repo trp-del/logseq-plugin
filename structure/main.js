@@ -214,7 +214,7 @@ async function otherGraph() {
   }
   await app.reread();
 }
-let mounts = { onPage: () => false, openPage() {}, openSidebar() {}, openInspector() {} };
+let mounts = { onPage: () => false, openPage() {}, openInspector() {} };
 
 let reReadTimer = 0;
 const reachesMap = window.PluginDoor.structureWatch();
@@ -233,7 +233,6 @@ async function main() {
   mounts = S.mount.mount(app);
   logseq.App.registerCommandPalette({ key: 'structure-open', label: 'Structure: the map of tags and properties' }, () => app.openMain());
   logseq.App.registerCommandPalette({ key: 'structure-inspector', label: 'Structure: the inspector in the right sidebar' }, () => mounts.openInspector());
-  logseq.App.registerCommandPalette({ key: 'structure-sidebar', label: 'Structure: the tree in the right sidebar' }, () => mounts.openSidebar());
   logseq.provideModel({ structureOpen: () => app.openMain() });
   // In Logseq's ··· menu, where the plugin's places stand (the owner, 9 November 2026), the map and the inspector.
   const { onStop } = S.base;

@@ -19,7 +19,7 @@ A page, or some blocks, out of Logseq as a **PDF** in a minimal look, as **Markd
 ## How to use it
 
 - Command palette: **Export: this page…**, **Export: the selected blocks…**. Quick, with the remembered choices and no window: **Export: copy this page as Markdown**, **Export: save this page as PDF**.
-- A bullet's right-click menu: **Export as PDF or Markdown…** (that bullet with everything under it). Select several bullets first to export them together. The page's **…** menu and the menu under its title: the same item (Logseq's own *Export page* is a different thing: its JSON, EDN and text forms).
+- A bullet's right-click menu: **PDF or Markdown, your styles…** (that bullet with everything under it). Select several bullets first to export them together. The page's **…** menu and the menu under its title: the same item (Logseq's own *Export page* is a different thing: its JSON, EDN and text forms).
 
 The export window is drawn in Logseq's own window, in the look **Look** gives everything (the visual grammar in `grammar.html` in the workspace): where the export goes as three quiet words with the one in force in the text colour, choices as quiet words that drop a list, groups told apart by a gap and never a line, a field as one line under the words, and the properties to show as the grammar's rows, each with the icon of what it holds; their tick boxes appear when the pointer is on the list, and a ticked one stays. The window is built from Look's shared names (`lk-row`, `lk-list`, `lk-tick`, `lk-prop`, `lk-count`) and carries no look of its own for them; with Look switched off it still works, only plainer (the ticks always showing, a count after each property).
 

@@ -53,8 +53,6 @@ function mount(app) {
   else {
     try { const Page = component('page'); logseq.Experiments.registerRouteRenderer('structure', { name: 'structure', path: ROUTE, render: () => React.createElement(Page) }); hosted.page = true; }
     catch (error) { console.error('Structure: the page could not be added', error); }
-    try { const Side = component('side'); logseq.Experiments.registerSidebarRenderer(SIDEBAR_KEY, { title: 'Structure', render: () => React.createElement(Side) }); hosted.sidebar = true; }
-    catch (error) { console.error('Structure: the sidebar panel could not be added', error); }
     try { logseq.Experiments.registerSidebarRenderer(S.inspector.KEY, { title: 'Inspector', render: () => React.createElement(Inspector) }); hosted.inspector = true; }
     catch (error) { console.error('Structure: the inspector could not be added', error); }
   }
@@ -70,7 +68,6 @@ function mount(app) {
     openPage: () => { const win = host().defaultView; if (!onPage()) win.location.hash = '#' + ROUTE; },
     onPage,
     openInspector: async () => { Door.sideTabs?.show('inspector'); await logseq.Editor.openInRightSidebar('_sidebar.' + S.inspector.KEY); await logseq.App.setRightSidebarVisible?.(true); },
-    openSidebar: async () => { await logseq.Editor.openInRightSidebar('_sidebar.' + SIDEBAR_KEY); await logseq.App.setRightSidebarVisible?.(true); },
   };
 }
 S.mount = { mount, ROUTE, SIDEBAR_KEY };
