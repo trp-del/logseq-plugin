@@ -7,6 +7,10 @@
    Endnotes: the citations of the page, numbered in the order they come, the same source at the same page once. A press on a name goes to the source: a
    PDF opens at that page. A press on a number goes back to the bullet, where the same number stands (cites.js).
 
+   Contents: the page's headings (the bullets started with #, ## or ###), in the order of the page, each level one step in from the
+   heading it sits under (a ### right under a # one step, not two), numbered 1, 1.1, 1.2, 2 in the quiet grey; the top ones in the medium weight, the rest in the quiet grey. A press
+   glides the main view to the heading; with Shift it opens in the right sidebar.
+
    A name opens its page, with Shift in the right sidebar. It reads the graph and writes nothing. Each word is a copy of Logseq's own Contents button, so it
    reads as the others do. */
 (function () {
@@ -17,8 +21,10 @@ const setting = key => Look.settings.setting(key);
 const FEW = 5;
 const LINK = /(?<!#)\[\[([^[\]]+)\]\]/g;
 const CITATION = /\((?:\[\[([^[\]]+)\]\]|\[([^\]]+)\]\((https?:[^)\s]+)\)|\*([^*]+)\*)(?:, p\. (\d+))?\)/g;   // a node, a web address, plain words
-const SECTIONS = [{ key: 'links', word: 'Links', icon: 'link' }, { key: 'notes', word: 'Endnotes', icon: 'notes' }];
-const state = { growing: new Set(), open: { links: false, notes: false }, folded: { links: false, notes: false }, words: {}, panels: {}, view: 'kind', page: false, rows: [], notes: [], all: new Set(), asked: 0, stopped: true };
+const SECTIONS = [{ key: 'links', word: 'Links', icon: 'link' }, { key: 'notes', word: 'Endnotes', icon: 'notes' }, { key: 'contents', word: 'Contents', icon: 'list' }];
+const closed = () => Object.fromEntries(SECTIONS.map(({ key }) => [key, false]));
+const anyOpen = () => SECTIONS.some(({ key }) => state.open[key]);
+const state = { growing: new Set(), open: closed(), folded: closed(), words: {}, panels: {}, view: 'kind', page: false, rows: [], notes: [], heads: [], all: new Set(), asked: 0, stopped: true };
 
 const eachTitle = (tree, visit) => { for (const node of tree || []) { visit(String(node?.title ?? '')); eachTitle(node?.children, visit); } };
 // What the words link to, each once, in the order of the page; a citation is not a link here.
@@ -74,6 +80,49 @@ async function readNotes(blocks) {
   }
   return notes;
 }
+// The page's headings in its order. Logseq keeps a # typed at a bullet's start as the bullet's heading level (1 to 6); a level of
+// true (a heading with no number) counts as the top. Each is set one step in from the nearest heading above it with a smaller level.
+const LEVEL = ':logseq.property/heading';
+const plain = words => words.replace(/\*\*|__|~~|==|`/g, '').replace(/(^|\s)[_*]([^_*]+)[_*](?=\s|$)/g, '$1$2').trim();
+async function readHeads(tree) {
+  const found = [], stack = [], counts = [];
+  const walk = (nodes, above = []) => { for (const node of nodes || []) {
+    const raw = node?.[LEVEL] ?? node?.properties?.heading;
+    const level = raw === true ? 1 : Number(raw);
+    if (level >= 1) {
+      while (stack.length && stack.at(-1) >= level) stack.pop();
+      counts.length = stack.length + 1; counts[stack.length] = (counts[stack.length] || 0) + 1;
+      found.push({ uuid: String(node.uuid).toLowerCase(), depth: stack.length, number: counts.join('.'), above, title: String(node.fullTitle ?? node.title ?? '').split('\n')[0] });
+      stack.push(level);
+    }
+    walk(node?.children, [...above, String(node.uuid).toLowerCase()]);
+  } };
+  walk(tree);
+  // A link in a heading reads as the name it links to.
+  const ids = [...new Set(found.flatMap(head => [...head.title.matchAll(/\[\[([0-9a-f-]{36})\]\]/gi)].map(([, id]) => id.toLowerCase())))];
+  const names = ids.length ? await titlesOf(ids) : new Map();
+  return found.map(head => ({ ...head, title: plain(head.title.replace(/\[\[([^[\]]+)\]\]/g, (all, key) => names.get(key.toLowerCase())?.title ?? key)) || 'Untitled' }));
+}
+// A heading glides to the top of the main view. One inside a folded bullet: the folds above it open first, as a press on their
+// arrows would.
+const blockOnPage = uuid => [...host().querySelectorAll(`#main-content-container .ls-block[blockid="${uuid}"]`)].find(block => block.offsetParent);
+async function goToHead(head, inSidebar) {
+  if (inSidebar) { logseq.Editor.openInRightSidebar(head.uuid); return; }
+  let opened = false;
+  for (const uuid of head.above) if (blockOnPage(uuid)?.getAttribute('data-collapsed') === 'true') { await logseq.Editor.setBlockCollapsed(uuid, false); opened = true; }
+  if (opened) await new Promise(resolve => setTimeout(resolve, 120));
+  // Logseq draws a long page as it is scrolled: until the heading is drawn, the view steps down a screen at a time.
+  const view = host().getElementById('main-content-container');
+  let shown = blockOnPage(head.uuid);
+  for (let step = 0; !shown && view && step < 40; step++) {
+    const was = view.scrollTop;
+    view.scrollTop += view.clientHeight;
+    await new Promise(resolve => setTimeout(resolve, 80));
+    shown = blockOnPage(head.uuid);
+    if (!shown && view.scrollTop === was) break;
+  }
+  shown?.scrollIntoView({ behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+}
 async function load() {
   if (state.stopped) return;
   // With neither section open and no numbers to draw, only the citations are read: the Endnotes tab is there only on a page that has some.
@@ -81,15 +130,16 @@ async function load() {
   const asked = ++state.asked;
   await new Promise(resolve => setTimeout(resolve, 150));   // Logseq says the route changed a moment before it says which page
   const page = await Promise.resolve(logseq.Editor.getCurrentPage?.()).catch(() => null);
-  let rows = [], notes = [];
+  let rows = [], notes = [], heads = [];
   if (page?.uuid) try {
     const tree = await logseq.Editor.getPageBlocksTree(page.uuid);
     const blocks = tree?.length ? tree : (await logseq.Editor.getBlock(page.uuid, { includeChildren: true }))?.children || [];
-    [rows, notes] = await Promise.all([whole ? readRows(blocks, String(page.uuid).toLowerCase()) : [], readNotes(blocks)]);
+    [rows, notes, heads] = await Promise.all([whole ? readRows(blocks, String(page.uuid).toLowerCase()) : [], readNotes(blocks), readHeads(blocks)]);
   } catch (error) { console.error('Look: could not read the page’s links', error); }
   if (asked !== state.asked) return;
-  Object.assign(state, { page: !!page?.uuid, rows, notes, read: true });
-  if (whole) { Look.cites.setNotes(notes); render(host(), true); }
+  Object.assign(state, { page: !!page?.uuid, rows, notes, heads, read: true });
+  if (whole) Look.cites.setNotes(notes);
+  if (whole || state.open.contents) render(host(), true);
   window.PluginDoor.sideTabs?.draw();
 }
 
@@ -121,6 +171,13 @@ function notesBody(doc) {
   if (!state.notes.length) return [el(doc, 'div', { class: 'lk-links-none lk-none' }, 'No citations on this page.')];
   return state.notes.map((note, i) => noteOf(doc, note, i + 1));
 }
+function contentsBody(doc) {
+  if (!state.page) return [el(doc, 'div', { class: 'lk-links-none lk-none' }, 'Open a page to see its headings.')];
+  if (!state.heads.length) return [el(doc, 'div', { class: 'lk-links-none lk-none' }, 'No headings on this page.')];
+  return state.heads.map(head => el(doc, 'a', { class: `lk-contents-row${head.depth ? '' : ' lk-contents-top'}`, style: `padding-left: ${head.depth * 20}px`, href: '#',
+    click: event => { event.preventDefault(); goToHead(head, event.shiftKey); } },
+    el(doc, 'span', { class: 'lk-contents-n' }, head.number), el(doc, 'span', { class: 'lk-contents-words' }, head.title)));
+}
 // read: the page was read for a section just opened, so what it holds grows on from the empty section (window.PluginDoor.regrow).
 function render(doc, read) {
   for (const { key } of SECTIONS) {
@@ -128,7 +185,7 @@ function render(doc, read) {
     if (!body) continue;
     const was = read && state.growing.has(key) && !body.hidden ? body.getBoundingClientRect().height : null;
     panel.classList.toggle('lk-links-flat', key === 'links' && state.view === 'page');
-    body.replaceChildren(...(key === 'links' ? linksBody(doc) : notesBody(doc)));
+    body.replaceChildren(...(key === 'links' ? linksBody(doc) : key === 'notes' ? notesBody(doc) : contentsBody(doc)));
     if (read) { state.growing.delete(key); window.PluginDoor.regrow(body, was); }
   }
   Look.kit.run(doc);
@@ -196,13 +253,13 @@ const hidden = () => [...host().querySelectorAll('#right-sidebar .sidebar-item[d
 function onItemClosed(event) {
   if (event.target?.closest?.('#right-sidebar .cp__right-sidebar-settings > div:not(.lk-own) button')) { for (const item of hidden()) item.removeAttribute('data-lk-closed'); return; }
   const close = event.target?.closest?.('#right-sidebar .sidebar-item:not(.lk-side) .item-actions button');
-  if (!close?.querySelector('.ls-icon-x') || !(state.open.links || state.open.notes)) return;
+  if (!close?.querySelector('.ls-icon-x') || !anyOpen()) return;
   if (host().querySelectorAll('#right-sidebar .sidebar-item:not(.lk-side):not([data-lk-closed])').length > 1) return;
   event.preventDefault(); event.stopImmediatePropagation();
   close.closest('.sidebar-item').setAttribute('data-lk-closed', '');
 }
 function letHiddenGo() {
-  if (state.open.links || state.open.notes) return;
+  if (anyOpen()) return;
   for (const item of hidden()) { item.removeAttribute('data-lk-closed'); window.PluginDoor.screen.click(item.querySelector('.ls-icon-x')?.closest('button')); }
 }
 
@@ -223,6 +280,12 @@ const css = `
 #right-sidebar .lk-notes-n { color: var(--lk-quiet) !important; font-variant-numeric: tabular-nums; text-decoration: none; }
 #right-sidebar .lk-notes-n:hover { color: var(--lk-text, currentColor) !important; }
 #right-sidebar .lk-notes-words { min-width: 0; overflow-wrap: anywhere; }
+#right-sidebar .lk-contents-row { display: flex; gap: .5em; align-items: baseline; padding-block: 2px; color: var(--lk-quiet) !important; text-decoration: none !important; overflow-wrap: anywhere; }
+#right-sidebar .lk-contents-row.lk-contents-top { color: var(--lk-text, currentColor) !important; font-weight: 600; }
+#right-sidebar .lk-contents-row.lk-contents-top:not(:first-child) { margin-top: 8px; }
+#right-sidebar .lk-contents-n { flex: none; color: var(--lk-quiet); font-weight: 400; font-variant-numeric: tabular-nums; }
+#right-sidebar .lk-contents-words { min-width: 0; }
+#right-sidebar .lk-contents-row:hover { color: var(--lk-text, currentColor) !important; }
 #right-sidebar .lk-links-none { padding: 0; }   /* the library's nothing-here line (lk-none), at the top of the tab */`;
 
 /* Links and Endnotes are tabs of the right sidebar, after Inspector (sidebar-tabs.js, the owner, 9 November 2026): picked, the
@@ -233,7 +296,7 @@ function start() {
   offTabs = SECTIONS.map(({ key, word }, i) => window.PluginDoor.sideTabs?.add({ key, word, order: 3 + i,
     find: () => (state.panels[key]?.isConnected ? state.panels[key] : null), open: () => { if (!state.open[key]) setOpen(key, true); },
     // Endnotes has no tab on a page with no citations (the owner, 12 November 2026); until the page is read, it stays as it was.
-    hidden: key === 'notes' ? () => state.read && !state.notes.length : undefined }));
+    hidden: key === 'notes' ? () => state.read && !state.notes.length : key === 'contents' ? () => state.read && !state.heads.length : undefined }));
   style('sidebar-links', css);
   watchScreen(draw);
   Look.kit.listen(host().defaultView, 'click', onItemClosed, true);
@@ -241,6 +304,6 @@ function start() {
   onGraphChange(load);
   load();
 }
-function stop() { offTabs.forEach(off => off?.()); offTabs = []; state.stopped = true; Object.assign(state, { open: { links: false, notes: false }, words: {}, panels: {} }); style('sidebar-links', ''); }
-Look.links = { start, stop, load, linksIn, citationsIn, byKind };
+function stop() { offTabs.forEach(off => off?.()); offTabs = []; state.stopped = true; Object.assign(state, { open: closed(), words: {}, panels: {} }); style('sidebar-links', ''); }
+Look.links = { start, stop, load, linksIn, citationsIn, byKind, readHeads };
 })();
