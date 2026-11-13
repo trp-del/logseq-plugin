@@ -23,6 +23,7 @@ run . node test/keys.js
 run . node test/one-look.js
 run . node test/leftovers.js
 run . node test/tidy.js
+run . node test/review.js
 run look node test/load.js
 run find node test/load.js
 run predictive node test/run.js

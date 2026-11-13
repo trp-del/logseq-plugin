@@ -93,7 +93,6 @@ const STYLE = `.sw-dialog { position: fixed !important; top: 50% !important; lef
 .sw-css:focus { border-color: var(--lk-line); outline: none !important; box-shadow: none !important; }
 .sw-recording { color: var(--lk-text); }
 /* What a picture draws with: a part's specimens use these, at the page's size. */
-.sw-pic .sw-off { color: var(--lk-quiet); }
 .sw-pic .sw-blue { color: var(--ls-link-text-color, #3b6fc9) !important; text-decoration: none !important; }
 .sw-pic .sw-chip { background: color-mix(in srgb, currentColor 8%, transparent); border-radius: 4px; padding: 0 6px; }
 .sw-pic .sw-cap { background: color-mix(in srgb, currentColor 8%, transparent); border-radius: 10px; padding: 0 8px; }

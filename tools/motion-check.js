@@ -161,10 +161,17 @@ const placementSource = `(() => {
   // Days in a list's margin, and chevrons in a list, each on one column.
   for (const list of main.querySelectorAll('.th-two-way .th-tw-list, .th-two-way')) {
     edge([...list.querySelectorAll(':scope .lk-day')], 'right', 'a day off the margin’s right edge');
-    edge([...list.querySelectorAll(':scope .th-tw-line > .th-chev, :scope .th-tw-line > .th-chev-room')], 'left', 'a chevron off its list’s column');
+    // A level of the outline is one column: the lines that share a parent are compared, since a head's rows stand one step in from
+    // the head (12 November 2026: compared across the whole section, every row read as 8 px off its head's column).
+    const byParent = new Map();
+    for (const chev of list.querySelectorAll(':scope .th-tw-line > .th-chev, :scope .th-tw-line > .th-chev-room')) { const at = chev.parentElement.parentElement; byParent.set(at, [...(byParent.get(at) || []), chev]); }
+    for (const chevs of byParent.values()) edge(chevs, 'left', 'a chevron off its list’s column');
   }
   // Nothing of a module's past the main pane's right edge.
-  for (const n of main.querySelectorAll('[class*="lk-"], [class*="fd-"], [class*="flow-"], [class*="st-"], [class*="th-"], [class*="th-"]')) {
+  // A class that starts with a module's letters, not one that only holds them ("last-…", "width-…": a cell of Logseq's own wide
+  // table, which scrolls sideways by design, was laid to the plugin, 12 November 2026).
+  const OWN = ['lk-', 'fd-', 'flow-', 'st-', 'th-'].map(p => '[class^="' + p + '"], [class*=" ' + p + '"]').join(', ');
+  for (const n of main.querySelectorAll(OWN)) {
     if (!shown(n)) continue;
     const r = n.getBoundingClientRect();
     if (r.right > mainRect.right + 1 && r.width < mainRect.width) { out.push({ what: 'reaches past the pane’s right edge', name: desc(n), text: (n.textContent || '').trim().slice(0, 40), by: Math.round(r.right - mainRect.right) }); if (out.length > 60) break; }

@@ -29,7 +29,7 @@ function print(html) {
     doc.open(); doc.write(html); doc.close();
     settle(doc).then(() => setTimeout(() => {
       try { frame.contentWindow.focus(); frame.contentWindow.print(); }   // returns when the print window closes
-      catch (error) { console.error(error); logseq.UI.showMsg(`Could not open the print window: ${error.message}`, 'error'); }
+      catch (error) { console.error(error); logseq.UI.showMsg(`The print window could not be opened: ${window.PluginDoor.reason(error, 'the Mac did not answer')}`, 'error'); }
       setTimeout(() => { frame.remove(); resolve(); }, 500);
     }, 150));
   });

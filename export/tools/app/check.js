@@ -42,7 +42,7 @@ let chromium; try { ({ chromium } = require('playwright')); } catch (error) { co
     const E = window.DbExport;
     const t0 = performance.now();
     const found = pageName ? { what: 'the page', doc: await E.db.readPage(pageName) } : await E.app.readWhat();
-    if (!found.doc) throw new Error('no page named ' + pageName);
+    if (!found?.doc) throw new Error(pageName ? 'no page named ' + pageName : 'Logseq stands on no page (the map, All pages): open a page, or name one: node tools/app/check.js <out dir> "Dr. Mei Chen"');
     const read = performance.now() - t0;
     const c = E.ui.read();
     const md = E.app.markdown(found.doc, c);

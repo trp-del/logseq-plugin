@@ -77,7 +77,7 @@ async function exportWindow(event) {
     if (!found) return notify('Open a page first', 'warning');
     if (!D.collect(found.doc.nodes).length && !found.doc.title) return notify('Nothing to export here', 'warning');
     await E.ui.open({ doc: found.doc, what: found.what, act: (ch, action, edited) => act(found.doc, ch, action, edited) });
-  } catch (error) { console.error(error); notify(`Export stopped: ${error.message}`, 'error'); }
+  } catch (error) { console.error(error); notify(`Export stopped: ${window.PluginDoor.reason(error, 'the page could not be read. Nothing in the graph was changed')}`, 'error'); }
 }
 // The quick ways: the remembered choices, no window.
 async function quick(action, event) {
@@ -87,7 +87,7 @@ async function quick(action, event) {
     const c = E.ui.read();
     const lines = found.doc.title ? (c.titleLines[found.doc.title] || {}) : {};
     await act(found.doc, { ...c, ...lines }, action, null);
-  } catch (error) { console.error(error); notify(`Export stopped: ${error.message}`, 'error'); }
+  } catch (error) { console.error(error); notify(`Export stopped: ${window.PluginDoor.reason(error, 'the page could not be read. Nothing in the graph was changed')}`, 'error'); }
 }
 
 const settingsSchema = [

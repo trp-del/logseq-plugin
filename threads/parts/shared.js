@@ -854,7 +854,6 @@ a.th-tag:hover { opacity: 1; }
 .th-ol-line > input.lk-tick[type=checkbox] { position: absolute; left: -20px; top: 6px; margin: 0; opacity: .3; }
 .th-ol-line:hover > input.lk-tick[type=checkbox], .th-ol-line > input.lk-tick[type=checkbox]:checked, .th-ol-line > input.lk-tick[type=checkbox]:focus-visible { opacity: 1; }
 .th-ol-day { flex: none; width: var(--th-ol-day); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.th-ol-dtext { display: inline-block; min-width: var(--lk-day, 48px); }
 .th-ol-body > .th-ol-from { margin-left: 6px; white-space: nowrap; }
 .th-ol-body { min-width: 0; overflow-wrap: normal; }
 .th-ol-body > .th-tag, .th-ol-pv .th-tag { margin-left: 6px; white-space: nowrap; }
@@ -935,9 +934,6 @@ a.th-tag:hover { opacity: 1; }
 .th-ol-count:hover { text-decoration-color: currentColor; }
 span.th-ol-count { text-decoration: none; cursor: default; }
 .th-ol-leads > .th-ol-lname { flex: none; width: var(--th-ol-lname); display: inline-flex; gap: 6px; align-items: baseline; }
-.th-ol-lwords { min-width: 0; overflow-wrap: normal; word-break: normal; }
-.th-ol-inh > .th-ol-lname { color: var(--lk-quiet); }
-.th-ol-inhw { color: var(--lk-quiet); font-size: var(--lk-small); white-space: nowrap; }
 .th-ol-to { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: var(--th-ol-gap); }
 .th-ol-to > .th-chev { align-self: flex-start; top: 1px; }
 .th-ol-to .th-ol-open { font-weight: 700; }

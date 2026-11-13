@@ -32,7 +32,7 @@ const CSS = `
 .xp-bar .g { display: flex; align-items: flex-start; }
 .xp-bar .g + .g { margin-left: 44px; }
 .xp-bar .g[hidden] { display: none; }
-.xp-bar .g.end { margin-left: auto; gap: 26px; padding-top: 15px; }
+.xp-bar .g.end { margin-left: auto; gap: 26px; padding-top: 15px; align-items: center; }   /* the × on the line the two buttons share: from the top it stood 7 px above it (measured 12 November 2026) */
 /* A control: its name small and faint above, its value in the text colour below. The gap between controls is equal paddings,
    so a pick's hairline stands mid-gap. (The layout of the Pressing names; their colours are the shared stylesheet's.) */
 .xp .it { --pl: 20px; position: relative; display: flex; flex-direction: column; gap: 3px; white-space: nowrap; padding: 0 20px 0 var(--pl); }
@@ -360,12 +360,15 @@ function open({ doc, what, act }) {
       for (const el of root.querySelectorAll('[data-for]')) el.hidden = !el.dataset.for.split(' ').includes(ch.target);
       for (const el of root.querySelectorAll('[data-when]')) el.hidden = !(el.dataset.when === 'prose' ? ch.layout === 'prose' : D.dated(ch.layout));
       syncValues(); drawTemplates(ch);
-      const f = q('.xp-desk iframe'), paged = ch.target === 'pdf';
+    };
+    // The preview's frame takes the shape of what it will hold: sheets side by side for a PDF, one page's width otherwise.
+    const shape = (f, ch) => {
+      const paged = ch.target === 'pdf';
       f.className = paged ? 'sheets' : '';
       f.style.width = paged ? `${E.preview.sizes({ paper: ch.paper, margins: themes.MARGINS[ch.margins] }).width + 40}px` : ch.paper === 'Letter' && ch.target === 'rich' ? '816px' : '794px';
     };
     // The preview: the page at its printed width, or the Markdown as text; it can be changed, and the change goes into the export.
-    const frame = q('.xp-desk iframe');
+    let frame = q('.xp-desk iframe');
     const win = hostDoc.defaultView;
     // The preview's size on screen: the sheet at its true size (100%), larger, or shrunk to the window when it is narrower.
     const zoomIt = () => {
@@ -391,11 +394,19 @@ function open({ doc, what, act }) {
             : await E.app.pageHtml(doc, ch, { extraCss: 'body:focus { outline: none; }', body: kept });
           if (n !== run) return;
           if (edited && !same) logseq.UI.showMsg('The sheet was drawn again from the page, so the words changed in it went', 'warning');
-          frame.srcdoc = html;
+          /* The new preview is drawn in a frame of its own, unseen, and takes the old one's place once it is laid out (13 November
+             2026): written into the frame on screen, the sheet stood empty for a frame or two on every change of target, look or
+             paper (recorded: blank at 194 ms in about half the changes from Markdown to PDF). */
+          const next = hostDoc.createElement('iframe'); next.title = 'Preview';
+          shape(next, ch);
+          next.style.position = 'absolute'; next.style.visibility = 'hidden'; next.style.pointerEvents = 'none';
+          frame.after(next);
+          const swap = () => { if (!next.isConnected) return; if (n !== run) { next.remove(); return; } const old = frame; frame = next; next.style.position = ''; next.style.visibility = ''; next.style.pointerEvents = ''; if (old !== next) old.remove(); };
+          next.srcdoc = html;
           edited = kept == null ? null : () => kept;
           drawn = wordsOf(ch);
-          frame.onload = async () => { try {
-            const d = frame.contentDocument, sheets = ch.target === 'pdf';
+          next.onload = async () => { try {
+            const d = next.contentDocument, sheets = ch.target === 'pdf';
             if (!md) { d.body.contentEditable = 'true'; d.body.spellcheck = false; }
             let again = null;
             d.addEventListener('input', () => {
@@ -406,9 +417,9 @@ function open({ doc, what, act }) {
             d.addEventListener('keydown', onKey, true);
             d.addEventListener('click', () => closePops());
             drawParts(d, ch);
-            if (sheets) { await E.print.settle(d); if (n !== run) return; E.preview.paginate(d, sheetOpts(ch)); }   // pictures first, so their height is known
-            fit(); setTimeout(fit, 300);
-          } catch (error) { console.warn('DB Export: preview sheets', error); fit(); } };
+            if (sheets) { await E.print.settle(d); if (n !== run) { next.remove(); return; } E.preview.paginate(d, sheetOpts(ch)); }   // pictures first, so their height is known
+            swap(); fit(); setTimeout(fit, 300);
+          } catch (error) { console.warn('DB Export: preview sheets', error); swap(); fit(); } };
         } catch (error) { console.warn('DB Export: preview', error); }
       }, 150);
     };
@@ -471,7 +482,7 @@ function open({ doc, what, act }) {
       remember(ch, doc.title);
       if (action === 'pdf') root.hidden = true;   // the print window takes its place
       let done = false;
-      try { done = await act(ch, action, edited ? edited() : null) !== false; } catch (error) { console.error(error); logseq.UI.showMsg(`Export stopped: ${error.message}`, 'error'); }
+      try { done = await act(ch, action, edited ? edited() : null) !== false; } catch (error) { console.error(error); logseq.UI.showMsg(`Export stopped: ${window.PluginDoor.reason(error, 'the page could not be written out. Nothing in the graph was changed')}`, 'error'); }
       if (done) close(); else root.hidden = false;   // cancelled: the window stays, with what was chosen and written
     };
     const onKey = event => {

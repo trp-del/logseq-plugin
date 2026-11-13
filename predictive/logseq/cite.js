@@ -75,7 +75,7 @@ const wording = (source, page) => source.web ? `([${source.title}](${source.url}
 async function write(source, page) {
   const { box, uuid, at } = open;
   close();
-  if (!box.isConnected) return notify('The bullet was left, so nothing was cited.', 'warning');
+  if (!box.isConnected) return notify('The bullet was left, so nothing was cited', 'warning');
   const before = box.value[at - 1], after = box.value[at];
   const words = wording(source, page);
   typeIn(box, at, (before && !/\s/.test(before) ? ' ' : '') + words + (after && !/[\s.,;:)]/.test(after) ? ' ' : ''));
@@ -92,9 +92,9 @@ async function takeOff(uuid, words) {
 async function show({ uuid } = {}) {
   if (stopped) return;
   const box = host().activeElement;
-  if (!app.isBlockBox(box) || app.uuidOf(box) !== uuid) return notify('Put the cursor in a bullet first.');
+  if (!app.isBlockBox(box) || app.uuidOf(box) !== uuid) return notify('Put the cursor in a bullet first');
   const sources = await sourcesNow().catch(error => { warnOnce('the sources could not be read', error); return null; });
-  if (!sources) return notify('The pages could not be read.', 'warning');
+  if (!sources) return notify('The pages could not be read', 'warning');
   if (!box.isConnected) return;
   close();
   const row = box.closest('.ls-block[blockid]'), own = [...row.children].find(child => child.classList?.contains('block-main-container'));

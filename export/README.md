@@ -22,6 +22,8 @@ A page, or some blocks, out of Logseq as a **PDF** in a minimal look, as **Markd
 
 **Rich text** is the same page with the look's styles written inline, so a pasting app keeps them; its plain-text form is the Markdown.
 
+The preview never stands empty between two drawings: a change of target, look or paper is drawn in a frame of its own, unseen, and takes the old one's place once it is laid out.
+
 ## How to use it
 
 - Command palette: **Export: this page…**, **Export: the selected blocks…**. Quick, with the remembered choices and no window: **Export: copy this page as Markdown**, **Export: save this page as PDF**.

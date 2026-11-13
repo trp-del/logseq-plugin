@@ -39,12 +39,15 @@ const CSS = `
 .st-top .st-new { margin-left: auto; white-space: nowrap; flex: none; }
 /* The areas: columns sharing the page's width, onto a second row when they cannot fit, never past the edge; a band above each row for
    the lines that cross, gaps wide enough for the lines between neighbours. */
-.st-regions { position: relative; display: flex; flex-wrap: wrap; gap: 40px 40px; padding: 30px 30px 12px 6px; min-width: 0; }
-.st-area { flex: 1 1 160px; min-width: 160px; max-width: 320px; position: relative; z-index: 1; }
+.st-regions { position: relative; display: grid; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); align-items: start; gap: 40px 40px; padding: 30px 30px 12px 6px; min-width: 0; }
+/* Every area the same width (12 November 2026): as flex items, an area alone on the last row grew wider than the others and its counts
+   stood far from its names, and three areas squeezed into 202 px each broke "Pharmacological" inside the word. 232 px holds a 15-letter
+   name two steps in. */
+.st-area { min-width: 0; position: relative; z-index: 1; }
 .st-regions .st-lines { position: absolute; left: 0; top: 0; pointer-events: none; color: var(--lk-text, #222); }
 .st-regions .st-row { grid-template-columns: 14px 14px 12px minmax(0, 1fr) 40px 8px; }
 .st-regions .st-row.kind .nm { font-weight: 600; }
-.st-regions .st-row .nm { overflow-wrap: normal; }
+.st-regions .st-row .nm { word-break: normal; overflow-wrap: break-word; }   /* whole words first; a word breaks only when it alone is wider than the line (Logseq's page-wide word-break: break-word broke it anywhere) */
 .st-regions .st-row.cur { font-weight: 600; } .st-regions .st-row.cur::before { display: none; }
 /* The tag you are on, under the areas: its name opens its page; its relationships; what Structure suggests. */
 .st-focus { padding: 16px 6px 24px; border-top: 1px solid var(--lk-hair); margin-top: 6px; max-width: 760px; }
@@ -69,7 +72,7 @@ const CSS = `
 .st-tag { font-size: 14px; }
 .st-page .st-tray { padding-left: 6px; }
 .st-tag .st-tray { padding: 0 0 10px; margin-bottom: 12px; }
-.st-lines-t { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 8px 14px; margin: 0; }
+.st-lines-t { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 8px 14px; margin: 0; align-items: baseline; }   /* a label and its value's first line on one baseline: stretched, a value holding a press stood 3 to 7 px lower than its label (measured 12 November 2026) */
 .st-lines-t dt { font-weight: 600; } .st-lines-t dd { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; min-width: 0; }
 .st-lines-t .chev { margin-left: 2px; padding: 0 2px; }   /* the library's chevron (lk-change), centred on the name it changes */
 .st-tag .sug { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; padding-top: 12px; }
@@ -81,12 +84,29 @@ const CSS = `
 .st-lines-t .ont { padding-block: 2px; }
 .st-lines-t dd.kids { gap: 0; } .st-lines-t dd.kids .ont { padding-block: 0; }   /* child tags: plain lines at the lines' own pitch, the first on its name's baseline */
 .st-tag .sug { align-items: center; } .st-rel .lk-more { margin-top: 2px; }
+/* Words stay whole in Ontology's lines and tables: Logseq sets word-break: break-word page-wide, which let a line break inside "and",
+   and before a comma. A word breaks only when it alone is wider than its line; "and 12 more" goes to the next line whole, from the
+   line's own edge (13 November 2026: with a margin for its space it stood 5 px in, and a comma could start a line). */
+.st-tbl td, .st-lines-t dd, .st-rel, .st-ln { word-break: normal; overflow-wrap: break-word; }
+.st .lk-more, .st .all, .st .to.and { white-space: nowrap; }
+.st .to.and { margin: 0 !important; }
+/* A press with an icon stands on its words' baseline, not its icon's: as a centred flex box its baseline was the icon's foot, and
+   "Merge into…" stood 2.3 px above "nodes" beside it (measured by the words' own boxes, 13 November 2026). */
+.st-lines-t dd .lk-btn { align-items: baseline; } .st-lines-t dd .lk-btn::before { align-self: center; }
 .st-lines-t .rg { display: inline-flex; gap: 4px; align-items: baseline; }
 .st-tag .st-in { max-width: 240px; }
 /* The inspector: two parts, each under its head, a hairline and space between them. The heads in the heading weight; the names
    of the lines in the quiet grey at the body weight, as Logseq writes a property's name, so what you read is the values. */
 .st-holder-insp { display: grid; gap: 24px; padding: 4px 2px 12px; }
 .st-holder-insp .st-lines-t { grid-template-columns: 112px minmax(0, 1fr); gap: 10px 14px; }
+.st-holder-insp { container-type: inline-size; }
+/* A narrow sidebar: each label stands over its value, which then has the pane's whole width (12 November 2026: at 270 px the count lay
+   over the tag's name, Relationships was squeezed to three letters a line and the pane scrolled sideways). */
+@container (max-width: 360px) {
+  .st-holder-insp .st-lines-t { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .st-holder-insp .st-lines-t dt:not(:first-child) { margin-top: 10px; }
+  .st-holder-insp .st-rel { grid-template-columns: minmax(0, auto) minmax(0, auto) auto; }
+}
 .st-holder-insp .st-lines-t dt { font-weight: 400; color: var(--lk-quiet); display: flex; gap: 6px; align-items: baseline; min-width: 0; }
 .st-insp-h { display: none; }
 /* The sidebar's views as words only: the cube with a + listed the plugin's panels in a menu; the inspector is a word in the row now
@@ -510,7 +530,6 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
   }
   // ---------- the top line of every content: the path, ending on the thing itself; where to go back; the two lists ----------
   // The title row: the name, and at the right end the place in the tree, nearest first, each a tag that opens (as Look draws a page's).
-  const titleHtml = (mark, title, above, cls) => `<div class="st-ttl"><h2 class="${cls || ''}">${mark}<span class="${cls ? 'lk-pencil' : ''}">${title}</span></h2>${above.length ? `<span class="st-place">${above.map(tagLink).join('<span class="sep">/</span>')}</span>` : ''}</div>`;
   const acts = (on, list) => { const l = list.filter(Boolean); return l.length ? `<div class="acts lk-strip">${l.map(([word, a]) => `<span class="act lk-btn lk-i-${ACT_ICON[a]}" data-do="${a}" data-on="${esc(on)}">${word}</span>`).join('')}</div>` : ''; };
 
   // ---------- the card ----------
@@ -518,19 +537,9 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
   // names was hard to read, the owner, 30 October 2026); where it stands already says it is a tag.
   const tagLink = id => `<span class="lk-tag tg ${waitTag(id) ? 'lk-pencil' : ''}" data-go="${esc(id)}">${esc(name(id))}</span>`;
   // A range of many tags (Topic, on purpose, takes fifteen): the first three, then how many more; the property's card lists them all.
-  const ranges = ids => ids.slice(0, 3).map(tagLink).join('<span class="to sp">, </span>') + (ids.length > 3 ? `<span class="to">and ${ids.length - 3} more</span>` : '');
+  const ranges = ids => ids.slice(0, 3).map(tagLink).join('<span class="to sp">, </span>') + (ids.length > 3 ? ` <span class="to and">and ${ids.length - 3} more</span>` : '');
   // An issue that belongs to a line puts its fix word at the line's right end, after the faint count, with its ask under the line.
   const lineFix = (tagId, pid, kid) => { const i = R.issueOnLine(ISS(), tagId, pid, kid); return i ? { cls: 'fx', word: `<span class="fix act lk-fix lk-i-${fixIcon(i.fix)}" data-fix="${ISS().indexOf(i)}">${esc(fixWord(i.fix))}</span>`, ask: askHtml(ISS().indexOf(i)) } : { cls: '', word: '', ask: '' }; };
-  function propLine(tagId, pid, of, inh) {
-    const p = P(pid), f = Mo.filled(M(), tagId, pid), low = of && f / of < .2;
-    const editing = st.edit && st.edit.what === 'prename' && st.edit.on === `${tagId}·${pid}`;
-    const fx = inh ? { cls: '', word: '', ask: '' } : lineFix(tagId, pid);
-    return `<div class="st-ln ${inh ? 'inh' : ''} ${low ? 'low' : ''} ${fx.cls} ${waitProp(pid)}" data-prop="${tagId}·${pid}">${pi(p)}<span class="w">` +
-      (editing ? `<input class="st-in lk-field" data-edit value="${esc(st.edit.text)}" autocomplete="off" spellcheck="false">` : `<span class="k lk ${waitProp(pid) ? 'lk-pencil' : ''}">${esc(p.title)}</span>`) +
-      (p.type === 'node' ? `<span class="to">Node tags</span>${p.range.length ? ranges(p.range) : '<span class="to">any node</span>'}` : '') +
-      (inh ? `<span class="to">inherited from ${esc(name(inh))}</span>` : '') +
-      `</span><span class="ct">${f} of ${of}</span>${fx.word}</div>${fx.ask}`;
-  }
   // An issue: what is wrong, then the fix as a word. Choosing the fix opens one line that says what it would do, with the
   // nodes it touches; only "stage it" puts it in the tray. A fix that needs a choice (which kind, which tag) opens the prompt.
   // The sentence in parts, each keyed by its role: the thing to settle in the text colour with the underline that opens its card
@@ -542,8 +551,6 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     : p.count != null ? `<span class="nm">${esc(p.count)}</span>`
     : `<span class="to ${/^[,:;]/.test(p.words) ? 'pn' : ''}">${esc(p.words)}</span>`).join(' ').replace(/ (<span class="to pn")/g, '$1');
   const fixWord = w => w.replace(/^drop\b/i, 'Delete property from tag');
-  const issueLine = (i, lead) => { const n = ISS().indexOf(i); return `<div class="st-ln iss">${lead}<span class="w">${partsHtml(i.parts)}</span><span class="fix act lk-fix lk-i-${fixIcon(i.fix)}" data-fix="${n}">${esc(fixWord(i.fix))}</span></div>` + askHtml(n); };
-  const issuesHtml = list => !list.length ? '' : `<h3>Issues</h3>` + list.map(i => issueLine(i, '<span></span>')).join('');
   const askLine = (c, last) => {
     const s = S.changes.sentence(M(), c), two = c.kind === 'merge';
     const words = last ? `<div class="lk-answers"><span class="act lk-accent lk-i-tick lk-enter" data-stage>Stage it</span><span class="act lk-btn lk-low lk-i-x" data-leave>Leave it</span></div>` : '';

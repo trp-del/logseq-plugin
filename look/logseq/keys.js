@@ -103,10 +103,10 @@ const CSS = `
 .lk-ks .lk-ks-find { margin: 22px 36px 0; flex: none; }
 .lk-ks:not(.stays) .lk-ks-find { visibility: hidden; }
 .lk-ks .lk-ks-body { padding: 22px 36px 6px; columns: 3; column-gap: 56px; overflow: auto; min-height: 0; }
-.lk-ks .lk-ks-group { break-inside: avoid; padding-bottom: 26px; }
+.lk-ks .lk-ks-group { break-inside: avoid; padding-bottom: 32px; }   /* one line's pitch, as the heading below: every line of every column on one grid of 32 px (a long group runs on into the next column, where its lines stood 3 px off the lines beside them, 12 November 2026) */
 .lk-ks .lk-ks-group.lk-ks-long { break-inside: auto; }
 .lk-ks .lk-ks-body.finding .lk-ks-group { break-inside: avoid; }   /* a few lines found: each group whole, under its heading */
-.lk-ks .lk-ks-head { break-after: avoid; font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+.lk-ks .lk-ks-head { break-after: avoid; font-size: 14px; font-weight: 600; line-height: 24px; padding: 4px 0; margin: 0; }   /* a heading is drawn as a line is (4 px, 24 px, 4 px): a long group's first line at the top of the next column then stands on the headings' own line, where it stood 5 px lower (the owner, 12 November 2026) */
 /* The words first, each key right after them in a small rounded box in mono (the owner, 12 November 2026), in the text colour. */
 .lk-ks .lk-ks-line { padding: 4px 6px; margin: 0 -6px; border-radius: 5px; }
 .lk-ks .lk-ks-line.lit { background: var(--lk-wash); }
@@ -216,7 +216,7 @@ const { name: keyName, pressed: spelled, logseq: logseqSpelled } = Door.keys;
    written, since Logseq would replace them all with this one, and the sheet says so. */
 function saveLogseq(id, spelling) {
   if (Door.setLogseqKey(id, spelling)) return true;
-  Door.notify('Logseq’s keys could not be read, so this key was not changed.', 'warning');
+  Door.notify('Logseq’s keys could not be read, so this key was not changed', 'warning');
   return false;
 }
 function save(target, plugin_, logseq_) {

@@ -35,6 +35,8 @@
  ".th-tw-record": 8,
  ".th-tw-right": 2,
  ".th-tw-row": 3,
+ ".th-tw-rule": 1,
+ ".th-tw-rule-named": 1,
  ".th-tw-sep": 2,
  ".th-tw-tag": 1,
  ".th-tw-toggle": 4,

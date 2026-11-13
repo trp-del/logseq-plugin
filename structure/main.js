@@ -88,7 +88,7 @@ const app = {
         tray.note = ''; tray.changes = [];
       }
     } catch (error) {
-      console.error('Structure: apply failed', error); notify(`Not applied: ${error.message}`, 'error');
+      console.error('Structure: apply failed', error); notify(`Not applied: ${window.PluginDoor.reason(error, 'Logseq did not take a change. Nothing else was changed')}`, 'error');
       if (error.left?.()) keepDone(graph, { text: `${stepsWord(error.left())} not put back`, undo: error.undo, left: error.left, graph });
       // A tag deleted and put back has a new id: the waiting lines that name it follow, so pressing Apply again does the same thing.
       if (plan) tray.renumber(new Map([...plan.handles.values()].filter(h => h.realId != null && h.id > 0).map(h => [h.id, h.realId])));
@@ -102,14 +102,14 @@ const app = {
     try {
       const failures = await done.undo();
       if (failures.kept) notify(`${failures.kept === 1 ? 'One node or page' : `${failures.kept} nodes or pages`} changed after Apply, so Undo left ${failures.kept === 1 ? 'it' : 'them'} as ${failures.kept === 1 ? 'it is' : 'they are'}`, 'warning');
-      if (failures.length) { done.text = `${stepsWord(done.left())} not undone`; syncUndo(); notify(`Could not undo ${failures.length} of ${stepsWord(of)}: ${failures[0].message}. The arrow tries again.`, 'error'); }
+      if (failures.length) { done.text = `${stepsWord(done.left())} not undone`; syncUndo(); notify(`Could not undo ${failures.length} of ${stepsWord(of)}: ${window.PluginDoor.reason(failures[0], 'Logseq did not take them')}. The arrow tries again`, 'error'); }
       else { if (tray.done === done) tray.done = null; else dones.delete(done.graph); tray.note = ''; }
       syncUndo();
     } catch (error) {
       console.error('Structure: undo failed', error);
       if (done.left()) done.text = `${stepsWord(done.left())} not undone`;
       syncUndo();
-      notify(error.elsewhere ? `Another graph was opened: the Undo waits in ${done.graph.replace(/^logseq_db_/, '')}` : `Could not undo: ${error.message}`, 'error');
+      notify(error.elsewhere ? `Another graph was opened: the Undo waits in ${done.graph.replace(/^logseq_db_/, '')}` : `Could not undo: ${window.PluginDoor.reason(error, 'Logseq did not take a step back')}`, 'error');
     } finally { app.st.busy = ''; }
     await app.reread();
   },
@@ -117,7 +117,7 @@ const app = {
   async reread() {
     const was = app.st.cur != null && tray.model.tags.get(app.st.cur)?.title;
     try { const raw = await S.db.read(); tray.setBase(raw); tray.version = (tray.version || 0) + 1; app.readAt = Date.now(); }
-    catch (error) { console.error('Structure: the graph could not be read', error); notify(`The graph could not be read: ${error.message}`, 'error'); }
+    catch (error) { console.error('Structure: the graph could not be read', error); notify(`The graph could not be read: ${window.PluginDoor.reason(error, 'Logseq did not answer. Open Ontology again in a moment')}`, 'error'); }
     sayLost('what it names is no longer in the graph');
     settle(was);
     if (!app.st.ask?.change && !app.st.ask?.apply) app.st.ask = null;   // an ask of an issue or a merge names what this reading may have moved
@@ -264,6 +264,7 @@ const lookup = uuid => { const id = [...tray.model.tags.values()].find(t => t.uu
 function place(doc, inner, here, id, prop) {
   const views = [...app.views].filter(v => (v.mode === 'tag' || v.mode === 'line') && v.root.parentElement?.classList.contains('st-tagholder'));
   const clear = () => { for (const v of views) v.destroy(); doc.querySelectorAll('.st-tagholder').forEach(n => n.remove()); };
+  S.inspector.pageKnown?.(id == null && prop == null);   // a page that is no tag's and no property's: the tab may say so at once
   if (id == null && prop == null) { clear(); return; }
   /* A tag's page: Parent on one line above its title, always; its other lines (Child tags first) in the inspector while that stands in
      the right sidebar. A property's page: its lines above the table, or at the inspector's top while it is open. */

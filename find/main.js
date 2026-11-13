@@ -45,7 +45,9 @@ async function main() {
   logseq.App.registerCommandPalette({ key: 'find-sentence', label: 'Find by sentence' }, () => Find.window.sentence());
   logseq.provideModel({ findOpen: () => Find.window.open() });
   onStop(logseq.DB.onChanged(() => Find.window.forget()));
-  onStop(logseq.App.onCurrentGraphChanged(() => { Find.window.close(); Find.window.forget(); }));
+  onStop(logseq.App.onCurrentGraphChanged(() => { Find.window.close(); Find.window.forget(true); }));
+  const warming = setTimeout(() => Find.window.warm(), 1500);
+  onStop(() => clearTimeout(warming));
 }
 function stop() {
   try { Find.window.close(); } catch (error) { console.error('Find: the window could not close', error); }

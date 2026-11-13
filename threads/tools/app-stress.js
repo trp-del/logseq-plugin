@@ -258,6 +258,7 @@ async function viewPart(page, session) {
     for (const j of K.jumps(on.themeLedger)) if (!j.name.startsWith('landmark: ')) problem(`${j.name} moved ${j.dy || j.dx} px while the theme changed`);
     // A colour of the plugin's own the same in both themes.
     const colours = {};
+    await openLinked(page);
     for (const theme of ['light', 'dark']) {
       await page.evaluate(t => window.logseq.api.set_theme_mode(t), theme); await sleep(700);
       colours[theme] = await page.evaluate(() => {
@@ -316,6 +317,7 @@ async function undoPart(page) {
   // 2. Ten nodes added through a two-way row's +, each undone.
   await D.go(page, 'all-pages'); await sleep(600); await D.go(page, 'Dr. Mei Chen'); await sleep(2500);
   let added = 0, addUndone = 0;
+  await openLinked(page);
   for (let k = 1; k <= 10; k++) {
     const name = `Zz stress note ${k}`;
     // After Enter the line stays open, empty, for the next node; the + is pressed only when no line is open. The words
@@ -375,6 +377,7 @@ async function reloadsPart(page) {
         await sleep(5000);
         const after = (await frameCounts())?.startedAt;
         await D.go(page, 'all-pages'); await sleep(500); await D.go(page, 'Dr. Mei Chen'); await sleep(2500);
+        if (!v) await openLinked(page);
         const rows = await page.evaluate(() => document.querySelectorAll('#main-content-container .th-two-way .th-tw-row').length);
         if (!after || after === before || (v ? rows : !rows)) { foundationMissed++; problem(`Foundation only ${v ? 'on' : 'off'}, try ${k + 1}: the reload ${after && after !== before ? 'took effect' : 'did not take effect'}, ${rows} two-way rows shown`); }
       }
@@ -418,6 +421,9 @@ async function darkPart(page) {
   }
 }
 
+// Linked may stand folded on the page (the fold is kept): the checks below read its rows, so it is opened first (12 November 2026:
+// folded, three of them failed with "no +", "0 two-way rows" and "0 kinds of the plugin's words").
+const openLinked = page => page.evaluate(() => { const rule = document.querySelector('.th-two-way .th-tw-rule'); if (rule && !document.querySelector('.th-two-way .th-tw-head')) (rule.querySelector('button, .lk-fold') || rule).click(); }).then(() => new Promise(r => setTimeout(r, 900)));
 (async () => {
   const { browser, page, graph } = await D.connect('app-stress');
   const session = await page.context().newCDPSession(page);

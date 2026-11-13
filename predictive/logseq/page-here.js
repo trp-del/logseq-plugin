@@ -39,9 +39,9 @@ const lineOf = uuid => { const row = host().querySelector(`.ls-block[originalblo
 const shownIn = async uuid => (await db.dsQuery(`[:find ?l :where [?b :block/uuid #uuid "${uuid}"] [?b :block/link ?l]]`))[0]?.[0] ?? null;
 async function showPage(uuid, page) {
   await logseq.Editor.exitEditingMode();
-  if (page?.id == null) return notify(`“${page?.title || 'The page'}” could not be found to show here.`, 'warning');
+  if (page?.id == null) return notify(`“${page?.title || 'The page'}” could not be found to show here`, 'warning');
   await window.PluginDoor.write.showPage(uuid, page.id);
-  if (await shownIn(uuid) !== page.id) return notify(`“${page.title}” could not be shown here.`, 'warning');
+  if (await shownIn(uuid) !== page.id) return notify(`“${page.title}” could not be shown here`, 'warning');
   window.PluginDoor.undo.offer({ owner: 'predictive', key: `predictive:here:${uuid}`, at: () => lineOf(uuid), node: uuid, text: `“${page.title}” shown in this bullet`,
     run: async () => { if (await shownIn(uuid) !== page.id) return notify('The bullet has changed since, so it stays', 'warning'); await window.PluginDoor.write.unshowPage(uuid); },
     onFail: error => { warnOnce('the page could not be taken off the bullet again', error); notify('The page could not be taken off the bullet again', 'warning'); } });
@@ -49,8 +49,8 @@ async function showPage(uuid, page) {
 
 async function make(box) {
   const uuid = app.uuidOf(box), name = nameIn(box.value);
-  if (!name) return notify('Write the page’s name in the bullet first.');
-  if (!canName(name)) return notify('A page’s name cannot hold a link.', 'warning');
+  if (!name) return notify('Write the page’s name in the bullet first');
+  if (!canName(name)) return notify('A page’s name cannot hold a link', 'warning');
   const [page] = await db.pagesNamed([name.toLowerCase()]);
   if (page?.uuid === uuid) return;
   if (page) return showPage(uuid, page);

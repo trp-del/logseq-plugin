@@ -133,7 +133,7 @@ function add(request) {
   const job = queue.then(() => addNow(request || {}));
   queue = job.catch(() => {});
   const later = sleep(Door.outside.answerWithin).then(() => ({ pending: true }));
-  job.then(() => {}, error => later.then(answer => { if (answer.pending) logseq.UI.showMsg(`From outside: ${error.message}`, 'warning'); }));
+  job.then(() => {}, error => later.then(answer => { if (answer.pending) logseq.UI.showMsg(`Nothing was added from outside: ${window.PluginDoor.reason(error, 'Logseq did not take it')}`, 'warning'); }));
   return Promise.race([job, later]);
 }
 async function addNow({ files: given, where }) {

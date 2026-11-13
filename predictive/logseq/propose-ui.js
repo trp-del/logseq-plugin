@@ -435,7 +435,7 @@ async function takeShadow(live) {
     if (!saved) await sleep(100);
   }
   // What was accepted (Enter, a click) and cannot be written is said, never dropped in silence.
-  const lost = why => { if (live.taken?.size) { warnOnce('accepted values were not filled in', why); notify(`The values you accepted were not filled in: ${why}.`, 'warning'); } };
+  const lost = why => { if (live.taken?.size) { warnOnce('accepted values were not filled in', why); notify(`The values you accepted were not filled in: ${why}`, 'warning'); } };
   if (!saved) return lost('the words changed, or had not been saved yet');
   // A tag typed in the words must be on the bullet as saved (Enter just before a typed tag moves the tag to the next bullet).
   const savedTags = new Set((db.pick(block, 'block/tags') || []).map(db.idOf));

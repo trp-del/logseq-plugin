@@ -40,7 +40,7 @@ assert.ok(/async function duesOn\(day\)/.test(read('threads/parts/model.js')), '
 const insp = read('structure/logseq/inspector.js'), view = read('structure/logseq/view.js');
 assert.ok(/logseq\.Editor\.openInRightSidebar\(uuid\)/.test(insp) && /sideTabs\?\.pick\('item'\)/.test(insp) && /function whereText/.test(insp), 'a row pressed opens Logseq\'s own view of its node and picks Item; where it stands');
 assert.ok(!/function drawNode|function outline|st-insp-words/.test(insp + view), 'no read-only copy of the node is drawn');
-assert.ok(/insp\.opened\.add\(found\)/.test(insp) && /function closeStale/.test(insp) && /if \(uuid && !active\(\)\) return;/.test(insp), 'only an item the plugin opened is closed; with the sidebar shut or on another tab a press is Logseq\'s');
+assert.ok(/insp\.openedKeys\.add\(wanted\(\)\)/.test(insp) && /insp\.openedKeys\.has\(key\) && !keep\.has\(key\)/.test(insp) && /function closeStale/.test(insp) && /if \(uuid && !active\(\)\) return;/.test(insp), 'only an item the plugin opened is closed; with the sidebar shut or on another tab a press is Logseq\'s');
 assert.ok(/find: doc => S\.inspector\.item\(doc\)/.test(read('structure/logseq/mount.js')), 'the Item tab is that view');
 assert.ok(/\.ls-table-row\[data-st-picked\]::after \{[^}]*border: 1\.5px solid var\(--lk-picked\)/.test(view) && /--lk-picked: var\(--rx-blue-09/.test(read('plugin.js')), 'the row shown keeps a blue outline');
 assert.ok(/setAttribute\('data-lk-tab', tabs\.cur \|\| ''\)/.test(read('sidebar-tabs.js')), 'the sidebar says which tab is picked');
