@@ -23,7 +23,13 @@ const fileName = path => String(path).split('/').filter(Boolean).pop() || '';
 
 async function page(where) {
   if (where === 'today') {
-    const today = await logseq.Editor.getTodayPage();
+    // Logseq's today call can answer nothing while today's journal is on screen (seen on the owner's other Mac, 12 November
+    // 2026), so the day is looked up by its number and made when there is none, as the workflow's own words do.
+    let today = await logseq.Editor.getTodayPage().catch(() => null);
+    if (!today?.uuid) {
+      const { id } = await Door.dates.page(Door.dates.today());
+      today = id ? await logseq.Editor.getPage(id) : null;
+    }
     if (!today?.uuid) throw new Error("Today's journal could not be found");
     return today;
   }
