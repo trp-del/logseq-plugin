@@ -290,9 +290,7 @@ const twoWayCss = `
 .th-two-way .th-ol-kids:not(.th-ol-bare) > .th-ol-in { padding-bottom: 20px; }
 /* Inside an opened node, a line's gap parts its groups: its properties, what links to it, its bullets; and each list of
    what links to it (its first line carries the name) from the one before. */
-.th-two-way .th-ol-in > .th-tw-links:first-child { margin-top: 0; }
 .th-two-way .th-ol-in > :not(.th-ol-bullet) + .th-ol-bullet { margin-top: 14px; }
-.th-two-way .th-tw-linked > :is(.th-ol-prop, .th-ol-unit):not(:first-child):has(> .th-ol-pname:not(:empty), > .th-ol-prop > .th-ol-pname:not(:empty)) { margin-top: 14px; }
 /* A bullet's words are written in where they stand (the owner, 7 November 2026): the text cursor says so, as in Logseq; the
    dot, which opens the bullet, is the one thing there to press. Tab reaches the words, Enter changes them. */
 .th-two-way .th-ol-words[data-edit-bullet] { cursor: text; border-radius: 4px; padding: 0 4px; margin: 0 -4px; }
@@ -390,17 +388,11 @@ const twoWayCss = `
 .th-two-way .th-ol-body { display: inline; }
 .th-two-way .th-ol-body > :is(.th-tw-add, .th-tw-groupby) { margin-left: .5em; }
 .th-two-way .th-tw-tell { margin-left: 6px; color: var(--lk-quiet); font-size: var(--lk-small); white-space: nowrap; }
-/* Inside an opened node, the nodes that link to it: their line in words, then their rows one step in, each a dot and its day as on the rows. */
-.th-two-way .th-tw-links { margin-top: 14px; align-items: baseline; gap: 6px; }
-/* What links to an opened node, as a head (C4): its words in the head's weight, the kinds quiet after them. */
-.th-two-way .th-tw-linkword { all: unset; cursor: pointer; }
-.th-two-way .th-tw-linkword { font-weight: 500; }
 /* The empty properties of an opened node, folded into one quiet line (C5). */
 /* The names' column of an opened node fits its longest name (C6). */
 .th-two-way .th-ol-kids[style*="--th-tw-name"] > .th-ol-in { --th-ol-name: var(--th-tw-name); }
 /* Inside an opened node a name is never cut (C8): at any width it wraps whole. */
 .th-two-way .th-ol-kids .th-ol-body:has(> .th-tw-record) { display: block; -webkit-line-clamp: none; overflow: visible; }
-.th-two-way .th-tw-linked { padding-left: var(--th-tw-in); }
 
 /* A shifted section's top: the trail ends on it in bold; its properties; then "N nodes link here" on the
    find field's hairline, and its rows as the page's. */

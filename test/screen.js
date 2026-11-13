@@ -58,7 +58,6 @@ console.log(`  ok  in ${files.length} files every made-up press, key and input g
   assert.equal(S.floating(menu), true); assert.equal(S.floating(box), false);
   assert.equal(S.floating(doc.getElementById('ownmenu')), false); assert.equal(S.floating(doc.getElementById('ownmenu'), { own: true }), true);
   assert.equal(S.popupOpen(), true); assert.equal(S.popupOpen(item), true); assert.equal(S.popupOpen(box), false);
-  assert.equal(S.item(text => text === 'Node embed'), item); assert.equal(S.item(text => text === 'Nothing'), null);
   menu.remove(); assert.equal(S.popupOpen(), false, 'only the plugin’s own is left'); assert.equal(S.popupOpen(null, doc, { own: true }), true);
   assert.equal(S.editorPopupOpen(), false); doc.body.insertAdjacentHTML('beforeend', '<div id="ui__ac"></div>'); assert.equal(S.editorPopupOpen(), true);
   console.log('  ok  Logseq’s pop-ups are told from the page and from the plugin’s own');

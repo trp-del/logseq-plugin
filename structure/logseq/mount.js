@@ -1,14 +1,14 @@
-/* Where the screen lives in Logseq: a page of its own (the route #/structure, in the main view) and a panel in the
-   right sidebar, both hosted by Logseq's own React through logseq.Experiments (as DB Refinements hosted its map).
+/* Where the screen lives in Logseq: a page of its own (the route #/structure, in the main view) and the Ontology tab in the
+   right sidebar, both hosted by Logseq's own React through logseq.Experiments.
    Each mount draws the view into the holder Logseq gives and takes it down when Logseq does. */
 (function () {
 const S = window.Structure;
-const ROUTE = '/structure', SIDEBAR_KEY = 'structure';
+const ROUTE = '/structure';
 const Door = window.PluginDoor, { host } = Door;
 /* Logseq draws a plugin's panel with a puzzle, in its head and in the sidebar's add menu (the cube with a +), the same puzzle for
    both: each takes the drawing of what it is, the one Structure's toolbar button has and the inspector's i in a circle, in
    Logseq's own stroke (9 November 2026). Only the drawing's path changes, so Logseq's React keeps the icon as it drew it. */
-const ICONS = { 'Ontology map': 'structure', Ontology: 'inspector' };
+const ICONS = { Ontology: 'inspector' };
 function drawIcon(scope, word) {
   const path = scope?.querySelector('.ls-icon-puzzle svg path');
   const d = Door.TOOLBAR_ICONS[ICONS[word]];
@@ -18,12 +18,12 @@ function drawIcon(scope, word) {
 function icons(doc) {
   S.view.ensureStyle(doc);
   for (const item of doc.querySelectorAll('.ui__dropdown-menu-item [title=":logseq-plugin"]')) drawIcon(item, item.textContent.trim());
-  for (const [id, word] of [['_sidebar.' + SIDEBAR_KEY, 'Ontology map'], ['_sidebar.structure-inspector', 'Ontology']]) drawIcon(doc.getElementById(id)?.closest('.page-title'), word);
+  for (const [id, word] of [['_sidebar.structure-inspector', 'Ontology']]) drawIcon(doc.getElementById(id)?.closest('.page-title'), word);
 }
 
 function mount(app) {
   const React = logseq.Experiments?.React;
-  const hosted = { page: false, sidebar: false, inspector: false };
+  const hosted = { page: false, inspector: false };
   const component = mode => function StructureView() {
     const ref = React.useRef(null);
     React.useEffect(() => {
@@ -31,8 +31,6 @@ function mount(app) {
       if (!holder) return undefined;
       let view = null;
       try { view = S.view.make(holder, mode, app); app.mounted(view); } catch (error) { console.error('Structure: the view could not be drawn', error); }
-      const heading = mode === 'side' && holder.closest('.sidebar-item')?.querySelector('.page-title h3');
-      if (heading) heading.textContent = 'Ontology map';
       return () => view?.destroy?.();
     }, []);
     return React.createElement('div', { ref, className: `st-holder st-holder-${mode}` });
@@ -75,5 +73,5 @@ function mount(app) {
     openInspector: async () => { Door.sideTabs?.show('inspector'); await logseq.Editor.openInRightSidebar('_sidebar.' + S.inspector.KEY); await logseq.App.setRightSidebarVisible?.(true); },
   };
 }
-S.mount = { mount, ROUTE, SIDEBAR_KEY };
+S.mount = { mount, ROUTE };
 })();

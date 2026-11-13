@@ -13,7 +13,7 @@
    - take(core, names, warn)      the core's and the parts' things in one object, warning once (through the part's own
                                   warnOnce) for each name missing; every part's take() is this.
    - screen                       THE screen door, the door's (plugin.js, Door.screen; core.screen): waitFor, press, typeInto, key,
-                                  floating, item, sidebarItems, popupOpen, escapeMenus: the one way to work Logseq's own boxes.
+                                  floating, popupOpen, editorPopupOpen: the one way to work Logseq's own boxes.
    - openEntity(uuid, inSidebar)  opens a page or block by uuid, in the right sidebar when asked.
    - openPageNamed(name, inSidebar)   opens a page by its name the same way.
    - settingReader(schema)        the door's reader: setting(key) is the saved value, or the schema's default when
@@ -168,7 +168,7 @@ const screen = Door.screen;
 // HTML given to el (an icon, a tag's words) is parsed once per document and copied after (2026-10-23: the tag map of
 // 600 tags parsed the same few icons thousands of times a redraw, its slowest step). At most 500 kept.
 const parsed = new WeakMap();
-// THE element builder: el(doc, 'button', { class: 'th-quiet', title: 'Undo', click: () => … }, icon, 'Undo').
+// THE element builder: el(doc, 'button', { class: 'lk-btn', title: 'Undo', click: () => … }, icon, 'Undo').
 const el = window.PluginDoor.el;
 
 /* THE icon list: what each icon means, by the name of its Tabler icon in Logseq's own font (loaded on every page;
@@ -805,8 +805,6 @@ const kitCss = `/* The kit (parts/shared.js): where the library's pieces stand i
    stands first, as the library draws it, and its wash reaches past the row's edge, so the body does not clip it. */
 .th-ask > .th-pop-body { margin-inline: -8px; padding-inline: 8px; }
 .th-ask .lk-answers > .lk-accent { order: -1; }
-/* The window (the library's lk-window): the browser's dialog, mid-screen. */
-.th-dialog { position: fixed; inset: 0; margin: auto; padding: 0; box-sizing: border-box; width: min(700px, 92vw); max-height: 86vh; overflow: auto; }
 /* A press's icon stands as the library's line icons do: 15px, before the word. */
 .lk-btn > .ti { font-size: 15px; }
 .lk-btn > .th-drawn { width: 15px; justify-content: center; }
@@ -965,7 +963,7 @@ span.th-ol-count { text-decoration: none; cursor: default; }
 `;
 
 // This file's own boxes: the kit's pop-ups, anchors and dialog, and the Undo dock.
-Door.base('threads', { prefix: 'Threads: ', leaves: { elements: '.th-pop, .th-anchor, dialog.th-dialog' } });   // what the kit itself may leave on screen
+Door.base('threads', { prefix: 'Threads: ', leaves: { elements: '.th-pop, .th-anchor' } });   // what the kit itself may leave on screen
 
 // THE finder of the plugin's marks on Logseq's screen (2026-10-23): every class and attribute prefix any part uses.
 // The troubleshooting box counts with it, the boot test looks for leftovers with it and the frame tests

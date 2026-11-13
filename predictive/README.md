@@ -59,7 +59,7 @@ sh ~/.logseq/plugins/logseq-plugin/predictive/helper/install.sh
 ```
 
 (or the same `helper/install.sh` from this folder). It starts at every login from then on; `install.sh remove` takes it off. The helper says its version in `/status`: 3 takes a property's own list of choices, a date without a pattern (Apple's model refused the pattern, and with it every question that held a date property), Apple's other settings for measuring (`model`: `permissive`, `tagging`), and names a failure without its description; 4 adds the matcher (`/meaning`) and the name finder (`/names`), which work on any Mac the helper builds on, Apple Intelligence or not. 5 added `/reads-back`, a property's name read from the node it points to, for Threads' rows; 6 asks it of Apple's larger model in Private Cloud Compute (macOS 27, and a helper built there with its tools, which install.sh does), sent only the property's name and its tags' names; 7 asks the matcher one question at a time, since two at once crashed the helper and it came back with nothing learned, so every match after was silent (the plugin now teaches the graph again when the helper says it holds nothing). Run `install.sh` again after an update to get it. **Predictive: measure Apple's tools on this graph** (also a row in the settings window) asks up to 120 tagged notes as Predictive asks and sets the answers against what you wrote: the model four ways where it is on the Mac, and by meaning (the tag, and the open page properties) and the name finder (new pages it would have offered for a name the note already linked, which would be doubles) where the helper is version 4; the report holds numbers and names, never a note's words.
-Without it, or with the setting **Read my words with Apple's model on this Mac** off, Predictive works as before. Under that setting, the plugin's settings window says whether the model is connected, and if not, why: the helper is not running (with the line to run), or Apple Intelligence is off. On a Mac
+Without it, or with the setting **Read my words with Apple’s tools on this Mac** off, Predictive works as before. Under that setting, the plugin's settings window says whether the model is connected, and if not, why: the helper is not running (with the line to run), or Apple Intelligence is off. On a Mac
 with the developer tools, `sh helper/build.sh test` builds it and asks the model one example.
 
 ## What it writes
@@ -115,12 +115,23 @@ core/        pure: no Logseq, no screen. Runs in Node, so it is tested there.
   propose.js   the rules: what a bullet's properties could hold, sure and guessed
   model.js     what to ask Apple's model about a bullet, and which of its answers to keep
   score.js     leave-one-out scorer and tuner
+  lessons.js   what is learned from how you answer suggestions, one lesson per source and target
+  measure.js   the questions put to Apple's model about a graph's own notes, and the judging of the answers
+  meaning.js   which tag and values the notes nearest in meaning vote for
+  people.js    which name the name finder found goes where, as a new page
+  typed-case.js your capitals kept in a link: which links are plain ones, what was typed for each
 logseq/      the only code that knows Logseq
   db.js        reads Logseq into the core's data; the writes
   app.js       Predictive's base on the door (settings, listeners, stylesheets), the context kept fresh
   link-ui.js   the grey words and the keys
   propose-ui.js proposals drawn in Logseq's property pills, leaving a bullet, writing, Undo
   model.js     asking the helper, once typing pauses; silent when it is not there
+  apple.js     Apple's tools in one order: the matcher, then the name finder, then the model
+  lessons.js   the lessons kept in the graph, on the page Predictive lessons
+  measure.js   the command that measures Apple's tools on this graph, and its report window
+  meaning.js   teaching the helper the graph's notes and asking which are nearest in meaning
+  people.js    asking the name finder what names a bullet holds
+  typed-case.js writing a link with your capitals while the bullet is open and after it is saved
   steps.js     Option-Enter stepping through the properties
   tag-pick.js  the Option-T list
   cite.js      /Cite, and a press on a citation to a PDF
@@ -128,8 +139,8 @@ logseq/      the only code that knows Logseq
   settings.js  the settings Logseq shows
 helper/      the helper for Apple's model (Swift): main.swift, build.sh, install.sh
 main.js      registers at the plugin's door
-test/        run.js (core on pretend graphs), load.js (every file against a fake Logseq), synthetic.js
-tools/       speed.js; app/ (check.js drives the plugin in the real Logseq, door.js connects to it); harness/ (measure.js
+test/        run.js (core on pretend graphs), load.js (every file against a fake Logseq), synthetic.js; graph/ (the Illness Test Graph's made-up notes, flesh-out.json, and held-out.json, 59 lines: 45 tagged, 14 plain)
+tools/       speed.js; graph/ (measure-tags.js measures tag suggestion on the held-out lines in the running Logseq, write-in-app.js writes the made-up graph's notes into it); app/ (check.js drives the plugin in the real Logseq, door.js connects to it); harness/ (measure.js
              measures the proposals on a large made-up graph, corpus.js, outside Logseq)
 ```
 

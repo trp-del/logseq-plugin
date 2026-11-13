@@ -5,14 +5,14 @@ const Look = (window.Look ||= {});
 const { host, esc, el, notify } = window.PluginDoor;
 
 // The marks and the property icons are the door's (plugin.js), as are the greys and the shared names.
-const { WEB, kindIconHtml } = window.PluginDoor;
+const { kindIconHtml } = window.PluginDoor;
 const iconHtml = name => `<i class="lk-icon ti ti-${name}" aria-hidden="true"></i>`;
 
 
 /* Look's base (plugin.js, Door.base): its stylesheets, each sent only when its words changed, its listeners and passes taken off
    at stop, its settings read with their defaults, and what it may leave in Logseq's window, taken out when it stops: elements of
    its own, its attributes, and the titles it gave cut-off names. */
-const LEAVES = { elements: '.lk-own', attributes: ['data-lk-sort', 'data-lk-kind', 'data-lk-icon', 'data-lk-dev', 'data-lk-line', 'data-lk-closed', 'data-lk-timed', 'data-lk-wide', 'data-lk-page'],
+const LEAVES = { elements: '.lk-own', attributes: ['data-lk-kind', 'data-lk-dev', 'data-lk-line', 'data-lk-closed', 'data-lk-timed', 'data-lk-wide', 'data-lk-page'],
   reset: doc => { for (const node of doc.querySelectorAll('[data-lk-title]')) { node.removeAttribute('title'); node.removeAttribute('data-lk-title'); } } };
 const base = window.PluginDoor.base('look', { prefix: 'Look: ', stylePrefix: 'look-', schema: () => Look.settings?.schema, leaves: LEAVES });
 const { style, listen, sweep } = base;
@@ -45,5 +45,5 @@ function graphChanged(change) {
 
 const openPage = (uuid, inSidebar) => { if (!uuid) return; if (inSidebar) logseq.Editor.openInRightSidebar(uuid); else logseq.App.pushState('page', { name: uuid }); };
 
-Look.kit = { host, WEB, kindIconHtml, iconHtml, esc, el, style, listen, onStop: base.onStop, setting: base.setting, watchScreen, run, stopAll, onGraphChange, graphChanged, sweep, openPage, notify };
+Look.kit = { host, kindIconHtml, iconHtml, esc, el, style, listen, onStop: base.onStop, setting: base.setting, watchScreen, run, stopAll, onGraphChange, graphChanged, sweep, openPage, notify };
 })();

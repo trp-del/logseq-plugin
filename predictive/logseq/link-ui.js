@@ -1,6 +1,6 @@
 /* Suggested links, the drawing and the keys (the rule is core/link.js). Ported from logseq-db-refinements
-   (parts/link-suggest.js) and trimmed: no hidden-bracket font and no Hyper-key tap, so there is less to break across
-   Logseq versions. The grey words sit where the box itself would put them: a copy of the box is laid over it, the same
+   (parts/link-suggest.js) and trimmed: no hidden-bracket font, so there is less to break across
+   Logseq versions; the Hyper-key tap (below) is added. The grey words sit where the box itself would put them: a copy of the box is laid over it, the same
    size, padding and font, with the typed words transparent and the rest of the name after them in grey. */
 (function () {
 const Flow = (window.Flow ||= {});

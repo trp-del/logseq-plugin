@@ -46,7 +46,7 @@ assert.ok(/\.ls-table-row\[data-st-picked\]::after \{[^}]*border: 1\.5px solid v
 assert.ok(/setAttribute\('data-lk-tab', tabs\.cur \|\| ''\)/.test(read('sidebar-tabs.js')), 'the sidebar says which tab is picked');
 
 // N3: every find box lights the first match and Enter opens it.
-assert.ok(/function lightFirst\(\)/.test(view) && /k === 'Enter'\) \{ e\.preventDefault\(\); if \(loc\.find\.trim\(\) && \(lightFirst\(\), lit\(\)\)\) openHere\(e\.shiftKey\)/.test(view), 'Structure\'s find box');
+assert.ok(/function lightFirst\(\)/.test(view) && /k === 'Enter'\) \{ e\.preventDefault\(\); if \(st\.find\.trim\(\) && \(lightFirst\(\), lit\(\)\)\) openHere\(e\.shiftKey\)/.test(view), 'Structure\'s find box');
 assert.ok(/event\.key === 'Enter'[^\n]*shared\.openEntity\(to\.dataset\.uuid, event\.shiftKey\)/.test(read('threads/parts/two-way/find.js')), 'Linked\'s find line');
 assert.ok(/t === find && event\.key === 'Enter'/.test(read('settings/window.js')), 'the settings\' find box');
 

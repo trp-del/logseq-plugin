@@ -1,6 +1,6 @@
 /* Structure's screens, drawn in three places. The page of the whole (mode 'page'): each top-level tag an area, its tags a small
    outline, the relationships as lines between them, the tray on top. A tag's own page in Logseq (mode 'tag'): five short lines above
-   Logseq's table saying what surrounds the tag, then what Structure suggests. The right sidebar (mode 'side'): the outline alone.
+   Logseq's table saying what surrounds the tag, then what Structure suggests.
    Every property, a property's card, a tag's nodes and the log open in the place of the areas. Nothing a single letter does: letters
    typed on the outline find a tag; what a thing can take is in its right-click menu. A fix first says what it would do, with the nodes
    it touches, and is staged only on a second yes. A change waiting is pencilled in where it will happen. It is drawn into Logseq's own
@@ -149,7 +149,6 @@ const CSS = `
 .st-log .ln { display: grid; grid-template-columns: 120px minmax(0, 1fr) 110px; gap: 0 12px; padding: 4px 0; border-bottom: 1px solid var(--lk-hair); font-size: 14px; }
 .st-left { grid-row: 1 / -1; border-right: 1px solid var(--lk-hair); padding: 12px 10px 12px 14px; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 .st-right { flex: 1; padding: 0 22px 56px 6px; min-width: 0; min-height: 0; overflow: auto; container-type: inline-size; }
-.st-side .st-left { border: 0; padding: 4px 4px 8px 6px; }
 /* The tray stands on top of the card, where a change is made, above what scrolls, so Apply is always in reach. The card's foot keeps clear of Logseq's help button, which stands over that corner. */
 .st-tray { border-bottom: 1px solid var(--lk-hair); padding: 10px 22px 10px 26px; font-size: 14px; min-width: 0; }
 .st-tray:empty { display: none; }
@@ -185,7 +184,6 @@ const CSS = `
    bullet ringed while folded, then the name; at the right edge only what tells the rows apart (here the count). */
 /* A long name wraps like text, so the row's pieces stand at its first line. Each level is one step in, as deep as the tree goes. */
 .st-row { display: grid; grid-template-columns: 14px 14px 16px minmax(0, 1fr) 46px 12px; align-items: start; min-height: 26px; padding-left: calc(var(--d, 0) * 12px); border-radius: 3px; position: relative; }
-.st-side .st-row { grid-template-columns: 14px 16px minmax(0, 1fr) 40px 12px; }
 /* The bullet is the library's (lk-bul); here its place on the row. A row's wash under the pointer is the library's (lk-row). */
 .st-bul { margin-top: 5px; justify-self: center; }
 .st-row.kind .st-bul::before { opacity: .8; }
@@ -350,10 +348,9 @@ const CSS = `
 
 const ensureStyle = doc => { S.base.sheet('st-style', CSS, 'st-own', doc); };
 
-/* make(holder, mode, app): draws the screen into holder; mode is 'page' (tree, card, tray) or 'side' (the tree alone).
-   app holds the state every view shares (logseq/main.js): the tray with its model, the cursor, what is open and ticked,
-   the trail. The sidebar's tree has a cursor and a find box of its own (app.st.side), so reading a page's tag there
-   never moves the main view. */
+/* make(holder, mode, app): draws the screen into holder; mode is 'page' (Regions or Every property, with the tray), 'line'
+   (the line above a tag's title) or 'tag' (a tag's lines, in the Ontology tab). app holds the state every view shares
+   (main.js): the tray with its model, the cursor, what is open and ticked, the trail. */
 function make(holder, mode, app, opts = {}) {
   const doc = holder.ownerDocument;
   ensureStyle(doc);
@@ -361,10 +358,9 @@ function make(holder, mode, app, opts = {}) {
   // What a drawing shows that can come or go when something folds: a tree's rows, Every property's groups and properties.
   const KEYED = '.st-row[data-row], .st-grp[data-group], .tr[data-prop], .st-popen[data-popen]';
   const keyOfShown = e => `${e.closest('[data-pane]')?.dataset.pane || ''}|${e.dataset.row ?? ''}|${e.dataset.group ?? ''}|${e.dataset.prop ?? ''}`;
-  const loc = mode === 'side' ? st.side : st;   // the cursor and the find text this view uses
   const root = doc.createElement('div');
   const TAGISH = mode === 'tag' || mode === 'line';   // 'line': the one line above a tag's title; 'tag': all its lines, in the inspector
-  root.className = `st ${mode === 'side' ? 'st-side' : TAGISH ? `st-tag${mode === 'line' ? ' st-line' : ''}` : 'st-page'}`;
+  root.className = `st ${TAGISH ? `st-tag${mode === 'line' ? ' st-line' : ''}` : 'st-page'}`;
   root.tabIndex = 0;
   holder.appendChild(root);
   const M = () => app.tray.model;
@@ -382,7 +378,7 @@ function make(holder, mode, app, opts = {}) {
   function visibleRows(pane) {
     const m = M(), rows = [], P2 = pane === 2 ? st.pane2 : null, open = P2 ? P2.open : st.open, seen = P2 ? P2.seen : st.seen;
     const tops = Mo.tops(m);
-    const q = (P2 ? P2.find : loc.find).trim().toLowerCase();
+    const q = (P2 ? P2.find : st.find).trim().toLowerCase();
     if (q) {
       const hit = new Set([...m.tags.values()].filter(t => t.title.toLowerCase().includes(q)).map(t => t.id));
       const show = new Set();
@@ -397,25 +393,19 @@ function make(holder, mode, app, opts = {}) {
     return rows;
   }
   function rowHtml(r) {
-    const t = r.n === LOOSE ? null : T(r.n), isTop = r.d === 0, side = mode === 'side';
+    const t = r.n === LOOSE ? null : T(r.n), isTop = r.d === 0;
     const o = own(r.n), b = below(r.n);
     const arrow = r.kids ? `<span class="lk-fold" data-fold="${esc(r.n)}" aria-expanded="${r.open}"></span>` : '<span></span>';
     const bullet = `<span class="st-bul lk-bul ${r.kids && !r.open ? 'folded' : ''}"></span>`;
     const editing = !inPane2 && st.edit && st.edit.what === 'rename' && st.edit.on === r.n;
     const nm = editing ? `<input class="st-in lk-field" data-edit value="${esc(st.edit.text)}" autocomplete="off" spellcheck="false">` : esc(name(r.n));
     const canDrag = t && !editing;   // any tag, a top-level one too: the top is open
-    let h = `<div class="st-row lk-row ${isTop ? 'kind' : ''} ${r.n === LOOSE ? 'loose' : ''} ${r.dim || (st.aim && !aimOk(r.n)) ? 'dim' : ''} ${loc.cur === r.n ? 'cur' : ''} ${waitTag(r.n)}" style="--d:${r.d}" data-row="${esc(r.n)}" ${canDrag ? 'draggable="true"' : ''}>` +
-      (side ? '' : `<input type="checkbox" class="lk-tick" data-tick="${esc(r.n)}" ${st.ticks.has(r.n) ? 'checked' : ''} ${r.n === LOOSE ? 'disabled style="visibility:hidden"' : ''}>`) +
+    let h = `<div class="st-row lk-row ${isTop ? 'kind' : ''} ${r.n === LOOSE ? 'loose' : ''} ${r.dim || (st.aim && !aimOk(r.n)) ? 'dim' : ''} ${st.cur === r.n ? 'cur' : ''} ${waitTag(r.n)}" style="--d:${r.d}" data-row="${esc(r.n)}" ${canDrag ? 'draggable="true"' : ''}>` +
+      `<input type="checkbox" class="lk-tick" data-tick="${esc(r.n)}" ${st.ticks.has(r.n) ? 'checked' : ''} ${r.n === LOOSE ? 'disabled style="visibility:hidden"' : ''}>` +
       arrow + bullet +
       `<span class="nm"><span class="${waitTag(r.n) ? 'lk-pencil' : ''} ${t?.uuid && !editing ? 'st-name' : ''}" ${t?.uuid && !editing ? `data-tpage="${esc(r.n)}"` : ''}>${nm}</span></span><span class="ct">${Mo.count(M(), r.n) || ''}</span><span class="iss ${o ? 'own' : b ? 'on' : ''}"></span></div>`;
     if (!inPane2 && st.edit && st.edit.what === 'new' && st.edit.on === r.n && st.edit.owner === mode) h += `<div class="st-row lk-row" style="--d:${r.d + 1}"><span></span><span></span><span class="st-bul lk-bul"></span><span class="nm"><input class="st-in lk-field" data-edit value="${esc(st.edit.text)}" placeholder="a new tag under ${esc(name(r.n))}" autocomplete="off" spellcheck="false"></span><span class="ct"></span><span class="iss"></span></div>`;
     return h;
-  }
-  function treeHtml() {
-    const rows = visibleRows();
-    const views = '';
-    return `<div class="st-left">${views}<div class="st-find lk-field"><input data-find placeholder="Find a tag" value="${esc(loc.find)}" autocomplete="off" spellcheck="false"><span class="n">${loc.find.trim() ? rows.filter(r => !r.dim).length : ''}</span></div>` +
-      `<div class="st-tree lk-list" ${st.ticks.size ? 'data-picking' : ''}>${rows.map(rowHtml).join('')}</div></div>`;
   }
 
   /* ---------- Two panes: the whole tree twice, side by side, each finding and scrolling on its own, so a tag can be dragged
@@ -425,7 +415,7 @@ function make(holder, mode, app, opts = {}) {
   function panesHtml() {
     const pane = n => {
       inPane2 = n === 2;
-      const rows = visibleRows(n), q = n === 2 ? st.pane2.find : loc.find;
+      const rows = visibleRows(n), q = n === 2 ? st.pane2.find : st.find;
       const h = `<div class="st-pane" data-pane="${n}"><div class="st-find lk-field"><input ${n === 2 ? 'data-find2' : 'data-find'} placeholder="Find a tag" value="${esc(q)}" autocomplete="off" spellcheck="false"></div>` +
         `<div class="st-tree lk-list" ${st.ticks.size ? 'data-picking' : ''}>${rows.map(rowHtml).join('')}<div class="st-row st-topdrop" data-row="${LOOSE}"><span></span><span></span><span></span><span class="nm">to the top</span></div></div></div>`;
       inPane2 = false;
@@ -439,7 +429,7 @@ function make(holder, mode, app, opts = {}) {
     const v = ['table', 'log'].includes(st.view) ? st.view : 'tree';
     const views = `<div class="st-views lk-views">${[['tree', 'Regions'], ['table', 'Every property'], ['log', 'Log']].map(([k, w]) => `<span class="lk-view ${v === k ? 'here on' : 'act'}" ${v === k ? '' : `data-show="${k}"`}>${w}</span>`).join('')}</div>`;
     const split = st.view === 'tree' ? `<span class="st-split act lk-btn lk-low lk-i-side" data-split>${st.split ? 'One pane' : 'Two panes'}</span>` : '';
-    const find = st.view === 'tree' && st.split ? '' : `<div class="st-find lk-field"><input data-find placeholder="${st.view === 'table' ? 'Find a property' : 'Find a tag'}" value="${esc(loc.find)}" autocomplete="off" spellcheck="false"></div>`;
+    const find = st.view === 'tree' && st.split ? '' : `<div class="st-find lk-field"><input data-find placeholder="${st.view === 'table' ? 'Find a property' : 'Find a tag'}" value="${esc(st.find)}" autocomplete="off" spellcheck="false"></div>`;
     return `<div class="st-top">${views}${find}${split}${st.view === 'tree' ? `<span class="st-new act lk-add lk-i-plus" data-do="new" data-on="${LOOSE}">New top-level tag</span>` : ''}</div>${st.view === 'tree' ? actsHtml() : st.view === 'table' ? pactsHtml() : ''}`;
   }
   // What can be done stays in view, faint until it can be (the research: what you can do is recognised, not remembered), so nothing moves when a tag is picked.
@@ -612,7 +602,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     // and it is filled on none of its tags, so the least filled come first with it.
     for (const p of m.props.values()) if (!p.on.length) rows.push({ prop: p.id, p, on: [], tag: 0, filled: m.holders.get(p.ident)?.size || 0, of: 0, pct: 0 });
     // The find line narrows here as on Regions: by the property's name, the tags it is on, and the tags it holds.
-    const q = loc.find.trim().toLowerCase();
+    const q = st.find.trim().toLowerCase();
     if (q) rows = rows.filter(r => r.p.title.toLowerCase().includes(q) || r.on.some(x => name(x.tag).toLowerCase().includes(q)) || r.p.range.some(id => name(id).toLowerCase().includes(q)));
     const s = st.sort, onName = g => name(g.tag);
     rows.sort((a, b) => s === 'name' ? a.p.title.localeCompare(b.p.title) : s === 'on' ? !a.tag - !b.tag || (a.tag && onName(a).localeCompare(onName(b))) || a.p.title.localeCompare(b.p.title) : s === 'to' ? name(b.p.range[0] ?? '').localeCompare(name(a.p.range[0] ?? '')) : a.pct - b.pct || a.p.title.localeCompare(b.p.title));
@@ -775,7 +765,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     if (mn.kind === 'row') {
       const t = T(mn.on), none = !t, loose = mn.on === LOOSE;   // none: nothing behind the row
       const n = Mo.count(m, mn.on), nodesOf = ids => plural(ids.reduce((s, x) => s + Mo.count(m, x), 0), 'node');
-      h += (t?.uuid ? it('Go to this tag', 'page') : '') + it('Open everything under', 'openall', false, 'Shift →') + (mode === 'side' ? it('Open the map here', 'main', false, 'Enter') : it(st.ticks.has(mn.on) ? 'Untick' : 'Tick', 'tick', none || loose, 'space')) + '<div class="gap lk-item"></div>' +
+      h += (t?.uuid ? it('Go to this tag', 'page') : '') + it('Open everything under', 'openall', false, 'Shift →') + it(st.ticks.has(mn.on) ? 'Untick' : 'Tick', 'tick', none || loose, 'space') + '<div class="gap lk-item"></div>' +
         it('Rename', 'rename', loose || !t) + it('Its nodes', 'nodes', !n) + it(loose ? 'New top-level tag' : 'Add child tag', 'new') + it('Add a property…', 'addprop', none || loose) + it('Add a property to all beneath…', 'addpropall', loose, Mo.kids(m, mn.on).length ? nodesOf(Mo.kids(m, mn.on)) : '') + '<div class="gap lk-item"></div>' +
         it('Move to…', 'move', none || loose, n ? plural(n, 'node') : '') +
         it(ticked > 1 ? `Merge the ${ticked} ticked into this` : 'Merge the ticked into this', 'merge', none || loose || ticked < 1 || (ticked === 1 && st.ticks.has(mn.on)), ticked && !st.ticks.has(mn.on) ? nodesOf([...st.ticks]) : '') + '<div class="gap lk-item"></div>' +
@@ -806,7 +796,6 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
       h = `${topHtml()}<div class="st-tray">${trayHtml()}</div><div class="st-right">${card}</div>`;
     } else if (mode === 'line') h = `<div class="st-tray">${trayHtml()}</div>${lineHtml(opts.tag)}`;
     else if (mode === 'tag') h = opts.prop != null ? `${inspHeadHtml(opts)}<div class="st-tray">${trayHtml()}</div>${propLinesHtml(opts.prop)}` : inspHeadHtml(opts) + linesHtml(opts.tag);
-    else h = treeHtml();
     if (st.menu && st.menu.owner === mode) h += menuHtml();
     // What a fold opens rolls out (the grammar), as Threads' rows do: the rows, groups and properties that were not there before.
     const wasShown = st.glide ? new Set([...root.querySelectorAll(KEYED)].map(keyOfShown)) : null;
@@ -938,11 +927,11 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
   const startPrompt = p => { st.menu = null; st.ask = null; if (samePrompt(justClosed, p)) { justClosed = null; return redraw(); } st.prompt = { text: '', lit: 0, owner: mode, at: pressAt, ...p }; redraw(); };
   const startMoveTag = id => { const tags = st.ticks.size > 1 && st.ticks.has(id) ? [...st.ticks] : [id]; if (mode === 'page') return startAim('move', tags); startPrompt({ what: 'tag', list: 'tags', tags, row: id }); };
   // On the page of the whole the areas are the choice: the bar says what is moving, and a press on a tag answers.
-  const startAim = (what, tags) => { st.menu = null; st.ask = null; st.aim = { what, tags }; loc.find = ''; redraw(); };
+  const startAim = (what, tags) => { st.menu = null; st.ask = null; st.aim = { what, tags }; st.find = ''; redraw(); };
   const aimOk = id => { const a = st.aim, t = T(id); if (!a || !t) return false; return a.what === 'move' ? !a.tags.some(s => s === id || Mo.under(M(), id, s)) : !a.tags.includes(id); };
   function finishAim(id) {
     const a = st.aim; if (id !== LOOSE && !aimOk(id)) return;
-    st.aim = null; loc.find = '';
+    st.aim = null; st.find = '';
     if (a.what === 'move') moveTags(a.tags, id);
     else { st.cur = id; st.ask = { merges: a.tags, into: id, owner: mode }; }
     redraw();
@@ -990,7 +979,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     st.edit = null;
     if (v) {
       if (e.what === 'rename' && v !== name(e.on)) app.stage({ kind: 'rename', tag: e.on, name: v });
-      else if (e.what === 'new') { const c = app.stage({ kind: 'make', name: v, under: e.on === LOOSE ? null : e.on }, { wait: e.on === LOOSE }); st.open.add(e.on); if (c?.made != null) { loc.cur = c.made; if (mode === 'side') st.cur = c.made; if (e.on === LOOSE) { st.edit = { what: 'kids', on: c.made, text: '', owner: mode }; } } }
+      else if (e.what === 'new') { const c = app.stage({ kind: 'make', name: v, under: e.on === LOOSE ? null : e.on }, { wait: e.on === LOOSE }); st.open.add(e.on); if (c?.made != null) { st.cur = c.made; if (mode === 'side') st.cur = c.made; if (e.on === LOOSE) { st.edit = { what: 'kids', on: c.made, text: '', owner: mode }; } } }
       else if (e.what === 'kids') { for (const w of v.split(',').map(x => x.trim()).filter(Boolean)) if (!Mo.titled(M(), w).length) app.stage({ kind: 'make', name: w, under: e.on }); st.open.add(e.on); }
       else if (e.what === 'gnew') { const id = 'g' + Date.now().toString(36); app.changeGroups(`New group ${v}`, G => { G.list.push({ id, name: v, under: null, open: true }); }, id); }
       else if (e.what === 'gname') { const old = app.groups().list.find(x => x.id === e.on)?.name; if (old != null && old !== v) app.changeGroups(`Group ${old} renamed ${v}`, G => { const g = G.list.find(x => x.id === e.on); if (!g) return false; g.name = v; }, e.on); }
@@ -1147,7 +1136,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     if (t.hasAttribute('data-apply')) return pressApply();
     if (t.hasAttribute('data-discard')) return app.discard();
     if (t.dataset.drop !== undefined) return app.dropChange(+t.dataset.drop);
-    if (t.dataset.row) { const id = keyOf(t.dataset.row); st.menu = null; if (st.aim && mode === 'page') return finishAim(id); if (mode === 'side') { loc.cur = id; return redraw(); } st.cur = id; st.propCur = null; st.view = 'tree'; st.nodes = null; st.trail = []; st.ask = null; return redraw(); }   // a press on the tree starts a new way: the trail is for jumps
+    if (t.dataset.row) { const id = keyOf(t.dataset.row); st.menu = null; if (st.aim && mode === 'page') return finishAim(id); st.cur = id; st.propCur = null; st.view = 'tree'; st.nodes = null; st.trail = []; st.ask = null; return redraw(); }   // a press on the tree starts a new way: the trail is for jumps
   });
   const keyOf = s => s === LOOSE ? LOOSE : Number(s);
   /* Dragging a row onto another moves the tag there, the same as "move under…": the tag and everything under it, the ticked
@@ -1209,7 +1198,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     const dest = dragOf(e); if (!canDrop(dest)) return;
     e.preventDefault(); e.stopPropagation();
     const tags = st.drag.tags; st.drag = null;
-    moveTags(tags, dest); loc.cur = tags[0]; redraw();
+    moveTags(tags, dest); st.cur = tags[0]; redraw();
   });
   root.addEventListener('dragend', () => { st.drag = null; st.gdrag = null; root.removeAttribute('data-dragging'); for (const o of root.querySelectorAll('.over, .dragging')) o.classList.remove('over', 'dragging'); });
   // The right-click menu, on a row or a property line; it acts on what was clicked and leaves the cursor where it is.
@@ -1232,7 +1221,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     p.lit = i; root.querySelectorAll('.st-prompt .lit').forEach(x => x.classList.remove('lit')); r.classList.add('lit');
   });
   root.addEventListener('input', e => {
-    if (e.target.matches('[data-find]')) { loc.find = e.target.value; draw(); if (lightFirst()) draw(); }
+    if (e.target.matches('[data-find]')) { st.find = e.target.value; draw(); if (lightFirst()) draw(); }
     else if (e.target.matches('[data-find2]')) { st.pane2.find = e.target.value; draw(); }
     else if (e.target.matches('[data-pin]')) { st.prompt.text = e.target.value; st.prompt.lit = 0; draw(); }
     else if (e.target.matches('[data-edit]')) st.edit.text = e.target.value;
@@ -1258,13 +1247,13 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
   const firstTag = () => (st.view !== 'tree' ? null : visibleRows().find(r => !r.dim && r.n !== LOOSE)?.n ?? null);
   const lit = () => (st.view === 'table' && mode === 'page' ? !!firstProp() : firstTag() != null);
   function lightFirst() {
-    if (!loc.find.trim()) return false;
+    if (!st.find.trim()) return false;
     if (st.view === 'table' && mode === 'page') { const key = firstProp(); if (!key || st.propCur === key) return false; st.propCur = key; return true; }
-    const to = firstTag(); if (to == null || loc.cur === to) return false; loc.cur = to; if (mode === 'page') st.propCur = null; return true;
+    const to = firstTag(); if (to == null || st.cur === to) return false; st.cur = to; if (mode === 'page') st.propCur = null; return true;
   }
   function openHere(inSidebar) {
     const n = st.view === 'nodes' && mode === 'page' ? st.nodes?.list[st.nodes.cur] : null, pid = mode === 'page' && st.propCur ? Number(st.propCur.split('·')[1]) : null;
-    app.openNode(n?.uuid || (pid != null ? P(pid)?.uuid : T(loc.cur)?.uuid), inSidebar);
+    app.openNode(n?.uuid || (pid != null ? P(pid)?.uuid : T(st.cur)?.uuid), inSidebar);
   }
   root.addEventListener('keydown', e => {
     if (TAGISH && !standing()) return;
@@ -1285,8 +1274,8 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     if (e.target.matches('[data-find]')) {
       // The find box works as Find does (the owner, 9 and 12 November 2026): letters light the first match, Enter opens it
       // (Shift Enter in the sidebar), Escape empties the box.
-      if (k === 'Escape') { loc.find = ''; redraw(); }
-      else if (k === 'Enter') { e.preventDefault(); if (loc.find.trim() && (lightFirst(), lit())) openHere(e.shiftKey); }
+      if (k === 'Escape') { st.find = ''; redraw(); }
+      else if (k === 'Enter') { e.preventDefault(); if (st.find.trim() && (lightFirst(), lit())) openHere(e.shiftKey); }
       else if (k === 'ArrowDown') { e.preventDefault(); lightFirst(); redraw(); }
       return;
     }
@@ -1301,7 +1290,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
       else if (mode === 'page' && k === 'Backspace' && app.tray.changes.length) { e.preventDefault(); app.discard(); }
       else if (l === 'f') { e.preventDefault(); const f = root.querySelector('[data-find]'); f.focus(); f.select(); }
       else if (l === 'o') { e.preventDefault(); openHere(e.shiftKey); }
-      else if (k === 'ArrowDown' || k === 'ArrowUp') { e.preventDefault(); fold(loc.cur, k === 'ArrowDown'); }
+      else if (k === 'ArrowDown' || k === 'ArrowUp') { e.preventDefault(); fold(st.cur, k === 'ArrowDown'); }
       return;
     }
     if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -1320,21 +1309,21 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
       else return;
       e.preventDefault(); redraw(); return;
     }
-    const rows = visibleRows().map(r => r.n), i = rows.indexOf(loc.cur);
-    const cur = T(loc.cur), none = !cur || loc.cur === LOOSE;
-    const walked = to => { loc.cur = to; if (mode === 'page') { st.propCur = null; st.walking = true; if (st.view === 'tree') st.trail = []; } };   // the arrows are the tree, as a press on it is
+    const rows = visibleRows().map(r => r.n), i = rows.indexOf(st.cur);
+    const cur = T(st.cur), none = !cur || st.cur === LOOSE;
+    const walked = to => { st.cur = to; if (mode === 'page') { st.propCur = null; st.walking = true; if (st.view === 'tree') st.trail = []; } };   // the arrows are the tree, as a press on it is
     if (k === 'ArrowDown') walked(rows[Math.min(rows.length - 1, i + 1)]);
     else if (k === 'ArrowUp') walked(rows[Math.max(0, i - 1)]);
-    else if (k === 'ArrowRight') { if (e.shiftKey) { openAll(loc.cur); return; } if (Mo.kids(M(), loc.cur).length) st.open.add(loc.cur); }
-    else if (k === 'ArrowLeft') { if (st.open.has(loc.cur)) st.open.delete(loc.cur); else if (Mo.parentOf(M(), loc.cur) != null) walked(Mo.parentOf(M(), loc.cur)); }
-    else if (k === 'Enter') { if (e.shiftKey) openHere(true); else if (mode === 'side') app.openMain(loc.cur); else if (st.propCur && st.view === 'table') openHere(false); else if (st.view !== 'tree' || st.propCur) jump(() => { st.view = 'tree'; st.propCur = null; st.nodes = null; }); else if (cur) app.openNode(cur.uuid, false); return; }
+    else if (k === 'ArrowRight') { if (e.shiftKey) { openAll(st.cur); return; } if (Mo.kids(M(), st.cur).length) st.open.add(st.cur); }
+    else if (k === 'ArrowLeft') { if (st.open.has(st.cur)) st.open.delete(st.cur); else if (Mo.parentOf(M(), st.cur) != null) walked(Mo.parentOf(M(), st.cur)); }
+    else if (k === 'Enter') { if (e.shiftKey) openHere(true); else if (st.propCur && st.view === 'table') openHere(false); else if (st.view !== 'tree' || st.propCur) jump(() => { st.view = 'tree'; st.propCur = null; st.nodes = null; }); else if (cur) app.openNode(cur.uuid, false); return; }
     else if (k === ' ' && mode === 'page') { tick(st.cur); return; }
     else if (k === 'Escape') {
       // The ladder: let go of what is nearest first (the find text, the ticks), then walk back the trail; with nothing left, the
       // keyboard goes back to Logseq: the map lets go of the focus, so arrows and Enter are Logseq's again.
-      if (loc.find) loc.find = ''; else if (mode === 'page' && st.popen.size) st.popen.clear(); else if (mode === 'page' && st.ticks.size) st.ticks.clear(); else if (mode === 'page' && back()) return; else { e.preventDefault(); root.blur(); return; }
+      if (st.find) st.find = ''; else if (mode === 'page' && st.popen.size) st.popen.clear(); else if (mode === 'page' && st.ticks.size) st.ticks.clear(); else if (mode === 'page' && back()) return; else { e.preventDefault(); root.blur(); return; }
     }
-    else if (k === 'Tab') { if (mode === 'side' || none) return; const p = Mo.parentOf(M(), st.cur); if (p == null) return; e.preventDefault(); const sib = Mo.kids(M(), p), j = sib.indexOf(st.cur); if (e.shiftKey) { const gp = Mo.parentOf(M(), p); if (gp != null) { app.stage({ kind: 'move', tag: st.cur, to: gp }); st.ticks.delete(st.cur); } } else if (j > 0) { app.stage({ kind: 'move', tag: st.cur, to: sib[j - 1] }); st.open.add(sib[j - 1]); st.ticks.delete(st.cur); } redraw(); return; }
+    else if (k === 'Tab') { if (none) return; const p = Mo.parentOf(M(), st.cur); if (p == null) return; e.preventDefault(); const sib = Mo.kids(M(), p), j = sib.indexOf(st.cur); if (e.shiftKey) { const gp = Mo.parentOf(M(), p); if (gp != null) { app.stage({ kind: 'move', tag: st.cur, to: gp }); st.ticks.delete(st.cur); } } else if (j > 0) { app.stage({ kind: 'move', tag: st.cur, to: sib[j - 1] }); st.open.add(sib[j - 1]); st.ticks.delete(st.cur); } redraw(); return; }
     else return;
     e.preventDefault(); redraw();
   });

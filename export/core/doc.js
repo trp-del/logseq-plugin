@@ -109,7 +109,6 @@ const tagsToAppend = n => (n.tags || []).filter(t => !String(n.text || '').inclu
    boxes the tag stays, then the only sign. `all`: every tag (a table's Tags column), not only those to write after the words. */
 const tagsOf = (n, boxes, all = false) => (all ? n.tags || [] : tagsToAppend(n)).filter(t => !(boxes && n.task && t === 'Task'));
 
-const TASK_WORDS = { todo: 'To do', doing: 'Doing', done: 'Done', canceled: 'Canceled', 'in-review': 'In review', backlog: 'Backlog', '': 'To do' };
 const taskDone = t => t && (t.status === 'done' || t.status === 'canceled');
 
 // The layouts, as the export window offers them.
@@ -178,5 +177,5 @@ function notebook() {
 const proseOpts = p => ({ children: PROSE_CHILDREN.includes(p?.children) ? p.children : 'join', contents: p?.contents !== false, numbered: p?.numbered !== false, titleSheet: !!p?.titleSheet, sectionSheets: !!p?.sectionSheets,
   runIn: !!p?.runIn, notesHead: typeof p?.notesHead === 'string' ? p.notesHead.trim() : 'Notes' });   // runIn: a heading under a # leads its first paragraph, in bold; notesHead: the words over the notes, none when empty
 
-E.doc = { prose, notebook, proseOpts, PROSE_CHILDREN, tagsToAppend, tagsOf, node, document, shown, kids, isEmpty, collect, valueText, propertyText, metaOf, headNode, propertiesIn, dateChoices, autoKeys, dateOf, entries, TASK_WORDS, taskDone, layouts, dated, readsAsHeading };
+E.doc = { prose, notebook, proseOpts, PROSE_CHILDREN, tagsToAppend, tagsOf, node, document, shown, kids, isEmpty, collect, valueText, propertyText, metaOf, headNode, propertiesIn, dateChoices, autoKeys, dateOf, entries, taskDone, layouts, dated, readsAsHeading };
 })();

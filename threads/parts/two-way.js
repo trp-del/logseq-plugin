@@ -1156,7 +1156,7 @@ function onRename(event) {
     { sep: true },
     isMentions(group)
       ? { icon: 'remove', label: 'Hide mentions on this page', run: () => { hideMentionsHere().catch(error => warnOnce('could not hide the mentions row', error)); } }
-      : provided.tagTree?.showProp ? { icon: 'map', label: 'Open in the map', run: () => provided.tagTree.showProp(group.name) } : null,
+      : null,
     ...(isMentions(group) && refusedHere() ? [{ icon: 'show', label: `Show the ${refusedHere()} suggestion${refusedHere() === 1 ? '' : 's'} taken off`, run: showCouldBeAgain }] : []),
     ...rowMenuHooks.flatMap(hook => hook(group) || []),
     ...(isMentions(group) ? [] : [{ icon: 'rename', label: 'Reads back as…', run: () => { renameRow(group, nameEl).catch(error => warnOnce('could not rename the row', error)); } }]),

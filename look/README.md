@@ -55,11 +55,11 @@ There is one short list of class names, one per word of the grammar. They and th
 | `lk-accent` | the one action of a screen | a press; a key other than Enter faint beside it |
 | `lk-close` | the way out, × | faint, the text colour under the pointer |
 
-The buttons have a library of their own: `button-library.html` beside the plugin shows every kind, one per job, and the names (`lk-strip`, `lk-btn`, `lk-bar`, `lk-answers`, `lk-lone`, `lk-add`, `lk-more`, `lk-fix`, `lk-x`, `lk-plus`, `lk-views`, `lk-trail`, `lk-head`, `lk-menu`) are drawn in `plugin.js` with the others. `test/library.js` fails on a button drawn by hand.
+The buttons have a library of their own: `reference/button-library.html` in the workspace shows every kind, one per job, and the names (`lk-strip`, `lk-btn`, `lk-bar`, `lk-answers`, `lk-lone`, `lk-add`, `lk-more`, `lk-fix`, `lk-x`, `lk-plus`, `lk-views`, `lk-trail`, `lk-head`, `lk-menu`) are drawn in `plugin.js` with the others. `test/library.js` fails on a button drawn by hand.
 
 Text has one scale, as in Logseq: the body is the place's own (16 px on a page, 14 px in a window, a pop-up or the sidebar), `--lk-small` (13 px) is everything secondary (days, counts, notes, keys, trails), `--lk-label` (12 px) the small name over a value, and a tag is the words' own size, its mono's small letters matched to theirs. The greys are measured from the text colour, so a grey inside a grey stays the same grey. `test/library.js` fails on a text size of a module's own.
 
-Threads and Predictive use them; DB Export's toolbar is built on the last six, the Pressing set, settled on 30 October 2026 and drawn in `buttons-mockup.html` beside the plugins: a control is a small name over its value, space does the separating, one accent per screen. Look's own settings window follows it.
+Threads and Predictive use them; DB Export's toolbar is built on the last six, the Pressing set, settled on 30 October 2026 and drawn in `history/grammar-and-buttons/buttons-mockup.html` in the workspace: a control is a small name over its value, space does the separating, one accent per screen. Look's own settings window follows it.
 
 ## How it is built
 
@@ -77,6 +77,7 @@ The root `files.js` lists these in order, each adding to `window.Look`:
 | `logseq/props.js` | the icon before each property's name in a page's list, and a cut name's tooltip |
 | `logseq/title.js` | the tag chain at the title row's right end and in the right sidebar |
 | `logseq/folded.js` | the note after a folded node's words |
+| `logseq/notices.js` | Logseq's notices and the plugin's alike drawn as a capsule at the bottom of the window, each gone after 4 s |
 | `logseq/sidebar.js` | the right sidebar's bar and items, flat on the grammar |
 | `logseq/links.js` | the Links (with Endnotes) and Outline sections of the right sidebar |
 | `logseq/cites.js` | a citation in a bullet drawn as its endnote's number |

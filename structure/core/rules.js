@@ -1,6 +1,6 @@
 /* The ontologist's five rules, as issues on the model: each names the tag it sits on, says what is wrong in one line,
-   offers one fix in words, and carries the change the fix stages (shown to the person, with the nodes it touches, before it is staged). The dots in the tree are
-   these, placed; the Health list is these, gathered. Nothing here is enforced: an issue is a quiet mark. */
+   offers one fix in words, and carries the change the fix stages (shown to the person, with the nodes it touches, before it is staged). The dots on Regions are
+   these, placed; the lines on a tag's page and in the Ontology tab are these, gathered. Nothing here is enforced: an issue is a quiet mark. */
 (function () {
 const S = window.Structure;
 const { count, kids, parentOf, filled, filledOwn, rangeGuess, titled, tag, prop } = S.model;
@@ -20,7 +20,7 @@ function singularOf(name) {
   return null;
 }
 
-/* An issue's sentence is kept in parts, each with its role, so a screen can key them apart (Health, a card's Issues): the
+/* An issue's sentence is kept in parts, each with its role, so a screen can key them apart (the lines on a tag's page and in the Ontology tab): the
    thing to settle (a tag, or a property on a tag; it opens its card), the words that tie it to the rest, the tags it concerns
    (drawn as tags, three then "and N more"), the count. `text` is the same sentence as plain words. */
 const subject = (tag, prop) => ({ subject: prop != null ? { tag, prop } : { tag } });
