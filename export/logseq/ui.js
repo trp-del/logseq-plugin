@@ -3,12 +3,14 @@
    visual grammar's shared names (lk-row, lk-list, lk-tick, lk-prop, lk-count, and the Pressing set, lk-name, lk-value, lk-pick,
    lk-alts, lk-view, lk-pop, lk-accent, lk-close). The owner, 12 November 2026: rows unfolding under the bar read as a "toolbar
    jammed underneath toolbar"; they chose a quiet bar with the choices in a column on the left, and tabs that look like tabs.
-   The bar: Adjust (shows the column or puts it away, remembered), the template (a pick whose alternatives are a pop-up), where
-   the export goes as tabs (lk-view, a bar under the one in force), and at the right end the one accent that does the export,
-   then ×. The column: groups told apart by a gap, each a small head over its rows; a row is a name at the left and its value at
-   the right, the value being what is pressed: a pick wears a faint chevron and unfolds its alternatives as a line of words under
-   its row, a switch reads its state as a word, a field is faint until written. Only the groups of the destination, and the rows
-   of the style, are shown. The page is drawn at its printed width on the desk, with only the size pick at the desk's right, and
+   The bar: Adjust (shows the column or puts it away, remembered), where the export goes as tabs (lk-view, a bar under the one
+   in force), the template (a pick whose alternatives are a pop-up; last on the left, since its words change length and nothing
+   stands after it to be pushed), and at the right end the one accent that does the export,
+   then ×. The column is the library's menu laid open (the owner, 13 November 2026: the first column "has no structure, doesn't
+   pull from library ui elements"): parts under a heading in the text colour with a hairline between them (lk-group), each row one
+   line pressed as a whole (lk-item), what it holds at its right in the quiet grey (lk-note). A row that holds one of several
+   brings them as a pop-up menu at the row, over the rows below, the one in force ticked; a row that is on or off shows a tick while on; a row that is written in has
+   the library's field at its right. Up and Down walk the rows. Every part and row keeps its place: what belongs to another style or destination is faint and out of reach, never taken away, so the column does not move. The page is drawn at its printed width on the desk, with only the size pick at the desk's right, and
    redrawn as the choices change, or the Markdown as text. Every choice is remembered in the plugin's settings. */
 (function () {
 const E = (window.DbExport ||= {});
@@ -50,29 +52,36 @@ const CSS = `
 .xp .lk-pick .lk-alts { position: absolute; left: var(--pl); top: 100%; margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--lk-quiet); width: max-content; max-width: 420px; white-space: normal; }
 .xp .lk-pick .lk-alts[hidden] { display: none; }
 .xp .lk-alts span { cursor: pointer; }
-/* A field is the Pressing set's input.lk-value (the library): a hairline under it only while it has the keyboard. */
-/* A switch: a hidden box; its word reads the state. */
-.xp .lk-switch input { position: absolute; opacity: 0; width: 0; height: 0; margin: 0; }
-.xp .lk-switch .lk-value { position: relative; }
-.xp .lk-switch:has(:focus-visible) .lk-value { background: var(--lk-wash); box-shadow: 0 0 0 3px var(--lk-wash); border-radius: 1em; }
 /* A choice that stays open (where the export goes): the library's alternatives (lk-alts), the one in force (on) in the text colour. */
 .xp-where { display: flex; --lk-view-pad: 0px; }   /* the space between its words is the library's, as every tab row's */
 .xp-where > * { position: relative; cursor: pointer; white-space: nowrap; }
 .xp-where input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
 .xp-where label:has(:focus-visible) { background: var(--lk-wash); box-shadow: 0 0 0 3px var(--lk-wash); border-radius: 1em; }
-/* The column of choices beside the sheet, on its left: groups told apart by a gap, each a small head over its rows; a row is
-   its name at the left and its value at the right, and a pick's alternatives are a line of words under its row. */
+/* The column of choices beside the sheet, on its left: the library's menu laid open. Its looks are the library's (lk-group,
+   lk-item, lk-note, lk-field, lk-list, lk-tick); here only where things stand: the rows' words on the bar's left edge, a long
+   name on two lines, what unfolds under a row a step in. */
 .xp-body { flex: 1; display: flex; min-height: 0; }
-.xp-side { flex: none; width: 320px; overflow-y: auto; scrollbar-width: thin; padding: 6px 22px 28px 28px; background: var(--lk-paper, #fff); border-right: 1px solid var(--lk-hair); display: flex; flex-direction: column; gap: 22px; }
-.xp-side[hidden], .xp-group[hidden], .xp-sub[hidden] { display: none; }
-.xp-group, .xp-sub { display: flex; flex-direction: column; gap: 7px; }
-.xp .xp-side .it { flex-direction: row; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 14px; padding: 0; border-left: 0 !important; white-space: normal; }
-.xp .xp-side .it > .lk-name { font-size: 14px !important; letter-spacing: 0; min-height: 0; flex: 1 1 0; min-width: 0; }
-.xp .xp-side .it > .lk-value { flex: none; white-space: nowrap; }
-.xp .xp-side .it > .lk-name::first-letter, .xp-gh::first-letter { text-transform: uppercase; }
-.xp .xp-side .lk-pick .lk-alts { position: static; flex-basis: 100%; width: auto; max-width: none; margin: 2px 0 4px; justify-content: flex-end; }
-.xp .xp-side .xp-field { flex-wrap: nowrap; }
-.xp .xp-side .xp-field input.lk-value { text-align: right; flex: 0 1 10em; min-width: 3em; width: 10em; }
+.xp-side { flex: none; width: 320px; overflow-y: auto; scrollbar-width: thin; padding: 0 12px 28px 20px; background: var(--lk-paper, #fff); border-right: 1px solid var(--lk-hair); }
+.xp-side[hidden], .xp-side [hidden] { display: none !important; }
+.xp-side [inert] { opacity: .4; }
+.xp-side [inert] [inert] { opacity: 1; }   /* a faint row in a faint part is not made fainter twice */   /* a part or a row of another style or destination: in its place, faint */
+.xp-side .xp-group:first-child > .gap { display: none; }
+.xp-side .xp-group:first-child > .lk-group { border-top: 0; margin-top: 0; padding-top: 6px; }
+.xp-side .xp-group > .gap { height: 20px; }
+.xp-side .lk-group { padding-bottom: 5px; }
+.xp-side .lk-item { white-space: normal; align-items: baseline; }
+.xp-side .lk-item > :first-child { min-width: 0; }
+.xp-side .lk-item > .lk-note { flex: none; }
+/* What a row can become: the library's pop-up menu at the row, under its value, over the rows below, so nothing in the column
+   moves (the owner, 13 November 2026, of choices that unfolded in the column: "pushes everything down"); over the row instead
+   where there is no room under it. */
+.xp-side .xp-pickrow { position: relative; }
+.xp-side .xp-opts { position: absolute; right: 0; top: 100%; z-index: 6; min-width: 190px; max-width: 100%; margin-top: 2px; }
+.xp-side .xp-opts.up { top: auto; bottom: 100%; margin: 0 0 2px; }
+.xp-side .xp-sw.xp-off .xp-on { visibility: hidden; }
+.xp-side .xp-sw:focus-visible { outline: none; background: var(--lk-wash); }
+.xp-side .xp-fieldrow { cursor: text; }
+.xp-side .xp-fieldrow input.lk-field { flex: 0 1 10em; width: 10em; min-width: 3em; text-align: right; }
 .xp .it.open > .lk-value { color: var(--lk-quiet); }
 /* On the bar, the values stand on one line: Adjust under an empty name, the tabs with their bar hanging below the words. */
 .xp .xp-bar .lk-btn.xp-adjust { position: relative; top: -3px; left: -12px; }   /* the library's button keeps its padding; moved by it, its word stands on the values' line and at the column's left edge */
@@ -83,11 +92,11 @@ const CSS = `
    small lk-bar, its first word under the name; then one column, a row per property, its tick box at the left (lk-tick: Look
    shows them when the pointer is on the list), the icon of what it holds, its name, the count (lk-count: never shown where
    Look runs). A list longer than ten takes two columns. The gap tells the two lists apart. */
-.xp-lists { display: flex; flex-direction: column; gap: 14px; margin-top: 6px; }
-.xp .xp-side .xp-lists .it { flex-direction: column; align-items: stretch; }
-.xp-all { margin: -3px 0 -3px -12px; }
-.xp-list { display: grid; grid-template-columns: 1fr; gap: 0 18px; margin-top: 10px; }
-.xp-list.two { grid-template-columns: 1fr 1fr; }
+.xp-lists { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+.xp-plhead { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 0 8px; }
+.xp-side .xp-list { padding: 0 8px; }
+.xp-all { margin: 0 -8px 0 0; }
+.xp-list { display: grid; grid-template-columns: 1fr; gap: 0 18px; margin-top: 2px; }
 .xp-list .xp-prop { display: flex; align-items: center; gap: 6px; padding: 2px 0; cursor: pointer; min-width: 0; }
 .xp-list .xp-prop input { margin: 0; flex: none; }
 .xp-list .lk-prop { display: inline-flex; align-items: center; gap: 5px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -120,9 +129,9 @@ const CSS = `
 .xp .xp-tpl .ask b { font-weight: inherit; cursor: pointer; }
 .xp .xp-tpl .was { color: var(--lk-quiet); white-space: pre; }
 /* Your CSS: the box, and under it the parts of the sheet in plain words; a word pointed at lights its part on the sheet. */
-.xp-side .xp-cssbox { font-family: Menlo, Consolas, monospace; font-size: var(--lk-small); line-height: 1.5; width: 100%; height: 9.5em; resize: vertical; white-space: pre; border: 1px solid var(--lk-line); border-radius: 4px; padding: 6px 8px; }
-.xp-side .xp-partshead { margin-top: 4px; }
-.xp-side .xp-parts { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.xp-side .xp-cssbox { display: block; font-family: Menlo, Consolas, monospace; font-size: var(--lk-small); line-height: 1.5; width: calc(100% - 16px); margin: 4px 8px 0; height: 9.5em; resize: vertical; white-space: pre; border: 1px solid var(--lk-line); border-radius: 4px; padding: 6px 8px; }
+.xp-side .xp-partshead { padding: 10px 8px 4px; }
+.xp-side .xp-parts { display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 0 8px; }
 .xp-side .xp-parts span { cursor: pointer; }`;
 
 // The icon of what a property holds, before its name: the door's.
@@ -194,7 +203,7 @@ function open({ doc, what, act }) {
     let c = read();
     if (!T.get(c.templates, c.template)) c.template = '';
     const props = D.propertiesIn(doc);
-    const lists = [['head', doc.kind === 'blocks' ? (doc.nodes.length > 1 ? 'of the blocks chosen' : 'of the block chosen') : 'of the page', D.propertiesIn(doc, 'head'), c.hiddenHead], ['nodes', doc.kind === 'blocks' ? 'of those under' : 'of the nodes', D.propertiesIn(doc, 'nodes'), c.hiddenNodes]].filter(l => l[2].length);
+    const lists = [['head', doc.kind === 'blocks' ? (doc.nodes.length > 1 ? 'Properties of the blocks chosen' : 'Properties of the block chosen') : 'Properties of the page', D.propertiesIn(doc, 'head'), c.hiddenHead], ['nodes', doc.kind === 'blocks' ? 'Properties of those under' : 'Properties of the nodes', D.propertiesIn(doc, 'nodes'), c.hiddenNodes]].filter(l => l[2].length);
     const dates = D.dateChoices(doc);
     const lines = doc.title ? (c.titleLines[doc.title] || {}) : {};
     const root = hostDoc.createElement('div');
@@ -205,21 +214,23 @@ function open({ doc, what, act }) {
     const where = (items, chosen) => `<div class="it lk-choice">${nm('export as')}<div class="xp-where lk-views" role="radiogroup" aria-label="Export as">${items.map(i => `<label class="lk-view${i.key === chosen ? ' on' : ''}"><input type="radio" name="xp-target" value="${i.key}" ${i.key === chosen ? 'checked' : ''}>${esc(i.name)}</label>`).join('')}</div></div>`;
     // A pick: the name, the value with the chevron, the select it stands for (hidden), and what it can become, unfolded under it when pressed.
     const pick = (cls, name, items, chosen, title = '') => `<div class="it lk-pick" data-pick="${cls}">${nm(name)}<button type="button" class="lk-value" ${title ? `title="${esc(title)}"` : ''}>${esc((items.find(([k]) => k === chosen) || items[0])[1])}${CHEV}</button><select class="${cls}" hidden>${items.map(([k, n]) => `<option value="${esc(k)}" ${k === chosen ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select><div class="lk-alts" hidden>${items.map(([k, n]) => `<span data-v="${esc(k)}" class="${k === chosen ? 'on' : ''}">${esc(n)}</span>`).join('')}</div></div>`;
-    // A switch: the name, and a value that reads the state; the box is hidden and the word turns it.
-    const sw = (cls, name, on, offWord, onWord) => `<div class="it lk-switch">${nm(name)}<label class="lk-value ${on ? '' : 'off'}" data-on="${esc(onWord)}" data-off="${esc(offWord)}"><input type="checkbox" class="${cls}" ${on ? 'checked' : ''}>${esc(on ? onWord : offWord)}</label></div>`;
-    // A field: the name, and a value faint until written.
-    const field = (cls, name, value, placeholder) => `<div class="it xp-field">${nm(name)}<input type="text" class="lk-value ${cls}" placeholder="${esc(placeholder)}" value="${esc(value)}"></div>`;
-    // A list of properties, headed by whose they are over all / none (a small bar); then the grammar's row, a tick box at the left, the icon of what it holds, the name, the count.
-    const list = (role, label, ps, hidden) => `<div class="it">${nm(label)}<div class="xp-all lk-bar" data-role="${role}"><a class="lk-btn lk-i-tick" data-all="1" data-role="${role}">all</a><a class="lk-btn lk-i-x" data-all="0" data-role="${role}">none</a></div>
-      <div class="xp-list lk-list${ps.length > 10 ? ' two' : ''}" data-role="${role}">${ps.map(p => `<label class="xp-prop lk-row"><input type="checkbox" class="lk-tick" value="${esc(p.ident)}" ${hidden.has(p.ident) ? '' : 'checked'}><span class="lk-prop">${kindIconHtml(p.type)}<span>${esc(p.name)}</span></span><span class="lk-count">${p.count}</span></label>`).join('')}</div></div>`;
-    // A group of the column: a small head and its rows; shown for the destinations it belongs to.
-    const group = (name, body, fors = '') => `<div class="xp-group" ${fors ? `data-for="${fors}"` : ''}><div class="xp-gh lk-name">${esc(name)}</div>${body}</div>`;
-    const only = (html, fors) => html.replace('class="it', `data-for="${fors}" class="it`);
+    /* The column is the library's menu laid open (lk-group, lk-item, lk-note, as the Outline tab's menu and the settings window's
+       list): a part is a heading in the text colour, a step heavier, with a hairline over every part after the first; a row is one
+       line pressed as a whole, its name at the left and what it holds at the right in the quiet grey. Three kinds of row: one that
+       holds one of several (pressed, the several come as the library's pop-up menu at the row, the one in force ticked), one that is on or off (a tick while on),
+       and one that is written in (the library's field at its right). */
+    const rowPick = (cls, name, items, chosen) => `<div class="xp-pickrow" data-row="${cls}"><button type="button" class="lk-item xp-rowhead" aria-expanded="false"><span>${esc(name)}</span><span class="lk-note xp-val">${esc((items.find(([k]) => k === chosen) || items[0])[1])}</span></button><select class="${cls}" hidden>${items.map(([k, n]) => `<option value="${esc(k)}" ${k === chosen ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select><div class="xp-opts lk-pop lk-menu" role="menu" aria-label="${esc(name)}" hidden>${items.map(([k, n]) => `<button type="button" class="lk-item xp-opt" data-v="${esc(k)}"><span>${esc(n)}</span><span class="lk-note${k === chosen ? ' lk-check' : ''}" aria-hidden="true"></span></button>`).join('')}</div></div>`;
+    const rowSwitch = (cls, name, on) => `<label class="lk-item xp-sw${on ? '' : ' xp-off'}" tabindex="0" role="checkbox" aria-checked="${!!on}"><span>${esc(name)}</span><span class="lk-note xp-on lk-check" aria-hidden="true"></span><input type="checkbox" class="${cls}" ${on ? 'checked' : ''} hidden></label>`;
+    const rowField = (cls, name, value, placeholder) => `<label class="lk-item xp-fieldrow"><span>${esc(name)}</span><input type="text" class="lk-field ${cls}" placeholder="${esc(placeholder)}" value="${esc(value)}"></label>`;
+    const rowList = (role, label, ps, hidden) => `<div class="xp-plist"><div class="xp-plhead"><span class="lk-note">${esc(label)}</span><span class="xp-all lk-bar" data-role="${role}"><a class="lk-btn lk-low" data-all="1" data-role="${role}">all</a><a class="lk-btn lk-low" data-all="0" data-role="${role}">none</a></span></div>
+      <div class="xp-list lk-list" data-role="${role}">${ps.map(p => `<label class="xp-prop lk-row"><input type="checkbox" class="lk-tick" value="${esc(p.ident)}" ${hidden.has(p.ident) ? '' : 'checked'}><span class="lk-prop">${kindIconHtml(p.type)}<span>${esc(p.name)}</span></span><span class="lk-count">${p.count}</span></label>`).join('')}</div></div>`;
+    const group = (name, body, fors = '', when = '') => `<div class="xp-group" role="group" aria-label="${esc(name)}" ${fors ? `data-for="${fors}"` : ''} ${when ? `data-when="${when}"` : ''}><div class="lk-item gap"></div><div class="lk-group">${esc(name)}</div>${body}</div>`;
+    const only = (html, fors) => html.replace(/^<(\w+) /, `<$1 data-for="${fors}" `);
     root.innerHTML = `<div class="xp-titlebar" style="height:${dragBand(hostDoc)}px">Export ${esc(what)}</div>
     <div class="xp-bar" role="toolbar" aria-label="Export">
       <div class="g"><div class="it">${nm('')}<button type="button" class="lk-btn xp-adjust${c.sideOpen ? ' on' : ''}" aria-pressed="${c.sideOpen}" title="Every choice, in a column beside the sheet">Adjust</button></div></div>
-      <div class="g"><div class="it lk-pick xp-tpl" data-pick="xp-template">${nm('template')}<button type="button" class="lk-value" title="A named set of every choice here">${CHEV}</button><select class="xp-template" hidden></select><div class="lk-alts lk-pop" hidden></div></div></div>
       <div class="g">${where(TARGETS, c.target)}</div>
+      <div class="g"><div class="it lk-pick xp-tpl" data-pick="xp-template">${nm('template')}<button type="button" class="lk-value" title="A named set of every choice here">${CHEV}</button><select class="xp-template" hidden></select><div class="lk-alts lk-pop" hidden></div></div></div>
       <div class="g end"><button type="button" class="lk-btn lk-i-save" data-act="md-file" data-for="md">Save as file…</button>
         <button type="button" data-act="md" data-for="md" class="lk-accent lk-i-copy xp-main">Copy Markdown<kbd>Cmd Enter</kbd></button>
         <button type="button" data-act="rich" data-for="rich" class="lk-accent lk-i-copy xp-main">Copy rich text<kbd>Cmd Enter</kbd></button>
@@ -228,24 +239,25 @@ function open({ doc, what, act }) {
     </div>
     <div class="xp-body">
     <div class="xp-side" ${c.sideOpen ? '' : 'hidden'}>
-    ${group('Text', pick('xp-layout', 'style', D.layouts.map(l => [l.key, l.name]), c.layout)
-      + `<div class="xp-sub" data-when="prose">${pick('xp-kids', 'bullets under a line', KIDS, c.prose.children) + sw('xp-numbered', 'headings', c.prose.numbered, 'Not numbered', 'Numbered')
-      + sw('xp-runin', 'headings under a #', c.prose.runIn, 'Own line', 'Lead the line') + field('xp-noteshead', 'over the notes', c.prose.notesHead, 'No heading')
-      + only(sw('xp-contents', 'contents list', c.prose.contents, 'No', 'Yes'), 'pdf rich')
-      + only(sw('xp-titlesheet', 'title', c.prose.titleSheet, 'Over the text', 'On its own sheet'), 'pdf')
-      + only(sw('xp-sectionsheets', 'sections', c.prose.sectionSheets, 'Run on', 'Each # on a new sheet'), 'pdf')}</div>`
-      + `<div class="xp-sub" data-when="dated">${pick('xp-datekey', 'date from', [['auto', 'Automatic'], ...dates.map(d => [d.key, d.name])], c.dated.dateKey)
-      + pick('xp-under', 'under the date', [['', 'Nothing'], ...props.filter(p => p.type !== 'date' && p.type !== 'datetime').map(p => [p.ident, p.name])], c.dated.under)
-      + sw('xp-newest', 'order', c.dated.newestFirst, 'Oldest first', 'Newest first')}</div>`)}
-    ${group('Look', pick('xp-look', 'look', themes.looks.map(l => [l.key, l.name]), c.look) + pick('xp-size', 'text size', SIZES, c.size), 'pdf rich')}
-    ${group('Page', pick('xp-paper', 'paper', [['A4', 'A4'], ['Letter', 'Letter']], c.paper) + pick('xp-margins', 'margins', MARGINS, c.margins)
-      + field('xp-footer', 'footer', c.footer, 'None') + sw('xp-pagenumbers', 'page numbers', c.pageNumbers, 'No', 'Yes'), 'pdf')}
-    ${doc.title ? group('Title', field('xp-kicker', 'line above', lines.kicker || '', 'None') + field('xp-subtitle', 'subtitle', lines.subtitle || '', 'None')
-      + field('xp-by', 'prepared by', c.preparedBy, 'None') + sw('xp-titledate', 'date', c.titleDate, 'No date', 'Today’s date')) : ''}
-    ${group('Markdown', pick('xp-links', 'links', LINKS, c.links) + sw('xp-frontmatter', 'front matter', c.frontMatter, 'No', 'Yes'), 'md')}
-    ${group('Show', sw('xp-tags', 'tags', c.tags, 'No', 'Yes') + sw('xp-tasks', 'task boxes', c.tasks, 'No', 'Yes') + (lists.length ? `<div class="xp-lists">${lists.map(l => list(...l)).join('')}</div>` : ''))}
+    ${group('Text', rowPick('xp-layout', 'Style', D.layouts.map(l => [l.key, l.name]), c.layout))}
+    ${group('Prose', `${rowPick('xp-kids', 'Bullets under a line', KIDS, c.prose.children) + rowSwitch('xp-numbered', 'Numbered headings', c.prose.numbered)
+      + rowSwitch('xp-runin', 'Headings under a # lead their line', c.prose.runIn)
+      + only(rowSwitch('xp-contents', 'Contents list', c.prose.contents), 'pdf rich')
+      + only(rowSwitch('xp-titlesheet', 'Title on its own sheet', c.prose.titleSheet), 'pdf')
+      + only(rowSwitch('xp-sectionsheets', 'Each # on a new sheet', c.prose.sectionSheets), 'pdf')
+      + rowField('xp-noteshead', 'Notes heading', c.prose.notesHead, 'None')}`, '', 'prose')}
+    ${group('Timeline and Calendar', rowPick('xp-datekey', 'Date from', [['auto', 'Automatic'], ...dates.map(d => [d.key, d.name])], c.dated.dateKey)
+      + rowPick('xp-under', 'Under the date', [['', 'Nothing'], ...props.filter(p => p.type !== 'date' && p.type !== 'datetime').map(p => [p.ident, p.name])], c.dated.under)
+      + rowSwitch('xp-newest', 'Newest first', c.dated.newestFirst), '', 'dated')}
+    ${group('Look', rowPick('xp-look', 'Type', themes.looks.map(l => [l.key, l.name]), c.look) + rowPick('xp-size', 'Text size', SIZES, c.size)
+      + only(rowPick('xp-paper', 'Paper', [['A4', 'A4'], ['Letter', 'Letter']], c.paper), 'pdf') + only(rowPick('xp-margins', 'Margins', MARGINS, c.margins), 'pdf')
+      + only(rowSwitch('xp-pagenumbers', 'Page numbers', c.pageNumbers), 'pdf') + only(rowField('xp-footer', 'Footer', c.footer, 'None'), 'pdf'), 'pdf rich')}
+    ${doc.title ? group('Title', rowSwitch('xp-titledate', 'Today’s date', c.titleDate) + rowField('xp-kicker', 'Line above', lines.kicker || '', 'None') + rowField('xp-subtitle', 'Subtitle', lines.subtitle || '', 'None')
+      + rowField('xp-by', 'Prepared by', c.preparedBy, 'None')) : ''}
+    ${group('Markdown', rowPick('xp-links', 'Links', LINKS, c.links) + rowSwitch('xp-frontmatter', 'Front matter', c.frontMatter), 'md')}
+    ${group('Show', rowSwitch('xp-tags', 'Tags', c.tags) + rowSwitch('xp-tasks', 'Task boxes', c.tasks) + (lists.length ? `<div class="xp-lists">${lists.map(l => rowList(...l)).join('')}</div>` : ''))}
     ${group('Your CSS', `<textarea class="xp-cssbox lk-field" spellcheck="false" aria-label="Rules of your own, added after the look’s" placeholder=".x-title { letter-spacing: 0.02em; }">${esc(c.customCss)}</textarea>
-      <div class="xp-partshead lk-name">The parts of this sheet. Point to see one, press to write its rule.</div><div class="xp-parts lk-alts"></div>`, 'pdf rich')}
+      <div class="xp-partshead lk-note">Point at a part to see it on the sheet. Press it to write its rule.</div><div class="xp-parts lk-alts"></div>`, 'pdf rich')}
     </div>
     <div class="xp-desk"><div class="xp-note">${pick('xp-zoom', 'size', ZOOMS, c.zoom, 'How large the preview is drawn')}</div><iframe title="Preview"></iframe></div>
     </div>`;
@@ -274,7 +286,8 @@ function open({ doc, what, act }) {
         for (const a of it.querySelectorAll('.lk-alts span')) a.classList.toggle('on', a.dataset.v === sel.value);
       }
       for (const l of root.querySelectorAll('.xp-where label')) l.classList.toggle('on', l.querySelector('input').checked);
-      for (const v of root.querySelectorAll('.lk-switch .lk-value')) { const on = v.querySelector('input').checked; v.classList.toggle('off', !on); v.lastChild.nodeValue = on ? v.dataset.on : v.dataset.off; }
+      for (const row of root.querySelectorAll('.xp-pickrow')) { const sel = row.querySelector('select'); row.querySelector('.xp-val').textContent = sel.selectedOptions[0]?.textContent || ''; for (const o of row.querySelectorAll('.xp-opt')) o.lastElementChild.classList.toggle('lk-check', o.dataset.v === sel.value); }
+      for (const row of root.querySelectorAll('.xp-sw')) { const on = row.querySelector('input').checked; row.classList.toggle('xp-off', !on); row.setAttribute('aria-checked', String(on)); }
       for (const h of root.querySelectorAll('.xp-all')) { const bs = boxes(h.dataset.role), on = bs.filter(b => b.checked).length; h.querySelector('[data-all="1"]').classList.toggle('on', on === bs.length); h.querySelector('[data-all="0"]').classList.toggle('on', on === 0); }
     };
     /* The template pick. Its value: the template in force, "· changed" once a choice differs from it. Its alternatives: the
@@ -354,11 +367,14 @@ function open({ doc, what, act }) {
     // What the toolbar shows for the destination, and the words in its panels' buttons.
     const describe = () => {
       const ch = choice();
-      q('[data-pick=xp-layout] .lk-value').title = D.layouts.find(l => l.key === ch.layout)?.about || '';
-      q('[data-pick=xp-look] .lk-value').title = themes.look(ch.look).about;
+      q('[data-row=xp-layout] .xp-rowhead').title = D.layouts.find(l => l.key === ch.layout)?.about || '';
+      q('[data-row=xp-look] .xp-rowhead').title = themes.look(ch.look).about;
       // What belongs to another destination, or to another style, is not shown.
-      for (const el of root.querySelectorAll('[data-for]')) el.hidden = !el.dataset.for.split(' ').includes(ch.target);
-      for (const el of root.querySelectorAll('[data-when]')) el.hidden = !(el.dataset.when === 'prose' ? ch.layout === 'prose' : D.dated(ch.layout));
+      /* What belongs to another destination or another style. On the bar it is not shown. In the column it keeps its place and
+         goes faint, out of reach of the pointer and the keys (inert), so no row moves when a style or a destination is taken
+         (the owner, 13 November 2026: "the sidebar just jumps based on menu selection. it should be anchored"). */
+      const fits = el => (!el.dataset.for || el.dataset.for.split(' ').includes(ch.target)) && (!el.dataset.when || (el.dataset.when === 'prose' ? ch.layout === 'prose' : D.dated(ch.layout)));
+      for (const el of root.querySelectorAll('[data-for], [data-when]')) { if (el.closest('.xp-side')) el.inert = !fits(el); else el.hidden = !fits(el); }
       syncValues(); drawTemplates(ch);
     };
     // The preview's frame takes the shape of what it will hold: sheets side by side for a PDF, one page's width otherwise.
@@ -441,11 +457,13 @@ function open({ doc, what, act }) {
       box.scrollTop = Math.max(0, (box.value.slice(0, start).split('\n').length - 1) * parseFloat(hostDoc.defaultView.getComputedStyle(box).lineHeight || '18'));   // the rule's first line at the box's top
       if (at < 0) refresh();
     });
+    // A value taken from a list of the window's own is told to the select that stands behind it, so one "change" redraws the sheet.
+    const told = sel => sel.dispatchEvent(new (hostDoc.defaultView.Event)('change', { bubbles: true }));
     // Unfolding: one pick open at a time, its alternatives a line of words under its row (the template's a pop-up under the bar); folded by a press elsewhere or Escape.
-    const openOnes = () => [...root.querySelectorAll('.it.open')];
+    const openOnes = () => [...root.querySelectorAll('.it.open, .xp-pickrow.open')];
     const closePops = keep => {
       if (keep !== tpl() && tpl().querySelector('.lk-alts').dataset.ask) { endAsk(); drawTemplates(choice()); }
-      for (const it of openOnes()) { it.classList.remove('open'); it.querySelector('.lk-alts')?.setAttribute('hidden', ''); it.style.marginBottom = ''; }
+      for (const it of openOnes()) { it.classList.remove('open'); it.querySelector('.lk-alts, .xp-opts')?.setAttribute('hidden', ''); it.style.marginBottom = ''; const head = it.querySelector('.xp-rowhead'); if (head) { head.classList.remove('on'); head.setAttribute('aria-expanded', 'false'); } }
     };
     const unfold = it => {
       const was = it.classList.contains('open'); closePops(); if (was) return;
@@ -453,6 +471,16 @@ function open({ doc, what, act }) {
       const a = it.querySelector('.lk-alts'); a.hidden = false;
       if (it.closest('.xp-note')) it.style.marginBottom = `${a.offsetHeight + 4}px`;   // over the desk the line takes its room below; in the column it is part of the row, and the template's floats
     };
+    // Keys in the column, as in a menu: Up and Down walk its rows, Enter or Space turns a row that is on or off (a button takes them by itself).
+    q('.xp-side').addEventListener('keydown', event => {
+      const row = event.target.closest?.('.xp-rowhead, .xp-opt, .xp-sw');
+      if (!row) return;
+      if ((event.key === 'Enter' || event.key === ' ') && row.classList.contains('xp-sw') && !event.metaKey && !event.ctrlKey) { event.preventDefault(); const box = row.querySelector('input'); box.checked = !box.checked; told(box); return; }
+      if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+      const rows = [...q('.xp-side').querySelectorAll('.xp-rowhead, .xp-opt, .xp-sw, .xp-fieldrow input')].filter(el => !el.closest('[hidden], [inert]'));
+      const next = rows[rows.indexOf(row) + (event.key === 'ArrowDown' ? 1 : -1)];
+      if (next) { event.preventDefault(); next.focus(); }
+    });
     // Adjust: the column of choices beside the sheet, shown or put away; remembered.
     q('.xp-adjust').addEventListener('click', () => {
       const side = q('.xp-side'), open = side.hidden;
@@ -465,10 +493,15 @@ function open({ doc, what, act }) {
       if (event.target.closest('.xp-tpl .ask')) return;
       const act = event.target.closest('.xp-tpl [data-do]'); if (act) { doTemplate(act.dataset.do); return; }
       const named = event.target.closest('.xp-tpl .lk-alts span[data-v]'); if (named) { takeTemplate(named.dataset.v); return; }
+      // The column: a row that holds one of several unfolds them under it; one of them pressed is taken, and the row folds.
+      const head = event.target.closest('.xp-rowhead');
+      if (head) { const row = head.parentNode, was = row.classList.contains('open'); closePops(); if (!was) { row.classList.add('open'); head.classList.add('on'); head.setAttribute('aria-expanded', 'true'); const menu = row.querySelector('.xp-opts'); menu.classList.remove('up'); menu.hidden = false; menu.classList.toggle('up', menu.getBoundingClientRect().bottom > q('.xp-side').getBoundingClientRect().bottom - 4); } return; }
+      const opt = event.target.closest('.xp-opt');
+      if (opt) { const row = opt.closest('.xp-pickrow'), sel = row.querySelector('select'); sel.value = opt.dataset.v; closePops(); row.querySelector('.xp-rowhead').focus(); told(sel); return; }
       const alt = event.target.closest('[data-pick] .lk-alts span');
-      if (alt) { const it = alt.closest('[data-pick]'), sel = it.querySelector('select'); sel.value = alt.dataset.v; closePops(it); sel.dispatchEvent(new (hostDoc.defaultView.Event)('change', { bubbles: true })); return; }
+      if (alt) { const it = alt.closest('[data-pick]'), sel = it.querySelector('select'); sel.value = alt.dataset.v; closePops(it); told(sel); return; }
       const v = event.target.closest('.it[data-pick] > .lk-value'); if (v) { unfold(v.parentNode); return; }
-      if (!event.target.closest('.it.open')) closePops();
+      if (!event.target.closest('.it.open, .xp-pickrow.open')) closePops();
     });
     root.addEventListener('input', event => { if (!event.target.closest('.xp-zoom, .xp-tpl')) refresh(); });
     root.addEventListener('change', event => { if (event.target.closest('.xp-zoom')) { syncValues(); remember(choice(), doc.title); zoomIt(); } else refresh(); });
@@ -486,7 +519,7 @@ function open({ doc, what, act }) {
       if (done) close(); else root.hidden = false;   // cancelled: the window stays, with what was chosen and written
     };
     const onKey = event => {
-      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); if (openOnes().length) { closePops(); return; } close(); }
+      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); if (openOnes().length) { const back = hostDoc.activeElement?.closest?.('.xp-pickrow')?.querySelector('.xp-rowhead'); closePops(); back?.focus(); return; } close(); }
       else if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) { event.preventDefault(); event.stopPropagation(); go(target()); }
     };
     offKey = E.base.listen(hostDoc, 'keydown', onKey, true);
