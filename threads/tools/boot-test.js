@@ -213,7 +213,7 @@ async function main() {
     if (!report.includes(` · ${row} · `)) problem(`the screen report misses the row “${row}”`);
   if (!/ · blocks · (?=.*cues)(?=.*fold all).*\n/.test(report)) problem('the screen report did not join the features needing blocks');
   if (report.split('\n').filter(line => / · \D/.test(line) && /^ +\d+ · /.test(line) && !/data-refinement|\.th-/.test(line)).length !== 36) problem('the screen report should hold 36 rows of Logseq parts');
-  } else if (!report.includes(' · the page area · ')) problem('the screen report misses the row “the page area”');
+  } else if (!/Found +the page area/.test(report) || /#main-content|\.ls-block|\.block-/.test(report)) problem('the screen report misses the row “the page area”, or shows code words');
   const backdrop = doc.querySelector('.th-prompt-backdrop');
   backdrop?.dispatchEvent(Object.assign(new host.window.MouseEvent('mousedown', { bubbles: true })));
   await sleep(50);

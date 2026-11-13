@@ -63,18 +63,21 @@ function runSelfCheck(first) {
   const missing = provided.screenChecks().filter(([what, has, needs, , min]) => !selfCheck.noted.has(what) && count(has) >= min && count(needs) === 0);
   if (!missing.length) return;
   if (first) { selfCheck.timer = setTimeout(() => runSelfCheck(false), 3000); return; }
-  for (const [what, has, needs] of missing) {
+  for (const [what, has, needs, stops] of missing) {
     selfCheck.noted.add(what);
-    warnOnce(`self-check: ${what} not found (the page has ${has}, but no ${needs})`);
+    // In the warnings list in plain words; what was looked for goes to the console only.
+    warnOnce(`could not find ${what} on a page, so ${stops} may not show there (self-check)`, `looked for ${needs}, beside ${has}`);
   }
-  notify(`Part of Threads may have stopped, probably after a Logseq update: ${missing.map(([, , , stops]) => stops).join('; ')}. For details, run “Check what the plugin finds on this page”.`, 'warning');
+  const [what, , , stops] = missing[0];
+  const lost = missing.length === 1 ? `Threads could not find ${what} on this page, so ${stops} may not show.` : `Threads could not find ${missing.length} parts of this page it works with, so some of what it draws may not show.`;
+  notify(`${lost} Your notes are safe. To look closer: Threads: troubleshooting, then “Check what the plugin finds on this page”.`, 'warning');
 }
 async function versionNotice() {
   let version = '';
   try { version = (await logseq.App.getInfo('version')) || ''; } catch (error) { return; }
   if (!version || version === provided.CHECKED_WITH || logseq.settings?.selfCheckSeenVersion === version) return;
   logseq.updateSettings({ selfCheckSeenVersion: version });
-  notify(`You are on Logseq ${version}; Threads was last checked with ${provided.CHECKED_WITH}. If something looks off, run “Check what the plugin finds on this page”.`, 'warning');
+  notify(`You are on Logseq ${version}; Threads was last checked with Logseq ${provided.CHECKED_WITH}. If something looks off: Threads: troubleshooting, then “Check what the plugin finds on this page”.`, 'warning');
 }
 function startSelfCheck() {
   versionNotice();
