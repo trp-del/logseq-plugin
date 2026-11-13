@@ -36,49 +36,62 @@ const key = (target, name, init = {}) => target.dispatchEvent(new dom.window.Key
   assert.ok(rows.every(r => r.querySelector('input.lk-tick[type=checkbox]') && r.querySelector('.lk-count')), 'a tick and a count on every row');
   assert.ok(rows[0].querySelector('.xp-kind .ti-calendar') && rows[4].querySelector('.xp-kind svg') && rows[5].querySelector('.xp-kind .ti-123'), 'a calendar before Date, the web before Provider, 123 before Severity');
   // The bar at rest: Adjust, the template, where the export goes as tabs (the library's lk-view, the one in force "on"), the accent. The choices are in the column, put away until Adjust is pressed.
-  assert.deepEqual([...win.querySelectorAll('.xp-bar .g:not(.end) .lk-name')].map(n => n.textContent), ['', 'template', 'export as']);
+  assert.deepEqual([...win.querySelectorAll('.xp-bar .g:not(.end) .lk-name')].map(n => n.textContent), ['', 'export as', 'template']);
   assert.ok([...win.querySelectorAll('.xp-where label')].every(l => l.classList.contains('lk-view')) && win.querySelector('.xp-where label.on input').value === 'pdf', 'tabs, PDF in force');
   const side = win.querySelector('.xp-side'), adjust = win.querySelector('.xp-adjust');
   assert.ok(side.hidden && adjust.getAttribute('aria-pressed') === 'false', 'the column is put away at rest');
   adjust.click(); assert.ok(!side.hidden && adjust.classList.contains('on') && logseq.settings.sideOpen === true, 'Adjust shows the column, and it is remembered');
   adjust.click(); assert.ok(side.hidden && logseq.settings.sideOpen === false, 'pressed again, it is put away'); adjust.click();
-  assert.deepEqual([...side.querySelectorAll('.xp-group')].map(g => g.querySelector('.xp-gh').textContent), ['Text', 'Look', 'Page', 'Title', 'Markdown', 'Show', 'Your CSS']);
-  assert.ok(side.querySelector('.xp-group[data-for=md]').hidden && !side.querySelector('.xp-group[data-for=pdf]').hidden, 'only the groups of the destination');
-  // A pick: its name, its value with the chevron, a hidden select behind it; pressed, its alternatives unfold under its row, and one pressed is taken.
-  const style = win.querySelector('.it[data-pick=xp-layout]');
-  assert.equal(style.querySelector('.lk-name').textContent, 'style'); assert.equal(style.querySelector('.lk-value').firstChild.nodeValue, 'Document'); assert.ok(style.querySelector('.lk-value svg.m'), 'the chevron after the value');
-  assert.ok(style.querySelector('select.xp-layout[hidden]'), 'the select stands behind the value'); assert.ok(style.querySelector('.lk-alts').hidden, 'folded at rest');
-  style.querySelector('.lk-value').click(); assert.ok(!style.querySelector('.lk-alts').hidden && style.classList.contains('open'), 'pressed, it unfolds');
-  const outline = [...style.querySelectorAll('.lk-alts span')].find(a => a.textContent === 'Outline'); outline.click();
-  assert.equal(win.querySelector('select.xp-layout').value, 'outline', 'an alternative pressed sets the select'); assert.equal(style.querySelector('.lk-value').firstChild.nodeValue, 'Outline', 'and the value reads it'); assert.ok(style.querySelector('.lk-alts').hidden && !style.classList.contains('open'), 'and the pick folds');
-  const tags = win.querySelector('.xp-tags').closest('.lk-value'); assert.equal(tags.lastChild.nodeValue, 'Yes'); tags.querySelector('input').checked = false; tags.querySelector('input').dispatchEvent(new hostDoc.defaultView.Event('change', { bubbles: true }));
-  assert.equal(tags.lastChild.nodeValue, 'No', 'a switch reads its state'); assert.ok(tags.classList.contains('off'));
-  assert.equal(tags.closest('.it').querySelector('.lk-name').textContent, 'tags');
-  // The rows of a style show only on that style; every pick in the column opens and takes a value, one open at a time.
-  const layout = win.querySelector('[data-pick=xp-layout]'), plain = layout.querySelector('select').value;
-  const setLayout = v => { layout.querySelector('.lk-value').click(); layout.querySelector(`.lk-alts span[data-v="${v}"]`).click(); };
-  const sub = when => side.querySelector(`.xp-sub[data-when=${when}]`);
-  assert.ok(sub('prose').hidden && sub('dated').hidden);
-  setLayout('timeline'); await sleep(200); assert.ok(!sub('dated').hidden && sub('prose').hidden, 'Timeline has its dates');
-  setLayout('prose'); await sleep(200); assert.ok(sub('dated').hidden && !sub('prose').hidden, 'Prose has its rows');
-  for (const it of side.querySelectorAll('.it[data-pick]')) {
-    const was = it.querySelector('select').value, alts = it.querySelectorAll('.lk-alts span');
-    it.querySelector('.lk-value').click(); assert.ok(it.classList.contains('open') && !it.querySelector('.lk-alts').hidden, `${it.dataset.pick} opens`);
-    assert.equal(win.querySelectorAll('.it.open').length, 1, 'one open at a time');
-    (alts[1] || alts[0]).click(); assert.ok(!it.classList.contains('open') && it.querySelector('.lk-alts').hidden, `${it.dataset.pick} folds once a value is taken`);
-    assert.equal(it.querySelector('select').value, (alts[1] || alts[0]).dataset.v, 'and the value is taken');
-    it.querySelector('.lk-value').click(); it.querySelector(`.lk-alts span[data-v="${was}"]`).click();
+  // The column is the library's menu laid open: a heading for each part (lk-group) after a gap, rows that are lk-item, what a row holds as lk-note.
+  assert.deepEqual([...side.querySelectorAll('.xp-group')].map(g => g.querySelector('.lk-group').textContent), ['Text', 'Prose', 'Timeline and Calendar', 'Look', 'Title', 'Markdown', 'Show', 'Your CSS']);
+  assert.ok([...side.querySelectorAll('.xp-group')].every(g => g.firstElementChild.matches('.lk-item.gap') && g.children[1].matches('.lk-group')), 'a gap, then the heading: the library draws the hairline between parts');
+  assert.ok([...side.querySelectorAll('.xp-rowhead, .xp-opt, .xp-sw, .xp-fieldrow')].every(r => r.classList.contains('lk-item')), 'every row is the library’s item');
+  // Anchored: a part of another destination or style keeps its place, faint and out of reach (inert), never hidden, so no row moves.
+  assert.ok(side.querySelector('.xp-group[data-for=md]').inert && !side.querySelector('.xp-group[data-for=md]').hidden && !side.querySelector('.xp-group[data-for="pdf rich"]').inert, 'the parts of another destination stay, out of reach');
+  // A row that holds one of several: its value at the right; pressed, the several unfold under it with the one in force ticked; one pressed is taken and the row folds.
+  const style = side.querySelector('.xp-pickrow[data-row=xp-layout]'), head = style.querySelector('.xp-rowhead'), opts = style.querySelector('.xp-opts');
+  assert.equal(head.firstElementChild.textContent, 'Style'); assert.equal(head.querySelector('.lk-note.xp-val').textContent, 'Document');
+  assert.ok(style.querySelector('select.xp-layout[hidden]') && opts.hidden && head.getAttribute('aria-expanded') === 'false', 'folded at rest');
+  head.click(); assert.ok(!opts.hidden && style.classList.contains('open') && head.getAttribute('aria-expanded') === 'true', 'pressed, it unfolds');
+  assert.ok(opts.matches('.lk-pop.lk-menu'), 'as the library’s pop-up menu, over the rows, so nothing in the column moves');
+  assert.deepEqual([...opts.querySelectorAll('.xp-opt')].filter(o => o.lastElementChild.classList.contains('lk-check')).map(o => o.firstElementChild.textContent), ['Document'], 'the one in force is ticked');
+  [...opts.querySelectorAll('.xp-opt')].find(o => o.firstElementChild.textContent === 'Outline').click();
+  assert.equal(win.querySelector('select.xp-layout').value, 'outline'); assert.equal(head.querySelector('.xp-val').textContent, 'Outline', 'the value reads it'); assert.ok(opts.hidden && !style.classList.contains('open'), 'and the row folds');
+  // A row that is on or off: a tick while on; the whole row is pressed; Enter turns it too.
+  const tags = win.querySelector('.xp-tags').closest('.xp-sw'); assert.ok(!tags.classList.contains('xp-off') && tags.getAttribute('aria-checked') === 'true' && tags.querySelector('.lk-note').classList.contains('lk-check'));
+  tags.querySelector('input').checked = false; tags.querySelector('input').dispatchEvent(new hostDoc.defaultView.Event('change', { bubbles: true }));
+  assert.ok(tags.classList.contains('xp-off') && tags.getAttribute('aria-checked') === 'false', 'off: no tick');
+  key(tags, 'Enter'); assert.ok(win.querySelector('.xp-tags').checked, 'Enter on the row turns it on'); tags.querySelector('input').checked = false; tags.querySelector('input').dispatchEvent(new hostDoc.defaultView.Event('change', { bubbles: true }));
+  assert.ok(win.querySelector('.xp-footer').matches('.xp-fieldrow input.lk-field'), 'a row that is written in holds the library’s field');
+  // The rows of a style show only on that style; every such row opens and takes a value, one open at a time. Down walks the rows.
+  const setLayout = v => { head.click(); opts.querySelector(`.xp-opt[data-v="${v}"]`).click(); };
+  const plain = 'outline', layout = style;
+  const sub = when => side.querySelector(`.xp-group[data-when=${when}]`), shown = () => [...side.querySelectorAll('.xp-group, .lk-item')].filter(e => !e.closest('[hidden]')).length, held = shown();
+  assert.ok(sub('prose').inert && sub('dated').inert);
+  setLayout('timeline'); await sleep(200); assert.ok(!sub('dated').inert && sub('prose').inert, 'Timeline has its dates'); assert.equal(shown(), held, 'and nothing was taken away or added');
+  setLayout('prose'); await sleep(200); assert.ok(sub('dated').inert && !sub('prose').inert, 'Prose has its rows'); assert.equal(shown(), held);
+  for (const row of [...side.querySelectorAll('.xp-pickrow')].filter(r => !r.closest('[inert]'))) {
+    const was = row.querySelector('select').value, alts = row.querySelectorAll('.xp-opt');
+    row.querySelector('.xp-rowhead').click(); assert.ok(row.classList.contains('open') && !row.querySelector('.xp-opts').hidden, `${row.dataset.row} opens`);
+    assert.equal(win.querySelectorAll('.xp-pickrow.open').length, 1, 'one open at a time');
+    (alts[1] || alts[0]).click(); assert.ok(!row.classList.contains('open') && row.querySelector('.xp-opts').hidden, `${row.dataset.row} folds once a value is taken`);
+    assert.equal(row.querySelector('select').value, (alts[1] || alts[0]).dataset.v, 'and the value is taken');
+    row.querySelector('.xp-rowhead').click(); row.querySelector(`.xp-opt[data-v="${was}"]`).click();
   }
+  // Escape in an open menu folds it, keeps the window, and gives the keys back to the row it came from.
+  head.click(); head.focus(); key(head, 'ArrowDown'); assert.ok(hostDoc.activeElement?.classList.contains('xp-opt'), 'Down in an open menu reaches its first choice');
+  key(hostDoc.activeElement, 'Escape'); assert.ok(opts.hidden && win.isConnected && hostDoc.activeElement === head, 'Escape folds the menu and the keys go back to its row');
+  head.focus(); key(head, 'ArrowDown'); assert.ok(hostDoc.activeElement && hostDoc.activeElement !== head && hostDoc.activeElement.closest('.xp-side'), 'Down goes to the next row');
   setLayout(plain); await sleep(200);
-  assert.deepEqual([...win.querySelectorAll('.xp-lists .lk-name')].map(n => n.textContent), ['of the page', 'of the nodes']);
+  assert.deepEqual([...win.querySelectorAll('.xp-lists .xp-plhead > .lk-note')].map(n => n.textContent), ['Properties of the page', 'Properties of the nodes']);
   const all = win.querySelector('.xp-all[data-role=nodes]'); assert.deepEqual([...all.children].map(a => [a.textContent, a.classList.contains('on')]), [['all', true], ['none', false]]);
   all.querySelector('[data-all="0"]').click(); assert.deepEqual([...all.children].map(a => a.classList.contains('on')), [false, true], 'none pressed: none in force'); all.querySelector('[data-all="1"]').click();
   const note = win.querySelector('.xp-note'); assert.ok(note.children.length === 1 && note.firstElementChild.dataset.pick === 'xp-zoom' && !note.querySelector('.xp-note-text'), 'over the desk, the size pick alone, no sentence');
   assert.ok(win.querySelector('button.lk-accent[data-act=pdf]') && win.querySelector('button.lk-close'), 'the accent and the × at the end');
   // Keys typed in the window never reach Logseq; Escape does, and folds an open panel first, then closes the window.
   key(win.querySelector('.xp-footer'), 'e'); assert.equal(reached, 0, 'a letter typed in a field stays in the window');
-  layout.querySelector('.lk-value').click(); assert.ok(layout.classList.contains('open'));
-  key(win.querySelector('.xp-footer'), 'Escape'); assert.ok(!layout.classList.contains('open'), 'Escape folds the open pick'); assert.ok(hostDoc.querySelector('.xp'), 'the window stays');
+  head.click(); assert.ok(layout.classList.contains('open'));
+  key(win.querySelector('.xp-footer'), 'Escape'); assert.ok(!layout.classList.contains('open'), 'Escape folds the open row'); assert.ok(hostDoc.querySelector('.xp'), 'the window stays');
   // ⌘-Enter presses the button that matches the destination; an unticked property is left out.
   rows[4].querySelector('input').checked = false;
   win.querySelector('input[name=xp-target][value=md]').checked = true;
@@ -111,7 +124,7 @@ const key = (target, name, init = {}) => target.dispatchEvent(new dom.window.Key
     assert.deepEqual(words(), ['Report', 'Paper', 'Brief', 'Save as new…']);
     press('Paper');
     assert.equal(value(), 'Paper'); assert.equal(q('.xp-layout').value, 'prose'); assert.equal(q('.xp-look').value, 'book'); assert.equal(q('.xp-margins').value, 'wide'); assert.ok(!q('.xp-numbered').checked && !q('.xp-contents').checked);
-    assert.ok(!q('.xp-sub[data-when=prose]').hidden, 'Prose has its rows');
+    assert.ok(!q('.xp-group[data-when=prose]').inert, 'Prose has its rows');
     q('.xp-look').value = 'plain'; q('.xp-look').dispatchEvent(new hostDoc.defaultView.Event('change', { bubbles: true }));
     assert.equal(value(), 'Paper · changed'); tpl.querySelector('.lk-value').click();
     assert.deepEqual(words(), ['Report', 'Paper', 'Brief', 'Save changes to Paper', 'Save as new…']);
