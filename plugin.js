@@ -1008,10 +1008,10 @@ Door.ICONS = {
   rename: 'M10.4 2.9 13.1 5.6 5.4 13.3l-3 .3.3-3zM8.8 4.5l2.7 2.7',
   copy: 'M6.4 5.2h6.4A1.2 1.2 0 0 1 14 6.4v6.4a1.2 1.2 0 0 1-1.200 1.200H6.400a1.200 1.200 0 0 1-1.200-1.200V6.400a1.200 1.200 0 0 1 1.200-1.200zM11 2.400H3.600a1.200 1.200 0 0 0-1.200 1.200V11',
   eq: 'M3 5.800h10M3 10.200h10', side: 'M3 3h10a1.200 1.200 0 0 1 1.200 1.200v7.600A1.200 1.200 0 0 1 13 13H3a1.200 1.200 0 0 1-1.200-1.200V4.200A1.200 1.200 0 0 1 3 3zM10 3v10',
-  tick: 'M2.800 8.600 6.400 12l6.800-7.800', x: 'm3.800 3.800 8.400 8.400M12.200 3.800l-8.400 8.400', save: 'M8 2.500v8M4.500 7 8 10.500 11.500 7M3 13.500h10',
+  tick: 'M3.500 8.200 6.500 11.200 12.500 5.200', x: 'm3.800 3.800 8.400 8.400M12.200 3.800l-8.400 8.400', save: 'M8 2.500v8M4.500 7 8 10.500 11.500 7M3 13.500h10',
   undo: 'M6 9.500 3 6.500l3-3M3 6.500h7.500a3 3 0 0 1 0 6H9', reload: 'M13 8a5 5 0 1 1-1.500-3.500M13 2v3.500H9.500', enter: 'M13 3.500V7.800a2 2 0 0 1-2 2H3.500M6.800 6.500 3.500 9.800l3.300 3.300',
 };
-const iconUrl = d => `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='#000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><path d='${d}'/></svg>`)}")`;
+const iconUrl = (d, w = 1.5) => `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='#000' stroke-width='${w}' stroke-linecap='round' stroke-linejoin='round'><path d='${d}'/></svg>`)}")`;
 
 /* The text colour and the window's ground, for every module whichever are switched on, sent by main.js and by every stand-in that
    draws with the shared names. Logseq 2.0.2 sets neither --ls-primary-* any more, though a theme may; its own are --foreground
@@ -1170,7 +1170,10 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
 .lk-btn.lk-low:hover, .lk-fix:hover, .lk-btn.lk-low:focus-visible, .lk-fix:focus-visible { background: var(--lk-wash) !important; }
 .lk-btn.lk-low[aria-pressed="true"] { font-weight: 600; }   /* a third-level press in force (a kind picked, a sort on) */
 .lk-row .lk-btn.lk-low { padding-block: 1px !important; }   /* on a row it takes the row's height, so the row never grows for it */
-.lk-views { display: flex; gap: 4px; }
+/* The space between two tabs' words is at least --lk-tab-space (the owner, 13 November 2026: "a minimum of space between the
+   text of tabs so it does not look like one continuous piece of text"); a place that takes the side padding away (--lk-view-pad: 0)
+   gets the whole space as gap. A tab row of another make (the sidebar's, Threads' kinds) spaces its words by the same variable. */
+.lk-views { display: flex; gap: max(4px, calc(var(--lk-tab-space, 24px) - 2 * var(--lk-view-pad, 8px))); }
 /* lk-view: other contents of one place, drawn one way everywhere (the sidebar's tabs, Links, Structure, Linked's kinds): the one in
    force in the text colour with a short bar under its word, the others quiet (the owner, 9 November 2026, C1b: "a short bar under
    the view in force"). No underline, which means "opens"; no ground, no change of weight, so no name shifts when another is picked.
@@ -1178,7 +1181,7 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
 .lk-view { position: relative; color: var(--lk-quiet) !important; padding: 3px var(--lk-view-pad, 8px) 6px; font-weight: inherit; }
 .lk-view:hover, .lk-view:focus-visible { color: var(--lk-text, currentColor) !important; }
 .lk-view.on { color: var(--lk-text, currentColor) !important; }
-.lk-view.on::after { content: ""; position: absolute; left: var(--lk-view-pad, 8px); right: var(--lk-view-pad, 8px); bottom: 0; height: 2px; border-radius: 1px; background: currentColor; }
+.lk-view.on::after { content: ""; position: absolute; left: var(--lk-view-pad, 8px); right: var(--lk-view-pad, 8px); bottom: 0; height: 1px; background: currentColor; }   /* one hairline (the owner, 13 November 2026: lighter than the 2px bar) */
 .lk-trail { display: flex; flex-wrap: wrap; gap: 2px 6px; align-items: center; font-size: var(--lk-small); }
 .lk-trail > :not(.lk-step) { color: var(--lk-quiet); }
 .lk-step { color: var(--lk-quiet) !important; padding: 0; text-decoration: underline !important; text-decoration-color: var(--lk-hair) !important; text-underline-offset: 3px; }
@@ -1226,10 +1229,14 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
 /* lk-tick, drawn: the browser's checkbox as a small rounded square, its edge and its check mark in the text colour when on; a
    half-mark for a list ticked in part. Logseq's own forms rule paints a ticked box blue, so each piece is overridden. When it
    shows is lk-list's word above. */
-input.lk-tick[type=checkbox] { appearance: none !important; -webkit-appearance: none !important; position: relative; box-sizing: border-box; width: 13px !important; height: 13px !important; margin: 0 !important; padding: 0 !important; flex: none; border: 1px solid var(--lk-line) !important; border-radius: 3px !important; background: none !important; color: inherit !important; cursor: pointer; vertical-align: -1px; }
+input.lk-tick[type=checkbox] { appearance: none !important; -webkit-appearance: none !important; position: relative; box-sizing: border-box; width: 14px !important; height: 14px !important; margin: 0 !important; padding: 0 !important; flex: none; border: 1.5px solid var(--lk-line) !important; border-radius: 4px !important; background: none !important; color: inherit !important; cursor: pointer; vertical-align: -1px; }
 input.lk-tick[type=checkbox]:is(:checked, :indeterminate, :focus, :hover) { background-color: transparent !important; background-image: none !important; border-color: currentColor !important; color: inherit !important; box-shadow: none !important; outline: none !important; }
-input.lk-tick[type=checkbox]:checked::before { content: ""; position: absolute; left: 3.5px; top: .5px; width: 3.5px; height: 7px; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg); }
-input.lk-tick[type=checkbox]:indeterminate::before { content: ""; position: absolute; left: 2px; right: 2px; top: 5px; height: 1.5px; background: currentColor; }
+input.lk-tick[type=checkbox]:checked::before { content: ""; position: absolute; inset: 0; background: currentColor; -webkit-mask: ${iconUrl(Door.ICONS.tick, 2.6)} center / 8px 8px no-repeat; mask: ${iconUrl(Door.ICONS.tick, 2.6)} center / 8px 8px no-repeat; }
+/* lk-check: the check mark alone, the one shape for "this one is in force" wherever it stands (a menu's chosen line, a setting
+   that is on, a picture card picked); the tick box's mark is the same shape (the owner, 13 November 2026: "make the checkmark
+   symbol itself more modern", then a rounded square with a small check, "use that": one arm half the other, round ends). */
+.lk-check { display: inline-block; width: 1em; height: 1em; vertical-align: -.14em; flex: none; background: currentColor; -webkit-mask: ${iconUrl(Door.ICONS.tick, 1.8)} center / contain no-repeat; mask: ${iconUrl(Door.ICONS.tick, 1.8)} center / contain no-repeat; }
+input.lk-tick[type=checkbox]:indeterminate::before { content: ""; position: absolute; left: 2.5px; right: 2.5px; top: 4.75px; height: 1.5px; border-radius: 1px; background: currentColor; }
 /* lk-fold, drawn: the chevron in a 16 by 20 place (Logseq's own width), pointing right while closed, down while open, turning in .12s; keyed, the
    round wash. Its markup is empty: the library draws the mark. */
 .lk-fold { appearance: none; background: none; border: 0; padding: 0; margin: 0; font: inherit; color: inherit; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 20px; flex: none; border-radius: 3px; }

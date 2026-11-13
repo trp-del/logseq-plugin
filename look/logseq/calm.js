@@ -78,7 +78,14 @@ ${AREA} .ls-table-row:hover { background: var(--lk-wash) !important; }
 /* The columns that stay put while the table scrolls need a ground: the page's own, or the wash's equal under the pointer. */
 ${AREA} :is(.ls-table-row, .ls-table-header) .sticky-columns { background: var(--lk-paper) !important; }
 ${AREA} .ls-table-row:hover .sticky-columns { background: color-mix(in srgb, var(--lk-text) 7%, var(--lk-paper)) !important; }
-${AREA} :is(.ls-table-row, .ls-table-header) .sticky-columns button { background: transparent !important; }`,
+${AREA} :is(.ls-table-row, .ls-table-header) .sticky-columns button:not(.ui__checkbox) { background: transparent !important; }
+/* A table's tick boxes are the library's tick box (lk-tick): a rounded square, its edge firming and a small check in the text colour
+   when ticked. Logseq fills a ticked one with its colour and draws a white check; the line above once took the fill away and left
+   the white check on white, so a ticked row could not be told (the owner, 13 November 2026: "the check boxes in tables seem off"). */
+${AREA} .ls-table .ui__checkbox { width: 14px !important; height: 14px !important; border: 1.5px solid var(--lk-line) !important; border-radius: 4px !important; background: transparent !important; box-shadow: none !important; align-items: center; justify-content: center; }
+${AREA} .ls-table .ui__checkbox:hover, ${AREA} .ls-table .ui__checkbox:is([data-checked], [data-state=checked], [data-state=indeterminate]) { border-color: var(--lk-text) !important; }
+${AREA} .ls-table .ui__checkbox :is(span, svg) { color: var(--lk-text) !important; }
+${AREA} .ls-table .ui__checkbox svg { width: 10px !important; height: 10px !important; stroke-width: 3.2 !important; }`,
   calmSearch: `
 /* Logseq's search window: one ground, a hairline and one shadow, as the grammar's window. No grey bands at the top and the
    foot, no boxes round icons or keys, no blue ring round the row you are on; the tip at the foot is left out, its room kept. */

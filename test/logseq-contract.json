@@ -257,6 +257,7 @@
   "toolbar-plugins-manager",
   "typed-list",
   "ui__button",
+  "ui__checkbox",
   "ui__context-menu-content",
   "ui__context-menu-label",
   "ui__context-menu-separator",

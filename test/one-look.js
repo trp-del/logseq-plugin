@@ -12,7 +12,7 @@ const rule = (css, sel) => { const at = css.indexOf(sel + ' {'); return at < 0 ?
 // no ground, no change of weight; the sidebar's tabs, Links, Structure and Linked's kinds all draw it.
 const on = rule(NAMES, '.lk-view.on'), bar = rule(NAMES, '.lk-view.on::after');
 assert.ok(on && !/underline|font-weight|background/.test(on), 'the view in force: only its colour changes');
-assert.ok(/height: 2px/.test(bar) && /var\(--lk-view-pad/.test(bar), 'the view in force has its short bar, the word\'s width');
+assert.ok(/height: 1px/.test(bar) && /var\(--lk-view-pad/.test(bar), 'the view in force has its short bar, the word\'s width');
 assert.ok(!/\.lk-view:hover[^{]*\{[^}]*background/.test(NAMES) && !/\.lk-view:hover, \.lk-view:focus-visible, \.lk-item/.test(NAMES), 'no ground under a view');
 assert.ok(/className = `lk-view\$\{on/.test(read('sidebar-tabs.js')), 'the sidebar\'s tabs are views');
 assert.ok(/class: `lk-view\$\{state\.view/.test(read('look/logseq/links.js')), 'Links\' two orders are views');

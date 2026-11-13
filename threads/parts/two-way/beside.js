@@ -94,7 +94,7 @@ function besideHtml(b) {
   const diff = !!state.besideDiff;
   const sameOwn = name => fieldsHtml(b.mine, name) === fieldsHtml(b.theirs, name);
   const sameRow = (a, c) => !!a && !!c && a.items.length === c.items.length && a.items.every(item => c.items.some(x => x.uuid === item.uuid));
-  const toggle = `<button type="button" class="lk-btn lk-low th-tw-bdiff" data-bdiff="" aria-pressed="${diff}" title="Leave out what the two pages hold alike">${diff ? 'only what differs ✓' : 'only what differs'}</button>`;
+  const toggle = `<button type="button" class="lk-btn lk-low th-tw-bdiff" data-bdiff="" aria-pressed="${diff}" title="Leave out what the two pages hold alike">${diff ? 'only what differs <span class="lk-check" aria-hidden="true"></span>' : 'only what differs'}</button>`;
   let html = `<div class="th-tw-beside" data-beside="${esc(b.uuid)}"><div>${toggle}</div><div class="th-tw-bhead"><span class="th-tw-btitle">${esc(state.pageTitle)}</span></div><div class="th-tw-bhead"><a href="#" class="th-tw-btitle th-tw-bpage lk-node" data-uuid="${esc(b.uuid)}" title="Open ${esc(b.title)}, with ${esc(state.pageTitle)} beside it">${esc(b.title)}</a></div>`;
   for (const name of own) if (!diff || !sameOwn(name)) html += `${prop(name)}<div class="th-tw-bown">${fieldsHtml(b.mine, name)}</div><div class="th-tw-bown">${fieldsHtml(b.theirs, name)}</div>`;
   for (const name of names) {
