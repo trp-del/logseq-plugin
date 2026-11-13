@@ -56,7 +56,7 @@ const CSS = `
 .xp .lk-switch .lk-value { position: relative; }
 .xp .lk-switch:has(:focus-visible) .lk-value { background: var(--lk-wash); box-shadow: 0 0 0 3px var(--lk-wash); border-radius: 1em; }
 /* A choice that stays open (where the export goes): the library's alternatives (lk-alts), the one in force (on) in the text colour. */
-.xp-where { display: flex; gap: 16px; --lk-view-pad: 0px; }
+.xp-where { display: flex; --lk-view-pad: 0px; }   /* the space between its words is the library's, as every tab row's */
 .xp-where > * { position: relative; cursor: pointer; white-space: nowrap; }
 .xp-where input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
 .xp-where label:has(:focus-visible) { background: var(--lk-wash); box-shadow: 0 0 0 3px var(--lk-wash); border-radius: 1em; }

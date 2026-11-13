@@ -229,7 +229,7 @@ function openMenu(doc, from) {
   if (menu) { closeMenu(); return; }
   const way = numbering(), folding = state.heads.filter((head, i) => inside(state.heads, i).length);
   const takes = new Map();   // each line and what taking it does, for the press and for Enter alike
-  const item = (word, pressed, act, off) => { const take = () => { closeMenu(true); act(); }; const line = el(doc, 'button', { class: `lk-item${off ? ' off' : ''}`, type: 'button', role: 'menuitem', click: take }, el(doc, 'span', {}, word), pressed ? el(doc, 'span', { class: 'lk-note' }, '✓') : null); takes.set(line, take); return line; };
+  const item = (word, pressed, act, off) => { const take = () => { closeMenu(true); act(); }; const line = el(doc, 'button', { class: `lk-item${off ? ' off' : ''}`, type: 'button', role: 'menuitem', click: take }, el(doc, 'span', {}, word), pressed ? el(doc, 'span', { class: 'lk-note lk-check', 'aria-hidden': 'true' }) : null); takes.set(line, take); return line; };
   const box = el(doc, 'div', { class: 'lk-pop lk-menu lk-own lk-contents-menu', role: 'menu' },
     el(doc, 'div', { class: 'lk-group' }, 'Numbering'),
     ...NUMBERINGS.map(each => item(each.word, each.key === way.key, () => { numberedBy = each.key; logseq.updateSettings({ contentsNumbers: each.key }); render(host()); })),

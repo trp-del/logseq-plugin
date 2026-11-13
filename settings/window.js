@@ -4,7 +4,7 @@
    - in the middle the place's settings, one line each, with what each is set to at its right end (a dot before it when you
      changed it), so the list reads as a summary of how the plugin is set;
    - on the right the setting in the middle that is chosen, large: its name, one plain line, then every choice as a picture of
-     the thing itself, side by side, each named under it. The one in force has a firmer edge and a ✓; the one the plugin came
+     the thing itself, side by side, each named under it. The one in force has a firmer edge and the library's check mark (lk-check); the one the plugin came
      with says "as it came". In each picture only what differs from the other choice keeps its full strength; the rest steps
      back (worked out here by comparing the pictures, so a part draws only its pictures). A press on a picture takes it.
    A number shows a picture at each of a few sizes and takes another typed; keys show what pressing them does and record the
@@ -205,7 +205,7 @@ function paneHtml() {
   const head = `<h2 title="${esc(item.description || '')}">${esc(item.title)}</h2><p class="sw-what">${esc(item.what || firstSentence(item.description))}</p>`;
   const look = (v, name, html, still, plainName) => {
     const on = JSON.stringify(v) === JSON.stringify(value), came = !plainName && JSON.stringify(v) === JSON.stringify(item.default);
-    const lab = `<span class="sw-lab"><span class="sw-tick">✓</span><span class="sw-nm">${name}</span>${came ? '<span class="sw-came">as it came</span>' : ''}</span>`;
+    const lab = `<span class="sw-lab"><span class="sw-tick lk-check" aria-hidden="true"></span><span class="sw-nm">${name}</span>${came ? '<span class="sw-came">as it came</span>' : ''}</span>`;
     return still ? `<div class="sw-opt sw-still on"><div class="sw-pic">${html}</div>${lab}</div>`
       : `<button type="button" class="sw-opt lk-value${on ? ' on' : ''}" data-pick="${key}" data-val="${esc(JSON.stringify(v))}" aria-pressed="${on}"><div class="sw-pic">${html || `<span class="sw-faintw">${name}</span>`}</div>${lab}</button>`;
   };

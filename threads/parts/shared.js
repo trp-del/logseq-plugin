@@ -339,7 +339,7 @@ function popup({ at, kind = 'menu', head, items, field: fieldOptions, rows, keys
       const b = el(doc, 'button', { type: 'button', class: `th-item lk-item${item.on ? ' on' : ''}${item.faint ? ' th-faint' : ''}${item.cls ? ' ' + item.cls : ''}`, role: 'menuitem', title: item.title || null, disabled: item.disabled || null,
         click: () => run(item) },
         item.icon ? icon(doc, item.icon) : null, item.html ? el(doc, 'span', { class: 'th-item-words', html: item.html }) : el(doc, 'span', { class: 'th-item-words' }, String(item.label ?? '')),
-        item.sub ? el(doc, 'span', { class: 'th-end th-sub-arrow' }, item.right ? el(doc, 'span', { class: 'th-sub-now' }, String(item.right)) : null, icon(doc, 'fold')) : item.kbd ? el(doc, 'kbd', {}, item.kbd) : item.right ? el(doc, 'span', { class: 'th-end' }, typeof item.right === 'string' ? item.right : '', typeof item.right === 'string' ? null : item.right) : item.chosen ? el(doc, 'span', { class: 'th-end' }, icon(doc, 'chosen')) : null);
+        item.sub ? el(doc, 'span', { class: 'th-end th-sub-arrow' }, item.right ? el(doc, 'span', { class: 'th-sub-now' }, String(item.right)) : null, icon(doc, 'fold')) : item.kbd ? el(doc, 'kbd', {}, item.kbd) : item.right ? el(doc, 'span', { class: 'th-end' }, typeof item.right === 'string' ? item.right : '', typeof item.right === 'string' ? null : item.right) : item.chosen ? el(doc, 'span', { class: 'th-end' }, el(doc, 'span', { class: 'lk-check', 'aria-hidden': 'true' })) : null);
       b.item = item;
       body.append(b);
     }

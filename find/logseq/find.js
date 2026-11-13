@@ -82,13 +82,22 @@ const CSS = `
 .fd-head-rows { margin-top: 8px; }
 .fd-ck { color: var(--lk-quiet); display: flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fd-cv { display: flex; gap: 0 10px; flex-wrap: wrap; color: var(--lk-quiet); }
-.fd-c { all: unset; cursor: pointer; display: inline-flex; align-items: baseline; gap: 3px; padding: 0 4px; margin: 0 -4px; border-radius: 3px; }
+/* A line of values is the library's tab picker (lk-views, lk-view) with no underline, since none is the one shown (the owner,
+   13 November 2026: "keep it same tab picker sans underline"); its padding is taken away, so the whole tab space is the gap. */
+.fd-cv.lk-views { --lk-view-pad: 0px; gap: 0 var(--lk-tab-space, 24px); }
+.fd-cv.lk-views { align-items: baseline; }
+.fd-cv .lk-view { font-size: inherit; padding-top: 0; padding-bottom: 0; }   /* no bar below, so no room kept for one; the label stays near its words */
+/* The count stands after the word, always, quiet, as a tab's count does (Threads' kinds: All 12, No tag 7); then the space between
+   the words is the tab picker's even space whatever the counts (the owner, 13 November 2026: a count of 506 ran into the next word). */
+.fd-cv .lk-view { display: inline-flex; align-items: baseline; gap: 4px; }
+.fd-cv .lk-view .fd-nb { visibility: visible; }
+.fd-cv .lk-view.fd-lit { color: var(--lk-text, currentColor) !important; }
+.fd-c:not(.lk-view) { all: unset; cursor: pointer; display: inline-flex; align-items: baseline; gap: 3px; padding: 0 4px; margin: 0 -4px; border-radius: 3px; }
 .fd-c:hover { color: inherit; }
 /* A number stands only on the choice that is lit or pointed at; its room is kept, so nothing moves when it comes. */
 .fd-c .fd-nb { color: var(--lk-quiet); font-size: var(--lk-small); font-variant-numeric: tabular-nums; visibility: hidden; }
 .fd-c:hover .fd-nb, .fd-c.fd-lit .fd-nb { visibility: visible; }
 .fd-c.fd-lit { color: inherit; }
-.fd-cv .fd-dot { visibility: hidden; }
 .fd-more { margin: -3px 0; }
 /* The kinds opened: columns, each a top-level tag in bold over the tags beneath it, stepped in by depth. */
 .fd-tree { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px 18px; }
@@ -469,13 +478,12 @@ function render() {
       const box = el(doc, 'div', { class: 'fd-ch' });
       box.append(el(doc, 'span', { class: 'fd-ck' + (g.key.startsWith('p:') ? ' lk-prop' : ''), html: g.icon ? `<span class="fd-icon">${g.icon}</span>` : '' }, g.key === 'kind' ? 'kind' : g.label));
       if (g.tree) { box.append(treeOf(doc, g, () => ci++, groups)); wrap.append(box); continue; }
-      const vals = el(doc, 'span', { class: 'fd-cv' });
+      const vals = el(doc, 'span', { class: 'fd-cv lk-views' });
       g.items.forEach((c, i) => {
         const at = ci++;
         const lit = (S.mode === 'choices' && at === S.choiceAt) || (S.mode !== 'choices' && litChoice(groups) === c);
-        if (i) vals.append(el(doc, 'span', { class: 'fd-dot' }, '·'));
         if (c.more) vals.append(el(doc, 'button', { class: 'fd-more lk-more' + (lit ? ' fd-lit' : ''), type: 'button', 'data-c': at, click: () => c.pick() }, c.label));
-        else vals.append(el(doc, 'button', { class: 'fd-c' + (lit ? ' fd-lit' : ''), type: 'button', 'data-c': at, title: c.label.length > 44 ? c.label : null, click: () => c.pick() }, short(c.label, 44), el(doc, 'span', { class: 'fd-nb' }, String(c.count))));
+        else vals.append(el(doc, 'button', { class: 'fd-c lk-view' + (lit ? ' fd-lit' : ''), type: 'button', 'data-c': at, title: c.label.length > 44 ? c.label : null, click: () => c.pick() }, short(c.label, 44), el(doc, 'span', { class: 'fd-nb' }, String(c.count))));
       });
       box.append(vals);
       wrap.append(box);

@@ -23,7 +23,7 @@ const tabs = { cur: null, seen: new WeakSet(), pending: null, off: null };   // 
 const BAR = '#right-sidebar .cp__right-sidebar-settings';
 const CSS = `
 #right-sidebar[data-lk-tabs] ${BAR.replace('#right-sidebar ', '')} > div:not(.lk-tabs) { display: none !important; }
-#right-sidebar[data-lk-tabs] .lk-tabs { display: flex; align-items: center; gap: 4px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+#right-sidebar[data-lk-tabs] .lk-tabs { display: flex; align-items: center; gap: max(4px, calc(var(--lk-tab-space, 24px) - 16px)); min-width: 0; overflow-x: auto; scrollbar-width: none; }
 #right-sidebar[data-lk-tabs] .lk-tabs::-webkit-scrollbar { display: none; }
 #right-sidebar[data-lk-tabs] .lk-tab { display: inline-flex; align-items: center; flex: none; max-width: 180px; }
 #right-sidebar[data-lk-tabs] .lk-tab .lk-view { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }

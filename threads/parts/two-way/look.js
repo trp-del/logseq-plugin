@@ -93,7 +93,7 @@ const twoWayCss = `
 .th-two-way :is(.th-tw-field, .th-tw-toggle) { border-radius: 4px; padding: 0 .25em; margin-left: -.25em; margin-right: -.25em; transition: background-color .1s ease, color .1s ease; }
 .th-two-way :is(.th-tw-field, .th-tw-toggle):hover { color: inherit; background: var(--lk-wash); }
 .th-two-way a.th-tw-field { color: inherit; }
-.th-two-way .th-tw-chips { display: inline-flex; flex-wrap: wrap; gap: .3rem .9rem; }
+.th-two-way .th-tw-chips { display: inline-flex; flex-wrap: wrap; gap: .3rem var(--lk-tab-space, 24px); }   /* kinds are tabs: the library's space between tabs' words */
 /* The days after the kinds, quiet and in the kinds' own size, so the line reads as one summary. */
 .th-two-way .th-tw-toggle.th-tw-when { color: var(--lk-quiet); font-size: 14px; }
 .th-two-way .th-tw-earlier { display: flex; align-items: center; gap: .5em; margin: 14px 0 2px 0; padding: 0; } /* a line's gap before it; at the chevrons of the nodes it parts (the owner: "start it at chevron") */
@@ -305,7 +305,7 @@ const twoWayCss = `
    reads as a heading, a little heavier than a node. --th-tw-in is the step. */
 .th-two-way { --th-tw-in: 22px; } /* the chevron and its gap (16px + 6px, --th-ol-gap is set further in) */
 .th-two-way .th-tw-head .th-tw-toggle, .th-two-way .th-tw-head .th-tw-chips { font-weight: 500; }
-.th-two-way .th-tw-head .th-tw-chips { gap: .3rem 1.05rem; align-items: baseline; min-width: 0; overflow: hidden; }
+.th-two-way .th-tw-head .th-tw-chips { gap: .3rem var(--lk-tab-space, 24px); align-items: baseline; min-width: 0; overflow: hidden; }
 /* The words' wash reaches .25em past them (padding given back by margin): the clip edge stands that far out too, so the first letter is never cut. */
 .th-two-way .th-tw-head .th-tw-chips { padding-inline: .25em; margin-inline: -.25em; }
 .th-two-way .th-tw-head .th-tw-toggle.th-tw-lead { color: inherit; font-weight: 500; font-size: inherit; }
