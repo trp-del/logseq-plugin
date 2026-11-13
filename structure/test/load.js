@@ -323,12 +323,6 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
     assert.ok(P && !P.closest('dl'), 'Put on a tag… opens the picker'); assert.match(P.querySelector('[data-pin]').placeholder, /^Put With on/);
     key(Rp.querySelector('[data-pin]'), 'Escape'); pv.destroy(); h2.remove(); }
 
-  // The sidebar: the outline alone, with a cursor of its own.
-  const side = doc.createElement('div'); doc.body.appendChild(side);
-  const sideView = S.view.make(side, 'side', app); app.mounted(sideView); await sleep(30);
-  assert.ok(sideView.root.querySelector('.st-tree .st-row')); assert.ok(!sideView.root.querySelector('.st-regions'));
-  assert.equal(sideView.root.querySelector('[data-find]').getAttribute('placeholder'), 'Find a tag', 'the sidebar\'s find line says the same words');
-  sideView.destroy(); side.remove();
 
   await unload(); assert.equal(doc.querySelectorAll('.st').length, 0); assert.ok(!doc.getElementById('st-style'));
   // A tag's page gets its lines above Logseq's table; a journal day never does, nor a tag that shares a day's name (3 Nov:
@@ -373,6 +367,6 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
     assert.equal(groups(), 'Visits', 'Undo brings it back');
     store.clear(); undo.clear(); gv.destroy(); gh.remove(); }
   deq(unclosed, [], 'every box the plugin drew is closed');
-  console.log('load: every check passed (the areas, a move, tray, apply, undo, Every property, its groups with Undo, finding, a new top-level tag, a tag\'s lines, the sidebar)');
+  console.log('load: every check passed (the areas, a move, tray, apply, undo, Every property, its groups with Undo, finding, a new top-level tag, a tag\'s lines)');
 })().catch(error => { console.error(error); process.exit(1); });
 function Mo() { return win.Structure.model; }

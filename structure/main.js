@@ -10,7 +10,7 @@ const { notify, host } = window.PluginDoor;
 const tray = S.changes.makeTray();
 tray.setBase({ tags: [], props: [] });
 const AT_ONCE = new Set(['move', 'takeOut', 'rename', 'renameProp', 'moveProp', 'addProp', 'make', 'keepUnder', 'setRange', 'retag']);   // Undo puts each back whole; nothing is lost
-const startState = () => ({ cur: null, open: new Set(), seen: new Set(), whole: new Set(), ticks: new Set(), pticks: new Set(), popen: new Set(), paim: false, find: '', view: 'tree', sort: 'filled', propCur: null, menu: null, prompt: null, edit: null, nodes: null, busy: '', trail: [], ask: null, places: new Map(), at: null, walking: false, side: { cur: null, find: '' }, split: false, pane2: { find: '', open: new Set(), seen: new Set() } });
+const startState = () => ({ cur: null, open: new Set(), seen: new Set(), whole: new Set(), ticks: new Set(), pticks: new Set(), popen: new Set(), paim: false, find: '', view: 'tree', sort: 'filled', propCur: null, menu: null, prompt: null, edit: null, nodes: null, busy: '', trail: [], ask: null, places: new Map(), at: null, walking: false, split: false, pane2: { find: '', open: new Set(), seen: new Set() } });
 const changesWord = n => n === 1 ? '1 change' : `${n} changes`;
 const stepsWord = n => n === 1 ? '1 step' : `${n} steps`;
 // The Undo of another graph, kept for when that graph is open again: it is the only record of what was written there.
@@ -123,7 +123,7 @@ const app = {
     if (!app.st.ask?.change && !app.st.ask?.apply) app.st.ask = null;   // an ask of an issue or a merge names what this reading may have moved
     app.draw();
   },
-  mounted(view) { view.draw(); if (view.mode === 'side') app.followPage(); view.focus(); if (!app.st.busy) app.reread(); },   // the graph as it is now, not as it was last read
+  mounted(view) { view.draw(); view.focus(); if (!app.st.busy) app.reread(); },   // the graph as it is now, not as it was last read
   // The map opened on a tag (from the sidebar, the toolbar): a jump, so Escape in the map comes back to where it was.
   openMain(id) { const st = app.st; if (id != null && (st.cur !== id || st.propCur || st.view !== 'tree')) { if (st.cur != null) st.trail.push({ view: st.view, cur: st.cur, propCur: st.propCur, nodes: st.nodes }); st.cur = id; st.propCur = null; st.view = 'tree'; st.nodes = null; st.ask = null; S.model.pathOf(tray.model, id).slice(0, -1).forEach(a => st.open.add(a)); } mounts.openPage(); app.draw(); },
   openNode(uuid, inSidebar) { if (!uuid) return; if (inSidebar) logseq.Editor.openInRightSidebar(uuid); else logseq.App.pushState('page', { name: uuid }); },
@@ -153,16 +153,6 @@ const app = {
   valuesOf: (id, ident) => S.db.valuesOf(id, ident), nodesWhere: (id, ident, v) => S.db.nodesWhere(id, ident, v),
   notify,
   nameTaken: name => S.db.nameTaken(name),
-  // The sidebar's tree opens on the page's tag.
-  async followPage() {
-    if (![...app.views].some(v => v.mode === 'side')) return;
-    try {
-      const page = await logseq.Editor.getCurrentPage();
-      const uuid = page?.uuid || page?.['block/uuid'];
-      const id = uuid ? await S.db.tagOfPage(String(uuid)) : null;
-      if (id != null && tray.model.tags.has(id)) { app.st.side.cur = id; S.model.pathOf(tray.model, id).slice(0, -1).forEach(a => app.st.open.add(a)); app.draw(); }
-    } catch (error) { /* no page on screen: the tree stays as it was */ }
-  },
 };
 S.app = app;
 // Lines that left the tray without being pressed: said, never silent. An emptied tray keeps a line of its own.
@@ -176,9 +166,7 @@ function sayLost(why) {
 function settle(was, up) {
   const m = tray.model;
   if (app.st.cur !== Mo.LOOSE && (app.st.cur == null || !m.tags.has(app.st.cur))) { const byName = was && [...m.tags.values()].find(t => t.title === was); app.st.cur = byName ? byName.id : m.tags.has(up) ? up : Mo.tops(m)[0] ?? null; }
-  if (app.st.side.cur == null) app.st.side.cur = app.st.cur;
   for (const id of [...app.st.ticks]) if (!m.tags.has(id)) app.st.ticks.delete(id);
-  if (app.st.side.cur != null && app.st.side.cur !== Mo.LOOSE && !m.tags.has(app.st.side.cur)) app.st.side.cur = app.st.cur;
   if (app.st.propCur && !m.props.has(Number(app.st.propCur.split('·')[1]))) app.st.propCur = null;
 }
 function keepDone(graph, done) { if (graph === app.graph) tray.done = done; else dones.set(graph, done); syncUndo(); }
@@ -206,8 +194,7 @@ async function otherGraph() {
   tray.done = dones.get(app.graph) || null; dones.delete(app.graph); syncUndo();
   say(waiting ? `${changesWord(waiting)} dropped: another graph opened` : '');
   if (waiting && !mounts.onPage()) notify(tray.note, 'warning');
-  const { side, ...rest } = startState();
-  Object.assign(app.st, rest, { busy: app.st.busy }); Object.assign(app.st.side, side);
+  Object.assign(app.st, startState(), { busy: app.st.busy });
   for (let tries = 0; tries < 25; tries++) {
     try { await S.db.read(); break; }
     catch (error) { await new Promise(resolve => setTimeout(resolve, 200)); }   // a read that fails here is the graph still opening, nothing to say yet
@@ -243,7 +230,7 @@ async function main() {
   logseq.App.registerUIItem('toolbar', { key: 'structure-open', template: window.PluginDoor.toolbarButton('structureOpen', 'Ontology: the map of tags and properties', 'structure') });
   onStop(logseq.DB.onChanged(change => graphChanged(change)));
   onStop(logseq.App.onCurrentGraphChanged(() => otherGraph()));
-  onStop(logseq.App.onRouteChanged?.(() => { app.followPage(); tagPage(); }));
+  onStop(logseq.App.onRouteChanged?.(() => { tagPage(); }));
   app.graph = await S.db.graph().catch(() => '');
   await app.reread();
   adopt();
@@ -324,7 +311,7 @@ async function tagPageAsked() {
 // A holder Logseq already shows (the map's page or the sidebar panel, left from before a reload of the plugin) gets its drawing.
 function adopt() {
   for (const holder of host().querySelectorAll('.st-holder-insp')) if (!holder.firstChild) S.inspector.mounted(holder);
-  for (const holder of host().querySelectorAll('.st-holder')) if (!holder.querySelector('.st')) { try { app.mounted(S.view.make(holder, holder.classList.contains('st-holder-side') ? 'side' : 'page', app)); } catch (error) { console.error('Structure: could not draw into a holder', error); } }
+  for (const holder of host().querySelectorAll('.st-holder')) if (!holder.querySelector('.st')) { try { app.mounted(S.view.make(holder, 'page', app)); } catch (error) { console.error('Structure: could not draw into a holder', error); } }
 }
 window.PluginDoor.describe('structure', { none: 'Ontology has nothing to set.', picture: on => `<span class="sw-faintw">The ··· menu</span><br>${on ? 'Ontology<br>' : ''}Find` });
 window.PluginDoor.register({

@@ -5,7 +5,7 @@
 cd "$(dirname "$0")/.." || exit 1
 fail=0
 run() { (cd "$1" && shift && "$@" >"${TMPDIR:-/tmp}/logseq-plugin-check.$$" 2>&1) && echo "ok  $*" || { echo "FAILED  $*"; tail -8 "${TMPDIR:-/tmp}/logseq-plugin-check.$$"; fail=1; }; rm -f "${TMPDIR:-/tmp}/logseq-plugin-check.$$"; }
-for file in plugin.js main.js files.js outside.js; do node --check "$file" || fail=1; done
+for file in plugin.js main.js loader.js files.js outside.js sidebar-tabs.js settings/window.js settings/ways-in.js; do node --check "$file" || fail=1; done
 run . node test/settings.js
 run . node test/root.js
 run . node test/outside.js
@@ -25,6 +25,7 @@ run . node test/leftovers.js
 run . node test/tidy.js
 run . node test/review.js
 run look node test/load.js
+run look node test/contents.js
 run find node test/load.js
 run predictive node test/run.js
 run predictive node test/load.js

@@ -638,7 +638,6 @@ Door.sweep = (key, doc) => { for (const base of Door.bases(key)) base.sweep(doc)
 const LOGSEQ_POPUPS = '.cp__select, .ui__popover-content, [data-radix-popper-content-wrapper], .ui__modal-panel, .ui__modal, [role="menu"], [role="dialog"], [role="listbox"]';
 const LOGSEQ_FRAME = '#right-sidebar, #main-content-container, #left-sidebar, .cp__header', OWN_POPUPS = '.lk-pop, .th-pop';
 Door.screen = {
-  POPUPS: LOGSEQ_POPUPS,
   // Looks for find() until it gives something or ms pass (null then): every 50 ms, or with frames: true once a frame, for what must
   // be there before the screen is next drawn.
   waitFor: (find, ms = 1500, { frames = false } = {}) => new Promise(resolve => {
@@ -684,15 +683,6 @@ Door.screen = {
   key: (el, name, init = {}) => !!el?.dispatchEvent(new el.ownerDocument.defaultView.KeyboardEvent('keydown', { key: name, code: name, bubbles: true, cancelable: true, ...init })),
   // What floats over the page: not the sidebars, the main view or the header; the plugin's own pop-ups only when asked (own: true).
   floating: (el, { own = false } = {}) => el.getClientRects().length > 0 && !el.closest(own ? LOGSEQ_FRAME : `${LOGSEQ_FRAME}, ${OWN_POPUPS}`),
-  // A floating item (a menu row, an option, a button) whose words pass test(text); null when none.
-  item(test, doc = Door.host()) {
-    return [...doc.querySelectorAll('[role="menuitem"], [role="option"], [role="menuitemcheckbox"], .menu-link, .cp__select-main .menu-link, button, li, a')].filter(el => Door.screen.floating(el)).find(el => test(el.textContent.trim())) || null;
-  },
-  // The items of the right sidebar whose header names a page (Logseq's .sidebar-item with its .sidebar-item-header).
-  sidebarItems(title, doc = Door.host()) {
-    const named = text => text.replace(/^[#\s]+/, '').trim().toLowerCase();
-    return [...doc.querySelectorAll('#right-sidebar .sidebar-item')].filter(item => named(item.querySelector('.sidebar-item-header')?.textContent || '').startsWith(String(title).toLowerCase()));
-  },
   // Is something floating open (a list, a menu, a picker, a window)? With an element: does it sit in one? own: the plugin's count too.
   popupOpen(el, doc = Door.host(), options) {
     if (el) return !!el.closest?.(LOGSEQ_POPUPS);
@@ -700,11 +690,6 @@ Door.screen = {
   },
   // Logseq's own lists while writing ([[ pages, / commands, # tags): they have the keys.
   editorPopupOpen: (doc = Door.host()) => !!doc.querySelector('#ui__ac, .absolute-modal, [data-editor-popup-ref]'),
-  // Closes what floats: Escape to each open menu and to whatever has the keyboard.
-  escapeMenus(doc = Door.host()) {
-    for (const menu of [...doc.querySelectorAll('[role="menu"], [role="dialog"], .cp__select')].filter(el => Door.screen.floating(el))) Door.screen.key(menu, 'Escape');
-    Door.screen.key(doc.activeElement, 'Escape');
-  },
 };
 
 /* The small things every module needs to read the graph, once (10 November 2026; each module had copied them): bare(ident) an
@@ -1022,7 +1007,7 @@ Door.ICONS = {
   plus: 'M8 2.5v11M2.5 8h11', chevron: 'M4 6l4 4 4-4', minus: 'M2.5 8h11', bin: 'M2.5 4.5h11M5.5 4.5V3a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v1.5M4 4.5l.7 9a1 1 0 0 0 1 .9h4.6a1 1 0 0 0 1-.9l.7-9',
   rename: 'M10.4 2.9 13.1 5.6 5.4 13.3l-3 .3.3-3zM8.8 4.5l2.7 2.7',
   copy: 'M6.4 5.2h6.4A1.2 1.2 0 0 1 14 6.4v6.4a1.2 1.2 0 0 1-1.200 1.200H6.400a1.200 1.200 0 0 1-1.200-1.200V6.400a1.200 1.200 0 0 1 1.200-1.200zM11 2.400H3.600a1.200 1.200 0 0 0-1.200 1.200V11',
-  tag: 'M2.5 2.5h5.300l5.700 5.700-5.300 5.300-5.700-5.700zM5.300 5.300h.01', eq: 'M3 5.800h10M3 10.200h10', side: 'M3 3h10a1.200 1.200 0 0 1 1.200 1.200v7.600A1.200 1.200 0 0 1 13 13H3a1.200 1.200 0 0 1-1.200-1.200V4.200A1.200 1.200 0 0 1 3 3zM10 3v10',
+  eq: 'M3 5.800h10M3 10.200h10', side: 'M3 3h10a1.200 1.200 0 0 1 1.200 1.200v7.600A1.200 1.200 0 0 1 13 13H3a1.200 1.200 0 0 1-1.200-1.200V4.200A1.200 1.200 0 0 1 3 3zM10 3v10',
   tick: 'M2.800 8.600 6.400 12l6.800-7.800', x: 'm3.800 3.800 8.400 8.400M12.200 3.800l-8.400 8.400', save: 'M8 2.500v8M4.500 7 8 10.500 11.500 7M3 13.500h10',
   undo: 'M6 9.500 3 6.500l3-3M3 6.500h7.500a3 3 0 0 1 0 6H9', reload: 'M13 8a5 5 0 1 1-1.500-3.500M13 2v3.500H9.500', enter: 'M13 3.500V7.800a2 2 0 0 1-2 2H3.500M6.800 6.500 3.500 9.800l3.300 3.300',
 };

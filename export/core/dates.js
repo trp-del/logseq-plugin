@@ -9,7 +9,6 @@ const toDate = n => isDay(n) ? new Date(Math.floor(n / 10000), Math.floor(n / 10
 const dayNumber = d => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
 // A day and a timestamp on one scale, for sorting.
 const scale = n => n == null ? null : isDay(n) ? toDate(n).getTime() : Number(n);
-const valid = n => n != null && !Number.isNaN(toDate(n).getTime());
 const pad = n => String(n).padStart(2, '0');
 
 const fmt = {
@@ -30,5 +29,5 @@ const fmt = {
     return /^\d/.test(fmt.short(from, locale)) ? `${a.getDate()} – ${fmt.short(to, locale)}` : `${fmt.short(from, locale)} – ${b.getDate()}`;
   },
 };
-E.dates = { isDay, toDate, dayNumber, scale, valid, fmt };
+E.dates = { isDay, toDate, dayNumber, scale, fmt };
 })();

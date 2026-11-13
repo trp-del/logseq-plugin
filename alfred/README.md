@@ -24,7 +24,7 @@ selected or chosen elsewhere. Each goes straight to its place; nothing asks.
 - `lt words` — a bullet on today's journal.
 - `la words` — a bullet on the page open in Logseq.
 - `lp Name` — a page named so, made if there is none, shown in Logseq. `lp Name #Tag` tags it with an existing tag (a tag
-  that does not exist is refused: tags are made in Logseq, in Structure).
+  that does not exist is refused: tags are made in Logseq, in Ontology).
 - `lpic` — the picture on the clipboard, into the graph on today's journal. `lpic Name` puts it on a page named so.
 - **Add to Logseq Today** (a Universal Action, or the hotkey, which you set after installing):
   - files chosen in Finder, or anywhere Alfred takes files: each into the graph on today's journal;
