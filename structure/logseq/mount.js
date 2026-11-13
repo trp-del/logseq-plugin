@@ -63,7 +63,7 @@ function mount(app) {
   // Item, the row pressed in a table (the owner, 12 November 2026): Logseq's own view of the row's node, which inspector.js opens and
   // names; there only while a row is pressed.
   const offItem = Door.sideTabs?.add({ key: 'item', word: 'Item', order: 2,
-    find: doc => S.inspector.item(doc), open: () => {},
+    find: doc => S.inspector.item(doc), owns: item => S.inspector.owns(item), open: () => {},
     hidden: () => !S.inspector.row() });
   const offMenu = Door.watch(icons);
   const onPage = () => host().defaultView.location.hash.split('?')[0] === '#' + ROUTE;   // the address carries the place (view.js)

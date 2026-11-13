@@ -340,7 +340,6 @@ function letHiddenGo() {
 }
 
 const css = `
-#right-sidebar .lk-links-word.on .cp__right-sidebar-settings-btn { opacity: 1; font-weight: 500; }
 #right-sidebar .sidebar-item[data-lk-closed] { display: none !important; }
 #right-sidebar .lk-side .sidebar-item-header { min-height: 32px; }
 #right-sidebar .lk-side .sidebar-item-header i.ti { width: 18px; font-size: 18px; text-align: center; }

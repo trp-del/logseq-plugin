@@ -16,19 +16,19 @@ async function describe(result) {
 
 async function scoreCommand() {
   const ctx = await Flow.app.context();
-  if (!ctx?.index?.entries.length) return Flow.app.notify('Nothing to score yet: this graph has no tagged lines.', 'warning');
+  if (!ctx?.index?.entries.length) return Flow.app.notify('Nothing to score yet: this graph has no tagged lines', 'warning');
   Flow.app.notify('Scoring proposals on this graph…');
   await new Promise(r => setTimeout(r, 50));
   const result = Flow.score.score(ctx, { sample: 600 });
   const text = await describe(result);
-  console.log('Flow score\n' + text);
+  console.log('Predictive: how well proposals work on this graph\n' + text);
   Flow.app.notify(text, result.properties.sureWrong ? 'warning' : 'success');
 }
 
 async function tuneCommand() {
   const ctx = await Flow.app.context();
-  if (!ctx?.index?.entries.length) return Flow.app.notify('Nothing to tune on yet: this graph has no tagged lines.', 'warning');
-  Flow.app.notify('Tuning to this graph: a minute or less, you can keep working.');
+  if (!ctx?.index?.entries.length) return Flow.app.notify('Nothing to tune on yet: this graph has no tagged lines', 'warning');
+  Flow.app.notify('Tuning to this graph: a minute or less, you can keep working');
   const pause = () => new Promise(r => setTimeout(r, 30));
   const result = await Flow.score.tune(ctx, { sample: 300, pause });
   const graph = ctx.graph || await Flow.app.graphName();
@@ -36,17 +36,17 @@ async function tuneCommand() {
   Flow.app.remember('tuned', all);
   const { tagNearLeast, tagGap, ...forProperties } = result.limits;   // how readily a tag is suggested is the setting's (logseq/app.js)
   Object.assign(ctx.limits, forProperties);
-  console.log('Flow tune', result);
+  console.log('Predictive: tuned to this graph', result);
   Flow.app.notify(`Tuned for “${graph}”: nearest line at least ${result.limits.nearLeast}, lead ${result.limits.lead} (for properties; tags follow the setting “How readily a tag is suggested”).\n${await describe(result.after)}`, 'success');
 }
 
 async function speedCommand() {
   const ctx = await Flow.app.context();
-  if (!ctx) return Flow.app.notify('Still reading the graph; try again in a moment.');
+  if (!ctx) return Flow.app.notify('Still reading the graph; try again in a moment');
   Flow.app.notify('Asking Apple’s model three times…');
   const r = await Flow.modelAsk.speed(ctx);
-  if (!r.reached) return Flow.app.notify('Apple’s model is not connected: Plugin settings, Predictive, says why.', 'warning');
-  if (!r.times.length) return Flow.app.notify('Apple’s model did not answer the sample question.', 'warning');
+  if (!r.reached) return Flow.app.notify('Apple’s model is not connected: Plugin settings, Predictive, says why', 'warning');
+  if (!r.times.length) return Flow.app.notify('Apple’s model did not answer the sample question', 'warning');
   const s = ms => (ms / 1000).toFixed(1) + ' s';
   Flow.app.notify(`Apple’s model answered one tag question in ${r.times.map(s).join(', then ')}. The first may start cold; after it the helper has the next one ready.\nAsked about: “${r.text.length > 80 ? r.text.slice(0, 79) + '…' : r.text}”`, 'success');
 }
@@ -128,7 +128,7 @@ async function main() {
   logseq.App.registerCommandPalette({ key: 'flow-tune', label: 'Predictive: tune proposals to this graph' }, tuneCommand);
   logseq.App.registerCommandPalette({ key: 'flow-model-speed', label: 'Predictive: how fast is Apple’s model?' }, speedCommand);
   logseq.App.registerCommandPalette({ key: 'flow-model-measure', label: 'Predictive: measure Apple’s tools on this graph' }, () => Flow.measureUi.open());
-  logseq.App.registerCommandPalette({ key: 'flow-reread', label: 'Predictive: read the graph again' }, async () => { Flow.app.forget(); await Flow.app.context(); Flow.app.notify('Read the graph again.'); });
+  logseq.App.registerCommandPalette({ key: 'flow-reread', label: 'Predictive: read the graph again' }, async () => { Flow.app.forget(); await Flow.app.context(); Flow.app.notify('Read the graph again'); });
   const { onStop } = Flow.app;
   onStop(logseq.DB.onChanged(({ blocks }) => Flow.app.learnSoon(blocks)));
   onStop(logseq.onSettingsChanged?.((now, before) => { if (!window.PluginDoor.settingChanged(['tagEagerness'], now, before)) return; const ctx = Flow.app.state.ctx; if (ctx) Object.assign(ctx.limits, Flow.app.tagLimits()); }));   // applies at once, no new reading

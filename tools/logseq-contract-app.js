@@ -62,6 +62,11 @@ let chromium; try { ({ chromium } = require('playwright')); } catch (error) { co
   const journal = await page.evaluate(async () => (await window.logseq.api.datascript_query('[:find ?n :where [?p :block/journal-day ?d] [?p :block/name ?n] [(> ?d 20261001)]]'))?.[0]?.[0]);
   const tag = await page.evaluate(async () => (await window.logseq.api.datascript_query('[:find ?n :where [?t :block/tags :logseq.class/Tag] [?t :db/ident ?i] [(namespace ?i) ?ns] [(= ?ns "user.class")] [?t :block/name ?n]]'))?.[0]?.[0]);
   if (tag) await go('page', { name: tag });
+  /* A page with a bullet that has a property of its own under its words, and something pointing at the page (12 November
+     2026): the round used to see such a page only when Logseq happened to stand on one at the start, and failed on seven
+     class names from any other page. The pages most linked to are tried until one draws the properties under a bullet. */
+  const holders = await page.evaluate(async () => { const rows = (await window.logseq.api.datascript_query('[:find ?n (count ?r) :where [?b :block/page ?p] [?b ?a _] [(namespace ?a) ?ns] [(= ?ns "user.property")] [?p :block/name ?n] [?r :block/refs ?p]]')) || []; return rows.sort((x, y) => y[1] - x[1]).slice(0, 6).map(row => row[0]); });
+  for (const name of holders) { await go('page', { name }); if (seen.has('positioned-properties') && seen.has('ls-bidirectional-properties')) break; }
   if (journal) await go('page', { name: journal });
   // A bullet focused into: the line of steps above it (.breadcrumb--block-page), which Look's glide reads.
   const inner = await page.evaluate(async () => ((await window.logseq.api.datascript_query('[:find ?u :where [?b :block/parent ?p] [?p :block/parent ?g] [?g :block/page _] [?b :block/uuid ?u]]')) || []).slice(0, 8).map(row => String(row[0])));

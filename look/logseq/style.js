@@ -86,13 +86,14 @@ ${AREA} .ls-properties-area .property-pair .property-key-panel *:not(.tag) { col
    Predictive) counts as filled, so the row does not re-space when the pencil turns solid. */
 /* An empty property in a page's list is shown, its name in the faint grey that says empty (the owner, 12 November 2026, on a page
    that showed only "+ Add property" though its tag gives it Treats and Ordered by: "those are supposed to be seen"). Until then it
-   was folded away until it had the keyboard (1 November), which hid what a tag gives its pages. props.js marks the row (lk-empty). */
-const EMPTY_ROWS = `${AREA} .ls-properties-area.ls-page-properties .property-pair.lk-empty:not(:focus-within) > .property-key-panel { color: var(--lk-off) !important; }`;
+   was folded away until it had the keyboard (1 November), which hid what a tag gives its pages. The stylesheet tells an empty one
+   by Logseq's own marks, so the name is faint from the first frame: marked by script after Logseq had drawn it (0.3.100), the name
+   stood in the names' grey and turned fainter a moment later on every page (the motion check, 12 November 2026). */
+const EMPTY_ROWS = `${AREA} .ls-properties-area.ls-page-properties .property-pair:has(> .property-value-container :is(.is-blank, .empty-value)):not(:focus-within) > .property-key-panel { color: var(--lk-off) !important; }`;
 const FILLED = ':is(:not(:has(.empty-value)), :has(.lk-pencil))';
 const capsules = `
-/* A bullet's properties under its words belong to that bullet (8 November 2026, the owner: "better spacing ... logical
-   groups"): a little room after them, so the next bullet stands apart from them instead of as close as they stand to their own words. */
-${AREA} .ls-block .positioned-properties.block-below { margin-bottom: 6px; }
+/* A bullet's properties under its words keep Logseq's own spacing (12 November 2026, the owner, on the gap under
+   Provider / Topic / Date: "do what logseq does normally"): the 6px room added on 8 November is gone. */
 /* Lines stay Logseq's own, close (9 November 2026, the owner, after 34px then 30px rows: "this needs to be tighter. lines in
    general"): properties and bullets keep Logseq's line spacing; only "+ Add property" stands a little apart from the rows. */
 ${AREA} .ls-new-property { margin-top: 10px; }
@@ -106,9 +107,11 @@ ${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill input
 /* Room above and below inside the strip, given back outside, so the press after a value catches a pointer a little off the line. */
 ${AREA} .ls-block .positioned-properties.block-below .bottom-properties-pills-strip { margin-block: -8px !important; padding-block: 8px !important; width: 0 !important; flex-wrap: wrap !important; }
 ${AREA} .ls-block .positioned-properties.block-below .bottom-properties-row { height: auto !important; max-height: none !important; overflow: visible !important; }
-/* The first property on a wrapped line: the space before it stands at nothing, so the name lines up with the line above. The space keeps its room, so the wrap does not change. */
-${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill[data-lk-line] { transform: translateX(-28px); }
-${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill[data-lk-line]::before { visibility: hidden; }
+/* The first property on a wrapped line: the space before it stands at nothing, so the name lines up with the line above. The space keeps its room, so the wrap does not change.
+   Only a property that has that space, one after a filled property: after empty ones alone it has none, and moved all the same its
+   name was cut off at the pane's left edge ("Topic:" read "ɔic:" in the Item tab, 12 November 2026). */
+${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill${FILLED} ~ .bottom-property-pill[data-lk-line] { transform: translateX(-28px); }
+${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill${FILLED} ~ .bottom-property-pill[data-lk-line]::before { visibility: hidden; }
 /* The property with the keyboard: a capsule round it, close top and bottom, a little room at each end (the owner: "make it a capsule"). */
 ${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill:focus-within::after { inset: 1px -4px !important; border-radius: 999px !important; box-shadow: inset 0 0 0 1px var(--lk-line) !important; }
 /* Between one property and the next, space alone (the owner, 4 November 2026: the dot was not needed), one width after every

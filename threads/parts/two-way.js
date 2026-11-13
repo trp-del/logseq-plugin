@@ -208,9 +208,12 @@ async function load() {
         state.pageTitle = String(page.title || page.originalName || page.name || '');
         // The page's own names, plain in its lines (C1, 7 November 2026): its title, then its aliases once read.
         state.ownNames = new Set([state.pageTitle.toLowerCase()]);
-        ownNamesOf(page.id).catch(() => {});
+        // Read beside the rows and waited for before they are drawn (12 November 2026): read after them, an alias in a row's words
+        // stood as a link for a sixth of a second and then turned plain (the motion check: "shown and gone", 184 to 350 ms).
+        const names = ownNamesOf(page.id, false).catch(() => {});
         await readStatuses();
         groups = await groupsFor(page.id);
+        await names;
         const title = String(page.title || page.originalName || page.name || '').toLowerCase();
         if (!hiddenMentions().has(title)) {
           let read = !!(setting('twoWayMentions') && provided.mentionsInto);
@@ -469,7 +472,9 @@ function shortName(title) {
    just after the last node's date (or name). The library's lk-plus. */
 // onLine: the + after a lone node's tag says what it adds as a tooltip, not in words beside it: the line's words are cut at its
 // second line, so words after the + cannot show, and before it they lay over the tag and the name (12 November 2026).
-const addLink = (group, onLine = false) => group.ident && state.draft?.field !== group.name ? `<button type="button" class="lk-plus lk-i-plus th-tw-add" aria-label="Add a${/^[aeiou]/i.test(twoWay.kindsOf(group)[0] || '') ? 'n' : ''} ${esc(twoWay.kindsOf(group)[0] || 'node')}" data-field="${esc(group.name)}" ${onLine ? 'title' : 'data-what'}="Add a${/^[aeiou]/i.test(twoWay.kindsOf(group)[0] || '') ? 'n' : ''} ${esc(twoWay.kindsOf(group)[0] || 'node')}"></button>` : '';
+const addLink = (group, onLine = false) => group.ident && state.draft?.field !== group.name ? `<button type="button" class="lk-plus lk-i-plus th-tw-add" aria-label="Add a${/^[aeiou]/i.test(twoWay.kindsOf(group)[0] || '') ? 'n' : ''} ${esc(twoWay.kindsOf(group)[0] || 'node')}" data-field="${esc(group.name)}" ${onLine ? 'title' : 'data-what'}="Add a${/^[aeiou]/i.test(twoWay.kindsOf(group)[0] || '') ? 'n' : ''} ${esc(twoWay.kindsOf(group)[0] || 'node')}"></button>`
+  // While its add line is open the + keeps its room, unseen, so the head's days stay where they stood (12 November 2026: they moved 70 px into its place).
+  : group.ident ? '<span class="lk-plus lk-i-plus th-tw-add th-tw-add-room" aria-hidden="true"></span>' : '';
 // The kit's tick box, in the margin left of the record (the kit's), drawn only on a list where picking was
 // turned on from its View menu (the owner, 7 November 2026: "the select boxes now should only be shown when activated by a menu
 // combined with the other ones"). Picking ends with the picks: Escape, the bar's box, or an action done.
@@ -507,14 +512,14 @@ const yearLine = (group, item, prev) => { const y = yearOf(twoWay.dayOf(group, i
 /* The day a node's line shows, by its place (the row's or the node's key), so what it opens leaves out a Date saying it
    again (the owner's pick 3 of the two-way fixes: "each line drops what its heading already says"). */
 const lineDay = new Map();
-async function ownNamesOf(id) {
+async function ownNamesOf(id, redraw = true) {
   const ids = await provided.aliasesOf?.(id) || [];
   let added = false;
   for (const other of ids) {
     const uuid = await provided.uuidById?.(other).catch(() => ''), title = uuid && await provided.titleNow(uuid).catch(() => '');
     if (title && state.pageId === id && !state.ownNames.has(title.toLowerCase())) { state.ownNames.add(title.toLowerCase()); added = true; }
   }
-  if (added) { state.html = null; draw(host()); }
+  if (added && redraw) { state.html = null; draw(host()); }
 }
 // A name's words: a wikilink in them is underlined and opens its page, a web address the browser, as in a bullet's words; the name itself, its own click.
 const nameWords = item => item.words && /\[\[|https?:\/\//.test(item.words) ? twoWay.lineHtml(item.words, Infinity) : esc(item.title);

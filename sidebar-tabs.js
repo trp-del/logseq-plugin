@@ -29,10 +29,15 @@ const CSS = `
 #right-sidebar[data-lk-tabs] .lk-tab .lk-view { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 #right-sidebar[data-lk-tabs] .sidebar-item-list > .sidebar-item:not([data-lk-tab-on]) { display: none !important; }
 #right-sidebar[data-lk-tabs] .sidebar-item-list > .sidebar-item[data-lk-tab-view] .sidebar-item-header { display: none !important; }
-#right-sidebar[data-lk-tabs] .sidebar-item-list > .sidebar-item[data-lk-tab-view] { border-top: 0 !important; margin-top: 0 !important; padding-top: 0 !important; }`;
+#right-sidebar[data-lk-tabs] .sidebar-item-list > .sidebar-item[data-lk-tab-view] { border-top: 0 !important; margin-top: 0 !important; padding-top: 0 !important; }
+/* Logseq puts an 8 px place to drop an item before every item, the hidden ones too: a view's item coming or going behind the one shown
+   moved it 8 px (seen frame by frame as a row's view waited to be drawn, 13 November 2026). While a view's tab is picked those places
+   are out and the list keeps their 8 px as room at its top; on Opened, where items are dragged, they stay. */
+#right-sidebar[data-lk-tabs]:not([data-lk-tab="sidebar"]) .sidebar-item-list > .sidebar-drop-indicator { display: none !important; }
+#right-sidebar[data-lk-tabs]:not([data-lk-tab="sidebar"]) .sidebar-item-list { padding-top: 32px !important; }`;
 
 const itemsOf = doc => [...doc.querySelectorAll('#right-sidebar .sidebar-item-list > .sidebar-item')].filter(item => !item.hasAttribute('data-lk-closed'));
-const viewOf = (doc, item) => views.find(v => v.find(doc) === item);   // two views may share one item (Ontology and Item, Structure's one panel)
+const viewOf = (doc, item) => views.find(v => v.find(doc) === item || v.owns?.(item));   // owns: an item of the view's that is not the one shown (a row's view still being drawn)   // two views may share one item (Ontology and Item, Structure's one panel)
 const nameOf = item => (item.querySelector('.sidebar-item-header .page-title')?.textContent || item.querySelector('.sidebar-item-header')?.textContent || '').trim();
 const isContents = item => nameOf(item) === 'Contents' && !item.classList.contains('lk-side');
 
@@ -79,6 +84,7 @@ function draw(doc = host()) {
   // The tab picked is said on the sidebar, so a panel two tabs share shows the part its tab names.
   if (side.getAttribute('data-lk-tab') !== (tabs.cur || '')) side.setAttribute('data-lk-tab', tabs.cur || '');
   const viewItems = new Set(views.map(v => v.find(doc)).filter(Boolean));
+  for (const item of items) if (views.some(v => v.owns?.(item))) viewItems.add(item);
   for (const item of doc.querySelectorAll('#right-sidebar .sidebar-item-list > .sidebar-item')) {
     const on = tabs.cur === SIDE ? others.includes(item) : item === viewItem;
     if (on !== item.hasAttribute('data-lk-tab-on')) item.toggleAttribute('data-lk-tab-on', on);

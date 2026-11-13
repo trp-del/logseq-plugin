@@ -68,7 +68,7 @@ async function checkWhatIsFound() {
     for (const [name, n] of [...marks].sort()) lines.push(`  ${String(n).padStart(4)} · ${name}`);
     if (!marks.size) lines.push('  none');
     showDiagnostics(lines.join('\n'));
-  } catch (error) { console.error(error); notify(`Check stopped: ${error.message}`, 'error'); }
+  } catch (error) { console.error(error); notify(`The check stopped: ${window.PluginDoor.reason(error, 'the page could not be read')}`, 'error'); }
 }
 function describeElement(el, depth, lines, blockIds) {
   if (depth > 14 || lines.length > 150) return;
@@ -107,11 +107,11 @@ async function copyDiagnostics(event) {
   try {
     const clickedId = typeof event?.uuid === 'string' ? event.uuid : null;
     const block = clickedId ? { uuid: clickedId } : (await logseq.Editor.getCurrentBlock() || (await logseq.Editor.getSelectedBlocks())?.[0]);
-    if (!block?.uuid) return notify('Click in a block first, then run this again', 'warning');
+    if (!block?.uuid) return notify('Click in a bullet first, then run this again', 'warning');
     await logseq.Editor.exitEditingMode?.();
     const doc = host();
     const row = doc.querySelector(`.ls-block[blockid="${block.uuid}"]`);
-    if (!row) return notify('That block is not visible on screen', 'warning');
+    if (!row) return notify('That bullet is not on screen', 'warning');
     const content = [...row.querySelectorAll('.block-content')].find(el => el.closest('.ls-block[blockid]') === row) || row;
     // Which links inside point at a block rather than a page: asked of Logseq for each one (at most 40).
     const blockIds = new Set();
@@ -122,7 +122,7 @@ async function copyDiagnostics(event) {
       `row parent chain: ${[content.parentElement, content.parentElement?.parentElement].filter(Boolean).map(el => el.tagName.toLowerCase() + (typeof el.className === 'string' ? '.' + el.className.trim().split(/\s+/).join('.') : '')).join(' < ')}`];
     describeElement(content, 0, lines, blockIds);
     showDiagnostics(lines.join('\n'));
-  } catch (error) { console.error(error); notify(`Could not read the block: ${error.message}`, 'error'); }
+  } catch (error) { console.error(error); notify(`The bullet could not be read: ${window.PluginDoor.reason(error, 'Logseq did not answer')}`, 'error'); }
 }
 
 /* Measuring for troubleshooting; it changes nothing on screen. Off unless the hidden setting
@@ -240,7 +240,7 @@ function togglePerf() {
     logseq.updateSettings({ debugPerf: on });
     if (on) perf.start(); else perf.stop();
     notify(on ? 'Measuring is on. Use Logseq, then run “Copy performance report”' : 'Measuring is off');
-  } catch (error) { console.error(error); notify(`Could not change measuring: ${error.message}`, 'error'); }
+  } catch (error) { console.error(error); notify(`Measuring could not be switched: ${window.PluginDoor.reason(error, 'the setting was not saved')}`, 'error'); }
 }
 // Shows what was measured since the last report (or since measuring began), saves the same text
 // in the plugin's settings file as perfReport, and starts counting afresh.
@@ -362,7 +362,7 @@ async function tourVisit(stop) {
   const begun = now();
   let lastChange = begun, titleAt = 0, rowsAt = 0;
   // The plugin's pieces: when each first showed after the title, and how often it was added.
-  const PIECES = [['tag chain', '.th-tag-path'], ['two-way box', '.th-two-way'], ['two-way row', '.th-two-way .th-tw-row'], ['page properties', '.ls-page-properties'], ["Logseq's tag corner", '.ls-page-title .ls-block-right > .block-tags']];
+  const PIECES = [['tag chain', '.lk-path'], ['two-way box', '.th-two-way'], ['two-way row', '.th-two-way .th-tw-row'], ['page properties', '.ls-page-properties'], ["Logseq's tag corner", '.ls-page-title .ls-block-right > .block-tags']];
   const pieces = new Map(PIECES.map(([name, selector]) => [name, { selector, at: 0, added: 0 }]));
   // A witness on the one screen watcher (plugin.js): it is shown every change, what the plugin's own passes drew included, and draws nothing.
   const offChanges = window.PluginDoor.watch(function tourWitness(page, all) {
@@ -466,7 +466,7 @@ function recycleReport(rows, version) {
 }
 async function openRecycleList() {
   let rows;
-  try { rows = recycleRows(await logseq.DB.datascriptQuery(RECYCLE_QUERY)); } catch (error) { console.error(error); return notify(`Could not read the Recycle: ${error.message}`, 'error'); }
+  try { rows = recycleRows(await logseq.DB.datascriptQuery(RECYCLE_QUERY)); } catch (error) { console.error(error); return notify(`The Recycle could not be read: ${window.PluginDoor.reason(error, 'Logseq did not answer')}`, 'error'); }
   const damaged = rows.filter(row => row.damage.length).length;
   const done = (item, words) => {
     item.done = true;
@@ -475,7 +475,7 @@ async function openRecycleList() {
   };
   const restore = async (item, row) => {
     if (item.done || !row.uuid) return 'keep';
-    try { await window.PluginDoor.write.restorePage(row.uuid); } catch (error) { console.error(error); notify(`Could not restore “${recycleLine(row)}”: ${error.message}`, 'error'); return 'keep'; }
+    try { await window.PluginDoor.write.restorePage(row.uuid); } catch (error) { console.error(error); notify(`“${recycleLine(row)}” could not be restored: ${window.PluginDoor.reason(error, 'Logseq did not take it. It is still in the Recycle')}`, 'error'); return 'keep'; }
     done(item, 'Restored');
     return 'keep';
   };
@@ -512,7 +512,7 @@ async function openRecycleList() {
     if (item.done || !row.uuid) return;
     const win = host().defaultView;
     await awayFromRecycle(win);
-    try { await window.PluginDoor.write.deleteForGood(row.uuid); } catch (error) { console.error(error); notify(`Could not delete “${recycleLine(row)}”: ${error.message}`, 'error'); return; }
+    try { await window.PluginDoor.write.deleteForGood(row.uuid); } catch (error) { console.error(error); notify(`“${recycleLine(row)}” could not be deleted: ${window.PluginDoor.reason(error, 'Logseq did not take it. It is still in the Recycle')}`, 'error'); return; }
     done(item, 'Deleted');
   };
   /* Delete all (the owner: "yes I want delete all"): every line not yet restored or deleted, one question for

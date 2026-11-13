@@ -33,14 +33,14 @@ async function show(box) {
   if (!app.isBlockBox(box)) return;
   const uuid = app.uuidOf(box);
   if (!uuid) return;
-  if (!await app.allowed()) return notify('Proposals are off in this graph, so no tag is offered.', 'warning');
+  if (!await app.allowed()) return notify('Proposals are off in this graph, so no tag is offered', 'warning');
   const ctx0 = await app.context({ wait: false });
-  if (!ctx0) return notify('Still reading the graph; try again in a moment.');
+  if (!ctx0) return notify('Still reading the graph; try again in a moment');
   const ctx = await app.freshLinks(ctx0, box.value);
   const block = await db.pullBlock(uuid);
   if (!block) return;
   const bullet = db.bulletOf(block, box.value, ctx.schema);
-  if (bullet.tags.length) return notify('This bullet already has a tag.');
+  if (bullet.tags.length) return notify('This bullet already has a tag');
   const items = propose.tagChoices(ctx, bullet), words = box.value;
   // Apple's model, when it is on this Mac: the tag it reads the line as goes first (core/model.js, tagRequest). The list waits
   // for it a moment rather than move a row under the pointer once it is open.
@@ -55,7 +55,7 @@ async function show(box) {
     items.unshift({ ...(was || { score: 0, via: [], fields: Flow.schema.fieldsOfTags([found.id], ctx.schema).map(p => p.title) }), tag: { id: found.id, uuid: found.uuid, title: found.title }, how });
     if (items.length > 5) items.length = 5;
   }
-  if (!items.length) return notify('No tag to suggest for this line.');
+  if (!items.length) return notify('No tag to suggest for this line');
   if (host().activeElement !== box || box.value !== words) return;   // moved on while it was being worked out
   close();
   open = { box, uuid, items, at: 0, list: el(box.ownerDocument, 'div', { class: 'flow-pick lk-pop lk-menu', role: 'listbox' }) };
@@ -115,7 +115,7 @@ function start() {
   app.listen(win, ['scroll', 'resize', 'focusout'], () => { if (open) close(); }, true);
   app.onStop(close);
   app.onStop(logseq.App.onRouteChanged?.(close));
-  logseq.App.registerCommandPalette?.({ key: 'flow-choose-tag', label: 'Predictive: choose a tag for this bullet' }, () => { const box = host().activeElement; if (app.isBlockBox(box)) show(box); else notify('Put the cursor in a bullet first.'); });
+  logseq.App.registerCommandPalette?.({ key: 'flow-choose-tag', label: 'Predictive: choose a tag for this bullet' }, () => { const box = host().activeElement; if (app.isBlockBox(box)) show(box); else notify('Put the cursor in a bullet first'); });
 }
 Flow.tagPick = { start, close, state: () => open };   // state(): the open list, whose Escape comes before the grey words' (link-ui.js)
 })();

@@ -145,7 +145,8 @@ const key = (target, name, init = {}) => target.dispatchEvent(new dom.window.Key
     const xp = hostDoc.querySelector('.xp'), q = s => xp.querySelector(s), radio = v => { const r = q(`input[name=xp-target][value=${v}]`); r.checked = true; r.dispatchEvent(new hostDoc.defaultView.Event('change', { bubbles: true })); };
     const redrawn = async () => { await sleep(190); };
     radio('rich'); await redrawn();
-    const frame = q('.xp-desk iframe'); frame.onload?.(); await sleep(5);
+    const frame = [...xp.querySelectorAll('.xp-desk iframe')].at(-1); frame.onload?.(); await sleep(5);   // the newest frame: a preview is drawn unseen and takes the old one's place once laid out
+    assert.equal(xp.querySelectorAll('.xp-desk iframe').length, 1, 'one preview frame is left once the new one stands');
     const d = frame.contentDocument; d.body.innerHTML = '<div class="x-doc">changed words</div>'; d.dispatchEvent(new dom.window.Event('input'));
     bodies.length = 0; const look = q('select.xp-look'); look.value = 'book'; look.dispatchEvent(new hostDoc.defaultView.Event('change', { bubbles: true })); await redrawn();
     assert.deepEqual(bodies, ['changed words'], 'a look keeps them'); assert.deepEqual(msgs, []);

@@ -12,7 +12,7 @@ const S = window.Structure;
 const { host } = window.PluginDoor;
 const ROW = '#main-content-container .ls-table-row[blockid]';
 const ITEMS = '#right-sidebar .sidebar-item-list > .sidebar-item';
-const insp = { holder: null, top: null, node: null, uuid: '', ask: 0, stops: [], el: null, before: null, kind: '', title: '', opened: new Set() };
+const insp = { holder: null, top: null, node: null, uuid: '', ask: 0, stops: [], el: null, before: null, kind: '', title: '', openedKeys: new Set(), shownKey: '', since: 0, pageAt: 0 };
 
 // Shown: the panel is in the page and drawn (Logseq's sidebar open and the panel not folded).
 const shown = () => !!(insp.holder?.isConnected && insp.holder.getClientRects().length);
@@ -26,26 +26,38 @@ const sync = () => insp.holder?.toggleAttribute('data-row', !!insp.uuid);
    screen that first sees it, so the tabs never take it for a page opened by hand); after that, the one that holds the node: a
    bullet's item starts with the bullet, a page's is named in its head. */
 const nameOf = item => (item.querySelector('.sidebar-item-header .page-title > span:last-child')?.textContent || '').trim();
-const holds = item => insp.kind === 'page'
-  ? item.classList.contains('item-type-page') && !!insp.title && nameOf(item) === insp.title
-  : item.classList.contains('item-type-block') && item.querySelector('.sidebar-panel-content .ls-block[blockid]')?.getAttribute('blockid') === insp.uuid;
+/* An item is known by the node it holds, never by its element: Logseq keeps its sidebar's items by their place in the list, so when
+   a new one comes in at the top the elements are handed on (the element that showed one node shows the next), and an item followed
+   by its element was lost: the first row's view was never closed and stood under "Opened" for good (found 13 November 2026). */
+const keyOf = item => item.classList.contains('item-type-page') ? 'page:' + nameOf(item)
+  : item.querySelector('.sidebar-panel-content .ls-block[blockid]')?.getAttribute('blockid') || '';
+const wanted = () => (!insp.uuid || !insp.kind ? '' : insp.kind === 'page' ? 'page:' + insp.title : insp.uuid);
+const holds = item => !!wanted() && keyOf(item) === wanted();
+const listed = doc => [...doc.querySelectorAll(ITEMS)].filter(i => !i.classList.contains('lk-side') && !i.classList.contains('item-type-plugin'));
+/* The row's view is drawn by Logseq a moment after it is asked for: its item comes empty and fills some frames later. Shown
+   at once, the pane stood blank for about a tenth of a second on every row change (measured 12 November 2026: 83 to 168 ms).
+   So the view shown before (shownKey: the node it holds) stays until an item holds the new row's node, drawn; the first row
+   pressed has no view before it, and the tab that was showing stays until then (pass picks Item). A view that has not come two
+   seconds after the press is given up: what is there is shown. */
+const drawn = el => !!el.querySelector('.sidebar-panel-content :is(.ls-block, .ls-page-blocks, .ls-page-properties, .ls-page-title)');
 function item(doc = host()) {
   if (!insp.uuid) return null;
-  if (insp.el?.isConnected) return insp.el;
-  const items = [...doc.querySelectorAll(ITEMS)].filter(i => !i.classList.contains('lk-side') && !i.classList.contains('item-type-plugin'));
-  let found = insp.before ? items.find(i => !insp.before.has(i)) : null;
-  if (found) insp.opened.add(found);
-  else found = items.find(holds) || null;
-  if (found) { insp.el = found; insp.before = null; }
-  return found;
+  const items = listed(doc);
+  const now = items.find(i => holds(i) && drawn(i));
+  if (now) { insp.shownKey = wanted(); return now; }
+  const old = insp.shownKey ? items.find(i => keyOf(i) === insp.shownKey) || null : null;
+  return old;
 }
-// An item the plugin opened and no longer shows goes, by its own ×, as a person would close it.
-function closeStale() {
-  for (const el of [...insp.opened]) {
-    if (el === insp.el && insp.uuid) continue;
-    insp.opened.delete(el);
-    if (el.isConnected) window.PluginDoor.screen.click(el.querySelector('.sidebar-item-header .item-actions button:last-child'));
-  }
+/* The items that are the Item tab's though not the one shown: a view the plugin opened that is on its way out or in, and, while a
+   row's view is awaited, an item that holds nothing yet. The tabs leave them out of "Opened". */
+const owns = el => { const key = keyOf(el); return key ? insp.openedKeys.has(key) : !!insp.uuid && Date.now() - insp.since < 2000 && (el.classList.contains('item-type-block') || el.classList.contains('item-type-page')); };
+// A view the plugin opened and no longer shows goes, by its own ×, as a person would close it. The one shown, and the one awaited, stay.
+function closeStale(doc = host()) {
+  const keep = new Set(insp.uuid ? [wanted(), insp.shownKey].filter(Boolean) : []);
+  const items = listed(doc);
+  for (const el of items) { const key = keyOf(el); if (key && insp.openedKeys.has(key) && !keep.has(key)) window.PluginDoor.screen.click(el.querySelector('.sidebar-item-header .item-actions button:last-child')); }
+  for (const key of [...insp.openedKeys]) if (!keep.has(key) && !items.some(el => keyOf(el) === key)) insp.openedKeys.delete(key);
+  if (!insp.uuid) insp.shownKey = '';
 }
 /* Where the row stands in Logseq's table, "Consultation · 12 of 53" (the owner's O1c, 12 November 2026): its place is the
    number Logseq's list gives the row (data-item-index, as only the rows near the screen are drawn), the whole is the count
@@ -66,18 +78,21 @@ function whereText(uuid) {
 // One pass of the screen: the item is named as the Item tab's and carries its line; what was shown before goes.
 function pass(doc) {
   const el = item(doc);
+  // Item is picked once the row has a view to show: the one before it, or its own once drawn.
+  if (el && insp.uuid && insp.pickedFor !== insp.ask) { insp.pickedFor = insp.ask; window.PluginDoor.sideTabs?.pick('item'); }
   for (const old of doc.querySelectorAll('#right-sidebar [data-st-item]')) if (old !== el) { old.removeAttribute('data-st-item'); old.querySelector('.st-item-where')?.remove(); }
   if (el) {
     if (!el.hasAttribute('data-st-item')) el.setAttribute('data-st-item', '');
-    const body = el.querySelector('.sidebar-panel-content'), say = whereText(insp.uuid) || insp.where || '';
-    insp.where = say;
+    const waiting = !holds(el);   // the view shown is still the row before: its line stays as it is
+    const body = el.querySelector('.sidebar-panel-content'), say = waiting ? (el.querySelector('.st-item-where')?.textContent || '') : whereText(insp.uuid) || insp.where || '';
+    if (!waiting) insp.where = say;
     let line = el.querySelector('.st-item-where');
     if (body && say) {
       if (!line) { line = doc.createElement('div'); line.className = 'st-item-where lk-own'; }
       if (line.textContent !== say) line.textContent = say;
       if (body.firstElementChild !== line) body.prepend(line);
     } else line?.remove();
-    closeStale();
+    if (!waiting) closeStale(doc);
   }
   mark(insp.uuid);
 }
@@ -86,7 +101,14 @@ function pass(doc) {
 function idle() {
   sync();
   const box = insp.node; if (!box || insp.uuid) return;
-  const doc = box.ownerDocument, table = !!doc.querySelector(ROW), lines = !!insp.top?.querySelector('.st-lines-t');
+  const doc = box.ownerDocument, lines = !!insp.top?.querySelector('.st-lines-t');
+  /* Between two tags' pages Logseq has no table for a moment and gives the panel a new holder: said from what stood there in that
+     moment, the line went and came back within a quarter of a second (seen frame by frame, 12 November 2026). For the first 700 ms
+     of a page that has the lines, the table is taken as coming; then it is asked again and said as it is. */
+  const settling = Date.now() - insp.pageAt < 700;
+  const table = !!doc.querySelector(ROW) || (settling && lines);
+  if (settling && !idle.again) idle.again = doc.defaultView.setTimeout(() => { idle.again = 0; idle(); }, 720);
+  if (settling && !lines && !table && !insp.plain) return;   // nothing is known of the page yet: no line said, so none is pushed down when the tag's lines come (a 260 px jump, the motion check, 12 November 2026)
   const say = table ? 'Press a row in the table to see it in the Item tab.' : lines ? '' : 'Open a tag’s or a property’s page to see it here.';
   if (box.textContent === say) return;
   box.innerHTML = say ? `<p class="st-insp-none lk-none">${say}</p>` : '';
@@ -98,9 +120,9 @@ async function pick(uuid) {
   if (uuid === insp.uuid) return mark(uuid);
   if (uuid && !active()) return;   // the sidebar shut, or on another tab: the press is Logseq's alone
   const ask = ++insp.ask, doc = host();
-  insp.uuid = uuid; insp.el = null; insp.before = null; insp.kind = ''; insp.title = ''; insp.where = '';
+  insp.uuid = uuid; insp.kind = ''; insp.title = ''; insp.where = ''; insp.since = Date.now();
   sync(); mark(uuid);
-  if (!uuid) { closeStale(); window.PluginDoor.sideTabs?.draw(); return idle(); }
+  if (!uuid) { closeStale(doc); window.PluginDoor.sideTabs?.draw(); return idle(); }
   let block = null, page = null;
   try {
     block = await logseq.Editor.getBlock(uuid).catch(() => null);
@@ -109,13 +131,15 @@ async function pick(uuid) {
   if (ask !== insp.ask) return;
   insp.kind = block && block.page != null ? 'block' : 'page';
   insp.title = String(page?.title ?? page?.name ?? '');
-  if (!item(doc)) {
-    insp.before = new Set(doc.querySelectorAll(ITEMS));
-    try { await logseq.Editor.openInRightSidebar(uuid); } catch (error) { console.error('Structure: the row could not be opened in the sidebar', error); insp.before = null; }
+  // Asked for only when no item holds the node yet (one the person opened is shown as it is, and never closed by the plugin).
+  if (!listed(doc).some(holds)) {
+    insp.openedKeys.add(wanted());
+    try { await logseq.Editor.openInRightSidebar(uuid); } catch (error) { console.error('Structure: the row could not be opened in the sidebar', error); insp.openedKeys.delete(wanted()); }
   }
   if (ask !== insp.ask) return;
-  window.PluginDoor.sideTabs?.pick('item');
   pass(doc);
+  // Should the view never come, the row is no longer waited for: whatever is there is shown, and the tabs are drawn once more.
+  doc.defaultView.setTimeout(() => { if (ask === insp.ask) { pass(host()); window.PluginDoor.sideTabs?.draw(); } }, 2050);
 }
 // The row Item shows carries a blue outline, so the eye finds it in the table; the arrows move it with the row.
 function mark(uuid) {
@@ -158,7 +182,7 @@ function start() {
   const HELD = ['pointerdown', 'mousedown', 'pointerup', 'mouseup'];
   const { listen } = S.base;
   const offKeys = [listen(doc, HELD, hold, true), listen(doc, 'click', press, true), listen(doc, 'dblclick', twice, true), listen(doc, ['focusin', 'click'], onRow, true)];
-  const offRoute = S.base.onStop(logseq.App.onRouteChanged?.(() => pick('')));
+  const offRoute = S.base.onStop(logseq.App.onRouteChanged?.(() => { insp.pageAt = Date.now(); insp.plain = false; pick(''); }));
   insp.stops = [...offKeys, () => { insp.uuid = ''; closeStale(); mark(''); }, offRoute, window.PluginDoor.watch(pass)];
 }
 function stop() { for (const s of insp.stops) { try { s?.(); } catch (error) { /* already gone */ } } insp.stops = []; if (insp.holder) insp.holder.innerHTML = ''; insp.watch?.disconnect(); }
@@ -168,7 +192,7 @@ function mounted(holder) {
   const doc = holder.ownerDocument;
   S.view.ensureStyle(doc);
   holder.innerHTML = '<div class="st st-tag st-insp-node"></div><div class="st-insp-top"></div>';
-  insp.holder = holder; insp.node = holder.firstChild; insp.top = holder.lastChild;
+  insp.holder = holder; insp.node = holder.firstChild; insp.top = holder.lastChild; insp.pageAt = Date.now();
   // Logseq's sidebar hidden or the panel folded leaves the holder in the page with no size: the lines go back above the table.
   let was = shown();
   insp.watch?.disconnect();
@@ -179,5 +203,7 @@ function mounted(holder) {
 }
 function gone(holder) { if (insp.holder !== holder) return; insp.watch?.disconnect(); insp.holder = insp.top = insp.node = null; S.inspector.changed?.(); }
 
-S.inspector = { start, stop, mounted, gone, top, shown, idle, row: () => insp.uuid, item, KEY: 'structure-inspector', model: null, changed: null };
+// The page is read: no tag's and no property's (plain), so the tab's line need not wait.
+function pageKnown(plain) { const was = insp.plain; insp.plain = !!plain; if (plain && !was) idle(); }
+S.inspector = { start, stop, mounted, gone, top, shown, idle, pageKnown, row: () => insp.uuid, item, owns, KEY: 'structure-inspector', model: null, changed: null };
 })();

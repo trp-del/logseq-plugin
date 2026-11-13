@@ -107,6 +107,7 @@ const twoWayCss = `
 .th-two-way .th-tw-add { margin-left: .6em; }
 /* The + says what it adds under the pointer, in place, over what follows it (C20, 7 November 2026); nothing moves. */
 .th-two-way .th-tw-add { position: relative; }
+.th-two-way .th-tw-add-room { visibility: hidden; pointer-events: none; }
 .th-two-way .th-tw-add::after { content: attr(data-what); position: absolute; left: 100%; top: 50%; transform: translateY(-50%); margin-left: 4px; padding: 0 6px 0 2px; white-space: nowrap; font-size: var(--lk-small); font-weight: 400; color: var(--lk-quiet); background: var(--ls-primary-background-color, var(--lk-paper, #fff)); opacity: 0; pointer-events: none; transition: opacity .12s; z-index: 2; }
 .th-two-way .th-tw-add:is(:hover, :focus-visible)::after { opacity: 1; }
 /* At rest the word takes no room at all, so a head standing right of its name (9 November 2026) never widens the page past
@@ -394,7 +395,6 @@ const twoWayCss = `
 /* What links to an opened node, as a head (C4): its words in the head's weight, the kinds quiet after them. */
 .th-two-way .th-tw-linkword { all: unset; cursor: pointer; }
 .th-two-way .th-tw-linkword { font-weight: 500; }
-.th-two-way .th-tw-linkkinds { color: var(--lk-quiet); font-size: var(--lk-small); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* The empty properties of an opened node, folded into one quiet line (C5). */
 /* The names' column of an opened node fits its longest name (C6). */
 .th-two-way .th-ol-kids[style*="--th-tw-name"] > .th-ol-in { --th-ol-name: var(--th-tw-name); }

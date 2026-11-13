@@ -403,21 +403,6 @@ async function propUses() {
   const rows = await dsQuery('[:find ?a (count ?b) :where [?p :logseq.property/type _] [?p :db/ident ?a] [(namespace ?a) ?ns] [(= ?ns "user.property")] [?b ?a _] (not [?b :logseq.property/deleted-at _])]');
   return new Map(rows.map(([ident, n]) => [bare(ident), Number(n) || 0]));
 }
-// The titles of the pages and blocks that some texts link, by uuid, in one question (two rounds: a title can link on).
-async function namesOfRefs(texts, depth = 2) {
-  const names = new Map();
-  let pending = texts;
-  for (let round = 0; round < depth && pending.length; round++) {
-    const uuids = [...new Set(pending.flatMap(t => [...String(t || '').matchAll(storedRef)].map(m => m[2].toLowerCase())))].filter(u => !names.has(u));
-    if (!uuids.length) break;
-    const rows = await dsQuery(`[:find ?u ?t :where [(ground [${uuids.map(u => `#uuid "${u}"`).join(' ')}]) [?u ...]] [?b :block/uuid ?u] [?b :block/title ?t]]`).catch(() => []);
-    for (const [u, t] of rows) names.set(String(u).toLowerCase(), String(t ?? ''));
-    pending = rows.map(([, t]) => String(t ?? ''));
-  }
-  // A name that links on reads as its own words too.
-  for (const [u, t] of names) names.set(u, t.replace(storedRef, (m, open, uuid) => names.get(uuid.toLowerCase()) ?? m));
-  return names;
-}
 // Everything that points at a tag or sits on its page, for merging it into another: the nodes tagged with it, the
 // nodes whose words link it, the property values that point at it, the blocks on its page in order, the values set
 // on its own page, and which properties the other tag's page already has.

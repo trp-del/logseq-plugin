@@ -9,7 +9,7 @@ const { host, notify } = window.PluginDoor;
    only when changed, its listeners on Logseq's window and its clean-up steps, taken off and run when the plugin stops.
    Settings: the schema (settings.js) holds the defaults; the plugin's own memory (what was taken, what was tuned) lives in keys
    the schema does not show. */
-const base = window.PluginDoor.base('predictive', { prefix: 'Flow: ', schema: () => Flow.settingsSchema });
+const base = window.PluginDoor.base('predictive', { prefix: 'Predictive: ', schema: () => Flow.settingsSchema });
 const { warnOnce, setting, listen, onStop } = base;
 const remember = (key, value) => logseq.updateSettings({ [key]: value });
 

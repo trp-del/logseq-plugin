@@ -52,6 +52,10 @@ Door.el = (doc, tag, props = {}, ...children) => {
   for (const child of children) if (child != null && child !== false) node.append(child);
   return node;
 };
+/* What a notice says of an error (12 November 2026): the plugin's own plain reason when the error carries one ("a page named X is
+   already there"), else the plain words given here. A raw technical message (a TypeError, a stack, Logseq's own error text) never
+   reaches a notice; it is in the console, where the caller logs the error. */
+Door.reason = (error, plain) => { const said = String(error?.message || '').trim(); return !said || said.length > 140 || /\b(?:undefined|null|NaN|TypeError|ReferenceError|SyntaxError|RangeError|is not a function|is not defined|is not iterable|Cannot read|Cannot set|Unexpected|Failed to|Protocol|invoke|datascript|transact|lsp:|https?:)\b|[{}<>]|=>|\bat .+:\d+/i.test(said) ? plain : said.replace(/\.$/, ''); };
 Door.notify = (text, status = 'info') => { try { return logseq.UI.showMsg(text, status); } catch (error) { console.log(`Logseq Plugin: ${text}`); } };
 /* Two checks every Undo makes before it writes, so an Undo never takes away what was written after the change it undoes (8 November
    2026, the data-safety review). valueStamp(uuid, ident): what a node holds under a property this moment, as words to compare (a

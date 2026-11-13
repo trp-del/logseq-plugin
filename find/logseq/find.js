@@ -206,7 +206,9 @@ async function compute() {
   S.failed = '';
   try {
     if (isCommandMode()) { S.shown = []; S.near = []; S.nearShown = []; S.facets = null; return; }
-    if (!S.kinds.length) S.kinds = await db.kinds();
+    // Read again behind what is shown (open()): the answer replaces the old list and the window is drawn once more.
+    const behind = (what, read, set) => { if (!S.again?.[what]) return; S.again[what] = false; read().then(got => { set(got); if (S.dlg && gen === S.gen) refresh(); }).catch(error => console.warn('Find: the graph could not be read again', error)); };
+    if (!S.kinds.length) S.kinds = await db.kinds(); else behind('kinds', () => db.kinds(), got => { S.kinds = got; });
     if (S.say && !S.pages) S.pages = await db.pages();
     if (gen !== S.gen) return;
     readNow();
@@ -224,8 +226,8 @@ async function compute() {
     const isNear = n => n.day && !inWindow(n) && n.day >= when.nearFrom && n.day <= when.nearTo;
     const narrow = list => (ws.length ? list.filter(n => hasWord(n.text, ws)) : list);
     if (atRest()) {
-      if (!S.tree) S.tree = await db.kindTree();
-      if (!S.recents.length) S.recents = await db.recents();
+      if (!S.tree) S.tree = await db.kindTree(); else behind('tree', () => db.kindTree(), got => { S.tree = got; });
+      if (!S.recents.length) S.recents = await db.recents(); else behind('recents', () => db.recents(), got => { S.recents = got; });
       if (gen !== S.gen) return;
       S.base = []; S.shown = []; S.near = []; S.nearShown = []; S.facets = null; return;
     }
@@ -852,13 +854,13 @@ function openRow(r, inSidebar) {
 async function runCommand(r) {
   close();
   if (r.id === 'plugin:settings') return window.PluginDoor.settings.open('find');
-  try { await Find.commands.run(r); } catch (error) { notify(`Logseq did not run “${r.label}”.`, 'warning'); }
+  try { await Find.commands.run(r); } catch (error) { notify(`Logseq did not run “${r.label}”`, 'warning'); }
 }
 async function makePage(name) {
   if (S.making) return;
   S.making = true;
-  try { const uuid = await db.makePage(name); close(); if (!uuid) notify('The page was not made.', 'warning'); }
-  catch (error) { notify('The page was not made: ' + (error?.message || error), 'warning'); }
+  try { const uuid = await db.makePage(name); close(); if (!uuid) notify('The page was not made', 'warning'); }
+  catch (error) { notify('The page was not made: ' + window.PluginDoor.reason(error, 'Logseq did not take the name'), 'warning'); }
   finally { S.making = false; }
 }
 // Words typed that the sentence did not read, and no kind: a page can be made of them, whatever is listed, with Cmd Enter (Ctrl elsewhere).
@@ -1008,7 +1010,10 @@ function open(typed = '', say = false) {
   close();
   S.say = !!say;
   S.commands = null;
-  if (S.stale) { S.stale = false; S.kinds = []; S.pages = null; S.tree = null; S.recents = []; S.dugData.clear(); S.pointers.clear(); S.noteOf.clear(); }
+  /* The graph changed since the last opening: the kinds, their tree and the recent pages read before are shown at once and read
+     again behind the window, which is drawn again when they answer. Emptied here, the window stood blank for about a tenth of a
+     second on every such opening (recorded 12 November 2026: frames 96 to 187 ms empty). */
+  if (S.stale) { S.stale = false; S.again = { kinds: S.kinds.length > 0, tree: !!S.tree, recents: S.recents.length > 0 }; S.pages = null; S.dugData.clear(); S.pointers.clear(); S.noteOf.clear(); }
   style('find', CSS);
   const dlg = el(doc, 'dialog', { class: 'fd lk-window fd-own ' + (setting('windowPlace') === 'centred' ? 'fd-centred' : 'fd-high') + (S.say ? ' fd-say' : ''), 'aria-label': S.say ? 'Find by sentence' : 'Find' });
   const find = el(doc, 'div', { class: 'fd-find' });
@@ -1056,7 +1061,11 @@ function commands() {
   S.typed = '>'; S.picks = []; S.mode = 'rows'; S.rowAt = 0; S.dug = []; readNow(); refresh(); S.dlg.querySelector('.fd-input')?.focus();
 }
 // The graph changed: what was read is read again next time. What an open window shows stays until the next opening.
-function forget() { S.cache.kind.clear(); S.cache.kindFacets.clear(); S.cache.counted.clear(); S.cache.words.clear(); S.stale = true; db.forget(); }
+// Another graph (whole): what was read is another graph's, so nothing of it is shown again.
+function forget(whole = false) { S.cache.kind.clear(); S.cache.kindFacets.clear(); S.cache.counted.clear(); S.cache.words.clear(); S.stale = true; if (whole) { S.kinds = []; S.tree = null; S.recents = []; S.pages = null; } db.forget(); }
 
-Find.window = { open, close, toggle, sentence, commands, forget, state: S };
+/* Read once, a moment after the plugin starts, what the window shows with nothing typed (the kinds, their tree, the recent pages),
+   so the first opening has them: without it the first window of a session stood empty for about a tenth of a second. */
+async function warm() { try { if (!S.kinds.length) S.kinds = await db.kinds(); if (!S.tree) S.tree = await db.kindTree(); if (!S.recents.length) S.recents = await db.recents(); } catch (error) { /* the window reads them itself when it opens */ } }
+Find.window = { open, close, toggle, sentence, commands, forget, warm, state: S };
 })();

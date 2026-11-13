@@ -74,8 +74,12 @@ const MEI_CHEN = { uuid: 'page-mei-chen', title: 'Dr. Mei Chen', props: [['Speci
   blocks: ['Met her first on Jul 14 about the plan.', 'Spoke with Dr. Mei Chen about fatigue.', 'Next review in December.'] };
 const NAUSEA = { uuid: 'page-nausea', title: 'Nausea', props: [], blocks: ['Worse two days after each cycle.', 'Ginger tea helps a little.'] };
 const item = (i, title, tag, day) => ({ uuid: 'r' + i, title, tag, day });
+/* The one day still to come in the scene is tomorrow, whenever this runs (13 November 2026): written as 12 November 2026 it was in the
+   past the morning after, the scene lost its "earlier" line and six scenes failed on a count. The scene's other days are in 2026, so
+   after that year its year lines change and the lists want approving again. */
+const SOON = (() => { const d = new Date(Date.now() + 864e5); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); })();
 const GROUPS = [
-  { name: 'provider', label: 'provider of', ident: 'user.property/provider', fieldUuid: 'f1', items: [item(1, 'Consultation with Dr. Chen', 'Consultation', 20261112), item(2, 'Review of the scan', 'Consultation', 20261015)] },
+  { name: 'provider', label: 'provider of', ident: 'user.property/provider', fieldUuid: 'f1', items: [item(1, 'Consultation with Dr. Chen', 'Consultation', SOON), item(2, 'Review of the scan', 'Consultation', 20261015)] },
   { name: 'spoke with', label: 'spoke with', ident: 'user.property/spokewith', fieldUuid: 'f2', items: [1, 2, 3, 4, 5, 6, 7].map(i => item(10 + i, `Conversation ${i}`, 'Conversation', 20260900 + i)) },
   { name: 'decided by', label: 'decided', ident: 'user.property/decidedby', fieldUuid: 'f3', items: [item(30, 'Start FOLFOX', 'Decision', 20260801)] },
 ];
@@ -195,6 +199,18 @@ async function record(browser, theme, name, scene, withPlugin) {
   let browser;
   try { browser = await chromium.launch(); } catch (error) { console.log('frames skipped (Chromium did not start)'); process.exit(0); }
   fs.mkdirSync(outDir, { recursive: true });
+  /* A fresh headless Chromium sends no screencast pictures for its first seconds (12 November 2026, measured on this
+     Mac: none for about 15 s after launch, so the first scene recorded 0 frames, plugin off and on, and failed as blind
+     on every run). Throwaway pages are recorded and changed until one sends pictures, at most 40 s. */
+  for (const until = Date.now() + 40000; Date.now() < until;) {
+    const warm = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: 1 });
+    await warm.setContent('<body>warm</body>');
+    const session = await warm.context().newCDPSession(warm);
+    const cast = await K.screencast(session, { width: W, height: H, offset: await K.wallOffset(warm) });
+    for (let k = 0; k < 5; k++) { await warm.evaluate(n => { document.body.textContent = 'warm ' + n; }, k); await warm.waitForTimeout(200); }
+    const got = (await cast.stop()).length; await warm.close();
+    if (got) break;
+  }
   const problems = [], lines = [];
   for (const [name, scene] of Object.entries(SCENES)) {
     if (only && name !== only) continue;

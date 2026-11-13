@@ -50,7 +50,7 @@ async function startModule(module) {
   began.push(module);
   let timer = 0;
   const done = Promise.resolve().then(() => module.start()).then(() => { started.push(module); return true; })
-    .catch(error => { console.error(`${module.title}: could not start`, error); notify(`${module.title} could not start: ${error.message}`, 'warning'); return true; });
+    .catch(error => { console.error(`${module.title}: could not start`, error); notify(`${module.title} could not start: ${Door.reason(error, 'a part of it failed. The other parts run')}`, 'warning'); return true; });
   const late = new Promise(resolve => { timer = setTimeout(() => resolve(false), STILL_STARTING); });
   if (!await Promise.race([done, late])) notify(`${module.title} has not finished starting. The rest goes on without waiting.`, 'warning');
   clearTimeout(timer);
@@ -84,8 +84,8 @@ async function main() {
     }
     try { await Door.root.stop(); } catch (error) { console.error('The plugin’s own listeners: could not stop', error); }
   });
-  try { Door.settingsWays.start(); } catch (error) { console.error('The settings window: could not start', error); notify(`The settings window could not start: ${error.message}`, 'warning'); }
-  try { Door.outside?.start(); } catch (error) { console.error('From outside: could not start', error); notify(`Adding from outside could not start: ${error.message}`, 'warning'); }
+  try { Door.settingsWays.start(); } catch (error) { console.error('The settings window: could not start', error); notify(`The settings window could not start: ${Door.reason(error, 'a part of it failed')}`, 'warning'); }
+  try { Door.outside?.start(); } catch (error) { console.error('From outside: could not start', error); notify(`Adding from outside could not start: ${Door.reason(error, 'a part of it failed')}`, 'warning'); }
   try { logseq.App.registerCommandPalette({ key: 'update-plugins', label: 'Update plugins', keybinding: { binding: 'u p' } }, updatePlugins); } catch (error) { console.error('Update plugins: the command could not be registered', error); }
   // A switch flipped: nothing starts or stops live (a module's commands and menu items cannot be taken back), so say so.
   Door.root.onStop(logseq.onSettingsChanged?.((now, before) => {
@@ -95,7 +95,7 @@ async function main() {
   }));
   const failed = window.PluginFilesFailed || [];
   window.removeEventListener('error', window.PluginFilesWatch, true);
-  if (failed.length) notify(`Logseq Plugin: ${window.PluginFilesSaid()} did not load, so part of it may not work.`, 'warning');
+  if (failed.length) notify(`Logseq Plugin: ${window.PluginFilesSaid()} did not load, so part of it may not work`, 'warning');
   await graphReady();
   for (const module of Door.modules) if (on(module)) await startModule(module);
   Door.settingsWays.reopen();
@@ -110,7 +110,7 @@ async function main() {
    code; from a folder, its files come under a new address each start (loader.js), so nothing old stays. */
 async function updatePlugins() {
   const core = window.parent.LSPluginCore, me = logseq.baseInfo?.id;
-  if (!core?.registeredPlugins) return notify('Logseq would not reload its plugins from here.', 'warning');
+  if (!core?.registeredPlugins) return notify('Logseq would not reload its plugins from here', 'warning');
   const others = [...core.registeredPlugins.values()].filter(p => p.loaded && p.id !== me);
   let failed = 0;
   for (const p of others) {

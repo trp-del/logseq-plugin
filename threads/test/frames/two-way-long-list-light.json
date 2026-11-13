@@ -40,6 +40,8 @@
  ".th-tw-record": 1000,
  ".th-tw-right": 1,
  ".th-tw-row": 1,
+ ".th-tw-rule": 1,
+ ".th-tw-rule-named": 1,
  ".th-tw-sep": 3,
  ".th-tw-tag": 1000,
  ".th-tw-toggle": 1,
