@@ -77,13 +77,15 @@ function titleAnchor(doc, title) {
 /* What a drawn page must hold, for the core's self-check after a Logseq update: when the page plainly has a
    thing (blocks, a title, references) but the part the plugin finds inside it is missing, Logseq has most
    likely renamed that part, and the features listed beside it have quietly stopped.
-   [what is missing, the page has this (at least min), but none of this, what stops, min] */
+   [what is missing, in plain words; the page has this (at least min); but none of this; what may not show, in plain words; min]
+   The words are the owner's to read in a notice and a report; the two selectors go only to the console. */
 const screenChecks = () => [
-  ['the page area', '#head', '#main-content-container', 'almost everything the plugin draws', 1],
-  ['block text', '#main-content-container .ls-block[blockid]', '#main-content-container .block-title-wrap', 'cues after blocks, block-link dots, reference rows', 2],
-  ['the title row', `#main-content-container :is(${PAGE_TITLE})`, '#main-content-container .is-page-title-row', 'tags beside the title, #Page, Add tags', 1],
-  ['reference headings', '#main-content-container .references', '#main-content-container .references .ls-foldable-title', 'the Linked references layout, counts and labels', 1],
-  ['the sidebar buttons', '#right-sidebar .sidebar-item', '#right-sidebar .cp__right-sidebar-settings', 'sidebar tidy', 1],
+  ['the page area', '#head', '#main-content-container', 'almost everything Threads draws', 1],
+  // Outline bullets only: the rows of a table (All pages, a tag's nodes, a query) are .ls-block[blockid] too, with no text part.
+  ['the words of the bullets', '#main-content-container .ls-block[blockid] > .block-main-container', '#main-content-container .block-title-wrap', 'the cues after bullets, the dots on block links and the reference rows', 2],
+  ["the page's title row", `#main-content-container :is(${PAGE_TITLE})`, '#main-content-container .is-page-title-row', 'the tags beside the title, #Page and Add tags', 1],
+  ['the Linked references headings', '#main-content-container .references', '#main-content-container .references .ls-foldable-title', 'the layout, counts and labels of Linked references', 1],
+  ['the buttons atop the right sidebar', '#right-sidebar .sidebar-item', '#right-sidebar .cp__right-sidebar-settings', 'the tidy right sidebar', 1],
 ];
 
 // The words of a block, and a title without its trailing tags.

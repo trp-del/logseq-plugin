@@ -38,11 +38,12 @@ async function versionLine() {
   const note = logseqVersion !== '?' && logseqVersion !== CHECKED_WITH ? ` (the plugin was last checked against Logseq ${CHECKED_WITH})` : '';
   return `Threads ${logseq.baseInfo?.version || '?'} · Logseq ${logseqVersion}${note}`;
 }
-/* Troubleshooting after a Logseq update: how many of each thing the running features look for are on
-   screen. A zero is normal when the page has none of that thing; a zero for something you can see on the
-   page means Logseq renamed it, and the features listed beside it have stopped. Nothing is changed.
-   Each feature adds its own rows (addTroubleshooting); rows naming the same thing are shown as one. */
-const checks = new Map([['the page area', { selector: '#main-content-container', neededFor: ['everything'] }]]);
+/* Troubleshooting after a Logseq update: for each part of Logseq's page that Threads works with, whether it is
+   here, not on this page (normal: the page has none of that thing), or missing (the page has the thing but not the
+   part inside it, so Logseq has most likely changed it after an update and what is listed beside it may not show).
+   The same rows as the self-check (screenChecks, from the model part), in plain words; a feature may add rows of its
+   own (addTroubleshooting), which can only say here or not on this page. Nothing is changed. */
+const checks = new Map();
 const TOOLS = [];
 let toolsRegistered = false; // after this part's ready(); a tool added later is registered as it comes
 // Each tool keeps its command key, registered without a palette entry (a shortcut the owner bound to one still
@@ -55,19 +56,28 @@ function addTroubleshooting({ tools = [], checks: rows = [] } = {}) {
     for (const need of neededFor.split(', ')) if (!row.neededFor.includes(need)) row.neededFor.push(need);
   }
 }
+// The report's rows: [what, state, what may not show], state 'here', 'none' (not on this page) or 'missing'.
+function screenRows(doc) {
+  const count = selector => { try { return doc.querySelectorAll(selector).length; } catch (error) { return 0; } };
+  const rows = window.Threads.core.provided.screenChecks().map(([what, has, needs, stops, min]) =>
+    [what, count(needs) ? 'here' : count(has) >= min ? 'missing' : 'none', stops]);
+  for (const [what, { selector, neededFor }] of checks) if (!rows.some(([known]) => known === what)) rows.push([what, count(selector) ? 'here' : 'none', neededFor.join(', ')]);
+  return rows;
+}
+const STATE_WORDS = { here: 'Found        ', none: 'Not on page  ', missing: 'MISSING      ' };
 async function checkWhatIsFound() {
   try {
-    const doc = host();
-    const count = selector => { try { return doc.querySelectorAll(selector).length; } catch (error) { return 'bad selector'; } };
-    const lines = [await versionLine(), 'What the plugin finds on screen now. A zero is normal when this page has none of that thing.', '',
-      'LOGSEQ\'S OWN PARTS  found · what · needed for'];
-    for (const [what, { selector, neededFor }] of checks) lines.push(`  ${String(count(selector)).padStart(4)} · ${what} · ${neededFor.join(', ')}`);
-    lines.push('', 'THE PLUGIN\'S OWN MARKS  found · mark');
-    // Every prefix the parts use, from the kit's one finder (shared.ownMarks), which the frame tests track with too.
-    const marks = shared.ownMarks(doc);
-    for (const [name, n] of [...marks].sort()) lines.push(`  ${String(n).padStart(4)} · ${name}`);
-    if (!marks.size) lines.push('  none');
-    showDiagnostics(lines.join('\n'));
+    const doc = host(), rows = screenRows(doc), missing = rows.filter(([, state]) => state === 'missing');
+    const lines = [await versionLine(), '',
+      missing.length ? `${missing.length === 1 ? 'One part' : `${missing.length} parts`} of this page that Threads works with could not be found.` : 'Everything Threads works with on this page is here. Nothing is wrong.',
+      missing.length ? 'Your notes are safe. Most likely Logseq changed after an update; send this report so the plugin can be fixed.' : '', '',
+      'Parts of Logseq\'s page that Threads works with:'];
+    for (const [what, state] of rows) lines.push(`  ${STATE_WORDS[state]}${what}`);
+    for (const [what, , stops] of missing) lines.push('', `Without ${what}, ${stops} may not show.`);
+    if (rows.some(([, state]) => state === 'none')) lines.push('', '“Not on page” is normal: this page has none of that thing.'); else lines.push('');
+    const marks = [...shared.ownMarks(doc).values()].reduce((sum, n) => sum + n, 0);
+    lines.push(`Threads has drawn ${marks ? `${marks} piece${marks === 1 ? '' : 's'}` : 'nothing'} of its own on this page.`);
+    showDiagnostics(lines.filter((line, at, all) => line || all[at - 1] !== '').join('\n'));
   } catch (error) { console.error(error); notify(`The check stopped: ${window.PluginDoor.reason(error, 'the page could not be read')}`, 'error'); }
 }
 function describeElement(el, depth, lines, blockIds) {
@@ -283,12 +293,14 @@ async function logPerfReport() {
   } catch (error) { warnOnce('could not save a performance report', error); }
 }
 
-// Every distinct warning of this session, so a problem that warn-once kept quiet can still be found.
+// Every distinct warning since Logseq started (every module's), so a problem that warn-once kept quiet can still be found.
 async function copyWarnings() {
-  const when = date => date.toTimeString().slice(0, 8);
-  const lines = [await versionLine(), `${shared.warnings.length} distinct warning${shared.warnings.length === 1 ? '' : 's'} this session (time of the first · times · message)`, ''];
-  for (const entry of shared.warnings) lines.push(`  ${when(entry.at)} · ${entry.count}× · ${entry.message}`);
-  if (!shared.warnings.length) lines.push('  none');
+  const when = date => date.toTimeString().slice(0, 5), times = n => n === 1 ? 'once' : n === 2 ? 'twice' : `${n} times`;
+  const list = shared.warnings, n = list.length;
+  const lines = [await versionLine(), '',
+    n ? `${n === 1 ? 'One warning' : `${n} warnings`} since Logseq started. A warning means a part of the plugin could not do something; it did not change your notes.` : 'No warnings since Logseq started. Nothing is wrong.'];
+  if (n) lines.push('', 'Time of the first · how often · what happened');
+  for (const entry of list) lines.push(`  ${when(entry.at)} · ${times(entry.count)} · ${entry.message}`);
   showDiagnostics(lines.join('\n'));
 }
 
