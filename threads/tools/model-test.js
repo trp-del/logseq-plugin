@@ -134,6 +134,8 @@ function fakeDb(graph, log) {
     // Is a page in the Recycle (inRecycle, 2026-10-23).
     [/:find \?d :where \[\?p :block\/uuid #uuid "([^"]+)"\] \[\?p :logseq\.property\/deleted-at \?d\]/, m => all().filter(x => x.uuid === m[1] && x.deleted).map(() => [1]),],
     [/:find \(pull \?p \[:db\/id\]\) :where \[\?p :block\/journal-day (\d+)\]\]/, m => all().filter(x => x.journalDay === Number(m[1])).map(x => [ref(x.id)])],
+    // The same with a day's page in Recycle passed over (0.3.103, 13 November 2026): the pretend graph has none in Recycle.
+    [/:find \(pull \?p \[:db\/id\]\) :where \[\?p :block\/journal-day (\d+)\] \[\(get-else \$ \?p :logseq\.property\/deleted-at 0\) \?gone\] \[\(= \?gone 0\)\]\]/, m => all().filter(x => x.journalDay === Number(m[1])).map(x => [ref(x.id)])],
   ];
   // nodeValues: the four queries share their first clause, a ground list of the nodes asked about.
   const valueShape = find => new RegExp(`:find ${find} :where \\[\\(ground \\[[^\\]]*\\]\\) \\[\\?u \\.\\.\\.\\]\\]`);

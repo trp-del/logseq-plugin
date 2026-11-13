@@ -833,10 +833,12 @@ Door.dates = {
     return Door.dates.title(Door.dates.date(day), await Door.dates.format() || 'MMM do, yyyy');
   },
   async page(day, ask = Door.query) {
-    const look = async () => { const [[page] = []] = await ask(`[:find (pull ?p [:db/id]) :where [?p :block/journal-day ${Number(day)}]]`) || []; return page ? Door.idOf(page) : null; };
+    // A day's page in Recycle is passed over: it never comes on screen, and what is put on it is lost from sight (13 November 2026).
+    const look = async () => { const [[page] = []] = await ask(`[:find (pull ?p [:db/id]) :where [?p :block/journal-day ${Number(day)}] [(get-else $ ?p :logseq.property/deleted-at 0) ?gone] [(= ?gone 0)]]`) || []; return page ? Door.idOf(page) : null; };
     const found = await look();
     if (found) return { id: found, made: null };
-    // Logseq's own journal call: it names the page in the graph's format and marks it a journal day itself (10 November 2026).
+    // Logseq's own journal call: it names the page in the graph's format and marks it a journal day itself (10 November 2026);
+    // a day's page in Recycle it takes back out (13 November 2026).
     const made = await Door.write.createJournalPage(Door.dates.date(day));
     return { id: made?.id ?? await look(), made: made?.uuid ? String(made.uuid) : null };
   },

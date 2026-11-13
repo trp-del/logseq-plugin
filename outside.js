@@ -25,8 +25,10 @@ async function page(where) {
   if (where === 'today') {
     // Logseq's today call can answer nothing while today's journal is on screen (seen on the owner's other Mac, 12 November
     // 2026), so the day is looked up by its number and made when there is none, as the workflow's own words do.
+    // A today's page in Recycle is passed over too: it never comes on screen to take a file (13 November 2026).
+    const recycled = page => !!page && [page, page.properties || {}].some(o => Number(o[':logseq.property/deleted-at'] || o['logseq.property/deleted-at'] || 0) > 0);
     let today = await logseq.Editor.getTodayPage().catch(() => null);
-    if (!today?.uuid) {
+    if (!today?.uuid || recycled(today)) {
       const { id } = await Door.dates.page(Door.dates.today());
       today = id ? await logseq.Editor.getPage(id) : null;
     }
