@@ -21,7 +21,9 @@
    The real sidebar stays yours: opening anything in it while the split is on (Shift-click, a view from the ··· menu) ends the
    split, and the sidebar is shown as always, the page that was on the right among Opened. Closing the sidebar (its button, t r)
    closes the right page, which stays among Opened for the next time it is shown. Nothing is written to the graph: the split only
-   changes what is shown. Off with the setting "⌘-click opens a page beside" (Following links). */
+   changes what is shown. A half never stands blank (the owner's main computer, 14 November 2026: "just white appears"): if the page
+   is not on screen within a moment of opening, or goes from it while the split is on, the split closes as its × would and one
+   notice says so. Off with the setting "⌘-click opens a page beside" (Following links). */
 (function () {
 const Door = window.PluginDoor;
 const { host } = Door;
@@ -30,12 +32,12 @@ const SCHEMA = [{ key: 'splitOnCmdClick', type: 'boolean', default: true, title:
 const MIN = 320;   // px: the narrowest a half is dragged to
 const LINK = 'a.page-ref[data-uuid], a.tag[data-uuid], .lk-node[data-uuid]';
 const base = Door.base('split', { prefix: 'Logseq Plugin (split): ', schema: SCHEMA,
-  leaves: { elements: '.lk-split-own', attributes: ['data-lk-split', 'data-lk-split-item'], reset: doc => doc.documentElement.style.removeProperty('--lk-split-w') } });
+  leaves: { elements: '.lk-split-own', attributes: ['data-lk-split', 'data-lk-split-item'], reset: doc => { doc.documentElement.style.removeProperty('--lk-split-w'); for (const el of doc.querySelectorAll('[data-lk-split-item]')) el.style.removeProperty('display'); } } });
 
 /* The one state of the split: the node on the right (its number in Logseq's sidebar list and its id), the share of the main area
    the right half takes, what the sidebar was before, and whether a change of the split's own is under way (then the screen's
    pass leaves the sidebar's list alone, since the split itself is changing it). */
-const split = { id: null, uuid: null, page: false, title: '', ratio: .5, before: null, busy: false };
+const split = { id: null, uuid: null, page: false, title: '', ratio: .5, before: null, busy: false, lost: 0, timer: 0 };
 
 const api = () => host().defaultView.logseq?.api;
 const sideList = () => { try { return api()?.get_state_from_store('sidebar/blocks') || []; } catch (error) { return []; } };
@@ -44,8 +46,25 @@ const items = doc => [...doc.querySelectorAll('#right-sidebar .sidebar-item-list
 const sidebar = doc => doc.getElementById('right-sidebar');
 // The item Logseq drew for a node, by its place in Logseq's list; none while the list and the screen disagree (Logseq has the
 // node in its list and has not drawn it yet).
-const at = (doc, id) => { const list = sideList(), all = items(doc), i = list.findIndex(entry => entry?.[1] === id); return i < 0 || all.length !== list.length ? null : all[i] || null; };
+// The node on top of the list is the top item even when the two disagree further down: Logseq leaves out of the screen an entry
+// it cannot draw (a node deleted since it was opened there, in a sidebar kept over many days), and the split's node is always on top.
+const at = (doc, id) => {
+  const list = sideList(), all = items(doc), i = list.findIndex(entry => entry?.[1] === id);
+  if (i < 0) return null;
+  if (all.length === list.length) return all[i] || null;
+  return i === 0 && all[0]?.querySelector('.sidebar-panel-content') ? all[0] : null;
+};
 const content = item => item?.querySelector('.sidebar-panel-content') || item;
+// The right half really shows the page: its item marked, not hidden by any rule (the sidebar's tabs hide every item but the tab's),
+// and Logseq has drawn something in it beside the split's own title.
+const SHOW_MS = 2500;
+const shown = (doc, item) => {
+  if (!item?.hasAttribute('data-lk-split-item') || !item.isConnected) return false;
+  const win = doc.defaultView;
+  for (let el = item; el && el !== doc.body; el = el.parentElement) if (win.getComputedStyle(el).display === 'none') return false;
+  const panel = content(item);
+  return !!panel && [...panel.children].some(child => !child.classList.contains('lk-split-own'));
+};
 
 const CSS = `
 /* The sidebar as the right half: its width from the split's share (--lk-split-w, set by layout()), no tab row (its band kept, so
@@ -53,7 +72,12 @@ const CSS = `
 #right-sidebar[data-lk-split] { width: var(--lk-split-w, 50vw) !important; min-width: 0 !important; max-width: none !important; transition: none !important; background: var(--lk-paper) !important; border-left: 0 !important; }
 #right-sidebar[data-lk-split] > .resizer { display: none !important; }
 #right-sidebar[data-lk-split] .cp__right-sidebar-topbar > * { visibility: hidden !important; }
-#right-sidebar[data-lk-split] .sidebar-item-list > :not([data-lk-split-item]) { display: none !important; }
+/* The sidebar's tabs (sidebar-tabs.js) hide every item but the tab picked's, with !important at the same weight as the split's
+   rule, and their sheet, sent through Logseq, comes after the split's: the tie went to them and the page beside was hidden, a
+   white half (the owner's main computer, 14 November 2026). So the split's item is shown by its own style attribute (draw()),
+   which no sheet outweighs, and the rule hiding the others weighs more than any of the tabs' (the attributes said again), so a
+   view waiting under its tab is not drawn over the page either. */
+#right-sidebar[data-lk-split][data-lk-split][data-lk-split] .sidebar-item-list > :not([data-lk-split-item]):not([data-lk-split-item]):not([data-lk-split-item]) { display: none !important; }
 #right-sidebar[data-lk-split][data-lk-split] .sidebar-item-list { padding-top: 40px !important; }   /* the title level with the main title */
 #right-sidebar[data-lk-split] .cp__right-sidebar-topbar { border: 0 !important; box-shadow: none !important; background: none !important; }
 #right-sidebar[data-lk-split] .cp__right-sidebar-topbar::before, #right-sidebar[data-lk-split] .cp__right-sidebar-topbar::after { display: none !important; }
@@ -110,9 +134,10 @@ function draw(doc = host()) {
   const side = sidebar(doc), item = at(doc, split.id);
   if (!side || !item) return;
   if (!side.hasAttribute('data-lk-split')) side.setAttribute('data-lk-split', '');
-  for (const other of side.querySelectorAll('[data-lk-split-item]')) if (other !== item) other.removeAttribute('data-lk-split-item');
+  for (const other of side.querySelectorAll('[data-lk-split-item]')) if (other !== item) { other.removeAttribute('data-lk-split-item'); other.style.removeProperty('display'); }
   for (const stray of side.querySelectorAll('.lk-split-own')) if (!item.contains(stray)) stray.remove();   // Logseq may hand an item's box to another node
   if (!item.hasAttribute('data-lk-split-item')) item.setAttribute('data-lk-split-item', '');
+  if (item.style.getPropertyValue('display') !== 'flex' || item.style.getPropertyPriority('display') !== 'important') item.style.setProperty('display', 'flex', 'important');
   const panel = content(item);
   if (split.page && panel && panel.firstElementChild?.dataset?.splitFor !== String(split.id)) {
     panel.querySelector(':scope > .lk-split-title')?.remove();
@@ -171,15 +196,21 @@ function line(doc) {
 // Takes the split's marks and pieces off the screen; the sidebar is then drawn as Logseq draws it.
 function unmark(doc = host()) {
   for (const el of doc.querySelectorAll('.lk-split-own')) el.remove();
-  for (const el of doc.querySelectorAll('[data-lk-split-item]')) el.removeAttribute('data-lk-split-item');
+  for (const el of doc.querySelectorAll('[data-lk-split-item]')) { el.removeAttribute('data-lk-split-item'); el.style.removeProperty('display'); }
   sidebar(doc)?.removeAttribute('data-lk-split');
   doc.documentElement.style.removeProperty('--lk-split-w');
   for (const name of ['--lk-split-top', '--lk-split-edge', '--lk-split-gap']) doc.documentElement.style.removeProperty(name);
 }
-function forget() { split.id = null; split.uuid = null; split.page = false; split.title = ''; split.before = null; }
+function forget() {
+  split.id = null; split.uuid = null; split.page = false; split.title = ''; split.before = null; split.lost = 0;
+  if (split.timer) { try { host().defaultView.clearInterval(split.timer); } catch (error) {} split.timer = 0; }
+}
 
 // Waits until Logseq's sidebar list holds the node at its top and has drawn it; then marks it in the same frame.
-const drawnOnTop = (doc, id) => Door.screen.waitFor(() => sideList()[0]?.[1] === id && items(doc)[0]?.querySelector('.sidebar-panel-content') ? items(doc)[0] : null, 4000, { frames: true });
+const drawnOnTop = (doc, id) => Door.screen.waitFor(() => sideList()[0]?.[1] === id && items(doc)[0]?.querySelector('.sidebar-panel-content') ? items(doc)[0] : null, SHOW_MS, { frames: true });
+// Waits, drawing the split's pieces on each frame, until the right half really shows the page; the item, or null.
+const shownOnTop = (doc, id) => Door.screen.waitFor(() => { draw(doc); const item = at(doc, id); return shown(doc, item) ? item : null; }, SHOW_MS, { frames: true });
+const NOT_SHOWN = 'The page could not be shown beside, so the two pages were put back as one.';
 // Takes an item out of Logseq's sidebar list by its own ×, once Logseq has drawn the list as it holds it (a moment after a change).
 const takeOut = async (doc, id) => {
   const item = at(doc, id) || await Door.screen.waitFor(() => at(doc, id), 1500, { frames: true });
@@ -198,15 +229,26 @@ async function open(uuid) {
   try {
     if (first) { const list = sideList().map(entry => entry?.[1]); split.before = { open: sideOpen(), tab: sidebar(doc)?.getAttribute('data-lk-tab') || '', had: new Set(list), list }; }
     split.id = node.id; split.uuid = String(node.uuid); split.page = !node.page; split.title = node.title || node.originalName || node.name || '';
-    if (first) { layout(doc); sidebar(doc)?.setAttribute('data-lk-split', ''); }   // the half is there, empty, before the page comes, so nothing shows at the sidebar's own width
+    if (first) { layout(doc); sidebar(doc)?.setAttribute('data-lk-split', ''); }
+    // Looked at once a second while the split is on, besides the screen watcher's passes: a change Logseq's page does not report
+    // (a style, a rule) must not leave a white half either.
+    if (first && !split.timer) split.timer = doc.defaultView.setInterval(() => watch(doc), 1000);   // the half is there, empty, before the page comes, so nothing shows at the sidebar's own width
     await logseq.Editor.openInRightSidebar(split.uuid);
     if (!sideOpen()) logseq.App.setRightSidebarVisible?.(true);
-    const item = await drawnOnTop(doc, node.id);
-    if (!item) { base.warnOnce('the page did not come into the sidebar'); unmark(doc); if (first) forget(); else split.id = was; return; }
-    draw(doc);
+    // Never a white half: if the page is not on screen within a moment, the split closes as its × would, and says so.
+    const item = await drawnOnTop(doc, node.id) && await shownOnTop(doc, node.id);
+    if (!item) return await fail(doc, was);
     Door.unroll(content(item));
     if (was && !split.before.had.has(was)) await takeOut(doc, was);   // a page that was in the sidebar before the split stays in it
   } finally { split.busy = false; }
+}
+// The page beside could not be shown: the sidebar as it was before the split (what the split opened in it taken out), one page
+// alone, and one plain notice.
+async function fail(doc, was = null) {
+  base.warnOnce('the page beside was not shown', { id: split.id, list: sideList().map(entry => entry?.[1]), items: items(doc).length });
+  if (was != null && was !== split.id && !split.before?.had.has(was) && sideList().some(entry => entry?.[1] === was)) await takeOut(doc, was);
+  await end(doc, { takeOut: true });
+  Door.notify(NOT_SHOWN, 'warning');
 }
 
 /* Closes one half. The right (×): its page rolls up and leaves the sidebar's list (unless it was there before the split). The
@@ -285,6 +327,14 @@ function watch(doc) {
   const list = sideList();
   if (!sideOpen() || !list.length || list[0]?.[1] !== split.id) return end(doc);
   draw(doc);
+  // The page beside gone from the screen while the split is on (Logseq drawing the sidebar anew, a rule hiding it): if it does not
+  // come back within a moment, the split closes rather than stand as a white half.
+  if (shown(doc, at(doc, split.id))) { split.lost = 0; return; }
+  const now = Date.now();
+  if (!split.lost) { split.lost = now; return; }
+  if (now - split.lost < SHOW_MS) return;
+  split.busy = true;
+  fail(doc).finally(() => { split.busy = false; });
 }
 
 Door.split = {

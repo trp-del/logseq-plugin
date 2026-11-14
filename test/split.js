@@ -13,8 +13,20 @@ const root = path.join(__dirname, '..');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const REPO = 'logseq_db_Test';
 const U = n => `1a000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+// What a real browser shows: jsdom lets the last !important rule win whatever its weight, so which item Logseq's Chromium hides is
+// asked of Playwright's Chromium, with the stand-in's stylesheets in their order and its sidebar as it stands.
+async function chromeDisplay(w, selectors) {
+  let chromium; try { ({ chromium } = require('playwright')); } catch (error) { return null; }
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    const sheets = [...w.doc.head.querySelectorAll('style')].map(el => `<style>${el.textContent}</style>`).join('');
+    await page.setContent(`<html><head>${sheets}</head><body>${w.doc.getElementById('right-sidebar').outerHTML}</body></html>`);
+    return await page.evaluate(list => list.map(sel => getComputedStyle(document.querySelector(sel)).display), selectors);
+  } finally { await browser.close(); }
+}
 
-function world({ sidebarOpen = true, settings = {}, list = null } = {}) {
+function world({ sidebarOpen = true, settings = {}, list = null, keyed = false, blank = null } = {}) {
   const dom = new JSDOM(`<html><head></head><body><main id="app-container-wrapper"><div id="app-container"><div id="left-container"><div id="main-container"><div id="left-sidebar"></div><div id="main-content-container"></div></div></div><div id="right-sidebar" class="cp__right-sidebar" data-lk-tab="todo"><div class="resizer" role="separator"></div><div class="cp__right-sidebar-inner"><div class="cp__right-sidebar-topbar"><div class="cp__right-sidebar-settings"></div></div><div class="sidebar-item-list"></div></div></div></div></main></body></html>`, { pretendToBeVisual: true, url: 'http://localhost/' });
   const win = dom.window, doc = win.document;
   Object.defineProperty(win, 'innerWidth', { value: 1500, configurable: true });
@@ -30,8 +42,14 @@ function world({ sidebarOpen = true, settings = {}, list = null } = {}) {
   const drawSide = () => {
     doc.getElementById('right-sidebar').classList.toggle('open', store['ui/sidebar-open?']);
     const list = doc.querySelector('.sidebar-item-list');
-    list.innerHTML = store['ui/sidebar-open?'] ? store['sidebar/blocks'].map(([, id, type]) => `<div class="sidebar-drop-indicator"></div><div class="sidebar-item item-type-${type}" data-id="${id}"><div class="sidebar-item-header">${id}<div class="item-actions"><button class="ui__button"><span class="ls-icon-x"></span></button></div></div><div class="sidebar-panel-content"><div class="page"><div class="ls-page-blocks"><span class="bullet-container"></span><a class="page-ref" data-uuid="${U(3)}">Consultation</a></div></div></div></div>`).join('') : '';
-    for (const button of list.querySelectorAll('.ls-icon-x')) button.closest('button').addEventListener('click', event => { const id = event.target.closest('.sidebar-item').dataset.id; log.push(['sidebar ×', id]); store['sidebar/blocks'] = store['sidebar/blocks'].filter(e => String(e[1]) !== id); setTimeout(drawSide, 5); });
+    // keyed: an item already drawn keeps its element when it moves to the top, as Logseq's React list does with a page opened there
+    // again. blank: the id of a node Logseq draws with nothing in it (a page it cannot show).
+    const kept = keyed ? new Map([...list.querySelectorAll(':scope > .sidebar-item')].map(el => [el.dataset.id, el])) : new Map();
+    const html = (id, type) => `<div class="sidebar-drop-indicator"></div><div class="sidebar-item item-type-${type}" data-id="${id}"><div class="sidebar-item-header">${id}<div class="item-actions"><button class="ui__button"><span class="ls-icon-x"></span></button></div></div><div class="sidebar-panel-content">${String(id) === String(blank) ? '' : `<div class="page"><div class="ls-page-blocks"><span class="bullet-container"></span><a class="page-ref" data-uuid="${U(3)}">Consultation</a></div></div>`}</div></div>`;
+    const entries = store['ui/sidebar-open?'] ? store['sidebar/blocks'] : [];
+    list.innerHTML = entries.map(([, id, type]) => kept.has(String(id)) ? `<div class="sidebar-drop-indicator"></div><i data-keep="${id}"></i>` : html(id, type)).join('');
+    for (const slot of list.querySelectorAll('i[data-keep]')) slot.replaceWith(kept.get(slot.dataset.keep));
+    for (const button of list.querySelectorAll('.ls-icon-x')) if (!button.dataset.heard && (button.dataset.heard = '1')) button.closest('button').addEventListener('click', event => { const id = event.target.closest('.sidebar-item').dataset.id; log.push(['sidebar ×', id]); store['sidebar/blocks'] = store['sidebar/blocks'].filter(e => String(e[1]) !== id); setTimeout(drawSide, 5); });
   };
   drawMain(); drawSide();
   // Logseq hears a press on a link (a click goes to the page): anything that reaches it is logged.
@@ -46,7 +64,9 @@ function world({ sidebarOpen = true, settings = {}, list = null } = {}) {
     // As Logseq 2.0.2 does: a node, or the plugin's own view ('_sidebar.<key>'), goes to the top of the list, never twice.
     openInRightSidebar: async uuid => { const own = String(uuid).startsWith('_sidebar.'), n = own ? { id: ':logseq-plugin/' + uuid, title: uuid } : nodes[uuid]; log.push(['open beside', n.title]); store['sidebar/blocks'] = [[REPO, n.id, own ? 'plugin' : n.page ? 'block' : 'page'], ...store['sidebar/blocks'].filter(e => e[1] !== n.id)]; store['ui/sidebar-open?'] = true; setTimeout(drawSide, 5); },
   }, { get: (o, k) => k in o ? o[k] : (...args) => { log.push(['WRITE', k, args]); } });
-  const logseq = { settings: settingsNow, Editor, App: { pushState: (_, { name }) => { log.push(['go to', nodes[name].title]); shown = name; setTimeout(drawMain, 5); }, setRightSidebarVisible: sidebarVisible }, UI: { showMsg: text => log.push(['notice', text]) }, provideStyle() {} };
+  const logseq = { settings: settingsNow, Editor, App: { pushState: (_, { name }) => { log.push(['go to', nodes[name].title]); shown = name; setTimeout(drawMain, 5); }, setRightSidebarVisible: sidebarVisible }, UI: { showMsg: text => log.push(['notice', text]) },
+    // As Logseq does: a plugin's style goes into the page's head after everything there, the split's own sheet included.
+    provideStyle({ key, style }) { let el = doc.head.querySelector(`style[data-injected-style="${key}"]`); if (!el) { el = doc.createElement('style'); el.setAttribute('data-injected-style', key); } el.textContent = style; doc.head.appendChild(el); } };
   const plugin = { parent: win, console, setTimeout, clearTimeout };
   plugin.window = plugin;
   const context = vm.createContext({ window: plugin, parent: win, logseq, console, setTimeout, clearTimeout, Promise, navigator: { platform: 'MacIntel' } });
@@ -252,6 +272,86 @@ function world({ sidebarOpen = true, settings = {}, list = null } = {}) {
     assert.equal(w.S().id, null, 'stopped, a ⌘-click is Logseq’s again');
   }
 
+  // The owner's white half (14 November 2026): the sidebar's tabs on a view of the plugin's (Todo), and the page ⌘-clicked already
+  // among Opened, so Logseq moves its item to the top without drawing it anew and the tabs leave it unmarked. The tabs' rule that
+  // hides every item but the tab's comes after the split's in the page (Logseq puts it there) and weighs the same: the page beside
+  // was hidden. Now the split's item shows whatever the tab, and the half holds the page.
+  {
+    const w = world({ keyed: true, list: [[REPO, ':logseq-plugin/_sidebar.todo-side', 'plugin'], [REPO, 2, 'page'], [REPO, 9, 'page']] });
+    const todo = w.doc.querySelector('[data-id=":logseq-plugin/_sidebar.todo-side"]');
+    w.Door.sideTabs.add({ key: 'todo', word: 'Todo', order: 1, find: doc => doc.querySelector('.sidebar-item[data-id=":logseq-plugin/_sidebar.todo-side"]'), open() {} });
+    w.Door.sideTabs.pick('todo');
+    const item = w.doc.querySelector('.sidebar-item[data-id="2"]');
+    const SEL = ['.sidebar-item[data-id="2"]', '.sidebar-item[data-id=":logseq-plugin/_sidebar.todo-side"]'];
+    const before = await chromeDisplay(w, SEL);
+    if (before) assert.deepEqual(before, ['none', 'block'], 'before: Dr. Mei Chen is among Opened, hidden under the Todo tab');
+    assert.ok(todo.hasAttribute('data-lk-tab-on'), 'the Todo tab is picked');
+    w.press(w.link('#main-content-container', 'a.page-ref'), { metaKey: true });
+    await sleep(400);
+    w.Door.sideTabs.draw();
+    assert.equal(w.S().id, 2, 'Dr. Mei Chen is on the right');
+    assert.equal(w.doc.querySelector('.sidebar-item[data-id="2"]'), item, 'Logseq kept the item\'s element, moved to the top');
+    assert.ok(!item.hasAttribute('data-lk-tab-on'), 'the tabs still have Todo picked, so they leave the item unmarked');
+    assert.ok(item.hasAttribute('data-lk-split-item'), 'the split marks it');
+    assert.ok(w.doc.head.querySelector('style[data-injected-style]') === w.doc.head.lastElementChild, 'the tabs\' sheet stands after the split\'s, as in Logseq');
+    const during = await chromeDisplay(w, SEL);
+    if (during) assert.deepEqual(during, ['flex', 'none'], 'the page beside is shown, the Todo view is not: no white half');
+    else console.log('split: the white-half case checked without a browser (no Playwright)');
+    assert.ok(!w.log.some(e => e[0] === 'notice'), 'no notice');
+    await w.Door.split.close('right');
+    await w.settle();
+    assert.deepEqual(w.store['sidebar/blocks'].map(e => e[1]), [':logseq-plugin/_sidebar.todo-side', 2, 9], 'the sidebar as it was, Dr. Mei Chen kept among Opened');
+  }
+
+  // A page Logseq cannot show in the sidebar (its item stays empty): within a moment the split closes as its × would, the sidebar
+  // is as it was, and one plain notice says what happened. Never a white half left standing.
+  {
+    const w = world({ blank: 2 });
+    w.press(w.link('#main-content-container', 'a.page-ref'), { metaKey: true });
+    await sleep(3200);
+    assert.equal(w.S().id, null, 'the split closed');
+    assert.ok(!w.doc.querySelector('.lk-split-own, [data-lk-split], [data-lk-split-item]'), 'nothing of the split left on the screen');
+    assert.deepEqual(w.store['sidebar/blocks'].map(e => e[1]), [':logseq-plugin/_sidebar.todo-side', 9], 'the page that could not be shown left the list');
+    assert.ok(w.store['ui/sidebar-open?'], 'the sidebar open, as it was');
+    assert.deepEqual(w.log.filter(e => e[0] === 'notice'), [['notice', 'The page could not be shown beside, so the two pages were put back as one.']], 'one plain notice');
+    assert.equal(w.shown(), 'Fatigue', 'the page on the left stays');
+  }
+  // The sidebar closed before, and the page cannot be shown: the sidebar is closed again.
+  {
+    const w = world({ blank: 2, sidebarOpen: false });
+    w.press(w.link('#main-content-container', 'a.page-ref'), { metaKey: true });
+    await sleep(3200);
+    assert.equal(w.S().id, null, 'the split closed');
+    assert.equal(w.store['ui/sidebar-open?'], false, 'the sidebar closed again');
+    assert.equal(w.log.filter(e => e[0] === 'notice').length, 1, 'one notice');
+  }
+  // The page beside vanishing from the screen while the split is on (Logseq drawing the item anew, empty): the split closes too.
+  {
+    const w = world();
+    w.press(w.link('#main-content-container', 'a.page-ref'), { metaKey: true });
+    await w.settle();
+    assert.equal(w.S().id, 2);
+    w.doc.querySelector('[data-lk-split-item] .sidebar-panel-content').replaceChildren();
+    await sleep(3200);
+    assert.equal(w.S().id, null, 'the split closed rather than stand empty');
+    assert.equal(w.log.filter(e => e[0] === 'notice').length, 1, 'one notice');
+  }
+
+  // The page hidden by a rule while the split is on, a change Logseq's page reports to no watcher: the split's own once-a-second
+  // look finds it, and the split closes rather than stand empty.
+  {
+    const w = world();
+    w.press(w.link('#main-content-container', 'a.page-ref'), { metaKey: true });
+    await w.settle();
+    assert.equal(w.S().id, 2);
+    const rule = w.doc.createElement('style'); rule.textContent = '#right-sidebar .sidebar-item-list { display: none !important; }';
+    w.doc.head.appendChild(rule);
+    await sleep(4200);
+    assert.equal(w.S().id, null, 'the split closed');
+    assert.equal(w.log.filter(e => e[0] === 'notice').length, 1, 'one notice');
+    rule.remove();
+  }
+
   // The settings window's row, and Logseq's settings list, hold the one setting.
   {
     const w = world();
@@ -261,4 +361,5 @@ function world({ sidebarOpen = true, settings = {}, list = null } = {}) {
     assert.ok(fs.readFileSync(path.join(root, 'files.js'), 'utf8').includes("'split.js'"), 'loaded with the plugin');
   }
   console.log('split: ⌘-click opens beside, the line drags and swaps, × closes either half, the sidebar stays yours, nothing written');
+  process.exit(0);   // the worlds left with a split on keep its once-a-second look running
 })().catch(error => { console.error(error); process.exit(1); });
