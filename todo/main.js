@@ -1,6 +1,6 @@
 /* Todo: Logseq's own tasks as one short list, on a page of its own and in the right sidebar, drawn by the same code (view.js)
    from the one state kept here. Loaded after its graph reader and its drawing (files.js). The ways in: the command palette
-   (Todo, and g then d outside a bullet, as Logseq's own g pairs), the ticked box in Logseq's toolbar, the sidebar's Todo tab. */
+   (Todo, and g then d outside a bullet, as Logseq's own g pairs), the checkmark in Logseq's toolbar, the sidebar's Todo tab. */
 (function () {
 const T = window.Todo;
 const Door = window.PluginDoor;
