@@ -39,12 +39,43 @@ const listed = doc => [...doc.querySelectorAll(ITEMS)].filter(i => !i.classList.
    So the view shown before (shownKey: the node it holds) stays until an item holds the new row's node, drawn; the first row
    pressed has no view before it, and the tab that was showing stays until then (pass picks Item). A view that has not come two
    seconds after the press is given up: what is there is shown. */
-const drawn = el => !!el.querySelector('.sidebar-panel-content :is(.ls-block, .ls-page-blocks, .ls-page-properties, .ls-page-title)');
+/* Drawn to the end: Logseq writes a node's links as empty brackets first and fills in the names a frame or two later, and Look marks a
+   wrapped property a pass after the item is laid out (it waits laid out, unseen: sidebar-tabs.js). Shown before both, the view
+   changed twice under the eye in its first 40 ms (13 November 2026). A view with brackets of its own in its words is waited for at
+   most 300 ms after it holds its node. */
+const settledAt = new WeakMap();
+const drawn = el => {
+  const body = el.querySelector('.sidebar-panel-content');
+  if (!body?.querySelector(':is(.ls-block, .ls-page-blocks, .ls-page-properties, .ls-page-title)')) return false;
+  const key = keyOf(el);   // by the node held: Logseq hands its elements on
+  if (settledAt.get(el)?.key !== key) { settledAt.set(el, { key, at: Date.now() }); el.ownerDocument.defaultView.setTimeout(() => { pass(host()); window.PluginDoor.sideTabs?.draw(); }, 40); el.ownerDocument.defaultView.setTimeout(() => { pass(host()); window.PluginDoor.sideTabs?.draw(); }, 320); }
+  const since = Date.now() - settledAt.get(el).at;
+  return since >= 300 || (since >= 32 && !body.textContent.includes('[[]]'));
+};
+/* While the next row's view is drawn, a still picture of the one shown lies over the views (a copy of its element, outside what
+   Logseq draws). Logseq hands the element on screen to the next node at once and fills it in over a few frames (empty brackets for
+   links first, a wrapped property a step in until Look has marked it), so the eye saw the view change two or three times in 40 ms
+   (the owner, 13 November 2026: "fix"). The picture goes in the frame the new view stands drawn to the end, at the latest 1.2 s
+   after the press, and at once when no row is pressed any more. */
+function hold(doc) {
+  release();
+  const shown = listed(doc).find(i => i.hasAttribute('data-st-item') && i.getClientRects().length);
+  const side = doc.getElementById('right-sidebar');
+  if (!shown || !side) return;
+  const at = shown.getBoundingClientRect(), copy = shown.cloneNode(true);
+  copy.removeAttribute('data-st-item'); copy.classList.add('st-item-hold', 'lk-own'); copy.setAttribute('aria-hidden', 'true');
+  for (const el of copy.querySelectorAll('[id]')) el.removeAttribute('id');
+  Object.assign(copy.style, { position: 'fixed', left: at.left + 'px', top: at.top + 'px', width: at.width + 'px', height: Math.max(at.height, side.getBoundingClientRect().bottom - at.top) + 'px', margin: '0', zIndex: '5', pointerEvents: 'none', background: 'var(--lk-paper, #fff)', overflow: 'hidden', display: 'block' });
+  side.appendChild(copy);
+  insp.held = copy; insp.heldAt = Date.now();
+  doc.defaultView.setTimeout(() => { if (insp.held === copy) release(); }, 1200);
+}
+function release() { insp.held?.remove(); insp.held = null; }
 function item(doc = host()) {
   if (!insp.uuid) return null;
   const items = listed(doc);
   const now = items.find(i => holds(i) && drawn(i));
-  if (now) { insp.shownKey = wanted(); return now; }
+  if (now) { insp.shownKey = wanted(); insp.settled = true; return now; }
   const old = insp.shownKey ? items.find(i => keyOf(i) === insp.shownKey) || null : null;
   return old;
 }
@@ -80,21 +111,25 @@ function pass(doc) {
   const el = item(doc);
   // Item is picked once the row has a view to show: the one before it, or its own once drawn.
   if (el && insp.uuid && insp.pickedFor !== insp.ask) { insp.pickedFor = insp.ask; window.PluginDoor.sideTabs?.pick('item'); }
-  for (const old of doc.querySelectorAll('#right-sidebar [data-st-item]')) if (old !== el) { old.removeAttribute('data-st-item'); old.querySelector('.st-item-where')?.remove(); }
-  if (el) {
-    if (!el.hasAttribute('data-st-item')) el.setAttribute('data-st-item', '');
-    const waiting = !holds(el);   // the view shown is still the row before: its line stays as it is
-    const body = el.querySelector('.sidebar-panel-content'), say = waiting ? (el.querySelector('.st-item-where')?.textContent || '') : whereText(insp.uuid) || insp.where || '';
-    if (!waiting) insp.where = say;
-    let line = el.querySelector('.st-item-where');
-    if (body && say) {
-      if (!line) { line = doc.createElement('div'); line.className = 'st-item-where lk-own'; }
-      if (line.textContent !== say) line.textContent = say;
-      if (body.firstElementChild !== line) body.prepend(line);
-    } else line?.remove();
-    if (!waiting) closeStale(doc);
-  }
+  dress(el, doc);
+  if (el && holds(el)) closeStale(doc);
+  // The new view stands, drawn to the end: the tabs show it, and the picture of the row before goes in the same frame.
+  if (insp.held && insp.settled) { window.PluginDoor.sideTabs?.draw(); release(); }
   mark(insp.uuid);
+}
+/* The view shown is named as the Item tab's and carries its line. Done by whoever first learns which view it is (this pass, or the
+   tabs as they ask for the view), so the line stands in the very frame the view is shown: named a pass later, the view stood a
+   frame or two without its "7 of 56" (seen frame by frame, 13 November 2026). */
+function dress(el, doc) {
+  for (const old of doc.querySelectorAll('#right-sidebar [data-st-item]')) if (old !== el) old.removeAttribute('data-st-item');
+  const list = doc.querySelector('#right-sidebar .sidebar-item-list');
+  if (el && !el.hasAttribute('data-st-item')) el.setAttribute('data-st-item', '');
+  /* The line is written on the list, not into the view: Logseq hands a view's element on to the next node and draws its inside
+     afresh, which took a line put inside it away for a frame or two on every row change (13 November 2026). The stylesheet draws
+     the words above the view (view.js). While the view of the row before is still shown, the line stays as it is. */
+  if (el && holds(el)) insp.where = whereText(insp.uuid) || insp.where || '';
+  const say = el ? insp.where || list?.getAttribute('data-st-where') || '' : '';
+  if (list && (list.getAttribute('data-st-where') || '') !== say) { if (say) list.setAttribute('data-st-where', say); else list.removeAttribute('data-st-where'); }
 }
 
 // No row pressed: one faint line says what the panel is waiting for, or nothing when the lines above already fill it.
@@ -120,7 +155,8 @@ async function pick(uuid) {
   if (uuid === insp.uuid) return mark(uuid);
   if (uuid && !active()) return;   // the sidebar shut, or on another tab: the press is Logseq's alone
   const ask = ++insp.ask, doc = host();
-  insp.uuid = uuid; insp.kind = ''; insp.title = ''; insp.where = ''; insp.since = Date.now();
+  if (uuid) hold(doc); else release();
+  insp.uuid = uuid; insp.kind = ''; insp.title = ''; insp.where = ''; insp.since = Date.now(); insp.settled = false;
   sync(); mark(uuid);
   if (!uuid) { closeStale(doc); window.PluginDoor.sideTabs?.draw(); return idle(); }
   let block = null, page = null;
@@ -183,7 +219,7 @@ function start() {
   const { listen } = S.base;
   const offKeys = [listen(doc, HELD, hold, true), listen(doc, 'click', press, true), listen(doc, 'dblclick', twice, true), listen(doc, ['focusin', 'click'], onRow, true)];
   const offRoute = S.base.onStop(logseq.App.onRouteChanged?.(() => { insp.pageAt = Date.now(); insp.plain = false; pick(''); }));
-  insp.stops = [...offKeys, () => { insp.uuid = ''; closeStale(); mark(''); }, offRoute, window.PluginDoor.watch(pass)];
+  insp.stops = [...offKeys, () => { insp.uuid = ''; release(); closeStale(); mark(''); }, offRoute, window.PluginDoor.watch(pass)];
 }
 function stop() { for (const s of insp.stops) { try { s?.(); } catch (error) { /* already gone */ } } insp.stops = []; if (insp.holder) insp.holder.innerHTML = ''; insp.watch?.disconnect(); }
 
@@ -205,5 +241,5 @@ function gone(holder) { if (insp.holder !== holder) return; insp.watch?.disconne
 
 // The page is read: no tag's and no property's (plain), so the tab's line need not wait.
 function pageKnown(plain) { const was = insp.plain; insp.plain = !!plain; if (plain && !was) idle(); }
-S.inspector = { start, stop, mounted, gone, top, shown, idle, pageKnown, row: () => insp.uuid, item, owns, KEY: 'structure-inspector', model: null, changed: null };
+S.inspector = { start, stop, mounted, gone, top, shown, idle, pageKnown, row: () => insp.uuid, item: (doc = host()) => { const el = item(doc); if (el && !el.hasAttribute('data-st-item')) dress(el, doc); return el; }, owns, KEY: 'structure-inspector', model: null, changed: null };
 })();

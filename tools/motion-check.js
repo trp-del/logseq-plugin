@@ -80,6 +80,11 @@ async function act(page, action, on) {
   }
 }
 
+/* A stop with an action (the sidebar opened, Find opened) settles from its action, not from the page before it (13 November 2026): the
+   action is taken once the page is still, which with the plugin on is 2.6 s after the route by the visit's own rule, and counted
+   from the route every such stop read "settled 2.7 s later than without the plugin" though nothing changed after the first
+   quarter second. */
+const since = run => run.tAct ?? run.t0;
 let stopping = false;
 const halt = () => { if (stopping) throw new Error('stopped'); };
 /* One visit: from the neutral page to the stop, recorded until still, then the action (if any) and still again. With the
@@ -193,7 +198,7 @@ function analyseA(runs) {
   const idle = runs.map(r => r.frames.filter(f => f.t >= r.settleEnd));
   const { mask, share } = K.noiseMask(idle);
   const pics = runs.map(r => K.pictureFlashes(r.frames.filter(f => f.t < r.settleEnd), mask, r.ledger.inputs));
-  const settle = pics.map((p, k) => p.settledAt - runs[k].t0);
+  const settle = pics.map((p, k) => p.settledAt - since(runs[k]));
   return { known: jumpsA.map(K.signature), growA, flashesA: pics.flatMap(p => p.flashes), elFlashesA: runs.flatMap(r => K.elementFlashes(r.ledger)), mask, maskShare: share,
     settleA: settle.reduce((a, b) => a + b, 0) / Math.max(1, settle.length), placementA: runs.flatMap(r => r.placement) };
 }
@@ -250,11 +255,11 @@ function judge(run, A, vp, second) {
   const shownName = nameLine.filter(([, row]) => K.shownRow(row));
   if (shownName.length && shownName[0][1][7] !== shownName[shownName.length - 1][1][7])
     fails.push(`a property name first shown in ${shownName[0][1][7]}, then ${shownName[shownName.length - 1][1][7]} (Look’s stylesheet landed after the words)`);
-  const settle = pic.settledAt - run.t0;
+  const settle = pic.settledAt - since(run);
   notes.push(`settled at ${Math.round(settle)} ms (without the plugin ${Math.round(A.settleA)} ms)`);
   if (settle - A.settleA > BUDGET.settle) {
     // What was still changing: the tracked elements of the last ledger frames before the page settled, by module.
-    const late = run.ledger.frames.filter(([t]) => t > run.t0 + A.settleA + 50 && t <= pic.settledAt + 20).flatMap(([t, changes, gone]) => [...changes.map(c => [t, run.ledger.names[c[0]]]), ...gone.map(id => [t, run.ledger.names[id] + ' (gone)'])]);
+    const late = run.ledger.frames.filter(([t]) => t > since(run) + A.settleA + 50 && t <= pic.settledAt + 20).flatMap(([t, changes, gone]) => [...changes.map(c => [t, run.ledger.names[c[0]]]), ...gone.map(id => [t, run.ledger.names[id] + ' (gone)'])]);
     const by = {};
     for (const [, name] of late) { const who = K.moduleOf(name) || 'Logseq'; by[who] = (by[who] || 0) + 1; }
     const last = late.slice(-3).map(([t, name]) => `${name} at ${rel(t, run.t0)} ms`);

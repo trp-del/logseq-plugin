@@ -28,6 +28,10 @@ const CSS = `
 #right-sidebar[data-lk-tabs] .lk-tab { display: inline-flex; align-items: center; flex: none; max-width: 180px; }
 #right-sidebar[data-lk-tabs] .lk-tab .lk-view { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 #right-sidebar[data-lk-tabs] .sidebar-item-list > .sidebar-item:not([data-lk-tab-on]) { display: none !important; }
+/* A view's item that waits to be shown (a pressed row's view while Logseq draws it) is laid out, unseen and out of the flow, at the
+   width it will have: Look's passes then mark it as they mark what is on screen, so nothing in it settles after it is shown (a
+   wrapped property stood a step in for a frame, 13 November 2026). */
+#right-sidebar[data-lk-tabs] .sidebar-item-list > .sidebar-item[data-lk-tab-wait]:not([data-lk-tab-on]) { display: block !important; visibility: hidden !important; position: absolute !important; pointer-events: none !important; }
 #right-sidebar[data-lk-tabs] .sidebar-item-list > .sidebar-item[data-lk-tab-view] .sidebar-item-header { display: none !important; }
 #right-sidebar[data-lk-tabs] .sidebar-item-list > .sidebar-item[data-lk-tab-view] { border-top: 0 !important; margin-top: 0 !important; padding-top: 0 !important; }
 /* Logseq puts an 8 px place to drop an item before every item, the hidden ones too: a view's item coming or going behind the one shown
@@ -90,6 +94,9 @@ function draw(doc = host()) {
     if (on !== item.hasAttribute('data-lk-tab-on')) item.toggleAttribute('data-lk-tab-on', on);
     const isView = viewItems.has(item);
     if (isView !== item.hasAttribute('data-lk-tab-view')) item.toggleAttribute('data-lk-tab-view', isView);
+    const waits = !on && views.some(v => v.owns?.(item));
+    if (waits !== item.hasAttribute('data-lk-tab-wait')) item.toggleAttribute('data-lk-tab-wait', waits);
+    if (waits) { const width = Math.round((viewItem || item.parentElement).getBoundingClientRect().width - (viewItem ? 0 : 48)) + 'px'; if (item.style.width !== width) item.style.width = width; } else if (item.style.width) item.style.width = '';
   }
   // The row, drawn again only when what it says changes.
   const sig = JSON.stringify([ordered.map(v => [v.key, v.word]), others.length > 0, tabs.cur]);
@@ -114,7 +121,7 @@ function stop() {
   const doc = host();
   doc.getElementById('right-sidebar')?.removeAttribute('data-lk-tabs'); doc.getElementById('right-sidebar')?.removeAttribute('data-lk-tab');
   doc.querySelectorAll('#right-sidebar .lk-tabs').forEach(n => n.remove());
-  doc.querySelectorAll('#right-sidebar [data-lk-tab-on], #right-sidebar [data-lk-tab-view]').forEach(n => { n.removeAttribute('data-lk-tab-on'); n.removeAttribute('data-lk-tab-view'); });
+  doc.querySelectorAll('#right-sidebar [data-lk-tab-on], #right-sidebar [data-lk-tab-view], #right-sidebar [data-lk-tab-wait]').forEach(n => { n.removeAttribute('data-lk-tab-on'); n.removeAttribute('data-lk-tab-view'); if (n.hasAttribute('data-lk-tab-wait')) { n.removeAttribute('data-lk-tab-wait'); n.style.width = ''; } });
 }
 Door.sideTabs = {
   add(view) {

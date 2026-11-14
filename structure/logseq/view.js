@@ -128,7 +128,8 @@ const CSS = `
    (a bullet's item starts with the bullet's own words, and its head, the page it is on, stays away as for every tab). */
 #right-sidebar[data-lk-tabs] .sidebar-item-list > .sidebar-item.item-type-page[data-st-item] .sidebar-item-header { display: flex !important; }
 #right-sidebar .sidebar-item.item-type-page[data-st-item] .sidebar-item-header :is(.item-actions, .rotating-arrow) { display: none !important; }
-#right-sidebar .st-item-where { color: var(--lk-quiet); font-size: var(--lk-small); font-variant-numeric: tabular-nums; margin: 0 0 6px 8px; }
+/* Where the row stands, "Consultation · 12 of 53": words the list carries (inspector.js), drawn above the row's view. */
+#right-sidebar[data-lk-tab="item"] .sidebar-item-list[data-st-where]::before { content: attr(data-st-where); display: block; color: var(--lk-quiet); font-size: var(--lk-small); font-variant-numeric: tabular-nums; padding: 8px 0 0 16px; margin-bottom: -8px; }
 /* A tag the property is on: its name and count on one line, what you can do with it under them, so the narrow panel never
    squeezes the count into a column of single letters. */
 .st-holder-insp .st-lines-t .ont { grid-template-columns: minmax(0, 1fr) auto; }

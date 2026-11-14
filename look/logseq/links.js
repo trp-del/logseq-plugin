@@ -315,10 +315,12 @@ function draw(doc) {
     if (next !== panel) list.insertBefore(panel, next);
     next = panel.nextElementSibling;
     const arrow = panel.querySelector('.rotating-arrow');
-    arrow.classList.toggle('collapsed', state.folded[key]);
-    arrow.classList.toggle('not-collapsed', !state.folded[key]);
-    panel.querySelector('.lk-side-fold').setAttribute('aria-expanded', String(!state.folded[key]));
-    panel.querySelector('.sidebar-panel-content').hidden = state.folded[key];
+    // Written only when it differs: an attribute set again to what it holds still counts as a change to the screen, and this one was
+    // set on every pass, several times a second on every page, each time waking every part's pass again (counted 13 November 2026).
+    const folded = !!state.folded[key], fold = panel.querySelector('.lk-side-fold'), content = panel.querySelector('.sidebar-panel-content');
+    if (arrow.classList.contains('collapsed') !== folded) { arrow.classList.toggle('collapsed', folded); arrow.classList.toggle('not-collapsed', !folded); }
+    if (fold.getAttribute('aria-expanded') !== String(!folded)) fold.setAttribute('aria-expanded', String(!folded));
+    if (content.hidden !== folded) content.hidden = folded;
   }
   if (made) render(doc);
 }

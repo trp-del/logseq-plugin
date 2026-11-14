@@ -956,8 +956,20 @@ function draw(doc) {
     const active = box.contains(box.ownerDocument.activeElement) ? box.ownerDocument.activeElement : null;
     const typing = active?.matches('.th-tw-draft-name'), typingNode = active?.matches('.th-tw-node-field') ? active.dataset.key : '';
     const finding = active?.matches('.th-tw-find') ? active.selectionStart : null;
-    const redraw = () => { state.html = bare; box.innerHTML = html; shared.outline.unrolled(box); twoWay.keepDraft(box); twoWay.keepNodeField(box); twoWay.keepFind(box, finding); };
     const inPlace = box.querySelector('.th-in-place');
+    /* Only what differs is drawn again (13 November 2026): the section's lists stand side by side in the box, and a later reading
+       (the mentions, a minute after the properties) changes one of them. Written whole, every row of every list was taken out and
+       put back, four to nine hundred elements half a second after the page had shown, and the page counted as still changing. A
+       list that reads the same keeps its elements. With the keyboard in the section, or a node edited in place, it is written
+       whole as before. */
+    const write = () => {
+      if (active || inPlace || !box.children.length || box.querySelector('.th-tw-draft, .th-tw-node-field, textarea, [contenteditable="true"]') || /th-tw-draft|th-tw-node-field/.test(html)) { box.innerHTML = html; return; }   // something is being written in the section, or is about to be: whole, as before
+      const next = box.ownerDocument.createElement('div'); next.innerHTML = html;
+      const was = [...box.children], now = [...next.children];
+      now.forEach((el, i) => { if (!was[i]) box.appendChild(el); else if (was[i].outerHTML !== el.outerHTML) was[i].replaceWith(el); });
+      for (const el of was.slice(now.length)) el.remove();
+    };
+    const redraw = () => { state.html = bare; write(); shared.outline.unrolled(box); twoWay.keepDraft(box); twoWay.keepNodeField(box); twoWay.keepFind(box, finding); };
     if (inPlace) inPlace.across(redraw); else redraw();
     if (typing) twoWay.focusDraft();
     if (typingNode) twoWay.focusNodeField(typingNode);

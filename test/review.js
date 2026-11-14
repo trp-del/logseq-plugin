@@ -66,6 +66,14 @@ assert.ok(/Find\.window\.forget\(true\)/.test(read('find/main.js')), 'another gr
 assert.ok(/const names = ownNamesOf\(page\.id, false\)[\s\S]{0,260}await names;/.test(read('threads/parts/two-way.js')), 'an alias in a row is plain from the first drawing');
 assert.ok(/if \(settling && !lines && !table && !insp\.plain\) return;/.test(insp) && /S\.inspector\.pageKnown\?\.\(id == null && prop == null\)/.test(read('structure/main.js')), 'the Ontology tab\'s line is not said before the page is known');
 
+// 6c. 13 November, second round: the row's view changes in one frame, the line is the list's, nothing rewritten that has not changed.
+assert.ok(/function hold\(doc\)/.test(insp) && /if \(insp\.held && insp\.settled\)/.test(insp), 'a still picture of the row shown lies over the views until the next is drawn to the end');
+assert.ok(/list\.setAttribute\('data-st-where', say\)/.test(insp) && /\.sidebar-item-list\[data-st-where\]::before \{ content: attr\(data-st-where\)/.test(view), 'the "N of M" line is written on the list, so a redrawn view cannot lose it');
+assert.ok(/\[data-lk-tab-wait\]:not\(\[data-lk-tab-on\]\) \{ display: block !important; visibility: hidden !important; position: absolute !important;/.test(tabs), 'a view that waits is laid out unseen');
+assert.ok(/if \(fold\.getAttribute\('aria-expanded'\) !== String\(!folded\)\)/.test(read('look/logseq/links.js')), 'the sidebar section\'s fold state is written only when it differs');
+assert.ok(/state\.known\.get\(state\.page\)/.test(read('look/logseq/cites.js')), 'a page\'s endnote numbers are drawn at once on a revisit');
+assert.ok(/const was = \[\.\.\.box\.children\], now = \[\.\.\.next\.children\];/.test(read('threads/parts/two-way.js')), 'Linked draws again only the lists that changed');
+
 // 7. Old words stay out of what a person reads.
 for (const [f, re, what] of [['look/README.md', /the Contents tab/, 'the Contents tab'], ['predictive/logseq/app.js', /prefix: 'Flow: '/, 'Flow'], ['threads/parts/diagnostics.js', /th-tag-path/, 'a mark nothing draws']])
   assert.ok(!re.test(read(f)), `${what} is still in ${f}`);
