@@ -4,13 +4,13 @@
    lk-alts, lk-view, lk-pop, lk-accent, lk-close). The owner, 12 November 2026: rows unfolding under the bar read as a "toolbar
    jammed underneath toolbar"; they chose a quiet bar with the choices in a column on the left, and tabs that look like tabs.
    The bar: Adjust (shows the column or puts it away, remembered), where the export goes as tabs (lk-view, a bar under the one
-   in force), the template (a pick whose alternatives are a pop-up; last on the left, since its words change length and nothing
-   stands after it to be pushed), and at the right end the one accent that does the export,
-   then ×. The column is the library's menu laid open (the owner, 13 November 2026: the first column "has no structure, doesn't
+   in force), and at the right end the one accent that does the export,
+   then ×. The template is the column's first row (the owner, 14 November 2026: "shouldn't template be in
+   [the] sidebar"), its menu a pop-up at the row. The column is the library's menu laid open (the owner, 13 November 2026: the first column "has no structure, doesn't
    pull from library ui elements"): parts under a heading in the text colour with a hairline between them (lk-group), each row one
    line pressed as a whole (lk-item), what it holds at its right in the quiet grey (lk-note). A row that holds one of several
    brings them as a pop-up menu at the row, over the rows below, the one in force ticked; a row that is on or off shows a tick while on; a row that is written in has
-   the library's field at its right. Up and Down walk the rows. Every part and row keeps its place: what belongs to another style or destination is faint and out of reach, never taken away, so the column does not move. The page is drawn at its printed width on the desk, with only the size pick at the desk's right, and
+   the library's field at its right. Up and Down walk the rows. Only the parts of the destination and the rows of the style are shown; where one part stands in for another, the place takes its new height in one eased motion, so the rows below glide and never jump. The page is drawn at its printed width on the desk, with only the size pick at the desk's right, and
    redrawn as the choices change, or the Markdown as text. Every choice is remembered in the plugin's settings. */
 (function () {
 const E = (window.DbExport ||= {});
@@ -61,12 +61,11 @@ const CSS = `
    lk-item, lk-note, lk-field, lk-list, lk-tick); here only where things stand: the rows' words on the bar's left edge, a long
    name on two lines, what unfolds under a row a step in. */
 .xp-body { flex: 1; display: flex; min-height: 0; }
-.xp-side { flex: none; width: 320px; overflow-y: auto; scrollbar-width: thin; padding: 0 12px 28px 20px; background: var(--lk-paper, #fff); border-right: 1px solid var(--lk-hair); }
+/* overflow-anchor: the browser may move a scrolling box by itself when something above the middle changes height, to hold a
+   lower row still; here the top rows must stay put, so it is told not to. */
+.xp-side { flex: none; width: 320px; overflow-y: auto; overflow-anchor: none; scrollbar-width: thin; padding: 0 12px 28px 20px; background: var(--lk-paper, #fff); border-right: 1px solid var(--lk-hair); }
 .xp-side[hidden], .xp-side [hidden] { display: none !important; }
-.xp-side [inert] { opacity: .4; }
-.xp-side [inert] [inert] { opacity: 1; }   /* a faint row in a faint part is not made fainter twice */   /* a part or a row of another style or destination: in its place, faint */
-.xp-side .xp-group:first-child > .gap { display: none; }
-.xp-side .xp-group:first-child > .lk-group { border-top: 0; margin-top: 0; padding-top: 6px; }
+.xp-side > .xp-first { padding-top: 4px; }   /* the template: one row with no heading over it, since the row says what it is */
 .xp-side .xp-group > .gap { height: 20px; }
 .xp-side .lk-group { padding-bottom: 5px; }
 .xp-side .lk-item { white-space: normal; align-items: baseline; }
@@ -106,7 +105,10 @@ const CSS = `
 /* The tick box is the library's (lk-tick). */
 /* The accent: the one action, its key beside it; a second action lk-btn, its words level with the accent's and the gap
    between them measured from its words; × the way out. */
-.xp-bar button:where(:not(.lk-btn)) { all: unset; cursor: pointer; font: inherit; color: var(--lk-text, #222); white-space: nowrap; }
+/* The bar's reset is for its plain buttons only: the library's own (lk-btn, lk-accent) keep what the library gives them. Until 14
+   November 2026 the reset took the round ends off the main button, which stood as a black square (the owner: "a square button
+   is not inline with design language"). */
+.xp-bar button:where(:not(.lk-btn, .lk-accent)) { all: unset; cursor: pointer; font: inherit; color: var(--lk-text, #222); white-space: nowrap; }
 .xp-bar button[hidden] { display: none; }
 .xp-bar button:focus-visible { outline: none; background: var(--lk-wash); box-shadow: 0 0 0 3px var(--lk-wash); border-radius: 1em; }
 .xp-bar .lk-btn { margin: -2px -6px; }
@@ -119,15 +121,14 @@ const CSS = `
 .xp-note { display: flex; justify-content: flex-end; align-items: center; font-size: var(--lk-small); padding: 0 0 12px; }
 .xp-note .it { padding: 0; } .xp-note .lk-name { display: none; } .xp-note .lk-value { color: var(--lk-quiet); }
 .xp-note .lk-alts { left: auto; right: 0; justify-content: flex-end; }
-/* The template pick: its alternatives are a pop-up under it (the library's lk-pop), the templates one to a line, then what can be
-   done with the one in force under a hairline; a name is asked for there, and so is whether a delete is meant. */
-.xp .xp-tpl .lk-alts { flex-direction: column; flex-wrap: nowrap; gap: 6px; padding: 10px 14px; min-width: 210px; max-width: 340px; z-index: 5; }
-.xp .xp-tpl .lk-alts .do.first { margin-top: 4px; padding-top: 10px; border-top: 1px solid var(--lk-hair); }
-.xp .xp-tpl .lk-alts[data-ask] > :not(.ask) { display: none; }
-.xp .xp-tpl .ask { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 14px; cursor: default; white-space: normal; }
-.xp .xp-tpl .ask input { width: 100%; }
-.xp .xp-tpl .ask b { font-weight: inherit; cursor: pointer; }
-.xp .xp-tpl .was { color: var(--lk-quiet); white-space: pre; }
+/* The template, the column's first row: its menu is the library's pop-up at the row, over the rows below: the templates, the one
+   in force ticked, then after a gap what can be done with it; a name is asked for there, and so is whether a delete is meant. */
+.xp-side .xp-tpl { position: relative; }
+.xp-side .xp-tpl .lk-alts { position: absolute; left: 0; right: 0; top: 100%; z-index: 6; margin-top: 2px; display: block; }
+.xp-side .xp-tpl .lk-alts[data-ask] > :not(.ask) { display: none; }
+.xp-side .xp-tpl .ask { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 14px; padding: 6px 8px; cursor: default; white-space: normal; }
+.xp-side .xp-tpl .ask input { width: 100%; }
+.xp-side .xp-tpl .ask b { font-weight: inherit; cursor: pointer; }
 /* Your CSS: the box, and under it the parts of the sheet in plain words; a word pointed at lights its part on the sheet. */
 .xp-side .xp-cssbox { display: block; font-family: Menlo, Consolas, monospace; font-size: var(--lk-small); line-height: 1.5; width: calc(100% - 16px); margin: 4px 8px 0; height: 9.5em; resize: vertical; white-space: pre; border: 1px solid var(--lk-line); border-radius: 4px; padding: 6px 8px; }
 .xp-side .xp-partshead { padding: 10px 8px 4px; }
@@ -230,7 +231,6 @@ function open({ doc, what, act }) {
     <div class="xp-bar" role="toolbar" aria-label="Export">
       <div class="g"><div class="it">${nm('')}<button type="button" class="lk-btn xp-adjust${c.sideOpen ? ' on' : ''}" aria-pressed="${c.sideOpen}" title="Every choice, in a column beside the sheet">Adjust</button></div></div>
       <div class="g">${where(TARGETS, c.target)}</div>
-      <div class="g"><div class="it lk-pick xp-tpl" data-pick="xp-template">${nm('template')}<button type="button" class="lk-value" title="A named set of every choice here">${CHEV}</button><select class="xp-template" hidden></select><div class="lk-alts lk-pop" hidden></div></div></div>
       <div class="g end"><button type="button" class="lk-btn lk-i-save" data-act="md-file" data-for="md">Save as file…</button>
         <button type="button" data-act="md" data-for="md" class="lk-accent lk-i-copy xp-main">Copy Markdown<kbd>Cmd Enter</kbd></button>
         <button type="button" data-act="rich" data-for="rich" class="lk-accent lk-i-copy xp-main">Copy rich text<kbd>Cmd Enter</kbd></button>
@@ -239,8 +239,9 @@ function open({ doc, what, act }) {
     </div>
     <div class="xp-body">
     <div class="xp-side" ${c.sideOpen ? '' : 'hidden'}>
+    ${`<div class="xp-group xp-first"><div class="xp-tpl" data-pick="xp-template"><button type="button" class="lk-item xp-tplhead" aria-expanded="false" title="A named set of every choice here"><span>Template</span><span class="lk-note xp-tplval"></span></button><select class="xp-template" hidden></select><div class="lk-alts lk-pop lk-menu" role="menu" aria-label="Template" hidden></div></div></div>`}
     ${group('Text', rowPick('xp-layout', 'Style', D.layouts.map(l => [l.key, l.name]), c.layout))}
-    ${group('Prose', `${rowPick('xp-kids', 'Bullets under a line', KIDS, c.prose.children) + rowSwitch('xp-numbered', 'Numbered headings', c.prose.numbered)
+    <div class="xp-slot">${group('Prose', `${rowPick('xp-kids', 'Bullets under a line', KIDS, c.prose.children) + rowSwitch('xp-numbered', 'Numbered headings', c.prose.numbered)
       + rowSwitch('xp-runin', 'Headings under a # lead their line', c.prose.runIn)
       + only(rowSwitch('xp-contents', 'Contents list', c.prose.contents), 'pdf rich')
       + only(rowSwitch('xp-titlesheet', 'Title on its own sheet', c.prose.titleSheet), 'pdf')
@@ -248,13 +249,13 @@ function open({ doc, what, act }) {
       + rowField('xp-noteshead', 'Notes heading', c.prose.notesHead, 'None')}`, '', 'prose')}
     ${group('Timeline and Calendar', rowPick('xp-datekey', 'Date from', [['auto', 'Automatic'], ...dates.map(d => [d.key, d.name])], c.dated.dateKey)
       + rowPick('xp-under', 'Under the date', [['', 'Nothing'], ...props.filter(p => p.type !== 'date' && p.type !== 'datetime').map(p => [p.ident, p.name])], c.dated.under)
-      + rowSwitch('xp-newest', 'Newest first', c.dated.newestFirst), '', 'dated')}
-    ${group('Look', rowPick('xp-look', 'Type', themes.looks.map(l => [l.key, l.name]), c.look) + rowPick('xp-size', 'Text size', SIZES, c.size)
+      + rowSwitch('xp-newest', 'Newest first', c.dated.newestFirst), '', 'dated')}</div>
+    <div class="xp-slot">${group('Look', rowPick('xp-look', 'Type', themes.looks.map(l => [l.key, l.name]), c.look) + rowPick('xp-size', 'Text size', SIZES, c.size)
       + only(rowPick('xp-paper', 'Paper', [['A4', 'A4'], ['Letter', 'Letter']], c.paper), 'pdf') + only(rowPick('xp-margins', 'Margins', MARGINS, c.margins), 'pdf')
       + only(rowSwitch('xp-pagenumbers', 'Page numbers', c.pageNumbers), 'pdf') + only(rowField('xp-footer', 'Footer', c.footer, 'None'), 'pdf'), 'pdf rich')}
+    ${group('Markdown', rowPick('xp-links', 'Links', LINKS, c.links) + rowSwitch('xp-frontmatter', 'Front matter', c.frontMatter), 'md')}</div>
     ${doc.title ? group('Title', rowSwitch('xp-titledate', 'Today’s date', c.titleDate) + rowField('xp-kicker', 'Line above', lines.kicker || '', 'None') + rowField('xp-subtitle', 'Subtitle', lines.subtitle || '', 'None')
       + rowField('xp-by', 'Prepared by', c.preparedBy, 'None')) : ''}
-    ${group('Markdown', rowPick('xp-links', 'Links', LINKS, c.links) + rowSwitch('xp-frontmatter', 'Front matter', c.frontMatter), 'md')}
     ${group('Show', rowSwitch('xp-tags', 'Tags', c.tags) + rowSwitch('xp-tasks', 'Task boxes', c.tasks) + (lists.length ? `<div class="xp-lists">${lists.map(l => rowList(...l)).join('')}</div>` : ''))}
     ${group('Your CSS', `<textarea class="xp-cssbox lk-field" spellcheck="false" aria-label="Rules of your own, added after the look’s" placeholder=".x-title { letter-spacing: 0.02em; }">${esc(c.customCss)}</textarea>
       <div class="xp-partshead lk-note">Point at a part to see it on the sheet. Press it to write its rule.</div><div class="xp-parts lk-alts"></div>`, 'pdf rich')}
@@ -292,20 +293,16 @@ function open({ doc, what, act }) {
     };
     /* The template pick. Its value: the template in force, "· changed" once a choice differs from it. Its alternatives: the
        templates, then what can be done: save the changes, save as a new one, rename, delete (the person's own only). */
-    const setText = (el, text) => { if (el.firstChild?.nodeType === 3) el.firstChild.nodeValue = text; else el.insertBefore(hostDoc.createTextNode(text), el.firstChild); };
     const tpl = () => q('.xp-tpl');
     function drawTemplates(ch) {
       const it = tpl(), alts = it.querySelector('.lk-alts'), set = T.get(c.templates, c.template), changed = T.changed(set, ch), mine = T.isOwn(c.templates, c.template);
-      const value = it.querySelector('.lk-value');
-      setText(value, c.template || 'None');
-      value.querySelector('.was')?.remove();
-      if (c.template && changed) { const was = hostDoc.createElement('span'); was.className = 'was'; was.textContent = ' · changed'; value.insertBefore(was, value.querySelector('svg')); }
+      it.querySelector('.xp-tplval').textContent = (c.template || 'None') + (c.template && changed ? ' · changed' : '');
       if (alts.dataset.ask) return;   // a name is being typed, or a delete asked about: the line stays as it is
-      const word = (text, attrs) => `<span ${attrs}>${esc(text)}</span>`;
-      alts.innerHTML = [...T.names(c.templates).map(name => word(name, `data-v="${esc(name)}" class="${name === c.template ? 'on' : ''}"`)),
+      const word = (text, attrs, on = false) => `<span role="menuitem" tabindex="0" ${attrs.replace('class="', 'class="lk-item ')}><span>${esc(text)}</span><span class="lk-note">${on ? '✓' : ''}</span></span>`;
+      alts.innerHTML = [...T.names(c.templates).map(name => word(name, `data-v="${esc(name)}" class=""`, name === c.template)),
         c.template && changed ? word(`Save changes to ${c.template}`, 'data-do="save" class="do"') : '', word('Save as new…', 'data-do="new" class="do"'),
         mine && !T.BUILT_IN[c.template] ? word('Rename…', 'data-do="rename" class="do"') : '', mine ? word(T.BUILT_IN[c.template] ? `Back to the plugin’s ${c.template}` : 'Delete…', 'data-do="delete" class="do"') : ''].join('');
-      alts.querySelector('.do')?.classList.add('first');
+      alts.querySelector('.do')?.insertAdjacentHTML('beforebegin', '<div class="lk-item gap"></div>');
     }
     // A template's set put on the controls, as if each had been pressed.
     function show(next) {
@@ -365,16 +362,23 @@ function open({ doc, what, act }) {
         }
     }
     // What the toolbar shows for the destination, and the words in its panels' buttons.
+    let placed = false;   // the column's parts have taken their first state, so a later change is one to show
     const describe = () => {
       const ch = choice();
       q('[data-row=xp-layout] .xp-rowhead').title = D.layouts.find(l => l.key === ch.layout)?.about || '';
       q('[data-row=xp-look] .xp-rowhead').title = themes.look(ch.look).about;
       // What belongs to another destination, or to another style, is not shown.
-      /* What belongs to another destination or another style. On the bar it is not shown. In the column it keeps its place and
-         goes faint, out of reach of the pointer and the keys (inert), so no row moves when a style or a destination is taken
-         (the owner, 13 November 2026: "the sidebar just jumps based on menu selection. it should be anchored"). */
+      /* What belongs to another destination or another style is not shown. In the column one part stands in for another in
+         two places (Prose or the dates; Look or Markdown): each such place takes its new height in one eased motion, the
+         library's (PluginDoor.regrow), so the rows below glide straight to where they belong (the owner, 13 November 2026, of
+         rows that went at once: "the sidebar just jumps"; 14 November, of rows that stayed, faint: the column may change, "but
+         it has to feel more natural"; two parts rolled each by itself made the rows below go down, up and down again, measured
+         in Logseq the same day). As the window opens nothing moves. */
       const fits = el => (!el.dataset.for || el.dataset.for.split(' ').includes(ch.target)) && (!el.dataset.when || (el.dataset.when === 'prose' ? ch.layout === 'prose' : D.dated(ch.layout)));
-      for (const el of root.querySelectorAll('[data-for], [data-when]')) { if (el.closest('.xp-side')) el.inert = !fits(el); else el.hidden = !fits(el); }
+      const slots = [...root.querySelectorAll('.xp-slot')], had = slots.map(slot => slot.getBoundingClientRect().height);
+      for (const el of root.querySelectorAll('[data-for], [data-when]')) el.hidden = !fits(el);
+      if (placed) slots.forEach((slot, i) => window.PluginDoor.regrow(slot, had[i]));
+      placed = true;
       syncValues(); drawTemplates(ch);
     };
     // The preview's frame takes the shape of what it will hold: sheets side by side for a PDF, one page's width otherwise.
@@ -460,10 +464,10 @@ function open({ doc, what, act }) {
     // A value taken from a list of the window's own is told to the select that stands behind it, so one "change" redraws the sheet.
     const told = sel => sel.dispatchEvent(new (hostDoc.defaultView.Event)('change', { bubbles: true }));
     // Unfolding: one pick open at a time, its alternatives a line of words under its row (the template's a pop-up under the bar); folded by a press elsewhere or Escape.
-    const openOnes = () => [...root.querySelectorAll('.it.open, .xp-pickrow.open')];
+    const openOnes = () => [...root.querySelectorAll('.it.open, .xp-pickrow.open, .xp-tpl.open')];
     const closePops = keep => {
       if (keep !== tpl() && tpl().querySelector('.lk-alts').dataset.ask) { endAsk(); drawTemplates(choice()); }
-      for (const it of openOnes()) { it.classList.remove('open'); it.querySelector('.lk-alts, .xp-opts')?.setAttribute('hidden', ''); it.style.marginBottom = ''; const head = it.querySelector('.xp-rowhead'); if (head) { head.classList.remove('on'); head.setAttribute('aria-expanded', 'false'); } }
+      for (const it of openOnes()) { it.classList.remove('open'); it.querySelector('.lk-alts, .xp-opts')?.setAttribute('hidden', ''); it.style.marginBottom = ''; const head = it.querySelector('.xp-rowhead, .xp-tplhead'); if (head) { head.classList.remove('on'); head.setAttribute('aria-expanded', 'false'); } }
     };
     const unfold = it => {
       const was = it.classList.contains('open'); closePops(); if (was) return;
@@ -473,11 +477,12 @@ function open({ doc, what, act }) {
     };
     // Keys in the column, as in a menu: Up and Down walk its rows, Enter or Space turns a row that is on or off (a button takes them by itself).
     q('.xp-side').addEventListener('keydown', event => {
-      const row = event.target.closest?.('.xp-rowhead, .xp-opt, .xp-sw');
+      const row = event.target.closest?.('.xp-rowhead, .xp-opt, .xp-sw, .xp-tplhead, .xp-tpl .lk-alts > .lk-item');
       if (!row) return;
+      if ((event.key === 'Enter' || event.key === ' ') && row.matches('.xp-tpl .lk-alts > .lk-item') && !event.metaKey && !event.ctrlKey) { event.preventDefault(); if (row.dataset.do) doTemplate(row.dataset.do); else takeTemplate(row.dataset.v); return; }
       if ((event.key === 'Enter' || event.key === ' ') && row.classList.contains('xp-sw') && !event.metaKey && !event.ctrlKey) { event.preventDefault(); const box = row.querySelector('input'); box.checked = !box.checked; told(box); return; }
       if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
-      const rows = [...q('.xp-side').querySelectorAll('.xp-rowhead, .xp-opt, .xp-sw, .xp-fieldrow input')].filter(el => !el.closest('[hidden], [inert]'));
+      const rows = [...q('.xp-side').querySelectorAll('.xp-tplhead, .xp-tpl .lk-alts > .lk-item:not(.gap), .xp-rowhead, .xp-opt, .xp-sw, .xp-fieldrow input')].filter(el => !el.closest('[hidden], [inert]'));
       const next = rows[rows.indexOf(row) + (event.key === 'ArrowDown' ? 1 : -1)];
       if (next) { event.preventDefault(); next.focus(); }
     });
@@ -489,19 +494,21 @@ function open({ doc, what, act }) {
       closePops(); zoomIt();
     });
     root.addEventListener('click', event => {
+      const tplHead = event.target.closest('.xp-tplhead');
+      if (tplHead) { const was = tpl().classList.contains('open'); closePops(); if (!was) { tpl().classList.add('open'); tplHead.classList.add('on'); tplHead.setAttribute('aria-expanded', 'true'); const menu = tpl().querySelector('.lk-alts'); menu.hidden = false; window.PluginDoor.unroll(menu); } return; }
       const asked = event.target.closest('.xp-tpl [data-ask]'); if (asked && asked.tagName === 'B') { answer(asked.dataset.ask === 'ok'); return; }
       if (event.target.closest('.xp-tpl .ask')) return;
       const act = event.target.closest('.xp-tpl [data-do]'); if (act) { doTemplate(act.dataset.do); return; }
       const named = event.target.closest('.xp-tpl .lk-alts span[data-v]'); if (named) { takeTemplate(named.dataset.v); return; }
       // The column: a row that holds one of several unfolds them under it; one of them pressed is taken, and the row folds.
       const head = event.target.closest('.xp-rowhead');
-      if (head) { const row = head.parentNode, was = row.classList.contains('open'); closePops(); if (!was) { row.classList.add('open'); head.classList.add('on'); head.setAttribute('aria-expanded', 'true'); const menu = row.querySelector('.xp-opts'); menu.classList.remove('up'); menu.hidden = false; menu.classList.toggle('up', menu.getBoundingClientRect().bottom > q('.xp-side').getBoundingClientRect().bottom - 4); } return; }
+      if (head) { const row = head.parentNode, was = row.classList.contains('open'); closePops(); if (!was) { row.classList.add('open'); head.classList.add('on'); head.setAttribute('aria-expanded', 'true'); const menu = row.querySelector('.xp-opts'); menu.classList.remove('up'); menu.hidden = false; menu.classList.toggle('up', menu.getBoundingClientRect().bottom > q('.xp-side').getBoundingClientRect().bottom - 4); window.PluginDoor.unroll(menu); } return; }
       const opt = event.target.closest('.xp-opt');
       if (opt) { const row = opt.closest('.xp-pickrow'), sel = row.querySelector('select'); sel.value = opt.dataset.v; closePops(); row.querySelector('.xp-rowhead').focus(); told(sel); return; }
       const alt = event.target.closest('[data-pick] .lk-alts span');
       if (alt) { const it = alt.closest('[data-pick]'), sel = it.querySelector('select'); sel.value = alt.dataset.v; closePops(it); told(sel); return; }
       const v = event.target.closest('.it[data-pick] > .lk-value'); if (v) { unfold(v.parentNode); return; }
-      if (!event.target.closest('.it.open, .xp-pickrow.open')) closePops();
+      if (!event.target.closest('.it.open, .xp-pickrow.open, .xp-tpl.open')) closePops();
     });
     root.addEventListener('input', event => { if (!event.target.closest('.xp-zoom, .xp-tpl')) refresh(); });
     root.addEventListener('change', event => { if (event.target.closest('.xp-zoom')) { syncValues(); remember(choice(), doc.title); zoomIt(); } else refresh(); });
