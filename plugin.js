@@ -1111,7 +1111,8 @@ const TOKENS = `
    pressed; lk-lone: an action with nothing beside it; lk-add: "+ Add property"; lk-fix: what to do about a row, at its
    right end; lk-x: takes one thing off a row; lk-plus: adds to a row's group; lk-change (with lk-i-chevron): changes a value that holds one thing (these three
    only darken under the pointer, no ground behind them); lk-reveal on any of them, with lk-reveals on what it acts on: shown
-   only while that is pointed at, light grey, darker near it, kept while the hand wavers; lk-more: show all; lk-views with lk-view
+   only while that is pointed at, light grey, darker near it, kept while the hand wavers (lk-near, put on by the module, where what
+   it acts on is not around it); lk-more: show all; lk-views with lk-view
    (.on): other contents of one place; lk-trail with lk-step: the places you came through; lk-head (.on): a sort head;
    lk-menu with lk-item (.off, .gap, a faint lk-note) and lk-group, the heading of a part of it: a menu.
    Drawn whole here since 6 November 2026, so no module draws them again: lk-window (a window mid-screen) and lk-pop (a pop-up at
@@ -1211,7 +1212,9 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
    pointer, so it never stands in the way of what is under it. The module says where it stands and how big its zone is. */
 .lk-reveal { position: relative; opacity: 0; pointer-events: none; transition: opacity .12s ease .35s, color .1s ease; color: color-mix(in srgb, var(--lk-text, currentColor) 30%, transparent) !important; background: none !important; }
 .lk-reveal::after { content: ''; position: absolute; inset: -9px -6px; }
-.lk-reveals:hover .lk-reveal, .lk-reveal:focus-visible { opacity: 1; pointer-events: auto; transition-delay: 0s, 0s; }
+/* lk-near on the press itself: its holder is not around it (a whole page, which holds presses of its own that must stay hidden), so the
+   module says when the pointer is on the holder or on the press. */
+.lk-reveals:hover .lk-reveal, .lk-reveal.lk-near, .lk-reveal:focus-visible { opacity: 1; pointer-events: auto; transition-delay: 0s, 0s; }
 .lk-reveal:is(:hover, :focus-visible) { color: var(--lk-text, currentColor) !important; background: var(--lk-wash) !important; }   /* on the press itself: the round wash too, as on every press */
 .lk-reveal:focus-visible { outline: none; }
 .lk-btn:hover, .lk-btn:focus-visible, .lk-accent:hover, .lk-accent:focus-visible, .lk-lone:hover, .lk-lone:focus-visible, .lk-fix:hover, .lk-fix:focus-visible, .lk-item:hover, .lk-item:focus-visible { background: var(--lk-wash); }
