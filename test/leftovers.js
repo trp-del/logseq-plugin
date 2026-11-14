@@ -22,11 +22,18 @@ assert.ok(read('settings/ways-in.js').includes("'PDF or Markdown, your styles…
 
 // N6: a tab of the right sidebar can say it has nothing to show; Outline says so on a page with no headings, Item with no row pressed.
 // Endnotes stand under Links (the owner, 12 November 2026) and have no heading on a page with no citations.
-assert.ok(/filter\(v => !v\.hidden\?\.\(doc\)\)/.test(read('sidebar-tabs.js')), 'a hidden view has no tab');
+// Since 14 November 2026 such a tab stays in the row, greyed (the library's lk-view with aria-disabled), a press does nothing, its title says why.
+const sideTabs = read('sidebar-tabs.js');
+assert.ok(/const applies = ordered\.filter\(v => !v\.hidden\?\.\(doc\)\)/.test(sideTabs) && /const made = ordered\.map/.test(sideTabs), 'a view with nothing to show keeps its tab, greyed');
+assert.ok(/press\.setAttribute\('aria-disabled', 'true'\)/.test(sideTabs) && /if \(press\.getAttribute\('aria-disabled'\) !== 'true'\) click\(\)/.test(sideTabs), 'a greyed tab cannot be pressed');
+assert.ok(/!applies\.some\(v => v\.key === tabs\.cur\)\) tabs\.cur = applies\.find/.test(sideTabs), 'the tab picked that stops applying gives way to the first that applies');
+assert.ok(/off: !others\.length/.test(sideTabs), 'Opened stays, greyed, with nothing opened');
+assert.ok(/\.lk-view\[aria-disabled="true"\][^{]*\{ color: var\(--lk-off\) !important; cursor: default; \}/.test(read('plugin.js')), 'the library draws a greyed view at the off strength');
+assert.ok(/why: key === 'contents' \? 'No headings on this page'/.test(read('look/logseq/links.js')) && /why: 'No table row pressed'/.test(read('structure/logseq/mount.js')), 'Outline and Item say why they are greyed');
 const links = read('look/logseq/links.js');
-assert.ok(/hidden: key === 'contents' \? \(\) => state\.read && !state\.heads\.length/.test(links), 'Outline is hidden on a page read and found without headings');
+assert.ok(/hidden: key === 'contents' \? \(\) => state\.read && !state\.heads\.length/.test(links), 'Outline is greyed on a page read and found without headings');
 assert.ok(/if \(!state\.notes\.length\) return \[\];/.test(links) && !/key: 'notes'/.test(links), 'Endnotes are no tab: a heading under Links, absent without citations');
-assert.ok(/key: 'item', word: 'Item'[\s\S]{0,400}hidden: \(\) => !S\.inspector\.row\(\)/.test(read('structure/logseq/mount.js')), 'Item has no tab with no row pressed');
+assert.ok(/key: 'item', word: 'Item'[\s\S]{0,400}hidden: \(\) => !S\.inspector\.row\(\)/.test(read('structure/logseq/mount.js')), 'Item is greyed with no row pressed');
 assert.ok(/word: 'Opened'/.test(read('sidebar-tabs.js')) && /word: 'Outline'/.test(links), 'the tabs\' names: Opened, Outline');
 assert.ok(/readNotes\(blocks\)/.test(links) && /const whole = state\.open\.links \|\| setting\('citationNumbers'\)/.test(links), 'the citations are read with both sections closed');
 

@@ -1244,6 +1244,9 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
 .lk-view:hover, .lk-view:focus-visible { color: var(--lk-text, currentColor) !important; }
 .lk-view.on { color: var(--lk-text, currentColor) !important; }
 .lk-view.on::after { content: ""; position: absolute; left: var(--lk-view-pad, 8px); right: var(--lk-view-pad, 8px); bottom: 0; height: 1px; background: currentColor; }   /* one hairline (the owner, 13 November 2026: lighter than the 2px bar) */
+/* A view that has nothing to show here stays in its place at the off strength, pointing does not raise it and a press does nothing;
+   it keeps the pointer, so its title can say why (the owner, 14 November 2026: "stay visible just greyed out when not applicable"). */
+.lk-view[aria-disabled="true"], .lk-view[aria-disabled="true"]:hover, .lk-view[aria-disabled="true"]:focus-visible { color: var(--lk-off) !important; cursor: default; }
 .lk-trail { display: flex; flex-wrap: wrap; gap: 2px 6px; align-items: center; font-size: var(--lk-small); }
 .lk-trail > :not(.lk-step) { color: var(--lk-quiet); }
 .lk-step { color: var(--lk-quiet) !important; padding: 0; text-decoration: underline !important; text-decoration-color: var(--lk-hair) !important; text-underline-offset: 3px; }

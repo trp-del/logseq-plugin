@@ -62,7 +62,7 @@ function mount(app) {
   // names; there only while a row is pressed.
   const offItem = Door.sideTabs?.add({ key: 'item', word: 'Item', order: 2,
     find: doc => S.inspector.item(doc), owns: item => S.inspector.owns(item), open: () => {},
-    hidden: () => !S.inspector.row() });
+    hidden: () => !S.inspector.row(), why: 'No table row pressed' });
   const offMenu = Door.watch(icons);
   const onPage = () => host().defaultView.location.hash.split('?')[0] === '#' + ROUTE;   // the address carries the place (view.js)
   return {

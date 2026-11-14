@@ -363,7 +363,8 @@ function start() {
   offTabs = SECTIONS.map(({ key, word }) => window.PluginDoor.sideTabs?.add({ key, word, order: key === 'contents' ? 0 : 3,
     find: () => (state.panels[key]?.isConnected ? state.panels[key] : null), open: () => { if (!state.open[key]) setOpen(key, true); },
     // Outline has no tab on a page with no headings; until the page is read, it stays as it was.
-    hidden: key === 'contents' ? () => state.read && !state.heads.length : undefined }));
+    hidden: key === 'contents' ? () => state.read && !state.heads.length : undefined,
+    why: key === 'contents' ? 'No headings on this page' : undefined }));
   style('sidebar-links', css);
   watchScreen(draw);
   Look.kit.listen(host().defaultView, 'click', onItemClosed, true);
