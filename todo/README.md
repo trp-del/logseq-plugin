@@ -8,7 +8,7 @@ Todo is Logseq's own tasks as one short list: what to do today, what is coming u
 
 The same list, drawn by the same code, in two places. A change in one shows in the other at once.
 
-- **A page of its own**, in the middle of the window, titled Todo, at most 720 px wide and centred. Open it from the command palette (**Todo**), from the ticked box in Logseq's toolbar at the top right (beside Ontology's tree, before the ··· menu), or with **g** then **d** outside a bullet, as Logseq's own g pairs. The key is set in Logseq's own keyboard shortcuts, where it is listed as Todo; the key sheet (hold Option) lists it among the keys of two letters.
+- **A page of its own**, in the middle of the window, titled Todo, at most 720 px wide and centred. Open it from the command palette (**Todo**), from the checkmark in Logseq's toolbar at the top right (beside Ontology's tree, before the ··· menu), or with **g** then **d** outside a bullet, as Logseq's own g pairs. The key is set in Logseq's own keyboard shortcuts, where it is listed as Todo; the key sheet (hold Option) lists it among the keys of two letters.
 - **The Todo tab of the right sidebar**, after Links, narrower and without the title. Picked, it opens if it is not open yet; the command palette's **Todo in the sidebar** opens it too.
 
 ## What it draws
