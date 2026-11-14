@@ -106,7 +106,22 @@ const { U, load, pencilled } = standIn;
   assert.ok(described.schema.filter(i => i.type === 'heading').every(i => ['window', 'page', 'sidebar', 'keys'].includes(i.place)), 'every section of Look is sent to a place');
   const rowsOf = heading => { const at = described.schema.findIndex(i => i.title === heading); const next = described.schema.findIndex((i, n) => n > at && i.type === 'heading'); return described.schema.slice(at + 1, next < 0 ? undefined : next).map(i => i.key); };
   assert.equal(rowsOf('Notices').join(), 'quietNotices', 'Notices holds how a notice shows');
-  assert.equal(rowsOf('Look and feel').join(), 'calmType,readingWidth,calmSidebar,calmToolbar,calmPage,calmTables,calmSearch,calmMenus', 'Look and feel holds a switch per part and the reading width');
+  assert.equal(rowsOf('Look and feel').join(), 'calmType,readingWidth,calmSidebar,calmToolbar,calmScrollbars,calmPage,calmTables,calmSearch,calmMenus', 'Look and feel holds a switch per part and the reading width');
+  // The Mac's own scroll bars: Logseq's ::-webkit-scrollbar rules that reach the page or the sidebar match nothing while the old
+  // thin bar is off, and come back as they were when it is switched on; the plugin's own sheets draw no bar.
+  { const own = doc.createElement('style'); own.textContent = '#main-content-container::-webkit-scrollbar { background: red } .left-sidebar-inner ::-webkit-scrollbar { width: 6px } .force-visible-scrollbar::-webkit-scrollbar, #main-content-container ::-webkit-scrollbar-thumb { color: red }'; doc.head.appendChild(own);
+    const selectors = () => [...own.sheet.cssRules].map(rule => rule.selectorText);
+    const was = selectors();
+    Look.calm.macBars(doc);
+    assert.deepEqual(selectors(), [':not(*)#main-content-container::-webkit-scrollbar', '.left-sidebar-inner ::-webkit-scrollbar', '.force-visible-scrollbar::-webkit-scrollbar, #main-content-container ::-webkit-scrollbar-thumb'], 'only the rule that reaches the page is set aside');
+    assert.ok(!Object.entries(styles).some(([key, css]) => /::-webkit-scrollbar|scrollbar-(width|color)/.test(css || '') && !/lk-tabs|xp-side|sw-body/.test(css)), 'no sheet of the plugin draws a scroll bar');
+    const before = logseq.settings; logseq.settings = { ...(before || {}), calmScrollbars: true };
+    Look.calm.macBars(doc);
+    assert.deepEqual(selectors(), was, 'the old thin bar switched on: Logseq\'s rule as it was');
+    logseq.settings = before; Look.calm.macBars(doc);
+    Look.calm.stop();
+    assert.deepEqual(selectors(), was, 'Look stopping gives the rule back');
+    own.remove(); }
   assert.equal(rowsOf('The outline').join(), 'outlinePath,focusGlide', 'The outline holds the way to the bullet you edit, and focusing in and out');
   assert.equal(rowsOf('The key sheet').join(), 'keySheet', 'The key sheet, under Keys, holds its switch');
   assert.equal(rowsOf('Folded nodes').join(), 'foldedNote', 'Folded nodes holds only what a folded node says');

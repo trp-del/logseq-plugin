@@ -10,11 +10,12 @@
    size (a page opened in the sidebar has no title of its own). A second page, or a two-page main view, would have to be drawn by
    the plugin and would not be Logseq's page; this is the one way that keeps both halves Logseq's.
 
-   Between the halves stands one hairline. Pointing at it shows ⇄ at its top (the library's lk-reveal), which swaps the two pages;
-   dragging it makes one half wider, never narrower than 320 px; a double press on it gives equal halves again. Pointing at a page
-   shows × at its top right (lk-reveal too): on the right it closes the right page, on the left it closes the left page and the
-   right one takes the main area. The page that stays takes the whole width, and the sidebar is as it was before the split (open
-   on the tab it was on, or closed). The right page rolls out as it opens and rolls back up as it closes, the door's one motion,
+   Between the halves stands one hairline: dragging it makes one half wider, never narrower than 320 px; a double press on it
+   gives equal halves again. While the split is on, two icons stand in the window's top right corner, in the empty band of
+   Logseq's header over the right page, always shown and drawn as Logseq's own toolbar icons (the owner, 14 November 2026: "just
+   put icons in right hand corner visible"): ⇄ swaps the two pages, × closes the right page. To close the left page instead, ⇄
+   then ×. The page that stays takes the whole width, and the sidebar is as it was before the split (open on the tab it was on,
+   or closed). The right page rolls out as it opens and rolls back up as it closes, the door's one motion,
    standing still under reduced motion.
 
    The real sidebar stays yours: opening anything in it while the split is on (Shift-click, a view from the ··· menu) ends the
@@ -29,7 +30,7 @@ const SCHEMA = [{ key: 'splitOnCmdClick', type: 'boolean', default: true, title:
 const MIN = 320;   // px: the narrowest a half is dragged to
 const LINK = 'a.page-ref[data-uuid], a.tag[data-uuid], .lk-node[data-uuid]';
 const base = Door.base('split', { prefix: 'Logseq Plugin (split): ', schema: SCHEMA,
-  leaves: { elements: '.lk-split-own', attributes: ['data-lk-split', 'data-lk-split-item'], reset: doc => { doc.documentElement.style.removeProperty('--lk-split-w'); } } });
+  leaves: { elements: '.lk-split-own', attributes: ['data-lk-split', 'data-lk-split-item'], reset: doc => doc.documentElement.style.removeProperty('--lk-split-w') } });
 
 /* The one state of the split: the node on the right (its number in Logseq's sidebar list and its id), the share of the main area
    the right half takes, what the sidebar was before, and whether a change of the split's own is under way (then the screen's
@@ -61,18 +62,20 @@ const CSS = `
 #right-sidebar[data-lk-split] .sidebar-item[data-lk-split-item] .sidebar-panel-content { padding: 0 clamp(16px, 4%, 44px) 96px !important; }
 /* The page's title, at the main title's size and weight (read from it as the split opens). */
 .lk-split-title { margin: 0 0 12px; overflow-wrap: anywhere; color: var(--lk-text); }
-/* The hairline between the halves: a strip the hand can hold, the line in its middle, ⇄ at its top. */
-.lk-split-line { position: fixed; top: 0; bottom: 0; left: calc(100vw - var(--lk-split-w, 50vw) - 5px); width: 11px; z-index: 9; cursor: col-resize; touch-action: none; background: none !important; border: 0 !important; }   /* Logseq draws its own separators as a grey band */
-.lk-split-line::before { content: ''; position: absolute; top: 0; bottom: 0; left: 5px; width: 1px; background: var(--lk-hair); }
-.lk-split-line.lk-held::before { background: var(--lk-line); }
-.lk-split-swap, .lk-split-x { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0 !important; border-radius: 50% !important; line-height: 1; cursor: pointer; }
-.lk-split-line > .lk-split-swap.lk-reveal { position: absolute; top: 56px; left: 50%; transform: translateX(-50%); }
-/* A page's ×, at its top right, below Logseq's header band (a mouse press in that band moves the window and reaches nothing).
-   It stands over the page, not in it: the page scrolls, and it holds presses of its own that showing the × must not show.
-   It shows while the page or the × is pointed at (lk-near, put on by near()). */
-body > .lk-split-x.lk-reveal { position: fixed; top: 56px; z-index: 9; }   /* over the library's own place for a press (lk-reveal) */
-body > .lk-split-x[data-side="left"] { right: calc(var(--lk-split-w, 50vw) + 14px); }
-body > .lk-split-x[data-side="right"] { right: 14px; }`;
+/* The hairline between the halves: a strip the hand can hold, unseen, the 1px line at its left edge (firmer under the pointer and
+   while dragged). The strip reaches only into the right page, so the left page's scroll bar, at the left page's edge and 11 pt
+   wide under the pointer, is never under it. body > raises it over the library's rule that paints Logseq's separators as a grey
+   band. */
+body > .lk-split-line { position: fixed; top: 0; bottom: 0; left: calc(100vw - var(--lk-split-w, 50vw)); width: 10px; z-index: 11; cursor: col-resize; touch-action: none; background: none !important; border: 0 !important; -webkit-app-region: no-drag; }
+body > .lk-split-line::before { content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 1px; background: var(--lk-hair); }
+body > .lk-split-line:hover::before, body > .lk-split-line.lk-held::before { background: var(--lk-line); }
+/* ⇄ and ×, in the window's top right corner, in the band of Logseq's header over the right page, so nothing covers the right
+   page's title. They are drawn as Logseq's toolbar icons (the library's toolbar button, Tabler's line icons at 20 px), and take
+   their size, grey, stroke and spacing from Logseq's own icons on the left page's header (read by layout()). The band moves the
+   window under a mouse press, so the icons are cut out of it (no-drag), as Logseq's are. */
+body > .lk-split-tools { position: fixed; top: var(--lk-split-top, 8px); right: var(--lk-split-edge, 12px); z-index: 11; display: flex; align-items: center; gap: var(--lk-split-gap, 4px); -webkit-app-region: no-drag; }
+body > .lk-split-tools > .lk-tool { display: inline-flex; align-items: center; justify-content: center; cursor: pointer; -webkit-app-region: no-drag; }
+body > .lk-split-tools > .lk-tool:is(:hover, :focus-visible) { opacity: 1 !important; }`;
 
 // The width of the right half, from the share and the main area as it is now (the left sidebar open or not, the window's width).
 function layout(doc = host()) {
@@ -82,6 +85,23 @@ function layout(doc = host()) {
   const share = whole < MIN * 2 ? .5 : Math.min(1 - MIN / whole, Math.max(MIN / whole, split.ratio));
   const width = Math.round(whole * share) + 'px';
   if (doc.documentElement.style.getPropertyValue('--lk-split-w') !== width) doc.documentElement.style.setProperty('--lk-split-w', width);
+  // ⇄ and × drawn as Logseq's icons on the left page's header (··· and the sidebar's): their size, grey and stroke, the space
+  // between them, their height in the band, and the space Logseq leaves after its last icon, read from the icons themselves.
+  const box = doc.body.querySelector(':scope > .lk-split-tools'), own = [...(doc.querySelector('#head > .r > :last-child')?.children || [])]
+    .map(el => el.matches('a.button, button') ? el : el.querySelector('a.button, button')).filter(el => el && el.getBoundingClientRect().width);
+  if (box && own.length) {
+    const last = own[own.length - 1], r = last.getBoundingClientRect(), cs = doc.defaultView.getComputedStyle(last);
+    const head = doc.querySelector('#head > .r')?.getBoundingClientRect(), prev = own[own.length - 2]?.getBoundingClientRect();
+    const set = (name, value) => { if (doc.documentElement.style.getPropertyValue(name) !== value) doc.documentElement.style.setProperty(name, value); };
+    set('--lk-split-top', Math.round(r.top) + 'px');
+    if (head) set('--lk-split-edge', Math.max(0, Math.round(head.right - r.right)) + 'px');
+    if (prev) set('--lk-split-gap', Math.max(0, Math.round(r.left - prev.right)) + 'px');
+    const stroke = last.querySelector('svg') && doc.defaultView.getComputedStyle(last.querySelector('svg')).strokeWidth;
+    for (const icon of box.children) {
+      Object.assign(icon.style, { width: r.width + 'px', height: r.height + 'px', padding: cs.padding, borderRadius: cs.borderRadius, color: cs.color, opacity: cs.opacity });
+      if (stroke) icon.querySelector('svg')?.setAttribute('stroke-width', parseFloat(stroke) || 2);
+    }
+  }
 }
 
 // The split's own pieces on the screen, put there again whenever Logseq draws the sidebar or the main view anew.
@@ -110,39 +130,42 @@ function draw(doc = host()) {
     if (Math.abs(shift) > 1) title.style.marginLeft = Math.max(0, (parseFloat(title.style.marginLeft) || 0) + shift) + 'px';
   }
   if (!split.page) panel?.querySelector(':scope > .lk-split-title')?.remove();
-  for (const side of ['left', 'right']) if (!doc.body.querySelector(`:scope > .lk-split-x[data-side="${side}"]`)) doc.body.appendChild(press(doc, side));
+  if (!doc.body.querySelector(':scope > .lk-split-tools')) doc.body.appendChild(tools(doc));
   if (!doc.body.querySelector(':scope > .lk-split-line')) doc.body.appendChild(line(doc));
   layout(doc);
 }
-// A page's ×: the library's lk-x, shown while the page is pointed at (lk-reveal).
-function press(doc, side) {
-  const words = side === 'right' ? 'Close this page' : 'Close this page; the page on the right takes its place';
-  return Door.el(doc, 'button', { type: 'button', class: 'lk-x lk-reveal lk-split-x lk-split-own', 'data-side': side, title: words, 'aria-label': words, click: event => { event.preventDefault(); event.stopPropagation(); close(side); } }, '×');
+// ⇄ and ×: the library's toolbar button (Door.toolbarButton) with its icons swap and close (Door.TOOLBAR_ICONS).
+function tools(doc) {
+  const box = Door.el(doc, 'div', { class: 'lk-split-tools lk-split-own' });
+  box.innerHTML = Door.toolbarButton('', 'Swap pages', 'swap') + Door.toolbarButton('', 'Close the right page', 'close');
+  const [swap, x] = box.children;
+  for (const [icon, run] of [[swap, swapPages], [x, () => close('right')]]) {
+    icon.removeAttribute('data-on-click');
+    icon.setAttribute('role', 'button');
+    icon.setAttribute('tabindex', '0');
+    icon.addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); run(); });
+    icon.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); run(); } });
+  }
+  swap.classList.add('lk-split-swap'); x.classList.add('lk-split-x');
+  return box;
 }
-// The hairline: dragged, it moves; pressed twice, equal halves; ⇄ at its top swaps the pages.
+// The hairline: dragged, it moves; pressed twice, equal halves.
 function line(doc) {
-  const swap = Door.el(doc, 'button', { type: 'button', class: 'lk-change lk-reveal lk-split-swap', title: 'Swap the two pages', 'aria-label': 'Swap the two pages', click: event => { event.preventDefault(); event.stopPropagation(); swapPages(); } }, '⇄');
-  const strip = Door.el(doc, 'div', { class: 'lk-split-line lk-reveals lk-split-own', role: 'separator', 'aria-orientation': 'vertical', 'aria-label': 'Between the two pages: drag to make one wider, double-click for equal halves' }, swap);
+  const strip = Door.el(doc, 'div', { class: 'lk-split-line lk-split-own', role: 'separator', 'aria-orientation': 'vertical', 'aria-label': 'Between the two pages: drag to make one wider, double-click for equal halves' });
   strip.addEventListener('pointerdown', event => {
-    if (event.button !== 0 || event.target.closest('.lk-split-swap')) return;
+    if (event.button !== 0) return;
     event.preventDefault();
     strip.setPointerCapture?.(event.pointerId);
     strip.classList.add('lk-held');
     const win = doc.defaultView, main = doc.getElementById('main-content-container');
-    const move = e => { const left = main ? main.getBoundingClientRect().left : 0, whole = win.innerWidth - left; if (whole > 0) { split.ratio = (win.innerWidth - e.clientX) / whole; layout(doc); } };
+    // Where in the strip it was taken: the line keeps that distance from the hand, so it does not jump to the pointer.
+    const at = Math.min(10, Math.max(0, event.clientX - (win.innerWidth - (parseFloat(doc.documentElement.style.getPropertyValue('--lk-split-w')) || win.innerWidth / 2))));
+    const move = e => { const left = main ? main.getBoundingClientRect().left : 0, whole = win.innerWidth - left; if (whole > 0) { split.ratio = (win.innerWidth - e.clientX + at) / whole; layout(doc); } };
     const up = () => { strip.classList.remove('lk-held'); strip.removeEventListener('pointermove', move); strip.removeEventListener('pointerup', up); strip.removeEventListener('pointercancel', up); };
     strip.addEventListener('pointermove', move); strip.addEventListener('pointerup', up); strip.addEventListener('pointercancel', up);
   });
-  strip.addEventListener('dblclick', event => { if (event.target.closest('.lk-split-swap')) return; split.ratio = .5; layout(doc); });
+  strip.addEventListener('dblclick', () => { split.ratio = .5; layout(doc); });
   return strip;
-}
-
-// The pointer on a page, or on its ×, shows that page's ×.
-function near(event) {
-  if (!split.id) return;
-  const doc = host(), at = event.type === 'pointerout' && !event.relatedTarget ? null : event.target;
-  const on = side => !!at?.closest?.(side === 'left' ? '#main-content-container, .lk-split-x[data-side="left"]' : '#right-sidebar[data-lk-split], .lk-split-x[data-side="right"]');
-  for (const x of doc.querySelectorAll('body > .lk-split-x')) { const lit = on(x.dataset.side); if (lit !== x.classList.contains('lk-near')) x.classList.toggle('lk-near', lit); }
 }
 
 // Takes the split's marks and pieces off the screen; the sidebar is then drawn as Logseq draws it.
@@ -151,6 +174,7 @@ function unmark(doc = host()) {
   for (const el of doc.querySelectorAll('[data-lk-split-item]')) el.removeAttribute('data-lk-split-item');
   sidebar(doc)?.removeAttribute('data-lk-split');
   doc.documentElement.style.removeProperty('--lk-split-w');
+  for (const name of ['--lk-split-top', '--lk-split-edge', '--lk-split-gap']) doc.documentElement.style.removeProperty(name);
 }
 function forget() { split.id = null; split.uuid = null; split.page = false; split.title = ''; split.before = null; }
 
@@ -172,8 +196,7 @@ async function open(uuid) {
   split.busy = true;
   const was = split.id, first = !was;
   try {
-    if (first) split.before = { open: sideOpen(), tab: sidebar(doc)?.getAttribute('data-lk-tab') || '', had: new Set(sideList().map(entry => entry?.[1])) };
-    const had = split.before.had.has(node.id);
+    if (first) { const list = sideList().map(entry => entry?.[1]); split.before = { open: sideOpen(), tab: sidebar(doc)?.getAttribute('data-lk-tab') || '', had: new Set(list), list }; }
     split.id = node.id; split.uuid = String(node.uuid); split.page = !node.page; split.title = node.title || node.originalName || node.name || '';
     if (first) { layout(doc); sidebar(doc)?.setAttribute('data-lk-split', ''); }   // the half is there, empty, before the page comes, so nothing shows at the sidebar's own width
     await logseq.Editor.openInRightSidebar(split.uuid);
@@ -182,13 +205,12 @@ async function open(uuid) {
     if (!item) { base.warnOnce('the page did not come into the sidebar'); unmark(doc); if (first) forget(); else split.id = was; return; }
     draw(doc);
     Door.unroll(content(item));
-    if (was && !split.before.had.has(was)) await takeOut(doc, was);
-    if (had) split.before.had.delete(node.id);
+    if (was && !split.before.had.has(was)) await takeOut(doc, was);   // a page that was in the sidebar before the split stays in it
   } finally { split.busy = false; }
 }
 
-/* Closes one half. The right: its page rolls up and leaves the sidebar's list (unless it was there before the split). The left:
-   the right page goes to the main view and the right half closes. Then the sidebar is as it was before the split. */
+/* Closes one half. The right (×): its page rolls up and leaves the sidebar's list (unless it was there before the split). The
+   left (kept for the checks; ⇄ then × does it on screen): the right page goes to the main view and the right half closes. Then the sidebar is as it was before the split: the same items in the same order, open or closed, on its tab. */
 async function close(side) {
   if (!split.id || split.busy) return;
   const doc = host(), item = at(doc, split.id);
@@ -203,10 +225,35 @@ async function close(side) {
 async function end(doc = host(), { takeOut: out = false } = {}) {
   const { before, id } = split;
   if (out && id != null && !before?.had.has(id)) await takeOut(doc, id);
+  if (out && before) await reorder(doc, before.list);
   if (out && before && !before.open) logseq.App.setRightSidebarVisible?.(false);
   unmark(doc);
   forget();
   if (out && before?.open && before.tab) doc.defaultView.requestAnimationFrame(() => Door.sideTabs?.pick(before.tab));
+}
+
+/* The sidebar's list put back in the order it had before the split. Opening a page that was already in the list (on the right,
+   or by ⇄) moved it to the top, as Logseq moves anything opened again, so the items that stood above it are opened again too,
+   lowest first, each going to the top in turn; nothing is added or taken out. Logseq's list can only be changed this way, so an
+   item the plugin cannot open again (another plugin's view) leaves the order as it is. */
+async function reorder(doc, before = []) {
+  const now = () => sideList().map(entry => entry?.[1]);
+  const want = before.filter(id => now().includes(id));
+  const cur = now().filter(id => want.includes(id));
+  // The longest tail of the old order that still stands in that order at the bottom: only what is above it has to move.
+  let k = want.length, j = cur.length - 1;
+  while (k > 0 && j >= 0) { if (cur[j] === want[k - 1]) k--; j--; }
+  const move = want.slice(0, k).reverse();
+  if (!move.length) return;
+  const OWN = ':logseq-plugin/';
+  const opener = async id => typeof id === 'number' ? (await logseq.Editor.getBlock(id).catch(() => null) || await logseq.Editor.getPage(id).catch(() => null))?.uuid
+    : typeof id === 'string' && id.startsWith(OWN) ? id.slice(OWN.length) : null;
+  const ways = await Promise.all(move.map(opener));
+  if (ways.some(way => !way)) return base.warnOnce('the sidebar\'s order could not be put back');
+  for (let i = 0; i < move.length; i++) {
+    await logseq.Editor.openInRightSidebar(String(ways[i]));
+    await Door.screen.waitFor(() => sideList()[0]?.[1] === move[i] || null, 1500, { frames: true });
+  }
 }
 
 /* ⇄: the page on the left goes to the right half and the right page to the main view. The left must be a page or a node. */
@@ -248,14 +295,16 @@ Door.split = {
     base.sheet('lk-split-style', CSS);
     base.listen(win, LINK_EVENTS, onLink, true);
     base.listen(win, 'resize', () => layout(doc));
-    base.listen(win, ['pointerover', 'pointerout'], near, { passive: true });
+    // Light and dark: when the theme changes, Logseq's own header icons fade to their new grey (a colour transition); when that fade
+    // ends, the corner icons take the grey again.
+    base.listen(doc, 'transitionend', event => { if (split.id && event.propertyName === 'color' && event.target.closest?.('#head')) layout(doc); }, true);
     base.watch(watch);
     base.onStop(() => split.id ? end(doc, { takeOut: true }) : undefined);   // the plugin stopping or reloading closes the split as its × would
     Door.root.onStop(() => base.stop());
   },
   stop: () => base.stop(),
   // For the checks: the state, and the ways in, as a press would call them.
-  state: () => ({ ...split, before: split.before && { ...split.before, had: [...split.before.had] } }),
+  state: () => ({ ...split, before: split.before && { ...split.before, had: [...split.before.had], list: [...split.before.list] } }),
   open, close, swap: swapPages, layout,
 };
 Door.rootSchema = [...(Door.rootSchema || []), { key: 'splitHeading', type: 'heading', default: null, title: 'Two pages side by side', description: '' }, ...SCHEMA];
