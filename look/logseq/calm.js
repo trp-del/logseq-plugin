@@ -25,6 +25,10 @@ body { font-family: var(--ls-font-family) !important; -webkit-font-smoothing: an
 .left-sidebar-inner .sidebar-content-group .hd strong { font-weight: 400 !important; color: var(--lk-quiet) !important; }
 /* The same page icon down every row is said once by the list: it goes to the off grey; an icon you chose keeps its place. */
 .left-sidebar-inner :is(.page-icon, .ls-icon-calendar, .ls-icon-files) { color: var(--lk-quiet) !important; }
+/* The page's icon a diamond (the owner, 14 November 2026: "do diamond shape for page", then "fill in the diamond", then "make symbol smaller", then "go back to diamond regular size outline but make it heavier"), an outline at the regular size, wherever Logseq draws its file icon for a
+   page: the left sidebar, search, the right sidebar. Logseq's box and colour stay; only its drawing gives way to the diamond. */
+.icon-cp-container > .ls-icon-file svg > * { display: none; }
+.icon-cp-container > .ls-icon-file svg { background: currentColor; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 3l5 5-5 5-5-5z' fill='none' stroke='black' stroke-width='1.5' stroke-linejoin='miter'/%3E%3C/svg%3E") center / 100% 100% no-repeat; }
 .left-sidebar-inner .cp__graphs-selector .thumb { background: none !important; }
 /* The left sidebar: its words in the text colour with their icons in the quiet grey, the place you are on a little heavier
    (the owner, 8 November 2026: "you are now sacrificing legibility"; nothing you read is fainter than quiet). "Navigations"
