@@ -404,7 +404,7 @@ function guessesFor(ctx, { b, text, record, fields, recordTags, links, free, use
    same people, so the words put them in order: the tags of the earlier lines nearest this one, each counted with the square of its likeness.
    Measured on the Illness Test Graph: a page was found in 24 of 45 fresh tagged lines (7 had a link), and the right tag was among the
    candidates in nearly every line that had one. Lines that name nothing, or whose tag the structure cannot give (a plain Expectation), are
-   ordered by the words alone. Returns [{ tag: { id, uuid, title }, score, via: [page titles], how: 'mentioned' | 'words', fields: [property titles] }]. */
+   ordered by the words alone. Returns [{ tag: { id, uuid, title }, score, via: [page titles], takes: [{ prop, pages }] (which property would take which pages), how: 'mentioned' | 'words', fields: [property titles] }]. */
 function mentionedPages(ctx, text) {
   const { links } = inWords(text, ctx), words = freeWords(text), any = { has: () => true }, out = [...links];
   for (const page of names.allNamedIn(words, any, ctx, new Set())) if (!out.includes(page)) out.push(page);
@@ -412,12 +412,16 @@ function mentionedPages(ctx, text) {
   if (one && !out.includes(one)) out.push(one);
   return out.filter(page => !page.isTag);
 }
+/* The tags a line could be, from the pages it names: a tag one of whose properties takes such a page (a Conversation, whose Spoke
+   with takes the person named). A wide property is no reason (14 November 2026, the owner's two lines: a note about a family
+   offered as a Consultation, a reason for a decision as a Conversation, both only because Topic takes any page): almost any page
+   fits it, so fitting says nothing about what the line is. Gives tag id -> Map(the property's title -> Set(the pages' titles)). */
 function candidateTags(ctx, pages) {
   const found = new Map();
   for (const id of ctx.knownTags) for (const prop of fieldsOfTags([id], ctx.schema)) {
-    if (!isLinkProp(prop)) continue;
+    if (!isLinkProp(prop) || wide(prop, ctx.schema)) continue;
     const accepted = new Set(prop.classes.map(c => c.id));
-    for (const page of pages) if (fits(page, accepted, ctx.schema)) { if (!found.has(id)) found.set(id, new Set()); found.get(id).add(page.title); }
+    for (const page of pages) if (fits(page, accepted, ctx.schema)) { if (!found.has(id)) found.set(id, new Map()); const by = found.get(id); if (!by.has(prop.title)) by.set(prop.title, new Set()); by.get(prop.title).add(page.title); }
   }
   return found;
 }
@@ -434,7 +438,7 @@ const WORDS_FLOOR = .05;   // the sum of the squares of the likeness of the near
 function tagChoices(ctx, b, { max = 5 } = {}) {
   if (b.tags.length || inWords(b.text, ctx).tags.length) return [];
   const scores = tagScores(ctx, b), candidates = candidateTags(ctx, mentionedPages(ctx, b.text));
-  const item = (id, how) => { const page = ctx.byId.get(id); return page && page.isTag && page.uuid ? { tag: { id, uuid: page.uuid, title: page.title }, score: scores.get(id) || 0, via: [...(candidates.get(id) || [])], how, fields: fieldsOfTags([id], ctx.schema).map(p => p.title) } : null; };
+  const item = (id, how) => { const page = ctx.byId.get(id); return page && page.isTag && page.uuid ? { tag: { id, uuid: page.uuid, title: page.title }, score: scores.get(id) || 0, via: [...new Set([...(candidates.get(id)?.values() || [])].flatMap(set => [...set]))], takes: [...(candidates.get(id) || [])].map(([prop, set]) => ({ prop, pages: [...set] })), how, fields: fieldsOfTags([id], ctx.schema).map(p => p.title) } : null; };
   const byScore = (x, y) => y.score - x.score || y.via.length - x.via.length || x.tag.title.localeCompare(y.tag.title);
   const out = [...candidates.keys()].map(id => item(id, 'mentioned')).filter(Boolean).sort(byScore);
   // Fewer than three from the structure (or none: nothing named, or a kind of line no property points at): the words fill the list up.

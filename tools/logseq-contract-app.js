@@ -16,7 +16,7 @@ const TEST_GRAPHS = (process.env.TEST_GRAPHS || 'Seed Check,Illness Test Graph,S
 const list = require(process.argv[2] ? path.resolve(process.argv[2]) : path.join(__dirname, '../test/logseq-contract.json'));
 const styled = list.styled || [], inside = list.inside || [];
 // Classes Logseq draws only in a menu, a dialog or a notice: not reachable on the round without pressing things.
-const ONLY_ON_DEMAND = new Set(['absolute-modal', 'cp__select', 'cp__select-main', 'select-item', 'menu-link', 'menu-link-wrap', 'ui__dialog-overlay',
+const ONLY_ON_DEMAND = new Set(['absolute-modal', 'cp__select', 'cp__select-main', 'cp__select-input', 'select-item', 'menu-link', 'menu-link-wrap', 'ui__dialog-overlay',
   'ui__dropdown-menu-item', 'ui__dropdown-menu-sub-trigger', 'ui__popover-content', 'ui__toast-close', 'cp__plugins-item-card', 'cp__right-sidebar-settings',
   'extensions__pdf-viewer', 'pdfViewer', 'jtrigger', 'escape', 'embed-block', 'custom-query', 'ls-table', 'ls-table-header', 'ls-table-header-cell', 'ls-view-head',
   'ls-block-properties',     // a block's properties drawn as rows, not pills: only where a page shows them so

@@ -110,7 +110,11 @@ ${AREA} .ls-table .ui__checkbox svg { width: 10px !important; height: 10px !impo
 .cp__cmdk__modal [data-item-index] > div[style*="background"] { background: var(--lk-wash) !important; }
 .cp__cmdk__modal [data-item-index] .bg-gray-05 { background: transparent !important; color: var(--lk-quiet) !important; }
 .cp__cmdk__modal .hints { background: transparent !important; border-top: 1px solid var(--lk-hair) !important; }
-.cp__cmdk__modal .hints > .text-sm { visibility: hidden; }`,
+.cp__cmdk__modal .hints > .text-sm { visibility: hidden; }
+/* The letters typed, where they stand in a match: semibold, as in Find, with no yellow behind them (the owner, 14 November 2026:
+   "yellow is not that readable"). In the search window and in the lists that open while writing (# tags, [[ pages, / commands, a
+   property's values), which are one list of Logseq's. */
+.cp__cmdk__modal mark, #ui__ac mark { background: none !important; color: inherit !important; font-weight: 600 !important; padding: 0 !important; }`,
   calmMenus: `
 /* Menus and panels (the owner, 8 November 2026: "look through the menus and panels and modernize them"). Logseq's menus,
    pop-ups and lists are drawn as the library's (lk-pop, lk-menu, lk-item in plugin.js): the page's ground, a hairline, a 6 px

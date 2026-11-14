@@ -907,6 +907,30 @@ const measureLib = require('../core/measure.js');
   });
 }
 
+// A property that takes any page is no reason to offer its tag (the owner's two lines, 14 November 2026).
+test('a take-anything property is no reason for a tag; the reason names the property that takes the pages', () => {
+  const { candidateTags } = require('../core/propose.js');
+  const tagIds = { Person: 1, Doctor: 2, Symptom: 3, Conversation: 10, Consultation: 11 };
+  const prop = (id, title, takes) => ({ id, ident: `user.property/p${id}`, title, type: 'node', classes: takes.map(n => ({ id: tagIds[n], title: n })) });
+  const props = [prop(100, 'Spoke with', ['Person']), prop(101, 'Provider', ['Doctor']), prop(102, 'Topic', ['Person', 'Symptom'])];
+  const schema = { props, byId: new Map(props.map(x => [x.id, x])), classProps: new Map([[10, [100, 102]], [11, [101, 102]]]), parentsOf: new Map([[2, [1]]]), builtIn: new Set() };
+  const ctx = { knownTags: new Set([10, 11]), schema };
+  const ruth = { id: 50, title: 'Ruth Okoro', tags: [{ id: 1 }] }, chen = { id: 51, title: 'Dr. Mei Chen', tags: [{ id: 2 }] }, tingling = { id: 52, title: 'Tingling fingers', tags: [{ id: 3 }] };
+  const said = found => [...found].map(([id, by]) => [id, [...by].map(([title, pages]) => `${title}: ${[...pages].join(', ')}`)]);
+  assert.deepEqual(said(candidateTags(ctx, [ruth])), [[10, ['Spoke with: Ruth Okoro']]], 'a person: a Conversation through Spoke with; not a Consultation, whose Provider takes a doctor and whose Topic takes anything');
+  assert.deepEqual(said(candidateTags(ctx, [chen])), [[10, ['Spoke with: Dr. Mei Chen']], [11, ['Provider: Dr. Mei Chen']]], 'a doctor is a person too');
+  assert.deepEqual(said(candidateTags(ctx, [tingling])), [], 'a symptom fits only Topic, which says nothing');
+});
+
+// The Option-T list by where each tag sits: groups by the top-level tag, in the order their best guess came.
+test('guesses grouped under their top-level tags', () => {
+  const { topOf, byTop } = require('../core/schema.js');
+  const schema = { parentsOf: new Map([[2, [1]], [3, [2]], [5, [4]], [6, [4]], [1, [99]]]), builtIn: new Set([99]) };
+  assert.equal(topOf(3, schema), 1); assert.equal(topOf(1, schema), 1, 'Logseq\'s own Root is not a top-level tag of yours'); assert.equal(topOf(7, schema), 7);
+  const items = [{ tag: { id: 5 } }, { tag: { id: 3 } }, { tag: { id: 6 } }, { tag: { id: 7 } }, { tag: { id: 2 } }];
+  assert.deepEqual(byTop(items, schema).map(i => [i.tag.id, i.top]), [[5, 4], [6, 4], [3, 1], [2, 1], [7, 7]], 'the best guess stays first; each group stands where its best guess came');
+});
+
 (async () => {
   for (const task of queue) await task();
   console.log(`\n${passed} passed, ${failed} failed`);

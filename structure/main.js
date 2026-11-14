@@ -241,10 +241,12 @@ async function main() {
   const main = doc.querySelector('#main-content-container') || doc.body;
   S.base.watch(function tagPagePass(page, records) { if (records.some(r => r.type === 'childList' && main.contains(r.target))) tagPage(); }, { early: true });
   stopHash = S.hash.start(app, doc);
+  stopValues = S.valueList.start(app, doc);
+  stopTagMenu = S.tagMenu.start(app, doc);
 }
-const stop = () => { S.inspector.stop(); mounts.stop?.(); stopHash?.(); for (const v of [...app.views]) v.destroy(); host().querySelectorAll('.st-tagholder').forEach(n => n.remove()); return S.base.stop(); };   // the base: the passes, the hooks, the menu's lines and the stylesheets
+const stop = () => { S.inspector.stop(); mounts.stop?.(); stopHash?.(); stopValues?.(); stopTagMenu?.(); for (const v of [...app.views]) v.destroy(); host().querySelectorAll('.st-tagholder').forEach(n => n.remove()); return S.base.stop(); };   // the base: the passes, the hooks, the menu's lines and the stylesheets
 /* The lines on a tag's own page: set above Logseq's table, in the page's own column, each time Logseq draws a tag's page. */
-let stopHash = null, tagTimer = 0, tagAsking = 0;
+let stopHash = null, stopValues = null, stopTagMenu = null, tagTimer = 0, tagAsking = 0;
 const days = new Set();   // pages found to be journal days, which a tag's lines never stand on
 const lookup = uuid => { const id = [...tray.model.tags.values()].find(t => t.uuid === uuid)?.id ?? null; return { id, prop: id == null ? [...tray.model.props.values()].find(p => p.uuid === uuid)?.id ?? null : null }; };
 function place(doc, inner, here, id, prop) {

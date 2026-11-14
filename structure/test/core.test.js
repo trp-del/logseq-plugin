@@ -215,3 +215,24 @@ console.log('  ok  a tray read again, a failed Apply tried again, the arrow kept
   tr.setBase({ tags: [], props: [{ ...doc, uuid: 'pd', title: 'Doctor', range: [] }] }); assert.equal(tr.changes.length, 0, 'no merge of a property that is not there'); }
 console.log('  ok  properties merged: values converted, what stays, what clashes, the line, the model, the steps');
 console.log('core: every check passed');
+
+// The list on #: the tags used most lately under a top-level tag, and a tag whose name is nearly the words typed.
+{ const g = Mo.build({ tags: [{ id: 1, title: 'Entity', parents: [] }, { id: 2, title: 'Person', parents: [1] }, { id: 3, title: 'Doctor', parents: [2] }, { id: 4, title: 'Organization', parents: [1] }, { id: 5, title: 'Report', parents: [1] }, { id: 6, title: 'Hospital', parents: [4] }, { id: 7, title: 'Agent', parents: [1] }, { id: 8, title: 'Symptom Log', parents: [] }, { id: 9, title: 'Hospitalization', parents: [8] }],
+    props: [], nodes: { 3: [{ id: 30, uuid: 'a' }, { id: 31, uuid: 'b' }], 2: [{ id: 32, uuid: 'c' }] }, newest: { 3: 900, 5: 500, 2: 100 } });
+  deq(Mo.lately(g, 1, 4), { shown: [3, 5, 2, 7], more: 2 }, 'the newest node first, then how many nodes, then the name; the top-level tag itself is not among them');
+  deq(Mo.lately(g, 1, 5), { shown: [3, 5, 2, 7, 6, 4], more: 0 }, 'one more than the few is shown rather than "and 1 more"');
+  deq(Mo.lately(g, 8, 4), { shown: [9], more: 0 });
+  const edits = require('../../predictive/core/link.js').editsBetween;
+  assert.equal(Mo.nearTag(g, 'Doctors', edits), 3, 'a plural');
+  assert.equal(Mo.nearTag(g, 'Doctors'), 3, 'a plural needs no edit distance');
+  assert.equal(Mo.nearTag(g, 'Doctr', edits), 3, 'a letter off');
+  assert.equal(Mo.nearTag(g, 'Doctr'), null, 'a letter off needs the edit distance');
+  assert.equal(Mo.nearTag(g, 'Log Symptom', edits), 8, 'the same words in another order');
+  assert.equal(Mo.nearTag(g, 'symptom-log', edits), 8, 'other punctuation');
+  assert.equal(Mo.nearTag(g, 'doctor', edits), null, 'a name typed whole is Logseq\'s own list\'s');
+  assert.equal(Mo.nearTag(g, 'Docto', edits), null, 'a name that only starts with the words is Logseq\'s own list\'s');
+  assert.equal(Mo.nearTag(g, 'Hospitaliz', edits), null, 'on the way to Hospitalization, Hospital is not offered');
+  assert.equal(Mo.nearTag(g, 'Do', edits), null); assert.equal(Mo.nearTag(g, 'Agenda', edits), null, 'two letters off a short name is another word'); }
+// The groups of a property's list of values: the narrower tag before the wider, siblings by name; a tag reached twice stands once.
+{ const g = Mo.build({ tags: [{ id: 1, title: 'Person', parents: [] }, { id: 2, title: 'Doctor', parents: [1] }, { id: 3, title: 'Nurse', parents: [1] }, { id: 4, title: 'Surgeon', parents: [2] }, { id: 5, title: 'Organization', parents: [] }], props: [] });
+  deq(Mo.rangeOrder(g, [1]), [4, 2, 3, 1]); deq(Mo.rangeOrder(g, [1, 5, 2]), [4, 2, 5, 3, 1]); deq(Mo.rangeOrder(g, [99]), []); }

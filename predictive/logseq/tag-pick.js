@@ -5,7 +5,8 @@
    a click picks, anything else closes it and goes on typing, a digit like any other key (no key that writes is a key you might be typing). Picking gives the bullet the tag and the bullet's properties are proposed as
    they are for any tagged bullet; a faded arrow puts the tag back. Nothing is ever written until one is picked, and it is only there when
    asked, so plain notes that happen to name a person stay quiet. With Apple's model on this Mac, the tag it reads the line as
-   comes first, said so in its row. */
+   comes first, said so in its row. When the guesses sit under more than one top-level tag, each group stands under that tag's name,
+   so it shows where a guess sits in your tags; the keys pass over the names. */
 (function () {
 const Flow = (window.Flow ||= {});
 const { app, db, propose } = Flow;
@@ -18,12 +19,18 @@ const { el } = window.PluginDoor;
 function close() { open?.list.remove(); open = null; }
 function draw() {
   const { box, items, at, list } = open, doc = box.ownerDocument, rect = box.getBoundingClientRect();
+  // Under the top-level tag each sits under (14 November 2026), once the guesses come from more than one: a heading the keys pass over.
+  const split = new Set(items.map(item => item.top)).size > 1;
   list.replaceChildren(
-    ...items.map((item, i) => {
-      const note = [item.how === 'model' ? 'by Apple’s model' : item.how === 'meaning' ? 'by its meaning' : item.how === 'mentioned' ? item.via.join(', ') : 'by its words', item.fields.slice(0, 3).join(', ')].filter(Boolean).join(' · ');
+    ...items.flatMap((item, i) => {
+      // Why this tag: the property of it that would take the pages the line names ("Spoke with: Ruth Okoro, Amara Okoro"), which is
+      // the reason and what picking fills; else how it was read, and the properties it brings.
+      const takes = (item.takes || []).slice(0, 2).map(t => `${t.prop}: ${t.pages.join(', ')}`).join(' · ');
+      const note = item.how === 'mentioned' && takes ? takes : [item.how === 'model' ? 'by Apple’s model' : item.how === 'meaning' ? 'by its meaning' : item.how === 'mentioned' ? item.via.join(', ') : 'by its words', item.fields.slice(0, 3).join(', ')].filter(Boolean).join(' · ');
       const row = el(doc, 'div', { class: 'flow-pick-row lk-item' + (i === at ? ' on' : ''), role: 'option', 'aria-selected': String(i === at), 'data-i': String(i) },
         el(doc, 'span', { class: 'flow-pick-tag lk-tag' }, item.tag.title), el(doc, 'span', { class: 'flow-pick-note lk-note' }, note));
-      return row;
+      const head = split && item.top !== item.tag.id && item.top !== items[i - 1]?.top ? open.titleOf(item.top) : '';
+      return head ? [el(doc, 'div', { class: 'lk-group' }, head), row] : [row];
     }));
   Object.assign(list.style, { left: rect.left + 'px', top: (rect.bottom + 4) + 'px', maxWidth: Math.min(Math.max(360, rect.width), doc.documentElement.clientWidth - rect.left - 16) + 'px' });
   if (!list.isConnected) doc.body.append(list);
@@ -58,7 +65,8 @@ async function show(box) {
   if (!items.length) return notify('No tag to suggest for this line');
   if (host().activeElement !== box || box.value !== words) return;   // moved on while it was being worked out
   close();
-  open = { box, uuid, items, at: 0, list: el(box.ownerDocument, 'div', { class: 'flow-pick lk-pop lk-menu', role: 'listbox' }) };
+  // The best guess stays first; the rest follow under their top-level tags, each group where its best guess came.
+  open = { box, uuid, items: Flow.schema.byTop(items, ctx.schema), at: 0, titleOf: id => ctx.byId.get(id)?.title || '', list: el(box.ownerDocument, 'div', { class: 'flow-pick lk-pop lk-menu', role: 'listbox' }) };
   draw();
 }
 

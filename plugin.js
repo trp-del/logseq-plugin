@@ -703,6 +703,9 @@ Door.screen = {
   typed: (box, inputType = 'insertText', data) => box.dispatchEvent(new box.ownerDocument.defaultView.InputEvent('input', data === undefined ? { bubbles: true, inputType } : { bubbles: true, inputType, data })),
   // Hands a box what a paste would (files, words): Logseq takes it as its own paste.
   paste: (box, clipboardData) => box.dispatchEvent(new box.ownerDocument.defaultView.ClipboardEvent('paste', { clipboardData, bubbles: true, cancelable: true })),
+  // Lights one of Logseq's list rows as the pointer over it does: its lists (# tags, a property's values) light the row under the
+  // pointer, so the plugin can move the lit row without taking Logseq's own Enter from it (seen in Logseq 2.0.2, 14 November 2026).
+  hover(el) { const win = el.ownerDocument.defaultView; for (const type of ['mouseover', 'mouseenter', 'mousemove']) el.dispatchEvent(new win.MouseEvent(type, { bubbles: true, view: win })); },
   // A key to an element (Escape to a menu, Enter to a row).
   key: (el, name, init = {}) => !!el?.dispatchEvent(new el.ownerDocument.defaultView.KeyboardEvent('keydown', { key: name, code: name, bubbles: true, cancelable: true, ...init })),
   // What floats over the page: not the sidebars, the main view or the header; the plugin's own pop-ups only when asked (own: true).

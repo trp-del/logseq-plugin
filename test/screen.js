@@ -49,6 +49,7 @@ console.log(`  ok  in ${files.length} files every made-up press, key and input g
   // A key and a paste arrive as Logseq listens for them.
   let key = null, pasted = null;
   menu.addEventListener('keydown', event => { key = [event.key, event.code, event.bubbles, event.cancelable]; });
+  { const seen = []; for (const type of ['mouseover', 'mouseenter', 'mousemove']) menu.addEventListener(type, e => seen.push(e.type)); S.hover(menu); assert.deepEqual(seen, ['mouseover', 'mouseenter', 'mousemove'], 'hover: what the pointer over a row sends, so Logseq lights it'); }
   assert.equal(S.key(menu, 'Escape'), true); assert.deepEqual(key, ['Escape', 'Escape', true, true]); assert.equal(S.key(null, 'Escape'), false);
   win.ClipboardEvent ||= class extends win.Event {};   // jsdom has none
   box.addEventListener('paste', event => { pasted = event.type; }); S.paste(box, null); assert.equal(pasted, 'paste');

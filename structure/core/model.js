@@ -106,6 +106,46 @@ const roads = M => M.roads.filter(r => r.n > 0 && M.tags.has(r.from) && M.tags.h
   .map(r => ({ ...r, prop: M.byIdent.get(r.ident).id, title: M.byIdent.get(r.ident).title }));
 // Everything of a tag: its relationships and those of the tags beneath it, since a node of Hospital is a node of Organization too.
 const within = (M, id) => { const seen = new Set(), walk = x => { if (seen.has(x)) return; seen.add(x); (M.tags.get(x)?.kids || []).forEach(walk); }; walk(id); return seen; };
+// The tags under a top-level tag that were used most lately (the newest node of each, then how many nodes, then the name): the few
+// the list on # shows under each top-level tag before any letter is typed. { shown: [id], more: how many are left out }.
+function lately(M, top, n = 4) {
+  const all = [...within(M, top)].filter(id => id !== top && M.tags.has(id));
+  all.sort((a, b) => ((M.newest.get(b) || 0) - (M.newest.get(a) || 0)) || (M.tags.get(b).nodes.size - M.tags.get(a).nodes.size) || byTitle(M.tags.get(a), M.tags.get(b)));
+  const shown = all.length <= n + 1 ? all : all.slice(0, n);
+  return { shown, more: all.length - shown.length };
+}
+// A tag whose name is nearly the words typed, so a second tag is not made for the same thing: the same words with other
+// punctuation, a plural or its singular, the same words in another order, or a letter off (two in a long name; never a name the words only go on from, as Hospitaliz does from Hospital). A name typed
+// whole is no near name, and a name that only starts with the words is Logseq's own list's. edits(a, b): the edit distance,
+// handed in (Predictive's, the one used inside [[ ]]); without it only the first three count. Gives the tag's id, or null.
+const nameWords = text => String(text).toLowerCase().match(/[\p{L}\p{N}]+/gu) || [];
+const singular = words => words.map((w, i) => i < words.length - 1 ? w : w.length > 4 && w.endsWith('ies') ? w.slice(0, -3) + 'y' : w.length > 4 && /(s|x|ch|sh)es$/.test(w) ? w.slice(0, -2) : w.length > 3 && w.endsWith('s') && !w.endsWith('ss') ? w.slice(0, -1) : w).join(' ');
+function nearTag(M, typed, edits = null) {
+  const said = String(typed).trim().toLowerCase(), qw = nameWords(typed), q = qw.join(' ');
+  if (q.length < 3) return null;
+  let best = null;
+  for (const t of M.tags.values()) {
+    if (t.made) continue;
+    const tw = nameWords(t.title), name = tw.join(' ');
+    if (!name) continue;
+    if (t.title.trim().toLowerCase() === said) return null;                // typed whole: Logseq's list has it
+    let rank = 0;
+    if (name === q) rank = 1;
+    else if (singular(tw) === singular(qw)) rank = 2;
+    else if (qw.length > 1 && qw.length === tw.length && [...qw].sort().join(' ') === [...tw].sort().join(' ')) rank = 3;
+    else if (edits && q.length >= 5 && !name.startsWith(q) && !q.startsWith(name) && edits(q, name) <= (q.length >= 9 ? 2 : 1)) rank = 4;
+    if (rank && (!best || rank < best.rank || (rank === best.rank && t.nodes.size > M.tags.get(best.id).nodes.size))) best = { id: t.id, rank };
+  }
+  return best ? best.id : null;
+}
+// The tags a property's values can carry, in the order their groups stand in the list of values: under each tag the property
+// takes, the tags beneath it first (the narrower kind before the wider), then the tag itself; siblings by name.
+function rangeOrder(M, range) {
+  const out = [], seen = new Set();
+  const walk = id => { if (seen.has(id) || !M.tags.has(id)) return; seen.add(id); for (const k of M.tags.get(id).kids) walk(k); out.push(id); };
+  [...range].sort((a, b) => byTitle(M.tags.get(a) || { title: '' }, M.tags.get(b) || { title: '' })).forEach(walk);
+  return out;
+}
 const roadsOf = (M, id) => { const all = roads(M).sort((a, b) => b.n - a.n), mine = within(M, id); return { out: all.filter(r => mine.has(r.from)), in: all.filter(r => mine.has(r.to) && !mine.has(r.from)) }; };
 // The links that reach a tag's nodes, its tags beneath included: what a change to the tag has to keep.
 const linksOf = (M, id) => { const seen = new Set(), walk = x => { if (seen.has(x)) return 0; seen.add(x); const t = M.tags.get(x); return !t ? 0 : t.refs + t.kids.reduce((s, k) => s + walk(k), 0); }; return walk(id); };
@@ -124,5 +164,5 @@ function addTag(M, title, parent, id = madeId--) {
 }
 const removeTag = (M, id) => { M.tags.delete(id); for (const t of M.tags.values()) t.parents = t.parents.filter(p => p !== id); for (const p of M.props.values()) p.range = p.range.filter(r => r !== id); link(M); };
 
-S.model = { tops, roads, roadsOf, within, linksOf, LOOSE, build, link, tag, prop, parentOf, kids, nodesUnder, count, carrier, pathOf, under, depth, inherited, filled, filledOwn, propRows, pointedAt, rangeGuess, kindWord, propKind, titled, addTag, removeTag, byTitle };
+S.model = { tops, lately, nearTag, rangeOrder, roads, roadsOf, within, linksOf, LOOSE, build, link, tag, prop, parentOf, kids, nodesUnder, count, carrier, pathOf, under, depth, inherited, filled, filledOwn, propRows, pointedAt, rangeGuess, kindWord, propKind, titled, addTag, removeTag, byTitle };
 })();

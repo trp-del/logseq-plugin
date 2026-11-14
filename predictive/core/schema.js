@@ -57,6 +57,20 @@ function wide(prop, schema) {
   return answer;
 }
 
+// The top-level tag a tag sits under: up its first parent of yours until none is left (the tag itself when it is at the top).
+function topOf(tagId, schema) {
+  let at = tagId;
+  for (let guard = 0; guard < 64; guard++) { const up = (schema.parentsOf?.get(at) || []).filter(id => !schema.builtIn?.has(id) && id !== at); if (!up.length) break; at = up[0]; }
+  return at;
+}
+// Items (each with tag.id) put in groups by the top-level tag their tag sits under: the groups in the order their best item came,
+// the items of a group in the order they came. Each item gets top (that tag's id); a tag that is itself at the top is its own.
+function byTop(items, schema) {
+  const groups = new Map();
+  for (const item of items) { const top = topOf(item.tag.id, schema); if (!groups.has(top)) groups.set(top, []); groups.get(top).push({ ...item, top }); }
+  return [...groups.values()].flat();
+}
+
 // A page with no tag of yours (only Logseq's own, such as Page).
 const untagged = page => !page.isTag && !page.tags.some(t => !/^logseq\.class\//.test(t.ident || ''));
 
@@ -67,7 +81,7 @@ const isLinkProp = p => p.type === 'node' && p.classes?.length > 0;
 // Logseq's own properties that records take (Deadline, Scheduled, Status, Priority): proposed only with evidence.
 const isBuiltInProp = p => /^logseq\.property\//.test(p.ident);
 
-const api = { fieldsOfTags, fits, wide, untagged, isNumberProp, isDateProp, isChoiceProp, isLinkProp, isBuiltInProp };
+const api = { fieldsOfTags, topOf, byTop, fits, wide, untagged, isNumberProp, isDateProp, isChoiceProp, isLinkProp, isBuiltInProp };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 if (typeof window !== 'undefined') (window.Flow ||= {}).schema = api;
 })();
