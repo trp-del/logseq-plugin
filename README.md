@@ -16,7 +16,7 @@ Built for Logseq 2.0.2 DB graphs. It reads the graph and writes to it only here:
 
 In Logseq, open the command palette and run **Install plugin from GitHub release**. Paste this repository's address, tick the **effect** box, and press Install. Without the tick the plugin runs in a sealed frame and can draw nothing; uninstall and install again with it ticked. **Check update** on the plugin's card brings the next version.
 
-Find, Ontology, Ontology in the sidebar and Todo head Logseq's ··· menu at the top right; Logseq's magnifier at the top left opens Find too. With Look's calm toolbar off, Ontology also has a toolbar icon, pinned from the puzzle icon, listed as `structure-open`.
+Ontology (a tree on its side) and Todo (a ticked box) are buttons in Logseq's toolbar at the top right, before the ··· menu; Find and Ontology in the sidebar head that ··· menu; Logseq's magnifier at the top left opens Find too. With Look's calm toolbar off, Logseq may tuck the two buttons into its puzzle icon's menu (listed as `structure-open` and `todo-open`), from where they can be pinned.
 
 Or download the zip from the latest release, unzip it, and load the folder with **Load unpacked plugin** (Developer mode, effect ticked).
 

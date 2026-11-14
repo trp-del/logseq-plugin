@@ -50,7 +50,7 @@ function addMenuItem(menu) {
   });
   (plugins || items[items.length - 1]).after(item);
 }
-// The modules' places (Door.menuItems: Find, Structure, the inspector) at the head of the menu, a line under them, drawn as
+// The modules' places (Door.menuItems: Find, the inspector) at the head of the menu, a line under them, drawn as
 // Logseq's own lines are: each a copy of the first, its words and icon changed.
 const PLACE_CLASS = 'plugin-place-menu-item';
 function addPlaces(menu) {

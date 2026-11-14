@@ -76,7 +76,7 @@ Option while dragging to keep a second parent (rule 1 treats a second parent as 
 
 ## Opening it
 
-Ontology in Logseq's ··· menu at the top right (with Look's calm toolbar off, also the tree icon in the toolbar, pinned from the puzzle piece's plugin menu), or the command palette: **Ontology: the map of tags and properties**. The map is the page `#/structure`.
+The tree icon in Logseq's toolbar at the top right, before the ··· menu (with Look's calm toolbar off, Logseq may tuck it into the puzzle piece's plugin menu, from where it can be pinned), or the command palette: **Ontology: the map of tags and properties**. The map is the page `#/structure`.
 
 ## The look
 
