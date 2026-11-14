@@ -43,7 +43,7 @@ const twoWayCss = `
 /* Only holding room while the page settles: no field, no rows. */
 .th-two-way:not(:has(.th-tw-row, .th-tw-beside, .th-tw-whole)) { margin: var(--th-tw-hold, 0px) 0 0; }   /* Linked folded keeps its margin: it lost it and leapt 56 px up (11 November 2026) */
 /* The room held while the page settled eases away, only then: while the page settles the held room shrinks in the same frame Logseq's list grows, and must not lag. */
-.th-two-way[data-th-settling] { transition: margin-top .25s ease; }
+.th-two-way[data-th-settling] { transition: margin-top ${window.PluginDoor.timing('settle')}; }
 .th-two-way .th-tw-row { display: block; padding: 0; }
 /* Each property's group stands apart (the owner, 7 November 2026: "generous spacing between sections so it doesn't feel
    packed"; 8 November 2026: "better spacing both in terms of readability and logical groups"): a gap of about two
@@ -90,7 +90,7 @@ const twoWayCss = `
    and the kinds as quiet words, the kinds row above an open list, "earlier" before what is past. */
 /* The field's name and the count that opens a list get the same soft patch under the pointer, drawn in the
    padding a negative margin gives back, so nothing moves. */
-.th-two-way :is(.th-tw-field, .th-tw-toggle) { border-radius: 4px; padding: 0 .25em; margin-left: -.25em; margin-right: -.25em; transition: background-color .1s ease, color .1s ease; }
+.th-two-way :is(.th-tw-field, .th-tw-toggle) { border-radius: 4px; padding: 0 .25em; margin-left: -.25em; margin-right: -.25em; transition: background-color ${window.PluginDoor.timing('tint')}, color ${window.PluginDoor.timing('tint')}; }
 .th-two-way :is(.th-tw-field, .th-tw-toggle):hover { color: inherit; background: var(--lk-wash); }
 .th-two-way a.th-tw-field { color: inherit; }
 .th-two-way .th-tw-chips { display: inline-flex; flex-wrap: wrap; gap: .3rem var(--lk-tab-space, 24px); }   /* kinds are tabs: the library's space between tabs' words */
@@ -108,7 +108,7 @@ const twoWayCss = `
 /* The + says what it adds under the pointer, in place, over what follows it (C20, 7 November 2026); nothing moves. */
 .th-two-way .th-tw-add { position: relative; }
 .th-two-way .th-tw-add-room { visibility: hidden; pointer-events: none; }
-.th-two-way .th-tw-add::after { content: attr(data-what); position: absolute; left: 100%; top: 50%; transform: translateY(-50%); margin-left: 4px; padding: 0 6px 0 2px; white-space: nowrap; font-size: var(--lk-small); font-weight: 400; color: var(--lk-quiet); background: var(--ls-primary-background-color, var(--lk-paper, #fff)); opacity: 0; pointer-events: none; transition: opacity .12s; z-index: 2; }
+.th-two-way .th-tw-add::after { content: attr(data-what); position: absolute; left: 100%; top: 50%; transform: translateY(-50%); margin-left: 4px; padding: 0 6px 0 2px; white-space: nowrap; font-size: var(--lk-small); font-weight: 400; color: var(--lk-quiet); background: var(--ls-primary-background-color, var(--lk-paper, #fff)); opacity: 0; pointer-events: none; transition: opacity ${window.PluginDoor.timing('reveal')}; z-index: 2; }
 .th-two-way .th-tw-add:is(:hover, :focus-visible)::after { opacity: 1; }
 /* At rest the word takes no room at all, so a head standing right of its name (9 November 2026) never widens the page past
    its edge; it still fades in, from nothing, under the pointer. */
@@ -420,8 +420,8 @@ const twoWayCss = `
 .th-two-way .th-tw-whole { grid-column: 1 / -1; padding: 0 0 8px; }
 /* Folded, only this line stands: the gap that parts the rows from the page's bullets goes with them, eased as the rows roll up
    (the owner, 12 November 2026: the gap under a folded Linked). */
-.th-two-way { transition: margin-bottom .14s ease; }
-.th-two-way .th-tw-whole { transition: padding-bottom .14s ease; }
+.th-two-way { transition: margin-bottom ${window.PluginDoor.timing('linkedFold')}; }
+.th-two-way .th-tw-whole { transition: padding-bottom ${window.PluginDoor.timing('linkedFold')}; }
 .th-two-way[data-th-folded] { margin-bottom: 0; }
 .th-two-way[data-th-folded] .th-tw-whole { padding-bottom: 0; }
 @media (prefers-reduced-motion: reduce) { .th-two-way, .th-two-way .th-tw-whole { transition: none; } }
@@ -500,7 +500,7 @@ const twoWayCss = `
 .th-two-way .th-tw-lkids.th-ol-kids { margin-bottom: 2px; }
 .th-two-way .th-tw-lhead.th-tw-linkedline { color: inherit; font-weight: 500; }   /* "Linked" as the page's own Linked line: what is under it points here */
 .th-two-way .th-ol-in > .th-tw-linkedline:not(:first-child) { margin-top: 8px; }
-.th-two-way .th-ol-bullet > .lk-fold { opacity: 0 !important; transition: opacity .12s; }   /* a bullet's fold arrow as a line's: under the pointer, or while open */
+.th-two-way .th-ol-bullet > .lk-fold { opacity: 0 !important; transition: opacity ${window.PluginDoor.timing('reveal')}; }   /* a bullet's fold arrow as a line's: under the pointer, or while open */
 .th-two-way .th-ol-bullet:hover > .lk-fold, .th-two-way .th-ol-bullet > .lk-fold:focus-visible { opacity: .6 !important; }   /* open or closed, as a node's line and as Logseq (12 November 2026: an open bullet's arrow at rest stood out of line beside the node above it, whose arrow hides) */
 .th-two-way .th-ol-bullet > .lk-fold:hover { opacity: 1 !important; }
 /* The words of the + appear on its left, inside the list's right edge, not past it (the owner, 10 November 2026: "this is

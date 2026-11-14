@@ -456,12 +456,12 @@ Door.kindIconHtml = kind => {
    stroke), so it stands among Home, the arrows and the sidebar button as one of them; a font glyph came out heavier. The drawings
    say what the button opens: Ontology a tree of kinds lying on its side, one into two into four, as Porphyry's tree (the
    owner's pick, 14 November 2026; until then four boxes), the inspector an i in a circle (Logseq's
-   Contents already has the list beside a box) (9 November 2026), Todo a ticked box (the icon it has in the ··· menu). Ontology and
+   Contents already has the list beside a box) (9 November 2026), Todo a checkmark alone (the owner, 14 November 2026; first a ticked box). Ontology and
    Todo stand here, before Logseq's ···, since 14 November 2026 (the owner: shown as buttons, not inside the ··· menu). */
 Door.TOOLBAR_ICONS = {
   structure: 'M3 12h2c3 0 3 -6 6 -6h1M3 12h2c3 0 3 6 6 6h1M12 6c2 0 2 -3 4 -3h4M12 6c2 0 2 3 4 3h4M12 18c2 0 2 -3 4 -3h4M12 18c2 0 2 3 4 3h4',
   inspector: 'M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0M12 9h.01M11 12h1v4h1',
-  todo: 'M3 5a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2zM9 12l2 2l4 -4',
+  todo: 'M5 12l5 5l10 -10',
   // The split screen's two, in the window's top right corner while two pages stand side by side (14 November 2026): Tabler's
   // arrows-left-right (swap the pages) and x (close the right page).
   swap: 'M21 17l-18 0M6 10l-3 -3l3 -3M3 7l18 0M18 20l3 -3l-3 -3',
@@ -861,8 +861,45 @@ Door.dates = {
    in, so what is below glides down instead of jumping; closing rolls it back up before it goes. One motion for every module,
    none under reduced motion. unroll(elements) after they are drawn; rollUp(elements) resolves when they are gone from view,
    to draw without them then; regrow(element, height it had) where one thing grew or shrank in place. */
-const MOTION_MS = 180;
-const still = el => { const win = el?.ownerDocument?.defaultView; return !win || !el.animate || !!win.matchMedia?.('(prefers-reduced-motion: reduce)').matches; };
+/* Every motion's length and curve, named once, so each is changed in one place (the owner, 14 November 2026). ms is how long it
+   runs; ease its curve; a stay (ms only) how long something waits before it goes. Stylesheets write Door.timing(name), "180ms
+   ease-out"; scripts read Door.MOTION[name]. A motion of a module's own takes a name here, never a number of its own
+   (test/library.js fails on one). Door.still(element, document or window) is the one Reduce motion check for scripts. */
+Door.MOTION = Object.freeze({
+  // The library's own: what opens rolls out, what closes rolls back up (unroll, regrow, rollUp).
+  roll: { ms: 180, ease: 'ease-out' },
+  rollUp: { ms: 140, ease: 'ease-in' },
+  // A faint press under the pointer: the fold arrow, tick boxes and lk-reveal fade up; a revealed press stays a moment after.
+  reveal: { ms: 120, ease: 'ease' },
+  revealStay: { ms: 350 },
+  turn: { ms: 120, ease: 'ease' },            // the fold arrow turning open and shut
+  tint: { ms: 100, ease: 'ease' },            // a press's colour under the pointer: lk-reveal, Threads' fields
+  undo: { ms: 150, ease: 'ease' },            // the Undo arrow coming up under the pointer
+  wash: { ms: 150, ease: 'ease' },            // a bullet's ring (lk-bul, Look's bullets) and Look's line beside children
+  dot: { ms: 200, ease: 'ease' },             // a bullet's dot growing (lk-bul)
+  edge: { ms: 120, ease: 'ease' },            // a line or edge under the pointer: the sidebar's edge, a name's underline, a settings picture
+  // Look.
+  glide: { ms: 280, ease: 'cubic-bezier(.2,.7,.2,1)', fadeEase: 'ease-out' },  // focusing into a bullet and out (focus.js): the bullet's move; the views fade by fadeEase over parts of ms
+  keySheet: { ms: 120, ease: 'ease' },        // the Option key sheet fading and growing in
+  pathStay: { ms: 470 },                      // a step's › waits before it hides under the pointer (title.js)
+  notice: { ms: 250, ease: 'ease' },          // a notice capsule coming and going
+  noticeHeight: { ms: 150, ease: 'ease' },    // notices stacking
+  // Predictive.
+  crossFade: { ms: 160, ease: 'ease' },       // a pencilled value changing where it stands
+  pencil: { ms: 150, ease: 'ease' },          // a pencilled value fading as it is taken or goes
+  grow: { ms: 170, ease: 'ease' },            // a row of written properties growing and rolling closed
+  // Ontology.
+  tray: { ms: 160, ease: 'ease-out' },        // the top bar of waiting changes sliding open and shut
+  // Threads.
+  settle: { ms: 250, ease: 'ease' },          // the section settling to its place at the top
+  linkedFold: { ms: 140, ease: 'ease' },      // the room under a folded Linked closing
+  rowWash: { ms: 160, ease: 'ease' },         // a line's wash under the keyboard
+  dig: { ms: 300, ease: 'cubic-bezier(.25,.8,.25,1)' },  // a dug node sliding from where its line was
+});
+Door.timing = name => { const m = Door.MOTION[name]; if (!m) throw new Error(`no motion named ${name}`); return m.ease ? `${m.ms}ms ${m.ease}` : `${m.ms}ms`; };
+const MOTION_MS = Door.MOTION.roll.ms;
+const still = x => { const win = x?.defaultView || x?.ownerDocument?.defaultView || (x?.matchMedia ? x : null); return !win || !win.Element?.prototype.animate || !!win.matchMedia?.('(prefers-reduced-motion: reduce)').matches; };
+Door.still = still;
 // A row may hold a minimum height and padding (a grid row, a line): they go to nothing with the height, or it cannot shrink.
 const shut = el => ({ height: '0px', minHeight: '0px', paddingTop: '0px', paddingBottom: '0px', marginTop: '0px', marginBottom: '0px', opacity: 0 });
 const full = el => { const cs = el.ownerDocument.defaultView.getComputedStyle(el); return { height: el.getBoundingClientRect().height + 'px', minHeight: cs.minHeight, paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, marginTop: cs.marginTop, marginBottom: cs.marginBottom, opacity: 1 }; };
@@ -870,20 +907,20 @@ const clipWhile = (el, animation) => { const was = el.style.overflow; el.style.o
 Door.unroll = (elements, ms = MOTION_MS) => {
   for (const el of [].concat(elements || [])) {
     if (!el?.isConnected || still(el)) continue;
-    if (el.getBoundingClientRect().height > 0) clipWhile(el, el.animate([shut(el), full(el)], { duration: ms, easing: 'ease-out' }));
+    if (el.getBoundingClientRect().height > 0) clipWhile(el, el.animate([shut(el), full(el)], { duration: ms, easing: Door.MOTION.roll.ease }));
   }
 };
 // It holds its end until it resolves, then lets go: the caller draws without the elements (or hides them) in the same step.
-Door.rollUp = (elements, ms = 140) => {
+Door.rollUp = (elements, ms = Door.MOTION.rollUp.ms) => {
   const running = [].concat(elements || []).filter(el => el?.isConnected && !still(el) && el.getBoundingClientRect().height)
-    .map(el => clipWhile(el, el.animate([full(el), shut(el)], { duration: ms, easing: 'ease-in', fill: 'forwards' })));
+    .map(el => clipWhile(el, el.animate([full(el), shut(el)], { duration: ms, easing: Door.MOTION.rollUp.ease, fill: 'forwards' })));
   return Promise.all(running.map(a => a.finished.catch(() => {}))).then(() => { for (const a of running) a.cancel(); });
 };
 Door.regrow = (el, from, ms = MOTION_MS) => {
   if (!el?.isConnected || still(el) || from == null) return;
   const to = el.getBoundingClientRect().height;
   if (Math.abs(to - from) < 1) return;
-  clipWhile(el, el.animate([{ height: from + 'px' }, { height: to + 'px' }], { duration: ms, easing: 'ease-out' }));
+  clipWhile(el, el.animate([{ height: from + 'px' }, { height: to + 'px' }], { duration: ms, easing: Door.MOTION.roll.ease }));
 };
 /* THE menu (14 November 2026, from Look's Contents menu): the library's lk-pop, lk-menu, lk-group, lk-item and lk-check as a
    pop-up under the thing pressed, so no module wires a menu's keys and closing again. parts: { group: 'Group by' } a heading,
@@ -1174,14 +1211,14 @@ Door.NAMES = `${TOKENS}
 .lk-pencil { font-family: var(--lk-mono) !important; font-style: normal !important; font-size-adjust: 0.51; color: var(--lk-quiet) !important; text-decoration: underline dotted !important; text-decoration-color: var(--lk-line) !important; text-underline-offset: 3px; background: none !important; }
 /* A pencilled tag fades once: the pencil's grey, not the tag's own fade on top of it. */
 .lk-pencil .lk-tag, .lk-tag.lk-pencil { opacity: 1; font-family: var(--lk-mono) !important; font-style: normal !important; font-size-adjust: 0.51; }
-.lk-undo { opacity: .28 !important; transition: opacity .15s; }
+.lk-undo { opacity: .28 !important; transition: opacity ${Door.timing('undo')}; }
 .lk-undo:hover, .lk-undo:focus-visible { opacity: .85 !important; }
-.lk-row .lk-fold { opacity: 0 !important; transition: opacity .12s; }
+.lk-row .lk-fold { opacity: 0 !important; transition: opacity ${Door.timing('reveal')}; }
 .lk-row:hover .lk-fold, .lk-row.on .lk-fold, .lk-fold[aria-expanded="true"], .lk-fold:focus-visible { opacity: .6 !important; }
 /* The row the keyboard is on (on), or the pointer: the one wash. */
 .lk-row:hover, .lk-row.on { background: var(--lk-wash); }
 .lk-row:hover .lk-fold:hover, .lk-fold:hover { opacity: 1 !important; }
-.lk-list .lk-tick { opacity: 0 !important; transition: opacity .12s; }
+.lk-list .lk-tick { opacity: 0 !important; transition: opacity ${Door.timing('reveal')}; }
 .lk-list:hover .lk-tick, .lk-list:focus-within .lk-tick, .lk-list[data-picking] .lk-tick { opacity: .55 !important; }
 .lk-list .lk-tick:checked, .lk-list .lk-tick:hover { opacity: 1 !important; }
 .lk-name { font-size: var(--lk-label) !important; color: var(--lk-quiet) !important; letter-spacing: .02em; font-weight: 400 !important; }
@@ -1234,7 +1271,7 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
    it", "grey, then darker upon closer, more drastic"). It is light grey while its holder is pointed at and the text colour near it; a
    zone round it (::after) catches the pointer, so moving onto it never loses it; it fades only after a moment. Hidden, it takes no
    pointer, so it never stands in the way of what is under it. The module says where it stands and how big its zone is. */
-.lk-reveal { position: relative; opacity: 0; pointer-events: none; transition: opacity .12s ease .35s, color .1s ease; color: color-mix(in srgb, var(--lk-text, currentColor) 30%, transparent) !important; background: none !important; }
+.lk-reveal { position: relative; opacity: 0; pointer-events: none; transition: opacity ${Door.timing('reveal')} ${Door.MOTION.revealStay.ms}ms, color ${Door.timing('tint')}; color: color-mix(in srgb, var(--lk-text, currentColor) 30%, transparent) !important; background: none !important; }
 .lk-reveal::after { content: ''; position: absolute; inset: -9px -6px; }
 /* lk-near on the press itself: its holder is not around it (a whole page, which holds presses of its own that must stay hidden), so the
    module says when the pointer is on the holder or on the press. */
@@ -1332,7 +1369,7 @@ input.lk-tick[type=checkbox]:indeterminate::before { content: ""; position: abso
 /* lk-fold, drawn: the chevron in a 16 by 20 place (Logseq's own width), pointing right while closed, down while open, turning in .12s; keyed, the
    round wash. Its markup is empty: the library draws the mark. */
 .lk-fold { appearance: none; background: none; border: 0; padding: 0; margin: 0; font: inherit; color: inherit; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 20px; flex: none; border-radius: 3px; }
-.lk-fold::before { content: ""; width: 10px; height: 10px; background: currentColor; -webkit-mask: var(--lk-ic) center / contain no-repeat; mask: var(--lk-ic) center / contain no-repeat; --lk-ic: ${iconUrl(Door.ICONS.chevron)}; transform: rotate(-90deg); transition: transform .12s; }
+.lk-fold::before { content: ""; width: 10px; height: 10px; background: currentColor; -webkit-mask: var(--lk-ic) center / contain no-repeat; mask: var(--lk-ic) center / contain no-repeat; --lk-ic: ${iconUrl(Door.ICONS.chevron)}; transform: rotate(-90deg); transition: transform ${Door.timing('turn')}; }
 .lk-fold[aria-expanded="true"]::before { transform: none; }
 .lk-fold > * { display: none !important; }   /* a mark a module still puts inside (an svg, an icon) gives way to the library's */
 .lk-fold:focus-visible { outline: none; background: var(--lk-wash); }   /* keyed, the wash; under the pointer none, its showing is enough (the owner, 7 November 2026) */
@@ -1341,8 +1378,8 @@ input.lk-tick[type=checkbox]:indeterminate::before { content: ""; position: abso
    place washed with Logseq's ring while what is under it is folded (.folded). One that opens something (.opens: a press opens
    the node, as a press on Logseq's bullet opens the block) shows the ring and a dot a fifth larger under the pointer. Logseq's
    own variables first, so a theme that recolours its bullets recolours these; a mix of the text colour where they are missing. */
-.lk-bul { display: inline-flex; width: 16px; height: 16px; min-width: 16px; border-radius: 50%; align-items: center; justify-content: center; flex: none; transition: background-color .15s; }
-.lk-bul::before { content: ""; width: 6.4px; height: 6.4px; border-radius: 50%; opacity: .8; transition: transform .2s; background: var(--lx-gray-08, var(--ls-block-bullet-color, var(--rx-gray-08, color-mix(in srgb, var(--lk-text, currentColor) 28%, transparent)))); }
+.lk-bul { display: inline-flex; width: 16px; height: 16px; min-width: 16px; border-radius: 50%; align-items: center; justify-content: center; flex: none; transition: background-color ${Door.timing('wash')}; }
+.lk-bul::before { content: ""; width: 6.4px; height: 6.4px; border-radius: 50%; opacity: .8; transition: transform ${Door.timing('dot')}; background: var(--lx-gray-08, var(--ls-block-bullet-color, var(--rx-gray-08, color-mix(in srgb, var(--lk-text, currentColor) 28%, transparent)))); }
 .lk-bul.folded, .lk-bul.opens:hover { background: var(--lx-gray-04-alpha, var(--ls-block-bullet-border-color, var(--rx-gray-04-alpha, color-mix(in srgb, currentColor 7%, transparent)))); }
 .lk-bul.opens { cursor: pointer; }
 .lk-bul.opens:hover::before { transform: scale(1.2); }
@@ -1365,7 +1402,7 @@ input.lk-tick[type=checkbox]:indeterminate::before { content: ""; position: abso
 .lk-undo .ti { font-size: 14px; }
 @media (prefers-reduced-motion: reduce) { .lk-fold, .lk-fold::before, .lk-tick, .lk-undo { transition: none; } }
 /* With less motion a revealed press shows at once, without a fade, and still waits its moment before it goes. */
-@media (prefers-reduced-motion: reduce) { .lk-reveal { transition: opacity 0s linear .35s, color 0s; } }
+@media (prefers-reduced-motion: reduce) { .lk-reveal { transition: opacity 0s linear ${Door.MOTION.revealStay.ms}ms, color 0s; } }
 .lk-icon.lk-web { display: inline-flex; align-items: center; line-height: 1; }
 .lk-icon.lk-web svg { display: block; width: 12px; height: 12px; }
 [class*="lk-i-"]::before, .lk-enter::after { content: ""; display: inline-block; width: 1.05em; height: 1.05em; vertical-align: -.15em; background: currentColor; -webkit-mask: var(--lk-ic) center / contain no-repeat; mask: var(--lk-ic) center / contain no-repeat; }

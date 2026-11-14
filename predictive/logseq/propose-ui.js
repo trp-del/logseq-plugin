@@ -111,9 +111,9 @@ function ghostLook(piece, live) {
 // A proposal whose value changes in place (more words typed, Apple's model reading the line): the old words fade out where
 // they stood while the new fade in, so the place does not blink empty. The old words are a copy beside the proposal, placed
 // over it, and go when they have faded.
-const FADE_MS = 160;
+const { ms: FADE_MS, ease: FADE_EASE } = window.PluginDoor.MOTION.crossFade;
 // Still: the person asked for less motion (or the page cannot say, or animate).
-const still = doc => { const win = doc.defaultView; return !win?.matchMedia || !win.Element.prototype.animate || win.matchMedia('(prefers-reduced-motion: reduce)').matches; };
+const still = doc => window.PluginDoor.still(doc);
 function crossFade(g) {
   if (!g.isConnected || !g.childNodes.length || still(g.ownerDocument)) return;
   const old = g.cloneNode(true);
@@ -122,8 +122,8 @@ function crossFade(g) {
   old.removeAttribute('title');
   Object.assign(old.style, { position: 'absolute', left: g.offsetLeft + 'px', top: g.offsetTop + 'px', pointerEvents: 'none', margin: '0' });
   g.before(old);
-  old.animate([{ opacity: 1 }, { opacity: 0 }], { duration: FADE_MS, easing: 'ease' }).finished.then(() => old.remove(), () => old.remove());
-  g.animate([{ opacity: 0 }, { opacity: 1 }], { duration: FADE_MS, easing: 'ease' });
+  old.animate([{ opacity: 1 }, { opacity: 0 }], { duration: FADE_MS, easing: FADE_EASE }).finished.then(() => old.remove(), () => old.remove());
+  g.animate([{ opacity: 0 }, { opacity: 1 }], { duration: FADE_MS, easing: FADE_EASE });
 }
 // What a proposed value shows: its words; a tag in mono with no #; a page that would get a tag says so after its name.
 function fillGhost(g, piece) {
@@ -267,7 +267,7 @@ function drawInPlace(doc = host()) {
 const hide = () => drawInPlace();
 // A row of pills the plugin made, its proposals gone: it rolls closed as it stands, so the bullets under it slide up rather than
 // jump. Where Logseq now shows a row of its own (the values were written), it goes at once, so the bullet is never two rows high.
-const ROLL_MS = 170;
+const ROLL_MS = window.PluginDoor.MOTION.grow.ms;
 function rollClosed(el) {
   const row = el.closest('.ls-block[blockid]');
   const logseqRow = row && [...row.querySelectorAll('.positioned-properties.block-below:not(.flow-made)')].some(ownRow(row));
@@ -676,7 +676,7 @@ const PILL = ':is(#main-content-container, #right-sidebar) .ls-block .positioned
 const css = `
 /* A proposed value, in the record's own property where the value goes. Its look (italic, grey, the dotted line, sure and
    guessed alike) is Look's, through the shared name lk-pencil; a tag's (mono, small capitals) through lk-tag. */
-.flow-ghost { white-space: nowrap; opacity: 1; transition: opacity .15s ease, color .15s ease; }
+.flow-ghost { white-space: nowrap; opacity: 1; transition: opacity ${window.PluginDoor.timing('pencil')}, color ${window.PluginDoor.timing('pencil')}; }
 @starting-style { .flow-ghost { opacity: 0; } }
 /* A proposed tag, at the right end of the bullet's line where Logseq draws its tags. */
 .flow-tag-ghost { white-space: nowrap; padding-right: 4px; }   /* the room Logseq's tag keeps after its name, so it stands where that tag will */
@@ -691,7 +691,7 @@ const css = `
 .flow-ghost.flow-model.flow-taken::after { content: none; }
 .bottom-property-pill:hover .flow-ghost.flow-model::after { opacity: 0; }   /* the × stands there under the pointer */
 /* A pill row the plugin made rolls open out of the bullet and closed into it (rollClosed), so the bullets under it slide. */
-.positioned-properties.flow-made { interpolate-size: allow-keywords; min-height: 0 !important; overflow: clip; overflow-clip-margin: 4px; transition: height ${ROLL_MS}ms ease, opacity ${ROLL_MS}ms ease; }
+.positioned-properties.flow-made { interpolate-size: allow-keywords; min-height: 0 !important; overflow: clip; overflow-clip-margin: 4px; transition: height ${window.PluginDoor.timing('grow')}, opacity ${window.PluginDoor.timing('grow')}; }
 @starting-style { .positioned-properties.flow-made { height: 0; opacity: 0; } }
 .positioned-properties.flow-made.flow-closing { opacity: 0; pointer-events: none; }
 @media (prefers-reduced-motion: reduce) { .positioned-properties.flow-made { transition: none; } }

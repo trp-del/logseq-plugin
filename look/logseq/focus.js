@@ -11,7 +11,7 @@
 (function () {
 const Look = window.Look;
 const { host, style, listen, onStop, watchScreen, el } = Look.kit, { setting } = Look.settings;
-const TIME = 280, EASE = 'cubic-bezier(.2,.7,.2,1)';
+const { ms: TIME, ease: EASE, fadeEase: FADE } = window.PluginDoor.MOTION.glide;
 const MOST = 600;   // a view with more blocks than this is not copied for the fade: only the bullet glides
 const ROW = ':scope > .block-main-container';
 // The glide's keys, Logseq's own for focusing in and out, kept once: the listener matches them and the key sheet reads them at the door.
@@ -68,7 +68,7 @@ function read() {
 }
 
 const writing = () => !!host().activeElement?.matches('textarea, input, [contenteditable="true"]');
-const reduced = () => win().matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+const reduced = () => window.PluginDoor.still(win());
 function fadeOld(doc, copy, box, hide, rows) {
   if (!copy) return;
   const ghost = el(doc, 'div', { class: 'lk-own lk-ghost', 'aria-hidden': 'true' });
@@ -88,7 +88,7 @@ function fadeOld(doc, copy, box, hide, rows) {
     copy.style.top = (parseFloat(copy.style.top) + at.y - now.top) + 'px'; copy.style.left = (parseFloat(copy.style.left) + at.x - now.left) + 'px';
     break;
   }
-  const fade = ghost.animate([{ opacity: 1 }, { opacity: 0 }], { duration: TIME * (reduced() ? .6 : .35), easing: 'ease-out', fill: 'forwards' });
+  const fade = ghost.animate([{ opacity: 1 }, { opacity: 0 }], { duration: TIME * (reduced() ? .6 : .35), easing: FADE, fill: 'forwards' });
   fade.onfinish = () => ghost.remove();
   setTimeout(() => ghost.remove(), 2000);   // in case the fade never ends (a window in the background)
 }
@@ -115,7 +115,7 @@ function move(was, tries = 0) {
     // Everything else in the new view that is on screen fades in where it stands.
     const others = [...scroller.querySelectorAll('.block-main-container, .block-children-left-border, .ls-page-title, .page-title, .ls-page-properties')]
       .filter(node => !block.contains(node) && !node.contains(block) && inView(node.getBoundingClientRect(), box));
-    for (const node of others) node.animate([{ opacity: 0 }, { opacity: 1 }], { duration: TIME * .8, delay: TIME * (out ? .25 : .35), easing: 'ease-out', fill: 'backwards' });
+    for (const node of others) node.animate([{ opacity: 0 }, { opacity: 1 }], { duration: TIME * .8, delay: TIME * (out ? .25 : .35), easing: FADE, fill: 'backwards' });
   }
   // Coming back, the bullet is selected; but where you are writing in it (Cmd-, from the editor), the cursor stays and nothing is selected.
   if (out) setTimeout(async () => {

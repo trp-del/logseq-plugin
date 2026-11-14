@@ -663,7 +663,7 @@ const outline = {
      once with reduced motion); focus(root, key) moves the wash to the unit of that key, in place. */
   close(kids, done) {
     const win = kids?.ownerDocument?.defaultView;
-    if (!kids?.isConnected || !kids.animate || !win?.matchMedia || win.matchMedia('(prefers-reduced-motion: reduce)').matches) { done(); return; }
+    if (!kids?.isConnected || !kids.animate || !win?.matchMedia || Door.still(win)) { done(); return; }
     window.PluginDoor.rollUp(kids).then(done);
   },
   // After a drawing lands: what came marked fresh (th-ol-unroll) unrolls with the plugin's one motion (PluginDoor.unroll), once.
@@ -863,7 +863,7 @@ a.th-tag:hover { opacity: 1; }
 .th-ol-from-back { --th-ol-cx: calc(var(--th-ol-name) + var(--th-ol-day) + 2 * var(--th-ol-gap) + 8px); }
 /* Opening grows the room under the line from nothing, so what is below slides down with it; closing rolls it back up before
    it goes: the plugin's one motion (PluginDoor.unroll and rollUp, through outline.unrolled and outline.close). */
-.th-ol-unit { margin: 0 -6px; padding: 0 6px; border-radius: 6px; transition: background-color .16s ease; }
+.th-ol-unit { margin: 0 -6px; padding: 0 6px; border-radius: 6px; transition: background-color ${window.PluginDoor.timing('rowWash')}; }
 .th-ol-unit.th-ol-focus { background: color-mix(in srgb, currentColor 3%, transparent); }
 .th-ol-prop > .th-ol-pname { flex: none; box-sizing: border-box; width: var(--th-ol-name); padding-right: calc(16px + var(--th-ol-gap)); display: inline-flex; gap: 6px; align-items: baseline; color: var(--lk-quiet); overflow-wrap: normal; word-break: normal; }   /* word-break too: Logseq sets break-word on the page, which split "Provid / er" (11 November 2026). The padding is the room of the fold arrow that overhangs from the value (.th-ol-pv > .th-chev): a long name wraps before it, between its words, never inside one (7 November 2026: "Confirmatio / n Status") */
 .th-ol-prop > .th-ol-pname .th-kind { font-size: 13px; vertical-align: 0; width: 13px; justify-content: center; flex: none; opacity: .6; } /* as faint as on a page's rows */

@@ -105,5 +105,15 @@ for (const file of FILES) {
   const rel = path.relative(ROOT, file), n = (fs.readFileSync(file, 'utf8').match(/\.animate\(/g) || []).length;
   if (n !== (SCRIPTED[rel] || 0)) own.push(`${rel}: ${n} motions made by script where ${SCRIPTED[rel] || 0} are named in test/library.js (use the door's roll, or name it with its reason)`);
 }
+/* Every motion's length and curve is named once in the library (Door.MOTION, 14 November 2026, the owner: change each in one place):
+   a module's transition, duration, delay or easing written as a number or a curve of its own fails. 0s (no motion) is not a motion. */
+const TIMED = [/transition(-duration|-delay)?:[^;}`]*?(?<![\w.-])(?!0s\b)\.?\d[\d.]*m?s\b/, /(?<!-)\b(duration|delay):\s*\d/, /\beasing:\s*['"]/, /cubic-bezier\(/];
+for (const file of FILES) {
+  const rel = path.relative(ROOT, file);
+  fs.readFileSync(file, 'utf8').split('\n').forEach((line, i) => {
+    if (/^\s*(\/\/|\*|\/\*)/.test(line)) return;
+    if (TIMED.some(re => re.test(line))) own.push(`${rel}:${i + 1} a motion timed by a number of its own (name it in Door.MOTION): ${line.trim().slice(0, 100)}`);
+  });
+}
 if (own.length) { console.error('A look drawn by a module that the library draws whole:\n  ' + own.join('\n  ')); process.exit(1); }
 console.log(`library: ${KINDS.length} kinds drawn, every button in ${FILES.length} files draws from them; no module draws a frame, a tick box, a colour or a motion of its own`);
