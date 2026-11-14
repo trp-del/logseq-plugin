@@ -4,14 +4,19 @@
    fold arrow and ×): the tab names it.
 
    The plugin's views come first, in the order they ask for (the owner, 12 November 2026): Outline, the page's headings, first on the
-   left, only on a page that has some (Look); Ontology, the tag's or property's lines, and Item, the row pressed in a table, only while
-   one is pressed (Structure, one panel for both); Links, with Endnotes under it (Look). A view
-   not yet open opens when its tab is picked. After them, one tab, Opened, while anything else is open there (a page or block
+   left (Look); Ontology, the tag's or property's lines, and Item, the row pressed in a table (Structure, one panel for both); Links,
+   with Endnotes under it (Look). A view
+   not yet open opens when its tab is picked. After them, one tab, Opened, for anything else open there (a page or block
    opened with Shift and a link): Logseq's own sidebar as it is, those items stacked with their own heads (the owner: "why not just
    have a tab as the normal sidebar?"). A page or block just opened picks it. Logseq's Contents, Page graph and Help and the
    cube with a + are left out of the row (Contents, which Logseq puts in a sidebar opened empty, is not shown).
 
-   A module adds a view with Door.sideTabs.add({ key, word, order, find(doc) → its .sidebar-item or null, open(), hidden(doc)? → true while it has nothing to show }) and gets back
+   Every tab stays in the row (the owner, 14 November 2026: "sidebar tabs show stay visible just greyed out when not applicable"): a
+   view with nothing to show here (Outline on a page with no headings, Item with no row pressed, Opened with nothing opened) is the
+   library's lk-view at the off strength, a press on it does nothing and its title says why. When the tab picked stops applying, the
+   first tab that applies is picked; the others stay where they are.
+
+   A module adds a view with Door.sideTabs.add({ key, word, order, find(doc) → its .sidebar-item or null, open(), hidden(doc)? → true while it has nothing to show, why? → the words its greyed tab says }) and gets back
    what takes it off. The bar is drawn by one pass of the shared screen watcher while any view is added. */
 (function () {
 const Door = window.PluginDoor;
@@ -53,12 +58,13 @@ function pickView(doc, view) {
   if (!view.find(doc)) { tabs.pending = view.key; view.open(); }
   pick(doc, view.key);
 }
-function tabEl(doc, { word, on, title, click }) {
+function tabEl(doc, { word, on, off, title, click }) {
   // The library's view (lk-view): the tab in force in the text colour with its short bar, the others quiet, as every view of the plugin.
   const box = doc.createElement('div'); box.className = `text-sm lk-tab${on ? ' on' : ''}`;
   const press = doc.createElement('button'); press.type = 'button'; press.className = `lk-view${on ? ' on' : ''}`; press.textContent = word;
   if (title) press.title = title;
-  press.addEventListener('click', click);
+  if (off) press.setAttribute('aria-disabled', 'true');   // greyed: stays in its place, a press does nothing, its title says why
+  press.addEventListener('click', () => { if (press.getAttribute('aria-disabled') !== 'true') click(); });
   box.appendChild(press);
   return box;
 }
@@ -68,8 +74,9 @@ function draw(doc = host()) {
   if (!side || !bar) return;
   if (!side.hasAttribute('data-lk-tabs')) side.setAttribute('data-lk-tabs', '');
   const items = itemsOf(doc);
-  // A view that says it has nothing to show on this page (hidden) has no tab: Endnotes on a page with no citations (the owner, 12 November 2026).
-  const ordered = [...views].filter(v => !v.hidden?.(doc)).sort((a, b) => a.order - b.order);
+  // Every view has its tab; one that says it has nothing to show on this page (hidden) is greyed and is never the one picked.
+  const ordered = [...views].sort((a, b) => a.order - b.order);
+  const applies = ordered.filter(v => !v.hidden?.(doc));
   // A page or block just opened in the sidebar is the one shown; a view's item appearing after its tab was picked stays picked.
   for (const item of items) {
     if (tabs.seen.has(item)) continue;
@@ -80,9 +87,9 @@ function draw(doc = host()) {
   }
   const others = items.filter(item => !viewOf(doc, item) && !isContents(item));
   if (tabs.cur === SIDE && !others.length) tabs.cur = null;
-  // The tab picked is gone: the first view that is open, else the first view, opened.
-  if (tabs.cur !== SIDE && !ordered.some(v => v.key === tabs.cur)) tabs.cur = ordered.find(v => v.find(doc))?.key || null;
-  if (!tabs.cur && ordered[0] && !tabs.pending) { pickView(doc, ordered[0]); return; }
+  // The tab picked is gone or no longer applies: the first view that applies and is open, else the first that applies, opened.
+  if (tabs.cur !== SIDE && !applies.some(v => v.key === tabs.cur)) tabs.cur = applies.find(v => v.find(doc))?.key || null;
+  if (!tabs.cur && applies[0] && !tabs.pending) { pickView(doc, applies[0]); return; }
   // Which items show: the view picked, alone and without its head; or, on Sidebar, everything else as Logseq stacks it.
   const view = ordered.find(v => v.key === tabs.cur), viewItem = view?.find(doc);
   // The tab picked is said on the sidebar, so a panel two tabs share shows the part its tab names.
@@ -99,13 +106,14 @@ function draw(doc = host()) {
     if (waits) { const width = Math.round((viewItem || item.parentElement).getBoundingClientRect().width - (viewItem ? 0 : 48)) + 'px'; if (item.style.width !== width) item.style.width = width; } else if (item.style.width) item.style.width = '';
   }
   // The row, drawn again only when what it says changes.
-  const sig = JSON.stringify([ordered.map(v => [v.key, v.word]), others.length > 0, tabs.cur]);
+  const why = v => (typeof v.why === 'function' ? v.why(doc) : v.why) || 'Nothing to show for this page';
+  const sig = JSON.stringify([ordered.map(v => [v.key, v.word, applies.includes(v) ? '' : why(v)]), others.length > 0, tabs.cur]);
   let row = bar.querySelector(':scope > .lk-tabs');
   if (row && row.dataset.sig === sig && bar.firstElementChild === row) return;
   if (!row) { row = doc.createElement('div'); row.className = 'lk-tabs lk-own-tabs'; }
   row.dataset.sig = sig;
-  const made = ordered.map(v => tabEl(doc, { word: v.word, on: tabs.cur === v.key, click: () => pickView(doc, v) }));
-  if (others.length) made.push(tabEl(doc, { word: 'Opened', title: 'The pages and blocks opened in the sidebar', on: tabs.cur === SIDE, click: () => pick(doc, SIDE) }));
+  const made = ordered.map(v => { const off = !applies.includes(v); return tabEl(doc, { word: v.word, on: tabs.cur === v.key, off, title: off ? why(v) : '', click: () => pickView(doc, v) }); });
+  made.push(tabEl(doc, { word: 'Opened', title: others.length ? 'The pages and blocks opened in the sidebar' : 'No page or block opened in the sidebar', on: tabs.cur === SIDE, off: !others.length, click: () => pick(doc, SIDE) }));
   row.replaceChildren(...made);
   if (bar.firstElementChild !== row) bar.prepend(row);
 }
