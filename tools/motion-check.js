@@ -33,6 +33,7 @@
      node tools/motion-check.js --blame                    also name the script behind each fault
      node tools/motion-check.js --quiet                    wait for a quiet Mac first (load under 2, no input for 120 s)
    A stop is a page by name; "sidebar:<page>" opens the right sidebar on it; "find" opens Find's window and closes it;
+   "split:<page>" opens that page beside Dr. Mei Chen (two pages side by side) and closes it again;
    "#/…" is a route. Pictures and reports: dist/motion-check/<theme>-<stop>/. */
 const fs = require('fs');
 const path = require('path');
@@ -69,10 +70,24 @@ async function waitForQuiet() {
 function parseStop(stop) {
   if (stop.startsWith('sidebar:')) return { page: stop.slice(8).trim(), action: 'sidebar', label: stop };
   if (stop === 'find') return { page: 'Dr. Mei Chen', action: 'find', label: stop };
+  if (stop.startsWith('split:')) return { page: 'Dr. Mei Chen', action: 'split', beside: stop.slice(6).trim(), label: stop };
   return { page: stop, action: null, label: stop };
 }
-async function act(page, action, on) {
+async function act(page, action, on, beside) {
   if (action === 'sidebar') await page.evaluate(on => window.logseq.api.set_right_sidebar_visible(on), on);
+  // Two pages side by side (split.js): the page named opens beside Dr. Mei Chen as a ⌘-click would, and closes by its ×. With the
+  // plugin off, Logseq's own nearest thing, so both runs do the same: the page opened in the right sidebar, and closed by its ×.
+  if (action === 'split') {
+    const frame = D.plugin(page);
+    if (!frame) {
+      await page.evaluate(async ({ on, beside }) => {
+        if (!on) return document.querySelector('#right-sidebar .sidebar-item .item-actions .ls-icon-x')?.closest('button')?.click();
+        const p = await window.logseq.api.get_page(beside); if (p?.uuid) await window.logseq.api.open_in_right_sidebar(String(p.uuid));
+      }, { on, beside }).catch(() => {});
+      return;
+    }
+    await frame.evaluate(async ({ on, beside }) => { const s = window.PluginDoor?.split; if (!s) return; if (!on) return s.close('right'); const p = await logseq.Editor.getPage(beside); if (p?.uuid) await s.open(String(p.uuid)); }, { on, beside }).catch(() => {});
+  }
   if (action === 'find') {
     const frame = D.plugin(page);
     if (!frame) return;
@@ -92,7 +107,7 @@ const halt = () => { if (stopping) throw new Error('stopped'); };
 async function visit(page, session, vp, stop, idleMs, least = 1500, blame = false) {
   halt();
   await D.graphOk(page);
-  const { page: name, action } = parseStop(stop);
+  const { page: name, action, beside } = parseStop(stop);
   await D.go(page, NEUTRAL);
   await sleep(1200);
   halt();
@@ -118,7 +133,7 @@ async function visit(page, session, vp, stop, idleMs, least = 1500, blame = fals
   let tAct = null;
   if (action) {
     tAct = await page.evaluate(a => { window.__rfFrames.input('action ' + a, true); return window.__rfFrames.now(); }, action);
-    await act(page, action, true);
+    await act(page, action, true, beside);
     await settled(Date.now(), 1200);
   }
   const settleEnd = await page.evaluate(() => window.__rfFrames.now());
@@ -140,7 +155,7 @@ async function visit(page, session, vp, stop, idleMs, least = 1500, blame = fals
     await page.evaluate(() => window.__blame?.stop());
   }
   await page.evaluate(() => { window.__rfFrames.stop(); delete window.__rfFrames; });
-  if (action) { await act(page, action, false); await sleep(600); }
+  if (action) { await act(page, action, false, beside); await sleep(600); }
   return { t0, tAct, settleEnd, frames, ledger, placement, blamed };
 }
 
@@ -318,6 +333,7 @@ function writePictures(dir, run, pic, fails) {
     const clean = () => page.evaluate(() => { document.getElementById('motion-check-still')?.remove(); window.__blame?.stop(); window.__rfFrames?.stop(); delete window.__rfFrames; }).catch(() => {});
     await clean();
     await act(page, 'find', false).catch(() => {});
+    await act(page, 'split', false).catch(() => {});
     await D.sidebarBack(page, sidebarWas).catch(() => {});
     await page.evaluate(w => window.logseq.api.set_theme_mode(w.system ? 'system' : (w.theme || 'light')), was).catch(() => {});
     await page.evaluate(h => { location.hash = h; }, was.hash).catch(() => {});

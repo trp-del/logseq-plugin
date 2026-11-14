@@ -5,7 +5,7 @@ const fs = require('node:fs'), path = require('node:path'), assert = require('no
 const ROOT = path.resolve(__dirname, '..');
 const walk = dir => fs.readdirSync(dir, { withFileTypes: true }).flatMap(e => e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]);
 const FILES = ['structure/logseq', 'threads/parts', 'find/logseq', 'export/logseq', 'settings', 'look/logseq', 'predictive/logseq', 'todo']
-  .flatMap(d => walk(path.join(ROOT, d))).filter(f => f.endsWith('.js'));
+  .flatMap(d => walk(path.join(ROOT, d))).filter(f => f.endsWith('.js')).concat(['sidebar-tabs.js', 'split.js'].map(f => path.join(ROOT, f)));
 
 global.window = {};
 require(path.join(ROOT, 'plugin.js'));

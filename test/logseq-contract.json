@@ -283,6 +283,7 @@
   "apis.doAction",
   "state.command-palette/commands",
   "state.plugin/installed-plugins",
-  "state.shortcuts"
+  "state.shortcuts",
+  "state.sidebar/blocks"
  ]
 }

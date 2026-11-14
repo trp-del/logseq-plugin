@@ -23,12 +23,12 @@ const PLACES = {
   sidebar: ['The right sidebar', 'The panel on the right: its bar, its pages, its links and endnotes.'],
   writing: ['Writing', 'What the plugin offers while you type.'],
   finding: ['Finding', 'The search window.'],
-  following: ['Following links', 'The rows under a page that show everything pointing at it.'],
+  following: ['Following links', 'What a ⌘-click on a link does, and the rows under a page that show everything pointing at it.'],
   out: ['Taking a page out', 'The PDF, Markdown and rich-text export.'],
   keys: ['Keys', 'Every keyboard shortcut, in one list.'],
   parts: ['Parts', 'Switch a part off, and find a fault.'],
 };
-const HOME = { look: 'window', find: 'finding', threads: 'following', predictive: 'writing', export: 'out', structure: 'parts', todo: 'parts' };   // where a part's own name leads
+const HOME = { plugin: 'following', look: 'window', find: 'finding', threads: 'following', predictive: 'writing', export: 'out', structure: 'parts', todo: 'parts' };   // where a part's own name leads
 const placeOf = key => PLACES[key] ? key : HOME[key] || 'window';
 const REOPEN_KEY = 'logseq-plugin-settings-reopen';
 const { esc, host } = window.PluginDoor;
@@ -114,6 +114,8 @@ let open = null;
 let names = {};   // what a list offers as you type, by the setting's key
 
 const parts = () => ORDER.map(key => Door.modules.find(module => module.key === key)).filter(module => module && Door.described[module.key]);
+// What stands whichever parts run (two pages side by side) says its rows at the door under 'plugin': rows with no switch of their own.
+const standing = () => Door.described.plugin ? [{ key: 'plugin', title: 'Logseq Plugin' }] : [];
 const switchKey = part => part.key + 'On';
 const wanted = part => logseq.settings?.[switchKey(part)] !== false;
 const started = part => (Door.started || []).includes(part);
@@ -146,7 +148,7 @@ function sectionsOf(part) {
 }
 const switchRows = () => parts().map(part => ({ key: switchKey(part), type: 'boolean', default: true, title: part.title, description: part.about || '', part, isSwitch: true, looks: ['Off', 'On'] }));
 function allSections() {
-  const list = parts().flatMap(sectionsOf);
+  const list = [...parts(), ...standing()].flatMap(sectionsOf);
   return [...list.filter(s => s.place !== 'parts'), { title: 'Switch on or off', place: 'parts', items: switchRows() }, ...list.filter(s => s.place === 'parts')];
 }
 const everyRow = () => allSections().flatMap(section => section.items.map(item => ({ item, section, place: section.place })));

@@ -2,7 +2,7 @@
    the three things Logseq gives a plugin only once: the settings list (every module's, under a switch for each), the
    start (each module in turn, one failing or never answering leaving the rest running) and the clean-up (the stop of every
    module that began, in reverse). And what stands whichever modules run: the shared names, Logseq's frame kept in place, the settings
-   window and the door for files from outside (outside.js). */
+   window, two pages side by side (split.js) and the door for files from outside (outside.js). */
 (function () {
 const Door = window.PluginDoor;
 const notify = (text, status = 'info') => logseq.UI.showMsg(text, status);   // no options: with a timeout the notice stays on screen
@@ -13,6 +13,7 @@ const on = module => Door.runs(module.key);
 const schema = [
   { key: 'modulesHeading', type: 'heading', default: null, title: 'What runs', description: 'Each part of the plugin, on or off. A change takes effect after the plugin is reloaded.' },
   ...Door.modules.map(module => ({ key: switchKey(module), type: 'boolean', default: true, title: module.title, description: module.about })),
+  ...(Door.rootSchema || []),   // what stands whichever modules run (two pages side by side, split.js)
   ...Door.modules.flatMap(module => module.schema || []),
 ];
 
@@ -85,6 +86,7 @@ async function main() {
     try { await Door.root.stop(); } catch (error) { console.error('The plugin’s own listeners: could not stop', error); }
   });
   try { Door.settingsWays.start(); } catch (error) { console.error('The settings window: could not start', error); notify(`The settings window could not start: ${Door.reason(error, 'a part of it failed')}`, 'warning'); }
+  try { Door.split?.start(); } catch (error) { console.error('Two pages side by side: could not start', error); notify(`Two pages side by side could not start: ${Door.reason(error, 'a part of it failed')}`, 'warning'); }
   try { Door.outside?.start(); } catch (error) { console.error('From outside: could not start', error); notify(`Adding from outside could not start: ${Door.reason(error, 'a part of it failed')}`, 'warning'); }
   try { logseq.App.registerCommandPalette({ key: 'update-plugins', label: 'Update plugins', keybinding: { binding: 'u p' } }, updatePlugins); } catch (error) { console.error('Update plugins: the command could not be registered', error); }
   // A switch flipped: nothing starts or stops live (a module's commands and menu items cannot be taken back), so say so.
