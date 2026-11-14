@@ -18,7 +18,7 @@ const css = `
 ${V} { inset: auto auto 48px 50% !important; transform: translateX(-50%); width: min(30rem, calc(100vw - 2rem)) !important; display: flex; flex-direction: column; align-items: center; }
 ${T} { top: auto !important; bottom: 0 !important; left: auto !important; right: auto !important; width: max-content !important; max-width: 100%; transform-origin: center bottom !important;
   transform: translateY(calc(-1 * (var(--toast-index) * var(--peek) + var(--shrink) * var(--height)))) scale(var(--scale)) !important;
-  border-radius: 999px !important; border-color: var(--lk-hair) !important; box-shadow: 0 2px 10px rgb(0 0 0 / .08) !important; transition: transform .25s, opacity .25s, height .15s !important; }
+  border-radius: 999px !important; border-color: var(--lk-hair) !important; box-shadow: 0 2px 10px rgb(0 0 0 / .08) !important; transition: transform ${window.PluginDoor.timing('notice')}, opacity ${window.PluginDoor.timing('notice')}, height ${window.PluginDoor.timing('noticeHeight')} !important; }
 ${T}[data-expanded] { transform: translateY(calc(-1 * var(--offset-y))) !important; }
 ${T}:is([data-starting-style], [data-ending-style]) { opacity: 0; transform: translateY(calc(-1 * (var(--toast-index) * var(--peek) + var(--shrink) * var(--height)))) scale(var(--scale)) !important; }
 ${T} .ui__toast-content { padding: 8px 38px 8px 18px !important; gap: 0 !important; }

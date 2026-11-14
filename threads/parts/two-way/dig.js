@@ -286,8 +286,8 @@ const nameRect = key => state.box?.querySelector(`.th-chev[data-dig="${CSS.escap
 // The section slides from where the clicked line was to where it is now, as one piece.
 function glide(key, from) {
   const box = state.box, now = nameRect(key);
-  if (!box || !from || !now || box.ownerDocument.defaultView.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
-  box.animate?.([{ transform: `translate(${Math.round(from.left - now.left)}px, ${Math.round(from.top - now.top)}px)` }, { transform: 'none' }], { duration: 300, easing: 'cubic-bezier(.25,.8,.25,1)' });
+  if (!box || !from || !now || window.PluginDoor.still(box)) return;
+  box.animate?.([{ transform: `translate(${Math.round(from.left - now.left)}px, ${Math.round(from.top - now.top)}px)` }, { transform: 'none' }], { duration: window.PluginDoor.MOTION.dig.ms, easing: window.PluginDoor.MOTION.dig.ease });
 }
 /* Back to a step of the trail (-1: the page): the view starts there again, with what was open under it, as deep as fits;
    the node that was the top stays open in place and has the focus, so Esc goes on closing upwards. */

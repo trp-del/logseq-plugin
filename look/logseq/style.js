@@ -213,7 +213,7 @@ ${AREA} .block-children .ls-block:is(:has(.editor-inner), :has(~ .ls-block .edit
   background: color-mix(in srgb, var(--lk-text) 55%, transparent); }
 ${AREA} .block-children .ls-block:has(~ .ls-block .editor-inner)::before { bottom: 0; }
 ${AREA} .block-children .ls-block:has(.editor-inner)::before { height: 14px; }
-${AREA} .bullet-container .bullet { transition: background-color .15s; }
+${AREA} .bullet-container .bullet { transition: background-color ${window.PluginDoor.timing('wash')}; }
 @media (prefers-reduced-motion: reduce) { ${AREA} .bullet-container .bullet { transition: none; } }
 ${TH} .th-ol-unit:is(.th-ol-focus, :has(${TH_HERE})) > :is(.th-ol-line, .th-ol-bullet) .th-ol-dot > .lk-bul::before,
 ${TH} :is(.th-ol-line, .th-ol-bullet):has(.th-in-place) .th-ol-dot > .lk-bul::before { background: var(--lk-text); }
@@ -228,7 +228,7 @@ ${TH_KID} ${TH_STEP}::before { bottom: auto; height: 14px; }`;
    darker of 8 November, found too faint, so the line takes Lit's strength. */
 const guides = `
 ${AREA} .block-children-container:has(.editor-inner) > .block-children { border-left-color: color-mix(in srgb, var(--lk-text) 55%, transparent) !important; }
-${AREA} .block-children { transition: border-color .15s; }
+${AREA} .block-children { transition: border-color ${window.PluginDoor.timing('wash')}; }
 @media (prefers-reduced-motion: reduce) { ${AREA} .block-children { transition: none; } }
 ${TH} .th-ol-kids:not(.th-ol-bare):has(${TH_HERE}) { border-left-color: color-mix(in srgb, var(--lk-text) 55%, transparent) !important; }`;
 /* Which way the path shows: Off, Lit (dots and steps) or Lines (whole guide lines). Before 12 November the setting was

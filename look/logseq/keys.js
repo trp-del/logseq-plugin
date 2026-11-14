@@ -97,7 +97,7 @@ const bodyHtml = () => groups().map(([head, lines]) => `<section class="lk-ks-gr
    where it stands. The find line is the library's field (lk-field) across the top. */
 const CSS = `
 .lk-window.lk-ks { position: fixed; left: 50%; top: 50%; z-index: 9999; pointer-events: none; box-sizing: border-box; width: 94vw; max-width: 1500px; max-height: 92vh; font-size: 16px;
-  display: flex; flex-direction: column; opacity: 0; transform: translate(-50%, -50%) scale(.985); transition: opacity .12s ease, transform .12s ease; }
+  display: flex; flex-direction: column; opacity: 0; transform: translate(-50%, -50%) scale(.985); transition: opacity ${window.PluginDoor.timing('keySheet')}, transform ${window.PluginDoor.timing('keySheet')}; }
 .lk-ks.on { opacity: 1; transform: translate(-50%, -50%); }
 .lk-ks.stays { pointer-events: auto; }
 .lk-ks .lk-ks-find { margin: 22px 36px 0; flex: none; }

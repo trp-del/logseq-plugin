@@ -122,7 +122,7 @@ async function goToHead(head, inSidebar) {
     shown = blockOnPage(head.uuid);
     if (!shown && view.scrollTop === was) break;
   }
-  shown?.scrollIntoView({ behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+  shown?.scrollIntoView({ behavior: window.PluginDoor.still(window) ? 'auto' : 'smooth', block: 'start' });
 }
 async function load() {
   if (state.stopped) return;

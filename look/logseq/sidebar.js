@@ -30,7 +30,7 @@ const flatCss = `
    three pixels wide stood. The bar is still Logseq's handle for the sidebar's width: seven pixels to catch, nothing painted but the
    line, which darkens under the pointer and while it is dragged. */
 #right-sidebar .resizer { left: -3px !important; width: 7px !important; background: none !important; }
-#right-sidebar .resizer::after { content: ""; position: absolute; top: 0; bottom: 0; left: 3px; width: 1px; background: var(--lk-hair); transition: background-color .12s; }
+#right-sidebar .resizer::after { content: ""; position: absolute; top: 0; bottom: 0; left: 3px; width: 1px; background: var(--lk-hair); transition: background-color ${window.PluginDoor.timing('edge')}; }
 #right-sidebar .resizer:is(:hover, :active, :focus)::after { background: var(--lk-line); }`;
 const PAGE_ITEM = '#right-sidebar .sidebar-item.item-type-page';
 const NAME = `${PAGE_ITEM} .sidebar-item-header .page-title > span:last-child`;

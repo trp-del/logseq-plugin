@@ -71,7 +71,7 @@ const STYLE = `.sw-dialog { position: fixed !important; top: 50% !important; lef
 .sw-opt { all: unset; box-sizing: border-box; display: grid; align-content: start; gap: 10px; min-width: 0; cursor: pointer; }   /* the library's choice (lk-value) */
 .sw-opt.sw-still { cursor: default; }
 /* A picture: a slice of a page at the page's size, in the page's colours. */
-.sw-pic { box-sizing: border-box; border: 1px solid var(--lk-hair); border-radius: 8px; padding: 14px 16px; min-height: 92px; overflow: hidden; font-size: 15px; line-height: 1.6; color: var(--lk-text); background: var(--lk-paper); transition: border-color .12s; }
+.sw-pic { box-sizing: border-box; border: 1px solid var(--lk-hair); border-radius: 8px; padding: 14px 16px; min-height: 92px; overflow: hidden; font-size: 15px; line-height: 1.6; color: var(--lk-text); background: var(--lk-paper); transition: border-color ${window.PluginDoor.timing('edge')}; }
 .sw-opt:not(.sw-still):hover .sw-pic, .sw-opt:focus-visible .sw-pic { border-color: var(--lk-line); }
 .sw-opt:focus-visible { outline: none; }
 .sw-opt.on .sw-pic { border: 2px solid var(--lk-text); padding: 13px 15px; }

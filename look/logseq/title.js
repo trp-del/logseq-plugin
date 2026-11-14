@@ -25,7 +25,7 @@ const css = `
 /* The × is the library's lk-reveal: shown while its tag is pointed at, kept while the hand moves onto it, darker near it. It stands
    where the separator before the tag is, and the separator gives way to it for as long as it shows. */
 .lk-path .lk-x { position: absolute; right: calc(100% + 3px); top: 0; bottom: 0; width: 14px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
-.lk-path .lk-sep:has(+ .lk-held) { transition: visibility 0s linear .47s; }
+.lk-path .lk-sep:has(+ .lk-held) { transition: visibility 0s linear ${window.PluginDoor.MOTION.pathStay.ms}ms; }
 .lk-path .lk-sep:has(+ .lk-held:is(:hover, :focus-within)) { visibility: hidden; transition-delay: 0s; }
 .lk-path a.lk-tag { cursor: pointer; }
 /* Logseq's own faded tags there give way to the line. */

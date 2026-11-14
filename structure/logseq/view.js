@@ -296,7 +296,7 @@ const CSS = `
 .st-tbl .tr .st-chev { cursor: pointer; padding: 0 2px; flex: none; display: inline-flex; align-items: center; } .st-tbl .tr .st-chev::before { vertical-align: 0; }
 .st-popen .st-lines-t { margin: 0; font-size: 14px; }
 /* On a tree row the name is the door (the grammar's row): the words carry the faint line under the pointer, since a line on every row would multiply. */
-.st-row .nm .st-name { cursor: pointer; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 3px; transition: text-decoration-color .12s; }
+.st-row .nm .st-name { cursor: pointer; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 3px; transition: text-decoration-color ${window.PluginDoor.timing('edge')}; }
 .st-row .nm .st-name:hover { text-decoration-color: var(--lk-line); }
 .st-h { font-size: 14px; font-weight: 600; margin: 22px 0 4px; }
 /* A narrow pane (the right sidebar open): the table keeps its four columns, the tag columns wrapping. */
@@ -841,10 +841,10 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
 
   // The tray rolls out and back when its height changes (the grammar: what opens rolls out), the card moving with it, never with a jump.
   // Every draw makes the tray anew, so the slide runs from the height it had. Empty, it takes no room, so the card itself comes up.
-  const SLIDE = { duration: 160, easing: 'ease-out' };
+  const SLIDE = { duration: Door.MOTION.tray.ms, easing: Door.MOTION.tray.ease };
   function slideTray(was) {
     const tray = root.querySelector('.st-tray'), now = tray?.offsetHeight;
-    if (was == null || was === now || !tray?.animate || doc.defaultView.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    if (was == null || was === now || !tray?.animate || Door.still(doc)) return;
     if (!now) { root.querySelector('.st-right')?.animate({ marginTop: [`${was}px`, '0px'] }, SLIDE); return; }
     const box = doc.defaultView.getComputedStyle(tray), from = was ? {} : { paddingTop: ['0px', box.paddingTop], paddingBottom: ['0px', box.paddingBottom], borderBottomWidth: ['0px', box.borderBottomWidth] };
     tray.style.overflow = 'hidden';
