@@ -454,15 +454,35 @@ Door.kindIconHtml = kind => {
 };
 /* A module's button in Logseq's top toolbar, drawn as Logseq draws its own there (Tabler's line icons as SVG, 20 px, the same
    stroke), so it stands among Home, the arrows and the sidebar button as one of them; a font glyph came out heavier. The drawings
-   say what the button opens: Structure a tree of tags, the inspector an i in a circle (Logseq's
-   Contents already has the list beside a box) (9 November 2026). */
+   say what the button opens: Ontology a tree of kinds lying on its side, one into two into four, as Porphyry's tree (the
+   owner's pick, 14 November 2026; until then four boxes), the inspector an i in a circle (Logseq's
+   Contents already has the list beside a box) (9 November 2026), Todo a ticked box (the icon it has in the ··· menu). Ontology and
+   Todo stand here, before Logseq's ···, since 14 November 2026 (the owner: shown as buttons, not inside the ··· menu). */
 Door.TOOLBAR_ICONS = {
-  structure: 'M3 17a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2zM15 17a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2zM9 5a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2zM6 15v-1a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v1M12 9v3',
+  structure: 'M3 12h2c3 0 3 -6 6 -6h1M3 12h2c3 0 3 6 6 6h1M12 6c2 0 2 -3 4 -3h4M12 6c2 0 2 3 4 3h4M12 18c2 0 2 -3 4 -3h4M12 18c2 0 2 3 4 3h4',
   inspector: 'M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0M12 9h.01M11 12h1v4h1',
+  todo: 'M3 5a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2zM9 12l2 2l4 -4',
 };
 Door.toolbarButton = (model, title, icon) => `<a class="button lk-tool" data-on-click="${model}" title="${title}" aria-label="${title}"><svg class="tabler-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${Door.TOOLBAR_ICONS[icon]}"/></svg></a>`;
+/* A module's button placed in the toolbar and pinned there: Logseq 2.0.2 draws a plugin's toolbar button only when it is in the
+   pinned list (Logseq's preferences, pinnedToolbarItems), which is otherwise set from the puzzle icon's menu, and the calm toolbar
+   hides the puzzle. So the button pins itself: into Logseq's state at once (setStateFromStore, which redraws the toolbar) and into
+   its preferences file (LSPluginCore.saveUserPreferences, which only writes). One pin at a time, so two modules starting together
+   don't each write the list without the other's. */
+let pinning = Promise.resolve();
+Door.toolbarItem = (key, model, title, icon) => {
+  logseq.App.registerUIItem('toolbar', { key, template: Door.toolbarButton(model, title, icon) });
+  pinning = pinning.then(async () => {
+    const id = `${logseq.baseInfo?.id || 'logseq-plugin'}:${key}`, path = ['plugin/preferences', 'pinnedToolbarItems'];
+    const pinned = await logseq.App.getStateFromStore?.(path);
+    if (!Array.isArray(pinned) || pinned.includes(id)) return;
+    const list = [...pinned, id];
+    await logseq.App.setStateFromStore?.(path, list);
+    await Door.host().defaultView.LSPluginCore?.saveUserPreferences?.({ pinnedToolbarItems: list });
+  }).catch(error => console.warn('logseq-plugin: could not pin the toolbar button', key, error));
+};
 /* The plugin's places in Logseq's ··· menu at the top right (the owner, 9 November 2026: "put different plugin features under
-   three dots"), where the toolbar had a button for each: a module adds { key, label, icon, run } and gets back what takes it off.
+   three dots"), where the toolbar had a button for each; Ontology and Todo went back to the toolbar on 14 November 2026: a module adds { key, label, icon, run } and gets back what takes it off.
    settings/ways-in.js draws them at the head of the menu each time it opens, in the order added, as Logseq draws its own lines. */
 Door.menuItems = [];
 Door.addMenuItem = item => { Door.menuItems = Door.menuItems.filter(x => x.key !== item.key).concat(item); return () => { Door.menuItems = Door.menuItems.filter(x => x !== item); }; };

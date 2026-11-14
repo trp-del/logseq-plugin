@@ -1,6 +1,6 @@
 /* Todo: Logseq's own tasks as one short list, on a page of its own and in the right sidebar, drawn by the same code (view.js)
    from the one state kept here. Loaded after its graph reader and its drawing (files.js). The ways in: the command palette
-   (Todo, and g then d outside a bullet, as Logseq's own g pairs), the ··· menu, the sidebar's Todo tab. */
+   (Todo, and g then d outside a bullet, as Logseq's own g pairs), the ticked box in Logseq's toolbar, the sidebar's Todo tab. */
 (function () {
 const T = window.Todo;
 const Door = window.PluginDoor;
@@ -157,7 +157,9 @@ async function main() {
   const { onStop } = T.base;
   logseq.App.registerCommandPalette({ key: 'todo-open', label: 'Todo', keybinding: { binding: KEYS } }, openPage);
   logseq.App.registerCommandPalette({ key: 'todo-side', label: 'Todo in the sidebar' }, async () => { Door.sideTabs?.show('todo'); await logseq.Editor.openInRightSidebar('_sidebar.' + SIDE); await logseq.App.setRightSidebarVisible?.(true); });
-  onStop(Door.addMenuItem({ key: 'todo', label: 'Todo', icon: 'square-check', run: openPage }));
+  // A button in Logseq's toolbar, beside Ontology's, before the ··· (the owner, 14 November 2026).
+  logseq.provideModel({ todoOpen: openPage });
+  Door.toolbarItem('todo-open', 'todoOpen', 'Todo', 'todo');
   // A change anywhere: read again after a quiet moment, so a task ticked, added or dated elsewhere shows here.
   onStop(logseq.DB.onChanged(() => { if (app.views.size) app.later(); }));
   // The grouping changed in the settings window: drawn at once in both places.
@@ -184,7 +186,7 @@ const schema = [
 const groupWords = { Day: ['Today', 'Coming up', 'Any time'], Page: ['Dr. Mei Chen', 'Report', 'Journals'], Tag: ['Consultation', 'Symptom', 'No tag'], Priority: ['Urgent', 'High', 'No priority'], Status: ['Doing', 'Todo'] };
 Door.describe('todo', { schema: [{ type: 'heading', title: 'The Todo list', place: 'page' }, schema[0]],
   specimen: (item, value) => item.key === 'todoGroupBy' ? (groupWords[value] || groupWords.Day).map(w => `<span class="sw-k">${w}</span>`).join('<br>') : '',
-  picture: on => `<span class="sw-faintw">The ··· menu</span><br>${on ? 'Todo<br>' : ''}Find` });
+  picture: on => `<span class="sw-faintw">The toolbar</span><br>${on ? 'Todo<br>' : ''}···` });
 Door.register({
   key: 'todo', title: 'Todo', schema, about: 'Logseq’s tasks as one short list, on a page of its own and in the right sidebar: add one with a day in its words, tick it off.',
   start: main, stop,

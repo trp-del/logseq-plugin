@@ -221,13 +221,12 @@ async function main() {
   logseq.App.registerCommandPalette({ key: 'structure-open', label: 'Ontology: the map of tags and properties' }, () => app.openMain());
   logseq.App.registerCommandPalette({ key: 'structure-inspector', label: 'Ontology: this page’s part, in the right sidebar' }, () => mounts.openInspector());
   logseq.provideModel({ structureOpen: () => app.openMain() });
-  // In Logseq's ··· menu, where the plugin's places stand (the owner, 9 November 2026), the map and the inspector.
+  // The map is a button in Logseq's toolbar (the owner, 14 November 2026); the inspector stays in Logseq's ··· menu.
   const { onStop } = S.base;
-  onStop(window.PluginDoor.addMenuItem({ key: 'structure', label: 'Ontology', icon: 'sitemap', run: () => app.openMain() }));
   // Look's × on a tag's own page asks for the tag to leave its place: the map asks first (askTakeOut).
   onStop(window.PluginDoor.offerAsk('structure.takeOut', (tagUuid, parentUuid) => app.askTakeOut(tagUuid, parentUuid)));
   onStop(window.PluginDoor.addMenuItem({ key: 'inspector', label: 'Ontology in the sidebar', icon: 'info-circle', run: () => mounts.openInspector() }));
-  logseq.App.registerUIItem('toolbar', { key: 'structure-open', template: window.PluginDoor.toolbarButton('structureOpen', 'Ontology: the map of tags and properties', 'structure') });
+  window.PluginDoor.toolbarItem('structure-open', 'structureOpen', 'Ontology: the map of tags and properties', 'structure');
   onStop(logseq.DB.onChanged(change => graphChanged(change)));
   onStop(logseq.App.onCurrentGraphChanged(() => otherGraph()));
   onStop(logseq.App.onRouteChanged?.(() => { tagPage(); }));
@@ -313,7 +312,7 @@ function adopt() {
   for (const holder of host().querySelectorAll('.st-holder-insp')) if (!holder.firstChild) S.inspector.mounted(holder);
   for (const holder of host().querySelectorAll('.st-holder')) if (!holder.querySelector('.st')) { try { app.mounted(S.view.make(holder, 'page', app)); } catch (error) { console.error('Structure: could not draw into a holder', error); } }
 }
-window.PluginDoor.describe('structure', { none: 'Ontology has nothing to set.', picture: on => `<span class="sw-faintw">The ··· menu</span><br>${on ? 'Ontology<br>' : ''}Find` });
+window.PluginDoor.describe('structure', { none: 'Ontology has nothing to set.', picture: on => `<span class="sw-faintw">The toolbar</span><br>${on ? 'Ontology<br>' : ''}···` });
 window.PluginDoor.register({
   key: 'structure', title: 'Ontology',   /* the owner, 12 November 2026: "Why don't we call it Ontology. Lets change name of Structure too to that"; the folder, the key and the names in the code stay */ about: 'The map of the graph’s tags and properties: one screen to see the whole shape, move things and change many at once, with one Undo.',
   start: main, stop,

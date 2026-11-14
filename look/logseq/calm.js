@@ -49,12 +49,13 @@ body { font-family: var(--ls-font-family) !important; -webkit-font-smoothing: an
 #head :is(button, a.button) { opacity: .7 !important; }
 .cp__sidebar-help-btn { opacity: .7; }
 /* The toolbar streamlined (the owner, 9 November 2026: "you are suppose to streamline not just move icons around", then "cut back
-   and forth. put different plugin features under three dots"): two buttons where Logseq has eight, Logseq's ··· menu and the
-   sidebar button. The plugin's places (Find, Structure, the inspector) head the ··· menu (Door.menuItems); Logseq's magnifier at
+   and forth. put different plugin features under three dots"): four buttons where Logseq has eight, Ontology and Todo (the owner,
+   14 November 2026: buttons, not in the ··· menu), Logseq's ··· menu and the sidebar button. Find and the inspector head the ···
+   menu (Door.menuItems); Logseq's magnifier at
    the top left opens Find; back and forward are Cmd [ and Cmd ]; Home goes (Journals heads the left sidebar); the puzzle goes
    (Plugins and Plugin settings are in the ··· menu). Another plugin's button stays, before the ···. */
 #head .r > .flex.items-center > button:has(.ls-icon-home), #head .r > .flex.items-center .toolbar-plugins-manager,
-#head .r .nav-left, #head .r .nav-right, #head [id^="injected-ui-item-structure-open"], #head [id^="injected-ui-item-find-open"] { display: none !important; }
+#head .r .nav-left, #head .r .nav-right, #head [id^="injected-ui-item-find-open"] { display: none !important; }
 /* Scroll bars thin and faint, firmer under the pointer. */
 ::-webkit-scrollbar { width: 8px; height: 8px; background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--lk-hair); border-radius: 4px; }
