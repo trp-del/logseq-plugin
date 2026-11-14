@@ -4,7 +4,7 @@
 const fs = require('node:fs'), path = require('node:path'), assert = require('node:assert');
 const ROOT = path.resolve(__dirname, '..');
 const walk = dir => fs.readdirSync(dir, { withFileTypes: true }).flatMap(e => e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]);
-const FILES = ['structure/logseq', 'threads/parts', 'find/logseq', 'export/logseq', 'settings', 'look/logseq', 'predictive/logseq']
+const FILES = ['structure/logseq', 'threads/parts', 'find/logseq', 'export/logseq', 'settings', 'look/logseq', 'predictive/logseq', 'todo']
   .flatMap(d => walk(path.join(ROOT, d))).filter(f => f.endsWith('.js'));
 
 global.window = {};

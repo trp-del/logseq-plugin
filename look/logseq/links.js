@@ -221,38 +221,17 @@ function contentsBody(doc) {
     html: Look.kit.iconHtml('dots'), click: event => openMenu(doc, event.currentTarget) });
   return [more, ...rows];
 }
-// The menu, the library's (lk-pop, lk-menu, lk-group, lk-item): under the ⋯, its right edge on the ⋯'s. Up and Down walk it, Enter
-// takes a line, Escape or a press elsewhere closes it, and the ⋯ has the keys again.
-let menu = null;
-function closeMenu(back) { if (!menu) return; menu.box.remove(); menu.off(); if (back) menu.from.focus(); menu = null; }
+// The menu, the library's (PluginDoor.menu): under the ⋯, its right edge on the ⋯'s; its keys and closing are the library's.
+const closeMenu = () => window.PluginDoor.menu.close();
 function openMenu(doc, from) {
-  if (menu) { closeMenu(); return; }
   const way = numbering(), folding = state.heads.filter((head, i) => inside(state.heads, i).length);
-  const takes = new Map();   // each line and what taking it does, for the press and for Enter alike
-  const item = (word, pressed, act, off) => { const take = () => { closeMenu(true); act(); }; const line = el(doc, 'button', { class: `lk-item${off ? ' off' : ''}`, type: 'button', role: 'menuitem', click: take }, el(doc, 'span', {}, word), pressed ? el(doc, 'span', { class: 'lk-note lk-check', 'aria-hidden': 'true' }) : null); takes.set(line, take); return line; };
-  const box = el(doc, 'div', { class: 'lk-pop lk-menu lk-own lk-contents-menu', role: 'menu' },
-    el(doc, 'div', { class: 'lk-group' }, 'Numbering'),
-    ...NUMBERINGS.map(each => item(each.word, each.key === way.key, () => { numberedBy = each.key; logseq.updateSettings({ contentsNumbers: each.key }); render(host()); })),
-    el(doc, 'div', { class: 'lk-item gap' }), el(doc, 'div', { class: 'lk-group' }, 'Sections'),
-    item('Fold all', false, () => setFolds(() => folding.forEach(head => folds.add(head.uuid))), folding.every(head => folds.has(head.uuid))),
-    item('Unfold all', false, () => setFolds(() => folding.forEach(head => folds.delete(head.uuid))), !folding.some(head => folds.has(head.uuid))));
-  Object.assign(box.style, { position: 'fixed', zIndex: 60, width: 'max-content' });
-  doc.body.append(box);
-  const at = from.getBoundingClientRect();
-  Object.assign(box.style, { top: `${at.bottom + 4}px`, left: `${Math.max(8, at.right - box.offsetWidth)}px` });
-  const lines = [...box.querySelectorAll('.lk-item:not(.gap):not(.off)')];
-  let at_ = 0;
-  const light = i => { lines.forEach((line, j) => line.classList.toggle('on', j === i)); lines[i]?.focus(); at_ = i; };
-  const keys = event => {
-    if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeMenu(true); }
-    else if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); takes.get(lines[at_])?.(); }
-    else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); event.stopPropagation(); light((at_ + (event.key === 'ArrowDown' ? 1 : lines.length - 1)) % lines.length); }
-  };
-  const away = event => { if (!box.contains(event.target) && event.target !== from && !from.contains(event.target)) closeMenu(); };
-  box.addEventListener('keydown', keys);
-  menu = { box, from, off: Look.kit.listen(doc, 'pointerdown', away, true) };
-  window.PluginDoor.unroll(box);
-  light(0);
+  window.PluginDoor.menu(from, [
+    { group: 'Numbering' },
+    ...NUMBERINGS.map(each => ({ word: each.word, on: each.key === way.key, take: () => { numberedBy = each.key; logseq.updateSettings({ contentsNumbers: each.key }); render(host()); } })),
+    { gap: true }, { group: 'Sections' },
+    { word: 'Fold all', off: folding.every(head => folds.has(head.uuid)), take: () => setFolds(() => folding.forEach(head => folds.add(head.uuid))) },
+    { word: 'Unfold all', off: !folding.some(head => folds.has(head.uuid)), take: () => setFolds(() => folding.forEach(head => folds.delete(head.uuid))) },
+  ]);
 }
 // read: the page was read for a section just opened, so what it holds grows on from the empty section (window.PluginDoor.regrow).
 function render(doc, read) {

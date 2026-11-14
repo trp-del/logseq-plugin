@@ -861,6 +861,64 @@ Door.regrow = (el, from, ms = MOTION_MS) => {
   if (Math.abs(to - from) < 1) return;
   clipWhile(el, el.animate([{ height: from + 'px' }, { height: to + 'px' }], { duration: ms, easing: 'ease-out' }));
 };
+/* THE menu (14 November 2026, from Look's Contents menu): the library's lk-pop, lk-menu, lk-group, lk-item and lk-check as a
+   pop-up under the thing pressed, so no module wires a menu's keys and closing again. parts: { group: 'Group by' } a heading,
+   { gap: true } a space, { word, on, off, take } a line (on: the check mark, the one in force; off: faint, not taken).
+   It rolls out of what opened it, its right edge on that's (align 'left': its left edge), above it when there is no room
+   below. Up and Down walk it, Enter or Space takes a line, Escape or a press elsewhere closes it, and the keys go back to
+   what opened it; pressing that again closes it. One menu is open at a time. Gives { close }, or null when it only closed. */
+let shownMenu = null;
+Door.menu = (from, parts, { align = 'right' } = {}) => {
+  const doc = from.ownerDocument, win = doc.defaultView;
+  if (shownMenu) { const again = shownMenu.from === from; shownMenu.close(); if (again) return null; }
+  const takes = new Map();
+  const close = back => {
+    if (shownMenu !== menu) return;
+    shownMenu = null; box.remove(); off();
+    from.setAttribute('aria-expanded', 'false');
+    if (back && from.isConnected) from.focus({ preventScroll: true });
+  };
+  const line = part => {
+    if (part.group) return Door.el(doc, 'div', { class: 'lk-group' }, part.group);
+    if (part.gap) return Door.el(doc, 'div', { class: 'lk-item gap' });
+    const take = () => { close(true); part.take?.(); };
+    const node = Door.el(doc, 'button', { class: `lk-item${part.off ? ' off' : ''}`, type: 'button', role: 'menuitemradio', 'aria-checked': String(!!part.on), click: take },
+      Door.el(doc, 'span', {}, part.word), part.on ? Door.el(doc, 'span', { class: 'lk-note lk-check', 'aria-hidden': 'true' }) : null);
+    takes.set(node, take);
+    return node;
+  };
+  const box = Door.el(doc, 'div', { class: 'lk-pop lk-menu lk-door-menu', role: 'menu' }, ...parts.map(line));
+  Object.assign(box.style, { position: 'fixed', zIndex: 60, width: 'max-content', minWidth: '160px', visibility: 'hidden' });
+  doc.body.append(box);
+  const at = from.getBoundingClientRect(), w = box.offsetWidth, h = box.offsetHeight;
+  const left = align === 'left' ? at.left : at.right - w;
+  const below = at.bottom + 4 + h <= win.innerHeight - 8 || at.top - 4 - h < 8;
+  Object.assign(box.style, { left: `${Math.max(8, Math.min(left, win.innerWidth - w - 8))}px`, top: `${below ? at.bottom + 4 : at.top - 4 - h}px`, visibility: '' });
+  const lines = [...takes.keys()].filter(node => !node.classList.contains('off'));
+  let lit = Math.max(0, lines.findIndex(node => node.getAttribute('aria-checked') === 'true'));
+  const light = i => { lit = i; lines.forEach((node, j) => node.classList.toggle('on', j === i)); lines[i]?.focus({ preventScroll: true }); };
+  box.addEventListener('keydown', event => {
+    const key = event.key;
+    if (key === 'Escape' || key === 'Tab') { event.preventDefault(); event.stopPropagation(); close(true); }
+    else if (key === 'Enter' || key === ' ') { event.preventDefault(); event.stopPropagation(); takes.get(lines[lit])?.(); }
+    else if (key === 'ArrowDown' || key === 'ArrowUp') { event.preventDefault(); event.stopPropagation(); if (lines.length) light((lit + (key === 'ArrowDown' ? 1 : lines.length - 1)) % lines.length); }
+  });
+  const away = event => { if (!box.contains(event.target) && !from.contains(event.target)) close(false); };
+  const gone = () => close(false);
+  doc.addEventListener('pointerdown', away, true);
+  win.addEventListener('resize', gone);
+  win.addEventListener('blur', gone);
+  const off = () => { doc.removeEventListener('pointerdown', away, true); win.removeEventListener('resize', gone); win.removeEventListener('blur', gone); };
+  const menu = { from, close };
+  shownMenu = menu;
+  from.setAttribute('aria-haspopup', 'menu');
+  from.setAttribute('aria-expanded', 'true');
+  Door.unroll(box);
+  light(lit);
+  return menu;
+};
+// The menu open now, closed (a module stopping, a view drawn away).
+Door.menu.close = () => shownMenu?.close(false);
 // The Undo arrow: the grammar's one shape, from Logseq's icon font. Its fade is the shared name lk-undo.
 Door.UNDO = '<i class="ti ti-arrow-back-up" aria-hidden="true"></i>';
 /* THE Undo of the plugin, one for every module (6 November 2026; until then Threads, Predictive and Structure each kept their own;
@@ -1139,6 +1197,10 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
 /* Their mark alone (lk-i-plus, lk-i-chevron), no word after it. The faint grey sits close to the text colour, so the round wash is what
    shows the pointer has it, as on a level-3 button; a press that shows only near its holder (lk-reveal) takes it too, on the press itself. */
 .lk-change::before, .lk-plus::before { margin-right: 0 !important; }
+/* A word with the chevron after it ("By day ⌄", Todo's grouping): the value that holds one thing, said, the chevron saying it
+   opens a menu (Door.menu). Small, as the headings it stands beside. */
+.lk-change:has(> .lk-i-chevron) { font-size: var(--lk-small); white-space: nowrap; padding: 1px 4px; }
+.lk-change > .lk-i-chevron::before { margin: 0 0 0 .2em !important; width: .9em; height: .9em; vertical-align: -.12em; }
 /* The + is the size of the chevron beside it (the owner, 7 November 2026: "it should be size of chevron"): its arms span the chevron's width. */
 .lk-plus.lk-i-plus, .lk-plus > .lk-i-plus { display: inline-flex; align-items: center; justify-content: center; }   /* the mark centred in its own place; a press holding it (Look's after a value) keeps its own layout, so a press of no width under a bullet does not pull the mark back over the value */
 .lk-plus.lk-i-plus { width: 20px; height: 20px; padding: 0 !important; flex: none; }   /* a round place the size of the fold arrow's, so the wash is a small square, not a strip */
@@ -1153,7 +1215,7 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
 .lk-reveal:is(:hover, :focus-visible) { color: var(--lk-text, currentColor) !important; background: var(--lk-wash) !important; }   /* on the press itself: the round wash too, as on every press */
 .lk-reveal:focus-visible { outline: none; }
 .lk-btn:hover, .lk-btn:focus-visible, .lk-accent:hover, .lk-accent:focus-visible, .lk-lone:hover, .lk-lone:focus-visible, .lk-fix:hover, .lk-fix:focus-visible, .lk-item:hover, .lk-item:focus-visible { background: var(--lk-wash); }
-.lk-btn:focus-visible, .lk-accent:focus-visible, .lk-lone:focus-visible, .lk-fix:focus-visible, .lk-view:focus-visible, .lk-item:focus-visible { outline: none; }
+.lk-btn:focus-visible, .lk-accent:focus-visible, .lk-lone:focus-visible, .lk-fix:focus-visible, .lk-view:focus-visible, .lk-item:focus-visible, .lk-x:focus-visible, .lk-plus:focus-visible, .lk-change:focus-visible { outline: none; }
 /* Three levels, so a button's weight says how much it matters before it is read (the owner, 1 November: "change the hierarchy of buttons").
    1, lk-accent: the one step that decides, filled in the text colour, one on a screen. Above it only lk-big, what Undo cannot put back.
    2, lk-btn, lk-lone: what you do to the thing in front of you, on the round ground.
