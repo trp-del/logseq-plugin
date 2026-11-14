@@ -27,6 +27,7 @@ run . node test/review.js
 run look node test/load.js
 run look node test/contents.js
 run find node test/load.js
+run todo node test/group.js
 run predictive node test/run.js
 run predictive node test/load.js
 run structure node test/core.test.js

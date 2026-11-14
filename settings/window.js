@@ -28,7 +28,7 @@ const PLACES = {
   keys: ['Keys', 'Every keyboard shortcut, in one list.'],
   parts: ['Parts', 'Switch a part off, and find a fault.'],
 };
-const HOME = { look: 'window', find: 'finding', threads: 'following', predictive: 'writing', export: 'out', structure: 'parts' };   // where a part's own name leads
+const HOME = { look: 'window', find: 'finding', threads: 'following', predictive: 'writing', export: 'out', structure: 'parts', todo: 'parts' };   // where a part's own name leads
 const placeOf = key => PLACES[key] ? key : HOME[key] || 'window';
 const REOPEN_KEY = 'logseq-plugin-settings-reopen';
 const { esc, host } = window.PluginDoor;

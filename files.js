@@ -1,5 +1,5 @@
 // The plugin's files, in the order they load (loader.js reads this list). plugin.js first: the door each module comes in
-// by. Then what stands whichever modules run (the settings window, what comes in from outside). Then each module's files, its own main.js last, in the order the modules start: Look first, Threads last. main.js, last of all, starts them.
+// by. Then what stands whichever modules run (the settings window, what comes in from outside). Then each module's files, its own main.js last, in the order the modules start: Look first, Todo last. main.js, last of all, starts them.
 window.PluginFiles = [
   'plugin.js', 'sidebar-tabs.js', 'settings/window.js', 'settings/ways-in.js', 'outside.js',
   'look/logseq/kit.js', 'look/logseq/db.js', 'look/logseq/settings.js', 'look/logseq/style.js', 'look/logseq/calm.js', 'look/logseq/marks.js', 'look/logseq/props.js', 'look/logseq/title.js', 'look/logseq/folded.js', 'look/logseq/sidebar.js', 'look/logseq/cites.js', 'look/logseq/links.js', 'look/logseq/values.js', 'look/logseq/notices.js', 'look/logseq/focus.js', 'look/logseq/keys.js', 'look/main.js',
@@ -10,6 +10,7 @@ window.PluginFiles = [
   'export/core/inline.js', 'export/core/dates.js', 'export/core/doc.js', 'export/core/markdown.js', 'export/core/html.js', 'export/core/themes.js', 'export/core/templates.js',
   'export/logseq/db.js', 'export/logseq/files.js', 'export/logseq/clipboard.js', 'export/logseq/print.js', 'export/logseq/preview.js', 'export/logseq/ui.js', 'export/main.js',
   'threads/vendor/compromise.js', 'threads/parts/shared.js', 'threads/parts/model.js', 'threads/parts/diagnostics.js', 'threads/parts/two-way.js', 'threads/parts/two-way/look.js', 'threads/parts/two-way/group.js', 'threads/parts/two-way/find.js', 'threads/parts/two-way/peek.js', 'threads/parts/two-way/dig.js', 'threads/parts/two-way/add.js', 'threads/parts/two-way/pick.js', 'threads/parts/two-way/beside.js', 'threads/parts/two-way/more.js', 'threads/parts/proposals.js', 'threads/settings.js', 'threads/main.js',
+  'todo/logseq/db.js', 'todo/logseq/view.js', 'todo/main.js',
   'main.js',
 ];
 // Any of them failing to load, or stopping as it loads, is kept here for main.js to say. Only main.js itself failing has nobody

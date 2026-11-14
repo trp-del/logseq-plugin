@@ -83,7 +83,8 @@ const screenChecks = () => [
   ['the page area', '#head', '#main-content-container', 'almost everything Threads draws', 1],
   // Outline bullets only: the rows of a table (All pages, a tag's nodes, a query) are .ls-block[blockid] too, with no text part.
   ['the words of the bullets', '#main-content-container .ls-block[blockid] > .block-main-container', '#main-content-container .block-title-wrap', 'the cues after bullets, the dots on block links and the reference rows', 2],
-  ["the page's title row", `#main-content-container :is(${PAGE_TITLE})`, '#main-content-container .is-page-title-row', 'the tags beside the title, #Page and Add tags', 1],
+  // Todo's own page (#/todo) borrows Logseq's title look, with no title row of Logseq's: not a page that lost its row.
+  ["the page's title row", `#main-content-container :is(${PAGE_TITLE}):not(.td-own *)`, '#main-content-container .is-page-title-row', 'the tags beside the title, #Page and Add tags', 1],
   ['the Linked references headings', '#main-content-container .references', '#main-content-container .references .ls-foldable-title', 'the layout, counts and labels of Linked references', 1],
   ['the buttons atop the right sidebar', '#right-sidebar .sidebar-item', '#right-sidebar .cp__right-sidebar-settings', 'the tidy right sidebar', 1],
 ];
