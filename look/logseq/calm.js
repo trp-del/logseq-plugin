@@ -1,7 +1,7 @@
 /* Logseq's own screens around your pages, calmer (the owner, 8 November 2026: "less is more"): fewer lines, fills and boxes;
    space and the grammar's greys do the separating, and nothing you read is fainter than the quiet grey. One switch for each
-   part, and a choice of reading width (the owner: "have options in the plugin settings"). Only stylesheets, and one pass that
-   measures where a wide table stands; nothing is read from the graph. */
+   part, and a choice of reading width (the owner: "have options in the plugin settings"). Only stylesheets, one pass that
+   measures where a wide table stands, and Logseq's scroll bar rules set aside (macBars); nothing is read from the graph. */
 (function () {
 const Look = window.Look;
 const { style } = Look.kit, { setting } = Look.settings;
@@ -56,7 +56,12 @@ body { font-family: var(--ls-font-family) !important; -webkit-font-smoothing: an
    (Plugins and Plugin settings are in the ··· menu). Another plugin's button stays, before the ···. */
 #head .r > .flex.items-center > button:has(.ls-icon-home), #head .r > .flex.items-center .toolbar-plugins-manager,
 #head .r .nav-left, #head .r .nav-right, #head [id^="injected-ui-item-find-open"] { display: none !important; }
-/* Scroll bars thin and faint, firmer under the pointer. */
+/* Scroll bars: the Mac's own (the owner, 14 November 2026: "default to macos scrollbar behavior", then "They should actually be
+   them"). The plugin draws none, and Logseq's own scroll bar styling is set aside where it reaches the page and the sidebar
+   (macBars, below), so each bar is the system's, following System Settings > Appearance > Show scroll bars. The old thin bar
+   stays a choice of its own (calmScrollbars, off). */`,
+  calmScrollbars: `
+/* Scroll bars thin and faint, always shown, firmer under the pointer (the plugin's look until 14 November 2026). */
 ::-webkit-scrollbar { width: 8px; height: 8px; background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--lk-hair); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--lk-line); }
@@ -190,14 +195,51 @@ function place(doc) {
     node.setAttribute('data-lk-wide', out + ',' + wide);
   }
 }
+/* The Mac's own scroll bars. Any ::-webkit-scrollbar rule that reaches a scroller makes Chromium draw that bar itself, not the
+   system's, and a later rule cannot undo it: Logseq 2.0.2 has #main-content-container::-webkit-scrollbar (a 16 px strip whose
+   handle never shows). So each of Logseq's rules that reaches the main page or the right sidebar is made to match nothing
+   (:not(*) before the part that reaches it) while the plugin runs, and given back as it was when the plugin stops or the old
+   thin bar is switched on. Checked on every pass of the screen, so a scroller Logseq draws later, or a stylesheet it loads again,
+   is caught. */
+const SCROLLERS = '#main-content-container, #right-sidebar .sidebar-item-list, #right-sidebar .cp__right-sidebar-scrollable';
+const OFF = ':not(*)';
+const setAside = new Map();   // Logseq's rule → its selector as Logseq wrote it
+const seen = new WeakSet(), barRules = [];
+const parts = list => { const out = []; let depth = 0, from = 0; for (let i = 0; i < list.length; i++) { const c = list[i]; if (c === '(') depth++; else if (c === ')') depth--; else if (c === ',' && !depth) { out.push(list.slice(from, i)); from = i + 1; } } return [...out, list.slice(from)].map(p => p.trim()); };
+// The element a part of a selector styles the bar of: the part with its ::-webkit-scrollbar… taken off ("" or a trailing space
+// means any element, as in ".visible-scrollbar ::-webkit-scrollbar").
+const owner = part => { const base = part.replace(/::-webkit-scrollbar[\s\S]*$/, ''); return !base.trim() ? '*' : /\s$/.test(base) ? base + '*' : base; };
+function collect(rules) { for (const rule of rules) { if (rule.cssRules?.length && !rule.selectorText) collect(rule.cssRules); else if (rule.selectorText?.includes('::-webkit-scrollbar')) barRules.push(rule); } }
+function macBars(doc) {
+  if (!setting('calmToolbar') || setting('calmScrollbars')) return giveBack();
+  for (const sheet of doc.styleSheets) {
+    if (seen.has(sheet) || sheet.ownerNode?.hasAttribute?.('data-injected-style')) continue;   // the plugin's own sheets draw no bar now
+    seen.add(sheet);
+    try { collect(sheet.cssRules); } catch (error) { /* a sheet from elsewhere, not readable */ }
+  }
+  const scrollers = [...doc.querySelectorAll(SCROLLERS)];
+  if (!scrollers.length) return;
+  for (const rule of barRules) {
+    if (setAside.has(rule) || !rule.parentStyleSheet) continue;
+    const list = parts(rule.selectorText);
+    const reaches = part => scrollers.some(el => { try { return el.matches(owner(part)); } catch (error) { return false; } });
+    if (!list.some(reaches)) continue;
+    const was = rule.selectorText;
+    rule.selectorText = list.map(part => reaches(part) ? OFF + part : part).join(', ');
+    if (rule.selectorText !== was) setAside.set(rule, was);
+  }
+}
+function giveBack() { for (const [rule, was] of setAside) rule.selectorText = was; setAside.clear(); }
+
 let watching = false;
 function apply() {
   for (const [key, css] of Object.entries(PARTS)) style(key, setting(key) ? css : '');
   style('readingWidth', reading() ? widthCss(reading()) : '');
   const doc = Look.kit.host();
-  if (!watching) { watching = true; Look.kit.watchScreen(place, place); Look.kit.listen(doc.defaultView, 'resize', () => place(doc)); }
+  if (!watching) { watching = true; Look.kit.watchScreen(doc => { place(doc); macBars(doc); }, place); Look.kit.listen(doc.defaultView, 'resize', () => place(doc)); }
   place(doc);
+  macBars(doc);
 }
-function stop() { watching = false; }   // the pass and the listener go with Look's base
-Look.calm = { apply, stop };
+function stop() { watching = false; giveBack(); }   // the pass and the listener go with Look's base; Logseq's scroll bar rules go back
+Look.calm = { apply, stop, macBars, setAside };
 })();

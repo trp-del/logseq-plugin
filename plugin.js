@@ -462,6 +462,10 @@ Door.TOOLBAR_ICONS = {
   structure: 'M3 12h2c3 0 3 -6 6 -6h1M3 12h2c3 0 3 6 6 6h1M12 6c2 0 2 -3 4 -3h4M12 6c2 0 2 3 4 3h4M12 18c2 0 2 -3 4 -3h4M12 18c2 0 2 3 4 3h4',
   inspector: 'M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0M12 9h.01M11 12h1v4h1',
   todo: 'M3 5a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2zM9 12l2 2l4 -4',
+  // The split screen's two, in the window's top right corner while two pages stand side by side (14 November 2026): Tabler's
+  // arrows-left-right (swap the pages) and x (close the right page).
+  swap: 'M21 17l-18 0M6 10l-3 -3l3 -3M3 7l18 0M18 20l3 -3l-3 -3',
+  close: 'M18 6l-12 12M6 6l12 12',
 };
 Door.toolbarButton = (model, title, icon) => `<a class="button lk-tool" data-on-click="${model}" title="${title}" aria-label="${title}"><svg class="tabler-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${Door.TOOLBAR_ICONS[icon]}"/></svg></a>`;
 /* A module's button placed in the toolbar and pinned there: Logseq 2.0.2 draws a plugin's toolbar button only when it is in the
