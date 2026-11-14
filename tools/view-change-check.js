@@ -88,12 +88,14 @@ async function connect({ allowEditing = false } = {}) {
   // 1. Item pane: row to row by press, then by arrow key
   await rv.go('Consultation', 3000); await tab('Ontology'); await sleep(600);
   // The tab row and what the sidebar shows, read on every frame of the Item tab's changes: never an "Opened" tab for a moment, never nothing shown.
-  await page.evaluate(() => { window.__seen = []; const step = () => { const row = [...document.querySelectorAll('#right-sidebar .lk-tabs .lk-view')].map(b => b.textContent.trim()).join(','); const shown = [...document.querySelectorAll('#right-sidebar .sidebar-item-list > .sidebar-item')].filter(i => i.getClientRects().length).length; const k = row + ' | items shown ' + shown; if (window.__seen.at(-1) !== k) window.__seen.push(k); window.__raf = requestAnimationFrame(step); }; step(); });
+  await page.evaluate(() => { window.__seen = []; const step = () => { const row = [...document.querySelectorAll('#right-sidebar .lk-tabs .lk-view')].map(b => b.textContent.trim()).join(','); const shown = [...document.querySelectorAll('#right-sidebar .sidebar-item-list > .sidebar-item')].filter(i => i.getClientRects().length && getComputedStyle(i).visibility !== 'hidden').length; const k = row + ' | items shown ' + shown; if (window.__seen.at(-1) !== k) window.__seen.push(k); window.__raf = requestAnimationFrame(step); }; step(); });
   let p = await rowAt(3); await page.mouse.click(p.x, p.y); await sleep(1800);
     p = await rowAt(6); await run('item-row-to-row-press', SIDE, () => page.mouse.click(p.x, p.y), 1800);
   await run('item-row-arrow-down', SIDE, () => page.keyboard.press('ArrowDown'), 1800);
   await run('item-row-arrow-down-2', SIDE, () => page.keyboard.press('ArrowDown'), 1800);
-  { const seen = await page.evaluate(() => { cancelAnimationFrame(window.__raf); return window.__seen; }); const bad = seen.filter(k => /Opened|items shown 0/.test(k));
+  { const seen = await page.evaluate(() => { cancelAnimationFrame(window.__raf); return window.__seen; }); // The tabs the person had before the rows were pressed stay as they were (their own opened pages keep "Opened"); only Item may come.
+    const tabsOf = k => k.split(' | ')[0].split(',').filter(t => t !== 'Item').join(','), first = tabsOf(seen[0] || '');
+    const bad = seen.filter(k => tabsOf(k) !== first || !/items shown 1$/.test(k));
     if (!only || 'item'.includes(only)) { console.log('   tab row while rows change: ' + seen.join('  →  ')); if (bad.length) failed.push('item-tab-row (' + bad.join('; ') + ')'); } }
   // 2. sidebar tabs
   await run('tab-item-to-ontology', SIDE, () => tab('Ontology'));

@@ -14,7 +14,9 @@ const AFTER = /^(?:, p\. (\d+))?\)/;
 const keyOf = (id, page) => `${String(id).toLowerCase()}|${page || ''}`;
 // What a citation is to: a node by its uuid, a web address, plain words.
 const idOf = ref => ref.matches('.page-reference') ? ref.querySelector('a[data-uuid]')?.getAttribute('data-uuid') : ref.matches('a') ? ref.getAttribute('href') : `words:${ref.textContent}`;
-const state = { numbers: new Map(), drawn: new Map(), card: null };
+const state = { numbers: new Map(), drawn: new Map(), card: null, page: '', known: new Map() };
+// The page on screen, as its address says it, the graph's id included: a day of the same name in another graph is another page.
+const pageNow = () => String(host().defaultView.location.hash);
 
 // A link in brackets with an optional page after it, as /Cite writes it: what stands either side, or null.
 function citedAt(ref) {
@@ -34,6 +36,11 @@ function putBack(ref) {
 }
 function draw(doc) {
   const on = setting('citationNumbers');
+  /* Another page: the numbers it had the last time it was open are drawn at once, with its words, and corrected when Endnotes has
+     read the page again (setNotes). Until then the page before's numbers are not used. Without this every visit drew the words
+     first and the numbers a third of a second later (the motion check: 290 ms). A page never opened in this session still waits
+     for that first reading. */
+  if (state.page !== pageNow()) { state.page = pageNow(); state.numbers = state.known.get(state.page) || new Map(); }
   for (const [ref, drawn] of state.drawn) {
     if (!ref.isConnected) { state.drawn.delete(ref); continue; }
     const note = on && state.numbers.get(drawn.key);
@@ -56,7 +63,10 @@ function draw(doc) {
 }
 // notes: Endnotes' list for the page you are on, in order.
 function setNotes(notes) {
+  state.page = pageNow();
   state.numbers = new Map(notes.map((note, i) => [keyOf(note.id, note.page), { ...note, n: i + 1 }]));
+  state.known.delete(state.page); state.known.set(state.page, state.numbers);
+  if (state.known.size > 60) state.known.delete(state.known.keys().next().value);   // the sixty pages last read
   draw(host());
 }
 function goTo(note, inSidebar) {
