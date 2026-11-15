@@ -239,7 +239,10 @@ async function main() {
   // above Logseq's table in its first frame and nothing below them is pushed down a moment later (motion-check, 6 November 2026).
   // Only elements coming or going in the main view count, as when Structure kept a watcher of its own there.
   const main = doc.querySelector('#main-content-container') || doc.body;
-  S.base.watch(function tagPagePass(page, records) { if (records.some(r => r.type === 'childList' && main.contains(r.target))) tagPage(); }, { early: true });
+  S.base.watch(function tagPagePass(page, records) { if (records.some(r => r.type === 'childList' && main.contains(r.target))) tagPage(); if (records.some(r => r.type === 'childList' && r.target.closest?.('#right-sidebar'))) splitPage(); }, { early: true });
+  // The page on the right half of two pages side by side (split.js) gets its lines as the main page does.
+  onStop(window.PluginDoor.split?.onChange?.(() => splitPage()));
+  splitPage();
   stopHash = S.hash.start(app, doc);
   stopValues = S.valueList.start(app, doc);
   stopTagMenu = S.tagMenu.start(app, doc);
@@ -249,9 +252,11 @@ const stop = () => { S.inspector.stop(); mounts.stop?.(); stopHash?.(); stopValu
 let stopHash = null, stopValues = null, stopTagMenu = null, tagTimer = 0, tagAsking = 0;
 const days = new Set();   // pages found to be journal days, which a tag's lines never stand on
 const lookup = uuid => { const id = [...tray.model.tags.values()].find(t => t.uuid === uuid)?.id ?? null; return { id, prop: id == null ? [...tray.model.props.values()].find(p => p.uuid === uuid)?.id ?? null : null }; };
+const SPLIT = '#right-sidebar[data-lk-split] .sidebar-item[data-lk-split-item]';
+const onRight = v => !!v.root.closest(SPLIT);
 function place(doc, inner, here, id, prop) {
-  const views = [...app.views].filter(v => (v.mode === 'tag' || v.mode === 'line') && v.root.parentElement?.classList.contains('st-tagholder'));
-  const clear = () => { for (const v of views) v.destroy(); doc.querySelectorAll('.st-tagholder').forEach(n => n.remove()); };
+  const views = [...app.views].filter(v => (v.mode === 'tag' || v.mode === 'line') && v.root.parentElement?.classList.contains('st-tagholder') && !onRight(v));
+  const clear = () => { for (const v of views) v.destroy(); doc.querySelectorAll('.st-tagholder').forEach(n => { if (!n.closest(SPLIT)) n.remove(); }); };
   S.inspector.pageKnown?.(id == null && prop == null);   // a page that is no tag's and no property's: the tab may say so at once
   if (id == null && prop == null) { clear(); return; }
   /* A tag's page: Parent on one line above its title, always; its other lines (Child tags first) in the inspector while that stands in
@@ -293,6 +298,25 @@ function tagPage() {
     return;
   }
   if (!tagTimer) tagTimer = setTimeout(() => { tagTimer = 0; tagPageAsked(); }, 150);
+}
+/* The right half of two pages side by side: a tag's page gets its Parent line over the split's title, a property's page its lines
+   above Logseq's table, as on the main page; the inspector stays the main page's. */
+function splitPage() {
+  const doc = host(), panel = doc.querySelector(`${SPLIT} .sidebar-panel-content`), now = window.PluginDoor.split?.page?.();
+  const views = [...app.views].filter(v => (v.mode === 'tag' || v.mode === 'line') && v.root.parentElement?.classList.contains('st-tagholder') && onRight(v));
+  const clear = () => { for (const v of views) v.destroy(); doc.querySelectorAll(`${SPLIT} .st-tagholder`).forEach(n => n.remove()); };
+  const inner = panel?.querySelector(':scope > .page > .grid'), here = inner && (inner.querySelector(':scope > .page-tabs') || inner.querySelector(':scope > .ls-page-blocks'));
+  if (!now?.page || !here || days.has(now.uuid)) return clear();
+  const { id, prop } = lookup(now.uuid);
+  if (id == null && prop == null) return clear();
+  const want = id != null ? { mode: 'line', parent: panel, before: panel.firstElementChild, cls: 'st-holder-line' } : { mode: 'tag', parent: inner, before: here, cls: '' };
+  const view = views.length === 1 && views[0].mode === want.mode && views[0].tag === (id ?? undefined) && views[0].prop === (prop ?? undefined) && views[0].root.isConnected ? views[0] : null;
+  if (view) { const holder = view.root.parentElement; if (holder.parentElement !== want.parent || (want.mode === 'line' ? want.parent.firstElementChild !== holder : holder.nextElementSibling !== want.before)) want.parent.insertBefore(holder, want.mode === 'line' ? want.parent.firstElementChild : want.before); return; }
+  clear();
+  const holder = doc.createElement('div'); holder.className = `st-tagholder st-holder-tag ${want.cls}`;
+  want.parent.insertBefore(holder, want.mode === 'line' ? want.parent.firstElementChild : want.before);
+  app.mounted(S.view.make(holder, want.mode, app, id != null ? { tag: id } : { prop }));
+  S.db.isDay(now.uuid).then(day => { if (!day) return; days.add(now.uuid); splitPage(); }).catch(() => {});
 }
 // No title's block on screen yet: Logseq is asked which page is current.
 async function tagPageAsked() {

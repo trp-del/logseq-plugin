@@ -67,6 +67,12 @@ const CSS = `
 .page-inner:has(> .st-holder-line) { position: relative; }
 .st-holder-line { position: absolute; top: -30px; left: 0; right: 0; }
 .st-holder-line:has(.st-tray:not(:empty)), .st-holder-line:has(.st-line1 ~ :not(.st-prompt)), .st-holder-line:has([data-edit]) { position: static; margin-top: -30px; }
+/* On the right half of two pages side by side (split.js) the line stands over the split's title, in the page's column, as on the main page. */
+#right-sidebar .sidebar-item[data-lk-split-item] .sidebar-panel-content > .st-holder-line { position: relative; top: -34px; left: auto; right: auto; height: 0; margin-left: var(--lk-split-col, 12px); }
+#right-sidebar .sidebar-item[data-lk-split-item] .sidebar-panel-content > .st-holder-line:is(:has(.st-tray:not(:empty)), :has(.st-line1 ~ :not(.st-prompt)), :has([data-edit])) { position: static; height: auto; margin-top: -30px; }
+#right-sidebar .sidebar-item[data-lk-split-item] .sidebar-panel-content:has(> .st-tagholder) .lk-path { display: none; }   /* the Parent line says it */
+#right-sidebar .sidebar-item[data-lk-split-item] .sidebar-panel-content > .page > .grid > .st-tagholder { margin-top: -10px; }   /* a property's lines, as high under its title as on the main page */
+@container lk-split (min-width: 601px) { #right-sidebar .sidebar-item[data-lk-split-item] .sidebar-panel-content > .page > .grid > .st-tagholder { margin-top: -4px; } }   /* where Logseq's title row is one row (split.js) */
 .st-lines-t.st-line1 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 14px; min-height: 24px; }
 .st-line1 dt { font-weight: 600; } .st-lines-t.st-line1 dd { margin: 0 18px 0 0; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; }
 .st-tag { font-size: 14px; }

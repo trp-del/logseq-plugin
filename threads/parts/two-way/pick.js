@@ -4,8 +4,8 @@
    where its pieces meet. What this piece uses of the part or another piece it reaches through twoWay when it runs; what
    it gives them is listed at its end. */
 (() => {
-const twoWay = window.Threads.parts?.find(part => part.name === 'two-way')?.inner;
-if (!twoWay) return;   // the two-way part did not load, so nothing of it runs
+// Given to each copy of the part (the main view's, and the right half's of two pages side by side); with no part loaded, nothing of it runs.
+window.Threads.parts?.find(part => part.name === 'two-way')?.inner?.piece?.(twoWay => {
 const shared = window.Threads.shared;
 const { host, openEntity, notify, esc } = shared;
 const { state, warnOnce } = twoWay;
@@ -29,7 +29,7 @@ const placeBar = box => {
   const keep = state.keepStill; state.keepStill = null;
   if (!keep) return;
   const pick = [...box.querySelectorAll('input.th-tw-pick')].find(input => input.dataset.pick === keep.key);
-  const scroller = box.closest('#main-content-container'), moved = pick ? pick.getBoundingClientRect().top - keep.top : 0;
+  const scroller = twoWay.pane.scroller(box), moved = pick ? pick.getBoundingClientRect().top - keep.top : 0;
   if (scroller && Math.abs(moved) >= 1) scroller.scrollTop += moved;
 };
 function barHtml() {
@@ -378,4 +378,5 @@ async function act(what, at = null) {
 }
 
 Object.assign(twoWay, { raise, raiseAll, act, barHtml, dayValue, heldById, heldNow, named, pageNamed, placeBar, prepareRaise, raiseHtml, raiseMenu, readTitle, setValues, takerOf, togglePick });
+});
 })();

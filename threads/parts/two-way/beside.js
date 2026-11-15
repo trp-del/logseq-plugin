@@ -6,8 +6,8 @@
    where its pieces meet. What this piece uses of the part or another piece it reaches through twoWay when it runs; what
    it gives them is listed at its end. */
 (() => {
-const twoWay = window.Threads.parts?.find(part => part.name === 'two-way')?.inner;
-if (!twoWay) return;   // the two-way part did not load, so nothing of it runs
+// Given to each copy of the part (the main view's, and the right half's of two pages side by side); with no part loaded, nothing of it runs.
+window.Threads.parts?.find(part => part.name === 'two-way')?.inner?.piece?.(twoWay => {
 const shared = window.Threads.shared;
 const { host, openEntity, esc } = shared;
 const O = shared.outline;
@@ -126,4 +126,5 @@ twoWay.settledHooks.push(() => {
 twoWay.starters.push(() => { state.beside = null; state.pagesList = null; });
 
 Object.assign(twoWay, { besidePage, pieceClick, rowsInstead });
+});
 })();

@@ -4,8 +4,8 @@
    where its pieces meet. What this piece uses of the part or another piece it reaches through twoWay when it runs; what
    it gives them is listed at its end. */
 (() => {
-const twoWay = window.Threads.parts?.find(part => part.name === 'two-way')?.inner;
-if (!twoWay) return;   // the two-way part did not load, so nothing of it runs
+// Given to each copy of the part (the main view's, and the right half's of two pages side by side); with no part loaded, nothing of it runs.
+window.Threads.parts?.find(part => part.name === 'two-way')?.inner?.piece?.(twoWay => {
 const shared = window.Threads.shared;
 const { openEntity, openPageNamed, esc } = shared;
 const { state, warnOnce } = twoWay;
@@ -93,11 +93,11 @@ function hidePeek() { clearTimeout(peek.timer); clearTimeout(peek.hide); peek.ca
 function placePeek(card, link) {
   const box = card.getBoundingClientRect(), at = link.getBoundingClientRect(), pane = link.closest('.th-two-way').getBoundingClientRect();
   const top = Math.max(48, at.top - 10), bottom = top + box.height;
-  const words = [...card.ownerDocument.querySelectorAll('.th-two-way .th-ol-line')].filter(line => { const r = line.getBoundingClientRect(); return r.bottom > top && r.top < bottom; })
+  const words = [...(state.box?.querySelectorAll('.th-ol-line') || [])].filter(line => { const r = line.getBoundingClientRect(); return r.bottom > top && r.top < bottom; })
     .flatMap(line => [...line.querySelectorAll('.th-ol-body > *')]).map(part => part.getBoundingClientRect().right);
   const left = Math.max(at.right, ...words) + 16, room = left + box.width <= pane.right;
   // Under or above, whichever covers no list's head (the next list's head can stand right under a row); under first.
-  const heads = [...card.ownerDocument.querySelectorAll('.th-two-way .th-tw-head')].map(head => head.getBoundingClientRect());
+  const heads = [...(state.box?.querySelectorAll('.th-tw-head') || [])].map(head => head.getBoundingClientRect());
   const x0 = at.left, x1 = at.left + box.width, clear = y => !heads.some(r => r.bottom > y && r.top < y + box.height && r.right > x0 && r.left < x1);
   const under = at.bottom + 6, above = at.top - box.height - 6;
   const fits = under + box.height <= card.ownerDocument.defaultView.innerHeight - 8, aboveFits = above >= 48;
@@ -166,4 +166,5 @@ async function showPeek(link) {
 }
 
 Object.assign(twoWay, { hidePeek, lineHtml, onOut, onOver, openPage, peek });
+});
 })();

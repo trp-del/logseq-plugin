@@ -32,12 +32,16 @@ const SCHEMA = [{ key: 'splitOnCmdClick', type: 'boolean', default: true, title:
 const MIN = 320;   // px: the narrowest a half is dragged to
 const LINK = 'a.page-ref[data-uuid], a.tag[data-uuid], .lk-node[data-uuid]';
 const base = Door.base('split', { prefix: 'Logseq Plugin (split): ', schema: SCHEMA,
-  leaves: { elements: '.lk-split-own', attributes: ['data-lk-split', 'data-lk-split-item'], reset: doc => { doc.documentElement.style.removeProperty('--lk-split-w'); for (const el of doc.querySelectorAll('[data-lk-split-item]')) el.style.removeProperty('display'); } } });
+  leaves: { elements: '.lk-split-own', attributes: ['data-lk-split', 'data-lk-split-item', 'data-lk-split-kind'], reset: doc => { doc.documentElement.style.removeProperty('--lk-split-w'); for (const el of doc.querySelectorAll('[data-lk-split-item]')) el.style.removeProperty('display'); for (const el of doc.querySelectorAll('#right-sidebar .sidebar-panel-content')) el.style.removeProperty('--lk-split-col'); } } });
 
 /* The one state of the split: the node on the right (its number in Logseq's sidebar list and its id), the share of the main area
    the right half takes, what the sidebar was before, and whether a change of the split's own is under way (then the screen's
    pass leaves the sidebar's list alone, since the split itself is changing it). */
-const split = { id: null, uuid: null, page: false, title: '', ratio: .5, before: null, busy: false, lost: 0, timer: 0 };
+const split = { id: null, uuid: null, page: false, kind: '', title: '', ratio: .5, before: null, busy: false, lost: 0, timer: 0 };
+/* Who hears the page on the right change (Threads draws its rows there as on the main page): told after the split takes another
+   page, and after it ends. */
+const heard = new Set();
+const told = () => { for (const fn of [...heard]) { try { fn(); } catch (error) { base.warnOnce('a module could not follow the page beside', error); } } };
 
 const api = () => host().defaultView.logseq?.api;
 const sideList = () => { try { return api()?.get_state_from_store('sidebar/blocks') || []; } catch (error) { return []; } };
@@ -78,14 +82,33 @@ const CSS = `
    which no sheet outweighs, and the rule hiding the others weighs more than any of the tabs' (the attributes said again), so a
    view waiting under its tab is not drawn over the page either. */
 #right-sidebar[data-lk-split][data-lk-split][data-lk-split] .sidebar-item-list > :not([data-lk-split-item]):not([data-lk-split-item]):not([data-lk-split-item]) { display: none !important; }
-#right-sidebar[data-lk-split][data-lk-split] .sidebar-item-list { padding-top: 40px !important; }   /* the title level with the main title */
+#right-sidebar[data-lk-split][data-lk-split] .sidebar-item-list { padding-top: 44px !important; }   /* the title level with the main title */
 #right-sidebar[data-lk-split] .cp__right-sidebar-topbar { border: 0 !important; box-shadow: none !important; background: none !important; }
 #right-sidebar[data-lk-split] .cp__right-sidebar-topbar::before, #right-sidebar[data-lk-split] .cp__right-sidebar-topbar::after { display: none !important; }
 #right-sidebar[data-lk-split] .sidebar-item-list > .sidebar-item[data-lk-split-item] { display: flex !important; background: var(--lk-paper) !important; box-shadow: none !important; border: 0 !important; border-radius: 0 !important; margin: 0 !important; }
 #right-sidebar[data-lk-split] .sidebar-item[data-lk-split-item] .sidebar-item-header { display: none !important; }
-#right-sidebar[data-lk-split] .sidebar-item[data-lk-split-item] .sidebar-panel-content { padding: 0 clamp(16px, 4%, 44px) 96px !important; }
-/* The page's title, at the main title's size and weight (read from it as the split opens). */
-.lk-split-title { margin: 0 0 12px; overflow-wrap: anywhere; color: var(--lk-text); }
+#right-sidebar[data-lk-split] .sidebar-item[data-lk-split-item] .sidebar-panel-content { padding: 0 clamp(16px, 4%, 44px) 96px !important; container: lk-split / inline-size; }   /* the size Look's title row reads, as Logseq's title row reads its block's */
+/* The page on the right spaced as the same page on the main view (15 November 2026, the owner: "why does the structure of the right
+   not mimic the left"): Logseq draws a page in the sidebar with a rule under its properties and a wider gap before its bullets,
+   which a page on the main view has neither of. The rule goes, and the gaps are the main page's, measured on the same page in both halves. */
+#right-sidebar[data-lk-split] .sidebar-item[data-lk-split-item] .sidebar-panel-content > .page > .grid > .-mb-8 > .ls-sidebar-page-properties > hr { display: none !important; }
+#right-sidebar[data-lk-split] .sidebar-item[data-lk-split-item] .sidebar-panel-content > .page > .grid > .-mb-8 { margin-bottom: 0 !important; }
+#right-sidebar[data-lk-split] .sidebar-item[data-lk-split-item] .sidebar-panel-content > .page > .grid > .ls-page-blocks { margin-top: 18px; }
+/* A page with no property shows no "Add property" on the main view (it comes under the title's pointer there): nor on the right. */
+#right-sidebar[data-lk-split] .sidebar-item[data-lk-split-item] .ls-sidebar-page-properties:not(:has(.property-pair)) { display: none !important; }
+#right-sidebar[data-lk-split] .sidebar-item[data-lk-split-item] .sidebar-panel-content > .page > .grid:not(:has(> .-mb-8 .property-pair)) > .ls-page-blocks { margin-top: 4px; }   /* one :has() cannot hold another */
+/* The page's title, at the main title's size and weight (read from it as the split opens), its left edge on the bullets' column
+   (--lk-split-col, measured once the bullets are drawn; until then Logseq's usual 12 px, so the title does not step sideways). A tag's page has Logseq's # before its
+   name, a property's its P, as the main view draws them: Tabler's hash at the title's 38 px, Logseq's muted grey, 6 px into the margin, 8 px before the name. */
+.lk-split-title { display: flex; align-items: flex-start; gap: 8px; margin: 0 0 12px var(--lk-split-col, 12px); overflow-wrap: anywhere; color: var(--lk-text); }
+.lk-split-title > .lk-split-name { flex: 0 1 auto; min-width: 0; }
+.lk-split-title > .lk-split-icon { flex: none; width: 38px; height: 38px; margin: 6px 0 0 -6px; color: hsl(var(--muted-foreground, 0 0% 52%)); }
+/* A tag's or a property's page shows no property list on the main view (what it holds are its settings, kept in Logseq's own windows,
+   and Ontology's lines say them): nor on the right. */
+#right-sidebar[data-lk-split] .sidebar-item[data-lk-split-kind] .ls-sidebar-page-properties { display: none !important; }
+/* Wider than 600 px, Logseq's title row is one row, and a page's properties stand 6 px closer under it (measured on the same page). */
+@container lk-split (min-width: 601px) { .lk-split-title { margin-bottom: 6px; } #right-sidebar[data-lk-split] .sidebar-item[data-lk-split-item] .sidebar-panel-content > .page > .grid:not(:has(> .-mb-8 .property-pair)) > .ls-page-blocks { margin-top: 10px; } #right-sidebar[data-lk-split] .sidebar-item[data-lk-split-kind][data-lk-split-kind] .sidebar-panel-content > .page > .grid > .-mb-8 + :is(.ls-page-blocks, .page-tabs) { margin-top: -4px; } }   /* [..][..]: over the rule for any width, which comes later */
+#right-sidebar[data-lk-split] .sidebar-item[data-lk-split-kind] .sidebar-panel-content > .page > .grid > .-mb-8 + :is(.ls-page-blocks, .page-tabs) { margin-top: -10px; }
 /* The hairline between the halves: a strip the hand can hold, unseen, the 1px line at its left edge (firmer under the pointer and
    while dragged). The strip reaches only into the right page, so the left page's scroll bar, at the left page's edge and 11 pt
    wide under the pointer, is never under it. body > raises it over the library's rule that paints Logseq's separators as a grey
@@ -134,14 +157,16 @@ function draw(doc = host()) {
   const side = sidebar(doc), item = at(doc, split.id);
   if (!side || !item) return;
   if (!side.hasAttribute('data-lk-split')) side.setAttribute('data-lk-split', '');
-  for (const other of side.querySelectorAll('[data-lk-split-item]')) if (other !== item) { other.removeAttribute('data-lk-split-item'); other.style.removeProperty('display'); }
+  for (const other of side.querySelectorAll('[data-lk-split-item]')) if (other !== item) { other.removeAttribute('data-lk-split-item'); other.removeAttribute('data-lk-split-kind'); other.style.removeProperty('display'); }
   for (const stray of side.querySelectorAll('.lk-split-own')) if (!item.contains(stray)) stray.remove();   // Logseq may hand an item's box to another node
   if (!item.hasAttribute('data-lk-split-item')) item.setAttribute('data-lk-split-item', '');
+  if (split.kind) { if (item.getAttribute('data-lk-split-kind') !== split.kind) item.setAttribute('data-lk-split-kind', split.kind); } else item.removeAttribute('data-lk-split-kind');
   if (item.style.getPropertyValue('display') !== 'flex' || item.style.getPropertyPriority('display') !== 'important') item.style.setProperty('display', 'flex', 'important');
   const panel = content(item);
-  if (split.page && panel && panel.firstElementChild?.dataset?.splitFor !== String(split.id)) {
+  if (split.page && panel && panel.querySelector(':scope > .lk-split-title')?.dataset?.splitFor !== String(split.id)) {   // Ontology's Parent line may stand before it
     panel.querySelector(':scope > .lk-split-title')?.remove();
-    const title = Door.el(doc, 'div', { class: 'lk-split-title lk-split-own', 'data-split-for': split.id }, split.title);
+    const title = Door.el(doc, 'div', { class: 'lk-split-title lk-split-own', 'data-split-for': split.id }, Door.el(doc, 'span', { class: 'lk-split-name' }, split.title));
+    if (split.kind) title.insertAdjacentHTML('afterbegin', KIND_ICON[split.kind]);
     const main = doc.querySelector('#main-content-container .ls-page-title .block-content') || doc.querySelector('#main-content-container .ls-page-title');
     const cs = main ? doc.defaultView.getComputedStyle(main) : null;
     Object.assign(title.style, { fontSize: cs?.fontSize || '30px', fontWeight: cs?.fontWeight || '600', lineHeight: cs?.lineHeight || '1.3', letterSpacing: cs?.letterSpacing || 'normal', fontFamily: cs?.fontFamily || 'inherit' });
@@ -152,7 +177,8 @@ function draw(doc = host()) {
   const title = split.page && panel?.querySelector(':scope > .lk-split-title'), dot = title && panel.querySelector('.ls-page-blocks .bullet-container');
   if (dot && dot.getBoundingClientRect().width) {
     const shift = Math.round(dot.getBoundingClientRect().left - 2 - title.getBoundingClientRect().left);
-    if (Math.abs(shift) > 1) title.style.marginLeft = Math.max(0, (parseFloat(title.style.marginLeft) || 0) + shift) + 'px';
+    // Kept on the panel (--lk-split-col), so what stands in the title's column above it (Ontology's Parent line) lines up too.
+    if (Math.abs(shift) > 1) panel.style.setProperty('--lk-split-col', Math.max(0, (parseFloat(doc.defaultView.getComputedStyle(title).marginLeft) || 0) + shift) + 'px');
   }
   if (!split.page) panel?.querySelector(':scope > .lk-split-title')?.remove();
   if (!doc.body.querySelector(':scope > .lk-split-tools')) doc.body.appendChild(tools(doc));
@@ -196,20 +222,26 @@ function line(doc) {
 // Takes the split's marks and pieces off the screen; the sidebar is then drawn as Logseq draws it.
 function unmark(doc = host()) {
   for (const el of doc.querySelectorAll('.lk-split-own')) el.remove();
-  for (const el of doc.querySelectorAll('[data-lk-split-item]')) { el.removeAttribute('data-lk-split-item'); el.style.removeProperty('display'); }
+  for (const el of doc.querySelectorAll('[data-lk-split-item]')) { el.removeAttribute('data-lk-split-item'); el.removeAttribute('data-lk-split-kind'); el.style.removeProperty('display'); }
   sidebar(doc)?.removeAttribute('data-lk-split');
+  for (const el of doc.querySelectorAll('#right-sidebar .sidebar-panel-content')) el.style.removeProperty('--lk-split-col');
   doc.documentElement.style.removeProperty('--lk-split-w');
   for (const name of ['--lk-split-top', '--lk-split-edge', '--lk-split-gap']) doc.documentElement.style.removeProperty(name);
 }
 function forget() {
-  split.id = null; split.uuid = null; split.page = false; split.title = ''; split.before = null; split.lost = 0;
+  const was = split.id;
+  split.id = null; split.uuid = null; split.page = false; split.kind = ''; split.title = ''; split.before = null; split.lost = 0;
   if (split.timer) { try { host().defaultView.clearInterval(split.timer); } catch (error) {} split.timer = 0; }
+  if (was != null) told();
 }
 
 // Waits until Logseq's sidebar list holds the node at its top and has drawn it; then marks it in the same frame.
 const drawnOnTop = (doc, id) => Door.screen.waitFor(() => sideList()[0]?.[1] === id && items(doc)[0]?.querySelector('.sidebar-panel-content') ? items(doc)[0] : null, SHOW_MS, { frames: true });
 // Waits, drawing the split's pieces on each frame, until the right half really shows the page; the item, or null.
 const shownOnTop = (doc, id) => Door.screen.waitFor(() => { draw(doc); const item = at(doc, id); return shown(doc, item) ? item : null; }, SHOW_MS, { frames: true });
+// Logseq's own icon before a tag's title (#) and a property's (P): Tabler's hash and letter-p, as Logseq draws them there.
+const kindIcon = d => `<svg class="lk-split-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
+const KIND_ICON = { tag: kindIcon('M5 9l14 0M5 15l14 0M11 4l-4 16M17 4l-4 16'), property: kindIcon('M7 20v-16h5.5a4 4 0 0 1 0 9h-5.5') };
 const NOT_SHOWN = 'The page could not be shown beside, so the two pages were put back as one.';
 // Takes an item out of Logseq's sidebar list by its own ×, once Logseq has drawn the list as it holds it (a moment after a change).
 const takeOut = async (doc, id) => {
@@ -229,6 +261,9 @@ async function open(uuid) {
   try {
     if (first) { const list = sideList().map(entry => entry?.[1]); split.before = { open: sideOpen(), tab: sidebar(doc)?.getAttribute('data-lk-tab') || '', had: new Set(list), list }; }
     split.id = node.id; split.uuid = String(node.uuid); split.page = !node.page; split.title = node.title || node.originalName || node.name || '';
+    // A tag's page or a property's: Logseq's # or P before its title, as on the main view.
+    split.kind = !split.page ? '' : /\.class\//.test(String(node.ident || '')) ? 'tag' : /\.property\//.test(String(node.ident || '')) ? 'property' : '';
+    told();
     if (first) { layout(doc); sidebar(doc)?.setAttribute('data-lk-split', ''); }
     // Looked at once a second while the split is on, besides the screen watcher's passes: a change Logseq's page does not report
     // (a style, a rule) must not leave a white half either.
@@ -356,6 +391,9 @@ Door.split = {
   // For the checks: the state, and the ways in, as a press would call them.
   state: () => ({ ...split, before: split.before && { ...split.before, had: [...split.before.had], list: [...split.before.list] } }),
   open, close, swap: swapPages, layout,
+  // The node on the right ({ uuid, page: whether it is a page }), or null; onChange(fn) hears it change, and gives back what stops it.
+  page: () => split.id == null ? null : { uuid: split.uuid, page: split.page },
+  onChange: fn => { heard.add(fn); return () => heard.delete(fn); },
 };
 Door.rootSchema = [...(Door.rootSchema || []), { key: 'splitHeading', type: 'heading', default: null, title: 'Two pages side by side', description: '' }, ...SCHEMA];
 Door.describe('plugin', {

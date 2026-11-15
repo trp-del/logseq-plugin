@@ -1,5 +1,12 @@
-/* Loaded by main.js with the other parts. Kept in its own scope; main.js starts and stops it. */
-(() => {
+/* Loaded by main.js with the other parts. Kept in its own scope; main.js starts and stops it.
+   The part runs once for each page on screen that gets the rows (15 November 2026, the owner: "why does the structure of the right
+   not mimic the left"): the page in the main view, and the page on the right half of two pages side by side (split.js), which is a
+   page in Logseq's right sidebar. Each copy has its own page, its own section and its own state (what is open, picked, dug into,
+   the find line's words); what is read of the graph and what is kept between visits (each page's rows, what nodes hold, which lists
+   are open or grouped) is the main copy's and shared. The file is one function, called once for the main view as it loads; the
+   main copy calls it again with the right half's pane when it starts. The pieces (parts/two-way/*.js) give themselves to every copy
+   through the main copy's twoWay.piece. */
+(function twoWayPart(pane) {
 /* Two-way links part of Threads. A link made by a field reads the same from both ends.
    On the record that holds the field it is a property row, "report: Chest X-ray 2026-08-03". On the page it
    points to, Logseq lists the record under a tab named after the record's tag ("Appointment"), below the
@@ -11,7 +18,7 @@
    by" → "prescribed", or a name from the twoWayNames setting). Up to three records show inline; more become
    a count with the nearest date, which opens into the list (open to begin with, as asked: "the details …
    should by default be unfolded"). Only your own Node properties count; tags, aliases and mentions in
-   sentences stay in Linked references. Drawn for the page in the main view only. Reading the rows writes nothing; what
+   sentences stay in Linked references. Drawn for the page in the main view, and for the page on the right half of two pages side by side. Reading the rows writes nothing; what
    writes is what you press: the + that adds a node, the picking bar's actions and writing into a node, each through
    the model with an Undo arrow. The tag tree
    changes how a field reads backwards, and turns its row off, through this part's settings.
@@ -24,6 +31,18 @@
    through the model's doors, the page and settings changes come from the core; no logseq.* call here. */
 const shared = window.Threads.shared;
 const { host, openEntity, openPageNamed, notify, esc, iconHtml } = shared;
+/* The page the copy draws for, as a pane: where on screen it stands (root), which page it is (page), the pages whose titles are on
+   screen there (shown), its title's row, what scrolls it, and how a change of page is heard. The main view's is here; the right
+   half's is made by the main copy as it starts (rightPane). */
+pane ||= {
+  main: true, name: 'main',
+  root: doc => doc?.querySelector('#main-content-container') || null,
+  page: () => model.currentPage(),
+  shown: root => root ? [...root.querySelectorAll(':is(.ls-page-title, .page-title) .ls-block[blockid]')].map(el => el.getAttribute('blockid')) : [],
+  titleRow: root => root?.querySelector(':is(.ls-page-title, .page-title) .is-page-title-row') || null,
+  scroller: box => box?.closest('#main-content-container') || null,
+  onChange: fn => onPageChange(fn),
+};
 const base = window.PluginDoor.base('threads', { prefix: 'Threads (two-way): ', leaves: { elements: '.th-two-way' } });
 const { warnOnce, onStop: onUnload, listen } = base, runUnloadTasks = () => base.stop();
 
@@ -67,6 +86,11 @@ const take = (core, names) => shared.take(core, names, warnOnce);
 // opened for the first time gets its rows in the same frame as its title instead of half a second later.
 // open, all and only: per row, whether its list is open, shows every record, or only one kind ("Infusion").
 const state = { kindsAll: new Set(), listed: [], findDug: new Map(), findAsked: new Set(), version: 0, pageUuid: '', groups: [], byPage: new Map(), indexed: false, open: new Map(), all: new Set(), only: new Map(), box: null, html: '', picked: new Set(), lastPick: '', group: new Map(), values: new Map(), nodeDraft: null, mentionsOf: new Map(), raise: new Map(), kids: new Set(), selecting: new Set(), dig: new Map(), focus: '', fresh: '', node: new Map(), nall: new Set(), ball: new Set(), steps: [], pageTitle: '', kept: new Map(), find: '', drawingTop: false, pagesRead: null, linksShut: new Set(), emptyOpen: new Set(), keepEmpty: new Set() };
+/* A second copy (the right half's) shares with the main one what is read of the graph and what is kept between visits, so the
+   same page reads the same on both sides and the graph is not read twice: every page's rows, the mentions read, what nodes hold
+   and have under them, the values the lists are grouped by, which lists are open, grouped or ordered, and what was open on a page. */
+const SHARED = ['byPage', 'indexed', 'mentionsOf', 'node', 'kids', 'values', 'group', 'dayBy', 'open', 'kept', 'pagesRead', 'pagesList'];
+if (pane.from) for (const key of SHARED) Object.defineProperty(state, key, { get: () => pane.from.state[key], set: value => { pane.from.state[key] = value; }, enumerable: true });
 // Where the pieces join the part's load and start (7 November 2026): loadHooks(page, groups) may give the groups back changed, settledHooks() run once the page's state stands, starters() when the part starts.
 const loadHooks = [], settledHooks = [], starters = [], clickHooks = [];
 /* Where the pieces join a list's drawing (7 November 2026, the forty): listHooks(group, key, items) may give the nodes back
@@ -195,7 +219,7 @@ async function load() {
   let pageUuid = '', groups = [];
   try {
     if (setting('twoWayRows')) {
-      const page = await model.currentPage();
+      const page = await pane.page();
       // A zoomed-in block comes back with a page of its own; only a page gets the rows.
       // A journal day too (Linked references shows on a day, so the rows do); the Journals list, with many days
       // on screen, gets none (see draw).
@@ -261,7 +285,7 @@ async function readKids(uuids) {
 }
 const hasKids = uuid => state.kids.has(String(uuid).toLowerCase());
 const shownPage = doc => {
-  const shown = doc ? [...doc.querySelectorAll('#main-content-container :is(.ls-page-title, .page-title) .ls-block[blockid]')].map(el => el.getAttribute('blockid')) : [];
+  const shown = pane.shown(pane.root(doc));
   return shown.length === 1 ? shown[0] : '';
 };
 // A page's rows, with what points at its other names: a node holding an alias points at the page.
@@ -729,8 +753,11 @@ const crumbHtml = item => crumbsOf(item).length ? `<div class="th-tw-crumb">${cr
 // The page's own property list in the main view (not one inside a record, a reference or the sidebar), else its title:
 // the rows stand under the title and the properties, above the page's own words (the owner, 1 November 2026).
 function anchorFor(doc) {
-  const main = doc.querySelector('#main-content-container');
+  const main = pane.root(doc);
   if (!main) return null;
+  // The right half: Logseq's sidebar page holds its property list in a box of its own, drawn a moment after the bullets; the section
+  // stands after that box from the first (the space under the title is Look's tag path's) and waits, unseen, until the list is there.
+  if (!pane.main) return main.querySelector('.page .ls-sidebar-page-properties');
   const outside = el => !el.closest('.references, .ls-bidirectional-properties, .ls-block .ls-block, .custom-query');
   const props = [...main.querySelectorAll('.ls-page-properties')].find(outside);
   if (props) return props;
@@ -768,7 +795,7 @@ function endWaitWhenStill(box, page) {
     if (!box.hasAttribute('data-th-waiting')) return;
     const now = box.getBoundingClientRect().top;
     if (now !== top) { top = now; since = performance.now(); }
-    const main = box.ownerDocument.querySelector('#main-content-container');
+    const main = pane.root(box.ownerDocument);
     const listThere = noList || !!main?.querySelector('.ls-page-properties');
     if (!listThere || !state.mentionsOf.has(page) || (!noList && performance.now() - since < STILL_MS)) { settle.frame = requestAnimationFrame(look); return; }
     settle.stood = true; box.removeAttribute('data-th-waiting');
@@ -795,7 +822,7 @@ function settling(page) {
 }
 function holdRoom(doc, box, mode, page) {
   // The title's own row: the box and the property list sit inside the title's block, below that row.
-  const title = doc.querySelector('#main-content-container :is(.ls-page-title, .page-title) .is-page-title-row');
+  const title = pane.titleRow(pane.root(doc));
   if (!mode || !title) { setHold(box, 0); return; }
   const held = parseFloat(box.style.getPropertyValue('--th-tw-hold')) || 0;
   const room = box.getBoundingClientRect().top - title.getBoundingClientRect().bottom - held;
@@ -887,7 +914,7 @@ function onRoute() {
   settle.timer = setTimeout(() => draw(host()), SETTLE_MS + 50);
   settle.wait = setTimeout(() => draw(host()), WAIT_MS + 20);
 }
-const shownPages = doc => [...doc.querySelectorAll('#main-content-container :is(.ls-page-title, .page-title) .ls-block[blockid]')].map(el => el.getAttribute('blockid'));
+const shownPages = doc => pane.shown(pane.root(doc));
 function draw(doc) {
   if (!doc) return;
   const on = setting('twoWayRows');
@@ -898,6 +925,9 @@ function draw(doc) {
     const id = shown.find(uuid => state.byPage.has(uuid)) || (shown.length === 1 && state.indexed ? shown[0] : '');
     if (id) { state.pageUuid = id; state.groups = state.byPage.get(id) || []; state.html = null; putBackOpen(id); }
   }
+  // The right half's page is drawn by Logseq a while after the split names it, and its property list later still: its settling counts
+  // from when the page itself is on screen, so the section waits for the list however slowly Logseq draws it.
+  if (!pane.main) { const root = pane.root(doc); if (root && root !== settle.root) { settle.root = root; Object.assign(settle, { since: performance.now(), page: '', saved: false, stood: false }); clearTimeout(settle.timer); clearTimeout(settle.wait); settle.timer = setTimeout(() => draw(host()), SETTLE_MS + 50); settle.wait = setTimeout(() => draw(host()), WAIT_MS + 20); } }
   const anchor = on ? anchorFor(doc) : null;
   // A view with no page title the rows know (the Journals list), reached after the rows were read, has none of them.
   const stale = !shown.length && settle.since > (state.readAt || 0);
@@ -946,8 +976,8 @@ function draw(doc) {
   else if (state.findHold) {
     // Emptied: let go only of the room below what is on screen, so the page stays where it was read (the reviewer: the
     // page dropped 97 px on Esc after scrolling down); the rest goes with the page.
-    const pane = doc.querySelector('#main-content-container');
-    const spare = pane ? pane.scrollHeight - pane.clientHeight - pane.scrollTop : Infinity;
+    const scroller = pane.scroller(box);
+    const spare = scroller ? scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop : Infinity;
     state.findKeep = Math.max(0, Math.round(state.findHold - spare)); state.findHold = 0;
     box.style.minHeight = state.findKeep ? `${state.findKeep}px` : '';
   } else if (!state.findKeep) box.style.minHeight = '';
@@ -987,9 +1017,11 @@ function draw(doc) {
   box.toggleAttribute('data-th-folded', !!rows && stepped == null && (!wholeOpen || state.wholeTurning === 'fold'));
   twoWay.pinNow();
   if (anchor.nextElementSibling !== box) anchor.after(box);
-  holdRoom(doc, box, mode, page);
+  // The room a page held is the main view's (measured under its title row); the right half waits for its property list instead.
+  holdRoom(doc, box, pane.main ? mode : '', page);
   const waited = box.hasAttribute('data-th-waiting');
-  box.toggleAttribute('data-th-waiting', mode === 'hold' && !settle.stood && (!state.mentionsOf.has(page) || (!heights.has(page) && !anchor.matches('.ls-page-properties'))) && performance.now() - settle.since < WAIT_MS);
+  const listDrawn = pane.main ? heights.has(page) || anchor.matches('.ls-page-properties') : !!anchor.querySelector('.ls-page-properties');
+  box.toggleAttribute('data-th-waiting', mode === 'hold' && !settle.stood && (!state.mentionsOf.has(page) || !listDrawn) && performance.now() - settle.since < WAIT_MS);
   if (!waited && box.hasAttribute('data-th-waiting')) endWaitWhenStill(box, page);
   if (!rows && mode === 'save') box.remove();
 }
@@ -1022,7 +1054,7 @@ function onClick(event) {
        it stood as an empty gap between "Linked" and the page's bullets, the open section's whole height on a page that
        fits its window (the owner, 12 November 2026). What folds rolls up and what opens unrolls, the plugin's one
        motion, so the bullets below glide instead of leaping. */
-    const box = whole.closest('.th-two-way'), pane = box?.ownerDocument.querySelector('#main-content-container');
+    const box = whole.closest('.th-two-way'), scroller = pane.scroller(box);
     const under = b => [...b?.children || []].filter(el => !el.matches('.th-tw-pin, .th-tw-whole'));
     if (state.wholeTurning) return;
     // Letters in the find line hold the section open: nothing on screen turns, only what it will be once they go.
@@ -1031,7 +1063,7 @@ function onClick(event) {
     state.wholeTurning = folding ? 'fold' : 'open';
     if (folding) {
       box.setAttribute('data-th-folded', '');
-      foldRoom.keep(box, pane);
+      foldRoom.keep(box, scroller);
       window.PluginDoor.rollUp(under(box)).then(() => { twoWay.setOpen(key, false); state.html = null; draw(host()); still(); });
     } else {
       twoWay.setOpen(key, true); state.html = null; draw(host());
@@ -1099,7 +1131,7 @@ function onClick(event) {
 
 // Where an Undo sits (shared.undo): at the end of a row's name on the page in the main view; the first row's
 // when the change was to several rows at once; at the bottom right when no row is left to sit beside.
-const rowNames = field => [...host().querySelectorAll('#main-content-container .th-two-way .th-tw-row')]
+const rowNames = field => [...(state.box?.isConnected ? state.box.querySelectorAll('.th-tw-row') : [])]
   .filter(row => field == null || row.dataset.field === field).map(row => row.querySelector('.th-tw-name')).filter(Boolean);
 let undoCount = 0;
 // near: where the change sits in an opened node, found again by its key after each drawing; the row's name
@@ -1244,6 +1276,34 @@ const indexLater = ms => { clearTimeout(indexTimer); indexTimer = setTimeout(() 
   if (++indexTries < 5) indexLater(2000 * indexTries); else { indexTries = 0; warnOnce('could not read the rows of every page', error); }
 }), ms); };
 let stopped = false;
+/* The copies on screen (the main one keeps the list), and which one a key or press belongs to: an element in a copy's page is
+   that copy's; a key goes to the copy whose section has the keyboard, else to the page last pressed in (Logseq leaves the keyboard
+   on the main view's frame after a press on the right), the main one when that is gone. */
+const first = pane.from || twoWay;
+const mine = el => !!el && !!pane.root(host())?.contains(el);
+const ours = event => {
+  const t = event?.target, doc = host(), copies = first.copies || [twoWay];
+  const at = copies.find(copy => copy.state.box?.contains(t));
+  if (at) return at === twoWay;
+  const last = copies.find(copy => copy.pane.name === first.pointed && copy.pane.root(doc));
+  return last ? last === twoWay : pane.main;
+};
+/* The right half of two pages side by side (split.js): Logseq's right sidebar holding one page, which the split marks; the page
+   is the one the split opened there. Logseq draws no title there (the split draws the page's name) and no Unlinked references. */
+const rightPane = () => {
+  const Split = () => window.PluginDoor.split;
+  const root = doc => doc?.querySelector('#right-sidebar[data-lk-split] .sidebar-item[data-lk-split-item] > .sidebar-panel-content, #right-sidebar[data-lk-split] .sidebar-item[data-lk-split-item] .sidebar-panel-content') || null;
+  return {
+    main: false, name: 'right', from: twoWay,
+    root,
+    page: async () => { const now = Split()?.page?.(); return now?.page ? await model.getPage(now.uuid).catch(() => null) : null; },
+    // The page on the right half once Logseq has drawn it there (its page, not only the split's title).
+    shown: el => { const now = Split()?.page?.(); return el && now?.page && el.querySelector(':scope > .page') ? [now.uuid] : []; },
+    titleRow: el => el?.querySelector(':scope > .lk-split-title') || null,
+    scroller: box => box?.closest('.sidebar-item-list') || null,
+    onChange: fn => Split()?.onChange?.(fn),
+  };
+};
 // The core's things, taken when the part starts; the pieces reach the ones they use through twoWay.
 function useCore(core) {
   ({ UUID, isEntityId, watchDomEarly, addsElements, sendStyle, provided, uuidsIn, saveSettings, onPageChange, onDatabaseChange, onSettingsChange } = take(core, ['UUID', 'isEntityId', 'watchDomEarly', 'addsElements', 'sendStyle', 'provided', 'uuidsIn', 'saveSettings', 'onPageChange', 'onDatabaseChange', 'onSettingsChange', 'currentPage', 'getPage', 'createPage', 'deletePage', 'appendBlock', 'removeBlock', 'addTag', 'removeTag', 'setValue', 'unsetValue', 'STATUS_IDENT', 'editBlock']));
@@ -1253,17 +1313,21 @@ function useCore(core) {
 function start() {
   useCore(window.Threads.core);
   stopped = false;
-  applyStyles();
-  readHeights();
-  twoWay.forgetOrder();
-  twoWay.readOpen();
-  twoWay.readGroup();
+  // What stands for every copy (the stylesheets, the room each page held, what is kept between visits) is the main copy's to set.
+  if (pane.main) {
+    applyStyles();
+    readHeights();
+    twoWay.forgetOrder();
+    twoWay.readOpen();
+    twoWay.readGroup();
+  }
   for (const starter of starters) { try { starter(); } catch (error) { warnOnce('a piece could not start', error); } }
   watchDomEarly(drawEarly);
   draw(host());
   // At once: the look-up waits in line behind Logseq loading the page anyway. The box stays until the next
   // page is drawn: draw() moves it, or takes it away, in the same frame. The hooks are the core's.
-  onPageChange(() => { if (stopped) return; onRoute(); later(0); });
+  const offPage = pane.onChange(() => { if (stopped) return; onRoute(); later(0); });
+  if (!pane.main) onUnload(offPage);
   onDatabaseChange(change => {
     if (stopped) return;
     clearTimeout(state.quiet);
@@ -1271,19 +1335,19 @@ function start() {
     checkMade();
     const writing = window.PluginDoor?.writing(change);
     if (!writing || touchesRows(change)) later(900);
-    if (!writing && indexSize < BIG_INDEX) indexLater(10000);
+    if (pane.main && !writing && indexSize < BIG_INDEX) indexLater(10000);
   });
   // Another graph: nothing read of this one holds there.
-  window.Threads.core.onGraphChange(() => { if (stopped) return; state.byPage = new Map(); state.mentionsOf = new Map(); state.indexed = false; state.node.clear(); twoWay.reading.clear(); state.pagesRead = null; indexSize = 0; made.key = ''; later(0); indexLater(0); });
+  window.Threads.core.onGraphChange(() => { if (stopped) return; state.byPage = new Map(); state.mentionsOf = new Map(); state.indexed = false; state.node.clear(); twoWay.reading.clear(); state.pagesRead = null; indexSize = 0; made.key = ''; later(0); if (pane.main) indexLater(0); });
   onSettingsChange((now, before) => {
     if (stopped) return;
-    if (settingsSchema.some(item => now?.[item.key] !== before?.[item.key])) { applyStyles(); later(0); indexLater(0); }
+    if (settingsSchema.some(item => now?.[item.key] !== before?.[item.key])) { if (pane.main) { applyStyles(); indexLater(0); } later(0); }
   });
   // A click away from an empty draft line drops it; one with words keeps them.
   const away = event => { if (state.draft && !state.draft.name.trim() && !event.target.closest?.('.th-tw-draft, .th-two-way-add, .th-tw-add, .th-tw-gadd')) { state.draft = null; twoWay.closeAdd(); draw(host()); } };
   listen(host(), 'mousedown', away, true);
   const escape = event => {
-    if (event.key !== 'Escape' || event.target.closest?.('input, textarea, [contenteditable="true"]')) return;
+    if (event.key !== 'Escape' || event.target.closest?.('input, textarea, [contenteditable="true"]') || !ours(event)) return;
     if (state.picked.size || state.selecting.size) { stopPicking(); draw(host()); }
     // The focus closes and hands the grey to its parent.
     else if (state.focus && state.dig.has(state.focus) && state.focus !== twoWay.topStep()?.key) { event.preventDefault(); const key = state.focus; shared.outline.close(state.box?.querySelector(`.th-ol-kids[data-key="${CSS.escape(key)}"]`), () => twoWay.closeDig(key)); }
@@ -1296,12 +1360,33 @@ function start() {
   let pinFrame = 0;
   const onScroll = () => { cancelAnimationFrame(pinFrame); pinFrame = requestAnimationFrame(twoWay.pinNow); };
   listen(host(), 'scroll', onScroll, { capture: true, passive: true });
-  twoWay.steadyWidth(host(), true);
-  onUnload(() => { twoWay.steadyWidth(host(), false); stopped = true; clearTimeout(timer); clearTimeout(indexTimer); clearTimeout(settle.timer); clearTimeout(settle.ease); clearTimeout(settle.wait); if (settle.frame) cancelAnimationFrame(settle.frame); twoWay.hidePeek(); twoWay.closeAdd(); state.box?.remove(); state.box = null; });
+  // The page last pressed in, for a key with the keyboard on neither page.
+  listen(host(), 'pointerdown', event => { if (mine(event.target)) first.pointed = pane.name; }, true);
+  if (pane.main) twoWay.steadyWidth(host(), true);
+  onUnload(() => { if (pane.main) twoWay.steadyWidth(host(), false); stopped = true; clearTimeout(timer); clearTimeout(indexTimer); clearTimeout(settle.timer); clearTimeout(settle.ease); clearTimeout(settle.wait); if (settle.frame) cancelAnimationFrame(settle.frame); twoWay.hidePeek(); twoWay.closeAdd(); state.box?.remove(); state.box = null; });
   later(0);
+  if (!pane.main) return;
   indexLater(1500);
+  // The right half's copy, made once and kept while the part runs: with no split on screen it has no page and draws nothing.
+  if (window.PluginDoor.split?.onChange) {
+    const half = rightPane();
+    twoWayPart(half);
+    const right = half.made;
+    if (right) {
+      twoWay.copies = [twoWay, right.twoWay];
+      try { right.start(); } catch (error) { warnOnce('the page on the right half could not get its rows', error); }
+      onUnload(() => { twoWay.copies = [twoWay]; return right.stop(); });
+    }
+  }
 }
-((window.Threads ||= {}).parts ||= []).push({ name: 'two-way', says: 'the rows on a page', schema: settingsSchema, start, stop: runUnloadTasks, inner: twoWay });
+// What the pieces reach of the part, and of the core once it starts (useCore).
+Object.assign(twoWay, { pane, mine, ours, copies: [twoWay] });
+// The pieces given to this copy: the main copy takes each as it loads (twoWay.piece) and keeps them, for the right half's copy,
+// made after them all.
+const pieces = pane.from ? pane.from.pieces : [];
+if (pane.main) Object.assign(twoWay, { pieces, piece: piece => { pieces.push(piece); piece(twoWay); } });
+if (pane.main) ((window.Threads ||= {}).parts ||= []).push({ name: 'two-way', says: 'the rows on a page', schema: settingsSchema, start, stop: runUnloadTasks, inner: twoWay });
 // What the pieces reach of the part, and of the core once it starts (useCore).
 Object.assign(twoWay, { taskHtml, dayCellOf, headWhen, whenTip, INLINE, LISTED, UUID, stopPicking, clickHooks, tailHooks, viewMenuHooks, listHooks, headHooks, underHeadHooks, leadHooks, betweenHooks, lineMenuHooks, rowMenuHooks, saveSettings: changes => saveSettings(changes), dayCell, isDated, readKids, hasKids, loadHooks, settledHooks, starters, summary, plural, tagWord, dayText, draw, groupsFor, inBox, isMentions, couldBeOff, itemHtml, later, lineDay, model, nameHtml, offerKept, offerMade, offerUndo, guard, onUnload, listen, provided, rowHtml, setting, shortName, state, tagLink, todayNumber, uuidsIn, valueBox, warnOnce, useCore });
+if (!pane.main) { for (const piece of pieces) piece(twoWay); pane.made = { twoWay, start, stop: runUnloadTasks }; }
 })();

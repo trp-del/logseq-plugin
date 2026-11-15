@@ -1,6 +1,6 @@
 {
  "checkedWith": "2.0.2",
- "acceptedOn": "2026-11-14",
+ "acceptedOn": "2026-11-15",
  "api": [
   "App.getCurrentGraph",
   "App.getCurrentGraphRecent",
@@ -95,6 +95,7 @@
   "extensions__pdf-viewer",
   "flex-col",
   "flex-row",
+  "grid",
   "hl-page",
   "inline-flex",
   "is-page-title-row",

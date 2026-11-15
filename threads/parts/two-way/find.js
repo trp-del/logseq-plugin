@@ -3,8 +3,8 @@
    where its pieces meet. What this piece uses of the part or another piece it reaches through twoWay when it runs; what
    it gives them is listed at its end. */
 (() => {
-const twoWay = window.Threads.parts?.find(part => part.name === 'two-way')?.inner;
-if (!twoWay) return;   // the two-way part did not load, so nothing of it runs
+// Given to each copy of the part (the main view's, and the right half's of two pages side by side); with no part loaded, nothing of it runs.
+window.Threads.parts?.find(part => part.name === 'two-way')?.inner?.piece?.(twoWay => {
 const shared = window.Threads.shared;
 const { host } = shared;
 const { state, warnOnce } = twoWay;
@@ -140,11 +140,13 @@ const closeQuietly = key => { for (const k of [...state.dig.keys()]) if (k === k
 /* The words found, lightly highlighted wherever they show in the section (the owner, 2026-10-27: "a very light highlight
    of things as well"): the browser's own highlights, so the text is not touched and nothing moves; Logseq's own subtle
    blue (the owner's word over the standing "no colour of the plugin's own"). The same start-of-word rule as the finding; at most 2000 text pieces looked at. */
+// Each page's own highlight (the main view's, the right half's), so one page's find line never clears the other's.
+const HIGHLIGHT = twoWay.pane.main ? 'th-find' : 'th-find-right';
 function highlightFind(box) {
-  const win = box?.ownerDocument?.defaultView, reg = win?.CSS?.highlights;
+  const win = (box || host())?.ownerDocument?.defaultView || host()?.defaultView, reg = win?.CSS?.highlights;
   if (!reg || !win.Highlight) return;
   const { q } = readFind();
-  if (!q || !opensNow(q) || !box.isConnected) { reg.delete('th-find'); return; }
+  if (!q || !opensNow(q) || !box?.isConnected) { reg.delete(HIGHLIGHT); return; }
   const words = [...new Set([q, ...q.split(/\s+/)])].filter(Boolean);
   const doc = box.ownerDocument, ranges = [];
   const walk = doc.createTreeWalker(box, win.NodeFilter.SHOW_TEXT, { acceptNode: n => n.parentElement?.closest('.th-tw-findrow, .th-tw-head, .th-ol-more') ? win.NodeFilter.FILTER_REJECT : win.NodeFilter.FILTER_ACCEPT });
@@ -155,7 +157,7 @@ function highlightFind(box) {
       const r = doc.createRange(); r.setStart(n, at); r.setEnd(n, at + w.length); ranges.push(r);
     }
   }
-  reg.set('th-find', new win.Highlight(...ranges));
+  reg.set(HIGHLIGHT, new win.Highlight(...ranges));
 }
 /* While the section is on a page, the page's scroll bar keeps its room (frame by frame, 2026-10-27, the owner: "things
    shift left or right"): finding, opening or folding made the page short enough to lose its scroll bar, and the whole
@@ -200,10 +202,12 @@ function keepFind(box, caret) {
 }
 
 // The find line called up where it does not stand by itself (fewer than twenty rows): Logseq's command palette.
-twoWay.starters.push(() => twoWay.provided.registerCommand?.('threads-find', 'Threads: find in Linked', () => {
+// One command for the plugin: the main view's copy registers it.
+twoWay.starters.push(() => twoWay.pane.main && twoWay.provided.registerCommand?.('threads-find', 'Threads: find in Linked', () => {
   state.findShown = true; state.html = null; twoWay.draw(host());
   state.box?.querySelector('.th-tw-find')?.focus({ preventScroll: false });
 }));
 
 Object.assign(twoWay, { closeQuietly, findHtml, findsLine, foundGroups, has, highlightFind, keepFind, openHits, readFind, steadyWidth });
+});
 })();

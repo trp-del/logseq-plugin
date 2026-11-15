@@ -36,8 +36,8 @@ const NODES = [
   { id: 106, title: 'What is the best first gap? Nobody knows.', tag: 'Question', day: 0 },
 ];
 
-function world(grouping) {
-  const dom = new JSDOM(`<!doctype html><html><body><div id="main-content-container"><div class="ls-page-title"><div class="is-page-title-row"><h1 class="title">Spaced repetition</h1></div><div class="ls-block" blockid="${PAGE}"></div></div><div class="ls-page-properties"></div></div></body></html>`,
+function world(grouping, { split = false } = {}) {
+  const dom = new JSDOM(`<!doctype html><html><body><div id="main-content-container"><div class="ls-page-title"><div class="is-page-title-row"><h1 class="title">Spaced repetition</h1></div><div class="ls-block" blockid="${PAGE}"></div></div><div class="ls-page-properties"></div></div>${split ? '<div id="right-sidebar" data-lk-split=""><div class="sidebar-item-list"><div class="sidebar-item item-type-page" data-lk-split-item=""><div class="sidebar-panel-content"><div class="lk-split-title">Spaced repetition</div><div class="page"><div class="ls-sidebar-page-properties"><div class="ls-page-properties"></div></div><div class="ls-page-blocks"></div></div></div></div></div></div>' : ''}</body></html>`,
     { url: 'http://localhost/', runScripts: 'outside-only', pretendToBeVisual: true });
   const { window } = dom;
   window.parent = window;
@@ -107,9 +107,12 @@ function world(grouping) {
     onPageChange() {}, onDatabaseChange(fn) { changed.push(fn); }, onSettingsChange() {}, onGraphChange(fn) { graphHooks.push(fn); }, provided,
     provide(things) { Object.assign(provided, things); },
   };
+  // Two pages side by side (split.js): the page on the right half, and who hears it change.
+  const splitNow = { page: null, heard: new Set() };
+  if (split) window.PluginDoor.split = { page: () => splitNow.page, onChange: fn => { splitNow.heard.add(fn); return () => splitNow.heard.delete(fn); } };
   const part = window.Threads.parts.find(p => p.name === 'two-way');
   part.start();
-  return { window, doc, calls, part, bullets, saved, reads, changed, provided, graphHooks, madeNow, stampNow, recycled, notices };
+  return { splitNow, window, doc, calls, part, bullets, saved, reads, changed, provided, graphHooks, madeNow, stampNow, recycled, notices };
 }
 const click = (window, el) => el.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
 // The bar's More (5 November 2026): every action but Open in sidebar sits in it. Opens it and gives its items.
@@ -180,6 +183,42 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     press('Enter');
     check((await picked)?.label === 'Page 29', 'Enter takes the lit one');
     part.stop();
+  }
+  // The page on the right half of two pages side by side gets its own rows, as the main page does (15 November 2026): drawn in the
+  // right half's page, kept to it (a key there is the right page's), shared reading, gone when the split ends and when Threads stops.
+  {
+    const { window, doc, part, splitNow, reads } = world('', { split: true });
+    await wait(150);
+    const right = () => doc.querySelector('#right-sidebar [data-lk-split-item] .th-two-way');
+    const main = () => doc.querySelector('#main-content-container .th-two-way');
+    const inner = part.inner;
+    check(inner.copies.length === 2 && inner.copies[1].pane.name === 'right', 'a second copy stands ready for the right half');
+    check(!!main() && !right(), 'with no page on the right, only the main page has rows');
+    const readsBefore = reads.length;
+    splitNow.page = { uuid: PAGE, page: true };
+    for (const fn of splitNow.heard) fn();
+    await wait(200);
+    inner.copies[1].draw(doc);
+    check(!!right(), 'the page on the right gets its rows');
+    check(right()?.previousElementSibling?.matches('.ls-sidebar-page-properties'), 'after the right page\'s own properties (Logseq\'s box around them), as on the main page');
+    check(right()?.querySelector('.th-tw-row[data-field="about"]') && main()?.querySelector('.th-tw-row[data-field="about"]'), 'both pages show the same list');
+    check(reads.length - readsBefore <= 1, 'the right page reads its rows once, the index is the main page\'s: ' + (reads.length - readsBefore));
+    check(inner.copies[1].state.byPage === inner.state.byPage && inner.copies[1].state.open === inner.state.open, 'what is read and kept between visits is shared');
+    // Picking on the main page; a press and Escape on the right page leave it; Escape after a press on the main page ends it.
+    inner.state.selecting.add('about'); inner.state.html = null; inner.draw(doc);
+    const pressIn = el => el.dispatchEvent(new window.MouseEvent('pointerdown', { bubbles: true }));
+    const escape = () => doc.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    pressIn(right()); escape();
+    check(inner.state.selecting.size === 1, 'Escape after a press on the right page is the right page\'s');
+    pressIn(main()); escape();
+    check(inner.state.selecting.size === 0, 'Escape after a press on the main page ends its picking');
+    // The split ends: the right page's rows go; the main page's stay.
+    splitNow.page = null;
+    for (const fn of splitNow.heard) fn();
+    inner.copies[1].draw(doc);
+    check(!right() && !!main(), 'the split ended: the right page\'s rows are gone, the main page keeps its own');
+    part.stop();
+    check(!doc.querySelector('.th-two-way') && inner.copies.length === 1 && splitNow.heard.size === 0, 'nothing left on stop, and the right copy no longer listens');
   }
   // Writing reads only what it reaches; a look reads none of the earlier lines.
   {
@@ -426,7 +465,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     check(/placePeek\(card\.el, link\)/.test(source), 'the card is placed clear of the rows');
     check(/fits && clear\(under\) \? under : aboveFits && clear\(above\) \? above/.test(source), 'the card goes under the row, or above where under would cover a list\'s head');
     check(/h\.values\.size \* 2 <= h\.nodes/.test(source), 'Group leaves out a property whose values are nearly all different');
-    check(/settle\.stood = true; box\.removeAttribute\('data-th-waiting'\)/.test(source) && /!settle\.stood && \(!state\.mentionsOf\.has\(page\) \|\| \(!heights\.has\(page\)/.test(source), 'a first visit waits only until the place stands still and the page is read');
+    check(/settle\.stood = true; box\.removeAttribute\('data-th-waiting'\)/.test(source) && /!settle\.stood && \(!state\.mentionsOf\.has\(page\) \|\| !listDrawn\)/.test(source) && /const listDrawn = pane\.main \? heights\.has\(page\) \|\| anchor\.matches\('\.ls-page-properties'\) : !!anchor\.querySelector\('\.ls-page-properties'\)/.test(source), 'a first visit waits only until the place stands still and the page is read');
     check(/!listThere \|\| !state\.mentionsOf\.has\(page\) \|\| \(!noList && performance\.now\(\) - since < STILL_MS\)/.test(source), 'and until the property list is there: stillness alone can come before it');
     check(/:has\(\.th-two-way\[data-th-waiting\]\) \.ls-page-blocks \{ visibility: hidden; \}/.test(source), 'the page\'s words wait with the rows, so what comes with the reading pushes nothing');
     check(!/querySelectorAll\('\.ls-page-blocks'\)/.test(source), 'the rows stand under the title and the properties, above the page\'s words');

@@ -8,8 +8,8 @@
    where its pieces meet. What this piece uses of the part or another piece it reaches through twoWay when it runs; what
    it gives them is listed at its end. */
 (() => {
-const twoWay = window.Threads.parts?.find(part => part.name === 'two-way')?.inner;
-if (!twoWay) return;   // the two-way part did not load, so nothing of it runs
+// Given to each copy of the part (the main view's, and the right half's of two pages side by side); with no part loaded, nothing of it runs.
+window.Threads.parts?.find(part => part.name === 'two-way')?.inner?.piece?.(twoWay => {
 const shared = window.Threads.shared;
 const { host, esc } = shared;
 const { state, warnOnce } = twoWay;
@@ -227,6 +227,7 @@ twoWay.starters.push(() => {
   };
   const down = event => {
     const track = event.button === 0 && event.target.closest?.('.th-two-way .th-tw-ytrack');
+    if (track && !twoWay.mine(track)) return;
     if (track) drag = { track, x: event.clientX, from: dayAt(track, event.clientX), moved: false };
   };
   const move = event => {
@@ -248,7 +249,7 @@ twoWay.starters.push(() => {
   };
   // Escape lets go of a lane, then of a span, before anything else it does on these rows.
   const escape = event => {
-    if (event.key !== 'Escape' || event.target.closest?.('input, textarea, [contenteditable="true"]') || state.picked.size || state.selecting.size) return;
+    if (event.key !== 'Escape' || event.target.closest?.('input, textarea, [contenteditable="true"]') || state.picked.size || state.selecting.size || !twoWay.ours(event)) return;
     const lane = [...state.yearLaneOn.keys()].pop(), span = [...state.yearPick.keys()].pop();
     if (lane !== undefined) state.yearLaneOn.delete(lane); else if (span !== undefined) state.yearPick.delete(span); else return;
     event.preventDefault(); event.stopImmediatePropagation(); redraw();
@@ -295,12 +296,12 @@ twoWay.tailHooks.push((group, item) => {
    page, as always; Esc lets go. */
 twoWay.starters.push(() => {
   const doc = host();
-  const names = () => [...doc.querySelectorAll('.th-two-way a.th-tw-record')].filter(a => a.offsetParent);
+  const names = () => [...(state.box?.querySelectorAll('a.th-tw-record') || [])].filter(a => a.offsetParent);
   // Opening or closing draws the rows again: the keyboard stays on the same node's name, found by its place.
-  const keepOn = key => { let tries = 0; const again = () => { const chev = doc.querySelector(`.th-two-way [data-dig="${CSS.escape(key)}"]`); const name = chev?.closest('.th-ol-line, .th-ol-prop')?.querySelector('a.th-tw-record'); if (name && doc.activeElement !== name) name.focus({ preventScroll: true }); if (++tries < 12) setTimeout(again, 120); }; setTimeout(again, 60); };
+  const keepOn = key => { let tries = 0; const again = () => { const chev = state.box?.querySelector(`[data-dig="${CSS.escape(key)}"]`); const name = chev?.closest('.th-ol-line, .th-ol-prop')?.querySelector('a.th-tw-record'); if (name && doc.activeElement !== name) name.focus({ preventScroll: true }); if (++tries < 12) setTimeout(again, 120); }; setTimeout(again, 60); };
   const onKey = event => {
     const at = doc.activeElement;
-    if (!at?.matches?.('.th-two-way a.th-tw-record') || event.metaKey || event.ctrlKey || event.altKey) return;
+    if (!at?.matches?.('.th-two-way a.th-tw-record') || !twoWay.mine(at) || event.metaKey || event.ctrlKey || event.altKey) return;
     const line = at.closest('.th-ol-line, .th-ol-prop');
     const chev = line?.querySelector('[data-dig]');
     let to = null;
@@ -316,7 +317,7 @@ twoWay.starters.push(() => {
       const k = `${line.dataset.uuid}|${group.name}`;
       if (state.picked.has(k)) state.picked.delete(k); else state.picked.add(k);
       state.html = null; twoWay.draw(doc);
-      to = [...doc.querySelectorAll(`.th-tw-row[data-field="${CSS.escape(group.name)}"] .th-tw-line[data-uuid="${CSS.escape(line.dataset.uuid)}"] a.th-tw-record`)][0];
+      to = [...state.box.querySelectorAll(`.th-tw-row[data-field="${CSS.escape(group.name)}"] .th-tw-line[data-uuid="${CSS.escape(line.dataset.uuid)}"] a.th-tw-record`)][0];
     } else return;
     event.preventDefault(); event.stopPropagation();
     if (to) to.focus({ preventScroll: false });
@@ -355,8 +356,8 @@ twoWay.clickHooks.push(event => {
 let dragNode = null;
 twoWay.starters.push(() => {
   const doc = host();
-  const start = e => { const line = !e.target.closest?.('.th-tw-name') && e.target.closest?.('.th-two-way .th-tw-line[data-uuid]'); if (!line || state.drawingTop) return; const from = line.closest('.th-tw-row')?.dataset.field; dragNode = { uuid: line.dataset.uuid, from }; line.classList.add('th-tw-dragging'); };
-  const target = e => { const row = e.target.closest?.('.th-two-way .th-tw-row'); const group = row && state.groups.find(g => g.name === row.dataset.field); return group && group.ident && group.name !== dragNode?.from ? { row, group } : null; };
+  const start = e => { const line = !e.target.closest?.('.th-tw-name') && e.target.closest?.('.th-two-way .th-tw-line[data-uuid]'); if (!line || !twoWay.mine(line) || state.drawingTop) return; const from = line.closest('.th-tw-row')?.dataset.field; dragNode = { uuid: line.dataset.uuid, from }; line.classList.add('th-tw-dragging'); };
+  const target = e => { const row = e.target.closest?.('.th-two-way .th-tw-row'); if (row && !twoWay.mine(row)) return null; const group = row && state.groups.find(g => g.name === row.dataset.field); return group && group.ident && group.name !== dragNode?.from ? { row, group } : null; };
   const clear = () => { for (const el of doc.querySelectorAll('.th-tw-row[data-dropnode], .th-tw-line.th-tw-dragging')) { el.removeAttribute('data-dropnode'); el.classList.remove('th-tw-dragging'); } };
   const over = e => { if (!dragNode) return; const t = target(e); for (const el of doc.querySelectorAll('.th-tw-row[data-dropnode]')) if (el !== t?.row) el.removeAttribute('data-dropnode'); if (!t) return; e.preventDefault(); e.stopPropagation(); t.row.setAttribute('data-dropnode', ''); };
   const drop = e => {
@@ -425,8 +426,10 @@ function drawBeside() {
   panel.innerHTML = `<div class="th-tw-dockhead"><span><b>${esc(kept.label)}</b> <span class="th-tw-dockpage">${esc(kept.title)}</span></span><button type="button" class="lk-x" data-dockoff="" aria-label="Let this list go" title="Let this list go">×</button></div><div class="th-tw-docklist">${items.map(item => `<a href="#" class="th-tw-dockline" data-dockopen="${esc(item.uuid)}"><span class="th-tw-dockday">${esc(item.day || '')}</span><span>${esc(item.title)}</span></a>`).join('')}</div>`;
 }
 twoWay.rowMenuHooks.push(group => state.drawingTop ? [] : [{ icon: 'sidebar', label: 'Keep in the corner', run: () => keepBeside(group) }]);
-twoWay.settledHooks.push(() => drawBeside());
+// The list kept in the corner is one for the window: the main view's copy draws it.
+twoWay.settledHooks.push(() => twoWay.pane.main && drawBeside());
 twoWay.starters.push(() => {
+  if (!twoWay.pane.main) return;
   const doc = host();
   const onDock = e => {
     const off = e.target.closest?.('.th-tw-dock [data-dockoff]'), open = e.target.closest?.('.th-tw-dock [data-dockopen]');
@@ -456,4 +459,5 @@ twoWay.clickHooks.push(event => {
 twoWay.starters.push(() => { state.stamps = new Map(); state.keeps = new Map(); state.visitPage = ''; state.yearOn = new Set(); state.yearPick = new Map(); state.yearLaneOn = new Map(); });
 
 Object.assign(twoWay, { keepBeside, compare, isNew, pinsOf, sortOf });
+});
 })();

@@ -3,7 +3,8 @@
    its page (Shift: in the right sidebar). On a tag's own page, only the tags above it; its own name is the title. Two
    tags of a page are kept apart by a dot. Under the pointer an × stands before a tag the page holds and takes it off; on
    a tag's page it reaches every node under the tag, so it opens Structure's ask, and with Structure off there is no ×. It sits in the room before the name, so nothing moves.
-   The same line sits under a page's name in the right sidebar. Drawn from the index marks.js keeps, in the same frame as
+   The same line sits under a page's name in the right sidebar. On the right half of two pages side by side (split.js), which is a
+   page in the right sidebar under the split's own title, it stands as on the main page: at the right end, under the title. Drawn from the index marks.js keeps, in the same frame as
    the title, so the row's right end never moves after the title has come. */
 (function () {
 const Look = window.Look;
@@ -30,6 +31,15 @@ const css = `
 .lk-path a.lk-tag { cursor: pointer; }
 /* Logseq's own faded tags there give way to the line. */
 .ls-block-right:has(> .lk-path) > .block-tags { display: none; }
+/* On the right half of two pages side by side, in the split's title row as on the main page's: at the row's right end, 17 px down,
+   in the words' own size and weight (not the title's); where the page is 600 px wide or less, Logseq's title row stacks, and the line
+   stands under the title, at the right, as there. The split's panel is the size the rule is read from (split.js), as the title's
+   block is on the main page. */
+.lk-split-title > .lk-path.lk-path-split { display: flex; flex: 0 1 auto; width: fit-content; margin: 15px 16px 0 auto; font: 500 14px/1.6 var(--ls-font-family, inherit); letter-spacing: normal; }
+@container lk-split (max-width: 600px) {
+  .lk-split-title:has(> .lk-path-split) { flex-wrap: wrap; }
+  .lk-split-title > .lk-path.lk-path-split { flex-basis: 100%; max-width: none; justify-content: flex-end; margin: 7px 16px -4px 0; }
+}
 /* In the right sidebar: a line of its own under the page's name, wrapping between names. */
 .lk-path.lk-path-sb { display: block; max-width: none; margin: 4px 0 0 4px; white-space: normal; overflow: visible; }
 .lk-path.lk-path-sb .lk-held { white-space: nowrap; }
@@ -120,7 +130,9 @@ function drawTitle(doc, index) {
 }
 function drawSidebar(doc, index) {
   const on = setting('tagChainSidebar'), seen = new Set();
-  if (on) for (const item of doc.querySelectorAll(SIDEBAR_PAGE)) {
+  // The right half of two pages side by side follows the main page's setting; the other sidebar pages their own.
+  for (const item of doc.querySelectorAll(SIDEBAR_PAGE)) {
+    if (!(item.hasAttribute('data-lk-split-item') ? setting('tagChain') : on)) continue;
     const name = item.querySelector('.sidebar-item-header .page-title > span')?.textContent.trim();
     const pageEl = item.querySelector('.sidebar-panel-content .page');
     if (!name || !pageEl) continue;
@@ -128,10 +140,15 @@ function drawSidebar(doc, index) {
     const uuid = index.uuidByName(name);
     if (!uuid) continue;
     const groups = groupsOf(index, uuid);
+    // The right half of two pages side by side: as on the main page, in the split's title row.
+    const splitTitle = item.hasAttribute('data-lk-split-item') ? item.querySelector('.sidebar-panel-content > .lk-split-title') : null;
+    const cls = splitTitle ? 'lk-path lk-path-split lk-own' : 'lk-path lk-path-sb lk-own';
     let box = state.boxes.get(item);
-    if (!box) state.boxes.set(item, box = el(doc, 'div', { class: 'lk-path lk-path-sb lk-own', click: open, keydown: press, mousedown: keep, pointerdown: keep }));
+    if (box && box.className !== cls) { box.remove(); state.boxes.delete(item); box = null; }
+    if (!box) state.boxes.set(item, box = el(doc, 'div', { class: cls, click: open, keydown: press, mousedown: keep, pointerdown: keep }));
     const key = JSON.stringify([uuid, groups.tagPage, groups]);
     if (box.dataset.key !== key) { box.dataset.key = key; box.dataset.page = uuid; box.dataset.tagPage = groups.tagPage ? '1' : ''; box.replaceChildren(...build(doc, groups)); }
+    if (splitTitle) { if (splitTitle.lastElementChild !== box) splitTitle.append(box); if (!groups.length) box.remove(); continue; }
     const spot = pageEl.querySelector('.ls-sidebar-page-properties');
     if (spot) { if (box.nextElementSibling !== spot) spot.before(box); }
     else { const inner = pageEl.querySelector('.page-inner') || pageEl; if (inner.firstElementChild !== box) inner.prepend(box); }

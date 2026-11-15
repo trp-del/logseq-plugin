@@ -5,8 +5,8 @@
    where its pieces meet. What this piece uses of the part or another piece it reaches through twoWay when it runs; what
    it gives them is listed at its end. */
 (() => {
-const twoWay = window.Threads.parts?.find(part => part.name === 'two-way')?.inner;
-if (!twoWay) return;   // the two-way part did not load, so nothing of it runs
+// Given to each copy of the part (the main view's, and the right half's of two pages side by side); with no part loaded, nothing of it runs.
+window.Threads.parts?.find(part => part.name === 'two-way')?.inner?.piece?.(twoWay => {
 
 const twoWayCss = `
 /* Under the page's own properties, as more property rows (the light field around them went at the design audit: a box around rows meant to read as rows): these rows are the far end of a field held by other
@@ -40,6 +40,7 @@ const twoWayCss = `
 /* Waiting unseen in its place for Logseq's property list on a first visit, the page's words below it with it. */
 .th-two-way[data-th-waiting] { visibility: hidden; }
 #main-content-container:has(.th-two-way[data-th-waiting]) .ls-page-blocks { visibility: hidden; }
+#right-sidebar .sidebar-item[data-lk-split-item]:has(.th-two-way[data-th-waiting]) .ls-page-blocks { visibility: hidden; }   /* the right half of two pages side by side waits the same way */
 /* Only holding room while the page settles: no field, no rows. */
 .th-two-way:not(:has(.th-tw-row, .th-tw-beside, .th-tw-whole)) { margin: var(--th-tw-hold, 0px) 0 0; }   /* Linked folded keeps its margin: it lost it and leapt 56 px up (11 November 2026) */
 /* The room held while the page settled eases away, only then: while the page settles the held room shrinks in the same frame Logseq's list grows, and must not lag. */
@@ -397,7 +398,7 @@ const twoWayCss = `
 /* A shifted section's top: the trail ends on it in bold; its properties; then "N nodes link here" on the
    find field's hairline, and its rows as the page's. */
 .th-two-way .th-tw-toplinks { grid-column: 1 / -1; color: var(--lk-quiet); font-size: var(--lk-small); padding: 0 0 5px; margin: 14px 0 4px; border-bottom: 1px solid var(--lk-hair); }
-::highlight(th-find) { background-color: var(--rx-blue-04, #e1f0ff); } /* a very subtle blue, Logseq's own (the owner: "I don't like a yellow highlight, do very subtle blue") */
+::highlight(th-find), ::highlight(th-find-right) { background-color: var(--rx-blue-04, #e1f0ff); } /* a very subtle blue, Logseq's own (the owner: "I don't like a yellow highlight, do very subtle blue") */
 /* The grey line under a node (where it sits) keeps its whole words and runs the width of the line (the owner, 7 November
    2026: "the subtitle should get full width"), to two lines, then is cut, as a node's own words are. */
 .th-two-way .th-tw-crumb { color: var(--lk-quiet); font-size: var(--lk-small); line-height: 1.3; margin: 0 0 3px var(--th-tw-words); overflow-wrap: anywhere; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
@@ -517,9 +518,16 @@ const twoWayCss = `
    as the rows, without the field that links them. Left out in the main view while the rows are drawn there, so a page
    with none keeps Logseq's list; and in the right sidebar always (the owner: "hide that bi-directional section
    that is already hidden in main views"), though it gets no rows: the same records are in its Linked references. */
-// Logseq's Linked references (only that: Unlinked references sits outside .references) where the rows replace it.
+// Logseq's Linked references (only that: Unlinked references sits outside .references) where the rows replace it: in the main
+// view, and on the right half of two pages side by side, which has its own rows.
 const hideLinkedRefsCss = `
 #main-content-container:has(.th-two-way[data-th-replaces][data-th-rows]) .references { display: none !important; }
+#right-sidebar .sidebar-item[data-lk-split-item]:has(.th-two-way[data-th-replaces][data-th-rows]) .references { display: none !important; }
+`;
+// On the right half of two pages side by side the section stands after Logseq's box around the page's property list, as far under
+// "Add property" as on the main page.
+const splitCss = `
+#right-sidebar .sidebar-item[data-lk-split-item] .ls-sidebar-page-properties + .th-two-way { margin-top: 28px; }
 `;
 // The days' column taken away (twoWayDays off): its width to nothing, so the rows move left into it, and the days unseen.
 const noDaysCss = `
@@ -531,5 +539,6 @@ const hideTagListsCss = `
 #right-sidebar :is(.ls-bidirectional-properties, .ls-bidirectional-block-container) { display: none !important; }
 `;
 
-Object.assign(twoWay, { hideLinkedRefsCss, hideTagListsCss, noDaysCss, twoWayCss });
+Object.assign(twoWay, { hideLinkedRefsCss, hideTagListsCss, noDaysCss, twoWayCss: twoWayCss + splitCss });
+});
 })();

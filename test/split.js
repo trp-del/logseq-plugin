@@ -30,7 +30,7 @@ function world({ sidebarOpen = true, settings = {}, list = null, keyed = false, 
   const dom = new JSDOM(`<html><head></head><body><main id="app-container-wrapper"><div id="app-container"><div id="left-container"><div id="main-container"><div id="left-sidebar"></div><div id="main-content-container"></div></div></div><div id="right-sidebar" class="cp__right-sidebar" data-lk-tab="todo"><div class="resizer" role="separator"></div><div class="cp__right-sidebar-inner"><div class="cp__right-sidebar-topbar"><div class="cp__right-sidebar-settings"></div></div><div class="sidebar-item-list"></div></div></div></div></main></body></html>`, { pretendToBeVisual: true, url: 'http://localhost/' });
   const win = dom.window, doc = win.document;
   Object.defineProperty(win, 'innerWidth', { value: 1500, configurable: true });
-  const nodes = { [U(1)]: { id: 1, uuid: U(1), title: 'Fatigue' }, [U(2)]: { id: 2, uuid: U(2), title: 'Dr. Mei Chen' }, [U(3)]: { id: 3, uuid: U(3), title: 'Consultation' }, [U(4)]: { id: 4, uuid: U(4), title: 'Spoke with her', page: { id: 1 } } };
+  const nodes = { [U(1)]: { id: 1, uuid: U(1), title: 'Fatigue' }, [U(2)]: { id: 2, uuid: U(2), title: 'Dr. Mei Chen' }, [U(3)]: { id: 3, uuid: U(3), title: 'Consultation', ident: ':user.class/Consultation' }, [U(4)]: { id: 4, uuid: U(4), title: 'Spoke with her', page: { id: 1 } } };
   const store = { 'sidebar/blocks': list || [[REPO, ':logseq-plugin/_sidebar.todo-side', 'plugin'], [REPO, 9, 'page']], 'ui/sidebar-open?': sidebarOpen };
   const log = [], logseqHeard = [];
   let shown = U(1);
@@ -84,9 +84,13 @@ function world({ sidebarOpen = true, settings = {}, list = null, keyed = false, 
   // A ⌘-click on a page's link in the main view: the page opens beside, as two equal halves, and Logseq never hears the press.
   {
     const w = world();
+    const heard = [];   // what a module drawing on the right page (Threads) hears of it
+    w.Door.split.onChange(() => heard.push(JSON.parse(JSON.stringify(w.Door.split.page()))));   // as plain objects of this side (the plugin runs in a context of its own)
     w.press(w.link('#main-content-container', 'a.page-ref'), { metaKey: true });
     await w.settle();
     assert.deepEqual(w.logseqHeard, [], 'Logseq does not hear the ⌘-click, so it does not go to the page');
+    assert.deepEqual(heard, [{ uuid: U(2), page: true }], 'the page on the right is told as it changes');
+    assert.ok(!w.doc.querySelector('[data-lk-split-item]').hasAttribute('data-lk-split-kind') && !w.doc.querySelector('.lk-split-icon'), 'a plain page has no # or P before its title');
     assert.equal(w.S().id, 2, 'Dr. Mei Chen is on the right');
     assert.equal(w.shown(), 'Fatigue', 'the page on the left stays');
     const side = w.doc.getElementById('right-sidebar');
@@ -140,6 +144,8 @@ function world({ sidebarOpen = true, settings = {}, list = null, keyed = false, 
     assert.equal(w.S().id, 3, 'Consultation is on the right');
     assert.deepEqual(w.store['sidebar/blocks'].map(e => e[1]), [3, ':logseq-plugin/_sidebar.todo-side', 9], 'Dr. Mei Chen left the sidebar list');
     assert.equal(w.doc.querySelector('[data-lk-split-item] .lk-split-title')?.textContent, 'Consultation');
+    assert.equal(w.doc.querySelector('[data-lk-split-item]').getAttribute('data-lk-split-kind'), 'tag', 'a tag\'s page is marked, so its property list is left out as on the main view');
+    assert.ok(w.doc.querySelector('[data-lk-split-item] .lk-split-title > svg.lk-split-icon:first-child + .lk-split-name'), 'Logseq\'s # stands before a tag\'s name, as on the main view');
     assert.equal(w.doc.querySelectorAll('.lk-split-tools').length, 1, 'one pair of corner icons');
 
     // ⇄: the two pages change places.
@@ -154,6 +160,8 @@ function world({ sidebarOpen = true, settings = {}, list = null, keyed = false, 
     w.doc.querySelector('.lk-split-tools .lk-split-x').click();
     await w.settle();
     assert.equal(w.S().id, null, 'the split is closed');
+    assert.deepEqual(heard.map(now => now?.uuid ?? null), [U(2), U(3), U(1), null], 'told of each page on the right, then of the split\'s end');
+    assert.equal(w.Door.split.page(), null);
     assert.equal(w.shown(), 'Consultation', 'the left page stays and takes the whole width');
     assert.deepEqual(w.store['sidebar/blocks'].map(e => e[1]), [':logseq-plugin/_sidebar.todo-side', 9], 'the sidebar list is as before the split');
     assert.equal(w.store['ui/sidebar-open?'], true, 'the sidebar is open, as it was');

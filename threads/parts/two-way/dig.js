@@ -4,8 +4,8 @@
    where its pieces meet. What this piece uses of the part or another piece it reaches through twoWay when it runs; what
    it gives them is listed at its end. */
 (() => {
-const twoWay = window.Threads.parts?.find(part => part.name === 'two-way')?.inner;
-if (!twoWay) return;   // the two-way part did not load, so nothing of it runs
+// Given to each copy of the part (the main view's, and the right half's of two pages side by side); with no part loaded, nothing of it runs.
+window.Threads.parts?.find(part => part.name === 'two-way')?.inner?.piece?.(twoWay => {
 const shared = window.Threads.shared;
 const { host, openEntity, notify, esc } = shared;
 const O = shared.outline;
@@ -342,7 +342,7 @@ function pinNow() {
   const box = state.box, pin = box?.querySelector('.th-tw-pin');
   if (!pin) return;
   // The top of what can be read: under Logseq's top bar, which lies over the page.
-  const scroller = box.closest('#main-content-container');
+  const scroller = twoWay.pane.scroller(box);
   const head = box.ownerDocument.querySelector('#head, .cp__header');
   const sTop = scroller?.getBoundingClientRect().top || 0, top = Math.max(sTop, head?.getBoundingClientRect().bottom || 0);
   const pinTop = Math.round(top - sTop) + 'px';
@@ -489,7 +489,7 @@ twoWay.starters.push(() => {
   const onKey = event => {
     if (event.key?.toLowerCase() !== 'z' || !(event.metaKey || event.ctrlKey) || event.shiftKey || event.altKey) return;
     const at = doc.activeElement;
-    if (!at?.closest?.('.th-two-way') || at.closest('input, textarea, [contenteditable="true"]')) return;
+    if (!at?.closest?.('.th-two-way') || !twoWay.mine(at) || at.closest('input, textarea, [contenteditable="true"]')) return;
     const keys = [...(shared.undo.keys?.() || [])].filter(k => String(k).startsWith('two-way:'));
     if (!keys.length) return;
     event.preventDefault(); event.stopPropagation();
@@ -501,7 +501,7 @@ twoWay.starters.push(() => {
 twoWay.starters.push(() => {
   const onKey = event => {
     const words = event.key === 'Enter' && !event.isComposing && !event.shiftKey && event.target.closest?.('[data-edit-bullet]');
-    if (!words) return;
+    if (!words || !twoWay.mine(words)) return;
     event.preventDefault(); event.stopPropagation();
     editBullet(words.dataset.editBullet).catch(error => { warnOnce('could not change the bullet', error); notify('The bullet could not be changed', 'warning'); });
   };
@@ -707,7 +707,7 @@ twoWay.starters.push(() => {
   const doc = host();
   const onKey = event => {
     const at = doc.activeElement;
-    if (!at?.matches?.('.th-two-way a.th-tw-record[data-uuid]')) return;
+    if (!at?.matches?.('.th-two-way a.th-tw-record[data-uuid]') || !twoWay.mine(at)) return;
     const spec = window.PluginDoor.logseqCommands?.().find(c => String(c?.id || '').endsWith('editor/add-property'))?.shortcut || 'mod+p';
     if (![].concat(spec).some(one => window.PluginDoor.keys.matches(event, one))) return;
     const key = keyOfLine(at);
@@ -771,4 +771,5 @@ function onOutlineClick(event) {
 }
 
 Object.assign(twoWay, { addProp, onNodeMenu, closeDig, digChev, holdsMore, digKids, editBullet, focusNodeField, keepNodeField, onOutlineClick, pinNow, readNode, reading, stepBack, steppedHtml, topStep });
+});
 })();

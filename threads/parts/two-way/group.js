@@ -3,8 +3,8 @@
    where its pieces meet. What this piece uses of the part or another piece it reaches through twoWay when it runs; what
    it gives them is listed at its end. */
 (() => {
-const twoWay = window.Threads.parts?.find(part => part.name === 'two-way')?.inner;
-if (!twoWay) return;   // the two-way part did not load, so nothing of it runs
+// Given to each copy of the part (the main view's, and the right half's of two pages side by side); with no part loaded, nothing of it runs.
+window.Threads.parts?.find(part => part.name === 'two-way')?.inner?.piece?.(twoWay => {
 const shared = window.Threads.shared;
 const { host, esc, iconHtml } = shared;
 const { state, warnOnce } = twoWay;
@@ -321,7 +321,7 @@ function moveList(name, before) {
 twoWay.starters.push(() => {
   const doc = host();
   let dragging = '';
-  const rowOf = t => t?.closest?.('.th-two-way .th-tw-row');
+  const rowOf = t => { const row = t?.closest?.('.th-two-way .th-tw-row'); return row && twoWay.mine(row) ? row : null; };
   const start = e => { const nm = e.target.closest?.('.th-two-way .th-tw-name'); const row = nm && rowOf(nm); if (!row) return; dragging = row.dataset.field; e.dataTransfer?.setData('text/plain', dragging); if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'; row.classList.add('th-tw-dragging'); };
   const over = e => { if (!dragging) return; const row = rowOf(e.target); if (!row) return; e.preventDefault(); e.stopPropagation(); for (const r of doc.querySelectorAll('.th-tw-row[data-drop]')) r.removeAttribute('data-drop'); const r = row.getBoundingClientRect(); row.setAttribute('data-drop', e.clientY < r.top + r.height / 2 ? 'above' : 'below'); };
   const end = () => { dragging = ''; for (const r of doc.querySelectorAll('.th-tw-row[data-drop], .th-tw-dragging')) { r.removeAttribute('data-drop'); r.classList.remove('th-tw-dragging'); } };
@@ -337,4 +337,5 @@ twoWay.starters.push(() => {
   twoWay.listen(doc, 'dragstart', start, true); twoWay.listen(doc, 'dragover', over, true); twoWay.listen(doc, 'drop', drop, true); twoWay.listen(doc, 'dragend', end, true);
 });
 Object.assign(twoWay, { moveList, shortView, viewSaid, setGroup, dayChoice, dayOf, dayIn, dayFrom, listFrom, lineDayOf, forgetOrder, groupBtn, groupHtml, groupMenu, viewItems, groupName, groupOf, groupedUuids, groupingOf, isOpen, readGroup, readOpen, readValues, setGroupValue, setOpen, startGroupDraft, tellHtml, tellingProp });
+});
 })();
