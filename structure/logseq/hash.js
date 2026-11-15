@@ -292,9 +292,9 @@ function start(app, doc) {
   // Only a pointer that really moved counts: a list drawn under a resting pointer must not take the lit row with it.
   let pointer = '';
   function onOver(e) {
-    const at = `${e.clientX},${e.clientY}`, moved = at !== pointer; pointer = at;
-    const list = listEl(); if (!moved || !list || !list.contains(e.target)) return;
-    moved = true; walked = null;
+    const at = `${e.clientX},${e.clientY}`, shifted = at !== pointer; pointer = at;
+    const list = listEl(); if (!shifted || !list || !list.contains(e.target)) return;
+    moved = true; walked = null;   // the module's own: the pointer has moved the lit row, so the first match is no longer kept lit
     const row = e.target.closest?.('.st-hrow');
     if (own && row) { const i = Number(row.dataset.i); if (i !== own.lit) { own.lit = i; light(); } }
     else if (twin && !own) { const lit = !!row; if (e.target.closest?.('.menu-link-wrap') && lit !== twin.lit) { twin.lit = lit; light(); } }

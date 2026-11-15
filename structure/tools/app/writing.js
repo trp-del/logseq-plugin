@@ -67,6 +67,13 @@ const sleep = D.sleep;
     ok(/^> Hospital.*Organization$/.test(list[0]) && list.at(-1).trim() === 'New tag hospi' && list.every(r => r[1] !== '^'), '#hospi: Hospital lit first with its path, Hospitalization next, New tag hospi last, and no row the keys pass over');
     await p.keyboard.press('ArrowDown'); await p.keyboard.press('ArrowDown'); await sleep(250); ok(/New tag hospi/.test(await lit()), 'Down twice, quickly, reaches New tag: one row a press');
     await p.keyboard.press('ArrowDown'); await sleep(200); ok(/^> Hospital/.test(await lit()), 'Down from the last row goes round to the first');
+    // The pointer moved over a row lights it, with no error thrown (15 November 2026: a constant reassigned on every move broke this).
+    const thrown = []; const onError = error => thrown.push(String(error.message || error)); p.on('pageerror', onError);
+    const second = await p.evaluateHandle(() => { const l = document.getElementById('ui__ac-inner'); return [...l.querySelectorAll(':scope > .menu-link-wrap')].find(w => /^Hospitalization/.test(w.textContent.trim())); });
+    const b2 = await second.asElement().boundingBox(); await p.mouse.move(b2.x + 40, b2.y + b2.height / 2, { steps: 4 }); await sleep(300);
+    p.off('pageerror', onError);
+    ok(/^> Hospitalization/.test(await lit()) && !thrown.length, `the pointer moved over Hospitalization lights it, and nothing is thrown${thrown.length ? ' (' + thrown[0] + ')' : ''}`);
+    await p.mouse.move(5, 600);
     ok(await p.evaluate(() => { const m = document.querySelector('#ui__ac-inner mark'); const st = m && getComputedStyle(m); return !!st && st.backgroundColor === 'rgba(0, 0, 0, 0)' && Number(st.fontWeight) >= 600; }), 'the letters typed are semibold in a match, with no yellow behind them');
     await clear(); await leave();
     // 5. a property's values by tag
