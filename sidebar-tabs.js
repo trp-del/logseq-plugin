@@ -83,6 +83,10 @@ function draw(doc = host()) {
   // The tab picked is gone: the first view that is open, else the first view, opened.
   if (tabs.cur !== SIDE && !ordered.some(v => v.key === tabs.cur)) tabs.cur = ordered.find(v => v.find(doc))?.key || null;
   if (!tabs.cur && ordered[0] && !tabs.pending) { pickView(doc, ordered[0]); return; }
+  // The tab picked whose panel is no longer in the sidebar (closed by Logseq, a graph switched): opened again, as a press on its
+  // tab opens it, so the sidebar never stands empty under a picked tab (the owner, 15 November 2026: "todo is blank on sidebar").
+  const picked = ordered.find(v => v.key === tabs.cur);
+  if (picked && !picked.find(doc) && tabs.pending !== picked.key && !picked.owns) { pickView(doc, picked); return; }
   // Which items show: the view picked, alone and without its head; or, on Sidebar, everything else as Logseq stacks it.
   const view = ordered.find(v => v.key === tabs.cur), viewItem = view?.find(doc);
   // The tab picked is said on the sidebar, so a panel two tabs share shows the part its tab names.

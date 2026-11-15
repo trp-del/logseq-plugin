@@ -85,4 +85,30 @@ view.destroy();
 app.tasks = app.tasks.filter(t => t.status === 'done'); app.setBy('Tag');
 const empty = document.createElement('div'); document.body.append(empty); T.view.make(empty, 'side');
 assert.equal(empty.querySelector('.lk-none').textContent, 'Nothing to do.');
+
+// The library's pieces: the heads are its small faint name (lk-name), as Find's; the page under a row and the day the add line
+// reads are its quiet line (lk-note); the add line is its field (lk-field), with no hairline of Todo's own.
+app.setBy('Day'); app.tasks.push(task('Phone the clinic', { day: day(0) }));
+const lib = document.createElement('div'); document.body.append(lib); T.view.make(lib, 'side');
+assert.ok([...lib.querySelectorAll('.td-head')].every(h => h.classList.contains('lk-name')), 'every heading is the library’s lk-name');
+assert.ok(lib.querySelector('.td-where').classList.contains('lk-note') && lib.querySelector('.td-when').classList.contains('lk-note'), 'the page line and the day line are lk-note');
+assert.ok(lib.querySelector('.td-add').classList.contains('lk-field'));
+const css = document.getElementById('td-style')?.textContent || [...document.querySelectorAll('style')].map(x => x.textContent).join('');
+assert.ok(!/\.td-add[^{]*\{[^}]*border-bottom-color/.test(css), 'the field’s hairline is the library’s');
+assert.ok(!/\.td \.lk-none/.test(css) && !/\.td-head \.lk-tag/.test(css), 'the nothing-here line and the tag are the library’s as drawn');
+
+// A sidebar panel Logseq kept while the plugin stopped (a reload, an update) is drawn again at start: never a blank panel.
+const kept = document.createElement('div'); kept.className = 'td-holder td-holder-side'; document.body.append(kept);
+const reread = app.reread; app.reread = async () => {};   // the graph is not read here
+T.adopt();
+assert.ok(kept.querySelector(':scope > .td .td-add') && kept.querySelector('.td-head'), 'the kept panel has its add line and its list');
+const count = app.views.size; T.adopt();
+assert.equal(app.views.size, count, 'a panel already drawn is not drawn twice');
+app.reread = reread;
+
+// Not read yet: the add line alone; a read that failed says so in a plain line where the list stands.
+app.read = false; app.failed = 'Logseq did not answer';
+const failed = document.createElement('div'); document.body.append(failed); T.view.make(failed, 'side');
+assert.ok(failed.querySelector('.td-add'), 'the add line stands');
+assert.equal(failed.querySelector('.td-list .lk-none').textContent, 'The tasks could not be read: Logseq did not answer.');
 console.log('todo groupings ok');

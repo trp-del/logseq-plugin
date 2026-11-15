@@ -10,7 +10,7 @@ const FOLD_AFTER = 600;   // a ticked row stays a moment, crossed out, then roll
 
 let changes = 0;
 const app = T.app = {
-  tasks: [], read: false, views: new Set(), doneOpen: false, byNow: '',
+  tasks: [], read: false, failed: '', views: new Set(), doneOpen: false, byNow: '',
   ticking: new Map(),   // uuid → { timer, key }: ticked, crossed out, waiting to roll away
   status: new Map(),    // uuid → the status written here, until the graph is read again
   shown: t => app.status.get(t.uuid) || t.status,
@@ -61,8 +61,8 @@ const app = T.app = {
   },
   draw() { for (const v of [...app.views]) { if (!v.root.isConnected) { app.views.delete(v); continue; } try { v.draw(); } catch (error) { console.error('Todo: a draw failed', error); } } },
   async reread() {
-    try { app.tasks = await T.db.read(); app.read = true; app.status.clear(); }
-    catch (error) { console.error('Todo: the tasks could not be read', error); if (!app.read) notify(`The tasks could not be read: ${Door.reason(error, 'Logseq did not answer. Open Todo again in a moment')}`, 'warning'); }
+    try { app.tasks = await T.db.read(); app.read = true; app.failed = ''; app.status.clear(); }
+    catch (error) { console.error('Todo: the tasks could not be read', error); if (!app.read) app.failed = Door.reason(error, 'Logseq did not answer. Open Todo again in a moment'); if (!app.read) notify(`The tasks could not be read: ${Door.reason(error, 'Logseq did not answer. Open Todo again in a moment')}`, 'warning'); }
     app.draw();
   },
   // Every row of a task, in every view, for the Undo arrow to sit at.
@@ -138,6 +138,28 @@ const app = T.app = {
 };
 let readTimer = 0;
 
+/* The list drawn into a holder Logseq gave: as Logseq mounts it, and again at start for a holder Logseq kept while the plugin
+   stopped (the owner, 15 November 2026: "todo is blank on sidebar"; a plugin reload or update takes the list down, and Logseq
+   keeps its sidebar panel without mounting it again, so the panel stood empty). A drawing that fails leaves a plain line, never
+   a blank panel. */
+function drawInto(holder, mode) {
+  let view = null;
+  try { view = T.view.make(holder, mode); view.focus(); app.reread(); }
+  catch (error) {
+    console.error('Todo: the list could not be drawn', error);
+    holder.innerHTML = `<div class="td td-own td-${mode}"><div class="lk-none">The list could not be drawn: ${Door.esc(Door.reason(error, 'open Todo again in a moment'))}.</div></div>`;
+  }
+  if (mode === 'side') { const heading = holder.closest('.sidebar-item')?.querySelector('.page-title h3'); if (heading) heading.textContent = 'Todo'; }
+  return view;
+}
+function adopt() {
+  for (const holder of Door.host().querySelectorAll('.td-holder')) {
+    if (holder.querySelector(':scope > .td')) continue;
+    drawInto(holder, holder.classList.contains('td-holder-page') ? 'page' : 'side');
+  }
+}
+T.adopt = adopt;
+
 function mount() {
   const React = logseq.Experiments?.React;
   if (!React?.createElement) { console.error('Todo: Logseq gives plugins no React here, so the list cannot be shown'); return; }
@@ -146,9 +168,7 @@ function mount() {
     React.useEffect(() => {
       const holder = ref.current;
       if (!holder) return undefined;
-      let view = null;
-      try { view = T.view.make(holder, mode); view.focus(); app.reread(); } catch (error) { console.error('Todo: the list could not be drawn', error); }
-      if (mode === 'side') { const heading = holder.closest('.sidebar-item')?.querySelector('.page-title h3'); if (heading) heading.textContent = 'Todo'; }
+      const view = drawInto(holder, mode);
       return () => view?.destroy();
     }, []);
     return React.createElement('div', { ref, className: `td-holder td-holder-${mode}` });
@@ -161,6 +181,7 @@ function mount() {
   T.base.onStop(Door.sideTabs?.add({ key: 'todo', word: 'Todo', order: 4,
     find: doc => doc.getElementById('_sidebar.' + SIDE)?.closest('.sidebar-item') || null,
     open: () => { logseq.Editor.openInRightSidebar('_sidebar.' + SIDE); } }));
+  adopt();
 }
 const openPage = () => { const win = Door.host().defaultView; if (win.location.hash.split('?')[0] !== '#' + ROUTE) win.location.hash = '#' + ROUTE; else for (const v of app.views) if (v.mode === 'page') v.focus(); };
 
@@ -176,7 +197,7 @@ async function main() {
   onStop(logseq.DB.onChanged(() => { if (app.views.size) app.later(); }));
   // The grouping changed in the settings window: drawn at once in both places.
   onStop(logseq.onSettingsChanged((now, before) => { if (!Door.settingChanged(['todoGroupBy'], now, before)) return; app.byNow = ''; app.draw(); }));
-  onStop(logseq.App.onCurrentGraphChanged(() => { Door.undo.clear('todo'); T.db.forget(); app.ticking.clear(); app.tasks = []; app.read = false; app.draw(); app.reread(); }));
+  onStop(logseq.App.onCurrentGraphChanged(() => { Door.undo.clear('todo'); T.db.forget(); app.ticking.clear(); app.tasks = []; app.read = false; app.failed = ''; app.draw(); app.reread(); }));
   // A new day while the list is open: Today, Coming up and the late days move on.
   let day = dates.today();
   const tick = setInterval(() => { if (dates.today() !== day) { day = dates.today(); app.draw(); } }, 60000);
