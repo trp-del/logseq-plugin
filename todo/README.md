@@ -27,9 +27,9 @@ Outside By day, a group with no task is left out, and the day stands at every ro
 
 Only Todo and Doing are listed; Backlog, In Review and Canceled are left out. Nothing is coloured but a late day; there are no filters or sort menus.
 
-**A row**: the library's tick box, the task's words, under them in grey the page the task is on (a journal's title for a journal day), and the day at the right in grey. A task that is Doing has a small filled grey square in its box. A link in the words reads as its page's name. Pointing at a row washes it faintly. Pressing the words opens the task, zoomed in to its bullet; with Shift, in the right sidebar.
+**A row**: the task's status circle, Logseq's own, the task's words, under them in grey the page the task is on (a journal's title for a journal day), and the day at the right in grey. The circle is the icon each status has in Logseq (an empty circle for Todo, a half one for Doing, a ticked one for Done by default), so a status given another icon in Logseq shows that icon here; it stands centred on the first line of the words. A link in the words reads as its page's name. Pointing at a row washes it faintly. Pressing the words opens the task, zoomed in to its bullet; with Shift, in the right sidebar.
 
-**Ticking.** The box ticks and the words are crossed out; after a moment the row rolls away (the plugin's one motion) and the task stands in Done. Pressed again in that moment, the tick is taken back. The one Undo arrow stands faintly after the words while the row is on screen, and at the bottom right with its words once the row has gone.
+**Ticking.** Pressing the circle turns it to Done's and crosses the words out; after a moment the row rolls away (the plugin's one motion) and the task stands in Done. Pressed again in that moment, the tick is taken back. The one Undo arrow stands faintly after the words while the row is on screen, and at the bottom right with its words once the row has gone.
 
 **Done**, at the foot whatever the grouping, folded, with a faint count: the tasks done in the last seven days, newest first, crossed out. The fold arrow or the word opens it, rolling out. Unticking a task there sets it back to Todo, with its Undo.
 
@@ -37,7 +37,7 @@ Only Todo and Doing are listed; Backlog, In Review and Canceled are left out. No
 
 ## Its keys
 
-g then d outside a bullet opens the page (set in Logseq's keyboard shortcuts). In the add line: Return adds, Escape clears, then leaves. In the list: Tab reaches the grouping word, each box and each task's words; Space ticks, Return opens (on the grouping word, the menu).
+g then d outside a bullet opens the page (set in Logseq's keyboard shortcuts). In the add line: Return adds, Escape clears, then leaves. In the list: Tab reaches the grouping word, each circle and each task's words; Space on a circle ticks, Return opens (on the grouping word, the menu).
 
 ## What it writes
 

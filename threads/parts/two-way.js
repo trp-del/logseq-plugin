@@ -556,28 +556,9 @@ const nameWords = item => item.words && /\[\[|https?:\/\//.test(item.words) ? tw
    written with the faded Undo arrow (setStatus). */
 state.statuses = new Map();
 const readStatuses = async () => { if (!provided.statusChoices) return; const list = await provided.statusChoices().catch(error => { warnOnce('could not read the statuses', error); return null; }); if (list) state.statuses = new Map(list.map(s => [s.id, s])); };
-// An icon as Logseq draws it from what it keeps ({ type, id, color }): one of Logseq's own drawn ones (its tablerIcons, such as
-// Todo or Done), else Tabler's font Logseq loads (ti-star), or an emoji. Nothing of the icon is copied into Threads.
-const pascal = id => String(id).replace(/(^|[-_ ])(\w)/g, (m, s, c) => c.toUpperCase());
-const KEBAB = /^(viewBox|xmlns)$/;
-function elementHtml(node) {
-  if (node == null || node === false) return '';
-  if (Array.isArray(node)) return node.map(elementHtml).join('');
-  if (typeof node !== 'object') return esc(String(node));
-  if (typeof node.type === 'function') return elementHtml(node.type(node.props || {}));
-  const { children, ...props } = node.props || {};
-  const attrs = Object.entries(props).filter(([, v]) => v != null && v !== false && typeof v !== 'function' && typeof v !== 'object')
-    .map(([k, v]) => ` ${k === 'className' ? 'class' : KEBAB.test(k) ? k : k.replace(/[A-Z]/g, c => '-' + c.toLowerCase())}="${esc(String(v))}"`).join('');
-  return `<${node.type}${attrs}>${elementHtml(children)}</${node.type}>`;
-}
-function statusIconHtml(icon) {
-  if (!icon?.id) return '';
-  if (icon.type === 'emoji') return `<em-emoji id="${esc(icon.id)}" size="1em"></em-emoji>`;
-  const drawn = host().defaultView?.tablerIcons?.['Icon' + pascal(icon.id)];
-  if (drawn) { try { return elementHtml(drawn({ size: 18 })); } catch { /* the font below */ } }
-  return `<i class="ti ti-${esc(String(icon.id).replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase())}" aria-hidden="true"></i>`;
-}
-const taskHtml = item => { const s = state.statuses.get(item.status); if (!s) return ''; const color = s.icon?.color ? ` style="color: ${esc(s.icon.color)}"` : ''; return `<button type="button" class="th-task ls-icon-${esc(s.icon?.id || '')}"${color} data-task="${esc(item.uuid)}" data-status="${s.id}" title="${esc(s.title)}: click to set the status" aria-label="Status: ${esc(s.title)}">${statusIconHtml(s.icon) || esc(s.title)}</button>`; };
+// The circle's icon, Logseq's own as the door draws it (PluginDoor.statusIconHtml), so Threads and Todo draw one circle.
+const statusIconHtml = icon => window.PluginDoor.statusIconHtml(icon, host());
+const taskHtml = item => { const s = state.statuses.get(item.status); if (!s) return ''; return window.PluginDoor.statusHtml(s, { cls: 'th-task', doc: host(), attrs: ` data-task="${esc(item.uuid)}" data-status="${s.id}" title="${esc(s.title)}: click to set the status" aria-label="Status: ${esc(s.title)}"` }); };
 // Every line of this node, in the rows and in opened nodes, takes the new status at once; the read that the write brings confirms it.
 function statusEverywhere(uuid, status) {
   for (const g of state.groups) for (const item of g.items) if (item.uuid === uuid) item.status = status;

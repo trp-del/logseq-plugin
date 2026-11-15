@@ -18,7 +18,7 @@ const dayOfMs = ms => { const d = new Date(Number(ms)); return Number.isNaN(d.ge
 /* The tasks as the list shows them: open ones (Todo, Doing) and those done in the last seven days. Backlog, In Review and
    Canceled are left out. Links in the words are read as their pages' names. */
 async function read() {
-  const [rows, pages, dayRefs, dayMs, tagRows, priorities] = await Promise.all([
+  const [rows, pages, dayRefs, dayMs, tagRows, priorities, choices] = await Promise.all([
     query(`[:find ?b ?u ?w ?sid ?c ?up :where [?b :logseq.property/status ?s] [?s :db/ident ?sid] [?b :block/uuid ?u] [?b :block/title ?w] [(get-else $ ?b :block/created-at 0) ?c] [(get-else $ ?b :block/updated-at 0) ?up] ${live}]`),
     query(`[:find ?b ?pt ?jd :where [?b :logseq.property/status _] [?b :block/page ?p] [?p :block/title ?pt] [(get-else $ ?p :block/journal-day 0) ?jd]]`),
     query(`[:find ?b ?a ?day :where [?b :logseq.property/status _] (or (and [?b :logseq.property/deadline ?d] [(ground :deadline) ?a]) (and [?b :logseq.property/scheduled ?d] [(ground :scheduled) ?a])) [?d :block/journal-day ?day]]`),
@@ -26,7 +26,10 @@ async function read() {
     // Its tags besides Task, for grouping by tag; its priority, for grouping by priority.
     query(`[:find ?b ?tt :where [?b :logseq.property/status _] [?b :block/tags ?t] (not [?t :db/ident :logseq.class/Task]) [?t :block/title ?tt]]`),
     query(`[:find ?b ?pid :where [?b :logseq.property/status _] [?b :logseq.property/priority ?p] [?p :db/ident ?pid]]`),
+    // Each status's name and icon as the graph keeps them, read afresh, so a circle follows an icon changed in Logseq.
+    Door.statusChoices(query),
   ]);
+  T.db.statuses = new Map(choices.map(c => [c.name, c]));
   const tagsOf = new Map(), priorityOf = new Map();
   for (const [b, title] of tagRows) { const list = tagsOf.get(b) || []; if (!list.includes(String(title))) list.push(String(title)); tagsOf.set(b, list); }
   for (const [b, pid] of priorities) priorityOf.set(b, String(pid || '').replace(/^:?logseq\.property\/priority\./, ''));
@@ -123,5 +126,5 @@ function dayIn(text, today = new Date()) {
 }
 
 const GROUPINGS = ['Day', 'Page', 'Tag', 'Priority', 'Status'];
-T.db = { read, add, unadd, setStatus, dayIn, forget, statusTitle, OPEN, GROUPINGS };
+T.db = { statuses: new Map(), read, add, unadd, setStatus, dayIn, forget, statusTitle, OPEN, GROUPINGS };
 })();

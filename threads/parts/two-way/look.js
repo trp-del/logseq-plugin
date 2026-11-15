@@ -374,13 +374,9 @@ const twoWayCss = `
 .th-two-way .th-ol-body:has(> .th-tw-record) { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; min-width: 0; }
 .th-two-way .th-ol-body > .th-tw-record { display: inline; }
 .th-two-way .th-ol-body:has(> .th-tw-record.th-ol-open), .th-two-way[data-finding] .th-ol-body:has(> .th-tw-record) { display: block; -webkit-line-clamp: none; overflow: visible; }
-/* A task's circle, Logseq's own, before its words as in Logseq (8 November 2026): its size beside 16px words, the gap after
-   it the gap Logseq leaves; the colour is Logseq's (its ls-icon- class). On the first line of words that wrap. */
-/* A button by its keys, its colour Logseq's (ls-icon-…): nothing here sets a colour. */
-.th-two-way .th-task { background: none; border: 0; padding: 0; font: inherit; flex: none; align-self: flex-start; vertical-align: top; display: inline-flex; align-items: center; height: 1.5em; margin-right: 6px; cursor: pointer; border-radius: 50%; }
-.th-two-way .th-task:focus-visible { background: var(--lk-wash); }
-.th-two-way .th-task svg { width: 1.05em; height: 1.05em; display: block; }
-.th-two-way .th-task .ti { font-size: 1.05em; line-height: 1; }
+/* A task's circle, Logseq's own, before its words as in Logseq (8 November 2026): drawn whole by the door (lk-status, the same
+   circle as Todo's); here only the gap after it, the gap Logseq leaves. On the first line of words that wrap. */
+.th-two-way .th-task { margin-right: 6px; }
 .th-two-way .th-ol-body > .th-pencil, .th-two-way .th-ol-body > .th-tw-could { margin-left: 8px; }
 .th-two-way .th-tw-could { display: inline-flex; align-items: baseline; }
 /* No underline at rest in this section, under the pointer the firm one (the owner, 1 November 2026: long names, each underlined in full, striped it). */

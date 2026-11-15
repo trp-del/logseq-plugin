@@ -452,6 +452,45 @@ Door.kindIconHtml = kind => {
   if (KIND_ICONS[k] === null) return `<i class="lk-icon lk-web" aria-hidden="true">${Door.WEB}</i>`;
   return `<i class="lk-icon ti ti-${KIND_ICONS[k] || 'letter-case'}" aria-hidden="true"></i>`;
 };
+/* A task's status circle, Logseq's own (8 November 2026, the owner: "threads should be able to show tasks status circles"; 15
+   November 2026, Todo: "they should be circles just like the tasks"), drawn here once for Threads and Todo. The statuses are read
+   afresh from the graph (statusChoices): each value Logseq's Status can take, in Logseq's order, with its name, its short name
+   (todo, doing, done) and its icon as Logseq keeps it on the value ({ type, id, color }), so a status renamed or given another
+   icon in Logseq shows so here (9 November 2026, the owner: "have it just stay in sync with whatever icons are chosen or
+   changed"). statusIconHtml draws the icon as Logseq does: one of Logseq's drawn ones (its tablerIcons, such as Circle or
+   CircleCheck), else Tabler's font Logseq loads (CircleHalf2 is ti-circle-half-2), or an emoji; nothing of the icon is copied in. statusHtml is the circle as a
+   press, lk-status, one line of its words tall (the row sets --lk-status-line to its words' line height) so the circle stands
+   centred on the first line at any size; Logseq's own class (ls-icon-…) and the icon's colour give it Logseq's colour. */
+Door.statusChoices = async (ask = Door.query) => {
+  const rows = await ask('[:find ?v ?ident ?t ?o ?icon :where [?v :block/closed-value-property ?p] [?p :db/ident :logseq.property/status] [?v :block/title ?t] [(get-else $ ?v :db/ident "") ?ident] [(get-else $ ?v :block/order "") ?o] [(get-else $ ?v :logseq.property/icon "") ?icon]]');
+  return rows.map(([id, ident, title, order, icon]) => ({ id: Number(id), name: String(ident || '').replace(/^:?logseq\.property\/status\./, ''), title: String(title || ''), order: String(order || ''), icon: icon && typeof icon === 'object' ? icon : null }))
+    .sort((a, b) => (a.order < b.order ? -1 : a.order > b.order ? 1 : a.id - b.id));
+};
+const pascal = id => String(id).replace(/(^|[-_ ])(\w)/g, (m, s, c) => c.toUpperCase());
+const KEBAB = /^(viewBox|xmlns)$/;
+// A React element (what Logseq's tablerIcons hand back) as markup.
+function elementHtml(node) {
+  if (node == null || node === false) return '';
+  if (Array.isArray(node)) return node.map(elementHtml).join('');
+  if (typeof node !== 'object') return Door.esc(String(node));
+  if (typeof node.type === 'function') return elementHtml(node.type(node.props || {}));
+  const { children, ...props } = node.props || {};
+  const attrs = Object.entries(props).filter(([, v]) => v != null && v !== false && typeof v !== 'function' && typeof v !== 'object')
+    .map(([k, v]) => ` ${k === 'className' ? 'class' : KEBAB.test(k) ? k : k.replace(/[A-Z]/g, c => '-' + c.toLowerCase())}="${Door.esc(String(v))}"`).join('');
+  return `<${node.type}${attrs}>${elementHtml(children)}</${node.type}>`;
+}
+Door.statusIconHtml = (icon, doc = Door.host()) => {
+  if (!icon?.id) return '';
+  if (icon.type === 'emoji') return `<em-emoji id="${Door.esc(icon.id)}" size="1em"></em-emoji>`;
+  const drawn = doc?.defaultView?.tablerIcons?.['Icon' + pascal(icon.id)];
+  if (drawn) { try { return elementHtml(drawn({ size: 18 })); } catch { /* the font below */ } }
+  return `<i class="ti ti-${Door.esc(String(icon.id).replace(/([a-z0-9])([A-Z])/g, '$1-$2').replace(/([a-zA-Z])([0-9])/g, '$1-$2').toLowerCase())}" aria-hidden="true"></i>`;
+};
+// s: one of statusChoices; more: the press's own class and attributes (its data-, title, aria-label), set by the module.
+Door.statusHtml = (s, { cls = '', attrs = '', doc } = {}) => {
+  const color = s.icon?.color ? ` style="color: ${Door.esc(s.icon.color)}"` : '';
+  return `<button type="button" class="lk-status ls-icon-${Door.esc(s.icon?.id || '')}${cls ? ' ' + cls : ''}"${color}${attrs}>${Door.statusIconHtml(s.icon, doc) || Door.esc(s.title)}</button>`;
+};
 /* A module's button in Logseq's top toolbar, drawn as Logseq draws its own there (Tabler's line icons as SVG, 20 px, the same
    stroke), so it stands among Home, the arrows and the sidebar button as one of them; a font glyph came out heavier. The drawings
    say what the button opens: Ontology a tree of kinds lying on its side, one into two into four, as Porphyry's tree (the
@@ -1158,7 +1197,7 @@ const TOKENS = `
    lk-row: a row; lk-fold: its fold arrow, only under the pointer; lk-list: a list that can be picked from; lk-tick: a
    tick box, appearing when the pointer is on the list; lk-node: a node's name (with data-uuid: Look adds its sort mark); lk-url: a web address, ↗ after it;
    lk-tag: a tag; lk-prop: a property's name; lk-day: a day in the margin; lk-count: a number of things, never shown;
-   lk-pencil: a pencilled value; lk-undo: the faded arrow.
+   lk-pencil: a pencilled value; lk-undo: the faded arrow; lk-status: a task's status circle, Logseq's own icon (Door.statusHtml).
    The Pressing set (buttons-mockup.html beside the plugins, 30 October 2026), for the controls of a bar or a window:
    lk-name: the small faint name above a value; lk-value: the value, the thing pressed, in the text colour, quiet under
    the pointer, faint when off (.off) or unwritten; lk-pick: a value that unfolds, a hairline standing before it (its
@@ -1361,6 +1400,13 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
 input.lk-tick[type=checkbox] { appearance: none !important; -webkit-appearance: none !important; position: relative; box-sizing: border-box; width: 14px !important; height: 14px !important; margin: 0 !important; padding: 0 !important; flex: none; border: 1.5px solid var(--lk-line) !important; border-radius: 4px !important; background: none !important; color: inherit !important; cursor: pointer; vertical-align: -1px; }
 input.lk-tick[type=checkbox]:is(:checked, :indeterminate, :focus, :hover) { background-color: transparent !important; background-image: none !important; border-color: currentColor !important; color: inherit !important; box-shadow: none !important; outline: none !important; }
 input.lk-tick[type=checkbox]:checked::before { content: ""; position: absolute; inset: 0; background: currentColor; -webkit-mask: ${iconUrl(Door.ICONS.tick, 2.6)} center / 8px 8px no-repeat; mask: ${iconUrl(Door.ICONS.tick, 2.6)} center / 8px 8px no-repeat; }
+/* lk-status, drawn: a task's status circle (Door.statusHtml), Logseq's own icon at Logseq's 18px for 16px words (1.125em), in a
+   place one line of the words tall (--lk-status-line, the row's line height; 1.5em when unset), so it stands centred on the first
+   line however large the words; the round wash under the keyboard. */
+.lk-status { display: inline-flex; align-items: center; justify-content: center; flex: none; align-self: flex-start; vertical-align: top; height: var(--lk-status-line, 1.5em); margin: 0; padding: 0; border: 0; border-radius: 50%; background: none; font: inherit; cursor: pointer; }
+.lk-status:focus-visible { outline: none; background: var(--lk-wash); }
+.lk-status svg { width: 1.125em; height: 1.125em; display: block; }
+.lk-status .ti { font-size: 1.125em; line-height: 1; }
 /* lk-check: the check mark alone, the one shape for "this one is in force" wherever it stands (a menu's chosen line, a setting
    that is on, a picture card picked); the tick box's mark is the same shape (the owner, 13 November 2026: "make the checkmark
    symbol itself more modern", then a rounded square with a small check, "use that": one arm half the other, round ends). */

@@ -26,10 +26,8 @@ const CSS = `
 .td-head.td-fold-head { cursor: pointer; margin-left: -22px; }
 .td-side .td-head.td-fold-head { margin-left: -4px; }
 .td-head .lk-fold { opacity: .6; }
-.td-row { display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; column-gap: var(--td-gap); align-items: start; padding: 7px 8px; margin: 0 -8px; border-radius: 6px; }
-.td-row .lk-tick { margin-top: .36em !important; }
-.td-row .td-doing::after { content: ""; position: absolute; inset: 3px; border-radius: 1.5px; background: var(--lk-quiet); }
-.td-words { color: inherit; text-decoration: none; cursor: pointer; overflow-wrap: anywhere; line-height: 1.45; }
+.td-row { --lk-status-line: 1.45em; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; column-gap: var(--td-gap); align-items: start; padding: 7px 8px; margin: 0 -8px; border-radius: 6px; }
+.td-words { color: inherit; text-decoration: none; cursor: pointer; overflow-wrap: anywhere; line-height: var(--lk-status-line); }
 .td-where { font-size: var(--lk-small); color: var(--lk-quiet); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .td-day { white-space: nowrap; padding-top: .2em; }   /* the library's day (lk-day), at the row's right */
 .td-day.td-late { color: color-mix(in srgb, var(--rx-red-10, #dc3e42) 78%, var(--lk-paper, transparent)) !important; }
@@ -55,13 +53,23 @@ const dayFull = day => `${dayWords(day) === 'Today' || dayWords(day) === 'Tomorr
 
 const BY_WORDS = { Day: 'By day', Page: 'By page', Tag: 'By tag', Priority: 'By priority', Status: 'By status' };
 
+/* A task's status circle, Logseq's own (PluginDoor.statusHtml): the icon each status has in the graph (the owner, 15 November 2026:
+   "they should be circles just like the tasks", "follow whatever icons are chosen by the properties"); a task just ticked shows
+   Done's at once. A press ticks it, as the box did: Done, or back to Todo from Done. */
+function circle(t, status, done) {
+  const ticked = T.app.ticking.has(t.uuid), s = T.db.statuses.get(ticked ? 'done' : status);
+  const name = s?.title || (ticked ? 'Done' : status), next = done || ticked ? 'Not done' : 'Done';
+  const attrs = ` data-tick="${esc(t.uuid)}" title="${esc(name)}: click for ${esc(next.toLowerCase())}" aria-label="${esc(name)}, press for ${esc(next.toLowerCase())}: ${esc(t.words)}"`;
+  return Door.statusHtml(s || { title: name, icon: null }, { cls: 'td-circle', attrs, doc: Door.host() });
+}
+
 // part: the group the row stands in (main.js, groups()); Done's rows have none.
 function rowHtml(t, part) {
   const status = T.app.shown(t), done = status === 'done', late = !done && t.day && t.day < dates.today();
   const day = !part || (part.today && !late) ? '' : dayWords(t.day);
   const where = !part || part.where ? t.page.title || '' : '';
   return `<div class="td-row lk-row${T.app.ticking.has(t.uuid) ? ' td-ticked' : ''}${done ? ' td-done' : ''}" data-uuid="${esc(t.uuid)}">
-<input type="checkbox" class="lk-tick${status === 'doing' ? ' td-doing' : ''}" data-tick="${esc(t.uuid)}"${done || T.app.ticking.has(t.uuid) ? ' checked' : ''} aria-label="${done ? 'Not done' : 'Done'}: ${esc(t.words)}" title="${status === 'doing' ? 'Doing' : done ? 'Done' : 'Todo'}">
+${circle(t, status, done)}
 <div class="td-main"><div class="td-line"><a class="td-words" href="#" data-open="${esc(t.uuid)}" title="Open the task; with Shift, in the sidebar">${esc(t.words || 'Untitled')}</a></div>${where ? `<div class="td-where">${esc(where)}</div>` : ''}</div>
 <div class="td-day lk-day${late ? ' td-late' : ''}">${esc(day)}</div></div>`;
 }
@@ -115,15 +123,13 @@ function make(holder, mode) {
     else if (event.key === 'Escape') { event.preventDefault(); if (input.value) { input.value = ''; showDay(); } else input.blur(); }
   });
   root.addEventListener('click', event => {
+    const tick = event.target.closest('[data-tick]');
+    if (tick) { event.preventDefault(); T.app.tick(tick.dataset.tick); return; }
     const open = event.target.closest('[data-open]');
     if (open) { event.preventDefault(); T.app.open(open.dataset.open, event.shiftKey); return; }
     if (event.target.closest('[data-fold-done]')) { event.preventDefault(); T.app.foldDone(); return; }
     const by = event.target.closest('[data-by]');
     if (by) { event.preventDefault(); openBy(by); }
-  });
-  root.addEventListener('change', event => {
-    const tick = event.target.closest('[data-tick]');
-    if (tick) T.app.tick(tick.dataset.tick);
   });
   T.app.views.add(view);
   view.draw();

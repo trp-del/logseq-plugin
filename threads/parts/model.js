@@ -458,14 +458,8 @@ function daysFrom(dated, written) {
    Logseq's Status holds, looked up in statusChoices, so its name and icon are always Logseq's own. */
 const STATUS = '[?b :logseq.property/status ?s]';
 const statusOf = rows => new Map(rows.map(([b, s]) => [b, Number(s) || 0]));
-/* The values Logseq's Status can take, in Logseq's order, each with its name and its icon as Logseq keeps it ({ type, id },
-   on the value itself), read afresh with the rows (9 November 2026, the owner: "have it just stay in sync with whatever icons
-   are chosen or changed"): a status added, renamed or given another icon in Logseq shows so in Threads. */
-async function statusChoices() {
-  const rows = await dsQuery('[:find ?v ?t ?o ?icon :where [?v :block/closed-value-property ?p] [?p :db/ident :logseq.property/status] [?v :block/title ?t] [(get-else $ ?v :block/order "") ?o] [(get-else $ ?v :logseq.property/icon "") ?icon]]');
-  return rows.map(([id, title, order, icon]) => ({ id: Number(id), title: String(title || ''), order: String(order || ''), icon: icon && typeof icon === 'object' ? icon : null }))
-    .sort((a, b) => (a.order < b.order ? -1 : a.order > b.order ? 1 : a.id - b.id));
-}
+// The values Logseq's Status can take, with their names and icons, read afresh: the door's (PluginDoor.statusChoices), one reading for Threads and Todo.
+const statusChoices = () => window.PluginDoor.statusChoices(dsQuery);
 async function linksInto(id) {
   // One round of questions: each is asked about the blocks that point here through a property of yours,
   // rather than waiting for that list first, since every wait right after a page change is long. For every page the
