@@ -96,7 +96,7 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
   assert.ok(styles['find-find'], 'its stylesheet is sent');
   assert.deepEqual(text('.fd-c'), ['Consultation4', 'Doctor2'], 'the kinds, most first, with how many');
   assert.deepEqual(text('.fd-r .fd-w'), ['Dr. Mei Chen', 'Fatigue'], 'the recents as rows');
-  assert.deepEqual([...doc.querySelectorAll('.fd-r .fd-sign')].map(e => e.className + ' ' + e.innerHTML.match(/ti-[a-z-]+/)?.[0]), ['fd-bul fd-sign fd-page ti-file', 'fd-bul fd-sign fd-page ti-file'], 'a page carries Logseq\'s page sign, not a dot');
+  assert.deepEqual([...doc.querySelectorAll('.fd-r .fd-sign')].map(e => e.className + ' ' + e.innerHTML.match(/ls-icon-[a-z-]+/)?.[0]), ['fd-bul fd-sign fd-page ls-icon-file', 'fd-bul fd-sign fd-page ls-icon-file'], 'a page carries Logseq\'s page sign in Logseq\'s own frame (the library\'s, PluginDoor.signHtml), not a dot');
   assert.deepEqual(text('.fd-head'), ['recently opened'], 'the one head at rest; no "narrow by", no "open"');
   assert.ok(doc.querySelector('.fd-body').classList.contains('fd-noday'), 'pages with no day: no day column, no empty margin');
   assert.equal(doc.querySelector('.fd-find .fd-n'), null, 'no count in the find line');

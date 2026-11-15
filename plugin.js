@@ -486,6 +486,14 @@ Door.statusIconHtml = (icon, doc = Door.host()) => {
   if (drawn) { try { return elementHtml(drawn({ size: 18 })); } catch { /* the font below */ } }
   return `<i class="ti ti-${Door.esc(String(icon.id).replace(/([a-z0-9])([A-Z])/g, '$1-$2').replace(/([a-zA-Z])([0-9])/g, '$1-$2').toLowerCase())}" aria-hidden="true"></i>`;
 };
+/* A page's or a tag's icon as Logseq draws its own (15 November 2026, the owner: Find showed "the old paper icon … and not diamond"):
+   Logseq's icon (file for a page, hash for a tag) in Logseq's own box, icon-cp-container, so whatever restyles Logseq's restyles
+   this too; Look's calm theme turns the page's into the diamond (calm.js). One drawing for every module. */
+const SIGN_PATHS = { file: 'M14 3v4a1 1 0 0 0 1 1h4M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z', hash: 'M5 9l14 0M5 15l14 0M11 4l-4 16M17 4l-4 16' };   // Tabler's, as Logseq draws them
+Door.signHtml = sign => {
+  const id = sign === 'tag' ? 'hash' : 'file';
+  return `<span class="icon-cp-container lk-sign" aria-hidden="true"><span class="ls-icon-${id} ui__icon ti"><svg class="tabler-icon tabler-icon-${id}" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${SIGN_PATHS[id]}"/></svg></span></span>`;
+};
 // s: one of statusChoices; more: the press's own class and attributes (its data-, title, aria-label), set by the module.
 Door.statusHtml = (s, { cls = '', attrs = '', doc } = {}) => {
   const color = s.icon?.color ? ` style="color: ${Door.esc(s.icon.color)}"` : '';
@@ -993,7 +1001,13 @@ Door.menu = (from, parts, { align = 'right' } = {}) => {
   };
   const box = Door.el(doc, 'div', { class: 'lk-pop lk-menu lk-door-menu', role: 'menu' }, ...parts.map(line));
   Object.assign(box.style, { position: 'fixed', zIndex: 60, width: 'max-content', minWidth: '160px', visibility: 'hidden' });
-  doc.body.append(box);
+  /* Opened from inside a window of the plugin's own (Find's, a modal dialog): the menu goes into that window, as one of its own
+     popups, since what stands outside a modal window cannot be pressed; and into the top layer above it, where nothing of the
+     window clips it or moves it (Find's window is centred by a transform). Elsewhere, in Logseq's page. */
+  const layer = from.closest?.('dialog[open]');
+  if (layer && typeof box.showPopover === 'function') { box.popover = 'manual'; Object.assign(box.style, { margin: '0', right: 'auto', bottom: 'auto', overflow: 'visible' }); }
+  (layer || doc.body).append(box);
+  if (box.popover) box.showPopover();
   const at = from.getBoundingClientRect(), w = box.offsetWidth, h = box.offsetHeight;
   const left = align === 'left' ? at.left : at.right - w;
   const below = at.bottom + 4 + h <= win.innerHeight - 8 || at.top - 4 - h < 8;

@@ -121,8 +121,10 @@ const CSS = `
 .fd-sign { color: var(--lk-quiet); font-size: 14px; line-height: 1; margin-top: 3px; }
 .fd-sign .ti, .fd-sign .lk-icon { font-size: 14px; }
 .fd-sign .lk-web svg { width: 11px; height: 11px; }
+.fd-sign .lk-sign svg { width: 14px; height: 14px; display: block; }
 .fd-nm { display: flex; align-items: baseline; gap: 7px; min-width: 0; flex-wrap: wrap; }
 .fd-nm .fd-w { min-width: 0; cursor: pointer; }
+.fd-nm .fd-task { margin-right: -1px; }   /* 6px to the words, as Threads */
 .fd-nm .fd-w b { font-weight: 600; }
 .fd-nm .lk-node { cursor: pointer; }
 .fd-right { color: var(--lk-quiet); font-size: var(--lk-small); white-space: nowrap; padding-left: 12px; font-variant-numeric: tabular-nums; }
@@ -159,6 +161,7 @@ const S = {
   dug: [], dugData: new Map(), pointers: new Map(), noteOf: new Map(), unroll: null, unrollFrom: null, openGroups: new Set(), groupAll: new Set(), stale: false,
   line: 0, lineAt: 0, lineDots: [], lineDug: null, lineH: 52,   // the year line: 0 the strip, 1 the days as towers, 2 a lane a value; the dot the cursor is on; the dots drawn; the node dug from it
   cache: { kind: new Map(), kindFacets: new Map(), counted: new Map(), words: new Map() }, loading: false, failed: '', commands: null,
+  statuses: new Map(), statusNow: new Map(),   // the statuses Logseq's Status takes (PluginDoor.statusChoices), by id; a status set here since the window opened, by node
 };
 const setting = key => Find.settings.setting(key);
 // One height from the opening, whatever is listed; the line opened adds its own height to it.
@@ -450,6 +453,53 @@ function rowList() {
 
 /* Drawing. The whole body is drawn again on each change, and nothing keeps state in the DOM; only the cursor stepping along
    the rows moves on its own (litRow), since after "show all" the rows can be thousands. */
+/* A task's status circle, Logseq's own as Threads and Todo draw it (PluginDoor.statusHtml), before the words (15 November 2026,
+   the owner: the rows of Find that are tasks show their circle). A press opens the status list Todo's circle opens (the
+   library's menu, PluginDoor.menu): every status in Logseq's order with its icon, the one in force checked; what is picked is
+   written at once, with the faded Undo arrow at the row. */
+const readStatuses = async () => { try { S.statuses = new Map((await window.PluginDoor.statusChoices()).map(s => [s.id, s])); } catch (error) { console.error('Find: could not read the statuses', error); } };
+const statusOf = node => (S.statusNow.has(node.uuid) ? S.statusNow.get(node.uuid) : node.status) || 0;
+function circle(doc, node) {
+  const s = S.statuses.get(statusOf(node));
+  if (!s) return null;
+  const t = doc.createElement('template');
+  t.innerHTML = window.PluginDoor.statusHtml(s, { cls: 'fd-task', doc, attrs: ` data-task="${esc(node.uuid)}" title="${esc(s.title)}: click to set the status" aria-label="Status: ${esc(s.title)}"` });
+  const button = t.content.firstElementChild;
+  button.addEventListener('click', event => { event.stopPropagation(); openStatus(button, node); });
+  // The keyboard stays in the one box: when the list closes (Escape) the focus it hands back to the circle goes on to the box.
+  button.addEventListener('focus', () => { if (button.getAttribute('aria-expanded') !== 'true') S.dlg?.querySelector('.fd-input')?.focus(); });
+  button.tabIndex = -1;
+  return button;
+}
+function openStatus(from, node) {
+  const now = statusOf(node), input = () => S.dlg?.querySelector('.fd-input')?.focus();
+  const menu = window.PluginDoor.menu(from, [{ group: 'Set Status' }, ...[...S.statuses.values()].map(s => ({ word: s.title, icon: window.PluginDoor.statusIconHtml(s.icon, from.ownerDocument), on: s.id === now, take: () => { input(); setStatus(node, s.id); } }))], { align: 'left' });
+  if (!menu) input();
+}
+const STATUS = 'logseq.property/status';
+const rowsOf = uuid => [...(S.dlg?.querySelectorAll(`.fd-r[data-uuid="${window.CSS.escape(uuid)}"] .fd-nm`) || [])];
+async function setStatus(node, to) {
+  const was = statusOf(node), uuid = node.uuid, Door = window.PluginDoor;
+  if (to === was) return;
+  const title = id => S.statuses.get(id)?.title || '';
+  S.statusNow.set(uuid, to); render();
+  let undo;
+  try {
+    await Door.write.setValue(uuid, STATUS, title(to));
+    undo = await Door.write.guarded([[uuid, STATUS]], () => (was ? Door.write.setValue(uuid, STATUS, title(was)) : Door.write.unsetValue(uuid, STATUS)));
+  } catch (error) {
+    console.error('Find: the status could not be set', error);
+    S.statusNow.set(uuid, was); render();
+    return notify(`Not changed: ${Door.reason(error, 'Logseq did not take the status')}`, 'warning');
+  }
+  const words = node.text || node.raw || '', name = words.length > 40 ? words.slice(0, 38) + '…' : words;
+  Door.undo.offer({ owner: 'find', key: `find:status:${uuid}`, node: uuid, text: `Set “${name}” to ${title(to)}`, at: () => rowsOf(uuid),
+    run: async () => {
+      S.statusNow.set(uuid, was); render();
+      if (await undo() === 'kept') { notify('It has changed since, so it stays', 'warning'); S.statusNow.set(uuid, to); render(); }
+    },
+    onFail: error => { console.error('Find: could not undo', error); notify('The status could not be put back', 'warning'); S.statusNow.set(uuid, to); render(); } });
+}
 function render() {
   const d = S.dlg; if (!d) return;
   const doc = S.doc;
@@ -543,6 +593,8 @@ function render() {
       else w.append(el(doc, 'span', { html: window.PluginDoor.webParts(part.text).map(p => p.url ? window.PluginDoor.urlHtml(p.url, markWords(esc(p.text), ws)) : markWords(esc(p.text), ws)).join('') }));
     }
     w.addEventListener('click', event => { event.stopPropagation(); openPage(node.uuid, event.shiftKey); close(); });
+    const task = circle(doc, node);
+    if (task) nm.append(task);
     nm.append(w);
     if (node.kind && !(r.under && rows.find(x => x.key === r.under)?.tag === node.kind.title) && !(kindPick() && r.top && kindPick().title === node.kind.title)) nm.append(el(doc, 'span', { class: 'lk-tag' }, node.kind.title));
     row.append(nm);
@@ -793,7 +845,8 @@ function dugBox(doc, node) {
   return box;
 }
 const SIGN_SAYS = { page: 'A page', tag: 'A tag', property: 'A property' };
-const signHtml = node => node.sign === 'property' ? kindIconHtml(node.propType) : `<i class="ti ti-${node.sign === 'tag' ? 'hash' : 'file'}" aria-hidden="true"></i>`;
+// A property the icon of what it holds; a page and a tag Logseq's own icon, as the library draws it (PluginDoor.signHtml: the diamond under Look's calm theme).
+const signHtml = node => node.sign === 'property' ? kindIconHtml(node.propType) : window.PluginDoor.signHtml(node.sign);
 const short = (text, max = 36) => { const t = String(text || '').trim(); return t.length > max ? t.slice(0, max - 2).replace(/\s+\S*$/, '') + '…' : t; };
 const KEY = (k, label) => `<span>${label}<span class="fd-k">${k}</span></span>`;
 /* The foot names what the keys do right now, naming the thing: "narrow to Consultation Tab", "open Look test Enter", "in the
@@ -1035,7 +1088,7 @@ function open(typed = '', say = false) {
   dlg.append(find, el(doc, 'div', { class: 'fd-line' }), el(doc, 'div', { class: 'fd-body' }), el(doc, 'div', { class: 'fd-foot' }));
   // The keys are taken at the document, before Logseq's own handlers see them (a Tab that reached Logseq first never
   // came back); only keys from inside the window are taken.
-  S.keys = Find.kit.listen(doc, 'keydown', event => { if (S.dlg === dlg && dlg.contains(event.target)) onKey(event); }, true);   // what takes the listener off again
+  S.keys = Find.kit.listen(doc, 'keydown', event => { if (S.dlg === dlg && dlg.contains(event.target) && !event.target.closest?.('.lk-door-menu')) onKey(event); }, true);   // the status list keeps its own keys   // what takes the listener off again
   for (const type of ['keyup', 'keypress']) dlg.addEventListener(type, event => event.stopPropagation());
   dlg.addEventListener('click', () => input.focus(), true);   // whatever was pressed, the keyboard stays in the one box
   dlg.addEventListener('click', event => { if (event.target === dlg) close(); });
@@ -1049,6 +1102,8 @@ function open(typed = '', say = false) {
   S.moreOf.clear(); S.openGroups.clear(); S.groupAll.clear();
   if (typeof dlg.showModal === 'function') dlg.showModal(); else dlg.setAttribute('open', '');
   input.focus();
+  S.statusNow.clear();
+  readStatuses().then(() => { if (S.dlg === dlg) render(); });
   readNow();
   refresh();
 }
@@ -1056,6 +1111,7 @@ function close() {
   if (!S.dlg) return;
   const d = S.dlg; S.dlg = null;
   if (S.keys) { S.keys(); S.keys = null; }
+  window.PluginDoor.menu.close();
   try { d.close(); } catch (error) { /* not open */ }
   d.remove();
 }

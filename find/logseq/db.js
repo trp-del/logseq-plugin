@@ -122,12 +122,15 @@ async function details(ids, uuids) {
   const where = ids.length ? `${idsIn('?b', ids)} [?b :block/uuid ?u]` : `${uuidsIn('?u', uuids)} [?b :block/uuid ?u]`;
   if (!ids.length && !uuids.length) return [];
   // A page has no page of its own: the page a block sits on is read apart (a lookup on a missing page id throws).
-  const [basics, tagRows, [ownDay, dateDay, pageOf], propRows] = await Promise.all([
+  const [basics, tagRows, [ownDay, dateDay, pageOf], propRows, statusRows] = await Promise.all([
     query(`[:find ?b ?u ?title ?name :where ${where} [?b :block/title ?title] [(get-else $ ?b :block/name "") ?name]]`),
     query(`[:find ?b ?t :where ${where} [?b :block/tags ?t]]`),
     daysOf(where),
     query(`[:find ?b ?type :where ${where} [?b :logseq.property/type ?type]]`),
+    // A task's status, the value's id (one of PluginDoor.statusChoices): its circle stands before the words.
+    query(`[:find ?b ?s :where ${where} [?b :logseq.property/status ?s]]`),
   ]);
+  const statusOf = new Map(statusRows.map(([b, s]) => [b, Number(s)]));
   const propType = new Map(propRows.map(([b, type]) => [b, bare(type)]));
   const tagsOf = new Map();
   for (const [b, t] of tagRows) { if (!tagsOf.has(b)) tagsOf.set(b, []); tagsOf.get(b).push(t); }
@@ -136,7 +139,7 @@ async function details(ids, uuids) {
     const isPage = !!name, page = isPage ? null : (pageOf.get(b) || { title: '', journal: 0 });
     const sign = !isPage ? null : propType.has(b) ? 'property' : index.byId.has(b) ? 'tag' : 'page';
     return { id: b, uuid: String(u).toLowerCase(), raw: String(title), isPage, sign, propType: propType.get(b) || '', journal: !!ownDay.get(b), page,
-      day: ownDay.get(b) || dateDay.get(b) || page?.journal || 0, written: page?.journal || 0, tags: t, kind: kindOf(index, t) };
+      day: ownDay.get(b) || dateDay.get(b) || page?.journal || 0, written: page?.journal || 0, tags: t, kind: kindOf(index, t), status: statusOf.get(b) || 0 };
   });
   await resolveNames(list);
   return list;
