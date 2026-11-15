@@ -15,20 +15,42 @@ const live = '(not [?b :logseq.property/deleted-at _]) [?b :block/page ?p] (not 
 // A day's number from what a date property holds: a journal page's day, or a time in milliseconds (Logseq's datetime), read in this Mac's time.
 const dayOfMs = ms => { const d = new Date(Number(ms)); return Number.isNaN(d.getTime()) ? 0 : dates.number(d); };
 
+/* Task and every tag under it in the ontology, at any depth (a tag's Extends), as ids. */
+async function taskTags() {
+  const [pairs, [[task] = []]] = await Promise.all([
+    query('[:find ?c ?p :where [?c :logseq.property.class/extends ?p]]'),
+    query('[:find ?t :where [?t :db/ident :logseq.class/Task]]'),
+  ]);
+  if (task == null) return [];
+  const kids = new Map();
+  for (const [c, p] of pairs) { if (!kids.has(p)) kids.set(p, []); kids.get(p).push(c); }
+  const seen = new Set([task]), walk = [task];
+  while (walk.length) for (const c of kids.get(walk.pop()) || []) if (!seen.has(c)) { seen.add(c); walk.push(c); }
+  return [...seen];
+}
+
 /* The tasks as the list shows them: open ones (Todo, Doing) and those done in the last seven days. Backlog, In Review and
-   Canceled are left out. Links in the words are read as their pages' names. */
+   Canceled are left out, and so is a bullet with no words. A node tagged Task, or a tag under Task, whose Status is empty reads as Todo (empty: true) and nothing is
+   written to it. Links in the words are read as their pages' names. */
 async function read() {
-  const [rows, pages, dayRefs, dayMs, tagRows, priorities, choices] = await Promise.all([
+  const tags = await taskTags();
+  const [withStatus, empties, choices] = await Promise.all([
     query(`[:find ?b ?u ?w ?sid ?c ?up :where [?b :logseq.property/status ?s] [?s :db/ident ?sid] [?b :block/uuid ?u] [?b :block/title ?w] [(get-else $ ?b :block/created-at 0) ?c] [(get-else $ ?b :block/updated-at 0) ?up] ${live}]`),
-    query(`[:find ?b ?pt ?jd :where [?b :logseq.property/status _] [?b :block/page ?p] [?p :block/title ?pt] [(get-else $ ?p :block/journal-day 0) ?jd]]`),
-    query(`[:find ?b ?a ?day :where [?b :logseq.property/status _] (or (and [?b :logseq.property/deadline ?d] [(ground :deadline) ?a]) (and [?b :logseq.property/scheduled ?d] [(ground :scheduled) ?a])) [?d :block/journal-day ?day]]`),
-    query(`[:find ?b ?a ?ms :where [?b :logseq.property/status _] (or (and [?b :logseq.property/deadline ?ms] [(ground :deadline) ?a]) (and [?b :logseq.property/scheduled ?ms] [(ground :scheduled) ?a])) [(number? ?ms)] [(> ?ms 100000000000)]]`),
-    // Its tags besides Task, for grouping by tag; its priority, for grouping by priority.
-    query(`[:find ?b ?tt :where [?b :logseq.property/status _] [?b :block/tags ?t] (not [?t :db/ident :logseq.class/Task]) [?t :block/title ?tt]]`),
-    query(`[:find ?b ?pid :where [?b :logseq.property/status _] [?b :logseq.property/priority ?p] [?p :db/ident ?pid]]`),
+    tags.length ? query(`[:find ?b ?u ?w ?c ?up :where [(ground [${tags.join(' ')}]) [?t ...]] [?b :block/tags ?t] (not [?b :logseq.property/status _]) [?b :block/uuid ?u] [?b :block/title ?w] [(get-else $ ?b :block/created-at 0) ?c] [(get-else $ ?b :block/updated-at 0) ?up] ${live}]`) : [],
     // Each status's name and icon as the graph keeps them, read afresh, so a circle follows an icon changed in Logseq.
     Door.statusChoices(query),
   ]);
+  const empty = new Set(empties.map(([b]) => b));
+  const rows = withStatus.concat(empties.map(([b, u, w, c, up]) => [b, u, w, 'logseq.property/status.todo', c, up]));
+  const ids = rows.map(([b]) => b), these = `[(ground [${ids.join(' ')}]) [?b ...]]`;
+  const [pages, dayRefs, dayMs, tagRows, priorities] = ids.length ? await Promise.all([
+    query(`[:find ?b ?pt ?jd :where ${these} [?b :block/page ?p] [?p :block/title ?pt] [(get-else $ ?p :block/journal-day 0) ?jd]]`),
+    query(`[:find ?b ?a ?day :where ${these} (or (and [?b :logseq.property/deadline ?d] [(ground :deadline) ?a]) (and [?b :logseq.property/scheduled ?d] [(ground :scheduled) ?a])) [?d :block/journal-day ?day]]`),
+    query(`[:find ?b ?a ?ms :where ${these} (or (and [?b :logseq.property/deadline ?ms] [(ground :deadline) ?a]) (and [?b :logseq.property/scheduled ?ms] [(ground :scheduled) ?a])) [(number? ?ms)] [(> ?ms 100000000000)]]`),
+    // Its tags besides Task, for grouping by tag; its priority, for grouping by priority.
+    query(`[:find ?b ?tt :where ${these} [?b :block/tags ?t] (not [?t :db/ident :logseq.class/Task]) [?t :block/title ?tt]]`),
+    query(`[:find ?b ?pid :where ${these} [?b :logseq.property/priority ?p] [?p :db/ident ?pid]]`),
+  ]) : [[], [], [], [], []];
   T.db.statuses = new Map(choices.map(c => [c.name, c]));
   const tagsOf = new Map(), priorityOf = new Map();
   for (const [b, title] of tagRows) { const list = tagsOf.get(b) || []; if (!list.includes(String(title))) list.push(String(title)); tagsOf.set(b, list); }
@@ -41,14 +63,15 @@ async function read() {
   const since = Date.now() - DONE_FOR, list = [];
   for (const [b, uuid, words, sid, created, updated] of rows) {
     const status = statusOf(sid);
+    if (!String(words ?? '').trim()) continue;   // a bullet with no words is no task to show: never a blank row
     if (!OPEN.has(status) && !(status === 'done' && Number(updated) >= since)) continue;
     const d = due.get(b) || {};
-    list.push({ id: b, uuid: String(uuid), raw: String(words || ''), status, day: d.deadline || d.scheduled || 0, page: pageOf.get(b) || { title: '', journal: 0 }, tags: (tagsOf.get(b) || []).sort((x, y) => x.localeCompare(y)), priority: priorityOf.get(b) || '', created: Number(created) || 0, updated: Number(updated) || 0 });
+    list.push({ id: b, uuid: String(uuid), raw: String(words || ''), status, empty: empty.has(b), day: d.deadline || d.scheduled || 0, page: pageOf.get(b) || { title: '', journal: 0 }, tags: (tagsOf.get(b) || []).sort((x, y) => x.localeCompare(y)), priority: priorityOf.get(b) || '', created: Number(created) || 0, updated: Number(updated) || 0 });
   }
   // [[uuid]] in the words: the page's name.
-  const ids = [...new Set(list.flatMap(t => [...t.raw.matchAll(/\[\[([0-9a-f-]{36})\]\]/gi)].map(m => m[1].toLowerCase())))];
+  const linked = [...new Set(list.flatMap(t => [...t.raw.matchAll(/\[\[([0-9a-f-]{36})\]\]/gi)].map(m => m[1].toLowerCase())))];
   const names = new Map();
-  if (ids.length) for (const [u, title] of await query(`[:find ?u ?t :where ${Door.uuidsIn('?u', ids)} [?e :block/uuid ?u] [?e :block/title ?t]]`)) names.set(String(u).toLowerCase(), String(title));
+  if (linked.length) for (const [u, title] of await query(`[:find ?u ?t :where ${Door.uuidsIn('?u', linked)} [?e :block/uuid ?u] [?e :block/title ?t]]`)) names.set(String(u).toLowerCase(), String(title));
   for (const t of list) t.words = t.raw.replace(/\[\[([0-9a-f-]{36})\]\]/gi, (m, u) => names.get(u.toLowerCase()) ?? m).replace(/\[\[([^\]]+)\]\]/g, '$1').trim();
   return list;
 }
@@ -91,10 +114,11 @@ async function unadd({ uuid, made, stamp }) {
   if (made) await Door.write.dropMade({ uuid: made });
   return true;
 }
-// A task's status set; gives its Undo, which puts the status back while it is as this left it.
+/* A task's status set; gives its Undo, which puts the status back while it is as this left it. before '' is a Status that was
+   empty: its Undo empties it again, never writes Todo. */
 async function setStatus(uuid, status, before) {
   await Door.write.setValue(uuid, STATUS, await statusTitle(status));
-  return Door.write.guarded([[uuid, STATUS]], async () => Door.write.setValue(uuid, STATUS, await statusTitle(before)));
+  return Door.write.guarded([[uuid, STATUS]], async () => before ? Door.write.setValue(uuid, STATUS, await statusTitle(before)) : Door.write.unsetValue(uuid, STATUS));
 }
 
 /* A day in the words typed: "today", "tomorrow", "friday", "next week", "nov 20", "20 november", "by friday", "on the 4th"

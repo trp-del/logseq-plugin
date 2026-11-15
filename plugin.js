@@ -966,7 +966,8 @@ Door.regrow = (el, from, ms = MOTION_MS) => {
 };
 /* THE menu (14 November 2026, from Look's Contents menu): the library's lk-pop, lk-menu, lk-group, lk-item and lk-check as a
    pop-up under the thing pressed, so no module wires a menu's keys and closing again. parts: { group: 'Group by' } a heading,
-   { gap: true } a space, { word, on, off, take } a line (on: the check mark, the one in force; off: faint, not taken).
+   { gap: true } a space, { word, on, off, take, icon } a line (on: the check mark, the one in force; off: faint, not taken;
+   icon: markup drawn before the word, such as a status's own icon).
    It rolls out of what opened it, its right edge on that's (align 'left': its left edge), above it when there is no room
    below. Up and Down walk it, Enter or Space takes a line, Escape or a press elsewhere closes it, and the keys go back to
    what opened it; pressing that again closes it. One menu is open at a time. Gives { close }, or null when it only closed. */
@@ -986,7 +987,7 @@ Door.menu = (from, parts, { align = 'right' } = {}) => {
     if (part.gap) return Door.el(doc, 'div', { class: 'lk-item gap' });
     const take = () => { close(true); part.take?.(); };
     const node = Door.el(doc, 'button', { class: `lk-item${part.off ? ' off' : ''}`, type: 'button', role: 'menuitemradio', 'aria-checked': String(!!part.on), click: take },
-      Door.el(doc, 'span', {}, part.word), part.on ? Door.el(doc, 'span', { class: 'lk-note lk-check', 'aria-hidden': 'true' }) : null);
+      part.icon ? Door.el(doc, 'span', { class: 'lk-item-word' }, Door.el(doc, 'span', { class: 'lk-item-icon', 'aria-hidden': 'true', html: part.icon }), part.word) : Door.el(doc, 'span', {}, part.word), part.on ? Door.el(doc, 'span', { class: 'lk-note lk-check', 'aria-hidden': 'true' }) : null);
     takes.set(node, take);
     return node;
   };
@@ -1217,7 +1218,7 @@ const TOKENS = `
    only while that is pointed at, light grey, darker near it, kept while the hand wavers (lk-near, put on by the module, where what
    it acts on is not around it); lk-more: show all; lk-views with lk-view
    (.on): other contents of one place; lk-trail with lk-step: the places you came through; lk-head (.on): a sort head;
-   lk-menu with lk-item (.off, .gap, a faint lk-note) and lk-group, the heading of a part of it: a menu.
+   lk-menu with lk-item (.off, .gap, a faint lk-note, an lk-item-icon before its words) and lk-group, the heading of a part of it: a menu.
    Drawn whole here since 6 November 2026, so no module draws them again: lk-window (a window mid-screen) and lk-pop (a pop-up at
    the thing pressed), the frames; lk-tick, the tick box; lk-fold, the fold arrow, its markup empty; lk-bul (.folded, .opens), Logseq's bullet;
    lk-field, a field on a hairline; lk-none, the nothing-here line; lk-undo, the arrow as a press; --lk-day, the day column's width. */
@@ -1361,6 +1362,10 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
 .lk-menu { border: 1px solid var(--lk-hair); border-radius: 6px; padding: 4px; }
 .lk-item { display: flex; justify-content: space-between; gap: 16px; width: 100%; text-align: left; color: var(--lk-text, currentColor) !important; padding: 5px 8px; white-space: nowrap; }
 .lk-item.off { color: var(--lk-off) !important; pointer-events: none; }
+.lk-item-word { display: inline-flex; align-items: center; gap: 8px; }
+.lk-item-icon { display: inline-flex; align-items: center; justify-content: center; width: 1.125em; flex: none; }   /* a line's own icon (a status's), Logseq's 18px for 16px words */
+.lk-item-icon svg { width: 1.125em; height: 1.125em; display: block; }
+.lk-item-icon .ti { font-size: 1.125em; line-height: 1; }
 .lk-item.on { background: var(--lk-wash); }   /* the line the keyboard is on */
 /* A press that cannot be taken now: at the off strength, and no hand. */
 :is(.lk-btn, .lk-lone, .lk-accent, .lk-fix, .lk-item):disabled { opacity: .45; cursor: default; pointer-events: none; }

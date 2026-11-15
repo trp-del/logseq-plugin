@@ -55,12 +55,22 @@ const BY_WORDS = { Day: 'By day', Page: 'By page', Tag: 'By tag', Priority: 'By 
 
 /* A task's status circle, Logseq's own (PluginDoor.statusHtml): the icon each status has in the graph (the owner, 15 November 2026:
    "they should be circles just like the tasks", "follow whatever icons are chosen by the properties"); a task just ticked shows
-   Done's at once. A press ticks it, as the box did: Done, or back to Todo from Done. */
-function circle(t, status, done) {
+   Done's at once. A press opens the status list (openStatus), as a press on Logseq's own circle does (the owner, 15 November
+   2026: "I cannot select different statuses"). */
+function circle(t, status) {
   const ticked = T.app.ticking.has(t.uuid), s = T.db.statuses.get(ticked ? 'done' : status);
-  const name = s?.title || (ticked ? 'Done' : status), next = done || ticked ? 'Not done' : 'Done';
-  const attrs = ` data-tick="${esc(t.uuid)}" title="${esc(name)}: click for ${esc(next.toLowerCase())}" aria-label="${esc(name)}, press for ${esc(next.toLowerCase())}: ${esc(t.words)}"`;
+  const name = s?.title || (ticked ? 'Done' : status);
+  const attrs = ` data-status-of="${esc(t.uuid)}" title="${esc(name)}: click to set the status" aria-label="Status: ${esc(name)}, ${esc(t.words)}"`;
   return Door.statusHtml(s || { title: name, icon: null }, { cls: 'td-circle', attrs, doc: Door.host() });
+}
+/* The status list, the library's menu under the circle (PluginDoor.menu): every status in the graph, in Logseq's order, each with
+   its own icon, the one in force checked (none for a Task whose Status is empty). Up and Down walk it, Return takes one. */
+function openStatus(from, uuid) {
+  const t = T.app.tasks.find(x => x.uuid === uuid);
+  if (!t) return;
+  const now = T.app.ticking.has(uuid) ? 'done' : t.empty && !T.app.status.has(uuid) ? '' : T.app.shown(t);
+  // The icons in the words' colour, as Logseq's own Set Status list draws them (on a bullet Logseq colours In Review and Canceled).
+  Door.menu(from, [{ group: 'Set Status' }, ...[...T.db.statuses.values()].map(s => ({ word: s.title, icon: Door.statusIconHtml(s.icon, from.ownerDocument), on: s.name === now, take: () => T.app.setTo(uuid, s.name) }))], { align: 'left' });
 }
 
 // part: the group the row stands in (main.js, groups()); Done's rows have none.
@@ -69,7 +79,7 @@ function rowHtml(t, part) {
   const day = !part || (part.today && !late) ? '' : dayWords(t.day);
   const where = !part || part.where ? t.page.title || '' : '';
   return `<div class="td-row lk-row${T.app.ticking.has(t.uuid) ? ' td-ticked' : ''}${done ? ' td-done' : ''}" data-uuid="${esc(t.uuid)}">
-${circle(t, status, done)}
+${circle(t, status)}
 <div class="td-main"><div class="td-line"><a class="td-words" href="#" data-open="${esc(t.uuid)}" title="Open the task; with Shift, in the sidebar">${esc(t.words || 'Untitled')}</a></div>${where ? `<div class="td-where">${esc(where)}</div>` : ''}</div>
 <div class="td-day lk-day${late ? ' td-late' : ''}">${esc(day)}</div></div>`;
 }
@@ -105,7 +115,9 @@ function make(holder, mode) {
       if (html === drawn) return;
       // A row coming into an open Done, or Done opening, rolls out; nothing else moves.
       const before = new Set([...list.querySelectorAll('.td-row')].map(r => r.dataset.uuid + (r.classList.contains('td-done') ? ':d' : '')));
+      const held = doc.activeElement?.closest?.('[data-status-of]')?.dataset.statusOf;   // the keys stay on a circle drawn again
       drawn = html; list.innerHTML = html;
+      if (held) list.querySelector(`[data-status-of="${held}"]`)?.focus({ preventScroll: true });
       if (before.size) Door.unroll([...list.querySelectorAll('.td-done-rows .td-row')].filter(r => !before.has(r.dataset.uuid + ':d')));
       Door.undo.draw();
     },
@@ -123,8 +135,8 @@ function make(holder, mode) {
     else if (event.key === 'Escape') { event.preventDefault(); if (input.value) { input.value = ''; showDay(); } else input.blur(); }
   });
   root.addEventListener('click', event => {
-    const tick = event.target.closest('[data-tick]');
-    if (tick) { event.preventDefault(); T.app.tick(tick.dataset.tick); return; }
+    const status = event.target.closest('[data-status-of]');
+    if (status) { event.preventDefault(); openStatus(status, status.dataset.statusOf); return; }
     const open = event.target.closest('[data-open]');
     if (open) { event.preventDefault(); T.app.open(open.dataset.open, event.shiftKey); return; }
     if (event.target.closest('[data-fold-done]')) { event.preventDefault(); T.app.foldDone(); return; }

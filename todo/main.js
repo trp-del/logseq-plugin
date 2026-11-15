@@ -74,37 +74,49 @@ const app = T.app = {
     app.doneOpen = true; app.draw();
     Door.unroll([...app.views].flatMap(v => [...v.root.querySelectorAll('.td-done-rows')]));
   },
-  /* A box pressed. An open task: ticked and crossed out, Done written, and after a moment the row rolls away into Done. Pressed
-     again in that moment, it is the Undo. A task in Done: back to Todo. Each change offers the one Undo at its row. */
-  async tick(uuid) {
+  /* A status picked from the task's circle (its list, view.js): written at once, with the one Undo at the row. Done: the row is
+     crossed out and after a moment rolls away into Done. Todo or Doing: the row stays, its circle changed. Backlog, In Review,
+     Canceled (any status that is neither open nor Done): the row rolls away, and the Undo waits at the bottom right. The Undo puts
+     back exactly what was there, an empty Status included (a Task whose Status was empty, shown as Todo). */
+  async setTo(uuid, to) {
     const t = app.tasks.find(x => x.uuid === uuid);
-    if (!t) return;
+    if (!t || !to) return;
     const waiting = app.ticking.get(uuid);
-    if (waiting) { clearTimeout(waiting.timer); app.ticking.delete(uuid); app.draw(); if (Door.undo.has(waiting.key)) Door.undo.take(waiting.key); return; }
-    const was = app.shown(t), to = was === 'done' ? 'todo' : 'done', key = `todo:${++changes}`;
-    const entry = { timer: 0, key };
-    if (to === 'done') app.ticking.set(uuid, entry);
-    app.status.set(uuid, to);
-    app.draw();
+    if (waiting) { clearTimeout(waiting.timer); app.ticking.delete(uuid); }
+    const wasEmpty = t.empty && !app.status.has(uuid);
+    const was = app.shown(t);
+    if (to === was && !wasEmpty) { if (waiting) app.draw(); return; }
+    const key = `todo:${++changes}`, entry = { timer: 0, key };
+    const rows = () => app.rowsOf(uuid).map(line => line.closest('.td-row')).filter(Boolean);
+    const leaves = to !== 'done' && !T.db.OPEN.has(to);
+    let going = null;
+    if (to === 'done') { app.ticking.set(uuid, entry); app.status.set(uuid, to); app.draw(); }
+    else if (leaves) going = Door.rollUp(rows()).then(() => { app.status.set(uuid, to); app.draw(); });   // drawn away as the roll ends, so it never shows again
+    else { app.status.set(uuid, to); app.draw(); }
     let undo;
-    try { undo = await T.db.setStatus(uuid, to, was); }
+    try { undo = await T.db.setStatus(uuid, to, wasEmpty ? '' : was); }
     catch (error) {
       console.error('Todo: the status could not be set', error);
-      app.ticking.delete(uuid); app.status.set(uuid, was); app.draw();
+      await going;
+      app.ticking.delete(uuid); if (wasEmpty) app.status.delete(uuid); else app.status.set(uuid, was); app.draw();
       return notify(`Not changed: ${Door.reason(error, 'Logseq did not take the status')}`, 'warning');
     }
-    const name = t.words.length > 40 ? t.words.slice(0, 38) + '…' : t.words;
-    Door.undo.offer({ owner: 'todo', key, node: uuid, text: to === 'done' ? `Ticked “${name}”` : `Unticked “${name}”`, at: () => app.rowsOf(uuid),
+    await going;
+    const name = t.words.length > 40 ? t.words.slice(0, 38) + '…' : t.words, title = T.db.statuses.get(to)?.title || to;
+    Door.undo.offer({ owner: 'todo', key, node: uuid, text: to === 'done' ? `Ticked “${name}”` : `Set “${name}” to ${title}`, at: () => app.rowsOf(uuid),
       run: async () => {
         const w = app.ticking.get(uuid); if (w) { clearTimeout(w.timer); app.ticking.delete(uuid); }
-        app.status.set(uuid, was); app.draw();
+        const shown = new Set(rows());
+        if (wasEmpty) app.status.delete(uuid); else app.status.set(uuid, was);
+        app.draw();
+        Door.unroll(rows().filter(r => !shown.has(r)));   // a row that had gone comes back the way it went
         if (await undo() === 'kept') { notify('It has changed since, so it stays', 'warning'); app.status.delete(uuid); }
         app.later();
       },
       onFail: error => { console.error('Todo: could not undo', error); notify('The status could not be put back', 'warning'); app.later(); } });
     if (to === 'done') entry.timer = setTimeout(async () => {
       if (app.ticking.get(uuid) !== entry) return;
-      await Door.rollUp(app.rowsOf(uuid).map(line => line.closest('.td-row')));
+      await Door.rollUp(rows());
       if (app.ticking.get(uuid) !== entry) return;
       app.ticking.delete(uuid); app.draw();
     }, FOLD_AFTER);
