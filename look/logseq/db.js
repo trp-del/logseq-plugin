@@ -80,9 +80,9 @@ async function propIndex() {
   return byTitle;
 }
 
-/* What folded nodes hold, at any depth: how many unfinished tasks, how many files of each kind (picture, PDF, other),
-   how many quotes, the tags inside (most used first, no numbers), and the nearest due day of an unfinished
-   task. A picture shown twice, or a passage cited twice, counts once. */
+/* What folded nodes hold: from any depth, how many unfinished tasks, their nearest due day and their tags; from the bullets
+   right under it only, how many files of each kind (picture, PDF, other), how many quotes and the other bullets' tags. Tags
+   come most used first, with no numbers. A picture shown twice, or a passage cited twice, counts once. */
 const dayNumber = window.PluginDoor.dates.number;
 async function heldBelow(uuids) {
   const list = [...new Set(uuids)].map(String).filter(u => UUID.test(u));
@@ -133,9 +133,14 @@ async function heldBelow(uuids) {
     const counts = new Map(), fileSets = new Map(), passages = new Set();
     let task = 0, due = 0;
     for (const b of below.get(r)) {
-      for (const q of quoteOf.get(b) || []) passages.add(q);
-      for (const [kind, a] of filesOf.get(b) || []) { if (!fileSets.has(kind)) fileSets.set(kind, new Set()); fileSets.get(kind).add(a); }
-      for (const title of tagsOf.get(b) || []) counts.set(title, (counts.get(title) || 0) + 1);
+      // Only what asks something of you rolls up from deeper down: unfinished tasks, their due days and their tags. Pictures,
+      // PDFs, files, quotes and the tags of other bullets count only on the bullet right above them, and a folded bullet
+      // further in shows them on its own line (15 November 2026, the owner: "for PDF and Photos, only show at parent";
+      // "the info should be actionable that goes up to top").
+      const near = parentOf.get(b) === r;
+      if (near) for (const q of quoteOf.get(b) || []) passages.add(q);
+      if (near) for (const [kind, a] of filesOf.get(b) || []) { if (!fileSets.has(kind)) fileSets.set(kind, new Set()); fileSets.get(kind).add(a); }
+      if (near || taskIds.has(b)) for (const title of tagsOf.get(b) || []) counts.set(title, (counts.get(title) || 0) + 1);
       if (!taskIds.has(b)) continue;
       task++;
       if (dueOf.has(b) && (!due || dueOf.get(b) < due)) due = dueOf.get(b);

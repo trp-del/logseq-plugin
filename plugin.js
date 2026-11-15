@@ -1375,7 +1375,8 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
    so the parts read apart before a word is read; a faint lk-note stays for a word of help. */
 .lk-group { padding: 6px 8px 3px; font-size: var(--lk-small); font-weight: 600; color: var(--lk-text, currentColor); cursor: default; }
 .lk-item.gap + .lk-group { border-top: 1px solid var(--lk-hair); margin-top: -4px; padding-top: 8px; }
-.lk-note { color: var(--lk-quiet); font-size: var(--lk-small); font-variant-numeric: tabular-nums; }
+/* lk-note is regular weight wherever it stands, under a heading's bold too (15 November 2026: a heading's ↳ line read bold). */
+.lk-note { color: var(--lk-quiet); font-size: var(--lk-small); font-weight: 400; font-variant-numeric: tabular-nums; }
 /* lk-picked: what you can do with what you picked, right above the picked rows on the same grey as them, so the picks and what
    acts on them read as one block, the only filled area in a list (the owner, 5 November 2026, the grey block of picking-redesign.html:
    "build 2"). lk-picked-count holds the number (lk-picked-n), lk-picked-x clears the picks, lk-picked-act is an action, a plain word

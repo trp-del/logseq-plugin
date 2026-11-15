@@ -6,7 +6,8 @@
 const Look = window.Look;
 const { host, style, watchScreen, onGraphChange, el, iconHtml, openPage } = Look.kit, { setting } = Look.settings;
 const css = `
-.lk-folded { display: inline-flex; align-items: baseline; gap: .25em; margin-left: .5em; font-size: var(--lk-small); color: var(--lk-quiet); white-space: nowrap; user-select: none; cursor: default; }
+/* The line is the library's quiet note (lk-note: its grey, its size, regular weight under a heading's bold); here only its place. */
+.lk-folded { display: inline-flex; align-items: baseline; gap: .25em; margin-left: .5em; white-space: nowrap; user-select: none; cursor: default; }
 .lk-folded .lk-icon { font-size: .95em; align-self: center; }
 /* An icon and its number are one pair; a wider gap between pairs than inside one. */
 .lk-folded .lk-pair { display: inline-flex; align-items: baseline; gap: .15em; }
@@ -57,7 +58,7 @@ function build(doc, held) {
   });
   if (held.due) { if (parts.length > 1) parts.push(el(doc, 'span', { class: 'lk-sep', 'aria-hidden': 'true' }, '·')); parts.push(el(doc, 'span', {}, dueLabel(held.due))); }
   const keep = event => event.stopPropagation();
-  const note = el(doc, 'span', { class: 'lk-folded lk-own', contenteditable: 'false', title: wordsFor(held).join(' · '), mousedown: keep, pointerdown: keep, click: onClick }, ...parts);
+  const note = el(doc, 'span', { class: 'lk-folded lk-note lk-own', contenteditable: 'false', title: wordsFor(held).join(' · '), mousedown: keep, pointerdown: keep, click: onClick }, ...parts);
   return note;
 }
 async function onClick(event) {
