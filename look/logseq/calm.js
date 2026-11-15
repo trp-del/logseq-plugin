@@ -176,6 +176,9 @@ const reading = () => WIDTHS[setting('readingWidth')] || null;
 const widthCss = col => `
 #main-content-container .cp__sidebar-main-content { max-width: ${col} !important; }
 #main-content-container .cp__sidebar-main-content:has(.page-tabs) { max-width: min(1440px, 100%) !important; }
+/* Logseq's wide mode (t w) wins over the reading width (the owner, 15 November 2026, of the Ontology page: "it doesn't seem
+   responsive to wide mode"): Logseq's own wide width, 1440 px, on every page, as in Logseq without the plugin. */
+.ls-wide-mode #main-content-container .cp__sidebar-main-content { max-width: var(--ls-main-content-max-width-wide, 1440px) !important; }
 #main-content-container [data-lk-wide] { width: var(--lk-w) !important; max-width: none !important; margin-left: var(--lk-out) !important; }
 #main-content-container :is(.ls-foldable-content-inner, .ls-page-blocks):has([data-lk-wide]) { overflow: visible !important; }`;
 /* What reaches out to the window's width: each one's left edge is measured and moved so it spans the page's middle

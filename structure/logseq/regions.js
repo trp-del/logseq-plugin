@@ -14,10 +14,25 @@ const watched = new WeakMap();   // each map's last drawing, drawn again when it
    a fourth area stood off the right edge behind a scroll bar, and the lines were thick and bright in dark mode). A line between
    areas on one row keeps to their gap or the band above that row; between rows it goes down the gap at the right of its area, runs
    along the band above the lower row, and comes down the gap at the right of the other. */
+/* The columns (15 November 2026, the owner: "have the ontology fill the space in order to maximize the space between the columns"):
+   as many as fit at their narrowest (232 px, a 15-letter name two steps in) and no more than there are areas, each as wide as
+   340 px at most and all the same width; the stylesheet's justify-content puts the first at the left edge, the last at the
+   right and the room left over in the gaps. Worked out here, at each drawing and each change of width, since CSS counts the
+   columns at their widest. */
+const NARROW = 232, WIDE = 340;
+function columns(box) {
+  const css = box.ownerDocument.defaultView.getComputedStyle(box), gap = parseFloat(css.columnGap) || 0;
+  const inner = box.clientWidth - (parseFloat(css.paddingLeft) || 0) - (parseFloat(css.paddingRight) || 0);
+  const areas = [...box.querySelectorAll(':scope > .st-area')].filter(a => a.getClientRects().length).length;
+  const n = Math.max(1, Math.min(areas || 1, Math.floor((inner + gap) / (NARROW + gap))));
+  const want = `repeat(${n}, minmax(${NARROW}px, ${WIDE}px))`;
+  if (box.style.gridTemplateColumns !== want) box.style.gridTemplateColumns = want;
+}
 function lines(root, M, cur, quiet) {
   const box = root.querySelector('.st-regions'), svg = box?.querySelector('svg.st-lines');
   if (!svg) return;
   watch(box, () => lines(root, M, cur, quiet));
+  columns(box);
   if (quiet) { svg.innerHTML = ''; return; }   // while a tag is being chosen, only the tags
   const at = box.getBoundingClientRect(), rows = new Map(), areas = [...box.querySelectorAll('.st-area')];
   for (const row of box.querySelectorAll('[data-row]')) rows.set(Number(row.dataset.row), row);

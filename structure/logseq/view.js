@@ -39,7 +39,13 @@ const CSS = `
 .st-top .st-new { margin-left: auto; white-space: nowrap; flex: none; }
 /* The areas: columns sharing the page's width, onto a second row when they cannot fit, never past the edge; a band above each row for
    the lines that cross, gaps wide enough for the lines between neighbours. */
-.st-regions { position: relative; display: grid; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); align-items: start; gap: 40px 40px; padding: 30px 30px 12px 6px; min-width: 0; }
+.st-regions { position: relative; display: grid; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); justify-content: space-between; align-items: start; gap: 40px 40px; padding: 30px 30px 12px 6px; min-width: 0; }
+/* The areas fill the page's width (the owner, 15 November 2026: "have the ontology fill the space in order to maximize the space
+   between the columns ... 2nd column should go all the way to right"): each area as wide as it needs up to 340 px, all the same
+   width, the first at the left edge and the last at the right, the space left over going into the gaps between them, where the
+   lines run. Until then each column took an equal share and the last stood short of the edge, an empty column's room after it.
+   How many columns is worked out in regions.js (columns), as many as fit at 232 px and no more than there are areas; CSS alone
+   counts them at the widest, 340 px, and four areas that fit went onto two rows. This rule is what shows before that. */
 /* Every area the same width (12 November 2026): as flex items, an area alone on the last row grew wider than the others and its counts
    stood far from its names, and three areas squeezed into 202 px each broke "Pharmacological" inside the word. 232 px holds a 15-letter
    name two steps in. */
