@@ -74,6 +74,10 @@ assert.ok(/if \(fold\.getAttribute\('aria-expanded'\) !== String\(!folded\)\)/.t
 assert.ok(/state\.known\.get\(state\.page\)/.test(read('look/logseq/cites.js')), 'a page\'s endnote numbers are drawn at once on a revisit');
 assert.ok(/const was = \[\.\.\.box\.children\], now = \[\.\.\.next\.children\];/.test(read('threads/parts/two-way.js')), 'Linked draws again only the lists that changed');
 
+// 6d. Linked's add line stands where the rows stand (the owner, 15 November 2026: "move it").
+{ const add = read('threads/parts/two-way/add.js');
+  assert.ok(/<div class="th-ol-in th-tw-draft-in">\$\{draftLineHtml\(group, d\)\}<\/div>/.test(add) && /th-ol-line th-tw-draft-line">\$\{o\.room\(\)\}<span class="th-ol-dot"><span class="th-tw-draft-plus/.test(add), 'the add line is built as a row: fold arrow room, + in the bullet\'s place, day room, then the name'); }
+
 // 7. Old words stay out of what a person reads.
 for (const [f, re, what] of [['look/README.md', /the Contents tab/, 'the Contents tab'], ['predictive/logseq/app.js', /prefix: 'Flow: '/, 'Flow'], ['threads/parts/diagnostics.js', /th-tag-path/, 'a mark nothing draws']])
   assert.ok(!re.test(read(f)), `${what} is still in ${f}`);

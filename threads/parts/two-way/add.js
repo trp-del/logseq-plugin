@@ -47,7 +47,8 @@ function addLineHtml(group) {
   // shown with the pointer on the row, it takes no room; the line comes only once it is clicked. A line begun from a
   // group's + is drawn in that group.
   if (!d || d.gkey) return '';
-  return draftLineHtml(group, d);
+  // In the list's own indent, as the rows are (their .th-ol-in), so its columns are theirs.
+  return `<div class="th-ol-in th-tw-draft-in">${draftLineHtml(group, d)}</div>`;
 }
 function draftLineHtml(group, d) {
   const kind = d ? d.kind : kindsOf(group)[0] || '';
@@ -55,7 +56,11 @@ function draftLineHtml(group, d) {
   const field = d?.step === 'where'
     ? `<span class="th-tw-draft-typed">${esc(d.name)}</span><span class="th-field lk-field th-field-inline"><input type="text" class="th-tw-draft-field th-tw-draft-where" placeholder="Where? Enter: today’s journal" spellcheck="false" aria-label="Where the new node goes"></span>`
     : `<span class="th-field lk-field th-field-inline"><input type="text" class="th-tw-draft-field th-tw-draft-name" placeholder="Add a${/^[aeiou]/i.test(kind) ? 'n' : ''} ${esc(kind || 'node')}" spellcheck="false" aria-label="Name of a new node"></span>`;
-  return `<div class="th-tw-draft th-tw-drafting" data-field="${esc(group.name)}"><span class="th-tw-draft-plus th-faint lk-i-plus" aria-hidden="true"></span><span class="th-tw-draft-main">${field}</span>${tag}<div class="th-tw-draft-props">${propsHtml(group, d)}</div></div>`;
+  /* Built as a row is (shared.outline): the fold arrow's room, the + where a row has its bullet, the day's room, then the line itself,
+     so the name is typed where the rows' words start and what is asked under it stands on that same edge (the owner, 15 November
+     2026: "move it"; it began at the fold arrows' column). */
+  const o = shared.outline;
+  return `<div class="th-ol-line th-tw-draft-line">${o.room()}<span class="th-ol-dot"><span class="th-tw-draft-plus th-faint lk-i-plus" aria-hidden="true"></span></span>${o.day('')}<div class="th-ol-body th-tw-draft th-tw-drafting" data-field="${esc(group.name)}"><span class="th-tw-draft-main">${field}</span>${tag}<div class="th-tw-draft-props">${propsHtml(group, d)}</div></div></div>`;
 }
 /* The rest of the new node, under the line (the owner's pick):
    what the node will get, as the proposals read in a bullet, italic grey with a dotted line under a guess: the row's

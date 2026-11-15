@@ -182,7 +182,12 @@ const twoWayCss = `
    bullet is: Enter after a bullet's words, or Tab, brings it, and it shows while it has the caret or words. */
 .th-two-way .th-ol-new:not(:focus-within):not(:has(input:not(:placeholder-shown))) { height: 0; min-height: 0; margin: 0; padding: 0; overflow: hidden; opacity: 0; }
 /* Date first in a short row, name first in a list: the same columns as the other kind, the other way round. */
-.th-two-way .th-tw-draft-plus { position: absolute; left: .35rem; width: 16px; height: 1.8em; display: inline-flex; align-items: center; justify-content: center; }   /* as tall as the words beside it */
+.th-two-way .th-tw-draft-plus { width: 16px; height: 1.5em; display: inline-flex; align-items: center; justify-content: center; }   /* in the bullet's place, as tall as the words beside it */
+/* The add line is a row's line (add.js): it keeps the rows' columns, takes the line's room to the end, and has no wash of its own. */
+.th-two-way .th-tw-draft-in { padding-left: calc(var(--th-tw-level) - var(--th-tw-in)); }
+.th-two-way .th-ol-line.th-tw-draft-line { align-items: baseline; }
+.th-two-way .th-ol-line.th-tw-draft-line:hover { background: transparent; }
+.th-two-way .th-tw-draft-line > .th-tw-draft.th-ol-body { display: grid; flex: 1; min-width: 0; margin: 0; padding: 0; }   /* the line's own grid (name, tag), not a row's inline words */
 .th-two-way .th-tw-draft-plus::before { margin-right: 0; width: .75em; height: .75em; vertical-align: 0; }   /* the library's + mark, alone, centred in the line */
 .th-two-way .th-tw-draft-main { display: flex; align-items: baseline; gap: .5em; min-width: 0; }
 .th-two-way .th-tw-draft-main .th-field { flex: none; min-width: 0; max-width: 100%; }
@@ -220,8 +225,6 @@ const twoWayCss = `
 .th-two-way .th-tw-gwords { display: inline-flex; align-items: baseline; gap: .35em; padding-right: .25em; color: var(--lk-quiet); }
 .th-two-way .th-tw-gn { font-size: 14px; }
 /* A group's + is the library's lk-reveal. */
-.th-two-way .th-tw-group .th-tw-draft { padding-left: .35rem; }
-.th-two-way .th-tw-group .th-tw-draft-plus { display: none; }
 /* The chevron before a node's name: always there, faint; full under the pointer or while the node is open. */
 /* A node's properties in its opened box: two columns as Logseq's own property list, the name lighter than the
    value, a node property's mark before the name (a fact none); a value a quiet button, a wash under the pointer; "empty" in grey. */
@@ -341,7 +344,7 @@ const twoWayCss = `
    one step in, its dot after it, at one place down the whole section; its line for a new node stays on the edge. */
 .th-two-way .th-tw-value:not(:has(> .th-tw-head)) { padding-left: var(--th-tw-in); }
 .th-two-way .th-tw-row > .th-tw-value:not(:has(> .th-tw-head)) { padding-left: 0; }
-.th-two-way .th-tw-value:not(:has(> .th-tw-head)) > .th-tw-draft { margin-left: calc(-.35rem - var(--th-tw-in)); }
+.th-two-way .th-tw-value:not(:has(> .th-tw-head)) > .th-tw-draft-in { margin-left: calc(-1 * var(--th-tw-in)); }
 /* A heading's chevron is never over its nodes' chevrons (the owner, 2026-10-27: "the heading chevron cannot be over other
    chevrons"): everything a list holds steps in one step, dated or not, and a group's nodes once more under the group;
    a day stays in the margin left of its node's chevron. */
