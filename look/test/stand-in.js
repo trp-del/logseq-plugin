@@ -25,9 +25,13 @@ function fakeQuery(q) {
   if (has('closed-value-property ?p]]')) return [[106]]; // Status is a choice
   // What the folded node (U(400)) holds: three children; a task due Nov 19, two consultations, one of them a symptom too, a PDF.
   if (has('[?r :block/uuid ?u] [?r :block/page ?pg]')) return [[U(400), 400, 500]];
-  if (has('[?b :block/page ?pg] [?b :block/parent ?parent]')) return [[401, 400], [402, 401], [403, 400]];
+  // Embeds (16 November 2026): 404 and 405 both embed 600, a node on another page (501) with a done task (601) under it, and 602
+  // under 600 embeds the folded node itself; 600 counts once and the loop stops where it comes round.
+  if (has('[?b :block/page ?pg] [?b :block/parent ?parent]')) return /\b501\b/.test(q) ? [[600, 501], [601, 600], [602, 600]] : [[401, 400], [402, 401], [403, 400], [404, 400], [405, 400]];
+  if (has('[?b :block/page ?pg] [?b :block/link ?l]')) return /\b501\b/.test(q) ? [[602, 400]] : [[404, 600], [405, 600]];
+  if (has('[?l :block/page ?pg]')) return [[600, 501]];
   if (has('[?t :block/title ?title] [(get-else $ ?t :db/ident :none) ?ident]')) return [[401, 'Task', ':logseq.class/Task'], [402, 'Consultation', ':user.class/Consultation'], [403, 'Consultation', ':user.class/Consultation'], [403, 'Symptom', ':user.class/Symptom']];
-  if (has('logseq.property/status ?s')) return [];
+  if (has('logseq.property/status ?s')) return /\b601\b/.test(q) ? [[601, ':logseq.property/status.done']] : [];
   if (has('[?d :block/journal-day ?day]')) return [[401, 20261119]];
   if (has('(> ?ms 100000000000)')) return [];
   if (has('logseq.property.asset/type ?type')) return [[403, 900, ':pdf']];

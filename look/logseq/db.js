@@ -80,7 +80,7 @@ async function propIndex() {
   return byTitle;
 }
 
-/* What folded nodes hold: from any depth, how many unfinished tasks and done ones, the unfinished ones' nearest due day and their tags; from the bullets
+/* What folded nodes hold, embedded nodes and pages counted as if written in place: from any depth, how many unfinished tasks and done ones, the unfinished ones' nearest due day and their tags; from the bullets
    right under it only, how many files of each kind (picture, PDF, other), how many quotes and the other bullets' tags. Tags
    come most used first, with no numbers. A picture shown twice, or a passage cited twice, counts once. */
 const dayNumber = window.PluginDoor.dates.number;
@@ -89,14 +89,53 @@ async function heldBelow(uuids) {
   const held = new Map();
   if (!list.length) return held;
   const ground = (variable, values) => `[(ground [${values.join(' ')}]) [${variable} ...]]`;
-  const roots = await query(`[:find ?u ?r ?pg :where ${ground('?u', list.map(u => `#uuid "${u}"`))} [?r :block/uuid ?u] [?r :block/page ?pg]]`);
+  const asked = ground('?u', list.map(u => `#uuid "${u}"`));
+  // A folded page embed stands under the page's own id, so a page is a root too, its own page.
+  const [blockRoots, pageRoots] = await Promise.all([
+    query(`[:find ?u ?r ?pg :where ${asked} [?r :block/uuid ?u] [?r :block/page ?pg]]`),
+    query(`[:find ?u ?r :where ${asked} [?r :block/uuid ?u] [?r :block/name _]]`),
+  ]);
+  const roots = [...blockRoots, ...pageRoots.map(([u, r]) => [u, r, r])];
   if (!roots.length) return held;
-  held.pages = roots.map(r => r[2]);
-  const tree = await query(`[:find ?b ?parent :where ${ground('?pg', [...new Set(roots.map(r => r[2]))])} [?b :block/page ?pg] [?b :block/parent ?parent] (not [?b :logseq.property/created-from-property _])]`);
-  const kids = new Map(), parentOf = new Map();
-  for (const [b, parent] of tree) { if (!kids.has(parent)) kids.set(parent, []); kids.get(parent).push(b); parentOf.set(b, parent); }
-  const below = new Map();
-  for (const [, r] of roots) { const all = [], todo = [...(kids.get(r) || [])]; while (todo.length) { const b = todo.pop(); all.push(b); todo.push(...(kids.get(b) || [])); } below.set(r, all); }
+  /* An embedded node or page counts as if written where it is embedded (16 November 2026, the owner: what an embed holds,
+     tasks above all, shows in the parents it sits under). Logseq keeps an embed as an empty bullet whose :block/link is the
+     node or page shown; that node stands in the embed's place, at its depth, with what is under it. Its page is read too,
+     and again for any embed inside it. A node reached twice (the same task embedded twice) counts once, and an embed that
+     holds itself stops where it comes round again. */
+  const kids = new Map(), parentOf = new Map(), linkOf = new Map(), loaded = new Set();
+  for (let pages = new Set(roots.map(r => r[2])), round = 0; pages.size && round < 12; round++) {
+    const fresh = [...pages].filter(p => !loaded.has(p));
+    if (!fresh.length) break;
+    for (const p of fresh) loaded.add(p);
+    const onPages = ground('?pg', fresh);
+    const [tree, links] = await Promise.all([
+      query(`[:find ?b ?parent :where ${onPages} [?b :block/page ?pg] [?b :block/parent ?parent] (not [?b :logseq.property/created-from-property _])]`),
+      query(`[:find ?b ?l :where ${onPages} [?b :block/page ?pg] [?b :block/link ?l]]`),
+    ]);
+    for (const [b, parent] of tree) { if (!kids.has(parent)) kids.set(parent, []); kids.get(parent).push(b); parentOf.set(b, parent); }
+    for (const [b, l] of links) linkOf.set(b, l);
+    pages = new Set();
+    const targets = [...new Set(links.map(r => r[1]))];
+    if (!targets.length) continue;
+    // A block shown by an embed is read with its page; a page shown by an embed is itself the page to read.
+    const onPage = new Map((await query(`[:find ?l ?pg :where ${ground('?l', targets)} [?l :block/page ?pg]]`)).map(([l, pg]) => [l, pg]));
+    for (const l of targets) pages.add(onPage.has(l) ? onPage.get(l) : l);
+  }
+  held.pages = [...loaded];
+  // Each folded node's nodes below it, with the bullets right under it apart ("near": files, quotes and plain tags count only there).
+  const below = new Map(), nearOf = new Map();
+  for (const [, r] of roots) {
+    const all = [], near = new Set(), seen = new Set();
+    const visit = (b, depth) => {
+      if (seen.has(b)) return;
+      seen.add(b);
+      if (depth > 0) { all.push(b); if (depth === 1) near.add(b); }
+      for (const c of kids.get(b) || []) visit(c, depth + 1);
+      if (linkOf.has(b)) visit(linkOf.get(b), depth);
+    };
+    visit(r, 0);
+    below.set(r, all); nearOf.set(r, near);
+  }
   const ids = [...new Set([...below.values()].flat())];
   if (!ids.length) return held;
   const among = ground('?b', ids);
@@ -140,7 +179,7 @@ async function heldBelow(uuids) {
       // PDFs, files, quotes and the tags of other bullets count only on the bullet right above them, and a folded bullet
       // further in shows them on its own line (15 November 2026, the owner: "for PDF and Photos, only show at parent";
       // "the info should be actionable that goes up to top").
-      const near = parentOf.get(b) === r;
+      const near = nearOf.get(r).has(b);
       if (near) for (const q of quoteOf.get(b) || []) passages.add(q);
       if (near) for (const [kind, a] of filesOf.get(b) || []) { if (!fileSets.has(kind)) fileSets.set(kind, new Set()); fileSets.get(kind).add(a); }
       if (near || taskIds.has(b)) for (const title of tagsOf.get(b) || []) counts.set(title, (counts.get(title) || 0) + 1);

@@ -100,7 +100,7 @@ const { U, load, pencilled } = standIn;
   assert.deepEqual([...note.querySelectorAll('a.lk-tag')].map(a => a.textContent), ['Consultation', 'Symptom']);
   for (const tag of note.querySelectorAll('a.lk-tag')) assert.ok(tag.previousElementSibling?.classList.contains('lk-sep') && tag.previousElementSibling.textContent === '·', `a dot before ${tag.textContent}`);
   assert.ok(/due Nov 19|was due Nov 19/.test(note.textContent) && !/\d+ Consultation|Consultation \d/.test(note.textContent), 'the due day, no count on the tag');
-  assert.equal(note.querySelector('.lk-pair').textContent, '1', 'the task count beside the circle');
+  assert.equal(note.querySelector('.lk-pair').textContent, '1/2', 'done of all beside the circle: the done task comes from a node embedded twice, counted once');
   assert.ok(!note.querySelector('.ti-link'), 'no count of links');
   // the settings window draws from Look's description: a heading per section, the one row for the property icon
   const described = window_described();
