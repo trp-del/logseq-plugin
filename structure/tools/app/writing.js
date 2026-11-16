@@ -76,6 +76,14 @@ const sleep = D.sleep;
     await p.mouse.move(5, 600);
     ok(await p.evaluate(() => { const m = document.querySelector('#ui__ac-inner mark'); const st = m && getComputedStyle(m); return !!st && st.backgroundColor === 'rgba(0, 0, 0, 0)' && Number(st.fontWeight) >= 600; }), 'the letters typed are semibold in a match, with no yellow behind them');
     await clear(); await leave();
+    // # right after a link (15 November 2026: Logseq's plain tag list showed there)
+    if (!(await editing())) { await f.evaluate(u => logseq.Editor.editBlock(u), uuid); await sleep(500); }
+    await clear(); await leave();
+    await f.evaluate(u => logseq.Editor.updateBlock(u, 'Called [[Dr. Mei Chen]]'), uuid); await sleep(600);   // Logseq pairs typed brackets, so the link is set, not typed
+    for (let i = 0; i < 6 && !(await editing()); i++) { await f.evaluate(u => logseq.Editor.editBlock(u), uuid); await sleep(500); }
+    await p.keyboard.press('End'); await sleep(200); await type('#'); await sleep(900); list = await rows();
+    ok(list && list.every(r => r[1] === '*') && list.some(r => /Logseq’s tags:/.test(r)), '# right after a [[link]]: your own tags under your top-level tags, not Logseq’s plain list');
+    await clear(); await leave();
     // 5. a property's values by tag
     uuid = await open('Conversation', 'Phoned about the scan results'); await leave(); await sleep(800);
     const pill = await p.evaluateHandle(u => [...document.querySelectorAll(`.ls-block[blockid="${u}"] .bottom-property-pill`)].find(n => n.querySelector('.property-k')?.textContent.trim() === 'Spoke with')?.querySelector('.property-value-inner .jtrigger'), uuid);

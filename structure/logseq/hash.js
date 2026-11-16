@@ -48,7 +48,9 @@ function start(app, doc) {
   const M = () => app.tray.model;
   const byTitle = title => [...M().tags.values()].find(t => t.title === title);
   // What is being typed after a #, or null when the list open is not the tag list.
-  const typed = () => { const a = doc.activeElement; if (a?.tagName !== 'TEXTAREA') return null; const m = /(?:^|\s)#([^#\n]*)$/.exec(a.value.slice(0, a.selectionStart)); return m ? m[1] : null; };
+  // The # may follow a space, the start, or the end of a link or a bracket: "[[Medicare]]#" opens Logseq's tag list too (15 November
+  // 2026, the owner: "the wrong menu appears after a wikilink is created"; the plain list showed because only a space counted).
+  const typed = () => { const a = doc.activeElement; if (a?.tagName !== 'TEXTAREA') return null; const m = /(?:^|[\s\])}])#([^#\n]*)$/.exec(a.value.slice(0, a.selectionStart)); return m ? m[1] : null; };
   const listEl = () => doc.getElementById('ui__ac-inner');
   const logseqRows = list => [...list.querySelectorAll(':scope > .menu-link-wrap:not(.st-hrow)')];
   // A row's own words, without what is written into it.
