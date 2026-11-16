@@ -134,6 +134,7 @@ const twoWayCss = `
 /* What the timeline narrowed, on a line of its own under the tabs, smaller and quiet, its × to give the list back (the owner, 11 November 2026). */
 .th-two-way .th-tw-head .th-tw-piece.th-tw-showing { flex: 0 0 100%; order: 99; display: inline-flex; align-items: baseline; gap: 4px; margin: 0; font-size: var(--lk-small); font-weight: 400; }
 .th-two-way .th-tw-head .th-tw-showing .lk-x { font-size: var(--lk-small); line-height: 1; }
+.th-two-way .th-tw-head .th-tw-showing-room { visibility: hidden; }
 /* The year line (N3), shape A (10 November 2026, the owner's pick): no box; a hairline a lane through the dots, a tick where
    each month starts and its name under it; the line in the words' column (after the days' column), 6px in at both ends so no
    dot meets its end; with lanes, each lane's name right-aligned before the line, in the days' column. A picked span a wash.

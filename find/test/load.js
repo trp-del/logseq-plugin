@@ -467,6 +467,13 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
     assert.ok(dlg && dlg.classList.contains('fd-say') && doc.querySelectorAll('.fd-piece').length === 0 && dlg.style.height === 308 + 12 * 32 + 'px', 'the open window turns to a sentence, the picks gone');
     Find.window.sentence(); await settle(); assert.equal(doc.querySelector('dialog.fd'), null, 'pressed again, it closes');
     assert.deepEqual(commands, ['Find', 'Find by sentence'], 'both commands are registered'); }
+  // The plain window says the sentence's key at the foot's right end, and a press on it turns the window into a sentence.
+  { Find.window.open(); await settle();
+    const way = doc.querySelector('.fd-foot .fd-say-way button');
+    assert.ok(way && /By sentence/.test(way.textContent), 'the foot offers By sentence with its key');
+    way.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true })); await settle();
+    assert.ok(doc.querySelector('dialog.fd')?.classList.contains('fd-say') && !doc.querySelector('.fd-foot .fd-say-way'), 'a press turns it into Find by sentence');
+    Find.window.sentence(); await settle(); }
   // the key specimen, and the stop
   assert.ok(Find.settings.specimen({ key: 'takesSearchKey', type: 'boolean' }, true).includes('Cmd K'), 'the key specimen, in plain words');
   await logseq._unload();

@@ -202,7 +202,7 @@ twoWay.headHooks.push((group, key) => {
   /* Its own quieter, smaller line under the tabs, with a × that gives the whole list back (11 November 2026, the owner: "the second
      line needs to look different if it has different function than top"): the tabs pick what kind, this line says what the
      timeline narrowed. */
-  return said ? `<span class="th-tw-piece th-tw-showing"><span class="th-tw-sorted">Showing ${esc(said)}</span><button type="button" class="lk-x" data-yclear="${esc(key)}" title="Show the whole list again (Escape)" aria-label="Show the whole list again">×</button></span>` : '';
+  return said ? `<span class="th-tw-piece th-tw-showing"><span class="th-tw-sorted">Showing ${esc(said)}</span><button type="button" class="lk-x" data-yclear="${esc(key)}" title="Show the whole list again (Escape)" aria-label="Show the whole list again">×</button></span>` : state.yearOn.has(key) ? `<span class="th-tw-piece th-tw-showing th-tw-showing-room" aria-hidden="true"><span class="th-tw-sorted">&nbsp;</span></span>` : '';   // its room kept while the timeline shows, so a press on a dot moves nothing (16 November 2026, the owner: "when you click it make the line jump down")
 });
 // The timeline in force, for the View menu's words on the heading: "Timeline", "Timeline by Topic", or nothing while hidden.
 twoWay.timelineSaid = group => { const key = listKey(group); if (!state.yearOn.has(key)) return ''; const lanes = lanesOf(group); return lanes ? `Timeline by ${lanes.prop.name}` : 'Timeline'; };

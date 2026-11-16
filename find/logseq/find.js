@@ -56,6 +56,7 @@ const CSS = `
 .fd-by { position: absolute; left: 64px; top: 6px; font-size: var(--lk-small); display: flex; gap: 12px; }   /* beside the year, clear of today at the right end */
 .fd-by > span { cursor: pointer; }
 /* The line itself is the library's timeline (lk-time, PluginDoor.timeline), the one Linked draws: here only its place. */
+.fd-line .fd-time-empty { opacity: .45; pointer-events: none; }   /* waiting: the empty line, faint */
 /* The body scrolls; the choices sit above the rows, a gap of one line between them. A property's name here stays a shade
    lighter than its values, which are quiet. */
 .fd-body { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 16px 10px; }
@@ -138,6 +139,7 @@ const CSS = `
 .fd-foot:empty { display: none; }
 .fd-foot .fd-k { color: var(--lk-quiet); margin-left: .4em; }
 .fd-foot .fd-right { margin-left: auto; padding: 0; }
+.fd-foot .fd-say-way { margin-left: auto; } .fd-foot .fd-right + .fd-say-way { margin-left: 0; }   /* at the right end, after Make a page when that stands there */
 `;
 
 const NEAR_SHOWN = 5;   // near rows listed before "show all"
@@ -677,10 +679,18 @@ function drawLine(doc) {
   box.replaceChildren();
   box.classList.toggle('fd-off', isCommandMode());
   S.lineDots = [];
-  if (!S.say || isCommandMode() || atRest()) { S.line = 0; S.lineH = 52; setHeight(); return; }
-  const when = whenPick();
-  const dated = [...S.shown.slice(0, 400).map(nd => ({ node: nd, near: false })), ...S.nearShown.slice(0, 400).map(nd => ({ node: nd, near: true }))].filter(d => d.node.day);
-  if (!dated.length && !when) { S.line = 0; S.lineH = 52; setHeight(); return; }
+  if (!S.say || isCommandMode()) { S.line = 0; S.lineH = 52; setHeight(); return; }
+  const when = atRest() ? null : whenPick();
+  const dated = atRest() ? [] : [...S.shown.slice(0, 400).map(nd => ({ node: nd, near: false })), ...S.nearShown.slice(0, 400).map(nd => ({ node: nd, near: true }))].filter(d => d.node.day);
+  /* Nothing found yet, or nothing with a day: the line still stands, empty and faint, over the last twelve months, so its place
+     never shows as a blank band (16 November 2026, the owner: "looks weird without anything in empty space"). */
+  if (!dated.length && !when) {
+    S.line = 0; S.lineH = 52; S.lineDots = [];
+    const t = new Date(), from = window.PluginDoor.dates.number(new Date(t.getFullYear(), t.getMonth() - 11, 1));
+    box.insertAdjacentHTML('beforeend', window.PluginDoor.timeline.html({ key: 'find', from, label: 'The time of what will be found' }));
+    box.firstElementChild?.classList.add('fd-time-empty');
+    setHeight(); return;
+  }
   const lanes = S.line === 2 ? laneProp() : null;
   if (S.line === 2 && !lanes) S.line = 1;
   if (!lanes) S.timeLane = null;
@@ -848,12 +858,15 @@ function foot(doc, groups, rows) {
     if (cur?.kind === 'node') { add(KEY('Enter', `open ${esc(short(cur.node.text))}`)); add(KEY('Shift Enter', 'in the sidebar')); }
     else if (cur?.kind === 'group') add(KEY('Enter', `open the ${cur.count}`));
   }
-  if (atRest()) return items;
+  /* The sentence's own key, said and pressable, in the plain window (16 November 2026, the owner: "put a shortcut in the find
+     window"): a press or ⌥⌘K turns this window into Find by sentence, with its timeline. */
+  const way = () => S.say ? items : items.concat(el(doc, 'span', { class: 'fd-say-way' }, el(doc, 'button', { class: 'lk-btn lk-low', type: 'button', title: 'Find by sentence, with its timeline', click: () => sentence() }, 'By sentence', el(doc, 'span', { class: 'fd-k' }, window.PluginDoor.keyMarks('mod+alt+k')))));
+  if (atRest()) return way();
   if (cur?.kind === 'node' && cur.top) add(KEY(S.dug.includes(cur.node.uuid) ? '←' : '→', S.dug.includes(cur.node.uuid) ? 'close' : 'dig'));
   if (cur?.kind === 'group') add(KEY(S.openGroups.has(cur.key) ? '←' : '→', S.openGroups.has(cur.key) ? 'close' : 'open'));
   if (!S.say && S.picks.length && !S.typed) add(KEY('Backspace', `take ${esc(S.picks[S.picks.length - 1].title || S.picks[S.picks.length - 1].label)} off`));
   if (canMake()) { const name = S.typed.trim(); items.push(el(doc, 'span', { class: 'fd-right' }, el(doc, 'button', { class: 'lk-btn lk-low lk-i-plus', type: 'button', title: 'Make a page with these words as its name', click: () => makePage(name) }, `make a page “${name}”`, el(doc, 'span', { class: 'fd-k' }, makesPage(rows) ? 'Enter' : MOD + ' Enter')))); }
-  return items;
+  return way();
 }
 
 /* Doing. */
