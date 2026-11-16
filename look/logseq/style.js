@@ -101,7 +101,11 @@ ${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill { bac
 ${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill:not(:focus-within)::after { box-shadow: none !important; border: 0 !important; }
 ${AREA} .ls-block .positioned-properties.block-below,
 ${AREA} .ls-block .positioned-properties.block-below .bottom-properties-row { margin-inline: -8px !important; padding-inline: 8px !important; width: calc(100% + 16px) !important; max-width: none !important; }
-${AREA} .ls-block .positioned-properties.block-below .bottom-properties-pills-strip { margin-inline: -8px !important; padding-inline: 8px !important; width: calc(100% + 16px) !important; max-width: none !important; }
+/* At its right end the strip keeps room for the press after the last value on a line (values.js), the same width as the space every
+   other value has after it and the few pixels its pointer area reaches past that, so nothing of the press stands past the strip’s edge. Past it, Logseq read the row as too long and put its
+   Expand button in, the row grew narrower and wrapped, the press fitted, the button went, and so on without end, about a hundred
+   times a second on a row whose line ended within a press's width of the edge (16 November 2026, Dr. Mei Chen in the sidebar). */
+${AREA} .ls-block .positioned-properties.block-below .bottom-properties-pills-strip { margin-inline: -8px !important; padding-inline: 8px 36px !important; width: calc(100% + 16px) !important; max-width: none !important; }
 /* A value being written under a bullet (a number, words) takes the width of what is in it, not Logseq's long box. */
 ${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill input.ui__input { field-sizing: content; width: auto !important; min-width: 3ch; max-width: 40ch; height: 24px !important; line-height: 24px; padding: 0 2px !important; border: 0 !important; box-shadow: none !important; outline: none !important; background: transparent !important; }
 /* Room above and below inside the strip, given back outside, so the press after a value catches a pointer a little off the line. */

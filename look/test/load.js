@@ -46,6 +46,7 @@ const { U, load, pencilled } = standIn;
   assert.ok(styles['look-capsules'].includes(':is(:not(:has(.empty-value)), :has(.lk-pencil)) ~ .bottom-property-pill::before'), 'a pencilled property counts as filled for the dot');
   assert.ok(/\.bottom-properties-pills-strip \{[^}]*width: 0 !important/.test(styles['look-capsules']), 'the strip of properties is given no width of its own, so it cannot widen the bullet\'s words past the pane');
   assert.ok(/\.bottom-properties-pills-strip \{[^}]*flex-wrap: wrap !important/.test(styles['look-capsules']), 'a long line of properties wraps like words, so nothing runs past the pane');
+  assert.ok(/\.bottom-properties-pills-strip \{[^}]*padding-inline: 8px 36px !important/.test(styles['look-capsules']), 'the strip keeps room at its end for the press after a line\'s last value, so Logseq never reads the row as too long and its Expand button never comes and goes without end');
   assert.ok(/\.bottom-properties-row \{[^}]*max-height: none !important/.test(styles['look-capsules']), 'and its row grows to hold the lines: Logseq caps it at one');
   // the shared names: a pencilled tag fades once; the one alternative in force takes the text colour
   assert.ok(door.NAMES.includes('.lk-pencil .lk-tag, .lk-tag.lk-pencil { opacity: 1; font-family: var(--lk-mono) !important;'), 'a pencilled tag fades once, in the proposals\' mono');
