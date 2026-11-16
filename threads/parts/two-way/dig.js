@@ -134,7 +134,7 @@ function nodeHtml(uuid, key, data, asTop = false, field = true) {
       shownItems.forEach((item, i) => {
         const k = `${key}>${item.uuid}`, open = state.dig.has(k);
         twoWay.lineDay.set(k, twoWay.dayCell(item));
-        const line = O.line({ dot: { uuid: item.uuid, closed: !open && twoWay.hasKids(item.uuid), title: twoWay.shortName(item.title) }, chev: digChev(k, item.uuid, 0, twoWay.shortName(item.title), open), day: days[i] || (dated ? '' : null), body: `${twoWay.nameHtml(item, open)}${O.from(days[i])}` });
+        const line = O.line({ dot: { uuid: item.uuid, closed: !open && twoWay.hasKids(item.uuid), title: twoWay.shortName(item.title) }, chev: digChev(k, item.uuid, 0, twoWay.shortName(item.title), open), day: days[i] || (dated ? '' : null), body: `${twoWay.nameHtml(item, open)}${O.from(days[i])}${!open && twoWay.hasKids(item.uuid) ? O.held(item.uuid) : ''}` });
         lines += open ? O.unit({ html: line + digKids(k, item.uuid, 'in'), focus: state.focus === k, attrs: { 'data-key': k } }) : line;
       });
       if (items.length > twoWay.INLINE) lines += O.more({ text: all ? 'show fewer' : `show ${items.length - twoWay.INLINE} more`, attrs: { 'data-nall': allKey }, under: dated ? 'dotday' : 'dot' });
@@ -149,7 +149,7 @@ function nodeHtml(uuid, key, data, asTop = false, field = true) {
     const k = `${key}>${line.uuid}`, open = state.dig.has(k), kids = twoWay.hasKids(line.uuid);
     const label = twoWay.shortName(line.text || 'the bullet');
     const chev = kids || open ? O.chev({ open, label, attrs: { 'data-dig': k, 'data-uuid': line.uuid, 'data-title': label } }) : O.room();
-    const row = O.bullet({ html: twoWay.lineHtml(line.text, 400) + (twoWay.bulletTail?.(line.uuid) || ''), closed: kids && !open, attrs: { 'data-bullet': line.uuid }, wordsAttrs: { tabindex: '0', 'data-edit-bullet': line.uuid } }).replace('<div class="th-ol-bullet"', '<div class="th-ol-bullet th-ol-chevved"').replace(/(<div class="th-ol-bullet[^>]*>)/, `$1${chev}`);
+    const row = O.bullet({ html: twoWay.lineHtml(line.text, 400) + (twoWay.bulletTail?.(line.uuid) || ''), closed: kids && !open, held: line.uuid, attrs: { 'data-bullet': line.uuid }, wordsAttrs: { tabindex: '0', 'data-edit-bullet': line.uuid } }).replace('<div class="th-ol-bullet"', '<div class="th-ol-bullet th-ol-chevved"').replace(/(<div class="th-ol-bullet[^>]*>)/, `$1${chev}`);
     html += open ? O.unit({ html: row + digKids(k, line.uuid, 'in'), focus: state.focus === k, attrs: { 'data-key': k } }) : row;
   }
   if (data.more) html += O.more({ text: 'show all its bullets', attrs: { 'data-ball': uuid } });

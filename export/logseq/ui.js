@@ -46,7 +46,8 @@ const CSS = `
 .xp .lk-value { all: unset; display: inline-flex; align-items: center; cursor: pointer; color: var(--lk-text, #222); font: inherit; line-height: 1.35; }
 .xp .lk-value:focus-visible { outline: none; background: var(--lk-wash); box-shadow: 0 0 0 3px var(--lk-wash); border-radius: 1em; }
 /* The mark: a small faint chevron tight after a value that unfolds. */
-.xp .lk-value .m { width: 8px; height: 8px; margin-left: 4px; color: var(--lk-quiet); flex: none; }
+.xp .lk-value .m { display: inline-flex; margin-left: 4px; color: var(--lk-quiet); flex: none; }
+.xp .lk-value .m::before { margin: 0; width: .8em; height: .8em; vertical-align: 0; }
 /* What a value can become: a line of faint words under it, the one in force in the text colour. It takes its room below the
    row (the pick grows by the line's height while open, see unfold), never beside the pick: nothing moves sideways. */
 .xp .lk-pick .lk-alts { position: absolute; left: var(--pl); top: 100%; margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--lk-quiet); width: max-content; max-width: 420px; white-space: normal; }
@@ -128,7 +129,6 @@ const CSS = `
 .xp-side .xp-tpl .lk-alts[data-ask] > :not(.ask) { display: none; }
 .xp-side .xp-tpl .ask { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 14px; padding: 6px 8px; cursor: default; white-space: normal; }
 .xp-side .xp-tpl .ask input { width: 100%; }
-.xp-side .xp-tpl .ask b { font-weight: inherit; cursor: pointer; }
 /* Your CSS: the box, and under it the parts of the sheet in plain words; a word pointed at lights its part on the sheet. */
 .xp-side .xp-cssbox { display: block; font-family: Menlo, Consolas, monospace; font-size: var(--lk-small); line-height: 1.5; width: calc(100% - 16px); margin: 4px 8px 0; height: 9.5em; resize: vertical; white-space: pre; border: 1px solid var(--lk-line); border-radius: 4px; padding: 6px 8px; }
 .xp-side .xp-partshead { padding: 10px 8px 4px; }
@@ -209,7 +209,7 @@ function open({ doc, what, act }) {
     const lines = doc.title ? (c.titleLines[doc.title] || {}) : {};
     const root = hostDoc.createElement('div');
     root.className = 'xp';
-    const CHEV = '<svg class="m" viewBox="0 0 8 8" aria-hidden="true"><path d="M1.5 3l2.5 2.5L6.5 3" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>';
+    const CHEV = '<span class="m lk-i-chevron" aria-hidden="true"></span>';   // the library's chevron (Door.ICONS), as on every value that changes
     const nm = name => `<div class="lk-name">${esc(name)}</div>`;
     // Where the export goes: a choice that stays open.
     const where = (items, chosen) => `<div class="it lk-choice">${nm('export as')}<div class="xp-where lk-views" role="radiogroup" aria-label="Export as">${items.map(i => `<label class="lk-view${i.key === chosen ? ' on' : ''}"><input type="radio" name="xp-target" value="${i.key}" ${i.key === chosen ? 'checked' : ''}>${esc(i.name)}</label>`).join('')}</div></div>`;
@@ -335,7 +335,7 @@ function open({ doc, what, act }) {
     function askName(doing) {
       const alts = tpl().querySelector('.lk-alts');
       alts.dataset.ask = doing;
-      alts.insertAdjacentHTML('beforeend', `<span class="ask"><input type="text" class="lk-field" aria-label="Template name" placeholder="Name of the template" value="${doing === 'rename' ? esc(c.template) : ''}"><b data-ask="ok">${doing === 'rename' ? 'Rename' : 'Save'}</b><b data-ask="no">Cancel</b></span>`);
+      alts.insertAdjacentHTML('beforeend', `<span class="ask"><input type="text" class="lk-field" aria-label="Template name" placeholder="Name of the template" value="${doing === 'rename' ? esc(c.template) : ''}"><span class="lk-answers"><button type="button" class="lk-btn lk-i-x" data-ask="no">Cancel</button><button type="button" class="lk-accent lk-i-tick lk-enter" data-ask="ok">${doing === 'rename' ? 'Rename' : 'Save'}</button></span></span>`);
       const input = alts.querySelector('.ask input');
       input.addEventListener('keydown', event => { if (event.key === 'Enter' && !event.metaKey && !event.ctrlKey) { event.preventDefault(); event.stopPropagation(); answer(true); } });
       input.focus(); input.select();
@@ -358,7 +358,9 @@ function open({ doc, what, act }) {
       else if (doing === 'new' || doing === 'rename') askName(doing);
       else if (doing === 'delete') {
         alts.dataset.ask = 'delete';
-        alts.insertAdjacentHTML('beforeend', `<span class="ask">${esc(T.BUILT_IN[c.template] ? `Drop your changes to ${c.template}?` : `Delete the template ${c.template}?`)}<b data-ask="ok">${T.BUILT_IN[c.template] ? 'Drop them' : 'Delete'}</b><b data-ask="no">Keep</b></span>`);
+        alts.insertAdjacentHTML('beforeend', `<span class="ask">${esc(T.BUILT_IN[c.template] ? `Drop your changes to ${c.template}?` : `Delete the template ${c.template}?`)}<span class="lk-answers"><button type="button" class="lk-btn lk-i-x lk-enter" data-ask="no">Keep</button><button type="button" class="lk-big" data-ask="ok">${T.BUILT_IN[c.template] ? 'Drop them' : 'Delete'}</button></span></span>`);
+        // The library's answers: nothing puts a template back, so the yes is lk-big and the keyboard waits on Keep (Enter keeps).
+        alts.querySelector('.ask [data-ask="no"]')?.focus({ preventScroll: true });
         }
     }
     // What the toolbar shows for the destination, and the words in its panels' buttons.
@@ -496,7 +498,7 @@ function open({ doc, what, act }) {
     root.addEventListener('click', event => {
       const tplHead = event.target.closest('.xp-tplhead');
       if (tplHead) { const was = tpl().classList.contains('open'); closePops(); if (!was) { tpl().classList.add('open'); tplHead.classList.add('on'); tplHead.setAttribute('aria-expanded', 'true'); const menu = tpl().querySelector('.lk-alts'); menu.hidden = false; window.PluginDoor.unroll(menu); } return; }
-      const asked = event.target.closest('.xp-tpl [data-ask]'); if (asked && asked.tagName === 'B') { answer(asked.dataset.ask === 'ok'); return; }
+      const asked = event.target.closest('.xp-tpl [data-ask]'); if (asked && asked.tagName === 'BUTTON') { answer(asked.dataset.ask === 'ok'); return; }
       if (event.target.closest('.xp-tpl .ask')) return;
       const act = event.target.closest('.xp-tpl [data-do]'); if (act) { doTemplate(act.dataset.do); return; }
       const named = event.target.closest('.xp-tpl .lk-alts span[data-v]'); if (named) { takeTemplate(named.dataset.v); return; }

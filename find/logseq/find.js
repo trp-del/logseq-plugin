@@ -597,6 +597,9 @@ function render() {
     if (task) nm.append(task);
     nm.append(w);
     if (node.kind && !(r.under && rows.find(x => x.key === r.under)?.tag === node.kind.title) && !(kindPick() && r.top && kindPick().title === node.kind.title)) nm.append(el(doc, 'span', { class: 'lk-tag' }, node.kind.title));
+    // A found bullet holds what is under it folded: Look's ↳ line follows its words, as on Logseq's own folded bullets (16 November
+    // 2026, the owner: in Linked and Find too). Opened in place, what it holds is shown, so no line.
+    if (!node.isPage && !node.sign && !dug) nm.append(el(doc, 'span', { class: 'lk-held', 'data-lk-held': node.uuid }));
     row.append(nm);
     const right = node.page && !node.page.journal ? node.page.title : '';
     row.append(el(doc, 'span', { class: 'fd-right' }, right));

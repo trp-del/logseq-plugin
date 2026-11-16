@@ -145,7 +145,7 @@ function world({ sidebarOpen = true, settings = {}, list = null, keyed = false, 
     assert.deepEqual(w.store['sidebar/blocks'].map(e => e[1]), [3, ':logseq-plugin/_sidebar.todo-side', 9], 'Dr. Mei Chen left the sidebar list');
     assert.equal(w.doc.querySelector('[data-lk-split-item] .lk-split-title')?.textContent, 'Consultation');
     assert.equal(w.doc.querySelector('[data-lk-split-item]').getAttribute('data-lk-split-kind'), 'tag', 'a tag\'s page is marked, so its property list is left out as on the main view');
-    assert.ok(w.doc.querySelector('[data-lk-split-item] .lk-split-title > svg.lk-split-icon:first-child + .lk-split-name'), 'Logseq\'s # stands before a tag\'s name, as on the main view');
+    assert.ok(w.doc.querySelector('[data-lk-split-item] .lk-split-title > .lk-sign.lk-split-icon:first-child + .lk-split-name') && w.doc.querySelector('[data-lk-split-item] .lk-split-icon .tabler-icon-hash'), 'Logseq\'s # stands before a tag\'s name, as on the main view, drawn by the library (Door.signHtml)');
     assert.equal(w.doc.querySelectorAll('.lk-split-tools').length, 1, 'one pair of corner icons');
 
     // ⇄: the two pages change places.

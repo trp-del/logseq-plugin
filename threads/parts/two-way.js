@@ -701,7 +701,7 @@ function itemHtml(group, item, base, end = '', bare = false, tell = '') {
   lineDay.set(key, dayCell(item));
   const day = dayCellOf(group, item);
   // Opened, the node's properties show the telling value: the line lets go of it.
-  const body = `${leadHooks.map(hook => hook(group, item) || '').join('')}${nameHtml(shown, open && state.findDug.get(key) !== true, bare)}${couldBeHtml(item)}${tailHooks.map(hook => hook(group, item) || '').join('')}${O.from(day)}${tell && !open ? twoWay.tellHtml(item, tell) : ''}${end}`;
+  const body = `${leadHooks.map(hook => hook(group, item) || '').join('')}${nameHtml(shown, open && state.findDug.get(key) !== true, bare)}${couldBeHtml(item)}${tailHooks.map(hook => hook(group, item) || '').join('')}${O.from(day)}${!open && hasKids(item.uuid) ? O.held(item.uuid) : ''}${tell && !open ? twoWay.tellHtml(item, tell) : ''}${end}`;
   const line = O.line({ tick: pickBox(group, item), dot: { uuid: item.uuid, closed: !open && hasKids(item.uuid), title: shortName(item.title) }, day: day || (isDated(group) ? '' : null), chev: twoWay.digChev(key, item.uuid, 0, shortName(item.title), open), body, cls: 'th-tw-line', attrs: { 'data-uuid': item.uuid } });
   const under = `${crumbHtml(item)}${twoWay.raiseHtml(group, item)}`;
   return open ? O.unit({ html: line + under + twoWay.digKids(key, item.uuid, 'in'), focus: state.focus === key, attrs: { 'data-key': key } }) : line + under;

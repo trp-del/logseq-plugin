@@ -175,9 +175,9 @@ const el = window.PluginDoor.el;
    Logseq draws its own toolbar with it), so the plugin draws no icon of its own, but for the one shape the font lacks
    (DRAWN, below). */
 const ICONS = {
-  sidebar: 'layout-sidebar-right-expand', page: 'file-text', fold: 'chevron-right', add: 'plus', more: 'dots',
+  sidebar: 'layout-sidebar-right-expand', fold: 'chevron-right', add: 'plus', more: 'dots',
   delete: 'trash', find: 'search', settings: 'adjustments-horizontal', close: 'x', remove: 'x', chosen: 'check', help: 'info-circle',
-  map: 'hierarchy', tag: 'tag', property: 'forms', rename: 'cursor-text', copy: 'copy', to: 'arrow-right', picked: 'square-check',
+  map: 'hierarchy', property: 'forms', rename: 'cursor-text', copy: 'copy', to: 'arrow-right', picked: 'square-check',
   warning: 'alert-triangle', show: 'eye', hide: 'eye-off', shortcut: 'keyboard', twoWay: 'arrows-left-right', order: 'arrows-sort',
   proposals: 'bulb', date: 'calendar', text: 'letter-case', number: '123', choice: 'select', several: 'stack-2', yesNo: 'checkbox', web: 'world',
   export: 'file-export', node: 'joins', nodes: 'joins', fact: 'blank', link: 'link', task: 'circle', image: 'photo', pdf: 'file-type-pdf', file: 'file', quote: 'blockquote',
@@ -191,9 +191,13 @@ const DRAWN = {
   blank: '<svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"></svg>',
   joins: window.PluginDoor.WEB,
 };
-const iconHtml = name => { const n = ICONS[name] || name; return DRAWN[n] ? `<i class="th-drawn th-drawn-${n}" aria-hidden="true">${DRAWN[n]}</i>` : `<i class="ti ti-${esc(n)}" aria-hidden="true"></i>`; };
-const icon = (doc, name, title) => { const n = ICONS[name] || name;
-  return el(doc, 'i', { class: DRAWN[n] ? `th-drawn th-drawn-${n}` : `ti ti-${n}`, html: DRAWN[n] || null, 'aria-hidden': title ? null : 'true', title: title || null }); };
+/* A page and a tag show Logseq's own icon as the library draws it (PluginDoor.signHtml: the page's diamond under the calm theme,
+   the tag's #), as in Find, Split and Logseq itself (16 November 2026: the Recycle list still showed the old paper icon). */
+const SIGNED = new Set(['page', 'tag']);
+const drawnHtml = (name, n) => SIGNED.has(name) ? window.PluginDoor.signHtml(name) : DRAWN[n];
+const iconHtml = name => { const n = ICONS[name] || name, d = drawnHtml(name, n); return d ? `<i class="th-drawn th-drawn-${SIGNED.has(name) ? 'sign' : n}" aria-hidden="true">${d}</i>` : `<i class="ti ti-${esc(n)}" aria-hidden="true"></i>`; };
+const icon = (doc, name, title) => { const n = ICONS[name] || name, d = drawnHtml(name, n);
+  return el(doc, 'i', { class: d ? `th-drawn th-drawn-${SIGNED.has(name) ? 'sign' : n}` : `ti ti-${n}`, html: d || null, 'aria-hidden': title ? null : 'true', title: title || null }); };
 // A value's kind as an icon left of the property's name: the door's, the one drawing every module uses.
 const kindIconHtml = kind => window.PluginDoor.kindIconHtml(kind);
 // A tag as a class: its name alone, no #. Always a link to its page (the owner: "they should always be
@@ -393,8 +397,8 @@ function popup({ at, kind = 'menu', head, items, field: fieldOptions, rows, keys
    the browser's popover under its anchor, flipped when there is no room, closed by Escape or a click outside.
    options: [{ label, held }]. Resolves with the option picked, { clear: true }, { typed } (free: words matching no
    option, Enter), or null. */
-const CHECK_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5l10 -10"></path></svg>';
-const X_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6l-12 12"></path><path d="M6 6l12 12"></path></svg>';
+const CHECK_SVG = () => window.PluginDoor.logseqIconHtml('check', { size: 14 });   // Logseq's own, as its Set pickers draw them
+const X_SVG = () => window.PluginDoor.logseqIconHtml('x', { size: 14 });
 const FEW = 40;
 // keepOrder: the options stay in the order given, the held one ticked in its place (Logseq's Set Status); iconHtml: a row's icon before its words.
 // make(words): the words of a last row offering what was typed when no option is named so ("New property: Ordered by"); taken, it answers { typed }.
@@ -422,11 +426,11 @@ function pickValue({ at, placeholder = '', options = [], clearLabel = '', free =
     };
     const take = value => { answer = value; finish(); };
     const row = (item, i) => {
-      const words = item.clear ? [el(doc, 'span', { class: 'ui__icon ti', html: X_SVG }), el(doc, 'span', {}, item.label)] : [...(item.iconHtml ? [el(doc, 'span', { class: 'ui__icon ti th-lsq-icon', html: item.iconHtml })] : []), el(doc, 'div', { class: item.more ? 'th-faint' : null }, item.label)];
+      const words = item.clear ? [el(doc, 'span', { class: 'ui__icon ti', html: X_SVG() }), el(doc, 'span', {}, item.label)] : [...(item.iconHtml ? [el(doc, 'span', { class: 'ui__icon ti th-lsq-icon', html: item.iconHtml })] : []), el(doc, 'div', { class: item.more ? 'th-faint' : null }, item.label)];
       // A bullet's row says the page it is written on, small above its words, as Logseq's own list does.
       const line = el(doc, 'div', { class: `${i === lit ? 'chosen ' : ''}flex flex-row justify-between w-full` },
         el(doc, 'div', { class: 'flex flex-row items-center gap-1' }, ...words),
-        el(doc, 'div', { class: 'tip flex items-center gap-1' }, item.held ? el(doc, 'span', { class: 'ls-icon-check ui__icon ti', html: CHECK_SVG }) : null));
+        el(doc, 'div', { class: 'tip flex items-center gap-1' }, item.held ? el(doc, 'span', { class: 'ls-icon-check ui__icon ti', html: CHECK_SVG() }) : null));
       const link = el(doc, 'a', { class: `${i === lit ? 'chosen ' : ''}flex justify-between menu-link${item.clear ? ' lk-lone' : ''}`, tabindex: '-1',
         mousedown: event => event.preventDefault(), click: event => { event.preventDefault(); choose(item); },
         mousemove: () => { if (lit !== i) light(i); } },
@@ -476,7 +480,7 @@ function pickValue({ at, placeholder = '', options = [], clearLabel = '', free =
    the place, the new name after a bullet, then Logseq's own drop-down, "Select a property type", open, its types one under the
    other in Logseq's words and order. ↓ and ↑ light one, Enter or a press takes it, a letter goes to the type that starts with it,
    Escape or a press elsewhere leaves. Logseq's own class names throughout, so its stylesheet draws it. Resolves with the option, or null. */
-const CHEVRON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tabler-icon tabler-icon-chevron-down h-4 w-4"><path d="M6 9l6 6l6 -6"></path></svg>';
+const CHEVRON_SVG = () => window.PluginDoor.logseqIconHtml('chevron-down', { size: 24, cls: 'h-4 w-4' });
 function pickType({ at, name = '', options = [], doc } = {}) {
   doc = doc || host();
   return new Promise(resolve => {
@@ -489,7 +493,7 @@ function pickType({ at, name = '', options = [], doc } = {}) {
     const rows = options.map((option, i) => el(doc, 'div', { role: 'option', class: 'th-lsq-type-row', 'aria-selected': String(i === lit), mousedown: event => event.preventDefault(), mousemove: () => light(i), click: () => { answer = option; finish(); } }, option.label));
     const light = i => { if (i === lit) return; rows[lit]?.setAttribute('aria-selected', 'false'); lit = i; rows[lit]?.setAttribute('aria-selected', 'true'); };
     const trigger = el(doc, 'div', { tabindex: '0', role: 'combobox', 'aria-expanded': 'true', 'aria-haspopup': 'listbox', class: 'ui__select-trigger flex w-full items-center justify-between rounded-md border border-input bg-background text-sm ring-offset-background focus:outline-none !px-2 !py-0 !h-8' },
-      el(doc, 'span', {}, 'Select a property type'), el(doc, 'span', { class: 'ui__select-icon shrink-0 text-muted-foreground', 'aria-hidden': 'true', html: CHEVRON_SVG }));
+      el(doc, 'span', {}, 'Select a property type'), el(doc, 'span', { class: 'ui__select-icon shrink-0 text-muted-foreground', 'aria-hidden': 'true', html: CHEVRON_SVG() }));
     const list = el(doc, 'div', { role: 'listbox', class: 'th-lsq-types rounded-md border bg-popover text-popover-foreground shadow-md' }, ...rows);
     pop.append(el(doc, 'div', { class: 'ls-property-dialog' }, el(doc, 'div', { class: 'ls-property-input flex flex-1 flex-row items-center flex-wrap gap-1' }, el(doc, 'div', { class: 'ls-property-add gap-1 flex flex-1 flex-row items-center' },
       el(doc, 'div', { class: 'flex flex-row items-center property-key gap-1' }, el(doc, 'span', { class: 'bullet-container' }, el(doc, 'span', { class: 'bullet' })), el(doc, 'div', {}, name)),
@@ -690,7 +694,10 @@ const outline = {
   kids: ({ html = '', from = '', fresh = false, attrs, cls = '' } = {}) => `<div class="th-ol-kids${from ? ' th-ol-from-' + from : ''}${fresh ? ' th-ol-unroll' : ''}${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}><div class="th-ol-in">${html}</div></div>`,
   unit: ({ html = '', focus = false, attrs, cls = '' } = {}) => `<div class="th-ol-unit${focus ? ' th-ol-focus' : ''}${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}>${html}</div>`,
   prop: ({ kind = 'text', name = '', value = '', chev = '', attrs, cls = '', nameAttrs } = {}) => `<div class="th-ol-line lk-row th-ol-prop${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}><span class="th-ol-pname lk-prop"${attrsHtml(nameAttrs)}>${name ? `${kind ? `<span class="th-kind">${kindIconHtml(kind)}</span>` : ''}${esc(name)}` : ''}</span><span class="th-ol-pv">${chev}${value}</span></div>`,
-  bullet: ({ html = '', attrs, cls = '', wordsAttrs, closed = false } = {}) => `<div class="th-ol-bullet${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}>${outline.dot(false, { closed, opens: !!attrs?.['data-bullet'] })}<span class="th-ol-words"${attrsHtml(wordsAttrs)}>${html}</span></div>`,
+  /* Where a folded node's line goes (Look's folded note, the ↳ line, as on Logseq's own folded bullets; 16 November 2026, the
+     owner: in Linked and Find too): an empty mark Look follows with the line, while the node is folded. */
+  held: uuid => uuid ? `<span class="lk-held" data-lk-held="${esc(uuid)}"></span>` : '',
+  bullet: ({ html = '', attrs, cls = '', wordsAttrs, closed = false, held = '' } = {}) => `<div class="th-ol-bullet${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}>${outline.dot(false, { closed, opens: !!attrs?.['data-bullet'] })}<span class="th-ol-words"${attrsHtml(wordsAttrs)}>${html}</span>${closed ? outline.held(held) : ''}</div>`,
   newBullet: ({ attrs, label = 'A new bullet', text = '' } = {}) => `<div class="th-ol-bullet th-ol-new">${outline.dot()}<span class="th-field lk-field th-ol-words th-ol-write"><input type="text" value="${esc(text)}" spellcheck="true" autocomplete="off" aria-label="${esc(label)}" placeholder="${esc(label)}"${attrsHtml(attrs)}></span></div>`,
   more: ({ text = '', attrs, under = 'name', cls = 'lk-more' } = {}) => { const b = `<button type="button" class="${cls} th-ol-more"${attrsHtml(attrs)}>${esc(text)}</button>`; return under === 'value' ? `<div class="th-ol-line th-ol-prop th-ol-moreline"><span class="th-ol-pname"></span><span class="th-ol-pv">${b}</span></div>` : under === 'flush' ? `<div class="th-ol-line th-ol-moreline">${b}</div>` : under === 'leads' ? `<div class="th-ol-line lk-row th-ol-leads th-ol-moreline">${outline.room()}<span class="th-ol-lname"></span><span class="th-ol-to">${b}</span></div>` : under === 'dot' || under === 'dotday' ? `<div class="th-ol-line th-ol-moreline">${outline.room()}${outline.dot(true)}${under === 'dotday' ? outline.day('') : ''}${b}</div>` : `<div class="th-ol-line th-ol-moreline">${under === 'bare' ? '' : '<span class="th-ol-day lk-day"></span>'}${outline.room()}${b}</div>`; },
   pencil: (text, attrs, cls = '') => `<button type="button" class="th-pencil lk-pencil${cls ? ' ' + cls : ''}"${attrsHtml(attrs)}>${esc(text)}</button>`,
@@ -870,6 +877,7 @@ a.th-tag:hover { opacity: 1; }
 /* A drawn mark sits like a font icon: on the words' line, in their colour (the kit's ICONS, DRAWN). */
 .th-drawn { display: inline-flex; align-items: center; line-height: 1; }
 .th-drawn > svg { display: block; width: 12px; height: 12px; }
+.th-drawn-sign { font-size: 15px; }   /* a page's or a tag's icon, the size of the font's icons beside it */
 .th-ol-pv { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: var(--th-ol-gap); overflow-wrap: normal; word-break: normal; }
 .th-ol-pv > .th-ol-body { flex: 1 1 auto; }
 /* From the second level down the names' column is narrower, so three levels leave the names room at a page's width; set

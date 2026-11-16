@@ -102,7 +102,7 @@ const CSS = `
    name, a property's its P, as the main view draws them: Tabler's hash at the title's 38 px, Logseq's muted grey, 6 px into the margin, 8 px before the name. */
 .lk-split-title { display: flex; align-items: flex-start; gap: 8px; margin: 0 0 12px var(--lk-split-col, 12px); overflow-wrap: anywhere; color: var(--lk-text); }
 .lk-split-title > .lk-split-name { flex: 0 1 auto; min-width: 0; }
-.lk-split-title > .lk-split-icon { flex: none; width: 38px; height: 38px; margin: 6px 0 0 -6px; color: hsl(var(--muted-foreground, 0 0% 52%)); }
+.lk-split-title > .lk-split-icon { flex: none; font-size: 38px; margin: 6px 0 0 -6px; color: hsl(var(--muted-foreground, 0 0% 52%)); }
 /* A tag's or a property's page shows no property list on the main view (what it holds are its settings, kept in Logseq's own windows,
    and Ontology's lines say them): nor on the right. */
 #right-sidebar[data-lk-split] .sidebar-item[data-lk-split-kind] .ls-sidebar-page-properties { display: none !important; }
@@ -166,7 +166,7 @@ function draw(doc = host()) {
   if (split.page && panel && panel.querySelector(':scope > .lk-split-title')?.dataset?.splitFor !== String(split.id)) {   // Ontology's Parent line may stand before it
     panel.querySelector(':scope > .lk-split-title')?.remove();
     const title = Door.el(doc, 'div', { class: 'lk-split-title lk-split-own', 'data-split-for': split.id }, Door.el(doc, 'span', { class: 'lk-split-name' }, split.title));
-    if (split.kind) title.insertAdjacentHTML('afterbegin', KIND_ICON[split.kind]);
+    if (split.kind === 'tag' || split.kind === 'property') title.insertAdjacentHTML('afterbegin', Door.signHtml(split.kind, { cls: 'lk-split-icon' }));
     const main = doc.querySelector('#main-content-container .ls-page-title .block-content') || doc.querySelector('#main-content-container .ls-page-title');
     const cs = main ? doc.defaultView.getComputedStyle(main) : null;
     Object.assign(title.style, { fontSize: cs?.fontSize || '30px', fontWeight: cs?.fontWeight || '600', lineHeight: cs?.lineHeight || '1.3', letterSpacing: cs?.letterSpacing || 'normal', fontFamily: cs?.fontFamily || 'inherit' });
@@ -239,9 +239,6 @@ function forget() {
 const drawnOnTop = (doc, id) => Door.screen.waitFor(() => sideList()[0]?.[1] === id && items(doc)[0]?.querySelector('.sidebar-panel-content') ? items(doc)[0] : null, SHOW_MS, { frames: true });
 // Waits, drawing the split's pieces on each frame, until the right half really shows the page; the item, or null.
 const shownOnTop = (doc, id) => Door.screen.waitFor(() => { draw(doc); const item = at(doc, id); return shown(doc, item) ? item : null; }, SHOW_MS, { frames: true });
-// Logseq's own icon before a tag's title (#) and a property's (P): Tabler's hash and letter-p, as Logseq draws them there.
-const kindIcon = d => `<svg class="lk-split-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
-const KIND_ICON = { tag: kindIcon('M5 9l14 0M5 15l14 0M11 4l-4 16M17 4l-4 16'), property: kindIcon('M7 20v-16h5.5a4 4 0 0 1 0 9h-5.5') };
 const NOT_SHOWN = 'The page could not be shown beside, so the two pages were put back as one.';
 // Takes an item out of Logseq's sidebar list by its own ×, once Logseq has drawn the list as it holds it (a moment after a change).
 const takeOut = async (doc, id) => {

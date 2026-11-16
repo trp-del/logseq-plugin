@@ -39,7 +39,7 @@ const STYLE = `.sw-dialog { position: fixed !important; top: 50% !important; lef
 .sw-head { grid-column: 1 / -1; display: grid; grid-template-columns: clamp(110px, 15%, 166px) minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 14px 16px 12px 22px; border-bottom: 1px solid var(--lk-hair); }
 .sw-head b { font-size: 16px; font-weight: 600; }
 .sw-find { width: 100%; max-width: 300px; }   /* the library's field (lk-field) */
-.sw-close { all: unset; cursor: pointer; font-size: 18px; line-height: 1; padding: 0 6px; }
+.sw-close { all: unset; cursor: pointer; font-size: 18px; line-height: 1; padding: 0 6px; }   /* the library's × (lk-i-x), its place only */
 /* The places: lines of the library's menu (lk-item), the one open lit (on). */
 .sw-side { display: flex; flex-direction: column; padding: 8px 12px 16px 14px; min-height: 0; overflow: auto; }
 .sw-group { font-size: var(--lk-label); color: var(--lk-quiet); padding: 18px 8px 4px; }
@@ -416,7 +416,7 @@ function openWindow(partKey) {
   state.find = ''; state.recording = false;
   const dlg = doc.createElement('dialog');
   dlg.className = 'sw-dialog lk-window';
-  dlg.innerHTML = `<div class="sw-head"><b>Plugin settings</b><input class="sw-find lk-field" type="text" id="sw-find" placeholder="find a setting" aria-label="Find a setting" spellcheck="false" autocomplete="off"><button type="button" class="sw-close lk-close" aria-label="Close" title="Close (Esc)">×</button></div><nav class="sw-side" aria-label="Where in Logseq"></nav><div class="sw-list" role="listbox" aria-label="Settings"></div><div class="sw-body" aria-live="polite"></div>`;
+  dlg.innerHTML = `<div class="sw-head"><b>Plugin settings</b><input class="sw-find lk-field" type="text" id="sw-find" placeholder="find a setting" aria-label="Find a setting" spellcheck="false" autocomplete="off"><button type="button" class="sw-close lk-close lk-i-x" aria-label="Close" title="Close (Esc)"></button></div><nav class="sw-side" aria-label="Where in Logseq"></nav><div class="sw-list" role="listbox" aria-label="Settings"></div><div class="sw-body" aria-live="polite"></div>`;
   dlg.addEventListener('input', onInput);
   dlg.addEventListener('change', onChange);
   dlg.addEventListener('click', event => onClick(dlg, event));

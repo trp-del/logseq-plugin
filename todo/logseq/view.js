@@ -50,6 +50,9 @@ const dayFull = day => `${dayWords(day) === 'Today' || dayWords(day) === 'Tomorr
 
 const BY_WORDS = { Day: 'By day', Page: 'By page', Tag: 'By tag', Priority: 'By priority', Status: 'By status' };
 
+// The task's words; a web address in them is a link out with ↗ after it, as in Find, Threads and Logseq's own page (Door.webParts,
+// urlHtml; 16 November 2026: features drawn the same everywhere). A press on it opens the browser, not the task (main.js).
+const wordsHtml = words => Door.webParts(words).map(p => p.url ? Door.urlHtml(p.url, esc(p.text)) : esc(p.text)).join('');
 /* A task's status circle, Logseq's own (PluginDoor.statusHtml): the icon each status has in the graph (the owner, 15 November 2026:
    "they should be circles just like the tasks", "follow whatever icons are chosen by the properties"); a task just ticked shows
    Done's at once. A press opens the status list (openStatus), as a press on Logseq's own circle does (the owner, 15 November
@@ -77,7 +80,7 @@ function rowHtml(t, part) {
   const where = !part || part.where ? t.page.title || '' : '';
   return `<div class="td-row lk-row${T.app.ticking.has(t.uuid) ? ' td-ticked' : ''}${done ? ' td-done' : ''}" data-uuid="${esc(t.uuid)}">
 ${circle(t, status)}
-<div class="td-main"><div class="td-line"><a class="td-words" href="#" data-open="${esc(t.uuid)}" title="Open the task; with Shift, in the sidebar">${esc(t.words || 'Untitled')}</a></div>${where ? `<div class="td-where lk-note">${esc(where)}</div>` : ''}</div>
+<div class="td-main"><div class="td-line"><a class="td-words" href="#" data-open="${esc(t.uuid)}" title="Open the task; with Shift, in the sidebar">${t.words ? wordsHtml(t.words) : 'Untitled'}</a></div>${where ? `<div class="td-where lk-note">${esc(where)}</div>` : ''}</div>
 <div class="td-day lk-day${late ? ' td-late' : ''}">${esc(day)}</div></div>`;
 }
 

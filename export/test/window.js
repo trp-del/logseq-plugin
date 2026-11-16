@@ -125,7 +125,7 @@ const key = (target, name, init = {}) => target.dispatchEvent(new dom.window.Key
     const w = E.ui.open({ doc, what: 'this page', act: async () => true });
     const xp = hostDoc.querySelector('.xp'), q = s => xp.querySelector(s), tpl = q('.xp-tpl'), value = () => tpl.querySelector('.xp-tplval').textContent, words = () => [...tpl.querySelectorAll('.lk-alts > .lk-item:not(.gap)')].map(a => a.firstElementChild.textContent);
     const opener = { click: () => tpl.querySelector('.xp-tplhead').click() };
-    const press = text => [...tpl.querySelectorAll('.lk-alts > .lk-item > span:first-child, .lk-alts b')].find(a => a.textContent === text).click();
+    const press = text => [...tpl.querySelectorAll('.lk-alts > .lk-item > span:first-child, .lk-alts .lk-answers > button')].find(a => a.textContent === text).click();
     assert.equal(value(), 'None'); opener.click();
     assert.deepEqual(words(), ['Report', 'Paper', 'Brief', 'Save as new…']);
     press('Paper');

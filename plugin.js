@@ -479,20 +479,26 @@ function elementHtml(node) {
     .map(([k, v]) => ` ${k === 'className' ? 'class' : KEBAB.test(k) ? k : k.replace(/[A-Z]/g, c => '-' + c.toLowerCase())}="${Door.esc(String(v))}"`).join('');
   return `<${node.type}${attrs}>${elementHtml(children)}</${node.type}>`;
 }
+/* Any of Logseq's own icons by its name (check, x, chevron-down, CircleCheck), drawn as Logseq draws it, from its tablerIcons, else
+   Tabler's font: one way for every module to show an icon of Logseq's, so none keeps a copied drawing (16 November 2026). */
+Door.logseqIconHtml = (id, { size = 18, doc = Door.host(), cls = '' } = {}) => {
+  const drawn = doc?.defaultView?.tablerIcons?.['Icon' + pascal(id)];
+  if (drawn) { try { return elementHtml(drawn({ size, ...(cls ? { className: cls } : {}) })); } catch { /* the font below */ } }
+  return `<i class="ti ti-${Door.esc(String(id).replace(/([a-z0-9])([A-Z])/g, '$1-$2').replace(/([a-zA-Z])([0-9])/g, '$1-$2').toLowerCase())}${cls ? ' ' + Door.esc(cls) : ''}" aria-hidden="true"></i>`;
+};
 Door.statusIconHtml = (icon, doc = Door.host()) => {
   if (!icon?.id) return '';
   if (icon.type === 'emoji') return `<em-emoji id="${Door.esc(icon.id)}" size="1em"></em-emoji>`;
-  const drawn = doc?.defaultView?.tablerIcons?.['Icon' + pascal(icon.id)];
-  if (drawn) { try { return elementHtml(drawn({ size: 18 })); } catch { /* the font below */ } }
-  return `<i class="ti ti-${Door.esc(String(icon.id).replace(/([a-z0-9])([A-Z])/g, '$1-$2').replace(/([a-zA-Z])([0-9])/g, '$1-$2').toLowerCase())}" aria-hidden="true"></i>`;
+  return Door.logseqIconHtml(icon.id, { doc });
 };
 /* A page's or a tag's icon as Logseq draws its own (15 November 2026, the owner: Find showed "the old paper icon … and not diamond"):
    Logseq's icon (file for a page, hash for a tag) in Logseq's own box, icon-cp-container, so whatever restyles Logseq's restyles
    this too; Look's calm theme turns the page's into the diamond (calm.js). One drawing for every module. */
-const SIGN_PATHS = { file: 'M14 3v4a1 1 0 0 0 1 1h4M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z', hash: 'M5 9l14 0M5 15l14 0M11 4l-4 16M17 4l-4 16' };   // Tabler's, as Logseq draws them
-Door.signHtml = sign => {
-  const id = sign === 'tag' ? 'hash' : 'file';
-  return `<span class="icon-cp-container lk-sign" aria-hidden="true"><span class="ls-icon-${id} ui__icon ti"><svg class="tabler-icon tabler-icon-${id}" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${SIGN_PATHS[id]}"/></svg></span></span>`;
+const SIGN_PATHS = { file: 'M14 3v4a1 1 0 0 0 1 1h4M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z', hash: 'M5 9l14 0M5 15l14 0M11 4l-4 16M17 4l-4 16', 'letter-p': 'M7 20v-16h5.5a4 4 0 0 1 0 9h-5.5' };   // Tabler's, as Logseq draws them
+// sign: 'page', 'tag' or 'property' (Logseq's P before a property's title, 16 November 2026); cls: the module's own class, for its place and size.
+Door.signHtml = (sign, { cls = '' } = {}) => {
+  const id = sign === 'tag' ? 'hash' : sign === 'property' ? 'letter-p' : 'file';
+  return `<span class="icon-cp-container lk-sign${cls ? ' ' + cls : ''}" aria-hidden="true"><span class="ls-icon-${id} ui__icon ti"><svg class="tabler-icon tabler-icon-${id}" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${SIGN_PATHS[id]}"/></svg></span></span>`;
 };
 // s: one of statusChoices; more: the press's own class and attributes (its data-, title, aria-label), set by the module.
 Door.statusHtml = (s, { cls = '', attrs = '', doc } = {}) => {
@@ -1216,7 +1222,7 @@ const TOKENS = `
    The Pressing set (buttons-mockup.html beside the plugins, 30 October 2026), for the controls of a bar or a window:
    lk-name: the small faint name above a value; lk-value: the value, the thing pressed, in the text colour, quiet under
    the pointer, faint when off (.off) or unwritten; lk-pick: a value that unfolds, a hairline standing before it (its
-   chevron is the module's markup, coloured faint here); lk-alts: what a value can become, faint words with the
+   chevron is lk-i-chevron, coloured faint here); lk-alts: what a value can become, faint words with the
    one in force (.on) in the text colour; lk-accent: the one action, its key faint; lk-close: the ×.
    The module lays them out (a name over a value, the gaps); these give only their colours and weights.
    The button library (button-library.html in the workspace), one kind per job, each drawn whole here, so a module adds
@@ -1286,7 +1292,7 @@ Door.NAMES = `${TOKENS}
 input.lk-value { cursor: text; border: 0; border-bottom: 1px solid transparent; border-radius: 0; padding: 0 0 1px; background: none; color: inherit; font: inherit; outline: none; box-shadow: none; }
 input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-shadow: none; }
 .lk-pick:not(:first-child) { border-left: 1px solid var(--lk-hair); }
-.lk-pick .lk-value svg { color: var(--lk-quiet); }
+.lk-pick .lk-value :is(svg, .lk-i-chevron) { color: var(--lk-quiet); }
 /* The faint goes on each alternative, not on the line, so the one in force can take the text colour back. */
 .lk-alts { color: inherit !important; }
 .lk-alts > * { color: var(--lk-quiet) !important; }
@@ -1315,7 +1321,7 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
 .lk-x:hover, .lk-plus:hover, .lk-change:hover, .lk-x:focus-visible, .lk-plus:focus-visible, .lk-change:focus-visible { color: var(--lk-text, currentColor) !important; background: var(--lk-wash); }
 /* Their mark alone (lk-i-plus, lk-i-chevron), no word after it. The faint grey sits close to the text colour, so the round wash is what
    shows the pointer has it, as on a level-3 button; a press that shows only near its holder (lk-reveal) takes it too, on the press itself. */
-.lk-change::before, .lk-plus::before { margin-right: 0 !important; }
+.lk-change::before, .lk-plus::before, .lk-close::before { margin-right: 0 !important; }
 /* A word with the chevron after it ("By day ⌄", Todo's grouping): the value that holds one thing, said, the chevron saying it
    opens a menu (Door.menu). Small, as the headings it stands beside. */
 .lk-change:has(> .lk-i-chevron) { font-size: var(--lk-small); white-space: nowrap; padding: 1px 4px; }
@@ -1469,6 +1475,9 @@ input.lk-tick[type=checkbox]:indeterminate::before { content: ""; position: abso
 @media (prefers-reduced-motion: reduce) { .lk-fold, .lk-fold::before, .lk-tick, .lk-undo { transition: none; } }
 /* With less motion a revealed press shows at once, without a fade, and still waits its moment before it goes. */
 @media (prefers-reduced-motion: reduce) { .lk-reveal { transition: opacity 0s linear ${Door.MOTION.revealStay.ms}ms, color 0s; } }
+/* lk-sign: a page's, a tag's or a property's icon (Door.signHtml), the words' own size unless the module sets one. */
+.lk-sign { display: inline-flex; align-items: center; line-height: 1; }
+.lk-sign svg { display: block; width: 1em; height: 1em; }
 .lk-icon.lk-web { display: inline-flex; align-items: center; line-height: 1; }
 .lk-icon.lk-web svg { display: block; width: 12px; height: 12px; }
 [class*="lk-i-"]::before, .lk-enter::after { content: ""; display: inline-block; width: 1.05em; height: 1.05em; vertical-align: -.15em; background: currentColor; -webkit-mask: var(--lk-ic) center / contain no-repeat; mask: var(--lk-ic) center / contain no-repeat; }

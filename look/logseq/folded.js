@@ -88,6 +88,23 @@ function draw(doc) {
     note.setAttribute('data-held', key);
     place(block, note);
   }
+  /* The same line after a folded row's words in the plugin's own lists, Threads' Linked and Find (16 November 2026, the owner: the
+     folded-heading line in "Linked and Find"): a module marks the words of a row whose node is folded with data-lk-held (its uuid),
+     and the line follows them, read and drawn as for Logseq's own bullets. Shown while the row is folded: the mark goes when it opens. */
+  for (const words of doc.querySelectorAll('[data-lk-held]')) {
+    const uuid = String(words.getAttribute('data-lk-held')).toLowerCase(), old = words.nextElementSibling?.classList.contains('lk-folded') ? words.nextElementSibling : null;
+    if (!fresh.has(uuid) && !asked.has(uuid) && !missing.includes(uuid)) missing.push(uuid);
+    if (!held.has(uuid)) continue;
+    const now = held.get(uuid), key = JSON.stringify(now);
+    if (!shows(now)) { old?.remove(); continue; }
+    if (old?.getAttribute('data-held') === key) continue;
+    old?.remove();
+    const note = build(doc, now);
+    note.setAttribute('data-held', key);
+    words.after(note);
+  }
+  // A line left behind by a row that opened, or whose mark went.
+  for (const note of doc.querySelectorAll('.lk-folded')) { const before = note.previousElementSibling; if (before && !before.hasAttribute('data-lk-held') && !note.closest('.ls-block')) note.remove(); }
   if (missing.length) read(missing);
 }
 async function read(uuids) {
