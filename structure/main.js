@@ -194,6 +194,54 @@ const app = {
     const into = { ...P(intoId), choices: P(intoId).choice ? await S.db.choicesOf(intoId) : null };
     return S.values.preview(fromIds.map(P), into, values);
   },
+  /* A property change before it is made, shown on real notes (16 November 2026, the owner: "make sure you design it in a way where
+     it is obvious what the outcome will be"): the counts, and up to three notes as they are now and as they will be. A note the
+     change leaves as it is comes first, when there is one. kind: 'merge' { prop, into }, 'retype' { prop, type }, 'splitProp'
+     { prop, only, name }. Each note: { title, tags, now: [{ name, vals }], after: [{ name, vals: [{ w, mark }], mark }], same }. */
+  async propPreview(kind, a) {
+    const m = tray.model, P = id => m.props.get(id), from = P(a.prop), V = S.values;
+    const fromVals = await S.db.propValues(from.ident, from.type);
+    const word = v => v.title ?? (v.raw == null ? '' : String(v.raw));
+    // A day as its journal page will be named, in the graph's own date format (the door's dates).
+    const D = window.PluginDoor.dates, fmt = await D.format() || 'MMM do, yyyy', dayWord = d => D.title(D.date(d), fmt);
+    const shown = w => w.day ? dayWord(w.day) : w.page ?? w.text ?? (w.num != null ? String(w.num) : w.raw != null ? (w.raw ? 'yes' : 'no') : '');
+    const gave = [], left = [], emptied = [], after = new Map();   // after: node -> { into: [words new], stay: [words] }
+    let moved = 0, kept = 0, intoName = '', intoVals = new Map(), stayName = from.title;
+    if (kind === 'merge') { const into = P(a.into); intoName = into.title; intoVals = await S.db.propValues(into.ident, into.type); var target = { ...into, choices: into.choice ? await S.db.choicesOf(into.id) : null }; }
+    else if (kind === 'retype') { intoName = from.title; stayName = `${from.title}, as written`; var target = { type: a.type, many: from.many }; }
+    else { intoName = a.name; var target = { type: 'node', many: from.many }; var only = await S.db.valuesTagged(from.ident, a.only); }
+    for (const [n, list] of fromVals) {
+      const go = [], stay = [];
+      for (const v of list) { if (!word(v).trim()) continue;   // an empty value says nothing on a note: neither shown nor counted
+        const w = only && !only.has(v.id) ? null : V.convert(from, target, v); if (w) go.push(shown(w) || word(v)); else stay.push(word(v)); }
+      moved += go.length; kept += stay.length;
+      if (!go.length && !stay.length) continue;
+      if (go.length) gave.push(n); if (stay.length && (kind !== 'splitProp')) left.push(n); if (go.length && !stay.length) emptied.push(n);
+      after.set(n, { go, stay });
+    }
+    // Which notes to show: one left as it is (or partly) first, then ones that change.
+    const unchanged = kind === 'splitProp' ? [...fromVals.keys()].filter(n => !gave.includes(n)) : left.filter(n => !gave.includes(n));
+    const picks = [...unchanged.slice(0, 1), ...gave.filter(n => !unchanged.includes(n)).slice(0, unchanged.length ? 2 : 3)];
+    const notes = (await S.db.notesFor(picks)).sort((x, y) => picks.indexOf(x.id) - picks.indexOf(y.id));
+    const out = notes.map(note => {
+      const n = note.id, x = after.get(n) || { go: [], stay: [] }, had = (fromVals.get(n) || []).map(word), hadInto = (intoVals.get(n) || []).map(word);
+      const now = [{ name: from.title, vals: had }]; if (kind === 'merge' && hadInto.length) now.push({ name: intoName, vals: hadInto });
+      const aft = [];
+      if (kind === 'merge') {
+        if (hadInto.length || x.go.length) aft.push({ name: intoName, vals: [...hadInto.map(w => ({ w })), ...x.go.filter(w => !hadInto.includes(w)).map(w => ({ w, mark: 'new' }))], mark: hadInto.length ? '' : 'new' });
+        aft.push(x.stay.length ? { name: from.title, vals: x.stay.map(w => ({ w })) } : { name: from.title, vals: had.map(w => ({ w })), mark: 'gone' });
+      } else if (kind === 'retype') {
+        if (x.go.length) aft.push({ name: intoName, vals: x.go.map(w => ({ w, mark: 'new' })) });
+        if (x.stay.length) aft.push({ name: stayName, vals: x.stay.map(w => ({ w })), mark: 'new' });
+      } else {
+        const stays = had.filter(w => !x.go.includes(w));
+        if (stays.length) aft.push({ name: from.title, vals: stays.map(w => ({ w })) }); else aft.push({ name: from.title, vals: had.map(w => ({ w })), mark: 'gone' });
+        if (x.go.length) aft.push({ name: intoName, vals: x.go.map(w => ({ w, mark: 'new' })), mark: 'new' });
+      }
+      return { title: note.title, tags: note.tags, now, after: aft, same: !x.go.length };
+    });
+    return { notes: out, gave, left, emptied, moved, kept, nodes: fromVals.size };
+  },
   valuesOf: (id, ident) => S.db.valuesOf(id, ident), nodesWhere: (id, ident, v) => S.db.nodesWhere(id, ident, v),
   notify,
   nameTaken: name => S.db.nameTaken(name),

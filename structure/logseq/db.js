@@ -217,6 +217,30 @@ async function moveBullets(uuids, pageUuid) {
     last = uuid;
   }
 }
+/* A property of the person's own made by a change (a split, a change of what it holds), and taken away again by its Undo only
+   while empty and on no tag (plugin.js). A name another property holds already makes nothing, and stops the change. */
+async function makeProp(title, type, many) {
+  const made = await window.PluginDoor.write.makeProperty(title, type, query, { many });
+  if (!made.made) throw new Error(`“${title}” is already a property`);
+  return made;
+}
+const dropProp = made => window.PluginDoor.write.dropMadeProperty(made, query);
+// The values of a property that are nodes carrying a tag: what a split moves.
+const valuesTagged = async (ident, tagId) => new Set((await query(`[:find ?v :where [?b :${ident} ?v] [?v :block/tags ${tagId}] ${LIVE}]`)).map(([v]) => v));
+// What the values of a node property are, by their tags of yours, with how many values carry each: a split's choice.
+const valueKinds = async ident => (await query(`[:find ?g ?n (count ?v) :where [?b :${ident} ?v] ${LIVE} [?v :block/tags ?g] [?g :block/title ?n] [?g :db/ident ?i] [(namespace ?i) ?ns] [(= ?ns "user.class")]]`)).map(([id, title, n]) => ({ id, title: String(title), count: Number(n) })).sort((a, b) => b.count - a.count);
+// A few nodes as a note reads: its words and its tags, for a change's preview.
+async function notesFor(nodeIds) {
+  if (!nodeIds.length) return [];
+  const these = `[(ground [${nodeIds.join(' ')}]) [?b ...]]`;
+  const [rows, tags] = await Promise.all([
+    query(`[:find ?b ?t :where ${these} [?b :block/uuid _] [(get-else $ ?b :block/title "") ?t]]`),
+    query(`[:find ?b ?n :where ${these} [?b :block/tags ?g] [?g :block/title ?n] [?g :db/ident ?i] [(namespace ?i) ?ns] [(= ?ns "user.class")]]`).catch(() => []),
+  ]);
+  const words = await named(rows.map(r => String(r[1]))), tagsOf = new Map();
+  for (const [b, n] of tags) (tagsOf.get(b) || tagsOf.set(b, []).get(b)).push(String(n));
+  return rows.map(([b, t]) => ({ id: b, title: words(String(t)), tags: tagsOf.get(b) || [] }));
+}
 /* A copy of the whole graph before a big change, made by Logseq's own backup (16 November 2026, step 2 of the tag upkeep plan):
    the same SQLite copy Logseq makes on its own each hour, into the graph's backup folder (~/logseq/graphs/<graph>/backup/),
    which Logseq trims itself (six by the hour, six by the day). Asked for at once ("force"); answers whether it was made. */
@@ -231,5 +255,5 @@ const editing = () => Promise.resolve(logseq.Editor.checkEditing?.()).then(v => 
 
 // A journal day, or a page that shares a day's name (a tag made with a day's name): Structure sets nothing above it.
 const isDay = async uuid => /^[0-9a-f-]{36}$/i.test(uuid) && (await query(`[:find ?d :where [?p :block/uuid #uuid "${uuid}"] [?p :block/name ?n] [?j :block/name ?n] [?j :block/journal-day ?d]]`)).length > 0;
-S.db = { safetyCopy, wordRefs, setWords, propValues, choicesOf, uuidOfNode, pageNamed, dayPage, putValues, query, read, isDay, nodesOf, valuesOf, nodesWhere, tagOfPage, tagIdByUuid, titleOf, nodeUuids, graph, valueRefs, valueIds, rangeIds, classPropIds, putClassProps, setValues, addExtends, removeExtends, rename, addTag, removeTag, addClassProp, removeClassProp, setRange, nameTaken, makeTag, remakeTag, deleteTag, untouched, stamp, pageBullets, moveBullets, editing, bare, pick, idOf };
+S.db = { valueKinds, makeProp, dropProp, valuesTagged, notesFor, safetyCopy, wordRefs, setWords, propValues, choicesOf, uuidOfNode, pageNamed, dayPage, putValues, query, read, isDay, nodesOf, valuesOf, nodesWhere, tagOfPage, tagIdByUuid, titleOf, nodeUuids, graph, valueRefs, valueIds, rangeIds, classPropIds, putClassProps, setValues, addExtends, removeExtends, rename, addTag, removeTag, addClassProp, removeClassProp, setRange, nameTaken, makeTag, remakeTag, deleteTag, untouched, stamp, pageBullets, moveBullets, editing, bare, pick, idOf };
 })();

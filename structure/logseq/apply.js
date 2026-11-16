@@ -54,6 +54,8 @@ const INV = {
   putValues: (x, c) => db.putValues(x.node, x.ident, x.list),
   // The words as they were, the links pointing at the tag put back (its uuid and name now); guarded, so words written since stay.
   wordsBack: async (x, c) => { const h = c.h(x.h); live(h); const title = (await db.titleOf(h.uuid)) || h.title; return db.setWords(x.node, relink(x.words, x.oldUuid, title, { uuid: h.uuid, title })); },
+  // A property a change made goes again only while empty and on no tag (its values and tags went back before this runs).
+  dropProp: async (x, c) => { const h = c.h(x.h); if (!await db.dropProp({ uuid: h.uuid, ident: h.ident })) return 'kept'; },
   bulletsBack: async (x, c) => { const into = new Set(await db.pageBullets(live(c.h(x.into)))); const back = x.moving.filter(u => into.has(u)); if (back.length) await db.moveBullets(back, live(c.h(x.from))); },
 };
 /* A guard: what a node held under some properties, written back only while the node holds what Apply left. The stamp is taken
@@ -76,12 +78,13 @@ async function runStep(s, rec) {
   const K = h => rec.key(h), add = inv => rec.add(inv), ready = () => rec.flush();
   switch (s.op) {
     case 'makeTag': { const made = await db.makeTag(s.tag.title); s.tag.uuid = made.uuid; s.tag.realId = made.id; add({ do: 'unmake', h: K(s.tag) }); await ready(); if (s.parent?.uuid) { add({ do: 'removeExtends', tag: K(s.tag), parent: K(s.parent) }); await ready(); await db.addExtends(made.uuid, s.parent.uuid); } break; }
+    case 'makeProp': { const made = await db.makeProp(s.prop.title, s.type, s.many); Object.assign(s.prop, { uuid: made.uuid, ident: made.ident, realId: made.id }); add({ do: 'dropProp', h: K(s.prop) }); await ready(); break; }
     case 'addExtends': add({ do: 'removeExtends', tag: K(s.tag), parent: K(s.parent) }); await ready(); await db.addExtends(s.tag.uuid, s.parent.uuid); break;
     case 'removeExtends': add({ do: 'addExtends', tag: K(s.tag), parent: K(s.parent) }); await ready(); await db.removeExtends(s.tag.uuid, s.parent.uuid); break;
     case 'rename': { const h = s.tag || s.prop; add({ do: 'rename', h: K(h), was: s.was }); await ready(); await db.rename(h.uuid, s.name); break; }
     case 'addTag': add({ do: 'removeTag', node: s.node, tag: K(s.tag) }); await ready(); await db.addTag(s.node, s.tag.uuid); break;
     case 'removeTag': add({ do: 'addTag', node: s.node, tag: K(s.tag) }); await ready(); await db.removeTag(s.node, s.tag.uuid); break;
-    case 'addClassProp': add({ do: 'removeClassProp', tag: K(s.tag), prop: s.prop.id }); await ready(); await db.addClassProp(s.tag.uuid, s.prop.id); break;
+    case 'addClassProp': add({ do: 'removeClassProp', tag: K(s.tag), prop: idOf(s.prop) }); await ready(); await db.addClassProp(s.tag.uuid, idOf(s.prop)); break;
     case 'removeClassProp': { const had = await db.classPropIds(s.tag.uuid); add({ do: 'putClassProps', tag: K(s.tag), ids: had }); await ready(); await db.removeClassProp(s.tag.uuid, s.prop.id); break; }
     case 'setRange': {
       const ids = list => list.map(idOf), before = await db.rangeIds(s.prop.uuid), shown = ids(s.was), kept = before.filter(id => !shown.includes(id));
@@ -126,14 +129,17 @@ async function runStep(s, rec) {
       break; }
     case 'moveValues': {
       // Read now: the values as they are at Apply. What the kept property cannot take stays where it was; each node is put back on its own.
-      const { from, into } = s, V = S.values;
+      // A property made earlier in the batch is named by its handle, which knows its id only once it is made.
+      const from = s.from, into = s.into.h ? { ...s.into, ident: s.into.h.ident, id: idOf(s.into.h), title: s.into.h.title } : s.into, V = S.values;
+      // A split moves only the values that are nodes of one tag; the others stay where they are.
+      const only = s.only != null ? await db.valuesTagged(from.ident, s.only) : null;
       const [fromVals, intoVals, choices] = await Promise.all([db.propValues(from.ident, from.type), db.propValues(into.ident, into.type), into.choice ? db.choicesOf(into.id) : null]);
       const kept = v => from.choice || V.family(from.type) === 'ref' ? { id: v.id } : v.raw != null ? { raw: v.raw } : from.type === 'number' ? { num: Number(v.title) } : { text: v.title };
       const keptInto = v => into.choice || V.family(into.type) === 'ref' ? { id: v.id } : v.raw != null ? { raw: v.raw } : into.type === 'number' ? { num: Number(v.title) } : { text: v.title };
       for (const [nodeId, list] of fromVals) {
         const node = String(await db.uuidOfNode(nodeId)), was = (intoVals.get(nodeId) || []).map(keptInto), before = list.map(kept);
         const go = [], stay = [];
-        for (const v of list) { const w = V.convert(from, { ...into, choices }, v); if (w) go.push(w); else stay.push(kept(v)); }
+        for (const v of list) { const w = only && !only.has(v.id) ? null : V.convert(from, { ...into, choices }, v); if (w) go.push(w); else stay.push(kept(v)); }
         if (!go.length) continue;
         if (!into.many && was.length + go.length > 1) throw new Error(`${into.title} takes one value, and a node holds more`);
         const put = [];

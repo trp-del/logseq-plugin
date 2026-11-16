@@ -130,7 +130,7 @@ Door.write = {
      run together and kept apart from the person's own, so this goes through Logseq's import, which makes it as Logseq's own
      "Add property" does: one of yours (user.property), its name as typed. A name that a property already has makes nothing new:
      that property is answered. Answers { ident, uuid, id, title, type, made }. */
-  async makeProperty(title, type = 'default', ask = dsAsk) {
+  async makeProperty(title, type = 'default', ask = dsAsk, { many = false } = {}) {
     const name = String(title || '').trim().replace(/\s+/g, ' ');
     if (!name) throw new Error('a property needs a name');
     if (!PROPERTY_TYPES.includes(type)) throw new Error(`“${type}” is no type a property has`);
@@ -142,7 +142,9 @@ Door.write = {
     let ident = '';
     for (let i = 0; i < 20 && !ident; i++) { const tryIdent = `user.property/${/^[a-z]/.test(slug) ? slug : 'p-' + slug}${i ? '-' + (i + 1) : ''}`; if (!(await ask(`[:find ?p :where [?p :db/ident :${tryIdent}]]`) || []).length) ident = tryIdent; }
     if (!ident) throw new Error('no free id for the property');
-    await logseq.Editor.importEdn(JSON.stringify(['^ ', '~:properties', ['^ ', `~:${ident}`, ['^ ', '~:logseq.property/type', `~:${type}`, '~:block/title', name]]]));
+    // many: a property that holds several values (16 November 2026, Ontology's split and change of kind keep the old one's).
+    const edn = ['^ ', '~:logseq.property/type', `~:${type}`, '~:block/title', name, ...(many ? ['~:db/cardinality', '~:db.cardinality/many'] : [])];
+    await logseq.Editor.importEdn(JSON.stringify(['^ ', '~:properties', ['^ ', `~:${ident}`, edn]]));
     let made = null;
     for (let i = 0; i < 20 && !made; i++) { made = await read(`[?p :db/ident :${ident}]`); if (!made) await new Promise(resolve => setTimeout(resolve, 100)); }
     if (!made?.uuid) throw new Error('the property was not made');
@@ -1246,6 +1248,9 @@ Door.ICONS = {
   copy: 'M6.4 5.2h6.4A1.2 1.2 0 0 1 14 6.4v6.4a1.2 1.2 0 0 1-1.200 1.200H6.400a1.200 1.200 0 0 1-1.200-1.200V6.400a1.200 1.200 0 0 1 1.200-1.200zM11 2.400H3.600a1.200 1.200 0 0 0-1.200 1.200V11',
   eq: 'M3 5.800h10M3 10.200h10', side: 'M3 3h10a1.200 1.200 0 0 1 1.200 1.200v7.600A1.200 1.200 0 0 1 13 13H3a1.200 1.200 0 0 1-1.200-1.200V4.200A1.200 1.200 0 0 1 3 3zM10 3v10',
   tick: 'M3.500 8.200 6.500 11.200 12.500 5.200', x: 'm3.800 3.800 8.400 8.400M12.200 3.800l-8.400 8.400', save: 'M8 2.500v8M4.500 7 8 10.500 11.500 7M3 13.500h10',
+  // 16 November 2026, Ontology's tabs and menus with an icon on every word: a tag, a list, the history, a day.
+  tag: 'M2.500 2.500h5l6 6-5 5-6-6zM5.300 5.300h.010', list: 'M5.500 4h8M5.500 8h8M5.500 12h8M2.500 4h.010M2.500 8h.010M2.500 12h.010',
+  history: 'M8 5v3l2 1.500M2.700 7a5.500 5.500 0 1 1 .800 3.600M2.500 13.500V10.500h3', calendar: 'M3 4h10v9.500H3zM3 7h10M5.500 2.500v3M10.500 2.500v3',
   undo: 'M6 9.500 3 6.500l3-3M3 6.500h7.500a3 3 0 0 1 0 6H9', reload: 'M13 8a5 5 0 1 1-1.500-3.500M13 2v3.500H9.500', enter: 'M13 3.500V7.800a2 2 0 0 1-2 2H3.500M6.800 6.500 3.500 9.800l3.300 3.300',
 };
 const iconUrl = (d, w = 1.5) => `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='#000' stroke-width='${w}' stroke-linecap='round' stroke-linejoin='round'><path d='${d}'/></svg>`)}")`;
@@ -1464,6 +1469,10 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
 .lk-head.on { font-weight: 600; }
 .lk-menu { border: 1px solid var(--lk-hair); border-radius: 6px; padding: 4px; }
 .lk-item { display: flex; justify-content: space-between; gap: 16px; width: 100%; text-align: left; color: var(--lk-text, currentColor) !important; padding: 5px 8px; white-space: nowrap; }
+/* A menu line with its icon (lk-i-…, 16 November 2026): the icon, the words beside it, and its key or count at the right end. */
+.lk-item[class*="lk-i-"] { justify-content: flex-start; gap: 0; }
+.lk-item[class*="lk-i-"]::before { margin-right: .6em; flex: none; }
+.lk-item[class*="lk-i-"] > .rt, .lk-item[class*="lk-i-"] > .lk-note { margin-left: auto; padding-left: 16px; }
 .lk-item.off { color: var(--lk-off) !important; pointer-events: none; }
 .lk-item-word { display: inline-flex; align-items: center; gap: 8px; }
 .lk-item-icon { display: inline-flex; align-items: center; justify-content: center; width: 1.125em; flex: none; }   /* a line's own icon (a status's), Logseq's 18px for 16px words */

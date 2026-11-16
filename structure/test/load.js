@@ -119,7 +119,7 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   // The whole: an area for each top-level tag, the first levels open, no card, no Health.
   assert.equal(R.querySelectorAll('.st-area').length, Mo().tops(M()).length, 'one area for each top-level tag');
   assert.ok(row('Consultation'), 'a tag stands in its area');
-  assert.deepEqual([...R.querySelectorAll('.lk-view')].map(text), ['Regions', 'Every property', 'Log']);
+  assert.deepEqual([...R.querySelectorAll('.lk-view')].map(text), ['Tags', 'Properties', 'History']);
   assert.ok(!R.querySelector('.st-card'), 'no card on the page of the whole');
 
   // A press lights a tag; its name opens its page.
@@ -237,14 +237,15 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   const pins = calls.length; key(R.querySelector('[data-pin]'), 'Enter'); await sleep(10);
   assert.ok(!R.querySelector('.st-prompt'), 'the prompt closes'); assert.ok(calls.slice(pins).some(c => c[0] === 'pushState' && c[1] === 'page'), 'the tag\'s page opens');
   assert.equal(app.tray.changes.length, 0, 'nothing waits in the tray');
-  // Merge into…: tick a property, press the one it goes into, and the ask opens under that row and holds no other row.
-  click(R.querySelector(`[data-ptick="${pid('Surgeon')}"]`)); click(R.querySelector('[data-paim]'));
-  click(R.querySelector(`.tr[data-prop$="·${pid('With')}"]`));
-  for (let i = 0; i < 40 && !R.querySelector('.st-q'); i++) await sleep(25);
-  assert.match(text(R.querySelector('.st-q')), /Merge Surgeon into With/);
-  assert.ok(!R.querySelector('.st-q .tr'), 'the ask holds no other property\'s row');
+  // Merge…: tick two properties, press Merge… in the bar; it asks which to keep under the bar, the most held first, and the yes
+  // names the result (16 November 2026). Choosing the other keeps that one instead.
+  click(R.querySelector(`[data-ptick="${pid('Surgeon')}"]`)); click(R.querySelector(`[data-ptick="${pid('With')}"]`)); click(R.querySelector('[data-pbar="merge"]'));
+  for (let i = 0; i < 40 && !R.querySelector('.st-q [data-stage]'); i++) await sleep(25);
+  assert.match(text(R.querySelector('.st-q')), /into one property\. Keep which name\?/);
+  assert.match(text(R.querySelector('.st-q [data-stage]')), /^Merge (Surgeon into With|With into Surgeon)$/);
+  assert.ok(!R.querySelector('.st-q .tr'), 'the ask holds no property\'s row');
   click(R.querySelector('.st-q [data-leave]')); assert.ok(!R.querySelector('.st-q'));
-  if (st.pticks.size) click(R.querySelector(`[data-ptick="${pid('Surgeon')}"]`));
+  st.pticks.clear(); app.draw();
   click(R.querySelector('[data-show="tree"]')); assert.ok(R.querySelector('.st-regions'));
 
   // The grammar's row on Regions (5 November 2026): the name opens the tag's page; the count or the empty part of the row selects.

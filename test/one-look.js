@@ -16,7 +16,7 @@ assert.ok(/height: 1px/.test(bar) && /var\(--lk-view-pad/.test(bar), 'the view i
 assert.ok(!/\.lk-view:hover[^{]*\{[^}]*background/.test(NAMES) && !/\.lk-view:hover, \.lk-view:focus-visible, \.lk-item/.test(NAMES), 'no ground under a view');
 assert.ok(/className = `lk-view\$\{on/.test(read('sidebar-tabs.js')), 'the sidebar\'s tabs are views');
 assert.ok(/class: `lk-view\$\{state\.view/.test(read('look/logseq/links.js')), 'Links\' two orders are views');
-assert.ok(/class="lk-view \$\{v === k/.test(read('structure/logseq/view.js')), 'Structure\'s three views are views');
+assert.ok(/class="lk-view lk-i-\$\{ic\} \$\{v === k/.test(read('structure/logseq/view.js')), 'Structure\'s three views are views, each with its icon');
 assert.ok(/th-tw-chip lk-view\$\{tag === only/.test(read('threads/parts/two-way.js')), 'Linked\'s kinds are views');
 
 // 28: no filled pills: Find's "make a page", the settings' "Changed by you", "Logseq's list" and "default", Structure's Merge into and
@@ -25,7 +25,7 @@ assert.ok(/class: 'lk-btn lk-low lk-i-plus', type: 'button', title: 'Make a page
 const sw = read('settings/window.js');
 assert.ok(/sw-mod lk-item" id="sw-plain"/.test(sw) && /sw-mod lk-item\$\{[^}]*\}" id="sw-changed"/.test(sw) && /class="sw-row lk-item/.test(sw) && !/sw-default/.test(sw), 'the settings\' foot and its lines are the library\'s menu lines');
 const st = read('structure/logseq/view.js');
-assert.ok(/lk-btn lk-low lk-i-merge \$\{n \? '' : 'waits'\}" data-paim/.test(st) && /lk-btn lk-low lk-i-rename/.test(st) && /lk-btn lk-low lk-i-move \$\{n/.test(st), 'Structure\'s bars');
+assert.ok(/lk-btn lk-low lk-i-merge \$\{n > 1 \? '' : 'waits'\}" data-tbar="merge"/.test(st) && /lk-btn lk-low lk-i-merge \$\{n > 1 \? '' : 'waits'\}" data-pbar="merge"/.test(st) && /lk-btn lk-low lk-i-rename/.test(st) && /lk-btn lk-low lk-i-move" data-tbar="move"/.test(st), 'Structure\'s bars: Merge…, Move under…, Rename, from the library');
 
 // 30: a day says only the day; what it is of stands after the words (Journal in a tag's mono), so no list's day column widens.
 const sh = read('threads/parts/shared.js');

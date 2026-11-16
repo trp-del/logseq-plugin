@@ -157,5 +157,35 @@ const { apply } = S.apply;
   assert.ok(!(await R.list(G)).some(h => h.id === old.id), 'a record of 31 days ago is not listed');
   assert.ok(![...files.keys()].some(k => k.includes(old.id)), 'and its files are gone');
   console.log('  ok  a record older than 30 days is dropped with its files');
+
+  // Words turned into dates: a property made, filled with what reads as a date, the names swapped; undone from disk, all of it
+  // goes back, the made property taken away (16 November 2026).
+  const props = new Map([['p-date', 'Date seen']]), dropped = [], classes = new Map([['visit', ['p-date']]]);
+  Object.assign(S.db, {
+    makeProp: async (title, type, many) => { props.set('p-new', title); return { uuid: 'p-new', ident: 'new', id: 777, made: true }; },
+    dropProp: async made => { dropped.push(made.uuid); props.delete(made.uuid); return true; },
+    rename: async (uuid, name) => { props.set(uuid, name); },
+    addClassProp: async (tagUuid, id) => { classes.set(tagUuid, [...(classes.get(tagUuid) || []), id]); },
+    removeClassProp: async (tagUuid, id) => { classes.set(tagUuid, (classes.get(tagUuid) || []).filter(x => x !== id)); },
+  });
+  const titleOfWas = S.db.titleOf; S.db.titleOf = async uuid => props.get(uuid) ?? titleOfWas(uuid);
+  const convertWas = S.values.convert; S.values.convert = (from, into, v) => /\d{4}/.test(v.title) ? { text: 'day:' + v.title } : null;
+  held.set(key('n40', 'date'), ['14 Oct 2026']); held.set(key('n41', 'date'), ['last Tuesday']);
+  const Fh = { id: 50, uuid: 'p-date', ident: 'date', title: 'Date seen' }, Nh = { id: -9, uuid: '', ident: '', title: 'Date seen (dates)' }, vt = { id: 1, uuid: 'visit', title: 'Visit' };
+  const rtRec = R.make({ graph: G, text: 'Turn Date seen into dates' });
+  await apply([{ op: 'makeProp', prop: Nh, type: 'date', many: false }, { op: 'addClassProp', tag: vt, prop: Nh },
+    { op: 'moveValues', from: { ...Fh, type: 'default' }, into: { h: Nh, type: 'date', many: false } },
+    { op: 'rename', prop: Fh, name: 'Date seen, as written', was: 'Date seen' }, { op: 'rename', prop: Nh, name: 'Date seen', was: 'Date seen (dates)' }], async () => true, rtRec);
+  assert.deepEqual(held.get(key('n40', 'new')), ['day:14 Oct 2026'], 'a date read from the words is in the new property');
+  assert.deepEqual(held.get(key('n41', 'date')), ['last Tuesday'], 'words that are no date stay where they were');
+  assert.equal(props.get('p-new'), 'Date seen'); assert.equal(props.get('p-date'), 'Date seen, as written');
+  const rtBack = await R.load(G, (await R.list(G)).find(h => h.id === rtRec.id));
+  const rtLost = await S.apply.putBack(rtBack, async () => true);
+  assert.equal(rtLost.length, 0, 'every step goes back');
+  assert.deepEqual(held.get(key('n40', 'date')), ['14 Oct 2026'], 'the words are back'); assert.deepEqual(held.get(key('n40', 'new')), []);
+  assert.equal(props.get('p-date'), 'Date seen', 'the old name is back'); assert.deepEqual(dropped, ['p-new'], 'the property made is taken away');
+  assert.deepEqual(classes.get('visit'), ['p-date']);
+  S.values.convert = convertWas; S.db.titleOf = titleOfWas;
+  console.log('  ok  words turned into dates, and Undo from disk puts every piece back');
   console.log('apply: every check passed');
 })().catch(error => { console.error(error); process.exit(1); });

@@ -73,8 +73,8 @@ function issues(M) {
     const guess = rangeGuess(M, p.id)[0];
     const on = p.on[0];
     const head = [subject(on, p.id), say('on'), tags([on])];
-    if (guess) add(RULES[2], on, [...head, say(`links to nodes but no tag is set as what it points at; its values are mostly ${M.tags.get(guess[0]).title}s`)], `set ${M.tags.get(guess[0]).title}`, { kind: 'setRange', prop: p.id, to: [guess[0]] });
-    else add(RULES[2], on, [...head, say('links to nodes but no tag is set as what it points at')], 'set the range', { kind: 'prompt', what: 'range', prop: p.id });
+    if (guess) add(RULES[2], on, [...head, say(`points at no tag; most of its values are ${M.tags.get(guess[0]).title}`)], `point at ${M.tags.get(guess[0]).title}`, { kind: 'setRange', prop: p.id, to: [guess[0]] });
+    else add(RULES[2], on, [...head, say('points at no tag')], 'choose a tag…', { kind: 'prompt', what: 'range', prop: p.id });
   }
   // 4. A property lives as high as it is filled.
   for (const t of M.tags.values()) {
@@ -85,14 +85,14 @@ function issues(M) {
       for (const [pid, on] of byProp) {
         if (on.length < 3 || t.props.includes(pid)) continue;
         const n = on.reduce((s, id) => s + filled(M, id, pid), 0);
-        add(RULES[3], t.id, [subject(on[0], pid), say('on'), tags(on), num(`${n} of ${on.reduce((s, id) => s + count(M, id), 0)} filled`)], `pull up to ${t.title}`, { kind: 'moveProp', prop: pid, from: on, to: t.id });
+        add(RULES[3], t.id, [subject(on[0], pid), say('is on'), tags(on), say('one by one, all under'), tags([t.id]), num(`${n} of ${on.reduce((s, id) => s + count(M, id), 0)} filled`)], `move it up to ${t.title}`, { kind: 'moveProp', prop: pid, from: on, to: t.id });
       }
     }
     for (const pid of t.props) {
       const all = filled(M, t.id, pid), of = count(M, t.id);
       if (children.length >= 2 && all && !filledOwn(M, t.id, pid)) {
         const where = children.filter(c => filled(M, c.id, pid) > 0);
-        if (where.length === 1) { add(RULES[3], t.id, [subject(t.id, pid), say('on'), tags([t.id]), say('is filled only by'), tags([where[0].id]), num(`${all} of ${count(M, where[0].id)}`)], `push down to ${where[0].title}`, { kind: 'moveProp', prop: pid, from: [t.id], to: where[0].id }, { tag: t.id, prop: pid, kid: where[0].id }); continue; }
+        if (where.length === 1) { add(RULES[3], t.id, [say('Only'), tags([where[0].id]), say('notes use'), subject(t.id, pid), say(', though it is on'), tags([t.id]), num(`${all} of ${count(M, where[0].id)}`)], `move it to ${where[0].title}`, { kind: 'moveProp', prop: pid, from: [t.id], to: where[0].id }, { tag: t.id, prop: pid, kid: where[0].id }); continue; }
       }
       if (of >= 10 && all < of / 10) add(RULES[3], t.id, [subject(t.id, pid), say('on'), tags([t.id]), num(`${all} of ${of} filled`)], 'drop', { kind: 'dropProp', prop: pid, tag: t.id }, { tag: t.id, prop: pid });
     }

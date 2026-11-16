@@ -87,7 +87,11 @@ const CSS = `
 .st-lines-t { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 8px 14px; margin: 0; align-items: baseline; }   /* a label and its value's first line on one baseline: stretched, a value holding a press stood 3 to 7 px lower than its label (measured 12 November 2026) */
 .st-lines-t dt { font-weight: 600; } .st-lines-t dd { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; min-width: 0; }
 .st-lines-t .chev { margin-left: 2px; padding: 0 2px; }   /* the library's chevron (lk-change), centred on the name it changes */
-.st-tag .sug { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; padding-top: 12px; }
+.sugs { display: grid; gap: 6px; margin-top: 14px; padding: 10px 14px; border-radius: 10px; background: var(--rx-amber-a2, rgba(255, 180, 0, .07)); border: 1px solid var(--rx-amber-a5, rgba(255, 170, 0, .35)); }   /* "Suggested" once, then a line each: the sentence, its fix at the end; a box of its own, since what is suggested is to be seen (the owner, 16 November 2026: "This is where subtley is not important") */
+.sugs .sh { font-weight: 600; display: flex; gap: 6px; align-items: center; color: var(--lk-text, #222); }
+.sugs .sh .ti { color: var(--rx-amber-11, #ad5700); }
+.sugs .sug { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 18px; align-items: baseline; }
+.sugs .sug .fix { white-space: nowrap; background: var(--ls-primary-background-color, #fff) !important; border: 1px solid var(--rx-amber-a6, rgba(255, 170, 0, .45)); padding: 3px 12px !important; }   /* the fix as a button you see at once, on the suggestion's box */
 .st-lines-t dd.col { display: grid; gap: 3px; justify-items: start; }
 .st-lines-t .ont { display: grid; grid-template-columns: 170px 70px auto; gap: 0 14px; align-items: baseline; }
 .st-lines-t .ont.kid { padding-left: 16px; } .st-lines-t .ont.kid .lk-tag { margin-right: -16px; }
@@ -95,7 +99,7 @@ const CSS = `
 .st-lines-t .ont .acts-r { display: flex; gap: 2px; }
 .st-lines-t .ont { padding-block: 2px; }
 .st-lines-t dd.kids { gap: 0; } .st-lines-t dd.kids .ont { padding-block: 0; }   /* child tags: plain lines at the lines' own pitch, the first on its name's baseline */
-.st-tag .sug { align-items: center; } .st-rel .lk-more { margin-top: 2px; }
+.st-rel .lk-more { margin-top: 2px; }
 /* Words stay whole in Ontology's lines and tables: Logseq sets word-break: break-word page-wide, which let a line break inside "and",
    and before a comma. A word breaks only when it alone is wider than its line; "and 12 more" goes to the next line whole, from the
    line's own edge (13 November 2026: with a margin for its space it stood 5 px in, and a comma could start a line). */
@@ -286,11 +290,24 @@ const CSS = `
 .st-two { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; font-size: 14px; margin: 8px 0 6px; }
 .st-two .h { font-weight: 600; padding-bottom: 4px; display: flex; gap: 8px; align-items: baseline; color: var(--lk-text, #222); } .st-two .h .ct { font-weight: 400; color: var(--lk-quiet); font-size: var(--lk-small); }
 .st-two .pr { display: flex; gap: 8px; min-height: 24px; align-items: center; color: var(--lk-quiet); }   /* the name at the left of its column, "on both" at the right */
+.st-keep { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 6px 0 4px; } .st-keep .act { cursor: pointer; padding: 2px 8px; border-radius: 1em; } .st-keep .act.on { background: var(--rx-yellow-a5, rgba(255, 213, 0, .35)); color: var(--lk-text, #222) !important; } .st-keep .n { margin-left: 8px; font-size: var(--lk-small); }   /* which to keep: the one kept washed as what comes */
+.st-pv.one { grid-template-columns: 1fr; }
+.st-pv { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; margin: 8px 0 4px; font-size: 14px; }   /* a property change on real notes: now, after */
+.st-pv > div { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.st-pv .g { font-size: var(--lk-label); color: var(--lk-quiet); }
+.st-pv .pn { display: flex; flex-direction: column; gap: 2px; }
+.st-pv .pt { display: flex; gap: 10px; align-items: baseline; } .st-pv .pt > span:first-child { flex: 1; min-width: 0; }
+.st-pv dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 0 12px; margin: 0; font-size: var(--lk-small); }
+.st-pv dt { color: var(--lk-quiet); font-weight: 400; } .st-pv dd { margin: 0; min-width: 0; }
+.st-pv .gone { text-decoration: line-through; text-decoration-thickness: 1.5px; color: var(--rx-red-10, #dc3e42); }   /* what a change takes away */
+.st-pv .chg, .st-two .pr.new .n { background: var(--rx-yellow-a5, rgba(255, 213, 0, .35)); color: var(--lk-text, #222); border-radius: 3px; padding: 0 3px; margin: 0 -3px; }   /* what a change brings: a consequence, not a guess (the pencil is Predictive's) */
+.st-pv .same { font-size: var(--lk-small); color: var(--lk-quiet); }
+.st-q .cnt { color: var(--lk-text, #222); }
 .st-two .g { font-size: var(--lk-label); color: var(--lk-quiet); padding-top: 6px; }   /* a group's heading in a merge's columns: Child tags, Relationships */
 .st-two .pr .n { display: inline-flex; gap: 6px; align-items: center; min-width: 0; }
 .st-two .pr .n .to { font-family: var(--lk-tag-face, Georgia, serif); color: var(--lk-quiet); font-style: normal; }   /* the tag holding a relationship, as a tag reads (serif, quiet) */
 .st-two .pr .ct { font-size: var(--lk-small); color: var(--lk-quiet); margin-left: auto; white-space: nowrap; }
-.st-two .pr.moves, .st-two .pr.shared { color: var(--lk-text, #222); } .st-two .pr.gone { text-decoration: line-through; color: var(--lk-quiet); } .st-two .pr.new { font-style: italic; }
+.st-two .pr.moves, .st-two .pr.shared { color: var(--lk-text, #222); } .st-two .pr.gone { text-decoration: line-through; color: var(--lk-quiet); } .st-two .pr.new { color: var(--lk-text, #222); }
 .st .q { color: var(--lk-quiet); } .st .f { color: var(--lk-quiet); }
 /* Baked in one pass (the owner, 5 November 2026: "the table feels half-baked"): the tick and the fold arrow stand in a margin at the
    table's left, as on a Regions row, so the head Property stands over the names; the chevron sits tight after the value it keys;
@@ -447,17 +464,27 @@ function make(holder, mode, app, opts = {}) {
   // ---------- the whole: the areas ----------
   function topHtml() {
     const v = ['table', 'log'].includes(st.view) ? st.view : 'tree';
-    const views = `<div class="st-views lk-views">${[['tree', 'Regions'], ['table', 'Every property'], ['log', 'Log']].map(([k, w]) => `<span class="lk-view ${v === k ? 'here on' : 'act'}" ${v === k ? '' : `data-show="${k}"`}>${w}</span>`).join('')}</div>`;
+    const views = `<div class="st-views lk-views">${[['tree', 'Tags', 'tag'], ['table', 'Properties', 'list'], ['log', 'History', 'history']].map(([k, w, ic]) => `<span class="lk-view lk-i-${ic} ${v === k ? 'here on' : 'act'}" ${v === k ? '' : `data-show="${k}"`}>${w}</span>`).join('')}</div>`;
     const split = st.view === 'tree' ? `<span class="st-split act lk-btn lk-low lk-i-side" data-split>${st.split ? 'One pane' : 'Two panes'}</span>` : '';
     const find = st.view === 'tree' && st.split ? '' : `<div class="st-find lk-field"><input data-find placeholder="${st.view === 'table' ? 'Find a property' : 'Find a tag'}" value="${esc(st.find)}" autocomplete="off" spellcheck="false"></div>`;
-    return `<div class="st-top">${views}${find}${split}${st.view === 'tree' ? `<span class="st-new act lk-add lk-i-plus" data-do="new" data-on="${LOOSE}">New top-level tag</span>` : ''}</div>${st.view === 'tree' ? actsHtml() : st.view === 'table' ? pactsHtml() : ''}`;
+    return `<div class="st-top">${views}${find}${split}${st.view === 'tree' ? `<span class="st-new act lk-add lk-i-plus" data-do="new" data-on="${LOOSE}">New top-level tag</span>` : ''}</div>${st.view === 'tree' ? actsHtml() + tmergeHtml() + tmoveHtml() : st.view === 'table' ? pactsHtml() + pkeepHtml() : ''}`;
   }
   // What can be done stays in view, faint until it can be (the research: what you can do is recognised, not remembered), so nothing moves when a tag is picked.
   function actsHtml() {
     const aim = st.aim, names = aim && (aim.tags.length > 3 ? `${aim.tags.length} tags` : R.list(aim.tags.map(name)));
     if (aim) return `<div class="st-acts lk-bar"><b class="lk-said">${aim.what === 'move' ? `Move ${esc(names)} to` : `Merge ${esc(names)} into`}: press a tag</b><span class="act lk-btn lk-low lk-i-x" data-aimoff>Leave it</span>${aim.what === 'move' ? '<span class="act lk-btn lk-low lk-i-up" data-aimtop>To the top</span>' : ''}</div>`;
-    const n = st.ticks.size;
-    return `<div class="st-acts lk-bar">${n ? `<b class="lk-said">${n} picked</b>` : '<span class="say">Pick tags to move or merge</span>'}<span class="act lk-btn lk-low lk-i-move ${n ? '' : 'waits'}" data-aim="move">Move to…</span><span class="act lk-btn lk-low lk-i-merge ${n > 1 ? '' : 'waits'}" data-aim="merge">Merge into…</span></div>`;
+    /* Tick tags, then say what to do with them (the owner, 16 November 2026: "you would think you could select multiple items then
+       hit a merge item and it ask for which to merge together"; the clickable mockup pick-then-merge-live.html, "ok build"). One word
+       per action, the same in this bar and in a tag's right-click menu, each with its icon. */
+    const ids = [...st.ticks].filter(T), n = ids.length, top = ids.every(id => Mo.parentOf(M(), id) == null), empty = ids.every(id => !Mo.count(M(), id) && !T(id).kids.length);
+    if (!n) return `<div class="st-acts lk-bar"><span class="say">Tick tags to merge, move, rename or delete them together. Right-click one for more.</span></div>`;
+    return `<div class="st-acts lk-bar"><b class="lk-said">${plural(n, 'tag')} picked</b>` +
+      `<span class="act lk-btn lk-low lk-i-merge ${n > 1 ? '' : 'waits'}" data-tbar="merge" title="${n > 1 ? '' : 'Tick two or more to merge them'}">Merge…</span>` +
+      `<span class="act lk-btn lk-low lk-i-up ${top ? 'waits' : ''}" data-tbar="up" title="${top ? 'Already at the top' : 'Shift-Tab'}">Move up a level</span>` +
+      `<span class="act lk-btn lk-low lk-i-move" data-tbar="move">Move under…</span>` +
+      `<span class="act lk-btn lk-low lk-i-rename ${n === 1 ? '' : 'waits'}" data-tbar="rename">Rename</span>` +
+      `<span class="act lk-btn lk-low lk-del lk-i-bin ${empty ? '' : 'waits'}" data-tbar="delete" title="${empty ? '' : 'Only a tag with no nodes and no child tags can be deleted: merge the others'}">Delete</span>` +
+      `<span class="act lk-x" data-tbar="clear" title="Clear the picks">×</span></div>`;
   }
   /* Every property's bar, as Regions' is for tags: what is picked and what it can take, waiting faintly until it can. Merging,
      the rows are the choice ("press a property"); combining, the bar asks the name of the property they become. */
@@ -466,7 +493,11 @@ function make(holder, mode, app, opts = {}) {
     if (st.paim) return `<div class="st-acts lk-bar"><b class="lk-said">Merge ${esc(names)} into: press a property</b><span class="act lk-btn lk-low lk-i-x" data-paimoff>Leave it</span></div>`;
     if (st.edit?.what === 'pcombine' && st.edit.owner === mode) return `<div class="st-acts lk-bar"><b class="lk-said">Combine ${esc(names)} as</b><input class="st-in lk-field" data-edit value="${esc(st.edit.text)}" placeholder="Name of the property they become" autocomplete="off" spellcheck="false"><span class="act lk-btn lk-low lk-i-x" data-paimoff>Leave it</span></div>`;
     const n = ids.length;
-    return `<div class="st-acts lk-bar">${n ? `<b class="lk-said">${n} picked</b>` : '<span class="say">Pick properties to merge or combine</span>'}<span class="act lk-btn lk-low lk-i-merge ${n ? '' : 'waits'}" data-paim>Merge into…</span><span class="act lk-btn lk-low lk-i-rename ${n > 1 ? '' : 'waits'}" data-pcombine>Combine as…</span></div>`;
+    if (!n) return `<div class="st-acts lk-bar"><span class="say">Tick properties to merge or rename them. Right-click one for more.</span></div>`;
+    return `<div class="st-acts lk-bar"><b class="lk-said">${n === 1 ? '1 property' : `${n} properties`} picked</b>` +
+      `<span class="act lk-btn lk-low lk-i-merge ${n > 1 ? '' : 'waits'}" data-pbar="merge" title="${n > 1 ? '' : 'Tick two or more to merge them'}">Merge…</span>` +
+      `<span class="act lk-btn lk-low lk-i-rename ${n === 1 ? '' : 'waits'}" data-pbar="rename">Rename</span>` +
+      `<span class="act lk-x" data-pbar="clear" title="Clear the picks">×</span></div>`;
   }
   function regionsHtml() {
     const areas = [];
@@ -493,7 +524,10 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     const t = T(id); if (!t) return '';
     return `<div class="st-focus"><div class="f-h"><span class="lk" data-go="${esc(id)}">${esc(t.title)}</span></div>${relsHtml(id)}${mergeAskHtml(id)}${changeAskHtml(id)}${suggestHtml(id)}</div>`;
   }
-  const suggestHtml = id => R.issuesOn(ISS(), id).map(i => { const n = ISS().indexOf(i); return `<div class="sug"><b>Suggested</b><span>${partsHtml(i.parts)}</span><span class="fix act lk-fix lk-i-${fixIcon(i.fix)}" data-fix="${n}">${esc(fixWord(i.fix))}</span></div>${askHtml(n)}`; }).join('');
+  /* What Ontology suggests: the word "Suggested" once, as a small heading, then one line each, the sentence and its fix at the line's
+     end, lined up (16 November 2026, the owner: "look how bad this looks" of "Suggested" run into each sentence, every line its own). */
+  const sugsHtml = list => list.length ? `<div class="sugs"><div class="sh"><i class="ti ti-bulb" aria-hidden="true"></i>Suggested</div>${list.map(i => { const n = ISS().indexOf(i); return `<div class="sug"><span>${partsHtml(i.parts)}</span><span class="fix act lk-fix lk-i-${fixIcon(i.fix)}" data-fix="${n}">${esc(fixWord(i.fix))}</span></div>${askHtml(n)}`; }).join('')}</div>` : '';
+  const suggestHtml = id => sugsHtml(R.issuesOn(ISS(), id));
   // ---------- a tag's lines: Parent alone on one line above its title; the others in the inspector ----------
   // (the owner, 8 November 2026: Extends is called Parent, on one line above the title without moving the title down; 12 November:
   // Parent alone there; Child tags, Beside and Relationships live in the inspector alone.)
@@ -527,7 +561,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
       (p.type === 'node' ? `<dt>Node tags</dt><dd>${nodeTags}<span class="act lk-add lk-i-plus" data-addrange="0·${pid}">Specify node tags…</span></dd>` : '') +
       `<dt>On tags</dt><dd class="col">${on.map(onRow).join('')}${on.length ? '' : `<span>${plural(m.holders.get(p.ident)?.size || 0, 'node')}, on no tag</span>`}<span class="act lk-add lk-i-plus" data-do="pmove" data-on="0·${pid}">Put on a tag…</span></dd>` +
       (p.type === 'node' ? `<dt>Relationships</dt><dd>${rels.length ? `<div class="st-rel">${shown.map(r => `${relWord(r.from)}${relProp(r)}<span class="num">${r.n}</span>`).join('')}${shown.length < rels.length ? `<span class="all lk-more" data-all="${key}">and ${rels.length - shown.length} more</span>` : ''}</div>` : '<span>No relationships yet</span>'}</dd>` : '') + `</dl>${pmergeAskHtml(pid)}` +
-      R.issuesOfProp(ISS(), pid).filter(i => !(i.line && i.line.kid != null)).map(i => { const n = ISS().indexOf(i); return `<div class="sug"><b>Suggested</b><span>${partsHtml(i.parts)}</span><span class="fix act lk-fix lk-i-${fixIcon(i.fix)}" data-fix="${n}">${esc(fixWord(i.fix))}</span></div>${askHtml(n)}`; }).join('');
+      sugsHtml(R.issuesOfProp(ISS(), pid).filter(i => !(i.line && i.line.kid != null)));
   }
   /* In the inspector each part is headed by what it describes (the owner, 9 November 2026: "how the section appear"): the tag in
      its mono, or the property with its icon. Above the table the page's own title says it, so the head shows in the inspector only. */
@@ -569,7 +603,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     : p.tags ? (p.sep === 'and' && p.tags.length === 2 ? p.tags.map(tagLink).join('<span class="to">and</span>') : ranges(p.tags))
     : p.count != null ? `<span class="nm">${esc(p.count)}</span>`
     : `<span class="to ${/^[,:;]/.test(p.words) ? 'pn' : ''}">${esc(p.words)}</span>`).join(' ').replace(/ (<span class="to pn")/g, '$1');
-  const fixWord = w => w.replace(/^drop\b/i, 'Delete property from tag');
+  const fixWord = w => { const t = w.replace(/^drop\b/i, 'Delete property from tag'); return t.charAt(0).toUpperCase() + t.slice(1); };
   const askLine = (c, last) => {
     const s = S.changes.sentence(M(), c), two = c.kind === 'merge';
     const words = last ? `<div class="lk-answers"><span class="act lk-accent lk-i-tick lk-enter" data-stage>Stage it</span><span class="act lk-btn lk-low lk-i-x" data-leave>Leave it</span></div>` : '';
@@ -617,7 +651,82 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
   /* Properties merged into one, before it is staged: the tag merge's ask, one for each property merged away. Two columns (the
      tags each is on, which move to the kept one), then what becomes of the values: their kind, what stays behind, and, where
      the kept property takes one value and a node would hold two, the way to Logseq's own page to let it take several. */
-  function pmergeAskHtml(pid) {
+  /* A property change shown on real notes before it is made (16 November 2026, the owner's "obvious what the outcome will be",
+     after the clickable mockup property-fix-live.html): up to three notes, now and after, side by side; what comes is washed in
+     yellow and what goes struck through in red (the owner, the same day: "make it much more prominent what is to change. I thought
+     dotted is just for predictive suggestions, not actual consequential changes"); a note left as it is says so. One count under them. */
+  const notesPv = (pv, newName, shownAs) => {
+    if (!pv?.notes?.length) return '';
+    const vals = list => list.map(v => typeof v === 'string' ? esc(v) : v.mark === 'new' ? `<span class="chg">${esc(v.w)}</span>` : esc(v.w)).join(', ');
+    const note = (n, rows, after) => `<div class="pn"><div class="pt"><span>${esc(n.title)}</span>${n.tags.map(t => `<span class="lk-tag">${esc(t)}</span>`).join('')}</div><dl>${rows.map(r =>
+      r.mark === 'gone' ? `<dt class="gone">${esc(r.name)}</dt><dd class="gone">${vals(r.vals)}</dd>` : `<dt>${r.mark === 'new' ? `<span class="chg${newName && r.name === newName ? ' pcn' : ''}">${esc(newName && r.name === newName ? shownAs : r.name)}</span>` : esc(r.name)}</dt><dd>${vals(r.vals)}</dd>`).join('')}</dl>${after && n.same ? '<div class="same">stays as it is</div>' : ''}</div>`;
+    return `<div class="st-pv"><div><div class="g">Now</div>${pv.notes.map(n => note(n, n.now, false)).join('')}</div><div><div class="g">After</div>${pv.notes.map(n => note(n, n.after, true)).join('')}</div></div>`;
+  };
+  // The yes names what it does (the owner, 16 November 2026: what is shown for confirmation must be plain: "Merge Notes into
+  // Therapy regimen", not "Apply").
+  const applyWords = what => `<div class="lk-answers"><span class="act lk-accent lk-i-tick lk-enter" data-stage>${esc(what)}</span><span class="act lk-btn lk-low lk-i-x" data-leave>Leave it</span></div>`;
+  function pchangeAskHtml(pid) {
+    const c = st.ask?.pchange; if (!c || c.a.prop !== pid || st.ask.owner !== mode) return '';
+    const p = P(pid), pv = c.pv; if (!p) return '';
+    const head = c.kind === 'retype' ? `Turn ${esc(p.title)} into dates` : `Split ${esc(p.title)}: ${esc(name(c.a.only))} values move to a new property`;
+    const why = c.kind === 'retype' ? `Dates typed as words are only words: Logseq cannot show the note on that day or sort by it. Words that read as a date become a real date; the others stay as they are, in ${p.title}, as written.`
+      : `${p.title} holds more than one kind of thing. The values that are ${name(c.a.only)} move into a new property; the others stay in ${p.title}.`;
+    const count = c.kind === 'retype' ? `${plural(pv.gave.length, 'note')} ${pv.gave.length === 1 ? 'gets' : 'get'} a real date · ${plural(pv.left.length, 'note')} ${pv.left.length === 1 ? 'keeps its words' : 'keep their words'}`
+      : `${plural(pv.gave.length, 'note')} ${pv.gave.length === 1 ? 'gets' : 'get'} ${c.a.name} · ${plural(pv.nodes - pv.gave.length, 'note')} ${pv.nodes - pv.gave.length === 1 ? 'keeps' : 'keep'} just ${p.title}`;
+    const field = c.kind === 'splitProp' ? `<div class="l">Name of the new property <input class="st-in lk-field" data-pcname value="${esc(c.a.name)}" autocomplete="off" spellcheck="false"></div>` : '';
+    const none = !pv.gave.length;
+    return `<div class="st-q"><div class="h">${head}</div><div class="l">${esc(why)}</div>${field}${notesPv(pv, c.kind === 'splitProp' ? c.a.orig : '', c.a.name)}<div class="l cnt">${esc(count)}</div>${none ? `<div class="l">Nothing here would change.</div><div class="lk-answers"><span class="act lk-btn lk-low lk-i-x" data-leave>Leave it</span></div>` : applyWords(c.kind === 'retype' ? `Turn ${plural(pv.moved, 'value')} into dates` : `Move ${plural(pv.moved, 'value')} to ${c.a.name}`)}</div>`;
+  }
+  /* Merging ticked tags (16 November 2026, the clickable mockup): which name to keep (the biggest first, or a new one), what goes and
+     how many nodes move, a few notes now and after with their tags marked, and a yes that names the result. Under the bar. */
+  const keepLine = (ids, keep, useNew, count, attr) => `<div class="st-keep lk-alts">${ids.map(x => `<span class="act ${!useNew && x === keep ? 'on' : ''}" ${attr}="${x}">${esc(attr === 'data-tkeep' ? name(x) : P(x).title)}<span class="n">${count(x)}</span></span>`).join('')}</div>`;
+  const byCount = (ids, count) => ids.slice().sort((x, y) => count(y) - count(x));
+  function tmergeHtml() {
+    const a = st.ask?.tmerge; if (!a || st.ask.owner !== mode) return '';
+    const ids = a.ids.filter(T); if (ids.length < 2) return '';
+    const keep = ids.includes(a.keep) ? a.keep : byCount(ids, x => Mo.count(M(), x))[0], gone = ids.filter(x => x !== keep);
+    const into = (a.newName || '').trim() || name(keep), moving = gone.reduce((sum, x) => sum + Mo.count(M(), x), 0);
+    const names = ids.map(name), goneNames = new Set(gone.map(name)), keepName = name(keep);
+    const tagsAfter = tags => [...new Set(tags.map(t => goneNames.has(t) || (t === keepName && into !== keepName) ? into : t))];
+    const note = (n, after) => `<div class="pn"><div class="pt"><span>${esc(n.title)}</span></div><dl><dt>Tags</dt><dd>${after
+      ? [...n.tags.filter(t => goneNames.has(t) || (t === keepName && into !== keepName)).map(t => `<span class="gone">${esc(t)}</span>`), ...tagsAfter(n.tags).map(t => n.tags.includes(t) ? `<span class="lk-tag">${esc(t)}</span>` : `<span class="chg">${esc(t)}</span>`)].join(' ')
+      : n.tags.map(t => `<span class="lk-tag">${esc(t)}</span>`).join(' ')}</dd></dl></div>`;
+    const shown = (a.notes || []).filter(n => n.tags.some(t => goneNames.has(t))).slice(0, 3);
+    const pv = shown.length ? `<div class="st-pv"><div><div class="g">Now</div>${shown.map(n => note(n, false)).join('')}</div><div><div class="g">After</div>${shown.map(n => note(n, true)).join('')}</div></div>` : '';
+    return `<div class="st-q"><div class="h">Merge ${esc(R.list(names))} into one tag. Keep which name?</div>${keepLine(byCount(ids, x => Mo.count(M(), x)), keep, !!(a.newName || '').trim(), x => plural(Mo.count(M(), x), 'node'), 'data-tkeep')}` +
+      `<div class="l">Or a new name <input class="st-in lk-field" data-tnew value="${esc(a.newName || '')}" placeholder="type a name" autocomplete="off" spellcheck="false"></div>` +
+      `<div class="l cnt">${esc(R.list(gone.map(name)))} ${gone.length === 1 ? 'goes' : 'go'}; ${plural(moving, 'node')} move into ${esc(into)}, and links to ${gone.length === 1 ? 'it' : 'them'} in your notes follow.</div>${pv}${applyWords(`Merge ${ids.length} tags into ${into}`)}</div>`;
+  }
+  // The tags a change asks for on their nodes: its own and those of every tag above it.
+  const asksFor = id => { const out = new Set(); for (const x of Mo.pathOf(M(), id)) for (const pid of T(x)?.props || []) out.add(pid); return out; };
+  /* Moving ticked tags up a level or under another (16 November 2026): where each sits now and after, what its nodes are newly asked
+     for or no longer asked for, and a yes that names the move. */
+  function tmoveHtml() {
+    const a = st.ask?.tmove; if (!a || st.ask.owner !== mode) return '';
+    const ids = a.ids.filter(T); if (!ids.length) return '';
+    const dest = a.to === LOOSE ? null : T(a.to), who = ids.length === 1 ? name(ids[0]) : `${ids.length} tags`;
+    const head = a.up ? `Move ${who} up a level, out from under ${name(Mo.parentOf(M(), ids[0]))}` : dest ? `Move ${who} under ${dest.title}` : `Move ${who} to the top`;
+    const rows = ids.map(id => {
+      const from = Mo.parentOf(M(), id), own = new Set(T(id).props), before = asksFor(id), after = new Set([...(dest ? asksFor(a.to) : []), ...own]);
+      const gains = [...after].filter(x => !before.has(x)), loses = [...before].filter(x => !after.has(x) && !own.has(x));
+      return `<div class="pn"><div class="pt"><b>${esc(name(id))}</b><span class="n">${plural(Mo.count(M(), id), 'node')}</span></div><dl><dt>Sits under</dt><dd><span class="gone">${esc(from == null ? 'the top' : name(from))}</span> <span class="chg">${esc(dest ? dest.title : 'the top')}</span></dd>` +
+        (gains.length ? `<dt>Its nodes are now asked for</dt><dd>${gains.map(x => `<span class="chg">${esc(P(x)?.title ?? '')}</span>`).join(', ')}</dd>` : '') +
+        (loses.length ? `<dt>No longer asked for</dt><dd>${loses.map(x => `<span class="gone">${esc(P(x)?.title ?? '')}</span>`).join(', ')} (their values stay)</dd>` : '') +
+        (!gains.length && !loses.length ? '<dt></dt><dd>Its properties stay the same</dd>' : '') + `</dl></div>`;
+    }).join('');
+    return `<div class="st-q"><div class="h">${esc(head)}</div><div class="st-pv one"><div>${rows}</div></div><div class="l cnt">No node changes its tag · nothing is lost</div>${applyWords(dest ? `Move ${who} under ${dest.title}` : `Move ${who} to the top`)}</div>`;
+  }
+  // Merging ticked properties from the bar: which to keep, then the merge's own preview, all under the bar.
+  function pkeepHtml() {
+    const a = st.ask?.pmerge; if (!a?.atBar || st.ask.owner !== mode) return '';
+    const ids = [...a.froms, a.into].filter(P), held = x => m0().holders.get(P(x).ident)?.size || 0;
+    return `<div class="st-q"><div class="h">Merge ${esc(R.list(ids.map(x => P(x).title)))} into one property. Keep which name?</div>${keepLine(byCount(ids, held), a.into, !!(a.rename || '').trim() && a.rename !== P(a.into).title, x => plural(held(x), 'node'), 'data-pkeep')}` +
+      `<div class="l">Or a new name <input class="st-in lk-field" data-pnew2 value="${esc(a.rename && a.rename !== P(a.into).title ? a.rename : '')}" placeholder="type a name" autocomplete="off" spellcheck="false"></div></div>${pmergeAskHtml(a.into, true)}`;
+  }
+  const m0 = () => M();
+  function pmergeAskHtml(pid, atBar = false) {
+    const pc = pchangeAskHtml(pid); if (pc) return pc;
+    if (!!st.ask?.pmerge?.atBar !== atBar) return '';
     const a = st.ask?.pmerge; if (!a || a.into !== pid && !(TAGISH && a.froms.includes(pid)) || st.ask.owner !== mode) return '';
     const m = M(), into = P(a.into); if (!into) return '';
     const held = id => m.holders.get(P(id).ident)?.size || 0;
@@ -631,8 +740,9 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     const renamed = a.rename && a.rename !== into.title ? `<div class="h">Rename ${esc(into.title)} to ${esc(a.rename)}</div>` : '';
     const words = clash
       ? `<div class="l">${esc(into.title)} takes one value, and ${plural(clash, 'node')} would hold two: let it take several values on its page in Logseq first</div><div class="lk-answers"><span class="act lk-btn lk-i-go" data-do="ppage" data-on="0·${a.into}">Go to ${esc(into.title)}</span><span class="act lk-btn lk-low lk-i-x" data-leave>Leave it</span></div>`
-      : `<div class="lk-answers"><span class="act lk-accent lk-i-tick lk-enter" data-stage>Stage it</span><span class="act lk-btn lk-low lk-i-x" data-leave>Leave it</span></div>`;
-    return `<div class="st-q">${blocks.join('')}${renamed}${words}</div>`;
+      : applyWords(`Merge ${a.froms.map(f => P(f)?.title).filter(Boolean).join(', ')} into ${a.rename || into.title}`);
+    const pv = a.pv, count = pv ? `<div class="l cnt">${plural(pv.gave.length, 'note')} ${pv.gave.length === 1 ? 'changes' : 'change'}${pv.left.length ? ` · ${plural(pv.left.length, 'note')} ${pv.left.length === 1 ? 'keeps' : 'keep'} values ${esc(into.title)} cannot take` : ''}</div>` : '';
+    return `<div class="st-q">${blocks.join('')}${renamed}${notesPv(pv)}${count}${words}</div>`;
   }
   // ---------- every property ----------
   function tableHtml() {
@@ -753,7 +863,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     const giver = (n, pid) => Mo.pathOf(m, n).reverse().find(a => T(a)?.props.includes(pid)) ?? null;
     if (p.list === 'values') {
       kind = 'value';
-      ask = `Split ${name(p.tag)} by ${P(p.prop).title}: a child tag for…`;
+      ask = p.what === 'psplit' ? `Split ${P(p.prop).title}: move which values to a new property?` : `Split ${name(p.tag)} by ${P(p.prop).title}: a child tag for…`;
       all = p.values.filter(v => hit(v.title)).map(v => ({ key: v.id, nm: v.title, ct: v.count, ctt: v.count ? plural(v.count, 'node') : '', d: 0, why: '' }));
     } else if (p.what === 'pmerge') {
       kind = 'property';
@@ -818,21 +928,23 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
   // ---------- the menu: the same words the card has ----------
   function menuHtml() {
     const mn = st.menu, m = M(), ticked = st.ticks.size;
-    const it = (t, act, off, k) => `<div class="lk-item ${off ? 'off' : ''} ${/^(Remove|Delete)/.test(t) ? 'lk-del' : ''}" data-act="${act}">${esc(t)}${k ? `<span class="rt lk-note">${k}</span>` : ''}</div>`;
+    // Every word with its icon (16 November 2026, the owner: "no icons used at all"), the same icon as the bar's word for it.
+    const MENU_ICON = { page: 'go', ppage: 'go', openall: 'chevron', tick: 'tick', rename: 'rename', prename: 'rename', nodes: 'list', new: 'child', addprop: 'plus', addpropall: 'plus', up: 'up', move: 'move', tmerge: 'merge', merge: 'merge', pmerge: 'merge', remove: 'bin', pretype: 'calendar', psplit: 'split', prange: 'tag', pmove: 'move', pullup: 'up', split: 'split', pdrop: 'bin' };
+    const it = (t, act, off, k) => `<div class="lk-item ${MENU_ICON[act] ? `lk-i-${MENU_ICON[act]}` : ''} ${off ? 'off' : ''} ${/^(Remove|Delete)/.test(t) ? 'lk-del' : ''}" data-act="${act}">${esc(t)}${k ? `<span class="rt lk-note">${k}</span>` : ''}</div>`;
     let h = `<div class="st-menu lk-pop lk-menu" style="left:${mn.x}px;top:${mn.y}px">`;
     if (mn.kind === 'row') {
       const t = T(mn.on), none = !t, loose = mn.on === LOOSE;   // none: nothing behind the row
       const n = Mo.count(m, mn.on), nodesOf = ids => plural(ids.reduce((s, x) => s + Mo.count(m, x), 0), 'node');
       h += (t?.uuid ? it('Go to this tag', 'page') : '') + it('Open everything under', 'openall', false, 'Shift →') + it(st.ticks.has(mn.on) ? 'Untick' : 'Tick', 'tick', none || loose, 'space') + '<div class="gap lk-item"></div>' +
-        it('Rename', 'rename', loose || !t) + it('Its nodes', 'nodes', !n) + it(loose ? 'New top-level tag' : 'Add child tag', 'new') + it('Add a property…', 'addprop', none || loose) + it('Add a property to all beneath…', 'addpropall', loose, Mo.kids(m, mn.on).length ? nodesOf(Mo.kids(m, mn.on)) : '') + '<div class="gap lk-item"></div>' +
-        it('Move to…', 'move', none || loose, n ? plural(n, 'node') : '') +
-        it(ticked > 1 ? `Merge the ${ticked} ticked into this` : 'Merge the ticked into this', 'merge', none || loose || ticked < 1 || (ticked === 1 && st.ticks.has(mn.on)), ticked && !st.ticks.has(mn.on) ? nodesOf([...st.ticks]) : '') + '<div class="gap lk-item"></div>' +
-        it('Remove', 'remove', none || loose || n > 0 || Mo.kids(m, mn.on).length > 0, n ? plural(n, 'node') : '');
+        it('Rename', 'rename', loose || !t) + it('Show its nodes', 'nodes', !n) + it(loose ? 'New top-level tag' : 'Add a child tag', 'new') + it('Add a property…', 'addprop', none || loose) + it('Add a property to all beneath…', 'addpropall', loose, Mo.kids(m, mn.on).length ? nodesOf(Mo.kids(m, mn.on)) : '') + '<div class="gap lk-item"></div>' +
+        it('Move up a level', 'up', none || loose || Mo.parentOf(m, mn.on) == null, 'Shift Tab') + it('Move under…', 'move', none || loose, n ? plural(n, 'node') : '') +
+        it('Merge…', 'tmerge', none || loose) + '<div class="gap lk-item"></div>' +
+        it('Delete', 'remove', none || loose || n > 0 || Mo.kids(m, mn.on).length > 0, n ? plural(n, 'node') : '');
     } else {
       const [tagId, pid] = mn.on.split('·').map(Number), t = T(tagId), p = P(pid), parent = Mo.parentOf(m, tagId);
       const declared = !!t?.props.includes(pid);
       const f = t ? plural(Mo.filled(m, tagId, pid), 'value') : '';
-      h += (p?.uuid ? it('Go to this property', 'ppage') + '<div class="gap lk-item"></div>' : '') + it('Rename', 'prename', !p) + it('Merge into…', 'pmerge', !p) + (p?.type === 'node' ? it('Specify node tags…', 'prange') : '') + '<div class="gap lk-item"></div>' +
+      h += (p?.uuid ? it('Go to this property', 'ppage') + '<div class="gap lk-item"></div>' : '') + it('Rename', 'prename', !p) + it('Merge…', 'pmerge', !p) + (p && !p.choice && p.type === 'default' ? it('Turn into dates…', 'pretype') : '') + (p?.type === 'node' ? it('Split into two properties…', 'psplit') : '') + (p?.type === 'node' ? it('Specify node tags…', 'prange') : '') + '<div class="gap lk-item"></div>' +
         (t ? it('Move to…', 'pmove', !declared, f) + it(parent != null ? `Pull up to ${name(parent)}` : 'Pull up to the parent', 'pullup', !declared || parent == null, f) +
         (p && (p.choice || p.type === 'node') ? it('Split by its values…', 'split', !t.nodes.size, plural(t.nodes.size, 'node')) : '') + '<div class="gap lk-item"></div>' + it('Delete property from tag', 'pdrop', !declared, f) : it('Put on a tag…', 'pmove'));
     }
@@ -1002,6 +1114,8 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     else if (p.what === 'prop') { const [tagId, pid] = p.key.split('·').map(Number); if (!tagId) { app.stage({ kind: 'addProp', prop: pid, tags: [row.key] }); st.propCur = `${row.key}·${pid}`; st.cur = row.key; } else if (row.key !== tagId) { app.stage({ kind: 'moveProp', prop: pid, from: [tagId], to: row.key }); st.propCur = `${row.key}·${pid}`; st.cur = row.key; } }
     else if (p.what === 'nodes') moveTicked(row.key);
     else if (p.what === 'pmerge') return askMerge([p.prop], row.key);
+    else if (p.what === 'tag' && p.preview) return askTagMove(p.tags, row.key);
+    else if (p.what === 'psplit') { const v = p.values.find(x => x.id === row.key), taken = t => [...M().props.values()].some(x => x.title.trim().toLowerCase() === t.toLowerCase()); let nm = v.title; for (let i = 2; taken(nm); i++) nm = `${v.title} ${i}`; return askChange('splitProp', { prop: p.prop, only: row.key, name: nm, orig: nm }); }
     else if (p.what === 'pnew') app.openNode(T(row.key)?.uuid);   // Logseq makes properties, not a plugin: its Add tag property is on the tag's page
     else if (p.what === 'range') { const was = P(p.prop).range; if (!was.includes(row.key)) app.stage({ kind: 'setRange', prop: p.prop, to: [...was, row.key] }); }
     else if (p.what === 'split') { const v = p.values.find(x => x.id === row.key); app.nodesWhere(p.tag, P(p.prop).ident, v.id).then(nodes => { const title = v.title.charAt(0).toUpperCase() + v.title.slice(1); app.stage({ kind: 'split', tag: p.tag, name: Mo.titled(M(), title).length ? `${title} ${name(p.tag)}` : title, prop: p.prop, nodes, where: `${P(p.prop).title} is ${v.title}` }); }); }
@@ -1061,7 +1175,10 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     else if (a === 'ppage') { redraw(); app.openNode(P(Number(on.split('·')[1]))?.uuid, shift); }
     else if (a === 'main') app.openMain(on);
     else if (a === 'tick') tick(on);
-    else if (a === 'move') { if (T(on)) startMoveTag(on); else redraw(); }
+    else if (a === 'move') { if (!T(on)) return redraw(); const ids = st.ticks.has(on) ? [...st.ticks].filter(T) : [on]; startPrompt({ what: 'tag', list: 'tags', tags: ids, row: on, preview: true }); }
+    else if (a === 'up') { const ids = st.ticks.has(on) ? [...st.ticks].filter(T) : [on]; moveUp(ids); }
+    // Merge… from a tag's menu: the tag is ticked with any others; with two or more the bar's merge asks which to keep, with one the bar says to tick the others.
+    else if (a === 'tmerge') { if (!T(on)) return redraw(); st.ticks.add(on); const ids = [...st.ticks].filter(T); if (ids.length > 1) return askTagMerge(ids); redraw(); app.notify(`Tick the tags to merge with ${name(on)}, then press Merge…`, 'info'); }
     else if (a === 'rename') { if (T(on)) startEdit('rename', on, name(on)); else redraw(); }
     else if (a === 'new') { if (!st.open.has(on)) st.open.add(on); startEdit('new', on, ''); }
     else if (a === 'addprop') { if (T(on)) startPrompt({ what: 'addprop', list: 'props', tag: on, row: on }); }
@@ -1071,6 +1188,8 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     else if (a === 'pmove') { const [tagId] = on.split('·').map(Number); startPrompt({ what: 'prop', list: 'tags', key: on, prop: Number(on.split('·')[1]), from: tagId }); }
     else if (a === 'pullup') { const [tagId, pid] = on.split('·').map(Number); const dest = Mo.parentOf(m, tagId); if (dest == null) return redraw(); app.stage({ kind: 'moveProp', prop: pid, from: [tagId], to: dest }); st.propCur = `${dest}·${pid}`; st.cur = dest; redraw(); }
     else if (a === 'pmerge') { const pid = Number(on.split('·')[1]); if (!P(pid)) return redraw(); if (mode === 'page' && st.view === 'table') { st.pticks = new Set([pid, ...st.pticks]); st.paim = true; return redraw(); } startPrompt({ what: 'pmerge', list: 'props', prop: pid }); }
+    else if (a === 'pretype') { const pid = Number(on.split('·')[1]); if (P(pid)) askChange('retype', { prop: pid, type: 'date' }); }
+    else if (a === 'psplit') { const pid = Number(on.split('·')[1]); if (!P(pid)) return redraw(); S.db.valueKinds(P(pid).ident).then(kinds => { if (kinds.length < 2) return app.notify(`${P(pid).title}'s values are all of one kind, so there is nothing to split`, 'warning'); startPrompt({ what: 'psplit', list: 'values', prop: pid, values: kinds }); }); }
     else if (a === 'prange') { const [, pid] = on.split('·').map(Number); startPrompt({ what: 'range', list: 'tags', prop: pid }); }
         else if (a === 'pdrop') { const [tagId, pid] = on.split('·').map(Number); app.stage({ kind: 'dropProp', prop: pid, tag: tagId }); if (st.propCur === on) st.propCur = null; redraw(); }
     else if (a === 'split') { const [tagId, pid] = on.split('·').map(Number); app.valuesOf(tagId, P(pid).ident).then(values => { if (!values.length) return app.notify(`No ${P(pid).title} values on ${name(tagId)}'s own nodes`, 'warning'); startPrompt({ what: 'split', list: 'values', tag: tagId, prop: pid, values }); }); }
@@ -1091,11 +1210,29 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     st.ask = st.ask && st.ask.i === i ? null : { i, owner: mode }; st.menu = null; redraw();
   }
   // The merge's ask, once the values are read: what moves, what stays, what would clash.
-  async function askMerge(froms, into, rename) {
+  async function askMerge(froms, into, rename, atBar = false) {
     st.paim = false; st.menu = null;
     froms = froms.filter(f => f !== into && P(f)); if (!froms.length || !P(into)) return redraw();
-    const preview = await app.mergePreview(froms, into);
-    st.ask = { pmerge: { froms, into, preview, rename }, owner: mode }; redraw();
+    const [preview, pv] = await Promise.all([app.mergePreview(froms, into), froms.length === 1 ? app.propPreview('merge', { prop: froms[0], into }).catch(() => null) : null]);
+    st.ask = { pmerge: { froms, into, preview, rename, pv, atBar }, owner: mode }; redraw();
+  }
+  // Merging ticked tags: a few of their nodes read first, for the notes now and after.
+  async function askTagMerge(ids) {
+    st.menu = null; st.aim = null;
+    const nodes = ids.flatMap(id => [...(T(id)?.nodes || [])].slice(0, 2));
+    st.ask = { tmerge: { ids, keep: null, newName: '', notes: [] }, owner: mode }; redraw();
+    const notes = await S.db.notesFor(nodes).catch(() => []);
+    if (st.ask?.tmerge?.ids === ids) { st.ask.tmerge.notes = notes; redraw(); }
+  }
+  const askTagMove = (ids, to, up = false) => { st.menu = null; st.aim = null; st.prompt = null; st.ask = { tmove: { ids, to, up }, owner: mode }; redraw(); };
+  const moveUp = ids => { ids = ids.filter(id => T(id) && Mo.parentOf(M(), id) != null); if (!ids.length) return; const p = Mo.parentOf(M(), ids[0]); askTagMove(ids, Mo.parentOf(M(), p) ?? LOOSE, true); };
+  // Turn into dates, split into two properties: the change is read on real notes first, then asked under the property.
+  async function askChange(kind, a) {
+    st.paim = false; st.menu = null;
+    redraw();
+    const pv = await app.propPreview(kind, a).catch(error => { console.error('Structure: the change could not be read', error); app.notify(`The notes could not be read: ${window.PluginDoor.reason(error, 'Logseq did not answer')}`, 'error'); return null; });
+    if (!pv) return;
+    st.ask = { pchange: { kind, a, pv }, owner: mode }; redraw();
   }
   // Combined: the most held of the picked properties is kept, the others merged into it, and it takes the new name.
   function combine(v) {
@@ -1105,10 +1242,25 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     st.edit = null; askMerge(ids.filter(id => id !== into), into, v);
   }
   function stageAsk() {
+    if (st.ask?.tmerge) { const a = st.ask.tmerge, ids = a.ids.filter(T); if (ids.length < 2) return;
+      const keep = ids.includes(a.keep) ? a.keep : byCount(ids, x => Mo.count(M(), x))[0], nm = (a.newName || '').trim();
+      if (nm && nm.toLowerCase() !== name(keep).toLowerCase() && [...M().tags.values()].some(t => t.title.trim().toLowerCase() === nm.toLowerCase() && !ids.includes(t.id))) return app.notify(`“${nm}” is another tag's name: merge into that one instead`, 'warning');
+      st.ask = null; st.ticks.clear();
+      for (const g of ids.filter(x => x !== keep)) app.stage({ kind: 'merge', from: g, into: keep }, { wait: true });
+      if (nm && nm !== name(keep)) app.stage({ kind: 'rename', tag: keep, name: nm }, { wait: true });
+      st.cur = keep; redraw(); return app.apply(); }
+    if (st.ask?.tmove) { const a = st.ask.tmove; st.ask = null; st.ticks.clear();
+      for (const id of a.ids.filter(T)) app.stage({ kind: 'move', tag: id, to: a.to }, { wait: true });
+      if (a.to !== LOOSE) st.open.add(a.to); redraw(); return app.apply(); }
     if (st.ask?.pmerge) { const a = st.ask.pmerge; if (a.preview.some(x => x.clash.length)) return; st.ask = null;
       a.froms.forEach((f, i) => { const x = a.preview[i]; app.stage({ kind: 'mergeProp', prop: f, intoProp: a.into, kept: x.kept, left: x.left, gave: x.gave }); });
       if (a.rename && a.rename !== P(a.into)?.title) app.stage({ kind: 'renameProp', prop: a.into, name: a.rename });
-      st.pticks.clear(); return redraw(); }
+      st.pticks.clear(); redraw(); return app.apply(); }
+    if (st.ask?.pchange) { const c = st.ask.pchange, pv = c.pv; st.ask = null; if (!pv.gave.length) return redraw();
+      const typed = root.querySelector('[data-pcname]')?.value.trim(), nm = c.kind === 'splitProp' ? (typed || c.a.name) : '';
+      if (nm && [...M().props.values()].some(x => x.title.trim().toLowerCase() === nm.toLowerCase())) { st.ask = { pchange: c, owner: mode }; redraw(); return app.notify(`“${nm}” is another property's name: choose another`, 'warning'); }
+      app.stage(c.kind === 'retype' ? { kind: 'retype', prop: c.a.prop, type: c.a.type, gave: pv.gave, left: pv.left, moved: pv.moved, kept: pv.kept } : { kind: 'splitProp', prop: c.a.prop, only: c.a.only, name: nm, gave: pv.gave, emptied: pv.emptied }, { wait: true });
+      redraw(); return app.apply(); }
     if (st.ask?.apply) { st.ask = null; return app.apply(); }
     if (st.ask?.change) { const c = changeAsk(); st.ask = null; if (c) app.stage(c); return redraw(); }
     if (st.ask?.merges) { const { merges, into } = st.ask; st.ask = null; for (const from of merges) app.stage({ kind: 'merge', from, into }); st.ticks.clear(); return redraw(); }
@@ -1127,7 +1279,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
   
   // ---------- events ----------
   root.addEventListener('click', e => {
-    const t = e.target.closest('[data-ppage],[data-tpage],[data-pfold],[data-pon],[data-prange],[data-all],[data-fold],[data-tick],[data-ptick],[data-paim],[data-paimoff],[data-pcombine],[data-ntick],[data-row],[data-go],[data-open],[data-unrange],[data-addrange],[data-prop],[data-fix],[data-stage],[data-leave],[data-sort],[data-apply],[data-discard],[data-drop],[data-undo],[data-act],[data-do],[data-show],[data-compare],[data-aim],[data-aimtop],[data-aimoff],[data-pick],[data-nodes],[data-more],[data-node],[data-split],[data-gfold],[data-gname],[data-gdrop],[data-gnew],[data-pnew],[data-logundo]');
+    const t = e.target.closest('[data-ppage],[data-tpage],[data-pfold],[data-pon],[data-prange],[data-all],[data-fold],[data-tick],[data-ptick],[data-paim],[data-paimoff],[data-pcombine],[data-ntick],[data-row],[data-go],[data-open],[data-unrange],[data-addrange],[data-prop],[data-fix],[data-stage],[data-leave],[data-sort],[data-apply],[data-discard],[data-drop],[data-undo],[data-act],[data-do],[data-show],[data-compare],[data-aim],[data-aimtop],[data-aimoff],[data-pick],[data-nodes],[data-more],[data-node],[data-split],[data-gfold],[data-gname],[data-gdrop],[data-gnew],[data-pnew],[data-logundo],[data-tbar],[data-pbar],[data-tkeep],[data-pkeep]');
     const outside = st.prompt?.owner === mode && !e.target.closest('.st-prompt');
     if (!t) { if (st.menu || outside) { st.menu = null; if (outside) st.prompt = null; redraw(); } return; }
     if (e.target.matches?.('[data-edit]')) return;   // a click in a field being written stays in the field
@@ -1186,6 +1338,19 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     if (t.dataset.do) return act(t.dataset.do, t.dataset.do.startsWith('p') && t.dataset.do !== 'page' || t.dataset.do === 'split' ? t.dataset.on : keyOf(t.dataset.on), e.shiftKey);
     if (t.dataset.show) return show(t.dataset.show);
     if (t.dataset.logundo) return app.undoLogged(t.dataset.logundo);
+    if (t.dataset.tbar) { if (t.classList.contains('waits')) return; const ids = [...st.ticks].filter(T), w = t.dataset.tbar;
+      if (w === 'merge') return askTagMerge(ids);
+      if (w === 'up') return moveUp(ids);
+      if (w === 'move') { st.ask = null; return startPrompt({ what: 'tag', list: 'tags', tags: ids, row: ids[0], preview: true }); }
+      if (w === 'rename') return startEdit('rename', ids[0], name(ids[0]));
+      if (w === 'delete') { st.ticks.clear(); for (const id of ids) app.stage({ kind: 'remove', tag: id }, { wait: true }); redraw(); return app.apply(); }
+      if (w === 'clear') { st.ticks.clear(); st.ask = null; return redraw(); } }
+    if (t.dataset.pbar) { if (t.classList.contains('waits')) return; const ids = [...st.pticks].filter(P), w = t.dataset.pbar, held = x => M().holders.get(P(x).ident)?.size || 0;
+      if (w === 'merge') { const into = byCount(ids, held)[0]; return askMerge(ids.filter(x => x !== into), into, '', true); }
+      if (w === 'rename') { const on = [...M().tags.values()].find(x => x.props.includes(ids[0]))?.id ?? 0; return startEdit('prename', `${on}·${ids[0]}`, P(ids[0]).title); }
+      if (w === 'clear') { st.pticks.clear(); st.ask = null; return redraw(); } }
+    if (t.dataset.tkeep && st.ask?.tmerge) { st.ask.tmerge.keep = Number(t.dataset.tkeep); st.ask.tmerge.newName = ''; return redraw(); }
+    if (t.dataset.pkeep && st.ask?.pmerge) { const a = st.ask.pmerge, all = [...a.froms, a.into], into = Number(t.dataset.pkeep); return askMerge(all.filter(x => x !== into), into, '', true); }
     if (t.dataset.pick) return finishPrompt(st.prompt.shown[+t.dataset.pick]);
     if (t.dataset.act) return act(t.dataset.act, st.menu.on, e.shiftKey);
     if (t.dataset.nodes) return openNodes(keyOf(t.dataset.nodes));
@@ -1280,6 +1445,11 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     p.lit = i; root.querySelectorAll('.st-prompt .lit').forEach(x => x.classList.remove('lit')); r.classList.add('lit');
   });
   root.addEventListener('input', e => {
+    // A new name for what ticked tags or properties are merged into: the yes says it as it is typed.
+    if (e.target.matches?.('[data-tnew]') && st.ask?.tmerge) { const a = st.ask.tmerge; a.newName = e.target.value; const into = a.newName.trim() || null; root.querySelectorAll('.st-q [data-stage]').forEach(el => { el.textContent = el.textContent.replace(/ into .*$/, ` into ${into || name(a.keep ?? byCount(a.ids.filter(T), x => Mo.count(M(), x))[0])}`); }); root.querySelectorAll('.st-keep .on').forEach(el => el.classList.toggle('on', !into)); return; }
+    if (e.target.matches?.('[data-pnew2]') && st.ask?.pmerge) { const a = st.ask.pmerge; a.rename = e.target.value.trim(); root.querySelectorAll('.st-q [data-stage]').forEach(el => { el.textContent = el.textContent.replace(/ into .*$/, ` into ${a.rename || P(a.into).title}`); }); return; }
+    // The new property's name, typed: the preview's notes take it as it is written, nothing else is drawn again.
+    if (e.target.matches?.('[data-pcname]') && st.ask?.pchange) { const v = e.target.value.trim() || st.ask.pchange.a.name; st.ask.pchange.a.name = v; root.querySelectorAll('.st-pv .pcn').forEach(el => { el.textContent = v; }); root.querySelectorAll('.st-q .cnt').forEach(el => { el.textContent = el.textContent.replace(/get .+? ·/, `get ${v} ·`); }); root.querySelectorAll('.st-q [data-stage]').forEach(el => { el.textContent = el.textContent.replace(/ to .*$/, ` to ${v}`); }); return; }
     if (e.target.matches('[data-find]')) { st.find = e.target.value; draw(); if (lightFirst()) draw(); }
     else if (e.target.matches('[data-find2]')) { st.pane2.find = e.target.value; draw(); }
     else if (e.target.matches('[data-pin]')) { st.prompt.text = e.target.value; st.prompt.lit = 0; draw(); }
