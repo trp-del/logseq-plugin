@@ -186,8 +186,10 @@ function mark(uuid) {
 /* While the Ontology or the Item tab is shown, a single press on a cell of the table only selects its row (the owner, 8 November 2026: "single
    to select and double to edit"): Logseq's own press, which opens the cell's editor or follows a link, waits for a double press,
    which hands it the press it would have had. The tick box, the heads and the keys stay Logseq's; with neither tab shown every
-   press is Logseq's as before. Cmd, Ctrl, Alt and Shift presses pass, so Shift still opens a link in the sidebar. */
-const TICK = '[data-table-row-select], [role="checkbox"]';
+   press is Logseq's as before. Cmd, Ctrl, Alt and Shift presses pass, so Shift still opens a link in the sidebar. The two buttons
+   Logseq shows at the end of a name under the pointer (open the page, open it in the sidebar) are Logseq's too: held back, the
+   open-page button only picked the row (the owner, 16 November 2026). */
+const TICK = '[data-table-row-select], [role="checkbox"], .table-block-title > .absolute button';
 let replaying = false;
 function cellOf(e) {
   if (replaying || !active() || e.button !== 0 || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return null;

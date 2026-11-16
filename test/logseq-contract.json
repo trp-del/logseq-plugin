@@ -193,6 +193,7 @@
   "logseq.property/value"
  ],
  "styled": [
+  "absolute",
   "active",
   "as-edit",
   "asset-ref",
@@ -258,6 +259,7 @@
   "sidebar-content-group",
   "sidebar-drop-indicator",
   "sticky-columns",
+  "table-block-title",
   "thumb",
   "toolbar-plugins-manager",
   "typed-list",

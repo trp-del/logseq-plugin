@@ -41,7 +41,9 @@ const css = `
   .lk-split-title > .lk-path.lk-path-split { flex-basis: 100%; max-width: none; justify-content: flex-end; margin: 7px 16px -4px 0; }
 }
 /* In the right sidebar: a line of its own under the page's name, wrapping between names. */
-.lk-path.lk-path-sb { display: block; max-width: none; margin: 4px 0 0 4px; white-space: normal; overflow: visible; }
+/* Its first name starts under the page's ◇ (the owner, 16 November 2026: it stood indented past the page's name); the room kept
+   before it for the × hangs out to the left. Where the head has no fold arrow (the Item tab) structure/logseq/view.js moves it with the ◇. */
+.lk-path.lk-path-sb { display: block; max-width: none; margin: 4px 0 0 -4px; white-space: normal; overflow: visible; }
 .lk-path.lk-path-sb .lk-held { white-space: nowrap; }
 /* The Undo arrow of a tag taken off, at the right end of the title row: on the line the tags stand on. */
 .ls-block-right > .lk-undo.lk-undo-title { align-self: flex-start; margin: 21px 0 0 6px; }

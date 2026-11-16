@@ -95,7 +95,13 @@ ${AREA} :is(.ls-table-row, .ls-table-header) .sticky-columns button:not(.ui__che
 ${AREA} .ls-table .ui__checkbox { width: 14px !important; height: 14px !important; border: 1.5px solid var(--lk-line) !important; border-radius: 4px !important; background: transparent !important; box-shadow: none !important; align-items: center; justify-content: center; }
 ${AREA} .ls-table .ui__checkbox:hover, ${AREA} .ls-table .ui__checkbox:is([data-checked], [data-state=checked], [data-state=indeterminate]) { border-color: var(--lk-text) !important; }
 ${AREA} .ls-table .ui__checkbox :is(span, svg) { color: var(--lk-text) !important; }
-${AREA} .ls-table .ui__checkbox svg { width: 10px !important; height: 10px !important; stroke-width: 3.2 !important; }`,
+${AREA} .ls-table .ui__checkbox svg { width: 10px !important; height: 10px !important; stroke-width: 3.2 !important; }
+/* Under the pointer Logseq shows two buttons at the end of a row's name: open the page, open it in the sidebar. Its arrow for the first
+   read as "to the side", beside the sidebar's own icon, and a page icon was ugly; the first says Open instead (the owner, 16 November 2026). */
+${AREA} .table-block-title > .absolute button:first-child { width: auto !important; padding: 0 6px !important; font-size: var(--lk-small); font-weight: 400; color: var(--lk-quiet); }
+${AREA} .table-block-title > .absolute button:first-child:hover { color: var(--lk-text); }
+${AREA} .table-block-title > .absolute button:first-child svg { display: none; }
+${AREA} .table-block-title > .absolute button:first-child::before { content: "Open"; }`,
   calmSearch: `
 /* Logseq's search window: one ground, a hairline and one shadow, as the grammar's window. No grey bands at the top and the
    foot, no boxes round icons or keys, no blue ring round the row you are on; the tip at the foot is left out, its room kept. */

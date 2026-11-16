@@ -141,7 +141,12 @@ const CSS = `
 #right-sidebar[data-lk-tabs] .sidebar-item-list > .sidebar-item.item-type-page[data-st-item] .sidebar-item-header { display: flex !important; }
 #right-sidebar .sidebar-item.item-type-page[data-st-item] .sidebar-item-header :is(.item-actions, .rotating-arrow) { display: none !important; }
 /* Where the row stands, "Consultation · 12 of 53": words the list carries (inspector.js), drawn above the row's view. */
-#right-sidebar[data-lk-tab="item"] .sidebar-item-list[data-st-where]::before { content: attr(data-st-where); display: block; color: var(--lk-quiet); font-size: var(--lk-small); font-variant-numeric: tabular-nums; padding: 8px 0 0 16px; margin-bottom: -8px; }
+#right-sidebar[data-lk-tab="item"] .sidebar-item-list[data-st-where]::before { content: attr(data-st-where); display: block; color: var(--lk-quiet); font-size: var(--lk-small); font-variant-numeric: tabular-nums; padding: 12px 0 6px 16px; }
+/* It starts where the row's view starts: a page's ◇, a bullet's dot; and stands its own line above it, never on it (the owner,
+   16 November 2026: the line sat on "◇ Gas bill", at another left edge). A bullet's view has room of its own above it, a page's head none. */
+#right-sidebar[data-lk-tab="item"] .sidebar-item-list[data-st-where]:not(:has(> .item-type-page[data-st-item]))::before { padding: 8px 0 0 26px; margin-bottom: -8px; }
+/* The row's page has no fold arrow in its head here, so its ◇ stands 18px further left, and Look's tag line under it with it. */
+#right-sidebar .sidebar-item.item-type-page[data-st-item] .lk-path.lk-path-sb { margin-left: -22px; }
 /* A tag the property is on: its name and count on one line, what you can do with it under them, so the narrow panel never
    squeezes the count into a column of single letters. */
 .st-holder-insp .st-lines-t .ont { grid-template-columns: minmax(0, 1fr) auto; }
