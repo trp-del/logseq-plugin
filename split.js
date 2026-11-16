@@ -46,7 +46,10 @@ const told = () => { for (const fn of [...heard]) { try { fn(); } catch (error) 
 const api = () => host().defaultView.logseq?.api;
 const sideList = () => { try { return api()?.get_state_from_store('sidebar/blocks') || []; } catch (error) { return []; } };
 const sideOpen = () => { try { return !!api()?.get_state_from_store('ui/sidebar-open?'); } catch (error) { return false; } };
-const items = doc => [...doc.querySelectorAll('#right-sidebar .sidebar-item-list > .sidebar-item')];   // in the order of Logseq's list
+// The items of Logseq's own list, in its order. A section the plugin draws among them (Look's Links and Outline, .lk-own) is not in
+// Logseq's list: counted, it stood in the page's place, and a ⌘-click with the Links tab picked showed "No links in this page's words"
+// beside (the owner, 16 November 2026).
+const items = doc => [...doc.querySelectorAll('#right-sidebar .sidebar-item-list > .sidebar-item:not(.lk-own)')];
 const sidebar = doc => doc.getElementById('right-sidebar');
 // The item Logseq drew for a node, by its place in Logseq's list; none while the list and the screen disagree (Logseq has the
 // node in its list and has not drawn it yet).

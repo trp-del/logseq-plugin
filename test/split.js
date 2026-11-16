@@ -311,6 +311,24 @@ function world({ sidebarOpen = true, settings = {}, list = null, keyed = false, 
     assert.deepEqual(w.store['sidebar/blocks'].map(e => e[1]), [':logseq-plugin/_sidebar.todo-side', 2, 9], 'the sidebar as it was, Dr. Mei Chen kept among Opened');
   }
 
+  // The owner's "No links in this page's words" (16 November 2026): Look draws its Links section as an item of the sidebar's list
+  // (.lk-own), which is not in Logseq's list. Counted, it stood in the page's place and the right half showed the Links section.
+  {
+    const w = world({ list: [[REPO, 9, 'page']] });
+    const links = w.doc.createElement('div'); links.className = 'lk-own lk-side flex sidebar-item content lk-side-links'; links.textContent = 'No links in this page’s words.';
+    const list = w.doc.querySelector('.sidebar-item-list');
+    const keepOnTop = () => { if (list.firstElementChild !== links) list.prepend(links); };   // Look puts it back on top whenever Logseq redraws the list
+    keepOnTop(); const watcher = new w.win.MutationObserver(keepOnTop); watcher.observe(list, { childList: true });
+    w.press(w.link('#main-content-container', 'a.page-ref'), { metaKey: true });
+    await sleep(400);
+    assert.equal(w.S().id, 2, 'Dr. Mei Chen is on the right');
+    assert.ok(!links.hasAttribute('data-lk-split-item'), 'the Links section is not taken for the page');
+    assert.ok(w.doc.querySelector('.sidebar-item[data-id="2"]').hasAttribute('data-lk-split-item'), 'the page\'s item is the one shown');
+    watcher.disconnect(); links.remove();
+    await w.Door.split.close('right');
+    await w.settle();
+  }
+
   // A page Logseq cannot show in the sidebar (its item stays empty): within a moment the split closes as its × would, the sidebar
   // is as it was, and one plain notice says what happened. Never a white half left standing.
   {
