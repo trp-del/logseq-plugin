@@ -978,6 +978,57 @@ Door.regrow = (el, from, ms = MOTION_MS) => {
   if (Math.abs(to - from) < 1) return;
   clipWhile(el, el.animate([{ height: from + 'px' }, { height: to + 'px' }], { duration: ms, easing: Door.MOTION.roll.ease }));
 };
+/* THE timeline (16 November 2026, the owner: one timeline in Find and in Linked, "build it", from timeline-shared.html in the
+   workspace's history/reports): a dot for each node on its day, from the month of the first to today's month (or the last
+   day, if later), a tick and the month's name at the start of each month, the year once at the left, "today" a short line,
+   the time asked for shaded (asked), the span picked shaded and outlined (pick). Lanes, when given, lay the dots out a lane
+   per value with each lane's name and count at the left (a press on one narrows to it); tall piles the dots of a week into a
+   column, "+n" above a pile too high. The dot the cursor is on (at) is ringed and named above it. Drawn as plain markup with
+   its places in per cent, so it takes any width and needs no measuring; the module keeps the state and the list, and reads
+   presses through the data- marks: data-lk-time on the whole (its key), data-i and data-day on a dot, data-lane on a lane's
+   name, and dayAt for a drag across the track.
+     dots   [{ day, lane = 0, near, off, title }]  near: a hollow dot (close to what was asked); off: faded (outside the span or lane)
+     lanes  [{ name, count, on, off }] or null      asked, pick: [fromDay, toDay] or null      at: a dot's index or null */
+Door.timeline = (() => {
+  const D = () => Door.dates, DAY = 864e5;
+  const range = (days, asked) => {
+    const all = [...days, ...(asked || []), D().today()].filter(Boolean), lo = D().date(Math.min(...all)), hi = D().date(Math.max(...all));
+    return { start: new Date(lo.getFullYear(), lo.getMonth(), 1).getTime(), end: new Date(hi.getFullYear(), hi.getMonth() + 1, 1).getTime() };
+  };
+  const pc = (r, t) => (Math.max(0, Math.min(1, (t - r.start) / (r.end - r.start))) * 100).toFixed(3) + '%';
+  const at = (r, day) => pc(r, D().date(day).getTime() + DAY / 2);
+  const width = (r, a, b) => ((D().date(b).getTime() + DAY - D().date(a).getTime()) / (r.end - r.start) * 100).toFixed(3) + '%';
+  function html({ key = '', dots = [], lanes = null, asked = null, pick = null, at: lit = null, tall = false, label = 'Where in time the nodes fall' } = {}) {
+    const esc = Door.esc, r = range(dots.map(d => d.day), asked), n = lanes ? lanes.length : 1, CAP = 5;
+    const parts = [];
+    if (asked) parts.push(`<span class="lk-time-band" style="left:${pc(r, D().date(asked[0]).getTime())};width:${width(r, asked[0], asked[1])}"></span>`);
+    if (pick) parts.push(`<span class="lk-time-pick" style="left:${pc(r, D().date(pick[0]).getTime())};width:max(4px, ${width(r, pick[0], pick[1])})"></span>`);
+    for (let i = 0; i < n; i++) parts.push(`<span class="lk-time-rule" style="--lane:${i}"></span>`);
+    for (let m = new Date(r.start); m.getTime() < r.end; m = new Date(m.getFullYear(), m.getMonth() + 1, 1)) parts.push(`<span class="lk-time-month" style="left:${pc(r, m.getTime())}">${D().MONTHS[m.getMonth()].slice(0, 3)}</span>`);
+    parts.push(`<span class="lk-time-month lk-time-end" style="left:100%"></span>`);
+    parts.push(`<span class="lk-time-today" style="left:${at(r, D().today())}"><span>today</span></span>`);
+    // Tall: a column a week, the dots of a week piled from the line up, "+n" over a pile taller than CAP.
+    const pileOf = d => `${lanes ? d.lane || 0 : 0}:${Math.floor((D().date(d.day).getTime() - r.start) / (7 * DAY))}`;
+    const totals = new Map(); if (tall) for (const d of dots) totals.set(pileOf(d), (totals.get(pileOf(d)) || 0) + 1);
+    const piles = new Map();
+    dots.forEach((d, i) => {
+      const lane = lanes ? d.lane || 0 : 0, pk = pileOf(d), h = tall ? (piles.get(pk) || 0) : 0;
+      if (tall) piles.set(pk, h + 1);
+      const left = tall ? pc(r, r.start + (Number(pk.split(':')[1]) * 7 + 3.5) * DAY) : at(r, d.day);
+      if (h >= CAP) { if (h === CAP) parts.push(`<span class="lk-time-more" style="left:${left};--lane:${lane};--pile:${CAP}">+${totals.get(pk) - CAP}</span>`); return; }
+      parts.push(`<a href="#" role="button" class="lk-time-dot${d.near ? ' near' : ''}${d.off ? ' off' : ''}${lit === i ? ' at' : ''}" data-i="${i}" data-day="${d.day}" style="left:${left};--lane:${lane};--pile:${h}" title="${esc(d.title ? `${D().words(d.day)}: ${d.title}` : D().words(d.day))}" aria-label="${esc(D().words(d.day))}"></a>`);
+      if (lit === i) parts.push(`<span class="lk-time-name${parseFloat(left) > 60 ? ' end' : ''}" style="left:${left};--lane:${lane};--pile:${h}"><span class="lk-day">${esc(D().words(d.day))}</span> ${esc(d.title || '')}</span>`);
+    });
+    const body = parts.join('');
+    const names = lanes ? lanes.map((l, i) => `<a href="#" role="button" class="lk-time-lane${l.on ? ' on' : l.off ? ' off' : ''}" data-lane="${i}" style="--lane:${i}" title="${esc(l.title || l.name)}">${esc(l.name)} <span class="lk-time-count">${l.count ?? ''}</span></a>`).join('') : '';
+    return `<div class="lk-time${tall ? ' lk-time-tall' : ''}${lanes ? ' lk-time-laned' : ''}${lit != null && dots[lit] ? ' lk-time-named' : ''}" data-lk-time="${esc(key)}" tabindex="0" role="group" aria-label="${esc(label)}" style="--lanes:${n}"><span class="lk-time-year">${new Date(r.start).getFullYear()}</span>${names}<div class="lk-time-track" data-start="${r.start}" data-end="${r.end}">${body}</div></div>`;
+  }
+  // The day under the pointer on a track (for a drag across it).
+  const dayAt = (track, clientX) => { const box = track.getBoundingClientRect(), s = Number(track.dataset.start), e = Number(track.dataset.end); const f = box.width ? Math.max(0, Math.min(1, (clientX - box.left) / box.width)) : 0; return D().number(new Date(s + f * (e - s))); };
+  // The week around a day, as a span.
+  const week = day => { const t = D().date(day); return [D().number(new Date(t.getFullYear(), t.getMonth(), t.getDate() - 3)), D().number(new Date(t.getFullYear(), t.getMonth(), t.getDate() + 3))]; };
+  return { html, dayAt, week, range };
+})();
 /* THE menu (14 November 2026, from Look's Contents menu): the library's lk-pop, lk-menu, lk-group, lk-item and lk-check as a
    pop-up under the thing pressed, so no module wires a menu's keys and closing again. parts: { group: 'Group by' } a heading,
    { gap: true } a space, { word, on, off, take, icon } a line (on: the check mark, the one in force; off: faint, not taken;
@@ -1371,6 +1422,34 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
 .lk-view:hover, .lk-view:focus-visible { color: var(--lk-text, currentColor) !important; }
 .lk-view.on { color: var(--lk-text, currentColor) !important; }
 .lk-view.on::after { content: ""; position: absolute; left: var(--lk-view-pad, 8px); right: var(--lk-view-pad, 8px); bottom: 0; height: 1px; background: currentColor; }   /* one hairline (the owner, 13 November 2026: lighter than the 2px bar) */
+/* lk-time: THE timeline (Door.timeline), Find's and Linked's: a hairline a lane with the dots on it, a tick and a month's name at
+   each month's start, the year at the left above, today a short upright line. --lk-time-row: one lane's height (taller piled). */
+.lk-time { position: relative; padding-top: 16px; --lk-time-row: 18px; outline: none; }
+.lk-time.lk-time-tall { --lk-time-row: 60px; }
+.lk-time.lk-time-tall.lk-time-laned { --lk-time-row: 40px; }   /* piled in lanes: each lane lower, so four still fit the window */
+.lk-time.lk-time-laned { padding-left: 6.5rem; }
+.lk-time-year { position: absolute; top: 0; left: 0; font-size: var(--lk-label); line-height: 14px; color: var(--lk-quiet); }
+.lk-time-track { position: relative; height: calc(var(--lanes, 1) * var(--lk-time-row) + 18px); cursor: crosshair; user-select: none; touch-action: none; }
+.lk-time-rule { position: absolute; left: 0; right: 0; top: calc((var(--lane) + 1) * var(--lk-time-row) - 9px); height: 1px; background: var(--lk-line); pointer-events: none; }
+.lk-time-month { position: absolute; bottom: 0; padding-left: 3px; font-size: var(--lk-label); line-height: 14px; color: var(--lk-quiet); pointer-events: none; white-space: nowrap; }
+.lk-time-month::before { content: ""; position: absolute; left: 0; top: -17px; height: 8px; border-left: 1px solid var(--lk-line); }
+.lk-time-today { position: absolute; top: -6px; height: calc(var(--lanes, 1) * var(--lk-time-row) + 2px); border-left: 1.2px solid var(--lk-text, currentColor); pointer-events: none; }
+.lk-time-today > span { position: absolute; bottom: 100%; right: 4px; font-size: var(--lk-label); line-height: 14px; color: var(--lk-text, currentColor); white-space: nowrap; }
+.lk-time-band, .lk-time-pick { position: absolute; top: 0; height: calc(var(--lanes, 1) * var(--lk-time-row)); background: var(--lk-wash); border-radius: 3px; pointer-events: none; }
+.lk-time-pick { box-shadow: inset 0 0 0 1px var(--lk-line); }
+.lk-time-dot { all: unset; position: absolute; top: calc((var(--lane, 0) + 1) * var(--lk-time-row) - 12.5px - var(--pile, 0) * 9px); width: 7px; height: 7px; margin-left: -3.5px; box-sizing: border-box; border-radius: 50%; background: var(--lk-text, currentColor); opacity: .75; cursor: pointer; }
+.lk-time-dot.near { background: var(--lk-paper, transparent); border: 1.2px solid var(--lk-quiet); opacity: 1; }
+.lk-time-dot:hover, .lk-time-dot:focus-visible { opacity: 1; box-shadow: 0 0 0 3px var(--lk-wash); }
+.lk-time-dot.off { opacity: .22; }
+.lk-time-dot.at { opacity: 1; box-shadow: 0 0 0 2px var(--lk-paper, transparent), 0 0 0 3.2px var(--lk-text, currentColor); }
+.lk-time-more { position: absolute; top: calc((var(--lane, 0) + 1) * var(--lk-time-row) - 16px - var(--pile, 0) * 9px); transform: translateX(-50%); font-size: var(--lk-label); line-height: 12px; color: var(--lk-quiet); pointer-events: none; }
+.lk-time-name { position: absolute; top: calc((var(--lane, 0) + 1) * var(--lk-time-row) - 31px - var(--pile, 0) * 9px); transform: translateX(-8px); max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--lk-small); line-height: 16px; padding: 0 4px; background: var(--lk-paper, transparent); color: var(--lk-text, currentColor); border-radius: 3px; pointer-events: none; z-index: 1; }
+.lk-time-name.end { transform: translateX(calc(-100% + 8px)); }
+.lk-time-named .lk-time-today > span { visibility: hidden; }   /* while a dot is named, its name has the room above the line; today keeps its mark */
+.lk-time-lane { all: unset; position: absolute; left: 0; top: calc(16px + (var(--lane) + 1) * var(--lk-time-row) - 17px); width: 6rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--lk-label); line-height: 16px; color: var(--lk-quiet); cursor: pointer; }
+.lk-time-lane:hover, .lk-time-lane.on { color: var(--lk-text, currentColor); }
+.lk-time-lane.off { opacity: .35; }
+.lk-time-count { opacity: .7; }
 .lk-trail { display: flex; flex-wrap: wrap; gap: 2px 6px; align-items: center; font-size: var(--lk-small); }
 .lk-trail > :not(.lk-step) { color: var(--lk-quiet); }
 .lk-step { color: var(--lk-quiet) !important; padding: 0; text-decoration: underline !important; text-decoration-color: var(--lk-hair) !important; text-underline-offset: 3px; }

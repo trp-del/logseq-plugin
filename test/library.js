@@ -22,7 +22,7 @@ const LIBRARY = new RegExp(KINDS.join('|'));
 // choices, Threads' kind words and a draft's property choice, and the kit's helpers, which take the
 // name from whoever calls them.
 // Threads' task circle is Logseq's own (th-task), drawn in Logseq's shapes and colours.
-const NOT_A_LIBRARY_BUTTON = /tick|lk-tick|lk-fold|fold|dig|lk-row|th-tw-chip|th-tw-dpick|th-task|fd-c\b|choice/;
+const NOT_A_LIBRARY_BUTTON = /tick|lk-tick|lk-fold|fold|dig|lk-row|th-tw-chip|th-tw-dpick|th-task|choice/;
 
 const strays = [];
 for (const file of FILES) {

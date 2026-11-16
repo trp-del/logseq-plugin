@@ -82,7 +82,7 @@ function nodeHtml(uuid, key, data, asTop = false, field = true) {
     if (guess) { html += O.prop({ kind, many: prop.many, name: prop.title, nameAttrs, cls: found, chev: O.room(), value: O.dot(true) + O.pencil(guess.shown || '', { 'data-take': prop.ident, 'data-uuid': uuid, title: `${guess.guess ? 'A guess from its words' : 'From its words'}: click to fill it in` }) }); continue; }
     if (!linked) {
       // Several words or numbers: each its own, changed one at a time; the property's name adds another.
-      const one = (text, at = '') => `<button type="button" class="th-tw-npvalue${values.length ? '' : ' th-faint'}" data-edit="${esc(prop.ident)}" data-uuid="${esc(uuid)}"${at} title="Change “${esc(prop.title)}”">${esc(text)}</button>`;
+      const one = (text, at = '') => `<button type="button" class="th-tw-npvalue lk-value${values.length ? '' : ' off'}" data-edit="${esc(prop.ident)}" data-uuid="${esc(uuid)}"${at} title="Change “${esc(prop.title)}”">${esc(text)}</button>`;
       const typed = !['choice', 'checkbox', 'date', 'datetime'].includes(kind);
       // Empty, it folds with the others into one line (C5, 7 November 2026: an empty property folds until you want it).
       // Each value a bullet of its own, in the column where a node's bullet stands, as Logseq draws a property's values (12 November

@@ -684,53 +684,58 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     check(!doc.querySelector('.th-tw-pinned'), 'Undo lets the pin go');
     // N3: the year line from the head's days.
     click(window, doc.querySelector('.th-tw-row[data-field="about"] .th-tw-head a.th-tw-when')); await wait(60);
-    const dots = [...doc.querySelectorAll('.th-tw-row[data-field="about"] .th-tw-ydot')];
+    const dots = [...doc.querySelectorAll('.th-tw-row[data-field="about"] .lk-time-dot')];
     check(dots.length === 5, 'the days open a year line, a dot for each dated node (N3): ' + dots.length);
-    click(window, dots.find(d => d.dataset.yday === '20261012')); await wait(60);
+    click(window, dots.find(d => d.dataset.day === '20261012')); await wait(60);
     check(lines().join('|') === 'Does it work for skills?|The best gap is a tenth of the time until the test.' && /showing/i.test(head()), 'a dot narrows the list to its week: ' + lines());
     // Lanes and spans (10 November 2026): the line laid out by a property, a lane narrowing the list, a drag picking days, Escape letting go.
-    click(window, doc.querySelector('.th-tw-row[data-field="about"] .th-tw-ydot[data-yday="20261012"]')); await wait(60);
+    click(window, doc.querySelector('.th-tw-row[data-field="about"] .lk-time-dot[data-day="20261012"]')); await wait(60);
     check(lines().length === 5 && !/showing/i.test(head()), 'a click inside the picked week gives the whole list back: ' + lines().length);
+    // The library's timeline (16 November 2026): the pressed dot is ringed and named; the arrows walk on from it.
+    { const tl = () => doc.querySelector('.th-tw-row[data-field="about"] .lk-time'), at = () => doc.querySelector('.th-tw-row[data-field="about"] .lk-time-dot.at');
+      check(at()?.dataset.day === '20261012' && /Oct 12/.test(doc.querySelector('.th-tw-row[data-field="about"] .lk-time-name')?.textContent || ''), 'the pressed dot is ringed and named');
+      tl().dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true })); await wait(60);
+      check(at() && Number(at().dataset.day) < 20261012, 'Left walks to the dot before: ' + at()?.dataset.day); }
     const about = () => st.groups.find(g => g.name === 'about'), timeline = () => tw.viewMenuHooks.flatMap(h => h(about()) || []).filter((it, i, all) => i > all.findIndex(x => x.group === 'Timeline') && !it.group).filter((it, i, all) => !all.slice(0, i).some(x => x.sep) && !it.sep);
     const by = timeline().map(i => i.label);
-    check(by.join('|') === 'Hidden|One line|By Confidence|By Severity' && timeline().find(i => i.label === 'One line').chosen, 'the View menu offers the timeline hidden, as one line or in lanes by the properties its nodes share: ' + by);
+    check(by.join('|') === 'Hidden|One line|Taller|By Confidence|By Severity' && timeline().find(i => i.label === 'One line').chosen, 'the View menu offers the timeline hidden, as one line or in lanes by the properties its nodes share: ' + by);
     timeline().find(i => i.label === 'By Confidence').run(); await wait(60);
-    const laneNames = () => [...doc.querySelectorAll('.th-tw-row[data-field="about"] .th-tw-ylane')].map(a => a.textContent.replace(/\s+\d+$/, ''));
+    const laneNames = () => [...doc.querySelectorAll('.th-tw-row[data-field="about"] .lk-time-lane')].map(a => a.textContent.replace(/\s+\d+$/, ''));
     check(laneNames().slice().sort().join('|') === 'Disputed|Strong|others' && laneNames()[2] === 'others' && JSON.parse(window.localStorage.getItem('thTwoWayYearLanes') || '{}').about === 'Confidence', 'by Confidence: a lane a value, others last, kept for the row: ' + laneNames());
-    check(new Set([...doc.querySelectorAll('.th-tw-row[data-field="about"] .th-tw-ydot')].map(d => d.style.getPropertyValue('--lane'))).size === 3, 'each dot stands in its lane');
+    check(new Set([...doc.querySelectorAll('.th-tw-row[data-field="about"] .lk-time-dot')].map(d => d.style.getPropertyValue('--lane'))).size === 3, 'each dot stands in its lane');
     check(/Timeline by Confidence/.test(doc.querySelector('.th-tw-row[data-field="about"] .th-tw-said')?.textContent || ''), 'the heading says the timeline in force: ' + doc.querySelector('.th-tw-row[data-field="about"] .th-tw-said')?.textContent);
     click(window, doc.querySelector('.th-tw-row[data-field="about"] .th-tw-groupby')); await wait(80);
     check([...doc.querySelectorAll('.th-pop .th-item')].some(el => /By Confidence/.test(el.textContent)), 'a click on the words opens the View menu, the timeline among its options');
     doc.querySelectorAll('.th-pop').forEach(p => p.remove());
-    click(window, [...doc.querySelectorAll('.th-tw-row[data-field="about"] .th-tw-ylane')].find(a => a.textContent.startsWith('Strong'))); await wait(60);
+    click(window, [...doc.querySelectorAll('.th-tw-row[data-field="about"] .lk-time-lane')].find(a => a.textContent.startsWith('Strong'))); await wait(60);
     check(lines().length === 2 && lines().every(l => /^Spacing beats|^The gap/.test(l)) && /showing Confidence Strong/i.test(head()), 'a lane\'s name narrows the list to it, the head says so: ' + lines() + ' | ' + head());
     doc.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); await wait(60);
     check(lines().length === 5 && !/showing/i.test(head()) && laneNames().length === 3, 'Escape lets go of the lane, the lanes stay: ' + lines().length);
-    { const track = doc.querySelector('.th-tw-row[data-field="about"] .th-tw-ytrack'); track.getBoundingClientRect = () => ({ left: 0, top: 0, width: 100, height: 70, right: 100, bottom: 70 });
+    { const track = doc.querySelector('.th-tw-row[data-field="about"] .lk-time-track'); track.getBoundingClientRect = () => ({ left: 0, top: 0, width: 100, height: 70, right: 100, bottom: 70 });
       const m = (type, x) => track.dispatchEvent(new window.MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, button: 0 }));
-      m('mousedown', 0); m('mousemove', 20); m('mousemove', 50); m('mouseup', 50); await wait(60); }
+      m('mousedown', 0); m('mousemove', 10); m('mousemove', 20); m('mouseup', 20); await wait(60); }
     check(lines().length === 2 && /showing Sep 1 to/i.test(head()), 'a drag across the line picks the days under it: ' + lines() + ' | ' + head());
     doc.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); await wait(60);
     check(lines().length === 5 && !/showing/i.test(head()), 'Escape lets go of the span');
-    { const track = doc.querySelector('.th-tw-row[data-field="about"] .th-tw-ytrack'); track.getBoundingClientRect = () => ({ left: 0, top: 0, width: 100, height: 70, right: 100, bottom: 70 });
+    { const track = doc.querySelector('.th-tw-row[data-field="about"] .lk-time-track'); track.getBoundingClientRect = () => ({ left: 0, top: 0, width: 100, height: 70, right: 100, bottom: 70 });
       const m = (type, x) => track.dispatchEvent(new window.MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, button: 0 }));
-      m('mousedown', 0); m('mousemove', 20); m('mousemove', 50); m('mouseup', 50); await wait(60); }
+      m('mousedown', 0); m('mousemove', 10); m('mousemove', 20); m('mouseup', 20); await wait(60); }
     check(!!doc.querySelector('.th-tw-row[data-field="about"] .th-tw-showing [data-yclear]'), 'the narrowing stands on its own line with a ×');
     click(window, doc.querySelector('.th-tw-row[data-field="about"] [data-yclear]')); await wait(60);
     check(lines().length === 5 && !/showing/i.test(head()), 'the × gives the whole list back');
-    { const dots = () => doc.querySelectorAll('.th-tw-row[data-field="about"] .th-tw-ydot').length, before = dots();
+    { const dots = () => doc.querySelectorAll('.th-tw-row[data-field="about"] .lk-time-dot').length, before = dots();
       const tab = doc.querySelector('.th-tw-row[data-field="about"] .th-tw-chip[data-tag="Claim"]');
       click(window, tab); await wait(60);
       check(dots() > 0 && dots() < before, 'a tab narrows the timeline to its own nodes: ' + before + ' → ' + dots());
       click(window, doc.querySelector('.th-tw-row[data-field="about"] .th-tw-chip[data-tag="Claim"]')); await wait(60);
       check(dots() === before, 'the tab let go, every dot is back'); }
     timeline().find(i => i.label === 'One line').run(); await wait(60);
-    check(!doc.querySelector('.th-tw-row[data-field="about"] .th-tw-ylane') && !window.localStorage.getItem('thTwoWayYearLanes')?.includes('about'), 'One line takes the lanes away');
+    check(!doc.querySelector('.th-tw-row[data-field="about"] .lk-time-lane') && !window.localStorage.getItem('thTwoWayYearLanes')?.includes('about'), 'One line takes the lanes away');
     timeline().find(i => i.label === 'Hidden').run(); await wait(60);
     check(!doc.querySelector('.th-tw-row[data-field="about"] .th-tw-yearline'), 'Hidden folds the timeline away');
     timeline().find(i => i.label === 'One line').run(); await wait(60);
     click(window, doc.querySelector('.th-tw-row[data-field="about"] .th-tw-head a.th-tw-when')); await wait(60);
-    check(!doc.querySelector('.th-tw-ydot') && lines().length === 5, 'the days again fold the line and give the list back');
+    check(!doc.querySelector('.lk-time-dot') && lines().length === 5, 'the days again fold the line and give the list back');
     // N1: since you last looked.
     provided.createdAt = async uuids => new Map(uuids.map((u, i) => [u, { created: u === U(102) ? Date.now() : 1000, updated: 1000 }]));
     window.localStorage.setItem('thTwoWaySeen', JSON.stringify({ [PAGE]: 5000 }));
@@ -915,7 +920,7 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     openEmpties(window, doc, node);
     await wait(80);
     check(rows().join('|') === 'Confidence=Disputed|Severity=1|Source=empty', 'the node’s own properties should show above its bullets, the one pointing back at this page left out (the row it opened from names it): ' + rows());
-    check(!!kidsOf(doc, node)?.querySelector('.th-tw-npvalue.th-faint'), 'an empty one should read "empty" in grey');
+    check(!!kidsOf(doc, node)?.querySelector('.th-tw-npvalue.lk-value.off'), 'an empty one should read "empty" in grey (the library value, off)');
     // A node property carries the triangle of dots; a fact carries the icon of what it holds (the owner: "a
     // property always shows its icon, on pages too"), never the triangle.
     const marked = propLines().filter(l => l.querySelector('.th-ol-pname .th-kind .lk-web')).map(l => l.querySelector('.th-ol-pname').textContent.trim());

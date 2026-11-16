@@ -52,23 +52,10 @@ const CSS = `
 .fd-line { display: none; min-height: 58px; padding: 6px 16px 0; border-bottom: 1px solid var(--lk-hair); flex: none; position: relative; overflow: hidden; }
 .fd-say .fd-line { display: block; }
 .fd-say .fd-line.fd-off { display: none; }
-.fd-line svg { display: block; width: 100%; overflow: visible; }
-.fd-line circle[data-i] { cursor: pointer; }
-.fd-line .fd-ring { fill: none; stroke: var(--lk-text, #222); stroke-width: 1.2; }
-.fd-line .fd-lane { font-size: var(--lk-label); fill: var(--lk-quiet); }
-.fd-line .fd-sep { stroke: var(--lk-hair); stroke-width: 1; }
-.fd-line .fd-count { font-size: var(--lk-label); fill: var(--lk-quiet); }
-.fd-name { position: absolute; max-width: 60%; padding: 4px 9px; font-size: var(--lk-small); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
-.fd-name .lk-day { margin-right: 8px; }
 /* The two ways the line can be drawn, the library's alternatives (lk-alts): the one in force in the text colour. */
-.fd-by { position: absolute; right: 16px; top: 6px; font-size: var(--lk-small); display: flex; gap: 12px; }
+.fd-by { position: absolute; left: 64px; top: 6px; font-size: var(--lk-small); display: flex; gap: 12px; }   /* beside the year, clear of today at the right end */
 .fd-by > span { cursor: pointer; }
-.fd-line .fd-base, .fd-line .fd-tick { stroke: var(--lk-line); stroke-width: 1; }
-.fd-line .fd-band { fill: var(--lk-wash); }
-.fd-line .fd-dot { fill: currentColor; opacity: .8; }
-.fd-line .fd-hollow { fill: var(--lk-paper, #fff); stroke: var(--lk-quiet); stroke-width: 1.2; }
-.fd-line .fd-today { stroke: var(--lk-quiet); stroke-width: 1; }
-.fd-line text { font-size: var(--lk-label); fill: var(--lk-quiet); }
+/* The line itself is the library's timeline (lk-time, PluginDoor.timeline), the one Linked draws: here only its place. */
 /* The body scrolls; the choices sit above the rows, a gap of one line between them. A property's name here stays a shade
    lighter than its values, which are quiet. */
 .fd-body { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 16px 10px; }
@@ -92,17 +79,17 @@ const CSS = `
 .fd-cv .lk-view { display: inline-flex; align-items: baseline; gap: 4px; }
 .fd-cv .lk-view .fd-nb { visibility: visible; }
 .fd-cv .lk-view.fd-lit { color: var(--lk-text, currentColor) !important; }
-.fd-c:not(.lk-view) { all: unset; cursor: pointer; display: inline-flex; align-items: baseline; gap: 3px; padding: 0 4px; margin: 0 -4px; border-radius: 3px; }
-.fd-c:hover { color: inherit; }
-/* A number stands only on the choice that is lit or pointed at; its room is kept, so nothing moves when it comes. */
-.fd-c .fd-nb { color: var(--lk-quiet); font-size: var(--lk-small); font-variant-numeric: tabular-nums; visibility: hidden; }
-.fd-c:hover .fd-nb, .fd-c.fd-lit .fd-nb { visibility: visible; }
-.fd-c.fd-lit { color: inherit; }
+.fd-c .fd-nb { color: var(--lk-quiet); font-size: var(--lk-small); font-variant-numeric: tabular-nums; }
 .fd-more { margin: -3px 0; }
 /* The kinds opened: columns, each a top-level tag in bold over the tags beneath it, stepped in by depth. */
 .fd-tree { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px 18px; }
 .fd-col { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; }
-.fd-col .fd-c { margin-left: calc(var(--fd-depth, 0) * 14px - 4px); max-width: 100%; }
+/* Every kind is the library's tab word (lk-view), as on Topic and When's lines (16 November 2026: one look for a choice); the
+   column takes the side padding away so the steps in stand on the words. */
+.fd-tree { --lk-view-pad: 0px; }
+.fd-tree .lk-view { white-space: nowrap; }   /* a kind's name and its count on one line, as in the lines above */
+.fd-tree .lk-view.fd-top { color: var(--lk-text, currentColor) !important; }   /* a top-level tag heads its column, in the text colour, as the Logseq head beside it */
+.fd-col .fd-c { margin-left: calc(var(--fd-depth, 0) * 14px); max-width: 100%; }
 .fd-col .fd-top, .fd-col .fd-th { font-weight: 600; color: var(--lk-text, #222); }
 .fd-col .fd-th { margin-top: 12px; }
 .fd-more.fd-lit { color: var(--lk-text, #222) !important; }
@@ -216,6 +203,7 @@ async function pointers(uuid) {
 async function compute() {
   const gen = ++S.gen;
   S.failed = '';
+  S.timePick = null; S.timeLane = null;   // a new sentence, a new list: the timeline lets go of what it narrowed
   try {
     if (isCommandMode()) { S.shown = []; S.near = []; S.nearShown = []; S.facets = null; return; }
     // Read again behind what is shown (open()): the answer replaces the old list and the window is drawn once more.
@@ -425,7 +413,7 @@ function rowList() {
     if (hasWord('Plugin settings', ws)) list.push({ kind: 'command', label: 'Plugin settings', id: 'plugin:settings', key: '' });
     return list;
   }
-  const top = atRest() ? S.recents : S.shown;
+  const top = atRest() ? S.recents : S.shown.filter(timeKeeps);
   const shown = S.allShown ? top : top.slice(0, setting('rowsShown') || 12);
   const nearShown = atRest() ? [] : (S.nearAll ? S.nearShown : S.nearShown.slice(0, NEAR_SHOWN));
   const add = (n, near, fromLine) => {
@@ -674,6 +662,16 @@ const lineDugNode = () => (S.lineDug && S.line ? [...S.shown, ...S.nearShown].fi
 const canLine = () => S.say && !isCommandMode() && !atRest() && [...S.shown, ...S.nearShown].some(n => n.day);
 // The first choice line that is a property: its three values make the lanes.
 function laneProp() { if (!S.facets) return null; for (const p of S.facets.props) { if (S.picks.some(x => x.kind === 'who' && x.name === p.name)) continue; if (p.values.length) return p; } return null; }
+// A node's lane, by the first choice line's three values (others last), when the line is laid out in lanes.
+function laneOfNode(nd, lanes = S.line === 2 ? laneProp() : null) {
+  if (!lanes) return 0;
+  const full = kindPick() && S.cache.kindFacets.get(kindPick().id), has = full?.byNode.get(nd.id);
+  const i = lanes.values.slice(0, 3).findIndex(v => has?.has(lanes.name + '=' + v.key));
+  return i < 0 ? 3 : i;
+}
+// What the timeline narrowed the rows to (16 November 2026, one timeline in Find and in Linked): a dot's week or a dragged span,
+// and a lane's value. The line still shows every dot, faded outside what is kept.
+const timeKeeps = nd => (!S.timePick || (nd.day && nd.day >= S.timePick[0] && nd.day <= S.timePick[1])) && (S.timeLane == null || laneOfNode(nd) === S.timeLane);
 function drawLine(doc) {
   const box = S.dlg.querySelector('.fd-line');
   box.replaceChildren();
@@ -681,87 +679,59 @@ function drawLine(doc) {
   S.lineDots = [];
   if (!S.say || isCommandMode() || atRest()) { S.line = 0; S.lineH = 52; setHeight(); return; }
   const when = whenPick();
-  const dated = [...S.shown, ...S.nearShown].filter(n => n.day);
+  const dated = [...S.shown.slice(0, 400).map(nd => ({ node: nd, near: false })), ...S.nearShown.slice(0, 400).map(nd => ({ node: nd, near: true }))].filter(d => d.node.day);
   if (!dated.length && !when) { S.line = 0; S.lineH = 52; setHeight(); return; }
   const lanes = S.line === 2 ? laneProp() : null;
   if (S.line === 2 && !lanes) S.line = 1;
-  const W = Math.max(120, (box.clientWidth || 900) - 32), PAD = 0;   // the window's own width before it is laid out
-  const month = day => Math.floor(day / 10000) * 12 + Math.floor(day / 100) % 100 - 1;
-  const months = dated.map(n => month(n.day));
-  if (when) months.push(month(when.from), month(when.to));
-  let lo = Math.floor(Math.min(...months) / 12) * 12, hi = Math.floor(Math.max(...months) / 12) * 12 + 11;
-  if (hi - lo > 119) lo = hi - 119;
-  const n = hi - lo + 1;
-  const daysIn = day => new Date(Math.floor(day / 10000), Math.floor(day / 100) % 100, 0).getDate();
-  const x = day => PAD + ((month(day) - lo) + (day % 100 - 1) / daysIn(day)) / n * W;
-  const xm = m => PAD + (m - lo) / n * W;
-  // The lanes: the values' names, "others" last; a node is in the first lane whose value it holds.
-  const laneNames = lanes ? [...lanes.values.slice(0, 3).map(v => v.label), 'others'] : [''];
-  const full = kindPick() && S.cache.kindFacets.get(kindPick().id);   // which values each node holds, read once per kind
-  const laneOf = nd => { if (!lanes) return 0; const has = full?.byNode.get(nd.id); const i = lanes.values.slice(0, 3).findIndex(v => has?.has(lanes.name + '=' + v.key)); return i < 0 ? laneNames.length - 1 : i; };
-  const LH = S.line === 2 ? 44 : S.line === 1 ? 96 : 0, top = S.line ? 24 : 0;
-  const Y = S.line ? top + laneNames.length * LH : 30, H = S.line ? Y + 28 : 52;
-  const parts = [];
-  if (when) { const a = Math.max(xm(lo), x(when.from)), b = Math.min(xm(hi + 1), x(when.to) + W / n / daysIn(when.to)); if (b > a) parts.push(S.line ? `<rect class="fd-band" x="${a.toFixed(1)}" y="${top - 6}" width="${(b - a).toFixed(1)}" height="${Y - top + 6}" rx="2"/>` : `<rect class="fd-band" x="${a.toFixed(1)}" y="${Y - 14}" width="${(b - a).toFixed(1)}" height="28" rx="2"/>`); }
-  parts.push(`<line class="fd-base" x1="${xm(lo)}" y1="${Y}" x2="${xm(hi + 1).toFixed(1)}" y2="${Y}"/>`);
-  const everyMonth = n <= 36, labelMonths = n <= 12 || (n <= 24 && W / n >= 34);   // the months named when they fit, else the years alone
-  for (let m = lo; m <= hi + 1; m++) {
-    const jan = m % 12 === 0;
-    if (everyMonth || jan) parts.push(`<line class="fd-tick" x1="${xm(m).toFixed(1)}" y1="${Y - (jan || m === hi + 1 ? 4 : 3)}" x2="${xm(m).toFixed(1)}" y2="${Y + (jan || m === hi + 1 ? 4 : 3)}"/>`);
-    if (m > hi) continue;
-    if (labelMonths) parts.push(`<text x="${(xm(m) + 2).toFixed(1)}" y="${Y + 20}">${Find.sentence.SHORT[m % 12]}</text>`);
-    if (jan && (labelMonths || n <= 120)) parts.push(`<text x="${(xm(m) + (labelMonths ? 0 : 2)).toFixed(1)}" y="${S.line ? 14 : Y - 20}">${Math.floor(m / 12)}</text>`);
-  }
-  const today = new Date(), t = window.PluginDoor.dates.number(today);
-  if (month(t) >= lo && month(t) <= hi) parts.push(`<line class="fd-today" x1="${x(t).toFixed(1)}" y1="${S.line ? top - 2 : Y - 11}" x2="${x(t).toFixed(1)}" y2="${Y + 11}"/><text x="${(x(t) + 6).toFixed(1)}" y="${S.line ? top - 5 : Y - 14}">today</text>`);
-  if (!S.line) {
-    const seen = new Set();
-    const dot = (nd, cls) => { if (month(nd.day) < lo) return; const k = cls + nd.day; if (seen.has(k)) return; seen.add(k); parts.push(`<circle class="${cls}" cx="${x(nd.day).toFixed(1)}" cy="${Y}" r="4"><title>${esc(db.dayLabel(nd.day))}</title></circle>`); };
-    for (const nd of S.nearShown.slice(0, 400)) if (nd.day) dot(nd, 'fd-hollow');
-    for (const nd of S.shown.slice(0, 400)) if (nd.day) dot(nd, 'fd-dot');
-  } else {
-    // A column a day, a week or a month, as the span allows; the middle of the column is where its dots stand.
-    const unit = n <= 4 ? 'day' : n <= 24 ? 'week' : 'month';
-    const epoch = day => Math.floor(Date.UTC(Math.floor(day / 10000), Math.floor(day / 100) % 100 - 1, day % 100) / 86400000);
-    const col = day => unit === 'day' ? day : unit === 'week' ? Math.floor((epoch(day) + 3) / 7) : month(day);
-    const cx = day => unit === 'day' ? x(day) + W / n / daysIn(day) / 2 : unit === 'week' ? (() => { const d = new Date(col(day) * 7 * 86400000); const mid = d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate(); return month(mid) < lo ? xm(lo) : x(mid); })() : xm(month(day)) + W / n / 2;
-    const totals = new Map(), piled = new Map(), cap = Math.floor((LH - 14) / 10);
-    const list = [...S.shown.slice(0, 400).filter(nd => nd.day && month(nd.day) >= lo).map(nd => ({ nd, near: false })), ...S.nearShown.slice(0, 400).filter(nd => nd.day && month(nd.day) >= lo).map(nd => ({ nd, near: true }))];
-    for (const d of list) { d.lane = laneOf(d.nd); d.key = d.lane + ':' + col(d.nd.day); totals.set(d.key, (totals.get(d.key) || 0) + 1); }
-    for (let l = 0; l < laneNames.length; l++) if (lanes) { parts.push(`<text class="fd-lane" x="0" y="${top + l * LH + 12}">${esc(laneNames[l])}</text>`); if (l) parts.push(`<line class="fd-sep" x1="0" y1="${top + l * LH - 2}" x2="${W}" y2="${top + l * LH - 2}"/>`); }
-    for (const d of list) {
-      const h = piled.get(d.key) || 0; piled.set(d.key, h + 1);
-      const X = cx(d.nd.day), bottom = top + (d.lane + 1) * LH - 8;
-      if (h >= cap) { if (h === cap) parts.push(`<text class="fd-count" x="${(X - 4).toFixed(1)}" y="${bottom - cap * 10 + 2}">+${totals.get(d.key) - cap}</text>`); continue; }
-      S.lineDots.push({ node: d.nd, near: d.near, lane: d.lane, cx: X, cy: bottom - h * 10 });
-    }
-    // The dots in the order the arrows walk them: left to right, a pile from its foot up.
-    S.lineDots.sort((a, b) => a.cx - b.cx || b.cy - a.cy);
-    // Opened, the cursor starts on the newest dot found, as the rows start with the newest.
-    if (S.lineStart) { S.lineStart = false; let at = S.lineDots.length - 1; while (at > 0 && S.lineDots[at].near) at--; S.lineAt = at; }
-    S.lineAt = Math.max(0, Math.min(S.lineDots.length - 1, S.lineAt));
-    S.lineDots.forEach((d, i) => parts.push(`<circle class="${d.near ? 'fd-hollow' : 'fd-dot'}" data-i="${i}" cx="${d.cx.toFixed(1)}" cy="${d.cy}" r="4"/>`));
-    if (S.mode === 'line' && S.lineDots[S.lineAt]) { const d = S.lineDots[S.lineAt]; parts.push(`<circle class="fd-ring" cx="${d.cx.toFixed(1)}" cy="${d.cy}" r="7"/>`); }
-  }
-  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-label="The years, with what was found on its days">${parts.join('')}</svg>`;
+  if (!lanes) S.timeLane = null;
+  // The dots in the order the arrows walk them: by day, a near one after a found one on the same day.
+  dated.sort((a, b) => a.node.day - b.node.day || a.near - b.near);
+  S.lineDots = dated.map(d => ({ ...d, lane: laneOfNode(d.node, lanes) }));
+  if (S.lineStart) { S.lineStart = false; let at = S.lineDots.length - 1; while (at > 0 && S.lineDots[at].near) at--; S.lineAt = at; }
+  S.lineAt = Math.max(0, Math.min(S.lineDots.length - 1, S.lineAt));
+  const laneNames = lanes ? [...lanes.values.slice(0, 3).map(v => v.label), 'others'] : null;
+  const html = window.PluginDoor.timeline.html({
+    key: 'find', label: 'The time of what was found; drag across it to pick days',
+    dots: S.lineDots.map(d => ({ day: d.node.day, lane: d.lane, near: d.near, title: d.node.text, off: !timeKeeps(d.node) })),
+    lanes: laneNames && laneNames.map((name, i) => ({ name, count: S.lineDots.filter(d => !d.near && d.lane === i).length, on: S.timeLane === i, off: S.timeLane != null && S.timeLane !== i })),
+    asked: when ? [when.from, when.to] : null, pick: S.timePick, tall: S.line > 0, at: S.mode === 'line' && S.line ? S.lineAt : null });
+  box.insertAdjacentHTML('beforeend', html);
   if (S.line && laneProp()) box.append(el(doc, 'span', { class: 'fd-by lk-alts' },
     el(doc, 'span', { class: S.line === 2 ? '' : 'on', click: event => { event.stopPropagation(); setLine(1); } }, 'one lane'),
     el(doc, 'span', { class: S.line === 2 ? 'on' : '', click: event => { event.stopPropagation(); setLine(2); } }, 'by ' + laneProp().name)));
-  if (S.line) {
-    const name = el(doc, 'div', { class: 'fd-name lk-pop' }); name.hidden = true; box.append(name);
-    const show = d => { if (!d) { name.hidden = true; return; } name.replaceChildren(el(doc, 'span', { class: 'lk-day' }, db.dayLabel(d.node.day)), doc.createTextNode(d.node.text)); name.hidden = false; let left = Math.max(0, Math.min(16 + d.cx - 10, box.clientWidth - name.offsetWidth - 16));
-      // The name stands above every dot it would otherwise cover, so no dot is ever hidden by it; and clear of the word at the right end.
-      const topFor = left => { const under = S.lineDots.filter(o => o.cx + 4 >= left - 16 && o.cx - 4 <= left - 16 + name.offsetWidth).map(o => o.cy); return Math.max(0, 6 + Math.min(d.cy, ...under) - 8 - name.offsetHeight); };
-      let top = topFor(left); const by = box.querySelector('.fd-by');
-      if (by && top < 28 && left + name.offsetWidth > by.offsetLeft - 12) { left = Math.max(0, by.offsetLeft - name.offsetWidth - 12); top = topFor(left); }
-      name.style.left = left + 'px'; name.style.top = top + 'px'; };
-    box.addEventListener('mouseover', event => { const c = event.target.closest?.('circle[data-i]'); if (c) show(S.lineDots[Number(c.dataset.i)]); });
-    box.addEventListener('mouseleave', () => show(S.mode === 'line' ? S.lineDots[S.lineAt] : null));
-    if (S.mode === 'line') show(S.lineDots[S.lineAt]);
-  }
-  // A click on a dot puts the cursor on it; on the strip, it opens the line.
-  box.addEventListener('click', event => { const c = event.target.closest?.('circle[data-i]'); if (c) { S.mode = 'line'; S.lineAt = Number(c.dataset.i); render(); } else if (!S.line) setLine(1); });
-  S.lineH = H; setHeight();
+  // The line's height, as the library draws it: the labels above, a lane a row (60 px piled, 18 one line), the months under.
+  S.lineH = 16 + (laneNames ? laneNames.length : 1) * (S.line ? (laneNames ? 40 : 60) : 18) + 18; setHeight();
+  wireLine(box);
+}
+// The presses on the line, put on once: a dot narrows the rows to its week (again: all of them) and puts the cursor on it; a
+// lane's name narrows to its value; a drag picks a span of days; a press elsewhere on the folded strip opens it.
+function wireLine(box) {
+  if (box.dataset.wired) return;
+  box.dataset.wired = '1';
+  let drag = null;
+  const T = window.PluginDoor.timeline;
+  box.addEventListener('mousedown', event => { const track = event.button === 0 && !event.target.closest('.lk-time-dot') && event.target.closest('.lk-time-track'); if (track) drag = { track, x: event.clientX, from: T.dayAt(track, event.clientX), moved: false }; });
+  box.ownerDocument.addEventListener('mousemove', event => {
+    if (!drag) return;
+    if (!drag.moved && Math.abs(event.clientX - drag.x) < 5) return;
+    drag.moved = true; const to = T.dayAt(drag.track, event.clientX);
+    S.timePick = [Math.min(drag.from, to), Math.max(drag.from, to)]; render();
+    drag.track = box.querySelector('.lk-time-track') || drag.track;
+  });
+  box.ownerDocument.addEventListener('mouseup', () => { if (drag?.moved) box.dataset.dragged = '1'; drag = null; setTimeout(() => { delete box.dataset.dragged; }, 0); });
+  box.addEventListener('click', event => {
+    event.preventDefault();
+    if (box.dataset.dragged) return;
+    const dot = event.target.closest('.lk-time-dot'), lane = event.target.closest('.lk-time-lane');
+    if (lane) { const i = Number(lane.dataset.lane); S.timeLane = S.timeLane === i ? null : i; render(); return; }
+    if (dot) {
+      const day = Number(dot.dataset.day), p = S.timePick;
+      S.timePick = p && day >= p[0] && day <= p[1] ? null : T.week(day);
+      if (S.line) { S.mode = 'line'; S.lineAt = Number(dot.dataset.i); }
+      render(); return;
+    }
+    if (!S.line) setLine(1);
+  });
 }
 // The line opens, folds, or lays its lanes out, growing or shrinking where it stands so the rows glide.
 function setLine(mode) {
@@ -793,7 +763,7 @@ function treeOf(doc, g, next, groups) {
       if (c.head) box.append(el(doc, 'span', { class: 'fd-th' }, c.head));
       const at = next();
       const lit = S.mode === 'choices' && at === S.choiceAt;
-      box.append(el(doc, 'button', { class: 'fd-c' + (c.depth ? '' : ' fd-top') + (lit ? ' fd-lit' : ''), type: 'button', 'data-c': at, style: `--fd-depth: ${Math.max(0, c.depth - 1)}`, title: c.label.length > 30 ? c.label : null, click: () => c.pick() }, short(c.label, 30), el(doc, 'span', { class: 'fd-nb' }, String(c.count))));
+      box.append(el(doc, 'button', { class: 'fd-c lk-view' + (c.depth ? '' : ' fd-top') + (lit ? ' fd-lit' : ''), type: 'button', 'data-c': at, style: `--fd-depth: ${Math.max(0, c.depth - 1)}`, title: c.label.length > 30 ? c.label : null, click: () => c.pick() }, short(c.label, 30), el(doc, 'span', { class: 'fd-nb' }, String(c.count))));
     }
     tree.append(box);
   }
@@ -959,6 +929,8 @@ function onKey(event) {
   if (k === 'Escape') {
     take();
     if (S.dug.length) { const last = S.dug[S.dug.length - 1]; toggleDig({ uuid: last }); return; }
+    if (S.timeLane != null) { S.timeLane = null; render(); return; }
+    if (S.timePick) { S.timePick = null; render(); return; }
     if (S.mode === 'line' || S.line) { setLine(0); return; }
     if (S.mode === 'choices') { S.mode = 'rows'; render(); return; }
     close(); return;

@@ -138,19 +138,7 @@ const twoWayCss = `
    each month starts and its name under it; the line in the words' column (after the days' column), 6px in at both ends so no
    dot meets its end; with lanes, each lane's name right-aligned before the line, in the days' column. A picked span a wash.
    What it shows is chosen in the list's View menu (Timeline). A drag across it picks days. */
-.th-two-way .th-tw-yearline { position: relative; height: calc(var(--lanes, 1) * 18px + 16px); margin: 4px 0 8px var(--th-tw-in); --th-tw-yname: 0px; }   /* starts at the bullets' left edge (the owner, 10 November 2026: "to the edge of where bullets go") */
-.th-two-way .th-tw-yearline.th-tw-ylaned { --th-tw-yname: 6.5rem; }   /* room for a lane name and its count, such as "Weight loss 2" */
-.th-two-way .th-tw-ytrack { position: absolute; inset: 0 0 0 var(--th-tw-yname); cursor: crosshair; user-select: none; }
-.th-two-way .th-tw-yrule { position: absolute; left: 0; right: 0; top: calc(var(--lane) * 18px + 9px); height: 1px; background: var(--lk-line); pointer-events: none; }
-.th-two-way .th-tw-ydot { all: unset; position: absolute; top: calc(var(--lane, 0) * 18px + 6px); width: 7px; height: 7px; margin-left: -3.5px; border-radius: 50%; background: var(--lk-quiet); cursor: pointer; }
-.th-two-way .th-tw-ydot:hover, .th-two-way .th-tw-ydot:focus-visible { background: var(--lk-text, currentColor); box-shadow: 0 0 0 3px var(--lk-wash); }
-.th-two-way .th-tw-ydot.th-tw-yoff, .th-two-way .th-tw-ylane.th-tw-yoff { opacity: .3; }
-.th-two-way .th-tw-ylane { all: unset; position: absolute; left: 0; top: calc(var(--lane) * 18px + 1px); max-width: calc(var(--th-tw-yname) - 6px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--lk-label); line-height: 16px; color: var(--lk-quiet); cursor: pointer; }
-.th-two-way .th-tw-ylane:hover, .th-two-way .th-tw-ylane.on { color: var(--lk-text, currentColor); }
-.th-two-way .th-tw-ycount { color: var(--lk-quiet); opacity: .7; }
-.th-two-way .th-tw-ymonth { position: absolute; bottom: 0; font-size: var(--lk-label); line-height: 14px; color: var(--lk-quiet); transform: translateX(-50%); pointer-events: none; }
-.th-two-way .th-tw-ymonth::before { content: ""; position: absolute; left: 50%; top: -10px; height: 8px; border-left: 1px solid var(--lk-line); }
-.th-two-way .th-tw-yband { position: absolute; top: 0; bottom: 14px; background: var(--lk-wash); border-radius: 3px; pointer-events: none; }
+.th-two-way .th-tw-yearline { margin: 4px 0 8px var(--th-tw-in); }   /* the library's timeline (lk-time), here only its place: from the bullets' left edge (the owner, 10 November 2026: "to the edge of where bullets go") */
 /* The keyboard walk (N14): the name the keyboard is on reads with its underline and the line's wash. */
 .th-two-way a.th-tw-record:focus-visible { outline: none; text-decoration-color: currentColor !important; background: var(--lk-wash); border-radius: 3px; }
 /* Compare (N4): the two in a card, one property to a line; what differs in the text colour, what is the same quiet. */
@@ -408,9 +396,7 @@ const twoWayCss = `
 .th-two-way .th-tw-value[data-dated] { --th-tw-words: calc(32px + 3 * var(--th-ol-gap) + var(--th-ol-day)); }
 .th-two-way .th-tw-crumb .lk-step { font-size: inherit; }
 .th-two-way .th-tw-raise { display: flex; flex-wrap: wrap; column-gap: 1.1em; align-items: baseline; margin: 0 0 .2rem var(--th-tw-words); font-size: 14px; line-height: 1.5; }
-.th-two-way .th-tw-npvalue { all: unset; cursor: pointer; border-radius: 3px; }
-.th-two-way .th-tw-npvalue.th-faint { color: var(--lk-quiet); }
-.th-two-way .th-tw-npvalue:hover, .th-two-way .th-tw-npvalue:focus-visible { text-decoration: underline; text-decoration-color: var(--lk-line); text-underline-offset: 3px; }
+.th-two-way .th-tw-npvalue { all: unset; cursor: pointer; border-radius: 3px; }   /* the library's value (lk-value: pressed to change, quiet under the pointer, faint when empty); here only the button's reset */
 .th-two-way .th-ol-pname[data-edit] { cursor: pointer; }
 .th-two-way .th-ol-kids .th-ol-prop > .th-ol-pv { cursor: text; }   /* the value's area is where a value is changed, as in Logseq */
 .th-two-way .th-ol-kids .th-ol-prop > .th-ol-pv :is(a, button, .th-chev, .lk-bul) { cursor: pointer; }

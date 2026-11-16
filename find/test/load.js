@@ -390,9 +390,9 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
     assert.deepEqual(text('.fd-r .fd-day'), ['Sep 14', 'Sep 1', 'Oct 7', 'Aug 20'], 'September\'s two rows, then the near ones');
     assert.deepEqual(text('.fd-near'), ['Near'], 'under their head');
     assert.ok([...doc.querySelectorAll('.fd-r')].slice(2).every(r => r.previousElementSibling), 'after the rows found');
-    const svg = doc.querySelector('.fd-line svg');
-    assert.ok(svg && svg.querySelector('.fd-band') && svg.querySelectorAll('.fd-dot').length === 2 && svg.querySelectorAll('.fd-hollow').length === 2, 'the year line: a band for September, two dots, two hollow');
-    assert.deepEqual([...svg.querySelectorAll('text')].map(t => t.textContent).slice(0, 3), ['Jan', '2026', 'Feb'], 'the months named, the year above January');
+    const svg = doc.querySelector('.fd-line .lk-time');   // the library's timeline (16 November 2026), the one Linked draws
+    assert.ok(svg && svg.querySelector('.lk-time-band') && svg.querySelectorAll('.lk-time-dot:not(.near)').length === 2 && svg.querySelectorAll('.lk-time-dot.near').length === 2, 'the timeline: a band for September, two dots, two hollow');
+    assert.deepEqual([svg.querySelector('.lk-time-year').textContent, ...[...svg.querySelectorAll('.lk-time-month')].map(t => t.textContent).slice(0, 2)], ['2026', 'Aug', 'Sep'], 'from the first item\'s month, the months named, the year once');
     assert.ok(!text('.fd-ck').includes('When'), 'with a time said, the months are not offered');
     await type('Consultation around September 2026'); await settle();
     assert.deepEqual(text('.fd-r .fd-day'), ['Oct 7', 'Sep 14', 'Sep 1', 'Aug 20'], 'around September reaches August and October');
@@ -400,37 +400,42 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
     await type('Consultation from August to September 2026'); await settle();
     assert.deepEqual(text('.fd-mirror .fd-note'), ['kind', 'when'], 'a period is read as the time');
     assert.deepEqual(text('.fd-r .fd-day'), ['Sep 14', 'Sep 1', 'Aug 20', 'Oct 7'], 'August to September: three rows, October near');
-    assert.ok(doc.querySelector('.fd-line svg .fd-band') && doc.querySelectorAll('.fd-line svg .fd-dot').length === 3, 'the band spans the two months, three dots in it');
+    assert.ok(doc.querySelector('.fd-line .lk-time-band') && doc.querySelectorAll('.fd-line .lk-time-dot:not(.near)').length === 3, 'the band spans the two months, three dots in it');
+    // As on Linked's (16 November 2026): a dot narrows the rows to its week, Escape lets go.
+    { const before = text('.fd-r .fd-day');
+      doc.querySelector('.fd-line .lk-time-dot[data-day="20260914"]').dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true })); await settle();
+      assert.deepEqual(text('.fd-r .fd-day').filter(d => !/Oct/.test(d)), ['Sep 14'], 'a dot narrows the rows to its week: ' + text('.fd-r .fd-day'));
+      await key('Escape'); await settle(); assert.deepEqual(text('.fd-r .fd-day'), before, 'Escape lets go of the week'); }
     // The line opened (the owner, 5 November 2026, from timeline-mockup.html: "looks good build it"): Up from the first line of
     // choices grows it in place; each day a column, the dots piled; the newest ringed and named; Left and Right walk them; Down
     // digs under the line; Up lays the lanes out; Escape closes what was dug, then folds the line.
-    { const S = Find.window.state, line = () => doc.querySelector('.fd-line svg');
+    { const S = Find.window.state, line = () => doc.querySelector('.fd-line .lk-time'), lineH = () => String(S.lineH);
       const groupOfFirst = () => !doc.querySelector('.fd-ch:first-child .fd-lit, .fd-ch:first-child .fd-more.fd-lit');   // true until the lit choice is on the first line
       await type('Consultation from August to October 2026'); await settle();
-      assert.equal(line().getAttribute('height'), '52', 'the strip, before');
+      assert.equal(lineH(), '52', 'the strip, before');
       assert.ok(doc.querySelectorAll('.fd-c').length > 0, 'lines of choices stand between the line and the rows');
       await key('ArrowUp'); assert.equal(S.mode, 'choices', 'Up from the first row steps into the choices');
       while (S.mode === 'choices' && groupOfFirst()) await key('ArrowUp');
       assert.ok(text('.fd-foot').join(' ').includes('the line'), 'the foot offers the line from the first line of choices');
-      await key('ArrowUp'); assert.deepEqual([S.mode, S.line, line().getAttribute('height')], ['line', 1, '148'], 'Up from the first line of choices opens the line to its full height');
-      assert.equal(dlg.style.height, 308 + 12 * 32 + 96 + 'px', 'the window grows by what the line grew');
-      assert.deepEqual([line().querySelectorAll('.fd-dot').length, line().querySelectorAll('.fd-hollow').length, line().querySelectorAll('.fd-ring').length], [4, 0, 1], 'the four dots, the cursor\'s ringed');
+      await key('ArrowUp'); assert.deepEqual([S.mode, S.line, lineH(), !!line().classList.contains('lk-time-tall')], ['line', 1, '94', true], 'Up from the first line of choices opens the line taller, the dots piled');
+      assert.equal(dlg.style.height, 308 + 12 * 32 + 42 + 'px', 'the window grows by what the line grew');
+      assert.deepEqual([line().querySelectorAll('.lk-time-dot:not(.near)').length, line().querySelectorAll('.lk-time-dot.near').length, line().querySelectorAll('.lk-time-dot.at').length], [4, 0, 1], 'the four dots, the cursor\'s ringed');
       assert.equal(S.lineDots[S.lineAt].node.day, 20261007, 'the cursor starts on the newest dot found');
-      const name = doc.querySelector('.fd-line .fd-name');
-      assert.ok(name && !name.hidden && name.textContent.startsWith('Oct 7') && name.querySelector('.lk-day'), 'the dot named beside it, day first in the margin\'s grey');
+      const name = doc.querySelector('.fd-line .lk-time-name');
+      assert.ok(name && name.textContent.startsWith('Oct 7') && name.querySelector('.lk-day'), 'the dot named beside it, day first in the margin\'s grey');
       assert.deepEqual(text('.fd-foot .fd-k'), ['Enter', 'Shift Enter', '↓', '↑', 'Escape'], 'the foot: open, in the sidebar, dig, lanes, fold');
       await key('ArrowLeft'); assert.equal(S.lineDots[S.lineAt].node.day, 20260914, 'Left walks to the dot before');
-      assert.ok(doc.querySelector('.fd-line .fd-name').textContent.startsWith('Sep 14'), 'and names it');
+      assert.ok(doc.querySelector('.fd-line .lk-time-name').textContent.startsWith('Sep 14'), 'and names it');
       await key('ArrowDown'); await settle();
       assert.ok(S.lineDug && doc.querySelector('.fd-body > .fd-kids') && doc.querySelector('.fd-body').firstElementChild.classList.contains('fd-kids'), 'Down digs the dot\'s node: its box under the line, before the choices');
       assert.equal(S.mode, 'line', 'the cursor stays on the dot');
       assert.ok(text('.fd-foot').join(' ').includes('into it'), 'Down would step into it');
       await key('ArrowDown'); assert.deepEqual([S.mode, S.rowAt], ['rows', 0], 'Down again steps the cursor into what opened');
       await key('Escape'); await settle(); assert.deepEqual([S.lineDug, S.dug.length, S.mode], [null, 0, 'line'], 'Escape closes what was dug and the cursor is back on the dot');
-      await key('ArrowUp'); assert.deepEqual([S.line, text('.fd-line .fd-lane'), text('.fd-line .fd-by .on')], [2, ['Dr. Mei Chen', 'Dr. Sofia Alvarez', 'others'], ['by Provider']], 'Up lays the lanes out: the first choice line\'s values, then the rest');
-      assert.equal(line().getAttribute('height'), String(24 + 3 * 44 + 28), 'a lane a value');
+      await key('ArrowUp'); assert.deepEqual([S.line, text('.fd-line .lk-time-lane').map(t => t.replace(/\s*\d*$/, '')), text('.fd-line .fd-by .on')], [2, ['Dr. Mei Chen', 'Dr. Sofia Alvarez', 'others'], ['by Provider']], 'Up lays the lanes out: the first choice line\'s values, then the rest');
+      assert.equal(lineH(), String(16 + 3 * 40 + 18), 'a lane a value');
       await key('ArrowUp'); assert.deepEqual([S.line, text('.fd-line .fd-by .on')], [1, ['one lane']], 'Up again gathers them');
-      await key('Escape'); assert.deepEqual([S.line, S.mode, line().getAttribute('height')], [0, 'rows', '52'], 'Escape folds the line to the strip');
+      await key('Escape'); assert.deepEqual([S.line, S.mode, lineH()], [0, 'rows', '52'], 'Escape folds the line to the strip');
       line().dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true })); assert.deepEqual([S.line, S.mode], [1, 'line'], 'a click on the strip opens it');
       await key('ArrowLeft'); await key('ArrowRight');
       opened.length = 0; await key('Enter'); assert.deepEqual([opened, !!doc.querySelector('dialog.fd')], [[U(S.lineDots[S.lineAt].node.id)], false], 'Enter opens the dot\'s node and the window closes');
@@ -450,7 +455,7 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
     assert.deepEqual(text('.fd-mirror .fd-note'), ['Provider'], 'the property most of them came through');
     assert.equal(doc.querySelectorAll('.fd-r').length, 3, 'her three consultations');
     assert.deepEqual(text('.fd-c'), ['Consultation3', 'Oct1', 'Sep2'], 'the kinds among them, and their months');
-    assert.ok(doc.querySelector('.fd-line svg .fd-dot'), 'the year line draws them');
+    assert.ok(doc.querySelector('.fd-line .lk-time-dot'), 'the timeline draws them');
     await type('Dr. Mei Chen tingling'); await settle();
     assert.equal(doc.querySelectorAll('.fd-r').length, 1, 'the other words narrow them');
     await key('Tab'); assert.equal(Find.window.state.mode, 'choices', 'with nothing lit, Tab steps into the choices'); await key('Tab'); await settle();
