@@ -127,8 +127,8 @@ const nodesById = (ids, idents) => !ids.length ? Promise.resolve([]) : dsQuery(`
 const aliasPairs = async () => (await dsQuery('[:find ?o ?a :where [?o :block/alias ?a]]').catch(() => [])).map(([o, a]) => [Number(o), Number(a)]);
 // The page Predictive keeps its lessons on (logseq/lessons.js) is not writing of yours: its lines are never learned from.
 const LESSONS_PAGE = 'predictive lessons';
-const plainLines = async () => (await dsQuery(`[:find ?b ?t :where [?b :block/page ?pg] [?b :block/title ?t] [(not= ?t "")] (not [?b :block/tags _]) (not [?b :logseq.property/deleted-at _]) (not [?pg :block/name "${LESSONS_PAGE}"])]`).catch(() => []))
-  .map(([id, title]) => ({ id: Number(id), title: String(title) }));
+const plainLines = async () => (await dsQuery(`[:find ?b ?t ?pg :where [?b :block/page ?pg] [?b :block/title ?t] [(not= ?t "")] (not [?b :block/tags _]) (not [?b :logseq.property/deleted-at _]) (not [?pg :block/name "${LESSONS_PAGE}"])]`).catch(() => []))
+  .map(([id, title, page]) => ({ id: Number(id), title: String(title), page: Number(page) }));
 // The journal days, by page; and each day's own title, which Logseq keeps when the date format changes (the pencil copies it).
 const dayTitles = new Map();
 const journalDays = async () => {
@@ -148,7 +148,8 @@ async function datedByTag(dateIdent) {
 // in the words goes to (core/propose.js, money).
 const rawEntry = (node, learned, known, numberProps = []) => {
   const tags = listOf(pick(node, 'block/tags')).map(idOf).filter(id => known.has(id));
-  return { id: idOf(node), title: String(pick(node, 'block/title') ?? ''), tags, values: new Map(learned.map(p => [p.ident, valuesOf(node, p.ident)]).filter(([, v]) => v.length)),
+  const page = idOf(pick(node, 'block/page'));
+  return { id: idOf(node), title: String(pick(node, 'block/title') ?? ''), tags, ...(page != null ? { page } : {}), values: new Map(learned.map(p => [p.ident, valuesOf(node, p.ident)]).filter(([, v]) => v.length)),
     numbers: numberProps.filter(p => valuesOf(node, p.ident).length).map(p => p.ident) };
 };
 
@@ -161,7 +162,7 @@ async function readContext({ limits = {}, locale, linkRates = true } = {}) {
   const [nodes, aliases, plain, days] = await Promise.all([taggedNodes(tagIds, [...learned, ...numberProps].map(p => p.ident)).catch(() => []), aliasPairs(), plainLines(), journalDays()]);
   const dated = new Map();
   for (const prop of schema.props.filter(isDateProp)) dated.set(prop.ident, await datedByTag(prop.ident));
-  const entries = [...plain.map(({ id, title }) => ({ id, title, tags: [], values: new Map() })), ...nodes.map(n => rawEntry(n, learned, known, numberProps))];
+  const entries = [...plain.map(({ id, title, page }) => ({ id, title, page, tags: [], values: new Map() })), ...nodes.map(n => rawEntry(n, learned, known, numberProps))];
   const ctx = buildContext({ schema, pages, aliases, userTagIds: tagIds, entries, days, dated, limits, locale });
   ctx.learned = learned; ctx.numberProps = numberProps; ctx.readAt = Date.now(); ctx.dayTitles = new Map(dayTitles);
   if (linkRates) ctx.linkLines = await countLinks(pages);

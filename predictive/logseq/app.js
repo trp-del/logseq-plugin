@@ -27,7 +27,7 @@ async function allowed() {
 // hand-written lines the graph had not seen the twin of (README): careful 2 right of 45, balanced 9, eager 14, one wrong tag in each of the last two.
 // The vote's limits and the profile's gap (core/engine.js DEFAULT_LIMITS) for each eagerness; README, "How readily a tag is suggested".
 // modelTag: whether Apple's model may pencil a tag where the rules found none (Option-T asks it whatever the setting).
-const TAG_EAGERNESS = { careful: { tagNearLeast: .6, tagLead: .7, tagGap: 4, modelTag: false }, balanced: { tagNearLeast: .3, tagLead: .7, tagGap: 3, modelTag: true }, eager: { tagNearLeast: .25, tagLead: .6, tagGap: 2, modelTag: true } };
+const TAG_EAGERNESS = { careful: { tagNearLeast: .6, tagLead: .7, tagGap: 6, modelTag: false }, balanced: { tagNearLeast: .3, tagLead: .7, tagGap: 5, modelTag: true }, eager: { tagNearLeast: .25, tagLead: .6, tagGap: 4, modelTag: true } };
 const tagLimits = () => TAG_EAGERNESS[setting('tagEagerness')] || TAG_EAGERNESS.balanced;
 // What was tuned for the graph (properties), then the eagerness the setting asks for (tags): the tuner judges tags on the graph's own lines,
 // which have twins in them, so it is too strict for lines written afresh.

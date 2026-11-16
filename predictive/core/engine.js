@@ -16,7 +16,7 @@ const { WORD } = text;
 // "Tune to this graph" command) finds the numbers that fit another.
 // tagGap: when the vote finds no near-twin, the lead in log-odds a tag's word profile needs over the runner-up (core/profile.js;
 // 0 turns the profile off). profileLeast: the fewest bullet lines a tag needs to have a profile. profileAlpha: its smoothing.
-const DEFAULT_LIMITS = Object.freeze({ k: 5, nearLeast: .3, lead: .7, stem: true, tagNearLeast: .6, tagLead: .7, tagLeast: 1, tagLinks: false, tagGap: 3, profileLeast: 10, profileAlpha: .25 });
+const DEFAULT_LIMITS = Object.freeze({ k: 5, nearLeast: .3, lead: .7, stem: true, tagNearLeast: .6, tagLead: .7, tagLeast: 1, tagLinks: false, tagGap: 5, profileLeast: 10, profileAlpha: .25 });
 
 // A light stem: a trailing s (not ss), ed or ing off words of five letters or more, so "flagged", "flagging" and
 // "flags" meet. Crude on purpose: it is the same on both sides, which is all the cosine needs. Other languages: set

@@ -30,6 +30,7 @@ const names = need('names');
 const datesLib = need('dates');
 const { shownWords, linkIdsIn, profileOf } = need('context');
 const { profileTag } = need('profile');
+const tagScoreLib = (typeof require === 'function' && typeof module !== 'undefined') ? require('./tag-score.js') : window.Flow.tagScore;
 const { dayNumber } = need('dates');
 
 const valuesOf = (node, ident) => node?.values?.get(ident) || [];
@@ -171,19 +172,10 @@ const tellingWords = (ctx, text) => engine.tokensOf(shownWords(text, ctx), [], [
 const enoughForTag = (ctx, text) => tellingWords(ctx, text) >= (ctx.limits?.tagWordsLeast ?? TAG_WORDS_LEAST);
 function tagFor(ctx, b, text) {
   if (!ctx.index || !enoughForTag(ctx, text)) return null;
-  const { links } = inWords(text, ctx);
-  const tokens = engine.tokensOf(shownWords(text, ctx), ctx.limits.tagLinks === false ? [] : links.map(p => p.id), [], ctx.limits);
-  if (tokens.length < 2) return null;
-  const near = engine.neighbours(ctx.index, tokens, { k: ctx.limits.k, skip: new Set([b.id]), keep: entry => entry.values.get('block/tags')?.length > 0 });
-  const voted = engine.vote(near, 'block/tags', { nearLeast: ctx.limits.tagNearLeast, lead: ctx.limits.tagLead, least: ctx.limits.tagLeast });
-  const known = id => { const page = ctx.byId.get(id); return page?.isTag && page.uuid && ctx.knownTags.has(page.id) ? page : null; };
-  if (voted && voted.ids.length === 1 && voted.ids[0] !== 0) {
-    const page = known(voted.ids[0]);
-    return page ? { ...page, from: examplesFor(ctx, near, 'block/tags', voted.ids), by: 'vote' } : null;
-  }
-  const sounded = profileTag(profileOf(ctx), tokens, ctx.limits.tagGap, { skip: b.id });
-  const page = sounded && known(sounded.id);
-  return page ? { ...page, from: examplesFor(ctx, near, 'block/tags', [sounded.id]), by: 'profile' } : null;
+  // The vote, the word profiles and the context clues together, sure or silent (core/tag-score.js).
+  const got = tagScoreLib.guess(ctx, b, text);
+  const page = got && ctx.byId.get(got.id);
+  return page ? { ...page, from: examplesFor(ctx, got.near, 'block/tags', [got.id]), by: got.by, why: got.why } : null;
 }
 // The earlier bullets behind a vote, for saying why: the two nearest that held what was voted, as words, each once.
 function examplesFor(ctx, near, ident, ids) {
@@ -232,10 +224,15 @@ function propose(ctx, b, assume = null) {
 
   // No tag, and no record above: the tag of the nodes it looks like, with the properties it brings, all guesses.
   if (!fields.length) {
-    const tag = allTags.length || assume ? null : tagFor(ctx, b, text);
+    const fresh = allTags.length || assume ? null : tagFor(ctx, b, text);
+    // Steady (core/tag-score.js): with the bullet's state, a shown tag stays while the words go on, and another replaces it only
+    // at two pauses running. Fewer than enough words again (the words taken back): nothing held.
+    const held = b.tagState && !(allTags.length || assume);
+    if (held && !enoughForTag(ctx, text)) Object.assign(b.tagState, { shown: null, pending: null, n: 0 });
+    const tag = held && enoughForTag(ctx, text) ? tagScoreLib.steady(b.tagState, fresh, id => tagScoreLib.leadOf(ctx, b, text, id), ctx.limits.tagHold ?? 4) : fresh;
     if (!tag) return { record, pieces };
     const assumed = propose(ctx, { ...b, tags: [...b.tags, tag.id] }, tag);
-    const tagPiece = { ident: 'block/tags', prop: { ident: 'block/tags', title: 'Tags', lower: 'tags', type: 'tag', many: true, classes: [] }, kind: 'tag', ids: [tag.id], tag, shown: `#${tag.title}`, how: 'alike-tag', from: tag.from, guess: true };
+    const tagPiece = { ident: 'block/tags', prop: { ident: 'block/tags', title: 'Tags', lower: 'tags', type: 'tag', many: true, classes: [] }, kind: 'tag', ids: [tag.id], tag, shown: `#${tag.title}`, how: 'alike-tag', from: tag.from, why: tag.why, guess: true };
     return { record: b, pieces: [tagPiece, ...assumed.pieces.map(piece => ({ ...piece, guess: true, needsTag: true }))], assume: tag };
   }
 

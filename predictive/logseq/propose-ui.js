@@ -130,7 +130,14 @@ function fillGhost(g, piece) {
   const doc = g.ownerDocument;
   if (piece.kind === 'tag') {   // a tag reads as a class: its name, no #, in Look's shared tag look (lk-tag)
     const title = piece.tag?.title || String(piece.shown).replace(/^#/, '');
+    // Beside the tag, the short reason for it (core/tag-score.js: "like 6 earlier lines", "words “mouth”, “stings”").
+    const why = piece.why || '';
     if (g.dataset.flowWords !== title) { crossFade(g); g.dataset.flowWords = title; g.replaceChildren(Object.assign(doc.createElement('span'), { className: 'flow-tag lk-tag', textContent: title })); }
+    if (g.dataset.flowWhy !== why) {
+      g.dataset.flowWhy = why;
+      g.querySelector('.flow-why')?.remove();
+      if (why && !g.classList.contains('flow-taken')) g.append(Object.assign(doc.createElement('span'), { className: 'flow-why lk-note', textContent: why }));
+    }
     return;
   }
   const words = piece.kind === 'tag' ? '' : piece.shown, tagTitle = piece.kind === 'tag' ? piece.tag?.title || String(piece.shown).replace(/^#/, '') : piece.tagPage?.tag.title || piece.newPage?.tag.title || '';
@@ -328,7 +335,9 @@ async function compute(box) {
   const now = editingBox(host().activeElement);
   if (!now || uuidOf(now) !== uuid) return;
   if (!block) { S.live = null; return hide(); }
-  const bullet = db.bulletOf(block, words, ctx.schema), result = propose.propose(ctx, bullet), { record } = result;
+  // The tag shown on this bullet is held while it is written (core/tag-score.js steady), so it does not come and go between pauses.
+  if (S.tagHeld?.uuid !== uuid) S.tagHeld = { uuid, state: {} };
+  const bullet = { ...db.bulletOf(block, words, ctx.schema), tagState: S.tagHeld.state }, result = propose.propose(ctx, bullet), { record } = result;
   const refused = S.refused.get(String(record.uuid || '')), open = p => !refused?.has(guessKey(p));
   const rules = result.pieces.filter(open).filter((p, i, kept) => !p.needsTag || kept.some(q => q.kind === 'tag'));
   // Apple's tools (logseq/apple.js: the matcher, the name finder, then the model), for what the rules left open: what is in for
@@ -440,7 +449,9 @@ async function takeShadow(live) {
   // A tag typed in the words must be on the bullet as saved (Enter just before a typed tag moves the tag to the next bullet).
   const savedTags = new Set((db.pick(block, 'block/tags') || []).map(db.idOf));
   if (propose.inWords(live.text, ctx).tags.some(tag => !savedTags.has(tag))) return lost('the tag typed in the words is not on the bullet');
-  const { record, pieces: found } = propose.propose(ctx, db.bulletOf(block, db.pick(block, 'block/title'), ctx.schema));
+  // The tag that was on screen stands for the saved words too (a copy of what was held, so leaving moves nothing).
+  const shownTag = live.pieces.find(p => p.kind === 'tag')?.tag;
+  const { record, pieces: found } = propose.propose(ctx, { ...db.bulletOf(block, db.pick(block, 'block/title'), ctx.schema), tagState: { shown: shownTag || null } });
   const recordUuid = String(record.uuid || ''), refused = S.refused.get(recordUuid);
   // The guesses of Apple's tools go with them, for the words they were given (the rules do not ask them again here).
   const again = byLessons(ctx, record, Flow.model.merge(found, live.model?.words === (live.boxText ?? live.text) ? live.model.pieces : []));
@@ -679,7 +690,9 @@ const css = `
 .flow-ghost { white-space: nowrap; opacity: 1; transition: opacity ${window.PluginDoor.timing('pencil')}, color ${window.PluginDoor.timing('pencil')}; }
 @starting-style { .flow-ghost { opacity: 0; } }
 /* A proposed tag, at the right end of the bullet's line where Logseq draws its tags. */
-.flow-tag-ghost { white-space: nowrap; padding-right: 4px; }   /* the room Logseq's tag keeps after its name, so it stands where that tag will */
+.flow-tag-ghost { white-space: nowrap; padding-right: 4px; }
+/* The reason beside a guessed tag: Look's quiet note, in the body's face, out of the pencil's dotted line. */
+.flow-tag-ghost .flow-why { display: inline-block; margin-left: .6em; font-family: var(--ls-font-family, inherit) !important; text-decoration: none !important; }   /* the room Logseq's tag keeps after its name, so it stands where that tag will */
 /* Taken (clicked, or on its way in): it reads as the value will once written, over the pencil's look, so when Logseq's own value
    takes its place nothing changes: plain words, and a node's name with the link's faint underline (Look's lk-node). */
 .flow-ghost.flow-taken, .flow-ghost > .flow-name.flow-taken { color: inherit !important; font-style: normal !important; text-decoration: none !important; }

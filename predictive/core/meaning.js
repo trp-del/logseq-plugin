@@ -121,7 +121,7 @@ function openProps(ctx, b, result) {
     && !done.has(prop.ident) && !quiet.has(prop.ident) && !(b.values?.get(prop.ident) || []).length);
 }
 
-const tagPiece = (tag, from) => ({ ident: 'block/tags', prop: { ident: 'block/tags', title: 'Tags', lower: 'tags', type: 'tag', many: true, classes: [] }, kind: 'tag', ids: [tag.id], tag, shown: `#${tag.title}`, how: 'meaning', from, guess: true });
+const tagPiece = (tag, from) => ({ ident: 'block/tags', prop: { ident: 'block/tags', title: 'Tags', lower: 'tags', type: 'tag', many: true, classes: [] }, kind: 'tag', ids: [tag.id], tag, shown: `#${tag.title}`, how: 'meaning', from, why: 'like earlier lines in meaning', guess: true });
 
 function pieces(ctx, b, result, near) {
   if (!near?.length || !result) return [];

@@ -240,7 +240,7 @@ function pieces(ctx, req, reply) {
   // The tag: pencilled as the rules pencil theirs, with the properties it brings as guesses.
   const tag = tagOf(req, reply);
   if (tag) {
-    const tagPiece = { ident: 'block/tags', prop: { ident: 'block/tags', title: 'Tags', lower: 'tags', type: 'tag', many: true, classes: [] }, kind: 'tag', ids: [tag.id], tag, shown: `#${tag.title}`, how: 'model', guess: true };
+    const tagPiece = { ident: 'block/tags', prop: { ident: 'block/tags', title: 'Tags', lower: 'tags', type: 'tag', many: true, classes: [] }, kind: 'tag', ids: [tag.id], tag, shown: `#${tag.title}`, how: 'model', why: 'read by Apple’s model', guess: true };
     const assumed = proposeLib.propose(ctx, { ...req.bullet, tags: [...req.bullet.tags, tag.id] }, tag);
     return [tagPiece, ...assumed.pieces.map(piece => ({ ...piece, guess: true, needsTag: true }))];
   }

@@ -99,6 +99,21 @@ function onKey(event) {
 }
 const MODIFIER_ONLY = event => MODIFIERS.has(event.key);
 
+/* Hyper alone (16 November 2026, the owner): Cmd, Control, Option and Shift held together and let go with no other key between, on a
+   bullet with no tag guess showing, opens the same list as the key above. Taken on the first of the four let go, so it is quick. Hyper
+   is only modifiers, so nothing is typed and the cursor stays mid-word; Look's key sheet answers Option alone, never Hyper. */
+let hyper = false;
+const allFour = event => event.metaKey && event.ctrlKey && event.altKey && event.shiftKey;
+function onHyper(event) {
+  if (event.type === 'keydown') { hyper = MODIFIER_ONLY(event) ? hyper || allFour(event) : false; return; }
+  if (!hyper || !MODIFIER_ONLY(event)) return;
+  hyper = false;
+  if (open || !setting('proposalsTagHyper') || !app.isBlockBox(event.target)) return;
+  const row = event.target.closest('.ls-block');
+  if (row?.querySelector('.flow-tag-ghost')) return;   // a tag guess is showing: Enter takes it, Hyper leaves it be
+  show(event.target).catch(error => warnOnce('the tags could not be worked out', error));
+}
+
 // A click on a row picks it; the press is held back so the bullet keeps the keyboard.
 function onPress(event) {
   const row = event.target?.closest?.('.flow-pick-row');
@@ -119,6 +134,8 @@ function start() {
   app.sendStyle('flow-tag-pick', css);
   const win = host().defaultView;
   app.listen(win, ['keydown'], onKey, true);
+  app.listen(win, ['keydown', 'keyup'], onHyper, true);
+  app.listen(win, ['blur'], () => { hyper = false; }, false);
   app.listen(win, ['pointerdown', 'mousedown', 'mouseup', 'click'], onPress, true);
   app.listen(win, ['scroll', 'resize', 'focusout'], () => { if (open) close(); }, true);
   app.onStop(close);
