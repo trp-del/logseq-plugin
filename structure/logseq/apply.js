@@ -24,6 +24,17 @@ const idOf = h => h.realId ?? h.id;
 // A page or tag made at Apply, deleted by Undo only while untouched since.
 const unmake = async uuid => { if (!await db.untouched(uuid)) return 'kept'; await db.deleteTag(uuid); };
 
+/* A bullet's words with its links to one tag pointed elsewhere (16 November 2026, step 2 of the tag upkeep plan: until then a merge
+   left every link to the merged tag written in a bullet pointing at a tag that no longer was). to: the tag the links go to, or null
+   (a removal: the name stays as plain words). A tag is handed to Logseq by its name, #Name or #[[Two words]], since #[[uuid]]
+   written by a plugin makes a new tag named by the id; a link keeps its [[uuid]] form, which Logseq reads right. */
+const tagWord = title => /^[^\s\[\]#,()"']+$/.test(title) ? '#' + title : `#[[${title}]]`;
+function relink(words, oldUuid, oldTitle, to) {
+  const id = String(oldUuid).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return String(words)
+    .replace(new RegExp(`#\\[\\[${id}\\]\\]`, 'gi'), to ? tagWord(to.title) : oldTitle)
+    .replace(new RegExp(`\\[\\[${id}\\]\\]`, 'gi'), to ? `[[${to.uuid}]]` : oldTitle);
+}
 // The inverses, by name. c is the record: c.h(key) gives a handle as it is now (a tag put back has its new uuid).
 const INV = {
   unmake: (x, c) => unmake(x.h ? live(c.h(x.h)) : x.uuid),
@@ -41,6 +52,8 @@ const INV = {
   setValues: (x, c) => { const h = c.h(x.h); live(h); return db.setValues(x.node, x.ident, [...new Set(x.ids.map(v => v === x.oldId ? idOf(h) : v))]); },
   remake: async (x, c) => { const h = c.h(x.h); if (!await db.tagIdByUuid(h.uuid)) { const made = await db.remakeTag(x.title); h.uuid = made.uuid; h.realId = made.id; } h.gone = false; },
   putValues: (x, c) => db.putValues(x.node, x.ident, x.list),
+  // The words as they were, the links pointing at the tag put back (its uuid and name now); guarded, so words written since stay.
+  wordsBack: async (x, c) => { const h = c.h(x.h); live(h); const title = (await db.titleOf(h.uuid)) || h.title; return db.setWords(x.node, relink(x.words, x.oldUuid, title, { uuid: h.uuid, title })); },
   bulletsBack: async (x, c) => { const into = new Set(await db.pageBullets(live(c.h(x.into)))); const back = x.moving.filter(u => into.has(u)); if (back.length) await db.moveBullets(back, live(c.h(x.from))); },
 };
 /* A guard: what a node held under some properties, written back only while the node holds what Apply left. The stamp is taken
@@ -93,6 +106,14 @@ async function runStep(s, rec) {
         for (const ref of refs) { const ids = await db.valueIds(ref.uuid, ref.ident), g = rec.guard([[ref.uuid, ref.ident]]); add({ do: 'setValues', g, h: hk, node: ref.uuid, ident: ref.ident, ids, oldId }); each.push({ ref, ids, g }); }
         await ready();
         for (const { ref, ids, g } of each) { if (s.into) await db.setValues(ref.uuid, ref.ident, [...new Set(ids.map(v => v === oldId ? idOf(s.into) : v))]); await seal(rec, g); }
+      }
+      // Links to the tag written in bullets follow it to the kept tag (a merge), or become its name as plain words (a removal).
+      const worded = oldId > 0 ? await db.wordRefs(oldId, h.uuid) : [];
+      if (worded.length) {
+        const each = [];
+        for (const w of worded) { const g = rec.guard([[w.uuid, 'block/title']]); add({ do: 'wordsBack', g, h: hk, node: w.uuid, words: w.words, oldUuid: h.uuid }); each.push({ w, g }); }
+        await ready();
+        for (const { w, g } of each) { await db.setWords(w.uuid, relink(w.words, h.uuid, r.title, s.into ? { uuid: s.into.uuid, title: s.into.title } : null)); await seal(rec, g); }
       }
       // Run last first: the tag, then what it had, each its own inverse, so a failure resumes where it stopped.
       for (const p of r.ranges || []) add({ do: 'rangeBack', h: hk, prop: p.uuid });
@@ -181,5 +202,5 @@ async function apply(plan, here = async () => true, rec = S.records ? S.records.
   return { steps: at, undo: put, left, rec };
 }
 
-S.apply = { apply, runStep, putBack };
+S.apply = { apply, runStep, putBack, relink };
 })();

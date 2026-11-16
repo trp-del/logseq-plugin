@@ -127,7 +127,7 @@ const pair = S.changes.makeTray();
 pair.setBase({ tags: [{ id: 1, uuid: 'from', title: 'From', parents: [], props: [], bullets: 3, links: 12 }, { id: 2, uuid: 'kept', title: 'Kept', parents: [], props: [] }, { id: 3, uuid: 'kid', title: 'Kid', parents: [1], props: [] }, { id: 4, uuid: 'to', title: 'To', parents: [], props: [] }],
   props: [], nodes: { 1: [{ id: 10, uuid: 'both' }, { id: 11, uuid: 'one' }], 2: [{ id: 10, uuid: 'both' }] } });
 pair.stage({ kind: 'merge', from: 1, into: 2 });
-assert.equal(pair.lines()[0].text, 'Merge From into Kept, From removed · 3 bullets on its page move to Kept · 12 links become words');
+assert.equal(pair.lines()[0].text, 'Merge From into Kept, From removed · 3 bullets on its page move to Kept · 12 links in bullets point to Kept');
 deq(pair.plan().map(s => [s.op, s.node ?? s.tag?.title ?? s.from.title, s.parent?.title ?? s.tag?.title ?? s.into.title]), [['removeTag', 'both', 'From'], ['addTag', 'one', 'Kept'], ['removeTag', 'one', 'From'], ['addExtends', 'Kid', 'Kept'], ['removeExtends', 'Kid', 'From'], ['moveBullets', 'From', 'Kept'], ['deleteTag', 'From', 'From']]);
 assert.equal(pair.model.tags.get(2).nodeUuids.length, 2, 'a node held twice is one');
 pair.discard(); pair.stage({ kind: 'retag', from: 1, to: 2, nodes: [{ id: 10, uuid: 'both' }] });

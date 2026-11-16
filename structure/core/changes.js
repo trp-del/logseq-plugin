@@ -13,8 +13,9 @@ const name = (M, id) => tag(M, id)?.title ?? '?';
 
 // What goes with a tag's deletion for good, in the words the merge's sentence and the Apply's question share. A merge moves the
 // bullets on the tag's page to the kept tag's page (8 November 2026), so only a removal loses them.
-const losses = (t, merged) => [!merged && t?.bullets && (t.bullets === 1 ? '1 bullet on its page goes' : `${t.bullets} bullets on its page go`), t?.links && (t.links === 1 ? '1 link becomes words' : `${t.links} links become words`)].filter(Boolean);
-const moved = (M, c) => { const n = tag(M, c.from)?.bullets; return n ? [`${n === 1 ? '1 bullet on its page moves' : `${n} bullets on its page move`} to ${name(M, c.into)}`] : []; };
+// A merge carries the links written in bullets over to the kept tag (16 November 2026); a removal leaves the name as words.
+const losses = (t, merged) => [!merged && t?.bullets && (t.bullets === 1 ? '1 bullet on its page goes' : `${t.bullets} bullets on its page go`), !merged && t?.links && (t.links === 1 ? '1 link becomes words' : `${t.links} links become words`)].filter(Boolean);
+const moved = (M, c) => { const t = tag(M, c.from), n = t?.bullets, l = t?.links; return [n && `${n === 1 ? '1 bullet on its page moves' : `${n} bullets on its page move`} to ${name(M, c.into)}`, l && `${l === 1 ? '1 link in a bullet points' : `${l} links in bullets point`} to ${name(M, c.into)}`].filter(Boolean); };
 // A change Undo cannot put back whole: a tag with something on it deleted. Undo makes a new one; what is lost stays lost.
 function lasting(M, c) {
   const id = c.kind === 'merge' ? c.from : c.kind === 'remove' ? c.tag : null, t = id != null ? tag(M, id) : null;
@@ -167,8 +168,8 @@ function makeTray() {
   tray.discard = () => { tray.changes = []; tray.rebuild(); };
   tray.lines = () => tray.changes.map(c => ({ text: c.text, nodes: c.count }));
   tray.nodes = () => tray.lines().reduce((s, l) => s + l.nodes, 0);
-  // The links the waiting changes reach, and those that would not survive: a plain count before Apply. A merge or a removal turns the links in bullets' words to plain words; nothing else loses one.
-  tray.links = () => { const M = Mo.build(tray.raw || { tags: [], props: [] }), seen = new Set(); let kept = 0, lost = 0; for (const c of tray.changes) for (const id of [c.tag, c.from, c.into, c.to].flat().filter(x => typeof x === 'number' && tag(M, x))) { if (seen.has(id)) continue; seen.add(id); kept += Mo.linksOf(M, id); } for (const c of tray.changes) { const gone = c.kind === 'merge' ? c.from : c.kind === 'remove' ? c.tag : null; if (gone != null && tag(M, gone)) lost += tag(M, gone).links; } return { kept: Math.max(0, kept - lost), lost }; };
+  // The links the waiting changes reach, and those that would not survive: a plain count before Apply. A removal turns the links in bullets' words to plain words; a merge carries them to the kept tag; nothing else loses one.
+  tray.links = () => { const M = Mo.build(tray.raw || { tags: [], props: [] }), seen = new Set(); let kept = 0, lost = 0; for (const c of tray.changes) for (const id of [c.tag, c.from, c.into, c.to].flat().filter(x => typeof x === 'number' && tag(M, x))) { if (seen.has(id)) continue; seen.add(id); kept += Mo.linksOf(M, id); } for (const c of tray.changes) { const gone = c.kind === 'remove' ? c.tag : null; if (gone != null && tag(M, gone)) lost += tag(M, gone).links; } return { kept: Math.max(0, kept - lost), lost }; };
   tray.lasting = () => tray.changes.map(c => c.lasting).filter(Boolean);
   // The steps of every change, each computed on the model as it stands before that change (the tray's base, then each
   // change applied in turn), so names and parents are those the writer will find.

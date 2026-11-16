@@ -20,7 +20,7 @@ S.db = {
   choicesOf: async () => new Map(),
   uuidOfNode: async id => 'n' + id,
   putValues: async (node, ident, list) => { log.push(['put', node, ident, list.map(v => v.text ?? v.title)]); held.set(key(node, ident), list.map(v => v.text ?? v.title)); },
-  stamp: async (uuid, ident) => JSON.stringify(held.get(key(uuid, ident)) || []),
+  stamp: async (uuid, ident) => ident === 'block/title' ? JSON.stringify(words.get(uuid) ?? null) : JSON.stringify(held.get(key(uuid, ident)) || []),
   pageNamed: async name => ({ id: 900, made: 'page-' + name }),
   dayPage: async () => ({ id: 901 }),
   untouched: async uuid => !touched.has(uuid),
@@ -34,12 +34,16 @@ S.db = {
 const files = new Map();
 S.recordStore = { getItem: async k => files.get(k) ?? null, setItem: async (k, v) => { files.set(k, String(v)); }, removeItem: async k => { files.delete(k); } };
 // What a tag holds, for a merge: the nodes carrying each tag, the tags that exist.
-const tagged = new Map(), tags = new Map([['visit', 501], ['consult', 502]]);
+const words = new Map(), tagged = new Map(), tags = new Map([['visit', 501], ['consult', 502]]);
 Object.assign(S.db, {
   nodeUuids: async id => [...tagged].filter(([, set]) => [...set].some(u => tags.get(u) === id)).map(([n]) => n),
   addTag: async (node, uuid) => { tagged.set(node, new Set([...(tagged.get(node) || []), uuid])); },
   removeTag: async (node, uuid) => { const set = tagged.get(node); if (set) set.delete(uuid); },
   valueRefs: async () => [], valueIds: async () => [], setValues: async () => {},
+  // Bullets' words: uuid -> words; a link to a tag is [[uuid]], a tag written in words #[[uuid]].
+  wordRefs: async (id, uuid) => [...words].filter(([, w]) => w.includes(uuid)).map(([node, w]) => ({ uuid: node, words: w })),
+  setWords: async (node, w) => { words.set(node, w); },
+  titleOf: async uuid => uuid === 'visit-again' ? 'Visit' : null,
   tagIdByUuid: async uuid => tags.get(uuid) || null,
   remakeTag: async title => { const uuid = title.toLowerCase() + '-again'; tags.set(uuid, 600); return { uuid, id: 600 }; },
   addClassProp: async () => {}, removeExtends: async () => {}, rangeIds: async () => [], setRange: async () => {},
@@ -107,6 +111,22 @@ const { apply } = S.apply;
   assert.equal((await R.list(G))[0].state, 'undone', 'the Log says it was undone');
   console.log('  ok  a merge is undone from its record on disk, as after a restart');
 
+  // Links written in bullets follow the merge to the kept tag, and come back to the tag put back by Undo.
+  tags.set('visit', 501); tagged.set('n30', new Set(['visit']));
+  words.set('w1', 'Saw her today #[[visit]] about the cough'); words.set('w2', 'see [[visit]] notes'); words.set('w3', 'nothing here');
+  const visit2 = { id: 501, uuid: 'visit', title: 'Visit' };
+  const linkRec = R.make({ graph: G, text: 'Merge Visit into Consultation' });
+  await apply([{ op: 'deleteTag', tag: visit2, into: consult, restore: { title: 'Visit', parents: [], props: [], ranges: [] } }], async () => true, linkRec);
+  assert.equal(words.get('w1'), 'Saw her today #Consultation about the cough', 'a tag in words is handed over by name');
+  assert.equal(words.get('w2'), 'see [[consult]] notes', 'a link in words points at the kept tag');
+  assert.equal(words.get('w3'), 'nothing here');
+  words.set('w2', 'see [[consult]] notes, and more written since');
+  const linkBack = await R.load(G, (await R.list(G)).find(h => h.id === linkRec.id));
+  const kept = await S.apply.putBack(linkBack, async () => true);
+  assert.equal(words.get('w1'), 'Saw her today #Visit about the cough', 'Undo hands the tag put back over by its name');
+  assert.equal(words.get('w2'), 'see [[consult]] notes, and more written since', 'words written since the merge stay');
+  assert.equal(kept.kept, 1);
+  console.log('  ok  links written in bullets follow a merge, and Undo points them back');
 
   // Cut off: Logseq quits after the first step. The next start finds the record halfway and calls it cut; its Undo puts back.
   held.set(key('n20', 'from'), ['pale']);

@@ -148,6 +148,10 @@ async function tagOfPage(page) {
 }
 // Nodes holding a value that points at a page (a tag's own page, before it is deleted): the node and the property.
 const valueRefs = async pageId => (await query(`[:find ?u ?a :where [?b ?a ${pageId}] [?p :db/ident ?a] [?p :block/tags :logseq.class/Property] [(namespace ?a) ?ns] [(= ?ns "user.property")] [?b :block/uuid ?u]]`)).map(([u, a]) => ({ uuid: String(u), ident: bare(a) }));
+/* Bullets whose words link to a page (a tag's own page, before it is deleted), with their words as stored: Logseq keeps a link in a
+   bullet's words as [[uuid]] and a tag written in them as #[[uuid]]. Grounded on the link, so only those bullets are asked about. */
+const wordRefs = async (pageId, pageUuid) => /^[0-9a-f-]{36}$/i.test(pageUuid) ? (await query(`[:find ?u ?t :where [?b :block/refs ${pageId}] [?b :block/title ?t] [(clojure.string/includes? ?t "${pageUuid}")] [?b :block/uuid ?u]]`)).map(([u, t]) => ({ uuid: String(u), words: t })) : [];
+const setWords = (uuid, words) => window.PluginDoor.write.setWords(uuid, words);
 const valueIds = async (uuid, ident) => (await query(`[:find ?v :where [?b :block/uuid #uuid "${uuid}"] [?b :${ident} ?v]]`)).map(([v]) => v);
 const rangeIds = async propUuid => (await query(`[:find ?c :where [?p :block/uuid #uuid "${propUuid}"] [?p :${RANGE} ?c]]`)).map(([c]) => c);
 const setValues = (uuid, ident, ids) => window.PluginDoor.write.setValue(uuid, ident, ids.length === 1 ? ids[0] : ids, { entityId: true, reset: true });
@@ -213,10 +217,19 @@ async function moveBullets(uuids, pageUuid) {
     last = uuid;
   }
 }
+/* A copy of the whole graph before a big change, made by Logseq's own backup (16 November 2026, step 2 of the tag upkeep plan):
+   the same SQLite copy Logseq makes on its own each hour, into the graph's backup folder (~/logseq/graphs/<graph>/backup/),
+   which Logseq trims itself (six by the hour, six by the day). Asked for at once ("force"); answers whether it was made. */
+async function safetyCopy(graphName) {
+  const apis = window.parent?.apis;
+  if (!apis?.doAction || !graphName) return false;
+  const made = Promise.resolve(apis.doAction(['db-export', graphName, true])).then(() => true, error => { console.error('Structure: the safety copy was not made', error); return false; });
+  return Promise.race([made, new Promise(resolve => setTimeout(() => resolve(false), 30000))]);
+}
 const graph = async () => (await logseq.App.getCurrentGraph())?.name || '';
 const editing = () => Promise.resolve(logseq.Editor.checkEditing?.()).then(v => !!v).catch(() => false);
 
 // A journal day, or a page that shares a day's name (a tag made with a day's name): Structure sets nothing above it.
 const isDay = async uuid => /^[0-9a-f-]{36}$/i.test(uuid) && (await query(`[:find ?d :where [?p :block/uuid #uuid "${uuid}"] [?p :block/name ?n] [?j :block/name ?n] [?j :block/journal-day ?d]]`)).length > 0;
-S.db = { propValues, choicesOf, uuidOfNode, pageNamed, dayPage, putValues, query, read, isDay, nodesOf, valuesOf, nodesWhere, tagOfPage, tagIdByUuid, titleOf, nodeUuids, graph, valueRefs, valueIds, rangeIds, classPropIds, putClassProps, setValues, addExtends, removeExtends, rename, addTag, removeTag, addClassProp, removeClassProp, setRange, nameTaken, makeTag, remakeTag, deleteTag, untouched, stamp, pageBullets, moveBullets, editing, bare, pick, idOf };
+S.db = { safetyCopy, wordRefs, setWords, propValues, choicesOf, uuidOfNode, pageNamed, dayPage, putValues, query, read, isDay, nodesOf, valuesOf, nodesWhere, tagOfPage, tagIdByUuid, titleOf, nodeUuids, graph, valueRefs, valueIds, rangeIds, classPropIds, putClassProps, setValues, addExtends, removeExtends, rename, addTag, removeTag, addClassProp, removeClassProp, setRange, nameTaken, makeTag, remakeTag, deleteTag, untouched, stamp, pageBullets, moveBullets, editing, bare, pick, idOf };
 })();

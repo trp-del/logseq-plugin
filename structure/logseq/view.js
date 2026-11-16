@@ -286,7 +286,9 @@ const CSS = `
 .st-two { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; font-size: 14px; margin: 8px 0 6px; }
 .st-two .h { font-weight: 600; padding-bottom: 4px; display: flex; gap: 8px; align-items: baseline; color: var(--lk-text, #222); } .st-two .h .ct { font-weight: 400; color: var(--lk-quiet); font-size: var(--lk-small); }
 .st-two .pr { display: flex; gap: 8px; min-height: 24px; align-items: center; color: var(--lk-quiet); }   /* the name at the left of its column, "on both" at the right */
+.st-two .g { font-size: var(--lk-label); color: var(--lk-quiet); padding-top: 6px; }   /* a group's heading in a merge's columns: Child tags, Relationships */
 .st-two .pr .n { display: inline-flex; gap: 6px; align-items: center; min-width: 0; }
+.st-two .pr .n .to { font-family: var(--lk-tag-face, Georgia, serif); color: var(--lk-quiet); font-style: normal; }   /* the tag holding a relationship, as a tag reads (serif, quiet) */
 .st-two .pr .ct { font-size: var(--lk-small); color: var(--lk-quiet); margin-left: auto; white-space: nowrap; }
 .st-two .pr.moves, .st-two .pr.shared { color: var(--lk-text, #222); } .st-two .pr.gone { text-decoration: line-through; color: var(--lk-quiet); } .st-two .pr.new { font-style: italic; }
 .st .q { color: var(--lk-quiet); } .st .f { color: var(--lk-quiet); }
@@ -584,17 +586,33 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
   // A change that comes with its ask already (the × on a tag's own page): under the card's words, while what it names still holds.
   const changeAsk = () => { const c = st.ask?.change; return c && T(c.tag)?.parents.includes(c.from) ? c : null; };
   const changeAskHtml = id => changeAsk()?.tag === id ? askLine(changeAsk(), true) : '';
-  // A merge before it is staged, as the grammar shows a consequence: the two tags side by side, their properties lined up,
-  // what is shared, what moves to the kept tag and what the kept tag gains.
+  /* A merge before it is staged, as the grammar shows a consequence: the tag that goes, and the kept tag as the merge leaves it
+     (16 November 2026, step 3 of the tag upkeep plan: the kept column reads as the result, so nothing has to be added up in the
+     head). Each line once: a property, a child tag, a relationship (a property that points at the tag), each marked where it comes from ("on both",
+     "moves", "new"); the kept tag's count is its count after, with how many nodes had both. Links in bullets and the bullets on
+     its page are said under the columns, in the merge's own sentence. */
   function twoHtml(fromId, intoId) {
     const m = M(), from = T(fromId), into = T(intoId); if (!from || !into) return '';
-    if (!from.props.length && !into.props.length && !from.kids.length && !Mo.count(m, fromId) && !Mo.count(m, intoId)) return '';   // nothing to set side by side
-    const col = (t, other, gone) => `<div><div class="h">${esc(t.title)}<span class="ct">${[Mo.count(m, t.id) ? plural(Mo.count(m, t.id), 'node') : '', gone ? 'removed' : 'kept'].filter(Boolean).join(', ')}</span></div>` +
-      t.props.map(pid => { const shared = other.props.includes(pid); return `<div class="pr ${shared ? 'shared' : gone ? 'moves' : ''}"><span class="n">${pi(P(pid))}${esc(P(pid).title)}</span><span class="ct">${shared ? `on both` : gone ? 'moves' : ''}</span></div>`; }).join('') +
-      (!gone ? other.props.filter(pid => !t.props.includes(pid)).map(pid => `<div class="pr new"><span class="n">${pi(P(pid))}${esc(P(pid).title)}</span><span class="ct">new</span></div>`).join('') : '') +
-      (gone && t.kids.length ? `<div class="pr moves"><span class="n">${plural(t.kids.length, 'tag')} under it</span><span class="ct">move</span></div>` : '') +
-      `</div>`;
-    return `<div class="st-two">${col(from, into, true)}${col(into, from, false)}</div>`;
+    const pointing = id => [...m.props.values()].filter(p => p.range.includes(id)).map(p => p.id);
+    const fromAt = pointing(fromId), intoAt = pointing(intoId);
+    if (!from.props.length && !into.props.length && !from.kids.length && !fromAt.length && !Mo.count(m, fromId) && !Mo.count(m, intoId)) return '';   // nothing to set side by side
+    const own = new Set(into.nodeUuids || []), both = (from.nodeUuids || []).filter(u => own.has(u)).length;
+    const after = Mo.count(m, intoId) + Mo.count(m, fromId) - both;
+    const line = (cls, label, ct) => `<div class="pr ${cls}"><span class="n">${label}</span><span class="ct">${ct}</span></div>`;
+    const propLabel = pid => `${pi(P(pid))}${esc(P(pid).title)}`;
+    // A relationship as the map reads one (1 November 2026): the tag that holds the property, then the property.
+    const relLabel = pid => { const on = P(pid).on || []; return `${on.length ? `<span class="to">${esc(on.slice(0, 2).map(name).join(', '))}${on.length > 2 ? ` and ${on.length - 2} more` : ''}</span>` : ''}${propLabel(pid)}`; };
+    const group = (word, rows) => rows.length ? `<div class="g">${word}</div>${rows.join('')}` : '';
+    const gone = `<div><div class="h">${esc(from.title)}<span class="ct">${[Mo.count(m, fromId) ? plural(Mo.count(m, fromId), 'node') : '', 'removed'].filter(Boolean).join(', ')}</span></div>` +
+      from.props.map(pid => into.props.includes(pid) ? line('shared', propLabel(pid), 'on both') : line('moves', propLabel(pid), 'moves')).join('') +
+      group('Child tags', from.kids.map(k => line('moves', esc(name(k)), 'moves'))) +
+      group('Relationships', fromAt.map(pid => intoAt.includes(pid) ? line('shared', relLabel(pid), 'on both') : line('moves', relLabel(pid), 'moves'))) + `</div>`;
+    const kept = `<div><div class="h">${esc(into.title)} after<span class="ct">${[after ? plural(after, 'node') : '', both ? `${both} had both` : ''].filter(Boolean).join(', ')}</span></div>` +
+      into.props.map(pid => line(from.props.includes(pid) ? 'shared' : '', propLabel(pid), from.props.includes(pid) ? 'on both' : '')).join('') +
+      from.props.filter(pid => !into.props.includes(pid)).map(pid => line('new', propLabel(pid), 'new')).join('') +
+      group('Child tags', [...into.kids.map(k => line('', esc(name(k)), '')), ...from.kids.map(k => line('new', esc(name(k)), 'new'))]) +
+      group('Relationships', [...intoAt.map(pid => line(fromAt.includes(pid) ? 'shared' : '', relLabel(pid), fromAt.includes(pid) ? 'on both' : '')), ...fromAt.filter(pid => !intoAt.includes(pid)).map(pid => line('new', relLabel(pid), 'new'))]) + `</div>`;
+    return `<div class="st-two">${gone}${kept}</div>`;
   }
   /* Properties merged into one, before it is staged: the tag merge's ask, one for each property merged away. Two columns (the
      tags each is on, which move to the kept one), then what becomes of the values: their kind, what stays behind, and, where

@@ -87,9 +87,13 @@ const app = {
         // The record of this Apply, on this Mac before the first write: its Undo outlives Logseq (records.js).
         const lines = tray.lines(), rec = S.records.make({ graph, text: n === 1 && lines[0] ? lines[0].text : `${changesWord(n)} applied` });
         running.add(rec.id);
+        // A change that rewrites many nodes (a merge, a removal, a split, properties merged) first has Logseq copy the whole graph.
+        const big = plan.some(x => x.op === 'deleteTag' || x.op === 'moveValues') || plan.length > 20;
+        const uncopied = big && !await S.db.safetyCopy(graph);
         try {
           const result = await S.apply.apply(plan, here, rec);
           keepDone(graph, { text: `${changesWord(n)} applied`, undo: result.undo, left: result.left, graph, rec });
+          if (uncopied) notify('Applied, with its Undo, but Logseq’s copy of the graph could not be made first', 'warning');
           if (rec.lost) notify('Applied, but its Undo could not be kept on this Mac: it works until Logseq closes', 'warning');
           app.log(graph, lines, rec.id);
         } catch (error) { if (error.left?.()) app.log(graph, lines, rec.id); throw error; }   // what could not be put back stays on the Log's arrow too
