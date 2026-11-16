@@ -1,5 +1,5 @@
-/* What a folded node holds, after its words, small and grey: a circle with the number of unfinished tasks at any depth, and a
-   ticked circle with the number of done ones;
+/* What a folded node holds, after its words, small and grey: a circle with the number of unfinished tasks at any depth, or,
+   once some are done, done of all (1/2), the circle ticked when all are;
    then its pictures, quotes, PDFs and other files, each an icon with its number; then the tags of what is inside, the
    most used first, up to three, with no number on them; then the nearest due day of a task, or "was due" once it has
    passed. A ↳ leads it (the owner, 2026-10-29, bringing back the arrow of the original). Shown only while folded. */
@@ -34,8 +34,9 @@ const fileCount = (held, kind) => (held.files || []).find(([k]) => k === kind)?.
 const some = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 function wordsFor(held) {
   const words = [];
-  if (held.task) words.push(`${some(held.task, 'unfinished task', 'unfinished tasks')} under it`);
-  if (held.done) words.push(`${some(held.done, 'done task', 'done tasks')}`);
+  // Done of all, "1/2" (the owner, 16 November 2026: "do a x/2"); with none done, the unfinished count alone, as before.
+  if (held.done) words.push(`${held.done} of ${some(held.task + held.done, 'task', 'tasks')} under it done`);
+  else if (held.task) words.push(`${some(held.task, 'unfinished task', 'unfinished tasks')} under it`);
   if (fileCount(held, 'image')) words.push(some(fileCount(held, 'image'), 'picture', 'pictures'));
   if (held.quotes) words.push(some(held.quotes, 'quote', 'quotes'));
   if (fileCount(held, 'pdf')) words.push(some(fileCount(held, 'pdf'), 'PDF', 'PDFs'));
@@ -47,8 +48,9 @@ function wordsFor(held) {
 function build(doc, held) {
   const parts = [el(doc, 'span', { class: 'lk-lead', 'aria-hidden': 'true' }, '↳')];
   const pair = (name, n) => parts.push(el(doc, 'span', { class: 'lk-pair' }, el(doc, 'span', { html: iconHtml(name) }), el(doc, 'span', {}, String(n))));
-  if (held.task) pair('circle', held.task);
-  if (held.done) pair('circle-check', held.done);
+  // A ticked circle once every one is done, else the open circle.
+  if (held.done) pair(held.task ? 'circle' : 'circle-check', `${held.done}/${held.task + held.done}`);
+  else if (held.task) pair('circle', held.task);
   if (fileCount(held, 'image')) pair('photo', fileCount(held, 'image'));
   // A quote is the same mark as a quote's bullet (style.js), not an icon.
   if (held.quotes) parts.push(el(doc, 'span', { class: 'lk-pair' }, el(doc, 'span', { class: 'lk-quote' }, '\u201C'), el(doc, 'span', {}, String(held.quotes))));
