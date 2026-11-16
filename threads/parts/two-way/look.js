@@ -369,6 +369,7 @@ const twoWayCss = `
 /* A task's circle, Logseq's own, before its words as in Logseq (8 November 2026): drawn whole by the door (lk-status, the same
    circle as Todo's); here only the gap after it, the gap Logseq leaves. On the first line of words that wrap. */
 .th-two-way .th-task { margin-right: 6px; }
+.th-two-way .th-ol-name .th-task { margin: 0 2px 0 1px; }   /* a linked task's circle inside the words, as near its link as Logseq draws it */
 .th-two-way .th-ol-body > .th-pencil, .th-two-way .th-ol-body > .th-tw-could { margin-left: 8px; }
 .th-two-way .th-tw-could { display: inline-flex; align-items: baseline; }
 /* No underline at rest in this section, under the pointer the firm one (the owner, 1 November 2026: long names, each underlined in full, striped it). */

@@ -479,6 +479,20 @@ function daysFrom(dated, written) {
    Logseq's Status holds, looked up in statusChoices, so its name and icon are always Logseq's own. */
 const STATUS = '[?b :logseq.property/status ?s]';
 const statusOf = rows => new Map(rows.map(([b, s]) => [b, Number(s) || 0]));
+/* The tasks a node's words link to ([[uuid]] of a node with a status), each with the name its link reads as (readableTitle,
+   flatName) and its status, so a line draws Logseq's circle before such a link as Logseq does (16 November 2026, the owner:
+   "Paid [[bill today]]" lost its circle in Mentioned in). */
+async function refTasks(text) {
+  const keys = [...new Set([...String(text || '').matchAll(storedRef)].filter(([, open]) => open === '[[').map(([, , uuid]) => uuid.toLowerCase()))];
+  if (!keys.length) return [];
+  const rows = await dsQuery(`[:find ?u ?s :where [(ground [${keys.map(u => `#uuid "${u}"`).join(' ')}]) [?u ...]] [?b :block/uuid ?u] ${STATUS}]`).catch(() => []);
+  if (!rows.length) return [];
+  const found = await titlesOf(rows.map(([u]) => String(u).toLowerCase()));
+  return Promise.all(rows.map(async ([u, st]) => {
+    const uuid = String(u).toLowerCase(), title = found.get(uuid)?.title || '';
+    return { uuid, status: Number(st) || 0, name: flatName(await readableTitle(title, { depth: 1 }).catch(() => title)) };
+  }));
+}
 // The values Logseq's Status can take, with their names and icons, read afresh: the door's (PluginDoor.statusChoices), one reading for Threads and Todo.
 const statusChoices = () => window.PluginDoor.statusChoices(dsQuery);
 async function linksInto(id) {
@@ -1116,7 +1130,7 @@ function provide(core) {
     propSchema, propPages, nodeBlocks, fieldsOf, fits, kindOfPage, tagChain, tagChains, tagChainIndex, parseDay, dayNumber, sameDay, dayAfter, DAYS,
     tagGraph, propInfo, ownProps, inheritedProps, tagPropIds, acceptedIds, choicesOf, choiceUse, choiceCounts, choiceNodes, idByUuid,
     descriptionOf, titleNow, valuesOf, userValues, mergeFacts, TAG_PROPS, ACCEPTS, DESCRIPTION,
-    linksInto, linkCount, mentionsInto, duesOn, pageHasList, createdAt, firstTags, nodesOfTag, nodeLines, nodeFields, nodeValues, firstLines, pagesAmong, tagUuidNamed, uuidById,
+    linksInto, linkCount, mentionsInto, refTasks, duesOn, pageHasList, createdAt, firstTags, nodesOfTag, nodeLines, nodeFields, nodeValues, firstLines, pagesAmong, tagUuidNamed, uuidById,
     hasTag, pageLines, registerCommand,
     propTextValues, propTextBlocks, propValueBlocks, propNamed, propUses, structureUse, propNodeIds, choiceIds, crumbsInto, heldBelow, withKids, linkRates, linkRatesOf, journalIdFor, CHECKED_WITH, PAGE_TITLE, screenChecks, pageTitles, titleAnchor });
 }

@@ -39,9 +39,36 @@ async function peekData(uuid, field) {
 }
 // A line's words with its links open: [[Page]] as Page, [words]([[Page]]) as words, each opening the page; a web address, bare
 // or as [words](address), with ↗ after it, opening the browser (the door's webParts and urlHtml, as every module draws one).
+// The words are read as Logseq writes them (DB Export's reader, window.DbExport.inline, one reader for the plugin): line breaks,
+// **bold**, *italic*, ~~struck~~, ==marked==, `code` drawn as such; a linked task with Logseq's circle before it (state.refTasks).
 function lineHtml(text, limit = 140) {
   const short = text.length > limit ? text.slice(0, limit - 1) + '…' : text;
-  return window.PluginDoor.webParts(short).map(part => part.url ? window.PluginDoor.urlHtml(part.url, esc(part.text)) : pageLinksHtml(part.text)).join('');
+  const inline = window.DbExport?.inline;
+  if (!inline) return window.PluginDoor.webParts(short).map(part => part.url ? window.PluginDoor.urlHtml(part.url, esc(part.text)) : pageLinksHtml(part.text)).join('');
+  const go = list => list.map(tok => {
+    switch (tok.t) {
+      case 'text': return esc(tok.s);
+      case 'br': return '<br>';
+      case 'code': return `<code class="th-code">${esc(tok.s)}</code>`;
+      case 'strong': return `<strong>${go(tok.k)}</strong>`;
+      case 'em': return `<em>${go(tok.k)}</em>`;
+      case 'strike': return `<s>${go(tok.k)}</s>`;
+      case 'mark': return `<mark class="th-mark">${go(tok.k)}</mark>`;
+      case 'math': return esc(tok.s);
+      case 'link': return window.PluginDoor.urlHtml(tok.url, go(tok.k));
+      case 'page': return pageHtml(tok.name, tok.k ? go(tok.k) : esc(tok.name));
+      case 'tag': return esc('#' + tok.name);
+      case 'cite': return `(${go(tok.k)}${tok.page ? `, p. ${esc(tok.page)}` : ''})`;
+      case 'image': return esc(tok.alt || '');
+      default: return '';
+    }
+  }).join('');
+  return go(inline.parse(short)).replace(/ +(<br>)/g, '$1');
+}
+function pageHtml(page, words) {
+  const task = state.refTasks?.get(page.toLowerCase()), circle = task ? twoWay.taskHtml(task) : '';
+  // The page's own name reads plain on its page (C1, 7 November 2026): the title already says it, and it would open where you are.
+  return circle + (state.ownNames?.has(page.toLowerCase()) ? words : `<span class="th-tw-peek-open lk-node" data-open-page="${esc(page)}">${words}</span>`);
 }
 function pageLinksHtml(short) {
   let html = '', at = 0;

@@ -112,6 +112,7 @@ const CSS = `
 .fd-sign .lk-sign svg { width: 14px; height: 14px; display: block; }
 .fd-nm { display: flex; align-items: baseline; gap: 7px; min-width: 0; flex-wrap: wrap; }
 .fd-nm .fd-w { min-width: 0; cursor: pointer; }
+.fd-nm .fd-task.fd-in { margin: 0 2px 0 1px; }   /* a linked task's circle inside the words, as near its link as Logseq draws it */
 .fd-nm .fd-task { margin-right: 6px; }   /* in the words' own line, 6px before them, as Threads: a separate piece of the wrapping row, a long line dropped under it (16 November 2026) */
 .fd-nm .fd-w b { font-weight: 600; }
 .fd-nm .lk-node { cursor: pointer; }
@@ -578,9 +579,9 @@ function render() {
     const w = el(doc, 'span', { class: 'fd-w' + (node.isPage ? ' lk-node' + (named ? ' lk-bare' : '') : ''), ...(node.isPage ? { 'data-uuid': node.uuid } : {}) });
     if (node.isPage) w.innerHTML = markWords(esc(node.text), ws);
     else for (const part of node.parts) {
+      if (part.uuid && part.status) { const c = circle(doc, { uuid: part.uuid, status: part.status, text: part.text }); if (c) { c.classList.add('fd-in'); w.append(c); } }
       if (part.uuid) w.append(el(doc, 'span', { class: 'lk-node', 'data-uuid': part.uuid, html: markWords(esc(part.text), ws), click: event => { event.stopPropagation(); openPage(part.uuid, event.shiftKey); close(); } }));
-      // A web address in the words is a link out, ↗ after it; a press opens the browser (the door's webParts, urlHtml).
-      else w.append(el(doc, 'span', { html: window.PluginDoor.webParts(part.text).map(p => p.url ? window.PluginDoor.urlHtml(p.url, markWords(esc(p.text), ws)) : markWords(esc(p.text), ws)).join('') }));
+      else w.append(el(doc, 'span', { html: writtenHtml(part.text, ws) }));
     }
     w.addEventListener('click', event => { event.stopPropagation(); openPage(node.uuid, event.shiftKey); close(); });
     // The circle stands inside the words, so a long line wraps beside it and never drops under it.
@@ -805,6 +806,33 @@ function commandRow(doc, r, i, on) {
   return row;
 }
 // The letters typed, in bold where they occur in the words (in the escaped text only).
+/* Words as written (16 November 2026, the owner: "show the bullet and md preview like it was written"): line breaks, **bold**,
+   *italic*, ~~struck~~, ==marked== and `code` drawn by DB Export's reader (window.DbExport.inline, as Linked's lines); a web address
+   is a link out with ↗ after it (the door's webParts, urlHtml). */
+function writtenHtml(text, ws) {
+  const Door = window.PluginDoor, inline = window.DbExport?.inline;
+  const plain = t => Door.webParts(t).map(p => p.url ? Door.urlHtml(p.url, markWords(esc(p.text), ws)) : markWords(esc(p.text), ws)).join('');
+  if (!inline) return plain(text);
+  const go = list => list.map(tok => {
+    switch (tok.t) {
+      case 'text': return plain(tok.s);
+      case 'br': return '<br>';
+      case 'code': return `<code>${esc(tok.s)}</code>`;
+      case 'strong': return `<strong>${go(tok.k)}</strong>`;
+      case 'em': return `<em>${go(tok.k)}</em>`;
+      case 'strike': return `<s>${go(tok.k)}</s>`;
+      case 'mark': return `<mark>${go(tok.k)}</mark>`;
+      case 'math': return esc(tok.s);
+      case 'link': return Door.urlHtml(tok.url, go(tok.k));
+      case 'page': return tok.k ? go(tok.k) : markWords(esc(tok.name), ws);
+      case 'tag': return markWords(esc('#' + tok.name), ws);
+      case 'cite': return `(${go(tok.k)}${tok.page ? `, p. ${esc(tok.page)}` : ''})`;
+      case 'image': return esc(tok.alt || '');
+      default: return '';
+    }
+  }).join('');
+  return go(inline.parse(text)).replace(/ +(<br>)/g, '$1');
+}
 function markWords(html, ws) {
   if (!ws.length) return html;
   const pattern = new RegExp('(' + ws.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')', 'gi');

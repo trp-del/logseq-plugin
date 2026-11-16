@@ -324,6 +324,8 @@ async function wordsOf(stored) { return plainWords(await linkedWordsOf(stored));
 async function linkedWordsOf(stored) {
   let title = stored;
   try { title = await provided.readableTitle(title); } catch { /* the stored words, then */ }
+  // A linked task keeps its circle before the link (lineHtml reads state.refTasks by the name the link reads as).
+  try { for (const t of await provided.refTasks?.(stored) || []) if (t.name) state.refTasks.set(t.name.toLowerCase(), t); } catch { /* no circles, then */ }
   return String(title).replace(/\s+#(?:\[\[[^\]]*\]\]|[^\s#\[\]]+)/g, '').trim();
 }
 const plainWords = words => String(words).replace(/\[([^\[\]]+)\]\((?:\[\[[^\]]*\]\]|https?:\/\/[^\s)]+)\)/g, '$1').replace(/\[\[([^\]]+)\]\]/g, '$1').trim() || 'Untitled';
@@ -558,7 +560,9 @@ async function ownNamesOf(id, redraw = true) {
   if (added && redraw) { state.html = null; draw(host()); }
 }
 // A name's words: a wikilink in them is underlined and opens its page, a web address the browser, as in a bullet's words; the name itself, its own click.
-const nameWords = item => item.words && /\[\[|https?:\/\//.test(item.words) ? twoWay.lineHtml(item.words, Infinity) : esc(item.title);
+// As written (16 November 2026, the owner: "show the bullet and md preview like it was written"): its line breaks, bold, italic,
+// struck, marked and code drawn (lineHtml), not the marks themselves.
+const nameWords = item => item.words && (window.DbExport?.inline || /\[\[|https?:\/\//.test(item.words)) ? twoWay.lineHtml(item.words, Infinity) : esc(item.title);
 /* A task's circle (8 November 2026, the owner: "threads should be able to show tasks status circles"): Logseq's own, before
    the words as Logseq draws it after a task's bullet. Its name and icon are the ones Logseq keeps on the status value, read with
    the rows (statusChoices), so a status renamed, added or given another icon in Logseq shows so here (9 November 2026, the owner:
@@ -567,6 +571,7 @@ const nameWords = item => item.words && /\[\[|https?:\/\//.test(item.words) ? tw
    make the status circle interactive"): every status in Logseq's order, the one in force ticked, and Clear; what is picked is
    written with the faded Undo arrow (setStatus). */
 state.statuses = new Map();
+state.refTasks = new Map();   // a linked task's name (lower case) → { uuid, status }, for its circle in a line
 const readStatuses = async () => { if (!provided.statusChoices) return; const list = await provided.statusChoices().catch(error => { warnOnce('could not read the statuses', error); return null; }); if (list) state.statuses = new Map(list.map(s => [s.id, s])); };
 // The circle's icon, Logseq's own as the door draws it (PluginDoor.statusIconHtml), so Threads and Todo draw one circle.
 const statusIconHtml = icon => window.PluginDoor.statusIconHtml(icon, host());
@@ -575,6 +580,7 @@ const taskHtml = item => { const s = state.statuses.get(item.status); if (!s) re
 function statusEverywhere(uuid, status) {
   for (const g of state.groups) for (const item of g.items) if (item.uuid === uuid) item.status = status;
   for (const data of state.node.values()) for (const g of data.rows || []) for (const item of g.items) if (item.uuid === uuid) item.status = status;
+  for (const t of state.refTasks.values()) if (t.uuid === uuid) t.status = status;
   for (const data of state.node.values()) for (const line of data.bullets || []) if (line.uuid === uuid) line.status = status;
   state.html = null; draw(host());
 }

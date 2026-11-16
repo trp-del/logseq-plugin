@@ -153,13 +153,16 @@ async function resolveNames(list) {
   for (const n of list) for (const m of n.raw.matchAll(REF)) refs.add(refOf(m));
   const names = new Map();
   if (refs.size) for (const [u, t] of await query(`[:find ?u ?t :where ${uuidsIn('?u', refs)} [?r :block/uuid ?u] [?r :block/title ?t]]`)) names.set(String(u).toLowerCase(), String(t));
+  // A linked task keeps Logseq's circle before its link (16 November 2026, the owner: "Paid [[bill today]]" lost its circle).
+  const statuses = new Map();
+  if (refs.size) for (const [u, st] of await query(`[:find ?u ?s :where ${uuidsIn('?u', refs)} [?r :block/uuid ?u] [?r :logseq.property/status ?s]]`).catch(() => [])) statuses.set(String(u).toLowerCase(), Number(st) || 0);
   for (const n of list) {
     const parts = [];
     let at = 0;
     for (const m of n.raw.matchAll(REF)) {
       if (m.index > at) parts.push({ text: n.raw.slice(at, m.index) });
       const uuid = refOf(m);
-      parts.push({ text: m[1] ?? (names.get(uuid) || '…'), uuid });
+      parts.push({ text: m[1] ?? (names.get(uuid) || '…'), uuid, status: statuses.get(uuid) || 0 });
       at = m.index + m[0].length;
     }
     if (at < n.raw.length) parts.push({ text: n.raw.slice(at) });
