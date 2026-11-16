@@ -21,6 +21,8 @@ const schema = [
     description: 'Logseq’s search window as the plugin’s window: one ground, a fine edge, one shadow; no grey bands, no boxes round icons, no blue ring round the row you are on, no tip at the foot.' },
   { key: 'calmMenus', type: 'boolean', looks: ['Logseq’s', 'One fine edge'], default: true, title: 'Menus and dialogs',
     description: 'Logseq’s menus, pop-ups, Settings and dialogs with one fine edge and one shadow, tighter rows, a soft wash on the row you are on; in Settings, the dark buttons on a soft grey.' },
+  { key: 'hiddenItems', type: 'string', default: '', title: 'Hidden items', list: { hint: 'an item’s name', group: true, unit: 'hidden' },
+    description: 'Items of Logseq’s you don’t use, kept off the screen: a row of a right-click or ··· menu, of the / menu, a command in the search window, a toolbar button, a left-sidebar item. Right-click one of them in Logseq and choose Hide; the × after a name here brings it back. Only the screen changes: no note and no setting of Logseq’s is touched, and a hidden command’s key still works.' },
   { key: 'linksHeading', type: 'heading', default: null, title: 'Links', place: 'page', description: 'What a link looks like.' },
   { key: 'quietLinks', type: 'boolean', looks: ['Blue', 'Underlined'], default: true, title: 'Page links',
     description: 'A link to a page, or to a file in the graph such as a PDF, is the text colour with a faint line under it, firmer while you point at it, instead of blue; a PDF has “PDF” after its name, small and grey; a web address has a grey ↗ after it: in a bullet’s words, in a property’s value, in Logseq’s tables and in the Linked references.' },

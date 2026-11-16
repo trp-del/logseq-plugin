@@ -87,6 +87,7 @@ const STYLE = `.sw-dialog { position: fixed !important; top: 50% !important; lef
 .sw-more { margin-top: 20px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; color: var(--lk-quiet); }
 .sw-field { min-width: 6em; }   /* the Pressing set's field (input.lk-value): a hairline only while it has the keyboard */
 .sw-field.sw-wide { width: min(100%, 30em); }
+.sw-grouped { display: block !important; } .sw-grouped .lk-group { padding: 12px 0 4px; } .sw-grouped input { margin-top: 14px; }
 .sw-words { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; color: var(--lk-text); }
 .sw-drop { margin-left: 1px; }
 .sw-css { width: 100%; max-width: 46em; min-height: 6em; box-sizing: border-box; font: 13px/1.5 var(--lk-mono, monospace); border: 1px solid var(--lk-hair); border-radius: 6px; padding: 8px; background: none; color: inherit; resize: vertical; outline: none; }
@@ -164,6 +165,15 @@ function shownRows() {
 
 // What a setting is set to, in the words its choices are named by.
 const listWords = value => String(value ?? '').split(/[;\n]/).map(word => word.trim()).filter(Boolean);
+/* A list whose words are filed by where (list.group: "Where: name", the hidden items): one heading for each where, in the order first met,
+   each name shown without it. Any other list is one group of its words as they are. */
+const listGroups = (item, value) => {
+  const words = listWords(value);
+  if (!item.list?.group) return [['', words.map(word => [word, word])]];
+  const by = new Map();
+  for (const word of words) { const at = word.indexOf(': '), where = at < 0 ? '' : word.slice(0, at); if (!by.has(where)) by.set(where, []); by.get(where).push([word, at < 0 ? word : word.slice(at + 2)]); }
+  return [...by];
+};
 const capital = word => word.charAt(0).toUpperCase() + word.slice(1);
 function choices(item) {
   if (item.type === 'boolean') { const [off, on] = item.looks || ['Off', 'On']; return [[false, off], [true, on]]; }
@@ -175,7 +185,7 @@ function nowWords(item) {
   const value = read(item), found = choices(item)?.find(([v]) => JSON.stringify(v) === JSON.stringify(value));
   if (found) return found[1];
   if (item.keys) return keyWords(value) || 'none';
-  if (item.list) return listWords(value).length ? `${listWords(value).length} set` : 'none';
+  if (item.list) return listWords(value).length ? `${listWords(value).length} ${item.list.unit || 'set'}` : 'none';
   if (item.inputAs === 'textarea') return String(value).trim() ? 'your rules' : 'none';
   return String(value ?? '').trim() || 'none';
 }
@@ -224,7 +234,7 @@ function paneHtml() {
     const offer = names[item.key]?.length ? `<datalist id="sw-offer-${key}">${names[item.key].map(name => `<option value="${esc(name)}"></option>`).join('')}</datalist>` : '';
     const pic = picture(row, value);
     body = (pic ? `<div class="sw-looks">${look(value, listWords(value).length ? 'As you listed' : 'Nothing listed', pic, true, true)}</div>` : '')
-      + `<div class="sw-more"><span class="sw-words">${listWords(value).map(word => `<span>${esc(word)}<button type="button" class="sw-drop lk-x" data-key="${key}" data-word="${esc(word)}" aria-label="Take out ${esc(word)}">×</button></span>`).join('')}</span><input class="sw-field lk-value sw-wide" id="sw-${key}" data-add="${key}" placeholder="${esc(item.list.hint || 'add')}, then Return" list="sw-offer-${key}" spellcheck="false" autocomplete="off">${offer}</div>`;
+      + `<div class="sw-more${item.list.group ? ' sw-grouped' : ''}">${listGroups(item, value).map(([where, list]) => (where ? `<div class="lk-group">${esc(where)}</div>` : '') + `<span class="sw-words">${list.map(([word, shown]) => `<span>${esc(shown)}<button type="button" class="sw-drop lk-x" data-key="${key}" data-word="${esc(word)}" aria-label="Take out ${esc(shown)}">×</button></span>`).join('')}</span>`).join('')}<input class="sw-field lk-value sw-wide" id="sw-${key}" data-add="${key}" placeholder="${esc(item.list.hint || 'add')}, then Return" list="sw-offer-${key}" spellcheck="false" autocomplete="off">${offer}</div>`;
   } else if (item.inputAs === 'textarea') {
     const pic = picture(row, value);
     body = (pic ? `<div class="sw-looks">${look(value, String(value).trim() ? 'With your rules' : 'No rules of your own', pic, true, true)}</div>` : '')
