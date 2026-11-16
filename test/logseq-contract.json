@@ -1,6 +1,6 @@
 {
  "checkedWith": "2.0.2",
- "acceptedOn": "2026-11-16",
+ "acceptedOn": "2026-11-17",
  "api": [
   "App.getCurrentGraph",
   "App.getCurrentGraphRecent",
@@ -67,6 +67,7 @@
  ],
  "classes": [
   "absolute-modal",
+  "ac-block-search",
   "block-below",
   "block-children-container",
   "block-children-left-border",
@@ -152,6 +153,7 @@
   "ui__dropdown-menu-item",
   "ui__dropdown-menu-sub-trigger",
   "ui__icon",
+  "ui__popover-content",
   "ui__toast-close"
  ],
  "attributes": [
@@ -220,6 +222,7 @@
   "external-link",
   "favorite-item",
   "font-bold",
+  "h-6",
   "hash-symbol",
   "hints",
   "inner",
@@ -261,6 +264,7 @@
   "sticky-columns",
   "table-block-title",
   "thumb",
+  "time-spent",
   "toolbar-plugins-manager",
   "typed-list",
   "ui__button",

@@ -246,6 +246,22 @@ const pathChoice = () => {
    list stands outside the page's blocks and is Threads' to hide where its rows replace it. */
 const twoWay = `
 #main-content-container .ls-page-blocks .ls-block :is(.ls-bidirectional-properties, .ls-bidirectional-block-container) { display: none !important; }`;
+/* An embedded node or page (16 November 2026, the owner: "change the bullet icon of embedded node, remove the number on the
+   right side that shows links"). Logseq marks an embed with an arrow where the dot stands; here a small hollow ring in the dot's
+   grey (the owner picked it, "completely hollow with a ring"), its middle the page's own ground, in the grey circle too while folded. An icon given to the node itself stays.
+   The count of links at the right end of its row goes: the embed is itself one of them, so it says nothing there. */
+const EMBED_ROW = '.embed-block > .block-main-container';
+const EMBED_ARROW = `${EMBED_ROW} > .block-control-wrap .bullet-container .ls-icon-arrow-narrow-right`;
+const embeds = `
+${AREA} ${EMBED_ARROW} { display: flex; align-items: center; justify-content: center; width: 16px; height: 16px; }
+${AREA} ${EMBED_ARROW} svg { display: none; }
+${AREA} ${EMBED_ARROW}::before { content: ""; display: block; box-sizing: border-box; width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--ls-block-bullet-color, currentColor); background: var(--ls-primary-background-color, transparent); }
+${AREA} .ls-block:has(.editor-inner) > ${EMBED_ARROW}::before { border-color: var(--lk-text); }
+${AREA} ${EMBED_ROW} .block-content-wrapper > .h-6:has(> button > span.text-sm) { display: none; }`;
+/* The time a task was worked on ("3m", "8d"), which Logseq puts at the right end of a task's row (16 November 2026, the owner:
+   "remove the time for tasks in the nodes"). Logseq still keeps it; only the screen leaves it out. */
+const taskTime = `
+${AREA} .block-content-inner > .time-spent { display: none; }`;
 function apply() {
   style('links', setting('quietLinks') ? links : '');
   style('days', setting('quietDays') ? days : '');
@@ -261,6 +277,8 @@ function apply() {
   style('quote-bullets', setting('quoteBullets') ? quoteBullets : '');
   style('quote-pages', setting('quotePages') ? quotePageCss : '');
   watchQuotePages();
+  style('embeds', setting('embedBullets') ? embeds : '');
+  style('task-time', setting('hideTaskTime') ? taskTime : '');
   const path = pathChoice();
   style('branch', path === 'Lit' ? branch : path === 'Lines' ? guides : '');
 }

@@ -124,7 +124,7 @@ const { U, load, pencilled } = standIn;
     Look.calm.stop();
     assert.deepEqual(selectors(), was, 'Look stopping gives the rule back');
     own.remove(); }
-  assert.equal(rowsOf('The outline').join(), 'outlinePath,focusGlide', 'The outline holds the way to the bullet you edit, and focusing in and out');
+  assert.equal(rowsOf('The outline').join(), 'outlinePath,focusGlide,embedBullets,hideTaskTime', 'The outline holds the way to the bullet you edit, focusing in and out, embedded nodes and the time on a task');
   assert.equal(rowsOf('The key sheet').join(), 'keySheet', 'The key sheet, under Keys, holds its switch');
   assert.equal(rowsOf('Folded nodes').join(), 'foldedNote', 'Folded nodes holds only what a folded node says');
   for (const key of ['propertyIcons', 'propertyNameTips', 'quietAddProperty', 'hideDatePencil', 'hideTwoWayList']) assert.ok(rowsOf('Properties').includes(key), key + ' under Properties');

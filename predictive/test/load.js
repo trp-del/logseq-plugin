@@ -282,6 +282,14 @@ for (const file of order) vm.runInContext(fs.readFileSync(path.join(root, file),
       assert.equal(offer('  ', []), null); assert.equal(offer('fatigue', [{ lower: 'fatigue' }]), null, 'a name that is listed is not offered again'); }
     assert.ok(slash.includes('Cite'), '/Cite is registered once'); assert.equal(slash.length, 1);
     console.log('  ok  /Cite finds a source and words the citation'); }
+  { const { marksAt } = Flow.embedHere, box = (value, at = value.length) => ({ value, selectionStart: at, selectionEnd: at });
+    assert.equal(marksAt(box('<<'), '<<'), 0, 'at the start of a bullet');
+    assert.equal(marksAt(box('Saw the plan <<'), '<<'), 13, 'after a space');
+    assert.equal(marksAt(box('a<<'), '<<'), -1, 'inside a word it stays words');
+    assert.equal(marksAt(box('see `x <<'), '<<'), -1, 'inside code it stays words');
+    assert.equal(marksAt(box('<< then', 2), '<<'), 0, 'the cursor right after the marks');
+    assert.equal(marksAt(box('<'), '<<'), -1, 'one mark is not the trigger');
+    console.log('  ok  << opens Logseq\'s Node embed only where it is meant'); }
   { const { nameIn, canName } = Flow.pageHere;
     assert.equal(nameIn('  Cycle 4 plan '), 'Cycle 4 plan'); assert.equal(nameIn('[[Cycle 4 plan]]'), 'Cycle 4 plan', 'the brackets are not part of the name');
     assert.ok(canName('Cycle 4 plan') && !canName('') && !canName('Saw [[Dr. Mei Chen]] today'), 'a name holds no link');

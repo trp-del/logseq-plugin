@@ -76,6 +76,7 @@ const SPECIMENS = {
   proposalsAcceptKeys: k => `<span class="sw-dot"></span>Saw <span class="lk-node">Dr. Mei Chen</span><br><span style="padding-left:14px"><span class="sw-k">Provider:</span> ${pen('Dr. Mei Chen')}</span>${then(k)}<span class="sw-dot"></span>Saw <span class="lk-node">Dr. Mei Chen</span><br><span style="padding-left:14px"><span class="sw-k">Provider:</span> <span class="lk-node">Dr. Mei Chen</span></span>`,
   citeKeys: k => `<span class="sw-dot"></span>Iron was low in March${then(k)}<span style="padding-left:14px"><span class="sw-k">Source:</span> <span class="sw-caret"></span></span>`,
   pageKeys: k => `<span class="sw-dot"></span>Pump trial<span class="sw-caret"></span>${then(k)}<span class="sw-dot"></span><span class="lk-node">Pump trial</span>`,
+  embedTrigger: t => t ? `<span class="sw-dot"></span>${String(t).replace(/</g, '&lt;')}<span class="sw-caret"></span>refill<span class="sw-then">Enter</span><span class="sw-dot" style="background:none;box-shadow:inset 0 0 0 1.5px currentColor"></span><span class="lk-node">Refill steps</span>` : '<span class="sw-faintw">Only /Node embed</span>',
   linkSuggestKeys: k => `<span class="sw-dot"></span>Saw Dr. Mei<span class="sw-caret"></span><span class="sw-grey"> Chen</span>${k ? then(k) + '<span class="sw-dot"></span>Saw <span class="lk-node">Dr. Mei Chen</span>' : '<span class="sw-then">no key of your own</span>'}`,
   linkSuggestRightArrow: on => `<span class="sw-dot"></span>Saw Dr. Mei<span class="sw-caret"></span><span class="sw-grey"> Chen</span>${then('right')}<span class="sw-dot"></span>${on ? 'Saw <span class="lk-node">Dr. Mei Chen</span>' : 'Saw Dr. Mei <span class="sw-caret"></span>'}`,
   linkSuggestHyperTap: on => `<span class="sw-dot"></span>Saw Dr. Mei<span class="sw-caret"></span><span class="sw-grey"> Chen</span><span class="sw-then"><span class="sw-key">Hyper</span> tapped alone</span><span class="sw-dot"></span>${on ? 'Saw <span class="lk-node">Dr. Mei Chen</span>' : 'Saw Dr. Mei<span class="sw-caret"></span><span class="sw-grey"> Chen</span>'}`,
@@ -138,6 +139,7 @@ async function main() {
   Flow.tagPick.start();   // before the proposals: its keys are looked at first
   Flow.cite.start();
   Flow.pageHere.start();
+  Flow.embedHere.start();
   Flow.proposeUi.start();
   Flow.steps.start();
   Flow.typedCaseUi.start();
@@ -153,7 +155,7 @@ window.PluginDoor.describe('predictive', {
     { type: 'heading', title: 'Suggested links', place: 'writing' },
     row('linkSuggest', 'Suggest a link as I type'), row('linkSuggestLearn', 'Learn which pages I link'), row('linkSuggestMinLetters', 'Letters before a suggestion shows', { presets: [3, 5, 8] }), row('linkSuggestPause', 'Pause before a suggestion shows', { presets: [0, 350, 800] }), row('linkKeepCase', 'Keep my capitals in a link', { looks: ['The page’s capitals', 'My capitals'] }),
     { type: 'heading', title: 'Keys', place: 'keys' },
-    row('proposalsStepKeys', 'Step through a bullet’s properties'), row('proposalsTagKeys', 'Choose a tag'), row('proposalsAcceptKeys', 'Accept everything shown, without a new bullet'), row('citeKeys', 'Cite a source'), row('pageKeys', 'Make the bullet a page'),
+    row('proposalsStepKeys', 'Step through a bullet’s properties'), row('proposalsTagKeys', 'Choose a tag'), row('proposalsAcceptKeys', 'Accept everything shown, without a new bullet'), row('citeKeys', 'Cite a source'), row('pageKeys', 'Make the bullet a page'), row('embedTrigger', 'Typing that embeds a node'),
     row('linkSuggestRightArrow', 'Right arrow takes the suggested link'), row('linkSuggestHyperTap', 'A tap of Hyper takes it'), row('linkSuggestKeys', 'Another key takes it'),
   ],
   specimen,
