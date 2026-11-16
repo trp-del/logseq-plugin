@@ -19,7 +19,10 @@ const inPlaceLabel = (type, v) => { const t = bare(type); if (t === 'datetime') 
 const idsIn = (variable, ids) => `[(ground [${[...new Set(ids)].filter(isId).join(' ')}]) [${variable} ...]]`;
 const uuidsIn = (variable, uuids) => `[(ground [${[...new Set(uuids)].map(String).filter(u => UUID.test(u)).map(u => `#uuid "${u}"`).join(' ')}]) [${variable} ...]]`;
 const MARKERS = /\$pfts_2lqh>\$|\$<pfts_2lqh\$/g;
-const REF = /\[\[([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})\]\]|\(\(([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})\)\)/gi;
+// A link with words of its own, [words]([[uuid]]) or [words](((uuid))), reads as its words (16 November 2026, the owner's
+// "[Hospitalization](Fifth Hospitalization, City of Hope, Oct 16–29)" shown raw in Find); a bare [[uuid]] or ((uuid)) as the name.
+const REF = /\[([^\[\]]+)\]\((?:\[\[([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})\]\]|\(\(([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})\)\))\)|\[\[([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})\]\]|\(\(([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})\)\)/gi;
+const refOf = m => (m[2] || m[3] || m[4] || m[5]).toLowerCase();
 // Logseq's own kinds are not kinds of yours; Task is kept, since tasks are things people look for.
 const OWN = /^logseq\.class\//;
 
@@ -147,7 +150,7 @@ async function details(ids, uuids) {
 // Titles name pages as [[uuid]]: the names are read and put in place; `text` is the plain words, `parts` the pieces.
 async function resolveNames(list) {
   const refs = new Set();
-  for (const n of list) for (const m of n.raw.matchAll(REF)) refs.add((m[1] || m[2]).toLowerCase());
+  for (const n of list) for (const m of n.raw.matchAll(REF)) refs.add(refOf(m));
   const names = new Map();
   if (refs.size) for (const [u, t] of await query(`[:find ?u ?t :where ${uuidsIn('?u', refs)} [?r :block/uuid ?u] [?r :block/title ?t]]`)) names.set(String(u).toLowerCase(), String(t));
   for (const n of list) {
@@ -155,8 +158,8 @@ async function resolveNames(list) {
     let at = 0;
     for (const m of n.raw.matchAll(REF)) {
       if (m.index > at) parts.push({ text: n.raw.slice(at, m.index) });
-      const uuid = (m[1] || m[2]).toLowerCase();
-      parts.push({ text: names.get(uuid) || '…', uuid });
+      const uuid = refOf(m);
+      parts.push({ text: m[1] ?? (names.get(uuid) || '…'), uuid });
       at = m.index + m[0].length;
     }
     if (at < n.raw.length) parts.push({ text: n.raw.slice(at) });

@@ -544,8 +544,13 @@ const yearLine = (group, item, prev) => { const y = yearOf(twoWay.dayOf(group, i
    again (the owner's pick 3 of the two-way fixes: "each line drops what its heading already says"). */
 const lineDay = new Map();
 async function ownNamesOf(id, redraw = true) {
-  const ids = await provided.aliasesOf?.(id) || [];
   let added = false;
+  // A title that holds a link ("Fifth stay, [[City of Hope]], Oct 16–29") is named in lines by its plain words (flatName).
+  if (/\[\[|\(\(/.test(state.pageTitle) && provided.flatName) {
+    const plain = provided.flatName(await provided.readableTitle(state.pageTitle).catch(() => state.pageTitle)).toLowerCase();
+    if (state.pageId === id && !state.ownNames.has(plain)) { state.ownNames.add(plain); added = true; }
+  }
+  const ids = await provided.aliasesOf?.(id) || [];
   for (const other of ids) {
     const uuid = await provided.uuidById?.(other).catch(() => ''), title = uuid && await provided.titleNow(uuid).catch(() => '');
     if (title && state.pageId === id && !state.ownNames.has(title.toLowerCase())) { state.ownNames.add(title.toLowerCase()); added = true; }

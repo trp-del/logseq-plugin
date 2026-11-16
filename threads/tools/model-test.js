@@ -215,7 +215,8 @@ async function main() {
   same(await model.readableTitle(`Met [[${U(40)}]] about ((${U(50)}))`), 'Met [[Mateo Ruiz]] about Budget review', 'readableTitle swaps pages and blocks');
   same(await model.readableTitle(`Met [[${U(40)}]] about ((${U(50)}))`, { pagesOnly: true }), `Met [[Mateo Ruiz]] about ((${U(50)}))`, 'readableTitle pagesOnly leaves block references');
   same(await model.readableTitle(`See [[${U(50)}]]`, { asShown: true }), `See [[${U(50)}]]`, 'readableTitle asShown leaves a [[link]] to a block');
-  same(await model.readableTitle(`See [[${U(45)}]]`), 'See [[Holds a link to [[Mateo Ruiz]]]]', 'readableTitle reads a title that holds a link');
+  same(await model.readableTitle(`See [[${U(45)}]]`), 'See [[Holds a link to Mateo Ruiz]]', 'readableTitle reads a title that holds a link, the link inside as its plain words (never [[ ]] in [[ ]])');
+  same(await model.readableTitle(`due to [the stay]([[${U(45)}]]).`), 'due to [the stay]([[Holds a link to Mateo Ruiz]]).', 'a labelled link to a page whose title holds a link stays one labelled link');
   same(await model.readableTitle(`Gone [[${U(999)}]]`), `Gone [[${U(999)}]]`, 'readableTitle keeps an id it cannot find');
   same(await model.readableTitle(`Odd [[${U(40)}))`), `Odd [[${U(40)}))`, 'readableTitle keeps mismatched brackets');
   same(await model.readableTitle(''), '', 'readableTitle of nothing');

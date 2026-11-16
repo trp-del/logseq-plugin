@@ -108,6 +108,11 @@ function titlesOf(uuids) {
     return new Map(rows.map(([u, t, n]) => [String(u).toLowerCase(), { title: String(t ?? '').trim(), isPage: !!n }]));
   });
 }
+// A name put back inside [[ ]] reads as its plain words: a node named "Fifth stay, [[City of Hope]] #Hospitalization" goes in as
+// "Fifth stay, City of Hope", as Logseq shows it, since [[ ]] inside [[ ]] broke every reader of the link (16 November 2026, the
+// owner's "[Hospitalization](Fifth Hospitalization, City of Hope, Oct 16–29)" shown raw in "Mentioned in").
+const flatName = name => String(name).replace(/\s*#\[\[[^\]]*\]\]/g, '')
+  .replace(/\[([^\[\]]+)\]\(\[\[[^\]]*\]\]\)/g, '$1').replace(/\[\[([^\]]*)\]\]/g, '$1').replace(/\[\[|\]\]/g, '').trim() || String(name);
 async function readableTitle(text, { pagesOnly = false, depth = 2, asShown = false } = {}) {
   const value = String(text || '');
   const keys = [...new Set([...value.matchAll(storedRef)].filter(([, open]) => !pagesOnly || open !== '((').map(([, , uuid]) => uuid.toLowerCase()))];
@@ -123,7 +128,7 @@ async function readableTitle(text, { pagesOnly = false, depth = 2, asShown = fal
   return value.replace(storedRef, (match, open, uuid, close) => {
     const name = names.get(uuid.toLowerCase());
     if (!name || (open === '[[') !== (close === ']]')) return match;
-    return open === '[[' ? `[[${name}]]` : name;
+    return open === '[[' ? `[[${flatName(name)}]]` : name;
   });
 }
 
@@ -1102,7 +1107,7 @@ async function withKids(uuids) {
 function provide(core) {
   core.provide({ aliasesOf, madeState, pageUnlinked, valueStamp, storedWords, inRecycle, restorePage, setValue, unsetValue, makeProperty, dropMadeProperty, STATUS_IDENT, statusChoices, addTag, removeTag, setWords, editBlock, exitEditing, insertBlock, addLineTo, currentPage, getBlock, currentGraph, tagTitles, getPage, createPage, deletePage, appendBlock, removeBlock, inRecycle, restorePage,
     renamePage, moveBlock, pageBlocksTree, EXTENDS, ALIAS, ICON, PARENT_TAGS, addTagExtends, removeTagExtends, openInSidebar, showSidebar,
-    titleOf, trailingTags, storedRef, readableTitle, bare, pick, idOf,
+    titleOf, trailingTags, storedRef, readableTitle, flatName, bare, pick, idOf,
     propSchema, propPages, nodeBlocks, fieldsOf, fits, kindOfPage, tagChain, tagChains, tagChainIndex, parseDay, dayNumber, sameDay, dayAfter, DAYS,
     tagGraph, propInfo, ownProps, inheritedProps, tagPropIds, acceptedIds, choicesOf, choiceUse, choiceCounts, choiceNodes, idByUuid,
     descriptionOf, titleNow, valuesOf, userValues, mergeFacts, TAG_PROPS, ACCEPTS, DESCRIPTION,

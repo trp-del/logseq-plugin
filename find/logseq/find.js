@@ -112,7 +112,7 @@ const CSS = `
 .fd-sign .lk-sign svg { width: 14px; height: 14px; display: block; }
 .fd-nm { display: flex; align-items: baseline; gap: 7px; min-width: 0; flex-wrap: wrap; }
 .fd-nm .fd-w { min-width: 0; cursor: pointer; }
-.fd-nm .fd-task { margin-right: -1px; }   /* 6px to the words, as Threads */
+.fd-nm .fd-task { margin-right: 6px; }   /* in the words' own line, 6px before them, as Threads: a separate piece of the wrapping row, a long line dropped under it (16 November 2026) */
 .fd-nm .fd-w b { font-weight: 600; }
 .fd-nm .lk-node { cursor: pointer; }
 .fd-right { color: var(--lk-quiet); font-size: var(--lk-small); white-space: nowrap; padding-left: 12px; font-variant-numeric: tabular-nums; }
@@ -583,8 +583,9 @@ function render() {
       else w.append(el(doc, 'span', { html: window.PluginDoor.webParts(part.text).map(p => p.url ? window.PluginDoor.urlHtml(p.url, markWords(esc(p.text), ws)) : markWords(esc(p.text), ws)).join('') }));
     }
     w.addEventListener('click', event => { event.stopPropagation(); openPage(node.uuid, event.shiftKey); close(); });
+    // The circle stands inside the words, so a long line wraps beside it and never drops under it.
     const task = circle(doc, node);
-    if (task) nm.append(task);
+    if (task) w.prepend(task);
     nm.append(w);
     if (node.kind && !(r.under && rows.find(x => x.key === r.under)?.tag === node.kind.title) && !(kindPick() && r.top && kindPick().title === node.kind.title)) nm.append(el(doc, 'span', { class: 'lk-tag' }, node.kind.title));
     // A found bullet holds what is under it folded: Look's ↳ line follows its words, as on Logseq's own folded bullets (16 November

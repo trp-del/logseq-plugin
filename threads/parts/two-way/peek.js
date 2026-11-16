@@ -80,8 +80,16 @@ function onOut(event) {
   hidePeekSoon();
 }
 // A page by its name: its uuid from the page list, else Logseq finds it by name (openPageNamed, parts/shared.js).
+// A page whose own title holds a link ("Fifth stay, [[City of Hope]], Oct 16–29") is named in a line by its plain words
+// (flatName), so it is found by those words among the titles that hold a link, never opened by a name no page has.
 async function openPage(name, inSidebar) {
-  const page = (await twoWay.provided.propPages().catch(() => [])).find(p => p.lower === name.toLowerCase());
+  const pages = await twoWay.provided.propPages().catch(() => []), lower = name.toLowerCase();
+  let page = pages.find(p => p.lower === lower);
+  const { readableTitle, flatName } = twoWay.provided;
+  if (!page && flatName) for (const p of pages.filter(p => /\[\[|\(\(/.test(p.title || ''))) {
+    const plain = flatName(await readableTitle(p.title).catch(() => p.title)).toLowerCase();
+    if (plain === lower) { page = p; break; }
+  }
   if (page?.uuid) return openEntity(page.uuid, inSidebar);
   return openPageNamed(name, inSidebar);
 }
