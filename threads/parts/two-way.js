@@ -423,12 +423,19 @@ function nameByCloud(groups) {
 
 // Every page's rows in one look-up, at the start and again when the graph has been still for a while. The
 // page on screen still asks for its own rows, which are newer; this only lets a page show its rows from its first
-// frame. In a graph with very many links it is read once, at the start, so typing never waits behind it.
-const BIG_INDEX = 5000;
+// frame. In a graph with very many links it is read once, at the start, so typing never waits behind it. In one with more than
+// TOO_BIG of them it is not read at all (15 November 2026: read at the start of a 25,000-bullet graph, it knocked Logseq's
+// database over): the nodes are counted first, which is cheap, and each page then reads its own rows as it opens.
+const BIG_INDEX = 5000, TOO_BIG = 60000;
 let indexVersion = 0, indexSize = 0;
 async function loadIndex() {
   const version = ++indexVersion;
   if (!setting('twoWayRows')) { state.indexed = false; return; }
+  if (provided.linkCount) {
+    const count = await provided.linkCount();
+    if (version !== indexVersion) return;
+    if (count > TOO_BIG) { indexSize = count; state.indexed = false; return; }
+  }
   await readStatuses();   // so a page shown from the index draws its circles from its first frame
   const all = await groupsByPage(null);
   if (version !== indexVersion) return;

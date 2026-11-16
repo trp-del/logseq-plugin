@@ -439,7 +439,23 @@ async function mergeFacts(source, target) {
    yours hold, by name, each value a day, a title or plain text; firstLines(uuid, n) its first children's words. */
 // A tag a row is named by: one of yours, or Logseq's Task, since tasks are things people look for (as Find keeps it). Logseq's
 // other tags (Page, Journal, Tag …) say nothing a row needs.
-const YOUR_TAG = '[?t :db/ident ?ti] (or-join [?ti] (and [(namespace ?ti) ?ns] [(= ?ns "user.class")]) [(= ?ti :logseq.class/Task)])';
+/* Asked in two plain questions (15 November 2026): which tags the nodes hold, and the names of the tags that count, a short
+   list read on its own and matched here. Asked as one question with an "or" in it, Logseq's database took over eight seconds on
+   13,000 nodes (Stress Check) and fell over; the two plain ones take under a second. */
+const namedTags = { asked: null, at: 0 };
+function yourTags() {
+  if (namedTags.asked && Date.now() - namedTags.at < 2000) return namedTags.asked;
+  namedTags.at = Date.now();
+  const asked = namedTags.asked = dsQuery('[:find ?t ?ti ?tag :where [?t :block/tags :logseq.class/Tag] [?t :db/ident ?ti] [?t :block/title ?tag]]')
+    .then(rows => new Map(rows.filter(([, ident]) => /^:?(user\.class\/|logseq\.class\/Task$)/.test(String(ident))).map(([t, , tag]) => [t, String(tag)])));
+  asked.catch(() => { if (namedTags.asked === asked) namedTags.asked = null; });
+  return asked;
+}
+// [node, tag's name] for the nodes a question's clauses (scope, binding ?b) pick out.
+async function taggedAmong(scope) {
+  const [held, names] = await Promise.all([dsQuery(`[:find ?b ?t :where ${scope} [?b :block/tags ?t]]`), yourTags()]);
+  return held.filter(([, t]) => names.has(t)).map(([b, t]) => [b, names.get(t)]);
+}
 const LIVE = '(not [?b :logseq.property/deleted-at]) (not-join [?b] [?b :block/page ?pg] [?pg :logseq.property/deleted-at])';
 const USER_PROP = /^:?user\.property\//;
 /* A node's day and the property it comes from (8 November 2026, the owner: "make it clear what the date is of"): a Date
@@ -468,15 +484,21 @@ async function linksInto(id) {
   const these = id == null
     ? `${fields} [?b ?attr ?page] [?page :block/name] (not [?page :block/journal-day]) [(not= ?b ?page)] (not [?b :block/page ?page]) ${LIVE}`
     : `[(identity ${id}) ?page] [?b ?attr ?page] ${fields} [(not= ?b ?page)] (not [?b :block/page ?page]) ${LIVE}`;
-  // Plain finds (a pull here was refused by Logseq's query call: "Extra inputs passed").
-  const [links, titled, tagged, dated, written, statuses] = await Promise.all([
-    dsQuery(`[:find ?page ?pu ?b ?attr ?name ?fu :where ${these} [?prop :block/title ?name] [?page :block/uuid ?pu] [?prop :block/uuid ?fu]]`),
-    dsQuery(`[:find ?b ?uuid ?title :where ${these} [?b :block/uuid ?uuid] [?b :block/title ?title]]`),
-    dsQuery(`[:find ?b ?tag :where ${these} [?b :block/tags ?t] ${YOUR_TAG} [?t :block/title ?tag]]`),
-    dsQuery(`[:find ?b ?dattr ?day ?dname :where ${these} [?dprop :logseq.property/type :date] [?dprop :db/ident ?dattr] [?dprop :block/title ?dname] [?b ?dattr ?d] [?d :block/journal-day ?day]]`),
-    dsQuery(`[:find ?b ?day :where ${these} [?b :block/page ?p] [?p :block/journal-day ?day]]`),
-    dsQuery(`[:find ?b ?s :where ${these} ${STATUS}]`).catch(() => []),
-  ]);
+  // Plain finds (a pull here was refused by Logseq's query call: "Extra inputs passed"). For one page they go together; for every
+  // page each waits for the one before (15 November 2026), so Logseq's database is never handed six walks of the whole graph at once
+  // and a page being opened gets its own answers in between.
+  const questions = [
+    () => dsQuery(`[:find ?page ?pu ?b ?attr ?name ?fu :where ${these} [?prop :block/title ?name] [?page :block/uuid ?pu] [?prop :block/uuid ?fu]]`),
+    () => dsQuery(`[:find ?b ?uuid ?title :where ${these} [?b :block/uuid ?uuid] [?b :block/title ?title]]`),
+    () => taggedAmong(these),
+    () => dsQuery(`[:find ?b ?dattr ?day ?dname :where ${these} [?dprop :logseq.property/type :date] [?dprop :db/ident ?dattr] [?dprop :block/title ?dname] [?b ?dattr ?d] [?d :block/journal-day ?day]]`),
+    () => dsQuery(`[:find ?b ?day :where ${these} [?b :block/page ?p] [?p :block/journal-day ?day]]`),
+    () => dsQuery(`[:find ?b ?s :where ${these} ${STATUS}]`).catch(() => []),
+  ];
+  const answers = [];
+  if (id == null) for (const ask of questions) answers.push(await ask());
+  else answers.push(...await Promise.all(questions.map(ask => ask())));
+  const [links, titled, tagged, dated, written, statuses] = answers;
   const isId = v => Number.isSafeInteger(v) && v > 0;
   const pages = new Map(), fieldsByName = new Map(), ids = new Set();
   for (const [page, pageUuid, b, attr, name, fieldUuid] of links) {
@@ -498,6 +520,12 @@ async function linksInto(id) {
   for (const [b, tag] of tagged) if (!tags.has(b) || tag < tags.get(b)) tags.set(b, tag);
   for (const [b, uuid, title] of titled) if (isId(b)) records.set(b, { uuid: String(uuid), title: title || '', tag: tags.get(b) || '', day: days.get(b)?.day || 0, dayFrom: days.get(b)?.from || '', status: status.get(b) || 0 });
   return { pages, fields: fieldsByName, records };
+}
+// How many nodes point at a page through a property of yours, counted without reading them: what loadIndex asks before it reads
+// every page's rows, so a graph too large for that is never asked for them.
+async function linkCount() {
+  const rows = await dsQuery('[:find (count ?b) :where [?prop :db/ident ?attr] [(namespace ?attr) ?pns] [(= ?pns "user.property")] [?b ?attr ?page] [?page :block/name]]');
+  return Number(rows?.[0]?.[0]) || 0;
 }
 // Whether Logseq will draw a property list on a page: it holds a value of a property of yours, or a tag of yours, or a tag above it, declares one.
 async function pageHasList(uuid) {
@@ -522,7 +550,7 @@ async function mentionsInto(id) {
   const these = `[(ground [${ids.join(' ')}]) [?page ...]] [?b :block/refs ?page] ${ids.map(one => `[(not= ?b ${one})] (not [?b :block/page ${one}])`).join(' ')} [?b :block/page _] ${LIVE}`;
   const [titled, tagged, dated, written, uuids, statuses] = await Promise.all([
     dsQuery(`[:find ?b ?uuid ?title :where ${these} [?b :block/uuid ?uuid] [?b :block/title ?title]]`),
-    dsQuery(`[:find ?b ?tag :where ${these} [?b :block/tags ?t] ${YOUR_TAG} [?t :block/title ?tag]]`),
+    taggedAmong(these),
     dsQuery(`[:find ?b ?dattr ?day ?dname :where ${these} [?dprop :logseq.property/type :date] [?dprop :db/ident ?dattr] [?dprop :block/title ?dname] [?b ?dattr ?d] [?d :block/journal-day ?day]]`),
     dsQuery(`[:find ?b ?day :where ${these} [?b :block/page ?p] [?p :block/journal-day ?day]]`),
     dsQuery(`[:find ?pu :where [(ground [${ids.join(' ')}]) [?page ...]] [?page :block/uuid ?pu]]`),
@@ -565,7 +593,7 @@ async function duesOn(day) {
   if (!out.length) return out;
   const among = `[(ground [${[...new Set(out.map(o => o.id))].join(' ')}]) [?b ...]]`;
   const [tagged, statuses] = await Promise.all([
-    dsQuery(`[:find ?b ?tag :where ${among} [?b :block/tags ?t] ${YOUR_TAG} [?t :block/title ?tag]]`).catch(() => []),
+    taggedAmong(among).catch(() => []),
     dsQuery(`[:find ?b ?s :where ${among} ${STATUS}]`).catch(() => []),
   ]);
   const tags = new Map(); for (const [b, tag] of tagged) if (!tags.has(b) || tag < tags.get(b)) tags.set(b, tag);
@@ -661,7 +689,7 @@ async function nodeLines(ids) {
 async function firstTags(ids) {
   const list = [...new Set((ids || []).filter(id => Number.isSafeInteger(id) && id > 0))];
   if (!list.length) return new Map();
-  const rows = await dsQuery(`[:find ?b ?tag :where [(ground [${list.join(' ')}]) [?b ...]] [?b :block/tags ?t] ${YOUR_TAG} [?t :block/title ?tag]]`);
+  const rows = await taggedAmong(`[(ground [${list.join(' ')}]) [?b ...]]`);
   const out = new Map();
   for (const [b, tag] of rows) if (!out.has(b) || tag < out.get(b)) out.set(b, String(tag));
   return out;
@@ -714,14 +742,22 @@ async function nodeValues(uuids, { logseqs = false, dates = false } = {}) {
   const mine = '[(namespace ?attr) ?ns] [(= ?ns "user.property")]';
   // dates: Logseq's Deadline and Scheduled beside yours, for a list dated by any of its date properties (8 November 2026).
   const theirs = logseqs ? ':logseq.property/deadline :logseq.property/scheduled :logseq.property/status :logseq.property/priority' : dates ? ':logseq.property/deadline :logseq.property/scheduled' : '';
-  const whose = theirs ? `(or-join [?attr] (and ${mine}) [(contains? #{${theirs}} ?attr)])` : mine;
-  const where = `[(ground [${list.map(u => `#uuid "${u}"`).join(' ')}]) [?u ...]] [?b :block/uuid ?u] [?b ?attr ?v] [?prop :db/ident ?attr] ${whose} [?prop :block/title ?name]`;
-  const [raw, titled, dated, typed] = await Promise.all([
-    dsQuery(`[:find ?u ?name ?attr ?v :where ${where}]`),
-    dsQuery(`[:find ?u ?name ?attr ?v ?t ?vu :where ${where} [?v :block/title ?t] [?v :block/uuid ?vu]]`),
-    dsQuery(`[:find ?u ?name ?attr ?v ?d :where ${where} [?v :block/journal-day ?d]]`),
-    dsQuery(`[:find ?u ?name ?attr ?v ?n :where ${where} [?v :logseq.property/value ?n]]`),
+  // Yours and Logseq's are asked apart, never as one question with an "or" in it: that one took Logseq's database 0.8 s for a page
+  // 257 nodes point at, and whatever was asked next (Find's list, the next page) waited behind it.
+  const where = whose => `[(ground [${list.map(u => `#uuid "${u}"`).join(' ')}]) [?u ...]] [?b :block/uuid ?u] [?b ?attr ?v] [?prop :db/ident ?attr] ${whose} [?prop :block/title ?name]`;
+  // One walk for what the nodes hold, then three short questions about those values alone (15 November 2026). Before, the walk
+  // was made four times at once, each over the whole graph: on a page 257 nodes point at it kept Logseq's database busy for over
+  // three seconds, and the next page opened waited behind it.
+  const raw = await dsQuery(`[:find ?u ?name ?attr ?v :where ${where(mine)}]`);
+  if (theirs) raw.push(...await dsQuery(`[:find ?u ?name ?attr ?v :where ${where(`[(contains? #{${theirs}} ?attr)]`)}]`));
+  const ids = [...new Set(raw.map(([, , , v]) => v).filter(v => Number.isSafeInteger(v) && v > 0 && v <= STAMP))];
+  const among = `[(ground [${ids.join(' ')}]) [?v ...]]`;
+  const [titles, days, kept] = !ids.length ? [[], [], []] : await Promise.all([
+    dsQuery(`[:find ?v ?t ?vu :where ${among} [?v :block/title ?t] [?v :block/uuid ?vu]]`),
+    dsQuery(`[:find ?v ?d :where ${among} [?v :block/journal-day ?d]]`),
+    dsQuery(`[:find ?v ?n :where ${among} [?v :logseq.property/value ?n]]`),
   ]);
+  const titledOf = new Map(titles.map(([v, t, vu]) => [v, [t, vu]])), dayOf = new Map(days), keptOf = new Map(kept);
   const known = new Set();
   const slot = (u, name, attr) => {
     const id = String(u);
@@ -731,9 +767,9 @@ async function nodeValues(uuids, { logseqs = false, dates = false } = {}) {
     return held.get(name).values;
   };
   const once = (u, name, v) => { const key = `${u}|${name}|${v}`; if (known.has(key)) return false; known.add(key); return true; };
-  for (const [u, name, attr, v, d] of dated) if (once(u, name, v)) slot(u, name, attr).push({ day: Number(d), id: v });
-  for (const [u, name, attr, v, t, vu] of titled) if (once(u, name, v)) slot(u, name, attr).push({ text: String(t), id: v, uuid: String(vu) });
-  for (const [u, name, attr, v, n] of typed) if (once(u, name, v)) slot(u, name, attr).push(typeof n === 'boolean' ? { text: n ? 'yes' : 'no', boolean: n } : typeof n === 'number' ? { text: String(n), number: n } : { text: String(n) });
+  for (const [u, name, attr, v] of raw) if (dayOf.has(v) && once(u, name, v)) slot(u, name, attr).push({ day: Number(dayOf.get(v)), id: v });
+  for (const [u, name, attr, v] of raw) if (titledOf.has(v) && once(u, name, v)) { const [t, vu] = titledOf.get(v); slot(u, name, attr).push({ text: String(t), id: v, uuid: String(vu) }); }
+  for (const [u, name, attr, v] of raw) if (keptOf.has(v) && once(u, name, v)) { const n = keptOf.get(v); slot(u, name, attr).push(typeof n === 'boolean' ? { text: n ? 'yes' : 'no', boolean: n } : typeof n === 'number' ? { text: String(n), number: n } : { text: String(n) }); }
   for (const [u, name, attr, v] of raw) {
     if (typeof v === 'string' && once(u, name, v)) slot(u, name, attr).push({ text: v });
     else if (typeof v === 'number' && v > STAMP && once(u, name, v)) slot(u, name, attr).push({ day: dayNumber(new Date(v)), time: v });
@@ -1070,7 +1106,7 @@ function provide(core) {
     propSchema, propPages, nodeBlocks, fieldsOf, fits, kindOfPage, tagChain, tagChains, tagChainIndex, parseDay, dayNumber, sameDay, dayAfter, DAYS,
     tagGraph, propInfo, ownProps, inheritedProps, tagPropIds, acceptedIds, choicesOf, choiceUse, choiceCounts, choiceNodes, idByUuid,
     descriptionOf, titleNow, valuesOf, userValues, mergeFacts, TAG_PROPS, ACCEPTS, DESCRIPTION,
-    linksInto, mentionsInto, duesOn, pageHasList, createdAt, firstTags, nodesOfTag, nodeLines, nodeFields, nodeValues, firstLines, pagesAmong, tagUuidNamed, uuidById,
+    linksInto, linkCount, mentionsInto, duesOn, pageHasList, createdAt, firstTags, nodesOfTag, nodeLines, nodeFields, nodeValues, firstLines, pagesAmong, tagUuidNamed, uuidById,
     hasTag, pageLines, registerCommand,
     propTextValues, propTextBlocks, propValueBlocks, propNamed, propUses, structureUse, propNodeIds, choiceIds, crumbsInto, heldBelow, withKids, linkRates, linkRatesOf, journalIdFor, CHECKED_WITH, PAGE_TITLE, screenChecks, pageTitles, titleAnchor });
 }

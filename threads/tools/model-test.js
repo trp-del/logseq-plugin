@@ -95,7 +95,7 @@ function largeGraph(pages = 20000, propCount = 300) {
 
 /* The stand-in for Logseq's datascriptQuery: it recognises each query the model sends by its shape and answers
    from the pretend graph, in Logseq's shape (pulled maps with shortened keys). */
-// What nodeValues reads: rows of what nodes hold under your properties, in the four shapes of its four queries.
+// What nodeValues reads: rows of what nodes hold under your properties, as its one question about the nodes and its three about their values answer.
 let VALUE_ROWS = [];
 // What structureUse reads: every value, the tags on nodes, the words of text values, the links in the words.
 let USE = { values: [], tagged: [], texts: [], refs: [], link: { links: [], titled: [], dated: [] } };
@@ -107,7 +107,7 @@ function fakeDb(graph, log) {
   const shapes = [
     [/:find \?o \?a :where \[\?o :block\/alias \?a\]/, () => USE.alias || []], [/^\[:find \?pu :where \[\(ground \[([\d ]+)\]/, m => m[1].split(' ').map(n => [U(Number(n))])],
     [/^\[:find \?b \?w \?at :where/, () => USE.madeRow || []], [/^\[:find \(count \?k\)/, () => [[USE.madeKids || 0]]],
-    [/^\[:find \?page \?pu \?b \?attr \?name \?fu/, () => USE.link.links], [/^\[:find \?b \?uuid \?title/, () => USE.link.titled], [/^\[:find \?b \?tag :where/, () => []],
+    [/^\[:find \?page \?pu \?b \?attr \?name \?fu/, () => USE.link.links], [/^\[:find \?b \?uuid \?title/, () => USE.link.titled], [/^\[:find \?b \?t :where .*\[\?b :block\/tags \?t\]\]$/, () => USE.link?.held || []], [/^\[:find \?t \?ti \?tag :where \[\?t :block\/tags :logseq\.class\/Tag\]/, () => all().filter(x => (x.tags || []).includes(2) && x.ident).map(x => [x.id, ':' + x.ident, x.title])],
     [/^\[:find \?b \?dattr \?day \?dname/, () => USE.link.dated], [/^\[:find \?b \?day :where/, () => []], [/^\[:find \?b \?s :where/, () => []],
     [/^\[:find \?u \?t \?n :where \[\(ground/, (m, query) => askedUuids(query).map(u => all().find(x => x.uuid === u)).filter(Boolean).map(x => [x.uuid, x.title, x.name || ''])],
     [/\(pull \?p \[:db\/id :db\/ident :block\/uuid :block\/title :logseq\.property\/type :db\/cardinality :logseq\.property\/icon[\s\S]*:where \[\?p :block\/tags :logseq\.class\/Property\] \[\?p :db\/ident _\]/,
@@ -137,14 +137,16 @@ function fakeDb(graph, log) {
     // The same with a day's page in Recycle passed over (0.3.103, 13 November 2026): the pretend graph has none in Recycle.
     [/:find \(pull \?p \[:db\/id\]\) :where \[\?p :block\/journal-day (\d+)\] \[\(get-else \$ \?p :logseq\.property\/deleted-at 0\) \?gone\] \[\(= \?gone 0\)\]\]/, m => all().filter(x => x.journalDay === Number(m[1])).map(x => [ref(x.id)])],
   ];
-  // nodeValues: the four queries share their first clause, a ground list of the nodes asked about.
+  // nodeValues: one question for what the nodes asked about hold (a ground list of them), then three about those values alone.
   const valueShape = find => new RegExp(`:find ${find} :where \\[\\(ground \\[[^\\]]*\\]\\) \\[\\?u \\.\\.\\.\\]\\]`);
   const heldBy = query => VALUE_ROWS.filter(r => askedUuids(query).includes(r.u));
+  const aboutShape = find => new RegExp(`^\\[:find ${find} :where \\[\\(ground \\[([\\d ]*)\\]\\) \\[\\?v \\.\\.\\.\\]\\]`);
+  const about = m => { const ids = new Set(m[1].split(' ').map(Number)); return [...new Map(VALUE_ROWS.filter(r => ids.has(r.v)).map(r => [r.v, r])).values()]; };
   shapes.push(
     [valueShape('\\?u \\?name \\?attr \\?v'), (m, query) => heldBy(query).map(r => [r.u, r.name, ':' + r.attr, r.v])],
-    [valueShape('\\?u \\?name \\?attr \\?v \\?t \\?vu'), (m, query) => heldBy(query).filter(r => r.title != null).map(r => [r.u, r.name, ':' + r.attr, r.v, r.title, r.vu])],
-    [valueShape('\\?u \\?name \\?attr \\?v \\?d'), (m, query) => heldBy(query).filter(r => r.day != null).map(r => [r.u, r.name, ':' + r.attr, r.v, r.day])],
-    [valueShape('\\?u \\?name \\?attr \\?v \\?n'), (m, query) => heldBy(query).filter(r => 'n' in r).map(r => [r.u, r.name, ':' + r.attr, r.v, r.n])],
+    [aboutShape('\\?v \\?t \\?vu'), m => about(m).filter(r => r.title != null).map(r => [r.v, r.title, r.vu])],
+    [aboutShape('\\?v \\?d'), m => about(m).filter(r => r.day != null).map(r => [r.v, r.day])],
+    [aboutShape('\\?v \\?n'), m => about(m).filter(r => 'n' in r).map(r => [r.v, r.n])],
   );
   shapes.push(
     [/^\[:find \?b \?a \?v :where \[\?p :db\/ident \?a\] \[\(namespace \?a\) \?ns\] \[\(= \?ns "user\.property"\)\] \[\?b \?a \?v\]/, () => USE.values],
@@ -225,6 +227,13 @@ async function main() {
   // A node's day: the property titled Date, whatever its ident, before an earlier day under another name.
   USE.link = { links: [[5, U(5), 7, ':user.property/about', 'about', U(6)]], titled: [[7, U(7), 'A node']], dated: [[7, ':user.property/seen-q1', 20260105, 'Seen'], [7, ':user.property/date-x9', 20260301, 'Date']] };
   same([...(await model.linksInto(5)).records.values()][0].day, 20260301, 'a property titled Date comes first, its ident aside');
+  // A node's tag: the first by name among the tags of yours it holds, asked as two plain questions (which tags the nodes hold, the
+  // names of your tags), never as one with an "or" in it, which Logseq's database could not carry on a big graph.
+  USE.link.held = [[7, 12], [7, 11], [7, 2]];
+  queries.length = 0;
+  same([...(await model.linksInto(5)).records.values()][0].tag, 'Doctor', 'a node is named by the first of your tags it holds');
+  same(queries.some(entry => /or-join/.test(entry)), false, 'no question about tags holds an "or"');
+  same((await model.firstTags([7])).get(7), 'Doctor', 'firstTags reads the same way');
   // A date in a node's words is read by Predictive's reader (predictive/core/dates.js, checked in predictive/test/run.js):
   // Threads keeps no reader of its own since 5 November 2026.
   // A page fits a property through the tag it holds or any tag above that.
@@ -387,6 +396,8 @@ async function main() {
   same(held.get(U(60)).get('Due').values, [{ day: 20261103, time: new Date(2026, 10, 3, 12).getTime() }], 'nodeValues: a Date-and-time, a timestamp on the node itself');
   same(held.get(U(60)).get('Notes').values, [{ text: 'a text value is a node', id: 412, uuid: U(412) }, { text: 'plain words' }], 'nodeValues: text, whether a node or plain');
   same(held.get(U(61)).get('Confidence').values.length, 1, 'nodeValues: a value asked twice is one');
+  queries.length = 0; await model.nodeValues([U(60), U(61)]);
+  same(queries.filter(entry => entry.startsWith(':find \\?u \\?name \\?attr')).length, 1, 'nodeValues walks what the nodes hold once, not four times: ' + queries);
   same((await model.nodeValues([])).size, 0, 'nodeValues of no nodes');
   // What the structure is used for (structureUse): values by property, tags by node, text words, and the pages a
   // node names in its words, less what its properties already point at.

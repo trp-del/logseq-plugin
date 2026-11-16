@@ -196,7 +196,7 @@ async function otherGraph() {
   if (waiting && !mounts.onPage()) notify(tray.note, 'warning');
   Object.assign(app.st, startState(), { busy: app.st.busy });
   for (let tries = 0; tries < 25; tries++) {
-    try { await S.db.read(); break; }
+    try { await S.db.graph(); await S.db.query('[:find ?t :where [?t :db/ident :logseq.class/Tag]]'); break; }   // a small question: the whole reading comes once, below
     catch (error) { await new Promise(resolve => setTimeout(resolve, 200)); }   // a read that fails here is the graph still opening, nothing to say yet
   }
   await app.reread();

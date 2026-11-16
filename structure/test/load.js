@@ -23,9 +23,12 @@ function fakeQuery(q) {
   if (has(':logseq.class/Property] [?p :db/ident _]')) return live.props.map(p => [{ id: p.id, uuid: p.uuid, title: p.title, ident: ':' + p.ident, 'logseq.property/type': ':' + p.type, cardinality: ':db.cardinality/one', classes: p.range.map(r => ({ id: r })) }]);
   if (has('closed-value-property')) return live.props.filter(p => p.choice).map(p => [p.id]);
   if (/^\[:find \?u :where \[\?b :block\/tags (\d+)\]/.test(q)) return (lateNodes[q.match(/:block\/tags (\d+)/)[1]] || []).map(u => [u]);   // the last look before a delete
-  if (has('[?b :block/uuid ?u] (not')) return Object.entries(live.nodes).flatMap(([t, list]) => list.map(n => [Number(t), n.id, n.uuid]));
-  if (has('[?b ?a _] [?p :db/ident ?a]')) return Object.entries(live.holders).flatMap(([a, ids]) => ids.map(b => [':' + a, b]));
-  if (has('(count ?v)')) return raw.pointed.map(([a, t, n]) => [':' + a, t, n]);
+  if (has(':find ?t ?b ?u :where')) return [...Object.entries(live.nodes).flatMap(([t, list]) => list.map(n => [Number(t), n.id, n.uuid])),
+    ...raw.pointed.flatMap(([a, t, n]) => Array.from({ length: n }, (_, i) => [t, -(t * 100000 + i), 'v' + t + '-' + i]))];
+  // What every node holds under a property of yours, the one walk the reading counts from: each holder with a plain value, and for
+  // what a relation's values are tagged, as many nodes of that tag held by a node the stand-in gives no tag (so no relationship is made up).
+  if (has(':find ?b ?a ?v :where')) return [...Object.entries(live.holders).flatMap(([a, ids]) => ids.map(b => [b, ':' + a, 'words'])),
+    ...raw.pointed.flatMap(([a, t, n]) => Array.from({ length: n }, (_, i) => [-1, ':' + a, -(t * 100000 + i)]))];
   if (has('(max ?c)')) return [[id('Consultation'), Date.UTC(2026, 9, 28)]];
   if (has(':find ?b ?u ?title ?c ?pg')) { const ids = new Set(q.match(/ground \[([\d ]*)\]/)[1].split(' ').map(Number)); return Object.entries(live.nodes).flatMap(([t, list]) => list.filter(n => ids.has(n.id)).map((n, i) => [n.id, n.uuid, n.words || `Node ${i + 1} of tag ${t}`, 1000 + n.id, 7])); }
   if (has(':find ?u ?t :where [(ground')) return [['1a000000-0000-4000-8000-00000000000e', 'Dr. Mei Chen']];

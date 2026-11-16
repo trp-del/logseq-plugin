@@ -13,24 +13,44 @@ const { query, bare, pick, idOf, listOf } = window.PluginDoor;
 const LIVE = '(not [?b :logseq.property/deleted-at _])';
 const EXTENDS = 'logseq.property.class/extends', CLASS_PROPS = 'logseq.property.class/properties', RANGE = 'logseq.property/classes';
 
-/* The whole reading. A few hundred milliseconds on a large graph. */
+/* The whole reading. The questions go one after another, so a page being opened gets its own answers in between, and what the
+   nodes hold under your properties is walked once and counted here (15 November 2026): asked as three counting questions it took
+   Logseq's database five and a half seconds on 25,000 bullets (Stress Check), each time the graph was read; the one walk takes one. */
 async function read() {
-  const [tagRows, propRows, choiceRows, nodeRows, holderRows, pointedRows, newestRows, bulletRows, linkRows, roadRows, refRows] = await Promise.all([
-    query(`[:find (pull ?t [:db/id :block/uuid :block/title :db/ident {:${EXTENDS} [:db/id :db/ident]} {:${CLASS_PROPS} [:db/id]}]) :where [?t :block/tags :logseq.class/Tag] [?t :db/ident _]]`),
-    query(`[:find (pull ?p [:db/id :db/ident :block/uuid :block/title :logseq.property/type :db/cardinality {:${RANGE} [:db/id]}]) :where [?p :block/tags :logseq.class/Property] [?p :db/ident _]]`),
-    query('[:find ?p :where [?v :block/closed-value-property ?p]]').catch(() => []),
-    query(`[:find ?t ?b ?u :where [?t :block/tags :logseq.class/Tag] [?b :block/tags ?t] [?b :block/uuid ?u] ${LIVE}]`),
-    query(`[:find ?a ?b :where [?b :block/tags ?t] [?t :block/tags :logseq.class/Tag] [?b ?a _] [?p :db/ident ?a] [?p :block/tags :logseq.class/Property] [(namespace ?a) ?ns] [(= ?ns "user.property")] ${LIVE}]`).catch(() => []),
-    query(`[:find ?a ?t (count ?v) :where [?b ?a ?v] [?p :db/ident ?a] [?p :block/tags :logseq.class/Property] [(namespace ?a) ?ns] [(= ?ns "user.property")] [?v :block/tags ?t] [?t :block/tags :logseq.class/Tag]]`).catch(() => []),
-    query(`[:find ?t (max ?c) :where [?t :block/tags :logseq.class/Tag] [?b :block/tags ?t] [?b :block/created-at ?c] ${LIVE}]`).catch(() => []),
+  const asks = [
+    () => query(`[:find (pull ?t [:db/id :block/uuid :block/title :db/ident {:${EXTENDS} [:db/id :db/ident]} {:${CLASS_PROPS} [:db/id]}]) :where [?t :block/tags :logseq.class/Tag] [?t :db/ident _]]`),
+    () => query(`[:find (pull ?p [:db/id :db/ident :block/uuid :block/title :logseq.property/type :db/cardinality {:${RANGE} [:db/id]}]) :where [?p :block/tags :logseq.class/Property] [?p :db/ident _]]`),
+    () => query('[:find ?p :where [?v :block/closed-value-property ?p]]').catch(() => []),
+    // Every node with each tag it holds, deleted ones too: what a value is tagged is asked of them all, the nodes under a tag of the live ones.
+    () => query('[:find ?t ?b ?u :where [?t :block/tags :logseq.class/Tag] [?b :block/tags ?t] [?b :block/uuid ?u]]'),
+    () => query('[:find ?b :where [?b :logseq.property/deleted-at _]]').catch(() => []),
+    // What every node holds under a property of yours: the one walk.
+    () => query('[:find ?b ?a ?v :where [?p :block/tags :logseq.class/Property] [?p :db/ident ?a] [(namespace ?a) ?ns] [(= ?ns "user.property")] [?b ?a ?v]]').catch(() => []),
+    () => query(`[:find ?t (max ?c) :where [?t :block/tags :logseq.class/Tag] [?b :block/tags ?t] [?b :block/created-at ?c] ${LIVE}]`).catch(() => []),
     // What a tag's deletion takes with it, for the merge's sentence: the bullets written on its page, the bullets that link it in their words.
-    query(`[:find ?t (count ?b) :where [?t :block/tags :logseq.class/Tag] [?b :block/page ?t] (not [?b :logseq.property/created-from-property _])]`).catch(() => []),
-    query(`[:find ?t (count ?b) :where [?t :block/tags :logseq.class/Tag] [?t :block/uuid ?u] [?b :block/refs ?t] [(str ?u) ?us] [?b :block/title ?w] [(clojure.string/includes? ?w ?us)]]`).catch(() => []),
-    // The relationships as they really are: how many nodes of a tag hold a node of another tag in a property.
-    query(`[:find ?s ?a ?t (count-distinct ?b) :where [?b ?a ?v] [?p :db/ident ?a] [?p :block/tags :logseq.class/Property] [(namespace ?a) ?ns] [(= ?ns "user.property")] [?v :block/tags ?t] [?t :block/tags :logseq.class/Tag] [?b :block/tags ?s] [?s :block/tags :logseq.class/Tag]]`).catch(() => []),
+    () => query(`[:find ?t (count ?b) :where [?t :block/tags :logseq.class/Tag] [?b :block/page ?t] (not [?b :logseq.property/created-from-property _])]`).catch(() => []),
+    () => query(`[:find ?t (count ?b) :where [?t :block/tags :logseq.class/Tag] [?t :block/uuid ?u] [?b :block/refs ?t] [(str ?u) ?us] [?b :block/title ?w] [(clojure.string/includes? ?w ?us)]]`).catch(() => []),
     // Everything that links to a tag's nodes, for the count before Apply.
-    query(`[:find ?t (count ?r) :where [?t :block/tags :logseq.class/Tag] [?n :block/tags ?t] [?r :block/refs ?n]]`).catch(() => []),
-  ]);
+    () => query(`[:find ?t (count ?r) :where [?t :block/tags :logseq.class/Tag] [?n :block/tags ?t] [?r :block/refs ?n]]`).catch(() => []),
+  ];
+  const answers = [];
+  for (const ask of asks) answers.push(await ask());
+  const [tagRows, propRows, choiceRows, taggedRows, goneRows, heldRows, newestRows, bulletRows, linkRows, refRows] = answers;
+  const gone = new Set(goneRows.map(([b]) => b)), tagsOf = new Map();
+  for (const [t, b] of taggedRows) { if (!tagsOf.has(b)) tagsOf.set(b, []); tagsOf.get(b).push(t); }
+  const nodeRows = taggedRows.filter(([, b]) => !gone.has(b));
+  // Which nodes hold which property (a tagged node, not deleted); what a relation's values are tagged, a value counted once; and the
+  // relationships as they really are: how many nodes of a tag hold a node of another tag in a property.
+  const holderSeen = new Set(), holderRows = [], pointedSeen = new Set(), pointedN = new Map(), roadSeen = new Set(), roadN = new Map();
+  for (const [b, a, v] of heldRows) {
+    const mine = tagsOf.get(b);
+    if (mine && !gone.has(b) && !holderSeen.has(`${a}|${b}`)) { holderSeen.add(`${a}|${b}`); holderRows.push([a, b]); }
+    for (const t of (typeof v === 'number' && tagsOf.get(v)) || []) {
+      if (!pointedSeen.has(`${a}|${t}|${v}`)) { pointedSeen.add(`${a}|${t}|${v}`); const key = `${a}|${t}`; pointedN.set(key, { a, t, n: (pointedN.get(key)?.n || 0) + 1 }); }
+      for (const s of mine || []) if (!roadSeen.has(`${s}|${a}|${t}|${b}`)) { roadSeen.add(`${s}|${a}|${t}|${b}`); const key = `${s}|${a}|${t}`; roadN.set(key, { s, a, t, n: (roadN.get(key)?.n || 0) + 1 }); }
+    }
+  }
+  const pointedRows = [...pointedN.values()].map(({ a, t, n }) => [a, t, n]), roadRows = [...roadN.values()].map(({ s, a, t, n }) => [s, a, t, n]);
   const own = new Map();   // the graph's own tags, by id
   for (const [t] of tagRows) { const ident = bare(pick(t, 'db/ident')); if (/^user\.class\//.test(ident)) own.set(idOf(t), t); }
   const bullets = new Map(bulletRows), links = new Map(linkRows), refs = new Map(refRows);
