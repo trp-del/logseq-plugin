@@ -95,15 +95,14 @@ function fadeOld(doc, copy, box, hide, rows) {
 
 /* Once the new view is drawn: which bullet stays on screen through the move. Going in, the bullet now focused, which
    stood in the old view; going out, the bullet that was focused, which stands in the new one. */
-function move(was, tries = 0) {
+function move(was) {
   const doc = host(), scroller = main(doc);
   if (!scroller || !was) return;
   const now = routeId();
-  if (drawn(scroller) === was.view) { if (tries < 30) win().requestAnimationFrame(() => move(was, tries + 1)); return; }
   let id = null, out = false;
-  if (now && now !== was.id && was.rows.has(now) && blockIn(scroller, now)) id = now;
+  if (now && now !== was.id && was.rows.has(now)) { if (!blockIn(scroller, now)) return false; id = now; }
   else if (was.id && was.id !== now && blockIn(scroller, was.id)) { id = was.id; out = true; }
-  if (!id) return;
+  if (!id) return true;
   const block = blockIn(scroller, id), row = rowOf(block);
   const box = scroller.getBoundingClientRect();
   if (out && !inView(row.getBoundingClientRect(), box)) row.scrollIntoView({ block: 'center' });
@@ -111,7 +110,17 @@ function move(was, tries = 0) {
   if (!reduced()) {
     const from = was.rows.get(id);
     const to = row.getBoundingClientRect();
-    if (from) block.animate([{ transform: `translate(${from.x - to.left}px, ${from.y - to.top}px)` }, { transform: 'none' }], { duration: TIME, easing: EASE });
+    if (from) {
+      // Logseq's list of a page's bullets cuts off what stands outside it (overflow hidden), so a bullet gliding in from
+      // above would be hidden for the first part of the way: the cut is lifted for the glide alone.
+      const cut = [];
+      for (let node = block.parentElement; node && node !== scroller; node = node.parentElement)
+        if (win().getComputedStyle(node).overflow !== 'visible') { cut.push([node, node.style.overflow]); node.style.overflow = 'visible'; }
+      const glide = block.animate([{ transform: `translate(${from.x - to.left}px, ${from.y - to.top}px)` }, { transform: 'none' }], { duration: TIME, easing: EASE });
+      const back = () => { for (const [node, was] of cut) node.style.overflow = was; };
+      glide.onfinish = glide.oncancel = back;
+      setTimeout(back, TIME + 1000);   // in case the glide never ends (a window in the background)
+    }
     // Everything else in the new view that is on screen fades in where it stands.
     const others = [...scroller.querySelectorAll('.block-main-container, .block-children-left-border, .ls-page-title, .page-title, .ls-page-properties')]
       .filter(node => !block.contains(node) && !node.contains(block) && inView(node.getBoundingClientRect(), box));
@@ -123,21 +132,61 @@ function move(was, tries = 0) {
     if (writing() || await logseq.Editor.checkEditing?.()) return;
     landed = id; logseq.Editor.selectBlock?.(id);
   }, reduced() ? 0 : TIME);
+  return true;
 }
-/* The view was read when the history changed; the move waits for the new view, at most a second. */
+/* The view was read when the history changed; the move waits for the new view. Logseq takes a quarter of a second or more
+   to draw a focused bullet on a long page, longer on a busy Mac, so the wait is by time (WAIT), not by frames. The new view
+   is caught the moment Logseq puts it in, by the screen's early pass, so the move starts before it is first painted and the
+   new view never shows standing still first; each frame looks again in case that pass missed it. A newer change takes the
+   place of one still waiting. */
+const WAIT = 2000;
+let waiting = null;
 function changed() {
   const was = before; before = null; shown = routeId();
+  waiting = null; readRoute();
   if (!was || Date.now() - was.at > 1000) return;
-  win().requestAnimationFrame(() => move(was));
+  waiting = was;
+  const look = () => { if (waiting !== was) return; if (!settle()) win().requestAnimationFrame(look); };
+  win().requestAnimationFrame(look);
+}
+// Moves once the new view stands; true when the wait is over, moved or given up.
+function settle() {
+  const was = waiting; if (!was) return true;
+  const scroller = main(host());
+  if (Date.now() - was.at > WAIT) { waiting = null; return true; }
+  if (!scroller || drawn(scroller) === was.view) return false;
+  let done = true;
+  try { done = move(was) !== false; } catch (error) { console.error('Look: the glide failed', error); }
+  if (done) waiting = null;
+  return done;
 }
 
 // One level out: a press on the last step of the line above a focused bullet. Logseq's step goes on the press (its
 // pointerdown and pointerup), not on a click. The arrow and Cmd-, both come here.
 function stepOut(doc) {
   const last = [...(main(doc)?.querySelectorAll('.breadcrumb--block-page > a:not(.lk-out)') || [])].pop();
-  if (last) window.PluginDoor.screen.press(last);
-  return !!last;
+  if (last) { window.PluginDoor.screen.press(last); return true; }
+  // Pressed so soon after focusing in that Logseq has not drawn the line yet: one level out by the bullet's parent.
+  const id = routeId();
+  if (!id || id !== blockRoute) return false;
+  (async () => {
+    const block = await logseq.Editor.getBlock(id);
+    if (!block?.parent || routeId() !== id) return;
+    const up = block.parent.id === block.page?.id ? await logseq.Editor.getPage(block.page.id) : await logseq.Editor.getBlock(block.parent.id);
+    if (up?.uuid && routeId() === id) logseq.App.pushState('page', { name: up.uuid });
+  })();
+  return true;
 }
+/* Whether the view shown is a focused bullet, known before Logseq draws the line of steps: the route's id is a bullet (Logseq's
+   getBlock gives nothing for a page). Read after every change, so Cmd-, pressed at once still steps out. */
+let blockRoute = null;
+async function readRoute() {
+  const id = routeId(); blockRoute = null;
+  if (!id) return;
+  const block = await logseq.Editor.getBlock(id).catch(() => null);
+  if (block && routeId() === id) blockRoute = id;
+}
+const focused = doc => !!main(doc)?.querySelector('.breadcrumb--block-page') || (!!blockRoute && blockRoute === routeId());
 /* The way out: an up arrow after the last step of the line above a focused bullet, the library's step (lk-step) with its
    up icon; a press on it is a press on that last step. */
 function arrow(doc) {
@@ -156,12 +205,12 @@ let pushState = null;
 function start() {
   style('focus', css);
   const w = win(), history = w.history;
-  shown = routeId();
+  shown = routeId(); readRoute();
   const own = pushState = history.pushState;
   history.pushState = function (...args) { try { read(); } catch (error) { console.error('Look: could not read the view', error); } const done = own.apply(this, args); changed(); return done; };
   onStop(() => { if (history.pushState !== own) history.pushState = own; pushState = null; });
   listen(w, 'popstate', () => { read(); changed(); }, true);
-  watchScreen(arrow, arrow);
+  watchScreen(arrow, doc => { if (waiting) settle(); arrow(doc); });
   // Cmd-. on the bullet that came back selected focuses into it again, as Cmd-. does on the bullet you write in; so in and out
   // go back and forth by keys alone. Logseq's own Cmd-. is left alone everywhere else.
   // Cmd-, outside the editor in a focused bullet steps out one level, as the arrow does. Logseq alone opens its settings on that
@@ -172,12 +221,14 @@ function start() {
     if (Keys.matches(event, KEYS.in) && landed && host().querySelector(`#main-content-container .ls-block.selected[blockid="${landed}"]`)) {
       event.preventDefault(); event.stopImmediatePropagation();
       logseq.App.pushState('page', { name: landed });
-    } else if (Keys.matches(event, KEYS.out) && !landed && main(host())?.querySelector('.breadcrumb--block-page') && !host().querySelector('#main-content-container .ls-block.selected')) {
+    } else if (Keys.matches(event, KEYS.out) && focused(host())) {
+      // In a focused bullet Cmd-, always steps out, a bullet selected or not (the one that came back selected included):
+      // Logseq would open its settings there instead.
       event.preventDefault(); event.stopImmediatePropagation();
       stepOut(host());
     }
   }, true);
 }
-function stop() { style('focus', ''); before = null; landed = null; shown = null; }
+function stop() { style('focus', ''); before = null; landed = null; shown = null; waiting = null; blockRoute = null; }
 Look.focus = { start, stop };
 })();
