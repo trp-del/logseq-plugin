@@ -170,7 +170,8 @@ function onKey(event) {
 }
 
 /* A lone tap of the Hyper key (Caps Lock as Cmd+Ctrl+Opt+Shift): the modifiers come down together, nothing else is
-   pressed, and a modifier comes up within 600 ms. Both halves of an Escape within 300 ms of the tap are swallowed, since
+   pressed, and a modifier comes up within 600 ms. It takes the grey page name when one shows, and otherwise opens the tag list
+   (tag-pick.js fromHyper), never both. Both halves of an Escape within 300 ms of the tap are swallowed, since
    some setups send one and Logseq would leave the bullet on it. Holding Hyper with another key is untouched. */
 const MODIFIER_KEYS = new Set(['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'Hyper']);
 const hyperTap = { armedAt: 0, firedAt: 0 };
@@ -184,8 +185,10 @@ function onHyperUp(event) {
   if (!MODIFIER_KEYS.has(event.key) || !hyperTap.armedAt) return;
   const quick = Date.now() - hyperTap.armedAt < 600;
   hyperTap.armedAt = 0;
-  if (!quick || !showing || !setting('linkSuggestHyperTap')) return;
-  if (accept({ target: showing.box })) hyperTap.firedAt = Date.now();
+  if (!quick) return;
+  // One tap, one job: the grey page name when one shows; else, on a bullet in edit, the tag list (tag-pick.js).
+  if (showing && setting('linkSuggestHyperTap')) { if (accept({ target: showing.box })) hyperTap.firedAt = Date.now(); return; }
+  if (Flow.tagPick?.fromHyper?.(event.target)) hyperTap.firedAt = Date.now();
 }
 
 const css = `

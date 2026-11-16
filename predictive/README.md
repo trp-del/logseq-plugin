@@ -214,6 +214,8 @@ Tried and not kept (before the profiles): adding the **kind of page a line menti
 
 Automatic suggestion has to be right before it speaks, which on fresh writing is rarely (above). A key you press on purpose can be more generous, because you choose. Measured on the same 45 hand-written lines (`core/propose.js`, `tagChoices`; the numbers are of lines the graph has no twin of):
 
+Hyper alone (Cmd, Control, Option and Shift, let go with no other key; setting **Hyper alone chooses a tag**) opens the same list on a bullet with no tag guess showing, the cursor kept where it was. One tap does one thing: when grey words of a page name show, it takes them and opens nothing (link-ui.js hears the tap and hands it to tag-pick.js only then).
+
 | | lines | right tag first | right tag in the list |
 |---|---|---|---|
 | a page is named (linked or in plain words) | 18 | 15 | 16 |

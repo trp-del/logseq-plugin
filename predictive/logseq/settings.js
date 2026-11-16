@@ -16,7 +16,7 @@ Flow.settingsSchema = [
   { key: 'proposalsTagKeys', type: 'string', keys: true, title: 'Keys for choosing a tag', default: 'alt+t',
     description: 'Option-T, on a bullet that has no tag: a short list of the tags the pages the line names could take (linked or in plain words), best first by its words. Up and Down move, Enter picks, Escape closes; picking gives the bullet the tag and proposes its properties. Nothing is written until you pick. Empty binds none.' },
   { key: 'proposalsTagHyper', type: 'boolean', title: 'Hyper alone chooses a tag', default: true,
-    description: 'Hyper (Cmd, Control, Option and Shift together, as a Caps Lock remapped by Karabiner sends it), pressed and let go with no other key, on a bullet that has no tag and no tag guess showing: the same list as Option-T. The cursor stays where it was, mid-word too, and nothing is typed.' },
+    description: 'Hyper (Cmd, Control, Option and Shift together, as a Caps Lock remapped by Karabiner sends it), pressed and let go with no other key, on a bullet that has no tag and no tag guess showing: the same list as Option-T. When grey words of a page name show, the tap takes them instead (the setting below), never both. The cursor stays where it was, mid-word too, and nothing is typed.' },
   { key: 'proposalsAcceptKeys', type: 'string', keys: true, title: 'Keys for accepting everything shown without a new bullet', default: 'mod+alt+enter',
     description: 'Cmd-Option-Enter: everything shown is accepted, as with Enter, and the bullet is left with no new bullet made. Empty binds none.' },
   { key: 'citeKeys', type: 'string', keys: true, title: 'Keys for citing', default: 'alt+c',
