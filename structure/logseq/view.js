@@ -532,9 +532,18 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
   const inspHeadHtml = o => { const p = o.prop != null ? P(o.prop) : null;
     if (o.prop != null) return p ? `<div class="st-insp-h">${pi(p)}<span>${esc(p.title)}</span></div>` : '';
     return T(o.tag) ? `<div class="st-insp-h">${tagLink(o.tag)}</div>` : ''; };
+  /* Each Apply's lines, newest first. The first line of an Apply whose record is still on this Mac (30 days, records.js) carries
+     its faded Undo arrow, the door's own drawing; once undone it says so, quietly, and a change Logseq cut off says that. */
   function logHtml() {
-    const all = app.logged();
-    return `<div class="st-log">${all.length ? all.map(x => `<div class="ln"><span>${esc(new Date(x.at).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }))}</span><span>${esc(x.text)}</span><span>${x.nodes ? plural(x.nodes, 'node') : ''}</span></div>`).join('') : '<div class="st-empty">Nothing has been changed yet.</div>'}</div>`;
+    const all = app.logged(), firsts = new Set();
+    all.forEach((x, i) => { if (x.rec && all[i - 1]?.rec !== x.rec) firsts.add(i); });
+    const tail = (x, i) => {
+      const r = firsts.has(i) && app.records.get(x.rec);
+      if (!r) return '';
+      if (r.state === 'undone' || !r.left) return ' <span class="lk-note">undone</span>';
+      return `${r.state === 'cut' ? ' <span class="lk-note">cut off when Logseq closed</span>' : ''} <span class="act lk-undo" role="button" data-logundo="${esc(x.rec)}" title="Undo: ${esc(r.text)}" aria-label="Undo: ${esc(r.text)}">${window.PluginDoor.UNDO}</span>`;
+    };
+    return `<div class="st-log">${all.length ? all.map((x, i) => `<div class="ln"><span>${esc(new Date(x.at).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }))}</span><span>${esc(x.text)}${tail(x, i)}</span><span>${x.nodes ? plural(x.nodes, 'node') : ''}</span></div>`).join('') : '<div class="st-empty">Nothing has been changed yet.</div>'}</div>`;
   }
   // ---------- the top line of every content: the path, ending on the thing itself; where to go back; the two lists ----------
   // The title row: the name, and at the right end the place in the tree, nearest first, each a tag that opens (as Look draws a page's).
@@ -717,7 +726,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
      top-level tag hides behind "show all" while a child of another shows. Typed letters find anywhere in the tree and the
      matches stand flat, since an indent under no parent says nothing. "show all" is the grammar's opener, reached by the
      arrows too. The lit row is the one Enter takes: the first that can take the thing, moved by the arrows and the pointer. */
-  const PROMPT_FEW = 12;
+  const PROMPT_FEW = 16;
   function promptHtml() {
     const p = st.prompt, m = M(), q = p.text.trim().toLowerCase(), hit = s => !q || s.toLowerCase().includes(q);
     const byTitle = (a, b) => a.title.localeCompare(b.title);
@@ -757,7 +766,20 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
       Mo.tops(m).forEach(k => walk(k, 0));
       if (p.what === 'tag' && hit('The top')) list.push({ key: LOOSE, nm: 'The top', ct: '', d: 0, loose: true, why: p.tags.every(s => !T(s)?.parents.length) ? 'already at the top' : '' });
       all = list;
-      if (!q) { const tops = list.filter(r => r.d === 0), two = list.filter(r => r.d <= 1); few = two.length <= PROMPT_FEW ? two : tops; }
+      /* At rest: every top-level tag, then as many tags beneath as the few allow, a whole family at a time (a tag's child tags
+         all or none), shallow before deep, in the tree's order (16 November 2026, the owner: "that menu starts way too short":
+         four top-level tags and "show all 25" when a whole second level did not fit). */
+      if (!q) {
+        const parentOf = new Map(); const stack = [];
+        for (const r of list) { stack.length = r.d; parentOf.set(r, r.d ? stack[r.d - 1] : null); stack[r.d] = r; }
+        const chosen = new Set(list.filter(r => r.d === 0));
+        for (let d = 1, deepest = Math.max(0, ...list.map(r => r.d)); d <= deepest; d++) {
+          const families = new Map();
+          for (const r of list) if (r.d === d && chosen.has(parentOf.get(r))) { const up = parentOf.get(r); if (!families.has(up)) families.set(up, []); families.get(up).push(r); }
+          for (const kids of families.values()) if (chosen.size + kids.length <= PROMPT_FEW) kids.forEach(r => chosen.add(r));
+        }
+        few = list.filter(r => chosen.has(r));
+      }
     }
     let rows = p.whole ? all : (few || all).slice(0, PROMPT_FEW);
     if (!p.whole && all.length > rows.length) rows = [...rows, { more: true, nm: `show all ${all.length}`, ct: '', d: 0, why: '' }];
@@ -1083,11 +1105,11 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     const list = await app.readNodes(id);
     jump(() => { st.nodes = { tag: id, list, ticks: new Set(), all: false, cur: 0 }; st.view = 'nodes'; st.propCur = null; st.cur = id; });
   }
-  const show = what => jump(() => { st.view = what; st.propCur = null; st.nodes = null; st.whole.clear(); });   // 'tree' from the views line, 'table', 'health'
+  const show = what => jump(() => { if (what === 'log') app.readRecords(); st.view = what; st.propCur = null; st.nodes = null; st.whole.clear(); });   // 'tree' from the views line, 'table', 'health'
   
   // ---------- events ----------
   root.addEventListener('click', e => {
-    const t = e.target.closest('[data-ppage],[data-tpage],[data-pfold],[data-pon],[data-prange],[data-all],[data-fold],[data-tick],[data-ptick],[data-paim],[data-paimoff],[data-pcombine],[data-ntick],[data-row],[data-go],[data-open],[data-unrange],[data-addrange],[data-prop],[data-fix],[data-stage],[data-leave],[data-sort],[data-apply],[data-discard],[data-drop],[data-undo],[data-act],[data-do],[data-show],[data-compare],[data-aim],[data-aimtop],[data-aimoff],[data-pick],[data-nodes],[data-more],[data-node],[data-split],[data-gfold],[data-gname],[data-gdrop],[data-gnew],[data-pnew]');
+    const t = e.target.closest('[data-ppage],[data-tpage],[data-pfold],[data-pon],[data-prange],[data-all],[data-fold],[data-tick],[data-ptick],[data-paim],[data-paimoff],[data-pcombine],[data-ntick],[data-row],[data-go],[data-open],[data-unrange],[data-addrange],[data-prop],[data-fix],[data-stage],[data-leave],[data-sort],[data-apply],[data-discard],[data-drop],[data-undo],[data-act],[data-do],[data-show],[data-compare],[data-aim],[data-aimtop],[data-aimoff],[data-pick],[data-nodes],[data-more],[data-node],[data-split],[data-gfold],[data-gname],[data-gdrop],[data-gnew],[data-pnew],[data-logundo]');
     const outside = st.prompt?.owner === mode && !e.target.closest('.st-prompt');
     if (!t) { if (st.menu || outside) { st.menu = null; if (outside) st.prompt = null; redraw(); } return; }
     if (e.target.matches?.('[data-edit]')) return;   // a click in a field being written stays in the field
@@ -1145,6 +1167,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     if (t.dataset.prop) { if (mode !== 'page') return; const [tagId] = t.dataset.prop.split('·').map(Number); st.propCur = t.dataset.prop; if (T(tagId)) st.cur = tagId; st.menu = null; return redraw(); }   // the rest of a row selects
     if (t.dataset.do) return act(t.dataset.do, t.dataset.do.startsWith('p') && t.dataset.do !== 'page' || t.dataset.do === 'split' ? t.dataset.on : keyOf(t.dataset.on), e.shiftKey);
     if (t.dataset.show) return show(t.dataset.show);
+    if (t.dataset.logundo) return app.undoLogged(t.dataset.logundo);
     if (t.dataset.pick) return finishPrompt(st.prompt.shown[+t.dataset.pick]);
     if (t.dataset.act) return act(t.dataset.act, st.menu.on, e.shiftKey);
     if (t.dataset.nodes) return openNodes(keyOf(t.dataset.nodes));

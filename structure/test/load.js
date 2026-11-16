@@ -70,6 +70,7 @@ const logseq = {
   App: { onCurrentGraphChanged(fn) { logseq.graphChanged = fn; }, getCurrentGraph: async () => ({ name: graphName }), onRouteChanged(fn) { logseq.routeChanged = fn; }, pushState: (...a) => calls.push(['pushState', ...a]), registerCommandPalette() {}, registerUIItem() {}, setRightSidebarVisible() {} },
   DB: { onChanged(fn) { logseq.changed = fn; }, datascriptQuery: async q => { if (failQuery?.test(q)) throw new Error('the read failed'); return fakeQuery(q); } },
   UI: { showMsg: (text, status) => calls.push(['notify', status, text]) },
+  FileStorage: (() => { const files = new Map(); return { files, getItem: async k => files.get(k) ?? null, setItem: async (k, v) => { files.set(k, String(v)); }, removeItem: async k => { files.delete(k); } }; })(),
   Editor: {
     getCurrentPage: async () => ({ uuid: 'page-uuid' }), openInRightSidebar: (...a) => calls.push(['openInRightSidebar', ...a]),
     addTagExtends: async (t, p) => calls.push(['addTagExtends', t, p]), removeTagExtends: async (t, p) => calls.push(['removeTagExtends', t, p]),

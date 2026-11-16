@@ -24,7 +24,7 @@ Ontology (named Structure until 12 November 2026; its folder and the names in it
 
 **Moving and merging on Regions.** The areas are the choice. The bar says what goes ("Move Hospital and Doctor to: press a tag"), the lines leave, and tags that cannot take it go faint; a press or Enter answers, To the top and Leave it stand on the bar, Escape leaves it. A merge then shows the two tags side by side before it waits in the tray.
 
-**The log.** Every Apply's lines, newest first, with the time and the nodes, kept per graph on this computer.
+**The log.** Every Apply's lines, newest first, with the time and the nodes, kept per graph on this computer. The first line of each Apply carries the faded Undo arrow for 30 days, Logseq closed and opened again in between (16 November 2026): the arrow is the same Undo as the tray's, read back from the record of that Apply. Once undone the line says "undone". A later change to the same tags is undone first, and the notice names it. A change Logseq closed in the middle of is said once when Ontology next starts, and its line says "cut off when Logseq closed": its arrow puts back what was written. Nothing is put back by itself.
 
 **A property's page.** Above what Logseq shows: Property type, Node tags (three, then "and 12 more", each with its ×), On tags with how filled and Move to…, Split by its values… and Delete property from tag, Relationships, then what Ontology suggests. The title is the rename. **Merge into…**, at the right of Property type, opens the picker with the other properties, and a pick opens the merge's ask there.
 
@@ -76,6 +76,8 @@ Through Logseq's own calls only: a tag's parent (Logseq's Extends), a node's tag
 
 ## Left out on purpose
 
+Before the first write, Apply keeps a record of what it will write and the way back on this Mac, in the plugin's storage folder (`~/.logseq/storages/logseq-plugin/`), and keeps it up to date as each step runs, so the Undo outlives Logseq and works from the Log for 30 days. The way back of each step is recorded before the step writes, and is safe to run whether or not the write happened. A tag or page Apply makes is recorded just after it is made, since its id is known only then. If the record cannot be written, Apply still runs and says that its Undo lasts only until Logseq closes.
+
 Option while dragging to keep a second parent (rule 1 treats a second parent as an issue). A drag moves the tag and everything under it, nothing else, and does exactly what "move under…" does: the row under the pointer shows a line where the tag will go, a row it cannot go under (itself, anything beneath it) takes no drop, and the move waits in the tray.
 
 ## Opening it
@@ -98,6 +100,7 @@ core/         pure: no Logseq, no screen. Runs in Node, so it is tested there.
   changes.js    the staged changes: the sentence, the change shown in the model before Apply, the steps the writer runs
 logseq/       the only Logseq-facing code
   db.js         the one reading of the graph (a few datascript rounds) and the one place that writes it
+  records.js    the record of every Apply on this Mac (the plugin's storage folder): what was written and the way back, as data, kept 30 days
   apply.js      Apply: the steps in order, each inverse kept before its write; the one Undo; a failed batch put back, what failed kept for the arrow
   view.js       the screen: Regions, Every property, the tray on top of it, a tag's line and its lines in the Ontology tab, the table, the ask, menu, prompts
   regions.js    the Regions page: each top-level tag an area, the relationships drawn as lines between the rows

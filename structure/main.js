@@ -15,6 +15,8 @@ const changesWord = n => n === 1 ? '1 change' : `${n} changes`;
 const stepsWord = n => n === 1 ? '1 step' : `${n} steps`;
 // The Undo of another graph, kept for when that graph is open again: it is the only record of what was written there.
 const dones = new Map();
+// The records this session is writing or undoing now (not cut off), and the cut-off ones already said.
+const running = new Set(), saidCut = new Set();
 let placeNumber = Date.now();   // a place of the map in the window's history; from the clock, so a reload never reuses one
 // A line in the tray that only says what happened leaves by itself; the Undo arrow stays.
 let saidTimer = 0;
@@ -53,7 +55,7 @@ const app = {
   nextPlace: () => ++placeNumber,
   // The log of changes: each Apply's lines, kept with the graph's name on this computer, the newest first.
   logged() { try { return JSON.parse(localStorage.getItem(`structure-log:${app.graph}`) || '[]'); } catch (error) { return []; } },
-  log(graph, lines) { try { const at = Date.now(), all = [...lines.map(l => ({ at, text: l.text, nodes: l.nodes })), ...app.logged()].slice(0, 500); localStorage.setItem(`structure-log:${graph}`, JSON.stringify(all)); } catch (error) { console.error('Structure: the log could not be kept', error); } },
+  log(graph, lines, rec) { try { const at = Date.now(), all = [...lines.map(l => ({ at, text: l.text, nodes: l.nodes, rec })), ...app.logged()].slice(0, 500); localStorage.setItem(`structure-log:${graph}`, JSON.stringify(all)); } catch (error) { console.error('Structure: the log could not be kept', error); } },
   // The groups of Every property: for order only, kept with the graph's name on this computer, nothing written to the graph.
   // { list: [{ id, name, under: id or null, open }], of: { property ident: group id } }.
   groups() { try { const g = JSON.parse(localStorage.getItem(`structure-groups:${app.graph}`) || 'null'); return g && Array.isArray(g.list) ? { list: g.list, of: g.of || {} } : { list: [], of: {} }; } catch (error) { return { list: [], of: {} }; } },
@@ -82,28 +84,51 @@ const app = {
       else {
         plan = tray.plan();
         const here = async () => await S.db.graph() === graph;
-        const result = await S.apply.apply(plan, here);
-        keepDone(graph, { text: `${changesWord(n)} applied`, undo: result.undo, left: result.left, graph });
-        app.log(graph, tray.lines());
+        // The record of this Apply, on this Mac before the first write: its Undo outlives Logseq (records.js).
+        const lines = tray.lines(), rec = S.records.make({ graph, text: n === 1 && lines[0] ? lines[0].text : `${changesWord(n)} applied` });
+        running.add(rec.id);
+        try {
+          const result = await S.apply.apply(plan, here, rec);
+          keepDone(graph, { text: `${changesWord(n)} applied`, undo: result.undo, left: result.left, graph, rec });
+          if (rec.lost) notify('Applied, but its Undo could not be kept on this Mac: it works until Logseq closes', 'warning');
+          app.log(graph, lines, rec.id);
+        } catch (error) { if (error.left?.()) app.log(graph, lines, rec.id); throw error; }   // what could not be put back stays on the Log's arrow too
+        finally { running.delete(rec.id); }
         tray.note = ''; tray.changes = [];
       }
     } catch (error) {
       console.error('Structure: apply failed', error); notify(`Not applied: ${window.PluginDoor.reason(error, 'Logseq did not take a change. Nothing else was changed')}`, 'error');
-      if (error.left?.()) keepDone(graph, { text: `${stepsWord(error.left())} not put back`, undo: error.undo, left: error.left, graph });
+      if (error.left?.()) keepDone(graph, { text: `${stepsWord(error.left())} not put back`, undo: error.undo, left: error.left, graph, rec: error.rec });
       // A tag deleted and put back has a new id: the waiting lines that name it follow, so pressing Apply again does the same thing.
       if (plan) tray.renumber(new Map([...plan.handles.values()].filter(h => h.realId != null && h.id > 0).map(h => [h.id, h.realId])));
     } finally { app.st.busy = ''; }
     await app.reread();
+    await app.readRecords();
   },
-  async undo() {
-    if (app.st.busy || !tray.done) return;
-    const done = tray.done, of = done.left();
+  async undo() { if (!app.st.busy && tray.done) await app.undoRun(tray.done); },
+  /* The Log's arrow: the Undo of an Apply of any day in the last 30, read back from this Mac (records.js). The same run as the
+     tray's arrow, so both ways in put back the same way; a record the tray's arrow also holds is undone through that one. A later
+     change to the same tags is undone first, or this Undo would put a tag back under what came after it. */
+  async undoLogged(id) {
+    if (app.st.busy) return;
+    if (tray.done?.rec?.id === id) return app.undoRun(tray.done);
+    const graph = app.graph, all = await S.records.list(graph, running), head = all.find(h => h.id === id);
+    if (!head || !head.left) { await app.readRecords(); return; }
+    const later = S.records.laterOver(all, head);
+    if (later) return notify(`Undo “${later.text}” first: it changed the same tags later`, 'warning');
+    const rec = await S.records.load(graph, head).catch(() => null);
+    if (!rec) return notify('This change’s record could not be read, so it cannot be undone from here', 'warning');
+    const here = async () => await S.db.graph() === graph;
+    await app.undoRun({ text: head.text, graph, rec, undo: () => S.apply.putBack(rec, here), left: () => rec.left() });
+  },
+  async undoRun(done) {
+    const of = done.left();
     app.st.busy = 'Undoing…'; app.draw();
     try {
       const failures = await done.undo();
       if (failures.kept) notify(`${failures.kept === 1 ? 'One node or page' : `${failures.kept} nodes or pages`} changed after Apply, so Undo left ${failures.kept === 1 ? 'it' : 'them'} as ${failures.kept === 1 ? 'it is' : 'they are'}`, 'warning');
       if (failures.length) { done.text = `${stepsWord(done.left())} not undone`; syncUndo(); notify(`Could not undo ${failures.length} of ${stepsWord(of)}: ${window.PluginDoor.reason(failures[0], 'Logseq did not take them')}. The arrow tries again`, 'error'); }
-      else { if (tray.done === done) tray.done = null; else dones.delete(done.graph); tray.note = ''; }
+      else { if (tray.done === done) tray.done = null; else if (dones.get(done.graph) === done) dones.delete(done.graph); tray.note = ''; }
       syncUndo();
     } catch (error) {
       console.error('Structure: undo failed', error);
@@ -112,6 +137,21 @@ const app = {
       notify(error.elsewhere ? `Another graph was opened: the Undo waits in ${done.graph.replace(/^logseq_db_/, '')}` : `Could not undo: ${window.PluginDoor.reason(error, 'Logseq did not take a step back')}`, 'error');
     } finally { app.st.busy = ''; }
     await app.reread();
+    await app.readRecords();
+  },
+  // The records of the graph open, for the Log's arrows: id -> head. A record a Logseq that closed left halfway is said once.
+  records: new Map(),
+  async readRecords() {
+    const graph = app.graph;
+    try {
+      const all = await S.records.list(graph, running);
+      if (graph !== app.graph) return;
+      const cut = all.filter(h => h.state === 'cut' && !saidCut.has(h.id));
+      cut.forEach(h => saidCut.add(h.id));
+      if (cut.length) notify(`Logseq closed while Ontology was changing tags (${cut[0].text}). What was written can be put back from the Log in Ontology`, 'warning');
+      app.records = new Map(all.map(h => [h.id, h]));
+    } catch (error) { console.error('Structure: the records could not be read', error); app.records = new Map(); }
+    app.draw();
   },
   // The graph read again; the cursor kept by id, or by name when the id changed (a tag made or put back by Undo).
   async reread() {
@@ -192,6 +232,7 @@ async function otherGraph() {
   tray.discard(); tray.lost = [];
   app.graph = await S.db.graph().catch(() => '');
   tray.done = dones.get(app.graph) || null; dones.delete(app.graph); syncUndo();
+  app.records = new Map(); app.readRecords();
   say(waiting ? `${changesWord(waiting)} dropped: another graph opened` : '');
   if (waiting && !mounts.onPage()) notify(tray.note, 'warning');
   Object.assign(app.st, startState(), { busy: app.st.busy });
@@ -232,6 +273,7 @@ async function main() {
   onStop(logseq.App.onRouteChanged?.(() => { tagPage(); }));
   app.graph = await S.db.graph().catch(() => '');
   await app.reread();
+  app.readRecords();
   adopt();
   tagPage();
   const doc = host();
