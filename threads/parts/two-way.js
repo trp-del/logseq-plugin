@@ -575,6 +575,7 @@ const taskHtml = item => { const s = state.statuses.get(item.status); if (!s) re
 function statusEverywhere(uuid, status) {
   for (const g of state.groups) for (const item of g.items) if (item.uuid === uuid) item.status = status;
   for (const data of state.node.values()) for (const g of data.rows || []) for (const item of g.items) if (item.uuid === uuid) item.status = status;
+  for (const data of state.node.values()) for (const line of data.bullets || []) if (line.uuid === uuid) line.status = status;
   state.html = null; draw(host());
 }
 async function setStatus(button) {
@@ -584,7 +585,7 @@ async function setStatus(button) {
   const picked = await shared.pickValue({ at: button, placeholder: 'Set Status', clearLabel: 'Clear', keepOrder: true,
     options: [...state.statuses.values()].map(s => ({ label: s.title, id: s.id, iconHtml: statusIconHtml(s.icon), held: s.id === had })) });
   if (!picked || (!picked.clear && picked.id === had)) return;
-  const name = shortName(state.groups.flatMap(g => g.items).find(item => item.uuid === uuid)?.title || '');
+  const name = shortName(state.groups.flatMap(g => g.items).find(item => item.uuid === uuid)?.title || [...state.node.values()].flatMap(data => data.bullets || []).find(line => line.uuid === uuid)?.text || '');
   const before = state.statuses.get(had)?.title || '';
   try {
     if (picked.clear) await model.unsetValue(uuid, model.STATUS_IDENT); else await model.setValue(uuid, model.STATUS_IDENT, picked.label);

@@ -20,6 +20,7 @@ const { U, load, pencilled } = standIn;
   assert.equal(Look.folded.dueLabel(20261119, new Date(2026, 10, 1)), 'due Nov 19');
   assert.equal(Look.folded.dueLabel(20261012, new Date(2026, 10, 1)), 'was due Oct 12');
   assert.equal(JSON.stringify(Look.folded.wordsFor({ task: 2, files: [['pdf', 1]], quotes: 0, tags: ['Consultation'], due: 0 })), JSON.stringify(['2 unfinished tasks under it', '1 PDF', 'Consultation']));
+  assert.equal(JSON.stringify(Look.folded.wordsFor({ task: 1, done: 2, files: [], quotes: 0, tags: [], due: 0 })), JSON.stringify(['1 unfinished task under it', '2 done tasks']));
   // styles sent
   for (const key of ['look-links', 'look-days', 'look-tags', 'look-capsules', 'look-props', 'look-title', 'look-folded', 'look-quote-bullets']) assert.ok(styles[key] && !styles[key].includes('no rules'), key + ' sent');
   { const { linksIn, byKind } = Look.links;

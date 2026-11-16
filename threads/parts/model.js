@@ -729,8 +729,13 @@ async function firstLines(uuid, n, withIds = false) {
   // empty in a row, its bullet unread), so its bullets are read as a page's.
   const page = !entity && await logseq.Editor.getPage(uuid).catch(() => null);
   const children = entity?.name || entity?.originalName || page ? await logseq.Editor.getPageBlocksTree(uuid) : entity?.children;
-  // withIds: { uuid, title } each, so a card can open the bullet a line is.
-  return (children || []).slice(0, n).map(child => withIds ? { uuid: String(child?.uuid || ''), title: titleOf(child) } : titleOf(child));
+  // withIds: { uuid, title, status } each, so a card can open the bullet a line is, and a task bullet shows its circle as a
+  // row does (16 November 2026, the owner: a Done payment opened under its year had no circle).
+  const shown = (children || []).slice(0, n);
+  if (!withIds) return shown.map(titleOf);
+  const uuids = shown.map(child => String(child?.uuid || '')).filter(u => UUID.test(u));
+  const status = new Map(uuids.length ? (await dsQuery(`[:find ?u ?s :where [(ground [${uuids.map(u => `#uuid "${u}"`).join(' ')}]) [?u ...]] [?b :block/uuid ?u] ${STATUS}]`).catch(() => [])).map(([u, s]) => [String(u), Number(s) || 0]) : []);
+  return shown.map(child => ({ uuid: String(child?.uuid || ''), title: titleOf(child), status: status.get(String(child?.uuid || '')) || 0 }));
 }
 /* What many nodes hold under each of your properties, at once (for grouping a row, parts/two-way.js):
    uuid -> property name -> { ident, values }, each value { text } with { id, uuid } when it is a node or a choice (a

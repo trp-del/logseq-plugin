@@ -149,7 +149,7 @@ function nodeHtml(uuid, key, data, asTop = false, field = true) {
     const k = `${key}>${line.uuid}`, open = state.dig.has(k), kids = twoWay.hasKids(line.uuid);
     const label = twoWay.shortName(line.text || 'the bullet');
     const chev = kids || open ? O.chev({ open, label, attrs: { 'data-dig': k, 'data-uuid': line.uuid, 'data-title': label } }) : O.room();
-    const row = O.bullet({ html: twoWay.lineHtml(line.text, 400) + (twoWay.bulletTail?.(line.uuid) || ''), closed: kids && !open, held: line.uuid, attrs: { 'data-bullet': line.uuid }, wordsAttrs: { tabindex: '0', 'data-edit-bullet': line.uuid } }).replace('<div class="th-ol-bullet"', '<div class="th-ol-bullet th-ol-chevved"').replace(/(<div class="th-ol-bullet[^>]*>)/, `$1${chev}`);
+    const row = O.bullet({ html: twoWay.lineHtml(line.text, 400) + (twoWay.bulletTail?.(line.uuid) || ''), closed: kids && !open, held: line.uuid, attrs: { 'data-bullet': line.uuid }, wordsAttrs: { tabindex: '0', 'data-edit-bullet': line.uuid } }).replace('<div class="th-ol-bullet"', '<div class="th-ol-bullet th-ol-chevved"').replace(/(<div class="th-ol-bullet[^>]*>)/, `$1${chev}`).replace('<span class="th-ol-words"', `${twoWay.taskHtml(line)}<span class="th-ol-words"`);
     html += open ? O.unit({ html: row + digKids(k, line.uuid, 'in'), focus: state.focus === k, attrs: { 'data-key': k } }) : row;
   }
   if (data.more) html += O.more({ text: 'show all its bullets', attrs: { 'data-ball': uuid } });
@@ -196,7 +196,7 @@ function readNode(uuid, id, { look = false } = {}) {
     const most = state.ball.has(uuid) ? 500 : BULLETS;
     const [tags, bullets, guesses] = await Promise.all([
       twoWay.provided.firstTags ? twoWay.provided.firstTags(ids).catch(() => new Map()) : new Map(),
-      Promise.all(lines.map(async line => ({ uuid: line.uuid, text: await readable(line.title) }))),
+      Promise.all(lines.map(async line => ({ uuid: line.uuid, text: await readable(line.title), status: line.status || 0 }))),
       !look && kept.some(r => !r.values.length) && twoWay.provided.nodeProposals ? twoWay.provided.nodeProposals(uuid).catch(() => []) : []]);
     const empty = new Set(kept.filter(r => !r.values.length).map(r => r.prop.ident));
     // Which of the nodes that link here, and of its own bullets, hold bullets of their own: those get the folded ring.

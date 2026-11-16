@@ -1329,6 +1329,19 @@ const groupEl = (doc, name) => [...doc.querySelectorAll('.th-tw-group')].find(g 
     check(doc.querySelector('.th-two-way').textContent.includes('Held through the alias') && doc.querySelectorAll('.th-two-way .th-tw-row').length === 1, 'a node holding an alias is in the page’s row');
     part.stop();
   }
+  // A task bullet inside an opened node shows its circle as a row does (16 November 2026: a Done payment under its year had none).
+  {
+    const { window, doc, part, provided, changed, bullets } = world('');
+    provided.statusChoices = async () => [{ id: 77, title: 'Todo', order: 'b0', icon: { type: 'tabler-icon', id: 'Todo' } }, { id: 80, title: 'Done', order: 'b1', icon: { type: 'tabler-icon', id: 'Done' } }];
+    bullets.set(U(101), [{ uuid: U(701), title: 'Paid January premium', status: 80 }, { uuid: U(702), title: 'Pay February premium', status: 77 }, { uuid: U(703), title: 'A plain note', status: 0 }]);
+    changed.forEach(fn => fn({ blocks: [], txMeta: { outlinerOp: 'x' } })); await wait(1050);
+    click(window, chevOf(doc, U(101))); await wait(80);
+    const box = kidsOf(doc, U(101));
+    const circle = uuid => box?.querySelector(`[data-bullet="${uuid}"] > .th-task`);
+    check(!!circle(U(701))?.classList.contains('ls-icon-Done') && !!circle(U(702))?.classList.contains('ls-icon-Todo'), 'a task bullet in an opened node shows its circle, before its words: ' + box?.innerHTML.slice(0, 300));
+    check(!circle(U(703)), 'a bullet with no status shows no circle');
+    part.stop();
+  }
   // A task shows Logseq's circle for its status; the head says what its days are of, and a line dated otherwise says its own.
   {
     const { window, doc, part, provided, changed, calls } = world('');

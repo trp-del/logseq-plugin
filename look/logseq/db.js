@@ -80,7 +80,7 @@ async function propIndex() {
   return byTitle;
 }
 
-/* What folded nodes hold: from any depth, how many unfinished tasks, their nearest due day and their tags; from the bullets
+/* What folded nodes hold: from any depth, how many unfinished tasks and done ones, the unfinished ones' nearest due day and their tags; from the bullets
    right under it only, how many files of each kind (picture, PDF, other), how many quotes and the other bullets' tags. Tags
    come most used first, with no numbers. A picture shown twice, or a passage cited twice, counts once. */
 const dayNumber = window.PluginDoor.dates.number;
@@ -118,7 +118,9 @@ async function heldBelow(uuids) {
   const add = (map, key, value) => { if (!map.has(key)) map.set(key, []); map.get(key).push(value); };
   for (const [b, title, ident, t] of tagRows) { if (String(ident) === ':logseq.class/Task' || taskKinds.has(t)) taskIds.add(b); if (!/^:?logseq\.class\//.test(String(ident))) add(tagsOf, b, String(title)); }
   const closed = new Set();
-  for (const [b, status] of statusRows) { if (/\.(done|canceled|cancelled)$/.test(String(status))) closed.add(b); else taskIds.add(b); }
+  // Done ones are counted apart (16 November 2026, the owner: "we should show completed as well"); cancelled ones are neither.
+  const doneIds = new Set();
+  for (const [b, status] of statusRows) { if (/\.(done|canceled|cancelled)$/.test(String(status))) { closed.add(b); if (/\.done$/.test(String(status))) doneIds.add(b); } else taskIds.add(b); }
   for (const b of closed) taskIds.delete(b);
   const sooner = (b, n) => { if (Number.isFinite(n) && n > 0 && (!dueOf.has(b) || n < dueOf.get(b))) dueOf.set(b, n); };
   for (const [b, day] of dayRows) sooner(b, Number(day));
@@ -131,8 +133,9 @@ async function heldBelow(uuids) {
   }
   for (const [u, r] of roots) {
     const counts = new Map(), fileSets = new Map(), passages = new Set();
-    let task = 0, due = 0;
+    let task = 0, done = 0, due = 0;
     for (const b of below.get(r)) {
+      if (doneIds.has(b)) done++;
       // Only what asks something of you rolls up from deeper down: unfinished tasks, their due days and their tags. Pictures,
       // PDFs, files, quotes and the tags of other bullets count only on the bullet right above them, and a folded bullet
       // further in shows them on its own line (15 November 2026, the owner: "for PDF and Photos, only show at parent";
@@ -147,7 +150,7 @@ async function heldBelow(uuids) {
     }
     const files = ['image', 'pdf', 'file'].filter(k => fileSets.has(k)).map(k => [k, fileSets.get(k).size]);
     const tags = [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([title]) => title);
-    held.set(String(u).toLowerCase(), { task, files, quotes: passages.size, tags, due });
+    held.set(String(u).toLowerCase(), { task, done, files, quotes: passages.size, tags, due });
   }
   return held;
 }
