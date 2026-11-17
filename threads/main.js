@@ -13,7 +13,7 @@ function useShared() {
   ({ host, notify, perf } = shared);
   // The core's base (plugin.js, Door.base). Its stop takes Threads' screen updaters off the door's watcher first, so nothing
   // re-applies while the steps undo their changes; every stylesheet it sends is counted for the troubleshooting tools.
-  base = window.PluginDoor.base('threads', { prefix: 'Threads: ', styled: (key, style, changed) => perf.style(key, style, changed) });
+  base = window.PluginDoor.base('threads', { prefix: 'Relations: ', styled: (key, style, changed) => perf.style(key, style, changed) });
   warnOnce = base.warnOnce; onUnload = base.onStop; runUnloadTasks = () => { screen.count = 0; return base.stop(); };
 }
 
@@ -69,15 +69,15 @@ function runSelfCheck(first) {
     warnOnce(`could not find ${what} on a page, so ${stops} may not show there (self-check)`, `looked for ${needs}, beside ${has}`);
   }
   const [what, , , stops] = missing[0];
-  const lost = missing.length === 1 ? `Threads could not find ${what} on this page, so ${stops} may not show.` : `Threads could not find ${missing.length} parts of this page it works with, so some of what it draws may not show.`;
-  notify(`${lost} Your notes are safe. To look closer: Threads: troubleshooting, then “Check what the plugin finds on this page”.`, 'warning');
+  const lost = missing.length === 1 ? `Relations could not find ${what} on this page, so ${stops} may not show.` : `Relations could not find ${missing.length} parts of this page it works with, so some of what it draws may not show.`;
+  notify(`${lost} Your notes are safe. To look closer: Relations: troubleshooting, then “Check what the plugin finds on this page”.`, 'warning');
 }
 async function versionNotice() {
   let version = '';
   try { version = (await logseq.App.getInfo('version')) || ''; } catch (error) { return; }
   if (!version || version === provided.CHECKED_WITH || logseq.settings?.selfCheckSeenVersion === version) return;
   logseq.updateSettings({ selfCheckSeenVersion: version });
-  notify(`You are on Logseq ${version}; Threads was last checked with Logseq ${provided.CHECKED_WITH}. If something looks off: Threads: troubleshooting, then “Check what the plugin finds on this page”.`, 'warning');
+  notify(`You are on Logseq ${version}; Relations was last checked with Logseq ${provided.CHECKED_WITH}. If something looks off: Relations: troubleshooting, then “Check what the plugin finds on this page”.`, 'warning');
 }
 function startSelfCheck() {
   versionNotice();
@@ -198,7 +198,7 @@ function main() {
   // address (lsp://logseq.io), where Logseq's own page cannot be reached and nothing of the plugin can draw (seen
   // on the owner's other computer: no rows, no map, no settings item). Say so once, instead of failing part by part.
   try { host(); } catch (error) {
-    logseq.UI.showMsg('Threads cannot reach Logseq\'s page from here. Uninstall it, then install it again with the "effect" box ticked (Install plugin from GitHub release).', 'error', { timeout: 0 });
+    logseq.UI.showMsg('Relations cannot reach Logseq\'s page from here. Uninstall it, then install it again with the "effect" box ticked (Install plugin from GitHub release).', 'error', { timeout: 0 });
     return;
   }
   // The clean-up (runUnloadTasks) is run by the plugin's own beforeunload (main.js at the root), as this module's stop.
@@ -222,13 +222,13 @@ function main() {
   const foundationOnly = setting('foundationOnly') === true;
   window.Threads.runningBaseOnly = foundationOnly;   // read by the settings window, which offers the reload when the setting differs
   const running = foundationOnly ? plugInParts.filter(part => part.foundation) : plugInParts;
-  if (foundationOnly) notify('Threads is running only its foundation (Foundation only, under Troubleshooting in its settings). Turn it off and reload the plugin to get everything back.', 'warning');
+  if (foundationOnly) notify('Relations is running only its foundation (Foundation only, under Troubleshooting in its settings). Turn it off and reload the plugin to get everything back.', 'warning');
   const failed = new Set();
   const step = (part, what, fn) => { try { fn(); } catch (error) { warnOnce(`the ${part.name} part could not ${what}`, error); failed.add(part.says || part.name); } };
   for (const part of running) step(part, 'provide its functions', () => part.provide?.(window.Threads.core));
   for (const part of running) { step(part, 'start', () => part.start()); onUnload(part.stop); }
   for (const part of running) step(part, 'get ready', () => part.ready?.());
-  if (failed.size) notify(`Part of Threads could not start: ${[...failed].join(', ')}. The rest runs.`, 'warning');
+  if (failed.size) notify(`Part of Relations could not start: ${[...failed].join(', ')}. The rest runs.`, 'warning');
   startSelfCheck();
 
   // Every hook returns an "off" function; each is called when the plugin unloads. The core listens
@@ -266,6 +266,6 @@ schemaAll = plugInParts.flatMap(part => part.schema);
 setting = window.PluginDoor.settingReader(schemaAll);
 RELOAD_SETTINGS = reloadOnly(schemaAll);
 window.PluginDoor.register({
-  key: 'threads', title: 'Threads', about: 'On a page, everything that points at it, named by the property it came through, to follow and dig along.',
+  key: 'threads', title: 'Relations', about: 'On a page, everything that points at it, named by the property it came through, to follow and dig along.',
   schema: schemaAll, start: main, stop: () => runUnloadTasks(),
 });

@@ -112,7 +112,7 @@ const warnings = Door.warnings;
 const sweepLeftovers = doc => Door.sweep('threads', doc);
 // Every part's clean-up steps waiting, by its prefix, so the stress tests can see one that grows with use. Several parts share a
 // prefix: their steps are added up under it, so none hides another's.
-const lifeCounts = () => Door.bases('threads').reduce((out, base) => { const key = base.prefix.replace(/^Threads ?\(?|\)?: $/g, '') || 'core'; out[key] = (out[key] || 0) + base.waiting(); return out; }, {});
+const lifeCounts = () => Door.bases('threads').reduce((out, base) => { const key = base.prefix.replace(/^(?:Threads|Relations) ?\(?|\)?: $/g, '') || 'core'; out[key] = (out[key] || 0) + base.waiting(); return out; }, {});
 const take = (core, names, warn) => { const all = { ...core, ...core.provided }; for (const name of names) if (all[name] === undefined) warn(`${name} is missing from the core`); return all; };
 
 // Opens a page or block by uuid; in the right sidebar when asked (Shift-click).
@@ -971,7 +971,7 @@ span.th-ol-count { text-decoration: none; cursor: default; }
 `;
 
 // This file's own boxes: the kit's pop-ups, anchors and dialog, and the Undo dock.
-Door.base('threads', { prefix: 'Threads: ', leaves: { elements: '.th-pop, .th-anchor' } });   // what the kit itself may leave on screen
+Door.base('threads', { prefix: 'Relations: ', leaves: { elements: '.th-pop, .th-anchor' } });   // what the kit itself may leave on screen
 
 // THE finder of the plugin's marks on Logseq's screen (2026-10-23): every class and attribute prefix any part uses.
 // The troubleshooting box counts with it, the boot test looks for leftovers with it and the frame tests

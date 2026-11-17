@@ -53,7 +53,7 @@ const schema = [
   { key: 'hideDatePencil', type: 'boolean', looks: ['Shown', 'Left out'], default: true, title: 'The pencil after a date',
     description: 'Logseq puts a small pencil after a date value; it is left out. A click on the date opens the date picker, or with pages in a property opening them, the chevron after the date does.' },
   { key: 'hideTwoWayList', type: 'boolean', looks: ['Shown', 'Left out'], default: true, title: 'The two-way list under a node',
-    description: 'Under a node that others point at through a property, Logseq adds a list of them in tabs named by their tag (“Consultation”). It is left out under every node, on any page, a journal day too. A page’s own list is Threads’ to replace.' },
+    description: 'Under a node that others point at through a property, Logseq adds a list of them in tabs named by their tag (“Consultation”). It is left out under every node, on any page, a journal day too. A page’s own list is Relations’ to replace.' },
   { key: 'quotesHeading', type: 'heading', default: null, title: 'PDF quotes', place: 'page', description: 'What a quote from a PDF looks like.' },
   { key: 'quoteBullets', type: 'boolean', looks: ['A dot', 'A quotation mark'], default: true, title: 'PDF quote bullets',
     description: 'A highlight from a PDF, and a bullet that is nothing but a highlight cited, has a quotation mark where the dot would be. A note with words of its own beside the citation keeps its dot.' },

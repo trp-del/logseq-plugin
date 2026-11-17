@@ -18,7 +18,7 @@ const SPECIMENS = {
   twoWayNames: value => { const pairs = words(value).map(w => w.split('=').map(x => x.trim())).filter(p => p[1]); const [prop, said] = pairs[0] || ['Provider', 'Provider']; return `<span class="sw-big">Dr. Mei Chen</span><br><span class="sw-k">${said} →</span> &nbsp; 9 Consultations<br><span class="sw-faintw" style="font-size:13px">${pairs.length ? `${prop} reads as “${said}”` : 'Each property reads as its own name'}</span>`; },
   twoWayOneEnd: value => { const off = words(value).map(w => w.toLowerCase()); return `<span class="sw-big">Boston</span><br>${['Lives in|214 People', 'Born in|38 People'].map(r => { const [p, n] = r.split('|'); return off.includes(p.toLowerCase()) ? `<span class="sw-faintw" style="text-decoration:line-through">${p} → &nbsp; ${n}</span>` : `<span class="sw-k">${p} →</span> &nbsp; ${n}`; }).join('<br>')}`; },
   twoWayMentionsHidden: value => { const pages = words(value); return pages.length ? pages.map(p => `<span class="sw-big">${p}</span><br><span class="sw-faintw" style="text-decoration:line-through">Mentioned in → &nbsp; every node that names it</span>`).join('<br>') : `<span class="sw-big">Dr. Mei Chen</span><br><span class="sw-k">Mentioned in →</span> &nbsp; 4 nodes`; },
-  foundationOnly: on => on ? '<span class="sw-faintw">Only the plugin’s base runs, to see whether a part is at fault</span>' : '<span class="sw-k">All of Threads runs</span>',
+  foundationOnly: on => on ? '<span class="sw-faintw">Only the plugin’s base runs, to see whether a part is at fault</span>' : '<span class="sw-k">All of Relations runs</span>',
 };
 const specimen = (row, value) => SPECIMENS[row.key] ? SPECIMENS[row.key](row.type === 'boolean' ? !!value : value) : '';
 const properties = async () => (await window.Threads.core.provided.propSchema()).props.map(prop => prop.title);
@@ -27,7 +27,7 @@ window.PluginDoor.describe('threads', {
   get schema() {
     return [
       { type: 'heading', title: 'Rows under a page', place: 'following' },
-      item('twoWayRows', { title: 'Show Linked: everything that links to the page' }),
+      item('twoWayRows', { title: 'Show Relations: everything that links to the page' }),
       item('twoWayDays', { title: 'A day beside each row', looks: ['No days', 'Days'] }),
       item('twoWayMentions', { title: 'Mentions as rows' }),
       { type: 'heading', title: 'Logseq’s own lists', place: 'following' },
@@ -38,7 +38,7 @@ window.PluginDoor.describe('threads', {
       item('twoWayOneEnd', { title: 'Properties left out on the other page', list: { hint: 'add a property', offer: properties } }),
       item('twoWayMentionsHidden', { title: 'Pages that get no mentions row', list: { hint: 'add a page' } }),
       { type: 'heading', title: 'When something is wrong', place: 'parts' },
-      item('foundationOnly', { title: 'Run only Threads’ base, to find a fault in it', looks: ['All of Threads runs', 'Only its base'] }),
+      item('foundationOnly', { title: 'Run only the base of Relations, to find a fault in it', looks: ['All of Relations runs', 'Only its base'] }),
       // Only while Threads runs: there is nothing to open otherwise.
       ...(window.Threads.core?.provided?.openTroubleshooting ? [{ type: 'action', key: 'troubleshoot', title: 'Open troubleshooting', run: () => window.Threads.core.provided.openTroubleshooting() }] : []),
     ];

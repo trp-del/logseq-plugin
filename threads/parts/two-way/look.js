@@ -486,7 +486,7 @@ const twoWayCss = `
 .th-two-way .th-tw-lhead > .th-tw-lkind { position: relative; left: 4.5px; top: 3.3px; }
 .th-two-way .th-ol-in > .th-tw-lhead:not(:first-child) { margin-top: 8px; }
 .th-two-way .th-tw-lkids.th-ol-kids { margin-bottom: 2px; }
-.th-two-way .th-tw-lhead.th-tw-linkedline { color: inherit; font-weight: 500; }   /* "Linked" as the page's own Linked line: what is under it points here */
+.th-two-way .th-tw-lhead.th-tw-linkedline { color: inherit; font-weight: 500; }   /* "Relations" as the page's own line: what is under it points here */
 .th-two-way .th-ol-in > .th-tw-linkedline:not(:first-child) { margin-top: 8px; }
 .th-two-way .th-ol-bullet > .lk-fold { opacity: 0 !important; transition: opacity ${window.PluginDoor.timing('reveal')}; }   /* a bullet's fold arrow as a line's: under the pointer, or while open */
 .th-two-way .th-ol-bullet:hover > .lk-fold, .th-two-way .th-ol-bullet > .lk-fold:focus-visible { opacity: .6 !important; }   /* open or closed, as a node's line and as Logseq (12 November 2026: an open bullet's arrow at rest stood out of line beside the node above it, whose arrow hides) */

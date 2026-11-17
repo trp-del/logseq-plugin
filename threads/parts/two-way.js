@@ -43,11 +43,11 @@ pane ||= {
   scroller: box => box?.closest('#main-content-container') || null,
   onChange: fn => onPageChange(fn),
 };
-const base = window.PluginDoor.base('threads', { prefix: 'Threads (two-way): ', leaves: { elements: '.th-two-way' } });
+const base = window.PluginDoor.base('threads', { prefix: 'Relations (two-way): ', leaves: { elements: '.th-two-way' } });
 const { warnOnce, onStop: onUnload, listen } = base, runUnloadTasks = () => base.stop();
 
 const settingsSchema = [
-  { key: 'twoWayHeading', type: 'heading', group: 'reading', rank: 3, title: 'Threads', default: null,
+  { key: 'twoWayHeading', type: 'heading', group: 'reading', rank: 3, title: 'Relations', default: null,
     legend: 'Records that point at this page, as rows in its own properties',
     zone: '<div><span class="m">doctor of →</span> &nbsp;<u>9 Appointments</u> <span class="m">· next Nov 12</span></div>',
     description: 'Changes here apply right away.' },
@@ -977,7 +977,7 @@ function draw(doc) {
   /* The whole section folds to one line under its name (the owner, 8 November 2026: "allow it to be folded in, the whole
      thing"), kept per page as a list's fold is; while letters are in the find line it stays open. */
   const wholeKey = `${state.pageUuid}|*`, wholeOpen = !!state.find.trim() || twoWay.isOpen(wholeKey);
-  const wholeHtml = `<div class="th-tw-whole">${O.line({ day: null, chev: O.chev({ open: wholeOpen, label: 'Linked', attrs: { 'data-whole': wholeKey } }), body: `<a class="th-tw-whole-name th-tw-rule th-tw-rule-named" data-whole="${esc(wholeKey)}" href="#" title="Click to ${wholeOpen ? 'fold' : 'open'} Linked."><span>Linked</span></a>`, cls: 'th-tw-whole-line' })}</div>`;   /* "Linked" and a thin line on to the right edge (the owner, 12 November 2026: "Linked––––––" with line going all the way) */
+  const wholeHtml = `<div class="th-tw-whole">${O.line({ day: null, chev: O.chev({ open: wholeOpen, label: 'Relations', attrs: { 'data-whole': wholeKey } }), body: `<a class="th-tw-whole-name th-tw-rule th-tw-rule-named" data-whole="${esc(wholeKey)}" href="#" title="Click to ${wholeOpen ? 'fold' : 'open'} Relations."><span>Relations</span></a>`, cls: 'th-tw-whole-line' })}</div>`;   /* "Linked" and a thin line on to the right edge (the owner, 12 November 2026: "Linked––––––" with line going all the way) */
   const html = rows ? '<div class="th-tw-pin" aria-hidden="true"></div>' + (stepped ?? (wholeHtml + (wholeOpen ? twoWay.barHtml() + twoWay.findHtml() + rowsHtml : ''))) : '';
   // What unrolls does so once: the drawing kept is the one without it, so the next drawing does not replace it.
   const bare = html.replace(/ th-ol-unroll/g, '');

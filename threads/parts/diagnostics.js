@@ -23,7 +23,7 @@
 const shared = window.Threads.shared;
 const { host, notify, el, quiet, note } = shared;
 // Warnings keep the plain "Refinements: " prefix these tools always had.
-const base = window.PluginDoor.base('threads', { prefix: 'Threads: ' });
+const base = window.PluginDoor.base('threads', { prefix: 'Relations: ' });
 const { warnOnce, onStop: onUnload } = base, runUnloadTasks = () => base.stop();
 // From the model part, taken when the part starts.
 let CHECKED_WITH;
@@ -36,7 +36,7 @@ async function versionLine() {
   let logseqVersion = '?';
   try { logseqVersion = (await logseq.App.getInfo('version')) || '?'; } catch (error) { /* ignore */ }
   const note = logseqVersion !== '?' && logseqVersion !== CHECKED_WITH ? ` (the plugin was last checked against Logseq ${CHECKED_WITH})` : '';
-  return `Threads ${logseq.baseInfo?.version || '?'} · Logseq ${logseqVersion}${note}`;
+  return `Relations ${logseq.baseInfo?.version || '?'} · Logseq ${logseqVersion}${note}`;
 }
 /* Troubleshooting after a Logseq update: for each part of Logseq's page that Threads works with, whether it is
    here, not on this page (normal: the page has none of that thing), or missing (the page has the thing but not the
@@ -69,14 +69,14 @@ async function checkWhatIsFound() {
   try {
     const doc = host(), rows = screenRows(doc), missing = rows.filter(([, state]) => state === 'missing');
     const lines = [await versionLine(), '',
-      missing.length ? `${missing.length === 1 ? 'One part' : `${missing.length} parts`} of this page that Threads works with could not be found.` : 'Everything Threads works with on this page is here. Nothing is wrong.',
+      missing.length ? `${missing.length === 1 ? 'One part' : `${missing.length} parts`} of this page that Relations works with could not be found.` : 'Everything Relations works with on this page is here. Nothing is wrong.',
       missing.length ? 'Your notes are safe. Most likely Logseq changed after an update; send this report so the plugin can be fixed.' : '', '',
-      'Parts of Logseq\'s page that Threads works with:'];
+      'Parts of Logseq\'s page that Relations works with:'];
     for (const [what, state] of rows) lines.push(`  ${STATE_WORDS[state]}${what}`);
     for (const [what, , stops] of missing) lines.push('', `Without ${what}, ${stops} may not show.`);
     if (rows.some(([, state]) => state === 'none')) lines.push('', '“Not on page” is normal: this page has none of that thing.'); else lines.push('');
     const marks = [...shared.ownMarks(doc).values()].reduce((sum, n) => sum + n, 0);
-    lines.push(`Threads has drawn ${marks ? `${marks} piece${marks === 1 ? '' : 's'}` : 'nothing'} of its own on this page.`);
+    lines.push(`Relations has drawn ${marks ? `${marks} piece${marks === 1 ? '' : 's'}` : 'nothing'} of its own on this page.`);
     showDiagnostics(lines.filter((line, at, all) => line || all[at - 1] !== '').join('\n'));
   } catch (error) { console.error(error); notify(`The check stopped: ${window.PluginDoor.reason(error, 'the page could not be read')}`, 'error'); }
 }
@@ -638,7 +638,7 @@ function ready() {
   for (const tool of TOOLS) registerTool(tool);
   toolsRegistered = true;
   // One palette entry opens the box that lists the tools (registered here since 5 November 2026, when the engine's command register went).
-  logseq.App.registerCommandPalette({ key: 'troubleshooting', label: 'Threads: troubleshooting' }, () => openTroubleshooting());
+  logseq.App.registerCommandPalette({ key: 'troubleshooting', label: 'Relations: troubleshooting' }, () => openTroubleshooting());
 }
 /* Foundation only: the plugin runs just its foundation, the engine and the Logseq model (parts/model.js),
    with these tools and the settings window, so the foundation can be measured alone before the layers above it are
@@ -647,7 +647,7 @@ const settingsSchema = [
   { key: 'troubleshootHeading', type: 'heading', group: 'tools', rank: 4, title: 'Troubleshooting', default: null,
     legend: 'Run only the foundation, to measure it alone',
     zone: '<div><span class="m">Foundation only</span> · nothing drawn, measured alone</div>',
-    description: 'For finding out what the plugin does and what it costs. The tools themselves are in the command palette under “Threads: troubleshooting”.' },
+    description: 'For finding out what the plugin does and what it costs. The tools themselves are in the command palette under “Relations: troubleshooting”.' },
   { key: 'foundationOnly', type: 'boolean', title: 'Foundation only', default: false,
     description: 'Runs only the plugin’s foundation: the part that watches Logseq and the part that knows what pages, blocks, tags and days are. Nothing is drawn and no shortcut works; the settings window and the troubleshooting tools stay. For measuring the foundation alone (turn measuring on in the troubleshooting tools). Applies after you reload the plugin.' },
 ];

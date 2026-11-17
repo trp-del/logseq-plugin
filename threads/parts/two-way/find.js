@@ -203,7 +203,7 @@ function keepFind(box, caret) {
 
 // The find line called up where it does not stand by itself (fewer than twenty rows): Logseq's command palette.
 // One command for the plugin: the main view's copy registers it.
-twoWay.starters.push(() => twoWay.pane.main && twoWay.provided.registerCommand?.('threads-find', 'Threads: find in Linked', () => {
+twoWay.starters.push(() => twoWay.pane.main && twoWay.provided.registerCommand?.('threads-find', 'Relations: find in them', () => {
   state.findShown = true; state.html = null; twoWay.draw(host());
   state.box?.querySelector('.th-tw-find')?.focus({ preventScroll: false });
 }));

@@ -47,7 +47,7 @@
                                                                     THE writes: the one door a
                                                                     part writes the graph through; Logseq's own calls live here only */
 const shared = window.Threads.shared;
-const base = window.PluginDoor.base('threads', { prefix: 'Threads (model): ' });
+const base = window.PluginDoor.base('threads', { prefix: 'Relations (model): ' });
 const { warnOnce } = base, runUnloadTasks = () => base.stop();
 // From the core, taken when the part starts.
 let dsQuery, graphWide;
@@ -80,7 +80,7 @@ function titleAnchor(doc, title) {
    [what is missing, in plain words; the page has this (at least min); but none of this; what may not show, in plain words; min]
    The words are the owner's to read in a notice and a report; the two selectors go only to the console. */
 const screenChecks = () => [
-  ['the page area', '#head', '#main-content-container', 'almost everything Threads draws', 1],
+  ['the page area', '#head', '#main-content-container', 'almost everything Relations draws', 1],
   // Outline bullets only: the rows of a table (All pages, a tag's nodes, a query) are .ls-block[blockid] too, with no text part.
   ['the words of the bullets', '#main-content-container .ls-block[blockid] > .block-main-container', '#main-content-container .block-title-wrap', 'the cues after bullets, the dots on block links and the reference rows', 2],
   // Todo's own page (#/todo) borrows Logseq's title look, with no title row of Logseq's: not a page that lost its row.

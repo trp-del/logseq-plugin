@@ -121,7 +121,7 @@ function nodeHtml(uuid, key, data, asTop = false, field = true) {
        "N link here" line went (10 November 2026), then came back as "Linked", Logseq's word and the page's own, after the
        owner: "no idea about why those properties are there": the properties under it are other nodes' that point here. */
     const linkedShut = state.linksShut.has(key);
-    html += `<div class="th-ol-line lk-row th-tw-lhead th-tw-linkedline" title="${esc(`${many} ${many === 1 ? 'node links' : 'nodes link'} to ${twoWay.shortName(titleOf(uuid))}`)}">${O.chev({ open: !linkedShut, label: 'Linked', attrs: { 'data-links': key } })}${O.dot(true)}<span class="th-ol-body"><a class="th-tw-rule th-tw-rule-named" data-links="${esc(key)}" href="#"><span>Linked</span></a></span></div>`;   // the word and its line, as at the page's top (the owner, 12 November 2026: "put Linked----- within threads as well"; a thin line alone that morning)
+    html += `<div class="th-ol-line lk-row th-tw-lhead th-tw-linkedline" title="${esc(`${many} ${many === 1 ? 'node links' : 'nodes link'} to ${twoWay.shortName(titleOf(uuid))}`)}">${O.chev({ open: !linkedShut, label: 'Relations', attrs: { 'data-links': key } })}${O.dot(true)}<span class="th-ol-body"><a class="th-tw-rule th-tw-rule-named" data-links="${esc(key)}" href="#"><span>Relations</span></a></span></div>`;   // the word and its line, as at the page's top (the owner, 12 November 2026: "put Linked----- within threads as well"; a thin line alone that morning)
     const outer = html; html = '';
     for (const { g, items } of linking) {
       const dated = items.some(item => twoWay.dayOf(g, item));

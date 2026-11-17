@@ -163,7 +163,7 @@ async function main() {
     part.start = () => { throw new Error('forced'); };
     let ran = 0; for (const other of others) { const start = other.start; other.start = (...a) => { ran++; return start(...a); }; }
     logseq._main(); await sleep(50);
-    const said = log.filter(line => /Part of Threads could not start/.test(line));
+    const said = log.filter(line => /Part of Relations could not start/.test(line));
     if (said.length !== 1 || !said[0].includes(part.says)) problem(`a part that failed was not said once, in words: ${JSON.stringify(said)}`);
     if (ran !== others.length) problem('the other parts should have started');
     await logseq._unload?.();
