@@ -88,7 +88,8 @@ const CSS = `
 .st-lines-t dt { font-weight: 600; } .st-lines-t dd { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; min-width: 0; }
 .st-lines-t .chev { margin-left: 2px; padding: 0 2px; }   /* the library's chevron (lk-change), centred on the name it changes */
 .sugs { display: grid; gap: 6px; margin-top: 14px; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--lk-hair); }   /* "Suggested" once, then a line each: the sentence, its fix, its ×. A box of its own so it is seen (the owner, 16 November 2026: "This is where subtley is not important"), but no yellow: the yellow wash is for a change about to be made, and this is only a suggestion (17 November 2026: "too bright for just a suggestion") */
-.sugs .sh { font-weight: 600; display: flex; gap: 6px; align-items: center; color: var(--lk-text, #222); }
+.sugs .sh { font-weight: 600; display: flex; gap: 6px; align-items: center; color: var(--lk-text, #222); cursor: pointer; }
+.sugs-shut { display: flex; gap: 6px; align-items: center; margin-top: 14px; color: var(--lk-quiet); cursor: pointer; } .sugs-shut:hover { color: var(--lk-text); } .sugs-shut .nm { margin-left: 4px; }
 .sugs .sug { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 2px 6px; align-items: baseline; }
 .sugs .sug .fix { white-space: nowrap; margin-left: 12px !important; }   /* the library's fix, the word alone with the round ground under the pointer; a delete stays red, at whatever level it stands (the owner, 1 November) */
 .st-lines-t dd.col { display: grid; gap: 3px; justify-items: start; }
@@ -531,7 +532,9 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
   }
   /* What Ontology suggests: the word "Suggested" once, as a small heading, then one line each, the sentence and its fix at the line's
      end, lined up (16 November 2026, the owner: "look how bad this looks" of "Suggested" run into each sentence, every line its own). */
-  const sugsHtml = (list, on) => list.length ? `<div class="sugs" data-on="${esc(on)}"><div class="sh"><i class="ti ti-bulb" aria-hidden="true"></i>Suggested</div>${list.map(i => { const n = ISS().indexOf(i); return `<div class="sug"><span>${partsHtml(i.parts)}</span><span class="fix act lk-fix lk-i-${fixIcon(i.fix)}" data-fix="${n}">${esc(fixWord(i.fix))}</span><span class="act lk-x" role="button" tabindex="0" data-dismiss="${n}" title="Dismiss this suggestion" aria-label="Dismiss this suggestion">×</span></div>${askHtml(n)}`; }).join('')}</div>` : '';
+  /* Closed until asked for (17 November 2026, the owner: "having this large red button when I wasn't asking for anything is distracting
+     and suggestions should have to be opened"): one quiet line, "Suggested 2", that opens the box; the box's heading closes it. */
+  const sugsHtml = (list, on) => !list.length ? '' : !st.sugsOpen?.has(String(on)) ? `<div class="sugs-shut lk-row" role="button" tabindex="0" data-sugs="${esc(on)}" aria-expanded="false"><span class="lk-fold" aria-expanded="false"></span><i class="ti ti-bulb" aria-hidden="true"></i>Suggested<span class="nm">${list.length}</span></div>` : `<div class="sugs" data-on="${esc(on)}"><div class="sh" role="button" tabindex="0" data-sugs="${esc(on)}" aria-expanded="true"><span class="lk-fold" aria-expanded="true"></span><i class="ti ti-bulb" aria-hidden="true"></i>Suggested</div>${list.map(i => { const n = ISS().indexOf(i); return `<div class="sug"><span>${partsHtml(i.parts)}</span><span class="fix act lk-fix lk-i-${fixIcon(i.fix)}" data-fix="${n}">${esc(fixWord(i.fix))}</span><span class="act lk-x" role="button" tabindex="0" data-dismiss="${n}" title="Dismiss this suggestion" aria-label="Dismiss this suggestion">×</span></div>${askHtml(n)}`; }).join('')}</div>`;
   const suggestHtml = id => sugsHtml(R.issuesOn(ISS(), id), id);
   // ---------- a tag's lines: Parent alone on one line above its title; the others in the inspector ----------
   // (the owner, 8 November 2026: Extends is called Parent, on one line above the title without moving the title down; 12 November:
@@ -1291,7 +1294,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
   
   // ---------- events ----------
   root.addEventListener('click', e => {
-    const t = e.target.closest('[data-ppage],[data-tpage],[data-pfold],[data-pon],[data-prange],[data-all],[data-fold],[data-tick],[data-ptick],[data-paim],[data-paimoff],[data-pcombine],[data-ntick],[data-row],[data-go],[data-open],[data-unrange],[data-addrange],[data-prop],[data-fix],[data-dismiss],[data-stage],[data-leave],[data-sort],[data-apply],[data-discard],[data-drop],[data-undo],[data-act],[data-do],[data-show],[data-compare],[data-aim],[data-aimtop],[data-aimoff],[data-pick],[data-nodes],[data-more],[data-node],[data-split],[data-gfold],[data-gname],[data-gdrop],[data-gnew],[data-pnew],[data-logundo],[data-tbar],[data-pbar],[data-tkeep],[data-pkeep]');
+    const t = e.target.closest('[data-ppage],[data-tpage],[data-pfold],[data-pon],[data-prange],[data-all],[data-fold],[data-tick],[data-ptick],[data-paim],[data-paimoff],[data-pcombine],[data-ntick],[data-row],[data-go],[data-open],[data-unrange],[data-addrange],[data-prop],[data-fix],[data-dismiss],[data-sugs],[data-stage],[data-leave],[data-sort],[data-apply],[data-discard],[data-drop],[data-undo],[data-act],[data-do],[data-show],[data-compare],[data-aim],[data-aimtop],[data-aimoff],[data-pick],[data-nodes],[data-more],[data-node],[data-split],[data-gfold],[data-gname],[data-gdrop],[data-gnew],[data-pnew],[data-logundo],[data-tbar],[data-pbar],[data-tkeep],[data-pkeep]');
     const outside = st.prompt?.owner === mode && !e.target.closest('.st-prompt');
     if (!t) { if (st.menu || outside) { st.menu = null; if (outside) st.prompt = null; redraw(); } return; }
     if (e.target.matches?.('[data-edit]')) return;   // a click in a field being written stays in the field
@@ -1342,6 +1345,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     if (t.dataset.unrange) { const pid = Number(t.dataset.unprop ?? opts.prop); app.stage({ kind: 'setRange', prop: pid, to: P(pid).range.filter(id => id !== Number(t.dataset.unrange)) }); return redraw(); }
     if (t.dataset.addrange) { const pid = Number(t.dataset.addrange.split('·')[1]); return startPrompt({ what: 'range', list: 'tags', prop: pid }); }
     if (t.dataset.fix) return fix(+t.dataset.fix);
+    if (t.dataset.sugs) { const k = t.dataset.sugs; st.sugsOpen = st.sugsOpen || new Set(); if (st.sugsOpen.has(k)) { st.sugsOpen.delete(k); st.ask = null; } else st.sugsOpen.add(k); return redraw(); }
     if (t.dataset.dismiss) { const i = ISS()[+t.dataset.dismiss]; st.ask = null; return app.dismiss(i?.key, t.closest('.sugs')?.dataset.on); }   // indices move once one is gone, so an open ask closes
     if (t.hasAttribute('data-stage')) return stageAsk();
     if (t.hasAttribute('data-leave')) { st.ask = null; return redraw(); }
@@ -1498,6 +1502,8 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     app.openNode(n?.uuid || (pid != null ? P(pid)?.uuid : T(st.cur)?.uuid), inSidebar);
   }
   root.addEventListener('keydown', e => {
+    // A press of ours reached by Tab (the suggestions' line, a ×) takes Enter and Space wherever it stands, the inspector too.
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.closest?.('[data-dismiss],[data-sugs]')) { e.preventDefault(); e.stopPropagation(); e.target.closest('[data-dismiss],[data-sugs]').click(); return; }
     if (TAGISH && !standing()) return;
     if (!passes(e)) e.stopPropagation(); else if (doc.querySelector('.ui__dialog-overlay')) return;
     const k = e.key;
@@ -1522,7 +1528,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
       return;
     }
     if (e.target.tagName === 'INPUT') return;
-    if ((k === 'Enter' || k === ' ') && e.target.closest?.('[data-gdrop],[data-dismiss]')) { e.preventDefault(); e.target.closest('[data-gdrop],[data-dismiss]').click(); return; }
+    if ((k === 'Enter' || k === ' ') && e.target.closest?.('[data-gdrop]')) { e.preventDefault(); e.target.closest('[data-gdrop]').click(); return; }
     if (st.menu && k === 'Escape') { st.menu = null; redraw(); return; }
     if (st.paim && mode === 'page' && k === 'Escape') { e.preventDefault(); st.paim = false; return redraw(); }
     if (st.aim && mode === 'page') { if (k === 'Escape') { e.preventDefault(); st.aim = null; return redraw(); } if (k === 'Enter') { e.preventDefault(); return finishAim(st.cur); } }

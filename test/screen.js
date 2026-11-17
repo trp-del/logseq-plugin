@@ -15,7 +15,7 @@ found = strays(/[\w\])]\??\.click\(\)/, { allow: {
   'threads/parts/two-way/more.js': 3,     // a row's own fold arrow, from the arrow keys
   'threads/parts/diagnostics.js': 2,      // the Recycle list's own two presses, from Enter
   'threads/parts/shared.js': 1,           // the kit's own dialog button, from Enter
-  'structure/logseq/view.js': 1,          // a group's own menu press, from Enter
+  'structure/logseq/view.js': 2,          // a group's own menu press, from Enter; the suggestions' line and ×, from Enter
   'export/logseq/files.js': 1,            // the export's own download link
 } });
 if (found.length) fail('a click made on an element by hand (one of Logseq’s goes through PluginDoor.screen.click)', found);

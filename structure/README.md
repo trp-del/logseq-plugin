@@ -38,7 +38,7 @@ Ontology (named Structure until 12 November 2026; its folder and the names in it
 
 ## The five rules
 
-None is enforced; each shows as a quiet dot, with its fix a word in Suggested, on the tag's page and under the areas. Suggested is a plain box with a hairline edge, no yellow: yellow is kept for a change about to be made. Each line ends with its fix and a ×, which dismisses that suggestion for good on this graph (kept on this Mac, nothing written to the graph); the faded Undo arrow brings it back. A fix that loses something, such as Delete property from tag, still asks first and waits for Apply.
+None is enforced; each shows as a quiet dot, with its fix a word in Suggested, on the tag's page and under the areas. Suggested is closed until asked for: one quiet line, "Suggested 2", opens it, and its heading closes it (the owner, 17 November 2026). Open, it is a plain box with a hairline edge, no yellow: yellow is kept for a change about to be made. Each line ends with its fix and a ×, which dismisses that suggestion for good on this graph (kept on this Mac, nothing written to the graph); the faded Undo arrow brings it back. A fix that loses something, such as Delete property from tag, still asks first and waits for Apply.
 
 1. **One place.** A tag under two parents: keep only under one. A tag under no parent is a top-level tag like any other, never an issue.
 2. **A child earns its place.** A tag with no nodes and no children: remove. A sibling that declares nothing the other lacks (two or more properties, one of them a relation): merge into it.
