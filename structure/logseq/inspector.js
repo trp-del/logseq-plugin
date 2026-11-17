@@ -12,13 +12,13 @@ const S = window.Structure;
 const { host } = window.PluginDoor;
 const ROW = '#main-content-container .ls-table-row[blockid]';
 const ITEMS = '#right-sidebar .sidebar-item-list > .sidebar-item';
-const insp = { holder: null, top: null, node: null, uuid: '', ask: 0, stops: [], el: null, before: null, kind: '', title: '', openedKeys: new Set(), shownKey: '', since: 0, pageAt: 0 };
+const insp = { holder: null, top: null, node: null, uuid: '', ask: 0, stops: [], el: null, before: null, kind: '', title: '', openedKeys: new Set(), missing: new Map(), shownKey: '', since: 0, pageAt: 0 };
 
 // Shown: the panel is in the page and drawn (Logseq's sidebar open and the panel not folded).
 const shown = () => !!(insp.holder?.isConnected && insp.holder.getClientRects().length);
 const top = () => (shown() ? insp.top : null);
-// At work: the sidebar is open on one of the two tabs, Ontology or Item. Only then does a press on a row pick it.
-const active = () => shown() || !!(insp.uuid && host().querySelector('#right-sidebar[data-lk-tab="item"]')?.getClientRects().length);
+// At work: Ontology or the row's view stands in the open sidebar. Only then does a press on a row pick it.
+const active = () => shown() || !!(insp.uuid && item(host())?.getClientRects().length);
 
 const sync = () => insp.holder?.toggleAttribute('data-row', !!insp.uuid);
 
@@ -87,7 +87,17 @@ function closeStale(doc = host()) {
   const keep = new Set(insp.uuid ? [wanted(), insp.shownKey].filter(Boolean) : []);
   const items = listed(doc);
   for (const el of items) { const key = keyOf(el); if (key && insp.openedKeys.has(key) && !keep.has(key)) window.PluginDoor.screen.click(el.querySelector('.sidebar-item-header .item-actions button:last-child')); }
-  for (const key of [...insp.openedKeys]) if (!keep.has(key) && !items.some(el => keyOf(el) === key)) insp.openedKeys.delete(key);
+  /* A view no longer in the sidebar is forgotten once it has been missing from the open sidebar for a while: with the sidebar shut
+     its items are not drawn, and as it opens they come before their heads are written, so a view looked missing then was never
+     closed and came back as a page you had opened (17 November 2026). */
+  let open = false; try { open = !!doc.defaultView.logseq?.api?.get_state_from_store('ui/sidebar-open?'); } catch (error) { /* no answer: kept */ }
+  const now = Date.now();
+  for (const key of [...insp.openedKeys]) {
+    if (keep.has(key) || items.some(el => keyOf(el) === key)) { insp.missing.delete(key); continue; }
+    if (!open) continue;
+    if (!insp.missing.has(key)) { insp.missing.set(key, now); doc.defaultView.setTimeout(() => closeStale(host()), 1600); }
+    else if (now - insp.missing.get(key) > 1500) { insp.openedKeys.delete(key); insp.missing.delete(key); }
+  }
   if (!insp.uuid) insp.shownKey = '';
 }
 /* Where the row stands in Logseq's table, "Consultation · 12 of 53" (the owner's O1c, 12 November 2026): its place is the
@@ -113,6 +123,7 @@ function pass(doc) {
   if (el && insp.uuid && insp.pickedFor !== insp.ask) { insp.pickedFor = insp.ask; window.PluginDoor.sideTabs?.pick('item'); }
   dress(el, doc);
   if (el && holds(el)) closeStale(doc);
+  else if (!insp.uuid && insp.openedKeys.size) closeStale(doc);   // a view left over from a page since left, once the sidebar shows it
   // The new view stands, drawn to the end: the tabs show it, and the picture of the row before goes in the same frame.
   if (insp.held && insp.settled) { window.PluginDoor.sideTabs?.draw(); release(); }
   mark(insp.uuid);
@@ -130,6 +141,11 @@ function dress(el, doc) {
   if (el && holds(el)) insp.where = whereText(insp.uuid) || insp.where || '';
   const say = el ? insp.where || list?.getAttribute('data-st-where') || '' : '';
   if (list && (list.getAttribute('data-st-where') || '') !== say) { if (say) list.setAttribute('data-st-where', say); else list.removeAttribute('data-st-where'); }
+  /* With the sidebar as stacked sections (17 November 2026) the line stands over the row's own section: the words go to the item as a
+     custom property, which the stylesheet draws above it and which outlives Logseq drawing the item's inside afresh. */
+  const words = say ? JSON.stringify(say) : '';
+  if (el && el.style.getPropertyValue('--st-where') !== words) { if (words) el.style.setProperty('--st-where', words); else el.style.removeProperty('--st-where'); }
+  for (const old of doc.querySelectorAll('#right-sidebar .sidebar-item[style*="--st-where"]')) if (old !== el) old.style.removeProperty('--st-where');
 }
 
 // No row pressed: one faint line says what the panel is waiting for, or nothing when the lines above already fill it.
@@ -144,7 +160,7 @@ function idle() {
   const table = !!doc.querySelector(ROW) || (settling && lines);
   if (settling && !idle.again) idle.again = doc.defaultView.setTimeout(() => { idle.again = 0; idle(); }, 720);
   if (settling && !lines && !table && !insp.plain) return;   // nothing is known of the page yet: no line said, so none is pushed down when the tag's lines come (a 260 px jump, the motion check, 12 November 2026)
-  const say = table ? 'Press a row in the table to see it in the Item tab.' : lines ? '' : 'Open a tag’s or a property’s page to see it here.';
+  const say = table ? 'Press a row in the table to see it here.' : lines ? '' : 'Open a tag’s or a property’s page to see it here.';
   if (box.textContent === say) return;
   box.innerHTML = say ? `<p class="st-insp-none lk-none">${say}</p>` : '';
 }
@@ -241,7 +257,11 @@ function mounted(holder) {
 }
 function gone(holder) { if (insp.holder !== holder) return; insp.watch?.disconnect(); insp.holder = insp.top = insp.node = null; S.inspector.changed?.(); }
 
-// The page is read: no tag's and no property's (plain), so the tab's line need not wait.
-function pageKnown(plain) { const was = insp.plain; insp.plain = !!plain; if (plain && !was) idle(); }
-S.inspector = { start, stop, mounted, gone, top, shown, idle, pageKnown, row: () => insp.uuid, item: (doc = host()) => { const el = item(doc); if (el && !el.hasAttribute('data-st-item')) dress(el, doc); return el; }, owns, KEY: 'structure-inspector', model: null, changed: null };
+/* The page is read: no tag's and no property's (plain), so the tab's line need not wait, and the Ontology tab is not shown. Between two
+   pages the last answer stands until the next is read, so walking from tag to tag never takes the tab away for a moment. */
+function pageKnown(plain) {
+  const was = insp.plain; insp.plain = !!plain; if (plain && !was) idle();
+  if (insp.applies !== !plain) { insp.applies = !plain; window.PluginDoor.sideTabs?.draw(); }
+}
+S.inspector = { start, stop, mounted, gone, top, shown, idle, pageKnown, applies: () => !!insp.applies, row: () => insp.uuid, item: (doc = host()) => { const el = item(doc); if (el && !el.hasAttribute('data-st-item')) dress(el, doc); return el; }, owns, KEY: 'structure-inspector', model: null, changed: null };
 })();

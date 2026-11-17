@@ -15,7 +15,7 @@ const insp = read('structure/logseq/inspector.js'), tabs = read('sidebar-tabs.js
 assert.ok(/const now = items\.find\(i => holds\(i\) && drawn\(i\)\);/.test(insp) && /const keyOf = item =>/.test(insp), 'the Item tab shows the new row only once it is drawn, and knows an item by the node it holds, never by its element');
 assert.ok(/const owns = el => \{ const key = keyOf\(el\); return key \? insp\.openedKeys\.has\(key\)/.test(insp), 'the items coming and going are the Item tab\'s own');
 assert.ok(/v\.owns\?\.\(item\)/.test(tabs), 'the sidebar\'s tabs leave a view\'s own waiting items out of "Opened"');
-assert.ok(/\.sidebar-item-list > \.sidebar-drop-indicator \{ display: none !important; \}/.test(tabs), 'a hidden item coming or going does not move the one shown');
+assert.ok(/\.sidebar-item\[data-lk-wait\] \{ visibility: hidden !important; position: absolute !important;/.test(tabs), 'an item coming or going is out of the flow, so it moves nothing shown');
 assert.ok(/settling && lines/.test(insp), 'the Ontology tab\'s hint line holds while a tag\'s page loads');
 
 // 2. A property on a wrapped line is moved left only when it has the space it is moved by; an empty property is told by the stylesheet.
@@ -68,8 +68,8 @@ assert.ok(/if \(settling && !lines && !table && !insp\.plain\) return;/.test(ins
 
 // 6c. 13 November, second round: the row's view changes in one frame, the line is the list's, nothing rewritten that has not changed.
 assert.ok(/function hold\(doc\)/.test(insp) && /if \(insp\.held && insp\.settled\)/.test(insp), 'a still picture of the row shown lies over the views until the next is drawn to the end');
-assert.ok(/list\.setAttribute\('data-st-where', say\)/.test(insp) && /\.sidebar-item-list\[data-st-where\]::before \{ content: attr\(data-st-where\)/.test(view), 'the "N of M" line is written on the list, so a redrawn view cannot lose it');
-assert.ok(/\[data-lk-tab-wait\]:not\(\[data-lk-tab-on\]\) \{ display: block !important; visibility: hidden !important; position: absolute !important;/.test(tabs), 'a view that waits is laid out unseen');
+assert.ok(/el\.style\.setProperty\('--st-where', words\)/.test(insp) && /\.sidebar-item\[data-st-item\] > :first-child::before \{ content: var\(--st-where\)/.test(view), 'the "N of M" line is a property of the row\'s section, so a redrawn view cannot lose it');
+assert.ok(/\[data-lk-wait\] \{ visibility: hidden !important; position: absolute !important;/.test(tabs), 'a view that waits is laid out unseen');
 assert.ok(/if \(fold\.getAttribute\('aria-expanded'\) !== String\(!folded\)\)/.test(read('look/logseq/links.js')), 'the sidebar section\'s fold state is written only when it differs');
 assert.ok(/state\.known\.get\(state\.page\)/.test(read('look/logseq/cites.js')), 'a page\'s endnote numbers are drawn at once on a revisit');
 assert.ok(/const was = \[\.\.\.box\.children\], now = \[\.\.\.next\.children\]/.test(read('threads/parts/two-way.js')) && /src\(was\[i\]\) !== el\.__thSrc/.test(read('threads/parts/two-way.js')), 'Linked draws again only the lists that changed');

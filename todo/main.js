@@ -1,6 +1,6 @@
 /* Todo: Logseq's own tasks as one short list, on a page of its own and in the right sidebar, drawn by the same code (view.js)
    from the one state kept here. Loaded after its graph reader and its drawing (files.js). The ways in: the command palette
-   (Todo, and g then d outside a bullet, as Logseq's own g pairs), the checkmark in Logseq's toolbar, the sidebar's Todo tab. */
+   (Todo, and g then d outside a bullet, as Logseq's own g pairs), the checkmark in Logseq's toolbar, which opens Todo in the right sidebar as a section with its ×. */
 (function () {
 const T = window.Todo;
 const Door = window.PluginDoor;
@@ -177,7 +177,7 @@ function mount() {
   catch (error) { console.error('Todo: the page could not be added', error); }
   try { const Side = component('side'); logseq.Experiments.registerSidebarRenderer(SIDE, { title: 'Todo', render: () => React.createElement(Side) }); }
   catch (error) { console.error('Todo: the sidebar tab could not be added', error); }
-  // The Todo tab of the right sidebar (sidebar-tabs.js), after Links: picked, it opens if it is not open yet.
+  // Todo in the right sidebar (sidebar-tabs.js): a section there only once you open it, closed by its ×.
   T.base.onStop(Door.sideTabs?.add({ key: 'todo', word: 'Todo', order: 4, panel: SIDE,
     find: doc => doc.getElementById('_sidebar.' + SIDE)?.closest('.sidebar-item') || null,
     open: () => { logseq.Editor.openInRightSidebar('_sidebar.' + SIDE); } }));
@@ -189,9 +189,11 @@ async function main() {
   mount();
   const { onStop } = T.base;
   logseq.App.registerCommandPalette({ key: 'todo-open', label: 'Todo', keybinding: { binding: KEYS } }, openPage);
-  logseq.App.registerCommandPalette({ key: 'todo-side', label: 'Todo in the sidebar' }, async () => { Door.sideTabs?.show('todo'); await logseq.Editor.openInRightSidebar('_sidebar.' + SIDE); await logseq.App.setRightSidebarVisible?.(true); });
-  // A button in Logseq's toolbar, beside Ontology's, before the ··· (the owner, 14 November 2026).
-  logseq.provideModel({ todoOpen: openPage });
+  const openSide = () => Door.sideTabs?.show('todo');
+  logseq.App.registerCommandPalette({ key: 'todo-side', label: 'Todo in the sidebar' }, openSide);
+  // A button in Logseq's toolbar, beside Ontology's, before the ··· (the owner, 14 November 2026); it opens Todo in the right sidebar
+  // (the owner, 17 November 2026: "todo button should open up in sidebar"). The page of its own stays on the command palette and g d.
+  logseq.provideModel({ todoOpen: openSide });
   Door.toolbarItem('todo-open', 'todoOpen', 'Todo', 'todo');
   // A change anywhere: read again after a quiet moment, so a task ticked, added or dated elsewhere shows here.
   onStop(logseq.DB.onChanged(() => { if (app.views.size) app.later(); }));

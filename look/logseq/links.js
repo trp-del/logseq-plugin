@@ -24,7 +24,6 @@ const LINK = /(?<!#)\[\[([^[\]]+)\]\]/g;
 const CITATION = /\((?:\[\[([^[\]]+)\]\]|\[([^\]]+)\]\((https?:[^)\s]+)\)|\*([^*]+)\*)(?:, p\. (\d+))?\)/g;   // a node, a web address, plain words
 const SECTIONS = [{ key: 'links', word: 'Links', icon: 'link' }, { key: 'contents', word: 'Outline', icon: 'list' }];   // Endnotes stand under Links; Contents is named Outline (the owner, 12 November 2026)
 const closed = () => Object.fromEntries(SECTIONS.map(({ key }) => [key, false]));
-const anyOpen = () => SECTIONS.some(({ key }) => state.open[key]);
 const state = { growing: new Set(), open: closed(), folded: closed(), words: {}, panels: {}, view: 'kind', page: false, rows: [], notes: [], heads: [], all: new Set(), asked: 0, stopped: true };
 
 const eachTitle = (tree, visit) => { for (const node of tree || []) { visit(String(node?.title ?? '')); eachTitle(node?.children, visit); } };
@@ -310,13 +309,13 @@ const hidden = () => [...host().querySelectorAll('#right-sidebar .sidebar-item[d
 function onItemClosed(event) {
   if (event.target?.closest?.('#right-sidebar .cp__right-sidebar-settings > div:not(.lk-own) button')) { for (const item of hidden()) item.removeAttribute('data-lk-closed'); return; }
   const close = event.target?.closest?.('#right-sidebar .sidebar-item:not(.lk-side) .item-actions button');
-  if (!close?.querySelector('.ls-icon-x') || !anyOpen()) return;
+  if (!close?.querySelector('.ls-icon-x') || !state.open.links) return;   // Outline is the page's own: it never keeps the sidebar open
   if (host().querySelectorAll('#right-sidebar .sidebar-item:not(.lk-side):not([data-lk-closed])').length > 1) return;
   event.preventDefault(); event.stopImmediatePropagation();
   close.closest('.sidebar-item').setAttribute('data-lk-closed', '');
 }
 function letHiddenGo() {
-  if (anyOpen()) return;
+  if (state.open.links) return;
   for (const item of hidden()) { item.removeAttribute('data-lk-closed'); window.PluginDoor.screen.click(item.querySelector('.ls-icon-x')?.closest('button')); }
 }
 
@@ -354,16 +353,20 @@ const css = `
 #right-sidebar .lk-contents-row:hover { color: var(--lk-text, currentColor) !important; }
 #right-sidebar .lk-links-none { padding: 0; }   /* the library's nothing-here line (lk-none), at the top of the tab */`;
 
-/* Links and Endnotes are tabs of the right sidebar, after Inspector (sidebar-tabs.js, the owner, 9 November 2026): picked, the
-   section opens if it is not open yet, and stands alone, without its head. */
+/* Outline and Links are sections of the right sidebar (sidebar-tabs.js). Outline appears by itself, first, on a page with headings
+   (the owner, 17 November 2026: "outline appears when there is a page with an outline"). Links, with Endnotes under it, is there only
+   once you ask for it, by View links in the ··· menu or the command palette, and goes by its × ("Links should be only under view
+   links in 3 dots or command, not always there"). */
 let offTabs = [];
+const viewLinks = () => window.PluginDoor.sideTabs?.show('links');
 function start() {
   state.stopped = false;
-  // Outline stands first on the left (the owner, 12 November 2026), before Structure's Ontology (1) and Item (2); Links after them.
-  offTabs = SECTIONS.map(({ key, word }) => window.PluginDoor.sideTabs?.add({ key, word, order: key === 'contents' ? 0 : 3,
+  offTabs = SECTIONS.map(({ key, word }) => window.PluginDoor.sideTabs?.add({ key, word, order: key === 'contents' ? 0 : 3, auto: key === 'contents',
     find: () => (state.panels[key]?.isConnected ? state.panels[key] : null), open: () => { if (!state.open[key]) setOpen(key, true); },
-    // Outline has no tab on a page with no headings; until the page is read, it stays as it was.
+    // Outline stands aside on a page with no headings; until the page is read, it stays as it was.
     hidden: key === 'contents' ? () => state.read && !state.heads.length : undefined }));
+  offTabs.push(window.PluginDoor.addMenuItem?.({ key: 'links', label: 'View links', icon: 'link', run: viewLinks }));
+  try { logseq.App.registerCommandPalette({ key: 'look-view-links', label: 'View links' }, viewLinks); } catch (error) { /* already there from an earlier start */ }
   style('sidebar-links', css);
   watchScreen(draw);
   Look.kit.listen(host().defaultView, 'click', onItemClosed, true);

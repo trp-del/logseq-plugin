@@ -1,149 +1,124 @@
-/* The right sidebar as tabs (the owner, 9 November 2026: "it doesn't make sense why there are tabs for different parts yet they
-   all appear in one long column with their own headers"; "how about for other sidebar items?"). The row on top of the sidebar is
-   one tab per thing the sidebar can show, and only the tab picked is shown, without the head Logseq gives each item (its name,
-   fold arrow and ×): the tab names it.
+/* The right sidebar as Logseq's own: stacked sections, each under its own head with its fold arrow and its × (the owner, 17 November
+   2026, picking B of the sidebar mockup, after the tabs of 9 to 17 November: "things can be Xed out and the sidebar disappears like
+   it would normally do with just a sidebar").
 
-   The plugin's views come first, in the order they ask for (the owner, 12 November 2026): Outline, the page's headings, first on the
-   left, only on a page that has some (Look); Ontology, the tag's or property's lines, and Item, the row pressed in a table, only while
-   one is pressed (Structure, one panel for both); Links, with Endnotes under it (Look). A view
-   not yet open opens when its tab is picked. After them, one tab, Opened, while anything else is open there (a page or block
-   opened with Shift and a link): Logseq's own sidebar as it is, those items stacked with their own heads (the owner: "why not just
-   have a tab as the normal sidebar?"). A page or block just opened picks it. Logseq's Contents, Page graph and Help and the
-   cube with a + are left out of the row (Contents, which Logseq puts in a sidebar opened empty, is not shown).
+   Two kinds of section. The page's own parts appear by themselves, at the top, while the sidebar is open, and only on a page where
+   they apply: Outline on a page with headings (Look), Ontology on a tag's or a property's page, and Item, the row pressed in that
+   page's table (Structure). They have no ×: they come and go with the page ("Ontology appears when ontology is relevant. outline
+   appears when there is a page with an outline"). Everything else is there only because you opened it, each with its ×: Links
+   (View links in the ··· menu, or the command palette), Todo (its toolbar button), and any page or block opened with Shift and a
+   press. Closing the last thing you opened closes the sidebar, as Logseq does when its last item goes; the parts of the page alone
+   never keep it open. Logseq's Contents, which it puts in a sidebar opened empty, is not shown.
 
-   A module adds a view with Door.sideTabs.add({ key, word, order, find(doc) → its .sidebar-item or null, open(), hidden(doc)? → true while it has nothing to show, panel? → the name its panel is registered under in Logseq's sidebar }) and gets back
-   what takes it off. The bar is drawn by one pass of the shared screen watcher while any view is added. */
+   A module adds a section with Door.sideTabs.add({ key, word, order, find(doc) → its .sidebar-item or null, open(), hidden(doc)? →
+   true where it has nothing to show, auto? → true for a part of the page, opened by itself, owns(item)? → an item of the section's
+   that is on its way in or out, panel? → the name its panel is registered under in Logseq's sidebar }) and gets back what takes it
+   off. The name sideTabs is kept from the tabs, so the modules did not change their calls. */
 (function () {
 const Door = window.PluginDoor;
 const { host } = Door;
 const views = [];
-const SIDE = 'sidebar';
-const tabs = { cur: null, seen: new WeakSet(), pending: null, off: null, wait: 0 };   // cur: a view's key, or SIDE; wait: since when a page Logseq has yet to draw is waited for
+const st = { off: null, offClick: null, asked: new Map(), retry: 0 };   // asked: when an automatic section was last asked to open, by key
 
-const BAR = '#right-sidebar .cp__right-sidebar-settings';
 const CSS = `
-#right-sidebar[data-lk-tabs] ${BAR.replace('#right-sidebar ', '')} > div:not(.lk-tabs) { display: none !important; }
-#right-sidebar[data-lk-tabs] .lk-tabs { display: flex; align-items: center; gap: max(4px, calc(var(--lk-tab-space, 24px) - 16px)); min-width: 0; overflow-x: auto; scrollbar-width: none; }
-#right-sidebar[data-lk-tabs] .lk-tabs::-webkit-scrollbar { display: none; }
-#right-sidebar[data-lk-tabs] .lk-tab { display: inline-flex; align-items: center; flex: none; max-width: 180px; }
-#right-sidebar[data-lk-tabs] .lk-tab .lk-view { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-#right-sidebar[data-lk-tabs] .sidebar-item-list > .sidebar-item:not([data-lk-tab-on]) { display: none !important; }
-/* A view's item that waits to be shown (a pressed row's view while Logseq draws it) is laid out, unseen and out of the flow, at the
-   width it will have: Look's passes then mark it as they mark what is on screen, so nothing in it settles after it is shown (a
-   wrapped property stood a step in for a frame, 13 November 2026). */
-#right-sidebar[data-lk-tabs] .sidebar-item-list > .sidebar-item[data-lk-tab-wait]:not([data-lk-tab-on]) { display: block !important; visibility: hidden !important; position: absolute !important; pointer-events: none !important; }
-#right-sidebar[data-lk-tabs] .sidebar-item-list > .sidebar-item[data-lk-tab-view] .sidebar-item-header { display: none !important; }
-#right-sidebar[data-lk-tabs] .sidebar-item-list > .sidebar-item[data-lk-tab-view] { border-top: 0 !important; margin-top: 0 !important; padding-top: 0 !important; }
-/* Logseq puts an 8 px place to drop an item before every item, the hidden ones too: a view's item coming or going behind the one shown
-   moved it 8 px (seen frame by frame as a row's view waited to be drawn, 13 November 2026). While a view's tab is picked those places
-   are out and the list keeps their 8 px as room at its top; on Opened, where items are dragged, they stay. */
-#right-sidebar[data-lk-tabs]:not([data-lk-tab="sidebar"]) .sidebar-item-list > .sidebar-drop-indicator { display: none !important; }
-#right-sidebar[data-lk-tabs]:not([data-lk-tab="sidebar"]) .sidebar-item-list { padding-top: 32px !important; }`;
+/* Logseq's words in the bar on top (Contents, Page graph, Help, the cube with a +) stay left out, as with the tabs: the ? at the
+   window's bottom right opens Logseq's help. */
+#right-sidebar[data-lk-stack] .cp__right-sidebar-settings > div:not([class*="lk-"]) { display: none !important; }
+/* The page's own parts first, in their order; what you opened after them, as Logseq stacks it. */
+#right-sidebar[data-lk-stack] .sidebar-item-list { display: flex; flex-direction: column; }
+#right-sidebar[data-lk-stack] .sidebar-item-list > * { order: 10; flex: none !important; }   /* each section its own height, the column scrolls, as Logseq stacks them */
+#right-sidebar[data-lk-stack] .sidebar-item-list > .sidebar-item[data-lk-part] { order: var(--lk-part-order, 1); }
+#right-sidebar[data-lk-stack] .sidebar-item-list > .sidebar-item[data-lk-part] + .sidebar-drop-indicator { order: var(--lk-part-order, 1); }
+/* A part of the page has no ×: it goes with the page, not by hand. */
+#right-sidebar[data-lk-stack] .sidebar-item[data-lk-part] .sidebar-item-header .item-actions { display: none !important; }
+/* One hairline between one section and the next, as Look draws them, by the order they are seen in (the page's parts come first
+   whatever their place in Logseq's list): the first seen has none. */
+#right-sidebar[data-lk-stack] .sidebar-item-list > .sidebar-item { border-top: 1px solid var(--lk-line) !important; margin-top: 10px; padding-top: 6px; }
+#right-sidebar[data-lk-stack] .sidebar-item-list > .sidebar-item[data-lk-first] { border-top: 0 !important; margin-top: 0; padding-top: 0; }
+/* A part with nothing to show on this page, Logseq's Contents, and an item on its way in or out stand aside. */
+#right-sidebar[data-lk-stack] .sidebar-item-list > .sidebar-item:is([data-lk-aside], [data-lk-contents]) { display: none !important; }
+/* An item on its way in (a pressed row's view while Logseq draws it) is laid out, unseen and out of the flow, at the width it will
+   have: Look's passes then mark it as they mark what is on screen, so nothing in it settles after it is shown (13 November 2026). */
+#right-sidebar[data-lk-stack] .sidebar-item-list > .sidebar-item[data-lk-wait] { visibility: hidden !important; position: absolute !important; pointer-events: none !important; }`;
 
 const itemsOf = doc => [...doc.querySelectorAll('#right-sidebar .sidebar-item-list > .sidebar-item')].filter(item => !item.hasAttribute('data-lk-closed'));
 // Logseq's own list of what its sidebar holds, top first: [graph, id, kind] each, the id a page's or bullet's number, or a plugin's
 // panel by its name. Read here once; two pages side by side (split.js) reads it through this.
 const logseqList = () => { try { return host().defaultView.logseq?.api?.get_state_from_store('sidebar/blocks') || []; } catch (error) { return []; } };
-/* A view's panel that Logseq still holds in its list (view.panel: the name the panel was registered under). Its item may stand in
-   the sidebar a moment before the plugin's part inside it is drawn, as when the sidebar opens, and find() then finds nothing yet.
-   Opening the panel again at that moment adds nothing: it only moves the panel to the top of Logseq's list, over a page just opened
-   there. Two pages side by side lost their right page that way whenever the sidebar was shut on the Ontology or Todo tab: the half
-   stood blank and closed again (seen in the 0.4 audit, 16 November 2026). So a panel Logseq holds is waited for, never opened again. */
+const sidebarOpen = () => { try { return !!host().defaultView.logseq?.api?.get_state_from_store('ui/sidebar-open?'); } catch (error) { return false; } };
+/* A section's panel that Logseq still holds in its list. Its item may stand in the sidebar a moment before the plugin's part inside it
+   is drawn, as when the sidebar opens; opening the panel again at that moment adds nothing and only moves it to the top of Logseq's
+   list, over a page just opened there (the 0.4 audit, 16 November 2026). So a panel Logseq holds is waited for, never opened again. */
 const held = view => !!view.panel && logseqList().some(entry => entry?.[1] === `:${logseq.baseInfo?.id || 'logseq-plugin'}/_sidebar.${view.panel}`);
-const viewOf = (doc, item) => views.find(v => v.find(doc) === item || v.owns?.(item));   // owns: an item of the view's that is not the one shown (a row's view still being drawn)   // two views may share one item (Ontology and Item, Structure's one panel)
 const nameOf = item => (item.querySelector('.sidebar-item-header .page-title')?.textContent || item.querySelector('.sidebar-item-header')?.textContent || '').trim();
 const isContents = item => nameOf(item) === 'Contents' && !item.classList.contains('lk-side');
-
-function pick(doc, what) {
-  tabs.cur = what;
-  draw(doc);
-}
-function pickView(doc, view) {
-  if (!view.find(doc) && !held(view)) { tabs.pending = view.key; view.open(); }
-  pick(doc, view.key);
-}
-function tabEl(doc, { word, on, title, click }) {
-  // The library's view (lk-view): the tab in force in the text colour with its short bar, the others quiet, as every view of the plugin.
-  const box = doc.createElement('div'); box.className = `text-sm lk-tab${on ? ' on' : ''}`;
-  const press = doc.createElement('button'); press.type = 'button'; press.className = `lk-view${on ? ' on' : ''}`; press.textContent = word;
-  if (title) press.title = title;
-  press.addEventListener('click', click);
-  box.appendChild(press);
-  return box;
-}
+const toggle = (el, name, on) => { if (on !== el.hasAttribute(name)) el.toggleAttribute(name, on); };
 
 function draw(doc = host()) {
-  const side = doc.getElementById('right-sidebar'), bar = doc.querySelector(BAR);
-  if (!side || !bar) return;
-  if (!side.hasAttribute('data-lk-tabs')) side.setAttribute('data-lk-tabs', '');
-  const items = itemsOf(doc);
-  // A view that says it has nothing to show on this page (hidden) has no tab: Endnotes on a page with no citations (the owner, 12 November 2026).
-  const ordered = [...views].filter(v => !v.hidden?.(doc)).sort((a, b) => a.order - b.order);
-  // A page or block just opened in the sidebar is the one shown; a view's item appearing after its tab was picked stays picked.
-  for (const item of items) {
-    if (tabs.seen.has(item)) continue;
-    tabs.seen.add(item);
-    const view = viewOf(doc, item);
-    if (view) { if (views.some(v => v.key === tabs.pending && v.find(doc) === item)) { tabs.cur = tabs.pending; tabs.pending = null; } }
-    else if (!isContents(item)) tabs.cur = SIDE;
+  const side = doc.getElementById('right-sidebar');
+  if (!side) return;
+  toggle(side, 'data-lk-stack', true);
+  // Two pages side by side use the sidebar as the right half and show only that page (split.js): nothing is opened or marked then.
+  if (side.hasAttribute('data-lk-split')) return;
+  const parts = views.filter(v => v.auto).sort((a, b) => a.order - b.order);
+  /* A part of the page that applies here and is not in the sidebar yet is opened, while the sidebar is open: it never opens the
+     sidebar by itself. Asked once a second at most, should Logseq be slow to draw it. */
+  /* Not while Logseq's list holds a page or bullet it has yet to draw (the sidebar opening for the page beside, split.js): opened
+     then, a part went to the top of Logseq's list over that page, and the half stood blank (the 0.4 audit, 16 November 2026). */
+  const drawn = itemsOf(doc).filter(item => item.classList.contains('item-type-page') || item.classList.contains('item-type-block')).length;
+  const coming = logseqList().filter(entry => typeof entry?.[1] === 'number').length > drawn;
+  if (coming) { if (!st.retry) st.retry = doc.defaultView.setTimeout(() => { st.retry = 0; draw(); }, 400); }
+  else if (sidebarOpen()) for (const view of parts) {
+    if (view.hidden?.(doc) || view.find(doc) || held(view)) continue;
+    if (Date.now() - (st.asked.get(view.key) || 0) < 1000) continue;
+    st.asked.set(view.key, Date.now()); view.open();
   }
-  const others = items.filter(item => !viewOf(doc, item) && !isContents(item));
-  if (tabs.cur === SIDE && !others.length) tabs.cur = null;
-  // The tab picked is gone: the first view that is open, else the first view, opened.
-  if (tabs.cur !== SIDE && !ordered.some(v => v.key === tabs.cur)) tabs.cur = ordered.find(v => v.find(doc))?.key || null;
-  // Nothing is picked, and Logseq's list holds a page or bullet it has not drawn yet (the sidebar opening for it, as it does for the
-  // page beside): that item will be the one shown, under Opened, so no view is opened over it. Before, the first view was opened at
-  // that moment and went to the top of Logseq's list: in a Logseq whose sidebar had never been opened, the first ⌘-click left a blank
-  // half (the 0.4 audit, 16 November 2026). Waited for a second at most, should Logseq never draw it (a node deleted since).
-  const coming = logseqList().filter(entry => typeof entry?.[1] === 'number').length > others.length;
-  if (!tabs.cur && coming && !tabs.pending) {
-    if (!tabs.wait) { tabs.wait = Date.now(); doc.defaultView.setTimeout(() => draw(), 1100); }
-    if (Date.now() - tabs.wait < 1000) return;
-  } else tabs.wait = 0;
-  if (!tabs.cur && ordered[0] && !tabs.pending) { pickView(doc, ordered[0]); return; }
-  // The tab picked whose panel is no longer in the sidebar (closed by Logseq, a graph switched): opened again, as a press on its
-  // tab opens it, so the sidebar never stands empty under a picked tab (the owner, 15 November 2026: "todo is blank on sidebar").
-  const picked = ordered.find(v => v.key === tabs.cur);
-  if (picked && !picked.find(doc) && tabs.pending !== picked.key && !picked.owns && !held(picked)) { pickView(doc, picked); return; }
-  // Which items show: the view picked, alone and without its head; or, on Sidebar, everything else as Logseq stacks it.
-  const view = ordered.find(v => v.key === tabs.cur), viewItem = view?.find(doc);
-  // The tab picked is said on the sidebar, so a panel two tabs share shows the part its tab names.
-  if (side.getAttribute('data-lk-tab') !== (tabs.cur || '')) side.setAttribute('data-lk-tab', tabs.cur || '');
-  const viewItems = new Set(views.map(v => v.find(doc)).filter(Boolean));
-  for (const item of items) if (views.some(v => v.owns?.(item))) viewItems.add(item);
+  const partItems = new Map();
+  for (const view of parts) { const item = view.find(doc); if (item) partItems.set(item, view); }
   for (const item of doc.querySelectorAll('#right-sidebar .sidebar-item-list > .sidebar-item')) {
-    const on = tabs.cur === SIDE ? others.includes(item) : item === viewItem;
-    if (on !== item.hasAttribute('data-lk-tab-on')) item.toggleAttribute('data-lk-tab-on', on);
-    const isView = viewItems.has(item);
-    if (isView !== item.hasAttribute('data-lk-tab-view')) item.toggleAttribute('data-lk-tab-view', isView);
-    const waits = !on && views.some(v => v.owns?.(item));
-    if (waits !== item.hasAttribute('data-lk-tab-wait')) item.toggleAttribute('data-lk-tab-wait', waits);
-    if (waits) { const width = Math.round((viewItem || item.parentElement).getBoundingClientRect().width - (viewItem ? 0 : 48)) + 'px'; if (item.style.width !== width) item.style.width = width; } else if (item.style.width) item.style.width = '';
+    const view = partItems.get(item);
+    toggle(item, 'data-lk-part', !!view);
+    if (view) { const order = String(parts.indexOf(view) + 1); if (item.style.getPropertyValue('--lk-part-order') !== order) item.style.setProperty('--lk-part-order', order); }
+    else if (item.style.getPropertyValue('--lk-part-order')) item.style.removeProperty('--lk-part-order');
+    toggle(item, 'data-lk-aside', !!view && !!view.hidden?.(doc));
+    toggle(item, 'data-lk-contents', isContents(item));
+    toggle(item, 'data-lk-wait', !view && views.some(v => v.owns?.(item)));
   }
-  // The row, drawn again only when what it says changes.
-  const sig = JSON.stringify([ordered.map(v => [v.key, v.word]), others.length > 0, tabs.cur]);
-  let row = bar.querySelector(':scope > .lk-tabs');
-  if (row && row.dataset.sig === sig && bar.firstElementChild === row) return;
-  if (!row) { row = doc.createElement('div'); row.className = 'lk-tabs lk-own-tabs'; }
-  row.dataset.sig = sig;
-  const made = ordered.map(v => tabEl(doc, { word: v.word, on: tabs.cur === v.key, click: () => pickView(doc, v) }));
-  if (others.length) made.push(tabEl(doc, { word: 'Opened', title: 'The pages and blocks opened in the sidebar', on: tabs.cur === SIDE, click: () => pick(doc, SIDE) }));
-  row.replaceChildren(...made);
-  if (bar.firstElementChild !== row) bar.prepend(row);
+  // The first section seen: the first part shown, else the first item shown in Logseq's order.
+  const shown = item => !item.hasAttribute('data-lk-aside') && !item.hasAttribute('data-lk-contents') && !item.hasAttribute('data-lk-wait') && !item.hasAttribute('data-lk-closed');
+  const all = [...doc.querySelectorAll('#right-sidebar .sidebar-item-list > .sidebar-item')];
+  const first = [...partItems.keys()].filter(shown).sort((a, b) => parts.indexOf(partItems.get(a)) - parts.indexOf(partItems.get(b)))[0] || all.find(item => !partItems.has(item) && shown(item));
+  for (const item of all) toggle(item, 'data-lk-first', item === first);
+}
+
+/* Something you opened is closed by its ×: once the sidebar has taken it away, if nothing you opened is left, the sidebar closes,
+   even with a part of the page still in it. */
+const opened = doc => itemsOf(doc).some(item => !item.hasAttribute('data-lk-part') && !item.hasAttribute('data-lk-contents') && !item.hasAttribute('data-lk-wait') && !views.some(v => v.owns?.(item)));
+function onClose(event) {
+  const doc = host();
+  const close = event.target?.closest?.('#right-sidebar .sidebar-item .item-actions button, #right-sidebar .sidebar-item .lk-close');
+  // A person's press only: the plugin closing a view of its own (a pressed row's, the page since left) never closes the sidebar.
+  if (!event.isTrusted || !close || doc.getElementById('right-sidebar')?.hasAttribute('data-lk-split')) return;
+  if (close.closest('.sidebar-item')?.hasAttribute('data-lk-part')) return;
+  const win = doc.defaultView;
+  win.setTimeout(() => { draw(doc); if (sidebarOpen() && !opened(doc)) logseq.App.setRightSidebarVisible(false); }, 360);   // the section rolls up in 140 ms
 }
 
 function start() {
-  if (tabs.off) return;
+  if (st.off) return;
   Door.root.style('sidebar-tabs', CSS);
-  tabs.off = Door.root.watch(draw);
+  st.off = Door.root.watch(draw);
+  st.offClick = Door.root.listen(host(), 'click', onClose, true);
 }
 function stop() {
-  tabs.off?.(); tabs.off = null;
+  st.off?.(); st.off = null; st.offClick?.(); st.offClick = null;
   Door.root.style('sidebar-tabs', '');
   const doc = host();
-  doc.getElementById('right-sidebar')?.removeAttribute('data-lk-tabs'); doc.getElementById('right-sidebar')?.removeAttribute('data-lk-tab');
-  doc.querySelectorAll('#right-sidebar .lk-tabs').forEach(n => n.remove());
-  doc.querySelectorAll('#right-sidebar [data-lk-tab-on], #right-sidebar [data-lk-tab-view], #right-sidebar [data-lk-tab-wait]').forEach(n => { n.removeAttribute('data-lk-tab-on'); n.removeAttribute('data-lk-tab-view'); if (n.hasAttribute('data-lk-tab-wait')) { n.removeAttribute('data-lk-tab-wait'); n.style.width = ''; } });
+  doc.getElementById('right-sidebar')?.removeAttribute('data-lk-stack');
+  for (const n of doc.querySelectorAll('#right-sidebar :is([data-lk-part], [data-lk-aside], [data-lk-contents], [data-lk-wait], [data-lk-first])')) {
+    for (const a of ['data-lk-part', 'data-lk-aside', 'data-lk-contents', 'data-lk-wait', 'data-lk-first']) n.removeAttribute(a);
+    n.style.removeProperty('--lk-part-order');
+  }
 }
 Door.sideTabs = {
   add(view) {
@@ -151,10 +126,11 @@ Door.sideTabs = {
     views.push(view); start(); draw();
     return () => { const at = views.indexOf(view); if (at >= 0) views.splice(at, 1); if (!views.length) stop(); else draw(); };
   },
-  // A view opened from elsewhere (the ··· menu, the command palette) is the one shown once its item is there.
-  show(key) { tabs.pending = key; tabs.cur = key; draw(); },
-  // A view already open is picked, as a press on its tab would (a row pressed in a table picks Item).
-  pick(key) { tabs.cur = key; draw(); },
+  // A section asked for from elsewhere (the ··· menu, the command palette, a toolbar button): opened, and the sidebar with it.
+  // A part of the page is only shown with the sidebar; it opens by itself where it applies.
+  show(key) { const view = views.find(v => v.key === key); if (view && !view.auto && !view.find(host()) && !held(view)) view.open(); logseq.App.setRightSidebarVisible(true); draw(); },
+  // Kept for the parts that picked a tab: with every section in view there is nothing to pick.
+  pick() { draw(); },
   draw, stop,
   // Logseq's own list of what its sidebar holds, for the parts that work with it (two pages side by side).
   list: logseqList,

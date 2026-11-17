@@ -34,7 +34,7 @@ const CSS = `
 .st-top { display: flex; align-items: center; gap: 18px; padding: 0 22px 8px 6px; min-height: 37px; }
 .st-acts { display: flex; align-items: center; gap: 8px; padding: 0 22px 10px 6px; min-height: 38px; }
 .st-acts .lk-said { font-weight: 600; margin-right: 8px; } .st-acts .say { margin-right: 8px; }
-.st-acts .waits { opacity: .45; pointer-events: none; }
+.st-acts .waits { opacity: .62; pointer-events: none; }   /* waiting, still readable: at .45 its words read 2.3 to 1 (0.4 line 4.4) */
 .st-top .st-views, .st-top .st-pick { margin: 0; flex: none; } .st-top .st-pick { gap: 8px; } .st-top .lk-said { margin-right: 8px; } .st-top .st-find { margin: 0; flex: 0 1 200px; min-width: 80px; }
 .st-top .st-new { margin-left: auto; white-space: nowrap; flex: none; }
 /* The areas: columns sharing the page's width, onto a second row when they cannot fit, never past the edge; a band above each row for
@@ -147,11 +147,9 @@ const CSS = `
    (a bullet's item starts with the bullet's own words, and its head, the page it is on, stays away as for every tab). */
 #right-sidebar[data-lk-tabs] .sidebar-item-list > .sidebar-item.item-type-page[data-st-item] .sidebar-item-header { display: flex !important; }
 #right-sidebar .sidebar-item.item-type-page[data-st-item] .sidebar-item-header :is(.item-actions, .rotating-arrow) { display: none !important; }
-/* Where the row stands, "Consultation · 12 of 53": words the list carries (inspector.js), drawn above the row's view. */
-#right-sidebar[data-lk-tab="item"] .sidebar-item-list[data-st-where]::before { content: attr(data-st-where); display: block; color: var(--lk-quiet); font-size: var(--lk-small); font-variant-numeric: tabular-nums; padding: 12px 0 6px 16px; }
-/* It starts where the row's view starts: a page's ◇, a bullet's dot; and stands its own line above it, never on it (the owner,
-   16 November 2026: the line sat on "◇ Gas bill", at another left edge). A bullet's view has room of its own above it, a page's head none. */
-#right-sidebar[data-lk-tab="item"] .sidebar-item-list[data-st-where]:not(:has(> .item-type-page[data-st-item]))::before { padding: 8px 0 0 26px; margin-bottom: -8px; }
+/* Where the row stands, "Consultation · 12 of 53": words the item carries (inspector.js), drawn as the first line of the row's
+   section, above its head (a page's ◇) or its first bullet (the owner, 16 November 2026: its own line, never on the row's words). */
+#right-sidebar .sidebar-item[data-st-item] > :first-child::before { content: var(--st-where); display: block; color: var(--lk-quiet); font-size: var(--lk-small); font-variant-numeric: tabular-nums; padding: 8px 0 4px 8px; }
 /* The row's page has no fold arrow in its head here, so its ◇ stands 18px further left, and Look's tag line under it with it. */
 #right-sidebar .sidebar-item.item-type-page[data-st-item] .lk-path.lk-path-sb { margin-left: -22px; }
 /* A tag the property is on: its name and count on one line, what you can do with it under them, so the narrow panel never
