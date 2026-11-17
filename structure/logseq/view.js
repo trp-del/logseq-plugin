@@ -458,7 +458,7 @@ function make(holder, mode, app, opts = {}) {
       inPane2 = n === 2;
       const rows = visibleRows(n), q = n === 2 ? st.pane2.find : st.find;
       const h = `<div class="st-pane" data-pane="${n}"><div class="st-find lk-field"><input ${n === 2 ? 'data-find2' : 'data-find'} placeholder="Find a tag" value="${esc(q)}" autocomplete="off" spellcheck="false"></div>` +
-        `<div class="st-tree lk-list" ${st.ticks.size ? 'data-picking' : ''}>${rows.map(rowHtml).join('')}<div class="st-row st-topdrop" data-row="${LOOSE}"><span></span><span></span><span></span><span class="nm">to the top</span></div></div></div>`;
+        `<div class="st-tree lk-list" data-picking>${rows.map(rowHtml).join('')}<div class="st-row st-topdrop" data-row="${LOOSE}"><span></span><span></span><span></span><span class="nm">to the top</span></div></div></div>`;
       inPane2 = false;
       return h;
     };
@@ -481,7 +481,9 @@ function make(holder, mode, app, opts = {}) {
        hit a merge item and it ask for which to merge together"; the clickable mockup pick-then-merge-live.html, "ok build"). One word
        per action, the same in this bar and in a tag's right-click menu, each with its icon. */
     const ids = [...st.ticks].filter(T), n = ids.length, top = ids.every(id => Mo.parentOf(M(), id) == null), empty = ids.every(id => !Mo.count(M(), id) && !T(id).kids.length);
-    if (!n) return `<div class="st-acts lk-bar"><span class="say">Tick tags to merge, move, rename or delete them together. Right-click one for more.</span></div>`;
+    /* With nothing ticked the bar stands all the same, its words waiting faintly, so what can be done is seen before a tick
+       (the owner, 17 November 2026, after a fresh-eyes test found nothing on the map looked tickable). */
+    if (!n) return `<div class="st-acts lk-bar"><b class="lk-said">Tick tags, then</b>` + ['merge Merge…', 'up Move up a level', 'move Move under…', 'rename Rename', 'bin Delete'].map(x => { const [icon, ...w] = x.split(' '); return `<span class="act lk-btn lk-low lk-i-${icon}${icon === 'bin' ? ' lk-del' : ''} waits" title="Tick one or more tags first">${w.join(' ')}</span>`; }).join('') + `</div>`;
     return `<div class="st-acts lk-bar"><b class="lk-said">${plural(n, 'tag')} picked</b>` +
       `<span class="act lk-btn lk-low lk-i-merge ${n > 1 ? '' : 'waits'}" data-tbar="merge" title="${n > 1 ? '' : 'Tick two or more to merge them'}">Merge…</span>` +
       `<span class="act lk-btn lk-low lk-i-up ${top ? 'waits' : ''}" data-tbar="up" title="${top ? 'Already at the top' : 'Shift-Tab'}">Move up a level</span>` +
@@ -497,7 +499,7 @@ function make(holder, mode, app, opts = {}) {
     if (st.paim) return `<div class="st-acts lk-bar"><b class="lk-said">Merge ${esc(names)} into: press a property</b><span class="act lk-btn lk-low lk-i-x" data-paimoff>Leave it</span></div>`;
     if (st.edit?.what === 'pcombine' && st.edit.owner === mode) return `<div class="st-acts lk-bar"><b class="lk-said">Combine ${esc(names)} as</b><input class="st-in lk-field" data-edit value="${esc(st.edit.text)}" placeholder="Name of the property they become" autocomplete="off" spellcheck="false"><span class="act lk-btn lk-low lk-i-x" data-paimoff>Leave it</span></div>`;
     const n = ids.length;
-    if (!n) return `<div class="st-acts lk-bar"><span class="say">Tick properties to merge or rename them. Right-click one for more.</span></div>`;
+    if (!n) return `<div class="st-acts lk-bar"><b class="lk-said">Tick properties, then</b><span class="act lk-btn lk-low lk-i-merge waits" title="Tick two or more properties first">Merge…</span><span class="act lk-btn lk-low lk-i-rename waits" title="Tick a property first">Rename</span></div>`;
     return `<div class="st-acts lk-bar"><b class="lk-said">${n === 1 ? '1 property' : `${n} properties`} picked</b>` +
       `<span class="act lk-btn lk-low lk-i-merge ${n > 1 ? '' : 'waits'}" data-pbar="merge" title="${n > 1 ? '' : 'Tick two or more to merge them'}">Merge…</span>` +
       `<span class="act lk-btn lk-low lk-i-rename ${n === 1 ? '' : 'waits'}" data-pbar="rename">Rename</span>` +
@@ -508,7 +510,7 @@ function make(holder, mode, app, opts = {}) {
     for (const r of visibleRows()) { if (!r.d) areas.push([]); areas[areas.length - 1]?.push(r); }
     const asking = st.edit && st.edit.owner === mode && (st.edit.what === 'kids' || st.edit.on === LOOSE);
     const edit = asking ? `<div class="st-area"><div class="st-row lk-row kind"><span></span><span></span><span></span><span class="nm"><input class="st-in lk-field" data-edit value="${esc(st.edit.text)}" placeholder="${st.edit.what === 'kids' ? `The first child tags of ${esc(name(st.edit.on))}, with commas` : 'Name of the new top-level tag'}" autocomplete="off" spellcheck="false"></span></div></div>` : '';
-    return `<div class="st-regions lk-list" ${st.ticks.size ? 'data-picking' : ''}><svg class="st-lines" aria-hidden="true"></svg>${areas.map(a => `<div class="st-area">${a.map(rowHtml).join('')}</div>`).join('')}${edit}</div>${st.aim ? '' : focusHtml(st.cur)}`;
+    return `<div class="st-regions lk-list" data-picking><svg class="st-lines" aria-hidden="true"></svg>${areas.map(a => `<div class="st-area">${a.map(rowHtml).join('')}</div>`).join('')}${edit}</div>${st.aim ? '' : focusHtml(st.cur)}`;
   }
   // The relationships of a tag, read left to right: the tag that holds the property, the property and what it holds, how many nodes.
   const relWord = (id, t) => `<span class="lk-tag ${id === t ? 'self' : ''}" data-go="${esc(id)}">${esc(name(id))}</span>`;
@@ -765,7 +767,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     if (q) rows = rows.filter(r => r.p.title.toLowerCase().includes(q) || r.on.some(x => name(x.tag).toLowerCase().includes(q)) || r.p.range.some(id => name(id).toLowerCase().includes(q)));
     const s = st.sort, onName = g => name(g.tag);
     rows.sort((a, b) => s === 'name' ? a.p.title.localeCompare(b.p.title) : s === 'on' ? !a.tag - !b.tag || (a.tag && onName(a).localeCompare(onName(b))) || a.p.title.localeCompare(b.p.title) : s === 'to' ? name(b.p.range[0] ?? '').localeCompare(name(a.p.range[0] ?? '')) : a.pct - b.pct || a.p.title.localeCompare(b.p.title));
-    let h = `<div class="st-tbl lk-list" ${st.pticks.size ? 'data-picking' : ''}><div class="hd">${['name', 'on', 'to', 'filled'].map(c => `<span class="lk-head ${s === c ? 'on' : ''}" data-sort="${c}">${{ name: 'Property', on: 'On tags', to: 'Holds', filled: 'Filled' }[c]}${s === c ? `<span class="sortmark">${c === 'to' ? '↓' : '↑'}</span>` : ''}</span>`).join('')}</div>`;
+    let h = `<div class="st-tbl lk-list" data-picking><div class="hd">${['name', 'on', 'to', 'filled'].map(c => `<span class="lk-head ${s === c ? 'on' : ''}" data-sort="${c}">${{ name: 'Property', on: 'On tags', to: 'Holds', filled: 'Filled' }[c]}${s === c ? `<span class="sortmark">${c === 'to' ? '↓' : '↑'}</span>` : ''}</span>`).join('')}</div>`;
     // A property's name, or the field renaming it (Rename in its right-click menu).
     const nameCell = (key, title, wait, page) => st.edit?.what === 'prename' && st.edit.on === key && st.edit.owner === mode
       ? `<input class="st-in lk-field" data-edit value="${esc(st.edit.text)}" autocomplete="off" spellcheck="false">` : `<span class="k lk ${wait ? 'lk-coming' : ''}" ${page ? `data-ppage="${esc(page)}"` : ''}>${esc(title)}</span>`;
