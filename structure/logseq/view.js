@@ -34,7 +34,7 @@ const CSS = `
 .st-top { display: flex; align-items: center; gap: 18px; padding: 0 22px 8px 6px; min-height: 37px; }
 .st-acts { display: flex; align-items: center; gap: 8px; padding: 0 22px 10px 6px; min-height: 38px; }
 .st-acts .lk-said { font-weight: 600; margin-right: 8px; } .st-acts .say { margin-right: 8px; }
-.st-acts .waits { opacity: .62; pointer-events: none; }   /* waiting, still readable: at .45 its words read 2.3 to 1 (0.4 line 4.4) */
+.st-acts .waits { opacity: .45; pointer-events: none; }
 .st-top .st-views, .st-top .st-pick { margin: 0; flex: none; } .st-top .st-pick { gap: 8px; } .st-top .lk-said { margin-right: 8px; } .st-top .st-find { margin: 0; flex: 0 1 200px; min-width: 80px; }
 .st-top .st-new { margin-left: auto; white-space: nowrap; flex: none; }
 /* The areas: columns sharing the page's width, onto a second row when they cannot fit, never past the edge; a band above each row for
