@@ -25,7 +25,29 @@ function say(text) { tray.note = text; clearTimeout(saidTimer); saidTimer = setT
 const app = {
   tray, views: new Set(), issuesCache: { model: null, list: [] }, reading: null, readAt: 0, graph: '',
   st: startState(),
-  issues() { if (app.issuesCache.model !== tray.model || app.issuesCache.at !== tray.version) app.issuesCache = { model: tray.model, at: tray.version, list: S.rules.issues(tray.model) }; return app.issuesCache.list; },
+  // What Ontology suggests, less the suggestions dismissed on this graph: gone from the box, the lines and the Regions dots alike.
+  issues() {
+    const off = app.dismissed();
+    if (app.issuesCache.model !== tray.model || app.issuesCache.at !== tray.version || app.issuesCache.off !== off) app.issuesCache = { model: tray.model, at: tray.version, off, list: S.rules.issues(tray.model).filter(i => !off.has(i.key)) };
+    return app.issuesCache.list;
+  },
+  /* A suggestion dismissed stays dismissed (17 November 2026, the owner: allow dismissing it): kept by its key with the graph's name
+     on this computer, as the groups are, nothing written to the graph. The faded Undo arrow brings it back. */
+  dismissed() {
+    if (app.dismissedCache?.graph === app.graph) return app.dismissedCache.set;
+    let list = []; try { list = JSON.parse(localStorage.getItem(`structure-dismissed:${app.graph}`) || '[]'); } catch (error) { list = []; }
+    app.dismissedCache = { graph: app.graph, set: new Set(Array.isArray(list) ? list : []) };
+    return app.dismissedCache.set;
+  },
+  dismiss(key, on) {
+    const graph = app.graph, keep = set => { try { localStorage.setItem(`structure-dismissed:${graph}`, JSON.stringify([...set])); } catch (error) { console.error('Structure: the dismissal could not be kept', error); } };
+    const set = new Set(app.dismissed()); if (!key || set.has(key)) return;
+    set.add(key); keep(set); app.dismissedCache = { graph, set }; app.draw();
+    window.PluginDoor.undo.offer({ owner: 'structure', key: `structure:dismiss:${++groupChanges}`, text: 'Bring the suggestion back',
+      at: () => host().querySelector(`.sugs[data-on="${String(on).replace(/["\\]/g, '')}"] .sh`) || null,
+      run: async () => { if (graph !== app.graph) return; const back = new Set(app.dismissed()); back.delete(key); keep(back); app.dismissedCache = { graph, set: back }; app.draw(); },
+      onFail: error => { console.error('Structure: the suggestion could not be brought back', error); notify('The suggestion could not be brought back', 'warning'); } });
+  },
   // The tags and properties a change waiting in the tray touches: washed in yellow (lk-coming) wherever they are drawn.
   touched() {
     if (app.touchedCache && app.touchedCache.at === tray.version && app.touchedCache.model === tray.model) return app.touchedCache.set;

@@ -35,14 +35,15 @@ assert.equal(by('Visit reads like Consultation').fix, 'merge into Consultation')
 assert.equal(by('Maker on Medication points at no tag').fix, 'point at Organisation');
 assert.equal(by('Date is on Blood draw').fix, 'move it up to Medical event'); assert.equal(by('Date is on Blood draw').change.from.length, 6);
 assert.equal(by('With on Consultation, 7 of 90').fix, 'drop');
-assert.equal(by('Results is plural').fix, 'merge into Result');
+assert.equal(by('Results and Result name the same thing').fix, 'merge into Result');
 const named = title => Mo.build({ ...raw, tags: raw.tags.map(t => t.title === 'Mood' ? { ...t, title } : t) });
 const soft = S.rules.issues(named('Diabetes')).find(i => i.text.startsWith('Diabetes'));
-assert.equal(soft.text, 'Diabetes may be plural'); assert.equal(soft.fix, 'rename…'); assert.equal(soft.change.kind, 'prompt', 'a guess at a singular is never staged unasked');
+assert.equal(soft, undefined, 'a name that only reads plural is no suggestion');
 assert.equal(S.rules.singularOf("Crohn's"), null, 'a possessive is no plural');
 assert.equal(S.rules.singularOf('Consultations'), 'Consultation'); assert.equal(S.rules.singularOf('Studies'), 'Study'); assert.equal(S.rules.singularOf('Diagnosis'), null); assert.equal(S.rules.singularOf('Status'), null); assert.equal(S.rules.singularOf('Process'), null);
 assert.equal(S.rules.issuesOn(I, id('Consultation')).length, 1, 'With, on Consultation'); assert.ok(S.rules.issuesUnder(M, I, id('Occurrence')).length >= 3);
 const loose = Mo.build({ ...raw, tags: raw.tags.map(t => t.title === 'Task' ? { ...t, parents: [] } : t) });
+const keys = I.map(i => i.key); assert.equal(new Set(keys).size, keys.length, 'each suggestion has its own key, so dismissing one leaves the rest'); deq(S.rules.issues(M).map(i => i.key), keys, 'the same suggestion has the same key on every read, so a dismissal holds');
 assert.ok(!S.rules.issues(loose).some(i => i.text.startsWith('Task sits under none')));   // a tag at the top is as good as any, since the top is open
 deq(loose.loose.map(i => loose.tags.get(i).title), ['Entity', 'Information', 'Occurrence', 'Phenomenon', 'Task'], 'Task stands at the top among the others, by name');
 // A tag named like one of the old kinds, or one slip from it, is a tag like any other: nothing asks to make it a kind.

@@ -87,11 +87,10 @@ const CSS = `
 .st-lines-t { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 8px 14px; margin: 0; align-items: baseline; }   /* a label and its value's first line on one baseline: stretched, a value holding a press stood 3 to 7 px lower than its label (measured 12 November 2026) */
 .st-lines-t dt { font-weight: 600; } .st-lines-t dd { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; min-width: 0; }
 .st-lines-t .chev { margin-left: 2px; padding: 0 2px; }   /* the library's chevron (lk-change), centred on the name it changes */
-.sugs { display: grid; gap: 6px; margin-top: 14px; padding: 10px 14px; border-radius: 10px; background: var(--rx-amber-a2, rgba(255, 180, 0, .07)); border: 1px solid var(--rx-amber-a5, rgba(255, 170, 0, .35)); }   /* "Suggested" once, then a line each: the sentence, its fix at the end; a box of its own, since what is suggested is to be seen (the owner, 16 November 2026: "This is where subtley is not important") */
+.sugs { display: grid; gap: 6px; margin-top: 14px; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--lk-hair); }   /* "Suggested" once, then a line each: the sentence, its fix, its ×. A box of its own so it is seen (the owner, 16 November 2026: "This is where subtley is not important"), but no yellow: the yellow wash is for a change about to be made, and this is only a suggestion (17 November 2026: "too bright for just a suggestion") */
 .sugs .sh { font-weight: 600; display: flex; gap: 6px; align-items: center; color: var(--lk-text, #222); }
-.sugs .sh .ti { color: var(--rx-amber-11, #ad5700); }
-.sugs .sug { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 18px; align-items: baseline; }
-.sugs .sug .fix { white-space: nowrap; background: var(--ls-primary-background-color, #fff) !important; border: 1px solid var(--rx-amber-a6, rgba(255, 170, 0, .45)); padding: 3px 12px !important; }   /* the fix as a button you see at once, on the suggestion's box */
+.sugs .sug { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 2px 6px; align-items: baseline; }
+.sugs .sug .fix { white-space: nowrap; margin-left: 12px !important; }   /* the library's fix, the word alone with the round ground under the pointer; a delete stays red, at whatever level it stands (the owner, 1 November) */
 .st-lines-t dd.col { display: grid; gap: 3px; justify-items: start; }
 .st-lines-t .ont { display: grid; grid-template-columns: 170px 70px auto; gap: 0 14px; align-items: baseline; }
 .st-lines-t .ont.kid { padding-left: 16px; } .st-lines-t .ont.kid .lk-tag { margin-right: -16px; }
@@ -532,8 +531,8 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
   }
   /* What Ontology suggests: the word "Suggested" once, as a small heading, then one line each, the sentence and its fix at the line's
      end, lined up (16 November 2026, the owner: "look how bad this looks" of "Suggested" run into each sentence, every line its own). */
-  const sugsHtml = list => list.length ? `<div class="sugs"><div class="sh"><i class="ti ti-bulb" aria-hidden="true"></i>Suggested</div>${list.map(i => { const n = ISS().indexOf(i); return `<div class="sug"><span>${partsHtml(i.parts)}</span><span class="fix act lk-fix lk-i-${fixIcon(i.fix)}" data-fix="${n}">${esc(fixWord(i.fix))}</span></div>${askHtml(n)}`; }).join('')}</div>` : '';
-  const suggestHtml = id => sugsHtml(R.issuesOn(ISS(), id));
+  const sugsHtml = (list, on) => list.length ? `<div class="sugs" data-on="${esc(on)}"><div class="sh"><i class="ti ti-bulb" aria-hidden="true"></i>Suggested</div>${list.map(i => { const n = ISS().indexOf(i); return `<div class="sug"><span>${partsHtml(i.parts)}</span><span class="fix act lk-fix lk-i-${fixIcon(i.fix)}" data-fix="${n}">${esc(fixWord(i.fix))}</span><span class="act lk-x" role="button" tabindex="0" data-dismiss="${n}" title="Dismiss this suggestion" aria-label="Dismiss this suggestion">×</span></div>${askHtml(n)}`; }).join('')}</div>` : '';
+  const suggestHtml = id => sugsHtml(R.issuesOn(ISS(), id), id);
   // ---------- a tag's lines: Parent alone on one line above its title; the others in the inspector ----------
   // (the owner, 8 November 2026: Extends is called Parent, on one line above the title without moving the title down; 12 November:
   // Parent alone there; Child tags, Beside and Relationships live in the inspector alone.)
@@ -567,7 +566,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
       (p.type === 'node' ? `<dt>Node tags</dt><dd>${nodeTags}<span class="act lk-add lk-i-plus" data-addrange="0·${pid}">Specify node tags…</span></dd>` : '') +
       `<dt>On tags</dt><dd class="col">${on.map(onRow).join('')}${on.length ? '' : `<span>${plural(m.holders.get(p.ident)?.size || 0, 'node')}, on no tag</span>`}<span class="act lk-add lk-i-plus" data-do="pmove" data-on="0·${pid}">Put on a tag…</span></dd>` +
       (p.type === 'node' ? `<dt>Relationships</dt><dd>${rels.length ? `<div class="st-rel">${shown.map(r => `${relWord(r.from)}${relProp(r)}<span class="num">${r.n}</span>`).join('')}${shown.length < rels.length ? `<span class="all lk-more" data-all="${key}">and ${rels.length - shown.length} more</span>` : ''}</div>` : '<span>No relationships yet</span>'}</dd>` : '') + `</dl>${pmergeAskHtml(pid)}` +
-      sugsHtml(R.issuesOfProp(ISS(), pid).filter(i => !(i.line && i.line.kid != null)));
+      sugsHtml(R.issuesOfProp(ISS(), pid).filter(i => !(i.line && i.line.kid != null)), `p${pid}`);
   }
   /* In the inspector each part is headed by what it describes (the owner, 9 November 2026: "how the section appear"): the tag in
      its mono, or the property with its icon. Above the table the page's own title says it, so the head shows in the inspector only. */
@@ -1292,7 +1291,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
   
   // ---------- events ----------
   root.addEventListener('click', e => {
-    const t = e.target.closest('[data-ppage],[data-tpage],[data-pfold],[data-pon],[data-prange],[data-all],[data-fold],[data-tick],[data-ptick],[data-paim],[data-paimoff],[data-pcombine],[data-ntick],[data-row],[data-go],[data-open],[data-unrange],[data-addrange],[data-prop],[data-fix],[data-stage],[data-leave],[data-sort],[data-apply],[data-discard],[data-drop],[data-undo],[data-act],[data-do],[data-show],[data-compare],[data-aim],[data-aimtop],[data-aimoff],[data-pick],[data-nodes],[data-more],[data-node],[data-split],[data-gfold],[data-gname],[data-gdrop],[data-gnew],[data-pnew],[data-logundo],[data-tbar],[data-pbar],[data-tkeep],[data-pkeep]');
+    const t = e.target.closest('[data-ppage],[data-tpage],[data-pfold],[data-pon],[data-prange],[data-all],[data-fold],[data-tick],[data-ptick],[data-paim],[data-paimoff],[data-pcombine],[data-ntick],[data-row],[data-go],[data-open],[data-unrange],[data-addrange],[data-prop],[data-fix],[data-dismiss],[data-stage],[data-leave],[data-sort],[data-apply],[data-discard],[data-drop],[data-undo],[data-act],[data-do],[data-show],[data-compare],[data-aim],[data-aimtop],[data-aimoff],[data-pick],[data-nodes],[data-more],[data-node],[data-split],[data-gfold],[data-gname],[data-gdrop],[data-gnew],[data-pnew],[data-logundo],[data-tbar],[data-pbar],[data-tkeep],[data-pkeep]');
     const outside = st.prompt?.owner === mode && !e.target.closest('.st-prompt');
     if (!t) { if (st.menu || outside) { st.menu = null; if (outside) st.prompt = null; redraw(); } return; }
     if (e.target.matches?.('[data-edit]')) return;   // a click in a field being written stays in the field
@@ -1343,6 +1342,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     if (t.dataset.unrange) { const pid = Number(t.dataset.unprop ?? opts.prop); app.stage({ kind: 'setRange', prop: pid, to: P(pid).range.filter(id => id !== Number(t.dataset.unrange)) }); return redraw(); }
     if (t.dataset.addrange) { const pid = Number(t.dataset.addrange.split('·')[1]); return startPrompt({ what: 'range', list: 'tags', prop: pid }); }
     if (t.dataset.fix) return fix(+t.dataset.fix);
+    if (t.dataset.dismiss) { const i = ISS()[+t.dataset.dismiss]; st.ask = null; return app.dismiss(i?.key, t.closest('.sugs')?.dataset.on); }   // indices move once one is gone, so an open ask closes
     if (t.hasAttribute('data-stage')) return stageAsk();
     if (t.hasAttribute('data-leave')) { st.ask = null; return redraw(); }
     if (t.dataset.sort) { st.sort = t.dataset.sort; return redraw(); }
@@ -1522,7 +1522,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
       return;
     }
     if (e.target.tagName === 'INPUT') return;
-    if ((k === 'Enter' || k === ' ') && e.target.closest?.('[data-gdrop]')) { e.preventDefault(); e.target.closest('[data-gdrop]').click(); return; }
+    if ((k === 'Enter' || k === ' ') && e.target.closest?.('[data-gdrop],[data-dismiss]')) { e.preventDefault(); e.target.closest('[data-gdrop],[data-dismiss]').click(); return; }
     if (st.menu && k === 'Escape') { st.menu = null; redraw(); return; }
     if (st.paim && mode === 'page' && k === 'Escape') { e.preventDefault(); st.paim = false; return redraw(); }
     if (st.aim && mode === 'page') { if (k === 'Escape') { e.preventDefault(); st.aim = null; return redraw(); } if (k === 'Enter') { e.preventDefault(); return finishAim(st.cur); } }

@@ -43,7 +43,8 @@ function plain(M, parts) {
 function issues(M) {
   const out = [];
   // `line`: the line on a card the issue belongs to, when it has one (the property on the tag; a tag beneath on the property's card).
-  const add = (rule, on, parts, fix, change, line) => out.push({ rule, on, parts, text: plain(M, parts), fix, change, line });
+  // `key`: the issue as the same issue on every read (its rule and the change its fix makes), so a dismissal holds across reloads.
+  const add = (rule, on, parts, fix, change, line) => out.push({ rule, on, parts, text: plain(M, parts), fix, change, line, key: `${rule}:${JSON.stringify(change)}` });
   const user = [...M.tags.values()];
   // 1. One place.
   for (const t of user) {
@@ -106,8 +107,9 @@ function issues(M) {
     const single = singularOf(t.title);
     if (!single) continue;
     const exists = titled(M, single).find(x => x.id !== t.id);
-    if (exists) add(RULES[4], t.id, [subject(t.id), say('is plural, and'), tags([exists.id]), say('exists')], `merge into ${exists.title}`, { kind: 'merge', from: t.id, into: exists.id });
-    else add(RULES[4], t.id, [subject(t.id), say('may be plural')], 'rename…', { kind: 'prompt', what: 'rename', tag: t.id, name: single });
+    // Only two tags that name one thing (Results beside Result). A name that merely reads plural is no suggestion: spelling cannot
+    // tell Notes from Diabetes, and the owner found the guess silly (17 November 2026: "saying silly things like plural and singular").
+    if (exists) add(RULES[4], t.id, [subject(t.id), say('and'), tags([exists.id]), say('name the same thing')], `merge into ${exists.title}`, { kind: 'merge', from: t.id, into: exists.id });
   }
   const order = new Map(RULES.map((r, i) => [r, i]));
   return out.sort((a, b) => order.get(a.rule) - order.get(b.rule));

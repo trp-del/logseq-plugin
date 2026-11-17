@@ -38,13 +38,13 @@ Ontology (named Structure until 12 November 2026; its folder and the names in it
 
 ## The five rules
 
-None is enforced; each shows as a quiet dot, with its fix a word in Suggested, on the tag's page and under the areas.
+None is enforced; each shows as a quiet dot, with its fix a word in Suggested, on the tag's page and under the areas. Suggested is a plain box with a hairline edge, no yellow: yellow is kept for a change about to be made. Each line ends with its fix and a ×, which dismisses that suggestion for good on this graph (kept on this Mac, nothing written to the graph); the faded Undo arrow brings it back. A fix that loses something, such as Delete property from tag, still asks first and waits for Apply.
 
 1. **One place.** A tag under two parents: keep only under one. A tag under no parent is a top-level tag like any other, never an issue.
 2. **A child earns its place.** A tag with no nodes and no children: remove. A sibling that declares nothing the other lacks (two or more properties, one of them a relation): merge into it.
 3. **A relation has a range.** A property that links to nodes with no tag set as what it points at: set it, guessed from what its values are tagged.
 4. **A property lives as high as it is filled.** On three or more siblings, one by one: move it up to the parent ("Date is on Blood draw, Scan and Stay one by one, all under Medical event · Move it up to Medical event"). Filled by one child only: move it to that child ("Only Cancer notes use Diagnosed by, though it is on Phenomena · Move it to Cancer"; until 16 November 2026 "push down to", which the owner could not read). Filled by fewer than a tenth of the nodes (ten or more): drop.
-5. **Names say what they are.** A tag whose name reads as a plural: when the singular is a tag, merge into it; otherwise a quiet "may be plural", since spelling cannot tell Notes from Diabetes, and "rename…" opens the name in the tree with the singular guessed, to change or leave. Two tags of one name: merge.
+5. **Names say what they are.** A tag whose name is the plural of another tag (Results beside Result): merge into it. A name that only reads plural is not suggested: spelling cannot tell Notes from Diabetes, and the guess read as silly (the owner, 17 November 2026). Two tags of one name: merge.
 
 ## The keys
 
