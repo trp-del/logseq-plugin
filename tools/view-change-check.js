@@ -16,7 +16,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const OUT = path.join(__dirname, '../dist/view-change-check');
 const LOGSEQS_OWN = new Set(['main-tag-page-open']);
 async function connect({ allowEditing = false } = {}) {
-  let browser; try { browser = await chromium.connectOverCDP('http://127.0.0.1:9222', { timeout: 5000 }); } catch (error) { console.log('skipped: Logseq is not reachable on its debugging port'); process.exit(2); }
+  let browser; try { browser = await chromium.connectOverCDP(`http://127.0.0.1:${process.env.LOGSEQ_PORT || 9222}`, { timeout: 5000 }); } catch (error) { console.log('skipped: Logseq is not reachable on its debugging port'); process.exit(2); }
   const page = browser.contexts().flatMap(c => c.pages()).find(p => /index\.html/.test(p.url()));
   const graph = String(await page.evaluate(async () => (await logseq.api.get_current_graph())?.name || '')).replace(/^logseq_db_/, '');
   if (graph !== 'Illness Test Graph') throw new Error('open graph is "' + graph + '": nothing touched');

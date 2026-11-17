@@ -13,7 +13,7 @@ const PAGE = process.argv[3] || null;   // a page to read by name, else the page
 let chromium; try { ({ chromium } = require('playwright')); } catch (error) { console.log('skipped: needs Playwright (set NODE_PATH)'); process.exit(2); }
 (async () => {
   let browser;
-  try { browser = await chromium.connectOverCDP('http://127.0.0.1:9222', { timeout: 5000 }); } catch (error) { console.log('skipped: Logseq is not reachable on its debugging port'); process.exit(2); }
+  try { browser = await chromium.connectOverCDP(`http://127.0.0.1:${process.env.LOGSEQ_PORT || 9222}`, { timeout: 5000 }); } catch (error) { console.log('skipped: Logseq is not reachable on its debugging port'); process.exit(2); }
   const page = browser.contexts().flatMap(c => c.pages()).find(p => /index\.html/.test(p.url()));
   if (!page) throw new Error('no Logseq main window');
   const graph = String(await page.evaluate(async () => (await window.logseq.api.get_current_graph())?.name || '')).replace(/^logseq_db_/, '');

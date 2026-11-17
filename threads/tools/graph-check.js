@@ -25,7 +25,14 @@ const SKIP = new Set(['block/created-at', 'block/updated-at', 'block/tx-id']);
 // Number-valued facts that are not links.
 const NUMBERS = new Set(['block/journal-day', 'logseq.property/scheduled', 'logseq.property/deadline', 'logseq.property.asset/size']);
 
+/* With LOGSEQ_PORT set (a Logseq started for the checks alone, its graph a copy in a home of its own, which the command line
+   cannot see), the same question is put to that Logseq's window instead, after making sure the graph open there is the one named. */
+const PORT = process.env.LOGSEQ_PORT;
+const APP_ASK = `const { chromium } = require('playwright'); (async () => { const b = await chromium.connectOverCDP('http://127.0.0.1:' + process.env.LOGSEQ_PORT, { timeout: 8000 }); const p = b.contexts().flatMap(c => c.pages()).find(p => /index\\.html/.test(p.url())); const g = String((await p.evaluate(async () => (await window.logseq.api.get_current_graph())?.name)) || '').replace(/^logseq_db_/, ''); if (g !== process.argv[2]) throw new Error('the open graph is ' + g + ', not ' + process.argv[2]); const r = await p.evaluate(q => window.logseq.api.datascript_query(q), process.argv[1]); process.stdout.write(JSON.stringify(r)); await b.close(); })().catch(e => { console.error(String(e.message || e)); process.exit(1); });`;
 const ask = query => {
+  // Logseq's window names an attribute "uuid" for :block/uuid and ":logseq.property/status" for the rest; the command line names
+  // them block/uuid and logseq.property/status. The window's are put into the command line's form.
+  if (PORT) { const plain = a => { a = String(a); return a.startsWith(':') ? a.slice(1) : a.includes('/') ? a : 'block/' + a; }; return JSON.parse(execFileSync('node', ['-e', APP_ASK, query, GRAPH], { encoding: 'utf8', maxBuffer: 1 << 28 })).map(row => Array.isArray(row) && row.length === 3 ? [row[0], plain(row[1]), row[2]] : row); }
   const out = JSON.parse(execFileSync(CLI, ['query', '-g', GRAPH, '-o', 'json', '--timeout-ms', '60000', '--query', query], { encoding: 'utf8', maxBuffer: 1 << 28 }));
   if (out.status !== 'ok') throw new Error('the command line said: ' + JSON.stringify(out).slice(0, 300));
   return out.data.result;
@@ -50,7 +57,7 @@ const label = facts => {
 };
 
 const mode = process.argv[2];
-if (!fs.existsSync(CLI)) { console.log('graph check skipped (no Logseq command line at ' + CLI + ')'); process.exit(0); }
+if (!PORT && !fs.existsSync(CLI)) { console.log('graph check skipped (no Logseq command line at ' + CLI + ')'); process.exit(0); }
 if (mode === 'save') {
   const nodes = fingerprint();
   fs.mkdirSync(path.dirname(file), { recursive: true });

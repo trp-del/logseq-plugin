@@ -77,7 +77,7 @@ function world({ sidebarOpen = true, settings = {}, list = null, keyed = false, 
   const link = (where, cls) => doc.querySelector(`${where} ${cls}`);
   const S = () => Door.split.state();
   const settle = () => sleep(120);
-  return { win, doc, store, log, logseqHeard, Door, press, link, S, settle, shown: () => nodes[shown].title, settings: settingsNow };
+  return { win, doc, store, log, logseqHeard, Door, logseq, press, link, S, settle, shown: () => nodes[shown].title, settings: settingsNow };
 }
 
 (async () => {
@@ -309,6 +309,62 @@ function world({ sidebarOpen = true, settings = {}, list = null, keyed = false, 
     await w.Door.split.close('right');
     await w.settle();
     assert.deepEqual(w.store['sidebar/blocks'].map(e => e[1]), [':logseq-plugin/_sidebar.todo-side', 2, 9], 'the sidebar as it was, Dr. Mei Chen kept among Opened');
+  }
+
+  // The blank half of the 0.4 audit (16 November 2026): the sidebar shut with a tab of the plugin's picked (Todo, Ontology). As the
+  // sidebar opens for the page beside, Logseq draws the panel's item a moment before the plugin's part inside it, so the tab's find()
+  // finds nothing yet. The tabs then opened the panel "again", which only moved it to the top of Logseq's list, over the page just
+  // opened: the split waited for its page on top, in vain, and closed. A panel Logseq still holds is waited for, never opened again.
+  {
+    const w = world({ sidebarOpen: false });
+    let inside = false;
+    const opens = () => w.log.filter(e => e[0] === 'open beside' && e[1] === '_sidebar.todo-side').length;
+    w.Door.sideTabs.add({ key: 'todo', word: 'Todo', order: 1, panel: 'todo-side',
+      find: doc => (inside ? doc.querySelector('.sidebar-item[data-id=":logseq-plugin/_sidebar.todo-side"]') : null),
+      open: () => { w.logseq.Editor.openInRightSidebar('_sidebar.todo-side'); } });
+    w.Door.sideTabs.pick('todo');
+    await w.settle();
+    assert.equal(opens(), 0, 'the Todo panel is in Logseq\'s list: not opened again while its inside is still to come');
+    w.press(w.link('#main-content-container', 'a.page-ref'), { metaKey: true });
+    await sleep(60);
+    w.Door.sideTabs.draw();
+    await w.settle();
+    assert.equal(opens(), 0, 'nor as the sidebar opens for the page beside');
+    assert.equal(w.S().id, 2, 'Dr. Mei Chen stands beside');
+    assert.deepEqual(w.store['sidebar/blocks'].map(e => e[1]), [2, ':logseq-plugin/_sidebar.todo-side', 9], 'the page beside is on top of Logseq\'s list');
+    inside = true; w.Door.sideTabs.draw();
+    await w.settle();
+    assert.equal(w.S().id, 2, 'and stays once the panel\'s inside has come');
+    assert.ok(!w.log.some(e => e[0] === 'notice'), 'no notice: nothing went wrong');
+    // A panel Logseq no longer holds is still opened again when its tab is the one picked (the owner, 15 November 2026: a blank Todo tab).
+    const gone = world({ list: [[REPO, 9, 'page']] });
+    gone.Door.sideTabs.add({ key: 'todo', word: 'Todo', order: 1, panel: 'todo-side', find: () => null, open: () => { gone.logseq.Editor.openInRightSidebar('_sidebar.todo-side'); } });
+    gone.Door.sideTabs.pick('todo');
+    await gone.settle();
+    assert.ok(gone.log.some(e => e[0] === 'open beside' && e[1] === '_sidebar.todo-side'), 'a panel that left Logseq\'s list is opened again');
+  }
+
+  // The same audit, a Logseq whose sidebar was never opened: its list is empty, no tab is picked, and the tabs' bar is not on the
+  // page while the sidebar is shut. As the sidebar opened for the page beside, the bar stood a moment before the items, the tabs
+  // found nothing picked and opened their first view, which went on top of the page: a blank half on the first ⌘-click. Now a page
+  // Logseq has in its list and has yet to draw is waited for.
+  {
+    const w = world({ sidebarOpen: false, list: [] });
+    const bar = w.doc.querySelector('.cp__right-sidebar-settings'), home = bar.parentElement;
+    bar.remove();   // shut: Logseq draws no bar
+    const opens = () => w.log.filter(e => e[0] === 'open beside' && e[1] === '_sidebar.todo-side').length;
+    w.Door.sideTabs.add({ key: 'todo', word: 'Todo', order: 1, panel: 'todo-side',
+      find: doc => doc.querySelector('.sidebar-item[data-id=":logseq-plugin/_sidebar.todo-side"]'),
+      open: () => { w.logseq.Editor.openInRightSidebar('_sidebar.todo-side'); } });
+    w.press(w.link('#main-content-container', 'a.page-ref'), { metaKey: true });
+    await sleep(2);
+    home.appendChild(bar);   // the sidebar opens: its bar first, its items a moment later
+    w.Door.sideTabs.draw();
+    await w.settle();
+    assert.equal(opens(), 0, 'no view is opened over a page Logseq is about to draw');
+    assert.equal(w.S().id, 2, 'Dr. Mei Chen stands beside, on the first ⌘-click');
+    assert.deepEqual(w.store['sidebar/blocks'].map(e => e[1]), [2], 'and is alone in Logseq\'s list');
+    assert.ok(!w.log.some(e => e[0] === 'notice'), 'no notice');
   }
 
   // The owner's "No links in this page's words" (16 November 2026): Look draws its Links section as an item of the sidebar's list

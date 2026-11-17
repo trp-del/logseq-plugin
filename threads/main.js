@@ -220,6 +220,7 @@ function main() {
   // the model, the troubleshooting tools and the settings window; the others stay loaded (their settings
   // keep their place) but are never started.
   const foundationOnly = setting('foundationOnly') === true;
+  window.Threads.runningBaseOnly = foundationOnly;   // read by the settings window, which offers the reload when the setting differs
   const running = foundationOnly ? plugInParts.filter(part => part.foundation) : plugInParts;
   if (foundationOnly) notify('Threads is running only its foundation (Foundation only, under Troubleshooting in its settings). Turn it off and reload the plugin to get everything back.', 'warning');
   const failed = new Set();

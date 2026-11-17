@@ -63,11 +63,11 @@ async function readWhat(event) {
   await E.files.currentGraph();
   const over = { columnsOf, order: orderOf };
   const uuid = typeof event?.uuid === 'string' ? event.uuid : null;
-  if (uuid) return { doc: await E.db.readBlocks([uuid], over), what: 'this block' };
+  if (uuid) return { doc: await E.db.readBlocks([uuid], over), what: 'this bullet' };
   const selected = await Promise.resolve(logseq.Editor.getSelectedBlocks()).catch(() => null);
-  if (selected?.length) return { doc: await E.db.readBlocks(selected.map(b => b.uuid), over), what: selected.length > 1 ? `${selected.length} blocks` : 'this block' };
+  if (selected?.length) return { doc: await E.db.readBlocks(selected.map(b => b.uuid), over), what: selected.length > 1 ? `${selected.length} bullets` : 'this bullet' };
   const current = await Promise.resolve(logseq.Editor.getCurrentBlock()).catch(() => null);
-  if (current?.uuid && event?.blockFirst) return { doc: await E.db.readBlocks([current.uuid], over), what: 'this block' };
+  if (current?.uuid && event?.blockFirst) return { doc: await E.db.readBlocks([current.uuid], over), what: 'this bullet' };
   const page = event?.page ? await E.db.readPage(event.page, over) : await E.db.readPage(null, over);
   return page ? { doc: page, what: 'this page' } : null;
 }
@@ -121,7 +121,7 @@ const settingsSchema = [
 
 function main() {
   logseq.App.registerCommandPalette({ key: 'db-export-page', label: 'Export: this page…' }, () => exportWindow());
-  logseq.App.registerCommandPalette({ key: 'db-export-blocks', label: 'Export: the selected blocks…' }, () => exportWindow({ blockFirst: true }));
+  logseq.App.registerCommandPalette({ key: 'db-export-blocks', label: 'Export: the selected bullets…' }, () => exportWindow({ blockFirst: true }));
   logseq.App.registerCommandPalette({ key: 'db-export-md', label: 'Export: copy this page as Markdown' }, () => quick('md'));
   logseq.App.registerCommandPalette({ key: 'db-export-pdf', label: 'Export: save this page as PDF' }, () => quick('pdf'));
   logseq.Editor.registerBlockContextMenuItem('PDF or Markdown, your styles…', event => exportWindow(event));
@@ -138,7 +138,7 @@ const scoped = css => String(css || '').split('}').filter(rule => rule.includes(
 const sample = css => `<style>${scoped(css).replace(/<\//g, '')}</style><div class="xp-sample" style="font-family:Georgia,serif;font-size:13px;line-height:1.5"><div class="x-title" style="font-size:20px;font-weight:600">Dr. Mei Chen</div><div class="x-meta" style="color:var(--lk-quiet);font-size:12px">Doctor · St. Mary’s</div><p class="x-p" style="margin:8px 0 0">Oncologist. First seen Oct 2 about the fatigue; follow-up Oct 21.</p></div>`;
 window.PluginDoor.describe('export', { schema: [{ type: 'heading', title: 'The PDF', place: 'out' }, { ...settingsSchema.find(item => item.key === 'customCss'), placeholder: '.x-title { letter-spacing: -.01em; }' }], specimen: (item, value) => item.key === 'customCss' ? sample(value) : '', picture: on => on ? '<span class="sw-faintw">The ··· menu</span><br>PDF or Markdown, your styles…' : '<span class="sw-faintw">The ··· menu</span><br><span class="sw-faintw">no export</span>' });
 window.PluginDoor.register({
-  key: 'export', title: 'DB Export', about: 'A page or some blocks out as a PDF, as Markdown or as rich text on the clipboard.',
+  key: 'export', title: 'DB Export', about: 'A page or some bullets out as a PDF, as Markdown or as rich text on the clipboard.',
   schema: settingsSchema, start: main, stop,
 });
 })();

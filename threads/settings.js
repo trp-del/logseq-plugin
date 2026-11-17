@@ -38,7 +38,7 @@ window.PluginDoor.describe('threads', {
       item('twoWayOneEnd', { title: 'Properties left out on the other page', list: { hint: 'add a property', offer: properties } }),
       item('twoWayMentionsHidden', { title: 'Pages that get no mentions row', list: { hint: 'add a page' } }),
       { type: 'heading', title: 'When something is wrong', place: 'parts' },
-      item('foundationOnly', { title: 'Run only the base, to find a fault', looks: ['Everything runs', 'Only the base'] }),
+      item('foundationOnly', { title: 'Run only Threads’ base, to find a fault in it', looks: ['All of Threads runs', 'Only its base'] }),
       // Only while Threads runs: there is nothing to open otherwise.
       ...(window.Threads.core?.provided?.openTroubleshooting ? [{ type: 'action', key: 'troubleshoot', title: 'Open troubleshooting', run: () => window.Threads.core.provided.openTroubleshooting() }] : []),
     ];

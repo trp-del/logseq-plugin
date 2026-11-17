@@ -27,7 +27,7 @@ async function graphOk(page) {
 async function connect(tool) {
   if (!chromium) { console.log(`${tool}: skipped (needs Playwright)`); process.exit(2); }
   let browser;
-  try { browser = await chromium.connectOverCDP('http://127.0.0.1:9222', { timeout: 5000 }); } catch (error) {
+  try { browser = await chromium.connectOverCDP(`http://127.0.0.1:${process.env.LOGSEQ_PORT || 9222}`, { timeout: 5000 }); } catch (error) {
     console.log(`${tool}: Logseq is not reachable on its debugging port (start it with --remote-debugging-port=9222)`); process.exit(2);
   }
   const page = browser.contexts().flatMap(c => c.pages()).find(p => /index\.html/.test(p.url()));

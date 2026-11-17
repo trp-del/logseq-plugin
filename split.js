@@ -44,7 +44,7 @@ const heard = new Set();
 const told = () => { for (const fn of [...heard]) { try { fn(); } catch (error) { base.warnOnce('a module could not follow the page beside', error); } } };
 
 const api = () => host().defaultView.logseq?.api;
-const sideList = () => { try { return api()?.get_state_from_store('sidebar/blocks') || []; } catch (error) { return []; } };
+const sideList = () => Door.sideTabs.list();   // Logseq's own list of what its sidebar holds, read in one place (sidebar-tabs.js)
 const sideOpen = () => { try { return !!api()?.get_state_from_store('ui/sidebar-open?'); } catch (error) { return false; } };
 // The items of Logseq's own list, in its order. A section the plugin draws among them (Look's Links and Outline, .lk-own) is not in
 // Logseq's list: counted, it stood in the page's place, and a ⌘-click with the Links tab picked showed "No links in this page's words"
@@ -306,7 +306,8 @@ async function end(doc = host(), { takeOut: out = false } = {}) {
   if (out && before && !before.open) logseq.App.setRightSidebarVisible?.(false);
   unmark(doc);
   forget();
-  if (out && before?.open && before.tab) doc.defaultView.requestAnimationFrame(() => Door.sideTabs?.pick(before.tab));
+  // The tab it was on, picked again, also where the sidebar was shut before the split: shut on Todo, it opened on Ontology the next time (the 0.4 audit, 16 November 2026).
+  if (out && before?.tab) doc.defaultView.requestAnimationFrame(() => Door.sideTabs?.pick(before.tab));
 }
 
 /* The sidebar's list put back in the order it had before the split. Opening a page that was already in the list (on the right,

@@ -611,7 +611,7 @@ TOOLS.push(...[
   ['check-what-is-found', 'Check what the plugin finds on this page', () => checkWhatIsFound(), 'show'],
   ['toggle-perf', 'Measuring', () => togglePerf(), 'settings', () => perf.on],
   ['copy-perf-report', 'Copy performance report', () => copyPerfReport(), 'copy'],
-  ['copy-styling-details', 'Copy styling details of this block', event => copyDiagnostics(event), 'page'],
+  ['copy-styling-details', 'Copy styling details of this bullet', event => copyDiagnostics(event), 'page'],
   ['copy-warnings', 'Copy warnings', () => copyWarnings(), 'warning'],
   ['take-the-tour', 'Take the tour (F8 for the next stop)', () => tourBegin(), 'to'],
   ['recycle-list', 'The Recycle as a plain list', () => openRecycleList(), 'delete'],

@@ -22,13 +22,14 @@ const ONLY_ON_DEMAND = new Set(['absolute-modal', 'cp__select', 'cp__select-main
   'ls-block-properties',     // a block's properties drawn as rows, not pills: only where a page shows them so
   'ls-sidebar-page-properties',
   'hl-page', 'prefix-link',   // a quote taken from a PDF: only on a page that holds one
+  'cp__cmdk__modal', 'ui__ac-group-name',   // Logseq's command search and the group names in its lists (Look's Hide, 16 November 2026): only while one is open
   'ac-block-search', 'time-spent',   // Logseq's Node embed search (Predictive's <<) and a task's worked time: only while one is open, only on a task timed
   'selected']);   // a bullet selected: only after a press   // a page opened in the right sidebar; since the sidebar became tabs (0.3.60) it may hold none
 let chromium; try { ({ chromium } = require('playwright')); } catch (error) { console.log('skipped: needs Playwright (set NODE_PATH)'); process.exit(2); }
 
 (async () => {
   let browser;
-  try { browser = await chromium.connectOverCDP('http://127.0.0.1:9222', { timeout: 5000 }); } catch (error) { console.log('skipped: Logseq is not reachable on its debugging port'); process.exit(2); }
+  try { browser = await chromium.connectOverCDP(`http://127.0.0.1:${process.env.LOGSEQ_PORT || 9222}`, { timeout: 5000 }); } catch (error) { console.log('skipped: Logseq is not reachable on its debugging port'); process.exit(2); }
   const page = browser.contexts().flatMap(c => c.pages()).find(p => /index\.html/.test(p.url()));
   const graph = String(await page.evaluate(async () => (await window.logseq.api.get_current_graph())?.name || '')).replace(/^logseq_db_/, '');
   if (!TEST_GRAPHS.includes(graph)) throw new Error(`the open graph is “${graph}”, not a test graph; nothing was touched`);

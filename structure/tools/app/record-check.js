@@ -13,7 +13,7 @@ const out = process.argv[2] || path.join(__dirname, '..', '..', '..', 'dist', 'r
 fs.mkdirSync(out, { recursive: true });
 let chromium; try { ({ chromium } = require('playwright')); } catch (error) { console.log('skipped: needs Playwright (set NODE_PATH)'); process.exit(2); }
 (async () => {
-  const browser = await chromium.connectOverCDP('http://127.0.0.1:9222', { timeout: 5000 });
+  const browser = await chromium.connectOverCDP(`http://127.0.0.1:${process.env.LOGSEQ_PORT || 9222}`, { timeout: 5000 });
   const page = browser.contexts().flatMap(c => c.pages()).find(p => /index\.html/.test(p.url()));
   const graph = String(await page.evaluate(async () => (await window.logseq.api.get_current_graph())?.name || '')).replace(/^logseq_db_/, '');
   if (graph !== GRAPH) throw new Error(`the open graph is “${graph}”, not ${GRAPH}; nothing was touched`);
@@ -109,7 +109,7 @@ let chromium; try { ({ chromium } = require('playwright')); } catch (error) { co
     const kept = JSON.parse(localStorage.getItem(key) || '[]').filter(x => { if (x.rec && /^Merge ZZ Visit into ZZ Consult/.test(x.text)) { ids.add(x.rec); return false; } return true; });
     localStorage.setItem(key, JSON.stringify(kept));
     const list = `st-rec-${app.graph.replace(/^logseq_db_/, '').replace(/[^A-Za-z0-9_-]+/g, '_')}`;
-    const heads = JSON.parse(await logseq.FileStorage.getItem(list) || '[]');
+    const heads = JSON.parse(await logseq.FileStorage.getItem(list).catch(() => null) || '[]');
     for (const h of heads.filter(h => ids.has(h.id))) { await logseq.FileStorage.removeItem(`${list}-${h.id}`); for (let n = 0; n < (h.chunks || 0); n++) await logseq.FileStorage.removeItem(`${list}-${h.id}-${n}`); }
     await logseq.FileStorage.setItem(list, JSON.stringify(heads.filter(h => !ids.has(h.id))));
     await app.reread(); await app.readRecords();

@@ -118,6 +118,9 @@ const CSS = `
 .fd-nm .lk-node { cursor: pointer; }
 .fd-right { color: var(--lk-quiet); font-size: var(--lk-small); white-space: nowrap; padding-left: 12px; font-variant-numeric: tabular-nums; }
 .fd-right .fd-key { font-family: var(--lk-mono); }
+/* The page a found bullet is on: at most a third of the row, cut with an ellipsis, its whole name under the pointer. Until the 0.4
+   audit a long name took the row and left the bullet's own words a column one letter wide. */
+.fd-right.fd-page { flex: 0 1 auto; max-width: 33%; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .fd-r.fd-cmd { grid-template-columns: minmax(0, 1fr) auto; padding-left: 8px; margin-left: -8px; }
 .fd-body .fd-showall { display: block; padding: 5px 0 6px calc(var(--fd-day) + 36px); }
 .fd-cut { display: flex; align-items: baseline; padding: 5px 0 6px calc(var(--fd-day) + 36px); }
@@ -594,7 +597,7 @@ function render() {
     if (!node.isPage && !node.sign && !dug) nm.append(el(doc, 'span', { class: 'lk-held', 'data-lk-held': node.uuid }));
     row.append(nm);
     const right = node.page && !node.page.journal ? node.page.title : '';
-    row.append(el(doc, 'span', { class: 'fd-right' }, right));
+    row.append(el(doc, 'span', { class: 'fd-right fd-page', ...(right ? { title: right } : {}) }, right));
     row.addEventListener('click', () => { S.mode = 'rows'; S.rowAt = i; render(); });
     container.append(wrapIn(doc, row, r));
     // Under the last of a group's three nodes, "show all" lists the rest.

@@ -72,7 +72,7 @@ assert.ok(/list\.setAttribute\('data-st-where', say\)/.test(insp) && /\.sidebar-
 assert.ok(/\[data-lk-tab-wait\]:not\(\[data-lk-tab-on\]\) \{ display: block !important; visibility: hidden !important; position: absolute !important;/.test(tabs), 'a view that waits is laid out unseen');
 assert.ok(/if \(fold\.getAttribute\('aria-expanded'\) !== String\(!folded\)\)/.test(read('look/logseq/links.js')), 'the sidebar section\'s fold state is written only when it differs');
 assert.ok(/state\.known\.get\(state\.page\)/.test(read('look/logseq/cites.js')), 'a page\'s endnote numbers are drawn at once on a revisit');
-assert.ok(/const was = \[\.\.\.box\.children\], now = \[\.\.\.next\.children\];/.test(read('threads/parts/two-way.js')), 'Linked draws again only the lists that changed');
+assert.ok(/const was = \[\.\.\.box\.children\], now = \[\.\.\.next\.children\]/.test(read('threads/parts/two-way.js')) && /src\(was\[i\]\) !== el\.__thSrc/.test(read('threads/parts/two-way.js')), 'Linked draws again only the lists that changed');
 
 // 6d. Linked's add line stands where the rows stand (the owner, 15 November 2026: "move it").
 { const add = read('threads/parts/two-way/add.js');

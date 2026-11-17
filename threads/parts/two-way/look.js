@@ -509,6 +509,9 @@ const twoWayCss = `
 // view, and on the right half of two pages side by side, which has its own rows.
 const hideLinkedRefsCss = `
 #main-content-container:has(.th-two-way[data-th-replaces][data-th-rows]) .references { display: none !important; }
+/* While the rows are read for a page they are about to stand in on (two-way.js, reading): Logseq's list is not drawn for the half
+   second in between, so its heading does not show and go at the foot of every page opened. */
+[data-th-reading] .references { display: none !important; }
 #right-sidebar .sidebar-item[data-lk-split-item]:has(.th-two-way[data-th-replaces][data-th-rows]) .references { display: none !important; }
 `;
 // On the right half of two pages side by side the section stands after Logseq's box around the page's property list, as far under

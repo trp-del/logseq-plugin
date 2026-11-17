@@ -3,7 +3,7 @@
    Logseq's table saying what surrounds the tag, then what Structure suggests.
    Every property, a property's card, a tag's nodes and the log open in the place of the areas. Nothing a single letter does: letters
    typed on the outline find a tag; what a thing can take is in its right-click menu. A fix first says what it would do, with the nodes
-   it touches, and is staged only on a second yes. A change waiting is pencilled in where it will happen. It is drawn into Logseq's own
+   it touches, and is staged only on a second yes. A change waiting is washed in yellow where it will happen. It is drawn into Logseq's own
    document, so the shared names (lk-row, lk-fold, lk-bul, lk-list, lk-tick, lk-field, lk-pop, lk-none, lk-node, lk-undo) sit on what they name and carry no look here. */
 (function () {
 const S = window.Structure;
@@ -122,6 +122,9 @@ const CSS = `
   .st-holder-insp .st-lines-t { grid-template-columns: minmax(0, 1fr); gap: 2px; }
   .st-holder-insp .st-lines-t dt:not(:first-child) { margin-top: 10px; }
   .st-holder-insp .st-rel { grid-template-columns: minmax(0, auto) minmax(0, auto) auto; }
+  /* A tag's own lines leave the tag's column out (only roads out): two columns then, here too. With three, each count fell under the
+     next relationship ("Provider: Doctor 80 Topic: Symptom / 43 Topic: Cancer 7", the 0.4 audit, 16 November 2026). */
+  .st-holder-insp .st-rel:not(:has(> .lk-tag)) { grid-template-columns: minmax(0, auto) auto; }
 }
 .st-holder-insp .st-lines-t dt { font-weight: 400; color: var(--lk-quiet); display: flex; gap: 6px; align-items: baseline; min-width: 0; }
 .st-insp-h { display: none; }
@@ -239,7 +242,8 @@ const CSS = `
 .st-topdrop { display: none; } .st[data-dragging] .st-topdrop { display: grid; } .st-topdrop .nm { color: var(--lk-quiet); }
 .st-top .st-split { flex: none; }
 
-/* Pencilled in (Look's lk-pencil on the name): what a change waiting in the tray touches. */
+/* Washed in yellow (the library's lk-coming on the name): what a change waiting in the tray touches. Until 16 November 2026 it wore
+   the pencil, which the owner keeps for Predictive's guesses alone. */
 /* The pick bar, as the grammar draws it: above the list, how many and what can be done as quiet words, Esc clears. */
 .st-pick { margin: 0 0 8px; min-height: 27px; flex-wrap: nowrap; }
 .st-nodes .st-pick { margin: 0 0 6px; min-height: 0; }
@@ -299,8 +303,8 @@ const CSS = `
 .st-pv .pt { display: flex; gap: 10px; align-items: baseline; } .st-pv .pt > span:first-child { flex: 1; min-width: 0; }
 .st-pv dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 0 12px; margin: 0; font-size: var(--lk-small); }
 .st-pv dt { color: var(--lk-quiet); font-weight: 400; } .st-pv dd { margin: 0; min-width: 0; }
-.st-pv .gone { text-decoration: line-through; text-decoration-thickness: 1.5px; color: var(--rx-red-10, #dc3e42); }   /* what a change takes away */
-.st-pv .chg, .st-two .pr.new .n { background: var(--rx-yellow-a5, rgba(255, 213, 0, .35)); color: var(--lk-text, #222); border-radius: 3px; padding: 0 3px; margin: 0 -3px; }   /* what a change brings: a consequence, not a guess (the pencil is Predictive's) */
+/* What a change brings and what it takes away wear the library's lk-coming and lk-going (plugin.js): one look for a preview, a
+   merge's kept column and a change waiting in the tray. */
 .st-pv .same { font-size: var(--lk-small); color: var(--lk-quiet); }
 .st-q .cnt { color: var(--lk-text, #222); }
 .st-two .g { font-size: var(--lk-label); color: var(--lk-quiet); padding-top: 6px; }   /* a group's heading in a merge's columns: Child tags, Relationships */
@@ -440,7 +444,7 @@ function make(holder, mode, app, opts = {}) {
     let h = `<div class="st-row lk-row ${isTop ? 'kind' : ''} ${r.n === LOOSE ? 'loose' : ''} ${r.dim || (st.aim && !aimOk(r.n)) ? 'dim' : ''} ${st.cur === r.n ? 'cur' : ''} ${waitTag(r.n)}" style="--d:${r.d}" data-row="${esc(r.n)}" ${canDrag ? 'draggable="true"' : ''}>` +
       `<input type="checkbox" class="lk-tick" data-tick="${esc(r.n)}" ${st.ticks.has(r.n) ? 'checked' : ''} ${r.n === LOOSE ? 'disabled style="visibility:hidden"' : ''}>` +
       arrow + bullet +
-      `<span class="nm"><span class="${waitTag(r.n) ? 'lk-pencil' : ''} ${t?.uuid && !editing ? 'st-name' : ''}" ${t?.uuid && !editing ? `data-tpage="${esc(r.n)}"` : ''}>${nm}</span></span><span class="ct">${Mo.count(M(), r.n) || ''}</span><span class="iss ${o ? 'own' : b ? 'on' : ''}"></span></div>`;
+      `<span class="nm"><span class="${waitTag(r.n) ? 'lk-coming' : ''} ${t?.uuid && !editing ? 'st-name' : ''}" ${t?.uuid && !editing ? `data-tpage="${esc(r.n)}"` : ''}>${nm}</span></span><span class="ct">${Mo.count(M(), r.n) || ''}</span><span class="iss ${o ? 'own' : b ? 'on' : ''}"></span></div>`;
     if (!inPane2 && st.edit && st.edit.what === 'new' && st.edit.on === r.n && st.edit.owner === mode) h += `<div class="st-row lk-row" style="--d:${r.d + 1}"><span></span><span></span><span class="st-bul lk-bul"></span><span class="nm"><input class="st-in lk-field" data-edit value="${esc(st.edit.text)}" placeholder="a new tag under ${esc(name(r.n))}" autocomplete="off" spellcheck="false"></span><span class="ct"></span><span class="iss"></span></div>`;
     return h;
   }
@@ -588,7 +592,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
   // ---------- the card ----------
   // A tag named on a card or in the table: plain words with the faint underline, as the mockup draws it (a run of small mono
   // names was hard to read, the owner, 30 October 2026); where it stands already says it is a tag.
-  const tagLink = id => `<span class="lk-tag tg ${waitTag(id) ? 'lk-pencil' : ''}" data-go="${esc(id)}">${esc(name(id))}</span>`;
+  const tagLink = id => `<span class="lk-tag tg ${waitTag(id) ? 'lk-coming' : ''}" data-go="${esc(id)}">${esc(name(id))}</span>`;
   // A range of many tags (Topic, on purpose, takes fifteen): the first three, then how many more; the property's card lists them all.
   const ranges = ids => ids.slice(0, 3).map(tagLink).join('<span class="to sp">, </span>') + (ids.length > 3 ? ` <span class="to and">and ${ids.length - 3} more</span>` : '');
   // An issue that belongs to a line puts its fix word at the line's right end, after the faint count, with its ask under the line.
@@ -598,8 +602,8 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
   // The sentence in parts, each keyed by its role: the thing to settle in the text colour with the underline that opens its card
   // (a tag, or a property on a tag), the tying words quiet, the tags as tags (three, then "and N more"), the count as a number.
   const partsHtml = parts => parts.map(p => p.subject ? (p.subject.prop != null
-      ? `<span class="k lk sj ${waitProp(p.subject.prop) ? 'lk-pencil' : ''}" data-prop="${p.subject.tag}·${p.subject.prop}">${esc(P(p.subject.prop)?.title ?? '')}</span>`
-      : `<span class="k lk sj ${waitTag(p.subject.tag) ? 'lk-pencil' : ''}" data-go="${esc(p.subject.tag)}">${esc(name(p.subject.tag))}</span>`)
+      ? `<span class="k lk sj ${waitProp(p.subject.prop) ? 'lk-coming' : ''}" data-prop="${p.subject.tag}·${p.subject.prop}">${esc(P(p.subject.prop)?.title ?? '')}</span>`
+      : `<span class="k lk sj ${waitTag(p.subject.tag) ? 'lk-coming' : ''}" data-go="${esc(p.subject.tag)}">${esc(name(p.subject.tag))}</span>`)
     : p.tags ? (p.sep === 'and' && p.tags.length === 2 ? p.tags.map(tagLink).join('<span class="to">and</span>') : ranges(p.tags))
     : p.count != null ? `<span class="nm">${esc(p.count)}</span>`
     : `<span class="to ${/^[,:;]/.test(p.words) ? 'pn' : ''}">${esc(p.words)}</span>`).join(' ').replace(/ (<span class="to pn")/g, '$1');
@@ -632,7 +636,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     if (!from.props.length && !into.props.length && !from.kids.length && !fromAt.length && !Mo.count(m, fromId) && !Mo.count(m, intoId)) return '';   // nothing to set side by side
     const own = new Set(into.nodeUuids || []), both = (from.nodeUuids || []).filter(u => own.has(u)).length;
     const after = Mo.count(m, intoId) + Mo.count(m, fromId) - both;
-    const line = (cls, label, ct) => `<div class="pr ${cls}"><span class="n">${label}</span><span class="ct">${ct}</span></div>`;
+    const line = (cls, label, ct) => `<div class="pr ${cls}"><span class="n${cls === 'new' ? ' lk-coming' : ''}">${label}</span><span class="ct">${ct}</span></div>`;
     const propLabel = pid => `${pi(P(pid))}${esc(P(pid).title)}`;
     // A relationship as the map reads one (1 November 2026): the tag that holds the property, then the property.
     const relLabel = pid => { const on = P(pid).on || []; return `${on.length ? `<span class="to">${esc(on.slice(0, 2).map(name).join(', '))}${on.length > 2 ? ` and ${on.length - 2} more` : ''}</span>` : ''}${propLabel(pid)}`; };
@@ -657,9 +661,9 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
      dotted is just for predictive suggestions, not actual consequential changes"); a note left as it is says so. One count under them. */
   const notesPv = (pv, newName, shownAs) => {
     if (!pv?.notes?.length) return '';
-    const vals = list => list.map(v => typeof v === 'string' ? esc(v) : v.mark === 'new' ? `<span class="chg">${esc(v.w)}</span>` : esc(v.w)).join(', ');
+    const vals = list => list.map(v => typeof v === 'string' ? esc(v) : v.mark === 'new' ? `<span class="chg lk-coming">${esc(v.w)}</span>` : esc(v.w)).join(', ');
     const note = (n, rows, after) => `<div class="pn"><div class="pt"><span>${esc(n.title)}</span>${n.tags.map(t => `<span class="lk-tag">${esc(t)}</span>`).join('')}</div><dl>${rows.map(r =>
-      r.mark === 'gone' ? `<dt class="gone">${esc(r.name)}</dt><dd class="gone">${vals(r.vals)}</dd>` : `<dt>${r.mark === 'new' ? `<span class="chg${newName && r.name === newName ? ' pcn' : ''}">${esc(newName && r.name === newName ? shownAs : r.name)}</span>` : esc(r.name)}</dt><dd>${vals(r.vals)}</dd>`).join('')}</dl>${after && n.same ? '<div class="same">stays as it is</div>' : ''}</div>`;
+      r.mark === 'gone' ? `<dt class="gone lk-going">${esc(r.name)}</dt><dd class="gone lk-going">${vals(r.vals)}</dd>` : `<dt>${r.mark === 'new' ? `<span class="chg lk-coming${newName && r.name === newName ? ' pcn' : ''}">${esc(newName && r.name === newName ? shownAs : r.name)}</span>` : esc(r.name)}</dt><dd>${vals(r.vals)}</dd>`).join('')}</dl>${after && n.same ? '<div class="same">stays as it is</div>' : ''}</div>`;
     return `<div class="st-pv"><div><div class="g">Now</div>${pv.notes.map(n => note(n, n.now, false)).join('')}</div><div><div class="g">After</div>${pv.notes.map(n => note(n, n.after, true)).join('')}</div></div>`;
   };
   // The yes names what it does (the owner, 16 November 2026: what is shown for confirmation must be plain: "Merge Notes into
@@ -689,7 +693,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     const names = ids.map(name), goneNames = new Set(gone.map(name)), keepName = name(keep);
     const tagsAfter = tags => [...new Set(tags.map(t => goneNames.has(t) || (t === keepName && into !== keepName) ? into : t))];
     const note = (n, after) => `<div class="pn"><div class="pt"><span>${esc(n.title)}</span></div><dl><dt>Tags</dt><dd>${after
-      ? [...n.tags.filter(t => goneNames.has(t) || (t === keepName && into !== keepName)).map(t => `<span class="gone">${esc(t)}</span>`), ...tagsAfter(n.tags).map(t => n.tags.includes(t) ? `<span class="lk-tag">${esc(t)}</span>` : `<span class="chg">${esc(t)}</span>`)].join(' ')
+      ? [...n.tags.filter(t => goneNames.has(t) || (t === keepName && into !== keepName)).map(t => `<span class="gone lk-going">${esc(t)}</span>`), ...tagsAfter(n.tags).map(t => n.tags.includes(t) ? `<span class="lk-tag">${esc(t)}</span>` : `<span class="chg lk-coming">${esc(t)}</span>`)].join(' ')
       : n.tags.map(t => `<span class="lk-tag">${esc(t)}</span>`).join(' ')}</dd></dl></div>`;
     const shown = (a.notes || []).filter(n => n.tags.some(t => goneNames.has(t))).slice(0, 3);
     const pv = shown.length ? `<div class="st-pv"><div><div class="g">Now</div>${shown.map(n => note(n, false)).join('')}</div><div><div class="g">After</div>${shown.map(n => note(n, true)).join('')}</div></div>` : '';
@@ -709,9 +713,9 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     const rows = ids.map(id => {
       const from = Mo.parentOf(M(), id), own = new Set(T(id).props), before = asksFor(id), after = new Set([...(dest ? asksFor(a.to) : []), ...own]);
       const gains = [...after].filter(x => !before.has(x)), loses = [...before].filter(x => !after.has(x) && !own.has(x));
-      return `<div class="pn"><div class="pt"><b>${esc(name(id))}</b><span class="n">${plural(Mo.count(M(), id), 'node')}</span></div><dl><dt>Sits under</dt><dd><span class="gone">${esc(from == null ? 'the top' : name(from))}</span> <span class="chg">${esc(dest ? dest.title : 'the top')}</span></dd>` +
-        (gains.length ? `<dt>Its nodes are now asked for</dt><dd>${gains.map(x => `<span class="chg">${esc(P(x)?.title ?? '')}</span>`).join(', ')}</dd>` : '') +
-        (loses.length ? `<dt>No longer asked for</dt><dd>${loses.map(x => `<span class="gone">${esc(P(x)?.title ?? '')}</span>`).join(', ')} (their values stay)</dd>` : '') +
+      return `<div class="pn"><div class="pt"><b>${esc(name(id))}</b><span class="n">${plural(Mo.count(M(), id), 'node')}</span></div><dl><dt>Sits under</dt><dd><span class="gone lk-going">${esc(from == null ? 'the top' : name(from))}</span> <span class="chg lk-coming">${esc(dest ? dest.title : 'the top')}</span></dd>` +
+        (gains.length ? `<dt>Its nodes are now asked for</dt><dd>${gains.map(x => `<span class="chg lk-coming">${esc(P(x)?.title ?? '')}</span>`).join(', ')}</dd>` : '') +
+        (loses.length ? `<dt>No longer asked for</dt><dd>${loses.map(x => `<span class="gone lk-going">${esc(P(x)?.title ?? '')}</span>`).join(', ')} (their values stay)</dd>` : '') +
         (!gains.length && !loses.length ? '<dt></dt><dd>Its properties stay the same</dd>' : '') + `</dl></div>`;
     }).join('');
     return `<div class="st-q"><div class="h">${esc(head)}</div><div class="st-pv one"><div>${rows}</div></div><div class="l cnt">No node changes its tag · nothing is lost</div>${applyWords(dest ? `Move ${who} under ${dest.title}` : `Move ${who} to the top`)}</div>`;
@@ -732,7 +736,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     const held = id => m.holders.get(P(id).ident)?.size || 0;
     const col = (p, other, gone) => `<div><div class="h">${pi(p)}${esc(p.title)}<span class="ct">${[held(p.id) ? plural(held(p.id), 'node') : '', gone ? 'emptied' : 'kept'].filter(Boolean).join(', ')}</span></div>` +
       p.on.map(t => { const both = other.on.includes(t); return `<div class="pr ${both ? 'shared' : gone ? 'moves' : ''}"><span class="n">${esc(name(t))}</span><span class="ct">${both ? 'on both' : gone ? 'moves' : ''}</span></div>`; }).join('') +
-      (!gone ? a.froms.flatMap(f => P(f)?.on || []).filter((t, i, all) => !p.on.includes(t) && all.indexOf(t) === i).map(t => `<div class="pr new"><span class="n">${esc(name(t))}</span><span class="ct">new</span></div>`).join('') : '') + `</div>`;
+      (!gone ? a.froms.flatMap(f => P(f)?.on || []).filter((t, i, all) => !p.on.includes(t) && all.indexOf(t) === i).map(t => `<div class="pr new"><span class="n lk-coming">${esc(name(t))}</span><span class="ct">new</span></div>`).join('') : '') + `</div>`;
     const clash = a.preview.reduce((n, x) => n + x.clash.length, 0);
     const blocks = a.froms.map((f, i) => { const from = P(f), x = a.preview[i]; if (!from) return '';
       const lines = [S.values.becomes(from, into), x.kept && `${plural(x.kept, 'value')} ${into.title} cannot take ${x.kept === 1 ? 'stays' : 'stay'} on ${from.title}`].filter(Boolean);
@@ -764,7 +768,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     let h = `<div class="st-tbl lk-list" ${st.pticks.size ? 'data-picking' : ''}><div class="hd">${['name', 'on', 'to', 'filled'].map(c => `<span class="lk-head ${s === c ? 'on' : ''}" data-sort="${c}">${{ name: 'Property', on: 'On tags', to: 'Holds', filled: 'Filled' }[c]}${s === c ? `<span class="sortmark">${c === 'to' ? '↓' : '↑'}</span>` : ''}</span>`).join('')}</div>`;
     // A property's name, or the field renaming it (Rename in its right-click menu).
     const nameCell = (key, title, wait, page) => st.edit?.what === 'prename' && st.edit.on === key && st.edit.owner === mode
-      ? `<input class="st-in lk-field" data-edit value="${esc(st.edit.text)}" autocomplete="off" spellcheck="false">` : `<span class="k lk ${wait ? 'lk-pencil' : ''}" ${page ? `data-ppage="${esc(page)}"` : ''}>${esc(title)}</span>`;
+      ? `<input class="st-in lk-field" data-edit value="${esc(st.edit.text)}" autocomplete="off" spellcheck="false">` : `<span class="k lk ${wait ? 'lk-coming' : ''}" ${page ? `data-ppage="${esc(page)}"` : ''}>${esc(title)}</span>`;
     const tr = (r, d) => { const key = `${r.tag}·${r.prop}`, open = st.popen.has(r.prop); return `<div class="tr lk-row ${waitProp(r.prop)} ${st.paim && st.pticks.has(r.prop) ? 'dim' : ''} ${st.propCur === key ? 'cur' : ''}" data-prop="${key}" data-gprop="${esc(r.p.ident)}" draggable="true" style="--pd:${d ? 20 + d * 16 : 4}px"><span><input type="checkbox" class="lk-tick" data-ptick="${r.prop}" ${st.pticks.has(r.prop) ? 'checked' : ''}><span class="lk-fold" data-pfold="${r.prop}" aria-expanded="${open}" title="${open ? 'Close' : 'Open'} ${esc(r.p.title)} here"></span>${nameCell(key, r.p.title, waitProp(r.prop), key)}</span><span class="st-cell"><span>${r.on.length ? ranges(r.on.map(x => x.tag)) : '<span class="f">No tag</span>'}</span><span class="st-chev lk-change lk-i-chevron" data-pon="${r.prop}" title="Put ${esc(r.p.title)} on a tag…"></span></span><span class="st-cell"><span>${r.p.type === 'node' ? (r.p.range.length ? ranges(r.p.range) : 'any node') : esc(Mo.kindWord(r.p.choice ? 'choice' : r.p.type))}</span>${r.p.type === 'node' ? `<span class="st-chev lk-change lk-i-chevron" data-prange="${r.prop}" title="Node tags of ${esc(r.p.title)}…"></span>` : ''}</span><span class="ct">${r.tag ? `${r.filled} of ${r.of}` : plural(r.filled, 'node')}</span></div>${open ? `<div class="st-popen" data-popen="${r.prop}">${propLinesHtml(r.prop)}</div>` : ''}${pmergeAskHtml(r.prop)}`; };
     // A prompt about this property (Put on a tag…, Node tags…, from the cell's chevron or the opened lines) rolls out under its row.
     /* The groups: an outline of names, each folding like a bullet, holding properties and other groups, for order only
@@ -832,13 +836,17 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
   function compareHtml() {
     const now = Mo.build(app.tray.raw), after = M(), seen = touched().tags, tops = new Set();
     for (const id of seen) for (const m of [now, after]) if (m.tags.has(id)) tops.add(Mo.pathOf(m, id)[0]);
-    const col = (m, title, pencil) => { const out = []; const walk = (id, d) => { const t = m.tags.get(id); if (!t) return; out.push(`<div class="o ${pencil && seen.has(id) ? 'lk-pencil' : ''}" style="--d:${d}">${esc(t.title)}</div>`); Mo.kids(m, id).forEach(k => walk(k, d + 1)); }; tops.forEach(id => walk(id, 0)); return `<div><div class="h">${title}</div>${out.join('')}</div>`; };
+    const col = (m, title, pencil) => { const out = []; const walk = (id, d) => { const t = m.tags.get(id); if (!t) return; out.push(`<div class="o" style="--d:${d}">${pencil && seen.has(id) ? `<span class="lk-coming">${esc(t.title)}</span>` : esc(t.title)}</div>`); Mo.kids(m, id).forEach(k => walk(k, d + 1)); }; tops.forEach(id => walk(id, 0)); return `<div><div class="h">${title}</div>${out.join('')}</div>`; };
     return `<div class="st-sb">${col(now, 'Now', false)}${col(after, 'After Apply', true)}</div>`;
   }
-  // Apply, when Undo cannot put it all back: the library's question for a big change, its yes the one blue button.
-  const bigHtml = () => `<div class="st-q st-big"><div class="h">Undo can’t put this back as it was</div>` +
-    app.tray.lasting().map(x => `<div class="l">${esc(x.name)} is deleted for good. Undo makes a new tag of that name.</div>`).join('') +
-    `<div class="lk-answers"><span class="lk-big" data-stage>Apply</span><span class="lk-btn lk-low lk-i-x" data-leave>Leave it</span></div></div>`;
+  // Apply, when Undo cannot put it all back: the library's question for a big change, its yes the one blue button. The yes says
+  // what goes for good, and plain Enter rests on Leave it, which carries the return sign (0.4's goalposts 1.3 and 3.5, as Linked's
+  // delete for good since 8 November 2026; until then the yes read "Apply" and plain Enter said yes). Cmd-Enter, the key that
+  // asked, says yes: a chord pressed twice is meant.
+  const bigHtml = () => { const gone = app.tray.lasting(), yes = gone.length === 1 ? `Apply, deleting ${gone[0].name} for good` : `Apply, deleting ${gone.length} tags for good`;
+    return `<div class="st-q st-big"><div class="h">Undo can’t put this back as it was</div>` +
+      gone.map(x => `<div class="l">${esc(x.name)} is deleted for good. Undo makes a new tag of that name.</div>`).join('') +
+      `<div class="lk-answers"><span class="lk-big" data-stage>${esc(yes)}</span><span class="lk-btn lk-low lk-i-x lk-enter" data-leave>Leave it</span></div></div>`; };
   const pressApply = () => { if (st.ask?.apply) return; if (app.tray.lasting().length) { st.ask = { apply: true, owner: mode }; st.menu = null; return redraw(); } app.apply(); };
 
   // ---------- the prompt: the one drawing of a choice, a picker at the thing pressed ----------
@@ -1110,11 +1118,14 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     const p = st.prompt; if (!row || !row.ok) return;
     if (row.more) { p.whole = true; p.had = new Set(p.shown.filter(r => !r.more).map(r => r.key)); wantFocus = true; return redraw(); }
     st.prompt = null;
+    // On the map a move first says what it will do, under the bar, and its yes names the result (16 November 2026). A tag's own
+    // page has no bar to say it under: there the choice is the move, with its Undo. Until the 0.4 audit this line stood after the
+    // plain move below and so never ran: Move under… staged at once, with no preview.
+    if (p.what === 'tag' && p.preview && !TAGISH) return askTagMove(p.tags, row.key);
     if (p.what === 'tag') { moveTags(p.tags, row.key); }
     else if (p.what === 'prop') { const [tagId, pid] = p.key.split('·').map(Number); if (!tagId) { app.stage({ kind: 'addProp', prop: pid, tags: [row.key] }); st.propCur = `${row.key}·${pid}`; st.cur = row.key; } else if (row.key !== tagId) { app.stage({ kind: 'moveProp', prop: pid, from: [tagId], to: row.key }); st.propCur = `${row.key}·${pid}`; st.cur = row.key; } }
     else if (p.what === 'nodes') moveTicked(row.key);
     else if (p.what === 'pmerge') return askMerge([p.prop], row.key);
-    else if (p.what === 'tag' && p.preview) return askTagMove(p.tags, row.key);
     else if (p.what === 'psplit') { const v = p.values.find(x => x.id === row.key), taken = t => [...M().props.values()].some(x => x.title.trim().toLowerCase() === t.toLowerCase()); let nm = v.title; for (let i = 2; taken(nm); i++) nm = `${v.title} ${i}`; return askChange('splitProp', { prop: p.prop, only: row.key, name: nm, orig: nm }); }
     else if (p.what === 'pnew') app.openNode(T(row.key)?.uuid);   // Logseq makes properties, not a plugin: its Add tag property is on the tag's page
     else if (p.what === 'range') { const was = P(p.prop).range; if (!was.includes(row.key)) app.stage({ kind: 'setRange', prop: p.prop, to: [...was, row.key] }); }
@@ -1515,7 +1526,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     if (st.aim && mode === 'page') { if (k === 'Escape') { e.preventDefault(); st.aim = null; return redraw(); } if (k === 'Enter') { e.preventDefault(); return finishAim(st.cur); } }
     if ((e.metaKey || e.ctrlKey) && !e.altKey) {
       const l = k.toLowerCase();
-      if (mode === 'page' && k === 'Enter' && app.tray.changes.length) { e.preventDefault(); pressApply(); }
+      if (mode === 'page' && k === 'Enter' && app.tray.changes.length) { e.preventDefault(); if (st.ask?.apply) { st.ask = null; app.apply(); } else pressApply(); }
       else if (mode === 'page' && k === 'Backspace' && app.tray.changes.length) { e.preventDefault(); app.discard(); }
       else if (l === 'f') { e.preventDefault(); const f = root.querySelector('[data-find]'); f.focus(); f.select(); }
       else if (l === 'o') { e.preventDefault(); openHere(e.shiftKey); }
@@ -1524,7 +1535,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     }
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     if (st.ask && mode === 'page') {
-      if (k === 'Enter') { e.preventDefault(); return stageAsk(); }
+      if (k === 'Enter') { e.preventDefault(); if (st.ask.apply) { st.ask = null; return redraw(); } return stageAsk(); }   // the question before a delete for good: Enter leaves it
       if (k === 'Escape') { e.preventDefault(); st.ask = null; return redraw(); }
     }
     if (TAGISH) return;

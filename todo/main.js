@@ -178,7 +178,7 @@ function mount() {
   try { const Side = component('side'); logseq.Experiments.registerSidebarRenderer(SIDE, { title: 'Todo', render: () => React.createElement(Side) }); }
   catch (error) { console.error('Todo: the sidebar tab could not be added', error); }
   // The Todo tab of the right sidebar (sidebar-tabs.js), after Links: picked, it opens if it is not open yet.
-  T.base.onStop(Door.sideTabs?.add({ key: 'todo', word: 'Todo', order: 4,
+  T.base.onStop(Door.sideTabs?.add({ key: 'todo', word: 'Todo', order: 4, panel: SIDE,
     find: doc => doc.getElementById('_sidebar.' + SIDE)?.closest('.sidebar-item') || null,
     open: () => { logseq.Editor.openInRightSidebar('_sidebar.' + SIDE); } }));
   adopt();

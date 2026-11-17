@@ -227,10 +227,10 @@ function openMenu(doc, from) {
   const way = numbering(), folding = state.heads.filter((head, i) => inside(state.heads, i).length);
   window.PluginDoor.menu(from, [
     { group: 'Numbering' },
-    ...NUMBERINGS.map(each => ({ word: each.word, on: each.key === way.key, take: () => { numberedBy = each.key; logseq.updateSettings({ contentsNumbers: each.key }); render(host()); } })),
+    ...NUMBERINGS.map(each => ({ word: each.word, icon: '<i class="ti ti-list-numbers"></i>', on: each.key === way.key, take: () => { numberedBy = each.key; logseq.updateSettings({ contentsNumbers: each.key }); render(host()); } })),
     { gap: true }, { group: 'Sections' },
-    { word: 'Fold all', off: folding.every(head => folds.has(head.uuid)), take: () => setFolds(() => folding.forEach(head => folds.add(head.uuid))) },
-    { word: 'Unfold all', off: !folding.some(head => folds.has(head.uuid)), take: () => setFolds(() => folding.forEach(head => folds.delete(head.uuid))) },
+    { word: 'Fold all', icon: '<i class="ti ti-fold-up"></i>', off: folding.every(head => folds.has(head.uuid)), take: () => setFolds(() => folding.forEach(head => folds.add(head.uuid))) },
+    { word: 'Unfold all', icon: '<i class="ti ti-fold-down"></i>', off: !folding.some(head => folds.has(head.uuid)), take: () => setFolds(() => folding.forEach(head => folds.delete(head.uuid))) },
   ]);
 }
 // read: the page was read for a section just opened, so what it holds grows on from the empty section (window.PluginDoor.regrow).
@@ -288,7 +288,7 @@ function draw(doc) {
   let made = false, next = list?.firstElementChild;
   if (list) for (const section of SECTIONS) {
     const { key } = section;
-    if (!state.open[key]) { if (next === state.panels[key]) next = next.nextElementSibling; state.panels[key]?.remove(); state.panels[key] = null; continue; }
+    if (!state.open[key]) { if (next && next === state.panels[key]) next = next.nextElementSibling; state.panels[key]?.remove(); state.panels[key] = null; continue; }   // next && : the list may stand empty (the sidebar just opened), and a section never opened has no panel either
     if (state.panels[key]?.parentElement !== list) { state.panels[key] = sectionOf(doc, section); made = true; }
     const panel = state.panels[key];
     if (next !== panel) list.insertBefore(panel, next);

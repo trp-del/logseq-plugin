@@ -15,7 +15,7 @@ const out = process.argv[2] || path.join(__dirname, '..', '..', '..', 'dist', 'p
 fs.mkdirSync(out, { recursive: true });
 let chromium; try { ({ chromium } = require('playwright')); } catch (error) { console.log('skipped: needs Playwright (set NODE_PATH)'); process.exit(2); }
 (async () => {
-  const browser = await chromium.connectOverCDP('http://127.0.0.1:9222', { timeout: 5000 });
+  const browser = await chromium.connectOverCDP(`http://127.0.0.1:${process.env.LOGSEQ_PORT || 9222}`, { timeout: 5000 });
   const page = browser.contexts().flatMap(c => c.pages()).find(p => /index\.html/.test(p.url()));
   const graph = String(await page.evaluate(async () => (await window.logseq.api.get_current_graph())?.name || '')).replace(/^logseq_db_/, '');
   if (graph !== GRAPH) throw new Error(`the open graph is “${graph}”, not ${GRAPH}; nothing was touched`);
@@ -67,7 +67,7 @@ let chromium; try { ({ chromium } = require('playwright')); } catch (error) { co
     }
   }, N);
   seen.push('before: ' + JSON.stringify(await holds()));
-  for (const h of await F(async g => JSON.parse(await logseq.FileStorage.getItem(`st-rec-${g}`) || '[]').map(x => x.id), GRAPH.replace(/[^A-Za-z0-9_-]+/g, '_'))) recsBefore.add(h);
+  for (const h of await F(async g => JSON.parse(await logseq.FileStorage.getItem(`st-rec-${g}`).catch(() => null) || '[]').map(x => x.id), GRAPH.replace(/[^A-Za-z0-9_-]+/g, '_'))) recsBefore.add(h);
   // The map's Every property, the property's row right-clicked, a word of its menu pressed.
   const menuOn = async (prop, word) => {
     await F(async () => { const app = window.Structure.app; await app.reread(); app.openMain(); app.st.view = 'table'; app.draw(); });
@@ -76,7 +76,9 @@ let chromium; try { ({ chromium } = require('playwright')); } catch (error) { co
     const sel = await page.evaluate(name => { const row = [...document.querySelectorAll('.st-tbl .tr')].find(r => r.textContent.includes(name)); if (!row) return null; row.scrollIntoView({ block: 'center' }); row.id = 'zz-row'; return '#zz-row'; }, prop);
     if (!sel) throw new Error(`no row for ${prop}`);
     await sleep(300);
-    const box = await page.evaluate(s => { const r = document.querySelector(s).getBoundingClientRect(); return { x: r.x + r.width * 0.6, y: r.y + r.height / 2 }; }, sel);
+    // Found again by its words: the table may have been drawn again since (then the row is a new element, without the id).
+    const box = await page.evaluate(name => { const row = [...document.querySelectorAll('.st-tbl .tr')].find(r => r.textContent.includes(name)); if (!row) return null; const r = row.getBoundingClientRect(); return { x: r.x + r.width * 0.6, y: r.y + r.height / 2 }; }, prop);
+    if (!box) throw new Error(`the row for ${prop} went`);
     await page.mouse.click(box.x, box.y, { button: 'right' }); await sleep(500);
     await page.click(`.lk-item[data-act]:has-text("${word}")`); await sleep(1500);
   };
@@ -107,7 +109,7 @@ let chromium; try { ({ chromium } = require('playwright')); } catch (error) { co
   seen.push('after both Undos: ' + JSON.stringify(await holds()));
   seen.push('ZZ properties left: ' + JSON.stringify(await F(async () => (await logseq.DB.datascriptQuery('[:find ?t :where [?p :block/tags :logseq.class/Property] [?p :block/title ?t] [(clojure.string/starts-with? ?t "ZZ ")]]')).map(r => r[0]))));
   await F(n => logseq.Editor.getPage(n.page).then(x => logseq.App.pushState('page', { name: x.uuid })), N); await shot('page-after-undo');
-  } else for (const h of await F(async g => JSON.parse(await logseq.FileStorage.getItem(`st-rec-${g}`) || '[]').filter(x => !/ZZ /.test(x.text)).map(x => x.id), GRAPH.replace(/[^A-Za-z0-9_-]+/g, '_'))) recsBefore.add(h);
+  } else for (const h of await F(async g => JSON.parse(await logseq.FileStorage.getItem(`st-rec-${g}`).catch(() => null) || '[]').filter(x => !/ZZ /.test(x.text)).map(x => x.id), GRAPH.replace(/[^A-Za-z0-9_-]+/g, '_'))) recsBefore.add(h);
   // Taken away: everything named ZZ … this run made, this run's Log lines and records.
   await F(() => { const app = window.Structure.app; app.st.find = ''; app.draw(); });
   await F(async ({ n, before }) => {
@@ -117,7 +119,7 @@ let chromium; try { ({ chromium } = require('playwright')); } catch (error) { co
     const props = await logseq.DB.datascriptQuery(`[:find ?u :where [?p :block/tags :logseq.class/Property] [?p :block/title ?t] [(clojure.string/includes? ?t "${run}")] [?p :block/uuid ?u]]`);
     for (const [u] of props) await logseq.Editor.deletePage(String(u)).catch(() => {});
     const key = `structure-log:${app.graph}`, list = `st-rec-${app.graph.replace(/^logseq_db_/, '').replace(/[^A-Za-z0-9_-]+/g, '_')}`;
-    const heads = JSON.parse(await logseq.FileStorage.getItem(list) || '[]'), mine = heads.filter(h => !before.includes(h.id));
+    const heads = JSON.parse(await logseq.FileStorage.getItem(list).catch(() => null) || '[]'), mine = heads.filter(h => !before.includes(h.id));
     for (const h of mine) { await logseq.FileStorage.removeItem(`${list}-${h.id}`); for (let i = 0; i < (h.chunks || 0); i++) await logseq.FileStorage.removeItem(`${list}-${h.id}-${i}`); }
     await logseq.FileStorage.setItem(list, JSON.stringify(heads.filter(h => before.includes(h.id))));
     const ids = new Set(mine.map(h => h.id));

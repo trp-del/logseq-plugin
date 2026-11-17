@@ -137,13 +137,14 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   for (let i = 0; i < 40 && !undoArrow(); i++) await sleep(25);
   assert.ok(undoArrow(), 'the Undo arrow waits in the tray'); click(undoArrow()); for (let i = 0; i < 40 && app.tray.done; i++) await sleep(25);
   assert.ok(!app.tray.done, 'Undo puts it back');
-  // Two moves staged together wait for Apply: pencilled, in the tray, with the plain count; Old and new; one Undo for the lot.
+  // Two moves staged together wait for Apply: washed in yellow, in the tray, with the plain count; Old and new; one Undo for the lot.
   app.stage({ kind: 'move', tag: id('Scan'), to: id('Conversation') }); app.stage({ kind: 'move', tag: id('Call'), to: id('Treatment') }); app.draw(); await sleep(30);
   assert.equal(app.tray.changes.length, 2, 'several together wait');
   assert.ok(R.querySelector('.st-tray [data-apply]'));
   assert.match(text(R.querySelector('.st-tray')), /links kept/);
   assert.match(text(R.querySelector('.st-tray')), /Move Scan from /);
-  assert.ok(row('Scan').querySelector('.lk-pencil'), 'pencilled in where it will land');
+  assert.ok(row('Scan').querySelector('.lk-coming'), 'washed in yellow where it will land (the pencil is Predictive\'s alone)');
+  assert.ok(!doc.querySelector('.st .lk-pencil, .st-tray .lk-pencil'), 'no pencil on a waiting change');
   click(R.querySelector('[data-compare]')); assert.ok(R.querySelector('.st-sb'), 'old and new side by side');
   click(R.querySelector('[data-compare]')); assert.ok(!R.querySelector('.st-sb'));
   key(R, 'Enter', { metaKey: true }); for (let i = 0; i < 40 && !app.tray.done; i++) await sleep(25);
@@ -151,6 +152,26 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   assert.ok(calls.some(c => c[0] === 'addTagExtends'), 'written through Logseq\'s own call');
   for (let i = 0; i < 40 && !undoArrow(); i++) await sleep(25); click(undoArrow()); for (let i = 0; i < 40 && app.tray.done; i++) await sleep(25);
   assert.ok(!app.tray.done, 'Undo puts it back');
+
+  // A change Undo cannot put back whole (a tag with nodes merged away or removed) asks before Apply. The yes names what goes for
+  // good, the return sign stands on Leave it, and plain Enter leaves it; Cmd-Enter, the key that asked, says yes (goalposts 1.3
+  // and 3.5 of 0.4: until then the yes read "Apply" and plain Enter said yes).
+  { app.stage({ kind: 'merge', from: id('Message'), into: id('Email') }, { wait: true }); app.draw(); await sleep(30);
+    const real = app.apply; let applied = 0; app.apply = () => { applied++; };
+    key(R, 'Enter', { metaKey: true }); await sleep(30);
+    const big = R.querySelector('.st-big'); assert.ok(big, 'Apply asks first');
+    assert.match(text(big), /Message is deleted for good/);
+    assert.equal(text(big.querySelector('[data-stage]')), 'Apply, deleting Message for good', 'the yes names what goes for good');
+    assert.ok(big.querySelector('[data-leave].lk-enter') && !big.querySelector('[data-stage].lk-enter'), 'the return sign stands on Leave it');
+    key(R, 'Enter'); await sleep(30);
+    assert.ok(!R.querySelector('.st-big'), 'plain Enter leaves it'); assert.equal(applied, 0, 'and applies nothing'); assert.equal(app.tray.changes.length, 1, 'the change still waits');
+    key(R, 'Enter', { metaKey: true }); await sleep(30); assert.ok(R.querySelector('.st-big'), 'asked again');
+    key(R, 'Escape'); await sleep(30); assert.ok(!R.querySelector('.st-big'), 'Escape leaves it too'); assert.equal(applied, 0);
+    key(R, 'Enter', { metaKey: true }); await sleep(30); key(R, 'Enter', { metaKey: true }); await sleep(30);
+    assert.equal(applied, 1, 'Cmd-Enter in the question says yes');
+    key(R, 'Enter', { metaKey: true }); await sleep(30); click(R.querySelector('.st-big [data-stage]')); await sleep(30);
+    assert.equal(applied, 2, 'and so does a press of the yes');
+    app.apply = real; app.discard(); app.draw(); await sleep(30); assert.equal(app.tray.changes.length, 0); }
 
   // Every property and a tag's nodes open in the place of the areas.
   click(R.querySelector('[data-show="table"]')); assert.ok(R.querySelector('.st-tbl')); assert.ok(!R.querySelector('.st-regions'));
@@ -247,6 +268,23 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   click(R.querySelector('.st-q [data-leave]')); assert.ok(!R.querySelector('.st-q'));
   st.pticks.clear(); app.draw();
   click(R.querySelector('[data-show="tree"]')); assert.ok(R.querySelector('.st-regions'));
+  // Move under…: tick two tags, press Move under… in the bar, choose where. It then says what will happen under the bar, where
+  // each sits now struck through in red and where it will sit washed in yellow, and its yes names the result; nothing is staged
+  // before the yes (16 November 2026). Until the 0.4 audit the choice staged the move at once: the preview's line could never run.
+  { click(R.querySelector(`[data-tick="${id('Scan')}"]`)); click(R.querySelector(`[data-tick="${id('Call')}"]`));
+    assert.match(text(R.querySelector('.st-acts')), /2 tags picked/);
+    click(R.querySelector('[data-tbar="move"]')); await sleep(10);
+    const pin = R.querySelector('.st-prompt [data-pin]'); assert.ok(pin, 'Move under… asks where');
+    pin.value = 'Treatment'; pin.dispatchEvent(new win.Event('input', { bubbles: true })); await sleep(10);
+    key(R.querySelector('.st-prompt [data-pin]'), 'Enter'); await sleep(10);
+    assert.equal(app.tray.changes.length, 0, 'nothing is staged before the yes');
+    const q = R.querySelector('.st-q'); assert.ok(q, 'the move says what it will do first');
+    assert.equal(text(q.querySelector('[data-stage]')), 'Move 2 tags under Treatment', 'the yes names the result');
+    assert.ok(q.querySelector('.lk-going') && q.querySelector('.lk-coming'), 'where each sits now in red, where it will sit in yellow');
+    assert.equal(text(q.querySelector('.lk-coming')), 'Treatment');
+    click(q.querySelector('[data-leave]')); assert.ok(!R.querySelector('.st-q'), 'Leave it lets go');
+    assert.equal(app.tray.changes.length, 0, 'and nothing was staged');
+    st.ticks.clear(); app.draw(); }
 
   // The grammar's row on Regions (5 November 2026): the name opens the tag's page; the count or the empty part of the row selects.
   { const opens = () => calls.filter(c => c[0] === 'pushState' && c[1] === 'page').length, was = opens();

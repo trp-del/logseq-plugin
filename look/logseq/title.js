@@ -158,7 +158,17 @@ function drawSidebar(doc, index) {
   for (const [item, box] of state.boxes) if (!seen.has(item)) { box.remove(); state.boxes.delete(item); }
 }
 function draw(doc) { const index = Look.index; if (!index) return; drawTitle(doc, index); drawSidebar(doc, index); }
-function start() { style('title', css); watchScreen(draw); }
+/* Before the screen is drawn, when another page's title has come: its line of tags goes into the title row in the frame the title
+   shows. Drawn a frame later (as it was until the 0.4 audit) the tag in the row, which Logseq draws with the title, moved left by
+   the line's width, 90 px on Dr. Mei Chen (the motion check: "ls-block-right moved left 90 px" at 64 ms). Nothing is done while the
+   page and its line stand as they are, so typing costs one look at the title and no drawing. */
+function early(doc) {
+  const index = Look.index; if (!index) return;
+  const uuid = shownTitle(doc)?.querySelector('.ls-block[blockid]')?.getAttribute('blockid') || '';
+  if (uuid === state.page && (!state.box || state.box.isConnected)) return;
+  drawTitle(doc, index);
+}
+function start() { style('title', css); watchScreen(draw, early); }
 function stop() { window.PluginDoor.undo.clear('look'); state.box?.remove(); state.box = null; for (const box of state.boxes.values()) box.remove(); state.boxes.clear(); }
 Look.title = { start, stop, draw, groupsOf };
 })();

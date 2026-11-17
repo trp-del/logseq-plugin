@@ -1278,7 +1278,7 @@ const TOKENS = `
    lk-row: a row; lk-fold: its fold arrow, only under the pointer; lk-list: a list that can be picked from; lk-tick: a
    tick box, appearing when the pointer is on the list; lk-node: a node's name (with data-uuid: Look adds its sort mark); lk-url: a web address, ↗ after it;
    lk-tag: a tag; lk-prop: a property's name; lk-day: a day in the margin; lk-count: a number of things, never shown;
-   lk-pencil: a pencilled value; lk-undo: the faded arrow; lk-status: a task's status circle, Logseq's own icon (Door.statusHtml).
+   lk-pencil: a pencilled value (Predictive's guess, and nothing else); lk-coming, lk-going: what a waiting change brings and takes away; lk-undo: the faded arrow; lk-status: a task's status circle, Logseq's own icon (Door.statusHtml).
    The Pressing set (buttons-mockup.html beside the plugins, 30 October 2026), for the controls of a bar or a window:
    lk-name: the small faint name above a value; lk-value: the value, the thing pressed, in the text colour, quiet under
    the pointer, faint when off (.off) or unwritten; lk-pick: a value that unfolds, a hairline standing before it (its
@@ -1334,6 +1334,12 @@ Door.NAMES = `${TOKENS}
 .lk-pencil { font-family: var(--lk-mono) !important; font-style: normal !important; font-size-adjust: 0.51; color: var(--lk-quiet) !important; text-decoration: underline dotted !important; text-decoration-color: var(--lk-line) !important; text-underline-offset: 3px; background: none !important; }
 /* A pencilled tag fades once: the pencil's grey, not the tag's own fade on top of it. */
 .lk-pencil .lk-tag, .lk-tag.lk-pencil { opacity: 1; font-family: var(--lk-mono) !important; font-style: normal !important; font-size-adjust: 0.51; }
+/* What a change about to be made brings, and what it takes away (the owner, 16 November 2026: "make it much more prominent what is
+   to change. I thought dotted is just for predictive suggestions, not actual consequential changes"): washed in yellow; struck
+   through in red. A change that waits (Ontology's tray, a part switched on or off until the reload) wears these wherever it is
+   shown. The pencil above stays Predictive's: a guess you can ignore. */
+.lk-coming { background: var(--rx-yellow-a5, rgba(255, 213, 0, .35)); color: var(--lk-text) !important; border-radius: 3px; padding: 0 3px; margin: 0 -3px; }
+.lk-going { text-decoration: line-through !important; text-decoration-thickness: 1.5px !important; color: var(--rx-red-10, #dc3e42) !important; }
 .lk-undo { opacity: .28 !important; transition: opacity ${Door.timing('undo')}; }
 .lk-undo:hover, .lk-undo:focus-visible { opacity: .85 !important; }
 .lk-row .lk-fold { opacity: 0 !important; transition: opacity ${Door.timing('reveal')}; }
@@ -1555,7 +1561,7 @@ input.lk-tick[type=checkbox]:indeterminate::before { content: ""; position: abso
 .lk-field :is(input, textarea) { flex: 1; width: 100%; min-width: 0; margin: 0; padding: 0; border: 0; border-radius: 0; background: none; color: inherit; font: inherit; outline: none; box-shadow: none; }
 .lk-field::placeholder, .lk-field :is(input, textarea)::placeholder { color: var(--lk-quiet); opacity: 1; }
 /* lk-none: nothing here, one line at the off strength where the things would stand, no box. */
-.lk-none { color: var(--lk-off); padding: 6px 0; }
+.lk-none { color: var(--lk-quiet); padding: 6px 0; }   /* words read, so never under 3 to 1 (0.4 line 4.4: the off grey measured 2.4 on Todo's "Nothing coming up.") */
 /* lk-undo, the press: the arrow alone, no ground, at the end of what changed; with nothing on screen to sit beside, it waits at
    the bottom right (lk-undo-dock) with its words (lk-undo-words), as quiet. */
 .lk-undo-dock { position: fixed; z-index: 10002; right: 20px; bottom: 20px; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; max-width: min(420px, 60vw); color: var(--lk-text, currentColor); font-size: var(--lk-small); }

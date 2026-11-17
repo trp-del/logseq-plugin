@@ -55,7 +55,7 @@ function mount(app) {
     catch (error) { console.error('Structure: the inspector could not be added', error); }
   }
   // The inspector is the first tab of the right sidebar (sidebar-tabs.js): picked, it opens if it is not open yet.
-  const offTab = Door.sideTabs?.add({ key: 'inspector', word: 'Ontology', order: 1,
+  const offTab = Door.sideTabs?.add({ key: 'inspector', word: 'Ontology', order: 1, panel: S.inspector.KEY,
     find: doc => doc.getElementById('_sidebar.' + S.inspector.KEY)?.closest('.sidebar-item') || null,
     open: () => { logseq.Editor.openInRightSidebar('_sidebar.' + S.inspector.KEY); } });
   // Item, the row pressed in a table (the owner, 12 November 2026): Logseq's own view of the row's node, which inspector.js opens and

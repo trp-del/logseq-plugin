@@ -85,11 +85,11 @@ const take = (core, names) => shared.take(core, names, warnOnce);
 // indexed: every page's rows were read in one look-up, so a page not in byPage has none, and a page
 // opened for the first time gets its rows in the same frame as its title instead of half a second later.
 // open, all and only: per row, whether its list is open, shows every record, or only one kind ("Infusion").
-const state = { kindsAll: new Set(), listed: [], findDug: new Map(), findAsked: new Set(), version: 0, pageUuid: '', groups: [], byPage: new Map(), indexed: false, open: new Map(), all: new Set(), only: new Map(), box: null, html: '', picked: new Set(), lastPick: '', group: new Map(), values: new Map(), nodeDraft: null, mentionsOf: new Map(), raise: new Map(), kids: new Set(), selecting: new Set(), dig: new Map(), focus: '', fresh: '', node: new Map(), nall: new Set(), ball: new Set(), steps: [], pageTitle: '', kept: new Map(), find: '', drawingTop: false, pagesRead: null, linksShut: new Set(), emptyOpen: new Set(), keepEmpty: new Set() };
+const state = { kindsAll: new Set(), listed: [], findDug: new Map(), findAsked: new Set(), version: 0, pageUuid: '', groups: [], byPage: new Map(), replacesOf: new Map(), ownNamesOf: new Map(), indexed: false, open: new Map(), all: new Set(), only: new Map(), box: null, html: '', picked: new Set(), lastPick: '', group: new Map(), values: new Map(), nodeDraft: null, mentionsOf: new Map(), raise: new Map(), kids: new Set(), selecting: new Set(), dig: new Map(), focus: '', fresh: '', node: new Map(), nall: new Set(), ball: new Set(), steps: [], pageTitle: '', kept: new Map(), find: '', drawingTop: false, pagesRead: null, linksShut: new Set(), emptyOpen: new Set(), keepEmpty: new Set() };
 /* A second copy (the right half's) shares with the main one what is read of the graph and what is kept between visits, so the
    same page reads the same on both sides and the graph is not read twice: every page's rows, the mentions read, what nodes hold
    and have under them, the values the lists are grouped by, which lists are open, grouped or ordered, and what was open on a page. */
-const SHARED = ['byPage', 'indexed', 'mentionsOf', 'node', 'kids', 'values', 'group', 'dayBy', 'open', 'kept', 'pagesRead', 'pagesList'];
+const SHARED = ['byPage', 'replacesOf', 'ownNamesOf', 'indexed', 'mentionsOf', 'node', 'kids', 'values', 'group', 'dayBy', 'open', 'kept', 'pagesRead', 'pagesList'];
 if (pane.from) for (const key of SHARED) Object.defineProperty(state, key, { get: () => pane.from.state[key], set: value => { pane.from.state[key] = value; }, enumerable: true });
 // Where the pieces join the part's load and start (7 November 2026): loadHooks(page, groups) may give the groups back changed, settledHooks() run once the page's state stands, starters() when the part starts.
 const loadHooks = [], settledHooks = [], starters = [], clickHooks = [];
@@ -214,9 +214,13 @@ function setShownAtOtherEnd(name, shown) {
   saveSettings({ twoWayOneEnd: names.join('; ') });
 }
 
+// While a page is read: the pane says so, and Logseq's own Linked references stays unseen (look.js). Only the newest read may say.
+function reading(version, on) { if (version !== state.version) return; pane.root(host())?.toggleAttribute('data-th-reading', !!on); }
+// A tag's page keeps Logseq's own list (the rows never stand in there): Logseq marks the page as it draws it.
+const isTagPage = doc => /"Tag"/.test(pane.root(doc)?.querySelector('.page')?.getAttribute('data-page-tags') || '');
 async function load() {
   const version = ++state.version;
-  let pageUuid = '', groups = [];
+  let pageUuid = '', groups = [], replaces = false;
   try {
     if (setting('twoWayRows')) {
       const page = await pane.page();
@@ -226,12 +230,17 @@ async function load() {
       if (page && !page.page && isEntityId(page.id)) {
         state.pageJournal = !!(page['journal?'] || page.journalDay);
         state.pageDay = Number(page.journalDay) || 0;
-        state.replaces = false;
         pageUuid = String(page.uuid || '');
+        /* Until this read ends the page keeps the verdict of its last read (replacesOf), as it keeps its rows (byPage), and
+           while the read runs Logseq's own Linked references stays unseen where the rows are about to stand in for it
+           (data-th-reading; look.js). Until the 0.4 audit the verdict started at "no" on every visit: Logseq drew its
+           "Linked references 32" at the foot of the page at 180 ms and the rows hid it at 640 ms, on every page opened. */
+        state.replaces = !!state.replacesOf.get(pageUuid);
+        reading(version, !!(setting('twoWayMentions') && provided.mentionsInto) && !isTagPage(host()));
         state.pageId = page.id;
         state.pageTitle = String(page.title || page.originalName || page.name || '');
         // The page's own names, plain in its lines (C1, 7 November 2026): its title, then its aliases once read.
-        state.ownNames = new Set([state.pageTitle.toLowerCase()]);
+        state.ownNames = new Set([state.pageTitle.toLowerCase(), ...(state.ownNamesOf.get(pageUuid) || [])]);
         // Read beside the rows and waited for before they are drawn (12 November 2026): read after them, an alias in a row's words
         // stood as a link for a sixth of a second and then turned plain (the motion check: "shown and gone", 184 to 350 ms).
         const names = ownNamesOf(page.id, false).catch(() => {});
@@ -239,7 +248,8 @@ async function load() {
         groups = await groupsFor(page.id);
         await names;
         const title = String(page.title || page.originalName || page.name || '').toLowerCase();
-        if (!hiddenMentions().has(title)) {
+        if (hiddenMentions().has(title)) reading(version, false);
+        else {
           let read = !!(setting('twoWayMentions') && provided.mentionsInto);
           const mentions = await mentionsGroup(page.id, groups).catch(error => { read = false; warnOnce('could not read the nodes that name this page', error); return null; });
           if (mentions) groups = [...groups, mentions];
@@ -250,7 +260,7 @@ async function load() {
           // those first (duesGroups), and stand in only once that read went through.
           let dues = true;
           if (state.pageJournal) groups = await duesGroups(state.pageDay, groups).catch(error => { dues = false; warnOnce('could not read what is scheduled or due on this day', error); return groups; });
-          state.replaces = read && dues && !(await provided.kindOfPage?.(page.id).catch(() => null))?.isTag;
+          replaces = read && dues && !(await provided.kindOfPage?.(page.id).catch(() => null))?.isTag;
         }
         for (const hook of loadHooks) groups = (await hook(page, groups).catch(error => { warnOnce('a piece could not read for this page', error); return null; })) || groups;
         await twoWay.readValues(twoWay.groupedUuids(groups)).catch(error => warnOnce('could not read the values the rows are grouped by', error));
@@ -260,6 +270,9 @@ async function load() {
     }
   } catch (error) { warnOnce('could not find the fields that point at this page', error); }
   if (version !== state.version) return;
+  reading(version, false);
+  state.replaces = replaces;
+  if (pageUuid) { state.replacesOf.set(pageUuid, replaces); state.ownNamesOf.set(pageUuid, new Set(state.ownNames)); }
   if (pageUuid !== state.pageUuid) { state.raise.clear(); state.raisePairs = null; }
   putBackOpen(pageUuid);
   state.pageUuid = pageUuid;
@@ -923,7 +936,7 @@ function draw(doc) {
   const shown = shownPages(doc);
   if (shown.length && !shown.includes(state.pageUuid)) {
     const id = shown.find(uuid => state.byPage.has(uuid)) || (shown.length === 1 && state.indexed ? shown[0] : '');
-    if (id) { state.pageUuid = id; state.groups = state.byPage.get(id) || []; state.html = null; putBackOpen(id); }
+    if (id) { state.pageUuid = id; state.groups = state.byPage.get(id) || []; state.replaces = !!state.replacesOf.get(id); if (state.ownNamesOf.has(id)) state.ownNames = new Set(state.ownNamesOf.get(id)); state.html = null; putBackOpen(id); }   // a page drawn from memory keeps its own names plain from the first frame (0.4 motion check: “Dr. Mei Chen” was a link for half a second)
   }
   // The right half's page is drawn by Logseq a while after the split names it, and its property list later still: its settling counts
   // from when the page itself is on screen, so the section waits for the list however slowly Logseq draws it.
@@ -993,10 +1006,14 @@ function draw(doc) {
        list that reads the same keeps its elements. With the keyboard in the section, or a node edited in place, it is written
        whole as before. */
     const write = () => {
-      if (active || inPlace || !box.children.length || box.querySelector('.th-tw-draft, .th-tw-node-field, textarea, [contenteditable="true"]') || /th-tw-draft|th-tw-node-field/.test(html)) { box.innerHTML = html; return; }   // something is being written in the section, or is about to be: whole, as before
+      if (active || inPlace || !box.children.length || box.querySelector('.th-tw-draft, .th-tw-node-field, textarea, [contenteditable="true"]') || /th-tw-draft|th-tw-node-field/.test(html)) { box.innerHTML = html; for (const el of box.children) el.__thSrc = el.outerHTML; return; }   // something is being written in the section, or is about to be: whole, as before
       const next = box.ownerDocument.createElement('div'); next.innerHTML = html;
-      const was = [...box.children], now = [...next.children];
-      now.forEach((el, i) => { if (!was[i]) box.appendChild(el); else if (was[i].outerHTML !== el.outerHTML) was[i].replaceWith(el); });
+      // Set beside what was last written for that place (kept on the element), not the element as it stands now: a drawn row gains
+      // marks afterwards (the outline's, the pointer's), so it never read the same, and every row was put back three times in
+      // the first second (the 0.4 motion check: 105 of Threads' elements gone and back at 480 ms, nothing changing on screen).
+      const was = [...box.children], now = [...next.children], src = el => el.__thSrc ?? el.outerHTML;
+      now.forEach(el => { el.__thSrc = el.outerHTML; });
+      now.forEach((el, i) => { if (!was[i]) box.appendChild(el); else if (src(was[i]) !== el.__thSrc) was[i].replaceWith(el); });
       for (const el of was.slice(now.length)) el.remove();
     };
     const redraw = () => { state.html = bare; write(); shared.outline.unrolled(box); twoWay.keepDraft(box); twoWay.keepNodeField(box); twoWay.keepFind(box, finding); };
@@ -1338,7 +1355,7 @@ function start() {
     if (pane.main && !writing && indexSize < BIG_INDEX) indexLater(10000);
   });
   // Another graph: nothing read of this one holds there.
-  window.Threads.core.onGraphChange(() => { if (stopped) return; state.byPage = new Map(); state.mentionsOf = new Map(); state.indexed = false; state.node.clear(); twoWay.reading.clear(); state.pagesRead = null; indexSize = 0; made.key = ''; later(0); if (pane.main) indexLater(0); });
+  window.Threads.core.onGraphChange(() => { if (stopped) return; state.byPage = new Map(); state.replacesOf = new Map(); state.ownNamesOf = new Map(); state.mentionsOf = new Map(); state.indexed = false; state.node.clear(); twoWay.reading.clear(); state.pagesRead = null; indexSize = 0; made.key = ''; later(0); if (pane.main) indexLater(0); });
   onSettingsChange((now, before) => {
     if (stopped) return;
     if (settingsSchema.some(item => now?.[item.key] !== before?.[item.key])) { if (pane.main) { applyStyles(); indexLater(0); } later(0); }
@@ -1363,7 +1380,7 @@ function start() {
   // The page last pressed in, for a key with the keyboard on neither page.
   listen(host(), 'pointerdown', event => { if (mine(event.target)) first.pointed = pane.name; }, true);
   if (pane.main) twoWay.steadyWidth(host(), true);
-  onUnload(() => { if (pane.main) twoWay.steadyWidth(host(), false); stopped = true; clearTimeout(timer); clearTimeout(indexTimer); clearTimeout(settle.timer); clearTimeout(settle.ease); clearTimeout(settle.wait); if (settle.frame) cancelAnimationFrame(settle.frame); twoWay.hidePeek(); twoWay.closeAdd(); state.box?.remove(); state.box = null; });
+  onUnload(() => { pane.root(host())?.removeAttribute('data-th-reading'); if (pane.main) twoWay.steadyWidth(host(), false); stopped = true; clearTimeout(timer); clearTimeout(indexTimer); clearTimeout(settle.timer); clearTimeout(settle.ease); clearTimeout(settle.wait); if (settle.frame) cancelAnimationFrame(settle.frame); twoWay.hidePeek(); twoWay.closeAdd(); state.box?.remove(); state.box = null; });
   later(0);
   if (!pane.main) return;
   indexLater(1500);

@@ -121,6 +121,9 @@ const switchKey = part => part.key + 'On';
 const wanted = part => logseq.settings?.[switchKey(part)] !== false;
 const started = part => (Door.started || []).includes(part);
 const waiting = part => wanted(part) !== started(part);
+// Threads' "Run only the base" takes hold at the reload too (0.4 audit: it was changed and nothing said so, nor offered the reload).
+const baseWaits = () => !!window.Threads && (logseq.settings?.foundationOnly === true) !== !!window.Threads.runningBaseOnly;
+const reloadWaits = () => parts().some(waiting) || baseWaits();
 const read = item => { const value = logseq.settings?.[item.key]; return typeof value === typeof item.default ? value : item.default; };
 const changed = item => JSON.stringify(read(item)) !== JSON.stringify(item.default);
 const write = (item, value) => logseq.updateSettings({ [item.key]: value });
@@ -245,7 +248,7 @@ function paneHtml() {
       + `<div class="sw-more"><input type="${item.type === 'number' ? 'number' : 'text'}" class="sw-field lk-value sw-wide" id="sw-${key}" data-key="${key}" value="${esc(value)}" placeholder="none" spellcheck="false" autocomplete="off"></div>`;
   }
   for (const act of item.acts || []) body += `<div class="sw-more"><button type="button" class="lk-lone lk-i-go" data-action="${esc(act.key)}">${esc(act.title)}</button></div>`;
-  if (item.isSwitch && parts().some(waiting)) body += `<div class="sw-more"><span class="lk-pencil">A part switched on or off waits for the reload.</span><button type="button" class="sw-reload lk-lone lk-i-reload" data-reload="1">Reload to apply</button></div>`;
+  if ((item.isSwitch || item.key === 'foundationOnly') && reloadWaits()) body += `<div class="sw-more"><span class="lk-coming">A part switched on or off waits for the reload.</span><button type="button" class="sw-reload lk-lone lk-i-reload" data-reload="1">Reload to apply</button></div>`;
   return head + body;
 }
 /* In each picture, only what differs from the other choice keeps its strength. Two pictures are walked side by side: where
@@ -283,8 +286,8 @@ function drawSide(dlg) {
   dlg.querySelector('.sw-side').innerHTML = GROUPS.map(([group, places]) => `<div class="sw-group">${esc(group)}</div>${places.map(place => {
     const none = words && !rows.some(row => row.place === place && matches(row, words));
     const here = !words && state.view === 'place' && placeOf(state.cur) === place;
-    return `<button type="button" class="sw-mod lk-item${here ? ' on' : ''}${none ? ' sw-nomatch' : ''}" data-place="${place}" aria-current="${here}"><span class="sw-name${place === 'parts' && parts().some(waiting) ? ' lk-pencil' : ''}">${esc(PLACES[place][0])}</span></button>`;
-  }).join('')}`).join('') + `<div class="sw-foot">${parts().some(waiting) ? '<button type="button" class="sw-reload lk-lone lk-i-reload" data-reload="1">Reload to apply</button>' : ''}${count || state.view === 'changed' ? `<button type="button" class="sw-mod lk-item${state.view === 'changed' && !words ? ' on' : ''}" id="sw-changed"><span>Changed by you</span><span class="sw-count">${count || ''}</span></button>` : ''}<button type="button" class="sw-mod lk-item" id="sw-plain"><span>Logseq’s list</span></button></div>`;
+    return `<button type="button" class="sw-mod lk-item${here ? ' on' : ''}${none ? ' sw-nomatch' : ''}" data-place="${place}" aria-current="${here}"><span class="sw-name${place === 'parts' && reloadWaits() ? ' lk-coming' : ''}">${esc(PLACES[place][0])}</span></button>`;
+  }).join('')}`).join('') + `<div class="sw-foot">${reloadWaits() ? '<button type="button" class="sw-reload lk-lone lk-i-reload" data-reload="1">Reload to apply</button>' : ''}${count || state.view === 'changed' ? `<button type="button" class="sw-mod lk-item${state.view === 'changed' && !words ? ' on' : ''}" id="sw-changed"><span>Changed by you</span><span class="sw-count">${count || ''}</span></button>` : ''}<button type="button" class="sw-mod lk-item" id="sw-plain"><span>Logseq’s list</span></button></div>`;
 }
 function drawList(dlg) {
   const rows = shownRows();

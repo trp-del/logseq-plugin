@@ -204,7 +204,7 @@ function open({ doc, what, act }) {
     let c = read();
     if (!T.get(c.templates, c.template)) c.template = '';
     const props = D.propertiesIn(doc);
-    const lists = [['head', doc.kind === 'blocks' ? (doc.nodes.length > 1 ? 'Properties of the blocks chosen' : 'Properties of the block chosen') : 'Properties of the page', D.propertiesIn(doc, 'head'), c.hiddenHead], ['nodes', doc.kind === 'blocks' ? 'Properties of those under' : 'Properties of the nodes', D.propertiesIn(doc, 'nodes'), c.hiddenNodes]].filter(l => l[2].length);
+    const lists = [['head', doc.kind === 'blocks' ? (doc.nodes.length > 1 ? 'Properties of the bullets chosen' : 'Properties of the bullet chosen') : 'Properties of the page', D.propertiesIn(doc, 'head'), c.hiddenHead], ['nodes', doc.kind === 'blocks' ? 'Properties of those under' : 'Properties of the nodes', D.propertiesIn(doc, 'nodes'), c.hiddenNodes]].filter(l => l[2].length);
     const dates = D.dateChoices(doc);
     const lines = doc.title ? (c.titleLines[doc.title] || {}) : {};
     const root = hostDoc.createElement('div');

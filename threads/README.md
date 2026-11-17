@@ -63,6 +63,10 @@ The tag and property map (and the tag list's tree), the proposals while a bullet
 
 Two-way: `twoWayRows` (the rows), `twoWayDays` (each node's day after its dot; off, the column goes and the words move left into its place, as they do by themselves when no node of a list has a day to show, on a day's own page usually), `twoWayNames`, `twoWayOneEnd`, `twoWayMentions`, `twoWayMentionsHidden`, `twoWayHideLinkedRefs`, `twoWayHideTagLists`. Others that remain: **Run only the base, to find a fault** under Troubleshooting. **Open troubleshooting** stands there only while Threads runs.
 
+## When something looks off
+
+One entry in Logseq's command list, **Threads: troubleshooting**, opens a short list of tools: Check what the plugin finds on this page, Measuring, Copy performance report, Copy styling details of this bullet, Copy warnings, Take the tour, and The Recycle as a plain list (where a node is put back, or deleted for good after one question whose Enter leaves it).
+
 ## Checks
 
 ```

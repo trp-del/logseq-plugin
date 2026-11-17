@@ -12,7 +12,7 @@ const out = process.argv[2] || path.join(__dirname, '..', '..', '..', 'dist', 'p
 fs.mkdirSync(out, { recursive: true });
 const { chromium } = require('playwright');
 (async () => {
-  const browser = await chromium.connectOverCDP('http://127.0.0.1:9222', { timeout: 5000 });
+  const browser = await chromium.connectOverCDP(`http://127.0.0.1:${process.env.LOGSEQ_PORT || 9222}`, { timeout: 5000 });
   const page = browser.contexts().flatMap(c => c.pages()).find(p => /index\.html/.test(p.url()));
   const graph = String(await page.evaluate(async () => (await window.logseq.api.get_current_graph())?.name || '')).replace(/^logseq_db_/, '');
   if (graph !== GRAPH) throw new Error(`the open graph is “${graph}”, not ${GRAPH}; nothing was touched`);
@@ -28,10 +28,10 @@ const { chromium } = require('playwright');
     await page.evaluate(async id => { await window.LSPluginCore.reload(id); }, PLUGIN);
     for (let i = 0; i < 80 && !(await frame()?.evaluate(() => !!window.Structure?.app?.readAt).catch(() => false)); i++) await sleep(250);
   };
-  let k = 0; const shot = async (name, sel) => { await sleep(500); const el = sel && await page.$(sel); const file = path.join(out, `${String(++k).padStart(2, '0')}-${name}.png`); if (el) { await el.scrollIntoViewIfNeeded(); await sleep(300); await el.screenshot({ path: file }); } else await page.screenshot({ path: file }); };
+  let k = 0; const shot = async (name, sel) => { await sleep(500); const el = sel && await page.$(sel); const file = path.join(out, `${String(++k).padStart(2, '0')}-${name}.png`); if (el) { try { await el.scrollIntoViewIfNeeded(); await sleep(300); await el.screenshot({ path: file }); return; } catch (error) { /* redrawn under the hand: the whole window instead */ } } await page.screenshot({ path: file }); };
   const where = () => F(n => { const m = window.Structure.app.tray.model, T = t => [...m.tags.values()].find(x => x.title === t); const up = t => { const x = T(t); return x ? (x.parents[0] != null ? m.tags.get(x.parents[0]).title : 'the top') : 'gone'; }; return Object.fromEntries([n.a, n.b, n.c, n.kid].map(t => [t.replace(/ \d{6}$/, ''), up(t)])); }, N);
   const tagsOfNotes = () => F(async n => { const rows = await logseq.DB.datascriptQuery(`[:find ?t ?g :where [?p :block/title "${n.page}"] [?b :block/page ?p] [?b :block/title ?t] [?b :block/tags ?x] [?x :block/title ?g] [(clojure.string/starts-with? ?g "ZZ ")]]`); const by = {}; for (const [t, g] of rows || []) (by[t] ||= []).push(g.replace(/ \d{6}$/, '')); return by; }, N);
-  const seen = [], before = new Set(await F(async g => JSON.parse(await logseq.FileStorage.getItem(`st-rec-${g}`) || '[]').map(x => x.id), GRAPH.replace(/[^A-Za-z0-9_-]+/g, '_')));
+  const seen = [], before = new Set(await F(async g => JSON.parse(await logseq.FileStorage.getItem(`st-rec-${g}`).catch(() => null) || '[]').map(x => x.id), GRAPH.replace(/[^A-Za-z0-9_-]+/g, '_')));
   await reload();
   try {
     await F(async n => {
@@ -73,7 +73,7 @@ const { chromium } = require('playwright');
       const pages = await logseq.DB.datascriptQuery(`[:find ?u :where [?p :block/title ?t] [(clojure.string/includes? ?t "${run}")] [(clojure.string/starts-with? ?t "ZZ ")] [?p :block/uuid ?u] [?p :block/name _] (not [?p :logseq.property/deleted-at _])]`);
       for (const [u] of pages) await W.deletePage(String(u)).catch(() => {});
       const key = `structure-log:${app.graph}`, list = `st-rec-${app.graph.replace(/^logseq_db_/, '').replace(/[^A-Za-z0-9_-]+/g, '_')}`;
-      const heads = JSON.parse(await logseq.FileStorage.getItem(list) || '[]'), mine = heads.filter(h => !before.includes(h.id));
+      const heads = JSON.parse(await logseq.FileStorage.getItem(list).catch(() => null) || '[]'), mine = heads.filter(h => !before.includes(h.id));
       for (const h of mine) { await logseq.FileStorage.removeItem(`${list}-${h.id}`); for (let i = 0; i < (h.chunks || 0); i++) await logseq.FileStorage.removeItem(`${list}-${h.id}-${i}`); }
       await logseq.FileStorage.setItem(list, JSON.stringify(heads.filter(h => before.includes(h.id))));
       const ids = new Set(mine.map(h => h.id));

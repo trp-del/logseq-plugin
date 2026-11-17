@@ -224,8 +224,15 @@ function judge(run, A, vp, second) {
   const fails = [], notes = [], faults = [];
   const all = [...K.jumps(run.ledger), ...K.shiftJumps(run.ledger)];
   const ours = K.attribute(all, A.known, K.growths(run.ledger), A.growA).filter(j => j.whose === 'plugin');
+  /* The page's own column (Logseq's .cp__sidebar-main-content) taking the width of the page that arrives, in the frame the page
+     arrives: a page at reading width left for a tag's or a property's page, which keeps Logseq's wide layout (the owner, 8 November
+     2026), or back. That is the page changing, not a jump on a page: the same element stays through the change of page and
+     the browser logs its new place as a shift. Any move of it later than the title's first frame is still a jump. */
+  const arrived = K.appearances(run.ledger).title ?? since(run);
+  const pageColumn = g => g.t <= arrived + 20 && g.members.every(j => /^logseq: div\.cp__sidebar-main-content\b/.test(j.name) && !j.dy);
   // One frame's moves the same way are one event: a box put in above them all.
   for (const g of K.groupJumps(ours)) {
+    if (pageColumn(g)) { notes.push(`the page's column took the new page's width as it arrived (${moveWords(g)})`); continue; }
     const cause = g.members.map(j => j.id ? K.causes(run.ledger, j)[0] : null).find(Boolean);
     const because = cause ? ` — ${cause.module || 'something'}’s ${cause.name} ${cause.grew > 0 ? 'came or grew by' : 'shrank by'} ${Math.abs(cause.grew)} px above` : '';
     const who = Object.entries(g.by).map(([m, n]) => `${n} of ${m === 'Logseq' ? 'Logseq’s' : m + '’s'}`).join(', ');

@@ -151,7 +151,9 @@ function make(holder, mode) {
 // The grouping's menu, the library's (PluginDoor.menu): under "By day", its right edge on the word's.
 function openBy(from) {
   const now = T.app.by();
-  Door.menu(from, [{ group: 'Group by' }, ...T.db.GROUPINGS.map(v => ({ word: v, on: v === now, take: () => T.app.setBy(v) }))]);
+  // An icon before every menu line (0.4 line 3.3), Logseq's own as its menus draw them.
+  const BY_ICON = { Day: 'calendar', Page: 'file', Tag: 'hash', Priority: 'flag', Status: 'circle-dot' };
+  Door.menu(from, [{ group: 'Group by' }, ...T.db.GROUPINGS.map(v => ({ word: v, icon: `<i class="ti ti-${BY_ICON[v] || 'list'}"></i>`, on: v === now, take: () => T.app.setBy(v) }))]);
 }
 T.view = { make, ensureStyle, dayWords, dayFull };
 })();

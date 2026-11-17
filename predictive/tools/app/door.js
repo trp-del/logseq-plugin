@@ -12,7 +12,7 @@ const PLUGIN = 'logseq-plugin', PAGE = 'flow test';
 async function connect() {
   if (!chromium) { console.log('skipped: needs Playwright (set NODE_PATH)'); process.exit(2); }
   let browser;
-  try { browser = await chromium.connectOverCDP('http://127.0.0.1:9222', { timeout: 5000 }); }
+  try { browser = await chromium.connectOverCDP(`http://127.0.0.1:${process.env.LOGSEQ_PORT || 9222}`, { timeout: 5000 }); }
   catch (error) { console.log('skipped: Logseq is not reachable on its debugging port'); process.exit(2); }
   const page = browser.contexts().flatMap(c => c.pages()).find(p => /index\.html/.test(p.url()));
   if (!page) throw new Error('no Logseq main window');
@@ -56,7 +56,9 @@ const cleanup = c => c.frame().evaluate(async n => { for (const b of (await logs
 const held = (c, uuid) => c.frame().evaluate(async u => {
   const F = window.Flow, ctx = await F.app.context(), b = await F.db.pullBlock(u);
   const out = { tags: (F.db.pick(b, 'block/tags') || []).map(t => ctx.byId.get(F.db.idOf(t))?.title) };
-  for (const p of ctx.schema.props) { const ids = F.db.valuesOf(b, p.ident); if (ids.length) out[p.title] = ids.map(id => ctx.byId.get(id)?.title ?? (ctx.days.get(id) ?? id)); }
+  // A day whose journal page the write itself made is in no list read before it: asked of the graph then.
+  const dayOf = async id => (await logseq.DB.datascriptQuery(`[:find ?d :where [${Number(id)} :block/journal-day ?d]]`))?.[0]?.[0];
+  for (const p of ctx.schema.props) { const ids = F.db.valuesOf(b, p.ident); if (ids.length) { out[p.title] = []; for (const id of ids) out[p.title].push(ctx.byId.get(id)?.title ?? ctx.days.get(id) ?? (Number.isInteger(id) ? await dayOf(id) : null) ?? id); } }
   return out;
 }, uuid);
 // The proposals drawn on a block, as "Property=value (guess|sure)".

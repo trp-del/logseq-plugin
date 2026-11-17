@@ -11,14 +11,14 @@
    have a tab as the normal sidebar?"). A page or block just opened picks it. Logseq's Contents, Page graph and Help and the
    cube with a + are left out of the row (Contents, which Logseq puts in a sidebar opened empty, is not shown).
 
-   A module adds a view with Door.sideTabs.add({ key, word, order, find(doc) → its .sidebar-item or null, open(), hidden(doc)? → true while it has nothing to show }) and gets back
+   A module adds a view with Door.sideTabs.add({ key, word, order, find(doc) → its .sidebar-item or null, open(), hidden(doc)? → true while it has nothing to show, panel? → the name its panel is registered under in Logseq's sidebar }) and gets back
    what takes it off. The bar is drawn by one pass of the shared screen watcher while any view is added. */
 (function () {
 const Door = window.PluginDoor;
 const { host } = Door;
 const views = [];
 const SIDE = 'sidebar';
-const tabs = { cur: null, seen: new WeakSet(), pending: null, off: null };   // cur: a view's key, or SIDE
+const tabs = { cur: null, seen: new WeakSet(), pending: null, off: null, wait: 0 };   // cur: a view's key, or SIDE; wait: since when a page Logseq has yet to draw is waited for
 
 const BAR = '#right-sidebar .cp__right-sidebar-settings';
 const CSS = `
@@ -41,6 +41,15 @@ const CSS = `
 #right-sidebar[data-lk-tabs]:not([data-lk-tab="sidebar"]) .sidebar-item-list { padding-top: 32px !important; }`;
 
 const itemsOf = doc => [...doc.querySelectorAll('#right-sidebar .sidebar-item-list > .sidebar-item')].filter(item => !item.hasAttribute('data-lk-closed'));
+// Logseq's own list of what its sidebar holds, top first: [graph, id, kind] each, the id a page's or bullet's number, or a plugin's
+// panel by its name. Read here once; two pages side by side (split.js) reads it through this.
+const logseqList = () => { try { return host().defaultView.logseq?.api?.get_state_from_store('sidebar/blocks') || []; } catch (error) { return []; } };
+/* A view's panel that Logseq still holds in its list (view.panel: the name the panel was registered under). Its item may stand in
+   the sidebar a moment before the plugin's part inside it is drawn, as when the sidebar opens, and find() then finds nothing yet.
+   Opening the panel again at that moment adds nothing: it only moves the panel to the top of Logseq's list, over a page just opened
+   there. Two pages side by side lost their right page that way whenever the sidebar was shut on the Ontology or Todo tab: the half
+   stood blank and closed again (seen in the 0.4 audit, 16 November 2026). So a panel Logseq holds is waited for, never opened again. */
+const held = view => !!view.panel && logseqList().some(entry => entry?.[1] === `:${logseq.baseInfo?.id || 'logseq-plugin'}/_sidebar.${view.panel}`);
 const viewOf = (doc, item) => views.find(v => v.find(doc) === item || v.owns?.(item));   // owns: an item of the view's that is not the one shown (a row's view still being drawn)   // two views may share one item (Ontology and Item, Structure's one panel)
 const nameOf = item => (item.querySelector('.sidebar-item-header .page-title')?.textContent || item.querySelector('.sidebar-item-header')?.textContent || '').trim();
 const isContents = item => nameOf(item) === 'Contents' && !item.classList.contains('lk-side');
@@ -50,7 +59,7 @@ function pick(doc, what) {
   draw(doc);
 }
 function pickView(doc, view) {
-  if (!view.find(doc)) { tabs.pending = view.key; view.open(); }
+  if (!view.find(doc) && !held(view)) { tabs.pending = view.key; view.open(); }
   pick(doc, view.key);
 }
 function tabEl(doc, { word, on, title, click }) {
@@ -82,11 +91,20 @@ function draw(doc = host()) {
   if (tabs.cur === SIDE && !others.length) tabs.cur = null;
   // The tab picked is gone: the first view that is open, else the first view, opened.
   if (tabs.cur !== SIDE && !ordered.some(v => v.key === tabs.cur)) tabs.cur = ordered.find(v => v.find(doc))?.key || null;
+  // Nothing is picked, and Logseq's list holds a page or bullet it has not drawn yet (the sidebar opening for it, as it does for the
+  // page beside): that item will be the one shown, under Opened, so no view is opened over it. Before, the first view was opened at
+  // that moment and went to the top of Logseq's list: in a Logseq whose sidebar had never been opened, the first ⌘-click left a blank
+  // half (the 0.4 audit, 16 November 2026). Waited for a second at most, should Logseq never draw it (a node deleted since).
+  const coming = logseqList().filter(entry => typeof entry?.[1] === 'number').length > others.length;
+  if (!tabs.cur && coming && !tabs.pending) {
+    if (!tabs.wait) { tabs.wait = Date.now(); doc.defaultView.setTimeout(() => draw(), 1100); }
+    if (Date.now() - tabs.wait < 1000) return;
+  } else tabs.wait = 0;
   if (!tabs.cur && ordered[0] && !tabs.pending) { pickView(doc, ordered[0]); return; }
   // The tab picked whose panel is no longer in the sidebar (closed by Logseq, a graph switched): opened again, as a press on its
   // tab opens it, so the sidebar never stands empty under a picked tab (the owner, 15 November 2026: "todo is blank on sidebar").
   const picked = ordered.find(v => v.key === tabs.cur);
-  if (picked && !picked.find(doc) && tabs.pending !== picked.key && !picked.owns) { pickView(doc, picked); return; }
+  if (picked && !picked.find(doc) && tabs.pending !== picked.key && !picked.owns && !held(picked)) { pickView(doc, picked); return; }
   // Which items show: the view picked, alone and without its head; or, on Sidebar, everything else as Logseq stacks it.
   const view = ordered.find(v => v.key === tabs.cur), viewItem = view?.find(doc);
   // The tab picked is said on the sidebar, so a panel two tabs share shows the part its tab names.
@@ -138,5 +156,7 @@ Door.sideTabs = {
   // A view already open is picked, as a press on its tab would (a row pressed in a table picks Item).
   pick(key) { tabs.cur = key; draw(); },
   draw, stop,
+  // Logseq's own list of what its sidebar holds, for the parts that work with it (two pages side by side).
+  list: logseqList,
 };
 })();

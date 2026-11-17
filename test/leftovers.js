@@ -32,7 +32,7 @@ assert.ok(/readNotes\(blocks\)/.test(links) && /const whole = state\.open\.links
 
 // N7: on a journal day the rows read what is scheduled or due first, and only then stand in for Linked references.
 const tw = read('threads/parts/two-way.js');
-assert.ok(/if \(state\.pageJournal\) groups = await duesGroups\(/.test(tw) && /state\.replaces = read && dues &&/.test(tw), 'a journal day: scheduled and due read, then the rows replace Linked references');
+assert.ok(/if \(state\.pageJournal\) groups = await duesGroups\(/.test(tw) && /\breplaces = read && dues &&/.test(tw), 'a journal day: scheduled and due read, then the rows replace Linked references');
 assert.ok(/async function duesOn\(day\)/.test(read('threads/parts/model.js')), 'the model reads what is scheduled or due on a day');
 
 // N1, as the owner changed it on 12 November 2026: the pressed row has a tab of its own, Item, and that tab is Logseq's own view of

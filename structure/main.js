@@ -26,7 +26,7 @@ const app = {
   tray, views: new Set(), issuesCache: { model: null, list: [] }, reading: null, readAt: 0, graph: '',
   st: startState(),
   issues() { if (app.issuesCache.model !== tray.model || app.issuesCache.at !== tray.version) app.issuesCache = { model: tray.model, at: tray.version, list: S.rules.issues(tray.model) }; return app.issuesCache.list; },
-  // The tags and properties a change waiting in the tray touches: pencilled in wherever they are drawn.
+  // The tags and properties a change waiting in the tray touches: washed in yellow (lk-coming) wherever they are drawn.
   touched() {
     if (app.touchedCache && app.touchedCache.at === tray.version && app.touchedCache.model === tray.model) return app.touchedCache.set;
     const tags = new Set(), props = new Set();

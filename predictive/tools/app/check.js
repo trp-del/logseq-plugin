@@ -27,7 +27,7 @@ const check = async (name, fn) => { try { await fn(); passed++; console.log('  o
       const uuid = await scratch(c, null);
       await type('Video call with Dr. Mei Chen about the tingling'); await sleep(1000);
       const shown = await c.page.evaluate(u => [...document.querySelectorAll(`.ls-block[blockid="${u}"] .flow-ghost`)].map(g => (g.closest('.bottom-property-pill')?.firstElementChild?.textContent || (g.closest('.ls-block-right') ? 'right end of the line' : '?')).replace(/:$/, '') + '=' + g.textContent), uuid);
-      assert.ok(shown.includes('right end of the line=Consultation'), 'the tag is not proposed where Logseq draws tags: ' + JSON.stringify(shown));
+      assert.ok(shown.some(s => s.startsWith('right end of the line=Consultation')), 'the tag is not proposed where Logseq draws tags: ' + JSON.stringify(shown));   // the guess carries its reason after the name since 16 November 2026 ("like 4 earlier lines")
       assert.ok(!shown.some(s => /^Tags=/.test(s)), 'the tag is also in a pill of its own: ' + JSON.stringify(shown));
       assert.ok(shown.some(s => s.startsWith('Provider=')), 'the tag\'s properties are not offered with it: ' + JSON.stringify(shown));
       await press('Enter', 3500);
@@ -63,7 +63,7 @@ const check = async (name, fn) => { try { await fn(); passed++; console.log('  o
       await type('Spoke to Dr. Raj Patel about the scar and the follow-up'); await sleep(900);
       await press('Alt+t', 800);
       const tags = await listed(); assert.ok(tags && tags.length >= 2, JSON.stringify(tags));
-      await c.page.click('.flow-pick-row:nth-child(2)'); await sleep(1800);
+      await c.page.click('.flow-pick-row[data-i="1"]'); await sleep(1800);   // the second tag: a heading may stand between the rows since 14 November 2026
       assert.deepEqual((await held(c, uuid)).tags, [tags[1]]);
       uuid = await scratch(c, null);
       await type('Saw Dr. Mei Chen about the pins and needles'); await sleep(900);
