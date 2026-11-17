@@ -25,8 +25,10 @@ async function becomePage(box, uuid, name) {
   await sleep(400);
   await logseq.Editor.setBlockCollapsed(uuid, false);
   const block = await logseq.Editor.getBlock(uuid, { includeChildren: true });
-  const child = block?.children?.[0]?.uuid || (await window.PluginDoor.write.insertBlock(uuid, '', { sibling: false }))?.uuid;
-  if (tag) P.rememberUndo(uuid, uuid, [{ kind: 'tag', ident: 'block/tags', ids: [tag], tag: { title: 'Page' }, shown: '#Page' }], () => db.removeTag(uuid, tag));
+  const had = block?.children?.[0]?.uuid, made = had ? null : (await window.PluginDoor.write.insertBlock(uuid, '', { sibling: false }))?.uuid, child = had || made;
+  // The Undo takes back the empty bullet it made under the new page too, while it is still empty (0.4 audit: it was left behind).
+  const takeBack = async () => { await db.removeTag(uuid, tag); if (!made) return; const b = await logseq.Editor.getBlock(made).catch(() => null); if (b && !String(b.title ?? b.content ?? '').trim() && !(b.children || []).length) await window.PluginDoor.write.removeBlock(made); };
+  if (tag) P.rememberUndo(uuid, uuid, [{ kind: 'tag', ident: 'block/tags', ids: [tag], tag: { title: 'Page' }, shown: '#Page' }], takeBack);
   if (child) await logseq.Editor.editBlock(child);
 }
 
