@@ -68,7 +68,7 @@ assert.ok(/if \(settling && !lines && !table && !insp\.plain\) return;/.test(ins
 
 // 6c. 13 November, second round: the row's view changes in one frame, the line is the list's, nothing rewritten that has not changed.
 assert.ok(/function hold\(doc\)/.test(insp) && /if \(insp\.held && insp\.settled\)/.test(insp), 'a still picture of the row shown lies over the views until the next is drawn to the end');
-assert.ok(/el\.style\.setProperty\('--st-where', words\)/.test(insp) && /\.sidebar-item\[data-st-item\] > :first-child::before \{ content: var\(--st-where\)/.test(view), 'the "N of M" line is a property of the row\'s section, so a redrawn view cannot lose it');
+assert.ok(/el\.style\.setProperty\('--st-where', words\)/.test(insp) && /\.sidebar-item\[data-st-item\] \.sidebar-item-header::after \{ content: var\(--st-where\)/.test(view), '"Item · N of M" is a property of the row\'s section, drawn at the end of its head, so a redrawn view cannot lose it');
 assert.ok(/\[data-lk-wait\] \{ visibility: hidden !important; position: absolute !important;/.test(tabs), 'a view that waits is laid out unseen');
 assert.ok(/if \(fold\.getAttribute\('aria-expanded'\) !== String\(!folded\)\)/.test(read('look/logseq/links.js')), 'the sidebar section\'s fold state is written only when it differs');
 assert.ok(/state\.known\.get\(state\.page\)/.test(read('look/logseq/cites.js')), 'a page\'s endnote numbers are drawn at once on a revisit');

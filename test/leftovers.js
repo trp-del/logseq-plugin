@@ -31,11 +31,15 @@ assert.ok(/if \(!state\.notes\.length\) return \[\];/.test(links) && !/key: 'not
 assert.ok(/key: 'inspector', word: 'Ontology'[\s\S]{0,400}hidden: \(\) => !S\.inspector\.applies\(\) && !S\.inspector\.row\(\)/.test(read('structure/logseq/mount.js')), 'Ontology has no tab off a tag\'s or a property\'s page');
 assert.ok(/insp\.applies = !plain/.test(read('structure/logseq/inspector.js')), 'the page read says whether Ontology applies');
 const stack = read('sidebar-tabs.js');
-assert.ok(/key: 'inspector', word: 'Ontology', order: 1, auto: true/.test(read('structure/logseq/mount.js')) && /key: 'item', word: 'Item', order: 2, auto: true/.test(read('structure/logseq/mount.js')) && /auto: key === 'contents'/.test(read('look/logseq/links.js')), 'Ontology, Item and Outline are the page\'s parts');
+assert.ok(/key: 'inspector', word: 'Ontology', order: 1, auto: true/.test(read('structure/logseq/mount.js')) && /key: 'item', word: 'Item', order: -1, auto: true/.test(read('structure/logseq/mount.js')) && /auto: key === 'contents'/.test(read('look/logseq/links.js')), 'Ontology, Item and Outline are the page\'s parts');
 assert.ok(/if \(sidebarOpen\(\)\) for \(const view of parts\)/.test(stack) && /\[data-lk-part\] \.sidebar-item-header \.item-actions \{ display: none !important; \}/.test(stack), 'a part opens by itself only in an open sidebar, and has no ×');
 assert.ok(/if \(sidebarOpen\(\) && !opened\(doc\)\) logseq\.App\.setRightSidebarVisible\(false\)/.test(stack) && /!event\.isTrusted/.test(stack), 'the last thing you opened closed by your press, the sidebar closes');
 assert.ok(/addMenuItem\?\.\(\{ key: 'links', label: 'View links'/.test(read('look/logseq/links.js')) && /label: 'View links' \}, viewLinks/.test(read('look/logseq/links.js')), 'Links opens from View links, in the ··· menu and the command palette');
 assert.ok(/logseq\.provideModel\(\{ todoOpen: openSide \}\)/.test(read('todo/main.js')), 'Todo\'s toolbar button opens it in the sidebar');
+// The row view (the owner, 17 November 2026): a toolbar button; only then does a press on a table row show it, alone with Ontology folded.
+assert.ok(/toolbarItem\('row-view', 'rowView'/.test(read('structure/main.js')) && /const active = \(\) => !!window\.PluginDoor\.sideTabs\?\.rows\?\.\(\);/.test(read('structure/logseq/inspector.js')), 'the row view is a toolbar button, and a row is shown only while it is on');
+assert.ok(/\[data-lk-rows\] \.sidebar-item-list > \.sidebar-item:not\(\[data-lk-row\]\) \{ display: none !important; \}/.test(stack) && /aria-expanded="true"\]'\); if \(fold && !st\.folded\)/.test(stack), 'in the row view only the row and Ontology show, Ontology folded');
+assert.ok(/if \(still\) \{ logseq\.App\.setRightSidebarVisible\(false\); st\.autoShut = true; \}/.test(stack) && /else if \(st\.autoShut && due\)/.test(stack), 'a blank sidebar closes, and opens again where a part applies');
 assert.ok(/key: 'item', word: 'Item'[\s\S]{0,400}hidden: \(\) => !S\.inspector\.row\(\)/.test(read('structure/logseq/mount.js')), 'Item has no tab with no row pressed');
 assert.ok(/word: 'Outline'/.test(links), 'Outline is named so');
 assert.ok(/readNotes\(blocks\)/.test(links) && /const whole = state\.open\.links \|\| setting\('citationNumbers'\)/.test(links), 'the citations are read with both sections closed');
@@ -50,7 +54,7 @@ assert.ok(/async function duesOn\(day\)/.test(read('threads/parts/model.js')), '
 const insp = read('structure/logseq/inspector.js'), view = read('structure/logseq/view.js');
 assert.ok(/logseq\.Editor\.openInRightSidebar\(uuid\)/.test(insp) && /function whereText/.test(insp), 'a row pressed opens Logseq\'s own view of its node and picks Item; where it stands');
 assert.ok(!/function drawNode|function outline|st-insp-words/.test(insp + view), 'no read-only copy of the node is drawn');
-assert.ok(/insp\.openedKeys\.add\(wanted\(\)\)/.test(insp) && /insp\.openedKeys\.has\(key\) && !keep\.has\(key\)/.test(insp) && /function closeStale/.test(insp) && /if \(uuid && !active\(\)\) return;/.test(insp), 'only an item the plugin opened is closed; with the sidebar shut or on another tab a press is Logseq\'s');
+assert.ok(/insp\.openedKeys\.add\(wanted\(\)\)/.test(insp) && /!insp\.openedKeys\.has\(key\) \|\| keep\.has\(key\)\) continue;/.test(insp) && /function closeStale/.test(insp) && /if \(uuid && !active\(\)\) return;/.test(insp), 'only an item the plugin opened is closed; with the sidebar shut or on another tab a press is Logseq\'s');
 assert.ok(/find: doc => S\.inspector\.item\(doc\)/.test(read('structure/logseq/mount.js')), 'the Item tab is that view');
 assert.ok(/\.ls-table-row\[data-st-picked\]::after \{[^}]*border: 1\.5px solid var\(--lk-picked\)/.test(view) && /--lk-picked: var\(--rx-blue-09/.test(read('plugin.js')), 'the row shown keeps a blue outline');
 

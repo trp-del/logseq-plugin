@@ -97,6 +97,7 @@ for (const file of FILES) {
    the library review: the focus glide came in unseen). What opens rolls by the door's one motion (Door.unroll, rollUp, regrow); a
    module that moves something itself is named here with how many and why. One more, anywhere, fails; so does one fewer. */
 const SCRIPTED = {
+  'structure/logseq/inspector.js': 1,   // the still picture of the row shown fades as the next row's view stands (17 November 2026: "there is a flash")
   'look/logseq/focus.js': 3,             // the glide into a bullet and out (the owner's pick, 11 November 2026): a move across the view, the old view fading, the new fading in
   'predictive/logseq/propose-ui.js': 2,  // a pencilled value cross-fades where it stands when the guess changes
   'structure/logseq/view.js': 2,         // the top bar of waiting changes slides open and shut

@@ -335,13 +335,16 @@ async function main() {
   mounts = S.mount.mount(app);
   logseq.App.registerCommandPalette({ key: 'structure-open', label: 'Ontology: the map of tags and properties' }, () => app.openMain());
   logseq.App.registerCommandPalette({ key: 'structure-inspector', label: 'Ontology: this page’s part, in the right sidebar' }, () => mounts.openInspector());
-  logseq.provideModel({ structureOpen: () => app.openMain() });
+  logseq.provideModel({ structureOpen: () => app.openMain(), rowView: () => window.PluginDoor.sideTabs?.rows(!window.PluginDoor.sideTabs.rows()) });
   // The map is a button in Logseq's toolbar (the owner, 14 November 2026); the inspector stays in Logseq's ··· menu.
   const { onStop } = S.base;
   // Look's × on a tag's own page asks for the tag to leave its place: the map asks first (askTakeOut).
   onStop(window.PluginDoor.offerAsk('structure.takeOut', (tagUuid, parentUuid) => app.askTakeOut(tagUuid, parentUuid)));
   onStop(window.PluginDoor.addMenuItem({ key: 'inspector', label: 'Ontology in the sidebar', icon: 'info-circle', run: () => mounts.openInspector() }));
   window.PluginDoor.toolbarItem('structure-open', 'structureOpen', 'Ontology: the map of tags and properties', 'structure');
+  // Row view: a press on a row of a tag's or a property's table shows that row alone in the right sidebar, Ontology folded under it.
+  window.PluginDoor.toolbarItem('row-view', 'rowView', 'Row view: the table row you press, in the sidebar', 'rows');
+  logseq.App.registerCommandPalette({ key: 'structure-row-view', label: 'Row view: the table row you press, in the sidebar' }, () => window.PluginDoor.sideTabs?.rows(!window.PluginDoor.sideTabs.rows()));
   onStop(logseq.DB.onChanged(change => graphChanged(change)));
   onStop(logseq.App.onCurrentGraphChanged(() => otherGraph()));
   onStop(logseq.App.onRouteChanged?.(() => { tagPage(); }));

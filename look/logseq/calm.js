@@ -70,6 +70,9 @@ body { font-family: var(--ls-font-family) !important; -webkit-font-smoothing: an
 /* A page's title a step smaller and a little tighter, so it heads the page without shouting over it. */
 ${AREA} .ls-page-title-container { font-size: 30px !important; line-height: 1.3 !important; }
 ${AREA} .ls-page-title-container .block-content-or-editor-inner { font-size: inherit !important; line-height: inherit !important; }
+/* The row pressed in a table, shown in the sidebar's row view (structure/logseq/view.js): when it is a bullet, its words are its title,
+   a heading at the sidebar's title size, as a page's name heads it (the owner, 17 November 2026). */
+#right-sidebar .sidebar-item.item-type-block[data-st-item] .sidebar-panel-content .ls-block:not(.ls-block .ls-block) > .block-main-container .block-content-wrapper { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.3; }
 ${AREA} .ls-page-title-container :is(.block-title-wrap, .editor-inner textarea) { font-weight: 600 !important; letter-spacing: -.015em; }
 /* Journal days are parted by space, not a rule. */
 #journals .journal-item { border-bottom-color: transparent !important; }

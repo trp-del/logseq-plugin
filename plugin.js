@@ -517,6 +517,8 @@ Door.TOOLBAR_ICONS = {
   structure: 'M3 12h2c3 0 3 -6 6 -6h1M3 12h2c3 0 3 6 6 6h1M12 6c2 0 2 -3 4 -3h4M12 6c2 0 2 3 4 3h4M12 18c2 0 2 -3 4 -3h4M12 18c2 0 2 3 4 3h4',
   inspector: 'M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0M12 9h.01M11 12h1v4h1',
   todo: 'M5 12l5 5l10 -10',
+  // Row view, the pressed table row in the sidebar: Tabler's table (the sidebar's own icon, a panel at the right, is Logseq's).
+  rows: 'M3 5a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2zM3 10h18M10 3v18',
   // The split screen's two, in the window's top right corner while two pages stand side by side (14 November 2026): Tabler's
   // arrows-left-right (swap the pages) and x (close the right page).
   swap: 'M21 17l-18 0M6 10l-3 -3l3 -3M3 7l18 0M18 20l3 -3l-3 -3',

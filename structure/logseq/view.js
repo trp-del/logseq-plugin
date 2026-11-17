@@ -142,16 +142,41 @@ const CSS = `
 .st-holder-insp:not([data-row]) .st-insp-top { order: -1; }
 /* A row pressed: it stands in the Item tab, Logseq's own view of its node (inspector.js), so the line that says what the panel waits for goes. */
 .st-holder-insp[data-row] .st-insp-node { display: none; }
-/* The quiet line on top of the Item tab: where the row stands in the table. */
-/* A page's row: the page's name is in its item's head, so the head stays for it, without its fold arrow, its menu and its ×
-   (a bullet's item starts with the bullet's own words, and its head, the page it is on, stays away as for every tab). */
-#right-sidebar[data-lk-tabs] .sidebar-item-list > .sidebar-item.item-type-page[data-st-item] .sidebar-item-header { display: flex !important; }
-#right-sidebar .sidebar-item.item-type-page[data-st-item] .sidebar-item-header :is(.item-actions, .rotating-arrow) { display: none !important; }
-/* Where the row stands, "Consultation · 12 of 53": words the item carries (inspector.js), drawn as the first line of the row's
-   section, above its head (a page's ◇) or its first bullet (the owner, 16 November 2026: its own line, never on the row's words). */
-#right-sidebar .sidebar-item[data-st-item] > :first-child::before { content: var(--st-where); display: block; color: var(--lk-quiet); font-size: var(--lk-small); font-variant-numeric: tabular-nums; padding: 8px 0 4px 8px; }
-/* The row's page has no fold arrow in its head here, so its ◇ stands 18px further left, and Look's tag line under it with it. */
-#right-sidebar .sidebar-item.item-type-page[data-st-item] .lk-path.lk-path-sb { margin-left: -22px; }
+/* The row's section is a section like any other, headed by its own name with its fold arrow (the owner, 17 November 2026: "the
+   stacked section that should open up is of the specific page, called the page name and item"); it has no ×, since it goes with the
+   page. At the end of its head, quiet, "Item · 3 of 13": that it is the row pressed, and where it stands in the table. */
+#right-sidebar .sidebar-item[data-st-item] .sidebar-item-header .item-actions { display: none !important; }
+#right-sidebar .sidebar-item[data-st-item] .sidebar-item-header::after { content: var(--st-where); flex: none; margin-left: auto; padding: 0 10px 0 12px; color: var(--lk-quiet); font-size: var(--lk-small); font-weight: 400; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* A bullet's row is shown like a page (the owner, 17 November 2026: "if the row is of a node, it will display the node as if it is
+   just a bullet with the tag to the right instead of making look like a proper node with properties below"): no bullet, its words
+   as the title, its tags under them, then each of its properties on a line of its own, the empty ones too, faint, to be filled in
+   as on a page; then the bullets inside it. All of it Logseq's own, so it is edited there. The head names no page (the bullet's
+   page, which is not what was pressed): only where the row stands. */
+#right-sidebar .sidebar-item.item-type-block[data-st-item] .sidebar-item-header > button > div { visibility: hidden; }
+#right-sidebar .sidebar-item.item-type-block[data-st-item] .sidebar-panel-content .ls-block:not(.ls-block .ls-block) > .block-main-container > .block-control-wrap { display: none !important; }
+#right-sidebar .sidebar-item.item-type-block[data-st-item] .sidebar-panel-content .ls-block:not(.ls-block .ls-block) > .block-main-container .ls-block-right .block-tags { display: none !important; }
+/* Its tags under the title, in the tag's serif and the quiet grey, as a page's place stands under its title (inspector.js writes them). */
+#right-sidebar .sidebar-item.item-type-block[data-st-item] .sidebar-panel-content .ls-block:not(.ls-block .ls-block) > .block-main-container .block-main-content::after { content: var(--st-tags, none); display: block; font-family: var(--lk-tag-font, "New York", Charter, Georgia, serif); color: var(--lk-quiet); margin: 4px 0 10px; }
+#right-sidebar .sidebar-item.item-type-block[data-st-item] .sidebar-panel-content .ls-block:not(.ls-block .ls-block) > .block-main-container .block-main-content { flex-wrap: wrap; }
+html #right-sidebar .sidebar-item.item-type-block[data-st-item] .sidebar-panel-content .ls-block:not(.ls-block .ls-block) > .block-main-container .positioned-properties.block-below { display: flex !important; overflow: visible !important; margin-bottom: 10px; }
+#right-sidebar .sidebar-item.item-type-block[data-st-item] .sidebar-panel-content .ls-block:not(.ls-block .ls-block) > .block-main-container :is(.bottom-properties-row, .bottom-properties-pills-strip) { flex-direction: column !important; align-items: stretch !important; flex-wrap: nowrap !important; overflow: visible !important; gap: 4px !important; flex: none !important; width: 100% !important; margin-inline: 0 !important; padding-inline: 0 !important; }
+html #right-sidebar .sidebar-item.item-type-block[data-st-item] .sidebar-panel-content .ls-block:not(.ls-block .ls-block) > .block-main-container .bottom-property-pill { display: flex !important; align-items: baseline; gap: 12px; opacity: 1 !important; width: 100%; margin-inline: 0 !important; padding-inline: 0 !important; }
+/* Each tag's line stands as the lines under it do (a page's lines): the name where theirs is, past the room their icon takes, at the
+   text's size, the value in their value's column. */
+#right-sidebar .sidebar-item.item-type-block[data-st-item] .sidebar-panel-content .ls-block:not(.ls-block .ls-block) > .block-main-container .positioned-properties.block-below { font-size: 16px !important; }
+#right-sidebar .sidebar-item.item-type-block[data-st-item] .sidebar-panel-content .ls-block:not(.ls-block .ls-block) > .block-main-container .bottom-property-pill > div:first-child { flex: 0 0 var(--st-key-w, 150px); min-width: 0; padding-left: 26px; box-sizing: border-box; }
+/* Logseq's Expand, for a row of properties too long for one line, means nothing once each stands on its own line (it blinked in on
+   every row change, the owner, 17 November 2026: "there is a flash"). */
+#right-sidebar .sidebar-item.item-type-block[data-st-item] .sidebar-panel-content .ls-block:not(.ls-block .ls-block) > .block-main-container .bottom-property-expand-btn { display: none !important; }
+/* The node's other properties (a task's Status, Priority, Deadline once Logseq's own "Show hidden properties" is pressed; one added
+   by hand), which Logseq hides in a bullet narrower than 430 px, are shown in the row view. Logseq's switch is left as Logseq has it:
+   it holds per bullet, the outline too, so pressing it for the row would change the bullet everywhere (the owner, 17 November 2026:
+   "if it changes it everywhere, then revert to old ways"). */
+#right-sidebar .sidebar-item.item-type-block[data-st-item] .sidebar-panel-content .ls-block:not(.ls-block .ls-block) > .ls-block-content-indent > .ls-properties-area { display: block !important; margin: -6px 0 10px; }
+/* Those lines start at the same left edge as the tag's lines above them, so the node's properties read as one list. */
+#right-sidebar .sidebar-item.item-type-block[data-st-item] .sidebar-panel-content .ls-block:not(.ls-block .ls-block) > .ls-block-content-indent { margin-left: 0 !important; padding-left: 0 !important; }
+#right-sidebar .sidebar-item.item-type-block[data-st-item] .sidebar-panel-content .ls-block:not(.ls-block .ls-block) > .block-main-container .bottom-property-pill > div:first-child > div:last-child:not(.property-key-inner) { display: none; }
+#right-sidebar .sidebar-item.item-type-block[data-st-item] .sidebar-panel-content .ls-block:not(.ls-block .ls-block) > .block-main-container .bottom-property-pill:has(.empty-value):not(:focus-within) > div:first-child { color: var(--lk-off) !important; }
 /* A tag the property is on: its name and count on one line, what you can do with it under them, so the narrow panel never
    squeezes the count into a column of single letters. */
 .st-holder-insp .st-lines-t .ont { grid-template-columns: minmax(0, 1fr) auto; }

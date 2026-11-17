@@ -17,8 +17,9 @@ const insp = { holder: null, top: null, node: null, uuid: '', ask: 0, stops: [],
 // Shown: the panel is in the page and drawn (Logseq's sidebar open and the panel not folded).
 const shown = () => !!(insp.holder?.isConnected && insp.holder.getClientRects().length);
 const top = () => (shown() ? insp.top : null);
-// At work: Ontology or the row's view stands in the open sidebar. Only then does a press on a row pick it.
-const active = () => shown() || !!(insp.uuid && item(host())?.getClientRects().length);
+// At work: the row view is on (the toolbar's Row view button, 17 November 2026). Only then does a press on a row pick it; otherwise
+// a press in the table is Logseq's alone and nothing is opened in the sidebar's stack.
+const active = () => !!window.PluginDoor.sideTabs?.rows?.();
 
 const sync = () => insp.holder?.toggleAttribute('data-row', !!insp.uuid);
 
@@ -70,7 +71,15 @@ function hold(doc) {
   insp.held = copy; insp.heldAt = Date.now();
   doc.defaultView.setTimeout(() => { if (insp.held === copy) release(); }, 1200);
 }
-function release() { insp.held?.remove(); insp.held = null; }
+/* The still picture goes by fading, so one row's view gives way to the next rather than being swapped in a frame (the owner,
+   17 November 2026: "when things change, there is a flash, nothing smooth"). */
+function release() {
+  const copy = insp.held; insp.held = null;
+  if (!copy) return;
+  if (window.PluginDoor.still(copy) || !copy.animate) return copy.remove();
+  const { ms, ease } = window.PluginDoor.MOTION.reveal;
+  copy.animate([{ opacity: 1 }, { opacity: 0 }], { duration: ms, easing: ease, fill: 'forwards' }).finished.then(() => copy.remove(), () => copy.remove());
+}
 function item(doc = host()) {
   if (!insp.uuid) return null;
   const items = listed(doc);
@@ -86,7 +95,10 @@ const owns = el => { const key = keyOf(el); return key ? insp.openedKeys.has(key
 function closeStale(doc = host()) {
   const keep = new Set(insp.uuid ? [wanted(), insp.shownKey].filter(Boolean) : []);
   const items = listed(doc);
-  for (const el of items) { const key = keyOf(el); if (key && insp.openedKeys.has(key) && !keep.has(key)) window.PluginDoor.screen.click(el.querySelector('.sidebar-item-header .item-actions button:last-child')); }
+  for (const el of items) {
+    const key = keyOf(el); if (!key || !insp.openedKeys.has(key) || keep.has(key)) continue;
+    window.PluginDoor.screen.click(el.querySelector('.sidebar-item-header .item-actions button:last-child'));
+  }
   /* A view no longer in the sidebar is forgotten once it has been missing from the open sidebar for a while: with the sidebar shut
      its items are not drawn, and as it opens they come before their heads are written, so a view looked missing then was never
      closed and came back as a page you had opened (17 November 2026). */
@@ -100,7 +112,7 @@ function closeStale(doc = host()) {
   }
   if (!insp.uuid) insp.shownKey = '';
 }
-/* Where the row stands in Logseq's table, "Consultation · 12 of 53" (the owner's O1c, 12 November 2026): its place is the
+/* Where the row stands in Logseq's table, "Item · 12 of 53" (the owner's O1c, 12 November 2026): its place is the
    number Logseq's list gives the row (data-item-index, as only the rows near the screen are drawn), the whole is the count
    Logseq writes beside the table's view. Either one missing, the line is not drawn. */
 function whereText(uuid) {
@@ -112,9 +124,8 @@ function whereText(uuid) {
     if (n) all = Number(n);
   }
   if (!row || !(at >= 0) || !(all > 0) || at >= all) return '';
-  // Whose table it is: the page's own title, which stands whichever tab is picked.
-  const of = (host().querySelector('#main-content-container .ls-page-title .block-title-wrap, #main-content-container .ls-page-title h1')?.textContent || '').trim();
-  return `${of ? `${of} · ` : ''}${at + 1} of ${all}`;
+  // Whose table it is goes without saying: the page in the middle is the tag's or the property's own.
+  return `Item · ${at + 1} of ${all}`;
 }
 // One pass of the screen: the item is named as the Item tab's and carries its line; what was shown before goes.
 function pass(doc) {
@@ -141,11 +152,16 @@ function dress(el, doc) {
   if (el && holds(el)) insp.where = whereText(insp.uuid) || insp.where || '';
   const say = el ? insp.where || list?.getAttribute('data-st-where') || '' : '';
   if (list && (list.getAttribute('data-st-where') || '') !== say) { if (say) list.setAttribute('data-st-where', say); else list.removeAttribute('data-st-where'); }
-  /* With the sidebar as stacked sections (17 November 2026) the line stands over the row's own section: the words go to the item as a
-     custom property, which the stylesheet draws above it and which outlives Logseq drawing the item's inside afresh. */
+  /* With the sidebar as stacked sections (17 November 2026) the words stand at the end of the row's own section's head: they go to the
+     item as a custom property, which the stylesheet draws there and which outlives Logseq drawing the item's inside afresh. */
   const words = say ? JSON.stringify(say) : '';
   if (el && el.style.getPropertyValue('--st-where') !== words) { if (words) el.style.setProperty('--st-where', words); else el.style.removeProperty('--st-where'); }
   for (const old of doc.querySelectorAll('#right-sidebar .sidebar-item[style*="--st-where"]')) if (old !== el) old.style.removeProperty('--st-where');
+  // A bullet's row shows its tags under its title, as a page's place stands under its name (view.js): read from Logseq's own tags on it.
+  const root = el?.classList.contains('item-type-block') ? el.querySelector('.sidebar-panel-content .ls-block') : null;
+  const tags = root ? [...root.querySelectorAll(':scope > .block-main-container .block-tags a.tag')].map(a => a.textContent.trim()).filter(Boolean).join(' · ') : '';
+  const tagWords = tags ? JSON.stringify(tags) : '';
+  if (el && el.style.getPropertyValue('--st-tags') !== tagWords) { if (tagWords) el.style.setProperty('--st-tags', tagWords); else el.style.removeProperty('--st-tags'); }
 }
 
 // No row pressed: one faint line says what the panel is waiting for, or nothing when the lines above already fill it.
@@ -237,7 +253,9 @@ function start() {
   const { listen } = S.base;
   const offKeys = [listen(doc, HELD, hold, true), listen(doc, 'click', press, true), listen(doc, 'dblclick', twice, true), listen(doc, ['focusin', 'click'], onRow, true)];
   const offRoute = S.base.onStop(logseq.App.onRouteChanged?.(() => { insp.pageAt = Date.now(); insp.plain = false; pick(''); }));
-  insp.stops = [...offKeys, () => { insp.uuid = ''; release(); closeStale(); mark(''); }, offRoute, window.PluginDoor.watch(pass)];
+  // The row view turned off: the row's view goes, as when the page is left.
+  const offRows = window.PluginDoor.sideTabs?.onRows?.(on => { if (!on) pick(''); });
+  insp.stops = [...offKeys, () => { insp.uuid = ''; release(); closeStale(); mark(''); }, offRoute, offRows, window.PluginDoor.watch(pass)];
 }
 function stop() { for (const s of insp.stops) { try { s?.(); } catch (error) { /* already gone */ } } insp.stops = []; if (insp.holder) insp.holder.innerHTML = ''; insp.watch?.disconnect(); }
 

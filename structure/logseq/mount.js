@@ -56,13 +56,14 @@ function mount(app) {
   }
   /* Ontology is a section of the right sidebar that appears by itself, at the top, on a tag's or a property's page, where it has
      something to show (the owner, 17 November 2026: "Ontology appears when ontology is relevant"); elsewhere it stands aside. */
-  const offTab = Door.sideTabs?.add({ key: 'inspector', word: 'Ontology', order: 1, auto: true, panel: S.inspector.KEY,
+  const offTab = Door.sideTabs?.add({ key: 'inspector', word: 'Ontology', order: 1, auto: true, rows: true, panel: S.inspector.KEY,
     find: doc => doc.getElementById('_sidebar.' + S.inspector.KEY)?.closest('.sidebar-item') || null,
     open: () => { logseq.Editor.openInRightSidebar('_sidebar.' + S.inspector.KEY); },
     hidden: () => !S.inspector.applies() && !S.inspector.row() });
   // Item, the row pressed in a table (the owner, 12 November 2026): Logseq's own view of the row's node, which inspector.js opens and
-  // names; a section under Ontology, there only while a row is pressed.
-  const offItem = Door.sideTabs?.add({ key: 'item', word: 'Item', order: 2, auto: true,
+  // names. Only in the row view, the toolbar's Row view button (the owner, 17 November 2026: "the table view should be a different
+  // view, not in stack"): there it is first, Ontology folded under it ("main focus is the row item").
+  const offItem = Door.sideTabs?.add({ key: 'item', word: 'Item', order: -1, auto: true, rows: true,
     find: doc => S.inspector.item(doc), owns: item => S.inspector.owns(item), open: () => {},
     hidden: () => !S.inspector.row() });
   const offMenu = Door.watch(icons);
