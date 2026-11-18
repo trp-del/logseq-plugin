@@ -67,8 +67,8 @@ assert.ok(/const names = ownNamesOf\(page\.id, false\)[\s\S]{0,260}await names;/
 assert.ok(/if \(settling && !lines && !table && !insp\.plain\) return;/.test(insp) && /S\.inspector\.pageKnown\?\.\(id == null && prop == null\)/.test(read('structure/main.js')), 'the Ontology tab\'s line is not said before the page is known');
 
 // 6c. 13 November, second round: the row's view changes in one frame, the line is the list's, nothing rewritten that has not changed.
-assert.ok(/function hold\(doc\)/.test(insp) && /if \(insp\.held && insp\.settled\)/.test(insp), 'a still picture of the row shown lies over the views until the next is drawn to the end');
-assert.ok(/el\.style\.setProperty\('--st-where', words\)/.test(insp) && /\.sidebar-item\[data-st-item\] \.sidebar-item-header::after \{ content: var\(--st-where\)/.test(view), '"Item · N of M" is a property of the row\'s section, drawn at the end of its head, so a redrawn view cannot lose it');
+// Proved in the real Logseq since 18 November 2026 by tools/app-checks/row-view.js, which replaced two source matches here: the row's
+// section never stands blank between rows (read on every frame), and "N of M" at the end of its head.
 assert.ok(/\[data-lk-wait\] \{ visibility: hidden !important; position: absolute !important;/.test(tabs), 'a view that waits is laid out unseen');
 assert.ok(/if \(fold\.getAttribute\('aria-expanded'\) !== String\(!folded\)\)/.test(read('look/logseq/links.js')), 'the sidebar section\'s fold state is written only when it differs');
 assert.ok(/state\.known\.get\(state\.page\)/.test(read('look/logseq/cites.js')), 'a page\'s endnote numbers are drawn at once on a revisit');

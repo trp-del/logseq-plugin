@@ -29,7 +29,7 @@
    sidebar as they were, nothing of its own left in the page (also on failure or Ctrl-C).
 
      node tools/motion-check.js                            the usual stops, light
-     node tools/motion-check.js --stops "Dr. Mei Chen; Consultation; sidebar:Dr. Mei Chen; find; #/structure" --themes light,dark
+     node tools/motion-check.js --stops "Dr. Mei Chen; Consultation; sidebar:Doctor; find; #/structure" --themes light,dark
      node tools/motion-check.js --blame                    also name the script behind each fault
      node tools/motion-check.js --quiet                    wait for a quiet Mac first (load under 2, no input for 120 s)
    A stop is a page by name; "sidebar:<page>" opens the right sidebar on it; "find" opens Find's window and closes it;
@@ -46,7 +46,10 @@ const outDir = path.join(root, 'dist', 'motion-check');
 const knownFile = path.join(root, 'test', 'motion', 'known-logseq.json');
 const arg = (name, fallback) => { const at = process.argv.indexOf(name); return at > 0 ? process.argv[at + 1] : fallback; };
 const flag = name => process.argv.includes(name);
-const STOPS = arg('--stops', 'Dr. Mei Chen; Consultation; Oct 23rd, 2026; sidebar:Dr. Mei Chen; find; #/structure').split(';').map(s => s.trim()).filter(Boolean);
+/* The sidebar stop stands on a tag's page (18 November 2026): since 0.3.154 the sidebar is Logseq's stacked sections, and an open
+   sidebar with nothing to show (as on Dr. Mei Chen, where no part of the page applies) closes itself by design, which this check
+   read as the whole page jumping 114 px. On Doctor the sidebar holds Ontology and stays open. */
+const STOPS = arg('--stops', 'Dr. Mei Chen; Consultation; Oct 23rd, 2026; sidebar:Doctor; find; #/structure').split(';').map(s => s.trim()).filter(Boolean);
 const THEMES = arg('--themes', 'light').split(',').map(s => s.trim());
 const RUNS_A = Number(arg('--runs-a', 2));
 const NEUTRAL = 'all-pages';

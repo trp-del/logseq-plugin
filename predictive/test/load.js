@@ -139,7 +139,7 @@ for (const file of order) vm.runInContext(fs.readFileSync(path.join(root, file),
   console.log('  ok  fresh page lookup and the per-graph switch');
 
   // Writing, on a page of real elements (jsdom): passing through a bullet, writing in one, and the Undo arrow.
-  let JSDOM; try { ({ JSDOM } = require('jsdom')); } catch (error) { console.log('  skipped writing on a page: needs jsdom (set NODE_PATH)'); process.exit(0); }
+  let JSDOM; try { ({ JSDOM } = require('jsdom')); } catch (error) { console.log(process.env.RELEASE_CHECK ? '  FAILED in a release run: writing on a page needs jsdom (set NODE_PATH)' : '  skipped writing on a page: needs jsdom (set NODE_PATH)'); process.exit(process.env.RELEASE_CHECK ? 1 : 0); }
   const A = U(400), B = U(401), C = U(402), rowHtml = uuid => `<div class="ls-block" blockid="${uuid}"><div class="block-main-container"><div class="block-title-wrap"><textarea></textarea></div></div></div>`;
   const page = new JSDOM(`<html><body><div id="main-content-container">${[A, B, C].map(rowHtml).join('')}</div></body></html>`, { pretendToBeVisual: true }), hostDoc = page.window.document;
   window.parent = { document: hostDoc };

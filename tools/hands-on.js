@@ -122,7 +122,9 @@ function looks() {
       const e = res.strong[key] || (res.strong[key] = { n: 0, sample: [] });
       e.n++; if (e.sample.length < 3) e.sample.push(`${window.__ho?.describe(el) || el.tagName} “${el.textContent.trim().slice(0, 30)}”`);
     }
-    if (el.closest(plugin) && r.right > vw + 1) res.offRight.push(`${window.__ho?.describe(el)} “${el.textContent.trim().slice(0, 30)}”`);
+    /* Cut off by the window's right edge: partly in view (18 November 2026: Todo's sidebar section, laid out wholly past the edge for a
+       moment while two pages side by side took the sidebar, was read as standing past it; nothing of it could be seen). */
+    if (el.closest(plugin) && r.right > vw + 1 && r.left < vw - 1) res.offRight.push(`${window.__ho?.describe(el)} “${el.textContent.trim().slice(0, 30)}”`);
   }
   for (const el of document.querySelectorAll('dialog[open], #ui__ac, .ui__modal-panel, [role="menu"], [role="listbox"]')) {
     const r = el.getBoundingClientRect(); if (r.width && r.height) res.open.push(window.__ho?.describe(el) || el.tagName);

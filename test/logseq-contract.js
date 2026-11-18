@@ -65,7 +65,7 @@ try {
       css: ['css/style.css', 'css/ui.css', 'css/shui.css', 'css/tabler-icons.min.css'].map(read).join('\n') };
   }
 } catch (error) { bundle = null; }
-if (!bundle) { console.log('skipped: Logseq is not installed in /Applications on this Mac'); process.exit(0); }
+if (!bundle) { console.log(process.env.RELEASE_CHECK ? 'FAILED in a release run: Logseq is not installed in /Applications on this Mac' : 'skipped: Logseq is not installed in /Applications on this Mac'); process.exit(process.env.RELEASE_CHECK ? 1 : 0); }
 
 const snake = s => s.replace(/[A-Z]/g, c => '_' + c.toLowerCase());
 const kebab = s => s.replace(/[A-Z]/g, c => '-' + c.toLowerCase());

@@ -4,6 +4,11 @@
 # In the real Logseq (a test graph open, debugging port, NODE_PATH): node tools/logseq-contract-app.js, then node tools/write-check.js
 cd "$(dirname "$0")/.." || exit 1
 fail=0
+# A release run (RELEASE_CHECK, set by tools/release.sh) skips nothing: without jsdom or Playwright the sets that need them would print
+# ok while leaving parts out (18 November 2026), so here they are a failure before anything runs.
+if [ -n "${RELEASE_CHECK:-}" ]; then
+  for need in jsdom playwright; do node -e "require('$need')" 2>/dev/null || { echo "FAILED  a release run needs $need: set NODE_PATH to the folder holding it"; fail=1; }; done
+fi
 run() { (cd "$1" && shift && "$@" >"${TMPDIR:-/tmp}/logseq-plugin-check.$$" 2>&1) && echo "ok  $*" || { echo "FAILED  $*"; tail -8 "${TMPDIR:-/tmp}/logseq-plugin-check.$$"; fail=1; }; rm -f "${TMPDIR:-/tmp}/logseq-plugin-check.$$"; }
 for file in plugin.js main.js loader.js files.js outside.js sidebar-tabs.js split.js settings/window.js settings/ways-in.js; do node --check "$file" || fail=1; done
 run . node test/settings.js

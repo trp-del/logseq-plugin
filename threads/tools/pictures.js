@@ -14,8 +14,8 @@ const twoWay = require('./two-way-files');
 
 let chromium;
 for (const where of ['playwright', '/Users/admin/logseq-value/logseq-plugin-old/node_modules/playwright']) { try { ({ chromium } = require(where)); break; } catch (error) { /* try the next */ } }
-if (!chromium) { console.log('pictures skipped (needs Playwright and Chromium)'); process.exit(0); }
-if (process.platform !== 'darwin') { console.log('pictures skipped (approved on the Mac; fonts differ elsewhere)'); process.exit(0); }
+if (!chromium) { console.log((process.env.RELEASE_CHECK ? 'pictures FAILED in a release run (' : 'pictures skipped (') + 'needs Playwright and Chromium)'); process.exit(process.env.RELEASE_CHECK ? 1 : 0); }
+if (process.platform !== 'darwin') { console.log((process.env.RELEASE_CHECK ? 'pictures FAILED in a release run (' : 'pictures skipped (') + 'approved on the Mac; fonts differ elsewhere)'); process.exit(process.env.RELEASE_CHECK ? 1 : 0); }
 
 const root = path.resolve(__dirname, '..');
 // The pretend Logseq, its themes and the two-way rows' groups are shared with tools/frames.js (tools/pretend-page.js).
@@ -79,7 +79,7 @@ async function scenes(page) {
 
 (async () => {
   let browser;
-  try { browser = await chromium.launch(); } catch (error) { console.log('pictures skipped (Chromium did not start)'); process.exit(0); }
+  try { browser = await chromium.launch(); } catch (error) { console.log((process.env.RELEASE_CHECK ? 'pictures FAILED in a release run (' : 'pictures skipped (') + 'Chromium did not start)'); process.exit(process.env.RELEASE_CHECK ? 1 : 0); }
   fs.mkdirSync(newDir, { recursive: true });
   for (const f of fs.readdirSync(newDir)) fs.rmSync(path.join(newDir, f));
   const problems = [], lines = [];

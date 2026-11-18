@@ -33,7 +33,7 @@ const { THEMES, pretendLogseq, exposeAtEnd, tablerCss } = require('./pretend-pag
 
 let chromium;
 for (const where of ['playwright', '/Users/admin/logseq-value/logseq-plugin-old/node_modules/playwright']) { try { ({ chromium } = require(where)); break; } catch (error) { /* try the next */ } }
-if (!chromium) { console.log('frames skipped (needs Playwright and Chromium)'); process.exit(0); }
+if (!chromium) { console.log((process.env.RELEASE_CHECK ? 'frames FAILED in a release run (' : 'frames skipped (') + 'needs Playwright and Chromium)'); process.exit(process.env.RELEASE_CHECK ? 1 : 0); }
 
 const root = path.resolve(__dirname, '..');
 const outDir = path.join(root, 'check.log/frames');
@@ -197,7 +197,7 @@ async function record(browser, theme, name, scene, withPlugin) {
 
 (async () => {
   let browser;
-  try { browser = await chromium.launch(); } catch (error) { console.log('frames skipped (Chromium did not start)'); process.exit(0); }
+  try { browser = await chromium.launch(); } catch (error) { console.log((process.env.RELEASE_CHECK ? 'frames FAILED in a release run (' : 'frames skipped (') + 'Chromium did not start)'); process.exit(process.env.RELEASE_CHECK ? 1 : 0); }
   fs.mkdirSync(outDir, { recursive: true });
   /* A fresh headless Chromium sends no screencast pictures for its first seconds (12 November 2026, measured on this
      Mac: none for about 15 s after launch, so the first scene recorded 0 frames, plugin off and on, and failed as blind

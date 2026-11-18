@@ -10,7 +10,8 @@
    - graphOk(page): the open graph is still a test graph (read before every step that acts).
    Every test using this puts the app back as it found it: see the restore of each. */
 const PLUGIN = 'logseq-plugin';
-const GRAPHS = ['Illness Test Graph', 'Seed Check', 'Stress Check'];
+// The graphs a check may touch: TEST_GRAPHS (comma-separated) when set, as every in-app tool reads it; else the three test graphs.
+const GRAPHS = (process.env.TEST_GRAPHS || 'Illness Test Graph,Seed Check,Stress Check').split(',').map(s => s.trim()).filter(Boolean);
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 let chromium;

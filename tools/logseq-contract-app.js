@@ -69,13 +69,24 @@ let chromium; try { ({ chromium } = require('playwright')); } catch (error) { co
      class names from any other page. The pages most linked to are tried until one draws the properties under a bullet. */
   const holders = await page.evaluate(async () => { const rows = (await window.logseq.api.datascript_query('[:find ?n (count ?r) :where [?b :block/page ?p] [?b ?a _] [(namespace ?a) ?ns] [(= ?ns "user.property")] [?p :block/name ?n] [?r :block/refs ?p]]')) || []; return rows.sort((x, y) => y[1] - x[1]).slice(0, 6).map(row => row[0]); });
   for (const name of holders) { await go('page', { name }); if (seen.has('positioned-properties') && seen.has('ls-bidirectional-properties')) break; }
+  /* A page with properties of its own and something pointing at it (18 November 2026): the test graphs rebuilt on 17 November hold
+     their properties on pages (Dr. Mei Chen: Specialty, Works at), so the page's own property rows, Relations and Logseq's stacked
+     right sidebar are drawn only on such a page. The pages with the most properties of their own are tried until one draws them. */
+  const owners = await page.evaluate(async () => { const rows = (await window.logseq.api.datascript_query('[:find ?n (count ?a) :where [?p :block/name ?n] [?p ?a _] [(namespace ?a) ?ns] [(= ?ns "user.property")] (not [?p :block/page _])]')) || []; return rows.sort((x, y) => y[1] - x[1]).slice(0, 6).map(row => row[0]); });
+  for (const name of owners) { await go('page', { name }); if (seen.has('ls-page-properties') && seen.has('property-pair') && seen.has('ls-bidirectional-properties')) break; }
+  /* A page opened in the right sidebar, as Shift and a press open it (18 November 2026): since the sidebar became Logseq's stacked
+     sections (0.3.154) it is empty on most pages, and Logseq draws its item's head, ×, list and panel only for something opened there.
+     Closed again at the end of the round. */
+  const opened = owners[0] ? await page.evaluate(async name => { const p = await window.logseq.api.get_page(name); if (!p) return null; await window.logseq.api.open_in_right_sidebar(p.uuid); return p.uuid; }, owners[0]) : null;
+  if (opened) { await sleep(1800); await look(); }
   if (journal) await go('page', { name: journal });
   // A bullet focused into: the line of steps above it (.breadcrumb--block-page), which Look's glide reads.
-  const inner = await page.evaluate(async () => ((await window.logseq.api.datascript_query('[:find ?u :where [?b :block/parent ?p] [?p :block/parent ?g] [?g :block/page _] [?b :block/uuid ?u]]')) || []).slice(0, 8).map(row => String(row[0])));
+  const inner = await page.evaluate(async () => ((await window.logseq.api.datascript_query('[:find ?u :where [?b :block/parent ?p] [?p :block/page _] [?b :block/uuid ?u]]')) || []).slice(0, 8).map(row => String(row[0])));
   // Not every bullet can be opened (one on a page in the Recycle cannot): the first that shows its line of steps.
   for (const uuid of inner) { await page.evaluate(u => { window.location.hash = '#/page/' + u; }, uuid); await sleep(1500); await look(); if (seen.has('breadcrumb--block-page')) break; }
   await go('all-pages');
   await page.evaluate(() => window.logseq.api.set_right_sidebar_visible?.(true)); await sleep(800); await look();
+  if (opened) await page.evaluate(uuid => { const item = [...document.querySelectorAll('#right-sidebar .sidebar-item')].find(i => i.querySelector(`[blockid="${uuid}"], [data-uuid="${uuid}"]`) || i.getAttribute('data-id') === uuid); const x = item?.querySelector('.item-actions button'); x?.click(); }, opened).catch(() => {});
   await page.evaluate(was => window.logseq.api.set_right_sidebar_visible?.(was), sidebarWas);
   await page.goto(start).catch(() => {}); await sleep(1500);
 

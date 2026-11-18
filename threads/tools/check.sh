@@ -42,6 +42,8 @@ if command -v node >/dev/null 2>&1 && node -e "require('jsdom')" 2>/dev/null; th
   if [ $full -eq 1 ]; then node tools/parts-apart-test.js || problem "a part could not be left out without the others failing (see above)"
   else echo "SKIPPED parts-apart: it runs with --full"; fi
   node tools/leaning-test.js || problem "a part leans where it must not: a direct Logseq call, a name on the window (see above)"
+elif [ -n "${RELEASE_CHECK:-}" ]; then
+  problem "a release run needs jsdom for the boot, Undo, Recycle and two-way rows tests: set NODE_PATH (18 November 2026: these were skipped with an ok)"
 else
   echo "boot test skipped (needs node and: npm install --no-save --no-package-lock jsdom)"
 fi
@@ -59,8 +61,9 @@ if command -v node >/dev/null 2>&1; then
 fi
 
 # 8. Frames of what the plugin draws, recorded moving (tools/frames.js): plugin off and on, no jump, no flash.
-#    Run with --full: it records in a real browser and takes a minute.
-if command -v node >/dev/null 2>&1 && [ $full -eq 1 ]; then
+#    Run with --full, and in every release run on the Mac (RELEASE_CHECK, set by tools/release.sh; 18 November 2026): it records in
+#    a real browser and takes a minute.
+if command -v node >/dev/null 2>&1 && { [ $full -eq 1 ] || { [ -n "${RELEASE_CHECK:-}" ] && [ "$(uname)" = Darwin ]; }; }; then
   node tools/frames.js || problem "a frame test failed: something the plugin draws jumped, flashed or changed (see check.log/frames/; approve a meant change with node tools/frames.js --approve after looking)"
 fi
 # 8b. Pictures of what the plugin draws (tools/pictures.js), light and dark, compared with the approved ones in test/pictures/.

@@ -63,7 +63,9 @@ const PIECES = {
 /* Every module's marks on Logseq's screen, so the ledger tracks the whole plugin: the class and attribute prefixes each
    module puts on what it draws or claims (Look claims Logseq's own links and tags with lk-node and lk-tag). The shared names
    (lk-row, lk-tag …) stand on every module's elements, so a module is named by its own prefix first, Look last. */
-const MARKS = { class: /^(?:lk-|fd-|fd$|flow-|st-|xp$|xp-|th-)/, attr: /^data-(?:lk|fd|flow|st|th)-/ };
+/* data-th-reading is left out (18 November 2026): it is a flag Threads sets on its own section while it reads the page, not a piece it
+   draws; tracked, the section was "shown and gone" whenever the flag came off, a flash nobody could see (no picture changed). */
+const MARKS = { class: /^(?:lk-|fd-|fd$|flow-|st-|xp$|xp-|th-)/, attr: /^data-(?:lk|fd|flow|st|th)-(?!reading$)/ };
 const MODULES = [['Threads', /(?:^|[ .])(?:th-|th-)/], ['Find', /(?:^|[ .])fd(?:-|$)/], ['Predictive', /(?:^|[ .])flow-/], ['Structure', /(?:^|[ .])st-/], ['DB Export', /(?:^|[ .])xp(?:-|$)/], ['Look', /(?:^|[ .])lk-/]];
 // The module an element belongs to, from its ledger name ('span.lk-path', 'div.th-tw-row.lk-row') or a class list; '' for Logseq's own.
 function moduleOf(name) {

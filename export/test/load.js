@@ -85,7 +85,7 @@ for (const file of order) vm.runInContext(fs.readFileSync(path.join(root, file),
     if (window.DOMParser) {
       const edited = await E.app.richText(page, c, '<h1 class="x-title">Dr. Mei Chen, edited</h1><p class="x-p">New words</p>');
       assert.ok(/<h1 style="[^"]*font-size[^"]*">Dr. Mei Chen, edited<\/h1>/.test(edited.html) && !edited.html.includes('class="'), 'edited rich text carries its styles: ' + edited.html.slice(0, 200));
-    } else console.log('  skipped: edited rich text needs jsdom (set NODE_PATH)'); }
+    } else { console.log(process.env.RELEASE_CHECK ? '  FAILED in a release run: edited rich text needs jsdom (set NODE_PATH)' : '  skipped: edited rich text needs jsdom (set NODE_PATH)'); if (process.env.RELEASE_CHECK) process.exit(1); } }
   console.log('  ok  Markdown, the printed page and rich text come out of the pretend page');
   process.exit(0);
 })().catch(error => { console.error('FAIL ', error); process.exit(1); });

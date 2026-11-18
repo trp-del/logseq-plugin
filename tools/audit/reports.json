@@ -1,0 +1,213 @@
+{
+ "what": "Faults the owner has pointed at since 3 November 2026 (and those the 0.4 audit found). Each names the check that guards it: a file, and words that must stand in that file. \"proof:\" is this folder's tools; other paths are in the plugin. A report with no check, or whose words are gone from its file, fails line 7.6 (tools/reports-check.js).",
+ "reports": [
+  {
+   "when": "3 Nov",
+   "said": "Cisplatin's bullets were missing from Linked",
+   "by": [
+    "proof:linked-truth.js",
+    "Linked does not read"
+   ]
+  },
+  {
+   "when": "8 Nov",
+   "said": "Enter deleted for good",
+   "by": [
+    "threads/tools/recycle-list-test.js",
+    "Enter in the ask leaves it"
+   ]
+  },
+  {
+   "when": "10 Nov",
+   "said": "A notice said it was done and nothing had changed (a property deleted from a tag stayed)",
+   "by": [
+    "tools/write-check.js",
+    "a notice says it was done, and nothing changed"
+   ]
+  },
+  {
+   "when": "10 Nov",
+   "said": "Same-as-next came back",
+   "by": [
+    "proof:old-reports.js",
+    "Same-as-next stays out"
+   ]
+  },
+  {
+   "when": "11 Nov",
+   "said": "Empty fold rings and gaps under tasks came and went",
+   "by": [
+    "predictive/tools/app/check.js",
+    "empty properties are hidden on a bullet that is not being written"
+   ]
+  },
+  {
+   "when": "11 Nov",
+   "said": "An empty row stood under Mentioned in",
+   "by": [
+    "threads/tools/two-way-rows-test.js",
+    "mentioned in"
+   ]
+  },
+  {
+   "when": "11 Nov",
+   "said": "Linked lost its margin and the page scrolled up on a fold",
+   "by": [
+    "proof:old-reports.js",
+    "its arrow stays under the pointer"
+   ]
+  },
+  {
+   "when": "12 Nov",
+   "said": "Find's list faded and redrew on every letter",
+   "by": [
+    "tools/view-change-check.js",
+    "find-type"
+   ]
+  },
+  {
+   "when": "12 Nov",
+   "said": "By meaning stayed silent after the helper crashed",
+   "by": [
+    "predictive/test/run.js",
+    "Matching by meaning"
+   ]
+  },
+  {
+   "when": "12 Nov",
+   "said": "The + label covered the tag and name under the pointer",
+   "by": [
+    "proof:old-reports.js",
+    "leaves the list's name uncovered"
+   ]
+  },
+  {
+   "when": "12 Nov",
+   "said": "A gap stood under a folded Linked",
+   "by": [
+    "threads/tools/two-way-rows-test.js",
+    "folded, the section keeps none of the height"
+   ]
+  },
+  {
+   "when": "12 Nov",
+   "said": "The Item tab went blank for a tenth of a second on every row change",
+   "by": [
+    "tools/view-change-check.js",
+    "item-row"
+   ]
+  },
+  {
+   "when": "14 Nov",
+   "said": "The right half of two pages side by side stayed white",
+   "by": [
+    "proof:split-try.js",
+    "two pages side by side never leaves a blank half"
+   ]
+  },
+  {
+   "when": "15 Nov",
+   "said": "The Todo tab was blank after the plugin reloaded",
+   "by": [
+    "todo/test/group.js",
+    "T.adopt()"
+   ]
+  },
+  {
+   "when": "15 Nov",
+   "said": "Logseq went down on the 25,000-bullet graph",
+   "by": [
+    "proof:checks.js",
+    "25,000 bullets over six years"
+   ]
+  },
+  {
+   "when": "15 Nov",
+   "said": "An empty-Status task was not listed as Todo",
+   "by": [
+    "todo/test/status.js",
+    "a Task child-tag node with an emp"
+   ]
+  },
+  {
+   "when": "16 Nov",
+   "said": "Find showed [words](link) raw",
+   "by": [
+    "threads/tools/model-test.js",
+    "a labelled link to a page"
+   ]
+  },
+  {
+   "when": "16 Nov",
+   "said": "The Links tab was mixed up after two pages side by side",
+   "by": [
+    "look/test/load.js",
+    "nothing left on the page"
+   ]
+  },
+  {
+   "when": "16 Nov",
+   "said": "A bullet's property row redrew without end",
+   "by": [
+    "proof:look-only.js",
+    "keep changing with no input"
+   ]
+  },
+  {
+   "when": "16 Nov",
+   "said": "Dotted grey was used for changes about to be made, not only for guesses",
+   "by": [
+    "structure/test/load.js",
+    "no pencil on a waiting change"
+   ]
+  },
+  {
+   "when": "16 Nov",
+   "said": "Merging needed a menu item per pair instead of pick several, then Merge",
+   "by": [
+    "structure/test/load.js",
+    "2 tags picked"
+   ]
+  },
+  {
+   "when": "16 Nov",
+   "said": "A confirmation's button was not named by its result",
+   "by": [
+    "structure/test/load.js",
+    "the yes names the result"
+   ]
+  },
+  {
+   "when": "16 Nov",
+   "said": "A suggestion and its fix must be unmissable where you decide",
+   "by": [
+    "proof:old-reports.js",
+    "stands in a box"
+   ]
+  },
+  {
+   "when": "17 Nov",
+   "said": "Move under… skipped its preview (found by the 0.4 audit)",
+   "by": [
+    "structure/test/load.js",
+    "nothing is staged before the yes"
+   ]
+  },
+  {
+   "when": "17 Nov",
+   "said": "The tag beside a page's title jumped; Logseq's own list flashed under a page (found by the 0.4 audit)",
+   "by": [
+    "tools/motion-check.js",
+    "moved"
+   ]
+  },
+  {
+   "when": "17 Nov",
+   "said": "An Ontology right-click menu stayed open on the next page, past the window's edge (found by the 0.4 gallery check)",
+   "by": [
+    "structure/test/load.js",
+    "another page\\'s lines are drawn without the menu opened on the page before"
+   ]
+  }
+ ]
+}

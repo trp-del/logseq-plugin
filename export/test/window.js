@@ -4,7 +4,7 @@
    Escape closes it, ⌘-Enter presses the button that matches, and nothing is left behind when the plugin stops. */
 const assert = require('node:assert/strict');
 const fs = require('node:fs'), path = require('node:path'), vm = require('node:vm');
-let JSDOM; try { ({ JSDOM } = require('jsdom')); } catch (error) { console.log('window: skipped, needs jsdom (set NODE_PATH)'); process.exit(0); }
+let JSDOM; try { ({ JSDOM } = require('jsdom')); } catch (error) { console.log(process.env.RELEASE_CHECK ? 'window: FAILED in a release run: needs jsdom (set NODE_PATH)' : 'window: skipped, needs jsdom (set NODE_PATH)'); process.exit(process.env.RELEASE_CHECK ? 1 : 0); }
 const { logseq } = require('./graph.js');
 const { root, order } = require('../../test/module.js')('export');
 const dom = new JSDOM('<html><body><div id="head" class="drag-region"></div><div id="main-content-container"></div></body></html>', { pretendToBeVisual: true });

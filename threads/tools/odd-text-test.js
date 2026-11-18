@@ -16,7 +16,7 @@ const ODD = require('./odd-names');
 
 let chromium;
 for (const where of ['playwright', '/Users/admin/logseq-value/logseq-plugin-old/node_modules/playwright']) { try { ({ chromium } = require(where)); break; } catch (error) { /* try the next */ } }
-if (!chromium) { console.log('odd-text-test skipped (needs Playwright and Chromium)'); process.exit(0); }
+if (!chromium) { console.log((process.env.RELEASE_CHECK ? 'odd-text-test FAILED in a release run (' : 'odd-text-test skipped (') + 'needs Playwright and Chromium)'); process.exit(process.env.RELEASE_CHECK ? 1 : 0); }
 const root = path.resolve(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const exposeAtEnd = (source, names) => source.replace(/\}\)\(\);\s*$/, `${names.map(n => `window.__${n} = ${n};`).join(' ')} })();`);
@@ -50,7 +50,7 @@ function oddLogseq(names) {
 
 (async () => {
   let browser;
-  try { browser = await chromium.launch(); } catch (error) { console.log('odd-text-test skipped (Chromium did not start)'); process.exit(0); }
+  try { browser = await chromium.launch(); } catch (error) { console.log((process.env.RELEASE_CHECK ? 'odd-text-test FAILED in a release run (' : 'odd-text-test skipped (') + 'Chromium did not start)'); process.exit(process.env.RELEASE_CHECK ? 1 : 0); }
   const problems = [], lines = [];
   const page = await browser.newPage({ viewport: { width: 1000, height: 800 } });
   const errors = [];
