@@ -46,6 +46,7 @@ test('a weekday, a relative span, a day and month', () => {
   assert.deepEqual(r.daysInWords('Appointment on Friday', base), [20261030]);
   assert.deepEqual(r.daysInWords('Scan in two weeks', base), [20261111]);
   assert.deepEqual(r.daysInWords('Flight 4 Aug', base), [20270804]);
+  assert.deepEqual(r.daysInWords('Flight $400, 4 Aug$', base), [20270804]);   // Logseq's paired $ at the end
 });
 test('a day that just went stays past, today\'s weekday stays silent, and a word that points ahead wins', () => {
   const written = 20261023;   // a Friday
@@ -92,6 +93,28 @@ test('a number beside a property name, and never two', () => {
   assert.equal(r.numberInWords('Chemo cycle 5 done', 'Cycle'), 5);
   assert.equal(r.numberInWords('Did 3 rounds today', 'Round'), 3);
   assert.equal(r.numberInWords('cycles 3 and 4 done', 'Cycle'), null);
+});
+test('a sum beside a property name is read whole, and is never the next name\'s', () => {
+  const names = ['Premium', 'Coverage', 'Deductible'], line = 'Home policy premium $1,240 coverage $350,000 deductible $1,000 renews Mar 3';
+  assert.equal(r.numberInWords(line, 'Premium', names), 1240);
+  assert.equal(r.numberInWords(line, 'Coverage', names), 350000);
+  assert.equal(r.numberInWords(line, 'Deductible', names), 1000);
+  assert.equal(r.numberInWords('Kitchen remodel target $25,000 saved $4,000.98', 'Saved', ['Target', 'Saved']), 4000.98);
+  assert.equal(r.numberInWords('Switched to a $1,000 deductible', 'Deductible', names), 1000);
+  assert.equal(r.numberInWords('2026 tax return refund €1.240,50', 'Refund'), 1240.5);
+  assert.equal(r.moneyInWords('Paid €1.240,50 for the boiler'), 1240.5);
+  assert.equal(r.moneyInWords('Desk chair $4,000.98'), 4000.98);
+  assert.equal(r.moneyInWords('Desk chair $4,000.98$'), 4000.98);   // Logseq's paired $ at the end
+  assert.equal(r.numberInWords('premium $1,240 renews Mar 3$', 'Premium'), 1240);
+  assert.equal(r.moneyInWords('costs 5$'), 5);
+  assert.equal(r.moneyInWords('Paycheck $3.9k'), 3900);
+  assert.equal(r.moneyInWords('Groceries $84 and wine $22, $106 total'), 106);
+  assert.equal(r.moneyInWords('Groceries $84 and wine $22 came to $106'), 106);
+  assert.equal(r.moneyInWords('Groceries $84 and wine $22'), null);
+});
+test('a plain number is the sum only where it can be nothing else', () => {
+  for (const [t, n] of [['Gas 64.28', 64.28], ['Paycheck 3850', 3850], ['Coffee at 8am 5.10', 5.1], ['Dinner for 2, 84.50', 84.5], ['Ride home 23.92 with 2 people', 23.92]]) assert.equal(r.plainSum(t), n, t);
+  for (const t of ['2 lattes', 'Coffee Nov 20', 'Coffee on the 20th', 'Dinner for 2', 'Paycheck 2026', 'Cycle 5', 'Gym 3 times this week', 'Coffee 5.10 and 6.20', 'Flight 412.80 on 11/20']) assert.equal(r.plainSum(t), null, t);
 });
 test('a locale can replace the words (Spanish weekdays)', () => {
   const es = dates.makeReader({ ...dates.en, name: 'es', weekdays: ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'], weekdayPattern: '(?:domingo|lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado)', wholeWeekdaySuffix: '', before: ['el'], relative: { hoy: 0, 'mañana': 1, ayer: -1 } });
@@ -209,7 +232,7 @@ test('a lower tag threshold offers a tag that the strict one holds back, and a p
   const g = synthetic.work(), line = bullet({ text: 'Sync about the database', page: journal(g, 20261028) });
   const tagOf = () => propose(g.ctx, line).pieces.find(p => p.kind === 'tag');
   assert.equal(g.ctx.limits.tagNearLeast, .6);
-  g.ctx.limits.tagGap = 0;   // the vote alone (the profile is tried below)
+  Object.assign(g.ctx.limits, { tagGap: 0, twinLeast: 0 });   // the vote alone (the profile and the twins are tried below)
   const strict = tagOf();
   Object.assign(g.ctx.limits, { tagNearLeast: .25, tagLead: .6 });
   const loose = tagOf();
@@ -219,7 +242,7 @@ test('a lower tag threshold offers a tag that the strict one holds back, and a p
 });
 test('the tags\' word profiles offer a tag the vote holds back, when the words lead clearly', () => {
   const g = synthetic.work();
-  Object.assign(g.ctx.limits, { tagNearLeast: .99, tagGap: 3 });   // the vote cannot speak; only the profile can
+  Object.assign(g.ctx.limits, { tagNearLeast: .99, tagGap: 3, twinLeast: 0 });   // the vote and the twins cannot speak; only the profile can
   const p = profileOf(g.ctx);
   assert.deepEqual(p.classes.map(c => c === 0 ? 'plain' : g.ctx.byId.get(c).title).sort(), ['Action', 'Meeting', 'plain'], 'the tags bullets carry, and plain; not Person or Project (pages only)');
   const got = propose(g.ctx, bullet({ text: 'Sync about the roadmap and database', page: journal(g, 20261028) })).pieces.find(p => p.kind === 'tag');
@@ -335,6 +358,62 @@ test('with two money properties, earlier bullets like this one say which takes t
   assert.equal(odd.pieces.filter(p => p.kind === 'number').length, 0, 'two money names and no bullet like it: nothing');
 });
 
+test('each day in the words goes to the date its words say: due, scheduled, start, end, completed', () => {
+  const g = synthetic.build({
+    tags: ['Job'],
+    props: ['Due date', 'Scheduled for', 'Start date', 'End date', 'Completed on'].map(title => ({ title, type: 'date', on: ['Job'] })),
+    people: {},
+    lines() {},
+    plain() {},
+  });
+  const days = t => Object.fromEntries(propose(g.ctx, bullet({ text: t, tags: [g.tagPage.Job.id], page: journal(g, 20261117) })).pieces.filter(p => p.kind === 'day').map(p => [p.prop.title, p.day]));
+  assert.deepEqual(days('Fix the gutter, due Dec 5'), { 'Due date': 20261205 });
+  assert.deepEqual(days('Plumber coming Friday'), { 'Scheduled for': 20261120 });
+  assert.deepEqual(days('Kitchen remodel Jan 5–Jun 30'), { 'Start date': 20270105, 'End date': 20270630 });
+  assert.deepEqual(days('Painting between Dec 1 and Dec 12'), { 'Start date': 20261201, 'End date': 20261212 });
+  assert.deepEqual(days('Painting starting Dec 1, ends Dec 12'), { 'Start date': 20261201, 'End date': 20261212 });
+  assert.deepEqual(days('Permit expires Mar 1'), { 'End date': 20270301 });
+  assert.deepEqual(days('Paid the roofer Nov 14'), { 'Completed on': 20261114 });
+  assert.deepEqual(days('Water heater swapped last Thursday'), { 'Completed on': 20261112 });
+  assert.deepEqual(days('Window replaced Nov 9, invoice due Dec 9'), { 'Completed on': 20261109, 'Due date': 20261209 });
+  assert.deepEqual(days('Deck stain from Nov 2 to Nov 6, paid Nov 7'), { 'Start date': 20261102, 'End date': 20261106, 'Completed on': 20261107 });
+  assert.deepEqual(days('Due date Dec 5 for the quote'), { 'Due date': 20261205 }, "the property's own name is a cue");
+  assert.deepEqual(days('Went to the dentist, then the bank'), {}, 'no day, nothing');
+  assert.deepEqual(days('Call about Nov 20 or Nov 24'), {}, 'two days with nothing to tell them apart: nothing');
+});
+
+test('a wording you filled by hand teaches its date: "cutoff", "last day"; a day you put in no date teaches nothing (core/date-words.js)', () => {
+  const g = synthetic.build({
+    tags: ['Job'],
+    props: ['Due date', 'Scheduled for', 'Start date', 'End date', 'Completed on'].map(title => ({ title, type: 'date', on: ['Job'] })),
+    people: {}, lines() {}, plain() {},
+  });
+  const { learnEntry } = require('../core/context.js');
+  const ident = t => g.ctx.schema.props.find(p => p.title === t).ident;
+  const job = [g.tagPage.Job.id];
+  const days = t => Object.fromEntries(propose(g.ctx, bullet({ text: t, tags: job, page: journal(g, 20261117) })).pieces.filter(p => p.kind === 'day').map(p => [p.prop.title, p.day]));
+  assert.deepEqual(days('Fence cutoff Dec 10'), {}, 'not taught: nothing');
+  // Days as journal pages, and nodes where those days were filled by hand.
+  let id = 90000; const dayPage = d => { const pid = ++id; g.ctx.days.set(pid, d); return pid; };
+  const page = dayPage(20261101);
+  const teach = (title, filled) => learnEntry(g.ctx, ++id, { title, tags: job, page, values: new Map(), dates: new Map(Object.entries(filled).map(([t, d]) => [ident(t), [dayPage(d)]])) });
+  teach('Roof repair cutoff Dec 4', { 'Due date': 20261204 });
+  teach('Painting last day is Dec 12', { 'End date': 20261212 });
+  teach('Plumber visit Nov 20', { 'Scheduled for': 20261120 });
+  teach('Gutter cleaning Nov 24, invoice due Nov 30', { 'Due date': 20261130 });   // the cleaning day put in no date
+  assert.deepEqual(days('Fence cutoff Dec 10'), { 'Due date': 20261210 });
+  assert.deepEqual(days('Deck stain last day Dec 18'), { 'End date': 20261218 });
+  assert.deepEqual(days('Electrician visit Dec 3'), { 'Scheduled for': 20261203 });
+  assert.deepEqual(days('Electrician visit Nov 9'), {}, 'taught for a day ahead: a day gone by is not scheduled by it');
+  assert.deepEqual(days('Gutter cleaning Dec 2'), {}, 'words before a day you left out name no date');
+  assert.deepEqual(days('Fence due Dec 10'), { 'Due date': 20261210 }, 'the word lists still read');
+  teach('Electrician visited Oct 28', { 'Completed on': 20261028 });
+  assert.deepEqual(days('Painter visited Nov 12'), { 'Completed on': 20261112 }, 'one base form, taught both ways, read by the way of the day');
+  assert.deepEqual(days('Painter visit Dec 8'), { 'Scheduled for': 20261208 });
+  teach('Siding commenced Nov 2', { 'Start date': 20261102 });
+  assert.deepEqual(days('Siding commences Nov 25'), { 'Start date': 20261125 }, 'another form of a taught word');
+});
+
 section('lessons: what you do with a suggestion (core/lessons.js)');
 test('a lesson is written as a plain line and read back the same', () => {
   const L = require('../core/lessons.js'), lessons = new Map();
@@ -375,11 +454,57 @@ test('a sum moved by hand to another property twice is proposed there, if that p
 });
 
 section('a tag waits for enough words');
-test('a line of three words gets no tag, the same line of four does', () => {
-  const g = synthetic.work(), loose = { ...g.ctx, limits: { ...g.ctx.limits, tagNearLeast: .2, tagLead: .5 } };
+test('a line of three words gets no tag from the vote, the same line of four does', () => {
+  const g = synthetic.work(), loose = { ...g.ctx, limits: { ...g.ctx.limits, tagNearLeast: .2, tagLead: .5, twinLeast: 0 } };
   const tagOf = t => propose(loose, bullet({ text: t, page: journal(g, 20261028) })).pieces.find(p => p.kind === 'tag');
   assert.equal(tagOf('Sync about database'), undefined);
   assert.ok(tagOf('Sync about the database'));
+});
+
+section('the same words as before (core/tag-score.js twinOf)');
+const { buildContext } = require('../core/context.js');
+const tagScore = require('../core/tag-score.js');
+// A small graph of short notes: Purchase and Bill payment, some written without a tag.
+function shortNotes(lines) {
+  const pages = [{ id: 1, uuid: synthetic.uuid(1), title: 'Purchase', lower: 'purchase', tags: [], isTag: true }, { id: 2, uuid: synthetic.uuid(2), title: 'Bill payment', lower: 'bill payment', tags: [], isTag: true }];
+  const entries = lines.map(([title, tag], i) => ({ id: 100 + i, title, tags: tag ? [tag] : [], values: new Map() }));
+  return buildContext({ schema: { props: [], byId: new Map(), classProps: new Map(), parentsOf: new Map() }, pages, userTagIds: [1, 2], entries });
+}
+test('one word written before with a tag gets that tag at once, in any case and form', () => {
+  const ctx = shortNotes([['Coffee', 1], ['coffee', 1], ['Gas bill', 2], ['Paid the bills', 2], ['Walked to the park', null]]);
+  const tagOf = t => propose(ctx, bullet({ text: t })).pieces.find(p => p.kind === 'tag');
+  assert.equal(tagOf('coffee')?.tag.title, 'Purchase');
+  assert.equal(tagOf('paid the bill')?.tag.title, 'Bill payment', 'bills and bill, paid and paid: the base forms meet');
+  assert.match(tagOf('Coffee').why, /written like this 2 times before/);
+  assert.equal(tagOf('Walked to the park'), undefined, 'a plain twin gives no tag');
+  assert.equal(tagOf('tea'), undefined, 'words never written');
+});
+test('a sum in the words does not make them different words', () => {
+  const ctx = shortNotes([['Gas', 1], ['gas $58.30', 1], ['Electricity bill', 2]]);
+  const tagOf = t => propose(ctx, bullet({ text: t })).pieces.find(p => p.kind === 'tag');
+  assert.equal(tagOf('Gas 64.28')?.tag.title, 'Purchase');
+  assert.equal(tagOf('gas $61')?.tag.title, 'Purchase');
+  assert.equal(tagOf('Electricity bill $3.1k')?.tag.title, 'Bill payment');
+});
+test('untagged twins count against a tag only when they outnumber the tagged ones', () => {
+  const some = shortNotes([['Gas', 1], ['Gas', 1], ['Gas', null]]), most = shortNotes([['Gas', 1], ['Gas', null], ['Gas', null]]);
+  assert.equal(tagScore.twinOf(some, { id: -1 }, 'gas')?.id, 1);
+  assert.equal(tagScore.twinOf(most, { id: -1 }, 'gas'), null);
+});
+test('near twins must name the same thing: "Phone case" is not "Phone"', () => {
+  const ctx = shortNotes([['Car insurance paid', 2], ['car insurance', 2], ['Phone', 2], ['Phone paid', 2], ['Phone bill', 2]]);
+  assert.equal(tagScore.twinOf(ctx, { id: -1 }, 'car insurance paid today')?.id, 2);
+  assert.equal(tagScore.twinOf(ctx, { id: -1 }, 'Phone case'), null);
+});
+test('Option-T lists the tag the same words carried first, saying so', () => {
+  const ctx = shortNotes([['Phone case', 1], ['Phone', 2], ['Phone', 2]]);
+  const { tagChoices } = require('../core/propose.js');
+  const first = tagChoices(ctx, bullet({ text: 'Phone case' }))[0];
+  assert.equal(first?.tag.title, 'Purchase'); assert.equal(first.how, 'twin');
+});
+test('two tags among the twins with no clear lead: nothing', () => {
+  const ctx = shortNotes([['Netflix', 1], ['Netflix', 2]]);
+  assert.equal(tagScore.twinOf(ctx, { id: -1 }, 'Netflix'), null);
 });
 
 section('choosing a tag from the pages a line names');
@@ -398,7 +523,7 @@ test('a name typed in plain words, with no brackets, counts the same as a link',
 });
 test('a line that names nothing is ordered by its words alone, and a plain note gets no list', () => {
   const choices = tagChoices(work.ctx, bullet({ text: 'Sync about the schema migration and index' }));
-  assert.equal(choices[0].tag.title, 'Meeting'); assert.ok(choices.every(c => c.how === 'words'));
+  assert.equal(choices[0].tag.title, 'Meeting'); assert.ok(choices.every(c => c.how === 'words' || c.how === 'twin'), 'from the words alone: by its words, or written like this before');
   assert.deepEqual(tagChoices(work.ctx, bullet({ text: 'Coffee machine is broken again' })), []);
 });
 test('a bullet that already has a tag, or one typed in its words, is not offered another', () => {
@@ -460,7 +585,8 @@ const clinic = synthetic.build({
 });
 const visit = (text, over = {}) => bullet({ id: -5, text, tags: [clinic.tagPage.Consultation.id], page: { id: 9902, uuid: synthetic.uuid(9902), title: 'Nov 2', day: 20261102, tags: [] }, ...over });
 const askAbout = b => { const result = propose(clinic.ctx, b); return { result, req: modelLib.request(clinic.ctx, b, result, 20261102) }; };
-const said = 'Saw Dr. Mei Chen with Ruth Okoro about the fatigue, 5 mg from 9 Nov until 13 Nov';
+// Two days with no word to say which is the start: left to the model ("from 9 Nov until 13 Nov" the rules read since 17 November 2026).
+const said = 'Saw Dr. Mei Chen with Ruth Okoro about the fatigue, 5 mg, 9 Nov and 13 Nov';
 const byTitle = req => new Map(req.fill.properties.map(p => [p.title, p]));
 test('asked only what the rules left open or guessed from plain words: the pages the words name, and nothing where they name none', () => {
   const { result, req } = askAbout(visit(said));

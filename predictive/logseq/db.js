@@ -146,25 +146,27 @@ async function datedByTag(dateIdent) {
 
 // numbers: the number properties the node holds a value in (which, not the value), for learning which property a sum of money
 // in the words goes to (core/propose.js, money).
-const rawEntry = (node, learned, known, numberProps = []) => {
+const rawEntry = (node, learned, known, numberProps = [], dateProps = []) => {
   const tags = listOf(pick(node, 'block/tags')).map(idOf).filter(id => known.has(id));
   const page = idOf(pick(node, 'block/page'));
   return { id: idOf(node), title: String(pick(node, 'block/title') ?? ''), tags, ...(page != null ? { page } : {}), values: new Map(learned.map(p => [p.ident, valuesOf(node, p.ident)]).filter(([, v]) => v.length)),
-    numbers: numberProps.filter(p => valuesOf(node, p.ident).length).map(p => p.ident) };
+    numbers: numberProps.filter(p => valuesOf(node, p.ident).length).map(p => p.ident),
+    // dates: the days you filled in, for learning which words put a day in which date (core/date-words.js)
+    dates: new Map(dateProps.map(p => [p.ident, valuesOf(node, p.ident)]).filter(([, v]) => v.length)) };
 };
 
 // The whole reading: the schema, the pages, the earlier lines, the days. A few hundred milliseconds on a large graph; done in
 // the background every few minutes and never while a key is being handled.
 async function readContext({ limits = {}, locale, linkRates = true } = {}) {
   const [schema, pages] = await Promise.all([loadSchema(), loadPages()]);
-  const learned = schema.props.filter(isLinkProp), numberProps = schema.props.filter(p => p.type === 'number');
+  const learned = schema.props.filter(isLinkProp), numberProps = schema.props.filter(p => p.type === 'number'), dateProps = schema.props.filter(isDateProp);
   const tagIds = await userTagIds(), known = new Set(tagIds);
-  const [nodes, aliases, plain, days] = await Promise.all([taggedNodes(tagIds, [...learned, ...numberProps].map(p => p.ident)).catch(() => []), aliasPairs(), plainLines(), journalDays()]);
+  const [nodes, aliases, plain, days] = await Promise.all([taggedNodes(tagIds, [...learned, ...numberProps, ...dateProps].map(p => p.ident)).catch(() => []), aliasPairs(), plainLines(), journalDays()]);
   const dated = new Map();
   for (const prop of schema.props.filter(isDateProp)) dated.set(prop.ident, await datedByTag(prop.ident));
-  const entries = [...plain.map(({ id, title, page }) => ({ id, title, page, tags: [], values: new Map() })), ...nodes.map(n => rawEntry(n, learned, known, numberProps))];
+  const entries = [...plain.map(({ id, title, page }) => ({ id, title, page, tags: [], values: new Map() })), ...nodes.map(n => rawEntry(n, learned, known, numberProps, dateProps))];
   const ctx = buildContext({ schema, pages, aliases, userTagIds: tagIds, entries, days, dated, limits, locale });
-  ctx.learned = learned; ctx.numberProps = numberProps; ctx.readAt = Date.now(); ctx.dayTitles = new Map(dayTitles);
+  ctx.learned = learned; ctx.numberProps = numberProps; ctx.dateProps = dateProps; ctx.readAt = Date.now(); ctx.dayTitles = new Map(dayTitles);
   if (linkRates) ctx.linkLines = await countLinks(pages);
   return ctx;
 }
@@ -194,13 +196,16 @@ async function learnNodes(ctx, ids) {
   const list = [...new Set(ids)].filter(isEntityId);
   if (!ctx?.index || !list.length) return;
   const known = ctx.knownTags, lessonsId = await lessonsPageId();
-  const nodes = new Map((await nodesById(list, [...ctx.learned, ...(ctx.numberProps || [])].map(p => p.ident))).map(n => [idOf(n), n]));
+  const nodes = new Map((await nodesById(list, [...ctx.learned, ...(ctx.numberProps || []), ...(ctx.dateProps || [])].map(p => p.ident))).map(n => [idOf(n), n]));
   for (const id of list) {
     let node = nodes.get(id);
     if (node && lessonsId && idOf(pick(node, 'block/page')) === lessonsId) node = null;   // a line of the lessons page: not yours, never learned
     if (ctx.linkLines) learnLine(ctx, id, node && pick(node, 'block/page') ? String(pick(node, 'block/title') ?? '') : '');
     if (!node) { learnEntry(ctx, id, null); continue; }
-    const raw = rawEntry(node, ctx.learned, known, ctx.numberProps || []), anyTags = listOf(pick(node, 'block/tags')).length;
+    const raw = rawEntry(node, ctx.learned, known, ctx.numberProps || [], ctx.dateProps || []), anyTags = listOf(pick(node, 'block/tags')).length;
+    // A day page made since the graph was read (a date just filled in): its day, so the date teaches at once (core/date-words.js).
+    const newDays = [...raw.dates.values()].flat().filter(d => !ctx.days.has(d));
+    if (newDays.length) for (const [p, d] of await dsQuery(`[:find ?p ?d :where [(ground #{${newDays.join(' ')}}) [?p ...]] [?p :block/journal-day ?d]]`).catch(() => [])) ctx.days.set(Number(p), Number(d));
     // Tagged only with tags that are not yours: not learned from. Plain (no tag at all): learned as a plain line.
     learnEntry(ctx, id, raw.tags.length || !anyTags ? raw : null);
   }

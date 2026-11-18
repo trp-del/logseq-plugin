@@ -42,9 +42,10 @@ const en = {
     partOfToday: 'this (?:morning|afternoon|evening)',
     nextUnit: 'next (week|month|year)',
     lastUnit: 'last (week|month|year)',
+    lastWeekday: 'last',   // "last Thursday": the one before today
     from: 'from',                                // "a week from Monday", "two weeks from Friday"
     ago: 'ago',                                  // "three weeks ago"
-    endOf: '(?:the )?end of (?:the |this )?(month|next month|the year|this year)',
+    endOf: '(?:the )?end of (?:the |this )?(month|next month|the year|this year|next year)',
     startOf: '(?:the )?(?:start|beginning) of (next month|the month|this month|next year)',
     partOfMonth: '(early|mid|late)[ -]',         // "early December", "mid-January"
     partDay: { early: 1, mid: 15, late: 25 },
@@ -70,9 +71,29 @@ const en = {
     after: '[$€£¥₹]|dollars?|bucks|euros?|pounds?|quid|usd|eur|gbp|chf|cad|aud|yen|francs?|rupees?',
     names: ['amount', 'cost', 'costs', 'price', 'fee', 'fees', 'paid', 'payment', 'pay', 'total', 'spent', 'spend', 'charge', 'charged', 'bill', 'billed',
       'budget', 'expense', 'expenses', 'balance', 'refund', 'refunded', 'owed', 'owe', 'debt', 'fare', 'rent', 'copay', 'co-pay', 'deposit', 'sum', 'invoice', 'salary', 'income'],
+    total: { before: 'total(?:\\s+of)?|totalling|totaling|came\\s+to|comes\\s+to|in\\s+all|altogether|all\\s+in|=', after: 'total|in\\s+total|in\\s+all|altogether|all\\s+in' },   // which of several sums is the total
   },
-  deadline: { words: ['due', 'deadline', 'by'], not: ['to'], names: ['deadline', 'due'] },   // "due to the pain" is a cause
-  scheduled: { words: ['scheduled for', 'scheduled on', 'scheduled', 'planned for', 'booked for', 'set for'], names: ['scheduled', 'schedule', 'planned'] },
+  plainSum: {   // a plain number read as the sum: the words before or after that make it something else
+    notAfter: ['for', 'with', 'cycle', 'round', 'dose', 'day', 'week', 'no', 'number', 'of', 'the', 'on', 'by', 'at', 'every', 'each', 'in', 'from', 'to', 'until', 'till', 'since', 'after', 'before', 'page', 'p', 'step', 'floor', 'room', 'level', 'grade', 'size', 'age', 'aged', 'year', 'route', 'gate', 'seat', 'flight', 'apt', 'unit', 'suite'],
+    notBefore: ['am', 'pm', '%', 'x', 'times', 'people', 'km', 'mi', 'kg', 'lb', 'h', 'hr', 'min', 'of', 'percent', 'minutes', 'hours', 'days', 'weeks', 'months', 'years', 'nights', 'st', 'nd', 'rd', 'th'],
+    notCount: ['dollars', 'bucks', 'euros', 'pounds', 'francs', 'rupees'],
+  },
+  deadline: { words: ['due', 'deadline', 'by', 'before', 'b4', 'no later than', 'latest'], not: ['to'], loose: ['due', 'deadline'], notLoose: ['due to'], after: ['deadline'], notAfter: ['day', 'week', 'month', 'night'], notAfterOther: ['start', 'end'], names: ['deadline', 'due'] },   // "due to the pain" is a cause
+  scheduled: { words: ['scheduled for', 'scheduled on', 'scheduled', 'planned for', 'booked for', 'booked', 'set for', 'coming', 'comes', 'arriving', 'arrives', 'visiting', 'appointment', 'appt'], loose: ['scheduled', 'booked', 'appointment', 'appt'], names: ['scheduled', 'schedule', 'planned', 'appointment'] },
+  /* start, end, completed (17 November 2026, the owner: "recognize using words as cues for deadline vs scheduled vs start and end
+     date vs completed"). start: a day right after a word that says something begins ("starts Dec 1", "starting Monday", "since
+     the 4th"). end: right after a word that says it stops ("until Dec 12", "ends Friday", "expires Mar 1"). completed: a day in a
+     part of the sentence that says it was done ("paid Nov 20", "fixed the leak on Nov 12", "window replaced Nov 9"): a word of
+     these, or any verb in the past (by the grammar library) for a day not after the day written. */
+  start: { words: ['starts', 'starting', 'start', 'started', 'begins', 'beginning', 'begin', 'began', 'since', 'effective', 'opens', 'opening', 'kicks off', 'kicking off', 'from'], aheadOnly: ['from'], loose: ['starts', 'begins'], names: ['start', 'starts', 'begin', 'beginning', 'since', 'effective', 'opened', 'opening', 'onset'] },
+  end: { words: ['until', 'till', 'til', 'through', 'thru', 'ends', 'ending', 'ended', 'end', 'expires', 'expiring', 'expired', 'closes', 'closing', 'wraps up', 'wrapping up', 'finishes', 'finishing'], loose: ['ends', 'expires'], names: ['end', 'ends', 'until', 'expires', 'expiry', 'expiration', 'through', 'closing', 'stop'] },
+  completed: { words: ['done', 'finished', 'completed', 'paid', 'filed', 'submitted', 'sent', 'received', 'closed', 'settled', 'delivered', 'returned', 'resolved', 'fixed', 'signed', 'approved', 'repaid', 'happened'], past: true,
+    names: ['completed', 'complete', 'done', 'finished', 'paid', 'closed', 'resolved', 'filed', 'submitted', 'received', 'delivered', 'settled'] },
+  // Two days joined as one span: "from Jan 5 to Jun 30", "Jan 5–Jun 30", "between Dec 1 and Dec 12": the first is the start, the second the end.
+  particles: ['up', 'off', 'out', 'over', 'down', 'back', 'away', 'through', 'around', 'along', 'by', 'from', 'with', 'about', 'than', 'then', 'and', 'or', 'but', 'so', 'as', 'if', 'when', 'me', 'you', 'we', 'they', 'he', 'she', 'him', 'her', 'us', 'them', 'i', 'my', 'our', 'your', 'their'],   // never a date word alone, when learning (core/date-words.js)
+  cueFiller: ['on', 'for', 'the', 'is', 'was', 'are', 'were', 'be', 'been', 'will', 'at', 'a', 'an', 'of', 'it', 'its', 'to', 'this', 'that', 'in'],   // small words passed over when learning the words before a day (core/date-words.js)
+  dayLeads: ['end', 'start', 'beginning', 'early', 'mid', 'late', 'last'],   // words a day can begin with: "end of the month", "early December"
+  range: { openers: ['from', 'between'], joiners: ['to', 'until', 'till', 'til', 'through', 'thru', 'and'], needsOpener: ['and'] },
 };
 
 const dayAfter = (date, n) => { const d = new Date(date.getFullYear(), date.getMonth(), date.getDate()); d.setDate(d.getDate() + n); return d; };
@@ -130,7 +151,7 @@ function makeReader(locale = en) {
     let words = ' ' + cleanWords(text).toLowerCase().replace(/(\d)[./](?=\d)/g, '$1/').replace(/[.,;:!?()]/g, ' ') + ' ';
     const today = asDate(base), found = new Set();
     const add = date => { if (date && !Number.isNaN(date.getTime())) found.add(dayNumber(date)); };
-    const pointsAhead = L.ahead.test(text), tellsPast = !pointsAhead && L.past.test(text);
+    const pointsAhead = L.ahead.test(text), tellsPast = !pointsAhead && (L.past.test(text) || pastAction(text));
     words = phrasesRead(words, today, add, pointsAhead);
     for (const [, word] of words.matchAll(new RegExp(`\\s(${Object.keys(L.relative).join('|')})\\s`, 'g'))) add(parseDay(word, today));
     for (const [, next, on, day] of words.matchAll(new RegExp(`\\s(?:(${escape(L.next)})\\s+|(${L.before.map(escape).join('|')})\\s+)?(${L.weekdayPattern})(?=\\s)`, 'g'))) {
@@ -181,6 +202,8 @@ function makeReader(locale = en) {
     read(P.dayAfterTomorrow, () => dayAfter(today, 2));
     read(P.dayBeforeYesterday, () => dayAfter(today, -2));
     read(P.partOfToday, () => today);
+    // "a week from today", "two days from tomorrow": the span from that day (17 November 2026: it was read as today).
+    if (L.relative.today != null) read(`(${nums}|a|an)\\s+(${units})\\s+${escape(L.from || 'from')}\\s+(${Object.keys(L.relative).map(escape).join('|')}|now)`, (n, unit, rel) => span(rel === 'now' ? today : dayAfter(today, L.relative[rel]), unit, num(n) || 1));
     // "a week from Monday": the weekday coming, then the span.
     read(`(${nums})\\s+(${units})\\s+${escape(P.from)}\\s+${weekday}`, (n, unit, wd) => { const d = parseDay(wd, today); return d ? span(d, unit, num(n)) : null; });
     read(`(${nums})\\s+(${units})\\s+${escape(P.ago)}`, (n, unit) => span(today, unit, -num(n)));
@@ -193,12 +216,13 @@ function makeReader(locale = en) {
       if (said < 0) { const from = next ? monthsAfter(today, 1) : today; return pick(from.getFullYear(), from.getMonth()); }
       let date = pick(today.getFullYear(), said); if (date && date < today) date = pick(today.getFullYear() + 1, said); return date;
     });
-    read(P.endOf, which => which.includes('next') ? new Date(today.getFullYear(), today.getMonth() + 2, 0) : which.includes('year') ? new Date(today.getFullYear(), 11, 31) : new Date(today.getFullYear(), today.getMonth() + 1, 0));
+    read(P.endOf, which => which.includes('year') ? new Date(today.getFullYear() + (which.includes('next') ? 1 : 0), 11, 31) : which.includes('next') ? new Date(today.getFullYear(), today.getMonth() + 2, 0) : new Date(today.getFullYear(), today.getMonth() + 1, 0));
     read(P.startOf, which => which.includes('year') ? new Date(today.getFullYear() + 1, 0, 1) : which.includes('next') ? new Date(today.getFullYear(), today.getMonth() + 1, 1) : new Date(today.getFullYear(), today.getMonth(), 1));
     read(`${P.partOfMonth}${month}`, (part, mo) => { const m = monthOf(mo); return m < 0 ? null : nearest(m, P.partDay[part]); });
     // "next week" alone: a week on; with a weekday too ("Monday next week") the weekday says the day.
     const weekdayToo = new RegExp(`\\s${L.weekdayPattern}\\s`).test(words);
     read(P.nextUnit, unit => unit === 'week' ? (weekdayToo ? undefined : dayAfter(today, 7)) : unit === 'month' ? monthsAfter(today, 1) : monthsAfter(today, 12));
+    if (P.lastWeekday) read(`${escape(P.lastWeekday)}\\s+(${L.weekdayPattern})`, wd => { const w = weekdayIndex(wd); if (w < 0) return null; const back = (today.getDay() - w + 7) % 7 || 7; return dayAfter(today, -back); });
     read(P.lastUnit, unit => unit === 'week' ? (weekdayToo ? undefined : dayAfter(today, -7)) : unit === 'month' ? monthsAfter(today, -1) : monthsAfter(today, -12));
     for (const [name, [mo, d]] of Object.entries(P.named).sort((a, b) => b[0].length - a[0].length)) read(escape(name), () => nearest(mo, d));
     if (L.numericDate) read('(\\d{1,2})/(\\d{1,2})(?:/(\\d{4}|\\d{2}))?', (a, b, y) => {
@@ -211,27 +235,68 @@ function makeReader(locale = en) {
     return words;
   }
 
-  // The number written beside a number property's name ("cycle 5", "5 cycles"), or null; two different ones, null.
-  function numberInWords(text, propTitle) {
-    const words = ' ' + cleanWords(text).toLowerCase().replace(/[,;:!?()]/g, ' ').replace(/\.(?=\s|$)/g, ' ') + ' ', found = new Set();
-    const name = String(propTitle).toLowerCase().replace(/[^\p{L}\p{N} ]/gu, ' ').trim();
+  // The number written beside a number property's name ("cycle 5", "5 cycles", "deductible $1,000", "a $1,000 deductible"), or
+  // null; two different ones, null. A sum is read whole, commas and all. Pass the names of the bullet's other number properties
+  // (others): a number right after another one's name is that one's, so in "coverage $350,000 deductible $1,000" the 350,000 is
+  // never read as a number before Deductible.
+  // A sum written with separators, as one plain number: "4,000.98" and the European "4.000,98" are 4000.98, "350,000" is 350000.
+  const wholeNumbers = t => t.replace(/(\d{1,3}(?:\.\d{3})+),(\d{1,2})(?!\d)/g, (m, w, c) => w.replace(/\./g, '') + '.' + c).replace(/\d{1,3}(?:,\d{3})+(?!\d)/g, m => m.replace(/,/g, ''));
+  function numberInWords(text, propTitle, others = []) {
+    const words = ' ' + wholeNumbers(cleanWords(text).toLowerCase()).replace(/[,;:!?()]/g, ' ').replace(/\.(?=\s|$)/g, ' ') + ' ', found = new Set();
+    const nameOf = t => String(t).toLowerCase().replace(/[^\p{L}\p{N} ]/gu, ' ').trim();
+    const name = nameOf(propTitle);
     if (!name) return null;
-    const esc = escape(name).replace(/\s+/g, '\\s+');
+    const pattern = n => escape(n).replace(/\s+/g, '\\s+');
+    const cash = L.money ? `(?:(?:${L.money.before})\\s?)?` : '';
     const marks = `(?:${L.numberMarks.join('|')})?`, joiners = L.numberJoiners.map(escape).join('|');
-    for (const [, n] of words.matchAll(new RegExp(`\\s${esc}s?\\s+${marks}(\\d+(?:\\.\\d+)?)(?=\\s)(?!\\s+(?:${joiners})\\s+\\d)`, 'g'))) found.add(Number(n));
-    for (const [, n] of words.matchAll(new RegExp(`\\s(\\d+(?:\\.\\d+)?)\\s+${esc}s?\\s`, 'g'))) found.add(Number(n));
+    const after = n => new RegExp(`\\s${pattern(n)}s?\\s+${marks}${cash}(\\d+(?:\\.\\d+)?)(?=\\s)(?!\\s+(?:${joiners})\\s+\\d)`, 'gd');
+    const claimed = new Set();
+    for (const t of others) { const o = nameOf(t); if (o && o !== name) for (const m of words.matchAll(after(o))) claimed.add(m.indices[1][0]); }
+    for (const m of words.matchAll(after(name))) found.add(Number(m[1]));
+    for (const m of words.matchAll(new RegExp(`\\s${cash}(\\d+(?:\\.\\d+)?)\\s+${pattern(name)}s?\\s`, 'gd'))) if (!claimed.has(m.indices[1][0])) found.add(Number(m[1]));
     return found.size === 1 ? [...found][0] : null;
   }
 
-  // A sum of money in the words ("$84", "€12.50", "84 dollars", "1,200 EUR"), as a number, or null; two different sums, null.
+  // A sum of money in the words ("$84", "€12.50", "84 dollars", "1,200 EUR", "€1.240,50", "$3.9k"), as a number, or null. Two
+  // different sums: the one a word of totalling stands before ("$84 and $22, $106 total", "came to $106"), else null.
   function moneyInWords(text) {
     const M = L.money;
     if (!M) return null;
-    const words = ' ' + cleanWords(text).toLowerCase() + ' ', found = new Set(), num = '(\\d{1,3}(?:,\\d{3})+|\\d+)(?:\\.(\\d{1,2}))?';
-    const add = (whole, cents) => { const n = Number(String(whole).replace(/,/g, '') + (cents ? '.' + cents : '')); if (Number.isFinite(n)) found.add(n); };
-    for (const m of words.matchAll(new RegExp(`(?:^|[\\s(])(?:${M.before})\\s?${num}(?![\\d.,]?\\d)`, 'g'))) add(m[1], m[2]);
-    for (const m of words.matchAll(new RegExp(`(?:^|[\\s(])${num}\\s?(?:${M.after})(?=[\\s.,;:!?)]|$)`, 'g'))) add(m[1], m[2]);
-    return found.size === 1 ? [...found][0] : null;
+    const words = ' ' + wholeNumbers(cleanWords(text).toLowerCase()) + ' ', found = new Map(), num = '(\\d{1,3}(?:,\\d{3})+|\\d+)(?:\\.(\\d{1,2}))?(k)?';
+    const add = (m, whole, cents, k) => { let n = Number(String(whole).replace(/,/g, '') + (cents ? '.' + cents : '')); if (k) n = Math.round(n * 1000 * 100) / 100; if (Number.isFinite(n)) found.set(m.index, n); };
+    for (const m of words.matchAll(new RegExp(`(?:^|[\\s(])(?:${M.before})\\s?${num}(?![\\d.,]?\\d)`, 'g'))) add(m, m[1], m[2], m[3]);
+    for (const m of words.matchAll(new RegExp(`(?:^|[\\s(])${num}\\s?(?:${M.after})(?=[\\s.,;:!?)]|$)`, 'g'))) add(m, m[1], m[2], m[3]);
+    const sums = new Set(found.values());
+    if (sums.size === 1) return [...sums][0];
+    if (sums.size < 2 || !M.total) return null;
+    // The sum said to be the total: right after a word of totalling, or right before "total".
+    const totals = new Set();
+    for (const [at, n] of found) {
+      const before = words.slice(0, at + 1), after = words.slice(at + 1).replace(/^\S+/, '');
+      if (new RegExp(`(?:^|\\s)(?:${M.total.before})\\s*$`).test(before) || new RegExp(`^\\s*(?:${M.total.after})(?=[\\s.,;:!?)]|$)`).test(after)) totals.add(n);
+    }
+    return totals.size === 1 ? [...totals][0] : null;
+  }
+  /* A plain number that is the sum, for a bullet whose tag takes a sum ("Gas 64.28", "Paycheck 3850"): the one number in the words
+     that is not part of a day ("Nov 20", "the 4th"), a time ("8am", "8:30"), a count of things ("2 lattes", "x2") or a year
+     ("2026"), and not after a word that makes it something else ("for 2", "#4", "cycle 5"). Read only where no sum with its
+     currency is in the words; a guess like every sum. */
+  function plainSum(text) {
+    const B = L.plainSum;
+    if (!B) return null;
+    const words = ' ' + wholeNumbers(cleanWords(text).toLowerCase()) + ' ';
+    if (/\d\s*[:/]\s*\d/.test(words)) return null;   // a time or a written date: the number is not plain
+    const month = L.monthPattern.replace(/\(\?=\\s\)$/, ''), found = [];
+    for (const m of words.matchAll(/(?<=[\s(])(\d+(?:\.\d{1,2})?)(?=[\s.,;!?)])/g)) {
+      const n = Number(m[1]), before = words.slice(0, m.index).trim().split(/\s+/).pop() || '', after = words.slice(m.index + m[1].length).replace(/^[.,;!?)]+/, '').trim().split(/\s+/)[0] || '';
+      if (!m[1].includes('.') && n >= 1900 && n <= 2100) continue;                       // a year
+      if (new RegExp(`^(?:${month})\\.?$`).test(before) || new RegExp(`^(?:${month})`).test(after)) continue;   // a day: "Nov 20", "20 Nov"
+      if (B.notAfter.includes(before.replace(/[.,]$/, '')) || /^[#x×]$/.test(before)) continue;
+      if (B.notBefore.includes(after) || /^(?:st|nd|rd|th)$/.test(after) || (/^\p{L}{2,}s$/u.test(after) && !B.notCount.includes(after))) continue;   // "2 lattes"
+      found.push(n);
+    }
+    const one = new Set(found);   // the same number twice is one sum
+    return one.size === 1 ? found[0] : null;
   }
   // Does a property's name say it takes this meaning? By a whole word of the name: "Amount paid", "Due date".
   function nameMeans(meaning, propTitle) {
@@ -241,21 +306,129 @@ function makeReader(locale = en) {
     return own.some(w => names.includes(w));
   }
   // A word a day can start with: a weekday, a month, a number, "next", "the", "in", a relative day, a word like "on" or "by".
-  const startsDay = new RegExp(`^(?:\\d|${L.weekdayPattern}$|${L.monthPattern.replace(/\(\?=\\s\)$/, '')}$|${[L.next, L.the, L.inWord, ...L.before, ...Object.keys(L.relative)].map(escape).join('|')}$)`);
-  // The day named right after a word of this meaning ("due Friday", "scheduled for the 4th"): one day, or null.
+  const startsDay = new RegExp(`^(?:\\d|${L.weekdayPattern}$|${L.monthPattern.replace(/\(\?=\\s\)$/, '')}$|(?:${[L.next, L.the, L.inWord, ...L.before, ...Object.keys(L.relative), ...(L.dayLeads || [])].map(escape).join('|')})$|mid-)`);   // each a whole word: "invoice" is not "in"
+  // The day named right after a word of this meaning ("due Friday", "scheduled for the 4th"), or after the words given ({ words }:
+  // a property's own name, "renews Mar 3"): one day, or null. Completed reads by part of the sentence (completedDay).
   function dayMeant(meaning, text, base) {
-    const W = L[meaning];
-    if (!W?.words) return null;
-    const words = ' ' + cleanWords(text).toLowerCase().replace(/[,;:!?()]/g, ' ') + ' ', found = new Set();
-    for (const m of words.matchAll(new RegExp(`\\s(?:${W.words.map(escape).join('|')})\\s+((?:\\S+\\s+){0,5})`, 'g'))) {
-      // Up to the end of the sentence, and the day must start right after the word: "diagnosed by Dr. Chen on Friday" is no deadline.
-      const rest = m[1].trim().split(/\.(?=\s|$)/)[0].trim(), first = rest.split(/\s+/)[0] || '';
+    if (meaning === 'completed') return completedDay(text, base);
+    const W = typeof meaning === 'string' ? L[meaning] : meaning;
+    if (!W?.words?.length) return null;
+    const words = ' ' + cleanWords(text).toLowerCase().replace(/[,;]/g, ' | ').replace(/[:!?()]/g, ' ') + ' ', found = new Set();
+    for (const m of words.matchAll(new RegExp(`\\s(${W.words.map(escape).join('|')})\\s+((?:\\S+\\s+){0,5})`, 'g'))) {
+      const onlyAhead = (W.aheadOnly || []).includes(m[1]);
+      // The word before the cue can make it another thing: "the day before yesterday" is a day, "ends by Friday" an end.
+      const prev = words.slice(0, m.index).trim().split(/\s+/).pop() || '';
+      if ((W.notAfter || []).includes(prev) || (W.notAfterOther || []).some(k => (L[k]?.words || []).includes(prev))) continue;
+      // Up to the end of the sentence or the comma ("starting Dec 1, ends Dec 12"), and the day must start right after the word:
+      // "diagnosed by Dr. Chen on Friday" is no deadline.
+      const rest = m[2].split('|')[0].trim().split(/\.(?=\s|$)/)[0].trim(), first = rest.split(/\s+/)[0] || '';
       if (W.not?.includes(first) || !startsDay.test(first)) continue;
-      for (const day of daysInWords(`${L.before.includes('by') ? 'by' : L.before[0]} ${rest}`, base)) found.add(day);
+      for (const day of daysInWords(`${L.before.includes('by') ? 'by' : L.before[0]} ${rest}`, base)) if (!onlyAhead || day > base) found.add(day);
+    }
+    // Then a strong word anywhere earlier in the same part of the sentence ("Deadline for the deposit is Nov 25"), where that part
+    // has one day and no word of another kind.
+    // A word of the kind right after the day ("Dec 4 deadline").
+    if (!found.size && W.after?.length) for (const part of partsOf(text)) {
+      const lower = ' ' + part.toLowerCase() + ' ', days = daysInWords(part, base);
+      if (days.length === 1 && new RegExp(`\\s(?:${W.after.map(escape).join('|')})(?=\\s)`).test(lower.slice(firstDayAt(lower)))) found.add(days[0]);
+    }
+    if (!found.size && W.loose?.length) {
+      const others = MEANING_KEYS.filter(k => L[k] !== W).flatMap(k => L[k]?.words || []);
+      for (const part of partsOf(text)) {
+        const lower = ' ' + part.toLowerCase() + ' ', days = daysInWords(part, base);
+        if (days.length !== 1 || hasWord(lower, others) || rangeIn(part, base)) continue;
+        const before = lower.slice(0, firstDayAt(lower));
+        if (hasWord(before, W.loose) && !(W.notLoose || []).some(n => lower.includes(` ${n} `))) found.add(days[0]);
+      }
     }
     return found.size === 1 ? [...found][0] : null;
   }
-  return { locale: L, parseDay, daysInWords, numberInWords, moneyInWords, nameMeans, dayMeant, ahead: L.ahead };
+  const MEANING_KEYS = ['deadline', 'scheduled', 'start', 'end', 'completed'];
+  const hasWord = (part, list) => list.length > 0 && new RegExp(`(?:^|\\s)(?:${list.map(escape).join('|')})(?=\\s|$)`).test(part);
+  // The parts of a sentence: split at commas, semicolons and full stops ("Window replaced Nov 9, invoice due Dec 9").
+  // A full stop after a short month or weekday ("Dec. 4", "Fri. the 4th") ends no part.
+  const shortNames = [...new Set([...L.months, ...L.weekdays].flatMap(n => [n.slice(0, 3), n.slice(0, 4)]))].map(escape).join('|');
+  const partsOf = text => cleanWords(text).split(new RegExp(`[,;]|(?<!(?:^|[^\\p{L}])(?:${shortNames}))\\.(?=\\s|$)`, 'iu')).map(t => t.trim()).filter(Boolean);
+  // The grammar library, where it is loaded: tells a verb in the past ("swapped", "fixed", "took") from other words.
+  const grammar = () => (typeof window !== 'undefined' && window.nlp) || (() => { try { return typeof require === 'function' ? require('../../threads/vendor/compromise.js') : null; } catch (error) { return null; } })();
+  const pastAction = text => { const away = ['scheduled', 'deadline'].flatMap(k => L[k]?.words || []); const words = cleanWords(text).toLowerCase().replace(new RegExp(`(?:^|\\s)(?:${away.map(escape).join('|')})(?=\\s|$)`, 'g'), ' '); return /\p{L}/u.test(words) && pastVerb(words); };
+  const pastVerb = words => { const nlp = grammar(); if (!nlp) return /\b\p{L}{3,}ed\b/u.test(words); try { return nlp(words).has('#PastTense'); } catch (error) { return false; } };
+  // A part of the sentence with one day that says it was done: a word of completing anywhere before the day, or a verb in the past
+  // for a day not after the day written. A part with a word of another meaning ("due", "from") is that meaning's.
+  function completedDay(text, base) {
+    const W = L.completed;
+    if (!W) return null;
+    const others = ['deadline', 'scheduled', 'start', 'end'].flatMap(k => L[k]?.words || []), found = new Set();
+    const has = (part, list) => new RegExp(`(?:^|\\s)(?:${list.map(escape).join('|')})(?=\\s|$)`).test(part);
+    // A day ahead that is no deadline ("Called the roofer today, he's coming Dec 1"): the job is not done yet. A deadline ahead is
+    // ("Window replaced Nov 9, invoice due Dec 9": the bill comes after the work).
+    const ahead = partsOf(text).some(part => !has(' ' + part.toLowerCase() + ' ', L.deadline?.words || []) && daysInWords(part, base).some(d => d > base));
+    for (const part of partsOf(text)) {
+      const lower = ' ' + part.toLowerCase() + ' ', days = daysInWords(part, base);
+      if (days.length !== 1 || has(lower, others) || rangeIn(part, base)) continue;
+      const before = lower.slice(0, firstDayAt(lower));
+      if (has(before, W.words) || (W.past && days[0] <= base && !ahead && pastVerb(part.slice(0, Math.max(0, before.length - 1))))) found.add(days[0]);
+    }
+    // Several done days ("Filed the claim Nov 2, paid out Nov 16"): it was completed on the last.
+    return found.size ? Math.max(...found) : null;
+  }
+  // Where the day of a part begins: the last word from which, read on, the words still hold a day ("the deadline to file is Dec
+  // 15" begins at "Dec", not at "the").
+  function firstDayAt(lower) {
+    const ws = [...lower.matchAll(/\S+/g)], now = dayNumber(new Date());
+    for (let i = ws.length - 1; i >= 0; i--) if (daysInWords(lower.slice(ws[i].index), now).length) return ws[i].index;
+    return lower.length;
+  }
+  // Two days joined as a span ("from Jan 5 to Jun 30", "Jan 5–Jun 30", "between Dec 1 and Dec 12"): { start, end }, or null.
+  function rangeIn(text, base) {
+    const R = L.range;
+    if (!R) return null;
+    const month = L.monthPattern.replace(/\(\?=\\s\)$/, '');
+    let words = ' ' + cleanWords(text).toLowerCase().replace(/[,;:!?()]/g, ' ') + ' ';
+    words = words.replace(new RegExp(`(\\d|${month})\\s*[–—-]\\s*(?=\\d|${month})`, 'g'), `$1 ${R.joiners[0]} `);   // Jan 5–Jun 30
+    const toks = words.trim().split(/\s+/), dayOf = ws => { const d = daysInWords(ws.join(' '), base); return d.length === 1 ? d[0] : null; };
+    for (let i = 1; i < toks.length - 1; i++) {
+      if (!R.joiners.includes(toks[i])) continue;
+      let start = null, from = -1;
+      for (let k = 1; k <= 3 && i - k >= 0 && start == null; k++) { const d = dayOf(toks.slice(i - k, i)); if (d != null && startsDay.test(toks[i - k])) { start = d; from = i - k; } }
+      if (start == null) continue;
+      if (R.needsOpener.includes(toks[i]) && !R.openers.includes(toks[from - 1])) continue;
+      let end = null;
+      for (let k = 1; k <= 3 && i + k < toks.length && end == null; k++) if (startsDay.test(toks[i + 1])) end = dayOf(toks.slice(i + 1, i + 1 + k));
+      // "Monday until Wednesday": a weekday read before the start is the one after it, not a year on.
+      if (end != null && end <= start && (asDate(start) - asDate(end)) / 864e5 < 7) end = dayNumber(dayAfter(asDate(end), 7 * Math.ceil(((asDate(start) - asDate(end)) / 864e5 + 1) / 7)));
+      if (end != null && end <= start && end + 10000 > start) end += 10000;   // "Jan 1–Dec 31": the end is in the start's year or after
+      if (end != null && end > start) return { start, end };
+    }
+    return null;
+  }
+  /* Each part of the sentence that names one day, with the words right before that day: the last two and the last one, small
+     words (L.cueFiller) passed over ("Roof cutoff Dec 4": ["roof cutoff", "cutoff"]; "last day is Dec 12": ["last day", "day"]).
+     For learning which date you put such a day in (core/date-words.js). [{ day, words }]. */
+  function dayWords(text, base) {
+    const out = [];
+    for (const part of partsOf(text)) {
+      const lower = ' ' + part.toLowerCase().replace(/[:!?()"“”]/g, ' ') + ' ', starts = [...lower.matchAll(/\S+/g)].reverse();
+      // A day read only after a word like "by" ("visit the 12th"): read so, from the word where the day begins.
+      const lead = `${L.before.includes('by') ? 'by' : L.before[0]} `, after = m => daysInWords(lead + lower.slice(m.index), base);
+      let days = daysInWords(part, base), read = m => daysInWords(lower.slice(m.index), base);
+      if (!days.length) { const m = starts.find(m => startsDay.test(m[0]) && after(m).length === 1); if (m) { days = after(m); read = after; } }
+      if (days.length !== 1 || rangeIn(part, base)) continue;
+      // Where the day begins: the shortest end of the part that reads this very day ("a week from today", not "today").
+      const at = starts.find(m => { const d = read(m); return d.length === 1 && d[0] === days[0]; })?.index ?? lower.length;
+      const ws = lower.slice(0, at).split(/\s+/).filter(w => /\p{L}/u.test(w) && !/\d/.test(w) && !w.startsWith('#'));
+      while (ws.length && (L.cueFiller || []).includes(ws[ws.length - 1])) ws.pop();
+      if (!ws.length) continue;
+      const last = ws[ws.length - 1], pair = ws.length > 1 ? ws.slice(-2).join(' ') : null;
+      // A small word that only means something with the word before it ("picked up", "set up", "signed off") is never taught alone.
+      const words = (L.particles || []).includes(last) ? (pair ? [pair] : []) : pair ? [pair, last] : [last];
+      if (words.length) out.push({ day: days[0], words });
+    }
+    return out;
+  }
+  const cueWords = MEANING_KEYS.flatMap(k => [...(L[k]?.words || []), ...(L[k]?.loose || [])]);
+  const anyCue = text => hasWord(' ' + cleanWords(text).toLowerCase().replace(/[,;:!?()]/g, ' ') + ' ', cueWords);
+  return { locale: L, anyCue, parseDay, daysInWords, numberInWords, moneyInWords, plainSum, nameMeans, dayMeant, rangeIn, dayWords, ahead: L.ahead };
 }
 
 /* A day written in a date format of Logseq's (its preferredDateFormat, "MMM do, yyyy" unless set otherwise), as Logseq titles

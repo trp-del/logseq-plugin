@@ -16,14 +16,44 @@ const { WORD } = text;
 // "Tune to this graph" command) finds the numbers that fit another.
 // tagGap: when the vote finds no near-twin, the lead in log-odds a tag's word profile needs over the runner-up (core/profile.js;
 // 0 turns the profile off). profileLeast: the fewest bullet lines a tag needs to have a profile. profileAlpha: its smoothing.
-const DEFAULT_LIMITS = Object.freeze({ k: 5, nearLeast: .3, lead: .7, stem: true, tagNearLeast: .6, tagLead: .7, tagLeast: 1, tagLinks: false, tagGap: 5, profileLeast: 10, profileAlpha: .25 });
+const DEFAULT_LIMITS = Object.freeze({ k: 5, nearLeast: .3, lead: .7, stem: true, lemma: false, tagNearLeast: .6, tagLead: .7, tagLeast: 1, tagLinks: false, tagGap: 5, profileLeast: 10, profileAlpha: .25 });
 
-// A light stem: a trailing s (not ss), ed or ing off words of five letters or more, so "flagged", "flagging" and
-// "flags" meet. Crude on purpose: it is the same on both sides, which is all the cosine needs. Other languages: set
-// limits.stem false, or give stem a function.
+// A light stem: a trailing s (not ss), ed or ing off words of five letters or more, so "flagged", "flagging" and "flags" meet.
+// Crude on purpose: it is the same on both sides, which is all the cosine needs. Other languages: set limits.stem false, or give
+// stem a function. limits.lemma true puts each word's base form from the grammar library first (below). Left off for the whole
+// engine: on the made-up health graph (17 November 2026, 1,500 notes typed a word at a time) it gave 433 right tags and 56 wrong
+// against the light stem's 441 and 49, since "saw", "seen" and "see" stop telling one kind of note from another. The twins
+// (core/tag-score.js) use it, where it only joins lines written the same way.
+const light = word => word.length >= 5 ? word.replace(/(?:ing|ed|(?<!s)s)$/u, '') : word;
+// A word's base form, so "bills" and "bill", "bought" and "buy", "groceries" and "grocery" meet: the grammar library already in
+// the plugin (compromise, threads/vendor/compromise.js, 350 KB, no network) reads each word once, kept. Where it has none
+// ("renewed"), or the library is missing, the light stem. English only.
+let nlpLib;
+const nlpOf = () => {
+  if (nlpLib !== undefined) return nlpLib;
+  if (typeof window !== 'undefined' && typeof window.nlp === 'function') return nlpLib = window.nlp;
+  try { const m = require('../../threads/vendor/compromise.js'); nlpLib = m.default || m; } catch (error) { nlpLib = null; }
+  return nlpLib;
+};
+const lemmas = new Map();
+function lemma(word) {
+  let got = lemmas.get(word);
+  if (got !== undefined) return got;
+  const nlp = nlpOf();
+  if (!nlp || !/^\p{L}+$/u.test(word)) got = light(word);
+  else {
+    let root = '';
+    try { const doc = nlp(word); doc.compute('root'); root = String(doc.text('root') || '').toLowerCase(); } catch (error) { root = ''; }
+    got = root && /^\p{L}+$/u.test(root) && root !== word ? root : light(word);
+  }
+  if (lemmas.size > 50000) lemmas.clear();
+  lemmas.set(word, got);
+  return got;
+}
 function stemmer(limits) {
   if (typeof limits.stem === 'function') return limits.stem;
-  return limits.stem ? word => word.length >= 5 ? word.replace(/(?:ing|ed|(?<!s)s)$/u, '') : word : word => word;
+  if (!limits.stem) return word => word;
+  return limits.lemma ? lemma : light;
 }
 const wordsOf = t => (String(t || '').toLowerCase().match(WORD) || []).filter(w => w.length >= 3 && !/^\d+$/.test(w));
 
@@ -118,7 +148,7 @@ function vote(near, ident, { nearLeast = DEFAULT_LIMITS.nearLeast, lead = DEFAUL
   return share >= lead && best.n >= least ? { ids: best.ids, share, sim: best.sim, n: best.n } : null;
 }
 
-const api = { DEFAULT_LIMITS, stemmer, wordsOf, tokensOf, buildIndex, updateEntry, neighbours, vote };
+const api = { DEFAULT_LIMITS, nlpOf, lemma, stemmer, wordsOf, tokensOf, buildIndex, updateEntry, neighbours, vote };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 if (typeof window !== 'undefined') (window.Flow ||= {}).engine = api;
 })();

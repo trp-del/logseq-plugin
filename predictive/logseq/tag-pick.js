@@ -26,7 +26,7 @@ function draw() {
       // Why this tag: the property of it that would take the pages the line names ("Spoke with: Ruth Okoro, Amara Okoro"), which is
       // the reason and what picking fills; else how it was read, and the properties it brings.
       const takes = (item.takes || []).slice(0, 2).map(t => `${t.prop}: ${t.pages.join(', ')}`).join(' · ');
-      const note = item.how === 'mentioned' && takes ? takes : [item.how === 'model' ? 'by Apple’s model' : item.how === 'meaning' ? 'by its meaning' : item.how === 'mentioned' ? item.via.join(', ') : 'by its words', item.fields.slice(0, 3).join(', ')].filter(Boolean).join(' · ');
+      const note = item.how === 'mentioned' && takes ? takes : [item.how === 'model' ? 'by Apple’s model' : item.how === 'twin' ? 'written like this before' : item.how === 'meaning' ? 'by its meaning' : item.how === 'mentioned' ? item.via.join(', ') : 'by its words', item.fields.slice(0, 3).join(', ')].filter(Boolean).join(' · ');
       const row = el(doc, 'div', { class: 'flow-pick-row lk-item' + (i === at ? ' on' : ''), role: 'option', 'aria-selected': String(i === at), 'data-i': String(i) },
         el(doc, 'span', { class: 'flow-pick-tag lk-tag' }, item.tag.title), el(doc, 'span', { class: 'flow-pick-note lk-note' }, note));
       const head = split && item.top !== item.tag.id && item.top !== items[i - 1]?.top ? open.titleOf(item.top) : '';

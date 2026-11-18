@@ -28,11 +28,11 @@ const COMMON_LEAST = 5, COMMON_SHARE = .08;
 
 function historyEntry(ctx, raw) {
   const words = shownWords(raw.title, ctx);
-  if (words.size < 2) return null;
+  if (!words.size) return null;   // one word is learned too: "Coffee" written forty times says what "Coffee" is
   const tags = raw.tags || [];
   const values = new Map(raw.values || []);
   values.set('block/tags', tags.length ? tags : [0]);   // 0: a plain line, no tag (so plain lines vote "no tag")
-  return { entry: { id: raw.id, title: raw.title, tokens: engine.tokensOf(words, linkIdsIn(raw.title, ctx), tags, ctx.limits), values, ...(raw.numbers?.length ? { numbers: raw.numbers } : {}), ...(raw.page != null ? { page: raw.page } : {}) }, words };
+  return { entry: { id: raw.id, title: raw.title, tokens: engine.tokensOf(words, linkIdsIn(raw.title, ctx), tags, ctx.limits), values, ...(raw.numbers?.length ? { numbers: raw.numbers } : {}), ...(raw.dates?.size ? { dates: new Map(raw.dates) } : {}), ...(raw.page != null ? { page: raw.page } : {}) }, words };
 }
 
 function buildContext({ schema, pages = [], aliases = [], userTagIds = [], entries = [], days = new Map(), dated = new Map(), limits = {}, locale = dates.en } = {}) {
@@ -45,7 +45,7 @@ function buildContext({ schema, pages = [], aliases = [], userTagIds = [], entri
     knownTags: new Set(userTagIds),
     limits: { ...engine.DEFAULT_LIMITS, ...limits },
     reader: dates.makeReader(locale),
-    index: null, common: new Set(), names: null, dayIds: null, profile: null, clues: null,
+    index: null, common: new Set(), names: null, dayIds: null, profile: null, clues: null, twins: null, dateCues: null,
   };
   const kept = [], df = new Map();
   for (const raw of entries) {
@@ -65,7 +65,7 @@ function learnEntry(ctx, id, raw) {
   if (!ctx?.index) return;
   const made = raw && historyEntry(ctx, { ...raw, id });
   engine.updateEntry(ctx.index, made ? made.entry : { id, title: '', tokens: [], values: new Map() });
-  ctx.profile = null; ctx.clues = null; ctx.linkTaken = null;
+  ctx.profile = null; ctx.clues = null; ctx.linkTaken = null; ctx.twins = null; ctx.dateCues = null;
 }
 
 // The per-tag word profile of the graph's lines: pages (learned as lines too) are not bullets, so they make no class.

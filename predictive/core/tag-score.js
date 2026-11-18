@@ -112,8 +112,84 @@ function whyOf(ctx, s, tag, over) {
   return 'words like its lines';
 }
 
+// A line's words in their base forms (engine.lemma), each once, in order: two lines with the same key are twins.
+// Sums and other numbers are left out of the key: "Gas $64.28" and "Gas 58.30" are written like "Gas" (17 November 2026, the owner:
+// "sums will often be in nodes").
+const SUM_WORDS = new Set(['k', 'dollar', 'dollars', 'buck', 'bucks', 'euro', 'euros', 'pound', 'pounds', 'usd', 'eur', 'gbp', 'cad', 'aud', 'chf']);
+const twinKey = (ctx, text) => [...new Set(engine.tokensOf(new Set([...contextLib.shownWords(text, ctx)].filter(w => !/\d/.test(w) && !SUM_WORDS.has(String(w).toLowerCase()))), [], [], { ...ctx.limits, lemma: true }))].sort().join(' ');
+// The graph's lines by key, built when first asked for and again after a line is learned (context.learnEntry), as the profile is.
+function twinsOf(ctx) {
+  if (ctx.twins) return ctx.twins;
+  const by = new Map();
+  for (const e of ctx.index.entries) {
+    if (!e || ctx.byId.has(e.id) || !e.title) continue;   // a page is not a line
+    const key = twinKey(ctx, e.title);
+    if (!key) continue;
+    if (!by.has(key)) by.set(key, []);
+    by.get(key).push(e);
+  }
+  return ctx.twins = by;
+}
+/* The word that names the thing: the main noun of the words ("case" in "Phone case", "bill" in "Gas bill", "latte" in "oat latte
+   before work"), by the grammar library, in its base form; a line of one or two words with no noun found, its last word. Asides in
+   brackets and links' brackets left out. null when the library is missing or nothing is found. Kept per text. */
+const heads = new Map();
+function headOf(ctx, text) {
+  const plain = String(text || '').replace(/\[\[([^\]]*)\]\]/g, '$1').replace(/\([^)]*\)/g, ' ').replace(/[^\p{L}\p{N}\s'-]/gu, ' ').trim();
+  if (heads.has(plain)) return heads.get(plain);
+  const nlp = engine.nlpOf(), stem = engine.lemma;
+  let head = null;
+  if (nlp && plain) {
+    try { const nouns = nlp(plain).nouns().out('array'); if (nouns.length) head = String(nouns[0]).toLowerCase().split(/\s+/).pop(); } catch (error) { head = null; }
+    const words = plain.toLowerCase().split(/\s+/).filter(Boolean);
+    if (!head && words.length <= 2) head = words[words.length - 1];
+    head = head && /^\p{L}+$/u.test(head) ? stem(head) : null;
+  }
+  if (heads.size > 5000) heads.clear();
+  heads.set(plain, head);
+  return head;
+}
+/* 0. The same words as before: earlier lines whose words are just these words, in their base forms ("Coffee", "coffee",
+   "Paid the bills" and "paid the bill" are one), a line's own links read as their names. Short notes written again and again
+   ("Coffee", "Gas", "Weekly shop") say nothing to the word counting and fall under the four-word wait, yet are the surest of all.
+   Failing those, near twins: earlier lines close in words (`twinNear`, .5) that name the same thing (headOf), so "car insurance"
+   meets "Car insurance paid" and "Phone case" does not meet "Phone".
+   Speaks at any length when one tag of yours holds `twinLead` (.8) of the tagged twins: one same-words twin is enough
+   (`twinLeast` 1), near twins need two (`twinNearLeast` 2).
+   Untagged twins count against it only when they outnumber the tagged ones (`twinPlain` 1): the same words written without a tag
+   are mostly a tag forgotten, which is what this is for (on the messy Personal Finance graph two in five repeats of "Gas" had none).
+   -> { id, n, why } | null. */
+function twinOf(ctx, b, text) {
+  if (!ctx?.index || ctx.limits.twinLeast === 0) return null;
+  const tokens = tokensFor(ctx, text), key = twinKey(ctx, text);
+  if (!key) return null;
+  const count = (lines, least) => {
+    const tally = new Map();
+    let n = 0, plain = 0;
+    for (const e of lines) {
+      const c = (e.values.get('block/tags') || [PLAIN])[0];
+      if (c === PLAIN || !known(ctx, c)) { plain++; continue; }
+      tally.set(c, (tally.get(c) || 0) + 1); n++;
+    }
+    if (!n || n < least || plain > n * (ctx.limits.twinPlain ?? 1)) return null;
+    const [best, most] = [...tally].sort((x, y) => y[1] - x[1])[0];
+    return most / n >= (ctx.limits.twinLead ?? .8) ? { id: best, n: most } : null;
+  };
+  const same = (twinsOf(ctx).get(key) || []).filter(e => e.id !== b.id);
+  const exact = count(same, ctx.limits.twinLeast ?? 1);
+  if (exact) return { ...exact, why: exact.n === 1 ? 'written like this once before' : `written like this ${exact.n} times before` };
+  const least = ctx.limits.twinNear ?? .5, head = least < 1 ? headOf(ctx, text) : null;
+  if (!head) return null;
+  const near = engine.neighbours(ctx.index, tokens, { k: 12, skip: new Set([b.id]), keep: e => !ctx.byId.has(e.id) })
+    .filter(x => x.sim >= least && headOf(ctx, x.entry.title) === head).map(x => x.entry);
+  const close = count(near, ctx.limits.twinNearLeast ?? 2);
+  return close ? { ...close, why: `like ${close.n} earlier line${close.n === 1 ? '' : 's'}` } : null;
+}
+
 function guess(ctx, b, text) {
   if (!ctx?.index) return null;
+  const twin = twinOf(ctx, b, text);
+  if (twin) return { id: twin.id, by: 'twin', lead: Infinity, why: twin.why, near: nearOf(ctx, b, tokensFor(ctx, text)) };
   const tokens = tokensFor(ctx, text);
   if (tokens.length < 2) return null;
   const near = nearOf(ctx, b, tokens);
@@ -175,7 +251,7 @@ function leadOf(ctx, b, text, tagId) {
   return mine && rival ? mine[1] - rival[1] : -Infinity;
 }
 
-const api = { guess, tagRank, tagScore, steady, leadOf, cluesOf, cluesModel, clueScores, scored };
+const api = { guess, twinOf, tagRank, tagScore, steady, leadOf, cluesOf, cluesModel, clueScores, scored };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 if (typeof window !== 'undefined') (window.Flow ||= {}).tagScore = api;
 })();

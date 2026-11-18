@@ -140,6 +140,7 @@ async function main() {
   Flow.cite.start();
   Flow.pageHere.start();
   Flow.embedHere.start();
+  Flow.oneDollar.start();
   Flow.proposeUi.start();
   Flow.steps.start();
   Flow.typedCaseUi.start();

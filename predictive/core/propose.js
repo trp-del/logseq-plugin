@@ -30,6 +30,7 @@ const names = need('names');
 const datesLib = need('dates');
 const { shownWords, linkIdsIn, profileOf } = need('context');
 const { profileTag } = need('profile');
+const dateWords = (typeof require === 'function' && typeof module !== 'undefined') ? require('./date-words.js') : window.Flow.dateWords;
 const tagScoreLib = (typeof require === 'function' && typeof module !== 'undefined') ? require('./tag-score.js') : window.Flow.tagScore;
 const { dayNumber } = need('dates');
 
@@ -170,8 +171,10 @@ const dayText = (ctx, day) => {
 const TAG_WORDS_LEAST = 4;
 const tellingWords = (ctx, text) => engine.tokensOf(shownWords(text, ctx), [], [], ctx.limits).length;
 const enoughForTag = (ctx, text) => tellingWords(ctx, text) >= (ctx.limits?.tagWordsLeast ?? TAG_WORDS_LEAST);
+// Enough for this bullet: four words, or fewer that the graph has seen as they are, with one tag (core/tag-score.js twinOf).
+const readyForTag = (ctx, b, text) => enoughForTag(ctx, text) || !!tagScoreLib.twinOf(ctx, b, text);
 function tagFor(ctx, b, text) {
-  if (!ctx.index || !enoughForTag(ctx, text)) return null;
+  if (!ctx.index || !readyForTag(ctx, b, text)) return null;
   // The vote, the word profiles and the context clues together, sure or silent (core/tag-score.js).
   const got = tagScoreLib.guess(ctx, b, text);
   const page = got && ctx.byId.get(got.id);
@@ -209,11 +212,54 @@ function moneyLearned(ctx, text, links, tagIds, numbers, skip) {
   return { prop: numbers.find(p => p.ident === lead[0]), from: [...new Set(from)].filter(Boolean) };
 }
 // The meaning a date property's name gives it: 'deadline' (Logseq's Deadline, a Due date), 'scheduled', or null.
-const meaningOf = (prop, reader) => prop.ident === 'logseq.property/deadline' || reader.nameMeans?.('deadline', prop.title) ? 'deadline'
-  : prop.ident === 'logseq.property/scheduled' || reader.nameMeans?.('scheduled', prop.title) ? 'scheduled' : null;
+// What kind of day a date property takes, by its name (Logseq's own Deadline and Scheduled by theirs): deadline, scheduled, start,
+// end, completed, or null.
+const MEANINGS = ['deadline', 'scheduled', 'start', 'end', 'completed'];
+const meaningOf = (prop, reader) => prop.ident === 'logseq.property/deadline' ? 'deadline' : prop.ident === 'logseq.property/scheduled' ? 'scheduled'
+  : MEANINGS.find(m => reader.nameMeans?.(m, prop.title)) || null;
 const namesOf = pages => pages.length > 1 ? { names: pages.map(p => ({ id: p.id, title: p.title })) } : {};
 const freeWords = text => wordsOf(String(text || '').replace(/#?\[\[[^\[\]]*\]\]/g, ' ').replace(TAG, ' '));
 
+/* Which date each day in the words goes to, by the words around it (17 November 2026, the owner: "recognize using words as cues for
+   deadline vs scheduled vs start and end date vs completed"). In this order, each day to one property only:
+   1. a span ("from Jan 5 to Jun 30", "Jan 5–Jun 30"): the start and the end, where the tag has one date of each;
+   2. a property's own name right before the day ("renews Mar 3", "due date Dec 5");
+   3. a word of the kind right before the day ("due", "scheduled for", "starts", "until"), or for completed a part of the sentence
+      saying it was done ("paid Nov 20", "fixed the leak on Nov 12");
+   2b. where you taught it (core/date-words.js): words you put such a day after, in that date, twice or more ("cutoff Dec 4" in
+      Due date): before the kind words, so a day you moved twice goes where you moved it; taught once, after the kind words;
+   4. with two or more dates and one day ahead left with no word for it, said as an appointment is ("Inspection on Monday",
+      "Plumber Dec 4 at 10am"): the scheduled one. A day with no word at all ("the Dec 4 quote", "photos from Nov 9", "Sam's
+      birthday is Dec 4") is left alone: on 456 sentences, guessing those put 49 days in the wrong place (17 November 2026).
+   Fills meant (ident → { day, how }). */
+function meantDaysFor(reader, dates, text, base, meant, ctx = null) {
+  if (!dates.length || !reader.dayMeant) return;
+  const claimed = new Set(), byMeaning = new Map();
+  for (const prop of dates) { const m = meaningOf(prop, reader); if (m) { if (!byMeaning.has(m)) byMeaning.set(m, []); byMeaning.get(m).push(prop); } }
+  const only = m => (byMeaning.get(m) || []).length === 1 ? byMeaning.get(m)[0] : null;
+  const give = (prop, day, how) => { if (!prop || day == null || meant.has(prop.ident) || claimed.has(day)) return; meant.set(prop.ident, { day, how }); claimed.add(day); };
+  const span = reader.rangeIn?.(text, base);
+  if (span && only('start') && only('end')) { give(only('start'), span.start, 'words-start'); give(only('end'), span.end, 'words-end'); }
+  for (const prop of dates) {
+    const name = String(prop.title || '').toLowerCase().replace(/[^\p{L}\p{N} ]/gu, ' ').trim();
+    if (name) give(prop, reader.dayMeant({ words: [name] }, text, base), 'words-name');
+  }
+  const kindOf = prop => meaningOf(prop, reader);
+  const taught = least => { if (ctx?.index) for (const { prop, day } of dateWords.learnedDays(ctx, dates, text, base, { least, claimed, kindOf })) give(prop, day, 'words-learned'); };
+  taught(2);
+  for (const m of MEANINGS) for (const prop of byMeaning.get(m) || []) if ((byMeaning.get(m) || []).length === 1) {
+    const day = reader.dayMeant(m, text, base);
+    if (day != null && !(span && (day === span.start || day === span.end) && m !== 'start' && m !== 'end')) give(prop, day, 'words-' + m);
+  }
+  taught(1);
+  if (dates.length < 2 || meant.size) return;
+  const days = reader.daysInWords(text, base).filter(d => !claimed.has(d));
+  if (days.length !== 1 || span || reader.anyCue?.(text)) return;   // a word of a kind that did not take ("the deadline to file is Dec 15"): no guess
+  // Not Logseq's own Scheduled: a plain day on a task ("Call the pharmacy on Friday") is not put in its agenda.
+  const scheduled = only('scheduled');
+  const saidAsAppointment = reader.dayMeant({ words: ['on'] }, text, base) === days[0] || /\sat\s+\d{1,2}(?::\d\d)?\s*(?:am|pm)?(?=[\s.,;!?]|$)/i.test(' ' + text);
+  if (days[0] > base && saidAsAppointment) give(scheduled && !isBuiltInProp(scheduled) ? scheduled : null, days[0], 'words-ahead');
+}
 function propose(ctx, b, assume = null) {
   const { schema } = ctx;
   const text = b.text;
@@ -228,8 +274,13 @@ function propose(ctx, b, assume = null) {
     // Steady (core/tag-score.js): with the bullet's state, a shown tag stays while the words go on, and another replaces it only
     // at two pauses running. Fewer than enough words again (the words taken back): nothing held.
     const held = b.tagState && !(allTags.length || assume);
-    if (held && !enoughForTag(ctx, text)) Object.assign(b.tagState, { shown: null, pending: null, n: 0 });
-    const tag = held && enoughForTag(ctx, text) ? tagScoreLib.steady(b.tagState, fresh, id => tagScoreLib.leadOf(ctx, b, text, id), ctx.limits.tagHold ?? 4) : fresh;
+    const ready = held && readyForTag(ctx, b, text);
+    if (held && !ready) Object.assign(b.tagState, { shown: null, pending: null, n: 0 });
+    // Words written before with one tag (by: 'twin') are sure, so they take the place at once: "Gas" shows Purchase, and the
+    // bill's "Gas bill" Bill payment as soon as "bill" is typed, not a pause later.
+    const sure = ready && fresh?.by === 'twin';
+    if (sure) Object.assign(b.tagState, { shown: fresh, pending: null, n: 0 });
+    const tag = sure ? fresh : ready ? tagScoreLib.steady(b.tagState, fresh, id => tagScoreLib.leadOf(ctx, b, text, id), ctx.limits.tagHold ?? 4) : fresh;
     if (!tag) return { record, pieces };
     const assumed = propose(ctx, { ...b, tags: [...b.tags, tag.id] }, tag);
     const tagPiece = { ident: 'block/tags', prop: { ident: 'block/tags', title: 'Tags', lower: 'tags', type: 'tag', many: true, classes: [] }, kind: 'tag', ids: [tag.id], tag, shown: `#${tag.title}`, how: 'alike-tag', from: tag.from, why: tag.why, guess: true };
@@ -294,18 +345,17 @@ function guessesFor(ctx, { b, text, record, fields, recordTags, links, free, use
   // Basic meanings (core/dates.js): a day the words say something is due or set for goes to the date named for it (Logseq's
   // Deadline and Scheduled too), and that day is then no other date's; a sum of money goes to the one number named for money.
   const base = journalDay || dayNumber(new Date()), meant = new Map();
-  if (own) for (const prop of fields) {
-    if (!open(prop) || !(isDateProp(prop) || prop.type === 'datetime')) continue;
-    const meaning = meaningOf(prop, reader), day = meaning && reader.dayMeant?.(meaning, text, base);
-    if (day) meant.set(prop.ident, { day, how: 'words-' + meaning });
-  }
+  if (own) meantDaysFor(reader, fields.filter(p => open(p) && (isDateProp(p) || p.type === 'datetime')), text, base, meant, ctx);
   const meantDays = new Set([...meant.values()].map(m => m.day));
   // Which number takes the sum: the one earlier bullets like this one, with a sum in their words, filled (learned from the graph,
   // so Amount, Payment and Cost are told apart by how you used them); else the one number named for money.
-  const money = own && reader.moneyInWords ? reader.moneyInWords(text) : null;
+  const numberNames = fields.filter(isNumberProp).map(p => p.title);
+  // A sum with its currency; else, where the tag takes a sum, one plain number that can only be the sum ("Gas 64.28").
+  const takesSum = fields.some(p => open(p) && isNumberProp(p) && reader.nameMeans('money', p.title));
+  const money = own && reader.moneyInWords ? (reader.moneyInWords(text) ?? (takesSum && reader.plainSum ? reader.plainSum(text) : null)) : null;
   let moneyPiece = null;
   if (money != null) {
-    const numbers = fields.filter(p => open(p) && isNumberProp(p) && reader.numberInWords(text, p.title) == null);
+    const numbers = fields.filter(p => open(p) && isNumberProp(p) && reader.numberInWords(text, p.title, numberNames) == null);
     const learned = moneyLearned(ctx, text, links, recordTags, numbers, skip);
     const named = numbers.filter(p => reader.nameMeans('money', p.title));
     if (learned) moneyPiece = { prop: learned.prop, how: 'alike-money', from: learned.from };
@@ -325,7 +375,7 @@ function guessesFor(ctx, { b, text, record, fields, recordTags, links, free, use
     const said = [];
     // A number beside the property's name ("cycle 5"). Not from look-alike bullets: how bad a day was is not in its words.
     if (isNumber) {
-      const n = own ? reader.numberInWords(text, prop.title) : null;
+      const n = own ? reader.numberInWords(text, prop.title, numberNames) : null;
       if (n != null) out.push({ ident: prop.ident, prop, kind: 'number', ids: [n], shown: String(n), how: 'words-number', guess: true });
       else if (moneyPiece?.prop === prop) out.push({ ident: prop.ident, prop, kind: 'number', ids: [money], shown: String(money), how: moneyPiece.how, ...(moneyPiece.from ? { from: moneyPiece.from } : {}), guess: true });
       continue;
@@ -438,6 +488,9 @@ function tagChoices(ctx, b, { max = 5 } = {}) {
   const item = (id, how) => { const page = ctx.byId.get(id); return page && page.isTag && page.uuid ? { tag: { id, uuid: page.uuid, title: page.title }, score: scores.get(id) || 0, via: [...new Set([...(candidates.get(id)?.values() || [])].flatMap(set => [...set]))], takes: [...(candidates.get(id) || [])].map(([prop, set]) => ({ prop, pages: [...set] })), how, fields: fieldsOfTags([id], ctx.schema).map(p => p.title) } : null; };
   const byScore = (x, y) => y.score - x.score || y.via.length - x.via.length || x.tag.title.localeCompare(y.tag.title);
   const out = [...candidates.keys()].map(id => item(id, 'mentioned')).filter(Boolean).sort(byScore);
+  // The tag the same words carried before (core/tag-score.js twinOf) comes first, as it is the one pencilled in.
+  const twin = tagScoreLib.twinOf(ctx, b, b.text);
+  if (twin) { const at = out.findIndex(x => x.tag.id === twin.id), it = at >= 0 ? out.splice(at, 1)[0] : item(twin.id, 'twin'); if (it) out.unshift(it); }
   // Fewer than three from the structure (or none: nothing named, or a kind of line no property points at): the words fill the list up.
   // Only where the words really point: a line that merely shares a word or two with a few earlier ones (score under the floor) says nothing.
   if (out.length < 3) for (const [id, score] of [...scores].sort((x, y) => y[1] - x[1])) {
@@ -447,7 +500,7 @@ function tagChoices(ctx, b, { max = 5 } = {}) {
   return out.slice(0, max);
 }
 
-const api = { linkEvidence, linkTrust, moneyLearned, enoughForTag, tellingWords, TAG_WORDS_LEAST, meaningOf, dayText, tagChoices, tagScores, mentionedPages, candidateTags, propose, inWords, recordOf, tagFor, looksLike, datedEvidence, datedWhenWritten, fewDatedAllSameDay, mostlyAhead, datedAhead, dayIdFor, valuesOf, freeWords };
+const api = { linkEvidence, linkTrust, moneyLearned, enoughForTag, readyForTag, tellingWords, TAG_WORDS_LEAST, meaningOf, dayText, tagChoices, tagScores, mentionedPages, candidateTags, propose, inWords, recordOf, tagFor, looksLike, datedEvidence, datedWhenWritten, fewDatedAllSameDay, mostlyAhead, datedAhead, dayIdFor, valuesOf, freeWords };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 if (typeof window !== 'undefined') (window.Flow ||= {}).propose = api;
 })();
