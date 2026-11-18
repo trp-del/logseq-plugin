@@ -215,14 +215,17 @@ const { name: keyName, pressed: spelled, logseq: logseqSpelled } = Door.keys;
 /* Logseq's key for a command, written into the graph's config (its :shortcuts) by the door, every other key there kept: Logseq
    takes it at once. None is an empty list, as Logseq's keymap writes it. Where Logseq's keys could not be read nothing is
    written, since Logseq would replace them all with this one, and the sheet says so. */
-function saveLogseq(id, spelling) {
-  if (Door.setLogseqKey(id, spelling)) return true;
+async function saveLogseq(id, spelling) {
+  if (await Door.setLogseqKey(id, spelling)) return true;
   Door.notify('Logseq’s keys could not be read, so this key was not changed', 'warning');
   return false;
 }
-function save(target, plugin_, logseq_) {
+async function save(target, plugin_, logseq_) {
   if (target.dataset.set) { logseq.updateSettings({ [target.dataset.set]: plugin_ }); return endSetting(plugin_); }
-  if (saveLogseq(target.dataset.cmd, logseq_)) return endSetting(logseq_);
+  // Logseq answers a moment later; a key set on another line meanwhile is that line's, so this line is let go only if still set.
+  const saved = await saveLogseq(target.dataset.cmd, logseq_);
+  if (setting_ !== target) return;
+  if (saved) return endSetting(logseq_);
   // Not saved: Logseq's keys could not be read, so the box shows what it showed before, not a key read again from nothing.
   const was = held; endSetting();
   target.innerHTML = was; target.classList.toggle('lk-ks-none', target.textContent === 'none');
@@ -258,6 +261,7 @@ function onKeyDown(event) {
   if (event.repeat) return;
   hide();
   if (event.metaKey || event.ctrlKey || event.shiftKey || pressed || event.isComposing || !setting('keySheet')) return;
+  Door.refreshLogseqConfigKeys();   // Logseq's keys read again while Option is held, so a key changed in Logseq's keymap shows
   timer = setTimeout(show, HOLD);
 }
 function onKeyUp(event) {
@@ -279,7 +283,7 @@ function start() {
   listen(doc, 'visibilitychange', hide);
   onStop(hide);
   // Another way in, from Logseq's list of commands: the sheet open and staying, as after a hold.
-  logseq.App.registerCommandPalette({ key: 'key-sheet', label: 'Show the keys' }, () => host().defaultView.setTimeout(() => { if (!setting('keySheet')) return; hide(); show(); stay(); }, 150));
+  logseq.App.registerCommandPalette({ key: 'key-sheet', label: 'Show the keys' }, () => Door.refreshLogseqConfigKeys().then(() => host().defaultView.setTimeout(() => { if (!setting('keySheet')) return; hide(); show(); stay(); }, 150)));
 }
 function stop() { hide(); style('keys', ''); }
 Look.keys = { start, stop, groups, keysHtml, spelled, HOLD };

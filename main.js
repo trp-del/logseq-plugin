@@ -99,6 +99,9 @@ async function main() {
   window.removeEventListener('error', window.PluginFilesWatch, true);
   if (failed.length) notify(`Logseq Plugin: ${window.PluginFilesSaid()} did not load, so part of it may not work`, 'warning');
   await graphReady();
+  // Logseq's keys as the graph's config holds them (the key sheet, Find), read now and again whenever another graph opens.
+  await Door.refreshLogseqConfigKeys();
+  Door.root.onStop(logseq.App.onCurrentGraphChanged(() => { Door.refreshLogseqConfigKeys(); }));
   for (const module of Door.modules) if (on(module)) await startModule(module);
   Door.settingsWays.reopen();
   sayUpdated();
@@ -116,11 +119,11 @@ async function updatePlugins() {
   const others = [...core.registeredPlugins.values()].filter(p => p.loaded && p.id !== me);
   let failed = 0;
   for (const p of others) {
-    const release = fromRelease(p.id);
+    const release = await fromRelease(p.id);
     try { if (release) await fetchNewest(release); else await core.reload(p.id); }
     catch (error) { failed++; console.error(`Update plugins: ${p.id} could not reload`, error); }
   }
-  const mine = fromRelease(me);
+  const mine = await fromRelease(me);
   if (mine) {
     if (failed) notify(`${failed} plugin${failed > 1 ? 's' : ''} could not reload`, 'warning');
     return fetchNewest(mine);   // Logseq reloads this plugin when a newer release came, and says so either way
@@ -131,9 +134,10 @@ async function updatePlugins() {
 }
 // A plugin Logseq installed itself (from a GitHub release or the Marketplace), as its updater takes it, with the repository
 // its releases come from; null for one loaded from a folder, or one with no repository to ask, which is only reloaded.
-function fromRelease(id) {
+// Logseq's list of installed plugins is asked through its plugin call (App.getStateFromStore, the API audit, 18 November 2026).
+async function fromRelease(id) {
   let installed = {};
-  try { installed = window.parent.logseq.api.get_state_from_store('plugin/installed-plugins') || {}; } catch (error) { return null; }
+  try { installed = await logseq.App.getStateFromStore('plugin/installed-plugins') || {}; } catch (error) { return null; }
   const p = Object.values(installed).find(p => p?.id === id);
   if (!p?.iir) return null;
   const address = typeof p.repository === 'string' ? p.repository : p.repository?.url;

@@ -19,6 +19,7 @@ async function run({ settings = {}, modules, before } = {}) {
     settings, baseInfo: { id: 'logseq-plugin' }, useSettingsSchema() {}, ready: fn => { ready = fn; return Promise.resolve(); },
     beforeunload: fn => { events.push('clean-up registered'); unload = fn; }, onSettingsChanged() {}, provideStyle: o => { styles[o.key] = o.style; },
     UI: { showMsg: (text, level) => notes.push([text, level]) }, DB: { datascriptQuery: async () => [] },
+    App: { onCurrentGraphChanged: () => () => {}, getCurrentGraphConfigs: async () => ({}), setCurrentGraphConfigs: async () => {}, getStateFromStore: async () => ({}) },
   };
   const plugin = { parent: win, console: { error() {}, log() {} }, setTimeout: (fn, ms) => realTimeout(fn, ms > 1000 ? 30 : ms), clearTimeout, addEventListener: (type, fn) => { if (type === 'error') plugin.errorFn = fn; }, removeEventListener: (type, fn) => { if (plugin.errorFn === fn) plugin.errorFn = null; } };
   plugin.window = plugin;

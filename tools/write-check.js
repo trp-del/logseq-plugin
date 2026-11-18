@@ -101,6 +101,20 @@ let chromium; try { ({ chromium } = require('playwright')); } catch (error) { co
       await D.setWords(B, 'write check');
       await check('the door: a made page nothing links to goes, by its id', async () => { await D.dropMade({ uuid: M, title: NAME }); }, async () => !(await live(M)) || 'the page is still there');
       await D.deleteForGood(M).catch(() => {});   // out of the Recycle too, so the graph ends as it began
+      /* A property of yours made by its name (makeProperty, through Logseq's import with a description written by hand, since
+         Logseq's own property call makes a plugin's property instead: the API audit, 18 November 2026). Read back: one of yours,
+         its name as typed, its type, holding several when asked; then it goes again, as its Undo takes it. A change in what
+         Logseq's import takes shows here first. */
+      const PNAME = 'ZZ Write Check Made Property';
+      const propOf = async ident => (await q(`[:find ?t ?ty ?c :where [?p :db/ident :${ident}] [?p :block/title ?t] [?p :block/tags :logseq.class/Property] [(get-else $ ?p :logseq.property/type :none) ?ty] [(get-else $ ?p :db/cardinality :db.cardinality/one) ?c]]`))[0];
+      let madeProp = null;
+      await check('the door: a property of yours made by its name, as typed, with its type', async () => { madeProp = await D.makeProperty(PNAME, 'node', undefined, { many: true }); },
+        async () => { const got = madeProp && await propOf(madeProp.ident); return (madeProp?.made && /^user\.property\//.test(madeProp.ident) && got?.[0] === PNAME && String(got?.[1]).replace(/^:/, '') === 'node' && /many$/.test(String(got?.[2]))) || [madeProp, got]; });
+      if (madeProp?.made) {
+        await check('the door: the same name again makes nothing new', async () => { const again = await D.makeProperty(PNAME.toLowerCase(), 'default'); if (again.made || again.ident !== madeProp.ident) throw new Error(`made ${again.ident}`); }, async () => true);
+        await check('the door: a made property nothing holds goes again', async () => { await D.dropMadeProperty(madeProp); }, async () => !(await propOf(madeProp.ident)) || 'the property is still there');
+        await D.deleteForGood(madeProp.uuid).catch(() => {});
+      }
     }
     await logseq.Editor.removeBlock(B);
     return out;

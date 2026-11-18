@@ -340,27 +340,33 @@ Door.COMMAND_LABELS = {
 /* Logseq's commands as its palette keeps them in the app's state ({ id, shortcut, desc, action }), each shortcut the one in force:
    the palette's state keeps Logseq's own default, and a key changed in the graph's config (its :shortcuts, where Logseq's
    keymap and the key sheet write) wins over it, an empty one for none. Read on the app's api on the parent window; [] when
-   it cannot be read. */
+   it cannot be read. This one read stays there: each entry carries the command itself (Find runs it), and Logseq's plugin
+   call App.getStateFromStore can hand over no command, only words and numbers (the API audit, 18 November 2026). */
 /* readLogseqConfigKeys: the keys changed in the graph's config, {} where none is changed, and null when they could not be read
-   (no api, a throw, an answer that is no list of keys), which is not the same as none. setLogseqKey writes one command's key
+   (no answer, a throw, an answer that is no list of keys), which is not the same as none. setLogseqKey writes one command's key
    into that list, every other key kept: Logseq replaces the whole list with what it is handed, so when the list could not
-   be read nothing is written and false comes back (12 November 2026, the library review: a failed read wrote a list of one). */
-Door.readLogseqConfigKeys = () => {
-  try {
-    const api = window.parent?.logseq?.api;
-    if (typeof api?.get_current_graph_configs !== 'function') return null;
-    const all = api.get_current_graph_configs('shortcuts');
-    if (all == null) return {};
-    return typeof all === 'object' && !Array.isArray(all) ? all : null;
-  } catch (error) { return null; }
+   be read nothing is written and false comes back (12 November 2026, the library review: a failed read wrote a list of one).
+   Both go through Logseq's own plugin calls, App.getCurrentGraphConfigs and App.setCurrentGraphConfigs (18 November 2026, the
+   API audit; until then the plugin reached into Logseq's window for them). Those calls answer later, so the keys last read are
+   kept: refreshLogseqConfigKeys() reads them again (at start, on a change of graph, as the key sheet is called up, and after
+   each key set), and readLogseqConfigKeys() gives what was last read at once, for what must answer while it draws. */
+let configKeys = null;
+const asKeys = all => all == null ? {} : typeof all === 'object' && !Array.isArray(all) ? all : null;
+Door.refreshLogseqConfigKeys = async () => {
+  try { configKeys = asKeys(await logseq.App.getCurrentGraphConfigs('shortcuts')); }
+  catch (error) { configKeys = null; }
+  return configKeys;
 };
+Door.readLogseqConfigKeys = () => configKeys;
 Door.logseqConfigKeys = () => Door.readLogseqConfigKeys() || {};
-Door.setLogseqKey = (id, spelling) => {
-  const kept = Door.readLogseqConfigKeys(), api = window.parent?.logseq?.api;
-  if (!kept || !id || typeof api?.set_current_graph_configs !== 'function') return false;
+Door.setLogseqKey = async (id, spelling) => {
+  const kept = await Door.refreshLogseqConfigKeys();
+  if (!kept || !id) return false;
   const keys = { ...kept, [id]: spelling ? [spelling] : [] };
-  // Made in Logseq's own window: Logseq reads only an object of its window, and one from the plugin's frame is passed over.
-  try { api.set_current_graph_configs((window.parent.JSON || JSON).parse(JSON.stringify({ shortcuts: keys }))); return true; } catch (error) { console.error('Logseq’s key could not be saved', error); return false; }
+  try { await logseq.App.setCurrentGraphConfigs({ shortcuts: keys }); }
+  catch (error) { console.error('Logseq’s key could not be saved', error); return false; }
+  await Door.refreshLogseqConfigKeys();
+  return true;
 };
 Door.logseqCommands = () => {
   let all = [];

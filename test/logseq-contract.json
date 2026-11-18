@@ -3,6 +3,7 @@
  "acceptedOn": "2026-11-18",
  "api": [
   "App.getCurrentGraph",
+  "App.getCurrentGraphConfigs",
   "App.getCurrentGraphRecent",
   "App.getInfo",
   "App.getStateFromStore",
@@ -17,6 +18,7 @@
   "App.registerPageMenuItem",
   "App.registerUIItem",
   "App.search",
+  "App.setCurrentGraphConfigs",
   "App.setRightSidebarVisible",
   "App.setStateFromStore",
   "App.setThemeMode",
@@ -326,14 +328,10 @@
   "view-action-type"
  ],
  "inside": [
-  "api.get_current_graph_configs",
   "api.get_state_from_store",
   "api.open_pdf_viewer",
-  "api.set_current_graph_configs",
   "apis.doAction",
   "state.command-palette/commands",
-  "state.plugin/installed-plugins",
-  "state.shortcuts",
   "state.sidebar/blocks"
  ]
 }

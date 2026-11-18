@@ -43,17 +43,24 @@ assert.equal(K.told('find').find, 'mod+k'); assert.equal(JSON.stringify(K.told('
 K.tell('broken', () => { throw new Error('x'); }); assert.equal(JSON.stringify(K.told('broken')), '{}');
 console.log('  ok  a part tells its fixed keys once and the sheet reads them');
 
-// Logseq's keys: one command's key written with every other kept; nothing written when they could not be read.
-const hostWith = api => { const written = []; const win = { JSON, logseq: { api: { set_current_graph_configs: v => written.push(v), ...api } } }; return { door: doorWith({}, win), written }; };
-{ const { door, written } = hostWith({ get_current_graph_configs: () => ({ 'editor/undo': ['meta+u'], 'go/home': [] }) });
-  assert.equal(door.setLogseqKey('go/search', 'meta+j'), true);
+// Logseq's keys, through Logseq's plugin calls (App.getCurrentGraphConfigs, App.setCurrentGraphConfigs): one command's key
+// written with every other kept; nothing written when they could not be read.
+const hostWith = read => { const written = []; let held = undefined; const App = { setCurrentGraphConfigs: async v => { written.push(JSON.parse(JSON.stringify(v))); held = v.shortcuts; } };
+  if (read !== undefined) App.getCurrentGraphConfigs = async key => { assert.equal(key, 'shortcuts'); return held !== undefined ? held : read(); };
+  return { door: doorWith({ App }), written }; };
+(async () => {
+{ const { door, written } = hostWith(() => ({ 'editor/undo': ['meta+u'], 'go/home': [] }));
+  assert.equal(door.readLogseqConfigKeys(), null, 'nothing read before the first read');
+  assert.equal(await door.setLogseqKey('go/search', 'meta+j'), true);
   assert.equal(JSON.stringify(written), JSON.stringify([{ shortcuts: { 'editor/undo': ['meta+u'], 'go/home': [], 'go/search': ['meta+j'] } }]), 'the other keys are kept');
-  assert.equal(door.setLogseqKey('go/home', ''), true); assert.equal(JSON.stringify(written[1].shortcuts['go/home']), '[]', 'none is an empty list'); }
-{ const { door, written } = hostWith({ get_current_graph_configs: () => null });
-  assert.equal(door.setLogseqKey('go/search', 'meta+j'), true); assert.equal(JSON.stringify(written[0]), '{"shortcuts":{"go/search":["meta+j"]}}', 'no key changed yet: the first'); }
-for (const [why, api] of [['a read that throws', { get_current_graph_configs: () => { throw new Error('no'); } }], ['no way to read', { get_current_graph_configs: undefined }], ['an answer that is no list of keys', { get_current_graph_configs: () => 'x' }], ['a list in place of a map', { get_current_graph_configs: () => [] }]]) {
-  const { door, written } = hostWith(api);
-  assert.equal(door.setLogseqKey('go/search', 'meta+j'), false, why); assert.equal(written.length, 0, `${why}: nothing is written`);
+  assert.equal(JSON.stringify(door.logseqConfigKeys()['go/search']), '["meta+j"]', 'read again after the write');
+  assert.equal(await door.setLogseqKey('go/home', ''), true); assert.equal(JSON.stringify(written[1].shortcuts['go/home']), '[]', 'none is an empty list'); }
+{ const { door, written } = hostWith(() => null);
+  assert.equal(await door.setLogseqKey('go/search', 'meta+j'), true); assert.equal(JSON.stringify(written[0]), '{"shortcuts":{"go/search":["meta+j"]}}', 'no key changed yet: the first'); }
+for (const [why, read] of [['a read that throws', () => { throw new Error('no'); }], ['no way to read', undefined], ['an answer that is no list of keys', () => 'x'], ['a list', () => ['meta+j']]]) {
+  const { door, written } = hostWith(read);
+  assert.equal(await door.setLogseqKey('go/search', 'meta+j'), false, why); assert.equal(written.length, 0, `${why}: nothing is written`);
   assert.equal(JSON.stringify(door.logseqConfigKeys()), '{}'); assert.equal(door.readLogseqConfigKeys(), null);
 }
 console.log('  ok  Logseq’s keys are written whole or not at all');
+})().catch(error => { console.error(error); process.exit(1); });
