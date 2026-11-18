@@ -985,14 +985,15 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     const mn = st.menu, m = M(), ticked = st.ticks.size;
     // Every word with its icon (16 November 2026, the owner: "no icons used at all"), the same icon as the bar's word for it.
     const MENU_ICON = { page: 'go', ppage: 'go', openall: 'chevron', tick: 'tick', rename: 'rename', prename: 'rename', nodes: 'list', new: 'child', addprop: 'plus', addpropall: 'plus', up: 'up', move: 'move', tmerge: 'merge', merge: 'merge', pmerge: 'merge', remove: 'bin', pretype: 'calendar', psplit: 'split', prange: 'tag', pmove: 'move', pullup: 'up', split: 'split', pdrop: 'bin' };
-    const it = (t, act, off, k) => `<div class="lk-item ${MENU_ICON[act] ? `lk-i-${MENU_ICON[act]}` : ''} ${off ? 'off' : ''} ${/^(Remove|Delete)/.test(t) ? 'lk-del' : ''}" data-act="${act}">${esc(t)}${k ? `<span class="rt lk-note">${k}</span>` : ''}</div>`;
+    // k: a count, in the faint note; a key (key: 'shift+right') in Logseq's key caps, as its own menus show keys (18 November 2026).
+    const it = (t, act, off, k) => `<div class="lk-item ${MENU_ICON[act] ? `lk-i-${MENU_ICON[act]}` : ''} ${off ? 'off' : ''} ${/^(Remove|Delete)/.test(t) ? 'lk-del' : ''}" data-act="${act}">${esc(t)}${k?.key ? `<span class="rt">${Door.keyCaps(k.key)}</span>` : k ? `<span class="rt lk-note">${k}</span>` : ''}</div>`;
     let h = `<div class="st-menu lk-pop lk-menu" style="left:${mn.x}px;top:${mn.y}px">`;
     if (mn.kind === 'row') {
       const t = T(mn.on), none = !t, loose = mn.on === LOOSE;   // none: nothing behind the row
       const n = Mo.count(m, mn.on), nodesOf = ids => plural(ids.reduce((s, x) => s + Mo.count(m, x), 0), 'node');
-      h += (t?.uuid ? it('Go to this tag', 'page') : '') + it('Open everything under', 'openall', false, 'Shift →') + it(st.ticks.has(mn.on) ? 'Untick' : 'Tick', 'tick', none || loose, 'space') + '<div class="gap lk-item"></div>' +
+      h += (t?.uuid ? it('Go to this tag', 'page') : '') + it('Open everything under', 'openall', false, { key: 'shift+right' }) + it(st.ticks.has(mn.on) ? 'Untick' : 'Tick', 'tick', none || loose, { key: 'space' }) + '<div class="gap lk-item"></div>' +
         it('Rename', 'rename', loose || !t) + it('Show its nodes', 'nodes', !n) + it(loose ? 'New top-level tag' : 'Add a child tag', 'new') + it('Add a property…', 'addprop', none || loose) + it('Add a property to all beneath…', 'addpropall', loose, Mo.kids(m, mn.on).length ? nodesOf(Mo.kids(m, mn.on)) : '') + '<div class="gap lk-item"></div>' +
-        it('Move up a level', 'up', none || loose || Mo.parentOf(m, mn.on) == null, 'Shift Tab') + it('Move under…', 'move', none || loose, n ? plural(n, 'node') : '') +
+        it('Move up a level', 'up', none || loose || Mo.parentOf(m, mn.on) == null, { key: 'shift+tab' }) + it('Move under…', 'move', none || loose, n ? plural(n, 'node') : '') +
         it('Merge…', 'tmerge', none || loose) + '<div class="gap lk-item"></div>' +
         it('Delete', 'remove', none || loose || n > 0 || Mo.kids(m, mn.on).length > 0, n ? plural(n, 'node') : '');
     } else {

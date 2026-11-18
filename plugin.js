@@ -402,6 +402,16 @@ Door.keyMarks = spelling => {
     return parts.sort((a, b) => MARK_ORDER.indexOf(a) - MARK_ORDER.indexOf(b)).join('') + key;
   }).join(' ');
 };
+/* A key in a menu line as Logseq's own menus draw it (18 November 2026, the owner: Ontology's right-click menu "doesn't seem like
+   other menus"): Logseq's key caps, a cap per mark and one for the key, ⇧ →, in Logseq's own classes, so its look and theme draw them. */
+Door.keyCaps = spelling => {
+  const marks = Door.keyMarks(spelling).split(' ')[0];
+  if (!marks) return '';
+  const caps = []; let rest = marks;
+  while (rest.length > 1 && MARK_ORDER.includes(rest[0])) { caps.push(rest[0]); rest = rest.slice(1); }
+  caps.push(rest);
+  return `<span class="lk-keys shui-shortcut-combo shui-shortcut-glow">${caps.map(c => `<kbd class="shui-shortcut-key">${Door.esc(c)}</kbd>`).join('<span class="shui-shortcut-separator"></span>')}</span>`;
+};
 /* THE keys of the plugin (12 November 2026, the library review: the settings window, the key sheet and Predictive each read a
    pressed key by a rule of their own, so an arrow recorded in the settings window, "up", never matched Predictive's "arrowup",
    nor Option with a punctuation mark, which a Mac types as another character). A key is kept in Logseq's spelling,
@@ -1496,12 +1506,23 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
 .lk-item.on { background: var(--lk-wash); }   /* the line the keyboard is on */
 /* A press that cannot be taken now: at the off strength, and no hand. */
 :is(.lk-btn, .lk-lone, .lk-accent, .lk-fix, .lk-item):disabled { opacity: .45; cursor: default; pointer-events: none; }
+/* A menu's lines as Logseq's own menus (18 November 2026, the owner: Ontology's right-click menu "doesn't seem like other menus",
+   measured on a bullet's menu): lines 20px high, the icon in the quiet grey in a 16px box 4px from the words, the parts apart by
+   Logseq's hairline across the whole menu (a gap outside a menu, Export's column, stays a space), a key in Logseq's key caps (Door.keyCaps). Red and faint lines keep their icon's colour. */
+.lk-menu .lk-item { line-height: 20px; align-items: center; }
+.lk-menu .lk-item[class*="lk-i-"]::before { width: 16px; height: 16px; -webkit-mask-size: 15px; mask-size: 15px; margin-right: 4px; vertical-align: middle; background: var(--lk-quiet); }
+.lk-menu .lk-item.lk-del[class*="lk-i-"]::before, .lk-menu .lk-item.off[class*="lk-i-"]::before { background: currentColor; }
+.lk-menu .lk-item-icon > .ti { color: var(--lk-quiet); }
+.lk-menu .lk-item.off .lk-item-icon > .ti { color: inherit; }
+.lk-menu .lk-item > .rt:has(> .lk-keys) { display: inline-flex; align-items: center; }
 .lk-item.gap { height: 8px; padding: 0; pointer-events: none; background: none; }
+.lk-menu .lk-item.gap { height: 1px; width: auto; margin: 4px -4px; background: var(--lk-hair); }
 /* lk-group: the heading of a part of a menu (the owner, 7 November 2026, of the View menu's "Group by" and "Date": "the headers
    need to be more prominent"): the menu's words in the text colour, a step heavier, a hairline over each part after the first,
    so the parts read apart before a word is read; a faint lk-note stays for a word of help. */
 .lk-group { padding: 6px 8px 3px; font-size: var(--lk-small); font-weight: 600; color: var(--lk-text, currentColor); cursor: default; }
 .lk-item.gap + .lk-group { border-top: 1px solid var(--lk-hair); margin-top: -4px; padding-top: 8px; }
+.lk-menu .lk-item.gap + .lk-group { border-top: 0; margin-top: 0; padding-top: 4px; }
 /* lk-note is regular weight wherever it stands, under a heading's bold too (15 November 2026: a heading's ↳ line read bold). */
 .lk-note { color: var(--lk-quiet); font-size: var(--lk-small); font-weight: 400; font-variant-numeric: tabular-nums; }
 /* lk-picked: what you can do with what you picked, right above the picked rows on the same grey as them, so the picks and what
