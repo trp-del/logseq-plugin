@@ -441,7 +441,9 @@ function make(holder, mode, app, opts = {}) {
   const KEYED = '.st-row[data-row], .st-grp[data-group], .tr[data-prop], .st-popen[data-popen]';
   const keyOfShown = e => `${e.closest('[data-pane]')?.dataset.pane || ''}|${e.dataset.row ?? ''}|${e.dataset.group ?? ''}|${e.dataset.prop ?? ''}`;
   const root = doc.createElement('div');
-  const TAGISH = mode === 'tag' || mode === 'line';   // 'line': the one line above a tag's title; 'tag': all its lines, in the inspector
+  const TAGISH = mode === 'tag' || mode === 'line';
+  // Which page this view draws: a menu opened here is drawn only here (st is shared by every view of Ontology).
+  const placeKey = `${mode}|${opts.tag ?? ''}|${opts.prop ?? ''}`;   // 'line': the one line above a tag's title; 'tag': all its lines, in the inspector
   root.className = `st ${TAGISH ? `st-tag${mode === 'line' ? ' st-line' : ''}` : 'st-page'}`;
   root.tabIndex = 0;
   holder.appendChild(root);
@@ -1019,10 +1021,15 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
       h = `${topHtml()}<div class="st-tray">${trayHtml()}</div><div class="st-right">${card}</div>`;
     } else if (mode === 'line') h = `<div class="st-tray">${trayHtml()}</div>${lineHtml(opts.tag)}`;
     else if (mode === 'tag') h = opts.prop != null ? `${inspHeadHtml(opts)}<div class="st-tray">${trayHtml()}</div>${propLinesHtml(opts.prop)}` : inspHeadHtml(opts) + linesHtml(opts.tag);
+    if (st.menu && st.menu.owner === mode && st.menu.place !== placeKey) st.menu = null;   // opened on another page: let go (0.4 gallery check)
     if (st.menu && st.menu.owner === mode) h += menuHtml();
     // What a fold opens rolls out (the grammar), as Threads' rows do: the rows, groups and properties that were not there before.
     const wasShown = st.glide ? new Set([...root.querySelectorAll(KEYED)].map(keyOfShown)) : null;
     root.innerHTML = h;
+    // The menu stands where it was pressed, moved left or up only as far as it takes to stay inside the window.
+    { const mEl = root.querySelector(':scope > .st-menu'); if (mEl) { const r = mEl.getBoundingClientRect(), vw = doc.documentElement.clientWidth, vh = doc.documentElement.clientHeight;
+      if (r.right > vw - 8) mEl.style.left = `${Math.max(0, parseFloat(mEl.style.left) - (r.right - vw + 8))}px`;
+      if (r.bottom > vh - 8) mEl.style.top = `${Math.max(0, parseFloat(mEl.style.top) - (r.bottom - vh + 8))}px`; } }
     if (st.prompt && st.prompt.owner === mode) {
       const at = st.prompt.at || {}, box = (at.within && root.querySelector(at.within)) || root;
       box.insertAdjacentHTML('beforeend', promptHtml());
@@ -1489,7 +1496,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     if (!r && !p) return;
     e.preventDefault(); e.stopPropagation();
     const box = root.getBoundingClientRect();
-    st.menu = { kind: r ? 'row' : 'prop', on: r ? keyOf(r.dataset.row) : p.dataset.prop, x: e.clientX - box.left, y: e.clientY - box.top, owner: mode };
+    st.menu = { kind: r ? 'row' : 'prop', on: r ? keyOf(r.dataset.row) : p.dataset.prop, x: e.clientX - box.left, y: e.clientY - box.top, owner: mode, place: placeKey };
     st.ask = null; st.prompt = null;
     redraw();
   });
@@ -1625,6 +1632,11 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     if (e.key.toLowerCase() === 'z' && !e.shiftKey) app.takeBack();
   };
   const offs = mode === 'page' ? [S.base.listen(win, 'hashchange', toPlace), S.base.listen(doc, 'keydown', undoKey, true), S.base.listen(win, 'resize', draw)] : [];
+  // The right-click menu is let go by a press anywhere outside it and by Escape wherever the keyboard is (0.4 gallery check: it
+  // stayed open when the keyboard was not in the view, and on the next page).
+  const menuOpen = () => st.menu && st.menu.owner === mode && root.querySelector('.st-menu');
+  offs.push(S.base.listen(doc, 'pointerdown', e => { if (menuOpen() && !e.target.closest?.('.st-menu')) { st.menu = null; app.draw(); } }, true));
+  offs.push(S.base.listen(doc, 'keydown', e => { if (e.key === 'Escape' && menuOpen()) { e.preventDefault(); e.stopPropagation(); st.menu = null; app.draw(); } }, true));
   const view = { root, mode, tag: opts.tag, prop: opts.prop, draw, destroy: () => { app.views.delete(view); for (const off of offs.splice(0)) off(); root.remove(); }, focus: () => { if (TAGISH) return; if (!doc.activeElement?.matches('input, textarea, [contenteditable="true"]')) root.focus({ preventScroll: true }); } };
   app.views.add(view);
   return view;

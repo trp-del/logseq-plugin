@@ -115,7 +115,8 @@ function looks() {
     res.fonts[fam] = (res.fonts[fam] || 0) + 1;
     res.sizes[cs.fontSize] = (res.sizes[cs.fontSize] || 0) + 1;
     const c = parse(cs.color);
-    if (c && c[3] > .5 && sat(c) > .45) {
+    // a button that waits for a tick stands at 45% (the owner's ruling, 17 Nov): its red Delete is not a strong colour at rest
+    if (c && c[3] > .5 && sat(c) > .45 && !el.closest('.waits')) {
       const mine = [el, el.parentElement].some(x => x?.matches?.(plugin));
       const key = cs.color + (mine ? ' (plugin)' : ' (Logseq)');
       const e = res.strong[key] || (res.strong[key] = { n: 0, sample: [] });

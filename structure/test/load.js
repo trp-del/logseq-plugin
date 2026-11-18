@@ -349,6 +349,23 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
     assert.equal(S.inspector.top(), null, 'a holder with no size is not shown');
     S.inspector.idle(); assert.match(text(box.querySelector('.st-insp-node')), /Open a tag’s or a property’s page/);
     S.inspector.gone(box); box.remove(); }
+  // A right-click menu belongs to the page it was opened on (0.4 gallery check, 17 November 2026: opened on Provider's page, it
+  // stood open on Consultation's page in the sidebar, past the window's edge). It goes with a press outside it, with Escape pressed
+  // anywhere, and when another page's lines are drawn; it never stands past the window's right or bottom edge.
+  { const h3 = doc.createElement('div'); doc.body.appendChild(h3);
+    const pv = S.view.make(h3, 'tag', app, { prop: pid('With') }); app.mounted(pv); await sleep(30);
+    const line = () => pv.root.querySelector('.ont[data-prop]');
+    const openMenu = () => { line().dispatchEvent(new win.MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 5, clientY: 5 })); };
+    openMenu(); await sleep(20); assert.ok(pv.root.querySelector('.st-menu'), 'the menu opens on a property\'s line');
+    doc.body.dispatchEvent(new win.MouseEvent('pointerdown', { bubbles: true, cancelable: true })); await sleep(20);
+    assert.ok(!pv.root.querySelector('.st-menu'), 'a press outside it closes it');
+    openMenu(); await sleep(20); doc.body.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); await sleep(20);
+    assert.ok(!pv.root.querySelector('.st-menu'), 'Escape pressed anywhere closes it');
+    openMenu(); await sleep(20); pv.destroy(); h3.remove();
+    const h4 = doc.createElement('div'); doc.body.appendChild(h4);
+    const tv = S.view.make(h4, 'tag', app, { tag: id('Consultation') }); app.mounted(tv); await sleep(30);
+    assert.ok(!tv.root.querySelector('.st-menu'), 'another page\'s lines are drawn without the menu opened on the page before');
+    assert.equal(app.st.menu, null, 'and the menu is let go'); tv.destroy(); h4.remove(); }
   // A property's page: each prompt under the line it concerns: Node tags, a tag's own row in On tags, Put on a tag….
   { const h2 = doc.createElement('div'); doc.body.appendChild(h2);
     const pv = S.view.make(h2, 'tag', app, { prop: pid('With') }); app.mounted(pv); await sleep(30); const Rp = pv.root;

@@ -1091,7 +1091,8 @@ function onClick(event) {
   }
   if (twoWay.onOutlineClick(event)) return;
   const fold = event.target.closest?.('.th-chev[data-fold]');
-  if (fold) { event.preventDefault(); event.stopPropagation(); twoWay.hidePeek(); const key = fold.dataset.fold; if (twoWay.isOpen(key)) { const list = fold.closest('.th-tw-row')?.querySelector('.th-tw-list'); shared.outline.close(list, () => { twoWay.setOpen(key, false); draw(host()); }); } else { twoWay.setOpen(key, true); state.fresh = key; state.html = null; draw(host()); state.fresh = ''; } return; }
+  // A list folded near the page's foot keeps the room too (foldRoom), or the page scrolls and its arrow leaves the pointer (17 November 2026, a short page).
+  if (fold) { event.preventDefault(); event.stopPropagation(); twoWay.hidePeek(); const key = fold.dataset.fold; if (twoWay.isOpen(key)) { const list = fold.closest('.th-tw-row')?.querySelector('.th-tw-list'); const box = fold.closest('.th-two-way'); foldRoom.keep(box, pane.scroller(box)); shared.outline.close(list, () => { twoWay.setOpen(key, false); draw(host()); foldRoom.trim(); }); } else { twoWay.setOpen(key, true); state.fresh = key; state.html = null; draw(host()); state.fresh = ''; } return; }
   const gfold = event.target.closest?.('.th-chev[data-gkey]');
   if (gfold) { event.preventDefault(); event.stopPropagation(); twoWay.setOpen(gfold.dataset.gkey, !twoWay.isOpen(gfold.dataset.gkey)); draw(host()); return; }
   const moreKinds = event.target.closest?.('[data-kinds]');

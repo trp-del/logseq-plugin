@@ -254,14 +254,6 @@ async function act(what, at = null) {
     shared.popup({ at, width: 'max-content', items });
     return;
   }
-  if (what === 'page-menu' || what === 'prop-menu') {
-    const items = what === 'page-menu'
-      ? [{ icon: 'to', label: `Change “${pageTitle()}” to…`, run: () => { act('point', at); } }, { icon: 'remove', label: `Remove “${pageTitle()}”`, run: () => { act('unlink', at); } }]
-      : [{ icon: 'property', label: 'Set property…', run: () => { act('set', at); } }, { icon: 'remove', label: 'Unset property…', run: () => { act('unset', at); } }];
-    // As wide as its longest item, so a long page name reads whole.
-    shared.popup({ at, width: 'max-content', items });
-    return;
-  }
   if (what === 'sidebar') { for (const uuid of nodes) openEntity(uuid, true); twoWay.stopPicking(); return twoWay.draw(host()); }
   try {
     if (what === 'copy') {
