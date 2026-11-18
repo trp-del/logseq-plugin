@@ -75,12 +75,54 @@ async function read() {
     const d = due.get(b) || {};
     list.push({ id: b, uuid: String(uuid), raw: String(words || ''), status, empty: empty.has(b), day: d.deadline || d.scheduled || 0, deadline: d.deadline || 0, deadlineMs: d.deadlineMs || 0, scheduled: d.scheduled || 0, page: pageOf.get(b) || { title: '', journal: 0 }, tags: (tagsOf.get(b) || []).sort((x, y) => x.localeCompare(y)), priority: priorityOf.get(b) || '', created: Number(created) || 0, updated: Number(updated) || 0 });
   }
-  // [[uuid]] in the words: the page's name.
-  const linked = [...new Set(list.flatMap(t => [...t.raw.matchAll(/\[\[([0-9a-f-]{36})\]\]/gi)].map(m => m[1].toLowerCase())))];
-  const names = new Map();
-  if (linked.length) for (const [u, title] of await query(`[:find ?u ?t :where ${Door.uuidsIn('?u', linked)} [?e :block/uuid ?u] [?e :block/title ?t]]`)) names.set(String(u).toLowerCase(), String(title));
-  for (const t of list) t.words = t.raw.replace(/\[\[([0-9a-f-]{36})\]\]/gi, (m, u) => names.get(u.toLowerCase()) ?? m).replace(/\[\[([^\]]+)\]\]/g, '$1').trim();
+  await written(list);
   return list;
+}
+/* The words as Logseq shows them (the owner, 18 November 2026: "todo doesn't show md syntax … correctly"). Logseq keeps a link
+   as [[uuid]], a tag as #[[uuid]] and a block reference as ((uuid)); each task gets
+     text:  the words as written, each [[uuid]] as [[Name]] and each ((uuid)) as the referenced block's own words, for the
+            row to draw (**bold**, *italic*, `code`, ~~struck~~, ==marked==, links and tags; view.js, wordsHtml);
+     links: each linked page's name (lower case) to its uuid, so a press on a link opens that page;
+     words: the same as plain words (no ** or brackets), for the menus, Undo notices and the tests. */
+const UUID_REF = /(\[\[|\(\()([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(\]\]|\)\))/gi;
+const REF_OPEN = '\uE000', REF_CLOSE = '\uE001', REF_ANY = /\uE000(\d+)\uE001/g;   // a block reference's stand-in (private-use letters)
+async function written(list) {
+  const names = new Map(), blocks = new Set();   // uuid → title; the uuids that are blocks
+  const read = async uuids => {
+    const fresh = [...new Set(uuids)].filter(u => !names.has(u));
+    if (!fresh.length) return;
+    for (const [u, title] of await query(`[:find ?u ?t :where ${Door.uuidsIn('?u', fresh)} [?e :block/uuid ?u] [?e :block/title ?t]]`)) names.set(String(u).toLowerCase(), String(title));
+    // Which of them are blocks, not pages: Logseq 2.0.2 keeps a block reference as [[uuid]] too, and draws it as the block's own
+    // words, marks and links drawn (a page's name it draws as written).
+    for (const [u] of await query(`[:find ?u :where ${Door.uuidsIn('?u', fresh)} [?e :block/uuid ?u] [?e :block/page _]]`)) blocks.add(String(u).toLowerCase());
+  };
+  const idsIn = text => [...String(text).matchAll(UUID_REF)].map(m => m[2].toLowerCase());
+  await read(list.flatMap(t => idsIn(t.raw)));
+  // A referenced block's own words may hold links too: one more read for those.
+  await read([...names.values()].flatMap(idsIn));
+  const links = new Map(); let refs = [];
+  const swap = (text, depth = 0) => String(text).replace(UUID_REF, (m, open, u, close) => {
+    const id = u.toLowerCase(), title = names.get(id);
+    if (title == null) return open === '((' ? '' : m;   // a block or page gone from the graph: nothing, as Logseq draws it
+    if (open === '((') return depth < 2 ? swap(title, depth + 1) : title.replace(UUID_REF, '');
+    if (blocks.has(id)) {
+      // A block reference: a stand-in the reader passes as plain words, its label (the block's words, its own links read too) and
+      // the block to open kept beside it for the row to draw (view.js) and the plain words below.
+      refs.push({ uuid: id, text: depth < 2 ? swap(title, depth + 1) : title.replace(UUID_REF, '') });
+      return `[[${REF_OPEN}${refs.length - 1}${REF_CLOSE}]]`;
+    }
+    links.set(title.toLowerCase(), id);
+    return `[[${title}]]`;
+  });
+  const inline = window.DbExport?.inline;
+  for (const t of list) {
+    links.clear(); refs = [];
+    t.text = swap(t.raw).trim();
+    t.links = new Map(links);
+    t.refs = refs;
+    const plain = text => (inline ? inline.words(text) : text.replace(/\[\[([^\]]+)\]\]/g, '$1')).replace(/#\[\[([^\]]+)\]\]/g, '#$1');
+    t.words = plain(t.text).replace(REF_ANY, (m, n) => refs[n] ? plain(refs[n].text) : '').trim();
+  }
 }
 
 let taskTag = null, statusTitles = null;

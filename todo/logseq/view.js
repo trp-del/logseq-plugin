@@ -37,6 +37,9 @@ const CSS = `
 .td-day.td-late { color: color-mix(in srgb, var(--rx-red-10, #dc3e42) 78%, var(--lk-paper, transparent)) !important; }
 .td-row.td-ticked .td-words { text-decoration: line-through; text-decoration-color: var(--lk-line); color: var(--lk-quiet); }
 .td-done .td-words { text-decoration: line-through; text-decoration-color: var(--lk-line); color: var(--lk-quiet); }
+/* code and ==marked== words: Logseq's own look (its :not(pre) > code and mark rules reach these rows), the same in both themes. */
+.td-words .td-ref { cursor: pointer; }
+.td-row.td-ticked .td-words .lk-tag, .td-done .td-words .lk-tag { text-decoration: line-through; }
 .td-done .td-where, .td-done .td-day { color: var(--lk-off) !important; }`;
 const ensureStyle = doc => T.base.sheet('td-style', CSS, 'td-own', doc);
 
@@ -63,9 +66,44 @@ function showWords() {
   return { words: shown.length <= 2 ? shown.map(s => s.title).join(', ') : `${shown.length} statuses`, narrow: true };
 }
 
-// The task's words; a web address in them is a link out with ↗ after it, as in Find, Threads and Logseq's own page (Door.webParts,
-// urlHtml; 16 November 2026: features drawn the same everywhere). A press on it opens the browser, not the task (main.js).
-const wordsHtml = words => Door.webParts(words).map(p => p.url ? Door.urlHtml(p.url, esc(p.text)) : esc(p.text)).join('');
+/* The task's words as Logseq shows them (the owner, 18 November 2026: "todo doesn't show md syntax … correctly"), read by the
+   plugin's one reader (DbExport.inline, as Find and Threads draw a block's words): **bold**, *italic*, ~~struck~~, ==marked==,
+   `code` and line breaks drawn as such; a link as its page's name in the library's link look (lk-node), a press on it opening that
+   page (with Shift, in the sidebar); a tag as #Name in the tag look; a web address, bare or as [words](address), a link out with
+   ↗ after it (Door.urlHtml; a press opens the browser, main.js); $math$ as its letters, an image as its words. A press anywhere
+   else on the words opens the task. Without the reader (the tests), the words plain with their web addresses. */
+function wordsHtml(t) {
+  const inline = window.DbExport?.inline, text = t.text ?? t.words;
+  if (!inline) return Door.webParts(t.words).map(p => p.url ? Door.urlHtml(p.url, esc(p.text)) : esc(p.text)).join('');
+  const page = (name, inner, cls) => { const to = t.links?.get(name.toLowerCase()) || name; return `<span class="${cls}" data-open-page="${esc(to)}" title="Open ${esc(name)}; with Shift, in the sidebar">${inner}</span>`; };
+  // inLink: inside a block reference, whose words are one link; a link or tag there reads as its words.
+  const go = (list, inLink = false) => list.map(tok => {
+    const kids = () => go(tok.k, inLink);
+    switch (tok.t) {
+      case 'text': return esc(tok.s);
+      case 'br': return '<br>';
+      case 'code': return `<code class="td-code">${esc(tok.s)}</code>`;
+      case 'strong': return `<strong>${kids()}</strong>`;
+      case 'em': return `<em>${kids()}</em>`;
+      case 'strike': return `<s>${kids()}</s>`;
+      case 'mark': return `<mark class="td-mark">${kids()}</mark>`;
+      case 'math': return esc(tok.s);
+      case 'link': return inLink ? kids() : Door.urlHtml(tok.url, kids());
+      case 'page': {
+        if (inLink) return tok.k ? kids() : esc(tok.name);
+        // A block reference (db.js): the block's own words with their marks, as one link opening the block.
+        const ref = /^\uE000(\d+)\uE001$/.exec(tok.name), r = ref && t.refs?.[ref[1]];
+        if (r) return `<span class="lk-node td-ref" data-open-page="${esc(r.uuid)}" title="Open the block; with Shift, in the sidebar">${go(inline.parse(r.text), true)}</span>`;
+        return page(tok.name, tok.k ? kids() : esc(tok.name), 'lk-node td-ref');
+      }
+      case 'tag': return inLink ? esc('#' + tok.name) : page(tok.name, esc('#' + tok.name), 'lk-tag td-ref');
+      case 'cite': return `(${kids()}${tok.page ? `, p. ${esc(tok.page)}` : ''})`;
+      case 'image': return esc(tok.alt || '');
+      default: return '';
+    }
+  }).join('');
+  return go(inline.parse(text)).replace(/ +(<br>)/g, '$1');
+}
 /* A task's status circle, Logseq's own (PluginDoor.statusHtml): the icon each status has in the graph (the owner, 15 November 2026:
    "they should be circles just like the tasks", "follow whatever icons are chosen by the properties"); a task just ticked shows
    Done's at once. A press opens the status list (openStatus), as a press on Logseq's own circle does (the owner, 15 November
@@ -93,7 +131,7 @@ function rowHtml(t, part) {
   const where = !part || part.where ? t.page.title || '' : '';
   return `<div class="td-row lk-row${T.app.ticking.has(t.uuid) ? ' td-ticked' : ''}${done ? ' td-done' : ''}" data-uuid="${esc(t.uuid)}">
 ${circle(t, status)}
-<div class="td-main"><div class="td-line"><a class="td-words" href="#" data-open="${esc(t.uuid)}" title="Open the task; with Shift, in the sidebar">${t.words ? wordsHtml(t.words) : 'Untitled'}</a></div>${where ? `<div class="td-where lk-note">${esc(where)}</div>` : ''}</div>
+<div class="td-main"><div class="td-line"><a class="td-words" href="#" data-open="${esc(t.uuid)}" title="Open the task; with Shift, in the sidebar">${t.words || t.text ? wordsHtml(t) : 'Untitled'}</a></div>${where ? `<div class="td-where lk-note">${esc(where)}</div>` : ''}</div>
 <div class="td-day lk-day${late ? ' td-late' : ''}">${esc(day)}</div></div>`;
 }
 
@@ -159,6 +197,8 @@ function make(holder, mode) {
   root.addEventListener('click', event => {
     const status = event.target.closest('[data-status-of]');
     if (status) { event.preventDefault(); openStatus(status, status.dataset.statusOf); return; }
+    const page = event.target.closest('[data-open-page]');   // a link or tag in a task's words: its page, not the task
+    if (page) { event.preventDefault(); const to = page.dataset.openPage; if (event.shiftKey) logseq.Editor.openInRightSidebar(to); else logseq.App.pushState('page', { name: to }); return; }
     const open = event.target.closest('[data-open]');
     if (open) { event.preventDefault(); T.app.open(open.dataset.open, event.shiftKey); return; }
     if (event.target.closest('[data-fold-done]')) { event.preventDefault(); T.app.foldDone(); return; }

@@ -30,6 +30,7 @@ run look node test/contents.js
 run find node test/load.js
 run todo node test/group.js
 run todo node test/status.js
+run todo node test/words.js
 run predictive node test/run.js
 run predictive node test/load.js
 run structure node test/core.test.js
