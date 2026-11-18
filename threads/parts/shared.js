@@ -179,7 +179,7 @@ const ICONS = {
   delete: 'trash', find: 'search', settings: 'adjustments-horizontal', close: 'x', remove: 'x', chosen: 'check', help: 'info-circle',
   map: 'hierarchy', property: 'forms', rename: 'cursor-text', copy: 'copy', to: 'arrow-right', picked: 'square-check',
   warning: 'alert-triangle', show: 'eye', hide: 'eye-off', shortcut: 'keyboard', twoWay: 'arrows-left-right', order: 'arrows-sort',
-  proposals: 'bulb', date: 'calendar', text: 'letter-case', number: '123', choice: 'select', several: 'stack-2', yesNo: 'checkbox', web: 'world',
+  proposals: 'bulb', date: 'calendar', text: 'letter-case', number: 'number', choice: 'select', several: 'stack-2', yesNo: 'checkbox', web: 'world',
   export: 'file-export', node: 'joins', nodes: 'joins', fact: 'blank', link: 'link', task: 'circle', image: 'photo', pdf: 'file-type-pdf', file: 'file', quote: 'blockquote',
 };
 /* The shape the font lacks, drawn once: a node property's mark, three filled dots at a triangle's corners joined by thin

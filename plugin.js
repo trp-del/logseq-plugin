@@ -458,7 +458,7 @@ Door.datedDays = rows => {
 /* What a property holds, as an icon: the web (three dots joined) for a link to nodes, drawn here because no font has it;
    the rest from Logseq's own icon font (Tabler, loaded on every page). */
 Door.WEB = '<svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M6 2.6 2.4 9.2h7.2Z" fill="none" stroke="currentColor" stroke-width="1"/><circle cx="6" cy="2.6" r="1.7" fill="currentColor"/><circle cx="2.4" cy="9.2" r="1.7" fill="currentColor"/><circle cx="9.6" cy="9.2" r="1.7" fill="currentColor"/></svg>';
-const KIND_ICONS = { node: null, page: null, date: 'calendar', datetime: 'calendar', text: 'letter-case', default: 'letter-case', number: '123', 'raw-number': '123', choice: 'select', checkbox: 'checkbox', url: 'world' };
+const KIND_ICONS = { node: null, page: null, date: 'calendar', datetime: 'calendar', text: 'letter-case', default: 'letter-case', number: 'number', 'raw-number': 'number', choice: 'select', checkbox: 'checkbox', url: 'world' };
 Door.kindIconHtml = kind => {
   const k = String(kind || 'text').replace(/^:/, '');
   if (KIND_ICONS[k] === null) return `<i class="lk-icon lk-web" aria-hidden="true">${Door.WEB}</i>`;

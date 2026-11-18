@@ -217,28 +217,45 @@ function mark(uuid) {
    Logseq shows at the end of a name under the pointer (open the page, open it in the sidebar) are Logseq's too: held back, the
    open-page button only picked the row (the owner, 16 November 2026). */
 const TICK = '[data-table-row-select], [role="checkbox"], .table-block-title > .absolute button';
-let replaying = false;
+/* A double press on a cell edits it in the row's own section in the sidebar (the owner, 18 November 2026: "clicking on cell in table
+   view just flashes and cannot edit"). With the same bullet open in the sidebar, Logseq 2.0.2 itself puts a cell's editor in the
+   sidebar's copy and closes it at once, the plugin off too, so in the row view the cell cannot be written in the table: the Name
+   column opens the bullet's words, any other column that property's value, there where the row stands. */
+const press2 = { cell: '', at: 0 };
 function cellOf(e) {
-  if (replaying || !active() || e.button !== 0 || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return null;
+  if (!active() || e.button !== 0 || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return null;
   const cell = e.target?.closest?.('.ls-table-cell');
   return cell && cell.closest(ROW) && !e.target.closest(TICK) ? cell : null;
 }
+const DOUBLE_MS = 500;   // as long as the Mac's double press waits, at its default
+// A cell known by its row's node and its column: Logseq draws the row again when it is picked, so the element itself changes.
+const cellKey = cell => `${cell.closest(ROW)?.getAttribute('blockid') || ''}|${[...cell.closest(ROW).querySelectorAll('.ls-table-cell')].indexOf(cell)}`;
 // Logseq follows a link as the button goes down, so the press is held from there on, not only at its click.
-function hold(e) { if (cellOf(e)) { e.preventDefault(); e.stopImmediatePropagation(); } }
+function holdPress(e) { if (cellOf(e)) { e.preventDefault(); e.stopImmediatePropagation(); } }
 function press(e) {
   const cell = cellOf(e); if (!cell) return;
   e.preventDefault(); e.stopImmediatePropagation();
-  if (e.detail > 1) return;   // the second press of a double press: the dblclick does the work
-  cell.focus({ preventScroll: true });
-  pick(cell.closest(ROW).getAttribute('blockid') || '');
+  const key = cellKey(cell), again = key === press2.cell && e.timeStamp - press2.at < DOUBLE_MS;
+  press2.cell = again ? '' : key; press2.at = e.timeStamp;
+  if (!again) { cell.focus({ preventScroll: true }); pick(cell.closest(ROW).getAttribute('blockid') || ''); return; }
+  editInRow(cell);
 }
-function twice(e) {
-  const cell = cellOf(e); if (!cell) return;
-  e.preventDefault(); e.stopImmediatePropagation();
-  // The press held back is played again where it was made, through the door's screen door (plugin.js).
-  replaying = true;
-  try { window.PluginDoor.screen.press(e.target, { composed: true, clientX: e.clientX, clientY: e.clientY, detail: 1 }); }
-  finally { replaying = false; }
+async function editInRow(cell) {
+  const doc = host(), row = cell.closest(ROW), uuid = row?.getAttribute('blockid');
+  if (!uuid) return;
+  const at = [...row.querySelectorAll('.ls-table-cell')].indexOf(cell);
+  const name = (doc.querySelectorAll('#main-content-container .ls-table-header .ls-table-header-cell')[at]?.textContent || '').trim();
+  const title = !!cell.querySelector('.table-block-title');
+  // The row's section, once it holds this row (a double press can come before the first press's view is drawn).
+  const section = await window.PluginDoor.screen.waitFor(() => { const it = doc.querySelector('#right-sidebar .sidebar-item[data-st-item]'); return it && holds(it) && keyOf(it) === wanted() ? it : null; }, 1500);
+  const line = !title && section ? [...section.querySelectorAll('.bottom-property-pill, .property-pair')].find(l => l.querySelector('.property-k')?.textContent.trim() === name) : null;
+  // What Logseq opens on a press: the value's own trigger, else what takes the keyboard in it (asked in turn: one selector list gives the outer box first).
+  const value = line?.querySelector('.property-value-inner .jtrigger') || line?.querySelector('.property-value-inner [tabindex="0"]') || line?.querySelector('.property-value-inner');
+  /* After the double press has ended: Logseq opens a value's editor on a click, scripted too, but a list opened while the press is
+     still under way is closed again by the press's own end, as a press outside it. */
+  await new Promise(resolve => doc.defaultView.setTimeout(resolve, 120));
+  if (value?.isConnected) { value.scrollIntoView({ block: 'nearest' }); doc.activeElement?.blur?.(); window.PluginDoor.screen.click(value); return; }
+  try { await logseq.Editor.editBlock(uuid); } catch (error) { console.error('Ontology: the row could not be opened for writing', error); }
 }
 // A row of Logseq's table is pressed, or reached with the arrows: its node is the one shown. Only rows in the main view count.
 function onRow(e) { const row = e.target?.closest?.(ROW); if (row) pick(row.getAttribute('blockid') || ''); }
@@ -246,7 +263,7 @@ function start() {
   const doc = host();
   const HELD = ['pointerdown', 'mousedown', 'pointerup', 'mouseup'];
   const { listen } = S.base;
-  const offKeys = [listen(doc, HELD, hold, true), listen(doc, 'click', press, true), listen(doc, 'dblclick', twice, true), listen(doc, ['focusin', 'click'], onRow, true)];
+  const offKeys = [listen(doc, HELD, holdPress, true), listen(doc, 'click', press, true), listen(doc, ['focusin', 'click'], onRow, true)];
   const offRoute = S.base.onStop(logseq.App.onRouteChanged?.(() => { insp.pageAt = Date.now(); insp.plain = false; pick(''); }));
   // The row view turned off: the row's view goes, as when the page is left.
   const offRows = window.PluginDoor.sideTabs?.onRows?.(on => { if (!on) pick(''); });

@@ -82,10 +82,10 @@ const { U, load, pencilled } = standIn;
     off(); assert.ok(!door.answers('structure.takeOut'), 'the offer is taken off at stop');
     logseq.UI.showMsg = notify0; settings.structureOn = was2;
     title.setAttribute('blockid', was); box.dataset.key = ''; Look.title.draw(doc); }
-  // property icons in the page's list: the web for a link to nodes, a calendar for a date, 123, a box for a choice, letters; nothing under a node
+  // property icons in the page's list: the web for a link to nodes, a calendar for a date, Logseq's number sign (as Logseq draws it on a page), a box for a choice, letters; nothing under a node
   const kind = name => doc.querySelector(`.ls-page-properties [data-property-title="${name}"] .property-m[data-lk-kind] > .lk-kind`);
   assert.ok(kind('Works at')?.querySelector('.lk-web'), 'the web mark on Works at');
-  assert.ok(kind('First seen')?.querySelector('.ti-calendar') && kind('Rating')?.querySelector('.ti-123') && kind('Status')?.querySelector('.ti-select') && kind('Specialty')?.querySelector('.ti-letter-case'), 'a calendar, 123, a box, letters');
+  assert.ok(kind('First seen')?.querySelector('.ti-calendar') && kind('Rating')?.querySelector('.ti-number') && kind('Status')?.querySelector('.ti-select') && kind('Specialty')?.querySelector('.ti-letter-case'), 'a calendar, the number sign, a box, letters');
   assert.equal(doc.querySelectorAll('.ls-block-properties .lk-kind, .bottom-property-pill .lk-kind').length, 0, 'plain text under a node');
   // a row that comes has its icon before the next frame, so Logseq's dot never shows first
   { const row = doc.querySelector('.ls-page-properties [data-property-title]'), copy = row.cloneNode(true);

@@ -34,7 +34,7 @@ const key = (target, name, init = {}) => target.dispatchEvent(new dom.window.Key
   const rows = [...lists[1].querySelectorAll('.xp-prop.lk-row')];
   assert.deepEqual(rows.map(r => r.querySelector('.lk-prop').textContent), ['Date', 'Deadline', 'End', 'Hospital', 'Provider', 'Severity', 'Topic']);
   assert.ok(rows.every(r => r.querySelector('input.lk-tick[type=checkbox]') && r.querySelector('.lk-count')), 'a tick and a count on every row');
-  assert.ok(rows[0].querySelector('.xp-kind .ti-calendar') && rows[4].querySelector('.xp-kind svg') && rows[5].querySelector('.xp-kind .ti-123'), 'a calendar before Date, the web before Provider, 123 before Severity');
+  assert.ok(rows[0].querySelector('.xp-kind .ti-calendar') && rows[4].querySelector('.xp-kind svg') && rows[5].querySelector('.xp-kind .ti-number'), 'a calendar before Date, the web before Provider, the number sign before Severity');
   // The bar at rest: Adjust, the template, where the export goes as tabs (the library's lk-view, the one in force "on"), the accent. The choices are in the column, put away until Adjust is pressed.
   assert.deepEqual([...win.querySelectorAll('.xp-bar .g:not(.end) .lk-name')].map(n => n.textContent), ['', 'export as']);
   assert.ok([...win.querySelectorAll('.xp-where label')].every(l => l.classList.contains('lk-view')) && win.querySelector('.xp-where label.on input').value === 'pdf', 'tabs, PDF in force');

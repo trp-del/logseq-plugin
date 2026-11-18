@@ -164,7 +164,7 @@ ${ROW} > .block-main-container .ls-block-right .block-tags { display: none !impo
    grid, the grid of a page's properties in Logseq: the icon, the name at 150 px, 12 px, the value; the text's size, 28 px a line, one
    left edge. Look puts the icon of what each holds before the name, as on a page (props.js). So a bullet's row reads like a page's
    row, line for line (the owner, 18 November 2026: "it doesn't use the plugin's normal library elements"). */
-html ${ROW} > .block-main-container .positioned-properties.block-below { display: block !important; overflow: visible !important; margin: 0 !important; padding: 0 !important; font-size: 16px !important; }
+html ${ROW} > .block-main-container .positioned-properties.block-below { display: block !important; overflow: visible !important; margin: 0 !important; padding: 0 !important; font-size: 16px !important; width: 100% !important; max-width: 100% !important; box-sizing: border-box; }   /* no wider than the row: 16 px wider, the sidebar slid sideways when a value took the keyboard */
 ${ROW} > .block-main-container :is(.bottom-properties-row, .bottom-properties-pills-strip) { display: block !important; overflow: visible !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }
 html ${ROW} > .block-main-container .bottom-property-pill,
 ${ROW} > .ls-block-content-indent > .ls-properties-area .property-pair { display: grid !important; grid-template-columns: 150px minmax(0, 1fr) !important; column-gap: 12px !important; align-items: center !important; min-height: 28px; width: 100% !important; margin: 0 !important; padding: 0 !important; opacity: 1 !important; font-size: 16px !important; line-height: 24px !important; box-sizing: border-box; }
@@ -173,7 +173,7 @@ ${ROW} > .ls-block-content-indent > .ls-properties-area .property-pair .property
 ${ROW} > .block-main-container .bottom-property-pill .lk-kind { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 15px; height: 15px; opacity: .5; }
 ${ROW} > .block-main-container .bottom-property-pill > div:first-child > div:last-child:not(.property-key-inner) { display: none; }
 /* Look's dot between two properties on a line, and its step back for a line that wraps, mean nothing with one property a line. */
-${ROW} > .block-main-container .bottom-property-pill::before { content: none !important; display: none !important; }
+${ROW} > .block-main-container .bottom-property-pill::before, ${ROW} > .block-main-container .bottom-property-pill::after { content: none !important; display: none !important; }   /* ::after is Logseq's ring round a line given the keyboard */
 html ${ROW} > .block-main-container .bottom-property-pill[data-lk-line] { transform: none !important; }
 ${ROW} > .block-main-container .bottom-property-pill .property-key-inner { min-width: 0; }
 ${ROW} > .block-main-container .bottom-property-content { min-width: 0; margin: 0 !important; }
@@ -201,6 +201,32 @@ ${ROW} > .block-main-container { margin-bottom: 0 !important; }
 .st-holder-insp .st-lines-t .ont .acts-r { grid-column: 1 / -1; flex-wrap: wrap; gap: 2px 8px; margin-left: -6px; }
 .st-holder-insp .st-lines-t .ont .acts-r:empty { display: none; }
 .st-holder-insp:not([data-row]):has(.st-insp-top :is(.st-insp-h, .st-lines-t)) .st-insp-node { border-top: 1px solid var(--lk-hair); padding-top: 16px; }
+/* The line by line review (the owner, 18 November 2026: "sidebar of table view needs a deep visual analysis"). */
+/* A line is no box: Logseq's ring around a property it has given the keyboard (a rounded outline across the line, past its end)
+   gives way to the wash a pressed line has everywhere. */
+html ${ROW} > .block-main-container :is(.bottom-property-pill, .bottom-property-pill:focus, .bottom-property-pill:focus-within) { outline: none !important; box-shadow: none !important; border: 0 !important; border-radius: 0 !important; background: none !important; }
+html ${ROW} > .block-main-container .bottom-property-pill:focus-visible { background: var(--lk-wash) !important; border-radius: 4px !important; }
+/* Logseq's "Show hidden properties": one line, its arrow in the icons' place and its words where the names start, quiet as a name. */
+html ${ROW} > .block-main-container .bottom-property-hidden-toggle-btn { display: flex !important; align-items: center !important; justify-content: flex-start !important; gap: 4px !important; color: var(--lk-quiet) !important; font-size: inherit !important; text-align: left; cursor: pointer; }
+html ${ROW} > .block-main-container .bottom-property-hidden-toggle-btn > .ui__icon { flex: none; width: 15px; display: inline-flex; justify-content: center; }
+html ${ROW} > .block-main-container .bottom-property-hidden-toggle-btn:hover { color: var(--lk-text) !important; }
+/* An empty value says nothing: the faint name already says it is empty, so Logseq's "---" goes (the place to press stays). */
+${ROW} :is(.bottom-property-pill, .property-pair) .ls-icon-line-dashed { visibility: hidden !important; }
+/* A name is faint only while its value is empty: a hidden property that holds a value (Status: Todo) reads as any other. */
+html ${ROW} > .block-main-container .bottom-property-pill { opacity: 1 !important; }
+html ${ROW} > .block-main-container .bottom-property-pill:not(:has(.empty-value)) > div:first-child { color: var(--lk-quiet) !important; opacity: 1 !important; }
+html ${ROW} > .ls-block-content-indent > .ls-properties-area .property-pair:not(:has(.empty-value)) :is(.property-key-panel, .property-key-inner, .property-k) { color: var(--lk-quiet) !important; opacity: 1 !important; }
+/* A date is a date: Logseq's yellow on a deadline near or past stays in the outline; here it reads as the other values. */
+${ROW} :is(.bottom-property-pill, .property-pair) .property-value-inner :is(.overdue, .overdue *) { color: var(--lk-text) !important; }
+/* A number while it is written: its box fills the value's column, where the number stood. */
+${ROW} :is(.bottom-property-pill, .property-pair) .ls-number { flex: 1; min-width: 0; }
+${ROW} :is(.bottom-property-pill, .property-pair) .property-value-inner:has(> .ls-number > input) { flex: 1; width: 100%; }
+${ROW} :is(.bottom-property-pill, .property-pair) .ls-number > input { width: 100% !important; border: 0 !important; border-bottom: 1px solid var(--lk-line) !important; border-radius: 0 !important; box-shadow: none !important; background: none !important; padding: 0 !important; height: auto !important; font: inherit !important; }   /* the library's field: on a hairline */
+/* The bullets inside the row stand as a page's do: under the icons' column, the first level with no line of its own (the line beside
+   them belonged to the row's own bullet, which the row view does not draw), each deeper line under its own bullet (the owner,
+   18 November 2026: "look at misalignment of vertical bullet lines"). */
+${ROW} > .block-children-container { margin-left: -23px !important; }
+${ROW} > .block-children-container > .block-children-left-border { display: none !important; }
 .st-insp-node:empty { display: none; }
 .st-insp-none { margin: 0; } .st-insp-none.lk-none { padding: 0; }   /* the library's nothing-here line, at the top of the tab, as Links' and Endnotes' (the audit's 32) */
 /* Two marks in a table beside the Item tab (the owner, 12 November 2026): the row Item shows keeps a blue outline for as long as it is
