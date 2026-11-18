@@ -30,6 +30,12 @@ const CSS = `
 /* The first section sits just under the bar (the owner, 17 November 2026: "why is there a big gap on the top?"): Logseq's 24 px above
    the list, under its own 48 px bar, made a band of 72 px with nothing in it. */
 #right-sidebar[data-lk-stack] .sidebar-item-list { padding-top: 8px !important; }
+/* In the row view the row's head stands on the toolbar's middle line, its arrow and its words level with the toolbar's buttons, each
+   head of the view 32 px high with what it holds on its middle line (the owner, 18 November 2026: "the top row with the fold control
+   and total is misaligned": it stood at the window's top edge, 14 px above them, the count higher and smaller than the arrow). */
+#right-sidebar[data-lk-rows] .sidebar-item-list { padding-top: 16px !important; }
+#right-sidebar[data-lk-rows] .sidebar-item-list > .sidebar-item .sidebar-item-header { box-sizing: border-box; min-height: 32px; align-items: center !important; }
+#right-sidebar[data-lk-rows] .sidebar-item-list > .sidebar-item .sidebar-item-header > button { align-self: stretch; }
 /* Logseq's bar on top of the sidebar holds nothing here (its words are left out, below), so it goes, and the first section's head
    stands level with the toolbar (the owner, 17 November 2026: "there is still a massive gap above"). Two pages side by side keep it
    (split.js draws the right page's title there). */
@@ -58,6 +64,10 @@ const CSS = `
    nothing is dragged: each one moved Ontology 8 px for a frame (the owner, 17 November 2026: "still moves things up and down"). */
 #right-sidebar[data-lk-rows] .sidebar-item-list { min-height: 100%; box-sizing: border-box; }
 #right-sidebar[data-lk-rows] .sidebar-item-list > .sidebar-item[data-lk-row]:not([data-st-item]) { margin-top: auto !important; }
+/* In the row view the room around the two sections never changes: the row has none above it, Ontology always its hairline, so the
+   row coming, going or changing moves nothing (the owner, 18 November 2026: "things jump"). */
+#right-sidebar[data-lk-rows] .sidebar-item-list > .sidebar-item[data-st-item] { border-top: 0 !important; margin-top: 0 !important; padding-top: 0 !important; }
+#right-sidebar[data-lk-rows] .sidebar-item-list > .sidebar-item[data-lk-row]:not([data-st-item]) { border-top: 1px solid var(--lk-line) !important; padding-top: 6px !important; }
 #right-sidebar[data-lk-rows] .sidebar-item-list > .sidebar-drop-indicator { display: none !important; }
 /* Logseq's button that opens and shuts the sidebar is drawn as a sidebar of stacked sections (the owner, 17 November 2026: "switch
    sidebar icon to something that looks stacked"): the window, its right part cut into three. Drawn with the icon's own colour and
@@ -124,8 +134,17 @@ function draw(doc = host()) {
   st.width = w;
   // The Row view button reads as pressed while the row view is on.
   for (const a of doc.querySelectorAll('.lk-tool[data-on-click="rowView"]')) if (a.getAttribute('aria-pressed') !== String(st.rows)) a.setAttribute('aria-pressed', String(st.rows));
-  // In the row view Ontology stands folded under the row, by Logseq's own fold, so its head still opens it.
-  if (st.rows) { const ont = [...partItems].find(([, v]) => v.rows && v.key !== 'item')?.[0]; const fold = ont?.querySelector('.sidebar-item-header > button[aria-expanded="true"]'); if (fold && !st.folded) { st.folded = true; Door.screen.click(fold); } }
+  /* In the row view Ontology stands folded under the row, by Logseq's own fold, so its head still opens it. Folded once, as the view
+     comes on: unfolded by you after that, it stays open (it was folded again a moment after you opened it whenever the plugin had not
+     folded it itself, after a reload: the owner, 18 November 2026, "how does ontology reveal itself?"). */
+  if (st.rows && st.foldDue) { const ont = [...partItems].find(([, v]) => v.rows && v.key !== 'item')?.[0]; if (ont) { st.foldDue = false; const fold = ont.querySelector('.sidebar-item-header > button[aria-expanded="true"]'); if (fold) { st.folded = true; Door.screen.click(fold); } } }
+  /* The first section seen: the first part shown, else the first item shown in Logseq's order. Marked before anything rolls out, so a
+     section rolls out to the room it keeps: marked after, the first one rolled out to room for a hairline above it and then lost that
+     room in a frame, a jump of 10 px (the owner, 18 November 2026: "things jump"). */
+  const shown = item => !item.hasAttribute('data-lk-aside') && !item.hasAttribute('data-lk-contents') && !item.hasAttribute('data-lk-wait') && !item.hasAttribute('data-lk-closed') && (!st.rows || item.hasAttribute('data-lk-row'));
+  const all = [...doc.querySelectorAll('#right-sidebar .sidebar-item-list > .sidebar-item')];
+  const first = [...partItems.keys()].filter(shown).sort((a, b) => parts.indexOf(partItems.get(a)) - parts.indexOf(partItems.get(b)))[0] || all.find(item => !partItems.has(item) && shown(item));
+  for (const item of all) toggle(item, 'data-lk-first', item === first);
   // A part of the page that comes into view rolls out of where it stands, as every section that opens (the grammar).
   // Not while the sidebar itself slides open: that is motion enough.
   const nowOpen = sidebarOpen();
@@ -139,11 +158,6 @@ function draw(doc = host()) {
     if (seen && !st.shownParts.has(view.key)) { st.shownParts.add(view.key); if (Date.now() - st.openAt > 450) Door.unroll(item); }   // in the same pass, before it is painted whole
     else if (!seen && !(view.key === 'item' && view.owns && st.shownParts.has('item') && views.some(v => v.key === 'item' && !v.hidden?.(doc)))) st.shownParts.delete(view.key);
   }
-  // The first section seen: the first part shown, else the first item shown in Logseq's order.
-  const shown = item => !item.hasAttribute('data-lk-aside') && !item.hasAttribute('data-lk-contents') && !item.hasAttribute('data-lk-wait') && !item.hasAttribute('data-lk-closed') && (!st.rows || item.hasAttribute('data-lk-row'));
-  const all = [...doc.querySelectorAll('#right-sidebar .sidebar-item-list > .sidebar-item')];
-  const first = [...partItems.keys()].filter(shown).sort((a, b) => parts.indexOf(partItems.get(a)) - parts.indexOf(partItems.get(b)))[0] || all.find(item => !partItems.has(item) && shown(item));
-  for (const item of all) toggle(item, 'data-lk-first', item === first);
   /* The sidebar never stands open and blank (the owner, 17 November 2026: "the sidebar also shouldn't have a blank or be open to
      that"): open with nothing to show, and no part of the page on its way, it closes after a moment. Closed that way, it opens again
      by itself on the next page where a part of the page applies (from Dr. Mei Chen back to Doctor, Ontology is back). Closed by you,
@@ -175,11 +189,26 @@ function onClose(event) {
   win.setTimeout(() => { draw(doc); if (sidebarOpen() && !opened(doc)) logseq.App.setRightSidebarVisible(false); }, 360);   // the section rolls up in 140 ms
 }
 
+/* The open width the words keep while the sidebar slides is taken again at once when the window or the sidebar is made wider or
+   narrower by hand (a window 900 px wide kept the width of one 1582 px wide, and Ontology's panel stood 245 px past the window's
+   edge: the 0.4 audit, 17 November 2026). Not while it slides open or shut. */
+function followWidth() {
+  const side = host().getElementById('right-sidebar');
+  if (!side?.hasAttribute('data-lk-stack')) return;
+  const open = sidebarOpen();
+  if (open !== st.rzOpen) { st.rzOpen = open; st.rzAt = Date.now(); }
+  if (!open) return;
+  if (Date.now() - st.rzAt < 700) { host().defaultView.setTimeout(followWidth, 750); return; }   // once it has stopped sliding
+  const w = Math.round(side.getBoundingClientRect().width);
+  if (w > 240 && side.style.getPropertyValue('--lk-side-w') !== w - 16 + 'px') { side.style.setProperty('--lk-side-w', w - 16 + 'px'); st.width = w; }
+}
 function start() {
   if (st.off) return;
   Door.root.style('sidebar-tabs', CSS);
   st.off = Door.root.watch(draw);
-  st.offClick = Door.root.listen(host(), 'click', onClose, true);
+  st.rzOpen = sidebarOpen(); st.rzAt = 0;   // as it stands at the start, so the first resize is followed
+  const offs = [Door.root.listen(host(), 'click', onClose, true), Door.root.listen(host().defaultView, 'resize', followWidth), Door.root.listen(host(), 'pointerup', () => host().defaultView.requestAnimationFrame(followWidth), true)];
+  st.offClick = () => { for (const off of offs) off?.(); };
 }
 function stop() {
   st.off?.(); st.off = null; st.offClick?.(); st.offClick = null;
@@ -206,6 +235,7 @@ Door.sideTabs = {
   rows(on) {
     if (on === undefined) return st.rows;
     st.rows = !!on;
+    st.foldDue = st.rows;   // Ontology is folded once, as the row view comes on; after that its fold is yours
     const doc = host();
     if (!st.rows && st.folded) { st.folded = false; const fold = doc.querySelector('#right-sidebar .sidebar-item[data-lk-row].collapsed .sidebar-item-header > button[aria-expanded="false"]'); if (fold) Door.screen.click(fold); }
     for (const fn of rowsHeard) { try { fn(st.rows); } catch (error) { console.error('logseq-plugin: the row view could not be followed', error); } }

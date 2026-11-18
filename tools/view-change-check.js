@@ -87,16 +87,20 @@ async function connect({ allowEditing = false } = {}) {
   const MAIN = async () => { const m = await rect('#main-content-container'); return { x: m.x + 20, y: 60, w: m.w - 40, h: 700 }; };
   // 1. Item pane: row to row by press, then by arrow key
   await rv.go('Consultation', 3000); await tab('Ontology'); await sleep(600);
-  // The tab row and what the sidebar shows, read on every frame of the Item tab's changes: never an "Opened" tab for a moment, never nothing shown.
-  await page.evaluate(() => { window.__seen = []; const step = () => { const row = [...document.querySelectorAll('#right-sidebar .lk-tabs .lk-view')].map(b => b.textContent.trim()).join(','); const shown = [...document.querySelectorAll('#right-sidebar .sidebar-item-list > .sidebar-item')].filter(i => i.getClientRects().length && getComputedStyle(i).visibility !== 'hidden').length; const k = row + ' | items shown ' + shown; if (window.__seen.at(-1) !== k) window.__seen.push(k); window.__raf = requestAnimationFrame(step); }; step(); });
+  /* Since 17 November 2026 the sidebar is Logseq's stacked sections and a pressed row shows only in the row view (its toolbar button):
+     the row's section first, Ontology folded under it. Read on every frame of the rows changing: the sections shown stay the ones shown
+     once the first row stood there, never one more (a row's view stacked under the last) and never fewer (a frame with no row). */
+  const rowView = on => page.evaluate(on => { const b = document.querySelector('.lk-tool[data-on-click="rowView"]'); if (b && (b.getAttribute('aria-pressed') === 'true') !== on) b.click(); }, on);
+  await rowView(true); await sleep(900);
   let p = await rowAt(3); await page.mouse.click(p.x, p.y); await sleep(1800);
+  await page.evaluate(() => { window.__seen = []; const step = () => { const shown = [...document.querySelectorAll('#right-sidebar .sidebar-item-list > .sidebar-item')].filter(i => i.getClientRects().length && getComputedStyle(i).visibility !== 'hidden'); const k = shown.map(i => i.hasAttribute('data-st-item') ? 'row' : (i.querySelector('.sidebar-item-header')?.textContent || '').trim().slice(0, 20)).join(',') + ' | items shown ' + shown.length; if (window.__seen.at(-1) !== k) window.__seen.push(k); window.__raf = requestAnimationFrame(step); }; step(); });
     p = await rowAt(6); await run('item-row-to-row-press', SIDE, () => page.mouse.click(p.x, p.y), 1800);
   await run('item-row-arrow-down', SIDE, () => page.keyboard.press('ArrowDown'), 1800);
   await run('item-row-arrow-down-2', SIDE, () => page.keyboard.press('ArrowDown'), 1800);
-  { const seen = await page.evaluate(() => { cancelAnimationFrame(window.__raf); return window.__seen; }); // The tabs the person had before the rows were pressed stay as they were (their own opened pages keep "Opened"); only Item may come.
-    const tabsOf = k => k.split(' | ')[0].split(',').filter(t => t !== 'Item').join(','), first = tabsOf(seen[0] || '');
-    const bad = seen.filter(k => tabsOf(k) !== first || !/items shown 1$/.test(k));
-    if (!only || 'item'.includes(only)) { console.log('   tab row while rows change: ' + seen.join('  →  ')); if (bad.length) failed.push('item-tab-row (' + bad.join('; ') + ')'); } }
+  { const seen = await page.evaluate(() => { cancelAnimationFrame(window.__raf); return window.__seen; });
+    const bad = seen.filter(k => k !== seen[0] || !/^row,/.test(k));
+    if (!only || 'item'.includes(only)) { console.log('   sections while rows change: ' + seen.join('  →  ')); if (bad.length) failed.push('item-tab-row (' + bad.join('; ') + ')'); } }
+  await rowView(false); await sleep(900);
   // 2. sidebar tabs
   await run('tab-item-to-ontology', SIDE, () => tab('Ontology'));
   await run('tab-ontology-to-links', SIDE, () => tab('Links'));

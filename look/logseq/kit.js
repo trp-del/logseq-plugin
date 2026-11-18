@@ -26,7 +26,8 @@ function watchScreen(pass, early) {
   const Door = window.PluginDoor;
   watch.passes.add(pass);
   base.watch(pass);
-  if (early) base.watch((doc, records) => { if (Door.addsElements(records)) early(doc); }, { early: true });
+  // Elements came, or Ontology's row view made a sidebar section the row pressed (its tag line and icons are Look's, drawn in that frame).
+  if (early) base.watch((doc, records) => { if (Door.addsElements(records) || records.some(r => r.attributeName === 'data-st-item')) early(doc); }, { early: true });
 }
 function run(doc) { for (const pass of [...watch.passes]) { try { pass(doc); } catch (error) { console.error('Look: a pass failed', error); } } }
 const stopAll = () => { watch.passes.clear(); return base.stop(); };

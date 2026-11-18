@@ -45,6 +45,9 @@ const css = `
    before it for the × hangs out to the left. Where the head has no fold arrow (the Item tab) structure/logseq/view.js moves it with the ◇. */
 .lk-path.lk-path-sb { display: block; max-width: none; margin: 4px 0 0 -4px; white-space: normal; overflow: visible; }
 .lk-path.lk-path-sb .lk-held { white-space: nowrap; }
+/* Under a bullet's words in Ontology's row view: as under a sidebar page's name, its first name under the words' first letter (the room
+   kept before it for the × hangs out to the left), the lines under it. */
+.lk-path.lk-path-row { margin: 2px 0 10px -18px; }
 /* The Undo arrow of a tag taken off, at the right end of the title row: on the line the tags stand on. */
 .ls-block-right > .lk-undo.lk-undo-title { align-self: flex-start; margin: 21px 0 0 6px; }
 .sidebar-item-header .page-title > .lk-undo.lk-undo-title { text-decoration: none !important; }   /* beside a sidebar page's name: the name's underline is not the arrow's */`;
@@ -52,6 +55,7 @@ const css = `
 const state = { box: null, page: '', tagPage: false, boxes: new Map() };
 const PAGE_TITLE = '#main-content-container :is(.ls-page-title, .page-title, h1.title)';
 const SIDEBAR_PAGE = '#right-sidebar .sidebar-item.item-type-page';
+const ROW_ITEM = '#right-sidebar .sidebar-item.item-type-block[data-st-item]';
 const shownTitle = doc => { const titles = [...doc.querySelectorAll(PAGE_TITLE)].filter(t => t.querySelector('.ls-block[blockid]')); return titles.length === 1 ? titles[0] : null; };
 
 // What the row reads. A tag's page: the tags above it only. A page: each held tag's whole chain.
@@ -68,16 +72,16 @@ function groupsOf(index, uuid) {
 }
 const link = (doc, t, end) => el(doc, 'a', { class: end ? 'lk-tag lk-end' : 'lk-tag', href: '#', 'data-uuid': t.uuid, style: `--lk-n: ${[...String(t.title)].length}` }, t.title);
 const asks = () => window.PluginDoor.runs('structure');
-function held(doc, t, tagPage) {
+function held(doc, t, tagPage, what = 'page') {
   if (tagPage && !asks()) return link(doc, t);
-  const words = tagPage ? `Take this tag out from under ${t.title}` : `Remove ${t.title} from this page`;
+  const words = tagPage ? `Take this tag out from under ${t.title}` : `Remove ${t.title} from this ${what}`;
   return el(doc, 'span', { class: 'lk-held lk-own lk-reveals' }, link(doc, t), el(doc, 'span', { class: 'lk-x lk-reveal', role: 'button', tabindex: '0', title: words, 'aria-label': words, 'data-take': t.uuid }, '×'));
 }
-function build(doc, groups) {
+function build(doc, groups, what) {
   const parts = [];
   groups.forEach((path, n) => {
     if (n) parts.push(el(doc, 'span', { class: 'lk-sep', 'aria-hidden': 'true' }, '·'));
-    path.chain.forEach((t, i) => { if (i) parts.push(el(doc, 'span', { class: 'lk-sep', 'aria-hidden': 'true' }, '/')); parts.push(i ? link(doc, t, i === path.chain.length - 1) : held(doc, t, groups.tagPage)); });
+    path.chain.forEach((t, i) => { if (i) parts.push(el(doc, 'span', { class: 'lk-sep', 'aria-hidden': 'true' }, '/')); parts.push(i ? link(doc, t, i === path.chain.length - 1) : held(doc, t, groups.tagPage, what)); });
     path.others.forEach(t => { parts.push(el(doc, 'span', { class: 'lk-sep', 'aria-hidden': 'true' }, '·')); parts.push(groups.tagPage ? held(doc, t, true) : link(doc, t)); });
   });
   return parts;
@@ -88,7 +92,7 @@ function open(event) {
   event.preventDefault(); event.stopPropagation();
   const own = pageOf(event.currentTarget);
   const x = event.target.closest('.lk-x');
-  if (x) return takeOff(x.getAttribute('data-take'), own || { page: state.page, tagPage: state.tagPage }, x.closest('.lk-held')?.querySelector('a.lk-tag')?.textContent || 'The tag');
+  if (x) return takeOff(x.getAttribute('data-take'), own || { page: state.page, tagPage: state.tagPage }, x.closest('.lk-held')?.querySelector('a.lk-tag')?.textContent || 'The tag', event.currentTarget.classList.contains('lk-path-row') ? 'node' : 'page');
   const a = event.target.closest('a[data-uuid]');
   if (a) openPage(a.getAttribute('data-uuid'), event.shiftKey);
 }
@@ -102,7 +106,7 @@ function undoPlace(page) {
   return null;
 }
 // The × and its key take the tag off the same way, and leave the same faded Undo arrow every other change leaves (10 November 2026).
-async function takeOff(tagUuid, { page, tagPage }, name = 'The tag') {
+async function takeOff(tagUuid, { page, tagPage }, name = 'The tag', what = 'page') {
   if (!page || !tagUuid) return;
   try {
     if (tagPage) {
@@ -111,7 +115,7 @@ async function takeOff(tagUuid, { page, tagPage }, name = 'The tag') {
     }
     await Look.db.removeTag(page, tagUuid);
     setTimeout(() => Look.marks.load(), 300);
-    window.PluginDoor.undo.offer({ owner: 'look', key: `look:${page}:${tagUuid}`, at: () => undoPlace(page), node: page, text: `${name} taken off this page`, cls: 'lk-undo-title',
+    window.PluginDoor.undo.offer({ owner: 'look', key: `look:${page}:${tagUuid}`, at: () => undoPlace(page), node: page, text: `${name} taken off this ${what}`, cls: 'lk-undo-title',
       run: async () => { await Look.db.addTag(page, tagUuid); setTimeout(() => Look.marks.load(), 300); },
       onFail: error => { console.error('Look: a tag could not be put back', error); notify('The tag could not be put back', 'warning'); } });
   } catch (error) { console.error('Look: a tag could not be taken off', error); notify('The tag could not be taken off', 'warning'); }
@@ -155,7 +159,26 @@ function drawSidebar(doc, index) {
     if (spot) { if (box.nextElementSibling !== spot) spot.before(box); }
     else { const inner = pageEl.querySelector('.page-inner') || pageEl; if (inner.firstElementChild !== box) inner.prepend(box); }
   }
+  if (on) drawRows(doc, index, seen);
   for (const [item, box] of state.boxes) if (!seen.has(item)) { box.remove(); state.boxes.delete(item); }
+}
+/* The row of a table pressed in Ontology's row view, when it is a bullet (structure/logseq/view.js shows it like a page): the same
+   line under its words, the words standing as its title (18 November 2026). */
+function drawRows(doc, index, seen = new Set()) {
+  for (const item of doc.querySelectorAll(ROW_ITEM)) {
+    const root = item.querySelector('.sidebar-panel-content .ls-block[blockid]');
+    const under = root?.querySelector(':scope > .block-main-container .block-main-content');
+    const uuid = root?.getAttribute('blockid');
+    if (!under || !uuid) continue;
+    seen.add(item);
+    const groups = groupsOf(index, uuid);
+    let box = state.boxes.get(item);
+    if (!box) state.boxes.set(item, box = el(doc, 'div', { class: 'lk-path lk-path-sb lk-path-row lk-own', click: open, keydown: press, mousedown: keep, pointerdown: keep }));
+    const key = JSON.stringify([uuid, groups]);
+    if (box.dataset.key !== key) { box.dataset.key = key; box.dataset.page = uuid; box.dataset.tagPage = ''; box.replaceChildren(...build(doc, groups, 'node')); }
+    if (!groups.length) { box.remove(); continue; }
+    if (under.nextElementSibling !== box) under.after(box);
+  }
 }
 function draw(doc) { const index = Look.index; if (!index) return; drawTitle(doc, index); drawSidebar(doc, index); }
 /* Before the screen is drawn, when another page's title has come: its line of tags goes into the title row in the frame the title
@@ -165,6 +188,7 @@ function draw(doc) { const index = Look.index; if (!index) return; drawTitle(doc
 function early(doc) {
   const index = Look.index; if (!index) return;
   const uuid = shownTitle(doc)?.querySelector('.ls-block[blockid]')?.getAttribute('blockid') || '';
+  if (setting('tagChainSidebar') && doc.querySelector(ROW_ITEM)) drawRows(doc, index);   // the row view's row, in the frame Ontology marks it
   if (uuid === state.page && (!state.box || state.box.isConnected)) return;
   drawTitle(doc, index);
 }

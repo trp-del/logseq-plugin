@@ -555,7 +555,8 @@ Door.addMenuItem = item => { Door.menuItems = Door.menuItems.filter(x => x.key !
    ones once, so the watcher never answers itself. A pass that throws five times is retired for the session. The observer stands
    while any pass is registered and goes with the last. */
 const screen = { early: new Set(), passes: new Set(), witnesses: new Set(), observer: null, frame: 0, doc: null, win: null, failures: new Map() };
-const SCREEN_ATTRS = ['data-uuid', 'blockid', 'data-collapsed', 'data-page-tags', 'data-ref', 'class', 'data-hl-type'];
+// data-st-item: the sidebar section Ontology's row view has made the row pressed; Look then draws its tag line and icons there.
+const SCREEN_ATTRS = ['data-uuid', 'blockid', 'data-collapsed', 'data-page-tags', 'data-ref', 'class', 'data-hl-type', 'data-st-item'];
 function passFailed(fn, set, error) {
   const n = (screen.failures.get(fn) || 0) + 1;
   screen.failures.set(fn, n);

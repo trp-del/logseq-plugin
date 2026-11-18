@@ -157,11 +157,6 @@ function dress(el, doc) {
   const words = say ? JSON.stringify(say) : '';
   if (el && el.style.getPropertyValue('--st-where') !== words) { if (words) el.style.setProperty('--st-where', words); else el.style.removeProperty('--st-where'); }
   for (const old of doc.querySelectorAll('#right-sidebar .sidebar-item[style*="--st-where"]')) if (old !== el) old.style.removeProperty('--st-where');
-  // A bullet's row shows its tags under its title, as a page's place stands under its name (view.js): read from Logseq's own tags on it.
-  const root = el?.classList.contains('item-type-block') ? el.querySelector('.sidebar-panel-content .ls-block') : null;
-  const tags = root ? [...root.querySelectorAll(':scope > .block-main-container .block-tags a.tag')].map(a => a.textContent.trim()).filter(Boolean).join(' · ') : '';
-  const tagWords = tags ? JSON.stringify(tags) : '';
-  if (el && el.style.getPropertyValue('--st-tags') !== tagWords) { if (tagWords) el.style.setProperty('--st-tags', tagWords); else el.style.removeProperty('--st-tags'); }
 }
 
 // No row pressed: one faint line says what the panel is waiting for, or nothing when the lines above already fill it.

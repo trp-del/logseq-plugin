@@ -38,7 +38,7 @@ assert.ok(/addMenuItem\?\.\(\{ key: 'links', label: 'View links'/.test(read('loo
 assert.ok(/logseq\.provideModel\(\{ todoOpen: openSide \}\)/.test(read('todo/main.js')), 'Todo\'s toolbar button opens it in the sidebar');
 // The row view (the owner, 17 November 2026): a toolbar button; only then does a press on a table row show it, alone with Ontology folded.
 assert.ok(/toolbarItem\('row-view', 'rowView'/.test(read('structure/main.js')) && /const active = \(\) => !!window\.PluginDoor\.sideTabs\?\.rows\?\.\(\);/.test(read('structure/logseq/inspector.js')), 'the row view is a toolbar button, and a row is shown only while it is on');
-assert.ok(/\[data-lk-rows\] \.sidebar-item-list > \.sidebar-item:not\(\[data-lk-row\]\) \{ display: none !important; \}/.test(stack) && /aria-expanded="true"\]'\); if \(fold && !st\.folded\)/.test(stack), 'in the row view only the row and Ontology show, Ontology folded');
+assert.ok(/\[data-lk-rows\] \.sidebar-item-list > \.sidebar-item:not\(\[data-lk-row\]\) \{ display: none !important; \}/.test(stack) && /if \(st\.rows && st\.foldDue\)/.test(stack) && /st\.foldDue = st\.rows;/.test(stack), 'in the row view only the row and Ontology show, Ontology folded once as the view comes on (then its fold is yours)');
 assert.ok(/if \(still\) \{ logseq\.App\.setRightSidebarVisible\(false\); st\.autoShut = true; \}/.test(stack) && /else if \(st\.autoShut && due\)/.test(stack), 'a blank sidebar closes, and opens again where a part applies');
 assert.ok(/key: 'item', word: 'Item'[\s\S]{0,400}hidden: \(\) => !S\.inspector\.row\(\)/.test(read('structure/logseq/mount.js')), 'Item has no tab with no row pressed');
 assert.ok(/word: 'Outline'/.test(links), 'Outline is named so');

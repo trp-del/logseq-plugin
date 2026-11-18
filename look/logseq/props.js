@@ -10,7 +10,11 @@ const css = `
 .property-m[data-lk-kind] > :is(.bullet-container, .ls-icon-point-filled) { display: none; }
 .property-m > .lk-kind { display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 15px; font-size: 15px; opacity: .5; }
 `;
-const ROWS = '.ls-page-properties .property-pair.property-panel-row[data-property-title]';
+/* A page's list, and the node shown like a page in Ontology's row view (structure/logseq/view.js): its own list and its tag's line,
+   each property on a line of its own there, so they take a page's icons too (18 November 2026). */
+const ROW_ITEM = '#right-sidebar .sidebar-item.item-type-block[data-st-item] .sidebar-panel-content .ls-block:not(.ls-block .ls-block)';
+const ROWS = `:is(.ls-page-properties, ${ROW_ITEM} > .ls-block-content-indent > .ls-properties-area) .property-pair.property-panel-row[data-property-title]`;
+const PILLS = `${ROW_ITEM} > .block-main-container .bottom-property-pill`;
 let byTitle = null, loading = null, stopped = false;
 async function load() {
   const asked = loading = Look.db.propIndex();
@@ -46,7 +50,22 @@ function drawIcons(doc) {
     button.setAttribute('data-lk-kind', '');
   }
 }
-function draw(doc) { markLines(doc); drawIcons(doc); }
+// The row view's tag line: the icon before the name, where a page's line has it; the pill has no dot to give way.
+function drawPills(doc) {
+  if (stopped || !byTitle) return;
+  const on = setting('propertyIcons');
+  for (const pill of doc.querySelectorAll(PILLS)) {
+    const name = pill.querySelector('.property-key-inner'), title = name?.textContent.trim();
+    const prop = on && title ? byTitle.get(title) : null;
+    const want = prop && !prop.icon ? prop.kind + (prop.many ? '+' : '') : '';
+    let mine = name?.parentElement.querySelector(':scope > .lk-kind');
+    if (!want) { mine?.remove(); continue; }
+    if (mine?.dataset.kind === want) continue;
+    mine?.remove();
+    name.before(make(doc, prop));
+  }
+}
+function draw(doc) { markLines(doc); drawIcons(doc); drawPills(doc); }
 // The pointer on a property's name: if Logseq has cut it, the whole name as the tooltip (only names it cut; one it no
 // longer cuts loses the tooltip again). Nothing is measured until the pointer is there.
 function onOver(event) {
@@ -60,7 +79,7 @@ function onOver(event) {
 function start() {
   stopped = false;
   style('props', css);
-  watchScreen(draw, drawIcons);
+  watchScreen(draw, doc => { drawIcons(doc); drawPills(doc); });
   Look.kit.listen(host().defaultView, 'mouseover', onOver);
   onGraphChange(pages => { if (pages && !stopped) load(); });
   load();

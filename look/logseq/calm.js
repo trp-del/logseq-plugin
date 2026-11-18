@@ -72,7 +72,10 @@ ${AREA} .ls-page-title-container { font-size: 30px !important; line-height: 1.3 
 ${AREA} .ls-page-title-container .block-content-or-editor-inner { font-size: inherit !important; line-height: inherit !important; }
 /* The row pressed in a table, shown in the sidebar's row view (structure/logseq/view.js): when it is a bullet, its words are its title,
    a heading at the sidebar's title size, as a page's name heads it (the owner, 17 November 2026). */
-#right-sidebar .sidebar-item.item-type-block[data-st-item] .sidebar-panel-content .ls-block:not(.ls-block .ls-block) > .block-main-container .block-content-wrapper { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.3; }
+#right-sidebar .sidebar-item.item-type-block[data-st-item] .sidebar-panel-content .ls-block:not(.ls-block .ls-block) > .block-main-container .block-content-or-editor-wrap { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.3; }
+/* The same while it is written in: the words keep their size and weight in the box (the owner, 18 November 2026: "text changes weight
+   when selected"; the box was the outline's 16 px regular). */
+#right-sidebar .sidebar-item.item-type-block[data-st-item] .sidebar-panel-content .ls-block:not(.ls-block .ls-block) > .block-main-container .block-content-or-editor-wrap :is(.block-content-wrapper, .editor-inner, textarea) { font-size: inherit !important; font-weight: inherit !important; letter-spacing: inherit !important; line-height: inherit !important; }
 ${AREA} .ls-page-title-container :is(.block-title-wrap, .editor-inner textarea) { font-weight: 600 !important; letter-spacing: -.015em; }
 /* Journal days are parted by space, not a rule. */
 #journals .journal-item { border-bottom-color: transparent !important; }
