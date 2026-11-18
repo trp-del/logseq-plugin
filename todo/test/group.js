@@ -60,12 +60,13 @@ assert.ok(holder.querySelector('.td-fold-head .lk-note'), 'Done’s count is the
 by.click();
 const menu = document.querySelector('.lk-pop.lk-menu');
 assert.ok(menu, 'the library’s menu opens');
-assert.equal(menu.querySelector('.lk-group').textContent, 'Group by');
-assert.deepEqual([...menu.querySelectorAll('.lk-item')].map(b => b.textContent), ['Day', 'Page', 'Tag', 'Priority', 'Status']);
+assert.deepEqual([...menu.querySelectorAll('.lk-group')].map(g => g.textContent), ['Group by', 'Then by']);
+assert.deepEqual([...menu.querySelectorAll('.lk-item')].map(b => b.textContent), ['Day', 'Page', 'Tag', 'Priority', 'Status', 'None', 'Day', 'Page', 'Tag', 'Priority', 'Status']);
 assert.equal(menu.querySelector('.lk-check').closest('.lk-item').textContent, 'Status', 'the check on the one in force');
+assert.ok(menu.querySelectorAll('.lk-item')[10].classList.contains('off'), 'Then by: the first level’s own choice is faint');
 assert.equal(document.activeElement.textContent, 'Status', 'the keys start on the one in force');
-menu.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
-assert.equal(document.activeElement.textContent, 'Day', 'Down walks round');
+for (let i = 0; i < 6; i++) menu.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+assert.equal(document.activeElement.textContent, 'Day', 'Down walks round, past the faint line');
 menu.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
 assert.equal(document.querySelector('.lk-pop'), null, 'Enter takes it and closes the menu');
 assert.equal(app.by(), 'Day');
@@ -80,6 +81,82 @@ assert.equal(document.querySelector('.lk-pop'), null, 'pressing the word again c
 by.click(); document.body.dispatchEvent(new window.MouseEvent('pointerdown', { bubbles: true }));
 assert.equal(document.querySelector('.lk-pop'), null, 'a press elsewhere closes it');
 view.destroy();
+
+// Then by: a second level inside each group; the word says both; never the same as the first; None takes it off.
+app.setThen('Page');
+assert.deepEqual(saved.at(-1), { todoThenBy: 'Page' });
+assert.equal(app.then(), 'Page');
+const nest = () => app.groups().parts.map(p => [p.head, (p.subs || []).map(q => [q.head, q.rows.map(t => t.words)])]);
+assert.deepEqual(nest(), [
+  ['Today', [['Journals', ['Ask about the fatigue', 'Call the pharmacy']]]],
+  ['Coming up', [['Dr. Mei Chen', ['Book the scan']]]],
+  ['Any time', [['blood report', ['Read the report']]]],
+], 'by day, then page; only the groups with tasks stand inside');
+assert.equal(app.groups().parts[1].subs[0].where, false, 'a page heading inside: the rows do not repeat the page');
+assert.equal(app.groups().parts[0].subs[0].today, true, 'inside Today the rows do not repeat the day');
+const nested = document.createElement('div'); document.body.append(nested); const nv = T.view.make(nested, 'page');
+assert.equal(nested.querySelector('[data-by]').textContent.trim(), 'By day, then page');
+assert.ok(nested.querySelector('.td-group.td-nested > .td-sub > .td-head.lk-name'), 'a group holds its groups, each under the faint name');
+nv.destroy();
+app.setBy('Page');
+assert.equal(app.then(), '', 'the first level taking the second’s choice: the second goes');
+assert.deepEqual(saved.at(-1), { todoGroupBy: 'Page', todoThenBy: 'None' });
+app.setBy('Priority'); app.setThen('Tag');
+assert.deepEqual(nest()[0], ['Urgent', [['Consultation', ['Book the scan']], ['Scan', ['Book the scan']]]], 'by priority, then tag');
+app.setThen('None'); app.setBy('Day');
+assert.equal(app.then(), '');
+
+// Every open status, not only Todo and Doing; Show leaves some out, its word says so; the last one shown stays.
+T.db.statuses = new Map([['backlog', 'Backlog'], ['todo', 'Todo'], ['doing', 'Doing'], ['in-review', 'In Review'], ['done', 'Done'], ['canceled', 'Canceled']].map(([name, title]) => [name, { name, title, icon: null }]));
+app.tasks.push(task('Someday read the guideline', { status: 'backlog' }), task('Check the letter draft', { status: 'in-review' }), task('Old idea', { status: 'canceled' }));
+const listed = () => app.groups().parts.flatMap(p => p.rows.map(t => t.words));
+assert.ok(listed().includes('Someday read the guideline') && listed().includes('Check the letter draft'), 'Backlog and In Review listed');
+assert.ok(!listed().includes('Old idea'), 'Canceled is not');
+app.setBy('Status');
+assert.deepEqual(app.groups().parts.map(p => p.head), ['Doing', 'Todo', 'In Review', 'Backlog'], 'under way first, what can wait last');
+app.setBy('Day');
+const sv = document.createElement('div'); document.body.append(sv); const svv = T.view.make(sv, 'page');
+const show = sv.querySelector('[data-show]');
+assert.equal(show.textContent.trim(), 'All open');
+show.click();
+let smenu = document.querySelector('.lk-pop.lk-menu');
+assert.deepEqual([...smenu.querySelectorAll('.lk-item')].map(b => b.textContent), ['Backlog', 'Todo', 'Doing', 'In Review'], 'each open status, in Logseq’s order');
+assert.equal(smenu.querySelectorAll('.lk-check').length, 4, 'all shown');
+smenu.querySelectorAll('.lk-item')[0].click();
+assert.ok(document.querySelector('.lk-pop.lk-menu'), 'a line ticked: the menu stays open');
+smenu.querySelectorAll('.lk-item')[3].click();
+assert.equal(smenu.querySelectorAll('.lk-check').length, 2);
+assert.deepEqual(saved.at(-1), { todoHidden: 'backlog,in-review' });
+assert.ok(!listed().includes('Someday read the guideline') && !listed().includes('Check the letter draft'), 'left out');
+assert.equal(show.textContent.trim(), 'Todo, Doing');
+assert.ok(show.classList.contains('td-narrow'), 'a narrowed list says so in the words’ colour');
+smenu.querySelectorAll('.lk-item')[1].click(); smenu.querySelectorAll('.lk-item')[2].click();
+assert.equal(app.hidden().has('doing'), false, 'the last one shown stays');
+document.body.dispatchEvent(new window.MouseEvent('pointerdown', { bubbles: true }));
+show.click(); smenu = document.querySelector('.lk-pop.lk-menu');
+assert.equal([...smenu.querySelectorAll('.lk-item')].at(-1).textContent, 'Show all');
+[...smenu.querySelectorAll('.lk-item')].at(-1).click();
+assert.equal(app.hidden().size, 0); assert.equal(show.textContent.trim(), 'All open');
+svv.destroy();
+
+// The right-click menu: Open, Open in sidebar, Go to the page; Priority and Deadline for an open task; Done's rows only the first three.
+T.db.priorities = [['urgent', 'Urgent'], ['high', 'High'], ['medium', 'Medium'], ['low', 'Low']].map(([name, title]) => ({ name, title, icon: null }));
+app.tasks.find(t => t.words === 'Book the scan').page.uuid = 'p-uuid';
+const rv = document.createElement('div'); document.body.append(rv); const rvv = T.view.make(rv, 'page');
+const scan = app.tasks.find(t => t.words === 'Book the scan'); scan.deadline = scan.day; rvv.draw();
+rv.querySelector(`.td-row[data-uuid="${scan.uuid}"] .td-words`).dispatchEvent(new window.MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+const rmenu = document.querySelector('.lk-pop.lk-menu');
+assert.deepEqual([...rmenu.querySelectorAll('.lk-group')].map(g => g.textContent), ['Priority', 'Deadline']);
+assert.deepEqual([...rmenu.querySelectorAll('.lk-item')].map(b => b.textContent), ['Open', 'Open in sidebar', 'Go to Dr. Mei Chen', 'Urgent', 'High', 'Medium', 'Low', 'Remove priority', 'Today', 'Tomorrow', 'Next week', 'Remove deadline']);
+assert.equal(rmenu.querySelector('.lk-check').closest('.lk-item').textContent, 'Urgent', 'the priority in force ticked');
+assert.ok([...rmenu.querySelectorAll('.lk-item')].every(b => b.querySelector('.lk-item-icon')), 'an icon before every line');
+document.body.dispatchEvent(new window.MouseEvent('pointerdown', { bubbles: true }));
+app.doneOpen = true; rvv.draw();
+rv.querySelector('.td-done .td-words').dispatchEvent(new window.MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+assert.deepEqual([...document.querySelectorAll('.lk-pop.lk-menu .lk-item')].map(b => b.textContent), ['Open', 'Open in sidebar'], 'a done task: the open lines only (no page known here)');
+document.body.dispatchEvent(new window.MouseEvent('pointerdown', { bubbles: true }));
+app.doneOpen = false; rvv.destroy();
+app.tasks = app.tasks.filter(t => !['backlog', 'in-review', 'canceled'].includes(t.status));
 
 // No open task in a grouping other than Day: one nothing-here line.
 app.tasks = app.tasks.filter(t => t.status === 'done'); app.setBy('Tag');

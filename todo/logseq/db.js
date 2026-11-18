@@ -7,7 +7,10 @@ const { query, dates } = Door;
 T.base = Door.base('todo', { prefix: 'Todo: ', leaves: { elements: '.td-own' } });
 
 const STATUS = 'logseq.property/status', DEADLINE = 'logseq.property/deadline', SCHEDULED = 'logseq.property/scheduled';
-const OPEN = new Set(['todo', 'doing']);
+/* Open: every status but Done and Canceled (the owner, 18 November 2026: every task that isn't complete, not only Todo and Doing),
+   a status of the person's own too. */
+const SHUT = new Set(['done', 'canceled', 'cancelled']);
+const isOpen = s => !!s && !SHUT.has(s);
 const DONE_FOR = 7 * 86400000;   // Done holds what was done in the last seven days
 const statusOf = ident => String(ident || '').replace(/^:?logseq\.property\/status\./, '');
 const live = '(not [?b :logseq.property/deleted-at _]) [?b :block/page ?p] (not [?p :logseq.property/deleted-at _])';
@@ -29,8 +32,8 @@ async function taskTags() {
   return [...seen];
 }
 
-/* The tasks as the list shows them: open ones (Todo, Doing) and those done in the last seven days. Backlog, In Review and
-   Canceled are left out, and so is a bullet with no words. A node tagged Task, or a tag under Task, whose Status is empty reads as Todo (empty: true) and nothing is
+/* The tasks as the list shows them: open ones (every status but Done and Canceled) and those done in the last seven days.
+   Canceled is left out, and so is a bullet with no words. A node tagged Task, or a tag under Task, whose Status is empty reads as Todo (empty: true) and nothing is
    written to it. Links in the words are read as their pages' names. */
 async function read() {
   const tags = await taskTags();
@@ -40,11 +43,15 @@ async function read() {
     // Each status's name and icon as the graph keeps them, read afresh, so a circle follows an icon changed in Logseq.
     Door.statusChoices(query),
   ]);
+  // Priority's values as the graph keeps them, Urgent first, each with its icon (the right-click menu's lines).
+  T.db.priorities = (await query('[:find ?v ?ident ?t ?o ?icon :where [?v :block/closed-value-property ?p] [?p :db/ident :logseq.property/priority] [?v :block/title ?t] [(get-else $ ?v :db/ident "") ?ident] [(get-else $ ?v :block/order "") ?o] [(get-else $ ?v :logseq.property/icon "") ?icon]]'))
+    .map(([id, ident, title, order, icon]) => ({ id: Number(id), name: String(ident || '').replace(/^:?logseq\.property\/priority\./, ''), title: String(title || ''), order: String(order || ''), icon: icon && typeof icon === 'object' ? icon : null }))
+    .sort((a, b) => (a.order < b.order ? 1 : a.order > b.order ? -1 : b.id - a.id));
   const empty = new Set(empties.map(([b]) => b));
   const rows = withStatus.concat(empties.map(([b, u, w, c, up]) => [b, u, w, 'logseq.property/status.todo', c, up]));
   const ids = rows.map(([b]) => b), these = `[(ground [${ids.join(' ')}]) [?b ...]]`;
   const [pages, dayRefs, dayMs, tagRows, priorities] = ids.length ? await Promise.all([
-    query(`[:find ?b ?pt ?jd :where ${these} [?b :block/page ?p] [?p :block/title ?pt] [(get-else $ ?p :block/journal-day 0) ?jd]]`),
+    query(`[:find ?b ?pt ?jd ?pu :where ${these} [?b :block/page ?p] [?p :block/title ?pt] [?p :block/uuid ?pu] [(get-else $ ?p :block/journal-day 0) ?jd]]`),
     query(`[:find ?b ?a ?day :where ${these} (or (and [?b :logseq.property/deadline ?d] [(ground :deadline) ?a]) (and [?b :logseq.property/scheduled ?d] [(ground :scheduled) ?a])) [?d :block/journal-day ?day]]`),
     query(`[:find ?b ?a ?ms :where ${these} (or (and [?b :logseq.property/deadline ?ms] [(ground :deadline) ?a]) (and [?b :logseq.property/scheduled ?ms] [(ground :scheduled) ?a])) [(number? ?ms)] [(> ?ms 100000000000)]]`),
     // Its tags besides Task, for grouping by tag; its priority, for grouping by priority.
@@ -55,18 +62,18 @@ async function read() {
   const tagsOf = new Map(), priorityOf = new Map();
   for (const [b, title] of tagRows) { const list = tagsOf.get(b) || []; if (!list.includes(String(title))) list.push(String(title)); tagsOf.set(b, list); }
   for (const [b, pid] of priorities) priorityOf.set(b, String(pid || '').replace(/^:?logseq\.property\/priority\./, ''));
-  const pageOf = new Map(pages.map(([b, title, jd]) => [b, { title: String(title || ''), journal: Number(jd) || 0 }]));
-  const due = new Map();   // node → { deadline, scheduled }
-  const put = (b, a, day) => { if (!day) return; const k = Door.bare(a), d = due.get(b) || {}; if (!d[k] || day < d[k]) d[k] = day; due.set(b, d); };
+  const pageOf = new Map(pages.map(([b, title, jd, pu]) => [b, { title: String(title || ''), journal: Number(jd) || 0, uuid: String(pu || '') }]));
+  const due = new Map();   // node → { deadline, scheduled, deadlineMs (the Deadline as written, for its Undo) }
+  const put = (b, a, day, ms) => { if (!day) return; const k = Door.bare(a), d = due.get(b) || {}; if (!d[k] || day < d[k]) { d[k] = day; if (k === 'deadline') d.deadlineMs = ms || msOfDay(day); } due.set(b, d); };
   for (const [b, a, day] of dayRefs) put(b, a, Number(day));
-  for (const [b, a, ms] of dayMs) put(b, a, dayOfMs(ms));
+  for (const [b, a, ms] of dayMs) put(b, a, dayOfMs(ms), Number(ms));
   const since = Date.now() - DONE_FOR, list = [];
   for (const [b, uuid, words, sid, created, updated] of rows) {
     const status = statusOf(sid);
     if (!String(words ?? '').trim()) continue;   // a bullet with no words is no task to show: never a blank row
-    if (!OPEN.has(status) && !(status === 'done' && Number(updated) >= since)) continue;
+    if (!isOpen(status) && !(status === 'done' && Number(updated) >= since)) continue;
     const d = due.get(b) || {};
-    list.push({ id: b, uuid: String(uuid), raw: String(words || ''), status, empty: empty.has(b), day: d.deadline || d.scheduled || 0, page: pageOf.get(b) || { title: '', journal: 0 }, tags: (tagsOf.get(b) || []).sort((x, y) => x.localeCompare(y)), priority: priorityOf.get(b) || '', created: Number(created) || 0, updated: Number(updated) || 0 });
+    list.push({ id: b, uuid: String(uuid), raw: String(words || ''), status, empty: empty.has(b), day: d.deadline || d.scheduled || 0, deadline: d.deadline || 0, deadlineMs: d.deadlineMs || 0, scheduled: d.scheduled || 0, page: pageOf.get(b) || { title: '', journal: 0 }, tags: (tagsOf.get(b) || []).sort((x, y) => x.localeCompare(y)), priority: priorityOf.get(b) || '', created: Number(created) || 0, updated: Number(updated) || 0 });
   }
   // [[uuid]] in the words: the page's name.
   const linked = [...new Set(list.flatMap(t => [...t.raw.matchAll(/\[\[([0-9a-f-]{36})\]\]/gi)].map(m => m[1].toLowerCase())))];
@@ -121,6 +128,16 @@ async function setStatus(uuid, status, before) {
   return Door.write.guarded([[uuid, STATUS]], async () => before ? Door.write.setValue(uuid, STATUS, await statusTitle(before)) : Door.write.unsetValue(uuid, STATUS));
 }
 
+/* A Priority or a Deadline set from the right-click menu, or taken off (value null); gives its Undo, which puts back what was
+   there (before: the value as written, or null for none) while it is as this left it. */
+const PRIORITY = 'logseq.property/priority';
+async function setOne(uuid, ident, value, before) {
+  if (value == null) await Door.write.unsetValue(uuid, ident); else await Door.write.setValue(uuid, ident, value);
+  return Door.write.guarded([[uuid, ident]], async () => before == null ? Door.write.unsetValue(uuid, ident) : Door.write.setValue(uuid, ident, before));
+}
+const setPriority = (uuid, title, before) => setOne(uuid, PRIORITY, title, before);
+const setDeadline = (uuid, day, beforeMs) => setOne(uuid, DEADLINE, day ? msOfDay(day) : null, beforeMs || null);
+
 /* A day in the words typed: "today", "tomorrow", "friday", "next week", "nov 20", "20 november", "by friday", "on the 4th"
    is left as words. Gives { day, words } with the day's words taken out, or null. Predictive's reader reads the day. */
 const LEAD = /^(?:on|by|due|this|until|till)\s+/;
@@ -150,5 +167,5 @@ function dayIn(text, today = new Date()) {
 }
 
 const GROUPINGS = ['Day', 'Page', 'Tag', 'Priority', 'Status'];
-T.db = { statuses: new Map(), read, add, unadd, setStatus, dayIn, forget, statusTitle, OPEN, GROUPINGS };
+T.db = { statuses: new Map(), priorities: [], read, add, unadd, setStatus, setPriority, setDeadline, dayIn, forget, statusTitle, isOpen, GROUPINGS };
 })();

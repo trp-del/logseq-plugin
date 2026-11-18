@@ -1041,7 +1041,8 @@ Door.timeline = (() => {
 /* THE menu (14 November 2026, from Look's Contents menu): the library's lk-pop, lk-menu, lk-group, lk-item and lk-check as a
    pop-up under the thing pressed, so no module wires a menu's keys and closing again. parts: { group: 'Group by' } a heading,
    { gap: true } a space, { word, on, off, take, icon } a line (on: the check mark, the one in force; off: faint, not taken;
-   icon: markup drawn before the word, such as a status's own icon).
+   icon: markup drawn before the word, such as a status's own icon; stay: a line ticked and unticked in place, the menu staying
+   open, for a choice of several at once).
    It rolls out of what opened it, its right edge on that's (align 'left': its left edge), above it when there is no room
    below. Up and Down walk it, Enter or Space takes a line, Escape or a press elsewhere closes it, and the keys go back to
    what opened it; pressing that again closes it. One menu is open at a time. Gives { close }, or null when it only closed. */
@@ -1059,9 +1060,14 @@ Door.menu = (from, parts, { align = 'right' } = {}) => {
   const line = part => {
     if (part.group) return Door.el(doc, 'div', { class: 'lk-group' }, part.group);
     if (part.gap) return Door.el(doc, 'div', { class: 'lk-item gap' });
-    const take = () => { close(true); part.take?.(); };
-    const node = Door.el(doc, 'button', { class: `lk-item${part.off ? ' off' : ''}`, type: 'button', role: 'menuitemradio', 'aria-checked': String(!!part.on), click: take },
-      part.icon ? Door.el(doc, 'span', { class: 'lk-item-word' }, Door.el(doc, 'span', { class: 'lk-item-icon', 'aria-hidden': 'true', html: part.icon }), part.word) : Door.el(doc, 'span', {}, part.word), part.on ? Door.el(doc, 'span', { class: 'lk-note lk-check', 'aria-hidden': 'true' }) : null);
+    // stay: a line of several that can each be on (Todo's Show), ticked and unticked in place while the menu stays open; its take
+    // answers whether it is on now.
+    const check = () => Door.el(doc, 'span', { class: 'lk-note lk-check', 'aria-hidden': 'true' });
+    const take = part.stay
+      ? () => { const on = !!part.take?.(); node.setAttribute('aria-checked', String(on)); const had = node.querySelector(':scope > .lk-check'); if (on && !had) node.append(check()); else if (!on) had?.remove(); }
+      : () => { close(true); part.take?.(); };
+    const node = Door.el(doc, 'button', { class: `lk-item${part.off ? ' off' : ''}`, type: 'button', role: part.stay ? 'menuitemcheckbox' : 'menuitemradio', 'aria-checked': String(!!part.on), click: () => take() },
+      part.icon ? Door.el(doc, 'span', { class: 'lk-item-word' }, Door.el(doc, 'span', { class: 'lk-item-icon', 'aria-hidden': 'true', html: part.icon }), part.word) : Door.el(doc, 'span', {}, part.word), part.on ? check() : null);
     takes.set(node, take);
     return node;
   };

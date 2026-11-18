@@ -33,6 +33,9 @@ const ground = q => (q.match(/\(ground \[([\d ]*)\]\)/) || [, ''])[1].split(' ')
 function ask(q) {
   if (q.includes(':logseq.property.class/extends ?p')) return extendsOf;
   if (q === '[:find ?t :where [?t :db/ident :logseq.class/Task]]') return [[TASK]];
+  if (q.includes('?v ?ident ?t ?o ?icon') && q.includes(':logseq.property/priority')) return [['low', 301], ['medium', 302], ['high', 303], ['urgent', 304]].map(([k, id], i) => [id, `logseq.property/priority.${k}`, k[0].toUpperCase() + k.slice(1), `b${i}`, { type: 'tabler-icon', id: 'Flag' }]);
+  if (q.includes(':logseq.property/priority ?v]')) { const n = nodes.get(idOfUuid(q.match(/#uuid "([^"]+)"/)[1])); return n.priority ? [[`p:${n.priority}`]] : []; }
+  if (q.includes(':logseq.property/deadline ?v]')) { const n = nodes.get(idOfUuid(q.match(/#uuid "([^"]+)"/)[1])); return n.deadline ? [[n.deadline]] : []; }
   if (q.includes('?v ?ident ?t ?o ?icon')) return Object.entries(STATUS_IDS).map(([k, id], i) => [id, `logseq.property/status.${k}`, TITLES[k], `a${i}`, { type: 'tabler-icon', id: 'Circle', color: 'inherit' }]);
   if (q.includes('[:find ?id ?t :where [?s :block/closed-value-property')) return Object.entries(STATUS_IDS).map(([k]) => [`logseq.property/status.${k}`, TITLES[k]]);
   if (q.startsWith('[:find ?b ?u ?w ?sid')) return [...nodes].filter(([, n]) => n.status).map(([id, n]) => [id, uuidOf(id), n.words, `logseq.property/status.${n.status}`, id, id]);
@@ -50,8 +53,8 @@ global.logseq = window.logseq = {
   onSettingsChanged: () => () => {}, DB: { onChanged: () => () => {}, datascriptQuery: async q => ask(q) }, App: { onCurrentGraphChanged: () => () => {}, registerCommandPalette() {} },
   Experiments: {}, UI: { showMsg() {} },
   Editor: {
-    upsertBlockProperty: async (uuid, ident, value) => { writes.push(['set', uuid, ident, value]); nodes.get(idOfUuid(uuid)).status = nameOf(value); },
-    removeBlockProperty: async (uuid, ident) => { writes.push(['unset', uuid, ident]); nodes.get(idOfUuid(uuid)).status = null; },
+    upsertBlockProperty: async (uuid, ident, value) => { writes.push(['set', uuid, ident, value]); const n = nodes.get(idOfUuid(uuid)); if (ident.endsWith('/status')) n.status = nameOf(value); else n[ident.split('/')[1]] = value; },
+    removeBlockProperty: async (uuid, ident) => { writes.push(['unset', uuid, ident]); const n = nodes.get(idOfUuid(uuid)); if (ident.endsWith('/status')) n.status = null; else n[ident.split('/')[1]] = null; },
   },
 };
 require(path.join(ROOT, 'plugin.js'));
@@ -159,6 +162,30 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   circleOf(scan.uuid).click(); key('Escape');
   assert.equal(document.querySelector('.lk-door-menu'), null);
   assert.equal(writes.length, count, 'Escape writes nothing');
+
+  // The right-click menu's Priority and Deadline: written at once, each with its Undo back to exactly what was there.
+  assert.deepEqual(T.db.priorities.map(p => p.title), ['Urgent', 'High', 'Medium', 'Low'], 'Priority’s values, Urgent first');
+  const rightClick = u => v2.rows(u)[0].querySelector('.td-words').dispatchEvent(new window.MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+  const line = word => [...document.querySelectorAll('.lk-door-menu .lk-item')].find(b => b.textContent === word);
+  rightClick(scan.uuid);
+  assert.equal(line('Remove priority'), undefined, 'no Remove line where there is no priority');
+  line('High').click(); await wait(30);
+  assert.deepEqual(writes.at(-1), ['set', scan.uuid, 'logseq.property/priority', 'High'], 'High written by its name');
+  assert.equal(app.tasks.find(t => t.uuid === scan.uuid).priority, 'high', 'shown at once');
+  await Door.undo.take(lastUndo()); await wait(30);
+  assert.deepEqual(writes.at(-1), ['unset', scan.uuid, 'logseq.property/priority'], 'its Undo takes the priority off again');
+  nodes.get(101).priority = 'Low'; app.tasks.find(t => t.uuid === scan.uuid).priority = 'low';
+  rightClick(scan.uuid); line('Remove priority').click(); await wait(30);
+  assert.deepEqual(writes.at(-1), ['unset', scan.uuid, 'logseq.property/priority']);
+  await Door.undo.take(lastUndo()); await wait(30);
+  assert.deepEqual(writes.at(-1), ['set', scan.uuid, 'logseq.property/priority', 'Low'], 'Undo puts Low back');
+  rightClick(scan.uuid); line('Tomorrow').click(); await wait(30);
+  const tomorrow = (() => { const d = Door.dates.date(Door.dates.today()); d.setDate(d.getDate() + 1); return d.getTime(); })();
+  assert.deepEqual(writes.at(-1), ['set', scan.uuid, 'logseq.property/deadline', tomorrow], 'the day’s start, as Logseq’s date picker writes it');
+  assert.equal(v2.rows(scan.uuid)[0].closest('[data-group]').dataset.group, 'coming', 'the row now stands in Coming up');
+  await Door.undo.take(lastUndo()); await wait(30);
+  assert.deepEqual(writes.at(-1), ['unset', scan.uuid, 'logseq.property/deadline'], 'Undo takes the deadline off again ');
+  assert.equal(v2.rows(scan.uuid)[0].closest('[data-group]').dataset.group, 'any', 'and the row is back in Any time');
   v2.destroy();
   console.log('todo statuses ok');
   process.exit(0);
