@@ -325,7 +325,10 @@ function graphChanged(change) {
   // leave the map as it is.
   if (!reachesMap(change) || app.st.busy) return;
   clearTimeout(reReadTimer);
-  reReadTimer = setTimeout(() => { if (app.views.size && !app.st.busy) app.reread(); }, 1500);
+  // Read again even with no map or line open: the # list, the tag lists and the menus draw from this reading, and a tag made or
+  // moved in Logseq itself must show in its place there (18 November 2026: a tag made outside the map stood in the # list
+  // without its path until the plugin was reloaded).
+  reReadTimer = setTimeout(() => { if (!app.st.busy) app.reread(); }, 1500);
 }
 
 async function main() {
@@ -362,13 +365,16 @@ async function main() {
   // The page on the right half of two pages side by side (split.js) gets its lines as the main page does.
   onStop(window.PluginDoor.split?.onChange?.(() => splitPage()));
   splitPage();
+  where = S.where.start(app, doc);
+  app.where = where.ask;
+  S.whereTool = where;   // the tag tree picker, for the tag menu's "Change to another tag…"   // a new tag asks where it goes: the # list and Logseq's Set Tags list ask the same question
   stopHash = S.hash.start(app, doc);
   stopValues = S.valueList.start(app, doc);
   stopTagMenu = S.tagMenu.start(app, doc);
 }
-const stop = () => { S.inspector.stop(); mounts.stop?.(); stopHash?.(); stopValues?.(); stopTagMenu?.(); for (const v of [...app.views]) v.destroy(); host().querySelectorAll('.st-tagholder').forEach(n => n.remove()); return S.base.stop(); };   // the base: the passes, the hooks, the menu's lines and the stylesheets
+const stop = () => { S.inspector.stop(); mounts.stop?.(); where?.stop(); stopHash?.(); stopValues?.(); stopTagMenu?.(); for (const v of [...app.views]) v.destroy(); host().querySelectorAll('.st-tagholder').forEach(n => n.remove()); return S.base.stop(); };   // the base: the passes, the hooks, the menu's lines and the stylesheets
 /* The lines on a tag's own page: set above Logseq's table, in the page's own column, each time Logseq draws a tag's page. */
-let stopHash = null, stopValues = null, stopTagMenu = null, tagTimer = 0, tagAsking = 0;
+let where = null, stopHash = null, stopValues = null, stopTagMenu = null, tagTimer = 0, tagAsking = 0;
 const days = new Set();   // pages found to be journal days, which a tag's lines never stand on
 const lookup = uuid => { const id = [...tray.model.tags.values()].find(t => t.uuid === uuid)?.id ?? null; return { id, prop: id == null ? [...tray.model.props.values()].find(p => p.uuid === uuid)?.id ?? null : null }; };
 const SPLIT = '#right-sidebar[data-lk-split] .sidebar-item[data-lk-split-item]';

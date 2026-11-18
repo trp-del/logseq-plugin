@@ -74,6 +74,12 @@ const CSS = `
    with it, it joins the flow and the title moves down for as long as they stand. */
 .page-inner:has(> .st-holder-line) { position: relative; }
 .st-holder-line { position: absolute; top: -30px; left: 0; right: 0; }
+.st-line1 dd:has(> .st-ppath) { flex-wrap: nowrap; min-width: 0; overflow: hidden; }
+.st-lines-t.st-line1:has(.st-ppath) { flex-wrap: nowrap; }
+.st-lines-t.st-line1:has(.st-ppath) > dt { flex: none; white-space: nowrap; }
+.st-ppath { display: inline-flex; align-items: baseline; min-width: 0; white-space: nowrap; }
+.st-ppath > .lk-tag { min-width: 1.4em; overflow: hidden; text-overflow: ellipsis; line-height: 1.3; }
+.st-ppath > .to, .st-ppath > .chev { flex: none; white-space: pre; }
 .st-holder-line:has(.st-tray:not(:empty)), .st-holder-line:has(.st-line1 ~ :not(.st-prompt)), .st-holder-line:has([data-edit]) { position: static; margin-top: -30px; }
 /* On the right half of two pages side by side (split.js) the line stands over the split's title, in the page's column, as on the main page. */
 #right-sidebar .sidebar-item[data-lk-split-item] .sidebar-panel-content > .st-holder-line { position: relative; top: -34px; left: auto; right: auto; height: 0; margin-left: var(--lk-split-col, 12px); }
@@ -608,7 +614,10 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
   // ---------- a tag's lines: Parent alone on one line above its title; the others in the inspector ----------
   // (the owner, 8 November 2026: Extends is called Parent, on one line above the title without moving the title down; 12 November:
   // Parent alone there; Child tags, Beside and Relationships live in the inspector alone.)
-  const parentHtml = id => { const up = Mo.pathOf(M(), id).slice(0, -1).reverse(); return `<span class="act lk-pick" data-do="move" data-on="${id}">${up.length ? up.map(tagLink).join('<span class="to"> / </span>') : 'Nothing'}<span class="chev lk-change lk-i-chevron"></span></span>`; };
+  /* A deep path keeps to one line, so it never runs under the title below it (18 November 2026: six levels wrapped onto the title,
+     whose row took the presses meant for the chevron): the far tags give way first, each to "…", the chevron always shows, and the
+     whole path is in the line's tooltip. */
+  const parentHtml = id => { const up = Mo.pathOf(M(), id).slice(0, -1).reverse(); return `<span class="act lk-pick st-ppath" data-do="move" data-on="${id}" title="${esc(up.map(name).join(' / '))}">${up.length ? up.map((u, i) => tagLink(u).replace('<span class="lk-tag', `<span style="flex-shrink:${(i + 1) ** 3}" class="lk-tag`)).join('<span class="to"> / </span>') : 'Nothing'}<span class="chev lk-change lk-i-chevron"></span></span>`; };
   const kidsHtml = id => { const kids = Mo.kids(M(), id), adding = st.edit?.what === 'new' && st.edit.on === id && st.edit.owner === mode;
     const key = `kids${id}`, shown = st.whole.has(key) ? kids : kids.slice(0, 6);
     return `${shown.map(k => `<div class="ont">${tagLink(k)}<span class="num">${Mo.count(M(), k)}</span></div>`).join('')}${shown.length < kids.length ? `<span class="lk-more" data-all="${key}">and ${kids.length - shown.length} more</span>` : ''}${adding ? `<input class="st-in lk-field" data-edit value="${esc(st.edit.text)}" placeholder="Name of the child tag" autocomplete="off" spellcheck="false">` : `<span class="act lk-add lk-i-child" data-do="new" data-on="${id}">Add child tag</span>`}`; };

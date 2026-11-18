@@ -9,7 +9,7 @@
    - The lit tag names the tags under it at its right end; Right arrow steps down to them, Left arrow back up.
    - A name that is nearly a tag's (a plural, a letter off, the words in another order) keeps that tag in the list, lit, above
      "New tag", so a second tag is not made for the same thing.
-   - A new tag then asks where it goes, in the same place, and Escape leaves it with no parent. */
+   - A new tag then asks where it goes (where.js), however "New tag" was taken, and Escape leaves it with no parent. */
 (function () {
 const S = window.Structure;
 const Mo = S.model;
@@ -20,7 +20,13 @@ const CSS = `
 .st-hc.up { font-weight: 600; }
 .st-hc.more { padding-top: 0; }
 .st-hp { font-size: var(--lk-small); margin-left: .6em; color: var(--lk-quiet); }
-#ui__ac-inner .flex-row:has(> .st-hp) { align-items: baseline; }
+/* A deep path stays on one line: the tags nearest the name show, the far end gives way to "…", and no name breaks inside a word
+   (18 November 2026: "Community Teaching Hospit / al" with six levels). */
+#ui__ac-inner .st-hp { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; direction: rtl; min-width: 3em; max-width: 15em; flex: 0 1 auto; }
+#ui__ac-inner .st-hp > bdi { direction: ltr; unicode-bidi: isolate; }
+#ui__ac-inner .flex-row:has(> .st-hp) { align-items: baseline; flex-wrap: nowrap; min-width: 0; }
+#ui__ac-inner .flex-row:has(> .st-hp) > :not(.st-hp), #ui__ac-inner .st-hrow .flex-1:has(> .st-hp) { white-space: nowrap; flex: none; }
+#ui__ac-inner .st-hrow .flex-1:has(> .st-hp) { display: flex; min-width: 0; align-items: baseline; }
 #ui__ac-inner .menu-link-wrap.st-in-tree, #ui__ac-inner .menu-link-wrap.st-hrow { padding-left: var(--st-pad, 0); }
 /* the plugin's own rows, built as Logseq builds its rows so they look and light as Logseq's do */
 #ui__ac-inner.st-own > .menu-link-wrap:not(.st-hrow) { display: none; }
@@ -36,10 +42,7 @@ const CSS = `
 #ui__ac-inner .menu-link.chosen > .st-hk { display: inline; }
 #ui__ac-inner.st-twin-lit > .menu-link-wrap:not(.st-hrow) .menu-link.chosen { background: none !important; }
 #ui__ac-inner.st-twin-lit > .menu-link-wrap:not(.st-hrow) .menu-link.chosen > .st-hk { display: none; }
-#ui__ac.st-taking { visibility: hidden; }
-.st-where { position: fixed; z-index: 9999; width: 280px; max-height: 340px; overflow: auto; outline: none; }   /* the library's pop-up and menu (lk-pop, lk-menu); a line lk-item, the lit one on */
-.st-where .h { padding: 4px 10px 6px; font-weight: 600; border-bottom: 1px solid var(--lk-hair); margin-bottom: 4px; }
-.st-where .r.on { font-weight: 600; }`;
+#ui__ac.st-taking { visibility: hidden; }`;
 const FEW = 4, STEP = 16;
 
 function start(app, doc) {
@@ -98,7 +101,7 @@ function start(app, doc) {
     const a = doc.createElement('a'); a.className = 'flex justify-between menu-link';
     const name = doc.createElement('span'); name.className = 'flex-1'; name.textContent = t ? t.title : (r.title ?? r.text); a.append(name);
     const path = r.path && t ? Mo.pathOf(m, t.id).slice(0, -1) : [];
-    if (path.length) { const span = doc.createElement('span'); span.className = 'st-hp'; span.textContent = path.map(id => m.tags.get(id).title).join(' / '); name.append(span); }
+    if (path.length) { const span = doc.createElement('span'); span.className = 'st-hp'; span.append(doc.createElement('bdi')); span.firstChild.textContent = path.map(id => m.tags.get(id).title).join(' / '); name.append(span); }
     const note = t && kidsNote(t.id);
     if (note && !(own?.kind === 'under' && own.id === t.id)) { const k = doc.createElement('span'); k.className = 'st-hk'; k.textContent = note; a.append(k); }
     wrap.append(a);
@@ -141,7 +144,7 @@ function start(app, doc) {
       // On the tag's own line, after its name (10 November 2026, the audit's 24: on the empty line above the row, a place read as
       // the foot of the row before it).
       const line = w.querySelector('.flex-row') || w.querySelector('span');
-      if (line) { const span = doc.createElement('span'); span.className = 'st-hp'; span.textContent = path.map(id => m.tags.get(id).title).join(' / '); line.append(span); }
+      if (line) { const span = doc.createElement('span'); span.className = 'st-hp'; span.append(doc.createElement('bdi')); span.firstChild.textContent = path.map(id => m.tags.get(id).title).join(' / '); line.append(span); }
     }
     if (twin) list.insertBefore(rowEl({ tag: twin.id, depth: 0, path: true }, 0), list.firstChild);
     light();
@@ -222,36 +225,8 @@ function start(app, doc) {
   const canStep = r => r && (r.more != null || r.fold || (r.tag != null && Mo.kids(M(), r.tag).length > 0 && !(own?.kind === 'under' && own.id === r.tag)));
   const step = r => { if (r.tag != null) { stepDown(r.tag, own ? own.q : typed() || ''); draw(); } else take(r); };
 
-  // ---------- a new tag asks where it goes ----------
-  async function where(name) {
-    let t = null;
-    for (let i = 0; i < 20 && !t; i++) { await new Promise(r => setTimeout(r, 150)); const row = await S.db.query(`[:find ?u :where [?t :block/title ${JSON.stringify(name)}] [?t :block/tags :logseq.class/Tag] [?t :block/uuid ?u]]`); if (row[0]) t = String(row[0][0]); }
-    if (!t) return;
-    await app.reread();
-    const writing = doc.activeElement, box = writing?.getBoundingClientRect?.() || { left: 200, bottom: 200 };
-    const pos = writing?.selectionStart;
-    const list = doc.createElement('div'); list.className = 'st-where lk-pop lk-menu'; list.tabIndex = 0;
-    list.style.left = `${Math.min(box.left + 18, win.innerWidth - 300)}px`; list.style.top = `${Math.min(box.bottom + 6, win.innerHeight - 350)}px`;
-    const m = M(), rows = [];
-    const walk = (id, d) => { rows.push({ id, d }); if (d < 1) Mo.kids(m, id).forEach(k => walk(k, d + 1)); };
-    Mo.tops(m).filter(id => m.tags.get(id).uuid !== t).forEach(id => walk(id, 0));
-    let lit = 0;
-    const draw = () => { list.innerHTML = `<div class="h">Put ${esc(name)} under</div>` + rows.map((r, i) => `<div class="r lk-item ${i === lit ? 'on' : ''}" data-i="${i}" style="padding-left:${10 + r.d * 18}px">${esc(m.tags.get(r.id).title)}</div>`).join(''); list.querySelector('.lit')?.scrollIntoView({ block: 'nearest' }); };
-    const done = async pick => {
-      list.remove();
-      if (pick) { await S.db.addExtends(t, m.tags.get(pick.id).uuid); await app.reread(); }
-      if (writing?.isConnected) { writing.focus(); if (pos != null) writing.setSelectionRange(pos, pos); }
-    };
-    list.addEventListener('keydown', e => {
-      e.stopPropagation();
-      if (e.key === 'ArrowDown') { e.preventDefault(); lit = Math.min(rows.length - 1, lit + 1); draw(); }
-      else if (e.key === 'ArrowUp') { e.preventDefault(); lit = Math.max(0, lit - 1); draw(); }
-      else if (e.key === 'Enter') { e.preventDefault(); done(rows[lit]); }
-      else if (e.key === 'Escape') { e.preventDefault(); done(null); }
-    });
-    list.addEventListener('mousedown', e => { e.preventDefault(); const r = e.target.closest('[data-i]'); if (r) done(rows[+r.dataset.i]); });
-    doc.body.appendChild(list); draw(); list.focus();
-  }
+  // ---------- a new tag asks where it goes (where.js), however "New tag" was taken: Enter, Cmd-Enter or a press ----------
+  const where = name => { const box = doc.activeElement; setTimeout(() => app.where?.(name, { near: box }), 0); };
   const newName = () => { const chosen = doc.querySelector('#ui__ac-inner > .menu-link-wrap:not(.st-hrow) a.chosen'), m = chosen && /^New tag (.+)$/.exec(chosen.textContent.trim()); return m ? m[1] : null; };
   const plain = e => !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey;
   // The keys, before Logseq hears them. Logseq's own rows keep Logseq's keys; the plugin's rows take Up, Down and Enter as Logseq's
@@ -289,6 +264,13 @@ function start(app, doc) {
     if (e.key === 'ArrowRight' && plain(e)) { const w = chosenLogseq(), t = w && byTitle(words(w)); if (t && Mo.kids(M(), t.id).length) { eat(); stepDown(t.id, q); draw(); } return; }
     if (e.key === 'Enter') { const n = newName(); if (n) where(n); }
   }
+  // A press on Logseq's own "New tag" row: Logseq makes the tag, then the question comes.
+  function onPressNew(e) {
+    if (e.button !== 0 || !e.isTrusted) return;
+    const w = e.target.closest?.('#ui__ac-inner > .menu-link-wrap:not(.st-hrow)');
+    if (!w || typed() == null || !isNew(w)) return;
+    const m = /^New tag (.+)$/.exec(words(w)); if (m) where(m[1]);
+  }
   // The pointer: moved over a row it lights it, a press takes it, a press on the tags named at its right end steps down. The press is held
   // back so the bullet keeps the keyboard.
   // Only a pointer that really moved counts: a list drawn under a resting pointer must not take the lit row with it.
@@ -320,10 +302,10 @@ function start(app, doc) {
     if (t) { stepDown(t.id, typed() || ''); draw(); }
   }
   const offs = [
-    S.base.listen(doc, 'keydown', onKey, true), S.base.listen(doc, 'mousemove', onOver, true),
+    S.base.listen(doc, 'keydown', onKey, true), S.base.listen(doc, 'mousemove', onOver, true), S.base.listen(doc, 'pointerdown', onPressNew, true),
     ...['pointerdown', 'mousedown', 'mouseup', 'click'].flatMap(type => [S.base.listen(doc, type, onPress, true), S.base.listen(doc, type, onPressTheirs, true)]),
   ];
-  return () => { offWatch(); offs.forEach(off => off?.()); sheet.remove(); const list = listEl(); if (list) { sweep(list); list.style.minWidth = ''; } doc.getElementById('ui__ac')?.classList.remove('st-taking'); doc.querySelectorAll('.st-where').forEach(n => n.remove()); own = null; twin = null; };
+  return () => { offWatch(); offs.forEach(off => off?.()); sheet.remove(); const list = listEl(); if (list) { sweep(list); list.style.minWidth = ''; } doc.getElementById('ui__ac')?.classList.remove('st-taking'); own = null; twin = null; };
 }
 S.hash = { start };
 })();
