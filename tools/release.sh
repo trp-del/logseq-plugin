@@ -11,6 +11,9 @@ version=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' package.json | head -1)
 [ -n "$version" ] || { echo "no version in package.json"; exit 1; }
 # Every module's checks first: a zip is built only from a plugin that passes them (10 November 2026).
 NODE_PATH="${NODE_PATH:-$(cd .. && pwd)/logseq-plugin-old/node_modules}" sh test/all.sh || { echo "the checks failed: no zip built"; exit 1; }
+# The guard must have passed on exactly these files: the whole plugin seen before and after in Logseq, every difference meant,
+# every earlier complaint still fixed (18 November 2026, tools/guard/README.md).
+node tools/guard/guard.js verify --folder . || { echo "the guard has not passed on these files: no zip built"; exit 1; }
 stage=dist/stage/logseq-plugin
 rm -rf dist/stage && mkdir -p "$stage"
 cp package.json loader.js files.js plugin.js main.js README.md LICENSE "$stage/"

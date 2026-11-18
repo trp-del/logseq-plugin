@@ -12,6 +12,7 @@ run . node test/outside.js
 run . node test/library.js
 run . node test/logseq-contract.js
 run . node test/writes.js
+run . node test/guard.js
 run . node test/risks.js
 run . node test/undo.js
 run . node test/base.js
