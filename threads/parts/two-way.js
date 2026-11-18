@@ -765,6 +765,7 @@ const crumbHtml = item => crumbsOf(item).length ? `<div class="th-tw-crumb">${cr
 
 // The page's own property list in the main view (not one inside a record, a reference or the sidebar), else its title:
 // the rows stand under the title and the properties, above the page's own words (the owner, 1 November 2026).
+const atFoot = anchor => !!anchor?.matches?.('.ls-page-blocks');
 function anchorFor(doc) {
   const main = pane.root(doc);
   if (!main) return null;
@@ -772,6 +773,10 @@ function anchorFor(doc) {
   // stands after that box from the first (the space under the title is Look's tag path's) and waits, unseen, until the list is there.
   if (!pane.main) return main.querySelector('.page .ls-sidebar-page-properties');
   const outside = el => !el.closest('.references, .ls-bidirectional-properties, .ls-block .ls-block, .custom-query');
+  /* A journal day: the section stands at the foot of the day, after its bullets (the owner, 18 November 2026: "relations should be at
+     bottom of journal not first"), where Logseq's Linked references stood. Known by Logseq's own mark on the day's page, so it is
+     known in the frame the day is drawn, before the day is read. */
+  if (main.querySelector('.page.is-journals')) return [...main.querySelectorAll('.page.is-journals .ls-page-blocks')].find(outside) || null;
   const props = [...main.querySelectorAll('.ls-page-properties')].find(outside);
   if (props) return props;
   const titles = [...(provided.pageTitles?.(doc) || [])].filter(el => main.contains(el) && !el.parentElement?.closest('.ls-page-title, .page-title, h1.title'));
@@ -1035,7 +1040,8 @@ function draw(doc) {
   twoWay.pinNow();
   if (anchor.nextElementSibling !== box) anchor.after(box);
   // The room a page held is the main view's (measured under its title row); the right half waits for its property list instead.
-  holdRoom(doc, box, pane.main ? mode : '', page);
+  // At the foot of a journal day nothing stands under the section to be pushed down: no room is held there.
+  holdRoom(doc, box, pane.main && !atFoot(anchor) ? mode : '', page);
   const waited = box.hasAttribute('data-th-waiting');
   const listDrawn = pane.main ? heights.has(page) || anchor.matches('.ls-page-properties') : !!anchor.querySelector('.ls-page-properties');
   box.toggleAttribute('data-th-waiting', mode === 'hold' && !settle.stood && (!state.mentionsOf.has(page) || !listDrawn) && performance.now() - settle.since < WAIT_MS);

@@ -26,6 +26,9 @@ const CSS = `
 .td-sub:last-child { margin-bottom: 0; }
 .td-sub > .td-head { margin: 10px 0 2px; }
 .td-nested > .td-head { color: var(--lk-text, currentColor) !important; font-weight: 600 !important; }   /* a group that holds groups: its name in weight, the groups inside in the faint name */
+/* A group's name is told as every list's is (B of table-sidebar-look.html, 18 November 2026): a bold word at the rows' size, as Links' groups and a table's. A group inside a group keeps the faint name. */
+.td-list > .td-group > .td-head { font-size: 14px !important; font-weight: 600 !important; color: var(--lk-text, currentColor) !important; }
+.td-side .td-words { font-size: 14px; }   /* the sidebar's rows are 14 px, as Ontology's, Links' and the table's; the Todo page keeps its larger size */
 .td-head { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; }   /* the library's small faint name (lk-name), as Find's group heads */
 .td-head.td-fold-head { cursor: pointer; margin-left: -22px; }
 .td-side .td-head.td-fold-head { margin-left: -4px; }

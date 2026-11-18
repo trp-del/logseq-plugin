@@ -64,9 +64,17 @@ function hold(doc) {
   const side = doc.getElementById('right-sidebar');
   if (!shown || !side) return;
   const at = shown.getBoundingClientRect(), copy = shown.cloneNode(true);
-  copy.removeAttribute('data-st-item'); copy.classList.add('st-item-hold', 'lk-own'); copy.setAttribute('aria-hidden', 'true');
+  /* The picture reaches down to the next section's head (Ontology, folded under the row), not over it: laid to the sidebar's foot it
+     hid that head for as long as it stood, so Ontology's head blinked out and back on every row change (seen frame by frame,
+     18 November 2026). */
+  const under = [...doc.querySelectorAll(ITEMS)].filter(i => i !== shown && i.getClientRects().length && i.getBoundingClientRect().top >= at.bottom - 1).map(i => i.getBoundingClientRect().top);
+  const floor = under.length ? Math.min(...under) : side.getBoundingClientRect().bottom;
+  /* The picture keeps the row's dress (data-st-item: the row view's whole look hangs on it, view.js). Taken off, the picture fell back
+     to Logseq's plain bullet, its tag at the right and its properties in a line, and that is what faded over the next row (the owner,
+     18 November 2026: "the whole sidebar does not animate well when changing rows"). */
+  copy.classList.add('st-item-hold', 'lk-own'); copy.setAttribute('aria-hidden', 'true');
   for (const el of copy.querySelectorAll('[id]')) el.removeAttribute('id');
-  Object.assign(copy.style, { position: 'fixed', left: at.left + 'px', top: at.top + 'px', width: at.width + 'px', height: Math.max(at.height, side.getBoundingClientRect().bottom - at.top) + 'px', margin: '0', zIndex: '5', pointerEvents: 'none', background: 'var(--lk-paper, #fff)', overflow: 'hidden', display: 'block' });
+  Object.assign(copy.style, { position: 'fixed', left: at.left + 'px', top: at.top + 'px', width: at.width + 'px', height: Math.max(Math.min(at.height, floor - at.top - 1), Math.floor(floor - at.top) - 1) + 'px', margin: '0', zIndex: '5', pointerEvents: 'none', background: 'var(--lk-paper, #fff)', overflow: 'hidden', display: 'block' });
   side.appendChild(copy);
   insp.held = copy; insp.heldAt = Date.now();
   doc.defaultView.setTimeout(() => { if (insp.held === copy) release(); }, 1200);
@@ -125,7 +133,7 @@ function whereText(uuid) {
   }
   if (!row || !(at >= 0) || !(all > 0) || at >= all) return '';
   // Whose table it is goes without saying: the page in the middle is the tag's or the property's own.
-  return `Item · ${at + 1} of ${all}`;
+  return `${at + 1} of ${all}`;
 }
 // One pass of the screen: the item is named as the Item tab's and carries its line; what was shown before goes.
 function pass(doc) {
@@ -143,7 +151,7 @@ function pass(doc) {
    tabs as they ask for the view), so the line stands in the very frame the view is shown: named a pass later, the view stood a
    frame or two without its "7 of 56" (seen frame by frame, 13 November 2026). */
 function dress(el, doc) {
-  for (const old of doc.querySelectorAll('#right-sidebar [data-st-item]')) if (old !== el) old.removeAttribute('data-st-item');
+  for (const old of doc.querySelectorAll('#right-sidebar [data-st-item]:not(.st-item-hold)')) if (old !== el) old.removeAttribute('data-st-item');
   const list = doc.querySelector('#right-sidebar .sidebar-item-list');
   if (el && !el.hasAttribute('data-st-item')) el.setAttribute('data-st-item', '');
   /* The line is written on the list, not into the view: Logseq hands a view's element on to the next node and draws its inside
@@ -156,7 +164,7 @@ function dress(el, doc) {
      item as a custom property, which the stylesheet draws there and which outlives Logseq drawing the item's inside afresh. */
   const words = say ? JSON.stringify(say) : '';
   if (el && el.style.getPropertyValue('--st-where') !== words) { if (words) el.style.setProperty('--st-where', words); else el.style.removeProperty('--st-where'); }
-  for (const old of doc.querySelectorAll('#right-sidebar .sidebar-item[style*="--st-where"]')) if (old !== el) old.style.removeProperty('--st-where');
+  for (const old of doc.querySelectorAll('#right-sidebar .sidebar-item[style*="--st-where"]:not(.st-item-hold)')) if (old !== el) old.style.removeProperty('--st-where');
 }
 
 // No row pressed: one faint line says what the panel is waiting for, or nothing when the lines above already fill it.
@@ -171,7 +179,8 @@ function idle() {
   const table = !!doc.querySelector(ROW) || (settling && lines);
   if (settling && !idle.again) idle.again = doc.defaultView.setTimeout(() => { idle.again = 0; idle(); }, 720);
   if (settling && !lines && !table && !insp.plain) return;   // nothing is known of the page yet: no line said, so none is pushed down when the tag's lines come (a 260 px jump, the motion check, 12 November 2026)
-  const say = table ? 'Press a row in the table to see it here.' : lines ? '' : 'Open a tag’s or a property’s page to see it here.';
+  // The line about pressing a row belongs to the row view (its own line, sidebar-tabs.js); with the row view off a press shows nothing here.
+  const say = table ? (active() ? 'Press a row in the table to see it here.' : '') : lines ? '' : 'Open a tag’s or a property’s page to see it here.';
   if (box.textContent === say) return;
   box.innerHTML = say ? `<p class="st-insp-none lk-none">${say}</p>` : '';
 }
@@ -247,7 +256,7 @@ async function editInRow(cell) {
   const name = (doc.querySelectorAll('#main-content-container .ls-table-header .ls-table-header-cell')[at]?.textContent || '').trim();
   const title = !!cell.querySelector('.table-block-title');
   // The row's section, once it holds this row (a double press can come before the first press's view is drawn).
-  const section = await window.PluginDoor.screen.waitFor(() => { const it = doc.querySelector('#right-sidebar .sidebar-item[data-st-item]'); return it && holds(it) && keyOf(it) === wanted() ? it : null; }, 1500);
+  const section = await window.PluginDoor.screen.waitFor(() => { const it = doc.querySelector('#right-sidebar .sidebar-item[data-st-item]:not(.st-item-hold)'); return it && holds(it) && keyOf(it) === wanted() ? it : null; }, 1500);
   const line = !title && section ? [...section.querySelectorAll('.bottom-property-pill, .property-pair')].find(l => l.querySelector('.property-k')?.textContent.trim() === name) : null;
   // What Logseq opens on a press: the value's own trigger, else what takes the keyboard in it (asked in turn: one selector list gives the outer box first).
   const value = line?.querySelector('.property-value-inner .jtrigger') || line?.querySelector('.property-value-inner [tabindex="0"]') || line?.querySelector('.property-value-inner');

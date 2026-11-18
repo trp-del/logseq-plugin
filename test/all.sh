@@ -27,6 +27,7 @@ run . node test/review.js
 run . node test/split.js
 run look node test/load.js
 run look node test/contents.js
+run look node test/tables.js
 run find node test/load.js
 run todo node test/group.js
 run todo node test/status.js

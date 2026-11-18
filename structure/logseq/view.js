@@ -156,6 +156,12 @@ const CSS = `
    line: the arrow, the name and those words on one middle line, the words in the head's own size, so nothing in it sits higher or
    smaller than the rest (the owner, 18 November 2026: "the top row with the fold control and total is misaligned"). */
 #right-sidebar .sidebar-item[data-st-item] .sidebar-item-header .item-actions { display: none !important; }
+/* The still picture of the row before, which lies over the row's section while the next row is drawn (inspector.js, hold): it stands
+   outside Logseq's list, so the room and the head's height the list gives a section are given to it here, and it lies exactly on the
+   row it pictures. */
+#right-sidebar .st-item-hold { border: 0 !important; padding: 0 !important; box-sizing: border-box; box-shadow: none !important; border-radius: 0 !important; }
+#right-sidebar .st-item-hold .sidebar-item-header { box-sizing: border-box; min-height: 32px; align-items: center !important; background: none !important; }
+#right-sidebar .st-item-hold .sidebar-item-header > button { align-self: stretch; }
 #right-sidebar .sidebar-item[data-st-item] .sidebar-item-header { align-items: center !important; }
 #right-sidebar .sidebar-item[data-st-item] .sidebar-item-header::after { content: var(--st-where); flex: none; margin-left: auto; padding: 0 8px 0 12px; color: var(--lk-quiet); font-size: var(--lk-small); font-weight: 400; line-height: inherit; font-variant-numeric: tabular-nums; white-space: nowrap; }
 /* A bullet's row is shown like a page (the owner, 17 November 2026: "if the row is of a node, it will display the node as if it is
@@ -163,7 +169,11 @@ const CSS = `
    as the title, its tags under them (Look's own line of a page's tags, title.js), then each of its properties on a line of its own,
    the empty ones too, faint, to be filled in as on a page; then the bullets inside it. All of it Logseq's own, so it is edited there.
    The head names no page (the bullet's page, which is not what was pressed): only where the row stands. */
-#right-sidebar .sidebar-item.item-type-block[data-st-item] .sidebar-item-header > button > div { visibility: hidden; }
+#right-sidebar .sidebar-item.item-type-block[data-st-item] .sidebar-item-header > button > div { visibility: hidden; display: flex; align-items: center; }
+/* The head says what the section is, as every section's does: the table's icon and "Row" (B of table-sidebar-look.html, 18 November 2026;
+   the head was an arrow and a number). The bullet's own words, hidden above, are the section's title below it. */
+#right-sidebar .sidebar-item.item-type-block[data-st-item] .sidebar-item-header > button > div::before { content: ""; visibility: visible; flex: none; width: 18px; height: 18px; margin-right: 8px; background: currentColor; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 5a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2zM3 10h18M10 3v18'/%3E%3C/svg%3E") center / contain no-repeat; }
+#right-sidebar .sidebar-item.item-type-block[data-st-item] .sidebar-item-header > button > div::after { content: "Row"; visibility: visible; font-size: 14px; font-weight: 500; position: absolute; margin-left: 26px; }
 ${ROW} > .block-main-container > .block-control-wrap { display: none !important; }
 ${ROW} > .block-main-container .ls-block-right .block-tags { display: none !important; }
 /* Every property line of the node, the tag's (Logseq's line under the words) and the node's own (Logseq's panel under them), on one

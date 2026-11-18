@@ -166,6 +166,7 @@ function drawSidebar(doc, index) {
    line under its words, the words standing as its title (18 November 2026). */
 function drawRows(doc, index, seen = new Set()) {
   for (const item of doc.querySelectorAll(ROW_ITEM)) {
+    if (item.classList.contains('st-item-hold')) continue;   // Ontology's still picture of the row before: it carries that row's line already
     const root = item.querySelector('.sidebar-panel-content .ls-block[blockid]');
     const under = root?.querySelector(':scope > .block-main-container .block-main-content');
     const uuid = root?.getAttribute('blockid');

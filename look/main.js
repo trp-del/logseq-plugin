@@ -17,6 +17,7 @@ async function main() {
   Look.focus.start();
   Look.keys.start();
   Look.hidden.start();
+  Look.tables.start();
   const { onStop } = Look.kit;
   onStop(logseq.DB.onChanged(change => Look.kit.graphChanged(change)));
   const own = Look.settings.schema.map(item => item.key);
@@ -25,7 +26,7 @@ async function main() {
 }
 function stop() {
   // Each on its own: a part that never started must not leave the others running.
-  for (const part of ['marks', 'props', 'title', 'folded', 'sidebar', 'links', 'cites', 'values', 'notices', 'focus', 'keys', 'hidden', 'calm']) { try { Look[part].stop(); } catch (error) { console.error(`Look: ${part} could not stop`, error); } }
+  for (const part of ['marks', 'props', 'title', 'folded', 'sidebar', 'links', 'cites', 'values', 'notices', 'focus', 'keys', 'hidden', 'tables', 'calm']) { try { Look[part].stop(); } catch (error) { console.error(`Look: ${part} could not stop`, error); } }
   // The base: Look's passes off the screen watcher, its listeners and Logseq's hooks off, then what it left on the page.
   const done = Look.kit.stopAll();
   Look.kit.sweep();

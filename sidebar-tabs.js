@@ -32,10 +32,11 @@ const CSS = `
 #right-sidebar[data-lk-stack] .sidebar-item-list { padding-top: 8px !important; }
 /* In the row view the row's head stands on the toolbar's middle line, its arrow and its words level with the toolbar's buttons, each
    head of the view 32 px high with what it holds on its middle line (the owner, 18 November 2026: "the top row with the fold control
-   and total is misaligned": it stood at the window's top edge, 14 px above them, the count higher and smaller than the arrow). */
+   and total is misaligned": it stood at the window's top edge, 14 px above them, the count higher and smaller than the arrow). Every
+   section's head is that height in the stack too (B of table-sidebar-look.html, 18 November 2026): Ontology's stood 20 px, the others 32. */
 #right-sidebar[data-lk-rows] .sidebar-item-list { padding-top: 16px !important; }
-#right-sidebar[data-lk-rows] .sidebar-item-list > .sidebar-item .sidebar-item-header { box-sizing: border-box; min-height: 32px; align-items: center !important; }
-#right-sidebar[data-lk-rows] .sidebar-item-list > .sidebar-item .sidebar-item-header > button { align-self: stretch; }
+#right-sidebar[data-lk-stack] .sidebar-item-list > .sidebar-item .sidebar-item-header { box-sizing: border-box; min-height: 32px; align-items: center !important; }
+#right-sidebar[data-lk-stack] .sidebar-item-list > .sidebar-item .sidebar-item-header > button { align-self: stretch; }
 /* Logseq's bar on top of the sidebar holds nothing here (its words are left out, below), so it goes, and the first section's head
    stands level with the toolbar (the owner, 17 November 2026: "there is still a massive gap above"). Two pages side by side keep it
    (split.js draws the right page's title there). */

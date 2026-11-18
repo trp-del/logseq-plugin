@@ -505,14 +505,12 @@ const twoWayCss = `
    as the rows, without the field that links them. Left out in the main view while the rows are drawn there, so a page
    with none keeps Logseq's list; and in the right sidebar always (the owner: "hide that bi-directional section
    that is already hidden in main views"), though it gets no rows: the same records are in its Linked references. */
-// Logseq's Linked references (only that: Unlinked references sits outside .references) where the rows replace it: in the main
-// view, and on the right half of two pages side by side, which has its own rows.
+// Logseq's Linked references (only that: Unlinked references sits outside .references) is left out everywhere Relations runs: in the
+// main view, on a journal day and in the day list, and in the right sidebar (the owner, 18 November 2026: "hide linked references
+// everywhere including journal days but have relations"). Until then it was left out only where the rows stood in its place, so a
+// page in the sidebar, and the row of a table shown there, still carried Logseq's list under it.
 const hideLinkedRefsCss = `
-#main-content-container:has(.th-two-way[data-th-replaces][data-th-rows]) .references { display: none !important; }
-/* While the rows are read for a page they are about to stand in on (two-way.js, reading): Logseq's list is not drawn for the half
-   second in between, so its heading does not show and go at the foot of every page opened. */
-[data-th-reading] .references { display: none !important; }
-#right-sidebar .sidebar-item[data-lk-split-item]:has(.th-two-way[data-th-replaces][data-th-rows]) .references { display: none !important; }
+:is(#main-content-container, #right-sidebar) .references { display: none !important; }
 `;
 // On the right half of two pages side by side the section stands after Logseq's box around the page's property list, as far under
 // "Add property" as on the main page.

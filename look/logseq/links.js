@@ -216,9 +216,7 @@ function contentsBody(doc) {
       click: go, keydown: event => { if (event.key === 'Enter') go(event); } },
       fold, label ? el(doc, 'span', { class: 'lk-contents-n', style: `min-width: ${widths[head.depth]}ch` }, label) : null, el(doc, 'span', { class: 'lk-contents-words' }, head.title));
   });
-  const more = el(doc, 'button', { class: 'lk-btn lk-low lk-contents-more', type: 'button', 'aria-label': 'Numbering and folding', title: 'Numbering and folding', 'aria-haspopup': 'menu',
-    html: Look.kit.iconHtml('dots'), click: event => openMenu(doc, event.currentTarget) });
-  return [more, ...rows];
+  return rows;
 }
 // The menu, the library's (PluginDoor.menu): under the ⋯, its right edge on the ⋯'s; its keys and closing are the library's.
 const closeMenu = () => window.PluginDoor.menu.close();
@@ -271,8 +269,12 @@ function sectionOf(doc, { key, word, icon }) {
     el(doc, 'span', { class: 'opacity-50 hover:opacity-100 flex items-center pr-1' }, arrow),
     el(doc, 'div', { class: 'ml-1 font-medium text-sm overflow-hidden whitespace-nowrap' }, el(doc, 'div', { class: 'flex items-center' }, el(doc, 'i', { class: `ti ti-${icon} text-md mr-2`, 'aria-hidden': 'true' }), word)));
   const close = el(doc, 'button', { class: 'lk-close', type: 'button', 'aria-label': `Close ${word}`, click: () => setOpen(key, false), html: '<i class="ti ti-x" aria-hidden="true"></i>' });
+  // Every section's head is one look (the owner chose B of table-sidebar-look.html, 18 November 2026): its menu, where it has one, at the
+  // head's right end before the ×, never a line below it. Outline's numbering and folding menu stood under its head.
+  const more = key === 'contents' ? el(doc, 'button', { class: 'lk-head-more lk-close', type: 'button', 'aria-label': 'Numbering and folding', title: 'Numbering and folding', 'aria-haspopup': 'menu',
+    html: Look.kit.iconHtml('dots'), click: event => openMenu(doc, event.currentTarget) }) : null;
   return el(doc, 'div', { class: `lk-own lk-side flex sidebar-item content lk-side-${key}` }, el(doc, 'div', { class: 'flex flex-col w-full relative' },
-    el(doc, 'div', { class: 'flex flex-row justify-between sidebar-item-header' }, fold, el(doc, 'div', { class: 'item-actions flex items-center' }, close)),
+    el(doc, 'div', { class: 'flex flex-row justify-between sidebar-item-header' }, fold, more, el(doc, 'div', { class: 'item-actions flex items-center' }, close)),
     el(doc, 'div', { class: 'initial sidebar-panel-content px-2' })));
 }
 // The words stand after Contents, the sections above the sidebar's items, in that order. Put back if Logseq draws the bar or the items again.
@@ -337,9 +339,6 @@ const css = `
 #right-sidebar .lk-notes-n { color: var(--lk-quiet) !important; font-variant-numeric: tabular-nums; text-decoration: none; }
 #right-sidebar .lk-notes-n:hover { color: var(--lk-text, currentColor) !important; }
 #right-sidebar .lk-notes-words { min-width: 0; overflow-wrap: anywhere; }
-#right-sidebar .lk-side-contents .sidebar-panel-content { position: relative; }
-#right-sidebar .lk-contents-more { position: absolute; top: 0; right: 0; }
-#right-sidebar .lk-side-contents .lk-contents-row:nth-child(2) { margin-right: 36px; }
 #right-sidebar .lk-contents-row .lk-fold, #right-sidebar .lk-contents-nofold { align-self: flex-start; width: 16px; height: 1.5em; flex: none; margin-right: -2px; }
 /* The arrow as Logseq's: only under the pointer, and at rest on a folded section, so a fold is seen. */
 #right-sidebar .lk-contents-row .lk-fold[aria-expanded="true"] { opacity: 0 !important; }

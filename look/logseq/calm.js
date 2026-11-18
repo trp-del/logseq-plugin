@@ -106,8 +106,71 @@ ${AREA} .ls-table .ui__checkbox svg { width: 10px !important; height: 10px !impo
    read as "to the side", beside the sidebar's own icon, and a page icon was ugly; the first says Open instead (the owner, 16 November 2026). */
 ${AREA} .table-block-title > .absolute button:first-child { width: auto !important; padding: 0 6px !important; font-size: var(--lk-small); font-weight: 400; color: var(--lk-quiet); }
 ${AREA} .table-block-title > .absolute button:first-child:hover { color: var(--lk-text); }
+${AREA} .table-block-title > .absolute button { background: transparent !important; border-radius: 999px !important; }
+${AREA} .table-block-title > .absolute button:hover { background: var(--lk-wash) !important; }
 ${AREA} .table-block-title > .absolute button:first-child svg { display: none; }
-${AREA} .table-block-title > .absolute button:first-child::before { content: "Open"; }`,
+${AREA} .table-block-title > .absolute button:first-child::before { content: "Open"; }
+/* The table in the plugin's own look (the owner, 18 November 2026, chose B of table-sidebar-look.html: "the table view design is still
+   stunted and isn't keeping in line with the plugin's library design"). One text colour: the table's words are the plugin's text colour
+   and its quiet grey, not Logseq's black and grey. The column named in the sort is the one dark word of the head. */
+${AREA} .ls-table :is(.ls-table-cell, .ls-table-cell *:not(.tag, a.tag, .tag *, .ui__checkbox, .ui__checkbox *)) { color: var(--lk-text); }
+${AREA} .ls-table :is(.text-muted-foreground, .text-gray-500, .bracket) { color: var(--lk-quiet) !important; }
+${AREA} .ls-table-header-cell button { color: var(--lk-quiet) !important; font-size: 14px; }
+${AREA} .ls-table-header-cell button:hover { color: var(--lk-text) !important; }
+${AREA} .ls-table-header-cell:has(.ls-icon-arrow-up, .ls-icon-arrow-down) button { color: var(--lk-text) !important; font-weight: 600; }
+/* A link in a cell is its name with the faint underline, with no brackets, as a link is everywhere else. */
+${AREA} .ls-table-cell .page-reference > .bracket { display: none; }
+/* The bar: the view's name as a word (the one in force with its short bar), no icon and no count; what each button does is said in a
+   word beside its icon, as the Ontology page's presses are, a round wash under the pointer. The two + signs of Logseq's bar said
+   different things with one mark: the one beside the view's name makes a view ("+ New view"), the one at the right end makes a node ("+ New"). */
+${AREA} .ls-view-head .views button[data-view-tab-id] { padding: 3px 8px 6px !important; height: auto !important; font-weight: 400 !important; color: var(--lk-quiet) !important; position: relative; }
+${AREA} .ls-view-head .views button[data-view-tab-id]:not(.text-muted-foreground) { color: var(--lk-text) !important; }
+${AREA} .ls-view-head .views button[data-view-tab-id]:not(.text-muted-foreground)::after { content: ""; position: absolute; left: 8px; right: 8px; bottom: 0; height: 1px; background: currentColor; }
+${AREA} .ls-view-head .views button[data-view-tab-id] > :is(.ls-icon-color-wrap, .text-xs) { display: none !important; }
+${AREA} .ls-view-head .views button[title="Add new view"] { padding: 3px 8px 6px !important; height: auto !important; width: auto !important; opacity: 1 !important; color: var(--lk-quiet) !important; font-size: 14px; font-weight: 400; }
+${AREA} .ls-view-head .views button[title="Add new view"]:hover { color: var(--lk-text) !important; background: transparent !important; }
+${AREA} .ls-view-head .views button[title="Add new view"] > * { display: none !important; }
+${AREA} .ls-view-head .views button[title="Add new view"]::before { content: "+ New view"; }
+${AREA} .ls-view-head .view-actions { opacity: 1 !important; gap: 2px !important; }
+${AREA} :is(.ls-view-head .view-actions > *, .ls-view-head .view-actions button) { width: auto !important; min-width: 0 !important; flex: none !important; white-space: nowrap; }
+${AREA} .ls-view-head .views { margin-left: -8px; }
+${AREA} .ls-view-head :is(.view-action-search > div, .view-action-type .property-value-inner, .view-action-type .jtrigger) { width: auto !important; flex: none !important; }
+${AREA} .ls-view-head .view-actions :is(button.as-ghost, .view-action-type) { color: var(--lk-text) !important; font-size: 14px !important; font-weight: 400 !important; height: auto !important; padding: 4px 9px !important; border-radius: 999px !important; gap: 6px !important; background: transparent !important; }
+${AREA} .ls-view-head .view-actions .view-action-type { display: inline-flex; align-items: center; padding: 0 !important; }
+${AREA} .ls-view-head .view-actions .view-action-type .select-item { padding: 4px 9px; border-radius: 999px; display: inline-flex; align-items: center; gap: 6px; }
+${AREA} .ls-view-head .view-actions :is(button.as-ghost, .view-action-type .select-item):hover { background: var(--lk-wash) !important; }
+${AREA} .ls-view-head .view-actions :is(.ui__icon, svg) { width: 15px; height: 15px; color: var(--lk-text) !important; }
+${AREA} .ls-view-head .view-actions svg { stroke-width: 1.5 !important; }
+${AREA} .ls-view-head .view-actions > button:has(.ls-icon-arrows-up-down)::after { content: "Sort"; }
+${AREA} .ls-view-head .view-actions > button:has(.ls-icon-filter)::after { content: "Filter"; }
+${AREA} .ls-view-head .view-action-search > div > button:first-child::after { content: "Find"; }
+${AREA} .ls-view-head .view-action-search:has(input) > div > button:first-child::after { content: none; }
+${AREA} .ls-view-head .view-action-type:has(.ls-icon-table) .select-item::after { content: "Table"; }
+${AREA} .ls-view-head .view-action-type:has(.ls-icon-list) .select-item::after { content: "List"; }
+${AREA} .ls-view-head .view-action-type:has(.ls-icon-layout-grid) .select-item::after { content: "Gallery"; }
+${AREA} .ls-view-head .view-actions > button:has(.ls-icon-plus)::after { content: "New"; }
+${AREA} .ls-view-head .view-actions > button:has(.ls-icon-dots) { padding: 4px 8px !important; }
+/* Find in the table is the library's field: its words on a hairline that firms while it has the keyboard, no box and no ring. */
+${AREA} .ls-view-head .view-action-search input { background: transparent !important; border: 0 !important; border-bottom: 1px solid var(--lk-line) !important; border-radius: 0 !important; box-shadow: none !important; outline: none !important; font-size: 14px; color: var(--lk-text); }
+${AREA} .ls-view-head .view-action-search input:focus { border-bottom-color: var(--lk-text) !important; }
+${AREA} .ls-view-head .view-action-search input::placeholder { color: var(--lk-off); }
+/* What you can do with the rows you ticked: one block on the wash, its actions the library's presses (no boxes), Delete red. */
+${AREA} .table-action-bar .ls-table-actions { background: var(--lk-paper) !important; border-radius: 6px; padding: 2px 6px; gap: 2px !important; box-shadow: 0 0 0 1px var(--lk-hair); }
+${AREA} .table-action-bar .selection-count { color: var(--lk-quiet); font-size: 14px; white-space: nowrap; }
+${AREA} .table-action-bar .ui__toolbar-group { gap: 2px !important; }
+${AREA} .table-action-bar .ui__button { border: 0 !important; background: transparent !important; box-shadow: none !important; border-radius: 999px !important; font-size: 14px !important; font-weight: 400 !important; color: var(--lk-text) !important; height: 28px !important; padding: 0 10px !important; margin: 0 !important; }
+${AREA} .table-action-bar .ui__button:hover { background: var(--lk-wash) !important; }
+${AREA} .table-action-bar .ui__button:has(.ls-icon-trash) { color: var(--lk-hue-red, #dc3e42) !important; }
+${AREA} .table-action-bar .ui__button .ui__icon { color: inherit !important; }
+/* A group's name: a bold word at the rows' size with a gap above it, as a group is told everywhere; the column names stand once, at
+   the top of the first group (tables.js marks the others). */
+${AREA} .ls-foldable-title:not(:has(.ls-view-head)) .my-2 { font-size: 14px; font-weight: 600; color: var(--lk-text); margin-top: 18px; margin-bottom: 4px; }
+${AREA} .ls-table[data-lk-nohead] .ls-table-header { display: none !important; }
+${AREA} .ls-table[data-lk-nohead] .ls-table-rows > .relative { padding-top: 0 !important; }   /* the room Logseq keeps for the head it draws */
+${AREA} [data-lk-gone] { display: none !important; }
+/* The state line under the bar: what the table is cut by, each part a press that opens Logseq's own list for it. */
+.lk-tstate { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 14px; min-height: 22px; padding: 2px 0 4px 0; margin-left: -4px; font-size: var(--lk-small); color: var(--lk-quiet); }
+.lk-tstate .lk-change { font-size: var(--lk-small) !important; }`,
   calmSearch: `
 /* Logseq's search window: one ground, a hairline and one shadow, as the grammar's window. No grey bands at the top and the
    foot, no boxes round icons or keys, no blue ring round the row you are on; the tip at the foot is left out, its room kept. */
