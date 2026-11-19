@@ -58,7 +58,7 @@ tools/       preview.js (every look and layout as pictures and PDFs, with Playwr
 
 ```
 node test/core.test.js    # the core
-NODE_PATH=~/logseq-value/logseq-plugin/node_modules node tools/preview.js dist/preview
+NODE_PATH=$PWD/../node_modules node tools/preview.js dist/preview
 ```
 
 ## Checked in Logseq 2.0.2 (2026-10-29)

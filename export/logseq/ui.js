@@ -40,17 +40,14 @@ const CSS = `
 .xp .it { --pl: 20px; position: relative; display: flex; flex-direction: column; gap: 3px; white-space: nowrap; padding: 0 20px 0 var(--pl); }
 .xp .it[hidden] { display: none; }
 .xp .it:first-child, .xp .it[hidden] + .it { --pl: 0px; } .xp .it:last-child { padding-right: 0; }
-.xp .it.lk-pick:not(:first-child) { border-left: 1px solid var(--lk-hair); }
-.xp .it[hidden] + .it.lk-pick { border-left: 0; }
 .xp .lk-name { min-height: 15px; }
-.xp .lk-value { all: unset; display: inline-flex; align-items: center; cursor: pointer; color: var(--lk-text, #222); font: inherit; line-height: 1.35; }
-.xp .lk-value:focus-visible { outline: none; background: var(--lk-wash); box-shadow: 0 0 0 3px var(--lk-wash); border-radius: 1em; }
+.xp .lk-value { all: unset; display: inline-flex; align-items: center; cursor: pointer; font: inherit; line-height: 1.35; }
 /* The mark: a small faint chevron tight after a value that unfolds. */
 .xp .lk-value .m { display: inline-flex; margin-left: 4px; color: var(--lk-quiet); flex: none; }
 .xp .lk-value .m::before { margin: 0; width: .8em; height: .8em; vertical-align: 0; }
 /* What a value can become: a line of faint words under it, the one in force in the text colour. It takes its room below the
    row (the pick grows by the line's height while open, see unfold), never beside the pick: nothing moves sideways. */
-.xp .lk-pick .lk-alts { position: absolute; left: var(--pl); top: 100%; margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--lk-quiet); width: max-content; max-width: 420px; white-space: normal; }
+.xp .lk-pick .lk-alts { position: absolute; left: var(--pl); top: 100%; margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px 14px; width: max-content; max-width: 420px; white-space: normal; }
 .xp .lk-pick .lk-alts[hidden] { display: none; }
 .xp .lk-alts span { cursor: pointer; }
 /* A choice that stays open (where the export goes): the library's alternatives (lk-alts), the one in force (on) in the text colour. */
@@ -82,10 +79,8 @@ const CSS = `
 .xp-side .xp-sw:focus-visible { outline: none; background: var(--lk-wash); }
 .xp-side .xp-fieldrow { cursor: text; }
 .xp-side .xp-fieldrow input.lk-field { flex: 0 1 10em; width: 10em; min-width: 3em; text-align: right; }
-.xp .it.open > .lk-value { color: var(--lk-quiet); }
 /* On the bar, the values stand on one line: Adjust under an empty name, the tabs with their bar hanging below the words. */
 .xp .xp-bar .lk-btn.xp-adjust { position: relative; top: -3px; left: -12px; }   /* the library's button keeps its padding; moved by it, its word stands on the values' line and at the column's left edge */
-.xp .xp-bar .lk-btn.xp-adjust.on { background: color-mix(in srgb, currentColor 18%, transparent) !important; }
 .xp-where .lk-view { padding-top: 0; }
 .xp-where { margin-bottom: -6px; }
 /* The lists of properties to pick from, inside Show: each headed by a named value, whose they are over all / none as a
@@ -102,25 +97,24 @@ const CSS = `
 .xp-list .lk-prop { display: inline-flex; align-items: center; gap: 5px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .xp-kind { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; font-size: 14px; color: var(--lk-quiet); flex: none; }
 .xp-kind .lk-icon.lk-web svg { width: 11px; height: 11px; }
-.xp-list .lk-count { margin-left: auto; color: var(--lk-quiet); font-size: var(--lk-small); }
 /* The tick box is the library's (lk-tick). */
 /* The accent: the one action, its key beside it; a second action lk-btn, its words level with the accent's and the gap
    between them measured from its words; × the way out. */
 /* The bar's reset is for its plain buttons only: the library's own (lk-btn, lk-accent) keep what the library gives them. Until 14
    November 2026 the reset took the round ends off the main button, which stood as a black square (the owner: "a square button
    is not inline with design language"). */
-.xp-bar button:where(:not(.lk-btn, .lk-accent)) { all: unset; cursor: pointer; font: inherit; color: var(--lk-text, #222); white-space: nowrap; }
+.xp-bar button:where(:not(.lk-btn, .lk-accent)) { all: unset; cursor: pointer; font: inherit; white-space: nowrap; }
 .xp-bar button[hidden] { display: none; }
 .xp-bar button:focus-visible { outline: none; background: var(--lk-wash); box-shadow: 0 0 0 3px var(--lk-wash); border-radius: 1em; }
 .xp-bar .lk-btn { margin: -2px -6px; }
 .xp-bar button.lk-accent kbd { font: inherit; font-size: var(--lk-small); margin-left: 8px; }
-.xp-bar button.lk-close { font-size: 17px; line-height: 1; margin-top: -2px; }
+.xp-bar button.lk-close { line-height: 1; margin-top: -2px; }
 .xp-desk { flex: 1; min-width: 0; overflow: auto; padding: 26px 24px 48px; }
 .xp-desk iframe { display: block; margin: 0 auto; width: 794px; max-width: 100%; height: 600px; border: 0; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.12), 0 10px 36px rgba(0,0,0,.22); }
 .xp-desk iframe.sheets { background: transparent; box-shadow: none; }
 /* Over the desk, at its right, alone: how large the sheets are drawn. */
 .xp-note { display: flex; justify-content: flex-end; align-items: center; font-size: var(--lk-small); padding: 0 0 12px; }
-.xp-note .it { padding: 0; } .xp-note .lk-name { display: none; } .xp-note .lk-value { color: var(--lk-quiet); }
+.xp-note .it { padding: 0; } .xp-note .lk-name { display: none; }
 .xp-note .lk-alts { left: auto; right: 0; justify-content: flex-end; }
 /* The template, the column's first row: its menu is the library's pop-up at the row, over the rows below: the templates, the one
    in force ticked, then after a gap what can be done with it; a name is asked for there, and so is whether a delete is meant. */

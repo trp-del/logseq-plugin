@@ -1,11 +1,9 @@
 {
  "restyled": {
-  "structure/logseq/view.js": 7,
+  "structure/logseq/view.js": 2,
   "structure/logseq/where.js": 3,
-  "threads/parts/shared.js": 2,
   "threads/parts/two-way/look.js": 18,
   "find/logseq/find.js": 5,
-  "export/logseq/ui.js": 11,
   "look/logseq/calm.js": 1,
   "look/logseq/folded.js": 1,
   "look/logseq/links.js": 3,
@@ -14,8 +12,8 @@
   "todo/logseq/view.js": 2
  },
  "greys": {
-  "threads/parts/shared.js": 2,
-  "export/logseq/ui.js": 2,
+  "threads/parts/shared.js": 1,
+  "export/logseq/ui.js": 1,
   "settings/ways-in.js": 1,
   "settings/window.js": 3,
   "look/logseq/calm.js": 3,

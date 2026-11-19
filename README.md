@@ -42,7 +42,7 @@ The six were written as six plugins and joined into one on 31 October 2026. This
 
 ## Checks
 
-One command, from your own copy of the plugin (`logseq-value/work/<name>/`):
+One command, from your own copy of the plugin (`logseq-workspace/work/<name>/`):
 
 ```
 node tools/check.js                      # the change in this folder against GitHub's main: seconds

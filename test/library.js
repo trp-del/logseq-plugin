@@ -1,5 +1,5 @@
-/* The button library: every button a module draws carries a name from the library (button-library.html in the workspace,
-   the drawings in plugin.js), so no module has a look of its own for one. Run from the plugin's folder: node test/library.js
+/* The button library: every button a module draws carries a name from the library (the drawings in
+   plugin.js), so no module has a look of its own for one. Run from the plugin's folder: node test/library.js
    A hand-made button fails here. A button that is Logseq's own, or not a library job, is named in NOT_A_LIBRARY_BUTTON. */
 const fs = require('node:fs'), path = require('node:path'), assert = require('node:assert');
 const ROOT = path.resolve(__dirname, '..');

@@ -35,7 +35,7 @@ const CSS = `
 .st-page:not(.st-fill) .st-tray:not(:empty) { position: sticky; top: 0; z-index: 3; background: var(--lk-paper, #fff); }
 .st-top { display: flex; align-items: center; gap: 18px; padding: 0 22px 8px 6px; min-height: 37px; }
 .st-acts { display: flex; align-items: center; gap: 8px; padding: 0 22px 10px 6px; min-height: 38px; }
-.st-acts .lk-said { font-weight: 600; margin-right: 8px; } .st-acts .say { margin-right: 8px; }
+.st-acts .lk-said { margin-right: 8px; } .st-acts .say { margin-right: 8px; }
 .st-acts .waits { opacity: .45; pointer-events: none; }
 .st-top .st-views, .st-top .st-pick { margin: 0; flex: none; } .st-top .st-pick { gap: 8px; } .st-top .lk-said { margin-right: 8px; } .st-top .st-find { margin: 0; flex: 0 1 200px; min-width: 80px; }
 .st-top .st-new { margin-left: auto; white-space: nowrap; flex: none; }
@@ -141,7 +141,6 @@ const CSS = `
 #right-sidebar .cp__right-sidebar-settings > div:has(> button .ls-icon-cube-plus) { display: none !important; }
 #right-sidebar .sidebar-item:has(h3[id^="_sidebar.structure"]) [data-testid="sidebar-item-more"] { display: none !important; }
 .st-holder-insp .st-insp-h { display: flex; gap: 8px; align-items: baseline; font-weight: 600; font-size: 16px; line-height: 1.4; margin: 0 0 12px; overflow-wrap: anywhere; }
-.st-holder-insp .st-insp-h .lk-tag { font-weight: 600; }
 .st-holder-insp .st-insp-h .st-pi { width: 13px; height: 13px; color: var(--lk-quiet); }
 .st-holder-insp dt .st-pi, .st-holder-insp dt .ti { flex: none; width: 13px; font-size: 13px; color: var(--lk-quiet); position: relative; top: 1px; }
 .st-insp-top:not(:has(.st-insp-h, .st-lines-t)) { display: none; }
@@ -275,8 +274,6 @@ ${ROW} > .block-children-container > .block-children-left-border { display: none
 .st-tray .ky { font-weight: 400; font-size: var(--lk-small); margin-left: 6px; }
 /* The yes to what Undo cannot put back whole (the library's), under the lines it answers for. */
 /* A count that opens its nodes: what opens has an underline. */
-.st-card .sum .lk-lone { padding: 0; margin: 0; text-decoration: underline; text-decoration-color: var(--st-line, var(--lk-line)); text-underline-offset: 3px; }
-.st-card .sum .lk-lone:hover { background: none; text-decoration-color: currentColor; }
 /* A question, wherever it opens (the library's): what it asks, what follows from it, the answers; joined by a line from the margin. */
 .st-q { margin: 6px 0 16px; padding-left: 12px; border-left: 2px solid var(--lk-hair); max-width: 640px; }
 .st-tray .st-q { margin: 8px 0 2px; max-width: none; }
@@ -286,7 +283,7 @@ ${ROW} > .block-children-container > .block-children-left-border { display: none
 .st-tray .st-saying { display: flex; gap: 16px; justify-content: flex-end; }
 .st-tray .st-done, .st-tray .note { color: var(--lk-quiet); white-space: nowrap; font-size: 14px; }   /* the Undo arrow waits at the right, at the top of the card (the grammar) */
 .st-tray .st-wait + .tl + .st-saying, .st-tray .st-wait + .tl + .more + .st-saying { margin-top: 4px; }
-.st-tray .st-done .lk-undo { margin-left: 6px; font-size: 16px; }   /* the door's one Undo sits at the end of this line */
+.st-tray .st-done .lk-undo { margin-left: 6px; }   /* the door's one Undo sits at the end of this line */
 .st-tray .busy { color: var(--lk-quiet); }
 /* The find line and a name typed in place are the library's field (lk-field); here their room. */
 .st-find { color: var(--lk-quiet); font-size: 14px; min-height: 24px; padding: 0 2px; margin: 0 0 10px; }
