@@ -42,7 +42,10 @@ async function side(label, plugin, runDir, graphs, only) {
       const records = await T.tour(box, shots, only);
       for (const c of cases().filter(c => c.graph === graph)) {
         let got;
-        try { await T.reset(box); got = await c.check(box, T); } catch (e) { got = { ok: false, said: 'the case could not run: ' + String(e && e.message || e).slice(0, 160) }; }
+        // A case fails only when it fails twice: one slow frame in a busy Logseq must not stop a release.
+        for (let tries = 0; tries < 2 && !(got && got.ok); tries++) {
+          try { await T.reset(box); got = await c.check(box, T); } catch (e) { got = { ok: false, said: 'the case could not run: ' + String(e && e.message || e).slice(0, 160) }; }
+        }
         if (!got.ok) { got.picture = `case-${c.file.replace(/\.js$/, '')}.png`; await box.page.screenshot({ path: path.join(shots, got.picture), scale: 'css' }).catch(() => { delete got.picture; }); }
         caseResults.push({ file: c.file, name: c.name, from: c.from, ...got });
         lines.push(`  case ${got.ok ? 'passes' : 'FAILS'}: ${c.name}${got.ok ? '' : ' — ' + got.said}`);
@@ -60,15 +63,22 @@ async function side(label, plugin, runDir, graphs, only) {
 /* The plugin as it was is photographed once per base commit and kept (the owner, 18 November 2026: eleven minutes a change is far
    too long). Kept under the base commit and the guard's own tour and cases, so a new tour or a new case takes new pictures. */
 function baselineKey(base) {
+  /* origin/main means GitHub's main as it is now: fetched first. On 19 November a run compared a change with 0.3.162, because the
+     checkout the guard ran from had not fetched for a day, and showed eleven screens "changed" that the change never touched. */
+  if (/^origin\//.test(base)) try { execFileSync('git', ['-C', REPO, 'fetch', '-q', 'origin', base.slice(7)], { stdio: 'ignore', timeout: 30000 }); } catch (e) { console.log(`could not fetch ${base} from GitHub: comparing with the copy this Mac last fetched`); }
   const commit = execFileSync('git', ['-C', REPO, 'rev-parse', base], { encoding: 'utf8' }).trim();
   const h = require('node:crypto').createHash('sha256');
   for (const f of ['tour.js', 'sandbox.js', ...fs.readdirSync(path.join(HERE, 'cases')).sort().map(f => 'cases/' + f)]) h.update(f + fs.readFileSync(path.join(HERE, f)));
+  /* And under the test graphs' copies themselves: a graph that changed since the pictures were taken (19 November: today's test
+     graphs had new notes) made every run fail on five screens no change had touched. A new copy of a graph takes new pictures. */
+  // By content, not by file name or time: Logseq writes a new backup every hour while a graph is open, most of them the same notes.
+  for (const g of GRAPHS) { try { h.update(g + require('node:crypto').createHash('sha256').update(fs.readFileSync(require('./sandbox').graphFile(g))).digest('hex')); } catch (e) { h.update(g + 'missing'); } }
   return { commit, key: commit.slice(0, 12) + '-' + h.digest('hex').slice(0, 12) };
 }
 async function baseline(base, graphs, only) {
   const { commit, key } = baselineKey(base);
   const dir = path.join(STORE, 'baseline', key);
-  if (!only && fs.existsSync(path.join(dir, 'before.json'))) { console.log(`before: the pictures of ${commit.slice(0, 7)} taken earlier`); return { dir, ...JSON.parse(fs.readFileSync(path.join(dir, 'before.json'), 'utf8')) }; }
+  if (!only && fs.existsSync(path.join(dir, 'before.json'))) { console.log(`before: ${base} is ${commit.slice(0, 7)}; its pictures were taken earlier`); return { dir, ...JSON.parse(fs.readFileSync(path.join(dir, 'before.json'), 'utf8')) }; }
   const work = only ? path.join(STORE, 'runs', 'tmp-' + Date.now()) : dir + '.part';
   fs.rmSync(work, { recursive: true, force: true }); fs.mkdirSync(work, { recursive: true });
   const plugin = path.join(work, 'plugin-before'); fs.mkdirSync(plugin);
@@ -113,8 +123,8 @@ function page(runDir) {
     return `<section><h2>${n}. ${esc(s.name[0].toUpperCase() + s.name.slice(1))}</h2>
       <p class="${why && (r.expect || []).includes(s.name) ? 'why' : 'nowhy'}">${!(r.expect || []).includes(s.name) ? 'Not meant to change: this difference stops the release.' : why ? 'Meant: ' + esc(why) : 'No reason given yet: this difference stops the release.'}</p>
       <ul class="what">${what}</ul>
-      <div class="pair"><figure><figcaption>Before</figcaption><img src="${img(path.join(r.beforeDir || runDir, 'before', s.file + '.png'))}"></figure>
-      <figure><figcaption>After, differences in red</figcaption><img src="${img(path.join(runDir, 'after', s.file + (fs.existsSync(path.join(runDir, 'after', s.file + '.marked.png')) ? '.marked.png' : '.png')))}"></figure></div></section>`;
+      <div class="pair"><figure><figcaption>Before</figcaption><img src="${img(s.beforeDir ? path.join(runDir, s.beforeDir, s.file + '.png') : path.join(r.beforeDir || runDir, 'before', s.file + '.png'))}"></figure>
+      <figure><figcaption>After, differences in red</figcaption><img src="${img(path.join(runDir, s.dir || 'after', s.file + (fs.existsSync(path.join(runDir, s.dir || 'after', s.file + '.marked.png')) ? '.marked.png' : '.png')))}"></figure></div></section>`;
   }).join('\n');
   const caseRows = r.cases.map(c => `<tr><td>${esc(c.name)}<div class="q">${esc(c.from || '')}</div></td><td>${c.before ? (c.before.ok ? 'passes' : 'fails') : 'new'}</td><td class="${c.after.ok ? '' : 'bad'}">${c.after.ok ? 'passes' : 'fails: ' + esc(c.after.said)}${!c.after.ok && c.after.picture ? `<img src="${img(path.join(runDir, 'after', c.after.picture))}">` : ''}</td></tr>`).join('');
   const head = v.open.length ? `<p class="nowhy"><b>Not passed.</b> ${v.open.length} thing${v.open.length > 1 ? 's' : ''} still stop${v.open.length > 1 ? '' : 's'} the commit.</p>` : `<p class="why"><b>Passed.</b> Every difference has a reason and every case passes.</p>`;
@@ -173,8 +183,36 @@ async function run() {
   const after = await side('after', changePlugin, runDir, graphs, only);
   fs.rmSync(path.join(runDir, 'box'), { recursive: true, force: true });
   console.log(`took ${Math.round((Date.now() - t0) / 1000)} s`);
-  const screens = await require('./compare').compare(path.join(before.dir, 'before'), path.join(runDir, 'after'), before.records, after.records, path.join(runDir, 'after'));
-  const casesOut = after.cases.map(c => ({ name: c.name, from: c.from, before: before.cases.find(b => b.file === c.file) || null, after: c }));
+  const C = require('./compare');
+  let screens = await C.compare(path.join(before.dir, 'before'), path.join(runDir, 'after'), before.records, after.records, path.join(runDir, 'after'));
+  let casesOut = after.cases.map(c => ({ name: c.name, from: c.from, before: before.cases.find(b => b.file === c.file) || null, after: c }));
+  /* A second look (19 November 2026: an unchanged plugin failed on screens where a card or a shade happened to be caught in one
+     picture). Each screen that differs, and each case broken now, is taken again on both sides, the plugin as it was and as
+     changed, in fresh Logseqs; only what differs both times counts. */
+  const differs = s => s.notes.some(n => n.kind !== 'info');
+  const SC = require('./tour').SCREENS;
+  const again = screens.filter(differs).map(s => s.name);
+  const brokeCases = casesOut.filter(c => c.before && c.before.ok && !c.after.ok);
+  if (again.length || brokeCases.length) {
+    const gs = [...new Set([...again.map(n => SC.find(x => x[0] === n)[1]), ...brokeCases.map(c => cases().find(x => x.name === c.name)?.graph).filter(Boolean)])];
+    console.log(`a second look at ${again.length} screen(s) and ${brokeCases.length} case(s), on both sides`);
+    const onlyAgain = again.length ? again : ['(none)'];
+    const b2 = await side('before-again', path.join(before.dir, 'plugin-before'), runDir, gs, onlyAgain);
+    const a2 = await side('after-again', changePlugin, runDir, gs, onlyAgain);
+    fs.rmSync(path.join(runDir, 'box'), { recursive: true, force: true });
+    const second = await C.compare(path.join(runDir, 'before-again'), path.join(runDir, 'after-again'), b2.records, a2.records, path.join(runDir, 'after-again'));
+    screens = screens.map(s => {
+      if (!differs(s)) return s;
+      const t = second.find(x => x.name === s.name);
+      if (t && !differs(t)) return { name: s.name, graph: s.graph, file: s.file, notes: [{ kind: 'info', said: 'differed in one picture, the same on a second look' }] };
+      return t && differs(t) ? { ...t, dir: 'after-again', beforeDir: 'before-again' } : s;
+    });
+    casesOut = casesOut.map(c => {
+      if (!(c.before && c.before.ok && !c.after.ok)) return c;
+      const bb = b2.cases.find(x => x.name === c.name), aa = a2.cases.find(x => x.name === c.name);
+      return bb && aa && (aa.ok || !bb.ok) ? { ...c, before: bb, after: aa, again: true } : c;
+    });
+  }
   fs.writeFileSync(path.join(runDir, 'result.json'), JSON.stringify({ base, beforeDir: before.dir, change, ship: shipHash, expect, screens, cases: casesOut, partial: !!only || graphs.length < GRAPHS.length }, null, 1));
   report(runDir);
 }

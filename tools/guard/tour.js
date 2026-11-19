@@ -75,7 +75,7 @@ async function reset(box, { dark = false, width = 1440 } = {}) {
   const { page } = box;
   await page.evaluate(() => document.getElementById('guard-still')?.remove()).catch(() => {});
   for (let i = 0; i < 4; i++) { await page.keyboard.press('Escape').catch(() => {}); await sleep(80); }
-  await page.mouse.move(2, 880).catch(() => {});
+  await page.mouse.move(720, 6).catch(() => {});   // Logseq's top strip, the window's drag handle: nothing there lights or opens a card
   await rowView(box, false).catch(() => {});
   await box.frame().evaluate(() => logseq.App.setRightSidebarVisible(false)).catch(() => {});
   await page.evaluate(() => window.logseq.api.clear_right_sidebar_blocks?.()).catch(() => {});
@@ -130,7 +130,7 @@ async function tour(box, outDir, only) {
       await reset(box, opts);
       await setup(box);
       // The pointer rests out of the way unless the screen is about what lies under it.
-      if (!opts.pointer) await box.page.mouse.move(2, 880).catch(() => {});
+      if (!opts.pointer) await box.page.mouse.move(720, 6).catch(() => {});
       // Logseq draws some parts late (Linked references came a second after the page went still): at least 2.5 s after the set-up,
       // and then 1.2 s with nothing changing, before anything is recorded.
       await sleep(2500);

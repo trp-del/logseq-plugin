@@ -42,6 +42,14 @@ process.stdin.on('end', () => {
       // Already shipped: the same files as origin/main, or a commit origin/main already holds.
       try { free = hash === ship.fromGit(repo, 'origin/main'); } catch (e) { /* no origin */ }
       if (!free) try { execFileSync('git', ['-C', repo, 'merge-base', '--is-ancestor', 'HEAD', 'origin/main'], { stdio: 'ignore' }); free = true; } catch (e) { /* not in it */ }
+      /* A clone's "origin" may be another folder on this Mac, behind GitHub (18 November: an Alfred-only commit was stopped because
+         its clone's origin/main was four releases old). So the same comparison is made with GitHub's main itself, read through the
+         workspace's own checkout, whose origin is GitHub. */
+      if (!free) try {
+        const home = path.resolve(__dirname, '../..');
+        execFileSync('git', ['-C', home, 'fetch', '-q', 'origin', 'main'], { stdio: 'ignore', timeout: 20000 });
+        free = hash === ship.fromGit(home, 'origin/main');
+      } catch (e) { /* no network: the guard's pass is still asked */ }
     }
   } catch (e) { process.exit(0); }
   if (free || passed(hash)) process.exit(0);

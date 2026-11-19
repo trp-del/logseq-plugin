@@ -25,6 +25,7 @@ assert.notStrictEqual(ship.fromGit(repo, ''), head, 'staged, it changes what the
 const hook = (command, cwd = repo) => spawnSync('node', [path.join(ROOT, 'tools/guard/hook.js')], { input: JSON.stringify({ tool_input: { command }, cwd }), env: { ...process.env, GUARD_STORE: path.join(repo, '.no-store') }, encoding: 'utf8' }).status;
 assert.strictEqual(hook('git commit -m change'), 2, 'a commit of a shipped change is stopped');
 assert.strictEqual(hook('sh tools/release.sh'), 2, 'a release is stopped');
+assert.strictEqual(hook('git push origin main'), 2, 'a push of a commit GitHub does not ship is stopped');
 assert.strictEqual(hook('NODE_PATH=x sh tools/release.sh'), 2, 'a release with a variable before it is stopped');
 assert.strictEqual(hook(`git -C ${repo} commit -m change`, os.tmpdir()), 2, 'git -C finds the repository');
 for (const harmless of ['echo "sh tools/release.sh"', 'git status', 'git log --grep commit', 'git tag -l', 'cat tools/release.sh', 'grep release.sh README.md', 'ls'])

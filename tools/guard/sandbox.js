@@ -97,4 +97,4 @@ async function stopAny() {
   return said.join('; ');
 }
 
-module.exports = { PORT, start, stop, stopAny, up, sleep };
+module.exports = { PORT, graphFile, start, stop, stopAny, up, sleep };
