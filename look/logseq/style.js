@@ -26,6 +26,9 @@ ${AREA} a.external-link::after { ${out} }
 /* A bullet that is a page, or shows one: its words read as a link. A press opens the page (Predictive's page-here.js). */
 ${AREA} :is(.embed-block:not(.embed-block .embed-block) > .block-main-container, .block-main-container:not(.is-page-title-row):has(> .block-control-wrap :is(.ls-icon-file, .ls-icon-page))) .block-title-wrap { ${link(false)} cursor: pointer; }
 ${AREA} :is(.embed-block:not(.embed-block .embed-block) > .block-main-container, .block-main-container:not(.is-page-title-row):has(> .block-control-wrap :is(.ls-icon-file, .ls-icon-page))) .block-title-wrap:hover { text-decoration-color: currentColor; }
+/* A heading's words and its folded note are one flex row in Logseq, so the link's line ran on under the note (the owner, 19 November
+   2026: "did you add these underlines here before. Why?"). As a block, the note is a piece of its own and the line stops at the words. */
+${AREA} :is(.embed-block:not(.embed-block .embed-block) > .block-main-container, .block-main-container:not(.is-page-title-row):has(> .block-control-wrap :is(.ls-icon-file, .ls-icon-page))) :is(h1, h2, h3, h4, h5, h6).block-title-wrap:has(> .lk-folded) { display: block; }
 /* Under the pointer Logseq paints a link's box in its accent colour at strength; here the faint wash of a row under the
    pointer, the same for every link. Its colour alone, so the sort's mark, drawn as the link's background image, stays. */
 ${AREA} .page-reference:hover, ${AREA} a.page-ref:hover, ${AREA} .preview-ref-link:hover { background-color: var(--lk-wash) !important; }`;
