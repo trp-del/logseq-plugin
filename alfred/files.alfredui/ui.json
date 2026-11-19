@@ -1,0 +1,335 @@
+{
+ "bundleid": "com.openai.alfred.logseq-db.files",
+ "log": {
+  "level": "info",
+  "internal": true,
+  "path": "logseq-files.log",
+  "timestamp": true
+ },
+ "variablesconfig": {
+  "query": {
+   "src": "args[0]"
+  },
+  "LOGSEQ_TOKEN": {
+   "src": "variable",
+   "scriptenv": true
+  },
+  "LOGSEQ_HOST": {
+   "src": "variable",
+   "scriptenv": true
+  },
+  "LOGSEQ_PORT": {
+   "src": "variable",
+   "scriptenv": true
+  },
+  "f_paths": {
+   "default": ""
+  },
+  "f_more": {
+   "default": ""
+  },
+  "f_made": {
+   "default": ""
+  },
+  "f_done": {
+   "default": ""
+  }
+ },
+ "pulse": {
+  "src": "progress",
+  "interval": 0
+ },
+ "window": {
+  "padding": 26,
+  "root": {
+   "type": "view",
+   "layout": "inline",
+   "direction": "vertical",
+   "spacing": 16,
+   "events": [
+    {
+     "triggers": "launched",
+     "action": {
+      "type": "script",
+      "src": "show",
+      "args": [
+       "{var:query}",
+       ""
+      ]
+     }
+    }
+   ],
+   "shortcuts": [
+    {
+     "shortcut": "⌘o",
+     "action": {
+      "type": "json",
+      "src": {
+       "opendialog": {
+        "canchoosefiles": true,
+        "multiselect": true,
+        "prompt": "Add",
+        "setvariable": "f_more",
+        "action": {
+         "type": "script",
+         "src": "show",
+         "args": [
+          "{var:f_paths}",
+          "{var:f_more}"
+         ]
+        }
+       }
+      }
+     }
+    },
+    {
+     "shortcut": "⌘z",
+     "action": {
+      "type": "script",
+      "src": "undo",
+      "args": [
+       "{var:f_made}"
+      ]
+     }
+    }
+   ],
+   "components": [
+    {
+     "type": "label",
+     "id": "fHead",
+     "text": "Reading the files…",
+     "colour": "secondaryLabelColor",
+     "font": {
+      "size": 14
+     },
+     "constraints": {
+      "position": "left"
+     }
+    },
+    {
+     "type": "dataview",
+     "id": "fList",
+     "constraints": {
+      "stretch": "horizontal",
+      "size": {
+       "height": 60
+      }
+     },
+     "cell": {
+      "height": 66,
+      "root": {
+       "type": "view",
+       "layout": "border",
+       "padding": 12,
+       "spacing": 14,
+       "components": [
+        {
+         "type": "imageview",
+         "id": "fIcon",
+         "resize": "fit",
+         "constraints": {
+          "region": "left",
+          "position": "centre",
+          "size": {
+           "width": 38,
+           "height": 46
+          }
+         }
+        },
+        {
+         "type": "view",
+         "layout": "inline",
+         "direction": "vertical",
+         "spacing": 3,
+         "constraints": {
+          "region": "centre",
+          "size": {
+           "height": 46
+          }
+         },
+         "components": [
+          {
+           "type": "label",
+           "id": "fTitle",
+           "font": {
+            "size": 18
+           },
+           "linebreak": "truncatetail",
+           "constraints": {
+            "position": "left",
+            "size": {
+             "height": 24
+            }
+           }
+          },
+          {
+           "type": "label",
+           "id": "fSub",
+           "font": {
+            "size": 14
+           },
+           "linebreak": "truncatetail",
+           "constraints": {
+            "position": "left",
+            "size": {
+             "height": 19
+            }
+           }
+          }
+         ]
+        },
+        {
+         "type": "label",
+         "id": "fState",
+         "font": {
+          "size": 14
+         },
+         "colour": "secondaryLabelColor",
+         "constraints": {
+          "region": "right",
+          "position": "centre"
+         }
+        }
+       ]
+      }
+     },
+     "data": {
+      "type": "basic",
+      "src": []
+     }
+    },
+    {
+     "type": "progress",
+     "id": "fBar",
+     "progress": 0,
+     "hidden": true,
+     "constraints": {
+      "stretch": "horizontal"
+     }
+    },
+    {
+     "type": "label",
+     "id": "fCard",
+     "text": "",
+     "hidden": true,
+     "linebreak": "wordwrap",
+     "font": {
+      "size": 15
+     },
+     "constraints": {
+      "position": "left",
+      "size": {
+       "width": 848
+      }
+     }
+    },
+    {
+     "type": "view",
+     "layout": "border",
+     "constraints": {
+      "stretch": "horizontal"
+     },
+     "components": [
+      {
+       "type": "view",
+       "layout": "inline",
+       "spacing": 14,
+       "constraints": {
+        "region": "left"
+       },
+       "components": [
+        {
+         "type": "label",
+         "text": "Add more ⌘O",
+         "colour": "secondaryLabelColor",
+         "font": {
+          "size": 14
+         },
+         "constraints": {
+          "position": "centre"
+         }
+        },
+        {
+         "type": "picker",
+         "id": "where",
+         "bordered": false,
+         "selected": "today",
+         "items": [
+          {
+           "text": "Today",
+           "value": "today"
+          },
+          {
+           "text": "The page open in Logseq",
+           "value": "open"
+          }
+         ]
+        },
+        {
+         "type": "button",
+         "id": "fUndo",
+         "hidden": true,
+         "bordered": false,
+         "text": "Undo  ⌘Z",
+         "contenttintcolour": "secondaryLabelColor",
+         "events": [
+          {
+           "triggers": "actioned",
+           "action": {
+            "type": "script",
+            "src": "undo",
+            "args": [
+             "{var:f_made}"
+            ]
+           }
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "type": "button",
+       "id": "fGo",
+       "bordered": true,
+       "bordershape": "capsule",
+       "effect": "glass",
+       "text": "Add  ↩",
+       "shortcut": "↩",
+       "constraints": {
+        "region": "right",
+        "position": "right"
+       },
+       "events": [
+        {
+         "triggers": "actioned",
+         "action": [
+          {
+           "type": "json",
+           "src": {
+            "pulse": {
+             "interval": 0.5
+            }
+           }
+          },
+          {
+           "type": "script",
+           "src": "add",
+           "async": true,
+           "args": [
+            "{var:f_paths}",
+            "{value:where.selected.value}"
+           ]
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "size": {
+   "width": 900
+  }
+ }
+}

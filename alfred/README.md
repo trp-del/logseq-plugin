@@ -1,9 +1,10 @@
 # Logseq for Alfred
 
-Adding things to a Logseq DB graph quickly, from anywhere on the Mac, in the shape the Logseq Plugin gives them. Version 3.0
-does one job: adding. Searching and walking happen inside Logseq, in Find.
+Logseq from anywhere on the Mac, in Alfred's own panels (Alfred 6's Alfred UI): add a note with its tag guessed as you write,
+tag what came in, see and tick your tasks, search, read a page and walk from it, and put files and selections into the graph
+seeing first what will be written. Version 4.0.
 
-Built for Logseq 2.0.2, Alfred 5.7 and Logseq Plugin 0.3.25.
+Built for Logseq 2.0.2, Alfred 6.0, and a Logseq Plugin from 18 November 2026 or later.
 
 ## Setup
 
@@ -11,49 +12,53 @@ Built for Logseq 2.0.2, Alfred 5.7 and Logseq Plugin 0.3.25.
    `127.0.0.1:12315` unless you changed it.
 2. In Alfred, open the workflow, choose **Configure Workflow…** and paste the token into **Logseq API Token**. The token is
    not exported with the workflow.
-3. Install the Logseq Plugin (0.3.25 or newer) in Logseq: files and pictures go through it.
+3. Install the Logseq Plugin in Logseq: the guesses, Todo, search, reading and files go through it. Without it, words still go in.
 4. Keep Logseq running with the DB graph open.
 
-macOS may ask for Alfred to automate Safari, Google Chrome, Orion or System Events, for where a selection came from.
+## The panels
 
-## Ways in
+Each opens inside Alfred, 900 wide, with room around its parts and no text smaller than 14; the keys stand along its foot.
+Esc closes a panel.
 
-Three keywords for words typed into Alfred, one for the clipboard, and two Universal Actions (with a hotkey) for what is
-selected or chosen elsewhere. Each goes straight to its place; nothing asks.
+- **Home**, `l`: Add to today (⌘1), Tag what came in with how many wait (⌘2), Todo with what is due (⌘3), then the pages you
+  came back to under their own heading. When a page is lit, a pane beside the list shows its tags, its properties and where it
+  leads; an action has no pane. Typing finds pages by name at once; ↩ reads the lit page here, ⌘↩ opens it in Logseq, ⌘F searches the words of
+  your notes, ⇥ adds the words as a note.
+- **Add**, `lt` (today) and `la` (the page open in Logseq): the tag line above the words. After four words Predictive pencils the
+  tag it would pencil in Logseq, with the properties it brings (guessed values lighter); ↩ writes all of it, ⌥↩ the words alone.
+  With no sure guess, the three likeliest tags stand on ⌘1–⌘3 with their reasons; ⌘T lists all your tags in their tree, filtered
+  as you type. The destination is a menu at the foot. Once added: what was written, Undo (⌘Z, which brings the words back to try
+  again), Show in Logseq (⌘O), Add another (↩).
+- **Tag what came in**, `ltag`: the notes added from Alfred with no tag, one at a time, with the tags each could be on ⌘1–⌘3 and
+  ⌘T for any; ⇥ passes one by, ⌘⌫ leaves it untagged. At the end, what was tagged, and one Undo for all of it.
+- **Todo**, `ltd`: the Todo page's list, grouped as it is there. Typing filters; ↩ with words adds a task ("by friday" is its
+  Deadline); ⌘D done, ⌘G doing, ⌘Z takes the last change back, ⌘O shows the task in Logseq.
+- **Search**, `ls`: Logseq's own search, each note with its kind and day; a pane beside the list shows the lit note's words in
+  full with its properties, or a page's tags and where it leads. ↩ reads it here, ⌘↩ opens it in Logseq.
+- **A page read here**: its words, its tags beside its title, then where it leads: its properties' pages, what points at it by
+  property (Provider of · 4 Consultations), what mentions it. ↩ walks into the lit one, ⌘[ steps back, ⌘↩ opens it in Logseq.
+- **Files**, the Universal Action **Add files to Logseq…**: each file with the name its node will have; a file already in the graph
+  is said before anything is added and is linked, not copied again. ↩ adds them, with a progress bar; then one Undo for all.
+- **A selection**, the Universal Action **Add to Logseq…** or the hotkey: a quote with its citation (web page, document, PDF in the
+  graph, as Cite writes them), or a page's link, shown as it will read before it is written, with the tag it could be, a line for
+  your own words under it, and where it goes (today, the open page, a page named after the source). Files go to the files tray.
+- `lp Name [#Tag]` makes or finds a page, `lpic` adds the picture on the clipboard, and **Add to Logseq as a page** puts a
+  selection on a page of its own, as before.
 
-- `lt words` — a bullet on today's journal.
-- `la words` — a bullet on the page open in Logseq.
-- `lp Name` — a page named so, made if there is none, shown in Logseq. `lp Name #Tag` tags it with an existing tag (a tag
-  that does not exist is refused: tags are made in Logseq, in Ontology).
-- `lpic` — the picture on the clipboard, into the graph on today's journal. `lpic Name` puts it on a page named so.
-- **Add to Logseq Today** (a Universal Action, or the hotkey, which you set after installing):
-  - files chosen in Finder, or anywhere Alfred takes files: each into the graph on today's journal;
-  - words selected in Safari, Chrome or Orion: a quote, then a citation to the page;
-  - a web page with nothing selected: its link;
-  - words selected in a document (a PDF in Preview): a quote, then a citation to the document, with its page when the
-    window says it; a PDF that is already in the graph is cited as that PDF;
-  - a saved document in front with nothing selected: the document itself into the graph.
-- **Add to Logseq as a page**: the same, each on a page of its own, made if there is none: a file on a page named after it
-  (without its extension), words on a page named after the web page or document they came from.
-
-A file put into the graph is what Logseq makes when a file is dropped into it: a node of its own, titled by the file's
-name, the file copied into the graph's assets folder. So a PDF added here is found by the plugin's Cite, listed by
-Threads, and opens inside Logseq. A citation is written as Cite writes one: `([Title](url))` for the web, `(*Name*, p. 3)`
-for a document, `([[the PDF]], p. 3)` for a PDF in the graph. No date is written: on a journal the day is the journal's.
-
-Logseq stays where it is: an add to today's journal or to the open page shows the page for a moment while the file goes in
-and puts the screen back, with the bullet you were writing in; an add to a page by name leaves that page on screen.
-Logseq does not come to the front.
-
-A large file Logseq is slow to take keeps its bullet on the page, so the file shows there once Logseq has it; the toast then says Logseq has not taken it yet.
-
-The toast says what was added, or what went wrong: `Added Scan.pdf to Today`, `Made the page “Letters”`, `Error: No page
-is open in Logseq`.
+The toast says what was added, or what went wrong, for the commands without a panel.
 
 ## How it works
 
 `logseq.js` is run by osascript as JavaScript; Alfred runs it through executable copies of `runner.zsh` whose names are
-the commands: `today`, `active`, `page`, `picture`, `today-selection` and `page-selection`. Words, links and pages go
+the commands: `page`, `picture`, `page-selection` and `selection-prepare`. Each panel is a folder `<name>.alfredui` with its
+`ui.json` (Alfred UI's JSON) and small scripts that run `logseq.js panel-<command>`, which answers in Alfred UI's JSON actions.
+A panel's ↩ that leads elsewhere closes it with where to go, and the workflow opens the next panel by its External Trigger.
+The panels draw in macOS 27's glass, on Alfred's own window: the button ↩ presses is a glass capsule (Alfred UI's
+`effect: glass`, the default button's blue), other keys stay grey words, a lit row is a soft see-through wash
+(`quaternaryLabelColor`) the words keep their colours on, and headings are in sentence case.
+The pane (Home and Search) is filled when the lit row changes: the list's `changed` event runs `pane`, which asks the plugin's
+`read` and replaces the pane's view; a heading row is stepped past the way the arrows were going.
+Alfred UI reads braces in a launch argument as placeholders, so a selection travels to its panel as base64. Words, links and pages go
 through Logseq's HTTP API (`appendBlockInPage`, `createPage`, `addBlockTag`). Files go to the Logseq Plugin, through the
 API's `logseq.App.invokeExternalPluginCmd`, as `["logseq-plugin", "models", "add", [{ files, where }]]`; the plugin pastes
 each file into an empty bullet of the page, as Logseq's own paste handler takes a dropped file, because the API has no call

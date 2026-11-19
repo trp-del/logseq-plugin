@@ -7,8 +7,10 @@ plutil -lint info.plist >/dev/null
 stage="$(mktemp -d)"
 trap 'rm -rf "$stage"' EXIT
 cp info.plist logseq.js toast.swift README.md "$stage/"
+# The panels (Alfred 6's Alfred UI): each a folder with its ui.json and the small scripts it runs.
+for panel in *.alfredui; do cp -R "$panel" "$stage/"; done
 [ -f icon.png ] && cp icon.png "$stage/" || echo "note: no icon.png here, so the workflow has no icon"
-for command in today active page picture today-selection page-selection; do
+for command in page picture page-selection selection-prepare; do
   cp runner.zsh "$stage/$command"; chmod +x "$stage/$command"
 done
 cp toast-runner.zsh "$stage/toast"; chmod +x "$stage/toast"

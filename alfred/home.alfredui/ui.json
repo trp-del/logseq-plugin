@@ -1,0 +1,369 @@
+{
+ "bundleid": "com.openai.alfred.logseq-db.home",
+ "log": {
+  "level": "info",
+  "internal": true,
+  "path": "logseq-home.log",
+  "timestamp": true
+ },
+ "variablesconfig": {
+  "query": {
+   "src": "args[0]"
+  },
+  "LOGSEQ_TOKEN": {
+   "src": "variable",
+   "scriptenv": true
+  },
+  "LOGSEQ_HOST": {
+   "src": "variable",
+   "scriptenv": true
+  },
+  "LOGSEQ_PORT": {
+   "src": "variable",
+   "scriptenv": true
+  },
+  "h_order": {
+   "default": ""
+  },
+  "h_lit": {
+   "default": ""
+  }
+ },
+ "window": {
+  "padding": 26,
+  "root": {
+   "type": "view",
+   "layout": "inline",
+   "direction": "vertical",
+   "spacing": 16,
+   "events": [
+    {
+     "triggers": "launched",
+     "action": {
+      "type": "script",
+      "src": "find",
+      "args": [
+       "{value:hq.text}"
+      ]
+     }
+    }
+   ],
+   "shortcuts": [
+    {
+     "shortcut": "↑",
+     "action": {
+      "type": "function",
+      "src": "homeList",
+      "args": "selectup"
+     }
+    },
+    {
+     "shortcut": "↓",
+     "action": {
+      "type": "function",
+      "src": "homeList",
+      "args": "selectdown"
+     }
+    },
+    {
+     "shortcut": "⌘1",
+     "action": {
+      "type": "json",
+      "src": {
+       "finish": {
+        "args": "add:"
+       }
+      }
+     }
+    },
+    {
+     "shortcut": "⌘2",
+     "action": {
+      "type": "json",
+      "src": {
+       "finish": {
+        "args": "triage"
+       }
+      }
+     }
+    },
+    {
+     "shortcut": "⌘3",
+     "action": {
+      "type": "json",
+      "src": {
+       "finish": {
+        "args": "todo"
+       }
+      }
+     }
+    },
+    {
+     "shortcut": "⇥",
+     "action": {
+      "type": "json",
+      "src": {
+       "finish": {
+        "args": "add:{value:hq.text}"
+       }
+      }
+     }
+    },
+    {
+     "shortcut": "⌘f",
+     "action": {
+      "type": "json",
+      "src": {
+       "finish": {
+        "args": "search:{value:hq.text}"
+       }
+      }
+     }
+    },
+    {
+     "shortcut": "⌘↩",
+     "action": {
+      "type": "json",
+      "src": {
+       "finish": {
+        "args": "open:{value:homeList.selected.hGo.text}"
+       }
+      }
+     }
+    }
+   ],
+   "components": [
+    {
+     "type": "textfield",
+     "id": "hq",
+     "focus": true,
+     "text": "{var:query}",
+     "placeholder": "Search your graph, or type to add",
+     "bordered": false,
+     "focusring": false,
+     "background": "#00000000",
+     "font": {
+      "size": 28,
+      "weight": "light"
+     },
+     "constraints": {
+      "stretch": "horizontal"
+     },
+     "events": [
+      {
+       "triggers": "typingstopped",
+       "action": {
+        "type": "script",
+        "src": "find",
+        "async": true,
+        "args": [
+         "{value:hq.text}"
+        ]
+       }
+      },
+      {
+       "triggers": "actioned",
+       "action": {
+        "type": "json",
+        "src": {
+         "finish": {
+          "args": "{value:homeList.selected.hGo.text}"
+         }
+        }
+       }
+      }
+     ]
+    },
+    {
+     "type": "view",
+     "id": "hLine1",
+     "background": "separatorColor",
+     "constraints": {
+      "stretch": "horizontal",
+      "size": {
+       "height": 1
+      }
+     }
+    },
+    {
+     "type": "view",
+     "id": "hBody",
+     "layout": "border",
+     "spacing": 0,
+     "constraints": {
+      "stretch": "horizontal"
+     },
+     "components": [
+      {
+       "type": "dataview",
+       "id": "homeList",
+       "constraints": {
+        "region": "centre",
+        "size": {
+         "height": 330
+        }
+       },
+       "placeholder": "Nothing found",
+       "behaviour": {
+        "selection": {
+         "wrap": "vertical"
+        }
+       },
+       "cell": {
+        "height": 66,
+        "init": {
+         "hRow.background": null,
+         "hTitle.colour": "labelColor",
+         "hSub.colour": "secondaryLabelColor",
+         "hKey.colour": "secondaryLabelColor",
+         "hIcon.contenttintcolour": "secondaryLabelColor"
+        },
+        "selected": {
+         "hRow.background": "quaternaryLabelColor"
+        },
+        "root": {
+         "type": "view",
+         "id": "hRow",
+         "layout": "border",
+         "padding": 12,
+         "spacing": 14,
+         "cornerradius": 12,
+         "components": [
+          {
+           "type": "imageview",
+           "id": "hIcon",
+           "constraints": {
+            "region": "left",
+            "position": "centre",
+            "size": {
+             "width": 26,
+             "height": 26
+            }
+           }
+          },
+          {
+           "type": "view",
+           "layout": "inline",
+           "direction": "vertical",
+           "spacing": 3,
+           "constraints": {
+            "region": "centre",
+            "size": {
+             "height": 46
+            }
+           },
+           "components": [
+            {
+             "type": "label",
+             "id": "hTitle",
+             "font": {
+              "size": 18
+             },
+             "constraints": {
+              "position": "left",
+              "size": {
+               "height": 24
+              }
+             },
+             "linebreak": "truncatetail"
+            },
+            {
+             "type": "label",
+             "id": "hSub",
+             "font": {
+              "size": 14
+             },
+             "constraints": {
+              "position": "left",
+              "size": {
+               "height": 19
+              }
+             },
+             "linebreak": "truncatetail"
+            }
+           ]
+          },
+          {
+           "type": "label",
+           "id": "hKey",
+           "font": {
+            "size": 14
+           },
+           "constraints": {
+            "region": "right",
+            "position": "centre"
+           }
+          },
+          {
+           "type": "label",
+           "id": "hGo",
+           "hidden": true
+          }
+         ]
+        }
+       },
+       "data": {
+        "type": "basic",
+        "src": []
+       },
+       "events": [
+        {
+         "triggers": "changed",
+         "action": {
+          "type": "script",
+          "src": "pane",
+          "async": true,
+          "args": [
+           "{value:homeList.selected.hGo.text}",
+           "{value:homeList.selected.hTitle.text}",
+           "{var:h_order}",
+           "{var:h_lit}"
+          ]
+         }
+        }
+       ]
+      },
+      {
+       "type": "view",
+       "id": "hPane",
+       "hidden": true,
+       "constraints": {
+        "region": "right",
+        "size": {
+         "width": 1
+        }
+       },
+       "components": []
+      }
+     ]
+    },
+    {
+     "type": "view",
+     "id": "hLine2",
+     "background": "separatorColor",
+     "constraints": {
+      "stretch": "horizontal",
+      "size": {
+       "height": 1
+      }
+     }
+    },
+    {
+     "type": "label",
+     "id": "hFoot",
+     "text": "Open ↩",
+     "colour": "secondaryLabelColor",
+     "font": {
+      "size": 14
+     },
+     "constraints": {
+      "position": "right"
+     }
+    }
+   ]
+  },
+  "size": {
+   "width": 900
+  }
+ }
+}

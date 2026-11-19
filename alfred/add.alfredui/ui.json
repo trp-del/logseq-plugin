@@ -1,0 +1,291 @@
+{
+ "bundleid": "com.openai.alfred.logseq-db.add",
+ "log": {
+  "level": "debug",
+  "internal": true,
+  "path": "logseq-add.log",
+  "timestamp": true
+ },
+ "variablesconfig": {
+  "query": {
+   "src": "args[0]"
+  },
+  "start_where": {
+   "src": "variable",
+   "default": "today"
+  },
+  "LOGSEQ_TOKEN": {
+   "src": "variable",
+   "scriptenv": true
+  },
+  "LOGSEQ_HOST": {
+   "src": "variable",
+   "scriptenv": true
+  },
+  "LOGSEQ_PORT": {
+   "src": "variable",
+   "scriptenv": true
+  },
+  "picked_tag": {
+   "default": ""
+  },
+  "guessed_tag": {
+   "default": ""
+  },
+  "last_uuid": {
+   "default": ""
+  }
+ },
+ "window": {
+  "padding": 26,
+  "root": {
+   "type": "view",
+   "layout": "stack",
+   "shortcuts": [
+    {
+     "shortcut": "⌥↩",
+     "action": {
+      "type": "script",
+      "src": "add",
+      "args": [
+       "{value:words.text}",
+       "{value:where.selected.value}",
+       "",
+       "none",
+       "{var:guessed_tag}"
+      ]
+     }
+    },
+    {
+     "shortcut": "⌘t",
+     "action": {
+      "type": "script",
+      "src": "tags"
+     }
+    }
+   ],
+   "components": [
+    {
+     "type": "view",
+     "id": "body",
+     "layout": "inline",
+     "direction": "vertical",
+     "spacing": 16,
+     "components": [
+      {
+       "type": "view",
+       "layout": "inline",
+       "spacing": 10,
+       "components": [
+        {
+         "type": "label",
+         "text": "Tag",
+         "colour": "secondaryLabelColor",
+         "font": {
+          "size": 14
+         }
+        },
+        {
+         "type": "label",
+         "id": "tagName",
+         "text": "guessed after four words",
+         "colour": "tertiaryLabelColor",
+         "font": {
+          "size": 18,
+          "weight": "medium"
+         }
+        },
+        {
+         "type": "label",
+         "id": "tagWhy",
+         "text": "",
+         "colour": "secondaryLabelColor",
+         "font": {
+          "size": 14
+         }
+        }
+       ],
+       "constraints": {
+        "position": "left"
+       }
+      },
+      {
+       "type": "textfield",
+       "id": "words",
+       "focus": true,
+       "text": "{var:query}",
+       "placeholder": "Write a note",
+       "bordered": false,
+       "focusring": false,
+       "font": {
+        "size": 28,
+        "weight": "light"
+       },
+       "constraints": {
+        "position": "left",
+        "stretch": "horizontal"
+       },
+       "events": [
+        {
+         "triggers": "typingstopped",
+         "action": {
+          "type": "script",
+          "src": "guess",
+          "args": [
+           "{value:words.text}",
+           "{value:where.selected.value}",
+           "{var:picked_tag}"
+          ],
+          "async": true
+         }
+        }
+       ],
+       "background": "#00000000"
+      },
+      {
+       "type": "view",
+       "id": "props",
+       "layout": "form",
+       "spacing": 9,
+       "hidden": true,
+       "components": [],
+       "constraints": {
+        "position": "left"
+       }
+      },
+      {
+       "type": "view",
+       "id": "choices",
+       "layout": "inline",
+       "spacing": 14,
+       "hidden": true,
+       "components": [],
+       "constraints": {
+        "position": "left"
+       }
+      },
+      {
+       "type": "view",
+       "id": "aLine",
+       "background": "separatorColor",
+       "constraints": {
+        "stretch": "horizontal",
+        "size": {
+         "height": 1
+        }
+       }
+      },
+      {
+       "type": "view",
+       "layout": "border",
+       "constraints": {
+        "stretch": "horizontal"
+       },
+       "components": [
+        {
+         "type": "picker",
+         "id": "where",
+         "bordered": false,
+         "constraints": {
+          "region": "left"
+         },
+         "selected": "{var:start_where}",
+         "items": [
+          {
+           "text": "Today",
+           "value": "today"
+          },
+          {
+           "text": "The page open in Logseq",
+           "value": "open"
+          }
+         ],
+         "events": [
+          {
+           "triggers": "changed",
+           "action": {
+            "type": "script",
+            "src": "guess",
+            "args": [
+             "{value:words.text}",
+             "{value:where.selected.value}",
+             "{var:picked_tag}"
+            ]
+           }
+          }
+         ]
+        },
+        {
+         "type": "view",
+         "layout": "inline",
+         "spacing": 16,
+         "constraints": {
+          "region": "right",
+          "position": "right"
+         },
+         "components": [
+          {
+           "type": "label",
+           "text": "Words only  ⌥↩",
+           "colour": "secondaryLabelColor",
+           "font": {
+            "size": 14
+           },
+           "constraints": {
+            "position": "centre"
+           }
+          },
+          {
+           "type": "button",
+           "text": "Add  ↩",
+           "bordered": true,
+           "bordershape": "capsule",
+           "effect": "glass",
+           "events": [
+            {
+             "triggers": "actioned",
+             "action": {
+              "type": "script",
+              "src": "add",
+              "args": [
+               "{value:words.text}",
+               "{value:where.selected.value}",
+               "{var:picked_tag}{var:guessed_tag}",
+               "all",
+               ""
+              ]
+             }
+            }
+           ],
+           "shortcut": "↩"
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ],
+   "events": [
+    {
+     "triggers": "launched",
+     "action": [
+      {
+       "type": "script",
+       "src": "guess",
+       "async": true,
+       "args": [
+        "{value:words.text}",
+        "{value:where.selected.value}",
+        "{var:picked_tag}"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "size": {
+   "width": 900
+  }
+ }
+}
