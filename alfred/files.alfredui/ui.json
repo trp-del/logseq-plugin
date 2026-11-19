@@ -40,12 +40,12 @@
   "interval": 0
  },
  "window": {
-  "padding": 26,
+  "padding": 20,
   "root": {
    "type": "view",
    "layout": "inline",
    "direction": "vertical",
-   "spacing": 16,
+   "spacing": 12,
    "events": [
     {
      "triggers": "launched",
@@ -116,12 +116,12 @@
       }
      },
      "cell": {
-      "height": 66,
+      "height": 56,
       "root": {
        "type": "view",
        "layout": "border",
-       "padding": 12,
-       "spacing": 14,
+       "padding": 8,
+       "spacing": 12,
        "components": [
         {
          "type": "imageview",
@@ -144,7 +144,7 @@
          "constraints": {
           "region": "centre",
           "size": {
-           "height": 46
+           "height": 44
           }
          },
          "components": [
@@ -219,7 +219,7 @@
      "constraints": {
       "position": "left",
       "size": {
-       "width": 848
+       "width": 860
       }
      }
     },

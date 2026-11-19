@@ -33,12 +33,12 @@
   }
  },
  "window": {
-  "padding": 26,
+  "padding": 20,
   "root": {
    "type": "view",
    "layout": "inline",
    "direction": "vertical",
-   "spacing": 16,
+   "spacing": 12,
    "events": [
     {
      "triggers": "launched",

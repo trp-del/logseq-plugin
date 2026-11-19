@@ -33,7 +33,7 @@
   }
  },
  "window": {
-  "padding": 26,
+  "padding": 20,
   "root": {
    "type": "view",
    "layout": "stack",
@@ -92,7 +92,7 @@
      "id": "tbody",
      "layout": "inline",
      "direction": "vertical",
-     "spacing": 16,
+     "spacing": 12,
      "components": [
       {
        "type": "label",
@@ -118,7 +118,7 @@
        "constraints": {
         "position": "left",
         "size": {
-         "width": 848
+         "width": 860
         }
        }
       },

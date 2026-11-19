@@ -439,9 +439,9 @@ const whereName = value => (value === "open" ? "the open page" : "today");
 function pluginModel(name, request) {
   return api("logseq.App.invokeExternalPluginCmd", [PLUGIN_ID, "models", name, [request]], 12);
 }
-// A model the running plugin does not have answers null (an older Logseq Plugin than this workflow). For what a panel cannot
+// A model the running plugin does not have answers null (the plugin off, reloading, or older than this workflow). For what a panel cannot
 // do without, that is said in the panel instead of leaving it waiting (the owner's page view stood at "Reading…", 19 November 2026).
-const PLUGIN_OLD = "The Logseq Plugin running in Logseq is older than this workflow and cannot do this yet. Update the plugin in Logseq, then try again.";
+const PLUGIN_OLD = "The Logseq Plugin in Logseq did not answer. It may be off, reloading, or older than this workflow. Try again in a moment.";
 function pluginMust(name, request) {
   const got = pluginModel(name, request);
   if (got == null) throw new Error(PLUGIN_OLD);
@@ -492,7 +492,7 @@ function doneView(answer, where) {
   const filled = (answer.wrote || []).map(function (w) { return w.prop + " " + w.shown; }).join(" · ");
   const button = (text, key, src, args) => ({ type: "button", bordered: false, text: text + "  " + key.toUpperCase(), shortcut: key, contenttintcolour: SECONDARY, font: { size: 15 },
     events: [{ triggers: "actioned", action: { type: "script", src: src, args: args } }] });
-  return { type: "view", id: "body", layout: "inline", direction: "vertical", spacing: 16, components: [
+  return { type: "view", id: "body", layout: "inline", direction: "vertical", spacing: 12, components: [
     { type: "label", id: "doneLine", constraints: { position: "left" }, text: "✓  Added to " + (answer.page || whereName(where)) + (answer.tag ? " as #" + answer.tag : ""), font: { size: 20 } },
     { type: "label", text: filled || "Words only", colour: SECONDARY, font: { size: 15 }, constraints: { position: "left" } },
     { type: "view", layout: "inline", spacing: 18, constraints: { position: "right" }, components: [
@@ -582,7 +582,7 @@ function triageNext(passed, tagged, summary) {
     const counts = {};
     csv(summary).forEach(function (t) { counts[t] = (counts[t] || 0) + 1; });
     const line = Object.keys(counts).map(function (t) { return t + " " + counts[t]; }).join(" · ");
-    return JSON.stringify({ replace: { ids: { tbody: { type: "view", id: "tbody", layout: "inline", direction: "vertical", spacing: 16, components: [
+    return JSON.stringify({ replace: { ids: { tbody: { type: "view", id: "tbody", layout: "inline", direction: "vertical", spacing: 12, components: [
       { type: "label", text: done ? "✓  " + plural(done, "note") + " tagged" + (got.count ? ", " + got.count + " passed by for now" : "") : got.count ? "Only notes you passed by are left: " + got.count : "Nothing waiting: every note from Alfred has a tag.", font: { size: 20 }, constraints: { position: "left" } },
       { type: "label", text: line, colour: SECONDARY, font: { size: 15 }, hidden: !line, constraints: { position: "left" } },
       { type: "view", layout: "inline", spacing: 18, constraints: { position: "right" }, components: [
@@ -618,7 +618,7 @@ function triageUndo(tagged) {
    At rest: the things you do, with what is waiting, then pages you came back to. Typing: pages by name at once, then the words
    as a note to add (⇥). ↩ goes: the panel closes and the workflow opens the next one (route).
      panel-home-start          panel-home-find <words>          panel-route <where>                                        */
-const SUB_FONT = { size: 14 }, HEAD_FONT = { size: 14, weight: "semibold" }, HOME_ROW = 66;
+const SUB_FONT = { size: 14 }, HEAD_FONT = { size: 14, weight: "semibold" }, HOME_ROW = 56;
 const homeRow = (icon, title, sub, go, key) => ({ uid: go, "hIcon.image": { type: "symbol", src: icon }, "hTitle.text": title, "hSub.text": sub || "", "hSub.font": SUB_FONT, "hKey.text": key || "", "hGo.text": go });
 // A group's heading: a row of the list with its words on the lower line; the arrows step past it (homePane).
 const homeHead = text => ({ uid: "h:" + text, "hIcon.image": null, "hTitle.text": "", "hSub.text": text, "hSub.font": HEAD_FONT, "hKey.text": "", "hGo.text": "" });
@@ -632,11 +632,11 @@ const homeAnswer = (rows, lit) => JSON.stringify({ variables: { h_order: rows.ma
    properties and where it leads; a note shows its words in full. An action has no pane, and the list takes the whole width. */
 const PANE_FILL = { light: "#0000000a", dark: "#ffffff12" };   // the fill the selection panel's card has
 const noPane = id => ({ type: "view", id: id, hidden: true, constraints: { region: "right", size: { width: 1 } }, components: [] });
-const PANE_GAP = 16;
+const PANE_GAP = 12;
 const paneLine = () => ({ type: "view", background: "separatorColor", constraints: { stretch: "horizontal", size: { height: 1 } } });
 function paneView(id, uuid, width, withWords, lead) {
   const got = pluginMust("read", { uuid: uuid });
-  const tags = [], inner = width - 36;
+  const tags = [], inner = width - 28;
   const words = String(got.text || "").replace(/^# .*\n+/, "").split("\n").filter(function (line) {
     if (/^\s*(#\S+\s*)+$/.test(line)) { line.trim().split(/\s+/).forEach(t => tags.push(t.replace(/^#/, ""))); return false; }
     return true;
@@ -668,7 +668,7 @@ function paneView(id, uuid, width, withWords, lead) {
   }
   return { type: "view", id: id, layout: "inline", constraints: { region: "right", position: "top", size: { width: width + PANE_GAP } }, components: [
     { type: "view", constraints: { size: { width: PANE_GAP } }, components: [] },
-    { type: "view", layout: "inline", direction: "vertical", padding: 18, spacing: 10, cornerradius: 16, background: PANE_FILL, constraints: { size: { width: width } }, components: parts }
+    { type: "view", layout: "inline", direction: "vertical", padding: 14, spacing: 8, cornerradius: 14, background: PANE_FILL, constraints: { size: { width: width } }, components: parts }
   ] };
 }
 // The lit row changed. A heading is stepped past, the way the arrows were going; a page gets its pane; an action has none.
@@ -766,7 +766,7 @@ function todoAnswer(note, lit) {
   let rows;
   try { rows = todoRows(); } catch (error) { return JSON.stringify({ update: { ids: { tNote: { text: messageFrom(error), colour: "systemRedColor" } } } }); }
   const first = rows.find(r => r["tUuid.text"]);
-  const out = { update: { relayout: true, ids: { todoList: { data: { src: rows }, select: lit || (first ? first.uid : ""), constraints: { stretch: "horizontal", size: { height: Math.min(rows.length, 9) * 50 + 6 } } } } }, window: { resize: { height: "auto" } } };
+  const out = { update: { relayout: true, ids: { todoList: { data: { src: rows }, select: lit || (first ? first.uid : ""), constraints: { stretch: "horizontal", size: { height: Math.min(rows.length, 10) * 44 + 6 } } } } }, window: { resize: { height: "auto" } } };
   if (note !== undefined) out.update.ids.tNote = { text: note, colour: SECONDARY };
   return JSON.stringify(out);
 }
@@ -808,7 +808,7 @@ const nodeSub = n => [n.kind, n.day, n.page].filter(Boolean).join(" · ");
 const nodeRow = (n, sub) => ({ uid: n.uuid, "rIcon.image": { type: "symbol", src: n.isPage ? "doc.text" : "text.alignleft" }, "rTitle.text": n.title, "rSub.text": sub == null ? nodeSub(n) : sub, "rHead.text": "", "rUuid.text": n.uuid });
 // A group's heading: small and grey on the row's lower line, where Alfred puts a result's subtitle.
 const headRow = (key, text) => ({ uid: "h:" + key, "rIcon.image": null, "rTitle.text": "", "rSub.text": text, "rHead.text": "", "rUuid.text": "" });
-const listAnswer = (id, rows, lit, most) => ({ ids: { [id]: { data: { src: rows }, select: lit || (rows.find(r => r["rUuid.text"]) || {}).uid || "", constraints: { [id === "searchList" ? "region" : "stretch"]: id === "searchList" ? "centre" : "horizontal", size: { height: Math.max(1, Math.min(rows.length, most)) * 66 + 6 } } } } });
+const listAnswer = (id, rows, lit, most) => ({ ids: { [id]: { data: { src: rows }, select: lit || (rows.find(r => r["rUuid.text"]) || {}).uid || "", constraints: { [id === "searchList" ? "region" : "stretch"]: id === "searchList" ? "centre" : "horizontal", size: { height: Math.max(1, Math.min(rows.length, most)) * 56 + 6 } } } } });
 function searchAnswer(words) {
   let got = { nodes: [] };
   try { if (words.trim()) got = pluginMust("find", { words: words, limit: 30 }); }
@@ -911,7 +911,7 @@ function filesShow(text, more) {
   return JSON.stringify({ variables: { f_paths: JSON.stringify(got.files.filter(f => !f.said).map(f => f.path)) },
     update: { relayout: true, ids: {
       fHead: { text: "Add " + plural(paths.length, "file") },
-      fList: { data: { src: rows }, constraints: { stretch: "horizontal", size: { height: Math.min(rows.length, 6) * 66 + 6 } } },
+      fList: { data: { src: rows }, constraints: { stretch: "horizontal", size: { height: Math.min(rows.length, 6) * 56 + 6 } } },
       fCard: { text: sentence, hidden: false },
       // The key named by what it does: "Add 2 files, link 1".
       fGo: { text: [fresh.length ? "Add " + plural(fresh.length, "file") : "", twins.length ? (fresh.length ? "link " : "Link ") + twins.length : ""].filter(Boolean).join(", ") + "  ↩", enabled: fresh.length + twins.length > 0 }

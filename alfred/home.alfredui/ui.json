@@ -30,12 +30,12 @@
   }
  },
  "window": {
-  "padding": 26,
+  "padding": 20,
   "root": {
    "type": "view",
    "layout": "inline",
    "direction": "vertical",
-   "spacing": 16,
+   "spacing": 12,
    "events": [
     {
      "triggers": "launched",
@@ -210,7 +210,7 @@
         }
        },
        "cell": {
-        "height": 66,
+        "height": 56,
         "init": {
          "hRow.background": null,
          "hTitle.colour": "labelColor",
@@ -225,8 +225,8 @@
          "type": "view",
          "id": "hRow",
          "layout": "border",
-         "padding": 12,
-         "spacing": 14,
+         "padding": 8,
+         "spacing": 12,
          "cornerradius": 12,
          "components": [
           {
@@ -249,7 +249,7 @@
            "constraints": {
             "region": "centre",
             "size": {
-             "height": 46
+             "height": 44
             }
            },
            "components": [

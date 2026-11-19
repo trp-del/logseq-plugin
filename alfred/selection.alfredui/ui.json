@@ -36,7 +36,7 @@
   }
  },
  "window": {
-  "padding": 26,
+  "padding": 20,
   "root": {
    "type": "view",
    "layout": "stack",
@@ -58,7 +58,7 @@
      "id": "body",
      "layout": "inline",
      "direction": "vertical",
-     "spacing": 16,
+     "spacing": 12,
      "components": [
       {
        "type": "label",
@@ -76,8 +76,8 @@
        "type": "view",
        "layout": "inline",
        "direction": "vertical",
-       "spacing": 10,
-       "padding": 18,
+       "spacing": 8,
+       "padding": 14,
        "cornerradius": 16,
        "background": {
         "light": "#0000000a",
@@ -98,7 +98,7 @@
          "constraints": {
           "position": "left",
           "size": {
-           "width": 812
+           "width": 832
           }
          }
         },
