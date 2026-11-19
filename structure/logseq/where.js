@@ -4,8 +4,8 @@
    The owner, 18 November 2026: "when a new tag is created and asks where to place, only a couple levels are seen, not deep down".
    Until then the list stopped one level under the top-level tags. Now the whole tree can be reached:
    - the question stands on its own line, the new tag in the tag's look, since where a tag goes is a choice that matters;
-   - your top-level tags stand open one level, deeper tags folded; a fold arrow opens a tag (Right arrow), and closes it or steps
-     back to its parent (Left arrow); what opens rolls out;
+   - the whole tree stands open (the owner, 18 November 2026); a fold arrow closes a tag (Left arrow) and opens it again (Right
+     arrow), Left on a closed tag steps back to its parent; what opens rolls out;
    - letters typed find any tag at any depth, each with its path after its name, as the # list shows it;
    - Enter or a press puts the tag there, with the faded Undo arrow beside the tag; "The top" (or Escape) leaves it with no parent.
    The same tree answers "Change to another tag…" on a tag's right-click menu (tag-menu.js).
@@ -57,7 +57,7 @@ function start(app, doc) {
     const m = M();
     shown?.close(null);
     const anchor = near?.isConnected ? near.getBoundingClientRect() : { left: 200, bottom: 200, top: 200 };
-    const open = new Set(Mo.tops(m));   // the top-level tags stand open one level
+    const open = new Set([...m.tags.keys()].filter(id => Mo.kids(m, id).length));   // the whole tree stands open (the owner, 18 November 2026); a fold arrow still closes a tag
     let q = '', lit = 0, rows = [];
     const label = `${words.before}${words.tag}${words.after}`;
     const box = Door.el(doc, 'div', { class: 'st-where lk-pop lk-menu', role: 'dialog', 'aria-label': label });

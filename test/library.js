@@ -101,6 +101,7 @@ const SCRIPTED = {
   'look/logseq/focus.js': 3,             // the glide into a bullet and out (the owner's pick, 11 November 2026): a move across the view, the old view fading, the new fading in
   'predictive/logseq/propose-ui.js': 2,  // a pencilled value cross-fades where it stands when the guess changes
   'structure/logseq/view.js': 2,         // the top bar of waiting changes slides open and shut
+  'sidebar-tabs.js': 1,                  // a section that stops being the first takes its gap for the hairline as the new one rolls out above it (19 November 2026)
 };
 for (const file of FILES) {
   const rel = path.relative(ROOT, file), n = (fs.readFileSync(file, 'utf8').match(/\.animate\(/g) || []).length;

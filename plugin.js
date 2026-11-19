@@ -521,7 +521,7 @@ Door.signHtml = (sign, { cls = '' } = {}) => {
 // s: one of statusChoices; more: the press's own class and attributes (its data-, title, aria-label), set by the module.
 Door.statusHtml = (s, { cls = '', attrs = '', doc } = {}) => {
   const color = s.icon?.color ? ` style="color: ${Door.esc(s.icon.color)}"` : '';
-  return `<button type="button" class="lk-status ls-icon-${Door.esc(s.icon?.id || '')}${cls ? ' ' + cls : ''}"${color}${attrs}>${Door.statusIconHtml(s.icon, doc) || Door.esc(s.title)}</button>`;
+  return `<button type="button" class="lk-status ls-icon-${Door.esc(s.icon?.id || '')}${cls ? ' ' + cls : ''}"${color}${attrs}>${Door.statusIconHtml(s.icon, doc) || Door.esc(Door.plainName(s.title))}</button>`;
 };
 /* A module's button in Logseq's top toolbar, drawn as Logseq draws its own there (Tabler's line icons as SVG, 20 px, the same
    stroke), so it stands among Home, the arrows and the sidebar button as one of them; a font glyph came out heavier. The drawings
@@ -799,6 +799,24 @@ Door.screen = {
    of a query, [] when it gives none; isEntityId(id); idsIn and uuidsIn write a list into a query, letting in only whole numbers
    and well-formed ids; HELPER, where Predictive's helper for Apple's tools answers on this Mac. The id pattern is Door.UUID. */
 Door.bare = value => String(value ?? '').replace(/^:/, '');
+/* The one place a machine name turns into words (18 November 2026, the owner's list: a Todo row headed by
+   ":logseq.property/empty-placeholder"). Logseq writes its own value for a property that is there but empty,
+   logseq.property/empty-placeholder: a status, a ref or a date left empty holds it, so it reads as nothing set (isEmptyValue).
+   plainName(name) gives words for whatever a module is about to put on screen: a title passes as it is; an ident
+   ("logseq.property/status.todo", ":user.property/charged-by-x1") gives its last part in words ("Todo", "Charged by"); the empty
+   value gives "". No module writes an ident on screen itself. */
+Door.EMPTY = 'logseq.property/empty-placeholder';
+Door.isEmptyValue = value => Door.bare(value) === Door.EMPTY;
+Door.plainName = value => {
+  const s = Door.bare(value);
+  if (!/^[\w.-]+\/[\w.-]+$/.test(s)) return String(value ?? '');
+  if (s === Door.EMPTY) return '';
+  let last = s.slice(s.indexOf('/') + 1).split('.').pop();
+  const tail = /-([A-Za-z0-9_]{5,})$/.exec(last);   // the run of letters and digits Logseq adds to an ident of yours ("charged-by-Xa9Lq2")
+  if (s.startsWith('user.') && tail && /[A-Z0-9]/.test(tail[1])) last = last.slice(0, tail.index);
+  const words = last.replace(/[-_]+/g, ' ').trim();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+};
 Door.pick = (node, name) => node?.[name] ?? node?.[':' + name] ?? node?.[name.slice(name.indexOf('/') + 1)];
 Door.idOf = value => typeof value === 'number' ? value : Door.pick(value, 'db/id');
 Door.listOf = value => value == null ? [] : Array.isArray(value) ? value : [value];
@@ -1056,7 +1074,7 @@ Door.timeline = (() => {
 })();
 /* THE menu (14 November 2026, from Look's Contents menu): the library's lk-pop, lk-menu, lk-group, lk-item and lk-check as a
    pop-up under the thing pressed, so no module wires a menu's keys and closing again. parts: { group: 'Group by' } a heading,
-   { gap: true } a space, { word, on, off, take, icon } a line (on: the check mark, the one in force; off: faint, not taken;
+   { gap: true } a space, { note, count } a plain line that is read, not pressed, { word, on, off, take, icon } a line (on: the check mark, the one in force; off: faint, not taken;
    icon: markup drawn before the word, such as a status's own icon; stay: a line ticked and unticked in place, the menu staying
    open, for a choice of several at once).
    It rolls out of what opened it, its right edge on that's (align 'left': its left edge), above it when there is no room
@@ -1076,6 +1094,8 @@ Door.menu = (from, parts, { align = 'right' } = {}) => {
   const line = part => {
     if (part.group) return Door.el(doc, 'div', { class: 'lk-group' }, part.group);
     if (part.gap) return Door.el(doc, 'div', { class: 'lk-item gap' });
+    // note: a plain line in the words' colour, read and not pressed (what an Undo will take back, before it is taken).
+    if (part.note) return Door.el(doc, 'div', { class: 'lk-menu-note' }, part.note, part.count ? Door.el(doc, 'span', { class: 'lk-note' }, ' ' + part.count) : null);
     // stay: a line of several that can each be on (Todo's Show), ticked and unticked in place while the menu stays open; its take
     // answers whether it is on now.
     const check = () => Door.el(doc, 'span', { class: 'lk-note lk-check', 'aria-hidden': 'true' });
@@ -1516,6 +1536,7 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
    measured on a bullet's menu): lines 20px high, the icon in the quiet grey in a 16px box 4px from the words, the parts apart by
    Logseq's hairline across the whole menu (a gap outside a menu, Export's column, stays a space), a key in Logseq's key caps (Door.keyCaps). Red and faint lines keep their icon's colour. */
 .lk-menu .lk-item { line-height: 20px; align-items: center; }
+.lk-menu .lk-menu-note { padding: 3px 8px; font-size: 14px; line-height: 20px; color: var(--lk-text); max-width: 380px; white-space: normal; }
 .lk-menu .lk-item[class*="lk-i-"]::before { width: 16px; height: 16px; -webkit-mask-size: 15px; mask-size: 15px; margin-right: 4px; vertical-align: middle; background: var(--lk-quiet); }
 .lk-menu .lk-item.lk-del[class*="lk-i-"]::before, .lk-menu .lk-item.off[class*="lk-i-"]::before { background: currentColor; }
 .lk-menu .lk-item-icon > .ti { color: var(--lk-quiet); }

@@ -131,13 +131,25 @@ const app = {
     await app.reread();
     await app.readRecords();
   },
-  async undo() { if (!app.st.busy && tray.done) await app.undoRun(tray.done); },
+  // The door takes the arrow away as it is pressed; it is offered again at once, so an Undo asked about and not taken stays.
+  async undo() { if (app.st.busy || !tray.done) return; undoOffered = false; syncUndo(); app.askUndo(tray.done.rec?.id, tray.done.text, () => { const done = tray.done; if (done) app.undoRun(done); }); },
+  /* Undo says first what it will take back, and waits for a yes (the owner, 18 November 2026: Undo was too easy to press, with no
+     confirmation or clarity about what would be undone): the library's menu under the arrow lists each change of that Apply as it was
+     logged, with its nodes, then one line that undoes them all; Escape or a press elsewhere leaves everything as it is. */
+  askUndo(rec, text, run) {
+    const doc = host();
+    const from = (rec && doc.querySelector(`[data-logundo="${String(rec).replace(/["\\]/g, '')}"]`)) || doc.querySelector('.st-tray .st-done .lk-undo, .st-tray .st-done') || doc.querySelector('.st-tray') || doc.body;
+    const lines = (rec ? app.logged().filter(x => x.rec === rec) : []).map(x => ({ note: x.text, count: x.nodes ? `${x.nodes} ${x.nodes === 1 ? 'node' : 'nodes'}` : '' }));
+    const all = lines.length ? lines : [{ note: text }];
+    window.PluginDoor.menu(from, [{ group: all.length === 1 ? 'Undo will take back' : `Undo will take back these ${all.length} changes` }, ...all, { gap: true },
+      { word: all.length === 1 ? 'Undo it' : `Undo all ${all.length}`, take: () => run() }], { align: 'left' });
+  },
   /* The Log's arrow: the Undo of an Apply of any day in the last 30, read back from this Mac (records.js). The same run as the
      tray's arrow, so both ways in put back the same way; a record the tray's arrow also holds is undone through that one. A later
      change to the same tags is undone first, or this Undo would put a tag back under what came after it. */
   async undoLogged(id) {
     if (app.st.busy) return;
-    if (tray.done?.rec?.id === id) return app.undoRun(tray.done);
+    if (tray.done?.rec?.id === id) return app.undo();
     const graph = app.graph, all = await S.records.list(graph, running), head = all.find(h => h.id === id);
     if (!head || !head.left) { await app.readRecords(); return; }
     const later = S.records.laterOver(all, head);
@@ -145,7 +157,7 @@ const app = {
     const rec = await S.records.load(graph, head).catch(() => null);
     if (!rec) return notify('This change’s record could not be read, so it cannot be undone from here', 'warning');
     const here = async () => await S.db.graph() === graph;
-    await app.undoRun({ text: head.text, graph, rec, undo: () => S.apply.putBack(rec, here), left: () => rec.left() });
+    app.askUndo(id, head.text, () => app.undoRun({ text: head.text, graph, rec, undo: () => S.apply.putBack(rec, here), left: () => rec.left() }));
   },
   async undoRun(done) {
     const of = done.left();

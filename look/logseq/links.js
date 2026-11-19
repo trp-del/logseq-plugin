@@ -254,7 +254,9 @@ async function setOpen(key, open) {
   state.open[key] = open; state.all.clear();
   if (open) state.growing.add(key);
   load(); draw(host()); letHiddenGo();
-  if (open) window.PluginDoor.unroll(state.panels[key]);
+  // The sidebar marks its top section before this one rolls out, so it rolls out to the room it keeps: unmarked, Outline opened
+  // above Todo rolled out to room for a hairline and lost it in a frame, a jump of 10 px (the release check, 18 November 2026).
+  if (open) { window.PluginDoor.sideTabs?.draw(); window.PluginDoor.unroll(state.panels[key]); }
 }
 async function setFolded(key, folded) {
   const body = state.panels[key]?.querySelector('.sidebar-panel-content');

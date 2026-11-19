@@ -161,9 +161,26 @@ function settle() {
   return done;
 }
 
+/* A node embedded in an outline, focused into from there (the owner, 18 November 2026: zooming into an embedded node could not be
+   zoomed back out): Logseq's line of steps above it is the node's own place, in the page it was written on, so stepping out went
+   there and never back to the outline it was shown in. So the view a node of an embed was focused from is kept by the embed's own
+   node (cameFrom: its uuid → the address of that view), and stepping out of that node goes back there. Inside the embed, stepping
+   out climbs the embedded nodes as before, up to that node. Pressing a bullet and Logseq's Cmd-. in a bullet are the ways in. */
+const cameFrom = new Map();
+let pending = null;   // { root, from, at }: a bullet of an embed just pressed, waiting for the history to change
+function noteEmbed(target) {
+  const embed = target?.closest?.('#main-content-container .embed-block[blockid]');
+  pending = embed ? { root: embed.getAttribute('blockid'), from: win().location.hash, at: Date.now() } : null;
+}
+function keepEmbed() {
+  if (pending && Date.now() - pending.at < 1500) cameFrom.set(pending.root, pending.from);
+  pending = null;
+}
 // One level out: a press on the last step of the line above a focused bullet. Logseq's step goes on the press (its
 // pointerdown and pointerup), not on a click. The arrow and Cmd-, both come here.
 function stepOut(doc) {
+  const back = cameFrom.get(routeId());
+  if (back) { cameFrom.delete(routeId()); win().location.hash = back; return true; }
   const last = [...(main(doc)?.querySelectorAll('.breadcrumb--block-page > a:not(.lk-out)') || [])].pop();
   if (last) { window.PluginDoor.screen.press(last); return true; }
   // Pressed so soon after focusing in that Logseq has not drawn the line yet: one level out by the bullet's parent.
@@ -207,7 +224,9 @@ function start() {
   const w = win(), history = w.history;
   shown = routeId(); readRoute();
   const own = pushState = history.pushState;
-  history.pushState = function (...args) { try { read(); } catch (error) { console.error('Look: could not read the view', error); } const done = own.apply(this, args); changed(); return done; };
+  history.pushState = function (...args) { try { read(); keepEmbed(); } catch (error) { console.error('Look: could not read the view', error); } const done = own.apply(this, args); changed(); return done; };
+  // A bullet of an embed pressed, or Cmd-. in one: the view it is focused from is kept for stepping out (cameFrom).
+  listen(host(), 'pointerdown', event => { if (event.target?.closest?.('.bullet-container, .bullet')) noteEmbed(event.target); }, true);
   onStop(() => { if (history.pushState !== own) history.pushState = own; pushState = null; });
   listen(w, 'popstate', () => { read(); changed(); }, true);
   watchScreen(arrow, doc => { if (waiting) settle(); arrow(doc); });
@@ -217,6 +236,7 @@ function start() {
   // key there (tried 12 November 2026); the owner was shown both and the glide keeps the key, settings staying on t s and in the menu.
   onStop(Keys.tell('look.focus', () => KEYS));
   listen(w, 'keydown', event => {
+    if (Keys.matches(event, KEYS.in)) noteEmbed(host().activeElement?.closest?.('.ls-block') || host().querySelector('#main-content-container .ls-block.selected'));
     if (!setting('focusGlide') || writing()) return;
     if (Keys.matches(event, KEYS.in) && landed && host().querySelector(`#main-content-container .ls-block.selected[blockid="${landed}"]`)) {
       event.preventDefault(); event.stopImmediatePropagation();
@@ -229,6 +249,6 @@ function start() {
     }
   }, true);
 }
-function stop() { style('focus', ''); before = null; landed = null; shown = null; waiting = null; blockRoute = null; }
+function stop() { style('focus', ''); cameFrom.clear(); pending = null; before = null; landed = null; shown = null; waiting = null; blockRoute = null; }
 Look.focus = { start, stop };
 })();

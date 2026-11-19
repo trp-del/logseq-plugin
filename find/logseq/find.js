@@ -141,7 +141,7 @@ const CSS = `
 .fd-faint { color: var(--lk-quiet); }
 .fd-foot { display: flex; gap: 16px; flex-wrap: wrap; padding: 8px 16px 10px; border-top: 1px solid var(--lk-hair); font-size: var(--lk-small); color: var(--lk-text, #222); }
 .fd-foot:empty { display: none; }
-.fd-foot .fd-k { color: var(--lk-quiet); margin-left: .4em; }
+.fd-foot .fd-k { color: var(--lk-quiet); margin-left: .4em; display: inline-flex; gap: 3px; vertical-align: middle; }
 .fd-foot .fd-right { margin-left: auto; padding: 0; }
 .fd-foot .fd-say-way { margin-left: auto; } .fd-foot .fd-right + .fd-say-way { margin-left: 0; }   /* at the right end, after Make a page when that stands there */
 `;
@@ -167,7 +167,6 @@ const whenPick = () => S.picks.find(p => p.kind === 'when');
 // Nothing asked yet: no stretch read, no letters that narrow.
 const atRest = () => !isCommandMode() && !S.picks.length && !S.words.length;
 const isMac = window.PluginDoor.keys.mac;
-const MOD = isMac ? 'Cmd' : 'Ctrl';
 const hasWord = (text, ws) => { const t = text.toLowerCase(); return ws.every(w => t.includes(w)); };
 
 /* The sentence, read with the names known so far: the kinds and the pages once the window has them, the kind's values once its
@@ -863,7 +862,11 @@ const SIGN_SAYS = { page: 'A page', tag: 'A tag', property: 'A property' };
 // A property the icon of what it holds; a page and a tag Logseq's own icon, as the library draws it (PluginDoor.signHtml: the diamond under Look's calm theme).
 const signHtml = node => node.sign === 'property' ? kindIconHtml(node.propType) : window.PluginDoor.signHtml(node.sign);
 const short = (text, max = 36) => { const t = String(text || '').trim(); return t.length > max ? t.slice(0, max - 2).replace(/\s+\S*$/, '') + '…' : t; };
-const KEY = (k, label) => `<span>${label}<span class="fd-k">${k}</span></span>`;
+/* The key beside what it does, in Logseq's key caps (Door.keyCaps), as Logseq's menus and the plugin's draw a key (the owner, 18 November
+   2026: the keys in Find's foot looked too much like the words for what they do): the action in words, the key in its cap. "Shift Enter" is
+   one press of two keys; "← → ↑ ↓" four keys, a cap each. */
+const capsOf = k => k === 'Shift Enter' ? window.PluginDoor.keyCaps('shift+enter') : k.split(' ').map(part => window.PluginDoor.keyCaps(part)).join(' ');
+const KEY = (k, label) => `<span>${label}<span class="fd-k">${capsOf(k)}</span></span>`;
 /* The foot names what the keys do right now, naming the thing: "narrow to Consultation Tab", "open Look test Enter", "in the
    sidebar Shift Enter", dig →, close ←. What a key does is in the text colour and the key faint beside it, as in the Pressing set; the key is a word at the
    foot's own size, since the symbols ⏎ and ⇧⏎ small and faint could not be read. Not a legend of keys (none is wanted, 31 October): each word is the action at hand, and it changes
@@ -892,12 +895,12 @@ function foot(doc, groups, rows) {
   }
   /* The sentence's own key, said and pressable, in the plain window (16 November 2026, the owner: "put a shortcut in the find
      window"): a press or ⌥⌘K turns this window into Find by sentence, with its timeline. */
-  const way = () => S.say ? items : items.concat(el(doc, 'span', { class: 'fd-say-way' }, el(doc, 'button', { class: 'lk-btn lk-low', type: 'button', title: 'Find by sentence, with its timeline', click: () => sentence() }, 'By sentence', el(doc, 'span', { class: 'fd-k' }, window.PluginDoor.keyMarks('mod+alt+k')))));
+  const way = () => S.say ? items : items.concat(el(doc, 'span', { class: 'fd-say-way' }, el(doc, 'button', { class: 'lk-btn lk-low', type: 'button', title: 'Find by sentence, with its timeline', click: () => sentence() }, 'By sentence', el(doc, 'span', { class: 'fd-k', html: window.PluginDoor.keyCaps('mod+alt+k') }))));
   if (atRest()) return way();
   if (cur?.kind === 'node' && cur.top) add(KEY(S.dug.includes(cur.node.uuid) ? '←' : '→', S.dug.includes(cur.node.uuid) ? 'close' : 'dig'));
   if (cur?.kind === 'group') add(KEY(S.openGroups.has(cur.key) ? '←' : '→', S.openGroups.has(cur.key) ? 'close' : 'open'));
   if (!S.say && S.picks.length && !S.typed) add(KEY('Backspace', `take ${esc(S.picks[S.picks.length - 1].title || S.picks[S.picks.length - 1].label)} off`));
-  if (canMake()) { const name = S.typed.trim(); items.push(el(doc, 'span', { class: 'fd-right' }, el(doc, 'button', { class: 'lk-btn lk-low lk-i-plus', type: 'button', title: 'Make a page with these words as its name', click: () => makePage(name) }, `make a page “${name}”`, el(doc, 'span', { class: 'fd-k' }, makesPage(rows) ? 'Enter' : MOD + ' Enter')))); }
+  if (canMake()) { const name = S.typed.trim(); items.push(el(doc, 'span', { class: 'fd-right' }, el(doc, 'button', { class: 'lk-btn lk-low lk-i-plus', type: 'button', title: 'Make a page with these words as its name', click: () => makePage(name) }, `make a page “${name}”`, el(doc, 'span', { class: 'fd-k', html: window.PluginDoor.keyCaps(makesPage(rows) ? 'enter' : 'mod+enter') })))); }
   return way();
 }
 

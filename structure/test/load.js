@@ -135,7 +135,17 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   assert.ok(app.tray.done && app.tray.changes.length === 0, 'one safe change is written at once'); assert.ok(calls.some(c => c[0] === 'addTagExtends'), 'through Logseq\'s own call');
   const undoArrow = () => R.querySelector('.st-tray .st-done [data-lk-undo="structure"]');   // the door's one Undo, drawn on the next frame
   for (let i = 0; i < 40 && !undoArrow(); i++) await sleep(25);
-  assert.ok(undoArrow(), 'the Undo arrow waits in the tray'); click(undoArrow()); for (let i = 0; i < 40 && app.tray.done; i++) await sleep(25);
+  assert.ok(undoArrow(), 'the Undo arrow waits in the tray'); click(undoArrow()); await sleep(50);
+  // Undo first says what it takes back and waits for a yes (18 November 2026): left unanswered, nothing is undone and the arrow stays.
+  const asked = () => (R.ownerDocument || R).querySelector('.lk-door-menu');
+  assert.ok(asked() && /Undo will take back/.test(asked().textContent), 'Undo asks, naming what it takes back');
+  asked().dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await sleep(50);
+  assert.ok(!asked() && app.tray.done, 'Escape leaves it as it is');
+  for (let i = 0; i < 40 && !undoArrow(); i++) await sleep(25);
+  assert.ok(undoArrow(), 'and the arrow is still there'); click(undoArrow()); await sleep(50);
+  const sayYes = () => [...asked().querySelectorAll('.lk-item')].find(b => /^Undo/.test(b.textContent)).click();
+  sayYes();
+  for (let i = 0; i < 40 && app.tray.done; i++) await sleep(25);
   assert.ok(!app.tray.done, 'Undo puts it back');
   // Two moves staged together wait for Apply: washed in yellow, in the tray, with the plain count; Old and new; one Undo for the lot.
   app.stage({ kind: 'move', tag: id('Scan'), to: id('Conversation') }); app.stage({ kind: 'move', tag: id('Call'), to: id('Treatment') }); app.draw(); await sleep(30);
@@ -150,7 +160,7 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   key(R, 'Enter', { metaKey: true }); for (let i = 0; i < 40 && !app.tray.done; i++) await sleep(25);
   assert.ok(app.tray.done, 'Apply leaves one Undo'); assert.equal(app.tray.changes.length, 0);
   assert.ok(calls.some(c => c[0] === 'addTagExtends'), 'written through Logseq\'s own call');
-  for (let i = 0; i < 40 && !undoArrow(); i++) await sleep(25); click(undoArrow()); for (let i = 0; i < 40 && app.tray.done; i++) await sleep(25);
+  for (let i = 0; i < 40 && !undoArrow(); i++) await sleep(25); click(undoArrow()); await sleep(50); sayYes(); for (let i = 0; i < 40 && app.tray.done; i++) await sleep(25);
   assert.ok(!app.tray.done, 'Undo puts it back');
 
   // A change Undo cannot put back whole (a tag with nodes merged away or removed) asks before Apply. The yes names what goes for
@@ -242,7 +252,7 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
       for (let i = 0; i < 40 && !app.tray.done; i++) await sleep(25);
       assert.ok(app.tray.done && app.tray.changes.length === 0, 'Enter takes the lit row and the property is put on the tag at once');
       assert.ok(calls.slice(wrote).some(c => c[0] === 'upsertBlockProperty' && String(c[2]).endsWith('class/properties')), 'written as a declared property');
-      for (let i = 0; i < 40 && !undoArrow(); i++) await sleep(25); click(undoArrow()); for (let i = 0; i < 40 && app.tray.done; i++) await sleep(25); assert.ok(!app.tray.done, 'Undo takes it off again');
+      for (let i = 0; i < 40 && !undoArrow(); i++) await sleep(25); click(undoArrow()); await sleep(50); sayYes(); for (let i = 0; i < 40 && app.tray.done; i++) await sleep(25); assert.ok(!app.tray.done, 'Undo takes it off again');
       click(tr().querySelector('[data-pon]')); await sleep(10); assert.ok(P());
       key(pin(), 'Tab'); await sleep(10); assert.ok(!P(), 'Tab closes the picker');
       click(tr().querySelector('[data-pon]')); await sleep(10); assert.ok(P()); }

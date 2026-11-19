@@ -509,8 +509,18 @@ const twoWayCss = `
 // main view, on a journal day and in the day list, and in the right sidebar (the owner, 18 November 2026: "hide linked references
 // everywhere including journal days but have relations"). Until then it was left out only where the rows stood in its place, so a
 // page in the sidebar, and the row of a table shown there, still carried Logseq's list under it.
+/* The room Logseq keeps for that list goes with it (the owner, 18 November 2026: big blank gaps on a journal day around Scheduled
+   and Deadline, and a tall empty band under a page in the sidebar): Logseq parts a page's bullets from Linked references by 64 px
+   (mb-16 on the page's grid), and the list's own holder keeps a 32 px gap under a day's Scheduled and Deadline; with the list left
+   out, a page with nothing after its bullets ends at its bullets, and the day's Scheduled and Deadline stands a group's gap under
+   them (28 px, as Relations stands under the bullets). A journal day keeps 500 px
+   of height for the list under it and 102 px after it: here a day is as tall as what it holds, and the days are parted by 56 px. */
 const hideLinkedRefsCss = `
 :is(#main-content-container, #right-sidebar) .references { display: none !important; }
+:is(#main-content-container, #right-sidebar) .cp__page-inner-wrap > .page-inner.mb-16 { margin-bottom: 0 !important; }
+:is(#main-content-container, #right-sidebar) .cp__page-inner-wrap > .page-inner.mb-16 + .flex-col:has(> :not(.fade-in)) { margin-top: 28px; }
+:is(#main-content-container, #right-sidebar) .cp__page-inner-wrap > .page-inner.mb-16 + .flex-col > .fade-in:not(:has(> :not(.references))) { display: none !important; }
+#journals .journal-item, #journals .journal-item:first-child { min-height: 0 !important; padding-bottom: 56px !important; }
 `;
 // On the right half of two pages side by side the section stands after Logseq's box around the page's property list, as far under
 // "Add property" as on the main page.

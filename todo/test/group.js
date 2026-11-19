@@ -188,4 +188,26 @@ app.read = false; app.failed = 'Logseq did not answer';
 const failed = document.createElement('div'); document.body.append(failed); T.view.make(failed, 'side');
 assert.ok(failed.querySelector('.td-add'), 'the add line stands');
 assert.equal(failed.querySelector('.td-list .lk-none').textContent, 'The tasks could not be read: Logseq did not answer.');
+// Find a todo (18 November 2026): the words typed narrow every grouping to the tasks that hold them, in their words, page or tag.
+app.setBy('Day'); app.setThen('None'); app.showAll(); app.ticking.clear(); app.status.clear(); app.read = true; app.failed = '';
+app.tasks = [
+  task('Ask about the fatigue', { day: day(-2), page: { title: 'Nov 11th, 2026', journal: day(-2) }, tags: ['Consultation'] }),
+  task('Book the scan', { day: day(3), tags: ['Consultation', 'Scan'], status: 'doing' }),
+  task('Read the report', { page: { title: 'blood report', journal: 0 } }),
+  task('Call the pharmacy', { day: day(0), page: { title: 'Nov 13th, 2026', journal: day(0) } }),
+];
+const found = words => { const { parts, done } = app.groups(words); return [parts.map(p => [p.head, p.rows.map(t => t.words)]), done.map(t => t.words)]; };
+assert.deepEqual(found('scan'), [[['Coming up', ['Book the scan']]], []], 'one task found, only its group stands');
+assert.deepEqual(found('mei book'), [[['Coming up', ['Book the scan']]], []], 'every word must be found, its page\'s name counts');
+assert.deepEqual(found('consultation'), [[['Today', ['Ask about the fatigue']], ['Coming up', ['Book the scan']]], []], 'a tag counts');
+assert.deepEqual(found('zzz'), [[], []], 'nothing found');
+const finding = document.createElement('div'); document.body.append(finding); const fv = T.view.make(finding, 'side');
+const fin = finding.querySelector('.td-find input');
+assert.ok(fin && fin.placeholder === 'Find a todo', 'the find line stands under the add line');
+fin.value = 'zzz'; fin.dispatchEvent(new window.Event('input'));
+assert.equal(finding.querySelector('.td-list .lk-none').textContent, 'No task has these words.', 'nothing found says so');
+fin.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+assert.equal(fin.value, '', 'Escape empties it'); assert.equal(finding.querySelectorAll('.td-row').length, 4, 'and every open task is back');
+fv.destroy();
+assert.ok(!Door.statusHtml({ title: ':logseq.property/empty-placeholder', icon: null }, { doc: document }).includes('logseq.property'), 'a status circle never shows an ident');
 console.log('todo groupings ok');

@@ -21,7 +21,7 @@ const idName = async id => {
   const ident = Door.bare(id || '');
   if (!/^[\w.\-]+\/[\w.\-]+$/.test(ident)) return ident;
   const rows = await Door.query(`[:find ?t :where [?e :db/ident :${ident}] [?e :block/title ?t]]`);
-  const name = rows[0]?.[0] || ident.split('/').pop();
+  const name = rows[0]?.[0] || Door.plainName(ident);
   names.set(id, name);
   return name;
 };
@@ -80,45 +80,76 @@ function markHeads(root) {
   const tables = [...root.querySelectorAll('.ls-table')];
   tables.forEach((table, i) => { if (i && !table.hasAttribute('data-lk-nohead')) table.setAttribute('data-lk-nohead', ''); else if (!i && table.hasAttribute('data-lk-nohead')) table.removeAttribute('data-lk-nohead'); });
 }
-// A tag's own page: its table need not say that tag on every row. Only while every row shown carries that one tag and no other.
+/* The tags whose every node carries that tag alone (Logseq's Page aside), by name and by uuid: read once at start and after a graph
+   change, so a tag's table hides its Tags column in the frame its header is drawn, before its rows come. Until 19 November 2026 the
+   column stood for a frame or two and the columns after it slid 180 px left (the release check's motion fault). */
+const SOLO_KEY = 'look-solo-tags';
+let solo = new Set((() => { try { return JSON.parse(localStorage.getItem(SOLO_KEY) || '[]'); } catch (e) { return []; } })());   // the last answer, kept, so the first table after a start knows at once
+async function readSolo() {
+  const mine = generation;
+  // A tag's table lists its child tags' nodes too, which say the child's name: a tag with a child in use is not alone either.
+  const [mixed, parents, tags] = await Promise.all([
+    Door.query('[:find ?t :where [?n :block/tags ?t] [?n :block/tags ?o] [(not= ?t ?o)] (not [?o :db/ident :logseq.class/Page])]'),
+    Door.query('[:find ?t :where [?c :logseq.property.class/extends ?t] [_ :block/tags ?c]]'),
+    Door.query('[:find ?t ?title ?u :where [?t :block/tags :logseq.class/Tag] [?t :block/title ?title] [?t :block/uuid ?u] [_ :block/tags ?t]]'),
+  ]);
+  if (mine !== generation) return;
+  const no = new Set([...mixed, ...parents].map(r => r[0]));
+  solo = new Set(tags.filter(([t]) => !no.has(t)).flatMap(([, title, u]) => [String(title).toLowerCase(), String(u).toLowerCase()]));
+  try { localStorage.setItem(SOLO_KEY, JSON.stringify([...solo])); } catch (e) { /* kept for this run only */ }
+  Look.kit.run(host());
+}
+/* A tag's own page: its table need not say that tag on every row. Only while every row shown carries that one tag and no other.
+   Said once on the table, as the column's place among the columns (data-lk-notags), and hidden by a rule (calm.js), so a row Logseq
+   draws later is hidden as it comes, in the frame it is drawn, never shown and then taken away. */
 function markTags(doc, root) {
   const page = decodeURIComponent((doc.defaultView.location.hash.match(/#\/page\/([^?]+)/) || [])[1] || '').toLowerCase();
   for (const table of root.querySelectorAll('.ls-table')) {
     const heads = [...table.querySelectorAll('.ls-table-header .ls-table-header-cell')];
-    const at = heads.findIndex(h => h.querySelector('span[title]')?.getAttribute('title') === 'Tags');
-    const rows = [...table.querySelectorAll('.ls-table-row')];
-    const cells = at < 0 ? [] : rows.map(r => r.querySelectorAll('.ls-table-cell')[at]).filter(Boolean);
+    const head = heads.find(h => h.querySelector('span[title]')?.getAttribute('title') === 'Tags');
+    const slot = head?.closest('.ls-table-header > .flex-row > *');
+    const n = slot ? [...slot.parentElement.children].indexOf(slot) + 1 : 0;
+    const at = heads.indexOf(head);
+    const cells = at < 0 ? [] : [...table.querySelectorAll('.ls-table-row')].map(r => r.querySelectorAll('.ls-table-cell')[at]).filter(Boolean);
     const said = cells.filter(c => c.getAttribute('title'));   // a row whose cell has not been drawn yet says nothing
     // Logseq's own Page tag, on every page, is not said in the column either, so it is not counted as another tag.
     const tagsOf = c => c.getAttribute('title').toLowerCase().split(',').map(t => t.trim()).filter(t => t && t !== 'page');
-    const alone = !!page && said.length > 0 && said.every(c => { const tags = tagsOf(c); return tags.length === 1 && tags[0] === page; });
-    const marked = [...table.querySelectorAll('[data-lk-gone]')];
-    const want = alone ? new Set([heads[at], ...cells]) : new Set();
-    for (const node of marked) if (!want.has(node)) node.removeAttribute('data-lk-gone');
-    for (const node of want) if (!node.hasAttribute('data-lk-gone')) node.setAttribute('data-lk-gone', '');
+    // Before Logseq has drawn the rows (it draws the header first), the graph's answer stands in, so the column never shows for a frame.
+    const alone = n > 0 && !!page && (said.length > 0 ? said.every(c => { const tags = tagsOf(c); return tags.length === 1 && tags[0] === page; }) : solo.has(page));
+    const want = alone ? String(n) : null;
+    if (table.getAttribute('data-lk-notags') !== want) { if (want) table.setAttribute('data-lk-notags', want); else table.removeAttribute('data-lk-notags'); }
   }
 }
-function pass(doc) {
+// What a table's head says, found for each table on the screen: its root and the uuid of the view in force.
+function eachHead(doc, fn) {
   for (const head of doc.querySelectorAll(HEAD)) {
     const root = head.closest('.ls-foldable-title')?.parentElement;
     if (!root) continue;
     const tab = head.querySelector('.views button[data-view-tab-id]:not(.text-muted-foreground)') || head.querySelector('.views button[data-view-tab-id]');
-    const uuid = (tab?.getAttribute('data-view-tab-id') || '').replace(/^view-tab-/, '');
+    fn(head, root, (tab?.getAttribute('data-view-tab-id') || '').replace(/^view-tab-/, ''));
+  }
+}
+function pass(doc) {
+  eachHead(doc, (head, root, uuid) => {
     if (uuid) ask(uuid);
     drawLine(doc, head, root, uuid);
     markHeads(root);
     markTags(doc, root);
-  }
+  });
 }
 function start() {
-  Look.kit.watchScreen(pass);
+  /* The state line's room and the Tags column are settled in the frame Logseq draws the table (the early pass runs before the screen
+     is painted): the line came a frame later and pushed the table down 28 px, and the columns after Tags slid 180 px left (the release
+     check's motion faults, 18 November 2026). The words of the line come when the view is read, into room already kept. */
+  Look.kit.watchScreen(pass, doc => eachHead(doc, (head, root, uuid) => { drawLine(doc, head, root, uuid); markTags(doc, root); }));
   // A change in the graph may be a sort, a group or a filter changed: read again after it.
-  onGraphChange(() => { generation++; known.clear(); reading.clear(); Look.kit.run(host()); });
+  onGraphChange(pages => { generation++; known.clear(); reading.clear(); if (pages) readSolo().catch(() => {}); Look.kit.run(host()); });   // words alone written change no node's tags
+  readSolo().catch(error => console.error('Look: could not read which tags stand alone on their nodes', error));
   onStop(() => {
     generation++; known.clear(); reading.clear();
     const doc = host();
     for (const node of doc.querySelectorAll('.lk-tstate')) node.remove();
-    for (const attr of ['data-lk-nohead', 'data-lk-gone']) for (const node of doc.querySelectorAll(`[${attr}]`)) node.removeAttribute(attr);
+    for (const attr of ['data-lk-nohead', 'data-lk-notags']) for (const node of doc.querySelectorAll(`[${attr}]`)) node.removeAttribute(attr);
   });
 }
 Look.tables = { start, stop() {}, read, pass };

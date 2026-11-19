@@ -150,8 +150,15 @@ async function run() {
   /* The screens the change means to alter, said before the guard looks (the owner, 18 November 2026: approving every release is
      tiresome, so the guard stands in for that yes). A difference on any other screen is the change reaching further than meant: it
      stops the release until it is fixed, and no reason passes it. */
-  const expect = (arg('--expect', '') || '').split(',').map(s => s.trim()).filter(Boolean);
   const known = require('./tour').SCREENS.map(s => s[0]);
+  /* Screen names hold commas themselves ("person, dark"): the pieces between commas are joined back, the longest run that makes a
+     screen's name first (18 November 2026: "row view, a row pressed, dark" could not be named before). */
+  const pieces = (arg('--expect', '') || '').split(',').map(s => s.trim()).filter(Boolean), expect = [];
+  for (let i = 0; i < pieces.length;) {
+    let j = pieces.length;
+    while (j > i + 1 && !known.includes(pieces.slice(i, j).join(', '))) j--;
+    expect.push(pieces.slice(i, j).join(', ')); i = j;
+  }
   const unknown = expect.filter(e => !known.includes(e));
   if (unknown.length) { console.error(`no such screen: ${unknown.join(', ')}. The screens: ${known.join(' · ')}`); process.exit(2); }
   const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);

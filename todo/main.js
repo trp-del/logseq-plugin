@@ -65,20 +65,30 @@ const app = T.app = {
      Done, at the foot, whatever the grouping. Each part: { key, head, rows, none (its nothing-here line, Day's first level only),
      today (Today's heading says the day, so its rows do not), where (the page line under each row; not where a heading names the
      page), tag (the heading is a tag), subs (the second level's parts, when there is one) }. */
-  groups() {
-    const today = dates.today(), open = [], done = [], hidden = app.hidden();
+  groups(find = '') {
+    const today = dates.today(), open = [], done = [], hidden = app.hidden(), has = app.finds(find);
     for (const t of app.tasks) {
+      if (!has(t)) continue;
       const s = app.shown(t), ticking = app.ticking.has(t.uuid);   // a task just ticked stays in its place, crossed out, until it rolls away
       if (s === 'done' && !ticking) done.push(t);
       else if (ticking || (T.db.isOpen(s) && !hidden.has(s))) open.push(t);
     }
     done.sort((a, b) => b.updated - a.updated);
     const by = app.by(), then = app.then();
-    const parts = split(open, by, today, true);
+    const parts = split(open, by, today, !has.on);   // finding: only the groups that hold a task found
     if (then) for (const p of parts) {
       p.subs = split(p.rows, then, today, false).map(q => ({ ...q, key: `${p.key}/${q.key}`, where: p.where && q.where, today: p.today || q.today }));
     }
     return { parts, done };
+  },
+  /* Find a todo (the owner, 18 November 2026: Todo wants a search box): the words typed in a view's find field, each
+     found in the task's words, its page's name or a tag, letters in any case. finds(words) answers whether a task is found;
+     .on, whether there are words at all. */
+  finds(words) {
+    const ws = String(words || '').toLowerCase().split(/\s+/).filter(Boolean);
+    const has = t => !ws.length || ws.every(w => [t.words, t.text, t.page?.title, ...(t.tags || [])].some(x => String(x || '').toLowerCase().includes(w)));
+    has.on = ws.length > 0;
+    return has;
   },
   // The grouping in force, one for the page and the sidebar alike, kept in the plugin's settings (todoGroupBy), and the second
   // level inside it (todoThenBy, 'None' for none; never the same as the first).
@@ -312,8 +322,22 @@ function mount() {
   // Todo in the right sidebar (sidebar-tabs.js): a section there only once you open it, closed by its ×.
   T.base.onStop(Door.sideTabs?.add({ key: 'todo', word: 'Todo', order: 4, panel: SIDE,
     find: doc => doc.getElementById('_sidebar.' + SIDE)?.closest('.sidebar-item') || null,
-    open: () => { logseq.Editor.openInRightSidebar('_sidebar.' + SIDE); } }));
+    open: () => { logseq.Editor.openInRightSidebar('_sidebar.' + SIDE); }, revive }));
   adopt();
+}
+/* A Todo section Logseq drew before Todo was there (sidebar-tabs.js, named): the list drawn into it here, in a holder of Todo's own
+   (td-revived), which goes again once Logseq draws the section itself. */
+function revive(item) {
+  if (item.querySelector('.td-holder')) return;
+  const doc = item.ownerDocument, head = item.querySelector('.sidebar-item-header');
+  const body = item.querySelector('.sidebar-panel-content') || head?.nextElementSibling || head?.parentElement || item;
+  const holder = doc.createElement('div');
+  holder.className = 'td-holder td-holder-side td-revived td-own';
+  body.appendChild(holder);
+  drawInto(holder, 'side');
+}
+function unrevive(doc) {
+  for (const holder of doc.querySelectorAll('.td-revived')) if (holder.closest('.sidebar-item')?.querySelector('.lsp-host-renderer-container .td-holder')) holder.remove();
 }
 /* Logseq draws a plugin's panel with a puzzle, in the section's head and in the sidebar's add menu; Todo's takes its toolbar
    button's checkmark (the owner, 18 November 2026: "change icon of todo to match"), as Ontology's takes its own. Only the drawing's
@@ -337,6 +361,7 @@ async function main() {
   Door.toolbarItem('todo-open', 'todoOpen', 'Todo', 'todo');
   // A change anywhere: read again after a quiet moment, so a task ticked, added or dated elsewhere shows here.
   T.base.watch(checkmark);
+  T.base.watch(unrevive);
   onStop(logseq.DB.onChanged(() => { if (app.views.size) app.later(); }));
   // The grouping changed in the settings window: drawn at once in both places.
   onStop(logseq.onSettingsChanged((now, before) => { if (!Door.settingChanged(['todoGroupBy', 'todoThenBy', 'todoHidden'], now, before)) return; app.byNow = ''; app.thenNow = ''; app.hiddenNow = null; app.draw(); }));

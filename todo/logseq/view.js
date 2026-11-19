@@ -9,7 +9,8 @@ const { esc, dates } = Door;
 const CSS = `
 .td { --td-gap: 12px; color: var(--lk-text, currentColor); }
 .td-page { max-width: 720px; margin: 0 auto; padding: 8px 0 120px; }
-.td-side { padding: 0 2px 40px; }
+.td-side { padding: 0 2px; }   /* the section ends at its last group: the sidebar parts one section from the next */
+.td-side .td-list > .td-group:last-child { margin-bottom: 8px; }
 .td-title { margin: 0 0 28px; }
 .td-add { margin: 0 0 32px; padding: 6px 0; }   /* the library's field (lk-field): its hairline and its firmer line with the keyboard */
 .td-add .td-plus { color: var(--lk-quiet); flex: none; }
@@ -17,6 +18,12 @@ const CSS = `
 .td-add input { padding: 2px 0; }
 .td-when { flex: none; white-space: nowrap; }   /* the library's quiet line (lk-note) */
 .td-side .td-add { margin-bottom: 24px; }
+/* Find a todo, under the add line: the library's field (lk-field), Logseq's search glass where the add line has its +. */
+.td .td-add { margin-bottom: 6px; }
+.td-find { margin: 0 0 32px; padding: 6px 0; }
+.td-side .td-find { margin-bottom: 24px; }
+.td-find .td-glass { color: var(--lk-quiet); flex: none; display: inline-flex; }
+.td-find input { padding: 2px 0; }
 .td-body { position: relative; }
 .td-tools { position: absolute; top: -2px; right: -4px; z-index: 1; display: flex; gap: 8px; }   /* Show and the grouping, the library's words with their chevrons (lk-change), on the first heading's line at the right */
 .td-show.td-narrow { color: var(--lk-text, currentColor) !important; }   /* a list narrowed by Show says so in the words' colour: what is left out must not pass unseen */
@@ -35,7 +42,7 @@ const CSS = `
 .td-head .lk-fold { opacity: .6; }
 .td-row { --lk-status-line: 1.45em; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; column-gap: var(--td-gap); align-items: start; padding: 7px 8px; margin: 0 -8px; border-radius: 6px; }
 .td-words { color: inherit; text-decoration: none; cursor: pointer; overflow-wrap: anywhere; line-height: var(--lk-status-line); }
-.td-where { margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }   /* the library's quiet line (lk-note) */
+.td-where { margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.45; }   /* the library's quiet line (lk-note); a line tall enough that a cut name keeps its g and y (the owner's list, 18 November 2026: "Mortgage" lost its g) */
 .td-day { white-space: nowrap; padding-top: .2em; }   /* the library's day (lk-day), at the row's right */
 .td-day.td-late { color: color-mix(in srgb, var(--rx-red-10, #dc3e42) 78%, var(--lk-paper, transparent)) !important; }
 .td-row.td-ticked .td-words { text-decoration: line-through; text-decoration-color: var(--lk-line); color: var(--lk-quiet); }
@@ -138,8 +145,9 @@ ${circle(t, status)}
 <div class="td-day lk-day${late ? ' td-late' : ''}">${esc(day)}</div></div>`;
 }
 
-function listHtml() {
-  const { parts, done } = T.app.groups();
+function listHtml(find = '') {
+  const { parts, done } = T.app.groups(find);
+  if (find && !parts.length && !done.length) return '<section class="td-group"><div class="lk-none">No task has these words.</div></section>';
   const head = p => `<div class="td-head lk-name">${p.tag ? `<span class="lk-tag">${esc(p.head)}</span>` : esc(p.head)}</div>`;
   const rows = p => p.rows.length ? p.rows.map(t => rowHtml(t, p)).join('') : `<div class="lk-none">${esc(p.none || '')}</div>`;
   // A group with a second level holds its groups, each under its faint name; one without, its rows.
@@ -160,13 +168,16 @@ function make(holder, mode) {
   root.className = `td td-own td-${mode}`;
   root.innerHTML = `${mode === 'page' ? '<h1 class="title page-title td-title">Todo</h1>' : ''}
 <label class="td-add lk-field"><span class="lk-i-plus td-plus" aria-hidden="true"></span><input type="text" placeholder="Add a todo" aria-label="Add a todo" spellcheck="true"><span class="td-when lk-note"></span></label>
+<label class="td-find lk-field"><span class="td-glass" aria-hidden="true"></span><input type="text" placeholder="Find a todo" aria-label="Find a todo" spellcheck="false" autocomplete="off"></label>
 <div class="td-body"><div class="td-tools"><button type="button" class="td-show lk-change" data-show aria-haspopup="menu" aria-expanded="false" title="Which tasks the list shows"><span class="td-show-word"></span><span class="lk-i-chevron" aria-hidden="true"></span></button><button type="button" class="td-by lk-change" data-by aria-haspopup="menu" aria-expanded="false" title="Group the list"><span class="td-by-word"></span><span class="lk-i-chevron" aria-hidden="true"></span></button></div><div class="td-list"></div></div>`;
   holder.appendChild(root);
-  const input = root.querySelector('input'), when = root.querySelector('.td-when'), list = root.querySelector('.td-list'), byWord = root.querySelector('.td-by-word');
+  root.querySelector('.td-glass').innerHTML = Door.logseqIconHtml('search', { size: 16, doc });
+  const finder = root.querySelector('.td-find input');
+  const input = root.querySelector('.td-add input'), when = root.querySelector('.td-when'), list = root.querySelector('.td-list'), byWord = root.querySelector('.td-by-word');
   const tools = root.querySelector('.td-tools'), show = root.querySelector('.td-show'), showWord = root.querySelector('.td-show-word');
   let drawn = '';
   const view = {
-    root, mode,
+    root, mode, find: '',
     draw() {
       // Not read yet: the add line alone; a read that failed says so in a plain line where the list stands.
       if (!T.app.read) { const said = T.app.failed ? `<div class="lk-none">The tasks could not be read: ${esc(T.app.failed)}.</div>` : ''; if (said !== drawn) { drawn = said; list.innerHTML = said; } return; }
@@ -174,7 +185,7 @@ function make(holder, mode) {
       const sw = showWords();
       showWord.textContent = sw.words; show.classList.toggle('td-narrow', sw.narrow);
       root.style.setProperty('--td-tools-room', `${Math.ceil(tools.offsetWidth || 190) + 12}px`);
-      const html = listHtml();
+      const html = listHtml(view.find);
       if (html === drawn) return;
       // A row coming into an open Done, or Done opening, rolls out; nothing else moves.
       const before = new Set([...list.querySelectorAll('.td-row')].map(r => r.dataset.uuid + (r.classList.contains('td-done') ? ':d' : '')));
@@ -191,6 +202,14 @@ function make(holder, mode) {
   // The day the words name, said beside the field before Return.
   const showDay = () => { const found = T.db.dayIn(input.value); when.textContent = found ? dayFull(found.day) : ''; };
   input.addEventListener('input', showDay);
+  // Find a todo: the list narrows as you type; Escape empties the field, a second Escape lets it go.
+  finder.addEventListener('input', () => { view.find = finder.value; view.draw(); });
+  finder.addEventListener('keydown', event => {
+    event.stopPropagation();   // the field's keys are its own, never Logseq's
+    if (event.isComposing) return;
+    if (event.key === 'Escape') { event.preventDefault(); if (finder.value) { finder.value = ''; view.find = ''; view.draw(); } else finder.blur(); }
+    else if (event.key === 'Enter') { event.preventDefault(); const first = list.querySelector('.td-row [data-open]'); if (first) T.app.open(first.dataset.open, event.shiftKey); }
+  });
   input.addEventListener('keydown', event => {
     event.stopPropagation();   // the field's keys are its own, never Logseq's
     if (event.isComposing) return;

@@ -4,8 +4,8 @@
    Logseq's tag lists show your tags as a tree"). Drives the checks' own Logseq (LOGSEQ_PORT, a throwaway copy made by
    tools/audit/fresh.js; kit.connect refuses any other graph) with real presses and real typing:
    1. a chain of five tags is made (ZZ Alpha > ZZ Bravo > ZZ Charlie > ZZ Delta > ZZ Echo); "#ZZ Foxtrot" typed in a bullet and
-      Enter makes a new tag; "Put ZZ Foxtrot under" opens; the fold arrows of ZZ Bravo, ZZ Charlie and ZZ Delta are pressed and
-      ZZ Echo shows four steps in; a press on ZZ Echo makes it ZZ Foxtrot's parent, read back from the graph; the faded Undo
+      Enter makes a new tag; "Put ZZ Foxtrot under" opens with the whole tree open, ZZ Echo four steps in; ZZ Delta's fold arrow
+      closes it and opens it again; a press on ZZ Echo makes it ZZ Foxtrot's parent, read back from the graph; the faded Undo
       arrow puts ZZ Foxtrot back at the top;
    2. "#ZZ Golf" in another bullet; in its question "echo" is typed into the find line: only ZZ Echo stays, with its path;
       Enter makes it ZZ Golf's parent, read back; Undo;
@@ -95,17 +95,22 @@ const shots = process.argv[2] || null;
       const why = await newTag(B1, NEW1);
       if (why) problem(why);
       else {
-        let reached = 0;
-        for (const n of CHAIN.slice(1, 4)) {
-          const row = whereRow(n);
-          if (!(await until(async () => await row.count(), 1500))) break;
-          await row.locator('.lk-fold').click(); await sleep(450); reached++;
+        // The whole tree stands open (18 November 2026): ZZ Echo is there without a press; ZZ Delta's fold arrow closes it away and
+        // opens it again.
+        let reached = 3;
+        await until(async () => (await question())?.rows.some(r => r.name === CHAIN[4]), 2000);
+        const deltaRow = whereRow(CHAIN[3]);
+        if (await deltaRow.count()) {
+          await deltaRow.locator('.lk-fold').click(); await sleep(450);
+          if ((await question())?.rows.some(r => r.name === CHAIN[4])) problem(`${CHAIN[3]}'s fold arrow did not close it: ${CHAIN[4]} still shows`);
+          else ok(`${CHAIN[3]}'s fold arrow closes it`);
+          await deltaRow.locator('.lk-fold').click(); await sleep(450);
         }
         const qs = await question();
         const echo = qs?.rows.find(r => r.name === CHAIN[4]), delta = qs?.rows.find(r => r.name === CHAIN[3]);
         if (!echo) {
           const deepest = qs?.rows.filter(r => r.name?.startsWith('ZZ ')).sort((a, b) => b.d - a.d)[0];
-          problem(`“Put ${NEW1} under” never showed ${CHAIN[4]}: after opening the fold arrows it reached ${deepest ? `${deepest.name} at depth ${deepest.d}` : 'none of the chain'}${reached < 3 ? `; ${CHAIN[reached + 1]} never showed under ${CHAIN[reached]} to be opened` : ''}`);
+          problem(`“Put ${NEW1} under” never showed ${CHAIN[4]}: with the tree open it reached ${deepest ? `${deepest.name} at depth ${deepest.d}` : 'none of the chain'}${reached < 3 ? `; ${CHAIN[reached + 1]} never showed under ${CHAIN[reached]} to be opened` : ''}`);
           await shot('broken-put-under');
           await closeAll();
         } else {

@@ -48,5 +48,10 @@ const same = (got, want, why) => assert.equal(JSON.stringify(got), JSON.stringif
   same(D.webParts('no address'), [{ text: 'no address' }]); same(D.webParts(''), [{ text: '' }]);
   assert.equal(D.urlHtml('https://a.b/"x', 'a.b'), '<span class="lk-url" data-open-url="https://a.b/&quot;x" title="https://a.b/&quot;x">a.b</span>');
   console.log('  ok  a web address is cut out of words and drawn as lk-url');
+  // Machine names in words (18 November 2026): Logseq's empty value reads as nothing, an ident as its last part in words.
+  assert.equal(D.isEmptyValue(':logseq.property/empty-placeholder'), true); assert.equal(D.isEmptyValue('logseq.property/status.todo'), false);
+  assert.equal(D.plainName(':logseq.property/empty-placeholder'), ''); assert.equal(D.plainName('logseq.property/status.in-review'), 'In review');
+  assert.equal(D.plainName(':user.property/charged-by-Xa9Lq2'), 'Charged by'); assert.equal(D.plainName('Dr. Mei Chen'), 'Dr. Mei Chen'); assert.equal(D.plainName('Todo'), 'Todo');
+  console.log('  ok  a machine name is said in words, Logseq\'s empty value as nothing');
   console.log('helpers: all checks passed');
 })().catch(error => { console.error('FAIL  ' + (error.stack || error)); process.exit(1); });

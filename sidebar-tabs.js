@@ -12,8 +12,8 @@
 
    A module adds a section with Door.sideTabs.add({ key, word, order, find(doc) → its .sidebar-item or null, open(), hidden(doc)? →
    true where it has nothing to show, auto? → true for a part of the page, opened by itself, owns(item)? → an item of the section's
-   that is on its way in or out, panel? → the name its panel is registered under in Logseq's sidebar }) and gets back what takes it
-   off. The name sideTabs is kept from the tabs, so the modules did not change their calls. */
+   that is on its way in or out, panel? → the name its panel is registered under in Logseq's sidebar, revive(item)? → fills a section of that panel which
+   Logseq drew before the module was there }) and gets back what takes it off. The name sideTabs is kept from the tabs, so the modules did not change their calls. */
 (function () {
 const Door = window.PluginDoor;
 const { host } = Door;
@@ -41,6 +41,12 @@ const CSS = `
    stands level with the toolbar (the owner, 17 November 2026: "there is still a massive gap above"). Two pages side by side keep it
    (split.js draws the right page's title there). */
 #right-sidebar[data-lk-stack]:not([data-lk-split]) .cp__right-sidebar-topbar { display: none !important; }
+/* Logseq sizes the list to the window less its bar (100vh - 48 px); with the bar gone the list stood 48 px short of the window's
+   foot, a blank band there, and what scrolled was cut at that line (the owner, 18 November 2026: an empty chunk at the bottom of
+   the sidebar, a task's page name cut off). The list reaches the window's foot (its 8 px pulled up under the toolbar's line). */
+#right-sidebar[data-lk-stack]:not([data-lk-split]) .sidebar-item-list { height: calc(100vh + 8px) !important; }
+/* Past the last section, room enough to scroll it clear of the ? at the window's corner, not Logseq's 150 px of blank. */
+#right-sidebar[data-lk-stack]:not([data-lk-split]) .sidebar-item-list { padding-bottom: 56px !important; }
 #right-sidebar[data-lk-stack] .sidebar-item-list > * { order: 10; flex: none !important; }
 /* While the sidebar slides open or shut, what it holds keeps the width it has open, cut at the sidebar's edge, rather than being laid
    out again at every width on the way: its words stood one letter a line for a few frames (the owner, 17 November 2026: "when
@@ -128,6 +134,7 @@ function draw(doc = host()) {
     toggle(item, 'data-lk-wait', !view && views.some(v => v.owns?.(item)));
     toggle(item, 'data-lk-row', !!view?.rows);
   }
+  named(doc);
   toggle(side, 'data-lk-rows', st.rows);
   // The open width, taken only once it holds still for a pass, so a width on the way open or shut never sets it.
   const w = Math.round(side.getBoundingClientRect().width);
@@ -145,7 +152,14 @@ function draw(doc = host()) {
   const shown = item => !item.hasAttribute('data-lk-aside') && !item.hasAttribute('data-lk-contents') && !item.hasAttribute('data-lk-wait') && !item.hasAttribute('data-lk-closed') && (!st.rows || item.hasAttribute('data-lk-row'));
   const all = [...doc.querySelectorAll('#right-sidebar .sidebar-item-list > .sidebar-item')];
   const first = [...partItems.keys()].filter(shown).sort((a, b) => parts.indexOf(partItems.get(a)) - parts.indexOf(partItems.get(b)))[0] || all.find(item => !partItems.has(item) && shown(item));
+  /* A section that stops being the first, because another came above it, takes its room for the hairline over the same moment the
+     new one rolls out, not in one frame: Todo stood 10 px lower at once when Outline came above it (the release check, 19 November 2026). */
+  const was = all.find(item => item.hasAttribute('data-lk-first'));
   for (const item of all) toggle(item, 'data-lk-first', item === first);
+  if (was && first && was !== first && shown(was) && !Door.still(was)) {
+    const { ms, ease } = Door.MOTION.roll;
+    was.animate([{ marginTop: '0px', paddingTop: '0px', borderTopColor: 'transparent' }, {}], { duration: ms, easing: ease });
+  }
   // A part of the page that comes into view rolls out of where it stands, as every section that opens (the grammar).
   // Not while the sidebar itself slides open: that is motion enough.
   const nowOpen = sidebarOpen();
@@ -177,6 +191,24 @@ function draw(doc = host()) {
   }, 700);
 }
 
+/* A section of the plugin's that Logseq drew before the plugin was there to fill it (Logseq starting with Todo in its sidebar,
+   the plugin started after it): Logseq heads it with the panel's machine name, ":logseq-plugin/_sidebar.todo-side", and leaves it
+   empty, and does not draw it again once the plugin is there (the owner, 18 November 2026, a journal day beside such a Todo). So
+   the head takes the section's word, and a section with nothing in it is handed to its module to fill (revive(item)). */
+function named(doc) {
+  const id = logseq.baseInfo?.id || 'logseq-plugin';
+  for (const view of views) {
+    if (!view.panel) continue;
+    const raw = `:${id}/_sidebar.${view.panel}`;
+    for (const item of doc.querySelectorAll('#right-sidebar .sidebar-item-list > .sidebar-item')) {
+      const head = item.querySelector('.sidebar-item-header');
+      if (!head || !(head.textContent || '').includes(raw)) continue;
+      for (const n of head.querySelectorAll('*')) if (!n.children.length && n.textContent.trim() === raw) n.textContent = view.word;
+      if (!item.querySelector('.lsp-host-renderer-container > *')) view.revive?.(item);
+    }
+  }
+}
+
 /* Something you opened is closed by its ×: once the sidebar has taken it away, if nothing you opened is left, the sidebar closes,
    even with a part of the page still in it. */
 const opened = doc => itemsOf(doc).some(item => !item.hasAttribute('data-lk-part') && !item.hasAttribute('data-lk-contents') && !item.hasAttribute('data-lk-wait') && !views.some(v => v.owns?.(item)));
@@ -199,7 +231,7 @@ function followWidth() {
   const open = sidebarOpen();
   if (open !== st.rzOpen) { st.rzOpen = open; st.rzAt = Date.now(); }
   if (!open) return;
-  if (Date.now() - st.rzAt < 700) { host().defaultView.setTimeout(followWidth, 750); return; }   // once it has stopped sliding
+  if (Date.now() - st.rzAt < 700) { if (!st.rzTimer) st.rzTimer = host().defaultView.setTimeout(() => { st.rzTimer = 0; followWidth(); }, 750); return; }   // once it has stopped sliding, asked once
   const w = Math.round(side.getBoundingClientRect().width);
   if (w > 240 && side.style.getPropertyValue('--lk-side-w') !== w - 16 + 'px') { side.style.setProperty('--lk-side-w', w - 16 + 'px'); st.width = w; }
 }
@@ -209,10 +241,15 @@ function start() {
   st.off = Door.root.watch(draw);
   st.rzOpen = sidebarOpen(); st.rzAt = 0;   // as it stands at the start, so the first resize is followed
   const offs = [Door.root.listen(host(), 'click', onClose, true), Door.root.listen(host().defaultView, 'resize', followWidth), Door.root.listen(host(), 'pointerup', () => host().defaultView.requestAnimationFrame(followWidth), true)];
+  /* Whatever changes the sidebar's width (two pages side by side closing, a theme, Logseq itself), the width the words keep follows
+     it once it holds still: Todo stood wider than the sidebar after two side-by-side pages closed, its ×, "By day" and days cut off
+     (the release checks, 18 November 2026), since only a resize of the window or a drag of the edge was followed. */
+  const Observer = host().defaultView.ResizeObserver, side = host().getElementById('right-sidebar');
+  if (Observer && side) { const ro = new Observer(() => followWidth()); ro.observe(side); offs.push(() => ro.disconnect()); }
   st.offClick = () => { for (const off of offs) off?.(); };
 }
 function stop() {
-  st.off?.(); st.off = null; st.offClick?.(); st.offClick = null;
+  st.off?.(); st.off = null; st.offClick?.(); st.offClick = null; if (st.rzTimer) { host().defaultView.clearTimeout(st.rzTimer); st.rzTimer = 0; }
   Door.root.style('sidebar-tabs', '');
   const doc = host();
   doc.getElementById('right-sidebar')?.removeAttribute('data-lk-stack');

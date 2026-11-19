@@ -22,6 +22,7 @@ const ONLY_ON_DEMAND = new Set(['absolute-modal', 'cp__select', 'cp__select-main
   'ls-block-properties',     // a block's properties drawn as rows, not pills: only where a page shows them so
   'ls-sidebar-page-properties',
   'hl-page', 'prefix-link',   // a quote taken from a PDF: only on a page that holds one
+  'lsp-host-renderer-container',   // what a plugin's own sidebar section holds (Todo opened in the sidebar): only while one is open
   'cp__cmdk__modal', 'ui__ac-group-name',   // Logseq's command search and the group names in its lists (Look's Hide, 16 November 2026): only while one is open
   'ac-block-search', 'time-spent',   // Logseq's Node embed search (Predictive's <<) and a task's worked time: only while one is open, only on a task timed
   'selected']);   // a bullet selected: only after a press   // a page opened in the right sidebar; since the sidebar became tabs (0.3.60) it may hold none

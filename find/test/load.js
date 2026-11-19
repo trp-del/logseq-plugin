@@ -100,7 +100,8 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
   assert.deepEqual(text('.fd-head'), ['recently opened'], 'the one head at rest; no "narrow by", no "open"');
   assert.ok(doc.querySelector('.fd-body').classList.contains('fd-noday'), 'pages with no day: no day column, no empty margin');
   assert.equal(doc.querySelector('.fd-find .fd-n'), null, 'no count in the find line');
-  assert.ok(text('.fd-foot')[0].startsWith('narrowTabopen Dr. Mei Chen'), 'the foot says Tab narrows and Enter opens: ' + text('.fd-foot')[0]);
+  assert.ok(text('.fd-foot')[0].startsWith('narrow⇥open Dr. Mei Chen'), 'the foot says Tab narrows and Enter opens: ' + text('.fd-foot')[0]);
+  assert.ok([...doc.querySelectorAll('.fd-foot .fd-k')].every(k => k.querySelector('kbd.shui-shortcut-key')), 'each key in Logseq\'s key caps, apart from the words for what it does (18 November 2026)');
   // → digs Dr. Mei Chen open: the line that opens (Provider, from her consultations) is a row with its dot ringed while
   // closed, its number after the words; → again opens the three under it
   await key('ArrowRight'); await settle();
@@ -118,13 +119,13 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
   assert.equal(doc.querySelectorAll('.fd-kids').length, 0, '← closes the line, then the node');
   await key('Tab');
   assert.deepEqual(text('.fd-c.fd-lit'), ['Consultation4'], 'Tab with nothing typed steps into the choices');
-  assert.ok(text('.fd-foot')[0].startsWith('narrow to ConsultationTab'), 'and the foot names the choice under the cursor: ' + text('.fd-foot')[0]);
+  assert.ok(text('.fd-foot')[0].startsWith('narrow to Consultation⇥'), 'and the foot names the choice under the cursor: ' + text('.fd-foot')[0]);
   await key('Escape');
   assert.ok(doc.querySelector('dialog.fd'), 'Escape steps back to the rows, the window stays');
   // "cons" lights Consultation; Enter picks it
   await type('cons');
   assert.deepEqual(text('.fd-c.fd-lit'), ['Consultation4'], 'the typed letters light the kind');
-  assert.ok(text('.fd-foot')[0].startsWith('narrow to ConsultationTab'), 'the foot says Tab takes it: ' + text('.fd-foot')[0]);
+  assert.ok(text('.fd-foot')[0].startsWith('narrow to Consultation⇥'), 'the foot says Tab takes it: ' + text('.fd-foot')[0]);
   await key('Tab');
   assert.deepEqual(text('.fd-piece .lk-tag'), ['Consultation'], 'the pick sits in the find line as a tag');
   assert.equal(doc.querySelector('.fd-input').value, '', 'the letters are cleared');
@@ -258,13 +259,13 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
   await key('Escape'); await settle(); DATED = []; Find.window.forget();
   // Enter takes what is offered. With no rows at all it makes the page, the key beside the words; pressed before the letters are read, it waits for them.
   Find.window.open(); await settle(); await type('nothing has this');
-  assert.deepEqual(text('.fd-foot .fd-right .fd-k'), ['Enter'], 'the key stands beside "make a page"');
+  assert.deepEqual(text('.fd-foot .fd-right .fd-k'), ['↩'], 'the key stands beside "make a page"');
   await key('Enter'); await settle(); assert.deepEqual(made, ['nothing has this'], 'Enter makes the page'); made = [];
   Find.window.close(); Find.window.open(); await settle();
   { const input = doc.querySelector('.fd-input'); input.value = 'nor has this'; input.dispatchEvent(new dom.window.Event('input', { bubbles: true })); input.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })); assert.deepEqual(made, [], 'not before the letters are read'); }
   await settle(); await sleep(50); assert.deepEqual(made, ['nor has this'], 'then it takes what they found'); made = [];
   Find.window.close(); Find.window.open(); await settle(); await type('mei');
-  assert.deepEqual(text('.fd-foot .fd-right .fd-k'), ['Cmd Enter'], 'with rows, the key beside "make a page" is Cmd Enter'); await key('Enter'); assert.deepEqual(made, [], 'and Enter opens the row'); opened.length = 0;
+  assert.deepEqual(text('.fd-foot .fd-right .fd-k'), ['⌘↩'], 'with rows, the key beside "make a page" is Cmd Enter'); await key('Enter'); assert.deepEqual(made, [], 'and Enter opens the row'); opened.length = 0;
   Find.window.open(); await settle(); await type('mei'); await key('Enter', { metaKey: true }); assert.deepEqual(made, ['mei'], 'Cmd Enter makes the page though rows are listed'); made = [];
   Find.window.close(); Find.window.open(); await settle(); await type('cons'); await key('Tab'); await key('Enter', { metaKey: true }); assert.deepEqual([made, opened], [[], []], 'with a kind picked, Cmd Enter makes nothing and opens nothing'); Find.window.close();
   // Row thirteen on: Down past the last row shows the rest, the cursor on the first of them.
@@ -283,7 +284,7 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
   // "more" is a choice: the arrows reach it, Tab or Enter takes it, and the cursor stands on the first that came.
   { Find.window.open(); await settle(); const kept = Find.window.state.kinds; Find.window.state.kinds = [1, 2, 3, 4, 5].map(n => ({ id: 100 + n, uuid: U(100 + n), title: 'Kind ' + n, count: n }));
     await key('Tab'); await key('ArrowRight'); await key('ArrowRight'); await key('ArrowRight');
-    assert.ok(text('.fd-foot')[0].includes('show moreTab'), 'the foot says what the key does: ' + text('.fd-foot')[0]);
+    assert.ok(text('.fd-foot')[0].includes('show more⇥'), 'the foot says what the key does: ' + text('.fd-foot')[0]);
     assert.ok(doc.querySelector('.fd-more.fd-lit'), 'more is lit'); await key('Enter');
     assert.deepEqual(text('.fd-tree .fd-col'), ['Consultation4', 'Doctor2'], 'opened with nothing typed, the kinds stand in columns under their top-level tags');
     assert.ok(doc.querySelector('.fd-c.fd-lit')?.textContent.startsWith('Consultation'), 'the cursor on the first of them');
@@ -304,7 +305,7 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
   // At rest the foot says no hint; one height from the opening, whatever is listed; a kind named, no mark before a name.
   { Find.window.open(); await settle();
     const foot = () => doc.querySelector('.fd-foot').textContent, dlg = doc.querySelector('dialog.fd');
-    assert.ok(!/type to find|for a command/.test(foot()), 'no hint at rest'); assert.ok(foot().includes('Enter'), 'what Enter does stays');
+    assert.ok(!/type to find|for a command/.test(foot()), 'no hint at rest'); assert.ok(foot().includes('↩'), 'what Enter does stays');
     assert.equal(dlg.style.height, 236 + 12 * 32 + 'px', 'room for the rows shown');
     assert.ok(!fs.readFileSync(path.join(root, 'find/logseq/find.js'), 'utf8').includes('minHeight'), 'no height is kept from what was listed');
     await type('>'); await settle(); assert.equal(dlg.style.height, 236 + 12 * 32 + 'px'); assert.equal(dlg.style.minHeight, '', 'the commands leave no height behind');
@@ -381,7 +382,7 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
     await type('consultations with mei chen'); assert.deepEqual(text('.fd-mirror .fd-note'), ['kind', 'Provider'], 'the plural and her name without "Dr." are read'); assert.equal(doc.querySelectorAll('.fd-r').length, 3, 'her three consultations, so read');
     // A sentence that finds nothing is never made a page by a plain Enter; Cmd Enter, as named at the foot, makes it.
     await type('words nothing in the graph holds'); await settle();
-    assert.deepEqual([doc.querySelectorAll('.fd-r').length, text('.fd-foot .fd-right .fd-k')], [0, ['Cmd Enter']], 'nothing found, the foot names Cmd Enter for making a page');
+    assert.deepEqual([doc.querySelectorAll('.fd-r').length, text('.fd-foot .fd-right .fd-k')], [0, ['⌘↩']], 'nothing found, the foot names Cmd Enter for making a page');
     await key('Enter'); await settle(); assert.ok(doc.querySelector('dialog.fd') && made.length === 0, 'Enter makes no page of the sentence and keeps the window: ' + made);
     await type('Consultation with '); assert.deepEqual(text('.fd-mirror .fd-note'), ['kind'], 'taking her name out of the sentence reads the kind alone'); assert.equal(doc.querySelectorAll('.fd-r').length, 4, 'and widens the list');
     await key('ArrowRight'); await settle(); assert.ok(doc.querySelector('.fd-kids'), '→ at the end of the sentence digs'); await key('ArrowLeft'); await settle(); assert.ok(!doc.querySelector('.fd-kids'), '← closes');
@@ -423,7 +424,7 @@ const text = sel => [...doc.querySelectorAll(sel)].map(e => e.textContent.replac
       assert.equal(S.lineDots[S.lineAt].node.day, 20261007, 'the cursor starts on the newest dot found');
       const name = doc.querySelector('.fd-line .lk-time-name');
       assert.ok(name && name.textContent.startsWith('Oct 7') && name.querySelector('.lk-day'), 'the dot named beside it, day first in the margin\'s grey');
-      assert.deepEqual(text('.fd-foot .fd-k'), ['Enter', 'Shift Enter', '↓', '↑', 'Escape'], 'the foot: open, in the sidebar, dig, lanes, fold');
+      assert.deepEqual(text('.fd-foot .fd-k'), ['↩', '⇧↩', '↓', '↑', '⎋'], 'the foot: open, in the sidebar, dig, lanes, fold');
       await key('ArrowLeft'); assert.equal(S.lineDots[S.lineAt].node.day, 20260914, 'Left walks to the dot before');
       assert.ok(doc.querySelector('.fd-line .lk-time-name').textContent.startsWith('Sep 14'), 'and names it');
       await key('ArrowDown'); await settle();

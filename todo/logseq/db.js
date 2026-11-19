@@ -69,7 +69,9 @@ async function read() {
   for (const [b, a, ms] of dayMs) put(b, a, dayOfMs(ms), Number(ms));
   const since = Date.now() - DONE_FOR, list = [];
   for (const [b, uuid, words, sid, created, updated] of rows) {
-    const status = statusOf(sid);
+    // A Status that is there but empty holds Logseq's empty value: read as an empty Status, a Todo, as above.
+    const blank = Door.isEmptyValue(sid), status = blank ? 'todo' : statusOf(sid);
+    if (blank) empty.add(b);
     if (!String(words ?? '').trim()) continue;   // a bullet with no words is no task to show: never a blank row
     if (!isOpen(status) && !(status === 'done' && Number(updated) >= since)) continue;
     const d = due.get(b) || {};

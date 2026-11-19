@@ -6,9 +6,9 @@ const dom = new JSDOM(`<body><div id="main-content-container"><div class="root">
   <div class="ls-foldable-title"><div class="ls-view-head"><div class="views"><button data-view-tab-id="view-tab-00000006-1018-4849-1000-000000000000" class="as-text">All</button></div>
     <div class="view-actions"><button><span class="ls-icon-arrows-up-down"></span></button><button><span class="ls-icon-filter"></span></button><button><span class="ls-icon-dots"></span></button></div></div></div>
   <div class="ls-foldable-content">
-    <div class="ls-table"><div class="ls-table-header"><div class="ls-table-header-cell"></div><div class="ls-table-header-cell"><span title="Name">Name</span></div><div class="ls-table-header-cell"><span title="Tags">Tags</span></div></div>
-      <div class="ls-table-row"><div class="ls-table-cell" title=""></div><div class="ls-table-cell" title="Books"></div><div class="ls-table-cell" title="Page, Purchase"></div></div>
-      <div class="ls-table-row"><div class="ls-table-cell" title=""></div><div class="ls-table-cell" title="Gas"></div><div class="ls-table-cell" title="Purchase"></div></div></div>
+    <div class="ls-table"><div class="ls-table-header"><div class="sticky-columns flex-row"><div><div class="ls-table-header-cell"></div></div></div><div class="flex-row"><div role="button"><div class="ls-table-header-cell"><span title="Name">Name</span></div></div><div role="button"><div class="ls-table-header-cell"><span title="Tags">Tags</span></div></div></div></div>
+      <div class="ls-table-row"><div class="sticky-columns flex-row"><div class="h-full"><div class="ls-table-cell" title=""></div></div></div><div class="flex-row"><div class="h-full"><div class="ls-table-cell" title="Books"></div></div><div class="h-full"><div class="ls-table-cell" title="Page, Purchase"></div></div></div></div>
+      <div class="ls-table-row"><div class="sticky-columns flex-row"><div class="h-full"><div class="ls-table-cell" title=""></div></div></div><div class="flex-row"><div class="h-full"><div class="ls-table-cell" title="Gas"></div></div><div class="h-full"><div class="ls-table-cell" title="Purchase"></div></div></div></div></div>
     <div class="ls-table"><div class="ls-table-header"><div class="ls-table-header-cell"></div></div></div>
   </div></div></div></body>`, { url: 'https://logseq.test/#/page/purchase?graph-id=1', pretendToBeVisual: true });
 const doc = dom.window.document;
@@ -44,11 +44,11 @@ const U = '00000006-1018-4849-1000-000000000000';
   assert.ok(line.querySelector('.lk-change.lk-tpart[data-lk-opens="sort"]'), 'each part is a press that opens Logseq’s own list');
   const tables = doc.querySelectorAll('.ls-table');
   assert.ok(!tables[0].hasAttribute('data-lk-nohead') && tables[1].hasAttribute('data-lk-nohead'), 'the column names stand once, in the first table');
-  assert.strictEqual(doc.querySelectorAll('[data-lk-gone]').length, 3, 'the Tags column of Purchase’s own page: its name and its two cells');
+  assert.strictEqual(tables[0].getAttribute('data-lk-notags'), '2', 'the Tags column of Purchase’s own page, the second of its columns, is left out');
   // Another tag on one row: the column comes back.
   doc.querySelectorAll('.ls-table-row .ls-table-cell')[5].setAttribute('title', 'Purchase, Bills');
   pass(doc);
-  assert.strictEqual(doc.querySelectorAll('[data-lk-gone]').length, 0, 'a row with another tag says the column again');
+  assert.ok(!tables[0].hasAttribute('data-lk-notags'), 'a row with another tag says the column again');
   // The press opens Logseq's button, not a write of its own.
   let pressed = 0; doc.querySelector('.view-actions button').addEventListener('click', () => pressed++);
   line.querySelector('[data-lk-opens="sort"]').dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
