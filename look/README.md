@@ -1,6 +1,6 @@
 # Look
 
-One module of Logseq Plugin (the root README says how the six fit together; `grammar.html` in the workspace draws every rule).
+One module of Logseq Plugin (the root README says how the six fit together; the grammar is in the workspace's value-craft skill, `references/grammar.md`).
 
 How things look, as the visual grammar agreed on 29 October 2026 says. It reads your graph and changes nothing else in it. **What it writes:** only what the × beside a title takes off, a tag from a page, and the same tag put back by the faded Undo arrow the × leaves. On a tag's own page the × reaches every node under the tag, so it opens Ontology's ask on the tag's card, and with Ontology off it is not there.
 
@@ -58,7 +58,7 @@ There is one short list of class names, one per word of the grammar. They and th
 | `lk-accent` | the one action of a screen | a press; a key other than Enter faint beside it |
 | `lk-close` | the way out, × | faint, the text colour under the pointer |
 
-The buttons have a library of their own: `reference/button-library.html` in the workspace shows every kind, one per job, and the names (`lk-strip`, `lk-btn`, `lk-bar`, `lk-answers`, `lk-lone`, `lk-add`, `lk-more`, `lk-fix`, `lk-x`, `lk-plus`, `lk-views`, `lk-trail`, `lk-head`, `lk-menu`) are drawn in `plugin.js` with the others. `test/library.js` fails on a button drawn by hand.
+The buttons have a library of their own: `plugin.js` draws every kind, one per job, and the names (`lk-strip`, `lk-btn`, `lk-bar`, `lk-answers`, `lk-lone`, `lk-add`, `lk-more`, `lk-fix`, `lk-x`, `lk-plus`, `lk-views`, `lk-trail`, `lk-head`, `lk-menu`) are drawn in `plugin.js` with the others. `test/library.js` fails on a button drawn by hand.
 
 Text has one scale, as in Logseq: the body is the place's own (16 px on a page, 14 px in a window, a pop-up or the sidebar), `--lk-small` (13 px) is everything secondary (days, counts, notes, keys, trails), `--lk-label` (12 px) the small name over a value, and a tag is the words' own size, its mono's small letters matched to theirs. The greys are measured from the text colour, so a grey inside a grey stays the same grey. `test/library.js` fails on a text size of a module's own.
 

@@ -1,6 +1,6 @@
 # Find
 
-One module of Logseq Plugin (the root README says how the six fit together; `grammar.html` in the workspace draws every rule).
+One module of Logseq Plugin (the root README says how the six fit together; the grammar is in the workspace's value-craft skill, `references/grammar.md`).
 
 The search window as the first step of a walk. You find things the way you think about them: the kind of thing, who it was with, roughly when, and then the thread from what you found, without leaving the window. Begun on 30 October 2026; version 0.1.0 is the window as designed in `history/old-plugins/logseq-find/docs/ALTERNATIVES.html` in the workspace (way B, with narrowing by choice and the keys), checked in Logseq 2.0.2 on the Illness Test Graph. On 5 November 2026 a second way in came from the Finding screen of `after-kenya-hara.html` in the workspace, **Find by sentence**: the same window, where you type what you are looking for as you would say it and the window pencils above each part what it read. The owner wanted it as an add-on, not in place of Find, so it has its own command and key and the find line of pieces stays the default.
 

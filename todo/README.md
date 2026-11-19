@@ -1,6 +1,6 @@
 # Todo
 
-One module of Logseq Plugin (the root README says how the parts fit together; `grammar.html` in the workspace draws every rule).
+One module of Logseq Plugin (the root README says how the parts fit together; the grammar is in the workspace's value-craft skill, `references/grammar.md`).
 
 Todo is Logseq's own tasks as one short list: what to do today, what is coming up, and what can wait. It lists every task that isn't complete: every status but Done and Canceled (Backlog, Todo, Doing, In Review, and a status of your own). It reads the nodes that have a Status (Logseq's tasks, tagged Task), and the nodes tagged Task or a tag under Task (at any depth) whose Status is still empty, and any node whose Status is there but empty (Logseq keeps its own empty value in it, which was shown as ":logseq.property/empty-placeholder" until 18 November 2026): those are listed as Todo, with Todo's circle, and nothing is written to them until a status is picked. A bullet with no words is left out, with a Status or without, so the list never shows a blank row. It takes a task's day from its Deadline, else its Scheduled. It keeps nothing of its own: every task is a bullet in the graph, and the list is drawn from the graph each time it changes.
 
