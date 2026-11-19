@@ -99,12 +99,12 @@ async function connect({ allowEditing = false } = {}) {
   // 1. Item pane: row to row by press, then by arrow key
   await page.evaluate(() => window.logseq.api.set_right_sidebar_visible(true)); await rv.go('Consultation', 3000);
   /* Since 17 November 2026 the sidebar is Logseq's stacked sections and a pressed row shows only in the row view (its toolbar button):
-     the row's section first, Ontology folded under it. Read on every frame of the rows changing: the sections shown stay the ones shown
+     the row's section first, every other section folded to its head under it (since 19 November 2026; read in the order seen, top first). Read on every frame of the rows changing: the sections shown stay the ones shown
      once the first row stood there, never one more (a row's view stacked under the last) and never fewer (a frame with no row). */
   const rowView = on => page.evaluate(on => { const b = document.querySelector('.lk-tool[data-on-click="rowView"]'); if (b && (b.getAttribute('aria-pressed') === 'true') !== on) b.click(); }, on);
   await rowView(true); await sleep(900);
   let p = await rowAt(1); await page.mouse.click(p.x, p.y); await sleep(1800);
-  await page.evaluate(() => { window.__seen = []; const step = () => { const shown = [...document.querySelectorAll('#right-sidebar .sidebar-item-list > .sidebar-item')].filter(i => i.getClientRects().length && getComputedStyle(i).visibility !== 'hidden'); const k = shown.map(i => i.hasAttribute('data-st-item') ? 'row' : (i.querySelector('.sidebar-item-header')?.textContent || '').trim().slice(0, 20)).join(',') + ' | items shown ' + shown.length; if (window.__seen.at(-1) !== k) window.__seen.push(k); window.__raf = requestAnimationFrame(step); }; step(); });
+  await page.evaluate(() => { window.__seen = []; const step = () => { const shown = [...document.querySelectorAll('#right-sidebar .sidebar-item-list > .sidebar-item')].filter(i => i.getClientRects().length && getComputedStyle(i).visibility !== 'hidden').sort((x, y) => x.getBoundingClientRect().top - y.getBoundingClientRect().top); const k = shown.map(i => i.hasAttribute('data-st-item') ? 'row' : (i.querySelector('.sidebar-item-header')?.textContent || '').trim().slice(0, 20)).join(',') + ' | items shown ' + shown.length; if (window.__seen.at(-1) !== k) window.__seen.push(k); window.__raf = requestAnimationFrame(step); }; step(); });
     p = await rowAt(3); await run('item-row-to-row-press', SIDE, () => page.mouse.click(p.x, p.y), 1800);
   await run('item-row-arrow-down', SIDE, () => page.keyboard.press('ArrowDown'), 1800);
   await run('item-row-arrow-down-2', SIDE, () => page.keyboard.press('ArrowDown'), 1800);

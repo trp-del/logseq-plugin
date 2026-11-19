@@ -35,10 +35,12 @@ assert.ok(/insp\.applies = !plain/.test(read('structure/logseq/inspector.js')), 
 const stack = read('sidebar-tabs.js');
 assert.ok(/if \(sidebarOpen\(\)\) for \(const view of parts\)/.test(stack) && /\[data-lk-part\] \.sidebar-item-header \.item-actions \{ display: none !important; \}/.test(stack), 'a part opens by itself only in an open sidebar, and has no ×');
 assert.ok(/addMenuItem\?\.\(\{ key: 'links', label: 'View links'/.test(read('look/logseq/links.js')) && /label: 'View links' \}, viewLinks/.test(read('look/logseq/links.js')), 'Links opens from View links, in the ··· menu and the command palette');
-// The row view (the owner, 17 November 2026): a toolbar button; only then does a press on a table row show it, alone with Ontology folded.
-// Proved in the real Logseq since 18 November 2026 by tools/app-checks/row-view.js (a release gate), which replaced two source matches here:
-// the row view is a toolbar button and a row shows only while it is on; a pressed row opens Logseq's own view of its node, "N of M".
-assert.ok(/\[data-lk-rows\] \.sidebar-item-list > \.sidebar-item:not\(\[data-lk-row\]\) \{ display: none !important; \}/.test(stack) && /if \(st\.rows && st\.foldDue\)/.test(stack) && /st\.foldDue = st\.rows;/.test(stack), 'in the row view only the row and Ontology show, Ontology folded once as the view comes on (then its fold is yours)');
+// The row view (the owner, 17 November 2026): a toolbar button; only then does a press on a table row show it. Since 19 November 2026
+// (A of bullets-sidebar-rowview.html) the other sections stay, folded to their heads at the sidebar's foot, at most four, then
+// "and N more"; folded once as the view comes on and opened again as it goes, marked on Logseq's element so a plugin reload heals.
+// Proved in the real Logseq by tools/app-checks/row-view.js (a release gate): the row view is a toolbar button and a row shows only
+// while it is on; a pressed row opens Logseq's own view of its node, "N of M".
+assert.ok(/\[data-lk-rows\] \.sidebar-item-list > \.sidebar-item\[data-lk-over\] \{ display: none !important; \}/.test(stack) && /const FOOT_MAX = 4;/.test(stack) && /if \(st\.rows && st\.foldDue\)/.test(stack) && /data-lk-rows-folded/.test(stack), 'in the row view the other sections stay as heads at the foot, at most four, folded once as the view comes on and opened again as it goes');
 assert.ok(/key: 'item', word: 'Item'[\s\S]{0,400}hidden: \(\) => !S\.inspector\.row\(\)/.test(read('structure/logseq/mount.js')), 'Item has no tab with no row pressed');
 assert.ok(/word: 'Outline'/.test(links), 'Outline is named so');
 assert.ok(/readNotes\(blocks\)/.test(links) && /const whole = state\.open\.links \|\| setting\('citationNumbers'\)/.test(links), 'the citations are read with both sections closed');

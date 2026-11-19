@@ -8,7 +8,7 @@
    with a line between one and the next. Two switches. The old plugin's sidebar part drew the same (the
    owner: "flattened design of sidebar, removing shadows and adding lines"; "where is this blue coming from?"). A page in it
    (sidebarPages): its name in the item's head reads as a link and opens the page in the main view, where Logseq would fold the
-   item (its arrow still folds it); its properties stand open, Logseq's "Open properties" pressed once for it and left out. */
+   item (its arrow still folds it); its properties stand open, Logseq's "Open properties" pressed for it and left out, and no blank room held under its bullets. */
 (function () {
 const Look = window.Look;
 const { style, watchScreen } = Look.kit;
@@ -38,7 +38,12 @@ const PROPS_TOGGLE = `${PAGE_ITEM} .ls-sidebar-page-properties > div:first-child
 const pagesCss = `
 ${NAME} { cursor: pointer; ${window.PluginDoor.LOOKS.link(false)} }
 ${NAME}:hover { text-decoration-color: currentColor; }
-${PROPS_TOGGLE} { display: none !important; }`;
+${PROPS_TOGGLE} { display: none !important; }
+/* No room held under a page's bullets (the owner, 19 November 2026, beside an empty page in the sidebar: one bullet, then a
+   blank as tall as three): Logseq keeps 60px for the bullets even when there is one, and the next item's line ends the item. */
+${PAGE_ITEM} .sidebar-panel-content .ls-page-blocks { min-height: 0 !important; }
+${PAGE_ITEM} .sidebar-panel-content > .cp__page-inner-wrap { margin-bottom: 8px !important; }
+${PAGE_ITEM} .ls-sidebar-page-properties > hr { margin: 12px 0 !important; }`;
 
 // The developer views and Help are told by their words; the mark is swept with the plugin's attributes.
 function markDevViews(doc) {
@@ -51,20 +56,26 @@ function markDevViews(doc) {
     else if (box.hasAttribute('data-lk-dev')) box.removeAttribute('data-lk-dev');
   }
 }
-/* Each page's properties open: Logseq's "Open properties" pressed once for each item, while they are closed, and never again
-   for that item. A press is a click, and Logseq closes the list open in the bullet being written (after # or /) on any click:
-   pressed again every second, for a page whose properties never show as open (one with none of its own), it closed that list
-   a letter or two into typing (the owner, 6 November 2026: "the prompt just disappears after typing a letter or two"). Once
-   also leaves an item the person folds folded. */
-const pressed = new WeakSet();
+/* Each page's properties open: Logseq's "Open properties" pressed for each item while they are closed. A press is a click, and
+   Logseq closes the list open in the bullet being written (after # or /) on any click: pressed again every second, it closed that
+   list a letter or two into typing (the owner, 6 November 2026: "the prompt just disappears after typing a letter or two"), so
+   nothing is pressed while a bullet is being written, and an item is pressed at most twice a minute.
+   Closed is read from what the box holds: Logseq's toggle alone. A page with no properties of its own shows, open, only
+   "Add property" and no property list; reading "no list" as closed pressed it shut on every plugin start (the owner, 19 November
+   2026: "show properties by default of items in sidebar", beside House Utilities and Gas bill, closed). Logseq also draws an
+   item closed again after it is folded and opened, or redrawn, so the press is not once for good. */
+const pressedAt = new WeakMap();
+const isClosed = box => box.children.length === 1 && !!box.querySelector(':scope > div:first-child > button:only-child');
 function openProperties(doc) {
   if (!setting('sidebarPages')) return;
+  const writing = doc.activeElement; if (writing?.tagName === 'TEXTAREA' && writing.closest('#main-content-container, #right-sidebar')) return;   // a bullet being written
+  const now = Date.now();
   for (const box of doc.querySelectorAll(`${PAGE_ITEM} .ls-sidebar-page-properties`)) {
-    if (pressed.has(box) || box.querySelector('.ls-page-properties')) continue;
-    const toggle = box.querySelector(':scope > div:first-child > button:only-child');
-    if (!toggle) continue;
-    pressed.add(box);
-    window.PluginDoor.screen.click(toggle);
+    if (!isClosed(box)) continue;
+    const times = (pressedAt.get(box) || []).filter(t => now - t < 60000);
+    if (times.length >= 2) continue;
+    pressedAt.set(box, [...times, now]);
+    window.PluginDoor.screen.click(box.querySelector(':scope > div:first-child > button:only-child'));
   }
 }
 // A press on a page's name in an item's head opens the page in the main view, before Logseq takes it to fold the item.

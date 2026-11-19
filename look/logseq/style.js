@@ -252,11 +252,21 @@ const twoWay = `
    The count of links at the right end of its row goes: the embed is itself one of them, so it says nothing there. */
 const EMBED_ROW = '.embed-block > .block-main-container';
 const EMBED_ARROW = `${EMBED_ROW} > .block-control-wrap .bullet-container .ls-icon-arrow-narrow-right`;
+/* An embedded node that is a heading (19 November 2026, the owner: "fix bullet", beside an embedded "Cancellations"): Logseq
+   sizes a heading's icon to the heading (24px, 28px for the largest), so the ring stood in a grey circle half again as big as
+   any other folded bullet and pushed the words 8px right. The ring stands where a heading's dot stands, at a dot's size. */
+const EMBED_HEAD_WRAP = '.block-control-wrap.is-with-icon[data-heading]:has(> .bullet-link-wrap .ls-icon-arrow-narrow-right)';
+const EMBED_HEAD = `${EMBED_ROW} > ${EMBED_HEAD_WRAP}`;
 const embeds = `
 ${AREA} ${EMBED_ARROW} { display: flex; align-items: center; justify-content: center; width: 16px; height: 16px; }
 ${AREA} ${EMBED_ARROW} svg { display: none; }
 ${AREA} ${EMBED_ARROW}::before { content: ""; display: block; box-sizing: border-box; width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--ls-block-bullet-color, currentColor); background: var(--ls-primary-background-color, transparent); }
 ${AREA} .ls-block:has(.editor-inner) > ${EMBED_ARROW}::before { border-color: var(--lk-text); }
+${AREA} ${EMBED_HEAD} { height: 24px !important; }
+${AREA} ${EMBED_HEAD} .bullet-container { width: 16px !important; min-width: 16px !important; height: 16px !important; }
+${AREA} .embed-block > .block-main-container[data-has-heading="1"] > ${EMBED_HEAD_WRAP} { top: calc(var(--spacing) * 4) !important; }
+${AREA} .embed-block > .block-main-container[data-has-heading="2"] > ${EMBED_HEAD_WRAP} { top: calc(var(--spacing) * 2.5) !important; }
+${AREA} .embed-block > .block-main-container:not([data-has-heading="1"], [data-has-heading="2"]) > ${EMBED_HEAD_WRAP} { top: 0 !important; }
 ${AREA} ${EMBED_ROW} .block-content-wrapper > .h-6:has(> button > span.text-sm) { display: none; }`;
 /* The time a task was worked on ("3m", "8d"), which Logseq puts at the right end of a task's row (16 November 2026, the owner:
    "remove the time for tasks in the nodes"). Logseq still keeps it; only the screen leaves it out. */

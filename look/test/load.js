@@ -99,7 +99,7 @@ const { U, load, pencilled } = standIn;
   assert.ok(note.querySelector('.ti-circle') && note.querySelector('.ti-file-type-pdf'), 'task circle and PDF icons');
   assert.deepEqual([...note.querySelectorAll('a.lk-tag')].map(a => a.textContent), ['Consultation', 'Symptom']);
   for (const tag of note.querySelectorAll('a.lk-tag')) assert.ok(tag.previousElementSibling?.classList.contains('lk-sep') && tag.previousElementSibling.textContent === '·', `a dot before ${tag.textContent}`);
-  assert.ok(/due Nov 19|was due Nov 19/.test(note.textContent) && !/\d+ Consultation|Consultation \d/.test(note.textContent), 'the due day, no count on the tag');
+  assert.ok(/due Nov 19|was due Nov 19|due today/.test(note.textContent) && !/\d+ Consultation|Consultation \d/.test(note.textContent), 'the due day, no count on the tag');
   assert.equal(note.querySelector('.lk-pair').textContent, '1/2', 'done of all beside the circle: the done task comes from a node embedded twice, counted once');
   assert.ok(!note.querySelector('.ti-link'), 'no count of links');
   // the settings window draws from Look's description: a heading per section, the one row for the property icon
@@ -141,16 +141,23 @@ const { U, load, pencilled } = standIn;
     const long = tip(180, 'Referring consultant at Northgate'), short = tip(90, 'Notes');
     assert.equal(long.getAttribute('title'), 'Referring consultant at Northgate', 'a cut name shows whole'); assert.ok(!short.hasAttribute('title'), 'one that fits has no tooltip');
     Look.kit.sweep(doc); assert.ok(!long.hasAttribute('title'), 'the sweep takes it off'); long.remove(); short.remove(); }
-  // A page in the right sidebar: "Open properties" is pressed once for the item and never again, even when its properties never
-  // show as open (a press is a click, and a click closes Logseq's list in the bullet being written; 6 November 2026).
+  // A page in the right sidebar: "Open properties" is pressed while its properties are closed, at most twice a minute, never
+  // while a bullet is being written (a press is a click, and a click closes Logseq's list in the bullet being written; 6 November
+  // 2026), and never when they stand open with nothing but "Add property" (that press shut them; 19 November 2026).
   { const side = doc.createElement('div'); side.id = 'right-sidebar';
-    side.innerHTML = '<div class="sidebar-item item-type-page"><div class="ls-sidebar-page-properties"><div><button type="button">Open properties</button></div></div></div>';
-    doc.body.appendChild(side); let presses = 0; side.querySelector('button').addEventListener('click', () => { presses++; });
+    side.innerHTML = '<div class="sidebar-item item-type-page"><div class="ls-sidebar-page-properties"><div><button type="button">Open properties</button></div></div></div>'
+      + '<div class="sidebar-item item-type-page"><div class="ls-sidebar-page-properties"><div><button type="button">Hide properties</button></div><div class="ls-new-property"><button>Add property</button></div></div></div>';
+    doc.body.appendChild(side); const [closed, open] = side.querySelectorAll('.ls-sidebar-page-properties > div > button'); let presses = 0, shut = 0;
+    closed.addEventListener('click', () => { presses++; }); open.addEventListener('click', () => { shut++; });
     const clocks = [...new Set([Date, doc.defaultView.Date].filter(Boolean))], was = clocks.map(D => D.now); let t = Date.now();
     clocks.forEach(D => { D.now = () => t; });
+    const main = doc.createElement('div'); main.id = 'main-content-container'; main.innerHTML = '<textarea></textarea>'; doc.body.appendChild(main); main.firstChild.focus();
+    Look.sidebar.openProperties(doc); assert.equal(presses, 0, 'nothing pressed while a bullet is written'); main.firstChild.blur(); main.remove();
     for (let i = 0; i < 4; i++) { Look.sidebar.openProperties(doc); t += 2000; }   // a pass every two seconds, as while typing
+    assert.equal(presses, 2, 'pressed at most twice a minute, not on each pass: ' + presses);
+    t += 61000; Look.sidebar.openProperties(doc); assert.equal(presses, 3, 'closed again a minute later, pressed again');
     clocks.forEach((D, i) => { D.now = was[i]; });
-    assert.equal(presses, 1, 'pressed once, not again on each pass: ' + presses); side.remove(); }
+    assert.equal(shut, 0, 'properties standing open with only Add property are left open'); side.remove(); }
   // Words written read nothing; a tag or a name changed reads the index again.
   let asked = 0; const reads = logseq.DB.datascriptQuery; logseq.DB.datascriptQuery = async q => { asked++; return reads(q); };
   const page = { id: 901, name: 'a page', title: 'A page', tags: [{ id: 1, ident: 'logseq.class/Page' }] };
