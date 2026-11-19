@@ -396,7 +396,6 @@ const twoWayCss = `
 /* A list where a line says what its day is of: the day column widens by the longest name, for every line of it. */
 .th-two-way :is(.th-tw-value.th-ol, .th-tw-bside, .th-ol-prop)[style*="--th-tw-from"] { --th-ol-day: calc(var(--lk-day, 48px) + 8px + var(--th-tw-from) * 1ch); }
 .th-two-way .th-tw-value[data-dated] { --th-tw-words: calc(32px + 3 * var(--th-ol-gap) + var(--th-ol-day)); }
-.th-two-way .th-tw-crumb .lk-step { font-size: inherit; }
 .th-two-way .th-tw-raise { display: flex; flex-wrap: wrap; column-gap: 1.1em; align-items: baseline; margin: 0 0 .2rem var(--th-tw-words); font-size: 14px; line-height: 1.5; }
 .th-two-way .th-tw-npvalue { all: unset; cursor: pointer; border-radius: 3px; }   /* the library's value (lk-value: pressed to change, quiet under the pointer, faint when empty); here only the button's reset */
 .th-two-way .th-ol-pname[data-edit] { cursor: pointer; }

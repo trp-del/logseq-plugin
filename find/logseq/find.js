@@ -27,7 +27,6 @@ const CSS = `
 .fd-find { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; padding: 14px 16px; border-bottom: 1px solid var(--lk-hair); font-size: 16px; cursor: text; }
 .fd-piece { display: inline-flex; align-items: baseline; gap: 5px; position: relative; }
 /* A pick's × is the library's lk-reveal and keeps its place, so nothing moves when it shows. */
-.fd-piece .lk-tag { font-size: 14px !important; }
 .fd-piece .fd-month { color: var(--lk-quiet); }
 .fd-sep { visibility: hidden; }   /* space sorts these, not dots */
 .fd-sentence { display: grid; flex: 1 1 60px; min-width: 60px; }
@@ -74,7 +73,7 @@ const CSS = `
    13 November 2026: "keep it same tab picker sans underline"); its padding is taken away, so the whole tab space is the gap. */
 .fd-cv.lk-views { --lk-view-pad: 0px; gap: 0 var(--lk-tab-space, 24px); }
 .fd-cv.lk-views { align-items: baseline; }
-.fd-cv .lk-view { font-size: inherit; padding-top: 0; padding-bottom: 0; }   /* no bar below, so no room kept for one; the label stays near its words */
+.fd-cv .lk-view { padding-top: 0; padding-bottom: 0; }   /* no bar below, so no room kept for one; the label stays near its words */
 /* The count stands after the word, always, quiet, as a tab's count does (Threads' kinds: All 12, No tag 7); then the space between
    the words is the tab picker's even space whatever the counts (the owner, 13 November 2026: a count of 506 ran into the next word). */
 .fd-cv .lk-view { display: inline-flex; align-items: baseline; gap: 4px; }
@@ -107,7 +106,7 @@ const CSS = `
 .fd-bul { align-self: start; margin-top: 2.5px; }
 /* A page, a tag, a property: Logseq's own signs from its left sidebar, and Look's property icon, in the faint grey. */
 .fd-sign { color: var(--lk-quiet); font-size: 14px; line-height: 1; margin-top: 3px; }
-.fd-sign .ti, .fd-sign .lk-icon { font-size: 14px; }
+.fd-sign .ti { font-size: 14px; }
 .fd-sign .lk-web svg { width: 11px; height: 11px; }
 .fd-sign .lk-sign svg { width: 14px; height: 14px; display: block; }
 .fd-nm { display: flex; align-items: baseline; gap: 7px; min-width: 0; flex-wrap: wrap; }
