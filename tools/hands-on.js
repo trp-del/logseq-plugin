@@ -29,7 +29,7 @@
    A screenshot of the whole window after each step, and a short recording (GIF) of the steps that move: Find, tagging, folding.
 
    It touches only the three test graphs named in PROFILES below (read first; stopped otherwise) and stops if you are typing in Logseq. Needs Logseq with
-   its debugging port and Playwright (NODE_PATH=/Users/admin/logseq-value/logseq-plugin-old/node_modules).
+   its debugging port and Playwright (NODE_PATH=/Users/massimo/logseq-value/logseq-plugin/node_modules).
 
      node tools/hands-on.js              the whole walk
      node tools/hands-on.js --no-dark    light only

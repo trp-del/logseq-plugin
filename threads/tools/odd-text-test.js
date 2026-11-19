@@ -15,7 +15,7 @@ const twoWay = require('./two-way-files');
 const ODD = require('./odd-names');
 
 let chromium;
-for (const where of ['playwright', '/Users/admin/logseq-value/logseq-plugin-old/node_modules/playwright']) { try { ({ chromium } = require(where)); break; } catch (error) { /* try the next */ } }
+for (const where of ['playwright', '/Users/massimo/logseq-value/logseq-plugin/node_modules/playwright']) { try { ({ chromium } = require(where)); break; } catch (error) { /* try the next */ } }
 if (!chromium) { console.log((process.env.RELEASE_CHECK ? 'odd-text-test FAILED in a release run (' : 'odd-text-test skipped (') + 'needs Playwright and Chromium)'); process.exit(process.env.RELEASE_CHECK ? 1 : 0); }
 const root = path.resolve(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');

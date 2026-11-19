@@ -1,7 +1,7 @@
 /* The record in the real Logseq (16 November 2026): a merge applied, the plugin reloaded so nothing of it is left in memory, and
    the merge undone from the Log's arrow, as after a restart. Writes to the graph, so it runs only on the Illness Test Graph, on
    tags and a page of its own named "ZZ …", and takes them all away again at the end (the page to the Recycle).
-     NODE_PATH=/Users/admin/logseq-value/logseq-plugin-old/node_modules node tools/app/record-check.js <out dir>
+     NODE_PATH=/Users/massimo/logseq-value/logseq-plugin/node_modules node tools/app/record-check.js <out dir>
    Refuses to start while a block is being edited. Screenshots: 1 before, 2 after the merge with the Log, 3 the Log after a
    reload, 4 after the Log's Undo. */
 const fs = require('node:fs'), path = require('node:path');

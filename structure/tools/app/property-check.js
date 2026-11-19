@@ -2,7 +2,7 @@
    property's right-click menu in Every property, each previewed on real notes, applied, the plugin reloaded, and undone from the
    Log. Writes to the graph, so it runs only on the Illness Test Graph, on tags, properties and a page of its own named "ZZ …",
    and takes them all away again at the end (the page to the Recycle; the ZZ tags and properties for good).
-     NODE_PATH=/Users/admin/logseq-value/logseq-plugin-old/node_modules node tools/app/property-check.js <out dir>
+     NODE_PATH=/Users/massimo/logseq-value/logseq-plugin/node_modules node tools/app/property-check.js <out dir>
    Refuses to start while a block is being edited. Screenshots in <out dir>, numbered in order. */
 const fs = require('node:fs'), path = require('node:path');
 const sleep = ms => new Promise(r => setTimeout(r, ms));

@@ -1,6 +1,6 @@
 /* Checks the plugin in the real Logseq, read-only. Logseq must be running with its debugging port
    (open -a Logseq --args --remote-debugging-port=9222) on a test graph, and Playwright reachable (NODE_PATH).
-     NODE_PATH=/Users/admin/logseq-value/logseq-plugin-old/node_modules node tools/app/check.js <out dir> [steps]
+     NODE_PATH=/Users/massimo/logseq-value/logseq-plugin/node_modules node tools/app/check.js <out dir> [steps]
    Loads the plugin unpacked from this folder if Logseq does not have it yet (what Load unpacked plugin does), reloads it,
    opens the window and walks it from the keyboard through the steps given (default: the walk below), writing a screenshot
    and the window's words after each. Letters are set through the window's own box (never keystrokes to the page); every

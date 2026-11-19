@@ -1,6 +1,6 @@
 /* Checks the plugin in the real Logseq, read-only. Logseq must be running with its debugging port
    (open -a Logseq --args --remote-debugging-port=9222) on one of the test graphs, and Playwright reachable (NODE_PATH).
-     NODE_PATH=/Users/admin/logseq-value/logseq-plugin-old/node_modules node tools/app/check.js <out dir>
+     NODE_PATH=/Users/massimo/logseq-value/logseq-plugin/node_modules node tools/app/check.js <out dir>
    Loads the plugin unpacked from this folder if Logseq does not have it yet (what Load unpacked plugin does), reloads it,
    reads the page on screen through the plugin and writes its Markdown and printed page into <out dir>. Nothing is
    typed into the app and no note is changed. It refuses to run while a block is being edited. */

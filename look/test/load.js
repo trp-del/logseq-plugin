@@ -1,4 +1,4 @@
-/* node test/load.js   (needs jsdom: NODE_PATH=/Users/admin/logseq-value/logseq-plugin-old/node_modules)
+/* node test/load.js   (needs jsdom: NODE_PATH=/Users/massimo/logseq-value/logseq-plugin/node_modules)
    Loads the plugin's files against the stand-in of test/stand-in.js (a fake `logseq` and a jsdom page drawn like a Logseq
    page: a title row, a page's list with a date, a bullet with links, a tag and a line of properties, a folded node with two
    tags, the left sidebar's recents with an untagged page and a journal day). It shows that every file parses, that the parts

@@ -2,7 +2,7 @@
    shows notes now and after, its yes merges; Move up a level shows where the tag will sit and moves it; both undone from History after
    a plugin reload. Writes to the graph, so it runs only on the Illness Test Graph, on ZZ tags and a ZZ page of its own (named with the
    run's time), and takes them away at the end (the page to the Recycle, the tags for good), with this run's records and History lines.
-     NODE_PATH=/Users/admin/logseq-value/logseq-plugin-old/node_modules node tools/app/pick-check.js <out dir>
+     NODE_PATH=/Users/massimo/logseq-value/logseq-plugin/node_modules node tools/app/pick-check.js <out dir>
    Refuses to start while a block is being edited. */
 const fs = require('node:fs'), path = require('node:path');
 const sleep = ms => new Promise(r => setTimeout(r, ms));

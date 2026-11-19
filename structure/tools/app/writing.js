@@ -1,7 +1,7 @@
 /* Checks, in the real Logseq, the Ontology's part in writing (14 November 2026): the list on #, a property's list of values by
    tag, and a bullet's tag right-clicked. Logseq must be running with its debugging port on the Illness Test Graph, Playwright
    reachable:
-     NODE_PATH=/Users/admin/logseq-value/logseq-plugin-old/node_modules node structure/tools/app/writing.js
+     NODE_PATH=/Users/massimo/logseq-value/logseq-plugin/node_modules node structure/tools/app/writing.js
    It types real keys into one bullet of the scratch page "flow test" (Predictive's door, tools/app/door.js), and only while that
    bullet's text box has the keyboard, so Logseq's one-key shortcuts never fire. Every tag it gives it takes off again, and the
    scratch page is left empty. It refuses to run while a block is being edited. */
