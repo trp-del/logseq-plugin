@@ -439,6 +439,14 @@ const whereName = value => (value === "open" ? "the open page" : "today");
 function pluginModel(name, request) {
   return api("logseq.App.invokeExternalPluginCmd", [PLUGIN_ID, "models", name, [request]], 12);
 }
+// A model the running plugin does not have answers null (an older Logseq Plugin than this workflow). For what a panel cannot
+// do without, that is said in the panel instead of leaving it waiting (the owner's page view stood at "Reading…", 19 November 2026).
+const PLUGIN_OLD = "The Logseq Plugin running in Logseq is older than this workflow and cannot do this yet. Update the plugin in Logseq, then try again.";
+function pluginMust(name, request) {
+  const got = pluginModel(name, request);
+  if (got == null) throw new Error(PLUGIN_OLD);
+  return got;
+}
 function tagLine(tag, picked, words) {
   if (tag) return {
     tagName: { text: "#" + tag.title, colour: picked ? "labelColor" : SECONDARY },
@@ -567,7 +575,7 @@ function pickAnswer(words, where, tagId) {
 const csv = text => String(text || "").split(",").filter(Boolean);
 function triageNext(passed, tagged, summary) {
   let got;
-  try { got = pluginModel("waiting", { max: 1, skip: csv(passed) }) || { count: 0, notes: [] }; }
+  try { got = pluginMust("waiting", { max: 1, skip: csv(passed) }); }
   catch (error) { return JSON.stringify({ update: { ids: { tCount: { text: messageFrom(error), colour: "systemRedColor" } } } }); }
   const note = (got.notes || [])[0], done = csv(tagged).length;
   if (!note) {
@@ -627,7 +635,7 @@ const noPane = id => ({ type: "view", id: id, hidden: true, constraints: { regio
 const PANE_GAP = 16;
 const paneLine = () => ({ type: "view", background: "separatorColor", constraints: { stretch: "horizontal", size: { height: 1 } } });
 function paneView(id, uuid, width, withWords, lead) {
-  const got = pluginModel("read", { uuid: uuid });
+  const got = pluginMust("read", { uuid: uuid });
   const tags = [], inner = width - 36;
   const words = String(got.text || "").replace(/^# .*\n+/, "").split("\n").filter(function (line) {
     if (/^\s*(#\S+\s*)+$/.test(line)) { line.trim().split(/\s+/).forEach(t => tags.push(t.replace(/^#/, ""))); return false; }
@@ -744,7 +752,7 @@ function route(where) {
      panel-todo-list [note]   panel-todo-read <words>   panel-todo-add <words>   panel-todo-status <uuid> <status>   panel-todo-undo <uuid> */
 const STATUS_SYMBOL = { todo: "circle", doing: "circle.lefthalf.filled", "in-review": "circle.dotted", backlog: "circle.dashed", done: "checkmark.circle.fill", canceled: "xmark.circle" };
 function todoRows() {
-  const got = pluginModel("todoList", {}) || { parts: [] }, rows = [];
+  const got = pluginMust("todoList", {}), rows = [];
   (got.parts || []).forEach(function (part) {
     if (!part.rows.length) return;   // an empty group is left out here: the panel is short
     rows.push({ uid: "h:" + part.head, "tIcon.image": null, "tWords.text": "", "tHead.text": part.head, "tDay.text": "", "tUuid.text": "", "tFind.text": "" });
@@ -770,7 +778,7 @@ function todoRead(words) {
 function todoAdd(words) {
   if (!words.trim()) return JSON.stringify({});
   try {
-    const made = pluginModel("todoAdd", { words: words });
+    const made = pluginMust("todoAdd", { words: words });
     const out = JSON.parse(todoAnswer("Added “" + made.words + "”" + (made.day ? ", deadline " + made.day : "") + ".   Undo ⌘Z", made.uuid));
     out.variables = { last_uuid: made.uuid };
     out.update.ids.tq = { text: "" };
@@ -803,7 +811,7 @@ const headRow = (key, text) => ({ uid: "h:" + key, "rIcon.image": null, "rTitle.
 const listAnswer = (id, rows, lit, most) => ({ ids: { [id]: { data: { src: rows }, select: lit || (rows.find(r => r["rUuid.text"]) || {}).uid || "", constraints: { [id === "searchList" ? "region" : "stretch"]: id === "searchList" ? "centre" : "horizontal", size: { height: Math.max(1, Math.min(rows.length, most)) * 66 + 6 } } } } });
 function searchAnswer(words) {
   let got = { nodes: [] };
-  try { if (words.trim()) got = pluginModel("find", { words: words, limit: 30 }) || got; }
+  try { if (words.trim()) got = pluginMust("find", { words: words, limit: 30 }); }
   catch (error) { return JSON.stringify({ update: { ids: { sNote: { text: messageFrom(error), colour: "systemRedColor" } } } }); }
   const seen = {}, rows = (got.nodes || []).filter(n => !seen[n.uuid] && (seen[n.uuid] = true)).map(n => nodeRow(n));
   const out = { update: Object.assign({ relayout: true }, listAnswer("searchList", rows, "", 7)), window: { resize: { height: "auto" } } };
@@ -818,8 +826,13 @@ function searchPane(uuid, sub) {
 }
 function readAnswer(uuid, path) {
   let got;
-  try { got = pluginModel("read", { uuid: uuid }); }
-  catch (error) { return JSON.stringify({ update: { ids: { pTitle: { text: messageFrom(error), colour: "systemRedColor" } } } }); }
+  try { got = pluginMust("read", { uuid: uuid }); }
+  catch (error) {
+    // The reason in the words' place, where it can wrap; the title is one line and cut a long reason to "Logseq…".
+    return JSON.stringify({ update: { relayout: true, ids: { pTitle: { text: "This could not be read", colour: "labelColor" },
+      pText: { text: messageFrom(error), hidden: false, constraints: { stretch: "horizontal", size: { height: 70 } } },
+      pFoot: { text: "esc closes" } } }, window: { resize: { height: "auto" } } });
+  }
   const rows = [];
   const linked = (got.properties || []).filter(p => p.values.some(v => v.uuid));
   if (linked.length) {
