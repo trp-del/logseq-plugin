@@ -1,6 +1,6 @@
 # Predictive
 
-One module of Logseq Plugin (the root README says how the six fit together; `grammar.html` in the workspace draws every rule).
+One module of Logseq Plugin (the root README says how the six fit together; the grammar is in the workspace's value-craft skill, `references/grammar.md`).
 
 The structure of your graph used while you write, without making you fill in fields.
 
