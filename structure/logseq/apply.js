@@ -133,10 +133,13 @@ async function runStep(s, rec) {
       const from = s.from, into = s.into.h ? { ...s.into, ident: s.into.h.ident, id: idOf(s.into.h), title: s.into.h.title } : s.into, V = S.values;
       // A split moves only the values that are nodes of one tag; the others stay where they are.
       const only = s.only != null ? await db.valuesTagged(from.ident, s.only) : null;
+      // One tag's move (moveForTag): only the nodes that hold that tag or one beneath it, as they are at Apply.
+      const onTags = s.onTags ? await db.nodesTagged(s.onTags.map(idOf)) : null;
       const [fromVals, intoVals, choices] = await Promise.all([db.propValues(from.ident, from.type), db.propValues(into.ident, into.type), into.choice ? db.choicesOf(into.id) : null]);
       const kept = v => from.choice || V.family(from.type) === 'ref' ? { id: v.id } : v.raw != null ? { raw: v.raw } : from.type === 'number' ? { num: Number(v.title) } : { text: v.title };
       const keptInto = v => into.choice || V.family(into.type) === 'ref' ? { id: v.id } : v.raw != null ? { raw: v.raw } : into.type === 'number' ? { num: Number(v.title) } : { text: v.title };
       for (const [nodeId, list] of fromVals) {
+        if (onTags && !onTags.has(nodeId)) continue;
         const node = String(await db.uuidOfNode(nodeId)), was = (intoVals.get(nodeId) || []).map(keptInto), before = list.map(kept);
         const go = [], stay = [];
         for (const v of list) { const w = only && !only.has(v.id) ? null : V.convert(from, { ...into, choices }, v); if (w) go.push(w); else stay.push(kept(v)); }

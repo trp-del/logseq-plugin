@@ -227,6 +227,8 @@ async function makeProp(title, type, many) {
 const dropProp = made => window.PluginDoor.write.dropMadeProperty(made, query);
 // The values of a property that are nodes carrying a tag: what a split moves.
 const valuesTagged = async (ident, tagId) => new Set((await query(`[:find ?v :where [?b :${ident} ?v] [?v :block/tags ${tagId}] ${LIVE}]`)).map(([v]) => v));
+// The live nodes that hold any of these tags.
+const nodesTagged = async tagIds => new Set(tagIds.length ? (await query(`[:find ?b :where [(ground [${tagIds.join(' ')}]) [?t ...]] [?b :block/tags ?t] ${LIVE}]`)).map(([b]) => b) : []);
 // What the values of a node property are, by their tags of yours, with how many values carry each: a split's choice.
 const valueKinds = async ident => (await query(`[:find ?g ?n (count ?v) :where [?b :${ident} ?v] ${LIVE} [?v :block/tags ?g] [?g :block/title ?n] [?g :db/ident ?i] [(namespace ?i) ?ns] [(= ?ns "user.class")]]`)).map(([id, title, n]) => ({ id, title: String(title), count: Number(n) })).sort((a, b) => b.count - a.count);
 // A few nodes as a note reads: its words and its tags, for a change's preview.
@@ -255,5 +257,5 @@ const editing = () => Promise.resolve(logseq.Editor.checkEditing?.()).then(v => 
 
 // A journal day, or a page that shares a day's name (a tag made with a day's name): Structure sets nothing above it.
 const isDay = async uuid => /^[0-9a-f-]{36}$/i.test(uuid) && (await query(`[:find ?d :where [?p :block/uuid #uuid "${uuid}"] [?p :block/name ?n] [?j :block/name ?n] [?j :block/journal-day ?d]]`)).length > 0;
-S.db = { valueKinds, makeProp, dropProp, valuesTagged, notesFor, safetyCopy, wordRefs, setWords, propValues, choicesOf, uuidOfNode, pageNamed, dayPage, putValues, query, read, isDay, nodesOf, valuesOf, nodesWhere, tagOfPage, tagIdByUuid, titleOf, nodeUuids, graph, valueRefs, valueIds, rangeIds, classPropIds, putClassProps, setValues, addExtends, removeExtends, rename, addTag, removeTag, addClassProp, removeClassProp, setRange, nameTaken, makeTag, remakeTag, deleteTag, untouched, stamp, pageBullets, moveBullets, editing, bare, pick, idOf };
+S.db = { nodesTagged, valueKinds, makeProp, dropProp, valuesTagged, notesFor, safetyCopy, wordRefs, setWords, propValues, choicesOf, uuidOfNode, pageNamed, dayPage, putValues, query, read, isDay, nodesOf, valuesOf, nodesWhere, tagOfPage, tagIdByUuid, titleOf, nodeUuids, graph, valueRefs, valueIds, rangeIds, classPropIds, putClassProps, setValues, addExtends, removeExtends, rename, addTag, removeTag, addClassProp, removeClassProp, setRange, nameTaken, makeTag, remakeTag, deleteTag, untouched, stamp, pageBullets, moveBullets, editing, bare, pick, idOf };
 })();

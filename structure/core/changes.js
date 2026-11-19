@@ -47,6 +47,9 @@ function sentence(M, c) {
     // property split in two by what its values are.
     case 'retype': { const p = prop(M, c.prop); if (!p) break; const what = KINDS[c.type] || 'words'; return { text: [`Turn ${p.title} into ${what}`, c.moved && `${plural(c.moved, 'value')} ${c.moved === 1 ? 'becomes' : 'become'} ${what === 'dates' ? (c.moved === 1 ? 'a date' : 'dates') : what}`, c.kept && `${plural(c.kept, 'value')} ${c.kept === 1 ? 'stays' : 'stay'} in ${p.title}, as written`].filter(Boolean).join(' · '), nodes: (c.gave || []).length + (c.left || []).length }; }
     case 'splitProp': { const p = prop(M, c.prop); if (!p) break; return { text: `Split ${p.title}: ${name(M, c.only)} values move to a new property, ${c.name}`, nodes: (c.gave || []).length }; }
+    // 19 November 2026, the owner: one tag's values of a shared property moved to another property, the other tags left as they are.
+    case 'moveForTag': { const p = prop(M, c.prop); if (!p || !tag(M, c.tag)) break; const into = c.intoProp != null ? prop(M, c.intoProp)?.title : c.name;
+      return { text: [`On ${name(M, c.tag)} only: move ${p.title} into ${into}${c.intoProp == null ? ' (a new property)' : ''}`, `${name(M, c.tag)} asks for ${into} in place of ${p.title}`].join(' · '), nodes: (c.gave || []).length }; }
     default: return { text: c.kind, nodes: 0 };
   }
   return { text: c.kind, nodes: 0 };
@@ -97,6 +100,18 @@ function applyToModel(M, c) {
       const had = M.holders.get(from.ident) || new Set();
       M.holders.set(ident, new Set(c.gave || []));
       M.holders.set(from.ident, new Set([...had].filter(n => (c.left || []).includes(n) || (c.kind === 'splitProp' && !(c.emptied || []).includes(n)))));
+      Mo.link(M); break; }
+    case 'moveForTag': { const from = prop(M, c.prop); if (!from || !t) break;
+      let into = c.intoProp != null ? prop(M, c.intoProp) : null;
+      if (!into) {   // the new property stands in the model at once, under a made-up id, as the old one's kind
+        const id = c.made ?? M.nextId--; c.made = id; const ident = `made.property/${-id}`;
+        into = { id, uuid: '', ident, title: c.name, type: from.choice ? 'default' : from.type, many: from.many, choice: false, range: from.type === 'node' ? from.range.slice() : [], on: [], made: true };
+        M.props.set(id, into); M.byIdent.set(ident, into);
+      }
+      t.props = t.props.filter(x => x !== c.prop); if (!t.props.includes(into.id)) t.props.push(into.id);
+      const gave = new Set(c.gave || []), had = M.holders.get(from.ident) || new Set();
+      M.holders.set(into.ident, new Set([...(M.holders.get(into.ident) || []), ...gave]));
+      M.holders.set(from.ident, new Set([...had].filter(n => !gave.has(n) || (c.left || []).includes(n))));
       Mo.link(M); break; }
     case 'split': { c.made = Mo.addTag(M, c.name, c.tag, c.made); const nt = tag(M, c.made); for (const n of c.nodes) { t.nodes.delete(n.id); nt.nodes.add(n.id); } nt.nodeUuids = c.nodes.map(n => n.uuid); t.nodeUuids = t.nodeUuids.filter(u => !c.nodes.some(n => n.uuid === u)); if (c.prop != null) nt.props.push(c.prop); M.memo.clear(); break; }
     default: break;
@@ -158,6 +173,22 @@ function steps(M, c) {
         out.push({ op: 'rename', prop: N, name: from.title, was: title });
         if (!c.kept) for (const t of tags) out.push({ op: 'removeClassProp', tag: H(t.id), prop: F });
       }
+      break; }
+    case 'moveForTag': { const from = prop(M, c.prop); if (!from || !t) break;
+      const F = propHandle(M, c.prop);
+      let I, into;
+      if (c.intoProp != null) { into = prop(M, c.intoProp); if (!into) break; I = propHandle(M, c.intoProp); }
+      else {
+        into = { type: from.choice ? 'default' : from.type, choice: false, many: from.many };
+        I = { id: c.made ?? M.nextId--, uuid: '', ident: '', title: c.name }; M.handles.set('p' + I.id, I);
+        out.push({ op: 'makeProp', prop: I, type: into.type, many: from.many });
+        if (from.type === 'node' && from.range.length) out.push({ op: 'setRange', prop: I, to: from.range.map(H), was: [] });
+      }
+      // Asked for on the tag first, so its nodes are never left asking for neither; then the values of its nodes (and of its child
+      // tags' nodes, which inherit the property from it), read afresh at Apply; then the old property taken off the tag alone.
+      if (c.intoProp == null || !t.props.includes(c.intoProp)) out.push({ op: 'addClassProp', tag: H(c.tag), prop: I });
+      out.push({ op: 'moveValues', from: { ...F, type: from.type, choice: from.choice, many: from.many }, into: c.intoProp != null ? { ...I, type: into.type, choice: into.choice, many: into.many } : { h: I, type: into.type, choice: false, many: from.many }, onTags: [c.tag, ...everyUnder(M, c.tag)].map(H) });
+      if (t.props.includes(c.prop)) out.push({ op: 'removeClassProp', tag: H(c.tag), prop: F });
       break; }
     case 'split': { const h = { id: c.made ?? M.nextId--, uuid: '', title: c.name }; M.handles.set(h.id, h); out.push({ op: 'makeTag', tag: h, parent: H(c.tag) }); if (c.prop != null) out.push({ op: 'addClassProp', tag: h, prop: propHandle(M, c.prop) }); for (const n of stillOn(M, c.tag, c.nodes)) { out.push({ op: 'addTag', node: n.uuid, tag: h }); out.push({ op: 'removeTag', node: n.uuid, tag: H(c.tag) }); } break; }
     default: break;

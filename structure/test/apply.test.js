@@ -187,5 +187,14 @@ const { apply } = S.apply;
   assert.deepEqual(classes.get('visit'), ['p-date']);
   S.values.convert = convertWas; S.db.titleOf = titleOfWas;
   console.log('  ok  words turned into dates, and Undo from disk puts every piece back');
+  // One tag's move (moveForTag): only the nodes holding that tag (or one beneath it) move; another tag's node keeps its value; Undo puts them back.
+  held.set(key('n70', 'charged'), ['Comcast']); held.set(key('n71', 'charged'), ['Verizon']);
+  S.db.nodesTagged = async ids => new Set(ids.includes(31) ? [70] : []);
+  const one = await apply([{ op: 'moveValues', from: { ident: 'charged', type: 'node' }, into: { ident: 'services', type: 'node', many: false }, onTags: [{ id: 31, uuid: 'bills', title: 'Bills' }] }]);
+  assert.deepEqual(held.get(key('n70', 'services')), ['Comcast']); assert.deepEqual(held.get(key('n70', 'charged')), []);
+  assert.deepEqual(held.get(key('n71', 'charged')), ['Verizon'], 'the other tag\'s node is left as it is'); assert.equal(held.get(key('n71', 'services')), undefined);
+  assert.equal((await one.undo()).length, 0);
+  assert.deepEqual(held.get(key('n70', 'charged')), ['Comcast']); assert.deepEqual(held.get(key('n70', 'services')), []);
+  console.log('  ok  one tag\'s values moved, the other tag\'s left, and Undo puts them back');
   console.log('apply: every check passed');
 })().catch(error => { console.error(error); process.exit(1); });

@@ -259,4 +259,21 @@ console.log('  ok  properties merged: values converted, what stays, what clashes
   assert.equal(sPlan[0].many, true, 'the new one takes several values, as the old one does'); assert.equal(sPlan[3].only, 2, 'only the Hospital values move');
   deq([...sp.model.holders.get('user.property/provider')], [100], 'a node whose every value moved no longer holds Provider');
   console.log('  ok  words turned into dates, a property split in two: the line, the model, the steps'); }
+// One tag's values moved to another property (19 November 2026, the owner: Bills' Charged by into Services provided by, Bill payment left alone).
+{ const base = { tags: [{ id: 1, uuid: 't1', title: 'Bills', parents: [], props: [10] }, { id: 2, uuid: 't2', title: 'Bill payment', parents: [], props: [10] }, { id: 3, uuid: 't3', title: 'Utility bill', parents: [1] }, { id: 4, uuid: 't4', title: 'Organization', parents: [] }],
+    props: [{ id: 10, uuid: 'p10', ident: 'user.property/charged-by', title: 'Charged by', type: 'node', range: [4] }, { id: 11, uuid: 'p11', ident: 'user.property/services', title: 'Services provided by', type: 'node', range: [4] }],
+    holders: { 'user.property/charged-by': [100, 101, 200] } };
+  const tr = S.changes.makeTray(); tr.setBase(plain(base));
+  tr.stage({ kind: 'moveForTag', prop: 10, tag: 1, intoProp: 11, gave: [100, 101], left: [] });
+  assert.equal(tr.lines()[0].text, 'On Bills only: move Charged by into Services provided by · Bills asks for Services provided by in place of Charged by');
+  deq(tr.model.tags.get(1).props, [11], 'Bills asks for the other property'); deq(tr.model.tags.get(2).props, [10], 'Bill payment keeps Charged by');
+  deq([...tr.model.holders.get('user.property/charged-by')], [200], 'only Bill payment\'s node keeps a Charged by value'); deq([...tr.model.holders.get('user.property/services')], [100, 101]);
+  const plan = tr.plan(); deq(plan.map(s => s.op), ['addClassProp', 'moveValues', 'removeClassProp'], 'asked for first, the values, then the old one off Bills alone');
+  deq(plan[1].onTags.map(h => h.title), ['Bills', 'Utility bill'], 'the nodes of Bills and of the tags beneath it'); assert.equal(plan[2].tag.title, 'Bills');
+  const nw = S.changes.makeTray(); nw.setBase(plain(base));
+  nw.stage({ kind: 'moveForTag', prop: 10, tag: 1, intoProp: null, name: 'Provider', gave: [100] });
+  const np = nw.plan(); deq(np.map(s => s.op), ['makeProp', 'setRange', 'addClassProp', 'moveValues', 'removeClassProp'], 'a new property: made as the old one\'s kind, with its node tags');
+  assert.equal(np[0].type, 'node'); assert.ok(np[3].into.h === np[0].prop, 'the values go to the property made in the same batch');
+  assert.ok([...nw.model.props.values()].some(p => p.made && p.title === 'Provider'));
+  console.log('  ok  one tag\'s values moved to another property: the line, the model, the steps'); }
 console.log('core: every check passed');

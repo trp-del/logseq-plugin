@@ -243,18 +243,29 @@ const app = {
     let moved = 0, kept = 0, intoName = '', intoVals = new Map(), stayName = from.title;
     if (kind === 'merge') { const into = P(a.into); intoName = into.title; intoVals = await S.db.propValues(into.ident, into.type); var target = { ...into, choices: into.choice ? await S.db.choicesOf(into.id) : null }; }
     else if (kind === 'retype') { intoName = from.title; stayName = `${from.title}, as written`; var target = { type: a.type, many: from.many }; }
+    else if (kind === 'forTag') {
+      // One tag's nodes (and those of the tags beneath it, which inherit the property from it); the other tags' nodes stay as they are.
+      var mine = Mo.nodesUnder(m, a.tag), into = a.into != null ? P(a.into) : null;
+      intoName = into ? into.title : a.name;
+      if (into) { intoVals = await S.db.propValues(into.ident, into.type); var target = { ...into, choices: into.choice ? await S.db.choicesOf(into.id) : null }; }
+      else var target = { type: from.choice ? 'default' : from.type, many: from.many };
+    }
     else { intoName = a.name; var target = { type: 'node', many: from.many }; var only = await S.db.valuesTagged(from.ident, a.only); }
+    const clash = [];
     for (const [n, list] of fromVals) {
+      if (mine && !mine.has(n)) continue;
       const go = [], stay = [];
       for (const v of list) { if (!word(v).trim()) continue;   // an empty value says nothing on a note: neither shown nor counted
         const w = only && !only.has(v.id) ? null : V.convert(from, target, v); if (w) go.push(shown(w) || word(v)); else stay.push(word(v)); }
       moved += go.length; kept += stay.length;
       if (!go.length && !stay.length) continue;
       if (go.length) gave.push(n); if (stay.length && (kind !== 'splitProp')) left.push(n); if (go.length && !stay.length) emptied.push(n);
+      if (kind === 'forTag' && !target.many && go.length + (intoVals.get(n) || []).length > 1) clash.push(n);
       after.set(n, { go, stay });
     }
     // Which notes to show: one left as it is (or partly) first, then ones that change.
-    const unchanged = kind === 'splitProp' ? [...fromVals.keys()].filter(n => !gave.includes(n)) : left.filter(n => !gave.includes(n));
+    // For one tag, the note left as it is is one of another tag's (Bill payment's, beside Bills'), so it shows that tag is untouched.
+    const unchanged = kind === 'splitProp' || kind === 'forTag' ? [...fromVals.keys()].filter(n => !gave.includes(n) && !(mine && mine.has(n))) : left.filter(n => !gave.includes(n));
     const picks = [...unchanged.slice(0, 1), ...gave.filter(n => !unchanged.includes(n)).slice(0, unchanged.length ? 2 : 3)];
     const notes = (await S.db.notesFor(picks)).sort((x, y) => picks.indexOf(x.id) - picks.indexOf(y.id));
     const out = notes.map(note => {
@@ -267,6 +278,10 @@ const app = {
       } else if (kind === 'retype') {
         if (x.go.length) aft.push({ name: intoName, vals: x.go.map(w => ({ w, mark: 'new' })) });
         if (x.stay.length) aft.push({ name: stayName, vals: x.stay.map(w => ({ w })), mark: 'new' });
+      } else if (kind === 'forTag') {
+        if (hadInto.length) now.push({ name: intoName, vals: hadInto });
+        if (x.stay.length) aft.push({ name: from.title, vals: x.stay.map(w => ({ w })) }); else if (x.go.length) aft.push({ name: from.title, vals: had.map(w => ({ w })), mark: 'gone' }); else aft.push({ name: from.title, vals: had.map(w => ({ w })) });
+        if (x.go.length || hadInto.length) aft.push({ name: intoName, vals: [...hadInto.map(w => ({ w })), ...x.go.filter(w => !hadInto.includes(w)).map(w => ({ w, mark: 'new' }))], mark: hadInto.length ? '' : 'new' });
       } else {
         const stays = had.filter(w => !x.go.includes(w));
         if (stays.length) aft.push({ name: from.title, vals: stays.map(w => ({ w })) }); else aft.push({ name: from.title, vals: had.map(w => ({ w })), mark: 'gone' });
@@ -274,7 +289,12 @@ const app = {
       }
       return { title: note.title, tags: note.tags, now, after: aft, same: !x.go.length };
     });
-    return { notes: out, gave, left, emptied, moved, kept, nodes: fromVals.size };
+    // For one tag: the other tags that ask for the property and keep it, and the nodes that keep it there.
+    const others = kind === 'forTag' ? [...m.tags.values()].filter(t => t.id !== a.tag && t.props.includes(a.prop) && !Mo.under(m, t.id, a.tag)).map(t => ({ title: t.title, kids: S.changes.everyUnder(m, t.id).length })) : [];
+    const elsewhere = kind === 'forTag' ? [...fromVals.keys()].filter(n => !mine.has(n)).length : 0;
+    // A node of the tag that also holds another tag asking for the property: its value moves all the same, so the other tag's note loses it.
+    const also = kind === 'forTag' ? gave.filter(n => [...m.tags.values()].some(t => t.props.includes(a.prop) && !Mo.under(m, t.id, a.tag) && !Mo.under(m, a.tag, t.id) && Mo.nodesUnder(m, t.id).has(n))) : [];
+    return { notes: out, gave, left, emptied, moved, kept, nodes: fromVals.size, clash, others, elsewhere, also, inMine: mine ? mine.size : 0 };
   },
   valuesOf: (id, ident) => S.db.valuesOf(id, ident), nodesWhere: (id, ident, v) => S.db.nodesWhere(id, ident, v),
   notify,
