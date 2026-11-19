@@ -841,6 +841,15 @@ function readAnswer(uuid, path) {
     if (/^\s*(#\S+\s*)+$/.test(line)) { line.trim().split(/\s+/).forEach(t => tags.push(t)); return false; }
     return true;
   }).join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  // Relations below the bullets (the owner, 19 November 2026): DB Export writes a page's properties above its bullets; here the
+  // bullets come first, then the properties. One whose value is a page is left to its row in the list under them, said once.
+  const blocks = words.split(/\n\n+/), isProp = line => /^[^:\n]{1,60}: \S/.test(line.trim());
+  let shown = words;
+  if (blocks.length && blocks[0].split("\n").every(isProp)) {
+    const linkedNames = linked.map(p => p.name.toLowerCase());
+    const kept = blocks[0].split("\n").filter(line => linkedNames.indexOf(line.split(":")[0].trim().toLowerCase()) < 0);
+    shown = blocks.slice(1).concat(kept.length ? [kept.join("\n")] : []).join("\n\n").trim();
+  }
   const trail = csv(path).concat([uuid]);
   const out = { variables: { r_path: trail.join(","), r_uuid: uuid, r_page: got.isPage ? "1" : "" },
     update: Object.assign({ relayout: true }, listAnswer("readList", rows, "", 7)), window: { resize: { height: "auto" } } };
@@ -848,7 +857,7 @@ function readAnswer(uuid, path) {
     pTrail: { text: trail.length > 1 ? "Back ⌘[ · " + plural(trail.length - 1, "step") + " walked" : "" },
     pTitle: { text: got.title || "Untitled", colour: "labelColor" },
     pTags: { text: tags.join("  ") },
-    pText: { text: words || "—", hidden: !words, constraints: { stretch: "horizontal", size: { height: Math.min(300, 18 + 30 * words.split("\n").filter(Boolean).length) } } },
+    pText: { text: shown || "—", hidden: !shown, constraints: { stretch: "horizontal", size: { height: Math.min(300, 18 + 30 * shown.split("\n").filter(Boolean).length) } } },
     pFoot: { text: rows.length ? "↩ walks into the lit one      ⌘[ back      ⌘↩ open in Logseq" : "Nothing points here.      ⌘[ back      ⌘↩ open in Logseq" }
   });
   return JSON.stringify(out);

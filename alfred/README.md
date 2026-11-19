@@ -35,7 +35,7 @@ Esc closes a panel.
   Deadline); ⌘D done, ⌘G doing, ⌘Z takes the last change back, ⌘O shows the task in Logseq.
 - **Search**, `ls`: Logseq's own search, each note with its kind and day; a pane beside the list shows the lit note's words in
   full with its properties, or a page's tags and where it leads. ↩ reads it here, ⌘↩ opens it in Logseq.
-- **A page read here**: its words, its tags beside its title, then where it leads: its properties' pages, what points at it by
+- **A page read here**: its tags beside its title, its bullets, then its relations under them: its properties, and where it leads: its properties' pages, what points at it by
   property (Provider of · 4 Consultations), what mentions it. ↩ walks into the lit one, ⌘[ steps back, ⌘↩ opens it in Logseq.
 - **Files**, the Universal Action **Add files to Logseq…**: each file with the name its node will have; a file already in the graph
   is said before anything is added and is linked, not copied again. ↩ adds them, with a progress bar; then one Undo for all.
