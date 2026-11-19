@@ -63,14 +63,14 @@ let chromium; try { ({ chromium } = require('playwright')); } catch (error) { co
       await check('Structure: no values, the property comes off', () => W.Structure.putValues(B, NOTES, []), async () => (await valueOf(NOTES)).length === 0 || await valueOf(NOTES));
     }
     // A property declared on a tag, then deleted from the tag: first through the writer, then through Apply as the map's
-    // "Delete property from tag" makes it, so the step's own shape is checked too.
+    // "Remove from <tag>" makes it, so the step's own shape is checked too.
     const before = await declared(), notesId = await id(NOTES);
     if (W.Structure?.addClassProp) {
       await check('Structure: a property declared on a tag', () => W.Structure.addClassProp(tagUuid, notesId), async () => (await declared()).includes(NOTES) || await declared());
       await check('Structure: the property deleted from the tag', () => W.Structure.removeClassProp(tagUuid, notesId), async () => JSON.stringify(await declared()) === JSON.stringify(before) || await declared());
       if (window.Structure.apply?.apply && window.Structure.changes?.steps) {
         await W.Structure.addClassProp(tagUuid, notesId);
-        await check('Structure: "Delete property from tag" through Apply', async () => {
+        await check('Structure: "Remove from <tag>" through Apply', async () => {
           const S = window.Structure, M = S.model.build(await S.db.read());
           if (!M) throw new Error('the map\'s model could not be read');
           const tagId = (await q(`[:find ?t :where [?t :block/uuid #uuid "${tagUuid}"]]`))[0][0];

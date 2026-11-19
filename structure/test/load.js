@@ -365,6 +365,16 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   { const h3 = doc.createElement('div'); doc.body.appendChild(h3);
     const pv = S.view.make(h3, 'tag', app, { prop: pid('With') }); app.mounted(pv); await sleep(30);
     const line = () => pv.root.querySelector('.ont[data-prop]');
+    // A property's lines have no Relationships (the owner, 19 November 2026); On tags is the last line.
+    assert.ok(!text(pv.root).includes('Relationships') && !pv.root.querySelector('.st-rel'), 'no Relationships on a property');
+    assert.ok(text(pv.root).includes('On tags'), 'On tags stays');
+    // Each of the line's actions names its tag (the owner, 19 November 2026), on the line and in its menu alike.
+    { const tg = line().querySelector('.lk-tag')?.textContent, words = [...line().querySelectorAll('.act')].map(a => a.textContent);
+      assert.ok(words.includes(`Move from ${tg} to another tag…`) && words.includes(`Remove from ${tg}`), 'the line\'s actions name the tag: ' + words.join(' | '));
+      line().dispatchEvent(new win.MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 5, clientY: 5 })); await sleep(20);
+      const items = [...pv.root.querySelectorAll('.st-menu .lk-item')].map(x => x.textContent);
+      assert.ok(items.some(x => x.startsWith(`Move from ${tg} to another tag…`)) && items.some(x => x.startsWith(`Remove from ${tg}`)) && items.some(x => /^Move .+ values to another property…/.test(x)), 'the menu says the same: ' + items.join(' | '));
+      doc.body.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); await sleep(20); }
     const openMenu = () => { line().dispatchEvent(new win.MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 5, clientY: 5 })); };
     openMenu(); await sleep(20); assert.ok(pv.root.querySelector('.st-menu'), 'the menu opens on a property\'s line');
     doc.body.dispatchEvent(new win.MouseEvent('pointerdown', { bubbles: true, cancelable: true })); await sleep(20);

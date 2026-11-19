@@ -63,7 +63,7 @@ deq(tray.lines().slice(1).map(l => l.text), ['Merge Visit into Consultation, Vis
 assert.equal(tray.lines()[3].nodes, 226, 'Visit\'s nodes, now Consultation\'s, still count');
 assert.ok(!M.tags.has(id('Visit')) && Mo.count(M, id('Consultation')) === 121 && M.tags.get(id('Medical event')).props.includes(pid('Date')) && !M.tags.get(id('Stay')).props.includes(pid('Date')));
 tray.stage({ kind: 'rename', tag: id('Scan'), name: 'Imaging' }); assert.equal(M.tags.get(id('Scan')).title, 'Imaging');
-tray.stage({ kind: 'dropProp', prop: pid('With'), tag: id('Consultation') }); assert.equal(tray.lines()[5].text, 'Drop With from Consultation, 7 values kept on the nodes');
+tray.stage({ kind: 'dropProp', prop: pid('With'), tag: id('Consultation') }); assert.equal(tray.lines()[5].text, 'Remove With from Consultation, 7 values kept on the nodes');
 const made = tray.stage({ kind: 'make', name: 'Follow-up', under: id('Consultation') }); assert.ok(made.made < 0 && M.tags.get(made.made).title === 'Follow-up' && Mo.parentOf(M, made.made) === id('Consultation'));
 tray.stage({ kind: 'keepUnder', tag: id('Side effect'), parent: id('Symptom') }); deq(M.tags.get(id('Side effect')).parents, [id('Symptom')]);
 tray.stage({ kind: 'setRange', prop: pid('Maker'), to: [id('Organisation')] }); deq(M.props.get(pid('Maker')).range, [id('Organisation')]); assert.equal(tray.lines().at(-1).text, 'Set Maker to point at Organisation');

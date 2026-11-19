@@ -216,6 +216,11 @@ ${ROW} > .block-main-container { margin-bottom: 0 !important; }
 .st-holder-insp .st-lines-t .ont { grid-template-columns: minmax(0, 1fr) auto; }
 .st-holder-insp .st-lines-t .ont .acts-r { grid-column: 1 / -1; flex-wrap: wrap; gap: 2px 8px; margin-left: -6px; }
 .st-holder-insp .st-lines-t .ont .acts-r:empty { display: none; }
+/* A property's lines only (a tag's Child tags keep theirs). In the sidebar each action named for its tag stands on a line of its own, so every tag's actions read alike (19 November 2026),
+   and a child tag's name keeps its room before its count ("Bill payment35 of 35" ran together). */
+.st-holder-insp .st-lines-t dd.col:not(.kids) > .ont .acts-r { flex-direction: column; align-items: flex-start; }
+.st-holder-insp .st-lines-t dd.col:not(.kids) > .ont.kid .lk-tag { margin-right: 0; }
+.st-holder-insp .st-lines-t dd.col:not(.kids) > .ont { justify-self: stretch; }   /* every count at the sidebar's right edge, under 103 of 107 */
 .st-holder-insp:not([data-row]):has(.st-insp-top :is(.st-insp-h, .st-lines-t)) .st-insp-node { border-top: 1px solid var(--lk-hair); padding-top: 16px; }
 /* The line by line review (the owner, 18 November 2026: "sidebar of table view needs a deep visual analysis"). */
 /* A line is no box: Logseq's ring around a property it has given the keyboard (a rounded outline across the line, past its end)
@@ -445,7 +450,10 @@ ${ROW} > .block-children-container > .block-children-left-border { display: none
 .st-nodes .st-ln.cur { background: var(--lk-wash); }
 .st-nodes .st-ln > input.lk-tick[type=checkbox] { align-self: start; margin-top: 4px !important; } .st-nodes .st-ln > .st-bul { align-self: start; margin-top: 3.5px; }
 .st-nodes .more, .st-tbl .more { padding: 4px 2px; }
-.st-menu { position: absolute; min-width: 230px; width: max-content; max-width: 360px; font-size: 14px; z-index: 30; }   /* the library's pop-up and menu (lk-pop, lk-menu) */
+.st-menu { position: absolute; min-width: 230px; width: max-content; max-width: 460px; font-size: 14px; z-index: 30; }   /* the library's pop-up and menu (lk-pop, lk-menu) */
+/* An item named for its tag ("Move Payment Event's values to another property…", 19 November 2026) can be long: it breaks onto a
+   second line inside the menu, its count kept whole at the right, never past the menu's edge. */
+.st-menu .lk-item { white-space: normal; } .st-menu .lk-item > .rt { white-space: nowrap; flex: none; }
 /* The prompt is a picker at the thing pressed (the owner, 5 November 2026), with the menu's look, anchored in the scrolling box
    the press was in so it moves with its row and moves nothing else. One drawing everywhere: a find line reading the ask as its
    own name, the rows; a row that cannot take the thing stays at the off strength with the reason in its title; one row is lit,
@@ -598,6 +606,10 @@ function make(holder, mode, app, opts = {}) {
     return `<div class="st-regions lk-list" data-picking><svg class="st-lines" aria-hidden="true"></svg>${areas.map(a => `<div class="st-area">${a.map(rowHtml).join('')}</div>`).join('')}${edit}</div>${st.aim ? '' : focusHtml(st.cur)}`;
   }
   // The relationships of a tag, read left to right: the tag that holds the property, the property and what it holds, how many nodes.
+  /* What a property's line on one tag can do, each named for that tag alone (the owner, 19 November 2026: "doesn't seem obvious
+     what the point is"), one name on the line's buttons, in its right-click menu and in Suggested. */
+  const poss = id => { const n = name(id); return /s$/i.test(n) ? `${n}'` : `${n}'s`; };
+  const ACTS = { move: id => `Move from ${name(id)} to another tag…`, split: id => `Split ${name(id)} by value…`, remove: id => `Remove from ${name(id)}`, values: id => `Move ${poss(id)} values to another property…` };
   const relWord = (id, t) => `<span class="lk-tag ${id === t ? 'self' : ''}" data-go="${esc(id)}">${esc(name(id))}</span>`;
   const relProp = (r, t) => `<span><span class="lk" data-open="${esc(P(r.prop)?.uuid || '')}">${esc(r.title)}</span>: ${relWord(r.to, t)}</span>`;
   // The tag itself, which the heading above already names, is left out of its own lines (the audit's 31): "Provider: Doctor 74"
@@ -619,7 +631,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
      end, lined up (16 November 2026, the owner: "look how bad this looks" of "Suggested" run into each sentence, every line its own). */
   /* Closed until asked for (17 November 2026, the owner: "having this large red button when I wasn't asking for anything is distracting
      and suggestions should have to be opened"): one quiet line, "Suggested 2", that opens the box; the box's heading closes it. */
-  const sugsHtml = (list, on) => !list.length ? '' : !st.sugsOpen?.has(String(on)) ? `<div class="sugs-shut lk-row" role="button" tabindex="0" data-sugs="${esc(on)}" aria-expanded="false"><span class="lk-fold" aria-expanded="false"></span><i class="ti ti-bulb" aria-hidden="true"></i>Suggested<span class="nm">${list.length}</span></div>` : `<div class="sugs" data-on="${esc(on)}"><div class="sh" role="button" tabindex="0" data-sugs="${esc(on)}" aria-expanded="true"><span class="lk-fold" aria-expanded="true"></span><i class="ti ti-bulb" aria-hidden="true"></i>Suggested</div>${list.map(i => { const n = ISS().indexOf(i); return `<div class="sug"><span>${partsHtml(i.parts)}</span><span class="fix act lk-fix lk-i-${fixIcon(i.fix)}" data-fix="${n}">${esc(fixWord(i.fix))}</span><span class="act lk-x" role="button" tabindex="0" data-dismiss="${n}" title="Dismiss this suggestion" aria-label="Dismiss this suggestion">×</span></div>${askHtml(n)}`; }).join('')}</div>`;
+  const sugsHtml = (list, on) => !list.length ? '' : !st.sugsOpen?.has(String(on)) ? `<div class="sugs-shut lk-row" role="button" tabindex="0" data-sugs="${esc(on)}" aria-expanded="false"><span class="lk-fold" aria-expanded="false"></span><i class="ti ti-bulb" aria-hidden="true"></i>Suggested<span class="nm">${list.length}</span></div>` : `<div class="sugs" data-on="${esc(on)}"><div class="sh" role="button" tabindex="0" data-sugs="${esc(on)}" aria-expanded="true"><span class="lk-fold" aria-expanded="true"></span><i class="ti ti-bulb" aria-hidden="true"></i>Suggested</div>${list.map(i => { const n = ISS().indexOf(i); return `<div class="sug"><span>${partsHtml(i.parts)}</span><span class="fix act lk-fix lk-i-${fixIcon(i.fix)}" data-fix="${n}">${esc(fixWord(i))}</span><span class="act lk-x" role="button" tabindex="0" data-dismiss="${n}" title="Dismiss this suggestion" aria-label="Dismiss this suggestion">×</span></div>${askHtml(n)}`; }).join('')}</div>`;
   const suggestHtml = id => sugsHtml(R.issuesOn(ISS(), id), id);
   // ---------- a tag's lines: Parent alone on one line above its title; the others in the inspector ----------
   // (the owner, 8 November 2026: Extends is called Parent, on one line above the title without moving the title down; 12 November:
@@ -649,14 +661,15 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     const m = M(), p = P(pid); if (!p) return '';
     const on = [...p.on].sort((a, b) => Mo.count(m, b) - Mo.count(m, a));
     const onRow = id => { const key = `${id}·${pid}`, t = T(id), kids = Mo.kids(m, id), fx = { word: '', ask: '' };
-      return `<div class="ont" data-prop="${key}">${tagLink(id)}<span class="num">${Mo.filled(m, id, pid)} of ${Mo.count(m, id)}</span><span class="acts-r"><span class="act lk-btn lk-low lk-i-move" data-do="pmove" data-on="${key}">Move to…</span>${(p.choice || p.type === 'node') && t?.nodes.size ? `<span class="act lk-btn lk-low lk-i-split" data-do="split" data-on="${key}">Split…</span>` : ''}<span class="act lk-btn lk-low lk-del lk-i-minus" data-do="pdrop" data-on="${key}" title="Delete property from tag">Delete</span></span></div>` +
+      return `<div class="ont" data-prop="${key}">${tagLink(id)}<span class="num">${Mo.filled(m, id, pid)} of ${Mo.count(m, id)}</span><span class="acts-r"><span class="act lk-btn lk-low lk-i-move" data-do="pmove" data-on="${key}">${esc(ACTS.move(id))}</span>${(p.choice || p.type === 'node') && t?.nodes.size ? `<span class="act lk-btn lk-low lk-i-split" data-do="split" data-on="${key}">${esc(ACTS.split(id))}</span>` : ''}<span class="act lk-btn lk-low lk-del lk-i-minus" data-do="pdrop" data-on="${key}">${esc(ACTS.remove(id))}</span></span></div>` +
         kids.map(k => { const lf = lineFix(id, pid, k); return `<div class="ont kid">${tagLink(k)}<span class="num">${Mo.filled(m, k, pid)} of ${Mo.count(m, k)}</span><span class="acts-r">${lf.word}</span></div>${lf.ask}`; }).join(''); };
     const cutAt = st.whole.has(`range${pid}`) ? p.range.length : 3, nodeTags = p.range.slice(0, cutAt).map(id => `<span class="rg">${tagLink(id)}<span class="lk-x" data-unrange="${id}" data-unprop="${pid}" title="Take ${esc(name(id))} out">×</span></span>`).join('') + (p.range.length > cutAt ? `<span class="lk-more" data-all="range${pid}">and ${p.range.length - cutAt} more</span>` : '');
-    const rels = Mo.roads(m).filter(r => r.prop === pid).sort((a, b) => b.n - a.n), key = `prop${pid}`, shown = st.whole.has(key) ? rels : rels.slice(0, 6);
+    // No Relationships here (the owner, 19 November 2026: rows like "Bills · Charged by: Company · 5" were not useful); a tag's
+    // Relationships in the Ontology tab stay.
     return `<dl class="st-lines-t"><dt>Property type</dt><dd>${esc(Mo.kindWord(p.choice ? 'choice' : p.type))}${p.many ? ', several values' : ''}<span class="act lk-btn lk-low lk-i-merge" data-do="pmerge" data-on="0·${pid}">Merge into…</span></dd>` +
       (p.type === 'node' ? `<dt>Node tags</dt><dd>${nodeTags}<span class="act lk-add lk-i-plus" data-addrange="0·${pid}">Specify node tags…</span></dd>` : '') +
       `<dt>On tags</dt><dd class="col">${on.map(onRow).join('')}${on.length ? '' : `<span>${plural(m.holders.get(p.ident)?.size || 0, 'node')}, on no tag</span>`}<span class="act lk-add lk-i-plus" data-do="pmove" data-on="0·${pid}">Put on a tag…</span></dd>` +
-      (p.type === 'node' ? `<dt>Relationships</dt><dd>${rels.length ? `<div class="st-rel">${shown.map(r => `${relWord(r.from)}${relProp(r)}<span class="num">${r.n}</span>`).join('')}${shown.length < rels.length ? `<span class="all lk-more" data-all="${key}">and ${rels.length - shown.length} more</span>` : ''}</div>` : '<span>No relationships yet</span>'}</dd>` : '') + `</dl>${pmergeAskHtml(pid)}` +
+      `</dl>${pmergeAskHtml(pid)}` +
       sugsHtml(R.issuesOfProp(ISS(), pid).filter(i => !(i.line && i.line.kid != null)), `p${pid}`);
   }
   /* In the inspector each part is headed by what it describes (the owner, 9 November 2026: "how the section appear"): the tag in
@@ -688,7 +701,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
   // A range of many tags (Topic, on purpose, takes fifteen): the first three, then how many more; the property's card lists them all.
   const ranges = ids => ids.slice(0, 3).map(tagLink).join('<span class="to sp">, </span>') + (ids.length > 3 ? ` <span class="to and">and ${ids.length - 3} more</span>` : '');
   // An issue that belongs to a line puts its fix word at the line's right end, after the faint count, with its ask under the line.
-  const lineFix = (tagId, pid, kid) => { const i = R.issueOnLine(ISS(), tagId, pid, kid); return i ? { cls: 'fx', word: `<span class="fix act lk-fix lk-i-${fixIcon(i.fix)}" data-fix="${ISS().indexOf(i)}">${esc(fixWord(i.fix))}</span>`, ask: askHtml(ISS().indexOf(i)) } : { cls: '', word: '', ask: '' }; };
+  const lineFix = (tagId, pid, kid) => { const i = R.issueOnLine(ISS(), tagId, pid, kid); return i ? { cls: 'fx', word: `<span class="fix act lk-fix lk-i-${fixIcon(i.fix)}" data-fix="${ISS().indexOf(i)}">${esc(fixWord(i))}</span>`, ask: askHtml(ISS().indexOf(i)) } : { cls: '', word: '', ask: '' }; };
   // An issue: what is wrong, then the fix as a word. Choosing the fix opens one line that says what it would do, with the
   // nodes it touches; only "stage it" puts it in the tray. A fix that needs a choice (which kind, which tag) opens the prompt.
   // The sentence in parts, each keyed by its role: the thing to settle in the text colour with the underline that opens its card
@@ -699,7 +712,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     : p.tags ? (p.sep === 'and' && p.tags.length === 2 ? p.tags.map(tagLink).join('<span class="to">and</span>') : ranges(p.tags))
     : p.count != null ? `<span class="nm">${esc(p.count)}</span>`
     : `<span class="to ${/^[,:;]/.test(p.words) ? 'pn' : ''}">${esc(p.words)}</span>`).join(' ').replace(/ (<span class="to pn")/g, '$1');
-  const fixWord = w => { const t = w.replace(/^drop\b/i, 'Delete property from tag'); return t.charAt(0).toUpperCase() + t.slice(1); };
+  const fixWord = i => { if (i.fix === 'drop' && i.change?.tag != null) return ACTS.remove(i.change.tag); const t = i.fix; return t.charAt(0).toUpperCase() + t.slice(1); };
   const askLine = (c, last) => {
     const s = S.changes.sentence(M(), c), two = c.kind === 'merge';
     const words = last ? `<div class="lk-answers"><span class="act lk-accent lk-i-tick lk-enter" data-stage>Stage it</span><span class="act lk-btn lk-low lk-i-x" data-leave>Leave it</span></div>` : '';
@@ -1072,11 +1085,11 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
       const declared = !!t?.props.includes(pid);
       const f = t ? plural(Mo.filled(m, tagId, pid), 'value') : '';
       h += (p?.uuid ? it('Go to this property', 'ppage') + '<div class="gap lk-item"></div>' : '') + it('Rename', 'prename', !p) + it('Merge…', 'pmerge', !p) + (p && !p.choice && p.type === 'default' ? it('Turn into dates…', 'pretype') : '') + (p?.type === 'node' ? it('Split into two properties…', 'psplit') : '') + (p?.type === 'node' ? it('Specify node tags…', 'prange') : '') + '<div class="gap lk-item"></div>' +
-        (t ? it('Move to…', 'pmove', !declared, f) + it(parent != null ? `Pull up to ${name(parent)}` : 'Pull up to the parent', 'pullup', !declared || parent == null, f) +
+        (t ? it(ACTS.move(tagId), 'pmove', !declared, f) + it(parent != null ? `Pull up to ${name(parent)}` : 'Pull up to the parent', 'pullup', !declared || parent == null, f) +
         // One tag's values into another property, the other tags' left as they are (19 November 2026). Only on a tag's own line
         // of the property: a row of the table of every property stands for all its tags, so "only on this tag" would be a guess there.
-        (mn.line ? it('Move values to another property…', 'pfor', !declared || !p, f) : '') +
-        (p && (p.choice || p.type === 'node') ? it('Split by its values…', 'split', !t.nodes.size, plural(t.nodes.size, 'node')) : '') + '<div class="gap lk-item"></div>' + it('Delete property from tag', 'pdrop', !declared, f) : it('Put on a tag…', 'pmove'));
+        (mn.line ? it(ACTS.values(tagId), 'pfor', !declared || !p, f) : '') +
+        (p && (p.choice || p.type === 'node') ? it(ACTS.split(tagId), 'split', !t.nodes.size, plural(t.nodes.size, 'node')) : '') + '<div class="gap lk-item"></div>' + it(ACTS.remove(tagId), 'pdrop', !declared, f) : it('Put on a tag…', 'pmove'));
     }
     return h + `</div>`;
   }

@@ -35,7 +35,7 @@ function sentence(M, c) {
     case 'retag': return { text: `Move ${plural(c.nodes.length, 'node')} from ${name(M, c.from)} to ${name(M, c.to)}`, nodes: c.nodes.length };
     case 'moveProp': { const from = c.from.filter(id => tag(M, id)); return { text: `Move ${prop(M, c.prop).title} from ${list(from.map(id => name(M, id)))} to ${name(M, c.to)}`, nodes: from.reduce((s, id) => s + filled(M, id, c.prop), 0) }; }
     case 'addProp': return { text: c.under != null ? `Add ${prop(M, c.prop).title} to every tag under ${name(M, c.under)}` : `Add ${prop(M, c.prop).title} to ${list(c.tags.map(id => name(M, id)))}`, nodes: (c.under != null ? [c.under] : c.tags).reduce((s, id) => s + count(M, id), 0) };
-    case 'dropProp': { const n = filled(M, c.tag, c.prop); return { text: `Drop ${prop(M, c.prop).title} from ${name(M, c.tag)}${n ? `, ${plural(n, 'value')} kept on the nodes` : ''}`, nodes: n }; }
+    case 'dropProp': { const n = filled(M, c.tag, c.prop); return { text: `Remove ${prop(M, c.prop).title} from ${name(M, c.tag)}${n ? `, ${plural(n, 'value')} kept on the nodes` : ''}`, nodes: n }; }
     case 'remove': return { text: [`Remove ${name(M, c.tag)}`, ...losses(tag(M, c.tag))].join(' · '), nodes: count(M, c.tag) };
     case 'make': return { text: c.under == null ? `Make ${c.name} at the top` : `Make ${c.name} under ${name(M, c.under)}`, nodes: 0 };
     case 'keepUnder': return { text: `Keep ${name(M, c.tag)} only under ${name(M, c.parent)}`, nodes: count(M, c.tag) };
