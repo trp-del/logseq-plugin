@@ -1,7 +1,7 @@
 # Logseq for Alfred
 
 Logseq from anywhere on the Mac, in Alfred's own panels (Alfred 6's Alfred UI): add a note with its tag guessed as you write,
-tag what came in, see and tick your tasks, search, read a page and walk from it, and put files and selections into the graph
+see and tick your tasks, search, read a page and walk from it, and put files and selections into the graph
 seeing first what will be written. Version 4.0.
 
 Built for Logseq 2.0.2, Alfred 6.0, and a Logseq Plugin from 18 November 2026 or later.
@@ -20,17 +20,20 @@ Built for Logseq 2.0.2, Alfred 6.0, and a Logseq Plugin from 18 November 2026 or
 Each opens inside Alfred, 900 wide, with room around its parts and no text smaller than 14; the keys stand along its foot.
 Esc closes a panel.
 
-- **Home**, `l`: Add to today (⌘1), Tag what came in with how many wait (⌘2), Todo with what is due (⌘3), then the pages you
-  came back to under their own heading. When a page is lit, a pane beside the list shows its tags, its properties and where it
-  leads; an action has no pane. Typing finds pages by name at once; ↩ reads the lit page here, ⌘↩ opens it in Logseq, ⌘F searches the words of
-  your notes, ⇥ adds the words as a note.
+- **Home**, `l`, works as the plugin's Find: you find, narrow and walk in one panel. At rest it shows Add to today (⌘1) and
+  Todo with what is due (⌘2) as buttons, your kinds with how many nodes each holds, and
+  the pages you came back to. Typing finds pages by name and the words of your notes, and lists the kinds among them; letters
+  that begin a kind light it, and ⇥ takes it. A kind taken stands before the line, its nodes newest first with the day in the
+  margin, and above them the choices the graph holds for them (Provider, Topic, When; Status for tasks): a press or ⇥ takes one,
+  a press on a taken one or ⌘⌫ lets it go. A pane beside the list shows the lit row's tags, properties and where it leads. ↩
+  reads the lit row (the page view, where ↩ walks on and ⌘[ steps back, back to Home at the start), ⌘↩ opens it in Logseq; with
+  words that find nothing, ↩ on the last row adds them as a note. With a task lit, ⌘D marks it done, ⌘G doing, ⌘Z takes it back.
+  The foot says what ⇥ and ↩ do right now.
 - **Add**, `lt` (today) and `la` (the page open in Logseq): the tag line above the words. After four words Predictive pencils the
   tag it would pencil in Logseq, with the properties it brings (guessed values lighter); ↩ writes all of it, ⌥↩ the words alone.
   With no sure guess, the three likeliest tags stand on ⌘1–⌘3 with their reasons; ⌘T lists all your tags in their tree, filtered
   as you type. The destination is a menu at the foot. Once added: what was written, Undo (⌘Z, which brings the words back to try
   again), Show in Logseq (⌘O), Add another (↩).
-- **Tag what came in**, `ltag`: the notes added from Alfred with no tag, one at a time, with the tags each could be on ⌘1–⌘3 and
-  ⌘T for any; ⇥ passes one by, ⌘⌫ leaves it untagged. At the end, what was tagged, and one Undo for all of it.
 - **Todo**, `ltd`: the Todo page's list, grouped as it is there. Typing filters; ↩ with words adds a task ("by friday" is its
   Deadline); ⌘D done, ⌘G doing, ⌘Z takes the last change back, ⌘O shows the task in Logseq.
 - **Search**, `ls`: Logseq's own search, each note with its kind and day; a pane beside the list shows the lit note's words in

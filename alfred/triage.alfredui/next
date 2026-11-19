@@ -1,3 +1,0 @@
-#!/bin/zsh
-# Tag what came in: next, answered by logseq.js (panel-triage-next), in Alfred UI's JSON.
-exec /usr/bin/osascript -l JavaScript "${0:A:h:h}/logseq.js" panel-triage-next "$@"

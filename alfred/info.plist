@@ -97,32 +97,6 @@
 				<false/>
 			</dict>
 		</array>
-		<key>A0000000-0000-4000-8000-000000000012</key>
-		<array>
-			<dict>
-				<key>destinationuid</key>
-				<string>A0000000-0000-4000-8000-000000000011</string>
-				<key>modifiers</key>
-				<integer>0</integer>
-				<key>modifiersubtext</key>
-				<string></string>
-				<key>vitoclose</key>
-				<false/>
-			</dict>
-		</array>
-		<key>A0000000-0000-4000-8000-000000000013</key>
-		<array>
-			<dict>
-				<key>destinationuid</key>
-				<string>A0000000-0000-4000-8000-000000000011</string>
-				<key>modifiers</key>
-				<integer>0</integer>
-				<key>modifiersubtext</key>
-				<string></string>
-				<key>vitoclose</key>
-				<false/>
-			</dict>
-		</array>
 		<key>A0000000-0000-4000-8000-000000000021</key>
 		<array>
 			<dict>
@@ -757,59 +731,6 @@ exit 0</string>
 				<key>launchmode</key>
 				<integer>0</integer>
 				<key>path</key>
-				<string>triage.alfredui</string>
-				<key>stackview</key>
-				<false/>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.userinterface.alfredui</string>
-			<key>uid</key>
-			<string>A0000000-0000-4000-8000-000000000011</string>
-			<key>version</key>
-			<integer>1</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>argumenttype</key>
-				<integer>2</integer>
-				<key>keyword</key>
-				<string>{var:triage_keyword}</string>
-				<key>subtext</key>
-				<string>Notes added from Alfred with no tag, one at a time</string>
-				<key>text</key>
-				<string>Tag what came in</string>
-				<key>withspace</key>
-				<false/>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.input.keyword</string>
-			<key>uid</key>
-			<string>A0000000-0000-4000-8000-000000000012</string>
-			<key>version</key>
-			<integer>1</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>availableviaurlhandler</key>
-				<false/>
-				<key>triggerid</key>
-				<string>triage</string>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.trigger.external</string>
-			<key>uid</key>
-			<string>A0000000-0000-4000-8000-000000000013</string>
-			<key>version</key>
-			<integer>1</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>launchmode</key>
-				<integer>0</integer>
-				<key>path</key>
 				<string>home.alfredui</string>
 				<key>stackview</key>
 				<false/>
@@ -1236,27 +1157,6 @@ A file put into the graph is a node of its own, as when it is dropped into Logse
 			<key>ypos</key>
 			<real>700.0</real>
 		</dict>
-		<key>A0000000-0000-4000-8000-000000000011</key>
-		<dict>
-			<key>xpos</key>
-			<real>500.0</real>
-			<key>ypos</key>
-			<real>820.0</real>
-		</dict>
-		<key>A0000000-0000-4000-8000-000000000012</key>
-		<dict>
-			<key>xpos</key>
-			<real>80.0</real>
-			<key>ypos</key>
-			<real>820.0</real>
-		</dict>
-		<key>A0000000-0000-4000-8000-000000000013</key>
-		<dict>
-			<key>xpos</key>
-			<real>80.0</real>
-			<key>ypos</key>
-			<real>940.0</real>
-		</dict>
 		<key>A0000000-0000-4000-8000-000000000021</key>
 		<dict>
 			<key>xpos</key>
@@ -1607,27 +1507,6 @@ A file put into the graph is a node of its own, as when it is dropped into Logse
 			<string>textfield</string>
 			<key>variable</key>
 			<string>picture_keyword</string>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>default</key>
-				<string>ltag</string>
-				<key>placeholder</key>
-				<string></string>
-				<key>required</key>
-				<false/>
-				<key>trim</key>
-				<true/>
-			</dict>
-			<key>description</key>
-			<string></string>
-			<key>label</key>
-			<string>Tag what came in</string>
-			<key>type</key>
-			<string>textfield</string>
-			<key>variable</key>
-			<string>triage_keyword</string>
 		</dict>
 		<dict>
 			<key>config</key>

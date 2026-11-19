@@ -59,7 +59,7 @@ function world() {
   plugin.PluginDoor.outside.patience = 8000;
   plugin.PluginDoor.outside.answerWithin = 4000;
   plugin.PluginDoor.outside.start();
-  return { win, doc, log, blocks, pages, add: logseq.model.add, setOpen: p => { open = p; }, setEditing: uuid => { editing = uuid; } };
+  return { win, doc, log, blocks, pages, add: logseq.model.add, model: logseq.model, setOpen: p => { open = p; }, setEditing: uuid => { editing = uuid; } };
 }
 
 (async () => {
@@ -68,7 +68,7 @@ function world() {
     const w = world();
     w.setEditing('their-bullet');
     const out = await w.add({ files: ['/Users/x/Scan.pdf'], where: 'today' });
-    same(out, { page: 'Nov 5th, 2026', added: ['Scan'] });
+    same(out, { page: 'Nov 5th, 2026', added: ['Scan'], linked: [] });
     const asset = Object.values(w.blocks).find(b => b.title === 'Scan');
     assert.ok(asset && asset.page === 'today-uuid' && asset.properties['logseq.property.asset/type'] === 'pdf', 'the empty bullet became the asset on today');
     assert.ok(w.log.some(([k, v]) => k === 'pushState' && v === 'today-uuid'), 'today was shown for the paste');
@@ -81,7 +81,7 @@ function world() {
   {
     const w = world();
     const out = await w.add({ files: ['/Users/x/Scan.pdf', '/Users/x/Photo.png'], where: { page: 'Letters' } });
-    same(out, { page: 'Letters', added: ['Scan', 'Photo'] });
+    same(out, { page: 'Letters', added: ['Scan', 'Photo'], linked: [] });
     assert.ok(w.log.some(([k, name, redirect]) => k === 'createPage' && name === 'Letters' && redirect === false), 'the page was made');
     assert.equal(w.win.location.hash, '#/page/letters-uuid', 'the page named stays on screen');
     assert.equal(Object.values(w.blocks).filter(b => b.page === 'letters-uuid').length, 2, 'two assets, no empty bullet');
@@ -97,6 +97,22 @@ function world() {
     await assert.rejects(() => w.add({ files: ['/Users/x/Scan.pdf'], where: { page: 'Letters' } }), /Scan\.pdf is already in the graph, as “Scan”/);
     assert.equal(Object.keys(w.blocks).length, before, 'nothing was added');
     assert.ok(!w.log.some(([k, name]) => k === 'createPage' && name === 'Letters'), 'and no page was made for it');
+  }
+  // The workflow's files tray (18 November 2026): each file checked before anything is added, a twin named; asked to, a twin is
+  // linked on the page instead of refused; how far the add is; and one Undo for every bullet it made.
+  {
+    const w = world();
+    await w.add({ files: ['/Users/x/Scan.pdf'], where: 'today' });
+    const checked = await w.model.check({ files: ['/Users/x/Scan.pdf', '/Users/x/Photo.png', '/Users/x/Missing.pdf'] });
+    same(checked.files.map(f => [f.title, f.twin, Boolean(f.said)]), [['Scan', 'Scan', false], ['Photo', '', false], ['Missing.pdf', '', true]]);
+    const out = await w.add({ files: ['/Users/x/Scan.pdf', '/Users/x/Photo.png'], where: { page: 'Letters' }, linkTwins: true });
+    same(out, { page: 'Letters', added: ['Photo'], linked: ['Scan'] });
+    const twinUuid = Object.values(w.blocks).find(b => b.title === 'Scan' && b.page === 'today-uuid').uuid;
+    assert.ok(Object.values(w.blocks).some(b => b.page === 'letters-uuid' && b.content === `[[${twinUuid}]]`), 'the twin is linked on the page, not copied');
+    const p = await w.model.progress();
+    same([p.total, p.done, p.linked, p.made.length], [1, 1, ['Scan'], 2]);
+    await w.model.unadd({ made: p.made });
+    assert.equal(Object.values(w.blocks).filter(b => b.page === 'letters-uuid').length, 0, 'Undo takes back every bullet the add made');
   }
   // The page open in Logseq, and none.
   {

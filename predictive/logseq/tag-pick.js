@@ -17,16 +17,19 @@ let open = null;   // { box, uuid, items, at, list }
 const { el } = window.PluginDoor;
 
 function close() { open?.list.remove(); open = null; }
+// Why this tag: the property of it that would take the pages the line names ("Spoke with: Ruth Okoro, Amara Okoro"), which is
+// the reason and what picking fills; else how it was read, and the properties it brings. The Alfred panel says the same (outside-note.js).
+function reasonOf(item) {
+  const takes = (item.takes || []).slice(0, 2).map(t => `${t.prop}: ${t.pages.join(', ')}`).join(' · ');
+  return item.how === 'mentioned' && takes ? takes : [item.how === 'model' ? 'by Apple’s model' : item.how === 'twin' ? 'written like this before' : item.how === 'meaning' ? 'by its meaning' : item.how === 'mentioned' ? item.via.join(', ') : 'by its words', item.fields.slice(0, 3).join(', ')].filter(Boolean).join(' · ');
+}
 function draw() {
   const { box, items, at, list } = open, doc = box.ownerDocument, rect = box.getBoundingClientRect();
   // Under the top-level tag each sits under (14 November 2026), once the guesses come from more than one: a heading the keys pass over.
   const split = new Set(items.map(item => item.top)).size > 1;
   list.replaceChildren(
     ...items.flatMap((item, i) => {
-      // Why this tag: the property of it that would take the pages the line names ("Spoke with: Ruth Okoro, Amara Okoro"), which is
-      // the reason and what picking fills; else how it was read, and the properties it brings.
-      const takes = (item.takes || []).slice(0, 2).map(t => `${t.prop}: ${t.pages.join(', ')}`).join(' · ');
-      const note = item.how === 'mentioned' && takes ? takes : [item.how === 'model' ? 'by Apple’s model' : item.how === 'twin' ? 'written like this before' : item.how === 'meaning' ? 'by its meaning' : item.how === 'mentioned' ? item.via.join(', ') : 'by its words', item.fields.slice(0, 3).join(', ')].filter(Boolean).join(' · ');
+      const note = reasonOf(item);
       const row = el(doc, 'div', { class: 'flow-pick-row lk-item' + (i === at ? ' on' : ''), role: 'option', 'aria-selected': String(i === at), 'data-i': String(i) },
         el(doc, 'span', { class: 'flow-pick-tag lk-tag' }, item.tag.title), el(doc, 'span', { class: 'flow-pick-note lk-note' }, note));
       const head = split && item.top !== item.tag.id && item.top !== items[i - 1]?.top ? open.titleOf(item.top) : '';
@@ -136,5 +139,5 @@ function start() {
   app.onStop(logseq.App.onRouteChanged?.(close));
   logseq.App.registerCommandPalette?.({ key: 'flow-choose-tag', label: 'Predictive: choose a tag for this bullet' }, () => { const box = host().activeElement; if (app.isBlockBox(box)) show(box); else notify('Put the cursor in a bullet first'); });
 }
-Flow.tagPick = { start, close, fromHyper, state: () => open };   // state(): the open list, whose Escape comes before the grey words' (link-ui.js)
+Flow.tagPick = { start, close, fromHyper, reasonOf, state: () => open };   // state(): the open list, whose Escape comes before the grey words' (link-ui.js)
 })();

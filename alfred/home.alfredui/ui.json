@@ -27,6 +27,18 @@
   },
   "h_lit": {
    "default": ""
+  },
+  "h_state": {
+   "default": ""
+  },
+  "h_tab": {
+   "default": ""
+  },
+  "h_tabLabel": {
+   "default": ""
+  },
+  "h_last": {
+   "default": ""
   }
  },
  "window": {
@@ -43,7 +55,8 @@
       "type": "script",
       "src": "find",
       "args": [
-       "{value:hq.text}"
+       "{value:hq.text}",
+       ""
       ]
      }
     }
@@ -66,58 +79,26 @@
      }
     },
     {
-     "shortcut": "⌘1",
-     "action": {
-      "type": "json",
-      "src": {
-       "finish": {
-        "args": "add:"
-       }
-      }
-     }
-    },
-    {
-     "shortcut": "⌘2",
-     "action": {
-      "type": "json",
-      "src": {
-       "finish": {
-        "args": "triage"
-       }
-      }
-     }
-    },
-    {
-     "shortcut": "⌘3",
-     "action": {
-      "type": "json",
-      "src": {
-       "finish": {
-        "args": "todo"
-       }
-      }
-     }
-    },
-    {
      "shortcut": "⇥",
      "action": {
-      "type": "json",
-      "src": {
-       "finish": {
-        "args": "add:{value:hq.text}"
-       }
-      }
+      "type": "script",
+      "src": "tab",
+      "args": [
+       "{value:hq.text}",
+       "{var:h_state}",
+       "{var:h_tab}"
+      ]
      }
     },
     {
-     "shortcut": "⌘f",
+     "shortcut": "⌘⌫",
      "action": {
-      "type": "json",
-      "src": {
-       "finish": {
-        "args": "search:{value:hq.text}"
-       }
-      }
+      "type": "script",
+      "src": "untake",
+      "args": [
+       "{value:hq.text}",
+       "{var:h_state}"
+      ]
      }
     },
     {
@@ -130,53 +111,138 @@
        }
       }
      }
+    },
+    {
+     "shortcut": "⌘d",
+     "action": {
+      "type": "script",
+      "src": "status",
+      "args": [
+       "{value:homeList.selected.hGo.text}",
+       "done",
+       "{value:hq.text}",
+       "{var:h_state}"
+      ]
+     }
+    },
+    {
+     "shortcut": "⌘g",
+     "action": {
+      "type": "script",
+      "src": "status",
+      "args": [
+       "{value:homeList.selected.hGo.text}",
+       "doing",
+       "{value:hq.text}",
+       "{var:h_state}"
+      ]
+     }
+    },
+    {
+     "shortcut": "⌘z",
+     "action": {
+      "type": "script",
+      "src": "undo",
+      "args": [
+       "{var:h_last}",
+       "{value:hq.text}",
+       "{var:h_state}"
+      ]
+     }
     }
    ],
    "components": [
     {
-     "type": "textfield",
-     "id": "hq",
-     "focus": true,
-     "text": "{var:query}",
-     "placeholder": "Search your graph, or type to add",
-     "bordered": false,
-     "focusring": false,
-     "background": "#00000000",
-     "font": {
-      "size": 28,
-      "weight": "light"
-     },
+     "type": "view",
+     "layout": "border",
+     "spacing": 10,
      "constraints": {
       "stretch": "horizontal"
      },
-     "events": [
+     "components": [
       {
-       "triggers": "typingstopped",
-       "action": {
-        "type": "script",
-        "src": "find",
-        "async": true,
-        "args": [
-         "{value:hq.text}"
-        ]
-       }
+       "type": "view",
+       "id": "hPicks",
+       "layout": "inline",
+       "hidden": true,
+       "constraints": {
+        "region": "left",
+        "position": "centre"
+       },
+       "components": []
       },
       {
-       "triggers": "actioned",
-       "action": {
-        "type": "json",
-        "src": {
-         "finish": {
-          "args": "{value:homeList.selected.hGo.text}"
+       "type": "textfield",
+       "id": "hq",
+       "focus": true,
+       "text": "{var:query}",
+       "placeholder": "Find, or write a note",
+       "bordered": false,
+       "focusring": false,
+       "background": "#00000000",
+       "font": {
+        "size": 28,
+        "weight": "light"
+       },
+       "constraints": {
+        "region": "centre"
+       },
+       "events": [
+        {
+         "triggers": "typingstopped",
+         "action": {
+          "type": "script",
+          "src": "find",
+          "async": true,
+          "args": [
+           "{value:hq.text}",
+           "{var:h_state}"
+          ]
+         }
+        },
+        {
+         "triggers": "actioned",
+         "action": {
+          "type": "json",
+          "src": {
+           "finish": {
+            "args": "{value:homeList.selected.hGo.text}"
+           }
+          }
          }
         }
-       }
+       ]
       }
      ]
     },
     {
      "type": "view",
      "id": "hLine1",
+     "hidden": false,
+     "background": "separatorColor",
+     "constraints": {
+      "stretch": "horizontal",
+      "size": {
+       "height": 1
+      }
+     }
+    },
+    {
+     "type": "view",
+     "id": "hLines",
+     "layout": "inline",
+     "direction": "vertical",
+     "spacing": 10,
+     "hidden": true,
+     "constraints": {
+      "stretch": "horizontal"
+     },
+     "components": []
+    },
+    {
+     "type": "view",
+     "id": "hLine2",
+     "hidden": true,
      "background": "separatorColor",
      "constraints": {
       "stretch": "horizontal",
@@ -195,133 +261,15 @@
      },
      "components": [
       {
-       "type": "dataview",
+       "type": "view",
        "id": "homeList",
        "constraints": {
         "region": "centre",
         "size": {
-         "height": 330
+         "height": 60
         }
        },
-       "placeholder": "Nothing found",
-       "behaviour": {
-        "selection": {
-         "wrap": "vertical"
-        }
-       },
-       "cell": {
-        "height": 56,
-        "init": {
-         "hRow.background": null,
-         "hTitle.colour": "labelColor",
-         "hSub.colour": "secondaryLabelColor",
-         "hKey.colour": "secondaryLabelColor",
-         "hIcon.contenttintcolour": "secondaryLabelColor"
-        },
-        "selected": {
-         "hRow.background": "quaternaryLabelColor"
-        },
-        "root": {
-         "type": "view",
-         "id": "hRow",
-         "layout": "border",
-         "padding": 8,
-         "spacing": 12,
-         "cornerradius": 12,
-         "components": [
-          {
-           "type": "imageview",
-           "id": "hIcon",
-           "constraints": {
-            "region": "left",
-            "position": "centre",
-            "size": {
-             "width": 26,
-             "height": 26
-            }
-           }
-          },
-          {
-           "type": "view",
-           "layout": "inline",
-           "direction": "vertical",
-           "spacing": 3,
-           "constraints": {
-            "region": "centre",
-            "size": {
-             "height": 44
-            }
-           },
-           "components": [
-            {
-             "type": "label",
-             "id": "hTitle",
-             "font": {
-              "size": 18
-             },
-             "constraints": {
-              "position": "left",
-              "size": {
-               "height": 24
-              }
-             },
-             "linebreak": "truncatetail"
-            },
-            {
-             "type": "label",
-             "id": "hSub",
-             "font": {
-              "size": 14
-             },
-             "constraints": {
-              "position": "left",
-              "size": {
-               "height": 19
-              }
-             },
-             "linebreak": "truncatetail"
-            }
-           ]
-          },
-          {
-           "type": "label",
-           "id": "hKey",
-           "font": {
-            "size": 14
-           },
-           "constraints": {
-            "region": "right",
-            "position": "centre"
-           }
-          },
-          {
-           "type": "label",
-           "id": "hGo",
-           "hidden": true
-          }
-         ]
-        }
-       },
-       "data": {
-        "type": "basic",
-        "src": []
-       },
-       "events": [
-        {
-         "triggers": "changed",
-         "action": {
-          "type": "script",
-          "src": "pane",
-          "async": true,
-          "args": [
-           "{value:homeList.selected.hGo.text}",
-           "{value:homeList.selected.hTitle.text}",
-           "{var:h_order}",
-           "{var:h_lit}"
-          ]
-         }
-        }
-       ]
+       "components": []
       },
       {
        "type": "view",
@@ -339,7 +287,8 @@
     },
     {
      "type": "view",
-     "id": "hLine2",
+     "id": "hLine3",
+     "hidden": false,
      "background": "separatorColor",
      "constraints": {
       "stretch": "horizontal",
@@ -349,16 +298,40 @@
      }
     },
     {
-     "type": "label",
-     "id": "hFoot",
-     "text": "Open ↩",
-     "colour": "secondaryLabelColor",
-     "font": {
-      "size": 14
-     },
+     "type": "view",
+     "layout": "border",
      "constraints": {
-      "position": "right"
-     }
+      "stretch": "horizontal"
+     },
+     "components": [
+      {
+       "type": "label",
+       "id": "hCount",
+       "text": "",
+       "colour": "secondaryLabelColor",
+       "font": {
+        "size": 14
+       },
+       "constraints": {
+        "region": "left",
+        "position": "centre"
+       }
+      },
+      {
+       "type": "label",
+       "id": "hFoot",
+       "text": "",
+       "colour": "secondaryLabelColor",
+       "font": {
+        "size": 14
+       },
+       "textalign": "right",
+       "constraints": {
+        "region": "centre",
+        "position": "right"
+       }
+      }
+     ]
     }
    ]
   },

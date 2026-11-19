@@ -821,6 +821,6 @@ function start() {
   });
 }
 // What the stepping piece (logseq/steps.js) works with.
-const api = { S, start, leave, shownPieces, editingBox, uuidOf, ownRow, pillName, pillsOf, guessKey, hide, soon, rememberUndo };
+const api = { S, start, leave, writePieces, shownPieces, editingBox, uuidOf, ownRow, pillName, pillsOf, guessKey, hide, soon, rememberUndo };
 Flow.proposeUi = api;
 })();

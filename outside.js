@@ -10,9 +10,18 @@
      logseq.App.invokeExternalPluginCmd  ["logseq-plugin", "models", "add", [{ files: [absolute paths], where }]]
    where `where` is "today", "open" or { page: "its name" }, and is answered { page, added: [titles] }, or { pending: true }
    when the files are still going in as Logseq's ten seconds for the call run out, or an error with the reason, which the
-   caller shows. A file Logseq is slow to take keeps its bullet: only a bullet the file was never pasted into is taken back. Words, links and pages the caller writes through Logseq's own API; only files need this. */
+   caller shows. A file Logseq is slow to take keeps its bullet: only a bullet the file was never pasted into is taken back. Words, links and pages the caller writes through Logseq's own API; only files need this.
+   Since 18 November 2026 the workflow's panels (Alfred 6's Alfred UI) ask more of it, each answered by the part that does the
+   same in Logseq, so the two never differ:
+     files    check (each file's name and its twin in the graph, before anything is added), add with linkTwins (a twin linked on
+              the page, not refused), progress (how far an add is), unadd (every bullet an add made, taken back)
+     notes    guess, note, undo, tags: Predictive's (predictive/logseq/outside-note.js)
+     tasks    todoList, todoAdd, todoStatus, todoUndo: Todo's (todo/logseq/outside-todo.js)
+     reading  find (Find's search), read (a node as DB Export writes it, and what points at it as Find opens it in place),
+              browse (Home as Find: kinds, a kind's nodes and choices, words) */
 (function () {
 const Door = window.PluginDoor;
+const browseCache = new Map();   // Home as Find's reads of a kind, kept a minute (browse); a write clears it
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const until = async (check, ms, every = 100) => {
   const end = Date.now() + ms;
@@ -58,7 +67,8 @@ async function read(path) {
    and nothing is inserted (logseq/logseq master, assets.cljs, new-asset-block). So the twin is looked for first, by size and
    type and then byte for byte, and named. */
 const same = (a, b) => { if (a.byteLength !== b.byteLength) return false; const x = new Uint8Array(a), y = new Uint8Array(b); for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return false; return true; };
-async function twin(bytes, name) {
+async function twin(bytes, name) { return (await twinOf(bytes, name))?.title || null; }
+async function twinOf(bytes, name) {
   const type = (/\.([^.]+)$/.exec(name)?.[1] || '').toLowerCase();
   const graph = await logseq.App.getCurrentGraph().catch(() => null);
   if (!type || !graph?.path) return null;
@@ -67,7 +77,7 @@ async function twin(bytes, name) {
     const uuid = row.uuid || row['block/uuid'];
     if (!uuid) continue;
     const held = await fetch(`assets://${encodeURI(String(graph.path).replace(/\/$/, ''))}/assets/${uuid}.${type}`).then(r => r.ok ? r.arrayBuffer() : null).catch(() => null);
-    if (held && same(held, bytes)) return row.title || row['block/title'] || uuid;
+    if (held && same(held, bytes)) return { uuid: String(uuid), title: row.title || row['block/title'] || String(uuid) };
   }
   return null;
 }
@@ -101,6 +111,7 @@ async function paste(target, { path, bytes }, screen) {
   // Still not the file's node when the wait runs out: the bullet stays (10 November 2026). Logseq may only be slow with a large file,
   // and a file that lands a moment later then has its node; removing the bullet left the file in the graph with nothing pointing at it.
   if (!asset) throw new Error(`Logseq has not taken ${name} yet; its bullet is kept on the page for when it does`);
+  Door.outside.progress.made.push(block.uuid);
   return asset.title || asset.content || name.replace(/\.[^.]+$/, '');
 }
 // Where the owner was: the route, and the bullet being written in, put back once the files are in.
@@ -136,30 +147,190 @@ function add(request) {
   job.then(() => {}, error => later.then(answer => { if (answer.pending) logseq.UI.showMsg(`Nothing was added from outside: ${window.PluginDoor.reason(error, 'Logseq did not take it')}`, 'warning'); }));
   return Promise.race([job, later]);
 }
-async function addNow({ files: given, where }) {
+async function addNow({ files: given, where, linkTwins = false }) {
   const paths = (Array.isArray(given) ? given : [given]).map(f => String(f ?? '').trim()).filter(Boolean);
   if (!paths.length) throw new Error('No file was given');
   if (paths.some(p => !p.startsWith('/'))) throw new Error('A file needs its whole path');
-  // Every file read and known to be new before anything is made, so a file refused leaves no page and no bullet behind.
-  const files = [];
+  // Every file read and known to be new before anything is made, so a file refused leaves no page and no bullet behind. Asked to
+  // (the workflow's files tray, which said so before adding), a file already in the graph is linked on the page instead.
+  const files = [], twins = [];
   for (const path of paths) {
-    const bytes = await read(path), already = await twin(bytes, fileName(path));
-    if (already) throw new Error(`${fileName(path)} is already in the graph, as “${already}”`);
-    files.push({ path, bytes });
+    const bytes = await read(path), already = await twinOf(bytes, fileName(path));
+    if (already && !linkTwins) throw new Error(`${fileName(path)} is already in the graph, as “${already.title}”`);
+    if (already) twins.push(already); else files.push({ path, bytes });
   }
   const target = await page(where);
   const screen = remember();
-  const added = [];
+  const added = [], progress = Door.outside.progress = { total: files.length, done: 0, now: '', made: [], linked: [], failed: '', page: target.title || target.name || '' };
   try {
-    for (const file of files) added.push(await paste(target, file, screen));
-  } finally {
+    for (const file of files) { progress.now = fileName(file.path); added.push(await paste(target, file, screen)); progress.done++; }
+    for (const t of twins) { const b = await Door.write.appendBlock(target.uuid, `[[${t.uuid}]]`); if (b?.uuid) progress.made.push(b.uuid); progress.linked.push(t.title); }
+    progress.now = '';
+  } catch (error) { progress.failed = Door.reason(error, 'Logseq did not take it'); throw error; } finally {
     // A page the caller named stays on screen when it was shown for this: they just added to it.
     await screen.back(Boolean(where?.page)).catch(error => console.error('From outside: the screen could not be put back', error));
   }
-  return { page: target.title || target.name || '', added };
+  return { page: target.title || target.name || '', added, linked: twins.map(t => t.title) };
+}
+/* For the files tray, before anything is added: each file's name as its node will be titled, its size, and the node it already is
+   in the graph, if any. While adding: how far it is (progress), and afterwards every bullet made, for one Undo (unadd). */
+async function check({ files: given } = {}) {
+  const paths = (Array.isArray(given) ? given : [given]).map(f => String(f ?? '').trim()).filter(Boolean);
+  const out = [];
+  for (const path of paths) {
+    const name = fileName(path);
+    try { const bytes = await read(path), t = await twinOf(bytes, name); out.push({ path, name, title: name.replace(/\.[^.]+$/, ''), type: (/\.([^.]+)$/.exec(name)?.[1] || '').toUpperCase(), size: bytes.byteLength, twin: t ? t.title : '' }); }
+    catch (error) { out.push({ path, name, title: name, type: '', size: 0, twin: '', said: Door.reason(error, 'could not be read') }); }
+  }
+  return { files: out };
+}
+const progress = async () => Door.outside.progress || { total: 0, done: 0, made: [] };
+async function unadd({ made = [] } = {}) {
+  for (const uuid of made) { try { await Door.write.removeBlock(String(uuid)); } catch (error) { /* already gone */ } }
+  return { undone: made.length };
+}
+/* A note, from the workflow's Add panel: Predictive's proposals for words not yet written (guess), the note written with what was
+   taken (note), and that note taken back (undo). Without Predictive running, a note goes in as words alone. */
+const predictive = () => window.Flow?.outsideNote;
+async function guess(request) {
+  const p = predictive();
+  return p ? p.guess(request || {}) : { off: true, tag: null, choices: [], pieces: [] };
+}
+async function note(request) {
+  browseCache.clear();
+  const p = predictive();
+  if (p) return p.note(request || {});
+  const words = String(request?.words || '').trim();
+  if (!words) throw new Error('There are no words to add');
+  const target = await page(request?.where || 'today'), block = await Door.write.appendBlock(target.uuid, words);
+  return { uuid: block?.uuid || '', page: target.title || target.name || '', tag: '', wrote: [] };
+}
+async function undo(request) {
+  browseCache.clear();
+  const p = predictive();
+  if (p) return p.undo(request || {});
+  await Door.write.removeBlock(String(request?.uuid || ''));
+  return { undone: true };
+}
+async function tags() {
+  const p = predictive();
+  return p ? p.tags() : { off: true, tags: [] };
+}
+/* Todo's list, a task added, a status set and taken back, for the workflow's Todo panel; Todo's own reading and writes. */
+const todo = () => window.Todo?.outside;
+const needTodo = () => { if (!todo()) throw new Error('The Todo part of the plugin is off'); return todo(); };
+const todoList = async () => needTodo().list();
+const todoAdd = async request => { browseCache.clear(); return needTodo().add(request || {}); };
+const todoStatus = async request => { browseCache.clear(); return needTodo().status(request || {}); };
+const todoUndo = async request => { browseCache.clear(); return needTodo().undo(request || {}); };
+/* Finding and reading, for the workflow's Search and page panels: Find's own search (Logseq's, with each node's kind, day and
+   page), and a node as DB Export writes it out (its words as Markdown) with what points at it, as Find opens a node in place
+   (by property, then mentions). */
+const short = n => ({ uuid: n.uuid, title: n.text || n.raw || '', isPage: Boolean(n.isPage), kind: n.kind?.title || '', day: n.day ? window.Find.db.dayLabel(n.day) : '', page: n.page && !n.page.journal ? n.page.title : '' });
+async function find({ words = '', limit = 30 } = {}) {
+  if (!window.Find?.db) throw new Error('The Find part of the plugin is off');
+  const list = String(words).trim() ? await window.Find.db.search(String(words).trim(), limit) : [];
+  return { nodes: list.map(short) };
+}
+async function readNode({ uuid } = {}) {
+  if (!window.Find?.db) throw new Error('The Find part of the plugin is off');
+  const block = await logseq.Editor.getBlock(String(uuid)).catch(() => null) || await logseq.Editor.getPage(String(uuid)).catch(() => null);
+  if (!block) throw new Error('That node is no longer in the graph');
+  const isPage = !block.page || block.name != null;
+  let text = '';
+  const E = window.DbExport;
+  if (E?.db) { try { const doc = isPage ? await E.db.readPage(block.name || block.title || uuid) : await E.db.readBlocks([String(uuid)]); text = E.markdown.toMarkdown(doc, {}); } catch (error) { console.warn('From outside: the page could not be written out', error); } }
+  const n = await window.Find.db.node(String(uuid));
+  return {
+    uuid: String(uuid), title: block.title || block.name || '', isPage, text,
+    properties: (n.properties || []).map(p => ({ name: p.name, values: (p.values || []).map(v => ({ label: v.label, uuid: v.uuid || '' })) })),
+    pointed: (n.pointed || []).map(g => ({ name: g.name, kind: g.kind, nodes: g.nodes.slice(0, 12).map(short), more: Math.max(0, g.nodes.length - 12) })),
+    mentioned: (n.mentioned || []).slice(0, 12).map(short), mentionedCount: (n.mentioned || []).length,
+  };
+}
+/* Home as Find (the owner, 19 November 2026: "is it possible to make it more like find from plugin?"): the workflow's Home panel
+   asks once per change and is answered with what Find shows for the same state, from Find's own readers.
+     browse({ kind, picks, month, words, limit })
+       nothing:    { kinds: [{ id, title, count }], rows: the pages opened last }
+       words:      { rows: pages by name, then Logseq's search; kinds: the kinds among them, with counts }
+       a kind:     { kind, total, rows: its nodes newest first, narrowed by picks ("Name=key"), month (202610) and words;
+                     choices: [{ name, values: [{ key, label, count }] }], months: [{ key, label, count }] }
+   Each row: { uuid, title, isPage, kind, day ("Nov 18"), page, status (todo, doing…) }. A kind's nodes and what they hold are
+   kept a minute, so typing does not read them again. */
+async function kindRead(id) {
+  const hit = browseCache.get(id);
+  if (hit && Date.now() - hit.at < 60000) return hit;
+  const F = window.Find.db, nodes = await F.nodesOfKind(id), full = await F.facets(nodes);
+  const got = { at: Date.now(), nodes, full };
+  browseCache.set(id, got);
+  return got;
+}
+let statusNames = null;
+async function statusName(id) {
+  if (!id) return '';
+  if (!statusNames) statusNames = new Map((await Door.statusChoices()).map(s => [s.id, s.name]));
+  return statusNames.get(id) || '';
+}
+const shortDay = day => { if (!day) return ''; const words = window.Find.db.dayLabel(day); return words.replace(/(st|nd|rd|th),? \d{4}$/, '').replace(/, \d{4}$/, ''); };
+async function rowOf(n) {
+  return { uuid: n.uuid, title: n.text || n.raw || '', isPage: Boolean(n.isPage), kind: n.kind?.title || '', day: shortDay(n.day),
+    page: n.page && !n.page.journal ? n.page.title : '', status: await statusName(n.status) };
+}
+const lower = s => String(s || '').toLowerCase();
+async function browse({ kind = null, picks = [], month = null, words = '', limit = 40 } = {}) {
+  if (!window.Find?.db) throw new Error('The Find part of the plugin is off');
+  const F = window.Find.db, typed = String(words || '').trim();
+  if (!kind) {
+    if (!typed) {
+      const kinds = (await F.kinds()).slice(0, 8).map(k => ({ id: k.id, title: k.title, count: k.count }));
+      const rows = await Promise.all((await F.recents(5)).map(rowOf));
+      return { kinds, rows };
+    }
+    const q = lower(typed);
+    const named = (await F.pages()).filter(p => lower(p.title).includes(q))
+      .sort((a, b) => (lower(a.title).startsWith(q) ? 0 : 1) - (lower(b.title).startsWith(q) ? 0 : 1) || a.title.length - b.title.length).slice(0, 5);
+    const pages = named.length ? await F.details([], named.map(p => p.uuid)) : [];
+    const order = new Map(named.map((p, i) => [p.uuid, i]));
+    pages.sort((a, b) => order.get(a.uuid) - order.get(b.uuid));
+    const found = (await F.search(typed, 30)).filter(n => !pages.some(p => p.uuid === n.uuid));
+    const counts = new Map();
+    for (const n of found) if (n.kind) counts.set(n.kind.id, { id: n.kind.id, title: n.kind.title, count: (counts.get(n.kind.id)?.count || 0) + 1 });
+    // The kinds whose names begin with the letters come first, as in Find ("cons" lights Consultation whatever the words find).
+    const all = await F.kinds(), begins = all.filter(k => lower(k.title).startsWith(q)).slice(0, 2).map(k => ({ id: k.id, title: k.title, count: k.count, whole: true }));
+    const kinds = begins.concat([...counts.values()].filter(k => !begins.some(b => b.id === k.id)).sort((a, b) => b.count - a.count)).slice(0, 6);
+    return { kinds, rows: await Promise.all(pages.concat(found).slice(0, limit).map(rowOf)) };
+  }
+  const index = await F.tagIndex(), tag = index.byId.get(Number(kind));
+  if (!tag) throw new Error('That kind is no longer in the graph');
+  const { nodes, full } = await kindRead(tag.id);
+  let list = nodes.slice();
+  // A task's status is Logseq's own property, not a choice Find's facets read: it is offered as Status (Task only).
+  const isTask = tag.ident === 'logseq.class/Task';
+  if (isTask && !statusNames) await statusName(-1);
+  const statusOf = n => statusNames?.get(n.status) || '';
+  for (const p of picks || []) list = p.startsWith('Status=') ? list.filter(n => statusOf(n) === p.slice(7)) : list.filter(n => full.byNode.get(n.id)?.has(p));
+  if (month) list = list.filter(n => n.day && Math.floor(n.day / 100) === Number(month));
+  if (typed) { const ws = lower(typed).split(/\s+/); list = list.filter(n => ws.every(w => lower(n.text || n.raw).includes(w))); }
+  list.sort(F.byDay);
+  // The choices among what is left: each property's values with how many of the rows hold each, as Find counts them.
+  const held = new Map();
+  for (const n of list) for (const h of full.byNode.get(n.id) || []) held.set(h, (held.get(h) || 0) + 1);
+  let choices = full.props.filter(p => !(picks || []).some(x => x.startsWith(p.name + '=')))
+    .map(p => ({ name: p.name, values: p.values.map(v => ({ key: v.key, label: v.label, count: held.get(p.name + '=' + v.key) || 0 })).filter(v => v.count && v.count < list.length).sort((a, b) => b.count - a.count) }))
+    .filter(p => p.values.length).slice(0, 2);
+  if (isTask && !(picks || []).some(x => x.startsWith('Status='))) {
+    const by = new Map();
+    for (const n of list) { const st = statusOf(n); if (st) by.set(st, (by.get(st) || 0) + 1); }
+    const titles = new Map((await Door.statusChoices()).map(x => [x.name, x.title]));
+    const values = [...by].sort((a, b) => b[1] - a[1]).map(([key, count]) => ({ key, label: titles.get(key) || key, count }));
+    if (values.length > 1) choices.unshift({ name: 'Status', values });
+  }
+  const months = month ? [] : F.months(list).slice(0, 4).map(m => ({ key: m.key, label: m.label, count: m.count }));
+  return { kind: { id: tag.id, title: tag.title }, total: list.length, cutFrom: nodes.cutFrom || 0, choices, months,
+    rows: await Promise.all(list.slice(0, limit).map(rowOf)) };
 }
 function start() {
-  logseq.provideModel({ add });
+  logseq.provideModel({ add, check, progress, unadd, guess, note, undo, tags, todoList, todoAdd, todoStatus, todoUndo, find, read: readNode, browse });
 }
-Door.outside = { start, add, patience: 30000, answerWithin: 8000 };   // how long Logseq is given to take one file; how long the caller waits
+Door.outside = { start, add, page, progress: null, patience: 30000, answerWithin: 8000 };   // how long Logseq is given to take one file; how long the caller waits
 })();

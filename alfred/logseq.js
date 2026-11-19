@@ -531,9 +531,7 @@ function tagsAnswer(mode) {
   const rows = list.map(function (t) {
     return { uid: String(t.id), "sheetTag.text": " ".repeat(t.depth) + "#" + t.title, "sheetPath.text": t.depth ? t.path : "", "sheetFields.text": (t.fields || []).join(", "), "sheetId.text": String(t.id), "sheetTitle.text": t.title, "sheetFind.text": t.title + " " + t.path };
   });
-  const pick = mode === "triage"
-    ? { type: "script", src: "tag", args: ["{var:t_uuid}", "{value:sheetList.selected.sheetId.text}", "{var:t_passed}", "{var:t_tagged}", "{var:t_summary},{value:sheetList.selected.sheetTitle.text}"] }
-    : { type: "script", src: "pick", args: ["{value:words.text}", "{value:where.selected.value}", "{value:sheetList.selected.sheetId.text}"] };
+  const pick = { type: "script", src: "pick", args: ["{value:words.text}", "{value:where.selected.value}", "{value:sheetList.selected.sheetId.text}"] };
   return JSON.stringify({ sheet: { id: "tagSheet", root: {
     type: "view", layout: "border", padding: 22, spacing: 12, constraints: { size: { width: 760, height: 540 } },
     shortcuts: [
@@ -566,67 +564,8 @@ function pickAnswer(words, where, tagId) {
   return JSON.stringify(answer);
 }
 
-/* ---------- Tag what came in (triage.alfredui) ----------
-   Notes added from Alfred with no tag, one at a time: the tags each could be on ⌘1–3 (⌘T for any tag), Tab to pass one by, ⌘⌫ to
-   leave it untagged for good. The panel keeps what it did (tagged ids, passed ids) in its variables, for one Undo at the end.
-     panel-triage-next <passed> <tagged> <summary>
-     panel-triage-tag <uuid> <tagId> <passed> <tagged> <summary>      (tagId empty: leave it untagged)
-     panel-triage-undo <tagged>                                      */
-const csv = text => String(text || "").split(",").filter(Boolean);
-function triageNext(passed, tagged, summary) {
-  let got;
-  try { got = pluginMust("waiting", { max: 1, skip: csv(passed) }); }
-  catch (error) { return JSON.stringify({ update: { ids: { tCount: { text: messageFrom(error), colour: "systemRedColor" } } } }); }
-  const note = (got.notes || [])[0], done = csv(tagged).length;
-  if (!note) {
-    const counts = {};
-    csv(summary).forEach(function (t) { counts[t] = (counts[t] || 0) + 1; });
-    const line = Object.keys(counts).map(function (t) { return t + " " + counts[t]; }).join(" · ");
-    return JSON.stringify({ replace: { ids: { tbody: { type: "view", id: "tbody", layout: "inline", direction: "vertical", spacing: 12, components: [
-      { type: "label", text: done ? "✓  " + plural(done, "note") + " tagged" + (got.count ? ", " + got.count + " passed by for now" : "") : got.count ? "Only notes you passed by are left: " + got.count : "Nothing waiting: every note from Alfred has a tag.", font: { size: 20 }, constraints: { position: "left" } },
-      { type: "label", text: line, colour: SECONDARY, font: { size: 15 }, hidden: !line, constraints: { position: "left" } },
-      { type: "view", layout: "inline", spacing: 18, constraints: { position: "right" }, components: [
-        { type: "button", bordered: false, hidden: !done, text: "Undo all " + done + "  ⌘Z", shortcut: "⌘z", contenttintcolour: SECONDARY, font: { size: 15 }, events: [{ triggers: "actioned", action: { type: "script", src: "undo", args: [tagged] } }] },
-        Object.assign({ type: "button", text: "Done  ↩", shortcut: "↩", events: [{ triggers: "actioned", action: { type: "json", src: { finish: {} } } }] }, GLASS)
-      ] }
-    ] } } }, sheet: { close: "tagSheet" }, update: { relayout: true }, window: { resize: { height: "auto" } } });
-  }
-  const buttons = (note.choices || []).slice(0, 3).map(function (c, i) {
-    return { type: "button", bordered: false, text: "⌘" + (i + 1) + "   #" + c.title + (c.why ? "     " + c.why : ""), shortcut: "⌘" + (i + 1), contenttintcolour: i ? SECONDARY : "labelColor", font: { size: 16 }, constraints: { position: "left" },
-      events: [{ triggers: "actioned", action: { type: "script", src: "tag", args: [note.uuid, String(c.id), passed, tagged, summary + "," + c.title] } }] };
-  });
-  return JSON.stringify({ variables: { t_uuid: note.uuid, t_passed: passed, t_tagged: tagged, t_summary: summary }, sheet: { close: "tagSheet" },
-    update: { relayout: true, ids: {
-      tCount: { text: (csv(passed).length + done + 1) + " of " + (got.count + done) + " · " + (note.page || "") },
-      tWords: { text: note.words }
-    } },
-    replace: { ids: { tChoices: { type: "view", id: "tChoices", layout: "inline", direction: "vertical", spacing: 8, constraints: { position: "left" },
-      components: buttons.length ? buttons : [{ type: "label", text: "No tag to suggest for these words. ⌘T lists all your tags.", colour: SECONDARY, font: { size: 15 } }] } } },
-    window: { resize: { height: "auto" } } });
-}
-function triageTag(uuid, tagId, passed, tagged, summary) {
-  try { pluginModel("tagWaiting", { uuid: uuid, tag: tagId ? Number(tagId) : null }); }
-  catch (error) { return JSON.stringify({ update: { ids: { tCount: { text: messageFrom(error), colour: "systemRedColor" } } } }); }
-  return triageNext(passed, tagId ? (tagged ? tagged + "," : "") + uuid : tagged, tagId ? summary : summary.replace(/,[^,]*$/, ""));
-}
-function triageUndo(tagged) {
-  csv(tagged).forEach(function (uuid) { try { pluginModel("undo", { uuid: uuid }); } catch (_) { /* already changed by hand */ } });
-  return JSON.stringify({ update: { ids: { tbody: {} } }, finish: {} });
-}
-
-/* ---------- Home (home.alfredui): one keyword that leads everywhere ----------
-   At rest: the things you do, with what is waiting, then pages you came back to. Typing: pages by name at once, then the words
-   as a note to add (⇥). ↩ goes: the panel closes and the workflow opens the next one (route).
-     panel-home-start          panel-home-find <words>          panel-route <where>                                        */
-const SUB_FONT = { size: 14 }, HEAD_FONT = { size: 14, weight: "semibold" }, HOME_ROW = 56;
-const homeRow = (icon, title, sub, go, key) => ({ uid: go, "hIcon.image": { type: "symbol", src: icon }, "hTitle.text": title, "hSub.text": sub || "", "hSub.font": SUB_FONT, "hKey.text": key || "", "hGo.text": go });
-// A group's heading: a row of the list with its words on the lower line; the arrows step past it (homePane).
-const homeHead = text => ({ uid: "h:" + text, "hIcon.image": null, "hTitle.text": "", "hSub.text": text, "hSub.font": HEAD_FONT, "hKey.text": "", "hGo.text": "" });
-const pageRow = (p, sub) => homeRow("doc.text", nodeTitle(p) || p.title || "", sub, "read:" + nodeUuid(p));
-const tagsOf = p => (p.tags || []).map(t => t.title || t).filter(t => t && t !== "Page");
-// The list as tall as its rows, and the panel with it, as Alfred's own results grow.
-const homeAnswer = (rows, lit) => JSON.stringify({ variables: { h_order: rows.map(r => r.uid).join("¦"), h_lit: lit },
-  update: { relayout: true, ids: { homeList: { data: { src: rows }, select: lit, constraints: { region: "centre", size: { height: rows.length * HOME_ROW + 6 } } } } }, window: { resize: { height: "auto" } } });
+/* ---------- Home (home.alfredui): Home as Find, below the pane ---------- */
+const SUB_FONT = { size: 14 }, HEAD_FONT = { size: 14, weight: "semibold" };
 
 /* The second pane (19 November 2026): beside the list, what the lit row cannot say on its own line. A page shows its tags, its
    properties and where it leads; a note shows its words in full. An action has no pane, and the list takes the whole width. */
@@ -672,7 +611,7 @@ function paneView(id, uuid, width, withWords, lead) {
   ] };
 }
 // The lit row changed. A heading is stepped past, the way the arrows were going; a page gets its pane; an action has none.
-function homePane(go, title, order, lit) {
+function homePane(go, title, order, lit, tabLabel) {
   const ids = String(order || "").split("¦");
   if (!go && !title) {
     const at = ids.findIndex(u => u.indexOf("h:") === 0), was = ids.indexOf(lit);
@@ -682,11 +621,8 @@ function homePane(go, title, order, lit) {
   const out = { variables: { h_lit: go }, replace: { ids: {} }, update: { relayout: true, ids: {} }, window: { resize: { height: "auto" } } };
   if (go.indexOf("read:") === 0) {
     try { out.replace.ids.hPane = paneView("hPane", go.slice(5), 330, false); } catch (_) { out.replace.ids.hPane = noPane("hPane"); }
-    out.update.ids.hFoot = { text: "Read ↩      Open in Logseq ⌘↩" };
-  } else {
-    out.replace.ids.hPane = noPane("hPane");
-    out.update.ids.hFoot = { text: go.indexOf("search:") === 0 ? "Search ↩" : "Open ↩" };
-  }
+  } else out.replace.ids.hPane = noPane("hPane");
+  Object.assign(out.update.ids, homeFoot(go, tabLabel || "", null));
   return JSON.stringify(out);
 }
 // "3 today · 1 late", from Todo's own list; nothing when the Todo part is off.
@@ -699,33 +635,180 @@ function todoCounts() {
     return [now ? now + " today" : "", late ? late + " late" : "", !now && !late ? plural(all, "open task") : ""].filter(Boolean).join(" · ");
   } catch (_) { return "Open tasks"; }
 }
-function homeStart() {
-  let waiting = 0;
-  try { waiting = (pluginModel("waiting", { max: 0 }) || {}).count || 0; } catch (_) { /* the plugin is off: no count */ }
-  const rows = [
-    homeRow("plus.circle", "Add to today", "Tag guessed as you write", "add:", "⌘1"),
-    homeRow("number", "Tag what came in", waiting ? plural(waiting, "note") + " added from Alfred have no tag" : "Nothing waiting", "triage", "⌘2"),
-    homeRow("checkmark.circle", "Todo", todoCounts(), "todo", "⌘3")
-  ];
-  let recent = [];
-  try { recent = api("logseq.App.getCurrentGraphRecent", []) || []; } catch (_) { /* none */ }
-  recent = recent.filter(p => p && nodeUuid(p)).slice(0, 5);
-  if (recent.length) rows.push(homeHead("Pages you came back to"));
-  recent.forEach(function (p) { rows.push(pageRow(p, tagsOf(p).join(", "))); });
-  return homeAnswer(rows, "add:");
+/* Home as Find (the owner, 19 November 2026: "is it possible to make it more like find from plugin?"). One panel that finds,
+   narrows and walks, as the plugin's Find does, from the plugin's browse:
+     nothing typed   Add to today (⌘1) and Todo (⌘2) as buttons, your kinds with counts, the pages you came back to
+     letters         pages by name, then Logseq's search; the kinds among them as choices; the letters light a kind
+     a kind taken    it stands before the line; its nodes newest first, the day in the margin; the choices the graph holds for
+                     them (Provider, Topic, When; Status for tasks) as lines above; the letters narrow and light a choice
+   ⇥ takes the lit choice (the letters that lit it go), a press on a choice takes it, ⌘⌫ or a press on a taken one lets it go;
+   ↩ reads the lit row (the page view, walking on from there), ⌘↩ opens it in Logseq. With a task lit, ⌘D done, ⌘G doing, ⌘Z
+   takes it back. The state travels in h_state (base64 JSON: kind, picks, month), so every script answers from it.
+     panel-home-start   panel-home-find <words> <state>   panel-home-take <words> <state> <what>   panel-home-tab <words> <state> <tab>
+     panel-home-untake <words> <state> [index]   panel-home-status <uuid> <status> <words> <state>   panel-home-undo <uuid> <words> <state> */
+const HOME_ROW = 56, HOME_MOST = 7;
+const SYMBOL_OF = r => r.status ? (STATUS_SYMBOL[r.status] || "circle") : r.isPage ? "doc.text" : "text.alignleft";
+const homeState = text => { try { const st = unpacked(text || ""); return { kind: st.kind || null, kindTitle: st.kindTitle || "", picks: st.picks || [], month: st.month || null, monthLabel: st.monthLabel || "" }; } catch (_) { return { kind: null, kindTitle: "", picks: [], month: null, monthLabel: "" }; } };
+const lastWord = words => (String(words).trim().split(/\s+/).pop() || "").toLowerCase();
+const begins = (label, words) => { const w = lastWord(words); return w.length >= 2 && String(label).toLowerCase().split(/\s+/).some(x => x.replace(/^dr\.?$/, "").indexOf(w) === 0 && x.length) || (w.length >= 2 && String(label).toLowerCase().indexOf(w) === 0); };
+function homeListView(rows, lit, withDay) {
+  const left = [];
+  if (withDay) left.push({ type: "label", id: "hDay", font: { size: 14 }, colour: SECONDARY, constraints: { position: "centre", size: { width: 56 } } });
+  left.push({ type: "imageview", id: "hIcon", constraints: { position: "centre", size: { width: 24, height: 24 } } });
+  return { type: "dataview", id: "homeList", placeholder: "Nothing found",
+    constraints: { region: "centre", size: { height: Math.max(1, Math.min(rows.length, HOME_MOST)) * HOME_ROW + 6 } },
+    behaviour: { selection: { wrap: "vertical" } },
+    events: [{ triggers: "changed", action: { type: "script", src: "pane", async: true, args: ["{value:homeList.selected.hGo.text}", "{value:homeList.selected.hTitle.text}", "{var:h_order}", "{var:h_lit}", "{var:h_tabLabel}"] } }],
+    cell: { height: HOME_ROW,
+      init: { "hRow.background": null, "hTitle.colour": "labelColor", "hSub.colour": SECONDARY, "hIcon.contenttintcolour": SECONDARY },
+      selected: { "hRow.background": SOFT_ROW },
+      root: { type: "view", id: "hRow", layout: "border", padding: 8, spacing: 12, cornerradius: 12, components: [
+        { type: "view", layout: "inline", spacing: 10, constraints: { region: "left", position: "centre" }, components: left },
+        { type: "view", layout: "inline", direction: "vertical", spacing: 3, constraints: { region: "centre", size: { height: 44 } }, components: [
+          { type: "label", id: "hTitle", font: { size: 18 }, linebreak: "truncatetail", constraints: { position: "left", size: { height: 24 } } },
+          { type: "label", id: "hSub", font: { size: 14 }, linebreak: "truncatetail", constraints: { position: "left", size: { height: 19 } } }
+        ] },
+        { type: "label", id: "hGo", hidden: true }
+      ] } },
+    data: { type: "basic", src: rows }, select: lit };
 }
-function homeFind(words) {
-  if (!words.trim()) return homeStart();
-  const q = words.trim().toLowerCase().replace(/["\\]/g, "");
-  let pages = [];
-  try {
-    pages = (api("logseq.DB.datascriptQuery", ["[:find (pull ?p [:block/uuid :block/title {:block/tags [:block/title]}]) :where [?p :block/name ?n] [(clojure.string/includes? ?n \"" + q + "\")] (not [?p :logseq.property/deleted-at _])]"]) || []).map(r => r[0]);
-  } catch (_) { /* nothing found */ }
-  pages.sort(function (a, b) { const x = a.title.toLowerCase().indexOf(q), y = b.title.toLowerCase().indexOf(q); return (x === 0 ? 0 : 1) - (y === 0 ? 0 : 1) || a.title.length - b.title.length; });
-  const rows = pages.slice(0, 7).map(p => pageRow(p, tagsOf(p).join(", ")));
-  rows.push(homeRow("magnifyingglass", "Search notes for “" + words.trim() + "”", "Logseq's search, each note with its kind and day", "search:" + words.trim(), "⌘F"));
-  rows.push(homeRow("plus.circle", "Add “" + words.trim() + "” to today", "tag guessed as you write", "add:" + words.trim(), "⇥"));
-  return homeAnswer(rows, rows[0].uid);
+const nodeHomeRow = (r, heading) => ({ uid: "read:" + r.uuid, "hIcon.image": { type: "symbol", src: SYMBOL_OF(r) }, "hDay.text": r.day || "", "hTitle.text": r.title,
+  "hSub.text": heading ? [r.kind, r.page].filter(Boolean).join(" · ") : [r.kind, r.page].filter(Boolean).join(" · "), "hSub.font": SUB_FONT, "hGo.text": "read:" + r.uuid });
+const homeHeadRow = text => ({ uid: "h:" + text, "hIcon.image": null, "hDay.text": "", "hTitle.text": "", "hSub.text": text, "hSub.font": HEAD_FONT, "hGo.text": "" });
+const addRow = words => ({ uid: "add:" + words, "hIcon.image": { type: "symbol", src: "plus.circle" }, "hDay.text": "", "hTitle.text": "Add “" + words + "” to today", "hSub.text": "as a note, its tag guessed as you write", "hSub.font": SUB_FONT, "hGo.text": "add:" + words });
+// A line of choices: its name, then its values as presses; the lit one (the letters began it) in a capsule.
+function choiceLine(name, items) {
+  return { type: "view", layout: "inline", spacing: 6, constraints: { position: "left" }, components: [
+    { type: "label", text: name, colour: SECONDARY, font: { size: 14 }, constraints: { position: "centre", size: { width: 78 } } }
+  ].concat(items.map(it => Object.assign({ type: "button", text: it.text, font: { size: 15 }, tooltip: it.tip || "",
+    events: [{ triggers: "actioned", action: { type: "script", src: "take", args: ["{value:hq.text}", "{var:h_state}", it.what] } }] },
+    it.lit ? { bordered: true, bordershape: "capsule" } : { bordered: false, contenttintcolour: it.key ? "labelColor" : "labelColor" }))) };
+}
+function doLine(todo) {
+  const press = (text, key, go) => ({ type: "button", text: text + "   " + key, font: { size: 15 }, bordered: true, bordershape: "capsule", shortcut: key.toLowerCase(),
+    events: [{ triggers: "actioned", action: { type: "json", src: { finish: { args: go } } } }] });
+  return { type: "view", layout: "inline", spacing: 8, constraints: { position: "left" }, components: [
+    { type: "label", text: "Do", colour: SECONDARY, font: { size: 14 }, constraints: { position: "centre", size: { width: 78 } } },
+    press("Add to today", "⌘1", "add:{value:hq.text}"),
+    press("Todo" + (todo ? " · " + todo : ""), "⌘2", "todo")
+  ] };
+}
+// The picks before the line: each a capsule; a press lets it go.
+function picksView(st) {
+  const parts = [];
+  if (st.kind) parts.push(st.kindTitle);
+  st.picks.forEach(p => parts.push(p.label));
+  if (st.month) parts.push(st.monthLabel);
+  return { type: "view", id: "hPicks", layout: "inline", spacing: 6, hidden: !parts.length, constraints: { region: "left", position: "centre" },
+    components: parts.map((label, i) => ({ type: "button", text: label + "  ×", font: { size: 16 }, bordered: true, bordershape: "capsule", tooltip: "Let it go",
+      events: [{ triggers: "actioned", action: { type: "script", src: "untake", args: ["{value:hq.text}", "{var:h_state}", String(i)] } }] })) };
+}
+function homeAnswerFind(words, st, lit, note) {
+  const typed = String(words || "").trim();
+  const ask = { kind: st.kind, picks: st.picks.map(p => p.p), month: st.month, words: typed, limit: 40 };
+  let got;
+  try { got = pluginMust("browse", ask); }
+  catch (error) { return JSON.stringify({ update: { ids: { hCount: { text: messageFrom(error), colour: "systemRedColor" } } } }); }
+  const lines = [], rows = [];
+  let tab = "", tabLabel = "", count = "";
+  if (!st.kind) {
+    if (!typed) {
+      lines.push(doLine(todoCounts()));
+    }
+    const kinds = (got.kinds || []).map(k => ({ text: k.title + "  " + k.count, what: "kind:" + k.id + ":" + k.title, lit: typed && !tab && begins(k.title, typed) && (tab = "kind:" + k.id + ":" + k.title) && (tabLabel = k.title) }));
+    if (kinds.length) lines.push(choiceLine("Kind", kinds.slice(0, 6)));
+    if (!typed && (got.rows || []).length) rows.push(homeHeadRow("Pages you came back to"));
+    (got.rows || []).forEach(r => rows.push(nodeHomeRow(r)));
+    if (typed) rows.push(addRow(typed));
+    count = typed ? plural((got.rows || []).length, "node") : "";
+  } else {
+    (got.choices || []).forEach(function (c) {
+      lines.push(choiceLine(c.name, c.values.slice(0, 4).map(v => {
+        const what = "pick:" + c.name + "=" + v.key + ":" + v.label, on = typed && !tab && begins(v.label, typed);
+        if (on) { tab = what; tabLabel = v.label; }
+        return { text: v.label + "  " + v.count, what: what, lit: on };
+      })));
+    });
+    if ((got.months || []).length > 1) lines.push(choiceLine("When", got.months.map(m => {
+      const what = "month:" + m.key + ":" + m.label + " " + String(m.key).slice(0, 4), on = typed && !tab && begins(m.label, typed);
+      if (on) { tab = what; tabLabel = m.label; }
+      return { text: m.label + "  " + m.count, what: what, lit: on };
+    })));
+    (got.rows || []).forEach(r => rows.push(nodeHomeRow(r)));
+    count = plural(got.total, got.kind.title === "Task" ? "task" : "node") + (got.cutFrom ? ", the newest of " + got.cutFrom : "");
+  }
+  const withDay = rows.some(r => r["hDay.text"]);
+  const first = rows.find(r => r["hGo.text"]);
+  lit = lit && rows.some(r => r.uid === lit) ? lit : first ? first.uid : "";
+  const out = {
+    variables: { h_state: packed(st), h_tab: tab, h_tabLabel: tabLabel, h_order: rows.map(r => r.uid).join("¦"), h_lit: lit },
+    replace: { ids: {
+      hPicks: picksView(st),
+      hLines: { type: "view", id: "hLines", layout: "inline", direction: "vertical", spacing: 10, hidden: !lines.length, constraints: { stretch: "horizontal" }, components: lines },
+      homeList: homeListView(rows, lit, withDay)
+    } },
+    update: { relayout: true, ids: {
+      hLine2: { hidden: !lines.length },
+      hCount: { text: note || count, colour: SECONDARY },
+      hq: { placeholder: st.kind ? "Narrow " + st.kindTitle + " by words, or a choice" : "Find, or write a note" }
+    } },
+    window: { resize: { height: "auto" } }
+  };
+  Object.assign(out.update.ids, homeFoot(lit, tabLabel, st));
+  return JSON.stringify(out);
+}
+// What ⇥ and ↩ do right now, at the foot (Find's foot: "narrow to Consultation", "read Dr. Mei Chen").
+function homeFoot(go, tabLabel, st) {
+  const parts = [];
+  if (tabLabel) parts.push("⇥ narrow to " + tabLabel);
+  if (go.indexOf("read:") === 0) parts.push("↩ read", "⌘↩ open in Logseq");
+  else if (go.indexOf("add:") === 0) parts.push("↩ write the note");
+  if (st && st.kindTitle === "Task") parts.unshift("Done ⌘D", "Doing ⌘G");
+  return { hFoot: { text: parts.join("      ") } };
+}
+function homeStart() { return homeAnswerFind("", homeState(""), ""); }
+function homeFind(words, state) { return homeAnswerFind(words, homeState(state), ""); }
+// A choice taken, by a press or by ⇥: "kind:<id>:<title>", "pick:<Name=key>:<label>", "month:<key>:<label>". The letters that lit it go.
+function homeTake(words, state, what) {
+  const st = homeState(state), m = /^(kind|pick|month):([^:]*):(.*)$/.exec(String(what || ""));
+  if (!m) return homeAnswerFind(words, st, "");
+  if (m[1] === "kind") { st.kind = Number(m[2]); st.kindTitle = m[3]; st.picks = []; st.month = null; st.monthLabel = ""; }
+  if (m[1] === "pick" && !st.picks.some(p => p.p === m[2])) st.picks.push({ p: m[2], label: m[3] });
+  if (m[1] === "month") { st.month = Number(m[2]); st.monthLabel = m[3]; }
+  const rest = begins(m[3], words) ? String(words).trim().split(/\s+/).slice(0, -1).join(" ") : String(words || "").trim();
+  const out = JSON.parse(homeAnswerFind(rest, st, ""));
+  out.update.ids.hq = Object.assign(out.update.ids.hq || {}, { text: rest });
+  return JSON.stringify(out);
+}
+function homeTab(words, state, tab) { return tab ? homeTake(words, state, tab) : JSON.stringify({}); }
+// A taken one let go: the one pressed, or (⌘⌫) the last. Letting the kind go lets everything go.
+function homeUntake(words, state, index) {
+  const st = homeState(state);
+  const all = [].concat(st.kind ? ["kind"] : [], st.picks.map((p, i) => "pick" + i), st.month ? ["month"] : []);
+  const which = index === "" || index == null ? all[all.length - 1] : all[Number(index)];
+  if (!which) return JSON.stringify({});
+  if (which === "kind") return homeAnswerFind(words, homeState(""), "");
+  if (which === "month") { st.month = null; st.monthLabel = ""; }
+  else st.picks.splice(Number(which.slice(4)), 1);
+  return homeAnswerFind(words, st, "");
+}
+// ⌘D, ⌘G on a lit task, and ⌘Z: Todo's own writes with their Undo, then the list read again with the same row lit.
+function homeStatus(go, status, words, state) {
+  if (go.indexOf("read:") !== 0) return JSON.stringify({});
+  const uuid = go.slice(5);
+  try { pluginMust("todoStatus", { uuid: uuid, status: status }); }
+  catch (error) { return JSON.stringify({ update: { ids: { hCount: { text: messageFrom(error), colour: "systemRedColor" } } } }); }
+  const out = JSON.parse(homeAnswerFind(words, homeState(state), go, (status === "done" ? "Done" : "Set to " + status) + ".   Undo ⌘Z"));
+  out.variables.h_last = uuid;
+  return JSON.stringify(out);
+}
+function homeUndo(uuid, words, state) {
+  if (!uuid) return JSON.stringify({});
+  try { pluginMust("todoUndo", { uuid: uuid }); }
+  catch (error) { return JSON.stringify({ update: { ids: { hCount: { text: messageFrom(error), colour: "systemRedColor" } } } }); }
+  const out = JSON.parse(homeAnswerFind(words, homeState(state), "read:" + uuid, "Taken back."));
+  out.variables.h_last = "";
+  return JSON.stringify(out);
 }
 // Where ↩ went: another panel, or a page shown in Logseq.
 function route(where) {
@@ -741,7 +824,7 @@ function route(where) {
   }
   if (kind === "block") { try { api("logseq.Editor.scrollToBlockInPage", [arg]); } catch (_) { /* gone */ } return ""; }
   if (kind === "page") { try { api("logseq.App.pushState", ["page", { name: arg }]); } catch (_) { /* gone */ } return ""; }
-  const trigger = { add: "add", triage: "triage", todo: "todo", search: "search", read: "read", files: "files" }[kind];
+  const trigger = { home: "home", add: "add", todo: "todo", search: "search", read: "read", files: "files" }[kind];
   if (trigger) app.doShellScript("/usr/bin/osascript -e " + shellQuote('tell application id "com.runningwithcrayons.Alfred" to run trigger "' + trigger + '" in workflow "com.openai.alfred.logseq-db" with argument ' + JSON.stringify(arg)) + " >/dev/null 2>&1 &");
   return "";
 }
@@ -879,7 +962,8 @@ function backAnswer(path) {
   const trail = csv(path);
   trail.pop();
   const to = trail.pop();
-  return to ? readAnswer(to, trail.join(",")) : JSON.stringify({ finish: {} });
+  // Back from the first node read: Home again, as it was left (the walk began there: Home as Find, 19 November 2026).
+  return to ? readAnswer(to, trail.join(",")) : JSON.stringify({ finish: { args: "home" } });
 }
 
 /* ---------- The files tray (files.alfredui) ----------
@@ -1027,12 +1111,14 @@ function panel(command, items) {
   if (command === "panel-todo-status") return todoStatus(items[0] || "", items[1] || "done");
   if (command === "panel-todo-undo") return todoUndo(items[0] || "");
   if (command === "panel-home-start") return homeStart();
-  if (command === "panel-home-find") return homeFind(items[0] || "");
-  if (command === "panel-home-pane") return homePane(items[0] || "", items[1] || "", items[2] || "", items[3] || "");
+  if (command === "panel-home-find") return homeFind(items[0] || "", items[1] || "");
+  if (command === "panel-home-pane") return homePane(items[0] || "", items[1] || "", items[2] || "", items[3] || "", items[4] || "");
+  if (command === "panel-home-take") return homeTake(items[0] || "", items[1] || "", items[2] || "");
+  if (command === "panel-home-tab") return homeTab(items[0] || "", items[1] || "", items[2] || "");
+  if (command === "panel-home-untake") return homeUntake(items[0] || "", items[1] || "", items.length > 2 ? items[2] : "");
+  if (command === "panel-home-status") return homeStatus(items[0] || "", items[1] || "done", items[2] || "", items[3] || "");
+  if (command === "panel-home-undo") return homeUndo(items[0] || "", items[1] || "", items[2] || "");
   if (command === "panel-route") return route(items[0] || "");
-  if (command === "panel-triage-next") return triageNext(items[0] || "", items[1] || "", items[2] || "");
-  if (command === "panel-triage-tag") return triageTag(items[0] || "", items[1] || "", items[2] || "", items[3] || "", items[4] || "");
-  if (command === "panel-triage-undo") return triageUndo(items[0] || "");
   if (command === "panel-tags") return tagsAnswer(items[0] || "");
   if (command === "panel-pick") return pickAnswer(items[0] || "", items[1] || "today", items[2] || "");
   if (command === "panel-undo") return undoAnswer(items[0] || "", items[1] || "");
