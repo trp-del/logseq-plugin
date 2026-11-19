@@ -2,6 +2,7 @@
    the date; and a Todo section in the sidebar headed ":logseq-plugin/_sidebar.todo-side" with nothing in it. A task whose Status is
    there but empty (Logseq's empty value) is made on the guard's copy, Todo opened in the sidebar, and every word on screen read. */
 module.exports = {
+  parts: ['todo'],   // the parts of the plugin whose change this case is run for (every case runs before a release)
   name: 'Todo never shows a machine name, a task with an empty Status included',
   from: '18 Nov: ":logseq.property/empty-placeholder" on a Todo row, ":logseq-plugin/_sidebar.todo-side" over an empty Todo',
   graph: 'Personal Finance',

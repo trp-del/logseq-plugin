@@ -1,6 +1,7 @@
 /* 17 November 2026, found by the 0.4 audit after the sidebar releases: at 900 px the right sidebar's contents kept the width they
    had in a wider window and ran past the window's right edge. */
 module.exports = {
+  parts: ['threads', 'look', 'sidebar'],   // the parts of the plugin whose change this case is run for (every case runs before a release)
   name: 'Nothing runs past the window’s edge at 900 px, with a page in the right sidebar',
   from: '17 Nov: the sidebar ran past the window’s edge in a narrower window',
   graph: 'Illness Test Graph',

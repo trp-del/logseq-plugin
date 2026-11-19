@@ -117,5 +117,36 @@ for (const file of FILES) {
     if (TIMED.some(re => re.test(line))) own.push(`${rel}:${i + 1} a motion timed by a number of its own (name it in Door.MOTION): ${line.trim().slice(0, 100)}`);
   });
 }
+/* What the rules above did not see (19 November 2026, the owner: "certain feature and designs are not being applied evenly"): a
+   module giving a library piece a look of its own (a colour, size, weight, line or opacity on a rule whose subject is one of the
+   library's lk- names: the module lays a piece out, the library alone says how it looks), and a grey mixed by a module (color-mix)
+   where the library names every grey. There were 55 and 17 of these when the rule was written, so each file's count is kept in
+   test/library-debts.json: one more anywhere fails; one fewer says to lower the number, so the debt only shrinks. */
+const DEBTS_FILE = path.join(__dirname, 'library-debts.json'), DEBTS = JSON.parse(fs.readFileSync(DEBTS_FILE, 'utf8'));
+const inLibrary = name => new RegExp('\\.' + name + '(?![\\w-])').test(NAMES);
+const A_LOOK = /(^|[;{\s])(color|background(-color)?|font-size|font-weight|font-family|font-style|opacity|border(-[a-z]+)*|text-decoration[a-z-]*|fill|stroke|box-shadow|letter-spacing|text-transform)\s*:/;
+const debts = { restyled: {}, greys: {} }, found = { restyled: [], greys: [] };
+for (const file of FILES) {
+  const rel = path.relative(ROOT, file), text = fs.readFileSync(file, 'utf8');
+  if (/^export\/logseq\/preview\.js$/.test(rel)) continue;   // the printed page is the person's own styles, not the plugin's screen
+  for (const rule of text.matchAll(/([^{}`;\n]*\.lk-[^{}`;\n]*)\{([^{}]*)\}/g)) {
+    const subject = rule[1].split(',').map(part => part.trim()).find(part => { const name = (part.match(/\.(lk-[a-z-]+)(?![\w-])(?!.*\.lk-)/) || [])[1]; return name && inLibrary(name) && /\.lk-[a-z-]+(?:[:.\[][^\s>+~]*)?$/.test(part); });
+    if (!subject) continue;
+    const looks = rule[2].split(';').map(d => d.trim()).filter(d => A_LOOK.test(' ' + d));
+    if (looks.length) { debts.restyled[rel] = (debts.restyled[rel] || 0) + 1; found.restyled.push(`${rel}: ${subject.slice(-70)} { ${looks.join('; ').slice(0, 90)} }`); }
+  }
+  text.split('\n').forEach((line, i) => { if (/^\s*(\/\/|\*|\/\*)/.test(line)) return; for (const mix of line.matchAll(/color-mix\(/g)) { debts.greys[rel] = (debts.greys[rel] || 0) + 1; found.greys.push(`${rel}:${i + 1} ${line.trim().slice(0, 100)}`); } });
+}
+if (process.argv.includes('--debts')) { fs.writeFileSync(DEBTS_FILE, JSON.stringify(debts, null, 1) + '\n'); console.log('library debts written: ' + JSON.stringify(Object.fromEntries(Object.entries(debts).map(([k, v]) => [k, Object.values(v).reduce((a, b) => a + b, 0)])))); process.exit(0); }
+const SAYS = { restyled: 'gives a library piece a look of its own (lay it out in the module; its look is plugin.js’s)', greys: 'mixes a grey of its own (use --lk-quiet, --lk-off, --lk-hair, --lk-line, --lk-wash)' };
+const more = [], fewer = [];
+for (const kind of Object.keys(debts)) for (const rel of new Set([...Object.keys(debts[kind]), ...Object.keys(DEBTS[kind] || {})])) {
+  const now = debts[kind][rel] || 0, was = (DEBTS[kind] || {})[rel] || 0;
+  if (now > was) more.push(`${rel} ${SAYS[kind]}: ${now} where ${was} were known\n    ` + found[kind].filter(line => line.startsWith(rel + ':')).join('\n    '));
+  if (now < was) fewer.push(`${rel}: ${kind} ${was} → ${now}`);
+}
+if (more.length) { console.error('A new look outside the library:\n  ' + more.join('\n  ')); process.exit(1); }
+if (fewer.length) { console.error('The library debt shrank (good): run `node test/library.js --debts` to record it:\n  ' + fewer.join('\n  ')); process.exit(1); }
 if (own.length) { console.error('A look drawn by a module that the library draws whole:\n  ' + own.join('\n  ')); process.exit(1); }
-console.log(`library: ${KINDS.length} kinds drawn, every button in ${FILES.length} files draws from them; no module draws a frame, a tick box, a colour or a motion of its own`);
+const sum = kind => Object.values(debts[kind]).reduce((a, b) => a + b, 0);
+console.log(`library: ${KINDS.length} kinds drawn, every button in ${FILES.length} files draws from them; no module draws a frame, a tick box, a colour or a motion of its own; known debts still to fold in: ${sum('restyled')} library pieces restyled, ${sum('greys')} greys mixed by a module`);

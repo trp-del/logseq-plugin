@@ -52,14 +52,12 @@ logseq/      the only code that knows Logseq
   preview.js   the printed page previewed as sheets: the blocks dealt onto pages of the paper's size, as the print will break them
   ui.js        the export window with its live preview, drawn into Logseq's document from the grammar's shared names
 main.js      registers at the plugin's door
-test/        core.test.js (the core on a hand-made document), load.js (every file against a pretend Logseq), window.js (the export window in a jsdom stand-in for Logseq's document; skipped without jsdom), graph.js, sample.js
-tools/       preview.js (every look and layout as pictures and PDFs, with Playwright), app/check.js (the real Logseq, read-only)
+test/        core.test.js (the core on a hand-made document)
+tools/       preview.js (every look and layout as pictures and PDFs, with Playwright)
 ```
 
 ```
 node test/core.test.js    # the core
-NODE_PATH=~/logseq-value/logseq-plugin/node_modules node test/load.js      # against a pretend Logseq
-NODE_PATH=~/logseq-value/logseq-plugin/node_modules node test/window.js    # the window in jsdom
 NODE_PATH=~/logseq-value/logseq-plugin/node_modules node tools/preview.js dist/preview
 ```
 

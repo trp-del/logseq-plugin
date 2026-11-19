@@ -154,20 +154,11 @@ Evidence, from most to least trusted: **sure** (a page linked in the words that 
 
 ```
 node test/run.js    # core tests on three pretend graphs
-node test/load.js    # the adapter against a fake Logseq
 node tools/speed.js # timing on 20,000 lines
 node tools/harness/measure.js   # the proposals measured on 7,500 made-up notes with 600 held out; needs the helper running
 ```
 
 The pretend graphs share nothing: an English work graph (Owner, Assignee, Project, **When**, **Due**), a Spanish reading log (Autor, **Género**, **Leído el**) and an empty graph. On them, sure values were never wrong and guesses were right 99% of the time or better. These graphs are tidy and repetitive, so read that as "the rules work and nothing is tied to one graph", not as the accuracy you will see on your own notes: run the scoring command on your graph for that.
-
-### In the real Logseq
-
-```
-node tools/app/check.js   # Logseq on its debugging port, on a test graph
-```
-
-It types real keystrokes into the app and checks what is drawn and what is written: sixteen checks (proposals in the pills, a tag offered for a lookalike line, a click writes only the sure values and Enter the guesses, the undo arrow, Escape, Option-Enter and its date stop, Option-T and its list, Right arrow and the Hyper tap, hidden empty properties when that setting is on), against the Illness Test Graph; rewritten on 10 November 2026 to what Predictive does today. It works in a scratch page called "flow test" and refuses to run on a graph not named in `TEST_GRAPHS` (default: the test graphs of the original plugin). All sixteen passed against Logseq 2.0.2, on the Seed Check graph and on the Illness Test Graph. Logseq keeps a deleted page in its Recycle, so the scratch page stays and only its blocks are removed.
 
 ### How readily a tag is suggested
 

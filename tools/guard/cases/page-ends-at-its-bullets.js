@@ -1,6 +1,7 @@
 /* 18 November 2026, the owner's list: big blank gaps on a journal day around Scheduled and Deadline, and a tall empty band under a
    page shown in the right sidebar. Logseq keeps 64 px under a page's bullets for its Linked references, which Relations leaves out. */
 module.exports = {
+  parts: ['threads', 'look'],   // the parts of the plugin whose change this case is run for (every case runs before a release)
   name: 'A page ends at its bullets when nothing follows them, in the sidebar and in the journals',
   from: '18 Nov: blank gaps on a journal day, an empty band under a page in the sidebar',
   graph: 'Personal Finance',

@@ -81,7 +81,7 @@ async function reset(box, { dark = false, width = 1440 } = {}) {
   await page.evaluate(() => window.logseq.api.clear_right_sidebar_blocks?.()).catch(() => {});
   await page.evaluate(m => window.logseq.api.set_theme_mode(m), dark ? 'dark' : 'light');
   await box.cdp.send('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: false });
-  await sleep(500);
+  await sleep(200);
 }
 
 // Still: nothing on the page changed for 700 ms (at most 8 s of waiting).
@@ -89,12 +89,12 @@ const still = page => page.evaluate(() => new Promise(res => {
   let last = performance.now(); const t0 = last;
   const mo = new MutationObserver(() => { last = performance.now(); });
   mo.observe(document.body, { subtree: true, childList: true, attributes: true, characterData: true });
-  const tick = () => { const now = performance.now(); if (now - last > 1200 || now - t0 > 8000) { mo.disconnect(); res(Math.round(now - t0)); } else setTimeout(tick, 100); };
+  const tick = () => { const now = performance.now(); if (now - last > 900 || now - t0 > 8000) { mo.disconnect(); res(Math.round(now - t0)); } else setTimeout(tick, 100); };
   setTimeout(tick, 100);
 }));
 
 // Changes the page makes by itself in ms, and by what (the three busiest places).
-const churn = (page, ms = 1500) => page.evaluate(ms => new Promise(res => {
+const churn = (page, ms = 600) => page.evaluate(ms => new Promise(res => {
   let n = 0; const who = {};
   const mo = new MutationObserver(rs => { n += rs.length; for (const r of rs) { const t = r.target.nodeType === 1 ? r.target : r.target.parentElement; const k = (t?.tagName || '?').toLowerCase() + '.' + String(t?.className?.baseVal ?? t?.className ?? '').trim().split(/\s+/).slice(0, 2).join('.'); who[k] = (who[k] || 0) + 1; } });
   mo.observe(document.body, { subtree: true, childList: true, attributes: true, characterData: true });
@@ -125,17 +125,18 @@ async function tour(box, outDir, only) {
     if (graph !== box.graph || (only && !only.includes(name))) continue;
     const file = name.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
     const rec = { name, graph, file, width: opts.width || 1440, dark: !!opts.dark };
-    const from = said.length;
+    const from = said.length; const t0 = Date.now(), T = {};
     try {
-      await reset(box, opts);
-      await setup(box);
+      await reset(box, opts); T.reset = Date.now() - t0;
+      await setup(box); T.setup = Date.now() - t0;
       // The pointer rests out of the way unless the screen is about what lies under it.
       if (!opts.pointer) await box.page.mouse.move(720, 6).catch(() => {});
-      // Logseq draws some parts late (Linked references came a second after the page went still): at least 2.5 s after the set-up,
-      // and then 1.2 s with nothing changing, before anything is recorded.
-      await sleep(2500);
-      rec.waited = await still(box.page);
-      rec.churn = await churn(box.page);
+      // Logseq draws some parts late (Linked references came a second after the page went still): a moment after the set-up, then
+      // 1.2 s with nothing changing, before anything is recorded; the pictures below are taken again if a piece arrives during them.
+      // (2.5 s of fixed waiting on every screen until 19 November 2026: twenty screens made that most of a minute.)
+      await sleep(400);
+      rec.waited = await still(box.page); T.still = Date.now() - t0;
+      rec.churn = await churn(box.page); T.churn = Date.now() - t0;
       // Logseq's own running animations (the Doing circle, CSS or SVG) and the caret are settled for the pictures, the same on both
       // sides, so they never read as a difference; motion is not what the pictures judge.
       await box.page.evaluate(() => {
@@ -150,21 +151,28 @@ async function tour(box, outDir, only) {
       await sleep(200);
       // The pictures count only when the pieces on screen are the same just before and just after them: Logseq can draw a part
       // late with no change the watcher sees first (the sidebar's Linked references did). Up to four tries, 1.5 s apart.
+      const R = require('./reads'); let readsFirst = null, readsLast = null;
       for (let i = 0; i < 4; i++) {
         const first = await layout(box.page);
+        readsFirst = await R.once(box.page).catch(e => { rec.readsFailed = String(e && e.message || e).slice(0, 160); return null; });
         await box.page.screenshot({ path: path.join(outDir, file + '.png'), scale: 'css' });
         await sleep(700);
         await box.page.screenshot({ path: path.join(outDir, file + '.again.png'), scale: 'css' });
         rec.layout = await layout(box.page);
+        readsLast = await R.once(box.page).catch(() => null);
         const same = JSON.stringify(Object.keys(first).sort()) === JSON.stringify(Object.keys(rec.layout).sort());
         if (same) break;
         rec.unsettled = (rec.unsettled || 0) + 1;
         await sleep(1500);
       }
+      // How the screen reads, and whether it is like Logseq (reads.js): what the pictures cannot say. Measured just before the
+      // first picture and just after the second; only what is found both times counts.
+      if (readsFirst && readsLast) { const keys = new Set(readsLast.map(f => f.key)); rec.reads = readsFirst.filter(f => keys.has(f.key)); }
       rec.wrong = await box.page.evaluate(() => /Something went wrong/.test(document.body.innerText));
       await box.page.evaluate(() => document.getElementById('guard-still')?.remove());
     } catch (e) { rec.failed = String(e && e.message || e).slice(0, 200); }
     rec.console = said.slice(from).filter(t => !/net::ERR_|ERR_NAME_NOT_RESOLVED|ERR_INTERNET_DISCONNECTED/.test(t));
+    T.all = Date.now() - t0; if (process.env.GUARD_TIME) console.log('    ' + JSON.stringify(T));
     records.push(rec);
     console.log(`  ${rec.failed ? 'FAILED ' : ''}${name}${rec.failed ? ': ' + rec.failed : ''}`);
   }

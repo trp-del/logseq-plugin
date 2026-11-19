@@ -1,6 +1,6 @@
 #!/bin/sh
-# Builds the zip Logseq installs, by hand, with no GitHub Actions: sh tools/release.sh. It runs every check first (test/all.sh)
-# and builds nothing if one fails.
+# Builds the zip Logseq installs, by hand, with no GitHub Actions: sh tools/release.sh. It runs the check first (tools/check.js
+# --release) and builds nothing if it fails.
 # The zip holds a folder logseq-plugin/ with exactly what Logseq needs: package.json, loader.js, files.js, plugin.js,
 # main.js, every file files.js names, README.md and LICENSE. It is written to dist/logseq-plugin-v<version>.zip, the
 # version read from package.json. Then: git tag v<version>, push, and attach the zip to a release of that tag on GitHub
@@ -9,17 +9,13 @@ set -eu
 cd "$(dirname "$0")/.."
 version=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' package.json | head -1)
 [ -n "$version" ] || { echo "no version in package.json"; exit 1; }
-# Every module's checks first: a zip is built only from a plugin that passes them (10 November 2026).
-# RELEASE_CHECK: nothing is skipped; a set that needs jsdom or Playwright fails without them (18 November 2026). The test tools live in
-# this folder's node_modules (kept off GitHub) since the move to this Mac; logseq-plugin-old's are gone.
-export NODE_PATH="${NODE_PATH:-$(pwd)/node_modules}" RELEASE_CHECK=1
-sh test/all.sh || { echo "the checks failed: no zip built"; exit 1; }
-# The guard must have passed on exactly these files: the whole plugin seen before and after in Logseq, every difference meant,
-# every earlier complaint still fixed (18 November 2026, tools/guard/README.md).
+# The one check first, with nothing left out (tools/check.js --release, 19 November 2026): the checks that need no Logseq, then,
+# in the guard's own Logseq, every screen before and after with how it reads, every earlier complaint, and every kind of write
+# read back. No zip is built unless it passes. Name the screens the release means to change: sh tools/release.sh --expect "Todo".
+# A difference on a named screen needs its reason (the check says how); then run this again.
+node tools/check.js --release "$@" || { echo "the check did not pass: no zip built"; exit 1; }
+# And the guard's own record that it passed on exactly these files.
 node tools/guard/guard.js verify --folder . || { echo "the guard has not passed on these files: no zip built"; exit 1; }
-# Then the checks in the real Logseq, in a Logseq of their own on a throwaway copy of the test graph (tools/release-app-check.js):
-# a failure, or a Logseq that cannot be started, builds no zip.
-node tools/release-app-check.js || { echo "the checks in Logseq failed or could not run: no zip built"; exit 1; }
 stage=dist/stage/logseq-plugin
 rm -rf dist/stage && mkdir -p "$stage"
 cp package.json loader.js files.js plugin.js main.js README.md LICENSE "$stage/"

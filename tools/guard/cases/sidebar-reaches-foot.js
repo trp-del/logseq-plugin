@@ -1,6 +1,7 @@
 /* 18 November 2026, the owner's list: an empty chunk at the bottom of the right sidebar, near the ?, a task's page name cut off at
    its edge. The sidebar's list stood 48 px short of the window's foot once Logseq's bar over it was taken away. */
 module.exports = {
+  parts: ['sidebar', 'look'],   // the parts of the plugin whose change this case is run for (every case runs before a release)
   name: 'The right sidebar reaches the window’s foot',
   from: '18 Nov: an empty chunk at the bottom of the sidebar, a task row cut off',
   graph: 'Personal Finance',

@@ -1,6 +1,7 @@
 /* 16 November 2026: a bullet's property row redrew about a hundred times a second (Look's chevron hung past the strip Logseq
    measures, so Logseq's Expand button came and went). It depended on the window's width: 39 of 460 rows looped at 980 px. */
 module.exports = {
+  parts: ['look'],   // the parts of the plugin whose change this case is run for (every case runs before a release)
   name: 'A page with property rows stays still once drawn, at 980 and 1440 px',
   from: '16 Nov: Logseq’s Expand button flickering without end on a bullet’s property row',
   graph: 'Illness Test Graph',

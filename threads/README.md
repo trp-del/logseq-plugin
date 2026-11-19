@@ -71,9 +71,6 @@ One entry in Logseq's command list, **Relations: troubleshooting**, opens a shor
 
 ## Checks
 
-```
-sh tools/check.sh          # syntax, boot, the two-way rows (297 checks), Undo, the model, leaning, the real graph
-sh tools/check.sh --full   # also: every optional part left out in turn, odd names drawn, frames, pictures
-```
+`node tools/check.js` from the plugin's folder checks a change to this part (the root README says what it checks).
 
-The frames and pictures are compared with approved ones, so a visual change to the section shows up there. `tools/two-way-check.js` compares the rows with the Illness Test Graph through Logseq's command line.
+- `node tools/model-test.js`: what points at a page, read from the test graphs in `test/`.

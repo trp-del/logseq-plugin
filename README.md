@@ -42,19 +42,32 @@ The six were written as six plugins and joined into one on 31 October 2026. This
 
 ## Checks
 
-Each module keeps its own in its folder: `test/` for what runs without Logseq, `tools/app/` for driving the real app. Run all of them with
+One command, from your own copy of the plugin (`logseq-value/work/<name>/`):
 
 ```
-NODE_PATH=<a folder holding jsdom and Playwright> sh test/all.sh
+node tools/check.js                      # the change in this folder against GitHub's main: seconds
+node tools/check.js --expect "Todo"      # the same, naming the screens the change means to alter
+node tools/check.js --release            # everything, before a release: under two minutes
 ```
 
-`test/module.js` and `test/start.js` load one module the way `main.js` does, so a module can be checked alone. `test/writes.js` checks that every write goes through the one write path, and `test/risks.js` the seven data-safety fixes of 10 November 2026. Six more hold the groundwork in place, each failing on a copy made anywhere but the door and then trying the door's own piece: `test/base.js` (a stylesheet, a setting's reader, a hook of Logseq's or a listener outside a module's base), `test/watcher.js` (a second watcher of the screen), `test/screen.js` (a made-up press, key or input not sent through the screen door), `test/dates.js` (a date rule of a module's own), `test/keys.js` (a pressed key read, a setting's keys matched or Logseq's own keys reached by a rule of a module's own) and `test/helpers.js` (a copied helper, Apple's helper asked by lines of a file's own); `test/ground.js` is what they share. With Logseq open on the Illness Test Graph, `node tools/write-check.js` makes every kind of write in the real app, reads it back and proves the graph ends as it began. Threads' slow checks: `cd threads && sh tools/check.sh --full`. `node tools/app-check.js` checks the whole plugin in the real Logseq, read-only.
+It checks six things, each for something that really went wrong here (19 November 2026; the checks before that day took a
+quarter of an hour and two of them failed on an unchanged plugin):
 
-**After a Logseq update**, before using the plugin: `node test/logseq-contract.js` (part of `sh test/all.sh`) fails as soon as Logseq's version is not the one last checked (now 2.0.2). It lists everything the plugin relies on in Logseq: the plugin calls it makes, Logseq's own screen parts it looks for or restyles, the database names its searches use, and the few reaches past the plugin calls into Logseq's window. Then, with Logseq open on a test graph and its debugging port: `node tools/logseq-contract-app.js` (read-only) and `node tools/write-check.js` (every kind of write, read back, the graph left as it was), look at the plugin in Logseq, and only then `node test/logseq-contract.js --accept`. The plugin uses Logseq's own copy of the plugin toolkit (it ships none of its own), so the calls it makes are always the installed Logseq's. What still reaches past those calls, each because no plugin call does the job: whether the right sidebar is open and what it holds (read while the screen is drawn, where a plugin call answers too late), Logseq's list of commands (its entries carry the command itself), its PDF viewer, its plugin manager (reload, update, the toolbar pins), and the desktop app's files (save a file, choose a folder, the safety copy before Ontology's Apply).
+| | What it guards | Where |
+|---|---|---|
+| safe | every write to the graph goes through the one door; an Undo never takes away later work; before a release, every kind of write made in a real Logseq, read back and taken back | `test/writes.js`, `undo.js`, `risks.js`, `tools/write-check.js` |
+| library | no part draws a look of its own: a button, colour, size, shadow or motion, a library piece restyled, a grey mixed. What stood on 19 November is counted in `test/library-debts.json`: one more fails, one fewer is recorded with `node test/library.js --debts` | `test/library.js` |
+| logic | Predictive's guesses, Ontology's changes, the export, Linked's reading of the graph, dates, keys | each part's `test/` |
+| same | the screens a change can reach, photographed before and after; a difference on a screen not named in `--expect` stops it; the owner's earlier complaints stay as cases | `tools/guard/` |
+| reads | on those screens: nothing cut off, too faint, out of line, empty, over other words, past the edge, at an odd size | `tools/guard/reads.js` |
+| logseq | what the plugin relies on in Logseq is still there; its lines of words measure as Logseq's bullets do | `test/logseq-contract.js`, `tools/logseq-contract-app.js`, `reads.js` |
 
-`node tools/motion-check.js` measures what the plugin draws moving in the real Logseq and says what caused each fault. Every stop (a page, `sidebar:<page>`, `find`, a route such as `#/structure`) is recorded with the plugin off and on: every element a module marks and Logseq's own landmarks frame by frame, the browser's layout-shift log and the screencast's pictures (`tools/frame-kit.js`, the kit Threads' pretend-page frames test uses too). A jump, a flash, a piece that comes late, a page that settles later than without the plugin, a long frame with the plugin's code in it, or an element out of place (a tag off the bullets' one right edge, a day off the margin's edge, a chevron off its column, anything past the pane's edge or over Logseq's words) is a fault, run again twice before it counts. Each fault is laid to a module by the mover's marks and to a cause from the ledger (what came or grew above it in that frame); with `--blame` the stop is recorded once more with a log of every change to the page and the script that made it, and the fault is laid to a file and function. It writes nothing to the graph and puts the app back as it found it. Reports and pictures go to `dist/motion-check/`; the findings still open are listed in the workspace’s `history/reviews/open-motion-issues.md`.
+A change is checked only where it can reach: the parts whose files changed pick the logic checks, the screens and the cases
+(`tools/check.js` holds the list). The guard's own Logseq (ports 9340 and 9341, its own home and copies of the test graphs) stays
+running between checks and ends by itself after twenty idle minutes; `node tools/guard/guard.js stop` ends it at once.
 
-`node tools/view-change-check.js` records every view that redraws, frame by frame, in the real Logseq (the row view from row to row, the stacked sidebar's sections coming and going with the page, the Ontology section from tag to tag, Relations folding, the map's views, Find, the settings and export windows) and fails when the changing area stands blank or half drawn in between, or when a change draws nothing at all (what it presses is gone). It writes only a throwaway page with two headings, deleted at the end; `test/review.js` holds the fixes of the 12 November 2026 review in place without the app, and `test/split.js` the two pages side by side.
+**After a Logseq update**, before using the plugin: `node test/logseq-contract.js` fails as soon as Logseq's version is not the one
+last checked. Run `node tools/check.js --release`, look at the plugin in Logseq, then `node test/logseq-contract.js --accept`.
 
 ## Releasing
 
@@ -64,4 +77,4 @@ By hand, with no GitHub Actions. Raise the version in `package.json`, then:
 sh tools/release.sh
 ```
 
-It runs `test/all.sh` with nothing skipped (a set that needs jsdom or Playwright fails without them), then the checks in the real Logseq, `node tools/release-app-check.js`: a Logseq of its own on a free port (`LOGSEQ_PORT`, default 9555), with a throwaway copy of the Illness Test Graph, runs the contract, view-change, motion, stacked-sidebar, row-view, tag-placement, write and hands-on checks (`tools/app-checks/`, `tools/audit/`; `--full` adds each part's own), says PASS or FAIL for each, and is stopped again. A failure, or a Logseq that cannot be started, builds no zip. Then it builds `dist/logseq-plugin-v<version>.zip`. Tag the commit `v<version>`, push, and on GitHub draft a release of that tag with the zip attached. Logseq's installer takes the latest release's zip.
+It runs `node tools/check.js --release` first and builds no zip unless it passes. Name the screens the release means to change (`sh tools/release.sh --expect "Todo"`); a difference on a named screen needs its reason, which the check says how to give.

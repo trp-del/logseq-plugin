@@ -1,6 +1,7 @@
 /* 18 November 2026, the owner's list: in Find's foot the keys (Tab, Enter, Shift Enter) looked too much like the words for what they
    do. Each key stands in Logseq's key caps. */
 module.exports = {
+  parts: ['find'],   // the parts of the plugin whose change this case is run for (every case runs before a release)
   name: 'Find’s foot draws every key in a key cap',
   from: '18 Nov: the keys in the search footer looked like the action words',
   graph: 'Personal Finance',
