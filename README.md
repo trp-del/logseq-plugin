@@ -1,6 +1,6 @@
 # Logseq Plugin
 
-Six tools for a Logseq DB graph, in one plugin, one look. Each does one job:
+Seven tools for a Logseq DB graph, in one plugin, one look. Each does one job:
 
 - **Look** draws how things look: a link in the text colour that opens its page, in a property's value too, a tag as its name in serif, a page's place in the tree beside its title, an icon of what each property holds.
 - **Find** is the search window as the first step of a walk: a name, then the kinds and the time, then the thread from what you found, without leaving.
