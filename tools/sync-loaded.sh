@@ -1,14 +1,17 @@
 #!/bin/sh
 # Brings the folder the owner's Logseq loads (logseq-value/logseq-plugin) to GitHub's latest, then reloads the plugin in that
 # Logseq when it runs with its debugging port (9222). The last step of every release (logseq-value/CLAUDE.md, 19 November 2026):
-#   sh ~/logseq-value/logseq-plugin/tools/sync-loaded.sh
+#   sh tools/sync-loaded.sh   (from any copy: it finds the folder in Logseq's preferences)
 # It changes nothing when the folder holds edits of its own or saved changes GitHub lacks: it lists them and stops, because that
 # folder is never edited by hand and anything there may be another thread's work.
 # Everything runs inside main(), read in full before it starts, so the script may update its own file safely.
 main() {
   set -eu
-  cd "$(dirname "$0")/.."
-  folder=$(pwd)
+  # The folder Logseq loads, from Logseq's own list of plugins loaded from a folder; this script's own repository otherwise.
+  # So it acts on that folder whichever copy it is run from.
+  folder=$(grep -o '"[^"]*/logseq-plugin"' "$HOME/.logseq/preferences.json" 2>/dev/null | head -1 | tr -d '"')
+  [ -n "$folder" ] && [ -d "$folder/.git" ] || folder=$(cd "$(dirname "$0")/.." && pwd)
+  cd "$folder"
   if [ -n "$(git status --porcelain)" ]; then
     echo "Stopped: the folder Logseq loads ($folder) holds edits that are not on GitHub:"
     git status --short
