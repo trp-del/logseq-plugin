@@ -1,5 +1,10 @@
 # The guard
 
+**Run it through the one check, `node tools/check.js` (the root README): it picks the screens a change can reach, keeps the guard's
+Logseq running between checks, and adds how each screen reads (`reads.js`: cut off, too faint, out of line, empty, over other
+words, past the edge, an odd size, unlike Logseq's lines). A finding the change brought stops it; one that was there before is
+listed as known. 19 November 2026.**
+
 The owner, 18 November 2026: "I just want better quality changes without hand holding… Each fix comes with more errors", and
 "approving every release is tiresome". The guard stands in for the owner's yes. When it passes on exactly what ships, a change may
 be committed and released without asking; when it does not, nothing ships. Ask the owner only before a change that could lose data.
@@ -31,12 +36,12 @@ Each of these happened more than once before the guard:
    console error or a screen that keeps redrawing: fix the plugin and run again. No reason passes those.
 5. **When it says PASSED**, commit, release and publish its page with the release, so the owner can look if they want.
 
-`tools/release.sh` and the Claude hook in `logseq-value/.claude/settings.json` refuse to commit, tag, push or release files the
-guard has not passed. Do not work around them. A commit that changes nothing that ships (a test, a README, a tool) needs no pass.
+`tools/release.sh` refuses to release files the guard has not passed (the Claude hook that also refused commits was switched
+off by the owner on 19 November 2026). Do not work around it. A commit that changes nothing that ships (a test, a README, a tool) needs no pass.
 If the guard itself is wrong (a screen will not set up, a false difference), fix the guard in its own change and say so.
 
 ## What it does not see
 
-Typing and writes into the graph (the write check and hands-on walk cover those), Apple's tools (off in its Logseq), motion
+Typing into the graph (writes are made and read back by `tools/write-check.js`, which the release check runs in the guard's Logseq), Apple's tools (off in its Logseq), motion
 between the pictures (it sees the screen at rest and counts restless redraws), and screens not in the tour: when a change touches
 one, add it to `tour.js` in the same change.

@@ -127,11 +127,6 @@ main.js       the one state every view shares, the commands, the reading, Apply 
 
 ## Checks
 
-- `node test/core.test.js`: the core on the mockup's made-up graph (`test/sample.js`): counts, the five rules, the tray's sentences, the steps and what Undo keeps.
-- `NODE_PATH=/Users/massimo/logseq-value/logseq-plugin/node_modules node test/load.js`: every file loaded against a stand-in Logseq in jsdom; the screen drawn and walked with the words and the keys, the trail walked back, a fix's ask answered; Apply and Undo against a recording editor.
-- `NODE_PATH=/Users/massimo/logseq-value/logseq-plugin/node_modules node tools/app/check.js <out dir> [tag]`: with Logseq running on a test graph with its debugging port, loads the plugin unpacked, opens the map on the tag, reads the rows, the lines and the issues, writes a screenshot. Read-only; it never applies the tray.
-- `NODE_PATH=/Users/massimo/logseq-value/logseq-plugin/node_modules node tools/app/writing.js`: in Logseq on the Illness Test Graph, with real keys in one bullet of the scratch page "flow test": the list on # (alone, stepped down and back, a near name, letters with New tag last, Enter and Cmd-Z), a property's values by tag, a bullet's tag changed and put back. It types only while that bullet has the keyboard, takes off every tag it gives, and leaves the page empty.
+`node tools/check.js` from the plugin's folder checks a change to this part (the root README says what it checks).
 
-Checked in Logseq 2.0.2 on the Illness Test Graph on 14 November 2026 (tools/app/writing.js, and by hand in light and dark): the list on # with the keys, the pointer and Cmd-Enter; Logseq's tags unfolded; a new tag still asking where it goes; Spoke with's values in two groups with a tick kept in place, Provider's list left as Logseq's; Consultation changed to Conversation and put back by the arrow, Remove tag and its arrow, Task keeping Logseq's menu.
-
-Checked in Logseq 2.0.2 on the Illness Test Graph on 30 October 2026: the tree with the real counts, Consultation's card, the properties table; a move, a merge and a pull-up applied together and put back by one Undo; Symptom's row dragged onto Phenomena's with the mouse, the move landing in the tray.
+- `node test/core.test.js` and `node test/apply.test.js`: the core on a made-up graph, and its changes with their Undo.

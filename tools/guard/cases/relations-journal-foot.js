@@ -1,5 +1,6 @@
 /* The owner, 18 November 2026: "relations should be at bottom of journal not first". */
 module.exports = {
+  parts: ['threads'],   // the parts of the plugin whose change this case is run for (every case runs before a release)
   name: 'On a journal day, Relations stands after the day’s bullets',
   from: '18 Nov: “relations should be at bottom of journal not first”',
   graph: 'Personal Finance',

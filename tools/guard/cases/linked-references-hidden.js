@@ -1,6 +1,7 @@
 /* The owner, 18 November 2026: "hide linked references everywhere including journal days but have relations". Seen broken the same
    day: the table bar's new style dressed Logseq's Linked references heading, and it showed again in the right sidebar. */
 module.exports = {
+  parts: ['threads', 'look', 'sidebar'],   // the parts of the plugin whose change this case is run for (every case runs before a release)
   name: 'Logseq’s Linked references stay hidden, on a page and in the right sidebar',
   from: '18 Nov: “hide linked references everywhere including journal days but have relations”',
   graph: 'Illness Test Graph',

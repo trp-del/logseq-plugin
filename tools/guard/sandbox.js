@@ -84,6 +84,56 @@ async function stop(box) {
   }
 }
 
+/* One Logseq kept running between checks (19 November 2026, the owner: three minutes a check "was the exact problem"). Starting
+   Logseq and opening a graph is the slowest step of a check, so the first check starts it and the next ones find it running: the
+   plugin's files are copied into its plugin folder and the plugin is reloaded there, a few seconds. It keeps its own home, profile
+   and port like any sandbox, and a small watcher ends it once no check has used it for twenty minutes. A new copy of the test
+   graph, or a Logseq that no longer answers, starts it afresh. */
+const slug = s => s.replace(/\W+/g, '-').toLowerCase();
+const graphHash = graph => require('node:crypto').createHash('sha256').update(fs.readFileSync(graphFile(graph))).digest('hex').slice(0, 16);
+function copyPlugin(from, to) { fs.mkdirSync(to, { recursive: true }); execFileSync('rsync', ['-a', '--delete', '--exclude', '.git', '--exclude', 'dist', '--exclude', 'node_modules', from.replace(/\/?$/, '/'), to + '/']); }
+async function started(page) {
+  const frame = () => page.frames().find(f => f.url().includes(ID));
+  let parts = null;
+  for (let i = 0; i < 80 && !parts; i++) { parts = await frame()?.evaluate(() => (!window.__guardOld && window.PluginDoor?.started?.length ? window.PluginDoor.started.map(m => m.key) : null)).catch(() => null); if (!parts) await sleep(250); }
+  if (!parts) throw new Error('the plugin loaded but none of its parts started');
+  return { frame, parts };
+}
+async function warm({ store, graph, plugin, port = PORT }) {
+  const dir = path.join(store, 'warm', slug(graph)), own = path.join(dir, 'plugin'), meta = path.join(dir, 'meta.json'), stamp = path.join(dir, 'used');
+  const want = graphHash(graph);
+  let had = null; try { had = JSON.parse(fs.readFileSync(meta, 'utf8')); } catch (e) { /* first time */ }
+  copyPlugin(plugin, own);
+  fs.writeFileSync(stamp, String(Date.now()));
+  if (had && had.graph === want && had.port === port && (await up(port))) {
+    try {
+      const { chromium } = require('playwright');
+      const browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`, { timeout: 8000 });
+      const page = browser.contexts().flatMap(c => c.pages()).find(p => /index\.html/.test(p.url()));
+      if (!page) throw new Error('no window');
+      // The plugin as it now stands in the folder: Logseq's own reload, the frame's files read afresh.
+      const cdp = await page.context().newCDPSession(page);
+      await cdp.send('Network.clearBrowserCache').catch(() => {});
+      await page.frames().find(f => f.url().includes(ID))?.evaluate(() => { window.__guardOld = true; }).catch(() => {});
+      await page.evaluate(id => window.LSPluginCore.reload(id), ID);
+      await sleep(600);
+      const { frame, parts } = await started(page);
+      await sleep(1200);
+      return { dir, home: had.home, graph, browser, page, frame, parts, port, warm: true, cdp };
+    } catch (e) { console.log(`the running test Logseq on ${port} did not take the plugin (${String(e && e.message || e).slice(0, 80)}): starting it afresh`); }
+  }
+  if (await up(port)) await stop({ port, home: had && had.home, browser: { newBrowserCDPSession: async () => { throw new Error('none'); } } });
+  for (const f of ['home', 'profile']) fs.rmSync(path.join(dir, f), { recursive: true, force: true });
+  const box = await start({ dir, graph, plugin: own, port });
+  fs.writeFileSync(meta, JSON.stringify({ graph: want, port, home: box.home, pid: box.pid }));
+  // The watcher: ends this Logseq and its graph workers after twenty minutes with no check.
+  const watcher = `const fs=require('fs'),{execFileSync}=require('child_process');setInterval(()=>{let used=0;try{used=Number(fs.readFileSync(${JSON.stringify(stamp)},'utf8'))}catch(e){}if(Date.now()-used<20*60*1000)return;try{execFileSync('pkill',['-9','-f','remote-debugging-port=${port} --user-data-dir='])}catch(e){}try{for(const l of execFileSync('ps',['-axo','pid=,command='],{encoding:'utf8'}).split('\\n')){const m=l.match(/^\\s*(\\d+) .*db-worker-node\\.js .*--root-dir (\\S+)/);if(m&&m[2].startsWith(${JSON.stringify(box.home)}))try{process.kill(Number(m[1]),'SIGKILL')}catch(e){}}}catch(e){}process.exit(0)},60000)`;
+  spawn(process.execPath, ['-e', watcher], { detached: true, stdio: 'ignore' }).unref();
+  return { ...box, warm: true };
+}
+// Lets go of a running Logseq without ending it.
+async function leave(box) { fs.writeFileSync(path.join(box.dir, 'used'), String(Date.now())); try { await box.browser.close(); } catch (e) { /* gone */ } }
+
 // For `guard.js stop`: whatever answers on the guard's port, and only that.
 async function stopAny() {
   const said = [];
@@ -97,4 +147,4 @@ async function stopAny() {
   return said.join('; ');
 }
 
-module.exports = { PORT, graphFile, start, stop, stopAny, up, sleep };
+module.exports = { PORT, graphFile, start, stop, stopAny, up, sleep, warm, leave };
