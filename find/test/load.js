@@ -1,4 +1,4 @@
-/* node test/load.js   (needs jsdom: NODE_PATH=/Users/admin/logseq-value/logseq-plugin-old/node_modules)
+/* node test/load.js   (needs jsdom: NODE_PATH=~/logseq-value/logseq-plugin/node_modules)
    Loads the plugin's files, in files.js's order, against a stand-in for Logseq: a fake `logseq` whose queries answer in the
    shapes Logseq 2.0.2 returns (a small graph: the kinds Doctor and Consultation, Dr. Mei Chen, four consultations with
    their Provider and Topic), and a jsdom page. It walks the window from the keyboard: the kinds offered, "cons" lighting

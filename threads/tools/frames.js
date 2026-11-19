@@ -32,7 +32,7 @@ const K = require('../../tools/frame-kit');
 const { THEMES, pretendLogseq, exposeAtEnd, tablerCss } = require('./pretend-page');
 
 let chromium;
-for (const where of ['playwright', '/Users/admin/logseq-value/logseq-plugin-old/node_modules/playwright']) { try { ({ chromium } = require(where)); break; } catch (error) { /* try the next */ } }
+for (const where of ['playwright', '~/logseq-value/logseq-plugin/node_modules/playwright']) { try { ({ chromium } = require(where)); break; } catch (error) { /* try the next */ } }
 if (!chromium) { console.log((process.env.RELEASE_CHECK ? 'frames FAILED in a release run (' : 'frames skipped (') + 'needs Playwright and Chromium)'); process.exit(process.env.RELEASE_CHECK ? 1 : 0); }
 
 const root = path.resolve(__dirname, '..');

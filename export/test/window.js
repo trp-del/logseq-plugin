@@ -1,4 +1,4 @@
-/* node test/window.js   (needs jsdom: NODE_PATH=/Users/admin/logseq-plugin/node_modules; without it the check is skipped)
+/* node test/window.js   (needs jsdom: NODE_PATH=~/logseq-value/logseq-plugin/node_modules; without it the check is skipped)
    The export window drawn into a stand-in for Logseq's document (jsdom), on the hand-made document of test/sample.js: it
    is built from the visual grammar's shared names (Look gives them their look), its keys stay out of Logseq's reach,
    Escape closes it, ⌘-Enter presses the button that matches, and nothing is left behind when the plugin stops. */

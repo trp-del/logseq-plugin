@@ -13,7 +13,7 @@ const path = require('path');
 const twoWay = require('./two-way-files');
 
 let chromium;
-for (const where of ['playwright', '/Users/admin/logseq-value/logseq-plugin-old/node_modules/playwright']) { try { ({ chromium } = require(where)); break; } catch (error) { /* try the next */ } }
+for (const where of ['playwright', '~/logseq-value/logseq-plugin/node_modules/playwright']) { try { ({ chromium } = require(where)); break; } catch (error) { /* try the next */ } }
 if (!chromium) { console.log((process.env.RELEASE_CHECK ? 'pictures FAILED in a release run (' : 'pictures skipped (') + 'needs Playwright and Chromium)'); process.exit(process.env.RELEASE_CHECK ? 1 : 0); }
 if (process.platform !== 'darwin') { console.log((process.env.RELEASE_CHECK ? 'pictures FAILED in a release run (' : 'pictures skipped (') + 'approved on the Mac; fonts differ elsewhere)'); process.exit(process.env.RELEASE_CHECK ? 1 : 0); }
 

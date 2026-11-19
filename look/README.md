@@ -95,7 +95,7 @@ Nothing is kept on Logseq's page when the module stops: its elements carry `lk-o
 ## Checks
 
 - `node test/tables.js`: the state line (sort, group and filters read from the view), the column names once, the Tags column of a tag's own page, the press that opens Logseq's own list.
-- `NODE_PATH=/Users/admin/logseq-value/logseq-plugin-old/node_modules node test/load.js`: loads the files against the stand-in of `test/stand-in.js` (a fake Logseq and a jsdom page drawn like a Logseq page) and asserts each drawing lands and is swept.
-- `NODE_PATH=/Users/admin/logseq-value/logseq-plugin-old/node_modules node tools/app/check.js <out dir> [page name]`: with Logseq running on a test graph with its debugging port, loads the module, opens the page, counts the drawings and writes a screenshot. Read-only; refuses to run while a block is being edited.
+- `NODE_PATH=~/logseq-value/logseq-plugin/node_modules node test/load.js`: loads the files against the stand-in of `test/stand-in.js` (a fake Logseq and a jsdom page drawn like a Logseq page) and asserts each drawing lands and is swept.
+- `NODE_PATH=~/logseq-value/logseq-plugin/node_modules node tools/app/check.js <out dir> [page name]`: with Logseq running on a test graph with its debugging port, loads the module, opens the page, counts the drawings and writes a screenshot. Read-only; refuses to run while a block is being edited.
 
 Checked in Logseq 2.0.2 on the Illness Test Graph on 29 October 2026; the sidebar on 30 October 2026.

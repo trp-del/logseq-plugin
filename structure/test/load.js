@@ -1,4 +1,4 @@
-/* node test/load.js   (needs jsdom: NODE_PATH=/Users/admin/logseq-value/logseq-plugin-old/node_modules)
+/* node test/load.js   (needs jsdom: NODE_PATH=~/logseq-value/logseq-plugin/node_modules)
    Loads the plugin's files, in files.js's order, against a stand-in for Logseq: a fake `logseq` whose queries answer
    from the mockup's graph in the shapes Logseq 2.0.2 returns, and whose editor calls are recorded. It draws the page of the
    whole, a tag's lines and the sidebar into a jsdom page, moves and merges with the keys and the menu, reads the tray, applies and
