@@ -9,7 +9,7 @@ const { host, style, watchScreen, onGraphChange, el, iconHtml, openPage } = Look
 const css = `
 /* The line is the library's quiet note (lk-note: its grey, its size, regular weight under a heading's bold); here only its place. */
 .lk-folded { display: inline-flex; align-items: baseline; gap: .25em; margin-left: .5em; white-space: nowrap; user-select: none; cursor: default; }
-.lk-folded .lk-icon { font-size: .95em; align-self: center; }
+.lk-folded .lk-icon { align-self: center; }
 /* An icon and its number are one pair; a wider gap between pairs than inside one. */
 .lk-folded .lk-pair { display: inline-flex; align-items: baseline; gap: .15em; }
 .lk-folded .lk-pair + .lk-pair { margin-left: .35em; }
