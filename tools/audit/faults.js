@@ -20,7 +20,7 @@ const mine = (file, args = []) => () => node(path.join(HERE, file), args);
 
 /* id, what is broken (plain words), the file and the one edit, the check, the line it must fail on, app: whether Logseq is needed. */
 const FAULTS = [
-  { id: 'wash', line: '3.6', breaks: 'a change that waits loses its yellow wash', file: 'plugin.js', find: '.lk-coming { background: var(--rx-yellow-a5, rgba(255, 213, 0, .35));', put: '.lk-coming { background: transparent;', app: true, run: mine('waiting-look.js', [path.join(out, 'wash'), 'fault']) },
+  { id: 'wash', line: '3.6', breaks: 'a change that waits loses its green', file: 'plugin.js', find: '.lk-coming { color: var(--rx-green-11, #18794e) !important; }', put: '.lk-coming { color: inherit; }', app: true, run: mine('waiting-look.js', [path.join(out, 'wash'), 'fault']) },
   { id: 'yes-named-apply', line: '3.5', breaks: 'the yes of the delete-for-good question reads plain “Apply” again', file: 'structure/logseq/view.js', find: '<span class="lk-big" data-stage>${esc(yes)}</span>', put: '<span class="lk-big" data-stage>Apply</span>', app: true, run: mine('for-good.js', [path.join(out, 'yes'), 'fault']) },
   // Since 17 November 2026 the sidebar is Logseq's stacked sections, with no tab to pick again: what a split must put back is the sidebar's list in its order.
   { id: 'list-not-back', line: '2.2', breaks: 'two pages side by side, closed, no longer puts the sidebar’s sections back in their order', file: 'split.js', find: 'if (out && before) await reorder(doc, before.list);', put: '', app: true, run: mine('split-try.js', [path.join(out, 'split')]) },

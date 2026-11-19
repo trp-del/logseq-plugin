@@ -3,7 +3,7 @@
    Logseq's table saying what surrounds the tag, then what Structure suggests.
    Every property, a property's card, a tag's nodes and the log open in the place of the areas. Nothing a single letter does: letters
    typed on the outline find a tag; what a thing can take is in its right-click menu. A fix first says what it would do, with the nodes
-   it touches, and is staged only on a second yes. A change waiting is washed in yellow where it will happen. It is drawn into Logseq's own
+   it touches, and is staged only on a second yes. A change waiting is in green text where it will happen. It is drawn into Logseq's own
    document, so the shared names (lk-row, lk-fold, lk-bul, lk-list, lk-tick, lk-field, lk-pop, lk-none, lk-node, lk-undo) sit on what they name and carry no look here. */
 (function () {
 const S = window.Structure;
@@ -95,7 +95,7 @@ const CSS = `
 .st-lines-t { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 8px 14px; margin: 0; align-items: baseline; }   /* a label and its value's first line on one baseline: stretched, a value holding a press stood 3 to 7 px lower than its label (measured 12 November 2026) */
 .st-lines-t dt { font-weight: 600; } .st-lines-t dd { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; min-width: 0; }
 .st-lines-t .chev { margin-left: 2px; padding: 0 2px; }   /* the library's chevron (lk-change), centred on the name it changes */
-.sugs { display: grid; gap: 6px; margin-top: 14px; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--lk-hair); }   /* "Suggested" once, then a line each: the sentence, its fix, its ×. A box of its own so it is seen (the owner, 16 November 2026: "This is where subtley is not important"), but no yellow: the yellow wash is for a change about to be made, and this is only a suggestion (17 November 2026: "too bright for just a suggestion") */
+.sugs { display: grid; gap: 6px; margin-top: 14px; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--lk-hair); }   /* "Suggested" once, then a line each: the sentence, its fix, its ×. A box of its own so it is seen (the owner, 16 November 2026: "This is where subtley is not important"), but no green: the green text is for a change about to be made, and this is only a suggestion (17 November 2026: "too bright for just a suggestion") */
 .sugs .sh { font-weight: 600; display: flex; gap: 6px; align-items: center; color: var(--lk-text, #222); cursor: pointer; }
 .sugs-shut { display: flex; gap: 6px; align-items: center; margin-top: 14px; color: var(--lk-quiet); cursor: pointer; } .sugs-shut:hover { color: var(--lk-text); } .sugs-shut .nm { margin-left: 4px; }
 .sugs .sug { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 2px 6px; align-items: baseline; }
@@ -325,7 +325,7 @@ ${ROW} > .block-children-container > .block-children-left-border { display: none
 .st-topdrop { display: none; } .st[data-dragging] .st-topdrop { display: grid; } .st-topdrop .nm { color: var(--lk-quiet); }
 .st-top .st-split { flex: none; }
 
-/* Washed in yellow (the library's lk-coming on the name): what a change waiting in the tray touches. Until 16 November 2026 it wore
+/* In green text (the library's lk-coming on the name): what a change waiting in the tray touches. Until 16 November 2026 it wore
    the pencil, which the owner keeps for Predictive's guesses alone. */
 /* The pick bar, as the grammar draws it: above the list, how many and what can be done as quiet words, Esc clears. */
 .st-pick { margin: 0 0 8px; min-height: 27px; flex-wrap: nowrap; }
@@ -377,7 +377,7 @@ ${ROW} > .block-children-container > .block-children-left-border { display: none
 .st-two { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; font-size: 14px; margin: 8px 0 6px; }
 .st-two .h { font-weight: 600; padding-bottom: 4px; display: flex; gap: 8px; align-items: baseline; color: var(--lk-text, #222); } .st-two .h .ct { font-weight: 400; color: var(--lk-quiet); font-size: var(--lk-small); }
 .st-two .pr { display: flex; gap: 8px; min-height: 24px; align-items: center; color: var(--lk-quiet); }   /* the name at the left of its column, "on both" at the right */
-.st-keep { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 6px 0 4px; } .st-keep .act { cursor: pointer; padding: 2px 8px; border-radius: 1em; } .st-keep .act.on { background: var(--rx-yellow-a5, rgba(255, 213, 0, .35)); color: var(--lk-text, #222) !important; } .st-keep .n { margin-left: 8px; font-size: var(--lk-small); }   /* which to keep: the one kept washed as what comes */
+.st-keep { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 6px 0 4px; } .st-keep .act { cursor: pointer; padding: 2px 8px; border-radius: 1em; } .st-keep .act.on { color: var(--rx-green-11, #18794e) !important; font-weight: 600; } .st-keep .n { margin-left: 8px; font-size: var(--lk-small); }   /* which to keep: the one kept washed as what comes */
 .st-pv.one { grid-template-columns: 1fr; }
 .st-pv { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; margin: 8px 0 4px; font-size: 14px; }   /* a property change on real notes: now, after */
 .st-pv > div { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
@@ -748,8 +748,8 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
      tags each is on, which move to the kept one), then what becomes of the values: their kind, what stays behind, and, where
      the kept property takes one value and a node would hold two, the way to Logseq's own page to let it take several. */
   /* A property change shown on real notes before it is made (16 November 2026, the owner's "obvious what the outcome will be",
-     after the clickable mockup property-fix-live.html): up to three notes, now and after, side by side; what comes is washed in
-     yellow and what goes struck through in red (the owner, the same day: "make it much more prominent what is to change. I thought
+     after the clickable mockup property-fix-live.html): up to three notes, now and after, side by side; what comes is in
+     green text and what goes struck through in red (the owner, the same day: "make it much more prominent what is to change. I thought
      dotted is just for predictive suggestions, not actual consequential changes"); a note left as it is says so. One count under them. */
   const notesPv = (pv, newName, shownAs) => {
     if (!pv?.notes?.length) return '';

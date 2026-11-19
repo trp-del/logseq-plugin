@@ -48,7 +48,7 @@ const app = {
       run: async () => { if (graph !== app.graph) return; const back = new Set(app.dismissed()); back.delete(key); keep(back); app.dismissedCache = { graph, set: back }; app.draw(); },
       onFail: error => { console.error('Structure: the suggestion could not be brought back', error); notify('The suggestion could not be brought back', 'warning'); } });
   },
-  // The tags and properties a change waiting in the tray touches: washed in yellow (lk-coming) wherever they are drawn.
+  // The tags and properties a change waiting in the tray touches: in green text (lk-coming) wherever they are drawn.
   touched() {
     if (app.touchedCache && app.touchedCache.at === tray.version && app.touchedCache.model === tray.model) return app.touchedCache.set;
     const tags = new Set(), props = new Set();

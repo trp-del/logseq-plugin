@@ -1380,10 +1380,11 @@ Door.NAMES = `${TOKENS}
 /* A pencilled tag fades once: the pencil's grey, not the tag's own fade on top of it. */
 .lk-pencil .lk-tag, .lk-tag.lk-pencil { opacity: 1; font-family: var(--lk-mono) !important; font-style: normal !important; font-size-adjust: 0.51; }
 /* What a change about to be made brings, and what it takes away (the owner, 16 November 2026: "make it much more prominent what is
-   to change. I thought dotted is just for predictive suggestions, not actual consequential changes"): washed in yellow; struck
-   through in red. A change that waits (Ontology's tray, a part switched on or off until the reload) wears these wherever it is
+   to change. I thought dotted is just for predictive suggestions, not actual consequential changes"): in green text (the owner,
+   19 November 2026: "green should replace yellow highlight for what is added", then "it should be green text, not highlight like a
+   diff style"); struck through in red. A change that waits (Ontology's tray, a part switched on or off until the reload) wears these wherever it is
    shown. The pencil above stays Predictive's: a guess you can ignore. */
-.lk-coming { background: var(--rx-yellow-a5, rgba(255, 213, 0, .35)); color: var(--lk-text) !important; border-radius: 3px; padding: 0 3px; margin: 0 -3px; }
+.lk-coming { color: var(--rx-green-11, #18794e) !important; }
 .lk-going { text-decoration: line-through !important; text-decoration-thickness: 1.5px !important; color: var(--rx-red-10, #dc3e42) !important; }
 .lk-undo { opacity: .28 !important; transition: opacity ${Door.timing('undo')}; }
 .lk-undo:hover, .lk-undo:focus-visible { opacity: .85 !important; }

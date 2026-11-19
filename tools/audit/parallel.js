@@ -6,7 +6,7 @@
      time spent is not shown;
    - 0.3.147 (3.2): the section on a person's page is headed Relations;
    - 0.3.148 (3.1, 3.8): on the Ontology map the tick boxes can be seen before anything is ticked, and the bar stands;
-   - 0.3.150 (3.4, 3.6): Ontology's Suggested box has no yellow wash (yellow is for a change about to be made) and each line has
+   - 0.3.150 (3.4, 3.6): Ontology's Suggested box has no green text (green is for a change about to be made) and each line has
      its ×; a × dismisses with an Undo arrow that brings it back.
    Everything made goes again by its id; nothing else in the graph may change. */
 const fs = require('node:fs'), path = require('node:path');
@@ -55,8 +55,8 @@ const { connect, ours, go, route, sleep, fingerprint, differs, finish, fail } = 
   // The Suggested box
   // Since 0.3.153 the suggestions stay closed until opened: the quiet “Suggested” line is pressed first.
   { const shut = page.locator('.st .sugs-shut').first(); if (await shut.count()) { await shut.click(); await sleep(700); } }
-  const sug = await page.evaluate(() => { const box = [...document.querySelectorAll('.st [class*="sug"]')].find(e => e.getBoundingClientRect().width > 0 && e.querySelector('.lk-x, [data-dismiss], [data-undismiss]')); if (!box) return null; const bg = getComputedStyle(box).backgroundColor, m = bg.match(/rgba?\(([^)]+)\)/)?.[1].split(/[, /]+/).map(Number) || [0, 0, 0, 0]; const yellow = (m[3] ?? 1) > 0.1 && m[0] > 200 && m[1] > 170 && m[2] < 140; return { yellow, x: box.querySelectorAll('.lk-x, [data-dismiss]').length, words: box.innerText.slice(0, 60).replace(/\n/g, ' ') }; });
-  say('3.6', !!sug && !sug.yellow && sug.x > 0, sug ? `the Suggested box: yellow wash ${sug.yellow ? 'yes' : 'no'}, a × on its lines ${sug.x}` : 'no Suggested box with a × found on the map');
+  const sug = await page.evaluate(() => { const box = [...document.querySelectorAll('.st [class*="sug"]')].find(e => e.getBoundingClientRect().width > 0 && e.querySelector('.lk-x, [data-dismiss], [data-undismiss]')); if (!box) return null; const bg = getComputedStyle(box).backgroundColor, m = bg.match(/rgba?\(([^)]+)\)/)?.[1].split(/[, /]+/).map(Number) || [0, 0, 0, 0]; const yellow = (m[3] ?? 1) > 0.1 && m[1] > m[0] + 20 && m[1] > m[2]; return { yellow, x: box.querySelectorAll('.lk-x, [data-dismiss]').length, words: box.innerText.slice(0, 60).replace(/\n/g, ' ') }; });
+  say('3.6', !!sug && !sug.yellow && sug.x > 0, sug ? `the Suggested box: green text ${sug.yellow ? 'yes' : 'no'}, a × on its lines ${sug.x}` : 'no Suggested box with a × found on the map');
   if (sug && sug.x) {
     const n0 = await page.evaluate(() => [...document.querySelectorAll('.st [class*="sug"] .lk-x, .st [class*="sug"] [data-dismiss]')].length);
     await page.locator('.st [class*="sug"] .lk-x, .st [class*="sug"] [data-dismiss]').first().click(); await sleep(900);

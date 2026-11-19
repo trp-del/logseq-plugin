@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /* node waiting-look.js <out dir> [label] [dark]   Goalpost line 3.6: dotted grey is Predictive's guess and nothing else; what a change
-   brings is washed in yellow, what it takes away is struck through in red.
+   brings is in green text, what it takes away is struck through in red.
    In the checks' own Logseq:
    (1) on the Ontology map two tags are ticked and moved under another tag with the bar's Move under…: the preview must show
-       where they sit now struck through in red and where they will sit washed in yellow; after the yes the move waits in the
+       where they sit now struck through in red and where they will sit in green text text; after the yes the move waits in the
        tray, and every name it touches on the map must carry the wash and none a dotted line; Discard drops it and nothing waits.
    (2) in the settings window DB Export is switched off, so the part waits for the reload: "Parts" in the list and the sentence
        beside Reload to apply must carry the wash and no dotted line; the part is switched back on and nothing waits.
@@ -16,7 +16,7 @@ const { connect, ours, route, go, sleep, fingerprint, differs, finish, fail } = 
   const before = await fingerprint(page);
   const dark = process.argv[4] === 'dark';
   if (dark) { await page.evaluate(() => window.logseq.api.set_theme_mode('dark')); await sleep(1200); }
-  // What on screen is dotted, washed in yellow, struck through in red: read from the computed look, whatever the class.
+  // What on screen is dotted, in green text, struck through in red: read from the computed look, whatever the class.
   const marks = scope => page.evaluate(scope => {
     const vis = el => { const r = el.getBoundingClientRect(), s = getComputedStyle(el); return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none'; };
     const own = el => [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim());
@@ -26,7 +26,7 @@ const { connect, ours, route, go, sleep, fingerprint, differs, finish, fail } = 
       if (!vis(el) || !own(el)) continue;
       const s = getComputedStyle(el), words = el.innerText.trim().replace(/\s+/g, ' ').slice(0, 48);
       if (/underline/.test(s.textDecorationLine) && s.textDecorationStyle === 'dotted') dotted.push(words);
-      const bg = rgb(s.backgroundColor); if (bg && (bg[3] ?? 1) > 0.1 && bg[0] > 200 && bg[1] > 170 && bg[2] < 120) washed.push(words);
+      const fg0 = rgb(s.color); if (fg0 && fg0[1] > fg0[0] + 40 && fg0[1] > fg0[2] + 20 && !/line-through/.test(s.textDecorationLine)) washed.push(words);
       const fg = rgb(s.color); if (/line-through/.test(s.textDecorationLine) && fg && fg[0] > 180 && fg[1] < 110 && fg[2] < 110) struck.push(words);
     }
     return { dotted, washed, struck };
@@ -50,7 +50,7 @@ const { connect, ours, route, go, sleep, fingerprint, differs, finish, fail } = 
   const early = await page.evaluate(() => /waiting/i.test(document.querySelector('.st-tray')?.innerText || ''));
   await shot('ontology-preview');
   const pvOk = pv.washed.includes('Information') && pv.struck.includes('Entity') && !pv.dotted.length && yes === 'Move 2 tags under Information' && !early;
-  console.log(`${pvOk ? 'ok  ' : 'FAIL'} Ontology, Move under… for two ticked tags says what it will do first: washed in yellow: ${list([...new Set(pv.washed)])}; struck through in red: ${list([...new Set(pv.struck)])}; dotted: ${list(pv.dotted)}; its yes says “${yes}”${early ? '; the move was staged before any yes' : ''}`);
+  console.log(`${pvOk ? 'ok  ' : 'FAIL'} Ontology, Move under… for two ticked tags says what it will do first: in green text: ${list([...new Set(pv.washed)])}; struck through in red: ${list([...new Set(pv.struck)])}; dotted: ${list(pv.dotted)}; its yes says “${yes}”${early ? '; the move was staged before any yes' : ''}`);
   if (asked) { await page.locator('.st-q [data-leave]').click(); await sleep(600); }
   await discard();
   // 1b. The two ticked tags dragged onto Information: several moved together wait in the tray.
@@ -60,7 +60,7 @@ const { connect, ours, route, go, sleep, fingerprint, differs, finish, fail } = 
   const map = await marks('.st'), trayMarks = await marks('.st-tray');
   await shot('ontology-waiting');
   const mapOk = /waiting/i.test(tray) && map.washed.includes('Report') && map.washed.includes('test') && !map.dotted.length && !trayMarks.dotted.length;
-  console.log(`${mapOk ? 'ok  ' : 'FAIL'} Ontology, two tags dragged under Information and waiting: the tray says “${tray.slice(0, 110)}”; washed in yellow: ${list([...new Set(map.washed)])}; dotted: ${list([...new Set([...map.dotted, ...trayMarks.dotted])])}`);
+  console.log(`${mapOk ? 'ok  ' : 'FAIL'} Ontology, two tags dragged under Information and waiting: the tray says “${tray.slice(0, 110)}”; in green text: ${list([...new Set(map.washed)])}; dotted: ${list([...new Set([...map.dotted, ...trayMarks.dotted])])}`);
   await discard();
   const left = await page.evaluate(() => /waiting/i.test(document.querySelector('.st-tray')?.innerText || ''));
   const back = await marks('.st');
@@ -81,7 +81,7 @@ const { connect, ours, route, go, sleep, fingerprint, differs, finish, fail } = 
     const m = await marks(dlg), reload = await page.locator(`${dlg} .sw-reload`).count();
     await shot('settings-waiting');
     setOk = reload > 0 && m.washed.some(w => /^Parts$/.test(w)) && m.washed.some(w => /waits for the reload/.test(w)) && !m.dotted.length;
-    setSaid = `Reload to apply shown: ${reload > 0 ? 'yes' : 'no'}; washed in yellow: ${list(m.washed)}; dotted: ${list(m.dotted)}`;
+    setSaid = `Reload to apply shown: ${reload > 0 ? 'yes' : 'no'}; in green text: ${list(m.washed)}; dotted: ${list(m.dotted)}`;
     await page.locator(`${dlg} .sw-opt[data-pick="exportOn"][data-val="true"]`).click(); await sleep(900);
     const still = await page.locator(`${dlg} .sw-reload`).count(), after = await marks(dlg);
     if (still || after.washed.length) { setOk = false; setSaid += `; switched back on, yet Reload to apply is ${still ? 'still shown' : 'gone'} and washed is ${list(after.washed)}`; }
@@ -96,5 +96,5 @@ const { connect, ours, route, go, sleep, fingerprint, differs, finish, fail } = 
   const noise = ours(said);
   for (const s of [...new Set(noise.map(s => s.type + ': ' + s.text.slice(0, 200)))]) console.log('console ' + s);
   const ok = pvOk && mapOk && backOk && setOk && !changed.length && !noise.length;
-  await finish(browser, { '3.6': { ok, said: ok ? 'a preview, a move waiting in Ontology and a part waiting for the reload show yellow for what comes and red for what goes, nothing dotted; both were put back' : 'a waiting change is dotted, or not washed in yellow, or was not put back (see the lines above)' } });
+  await finish(browser, { '3.6': { ok, said: ok ? 'a preview, a move waiting in Ontology and a part waiting for the reload show green for what comes and red for what goes, nothing dotted; both were put back' : 'a waiting change is dotted, or not in green text, or was not put back (see the lines above)' } });
 })().catch(fail);

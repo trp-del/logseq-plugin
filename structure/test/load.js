@@ -147,13 +147,13 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   sayYes();
   for (let i = 0; i < 40 && app.tray.done; i++) await sleep(25);
   assert.ok(!app.tray.done, 'Undo puts it back');
-  // Two moves staged together wait for Apply: washed in yellow, in the tray, with the plain count; Old and new; one Undo for the lot.
+  // Two moves staged together wait for Apply: in green text, in the tray, with the plain count; Old and new; one Undo for the lot.
   app.stage({ kind: 'move', tag: id('Scan'), to: id('Conversation') }); app.stage({ kind: 'move', tag: id('Call'), to: id('Treatment') }); app.draw(); await sleep(30);
   assert.equal(app.tray.changes.length, 2, 'several together wait');
   assert.ok(R.querySelector('.st-tray [data-apply]'));
   assert.match(text(R.querySelector('.st-tray')), /links kept/);
   assert.match(text(R.querySelector('.st-tray')), /Move Scan from /);
-  assert.ok(row('Scan').querySelector('.lk-coming'), 'washed in yellow where it will land (the pencil is Predictive\'s alone)');
+  assert.ok(row('Scan').querySelector('.lk-coming'), 'in green text where it will land (the pencil is Predictive\'s alone)');
   assert.ok(!doc.querySelector('.st .lk-pencil, .st-tray .lk-pencil'), 'no pencil on a waiting change');
   click(R.querySelector('[data-compare]')); assert.ok(R.querySelector('.st-sb'), 'old and new side by side');
   click(R.querySelector('[data-compare]')); assert.ok(!R.querySelector('.st-sb'));
@@ -279,7 +279,7 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
   st.pticks.clear(); app.draw();
   click(R.querySelector('[data-show="tree"]')); assert.ok(R.querySelector('.st-regions'));
   // Move under…: tick two tags, press Move under… in the bar, choose where. It then says what will happen under the bar, where
-  // each sits now struck through in red and where it will sit washed in yellow, and its yes names the result; nothing is staged
+  // each sits now struck through in red and where it will sit in green text text, and its yes names the result; nothing is staged
   // before the yes (16 November 2026). Until the 0.4 audit the choice staged the move at once: the preview's line could never run.
   { click(R.querySelector(`[data-tick="${id('Scan')}"]`)); click(R.querySelector(`[data-tick="${id('Call')}"]`));
     assert.match(text(R.querySelector('.st-acts')), /2 tags picked/);
@@ -290,7 +290,7 @@ const deq = (a, b, m) => assert.deepEqual(plain(a), plain(b), m);
     assert.equal(app.tray.changes.length, 0, 'nothing is staged before the yes');
     const q = R.querySelector('.st-q'); assert.ok(q, 'the move says what it will do first');
     assert.equal(text(q.querySelector('[data-stage]')), 'Move 2 tags under Treatment', 'the yes names the result');
-    assert.ok(q.querySelector('.lk-going') && q.querySelector('.lk-coming'), 'where each sits now in red, where it will sit in yellow');
+    assert.ok(q.querySelector('.lk-going') && q.querySelector('.lk-coming'), 'where each sits now in red, where it will sit in green text');
     assert.equal(text(q.querySelector('.lk-coming')), 'Treatment');
     click(q.querySelector('[data-leave]')); assert.ok(!R.querySelector('.st-q'), 'Leave it lets go');
     assert.equal(app.tray.changes.length, 0, 'and nothing was staged');

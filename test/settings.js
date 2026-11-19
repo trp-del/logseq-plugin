@@ -82,7 +82,7 @@ const key = (dlg, name, target = dlg.querySelector('.sw-mod')) => target.dispatc
   dlg.querySelector('.sw-row[data-row="predictiveOn"]').click();
   dlg.querySelector('.sw-body .sw-opt[data-val="false"]').click();
   assert.equal(settings.predictiveOn, false); await sleep(80);
-  assert.ok(dlg.querySelector('[data-place="parts"] .sw-name.lk-coming'), 'Parts washed in yellow while one waits');
+  assert.ok(dlg.querySelector('[data-place="parts"] .sw-name.lk-coming'), 'Parts in green text while one waits');
   assert.ok(dlg.querySelector('.sw-foot [data-reload]'), 'Reload to apply');
   dlg.querySelector('[data-place="writing"]').click();
   assert.ok(dlg.querySelector('.sw-row.sw-rest'), 'its rows rest, still there');
