@@ -1,6 +1,6 @@
 #!/bin/sh
-# Brings the folder the owner's Logseq loads (logseq-value/logseq-plugin) to GitHub's latest, then reloads the plugin in that
-# Logseq when it runs with its debugging port (9222). The last step of every release (logseq-value/CLAUDE.md, 19 November 2026):
+# Brings the folder the owner's Logseq loads (logseq-workspace/logseq-plugin) to GitHub's latest, then reloads the plugin in that
+# Logseq when it runs with its debugging port (9222). The last step of every release (logseq-workspace/CLAUDE.md, 19 November 2026):
 #   sh tools/sync-loaded.sh   (from any copy: it finds the folder in Logseq's preferences)
 # It changes nothing when the folder holds edits of its own or saved changes GitHub lacks: it lists them and stops, because that
 # folder is never edited by hand and anything there may be another thread's work.

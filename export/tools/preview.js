@@ -1,6 +1,6 @@
 /* Draws the sample document in every look and layout with Playwright's Chromium: a picture and a PDF of each, so the looks
    can be judged without Logseq. Playwright is not a dependency of the plugin: point NODE_PATH at a node_modules that has it.
-     NODE_PATH=/Users/massimo/logseq-value/logseq-plugin/node_modules node tools/preview.js <out dir> [look] [layout] */
+     NODE_PATH=$PWD/../node_modules node tools/preview.js <out dir> [look] [layout] */
 const fs = require('node:fs'), path = require('node:path');
 const E = require('../test/run-core.js');
 const out = process.argv[2] || path.join(__dirname, '..', 'dist', 'preview');
@@ -8,7 +8,7 @@ fs.mkdirSync(out, { recursive: true });
 const looks = process.argv[3] ? [process.argv[3]] : E.themes.looks.map(l => l.key);
 const layouts = process.argv[4] ? [process.argv[4]] : E.doc.layouts.map(l => l.key);
 const doc = E.sample();
-const images = f => 'data:image/png;base64,' + fs.readFileSync(path.join('/Users/massimo/logseq/graphs/Illness Test Graph', f)).toString('base64');
+const images = f => 'data:image/png;base64,' + fs.readFileSync(path.join(require('node:os').homedir(), 'logseq/graphs/Illness Test Graph', f)).toString('base64');
 (async () => {
   const { chromium } = require('playwright');
   const browser = await chromium.launch();

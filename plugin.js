@@ -1330,7 +1330,7 @@ const TOKENS = `
    chevron is lk-i-chevron, coloured faint here); lk-alts: what a value can become, faint words with the
    one in force (.on) in the text colour; lk-accent: the one action, its key faint; lk-close: the ×.
    The module lays them out (a name over a value, the gaps); these give only their colours and weights.
-   The button library (button-library.html in the workspace), one kind per job, each drawn whole here, so a module adds
+   The button library, one kind per job, each drawn whole here, so a module adds
    nothing of its own to how it looks, only where it stands. A press is a word with a line icon (lk-i-<name>, from Door.ICONS)
    on the round wash, at rest too; firmer under the pointer. lk-strip: a row of actions; lk-bar: what you can do with what
    you ticked, lk-said holding how many; lk-btn: a word in either, or among lk-answers, the answers under a question;
@@ -1404,6 +1404,8 @@ Door.NAMES = `${TOKENS}
 input.lk-value { cursor: text; border: 0; border-bottom: 1px solid transparent; border-radius: 0; padding: 0 0 1px; background: none; color: inherit; font: inherit; outline: none; box-shadow: none; }
 input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-shadow: none; }
 .lk-pick:not(:first-child) { border-left: 1px solid var(--lk-hair); }
+[hidden] + .lk-pick { border-left: 0; }   /* a hidden first choice leaves no line before the next */
+.lk-value:not(input):focus-visible { outline: none; background: var(--lk-wash); box-shadow: 0 0 0 3px var(--lk-wash); border-radius: 1em; }
 .lk-pick .lk-value :is(svg, .lk-i-chevron) { color: var(--lk-quiet); }
 /* The faint goes on each alternative, not on the line, so the one in force can take the text colour back. */
 .lk-alts { color: inherit !important; }
@@ -1470,6 +1472,7 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
 .lk-del, .lk-btn.lk-i-bin, .lk-fix.lk-i-bin, .lk-fix.lk-i-minus, .lk-item.lk-del { color: var(--rx-red-10, #dc3e42) !important; }
 .lk-btn.lk-low:hover, .lk-fix:hover, .lk-btn.lk-low:focus-visible, .lk-fix:focus-visible { background: var(--lk-wash) !important; }
 .lk-btn.lk-low[aria-pressed="true"] { font-weight: 600; }   /* a third-level press in force (a kind picked, a sort on) */
+.lk-btn:not(.lk-low)[aria-pressed="true"] { background: color-mix(in srgb, currentColor 18%, transparent) !important; }   /* a press in force (Adjust with its column open) */
 .lk-row .lk-btn.lk-low { padding-block: 1px !important; }   /* on a row it takes the row's height, so the row never grows for it */
 /* The space between two tabs' words is at least --lk-tab-space (the owner, 13 November 2026: "a minimum of space between the
    text of tabs so it does not look like one continuous piece of text"); a place that takes the side padding away (--lk-view-pad: 0)

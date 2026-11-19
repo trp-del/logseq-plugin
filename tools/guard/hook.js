@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* The guard's lock for Claude (18 November 2026). Claude Code runs this before every shell command in the logseq-value workspace
+/* The guard's lock for Claude (18 November 2026). Claude Code runs this before every shell command in the logseq-workspace folder
    (.claude/settings.json there). A command that saves, tags, pushes or releases the plugin goes ahead only when the guard passed
    on exactly what it would ship:
      git commit            the files staged (nothing that ships changed: no pass needed)

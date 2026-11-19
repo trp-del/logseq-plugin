@@ -771,7 +771,7 @@ const kitCss = `/* The kit (parts/shared.js): where the library's pieces stand i
 .th-lsq-type .ui__select-trigger { cursor: default; }
 .th-lsq-type .th-lsq-types { position: absolute; top: calc(100% + 4px); left: -28px; width: 118px; padding: 4px; z-index: 1; }
 .th-lsq-type .th-lsq-type-row { padding: 5px 8px 5px 30px; font-size: 14px; line-height: 20px; border-radius: 4px; cursor: default; white-space: nowrap; }
-.th-lsq-type .th-lsq-type-row[aria-selected="true"] { background: color-mix(in srgb, currentColor 7%, transparent); }
+.th-lsq-type .th-lsq-type-row[aria-selected="true"] { background: var(--lk-wash); }
 .th-lsq-pop .th-lsq-icon svg { width: 16px; height: 16px; display: block; }
 .th-lsq-pop .th-lsq-icon .ti { font-size: 16px; line-height: 1; }
 /* Clear is the library's lone word, standing on the list's own edge. */
@@ -856,8 +856,7 @@ a.th-tag:hover { opacity: 1; }
 /* A value that opens hangs its chevron just left of the value (the drawing; the owner, 2026-10-27: the values of one
    column start at one edge), so "cisplatin" starts where "1" and "Oct 20" do. */
 .th-ol-pv > .th-chev:first-child { margin-left: calc(-16px - var(--th-ol-gap)); }
-.th-ol-line > input.lk-tick[type=checkbox] { position: absolute; left: -20px; top: 6px; margin: 0; opacity: .3; }
-.th-ol-line:hover > input.lk-tick[type=checkbox], .th-ol-line > input.lk-tick[type=checkbox]:checked, .th-ol-line > input.lk-tick[type=checkbox]:focus-visible { opacity: 1; }
+.th-ol-line > input.lk-tick[type=checkbox] { position: absolute; left: -20px; top: 6px; margin: 0; }
 .th-ol-day { flex: none; width: var(--th-ol-day); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .th-ol-body > .th-ol-from { margin-left: 6px; white-space: nowrap; }
 .th-ol-body { min-width: 0; overflow-wrap: normal; }
