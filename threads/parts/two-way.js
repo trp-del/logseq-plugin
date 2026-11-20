@@ -1328,6 +1328,26 @@ const rightPane = () => {
     onChange: fn => Split()?.onChange?.(fn),
   };
 };
+/* A page opened in the right sidebar (Shift and a press), the nth of them from the top (19 November 2026, rule 7, act in place: a
+   page read in the sidebar had neither Logseq's Linked references, hidden everywhere, nor this section, so nothing said what points
+   at it). Logseq keeps what the sidebar holds, newest first, as [graph, id, kind]; the page items on screen stand in that order. With
+   the split on, the right half's own copy draws instead. A change is heard through the door's one watcher, and only when what the
+   sidebar holds has changed. */
+const SIDE_PAGES = 3;
+const sidePane = n => {
+  const uuids = new Map();   // a page's id in the graph → its uuid, once read
+  const held = () => { try { return (host().defaultView.logseq?.api?.get_state_from_store('sidebar/blocks') || []).filter(b => b?.[2] === 'page'); } catch (error) { return []; } };
+  const root = doc => [...(doc?.querySelectorAll('#right-sidebar:not([data-lk-split]) .sidebar-item.item-type-page > .sidebar-panel-content, #right-sidebar:not([data-lk-split]) .sidebar-item.item-type-page .sidebar-panel-content') || [])].filter((el, i, all) => all.indexOf(el) === i)[n] || null;
+  return {
+    main: false, name: 'side' + n, from: twoWay, side: true,
+    root,
+    page: async () => { const b = held()[n]; if (!b || !root(host())) return null; const page = await model.getPage(b[1]).catch(() => null); if (page?.uuid) uuids.set(b[1], String(page.uuid)); return page; },
+    shown: el => { const uuid = uuids.get(held()[n]?.[1]); return el && uuid && el.querySelector(':scope > .page, .page') ? [uuid] : []; },
+    titleRow: el => el?.closest('.sidebar-item')?.querySelector('.sidebar-item-header') || null,
+    scroller: box => box?.closest('.sidebar-item-list') || null,
+    onChange: fn => { let was = ''; return window.PluginDoor.watch(() => { const now = JSON.stringify(held().map(b => b[1])) + '|' + !!root(host()); if (now === was) return; was = now; fn(); }); },
+  };
+};
 // The core's things, taken when the part starts; the pieces reach the ones they use through twoWay.
 function useCore(core) {
   ({ UUID, isEntityId, watchDomEarly, addsElements, sendStyle, provided, uuidsIn, saveSettings, onPageChange, onDatabaseChange, onSettingsChange } = take(core, ['UUID', 'isEntityId', 'watchDomEarly', 'addsElements', 'sendStyle', 'provided', 'uuidsIn', 'saveSettings', 'onPageChange', 'onDatabaseChange', 'onSettingsChange', 'currentPage', 'getPage', 'createPage', 'deletePage', 'appendBlock', 'removeBlock', 'addTag', 'removeTag', 'setValue', 'unsetValue', 'STATUS_IDENT', 'editBlock']));
@@ -1401,6 +1421,16 @@ function start() {
       try { right.start(); } catch (error) { warnOnce('the page on the right half could not get its rows', error); }
       onUnload(() => { twoWay.copies = [twoWay]; return right.stop(); });
     }
+  }
+  // The copies for the pages opened in the sidebar: with none there they have no page and draw nothing.
+  for (let n = 0; n < SIDE_PAGES; n++) {
+    const side = sidePane(n);
+    twoWayPart(side);
+    const made = side.made;
+    if (!made) continue;
+    twoWay.copies = [...twoWay.copies, made.twoWay];
+    try { made.start(); } catch (error) { warnOnce('a page in the sidebar could not get its rows', error); }
+    onUnload(() => { twoWay.copies = twoWay.copies.filter(copy => copy !== made.twoWay); return made.stop(); });
   }
 }
 // What the pieces reach of the part, and of the core once it starts (useCore).
