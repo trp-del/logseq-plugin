@@ -394,6 +394,8 @@ function keepNodeField(box) {
     for (const type of ['keyup', 'keypress']) field.addEventListener(type, event => event.stopPropagation());
   }
 }
+/* Writing a bullet offers no Undo arrow (the owner, 20 November 2026: "you don't need an undo for writing a bullet"): words written or a
+   bullet added in an opened node are plain writing, taken back as any writing is in Logseq. The arrow stays for what is set: a value, a tag, a status. */
 // Enter adds the bullet at the node's end, as if typed there, and the empty bullet after it takes the caret for the next.
 async function writeBullet(uuid, key, typed) {
   const text = String(typed || '').trim();
@@ -405,7 +407,6 @@ async function writeBullet(uuid, key, typed) {
     if (!block?.uuid) throw new Error('the bullet was not made');
     await readAgain(uuid);
     focusNodeField(key);
-    await twoWay.offerMade(block.uuid, `Added a bullet to “${twoWay.shortName(titleOf(uuid))}”`, async () => { await twoWay.model.removeBlock(block.uuid); await readAgain(uuid); twoWay.later(300); }, group?.name, twoWay.inBox(`[data-bullet="${CSS.escape(block.uuid)}"] .th-ol-words`));
   } catch (error) {
     warnOnce('could not add the bullet', error); notify('The bullet could not be added', 'warning');
     state.nodeDraft = { uuid, key, text };   // the words are not lost with it
@@ -440,7 +441,6 @@ async function editBullet(uuid) {
   if (!String(words || '').trim()) { await twoWay.model.removeBlock(made).catch(() => {}); await readAgain(owner); return; }
   await readAgain(owner);
   const group = state.groups.find(g => g.items.some(item => item.uuid === owner));
-  await twoWay.offerMade(made, `Added a bullet to “${twoWay.shortName(titleOf(owner))}”`, async () => { await twoWay.model.removeBlock(made); await readAgain(owner); twoWay.later(300); }, group?.name, twoWay.inBox(`[data-edit-bullet="${CSS.escape(made)}"]`));
   twoWay.later(300);
 }
 async function editBulletOnce(uuid, { fresh = false } = {}) {
@@ -485,13 +485,6 @@ async function editBulletOnce(uuid, { fresh = false } = {}) {
   const doc = host();
   if (!doc.activeElement || doc.activeElement === doc.body) find()?.focus({ preventScroll: true });
   const group = state.groups.find(g => g.items.some(item => item.uuid === owner));
-  twoWay.offerUndo(`Changed a bullet of “${twoWay.shortName(titleOf(owner))}”`, async () => {
-    if (await twoWay.provided.titleNow(uuid) !== wrote) return notify('It has changed since, so it stays', 'warning');
-    await twoWay.model.setWords(uuid, stored);
-    twoWay.peek.cache.clear();
-    if (owner) await readAgain(owner);
-    twoWay.later(300);
-  }, group?.name, find);
   twoWay.later(300);
   return ended;
 }
@@ -553,6 +546,8 @@ async function editNodeProp(uuid, ident, at) {
   const row = state.node.get(uuid)?.props.find(r => r.prop.ident === ident) || (state.addProp?.uuid === uuid && state.addProp.prop.ident === ident ? { prop: state.addProp.prop, values: [] } : null);
   if (!row) return false;
   const { prop } = row, name = twoWay.shortName(titleOf(uuid)), held = row.values.map(v => v.text);
+  // Status: the same list a task's circle opens, each status with its icon in Logseq's order (the owner, 20 November 2026, of this row's plain list: "they look different").
+  if (ident === twoWay.model.STATUS_IDENT && twoWay.setStatus) { const words = at?.closest?.('.th-ol-pv') || at; await twoWay.setStatus(words, { uuid, had: Number(row.values[0]?.id) || 0, name }); await readAgain(uuid); return true; }
   // Of several words or numbers: the one pressed; the property's name adds another.
   const one = prop.many && at?.dataset?.value != null ? row.values[Number(at.dataset.value)] : null;
   const kind = prop.choices?.length && prop.type !== 'node' ? 'choice' : prop.type;

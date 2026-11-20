@@ -598,14 +598,15 @@ function statusEverywhere(uuid, status) {
   for (const data of state.node.values()) for (const line of data.bullets || []) if (line.uuid === uuid) line.status = status;
   state.html = null; draw(host());
 }
-async function setStatus(button) {
-  const uuid = button.dataset.task, had = Number(button.dataset.status) || 0;
+// From a task's circle, or from the Status line of an opened node (dig.js), which gives the node and what it holds: one list for both.
+async function setStatus(button, of = null) {
+  const uuid = of?.uuid || button.dataset.task, had = of ? of.had : Number(button.dataset.status) || 0;
   twoWay.hidePeek?.();
   await readStatuses();
   const picked = await shared.pickValue({ at: button, placeholder: 'Set Status', clearLabel: 'Clear', keepOrder: true,
     options: [...state.statuses.values()].map(s => ({ label: s.title, id: s.id, iconHtml: statusIconHtml(s.icon), held: s.id === had })) });
   if (!picked || (!picked.clear && picked.id === had)) return;
-  const name = shortName(state.groups.flatMap(g => g.items).find(item => item.uuid === uuid)?.title || [...state.node.values()].flatMap(data => data.bullets || []).find(line => line.uuid === uuid)?.text || '');
+  const name = of?.name || shortName(state.groups.flatMap(g => g.items).find(item => item.uuid === uuid)?.title || [...state.node.values()].flatMap(data => data.bullets || []).find(line => line.uuid === uuid)?.text || '');
   const before = state.statuses.get(had)?.title || '';
   try {
     if (picked.clear) await model.unsetValue(uuid, model.STATUS_IDENT); else await model.setValue(uuid, model.STATUS_IDENT, picked.label);
@@ -1479,6 +1480,6 @@ const pieces = pane.from ? pane.from.pieces : [];
 if (pane.main) Object.assign(twoWay, { pieces, piece: piece => { pieces.push(piece); piece(twoWay); } });
 if (pane.main) ((window.Threads ||= {}).parts ||= []).push({ name: 'two-way', says: 'the rows on a page', schema: settingsSchema, start, stop: runUnloadTasks, inner: twoWay });
 // What the pieces reach of the part, and of the core once it starts (useCore).
-Object.assign(twoWay, { taskHtml, dayCellOf, headWhen, whenTip, INLINE, LISTED, UUID, stopPicking, clickHooks, tailHooks, viewMenuHooks, listHooks, headHooks, underHeadHooks, leadHooks, betweenHooks, lineMenuHooks, rowMenuHooks, saveSettings: changes => saveSettings(changes), dayCell, isDated, readKids, hasKids, loadHooks, settledHooks, starters, summary, plural, tagWord, dayText, draw, groupsFor, inBox, isMentions, couldBeOff, itemHtml, later, lineDay, model, nameHtml, offerKept, offerMade, offerUndo, guard, onUnload, listen, provided, rowHtml, setting, shortName, state, tagLink, todayNumber, uuidsIn, valueBox, warnOnce, useCore });
+Object.assign(twoWay, { setStatus, taskHtml, dayCellOf, headWhen, whenTip, INLINE, LISTED, UUID, stopPicking, clickHooks, tailHooks, viewMenuHooks, listHooks, headHooks, underHeadHooks, leadHooks, betweenHooks, lineMenuHooks, rowMenuHooks, saveSettings: changes => saveSettings(changes), dayCell, isDated, readKids, hasKids, loadHooks, settledHooks, starters, summary, plural, tagWord, dayText, draw, groupsFor, inBox, isMentions, couldBeOff, itemHtml, later, lineDay, model, nameHtml, offerKept, offerMade, offerUndo, guard, onUnload, listen, provided, rowHtml, setting, shortName, state, tagLink, todayNumber, uuidsIn, valueBox, warnOnce, useCore });
 if (!pane.main) { for (const piece of pieces) piece(twoWay); pane.made = { twoWay, start, stop: runUnloadTasks }; }
 })();
