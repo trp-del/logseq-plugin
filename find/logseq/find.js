@@ -129,6 +129,8 @@ const CSS = `
 /* A node opened in place: its properties, then what points at it, each a line that opens: the grammar's row, the dot
    ringed while closed, the number after the words as faint as on a lit choice. */
 .fd-kids { margin: 2px 0 6px calc(var(--fd-day) + 24px); padding-left: 10px; border-left: 1px solid var(--lk-hair); }
+/* A node Relations draws here (relHolds) brings its own hairline and steps in: the holder adds none, and stands so that line falls under the row's bullet. */
+.fd-kids.fd-node { margin-left: calc(var(--fd-day) - 26px); padding-left: 0; border-left: 0; }
 .fd-kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 5px 12px; font-size: 14px; align-items: baseline; padding: 4px 0 10px; }
 .fd-kv .fd-k { display: inline-flex; align-items: center; gap: 5px; }
 .fd-kv .fd-v { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -405,6 +407,13 @@ function said() {
   refresh();
 }
 
+/* A node opened in place is Relations' own opened node (20 November 2026; the owner, 19 November, of the proposal: "ok this is good",
+   and of what the parts join around: "the relations part is the non-negotiable part"): its properties to change, its bullets to write
+   in, what points at it to walk on along. Find puts an empty holder under the row and Relations fills it, for as many nodes as
+   Relations says it can hold at once; with Relations switched off, or for a node opened beyond that, Find draws what it always drew. */
+const relRoom = () => { try { return window.PluginDoor.answers('relations:node') ? 3 : 0; } catch (error) { return 0; } };
+const relHolds = uuid => { const at = S.dug.filter(u => u !== S.lineDug).indexOf(uuid); return at >= 0 && at < relRoom(); };
+const inNode = target => !!target?.closest?.('[data-th-node], [popover]');
 /* The rows, flat, in the order they show: the rows found, then the near ones, and inside a dug one its pointed-at groups
    and their nodes. */
 function rowList() {
@@ -423,6 +432,7 @@ function rowList() {
   const add = (n, near, fromLine) => {
     if (!fromLine) list.push({ kind: 'node', node: n, top: true, near });
     if (!S.dug.includes(n.uuid) || (!fromLine && S.lineDug === n.uuid)) return;
+    if (relHolds(n.uuid)) return;   // its lines are Relations' own, walked with Relations' keys once the keyboard is in them
     const data = S.dugData.get(n.uuid);
     if (!data) return;
     for (const g of data.pointed) {
@@ -841,6 +851,8 @@ function markWords(html, ws) {
 }
 // A node opened in place: its properties as name and value, the groups follow as rows of the list.
 function dugBox(doc, node) {
+  // Relations draws the node where it runs (relHolds): the holder is all Find puts here.
+  if (relHolds(node.uuid)) return el(doc, 'div', { class: 'fd-kids fd-node', 'data-dug': node.uuid, 'data-th-node': node.uuid });
   const data = S.dugData.get(node.uuid);
   const box = el(doc, 'div', { class: 'fd-kids', 'data-dug': node.uuid });
   if (!data) { box.append(el(doc, 'div', { class: 'fd-wait lk-none' }, 'Reading…')); return box; }
@@ -1110,10 +1122,20 @@ function open(typed = '', say = false) {
   dlg.append(find, el(doc, 'div', { class: 'fd-line' }), el(doc, 'div', { class: 'fd-body' }), el(doc, 'div', { class: 'fd-foot' }));
   // The keys are taken at the document, before Logseq's own handlers see them (a Tab that reached Logseq first never
   // came back); only keys from inside the window are taken.
-  S.keys = Find.kit.listen(doc, 'keydown', event => { if (S.dlg === dlg && dlg.contains(event.target) && !event.target.closest?.('.lk-door-menu')) onKey(event); }, true);   // the status list keeps its own keys   // what takes the listener off again
+  S.keys = Find.kit.listen(doc, 'keydown', event => {
+    if (S.dlg !== dlg || !dlg.contains(event.target) || event.target.closest?.('.lk-door-menu')) return;
+    // Inside an opened node the keys are Relations' (a bullet being written, a list of values); Escape outside a field there comes back to the find line.
+    if (inNode(event.target)) { if (event.key === 'Escape' && !event.target.closest?.('input, textarea, [contenteditable="true"], [popover]')) { event.preventDefault(); event.stopPropagation(); input.focus(); } return; }
+    onKey(event);
+  }, true);   // the status list keeps its own keys   // what takes the listener off again
   for (const type of ['keyup', 'keypress']) dlg.addEventListener(type, event => event.stopPropagation());
-  dlg.addEventListener('click', () => input.focus(), true);   // whatever was pressed, the keyboard stays in the one box
+  dlg.addEventListener('click', event => { if (!inNode(event.target)) input.focus(); }, true);   // whatever was pressed, the keyboard stays in the one box, but for a press inside an opened node, which is written in where it stands
   dlg.addEventListener('click', event => { if (event.target === dlg) close(); });
+  // The keyboard never falls out of the window: a field of an opened node that ends (Enter, Escape, a list picked) gives it back to the find line.
+  dlg.addEventListener('focusout', () => setTimeout(() => { if (S.dlg !== dlg) return; const at = doc.activeElement; if (!at || at === doc.body || !dlg.contains(at)) input.focus({ preventScroll: true }); }, 0));
+  // A name pressed inside an opened node goes to its page: the window closes with the page it stood over.
+  const win = doc.defaultView;
+  dlg.addEventListener('click', event => { if (!event.target.closest?.('[data-th-node]')) return; const was = win?.location.hash; setTimeout(() => { if (S.dlg === dlg && win?.location.hash !== was) close(); }, 350); }, true);
   dlg.addEventListener('close', () => { if (S.dlg === dlg) S.dlg = null; dlg.remove(); });
   // One height from the opening, whatever is listed: the foot and the bottom edge stay put, and a longer list scrolls. It
   // leaves room for the rows shown before "show all", under three lines of choices.

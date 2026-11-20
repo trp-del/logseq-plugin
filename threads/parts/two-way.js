@@ -227,7 +227,7 @@ async function load() {
       // A zoomed-in block comes back with a page of its own; only a page gets the rows.
       // A journal day too (Linked references shows on a day, so the rows do); the Journals list, with many days
       // on screen, gets none (see draw).
-      if (page && !page.page && isEntityId(page.id)) {
+      if (page && (pane.node || !page.page) && isEntityId(page.id)) {
         state.pageJournal = !!(page['journal?'] || page.journalDay);
         state.pageDay = Number(page.journalDay) || 0;
         pageUuid = String(page.uuid || '');
@@ -245,10 +245,11 @@ async function load() {
         // stood as a link for a sixth of a second and then turned plain (the motion check: "shown and gone", 184 to 350 ms).
         const names = ownNamesOf(page.id, false).catch(() => {});
         await readStatuses();
-        groups = await groupsFor(page.id);
+        groups = pane.node ? [] : await groupsFor(page.id);   // a node opened in another window reads what points at it with the node itself (readNode)
         await names;
         const title = String(page.title || page.originalName || page.name || '').toLowerCase();
-        if (hiddenMentions().has(title)) reading(version, false);
+        if (pane.node) { reading(version, false); await twoWay.readNode(pageUuid, page.id).catch(error => warnOnce('could not read the node opened here', error)); }
+        else if (hiddenMentions().has(title)) reading(version, false);
         else {
           let read = !!(setting('twoWayMentions') && provided.mentionsInto);
           const mentions = await mentionsGroup(page.id, groups).catch(error => { read = false; warnOnce('could not read the nodes that name this page', error); return null; });
@@ -273,7 +274,7 @@ async function load() {
   reading(version, false);
   state.replaces = replaces;
   if (pageUuid) { state.replacesOf.set(pageUuid, replaces); state.ownNamesOf.set(pageUuid, new Set(state.ownNames)); }
-  if (pageUuid !== state.pageUuid) { state.raise.clear(); state.raisePairs = null; }
+  if (pageUuid !== state.pageUuid) { state.raise.clear(); state.raisePairs = null; state.nodeRolled = ''; }
   putBackOpen(pageUuid);
   state.pageUuid = pageUuid;
   state.groups = groups;
@@ -771,6 +772,7 @@ function anchorFor(doc) {
   if (!main) return null;
   // The right half: Logseq's sidebar page holds its property list in a box of its own, drawn a moment after the bullets; the section
   // stands after that box from the first (the space under the title is Look's tag path's) and waits, unseen, until the list is there.
+  if (pane.anchor) return pane.anchor(main);
   if (!pane.main) return main.querySelector('.page .ls-sidebar-page-properties');
   const outside = el => !el.closest('.references, .ls-bidirectional-properties, .ls-block .ls-block, .custom-query');
   /* A journal day: the section stands at the foot of the day, after its bullets (the owner, 18 November 2026: "relations should be at
@@ -951,10 +953,10 @@ function draw(doc) {
   const stale = !shown.length && settle.since > (state.readAt || 0);
   // The Journals list shows many days at once: no rows there (a day of its own gets them). Days by their uuid: a
   // page's alias is a second block in the title area too, and on the way from a journal day it read as that list.
-  const rows = state.groups.length > 0 && !stale && !(shown.length && !shown.includes(state.pageUuid)) && shown.filter(uuid => uuid.startsWith('00000001-')).length < 2;
+  const rows = pane.node ? !!state.pageUuid && shown.includes(state.pageUuid) && state.node.has(state.pageUuid) : state.groups.length > 0 && !stale && !(shown.length && !shown.includes(state.pageUuid)) && shown.filter(uuid => uuid.startsWith('00000001-')).length < 2;
   // A page with an alias has more than one block in its title area; the page is the one the rows were read for.
   const page = shown.includes(state.pageUuid) ? state.pageUuid : shown.length === 1 ? shown[0] : '';
-  const mode = anchor ? settling(page) : '';
+  const mode = anchor && !pane.node ? settling(page) : '';
   if (!anchor || (!rows && !mode)) { state.box?.remove(); twoWay.highlightFind(state.box); return; }   // the gutter stays: let go, a short page widened by 16 px a moment after it opened (motion-check, 6 November 2026)
   let box = state.box;
   if (!box || box.ownerDocument !== doc) {
@@ -975,7 +977,10 @@ function draw(doc) {
     state.html = '';
   }
   if (!rows) state.picked.clear();
-  const stepped = rows && state.steps.length ? twoWay.steppedHtml() : null;
+  const stepped = rows && !pane.node && state.steps.length ? twoWay.steppedHtml() : null;
+  // A node opened in another part's window: the node itself first, then what points at it, under the section's line only when something does.
+  const nodeTop = rows && pane.node ? twoWay.nodeTopHtml() : '';
+  if (pane.node && rows && !state.dig.has(`node>${state.pageUuid}`)) state.dig.set(`node>${state.pageUuid}`, { uuid: state.pageUuid, id: Number(state.pageId) || 0, title: state.pageTitle });   // it stands open: its lines take the keys and the presses of an opened node
   state.listed = [];   // filled as the rows are drawn, so the rows come before the bar that reads it
   // A piece may draw in the rows' place (two pages side by side).
   const rowsHtml = rows && stepped == null ? (twoWay.rowsInstead?.() ?? twoWay.openHits(twoWay.foundGroups()).map(g => rowHtml(g)).join('')) : '';
@@ -983,7 +988,7 @@ function draw(doc) {
      thing"), kept per page as a list's fold is; while letters are in the find line it stays open. */
   const wholeKey = `${state.pageUuid}|*`, wholeOpen = !!state.find.trim() || twoWay.isOpen(wholeKey);
   const wholeHtml = `<div class="th-tw-whole">${O.line({ day: null, chev: O.chev({ open: wholeOpen, label: 'Relations', attrs: { 'data-whole': wholeKey } }), body: `<a class="th-tw-whole-name th-tw-rule th-tw-rule-named" data-whole="${esc(wholeKey)}" href="#" title="Click to ${wholeOpen ? 'fold' : 'open'} Relations."><span>Relations</span></a>`, cls: 'th-tw-whole-line' })}</div>`;   /* "Linked" and a thin line on to the right edge (the owner, 12 November 2026: "Linked––––––" with line going all the way) */
-  const html = rows ? '<div class="th-tw-pin" aria-hidden="true"></div>' + (stepped ?? (wholeHtml + (wholeOpen ? twoWay.barHtml() + twoWay.findHtml() + rowsHtml : ''))) : '';
+  const html = rows ? '<div class="th-tw-pin" aria-hidden="true"></div>' + (pane.node ? nodeTop : stepped ?? (wholeHtml + (wholeOpen ? twoWay.barHtml() + twoWay.findHtml() + rowsHtml : ''))) : '';
   // What unrolls does so once: the drawing kept is the one without it, so the next drawing does not replace it.
   const bare = html.replace(/ th-ol-unroll/g, '');
   box.toggleAttribute('data-finding', !!state.find.trim());
@@ -1039,11 +1044,13 @@ function draw(doc) {
   box.toggleAttribute('data-th-folded', !!rows && stepped == null && (!wholeOpen || state.wholeTurning === 'fold'));
   twoWay.pinNow();
   if (anchor.nextElementSibling !== box) anchor.after(box);
+  // A node opened in another part's window rolls out once, when it is first drawn there, so the rows under it glide down (the plugin's one motion).
+  if (pane.node && rows && html && state.nodeRolled !== state.pageUuid) { state.nodeRolled = state.pageUuid; window.PluginDoor.unroll?.([box]); }
   // The room a page held is the main view's (measured under its title row); the right half waits for its property list instead.
   // At the foot of a journal day nothing stands under the section to be pushed down: no room is held there.
   holdRoom(doc, box, pane.main && !atFoot(anchor) ? mode : '', page);
   const waited = box.hasAttribute('data-th-waiting');
-  const listDrawn = pane.main ? heights.has(page) || anchor.matches('.ls-page-properties') : !!anchor.querySelector('.ls-page-properties');
+  const listDrawn = pane.node || (pane.main ? heights.has(page) || anchor.matches('.ls-page-properties') : !!anchor.querySelector('.ls-page-properties'));
   box.toggleAttribute('data-th-waiting', mode === 'hold' && !settle.stood && (!state.mentionsOf.has(page) || !listDrawn) && performance.now() - settle.since < WAIT_MS);
   if (!waited && box.hasAttribute('data-th-waiting')) endWaitWhenStill(box, page);
   if (!rows && mode === 'save') box.remove();
@@ -1348,6 +1355,26 @@ const sidePane = n => {
     onChange: fn => { let was = ''; return window.PluginDoor.watch(() => { const now = JSON.stringify(held().map(b => b[1])) + '|' + !!root(host()); if (now === was) return; was = now; fn(); }); },
   };
 };
+/* A node opened in place in another part's window (Find's, 20 November 2026; the owner, 19 November: "the relations part is the
+   non-negotiable part", of the proposal that a node opens everywhere as it opens here). The part draws an empty holder carrying the
+   node's uuid (data-th-node) inside its window; the nth such holder gets a copy, which draws the node itself (its properties to
+   change, its bullets to write in: nodeTopHtml) and under them what points at it, as on a page. Whether Relations can do this is
+   asked through the door ('relations:node'), so the other part keeps its own drawing when Relations is switched off. */
+const NODE_HOLDERS = 3;
+const nodePane = n => {
+  const spot = doc => [...(doc?.querySelectorAll('dialog[open] [data-th-node]') || [])][n] || null;
+  const uuidAt = el => String(el?.getAttribute('data-th-node') || '');
+  return {
+    main: false, name: 'node' + n, from: twoWay, node: true,
+    root: spot,
+    page: async () => { const uuid = uuidAt(spot(host())); if (!UUID.test(uuid)) return null; return (await Promise.resolve(model.getBlock(uuid)).catch(() => null)) || (await Promise.resolve(model.getPage(uuid)).catch(() => null)); },
+    shown: el => (UUID.test(uuidAt(el)) ? [uuidAt(el)] : []),
+    anchor: el => el.querySelector(':scope > .th-node-anchor') || el.appendChild(Object.assign(el.ownerDocument.createElement('div'), { className: 'th-node-anchor' })),
+    titleRow: () => null,
+    scroller: box => box?.closest('.fd-body') || null,
+    onChange: fn => { let was = ''; return window.PluginDoor.watch(() => { const now = uuidAt(spot(host())); if (now === was) return; was = now; fn(); }); },
+  };
+};
 // The core's things, taken when the part starts; the pieces reach the ones they use through twoWay.
 function useCore(core) {
   ({ UUID, isEntityId, watchDomEarly, addsElements, sendStyle, provided, uuidsIn, saveSettings, onPageChange, onDatabaseChange, onSettingsChange } = take(core, ['UUID', 'isEntityId', 'watchDomEarly', 'addsElements', 'sendStyle', 'provided', 'uuidsIn', 'saveSettings', 'onPageChange', 'onDatabaseChange', 'onSettingsChange', 'currentPage', 'getPage', 'createPage', 'deletePage', 'appendBlock', 'removeBlock', 'addTag', 'removeTag', 'setValue', 'unsetValue', 'STATUS_IDENT', 'editBlock']));
@@ -1422,6 +1449,17 @@ function start() {
       onUnload(() => { twoWay.copies = [twoWay]; return right.stop(); });
     }
   }
+  // The copies for nodes opened in another part's window, and the door's answer that says they are here.
+  for (let n = 0; n < NODE_HOLDERS; n++) {
+    const holder = nodePane(n);
+    twoWayPart(holder);
+    const made = holder.made;
+    if (!made) continue;
+    twoWay.copies = [...twoWay.copies, made.twoWay];
+    try { made.start(); } catch (error) { warnOnce('a node opened in another window could not be drawn', error); }
+    onUnload(() => { twoWay.copies = twoWay.copies.filter(copy => copy !== made.twoWay); return made.stop(); });
+  }
+  onUnload(window.PluginDoor.offerAsk('relations:node', () => NODE_HOLDERS));
   // The copies for the pages opened in the sidebar: with none there they have no page and draw nothing.
   for (let n = 0; n < SIDE_PAGES; n++) {
     const side = sidePane(n);
