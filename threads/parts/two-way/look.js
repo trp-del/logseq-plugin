@@ -185,6 +185,41 @@ const twoWayCss = `
 .th-two-way .th-ls-node:has(.breadcrumb--block-page) .page-blocks-inner > .blocks-container > .blocks-list-wrap > .ls-block > .block-main-container, .th-two-way .th-ls-node:has(.breadcrumb--block-page) .page-blocks-inner > .blocks-container > .blocks-list-wrap > .ls-block > .ls-block-content-indent { display: none !important; }
 .th-two-way .th-ls-node:has(.breadcrumb--block-page) .page-blocks-inner > .blocks-container > .blocks-list-wrap > .ls-block > .block-children-container { margin-left: 0 !important; padding-left: 0 !important; }
 .th-two-way .th-ls-node .block-add-button { opacity: .45 !important; }
+/* TRIAL (native-editor proposal, 20 November 2026): Logseq's editor laid out as it comes, only moved and dressed.
+   Hidden: only what Relations already says (the breadcrumb, the references under it, and for a bullet its own first line and
+   the guide line that hangs from it). Nothing inside the bullets is hidden or re-padded; the whole editor is moved so Logseq's
+   bullets stand in Relations' bullet column, and its add-bullet line keeps Logseq's own behaviour. */
+html[data-lk-try="new"] .th-two-way .th-ls-node .ls-page-blocks { margin-left: -2px !important; }
+html[data-lk-try="new"] .th-two-way .th-ls-node:has(.breadcrumb--block-page) .page-blocks-inner > .blocks-container > .blocks-list-wrap > .ls-block > .block-children-container > .block-children { border-left-color: transparent !important; }
+html[data-lk-try="new"] .th-two-way .th-ls-node:has(.breadcrumb--block-page) .page-blocks-inner > .blocks-container > .blocks-list-wrap > .ls-block > .block-children-container > .block-children-left-border { display: none !important; }
+html[data-lk-try="new"] .th-two-way .th-ls-node .block-add-button { padding-left: 20px !important; opacity: 0 !important; transition: opacity ${window.PluginDoor.timing('reveal')}; }
+html[data-lk-try="new"] .th-two-way .th-ls-node .block-add-button:hover, html[data-lk-try="new"] .th-two-way .th-ls-node:has(.breadcrumb--block-page):not(:has(.block-children .ls-block)) .block-add-button, html[data-lk-try="new"] .th-two-way .th-ls-node:not(:has(.breadcrumb--block-page)):not(:has(.page-blocks-inner .ls-block:not(.block-add-button))) .block-add-button { opacity: .45 !important; }
+html[data-lk-try="new"] .th-two-way .th-ls-node .ls-block { font-size: inherit; }
+/* TRIAL: under bullets Logseq's add-a-bullet line takes no room (the hand test: a gap of two lines under the last bullet); Enter after the last bullet adds one, as on a page. */
+html[data-lk-try="new"] .th-two-way .th-ls-node .block-add-button { height: 0 !important; min-height: 0 !important; overflow: hidden !important; padding-top: 0 !important; padding-bottom: 0 !important; }
+html[data-lk-try="new"] .th-two-way .th-ls-node .page-blocks-inner { padding-bottom: 0 !important; margin-bottom: 0 !important; }
+/* Relations stands inside Logseq's page title block, so Logseq's rules for a title (and the plugin's own title rules) reach the
+   editor: a task's circle grows to 24px and drops 15px, a tag drops 17px, a row stops wrapping. Inside the editor they are put back
+   to what Logseq draws on a page. */
+html[data-lk-try="new"] .th-two-way .th-ls-node :is(.positioned-properties, .time-spent) { margin-top: 0 !important; }
+html[data-lk-try="new"] .th-two-way .th-ls-node .block-tags { margin-top: 0 !important; min-height: 24px !important; }
+html[data-lk-try="new"] .th-two-way .th-ls-node .positioned-properties svg { width: 16px !important; height: 16px !important; }
+html[data-lk-try="new"] .th-two-way .th-ls-node .ls-block-right { margin-left: 0 !important; }
+/* TRIAL (digging tester): the breadcrumb as an outline, lines and bands, in the list where the dig began. One line per level,
+   one step (26px) further in each, its bullet (lk-bul) and a short guide line (lk-line) up to the line above, on a band a shade
+   darker than an opened node's wash. The property followed is quiet, then the node's name; the last line is the node you are
+   in, its name bold, and what it holds stands one step in under it. */
+.th-two-way .th-tw-bcwrap { padding: 2px 0 8px; }
+.th-two-way .th-tw-bcs { display: grid; gap: 2px; }
+.th-two-way .th-tw-bc { position: relative; display: flex; align-items: center; gap: 6px; min-height: 28px; margin-left: calc(var(--th-bc) * 26px); padding: 0 8px 0 0; border-radius: 6px; background: var(--lk-wash); cursor: pointer; white-space: nowrap; overflow: hidden; font-size: inherit; line-height: inherit; color: inherit; }
+.th-two-way .th-tw-bc:hover { background: var(--lk-hair); }
+.th-two-way .th-tw-bc + .th-tw-bc::before { content: ""; position: absolute; left: -18px; top: -16px; height: 16px; border-left: 1px solid var(--lk-line); }
+.th-two-way .th-tw-bc-prop { color: var(--lk-quiet); }
+.th-two-way .th-tw-bc-name { color: var(--lk-text, inherit); }
+.th-two-way .th-tw-bc-here { cursor: default; }
+.th-two-way .th-tw-bc-here .th-tw-bc-name { font-weight: 600; }
+.th-two-way .th-tw-bcbody { margin-left: calc(var(--th-bcs) * 26px - 26px); }
+.th-two-way .th-tw-bcbody > .th-ol-kids { border-left: 1px solid var(--lk-line); }
 /* A picture in a bullet: as wide as Logseq shows one until it is resized there, never wider than its line. */
 .th-two-way .th-ol-asset { display: inline-block; max-width: 100%; cursor: pointer; }
 .th-two-way .th-ol-asset > img { display: block; width: 250px; max-width: 100%; height: auto; }

@@ -229,7 +229,8 @@ ${TH_KID} :is(${TH_STEP}, ${TH_BEFORE})::before {
   content: ""; position: absolute; left: 3px; top: 0; bottom: 0; width: 1.5px; pointer-events: none; z-index: 1;
   background: color-mix(in srgb, var(--lk-text) 55%, transparent); }
 ${TH_KID} .th-ol-unit:is(${TH_STEP}, ${TH_BEFORE})::before { left: 5px; }
-${TH_KID} ${TH_STEP}::before { bottom: auto; height: 14px; }`;
+${TH_KID} ${TH_STEP}::before { bottom: auto; height: 14px; }
+${TH_KID} .th-ol-kids::before { display: none !important; }   /* a list inside a node has its own guide line (darkened by guides): a second line 3px in read as "||" (TRIAL, the digging tester's hand test) */`;
 /* The third choice (12 November 2026, the owner asked for it beside Lit): the guide lines along the way are darker, each
    whole, from the outermost bullet in to the one you edit; the dots stay as Logseq draws them. It began as the shade
    darker of 8 November, found too faint, so the line takes Lit's strength. */
