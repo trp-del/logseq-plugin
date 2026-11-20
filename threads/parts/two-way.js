@@ -38,7 +38,7 @@ pane ||= {
   main: true, name: 'main',
   root: doc => doc?.querySelector('#main-content-container') || null,
   page: () => model.currentPage(),
-  shown: root => root ? [...root.querySelectorAll(':is(.ls-page-title, .page-title) .ls-block[blockid]')].map(el => el.getAttribute('blockid')) : [],
+  shown: root => root ? [...root.querySelectorAll(':is(.ls-page-title, .page-title) .ls-block[blockid]')].filter(el => !el.closest('.th-ls-node')).map(el => el.getAttribute('blockid')) : [],   // not a title that Logseq's editor in an opened node brings with it
   titleRow: root => root?.querySelector(':is(.ls-page-title, .page-title) .is-page-title-row') || null,
   scroller: box => box?.closest('#main-content-container') || null,
   onChange: fn => onPageChange(fn),
@@ -1479,7 +1479,7 @@ function start() {
   }
 }
 // What the pieces reach of the part, and of the core once it starts (useCore).
-Object.assign(twoWay, { pane, mine, ours, copies: [twoWay], nativeNodes: () => !!window.PluginDoor.nodeEditor?.can() && !pane.root(host())?.closest?.('dialog') });
+Object.assign(twoWay, { pane, mine, ours, copies: [twoWay], nativeNodes: () => false });   // Logseq's own editor in an opened node (0.4.6, 0.4.7) is out again at the owner's word, 20 November 2026: fitted into this section it hid a page's bullets, took the tag path from the title, set new bullets out of line and stacked guide lines. The opened node is this part's own drawing everywhere; plugin.js keeps Door.nodeEditor, not started, for a later try that is used on a graph like the owner's first.
 // The pieces given to this copy: the main copy takes each as it loads (twoWay.piece) and keeps them, for the right half's copy,
 // made after them all.
 const pieces = pane.from ? pane.from.pieces : [];

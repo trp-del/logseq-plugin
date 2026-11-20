@@ -594,7 +594,12 @@ function render() {
       if (part.uuid) w.append(el(doc, 'span', { class: 'lk-node', 'data-uuid': part.uuid, html: markWords(esc(part.text), ws), click: event => { event.stopPropagation(); openPage(part.uuid, event.shiftKey); close(); } }));
       else w.append(el(doc, 'span', { html: writtenHtml(part.text, ws) }));
     }
-    w.addEventListener('click', event => { event.stopPropagation(); openPage(node.uuid, event.shiftKey); close(); });
+    w.addEventListener('click', event => {
+      event.stopPropagation();
+      // Past the last word (the words' holder itself, not a word in it): the caret goes into the words, for a bullet, as a press after them on the row does. In a narrow window the holder runs to the row's end, so this is where "after the last word" lies.
+      if (event.target === w && !node.isPage && !node.sign && window.PluginDoor.answers('relations:editWords')) { window.PluginDoor.ask('relations:editWords', node.uuid, w).catch(() => {}); return; }
+      openPage(node.uuid, event.shiftKey); close();
+    });
     // The circle stands inside the words, so a long line wraps beside it and never drops under it.
     const task = circle(doc, node);
     if (task) w.prepend(task);

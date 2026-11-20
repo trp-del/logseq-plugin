@@ -56,7 +56,8 @@ const state = { box: null, page: '', tagPage: false, boxes: new Map() };
 const PAGE_TITLE = '#main-content-container :is(.ls-page-title, .page-title, h1.title)';
 const SIDEBAR_PAGE = '#right-sidebar .sidebar-item.item-type-page';
 const ROW_ITEM = '#right-sidebar .sidebar-item.item-type-block[data-st-item]';
-const shownTitle = doc => { const titles = [...doc.querySelectorAll(PAGE_TITLE)].filter(t => t.querySelector('.ls-block[blockid]')); return titles.length === 1 ? titles[0] : null; };
+// Not a title inside a node opened in place: Logseq's editor for an opened page brings that page's title with it (left unseen there), and with two titles on the page the tag path beside the real one went (20 November 2026).
+const shownTitle = doc => { const titles = [...doc.querySelectorAll(PAGE_TITLE)].filter(t => !t.closest('.th-ls-node') && t.querySelector('.ls-block[blockid]')); return titles.length === 1 ? titles[0] : null; };
 
 // What the row reads. A tag's page: the tags above it only. A page: each held tag's whole chain.
 function groupsOf(index, uuid) {

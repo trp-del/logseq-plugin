@@ -180,8 +180,10 @@ const twoWayCss = `
 .th-two-way .th-ls-node .page-inner { margin-bottom: 0 !important; gap: 0 !important; }
 .th-two-way .th-ls-node :is(.breadcrumb, .ls-page-title, .ls-page-properties, .cp__page-inner-wrap > .ml-1) { display: none !important; }
 .th-two-way .th-ls-node .ls-page-blocks { margin-top: 0 !important; }
-.th-two-way .th-ls-node .page-blocks-inner > .blocks-container > .blocks-list-wrap > .ls-block > .block-main-container, .th-two-way .th-ls-node .page-blocks-inner > .blocks-container > .blocks-list-wrap > .ls-block > .ls-block-content-indent { display: none !important; }
-.th-two-way .th-ls-node .page-blocks-inner > .blocks-container > .blocks-list-wrap > .ls-block > .block-children-container { margin-left: 0 !important; padding-left: 0 !important; }
+/* Only where the editor shows a bullet (Logseq draws the line saying where it sits, breadcrumb--block-page): a page's editor has no such first
+   line, its top bullets are the page's own, and hiding them left an opened page with a faint empty bullet and blank room (20 November 2026). */
+.th-two-way .th-ls-node:has(.breadcrumb--block-page) .page-blocks-inner > .blocks-container > .blocks-list-wrap > .ls-block > .block-main-container, .th-two-way .th-ls-node:has(.breadcrumb--block-page) .page-blocks-inner > .blocks-container > .blocks-list-wrap > .ls-block > .ls-block-content-indent { display: none !important; }
+.th-two-way .th-ls-node:has(.breadcrumb--block-page) .page-blocks-inner > .blocks-container > .blocks-list-wrap > .ls-block > .block-children-container { margin-left: 0 !important; padding-left: 0 !important; }
 .th-two-way .th-ls-node .block-add-button { opacity: .45 !important; }
 /* A picture in a bullet: as wide as Logseq shows one until it is resized there, never wider than its line. */
 .th-two-way .th-ol-asset { display: inline-block; max-width: 100%; cursor: pointer; }

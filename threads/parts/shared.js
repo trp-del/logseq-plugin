@@ -780,6 +780,8 @@ const kitCss = `/* The kit (parts/shared.js): where the library's pieces stand i
 /* Clear is the library's lone word, standing on the list's own edge. */
 .th-lsq-pop .menu-link.lk-lone { margin-left: 0; }
 .th-in-place { font: inherit; color: inherit; height: auto; width: 100%; min-width: 4em; padding: 0; box-shadow: none; }
+.th-editing-words { display: block !important; flex: 1 1 100% !important; width: 100% !important; min-width: 0; text-decoration: none !important; }   /* a node's own words while they are changed: the whole line (dig.js, editWordsAt) */
+:is(.th-ol-body, .fd-nm, .fd-w, .td-line):has(> .th-editing-words), .fd-nm:has(.th-editing-words) { flex: 1 1 auto !important; min-width: 0; }   /* and what holds them grows with them, or it kept the box as narrow as the words it had lost */
 .th-in-place.th-in-wrap { display: block; resize: none; overflow: hidden; line-height: inherit; }   /* a bullet's words wrap; the box is as tall as they are (editInPlace's grow) */
 /* With nothing to sit under (a pop-up opened from the palette): near the top, in the middle. */
 .th-pop:not(.th-anchored) { top: 12vh; left: 50%; transform: translateX(-50%); }

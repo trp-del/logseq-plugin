@@ -953,7 +953,9 @@ const insertBlock = (uuid, text, opts) => window.PluginDoor.write.insertBlock(uu
    Returns the new block, which removeBlock takes away again. */
 async function addLineTo(uuid, text) {
   const entity = await logseq.Editor.getBlock(uuid, { includeChildren: true });
-  if (!entity) throw new Error('the node was not found');
+  // A page: Logseq 2.0.2's getBlock gives nothing for one (as firstLines found on 10 November), so a bullet typed into an opened page was
+  // refused with "The bullet could not be added" (the owner's recording, 20 November 2026: a Disease opened in Find).
+  if (!entity) { const page = await logseq.Editor.getPage(uuid).catch(() => null); if (!page) throw new Error('the node was not found'); return window.PluginDoor.write.appendBlock(uuid, text); }
   if (entity.name || entity.originalName) return window.PluginDoor.write.appendBlock(uuid, text);
   const last = (entity.children || []).filter(child => child && child.uuid).slice(-1)[0];
   return last ? window.PluginDoor.write.insertBlock(String(last.uuid), text, { sibling: true, focus: false }) : window.PluginDoor.write.insertBlock(uuid, text, { sibling: false, focus: false });
