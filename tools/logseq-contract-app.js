@@ -41,7 +41,7 @@ let chromium; try { ({ chromium } = require('playwright')); } catch (error) { co
 
   const snake = s => s.replace(/[A-Z]/g, c => '_' + c.toLowerCase());
   const HOOKS = new Set(['onCurrentGraphChanged', 'onRouteChanged', 'onChanged']);
-  const SDK_ONLY = new Set(['registerCommand', 'registerCommandPalette', 'registerPageMenuItem', 'registerUIItem', 'registerBlockContextMenuItem', 'registerSlashCommand', 'registerSidebarRenderer', 'registerRouteRenderer']);
+  const SDK_ONLY = new Set(['registerCommand', 'registerCommandPalette', 'registerPageMenuItem', 'registerUIItem', 'registerBlockContextMenuItem', 'registerSlashCommand', 'registerSidebarRenderer', 'registerRouteRenderer', 'registerDaemonRenderer']);   // registerDaemonRenderer (20 November 2026): a registration like the two before it, in Logseq's experiments, with no handler on logseq.api
   const handlers = await page.evaluate(() => Object.keys(window.logseq.api || {}));
   for (const name of list.api) {
     const fn = name.split('.')[1];

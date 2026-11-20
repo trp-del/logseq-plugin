@@ -745,11 +745,15 @@ async function firstLines(uuid, n, withIds = false) {
   const children = entity?.name || entity?.originalName || page ? await logseq.Editor.getPageBlocksTree(uuid) : entity?.children;
   // withIds: { uuid, title, status } each, so a card can open the bullet a line is, and a task bullet shows its circle as a
   // row does (16 November 2026, the owner: a Done payment opened under its year had no circle).
-  const shown = (children || []).slice(0, n);
+  // A page's words-property keeps its value as a block under the page (created-from-property): a value, not a bullet of the page (20 November 2026: "40 Northgate Road" stood among a hospital's bullets, under its own Location line).
+  const shown = (children || []).filter(child => child?.[':logseq.property/created-from-property'] == null && child?.['logseq.property/created-from-property'] == null && child?.createdFromProperty == null).slice(0, n);
   if (!withIds) return shown.map(titleOf);
   const uuids = shown.map(child => String(child?.uuid || '')).filter(u => UUID.test(u));
   const status = new Map(uuids.length ? (await dsQuery(`[:find ?u ?s :where [(ground [${uuids.map(u => `#uuid "${u}"`).join(' ')}]) [?u ...]] [?b :block/uuid ?u] ${STATUS}]`).catch(() => [])).map(([u, s]) => [String(u), Number(s) || 0]) : []);
-  return shown.map(child => ({ uuid: String(child?.uuid || ''), title: titleOf(child), status: status.get(String(child?.uuid || '')) || 0 }));
+  // A bullet that is a file kept in the graph (a picture dropped in): its kind, and the file's address, so a picture shows as a picture.
+  const kinds = new Map(uuids.length ? (await dsQuery(`[:find ?u ?type :where [(ground [${uuids.map(u => `#uuid "${u}"`).join(' ')}]) [?u ...]] [?b :block/uuid ?u] [?b :logseq.property.asset/type ?type]]`).catch(() => [])).map(([u, type]) => [String(u), String(type || '').toLowerCase()]) : []);
+  const graph = kinds.size ? await currentGraph() : null, folder = graph?.path ? `assets://${encodeURI(String(graph.path).replace(/\/$/, ''))}/assets/` : '';
+  return shown.map(child => { const u = String(child?.uuid || ''), type = kinds.get(u) || ''; return { uuid: u, title: titleOf(child), status: status.get(u) || 0, asset: type, file: type && folder ? `${folder}${u}.${type}` : '' }; });
 }
 /* What many nodes hold under each of your properties, at once (for grouping a row, parts/two-way.js):
    uuid -> property name -> { ident, values }, each value { text } with { id, uuid } when it is a node or a choice (a

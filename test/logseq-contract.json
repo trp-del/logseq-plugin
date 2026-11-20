@@ -1,6 +1,6 @@
 {
  "checkedWith": "2.0.2",
- "acceptedOn": "2026-11-18",
+ "acceptedOn": "2026-11-20",
  "api": [
   "App.getCurrentGraph",
   "App.getCurrentGraphConfigs",
@@ -63,6 +63,7 @@
   "Editor.setBlockCollapsed",
   "Editor.updateBlock",
   "Editor.upsertBlockProperty",
+  "Experiments.registerDaemonRenderer",
   "Experiments.registerRouteRenderer",
   "Experiments.registerSidebarRenderer",
   "UI.showMsg"
@@ -216,6 +217,7 @@
   "as-ghost",
   "asset-ref",
   "bg-gray-05",
+  "block-add-button",
   "block-children",
   "block-content-or-editor-inner",
   "block-content-or-editor-wrap",
@@ -224,6 +226,8 @@
   "block-control-wrap",
   "block-head-wrap",
   "block-row",
+  "blocks-container",
+  "blocks-list-wrap",
   "border-r",
   "bottom-property-edit-icon",
   "bottom-property-expand-btn",
@@ -284,6 +288,7 @@
   "nav-right",
   "overdue",
   "overflow-y-auto",
+  "page-blocks-inner",
   "page-icon",
   "panel-wrap",
   "preview-ref-link",

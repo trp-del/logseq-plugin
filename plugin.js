@@ -1145,6 +1145,42 @@ Door.menu = (from, parts, { align = 'right' } = {}) => {
 };
 // The menu open now, closed (a module stopping, a view drawn away).
 Door.menu.close = () => shownMenu?.close(false);
+/* Logseq's own editor for a node, in an element of the plugin's (20 November 2026; the owner, of bullets the plugin drew itself: "the
+   bullets are very clunky and don't feel natural typing", and "in general it either borrows or follows logseq design"). Logseq lends
+   plugins its editor (Experiments.Components.Editor: a page by name, or any node by its uuid) but only inside a tree it hosts itself,
+   so one piece is kept mounted there (registerDaemonRenderer) and puts an editor into each element asked for (createPortal). What
+   stands in the element is Logseq's: its bullets, its property line, its lists and calendar, its pictures and its Undo. No part
+   draws a bullet or a property line of its own where this can stand.
+     Door.nodeEditor.start()         asked once as the plugin starts: Logseq shows a piece added to its tree only when it next draws
+                                     its window anew (a page gone to), not when the piece is added, so it is added at the start
+     Door.nodeEditor.can()           whether Logseq's editor can be shown now: lent, and the piece that holds it standing
+     Door.nodeEditor.show(el, uuid)  the node's editor in el; gives back what takes it out again */
+Door.nodeEditor = (() => {
+  const spots = new Map(); let bump = null, off = null, count = 0;
+  const kit = () => { try { const E = logseq.Experiments; return E?.Components?.Editor && E.React && E.ReactDOM?.createPortal ? E : null; } catch (error) { return null; } };
+  const ensure = () => {
+    if (off) return;
+    const { React, ReactDOM, Components } = kit();
+    const Host = () => {
+      const [, set] = React.useState(0);
+      React.useEffect(() => { bump = () => set(n => n + 1); return () => { bump = null; }; }, []);
+      for (const el of [...spots.keys()]) if (!el.isConnected) spots.delete(el);   // an element drawn over takes its editor with it
+      return React.createElement(React.Fragment, null, ...[...spots].map(([el, spot]) => ReactDOM.createPortal(React.createElement(Components.Editor, { page: spot.uuid }), el, spot.key)));
+    };
+    off = logseq.Experiments.registerDaemonRenderer('lk-node-editor', { render: () => React.createElement(Host) }) || (() => {});
+    Door.root.onStop?.(() => { spots.clear(); try { bump?.(); if (typeof off === 'function') off(); } catch (error) { /* gone with the plugin */ } off = null; });
+  };
+  return {
+    start: () => { if (kit()) ensure(); },
+    can: () => !!kit() && !!bump,
+    show(el, uuid) {
+      if (!el || !kit() || !UUID.test(String(uuid || ''))) return () => {};
+      spots.set(el, { uuid: String(uuid), key: `${uuid}:${++count}` });
+      ensure(); bump?.();
+      return () => { if (spots.delete(el)) bump?.(); };
+    },
+  };
+})();
 // The Undo arrow: the grammar's one shape, from Logseq's icon font. Its fade is the shared name lk-undo.
 Door.UNDO = '<i class="ti ti-arrow-back-up" aria-hidden="true"></i>';
 /* THE Undo of the plugin, one for every module (6 November 2026; until then Threads, Predictive and Structure each kept their own;
