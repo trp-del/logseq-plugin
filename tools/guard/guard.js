@@ -198,7 +198,10 @@ async function run() {
   const differs = s => s.notes.some(n => n.kind !== 'info');
   const SC = require('./tour').SCREENS;
   let b2 = null, a2 = null;
-  const again = screens.filter(differs).map(s => s.name);
+  /* Not for a screen named in --expect (20 November 2026, the owner: "I never okayed hour long checks"; a release that changed a screen
+     on purpose took five to eight minutes): its difference is the change itself and needs its reason either way, so starting two
+     more Logseqs to see it differ again only costs time. A screen nobody named still gets its second look. */
+  const again = screens.filter(differs).filter(s => !expect.includes(s.name)).map(s => s.name);
   const brokeCases = casesOut.filter(c => c.before && c.before.ok && !c.after.ok);
   if (again.length || brokeCases.length) {
     const gs = [...new Set([...again.map(n => SC.find(x => x[0] === n)[1]), ...brokeCases.map(c => cases().find(x => x.name === c.name)?.graph).filter(Boolean)])];
