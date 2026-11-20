@@ -1461,6 +1461,7 @@ function start() {
     onUnload(() => { twoWay.copies = twoWay.copies.filter(copy => copy !== made.twoWay); return made.stop(); });
   }
   onUnload(window.PluginDoor.offerAsk('relations:node', () => NODE_HOLDERS));
+  onUnload(window.PluginDoor.offerAsk('relations:editWords', (uuid, el) => twoWay.editWordsAt(uuid, el)));
   // The copies for the pages opened in the sidebar: with none there they have no page and draw nothing.
   for (let n = 0; n < SIDE_PAGES; n++) {
     const side = sidePane(n);

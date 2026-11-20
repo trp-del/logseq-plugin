@@ -413,7 +413,7 @@ function said() {
    Relations says it can hold at once; with Relations switched off, or for a node opened beyond that, Find draws what it always drew. */
 const relRoom = () => { try { return window.PluginDoor.answers('relations:node') ? 2 : 0; } catch (error) { return 0; } };   // two here, so a task opened in Todo behind the window keeps its own
 const relHolds = uuid => { const at = S.dug.filter(u => u !== S.lineDug).indexOf(uuid); return at >= 0 && at < relRoom(); };
-const inNode = target => !!target?.closest?.('[data-th-node], [popover]');
+const inNode = target => !!target?.closest?.('[data-th-node], [popover], .th-in-place, textarea');
 /* The rows, flat, in the order they show: the rows found, then the near ones, and inside a dug one its pointed-at groups
    and their nodes. */
 function rowList() {
@@ -606,7 +606,13 @@ function render() {
     row.append(nm);
     const right = node.page && !node.page.journal ? node.page.title : '';
     row.append(el(doc, 'span', { class: 'fd-right fd-page', ...(right ? { title: right } : {}) }, right));
-    row.addEventListener('click', () => { S.mode = 'rows'; S.rowAt = i; render(); });
+    row.addEventListener('click', event => {
+      // A press just after the row's last word puts the caret in its words, for a bullet (Relations changes them, asked through the door); anywhere else on the row it takes the cursor.
+      const nm = event.target.closest('a, button, .fd-w, .lk-node, textarea') ? null : event.target.closest('.fd-nm');
+      const words = nm ? row.querySelector('.fd-w') : null;
+      if (words && node && !node.isPage && !node.sign && window.PluginDoor.answers('relations:editWords')) { event.stopPropagation(); window.PluginDoor.ask('relations:editWords', node.uuid, words).catch(() => {}); return; }
+      S.mode = 'rows'; S.rowAt = i; render();
+    });
     container.append(wrapIn(doc, row, r));
     // Under the last of a group's three nodes, "show all" lists the rest.
     if (r.under && rows[i + 1]?.under !== r.under && !S.groupAll.has(r.under)) {

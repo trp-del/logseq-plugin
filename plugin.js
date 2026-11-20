@@ -1392,6 +1392,8 @@ Door.NAMES = `${TOKENS}
 .lk-row:hover .lk-fold, .lk-row.on .lk-fold, .lk-fold[aria-expanded="true"], .lk-fold:focus-visible { opacity: .6 !important; }
 /* The row the keyboard is on (on), or the pointer: the one wash. */
 .lk-row:hover, .lk-row.on { background: var(--lk-wash); }
+/* lk-calm: a row that takes no wash under the pointer (Todo's, the owner, 20 November 2026: "a hover for todos are not necessary"; Relations' rows lost theirs on 31 October). Its fold arrow still shows there. */
+.lk-row.lk-calm:hover:not(.on) { background: none; }
 .lk-row:hover .lk-fold:hover, .lk-fold:hover { opacity: 1 !important; }
 .lk-list .lk-tick { opacity: 0 !important; transition: opacity ${Door.timing('reveal')}; }
 .lk-list:hover .lk-tick, .lk-list:focus-within .lk-tick, .lk-list[data-picking] .lk-tick { opacity: .55 !important; }
