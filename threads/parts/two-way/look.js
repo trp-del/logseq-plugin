@@ -206,20 +206,28 @@ html[data-lk-try="new"] .th-two-way .th-ls-node .block-tags { margin-top: 0 !imp
 html[data-lk-try="new"] .th-two-way .th-ls-node .positioned-properties svg { width: 16px !important; height: 16px !important; }
 html[data-lk-try="new"] .th-two-way .th-ls-node .ls-block-right { margin-left: 0 !important; }
 /* TRIAL (digging tester): the breadcrumb as an outline, lines and bands, in the list where the dig began. One line per level,
-   one step (26px) further in each, its bullet (lk-bul) and a short guide line (lk-line) up to the line above, on a band a shade
-   darker than an opened node's wash. The property followed is quiet, then the node's name; the last line is the node you are
+   one step (26px) further in each, its bullet (lk-bul) and a short guide line (lk-line) from the bullet above, with no band
+   behind it; under the pointer a line takes an opened node's wash. The property followed is quiet, then the node's name; the last line is the node you are
    in, its name bold, and what it holds stands one step in under it. */
 .th-two-way .th-tw-bcwrap { padding: 2px 0 8px; }
 .th-two-way .th-tw-bcs { display: grid; gap: 2px; }
-.th-two-way .th-tw-bc { position: relative; display: flex; align-items: center; gap: 6px; min-height: 28px; margin-left: calc(var(--th-bc) * 26px); padding: 0 8px 0 0; border-radius: 6px; background: var(--lk-wash); cursor: pointer; white-space: nowrap; overflow: hidden; font-size: inherit; line-height: inherit; color: inherit; }
-.th-two-way .th-tw-bc:hover { background: var(--lk-hair); }
-.th-two-way .th-tw-bc + .th-tw-bc::before { content: ""; position: absolute; left: -18px; top: -16px; height: 16px; border-left: 1px solid var(--lk-line); }
+.th-two-way .th-tw-bc { position: relative; display: flex; align-items: center; gap: 6px; min-height: 28px; margin-left: calc(var(--th-bc) * 26px); padding: 0 8px 0 0; border-radius: 6px; cursor: pointer; white-space: nowrap; min-width: 0; font-size: inherit; line-height: inherit; color: inherit; }
+.th-two-way .th-tw-bc:not(.th-tw-bc-here):hover { background: var(--lk-wash); }
+.th-two-way .th-tw-bc + .th-tw-bc::before { content: ""; position: absolute; left: -18.5px; top: -11px; height: 25px; border-left: 1px solid var(--lk-line); }
+/* No band behind the lines at rest, only under the pointer (the owner, 20 November 2026: "you can remove the dark grey over the
+   breadcrumb outline if you are able to fix and confirm the shorttened vertical lines"). The short line hangs just under the bullet
+   of the line above and ends level with this line's bullet. The band does not clip, or the line is cut away (the owner,
+   20 November 2026: "Where is the short line line that is supposed to be under Gas bill bullet?"); a long name is cut instead. */
+.th-two-way .th-tw-bc-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .th-two-way .th-tw-bc-prop { color: var(--lk-quiet); }
 .th-two-way .th-tw-bc-name { color: var(--lk-text, inherit); }
 .th-two-way .th-tw-bc-here { cursor: default; }
 .th-two-way .th-tw-bc-here .th-tw-bc-name { font-weight: 600; }
 .th-two-way .th-tw-bcbody { margin-left: calc(var(--th-bcs) * 26px - 26px); }
-.th-two-way .th-tw-bcbody > .th-ol-kids { border-left: 1px solid var(--lk-line); }
+.th-two-way .th-tw-bcbody > .th-ol-kids { border-left: 1px solid var(--lk-line); margin-bottom: 20px; margin-left: 7.5px !important; }   /* the line hangs from the bullet of the node you are in (the owner: "why aren't bullets aligned with lines") */
+/* The guide line under the node you are in stops at its last line, as Logseq's does (the owner, 20 November 2026: "the outline of
+   the breadcrumb levels extend farther down then they should"): the room after the last line is outside the line. */
+.th-two-way .th-tw-bcbody > .th-ol-kids > .th-ol-in { padding-bottom: 0 !important; }
 /* A picture in a bullet: as wide as Logseq shows one until it is resized there, never wider than its line. */
 .th-two-way .th-ol-asset { display: inline-block; max-width: 100%; cursor: pointer; }
 .th-two-way .th-ol-asset > img { display: block; width: 250px; max-width: 100%; height: auto; }
@@ -334,7 +342,10 @@ html[data-lk-try="new"] .th-two-way .th-ls-node .ls-block-right { margin-left: 0
 .th-two-way .th-ol-line.th-tw-head { padding-bottom: 6px; }
 .th-two-way .th-ol-bullet { min-height: 28px; padding-top: 2px; padding-bottom: 2px; }
 /* What opened ends with a line's gap, inside its box: the next line of the list stands clear of it. */
-.th-two-way .th-ol-kids:not(.th-ol-bare) > .th-ol-in { padding-bottom: 20px; }
+/* The room after what a node holds stands outside its guide line, so the line stops at its last line as Logseq's does (the owner,
+   20 November 2026: "the outline of the breadcrumb levels extend farther down then they should"). */
+.th-two-way .th-ol-kids:not(.th-ol-bare) > .th-ol-in { padding-bottom: 0; }
+.th-two-way .th-ol-kids:not(.th-ol-bare) { margin-bottom: 20px; }
 /* Inside an opened node, a line's gap parts its groups: its properties, what links to it, its bullets; and each list of
    what links to it (its first line carries the name) from the one before. */
 .th-two-way .th-ol-in > :not(.th-ol-bullet) + .th-ol-bullet { margin-top: 14px; }

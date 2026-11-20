@@ -1432,10 +1432,8 @@ function start() {
   const escape = event => {
     if (event.key !== 'Escape' || event.target.closest?.('input, textarea, [contenteditable="true"]') || !ours(event)) return;
     if (state.picked.size || state.selecting.size) { stopPicking(); draw(host()); }
-    // The focus closes and hands the grey to its parent.
-    else if (state.focus && state.dig.has(state.focus) && state.focus !== twoWay.topStep()?.key) { event.preventDefault(); const key = state.focus; shared.outline.close(state.box?.querySelector(`.th-ol-kids[data-key="${CSS.escape(key)}"]`), () => { const r = twoWay.flipRects?.(); twoWay.closeDig(key); twoWay.settle?.(); if (r) twoWay.flipPlay(r); }); }
-    // Nothing open under the top: one step back along the trail (Esc does one thing at a time).
-    else if (state.steps.length) { event.preventDefault(); twoWay.stepBack(state.steps.length - 2); }
+    // TRIAL: the deepest open node closes, and what stays is laid out as digging lays it out (dig.js, escapeBack).
+    else if (state.dig.size && twoWay.escapeBack?.()) event.preventDefault();
     // Then the find line's words (a day, a page beside, letters): back to today's whole page (7 November 2026).
     else if (state.find) { event.preventDefault(); state.find = ''; draw(host()); }
   };

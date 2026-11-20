@@ -302,7 +302,10 @@ function fitOrShift(key, from) {
   while (state.dig.has(key) && below(key) > (state.steps.length ? 2 : 3) && shiftOnce(key)) { /* fold one more level into the breadcrumb */ }
   if (state.steps.length !== before.length) { state.html = null; twoWay.draw(host()); }
   // Still too narrow for its lines (a long name, the window): one more level folds, while two would stay.
-  while (state.dig.has(key) && below(key) > 0 && (breaks(key) || rowBreaks(key)) && shiftOnce(key)) { state.html = null; twoWay.draw(host()); }
+  // Never before the third level from the page (the owner, 20 November 2026, of the first open going straight into the breadcrumb:
+  // "sharp and drastic and unclear"): the row's node and the level under it always open in place.
+  const deep = k => state.steps.length + below(k) >= 3;
+  while (state.dig.has(key) && below(key) > 0 && deep(key) && (breaks(key) || rowBreaks(key)) && shiftOnce(key)) { state.html = null; twoWay.draw(host()); }
   if (state.steps.length !== before.length) flipPlay(rects);
 }
 /* The glide: each line of the section is measured before a change and after it, and moves from where it was to where it is
@@ -353,7 +356,7 @@ function flipPlay(before) {
 // Any line of the section wrapping (a name on two lines, its tag under it, wider than the section), the breadcrumb aside.
 function sectionBreaks() {
   for (const line of state.box?.querySelectorAll('.th-ol-kids[data-key] .th-ol-line') || []) {
-    if (line.scrollWidth > line.clientWidth + 1) return true;
+    if (line.scrollWidth > line.clientWidth + 4) return true;
     const name = line.querySelector('.th-ol-name, .th-tw-record');
     if (!name) continue;
     if (name.getClientRects().length > 1) return true;
@@ -366,7 +369,7 @@ function sectionBreaks() {
 function rowBreaks(key) {
   const line = state.box?.querySelector(`.th-chev[data-dig="${CSS.escape(key)}"]`)?.closest('.th-ol-line, .th-ol-prop');
   if (!line) return false;
-  if (line.scrollWidth > line.clientWidth + 1) return true;
+  if (line.scrollWidth > line.clientWidth + 4) return true;
   const name = line.querySelector('.th-ol-name, .th-tw-record');
   if (!name) return false;
   if (name.getClientRects().length > 1) return true;
@@ -376,26 +379,60 @@ function rowBreaks(key) {
 const nameRect = key => state.box?.querySelector(`.th-chev[data-dig="${CSS.escape(key)}"]`)?.closest('.th-ol-line')?.getBoundingClientRect() || null;
 /* Back to a step of the trail (-1: the page): the view starts there again, with what was open under it, as deep as fits;
    the node that was the top stays open in place and has the focus, so Esc goes on closing upwards. */
-function stepBack(to) {
-  const was = topStep(), rects = flipRects();
-  state.steps = to < 0 ? [] : state.steps.slice(0, to + 1);
-  // Measured as on the way down (the reviewer: back by the trail reopened lines that break): what is open under the new
-  // top stays open as deep as its lines fit; a deeper level that would break is closed, the deepest first.
+/* Going back mirrors digging (the hand check of 0.4.10: Escape kept levels as breadcrumb bands that digging would have shown in
+   place): what stays open is laid out by the same rule as on the way down, from the page: the row's node and two levels in place,
+   then the breadcrumb, folding further only where a line would wrap. to: the breadcrumb line pressed (-1: the page); that node
+   becomes the deepest one open, everything under it closes. */
+const deepestOpen = () => [...state.dig.keys()].filter(k => !k.startsWith('node>')).sort((a, b) => b.split('>').length - a.split('>').length)[0] || '';
+function refold() {
+  state.steps = [];
+  // The focus first: set after the drawing, it changed the next drawing and every line was put back, ending the glide.
+  const key = deepestOpen();
+  state.focus = key;
   state.html = null; twoWay.draw(host());
-  for (let guard = 0; guard < 50; guard++) {
-    const deepest = [...state.dig.keys()].filter(k => below(k) > 0).sort((a, b) => b.split('>').length - a.split('>').length)[0];
-    if (!deepest || !(breaks(deepest) || rowBreaks(deepest) || sectionBreaks())) break;
-    for (const k of [...state.dig.keys()]) if (k === deepest || k.startsWith(deepest + '>')) state.dig.delete(k);
-    state.html = null; twoWay.draw(host());
-  }
-  // The focus goes to the deepest node still open on the way down (the reviewer: with the outermost, one Esc closed all
-  // three levels at once).
-  const on = was?.key ? [...state.dig.keys()].filter(k => k === was.key || k.startsWith(was.key + '>')) : [];
-  state.focus = on.sort((a, b) => b.split('>').length - a.split('>').length)[0] || '';
+  if (!key) return;
+  while (state.dig.has(key) && below(key) > (state.steps.length ? 2 : 3) && shiftOnce(key)) { /* as on the way down */ }
+  state.html = null; twoWay.draw(host());
+  const deep = k => state.steps.length + below(k) >= 3;
+  while (state.dig.has(key) && below(key) > 0 && deep(key) && (breaks(key) || rowBreaks(key)) && shiftOnce(key)) { state.html = null; twoWay.draw(host()); }
+}
+/* Going back moves as opening does (the owner, 20 November 2026: "have it glide"): the place the dig began at changes its height by
+   the library's roll (Door.regrow) while what it now holds fades in, so nothing crosses anything; lines matched one by one
+   went wrong here, a box gliding one way while its lines held still. */
+const placeOf = rowKey => rowKey && state.box?.querySelector(`.th-tw-bcwrap, .th-ol-unit[data-key="${CSS.escape(rowKey)}"]`);
+function backGlide(change) {
+  const rowKey = deepestOpen().split('>').slice(0, 2).join('>');
+  const was = placeOf(rowKey)?.getBoundingClientRect().height;
+  change();
+  const now = placeOf(rowKey) || state.box?.querySelector(`.th-chev[data-dig="${CSS.escape(rowKey)}"]`)?.closest('.th-ol-line');
+  if (!now || was == null || !state.dig.has(rowKey) || window.PluginDoor.still(now)) return;
+  window.PluginDoor.regrow(now, was);
+  const { ms, ease } = window.PluginDoor.MOTION.roll;
+  now.animate([{ opacity: .35 }, { opacity: 1 }], { duration: ms, easing: ease });
+}
+function stepBack(to) {
+  const keep = to >= 0 ? state.steps[to]?.key : '';
+  backGlide(() => {
+    for (const k of [...state.dig.keys()]) if (keep ? k.startsWith(keep + '>') : true) state.dig.delete(k);
+    refold();
+  });
   const top = topStep();
   if (top && !state.node.has(top.uuid)) readNode(top.uuid, top.id).then(() => { state.html = null; twoWay.draw(host()); }).catch(() => {});
-  state.html = null; twoWay.draw(host());
-  flipPlay(rects);
+}
+function escapeBack() {
+  const key = deepestOpen();
+  if (!key) return false;
+  // The row itself closing: it rolls back up first, as a fold does.
+  if (key.split('>').length === 2 && !state.steps.length) {
+    const kids = state.box?.querySelector(`.th-ol-kids[data-key="${CSS.escape(key)}"]`);
+    window.PluginDoor.rollUp(kids ? [kids] : []).then(() => { for (const k of [...state.dig.keys()]) if (k === key || k.startsWith(key + '>')) state.dig.delete(k); refold(); });
+    return true;
+  }
+  backGlide(() => {
+    for (const k of [...state.dig.keys()]) if (k === key || k.startsWith(key + '>')) state.dig.delete(k);
+    refold();
+  });
+  return true;
 }
 /* TRIAL (digging tester): the breadcrumb as an outline (the owner, 20 November 2026: "make an outline based breadcrumb", then
    "do combo of a and d"): each level dug through is one line, one step further in, with its bullet and a short guide line,
@@ -921,6 +958,6 @@ function settle() {
     closeDig(deepest);
   }
 }
-Object.assign(twoWay, { settle, inPlaceHtml, flipRects, flipPlay, editWordsAt, nodeTopHtml, addProp, onNodeMenu, closeDig, digChev, holdsMore, digKids, editBullet, focusNodeField, keepNodeField, onOutlineClick, pinNow, readNode, reading, stepBack, steppedHtml, topStep });
+Object.assign(twoWay, { escapeBack, settle, inPlaceHtml, flipRects, flipPlay, editWordsAt, nodeTopHtml, addProp, onNodeMenu, closeDig, digChev, holdsMore, digKids, editBullet, focusNodeField, keepNodeField, onOutlineClick, pinNow, readNode, reading, stepBack, steppedHtml, topStep });
 });
 })();
