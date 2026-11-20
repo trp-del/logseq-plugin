@@ -102,6 +102,7 @@ async function main() {
   // Logseq's keys as the graph's config holds them (the key sheet, Find), read now and again whenever another graph opens.
   await Door.refreshLogseqConfigKeys();
   Door.root.onStop(logseq.App.onCurrentGraphChanged(() => { Door.refreshLogseqConfigKeys(); }));
+  try { Door.nodeEditor?.start(); } catch (error) { console.error('Logseq Plugin: Logseq’s editor could not be asked for', error); }
   for (const module of Door.modules) if (on(module)) await startModule(module);
   Door.settingsWays.reopen();
   sayUpdated();

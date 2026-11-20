@@ -11,13 +11,13 @@ module.exports = {
     const words = await page.$('.td-row .td-words');
     if (!words) return { ok: false, said: 'Todo shows no task' };
     await words.focus(); await page.keyboard.press('ArrowRight'); await T.sleep(2600);
-    const seen = await page.evaluate(() => { const h = document.querySelector('.td-node[data-th-node]'); return { holder: !!h, props: h ? h.querySelectorAll('.th-ol-prop').length : 0, arrow: document.querySelector('.td-row.td-opened > .td-open')?.getAttribute('aria-expanded') }; });
+    const seen = await page.evaluate(() => { const h = document.querySelector('.td-node[data-th-node]'); return { holder: !!h, props: h ? h.querySelectorAll('.th-ol-prop').length : 0, own: h ? h.querySelectorAll('.th-ls-node .ls-block').length : 0, arrow: document.querySelector('.td-row.td-opened > .td-open')?.getAttribute('aria-expanded') }; });
     const w2 = await page.$('.td-row.td-opened .td-words'); if (w2) { await w2.focus(); await page.keyboard.press('ArrowLeft'); await T.sleep(900); }
     const closed = await page.evaluate(() => !document.querySelector('.td-node'));
     if (!seen.holder) return { ok: false, said: 'Right on a task’s words opens nothing' };
-    if (!seen.props) return { ok: false, said: 'the opened task shows no property to change' };
+    if (!seen.props && !seen.own) return { ok: false, said: 'the opened task shows neither Logseq’s own editor nor a property to change' };
     if (seen.arrow !== 'true') return { ok: false, said: 'the opened task’s fold arrow does not say it is open' };
     if (!closed) return { ok: false, said: 'Left on the task’s words does not close it' };
-    return { ok: true, said: `opens with ${seen.props} properties to change, and closes again` };
+    return { ok: true, said: seen.own ? 'opens as Logseq’s own editor for the task, and closes again' : `opens with ${seen.props} properties to change, and closes again` };
   },
 };

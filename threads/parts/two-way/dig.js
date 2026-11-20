@@ -20,6 +20,7 @@ const { state, warnOnce } = twoWay;
    parent. The way down is never listed again under a node (a node on the way, or this page, is left out). What a node
    holds is read in one go (state.node, readNode) and drawn once, unrolling; until it is read only its chevron turns. */
 const BULLETS = 8;
+const PICTURES = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'avif', 'bmp', 'heic']);
 // The node at the top of the section, and how deep a key is below it.
 const topStep = () => state.steps[state.steps.length - 1] || null;
 const below = key => { const t = topStep(); return t?.key ? (key.startsWith(t.key + '>') ? pathOf(key).length - pathOf(t.key).length : -1) : pathOf(key).length; };
@@ -58,6 +59,11 @@ function nodeHtml(uuid, key, data, asTop = false, field = true) {
   // Opened by the find field: only its lines that hold the words, as they read when the node is dug.
   const onlyFound = state.findDug.get(key) === true && !!state.find.trim();
   let html = '', empties = '', emptyNames = [];
+  /* The node itself is Logseq's own editor where Logseq lends it (plugin.js, Door.nodeEditor; 20 November 2026): its property line,
+     its bullets, the next bullet, pictures. Drawn here stays only what Logseq has nothing for: what points at the node. In Find's
+     window, a modal one where Logseq's own lists could not be pressed, and while the find line narrows a node to its matching
+     lines, the lines below still draw the node, as before. */
+  const native = field && !asTop && !onlyFound && twoWay.nativeNodes?.();
   // A value that is the way back (this page, or the node above) is left out: the row's property, on the left of the line
   // it opened from, already says how the node is tied here, and a thread cannot loop back on itself (the owner:
   // the line saying it again inside was "not right"). A property holding only the way back goes with it.
@@ -67,7 +73,7 @@ function nodeHtml(uuid, key, data, asTop = false, field = true) {
   // A property being added (addProp) stands as a line of its own while its value is asked for, whether or not the node's tags give it.
   const adding = state.addProp?.uuid === uuid && state.addProp.key === key ? state.addProp.prop : null;
   const rows = adding && !data.props.some(r => r.prop.ident === adding.ident) ? [...data.props, { prop: adding, values: [] }] : data.props;
-  for (const { prop, values: all } of rows) {
+  if (!native) for (const { prop, values: all } of rows) {
     const values = all.filter(v => !back(v));
     if (all.length && !values.length) continue;
     if (day && prop.type === 'date' && values.length && values.every(v => v.text === day)) continue;
@@ -107,7 +113,7 @@ function nodeHtml(uuid, key, data, asTop = false, field = true) {
      line went): only what the node holds shows. A list's "no Topic?" still opens the node with its empty properties shown
      (state.emptyOpen), to be filled in. */
   if (emptyNames.length && state.emptyOpen.has(key)) html += empties;
-  if (data.guesses.size > 1 && data.props.filter(r => !r.values.length && data.guesses.has(r.prop.ident)).length > 1) html += O.more({ text: 'Take what is proposed', cls: 'lk-lone lk-i-tick', attrs: { 'data-takeall': uuid } });
+  if (!native && data.guesses.size > 1 && data.props.filter(r => !r.values.length && data.guesses.has(r.prop.ident)).length > 1) html += O.more({ text: 'Take what is proposed', cls: 'lk-lone lk-i-tick', attrs: { 'data-takeall': uuid } });
   /* The nodes that link to it, after its own properties, under a line saying so: "2 nodes link here"
      (the owner's pick 2 of the two-way fixes: the same property
      name, one line apart, read as the node's own and as what links to it). Under it one step in, a row per property, one
@@ -145,15 +151,21 @@ function nodeHtml(uuid, key, data, asTop = false, field = true) {
   // Its words are changed where they stand (editBullet): a click, or Enter once Tab has reached them; its dot opens it.
   // A bullet holding bullets has Logseq's fold arrow and opens in place, one step in (the owner, 10 November 2026: "now we
   // cannot see children of bullets as we go deeper").
-  for (const line of data.bullets) {
+  if (!native) for (const line of data.bullets) {
     const k = `${key}>${line.uuid}`, open = state.dig.has(k), kids = twoWay.hasKids(line.uuid);
     const label = twoWay.shortName(line.text || 'the bullet');
     const chev = kids || open ? O.chev({ open, label, attrs: { 'data-dig': k, 'data-uuid': line.uuid, 'data-title': label } }) : O.room();
-    const row = O.bullet({ html: twoWay.lineHtml(line.text, 400) + (twoWay.bulletTail?.(line.uuid) || ''), closed: kids && !open, held: line.uuid, attrs: { 'data-bullet': line.uuid }, wordsAttrs: { tabindex: '0', 'data-edit-bullet': line.uuid } }).replace('<div class="th-ol-bullet"', '<div class="th-ol-bullet th-ol-chevved"').replace(/(<div class="th-ol-bullet[^>]*>)/, `$1${chev}`).replace('<span class="th-ol-words"', `${twoWay.taskHtml(line)}<span class="th-ol-words"`);
+    /* A bullet that is a picture shows the picture, as it does on its page (the owner, 20 November 2026: "only the text of an asset
+       appears"): at Logseq's own size for one (250 px wide until resized there). A press on it opens the
+       picture's node; its name is not words to change here. Any other file keeps its name. */
+    const picture = line.file && PICTURES.has(line.asset);
+    const row = picture ? O.bullet({ html: `<span class="th-ol-asset" data-open-uuid="${esc(line.uuid)}" title="${esc(line.text)}"><img class="rounded-sm" src="${esc(line.file)}" alt="${esc(line.text)}" loading="lazy"></span>`, closed: kids && !open, held: line.uuid, attrs: { 'data-bullet': line.uuid }, wordsAttrs: { tabindex: '0' } }).replace('<div class="th-ol-bullet"', '<div class="th-ol-bullet th-ol-chevved"').replace(/(<div class="th-ol-bullet[^>]*>)/, `$1${chev}`)
+      : O.bullet({ html: twoWay.lineHtml(line.text, 400) + (twoWay.bulletTail?.(line.uuid) || ''), closed: kids && !open, held: line.uuid, attrs: { 'data-bullet': line.uuid }, wordsAttrs: { tabindex: '0', 'data-edit-bullet': line.uuid } }).replace('<div class="th-ol-bullet"', '<div class="th-ol-bullet th-ol-chevved"').replace(/(<div class="th-ol-bullet[^>]*>)/, `$1${chev}`).replace('<span class="th-ol-words"', `${twoWay.taskHtml(line)}<span class="th-ol-words"`);
     html += open ? O.unit({ html: row + digKids(k, line.uuid, 'in'), focus: state.focus === k, attrs: { 'data-key': k } }) : row;
   }
-  if (data.more) html += O.more({ text: 'show all its bullets', attrs: { 'data-ball': uuid } });
+  if (!native && data.more) html += O.more({ text: 'show all its bullets', attrs: { 'data-ball': uuid } });
   if (!field) return html;
+  if (native) return `<div class="th-ls-node" data-ls-node="${esc(uuid)}"></div>${html}`;
   // With no bullet of its own, the empty one stands ready to be written in (the owner, 20 November 2026: "there should be an empty bullet for ones without bullets already"); with bullets, it comes with Enter after the last, as before.
   const fieldHtml = O.newBullet({ label: `A new bullet inside ${twoWay.shortName(titleOf(uuid))}`, attrs: { class: 'th-tw-node-field', 'data-uuid': uuid, 'data-key': key } });
   html += data.bullets.length ? fieldHtml : fieldHtml.replace('class="th-ol-bullet th-ol-new"', 'class="th-ol-bullet th-ol-new th-ol-new-shown"');
@@ -199,7 +211,7 @@ function readNode(uuid, id, { look = false } = {}) {
     const most = state.ball.has(uuid) ? 500 : BULLETS;
     const [tags, bullets, guesses] = await Promise.all([
       twoWay.provided.firstTags ? twoWay.provided.firstTags(ids).catch(() => new Map()) : new Map(),
-      Promise.all(lines.map(async line => ({ uuid: line.uuid, text: await readable(line.title), status: line.status || 0 }))),
+      Promise.all(lines.map(async line => ({ uuid: line.uuid, text: await readable(line.title), status: line.status || 0, asset: line.asset || '', file: line.file || '' }))),
       !look && kept.some(r => !r.values.length) && twoWay.provided.nodeProposals ? twoWay.provided.nodeProposals(uuid).catch(() => []) : []]);
     const empty = new Set(kept.filter(r => !r.values.length).map(r => r.prop.ident));
     // Which of the nodes that link here, and of its own bullets, hold bullets of their own: those get the folded ring.

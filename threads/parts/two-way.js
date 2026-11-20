@@ -1006,7 +1006,10 @@ function draw(doc) {
     box.style.minHeight = state.findKeep ? `${state.findKeep}px` : '';
   } else if (!state.findKeep) box.style.minHeight = '';
   box.style.alignContent = box.style.minHeight ? 'start' : ''; // the held room stays below the rows, not spread between them
-  if (state.html !== bare) {
+  // While Logseq's editor in an opened node has the keyboard, nothing is drawn again: the bullet being written keeps its place and its caret.
+  const writing = !!box.querySelector('.th-ls-node:focus-within');
+  if (writing && !state.lsHeard) { state.lsHeard = true; box.addEventListener('focusout', () => setTimeout(() => { if (state.box === box && !box.querySelector('.th-ls-node:focus-within')) { state.html = null; draw(host()); } }, 80)); }
+  if (state.html !== bare && !writing) {
     const active = box.contains(box.ownerDocument.activeElement) ? box.ownerDocument.activeElement : null;
     const typing = active?.matches('.th-tw-draft-name'), typingNode = active?.matches('.th-tw-node-field') ? active.dataset.key : '';
     const finding = active?.matches('.th-tw-find') ? active.selectionStart : null;
@@ -1045,6 +1048,8 @@ function draw(doc) {
   box.toggleAttribute('data-th-folded', !!rows && stepped == null && (!wholeOpen || state.wholeTurning === 'fold'));
   twoWay.pinNow();
   if (anchor.nextElementSibling !== box) anchor.after(box);
+  // Logseq's editor into each opened node's place (dig.js, nodeHtml), once for an element, and only once the section stands on the page.
+  for (const el of box.querySelectorAll('.th-ls-node[data-ls-node]')) if (!el.__lkEditor && el.isConnected) el.__lkEditor = window.PluginDoor.nodeEditor.show(el, el.dataset.lsNode);
   // A node opened in another part's window rolls out once, when it is first drawn there, so the rows under it glide down (the plugin's one motion).
   if (pane.node && rows && html && state.nodeRolled !== state.pageUuid) { state.nodeRolled = state.pageUuid; window.PluginDoor.unroll?.([box]); }
   // The room a page held is the main view's (measured under its title row); the right half waits for its property list instead.
@@ -1474,7 +1479,7 @@ function start() {
   }
 }
 // What the pieces reach of the part, and of the core once it starts (useCore).
-Object.assign(twoWay, { pane, mine, ours, copies: [twoWay] });
+Object.assign(twoWay, { pane, mine, ours, copies: [twoWay], nativeNodes: () => !!window.PluginDoor.nodeEditor?.can() && !pane.root(host())?.closest?.('dialog') });
 // The pieces given to this copy: the main copy takes each as it loads (twoWay.piece) and keeps them, for the right half's copy,
 // made after them all.
 const pieces = pane.from ? pane.from.pieces : [];
