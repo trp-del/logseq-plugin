@@ -355,7 +355,11 @@ async function editWordsAt(uuid, el) {
   if (!isUuid(uuid) || !el) return false;
   const page = await Promise.resolve(twoWay.model.getPage(uuid)).catch(() => null);
   if (page && !page.page) return false;
-  await editBulletOnce(uuid, { at: () => (el.isConnected ? el : null) });
+  // The words stand in a link that is only as wide as they are: while they are changed it takes its whole line, or the box shrank to a few
+  // letters' width and the words wrapped into a narrow column (the owner's recording, 20 November 2026).
+  twoWay.hidePeek?.();
+  el.classList.add('th-editing-words');
+  try { await editBulletOnce(uuid, { at: () => (el.isConnected ? el : null) }); } finally { el.classList.remove('th-editing-words'); }
   return true;
 }
 /* The node a holder in another part's window stands for (two-way.js, nodePane), drawn exactly as a node opened in a list is: its
@@ -417,7 +421,17 @@ function keepNodeField(box) {
       else if (event.key === 'ArrowRight') { if (twoWay.takeGhost(field)) event.preventDefault(); }
       else if (['ArrowLeft', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) twoWay.clearGhost();
     });
-    field.addEventListener('blur', () => twoWay.leaveGhost(field));
+    /* Words typed into the ready bullet are kept when it is left, by Escape or by a press elsewhere, as Logseq keeps a bullet you
+       typed (20 November 2026, found on the owner's screen in Find: a line typed there and left with Escape stood on screen and was
+       never saved; until 0.4.5 this bullet showed only after Enter, so few met it). Only while the field still stands on the page:
+       a field taken away by a redraw keeps its words as the draft and gets them back. */
+    field.addEventListener('blur', () => {
+      twoWay.leaveGhost(field);
+      const typed = field.value;
+      if (!typed.trim() || !field.isConnected) return;
+      field.value = ''; state.nodeDraft = null;
+      writeBullet(uuid, key, typed).catch(error => warnOnce('could not add the bullet', error));
+    });
     for (const type of ['keyup', 'keypress']) field.addEventListener(type, event => event.stopPropagation());
   }
 }

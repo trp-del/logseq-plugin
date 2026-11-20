@@ -85,6 +85,8 @@ function findItem(uuid, rowEl) {
   return group ? { group, item: group.items.find(item => item.uuid === uuid) } : {};
 }
 function onOver(event) {
+  // While words are being changed in the section, no card is raised over them (the pointer rests on the row it has just pressed).
+  if (event.currentTarget?.querySelector?.('.th-in-place, .th-ls-node:focus-within')) return;
   // A link in a line's words (N10, 7 November 2026): resting on it raises that page's card, as resting on a name raises the node's.
   const wiki = event.target.closest?.('.th-two-way .th-tw-peek-open[data-open-page]');
   if (wiki) {
