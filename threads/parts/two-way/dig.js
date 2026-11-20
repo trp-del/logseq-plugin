@@ -65,7 +65,10 @@ function nodeHtml(uuid, key, data, asTop = false, field = true) {
      release that had put Logseq's own property line there, which shows a task's Status and Priority nowhere and opens no value in
      place: "this ruins the whole function of digging in relations"). In Find's window, a modal one where Logseq's editor could
      not be pressed, and while the find line narrows a node to its matching lines, the bullets are drawn here too, as before. */
-  const native = field && !asTop && !onlyFound && twoWay.nativeNodes?.();
+  // TRIAL: a node with no bullet keeps Relations' one empty bullet (the hand test: Logseq's editor for an empty node left a faint bullet and a gap of four lines).
+  if (field && !data.bullets?.length) (state.ownBullets ||= new Set()).add(key);
+  // A node opened with no bullet keeps Relations' bullets while it stays open, so a line typed there and Enter go on there (the hand test: the switch to Logseq's editor lost the caret).
+  const native = field && !onlyFound && !!data.bullets?.length && !state.ownBullets?.has(key) && twoWay.nativeNodes?.();
   // A value that is the way back (this page, or the node above) is left out: the row's property, on the left of the line
   // it opened from, already says how the node is tied here, and a thread cannot loop back on itself (the owner:
   // the line saying it again inside was "not right"). A property holding only the way back goes with it.
@@ -249,6 +252,7 @@ async function toggleDig(key, uuid, id, title) {
   readNode(uuid, id).then(() => { if (state.dig.has(key) && !holdsMore(uuid, key)) return closeDig(key); state.html = null; twoWay.draw(host()); }).catch(() => {});
 }
 function closeDig(key) {
+  for (const k of [...(state.ownBullets || [])]) if (k === key || k.startsWith(key + '>')) state.ownBullets.delete(k);
   if (state.findDug.has(key)) state.findDug.set(key, false);
   for (const k of [...state.dig.keys()]) if (k === key || k.startsWith(key + '>')) state.dig.delete(k);
   if (state.focus === key || state.focus.startsWith(key + '>')) state.focus = state.dig.has(parentKey(key)) ? parentKey(key) : '';
@@ -274,7 +278,7 @@ function breaks(key) {
   const kids = state.box?.querySelector(`.th-ol-kids[data-key="${CSS.escape(key)}"]`);
   if (!kids) return false;
   for (const line of kids.querySelectorAll('.th-ol-line')) {
-    if (line.closest('.th-ol-kids') !== kids) continue;
+    if (line.closest('.th-ol-kids[data-key]') !== kids) continue;
     const name = line.querySelector('.th-ol-name, .th-tw-record'), pname = line.querySelector(':scope > .th-ol-pname');
     if (line.scrollWidth > line.clientWidth + 1) return true;
     // A property's name on two lines is a break too (the reviewer: "Therapy regimen" split under cisplatin).
@@ -290,33 +294,97 @@ function breaks(key) {
 // reviewer: at 445 px every click shifted): the lines wrap, as Logseq's own outline does, and the outline shifts only
 // as far as keeps two levels under the top, the parent still in view.
 function fitOrShift(key, from) {
-  const before = state.steps.slice();
-  while (state.dig.has(key) && below(key) > 1 && breaks(key) && shiftOnce(key)) { state.html = null; twoWay.draw(host()); }
-  if (state.dig.has(key) && breaks(key)) {
-    state.steps = before;
-    while (state.dig.has(key) && below(key) > 2 && shiftOnce(key)) { /* to two levels under the top */ }
-    state.html = null; twoWay.draw(host());
+  /* TRIAL (digging tester, 20 November 2026, the owner: "can the view at least handle two levels before going to the breadcrumb
+     outline per level"): two levels stay open in place under the node you are in (under a row of the page, the row's node and
+     two more); a deeper dig folds the levels above into the breadcrumb, one line each. Every line glides to its new place. */
+  const before = state.steps.slice(), rects = flipRects();
+  // Under a row of the page: the row's node and two levels more; under the node you are in: two levels.
+  while (state.dig.has(key) && below(key) > (state.steps.length ? 2 : 3) && shiftOnce(key)) { /* fold one more level into the breadcrumb */ }
+  if (state.steps.length !== before.length) { state.html = null; twoWay.draw(host()); }
+  // Still too narrow for its lines (a long name, the window): one more level folds, while two would stay.
+  while (state.dig.has(key) && below(key) > 0 && (breaks(key) || rowBreaks(key)) && shiftOnce(key)) { state.html = null; twoWay.draw(host()); }
+  if (state.steps.length !== before.length) flipPlay(rects);
+}
+/* The glide: each line of the section is measured before a change and after it, and moves from where it was to where it is
+   (MOTION.dig); a line that comes fades in, a line that goes fades out where it stood. Lines are matched by the place they
+   stand for (a node's key, a bullet, Logseq's editor), so a node folding into the breadcrumb is seen moving there. */
+const FLIP = '.th-tw-bc, .th-tw-row, .th-ol-kids[data-key], .th-ol-line, .th-ol-prop, .th-ol-bullet, .th-ol-more, .th-tw-whole';
+function flipKey(el) {
+  if (el.dataset.flip) return el.dataset.flip;
+  if (el.matches('.th-tw-row')) return 'row:' + el.dataset.field;
+  if (el.matches('.th-ol-kids')) return 'k:' + el.dataset.key;
+  if (el.matches('.th-tw-whole')) return 'whole';
+  if (el.matches('.th-ol-more')) return 'more:' + (el.dataset.more || el.querySelector('[data-more]')?.dataset.more || el.textContent.trim());
+  if (el.dataset.bullet) return 'b:' + el.dataset.bullet;
+  const c = el.querySelector(':scope > .th-chev, :scope > * > .th-chev');
+  if (c?.dataset.dig) return c.dataset.dig;
+  if (c?.dataset.fold) return 'f:' + c.dataset.fold;
+  // A line with no arrow: a property by its name in its node, any other by the node it names.
+  const at = el.closest('.th-ol-kids[data-key]')?.dataset.key || '', pname = el.querySelector(':scope > .th-ol-pname')?.textContent.trim();
+  if (pname) return `p:${at}:${pname}`;
+  const named = el.querySelector('[data-uuid]')?.dataset.uuid;
+  return named ? `n:${at}:${named}` : '';
+}
+function flipRects() {
+  const map = new Map(), box = state.box;
+  if (!box || window.PluginDoor.still(box)) return map;
+  for (const el of box.querySelectorAll(FLIP)) { const k = flipKey(el); if (k && !map.has(k)) map.set(k, el.getBoundingClientRect()); }
+  return map;
+}
+/* Every piece moves by how far it went less how far the piece around it goes: with one easing for all, a line inside a moving
+   box follows the box and its own way at once, so nothing crosses another. A piece that was not there fades in once the rest
+   is under way; nothing of what went is left behind. */
+function flipPlay(before) {
+  const box = state.box;
+  if (!box || !before.size) return;
+  const { ms, ease } = window.PluginDoor.MOTION.dig, moves = new Map(), faded = new Set(), seen = new Set();
+  const around = el => { for (let p = el.parentElement; p && p !== box; p = p.parentElement) if (moves.has(p)) return moves.get(p); return [0, 0]; };
+  for (const el of box.querySelectorAll(FLIP)) {
+    const k = flipKey(el);
+    if (!k || seen.has(k)) continue; seen.add(k);
+    if ([...faded].some(f => f.contains(el))) continue;
+    const was = before.get(k), now = el.getBoundingClientRect();
+    if (!was) { if (el.matches('.th-ol-kids, .th-tw-row, .th-tw-whole')) continue; el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: ms, easing: ease }); faded.add(el); continue; }
+    const [ax, ay] = around(el), dx = was.left - now.left, dy = was.top - now.top, rx = dx - ax, ry = dy - ay;
+    if (Math.abs(rx) + Math.abs(ry) > .5) el.animate([{ transform: `translate(${rx}px, ${ry}px)` }, { transform: 'none' }], { duration: ms, easing: ease });
+    moves.set(el, [dx, dy]);
   }
-  if (state.steps.length !== before.length) glide(key, from);
+}
+// Any line of the section wrapping (a name on two lines, its tag under it, wider than the section), the breadcrumb aside.
+function sectionBreaks() {
+  for (const line of state.box?.querySelectorAll('.th-ol-kids[data-key] .th-ol-line') || []) {
+    if (line.scrollWidth > line.clientWidth + 1) return true;
+    const name = line.querySelector('.th-ol-name, .th-tw-record');
+    if (!name) continue;
+    if (name.getClientRects().length > 1) return true;
+    const tag = name.parentElement?.querySelector(':scope > .th-tag');
+    if (tag && tag.getBoundingClientRect().top > name.getBoundingClientRect().top + 4) return true;
+  }
+  return false;
+}
+// The line a node opened from breaks too: its name on two lines, its tag under it, or wider than the section.
+function rowBreaks(key) {
+  const line = state.box?.querySelector(`.th-chev[data-dig="${CSS.escape(key)}"]`)?.closest('.th-ol-line, .th-ol-prop');
+  if (!line) return false;
+  if (line.scrollWidth > line.clientWidth + 1) return true;
+  const name = line.querySelector('.th-ol-name, .th-tw-record');
+  if (!name) return false;
+  if (name.getClientRects().length > 1) return true;
+  const tag = name.parentElement?.querySelector(':scope > .th-tag');
+  return !!tag && tag.getBoundingClientRect().top > name.getBoundingClientRect().top + 4;
 }
 const nameRect = key => state.box?.querySelector(`.th-chev[data-dig="${CSS.escape(key)}"]`)?.closest('.th-ol-line')?.getBoundingClientRect() || null;
-// The section slides from where the clicked line was to where it is now, as one piece.
-function glide(key, from) {
-  const box = state.box, now = nameRect(key);
-  if (!box || !from || !now || window.PluginDoor.still(box)) return;
-  box.animate?.([{ transform: `translate(${Math.round(from.left - now.left)}px, ${Math.round(from.top - now.top)}px)` }, { transform: 'none' }], { duration: window.PluginDoor.MOTION.dig.ms, easing: window.PluginDoor.MOTION.dig.ease });
-}
 /* Back to a step of the trail (-1: the page): the view starts there again, with what was open under it, as deep as fits;
    the node that was the top stays open in place and has the focus, so Esc goes on closing upwards. */
 function stepBack(to) {
-  const was = topStep();
+  const was = topStep(), rects = flipRects();
   state.steps = to < 0 ? [] : state.steps.slice(0, to + 1);
   // Measured as on the way down (the reviewer: back by the trail reopened lines that break): what is open under the new
   // top stays open as deep as its lines fit; a deeper level that would break is closed, the deepest first.
   state.html = null; twoWay.draw(host());
   for (let guard = 0; guard < 50; guard++) {
-    const deepest = [...state.dig.keys()].filter(k => below(k) > 1).sort((a, b) => b.split('>').length - a.split('>').length)[0];
-    if (!deepest || !breaks(deepest)) break;
+    const deepest = [...state.dig.keys()].filter(k => below(k) > 0).sort((a, b) => b.split('>').length - a.split('>').length)[0];
+    if (!deepest || !(breaks(deepest) || rowBreaks(deepest) || sectionBreaks())) break;
     for (const k of [...state.dig.keys()]) if (k === deepest || k.startsWith(deepest + '>')) state.dig.delete(k);
     state.html = null; twoWay.draw(host());
   }
@@ -327,6 +395,28 @@ function stepBack(to) {
   const top = topStep();
   if (top && !state.node.has(top.uuid)) readNode(top.uuid, top.id).then(() => { state.html = null; twoWay.draw(host()); }).catch(() => {});
   state.html = null; twoWay.draw(host());
+  flipPlay(rects);
+}
+/* TRIAL (digging tester): the breadcrumb as an outline (the owner, 20 November 2026: "make an outline based breadcrumb", then
+   "do combo of a and d"): each level dug through is one line, one step further in, with its bullet and a short guide line,
+   on a band a shade darker; the property followed stands before the node's name, so the lines read as the path. The last
+   line is the node you are in. A press on a line goes back to it; Escape goes back one. */
+function crumbsHtml() {
+  const n = state.steps.length;
+  return `<div class="th-tw-bcs">${state.steps.map((s, i) => {
+    const prev = state.steps[i - 1], pdata = prev ? state.node.get(prev.uuid) : null;
+    const prop = pdata?.props.find(r => r.values.some(v => v.uuid === s.uuid))?.prop.title || '';
+    const tag = pdata?.tags?.get(s.id) || twoWay.tagOfNode(s.uuid) || '';
+    const here = i === n - 1;
+    return `<div class="th-tw-bc${here ? ' th-tw-bc-here' : ''}" data-flip="${esc(s.key)}"${here ? '' : ` data-step="${i}" role="button" tabindex="0" title="Back to ${esc(s.title)}"`} style="--th-bc: ${i}"><span class="lk-bul"></span>${prop ? `<span class="th-tw-bc-prop">${esc(prop)}</span>` : ''}<span class="th-tw-bc-name">${esc(s.title)}</span>${tag ? twoWay.tagLink({ tag }) : ''}</div>`;
+  }).join('')}</div>`;
+}
+/* TRIAL: dug in, the list stays as it was; the row the dig began at shows the breadcrumb, then the node you are in, opened
+   in place one step in (the owner's hand test: "the whole Chase Checking Relations section vanishes while dug in"). */
+function inPlaceHtml(key) {
+  const top = topStep();
+  if (!top || state.steps[0]?.key !== key || !state.node.get(top.uuid)) return null;
+  return `<div class="th-tw-bcwrap" style="--th-bcs: ${state.steps.length}">${crumbsHtml()}<div class="th-tw-bcbody">${digKids(top.key, top.uuid, 'in')}</div></div>`;
 }
 // The section stepped into a node: the trail (the page, each step, the one shown with its tag), then what it holds.
 function steppedHtml() {
@@ -336,7 +426,7 @@ function steppedHtml() {
   const tag = [...(tagOf?.entries() || [])].find(([id]) => id === top.id)?.[1] || twoWay.tagOfNode(top.uuid);
   const steps = [{ text: state.pageTitle || 'this page', attrs: { 'data-step': '-1' } }, ...state.steps.slice(0, -1).map((s, i) => ({ text: s.title, attrs: { 'data-step': String(i) } }))];
   const data = state.node.get(top.uuid);
-  if (!data) return `<div class="th-tw-stepped th-ol">${O.trail(steps, `${esc(top.title)}${tag ? twoWay.tagLink({ tag }) : ''}`)}</div>`;
+  if (!data) return `<div class="th-tw-stepped th-ol">${crumbsHtml()}</div>`;
   // Its rows as the page's: what links to it, the way back left out.
   const path = [...state.steps.map(s => s.uuid), ...pathOf(top.key)];
   const groups = data.rows.map(g => ({ ...g, ident: '', items: g.items.filter(item => !onTheWay(path, item.uuid)) })).filter(g => g.items.length);
@@ -345,7 +435,7 @@ function steppedHtml() {
   let rows = '';
   try { rows = groups.map(g => twoWay.rowHtml(g, top)).join(''); } finally { state.drawingTop = false; }
   const line = many ? `<div class="th-tw-toplinks"><span class="lk-count">${many}</span> ${many === 1 ? 'node links' : 'nodes link'} here</div>` : '';
-  return `<div class="th-tw-stepped th-ol">${O.trail(steps, `${esc(top.title)}${tag ? twoWay.tagLink({ tag }) : ''}`)}<div class="th-tw-stepbody">${nodeHtml(top.uuid, top.key, data, true)}</div></div>${line}${rows}`;
+  return `<div class="th-tw-stepped th-ol" style="--th-crumbs: ${state.steps.length}">${crumbsHtml()}<div class="th-tw-stepbody">${nodeHtml(top.uuid, top.key, data, true)}</div></div>${line}${rows}`;
 }
 /* A node's own words, changed where they stand (the owner, 19 November 2026: "if it is a link, can't you just press on the end to enter
    text mode just like a md link"; 20 November: "no, you cannot edit the text of the node"): a press on the words opens the node, a
@@ -396,7 +486,7 @@ function pinNow() {
   const tagOn = unit => unit.firstElementChild.querySelector('.th-tag')?.textContent || '';
   const last = passed[passed.length - 1];
   // Shifted, the way back comes first: the page and every step, as the trail above shows them.
-  const way = state.steps.length ? [{ text: state.pageTitle || 'this page', attrs: { 'data-step': '-1' } }, ...state.steps.map((s, i) => ({ text: s.title, attrs: { 'data-step': String(i) } }))] : [];
+  const way = [];   // TRIAL: the breadcrumb in the list says the way back
   const html = passed.length ? O.trail([...way, ...passed.slice(0, -1).map(unit => ({ text: titleOf(state.dig.get(unit.dataset.key)?.uuid || ''), attrs: { 'data-goto': unit.dataset.key } }))], esc(titleOf(state.dig.get(last.dataset.key)?.uuid || '')) + (tagOn(last) ? twoWay.tagLink({ tag: tagOn(last) }) : '')) : '';
   if (pin.innerHTML !== html) pin.innerHTML = html;
   pin.toggleAttribute('data-on', !!html);
@@ -823,6 +913,14 @@ function onOutlineClick(event) {
   return false;
 }
 
-Object.assign(twoWay, { editWordsAt, nodeTopHtml, addProp, onNodeMenu, closeDig, digChev, holdsMore, digKids, editBullet, focusNodeField, keepNodeField, onOutlineClick, pinNow, readNode, reading, stepBack, steppedHtml, topStep });
+// TRIAL: after a level closes, nothing still open may wrap: the deepest that does closes too (as stepping back does).
+function settle() {
+  for (let guard = 0; guard < 20 && sectionBreaks(); guard++) {
+    const deepest = [...state.dig.keys()].filter(k => below(k) > 0).sort((a, b) => b.split('>').length - a.split('>').length)[0];
+    if (!deepest) break;
+    closeDig(deepest);
+  }
+}
+Object.assign(twoWay, { settle, inPlaceHtml, flipRects, flipPlay, editWordsAt, nodeTopHtml, addProp, onNodeMenu, closeDig, digChev, holdsMore, digKids, editBullet, focusNodeField, keepNodeField, onOutlineClick, pinNow, readNode, reading, stepBack, steppedHtml, topStep });
 });
 })();

@@ -719,6 +719,7 @@ function rowHtml(group, top = null) {
 // the property whose value tells these nodes apart, said in the tag's place.
 function itemHtml(group, item, base, end = '', bare = false, tell = '') {
   const key = `${base}>${item.uuid}`, open = state.dig.has(key);
+  if (!pane.node && state.steps.length) { const here = twoWay.inPlaceHtml?.(key); if (here) return here; }
   const shown = bare ? { ...item, tag: '' } : item;
   // [day] [chevron] [node] (the owner, 2026-10-27: "have [date] [chevron] [bullet]"), on every line: the day always in
   // the margin, so the left edge means time ("Name first", the day after the tag, is gone). What a node opens
@@ -978,7 +979,8 @@ function draw(doc) {
     state.html = '';
   }
   if (!rows) state.picked.clear();
-  const stepped = rows && !pane.node && state.steps.length ? twoWay.steppedHtml() : null;
+  // TRIAL: dug in, the list stays and the breadcrumb stands in it (itemHtml); the stepped view is no longer drawn.
+  const stepped = rows && !pane.node && state.steps.length && !twoWay.inPlaceHtml ? twoWay.steppedHtml() : null;
   // A node opened in another part's window: the node itself first, then what points at it, under the section's line only when something does.
   const nodeTop = rows && pane.node ? twoWay.nodeTopHtml() : '';
   if (pane.node && rows && !state.dig.has(`node>${state.pageUuid}`)) state.dig.set(`node>${state.pageUuid}`, { uuid: state.pageUuid, id: Number(state.pageId) || 0, title: state.pageTitle });   // it stands open: its lines take the keys and the presses of an opened node
@@ -1030,7 +1032,11 @@ function draw(doc) {
       now.forEach((el, i) => { if (!was[i]) box.appendChild(el); else if (src(was[i]) !== el.__thSrc) was[i].replaceWith(el); });
       for (const el of was.slice(now.length)) el.remove();
     };
-    const redraw = () => { state.html = bare; write(); shared.outline.unrolled(box); twoWay.keepDraft(box); twoWay.keepNodeField(box); twoWay.keepFind(box, finding); };
+    /* TRIAL (native-editor proposal): an opened node's Logseq editor is kept across a redraw, its element put back where the new
+       drawing stands, so what is being written never jumps or remounts. */
+    const keepEditors = box.ownerDocument.documentElement.dataset.lkTry === 'new' ? new Map([...box.querySelectorAll('.th-ls-node[data-ls-node]')].filter(el => el.__lkEditor).map(el => [el.dataset.lsNode, el])) : null;
+    const putBack = () => { if (!keepEditors) return; for (const el of box.querySelectorAll('.th-ls-node[data-ls-node]')) { const was = keepEditors.get(el.dataset.lsNode); if (was && was !== el && !was.isConnected) { el.replaceWith(was); keepEditors.delete(el.dataset.lsNode); } } };
+    const redraw = () => { state.html = bare; write(); putBack(); shared.outline.unrolled(box); twoWay.keepDraft(box); twoWay.keepNodeField(box); twoWay.keepFind(box, finding); };
     if (inPlace) inPlace.across(redraw); else redraw();
     if (typing) twoWay.focusDraft();
     if (typingNode) twoWay.focusNodeField(typingNode);
@@ -1427,7 +1433,7 @@ function start() {
     if (event.key !== 'Escape' || event.target.closest?.('input, textarea, [contenteditable="true"]') || !ours(event)) return;
     if (state.picked.size || state.selecting.size) { stopPicking(); draw(host()); }
     // The focus closes and hands the grey to its parent.
-    else if (state.focus && state.dig.has(state.focus) && state.focus !== twoWay.topStep()?.key) { event.preventDefault(); const key = state.focus; shared.outline.close(state.box?.querySelector(`.th-ol-kids[data-key="${CSS.escape(key)}"]`), () => twoWay.closeDig(key)); }
+    else if (state.focus && state.dig.has(state.focus) && state.focus !== twoWay.topStep()?.key) { event.preventDefault(); const key = state.focus; shared.outline.close(state.box?.querySelector(`.th-ol-kids[data-key="${CSS.escape(key)}"]`), () => { const r = twoWay.flipRects?.(); twoWay.closeDig(key); twoWay.settle?.(); if (r) twoWay.flipPlay(r); }); }
     // Nothing open under the top: one step back along the trail (Esc does one thing at a time).
     else if (state.steps.length) { event.preventDefault(); twoWay.stepBack(state.steps.length - 2); }
     // Then the find line's words (a day, a page beside, letters): back to today's whole page (7 November 2026).
@@ -1479,7 +1485,7 @@ function start() {
   }
 }
 // What the pieces reach of the part, and of the core once it starts (useCore).
-Object.assign(twoWay, { pane, mine, ours, copies: [twoWay], nativeNodes: () => false });   // Logseq's own editor in an opened node (0.4.6, 0.4.7) is out again at the owner's word, 20 November 2026: fitted into this section it hid a page's bullets, took the tag path from the title, set new bullets out of line and stacked guide lines. The opened node is this part's own drawing everywhere; plugin.js keeps Door.nodeEditor, not started, for a later try that is used on a graph like the owner's first.
+Object.assign(twoWay, { pane, mine, ours, copies: [twoWay], nativeNodes: () => (window.PluginDoor.nativeTry || 'new') !== 'off' && !!window.PluginDoor.nodeEditor?.can() && !pane.root(host())?.closest?.('dialog') });   // Logseq's own editor in an opened node (0.4.6, 0.4.7) is out again at the owner's word, 20 November 2026: fitted into this section it hid a page's bullets, took the tag path from the title, set new bullets out of line and stacked guide lines. The opened node is this part's own drawing everywhere; plugin.js keeps Door.nodeEditor, not started, for a later try that is used on a graph like the owner's first.
 // The pieces given to this copy: the main copy takes each as it loads (twoWay.piece) and keeps them, for the right half's copy,
 // made after them all.
 const pieces = pane.from ? pane.from.pieces : [];
