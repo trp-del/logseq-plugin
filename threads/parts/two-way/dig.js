@@ -59,10 +59,12 @@ function nodeHtml(uuid, key, data, asTop = false, field = true) {
   // Opened by the find field: only its lines that hold the words, as they read when the node is dug.
   const onlyFound = state.findDug.get(key) === true && !!state.find.trim();
   let html = '', empties = '', emptyNames = [];
-  /* The node itself is Logseq's own editor where Logseq lends it (plugin.js, Door.nodeEditor; 20 November 2026): its property line,
-     its bullets, the next bullet, pictures. Drawn here stays only what Logseq has nothing for: what points at the node. In Find's
-     window, a modal one where Logseq's own lists could not be pressed, and while the find line narrows a node to its matching
-     lines, the lines below still draw the node, as before. */
+  /* The node's bullets are Logseq's own editor where Logseq lends it (plugin.js, Door.nodeEditor; 20 November 2026): typed in as on
+     a page, the next bullet ready, pictures shown. Its properties stay this part's lines, every one of them on a line of its own
+     with a value that opens in place, since following a value on to its node is what digging is (the owner, the same day, of a
+     release that had put Logseq's own property line there, which shows a task's Status and Priority nowhere and opens no value in
+     place: "this ruins the whole function of digging in relations"). In Find's window, a modal one where Logseq's editor could
+     not be pressed, and while the find line narrows a node to its matching lines, the bullets are drawn here too, as before. */
   const native = field && !asTop && !onlyFound && twoWay.nativeNodes?.();
   // A value that is the way back (this page, or the node above) is left out: the row's property, on the left of the line
   // it opened from, already says how the node is tied here, and a thread cannot loop back on itself (the owner:
@@ -73,7 +75,7 @@ function nodeHtml(uuid, key, data, asTop = false, field = true) {
   // A property being added (addProp) stands as a line of its own while its value is asked for, whether or not the node's tags give it.
   const adding = state.addProp?.uuid === uuid && state.addProp.key === key ? state.addProp.prop : null;
   const rows = adding && !data.props.some(r => r.prop.ident === adding.ident) ? [...data.props, { prop: adding, values: [] }] : data.props;
-  if (!native) for (const { prop, values: all } of rows) {
+  for (const { prop, values: all } of rows) {
     const values = all.filter(v => !back(v));
     if (all.length && !values.length) continue;
     if (day && prop.type === 'date' && values.length && values.every(v => v.text === day)) continue;
@@ -113,7 +115,7 @@ function nodeHtml(uuid, key, data, asTop = false, field = true) {
      line went): only what the node holds shows. A list's "no Topic?" still opens the node with its empty properties shown
      (state.emptyOpen), to be filled in. */
   if (emptyNames.length && state.emptyOpen.has(key)) html += empties;
-  if (!native && data.guesses.size > 1 && data.props.filter(r => !r.values.length && data.guesses.has(r.prop.ident)).length > 1) html += O.more({ text: 'Take what is proposed', cls: 'lk-lone lk-i-tick', attrs: { 'data-takeall': uuid } });
+  if (data.guesses.size > 1 && data.props.filter(r => !r.values.length && data.guesses.has(r.prop.ident)).length > 1) html += O.more({ text: 'Take what is proposed', cls: 'lk-lone lk-i-tick', attrs: { 'data-takeall': uuid } });
   /* The nodes that link to it, after its own properties, under a line saying so: "2 nodes link here"
      (the owner's pick 2 of the two-way fixes: the same property
      name, one line apart, read as the node's own and as what links to it). Under it one step in, a row per property, one
@@ -165,7 +167,7 @@ function nodeHtml(uuid, key, data, asTop = false, field = true) {
   }
   if (!native && data.more) html += O.more({ text: 'show all its bullets', attrs: { 'data-ball': uuid } });
   if (!field) return html;
-  if (native) return `<div class="th-ls-node" data-ls-node="${esc(uuid)}"></div>${html}`;
+  if (native) return `${html}<div class="th-ls-node" data-ls-node="${esc(uuid)}"></div>`;
   // With no bullet of its own, the empty one stands ready to be written in (the owner, 20 November 2026: "there should be an empty bullet for ones without bullets already"); with bullets, it comes with Enter after the last, as before.
   const fieldHtml = O.newBullet({ label: `A new bullet inside ${twoWay.shortName(titleOf(uuid))}`, attrs: { class: 'th-tw-node-field', 'data-uuid': uuid, 'data-key': key } });
   html += data.bullets.length ? fieldHtml : fieldHtml.replace('class="th-ol-bullet th-ol-new"', 'class="th-ol-bullet th-ol-new th-ol-new-shown"');

@@ -170,16 +170,18 @@ const twoWayCss = `
    for empty bullet"): no dot, no words, no room, at rest or under the pointer. It is there for the caret, as Logseq's next
    bullet is: Enter after a bullet's words, or Tab, brings it, and it shows while it has the caret or words. */
 .th-two-way .th-ol-new.th-ol-new-shown input::placeholder { color: transparent; }
-/* Logseq's own editor in an opened node (th-ls-node). Left out of what Logseq draws there: the line saying where the node sits, its
-   lists of references, a page's large title, and the node's own first line, which the row it opened from already says (its
-   properties and its bullets stay). The place to start a bullet at the end stands as a faint bullet, ready to be written in (the
-   owner, 20 November 2026: "there should be an empty bullet for ones without bullets already"). */
-.th-two-way .th-ls-node { min-height: 28px; margin-left: 36px; }
+/* Logseq's own editor in an opened node (th-ls-node), for its bullets. Left out of what Logseq draws there: the line saying where
+   the node sits, its lists of references, a page's large title and properties, and the node's own first line with its property
+   line, which the row it opened from and this part's property lines already say. Its bullets stand at the node's own step, not
+   one further in. The place to start a bullet at the end stands as a faint bullet, ready to be written in (the owner, 20 November
+   2026: "there should be an empty bullet for ones without bullets already"). */
+.th-two-way .th-ls-node { min-height: 28px; }
 .th-two-way .th-ls-node .cp__page-inner-wrap { padding: 0 !important; margin: 0 !important; min-height: 0 !important; }
 .th-two-way .th-ls-node .page-inner { margin-bottom: 0 !important; gap: 0 !important; }
-.th-two-way .th-ls-node :is(.breadcrumb, .ls-page-title, .cp__page-inner-wrap > .ml-1) { display: none !important; }
+.th-two-way .th-ls-node :is(.breadcrumb, .ls-page-title, .ls-page-properties, .cp__page-inner-wrap > .ml-1) { display: none !important; }
 .th-two-way .th-ls-node .ls-page-blocks { margin-top: 0 !important; }
-.th-two-way .th-ls-node .page-blocks-inner > .blocks-container > .blocks-list-wrap > .ls-block > .block-main-container > .block-control-wrap, .th-two-way .th-ls-node .page-blocks-inner > .blocks-container > .blocks-list-wrap > .ls-block > .block-main-container > div > div > .block-main-content { display: none !important; }
+.th-two-way .th-ls-node .page-blocks-inner > .blocks-container > .blocks-list-wrap > .ls-block > .block-main-container, .th-two-way .th-ls-node .page-blocks-inner > .blocks-container > .blocks-list-wrap > .ls-block > .ls-block-content-indent { display: none !important; }
+.th-two-way .th-ls-node .page-blocks-inner > .blocks-container > .blocks-list-wrap > .ls-block > .block-children-container { margin-left: 0 !important; padding-left: 0 !important; }
 .th-two-way .th-ls-node .block-add-button { opacity: .45 !important; }
 /* A picture in a bullet: as wide as Logseq shows one until it is resized there, never wider than its line. */
 .th-two-way .th-ol-asset { display: inline-block; max-width: 100%; cursor: pointer; }
