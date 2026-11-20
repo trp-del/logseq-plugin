@@ -40,7 +40,7 @@ const twoWayCss = `
 /* Waiting unseen in its place for Logseq's property list on a first visit, the page's words below it with it. */
 .th-two-way[data-th-waiting] { visibility: hidden; }
 #main-content-container:has(.th-two-way[data-th-waiting]) .ls-page-blocks { visibility: hidden; }
-#right-sidebar .sidebar-item[data-lk-split-item]:has(.th-two-way[data-th-waiting]) .ls-page-blocks { visibility: hidden; }   /* the right half of two pages side by side waits the same way */
+#right-sidebar .sidebar-item:is([data-lk-split-item], .item-type-page):has(.th-two-way[data-th-waiting]) .ls-page-blocks { visibility: hidden; }   /* the right half of two pages side by side waits the same way */
 /* Only holding room while the page settles: no field, no rows. */
 .th-two-way:not(:has(.th-tw-row, .th-tw-beside, .th-tw-whole)) { margin: var(--th-tw-hold, 0px) 0 0; }   /* Linked folded keeps its margin: it lost it and leapt 56 px up (11 November 2026) */
 /* The room held while the page settled eases away, only then: while the page settles the held room shrinks in the same frame Logseq's list grows, and must not lag. */
@@ -524,7 +524,9 @@ const hideLinkedRefsCss = `
 // On the right half of two pages side by side the section stands after Logseq's box around the page's property list, as far under
 // "Add property" as on the main page.
 const splitCss = `
-#right-sidebar .sidebar-item[data-lk-split-item] .ls-sidebar-page-properties + .th-two-way { margin-top: 28px; }
+#right-sidebar .sidebar-item:is([data-lk-split-item], .item-type-page) .ls-sidebar-page-properties + .th-two-way { margin-top: 28px; }
+/* A page opened in the sidebar: Relations' own line stands where Logseq's rule under the properties stood, so the two are not stacked. */
+#right-sidebar .sidebar-item.item-type-page .ls-sidebar-page-properties:has(+ .th-two-way[data-th-rows]) > hr { display: none !important; }
 `;
 // The days' column taken away (twoWayDays off): its width to nothing, so the rows move left into it, and the days unseen.
 const noDaysCss = `
