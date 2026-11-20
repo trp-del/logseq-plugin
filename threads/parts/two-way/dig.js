@@ -159,6 +159,7 @@ function nodeHtml(uuid, key, data, asTop = false, field = true) {
 }
 // What a node is called, wherever it was seen.
 function titleOf(uuid) {
+  if (twoWay.pane?.node && uuid === state.pageUuid && state.pageTitle) return twoWay.shortName(state.pageTitle.replace(/\[\[([^\]]+)\]\]/g, '$1'));
   for (const s of state.steps) if (s.uuid === uuid) return s.title;
   for (const g of state.groups) for (const item of g.items) if (item.uuid === uuid) return twoWay.shortName(item.title);
   for (const data of state.node.values()) {
@@ -209,7 +210,7 @@ function readNode(uuid, id, { look = false } = {}) {
   reading.set(key, job);
   return job;
 }
-const shownNode = uuid => [...state.dig.keys()].some(k => k.endsWith('>' + uuid)) || state.steps.some(s => s.uuid === uuid);
+const shownNode = uuid => (twoWay.pane?.node && uuid === state.pageUuid) || [...state.dig.keys()].some(k => k.endsWith('>' + uuid)) || state.steps.some(s => s.uuid === uuid);
 // Read again, then drawn, for every open node that shows this one (a change made in it, the graph changed).
 async function readAgain(uuid) { await readNode(uuid); if (shownNode(uuid)) twoWay.draw(host()); }
 async function toggleDig(key, uuid, id, title) {
@@ -329,6 +330,14 @@ function steppedHtml() {
   try { rows = groups.map(g => twoWay.rowHtml(g, top)).join(''); } finally { state.drawingTop = false; }
   const line = many ? `<div class="th-tw-toplinks"><span class="lk-count">${many}</span> ${many === 1 ? 'node links' : 'nodes link'} here</div>` : '';
   return `<div class="th-tw-stepped th-ol">${O.trail(steps, `${esc(top.title)}${tag ? twoWay.tagLink({ tag }) : ''}`)}<div class="th-tw-stepbody">${nodeHtml(top.uuid, top.key, data, true)}</div></div>${line}${rows}`;
+}
+/* The node a holder in another part's window stands for (two-way.js, nodePane), drawn exactly as a node opened in a list is: its
+   properties to change, its bullets to write in, and under "Relations" what points at it, each a node that opens in turn. One
+   drawing for an opened node, wherever it opens (rule 7, act in place). Nothing until the node is read. */
+function nodeTopHtml() {
+  const uuid = state.pageUuid;
+  // Inside the outline's own frame (th-ol), which gives its lines their gaps and columns, as a list's value does on a page.
+  return uuid && state.node.has(uuid) ? `<div class="th-tw-value th-ol th-tw-nodetop">${digKids(`node>${uuid}`, uuid, '')}</div>` : '';
 }
 /* The focus moved by a click inside another open node, in place: only the wash moves. */
 function setFocus(key) {
@@ -454,10 +463,14 @@ async function editBulletOnce(uuid, { fresh = false } = {}) {
     written = now;
     twoWay.peek.cache.clear();
   }).catch(error => { warnOnce('could not change the bullet', error); notify('The bullet could not be changed', 'warning'); }));
-  const onType = text => { clearTimeout(timer); timer = setTimeout(() => save(text), 400); };
+  let last = '';   // the words as last typed, for a new bullet left by Escape
+  const onType = text => { last = String(text || ''); clearTimeout(timer); timer = setTimeout(() => save(text), 400); };
   const typed = await shared.editInPlace({ at: find(), value: words, wrap: true, again: find, onType, onEnd: how => { ended = how; }, show: text => text.trim() ? twoWay.lineHtml(text.trim(), 400) : null });
   clearTimeout(timer);
-  const next = typed?.trim();
+  /* A bullet just started by Enter and left by Escape keeps the words typed in it, as a new bullet does in Logseq (the review of 19
+     November 2026: "new child QQ" typed in an opened node was gone after Escape, and nothing was saved). Escape still puts an
+     existing bullet back to the words it had. */
+  const next = typed?.trim() || (fresh && ended === 'escape' ? last.trim() : '');
   // Escape, or the words emptied: the bullet goes back to what it was, even if a pause had saved some of the typing.
   let reverted = false;
   if (next) await save(next); else { await saving; if (written !== stored.trim()) { await twoWay.model.setWords(uuid, stored); written = stored.trim(); reverted = true; } }
@@ -770,6 +783,6 @@ function onOutlineClick(event) {
   return false;
 }
 
-Object.assign(twoWay, { addProp, onNodeMenu, closeDig, digChev, holdsMore, digKids, editBullet, focusNodeField, keepNodeField, onOutlineClick, pinNow, readNode, reading, stepBack, steppedHtml, topStep });
+Object.assign(twoWay, { nodeTopHtml, addProp, onNodeMenu, closeDig, digChev, holdsMore, digKids, editBullet, focusNodeField, keepNodeField, onOutlineClick, pinNow, readNode, reading, stepBack, steppedHtml, topStep });
 });
 })();

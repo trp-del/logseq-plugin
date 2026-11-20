@@ -266,6 +266,9 @@ function followButtons(win) {
   pressed.stop = () => { for (const [type, fn] of Object.entries(types)) win.removeEventListener(type, fn, true); pressed.win = null; pressed.buttons = 0; pressed.stop = null; };
 }
 const popups = { closeAll() { for (const pop of [...openPops]) pop.close(); }, get size() { return openPops.size; }, followButtons, stopFollowing: () => pressed.stop?.() };
+/* Where a pop-up is put: inside the modal window its anchor stands in (Find's, 20 November 2026: a node opened in Find is Relations'
+   own, and outside a modal window everything is inert, so its lists and menus could not be pressed), else the page. */
+const homeOf = (doc, at) => (at?.nodeType === 1 && at.closest?.('dialog[open]')) || doc.querySelector('dialog[open]:modal') || doc.body;
 function anchorFor(doc, at) {
   if (!at) return null;
   const isElement = typeof at.getBoundingClientRect === 'function' && at.nodeType === 1;
@@ -274,7 +277,7 @@ function anchorFor(doc, at) {
     const rect = typeof at.getBoundingClientRect === 'function' ? at.getBoundingClientRect() : at;
     node = el(doc, 'span', { class: 'th-anchor', 'aria-hidden': 'true' });
     Object.assign(node.style, { position: 'fixed', left: `${rect.left}px`, top: `${rect.top}px`, width: `${Math.max(0, (rect.right ?? rect.left) - rect.left)}px`, height: `${Math.max(0, (rect.bottom ?? rect.top) - rect.top)}px`, pointerEvents: 'none' });
-    doc.body.append(node);
+    homeOf(doc, at).append(node);
     made = true;
   }
   const name = `--th-anchor-${++anchorCount}`, before = node.style.getPropertyValue('anchor-name');
@@ -369,7 +372,7 @@ function popup({ at, kind = 'menu', head, items, field: fieldOptions, rows, keys
     if (b.item?.sub) { if (subOf !== b.item) { win?.clearTimeout(subTimer); subTimer = win?.setTimeout(() => openSub(b.item, b), 160); } }
     else if (sub) { win?.clearTimeout(subTimer); subTimer = win?.setTimeout(closeSub, 160); } });
   // A menu inside another (a parent's items) stands in its pop-up, so the browser keeps the two open together.
-  (inside ? inside.el : doc.body).append(pop);
+  (inside ? inside.el : homeOf(doc, at)).append(pop);
   const show = () => {
     if (closed) return;
     try { if (pop.showPopover) pop.showPopover(); } catch (error) { /* shown as a plain box */ }
@@ -471,7 +474,7 @@ function pickValue({ at, placeholder = '', options = [], clearLabel = '', free =
     for (const type of ['keyup', 'keypress']) input.addEventListener(type, event => event.stopPropagation());
     pop.addEventListener('toggle', event => { if (event.newState === 'closed') finish(); });
     draw();
-    doc.body.append(pop);
+    homeOf(doc, at).append(pop);
     try { pop.showPopover(); } catch (error) { /* shown as a plain box */ }
     input.focus({ preventScroll: true });
   });
@@ -509,7 +512,7 @@ function pickType({ at, name = '', options = [], doc } = {}) {
     for (const type of ['keyup', 'keypress']) trigger.addEventListener(type, event => event.stopPropagation());
     trigger.addEventListener('click', event => { event.preventDefault(); finish(); });   // Logseq's closes its list on a second press; here that leaves
     pop.addEventListener('toggle', event => { if (event.newState === 'closed') finish(); });
-    doc.body.append(pop);
+    homeOf(doc, at).append(pop);
     try { pop.showPopover(); } catch (error) { /* shown as a plain box */ }
     trigger.focus({ preventScroll: true });
   });

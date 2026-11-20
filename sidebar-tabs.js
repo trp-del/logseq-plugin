@@ -37,6 +37,12 @@ const CSS = `
 #right-sidebar[data-lk-rows] .sidebar-item-list { padding-top: 16px !important; }
 #right-sidebar[data-lk-stack] .sidebar-item-list > .sidebar-item .sidebar-item-header { box-sizing: border-box; min-height: 32px; align-items: center !important; }
 #right-sidebar[data-lk-stack] .sidebar-item-list > .sidebar-item .sidebar-item-header > button { align-self: stretch; }
+/* The three dots and the × stand right after the item's name, not at the sidebar's far edge (the owner, 20 November 2026: "can the 3
+   dots and x be next to name of item on sidebar instead of right aligned"): Logseq gives the name's button the whole width and
+   pushes the two to the right end; here the button is as wide as its name, a long name still giving way to them. */
+#right-sidebar[data-lk-stack] .sidebar-item-list > .sidebar-item .sidebar-item-header { justify-content: flex-start !important; }
+#right-sidebar[data-lk-stack] .sidebar-item-list > .sidebar-item .sidebar-item-header > button:first-child { width: auto !important; flex: 0 1 auto; min-width: 0; }
+#right-sidebar[data-lk-stack] .sidebar-item-list > .sidebar-item .sidebar-item-header > .item-actions { flex: none; }
 /* Logseq's bar on top of the sidebar holds nothing here (its words are left out, below), so it goes, and the first section's head
    stands level with the toolbar (the owner, 17 November 2026: "there is still a massive gap above"). Two pages side by side keep it
    (split.js draws the right page's title there). */
