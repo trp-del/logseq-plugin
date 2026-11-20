@@ -154,7 +154,9 @@ function nodeHtml(uuid, key, data, asTop = false, field = true) {
   }
   if (data.more) html += O.more({ text: 'show all its bullets', attrs: { 'data-ball': uuid } });
   if (!field) return html;
-  html += O.newBullet({ label: `A new bullet inside ${twoWay.shortName(titleOf(uuid))}`, attrs: { class: 'th-tw-node-field', 'data-uuid': uuid, 'data-key': key } });
+  // With no bullet of its own, the empty one stands ready to be written in (the owner, 20 November 2026: "there should be an empty bullet for ones without bullets already"); with bullets, it comes with Enter after the last, as before.
+  const fieldHtml = O.newBullet({ label: `A new bullet inside ${twoWay.shortName(titleOf(uuid))}`, attrs: { class: 'th-tw-node-field', 'data-uuid': uuid, 'data-key': key } });
+  html += data.bullets.length ? fieldHtml : fieldHtml.replace('class="th-ol-bullet th-ol-new"', 'class="th-ol-bullet th-ol-new th-ol-new-shown"');
   return html;
 }
 // What a node is called, wherever it was seen.
@@ -331,6 +333,17 @@ function steppedHtml() {
   const line = many ? `<div class="th-tw-toplinks"><span class="lk-count">${many}</span> ${many === 1 ? 'node links' : 'nodes link'} here</div>` : '';
   return `<div class="th-tw-stepped th-ol">${O.trail(steps, `${esc(top.title)}${tag ? twoWay.tagLink({ tag }) : ''}`)}<div class="th-tw-stepbody">${nodeHtml(top.uuid, top.key, data, true)}</div></div>${line}${rows}`;
 }
+/* A node's own words, changed where they stand (the owner, 19 November 2026: "if it is a link, can't you just press on the end to enter
+   text mode just like a md link"; 20 November: "no, you cannot edit the text of the node"): a press on the words opens the node, a
+   press just after the last word puts the caret in them. For a bullet only: a page's name is changed on its own page. el: the
+   element holding the words, in this section or in another part's row (asked through the door, 'relations:editWords'). */
+async function editWordsAt(uuid, el) {
+  if (!isUuid(uuid) || !el) return false;
+  const page = await Promise.resolve(twoWay.model.getPage(uuid)).catch(() => null);
+  if (page && !page.page) return false;
+  await editBulletOnce(uuid, { at: () => (el.isConnected ? el : null) });
+  return true;
+}
 /* The node a holder in another part's window stands for (two-way.js, nodePane), drawn exactly as a node opened in a list is: its
    properties to change, its bullets to write in, and under "Relations" what points at it, each a node that opens in turn. One
    drawing for an opened node, wherever it opens (rule 7, act in place). Nothing until the node is read. */
@@ -443,8 +456,9 @@ async function editBullet(uuid) {
   const group = state.groups.find(g => g.items.some(item => item.uuid === owner));
   twoWay.later(300);
 }
-async function editBulletOnce(uuid, { fresh = false } = {}) {
-  const find = twoWay.inBox(`[data-edit-bullet="${CSS.escape(uuid)}"]`);
+async function editBulletOnce(uuid, { fresh = false, at = null } = {}) {
+  // at: where the words stand when they are not a bullet of an opened node (a node's own line in a list, a row of Find or Todo).
+  const find = at || twoWay.inBox(`[data-edit-bullet="${CSS.escape(uuid)}"]`);
   if (!find() || find().querySelector('.th-in-place')) return '';
   // A bullet just made empty has no words stored yet: it starts from nothing.
   const stored = (await twoWay.provided.titleNow(uuid)) ?? (fresh ? '' : null);
@@ -759,6 +773,9 @@ function onOutlineClick(event) {
     while (named && !named.dataset.edit) { line = line.previousElementSibling; named = nameOf(line); }
     if (named?.dataset.edit) { stop(); editNodeProp(named.dataset.uuid, named.dataset.edit, named).catch(error => { warnOnce('could not change a property of the node', error); notify('That could not be changed', 'warning'); }); return true; }
   }
+  const ownLine = t.closest('a, button, input, textarea, .lk-bul, .th-chev, .th-tag, .lk-tag, [data-edit], [data-edit-bullet], [data-take]') ? null : t.closest('.th-ol-line.th-tw-line');
+  const ownName = ownLine ? ownLine.querySelector(':scope > .th-ol-body > .th-ol-name') : null;
+  if (ownName && isUuid(ownLine.dataset.uuid)) { stop(); editWordsAt(ownLine.dataset.uuid, ownName).then(did => { if (did) twoWay.later(0); }).catch(error => { warnOnce('could not change the words of the node', error); notify('The words could not be changed', 'warning'); }); return true; }
   const edit = t.closest('[data-edit]');
   if (edit) { stop(); editNodeProp(edit.dataset.uuid, edit.dataset.edit, edit).catch(error => { warnOnce('could not change a property of the node', error); notify('That could not be changed', 'warning'); }); return true; }
   const goto = t.closest('[data-goto]');
@@ -778,6 +795,6 @@ function onOutlineClick(event) {
   return false;
 }
 
-Object.assign(twoWay, { nodeTopHtml, addProp, onNodeMenu, closeDig, digChev, holdsMore, digKids, editBullet, focusNodeField, keepNodeField, onOutlineClick, pinNow, readNode, reading, stepBack, steppedHtml, topStep });
+Object.assign(twoWay, { editWordsAt, nodeTopHtml, addProp, onNodeMenu, closeDig, digChev, holdsMore, digKids, editBullet, focusNodeField, keepNodeField, onOutlineClick, pinNow, readNode, reading, stepBack, steppedHtml, topStep });
 });
 })();

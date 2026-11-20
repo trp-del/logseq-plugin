@@ -169,7 +169,8 @@ const twoWayCss = `
 /* The empty bullet at a node's end draws nothing until it is written in (8 November 2026, the owner: "remove the place holder
    for empty bullet"): no dot, no words, no room, at rest or under the pointer. It is there for the caret, as Logseq's next
    bullet is: Enter after a bullet's words, or Tab, brings it, and it shows while it has the caret or words. */
-.th-two-way .th-ol-new:not(:focus-within):not(:has(input:not(:placeholder-shown))) { height: 0; min-height: 0; margin: 0; padding: 0; overflow: hidden; opacity: 0; }
+.th-two-way .th-ol-new.th-ol-new-shown input::placeholder { color: transparent; }
+.th-two-way .th-ol-new:not(.th-ol-new-shown):not(:focus-within):not(:has(input:not(:placeholder-shown))) { height: 0; min-height: 0; margin: 0; padding: 0; overflow: hidden; opacity: 0; }
 /* Date first in a short row, name first in a list: the same columns as the other kind, the other way round. */
 .th-two-way .th-tw-draft-plus { width: 16px; height: 1.5em; display: inline-flex; align-items: center; justify-content: center; }   /* in the bullet's place, as tall as the words beside it */
 /* The add line is a row's line (add.js): it keeps the rows' columns, takes the line's room to the end, and has no wash of its own. */

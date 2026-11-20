@@ -43,9 +43,11 @@ const CSS = `
 /* The fold arrow of a task that opens in place: in the margin before its circle, on the first line's middle. The library shows it (a row's lk-fold: under the pointer, and while open), as Logseq shows its own. */
 .td-row > .td-open { position: absolute; left: -12px; top: 9px; }
 .td-node { margin: 0 0 6px -44px; }
-.td-row { position: relative; --lk-status-line: 1.45em; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; column-gap: var(--td-gap); align-items: start; padding: 7px 8px; margin: 0 -8px; border-radius: 6px; }
+/* A task's bullet before its circle, as a task stands on a page (the owner, 20 November 2026: "the todos can have the bullets in fron just like it would normally"): the library's, on the first line's middle. */
+.td-bul { display: inline-flex; align-items: center; height: var(--lk-status-line); margin-right: -4px; }
+.td-row { position: relative; --lk-status-line: 1.45em; display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; column-gap: var(--td-gap); align-items: start; padding: 7px 8px; margin: 0 -8px; border-radius: 6px; }
 .td-words { color: inherit; text-decoration: none; cursor: pointer; overflow-wrap: anywhere; line-height: var(--lk-status-line); }
-.td-where { margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.45; }   /* the library's quiet line (lk-note); a line tall enough that a cut name keeps its g and y (the owner's list, 18 November 2026: "Mortgage" lost its g) */
+.td-where { display: block; width: fit-content; max-width: 100%; text-decoration: none; cursor: pointer; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.45; }   /* the library's quiet line (lk-note); a line tall enough that a cut name keeps its g and y (the owner's list, 18 November 2026: "Mortgage" lost its g) */
 .td-day { white-space: nowrap; padding-top: .2em; }   /* the library's day (lk-day), at the row's right */
 .td-day.td-late { color: color-mix(in srgb, var(--rx-red-10, #dc3e42) 78%, var(--lk-paper, transparent)) !important; }
 .td-row.td-ticked .td-words { text-decoration: line-through; text-decoration-color: var(--lk-line); color: var(--lk-quiet); }
@@ -155,9 +157,9 @@ function rowHtml(t, part) {
   const where = !part || part.where ? t.page.title || '' : '';
   const opened = canOpen() && openNodes.includes(t.uuid);
   const fold = canOpen() ? `<button type="button" class="td-open lk-fold" aria-expanded="${opened}" data-open-node="${esc(t.uuid)}" title="${opened ? 'Close' : 'Open here'}" tabindex="-1"></button>` : '';
-  return `<div class="td-row lk-row${T.app.ticking.has(t.uuid) ? ' td-ticked' : ''}${done ? ' td-done' : ''}${opened ? ' td-opened' : ''}" data-uuid="${esc(t.uuid)}">
-${fold}${circle(t, status)}
-<div class="td-main"><div class="td-line"><a class="td-words" href="#" data-open="${esc(t.uuid)}" title="Open the task; with Shift, in the sidebar">${t.words || t.text ? wordsHtml(t) : 'Untitled'}</a></div>${where ? `<div class="td-where lk-note">${esc(where)}</div>` : ''}</div>
+  return `<div class="td-row lk-row lk-calm${T.app.ticking.has(t.uuid) ? ' td-ticked' : ''}${done ? ' td-done' : ''}${opened ? ' td-opened' : ''}" data-uuid="${esc(t.uuid)}">
+${fold}<span class="td-bul" aria-hidden="true"><span class="lk-bul"></span></span>${circle(t, status)}
+<div class="td-main"><div class="td-line"><a class="td-words" href="#" data-open="${esc(t.uuid)}" title="Open the task; with Shift, in the sidebar">${t.words || t.text ? wordsHtml(t) : 'Untitled'}</a></div>${where ? `<a class="td-where lk-note" href="#" data-open-page="${esc(t.page.uuid || t.page.title || where)}" title="Open ${esc(where)}; with Shift, in the sidebar">${esc(where)}</a>` : ''}</div>
 <div class="td-day lk-day${late ? ' td-late' : ''}">${esc(day)}</div></div>${opened ? `<div class="td-node" data-th-node="${esc(t.uuid)}"></div>` : ''}`;
 }
 
@@ -204,7 +206,7 @@ function make(holder, mode) {
       const html = listHtml(view.find);
       if (html === drawn) return;
       // A field of an opened node being written in keeps its place: the list is drawn again once it is left.
-      if (doc.activeElement?.matches?.('input, textarea') && list.contains(doc.activeElement) && doc.activeElement.closest('[data-th-node]')) { view.waits = true; return; }
+      if (doc.activeElement?.matches?.('input, textarea') && list.contains(doc.activeElement) && doc.activeElement.closest('[data-th-node], .td-line')) { view.waits = true; return; }
       view.waits = false;
       // A row coming into an open Done, or Done opening, rolls out; nothing else moves.
       const before = new Set([...list.querySelectorAll('.td-row')].map(r => r.dataset.uuid + (r.classList.contains('td-done') ? ':d' : '')));
@@ -245,6 +247,10 @@ function make(holder, mode) {
     if (page) { event.preventDefault(); const to = page.dataset.openPage; if (event.shiftKey) logseq.Editor.openInRightSidebar(to); else logseq.App.pushState('page', { name: to }); return; }
     const open = event.target.closest('[data-open]');
     if (open) { event.preventDefault(); T.app.open(open.dataset.open, event.shiftKey); return; }
+    // A press just after a task's last word puts the caret in its words (the owner, 19 November 2026: "just like a md link"); on the words it opens the task.
+    const line = event.target.closest('a, button, input, textarea') ? null : event.target.closest('.td-line');
+    const words = line ? line.querySelector('.td-words') : null, of = line ? line.closest('.td-row')?.dataset.uuid : '';
+    if (words && of && Door.answers('relations:editWords')) { event.preventDefault(); Door.ask('relations:editWords', of, words).catch(() => {}); return; }
     if (event.target.closest('[data-fold-done]')) { event.preventDefault(); T.app.foldDone(); return; }
     const by = event.target.closest('[data-by]');
     if (by) { event.preventDefault(); openBy(by); return; }
