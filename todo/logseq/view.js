@@ -40,9 +40,8 @@ const CSS = `
 .td-head.td-fold-head { cursor: pointer; margin-left: -22px; }
 .td-side .td-head.td-fold-head { margin-left: -4px; }
 .td-head .lk-fold { opacity: .6; }
-/* The fold arrow of a task that opens in place: in the margin before its circle, on the first line's middle, shown under the pointer and while open, as Logseq's own. */
-.td-row > .td-open { position: absolute; left: -12px; top: 9px; opacity: 0; }
-.td-row:hover > .td-open, .td-row > .td-open[aria-expanded="true"], .td-row:focus-within > .td-open { opacity: .6; }
+/* The fold arrow of a task that opens in place: in the margin before its circle, on the first line's middle. The library shows it (a row's lk-fold: under the pointer, and while open), as Logseq shows its own. */
+.td-row > .td-open { position: absolute; left: -12px; top: 9px; }
 .td-node { margin: 0 0 6px -44px; }
 .td-row { position: relative; --lk-status-line: 1.45em; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; column-gap: var(--td-gap); align-items: start; padding: 7px 8px; margin: 0 -8px; border-radius: 6px; }
 .td-words { color: inherit; text-decoration: none; cursor: pointer; overflow-wrap: anywhere; line-height: var(--lk-status-line); }
