@@ -411,7 +411,7 @@ function said() {
    and of what the parts join around: "the relations part is the non-negotiable part"): its properties to change, its bullets to write
    in, what points at it to walk on along. Find puts an empty holder under the row and Relations fills it, for as many nodes as
    Relations says it can hold at once; with Relations switched off, or for a node opened beyond that, Find draws what it always drew. */
-const relRoom = () => { try { return window.PluginDoor.answers('relations:node') ? 3 : 0; } catch (error) { return 0; } };
+const relRoom = () => { try { return window.PluginDoor.answers('relations:node') ? 2 : 0; } catch (error) { return 0; } };   // two here, so a task opened in Todo behind the window keeps its own
 const relHolds = uuid => { const at = S.dug.filter(u => u !== S.lineDug).indexOf(uuid); return at >= 0 && at < relRoom(); };
 const inNode = target => !!target?.closest?.('[data-th-node], [popover]');
 /* The rows, flat, in the order they show: the rows found, then the near ones, and inside a dug one its pointed-at groups

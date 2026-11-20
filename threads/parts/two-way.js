@@ -1360,9 +1360,9 @@ const sidePane = n => {
    node's uuid (data-th-node) inside its window; the nth such holder gets a copy, which draws the node itself (its properties to
    change, its bullets to write in: nodeTopHtml) and under them what points at it, as on a page. Whether Relations can do this is
    asked through the door ('relations:node'), so the other part keeps its own drawing when Relations is switched off. */
-const NODE_HOLDERS = 3;
+const NODE_HOLDERS = 4;
 const nodePane = n => {
-  const spot = doc => [...(doc?.querySelectorAll('dialog[open] [data-th-node]') || [])][n] || null;
+  const spot = doc => [...(doc?.querySelectorAll('[data-th-node]') || [])].filter(el => !el.closest('dialog:not([open])'))[n] || null;   // in Find's window, under a task in Todo: wherever a part put one
   const uuidAt = el => String(el?.getAttribute('data-th-node') || '');
   return {
     main: false, name: 'node' + n, from: twoWay, node: true,
@@ -1371,7 +1371,7 @@ const nodePane = n => {
     shown: el => (UUID.test(uuidAt(el)) ? [uuidAt(el)] : []),
     anchor: el => el.querySelector(':scope > .th-node-anchor') || el.appendChild(Object.assign(el.ownerDocument.createElement('div'), { className: 'th-node-anchor' })),
     titleRow: () => null,
-    scroller: box => box?.closest('.fd-body') || null,
+    scroller: box => box?.closest('.fd-body, .sidebar-item-list, #main-content-container') || null,
     onChange: fn => { let was = ''; return window.PluginDoor.watch(() => { const now = uuidAt(spot(host())); if (now === was) return; was = now; fn(); }); },
   };
 };

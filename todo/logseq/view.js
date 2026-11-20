@@ -40,7 +40,11 @@ const CSS = `
 .td-head.td-fold-head { cursor: pointer; margin-left: -22px; }
 .td-side .td-head.td-fold-head { margin-left: -4px; }
 .td-head .lk-fold { opacity: .6; }
-.td-row { --lk-status-line: 1.45em; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; column-gap: var(--td-gap); align-items: start; padding: 7px 8px; margin: 0 -8px; border-radius: 6px; }
+/* The fold arrow of a task that opens in place: in the margin before its circle, on the first line's middle, shown under the pointer and while open, as Logseq's own. */
+.td-row > .td-open { position: absolute; left: -12px; top: 9px; opacity: 0; }
+.td-row:hover > .td-open, .td-row > .td-open[aria-expanded="true"], .td-row:focus-within > .td-open { opacity: .6; }
+.td-node { margin: 0 0 6px -44px; }
+.td-row { position: relative; --lk-status-line: 1.45em; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; column-gap: var(--td-gap); align-items: start; padding: 7px 8px; margin: 0 -8px; border-radius: 6px; }
 .td-words { color: inherit; text-decoration: none; cursor: pointer; overflow-wrap: anywhere; line-height: var(--lk-status-line); }
 .td-where { margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.45; }   /* the library's quiet line (lk-note); a line tall enough that a cut name keeps its g and y (the owner's list, 18 November 2026: "Mortgage" lost its g) */
 .td-day { white-space: nowrap; padding-top: .2em; }   /* the library's day (lk-day), at the row's right */
@@ -134,15 +138,28 @@ function openStatus(from, uuid) {
   Door.menu(from, [{ group: 'Set Status' }, ...[...T.db.statuses.values()].map(s => ({ word: s.title, icon: Door.statusIconHtml(s.icon, from.ownerDocument), on: s.name === now, take: () => T.app.setTo(uuid, s.name) }))], { align: 'left' });
 }
 
+/* A task opens in place as Relations' opened node (20 November 2026; the owner, of the pictured proposal: "good I like all"): the fold
+   arrow before its circle, Logseq's own, under the pointer; Right on its words opens it and Left closes it, as in Find and Relations.
+   What opens is not Todo's drawing: an empty holder under the row, which Relations fills with the task's properties to change, its
+   bullets to write in and what points at it. Without Relations there is no arrow. One task stands open at a time, on the page and in the sidebar alike. */
+const openNodes = [];
+const canOpen = () => { try { return !!Door.answers('relations:node'); } catch (error) { return false; } };
+const toggleNode = (uuid, open = !openNodes.includes(uuid)) => {
+  const at = openNodes.indexOf(uuid);
+  if (open && at < 0) { openNodes.push(uuid); while (openNodes.length > 1) openNodes.shift(); } else if (!open && at >= 0) openNodes.splice(at, 1); else return;
+  for (const v of T.app.views) v.draw();
+};
 // part: the group the row stands in (main.js, groups()); Done's rows have none.
 function rowHtml(t, part) {
   const status = T.app.shown(t), done = status === 'done', late = !done && t.day && t.day < dates.today();
   const day = !part || (part.today && !late) ? '' : dayWords(t.day);
   const where = !part || part.where ? t.page.title || '' : '';
-  return `<div class="td-row lk-row${T.app.ticking.has(t.uuid) ? ' td-ticked' : ''}${done ? ' td-done' : ''}" data-uuid="${esc(t.uuid)}">
-${circle(t, status)}
+  const opened = canOpen() && openNodes.includes(t.uuid);
+  const fold = canOpen() ? `<button type="button" class="td-open lk-fold" aria-expanded="${opened}" data-open-node="${esc(t.uuid)}" title="${opened ? 'Close' : 'Open here'}" tabindex="-1"></button>` : '';
+  return `<div class="td-row lk-row${T.app.ticking.has(t.uuid) ? ' td-ticked' : ''}${done ? ' td-done' : ''}${opened ? ' td-opened' : ''}" data-uuid="${esc(t.uuid)}">
+${fold}${circle(t, status)}
 <div class="td-main"><div class="td-line"><a class="td-words" href="#" data-open="${esc(t.uuid)}" title="Open the task; with Shift, in the sidebar">${t.words || t.text ? wordsHtml(t) : 'Untitled'}</a></div>${where ? `<div class="td-where lk-note">${esc(where)}</div>` : ''}</div>
-<div class="td-day lk-day${late ? ' td-late' : ''}">${esc(day)}</div></div>`;
+<div class="td-day lk-day${late ? ' td-late' : ''}">${esc(day)}</div></div>${opened ? `<div class="td-node" data-th-node="${esc(t.uuid)}"></div>` : ''}`;
 }
 
 function listHtml(find = '') {
@@ -187,6 +204,9 @@ function make(holder, mode) {
       root.style.setProperty('--td-tools-room', `${Math.ceil(tools.offsetWidth || 190) + 12}px`);
       const html = listHtml(view.find);
       if (html === drawn) return;
+      // A field of an opened node being written in keeps its place: the list is drawn again once it is left.
+      if (doc.activeElement?.matches?.('input, textarea') && list.contains(doc.activeElement) && doc.activeElement.closest('[data-th-node]')) { view.waits = true; return; }
+      view.waits = false;
       // A row coming into an open Done, or Done opening, rolls out; nothing else moves.
       const before = new Set([...list.querySelectorAll('.td-row')].map(r => r.dataset.uuid + (r.classList.contains('td-done') ? ':d' : '')));
       const held = doc.activeElement?.closest?.('[data-status-of]')?.dataset.statusOf;   // the keys stay on a circle drawn again
@@ -217,6 +237,9 @@ function make(holder, mode) {
     else if (event.key === 'Escape') { event.preventDefault(); if (input.value) { input.value = ''; showDay(); } else input.blur(); }
   });
   root.addEventListener('click', event => {
+    if (event.target.closest('[data-th-node]')) return;   // an opened node's presses are Relations'
+    const fold = event.target.closest('[data-open-node]');
+    if (fold) { event.preventDefault(); toggleNode(fold.dataset.openNode); return; }
     const status = event.target.closest('[data-status-of]');
     if (status) { event.preventDefault(); openStatus(status, status.dataset.statusOf); return; }
     const page = event.target.closest('[data-open-page]');   // a link or tag in a task's words: its page, not the task
@@ -229,6 +252,17 @@ function make(holder, mode) {
     const shown = event.target.closest('[data-show]');
     if (shown) { event.preventDefault(); openShow(shown); }
   });
+  // Right on a task's words opens it in place, Left closes it, as on a row in Find and Relations.
+  root.addEventListener('keydown', event => {
+    if (event.target.closest?.('[data-th-node]') || !canOpen() || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+    const words = (event.key === 'ArrowRight' || event.key === 'ArrowLeft') && event.target.closest?.('.td-words');
+    const uuid = words && words.closest('.td-row')?.dataset.uuid;
+    if (!uuid) return;
+    event.preventDefault(); event.stopPropagation();
+    toggleNode(uuid, event.key === 'ArrowRight');
+    [...root.querySelectorAll('.td-row')].find(r => r.dataset.uuid === uuid)?.querySelector('.td-words')?.focus({ preventScroll: true });
+  });
+  root.addEventListener('focusout', () => setTimeout(() => { if (view.waits) view.draw(); }, 60));
   // From the keys: Shift-F10 (or a keyboard's menu key) on a task's words opens the same menu.
   root.addEventListener('keydown', event => {
     if (!(event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10'))) return;
@@ -239,6 +273,7 @@ function make(holder, mode) {
   });
   // A task right-clicked: its own menu (rowMenu), under its words.
   root.addEventListener('contextmenu', event => {
+    if (event.target.closest('[data-th-node]')) return;   // an opened node's right-click is Relations'
     const row = event.target.closest('.td-row[data-uuid]');
     if (!row) return;
     event.preventDefault(); event.stopPropagation();
