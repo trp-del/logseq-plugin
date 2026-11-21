@@ -129,14 +129,15 @@ function circle(t, status) {
   const attrs = ` data-status-of="${esc(t.uuid)}" title="${esc(name)}: click to set the status" aria-label="Status: ${esc(name)}, ${esc(t.words)}"`;
   return Door.statusHtml(s || { title: name, icon: null }, { cls: 'td-circle', attrs, doc: Door.host() });
 }
-/* The status list, the library's menu under the circle (PluginDoor.menu): every status in the graph, in Logseq's order, each with
-   its own icon, the one in force checked (none for a Task whose Status is empty). Up and Down walk it, Return takes one. */
+/* The status list under the circle: Logseq's own Set Status list (PluginDoor.pickStatus), every status in the graph in Logseq's
+   order, each with its own icon, the one in force ticked (none for a Task whose Status is empty). Up and Down walk it, Return takes one. */
 function openStatus(from, uuid) {
   const t = T.app.tasks.find(x => x.uuid === uuid);
   if (!t) return;
   const now = T.app.ticking.has(uuid) ? 'done' : t.empty && !T.app.status.has(uuid) ? '' : T.app.shown(t);
   // The icons in the words' colour, as Logseq's own Set Status list draws them (on a bullet Logseq colours In Review and Canceled).
-  Door.menu(from, [{ group: 'Set Status' }, ...[...T.db.statuses.values()].map(s => ({ word: s.title, icon: Door.statusIconHtml(s.icon, from.ownerDocument), on: s.name === now, take: () => T.app.setTo(uuid, s.name) }))], { align: 'left' });
+  // Logseq's own Set Status list, the one every circle opens (PluginDoor.pickStatus).
+  Door.pickStatus(from, [...T.db.statuses.values()], s => s.name === now).then(s => { if (s) T.app.setTo(uuid, s.name); });
 }
 
 /* A task opens in place as Relations' opened node (20 November 2026; the owner, of the pictured proposal: "good I like all"): the fold
@@ -314,11 +315,9 @@ function rowMenu(from, uuid, isDone) {
   const t = T.app.tasks.find(x => x.uuid === uuid);
   if (!t) return;
   const doc = from.ownerDocument, ti = id => Door.logseqIconHtml(id, { doc });
-  const lines = [
-    { word: 'Open', icon: ti('arrow-right'), take: () => T.app.open(uuid, false) },
-    { word: 'Open in sidebar', icon: ti('layout-sidebar-right'), take: () => T.app.open(uuid, true) },
-    ...(t.page.uuid ? [{ word: `Go to ${t.page.title}`, icon: Door.signHtml('page'), take: () => logseq.App.pushState('page', { name: t.page.uuid }) }] : []),
-  ];
+  // The node's menu, the same in every place (PluginDoor.nodeMenu: Open, Open in sidebar, Go to the page, Set status, Add tag,
+  // Delete), with a task's Priority and Deadline added here.
+  const lines = [];
   if (!isDone && T.app.shown(t) !== 'done') {
     const today = dates.today(), plus = n => { const d = dates.date(today); d.setDate(d.getDate() + n); return dates.number(d); };
     const monday = plus(((8 - dates.date(today).getDay()) % 7) || 7);
@@ -330,7 +329,7 @@ function rowMenu(from, uuid, isDone) {
       { word: 'Next week', icon: ti('calendar-week'), on: t.deadline === monday, take: () => T.app.setDeadline(uuid, monday) },
       ...(t.deadline ? [{ word: 'Remove deadline', icon: ti('calendar-off'), take: () => T.app.setDeadline(uuid, 0) }] : []));
   }
-  Door.menu(from, lines, { align: 'left' });
+  Door.nodeMenu(from, uuid, { open: sidebar => T.app.open(uuid, sidebar), extra: lines });
 }
 T.view = { make, ensureStyle, dayWords, dayFull, rowMenu };
 })();

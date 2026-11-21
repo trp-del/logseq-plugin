@@ -965,7 +965,10 @@ function draw(doc) {
     box = state.box = doc.createElement('div');
     box.className = 'th-two-way';
     box.setAttribute('contenteditable', 'false');
-    box.addEventListener('mousedown', event => { event.stopPropagation(); if (state.find && event.target.closest?.('.th-chev, [data-findall]')) event.preventDefault(); });
+    /* A press inside a line Logseq's own editor draws (a node opened on a page) goes on to Logseq, which starts writing where it
+       lands, beside the words too, as on the node's own page (the actions walk, 21 November 2026: a press just after the last word
+       did nothing there). Every other press stays the section's. */
+    box.addEventListener('mousedown', event => { if (!event.target.closest?.('.ls-block')) event.stopPropagation(); if (state.find && event.target.closest?.('.th-chev, [data-findall]')) event.preventDefault(); });
     box.addEventListener('click', onClick);
     // Enter or Space on a task's circle opens its list: Logseq takes Enter on the page before a button can make it a click.
     box.addEventListener('keydown', event => { const task = (event.key === 'Enter' || event.key === ' ') && !event.isComposing && event.target.closest?.('[data-task]'); if (!task) return; event.preventDefault(); event.stopPropagation(); setStatus(task).catch(error => warnOnce('could not set the status', error)); });
@@ -1221,16 +1224,19 @@ const valueBox = (uuid, prop) => inBox(`.th-ol-pname[data-edit="${CSS.escape(pro
    back to how the name reads by itself. Undo is the arrow after the row's name. */
 /* The right-click on a row's name opens a short menu under it, the kit's pop-up: Group by…, Open in the map,
    Reads back as…, Hide where it points. One “…” for every item that asks before it acts; every item has its icon (the audit's 25). */
+// The popup's items ({ icon, label, run }) as the library menu's lines ({ icon, word, take }), for the node's menu.
+twoWay.menuLines = items => items.filter(Boolean).filter(item => !item.sep && item.run).map(item => ({ word: item.label, icon: item.icon ? shared.iconHtml(item.icon) : '', take: item.run }));
 function onRename(event) {
   if (twoWay.onNodeMenu?.(event)) return;   // a line inside an opened node: its own menu (dig.js)
   // A node's line: its own menu, from the pieces (pin, compare, …); nothing when none has an item for it.
   const lineEl = !event.target.closest?.('.th-tw-name') && event.target.closest?.('.th-tw-line[data-uuid]');
   if (lineEl) {
     const row = lineEl.closest('.th-tw-row'), group = state.groups.find(g => g.name === row?.dataset.field), item = group?.items.find(i => i.uuid === lineEl.dataset.uuid);
-    const items = item ? lineMenuHooks.flatMap(hook => hook(group, item) || []) : [];
-    if (!items.length) return;
+    if (!item || !window.PluginDoor.UUID.test(String(item.uuid || ""))) return;
+    const items = lineMenuHooks.flatMap(hook => hook(group, item) || []);
     event.preventDefault(); event.stopPropagation(); twoWay.hidePeek(); twoWay.closeAdd();
-    twoWay.adding.pop = shared.popup({ at: lineEl.querySelector('.th-tw-record') || lineEl, head: shortName(item.title), onClose: () => { twoWay.adding.pop = null; }, items });
+    // The node's menu, the same in every place (PluginDoor.nodeMenu), with this list's own lines (Pin, Add property…) in it.
+    window.PluginDoor.nodeMenu(lineEl.querySelector('.th-tw-record') || lineEl, item.uuid, { extra: twoWay.menuLines(items) });
     return;
   }
   const nameEl = event.target.closest?.('.th-tw-name') || event.target.closest?.('.th-tw-head')?.closest('.th-tw-row')?.querySelector('.th-tw-name');
@@ -1471,6 +1477,8 @@ function start() {
   }
   onUnload(window.PluginDoor.offerAsk('relations:node', () => NODE_HOLDERS));
   onUnload(window.PluginDoor.offerAsk('relations:editWords', (uuid, el) => twoWay.editWordsAt(uuid, el)));
+  // Logseq's own Set picker, lent to the node's menu in every place (PluginDoor.nodeMenu), so its status and tag lists are this one.
+  onUnload(window.PluginDoor.offerAsk('relations:pickValue', options => shared.pickValue(options)));
   // The copies for the pages opened in the sidebar: with none there they have no page and draw nothing.
   for (let n = 0; n < SIDE_PAGES; n++) {
     const side = sidePane(n);

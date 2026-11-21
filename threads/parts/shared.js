@@ -570,7 +570,14 @@ function editInPlace({ at, value = '', type = 'text', placeholder = '', doc, aga
     input.addEventListener('input', () => list?.lit(-1));
     for (const type of ['keyup', 'keypress']) input.addEventListener(type, event => event.stopPropagation());
     for (const type of ['mousedown', 'click']) input.addEventListener(type, event => event.stopPropagation());
-    input.addEventListener('blur', () => { if (!moving) finish(input.value === value ? null : input.value); });
+    /* Going to another app is not leaving the words: they stay open and the caret comes back with the window, as in Logseq's own
+       bullet (the actions walk, 21 November 2026: in Find the line ended and the caret fell into the search). */
+    input.addEventListener('blur', () => {
+      if (moving) return;
+      const doc = input.ownerDocument;
+      if (!doc.hasFocus()) return;
+      finish(input.value === value ? null : input.value);
+    });
     at.replaceChildren(input);
     grow();
     input.focus({ preventScroll: true });
@@ -922,6 +929,9 @@ a.th-tag:hover { opacity: 1; }
   .th-ol-kids .th-ol-prop { flex-wrap: wrap; }
   .th-ol-kids .th-ol-prop > .th-ol-pname { width: auto; flex-basis: 100%; }
   .th-ol-kids .th-ol-from-prop { --th-ol-cx: 8px; }
+  /* A line with no day keeps no empty day column here: in the sidebar at 700 px the column took a quarter of the row and a node's
+     words wrapped a word or two per line (the actions walk, 21 November 2026). The lines with a day keep their one column. */
+  .th-ol-line > .th-ol-day:empty { display: none; }
   .th-ol-kids .th-ol-prop:has(> .th-ol-pv > :is(.th-chev, .th-ol-day)) > .th-ol-pv > .th-chev:first-child { margin-left: 0; }
   .th-ol-kids .th-ol-from-back { --th-ol-cx: calc(var(--th-ol-day) + var(--th-ol-gap) + 8px); }
   .th-ol-leads, .th-ol-kids { --th-ol-lname: 7.5em; }

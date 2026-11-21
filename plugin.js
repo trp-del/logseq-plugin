@@ -1118,8 +1118,13 @@ Door.menu = (from, parts, { align = 'right' } = {}) => {
   if (box.popover) box.showPopover();
   const at = from.getBoundingClientRect(), w = box.offsetWidth, h = box.offsetHeight;
   const left = align === 'left' ? at.left : at.right - w;
-  const below = at.bottom + 4 + h <= win.innerHeight - 8 || at.top - 4 - h < 8;
-  Object.assign(box.style, { left: `${Math.max(8, Math.min(left, win.innerWidth - w - 8))}px`, top: `${below ? at.bottom + 4 : at.top - 4 - h}px`, visibility: '' });
+  const roomBelow = win.innerHeight - 8 - (at.bottom + 4), roomAbove = at.top - 4 - 8;
+  const below = h <= roomBelow || (h > roomAbove && roomBelow >= roomAbove);
+  // Taller than the room on either side (a long menu in a small window, the node's menu in Todo at 560 px, 21 November 2026): it
+  // takes the roomier side and scrolls, never running past the window's edge.
+  const room = below ? roomBelow : roomAbove, high = Math.min(h, room);
+  if (h > room) Object.assign(box.style, { maxHeight: `${room}px`, overflow: 'auto' });   // the shorthand, which the roll keeps when it lets go
+  Object.assign(box.style, { left: `${Math.max(8, Math.min(left, win.innerWidth - w - 8))}px`, top: `${below ? at.bottom + 4 : at.top - 4 - high}px`, visibility: '' });
   const lines = [...takes.keys()].filter(node => !node.classList.contains('off'));
   let lit = Math.max(0, lines.findIndex(node => node.getAttribute('aria-checked') === 'true'));
   const light = i => { lit = i; lines.forEach((node, j) => node.classList.toggle('on', j === i)); lines[i]?.focus({ preventScroll: true }); };
@@ -1145,6 +1150,77 @@ Door.menu = (from, parts, { align = 'right' } = {}) => {
 };
 // The menu open now, closed (a module stopping, a view drawn away).
 Door.menu.close = () => shownMenu?.close(false);
+/* THE status list, wherever a status is set (a task's circle in Find, Todo, Relations, the node's menu): Logseq's own Set Status
+   list, lent by Relations (relations:pickValue), as a press on Logseq's own circle opens it; every status in Logseq's order with its
+   icon, the one in force ticked. The actions walk of 21 November 2026 found two lists for the same circle (a plain menu in Find and
+   Todo, Logseq's list elsewhere). Without Relations running, the library's menu. Resolves with the status picked, or null. */
+Door.pickStatus = async (from, choices, isNow) => {
+  const doc = from.ownerDocument;
+  if (Door.answers('relations:pickValue')) {
+    const got = await Door.ask('relations:pickValue', { at: from, placeholder: 'Set Status', keepOrder: true, doc,
+      options: choices.map(s => ({ label: s.title, held: !!isNow(s), iconHtml: Door.statusIconHtml(s.icon, doc), status: s })) });
+    return got?.status || null;
+  }
+  return new Promise(resolve => {
+    const menu = Door.menu(from, [{ group: 'Set Status' }, ...choices.map(s => ({ word: s.title, icon: Door.statusIconHtml(s.icon, doc), on: !!isNow(s), take: () => resolve(s) }))], { align: 'left' });
+    if (!menu) resolve(null);
+  });
+};
+/* THE node's menu, right-clicked wherever a node is shown: a row of Find, of Todo, of Relations, a line of an opened node (rule 7,
+   act in place; the actions walk of 21 November 2026 found tag and delete only on the node's own page, and a right-click menu in
+   Todo and Relations each of its own; the owner: "two find faults then right-click"). The same lines in the same order everywhere,
+   each doing the same thing with the same Undo: Open, Open in sidebar, Go to the page it is on; Set status… (a task), Add tag…,
+   what the place adds (Add property… where the node opens in place, a task's Priority and Deadline in Todo); Delete.
+   The status and tag lists are Logseq's own Set pickers, lent by Relations (relations:pickValue). place: { open(sidebar), extra,
+   status: false to leave it out }. */
+Door.nodeMenu = async (from, uuid, { open = null, extra = [], status = true, changed = null } = {}) => {
+  const doc = from.ownerDocument, ti = id => Door.logseqIconHtml(id, { doc });
+  let node = null;
+  try { node = await logseq.Editor.getBlock(uuid); } catch (error) { /* gone */ }
+  if (!node) return null;
+  const page = node.page?.id ? await logseq.Editor.getPage(node.page.id).catch(() => null) : null;
+  const tags = await Door.query(`[:find ?u ?t :where [?b :block/uuid #uuid "${uuid}"] [?b :block/tags ?g] [?g :block/uuid ?u] [?g :block/title ?t]]`).catch(() => []);
+  const isTask = !!Door.pick(node, 'logseq.property/status') || tags.some(([, t]) => t === 'Task');
+  const name = String(node.title || node.content || '').slice(0, 60);
+  const pick = Door.answers('relations:pickValue');
+  const lines = [
+    { word: 'Open', icon: ti('arrow-right'), take: () => (open ? open(false) : logseq.App.pushState('page', { name: uuid })) },
+    { word: 'Open in sidebar', icon: ti('layout-sidebar-right'), take: () => (open ? open(true) : logseq.Editor.openInRightSidebar(uuid)) },
+    ...(page && !node.name ? [{ word: `Go to ${page.title || page.originalName || page.name}`, icon: Door.signHtml('page'), take: () => logseq.App.pushState('page', { name: page.uuid }) }] : []),
+    { gap: true },
+    ...(status && isTask && pick ? [{ word: 'Set status…', icon: ti('circle-dot'), take: () => Door.nodeMenu.status(from, uuid, name).then(done => done && changed?.()) }] : []),
+    ...(pick ? [{ word: 'Add tag…', icon: ti('hash'), take: () => Door.nodeMenu.tag(from, uuid, name, tags.map(([u]) => String(u))).then(done => done && changed?.()) }] : []),
+    ...extra,
+    // A page is deleted from its own page only (Logseq's Delete page, with its question); a bullet here.
+    ...(node.name ? [] : [{ gap: true }, { word: 'Delete', icon: ti('trash'), take: () => Door.nodeMenu.remove(uuid, name).then(() => changed?.()) }]),
+  ];
+  return Door.menu(from, lines, { align: 'left' });
+};
+// Each change offers the one Undo, as a press on the row's circle does; Cmd+Z undoes it too (Logseq's own history).
+const undoLogseq = () => { undoState.undoAt = Date.now(); return logseq.App.invokeExternalCommand('logseq.editor/undo'); };
+Door.nodeMenu.status = async (from, uuid, name) => {
+  const choices = await Door.statusChoices();
+  const nowId = Door.idOf(Door.pick(await logseq.Editor.getBlock(uuid), 'logseq.property/status'));
+  const to = await Door.pickStatus(from, choices, s => s.id === nowId);
+  if (!to || to.id === nowId) return false;
+  await Door.write.setValue(uuid, 'logseq.property/status', to.title);
+  Door.undo.offer({ owner: 'node-menu', key: `node-menu:status:${uuid}`, node: uuid, text: `Set “${name}” to ${to.title}`, at: () => [], run: undoLogseq });
+  return true;
+};
+Door.nodeMenu.tag = async (from, uuid, name, held) => {
+  const all = await Door.query('[:find ?u ?t :where [?c :db/ident :logseq.class/Tag] [?g :block/tags ?c] [?g :block/uuid ?u] [?g :block/title ?t] (not [?g :logseq.property/built-in? true])]').catch(() => []);
+  const options = all.map(([u, t]) => ({ label: t, uuid: String(u), held: held.includes(String(u)) })).sort((a, b) => a.label.localeCompare(b.label));
+  const got = await Door.ask('relations:pickValue', { at: from, placeholder: 'Set Tags', options, doc: from.ownerDocument });
+  const tag = got?.label && options.find(o => o.label === got.label);
+  if (!tag || tag.held) return false;
+  await Door.write.addTag(uuid, tag.uuid);
+  Door.undo.offer({ owner: 'node-menu', key: `node-menu:tag:${uuid}`, node: uuid, text: `Tagged “${name}” ${tag.label}`, at: () => [], run: () => Door.write.removeTag(uuid, tag.uuid) });
+  return true;
+};
+Door.nodeMenu.remove = async (uuid, name) => {
+  await Door.write.removeBlock(uuid);
+  Door.undo.offer({ owner: 'node-menu', key: `node-menu:delete:${uuid}`, text: `Deleted “${name}”`, at: () => [], run: undoLogseq });
+};
 /* Logseq's own editor for a node, in an element of the plugin's (20 November 2026; the owner, of bullets the plugin drew itself: "the
    bullets are very clunky and don't feel natural typing", and "in general it either borrows or follows logseq design"). Logseq lends
    plugins its editor (Experiments.Components.Editor: a page by name, or any node by its uuid) but only inside a tree it hosts itself,
@@ -1226,6 +1302,17 @@ function seatDock(doc, dock) {
   const side = doc.getElementById('right-sidebar'), open = side && !side.classList.contains('closed') ? side.getBoundingClientRect().width : 0;
   const right = `${Math.round(open) + 20}px`;
   if (dock.style.right !== right) dock.style.right = right;
+  /* Over a window of the plugin's own (Find's, a modal dialog) the line goes into the top layer above it, as the menu does, since
+     what stands outside a modal window cannot be pressed (the node's menu in Find, 21 November 2026). */
+  const modal = doc.querySelector('dialog[open]');
+  // Shown again over each new window, since the top layer stacks in the order things are shown.
+  if (modal && typeof dock.showPopover === 'function' && (!dock.matches(':popover-open') || dock.lkOver !== modal)) {
+    if (dock.matches(':popover-open')) { try { dock.hidePopover(); } catch (error) { /* hidden */ } }
+    // Inside the window, as the menu is: whatever stands outside a modal window is inert, in the top layer too.
+    if (dock.parentElement !== modal) modal.append(dock);
+    dock.popover = 'manual'; Object.assign(dock.style, { top: 'auto', left: 'auto', margin: '0', overflow: 'visible' });
+    try { dock.showPopover(); dock.lkOver = modal; } catch (error) { /* not in the page yet */ }
+  } else if (!modal && dock.matches(':popover-open')) { try { dock.hidePopover(); } catch (error) { /* gone */ } dock.removeAttribute('popover'); dock.lkOver = null; }
 }
 const undoAttr = text => String(text).replace(/["\\]/g, '\\$&');
 const undoTargets = entry => { try { const at = entry.at?.(); return (Array.isArray(at) ? at : at ? [at] : []).filter(el => el?.isConnected); } catch (error) { return []; } };
@@ -1292,8 +1379,25 @@ function watchUndos() {
   if (on && !undoState.listening) { for (const type of ['pointerdown', 'mousedown', 'mouseup', 'click']) win.addEventListener(type, onUndoArrow, true); undoState.listening = true; }
   else if (!on && undoState.listening) { for (const type of ['pointerdown', 'mousedown', 'mouseup', 'click']) win.removeEventListener(type, onUndoArrow, true); undoState.listening = false; }
 }
+/* Logseq's own Undo (Cmd+Z) or Redo of a change takes that change's arrow away: an arrow left standing offered to undo what was
+   already undone (the actions walk, 21 November 2026: in Todo and Relations the row's arrow stayed after Cmd+Z). */
+function heedLogseqUndo() {
+  if (undoState.heard || typeof logseq === 'undefined' || !logseq.DB?.onChanged) return;
+  // Logseq's notice of a change made by its Undo carries no mark of it (seen in Logseq 2.0, 21 November 2026), so Cmd+Z (or Redo)
+  // pressed anywhere in Logseq's window is noted, and the change that follows it within a moment is taken as that Undo.
+  const doc = Door.host(), onKey = event => { if ((event.metaKey || event.ctrlKey) && !event.altKey && /^[zy]$/i.test(event.key)) undoState.undoAt = Date.now(); };
+  doc.addEventListener('keydown', onKey, true);
+  const offChange = logseq.DB.onChanged(change => {
+    const meta = change?.txMeta || {};
+    if (!meta['undo?'] && !meta['redo?'] && Date.now() - (undoState.undoAt || 0) > 1500 || !undoState.entries.size) return;
+    const touched = new Set((change.blocks || []).map(block => String(block?.uuid || '')));
+    Door.undo.forget(entry => !entry.node || touched.has(String(entry.node)));
+  });
+  undoState.heard = () => { offChange?.(); doc.removeEventListener('keydown', onKey, true); };
+}
 Door.undo = {
   offer({ owner = '', key, at, text, run, onFail, cls, many = false, docks = true, node = null }) {
+    heedLogseqUndo();
     const before = undoState.entries.get(key);
     for (const [other, entry] of [...undoState.entries]) if (other !== key && !!entry.many === !!many) undoState.entries.delete(other);   // a new change's arrow takes the place of the last one of its size
     const all = before ? async () => { let failed = null; try { await run(); } catch (error) { failed = error; } await before.run(); if (failed) throw failed; } : run;
@@ -1317,7 +1421,7 @@ Door.undo = {
   get size() { return undoState.entries.size; },
   has: key => undoState.entries.has(key),
   keys: () => [...undoState.entries.keys()],
-  stop() { undoState.entries.clear(); try { drawUndoArrows(); watchUndos(); Door.host().querySelector('.lk-undo-dock')?.remove(); } catch (error) { /* Logseq's window is gone */ } },
+  stop() { undoState.entries.clear(); if (typeof undoState.heard === 'function') { try { undoState.heard(); } catch (error) { /* gone */ } } undoState.heard = null; try { drawUndoArrows(); watchUndos(); Door.host().querySelector('.lk-undo-dock')?.remove(); } catch (error) { /* Logseq's window is gone */ } },
 };
 /* The press's icons: one even line, the most literal drawing of what the press does, and anything that moves is an arrow. None
    is a ring, a wave or three dots, so none can be taken for a sort's mark. A press takes one by the shared name lk-i-<name>. */
