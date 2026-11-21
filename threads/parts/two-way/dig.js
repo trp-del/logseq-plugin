@@ -570,6 +570,7 @@ function keepNodeField(box) {
        never saved; until 0.4.5 this bullet showed only after Enter, so few met it). Only while the field still stands on the page:
        a field taken away by a redraw keeps its words as the draft and gets them back. */
     field.addEventListener('blur', () => {
+      if (!field.ownerDocument.hasFocus()) return;   // another app in front: the words wait, as in a Logseq bullet
       twoWay.leaveGhost(field);
       const typed = field.value;
       if (!typed.trim() || !field.isConnected) return;
@@ -906,7 +907,8 @@ function onNodeMenu(event) {
   const key = onName ? keyOfLine(name) : kids.dataset.key, uuid = onName ? name.dataset.uuid : state.dig.get(key)?.uuid || topStep()?.uuid;
   if (!isUuid(uuid) || !key) return false;
   event.preventDefault(); event.stopPropagation(); twoWay.hidePeek(); twoWay.closeAdd();
-  twoWay.adding.pop = shared.popup({ at: onName ? name : line, head: twoWay.shortName(titleOf(uuid)), onClose: () => { twoWay.adding.pop = null; }, items: [addPropItem(uuid, key)] });
+  // The node's menu, the same in every place (PluginDoor.nodeMenu), with Add property… here where the node stands open.
+  window.PluginDoor.nodeMenu(onName ? name : line, uuid, { extra: twoWay.menuLines([addPropItem(uuid, key)]) });
   return true;
 }
 const addPropItem = (uuid, key, title) => ({ icon: 'property', label: 'Add property…', run: () => { addProp(uuid, key, title).catch(error => { warnOnce('could not add a property to the node', error); notify('The property could not be added', 'warning'); }); } });

@@ -475,8 +475,8 @@ function circle(doc, node) {
 }
 function openStatus(from, node) {
   const now = statusOf(node), input = () => S.dlg?.querySelector('.fd-input')?.focus();
-  const menu = window.PluginDoor.menu(from, [{ group: 'Set Status' }, ...[...S.statuses.values()].map(s => ({ word: s.title, icon: window.PluginDoor.statusIconHtml(s.icon, from.ownerDocument), on: s.id === now, take: () => { input(); setStatus(node, s.id); } }))], { align: 'left' });
-  if (!menu) input();
+  // Logseq's own Set Status list, the one every circle opens (PluginDoor.pickStatus).
+  window.PluginDoor.pickStatus(from, [...S.statuses.values()], s => s.id === now).then(s => { input(); if (s) setStatus(node, s.id); });
 }
 const STATUS = 'logseq.property/status';
 const rowsOf = uuid => [...(S.dlg?.querySelectorAll(`.fd-r[data-uuid="${window.CSS.escape(uuid)}"] .fd-nm`) || [])];
@@ -1101,7 +1101,7 @@ function refresh(typing) {
 function onInput() {
   const input = S.dlg.querySelector('.fd-input');
   if (input.value === S.typed) return;
-  S.typed = input.value;
+  S.typed = input.value; S.typedAt = Date.now();
   S.enter = null;
   S.mode = 'rows'; S.rowAt = 0; S.choiceAt = 0; S.allShown = false; S.nearAll = false;
   if (S.lineDug) { S.dug = S.dug.filter(u => u !== S.lineDug); S.lineDug = null; }
@@ -1135,6 +1135,14 @@ function open(typed = '', say = false) {
   // came back); only keys from inside the window are taken.
   S.keys = Find.kit.listen(doc, 'keydown', event => {
     if (S.dlg !== dlg || !dlg.contains(event.target) || event.target.closest?.('.lk-door-menu')) return;
+    /* Undo and Redo from the find line undo the last change made to a node in this window, as on the node's own page (the actions
+       walk, 21 November 2026: Cmd+Z took a letter off the find line and the node kept its new words). Only while nothing was typed in
+       the find line since that change: then the keys are the line's own again. */
+    if (event.target === input && (isMac ? event.metaKey : event.ctrlKey) && !event.altKey && event.key.toLowerCase() === 'z' && (S.changedAt || 0) > (S.typedAt || 0)) {
+      event.preventDefault(); event.stopPropagation();
+      undoNode(event.shiftKey ? 'redo' : 'undo');
+      return;
+    }
     // Inside an opened node the keys are Relations' (a bullet being written, a list of values); Escape outside a field there comes back to the find line.
     if (inNode(event.target)) { if (event.key === 'Escape' && !event.target.closest?.('input, textarea, [contenteditable="true"], [popover]')) { event.preventDefault(); event.stopPropagation(); input.focus(); } return; }
     onKey(event);
@@ -1142,8 +1150,46 @@ function open(typed = '', say = false) {
   for (const type of ['keyup', 'keypress']) dlg.addEventListener(type, event => event.stopPropagation());
   dlg.addEventListener('click', event => { if (!inNode(event.target)) input.focus(); }, true);   // whatever was pressed, the keyboard stays in the one box, but for a press inside an opened node, which is written in where it stands
   dlg.addEventListener('click', event => { if (event.target === dlg) close(); });
+  // A row right-clicked: the node's menu, the same as in Todo and Relations (PluginDoor.nodeMenu), with Open here for the node in place.
+  dlg.addEventListener('contextmenu', event => {
+    if (inNode(event.target)) return;
+    const row = event.target.closest?.('.fd-r[data-uuid]');
+    if (!row) return;
+    event.preventDefault(); event.stopPropagation();
+    const uuid = row.dataset.uuid, ti = id => window.PluginDoor.logseqIconHtml(id, { doc });
+    window.PluginDoor.nodeMenu(row.querySelector('.fd-w') || row, uuid, {
+      open: sidebar => { close(); if (sidebar) logseq.Editor.openInRightSidebar(uuid); else logseq.App.pushState('page', { name: uuid }); },
+      extra: S.dug.includes(uuid) ? [] : [{ word: 'Open here', icon: ti('chevron-down'), take: () => toggleDig({ uuid }) }],
+      changed: () => { if (S.dlg) { refresh(); render(); } },
+    });
+  });
   // The keyboard never falls out of the window: a field of an opened node that ends (Enter, Escape, a list picked) gives it back to the find line.
-  dlg.addEventListener('focusout', () => setTimeout(() => { if (S.dlg !== dlg) return; const at = doc.activeElement; if (!at || at === doc.body || !dlg.contains(at)) input.focus({ preventScroll: true }); }, 0));
+  /* A bullet of an opened node that ends with Enter makes the next bullet, whose field comes a moment later (the node is read again
+     first): the find line waits for it, or the words typed meanwhile went into the search (the actions walk, 21 November 2026). */
+  dlg.addEventListener('focusout', event => {
+    const fromNode = inNode(event.target);
+    if (fromNode) { S.held = ''; S.holding = true; }
+    setTimeout(() => {
+      if (S.dlg !== dlg) return;
+      const at = doc.activeElement;
+      if (!at || at === doc.body || !dlg.contains(at)) { input.focus({ preventScroll: true }); if (S.holding && S.held) { input.value += S.held; onInput(); } }
+      S.holding = false; S.held = '';
+    }, fromNode ? 900 : 0);
+  });
+  // What is typed while the next bullet is being made is held, and written into that bullet when its field comes.
+  doc.addEventListener('keydown', S.holdKeys = event => {
+    if (S.dlg !== dlg || !S.holding) return;
+    const at = doc.activeElement;
+    if (at && at !== doc.body && at !== dlg && dlg.contains(at)) return;
+    if (event.key.length !== 1 || event.metaKey || event.ctrlKey || event.altKey) return;
+    event.preventDefault(); event.stopPropagation();
+    S.held += event.key;
+  }, true);
+  dlg.addEventListener('focusin', event => {
+    if (!S.holding || !inNode(event.target) || !/^(INPUT|TEXTAREA)$/.test(event.target.tagName)) return;
+    const held = S.held; S.holding = false; S.held = '';
+    if (held) setTimeout(() => doc.execCommand('insertText', false, held), 0);
+  });
   // A name pressed inside an opened node goes to its page: the window closes with the page it stood over.
   const win = doc.defaultView;
   dlg.addEventListener('click', event => { if (!event.target.closest?.('[data-th-node]')) return; const was = win?.location.hash; setTimeout(() => { if (S.dlg === dlg && win?.location.hash !== was) close(); }, 350); }, true);
@@ -1152,7 +1198,7 @@ function open(typed = '', say = false) {
   // leaves room for the rows shown before "show all", under three lines of choices.
   doc.body.appendChild(dlg);
   S.dlg = dlg; S.doc = doc;
-  Object.assign(S, { typed, picks: [], spans: [], words: [], trail: [], trailFrom: typed.length, mode: 'rows', rowAt: 0, choiceAt: 0, allShown: false, nearAll: false, dug: [], failed: '', enter: null, near: [], nearShown: [], line: 0, lineAt: 0, lineDots: [], lineDug: null, lineH: 52 });
+  Object.assign(S, { typed, typedAt: 0, changedAt: 0, picks: [], spans: [], words: [], trail: [], trailFrom: typed.length, mode: 'rows', rowAt: 0, choiceAt: 0, allShown: false, nearAll: false, dug: [], failed: '', enter: null, near: [], nearShown: [], line: 0, lineAt: 0, lineDots: [], lineDug: null, lineH: 52 });
   setHeight();
   S.moreOf.clear(); S.openGroups.clear(); S.groupAll.clear();
   if (typeof dlg.showModal === 'function') dlg.showModal(); else dlg.setAttribute('open', '');
@@ -1162,10 +1208,20 @@ function open(typed = '', say = false) {
   readNow();
   refresh();
 }
+// Logseq's own Undo (or Redo), then the rows read the graph again, and the Undo arrows Find offered go, as their change is undone.
+async function undoNode(which) {
+  try { await logseq.App.invokeExternalCommand(`logseq.editor/${which}`); }
+  catch (error) { console.error('Find: Logseq could not ' + which, error); return; }
+  window.PluginDoor.undo.clear('find');
+  S.statusNow.clear();
+  await readStatuses();
+  if (S.dlg) { refresh(); render(); }
+}
 function close() {
   if (!S.dlg) return;
   const d = S.dlg; S.dlg = null;
   if (S.keys) { S.keys(); S.keys = null; }
+  if (S.holdKeys) { S.doc?.removeEventListener('keydown', S.holdKeys, true); S.holdKeys = null; S.holding = false; }
   window.PluginDoor.menu.close();
   try { d.close(); } catch (error) { /* not open */ }
   d.remove();
@@ -1181,7 +1237,7 @@ function commands() {
 }
 // The graph changed: what was read is read again next time. What an open window shows stays until the next opening.
 // Another graph (whole): what was read is another graph's, so nothing of it is shown again.
-function forget(whole = false) { S.cache.kind.clear(); S.cache.kindFacets.clear(); S.cache.counted.clear(); S.cache.words.clear(); S.stale = true; if (whole) { S.kinds = []; S.tree = null; S.recents = []; S.pages = null; } db.forget(); }
+function forget(whole = false) { if (S.dlg) S.changedAt = Date.now(); S.cache.kind.clear(); S.cache.kindFacets.clear(); S.cache.counted.clear(); S.cache.words.clear(); S.stale = true; if (whole) { S.kinds = []; S.tree = null; S.recents = []; S.pages = null; } db.forget(); }
 
 /* Read once, a moment after the plugin starts, what the window shows with nothing typed (the kinds, their tree, the recent pages),
    so the first opening has them: without it the first window of a session stood empty for about a tenth of a second. */

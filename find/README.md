@@ -87,3 +87,11 @@ Nothing is kept on Logseq's page when the module stops: its elements carry `fd-o
 ## Checks
 
 `node tools/check.js` from the plugin's folder checks a change to this part (the root README says what it checks).
+
+**Acting on a row** (21 November 2026, the actions walk). A row right-clicked opens the node's menu, the same in every place
+(PluginDoor.nodeMenu: Open, Open in sidebar, Go to its page, Set status…, Add tag…, Open here, Delete); a change shows on the row
+at once, and its Undo line stands inside Find's window. Cmd+Z in the find line undoes the last change made to a node in the
+window (Logseq's own Undo; Shift-Cmd+Z redoes), as long as nothing was typed in the find line since; after typing there it undoes
+the typing. In a node opened in place, Enter at the end of a line starts the next one, and words typed at once go into it, not into
+the search; going to another app leaves a line being written open, as in Logseq.
+
