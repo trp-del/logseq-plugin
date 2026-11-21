@@ -919,7 +919,7 @@ function foot(doc, groups, rows) {
      window"): a press or ⌥⌘K turns this window into Find by sentence, with its timeline. */
   const way = () => S.say ? items : items.concat(el(doc, 'span', { class: 'fd-say-way' }, el(doc, 'button', { class: 'lk-btn lk-low', type: 'button', title: 'Find by sentence, with its timeline', click: () => sentence() }, 'By sentence', el(doc, 'span', { class: 'fd-k', html: window.PluginDoor.keyCaps('mod+alt+k') }))));
   if (atRest()) return way();
-  if (cur?.kind === 'node' && cur.top) add(KEY(S.dug.includes(cur.node.uuid) ? '←' : '→', S.dug.includes(cur.node.uuid) ? 'close' : 'dig'));
+  if (cur?.kind === 'node' && cur.top) { if (S.dug.includes(cur.node.uuid)) { add(KEY('→', 'into it')); add(KEY('←', 'close')); } else add(KEY('→', 'dig')); }
   if (cur?.kind === 'group') add(KEY(S.openGroups.has(cur.key) ? '←' : '→', S.openGroups.has(cur.key) ? 'close' : 'open'));
   if (!S.say && S.picks.length && !S.typed) add(KEY('Backspace', `take ${esc(S.picks[S.picks.length - 1].title || S.picks[S.picks.length - 1].label)} off`));
   if (canMake()) { const name = S.typed.trim(); items.push(el(doc, 'span', { class: 'fd-right' }, el(doc, 'button', { class: 'lk-btn lk-low lk-i-plus', type: 'button', title: 'Make a page with these words as its name', click: () => makePage(name) }, `make a page “${name}”`, el(doc, 'span', { class: 'fd-k', html: window.PluginDoor.keyCaps(makesPage(rows) ? 'enter' : 'mod+enter') })))); }
@@ -1070,6 +1070,9 @@ function onKey(event) {
     } else {
       // In the letters the arrows move the caret; at an end, or with no letters, they dig and close.
       if (S.typed && ((right && input.selectionEnd < input.value.length) || (!right && input.selectionStart > 0))) return;
+      // → on a node already open goes into it: its first line, the caret at the end (items 1–10, item 6: no key led from the find
+      // line into an opened node). Escape there comes back to the find line.
+      if (open === true && right && cur.kind === 'node') { take(); intoNode(cur.node.uuid); return; }
       if (open == null || open === right) { take(); return; }
     }
     take();
@@ -1161,6 +1164,9 @@ function open(typed = '', say = false) {
       open: sidebar => { close(); if (sidebar) logseq.Editor.openInRightSidebar(uuid); else logseq.App.pushState('page', { name: uuid }); },
       extra: S.dug.includes(uuid) ? [] : [{ word: 'Open here', icon: ti('chevron-down'), take: () => toggleDig({ uuid }) }],
       changed: () => { if (S.dlg) { refresh(); render(); } },
+      // Add property… and Add a line work on the node opened in place, as in Relations: it opens here first if it is not open.
+      property: () => { inPlace(uuid).then(at => at && window.PluginDoor.ask('relations:addProp', uuid, at)); },
+      newLine: () => { inPlace(uuid).then(at => at && window.PluginDoor.ask('relations:newLine', uuid, at)); },
     });
   });
   // The keyboard never falls out of the window: a field of an opened node that ends (Enter, Escape, a list picked) gives it back to the find line.
@@ -1207,6 +1213,21 @@ function open(typed = '', say = false) {
   readStatuses().then(() => { if (S.dlg === dlg) render(); });
   readNow();
   refresh();
+}
+// Into the node opened under its row: its first line written in, or a new line where it has none (Relations' copy draws it).
+async function intoNode(uuid) {
+  const at = await inPlace(uuid);
+  if (at) window.PluginDoor.ask('relations:editLine', uuid, at);
+}
+// The node opened in place under its row (opened now if it was not), once Relations has drawn it: its holder, or null.
+async function inPlace(uuid) {
+  if (!S.dug.includes(uuid)) await toggleDig({ uuid });
+  for (let i = 0; i < 40; i++) {
+    const at = S.dlg?.querySelector(`.fd-kids[data-dug="${window.CSS.escape(uuid)}"] .th-ol-kids`);
+    if (at) return at;
+    await new Promise(r => setTimeout(r, 100));
+  }
+  return null;
 }
 // Logseq's own Undo (or Redo), then the rows read the graph again, and the Undo arrows Find offered go, as their change is undone.
 async function undoNode(which) {

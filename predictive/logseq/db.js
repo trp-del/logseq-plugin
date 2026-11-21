@@ -225,6 +225,20 @@ async function currentIds(uuid, prop) {
    format the graph uses (MMM do, yyyy; E, dd.MM.yyyy; yyyyMMdd ...), read once from Logseq's settings. */
 // A day's journal page, made when the graph has none yet, and its title in the graph's date format: the door's date service
 // (plugin.js, Door.dates), the same in every module.
+// The lines learned from that are no longer in the graph (deleted, or in Logseq's Recycle): forgotten, as a deleted line is at the
+// next full reading. Asked after a deletion (logseq/app.js learnSoon).
+async function forgetGone(ctx) {
+  const ids = (ctx?.index?.entries || []).map(e => e.id).filter(isEntityId);
+  if (!ids.length) return;
+  const here = new Set();
+  for (let i = 0; i < ids.length; i += 2000) {
+    const part = ids.slice(i, i + 2000);
+    for (const [id] of await dsQuery(`[:find ?b :where [(ground #{${part.join(' ')}}) [?b ...]] [?b :block/uuid _] (not [?b :logseq.property/deleted-at _])]`).catch(() => part.map(id => [id]))) here.add(Number(id));
+  }
+  const gone = ids.filter(id => !here.has(id));
+  for (const id of gone) learnEntry(ctx, id, null);
+  if (gone.length) Flow.meaningAsk?.learnIds?.(ctx, gone);
+}
 const forget = () => window.PluginDoor.dates.forget();   // each graph has its own format
 const journalPageFor = day => window.PluginDoor.dates.pageFor(day, dsQuery);
 
@@ -247,6 +261,6 @@ const addTag = (uuid, tagUuid) => window.PluginDoor.write.addTag(uuid, tagUuid);
 const removeTag = (uuid, tagUuid) => window.PluginDoor.write.removeTag(uuid, tagUuid);
 const currentGraph = () => Promise.resolve(logseq.App.getCurrentGraph?.()).catch(() => null);
 
-Flow.db = { forget, dsQuery, bare, pick, idOf, valuesOf, loadSchema, loadPages, loadPdfs, pagesNamed, pullBlock, pullBlockById, valueEntities, bulletOf, readContext, learnNodes,
+Flow.db = { forget, forgetGone, dsQuery, bare, pick, idOf, valuesOf, loadSchema, loadPages, loadPdfs, pagesNamed, pullBlock, pullBlockById, valueEntities, bulletOf, readContext, learnNodes,
   currentIds, valueTitle, journalPageFor, makePage, dropPage, setValue, unsetValue, addTag, removeTag, currentGraph };
 })();

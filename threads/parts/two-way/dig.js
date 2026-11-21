@@ -865,7 +865,10 @@ const keyOfLine = name => {
 const nameAt = (key, uuid) => [...state.box?.querySelectorAll(`a.th-tw-record[data-uuid="${CSS.escape(uuid)}"]`) || []].find(a => keyOfLine(a) === key) || null;
 async function addProp(uuid, key, title = '') {
   if (!isUuid(uuid) || !key || state.addProp) return;
-  const at = () => nameAt(key, uuid) || state.box?.querySelector(`.th-ol-kids[data-key="${CSS.escape(key)}"]`)?.previousElementSibling || state.box;
+  // The list stands under the node's last property line where the node's own name is not in this box (a node opened in Find or
+  // Todo: its name is the other part's row), never at the box's corner (21 November 2026).
+  const kidsOf = () => state.box?.querySelector(`.th-ol-kids[data-key="${CSS.escape(key)}"]`);
+  const at = () => nameAt(key, uuid) || [...(kidsOf()?.querySelectorAll('.th-ol-prop > .th-ol-pname') || [])].filter(n => n.closest('.th-ol-kids') === kidsOf()).pop() || kidsOf() || state.box;
   if (!state.node.has(uuid) || state.node.get(uuid).looked) await readNode(uuid);
   const data = state.node.get(uuid);
   if (!data) return;
@@ -908,14 +911,27 @@ function onNodeMenu(event) {
   if (!isUuid(uuid) || !key) return false;
   event.preventDefault(); event.stopPropagation(); twoWay.hidePeek(); twoWay.closeAdd();
   // The node's menu, the same in every place (PluginDoor.nodeMenu), with Add property… here where the node stands open.
-  window.PluginDoor.nodeMenu(onName ? name : line, uuid, { extra: twoWay.menuLines([addPropItem(uuid, key)]) });
+  window.PluginDoor.nodeMenu(onName ? name : line, uuid, { property: () => addPropItem(uuid, key).run(), newLine: () => { newLine(uuid, key).catch(error => warnOnce('could not start a line', error)); } });
   return true;
+}
+/* A new line at the end of a node, from the node's menu (the owner, 21 November 2026: items 1–10, "Add a line under it" from any row):
+   the node opens in place where it is shown, if it is not open, and the caret goes into the line after its last bullet. */
+async function newLine(uuid, key, title = '') {
+  if (!isUuid(uuid) || !key) return;
+  if (!state.dig.has(key)) await toggleDig(key, uuid, 0, title || titleOf(uuid));
+  const kids = () => state.box?.querySelector(`.th-ol-kids[data-key="${CSS.escape(key)}"]`);
+  for (let i = 0; i < 30 && !kids()?.querySelector(`.th-tw-node-field, .ls-block`); i++) await new Promise(r => setTimeout(r, 100));
+  if (state.box?.querySelector(`.th-tw-node-field[data-key="${CSS.escape(key)}"]`)) { focusNodeField(key); return; }
+  // Where Logseq's own editor draws the node's lines (a node opened on a page) there is no line of the plugin's to write in: a new
+  // bullet after the last one, and Logseq's editor in it, as Enter at the end of that line would make.
+  const made = await twoWay.model.addLineTo(uuid, '').catch(error => { warnOnce('could not start a line', error); return null; });
+  if (made?.uuid) { await new Promise(r => setTimeout(r, 300)); await twoWay.model.editBlock(String(made.uuid)).catch(error => warnOnce('could not start writing the new line', error)); }
 }
 const addPropItem = (uuid, key, title) => ({ icon: 'property', label: 'Add property…', run: () => { addProp(uuid, key, title).catch(error => { warnOnce('could not add a property to the node', error); notify('The property could not be added', 'warning'); }); } });
 twoWay.lineMenuHooks.push((group, item) => {
   const name = state.box?.querySelector(`.th-tw-row[data-field="${CSS.escape(group.name)}"] .th-tw-line[data-uuid="${CSS.escape(item.uuid)}"] a.th-tw-record`);
   const key = keyOfLine(name);
-  return key && isUuid(item.uuid) ? [addPropItem(item.uuid, key, twoWay.shortName(item.title))] : [];
+  return key && isUuid(item.uuid) ? [{ ...addPropItem(item.uuid, key, twoWay.shortName(item.title)), nodeLine: 'property' }, { label: 'Add a line', nodeLine: 'newLine', run: () => { newLine(item.uuid, key, item.title).catch(error => warnOnce('could not start a line', error)); } }] : [];
 });
 // Logseq's own key for "Add property", the one in force, while the keyboard is on a node's name.
 twoWay.starters.push(() => {
@@ -996,6 +1012,6 @@ function settle() {
     closeDig(deepest);
   }
 }
-Object.assign(twoWay, { escapeBack, settle, inPlaceHtml, flipRects, flipPlay, editWordsAt, nodeTopHtml, addProp, onNodeMenu, closeDig, digChev, holdsMore, digKids, editBullet, focusNodeField, keepNodeField, onOutlineClick, pinNow, readNode, reading, stepBack, steppedHtml, topStep });
+Object.assign(twoWay, { newLine, escapeBack, settle, inPlaceHtml, flipRects, flipPlay, editWordsAt, nodeTopHtml, addProp, onNodeMenu, closeDig, digChev, holdsMore, digKids, editBullet, focusNodeField, keepNodeField, onOutlineClick, pinNow, readNode, reading, stepBack, steppedHtml, topStep });
 });
 })();

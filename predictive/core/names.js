@@ -70,7 +70,26 @@ function allNamedIn(words, classIds, ctx, spoken) {
   return [...new Set(kept.sort((a, b) => a.from - b.from).map(s => s.page))];
 }
 
-const api = { namesFor, namedIn, allNamedIn, wordsEarned, telling };
+/* Which way the words send a page they name: 'to', 'from' or ''. Read from the few words before its name: "Paid off the Amex Gold
+   card", "Moved 500 to Emergency fund" send it to; "Moved 500 from Chase Checking" sends it from. For a tag with two properties that
+   take the same pages, From account and To account (items 1–10, item 7, 21 November 2026: "Paid off the Amex Gold card" pencilled
+   From account = Amex Gold). words: the bullet's words in order, as namedIn reads them. */
+const TO_CUES = new Set(['to', 'into', 'onto', 'toward', 'towards', 'off', 'paid', 'pay', 'paying', 'pays', 'deposited', 'deposit']);
+const FROM_CUES = new Set(['from', 'out', 'withdrew', 'withdraw', 'withdrawn']);
+function directionOf(words, page, ctx) {
+  const { whole } = namesFor(ctx);
+  let at = -1;
+  words.forEach((word, i) => { if (at < 0) for (const { page: p, words: name } of whole.get(word) || []) if (p === page && name.every((w, k) => words[i + k] === w)) { at = i; break; } });
+  if (at < 0) return '';
+  for (let i = at - 1; i >= Math.max(0, at - 3); i--) {
+    if (FROM_CUES.has(words[i])) return 'from';
+    if (TO_CUES.has(words[i])) return 'to';
+  }
+  return '';
+}
+// The way a property's own name says it goes: "From account" from, "To account" to, any other none.
+const sideOf = prop => (/^\s*from\b/i.test(prop?.title || '') ? 'from' : /^\s*to\b/i.test(prop?.title || '') ? 'to' : '');
+const api = { namesFor, namedIn, allNamedIn, wordsEarned, telling, directionOf, sideOf };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 if (typeof window !== 'undefined') (window.Flow ||= {}).names = api;
 })();

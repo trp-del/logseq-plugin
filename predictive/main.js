@@ -131,7 +131,7 @@ async function main() {
   logseq.App.registerCommandPalette({ key: 'flow-model-measure', label: 'Predictive: measure Apple’s tools on this graph' }, () => Flow.measureUi.open());
   logseq.App.registerCommandPalette({ key: 'flow-reread', label: 'Predictive: read the graph again' }, async () => { Flow.app.forget(); await Flow.app.context(); Flow.app.notify('Read the graph again'); });
   const { onStop } = Flow.app;
-  onStop(logseq.DB.onChanged(({ blocks }) => Flow.app.learnSoon(blocks)));
+  onStop(logseq.DB.onChanged(({ blocks, txMeta }) => Flow.app.learnSoon(blocks, txMeta)));
   onStop(logseq.onSettingsChanged?.((now, before) => { if (!window.PluginDoor.settingChanged(['tagEagerness'], now, before)) return; const ctx = Flow.app.state.ctx; if (ctx) Object.assign(ctx.limits, Flow.app.tagLimits()); }));   // applies at once, no new reading
   onStop(logseq.App.onCurrentGraphChanged(() => Flow.app.forget()));
   Flow.app.context().catch(() => {});   // the first reading starts at once and is never waited for while typing

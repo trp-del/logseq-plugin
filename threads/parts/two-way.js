@@ -968,7 +968,7 @@ function draw(doc) {
     /* A press inside a line Logseq's own editor draws (a node opened on a page) goes on to Logseq, which starts writing where it
        lands, beside the words too, as on the node's own page (the actions walk, 21 November 2026: a press just after the last word
        did nothing there). Every other press stays the section's. */
-    box.addEventListener('mousedown', event => { if (!event.target.closest?.('.ls-block')) event.stopPropagation(); if (state.find && event.target.closest?.('.th-chev, [data-findall]')) event.preventDefault(); });
+    box.addEventListener('mousedown', event => { if (!event.target.closest?.('.ls-block') || event.target.closest?.('.th-ls-tail')) event.stopPropagation(); if (state.find && event.target.closest?.('.th-chev, [data-findall]')) event.preventDefault(); });
     box.addEventListener('click', onClick);
     // Enter or Space on a task's circle opens its list: Logseq takes Enter on the page before a button can make it a click.
     box.addEventListener('keydown', event => { const task = (event.key === 'Enter' || event.key === ' ') && !event.isComposing && event.target.closest?.('[data-task]'); if (!task) return; event.preventDefault(); event.stopPropagation(); setStatus(task).catch(error => warnOnce('could not set the status', error)); });
@@ -1059,6 +1059,7 @@ function draw(doc) {
   if (anchor.nextElementSibling !== box) anchor.after(box);
   // Logseq's editor into each opened node's place (dig.js, nodeHtml), once for an element, and only once the section stands on the page.
   for (const el of box.querySelectorAll('.th-ls-node[data-ls-node]')) if (!el.__lkEditor && el.isConnected) el.__lkEditor = window.PluginDoor.nodeEditor.show(el, el.dataset.lsNode);
+  if (!state.tailsWatch) state.tailsWatch = window.PluginDoor.watch(() => lsTails(box));
   // A node opened in another part's window rolls out once, when it is first drawn there, so the rows under it glide down (the plugin's one motion).
   if (pane.node && rows && html && state.nodeRolled !== state.pageUuid) { state.nodeRolled = state.pageUuid; window.PluginDoor.unroll?.([box]); }
   // The room a page held is the main view's (measured under its title row); the right half waits for its property list instead.
@@ -1224,6 +1225,21 @@ const valueBox = (uuid, prop) => inBox(`.th-ol-pname[data-edit="${CSS.escape(pro
    back to how the name reads by itself. Undo is the arrow after the row's name. */
 /* The right-click on a row's name opens a short menu under it, the kit's pop-up: Group by…, Open in the map,
    Reads back as…, Hide where it points. One “…” for every item that asks before it acts; every item has its icon (the audit's 25). */
+/* "could be a …" after a bullet Logseq's own editor draws in an opened node, as after the section's own bullets (twoWay.bulletTail;
+   items 1–10, item 5: the pencil was lost where Logseq's editor draws the lines). Put after the bullet's words each time Logseq draws
+   them, and read once a bullet's guess has come. */
+function lsTails(box) {
+  if (!box?.isConnected || !twoWay.bulletTail) return;
+  for (const block of box.querySelectorAll('.th-ls-node .ls-block[blockid]')) {
+    const uuid = block.getAttribute('blockid'), content = block.querySelector(':scope > div .block-content-wrapper') || block.querySelector('.block-content-wrapper');
+    if (!content || content.closest('.ls-block') !== block || content.querySelector(':scope > .th-ls-tail')) continue;
+    const html = twoWay.bulletTail(uuid);
+    if (!html) { if (!state.raise?.has(uuid)) twoWay.prepareRaise?.(uuid).then(() => lsTails(box)).catch(() => {}); continue; }
+    const tail = box.ownerDocument.createElement('span');
+    tail.className = 'th-ls-tail'; tail.innerHTML = html;
+    content.append(tail);
+  }
+}
 // The popup's items ({ icon, label, run }) as the library menu's lines ({ icon, word, take }), for the node's menu.
 twoWay.menuLines = items => items.filter(Boolean).filter(item => !item.sep && item.run).map(item => ({ word: item.label, icon: item.icon ? shared.iconHtml(item.icon) : '', take: item.run }));
 function onRename(event) {
@@ -1236,7 +1252,8 @@ function onRename(event) {
     const items = lineMenuHooks.flatMap(hook => hook(group, item) || []);
     event.preventDefault(); event.stopPropagation(); twoWay.hidePeek(); twoWay.closeAdd();
     // The node's menu, the same in every place (PluginDoor.nodeMenu), with this list's own lines (Pin, Add property…) in it.
-    window.PluginDoor.nodeMenu(lineEl.querySelector('.th-tw-record') || lineEl, item.uuid, { extra: twoWay.menuLines(items) });
+    const own = which => items.find(i => i?.nodeLine === which)?.run;
+    window.PluginDoor.nodeMenu(lineEl.querySelector('.th-tw-record') || lineEl, item.uuid, { property: own('property'), newLine: own('newLine'), extra: twoWay.menuLines(items.filter(i => !i?.nodeLine)) });
     return;
   }
   const nameEl = event.target.closest?.('.th-tw-name') || event.target.closest?.('.th-tw-head')?.closest('.th-tw-row')?.querySelector('.th-tw-name');
@@ -1476,6 +1493,21 @@ function start() {
     onUnload(() => { twoWay.copies = twoWay.copies.filter(copy => copy !== made.twoWay); return made.stop(); });
   }
   onUnload(window.PluginDoor.offerAsk('relations:node', () => NODE_HOLDERS));
+  /* The node's menu in another part's window (Find, Todo) reaches the copy that draws the node there: Add property… and Add a line
+     work on the node opened in place, the same as in a list here. el: an element inside that window's holder. */
+  // The other part may draw its row again as the node opens (Todo does), so a holder found before it is looked up again by the node.
+  const copyAt = (uuid, el) => {
+    const at = el?.isConnected ? el : host().querySelector(`[data-th-node="${CSS.escape(uuid)}"] .th-ol-kids, .fd-kids[data-dug="${CSS.escape(uuid)}"] .th-ol-kids`);
+    return (twoWay.copies || [twoWay]).find(copy => copy.state?.box && at && copy.state.box.contains(at)) || null;
+  };
+  onUnload(window.PluginDoor.offerAsk('relations:addProp', (uuid, el) => copyAt(uuid, el)?.addProp(uuid, `node>${uuid}`)));
+  onUnload(window.PluginDoor.offerAsk('relations:newLine', (uuid, el) => copyAt(uuid, el)?.newLine(uuid, `node>${uuid}`)));
+  // The keyboard into a node opened in another part's window: its first bullet written in, else a new line.
+  onUnload(window.PluginDoor.offerAsk('relations:editLine', (uuid, el) => {
+    const copy = copyAt(uuid, el), first = copy?.state.box?.querySelector(`.th-ol-kids[data-key="node>${CSS.escape(uuid)}"] [data-edit-bullet]`);
+    if (!copy) return null;
+    return first ? copy.editBullet(first.dataset.editBullet) : copy.newLine(uuid, `node>${uuid}`);
+  }));
   onUnload(window.PluginDoor.offerAsk('relations:editWords', (uuid, el) => twoWay.editWordsAt(uuid, el)));
   // Logseq's own Set picker, lent to the node's menu in every place (PluginDoor.nodeMenu), so its status and tag lists are this one.
   onUnload(window.PluginDoor.offerAsk('relations:pickValue', options => shared.pickValue(options)));

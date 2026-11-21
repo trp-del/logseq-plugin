@@ -5,13 +5,14 @@
    column of its own. The look of the bar itself is calm.js's (calmTables); this part reads the view and marks what to hide. */
 (function () {
 const Look = window.Look;
-const { host, el, onGraphChange, onStop } = Look.kit;
+const { host, el, onGraphChange, onStop, style } = Look.kit;
 const Door = window.PluginDoor;
 const HEAD = '#main-content-container .ls-view-head, #right-sidebar .ls-view-head';
 const NAMES = { title: 'Name', 'updated-at': 'Updated', 'created-at': 'Created' };
 const BY_DATE = new Set(['updated-at', 'created-at']);
 const known = new Map();      // a view's uuid → what it is cut by, once read
 const reading = new Set();
+const stale = new Set();      // views read before the graph last changed: their line keeps its words until the new answer comes
 const names = new Map();      // a property's ident → its name
 let generation = 0;
 
@@ -66,14 +67,16 @@ function drawLine(doc, head, root, uuid) {
   const key = state ? [state.sort, state.group, state.filter].join('|') : '';
   if (line.dataset.lkUuid === uuid && line.dataset.lkKey === key) return;
   line.dataset.lkUuid = uuid; line.dataset.lkKey = key;
-  if (!state) { line.replaceChildren(); return; }
+  /* Until the view is read, the line keeps the room of one press, an unseen one, so the words come into room kept and the table under
+     it never moves (it went 6 px down as the words came, 19 November 2026). */
+  if (!state) { const room = press(doc, '\u200b', 'sort'); room.style.visibility = 'hidden'; room.tabIndex = -1; room.setAttribute('aria-hidden', 'true'); line.replaceChildren(room); return; }
   line.replaceChildren(...[['sort', state.sort], ['group', state.group], ['filter', state.filter]].filter(([, words]) => words).map(([what, words]) => press(doc, words, what)));
 }
 function ask(uuid) {
-  if (known.has(uuid) || reading.has(uuid)) return;
+  if ((known.has(uuid) && !stale.has(uuid)) || reading.has(uuid)) return;
   reading.add(uuid);
   const mine = generation;
-  read(uuid).then(state => { reading.delete(uuid); if (mine !== generation || !state) return; known.set(uuid, state); Look.kit.run(host()); }, error => { reading.delete(uuid); console.error('Look: could not read how a table is cut', error); });
+  read(uuid).then(state => { reading.delete(uuid); if (mine !== generation || !state) return; stale.delete(uuid); known.set(uuid, state); Look.kit.run(host()); }, error => { reading.delete(uuid); console.error('Look: could not read how a table is cut', error); });
 }
 // A grouped table says its column names once: the first of its tables keeps them.
 function markHeads(root) {
@@ -120,6 +123,38 @@ function markTags(doc, root) {
     if (table.getAttribute('data-lk-notags') !== want) { if (want) table.setAttribute('data-lk-notags', want); else table.removeAttribute('data-lk-notags'); }
   }
 }
+/* A table's columns drawn where they stay (the release check's motion fault, fixed 19 November 2026 at the owner's "ok go ahead").
+   Logseq draws a tag's table in steps: the built-in columns first (Name, Tags, Created, Updated), the tag's own (Provider, Topic,
+   Date) a moment later and before them, so Created and Updated slid right 20–40 px and more as the page drew, on the page and in the
+   right sidebar, with the plugin or without it. Each table is held out of sight, its room kept, from the frame it is first drawn until
+   its columns are whole: the columns this view showed last time are all there, or its columns have not changed for a moment
+   (MOTION.columnsSettle), and never longer than MOTION.columnsWait. Nothing about the table changes: it appears once, as it stays. */
+const COLS_KEY = 'look-table-columns';
+const lastColumns = (() => { try { return new Map(Object.entries(JSON.parse(localStorage.getItem(COLS_KEY) || '{}'))); } catch (e) { return new Map(); } })();
+const holds = new WeakMap();  // a table as first drawn → { uuid, sig, born, changed, timer, done }
+const columnsOf = table => [...table.querySelectorAll('.ls-table-header .ls-table-header-cell [title]')].map(e => e.getAttribute('title'));
+function holdColumns(table, uuid) {
+  const now = performance.now(), names = columnsOf(table), sig = names.join('|');
+  let h = holds.get(table);
+  // Held only as it is first drawn: a table already on screen (another view of it chosen, a column added) is never hidden.
+  if (!h) { h = { uuid, sig, born: now, changed: now, timer: 0, done: false }; holds.set(table, h); table.setAttribute('data-lk-hold', ''); }
+  if (h.done) return;
+  if (h.uuid !== uuid) h.uuid = uuid;   // the view's tab is read a moment after the table comes
+  if (sig !== h.sig) { h.sig = sig; h.changed = now; }
+  const want = uuid && lastColumns.get(uuid);
+  const settle = Door.MOTION.columnsSettle.ms, wait = Door.MOTION.columnsWait.ms;
+  const whole = (names.length > 0 && want && want.every(n => names.includes(n))) || (names.length > 0 && now - h.changed >= settle) || now - h.born >= wait;
+  clearTimeout(h.timer);
+  if (!whole) { h.timer = setTimeout(() => { if (table.isConnected) holdColumns(table, uuid); }, Math.max(16, Math.min(settle - (now - h.changed), wait - (now - h.born)))); return; }
+  h.done = true;
+  table.removeAttribute('data-lk-hold');
+  if (uuid && names.length && sig !== (want || []).join('|')) {
+    lastColumns.set(uuid, names);
+    try { localStorage.setItem(COLS_KEY, JSON.stringify(Object.fromEntries([...lastColumns].slice(-300)))); } catch (e) { /* kept for this run only */ }
+  }
+}
+const holdTables = (root, uuid) => { for (const table of root.querySelectorAll('.ls-table')) holdColumns(table, uuid); };
+const holdCss = `:is(#main-content-container, #right-sidebar) .ls-table[data-lk-hold] { visibility: hidden; }`;
 // What a table's head says, found for each table on the screen: its root and the uuid of the view in force.
 function eachHead(doc, fn) {
   for (const head of doc.querySelectorAll(HEAD)) {
@@ -135,21 +170,25 @@ function pass(doc) {
     drawLine(doc, head, root, uuid);
     markHeads(root);
     markTags(doc, root);
+    holdTables(root, uuid);
   });
 }
 function start() {
   /* The state line's room and the Tags column are settled in the frame Logseq draws the table (the early pass runs before the screen
      is painted): the line came a frame later and pushed the table down 28 px, and the columns after Tags slid 180 px left (the release
      check's motion faults, 18 November 2026). The words of the line come when the view is read, into room already kept. */
-  Look.kit.watchScreen(pass, doc => eachHead(doc, (head, root, uuid) => { drawLine(doc, head, root, uuid); markTags(doc, root); }));
+  style('tables', holdCss);
+  Look.kit.watchScreen(pass, doc => eachHead(doc, (head, root, uuid) => { drawLine(doc, head, root, uuid); markTags(doc, root); holdTables(root, uuid); }));
   // A change in the graph may be a sort, a group or a filter changed: read again after it.
-  onGraphChange(pages => { generation++; known.clear(); reading.clear(); if (pages) readSolo().catch(() => {}); Look.kit.run(host()); });   // words alone written change no node's tags
+  /* The line keeps its words while the view is read again: emptied, it stood 6 px shorter for a frame on every change in the graph (a
+     key typed anywhere), and the table under it went up and down (19 November 2026, Doctor in the right sidebar). */
+  onGraphChange(pages => { generation++; for (const uuid of known.keys()) stale.add(uuid); reading.clear(); if (pages) readSolo().catch(() => {}); Look.kit.run(host()); });   // words alone written change no node's tags
   readSolo().catch(error => console.error('Look: could not read which tags stand alone on their nodes', error));
   onStop(() => {
-    generation++; known.clear(); reading.clear();
+    generation++; known.clear(); stale.clear(); reading.clear();
     const doc = host();
     for (const node of doc.querySelectorAll('.lk-tstate')) node.remove();
-    for (const attr of ['data-lk-nohead', 'data-lk-notags']) for (const node of doc.querySelectorAll(`[${attr}]`)) node.removeAttribute(attr);
+    for (const attr of ['data-lk-nohead', 'data-lk-notags', 'data-lk-hold']) for (const node of doc.querySelectorAll(`[${attr}]`)) node.removeAttribute(attr);
   });
 }
 Look.tables = { start, stop() {}, read, pass };

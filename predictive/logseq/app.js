@@ -94,14 +94,19 @@ async function freshLinks(ctx, text) {
 }
 
 // What changed in the graph is learned a moment later, so a value filled in counts for the next bullet at once.
-const learning = { ids: new Set(), timer: 0 };
-function learnSoon(blocks) {
+const learning = { ids: new Set(), timer: 0, sweep: false };
+/* A deletion's notice names the page the bullet stood on, never the bullet (seen in Logseq 2.0, 21 November 2026), so a bullet
+   deleted while Logseq is open went on being learned from until the next full reading: three deleted scratch bullets outvoted a
+   real one (17 November). After a deletion the lines learned from are looked up again, and those gone are forgotten. */
+function learnSoon(blocks, meta) {
   for (const block of blocks || []) { const id = block?.id ?? db.idOf(block); if (Number.isSafeInteger(id) && id > 0) learning.ids.add(id); }
-  if (!learning.ids.size || !state.ctx) return;
+  if (meta?.outlinerOp === 'delete-blocks' || meta?.outlinerOp === 'delete-page') learning.sweep = true;
+  if ((!learning.ids.size && !learning.sweep) || !state.ctx) return;
   clearTimeout(learning.timer);
   learning.timer = setTimeout(() => {
     const ids = [...learning.ids]; learning.ids.clear();
-    db.learnNodes(state.ctx, ids).catch(error => warnOnce('a changed node could not be learned', error));
+    const sweep = learning.sweep; learning.sweep = false;
+    db.learnNodes(state.ctx, ids).then(() => sweep && db.forgetGone(state.ctx)).catch(error => warnOnce('a changed node could not be learned', error));
   }, 400);
 }
 

@@ -4,7 +4,7 @@
    Relations; Add tag… from Find's menu tags the node. */
 module.exports = {
   parts: ['find', 'todo', 'threads', 'shared'],
-  name: 'A right-click on a node opens the same node menu in Find, Todo and Relations, and Add tag… there tags it',
+  name: 'A right-click on a node opens the same node menu in Find, Todo and Relations (Add property…, Add a line among its lines), and Add tag… there tags it',
   from: '21 Nov: the actions walk',
   graph: 'Illness Test Graph',
   async check(box, T) {
@@ -15,7 +15,7 @@ module.exports = {
     const uuid = await f.evaluate(async () => { const p = await logseq.Editor.getPage('Dr. Mei Chen'); const b = await logseq.Editor.appendBlockInPage(p.uuid, 'GUARDMENU check the bill'); await logseq.Editor.upsertBlockProperty(b.uuid, 'logseq.property/status', 'Todo'); return b.uuid; });
     const menuWords = () => page.evaluate(() => [...document.querySelectorAll('.lk-door-menu .lk-item')].map(e => e.textContent.trim()));
     const rightClick = async sel => { const at = await page.evaluate(sel => { const el = document.querySelector(sel); if (!el) return null; el.scrollIntoView({ block: 'center' }); const r = el.getBoundingClientRect(); return { x: r.left + Math.min(30, r.width / 2), y: r.top + r.height / 2 }; }, sel); if (!at) return null; await page.mouse.click(at.x, at.y, { button: 'right' }); await T.sleep(900); return menuWords(); };
-    const needs = ['Set status…', 'Add tag…', 'Delete'];
+    const needs = ['Set status…', 'Add tag…', 'Add property…', 'Add a line', 'Delete'];   // Add property… and Add a line: items 1 and 2 (21 Nov)
     const lacks = words => needs.filter(n => !words?.includes(n));
     // Find.
     await T.go(page, 'Northgate Cancer Center'); await T.sleep(1200);

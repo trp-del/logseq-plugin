@@ -1,6 +1,6 @@
 {
  "checkedWith": "2.0.2",
- "acceptedOn": "2026-11-20",
+ "acceptedOn": "2026-11-21",
  "api": [
   "App.getCurrentGraph",
   "App.getCurrentGraphConfigs",
@@ -76,6 +76,7 @@
   "block-children-left-border",
   "block-content",
   "block-content-inner",
+  "block-content-wrapper",
   "block-main-container",
   "block-main-content",
   "block-tag",
@@ -221,7 +222,6 @@
   "block-children",
   "block-content-or-editor-inner",
   "block-content-or-editor-wrap",
-  "block-content-wrapper",
   "block-control",
   "block-control-wrap",
   "block-head-wrap",

@@ -745,6 +745,25 @@ test('not asked: a linked page the rules placed, a note under a record, plain wo
 
 section('A linked page and the property the graph shows it belongs in (core/propose.js, linkEvidence)');
 {
+  // Items 1–10, item 7 (21 November 2026): "Paid off the Amex Gold card", a Transfer, pencilled From account = Amex Gold.
+  const g = synthetic.build({
+    tags: ['Transfer', 'Account'],
+    props: [{ title: 'From account', type: 'node', accepts: ['Account'], on: ['Transfer'] }, { title: 'To account', type: 'node', accepts: ['Account'], on: ['Transfer'] }],
+    people: { Account: ['Amex Gold', 'Chase Checking', 'Ally Savings'] },
+    lines() {}, plain() {},
+  });
+  const ask = text => propose(g.ctx, bullet({ id: -7, text, tags: [g.tagPage.Transfer.id] })).pieces.filter(p => p.kind === 'node').map(p => [p.prop.title, p.shown]);
+  test('a card "paid off" goes to To account, not From account', () => {
+    const got = ask('Paid off the Amex Gold card');
+    assert.ok(!got.some(([t, v]) => t === 'From account' && v === 'Amex Gold'), JSON.stringify(got));
+    assert.ok(got.some(([t, v]) => t === 'To account' && v === 'Amex Gold'), JSON.stringify(got));
+  });
+  test('"from" a named account goes to From account', () => {
+    const got = ask('Moved 500 from Chase Checking for the trip');
+    assert.ok(got.some(([t, v]) => t === 'From account' && v === 'Chase Checking'), JSON.stringify(got));
+  });
+}
+{
   const make = (performed, referred) => synthetic.build({
     tags: ['Procedure Event', 'Doctor'],
     props: [{ title: 'Referred by', type: 'node', accepts: ['Doctor'], on: ['Procedure Event'] }, { title: 'Performed by', type: 'node', accepts: ['Doctor'], on: ['Procedure Event'] }],

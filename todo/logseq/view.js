@@ -329,7 +329,17 @@ function rowMenu(from, uuid, isDone) {
       { word: 'Next week', icon: ti('calendar-week'), on: t.deadline === monday, take: () => T.app.setDeadline(uuid, monday) },
       ...(t.deadline ? [{ word: 'Remove deadline', icon: ti('calendar-off'), take: () => T.app.setDeadline(uuid, 0) }] : []));
   }
-  Door.nodeMenu(from, uuid, { open: sidebar => T.app.open(uuid, sidebar), extra: lines });
+  // Add property… and Add a line on the task opened in place, as in Relations: it opens here first if it is not open.
+  const inPlace = async () => {
+    if (canOpen() && !openNodes.includes(uuid)) toggleNode(uuid, true);
+    const find = () => doc.querySelector(`[data-th-node="${window.CSS.escape(uuid)}"] .th-ol-kids`);   // window's CSS: CSS here is Todo's stylesheet
+    for (let i = 0; i < 40 && !find(); i++) await new Promise(r => setTimeout(r, 100));
+    // The list draws the opened task once more a moment after it opens: the list of properties is anchored to the settled one.
+    await new Promise(r => setTimeout(r, 700));
+    return find();
+  };
+  const inNode = ask => (canOpen() ? () => { inPlace().then(at => at && Door.ask(ask, uuid, at)).catch(error => console.error('Todo: could not act on the task in place', error)); } : null);
+  Door.nodeMenu(from, uuid, { open: sidebar => T.app.open(uuid, sidebar), extra: lines, property: inNode('relations:addProp'), newLine: inNode('relations:newLine') });
 }
 T.view = { make, ensureStyle, dayWords, dayFull, rowMenu };
 })();

@@ -977,6 +977,8 @@ Door.MOTION = Object.freeze({
   glide: { ms: 280, ease: 'cubic-bezier(.2,.7,.2,1)', fadeEase: 'ease-out' },  // focusing into a bullet and out (focus.js): the bullet's move; the views fade by fadeEase over parts of ms
   keySheet: { ms: 120, ease: 'ease' },        // the Option key sheet fading and growing in
   pathStay: { ms: 470 },                      // a step's › waits before it hides under the pointer (title.js)
+  columnsSettle: { ms: 120 },                 // a table held out of sight until its columns have stopped coming for this long (tables.js)
+  columnsWait: { ms: 600 },                   // and never held longer than this
   notice: { ms: 250, ease: 'ease' },          // a notice capsule coming and going
   noticeHeight: { ms: 150, ease: 'ease' },    // notices stacking
   // Predictive.
@@ -1170,10 +1172,10 @@ Door.pickStatus = async (from, choices, isNow) => {
    act in place; the actions walk of 21 November 2026 found tag and delete only on the node's own page, and a right-click menu in
    Todo and Relations each of its own; the owner: "two find faults then right-click"). The same lines in the same order everywhere,
    each doing the same thing with the same Undo: Open, Open in sidebar, Go to the page it is on; Set status… (a task), Add tag…,
-   what the place adds (Add property… where the node opens in place, a task's Priority and Deadline in Todo); Delete.
+   Add property… and Add a line where the node opens in place; what the place adds (a task's Priority and Deadline in Todo); Delete.
    The status and tag lists are Logseq's own Set pickers, lent by Relations (relations:pickValue). place: { open(sidebar), extra,
    status: false to leave it out }. */
-Door.nodeMenu = async (from, uuid, { open = null, extra = [], status = true, changed = null } = {}) => {
+Door.nodeMenu = async (from, uuid, { open = null, extra = [], status = true, changed = null, property = null, newLine = null } = {}) => {
   const doc = from.ownerDocument, ti = id => Door.logseqIconHtml(id, { doc });
   let node = null;
   try { node = await logseq.Editor.getBlock(uuid); } catch (error) { /* gone */ }
@@ -1190,6 +1192,9 @@ Door.nodeMenu = async (from, uuid, { open = null, extra = [], status = true, cha
     { gap: true },
     ...(status && isTask && pick ? [{ word: 'Set status…', icon: ti('circle-dot'), take: () => Door.nodeMenu.status(from, uuid, name).then(done => done && changed?.()) }] : []),
     ...(pick ? [{ word: 'Add tag…', icon: ti('hash'), take: () => Door.nodeMenu.tag(from, uuid, name, tags.map(([u]) => String(u))).then(done => done && changed?.()) }] : []),
+    // Where the node can open in place (Relations' lines, Find's and Todo's opened node): its properties and a line under it.
+    ...(property ? [{ word: 'Add property…', icon: ti('list-details'), take: property }] : []),
+    ...(newLine ? [{ word: 'Add a line', icon: ti('plus'), take: newLine }] : []),
     ...extra,
     // A page is deleted from its own page only (Logseq's Delete page, with its question); a bullet here.
     ...(node.name ? [] : [{ gap: true }, { word: 'Delete', icon: ti('trash'), take: () => Door.nodeMenu.remove(uuid, name).then(() => changed?.()) }]),
@@ -1228,7 +1233,7 @@ Door.nodeMenu.remove = async (uuid, name) => {
    stands in the element is Logseq's: its bullets, its property line, its lists and calendar, its pictures and its Undo. No part
    draws a bullet or a property line of its own where this can stand.
      Door.nodeEditor.start()         asked once as the plugin starts: Logseq shows a piece added to its tree only when it next draws
-                                     its window anew (a page gone to), not when the piece is added, so it is added at the start
+                                     its window anew, not when the piece is added, so it is added at the start and the window drawn anew
      Door.nodeEditor.can()           whether Logseq's editor can be shown now: lent, and the piece that holds it standing
      Door.nodeEditor.show(el, uuid)  the node's editor in el; gives back what takes it out again */
 Door.nodeEditor = (() => {
@@ -1247,7 +1252,26 @@ Door.nodeEditor = (() => {
     Door.root.onStop?.(() => { spots.clear(); try { bump?.(); if (typeof off === 'function') off(); } catch (error) { /* gone with the plugin */ } off = null; });
   };
   return {
-    start: () => { if (kit()) ensure(); },
+    /* Logseq hosts the piece only once its window draws anew, which until 21 November 2026 meant the first page gone to after Logseq
+       started: until then an opened node showed the plugin's own bullets (items 1–10, item 3). The window's address is marked and
+       unmarked a moment after the start, which draws it anew in place, with no page change and no step added to Back; never while
+       a bullet is being written (tried again a moment later). */
+    start: () => {
+      if (!kit()) return;
+      ensure();
+      let tries = 0;
+      const mount = async () => {
+        if (bump || ++tries > 20) return;
+        let writing = false; try { writing = !!(await logseq.Editor.checkEditing()); } catch (error) { /* not known: go on */ }
+        const win = Door.host().defaultView;
+        if (writing || !win) { setTimeout(mount, 3000); return; }
+        // Whole addresses of Logseq's window: a bare '#…' would be read against the plugin's own frame. An empty mark is the journals' '#/'.
+        const base = win.location.href.split('#')[0], was = win.location.hash || '#/', marked = was + (was.includes('?') ? '&' : '?') + 'lk-editor=1';
+        win.location.replace(base + marked);
+        setTimeout(() => { if (win.location.hash === marked) win.location.replace(base + was); }, 600);
+      };
+      setTimeout(mount, 1500);
+    },
     can: () => !!kit() && !!bump,
     show(el, uuid) {
       if (!el || !kit() || !UUID.test(String(uuid || ''))) return () => {};

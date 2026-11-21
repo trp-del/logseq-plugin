@@ -396,7 +396,8 @@ function guessesFor(ctx, { b, text, record, fields, recordTags, links, free, use
       const leftOut = () => linkTrust(linkEvidence(ctx, prop, recordTags, classIds, b.id)) === 'leave';
       const named = several.length > 1 || wide(prop, ctx.schema) ? null : names.namedIn(words, classIds, ctx, spoken);
       if (several.length > 1) said.splice(0, said.length, { ids: several.map(p => p.id), how: 'words' });
-      else if (named && !leftOut()) said.push({ ids: [named.id], how: 'words' });
+      // A name the words send the other way ("paid off" a card is to it) stays free for the property going that way.
+      else if (named && !leftOut() && !(names.sideOf(prop) && names.directionOf(words, named, ctx) && names.directionOf(words, named, ctx) !== names.sideOf(prop))) said.push({ ids: [named.id], how: 'words' });
     }
     if (isDate) {
       const ev = datedEvidence(ctx, prop, recordTags);
