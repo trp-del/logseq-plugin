@@ -102,7 +102,7 @@ const SCRIPTED = {
   'predictive/logseq/propose-ui.js': 2,  // a pencilled value cross-fades where it stands when the guess changes
   'structure/logseq/view.js': 2,         // the top bar of waiting changes slides open and shut
   'sidebar-tabs.js': 1,
-  'threads/parts/two-way/dig.js': 3,      // digging (0.4.9 alpha, 20 November 2026, the owner: "smoother animations as the nodes move up and down the breadcrumb outline"): each piece glides from where it was, a new line fades in; going back, what the place holds fades in as it regrows                  // a section that stops being the first takes its gap for the hairline as the new one rolls out above it (19 November 2026)
+  'threads/parts/two-way/dig.js': 4,      // digging (0.4.9 alpha, 20 November 2026, the owner: "smoother animations as the nodes move up and down the breadcrumb outline"): each piece glides from where it was, a new line fades in; going back, what the place holds fades in as it regrows; a node just opened waits unseen until the lines around it have slid past, then fades in (the hand test of 0.4.10: lines slid through it)                  // a section that stops being the first takes its gap for the hairline as the new one rolls out above it (19 November 2026)
 };
 for (const file of FILES) {
   const rel = path.relative(ROOT, file), n = (fs.readFileSync(file, 'utf8').match(/\.animate\(/g) || []).length;

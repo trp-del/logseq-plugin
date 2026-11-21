@@ -19,7 +19,7 @@ const Door = window.PluginDoor;
 const { host } = Door;
 const views = [];
 const rowsHeard = new Set();   // who hears the row view go on or off
-const st = { off: null, offClick: null, asked: new Map(), retry: 0, emptyTimer: 0, autoShut: false, rows: false, folded: false, width: 0, shownParts: new Set(), wasOpen: false, openAt: 0, moreOpen: false };   // rows: the row view is on; folded: Ontology was folded by the row view   // autoShut: the sidebar was closed for standing blank, not by you   // asked: when an automatic section was last asked to open, by key
+const st = { off: null, offClick: null, asked: new Map(), retry: 0, emptyTimer: 0, autoShut: false, rows: false, folded: false, width: 0, shownParts: new Set(), wasOpen: false, openAt: 0, byHand: false, selfOpenAt: 0, moreOpen: false };   // rows: the row view is on; folded: Ontology was folded by the row view   // autoShut: the sidebar was closed for standing blank, not by you   // asked: when an automatic section was last asked to open, by key
 
 const CSS = `
 /* Logseq's words in the bar on top (Contents, Page graph, Help, the cube with a +) stay left out, as with the tabs: the ? at the
@@ -227,7 +227,8 @@ function draw(doc = host()) {
   // A part of the page that comes into view rolls out of where it stands, as every section that opens (the grammar).
   // Not while the sidebar itself slides open: that is motion enough.
   const nowOpen = sidebarOpen();
-  if (nowOpen && !st.wasOpen) st.openAt = Date.now();
+  if (nowOpen && !st.wasOpen) { st.openAt = Date.now(); st.byHand = Date.now() - st.selfOpenAt > 1500 && !opened(doc); }   // opened empty, not by the plugin and not with a page in it: the button or its keys
+  if (!nowOpen) st.byHand = false;
   st.wasOpen = nowOpen;
   /* Known by the part, not by its element: Logseq hands a row's view a new element on every row, and the row's view changing is a
      fade of its own (inspector.js), never a roll. */
@@ -237,19 +238,21 @@ function draw(doc = host()) {
     if (seen && !st.shownParts.has(view.key)) { st.shownParts.add(view.key); if (Date.now() - st.openAt > 450) Door.unroll(item); }   // in the same pass, before it is painted whole
     else if (!seen && !(view.key === 'item' && view.owns && st.shownParts.has('item') && views.some(v => v.key === 'item' && !v.hidden?.(doc)))) st.shownParts.delete(view.key);
   }
-  /* The sidebar never stands open and blank (the owner, 17 November 2026: "the sidebar also shouldn't have a blank or be open to
-     that"): open with nothing to show, and no part of the page on its way, it closes after a moment. Closed that way, it opens again
+  /* The sidebar never stands open and blank by itself (the owner, 17 November 2026: "the sidebar also shouldn't have a blank or be open to
+     that"): open with nothing to show, and no part of the page on its way, it closes after a moment. Opened by a person (the sidebar
+     button, its keys), it opens and stays open, as Logseq's does: closed again at once it was a flash (the owner, 20 November 2026,
+     asked what the button should do on a page with nothing to show: "Open and stay open"). Closed that way, it opens again
      by itself on the next page where a part of the page applies (from Dr. Mei Chen back to Doctor, Ontology is back). Closed by you,
      it stays closed. */
   const open = sidebarOpen();
   const due = parts.some(view => view.key !== 'item' && !view.hidden?.(doc));
   if (open) st.autoShut = false;
-  else if (st.autoShut && due) { st.autoShut = false; logseq.App.setRightSidebarVisible(true); return; }
-  const empty = open && !coming && !all.some(shown) && !parts.some(view => !view.hidden?.(doc) && !view.find(doc));
+  else if (st.autoShut && due) { st.autoShut = false; openSide(); return; }
+  const empty = open && !st.byHand && !coming && !all.some(shown) && !parts.some(view => !view.hidden?.(doc) && !view.find(doc));
   if (empty && !st.emptyTimer) st.emptyTimer = doc.defaultView.setTimeout(() => {
     st.emptyTimer = 0;
     const d = host(), side = d.getElementById('right-sidebar');
-    if (!sidebarOpen() || side?.hasAttribute('data-lk-split')) return;
+    if (!sidebarOpen() || st.byHand || side?.hasAttribute('data-lk-split')) return;
     const still = ![...d.querySelectorAll('#right-sidebar .sidebar-item-list > .sidebar-item')].some(shown) && !views.filter(v => v.auto).some(v => !v.hidden?.(d) && !v.find(d));
     if (still) { logseq.App.setRightSidebarVisible(false); st.autoShut = true; }
   }, 700);
@@ -259,6 +262,9 @@ function draw(doc = host()) {
    the plugin started after it): Logseq heads it with the panel's machine name, ":logseq-plugin/_sidebar.todo-side", and leaves it
    empty, and does not draw it again once the plugin is there (the owner, 18 November 2026, a journal day beside such a Todo). So
    the head takes the section's word, and a section with nothing in it is handed to its module to fill (revive(item)). */
+// The plugin opening the sidebar itself (a section asked for, the row view, a part of the page coming back): told apart from a
+// person opening it with the sidebar button or its keys, which keeps it open (byHand).
+function openSide() { st.selfOpenAt = Date.now(); logseq.App.setRightSidebarVisible(true); }
 function named(doc) {
   const id = logseq.baseInfo?.id || 'logseq-plugin';
   for (const view of views) {
@@ -332,7 +338,7 @@ Door.sideTabs = {
   },
   // A section asked for from elsewhere (the ··· menu, the command palette, a toolbar button): opened, and the sidebar with it.
   // A part of the page is only shown with the sidebar; it opens by itself where it applies.
-  show(key) { const view = views.find(v => v.key === key); if (view && !view.auto && !view.find(host()) && !held(view)) view.open(); logseq.App.setRightSidebarVisible(true); draw(); },
+  show(key) { const view = views.find(v => v.key === key); if (view && !view.auto && !view.find(host()) && !held(view)) view.open(); openSide(); draw(); },
   /* The row view, on or off (the toolbar's Row view button). On: the sidebar opens, showing the row pressed and Ontology folded. Off:
      Ontology unfolded again if the row view folded it, and the stack as it was; the module that draws the row lets it go (onRows). */
   rows(on) {
@@ -344,7 +350,7 @@ Door.sideTabs = {
       st.foldDue = false; st.moreOpen = false;
     }
     for (const fn of rowsHeard) { try { fn(st.rows); } catch (error) { console.error('logseq-plugin: the row view could not be followed', error); } }
-    if (st.rows) logseq.App.setRightSidebarVisible(true);
+    if (st.rows) openSide();
     draw();
     return st.rows;
   },

@@ -306,7 +306,7 @@ function fitOrShift(key, from) {
   // "sharp and drastic and unclear"): the row's node and the level under it always open in place.
   const deep = k => state.steps.length + below(k) >= 3;
   while (state.dig.has(key) && below(key) > 0 && deep(key) && (breaks(key) || rowBreaks(key)) && shiftOnce(key)) { state.html = null; twoWay.draw(host()); }
-  if (state.steps.length !== before.length) flipPlay(rects);
+  if (state.steps.length !== before.length) flipPlay(rects, key);
 }
 /* The glide: each line of the section is measured before a change and after it, and moves from where it was to where it is
    (MOTION.dig); a line that comes fades in, a line that goes fades out where it stood. Lines are matched by the place they
@@ -337,17 +337,28 @@ function flipRects() {
 /* Every piece moves by how far it went less how far the piece around it goes: with one easing for all, a line inside a moving
    box follows the box and its own way at once, so nothing crosses another. A piece that was not there fades in once the rest
    is under way; nothing of what went is left behind. */
-function flipPlay(before) {
+function flipPlay(before, dug = '') {
   const box = state.box;
   if (!box || !before.size) return;
+  /* The node just opened moves as one piece: its lines follow it and never glide on their own. Matched one by one, some held still
+     while the rest of the node slid past them, and "Relations" and "Charged" crossed the Oct 14 row (found by hand on 0.4.10,
+     20 November 2026, the third dig on Chase Checking). */
   const { ms, ease } = window.PluginDoor.MOTION.dig, moves = new Map(), faded = new Set(), seen = new Set();
+  const whole = dug ? box.querySelector(`.th-ol-kids[data-key="${CSS.escape(dug)}"]`) : null;
+  /* Not drawn before the change, it waits unseen while the lines around it slide to their places, then fades in where it stands: shown at
+     once, the bill's "Day of the Month" slid down through it (the check's wide window, 20 November 2026). */
+  if (whole && !before.has('k:' + dug)) whole.animate([{ opacity: 0 }, { opacity: 1 }], { duration: ms * .5, delay: ms * .6, easing: ease, fill: 'backwards' });
   const around = el => { for (let p = el.parentElement; p && p !== box; p = p.parentElement) if (moves.has(p)) return moves.get(p); return [0, 0]; };
   for (const el of box.querySelectorAll(FLIP)) {
     const k = flipKey(el);
     if (!k || seen.has(k)) continue; seen.add(k);
     if ([...faded].some(f => f.contains(el))) continue;
+    if (whole && whole !== el && whole.contains(el)) continue;
     const was = before.get(k), now = el.getBoundingClientRect();
-    if (!was) { if (el.matches('.th-ol-kids, .th-tw-row, .th-tw-whole')) continue; el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: ms, easing: ease }); faded.add(el); continue; }
+    /* A piece that comes waits, unseen, until the moving pieces are nearly home, then fades in: shown at once where it will stand while
+       the rest still glided there, "Relations" and "Charged" stood over the Oct 14 row for four frames (found by hand on 0.4.10,
+       20 November 2026, the third dig on Chase Checking). */
+    if (!was) { if (el.matches('.th-ol-kids, .th-tw-row, .th-tw-whole')) continue; el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: ms * .5, delay: ms * .6, easing: ease, fill: 'backwards' }); faded.add(el); continue; }
     const [ax, ay] = around(el), dx = was.left - now.left, dy = was.top - now.top, rx = dx - ax, ry = dy - ay;
     if (Math.abs(rx) + Math.abs(ry) > .5) el.animate([{ transform: `translate(${rx}px, ${ry}px)` }, { transform: 'none' }], { duration: ms, easing: ease });
     moves.set(el, [dx, dy]);
@@ -545,6 +556,12 @@ function keepNodeField(box) {
       if (event.isComposing) return;
       if (event.key === 'Enter') { event.preventDefault(); twoWay.clearGhost(); const typed = field.value; field.value = ''; writeBullet(uuid, key, typed).catch(error => warnOnce('could not add the bullet', error)); }
       else if (event.key === 'Escape') { event.preventDefault(); if (twoWay.looking.hit && twoWay.looking.key === twoWay.lineKey(field)) twoWay.clearGhost(); else field.blur(); }
+      /* Backspace in the empty line goes up into the node's last bullet, its caret at the end, as Backspace in an empty bullet does
+         in Logseq (found by hand on 0.4.10, 20 November 2026: the key did nothing there). */
+      else if (event.key === 'Backspace' && !field.value && !event.metaKey && !event.altKey) {
+        const last = state.node.get(uuid)?.bullets?.at(-1)?.uuid;
+        if (last && twoWay.inBox(`[data-edit-bullet="${CSS.escape(last)}"]`)()) { event.preventDefault(); editBullet(last).catch(error => { warnOnce('could not change the bullet', error); notify('The bullet could not be changed', 'warning'); }); }
+      }
       else if (event.key === 'ArrowRight') { if (twoWay.takeGhost(field)) event.preventDefault(); }
       else if (['ArrowLeft', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) twoWay.clearGhost();
     });
@@ -557,7 +574,7 @@ function keepNodeField(box) {
       const typed = field.value;
       if (!typed.trim() || !field.isConnected) return;
       field.value = ''; state.nodeDraft = null;
-      writeBullet(uuid, key, typed).catch(error => warnOnce('could not add the bullet', error));
+      writeBullet(uuid, key, typed, false).catch(error => warnOnce('could not add the bullet', error));
     });
     for (const type of ['keyup', 'keypress']) field.addEventListener(type, event => event.stopPropagation());
   }
@@ -565,7 +582,7 @@ function keepNodeField(box) {
 /* Writing a bullet offers no Undo arrow (the owner, 20 November 2026: "you don't need an undo for writing a bullet"): words written or a
    bullet added in an opened node are plain writing, taken back as any writing is in Logseq. The arrow stays for what is set: a value, a tag, a status. */
 // Enter adds the bullet at the node's end, as if typed there, and the empty bullet after it takes the caret for the next.
-async function writeBullet(uuid, key, typed) {
+async function writeBullet(uuid, key, typed, stay = true) {
   const text = String(typed || '').trim();
   if (!text) return;
   state.nodeDraft = null;
@@ -574,7 +591,7 @@ async function writeBullet(uuid, key, typed) {
     const block = await twoWay.model.addLineTo(uuid, text);
     if (!block?.uuid) throw new Error('the bullet was not made');
     await readAgain(uuid);
-    focusNodeField(key);
+    if (stay) focusNodeField(key);   // after Enter the caret waits in the empty line for the next; left by Escape or a press elsewhere, the keyboard is not pulled back (found by hand, 20 November 2026: Escape put the caret into the empty line)
   } catch (error) {
     warnOnce('could not add the bullet', error); notify('The bullet could not be added', 'warning');
     state.nodeDraft = { uuid, key, text };   // the words are not lost with it
@@ -593,8 +610,14 @@ async function writeBullet(uuid, key, typed) {
 const ownerOf = bullet => { for (const [uuid, data] of state.node) if (data.bullets.some(line => line.uuid === bullet)) return uuid; return ''; };
 /* Enter keeps the words and starts the next bullet under them, the caret in it, as Enter does in Logseq (C12, 7 November 2026);
    Escape, or the new bullet left empty, takes the new one away again. A click away just keeps. */
+// The bullet above another in its opened node, or '' for the first.
+const bulletAbove = bullet => { for (const [, data] of state.node) { const i = data.bullets.findIndex(line => line.uuid === bullet); if (i >= 0) return i > 0 ? data.bullets[i - 1].uuid : ''; } return ''; };
+/* Backspace in an empty bullet takes it away and puts the caret at the end of the bullet above, as in Logseq (found by hand on 0.4.10,
+   20 November 2026: an emptied bullet could not be removed by Backspace). */
 async function editBullet(uuid) {
+  const above = bulletAbove(uuid);
   const how = await editBulletOnce(uuid);
+  if (how === 'backspace') { if (above) await editBullet(above); return; }
   if (how !== 'enter') return;
   const owner = ownerOf(uuid);
   if (!owner) return;
@@ -603,10 +626,10 @@ async function editBullet(uuid) {
   const made = String(block.uuid);
   state.keepEmpty.add(made);
   await readAgain(owner);
-  await editBulletOnce(made, { fresh: true });
+  const next = await editBulletOnce(made, { fresh: true });
   state.keepEmpty.delete(made);
   const words = await twoWay.provided.titleNow(made).catch(() => '');
-  if (!String(words || '').trim()) { await twoWay.model.removeBlock(made).catch(() => {}); await readAgain(owner); return; }
+  if (!String(words || '').trim()) { await twoWay.model.removeBlock(made).catch(() => {}); await readAgain(owner); if (next === 'backspace') await editBullet(uuid); return; }
   await readAgain(owner);
   const group = state.groups.find(g => g.items.some(item => item.uuid === owner));
   twoWay.later(300);
@@ -634,13 +657,26 @@ async function editBulletOnce(uuid, { fresh = false, at = null } = {}) {
   }).catch(error => { warnOnce('could not change the bullet', error); notify('The bullet could not be changed', 'warning'); }));
   let last = '';   // the words as last typed, for a new bullet left by Escape
   const onType = text => { last = String(text || ''); clearTimeout(timer); timer = setTimeout(() => save(text), 400); };
-  const typed = await shared.editInPlace({ at: find(), value: words, wrap: true, again: find, onType, onEnd: how => { ended = how; }, show: text => text.trim() ? twoWay.lineHtml(text.trim(), 400) : null });
+  const typed = await shared.editInPlace({ at: find(), value: words, wrap: true, again: find, onType, escapeKeeps: true, backspaceEnds: !at, onEnd: how => { ended = how; }, show: text => text.trim() ? twoWay.lineHtml(text.trim(), 400) : null });
   clearTimeout(timer);
-  /* A bullet just started by Enter and left by Escape keeps the words typed in it, as a new bullet does in Logseq (the review of 19
-     November 2026: "new child QQ" typed in an opened node was gone after Escape, and nothing was saved). Escape still puts an
-     existing bullet back to the words it had. */
-  const next = typed?.trim() || (fresh && ended === 'escape' ? last.trim() : '');
-  // Escape, or the words emptied: the bullet goes back to what it was, even if a pause had saved some of the typing.
+  /* What was typed is kept however the bullet is left, Escape included, as in a Logseq bullet (found by hand on the owner's screen,
+     20 November 2026: words changed and left with Escape came back as they were). A bullet whose words were all deleted is deleted
+     with them (the same trial: "deleting a line isn't saved … an empty line can't be removed"), unless it holds bullets of its own,
+     which stay with their words and say why. A node's own words on its line (at) are never emptied this way: its words stay. */
+  const next = typed?.trim() || '';
+  const emptied = typed != null && !next;
+  if (emptied && !at && !fresh) {
+    await saving;
+    // Asked of the graph now, not of what was read earlier: deleting a bullet takes its bullets with it.
+    const holds = twoWay.hasKids(uuid) || (await Promise.resolve(twoWay.provided.firstLines(uuid, 1, true)).catch(() => [1])).length > 0;
+    if (holds) { ended = ''; notify('This bullet holds bullets of its own: delete it on its page', 'warning'); }
+    else {
+      const owner = ownerOf(uuid);
+      const gone = await twoWay.model.removeBlock(uuid).then(() => true).catch(error => { warnOnce('could not delete the bullet', error); notify('The bullet could not be deleted', 'warning'); return false; });
+      if (gone) { twoWay.peek.cache.clear(); if (owner) await readAgain(owner); twoWay.later(300); return ended === 'backspace' ? 'backspace' : ''; }   // not 'enter': there is no bullet left for Enter to start the next under; 'backspace' sends the caret to the bullet above
+    }
+  }
+  // The words emptied where they must stay: the bullet goes back to what it was, even if a pause had saved some of the typing.
   let reverted = false;
   if (next) await save(next); else { await saving; if (written !== stored.trim()) { await twoWay.model.setWords(uuid, stored); written = stored.trim(); reverted = true; } }
   await saving;
