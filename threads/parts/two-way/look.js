@@ -462,7 +462,7 @@ html[data-lk-try="new"] .th-two-way .th-ls-node .ls-block-right { margin-left: 0
 .th-two-way :is(.th-tw-value.th-ol, .th-tw-bside, .th-ol-prop)[style*="--th-tw-from"] { --th-ol-day: calc(var(--lk-day, 48px) + 8px + var(--th-tw-from) * 1ch); }
 .th-two-way .th-tw-value[data-dated] { --th-tw-words: calc(32px + 3 * var(--th-ol-gap) + var(--th-ol-day)); }
 .th-two-way .th-tw-raise { display: flex; flex-wrap: wrap; column-gap: 1.1em; align-items: baseline; margin: 0 0 .2rem var(--th-tw-words); font-size: 14px; line-height: 1.5; }
-.th-two-way .th-tw-npvalue { all: unset; cursor: pointer; border-radius: 3px; }   /* the library's value (lk-value: pressed to change, quiet under the pointer, faint when empty); here only the button's reset */
+.th-two-way .th-tw-npvalue { all: unset; display: inline-flex; cursor: pointer; border-radius: 3px; }   /* inline-flex: a value that wraps onto two lines sits by its first line beside its name; as a plain button it sat by its last, so the name dropped a line and read as the next value's (found by hand in the sidebar, 20 November 2026: "the ID value sits beside Amount") */   /* the library's value (lk-value: pressed to change, quiet under the pointer, faint when empty); here only the button's reset */
 .th-two-way .th-ol-pname[data-edit] { cursor: pointer; }
 .th-two-way .th-ol-kids .th-ol-prop > .th-ol-pv { cursor: text; }   /* the value's area is where a value is changed, as in Logseq */
 .th-two-way .th-ol-kids .th-ol-prop > .th-ol-pv :is(a, button, .th-chev, .lk-bul) { cursor: pointer; }
@@ -540,6 +540,9 @@ html[data-lk-try="new"] .th-two-way .th-ls-node .ls-block-right { margin-left: 0
 .th-two-way .th-ol-kids .th-ol-bullet:not(.th-ol-chevved) { padding-left: calc(4px + 16px + var(--th-ol-gap)); }
 .th-two-way .th-ol-kids .th-ol-prop > .th-ol-pname { padding-left: calc(16px + var(--th-ol-gap) + 1.5px); }
 .th-two-way .th-ol-kids .th-ol-prop > .th-ol-pv > .th-chev-room:first-child { margin-left: calc(-16px - var(--th-ol-gap)); flex: none; }
+/* Narrow, where every property's value stands under its name (shared.js), a plain value's dot stands where a node value's arrow and
+   dot do, never left of its name. */
+@container th-ol (max-width: 420px) { .th-two-way .th-ol-kids .th-ol-prop > .th-ol-pv > .th-chev-room:first-child { margin-left: 0; } }
 .th-two-way .th-tw-lhead { color: var(--lk-quiet); }
 .th-two-way .th-tw-lhead > .th-tw-lkind { opacity: .6; font-size: 13px; }
 /* A property's icon stands the same way against its own name wherever Threads draws one (the owner, 12 November 2026: "the icon

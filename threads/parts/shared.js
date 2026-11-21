@@ -525,7 +525,7 @@ function pickType({ at, name = '', options = [], doc } = {}) {
    so the old words never come back for a moment before the redraw. offers: words (or a promise of them, or a function giving
    one) listed under the box once they come, the library's menu rows: ↓ and ↑ light one, Enter or a press takes it, typing goes
    on as before (Threads' "Reads back as…", Apple's names for a row). */
-function editInPlace({ at, value = '', type = 'text', placeholder = '', doc, again, wrap = false, onType, show, onEnd, offers } = {}) {
+function editInPlace({ at, value = '', type = 'text', placeholder = '', doc, again, wrap = false, onType, show, onEnd, offers, escapeKeeps = false, backspaceEnds = false } = {}) {
   const numeric = type === 'number';
   type = 'text';
   doc = doc || host();
@@ -560,7 +560,9 @@ function editInPlace({ at, value = '', type = 'text', placeholder = '', doc, aga
       if (rows && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) { event.preventDefault(); const i = list.litAt; list.lit(event.key === 'ArrowDown' ? (i < 0 ? 0 : (i + 1) % rows) : (i <= 0 ? rows - 1 : i - 1)); return; }
       if (event.key === 'Enter' && rows && list.litAt >= 0) { event.preventDefault(); take(list.body.querySelectorAll('.th-item')[list.litAt].item.label); return; }
       if (event.key === 'Enter') { event.preventDefault(); ended = 'enter'; finish(input.value === value ? null : input.value); }
-      else if (event.key === 'Escape') { event.preventDefault(); ended = 'escape'; finish(null); }
+      else if (event.key === 'Escape') { event.preventDefault(); ended = 'escape'; finish(escapeKeeps && input.value !== value ? input.value : null); }   // escapeKeeps: Escape leaves the writing and keeps it, as in a Logseq bullet
+      // backspaceEnds: Backspace in words already empty ends the box as 'backspace', for a bullet to go as in Logseq (found by hand on 0.4.10, 20 November 2026)
+      else if (backspaceEnds && event.key === 'Backspace' && !input.value && !event.metaKey && !event.altKey) { event.preventDefault(); ended = 'backspace'; finish(value ? '' : null); }
     });
     if (wrap) input.addEventListener('input', grow);
     if (onType) input.addEventListener('input', () => onType(input.value));
@@ -914,6 +916,11 @@ a.th-tag:hover { opacity: 1; }
   .th-ol-kids .th-ol-prop:has(> .th-ol-pv > :is(.th-chev, .th-ol-day)) { flex-wrap: wrap; }
   .th-ol-kids .th-ol-prop:has(> .th-ol-pv > :is(.th-chev, .th-ol-day)) > .th-ol-pname { width: auto; flex-basis: 100%; }
   .th-ol-kids .th-ol-prop > .th-ol-pname:empty { display: none; }
+  /* A plain value (an amount, an ID) goes under its name too, as a node's value already does here, so every property of a narrow
+     section reads one way: in the sidebar the names' column stood wider than the row, and Amount's and ID's values were pushed out
+     of sight (0.4.8 and 0.4.10, by hand). */
+  .th-ol-kids .th-ol-prop { flex-wrap: wrap; }
+  .th-ol-kids .th-ol-prop > .th-ol-pname { width: auto; flex-basis: 100%; }
   .th-ol-kids .th-ol-from-prop { --th-ol-cx: 8px; }
   .th-ol-kids .th-ol-prop:has(> .th-ol-pv > :is(.th-chev, .th-ol-day)) > .th-ol-pv > .th-chev:first-child { margin-left: 0; }
   .th-ol-kids .th-ol-from-back { --th-ol-cx: calc(var(--th-ol-day) + var(--th-ol-gap) + 8px); }
