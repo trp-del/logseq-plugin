@@ -24,6 +24,8 @@ const CSS = `
 .td-side .td-find { margin-bottom: 24px; }
 .td-find .td-glass { color: var(--lk-quiet); flex: none; display: inline-flex; align-self: flex-end; margin-bottom: 6px; }   /* beside the letters, under the notes' room */
 .td-find input { padding: 2px 0; }
+.td-time[data-on] { margin: -18px 0 28px; }   /* the timeline, under the find line, before the list (the library's lk-time) */
+.td-showing { display: flex; align-items: baseline; gap: 6px; margin-top: 4px; }
 .td-body { position: relative; }
 .td-tools { position: absolute; top: -2px; right: -4px; z-index: 1; display: flex; gap: 8px; }   /* Show and the grouping, the library's words with their chevrons (lk-change), on the first heading's line at the right */
 .td-show.td-narrow { color: var(--lk-text, currentColor) !important; }   /* a list narrowed by Show says so in the words' colour: what is left out must not pass unseen */
@@ -58,16 +60,8 @@ const CSS = `
 .td-done .td-where, .td-done .td-day { color: var(--lk-off) !important; }`;
 const ensureStyle = doc => T.base.sheet('td-style', CSS, 'td-own', doc);
 
-// A day as a row says it: Yesterday or the date when late, Tomorrow, the weekday within a week, else the date.
-function dayWords(day, today = dates.today()) {
-  if (!day) return '';
-  const span = Math.round((dates.date(day) - dates.date(today)) / 86400000);
-  if (span === 0) return 'Today';
-  if (span === -1) return 'Yesterday';
-  if (span === 1) return 'Tomorrow';
-  if (span > 1 && span < 7) return dates.WEEKDAYS[dates.date(day).getDay()].slice(0, 3);
-  return dates.words(day);
-}
+// A day as a row says it: the library's (Door.dates.near: Today, Yesterday, Tomorrow, the weekday within a week, else "Oct 7").
+const dayWords = (day, today) => dates.near(day, today);
 // The day the add line reads, said whole beside the field: "Friday, Nov 20".
 const dayFull = day => `${dayWords(day) === 'Today' || dayWords(day) === 'Tomorrow' ? dayWords(day) : dates.WEEKDAYS[dates.date(day).getDay()]}, ${dates.words(day)}`;
 
@@ -155,17 +149,19 @@ const toggleNode = (uuid, open = !openNodes.includes(uuid)) => {
 function rowHtml(t, part) {
   const status = T.app.shown(t), done = status === 'done', late = !done && t.day && t.day < dates.today();
   const day = !part || (part.today && !late) ? '' : dayWords(t.day);
-  const where = !part || part.where ? t.page.title || '' : '';
+  // The page it is written on; a journal day said as "written Jul 20", the short day of every row (the thirteen proposals, 4: one way
+  // to write a day), not the journal page's long name.
+  const where = !part || part.where ? (t.page.journal ? `written ${dates.words(t.page.journal)}` : t.page.title || '') : '';
   const opened = canOpen() && openNodes.includes(t.uuid);
   const fold = canOpen() ? `<button type="button" class="td-open lk-fold" aria-expanded="${opened}" data-open-node="${esc(t.uuid)}" title="${opened ? 'Close' : 'Open here'}" tabindex="-1"></button>` : '';
   return `<div class="td-row lk-row lk-calm${T.app.ticking.has(t.uuid) ? ' td-ticked' : ''}${done ? ' td-done' : ''}${opened ? ' td-opened' : ''}" data-uuid="${esc(t.uuid)}">
 ${fold}<span class="td-bul" aria-hidden="true"><span class="lk-bul"></span></span>${circle(t, status)}
-<div class="td-main"><div class="td-line"><a class="td-words" href="#" data-open="${esc(t.uuid)}" title="Open the task; with Shift, in the sidebar">${t.words || t.text ? wordsHtml(t) : 'Untitled'}</a></div>${where ? `<a class="td-where lk-note" href="#" data-open-page="${esc(t.page.uuid || t.page.title || where)}" title="Open ${esc(where)}; with Shift, in the sidebar">${esc(where)}</a>` : ''}</div>
+<div class="td-main"><div class="td-line"><a class="td-words" href="#" data-open="${esc(t.uuid)}" title="Open the task; with Shift, in the sidebar">${t.words || t.text ? wordsHtml(t) : 'Untitled'}</a></div>${where ? `<a class="td-where lk-note" href="#" data-open-page="${esc(t.page.uuid || t.page.title || where)}" title="Open ${esc(t.page.title || where)}; with Shift, in the sidebar">${esc(where)}</a>` : ''}</div>
 <div class="td-day lk-day${late ? ' td-late' : ''}">${esc(day)}</div></div>${opened ? `<div class="td-node" data-th-node="${esc(t.uuid)}"></div>` : ''}`;
 }
 
-function listHtml(find = '') {
-  const { parts, done } = T.app.groups(find);
+function listHtml(find = '', span = null) {
+  const { parts, done } = T.app.groups(find, span);
   if (find && !parts.length && !done.length) return '<section class="td-group"><div class="lk-none">No task has these words.</div></section>';
   const head = p => `<div class="td-head lk-name">${p.tag ? `<span class="lk-tag">${esc(p.head)}</span>` : esc(p.head)}</div>`;
   const rows = p => p.rows.length ? p.rows.map(t => rowHtml(t, p)).join('') : `<div class="lk-none">${esc(p.none || '')}</div>`;
@@ -188,7 +184,7 @@ function make(holder, mode) {
   root.innerHTML = `${mode === 'page' ? '<h1 class="title page-title td-title">Todo</h1>' : ''}
 <label class="td-add lk-field"><span class="lk-i-plus td-plus" aria-hidden="true"></span><input type="text" placeholder="Add a todo" aria-label="Add a todo" spellcheck="true"><span class="td-when lk-note"></span></label>
 <label class="td-find lk-field"><span class="td-glass" aria-hidden="true"></span><span class="lk-say"><input type="text" placeholder="Find a todo" aria-label="Find a todo" spellcheck="false" autocomplete="off"><span class="lk-say-mirror" aria-hidden="true"></span></span></label>
-<div class="td-body"><div class="td-tools"><button type="button" class="td-show lk-change" data-show aria-haspopup="menu" aria-expanded="false" title="Which tasks the list shows"><span class="td-show-word"></span><span class="lk-i-chevron" aria-hidden="true"></span></button><button type="button" class="td-by lk-change" data-by aria-haspopup="menu" aria-expanded="false" title="Group the list"><span class="td-by-word"></span><span class="lk-i-chevron" aria-hidden="true"></span></button></div><div class="td-list"></div></div>`;
+<div class="td-time"></div><div class="td-body"><div class="td-tools"><button type="button" class="td-show lk-change" data-show aria-haspopup="menu" aria-expanded="false" title="Which tasks the list shows"><span class="td-show-word"></span><span class="lk-i-chevron" aria-hidden="true"></span></button><button type="button" class="td-by lk-change" data-by aria-haspopup="menu" aria-expanded="false" title="Group the list"><span class="td-by-word"></span><span class="lk-i-chevron" aria-hidden="true"></span></button></div><div class="td-list"></div></div>`;
   holder.appendChild(root);
   root.querySelector('.td-glass').innerHTML = Door.logseqIconHtml('search', { size: 16, doc });
   const finder = root.querySelector('.td-find input');
@@ -196,7 +192,7 @@ function make(holder, mode) {
   const tools = root.querySelector('.td-tools'), show = root.querySelector('.td-show'), showWord = root.querySelector('.td-show-word');
   let drawn = '';
   const view = {
-    root, mode, find: '',
+    root, mode, find: '', span: null,
     draw() {
       // Not read yet: the add line alone; a read that failed says so in a plain line where the list stands.
       if (!T.app.read) { const said = T.app.failed ? `<div class="lk-none">The tasks could not be read: ${esc(T.app.failed)}.</div>` : ''; if (said !== drawn) { drawn = said; list.innerHTML = said; } return; }
@@ -204,7 +200,8 @@ function make(holder, mode) {
       const sw = showWords();
       showWord.textContent = sw.words; show.classList.toggle('td-narrow', sw.narrow);
       root.style.setProperty('--td-tools-room', `${Math.ceil(tools.offsetWidth || 190) + 12}px`);
-      const html = listHtml(view.find);
+      timeline();
+      const html = listHtml(view.find, view.span);
       if (html === drawn) return;
       // A field of an opened node being written in keeps its place: the list is drawn again once it is left.
       if (doc.activeElement?.matches?.('input, textarea') && list.contains(doc.activeElement) && doc.activeElement.closest('[data-th-node], .td-line')) { view.waits = true; return; }
@@ -219,7 +216,7 @@ function make(holder, mode) {
     },
     rows: uuid => [...list.querySelectorAll('.td-row')].filter(r => r.dataset.uuid === uuid),
     focus() { if (mode === 'page') input.focus({ preventScroll: true }); },
-    destroy() { T.app.views.delete(view); root.remove(); },
+    destroy() { T.app.views.delete(view); unwire?.(); doc.removeEventListener('keydown', onEscape, true); root.remove(); },
   };
   // The day the words name, said beside the field before Return.
   const showDay = () => { const found = T.db.dayIn(input.value); when.textContent = found ? dayFull(found.day) : ''; };
@@ -233,6 +230,31 @@ function make(holder, mode) {
     Door.sentence.mirror(mirror, finder.value, spans);
     mirror.scrollLeft = finder.scrollLeft;
   };
+  /* The timeline under the find line (the thirteen proposals, 5: the timeline over Todo; the library's, PluginDoor.timeline, the one
+     Find and Relations draw): each open task with a day a dot on its day, a late one red as its day is written; today a short line.
+     A press on a dot narrows the list to its week, a drag across the line to those days; "Showing …" says what is narrowed, its ×
+     or Escape gives the whole list back. Drawn only when some task has a day. */
+  const timeBox = root.querySelector('.td-time');
+  let timeDrawn = '';
+  const timeline = () => {
+    const has = T.app.finds(view.find), today = dates.today();
+    const dots = T.app.tasks.filter(t => t.day && T.db.isOpen(T.app.shown(t)) && has(t)).sort((a, b) => a.day - b.day)
+      .map(t => ({ day: t.day, title: t.words || t.raw, late: t.day < today }));
+    const said = view.span ? `<div class="td-showing"><span class="lk-note">Showing ${esc(dates.words(view.span[0]))}${view.span[1] !== view.span[0] ? ' to ' + esc(dates.words(view.span[1])) : ''}</span><button type="button" class="lk-x" data-time-clear title="Show the whole list again (Escape)" aria-label="Show the whole list again">×</button></div>` : '<div class="td-showing" aria-hidden="true"><span class="lk-note">&nbsp;</span></div>';   // its room kept, so a press on a dot moves nothing
+    const html = dots.length ? Door.timeline.html({ key: 'todo-' + mode, dots, pick: view.span, label: 'Where in time the tasks fall; drag across it to pick days' }) + said : '';
+    if (html === timeDrawn) return;
+    timeDrawn = html; timeBox.innerHTML = html; timeBox.toggleAttribute('data-on', !!html);
+  };
+  const unwire = Door.timeline.wire(timeBox, { pick: () => view.span, set: span => { view.span = span; view.draw(); } });
+  T.base.onStop(unwire);
+  timeBox.addEventListener('click', event => { if (event.target.closest?.('[data-time-clear]')) { event.preventDefault(); view.span = null; view.draw(); } });
+  // Escape anywhere outside a field lets go of the days picked, before Logseq takes it (Todo shown, no window open over it).
+  const onEscape = event => {
+    if (event.key !== 'Escape' || !view.span || !root.isConnected || event.target.closest?.('input, textarea, [contenteditable="true"], dialog')) return;
+    event.preventDefault(); event.stopImmediatePropagation(); view.span = null; view.draw();
+  };
+  doc.addEventListener('keydown', onEscape, true);
+  T.base.onStop(() => doc.removeEventListener('keydown', onEscape, true));
   finder.addEventListener('input', () => { view.find = finder.value; said(); view.draw(); });
   finder.addEventListener('scroll', () => { mirror.scrollLeft = finder.scrollLeft; });
   finder.addEventListener('keydown', event => {

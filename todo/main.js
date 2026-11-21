@@ -65,17 +65,18 @@ const app = T.app = {
      Done, at the foot, whatever the grouping. Each part: { key, head, rows, none (its nothing-here line, Day's first level only),
      today (Today's heading says the day, so its rows do not), where (the page line under each row; not where a heading names the
      page), tag (the heading is a tag), subs (the second level's parts, when there is one) }. */
-  groups(find = '') {
+  groups(find = '', span = null) {
     const today = dates.today(), open = [], done = [], hidden = app.hidden(), has = app.finds(find);
     for (const t of app.tasks) {
       if (!has(t)) continue;
+      if (span && !(t.day >= span[0] && t.day <= span[1])) continue;   // the days picked on the timeline (view.js)
       const s = app.shown(t), ticking = app.ticking.has(t.uuid);   // a task just ticked stays in its place, crossed out, until it rolls away
       if (s === 'done' && !ticking) done.push(t);
       else if (ticking || (T.db.isOpen(s) && !hidden.has(s))) open.push(t);
     }
     done.sort((a, b) => b.updated - a.updated);
     const by = app.by(), then = app.then();
-    const parts = split(open, by, today, !has.on);   // finding: only the groups that hold a task found
+    const parts = split(open, by, today, !has.on && !span);   // finding: only the groups that hold a task found
     if (then) for (const p of parts) {
       p.subs = split(p.rows, then, today, false).map(q => ({ ...q, key: `${p.key}/${q.key}`, where: p.where && q.where, today: p.today || q.today }));
     }

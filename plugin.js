@@ -915,6 +915,17 @@ Door.dates = {
     const y = Math.floor(day / 10000), text = `${MONTHS[Math.floor(day / 100) % 100 - 1].slice(0, 3)} ${day % 100}`;
     return !year || (year !== 'always' && y === new Date().getFullYear()) ? text : `${text}, ${y}`;
   },
+  /* A day as a row says it near today (the thirteen proposals, 4: one way to write a day): Today, Yesterday, Tomorrow, the weekday
+     within a week ahead, else the short day ("Oct 7", the year only when it is another year). Todo's rows first said it so. */
+  near(day, today = Door.dates.today()) {
+    if (!day) return '';
+    const span = Math.round((Door.dates.date(day) - Door.dates.date(today)) / 86400000);
+    if (span === 0) return 'Today';
+    if (span === -1) return 'Yesterday';
+    if (span === 1) return 'Tomorrow';
+    if (span > 1 && span < 7) return WEEKDAYS[Door.dates.date(day).getDay()].slice(0, 3);
+    return Door.dates.words(day);
+  },
   month(key) { const y = Math.floor(key / 100); return MONTHS[key % 100 - 1].slice(0, 3) + (y === new Date().getFullYear() ? '' : ' ' + y); },
   title(date, format = 'MMM do, yyyy') {
     const pad = n => String(n).padStart(2, '0');
@@ -1054,7 +1065,8 @@ Door.timeline = (() => {
     const esc = Door.esc, r = range(dots.map(d => d.day), asked, from), n = lanes ? lanes.length : 1, CAP = 5;
     const parts = [];
     if (asked) parts.push(`<span class="lk-time-band" style="left:${pc(r, D().date(asked[0]).getTime())};width:${width(r, asked[0], asked[1])}"></span>`);
-    if (pick) parts.push(`<span class="lk-time-pick" style="left:${pc(r, D().date(pick[0]).getTime())};width:max(4px, ${width(r, pick[0], pick[1])})"></span>`);
+    const last = D().number(new Date(r.end - DAY)), upTo = day => Math.min(day, last);   // a span never reaches past the line's end
+    if (pick) parts.push(`<span class="lk-time-pick" style="left:${pc(r, D().date(pick[0]).getTime())};width:max(4px, ${width(r, pick[0], upTo(pick[1]))})"></span>`);
     for (let i = 0; i < n; i++) parts.push(`<span class="lk-time-rule" style="--lane:${i}"></span>`);
     // A January after the first month carries its year, so a line across two years says where the new one starts.
     for (let m = new Date(r.start); m.getTime() < r.end; m = new Date(m.getFullYear(), m.getMonth() + 1, 1)) parts.push(`<span class="lk-time-month" style="left:${pc(r, m.getTime())}">${D().MONTHS[m.getMonth()].slice(0, 3)}${m.getMonth() === 0 && m.getTime() > r.start ? ' ' + m.getFullYear() : ''}</span>`);
@@ -1069,7 +1081,7 @@ Door.timeline = (() => {
       if (tall) piles.set(pk, h + 1);
       const left = tall ? pc(r, r.start + (Number(pk.split(':')[1]) * 7 + 3.5) * DAY) : at(r, d.day);
       if (h >= CAP) { if (h === CAP) parts.push(`<span class="lk-time-more" style="left:${left};--lane:${lane};--pile:${CAP}">+${totals.get(pk) - CAP}</span>`); return; }
-      parts.push(`<a href="#" role="button" class="lk-time-dot${d.near ? ' near' : ''}${d.off ? ' off' : ''}${lit === i ? ' at' : ''}" data-i="${i}" data-day="${d.day}" style="left:${left};--lane:${lane};--pile:${h}" title="${esc(d.title ? `${D().words(d.day)}: ${d.title}` : D().words(d.day))}" aria-label="${esc(D().words(d.day))}"></a>`);
+      parts.push(`<a href="#" role="button" class="lk-time-dot${d.near ? ' near' : ''}${d.off ? ' off' : ''}${d.late ? ' late' : ''}${lit === i ? ' at' : ''}" data-i="${i}" data-day="${d.day}" style="left:${left};--lane:${lane};--pile:${h}" title="${esc(d.title ? `${D().words(d.day)}: ${d.title}` : D().words(d.day))}" aria-label="${esc(D().words(d.day))}"></a>`);
       if (lit === i) parts.push(`<span class="lk-time-name${parseFloat(left) > 60 ? ' end' : ''}" style="left:${left};--lane:${lane};--pile:${h}"><span class="lk-day">${esc(D().words(d.day))}</span> ${esc(d.title || '')}</span>`);
     });
     const body = parts.join('');
@@ -1080,7 +1092,31 @@ Door.timeline = (() => {
   const dayAt = (track, clientX) => { const box = track.getBoundingClientRect(), s = Number(track.dataset.start), e = Number(track.dataset.end); const f = box.width ? Math.max(0, Math.min(1, (clientX - box.left) / box.width)) : 0; return D().number(new Date(s + f * (e - s))); };
   // The week around a day, as a span.
   const week = day => { const t = D().date(day); return [D().number(new Date(t.getFullYear(), t.getMonth(), t.getDate() - 3)), D().number(new Date(t.getFullYear(), t.getMonth(), t.getDate() + 3))]; };
-  return { html, dayAt, week, range };
+  /* A timeline's presses, for a part that has none of its own (Todo's; the thirteen proposals, 5): a drag across the line picks the
+     days under it, a dot its week (pressed again inside the days picked: all of them). root: where the line is drawn; pick(): the
+     days picked now; set(span or null). Returns what takes the listeners off. */
+  function wire(root, { pick, set }) {
+    const doc = root.ownerDocument; let drag = null, dragged = false;
+    const down = event => { const track = event.button === 0 && event.target.closest?.('.lk-time-track'); if (track && root.contains(track)) drag = { track, x: event.clientX, from: dayAt(track, event.clientX), moved: false }; };
+    const move = event => {
+      if (!drag) return;
+      if (!drag.moved && Math.abs(event.clientX - drag.x) < 5) return;
+      if (!drag.moved) { drag.moved = true; drag.band = drag.track.querySelector('.lk-time-pick') || drag.track.insertAdjacentElement('afterbegin', doc.createElement('span')); drag.band.className = 'lk-time-pick'; }
+      const r = drag.track.getBoundingClientRect(), a = Math.max(0, Math.min(drag.x, event.clientX) - r.left), b = Math.min(r.width, Math.max(drag.x, event.clientX) - r.left);
+      drag.band.style.left = `${a / r.width * 100}%`; drag.band.style.width = `${(b - a) / r.width * 100}%`;
+      event.preventDefault();
+    };
+    const up = event => { if (!drag) return; const was = drag; drag = null; if (!was.moved) return; const to = dayAt(was.track, event.clientX); dragged = true; setTimeout(() => { dragged = false; }, 0); set([Math.min(was.from, to), Math.max(was.from, to)]); };
+    const click = event => {
+      const dot = event.target.closest?.('.lk-time-dot'); if (!dot || !root.contains(dot)) return;
+      event.preventDefault(); event.stopPropagation(); if (dragged) return;
+      const d = Number(dot.dataset.day), p = pick();
+      set(p && d >= p[0] && d <= p[1] ? null : week(d));
+    };
+    root.addEventListener('mousedown', down); doc.addEventListener('mousemove', move); doc.addEventListener('mouseup', up); root.addEventListener('click', click);
+    return () => { root.removeEventListener('mousedown', down); doc.removeEventListener('mousemove', move); doc.removeEventListener('mouseup', up); root.removeEventListener('click', click); };
+  }
+  return { html, dayAt, week, range, wire };
 })();
 /* THE menu (14 November 2026, from Look's Contents menu): the library's lk-pop, lk-menu, lk-group, lk-item and lk-check as a
    pop-up under the thing pressed, so no module wires a menu's keys and closing again. parts: { group: 'Group by' } a heading,
@@ -1706,6 +1742,7 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
 .lk-time-dot.near { background: var(--lk-paper, transparent); border: 1.2px solid var(--lk-quiet); opacity: 1; }
 .lk-time-dot:hover, .lk-time-dot:focus-visible { opacity: 1; box-shadow: 0 0 0 3px var(--lk-wash); }
 .lk-time-dot.off { opacity: .22; }
+.lk-time-dot.late { background: color-mix(in srgb, var(--rx-red-10, #dc3e42) 78%, var(--lk-paper, transparent)); opacity: 1; }   /* a task past its day, as its day is written in Todo */
 .lk-time-dot.at { opacity: 1; box-shadow: 0 0 0 2px var(--lk-paper, transparent), 0 0 0 3.2px var(--lk-text, currentColor); }
 .lk-time-more { position: absolute; top: calc((var(--lane, 0) + 1) * var(--lk-time-row) - 16px - var(--pile, 0) * 9px); transform: translateX(-50%); font-size: var(--lk-label); line-height: 12px; color: var(--lk-quiet); pointer-events: none; }
 .lk-time-name { position: absolute; top: calc((var(--lane, 0) + 1) * var(--lk-time-row) - 31px - var(--pile, 0) * 9px); transform: translateX(-8px); max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--lk-small); line-height: 16px; padding: 0 4px; background: var(--lk-paper, transparent); color: var(--lk-text, currentColor); border-radius: 3px; pointer-events: none; z-index: 1; }
