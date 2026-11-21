@@ -3,9 +3,11 @@
    property's name, "when"); the other words narrow the rows by their letters, and the last of them light the choice they
    begin, which Tab completes in the sentence. "around May" widens May to the months beside it. Given the text and the
    names, this says what is there; nothing here reads the graph or draws. (The owner, 5 November 2026, from the Finding
-   screen of after-kenya-hara.html: "I like the find feature".) */
+   screen of after-kenya-hara.html: "I like the find feature".)
+   One reader for every find line (the thirteen proposals, 1: "One find line that understands the same things everywhere", the
+   owner's go of 19 November 2026): Find by sentence and Todo's find line read through it, and mirror() draws what was read under
+   the line's letters in the library's look (lk-say-*). Shared, so it stands whichever parts run (files.js, after plugin.js). */
 (function () {
-const Find = window.Find;
 // The month names are the door's (plugin.js, Door.dates): in small letters as they are typed, and cut to three for a label.
 const MONTHS = window.PluginDoor.dates.MONTHS.map(name => name.toLowerCase());
 const SHORT = window.PluginDoor.dates.MONTHS.map(name => name.slice(0, 3));
@@ -149,18 +151,18 @@ function read(text, names, today = new Date()) {
     if (!has('when')) {
       const around = AROUND.has(toks[i].key) && toks[i + 1] ? 1 : 0;
       const p = period(toks, i + around, today);
-      if (p) got = { len: p.len + around, pick: { kind: 'when', unit: p.a.unit, y: p.a.y, m: p.a.m, d: p.a.d, around: !!around, ...periodSpan(p, !!around) }, note: 'when', cls: 'fd-when' };
-      if (!got) { const w = when(toks, i + around, today); if (w) got = { len: w.len + around, pick: { kind: 'when', ...w, around: !!around, ...spanOf(w, !!around) }, note: 'when', cls: 'fd-when' }; }
+      if (p) got = { len: p.len + around, pick: { kind: 'when', unit: p.a.unit, y: p.a.y, m: p.a.m, d: p.a.d, around: !!around, ...periodSpan(p, !!around) }, note: 'when', cls: 'lk-say-when' };
+      if (!got) { const w = when(toks, i + around, today); if (w) got = { len: w.len + around, pick: { kind: 'when', ...w, around: !!around, ...spanOf(w, !!around) }, note: 'when', cls: 'lk-say-when' }; }
     }
     for (let len = Math.min(6, toks.length - i); len >= 1 && !got; len--) {
       const key = toks.slice(i, i + len).map(t => t.key).join(' ');
       if (!key) continue;
       const kind = !has('tag') && look(names.kinds, key);
-      if (kind) { got = { len, pick: { kind: 'tag', id: kind.id, uuid: kind.uuid, title: kind.title }, note: 'kind', cls: 'fd-kind' }; break; }
+      if (kind) { got = { len, pick: { kind: 'tag', id: kind.id, uuid: kind.uuid, title: kind.title }, note: 'kind', cls: 'lk-say-kind' }; break; }
       const value = has('tag') && look(names.values, key);
-      if (value) { got = { len, pick: { kind: 'who', name: value.name, key: value.key, label: value.label, uuid: value.uuid, type: value.type }, note: value.name, cls: value.uuid ? 'fd-who' : 'fd-value' }; break; }
+      if (value) { got = { len, pick: { kind: 'who', name: value.name, key: value.key, label: value.label, uuid: value.uuid, type: value.type }, note: value.name, cls: value.uuid ? 'lk-say-who' : 'lk-say-value' }; break; }
       const page = look(names.pages, key);
-      if (page) { got = { len, pick: { kind: 'who', uuid: page.uuid, id: page.id, label: page.title }, note: names.noteOf?.(page.uuid) || 'node', cls: 'fd-who' }; break; }
+      if (page) { got = { len, pick: { kind: 'who', uuid: page.uuid, id: page.id, label: page.title }, note: names.noteOf?.(page.uuid) || 'node', cls: 'lk-say-who' }; break; }
     }
     if (got) {
       const from = toks[i].at, to = toks[i + got.len - 1].end;
@@ -170,7 +172,7 @@ function read(text, names, today = new Date()) {
     } else { rest.push(toks[i]); i++; }
   }
   const words = rest.filter(t => t.key && !STOP.has(t.key)).map(t => t.key);
-  for (const t of rest) if (STOP.has(t.key)) spans.push({ from: t.at, to: t.end, note: '', cls: 'fd-stop' });
+  for (const t of rest) if (STOP.has(t.key)) spans.push({ from: t.at, to: t.end, note: '', cls: 'lk-say-stop' });
   spans.sort((a, b) => a.from - b.from);
   // The trail: the words after the last thing read, less the joining words before them.
   let trail = toks.slice(lastRead);
@@ -178,5 +180,19 @@ function read(text, names, today = new Date()) {
   return { picks, spans, words, trail: trail.map(t => t.key).filter(Boolean), trailFrom: trail.length ? trail[0].at : text.length };
 }
 
-Find.sentence = { read, look, tokens, norm, when, period, spanOf, STOP, SHORT };
+/* The letters as read, into a mirror element under the field (the field's own letters clear, its caret kept): each stretch read
+   wrapped in lk-say-part with its note above (lk-say-note, the small faint name over a value), the joining words quiet. */
+function mirror(el, typed, spans) {
+  const doc = el.ownerDocument; el.replaceChildren();
+  let at = 0;
+  for (const s of spans) {
+    if (s.from < at) continue;
+    if (s.from > at) el.append(doc.createTextNode(typed.slice(at, s.from)));
+    const part = doc.createElement('span'); part.className = 'lk-say-part ' + s.cls; part.textContent = typed.slice(s.from, s.to);
+    if (s.note) { const note = doc.createElement('span'); note.className = 'lk-say-note lk-name'; note.textContent = s.note; part.append(note); }
+    el.append(part); at = s.to;
+  }
+  if (at < typed.length) el.append(doc.createTextNode(typed.slice(at)));
+}
+window.PluginDoor.sentence = { read, look, tokens, norm, when, period, spanOf, mirror, STOP, SHORT };
 })();

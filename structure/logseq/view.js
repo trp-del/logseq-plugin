@@ -1318,7 +1318,8 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     st.menu = null; st.ask = null;
     const m = M();
     if (a === 'openall') openAll(on);
-    else if (a === 'nodes') openNodes(on);
+    // Show its nodes opens Find with the tag picked (the thirteen proposals, 9); without Find, Ontology's own list as before.
+    else if (a === 'nodes') { redraw(); const t = T(on); window.PluginDoor.ask('find:kind', { uuid: t?.uuid, title: t?.title }).then(got => { if (got === window.PluginDoor.UNANSWERED) openNodes(on); }); }
     else if (a === 'page') { redraw(); app.openNode(T(on)?.uuid, shift); }
     else if (a === 'prename') { const p = P(Number(on.split('·')[1])); if (p) startEdit('prename', on, p.title); else redraw(); }
     else if (a === 'ppage') { redraw(); app.openNode(P(Number(on.split('·')[1]))?.uuid, shift); }

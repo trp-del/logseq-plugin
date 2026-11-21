@@ -81,13 +81,27 @@ const app = T.app = {
     }
     return { parts, done };
   },
-  /* Find a todo (the owner, 18 November 2026: Todo wants a search box): the words typed in a view's find field, each
-     found in the task's words, its page's name or a tag, letters in any case. finds(words) answers whether a task is found;
-     .on, whether there are words at all. */
+  /* Find a todo (the owner, 18 November 2026: Todo wants a search box), read as Find reads a sentence (the thirteen proposals, 1:
+     one find line that understands the same things everywhere): a day or a period ("on nov 18", "this week", "since october")
+     leaves the tasks due then; a tag's name, the tasks with that tag; a page's name, the tasks on it or naming it; every other
+     word is found in the task's words, its page's name or a tag, letters in any case. finds(words) answers whether a task is
+     found; .on, whether there are words at all; .said, the reading (Door.sentence.read), for the field's mirror. */
   finds(words) {
-    const ws = String(words || '').toLowerCase().split(/\s+/).filter(Boolean);
-    const has = t => !ws.length || ws.every(w => [t.words, t.text, t.page?.title, ...(t.tags || [])].some(x => String(x || '').toLowerCase().includes(w)));
-    has.on = ws.length > 0;
+    const S = Door.sentence, typed = String(words || '');
+    const kinds = new Map(), pages = new Map();
+    for (const t of app.tasks) {
+      for (const tag of t.tags || []) kinds.set(S.norm(tag), { title: tag });
+      if (t.page?.title && !t.page.journal) pages.set(S.norm(t.page.title), { uuid: t.page.uuid, title: t.page.title });
+    }
+    const said = S.read(typed, { kinds, values: null, pages });
+    const when = said.picks.find(p => p.kind === 'when'), tag = said.picks.find(p => p.kind === 'tag'), page = said.picks.find(p => p.kind === 'who');
+    const ws = said.words;
+    const has = t => (!when || (t.day && t.day >= when.from && t.day <= when.to))
+      && (!tag || (t.tags || []).includes(tag.title))
+      && (!page || t.page?.uuid === page.uuid || String(t.text || t.words || '').toLowerCase().includes(page.label.toLowerCase()))
+      && ws.every(w => [t.words, t.text, t.page?.title, ...(t.tags || [])].some(x => String(x || '').toLowerCase().includes(w)));
+    has.on = typed.trim().length > 0;
+    has.said = said;
     return has;
   },
   // The grouping in force, one for the page and the sidebar alike, kept in the plugin's settings (todoGroupBy), and the second

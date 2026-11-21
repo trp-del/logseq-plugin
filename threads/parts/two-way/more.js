@@ -107,23 +107,32 @@ twoWay.lineMenuHooks.push((group, item) => {
 
 /* Gaps (N7), "quiet for 25 days" between two dated nodes, were taken out at the owner's word (10 November 2026). */
 
-/* What the list keeps saying (N6): values held by two nodes or more and by at least a third of the list, not by all of it
-   (that says nothing the head does not), the three most held; a click narrows the list to the nodes holding one. */
+/* Lines of choices over a long list (the thirteen proposals, 2: "Find's lines of choices on any long list", in place of "Often";
+   the owner's go of 19 November 2026): the library's lines (Door.choicesHtml), as Find draws over its rows. Of the properties the
+   list's nodes hold, not the one linking here: each held by two nodes or more and not all, with more than one value, the most held
+   one (the drawing shows one line); each with its values and their counts, most held first. A press narrows the list to the nodes holding that value; pressed
+   again, the whole list. Lists of five nodes or more, not the mentions. */
 state.keeps = new Map();
-const valuesOf = item => { const out = []; for (const [name, entry] of state.values.get(item.uuid) || []) for (const v of entry.values || []) { const text = v.day ? '' : String(v.title ?? v.text ?? '').trim(); if (text) out.push({ name, text }); } return out; };
-function sharedValues(group, items) {
-  const counts = new Map();
-  for (const item of items) for (const v of new Set(valuesOf(item).filter(v => v.name !== group.name).map(v => `${v.name}\u0000${v.text}`))) counts.set(v, (counts.get(v) || 0) + 1);
-  return [...counts].filter(([, n]) => n >= 2 && n >= items.length / 3 && n < items.length).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k]) => { const [name, text] = k.split('\u0000'); return { name, text }; });
+const valuesOf = item => { const out = []; for (const [name, entry] of state.values.get(item.uuid) || []) for (const v of entry.values || []) { const text = v.day ? '' : String(v.title ?? v.text ?? '').trim(); if (text) out.push({ name, text, ident: entry.ident }); } return out; };
+function choiceLines(group, items) {
+  const props = new Map();
+  for (const item of items) for (const v of new Map(valuesOf(item).filter(v => v.name !== group.name).map(v => [`${v.name}\u0000${v.text}`, v])).values()) {
+    if (!props.has(v.name)) props.set(v.name, { name: v.name, ident: v.ident, counts: new Map() });
+    const c = props.get(v.name).counts; c.set(v.text, (c.get(v.text) || 0) + 1);
+  }
+  return [...props.values()]
+    .map(p => ({ ...p, values: [...p.counts].filter(([, n]) => n < items.length).sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0])) }))
+    .filter(p => p.values.length > 1 && p.values.some(([, n]) => n >= 2) && p.values.length <= 12)
+    .map(p => ({ ...p, held: p.values.reduce((n, [, c]) => n + c, 0) }))
+    .sort((x, y) => y.held - x.held || x.name.localeCompare(y.name)).slice(0, 1);   // one line, as drawn: the most held
 }
 twoWay.listHooks.push((group, key, items) => { const k = state.keeps.get(key); return k ? items.filter(item => valuesOf(item).some(v => v.name === k.name && v.text === k.text)) : items; });
-twoWay.underHeadHooks.push((group, key, items) => {
+twoWay.underHeadHooks.push((group, key) => {
   if (group.items.length < 5 || twoWay.isMentions(group)) return '';
-  const chosen = state.keeps.get(key);
-  const found = chosen ? [chosen] : sharedValues(group, group.items);
-  if (!found.length) return '';
-  const held = chosen ? items.length : 0;
-  return `<div class="th-tw-keeps"><span class="th-tw-keepsword">${chosen ? `Only these ${held}:` : 'Often'}</span>${found.map(v => `<button type="button" class="th-chip th-tw-chip th-tw-keep" data-keeps="${esc(key)}" data-kname="${esc(v.name)}" data-ktext="${esc(v.text)}" aria-pressed="${!!chosen}" title="${chosen ? 'Show the whole list' : `Only the nodes whose ${esc(v.name)} is ${esc(v.text)}`}"><span class="th-tw-kname">${esc(v.name)}</span> ${esc(v.text)}</button>`).join('')}</div>`;
+  const chosen = state.keeps.get(key), lines = choiceLines(group, group.items);
+  if (!lines.length) return '';
+  const kindOf = ident => state.schema?.props.find(x => x.ident === ident)?.type || 'default';
+  return `<div class="th-tw-choices">${window.PluginDoor.choicesHtml(lines.map(l => ({ name: l.name, icon: shared.kindIconHtml(kindOf(l.ident)), values: l.values.slice(0, 6).map(([text, n]) => ({ label: text, count: n, lit: chosen?.name === l.name && chosen?.text === text, attrs: { 'data-keeps': key, 'data-kname': l.name, 'data-ktext': text } })) })))}</div>`;
 });
 
 twoWay.clickHooks.push(event => {
@@ -131,7 +140,7 @@ twoWay.clickHooks.push(event => {
   const onlyNew = t.closest?.('[data-onlynew]');
   if (onlyNew) { event.preventDefault(); event.stopPropagation(); const k = onlyNew.dataset.onlynew; if (state.onlyNew.has(k)) state.onlyNew.delete(k); else state.onlyNew.add(k); twoWay.setOpen?.(k, true); redraw(); return true; }
   const keeps = t.closest?.('[data-keeps]');
-  if (keeps) { event.preventDefault(); event.stopPropagation(); const k = keeps.dataset.keeps; if (state.keeps.has(k)) state.keeps.delete(k); else state.keeps.set(k, { name: keeps.dataset.kname, text: keeps.dataset.ktext }); redraw(); return true; }
+  if (keeps) { event.preventDefault(); event.stopPropagation(); const k = keeps.dataset.keeps, was = state.keeps.get(k); if (was && was.name === keeps.dataset.kname && was.text === keeps.dataset.ktext) state.keeps.delete(k); else state.keeps.set(k, { name: keeps.dataset.kname, text: keeps.dataset.ktext }); redraw(); return true; }
   return false;
 });
 

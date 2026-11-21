@@ -20,9 +20,9 @@ const CSS = `
 .td-side .td-add { margin-bottom: 24px; }
 /* Find a todo, under the add line: the library's field (lk-field), Logseq's search glass where the add line has its +. */
 .td .td-add { margin-bottom: 6px; }
-.td-find { margin: 0 0 32px; padding: 6px 0; }
+.td-find { margin: -6px 0 32px; padding: 6px 0; }   /* the line's room for its notes (lk-say) taken from the gap above it */
 .td-side .td-find { margin-bottom: 24px; }
-.td-find .td-glass { color: var(--lk-quiet); flex: none; display: inline-flex; }
+.td-find .td-glass { color: var(--lk-quiet); flex: none; display: inline-flex; align-self: flex-end; margin-bottom: 6px; }   /* beside the letters, under the notes' room */
 .td-find input { padding: 2px 0; }
 .td-body { position: relative; }
 .td-tools { position: absolute; top: -2px; right: -4px; z-index: 1; display: flex; gap: 8px; }   /* Show and the grouping, the library's words with their chevrons (lk-change), on the first heading's line at the right */
@@ -187,7 +187,7 @@ function make(holder, mode) {
   root.className = `td td-own td-${mode}`;
   root.innerHTML = `${mode === 'page' ? '<h1 class="title page-title td-title">Todo</h1>' : ''}
 <label class="td-add lk-field"><span class="lk-i-plus td-plus" aria-hidden="true"></span><input type="text" placeholder="Add a todo" aria-label="Add a todo" spellcheck="true"><span class="td-when lk-note"></span></label>
-<label class="td-find lk-field"><span class="td-glass" aria-hidden="true"></span><input type="text" placeholder="Find a todo" aria-label="Find a todo" spellcheck="false" autocomplete="off"></label>
+<label class="td-find lk-field"><span class="td-glass" aria-hidden="true"></span><span class="lk-say"><input type="text" placeholder="Find a todo" aria-label="Find a todo" spellcheck="false" autocomplete="off"><span class="lk-say-mirror" aria-hidden="true"></span></span></label>
 <div class="td-body"><div class="td-tools"><button type="button" class="td-show lk-change" data-show aria-haspopup="menu" aria-expanded="false" title="Which tasks the list shows"><span class="td-show-word"></span><span class="lk-i-chevron" aria-hidden="true"></span></button><button type="button" class="td-by lk-change" data-by aria-haspopup="menu" aria-expanded="false" title="Group the list"><span class="td-by-word"></span><span class="lk-i-chevron" aria-hidden="true"></span></button></div><div class="td-list"></div></div>`;
   holder.appendChild(root);
   root.querySelector('.td-glass').innerHTML = Door.logseqIconHtml('search', { size: 16, doc });
@@ -225,11 +225,20 @@ function make(holder, mode) {
   const showDay = () => { const found = T.db.dayIn(input.value); when.textContent = found ? dayFull(found.day) : ''; };
   input.addEventListener('input', showDay);
   // Find a todo: the list narrows as you type; Escape empties the field, a second Escape lets it go.
-  finder.addEventListener('input', () => { view.find = finder.value; view.draw(); });
+  // What the words were read as (a day, a tag, a page) is drawn under the letters, its note above, as in Find by sentence.
+  const say = root.querySelector('.td-find .lk-say'), mirror = say.querySelector('.lk-say-mirror');
+  const said = () => {
+    const spans = finder.value.trim() ? T.app.finds(finder.value).said.spans : [];
+    say.toggleAttribute('data-said', spans.some(s => s.note));
+    Door.sentence.mirror(mirror, finder.value, spans);
+    mirror.scrollLeft = finder.scrollLeft;
+  };
+  finder.addEventListener('input', () => { view.find = finder.value; said(); view.draw(); });
+  finder.addEventListener('scroll', () => { mirror.scrollLeft = finder.scrollLeft; });
   finder.addEventListener('keydown', event => {
     event.stopPropagation();   // the field's keys are its own, never Logseq's
     if (event.isComposing) return;
-    if (event.key === 'Escape') { event.preventDefault(); if (finder.value) { finder.value = ''; view.find = ''; view.draw(); } else finder.blur(); }
+    if (event.key === 'Escape') { event.preventDefault(); if (finder.value) { finder.value = ''; view.find = ''; said(); view.draw(); } else finder.blur(); }
     else if (event.key === 'Enter') { event.preventDefault(); const first = list.querySelector('.td-row [data-open]'); if (first) T.app.open(first.dataset.open, event.shiftKey); }
   });
   input.addEventListener('keydown', event => {

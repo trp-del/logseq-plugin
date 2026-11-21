@@ -124,12 +124,8 @@ const twoWayCss = `
 /* A pinned node (N2): its pin before the name, faint; a gap of a line under the last pinned one. */
 .th-two-way .th-tw-pinned { color: var(--lk-quiet); font-size: var(--lk-label); margin-right: 4px; }
 .th-two-way .th-tw-pingap { height: 10px; }
-/* What the list keeps saying (N6): one quiet line under the head; a value in force reads in the text colour. */
-.th-two-way .th-tw-keeps { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; margin: 0 0 4px calc(2 * var(--th-tw-in)); font-size: var(--lk-small); color: var(--lk-quiet); }   /* at the days' edge, as the quiet lines of the list */
-.th-two-way .th-tw-keepsword { color: var(--lk-quiet); }
-.th-two-way .th-tw-keep { all: unset; cursor: pointer; color: var(--lk-quiet); text-decoration: underline; text-decoration-color: var(--lk-line); text-underline-offset: 3px; }
-.th-two-way .th-tw-keep:hover, .th-two-way .th-tw-keep[aria-pressed="true"] { color: var(--lk-text, currentColor); text-decoration-color: currentColor; }
-.th-two-way .th-tw-kname { color: var(--lk-quiet); }
+/* The lines of choices over a long list (Door.choicesHtml, the library's look): at the days' edge, as the quiet lines of the list. */
+.th-two-way .th-tw-choices { margin: 2px 0 2px calc(2 * var(--th-tw-in)); }
 .th-two-way .th-tw-sorted { color: var(--lk-quiet); font-weight: 400; }
 /* What the timeline narrowed, on a line of its own under the tabs, smaller and quiet, its × to give the list back (the owner, 11 November 2026). */
 .th-two-way .th-tw-head .th-tw-piece.th-tw-showing { flex: 0 0 100%; order: 99; display: inline-flex; align-items: baseline; gap: 4px; margin: 0; font-size: var(--lk-small); font-weight: 400; }

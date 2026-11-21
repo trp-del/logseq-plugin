@@ -1030,6 +1030,14 @@ Door.regrow = (el, from, ms = MOTION_MS) => {
    name, and dayAt for a drag across the track.
      dots   [{ day, lane = 0, near, off, title }]  near: a hollow dot (close to what was asked); off: faded (outside the span or lane)
      lanes  [{ name, count, on, off }] or null      asked, pick: [fromDay, toDay] or null      at: a dot's index or null */
+/* Lines of choices over a long list (the thirteen proposals, 2: "Find's lines of choices on any long list"; the owner's go of
+   19 November 2026): each a property's small name over its values, each value with its count, a press narrowing the list to the
+   nodes holding it. Find draws them over its rows, Relations over a list of nodes. lines: [{ name, icon (html), values: [{ label,
+   count, lit, attrs: { data-…: … } }] }] → html. The look is the library's (lk-choices, lk-ch, lk-ck, lk-cv, lk-nb, lk-lit). */
+Door.choicesHtml = lines => {
+  const esc = Door.esc, attrs = a => Object.entries(a || {}).map(([k, v]) => ` ${k}="${esc(v)}"`).join('');
+  return `<div class="lk-choices">${lines.map(l => `<div class="lk-ch"><span class="lk-ck lk-prop">${l.icon ? `<span class="lk-ck-icon">${l.icon}</span>` : ''}${esc(l.name)}</span><span class="lk-cv lk-views">${l.values.map(v => `<button type="button" class="lk-view${v.lit ? ' lk-lit' : ''}"${v.lit ? ' aria-pressed="true"' : ''}${attrs(v.attrs)}${v.label.length > 44 ? ` title="${esc(v.label)}"` : ''}>${esc(v.label.length > 44 ? v.label.slice(0, 43) + '…' : v.label)}<span class="lk-nb">${v.count}</span></button>`).join('')}</span></div>`).join('')}</div>`;
+};
 Door.timeline = (() => {
   const D = () => Door.dates, DAY = 864e5;
   const range = (days, asked, from) => {
@@ -1563,6 +1571,33 @@ Door.NAMES = `${TOKENS}
 .lk-list:hover .lk-tick, .lk-list:focus-within .lk-tick, .lk-list[data-picking] .lk-tick { opacity: .55 !important; }
 .lk-list .lk-tick:checked, .lk-list .lk-tick:hover { opacity: 1 !important; }
 .lk-name { font-size: var(--lk-label) !important; color: var(--lk-quiet) !important; letter-spacing: .02em; font-weight: 400 !important; }
+/* A find line read as a sentence (sentence.js, Door.sentence.mirror): each stretch read keeps its letters, its note above it (lk-name);
+   a time and the joining words quiet, a page or a value a link. One look for every find line: Find by sentence and Todo's. */
+.lk-say-part { position: relative; }
+.lk-say-note { position: absolute; left: 0; top: -14px; line-height: 1; white-space: nowrap; }
+.lk-say-stop, .lk-say-when { color: var(--lk-quiet); }
+.lk-say-who { ${Door.LOOKS.link(false)} }
+.lk-say { display: grid; flex: 1; min-width: 0; }
+.lk-say > input, .lk-say > .lk-say-mirror { grid-area: 1 / 1; font: inherit; line-height: 1.5; white-space: pre; overflow: hidden; min-width: 0; }
+.lk-say > .lk-say-mirror { pointer-events: none; }
+.lk-say > input, .lk-say > .lk-say-mirror { padding-top: 14px !important; }   /* room above the letters for the notes, always, so nothing moves when one comes */
+.lk-say[data-said] > input { color: transparent !important; caret-color: var(--lk-text, currentColor); }
+.lk-say:not([data-said]) > .lk-say-mirror { visibility: hidden; }
+/* Lines of choices over a list (Door.choicesHtml; Find's and Relations'): each line its small name above its values, as a find line's
+   notes stand above its words; the values the tab picker (lk-views) with no underline and no padding, so the whole tab space is the
+   gap; the count after the word, always, quiet (the owner, 13 November 2026: "keep it same tab picker sans underline"). */
+.lk-choices { padding-bottom: 14px; }
+.lk-ch { display: grid; grid-template-columns: minmax(0, 1fr); gap: 3px 0; font-size: var(--lk-small); padding: 3px 0 7px; align-items: baseline; }
+.lk-ch > .lk-ck { font-size: var(--lk-label); }
+.lk-ck { color: var(--lk-quiet); display: flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lk-ck-icon { display: inline-flex; width: 12px; height: 12px; align-items: center; justify-content: center; color: var(--lk-quiet); font-size: 12px; }
+.lk-ck-icon svg { width: 12px; height: 12px; }
+.lk-cv { display: flex; gap: 0 10px; flex-wrap: wrap; color: var(--lk-quiet); }
+.lk-cv.lk-views { --lk-view-pad: 0px; gap: 0 var(--lk-tab-space, 24px); align-items: baseline; }
+.lk-cv .lk-view { padding-top: 0; padding-bottom: 0; display: inline-flex; align-items: baseline; gap: 4px; }
+.lk-cv .lk-view .lk-nb { visibility: visible; }
+.lk-cv .lk-view.lk-lit { color: var(--lk-text, currentColor) !important; }
+.lk-nb { color: var(--lk-quiet); font-size: var(--lk-small); font-variant-numeric: tabular-nums; }
 .lk-value:not(input) { color: inherit !important; cursor: pointer; }
 .lk-value:not(input):hover { color: var(--lk-quiet) !important; }
 .lk-value.off, input.lk-value::placeholder { color: var(--lk-off) !important; }

@@ -9,7 +9,7 @@
    ("Consultation with Dr. Mei Chen around May 2026"), and above each stretch it understood the window pencils what it
    read ("kind", the property's name, "when"); the words it did not read narrow the rows by their letters; Tab completes a
    lit choice in the sentence. Under it the year line, the nodes found as dots on it, the time asked for as a band; after
-   the rows, under "Near", what sits just outside that time. The sentence is read by Find.sentence. */
+   the rows, under "Near", what sits just outside that time. The sentence is read by window.PluginDoor.sentence. */
 (function () {
 const Find = window.Find;
 const { host, el, esc, style, kindIconHtml, dragBand, openPage, notify } = Find.kit;
@@ -41,10 +41,6 @@ const CSS = `
 .fd-say .fd-sentence > .fd-input, .fd-say .fd-sentence > .fd-mirror { padding: 16px 0 0; }
 .fd-say .fd-input { color: transparent; caret-color: var(--lk-text, #222); }
 .fd-say .fd-mirror { display: block; pointer-events: none; color: var(--lk-text, #222); }
-.fd-part { position: relative; }
-.fd-note { position: absolute; left: 0; top: -14px; line-height: 1; white-space: nowrap; }
-.fd-stop, .fd-when { color: var(--lk-quiet); }
-.fd-who { ${window.PluginDoor.LOOKS.link(false)} }
 /* The year line, under the sentence: the months, the nodes found as dots on their days, the time asked for as a band, the near ones
    hollow. Opened (Up from the choices, or a click), it grows in place to its full height: each day a column, its nodes piled; or a
    lane a value of the first choice line. The dot under the pointer or the cursor is named beside it, in the window's own type. */
@@ -63,23 +59,11 @@ const CSS = `
 /* A group's head: a bold word after a gap of one line (the grammar). */
 .fd-near { font-weight: 600; margin: 20px 0 2px calc(var(--fd-day) + 36px); }
 /* Each choice line: its small name above its values, as the sentence's notes stand above its words (the audit's 35). */
-.fd-ch { display: grid; grid-template-columns: minmax(0, 1fr); gap: 3px 0; font-size: var(--lk-small); padding: 3px 0 7px; align-items: baseline; }
-.fd-ch > .fd-ck { font-size: var(--lk-label); }
-.fd-choices { padding-bottom: 14px; }
 .fd-head-rows { margin-top: 8px; }
-.fd-ck { color: var(--lk-quiet); display: flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fd-cv { display: flex; gap: 0 10px; flex-wrap: wrap; color: var(--lk-quiet); }
 /* A line of values is the library's tab picker (lk-views, lk-view) with no underline, since none is the one shown (the owner,
    13 November 2026: "keep it same tab picker sans underline"); its padding is taken away, so the whole tab space is the gap. */
-.fd-cv.lk-views { --lk-view-pad: 0px; gap: 0 var(--lk-tab-space, 24px); }
-.fd-cv.lk-views { align-items: baseline; }
-.fd-cv .lk-view { padding-top: 0; padding-bottom: 0; }   /* no bar below, so no room kept for one; the label stays near its words */
 /* The count stands after the word, always, quiet, as a tab's count does (Threads' kinds: All 12, No tag 7); then the space between
    the words is the tab picker's even space whatever the counts (the owner, 13 November 2026: a count of 506 ran into the next word). */
-.fd-cv .lk-view { display: inline-flex; align-items: baseline; gap: 4px; }
-.fd-cv .lk-view .fd-nb { visibility: visible; }
-.fd-cv .lk-view.fd-lit { color: var(--lk-text, currentColor) !important; }
-.fd-c .fd-nb { color: var(--lk-quiet); font-size: var(--lk-small); font-variant-numeric: tabular-nums; }
 .fd-more { margin: -3px 0; }
 /* The kinds opened: columns, each a top-level tag in bold over the tags beneath it, stepped in by depth. */
 .fd-tree { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px 18px; }
@@ -174,7 +158,7 @@ const hasWord = (text, ws) => { const t = text.toLowerCase(); return ws.every(w 
    nodes are read, a page's note once what points at it is read. Sync, so the mirror always draws the letters as they stand. */
 function namesNow() {
   if (!S.names || S.names.kinds.size !== S.kinds.length || S.names.pagesOf !== S.pages) {
-    const norm = Find.sentence.norm;
+    const norm = window.PluginDoor.sentence.norm;
     S.names = { kinds: new Map(S.kinds.map(k => [norm(k.title), k])), pages: new Map((S.pages || []).map(p => [norm(p.title), p])), pagesOf: S.pages, noteOf: uuid => S.noteOf.get(uuid) };
     // A kind and a page of the same name: the kind is read first anyway; a page wins only once a kind is read.
   }
@@ -185,10 +169,10 @@ function readNow() {
   // The pieces: the picks are what was picked, every word typed narrows and lights.
   if (!S.say) { const ws = S.typed.trim().toLowerCase().split(/\s+/).filter(Boolean); S.spans = []; S.words = ws; S.trail = ws; S.trailFrom = 0; return; }
   const names = namesNow();
-  let r = Find.sentence.read(S.typed, names);
+  let r = window.PluginDoor.sentence.read(S.typed, names);
   const kind = r.picks.find(p => p.kind === 'tag');
   const facets = kind && S.cache.kindFacets.get(kind.id);
-  if (facets) r = Find.sentence.read(S.typed, { ...names, values: facets.byLabel });
+  if (facets) r = window.PluginDoor.sentence.read(S.typed, { ...names, values: facets.byLabel });
   S.picks = r.picks; S.spans = r.spans; S.words = r.words; S.trail = r.trail; S.trailFrom = r.trailFrom;
 }
 /* What points at a page, or mentions it, read once (the same reading a dug row shows): the nodes, and for each the property
@@ -364,7 +348,7 @@ const flatChoices = groups => groups.flatMap(g => g.items);
 function growChoices() { const was = S.dlg?.querySelector('.fd-choices')?.getBoundingClientRect().height; render(); window.PluginDoor.regrow(S.dlg?.querySelector('.fd-choices'), was); }
 const litChoice = groups => (S.trail.length && (S.say || S.trail.length === 1) ? flatChoices(groups).find(c => c.lit) : null);
 // A month said in the sentence carries its year, so it reads as that month whatever the year today.
-const monthSaid = key => Find.sentence.SHORT[key % 100 - 1] + ' ' + Math.floor(key / 100);
+const monthSaid = key => window.PluginDoor.sentence.SHORT[key % 100 - 1] + ' ' + Math.floor(key / 100);
 
 // A month picked among the pieces: that month, nothing near it.
 function monthPick(m) { const y = Math.floor(m.key / 100), mo = m.key % 100, from = y * 10000 + mo * 100 + 1, to = y * 10000 + mo * 100 + new Date(y, mo, 0).getDate(); return { kind: 'when', month: true, from, to, nearFrom: from, nearTo: to, label: m.label }; }
@@ -523,19 +507,19 @@ function render() {
   if (lineBox) body.append(lineBox);
   if (!isCommandMode() && groups.length) {
     let ci = 0;
-    const wrap = el(doc, 'div', { class: 'fd-choices' });
+    const wrap = el(doc, 'div', { class: 'fd-choices lk-choices' });
     // No word over the lines: each is a label and the choices that narrow the list, and the gap under them tells
     // them from the rows.
     for (const g of groups) {
-      const box = el(doc, 'div', { class: 'fd-ch' });
-      box.append(el(doc, 'span', { class: 'fd-ck' + (g.key.startsWith('p:') ? ' lk-prop' : ''), html: g.icon ? `<span class="fd-icon">${g.icon}</span>` : '' }, g.key === 'kind' ? 'kind' : g.label));
+      const box = el(doc, 'div', { class: 'fd-ch lk-ch' });
+      box.append(el(doc, 'span', { class: 'fd-ck lk-ck' + (g.key.startsWith('p:') ? ' lk-prop' : ''), html: g.icon ? `<span class="fd-icon lk-ck-icon">${g.icon}</span>` : '' }, g.key === 'kind' ? 'kind' : g.label));
       if (g.tree) { box.append(treeOf(doc, g, () => ci++, groups)); wrap.append(box); continue; }
-      const vals = el(doc, 'span', { class: 'fd-cv lk-views' });
+      const vals = el(doc, 'span', { class: 'fd-cv lk-cv lk-views' });
       g.items.forEach((c, i) => {
         const at = ci++;
         const lit = (S.mode === 'choices' && at === S.choiceAt) || (S.mode !== 'choices' && litChoice(groups) === c);
         if (c.more) vals.append(el(doc, 'button', { class: 'fd-more lk-more' + (lit ? ' fd-lit' : ''), type: 'button', 'data-c': at, click: () => c.pick() }, c.label));
-        else vals.append(el(doc, 'button', { class: 'fd-c lk-view' + (lit ? ' fd-lit' : ''), type: 'button', 'data-c': at, title: c.label.length > 44 ? c.label : null, click: () => c.pick() }, short(c.label, 44), el(doc, 'span', { class: 'fd-nb' }, String(c.count))));
+        else vals.append(el(doc, 'button', { class: 'fd-c lk-view' + (lit ? ' fd-lit lk-lit' : ''), type: 'button', 'data-c': at, title: c.label.length > 44 ? c.label : null, click: () => c.pick() }, short(c.label, 44), el(doc, 'span', { class: 'fd-nb lk-nb' }, String(c.count))));
       });
       box.append(vals);
       wrap.append(box);
@@ -665,16 +649,7 @@ function drawSentence(doc) {
     return;
   }
   input.placeholder = 'what, with whom, when';
-  let at = 0;
-  for (const s of S.spans) {
-    if (s.from < at) continue;
-    if (s.from > at) mirror.append(doc.createTextNode(S.typed.slice(at, s.from)));
-    const part = el(doc, 'span', { class: 'fd-part ' + s.cls }, S.typed.slice(s.from, s.to));
-    if (s.note) part.append(el(doc, 'span', { class: 'fd-note lk-name' }, s.note));
-    mirror.append(part);
-    at = s.to;
-  }
-  if (at < S.typed.length) mirror.append(doc.createTextNode(S.typed.slice(at)));
+  window.PluginDoor.sentence.mirror(mirror, S.typed, S.spans);
   mirror.scrollLeft = input.scrollLeft;
 }
 /* The year line: whole years, from the first the rows found touch to the last (one year at least, ten at most); a tick a
@@ -790,14 +765,14 @@ const withData = (root, name, value) => [...root.querySelectorAll(`[data-${name}
 // The kinds in columns: a top-level tag bold at the head of its column, the tags under it stepped in by depth; "Logseq" a
 // head that is no kind. Each is a choice like any other, lit by the cursor, its count shown only then or under the pointer.
 function treeOf(doc, g, next, groups) {
-  const tree = el(doc, 'span', { class: 'fd-cv fd-tree' });
+  const tree = el(doc, 'span', { class: 'fd-cv lk-cv fd-tree' });
   for (let col = 0; col < g.tree; col++) {
     const box = el(doc, 'span', { class: 'fd-col' });
     for (const c of g.items.filter(x => x.col === col)) {
       if (c.head) box.append(el(doc, 'span', { class: 'fd-th' }, c.head));
       const at = next();
       const lit = S.mode === 'choices' && at === S.choiceAt;
-      box.append(el(doc, 'button', { class: 'fd-c lk-view' + (c.depth ? '' : ' fd-top') + (lit ? ' fd-lit' : ''), type: 'button', 'data-c': at, style: `--fd-depth: ${Math.max(0, c.depth - 1)}`, title: c.label.length > 30 ? c.label : null, click: () => c.pick() }, short(c.label, 30), el(doc, 'span', { class: 'fd-nb' }, String(c.count))));
+      box.append(el(doc, 'button', { class: 'fd-c lk-view' + (c.depth ? '' : ' fd-top') + (lit ? ' fd-lit lk-lit' : ''), type: 'button', 'data-c': at, style: `--fd-depth: ${Math.max(0, c.depth - 1)}`, title: c.label.length > 30 ? c.label : null, click: () => c.pick() }, short(c.label, 30), el(doc, 'span', { class: 'fd-nb lk-nb' }, String(c.count))));
     }
     tree.append(box);
   }
@@ -1263,5 +1238,16 @@ function forget(whole = false) { if (S.dlg) S.changedAt = Date.now(); S.cache.ki
 /* Read once, a moment after the plugin starts, what the window shows with nothing typed (the kinds, their tree, the recent pages),
    so the first opening has them: without it the first window of a session stood empty for about a tenth of a second. */
 async function warm() { try { if (!S.kinds.length) S.kinds = await db.kinds(); if (!S.tree) S.tree = await db.kindTree(); if (!S.recents.length) S.recents = await db.recents(); } catch (error) { /* the window reads them itself when it opens */ } }
-Find.window = { open, close, toggle, sentence, commands, forget, warm, state: S };
+/* The window opened on one kind, picked as if chosen from its list (the thirteen proposals, 9: "Show its nodes" leads to Find; the
+   owner's go of 19 November 2026). kind: { uuid } or { title }. The kinds are read first when the window has none yet. Asked through
+   the door as find:kind, so Ontology's and a tag's menus open it without knowing Find. */
+async function openKind(kind = {}) {
+  if (!S.kinds.length) { try { S.kinds = await db.kinds(); } catch (error) { /* the window reads them itself */ } }
+  const norm = window.PluginDoor.sentence.norm;
+  const k = S.kinds.find(x => (kind.uuid && x.uuid === kind.uuid) || (kind.title && norm(x.title) === norm(kind.title)));
+  open('', false);
+  if (k) addPick({ kind: 'tag', id: k.id, uuid: k.uuid, title: k.title });
+  return !!k;
+}
+Find.window = { open, openKind, close, toggle, sentence, commands, forget, warm, state: S };
 })();

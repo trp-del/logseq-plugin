@@ -44,6 +44,7 @@ async function main() {
   logseq.App.registerCommandPalette({ key: 'find-open', label: 'Find' }, () => Find.window.open());
   logseq.App.registerCommandPalette({ key: 'find-sentence', label: 'Find by sentence' }, () => Find.window.sentence());
   logseq.provideModel({ findOpen: () => Find.window.open() });
+  onStop(window.PluginDoor.offerAsk('find:kind', kind => Find.window.openKind(kind)));
   onStop(logseq.DB.onChanged(() => Find.window.forget()));
   onStop(logseq.App.onCurrentGraphChanged(() => { Find.window.close(); Find.window.forget(true); }));
   const warming = setTimeout(() => Find.window.warm(), 1500);

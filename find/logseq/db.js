@@ -202,7 +202,7 @@ async function facets(nodes) {
     if (!byNode.has(b)) byNode.set(b, new Set());
     byNode.get(b).add(name + '=' + key);
     // Every value by its name, for the sentence to read: the first property that holds it wins.
-    const label = Find.sentence.norm(got.label);
+    const label = window.PluginDoor.sentence.norm(got.label);
     if (label && !byLabel.has(label)) byLabel.set(label, { name: String(name), key, label: got.label, uuid: val.uuid, type: kind });
   }
   const total = ids.length;
