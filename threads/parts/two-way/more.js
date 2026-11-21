@@ -454,21 +454,6 @@ twoWay.starters.push(() => {
   setTimeout(drawBeside, 1500);
 });
 
-/* A bullet becomes a node (N19): a bullet of an opened node whose words look like one of your kinds (Predictive's guess, as for
-   an untagged mention) carries a pencil, "could be a Symptom Log · Symptom type"; a click gives it that tag and that property
-   pointing at this page, so it stands in this page's list; the faded arrow takes both off. */
-twoWay.bulletTail = uuid => {
-  if (!state.raise.has(uuid)) { twoWay.prepareRaise?.(uuid).catch(() => {}); return ''; }
-  const best = state.raise.get(uuid)?.best;
-  return best ? shared.outline.pencil(`could be a ${best.tag.title} · ${best.prop.title}`, { 'data-bnode': uuid, title: `Its words look like a ${best.tag.title}: click to make it one, with “${best.prop.title}” set to this page` }) : '';
-};
-
-twoWay.clickHooks.push(event => {
-  const t = event.target, stop = () => { event.preventDefault(); event.stopPropagation(); twoWay.hidePeek(); };
-  const bnode = t.closest?.('[data-bnode]');
-  if (bnode) { stop(); const best = state.raise.get(bnode.dataset.bnode)?.best; if (best) twoWay.raise?.(best, [bnode.dataset.bnode]).then(() => twoWay.later(200)).catch(error => warnOnce('could not make the bullet a node', error)); return true; }
-  return false;
-});
 twoWay.starters.push(() => { state.stamps = new Map(); state.keeps = new Map(); state.visitPage = ''; state.yearOn = new Set(); state.yearPick = new Map(); state.yearLaneOn = new Map(); state.yearAt = new Map(); state.yearTall = new Set(); state.yearDots = new Map(); });
 
 Object.assign(twoWay, { keepBeside, compare, isNew, pinsOf, sortOf });
