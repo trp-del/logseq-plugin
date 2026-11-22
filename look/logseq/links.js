@@ -355,19 +355,22 @@ const css = `
 #right-sidebar .lk-links-none { padding: 0; }   /* the library's nothing-here line (lk-none), at the top of the tab */`;
 
 /* Outline and Links are sections of the right sidebar (sidebar-tabs.js). Outline appears by itself, first, on a page with headings
-   (the owner, 17 November 2026: "outline appears when there is a page with an outline"). Links, with Endnotes under it, is there only
+   (the owner, 17 November 2026: "outline appears when there is a page with an outline") and has its × since 22 November 2026 ("everything can be removed from sidebar"), View outline in the ··· menu and the command palette bringing it back. Links, with Endnotes under it, is there only
    once you ask for it, by View links in the ··· menu or the command palette, and goes by its × ("Links should be only under view
    links in 3 dots or command, not always there"). */
 let offTabs = [];
 const viewLinks = () => window.PluginDoor.sideTabs?.show('links');
+const viewOutline = () => window.PluginDoor.sideTabs?.show('contents');   // the way back for an Outline closed by its × (22 November 2026)
 function start() {
   state.stopped = false;
-  offTabs = SECTIONS.map(({ key, word }) => window.PluginDoor.sideTabs?.add({ key, word, order: key === 'contents' ? 0 : 3, auto: key === 'contents',
+  offTabs = SECTIONS.map(({ key, word }) => window.PluginDoor.sideTabs?.add({ key, word, order: key === 'contents' ? 0 : 3, auto: key === 'contents', closable: key === 'contents',
     find: () => (state.panels[key]?.isConnected ? state.panels[key] : null), open: () => { if (!state.open[key]) setOpen(key, true); },
     // Outline stands aside on a page with no headings; until the page is read, it stays as it was.
     hidden: key === 'contents' ? () => state.read && !state.heads.length : undefined }));
   offTabs.push(window.PluginDoor.addMenuItem?.({ key: 'links', label: 'View links', icon: 'link', run: viewLinks }));
+  offTabs.push(window.PluginDoor.addMenuItem?.({ key: 'outline', label: 'View outline', icon: 'list', run: viewOutline }));
   try { logseq.App.registerCommandPalette({ key: 'look-view-links', label: 'View links' }, viewLinks); } catch (error) { /* already there from an earlier start */ }
+  try { logseq.App.registerCommandPalette({ key: 'look-view-outline', label: 'View outline' }, viewOutline); } catch (error) { /* already there from an earlier start */ }
   style('sidebar-links', css);
   watchScreen(draw);
   Look.kit.listen(host().defaultView, 'click', onItemClosed, true);

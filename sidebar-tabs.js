@@ -4,8 +4,10 @@
 
    Two kinds of section. The page's own parts appear by themselves, at the top, while the sidebar is open, and only on a page where
    they apply: Outline on a page with headings (Look), Ontology on a tag's or a property's page, and Item, the row pressed in that
-   page's table (Structure). They have no ×: they come and go with the page ("Ontology appears when ontology is relevant. outline
-   appears when there is a page with an outline"). Everything else is there only because you opened it, each with its ×: Links
+   page's table (Structure). They come and go with the page ("Ontology appears when ontology is relevant. outline appears when
+   there is a page with an outline"), and each has its × too (the owner, 22 November 2026: "everything can be removed from
+   sidebar"): closed by hand, it stays closed until it is asked for again (show), and closing the last thing in the sidebar closes
+   the sidebar. Everything else is there only because you opened it, each with its ×: Links
    (View links in the ··· menu, or the command palette), Todo (its toolbar button), and any page or block opened with Shift and a
    press. Closing the last thing you opened closes the sidebar, as Logseq does when its last item goes; the parts of the page alone
    never keep it open. Logseq's Contents, which it puts in a sidebar opened empty, is not shown.
@@ -166,6 +168,8 @@ function footOf(doc, partItems, parts) {
     }
   }
 }
+// A section that is on the sidebar's screen: not one stood aside, on its way in or out, or closed.
+const shownItem = item => !item.hasAttribute('data-lk-aside') && !item.hasAttribute('data-lk-contents') && !item.hasAttribute('data-lk-wait') && !item.hasAttribute('data-lk-closed') && !(st.rows && item.hasAttribute('data-lk-over'));
 function draw(doc = host()) {
   const side = doc.getElementById('right-sidebar');
   if (!side) return;
@@ -214,7 +218,7 @@ function draw(doc = host()) {
   /* The first section seen: the first part shown, else the first item shown in Logseq's order. Marked before anything rolls out, so a
      section rolls out to the room it keeps: marked after, the first one rolled out to room for a hairline above it and then lost that
      room in a frame, a jump of 10 px (the owner, 18 November 2026: "things jump"). */
-  const shown = item => !item.hasAttribute('data-lk-aside') && !item.hasAttribute('data-lk-contents') && !item.hasAttribute('data-lk-wait') && !item.hasAttribute('data-lk-closed') && !(st.rows && item.hasAttribute('data-lk-over'));
+  const shown = shownItem;
   const all = [...doc.querySelectorAll('#right-sidebar .sidebar-item-list > .sidebar-item')];
   const first = [...partItems.keys()].filter(shown).sort((a, b) => parts.indexOf(partItems.get(a)) - parts.indexOf(partItems.get(b)))[0] || all.find(item => !partItems.has(item) && shown(item));
   /* A section that stops being the first, because another came above it, takes its room for the hairline over the same moment the
@@ -246,15 +250,15 @@ function draw(doc = host()) {
      by itself on the next page where a part of the page applies (from Dr. Mei Chen back to Doctor, Ontology is back). Closed by you,
      it stays closed. */
   const open = sidebarOpen();
-  const due = parts.some(view => view.key !== 'item' && !view.hidden?.(doc));
+  const due = parts.some(view => view.key !== 'item' && !view.hidden?.(doc) && !st.closed.has(view.key));
   if (open) st.autoShut = false;
   else if (st.autoShut && due) { st.autoShut = false; openSide(); return; }
-  const empty = open && !st.byHand && !coming && !all.some(shown) && !parts.some(view => !view.hidden?.(doc) && !view.find(doc));
+  const empty = open && !st.byHand && !coming && !all.some(shown) && !parts.some(view => !view.hidden?.(doc) && !view.find(doc) && !st.closed.has(view.key));
   if (empty && !st.emptyTimer) st.emptyTimer = doc.defaultView.setTimeout(() => {
     st.emptyTimer = 0;
     const d = host(), side = d.getElementById('right-sidebar');
     if (!sidebarOpen() || st.byHand || side?.hasAttribute('data-lk-split')) return;
-    const still = ![...d.querySelectorAll('#right-sidebar .sidebar-item-list > .sidebar-item')].some(shown) && !views.filter(v => v.auto).some(v => !v.hidden?.(d) && !v.find(d));
+    const still = ![...d.querySelectorAll('#right-sidebar .sidebar-item-list > .sidebar-item')].some(shown) && !views.filter(v => v.auto).some(v => !v.hidden?.(d) && !v.find(d) && !st.closed.has(v.key));
     if (still) { logseq.App.setRightSidebarVisible(false); st.autoShut = true; }
   }, 700);
 }
@@ -295,6 +299,8 @@ function onClose(event) {
     // A part closed by hand (Ontology) stays closed until it is asked for again (show).
     const view = views.find(v => v.auto && v.closable && v.find(doc) === item);
     if (view) st.closed.add(view.key);
+    // The last section in the sidebar closed: the sidebar goes with it, as Logseq's does when its last item goes.
+    doc.defaultView.setTimeout(() => { draw(doc); if (sidebarOpen() && !itemsOf(doc).some(shownItem)) logseq.App.setRightSidebarVisible(false); }, 360);
     return;
   }
   const win = doc.defaultView;
