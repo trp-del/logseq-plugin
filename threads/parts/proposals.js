@@ -25,7 +25,8 @@ const context = opts => Flow.app.context(opts).catch(() => null);
 // The pages linked in the words, read fresh: a page made or tagged a moment ago is otherwise unknown to the context.
 const fresh = (ctx, text) => Flow.app.freshLinks(ctx, text).catch(() => ctx);
 // A piece as the rows draw it. The tag a bullet might get, and a value that would tag a page, are left out: the line's tag is its own.
-const plain = p => ({ ident: p.ident, title: p.prop.title, kind: p.kind, ids: p.ids, shown: p.shown, names: p.names || null, guess: !!p.guess, many: !!p.prop.many, day: p.day || 0, journalId: p.journalId > 0 ? p.journalId : null });
+// A day is said the short way every row says it (the thirteen proposals, 4: one way to write a day): "Nov 21", not the journal's "Nov 21st, 2026".
+const plain = p => ({ ident: p.ident, title: p.prop.title, kind: p.kind, ids: p.ids, shown: p.kind === 'day' && p.day ? window.PluginDoor.dates.words(p.day) : p.shown, names: p.names || null, guess: !!p.guess, many: !!p.prop.many, day: p.day || 0, journalId: p.journalId > 0 ? p.journalId : null });
 const shown = pieces => pieces.filter(p => p.kind !== 'tag' && !p.needsTag && !p.tagPage).map(plain);
 const earlierLinesRead = () => !!Flow.app.state.ctx?.index;
 

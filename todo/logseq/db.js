@@ -206,31 +206,8 @@ const setDeadline = (uuid, day, beforeMs) => setOne(uuid, DEADLINE, day ? msOfDa
 
 /* A day in the words typed: "today", "tomorrow", "friday", "next week", "nov 20", "20 november", "by friday", "on the 4th"
    is left as words. Gives { day, words } with the day's words taken out, or null. Predictive's reader reads the day. */
-const LEAD = /^(?:on|by|due|this|until|till)\s+/;
-const RELATIVE = /^(?:today|tonight|tomorrow|tmr)$/;
-const WHOLE_WEEKDAY = /^(?:next\s+)?(?:mon|tues|wednes|thurs|fri|satur|sun)day$/;
-const SHORT_WEEKDAY = /^(?:next\s+)?(?:mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun)$/;
-function dayIn(text, today = new Date()) {
-  const reader = window.Flow?.dates?.reader;
-  if (!reader) return null;
-  const tokens = String(text).trim().split(/\s+/).filter(Boolean);
-  const read = phrase => {
-    const lower = phrase.toLowerCase().replace(/[.,;:!?]+$/, ''), led = LEAD.test(lower), rest = lower.replace(LEAD, '');
-    if (rest === 'next week') { const d = new Date(today.getFullYear(), today.getMonth(), today.getDate()); d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7)); return d; }
-    if (RELATIVE.test(rest) || WHOLE_WEEKDAY.test(rest) || ((led || /^next\s/.test(rest)) && SHORT_WEEKDAY.test(rest)) || (/\d/.test(rest) && /\p{L}{3}/u.test(rest)) || /^\d{4}-\d{1,2}-\d{1,2}$/.test(rest)) return reader.parseDay(rest, today);
-    return null;
-  };
-  for (let n = Math.min(4, tokens.length); n >= 1; n--) {
-    for (let i = tokens.length - n; i >= 0; i--) {
-      const date = read(tokens.slice(i, i + n).join(' '));
-      if (!date || Number.isNaN(date.getTime())) continue;
-      const words = [...tokens.slice(0, i), ...tokens.slice(i + n)].join(' ').replace(/\s+([.,;:!?])/g, '$1').trim();
-      if (!words) continue;   // a day alone is no task
-      return { day: dates.number(date), words };
-    }
-  }
-  return null;
-}
+// The day the words of an adding line name: the library's one reader (Door.dates.read; the thirteen proposals, 7: one adding line).
+const dayIn = (text, today) => Door.dates.read(text, today);
 
 const GROUPINGS = ['Day', 'Page', 'Parent', 'Tag', 'Priority', 'Status'];
 T.db = { statuses: new Map(), priorities: [], read, add, unadd, setStatus, setPriority, setDeadline, dayIn, forget, statusTitle, isOpen, GROUPINGS };

@@ -246,6 +246,7 @@ html[data-lk-try="new"] .th-two-way .th-ls-node .ls-block-right { margin-left: 0
 .th-two-way .th-tw-draft-typed { flex: none; max-width: 50%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .th-two-way .th-tw-draft .th-tw-draft-tag { margin-left: 0; white-space: nowrap; }
 /* The rest of the new node under the line: the proposals' look (parts/proposals.js), the row's height kept. */
+.th-two-way .th-tw-draft-when { grid-column: 4; grid-row: 1; justify-self: end; white-space: nowrap; }   /* the day the words name, at the line's end, as Todo's add line says it (lk-note) */
 .th-two-way .th-tw-draft-props { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 1.1em; row-gap: .1em; min-height: 1.5em; font-size: 14px; line-height: 1.5; }
 .th-two-way .th-tw-dprop { display: inline-flex; align-items: baseline; gap: .35em; margin: 0; padding: 0; border: 0; background: none; font: inherit; color: inherit; cursor: default; text-align: left; }
 .th-two-way button.th-tw-dpick { cursor: pointer; }

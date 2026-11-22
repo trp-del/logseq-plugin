@@ -905,6 +905,11 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const ordinal = n => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th');
 const dateFormat = { value: '', at: 0, asking: null };
+const LEAD = /^(?:on|by|due|this|until|till)\s+/;
+const RELATIVE = /^(?:today|tonight|tomorrow|tmr)$/;
+const WHOLE_WEEKDAY = /^(?:next\s+)?(?:mon|tues|wednes|thurs|fri|satur|sun)day$/;
+const SHORT_WEEKDAY = /^(?:next\s+)?(?:mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun)$/;
+
 Door.dates = {
   MONTHS, WEEKDAYS,
   number: date => date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate(),
@@ -915,6 +920,32 @@ Door.dates = {
     const y = Math.floor(day / 10000), text = `${MONTHS[Math.floor(day / 100) % 100 - 1].slice(0, 3)} ${day % 100}`;
     return !year || (year !== 'always' && y === new Date().getFullYear()) ? text : `${text}, ${y}`;
   },
+  /* The day an adding line's words name, and the words without it (the thirteen proposals, 7: one adding line, the same reading
+     wherever a line is added; first Todo's): "Ask Paula for the scan report by friday" → { day: the Friday, words: "Ask Paula for the
+     scan report" }; a day alone is no line; null without Predictive's date reader (Flow.dates.reader), which reads the day. */
+  read(text, today = new Date()) {
+    const reader = window.Flow?.dates?.reader;
+    if (!reader) return null;
+    const tokens = String(text).trim().split(/\s+/).filter(Boolean);
+    const read = phrase => {
+      const lower = phrase.toLowerCase().replace(/[.,;:!?]+$/, ''), led = LEAD.test(lower), rest = lower.replace(LEAD, '');
+      if (rest === 'next week') { const d = new Date(today.getFullYear(), today.getMonth(), today.getDate()); d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7)); return d; }
+      if (RELATIVE.test(rest) || WHOLE_WEEKDAY.test(rest) || ((led || /^next\s/.test(rest)) && SHORT_WEEKDAY.test(rest)) || (/\d/.test(rest) && /\p{L}{3}/u.test(rest)) || /^\d{4}-\d{1,2}-\d{1,2}$/.test(rest)) return reader.parseDay(rest, today);
+      return null;
+    };
+    for (let n = Math.min(4, tokens.length); n >= 1; n--) {
+      for (let i = tokens.length - n; i >= 0; i--) {
+        const date = read(tokens.slice(i, i + n).join(' '));
+        if (!date || Number.isNaN(date.getTime())) continue;
+        const words = [...tokens.slice(0, i), ...tokens.slice(i + n)].join(' ').replace(/\s+([.,;:!?])/g, '$1').trim();
+        if (!words) continue;   // a day alone is no task
+        return { day: Door.dates.number(date), words };
+      }
+    }
+    return null;
+  },
+  // The day said whole beside an adding line, as it will be written: "Friday, Nov 20", "Today, Nov 21".
+  full(day) { const near = Door.dates.near(day); return `${near === 'Today' || near === 'Tomorrow' ? near : WEEKDAYS[Door.dates.date(day).getDay()]}, ${Door.dates.words(day)}`; },
   /* A day as a row says it near today (the thirteen proposals, 4: one way to write a day): Today, Yesterday, Tomorrow, the weekday
      within a week ahead, else the short day ("Oct 7", the year only when it is another year). Todo's rows first said it so. */
   near(day, today = Door.dates.today()) {

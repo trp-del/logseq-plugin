@@ -20,6 +20,7 @@ const CSS = `
 .td-side .td-add { margin-bottom: 24px; }
 .td-time[data-on] { margin: -18px 0 28px; }   /* the timeline, under the add-or-find line, before the list (the library's lk-time) */
 .td-showing { display: flex; align-items: baseline; gap: 6px; margin-top: 4px; }
+.td-side .td-time[data-on] { margin-bottom: 6px; }   /* in the sidebar the room kept for "Showing …" is the gap before the list */
 .td-body { position: relative; }
 .td-tools { position: absolute; top: -2px; right: -4px; z-index: 1; display: flex; gap: 8px; }   /* Show and the grouping, the library's words with their chevrons (lk-change), on the first heading's line at the right */
 .td-show.td-narrow { color: var(--lk-text, currentColor) !important; }   /* a list narrowed by Show says so in the words' colour: what is left out must not pass unseen */
@@ -58,7 +59,7 @@ const ensureStyle = doc => T.base.sheet('td-style', CSS, 'td-own', doc);
 // A day as a row says it: the library's (Door.dates.near: Today, Yesterday, Tomorrow, the weekday within a week, else "Oct 7").
 const dayWords = (day, today) => dates.near(day, today);
 // The day the add line reads, said whole beside the field: "Friday, Nov 20".
-const dayFull = day => `${dayWords(day) === 'Today' || dayWords(day) === 'Tomorrow' ? dayWords(day) : dates.WEEKDAYS[dates.date(day).getDay()]}, ${dates.words(day)}`;
+const dayFull = day => dates.full(day);   // the library's (Door.dates.full)
 
 const BY_WORDS = { Day: 'By day', Page: 'By page', Parent: 'By parent', Tag: 'By tag', Priority: 'By priority', Status: 'By status' };
 // "By day", or with a second level "By day, then page".
@@ -244,7 +245,7 @@ function make(holder, mode) {
       .map(t => ({ day: t.day, title: t.words || t.raw, late: t.day < today }));
     const said = view.span ? `<div class="td-showing"><span class="lk-note">Showing ${esc(dates.words(view.span[0]))}${view.span[1] !== view.span[0] ? ' to ' + esc(dates.words(view.span[1])) : ''}</span><button type="button" class="lk-x" data-time-clear title="Show the whole list again (Escape)" aria-label="Show the whole list again">×</button></div>` : '<div class="td-showing" aria-hidden="true"><span class="lk-note">&nbsp;</span></div>';   // its room kept, so a press on a dot moves nothing
     const any = T.app.tasks.some(t => t.day && T.db.isOpen(T.app.shown(t)));   // drawn while any task has a day, its dots the ones found: typing never takes it away
-    const html = mode === 'page' && any && T.app.timelineOn() ? Door.timeline.html(   // on the Todo page only: the sidebar is too narrow for it (the owner, 21 November 2026: "the top is crowded")
+    const html = any && T.app.timelineOn() ? Door.timeline.html(   // on the Todo page and in the sidebar (the owner, 21 November 2026: "yes put it back in sidebar"), the Timeline setting governing both
       { key: 'todo-' + mode, dots, pick: view.span, label: 'Where in time the tasks fall; drag across it to pick days' }) + said : '';
     if (html === timeDrawn) return;
     timeDrawn = html; timeBox.innerHTML = html; timeBox.toggleAttribute('data-on', !!html);

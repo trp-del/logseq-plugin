@@ -1,6 +1,6 @@
 /* The owner, 21 November 2026, of Todo in the sidebar: "the top is crowded. will search and add always be on top of one another like
    that?", then picked A: one line that adds and finds. Todo has one line, "Add or find a todo": typing narrows the list, Return adds
-   the words as a task; the timeline stands on the Todo page only. */
+   the words as a task. (The timeline, taken out of the sidebar with it, came back there the same evening at the owner's word.) */
 module.exports = {
   parts: ['todo', 'shared'],
   name: 'Todo has one line that adds and finds: typing narrows the list, Return adds the task',

@@ -50,6 +50,9 @@ function addLineHtml(group) {
   // In the list's own indent, as the rows are (their .th-ol-in), so its columns are theirs.
   return `<div class="th-ol-in th-tw-draft-in">${draftLineHtml(group, d)}</div>`;
 }
+// The day the words name, said whole at the line's end as Todo's add line says it (the thirteen proposals, 7: one adding line; the
+// library's reader, Door.dates.read and .full): "Friday, Nov 27".
+const dayWordsOf = text => { const got = window.PluginDoor.dates.read(text || ''); return got ? window.PluginDoor.dates.full(got.day) : ''; };
 function draftLineHtml(group, d) {
   const kind = d ? d.kind : kindsOf(group)[0] || '';
   const tag = `<a class="th-tag lk-tag th-tw-tag th-tw-draft-tag" href="#" data-draft="tag" title="The tag it gets (click for the others)">${kind ? esc(kind) : 'no tag'}</a>`;
@@ -60,7 +63,7 @@ function draftLineHtml(group, d) {
      so the name is typed where the rows' words start and what is asked under it stands on that same edge (the owner, 15 November
      2026: "move it"; it began at the fold arrows' column). */
   const o = shared.outline;
-  return `<div class="th-ol-line th-tw-draft-line">${o.room()}<span class="th-ol-dot"><span class="th-tw-draft-plus th-faint lk-i-plus" aria-hidden="true"></span></span>${o.day('')}<div class="th-ol-body th-tw-draft th-tw-drafting" data-field="${esc(group.name)}"><span class="th-tw-draft-main">${field}</span>${tag}<div class="th-tw-draft-props">${propsHtml(group, d)}</div></div></div>`;
+  return `<div class="th-ol-line th-tw-draft-line">${o.room()}<span class="th-ol-dot"><span class="th-tw-draft-plus th-faint lk-i-plus" aria-hidden="true"></span></span>${o.day('')}<div class="th-ol-body th-tw-draft th-tw-drafting" data-field="${esc(group.name)}"><span class="th-tw-draft-main">${field}</span>${tag}<span class="th-tw-draft-when lk-note">${d && d.step !== 'where' ? esc(dayWordsOf(d.name)) : ''}</span><div class="th-tw-draft-props">${propsHtml(group, d)}</div></div></div>`;
 }
 /* The rest of the new node, under the line (the owner's pick):
    what the node will get, as the proposals read in a bullet, italic grey with a dotted line under a guess: the row's
@@ -210,7 +213,7 @@ function keepDraft(box) {
       const now = state.draft?.field === line.dataset.field ? state.draft : group && draftFor(group);
       if (!now) return;
       if (field.matches('.th-tw-draft-where')) { now.where = field.value; now.lit = 0; now.moved = true; whereList(field); }
-      else { now.name = field.value; now.quiet = false; if (group) proposeSoon(group); lookName(field, now.kind).catch(() => {}); }
+      else { now.name = field.value; now.quiet = false; const when = line.querySelector('.th-tw-draft-when'); if (when) when.textContent = dayWordsOf(field.value); if (group) proposeSoon(group); lookName(field, now.kind).catch(() => {}); }
     });
     field.addEventListener('keydown', onDraftKey);
     field.addEventListener('blur', () => leaveGhost(field));
