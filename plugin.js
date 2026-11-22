@@ -1069,7 +1069,8 @@ Door.timeline = (() => {
     if (pick) parts.push(`<span class="lk-time-pick" style="left:${pc(r, D().date(pick[0]).getTime())};width:max(4px, ${width(r, pick[0], upTo(pick[1]))})"></span>`);
     for (let i = 0; i < n; i++) parts.push(`<span class="lk-time-rule" style="--lane:${i}"></span>`);
     // A January after the first month carries its year, so a line across two years says where the new one starts.
-    for (let m = new Date(r.start); m.getTime() < r.end; m = new Date(m.getFullYear(), m.getMonth() + 1, 1)) parts.push(`<span class="lk-time-month" style="left:${pc(r, m.getTime())}">${D().MONTHS[m.getMonth()].slice(0, 3)}${m.getMonth() === 0 && m.getTime() > r.start ? ' ' + m.getFullYear() : ''}</span>`);
+    // A month starting in the line's last few days keeps its tick but not its name, which would run past the end (21 November 2026: "Feb" cut at the sidebar's edge).
+    for (let m = new Date(r.start); m.getTime() < r.end; m = new Date(m.getFullYear(), m.getMonth() + 1, 1)) { const room = (r.end - m.getTime()) / (r.end - r.start) > 0.07; parts.push(`<span class="lk-time-month" style="left:${pc(r, m.getTime())}">${room ? D().MONTHS[m.getMonth()].slice(0, 3) + (m.getMonth() === 0 && m.getTime() > r.start ? ' ' + m.getFullYear() : '') : ''}</span>`); }
     parts.push(`<span class="lk-time-month lk-time-end" style="left:100%">\u200b</span>`);   // the end's tick, on the line as the months' are
     parts.push(`<span class="lk-time-today" style="left:${at(r, D().today())}"><span>today</span></span>`);
     // Tall: a column a week, the dots of a week piled from the line up, "+n" over a pile taller than CAP.
@@ -1127,6 +1128,25 @@ Door.timeline = (() => {
    below. Up and Down walk it, Enter or Space takes a line, Escape or a press elsewhere closes it, and the keys go back to
    what opened it; pressing that again closes it. One menu is open at a time. Gives { close }, or null when it only closed. */
 let shownMenu = null;
+/* The walk down a list by the keys (the thirteen proposals, 12: the same keys on every list; as Find's and Relations' rows walk):
+   Down and Up go to the next row and the one before, Down from the list's find line to its first row and Up from the first row
+   back to the find line. rows(): the rows' focusable words, in order (only the ones shown are walked); line: the find line, or
+   none. Right, Left and Enter stay each list's own (open in place, close, go), which every list gives the same meaning.
+   Returns what takes the keys off. */
+Door.listKeys = (root, { rows, line = null }) => {
+  const onKey = event => {
+    if ((event.key !== 'ArrowDown' && event.key !== 'ArrowUp') || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey || event.isComposing) return;
+    const all = rows().filter(el => el.offsetParent), at = event.target;
+    let to = null;
+    if (line && at === line) { if (event.key === 'ArrowDown') to = all[0]; }
+    else { const i = all.indexOf(at); if (i < 0) return; to = event.key === 'ArrowDown' ? all[i + 1] : (i === 0 ? line : all[i - 1]); }
+    if (!to) return;
+    event.preventDefault(); event.stopPropagation();
+    to.focus({ preventScroll: true }); to.scrollIntoView?.({ block: 'nearest' });
+  };
+  root.addEventListener('keydown', onKey, true);
+  return () => root.removeEventListener('keydown', onKey, true);
+};
 Door.menu = (from, parts, { align = 'right' } = {}) => {
   const doc = from.ownerDocument, win = doc.defaultView;
   if (shownMenu) { const again = shownMenu.from === from; shownMenu.close(); if (again) return null; }

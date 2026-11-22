@@ -78,6 +78,28 @@ async function read() {
     list.push({ id: b, uuid: String(uuid), raw: String(words || ''), status, empty: empty.has(b), day: d.deadline || d.scheduled || 0, deadline: d.deadline || 0, deadlineMs: d.deadlineMs || 0, scheduled: d.scheduled || 0, page: pageOf.get(b) || { title: '', journal: 0 }, tags: (tagsOf.get(b) || []).sort((x, y) => x.localeCompare(y)), priority: priorityOf.get(b) || '', created: Number(created) || 0, updated: Number(updated) || 0 });
   }
   await written(list);
+  /* The bullets each task is written under, from its page down (the owner, 21 November 2026: "can we added a breadcrumb instead of
+     just the page?"), read a level at a time, eight at most: each one's words as Logseq shows them and its tag besides Task. The
+     nearest is its parent, for Group by Parent (the thirteen proposals, 6); a task right on its page has none. */
+  if (list.length) {
+    const up = new Map(), nodes = new Map();   // entity → the bullet it is under; uuid of a bullet → { uuid, raw, tag }
+    let level = list.map(t => t.id);
+    for (let depth = 0; depth < 8 && level.length; depth++) {
+      const rows = await query(`[:find ?c ?p ?pu ?pr :where [(ground [${level.join(' ')}]) [?c ...]] [?c :block/parent ?p] (not [?p :block/name _]) [?p :block/uuid ?pu] [?p :block/title ?pr]]`);
+      const next = [];
+      for (const [c, p, pu, raw] of rows) { up.set(c, p); if (!nodes.has(p)) { nodes.set(p, { uuid: String(pu), raw: String(raw || ''), tag: '' }); next.push(p); } }
+      level = next;
+    }
+    if (nodes.size) {
+      for (const [p, tt] of await query(`[:find ?p ?tt :where [(ground [${[...nodes.keys()].join(' ')}]) [?p ...]] [?p :block/tags ?t] (not [?t :db/ident :logseq.class/Task]) [?t :block/title ?tt]]`)) { const n = nodes.get(p); if (n && !n.tag) n.tag = String(tt); }
+      await written([...nodes.values()]);
+    }
+    for (const t of list) {
+      const path = [];
+      for (let e = up.get(t.id); e != null && path.length < 8; e = up.get(e)) path.unshift(nodes.get(e));
+      t.path = path; t.parent = path[path.length - 1] || null;
+    }
+  }
   return list;
 }
 /* The words as Logseq shows them (the owner, 18 November 2026: "todo doesn't show md syntax … correctly"). Logseq keeps a link
@@ -210,6 +232,6 @@ function dayIn(text, today = new Date()) {
   return null;
 }
 
-const GROUPINGS = ['Day', 'Page', 'Tag', 'Priority', 'Status'];
+const GROUPINGS = ['Day', 'Page', 'Parent', 'Tag', 'Priority', 'Status'];
 T.db = { statuses: new Map(), priorities: [], read, add, unadd, setStatus, setPriority, setDeadline, dayIn, forget, statusTitle, isOpen, GROUPINGS };
 })();

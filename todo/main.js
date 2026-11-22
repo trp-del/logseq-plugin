@@ -15,13 +15,28 @@ const az = (a, b) => a.localeCompare(b, undefined, { sensitivity: 'base', numeri
 // three groups with their nothing-here lines; inside another group only the groups with tasks stand.
 function split(open, by, today, first) {
   const parts = [];
-  const part = (key, head, rows, more = {}) => ({ key, head, rows: rows.slice().sort(byDay), where: true, ...more });
+  const sortIn = app.sortBy() === 'Name' ? (a, b) => az(a.words || a.raw, b.words || b.raw) || byDay(a, b) : byDay;   // Sort by (the menu): Day, or Name
+  const part = (key, head, rows, more = {}) => ({ key, head, rows: rows.slice().sort(sortIn), where: true, ...more });
   if (by === 'Day') {
     const g = { today: [], coming: [], any: [] };
     for (const t of open) (!t.day ? g.any : t.day <= today ? g.today : g.coming).push(t);
     const all = [part('today', 'Today', g.today, { none: 'Nothing to do today.', today: true }), part('coming', 'Coming up', g.coming, { none: 'Nothing coming up.' }),
       { key: 'any', head: 'Any time', rows: g.any.slice().sort((a, b) => a.created - b.created), where: true, none: 'Nothing without a day.' }];
     return first ? all : all.filter(p => p.rows.length);
+  }
+  // Parent: under the node each task is written under, its name a link and its tag after it; a task right on its page under the page.
+  if (by === 'Parent') {
+    const map = new Map();
+    for (const t of open) {
+      const p = t.parent, k = p ? p.uuid : `page:${t.page.uuid || t.page.title}`;
+      if (!map.has(k)) map.set(k, { head: p ? (p.words || p.text || 'Untitled') : (t.page.journal ? `Added ${dates.words(t.page.journal)}` : t.page.title || 'Untitled'), node: p ? p.uuid : (t.page.uuid || ''), kind: p?.tag || '', day: p ? 0 : t.page.journal || 0, rows: [] });
+      map.get(k).rows.push(t);
+    }
+    // The nodes and pages A to Z, then the journal days a task was added on, oldest first (as By page puts Journals last).
+    const all = [...map.entries()].sort((a, b) => (a[1].day ? 1 : 0) - (b[1].day ? 1 : 0) || a[1].day - b[1].day || az(a[1].head, b[1].head));
+    // Under its page, a task does not name the page again (as By page); under a node, it says the page the node is on.
+    for (const [k, g] of all) parts.push(part(`Parent:${k}`, g.head, g.rows, { node: g.node, kind: g.kind, where: !k.startsWith('page:') }));   // the bullet's own step is left out of the trail under it (view.js)
+    return parts;
   }
   if (by === 'Page' || by === 'Tag') {
     const map = new Map(), LAST = by === 'Page' ? 'Journals' : 'No tag';
@@ -117,6 +132,12 @@ const app = T.app = {
     logseq.updateSettings(clash ? { todoGroupBy: v, todoThenBy: 'None' } : { todoGroupBy: v });
     app.draw();
   },
+  /* Sort by and the timeline, in the same menu as Group by (the thirteen proposals, 3: one menu for grouping and sorting, the same
+     words and order as a Relations list's menu: Group by, Sort by, Timeline). Kept in the plugin's settings like the grouping. */
+  sortBy: () => (app.sortNow || logseq.settings?.todoSortBy) === 'Name' ? 'Name' : 'Day',
+  setSort(v) { if (v === app.sortBy()) return; app.sortNow = v; logseq.updateSettings({ todoSortBy: v }); app.draw(); },
+  timelineOn: () => (app.timelineNow || logseq.settings?.todoTimeline) !== 'Hidden',
+  setTimeline(on) { if (on === app.timelineOn()) return; app.timelineNow = on ? 'One line' : 'Hidden'; logseq.updateSettings({ todoTimeline: app.timelineNow }); app.draw(); },
   setThen(v) {
     if (v !== 'None' && !T.db.GROUPINGS.includes(v)) return;
     if ((v === 'None' ? '' : v) === app.then() || v === app.by()) return;
@@ -379,7 +400,7 @@ async function main() {
   T.base.watch(unrevive);
   onStop(logseq.DB.onChanged(() => { if (app.views.size) app.later(); }));
   // The grouping changed in the settings window: drawn at once in both places.
-  onStop(logseq.onSettingsChanged((now, before) => { if (!Door.settingChanged(['todoGroupBy', 'todoThenBy', 'todoHidden'], now, before)) return; app.byNow = ''; app.thenNow = ''; app.hiddenNow = null; app.draw(); }));
+  onStop(logseq.onSettingsChanged((now, before) => { if (!Door.settingChanged(['todoGroupBy', 'todoThenBy', 'todoHidden', 'todoSortBy', 'todoTimeline'], now, before)) return; app.byNow = ''; app.thenNow = ''; app.hiddenNow = null; app.sortNow = ''; app.timelineNow = ''; app.draw(); }));
   onStop(logseq.App.onCurrentGraphChanged(() => { Door.undo.clear('todo'); T.db.forget(); app.ticking.clear(); app.tasks = []; app.read = false; app.failed = ''; app.draw(); app.reread(); }));
   // A new day while the list is open: Today, Coming up and the late days move on.
   let day = dates.today();
@@ -397,12 +418,16 @@ function stop() {
 }
 const schema = [
   { key: 'todoGroupBy', type: 'enum', default: 'Day', enumChoices: T.db.GROUPINGS, title: 'Group the Todo list by',
-    description: 'How the Todo page and the Todo tab of the right sidebar group the tasks: by Day (Today, Coming up, Any time), by the Page each task is on, by its Tag, its Priority or its Status. Within a group the tasks stay in day order. The same choice is in the list itself, at the top right, “By day”.' },
+    description: 'How the Todo page and the Todo tab of the right sidebar group the tasks: by Day (Today, Coming up, Any time), by the Page each task is on, by its Parent (the node it is written under), by its Tag, its Priority or its Status. Within a group the tasks stay in day order. The same choice is in the list itself, at the top right, “By day”.' },
   { key: 'todoThenBy', type: 'enum', default: 'None', enumChoices: ['None', ...T.db.GROUPINGS], title: 'Then group each group by',
     description: 'A second grouping inside each group: by Day, then by Page, for example. None keeps one level. The same choice is in the list’s “By day” menu, under Then by.' },
+  { key: 'todoSortBy', type: 'enum', default: 'Day', enumChoices: ['Day', 'Name'], title: 'Sort the tasks in a group by',
+    description: 'Day keeps the late ones first, then by day; Name sorts them A to Z. The same choice is in the list’s “By day” menu, under Sort by.' },
+  { key: 'todoTimeline', type: 'enum', default: 'One line', enumChoices: ['One line', 'Hidden'], title: 'The timeline over the list',
+    description: 'One line shows the timeline under the find line, each task with a day a dot; Hidden takes it away. The same choice is in the list’s “By day” menu, under Timeline.' },
   { key: 'todoHidden', type: 'string', default: '', title: 'Statuses left out of the Todo list', description: 'Set from the list’s Show menu: the statuses it leaves out, by their short names, comma between. Empty lists every task that isn’t done or canceled.' },
 ];
-const groupWords = { Day: ['Today', 'Coming up', 'Any time'], Page: ['Dr. Mei Chen', 'Report', 'Journals'], Tag: ['Consultation', 'Symptom', 'No tag'], Priority: ['Urgent', 'High', 'No priority'], Status: ['Doing', 'Todo'] };
+const groupWords = { Day: ['Today', 'Coming up', 'Any time'], Parent: ['Cycle 4 delayed a week', 'Video call with Dr. Mei Chen'], Page: ['Dr. Mei Chen', 'Report', 'Journals'], Tag: ['Consultation', 'Symptom', 'No tag'], Priority: ['Urgent', 'High', 'No priority'], Status: ['Doing', 'Todo'] };
 Door.describe('todo', { schema: [{ type: 'heading', title: 'The Todo list', place: 'page' }, schema[0], schema[1]],
   specimen: (item, value) => item.key === 'todoGroupBy' ? (groupWords[value] || groupWords.Day).map(w => `<span class="sw-k">${w}</span>`).join('<br>')
     : item.key === 'todoThenBy' ? (value && value !== 'None' ? `<span class="sw-k">Today</span><br>${(groupWords[value] || []).slice(0, 2).map(w => `<span class="sw-faintw">&nbsp;&nbsp;${w}</span>`).join('<br>')}` : '<span class="sw-k">Today</span><br><span class="sw-k">Coming up</span>') : '',

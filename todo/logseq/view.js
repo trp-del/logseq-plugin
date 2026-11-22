@@ -12,19 +12,13 @@ const CSS = `
 .td-side { padding: 0 2px; }   /* the section ends at its last group: the sidebar parts one section from the next */
 .td-side .td-list > .td-group:last-child { margin-bottom: 8px; }
 .td-title { margin: 0 0 28px; }
-.td-add { margin: 0 0 32px; padding: 6px 0; }   /* the library's field (lk-field): its hairline and its firmer line with the keyboard */
-.td-add .td-plus { color: var(--lk-quiet); flex: none; }
+.td-add { margin: -14px 0 32px; padding: 6px 0; }   /* the library's field (lk-field): its hairline and its firmer line with the keyboard; the room above its letters for the notes (lk-say) taken from the gap over it */
+.td-add .td-plus { color: var(--lk-quiet); flex: none; align-self: stretch; display: flex; align-items: center; padding-top: 12px; }   /* beside the letters, under the notes' room (lk-say), its middle on theirs */
 .td-add .td-plus::before { margin-right: 0; }
 .td-add input { padding: 2px 0; }
-.td-when { flex: none; white-space: nowrap; }   /* the library's quiet line (lk-note) */
+.td-when { flex: none; white-space: nowrap; align-self: stretch; display: flex; align-items: center; padding-top: 14px; }   /* the library's quiet line (lk-note) */
 .td-side .td-add { margin-bottom: 24px; }
-/* Find a todo, under the add line: the library's field (lk-field), Logseq's search glass where the add line has its +. */
-.td .td-add { margin-bottom: 6px; }
-.td-find { margin: -6px 0 32px; padding: 6px 0; }   /* the line's room for its notes (lk-say) taken from the gap above it */
-.td-side .td-find { margin-bottom: 24px; }
-.td-find .td-glass { color: var(--lk-quiet); flex: none; display: inline-flex; align-self: flex-end; margin-bottom: 6px; }   /* beside the letters, under the notes' room */
-.td-find input { padding: 2px 0; }
-.td-time[data-on] { margin: -18px 0 28px; }   /* the timeline, under the find line, before the list (the library's lk-time) */
+.td-time[data-on] { margin: -18px 0 28px; }   /* the timeline, under the add-or-find line, before the list (the library's lk-time) */
 .td-showing { display: flex; align-items: baseline; gap: 6px; margin-top: 4px; }
 .td-body { position: relative; }
 .td-tools { position: absolute; top: -2px; right: -4px; z-index: 1; display: flex; gap: 8px; }   /* Show and the grouping, the library's words with their chevrons (lk-change), on the first heading's line at the right */
@@ -49,7 +43,8 @@ const CSS = `
 .td-bul { display: inline-flex; align-items: center; height: var(--lk-status-line); margin-right: -4px; }
 .td-row { position: relative; --lk-status-line: 1.45em; display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; column-gap: var(--td-gap); align-items: start; padding: 7px 8px; margin: 0 -8px; border-radius: 6px; }
 .td-words { color: inherit; text-decoration: none; cursor: pointer; overflow-wrap: anywhere; line-height: var(--lk-status-line); }
-.td-where { display: block; width: fit-content; max-width: 100%; text-decoration: none; cursor: pointer; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.45; }   /* the library's quiet line (lk-note); a line tall enough that a cut name keeps its g and y (the owner's list, 18 November 2026: "Mortgage" lost its g) */
+.td-where { margin-top: 1px; line-height: 1.45; }   /* the way down to the task: the library's trail (lk-trail, lk-step); a line tall enough that a cut name keeps its g and y (the owner's list, 18 November 2026: "Mortgage" lost its g) */
+.td-where .lk-step { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .td-day { white-space: nowrap; padding-top: .2em; }   /* the library's day (lk-day), at the row's right */
 .td-day.td-late { color: color-mix(in srgb, var(--rx-red-10, #dc3e42) 78%, var(--lk-paper, transparent)) !important; }
 .td-row.td-ticked .td-words { text-decoration: line-through; text-decoration-color: var(--lk-line); color: var(--lk-quiet); }
@@ -65,7 +60,7 @@ const dayWords = (day, today) => dates.near(day, today);
 // The day the add line reads, said whole beside the field: "Friday, Nov 20".
 const dayFull = day => `${dayWords(day) === 'Today' || dayWords(day) === 'Tomorrow' ? dayWords(day) : dates.WEEKDAYS[dates.date(day).getDay()]}, ${dates.words(day)}`;
 
-const BY_WORDS = { Day: 'By day', Page: 'By page', Tag: 'By tag', Priority: 'By priority', Status: 'By status' };
+const BY_WORDS = { Day: 'By day', Page: 'By page', Parent: 'By parent', Tag: 'By tag', Priority: 'By priority', Status: 'By status' };
 // "By day", or with a second level "By day, then page".
 const byWords = () => BY_WORDS[T.app.by()] + (T.app.then() ? `, then ${T.app.then().toLowerCase()}` : '');
 // What Show lists: "All open", or the statuses shown when some are left out ("Todo, Doing"; "3 statuses" past two).
@@ -149,21 +144,29 @@ const toggleNode = (uuid, open = !openNodes.includes(uuid)) => {
 function rowHtml(t, part) {
   const status = T.app.shown(t), done = status === 'done', late = !done && t.day && t.day < dates.today();
   const day = !part || (part.today && !late) ? '' : dayWords(t.day);
-  // The page it is written on; a journal day said as "written Jul 20", the short day of every row (the thirteen proposals, 4: one way
+  // The page it is written on; a journal day said as "added Jul 20", the short day of every row (the thirteen proposals, 4: one way
   // to write a day), not the journal page's long name.
-  const where = !part || part.where ? (t.page.journal ? `written ${dates.words(t.page.journal)}` : t.page.title || '') : '';
+  const where = !part || part.where ? (t.page.journal ? `added ${dates.words(t.page.journal)}` : t.page.title || '') : '';
+  /* Under the task, the way down to it (the owner, 21 November 2026: "can we added a breadcrumb instead of just the page?"): its page,
+     then each bullet it is written under, the library's trail (lk-trail, lk-step, the one an opened node's path draws), each step a
+     press to go there. Under a heading that already names the page or the bullet (By page, By parent), that step is left out. */
+  const short = text => (text.length > 40 ? text.slice(0, 39).trimEnd() + '…' : text);
+  const steps = [];
+  if (where) steps.push({ uuid: t.page.uuid || t.page.title, text: where, title: t.page.title || where });
+  for (const n of t.path || []) steps.push({ uuid: n.uuid, text: short(n.words || n.text || 'Untitled'), title: n.words || n.text || '' });
+  if (part?.node && steps.length && steps[steps.length - 1].uuid === part.node) steps.pop();
   const opened = canOpen() && openNodes.includes(t.uuid);
   const fold = canOpen() ? `<button type="button" class="td-open lk-fold" aria-expanded="${opened}" data-open-node="${esc(t.uuid)}" title="${opened ? 'Close' : 'Open here'}" tabindex="-1"></button>` : '';
   return `<div class="td-row lk-row lk-calm${T.app.ticking.has(t.uuid) ? ' td-ticked' : ''}${done ? ' td-done' : ''}${opened ? ' td-opened' : ''}" data-uuid="${esc(t.uuid)}">
 ${fold}<span class="td-bul" aria-hidden="true"><span class="lk-bul"></span></span>${circle(t, status)}
-<div class="td-main"><div class="td-line"><a class="td-words" href="#" data-open="${esc(t.uuid)}" title="Open the task; with Shift, in the sidebar">${t.words || t.text ? wordsHtml(t) : 'Untitled'}</a></div>${where ? `<a class="td-where lk-note" href="#" data-open-page="${esc(t.page.uuid || t.page.title || where)}" title="Open ${esc(t.page.title || where)}; with Shift, in the sidebar">${esc(where)}</a>` : ''}</div>
+<div class="td-main"><div class="td-line"><a class="td-words" href="#" data-open="${esc(t.uuid)}" title="Open the task; with Shift, in the sidebar">${t.words || t.text ? wordsHtml(t) : 'Untitled'}</a></div>${steps.length ? `<div class="td-where lk-trail">${steps.map((s, i) => `${i ? '<span aria-hidden="true">›</span>' : ''}<a class="lk-step" href="#" data-open-page="${esc(s.uuid)}" title="Open ${esc(s.title)}; with Shift, in the sidebar">${esc(s.text)}</a>`).join('')}</div>` : ''}</div>
 <div class="td-day lk-day${late ? ' td-late' : ''}">${esc(day)}</div></div>${opened ? `<div class="td-node" data-th-node="${esc(t.uuid)}"></div>` : ''}`;
 }
 
 function listHtml(find = '', span = null) {
   const { parts, done } = T.app.groups(find, span);
   if (find && !parts.length && !done.length) return '<section class="td-group"><div class="lk-none">No task has these words.</div></section>';
-  const head = p => `<div class="td-head lk-name">${p.tag ? `<span class="lk-tag">${esc(p.head)}</span>` : esc(p.head)}</div>`;
+  const head = p => `<div class="td-head lk-name">${p.tag ? `<span class="lk-tag">${esc(p.head)}</span>` : p.node ? `<a class="lk-node td-head-node" href="#" data-open-page="${esc(p.node)}" title="Open it; with Shift, in the sidebar">${esc(p.head)}</a>${p.kind ? ` <span class="lk-tag">${esc(p.kind)}</span>` : ''}` : esc(p.head)}</div>`;
   const rows = p => p.rows.length ? p.rows.map(t => rowHtml(t, p)).join('') : `<div class="lk-none">${esc(p.none || '')}</div>`;
   // A group with a second level holds its groups, each under its faint name; one without, its rows.
   const part = p => p.subs
@@ -182,13 +185,12 @@ function make(holder, mode) {
   const root = doc.createElement('div');
   root.className = `td td-own td-${mode}`;
   root.innerHTML = `${mode === 'page' ? '<h1 class="title page-title td-title">Todo</h1>' : ''}
-<label class="td-add lk-field"><span class="lk-i-plus td-plus" aria-hidden="true"></span><input type="text" placeholder="Add a todo" aria-label="Add a todo" spellcheck="true"><span class="td-when lk-note"></span></label>
-<label class="td-find lk-field"><span class="td-glass" aria-hidden="true"></span><span class="lk-say"><input type="text" placeholder="Find a todo" aria-label="Find a todo" spellcheck="false" autocomplete="off"><span class="lk-say-mirror" aria-hidden="true"></span></span></label>
+<label class="td-add td-find lk-field"><span class="lk-i-plus td-plus" aria-hidden="true"></span><span class="lk-say"><input type="text" placeholder="Add or find a todo" aria-label="Add or find a todo" spellcheck="true" autocomplete="off"><span class="lk-say-mirror" aria-hidden="true"></span></span><span class="td-when lk-note"></span></label>
 <div class="td-time"></div><div class="td-body"><div class="td-tools"><button type="button" class="td-show lk-change" data-show aria-haspopup="menu" aria-expanded="false" title="Which tasks the list shows"><span class="td-show-word"></span><span class="lk-i-chevron" aria-hidden="true"></span></button><button type="button" class="td-by lk-change" data-by aria-haspopup="menu" aria-expanded="false" title="Group the list"><span class="td-by-word"></span><span class="lk-i-chevron" aria-hidden="true"></span></button></div><div class="td-list"></div></div>`;
   holder.appendChild(root);
-  root.querySelector('.td-glass').innerHTML = Door.logseqIconHtml('search', { size: 16, doc });
-  const finder = root.querySelector('.td-find input');
-  const input = root.querySelector('.td-add input'), when = root.querySelector('.td-when'), list = root.querySelector('.td-list'), byWord = root.querySelector('.td-by-word');
+  /* One line that adds and finds (the owner, 21 November 2026, of Todo's crowded top, picked A: "Add or find a todo"): typing narrows
+     the list as Find a todo did, so a task already there shows before it is added again; Return adds the words as a new task. */
+  const input = root.querySelector('.td-add input'), finder = input, when = root.querySelector('.td-when'), list = root.querySelector('.td-list'), byWord = root.querySelector('.td-by-word');
   const tools = root.querySelector('.td-tools'), show = root.querySelector('.td-show'), showWord = root.querySelector('.td-show-word');
   let drawn = '';
   const view = {
@@ -216,11 +218,11 @@ function make(holder, mode) {
     },
     rows: uuid => [...list.querySelectorAll('.td-row')].filter(r => r.dataset.uuid === uuid),
     focus() { if (mode === 'page') input.focus({ preventScroll: true }); },
-    destroy() { T.app.views.delete(view); unwire?.(); doc.removeEventListener('keydown', onEscape, true); root.remove(); },
+    destroy() { T.app.views.delete(view); unwire?.(); unkey?.(); doc.removeEventListener('keydown', onEscape, true); root.remove(); },
   };
   // The day the words name, said beside the field before Return.
-  const showDay = () => { const found = T.db.dayIn(input.value); when.textContent = found ? dayFull(found.day) : ''; };
-  input.addEventListener('input', showDay);
+  // At the right: the day the words name, said whole, as it will be written; else, once something is typed, that Return adds it.
+  const showDay = () => { const found = T.db.dayIn(input.value); when.textContent = found ? dayFull(found.day) : input.value.trim() ? 'Return adds' : ''; };
   // Find a todo: the list narrows as you type; Escape empties the field, a second Escape lets it go.
   // What the words were read as (a day, a tag, a page) is drawn under the letters, its note above, as in Find by sentence.
   const say = root.querySelector('.td-find .lk-say'), mirror = say.querySelector('.lk-say-mirror');
@@ -241,7 +243,9 @@ function make(holder, mode) {
     const dots = T.app.tasks.filter(t => t.day && T.db.isOpen(T.app.shown(t)) && has(t)).sort((a, b) => a.day - b.day)
       .map(t => ({ day: t.day, title: t.words || t.raw, late: t.day < today }));
     const said = view.span ? `<div class="td-showing"><span class="lk-note">Showing ${esc(dates.words(view.span[0]))}${view.span[1] !== view.span[0] ? ' to ' + esc(dates.words(view.span[1])) : ''}</span><button type="button" class="lk-x" data-time-clear title="Show the whole list again (Escape)" aria-label="Show the whole list again">×</button></div>` : '<div class="td-showing" aria-hidden="true"><span class="lk-note">&nbsp;</span></div>';   // its room kept, so a press on a dot moves nothing
-    const html = dots.length ? Door.timeline.html({ key: 'todo-' + mode, dots, pick: view.span, label: 'Where in time the tasks fall; drag across it to pick days' }) + said : '';
+    const any = T.app.tasks.some(t => t.day && T.db.isOpen(T.app.shown(t)));   // drawn while any task has a day, its dots the ones found: typing never takes it away
+    const html = mode === 'page' && any && T.app.timelineOn() ? Door.timeline.html(   // on the Todo page only: the sidebar is too narrow for it (the owner, 21 November 2026: "the top is crowded")
+      { key: 'todo-' + mode, dots, pick: view.span, label: 'Where in time the tasks fall; drag across it to pick days' }) + said : '';
     if (html === timeDrawn) return;
     timeDrawn = html; timeBox.innerHTML = html; timeBox.toggleAttribute('data-on', !!html);
   };
@@ -255,19 +259,13 @@ function make(holder, mode) {
   };
   doc.addEventListener('keydown', onEscape, true);
   T.base.onStop(() => doc.removeEventListener('keydown', onEscape, true));
-  finder.addEventListener('input', () => { view.find = finder.value; said(); view.draw(); });
+  finder.addEventListener('input', () => { view.find = finder.value; said(); showDay(); view.draw(); });
   finder.addEventListener('scroll', () => { mirror.scrollLeft = finder.scrollLeft; });
-  finder.addEventListener('keydown', event => {
-    event.stopPropagation();   // the field's keys are its own, never Logseq's
-    if (event.isComposing) return;
-    if (event.key === 'Escape') { event.preventDefault(); if (finder.value) { finder.value = ''; view.find = ''; said(); view.draw(); } else finder.blur(); }
-    else if (event.key === 'Enter') { event.preventDefault(); const first = list.querySelector('.td-row [data-open]'); if (first) T.app.open(first.dataset.open, event.shiftKey); }
-  });
   input.addEventListener('keydown', event => {
     event.stopPropagation();   // the field's keys are its own, never Logseq's
     if (event.isComposing) return;
-    if (event.key === 'Enter') { event.preventDefault(); const words = input.value.trim(); if (!words) return; input.value = ''; showDay(); T.app.add(words); }
-    else if (event.key === 'Escape') { event.preventDefault(); if (input.value) { input.value = ''; showDay(); } else input.blur(); }
+    if (event.key === 'Enter') { event.preventDefault(); const words = input.value.trim(); if (!words) return; input.value = ''; view.find = ''; said(); showDay(); view.draw(); T.app.add(words); }
+    else if (event.key === 'Escape') { event.preventDefault(); if (input.value) { input.value = ''; view.find = ''; said(); showDay(); view.draw(); } else input.blur(); }
   });
   root.addEventListener('click', event => {
     if (event.target.closest('[data-th-node]')) return;   // an opened node's presses are Relations'
@@ -299,6 +297,9 @@ function make(holder, mode) {
     toggleNode(uuid, event.key === 'ArrowRight');
     [...root.querySelectorAll('.td-row')].find(r => r.dataset.uuid === uuid)?.querySelector('.td-words')?.focus({ preventScroll: true });
   });
+  // Down and Up walk the tasks, from the find line and back to it, as Find's and Relations' rows walk (the library's Door.listKeys).
+  const unkey = Door.listKeys(root, { rows: () => [...list.querySelectorAll('.td-row .td-words')].filter(a => !a.closest('[data-th-node]')), line: finder });
+  T.base.onStop(unkey);
   root.addEventListener('focusout', () => setTimeout(() => { if (view.waits) view.draw(); }, 60));
   // From the keys: Shift-F10 (or a keyboard's menu key) on a task's words opens the same menu.
   root.addEventListener('keydown', event => {
@@ -322,13 +323,15 @@ function make(holder, mode) {
 }
 /* The grouping's menu, the library's (PluginDoor.menu): under "By day", its right edge on the word's. Group by: the first level;
    Then by: the second inside it, None for none, the first level's own choice faint. */
-const BY_ICON = { Day: 'calendar', Page: 'file', Tag: 'hash', Priority: 'flag', Status: 'circle-dot' };
+const BY_ICON = { Day: 'calendar', Page: 'file', Tag: 'hash', Priority: 'flag', Status: 'circle-dot', Name: 'sort-a-z', Timeline: 'timeline', Parent: 'hierarchy' };
 function openBy(from) {
   const now = T.app.by(), then = T.app.then() || 'None';
   // An icon before every menu line (0.4 line 3.3), Logseq's own as its menus draw them.
   const icon = v => `<i class="ti ti-${BY_ICON[v] || 'minus'}"></i>`;
   Door.menu(from, [{ group: 'Group by' }, ...T.db.GROUPINGS.map(v => ({ word: v, icon: icon(v), on: v === now, take: () => T.app.setBy(v) })),
-    { group: 'Then by' }, ...['None', ...T.db.GROUPINGS].map(v => ({ word: v, icon: icon(v), on: v === then, off: v === now, take: () => T.app.setThen(v) }))]);
+    { group: 'Then by' }, ...['None', ...T.db.GROUPINGS].map(v => ({ word: v, icon: icon(v), on: v === then, off: v === now, take: () => T.app.setThen(v) })),
+    { group: 'Sort by' }, ...['Day', 'Name'].map(v => ({ word: v, icon: icon(v === 'Name' ? 'Name' : 'Day'), on: v === T.app.sortBy(), take: () => T.app.setSort(v) })),
+    { group: 'Timeline' }, { word: 'Hidden', icon: icon('None'), on: !T.app.timelineOn(), take: () => T.app.setTimeline(false) }, { word: 'One line', icon: icon('Timeline'), on: T.app.timelineOn(), take: () => T.app.setTimeline(true) }]);
 }
 /* Show: which open statuses the list holds, each with its icon, ticked when shown; a line ticks and unticks in place and the
    menu stays open, so several can be chosen in one go (the owner, 18 November 2026: "show every task that isn't complete …

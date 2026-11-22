@@ -201,7 +201,7 @@ async function viewItems(group) {
       for (const v of entry.values) h.values.add(v.day ? `d${v.day}` : v.text);
     }
     const choose = to => { setGroup(group.name, to); if (state.draft?.gkey) { state.draft = null; twoWay.closeAdd(); } state.html = null; twoWay.draw(host()); };
-    items.push({ group: 'Group by' }, { label: 'Nothing', chosen: !by, run: () => choose('') });
+    items.push({ group: 'Group by' }, { label: 'None', chosen: !by, run: () => choose('') });   // the word Todo's menu uses (the thirteen proposals, 3: one menu, the same words)
     if (new Set(group.items.map(item => item.tag)).size > 1) items.push({ icon: 'tag', label: 'Tag', chosen: by === 'tag', run: () => choose('tag') });
     if (group.items.some(item => dayIn(group, item))) items.push({ icon: 'date', label: 'Month', chosen: by === 'month', run: () => choose('month') });
     /* A property whose values are nearly all different groups nothing (7 November 2026, the owner: "Good" to leaving out
@@ -211,6 +211,9 @@ async function viewItems(group) {
     const props = [...held].filter(([name, h]) => (h.values.size > 1 || h.nodes < group.items.length) && groups(name, h)).sort((a, b) => b[1].nodes - a[1].nodes || a[0].localeCompare(b[0]));
     items.push(...props.map(([name, h]) => ({ icon: 'property', label: name, right: `${h.values.size} ${h.values.size === 1 ? 'value' : 'values'}`, chosen: by === `p:${name}`, run: () => choose(`p:${name}`) })));
   }
+  // What other pieces add to the menu (Sort, …), each in its own part of it.
+  for (const hook of twoWay.viewMenuHooks) { const more = hook(group) || []; if (more.length) { if (items.length) items.push({ sep: true }); items.push(...more); } }
+  // Which date the lines show, after Group by, Sort by and Timeline: the order Todo's menu has too (the thirteen proposals, 3).
   const dates = [...datePropsOf(group.items)].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   if (dayChoice(group) || group.items.some(twoWay.dayCell) || dates.length) {
     const day = dayChoice(group);
@@ -220,8 +223,6 @@ async function viewItems(group) {
       ...dates.map(([name, n]) => ({ icon: 'date', label: name, right: `${n} of ${group.items.length}`, chosen: day === `p:${name}`, run: () => pick(`p:${name}`) })),
       { label: 'No date', chosen: day === 'none', run: () => pick('none') });
   }
-  // What other pieces add to the menu (Sort, …), each in its own part of it.
-  for (const hook of twoWay.viewMenuHooks) { const more = hook(group) || []; if (more.length) { if (items.length) items.push({ sep: true }); items.push(...more); } }
   // Picking: the tick boxes on this list's lines, until the picks end (twoWay.stopPicking).
   const picking = state.selecting.has(group.name);
   if (items.length) items.push({ sep: true });
