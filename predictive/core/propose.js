@@ -27,6 +27,7 @@ const engine = need('engine');
 const schemaLib = need('schema');
 const { fieldsOfTags, fits, wide, untagged, isNumberProp, isDateProp, isChoiceProp, isLinkProp, isBuiltInProp } = schemaLib;
 const names = need('names');
+const roles = need('roles');
 const datesLib = need('dates');
 const { shownWords, linkIdsIn, profileOf } = need('context');
 const { profileTag } = need('profile');
@@ -69,7 +70,7 @@ function recordOf(b, ownTags, schema) {
   // A wide property comes last: a narrower one that takes the link claims it first.
   const particular = prop => prop.type !== 'node' ? -1 : wide(prop, schema) ? -0.5 : Math.max(0, ...prop.classes.map(c => depth(c.id)));
   const ordered = fields.map((prop, i) => ({ prop, i, rank: particular(prop) })).sort((a, b) => b.rank - a.rank || a.i - b.i).map(x => x.prop);
-  return { record, fields, ordered };
+  return { record, fields, ordered, rankOf: prop => particular(prop) };
 }
 
 /* Dates, read from the graph. dated[ident] is, for each tag, { same, other }: how many of its nodes hold this date
@@ -216,7 +217,7 @@ function moneyLearned(ctx, text, links, tagIds, numbers, skip) {
 // end, completed, or null.
 const MEANINGS = ['deadline', 'scheduled', 'start', 'end', 'completed'];
 const meaningOf = (prop, reader) => prop.ident === 'logseq.property/deadline' ? 'deadline' : prop.ident === 'logseq.property/scheduled' ? 'scheduled'
-  : MEANINGS.find(m => reader.nameMeans?.(m, prop.title)) || null;
+  : MEANINGS.find(m => reader.nameMeans?.(m, prop.title)) || (isDateProp(prop) && (reader.locale?.deadline?.nameEnds || []).includes(String(prop.title || '').toLowerCase().trim().split(/\s+/).pop()) ? 'deadline' : null);
 const namesOf = pages => pages.length > 1 ? { names: pages.map(p => ({ id: p.id, title: p.title })) } : {};
 const freeWords = text => wordsOf(String(text || '').replace(/#?\[\[[^\[\]]*\]\]/g, ' ').replace(TAG, ' '));
 
@@ -265,7 +266,7 @@ function propose(ctx, b, assume = null) {
   const text = b.text;
   const { links, tags: typedTags } = inWords(text, ctx);
   const allTags = [...new Set([...b.tags, ...typedTags])];
-  const { record, fields, ordered } = recordOf(b, allTags, schema);
+  const { record, fields, ordered, rankOf } = recordOf(b, allTags, schema);
   const pieces = [];
 
   // No tag, and no record above: the tag of the nodes it looks like, with the properties it brings, all guesses.
@@ -291,17 +292,38 @@ function propose(ctx, b, assume = null) {
   const page = b.page, journalDay = page?.day || 0;
   const pageAsPage = page && !journalDay ? { id: page.id, uuid: page.uuid, title: page.title, tags: (page.tags || []).map(id => ({ id })) } : null;
   const held = new Set(fields.flatMap(prop => valuesOf(record, prop.ident)));
-  const free = links.filter(p => !held.has(p.id)), used = new Set(), quiet = new Set();
+  /* The part each page named in the words plays (core/roles.js): a page set aside ("not Starbucks", "instead of Dr. Patel", "about
+     Dr. Patel's report") fills nothing; a page the words give a part ("referred by", "into", "Sam lent") goes to the property
+     named for that part and to no other; a property named for one part leaves a page given another ("Lunch with Sam" is not
+     Bought for). Only the record's own words say so: a note under a record is read as before. */
+  const reading = record === b ? roles.read(ctx, text) : { mentions: [] };
+  const part = partsFor(ctx, reading, ordered, record, schema, rankOf);
+  const used = new Set(part.aside), quiet = new Set();
+  const free = links.filter(p => !held.has(p.id) && !part.aside.has(p));
   let pageUsed = false;
 
   for (const prop of ordered) {
     const filled = valuesOf(record, prop.ident).length > 0;
     if (isLinkProp(prop)) {
       const classIds = new Set(prop.classes.map(c => c.id));
-      const fitting = free.filter(p => !used.has(p) && fits(p, classIds, schema));
+      // The pages the words give this property's part, where they give any; else those the words leave open. A page given to
+      // another property, or a part this property's name does not take, is not this one's.
+      const could = free.filter(p => !used.has(p) && fits(p, classIds, schema));
+      const evidence = could.length && !filled ? linkEvidence(ctx, prop, recordTags, classIds, b.id) : { taken: 0, left: 0 };
+      // Where the graph shows this property takes nearly every such page linked (nine in ten of four or more), it still does.
+      const shown = evidence.taken + evidence.left >= LINK_LEAST && evidence.taken / (evidence.taken + evidence.left) >= LINK_SURE;
+      const mine = could.filter(p => part.owner.get(p) === prop);
+      const open = could.filter(p => !part.owner.has(p) && (shown || !part.against(p, prop)));
+      // Several pages the words leave open, and one place: a later property that holds several takes them ("Met Ben and Chloe").
+      const passOn = !mine.length && !prop.many && open.length > 1 && ordered.some(q => q !== prop && q.many && isLinkProp(q) && !valuesOf(record, q.ident).length && open.every(p => fits(p, new Set(q.classes.map(c => c.id)), schema)));
+      const fitting = mine.length ? mine : passOn ? [] : open;
       // What the graph's earlier nodes say of a linked page and this property: where they mostly leave it out, so does this.
-      const trust = fitting.length && !filled ? linkTrust(linkEvidence(ctx, prop, recordTags, classIds, b.id)) : 'sure';
+      // Words that give the page this part outright ("referred by") stand over that.
+      const trust = mine.length ? 'sure' : fitting.length && !filled ? linkTrust(evidence) : 'sure';
       if (fitting.length && trust === 'leave') continue;
+      // A page the words leave open that another empty property could as well take is a guess, not written at once.
+      // Another one-value property, that is: one that holds several ("Spoke with" beside "Provider") comes after the first, not instead of it.
+      const rival = !mine.length && !shown && fitting.length === 1 && !prop.many && ordered.some(q => q !== prop && isLinkProp(q) && !q.many && !wide(q, schema) && !valuesOf(record, q.ident).length && fits(fitting[0], new Set(q.classes.map(c => c.id)), schema) && !part.against(fitting[0], q) && ![...part.owner.values()].includes(q));
       // A filled property still claims the links it takes: a second doctor named when doctor is filled does not become "with".
       if (fitting.length) {
         for (const p of fitting) used.add(p);
@@ -309,7 +331,7 @@ function propose(ctx, b, assume = null) {
         // "spoke with". Into a wide property, only from the record's own words, and only as a guess.
         const isWide = wide(prop, schema);
         if (!filled && (prop.many ? record === b : fitting.length === 1) && !(isWide && record !== b)) {
-          pieces.push({ ident: prop.ident, prop, kind: 'node', ids: fitting.map(p => p.id), shown: fitting.map(p => p.title).join(', '), ...namesOf(fitting), how: 'linked', ...(trust === 'guess' ? { guess: true } : {}), ...(isWide ? { guess: true, how: 'linked-wide' } : {}) });
+          pieces.push({ ident: prop.ident, prop, kind: 'node', ids: fitting.map(p => p.id), shown: fitting.map(p => p.title).join(', '), ...namesOf(fitting), how: mine.length ? 'linked-part' : 'linked', ...(trust === 'guess' || (rival && !isWide) ? { guess: true } : {}), ...(isWide ? { guess: true, how: 'linked-wide' } : {}) });
         } else quiet.add(prop.ident);   // two names for one place: quiet, and the names are spoken for
         continue;
       }
@@ -326,13 +348,34 @@ function propose(ctx, b, assume = null) {
     }
   }
   pieces.sort((a, c) => fields.indexOf(a.prop) - fields.indexOf(c.prop));   // shown in the order the tag gives them
-  const guesses = guessesFor(ctx, { b, text, record, fields: ordered, recordTags, links, free, used, quiet, done: new Set(pieces.map(p => p.ident)) });
+  const guesses = guessesFor(ctx, { b, text, record, fields: ordered, recordTags, links, free, used, quiet, part, done: new Set(pieces.map(p => p.ident)) });
   guesses.sort((a, c) => fields.indexOf(a.prop) - fields.indexOf(c.prop));
   // quiet: the properties held back (two names for one place), which nothing else may fill either (core/model.js).
   return { record, pieces: [...pieces, ...guesses], quiet: [...quiet] };
 }
 
-function guessesFor(ctx, { b, text, record, fields, recordTags, links, free, used, quiet, done }) {
+/* The reading of core/roles.js set against the record's properties: aside (pages that take no part), owner (page -> the property
+   the words give it to: the first, most particular, that its part fits; a quiet fit such as "with Ruth" only where no more
+   particular property is left to take the page), against(page, prop). Linked pages and whole names in plain words alike. */
+function partsFor(ctx, reading, ordered, record, schema, rankOf = () => 0) {
+  const aside = new Set(), owner = new Map(), byPage = new Map();
+  for (const m of reading.mentions) { if (!byPage.has(m.page)) byPage.set(m.page, []); byPage.get(m.page).push(m); }
+  const props = ordered.filter(isLinkProp);
+  const fitsProp = (page, prop) => fits(page, new Set(prop.classes.map(c => c.id)), schema);
+  const stand = (page, prop) => { const all = (byPage.get(page) || []).map(m => roles.standing(m, roles.specOf(ctx, prop))); return all.includes('strong') ? 'strong' : all.includes('weak') ? 'weak' : all.length && all.every(s => s === 'against') ? 'against' : 'none'; };
+  for (const [page, ms] of byPage) {
+    if (ms.every(m => m.aside)) { aside.add(page); continue; }
+    const fitting = props.filter(prop => fitsProp(page, prop));
+    const strong = fitting.find(prop => stand(page, prop) === 'strong');
+    if (strong) { owner.set(page, strong); continue; }
+    const weak = fitting.find(prop => stand(page, prop) === 'weak');
+    // A quiet fit gives way to a property before it that the words leave open ("Appointment with Dr. Chen": the Provider).
+    if (weak && !fitting.some(prop => rankOf(prop) > rankOf(weak) && stand(page, prop) === 'none' && !wide(prop, schema) && !valuesOf(record, prop.ident).length)) owner.set(page, weak);
+  }
+  return { aside, owner, against: (page, prop) => stand(page, prop) === 'against', mentions: reading.mentions };
+}
+
+function guessesFor(ctx, { b, text, record, fields, recordTags, links, free, used, quiet, part = { aside: new Set(), owner: new Map(), against: () => false, mentions: [] }, done }) {
   const own = record === b, journalDay = b.page?.day || 0, reader = ctx.reader;
   const parentTags = own && b.parent ? b.parent.tags : [];
   const skip = new Set([b.id]);
@@ -345,17 +388,21 @@ function guessesFor(ctx, { b, text, record, fields, recordTags, links, free, use
   // Basic meanings (core/dates.js): a day the words say something is due or set for goes to the date named for it (Logseq's
   // Deadline and Scheduled too), and that day is then no other date's; a sum of money goes to the one number named for money.
   const base = journalDay || dayNumber(new Date()), meant = new Map();
-  if (own) meantDaysFor(reader, fields.filter(p => open(p) && (isDateProp(p) || p.type === 'datetime')), text, base, meant, ctx);
+  // The words as they stand for days: a day set aside for another ("moved from Dec 5 to Dec 12", "not Dec 1") is taken out.
+  const dayWords = own ? roles.standingDays(reader, text, base) : text;
+  if (own) meantDaysFor(reader, fields.filter(p => open(p) && (isDateProp(p) || p.type === 'datetime')), dayWords, base, meant, ctx);
   const meantDays = new Set([...meant.values()].map(m => m.day));
   // Which number takes the sum: the one earlier bullets like this one, with a sum in their words, filled (learned from the graph,
   // so Amount, Payment and Cost are told apart by how you used them); else the one number named for money.
   const numberNames = fields.filter(isNumberProp).map(p => p.title);
   // A sum with its currency; else, where the tag takes a sum, one plain number that can only be the sum ("Gas 64.28").
   const takesSum = fields.some(p => open(p) && isNumberProp(p) && reader.nameMeans('money', p.title));
-  const money = own && reader.moneyInWords ? (reader.moneyInWords(text) ?? (takesSum && reader.plainSum ? reader.plainSum(text) : null)) : null;
+  // The part each sum plays (core/roles.js sums): the price, a part of it with a property of its own (a tip, a fee), or set aside.
+  const sumRead = own ? roles.sums(ctx, text, fields.filter(isNumberProp)) : { any: false, main: null, byProp: new Map(), isPart: () => false };
+  const money = own && reader.moneyInWords ? (sumRead.any ? sumRead.main : (takesSum && reader.plainSum ? reader.plainSum(text) : null)) : null;
   let moneyPiece = null;
   if (money != null) {
-    const numbers = fields.filter(p => open(p) && isNumberProp(p) && reader.numberInWords(text, p.title, numberNames) == null);
+    const numbers = fields.filter(p => open(p) && isNumberProp(p) && reader.numberInWords(text, p.title, numberNames) == null && !sumRead.byProp.has(p.ident) && !sumRead.isPart(p));
     const learned = moneyLearned(ctx, text, links, recordTags, numbers, skip);
     const named = numbers.filter(p => reader.nameMeans('money', p.title));
     if (learned) moneyPiece = { prop: learned.prop, how: 'alike-money', from: learned.from };
@@ -375,7 +422,7 @@ function guessesFor(ctx, { b, text, record, fields, recordTags, links, free, use
     const said = [];
     // A number beside the property's name ("cycle 5"). Not from look-alike bullets: how bad a day was is not in its words.
     if (isNumber) {
-      const n = own ? reader.numberInWords(text, prop.title, numberNames) : null;
+      const n = own ? (sumRead.byProp.get(prop.ident) ?? reader.numberInWords(text, prop.title, numberNames)) : null;
       if (n != null) out.push({ ident: prop.ident, prop, kind: 'number', ids: [n], shown: String(n), how: 'words-number', guess: true });
       else if (moneyPiece?.prop === prop) out.push({ ident: prop.ident, prop, kind: 'number', ids: [money], shown: String(money), how: moneyPiece.how, ...(moneyPiece.from ? { from: moneyPiece.from } : {}), guess: true });
       continue;
@@ -385,19 +432,25 @@ function guessesFor(ctx, { b, text, record, fields, recordTags, links, free, use
       const classIds = new Set(prop.classes.map(c => c.id));
       const near = own ? looksLike(ctx, text, links, recordTags, prop, skip) : [];
       const voted = own ? engine.vote(near, prop.ident, { nearLeast: ctx.limits.nearLeast, lead: ctx.limits.lead }) : null;
-      if (voted) said.push({ ids: voted.ids, how: 'alike', from: examplesFor(ctx, near, prop.ident, voted.ids) });
+      // Not a page the words already gave to another property, or set aside: "Deposited $250 into [[Chase Checking]]" is To
+      // account, and earlier transfers out of Chase Checking do not make it the From account as well (22 November 2026, by hand).
+      if (voted && !voted.ids.some(id => [...spoken].some(p => p.id === id))) said.push({ ids: voted.ids, how: 'alike', from: examplesFor(ctx, near, prop.ident, voted.ids) });
       // Two names or more for a property that holds several: the words say who, and the rest is not asked.
-      let several = prop.many && !wide(prop, ctx.schema) ? names.allNamedIn(words, classIds, ctx, spoken) : [];
+      // Pages the words set aside, give to another property, or give a part this one's name does not take, are not this one's.
+      const notMine = new Set(spoken);
+      for (const m of part.mentions) if (part.aside.has(m.page) || (part.owner.has(m.page) && part.owner.get(m.page) !== prop) || part.against(m.page, prop)) notMine.add(m.page);
+      const given = own ? [...new Set(part.mentions.filter(m => !m.linked && part.owner.get(m.page) === prop && !spoken.has(m.page) && fits(m.page, classIds, ctx.schema)).map(m => m.page))] : [];
+      let several = prop.many && !wide(prop, ctx.schema) ? (given.length > 1 ? given : names.allNamedIn(words, classIds, ctx, notMine)) : [];
       // Names a one-value property of the bullet takes too (two doctors where the bullet also has one doctor) are spoken for
       // by that property, as two linked doctors are, so they do not spill over.
       if (several.length > 1 && fields.some(q => q !== prop && !q.many && isLinkProp(q) && !wide(q, ctx.schema) && open(q) && several.every(p => fits(p, new Set(q.classes.map(c => c.id)), ctx.schema)))) several = [];
       // A page named in plain words is taken for this property only where the graph's earlier nodes do not mostly leave such
       // a page out of it (linkEvidence): it then stays free for the next property that takes it.
       const leftOut = () => linkTrust(linkEvidence(ctx, prop, recordTags, classIds, b.id)) === 'leave';
-      const named = several.length > 1 || wide(prop, ctx.schema) ? null : names.namedIn(words, classIds, ctx, spoken);
+      const named = several.length > 1 || wide(prop, ctx.schema) ? null : given.length === 1 ? given[0] : given.length ? null : names.namedIn(words, classIds, ctx, notMine);
       if (several.length > 1) said.splice(0, said.length, { ids: several.map(p => p.id), how: 'words' });
       // A name the words send the other way ("paid off" a card is to it) stays free for the property going that way.
-      else if (named && !leftOut() && !(names.sideOf(prop) && names.directionOf(words, named, ctx) && names.directionOf(words, named, ctx) !== names.sideOf(prop))) said.push({ ids: [named.id], how: 'words' });
+      else if (named && (given.length === 1 || !leftOut()) && !(given.length !== 1 && names.sideOf(prop) && names.directionOf(words, named, ctx) && names.directionOf(words, named, ctx) !== names.sideOf(prop))) said.push({ ids: [named.id], how: 'words' });
     }
     if (isDate) {
       const ev = datedEvidence(ctx, prop, recordTags);
@@ -408,13 +461,14 @@ function guessesFor(ctx, { b, text, record, fields, recordTags, links, free, use
       // page nothing else can say the day, so the words speak for any tag (8 November 2026: "Scan results with Dr. Mei Chen next
       // Friday" on a page left the Date of a Consultation empty, since Consultations are mostly dated the day written).
       if (own && oneDate && (datedAhead(ev) || !journalDay)) {
-        const days = reader.daysInWords(text, journalDay || dayNumber(new Date()));
+        const days = reader.daysInWords(dayWords, journalDay || dayNumber(new Date()));
         if (days.length === 1 && !meantDays.has(days[0])) { const id = dayIdFor(ctx, days[0]); said.push({ ids: [id ?? -days[0]], day: days[0], how: 'words-day' }); }
       }
       // Nothing else said a day, and the graph has no evidence either way: on a journal page, the journal day, as a guess to
       // check. Only for the bullet's own and only date, not when the words name two days or point ahead without naming one
       // ("next week"), not for Logseq's own Deadline and Scheduled, and not for a tag whose nodes are mostly dated ahead.
-      if (own && !said.length && oneDate && journalDay && !isBuiltInProp(prop) && reader.daysInWords(text, journalDay).length < 2 && !reader.ahead.test(text) && !mostlyAhead(ev)) {
+      // Nor for a date named for a day still to come (a deadline, an end, a day it is set for): that is not the day of writing.
+      if (own && !said.length && oneDate && journalDay && !isBuiltInProp(prop) && !['deadline', 'scheduled', 'end'].includes(meaningOf(prop, reader)) && reader.daysInWords(text, journalDay).length < 2 && !reader.ahead.test(text) && !mostlyAhead(ev)) {
         said.push({ ids: [b.page.id], how: 'guess-day' });
       }
     }

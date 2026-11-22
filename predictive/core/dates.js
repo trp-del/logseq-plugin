@@ -78,7 +78,7 @@ const en = {
     notBefore: ['am', 'pm', '%', 'x', 'times', 'people', 'km', 'mi', 'kg', 'lb', 'h', 'hr', 'min', 'of', 'percent', 'minutes', 'hours', 'days', 'weeks', 'months', 'years', 'nights', 'st', 'nd', 'rd', 'th'],
     notCount: ['dollars', 'bucks', 'euros', 'pounds', 'francs', 'rupees'],
   },
-  deadline: { words: ['due', 'deadline', 'by', 'before', 'b4', 'no later than', 'latest'], not: ['to'], loose: ['due', 'deadline'], notLoose: ['due to'], after: ['deadline'], notAfter: ['day', 'week', 'month', 'night'], notAfterOther: ['start', 'end'], names: ['deadline', 'due'] },   // "due to the pain" is a cause
+  deadline: { words: ['due', 'deadline', 'by', 'before', 'b4', 'no later than', 'latest'], not: ['to'], loose: ['due', 'deadline'], notLoose: ['due to'], after: ['deadline'], notAfter: ['day', 'week', 'month', 'night'], notAfterOther: ['start', 'end'], names: ['deadline', 'due'], nameEnds: ['by', 'before'] },   // "due to the pain" is a cause; a date named "Repay by", "Renew before" is a deadline
   scheduled: { words: ['scheduled for', 'scheduled on', 'scheduled', 'planned for', 'booked for', 'booked', 'set for', 'coming', 'comes', 'arriving', 'arrives', 'visiting', 'appointment', 'appt'], loose: ['scheduled', 'booked', 'appointment', 'appt'], names: ['scheduled', 'schedule', 'planned', 'appointment'] },
   /* start, end, completed (17 November 2026, the owner: "recognize using words as cues for deadline vs scheduled vs start and end
      date vs completed"). start: a day right after a word that says something begins ("starts Dec 1", "starting Monday", "since
@@ -94,6 +94,98 @@ const en = {
   cueFiller: ['on', 'for', 'the', 'is', 'was', 'are', 'were', 'be', 'been', 'will', 'at', 'a', 'an', 'of', 'it', 'its', 'to', 'this', 'that', 'in'],   // small words passed over when learning the words before a day (core/date-words.js)
   dayLeads: ['end', 'start', 'beginning', 'early', 'mid', 'late', 'last'],   // words a day can begin with: "end of the month", "early December"
   range: { openers: ['from', 'between'], joiners: ['to', 'until', 'till', 'til', 'through', 'thru', 'and'], needsOpener: ['and'] },
+  /* The part a sum plays (core/roles.js sums): a sum named as a part of the bill (a tip, a discount, a fee) is that part's and not
+     the price; a sum only compared with ("$7 less than"), replaced ("was $200", "from $80 to $95") or the whole a part was paid of
+     ("$50 of the $95") is set aside. parts: the kind of part and the words that name it, before or after the sum. */
+  sums: {
+    parts: {
+      tip: ['tip', 'tipped', 'tips', 'gratuity'],
+      discount: ['discount', 'discounted', 'coupon', 'off', 'saved', 'saving', 'savings', 'rebate', 'markdown', 'voucher', 'promo', 'credit'],
+      fee: ['fee', 'fees', 'surcharge', 'commission', 'penalty'],
+      tax: ['tax', 'taxes', 'vat', 'gst'],
+      refund: ['refund', 'refunded', 'back', 'returned', 'repaid', 'reimbursed', 'cashback'],
+      deposit: ['deposit'], interest: ['interest'], shipping: ['shipping', 'delivery', 'postage'], change: ['change'],
+    },
+    filler: ['of', 'a', 'an', 'the', 'was', 'is', 'in', 'as', 'about', 'around', 'roughly', 'only', 'just', 'another', 'extra'],
+    notBetween: ['on', 'for', 'to', 'and', 'plus', 'with', 'at', 'in', 'of', 'a', 'an', 'the', 'from', 'or', 'but', 'was', 'is', 'per', 'each', 'total'],   // "$15 wire fee": one word may stand between, not these
+    afterOnly: ['off'],   // "$20 off" names the discount; "off a $110 coat" does not
+    was: ['was', 'were', 'originally', 'normally', 'usually', 'listed', 'instead'],
+    compare: ['than'],
+    whole: ['of', 'of the', 'of a', 'of my', 'of our', 'toward the', 'towards the', 'against the', 'on the'],
+    notWhole: ['total', 'tip', 'fee'],
+    from: ['from'], to: ['to'],
+    not: ['not', 'no'],
+  },
+  /* A day set aside for another (core/roles.js days): "moved from Dec 5 to Dec 12", "was due Nov 20, pushed to Nov 27", "by Dec 4,
+     not Dec 1", "originally due Dec 1, now due Dec 8". */
+  moved: {
+    words: ['moved', 'pushed', 'postponed', 'rescheduled', 'changed', 'shifted', 'bumped', 'delayed', 'brought', 'put', 'extended', 'switched', 'slipped', 'deferred', 'rebooked', 'moving', 'pushing', 'now'],
+    to: ['to', 'until', 'till', 'for'],
+    not: ['not', 'never', 'instead of', 'rather than', 'no longer', 'not on', 'not by', 'not until'],
+    once: ['originally', 'initially', 'previously', 'formerly', 'first', 'meant', 'supposed'],
+    wasCue: ['was', 'were'],
+    now: ['now', 'instead', 'new', 'changed', 'moved', 'updated', 'currently', 'pushed', 'rescheduled'],
+    lead: ['was', 'got', 'been', 'is', 'now', 'then', 'but', 'and', 'it', 'since', 'later', 'back', 'out', 'forward', 'again'],
+  },
+  /* The part a page plays in a sentence (core/roles.js, 22 November 2026). The small words before a name and what they make of
+     it; words that set a name aside; verbs that say one event from two sides (same: every key in a group is the same part); a
+     verb's other words (synonyms) and its nouns ("a loan to Ana" is lending); what a property named with a plain noun asks for
+     (nounRoles). Keys are verb:part, the part one of agent (who does it), object, to, from, for, with. */
+  roles: {
+    from: ['from', 'out of', 'off of', 'using', 'via', 'courtesy of'],
+    to: ['to', 'into', 'onto', 'toward', 'towards', 'over to'],
+    by: ['by'],
+    with: ['with', 'along with', 'together with', 'alongside'],
+    for: ['for', 'on behalf of'],
+    at: ['at', 'in', 'on', 'near', 'inside', 'outside'],
+    aside: ['not', 'instead of', 'in place of', 'in lieu of', 'rather than', 'without', 'than', 'about', 'regarding', 're', 'concerning', 'unlike', 'except', 'except for', 'excluding', 'versus', 'vs', 'minus', 'besides', 'no', 'over', 'not at', 'not with', 'not from', 'not to', 'not by', 'not for'],
+    than: ['than'],
+    negators: ['not', 'never', 'cannot'],
+    relative: ['who', 'whom', 'whose', 'which', 'what', 'how', 'why', 'whether'],   // a clause about another, or what someone said or meant
+    absent: ['away', 'out', 'off', 'unavailable', 'absent', 'sick', 'ill', 'busy', 'closed', 'gone', 'on leave', 'on vacation', 'on holiday', 'on holidays', 'booked up', 'fully booked', 'not there', 'not in'],
+    skip: ['the', 'a', 'an', 'my', 'our', 'his', 'her', 'their', 'your', 'this', 'that', 'new', 'old', 'same', 'usual', 'dear'],
+    pronouns: ['me', 'us', 'him', 'her', 'them', 'it', 'you', 'myself', 'ourselves', 'everything', 'something', 'this', 'that', 'money', 'cash'],
+    verbParticles: ['up', 'off', 'out', 'down', 'back', 'over', 'along'],
+    joiners: ['and', 'or', 'plus', 'nor'],
+    willWords: ['will', 'should', 'must', 'shall'],
+    objectVerbs: ['lend', 'pay', 'owe', 'refill', 'fund', 'repay', 'reimburse', 'tip', 'email', 'text', 'ring', 'ask', 'tell', 'see', 'meet', 'visit'],
+    toVerbs: ['top up', 'refill', 'fund', 'replenish', 'load', 'pay off', 'pay down', 'deposit', 'pad', 'feed'],
+    fromVerbs: ['drain', 'empty', 'withdraw', 'debit', 'raid', 'tap'],
+    toAgents: ['receive', 'get', 'gain', 'collect'],   // "Ally Savings received $400": the subject is where it went
+    fromAgents: ['fund', 'cover', 'send', 'feed'],
+    synonyms: {
+      request: ['ask', 'want', 'need', 'require', 'demand', 'commission'],
+      perform: ['do', 'conduct', 'run', 'carry', 'execute', 'administer', 'handle'],
+      organize: ['organise', 'call', 'host', 'arrange', 'convene', 'chair', 'lead', 'schedule', 'plan', 'book'],
+      accompany: ['come', 'join', 'drive', 'bring', 'escort', 'tag'],
+      attend: ['join', 'come', 'attend', 'show'],
+      lend: ['loan', 'front', 'spot', 'advance'],
+      refer: ['recommend me', 'send'],
+      order: ['prescribe'],
+      assign: ['delegate', 'give', 'hand', 'task'],
+      pay: ['reimburse', 'repay', 'settle'],
+      charge: ['bill', 'invoice'],
+      buy: ['purchase', 'get', 'order'],
+    },
+    nouns: { loan: 'lend', referral: 'refer', payment: 'pay', gift: 'give', present: 'give', assignment: 'assign', order: 'order', request: 'request', transfer: 'transfer', invoice: 'charge', bill: 'charge', appointment: 'meet', meeting: 'meet', call: 'speak', chat: 'speak', lunch: 'meet', dinner: 'meet', coffee: 'meet', visit: 'meet' },
+    same: [
+      ['lend:agent', 'borrow:from', 'owe:object', 'owe:to'],
+      ['lend:object', 'lend:to', 'borrow:agent', 'owe:agent'],
+      ['pay:agent', 'charge:object', 'charge:to', 'owe:agent'],
+      ['pay:object', 'pay:to', 'charge:agent'],
+      ['refer:agent', 'refer:from'],
+      ['send:agent', 'receive:from'], ['send:to', 'send:object', 'receive:agent'],
+      ['give:agent', 'receive:from'], ['give:to', 'give:object', 'give:for'],
+      ['buy:from', 'buy:at', 'sell:agent'], ['buy:agent', 'sell:to'],
+      ['assign:to', 'assign:object'],
+      ['order:agent', 'request:agent'],
+    ],
+    company: ['accompany', 'attend', 'join', 'meet', 'speak', 'talk', 'chat', 'dine', 'share', 'split'],
+    nounRoles: { recipient: ['give:to', 'send:to', 'prep:for'], payee: 'pay:to', payer: 'pay:agent', creditor: 'lend:agent', debtor: 'lend:to', vendor: 'sell:agent', seller: 'sell:agent', buyer: 'buy:agent',
+      sender: 'send:agent', receiver: 'send:to', host: 'organize:agent', guest: 'attend:agent', participant: 'attend:agent', companion: 'accompany:agent', beneficiary: 'prep:for', referrer: 'refer:agent', source: 'side:from', destination: 'side:to', origin: 'side:from' },
+    agentiveEe: ['attendee', 'absentee', 'retiree', 'escapee', 'standee', 'returnee'],
+    notDoers: ['number', 'order', 'paper', 'letter', 'matter', 'quarter', 'color', 'colour', 'factor', 'floor', 'doctor', 'offer', 'cover', 'year', 'other', 'folder', 'reminder', 'calendar', 'chapter', 'tier', 'summer', 'winter', 'weather', 'water', 'paper', 'power', 'answer', 'error', 'sector', 'meter', 'trigger', 'filter', 'counter', 'center', 'corner', 'dinner', 'partner', 'member', 'customer', 'manager', 'officer', 'gender', 'trailer', 'timer', 'layer', 'server', 'user'],
+  },
 };
 
 const dayAfter = (date, n) => { const d = new Date(date.getFullYear(), date.getMonth(), date.getDate()); d.setDate(d.getDate() + n); return d; };
@@ -277,6 +369,22 @@ function makeReader(locale = en) {
     }
     return totals.size === 1 ? [...totals][0] : null;
   }
+  // Every sum of money in the words, in the order written, each with the words of its part of the sentence before and after it
+  // (nearest first), for reading the part it plays (core/roles.js): [{ n, before, after }].
+  function sumsInWords(text) {
+    const M = L.money;
+    if (!M) return [];
+    const words = ' ' + wholeNumbers(cleanWords(text).toLowerCase()) + ' ', found = [], num = '(\\d{1,3}(?:,\\d{3})+|\\d+)(?:\\.(\\d{1,2}))?(k)?';
+    const add = (m, whole, cents, k) => { let n = Number(String(whole).replace(/,/g, '') + (cents ? '.' + cents : '')); if (k) n = Math.round(n * 1000 * 100) / 100; if (Number.isFinite(n) && !found.some(f => f.at === m.index)) found.push({ n, at: m.index, end: m.index + m[0].length }); };
+    for (const m of words.matchAll(new RegExp(`(?:^|[\\s(])(?:${M.before})\\s?${num}(?![\\d.,]?\\d)`, 'g'))) add(m, m[1], m[2], m[3]);
+    for (const m of words.matchAll(new RegExp(`(?:^|[\\s(])${num}\\s?(?:${M.after})(?=[\\s.,;:!?)]|$)`, 'g'))) add(m, m[1], m[2], m[3]);
+    found.sort((a, b) => a.at - b.at);
+    const wordsIn = t => t.match(/[\p{L}]+|=|×|@/gu) || [];
+    return found.map(f => {
+      const left = words.slice(0, f.at + 1).split(/[,;]|\.(?=\s)/).pop(), right = words.slice(f.end).split(/[,;]|\.(?=\s|$)/)[0];
+      return { n: f.n, before: wordsIn(left).reverse(), after: wordsIn(right), total: new RegExp(`(?:^|\\s)(?:${M.total?.before || '\\b\\B'})\\s*$`).test(words.slice(0, f.at + 1)) || new RegExp(`^\\s*(?:${M.total?.after || '\\b\\B'})(?=[\\s.,;:!?)]|$)`).test(words.slice(f.end)) };
+    });
+  }
   /* A plain number that is the sum, for a bullet whose tag takes a sum ("Gas 64.28", "Paycheck 3850"): the one number in the words
      that is not part of a day ("Nov 20", "the 4th"), a time ("8am", "8:30"), a count of things ("2 lattes", "x2") or a year
      ("2026"), and not after a word that makes it something else ("for 2", "#4", "cycle 5"). Read only where no sum with its
@@ -426,9 +534,28 @@ function makeReader(locale = en) {
     }
     return out;
   }
+  /* Where each day stands in the words: [{ day, from, to }], token places in the words split at spaces (toks). A day's words are
+     the fewest that read it: "next Friday", "Dec 5", "the 14th". For setting a day aside (core/roles.js days). */
+  function daySpans(text, base) {
+    const toks = cleanWords(text).split(/\s+/).filter(Boolean), spans = [];
+    const bare = ws => ws.join(' ').replace(/[,.;:!?)]+$/, '');
+    const one = ws => { const d = daysInWords(bare(ws), base); return d.length === 1 ? d[0] : null; };
+    for (let s = 0; s < toks.length; s++) {
+      let best = 0, day = null;
+      for (let n = 1; n <= 5 && s + n <= toks.length; n++) {
+        const d = one(toks.slice(s, s + n));
+        if (d == null) continue;
+        if (n > 1 && (one(toks.slice(s + 1, s + n)) === d || one(toks.slice(s, s + n - 1)) === d)) continue;   // a word more than the day needs
+        best = n; day = d;
+        if (/[,.;:!?)]$/.test(toks[s + n - 1])) break;
+      }
+      if (best) { spans.push({ day, from: s, to: s + best }); s += best - 1; }
+    }
+    return { toks, spans };
+  }
   const cueWords = MEANING_KEYS.flatMap(k => [...(L[k]?.words || []), ...(L[k]?.loose || [])]);
   const anyCue = text => hasWord(' ' + cleanWords(text).toLowerCase().replace(/[,;:!?()]/g, ' ') + ' ', cueWords);
-  return { locale: L, anyCue, parseDay, daysInWords, numberInWords, moneyInWords, plainSum, nameMeans, dayMeant, rangeIn, dayWords, ahead: L.ahead };
+  return { locale: L, anyCue, parseDay, daysInWords, numberInWords, moneyInWords, sumsInWords, daySpans, plainSum, nameMeans, dayMeant, rangeIn, dayWords, ahead: L.ahead };
 }
 
 /* A day written in a date format of Logseq's (its preferredDateFormat, "MMM do, yyyy" unless set otherwise), as Logseq titles

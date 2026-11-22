@@ -19,7 +19,7 @@ const SOURCE = {
   'alike-tag': 'earlier lines', alike: 'earlier lines', 'alike-money': 'earlier lines', parent: 'the bullet above',
   meaning: 'Apple’s matcher', model: 'Apple’s model', names: 'Apple’s name finder',
   words: 'your words', 'words-day': 'your words', 'words-number': 'your words', 'words-money': 'your words', 'words-deadline': 'your words', 'words-scheduled': 'your words', 'words-start': 'your words', 'words-end': 'your words', 'words-completed': 'your words', 'words-name': 'your words', 'words-ahead': 'your words', 'words-learned': 'your words',
-  day: 'the day written', 'guess-day': 'the day written', untagged: 'a linked page', linked: 'a linked page', 'linked-wide': 'a linked page', page: 'the page', 'page-wide': 'the page',
+  day: 'the day written', 'guess-day': 'the day written', untagged: 'a linked page', linked: 'a linked page', 'linked-part': 'a linked page', 'linked-wide': 'a linked page', page: 'the page', 'page-wide': 'the page',
 };
 const APPLE = ['model', 'meaning', 'names'];
 const NO_LEAST = 3, MOVED_LEAST = 2;

@@ -94,7 +94,7 @@ const REASONS = {
   'words-money': () => 'The sum of money in your words', 'alike-money': p => `The sum of money in your words; earlier bullets like this one put theirs in ${p.prop.title}`, 'words-number': p => `The number beside “${p.prop.title.toLowerCase()}” in your words`,
   model: () => 'Read from your words by Apple’s model, on this Mac', meaning: () => 'Earlier notes that mean the same, matched by Apple’s tools on this Mac',
   names: () => 'A name Apple’s name finder read in your words, with no page yet; taking it makes the page, with this tag', untagged: () => 'A page linked in your words that has no tag yet; taking it gives the page the tag too',
-  linked: () => 'A page linked in your words', 'linked-wide': () => 'A page linked in your words', page: () => 'The page this is written on', 'page-wide': () => 'The page this is written on',
+  linked: () => 'A page linked in your words', 'linked-part': p => `A page linked in your words, where they say “${p.prop.title.toLowerCase()}”`, 'linked-wide': () => 'A page linked in your words', page: () => 'The page this is written on', 'page-wide': () => 'The page this is written on',
 };
 function reasonOf(piece) {
   const parts = String(piece.how || '').split('+').map(how => REASONS[how]?.(piece)).filter(Boolean);

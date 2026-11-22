@@ -625,7 +625,9 @@ test('what the words do not hold is dropped: another page, another number, anoth
 test('the model\'s reading of roles replaces the rules\' guess from plain words, and nothing else', () => {
   const b = visit(said), { result, req } = askAbout(b);
   const rule = title => result.pieces.find(p => p.prop.title === title);
-  assert.equal(rule('Provider').shown, 'Ruth Okoro', 'the rules alone put the first person named second in Provider');
+  // Until 22 November 2026 the rules alone put Ruth Okoro, the person named second, in Provider; they now read "Saw … with …" (core/roles.js).
+  assert.equal(rule('Provider').shown, 'Dr. Mei Chen', 'the rules read who was seen');
+  assert.equal(rule('Spoke with')?.shown, 'Ruth Okoro', 'and who came with');
   const asked = byTitle(req);
   assert.deepEqual(asked.get('Provider').choices.sort(), ['Dr. Mei Chen', 'Ruth Okoro']);
   const kept = modelLib.pieces(clinic.ctx, req, { values: { [asked.get('Provider').key]: 'Dr. Mei Chen' } });
@@ -775,8 +777,9 @@ section('A linked page and the property the graph shows it belongs in (core/prop
     plain() {},
   });
   const ask = g => { const d = g.peoplePages.Doctor[0]; const b = bullet({ id: -3, text: `Port insertion with [[${d.uuid}]] this morning`, tags: [g.tagPage['Procedure Event'].id] }); return propose(g.ctx, b).pieces.filter(p => p.kind === 'node').map(p => [p.prop.title, p.shown, !!p.guess]); };
-  test('too little to go on: the first property that takes the page, written at once, as a linked page always was', () => {
-    assert.deepEqual(ask(make(2, 1))[0], ['Referred by', 'Dr. Mei Chen', false]);
+  test('too little to go on, and the words give the doctor no part: the first property that takes the page, as a guess, since the other could as well', () => {
+    // Until 22 November 2026 this was written at once. "Port insertion with …" says neither who referred nor who performed.
+    assert.deepEqual(ask(make(2, 1))[0], ['Referred by', 'Dr. Mei Chen', true]);
   });
   test('the graph mostly leaves linked doctors out of the first property: it is left alone, and the next one takes the page', () => {
     assert.deepEqual(ask(make(12, 1)), [['Performed by', 'Dr. Mei Chen', false]], 'Referred by took 1 linked doctor in 13, Performed by 12 in 13: sure');
@@ -788,6 +791,75 @@ section('A linked page and the property the graph shows it belongs in (core/prop
     const all = lib.linkEvidence(g.ctx, g.prop('Performed by'), [g.tagPage['Procedure Event'].id], classIds, -1), without = lib.linkEvidence(g.ctx, g.prop('Performed by'), [g.tagPage['Procedure Event'].id], classIds, own.id);
     assert.equal(all.taken, 4); assert.equal(without.taken, 3);
     assert.equal(lib.linkTrust({ taken: 9, left: 1 }), 'sure'); assert.equal(lib.linkTrust({ taken: 5, left: 5 }), 'guess'); assert.equal(lib.linkTrust({ taken: 1, left: 5 }), 'leave'); assert.equal(lib.linkTrust({ taken: 0, left: 3 }), 'sure');
+  });
+}
+
+section('The part a page, a sum and a day play in the sentence (core/roles.js)');
+{
+  // 22 November 2026, the owner: "I want the property filling to be very sophisticated and have very nuanced way of distinguishing
+  // language". Two sets of sentences where only the words say which property a value belongs in (tools/nuance): 81 it was built
+  // with, 70 written after and first run once (62 whole, 4 missed, 4 wrong; before the change 12, 33 and 25).
+  const nuance = require('../tools/nuance/measure.js'), g = nuance.graph();
+  for (const [name, file] of [['the 81 sentences it was built with', '../tools/nuance/sentences.js'], ['the 70 written after', '../tools/nuance/fresh.js']]) test(`${name}: each filled whole, nothing put where it does not belong`, () => {
+    const bad = require(file).map(s => ({ s, j: nuance.judge(s, nuance.run(g, s)) })).filter(x => x.j.verdict !== 'whole');
+    assert.deepEqual(bad.map(x => `${x.s.s} | wrong: ${x.j.wrong.join('; ')} | missed: ${x.j.missed.join(', ')}`), []);
+  });
+  const roles = require('../core/roles.js');
+  const parts = text => roles.read(g.ctx, text).mentions.map(m => [m.page.title, m.aside ? 'aside' : [...m.keys].filter(k => /^side:|:agent$/.test(k)).sort().join(' ')]);
+  test('a page set aside: denied, replaced, compared with, spoken about, absent', () => {
+    for (const text of ['Did not see [[Dr. Mei Chen]]', 'instead of [[Dr. Mei Chen]]', 'cheaper than [[Starbucks]]', 'about [[Dr. Mei Chen]]\'s report', '[[Dr. Mei Chen]] was away', 'Saw her, who trained under [[Dr. Mei Chen]]'])
+      assert.deepEqual(parts(text).map(p => p[1]), ['aside'], text);
+    assert.notEqual(parts('Saw [[Dr. Mei Chen]] today')[0][1], 'aside');
+  });
+  test('the side a page is on: from, to, an arrow, the verb', () => {
+    assert.deepEqual(parts('Moved 5 from [[Chase Checking]] to [[Ally Savings]]').map(p => p[1]), ['side:from', 'side:to']);
+    assert.deepEqual(parts('[[Chase Checking]] → [[Ally Savings]]').map(p => p[1]), ['side:from', 'side:to']);
+    assert.ok(parts('Paid off the [[Amex Gold]]')[0][1].includes('side:to'));
+    assert.ok(parts('Topped up [[Ally Savings]]')[0][1].includes('side:to'));
+  });
+  test('one event said from two sides is one part: who lent is who was borrowed from', () => {
+    const lender = roles.specOf(g.ctx, g.prop('Lender')), borrower = roles.specOf(g.ctx, g.prop('Borrower'));
+    const m = text => roles.read(g.ctx, text).mentions[0];
+    assert.equal(roles.standing(m('Borrowed 40 from [[Sam Ortiz]]'), lender), 'strong');
+    assert.equal(roles.standing(m('Lent [[Sam Ortiz]] 40'), borrower), 'strong');
+    assert.equal(roles.standing(m('[[Sam Ortiz]] owes me 40'), borrower), 'strong');
+    assert.equal(roles.standing(m('Lunch with [[Sam Ortiz]]'), roles.specOf(g.ctx, g.prop('Bought for'))), 'against');
+  });
+  test('a sum named as a part is not the price; a sum compared with or replaced is set aside', () => {
+    const numbers = g.schema.props.filter(p => p.type === 'number');
+    const read = text => { const r = roles.sums(g.ctx, text, numbers); return [r.main, ...[...r.byProp].map(([ident, n]) => `${g.schema.props.find(p => p.ident === ident).title} ${n}`)]; };
+    assert.deepEqual(read('Dinner $84 plus $15 tip'), [84, 'Tip 15']);
+    assert.deepEqual(read('Jacket was $200, paid $150'), [150]);
+    assert.deepEqual(read('Bill went from $80 to $95'), [95]);
+    assert.deepEqual(read('Phone case $18, $7 less than online'), [18]);
+    assert.deepEqual(read('Paid $50 of the $95 bill'), [50]);
+    assert.deepEqual(read('$84 and wine $22, $106 total'), [106]);
+    assert.deepEqual(read('Dinner $120 and drinks $40'), [null], 'two prices with nothing to tell them apart: nothing');
+  });
+  test('a day set aside for another is taken out of the words', () => {
+    const say = text => roles.standingDays(dates.reader, text, 20261118);
+    assert.equal(say('Due date moved from Dec 5 to Dec 12'), 'Due date moved Dec 12');
+    assert.equal(say('Report was due Nov 20, pushed to Nov 27'), 'Report was due Nov 27');
+    assert.equal(say('Send the draft by Dec 4, not Dec 1'), 'Send the draft by Dec 4');
+    assert.equal(say('Originally due Dec 1, now due Dec 8'), 'now due Dec 8');
+    assert.equal(say('Bill no longer due Dec 5'), 'Bill');
+    assert.equal(say('Window replaced Nov 9, invoice due Dec 9'), 'Window replaced Nov 9, invoice due Dec 9', 'nothing set aside: the words as they were');
+  });
+  test('a page the words gave one property is not offered for another from look-alike bullets', () => {
+    // By hand in Logseq, 22 November 2026: "Deposited $250 into [[Chase Checking]]" pencilled Chase Checking in From account too.
+    const h = synthetic.build({
+      tags: ['Transfer', 'Account'],
+      props: [{ title: 'From account', type: 'node', accepts: ['Account'], on: ['Transfer'] }, { title: 'To account', type: 'node', accepts: ['Account'], on: ['Transfer'] }],
+      people: { Account: ['Chase Checking', 'Ally Savings'] },
+      lines({ tagPage, peoplePages, prop, add, link }) { const [chase, ally] = peoplePages.Account; for (let i = 0; i < 8; i++) add({ title: `Deposited ${100 + i} dollars out of ${link(chase)} to ${link(ally)}`, tags: [tagPage.Transfer.id], values: new Map([[prop('From account').ident, [chase.id]], [prop('To account').ident, [ally.id]]]) }); },
+      plain() {},
+    });
+    const got = propose(h.ctx, bullet({ text: 'Deposited 250 dollars into [[Chase Checking]]', tags: [h.tagPage.Transfer.id] })).pieces.filter(p => p.kind === 'node').map(p => [p.prop.title, p.shown]);
+    assert.deepEqual(got.filter(([, v]) => v === 'Chase Checking'), [['To account', 'Chase Checking']], JSON.stringify(got));
+  });
+  test('a date named for a day to come is not guessed as the day of writing', () => {
+    const b = bullet({ text: 'Call the bank about the card', tags: [g.tagPage.Task.id], page: journal(g, 20261118) });
+    assert.deepEqual(propose(g.ctx, b).pieces.map(p => p.prop.title), []);
   });
 }
 
