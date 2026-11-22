@@ -39,6 +39,10 @@ const twoWayCss = `
 }
 /* Waiting unseen in its place for Logseq's property list on a first visit, the page's words below it with it. */
 .th-two-way[data-th-waiting] { visibility: hidden; }
+/* On a journal day the page is Logseq's grid with a 32px gap between its parts: an empty section is no part of it, so the day's own
+   lists (DOING, Scheduled and Deadline) stand where they stay from the first frame (21 November 2026, the thirteen proposals, 13: a
+   screen arrives once, whole; they jumped up 32px two seconds after the day opened). */
+:is(.is-journals, #journals) .th-two-way:empty { display: none; }
 #main-content-container:has(.th-two-way[data-th-waiting]) .ls-page-blocks { visibility: hidden; }
 #right-sidebar .sidebar-item:is([data-lk-split-item], .item-type-page):has(.th-two-way[data-th-waiting]) .ls-page-blocks { visibility: hidden; }   /* the right half of two pages side by side waits the same way */
 /* Only holding room while the page settles: no field, no rows. */
