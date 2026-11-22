@@ -121,7 +121,10 @@ const CSS = `
 .st-tag .st-in { max-width: 240px; }
 /* The inspector: two parts, each under its head, a hairline and space between them. The heads in the heading weight; the names
    of the lines in the quiet grey at the body weight, as Logseq writes a property's name, so what you read is the values. */
-.st-holder-insp { display: grid; gap: 24px; padding: 4px 2px 12px; }
+/* One left edge with every section of the stack: Ontology's lines and the row's words start where Logseq's own sections start
+   theirs (a page opened in the sidebar), 22 November 2026; they started 24 and 34 px further left. */
+.st-holder-insp { display: grid; gap: 24px; padding: 4px 2px 12px 26px; }
+#right-sidebar .sidebar-item.item-type-block[data-st-item] .sidebar-panel-content { padding-left: 42px !important; }
 .st-holder-insp .st-lines-t { grid-template-columns: 112px minmax(0, 1fr); gap: 10px 14px; }
 .st-holder-insp { container-type: inline-size; }
 /* A narrow sidebar: each label stands over its value, which then has the pane's whole width (12 November 2026: at 270 px the count lay
@@ -140,7 +143,8 @@ const CSS = `
    (mount.js), and the plugin's panel heads keep their fold and their ×, without Logseq's ··· menu, as Links and Endnotes have them. */
 #right-sidebar .cp__right-sidebar-settings > div:has(> button .ls-icon-cube-plus) { display: none !important; }
 #right-sidebar .sidebar-item:has(h3[id^="_sidebar.structure"]) [data-testid="sidebar-item-more"] { display: none !important; }
-.st-holder-insp .st-insp-h { display: flex; gap: 8px; align-items: baseline; font-weight: 600; font-size: 16px; line-height: 1.4; margin: 0 0 12px; overflow-wrap: anywhere; }
+/* In the sidebar the page in front already says whose lines these are: the name is not said again (22 November 2026; until then the
+   tag's name stood here in large serif). */
 .st-holder-insp .st-insp-h .st-pi { width: 13px; height: 13px; color: var(--lk-quiet); }
 .st-holder-insp dt .st-pi, .st-holder-insp dt .ti { flex: none; width: 13px; font-size: 13px; color: var(--lk-quiet); position: relative; top: 1px; }
 .st-insp-top:not(:has(.st-insp-h, .st-lines-t)) { display: none; }
@@ -154,7 +158,11 @@ const CSS = `
    page. At the end of its head, quiet, "Item · 3 of 13": that it is the row pressed, and where it stands in the table. The head is one
    line: the arrow, the name and those words on one middle line, the words in the head's own size, so nothing in it sits higher or
    smaller than the rest (the owner, 18 November 2026: "the top row with the fold control and total is misaligned"). */
-#right-sidebar .sidebar-item[data-st-item] .sidebar-item-header .item-actions { display: none !important; }
+/* Its × ends the row view (sidebar-tabs.js), as on any section of the stack; Logseq's ··· menu is left out, as on the plugin's panels
+   (the owner, 22 November 2026: "Lets make row view just seem like any other stack"). Where it stands in the table follows the head's
+   word, and the × follows that, as the ··· and × follow a page's name. */
+#right-sidebar .sidebar-item[data-st-item] .sidebar-item-header .item-actions [data-testid="sidebar-item-more"] { display: none !important; }
+#right-sidebar .sidebar-item[data-st-item] .sidebar-item-header .item-actions { order: 2; }
 /* The still picture of the row before, which lies over the row's section while the next row is drawn (inspector.js, hold): it stands
    outside Logseq's list, so the room and the head's height the list gives a section are given to it here, and it lies exactly on the
    row it pictures. */
@@ -162,13 +170,13 @@ const CSS = `
 #right-sidebar .st-item-hold .sidebar-item-header { box-sizing: border-box; min-height: 32px; align-items: center !important; background: none !important; }
 #right-sidebar .st-item-hold .sidebar-item-header > button { align-self: stretch; }
 #right-sidebar .sidebar-item[data-st-item] .sidebar-item-header { align-items: center !important; }
-#right-sidebar .sidebar-item[data-st-item] .sidebar-item-header::after { content: var(--st-where); flex: none; margin-left: auto; padding: 0 8px 0 12px; color: var(--lk-quiet); font-size: var(--lk-small); font-weight: 400; line-height: inherit; font-variant-numeric: tabular-nums; white-space: nowrap; }
+#right-sidebar .sidebar-item[data-st-item] .sidebar-item-header::after { content: var(--st-where); order: 1; flex: none; margin-left: 0; padding: 0 4px 0 10px; color: var(--lk-quiet); font-size: var(--lk-small); font-weight: 400; line-height: inherit; font-variant-numeric: tabular-nums; white-space: nowrap; }
 /* A bullet's row is shown like a page (the owner, 17 November 2026: "if the row is of a node, it will display the node as if it is
    just a bullet with the tag to the right instead of making look like a proper node with properties below"): no bullet, its words
    as the title, its tags under them (Look's own line of a page's tags, title.js), then each of its properties on a line of its own,
    the empty ones too, faint, to be filled in as on a page; then the bullets inside it. All of it Logseq's own, so it is edited there.
    The head names no page (the bullet's page, which is not what was pressed): only where the row stands. */
-#right-sidebar .sidebar-item.item-type-block[data-st-item] .sidebar-item-header > button > div { visibility: hidden; display: flex; align-items: center; }
+#right-sidebar .sidebar-item.item-type-block[data-st-item] .sidebar-item-header > button > div { visibility: hidden; display: flex; align-items: center; width: 58px; overflow: hidden; }   /* as wide as the icon and "Row", not the hidden words: where it stands follows "Row" */
 /* The head says what the section is, as every section's does: the table's icon and "Row" (B of table-sidebar-look.html, 18 November 2026;
    the head was an arrow and a number). The bullet's own words, hidden above, are the section's title below it. */
 #right-sidebar .sidebar-item.item-type-block[data-st-item] .sidebar-item-header > button > div::before { content: ""; visibility: visible; flex: none; width: 18px; height: 18px; margin-right: 8px; background: currentColor; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 5a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2zM3 10h18M10 3v18'/%3E%3C/svg%3E") center / contain no-repeat; }
@@ -183,6 +191,15 @@ html ${ROW} > .block-main-container .positioned-properties.block-below { display
 ${ROW} > .block-main-container :is(.bottom-properties-row, .bottom-properties-pills-strip) { display: block !important; overflow: visible !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }
 html ${ROW} > .block-main-container .bottom-property-pill,
 ${ROW} > .ls-block-content-indent > .ls-properties-area .property-pair { display: grid !important; grid-template-columns: 150px minmax(0, 1fr) !important; column-gap: 12px !important; align-items: center !important; min-height: 28px; width: 100% !important; margin: 0 !important; padding: 0 !important; opacity: 1 !important; font-size: 16px !important; line-height: 24px !important; box-sizing: border-box; }
+/* In a narrow sidebar each name stands over its value, as Ontology's lines do under 360 px, so no value is cut (22 November 2026: with
+   the row's words on the stack's left edge, at a 700 px window the values stood 70 px wide, "Amex (" and "Shoppi"). */
+#right-sidebar .sidebar-item.item-type-block[data-st-item] .sidebar-panel-content { container-type: inline-size; }
+@container (max-width: 360px) {
+  html ${ROW} > .block-main-container .bottom-property-pill, ${ROW} > .ls-block-content-indent > .ls-properties-area .property-pair { grid-template-columns: minmax(0, 1fr) !important; height: auto !important; min-height: 0 !important; max-height: none !important; padding-bottom: 6px !important; align-items: start !important; }
+  html ${ROW} > .block-main-container .bottom-property-pill > *, ${ROW} > .ls-block-content-indent > .ls-properties-area .property-pair > * { height: auto !important; max-height: none !important; }
+  /* An empty one keeps its name and its faint mark on one line: under the name it was a blank line (22 November 2026). */
+  html ${ROW} > .block-main-container .bottom-property-pill:has(.empty-value), ${ROW} > .ls-block-content-indent > .ls-properties-area .property-pair:has(.empty-value) { grid-template-columns: auto minmax(0, 1fr) !important; align-items: center !important; }
+}
 ${ROW} > .block-main-container .bottom-property-pill > div:first-child,
 ${ROW} > .ls-block-content-indent > .ls-properties-area .property-pair .property-key-inner { display: flex !important; align-items: center; gap: 4px; min-width: 0; padding: 0 !important; margin: 0 !important; }
 ${ROW} > .block-main-container .bottom-property-pill .lk-kind { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 15px; height: 15px; opacity: .5; }
