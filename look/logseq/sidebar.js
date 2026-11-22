@@ -68,7 +68,10 @@ const pressedAt = new WeakMap();
 const isClosed = box => box.children.length === 1 && !!box.querySelector(':scope > div:first-child > button:only-child');
 function openProperties(doc) {
   if (!setting('sidebarPages')) return;
-  const writing = doc.activeElement; if (writing?.tagName === 'TEXTAREA' && writing.closest('#main-content-container, #right-sidebar')) return;   // a bullet being written
+  /* Held back only while one of Logseq's lists is open under the bullet being written (after # or /), which a click closes. Until
+     22 November 2026 it held back whenever a bullet was being written, so a page opened in the sidebar with Shift from a bullet in
+     writing stood closed (the owner: "the properties of side section are not showing up by default. i have to press open properties"). */
+  if (window.PluginDoor.screen.editorPopupOpen(doc)) return;
   const now = Date.now();
   for (const box of doc.querySelectorAll(`${PAGE_ITEM} .ls-sidebar-page-properties`)) {
     if (!isClosed(box)) continue;
