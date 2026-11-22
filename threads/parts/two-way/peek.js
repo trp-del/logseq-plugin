@@ -144,10 +144,11 @@ function placePeek(card, link) {
   const y = fits && clear(under) ? under : aboveFits && clear(above) ? above : pastFits ? past : fits ? under : Math.max(48, above);
   Object.assign(card.style, { margin: '0', left: `${room ? left : at.left}px`, top: `${room ? top : y}px` });
 }
-// The card of the page a link names: its tag, its properties, its first lines; each piece opens what it names.
+// The card of the page a link names: its tag, its properties, its first lines; each piece opens what it names. The link names its page
+// by name, or by uuid where another part drew it (Todo's words; relations:linkCard).
 async function showLinkPeek(wiki) {
-  const name = wiki.dataset.openPage;
-  const page = (await twoWay.provided.propPages().catch(() => [])).find(p => p.lower === name.toLowerCase());
+  const name = wiki.dataset.openPage, key = String(name || '').toLowerCase();
+  const page = (await twoWay.provided.propPages().catch(() => [])).find(p => p.lower === key || String(p.uuid || '').toLowerCase() === key);
   if (!page?.uuid) return;
   const data = await peekData(page.uuid, '');
   if (!wiki.isConnected || !wiki.matches(':hover')) return;
@@ -166,11 +167,25 @@ async function showLinkPeek(wiki) {
       return openEntity((what === 'prop' || what === 'value' || what === 'line') && value?.uuid ? value.uuid : page.uuid, event.shiftKey);
     } });
   card.el.classList.add('th-two-way-peek');
-  placePeek(card.el, wiki);
+  if (wiki.closest('.th-two-way')) placePeek(card.el, wiki);
+  else {   // drawn by another part: under the link, else above it where the window has no room under it
+    const box = card.el.getBoundingClientRect(), at = wiki.getBoundingClientRect(), win = wiki.ownerDocument.defaultView;
+    const under = at.bottom + 6, top = under + box.height <= win.innerHeight - 8 ? under : Math.max(48, at.top - box.height - 6);
+    Object.assign(card.el.style, { margin: '0', left: `${Math.max(8, Math.min(at.left, win.innerWidth - box.width - 8))}px`, top: `${top}px` });
+  }
   card.el.addEventListener('mouseenter', () => clearTimeout(peek.hide));
   card.el.addEventListener('mouseleave', hidePeekSoon);
   peek.anchor = wiki;
 }
+/* One card for a link under the pointer (the thirteen proposals, 10): a link another part draws (Todo's words) raises this card too,
+   asked through the door as relations:linkCard(link) after the same rest (PEEK_MS); relations:linkCardOff lets it go. */
+function linkCard(link) {
+  clearTimeout(peek.hide);
+  if (peek.anchor === link && peek.card && !peek.card.isClosed) return;
+  clearTimeout(peek.timer);
+  peek.timer = setTimeout(() => showLinkPeek(link).catch(error => warnOnce('could not show the page card', error)), PEEK_MS);
+}
+const linkCardOff = () => { clearTimeout(peek.timer); hidePeekSoon(); };
 async function showPeek(link) {
   const { group, item } = findItem(link.dataset.uuid, link.closest('.th-tw-row'));
   if (!item) return;
@@ -202,6 +217,6 @@ async function showPeek(link) {
   peek.anchor = link;
 }
 
-Object.assign(twoWay, { hidePeek, lineHtml, onOut, onOver, openPage, peek });
+Object.assign(twoWay, { hidePeek, lineHtml, onOut, onOver, openPage, peek, linkCard, linkCardOff });
 });
 })();

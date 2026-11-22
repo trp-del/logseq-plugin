@@ -588,7 +588,7 @@ function render() {
     const task = circle(doc, node);
     if (task) w.prepend(task);
     nm.append(w);
-    if (node.kind && !(r.under && rows.find(x => x.key === r.under)?.tag === node.kind.title) && !(kindPick() && r.top && kindPick().title === node.kind.title)) nm.append(el(doc, 'span', { class: 'lk-tag' }, node.kind.title));
+    if (node.kind && !(r.under && rows.find(x => x.key === r.under)?.tag === node.kind.title) && !(kindPick() && r.top && kindPick().title === node.kind.title)) nm.append(el(doc, 'span', { class: 'lk-tag', 'data-tag-uuid': node.kind.uuid || '', 'data-tag-title': node.kind.title }, node.kind.title));
     // A found bullet holds what is under it folded: Look's ↳ line follows its words, as on Logseq's own folded bullets (16 November
     // 2026, the owner: in Linked and Find too). Opened in place, what it holds is shown, so no line.
     if (!node.isPage && !node.sign && !dug) nm.append(el(doc, 'span', { class: 'lk-held', 'data-lk-held': node.uuid }));
@@ -1134,6 +1134,9 @@ function open(typed = '', say = false) {
     const row = event.target.closest?.('.fd-r[data-uuid]');
     if (!row) return;
     event.preventDefault(); event.stopPropagation();
+    // The tag after the row: the tag's own menu, as on a bullet's tag (the thirteen proposals, 8; PluginDoor.tagMenu).
+    const tagEl = event.target.closest?.('.lk-tag[data-tag-title]');
+    if (tagEl) { window.PluginDoor.tagMenu(tagEl, row.dataset.uuid, { uuid: tagEl.dataset.tagUuid, title: tagEl.dataset.tagTitle }).then(ok => { if (!ok) (row.querySelector('.fd-w') || row).dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: event.clientX, clientY: event.clientY })); }); return; }   // a tag of Logseq's own: the row's menu
     const uuid = row.dataset.uuid, ti = id => window.PluginDoor.logseqIconHtml(id, { doc });
     window.PluginDoor.nodeMenu(row.querySelector('.fd-w') || row, uuid, {
       open: sidebar => { close(); if (sidebar) logseq.Editor.openInRightSidebar(uuid); else logseq.App.pushState('page', { name: uuid }); },

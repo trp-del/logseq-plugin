@@ -38,10 +38,12 @@ function barHtml() {
   /* The bar stands right above the first picked node, on the same grey as the picked nodes, so the picks and what acts on them
      read as one block (5 November 2026, the owner, of the grey block in picking-redesign.html: "build 2"; before it: "there is
      nothing that allows the eyes to grab onto"). The count, large, and its ×; Open in sidebar, what is done most with picked
-     nodes; More, which holds the rest; Delete at the right end, apart. Drawn here at the top, moved into place by placeBar. */
+     nodes; then Set tag and Set property (21 November 2026, the thirteen proposals, 11: one bar for several picked things, in the
+     drawn order: go, change, take away); More, which holds the rest; Delete at the right end, apart. Drawn here at the top, moved
+     into place by placeBar. */
   const b = (act, text, title, name, cls = '') => `<button type="button" class="lk-picked-act lk-i-${name}${cls ? ' ' + cls : ''}" data-act="${act}" title="${esc(title)}">${text}</button>`;
   return `<div class="lk-picked th-tw-bar"${idle ? ' data-idle="" aria-hidden="true"' : ''} role="toolbar" aria-label="What to do with the picked nodes"><span class="lk-picked-count th-count"><b class="lk-picked-n">${n}</b> picked</span><button type="button" class="lk-picked-x" data-act="clear" title="Clear the picks (Escape)" aria-label="Clear the picks">×</button>${
-    b('sidebar', 'Open in sidebar', 'Open them in the right sidebar', 'side')}${n === 2 ? b('compare', 'Compare', 'The two side by side: their properties and first bullets', 'eq') : ''}<button type="button" class="lk-picked-act th-tw-menu" data-act="more" title="Everything else you can do with them" aria-haspopup="menu">More<span class="lk-i-chevron th-tw-chev" aria-hidden="true"></span></button><span class="lk-picked-gap"></span>${
+    b('sidebar', 'Open in sidebar', 'Open them in the right sidebar', 'side')}${b('tag', 'Set tag', 'Give them a tag', 'tag')}${b('set', 'Set property', 'Set a property on all of them', 'list')}<button type="button" class="lk-picked-act th-tw-menu" data-act="more" title="Everything else you can do with them" aria-haspopup="menu">More<span class="lk-i-chevron th-tw-chev" aria-hidden="true"></span></button><span class="lk-picked-gap"></span>${
     b('delete', 'Delete', 'Delete them', 'bin', 'lk-del')}</div>`;
 }
 // The page's own name, for More's "Change “Dr. Mei Chen” to…" (the owner: "make it clear"), read once per page.
@@ -237,15 +239,15 @@ async function act(what, at = null) {
   // The two words with a menu: the menu opens under the word, and what is picked from it acts as its own word did.
   if (what === 'raise') return raiseMenu(at);
   if (what === 'compare') return twoWay.compare?.(nodes, at);
-  // More (5 November 2026): Select all, then every action but Open in sidebar and Delete, which stand on the bar; the page's own
+  // More (5 November 2026): Select all, then every action but Open in sidebar, Set tag, Set property and Delete, which stand on the bar; the page's own
   // two only with a node from a property's row picked, Make it… only with a mention that has no tag.
   if (what === 'more') {
     const fromProps = chosen.some(p => !twoWay.isMentions(p.group)), raisable = raisablePicked();
     const best = raisable.length === 1 ? state.raise.get(raisable[0])?.best : null;
     const items = [
       ...(state.listed.some(key => !state.picked.has(key)) ? [{ label: `Select all ${state.listed.length} shown`, run: () => { act('all', at); } }, { sep: true }] : []),
-      { label: 'Tag…', run: () => { act('tag', at); } },
-      { label: 'Set a property…', run: () => { act('set', at); } },
+      // Compare, for two, here rather than on the bar, which keeps to the drawn order on one line (the thirteen proposals, 11).
+      ...(nodes.length === 2 ? [{ label: 'Compare', run: () => { twoWay.compare?.(nodes, at); } }] : []),
       { label: 'Clear a property…', run: () => { act('unset', at); } },
       ...(fromProps ? [{ label: `Change “${pageTitle()}” to…`, run: () => { act('point', at); } }, { label: `Take out “${pageTitle()}”`, run: () => { act('unlink', at); } }] : []),
       ...(raisable.length ? [{ label: best ? `Make it a${/^[aeiou]/i.test(best.tag.title) ? 'n' : ''} ${best.tag.title}…` : 'Make it…', run: () => { raiseMenu(at).catch(error => warnOnce('could not open Make it…', error)); } }] : []),

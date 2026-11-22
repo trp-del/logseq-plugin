@@ -80,7 +80,7 @@ function showWords() {
 function wordsHtml(t) {
   const inline = window.DbExport?.inline, text = t.text ?? t.words;
   if (!inline) return Door.webParts(t.words).map(p => p.url ? Door.urlHtml(p.url, esc(p.text)) : esc(p.text)).join('');
-  const page = (name, inner, cls) => { const to = t.links?.get(name.toLowerCase()) || name; return `<span class="${cls}" data-open-page="${esc(to)}" title="Open ${esc(name)}; with Shift, in the sidebar">${inner}</span>`; };
+  const page = (name, inner, cls) => { const to = t.links?.get(name.toLowerCase()) || name; return `<span class="${cls}" data-open-page="${esc(to)}">${inner}</span>`; };   // no tooltip: the page's card rises over it (the thirteen proposals, 10)
   // inLink: inside a block reference, whose words are one link; a link or tag there reads as its words.
   const go = (list, inLink = false) => list.map(tok => {
     const kids = () => go(tok.k, inLink);
@@ -310,12 +310,18 @@ function make(holder, mode) {
     event.preventDefault(); event.stopPropagation();
     rowMenu(row.querySelector('.td-words') || row, row.dataset.uuid, row.classList.contains('td-done'));
   });
+  // Resting on a link in a task's words raises the page's card, Relations' own (the thirteen proposals, 10: one card for a link).
+  root.addEventListener('mouseover', event => { const link = event.target.closest?.('.td-words [data-open-page]'); if (link && !link.closest('[data-th-node]')) Door.ask('relations:linkCard', link); });
+  root.addEventListener('mouseout', event => { if (event.target.closest?.('.td-words [data-open-page]')) Door.ask('relations:linkCardOff'); });
   // A task right-clicked: its own menu (rowMenu), under its words.
   root.addEventListener('contextmenu', event => {
     if (event.target.closest('[data-th-node]')) return;   // an opened node's right-click is Relations'
     const row = event.target.closest('.td-row[data-uuid]');
     if (!row) return;
     event.preventDefault(); event.stopPropagation();
+    // A #tag in the task's words: the tag's own menu, as on a bullet's tag (the thirteen proposals, 8; PluginDoor.tagMenu).
+    const tagEl = event.target.closest('.lk-tag[data-open-page]');
+    if (tagEl) { Door.tagMenu(tagEl, row.dataset.uuid, { uuid: tagEl.dataset.openPage, title: tagEl.textContent.replace(/^#/, '') }).then(ok => { if (!ok) (row.querySelector('.td-bul') || row).dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: event.clientX, clientY: event.clientY })); }); return; }
     rowMenu(row.querySelector('.td-words') || row, row.dataset.uuid, row.classList.contains('td-done'));
   });
   T.app.views.add(view);

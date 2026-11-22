@@ -200,6 +200,11 @@ Door.UNANSWERED = Symbol('unanswered');
 Door.offerAsk = (name, fn) => { offeredAsks.set(name, fn); return () => { if (offeredAsks.get(name) === fn) offeredAsks.delete(name); }; };
 Door.answers = name => offeredAsks.has(name);
 Door.ask = async (name, ...args) => { const fn = offeredAsks.get(name); return fn ? fn(...args) : Door.UNANSWERED; };
+/* A tag right-clicked after a node, wherever it stands (the thirteen proposals, 8: the same tag menu on a tag, wherever it stands):
+   the menu a bullet's tag has (Ontology's, offered as structure:tagMenu), Show its nodes at its top. tag: { uuid } or { title }.
+   Resolves true when the menu opened; false when no part answers (Ontology off) or the tag is Logseq's own, so the place opens
+   what it opened before. */
+Door.tagMenu = (anchor, nodeUuid, tag) => Door.ask('structure:tagMenu', anchor, nodeUuid, tag).then(got => got === true).catch(() => false);
 // Whether a module is switched on (its switch in the settings). The switches are read as the plugin starts.
 Door.runs = key => logseq.settings?.[key + 'On'] !== false;
 /* The English name of each of Logseq's built-in commands, by its id without the colon: the app hands a plugin its state but
@@ -1215,7 +1220,10 @@ Door.menu = (from, parts, { align = 'right' } = {}) => {
   if (box.popover) box.showPopover();
   const at = from.getBoundingClientRect(), w = box.offsetWidth, h = box.offsetHeight;
   const left = align === 'left' ? at.left : at.right - w;
-  const roomBelow = win.innerHeight - 8 - (at.bottom + 4), roomAbove = at.top - 4 - 8;
+  // Above stops under Logseq's header: in that band a real click drags the frameless window and reaches nothing (21 November 2026: a
+  // tag's menu flipped up there, and Show its nodes could not be pressed).
+  const band = Math.ceil(doc.getElementById('head')?.getBoundingClientRect().bottom || 48);
+  const roomBelow = win.innerHeight - 8 - (at.bottom + 4), roomAbove = at.top - 4 - Math.max(8, band);
   const below = h <= roomBelow || (h > roomAbove && roomBelow >= roomAbove);
   // Taller than the room on either side (a long menu in a small window, the node's menu in Todo at 560 px, 21 November 2026): it
   // takes the roomier side and scrolls, never running past the window's edge.
@@ -1854,7 +1862,7 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
 .lk-picked-n { font-size: 20px; font-weight: 600; color: var(--lk-text, currentColor); font-variant-numeric: tabular-nums; line-height: 1; }
 .lk-picked-x, .lk-picked-act { appearance: none; background: none; border: 0; font: inherit; cursor: pointer; border-radius: 999px; }
 .lk-picked-x { font-size: 16px; line-height: 1; color: var(--lk-quiet); padding: 4px 8px 4px 4px; }
-.lk-picked-act { font-weight: 500; color: var(--lk-text, currentColor); display: inline-flex; align-items: center; gap: 7px; padding: 5px 10px; }
+.lk-picked-act { font-weight: 500; color: var(--lk-text, currentColor); display: inline-flex; align-items: center; gap: 6px; padding: 5px 6px; }   /* 6px a side, 6px to the icon: the six of them fit one line at 700 px (the thirteen proposals, 11) */
 .lk-picked-act::before { margin-right: 0 !important; }
 .lk-picked :is(.lk-picked-act, .lk-picked-x):is(:hover, :focus-visible) { background: color-mix(in srgb, currentColor 9%, transparent); color: var(--lk-text, currentColor); outline: none; }
 .lk-picked .lk-picked-act.lk-del { color: var(--rx-red-10, #dc3e42) !important; }

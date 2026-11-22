@@ -1227,6 +1227,9 @@ const valueBox = (uuid, prop) => inBox(`.th-ol-pname[data-edit="${CSS.escape(pro
 // The popup's items ({ icon, label, run }) as the library menu's lines ({ icon, word, take }), for the node's menu.
 twoWay.menuLines = items => items.filter(Boolean).filter(item => !item.sep && item.run).map(item => ({ word: item.label, icon: item.icon ? shared.iconHtml(item.icon) : '', take: item.run }));
 function onRename(event) {
+  // The tag after a row's words: the tag's own menu, as on a bullet's tag (the thirteen proposals, 8; PluginDoor.tagMenu).
+  const tagEl = event.target.closest?.('.th-tw-tag[data-tag-page]'), tagLine = tagEl?.closest('.th-tw-line[data-uuid]');
+  if (tagEl && tagLine) { event.preventDefault(); event.stopPropagation(); twoWay.hidePeek(); window.PluginDoor.tagMenu(tagEl, tagLine.dataset.uuid, { title: tagEl.dataset.tagPage }).then(ok => { if (!ok) (tagLine.querySelector('.th-tw-record') || tagLine).dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: event.clientX, clientY: event.clientY })); }); return; }
   if (twoWay.onNodeMenu?.(event)) return;   // a line inside an opened node: its own menu (dig.js)
   // A node's line: its own menu, from the pieces (pin, compare, …); nothing when none has an item for it.
   const lineEl = !event.target.closest?.('.th-tw-name') && event.target.closest?.('.th-tw-line[data-uuid]');
@@ -1484,6 +1487,8 @@ function start() {
     const at = el?.isConnected ? el : host().querySelector(`[data-th-node="${CSS.escape(uuid)}"] .th-ol-kids, .fd-kids[data-dug="${CSS.escape(uuid)}"] .th-ol-kids`);
     return (twoWay.copies || [twoWay]).find(copy => copy.state?.box && at && copy.state.box.contains(at)) || null;
   };
+  onUnload(window.PluginDoor.offerAsk('relations:linkCard', link => twoWay.linkCard?.(link)));
+  onUnload(window.PluginDoor.offerAsk('relations:linkCardOff', () => twoWay.linkCardOff?.()));
   onUnload(window.PluginDoor.offerAsk('relations:addProp', (uuid, el) => copyAt(uuid, el)?.addProp(uuid, `node>${uuid}`)));
   onUnload(window.PluginDoor.offerAsk('relations:newLine', (uuid, el) => copyAt(uuid, el)?.newLine(uuid, `node>${uuid}`)));
   // The keyboard into a node opened in another part's window: its first bullet written in, else a new line.

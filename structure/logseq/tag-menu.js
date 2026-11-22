@@ -2,7 +2,8 @@
    tag and typing # again. Its parent, the tags beside it and its child tags, each a line; choosing one gives the bullet that
    tag in place of this one, with the plugin's faded Undo arrow beside the tags. Under them stand the three lines Logseq's own
    menu has there (Go to, Open in sidebar, Remove tag), so nothing Logseq offers is lost. "Change to another tag…" opens the whole
-   tree (where.js's picker) for any tag at all. A tag of Logseq's own (Task) keeps Logseq's menu. The menu is the library's (PluginDoor.menu), with its keys. */
+   tree (where.js's picker) for any tag at all; Show its nodes stands at the top (Find with the tag picked), and the same menu opens
+   on a tag after a row in Find, Relations and Todo (21 November 2026, the thirteen proposals, 8). A tag of Logseq's own (Task) keeps Logseq's menu. The menu is the library's (PluginDoor.menu), with its keys. */
 (function () {
 const S = window.Structure;
 const Mo = S.model;
@@ -35,7 +36,8 @@ function start(app, doc) {
   function parts(uuid, t, link) {
     const m = M(), up = Mo.parentOf(m, t.id), beside = (up != null ? Mo.kids(m, up) : Mo.tops(m)).filter(id => id !== t.id), under = Mo.kids(m, t.id);
     const lines = (ids) => [...ids.slice(0, MANY).map(id => ({ word: m.tags.get(id).title, take: () => change(uuid, t, m.tags.get(id)) })), ...(ids.length > MANY ? [{ word: `and ${ids.length - MANY} more`, off: true }] : [])];
-    const out = [];
+    // Show its nodes first (the thirteen proposals, 8 and 9): Find with this tag picked.
+    const out = [{ word: 'Show its nodes', take: () => Door.ask('find:kind', { uuid: t.uuid, title: t.title }) }, { gap: true }];
     if (up != null) out.push({ group: 'Change to its parent' }, ...lines([up]));
     if (beside.length) out.push({ group: 'Change to a tag beside it' }, ...lines(beside));
     if (under.length) out.push({ group: 'Change to a child tag' }, ...lines(under));
@@ -69,7 +71,17 @@ function start(app, doc) {
     Door.menu(link.closest('.block-tag') || link, lines, { align: 'right' });
   }
   const off = S.base.listen(doc, 'contextmenu', onMenu, true);
-  return () => { off?.(); Door.menu.close(); };
+  /* The same menu for a tag drawn after a node elsewhere (Find's, Relations' and Todo's rows; Door.tagMenu): the node and its tag by
+     uuid or by name. A tag of Logseq's own, or one Ontology does not know, answers false and the place keeps its own menu. */
+  const openFor = (anchor, uuid, tag = {}) => {
+    const want = String(tag.uuid || '').toLowerCase(), name = String(tag.title || '').toLowerCase();
+    const t = [...M().tags.values()].find(x => (want && String(x.uuid).toLowerCase() === want) || (name && String(x.title).toLowerCase() === name));
+    if (!t || !uuid) return false;
+    Door.menu(anchor, parts(uuid, t, anchor), { align: 'right' });
+    return true;
+  };
+  const offAsk = Door.offerAsk('structure:tagMenu', openFor);
+  return () => { off?.(); offAsk(); Door.menu.close(); };
 }
 S.tagMenu = { start };
 })();
