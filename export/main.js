@@ -15,10 +15,10 @@ const orderOf = async uuid => { try { const b = host()?.querySelector(`.ls-block
 
 // What a choice from the window (or the remembered settings) means for each writer.
 const allBut = (doc, role, hidden) => hidden?.size ? new Set(D.propertiesIn(doc, role).map(p => p.ident).filter(i => !hidden.has(i))) : null;
-const writerOpts = (doc, ch) => ({ layout: ch.layout, prose: ch.prose, tags: ch.tags, tasks: ch.tasks, shownHead: ch.shownHead ?? allBut(doc, 'head', ch.hiddenHead), shownNodes: ch.shownNodes ?? allBut(doc, 'nodes', ch.hiddenNodes),
+const writerOpts = (doc, ch) => ({ layout: ch.layout, prose: ch.prose, tags: ch.tags, tasks: ch.tasks, marks: themes.marksOf(ch.look, ch.elements), shownHead: ch.shownHead ?? allBut(doc, 'head', ch.hiddenHead), shownNodes: ch.shownNodes ?? allBut(doc, 'nodes', ch.hiddenNodes),
   dateKey: ch.dated?.dateKey || 'auto', under: ch.dated?.under || '', newestFirst: !!ch.dated?.newestFirst,
   titleBlock: doc.title ? { kicker: ch.kicker || '', subtitle: ch.subtitle || '', date: ch.titleDate ? today() : null, preparedBy: ch.preparedBy || '' } : {} });
-const pageOpts = ch => ({ paper: ch.paper, margins: ch.margins, size: ch.size, footer: ch.footer, pageNumbers: ch.pageNumbers, customCss: ch.customCss });
+const pageOpts = ch => ({ paper: ch.paper, margins: ch.margins, size: ch.size, footer: ch.footer, pageNumbers: ch.pageNumbers, customCss: ch.customCss, layout: ch.layout, elements: ch.elements });
 
 /* The page as HTML with its look: pictures baked in as data URLs, so the preview, the print frame and a saved page all show them. */
 async function pageHtml(doc, ch, { extraCss = '', body = null } = {}) {
@@ -94,7 +94,7 @@ const settingsSchema = [
   { key: 'exportHeading', type: 'heading', title: 'DB Export', description: 'Export a page or blocks as a PDF, Markdown or rich text: the command palette (Export…), a bullet’s right-click menu, or the page’s … menu. The style, look and page choices are made in the export window and remembered here.' },
   { key: 'target', type: 'enum', enumChoices: ['pdf', 'md', 'rich'], enumPicker: 'radio', default: 'pdf', title: 'Export as', description: 'What the window starts on: a PDF, Markdown, or rich text.' },
   { key: 'layout', type: 'enum', enumChoices: ['document', 'outline', 'prose', 'timeline', 'calendar'], enumPicker: 'radio', default: 'document', title: 'Style', description: 'The style the window starts on.' },
-  { key: 'look', type: 'enum', enumChoices: ['plain', 'book', 'compact', 'typewriter'], enumPicker: 'radio', default: 'plain', title: 'Look', description: 'The look of the PDF and rich text.' },
+  { key: 'look', type: 'enum', enumChoices: ['plain', 'book', 'formal', 'compact', 'typewriter'], enumPicker: 'radio', default: 'plain', title: 'Look', description: 'The look of the PDF and rich text.' },
   { key: 'paper', type: 'enum', enumChoices: ['A4', 'Letter'], enumPicker: 'radio', default: 'A4', title: 'Paper' },
   { key: 'margins', type: 'enum', enumChoices: ['narrow', 'normal', 'wide'], enumPicker: 'radio', default: 'normal', title: 'Margins' },
   { key: 'size', type: 'enum', enumChoices: ['small', 'normal', 'large'], enumPicker: 'radio', default: 'normal', title: 'Text size' },
@@ -102,7 +102,8 @@ const settingsSchema = [
   { key: 'footer', type: 'string', default: '', title: 'PDF footer' },
   { key: 'pageNumbers', type: 'boolean', default: true, title: 'Page numbers' },
   { key: 'showTags', type: 'boolean', default: true, title: 'Show tags' },
-  { key: 'taskBoxes', type: 'boolean', default: true, title: 'Task boxes', description: 'Off: a task’s words only.' },
+  { key: 'taskBoxes', type: 'boolean', default: true, title: 'Task marks', description: 'Off: a task’s words only.' },
+  { key: 'elements', type: 'object', default: {}, title: 'Elements changed by hand', description: 'The typeface, size, weight and the like picked for a title, a heading, a paragraph and the rest, in the export window.' },
   { key: 'titleDate', type: 'boolean', default: true, title: 'Today’s date under the title' },
   { key: 'preparedBy', type: 'string', default: '', title: 'Prepared by' },
   { key: 'mdLinks', type: 'enum', enumChoices: ['plain', 'wiki', 'file'], enumPicker: 'radio', default: 'plain', title: 'Markdown: page links', description: 'plain: a page’s name as words. wiki: [[Page]]. file: [Page](Page.md).' },

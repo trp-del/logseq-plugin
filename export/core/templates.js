@@ -8,7 +8,7 @@ const E = (window.DbExport ||= {});
 
 // What a template can hold, as the window's choice names them. Not the lines round one page's title, nor the preview's size.
 const KEYS = ['target', 'layout', 'look', 'paper', 'margins', 'size', 'footer', 'pageNumbers', 'tags', 'tasks', 'titleDate', 'preparedBy', 'links', 'frontMatter',
-  'dated', 'prose', 'customCss', 'hiddenHead', 'hiddenNodes'];
+  'dated', 'prose', 'customCss', 'elements', 'hiddenHead', 'hiddenNodes'];
 const BUILT_IN = {
   Report: { customCss: '', layout: 'prose', look: 'plain', margins: 'normal', size: 'normal', prose: { children: 'join', contents: true, numbered: true, titleSheet: false, sectionSheets: false, runIn: false, notesHead: 'Notes' } },
   Paper: { customCss: '', layout: 'prose', look: 'book', margins: 'wide', size: 'normal', prose: { children: 'join', contents: false, numbered: false, titleSheet: false, sectionSheets: false, runIn: false, notesHead: 'Notes' } },

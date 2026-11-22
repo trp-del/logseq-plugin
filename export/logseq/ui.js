@@ -3,7 +3,7 @@
    visual grammar's shared names (lk-row, lk-list, lk-tick, lk-prop, lk-count, and the Pressing set, lk-name, lk-value, lk-pick,
    lk-alts, lk-view, lk-pop, lk-accent, lk-close). The owner, 12 November 2026: rows unfolding under the bar read as a "toolbar
    jammed underneath toolbar"; they chose a quiet bar with the choices in a column on the left, and tabs that look like tabs.
-   The bar: Adjust (shows the column or puts it away, remembered), where the export goes as tabs (lk-view, a bar under the one
+   The bar: the panel icon (shows the column or puts it away, remembered), where the export goes as tabs (lk-view, a bar under the one
    in force), and at the right end the one accent that does the export,
    then ×. The template is the column's first row (the owner, 14 November 2026: "shouldn't template be in
    [the] sidebar"), its menu a pop-up at the row. The column is the library's menu laid open (the owner, 13 November 2026: the first column "has no structure, doesn't
@@ -79,8 +79,8 @@ const CSS = `
 .xp-side .xp-sw:focus-visible { outline: none; background: var(--lk-wash); }
 .xp-side .xp-fieldrow { cursor: text; }
 .xp-side .xp-fieldrow input.lk-field { flex: 0 1 10em; width: 10em; min-width: 3em; text-align: right; }
-/* On the bar, the values stand on one line: Adjust under an empty name, the tabs with their bar hanging below the words. */
-.xp .xp-bar .lk-btn.xp-adjust { position: relative; top: -3px; left: -12px; }   /* the library's button keeps its padding; moved by it, its word stands on the values' line and at the column's left edge */
+/* On the bar, the values stand on one line: the column's icon under an empty name, the tabs with their bar hanging below the words. */
+.xp .xp-bar .xp-adjust { position: relative; top: 1px; left: -4px; }   /* the panel icon on the values' line, at the column's left edge */
 .xp-where .lk-view { padding-top: 0; }
 .xp-where { margin-bottom: -6px; }
 /* The lists of properties to pick from, inside Show: each headed by a named value, whose they are over all / none as a
@@ -124,10 +124,8 @@ const CSS = `
 .xp-side .xp-tpl .ask { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 14px; padding: 6px 8px; cursor: default; white-space: normal; }
 .xp-side .xp-tpl .ask input { width: 100%; }
 /* Your CSS: the box, and under it the parts of the sheet in plain words; a word pointed at lights its part on the sheet. */
-.xp-side .xp-cssbox { display: block; font-family: Menlo, Consolas, monospace; font-size: var(--lk-small); line-height: 1.5; width: calc(100% - 16px); margin: 4px 8px 0; height: 9.5em; resize: vertical; white-space: pre; border: 1px solid var(--lk-line); border-radius: 4px; padding: 6px 8px; }
-.xp-side .xp-partshead { padding: 10px 8px 4px; }
-.xp-side .xp-parts { display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 0 8px; }
-.xp-side .xp-parts span { cursor: pointer; }`;
+/* Elements: a row per element of the sheet, what was picked for it at its right, cut short where the column is narrow. */
+.xp-side .xp-elrow > .lk-note { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }`;
 
 // The icon of what a property holds, before its name: the door's.
 const kindIconHtml = type => `<span class="xp-kind">${window.PluginDoor.kindIconHtml(type || 'default')}</span>`;
@@ -146,7 +144,7 @@ function read() {   // the remembered choices, with their defaults
     layout: D.layouts.some(l => l.key === s.layout) ? s.layout : 'document', look: themes.looks.some(l => l.key === s.look) ? s.look : 'plain',
     paper: s.paper === 'Letter' ? 'Letter' : 'A4', margins: themes.MARGINS[s.margins] ? s.margins : 'normal', size: themes.SIZES[s.size] ? s.size : 'normal',
     footer: str('footer'), pageNumbers: bool('pageNumbers', true), tags: bool('showTags', true), tasks: bool('taskBoxes', true), titleDate: bool('titleDate', true), preparedBy: str('preparedBy'),
-    links: LINKS.some(l => l[0] === s.mdLinks) ? s.mdLinks : 'plain', zoom: ZOOMS.some(z => z[0] === s.previewZoom) ? s.previewZoom : 'fit', frontMatter: bool('frontMatter', false), customCss: str('customCss'),
+    links: LINKS.some(l => l[0] === s.mdLinks) ? s.mdLinks : 'plain', zoom: ZOOMS.some(z => z[0] === s.previewZoom) ? s.previewZoom : 'fit', frontMatter: bool('frontMatter', false), customCss: str('customCss'), elements: themes.cleanElements(s.elements),
     hiddenHead: new Set(Array.isArray(s.hiddenHeadProperties) ? s.hiddenHeadProperties : Array.isArray(s.hiddenProperties) ? s.hiddenProperties : []),   // the one list of 0.1.1 counts for both
     hiddenNodes: new Set(Array.isArray(s.hiddenNodeProperties) ? s.hiddenNodeProperties : Array.isArray(s.hiddenProperties) ? s.hiddenProperties : []), dated: s.dated && typeof s.dated === 'object' ? { ...s.dated } : { dateKey: 'auto', under: '', newestFirst: false },
     titleLines: s.titleLines && typeof s.titleLines === 'object' ? s.titleLines : {},
@@ -163,7 +161,7 @@ function remember(c, title) {
   const titleLines = { ...c.titleLines };
   if (title) titleLines[title] = { kicker: c.kicker || '', subtitle: c.subtitle || '' };
   const now = { target: c.target, layout: c.layout, look: c.look, paper: c.paper, margins: c.margins, size: c.size, footer: c.footer, pageNumbers: c.pageNumbers, showTags: c.tags, taskBoxes: c.tasks,
-    titleDate: c.titleDate, preparedBy: c.preparedBy, customCss: c.customCss, mdLinks: c.links, frontMatter: c.frontMatter, previewZoom: c.zoom, hiddenHeadProperties: [...c.hiddenHead], hiddenNodeProperties: [...c.hiddenNodes], dated: c.dated, titleLines, prose: c.prose, template: c.template || '' };
+    titleDate: c.titleDate, preparedBy: c.preparedBy, customCss: c.customCss, elements: themes.cleanElements(c.elements), mdLinks: c.links, frontMatter: c.frontMatter, previewZoom: c.zoom, hiddenHeadProperties: [...c.hiddenHead], hiddenNodeProperties: [...c.hiddenNodes], dated: c.dated, titleLines, prose: c.prose, template: c.template || '' };
   // Only what changed: a save tells every module, and an export usually changes nothing.
   const changed = Object.fromEntries(Object.entries(now).filter(([key, value]) => JSON.stringify(value) !== JSON.stringify(logseq.settings?.[key])));
   try {
@@ -223,7 +221,7 @@ function open({ doc, what, act }) {
     const only = (html, fors) => html.replace(/^<(\w+) /, `<$1 data-for="${fors}" `);
     root.innerHTML = `<div class="xp-titlebar" style="height:${dragBand(hostDoc)}px">Export ${esc(what)}</div>
     <div class="xp-bar" role="toolbar" aria-label="Export">
-      <div class="g"><div class="it">${nm('')}<button type="button" class="lk-btn xp-adjust${c.sideOpen ? ' on' : ''}" aria-pressed="${c.sideOpen}" title="Every choice, in a column beside the sheet">Adjust</button></div></div>
+      <div class="g"><div class="it">${nm('')}<button type="button" class="lk-x lk-i-sidel xp-adjust${c.sideOpen ? ' on' : ''}" aria-pressed="${c.sideOpen}" aria-label="The column of choices" title="Show or hide the choices beside the sheet"></button></div></div>
       <div class="g">${where(TARGETS, c.target)}</div>
       <div class="g end"><button type="button" class="lk-btn lk-i-save" data-act="md-file" data-for="md">Save as file…</button>
         <button type="button" data-act="md" data-for="md" class="lk-accent lk-i-copy xp-main">Copy Markdown<kbd>Cmd Enter</kbd></button>
@@ -250,9 +248,8 @@ function open({ doc, what, act }) {
     ${group('Markdown', rowPick('xp-links', 'Links', LINKS, c.links) + rowSwitch('xp-frontmatter', 'Front matter', c.frontMatter), 'md')}</div>
     ${doc.title ? group('Title', rowSwitch('xp-titledate', 'Today’s date', c.titleDate) + rowField('xp-kicker', 'Line above', lines.kicker || '', 'None') + rowField('xp-subtitle', 'Subtitle', lines.subtitle || '', 'None')
       + rowField('xp-by', 'Prepared by', c.preparedBy, 'None')) : ''}
-    ${group('Show', rowSwitch('xp-tags', 'Tags', c.tags) + rowSwitch('xp-tasks', 'Task boxes', c.tasks) + (lists.length ? `<div class="xp-lists">${lists.map(l => rowList(...l)).join('')}</div>` : ''))}
-    ${group('Your CSS', `<textarea class="xp-cssbox lk-field" spellcheck="false" aria-label="Rules of your own, added after the look’s" placeholder=".x-title { letter-spacing: 0.02em; }">${esc(c.customCss)}</textarea>
-      <div class="xp-partshead lk-note">Point at a part to see it on the sheet. Press it to write its rule.</div><div class="xp-parts lk-alts"></div>`, 'pdf rich')}
+    ${group('Show', rowSwitch('xp-tags', 'Tags', c.tags) + rowSwitch('xp-tasks', 'Task marks', c.tasks) + (lists.length ? `<div class="xp-lists">${lists.map(l => rowList(...l)).join('')}</div>` : ''))}
+    <div class="xp-slot" data-for="pdf rich">${group('Elements', '<div class="xp-els"></div>')}</div>
     </div>
     <div class="xp-desk"><div class="xp-note">${pick('xp-zoom', 'size', ZOOMS, c.zoom, 'How large the preview is drawn')}</div><iframe title="Preview"></iframe></div>
     </div>`;
@@ -260,6 +257,42 @@ function open({ doc, what, act }) {
     hostDoc.body.appendChild(root);
     const q = sel => root.querySelector(sel);
     const boxes = role => [...root.querySelectorAll(`.xp-list[data-role=${role}] input`)];
+    /* Elements: what a person changes on the sheet by picking, in place of writing CSS (the owner, 22 November 2026). The part
+       lists the elements the sheet holds, each with what was picked for it; a row pressed gives way to that element's
+       settings, each one of several as every such row here, the first row leading back; the element is lit on the sheet
+       while its settings stand. `els` holds what was picked ({ element: { setting: value } }), `elOpen` the element whose settings stand. */
+    let els = themes.cleanElements(c.elements), elOpen = null, present = null;
+    const elOf = key => themes.ELEMENTS.find(e => e.key === key);
+    const elSaid = el => { const set = els[el.key] || {}; return themes.settingsFor(el).filter(([k]) => set[k]).map(([k, , items]) => items.find(([v]) => v === set[k])[1]).join(' · '); };
+    const elPart = key => { const el = elOf(key); try { return el?.parts.find(part => frame.contentDocument.querySelector(`.x-${part}`)) || el?.parts[0] || null; } catch (error) { return el?.parts[0] || null; } };
+    function drawEls() {
+      const box = q('.xp-els'), slot = box.closest('.xp-slot'), had = slot.getBoundingClientRect().height, el = elOf(elOpen);
+      box.innerHTML = el
+        ? `<button type="button" class="lk-item xp-elback" title="Back to all the elements"><span>${esc(el.name)}</span><span class="lk-note lk-i-up">All elements</span></button>`
+          + themes.settingsFor(el).map(([k, name, items]) => rowPick(`xp-el-${k}`, name, [['', 'The look’s own'], ...items], els[el.key]?.[k] || '')).join('')
+          + `<div class="lk-item gap"></div><button type="button" class="lk-item xp-elreset" ${els[el.key] ? '' : 'hidden'}><span>Back to the look’s own</span><span class="lk-note"></span></button>`
+        : themes.ELEMENTS.filter(e => !present || present.has(e.key) || els[e.key]).map(e => `<button type="button" class="lk-item xp-elrow" data-el="${e.key}"><span>${esc(e.name)}</span><span class="lk-note">${esc(elSaid(e))}</span></button>`).join('');
+      if (placed) window.PluginDoor.regrow(slot, had);
+    }
+    const openEl = key => { closePops(); elOpen = key; drawEls(); q('.xp-elback')?.focus({ preventScroll: true }); light(elPart(key));
+      setTimeout(() => { if (elOpen === key) q('.xp-els')?.closest('.xp-slot').scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }, 240); };   // its settings in view, once the part has its height
+    const backEl = () => { const key = elOpen; closePops(); elOpen = null; drawEls(); root.querySelector(`.xp-elrow[data-el="${key}"]`)?.focus({ preventScroll: true }); light(null); };
+    root.addEventListener('click', event => {
+      const row = event.target.closest('.xp-elrow'); if (row) { openEl(row.dataset.el); return; }
+      if (event.target.closest('.xp-elback')) { backEl(); return; }
+      if (event.target.closest('.xp-elreset') && elOpen) { els = { ...els }; delete els[elOpen]; closePops(); drawEls(); q('.xp-elback')?.focus({ preventScroll: true }); refresh(); }
+    });
+    // A setting picked: kept before the sheet is drawn again (this listener stands before the one that redraws).
+    root.addEventListener('change', event => {
+      const sel = event.target.closest?.('.xp-els select'); if (!sel || !elOpen) return;
+      const key = sel.className.replace('xp-el-', ''), set = { ...(els[elOpen] || {}) };
+      if (sel.value) set[key] = sel.value; else delete set[key];
+      els = { ...els }; if (Object.keys(set).length) els[elOpen] = set; else delete els[elOpen];
+      const reset = q('.xp-elreset'); if (reset) reset.hidden = !els[elOpen];
+    });
+    // An element pointed at, or reached by the keys, is lit on the sheet; leaving the list, the light goes back to the element whose settings stand.
+    for (const type of ['mouseover', 'focusin']) root.addEventListener(type, event => { const row = event.target.closest?.('.xp-elrow'); if (row) light(elPart(row.dataset.el)); });
+    for (const type of ['mouseleave', 'focusout']) q('.xp-els').addEventListener(type, () => { if (!elOpen) light(null); });
     const target = () => q('input[name=xp-target]:checked')?.value || 'pdf';
     // What is left out: what this page lists as ticked here, and whatever was left out on another page, which this page does not list.
     const hiddenNow = (role, was) => new Set([...[...was].filter(ident => !boxes(role).some(b => b.value === ident)), ...boxes(role).filter(b => !b.checked).map(b => b.value)]);
@@ -269,7 +302,7 @@ function open({ doc, what, act }) {
       tags: q('.xp-tags').checked, tasks: q('.xp-tasks').checked, zoom: q('.xp-zoom').value, links: q('.xp-links').value, frontMatter: q('.xp-frontmatter').checked,
       kicker: q('.xp-kicker')?.value || '', subtitle: q('.xp-subtitle')?.value || '', preparedBy: q('.xp-by')?.value ?? c.preparedBy, titleDate: q('.xp-titledate')?.checked ?? c.titleDate,
       dated: { dateKey: q('.xp-datekey').value, under: q('.xp-under').value, newestFirst: q('.xp-newest').checked },
-      customCss: q('.xp-cssbox').value,
+      customCss: c.customCss, elements: els,
       prose: { children: q('.xp-kids').value, numbered: q('.xp-numbered').checked, contents: q('.xp-contents').checked, titleSheet: q('.xp-titlesheet').checked, sectionSheets: q('.xp-sectionsheets').checked, runIn: q('.xp-runin').checked, notesHead: q('.xp-noteshead').value.trim() },
       hiddenHead: hiddenNow('head', c.hiddenHead), hiddenNodes: hiddenNow('nodes', c.hiddenNodes),
       shownHead: boxes('head').length ? new Set(boxes('head').filter(b => b.checked).map(b => b.value)) : null, shownNodes: boxes('nodes').length ? new Set(boxes('nodes').filter(b => b.checked).map(b => b.value)) : null });
@@ -309,7 +342,8 @@ function open({ doc, what, act }) {
       text('.xp-footer', c.footer); text('.xp-by', c.preparedBy);
       tick('.xp-pagenumbers', c.pageNumbers); tick('.xp-tags', c.tags); tick('.xp-tasks', c.tasks); tick('.xp-frontmatter', c.frontMatter); tick('.xp-titledate', c.titleDate);
       set('.xp-datekey', c.dated?.dateKey); set('.xp-under', c.dated?.under); tick('.xp-newest', c.dated?.newestFirst);
-      set('.xp-kids', c.prose.children); tick('.xp-numbered', c.prose.numbered); tick('.xp-contents', c.prose.contents); tick('.xp-titlesheet', c.prose.titleSheet); tick('.xp-sectionsheets', c.prose.sectionSheets); tick('.xp-runin', c.prose.runIn); text('.xp-noteshead', c.prose.notesHead); text('.xp-cssbox', c.customCss);
+      set('.xp-kids', c.prose.children); tick('.xp-numbered', c.prose.numbered); tick('.xp-contents', c.prose.contents); tick('.xp-titlesheet', c.prose.titleSheet); tick('.xp-sectionsheets', c.prose.sectionSheets); tick('.xp-runin', c.prose.runIn); text('.xp-noteshead', c.prose.notesHead);
+      els = themes.cleanElements(c.elements); elOpen = null; drawEls();
       for (const [role, hidden] of [['head', c.hiddenHead], ['nodes', c.hiddenNodes]]) for (const box of boxes(role)) box.checked = !hidden.has(box.value);
     }
     const keepTemplates = (store, name) => { c = { ...c, templates: store, template: name }; try { logseq.updateSettings({ templates: null }); logseq.updateSettings({ templates: store, template: name }); } catch (error) { console.warn('DB Export: could not keep the templates', error); } };
@@ -397,7 +431,7 @@ function open({ doc, what, act }) {
     const sheetOpts = ch => ({ paper: ch.paper, margins: themes.MARGINS[ch.margins], footer: ch.footer, pageNumbers: ch.pageNumbers });
     let timer = null, run = 0, edited = null, drawn = null;
     // What decides the words on the sheet. Anything else (the look, the paper, the footer) leaves words changed in the preview where they are.
-    const wordsOf = ch => JSON.stringify([ch.target === 'md', ch.layout, ch.prose, ch.tags, ch.tasks, ch.links, ch.frontMatter, [...(ch.shownHead || [])], [...(ch.shownNodes || [])], ch.dated, ch.kicker, ch.subtitle, ch.preparedBy, ch.titleDate]);
+    const wordsOf = ch => JSON.stringify([ch.target === 'md', ch.layout, ch.prose, ch.tags, ch.tasks, themes.marksOf(ch.look, ch.elements), ch.links, ch.frontMatter, [...(ch.shownHead || [])], [...(ch.shownNodes || [])], ch.dated, ch.kicker, ch.subtitle, ch.preparedBy, ch.titleDate]);
     const refresh = () => {
       describe();
       clearTimeout(timer);
@@ -432,31 +466,22 @@ function open({ doc, what, act }) {
             });
             d.addEventListener('keydown', onKey, true);
             d.addEventListener('click', () => closePops());
-            drawParts(d, ch);
+            drawParts(d);
             if (sheets) { await E.print.settle(d); if (n !== run) { next.remove(); return; } E.preview.paginate(d, sheetOpts(ch)); }   // pictures first, so their height is known
             swap(); fit(); setTimeout(fit, 300);
+            if (elOpen) light(elPart(elOpen));
           } catch (error) { console.warn('DB Export: preview sheets', error); swap(); fit(); } };
         } catch (error) { console.warn('DB Export: preview', error); }
       }, 150);
     };
-    // The parts the sheet in the preview holds, as words; pointed at, a part lights on the sheet; pressed, its rule goes into the box.
-    function drawParts(d, ch) {
-      const line = q('.xp-parts');
-      line.innerHTML = themes.PARTS.filter(([part]) => d.querySelector(`.x-${part}`)).map(([part, name]) => `<span data-part="${part}">${esc(name)}</span>`).join('');
-      line.dataset.look = ch.look;
+    // The elements the sheet holds are the ones listed (no Note without notes); the element whose settings stand is lit again on a sheet drawn anew.
+    function drawParts(d) {
+      const now = new Set(themes.ELEMENTS.filter(e => e.parts.some(part => d.querySelector(`.x-${part}`))).map(e => e.key));
+      const same = present && now.size === present.size && [...now].every(key => present.has(key));
+      present = now;
+      if (!same && !elOpen) drawEls();
     }
     const light = part => { try { E.preview.light(frame.contentDocument, part); } catch (error) { /* no preview yet */ } };
-    root.addEventListener('mouseover', event => { const part = event.target.closest('.xp-parts span'); light(part ? part.dataset.part : null); });
-    q('.xp-parts').addEventListener('mouseleave', () => light(null));   // the pointer may leave straight onto the sheet, which is another document
-    root.addEventListener('click', event => {
-      const part = event.target.closest('.xp-parts span'); if (!part) return;
-      const box = q('.xp-cssbox'), ch = choice(), at = box.value.indexOf(`.x-${part.dataset.part} {`);
-      if (at < 0) { box.value = (box.value.trim() ? box.value.replace(/\s*$/, '\n\n') : '') + themes.ruleText(ch.look, part.dataset.part, { size: ch.size }) + '\n'; }
-      const start = box.value.indexOf(`.x-${part.dataset.part} {`), end = box.value.indexOf('}', start) + 1;
-      box.focus(); box.setSelectionRange(start, end);
-      box.scrollTop = Math.max(0, (box.value.slice(0, start).split('\n').length - 1) * parseFloat(hostDoc.defaultView.getComputedStyle(box).lineHeight || '18'));   // the rule's first line at the box's top
-      if (at < 0) refresh();
-    });
     // A value taken from a list of the window's own is told to the select that stands behind it, so one "change" redraws the sheet.
     const told = sel => sel.dispatchEvent(new (hostDoc.defaultView.Event)('change', { bubbles: true }));
     // Unfolding: one pick open at a time, its alternatives a line of words under its row (the template's a pop-up under the bar); folded by a press elsewhere or Escape.
@@ -473,16 +498,16 @@ function open({ doc, what, act }) {
     };
     // Keys in the column, as in a menu: Up and Down walk its rows, Enter or Space turns a row that is on or off (a button takes them by itself).
     q('.xp-side').addEventListener('keydown', event => {
-      const row = event.target.closest?.('.xp-rowhead, .xp-opt, .xp-sw, .xp-tplhead, .xp-tpl .lk-alts > .lk-item');
+      const row = event.target.closest?.('.xp-rowhead, .xp-opt, .xp-sw, .xp-tplhead, .xp-tpl .lk-alts > .lk-item, .xp-elrow, .xp-elback, .xp-elreset');
       if (!row) return;
       if ((event.key === 'Enter' || event.key === ' ') && row.matches('.xp-tpl .lk-alts > .lk-item') && !event.metaKey && !event.ctrlKey) { event.preventDefault(); if (row.dataset.do) doTemplate(row.dataset.do); else takeTemplate(row.dataset.v); return; }
       if ((event.key === 'Enter' || event.key === ' ') && row.classList.contains('xp-sw') && !event.metaKey && !event.ctrlKey) { event.preventDefault(); const box = row.querySelector('input'); box.checked = !box.checked; told(box); return; }
       if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
-      const rows = [...q('.xp-side').querySelectorAll('.xp-tplhead, .xp-tpl .lk-alts > .lk-item:not(.gap), .xp-rowhead, .xp-opt, .xp-sw, .xp-fieldrow input')].filter(el => !el.closest('[hidden], [inert]'));
+      const rows = [...q('.xp-side').querySelectorAll('.xp-tplhead, .xp-tpl .lk-alts > .lk-item:not(.gap), .xp-rowhead, .xp-opt, .xp-sw, .xp-fieldrow input, .xp-elrow, .xp-elback, .xp-elreset')].filter(el => !el.closest('[hidden], [inert]'));
       const next = rows[rows.indexOf(row) + (event.key === 'ArrowDown' ? 1 : -1)];
       if (next) { event.preventDefault(); next.focus(); }
     });
-    // Adjust: the column of choices beside the sheet, shown or put away; remembered.
+    // The panel icon: the column of choices beside the sheet, shown or put away; remembered.
     q('.xp-adjust').addEventListener('click', () => {
       const side = q('.xp-side'), open = side.hidden;
       side.hidden = !open; q('.xp-adjust').classList.toggle('on', open); q('.xp-adjust').setAttribute('aria-pressed', String(open));
@@ -509,6 +534,7 @@ function open({ doc, what, act }) {
     root.addEventListener('input', event => { if (!event.target.closest('.xp-zoom, .xp-tpl')) refresh(); });
     root.addEventListener('change', event => { if (event.target.closest('.xp-zoom')) { syncValues(); remember(choice(), doc.title); zoomIt(); } else refresh(); });
     root.addEventListener('click', event => { const all = event.target.closest('[data-all]'); if (all) { boxes(all.dataset.role).forEach(b => { b.checked = all.dataset.all === '1'; }); refresh(); } });
+    drawEls();
     refresh();
     let finished = false, offKey = () => {};
     const close = () => { if (finished) return; finished = true; offKey(); offResize(); root.remove(); resolve(); };
@@ -522,7 +548,7 @@ function open({ doc, what, act }) {
       if (done) close(); else root.hidden = false;   // cancelled: the window stays, with what was chosen and written
     };
     const onKey = event => {
-      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); if (openOnes().length) { const back = hostDoc.activeElement?.closest?.('.xp-pickrow')?.querySelector('.xp-rowhead'); closePops(); back?.focus(); return; } close(); }
+      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); if (openOnes().length) { const back = hostDoc.activeElement?.closest?.('.xp-pickrow')?.querySelector('.xp-rowhead'); closePops(); back?.focus(); return; } if (elOpen && hostDoc.activeElement?.closest?.('.xp-els')) { backEl(); return; } close(); }
       else if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) { event.preventDefault(); event.stopPropagation(); go(target()); }
     };
     offKey = E.base.listen(hostDoc, 'keydown', onKey, true);

@@ -1558,7 +1558,7 @@ Door.ICONS = {
   plus: 'M8 2.5v11M2.5 8h11', chevron: 'M4 6l4 4 4-4', minus: 'M2.5 8h11', bin: 'M2.5 4.5h11M5.5 4.5V3a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v1.5M4 4.5l.7 9a1 1 0 0 0 1 .9h4.6a1 1 0 0 0 1-.9l.7-9',
   rename: 'M10.4 2.9 13.1 5.6 5.4 13.3l-3 .3.3-3zM8.8 4.5l2.7 2.7',
   copy: 'M6.4 5.2h6.4A1.2 1.2 0 0 1 14 6.4v6.4a1.2 1.2 0 0 1-1.200 1.200H6.400a1.200 1.200 0 0 1-1.200-1.200V6.400a1.200 1.200 0 0 1 1.200-1.200zM11 2.400H3.600a1.200 1.200 0 0 0-1.200 1.200V11',
-  eq: 'M3 5.800h10M3 10.200h10', side: 'M3 3h10a1.200 1.200 0 0 1 1.200 1.200v7.600A1.200 1.200 0 0 1 13 13H3a1.200 1.200 0 0 1-1.200-1.200V4.200A1.200 1.200 0 0 1 3 3zM10 3v10',
+  eq: 'M3 5.800h10M3 10.200h10', sidel: 'M3 3h10a1.200 1.200 0 0 1 1.200 1.200v7.600A1.200 1.200 0 0 1 13 13H3a1.200 1.200 0 0 1-1.200-1.200V4.200A1.200 1.200 0 0 1 3 3zM6 3v10', side: 'M3 3h10a1.200 1.200 0 0 1 1.200 1.200v7.600A1.200 1.200 0 0 1 13 13H3a1.200 1.200 0 0 1-1.200-1.200V4.200A1.200 1.200 0 0 1 3 3zM10 3v10',
   tick: 'M3.500 8.200 6.500 11.200 12.500 5.200', x: 'm3.800 3.800 8.400 8.400M12.200 3.800l-8.400 8.400', save: 'M8 2.500v8M4.500 7 8 10.500 11.500 7M3 13.500h10',
   // 16 November 2026, Ontology's tabs and menus with an icon on every word: a tag, a list, the history, a day.
   tag: 'M2.500 2.500h5l6 6-5 5-6-6zM5.300 5.300h.010', list: 'M5.500 4h8M5.500 8h8M5.500 12h8M2.500 4h.010M2.500 8h.010M2.500 12h.010',
@@ -1732,6 +1732,9 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
 /* Their mark alone (lk-i-plus, lk-i-chevron), no word after it. The faint grey sits close to the text colour, so the round wash is what
    shows the pointer has it, as on a level-3 button; a press that shows only near its holder (lk-reveal) takes it too, on the press itself. */
 .lk-change::before, .lk-plus::before, .lk-close::before { margin-right: 0 !important; }
+/* A column at a window's side shown or put away: the panel icon alone (lk-x lk-i-sidel, as Logseq's own sidebar button), in the text colour while the column is open. */
+.lk-x[class*="lk-i-"]::before { margin-right: 0 !important; }
+.lk-x[aria-pressed="true"] { color: var(--lk-text, currentColor) !important; }
 /* A word with the chevron after it ("By day ⌄", Todo's grouping): the value that holds one thing, said, the chevron saying it
    opens a menu (Door.menu). Small, as the headings it stands beside. */
 .lk-change:has(> .lk-i-chevron) { font-size: var(--lk-small); white-space: nowrap; padding: 1px 4px; }

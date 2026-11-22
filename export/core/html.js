@@ -9,7 +9,7 @@ const { inline, doc: D, dates } = E;
 const esc = inline.escapeHtml;
 
 function toHtml(doc, o = {}) {
-  const opts = { layout: 'document', tags: true, tasks: true, shown: null, shownHead: undefined, shownNodes: undefined, images: f => f, locale: undefined, cls: null, ...o };
+  const opts = { layout: 'document', tags: true, tasks: true, marks: 'circle', shown: null, shownHead: undefined, shownNodes: undefined, images: f => f, locale: undefined, cls: null, ...o };
   // shown: one Set of property idents for both (null: all); shownHead / shownNodes: a Set for the head's and the nodes' apart.
   const setHead = opts.shownHead !== undefined ? opts.shownHead : opts.shown, setNodes = opts.shownNodes !== undefined ? opts.shownNodes : opts.shown;
   const shownOf = n => D.headNode(doc, n) ? setHead : setNodes;   // the head's properties and the nodes' are switched apart
@@ -33,15 +33,21 @@ function toHtml(doc, o = {}) {
     if (tb.subtitle) push(`<p${cls('subtitle')}>${html(tb.subtitle)}</p>`);
     if (byline.length) push(`<p${cls('byline')}>${byline.map(esc).join(' · ')}</p>`);
     const tagLine = opts.tags && doc.tags.length ? doc.tags.map(t => `<span${cls('tag')}>${esc(t)}</span>`).join(' ') : '';
-    if (pageMeta.length || tagLine) push(`<p${cls('props')}>${[...pageMeta.map(esc), tagLine].filter(Boolean).join('<br>')}</p>`);
+    /* Each property a name and a value apart (x-pl, x-pv, the colon between them x-pc), so a look can set them as names
+       beside values or on one line; read plainly they are still "Name: value", a line each. */
+    const propLine = text => { const at = text.indexOf(': '); return at < 0 ? `<span${cls('prop')}>${esc(text)}</span>` : `<span${cls('prop')}><span${cls('pl')}>${esc(text.slice(0, at))}<span${cls('pc')}>: </span></span><span${cls('pv')}>${esc(text.slice(at + 2))}</span></span>`; };
+    if (pageMeta.length || tagLine) push(`<p${cls('props')}>${[...pageMeta.map(propLine), tagLine ? `<span${cls('prop ptags')}><span${cls('pl ptl')}></span><span${cls('pv')}>${tagLine}</span></span>` : ''].filter(Boolean).join('<br>')}</p>`);
     push('</header>');
   }
   const afterHead = out.length;
 
   const taskMark = n => {
     if (!n.task || !opts.tasks) return '';
-    const done = D.taskDone(n.task);
-    return `<span${cls(done ? 'task done' : 'task')}>${done ? '☑' : '☐'}</span> `;
+    /* Logseq's own four: nothing done yet, under way, done, given up. As circles (the print draws them, the words hold a
+       round glyph for a pasting app) or typed, [ ] [/] [x] [-], as the look or the person has them (opts.marks). */
+    const s = n.task.status, state = s === 'canceled' ? 'off' : D.taskDone(n.task) ? 'done' : s === 'doing' || s === 'in-review' ? 'doing' : 'todo';
+    const typed = opts.marks === 'bracket', glyph = typed ? { todo: '[ ]', doing: '[/]', done: '[x]', off: '[-]' }[state] : { todo: '○', doing: '◐', done: '●', off: '⊘' }[state];
+    return `<span${cls(['task', typed && 'typed', state !== 'todo' && state].filter(Boolean).join(' '))}>${glyph}</span> `;
   };
   const tagsOf = n => { const ts = D.tagsOf(n, opts.tasks); return opts.tags && ts.length ? ' ' + ts.map(t => `<span${cls('tag')}>${esc(t)}</span>`).join(' ') : ''; };
   const taskMeta = n => {

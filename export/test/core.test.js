@@ -59,11 +59,11 @@ console.log('  ok  Markdown in every layout');
 
 // HTML and the looks.
 const h = html.toHtml(doc, { layout: 'document', locale: L, titleBlock: { date: 20261029 } });
-for (const piece of ['<h1 class="x-title">Dr. Mei Chen</h1>', '<p class="x-props">Specialty: Oncology<br>Works at: Northgate Cancer Center<br>Phone: 020 7946 0880<br><span class="x-tag">Doctor</span></p>',
+for (const piece of ['<h1 class="x-title">Dr. Mei Chen</h1>', '<p class="x-props"><span class="x-prop"><span class="x-pl">Specialty<span class="x-pc">: </span></span><span class="x-pv">Oncology</span></span><br>', '<span class="x-prop x-ptags"><span class="x-pl x-ptl"></span><span class="x-pv"><span class="x-tag">Doctor</span></span></span></p>',
   '<h2 class="x-h2">Appointments</h2>', '<p class="x-p">Spoke with Dr. Mei Chen about fatigue <span class="x-tag">Consultation</span><br><span class="x-meta">Provider: Dr. Mei Chen · Date: 29 Oct 2026 · Topic: Fatigue</span></p>',
-  '<p class="x-p"><span class="x-task">☐</span> Sort out power of attorney with Ruth', '<span class="x-task x-done">☑</span> <s>Ring the pharmacy</s>', '<ol class="x-ol">', '<pre class="x-pre"><code>const dose',
+  '<p class="x-p"><span class="x-task">○</span> Sort out power of attorney with Ruth', '<span class="x-task x-done">●</span> Pack the hospital bag', '<span class="x-task x-off">⊘</span> <s>Ring the pharmacy</s>', '<span class="x-task x-doing">◐</span> Ask about the second opinion', '<ol class="x-ol">', '<pre class="x-pre"><code>const dose',
   '<blockquote class="x-quote">In this study, 34%', '<cite class="x-cite">Intrahepatic cholangiocarcinoma hidden within cancer of unknown primary, p. 1</cite>', '<li class="x-li x-pic"><figure class="x-figure"><img class="x-img" src="assets/6adbf876',
-  '<table class="x-table"><thead><tr><th class="x-th">Name</th><th class="x-th">Tags</th><th class="x-th">Deadline</th></tr></thead><tbody><tr><td class="x-td x-name"><span class="x-task">☐</span> Book the patient transport</td><td class="x-td"></td><td class="x-td">5 Nov 2026</td></tr>']) assert.ok(h.includes(piece), 'HTML holds ' + piece + '\n' + h);
+  '<table class="x-table"><thead><tr><th class="x-th">Name</th><th class="x-th">Tags</th><th class="x-th">Deadline</th></tr></thead><tbody><tr><td class="x-td x-name"><span class="x-task">○</span> Book the patient transport</td><td class="x-td"></td><td class="x-td">5 Nov 2026</td></tr>']) assert.ok(h.includes(piece), 'HTML holds ' + piece + '\n' + h);
 assert.ok(!h.includes('x-value') && !h.includes('>4<'), 'the hidden value block is not drawn');
 assert.ok(!h.includes('<span class="x-tag">Task</span>'), 'with task boxes drawn, no row says Task after its words');
 assert.ok(html.toHtml(doc, { layout: 'document', locale: L, tasks: false }).includes('Sort out power of attorney with Ruth <span class="x-tag">Task</span>'), 'with no task boxes the tag Task stays');
@@ -73,7 +73,21 @@ for (const look of themes.looks) {
   const css = themes.stylesheet(look.key, { paper: 'Letter', margins: 'narrow', size: 'large', footer: 'Private "notes"', pageNumbers: true, customCss: '.x-p { color: red }' });
   assert.ok(css.includes('@page { size: Letter; margin: 14mm 15mm 16mm; @bottom-left { content: "Private \\"notes\\"";') && css.includes('counter(page) " / " counter(pages)') && css.includes('.x-title {') && css.endsWith('.x-p { color: red }'), look.key);
   const { cls, root } = themes.inliner(look.key, {});
-  assert.ok(cls('title').startsWith(' style="margin:0 0 ') && cls('task done').includes('color:') && cls('nothing') === '' && root.includes('font-family:'), look.key + ' inline');
+  assert.ok(cls('title').startsWith(' style="margin:0') && cls('task done').includes('color:') && cls('nothing') === '' && root.includes('font-family:'), look.key + ' inline');
+}
+{   // task marks: circles the print draws, typed in the typewriter look or by the person's pick; the elements picked by hand
+  assert.equal(themes.marksOf('plain', {}), 'circle'); assert.equal(themes.marksOf('typewriter', {}), 'bracket'); assert.equal(themes.marksOf('typewriter', { task: { mark: 'circle' } }), 'circle');
+  const typed = html.toHtml(doc, { layout: 'document', locale: L, marks: 'bracket' });
+  for (const piece of ['<span class="x-task x-typed">[ ]</span> Sort out', '<span class="x-task x-typed x-done">[x]</span> Pack', '<span class="x-task x-typed x-off">[-]</span> <s>Ring', '<span class="x-task x-typed x-doing">[/]</span> Ask']) assert.ok(typed.includes(piece), piece);
+  assert.ok(!h.includes('☐') && !h.includes('☑') && !typed.includes('☐'), 'no square box anywhere');
+  assert.ok(themes.stylesheet('plain', {}).includes('.x-task:not(.x-typed) { display: inline-block;') && themes.stylesheet('plain', {}).includes('border-radius: 50%'), 'the print draws the circles');
+  assert.equal(JSON.stringify(themes.cleanElements({ title: { face: 'serif', size: 'huge', nonsense: 1 }, nothing: { face: 'sans' }, task: { mark: 'bracket', face: 'mono' }, tag: {} })), JSON.stringify({ title: { face: 'serif' }, task: { mark: 'bracket' } }));
+  const mine = { title: { face: 'serif', size: 'l', letters: 'spaced', align: 'center' }, tag: { colour: 'ink', align: 'center' } };
+  const css = themes.stylesheet('plain', { elements: mine, customCss: '.x-p { color: red }' });
+  assert.ok(css.includes('.x-title.x-title { font-family:Charter') && css.includes('font-size:27.6pt') && css.includes('letter-spacing:.14em') && css.includes('text-align:center') && css.includes('.x-tag.x-tag { color:#111; }') && css.endsWith('.x-p { color: red }'), css);
+  assert.ok(themes.inliner('plain', { elements: mine }).cls('title').includes('font-size:27.6pt') && !themes.inliner('plain', {}).cls('title').includes('27.6pt'), 'the elements inline, for the clipboard');
+  assert.ok(themes.stylesheet('book', { layout: 'prose' }).includes('.x-notes-head::before') && !themes.stylesheet('book', {}).includes('.x-notes-head::before'), 'Book refines Prose only');
+  assert.ok(themes.looks.some(l => l.key === 'formal') && !themes.stylesheet('formal', {}).includes('first-letter'), 'Formal, with no large first letter');
 }
 const inlined = html.toHtml(doc, { layout: 'outline', locale: L, cls: themes.inliner('plain', {}).cls });
 assert.ok(!inlined.includes('class="') && inlined.includes('<li style="margin:0 0 '), 'inline styles for the clipboard');
@@ -82,10 +96,10 @@ assert.ok(!inlined.includes('class="') && inlined.includes('<li style="margin:0 
   assert.deepEqual(plain(D.propertiesIn(doc, 'nodes').map(p => p.name)), ['Date', 'Deadline', 'End', 'Hospital', 'Provider', 'Severity', 'Topic']);
   const none = new Set(), only = new Set(['user.property/provider']);
   const page = html.toHtml(doc, { locale: L });
-  assert.ok(page.includes('Specialty: Oncology') && page.includes('Provider: Dr. Mei Chen') && page.includes('Topic: Fatigue'));
+  assert.ok(page.replace(/<[^>]+>/g, '').includes('Specialty: Oncology') && page.includes('Provider: Dr. Mei Chen') && page.includes('Topic: Fatigue'));
   const noHead = html.toHtml(doc, { locale: L, shownHead: none }), someNodes = html.toHtml(doc, { locale: L, shownNodes: only });
-  assert.ok(!noHead.includes('Specialty: Oncology') && noHead.includes('Provider: Dr. Mei Chen'), 'page properties off');
-  assert.ok(someNodes.includes('Specialty: Oncology') && someNodes.includes('Provider: Dr. Mei Chen') && !someNodes.includes('Topic: Fatigue'), 'one node property chosen');
+  assert.ok(!noHead.replace(/<[^>]+>/g, '').includes('Specialty: Oncology') && noHead.includes('Provider: Dr. Mei Chen'), 'page properties off');
+  assert.ok(someNodes.replace(/<[^>]+>/g, '').includes('Specialty: Oncology') && someNodes.includes('Provider: Dr. Mei Chen') && !someNodes.includes('Topic: Fatigue'), 'one node property chosen');
   const mdNoHead = markdown.toMarkdown(doc, { locale: L, shownHead: none, frontMatter: true });
   assert.ok(!mdNoHead.includes('Specialty') && mdNoHead.includes('Provider: Dr. Mei Chen'), 'no page properties in front matter');
   const blocks = D.document({ kind: 'blocks', nodes: doc.nodes[1].children });   // the appointments: their own properties are the head's
@@ -120,7 +134,7 @@ console.log('  ok  HTML, the looks’ stylesheets and their inline form');
   for (const piece of ['<h2 class="x-h2"><span class="x-num">1</span>Summary</h2>', '<h3 class="x-h3"><span class="x-num">2.1</span>Blood</h3>',
     'second cycle.<sup class="x-ref">1</sup> Ferritin was low.<sup class="x-ref">2</sup></p>', 'this setting,<sup class="x-ref">3</sup> walks advised<sup class="x-ref">4</sup></p>',
     '<p class="x-p">Haemoglobin 104, down from 121.<sup class="x-ref">2</sup> Repeat in four weeks. Ask about iron?</p>',
-    '<p class="x-p">Steps</p>\n<ol class="x-ol">', '<span class="x-task">☐</span> Ring the ward',
+    '<p class="x-p">Steps</p>\n<ol class="x-ol">', '<span class="x-task">○</span> Ring the ward',
     '<p class="x-toc-row x-toc-first"><span class="x-num">1</span>Summary</p>', '<p class="x-toc-row x-toc-in x-toc-last"><span class="x-num">2.1</span>Blood</p>',
     '<h2 class="x-h2 x-notes-head">Notes</h2>\n<p class="x-note"><span class="x-note-n">1</span>Consultation, 2 Oct.</p>\n<p class="x-note"><span class="x-note-n">2</span>Blood panel, p. 3.</p>',
     '<span class="x-note-n">3</span><a class="x-a" href="https://example.org/esmo">ESMO</a>, https://example.org/esmo.</p>', '<span class="x-note-n">4</span><em>Ward leaflet</em>, p. 2.</p>'])
