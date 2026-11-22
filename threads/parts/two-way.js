@@ -684,7 +684,7 @@ function rowHtml(group, top = null) {
   const rest = byCount.length - named.length;
   // What the list is set to, the View menu's words, stands before the days at the head's right (10 November 2026, the owner: B).
   const view = twoWay.viewSaid(group), right = view || whenHtml ? `<span class="th-tw-right">${view}${whenHtml}</span>` : '';
-  const tail = [...(kinds ? named.map(([tag, n]) => chip(tag, `${esc(tag === 'note' ? 'No tag' : tag)} ${tabCount(n)}`, '', true)) : []), ...(kinds && rest ? [`<button type="button" class="lk-more th-tw-kinds" data-kinds="${esc(key)}">and ${rest} more</button>`] : []), right, was].filter(Boolean);
+  const tail = [...(kinds ? named.map(([tag, n]) => chip(tag, `${esc(tag === 'note' ? 'No tag' : tag)} ${tabCount(n)}`, '', true)) : []), ...(kinds && rest ? [`<button type="button" class="lk-more th-tw-kinds" data-kinds="${esc(key)}">and ${rest} more</button>`] : []), was].filter(Boolean);
   // Each piece keeps its dot in the gap before it, and the head clips what stands before its left edge: a line that wraps starts on
   // its words, never on a dot (the stylesheet).
   const extra = headHooks.map(hook => hook(group, key, items) || '').join('');
@@ -710,7 +710,10 @@ function rowHtml(group, top = null) {
   // The mentions' sure proposals, all at once (C19): a quiet word at the head once two or more are pencilled in.
   const proposed = isMentions(group) ? group.items.filter(item => couldBeHtml(item)).length : 0;
   const takeAll = proposed > 1 ? `<button type="button" class="lk-btn lk-low th-tw-takeall" data-takeall-could="" title="Make each what its words look like, with one Undo">Take the ${proposed} proposed</button>` : '';
-  const headLine = O.line({ day: null, chev: fold, body: `${head}${addLink(group)}${takeAll}${twoWay.groupBtn(group)}`, cls: 'th-tw-head' });
+  /* The + and the ⋯ follow the head's words, not the far right (21 November 2026, the owner: "move plus and dots to right of
+     items, not far right"); what the list is set to and its days still stand at the right end. */
+  const pickAll = state.selecting.has(group.name) && !state.drawingTop ? '<input type="checkbox" class="lk-tick th-tw-pickall" data-act="allhere" aria-label="Pick every node in this list" title="Pick every node in this list">' : '';
+  const headLine = O.line({ day: null, chev: fold, tick: pickAll, body: `${head}${addLink(group)}${takeAll}${twoWay.groupBtn(group)}${right ? `<span class="th-tw-piece th-tw-endpiece">${right}</span>` : ''}`, cls: 'th-tw-head' });
   const listHtml = open ? O.kids({ html: list + since, cls: 'th-ol-bare th-tw-list', fresh: state.fresh === key }) : '';
   return `<div class="th-tw-row" data-field="${esc(group.name)}"${open ? ' data-open=""' : ''}>${name}<div class="${listCls}"${picking}${datedAttrs(group)}>${headLine}${listHtml}${twoWay.addLineHtml(group)}</div></div>`;
 }
@@ -1074,7 +1077,7 @@ function draw(doc) {
 // when elements came or went, or while a page settles.
 const drawEarly = (doc, records) => { if (performance.now() - settle.since < SETTLE_MS || addsElements(records)) draw(doc); };
 function onClick(event) {
-  const pickEl = event.target.closest?.('.th-tw-bar [data-act]') || event.target.closest?.('.th-tw-row .th-tw-pick');
+  const pickEl = event.target.closest?.('.th-tw-bar [data-act], .th-tw-head > .th-tw-pickall') || event.target.closest?.('.th-tw-row .th-tw-pick');
   if (pickEl) { event.preventDefault(); event.stopPropagation(); twoWay.hidePeek(); return pickEl.dataset.act ? twoWay.act(pickEl.dataset.act, pickEl) : twoWay.togglePick(pickEl, event.shiftKey); }
   const couldOff = event.target.closest?.('[data-could-off]');
   if (couldOff) { event.preventDefault(); event.stopPropagation(); twoWay.hidePeek(); return refuseCouldBe(couldOff.dataset.couldOff, couldOff.closest('.th-tw-line') || couldOff); }

@@ -1,4 +1,4 @@
-/* Picking nodes and acting on them together: the tick boxes, the bar above the first picked node, More, making an untagged
+/* Picking nodes and acting on them together: the tick boxes, the bar at the top of the picked nodes' list, More, making an untagged
    mention a node, and Delete, which asks first and cannot be undone from here.
    A piece of Threads' two-way part: parts/two-way.js is the part (the rows, their drawing, the start) and holds twoWay,
    where its pieces meet. What this piece uses of the part or another piece it reaches through twoWay when it runs; what
@@ -20,12 +20,23 @@ const { state, warnOnce } = twoWay;
    the picks; going to another page does too. */
 /* The bar's room is always kept above the rows, the bar shown in it only while something is picked (the owner:
    "the toolbar jumps in and causes the link table to jump down … that space is fine. allows breathing room"). */
-/* The bar moves to just above the first picked node, where the picks are. The node just ticked keeps its place on the screen:
-   the page scrolls by what the bar added or took above it, so the next tick box is where the hand left it. */
+/* The bar stands at the top of the list that holds the picks, right under its heading, as Logseq's table puts its bar at the
+   table's top (21 November 2026, the owner: "Why is the selector appear not on top of table"; it stood above the first picked
+   node since 5 November). The list's heading has a tick box in the column of its nodes' boxes, as Logseq's table has one in its
+   header row: it picks every node of that list, or takes them all off again ("add select all checkbox too"), half-marked while
+   some of them are picked. The node just ticked keeps its place on the screen: the page
+   scrolls by what the bar added or took above it, so the next tick box is where the hand left it. */
 const placeBar = box => {
   const bar = box.querySelector('.th-tw-bar');
-  const first = state.picked.size ? [...box.querySelectorAll('input.th-tw-pick')].find(input => input.checked)?.closest('.th-tw-line') : null;
-  if (bar && first && bar.nextElementSibling !== first) first.before(bar);
+  const first = state.picked.size ? [...box.querySelectorAll('input.th-tw-pick')].find(input => input.checked) : null;
+  const row = first?.closest('.th-tw-row'), top = row?.querySelector('.th-tw-list > .th-ol-in');
+  if (bar && top && top.firstElementChild !== bar) top.prepend(bar);
+  // Each heading's own box: ticked when every node of its list is picked, half-marked when some are.
+  for (const all of box.querySelectorAll('input.th-tw-pickall')) {
+    const boxes = [...(all.closest('.th-tw-row')?.querySelectorAll('input.th-tw-pick') || [])], on = boxes.filter(input => input.checked).length;
+    all.checked = !!boxes.length && on === boxes.length; all.indeterminate = on > 0 && on < boxes.length;
+    all.title = all.checked ? 'Take off every pick in this list' : 'Pick every node in this list';
+  }
   const keep = state.keepStill; state.keepStill = null;
   if (!keep) return;
   const pick = [...box.querySelectorAll('input.th-tw-pick')].find(input => input.dataset.pick === keep.key);
@@ -40,7 +51,7 @@ function barHtml() {
      nothing that allows the eyes to grab onto"). The count, large, and its ×; Open in sidebar, what is done most with picked
      nodes; then Set tag and Set property (21 November 2026, the thirteen proposals, 11: one bar for several picked things, in the
      drawn order: go, change, take away); More, which holds the rest; Delete at the right end, apart. Drawn here at the top, moved
-     into place by placeBar. */
+     to the top of the picks' list by placeBar. */
   const b = (act, text, title, name, cls = '') => `<button type="button" class="lk-picked-act lk-i-${name}${cls ? ' ' + cls : ''}" data-act="${act}" title="${esc(title)}">${text}</button>`;
   return `<div class="lk-picked th-tw-bar"${idle ? ' data-idle="" aria-hidden="true"' : ''} role="toolbar" aria-label="What to do with the picked nodes"><span class="lk-picked-count th-count"><b class="lk-picked-n">${n}</b> picked</span><button type="button" class="lk-picked-x" data-act="clear" title="Clear the picks (Escape)" aria-label="Clear the picks">×</button>${
     b('sidebar', 'Open in sidebar', 'Open them in the right sidebar', 'side')}${b('tag', 'Set tag', 'Give them a tag', 'tag')}${b('set', 'Set property', 'Set a property on all of them', 'list')}<button type="button" class="lk-picked-act th-tw-menu" data-act="more" title="Everything else you can do with them" aria-haspopup="menu">More<span class="lk-i-chevron th-tw-chev" aria-hidden="true"></span></button><span class="lk-picked-gap"></span>${
@@ -231,9 +242,17 @@ async function pageNamed(name, prop) {
 async function act(what, at = null) {
   // A press on the bar: its menus and questions open from where it stands on the screen (an anchor inside the rows' list is not
   // followed by a menu shown over the page).
+  const field = at?.closest?.('.th-tw-row')?.dataset.field;
   if (at?.closest?.('.th-tw-bar')) { const r = at.getBoundingClientRect(); at = { left: r.left, top: r.top, right: r.right, bottom: r.bottom }; }
   const chosen = picks(), nodes = nodesPicked();
   if (what === 'clear') { twoWay.stopPicking(); return twoWay.draw(host()); }
+  // The heading's tick box: every node of its list picked, or, when they all are, none of them.
+  if (what === 'allhere' && field != null) {
+    const mine = state.listed.filter(key => key.endsWith(`|${field}`));
+    const every = mine.length && mine.every(key => state.picked.has(key));
+    for (const key of mine) every ? state.picked.delete(key) : state.picked.add(key);
+    state.html = null; readTitle().catch(() => {}); return twoWay.draw(host());
+  }
   if (what === 'all') { for (const key of state.listed) state.picked.add(key); readTitle().catch(() => {}); return twoWay.draw(host()); }
   if (!chosen.length) return;
   // The two words with a menu: the menu opens under the word, and what is picked from it acts as its own word did.

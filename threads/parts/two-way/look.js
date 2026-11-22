@@ -304,10 +304,12 @@ html[data-lk-try="new"] .th-two-way .th-ls-node .ls-block-right { margin-left: 0
 .th-two-way, .th-two-way * { overflow-anchor: none; }
 /* While finding, a list heading's + and Group are away: they rode on the end of its words, which change with each letter. */
 .th-two-way[data-finding] :is(.th-tw-add, .th-tw-groupby) { display: none; }
-/* The bar is the library's lk-picked. Above the first picked node it reaches as far left as the tick boxes and as far right as the
-   picked nodes' grey, its top corners round, so the bar and the nodes under it are one block. No room is kept for it at rest. */
+/* The bar is the library's lk-picked. At the top of the picks' list it reaches as far left as the tick boxes and as far right as the
+   picked nodes' grey, its corners round. No room is kept for it at rest. */
 .th-two-way .th-tw-bar[data-idle] { display: none; }
-.th-two-way .th-ol .th-tw-bar { margin: 4px -12px 0 -34px; padding-left: 18px; border-radius: 8px 8px 0 0; }
+.th-two-way .th-ol .th-tw-bar { margin: 4px -12px 4px -34px; padding-left: 18px; border-radius: 8px; }
+.th-two-way .th-tw-head > input.lk-tick.th-tw-pickall { left: -14px; }   /* the heading's box, in the column of its nodes' boxes, as Logseq's table header */
+.th-two-way .lk-list:has(input.th-tw-pick:checked) .th-tw-pickall { opacity: 1 !important; }
 .th-two-way > .th-tw-bar { margin: 0 0 6px; border-radius: 8px; }
 .th-two-way .th-tw-chev::before { margin: 0 0 0 .1em !important; opacity: .75; }
 /* The fold arrows as Logseq's (the owner, 7 November 2026: "arrows should hide too", after "faint, always there" that morning):
@@ -380,7 +382,8 @@ html[data-lk-try="new"] .th-two-way .th-ls-node .ls-block-right { margin-left: 0
 .th-two-way .th-tw-head .th-tw-n { margin-left: .3em; color: var(--lk-quiet); font-weight: 400; font-variant-numeric: tabular-nums; }
 /* The days stand at the right end of the head (9 November 2026, the owner: "date range in threads should be right aligned"). */
 .th-two-way .th-tw-head > .th-ol-body { flex: 1 1 auto; min-width: 0; }
-.th-two-way .th-tw-head > .th-ol-body > .th-tw-chips { flex: 1 1 auto; }
+.th-two-way .th-tw-head > .th-ol-body > .th-tw-chips { flex: 0 1 auto; }
+.th-two-way .th-tw-head > .th-ol-body > .th-tw-endpiece { margin-left: auto; flex: none; white-space: nowrap; }   /* the days whole, on one line, at the right end */
 .th-two-way .th-tw-head .th-tw-piece:has(> .th-tw-right) { margin-left: auto; }
 .th-two-way .th-tw-head .lk-more { padding: 0; font-weight: 400; }
 .th-two-way .th-tw-head .th-tw-piece { position: relative; display: inline-flex; align-items: baseline; white-space: nowrap; }
@@ -562,6 +565,7 @@ html[data-lk-try="new"] .th-two-way .th-ls-node .ls-block-right { margin-left: 0
 /* The words of the + appear on its left, inside the list's right edge, not past it (the owner, 10 November 2026: "this is
    totally to the right of every thing"). */
 .th-two-way .th-tw-add::after { left: auto; right: 100%; margin-left: 0; margin-right: 4px; padding: 0 2px 0 6px; }
+.th-two-way .th-tw-head .th-tw-add::after { left: 100%; right: auto; margin-left: 4px; margin-right: 0; padding: 0 6px 0 2px; }   /* the head's + stands after its words now: its words show to its right, over the ⋯ */
 .th-two-way .th-tw-head:has(.th-tw-add:hover) .th-tw-piece { visibility: hidden; }   /* the head's days give their place to the words while they show */
 /* A fold arrow stands beside its bullet as Logseq's does (12 November 2026, the owner: the arrows and bullets of opened rows
    "out of line" with the guide lines): 2px short of the bullet, so it stands clear of the guide line it sits right of, and

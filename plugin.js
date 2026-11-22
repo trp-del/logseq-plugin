@@ -1857,12 +1857,12 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
    acts on them read as one block, the only filled area in a list (the owner, 5 November 2026, the grey block of picking-redesign.html:
    "build 2"). lk-picked-count holds the number (lk-picked-n), lk-picked-x clears the picks, lk-picked-act is an action, a plain word
    with its icon, lk-picked-gap sends Delete (lk-del) to the right end. The module says where it stands. */
-.lk-picked { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; background: var(--lk-wash); border-bottom: 1px solid var(--lk-hair); padding: 6px 10px 7px; line-height: 1.35; }
+.lk-picked { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; background: var(--lk-wash); border-bottom: 1px solid var(--lk-hair); padding: 6px 10px 7px; line-height: 1.35; }
 .lk-picked-count { display: inline-flex; align-items: baseline; gap: 6px; color: var(--lk-quiet); font-size: 14px; margin-right: 2px; }
 .lk-picked-n { font-size: 20px; font-weight: 600; color: var(--lk-text, currentColor); font-variant-numeric: tabular-nums; line-height: 1; }
 .lk-picked-x, .lk-picked-act { appearance: none; background: none; border: 0; font: inherit; cursor: pointer; border-radius: 999px; }
 .lk-picked-x { font-size: 16px; line-height: 1; color: var(--lk-quiet); padding: 4px 8px 4px 4px; }
-.lk-picked-act { font-weight: 500; color: var(--lk-text, currentColor); display: inline-flex; align-items: center; gap: 6px; padding: 5px 6px; }   /* 6px a side, 6px to the icon: the six of them fit one line at 700 px (the thirteen proposals, 11) */
+.lk-picked-act { font-weight: 500; color: var(--lk-text, currentColor); display: inline-flex; align-items: center; gap: 6px; padding: 5px; }   /* 5px a side, 6px to the icon: the six of them and the pick-all box fit one line at 700 px with up to 99 picked (the thirteen proposals, 11; 21 November 2026, the box) */
 .lk-picked-act::before { margin-right: 0 !important; }
 .lk-picked :is(.lk-picked-act, .lk-picked-x):is(:hover, :focus-visible) { background: color-mix(in srgb, currentColor 9%, transparent); color: var(--lk-text, currentColor); outline: none; }
 .lk-picked .lk-picked-act.lk-del { color: var(--rx-red-10, #dc3e42) !important; }
@@ -1881,6 +1881,7 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
    shows is lk-list's word above. */
 input.lk-tick[type=checkbox] { appearance: none !important; -webkit-appearance: none !important; position: relative; box-sizing: border-box; width: 14px !important; height: 14px !important; margin: 0 !important; padding: 0 !important; flex: none; border: 1.5px solid var(--lk-line) !important; border-radius: 4px !important; background: none !important; color: inherit !important; cursor: pointer; vertical-align: -1px; }
 input.lk-tick[type=checkbox]:is(:checked, :indeterminate, :focus, :hover) { background-color: transparent !important; background-image: none !important; border-color: currentColor !important; color: inherit !important; box-shadow: none !important; outline: none !important; }
+input.lk-tick[type=checkbox]:indeterminate::before { content: ""; position: absolute; left: 2.5px; right: 2.5px; top: 50%; height: 1.5px; margin-top: -.75px; border-radius: 1px; background: currentColor; }
 input.lk-tick[type=checkbox]:checked::before { content: ""; position: absolute; inset: 0; background: currentColor; -webkit-mask: ${iconUrl(Door.ICONS.tick, 2.6)} center / 8px 8px no-repeat; mask: ${iconUrl(Door.ICONS.tick, 2.6)} center / 8px 8px no-repeat; }
 /* lk-status, drawn: a task's status circle (Door.statusHtml), Logseq's own icon at Logseq's 18px for 16px words (1.125em), in a
    place one line of the words tall (--lk-status-line, the row's line height; 1.5em when unset), so it stands centred on the first
