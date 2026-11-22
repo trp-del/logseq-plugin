@@ -391,20 +391,38 @@ async function learnLeft(live, block, ctx, record) {
   }
 }
 // The proposals of the bullet being written: the rules' and the model's (core/model.js, merge).
+/* Two ways (22 November 2026, the owner: "could I press a hot key at the end of a bullet to even see the suggestion then accept
+   quickly or not with enter or ESC. so there are two ways, either it is left on, or I turn it on per bullet"): as you write, the
+   proposals come by themselves once typing pauses; on the key, nothing is worked out, shown or filled in on a bullet until the key
+   (Option-P) is pressed in it, and from then until the bullet is left or Escape lets them go they follow its words. The key shows them
+   at once in either way. */
+const onKeyOnly = () => setting('proposalsWhen') === 'when I press the key';
+const askedHere = uuid => !onKeyOnly() || S.shown === uuid;
+function showNow(box) {
+  const uuid = uuidOf(box);
+  S.shown = uuid; S.asked = uuid;
+  if (S.hushed.uuid === uuid) S.hushed.uuid = '';
+  clearTimeout(S.timer);
+  const mine = S.dueId = (S.dueId || 0) + 1;
+  S.due = uuid;
+  compute(box).catch(error => warnOnce('the proposals could not be worked out', error)).finally(() => { if (mine === S.dueId) S.due = ''; });
+}
 function show(box, uuid, words, record, rules, more) {
   const pieces = byLessons(S.ctx, record, Flow.model.merge(rules, more)), fromModel = pieces.filter(Flow.apple.fromApple);
   if (!pieces.length) { S.live = null; return hide(); }
   if (S.accepted.uuid !== uuid) S.accepted = { uuid, at: 0, keys: new Set() };
   // What was clicked or picked stays while the words change, for the proposals still there.
   const keep = S.live?.uuid === uuid ? S.live : null;
-  S.live = { uuid, text: words, changed: S.entered.uuid !== uuid || words !== S.entered.words, recordUuid: String(record.uuid || ''), pieces, drawn: new Set(), clicked: keep?.clicked, picked: keep?.picked, model: fromModel.length ? { words, pieces: fromModel } : null };
+  // Asked for with the key, a bullet whose words have not changed is treated as changed: what you asked to see is filled in as shown.
+  S.live = { uuid, text: words, changed: S.entered.uuid !== uuid || words !== S.entered.words || S.asked === uuid, recordUuid: String(record.uuid || ''), pieces, drawn: new Set(), clicked: keep?.clicked, picked: keep?.picked, model: fromModel.length ? { words, pieces: fromModel } : null };
   drawInPlace(box.ownerDocument);
 }
 // Once typing pauses: longer than the gap between two letters, so a proposal is not worked out after every key.
 const PAUSE = 200;
 // asked: proposals wanted on this bullet though its words have not changed (a tag just picked with Option-T).
 const soon = (box, { asked = false } = {}) => {
-  if (asked) S.asked = uuidOf(box);
+  if (asked) { S.asked = uuidOf(box); S.shown = S.asked; }
+  if (!askedHere(uuidOf(box))) return;
   clearTimeout(S.timer);
   const mine = S.dueId = (S.dueId || 0) + 1;
   S.due = uuidOf(box);   // this bullet's proposals are still to come
@@ -419,6 +437,7 @@ function leave(live, taken = new Set()) {
   live.left = true;
   live.taken = new Set([...taken, ...live.clicked || [], ...live.picked?.keys() || []]);   // the ones clicked are accepted too
   live.dismissed = S.hushed.uuid === live.uuid;
+  if (S.shown === live.uuid) { S.shown = ''; if (S.asked === live.uuid) S.asked = ''; }   // the key's asking ends with the bullet
   S.version++;
   if (S.accepted.uuid === live.uuid) S.accepted = { uuid: '', at: 0, keys: new Set() };
   if (!live.dismissed && !S.stopped && live.recordUuid) {
@@ -559,7 +578,8 @@ function onFocusIn(event) {
   if (!box) return;
   const uuid = uuidOf(box);
   forgetUndo(uuid);   // editing the bullet again ends the undo of what was filled in on it
-  if (S.live?.uuid !== uuid) { S.entered = { uuid, words: box.value }; if (S.asked !== uuid) S.asked = ''; }   // back from its own properties is not entering it
+  // Back from its own properties is not entering it. Entering a bullet anew ends the asking of the key in it.
+  if (S.live?.uuid !== uuid) { S.entered = { uuid, words: box.value }; if (S.asked !== uuid) S.asked = ''; if (S.shown === uuid && !S.due) S.shown = ''; }
   soon(box);
 }
 function onFocusOut(event) {
@@ -617,7 +637,15 @@ function visitProperties(live) {
 function stopVisiting() { const v = S.visiting; clearInterval(v.timer); Object.assign(v, { live: null, timer: 0, out: 0 }); }
 
 function onKey(event) {
-  if (event.isComposing || !S.live) return;
+  if (event.isComposing) return;
+  // The key for showing the proposals now: in either way, at once.
+  if (app.keyMatches(event, setting('proposalsShowKeys'))) {
+    const here = editingBox(event.target);
+    if (!here || app.editorPopupOpen() || !setting('proposals')) return;
+    event.preventDefault(); event.stopImmediatePropagation();
+    return showNow(here);
+  }
+  if (!S.live) return;
   const box = editingBox(event.target);
   if (!box || uuidOf(box) !== S.live.uuid) return;
   // Cmd-Option-Enter: everything shown is accepted, as with Enter, and the bullet is simply left, with no new bullet made.
@@ -642,6 +670,7 @@ function onKey(event) {
   // Escape hides the proposals until something is typed in the bullet again; the caret stays (a second Escape is Logseq's).
   event.preventDefault(); event.stopImmediatePropagation();
   S.hushed.uuid = S.live.uuid; S.version++;
+  if (onKeyOnly() && S.shown === S.live.uuid) S.shown = '';   // on the key, Escape ends the asking: typing on does not bring them back
   S.live = null; hide();
 }
 // A click on a proposed value accepts it: it turns solid and is filled in, guess or not, when the bullet is left; a second

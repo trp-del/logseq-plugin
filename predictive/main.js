@@ -73,6 +73,11 @@ const SPECIMENS = {
   linkSuggestPause: ms => `<span class="sw-dot"></span>Saw Dr. Mei<span class="sw-caret"></span><span class="sw-grey"> Chen</span><span class="sw-then">${Number(ms) ? `shows ${Number(ms) >= 1000 ? (Number(ms) / 1000).toFixed(1) + ' s' : ms + ' ms'} after your last key` : 'shows at once, as you type'}</span>`,
   proposalsStepKeys: k => `<span class="sw-dot"></span>Saw <span class="lk-node">Dr. Mei Chen</span>${then(k)}<span style="padding-left:14px"><span class="sw-k">Provider:</span> <span class="sw-caret"></span><span class="sw-faintw">choose</span> <span class="sw-sep">·</span> <span class="sw-k">Date:</span> <span class="sw-faintw">empty</span></span>`,
   proposalsTagKeys: k => `<span class="sw-dot"></span>Mouth feels like sandpaper<span class="sw-caret"></span>${then(k)}<span style="display:inline-grid;margin-left:14px;padding:4px;border:1px solid var(--lk-hair);border-radius:6px;font-size:14px"><span style="padding:0 8px;border-radius:4px;background:var(--lk-wash)"><span class="lk-tag">Symptom Log</span></span><span style="padding:0 8px"><span class="lk-tag">Observation</span></span></span>`,
+  // The two ways: as you write the pencil follows the words; on the key the bullet stays bare until the key is pressed.
+  proposalsWhen: value => value === 'when I press the key'
+    ? `<span class="sw-dot"></span>Saw <span class="lk-node">Dr. Mei Chen</span> about the fatigue<span class="sw-caret"></span> <span class="sw-faintw">&nbsp; nothing until the key</span>`
+    : `<span class="sw-dot"></span>Saw <span class="lk-node">Dr. Mei Chen</span> about the fatigue<span class="sw-caret"></span><br><span style="padding-left:14px"><span class="sw-k">Provider:</span> ${pen('Dr. Mei Chen')}</span>`,
+  proposalsShowKeys: k => `<span class="sw-dot"></span>Saw <span class="lk-node">Dr. Mei Chen</span><span class="sw-caret"></span>${then(k)}<span class="sw-dot"></span>Saw <span class="lk-node">Dr. Mei Chen</span><br><span style="padding-left:14px"><span class="sw-k">Provider:</span> ${pen('Dr. Mei Chen')}</span>`,
   proposalsAcceptKeys: k => `<span class="sw-dot"></span>Saw <span class="lk-node">Dr. Mei Chen</span><br><span style="padding-left:14px"><span class="sw-k">Provider:</span> ${pen('Dr. Mei Chen')}</span>${then(k)}<span class="sw-dot"></span>Saw <span class="lk-node">Dr. Mei Chen</span><br><span style="padding-left:14px"><span class="sw-k">Provider:</span> <span class="lk-node">Dr. Mei Chen</span></span>`,
   citeKeys: k => `<span class="sw-dot"></span>Iron was low in March${then(k)}<span style="padding-left:14px"><span class="sw-k">Source:</span> <span class="sw-caret"></span></span>`,
   pageKeys: k => `<span class="sw-dot"></span>Pump trial<span class="sw-caret"></span>${then(k)}<span class="sw-dot"></span><span class="lk-node">Pump trial</span>`,
@@ -151,12 +156,12 @@ const row = (key, title, more = {}) => ({ ...Flow.settingsSchema.find(item => it
 window.PluginDoor.describe('predictive', {
   schema: [
     { type: 'heading', title: 'Proposals', place: 'writing' },
-    row('proposals', 'Propose values for a bullet’s properties'), row('proposalsHideEmpty', 'Hide empty properties', { looks: ['Shown', 'Hidden'] }), row('tagEagerness', 'Suggest a tag'), row('proposalsModel', 'Use Apple’s language tools on this Mac'),
+    row('proposals', 'Propose values for a bullet’s properties'), row('proposalsWhen', 'When they show'), row('proposalsHideEmpty', 'Hide empty properties', { looks: ['Shown', 'Hidden'] }), row('tagEagerness', 'Suggest a tag'), row('proposalsModel', 'Use Apple’s language tools on this Mac'),
     { type: 'action', key: 'measureModel', title: 'Measure Apple’s tools on this graph', run: () => Flow.measureUi.open() }, row('proposalsSkipGraphs', 'Leave these graphs alone'),
     { type: 'heading', title: 'Suggested links', place: 'writing' },
     row('linkSuggest', 'Suggest a link as I type'), row('linkSuggestLearn', 'Learn which pages I link'), row('linkSuggestMinLetters', 'Letters before a suggestion shows', { presets: [3, 5, 8] }), row('linkSuggestPause', 'Pause before a suggestion shows', { presets: [0, 350, 800] }), row('linkKeepCase', 'Keep my capitals in a link', { looks: ['The page’s capitals', 'My capitals'] }),
     { type: 'heading', title: 'Keys', place: 'keys' },
-    row('proposalsStepKeys', 'Step through a bullet’s properties'), row('proposalsTagKeys', 'Choose a tag'), row('proposalsAcceptKeys', 'Accept everything shown, without a new bullet'), row('citeKeys', 'Cite a source'), row('pageKeys', 'Make the bullet a page'), row('embedTrigger', 'Typing that embeds a node'),
+    row('proposalsStepKeys', 'Step through a bullet’s properties'), row('proposalsShowKeys', 'Show the proposals now'), row('proposalsTagKeys', 'Choose a tag'), row('proposalsAcceptKeys', 'Accept everything shown, without a new bullet'), row('citeKeys', 'Cite a source'), row('pageKeys', 'Make the bullet a page'), row('embedTrigger', 'Typing that embeds a node'),
     row('linkSuggestRightArrow', 'Right arrow takes the suggested link'), row('linkSuggestHyperTap', 'A tap of Hyper takes it'), row('linkSuggestKeys', 'Another key takes it'),
   ],
   specimen,

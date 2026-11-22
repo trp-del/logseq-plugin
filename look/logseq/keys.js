@@ -53,6 +53,7 @@ function groups() {
   const fixed = mark => key(mark);
   return [
     ['Writing', [
+      ['Show the proposals now', [own('predictive', 'proposalsShowKeys')]],
       ['Step through the bullet’s properties', [own('predictive', 'proposalsStepKeys')]],
       ['Choose a tag', [own('predictive', 'proposalsTagKeys')]],
       ['Say where it came from', [own('predictive', 'citeKeys')]],
