@@ -349,6 +349,19 @@ async function otherGraph() {
   await app.reread();
 }
 let mounts = { onPage: () => false, openPage() {}, openInspector() {} };
+// The row view, on hold (22 November 2026): its toolbar button and command are added once the setting is on, and taken out of sight
+// again, the view ended, when it is turned off (Logseq keeps a button once added, so it is hidden rather than removed).
+const rowViewOn = () => logseq.settings?.rowView === true;
+const rowViewHere = { added: false };
+function rowViewFollow() {
+  const on = rowViewOn();
+  S.base.style('row-view', on ? '' : '#head :is(.injected-ui-item-toolbar, [class*="injected-ui-item"]):has(.lk-tool[data-on-click="rowView"]), #head .lk-tool[data-on-click="rowView"] { display: none !important; }');
+  if (!on) { if (window.PluginDoor.sideTabs?.rows?.()) window.PluginDoor.sideTabs.rows(false); return; }
+  if (rowViewHere.added) return;
+  rowViewHere.added = true;
+  window.PluginDoor.toolbarItem('row-view', 'rowView', 'Row view: the table row you press, in the sidebar', 'rows');
+  logseq.App.registerCommandPalette({ key: 'structure-row-view', label: 'Row view: the table row you press, in the sidebar' }, () => { if (rowViewOn()) window.PluginDoor.sideTabs?.rows(!window.PluginDoor.sideTabs.rows()); });
+}
 
 let reReadTimer = 0;
 const reachesMap = window.PluginDoor.structureWatch();
@@ -370,16 +383,18 @@ async function main() {
   mounts = S.mount.mount(app);
   logseq.App.registerCommandPalette({ key: 'structure-open', label: 'Ontology: the map of tags and properties' }, () => app.openMain());
   logseq.App.registerCommandPalette({ key: 'structure-inspector', label: 'Ontology: this page’s part, in the right sidebar' }, () => mounts.openInspector());
-  logseq.provideModel({ structureOpen: () => app.openMain(), rowView: () => window.PluginDoor.sideTabs?.rows(!window.PluginDoor.sideTabs.rows()) });
+  logseq.provideModel({ structureOpen: () => app.openMain(), rowView: () => { if (rowViewOn()) window.PluginDoor.sideTabs?.rows(!window.PluginDoor.sideTabs.rows()); } });
   // The map is a button in Logseq's toolbar (the owner, 14 November 2026); the inspector stays in Logseq's ··· menu.
   const { onStop } = S.base;
   // Look's × on a tag's own page asks for the tag to leave its place: the map asks first (askTakeOut).
   onStop(window.PluginDoor.offerAsk('structure.takeOut', (tagUuid, parentUuid) => app.askTakeOut(tagUuid, parentUuid)));
   onStop(window.PluginDoor.addMenuItem({ key: 'inspector', label: 'Ontology in the sidebar', icon: 'info-circle', run: () => mounts.openInspector() }));
   window.PluginDoor.toolbarItem('structure-open', 'structureOpen', 'Ontology: the map of tags and properties', 'structure');
-  // Row view: a press on a row of a tag's or a property's table shows that row alone in the right sidebar, Ontology folded under it.
-  window.PluginDoor.toolbarItem('row-view', 'rowView', 'Row view: the table row you press, in the sidebar', 'rows');
-  logseq.App.registerCommandPalette({ key: 'structure-row-view', label: 'Row view: the table row you press, in the sidebar' }, () => window.PluginDoor.sideTabs?.rows(!window.PluginDoor.sideTabs.rows()));
+  // Row view: a press on a row of a tag's or a property's table shows that row in the right sidebar. On hold since 22 November 2026
+  // (the owner: "lets just put the row view feature on hold now and disable it in settings"): its button, its command and the view
+  // itself are there only while the setting Row view is on (off by default).
+  rowViewFollow();
+  onStop(logseq.onSettingsChanged?.((now, before) => { if (window.PluginDoor.settingChanged(['rowView'], now, before)) rowViewFollow(); }));
   onStop(logseq.DB.onChanged(change => graphChanged(change)));
   onStop(logseq.App.onCurrentGraphChanged(() => otherGraph()));
   onStop(logseq.App.onRouteChanged?.(() => { tagPage(); }));
@@ -495,9 +510,15 @@ function adopt() {
   for (const holder of host().querySelectorAll('.st-holder-insp')) if (!holder.firstChild) S.inspector.mounted(holder);
   for (const holder of host().querySelectorAll('.st-holder')) if (!holder.querySelector('.st')) { try { app.mounted(S.view.make(holder, 'page', app)); } catch (error) { console.error('Structure: could not draw into a holder', error); } }
 }
-window.PluginDoor.describe('structure', { none: 'Ontology has nothing to set.', picture: on => `<span class="sw-faintw">The toolbar</span><br>${on ? 'Ontology<br>' : ''}···` });
+const schema = [
+  { key: 'rowView', type: 'boolean', default: false, title: 'Row view',
+    description: 'A table button in the toolbar: on a tag’s or a property’s page, the table row you press is shown in the right sidebar, first in its stack, with its ×. On hold since 22 November 2026: off, the button and its command are gone.' },
+];
+window.PluginDoor.describe('structure', { schema: [{ type: 'heading', title: 'Row view', place: 'page' }, schema[0]],
+  specimen: (item, on) => on ? '<span class="sw-faintw">The toolbar</span><br>a table button: the row you press, in the sidebar' : '<span class="sw-faintw">The toolbar</span><br>no row view button',
+  picture: on => `<span class="sw-faintw">The toolbar</span><br>${on ? 'Ontology<br>' : ''}···` });
 window.PluginDoor.register({
-  key: 'structure', title: 'Ontology',   /* the owner, 12 November 2026: "Why don't we call it Ontology. Lets change name of Structure too to that"; the folder, the key and the names in the code stay */ about: 'The map of the graph’s tags and properties: one screen to see the whole shape, move things and change many at once, with one Undo.',
+  key: 'structure', title: 'Ontology', schema,   /* the owner, 12 November 2026: "Why don't we call it Ontology. Lets change name of Structure too to that"; the folder, the key and the names in the code stay */ about: 'The map of the graph’s tags and properties: one screen to see the whole shape, move things and change many at once, with one Undo.',
   start: main, stop,
 });
 })();

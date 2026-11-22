@@ -275,7 +275,8 @@ function start() {
   const offKeys = [listen(doc, HELD, holdPress, true), listen(doc, 'click', press, true), listen(doc, ['focusin', 'click'], onRow, true)];
   const offRoute = S.base.onStop(logseq.App.onRouteChanged?.(() => { insp.pageAt = Date.now(); insp.plain = false; pick(''); }));
   // The row view turned off: the row's view goes, as when the page is left.
-  const offRows = window.PluginDoor.sideTabs?.onRows?.(on => { if (!on) pick(''); });
+  // Its line about pressing a row is said or taken back with it: turned off with no row pressed, the line stayed under Ontology (22 November 2026).
+  const offRows = window.PluginDoor.sideTabs?.onRows?.(on => { if (!on) pick(''); idle(); });
   insp.stops = [...offKeys, () => { insp.uuid = ''; release(); closeStale(); mark(''); }, offRoute, offRows, window.PluginDoor.watch(pass)];
 }
 function stop() { for (const s of insp.stops) { try { s?.(); } catch (error) { /* already gone */ } } insp.stops = []; if (insp.holder) insp.holder.innerHTML = ''; insp.watch?.disconnect(); }
