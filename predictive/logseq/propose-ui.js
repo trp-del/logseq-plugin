@@ -405,7 +405,11 @@ function showNow(box) {
   clearTimeout(S.timer);
   const mine = S.dueId = (S.dueId || 0) + 1;
   S.due = uuid;
-  compute(box).catch(error => warnOnce('the proposals could not be worked out', error)).finally(() => { if (mine === S.dueId) S.due = ''; });
+  compute(box).then(() => {
+    // Nothing to propose: say so after the words, so a key that found nothing is not taken for a key that did nothing.
+    const now = editingBox(host().activeElement);
+    if (now === box && S.live?.uuid !== uuid && S.hushed.uuid !== uuid && !S.stopped) Flow.linkUi?.sayAfterWords?.(box, 'Nothing to suggest');
+  }).catch(error => warnOnce('the proposals could not be worked out', error)).finally(() => { if (mine === S.dueId) S.due = ''; });
 }
 function show(box, uuid, words, record, rules, more) {
   const pieces = byLessons(S.ctx, record, Flow.model.merge(rules, more)), fromModel = pieces.filter(Flow.apple.fromApple);

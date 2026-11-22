@@ -41,6 +41,27 @@ function draw(box, hit) {
   if (!ghost.isConnected) doc.body.append(ghost);
 }
 
+/* A few faint words right after the bullet's words, where the box would put the next letters (22 November 2026, the owner: "how
+   do i know if there are no suggestions after option-p rather than it didn't work"): laid over the box as the grey link words are,
+   in Logseq's quiet note (lk-note), and gone after a moment, at the next key, or when the bullet is left. */
+let said = null;
+function unsay() { if (!said) return; const { over, timer } = said; said = null; clearTimeout(timer); over.style.opacity = '0'; setTimeout(() => over.remove(), window.PluginDoor.MOTION.pencil.ms + 20); }
+function sayAfterWords(box, words, ms = 2000) {
+  unsay();
+  if (!box?.isConnected) return;
+  const doc = box.ownerDocument, { pencil } = window.PluginDoor.MOTION;
+  const over = el(doc, 'div', { class: 'flow-link-suggest flow-said', 'aria-live': 'polite' }, el(doc, 'span', { class: 'flow-typed' }), el(doc, 'span', { class: 'lk-note' }));
+  layOver(box, over, { start: 0, end: box.value.length, span: '', ghost: '' });
+  over.firstElementChild.textContent = box.value.replace(/\n$/, '');
+  over.lastElementChild.textContent = '\u2002' + words;
+  over.style.transition = `opacity ${pencil.ms}ms ${pencil.ease}`;
+  over.style.opacity = '0';
+  doc.body.append(over);
+  over.getBoundingClientRect();
+  over.style.opacity = '1';
+  said = { over, timer: setTimeout(unsay, ms) };
+}
+
 /* What the graph has taught: the pages that would fill an empty link property of the bullet (by its tags), read once per
    bullet and forgotten when the graph changes. */
 async function boostOf(box, pages) {
@@ -211,11 +232,12 @@ async function start() {
   app.listen(win, ['blur'], () => { hyperTap.armedAt = 0; });
   app.listen(win, ['focusout', 'pointerdown', 'mousedown'], () => { if (showing) passedOver(showing.hit); clear(); });
   app.listen(win, ['scroll', 'resize'], clear, true);
+  app.listen(win, ['keydown', 'focusout', 'pointerdown', 'scroll', 'resize'], unsay, true);
   app.listen(win, ['focusout'], event => { if (app.isBlockBox(event.target)) saveMemory(); });
-  app.onStop(() => { clear(); clearTimeout(pauseTimer); version++; saveMemory(true); });
+  app.onStop(() => { clear(); unsay(); clearTimeout(pauseTimer); version++; saveMemory(true); });
   app.onStop(logseq.App.onCurrentGraphChanged?.(async () => { saveMemory(true); graph = await app.graphName(); boosts.clear(); }));
   app.onStop(logseq.DB.onChanged?.(() => boosts.clear()));
   app.onStop(logseq.App.onRouteChanged?.(clear));
 }
-Flow.linkUi = { start, accept, suggestState: () => showing };
+Flow.linkUi = { start, accept, suggestState: () => showing, sayAfterWords };
 })();
