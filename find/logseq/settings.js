@@ -8,6 +8,10 @@ const schema = [
     description: 'High: near the top of the screen, with the page in view under it. Centred: in the middle, as Logseq’s own search.' },
   { key: 'panel', type: 'boolean', default: true, title: 'A small Find under the line you are writing',
     description: 'A tap of the Hyper key (Caps Lock as Cmd+Ctrl+Opt+Shift) in a bullet opens a small Find under the line: type, and Enter links the lit row where the cursor is. Its first line offers tags for the bullet. Escape puts the cursor back. Off: the tap lists the tags, as before.' },
+  { key: 'look', type: 'boolean', default: true, title: 'Open a linked page under the line',
+    description: 'With the cursor on a link in the bullet you are writing, the key below opens that page under the line, where it can be read and changed. The key again, or Escape, closes it and the cursor is where it was.' },
+  { key: 'lookKeys', type: 'string', keys: true, default: 'alt+l', title: 'The key that opens the link under the cursor',
+    description: 'Option+L unless you set another on the key sheet (hold Option).' },
   { key: 'rowsShown', type: 'number', presets: [5, 12, 30], default: 12, title: 'Rows before “show all”',
     description: 'How many matches are listed at first; “show all” lists the rest.' },
 ];

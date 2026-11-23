@@ -41,6 +41,7 @@ async function main() {
   const { onStop } = Find.kit;
   onStop(window.PluginDoor.addMenuItem({ key: 'find', label: 'Find', icon: 'search', run: () => Find.window.open() }));
   listenForKeys();
+  Find.under.start();
   logseq.App.registerCommandPalette({ key: 'find-open', label: 'Find' }, () => Find.window.open());
   logseq.App.registerCommandPalette({ key: 'find-sentence', label: 'Find by sentence' }, () => Find.window.sentence());
   logseq.provideModel({ findOpen: () => Find.window.open() });
