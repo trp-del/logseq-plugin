@@ -47,7 +47,9 @@ let chromium; try { ({ chromium } = require('playwright')); } catch (error) { co
   for (const name of list.api) {
     const fn = name.split('.')[1];
     if (HOOKS.has(fn) || SDK_ONLY.has(fn)) continue;   // hooks and registrations live in the plugin door, checked by the plugin starting at all
-    const handler = { getInfo: 'get_app_info' }[fn] || snake(fn);
+    // A call whose handler Logseq names differently: App.getInfo, and the plugin's own storage (FileStorage.hasItem and getItem go to
+    // exist-plugin-storage-file and read-plugin-storage-file in Logseq 2.0.2's plugin SDK; the Mac's symbols, 23 November 2026).
+    const handler = { getInfo: 'get_app_info', hasItem: 'exist_plugin_storage_file', getItem: 'read_plugin_storage_file' }[fn] || snake(fn);
     if (!handlers.includes(handler)) problems.push(`the plugin call ${name} has no handler in this Logseq (logseq.api.${handler})`);
   }
   const idents = await page.evaluate(async () => (await window.logseq.api.datascript_query('[:find ?i :where [_ :db/ident ?i]]')).flat().map(String));
