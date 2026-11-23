@@ -10,7 +10,7 @@ module.exports = {
     const state = () => page.evaluate(() => {
       const d = document.querySelector('dialog[open].fd');
       if (!d) return { open: false, hash: decodeURIComponent(location.hash), side: document.querySelectorAll('#right-sidebar .sidebar-item').length };
-      return { open: true, input: d.querySelector('.fd-input')?.value ?? null, rows: d.querySelectorAll('.fd-r').length, lit: d.querySelector('.fd-r.on')?.textContent || '', dug: d.querySelectorAll('.fd-node[data-th-node]').length, foot: (d.querySelector('.fd-foot')?.innerText || '').replace(/\s+/g, ' ') };
+      return { open: true, hint: d.querySelector('.fd-input')?.placeholder || '', caps: [...d.querySelectorAll('.fd-body *')].filter(e => !e.childElementCount && /^(kind|recently opened)$/.test(e.textContent.trim())).map(e => e.textContent.trim()).join(','), input: d.querySelector('.fd-input')?.value ?? null, rows: d.querySelectorAll('.fd-r').length, lit: d.querySelector('.fd-r.on')?.textContent || '', dug: d.querySelectorAll('.fd-node[data-th-node]').length, foot: (d.querySelector('.fd-foot')?.innerText || '').replace(/\s+/g, ' ') };
     });
     const press = async (key, wait = 1100) => { await page.keyboard.press(key); await T.sleep(wait); return state(); };
     const type = async (words, wait = 1500) => { await page.keyboard.type(words, { delay: 50 }); await T.sleep(wait); return state(); };
@@ -24,6 +24,8 @@ module.exports = {
     let s = await press('Meta+k');
     if (!s.open) return no('Cmd-K did not open the Find window');
     if (!/narrow/.test(s.foot) || !/open .+ ↩/.test(s.foot)) return no(`the foot at first: “${s.foot}”`);
+    // The empty window: its hint, the kinds, the pages opened last (their order is Logseq's, so no picture holds this state).
+    if (s.hint !== 'pick a kind, or type' || s.caps !== 'kind,recently opened' || !s.rows) return no(`the empty window: hint “${s.hint}”, headings “${s.caps}”, ${s.rows} rows`);
     s = await type('cons');
     if (!/narrow to Consultation ⇥/.test(s.foot) || !/dig →/.test(s.foot) || !/make a page “cons” ⌘ ↩/.test(s.foot)) return no(`the foot after “cons”: “${s.foot}”`);
     s = await press('Tab');

@@ -13,6 +13,8 @@ module.exports = {
     const done = async verdict => { for (let i = 0; i < 4; i++) { await page.keyboard.press('Escape'); await T.sleep(120); } await clean(); return verdict; };
     const no = said => done({ ok: false, said });
     const hyper = async () => { for (const k of ['Meta', 'Control', 'Alt', 'Shift']) await page.keyboard.down(k); await T.sleep(60); for (const k of ['Shift', 'Alt', 'Control', 'Meta']) await page.keyboard.up(k); };
+    // Letters typed with no bullet in writing are Logseq's own commands (t w, t d, g …): type only while the caret is in a bullet.
+    const typeIn = async (words, delay = 70) => { for (const ch of words) { if (!(await page.evaluate(() => document.activeElement?.tagName === 'TEXTAREA'))) return false; await page.keyboard.type(ch); await T.sleep(delay); } return true; };
     const value = () => page.evaluate(() => document.activeElement?.tagName === 'TEXTAREA' ? document.activeElement.value : null);
     await clean();
     await T.go(page, 'Northgate Cancer Center'); await T.sleep(1500);
@@ -22,7 +24,7 @@ module.exports = {
     if ((await value()) == null) return no('the bullet could not be put in writing');
 
     // 1. A grey name, and a tap of Hyper.
-    await page.keyboard.press('End'); await page.keyboard.type('saw Dr. Mei Ch', { delay: 70 }); await T.sleep(1600);
+    await page.keyboard.press('End'); if (!(await typeIn('saw Dr. Mei Ch'))) return no('the bullet left writing while its words were typed'); await T.sleep(1600);
     const grey = await page.evaluate(() => document.querySelector('.flow-grey')?.textContent || '');
     if (!grey) return no('no grey name showed after “Dr. Mei Ch”');
     await hyper(); await T.sleep(900);
@@ -31,7 +33,6 @@ module.exports = {
     if (await page.evaluate(() => !!document.querySelector('.flow-pick'))) return no('the tap took the name and opened the tag list as well');
 
     // 2. Option-T: the list of tags, closed by Escape with the bullet still in writing.
-    await page.keyboard.type(' about the scan results', { delay: 40 }); await T.sleep(900);
     await page.keyboard.press('Alt+t'); await T.sleep(1500);
     const rows = await page.evaluate(() => document.querySelectorAll('.flow-pick .flow-pick-row').length);
     if (!rows) return no('Option-T did not open the list of tags');

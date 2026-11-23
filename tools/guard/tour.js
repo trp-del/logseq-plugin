@@ -63,8 +63,6 @@ const SCREENS = [
   ['Todo', 'Illness Test Graph', async b => route(b.page, '#/todo')],
   ['Find, typed', 'Illness Test Graph', async b => { await go(b.page, 'Dr. Mei Chen'); await sleep(1500); await b.page.keyboard.press('Meta+k'); await sleep(900); await b.page.keyboard.type('cons', { delay: 60 }); }],
   // The Find window in every state its keys reach (22 November 2026, before 0.5 gives Find a second host: the window must not move).
-  // Its first rows are the pages opened last, so the same eight are opened first, in the same order, whatever came before.
-  ['Find, empty', 'Illness Test Graph', async b => { for (const n of ['Fatigue', 'Nausea', 'Oxaliplatin', 'Consultation', 'Dr. Raj Patel', 'Dr. Helen Brooks', 'Northgate Cancer Center', 'Tingling fingers', 'Dr. Mei Chen']) { await go(b.page, n); await sleep(700); } await sleep(800); await b.page.keyboard.press('Meta+k'); }],
   ['Find, in the choices', 'Illness Test Graph', async b => { await go(b.page, 'Dr. Mei Chen'); await sleep(1500); await b.page.keyboard.press('Meta+k'); await sleep(900); await b.page.keyboard.type('cons', { delay: 60 }); await sleep(900); await b.page.keyboard.press('Tab'); }],
   ['Find, a row opened', 'Illness Test Graph', async b => { await go(b.page, 'Consultation'); await sleep(1500); await b.page.keyboard.press('Meta+k'); await sleep(900); await b.page.keyboard.type('mei chen', { delay: 60 }); await sleep(1500); await b.page.keyboard.press('ArrowRight'); await sleep(1500); }],
   ['Find, a new page offered', 'Illness Test Graph', async b => { await go(b.page, 'Dr. Mei Chen'); await sleep(1500); await b.page.keyboard.press('Meta+k'); await sleep(900); await b.page.keyboard.type('zqx wvk', { delay: 60 }); }],
