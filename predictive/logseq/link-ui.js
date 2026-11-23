@@ -209,12 +209,13 @@ function onHyperUp(event) {
   if (!quick) return;
   // One tap, one job: the grey page name when one shows; else, on a bullet in edit, the tag list (tag-pick.js).
   if (showing && setting('linkSuggestHyperTap')) { if (accept({ target: showing.box })) hyperTap.firedAt = Date.now(); return; }
-  /* 0.5 (the owner, 22 November 2026): with no grey name to take, the tap opens Find's small panel under the line, where the bullet's
-     tags stand on its first line; with Find off, or its panel switched off, the list of tags as before. */
+  /* With no grey name to take, the tap opens Logseq's own list of pages to link at the caret, as two [ would, without the brackets
+     being typed (the owner, 22 November 2026: of Find's small panel here, "i don't think find is right piece for the job"; they
+     chose Logseq's own list). Where the list does not open, the list of tags as before. */
   const box = event.target, D = window.PluginDoor;
-  if (app.isBlockBox(box) && D.answers?.('find:panel')) {
+  if (app.isBlockBox(box) && D.screen?.linkList) {
     hyperTap.firedAt = Date.now();
-    Promise.resolve(D.ask('find:panel', { box })).then(opened => { if (opened !== true) Flow.tagPick?.fromHyper?.(box); }).catch(() => {});
+    Promise.resolve(D.screen.linkList(box)).then(opened => { if (opened !== true) Flow.tagPick?.fromHyper?.(box); }).catch(() => {});
     return;
   }
   // Bullets selected, none being written: the panel on what is held (Find's, 0.5 D).

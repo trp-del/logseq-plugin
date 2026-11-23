@@ -801,6 +801,38 @@ Door.screen = {
   },
   // Logseq's own lists while writing ([[ pages, / commands, # tags): they have the keys.
   editorPopupOpen: (doc = Door.host()) => !!doc.querySelector('#ui__ac, .absolute-modal, [data-editor-popup-ref]'),
+  /* Logseq's own list of pages to link, the one two [ open, opened at the caret of a bullet being written without the brackets
+     being typed (the owner, 22 November 2026, of Find's small panel in this place: "i don't think find is right piece for the
+     job"; asked which piece, they chose Logseq's own list). The two [ go to Logseq as keys, so the list, its typing, its Enter
+     and its new page are Logseq's. A space is put before the link after a word. Let go with Escape, the line is put back as it
+     was, the caret where it stood (Logseq alone would leave the empty brackets). Answers whether the list opened. */
+  linkList: async box => {
+    if (!box || box.tagName !== 'TEXTAREA' || !box.isConnected) return false;
+    const doc = box.ownerDocument, win = doc.defaultView, LIST = '[data-editor-popup-ref="page-search"]';
+    if (Door.screen.editorPopupOpen(doc)) return false;
+    const was = { value: box.value, start: box.selectionStart, end: box.selectionEnd };
+    const put = (value, start, end = start) => {
+      Object.getOwnPropertyDescriptor(win.HTMLTextAreaElement.prototype, 'value').set.call(box, value);
+      box.setSelectionRange(start, end);
+      box.dispatchEvent(new win.InputEvent('input', { bubbles: true, inputType: 'insertText', data: null }));
+    };
+    const before = was.value[was.start - 1], spaced = was.start === was.end && !!before && !/[\s(\[]/.test(before);
+    if (spaced) put(was.value.slice(0, was.start) + ' ' + was.value.slice(was.start), was.start + 1);
+    const at = was.start + (spaced ? 1 : 0);
+    for (let i = 0; i < 2; i++) { Door.screen.key(box, '[', { code: 'BracketLeft' }); box.dispatchEvent(new win.KeyboardEvent('keyup', { key: '[', code: 'BracketLeft', bubbles: true })); }
+    await new Promise(r => setTimeout(r, 160));
+    if (!doc.querySelector(LIST)) { if (box.isConnected && box.value !== was.value) put(was.value, was.start, was.end); return false; }
+    // While the list stands, nothing is done. Once it is gone: a name taken leaves the caret after its brackets; the caret still
+    // inside the brackets opened here means the list was let go, and the line goes back to what it was.
+    const timer = win.setInterval(() => {
+      if (doc.querySelector(LIST)) return;
+      win.clearInterval(timer);
+      if (!box.isConnected || doc.activeElement !== box) return;
+      const text = box.value, close = text.indexOf(']]', at + 2), caret = box.selectionStart;
+      if (text.slice(at, at + 2) === '[[' && close >= 0 && caret >= at + 2 && caret <= close && text.slice(0, at) === (spaced ? was.value.slice(0, was.start) + ' ' : was.value.slice(0, was.start))) put(was.value, was.start, was.end);
+    }, 120);
+    return true;
+  },
 };
 
 /* The small things every module needs to read the graph, once (10 November 2026; each module had copied them): bare(ident) an

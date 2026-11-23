@@ -28,9 +28,11 @@ It is made from the two features of the author's logseq-db-refinements plugin th
 
 ## What 0.5 added (22 November 2026)
 
-- A tap of Hyper with no grey name showing opens Find's small panel under the line (`find/README.md`), where the bullet's tags
-  stand on the first line; with Find or its panel off, the tap lists the tags as before. With bullets selected and none being
-  written, the tap asks Find for the panel on what is held.
+- A tap of Hyper with no grey name showing opens Logseq's own list of pages to link at the caret, as two [ would, with no
+  bracket typed by hand (the owner, 22 November 2026, of Find's small panel here: "i don't think find is right piece for the
+  job"). A space is put before the link after a word; Escape puts the line back as it was. The bullet's tags are on Option-T.
+  Where Logseq's list does not open, the tap lists the tags as before. With bullets selected and none being written, the tap
+  asks Find for the panel on what is held.
 - `tag-pick.js` works the tags out once for both (`choicesFor`) and offers them through the door: `predictive:tagChoices` (the
   bullet's box in, `[{ title, reason }]` out) and `predictive:tagTake` (the box and the place in that answer).
 - `core/newkind.js`, `kindsAfter(before, lines, tagsOf)`: the kinds a new page is likely to be, from the pages earlier lines

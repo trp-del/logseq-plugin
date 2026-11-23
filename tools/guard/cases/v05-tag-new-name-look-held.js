@@ -16,6 +16,8 @@ module.exports = {
     const no = said => done({ ok: false, said });
     const hyper = async () => { for (const k of ['Meta', 'Control', 'Alt', 'Shift']) await page.keyboard.down(k); await T.sleep(60); for (const k of ['Shift', 'Alt', 'Control', 'Meta']) await page.keyboard.up(k); };
     const tagsOf = uuid => f.evaluate(async u => ((await logseq.DB.datascriptQuery(`[:find ?t :where [?b :block/uuid #uuid "${u}"] [?b :block/tags ?tg] [?tg :block/title ?t]]`)) || []).flat(), uuid);
+    // Since 22 November 2026 a tap of Hyper on a line opens Logseq's own link list; Find's panel on a line is asked through the door, as its command does.
+    const panel = () => f.evaluate(() => { window.PluginDoor.ask('find:panel', { box: window.PluginDoor.host().querySelector('.ls-block textarea') }); });
     const st = () => page.evaluate(() => { const d = document.querySelector('dialog[open].fd'); const t = document.querySelector('.ls-block textarea'); const h = document.querySelector('.fd-under'); return { panel: !!d, lines: d ? [...d.querySelectorAll('.fd-ch')].map(e => e.innerText.replace(/\s+/g, ' ')) : [], lit: d?.querySelector('.fd-r.on')?.textContent || '', foot: (d?.querySelector('.fd-foot')?.innerText || '').replace(/\s+/g, ' '), coming: [...document.querySelectorAll('.fd-coming')].map(e => e.textContent), editing: !!t, val: t?.value ?? null, under: !!h, filled: (h?.innerText || '').trim().length, selected: document.querySelectorAll('.ls-block.selected').length }; });
     const arrow = async key => { const a = await page.$(`[data-lk-undo^="${key}"]`); if (!a) return false; await a.click(); await T.sleep(2600); return true; };
     await clean();
@@ -25,7 +27,7 @@ module.exports = {
 
     // 1. Tag the bullet from the panel.
     await page.evaluate(u => window.logseq.api.edit_block(u), ids[0]); await T.sleep(800);
-    await hyper(); await T.sleep(2600); let s = await st();
+    await panel(); await T.sleep(2600); let s = await st();
     if (!s.panel || !/^tag this bullet /.test(s.lines[0] || '')) return no(`the panel has no “tag this bullet” line (lines: ${s.lines.join(' / ') || 'none'})`);
     await page.keyboard.press('Tab'); await T.sleep(700); s = await st();
     const tag = s.coming[0];
@@ -38,7 +40,7 @@ module.exports = {
     // 2. A new name: the page is made and linked; its Undo takes the link out and drops the page.
     await page.evaluate(u => window.logseq.api.edit_block(u), ids[1]); await T.sleep(800);
     const before = await page.evaluate(() => document.querySelector('.ls-block textarea')?.value);
-    await hyper(); await T.sleep(1800);
+    await panel(); await T.sleep(1800);
     await page.keyboard.type(NAME, { delay: 40 }); await T.sleep(1800); s = await st();
     if (!s.lit.includes(NAME) || !new RegExp('make ' + NAME + '.* and link it ↩').test(s.foot)) return no(`a new name was not offered (lit “${s.lit.slice(0, 30)}”, foot “${s.foot}”)`);
     await page.keyboard.press('Enter'); await T.sleep(2600); s = await st();
