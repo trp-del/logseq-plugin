@@ -74,14 +74,23 @@ async function stop(box) {
   for (let i = 0; i < 20 && (await up(port)); i++) await sleep(400);
   if (await up(port)) { try { execFileSync('pkill', ['-9', '-f', `remote-debugging-port=${port} --user-data-dir=`]); } catch (e) { /* none */ } await sleep(1000); }
   // Logseq's graph workers outlive the window and keep the copy locked: end only the ones whose folder is this run's home.
-  if (box && box.home) {
-    try {
-      for (const line of execFileSync('ps', ['-axo', 'pid=,command='], { encoding: 'utf8' }).split('\n')) {
-        const m = line.match(/^\s*(\d+) .*db-worker-node\.js .*--root-dir (\S+)/);
-        if (m && m[2].startsWith(box.home)) { try { process.kill(Number(m[1]), 'SIGKILL'); } catch (e) { /* gone */ } }
-      }
-    } catch (e) { /* no ps */ }
-  }
+  if (box && box.home) endWorkers(box.home);
+}
+/* Logseq's graph worker (db-worker-node.js) is a process of its own, named by the folder of the graph it holds (--root-dir). It
+   outlives its window and keeps the graph's copy locked, so the next Logseq started on that folder opens no graph ("the guard's
+   Logseq opened no graph, not its copy": three checks in a row on 22 November 2026, each time until the worker was ended by
+   hand). Ended here are only workers whose folder lies under `under`, one of the guard's own folders: never the owner's Logseq's,
+   never a hand test's. Gives back how many it ended. */
+function endWorkers(under) {
+  let ended = 0;
+  if (!under) return ended;
+  try {
+    for (const line of execFileSync('ps', ['-axo', 'pid=,command='], { encoding: 'utf8' }).split('\n')) {
+      const m = line.match(/^\s*(\d+) .*db-worker-node\.js .*--root-dir (\S+)/);
+      if (m && m[2].startsWith(under)) { try { process.kill(Number(m[1]), 'SIGKILL'); ended += 1; } catch (e) { /* gone */ } }
+    }
+  } catch (e) { /* no ps */ }
+  return ended;
 }
 
 /* One Logseq kept running between checks (19 November 2026, the owner: three minutes a check "was the exact problem"). Starting
@@ -123,6 +132,8 @@ async function warm({ store, graph, plugin, port = PORT }) {
     } catch (e) { console.log(`the running test Logseq on ${port} did not take the plugin (${String(e && e.message || e).slice(0, 80)}): starting it afresh`); }
   }
   if (await up(port)) await stop({ port, home: had && had.home, browser: { newBrowserCDPSession: async () => { throw new Error('none'); } } });
+  // A worker left by a Logseq that is gone (its window closed, the check stopped halfway) still holds this folder: ended before the folder is made anew.
+  if (endWorkers(path.join(dir, 'home'))) await sleep(500);
   for (const f of ['home', 'profile']) fs.rmSync(path.join(dir, f), { recursive: true, force: true });
   const box = await start({ dir, graph, plugin: own, port });
   fs.writeFileSync(meta, JSON.stringify({ graph: want, port, home: box.home, pid: box.pid }));
@@ -135,7 +146,7 @@ async function warm({ store, graph, plugin, port = PORT }) {
 async function leave(box) { fs.writeFileSync(path.join(box.dir, 'used'), String(Date.now())); try { await box.browser.close(); } catch (e) { /* gone */ } }
 
 // For `guard.js stop`: whatever answers on the guard's port, and only that.
-async function stopAny() {
+async function stopAny(store) {
   const said = [];
   for (const port of [PORT, PORT + 1]) {
     if (!(await up(port))) { said.push('nothing ran on ' + port); continue; }
@@ -144,7 +155,10 @@ async function stopAny() {
     await stop({ port, browser: browser || { newBrowserCDPSession: async () => { throw new Error('no'); } } });
     said.push((await up(port)) ? 'still answering on ' + port : 'stopped on ' + port);
   }
+  // And the graph workers those Logseqs left, whether or not a window still answered: only the ones in the guard's own folder.
+  const ended = store ? endWorkers(path.join(store, 'warm') + path.sep) + endWorkers(path.join(store, 'runs') + path.sep) : 0;
+  if (ended) said.push(`ended ${ended} graph worker${ended > 1 ? 's' : ''} left behind`);
   return said.join('; ');
 }
 
-module.exports = { PORT, graphFile, start, stop, stopAny, up, sleep, warm, leave };
+module.exports = { PORT, graphFile, start, stop, stopAny, endWorkers, up, sleep, warm, leave };

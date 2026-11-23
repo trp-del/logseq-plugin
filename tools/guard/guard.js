@@ -17,7 +17,7 @@
          Says whether the guard passed on exactly what ships from there (tools/release.sh and the Claude hook ask this).
      node tools/guard/guard.js baseline [--base <git ref>]
          Takes the pictures of the plugin as released ahead of time (a run does it the first time it needs them, and keeps them).
-     node tools/guard/guard.js stop     Quits the guard's Logseq if a run was stopped halfway.
+     node tools/guard/guard.js stop     Quits the guard's Logseq if a run was stopped halfway, and ends the graph workers it left.
 
    Runs and passes are kept in ~/.logseq-guard (outside every copy of the plugin, so a clean clone sees them too). */
 const fs = require('node:fs'), path = require('node:path'), os = require('node:os');
@@ -283,6 +283,6 @@ const cmd = process.argv[2];
   else if (cmd === 'verify') verify();
   else if (cmd === 'baseline') { const b = await baseline(arg('--base', 'origin/main'), GRAPHS, null); console.log('kept in ' + b.dir); }
   else if (cmd === 'screens') console.log(require('./tour').SCREENS.map(s => s[0]).join('\n'));
-  else if (cmd === 'stop') console.log(await require('./sandbox').stopAny());
+  else if (cmd === 'stop') console.log(await require('./sandbox').stopAny(STORE));
   else console.log('run | why | page | verify | stop   (see the top of tools/guard/guard.js)');
 })().catch(async e => { console.error(String(e && e.stack || e).slice(0, 1500)); try { await require('./sandbox').stopAny(); } catch (x) { /* nothing ran */ } process.exit(2); });
