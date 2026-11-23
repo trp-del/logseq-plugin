@@ -1616,6 +1616,7 @@ const TOKENS = `
   --lk-hair: color-mix(in srgb, currentColor 12%, transparent); --lk-line: color-mix(in srgb, currentColor 26%, transparent);
   --lk-link: color-mix(in srgb, currentColor 45%, transparent); --lk-link-width: .5px;
   --lk-wash: color-mix(in srgb, currentColor 7%, transparent);
+  --lk-glass: color-mix(in srgb, var(--lk-paper, #fff) 72%, transparent); --lk-glass-blur: blur(22px) saturate(1.6); --lk-float-shadow: 0 12px 34px rgba(0,0,0,.22);   /* whatever floats (22 November 2026): the Mac's glass, the page showing through, and its one shadow */
   --lk-picked: var(--rx-blue-09, #0091ff);   /* the one thing picked among many, kept while it is the one shown (a table's row beside the Item tab) */
   --lk-mono: var(--ls-font-family-mono, ui-monospace, "SF Mono", Menlo, Consolas, monospace);
   --lk-tag-face: "New York", ui-serif, Georgia, serif; --lk-tag-adjust: none;
@@ -1859,7 +1860,7 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
 .lk-head { color: var(--lk-quiet) !important; text-align: left; font-weight: 400; }
 .lk-head:hover, .lk-head.on { color: var(--lk-text, currentColor) !important; }
 .lk-head.on { font-weight: 600; }
-.lk-menu { border: 1px solid var(--lk-hair); border-radius: 6px; padding: 4px; }
+.lk-menu { padding: 5px; }
 .lk-item { display: flex; justify-content: space-between; gap: 16px; width: 100%; text-align: left; color: var(--lk-text, currentColor) !important; padding: 5px 8px; white-space: nowrap; }
 /* A menu line with its icon (lk-i-…, 16 November 2026): the icon, the words beside it, and its key or count at the right end. */
 .lk-item[class*="lk-i-"] { justify-content: flex-start; gap: 0; }
@@ -1876,21 +1877,36 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
 /* A menu's lines as Logseq's own menus (18 November 2026, the owner: Ontology's right-click menu "doesn't seem like other menus",
    measured on a bullet's menu): lines 20px high, the icon in the quiet grey in a 16px box 4px from the words, the parts apart by
    Logseq's hairline across the whole menu (a gap outside a menu, Export's column, stays a space), a key in Logseq's key caps (Door.keyCaps). Red and faint lines keep their icon's colour. */
-.lk-menu .lk-item { line-height: 20px; align-items: center; }
-.lk-menu .lk-menu-note { padding: 3px 8px; font-size: 14px; line-height: 20px; color: var(--lk-text); max-width: 380px; white-space: normal; }
-.lk-menu .lk-item[class*="lk-i-"]::before { width: 16px; height: 16px; -webkit-mask-size: 15px; mask-size: 15px; margin-right: 4px; vertical-align: middle; background: var(--lk-quiet); }
+.lk-menu .lk-item { font-size: 13px; line-height: 18px; padding: 3px 9px; border-radius: 6px; align-items: center; }
+.lk-menu .lk-item:not(.gap) { box-sizing: border-box; min-height: 24px; }   /* one line height, Logseq's menus' 24px, whatever stands on the line */
+.lk-menu .lk-menu-note { padding: 3px 9px; font-size: 13px; line-height: 18px; color: var(--lk-text); max-width: 380px; white-space: normal; }
+.lk-menu .lk-item[class*="lk-i-"]::before { width: 14px; height: 14px; -webkit-mask-size: 14px; mask-size: 14px; margin-right: 4px; vertical-align: middle; background: var(--lk-quiet); }
 .lk-menu .lk-item.lk-del[class*="lk-i-"]::before, .lk-menu .lk-item.off[class*="lk-i-"]::before { background: currentColor; }
 .lk-menu .lk-item-icon > .ti { color: var(--lk-quiet); }
 .lk-menu .lk-item.off .lk-item-icon > .ti { color: inherit; }
 .lk-menu .lk-item > .rt:has(> .lk-keys) { display: inline-flex; align-items: center; }
 .lk-item.gap { height: 8px; padding: 0; pointer-events: none; background: none; }
-.lk-menu .lk-item.gap { height: 1px; width: auto; margin: 4px -4px; background: var(--lk-hair); }
+.lk-menu .lk-item.gap { height: 1px; width: auto; margin: 5px 9px; padding: 0; border-radius: 0; background: var(--lk-hair); }
 /* lk-group: the heading of a part of a menu (the owner, 7 November 2026, of the View menu's "Group by" and "Date": "the headers
    need to be more prominent"): the menu's words in the text colour, a step heavier, a hairline over each part after the first,
    so the parts read apart before a word is read; a faint lk-note stays for a word of help. */
 .lk-group { padding: 6px 8px 3px; font-size: var(--lk-small); font-weight: 600; color: var(--lk-text, currentColor); cursor: default; }
 .lk-item.gap + .lk-group { border-top: 1px solid var(--lk-hair); margin-top: -4px; padding-top: 8px; }
 .lk-menu .lk-item.gap + .lk-group { border-top: 0; margin-top: 0; padding-top: 4px; }
+.lk-menu .lk-group { padding: 4px 9px 2px; font-size: 13px; line-height: 18px; }
+/* The line you are on in a menu, the Mac's way: filled in the text colour, and whatever stands on it in the page's: its words, a
+   value or a chevron at its end, a key, an icon, a tick, a tag, whichever part drew them (found by hand, 23 November 2026: in
+   Relations' View and more the value and the chevron of the lit line kept their grey and were lost on the fill). One line only:
+   while the pointer is on a line, the line the keyboard was on gives way to the pointer's. Never blue. */
+.lk-menu .lk-item:is(.on, :focus-visible) { background: none; }
+.lk-menu .lk-item:hover:not(.gap, .off), .lk-menu:not(:has(.lk-item:hover)) .lk-item:is(.on, :focus-visible):not(.gap, .off) { background: var(--lk-text, currentColor) !important; color: var(--lk-paper, #fff) !important; }
+:is(.lk-menu .lk-item:hover:not(.gap, .off), .lk-menu:not(:has(.lk-item:hover)) .lk-item:is(.on, :focus-visible):not(.gap, .off)) * { color: inherit !important; }
+:is(.lk-menu .lk-item:hover:not(.gap, .off), .lk-menu:not(:has(.lk-item:hover)) .lk-item:is(.on, :focus-visible):not(.gap, .off))[class*="lk-i-"]::before, :is(.lk-menu .lk-item:hover:not(.gap, .off), .lk-menu:not(:has(.lk-item:hover)) .lk-item:is(.on, :focus-visible):not(.gap, .off)) :is([class*="lk-i-"], .lk-bul)::before { background: currentColor !important; }
+:is(.lk-menu .lk-item:hover:not(.gap, .off), .lk-menu:not(:has(.lk-item:hover)) .lk-item:is(.on, :focus-visible):not(.gap, .off)) input.lk-tick[type=checkbox] { border-color: currentColor !important; }
+/* A key in a menu is the Mac's marks, plain and off-grey at the line's end: no cap round it. */
+.lk-menu .lk-keys, .lk-menu .lk-keys kbd { background: none !important; border: 0 !important; box-shadow: none !important; padding: 0 !important; min-width: 0 !important; font: inherit !important; }
+.lk-menu .lk-keys { gap: 1px !important; color: var(--lk-off); }
+.lk-menu .lk-keys .shui-shortcut-separator { display: none !important; }
 /* lk-note is regular weight wherever it stands, under a heading's bold too (15 November 2026: a heading's ↳ line read bold). */
 .lk-note { color: var(--lk-quiet); font-size: var(--lk-small); font-weight: 400; font-variant-numeric: tabular-nums; }
 /* lk-picked: what you can do with what you picked, right above the picked rows on the same grey as them, so the picks and what
@@ -1915,7 +1931,9 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
    the # list, a name over a dot). Both on the page's paper, a hairline round them, one shadow each. */
 .lk-window { background: var(--lk-paper, #fff); color: var(--lk-text, #222); border: 1px solid var(--lk-hair); border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,.14); font-size: 14px; line-height: 1.5; text-align: left; }
 .lk-window::backdrop { background: rgba(0,0,0,.16); }
-.lk-pop { background: var(--lk-paper, #fff); color: var(--lk-text, #222); border: 1px solid var(--lk-hair); border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,.12); font-size: 14px; line-height: 1.4; text-align: left; }
+/* The surface of whatever floats (the owner, 22 November 2026, of three drawn directions: "try c", then "Yes, build C"): the Mac's
+   own. Glass the page shows through, a 10-point corner, a hair-thin edge, the Mac's shadow. */
+.lk-pop { background: var(--lk-glass); -webkit-backdrop-filter: var(--lk-glass-blur); backdrop-filter: var(--lk-glass-blur); color: var(--lk-text, #222); border: .5px solid var(--lk-line); border-radius: 10px; box-shadow: var(--lk-float-shadow); font-size: 14px; line-height: 1.4; text-align: left; }
 /* lk-tick, drawn: the browser's checkbox as a small rounded square, its edge and its check mark in the text colour when on; a
    half-mark for a list ticked in part. Logseq's own forms rule paints a ticked box blue, so each piece is overridden. When it
    shows is lk-list's word above. */

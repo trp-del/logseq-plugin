@@ -98,10 +98,10 @@ ${AREA} :is(.ls-table-row, .ls-table-header) .sticky-columns button:not(.ui__che
 /* A table's tick boxes are the library's tick box (lk-tick): a rounded square, its edge firming and a small check in the text colour
    when ticked. Logseq fills a ticked one with its colour and draws a white check; the line above once took the fill away and left
    the white check on white, so a ticked row could not be told (the owner, 13 November 2026: "the check boxes in tables seem off"). */
-${AREA} .ls-table .ui__checkbox { width: 14px !important; height: 14px !important; border: 1.5px solid var(--lk-line) !important; border-radius: 4px !important; background: transparent !important; box-shadow: none !important; align-items: center; justify-content: center; }
-${AREA} .ls-table .ui__checkbox:hover, ${AREA} .ls-table .ui__checkbox:is([data-checked], [data-state=checked], [data-state=indeterminate]) { border-color: var(--lk-text) !important; }
-${AREA} .ls-table .ui__checkbox :is(span, svg) { color: var(--lk-text) !important; }
-${AREA} .ls-table .ui__checkbox svg { width: 10px !important; height: 10px !important; stroke-width: 3.2 !important; }
+${AREA} .ls-table .ui__checkbox:not(.property-value-inner *) { width: 14px !important; height: 14px !important; border: 1.5px solid var(--lk-line) !important; border-radius: 4px !important; background: transparent !important; box-shadow: none !important; align-items: center; justify-content: center; }
+${AREA} .ls-table .ui__checkbox:not(.property-value-inner *):hover, ${AREA} .ls-table .ui__checkbox:not(.property-value-inner *):is([data-checked], [data-state=checked], [data-state=indeterminate]) { border-color: var(--lk-text) !important; }
+${AREA} .ls-table .ui__checkbox:not(.property-value-inner *) :is(span, svg) { color: var(--lk-text) !important; }
+${AREA} .ls-table .ui__checkbox:not(.property-value-inner *) svg { width: 10px !important; height: 10px !important; stroke-width: 3.2 !important; }
 /* Under the pointer Logseq shows two buttons at the end of a row's name: open the page, open it in the sidebar. Its arrow for the first
    read as "to the side", beside the sidebar's own icon, and a page icon was ugly; the first says Open instead (the owner, 16 November 2026). */
 ${AREA} .table-block-title > .absolute button:first-child { width: auto !important; padding: 0 6px !important; font-size: var(--lk-small); font-weight: 400; color: var(--lk-quiet); }
@@ -192,20 +192,76 @@ ${AREA} .ls-table[data-lk-notags="1"] :is(.ls-table-header, .ls-table-row) > .fl
 .cp__cmdk__modal mark, #ui__ac mark { background: none !important; color: inherit !important; font-weight: 600 !important; padding: 0 !important; }`,
   calmMenus: `
 /* Menus and panels (the owner, 8 November 2026: "look through the menus and panels and modernize them"). Logseq's menus,
-   pop-ups and lists are drawn as the library's (lk-pop, lk-menu, lk-item in plugin.js): the page's ground, a hairline, a 6 px
-   corner, one shadow; lines in the pop-up's body size (14 px) at the body's weight, the wash on the line you are on, icons in the off grey, a hairline between
-   groups. */
-:is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content, .ui__context-menu-sub-content, .ui__popover-content, .ui__select-content, .ui__multi-select-content) { background: var(--lk-paper) !important; color: var(--lk-text) !important; border: 1px solid var(--lk-hair) !important; border-radius: 6px !important; box-shadow: 0 6px 18px rgba(0,0,0,.12) !important; }
-:is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content, .ui__context-menu-sub-content, .ui__select-content) { padding: 4px !important; }
-:is(.ui__dropdown-menu-item, .ui__select-item, .ui__context-menu-content [role=menuitem]) { font-weight: 400 !important; font-size: 14px !important; line-height: 20px !important; padding: 5px 8px !important; min-height: 0 !important; border-radius: 4px !important; color: var(--lk-text) !important; gap: 8px !important; }
-:is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content) :is(.ui__icon, i.ti) { font-size: 15px !important; width: 16px; }
-:is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content) svg.tabler-icon { width: 15px !important; height: 15px !important; stroke-width: 1.5 !important; }
-:is(.ui__dropdown-menu-item, .ui__select-item, .ui__context-menu-content [role=menuitem]):is([data-highlighted], :hover) { background: var(--lk-wash) !important; }
+   pop-ups and lists are drawn as the library's (lk-pop, lk-menu, lk-item in plugin.js), which since 22 November 2026 is the Mac's
+   own (the owner, of three drawn directions: "try c", then "Yes, build C"): glass the page shows through, a 10-point corner, a
+   hair-thin edge, the Mac's shadow; tight 13 px lines, the line you are on filled in the text colour, a hairline set in between
+   groups, keys as the Mac's marks with no cap round them. */
+:is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content, .ui__context-menu-sub-content, .ui__popover-content, .ui__select-content, .ui__multi-select-content) { background: var(--lk-glass) !important; -webkit-backdrop-filter: var(--lk-glass-blur) !important; backdrop-filter: var(--lk-glass-blur) !important; color: var(--lk-text) !important; border: .5px solid var(--lk-line) !important; border-radius: 10px !important; box-shadow: var(--lk-float-shadow) !important; }
+:is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content, .ui__context-menu-sub-content, .ui__select-content) { padding: 5px !important; }
+:is(.ui__dropdown-menu-item, .ui__dropdown-menu-sub-trigger, .ui__select-item, .ui__context-menu-content [role=menuitem]) { font-weight: 400 !important; font-size: 13px !important; line-height: 18px !important; padding: 3px 9px !important; box-sizing: border-box !important; height: 24px !important; min-height: 0 !important; border-radius: 6px !important; color: var(--lk-text) !important; gap: 8px !important; }
+/* A line that opens a further menu stays on the soft ground while that menu is open, as Logseq has it. */
+.ui__dropdown-menu-sub-trigger[data-open]:not([data-highlighted], :hover) { background: var(--lk-wash) !important; }
+:is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content) :is(.ui__icon, i.ti) { font-size: 14px !important; width: 14px; }
+:is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content) svg.tabler-icon { width: 14px !important; height: 14px !important; stroke-width: 1.4 !important; }
 :is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content, .ui__popover-content) :is(.ui__icon, i.ti) { color: var(--lk-quiet) !important; }
-/* Under the keyboard a line takes the wash, never a ring round it (the grammar's rule). */
-:is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content, .ui__popover-content, .ui__select-content) :focus-visible { outline: none !important; box-shadow: none !important; background: var(--lk-wash) !important; border-radius: 4px; }
-:is(.ui__dropdown-menu-separator, .ui__context-menu-separator, [role=separator]) { background: var(--lk-hair) !important; }
+/* The line you are on, under the pointer or the keyboard: filled in the text colour, everything on it in the page's. Never a ring. */
+:is(.ui__dropdown-menu-item, .ui__dropdown-menu-sub-trigger, .ui__select-item, .ui__context-menu-content [role=menuitem]):is([data-highlighted], :hover) { background: var(--lk-text) !important; color: var(--lk-paper) !important; }
+:is(.ui__dropdown-menu-item, .ui__dropdown-menu-sub-trigger, .ui__select-item, .ui__context-menu-content [role=menuitem]):is([data-highlighted], :hover) :is(*, .ui__icon, i.ti) { color: var(--lk-paper) !important; }
+:is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content, .ui__popover-content, .ui__select-content) :focus-visible { outline: none !important; box-shadow: none !important; }
+:is(.ui__dropdown-menu-separator, .ui__context-menu-separator, .ui__dropdown-menu-content [role=separator], .ui__context-menu-content [role=separator]) { background: var(--lk-hair) !important; height: 1px !important; margin: 5px 9px !important; }
 :is(.ui__dropdown-menu-label, .ui__context-menu-label) { font-weight: 400 !important; color: var(--lk-quiet) !important; }
+:is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content) :is(.shui-shortcut-combo, .shui-shortcut-separate, .shui-shortcut-key) { background: none !important; border: 0 !important; box-shadow: none !important; padding: 0 !important; min-width: 0 !important; font: inherit !important; }
+:is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content) .shui-shortcut-combo { gap: 1px !important; }
+:is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content) .shui-shortcut-key { color: var(--lk-off) !important; }
+:is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content) .shui-shortcut-separator { display: none !important; }
+/* The marks are the Mac's: its sign for the Delete key, and a click named in small letters after its sign (⇧ click). Only the look: the words Logseq wrote stay in the page. */
+:is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content) .shui-shortcut-key { display: inline-flex !important; align-items: center; height: 18px !important; line-height: 18px !important; }
+:is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content) [role=menuitem] :is([data-shortcut-binding="delete"], [data-shortcut-binding="backspace"]) kbd.shui-shortcut-key.shui-shortcut-key { color: transparent !important; position: relative; width: 16px; overflow: hidden; white-space: nowrap; }
+:is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content) [role=menuitem] > span:has(.shui-shortcut-key) { display: flex !important; align-items: center; }
+:is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content) [role=menuitem] :is([data-shortcut-binding="delete"], [data-shortcut-binding="backspace"]) kbd.shui-shortcut-key.shui-shortcut-key::after { content: "⌫"; position: absolute; inset: 0; text-align: right; color: var(--lk-off); }
+:is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content) [role=menuitem]:is([data-highlighted], :hover) :is([data-shortcut-binding="delete"], [data-shortcut-binding="backspace"]) kbd.shui-shortcut-key.shui-shortcut-key::after { color: var(--lk-paper); }
+:is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content) [data-shortcut-binding$="+click"] .shui-shortcut-key:last-child { text-transform: lowercase; margin-left: 3px; }
+/* A list you pick from (a property's values, a tag): the menu's lines; its field is words over a hairline, not a slab; the value in
+   force is the filled line. */
+.ui__popover-content .cp__select { font-size: 13px !important; }
+.ui__popover-content .cp__select .input-wrap { background: transparent !important; padding: 4px 5px 0 !important; }
+.ui__popover-content .cp__select-input { background: transparent !important; font-size: 13px !important; padding: 4px 9px !important; border: 0 !important; box-shadow: inset 0 -1px 0 var(--lk-hair) !important; border-radius: 0 !important; }
+.ui__popover-content .cp__select .menu-link-wrap { padding: 0 5px !important; }
+.ui__popover-content .cp__select .menu-link { display: flex !important; padding: 3px 9px !important; border-radius: 6px !important; }
+.ui__popover-content .cp__select .menu-link, .ui__popover-content .cp__select .menu-link * { font-size: 13px !important; line-height: 18px !important; }
+.ui__popover-content .cp__select .menu-link svg { width: 13px !important; height: 13px !important; }
+.ui__popover-content .cp__select .menu-link.chosen { background: var(--lk-text) !important; }
+.ui__popover-content .cp__select .menu-link.chosen, .ui__popover-content .cp__select .menu-link.chosen * { color: var(--lk-paper) !important; }
+/* Logseq's ask (Are you sure…): the Mac's alert. Small, on the same glass, its icon above the question, the two answers one over
+   the other at full width, the one that goes ahead filled in the text colour; the page behind dimmed a little, never blurred white. */
+.ui__alert-dialog-content { width: 260px !important; max-width: 260px !important; padding: 18px 14px 14px !important; gap: 4px !important; text-align: center !important; background: var(--lk-glass) !important; -webkit-backdrop-filter: var(--lk-glass-blur) !important; backdrop-filter: var(--lk-glass-blur) !important; border: .5px solid var(--lk-line) !important; border-radius: 14px !important; box-shadow: var(--lk-float-shadow) !important; }
+.ui__alert-dialog-header { text-align: center !important; }
+.ui__alert-dialog-title { font-size: 13px !important; line-height: 18px !important; font-weight: 600 !important; }
+.ui__alert-dialog-title > span { flex-direction: column !important; gap: 6px !important; }
+.ui__alert-dialog-title .ui__icon svg { width: 30px !important; height: 30px !important; stroke-width: 1.2 !important; color: var(--lk-quiet) !important; }
+.ui__alert-dialog-main-content, .ui__alert-dialog-main-content p { font-size: 12px !important; opacity: 1 !important; color: var(--lk-quiet) !important; }
+.ui__alert-dialog-main-content p { margin: 0 0 8px !important; }
+.ui__alert-dialog-footer { display: block !important; }
+.ui__alert-dialog-footer > span:first-child:empty { display: none !important; }
+.ui__alert-dialog-footer > span:last-child { display: flex !important; flex-direction: column-reverse !important; gap: 6px !important; width: 100% !important; }
+.ui__alert-dialog-footer .ui__button { width: 100% !important; height: 28px !important; border-radius: 7px !important; border: 0 !important; font-size: 13px !important; font-weight: 500 !important; box-shadow: none !important; }
+.ui__alert-dialog-footer .ui__button.as-outline { background: var(--lk-wash) !important; color: var(--lk-text) !important; }
+.ui__alert-dialog-footer .ui__button.as-solid { background: var(--lk-text) !important; color: var(--lk-paper) !important; }
+.ui__alert-dialog-overlay { background: rgba(0,0,0,.14) !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+/* The ask before a page is deleted, in the Mac's words (askWords, below, names it): Delete “Mortgage”? / It goes to the Recycle. /
+   Delete. Logseq's own words stay in the page, unseen; only what is drawn over them changes, so its Escape, Enter and buttons work as before. */
+[data-lk-ask="delete-page"] .ui__alert-dialog-title > span[data-lk-words] { font-size: 0 !important; line-height: 0 !important; }
+[data-lk-ask="delete-page"] .ui__alert-dialog-title > span[data-lk-words]::after { content: attr(data-lk-words); font-size: 13px; line-height: 18px; margin-top: -6px; overflow-wrap: anywhere; }
+[data-lk-ask="delete-page"] .ui__alert-dialog-main-content p { font-size: 0 !important; }
+[data-lk-ask="delete-page"] .ui__alert-dialog-main-content p::after { content: "It goes to the Recycle."; font-size: 12px; line-height: 16px; }
+[data-lk-ask="delete-page"] .ui__alert-dialog-footer .ui__button.as-solid { font-size: 0 !important; gap: 0 !important; }
+[data-lk-ask="delete-page"] .ui__alert-dialog-footer .ui__button.as-solid::after { content: "Delete"; font-size: 13px; }
+/* A yes or no on a property: the Mac's switch, on in the text colour, off in the line grey. A tick stays for picking rows in a table. */
+.property-value-inner .ui__checkbox { width: 28px !important; height: 16px !important; border: 0 !important; border-radius: 8px !important; background: var(--lk-line) !important; position: relative !important; box-shadow: none !important; }
+.property-value-inner .ui__checkbox:is([data-checked], [aria-checked=true]) { background: var(--lk-text) !important; }
+.property-value-inner .ui__checkbox > * { display: none !important; }
+.property-value-inner .ui__checkbox::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--lk-paper); }
+.property-value-inner .ui__checkbox:is([data-checked], [aria-checked=true])::after { left: 14px; }
 /* Logseq's windows (Settings, the dialogs) are the library's window: the page's ground, a hairline, the same corner and shadow
    as the search window; the dimmed page behind them as the plugin's own windows have it. */
 .ui__dialog-content { background: var(--lk-paper) !important; border: 1px solid var(--lk-hair) !important; border-radius: 8px !important; box-shadow: 0 10px 30px rgba(0,0,0,.14) !important; }
@@ -239,6 +295,9 @@ const menuHuesCss = `
 :root[data-theme="dark"] { --lk-hue-blue: hsl(212 70% 66%); --lk-hue-amber: hsl(40 80% 60%); --lk-hue-red: hsl(2 70% 66%); }
 ` + Object.entries(MENU_HUES).map(([hue, names]) => `${MENUS} :is(${names.map(n => `.ls-icon-${n}, i.ti-${n}`).join(', ')}), ${names.map(n => `${MENUS} [data-lk-menu-icon="${n}"]::before`).join(', ')} { color: var(--lk-hue-${hue}) !important; }`).join('\n');
 PARTS.calmMenus += menuHuesCss;
+/* On the filled line a coloured icon, and one the plugin draws, takes the page's colour like the words beside it. */
+PARTS.calmMenus += `
+${MENUS} :is([role=menuitem], .ui__dropdown-menu-item):is([data-highlighted], :hover) :is(.ui__icon, i.ti, svg), ${MENUS} :is([role=menuitem], .ui__dropdown-menu-item):is([data-highlighted], :hover)[data-lk-menu-icon]::before { color: var(--lk-paper) !important; }`;
 /* Width by kind (the owner, 8 November 2026: "certain things need to be wide like a table but others like outline can
    benefit from readable width"; "the readable width needs to be centered"). The page is one column at reading width,
    centred, so the title, the properties, Structure's lines, Threads' rows, the outline and the references share one left
@@ -313,12 +372,29 @@ function macBars(doc) {
 }
 function giveBack() { for (const [rule, was] of setAside) rule.selectorText = was; setAside.clear(); }
 
+/* Logseq's ask before a page is deleted says "Are you sure you want to delete this page?", the page's name on a line under it, and
+   Confirm. The Mac asks with the name in the question and names the answer by what it does. The ask is named here when it is that
+   one ask about one page, in English, and the stylesheet (calmMenus) draws the Mac's words over Logseq's; any other ask keeps
+   Logseq's words. Only attributes are set: nothing Logseq wrote is changed, so its dialog behaves as it did. */
+const DELETE_PAGE = 'Are you sure you want to delete this page?';
+function askWords(doc) {
+  for (const box of doc.querySelectorAll('.ui__alert-dialog-content')) {
+    const title = box.querySelector('.ui__alert-dialog-title > span'), lines = box.querySelectorAll('.ui__alert-dialog-main-content p'), yes = box.querySelector('.ui__alert-dialog-footer .ui__button.as-solid');
+    const name = lines.length === 1 ? (lines[0].textContent.match(/^- (.+)$/) || [])[1] : null;
+    const is = setting('calmMenus') && title && title.textContent.trim() === DELETE_PAGE && name && yes && yes.textContent.trim() === 'Confirm';
+    const words = is ? `Delete “${name}”?` : null;
+    if (!is) { if (box.hasAttribute('data-lk-ask')) { box.removeAttribute('data-lk-ask'); title?.removeAttribute('data-lk-words'); } continue; }
+    if (box.getAttribute('data-lk-ask') !== 'delete-page') box.setAttribute('data-lk-ask', 'delete-page');
+    if (title.getAttribute('data-lk-words') !== words) title.setAttribute('data-lk-words', words);
+  }
+}
+
 let watching = false;
 function apply() {
   for (const [key, css] of Object.entries(PARTS)) style(key, setting(key) ? css : '');
   style('readingWidth', reading() ? widthCss(reading()) : '');
   const doc = Look.kit.host();
-  if (!watching) { watching = true; Look.kit.watchScreen(doc => { place(doc); macBars(doc); }, place); Look.kit.listen(doc.defaultView, 'resize', () => place(doc)); }
+  if (!watching) { watching = true; Look.kit.watchScreen(doc => { place(doc); macBars(doc); askWords(doc); }, place); Look.kit.listen(doc.defaultView, 'resize', () => place(doc)); }
   place(doc);
   macBars(doc);
 }
