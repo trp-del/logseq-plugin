@@ -10,9 +10,10 @@ The owner, 22 November 2026: "I want to be able to do actions quicker or edits, 
 context"; of the window: "that window opens and takes over majority of screen"; "the small should be build from same library".
 Find has two hosts and one code (`find.js`, `S.host`): the window, over the page, and a panel under the line being written.
 
-- **Opening.** A tap of the Hyper key (Caps Lock as Cmd+Ctrl+Opt+Shift) in a bullet, when no grey page name is showing (a grey
-  name still takes the tap, as before), or the command "Find: link from here". The setting "A small Find under the line you are
-  writing" switches it off; the tap then lists the tags as before. Predictive hears the tap and asks the door (`find:panel`).
+- **Opening.** The command "Find: link from here" (the door's `find:panel`), and a tap of the Hyper key with bullets selected.
+  A tap of Hyper in a bullet being written no longer opens it (the owner, 22 November 2026: "i don't think find is right piece
+  for the job"): there the tap opens Logseq's own list of pages to link (`PluginDoor.screen.linkList`, in `plugin.js`). The
+  setting "A small Find under the line you are writing" switches the panel off.
 - **What it is.** The window's own four pieces, the find line, the choices, the rows and the foot, in the library's pop-up
   (`lk-pop`), under the bullet at its width, above it where the window has no room below, four rows. Not modal: the page stays
   as it is, the bullet stays in writing, a press elsewhere lets it go.
