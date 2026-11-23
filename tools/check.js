@@ -57,6 +57,7 @@ const QUICK = [
   ['safe: undo', 'an Undo never takes away later work', '.', ['node', 'test/undo.js'], touches('look', 'threads', 'structure', 'predictive')],
   ['safe: risks', 'the data-safety fixes stay fixed', '.', ['node', 'test/risks.js'], touches('look', 'threads', 'structure', 'predictive')],
   ['logic: dates', 'days and journal titles', '.', ['node', 'test/dates.js'], touches()],
+  ['logic: folded note', 'the folded note\u2019s four rules', '.', ['node', 'test/folded.js'], touches('look', 'find', 'threads', 'todo')],
   ['logic: keys', 'keys as settings spell them', '.', ['node', 'test/keys.js'], touches('look', 'settings', 'predictive', 'find')],
   ['logic: Predictive', 'what Predictive guesses from words', 'predictive', ['node', 'test/run.js'], touches('predictive')],
   ['logic: Ontology', 'Ontology’s changes and their Undo', 'structure', ['sh', '-c', 'node test/core.test.js && node test/apply.test.js'], touches('structure')],

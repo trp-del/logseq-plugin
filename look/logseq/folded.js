@@ -28,23 +28,38 @@ function dueLabel(day, now = new Date()) {
   const word = window.PluginDoor.dates.words(day, { year: false });   // the door's one rule for a day in words
   return days === 0 ? 'due today' : days < 0 ? 'was due ' + word : 'due ' + word;
 }
-const MOST = 3;
-const shows = held => held && (held.task || held.done || held.files?.length || held.quotes || held.tags.length || held.due);
+const MOST = 3, FACTS = 2;
+const shows = held => held && (held.task || held.done || held.files?.length || held.quotes || held.tags.length || held.due || held.facts?.length || held.match);
 const fileCount = (held, kind) => (held.files || []).find(([k]) => k === kind)?.[1] || 0;
 const some = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+const cut = (text, max) => window.PluginDoor.short(text, max);
 /* The note answers the place it is shown in (0.5, E; the owner, 22 November 2026: "More consider how the information on folded
-   bullers can be more contextually aware"). place: { says: [words the place already says, a page's own name, a list's kind] }.
-   Two rules are kept here: what waits comes first (the due day leads while a task under it is unfinished), and nothing the place
-   already says is said again (a tag that is the page's own name, or the kind a list is headed by, is left out). */
+   bullers can be more contextually aware"). place: { says: [words the place already says, a page's own name, a list's kind, what
+   Find's sentence named], facts: true where the place shows the node's own properties itself (Logseq's bullet with its property
+   lines), match: [the words a place found the node by] }. The four rules:
+   1. nothing the place already says is said again (a tag or a value that is the page's own name, the list's kind, Find's words,
+      a value the node's own words already hold);
+   2. what waits comes first (the due day leads while a task under it is unfinished);
+   3. the tag picks the facts: the node's own filled properties, in its tag's order, the first two, where the place does not show them;
+   4. after Find, the line that matched: the first line under the node holding every word Find was given, in quotes, before the rest. */
 const fitted = (held, place) => {
   if (!held) return held;   // nothing read under it
   const says = new Set((place?.says || []).map(w => String(w).trim().toLowerCase()).filter(Boolean));
-  return says.size ? { ...held, tags: held.tags.filter(t => !says.has(String(t).toLowerCase())) } : held;
+  const said = text => says.has(String(text).trim().toLowerCase());
+  const tags = held.tags.filter(t => !said(t));
+  const shown = String(place?.words || '').toLowerCase();
+  const facts = place?.facts ? [] : (held.facts || []).filter(f => !said(f.value) && !(shown && shown.includes(String(f.value).trim().toLowerCase()))).slice(0, FACTS);
+  const ws = (place?.match || []).map(w => String(w).trim().toLowerCase()).filter(Boolean);
+  const match = ws.length ? (held.lines || []).find(line => { const t = line.toLowerCase(); return ws.every(w => t.includes(w)); }) || '' : '';
+  return { ...held, tags, facts, match };
 };
 const waits = held => !!(held.due && held.task);
-function wordsFor(held) {
+function wordsFor(held, place) {
+  if (place) held = fitted(held, place);
   const words = [];
   if (waits(held)) words.push(dueLabel(held.due));
+  if (held.match) words.push(`\u201C${cut(held.match, 40)}\u201D`);
+  for (const f of held.facts || []) words.push(`${f.name} ${cut(f.value, 24)}`);
   // Done of all, "1/2" (the owner, 16 November 2026: "do a x/2"); with none done, the unfinished count alone, as before.
   if (held.done) words.push(`${held.done} of ${some(held.task + held.done, 'task', 'tasks')} under it done`);
   else if (held.task) words.push(`${some(held.task, 'unfinished task', 'unfinished tasks')} under it`);
@@ -59,8 +74,13 @@ function wordsFor(held) {
 function build(doc, held, place) {
   held = fitted(held, place);
   const parts = [el(doc, 'span', { class: 'lk-lead', 'aria-hidden': 'true' }, '↳')];
+  const sep = () => { if (parts.length > 1) parts.push(el(doc, 'span', { class: 'lk-sep', 'aria-hidden': 'true' }, '·')); };
   // What waits comes first: the nearest due day, before the count of what is unfinished.
   if (waits(held)) parts.push(el(doc, 'span', { class: 'lk-due' }, dueLabel(held.due)));
+  // The line Find's words were found in, then the node's own facts: plain words of the note, parted by a dot as tags are.
+  if (held.match) { sep(); parts.push(el(doc, 'span', { title: held.match }, `\u201C${cut(held.match, 40)}\u201D`)); }
+  for (const f of held.facts) { sep(); parts.push(el(doc, 'span', { title: `${f.name}: ${f.value}` }, cut(f.value, 24))); }
+  if (held.match || held.facts.length) { const before = parts.length; sep(); if (!(held.task || held.done || held.files?.length || held.quotes || held.tags.length || held.due)) parts.length = before; }
   const pair = (name, n) => parts.push(el(doc, 'span', { class: 'lk-pair' }, el(doc, 'span', { html: iconHtml(name) }), el(doc, 'span', {}, String(n))));
   // A ticked circle once every one is done, else the open circle.
   if (held.done) pair(held.task ? 'circle' : 'circle-check', `${held.done}/${held.task + held.done}`);
@@ -70,12 +90,13 @@ function build(doc, held, place) {
   if (held.quotes) parts.push(el(doc, 'span', { class: 'lk-pair' }, el(doc, 'span', { class: 'lk-quote' }, '\u201C'), el(doc, 'span', {}, String(held.quotes))));
   if (fileCount(held, 'pdf')) pair('file-type-pdf', fileCount(held, 'pdf'));
   if (fileCount(held, 'file')) pair('file', fileCount(held, 'file'));
-  // A dot before each tag (two tags are kept apart by a dot, as at the title row), unless it is the first thing after the ↳.
+  // A dot before each tag (two tags are kept apart by a dot, as at the title row), unless it is the first thing after the ↳ or a dot stands before it.
+  const lastIsSep = () => parts[parts.length - 1]?.classList?.contains('lk-sep');
   held.tags.slice(0, MOST).forEach(title => {
-    if (parts.length > 1) parts.push(el(doc, 'span', { class: 'lk-sep', 'aria-hidden': 'true' }, '·'));
+    if (!lastIsSep()) sep();
     parts.push(el(doc, 'a', { class: 'lk-tag', href: '#', 'data-tag': title }, title));
   });
-  if (held.due && !waits(held)) { if (parts.length > 1) parts.push(el(doc, 'span', { class: 'lk-sep', 'aria-hidden': 'true' }, '·')); parts.push(el(doc, 'span', {}, dueLabel(held.due))); }
+  if (held.due && !waits(held)) { if (!lastIsSep()) sep(); parts.push(el(doc, 'span', {}, dueLabel(held.due))); }
   const keep = event => event.stopPropagation();
   const note = el(doc, 'span', { class: 'lk-folded lk-note lk-own', contenteditable: 'false', title: wordsFor(held).join(' · '), mousedown: keep, pointerdown: keep, click: onClick }, ...parts);
   return note;
@@ -92,11 +113,18 @@ let held = new Map(), fresh = new Set(), asked = new Set(), stopped = false;
    front, or the page of the sidebar item it stands in; a journal day says no tag). A row of the plugin's lists: what the module
    wrote on its mark (data-lk-says, words parted by |: the kind a list is headed by, the kind read in Find). */
 function placeOf(el) {
-  const mark = el.closest?.('[data-lk-says]');
-  if (mark) return { says: String(mark.getAttribute('data-lk-says')).split('|') };
+  // The words the node is shown with, its row's day included: a value they already hold is not said again (Paid off the Amex Gold
+  // card, Amex Gold; a Date of Oct 14 on a row whose day reads Oct 14).
+  const wordsOf = holder => { if (!holder) return ''; const note = [...holder.querySelectorAll('.lk-folded')].map(n => n.textContent).join(''); return (holder.textContent || '').replace(note, '').replace(/\s+/g, ' ').trim(); };
+  const mark = el.closest?.('[data-lk-says], [data-lk-match]');
+  const list = v => String(v || '').split('|').filter(Boolean);
+  if (mark) return { says: list(mark.getAttribute('data-lk-says')), match: list(mark.getAttribute('data-lk-match')), facts: mark.hasAttribute('data-lk-facts'), words: wordsOf(mark.closest('.lk-row, .fd-r, .th-ol-line, .td-line') || mark.parentElement) };
   const side = el.closest?.('.sidebar-item');
   const title = (side ? side.querySelector('.ls-page-title, .page-title, .sidebar-item-header') : el.ownerDocument.querySelector('#main-content-container .ls-page-title'))?.textContent || '';
-  return { says: [title.split('\n')[0].replace(/^#\s*/, '').trim()] };
+  // Logseq's own bullet shows its own properties under its words while open; folded, it hides them, so the note says the first two.
+  const block = el.closest?.('.ls-block[blockid]');
+  const facts = !!(block && [...block.querySelectorAll('.block-properties, .ls-properties-area, .property-k')].some(p => p.closest('.ls-block[blockid]') === block));
+  return { says: [title.split('\n')[0].replace(/^#\s*/, '').trim()], facts, words: block ? wordsOf(own(block, '.block-title-wrap') || own(block, '.block-content')) : '' };
 }
 const shownIn = (now, place) => shows(fitted(now, place));
 const own = (block, selector) => [...block.querySelectorAll(selector)].find(w => w.closest('.ls-block[blockid]') === block);
@@ -110,7 +138,7 @@ function draw(doc) {
     const uuid = block.getAttribute('blockid').toLowerCase();
     if (!fresh.has(uuid) && !asked.has(uuid)) missing.push(uuid);
     if (!held.has(uuid)) continue;
-    const now = held.get(uuid), old = own(block, '.lk-folded'), at = placeOf(block), key = JSON.stringify([now, at.says]);
+    const now = held.get(uuid), old = own(block, '.lk-folded'), at = placeOf(block), key = (now ? now.seen : 0) + JSON.stringify(at);
     if (!canPlace(block) || !shownIn(now, at)) { old?.remove(); continue; }
     if (old?.getAttribute('data-held') === key) continue;
     old?.remove();
@@ -125,7 +153,7 @@ function draw(doc) {
     const uuid = String(words.getAttribute('data-lk-held')).toLowerCase(), old = words.nextElementSibling?.classList.contains('lk-folded') ? words.nextElementSibling : null;
     if (!fresh.has(uuid) && !asked.has(uuid) && !missing.includes(uuid)) missing.push(uuid);
     if (!held.has(uuid)) continue;
-    const now = held.get(uuid), at = placeOf(words), key = JSON.stringify([now, at.says]);
+    const now = held.get(uuid), at = placeOf(words), key = (now ? now.seen : 0) + JSON.stringify(at);
     if (!shownIn(now, at)) { old?.remove(); continue; }
     if (old?.getAttribute('data-held') === key) continue;
     old?.remove();
@@ -143,12 +171,13 @@ async function read(uuids) {
     const found = await Look.db.heldBelow(uuids);
     if (stopped) return;
     for (const page of found.pages || []) read.pages.add(page);
-    for (const uuid of uuids) { held.set(uuid, found.get(uuid) || null); fresh.add(uuid); asked.delete(uuid); }
+    for (const uuid of uuids) { const got = found.get(uuid) || null; if (got) got.seen = ++read.seq; held.set(uuid, got); fresh.add(uuid); asked.delete(uuid); }
     while (held.size > 2000) { const first = held.keys().next().value; held.delete(first); fresh.delete(first); }
     draw(host());
   } catch (error) { for (const uuid of uuids) { fresh.add(uuid); asked.delete(uuid); } console.error('Look: could not read what a folded node holds', error); }
 }
 read.pages = new Set();
+read.seq = 0;   // each reading's number: a note is drawn again only when what it holds was read anew or its place changed
 function clear(doc = host()) { for (const note of doc.querySelectorAll('.lk-folded')) note.remove(); }
 function start() {
   stopped = false;
@@ -158,5 +187,5 @@ function start() {
   onGraphChange((pages, written) => { if (stopped || !(pages || [...written].some(id => read.pages.has(id)))) return; fresh.clear(); draw(host()); });
 }
 function stop() { stopped = true; held.clear(); fresh.clear(); asked.clear(); read.pages.clear(); }
-Look.folded = { start, stop, draw, dueLabel, wordsFor, build };
+Look.folded = { start, stop, draw, dueLabel, wordsFor, build, fitted };
 })();

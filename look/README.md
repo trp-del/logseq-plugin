@@ -8,10 +8,14 @@ How things look, as the visual grammar agreed on 29 October 2026 says. It reads 
 
 The owner: "More consider how the information on folded bullers can be more contextually aware". `folded.js` `build(doc, held,
 place)` is told where the bullet stands (`placeOf`): for one of Logseq's bullets the name of the page it is shown on; for a row
-of the plugin's lists what the module wrote on its mark (`data-lk-says`, words parted by |). Two rules: what waits comes first
-(the due day leads the note while a task under it is unfinished), and a tag the place already says is left out. Todo's rows
-carry the mark too, so a task with bullets under it shows its note there. Not yet: the bullet's own filled properties in its
-tag's order, and the line that matched after a search.
+of the plugin's lists what the module wrote on its mark (`data-lk-says`, words parted by |; `data-lk-match`, the words it found
+the node by; `data-lk-facts`, where the list shows the node's properties itself). Four rules: nothing the place already says (a tag
+or a value that is the page's own name, the list's kind, what Find's sentence named); what waits comes first (the due day leads the
+note while a task under it is unfinished); the tag picks the facts (the node's own filled properties, in its tag's order, the first
+two, as plain words parted by a dot, its property's name under the pointer, a value the row's own words or day already hold left
+out; on a folded Logseq bullet, which hides its property lines, and on Relations' and Todo's folded rows, never on Find's rows, whose
+window names the properties in its lines of choices); after Find, the line beneath that holds every word typed, in quotes, first after what waits. Todo's rows carry the
+mark too, so a task with bullets under it shows its note there. The rules are tested in `test/folded.js`.
 
 ## What it draws
 

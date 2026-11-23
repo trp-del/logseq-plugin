@@ -25,6 +25,9 @@ const CSS = `
 /* The same window as a small panel under the line being written (0.5, 22 November 2026, the owner: "the small should be build
    from same library"): no dimming, placed and sized by place(). */
 .fd-coming { position: fixed; z-index: 98; pointer-events: none; }
+/* Over held bullets the panel does what Logseq's selection bar does (a tag for them all), so the bar steps back while it is open
+   (found by script, 23 November 2026: the bar stood over the panel's foot, the words of what Enter does). */
+html[data-lk-held-panel] .ui__popover-content:has(> .selection-action-bar), html[data-lk-held-panel] .selection-action-bar { visibility: hidden !important; }
 .fd.fd-panel { transform: none; max-height: none; z-index: 99; line-height: 1.5; }   /* its edge and shadow are the library's pop-up, lk-pop */
 .fd * { box-sizing: border-box; }
 /* The find line: the pieces, then the letters. */
@@ -62,25 +65,8 @@ const CSS = `
 .fd-head { margin: 6px 0 2px; }   /* the library's small faint name (lk-name) */
 /* A group's head: a bold word after a gap of one line (the grammar). */
 .fd-near { font-weight: 600; margin: 20px 0 2px calc(var(--fd-day) + 36px); }
-/* Each choice line: its small name above its values, as the sentence's notes stand above its words (the audit's 35). */
+/* The lines of choices are the library's (Door.choicesHtml: lk-choices, the tab words, the tree of kinds). */
 .fd-head-rows { margin-top: 8px; }
-/* A line of values is the library's tab picker (lk-views, lk-view) with no underline, since none is the one shown (the owner,
-   13 November 2026: "keep it same tab picker sans underline"); its padding is taken away, so the whole tab space is the gap. */
-/* The count stands after the word, always, quiet, as a tab's count does (Threads' kinds: All 12, No tag 7); then the space between
-   the words is the tab picker's even space whatever the counts (the owner, 13 November 2026: a count of 506 ran into the next word). */
-.fd-more { margin: -3px 0; }
-/* The kinds opened: columns, each a top-level tag in bold over the tags beneath it, stepped in by depth. */
-.fd-tree { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px 18px; }
-.fd-col { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; }
-/* Every kind is the library's tab word (lk-view), as on Topic and When's lines (16 November 2026: one look for a choice); the
-   column takes the side padding away so the steps in stand on the words. */
-.fd-tree { --lk-view-pad: 0px; }
-.fd-tree .lk-view { white-space: nowrap; }   /* a kind's name and its count on one line, as in the lines above */
-.fd-tree .lk-view.fd-top { color: var(--lk-text, currentColor) !important; }   /* a top-level tag heads its column, in the text colour, as the Logseq head beside it */
-.fd-col .fd-c { margin-left: calc(var(--fd-depth, 0) * 14px); max-width: 100%; }
-.fd-col .fd-top, .fd-col .fd-th { font-weight: 600; color: var(--lk-text, #222); }
-.fd-col .fd-th { margin-top: 12px; }
-.fd-more.fd-lit { color: var(--lk-text, #222) !important; }
 .fd-icon { display: inline-flex; width: 12px; height: 12px; align-items: center; justify-content: center; color: var(--lk-quiet); font-size: 12px; }
 .fd-icon svg { width: 12px; height: 12px; }
 /* The row: day | chevron | bullet | words and tag | right. */
@@ -155,7 +141,11 @@ const setHeight = () => { if (!S.dlg) return; if (S.host) return place(); S.dlg.
 // The panel's place: under the bullet's words at their width; above them where the window has no room below.
 function place() {
   const d = S.dlg, box = S.host?.box || S.host?.anchor; if (!d || !box?.isConnected) return;
-  const r = box.getBoundingClientRect(), win = S.doc.defaultView, h = PANEL_FRAME + PANEL_ROWS * ROW;
+  const win = S.doc.defaultView, h = PANEL_FRAME + PANEL_ROWS * ROW;
+  // Over held bullets the panel takes the span of them all: under the last, or above the first, never over the bullets it acts on
+  // (found by script, 23 November 2026: above the last it covered the two held above it).
+  const lines = (S.host?.lines || []).filter(l => l.isConnected), last = box.getBoundingClientRect(), first = lines[0]?.getBoundingClientRect() || last;
+  const r = { left: first.left, width: last.width, top: first.top, bottom: last.bottom };
   /* Under the line whenever a usable panel fits there, shorter if it must be: above, it would cover what was just written (tried by
      hand, 22 November 2026: on a line low in the window it stood over the page's title and the window's top). Above only when
      under has no room for the find line and two rows; never over Logseq's header, which is the window's drag handle. */
@@ -163,7 +153,10 @@ function place() {
   const under = below >= Math.min(h, PANEL_FRAME + 2 * ROW) || below >= above;
   const height = Math.max(150, Math.min(h, under ? below : above));
   const set = (k, v) => d.style.setProperty(k, v, 'important');
-  set('left', Math.round(r.left) + 'px'); set('right', 'auto'); set('width', Math.round(Math.max(320, r.width)) + 'px');
+  // Its width kept inside the window: a bullet in the right sidebar starts near the window's edge (found by script, 23 November 2026:
+  // the panel ran past the right edge, its rows cut).
+  const width = Math.round(Math.min(Math.max(320, r.width), win.innerWidth - 16)), left = Math.round(Math.max(8, Math.min(r.left, win.innerWidth - width - 8)));
+  set('left', left + 'px'); set('right', 'auto'); set('width', width + 'px');
   set('top', Math.round(under ? r.bottom + 4 : Math.max(band, r.top - height - 4)) + 'px'); set('bottom', 'auto');
   d.style.height = height + 'px';
 }
@@ -378,6 +371,8 @@ function choiceGroups() {
   return groups;
 }
 const flatChoices = groups => groups.flatMap(g => g.items);
+// What Find's sentence names, for a folded row's line (Look's folded note leaves these out): the kind read, the values and pages picked.
+const heldSays = () => [kindPick()?.title, ...S.picks.filter(p => p.kind === 'who').map(p => p.label || p.title)].filter(Boolean).join('|');
 // "more" grows the choices where they stand, so the rows under them glide down (window.PluginDoor.regrow).
 function growChoices() { const was = S.dlg?.querySelector('.fd-choices')?.getBoundingClientRect().height; render(); window.PluginDoor.regrow(S.dlg?.querySelector('.fd-choices'), was); }
 const litChoice = groups => (S.trail.length && (S.say || S.trail.length === 1) ? flatChoices(groups).find(c => c.lit) : null);
@@ -554,24 +549,21 @@ function render() {
   const lineNode = lineDugNode(), lineBox = lineNode ? dugBox(doc, lineNode) : null;
   if (lineBox) body.append(lineBox);
   if (!isCommandMode() && groups.length) {
+    // No word over the lines: each is a label and the choices that narrow the list, and the gap under them tells them from the
+    // rows. Drawn by the library's lines of choices (Door.choicesHtml), as Relations draws its own; a press reaches the choice
+    // through its data-c.
     let ci = 0;
-    const wrap = el(doc, 'div', { class: 'fd-choices lk-choices' });
-    // No word over the lines: each is a label and the choices that narrow the list, and the gap under them tells
-    // them from the rows.
-    for (const g of groups) {
-      const box = el(doc, 'div', { class: 'fd-ch lk-ch' });
-      box.append(el(doc, 'span', { class: 'fd-ck lk-ck' + (g.key.startsWith('p:') ? ' lk-prop' : ''), html: g.icon ? `<span class="fd-icon lk-ck-icon">${g.icon}</span>` : '' }, g.key === 'kind' ? 'kind' : g.label));
-      if (g.tree) { box.append(treeOf(doc, g, () => ci++, groups)); wrap.append(box); continue; }
-      const vals = el(doc, 'span', { class: 'fd-cv lk-cv lk-views' });
-      g.items.forEach((c, i) => {
+    const lines = groups.map(g => ({
+      name: g.key === 'kind' ? 'kind' : g.label, icon: g.icon || '', prop: g.key.startsWith('p:'), tree: g.tree || 0,
+      values: g.items.map(c => {
         const at = ci++;
-        const lit = (S.mode === 'choices' && at === S.choiceAt) || (S.mode !== 'choices' && litChoice(groups) === c);
-        if (c.more) vals.append(el(doc, 'button', { class: 'fd-more lk-more' + (lit ? ' fd-lit' : ''), type: 'button', 'data-c': at, click: () => c.pick() }, c.label));
-        else vals.append(el(doc, 'button', { class: 'fd-c lk-view' + (lit ? ' fd-lit lk-lit' : ''), type: 'button', 'data-c': at, title: c.hint || (c.label.length > 44 ? c.label : null), click: () => c.pick() }, short(c.label, 44), c.count == null ? null : el(doc, 'span', { class: 'fd-nb lk-nb' }, String(c.count))));
-      });
-      box.append(vals);
-      wrap.append(box);
-    }
+        const lit = g.tree ? S.mode === 'choices' && at === S.choiceAt : (S.mode === 'choices' && at === S.choiceAt) || (S.mode !== 'choices' && litChoice(groups) === c);
+        return { label: c.label, count: c.more ? null : c.count, more: !!c.more, lit, title: c.hint, col: c.col, depth: c.depth, head: c.head, attrs: { 'data-c': at } };
+      }),
+    }));
+    const holder = el(doc, 'div', { html: window.PluginDoor.choicesHtml(lines, { cls: 'fd-choices' }) });
+    const wrap = holder.firstElementChild;
+    wrap.addEventListener('click', event => { const b = event.target.closest('[data-c]'); if (b) choices[Number(b.dataset.c)]?.pick(); });
     body.append(wrap);
   }
   // With nothing typed the rows are the pages opened last, and a head says so; otherwise the rows are what was found.
@@ -648,7 +640,10 @@ function render() {
     if (node.kind && !(r.under && rows.find(x => x.key === r.under)?.tag === node.kind.title) && !(kindPick() && r.top && kindPick().title === node.kind.title)) nm.append(el(doc, 'span', { class: 'lk-tag', 'data-tag-uuid': node.kind.uuid || '', 'data-tag-title': node.kind.title }, node.kind.title));
     // A found bullet holds what is under it folded: Look's ↳ line follows its words, as on Logseq's own folded bullets (16 November
     // 2026, the owner: in Linked and Find too). Opened in place, what it holds is shown, so no line.
-    if (!node.isPage && !node.sign && !dug) nm.append(el(doc, 'span', { class: 'lk-held', 'data-lk-held': node.uuid }));
+    // The mark tells the line its place (0.5, E): what Find's sentence already names (the kind, a value, a page), not said again;
+    // the words typed, so the line beneath that holds them is shown; and that the window says the nodes' properties itself (its
+    // lines of choices, a row opened), so no row carries its own: a note on every row would double the list (seen 23 November 2026).
+    if (!node.isPage && !node.sign && !dug) nm.append(el(doc, 'span', { class: 'lk-held', 'data-lk-held': node.uuid, 'data-lk-says': heldSays(), 'data-lk-match': ws.join('|'), 'data-lk-facts': '' }));
     row.append(nm);
     const right = node.page && !node.page.journal ? node.page.title : '';
     row.append(el(doc, 'span', { class: 'fd-right fd-page', ...(right ? { title: right } : {}) }, right));
@@ -821,20 +816,6 @@ function digDot() {
 const withData = (root, name, value) => [...root.querySelectorAll(`[data-${name}]`)].filter(e => e.getAttribute('data-' + name) === value);
 // The kinds in columns: a top-level tag bold at the head of its column, the tags under it stepped in by depth; "Logseq" a
 // head that is no kind. Each is a choice like any other, lit by the cursor, its count shown only then or under the pointer.
-function treeOf(doc, g, next, groups) {
-  const tree = el(doc, 'span', { class: 'fd-cv lk-cv fd-tree' });
-  for (let col = 0; col < g.tree; col++) {
-    const box = el(doc, 'span', { class: 'fd-col' });
-    for (const c of g.items.filter(x => x.col === col)) {
-      if (c.head) box.append(el(doc, 'span', { class: 'fd-th' }, c.head));
-      const at = next();
-      const lit = S.mode === 'choices' && at === S.choiceAt;
-      box.append(el(doc, 'button', { class: 'fd-c lk-view' + (c.depth ? '' : ' fd-top') + (lit ? ' fd-lit lk-lit' : ''), type: 'button', 'data-c': at, style: `--fd-depth: ${Math.max(0, c.depth - 1)}`, title: c.label.length > 30 ? c.label : null, click: () => c.pick() }, short(c.label, 30), el(doc, 'span', { class: 'fd-nb lk-nb' }, String(c.count))));
-    }
-    tree.append(box);
-  }
-  return tree;
-}
 function drawFoot(groups, rows) { S.dlg.querySelector('.fd-foot').replaceChildren(...foot(S.doc, groups, rows)); showComing(groups); }
 // The cursor moves along the rows: the lit mark goes from one to the other and nothing is drawn again.
 function litRow(at, groups, rows) {
@@ -1302,6 +1283,7 @@ function close() {
   d.remove();
   // The panel gone: the caret is where it was in the line, the letters it stood between untouched.
   const h = S.host; S.host = null;
+  if (h?.held) S.doc?.documentElement.removeAttribute('data-lk-held-panel');
   h?.coming?.remove(); for (const c of h?.comings || []) c.remove();
   if (S.hostOff) { S.hostOff(); S.hostOff = null; }
   if (h && !h.left && !h.held) backToLine(h);
@@ -1357,6 +1339,7 @@ async function held() {
   const doc = host(), lines = uuids.map(u => doc.querySelector(`.ls-block[blockid="${u}"] > .block-main-container`)).filter(Boolean);
   if (!lines.length) return false;
   open('', false, { held: uuids, lines, anchor: lines[lines.length - 1] });
+  if (S.host?.held) doc.documentElement.setAttribute('data-lk-held-panel', '');
   return true;
 }
 const manyOf = n => (n === 1 ? '1 bullet' : `${n} bullets`);

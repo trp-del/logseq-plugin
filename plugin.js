@@ -1116,11 +1116,24 @@ Door.regrow = (el, from, ms = MOTION_MS) => {
      lanes  [{ name, count, on, off }] or null      asked, pick: [fromDay, toDay] or null      at: a dot's index or null */
 /* Lines of choices over a long list (the thirteen proposals, 2: "Find's lines of choices on any long list"; the owner's go of
    19 November 2026): each a property's small name over its values, each value with its count, a press narrowing the list to the
-   nodes holding it. Find draws them over its rows, Relations over a list of nodes. lines: [{ name, icon (html), values: [{ label,
-   count, lit, attrs: { data-…: … } }] }] → html. The look is the library's (lk-choices, lk-ch, lk-ck, lk-cv, lk-nb, lk-lit). */
-Door.choicesHtml = lines => {
-  const esc = Door.esc, attrs = a => Object.entries(a || {}).map(([k, v]) => ` ${k}="${esc(v)}"`).join('');
-  return `<div class="lk-choices">${lines.map(l => `<div class="lk-ch"><span class="lk-ck lk-prop">${l.icon ? `<span class="lk-ck-icon">${l.icon}</span>` : ''}${esc(l.name)}</span><span class="lk-cv lk-views">${l.values.map(v => `<button type="button" class="lk-view${v.lit ? ' lk-lit' : ''}"${v.lit ? ' aria-pressed="true"' : ''}${attrs(v.attrs)}${v.label.length > 44 ? ` title="${esc(v.label)}"` : ''}>${esc(v.label.length > 44 ? v.label.slice(0, 43) + '…' : v.label)}<span class="lk-nb">${v.count}</span></button>`).join('')}</span></div>`).join('')}</div>`;
+   nodes holding it. Find draws them over its rows, and in its panel; Relations over a list of nodes (0.5: "the small should be build
+   from same library", so Find's own drawing of these lines folded into this one).
+     lines: [{ name, icon (html), prop = true (the name in a property's look), values, tree }]
+     a value: { label, count (none: no count), lit, more (the line's "more", which opens), title (the hover words), cut = 44, attrs: { data-…: … } }
+     tree: a number of columns; then each value also has col, depth and head (a column's heading word above it), and a value of
+       depth 0 heads its column.
+   → html. The look is the library's (lk-choices, lk-ch, lk-ck, lk-cv, lk-nb, lk-lit, lk-more, lk-tree). */
+Door.short = (text, max = 36) => { const t = String(text ?? '').trim(); return t.length > max ? t.slice(0, max - 2).replace(/\s+\S*$/, '') + '\u2026' : t; };
+Door.choicesHtml = (lines, { cls = '' } = {}) => {
+  const esc = Door.esc, attrs = a => Object.entries(a || {}).filter(([, v]) => v != null).map(([k, v]) => ` ${k}="${esc(v)}"`).join('');
+  const button = (v, cls, cut = v.cut || 44, style = '') => {
+    const title = v.title || (v.label.length > cut ? v.label : '');
+    return `<button type="button" class="${cls}${v.lit ? ' lk-lit' : ''}"${v.lit ? ' aria-pressed="true"' : ''}${attrs(v.attrs)}${title ? ` title="${esc(title)}"` : ''}${style}>${esc(Door.short(v.label, cut))}${v.count == null ? '' : `<span class="lk-nb">${esc(v.count)}</span>`}</button>`;
+  };
+  const values = l => l.tree
+    ? `<span class="lk-cv lk-tree">${Array.from({ length: l.tree }, (_, col) => `<span class="lk-tree-col">${l.values.filter(v => v.col === col).map(v => (v.head ? `<span class="lk-tree-head">${esc(v.head)}</span>` : '') + button(v, 'lk-view' + (v.depth ? '' : ' lk-tree-top'), v.cut || 30, ` style="--lk-depth: ${Math.max(0, (v.depth || 0) - 1)}"`)).join('')}</span>`).join('')}</span>`
+    : `<span class="lk-cv lk-views">${l.values.map(v => v.more ? button({ ...v, count: null }, 'lk-more') : button(v, 'lk-view')).join('')}</span>`;
+  return `<div class="lk-choices${cls ? ' ' + cls : ''}">${lines.map(l => `<div class="lk-ch"><span class="lk-ck${l.prop === false ? '' : ' lk-prop'}">${l.icon ? `<span class="lk-ck-icon">${l.icon}</span>` : ''}${esc(l.name)}</span>${values(l)}</div>`).join('')}</div>`;
 };
 Door.timeline = (() => {
   const D = () => Door.dates, DAY = 864e5;
@@ -1730,6 +1743,16 @@ Door.NAMES = `${TOKENS}
 .lk-cv .lk-view .lk-nb { visibility: visible; }
 .lk-cv .lk-view.lk-lit { color: var(--lk-text, currentColor) !important; }
 .lk-nb { color: var(--lk-quiet); font-size: var(--lk-small); font-variant-numeric: tabular-nums; }
+/* A line's "more" sits on the line's words, its underline under them; lit, it takes the text colour as a lit value does. */
+.lk-cv .lk-more { margin: -3px 0; }
+.lk-cv .lk-more.lk-lit { color: var(--lk-text, #222) !important; }
+/* A tree of values (Find's kinds opened): columns, each a top-level tag in bold over the tags beneath it, stepped in by depth; every
+   kind is the tab word (lk-view), its count on its line, the side padding taken away so the steps stand on the words. */
+.lk-cv.lk-tree { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px 18px; --lk-view-pad: 0px; }
+.lk-tree-col { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; }
+.lk-tree .lk-view { white-space: nowrap; margin-left: calc(var(--lk-depth, 0) * 14px); max-width: 100%; }
+.lk-tree .lk-view.lk-tree-top, .lk-tree-head { font-weight: 600; color: var(--lk-text, #222) !important; }
+.lk-tree-head { margin-top: 12px; }
 .lk-value:not(input) { color: inherit !important; cursor: pointer; }
 .lk-value:not(input):hover { color: var(--lk-quiet) !important; }
 .lk-value.off, input.lk-value::placeholder { color: var(--lk-off) !important; }
