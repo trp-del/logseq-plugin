@@ -19,37 +19,14 @@ const watched = new WeakMap();   // each map's last drawing, drawn again when it
    340 px at most and all the same width; the stylesheet's justify-content puts the first at the left edge, the last at the
    right and the room left over in the gaps. Worked out here, at each drawing and each change of width, since CSS counts the
    columns at their widest. */
-/* A tall area takes the spare columns (23 November 2026, the owner: two top-level tags, one of 74 nodes and one of 27, stood as two
-   uneven columns with the rest of the page empty). Where more columns fit than there are areas, each spare column goes to the area
-   whose columns are then tallest, as long as it has a branch (a tag one step under the top, with its rows) to put there; an area in
-   several columns has its top-level tag over the first and its branches poured down them in order, each whole. A spare column that
-   would shorten nothing is left out, so a page of short areas stays as it was. The columns' width and gap are read back from the grid,
-   so a column of a split area is as wide as any other and as far from the next. */
 const NARROW = 232, WIDE = 340;
 function columns(box) {
-  const win = box.ownerDocument.defaultView, css = win.getComputedStyle(box), gap = parseFloat(css.columnGap) || 0;
+  const css = box.ownerDocument.defaultView.getComputedStyle(box), gap = parseFloat(css.columnGap) || 0;
   const inner = box.clientWidth - (parseFloat(css.paddingLeft) || 0) - (parseFloat(css.paddingRight) || 0);
-  const areas = [...box.querySelectorAll(':scope > .st-area')].filter(a => a.getClientRects().length);
-  const fit = Math.max(1, Math.floor((inner + gap) / (NARROW + gap)));
-  const tall = areas.map(a => ({ a, rows: a.querySelectorAll('[data-row]').length, branches: a.querySelectorAll(':scope > .st-branch').length, k: 1 }));
-  for (let spare = fit - areas.length; spare > 0; spare--) {
-    const top = tall.reduce((m, t) => (t.rows / t.k > m.rows / m.k ? t : m), tall[0]);
-    if (!top || top.k >= top.branches) break;   // the tallest cannot be split further: another column would shorten nothing
-    top.k++;
-  }
-  const n = Math.max(1, Math.min(fit, tall.reduce((s, t) => s + t.k, 0) || 1));
+  const areas = [...box.querySelectorAll(':scope > .st-area')].filter(a => a.getClientRects().length).length;
+  const n = Math.max(1, Math.min(areas || 1, Math.floor((inner + gap) / (NARROW + gap))));
   const want = `repeat(${n}, minmax(${NARROW}px, ${WIDE}px))`;
   if (box.style.gridTemplateColumns !== want) box.style.gridTemplateColumns = want;
-  const tracks = win.getComputedStyle(box).gridTemplateColumns.split(' ').map(parseFloat).filter(x => x > 0);
-  const col = tracks[0] || NARROW, between = n > 1 ? (inner - tracks.reduce((s, x) => s + x, 0)) / (n - 1) : gap;
-  for (const t of tall) {
-    const split = n >= areas.length && t.k > 1;
-    t.a.classList.toggle('st-split', split);
-    t.a.style.gridColumn = split ? `span ${t.k}` : '';
-    t.a.style.columnCount = split ? t.k : '';
-    t.a.style.columnGap = split ? `${Math.max(gap, between)}px` : '';
-    if (split) t.a.style.setProperty('--st-col', `${col}px`); else t.a.style.removeProperty('--st-col');
-  }
 }
 function lines(root, M, cur, quiet) {
   const box = root.querySelector('.st-regions'), svg = box?.querySelector('svg.st-lines');
@@ -58,16 +35,13 @@ function lines(root, M, cur, quiet) {
   columns(box);
   if (quiet) { svg.innerHTML = ''; return; }   // while a tag is being chosen, only the tags
   const at = box.getBoundingClientRect(), rows = new Map(), areas = [...box.querySelectorAll('.st-area')];
-  // A row's column: its area's, or in an area split into columns, the one the row stands in. Columns are told apart by their left edge.
-  const colOf = row => { const a = row.closest('.st-area'); return a.classList.contains('st-split') ? row.getBoundingClientRect() : a.getBoundingClientRect(); };
-  const lefts = [...new Set([...box.querySelectorAll('[data-row]')].map(r => Math.round(colOf(r).left)))].sort((x, y) => x - y);
   for (const row of box.querySelectorAll('[data-row]')) rows.set(Number(row.dataset.row), row);
   // The rows of areas, by their tops: a row's band is the space above it.
   const tops = [...new Set(areas.map(a => Math.round(a.getBoundingClientRect().top - at.top)))].sort((x, y) => x - y);
   const rowIn = a => tops.indexOf(Math.round(a.getBoundingClientRect().top - at.top));
   // A folded tag's lines stop at the nearest row that shows.
   const rowOf = id => { const path = Mo.pathOf(M, id); for (let i = path.length - 1; i >= 0; i--) if (rows.has(path[i])) return rows.get(path[i]); return null; };
-  const seat = row => { const r = row.getBoundingClientRect(), a = row.closest('.st-area'), ar = colOf(row); return { y: r.top - at.top + box.scrollTop + 13, l: ar.left - at.left + box.scrollLeft, r: ar.right - at.left + box.scrollLeft, area: rowIn(a) * 1000 + lefts.indexOf(Math.round(ar.left)), line: rowIn(a) }; };
+  const seat = row => { const r = row.getBoundingClientRect(), a = row.closest('.st-area'), ar = a.getBoundingClientRect(); return { y: r.top - at.top + box.scrollTop + 13, l: ar.left - at.left + box.scrollLeft, r: ar.right - at.left + box.scrollLeft, area: areas.indexOf(a), line: rowIn(a) }; };
   const bandAbove = line => tops[line] + box.scrollTop - 26;
   const all = Mo.roads(M), near = Mo.within(M, cur), mine = r => near.has(r.from) || near.has(r.to);
   const shown = all.filter(mine);   // only what can be read: a line stands for the tag you pressed
