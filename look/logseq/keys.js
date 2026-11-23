@@ -62,6 +62,7 @@ function groups() {
       ['Accept all, no new bullet', [own('predictive', 'proposalsAcceptKeys')]],
       ['Take the grey link', [fixed(link ? '→' : '')]],
       ['Link a page from here, or tag the bullet', [fixed(find && Door.runs('predictive') && plugin('panel') !== false ? 'Hyper' : '')]],
+      ['Find under the line', [find && plugin('panel') !== false ? own('find', 'panelKeys') : fixed('')]],
       ['Open the link under the cursor', [find && plugin('look') !== false ? own('find', 'lookKeys') : fixed('')]],
       ['Add a property', [logseqKey('editor/add-property')]],
       ['Undo, redo', [logseqKey('editor/undo'), logseqKey('editor/redo')]],

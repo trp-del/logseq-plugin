@@ -9,11 +9,42 @@ const Keys = window.PluginDoor.keys;
    Cmd Option K: the window as a sentence. Cmd Shift .: the window with > typed, Logseq's commands listed; no key of Logseq's
    uses it. Each is matched by the key's place on the keyboard, since Shift and Option change what a key reads. */
 const keys = () => { const takes = Find.settings.setting('takesSearchKey') !== false; return { find: takes ? 'mod+k' : 'mod+shift+k', logseqSearch: takes ? 'mod+shift+k' : 'mod+k', sentence: 'mod+alt+k', commands: 'mod+shift+.' }; };
+/* A bullet being written, and the last one that was: the palette takes the caret before its command runs (found by hand, 23 November
+   2026: "Put the cursor in a bullet first"), so "Find: link from here" goes back to the bullet the hand was in, at its caret. */
+const bulletBox = at => at?.tagName === 'TEXTAREA' && !!at.closest('.ls-block') && !at.closest('[data-th-node]');
+let lastBullet = null;   // { uuid, pos, side }
+function rememberBullet() {
+  const doc = Find.kit.host(), SIDE = '#right-sidebar, .cp__right-sidebar';
+  const note = () => { const at = doc.activeElement; if (bulletBox(at)) lastBullet = { uuid: at.closest('.ls-block').getAttribute('blockid'), pos: at.selectionStart, side: !!at.closest(SIDE) }; };
+  for (const type of ['keyup', 'mouseup', 'focusin']) Find.kit.listen(doc, type, note, true);
+  Find.kit.onStop(logseq.App.onRouteChanged?.(() => { lastBullet = null; }));
+  Find.kit.onStop(() => { lastBullet = null; });
+}
+async function panelFromCommand() {
+  const doc = Find.kit.host(), no = () => logseq.UI.showMsg('Put the cursor in a bullet first', 'warning');
+  if (Find.settings.setting('panel') === false) return;
+  if (bulletBox(doc.activeElement)) return void Find.window.panel(doc.activeElement);
+  const was = lastBullet;
+  if (!was?.uuid || !doc.querySelector(`.ls-block[blockid="${was.uuid}"]`)) return no();
+  await new Promise(r => setTimeout(r, 150));   // the palette closes first
+  await Promise.resolve(logseq.Editor.editBlock(was.uuid, { pos: was.pos })).catch(() => {});
+  for (let i = 0; i < 20 && !bulletBox(doc.activeElement); i++) await new Promise(r => setTimeout(r, 50));
+  const at = doc.activeElement;
+  if (!bulletBox(at) || at.closest('.ls-block')?.getAttribute('blockid') !== was.uuid) return no();
+  Find.window.panel(at);
+}
 function listenForKeys() {
   const doc = Find.kit.host();
   Find.kit.onStop?.(Keys.tell('find', keys));
   const keyListener = event => {
     const now = keys(), is = spec => Keys.matches(event, spec), mine = () => { event.preventDefault(); event.stopPropagation(); };
+    /* The small Find under the line has a key of its own (the owner, 23 November 2026: "Give it its own key"; Hyper in a line opens
+       Logseq's own list, and the palette takes the caret). In a bullet being written it opens the panel; again, it closes it. */
+    if (is(Find.settings.setting('panelKeys')) && Find.settings.setting('panel') !== false) {
+      const at = doc.activeElement, state = Find.window.state;
+      if (state.dlg && state.host && !state.host.held) { mine(); Find.window.close(); return; }
+      if (!state.dlg && bulletBox(at)) { mine(); Find.window.panel(at); return; }
+    }
     // Again, each closes its window.
     if (is(now.commands)) { mine(); Find.window.commands(); return; }
     if (is(now.sentence)) { mine(); Find.window.sentence(); return; }
@@ -41,6 +72,7 @@ async function main() {
   const { onStop } = Find.kit;
   onStop(window.PluginDoor.addMenuItem({ key: 'find', label: 'Find', icon: 'search', run: () => Find.window.open() }));
   listenForKeys();
+  rememberBullet();
   Find.under.start();
   logseq.App.registerCommandPalette({ key: 'find-open', label: 'Find' }, () => Find.window.open());
   logseq.App.registerCommandPalette({ key: 'find-sentence', label: 'Find by sentence' }, () => Find.window.sentence());
@@ -51,7 +83,7 @@ async function main() {
   onStop(window.PluginDoor.offerAsk('find:panel', ({ box } = {}) => Find.window.panel(box)));
   onStop(window.PluginDoor.offerAsk('find:held', () => Find.window.held()));
   logseq.App.registerCommandPalette({ key: 'find-held', label: 'Find: tag the selected bullets' }, async () => { if (!await Find.window.held()) logseq.UI.showMsg('Select some bullets first', 'warning'); });
-  logseq.App.registerCommandPalette({ key: 'find-panel', label: 'Find: link from here' }, () => { const box = Find.kit.host().activeElement; if (!Find.window.panel(box)) logseq.UI.showMsg('Put the cursor in a bullet first', 'warning'); });
+  logseq.App.registerCommandPalette({ key: 'find-panel', label: 'Find: link from here' }, () => panelFromCommand());
   onStop(logseq.DB.onChanged(() => Find.window.forget()));
   onStop(logseq.App.onCurrentGraphChanged(() => { Find.window.close(); Find.window.forget(true); }));
   const warming = setTimeout(() => Find.window.warm(), 1500);
