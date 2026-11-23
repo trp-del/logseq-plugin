@@ -4,6 +4,44 @@ One module of Logseq Plugin (the root README says how the six fit together; the 
 
 The search window as the first step of a walk. You find things the way you think about them: the kind of thing, who it was with, roughly when, and then the thread from what you found, without leaving the window. Begun on 30 October 2026; version 0.1.0 is the window as designed in `history/old-plugins/logseq-find/docs/ALTERNATIVES.html` in the workspace (way B, with narrowing by choice and the keys), checked in Logseq 2.0.2 on the Illness Test Graph. On 5 November 2026 a second way in came from the Finding screen of `after-kenya-hara.html` in the workspace, **Find by sentence**: the same window, where you type what you are looking for as you would say it and the window pencils above each part what it read. The owner wanted it as an add-on, not in place of Find, so it has its own command and key and the find line of pieces stays the default.
 
+## The small panel under the line (0.5)
+
+The owner, 22 November 2026: "I want to be able to do actions quicker or edits, like through a more robust find, without losing
+context"; of the window: "that window opens and takes over majority of screen"; "the small should be build from same library".
+Find has two hosts and one code (`find.js`, `S.host`): the window, over the page, and a panel under the line being written.
+
+- **Opening.** A tap of the Hyper key (Caps Lock as Cmd+Ctrl+Opt+Shift) in a bullet, when no grey page name is showing (a grey
+  name still takes the tap, as before), or the command "Find: link from here". The setting "A small Find under the line you are
+  writing" switches it off; the tap then lists the tags as before. Predictive hears the tap and asks the door (`find:panel`).
+- **What it is.** The window's own four pieces, the find line, the choices, the rows and the foot, in the library's pop-up
+  (`lk-pop`), under the bullet at its width, above it where the window has no room below, four rows. Not modal: the page stays
+  as it is, the bullet stays in writing, a press elsewhere lets it go.
+- **Keys.** Typing finds as the window does; ↑ ↓ move; Tab narrows or steps into the choices; → opens a row in place; Enter
+  links the lit row at the caret (`[[Name]]`, a space before it after a letter), one Cmd+Z takes it back; Escape goes back a
+  step and at last closes, the caret exactly where it was; Cmd K opens the window with the same letters. The foot says what
+  Enter will do ("link Chase Checking").
+- **The bullet's tags.** With nothing typed, the first line is "tag this bullet": Predictive's own guesses with their reasons
+  (asked as `predictive:tagChoices`). Tab lights one, the tag shows green at the line's right end before anything is written,
+  Enter gives it through Predictive's own write and Undo (`predictive:tagTake`). A bullet with a tag has no such line. Option-T
+  still opens the list of tags.
+- **A new name.** Words no page is named by give a row "+ words": first and lit when no page's name begins with them, else
+  after the pages found. Over it the line "kind of the new page" offers the kinds pages linked after the same last word were
+  (Predictive, `core/newkind.js`, asked as `predictive:kindsFor`); the clear one comes lit (seen three times, twice the next),
+  otherwise none: Tab and Enter pick one. Enter makes the page, gives it the kind and links it; the Undo arrow takes the link out
+  and drops the page while nothing was written on it. What `[[Name]]#Tag` does in Logseq, in two keys beside the name.
+- **What is held.** With bullets selected, the tap opens the same panel under the last of them ("3 bullets held: type a tag"; the
+  command "Find: tag the selected bullets"): the tags as rows, the lit tag green at each held line, Enter gives it to every one
+  that lacks it, one Undo for all (the library's `write.each`). A page lit moves the bullets under it only while the setting
+  "Move selected bullets under a page from the small Find" is on; it is off until the owner turns it on.
+
+## A linked page under the line (0.5)
+
+The owner: "viewing a node should pobably appear more inline", and of Hyper for it, "but that mean I cannot create another link",
+then "A different key for looking". With the caret on or just after a link in the bullet being written, Option-L (a setting, shown
+on the key sheet) opens that page under the line, in the page itself: Relations' opened node, rolled out, the lines below moving
+down (`find/logseq/under.js`; an empty `data-th-node` holder inside the bullet, which Relations fills). The bullet stays in
+writing. The key again, or Escape, rolls it up. A click on a link still opens its page. One at a time; it goes on a route change.
+
 ## What it does
 
 **Open it** with Cmd+K (Ctrl+K elsewhere), Logseq's magnifier at the top left, or Find in the ··· menu at the top right, or Find in the command palette; Logseq's own search moves to Cmd+Shift+K, or Shift and the magnifier. The window opens with its kinds and recent pages already in it: they are read once a moment after the plugin starts, and after a change to the graph the ones read before are shown while they are read again behind the window, so it never opens empty (another graph's are never shown). **Find by sentence** opens with Cmd+Option+K (Ctrl+Alt+K elsewhere), or from the command palette (Find by sentence); pressed while Find is open it turns the window into a sentence, pressed again it closes. Cmd+Shift+. (Ctrl+Shift+. elsewhere) opens it with `>` already typed, Logseq's commands listed, as a command palette; pressed again it closes. Or the route icon in the toolbar's plugin menu (the puzzle piece at the top right; pin it from there), or **Find** in the command palette. A setting turns the key the other way round.

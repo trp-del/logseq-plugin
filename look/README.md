@@ -4,6 +4,15 @@ One module of Logseq Plugin (the root README says how the six fit together; the 
 
 How things look, as the visual grammar agreed on 29 October 2026 says. It reads your graph and changes nothing else in it. **What it writes:** only what the × beside a title takes off, a tag from a page, and the same tag put back by the faded Undo arrow the × leaves. On a tag's own page the × reaches every node under the tag, so it opens Ontology's ask on the tag's card, and with Ontology off it is not there.
 
+## The folded note and its place (0.5, 22 November 2026)
+
+The owner: "More consider how the information on folded bullers can be more contextually aware". `folded.js` `build(doc, held,
+place)` is told where the bullet stands (`placeOf`): for one of Logseq's bullets the name of the page it is shown on; for a row
+of the plugin's lists what the module wrote on its mark (`data-lk-says`, words parted by |). Two rules: what waits comes first
+(the due day leads the note while a task under it is unfinished), and a tag the place already says is left out. Todo's rows
+carry the mark too, so a task with bullets under it shows its note there. Not yet: the bullet's own filled properties in its
+tag's order, and the line that matched after a search.
+
 ## What it draws
 
 - **A link** to a page, or to a file in the graph such as a PDF, is the text colour with a faint underline, firmer under the pointer, never blue. A PDF has "PDF" after its name, small and grey, beside the book icon before it. A web address is the same link with a grey ↗ after it. A journal day is quiet grey words; in a property's value, where quiet grey would read as the name's grey, a day keeps the value's colour, no underline, quiet only under the pointer (the calendar icon and the name already say it is a date).

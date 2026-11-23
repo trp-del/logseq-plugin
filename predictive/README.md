@@ -26,6 +26,17 @@ Proposals move nothing you did not move. Under a bullet with no tag the row of p
 
 It is made from the two features of the author's logseq-db-refinements plugin that did this, rebuilt to run on any graph.
 
+## What 0.5 added (22 November 2026)
+
+- A tap of Hyper with no grey name showing opens Find's small panel under the line (`find/README.md`), where the bullet's tags
+  stand on the first line; with Find or its panel off, the tap lists the tags as before. With bullets selected and none being
+  written, the tap asks Find for the panel on what is held.
+- `tag-pick.js` works the tags out once for both (`choicesFor`) and offers them through the door: `predictive:tagChoices` (the
+  bullet's box in, `[{ title, reason }]` out) and `predictive:tagTake` (the box and the place in that answer).
+- `core/newkind.js`, `kindsAfter(before, lines, tagsOf)`: the kinds a new page is likely to be, from the pages earlier lines
+  linked right after the same last word; the first is lit only when it was seen three times and twice as often as the next.
+  Offered as `predictive:kindsFor`. Five tests in `test/run.js`.
+
 ## Apple's tools on the Mac
 
 Three of Apple's tools read the bullet on the Mac where the rules leave a thing open, through Predictive's helper (below), and nothing leaves the Mac. Each guess is dotted, carries a small raised asterisk while pencilled, is written only by Enter or a click, and has the same Undo. One setting, **Read my words with Apple's tools on this Mac**, turns all three on or off, and the settings window says which of them answer.
