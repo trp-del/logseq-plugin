@@ -303,6 +303,8 @@ function draw(doc) {
     if (arrow.classList.contains('collapsed') !== folded) { arrow.classList.toggle('collapsed', folded); arrow.classList.toggle('not-collapsed', !folded); }
     if (fold.getAttribute('aria-expanded') !== String(!folded)) fold.setAttribute('aria-expanded', String(!folded));
     if (content.hidden !== folded) content.hidden = folded;
+    // Logseq's own class for a folded item, which lets the item shrink to its head (its sidebar keeps every item at least 100 px high otherwise: a folded Outline stood three times as high as a folded page, the owner, 22 November 2026).
+    if (panel.classList.contains('collapsed') !== folded) panel.classList.toggle('collapsed', folded);
   }
   if (made) render(doc);
 }
