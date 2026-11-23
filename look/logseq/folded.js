@@ -37,6 +37,7 @@ const some = (n, one, many) => `${n} ${n === 1 ? one : many}`;
    Two rules are kept here: what waits comes first (the due day leads while a task under it is unfinished), and nothing the place
    already says is said again (a tag that is the page's own name, or the kind a list is headed by, is left out). */
 const fitted = (held, place) => {
+  if (!held) return held;   // nothing read under it
   const says = new Set((place?.says || []).map(w => String(w).trim().toLowerCase()).filter(Boolean));
   return says.size ? { ...held, tags: held.tags.filter(t => !says.has(String(t).toLowerCase())) } : held;
 };
