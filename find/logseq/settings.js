@@ -6,6 +6,8 @@ const schema = [
     description: 'Cmd+K (Ctrl+K elsewhere) opens Find, and Cmd+Shift+K opens Logseq’s own search. Off: Cmd+Shift+K opens Find and Logseq’s key is left alone.' },
   { key: 'windowPlace', type: 'enum', default: 'high', enumChoices: ['high', 'centred'], title: 'Where the window opens',
     description: 'High: near the top of the screen, with the page in view under it. Centred: in the middle, as Logseq’s own search.' },
+  { key: 'panel', type: 'boolean', default: true, title: 'A small Find under the line you are writing',
+    description: 'A tap of the Hyper key (Caps Lock as Cmd+Ctrl+Opt+Shift) in a bullet opens a small Find under the line: type, and Enter links the lit row where the cursor is. Its first line offers tags for the bullet. Escape puts the cursor back. Off: the tap lists the tags, as before.' },
   { key: 'rowsShown', type: 'number', presets: [5, 12, 30], default: 12, title: 'Rows before “show all”',
     description: 'How many matches are listed at first; “show all” lists the rest.' },
 ];

@@ -209,6 +209,14 @@ function onHyperUp(event) {
   if (!quick) return;
   // One tap, one job: the grey page name when one shows; else, on a bullet in edit, the tag list (tag-pick.js).
   if (showing && setting('linkSuggestHyperTap')) { if (accept({ target: showing.box })) hyperTap.firedAt = Date.now(); return; }
+  /* 0.5 (the owner, 22 November 2026): with no grey name to take, the tap opens Find's small panel under the line, where the bullet's
+     tags stand on its first line; with Find off, or its panel switched off, the list of tags as before. */
+  const box = event.target, D = window.PluginDoor;
+  if (app.isBlockBox(box) && D.answers?.('find:panel')) {
+    hyperTap.firedAt = Date.now();
+    Promise.resolve(D.ask('find:panel', { box })).then(opened => { if (opened !== true) Flow.tagPick?.fromHyper?.(box); }).catch(() => {});
+    return;
+  }
   if (Flow.tagPick?.fromHyper?.(event.target)) hyperTap.firedAt = Date.now();
 }
 

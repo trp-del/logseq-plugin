@@ -39,18 +39,21 @@ function draw() {
   if (!list.isConnected) doc.body.append(list);
 }
 
-async function show(box) {
-  if (!app.isBlockBox(box)) return;
+/* The tags a bullet could be, best first, worked out once for whoever shows them: the list here, and Find's panel under the line
+   (0.5, the owner, 22 November 2026: the list a Hyper tap opened goes "Into the panel"). say: what to tell the person when there
+   is nothing to show (the list says it; the panel just has no tag line). */
+async function choicesFor(box, say = () => {}) {
+  if (!app.isBlockBox(box)) return null;
   const uuid = app.uuidOf(box);
-  if (!uuid) return;
-  if (!await app.allowed()) return notify('Proposals are off in this graph, so no tag is offered', 'warning');
+  if (!uuid) return null;
+  if (!await app.allowed()) return say('Proposals are off in this graph, so no tag is offered', 'warning'), null;
   const ctx0 = await app.context({ wait: false });
-  if (!ctx0) return notify('Still reading the graph; try again in a moment');
+  if (!ctx0) return say('Still reading the graph; try again in a moment'), null;
   const ctx = await app.freshLinks(ctx0, box.value);
   const block = await db.pullBlock(uuid);
-  if (!block) return;
+  if (!block) return null;
   const bullet = db.bulletOf(block, box.value, ctx.schema);
-  if (bullet.tags.length) return notify('This bullet already has a tag');
+  if (bullet.tags.length) return say('This bullet already has a tag'), null;
   const items = propose.tagChoices(ctx, bullet), words = box.value;
   // Apple's model, when it is on this Mac: the tag it reads the line as goes first (core/model.js, tagRequest). The list waits
   // for it a moment rather than move a row under the pointer once it is open.
@@ -65,12 +68,31 @@ async function show(box) {
     items.unshift({ ...(was || { score: 0, via: [], fields: Flow.schema.fieldsOfTags([found.id], ctx.schema).map(p => p.title) }), tag: { id: found.id, uuid: found.uuid, title: found.title }, how });
     if (items.length > 5) items.length = 5;
   }
-  if (!items.length) return notify('No tag to suggest for this line');
-  if (host().activeElement !== box || box.value !== words) return;   // moved on while it was being worked out
-  close();
+  if (!items.length) return say('No tag to suggest for this line'), null;
+  if (box.value !== words) return null;   // the words moved on while it was being worked out
   // The best guess stays first; the rest follow under their top-level tags, each group where its best guess came.
-  open = { box, uuid, items: Flow.schema.byTop(items, ctx.schema), at: 0, titleOf: id => ctx.byId.get(id)?.title || '', list: el(box.ownerDocument, 'div', { class: 'flow-pick lk-pop lk-menu', role: 'listbox' }) };
+  return { uuid, items: Flow.schema.byTop(items, ctx.schema), titleOf: id => ctx.byId.get(id)?.title || '' };
+}
+async function show(box) {
+  const got = await choicesFor(box, notify);
+  if (!got || host().activeElement !== box) return;
+  close();
+  open = { box, uuid: got.uuid, items: got.items, at: 0, titleOf: got.titleOf, list: el(box.ownerDocument, 'div', { class: 'flow-pick lk-pop lk-menu', role: 'listbox' }) };
   draw();
+}
+// The same choices for Find's panel: asked through the door with the bullet's box; taken by their place in the answer.
+let offered = null;   // { box, uuid, items } the panel was last told
+async function choicesAsked(box) {
+  const got = await choicesFor(box).catch(() => null);
+  offered = got ? { box, uuid: got.uuid, items: got.items } : null;
+  return got ? got.items.map(item => ({ title: item.tag.title, reason: reasonOf(item) })) : [];
+}
+async function takeAsked(box, i) {
+  if (!offered || offered.box !== box || !offered.items[i]) return false;
+  const was = offered; offered = null;
+  open = { box: was.box, uuid: was.uuid, items: was.items, at: i, list: el(box.ownerDocument, 'div', {}) };
+  await pick(i);
+  return true;
 }
 
 async function pick(i) {
@@ -136,6 +158,8 @@ function start() {
   app.listen(win, ['pointerdown', 'mousedown', 'mouseup', 'click'], onPress, true);
   app.listen(win, ['scroll', 'resize', 'focusout'], () => { if (open) close(); }, true);
   app.onStop(close);
+  app.onStop(window.PluginDoor.offerAsk('predictive:tagChoices', choicesAsked));
+  app.onStop(window.PluginDoor.offerAsk('predictive:tagTake', takeAsked));
   app.onStop(logseq.App.onRouteChanged?.(close));
   logseq.App.registerCommandPalette?.({ key: 'flow-choose-tag', label: 'Predictive: choose a tag for this bullet' }, () => { const box = host().activeElement; if (app.isBlockBox(box)) show(box); else notify('Put the cursor in a bullet first'); });
 }

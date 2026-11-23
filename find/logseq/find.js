@@ -24,6 +24,7 @@ const CSS = `
 .fd.fd-centred { top: 50% !important; bottom: auto !important; transform: translate(-50%, -50%); }
 /* The same window as a small panel under the line being written (0.5, 22 November 2026, the owner: "the small should be build
    from same library"): no dimming, placed and sized by place(). */
+.fd-coming { position: fixed; z-index: 98; pointer-events: none; }
 .fd.fd-panel { transform: none; max-height: none; z-index: 99; line-height: 1.5; }   /* its edge and shadow are the library's pop-up, lk-pop */
 .fd * { box-sizing: border-box; }
 /* The find line: the pieces, then the letters. */
@@ -316,6 +317,13 @@ function choiceGroups() {
   const matches = label => typed && trail.every(w => label.toLowerCase().split(/[\s,./()-]+/).some(l => l.startsWith(w)) || label.toLowerCase().startsWith(w));
   const tag = kindPick();
   const limit = key => S.moreOf.has(key) ? 999 : 3;
+  /* In the panel with nothing typed, the first line is the tags the bullet could be, Predictive's own guesses with their reasons
+     (0.5, the owner: the tag list goes "Into the panel"). One line, so the kinds wait until letters come. */
+  if (S.host?.tags?.length && atRest()) {
+    groups.push({ key: 'tagme', label: 'tag this bullet', icon: '', items: S.host.tags.slice(0, limit('tagme')).map((t, i) => ({ label: t.title, hint: t.reason, does: `tag this bullet ${t.title}`, coming: t.title, pick: () => tagLine(i) })), more: S.host.tags.length > limit('tagme') });
+    for (const g of groups) if (g.more) g.items.push({ more: true, label: 'more', pick: () => { S.moreOf.add(g.key); growChoices(); } });
+    return groups;
+  }
   if (atRest() && S.moreOf.has('kind') && S.tree?.length) {
     // Opened with nothing typed, every kind, laid out as Structure's tree: a column under each top-level tag, each tag
     // beneath its parent, Task under "Logseq". The items run down each column, then on to the next.
@@ -538,7 +546,7 @@ function render() {
         const at = ci++;
         const lit = (S.mode === 'choices' && at === S.choiceAt) || (S.mode !== 'choices' && litChoice(groups) === c);
         if (c.more) vals.append(el(doc, 'button', { class: 'fd-more lk-more' + (lit ? ' fd-lit' : ''), type: 'button', 'data-c': at, click: () => c.pick() }, c.label));
-        else vals.append(el(doc, 'button', { class: 'fd-c lk-view' + (lit ? ' fd-lit lk-lit' : ''), type: 'button', 'data-c': at, title: c.label.length > 44 ? c.label : null, click: () => c.pick() }, short(c.label, 44), el(doc, 'span', { class: 'fd-nb lk-nb' }, String(c.count))));
+        else vals.append(el(doc, 'button', { class: 'fd-c lk-view' + (lit ? ' fd-lit lk-lit' : ''), type: 'button', 'data-c': at, title: c.hint || (c.label.length > 44 ? c.label : null), click: () => c.pick() }, short(c.label, 44), c.count == null ? null : el(doc, 'span', { class: 'fd-nb lk-nb' }, String(c.count))));
       });
       box.append(vals);
       wrap.append(box);
@@ -797,7 +805,7 @@ function treeOf(doc, g, next, groups) {
   }
   return tree;
 }
-function drawFoot(groups, rows) { S.dlg.querySelector('.fd-foot').replaceChildren(...foot(S.doc, groups, rows)); }
+function drawFoot(groups, rows) { S.dlg.querySelector('.fd-foot').replaceChildren(...foot(S.doc, groups, rows)); showComing(groups); }
 // The cursor moves along the rows: the lit mark goes from one to the other and nothing is drawn again.
 function litRow(at, groups, rows) {
   S.rowAt = at;
@@ -903,7 +911,8 @@ function foot(doc, groups, rows) {
     add(KEY('Escape', S.lineDug ? 'close' : 'fold the line'));
     return items;
   }
-  if (S.mode === 'choices') { add(KEY('Tab', lit.more ? 'show more' : `narrow to ${esc(lit.label)}`)); add(KEY('← → ↑ ↓', 'choose')); add(KEY('Escape', 'back to the rows')); if (groupOf(groups, S.choiceAt) === 0 && canLine()) add(KEY('↑', 'the line')); }
+  if (S.mode === 'choices' && lit?.does) { add(KEY('Enter', `<b>${esc(lit.does)}</b>`)); add(KEY('← →', 'choose')); add(KEY('Escape', 'back to the rows')); }
+  else if (S.mode === 'choices') { add(KEY('Tab', lit.more ? 'show more' : `narrow to ${esc(lit.label)}`)); add(KEY('← → ↑ ↓', 'choose')); add(KEY('Escape', 'back to the rows')); if (groupOf(groups, S.choiceAt) === 0 && canLine()) add(KEY('↑', 'the line')); }
   else {
     if (lit) add(KEY('Tab', `narrow to ${esc(lit.label)}`)); else if (choices.length) add(KEY('Tab', 'narrow'));
     if (cur?.kind === 'node' && S.host) add(KEY('Enter', `<b>link ${esc(short(cur.node.text))}</b>`));
@@ -1260,6 +1269,7 @@ function close() {
   d.remove();
   // The panel gone: the caret is where it was in the line, the letters it stood between untouched.
   const h = S.host; S.host = null;
+  h?.coming?.remove();
   if (S.hostOff) { S.hostOff(); S.hostOff = null; }
   if (h && !h.left) backToLine(h);
 }
@@ -1280,9 +1290,30 @@ function linkRow(r) {
 }
 // The panel on the line a box is writing: its caret kept for the way back.
 function panel(box) {
-  if (!box || box.tagName !== 'TEXTAREA') return false;
+  if (!box || box.tagName !== 'TEXTAREA' || setting('panel') === false) return false;
+  const D = window.PluginDoor, dlgNow = () => S.dlg;
+  // The bullet's tags, when Predictive runs: asked as the panel opens, drawn when they answer (nothing moves: the line is kept for them).
+  if (D.answers?.('predictive:tagChoices')) Promise.resolve(D.ask('predictive:tagChoices', box)).then(tags => { if (S.host?.box === box && dlgNow() && Array.isArray(tags) && tags.length) { S.host.tags = tags; render(); } }).catch(() => {});
   open('', false, { box, start: box.selectionStart, end: box.selectionEnd, uuid: box.closest('.ls-block')?.getAttribute('blockid') || null });
   return true;
+}
+// The tag a choice would give, shown coming (green) at the line's right end while the choice is lit, before anything is written.
+function showComing(groups) {
+  const h = S.host; if (!h) return;
+  const lit = S.mode === 'choices' ? flatChoices(groups)[S.choiceAt] : null, word = lit?.coming || '';
+  if (!word) { h.coming?.remove(); h.coming = null; return; }
+  if (!h.box?.isConnected) return;
+  const r = h.box.getBoundingClientRect();
+  if (!h.coming) { h.coming = el(S.doc, 'span', { class: 'fd-coming lk-tag lk-coming', 'aria-hidden': 'true' }); S.doc.body.append(h.coming); }
+  h.coming.textContent = word;
+  Object.assign(h.coming.style, { top: Math.round(r.top) + 'px', right: Math.round(S.doc.defaultView.innerWidth - r.right) + 'px', lineHeight: Math.round(Math.min(r.height, 28)) + 'px' });
+}
+// The lit tag taken: Predictive gives it, with its own Undo, and the caret is back in the line.
+async function tagLine(i) {
+  const h = S.host; if (!h) return;
+  close();
+  const ok = await Promise.resolve(window.PluginDoor.ask('predictive:tagTake', h.box, i)).catch(() => false);
+  if (ok !== true) notify('The tag could not be given', 'warning');
 }
 // Cmd K from the panel: the window, with the same letters.
 function widen() { const typed = S.typed, h = S.host; if (h) h.left = true; close(); open(typed); }
