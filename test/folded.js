@@ -22,6 +22,9 @@ const check = (name, got, want) => { assert.deepEqual(JSON.parse(JSON.stringify(
 check('a tag the page is named by is left out', wordsFor(held({ tags: ['Insomnia', 'Fatigue'] }), { says: ['Insomnia'] }), ['Fatigue']);
 check('a fact whose value the page is named by is left out', wordsFor(held({ facts: [{ name: 'Doctor', value: 'Dr. Mei Chen' }, { name: 'Date', value: 'Nov 10' }] }), { says: ['dr. mei chen'] }), ['Date Nov 10']);
 check('a fact the node\u2019s own words hold is left out', wordsFor(held({ facts: [{ name: 'From', value: 'Chase Checking' }, { name: 'To', value: 'Amex Gold' }] }), { says: [], words: 'Paid off the Amex Gold card' }), ['From Chase Checking']);
+check('a fact holding what is typed in Find is left out', wordsFor(held({ facts: [{ name: 'Provider', value: 'Dr. Mei Chen' }, { name: 'Date', value: 'Oct 14' }] }), { says: [], typed: 'mei chen', words: 'Cycle 4 delayed a week' }), ['Date Oct 14']);
+check('a fact the row\u2019s day says is left out', wordsFor(held({ facts: [{ name: 'Date', value: 'Oct 14' }] }), { says: [], words: 'Oct 14 Cycle 4 delayed a week' }), []);
+check('a fact the page title holds is left out (the title runs on into its tag)', wordsFor(held({ facts: [{ name: 'Provider', value: 'Dr. Mei Chen' }, { name: 'Date', value: 'Oct 14' }] }), { says: ['Dr. Mei ChenDoctor'], words: 'Cycle 4 delayed a week' }), ['Date Oct 14']);
 // 2. What waits comes first: the due day of an unfinished task leads; with nothing unfinished it stays last.
 const due = day(soon), dueWords = 'due ' + door.dates.words(due, { year: false });
 check('the due day leads while a task waits', wordsFor(held({ task: 1, due, tags: ['Bill'] }), { says: [] })[0], dueWords);

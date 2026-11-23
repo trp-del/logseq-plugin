@@ -48,7 +48,10 @@ const fitted = (held, place) => {
   const said = text => says.has(String(text).trim().toLowerCase());
   const tags = held.tags.filter(t => !said(t));
   const shown = String(place?.words || '').toLowerCase();
-  const facts = place?.facts ? [] : (held.facts || []).filter(f => !said(f.value) && !(shown && shown.includes(String(f.value).trim().toLowerCase()))).slice(0, FACTS);
+  const typed = String(place?.typed || '').trim().toLowerCase();
+  // A value is known when the place says it: a page title as Logseq draws it runs on into its tags, so a title holding the value counts.
+  const known = value => { const v = String(value).trim().toLowerCase(); return said(v) || [...says].some(w => v.length > 2 && w.includes(v)) || shown.includes(v) || (typed.length > 2 && v.includes(typed)); };
+  const facts = place?.facts ? [] : (held.facts || []).filter(f => !known(f.value)).slice(0, FACTS);
   const ws = (place?.match || []).map(w => String(w).trim().toLowerCase()).filter(Boolean);
   const match = ws.length ? (held.lines || []).find(line => { const t = line.toLowerCase(); return ws.every(w => t.includes(w)); }) || '' : '';
   return { ...held, tags, facts, match };
@@ -116,15 +119,19 @@ function placeOf(el) {
   // The words the node is shown with, its row's day included: a value they already hold is not said again (Paid off the Amex Gold
   // card, Amex Gold; a Date of Oct 14 on a row whose day reads Oct 14).
   const wordsOf = holder => { if (!holder) return ''; const note = [...holder.querySelectorAll('.lk-folded')].map(n => n.textContent).join(''); return (holder.textContent || '').replace(note, '').replace(/\s+/g, ' ').trim(); };
-  const mark = el.closest?.('[data-lk-says], [data-lk-match]');
   const list = v => String(v || '').split('|').filter(Boolean);
-  if (mark) return { says: list(mark.getAttribute('data-lk-says')), match: list(mark.getAttribute('data-lk-match')), facts: mark.hasAttribute('data-lk-facts'), words: wordsOf(mark.closest('.lk-row, .fd-r, .th-ol-line, .td-line') || mark.parentElement) };
   const side = el.closest?.('.sidebar-item');
   const title = (side ? side.querySelector('.ls-page-title, .page-title, .sidebar-item-header') : el.ownerDocument.querySelector('#main-content-container .ls-page-title'))?.textContent || '';
+  const pageSays = [title.split('\n')[0].replace(/^#\s*/, '').trim()];
+  // Inside Find's window, what is typed on its line is said there too (a node opened in Find, its rows Relations' own).
+  const typed = el.closest?.('dialog.fd')?.querySelector('.fd-input')?.value?.trim() || '';
+  // A row of the plugin's lists: its mark (data-lk-held), with what the module wrote on it, else the page it is shown on.
+  const mark = el.hasAttribute?.('data-lk-held') ? el : el.closest?.('[data-lk-says], [data-lk-match]');
+  if (mark) return { says: mark.hasAttribute('data-lk-says') ? list(mark.getAttribute('data-lk-says')) : pageSays, match: list(mark.getAttribute('data-lk-match')), facts: mark.hasAttribute('data-lk-facts'), typed, words: wordsOf(mark.closest('.lk-row, .fd-r, .th-ol-line, .td-line') || mark.parentElement) };
   // Logseq's own bullet shows its own properties under its words while open; folded, it hides them, so the note says the first two.
   const block = el.closest?.('.ls-block[blockid]');
   const facts = !!(block && [...block.querySelectorAll('.block-properties, .ls-properties-area, .property-k')].some(p => p.closest('.ls-block[blockid]') === block));
-  return { says: [title.split('\n')[0].replace(/^#\s*/, '').trim()], facts, words: block ? wordsOf(own(block, '.block-title-wrap') || own(block, '.block-content')) : '' };
+  return { says: pageSays, facts, typed, words: block ? wordsOf(own(block, '.block-title-wrap') || own(block, '.block-content')) : '' };
 }
 const shownIn = (now, place) => shows(fitted(now, place));
 const own = (block, selector) => [...block.querySelectorAll(selector)].find(w => w.closest('.ls-block[blockid]') === block);
