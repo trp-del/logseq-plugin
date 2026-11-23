@@ -53,7 +53,7 @@ module.exports = {
 
     // 3. Option-L on a link: its node under the line; Escape rolls it up, the bullet still in writing.
     await f.evaluate(async u => logseq.Editor.updateBlock(u, 'GUARDFIVE paid the gas bill from [[Chase Checking]] on Friday'), ids[0]); await T.sleep(900);
-    await page.evaluate(u => window.logseq.api.edit_block(u), ids[0]); await T.sleep(800);
+    await page.evaluate(u => window.logseq.api.edit_block(u, { pos: 'GUARDFIVE paid the gas bill from [[Chase Checking]]'.length }), ids[0]); await T.sleep(800);   // the caret just after the link
     await page.keyboard.press('Alt+l'); await T.sleep(2800); s = await st();
     if (!s.under || s.filled < 20) return no(`Option-L did not open the link's node under the line (holder ${s.under}, ${s.filled} letters)`);
     if (!s.editing) return no('the bullet left writing when the node opened');
