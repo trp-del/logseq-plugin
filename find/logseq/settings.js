@@ -7,7 +7,7 @@ const schema = [
   { key: 'windowPlace', type: 'enum', default: 'high', enumChoices: ['high', 'centred'], title: 'Where the window opens',
     description: 'High: near the top of the screen, with the page in view under it. Centred: in the middle, as Logseq’s own search.' },
   { key: 'panel', type: 'boolean', default: true, title: 'A small Find under the line you are writing',
-    description: 'The key below, pressed in a bullet you are writing, opens a small Find under the line: type, and Enter links the lit row where the cursor is. Its first line offers tags for the bullet, and words no page is named by make a new page with its kind. The key again, or Escape, puts the cursor back. With bullets selected, a tap of the Hyper key (Caps Lock as Cmd+Ctrl+Opt+Shift) opens it to tag them all.' },
+    description: 'The key below, pressed in a bullet you are writing, opens a small Find under the line: type, and Enter links the lit row where the cursor is. Its first line offers tags for the bullet, and words no page is named by make a new page with its kind. The key again, or Escape, puts the cursor back. With bullets selected, a tap of the Hyper key (Caps Lock as Cmd+Ctrl+Opt+Shift) opens it to tag them all; a tap of Hyper in a bullet opens Logseq’s own list of pages instead.' },
   { key: 'panelKeys', type: 'string', keys: true, default: 'alt+k', title: 'The key that opens the small Find under the line',
     description: 'Option+K unless you set another on the key sheet (hold Option).' },
   { key: 'moveHeld', type: 'boolean', default: false, title: 'Move selected bullets under a page from the small Find',

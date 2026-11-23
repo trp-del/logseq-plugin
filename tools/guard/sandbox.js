@@ -12,6 +12,7 @@
    newest backup first, which Logseq writes whole and never holds locked. */
 const fs = require('node:fs'), path = require('node:path'), os = require('node:os'), http = require('node:http');
 const { spawn, execFileSync } = require('node:child_process');
+const COLOUR = '--force-color-profile=srgb';
 const PORT = Number(process.env.GUARD_PORT || 9340), APP = '/Applications/Logseq.app/Contents/MacOS/Logseq', ID = 'logseq-plugin';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const ROOTS = (process.env.GUARD_GRAPHS || [path.join(os.homedir(), 'logseq-test-graphs', 'graphs'), path.join(os.homedir(), 'logseq', 'graphs')].join(':')).split(':');
@@ -42,7 +43,11 @@ async function start({ dir, graph, plugin, settings = {}, port = PORT }) {
   // Apple's helper is one per Mac: a test copy must never teach it its notes (the audit, 16 Nov). The window is narrow-read as the owner's.
   fs.writeFileSync(path.join(home, '.logseq', 'settings', ID + '.json'), JSON.stringify({ proposalsModel: false, ...settings }));
   const log = fs.openSync(path.join(dir, 'logseq.log'), 'a');
-  const child = spawn(APP, [`--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, '--use-mock-keychain'],
+  /* Colours are drawn in sRGB whatever the Mac's display is (23 November 2026). Logseq writes its yellow (the Doing circle, an
+     overdue Deadline) as a colour outside sRGB, and a picture followed the display of the moment: the same plugin came out with
+     that yellow as 228,190,64 on a wide-colour display and 235,188,0 on a plain one, and the display changes when a screen-sharing
+     session comes or goes. Two screens then "changed" in every run. */
+  const child = spawn(APP, [`--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, '--use-mock-keychain', COLOUR],
     { detached: true, stdio: ['ignore', log, log], env: { ...process.env, HOME: home, CFFIXED_USER_HOME: home } });
   child.unref();
   for (let i = 0; i < 80 && !(await up(port)); i++) await sleep(500);
@@ -114,7 +119,7 @@ async function warm({ store, graph, plugin, port = PORT }) {
   let had = null; try { had = JSON.parse(fs.readFileSync(meta, 'utf8')); } catch (e) { /* first time */ }
   copyPlugin(plugin, own);
   fs.writeFileSync(stamp, String(Date.now()));
-  if (had && had.graph === want && had.port === port && (await up(port))) {
+  if (had && had.graph === want && had.port === port && had.colour === COLOUR && (await up(port))) {   // one started before the colours were fixed is started afresh
     try {
       const { chromium } = require('playwright');
       const browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`, { timeout: 8000 });
@@ -136,7 +141,7 @@ async function warm({ store, graph, plugin, port = PORT }) {
   if (endWorkers(path.join(dir, 'home'))) await sleep(500);
   for (const f of ['home', 'profile']) fs.rmSync(path.join(dir, f), { recursive: true, force: true });
   const box = await start({ dir, graph, plugin: own, port });
-  fs.writeFileSync(meta, JSON.stringify({ graph: want, port, home: box.home, pid: box.pid }));
+  fs.writeFileSync(meta, JSON.stringify({ graph: want, port, home: box.home, pid: box.pid, colour: COLOUR }));
   // The watcher: ends this Logseq and its graph workers after twenty minutes with no check.
   const watcher = `const fs=require('fs'),{execFileSync}=require('child_process');setInterval(()=>{let used=0;try{used=Number(fs.readFileSync(${JSON.stringify(stamp)},'utf8'))}catch(e){}if(Date.now()-used<20*60*1000)return;try{execFileSync('pkill',['-9','-f','remote-debugging-port=${port} --user-data-dir='])}catch(e){}try{for(const l of execFileSync('ps',['-axo','pid=,command='],{encoding:'utf8'}).split('\\n')){const m=l.match(/^\\s*(\\d+) .*db-worker-node\\.js .*--root-dir (\\S+)/);if(m&&m[2].startsWith(${JSON.stringify(box.home)}))try{process.kill(Number(m[1]),'SIGKILL')}catch(e){}}}catch(e){}process.exit(0)},60000)`;
   spawn(process.execPath, ['-e', watcher], { detached: true, stdio: 'ignore' }).unref();
