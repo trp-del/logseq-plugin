@@ -32,8 +32,18 @@ const MOST = 3;
 const shows = held => held && (held.task || held.done || held.files?.length || held.quotes || held.tags.length || held.due);
 const fileCount = (held, kind) => (held.files || []).find(([k]) => k === kind)?.[1] || 0;
 const some = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+/* The note answers the place it is shown in (0.5, E; the owner, 22 November 2026: "More consider how the information on folded
+   bullers can be more contextually aware"). place: { says: [words the place already says, a page's own name, a list's kind] }.
+   Two rules are kept here: what waits comes first (the due day leads while a task under it is unfinished), and nothing the place
+   already says is said again (a tag that is the page's own name, or the kind a list is headed by, is left out). */
+const fitted = (held, place) => {
+  const says = new Set((place?.says || []).map(w => String(w).trim().toLowerCase()).filter(Boolean));
+  return says.size ? { ...held, tags: held.tags.filter(t => !says.has(String(t).toLowerCase())) } : held;
+};
+const waits = held => !!(held.due && held.task);
 function wordsFor(held) {
   const words = [];
+  if (waits(held)) words.push(dueLabel(held.due));
   // Done of all, "1/2" (the owner, 16 November 2026: "do a x/2"); with none done, the unfinished count alone, as before.
   if (held.done) words.push(`${held.done} of ${some(held.task + held.done, 'task', 'tasks')} under it done`);
   else if (held.task) words.push(`${some(held.task, 'unfinished task', 'unfinished tasks')} under it`);
@@ -42,11 +52,14 @@ function wordsFor(held) {
   if (fileCount(held, 'pdf')) words.push(some(fileCount(held, 'pdf'), 'PDF', 'PDFs'));
   if (fileCount(held, 'file')) words.push(some(fileCount(held, 'file'), 'file', 'files'));
   words.push(...held.tags.slice(0, MOST));
-  if (held.due) words.push(dueLabel(held.due));
+  if (held.due && !waits(held)) words.push(dueLabel(held.due));
   return words;
 }
-function build(doc, held) {
+function build(doc, held, place) {
+  held = fitted(held, place);
   const parts = [el(doc, 'span', { class: 'lk-lead', 'aria-hidden': 'true' }, '↳')];
+  // What waits comes first: the nearest due day, before the count of what is unfinished.
+  if (waits(held)) parts.push(el(doc, 'span', { class: 'lk-due' }, dueLabel(held.due)));
   const pair = (name, n) => parts.push(el(doc, 'span', { class: 'lk-pair' }, el(doc, 'span', { html: iconHtml(name) }), el(doc, 'span', {}, String(n))));
   // A ticked circle once every one is done, else the open circle.
   if (held.done) pair(held.task ? 'circle' : 'circle-check', `${held.done}/${held.task + held.done}`);
@@ -61,7 +74,7 @@ function build(doc, held) {
     if (parts.length > 1) parts.push(el(doc, 'span', { class: 'lk-sep', 'aria-hidden': 'true' }, '·'));
     parts.push(el(doc, 'a', { class: 'lk-tag', href: '#', 'data-tag': title }, title));
   });
-  if (held.due) { if (parts.length > 1) parts.push(el(doc, 'span', { class: 'lk-sep', 'aria-hidden': 'true' }, '·')); parts.push(el(doc, 'span', {}, dueLabel(held.due))); }
+  if (held.due && !waits(held)) { if (parts.length > 1) parts.push(el(doc, 'span', { class: 'lk-sep', 'aria-hidden': 'true' }, '·')); parts.push(el(doc, 'span', {}, dueLabel(held.due))); }
   const keep = event => event.stopPropagation();
   const note = el(doc, 'span', { class: 'lk-folded lk-note lk-own', contenteditable: 'false', title: wordsFor(held).join(' · '), mousedown: keep, pointerdown: keep, click: onClick }, ...parts);
   return note;
@@ -74,6 +87,17 @@ async function onClick(event) {
   if (page?.uuid) openPage(String(page.uuid), event.shiftKey);
 }
 let held = new Map(), fresh = new Set(), asked = new Set(), stopped = false;
+/* Where a folded bullet stands: what that place already says. A Logseq bullet: the name of the page it is shown on (the page in
+   front, or the page of the sidebar item it stands in; a journal day says no tag). A row of the plugin's lists: what the module
+   wrote on its mark (data-lk-says, words parted by |: the kind a list is headed by, the kind read in Find). */
+function placeOf(el) {
+  const mark = el.closest?.('[data-lk-says]');
+  if (mark) return { says: String(mark.getAttribute('data-lk-says')).split('|') };
+  const side = el.closest?.('.sidebar-item');
+  const title = (side ? side.querySelector('.ls-page-title, .page-title, .sidebar-item-header') : el.ownerDocument.querySelector('#main-content-container .ls-page-title'))?.textContent || '';
+  return { says: [title.split('\n')[0].replace(/^#\s*/, '').trim()] };
+}
+const shownIn = (now, place) => shows(fitted(now, place));
 const own = (block, selector) => [...block.querySelectorAll(selector)].find(w => w.closest('.ls-block[blockid]') === block);
 const place = (block, note) => { const wrap = own(block, '.block-title-wrap'); if (wrap) return wrap.append(note); own(block, '.block-head-wrap a.asset-ref')?.after(note); };
 const canPlace = block => !!(own(block, '.block-title-wrap') || own(block, '.block-head-wrap a.asset-ref'));
@@ -85,11 +109,11 @@ function draw(doc) {
     const uuid = block.getAttribute('blockid').toLowerCase();
     if (!fresh.has(uuid) && !asked.has(uuid)) missing.push(uuid);
     if (!held.has(uuid)) continue;
-    const now = held.get(uuid), old = own(block, '.lk-folded'), key = JSON.stringify(now);
-    if (!canPlace(block) || !shows(now)) { old?.remove(); continue; }
+    const now = held.get(uuid), old = own(block, '.lk-folded'), at = placeOf(block), key = JSON.stringify([now, at.says]);
+    if (!canPlace(block) || !shownIn(now, at)) { old?.remove(); continue; }
     if (old?.getAttribute('data-held') === key) continue;
     old?.remove();
-    const note = build(doc, now);
+    const note = build(doc, now, at);
     note.setAttribute('data-held', key);
     place(block, note);
   }
@@ -100,11 +124,11 @@ function draw(doc) {
     const uuid = String(words.getAttribute('data-lk-held')).toLowerCase(), old = words.nextElementSibling?.classList.contains('lk-folded') ? words.nextElementSibling : null;
     if (!fresh.has(uuid) && !asked.has(uuid) && !missing.includes(uuid)) missing.push(uuid);
     if (!held.has(uuid)) continue;
-    const now = held.get(uuid), key = JSON.stringify(now);
-    if (!shows(now)) { old?.remove(); continue; }
+    const now = held.get(uuid), at = placeOf(words), key = JSON.stringify([now, at.says]);
+    if (!shownIn(now, at)) { old?.remove(); continue; }
     if (old?.getAttribute('data-held') === key) continue;
     old?.remove();
-    const note = build(doc, now);
+    const note = build(doc, now, at);
     note.setAttribute('data-held', key);
     words.after(note);
   }
