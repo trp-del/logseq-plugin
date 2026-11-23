@@ -23,8 +23,8 @@ const CSS = `
 .fd.fd-high { top: max(10vh, 60px) !important; bottom: auto !important; }
 .fd.fd-centred { top: 50% !important; bottom: auto !important; transform: translate(-50%, -50%); }
 /* The same window as a small panel under the line being written (0.5, 22 November 2026, the owner: "the small should be build
-   from same library"): no dimming, placed and sized by place(), the pop-up's lighter edge. */
-.fd.fd-panel { transform: none; max-height: none; z-index: 99; border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,.12); }
+   from same library"): no dimming, placed and sized by place(). */
+.fd.fd-panel { transform: none; max-height: none; z-index: 99; line-height: 1.5; }   /* its edge and shadow are the library's pop-up, lk-pop */
 .fd * { box-sizing: border-box; }
 /* The find line: the pieces, then the letters. */
 .fd-find { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; padding: 14px 16px; border-bottom: 1px solid var(--lk-hair); font-size: 16px; cursor: text; }
@@ -1123,7 +1123,7 @@ function open(typed = '', say = false, panel = null) {
      second on every such opening (recorded 12 November 2026: frames 96 to 187 ms empty). */
   if (S.stale) { S.stale = false; S.again = { kinds: S.kinds.length > 0, tree: !!S.tree, recents: S.recents.length > 0 }; S.pages = null; S.dugData.clear(); S.pointers.clear(); S.noteOf.clear(); }
   style('find', CSS);
-  const dlg = panel ? el(doc, 'dialog', { class: 'fd lk-window fd-own fd-panel', 'aria-label': 'Link from here', 'data-editor-popup-ref': 'find-panel' })
+  const dlg = panel ? el(doc, 'dialog', { class: 'fd lk-pop fd-own fd-panel', 'aria-label': 'Link from here', 'data-editor-popup-ref': 'find-panel' })
     : el(doc, 'dialog', { class: 'fd lk-window fd-own ' + (setting('windowPlace') === 'centred' ? 'fd-centred' : 'fd-high') + (S.say ? ' fd-say' : ''), 'aria-label': S.say ? 'Find by sentence' : 'Find' });
   const find = el(doc, 'div', { class: 'fd-find' });
   const sentence = el(doc, 'div', { class: 'fd-sentence' });
