@@ -664,7 +664,7 @@ function drawSentence(doc) {
       else piece.append(el(doc, 'span', { class: 'fd-month' }, p.label));
       find.insertBefore(piece, sentence);
     });
-    input.placeholder = S.picks.length ? '' : 'pick a kind, or type';
+    input.placeholder = S.picks.length ? '' : S.host ? 'link a page, or type' : 'pick a kind, or type';
     return;
   }
   input.placeholder = 'what, with whom, when';
