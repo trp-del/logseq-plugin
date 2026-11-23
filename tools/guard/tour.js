@@ -68,7 +68,9 @@ const SCREENS = [
   ['a page in the right sidebar', 'Illness Test Graph', async b => { await go(b.page, 'Consultation'); await sleep(1500); await inSidebar(b, 'Dr. Mei Chen'); }],
   ['a page in the right sidebar, dark', 'Illness Test Graph', async b => { await go(b.page, 'Consultation'); await sleep(1500); await inSidebar(b, 'Dr. Mei Chen'); }, { dark: true }],
   ['Ontology', 'Illness Test Graph', async b => route(b.page, '#/structure')],
-  ['Todo', 'Illness Test Graph', async b => route(b.page, '#/todo')],
+  // On a Logseq started a moment ago the plugin's route is not yet there, and the page before stays (22 November 2026: the picture
+  // kept for main showed the Consultation table under the name Todo): the route is asked until Todo's rows stand.
+  ['Todo', 'Illness Test Graph', async b => { for (let i = 0; i < 6; i++) { await route(b.page, '#/todo'); for (let t = 0; t < 10; t++) { await sleep(200); if (await b.page.evaluate(() => !!document.querySelector('.td-row, .td-add, [class*="td-head"]'))) return; } await route(b.page, '#/'); await sleep(1200); } throw new Error('Todo did not open'); }],
   ['Find, typed', 'Illness Test Graph', async b => { await go(b.page, 'Dr. Mei Chen'); await sleep(1500); await openFind(b); await b.page.keyboard.type('cons', { delay: 60 }); }],
   // The Find window in every state its keys reach (22 November 2026, before 0.5 gives Find a second host: the window must not move).
   ['Find, in the choices', 'Illness Test Graph', async b => { await go(b.page, 'Dr. Mei Chen'); await sleep(1500); await openFind(b); await b.page.keyboard.type('cons', { delay: 60 }); await sleep(900); await b.page.keyboard.press('Tab'); }],
