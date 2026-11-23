@@ -17,11 +17,11 @@ module.exports = {
     const uuid = await f.evaluate(async () => { const p = await logseq.Editor.getPage('Chase Checking'); return (await logseq.Editor.appendBlockInPage(p.uuid, 'GUARDSIDEPANEL paid from')).uuid; });
     await T.sleep(900);
     // The bullet put in writing where it stands in the sidebar, as a click there does.
-    const at = await page.evaluate(u => { const b = document.querySelector(`.cp__right-sidebar .ls-block[blockid="${u}"] .block-content`); if (!b) return null; const r = b.getBoundingClientRect(); return [r.left + 4, r.top + r.height / 2]; }, uuid);
+    const at = await page.evaluate(u => { const b = document.querySelector(`#right-sidebar .ls-block[blockid="${u}"] .block-content, .cp__right-sidebar .ls-block[blockid="${u}"] .block-content`); if (!b) return null; b.scrollIntoView({ block: "center" }); const r = b.getBoundingClientRect(); return [r.left + 30, r.top + r.height / 2]; }, uuid);
     if (!at) return done({ ok: false, said: 'the new bullet did not show in the right sidebar' });
     await page.mouse.click(at[0], at[1]); await T.sleep(600);
     await page.keyboard.press('End');
-    const inSide = await page.evaluate(() => !!document.activeElement?.closest?.('.cp__right-sidebar') && document.activeElement.tagName === 'TEXTAREA');
+    const inSide = await page.evaluate(() => !!document.activeElement?.closest?.('#right-sidebar, .cp__right-sidebar') && document.activeElement.tagName === 'TEXTAREA');
     if (!inSide) return done({ ok: false, said: 'the sidebar bullet could not be put in writing' });
     await f.evaluate(() => { window.PluginDoor.ask('find:panel', { box: window.PluginDoor.host().activeElement }); }); await T.sleep(1500);
     await page.keyboard.type('chase', { delay: 60 }); await T.sleep(1500);
