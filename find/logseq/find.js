@@ -939,7 +939,7 @@ function foot(doc, groups, rows) {
   if (S.mode === 'choices' && lit?.does) { add(KEY('Enter', `<b>${esc(lit.does)}</b>`)); add(KEY('Escape', 'back to the rows')); }
   else if (S.mode === 'choices') { add(KEY('Tab', lit.more ? 'show more' : `narrow to ${esc(lit.label)}`)); add(KEY('← → ↑ ↓', 'choose')); add(KEY('Escape', 'back to the rows')); if (groupOf(groups, S.choiceAt) === 0 && canLine()) add(KEY('↑', 'the line')); }
   else {
-    if (lit) add(KEY('Tab', `narrow to ${esc(lit.label)}`)); else if (choices.length) add(KEY('Tab', 'narrow'));
+    if (lit) add(KEY('Tab', `narrow to ${esc(lit.label)}`)); else if (choices.length) add(KEY('Tab', groups[0]?.key === 'newkind' ? 'its kind' : groups[0]?.key === 'tagme' ? 'tag it' : 'narrow'));
     if (cur?.kind === 'make') add(KEY('Enter', `<b>make ${esc(short(cur.name))}${S.host?.newKind ? `, a ${esc(S.host.newKind.title)},` : ''} and link it</b>`));
     else if (cur?.kind === 'node' && S.host) add(KEY('Enter', `<b>link ${esc(short(cur.node.text))}</b>`));
     else if (cur?.kind === 'node') { add(KEY('Enter', `open ${esc(short(cur.node.text))}`)); add(KEY('Shift Enter', 'in the sidebar')); }
@@ -1304,12 +1304,14 @@ function backToLine(h, at = null) {
   if (box?.isConnected) { box.focus({ preventScroll: true }); try { box.setSelectionRange(start, end); } catch (error) { /* the words changed under it */ } }
   else if (h.uuid) Promise.resolve(logseq.Editor.editBlock(h.uuid, { pos: start })).catch(() => {});
 }
+// A link put right after a letter gets a space before it (Logseq drops a line's last space when the line is opened again).
+const spaced = (h, text) => (h.start > 0 && /[\p{L}\p{N}.,;:!?)]/u.test(h.box.value[h.start - 1] || '') ? ' ' : '') + text;
 // What Enter does in the panel: the lit row is linked at the caret, as one change Cmd+Z takes back.
 function linkRow(r) {
   const h = S.host; if (!h || r?.kind !== 'node') return;
-  const text = `[[${r.node.isPage ? r.node.text : r.node.uuid}]]`;
   h.left = true; close();
   if (!h.box?.isConnected) return;
+  const text = spaced(h, `[[${r.node.isPage ? r.node.text : r.node.uuid}]]`);
   h.box.focus({ preventScroll: true });
   window.PluginDoor.screen.insert(h.box, text, h.start, h.end);
   backToLine(h, h.start + text.length);
@@ -1318,7 +1320,7 @@ function linkRow(r) {
    while nothing was written on it (the library's dropMade), as Predictive's new page goes. */
 async function makeAndLink(name) {
   const h = S.host; if (!h || S.making) return;
-  const kind = h.newKind || null, D = window.PluginDoor, text = `[[${name}]]`;
+  const kind = h.newKind || null, D = window.PluginDoor, text = h.box?.isConnected ? spaced(h, `[[${name}]]`) : `[[${name}]]`;
   S.making = true; h.left = true; close();
   try {
     const page = await D.write.createPage(name, {}, { redirect: false, createFirstBlock: false });
@@ -1328,7 +1330,8 @@ async function makeAndLink(name) {
     D.undo.offer({ owner: 'find', key: `find:made:${page.uuid}`, node: h.uuid || page.uuid, text: `Made “${name}”${kind ? ', a ' + kind.title : ''}`, at: () => null,
       run: async () => {
         const box = h.box;
-        if (box?.isConnected && box.value.slice(h.start, h.start + text.length) === text) { box.focus({ preventScroll: true }); D.screen.insert(box, '', h.start, h.start + text.length); }
+        // The link goes first, and the line is given a moment to be saved without it: a page still linked is not untouched.
+        if (box?.isConnected && box.value.slice(h.start, h.start + text.length) === text) { box.focus({ preventScroll: true }); D.screen.insert(box, '', h.start, h.start + text.length); box.setSelectionRange(h.start, h.start); await new Promise(r => setTimeout(r, 1200)); }
         const went = await D.write.dropMade(page);
         if (!went) notify(`“${name}” has been written on since, so it stays`, 'warning');
       } });
