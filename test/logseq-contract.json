@@ -66,6 +66,8 @@
   "Experiments.registerDaemonRenderer",
   "Experiments.registerRouteRenderer",
   "Experiments.registerSidebarRenderer",
+  "FileStorage.getItem",
+  "FileStorage.hasItem",
   "UI.showMsg"
  ],
  "classes": [

@@ -65,6 +65,8 @@ async function main() {
   }
   // The text colour and the window's ground (Door.THEME), for every module whichever are switched on.
   Door.root.style('plugin-theme', Door.THEME);
+  // The Mac's symbols, if this Mac has drawn them, read before the shared names go out: the plugin's own icons are never drawn the old way first.
+  try { await Door.symbols.start(); } catch (error) { console.warn('Logseq Plugin: the Mac’s symbols were not read', error); }
   Door.root.style('plugin-names', Door.NAMES);
   // What a module needs nothing of, and what must stand even if a start never answers, comes before the first start.
   const letFrameGo = keepFrameInPlace();

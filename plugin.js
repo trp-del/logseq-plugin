@@ -1604,6 +1604,119 @@ Door.ICONS = {
 };
 const iconUrl = (d, w = 1.5) => `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='#000' stroke-width='${w}' stroke-linecap='round' stroke-linejoin='round'><path d='${d}'/></svg>`)}")`;
 
+/* The Mac's own symbols in place of the icons (the owner, 23 November 2026: "can you look at replacing most of the symbols of
+   logseq with macos particularly sf symbols", then of the list shown, "ok lets do your way"). Apple's symbols may be drawn by the
+   Mac and shown on it, never copied into the plugin, so nothing of them is here but their names: tools/mac-symbols.sh has this
+   Mac draw each one, once, into a file in the plugin's own storage (Logseq's FileStorage: ~/.logseq/storages/<plugin>/
+   mac-symbols.json, a name and its picture), and this piece lays a picture over the icon it stands for, as a mask in the icon's
+   own box and colour, so size, place, light and dark, the pointer and a lit menu line all stay the icon's. No file, a broken
+   file, a symbol this macOS lacks, another system, or the switch off (macSymbols): the icon is drawn as it always was.
+   SYMBOLS is the whole list, as the owner approved it: the library's own icons (Door.ICONS, the toolbar's, a
+   property's kind, the Tabler glyphs the plugin's menus and fields draw) and Logseq's own in its top bar, left sidebar and
+   menus. Left alone, and so not here: a task's status circle, the Ontology toolbar button, Add a child, an icon the owner gave
+   a page or a tag, the bullet, its fold arrow, the tick box, the mark of the graph. */
+const LOGSEQ_MENUS = ':is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content, .ui__context-menu-sub-content)';
+const SYMBOLS = {
+  icons: { plus: 'plus', x: 'xmark', chevron: 'chevron.down', tick: 'checkmark', minus: 'minus', go: 'arrow.right', up: 'arrow.up', move: 'arrow.turn.down.right',
+    merge: 'arrow.trianglehead.merge', split: 'arrow.trianglehead.branch', bin: 'trash', rename: 'pencil', copy: 'square.on.square', eq: 'equal',
+    sidel: 'sidebar.left', side: 'sidebar.right', save: 'square.and.arrow.down', tag: 'tag', list: 'list.bullet',
+    history: 'clock.arrow.trianglehead.counterclockwise.rotate.90', calendar: 'calendar', undo: 'arrow.uturn.backward', reload: 'arrow.clockwise', enter: 'return' },
+  toolbar: { todo: 'checkmark', inspector: 'info.circle', rows: 'tablecells', swap: 'arrow.left.arrow.right', close: 'xmark' },
+  /* A property's kind, before its name: Look's (Door.kindIconHtml) and Logseq's own where it draws one (a number, a tick box, a
+     day: .property-m > .ls-icon-name). The number is the digits, not #, which means a tag. These stand 15 px small and half
+     faint, where a symbol's fine line all but goes (found by hand, 23 November 2026: "smaller and much fainter"), so each is
+     asked for as @small: the helper draws it bold and a little larger, to stand as dark and as large as the drawing it covers
+     (the three digits, narrow as they are, heavier still: @heavy). The mark of a property that points at a node, the three
+     joined dots (Door.WEB), keeps its own drawing: Apple's dotted triangle read fainter beside it even drawn bold. */
+  kinds: { checkbox: 'checkmark.square@small', select: 'chevron.down.square@small', 'letter-case': 'textformat@small', number: 'numbers@heavy', calendar: 'calendar@small', world: 'globe@small' },
+  // Tabler glyphs the plugin itself draws (<i class="ti ti-name">): in its menus, its fields, the Undo arrow, a section's close.
+  glyphs: { search: 'magnifyingglass', bulb: 'lightbulb', 'list-numbers': 'list.number', 'list-check': 'checklist',
+    'fold-up': 'arrow.down.and.line.horizontal.and.arrow.up', 'fold-down': 'arrow.up.and.line.horizontal.and.arrow.down', adjustments: 'slider.horizontal.3' },
+  held: [['.lk-undo > i.ti-arrow-back-up', 'arrow.uturn.backward'], ['.lk-close > i.ti-x', 'xmark']],
+  // Logseq's own, by where it draws them and its name for each (Logseq 2.0.2: <span class="ls-icon-name ui__icon ti"><svg>).
+  logseq: [
+    ['#head', { 'menu-2': 'sidebar.left', search: 'magnifyingglass', dots: 'ellipsis', 'layout-sidebar-right': 'sidebar.right', 'arrow-left': 'chevron.left', 'arrow-right': 'chevron.right', home: 'house' }],
+    // The four places of the left sidebar a step heavier (@semibold), to stand as dark as the words beside them (by hand, 23 November 2026).
+    ['#left-sidebar', { calendar: 'calendar@semibold', cards: 'rectangle.on.rectangle.angled@semibold', files: 'document.on.document@semibold', hierarchy: 'point.3.filled.connected.trianglepath.dotted@semibold', selector: 'chevron.up.chevron.down', 'chevron-right': 'chevron.right' }],
+    // A menu's lines: Logseq's drawn ones, the plugin's own lines among them (i.ti-name) and the lines Logseq leaves bare (data-lk-menu-icon, settings/ways-in.js).
+    [LOGSEQ_MENUS, { link: 'link', list: 'list.bullet', 'info-circle': 'info.circle', search: 'magnifyingglass', star: 'star', trash: 'trash', 'file-export': 'square.and.arrow.up', 'world-upload': 'globe',
+      'lock-open': 'lock.open', 'file-type-pdf': 'text.document', settings: 'gearshape', apps: 'puzzlepiece.extension', adjustments: 'slider.horizontal.3', 'color-swatch': 'paintpalette',
+      recycle: 'arrow.3.trianglepath', 'database-export': 'square.and.arrow.up.on.square', 'file-upload': 'square.and.arrow.down', user: 'person.circle' }],
+  ],
+  // Help's mark is a small one in a large box (Tabler's help-small, drawn at 30 px): the symbol at half the box stands as tall as it did.
+  drawn: [['.cp__sidebar-help-btn svg.icon-tabler-help-small', 'questionmark', '50%'], ['.bottom-property-action-icon.ls-icon-plus > svg', 'plus']],
+  page: 'diamond',   // a page's own mark, where the calm theme draws its diamond (look/logseq/calm.js reads --lk-sf-page)
+};
+const symbolNames = () => [...new Set([SYMBOLS.icons, SYMBOLS.toolbar, SYMBOLS.kinds, SYMBOLS.glyphs, ...SYMBOLS.logseq.map(([, names]) => names)].flatMap(Object.values)
+  .concat(SYMBOLS.page, SYMBOLS.held.map(([, sf]) => sf), SYMBOLS.drawn.map(([, sf]) => sf)))].sort();
+// A picture is taken only as a picture: a PNG (what the Mac draws) or an SVG, in base64, and nothing else of the file reaches a stylesheet.
+const PICTURE = /^data:image\/(?:png|svg\+xml);base64,[A-Za-z0-9+/]+=*$/;
+const symbolPictures = held => {
+  const list = held && typeof held === 'object' && held.symbols && typeof held.symbols === 'object' ? held.symbols : null, out = {};
+  if (list) for (const name of symbolNames()) if (typeof list[name] === 'string' && PICTURE.test(list[name])) out[name] = list[name];
+  return Object.keys(out).length ? out : null;
+};
+/* The stylesheet: each picture once, as a variable, then a rule for each place an icon is drawn. An icon drawn as an svg keeps
+   its box and gives way to the mask (its own lines hidden, so a faint colour is not laid twice); a glyph of the icon font keeps
+   its box and its place on the line, its ink let go; a library icon (lk-i-name) only takes another picture for its mask. */
+const symbolCss = pictures => {
+  const used = new Set(), rules = [];
+  const ref = sf => pictures[sf] ? (used.add(sf), `var(--lk-sf-${sf.replace(/[^a-z0-9]+/g, '-')})`) : null;
+  const mask = (pic, size = 'contain') => `-webkit-mask: ${pic} center / ${size} no-repeat; mask: ${pic} center / ${size} no-repeat;`;
+  const svg = (where, sf, size) => { const pic = ref(sf); if (pic) rules.push(`:is(${where}) { background: currentColor; ${mask(pic, size)} }`, `:is(${where}) > * { display: none; }`); };
+  const glyph = (where, sf) => { const pic = ref(sf); if (pic) rules.push(`:is(${where})::before { display: inline-block; -webkit-text-fill-color: transparent; background: currentColor; ${mask(pic)} }`); };
+  for (const [name, sf] of Object.entries(SYMBOLS.icons)) { const pic = ref(sf); if (pic) rules.push(name === 'enter' ? `:root .lk-enter::after { --lk-ic: ${pic}; }` : `:root .lk-i-${name} { --lk-ic: ${pic}; }`); }
+  if (ref(SYMBOLS.icons.tick)) rules.push(`:root .lk-check { -webkit-mask-image: ${ref(SYMBOLS.icons.tick)}; mask-image: ${ref(SYMBOLS.icons.tick)}; }`);
+  // The toolbar's drawings, wherever one stands: on its button, and where a part gives it to Logseq's puzzle (a sidebar section's head).
+  for (const [name, sf] of Object.entries(SYMBOLS.toolbar)) svg(`:is(.lk-tool, .ls-icon-puzzle) > svg:has(> path[d="${Door.TOOLBAR_ICONS[name]}"])`, sf);
+  for (const [name, sf] of Object.entries(SYMBOLS.kinds)) { glyph(`.lk-icon.ti-${name}`, sf); svg(`.property-m > .ls-icon-${name} > svg`, sf); }
+  for (const [name, sf] of Object.entries(SYMBOLS.glyphs)) glyph(`i.ti.ti-${name}`, sf);
+  for (const [where, sf] of SYMBOLS.held) glyph(where, sf);
+  for (const [scope, names] of SYMBOLS.logseq) for (const [name, sf] of Object.entries(names)) {
+    svg(`${scope} .ls-icon-${name} > svg`, sf);
+    if (scope === LOGSEQ_MENUS) glyph(`${scope} i.ti.ti-${name}, ${scope} [data-lk-menu-icon="${name}"]`, sf);
+  }
+  for (const [where, sf, size] of SYMBOLS.drawn) svg(where, sf, size);
+  const page = ref(SYMBOLS.page);
+  return `:root { ${[...used].map(sf => `--lk-sf-${sf.replace(/[^a-z0-9]+/g, '-')}: url("${pictures[sf]}");`).join(' ')}${page ? ` --lk-sf-page: ${page}; --lk-sf-page-size: 76%;` : ''} }\n${rules.join('\n')}`;
+};
+const symbolState = { pictures: null };
+const SYMBOLS_FILE = 'mac-symbols.json', SYMBOLS_KEY = 'macSymbols';
+const SYMBOLS_SCHEMA = [{ key: SYMBOLS_KEY, type: 'boolean', default: true, title: 'Mac symbols',
+  description: 'The icons of Logseq’s bars and menus, and the plugin’s own, drawn as the Mac’s symbols. This Mac draws them once, when the plugin is set up on it; until then, and on another system, the icons stay as they are.' }];
+Door.symbols = {
+  FILE: SYMBOLS_FILE, names: symbolNames, css: symbolCss, list: SYMBOLS,
+  on: () => logseq.settings?.[SYMBOLS_KEY] !== false,
+  has: () => !!symbolState.pictures,
+  // Shown or taken away at once, from what was last read.
+  apply: () => Door.root.style('plugin-symbols', symbolState.pictures && Door.symbols.on() ? symbolCss(symbolState.pictures) : ''),
+  // The file read afresh. Asked whether it is there first, so a Mac without one says nothing in the console; anything unreadable counts as none.
+  async read() {
+    let pictures = null;
+    try { if (await logseq.FileStorage.hasItem(SYMBOLS_FILE)) pictures = symbolPictures(JSON.parse(await logseq.FileStorage.getItem(SYMBOLS_FILE))); } catch (error) { pictures = null; }
+    symbolState.pictures = pictures;
+    Door.symbols.apply();
+    return !!pictures;
+  },
+  // Called once by main.js before the first stylesheet goes out, so the plugin's own icons are never drawn the old way first.
+  async start() {
+    Door.root.onStop(logseq.onSettingsChanged?.((now, before) => { if (!before || !Door.settingChanged([SYMBOLS_KEY], now, before)) return; if (now?.[SYMBOLS_KEY] !== false) Door.symbols.read(); else Door.symbols.apply(); }));
+    return Door.symbols.read();
+  },
+};
+Door.rootSchema = [...(Door.rootSchema || []), { key: 'symbolsHeading', type: 'heading', default: null, title: 'Icons', description: '' }, ...SYMBOLS_SCHEMA];
+// The settings window's picture of the choice: three of the library's icons, as they are and as the Mac draws them.
+const symbolSpecimen = on => {
+  // Each picture carries its own drawing on the icon itself, so "as they are" always shows today's and "the Mac's" always the symbols, whichever is chosen.
+  const drawing = name => (on && symbolState.pictures?.[SYMBOLS.icons[name]] ? `url("${symbolState.pictures[SYMBOLS.icons[name]]}")` : iconUrl(Door.ICONS[name])).replace(/"/g, '&quot;');
+  const three = ['tag', 'calendar', 'bin'].map(name => `<span class="lk-i-${name}" style="--lk-ic: ${drawing(name)}"></span>`).join('');
+  return `<span style="font-size:18px">${three}</span>${on && !symbolState.pictures ? '<br><span class="sw-faintw">This Mac has not drawn its symbols yet</span>' : ''}`;
+};
+Door.describe('plugin', {
+  schema: [{ type: 'heading', title: 'Icons', place: 'window' }, { ...SYMBOLS_SCHEMA[0], looks: ['The icons as they are', 'The Mac’s symbols'] }],
+  specimen: (item, on) => item.key === SYMBOLS_KEY ? symbolSpecimen(on) : '',
+});
+
 /* The text colour and the window's ground, for every module whichever are switched on, sent by main.js and by every stand-in that
    draws with the shared names. Logseq 2.0.2 sets neither --ls-primary-* any more, though a theme may; its own are --foreground
    and --background, which follow light and dark. */

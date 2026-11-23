@@ -149,5 +149,18 @@ for (const kind of Object.keys(debts)) for (const rel of new Set([...Object.keys
 if (more.length) { console.error('A new look outside the library:\n  ' + more.join('\n  ')); process.exit(1); }
 if (fewer.length) { console.error('The library debt shrank (good): run `node test/library.js --debts` to record it:\n  ' + fewer.join('\n  ')); process.exit(1); }
 if (own.length) { console.error('A look drawn by a module that the library draws whole:\n  ' + own.join('\n  ')); process.exit(1); }
+/* The Mac's symbols (23 November 2026): the library holds their names and never a picture of Apple's; a picture reaches the
+   stylesheet only from the file this Mac drew, and only as a picture; with none, no rule is written, so every icon stays as it was. */
+const macSymbols = global.window.PluginDoor.symbols, SQUARE = 'data:image/svg+xml;base64,' + Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M2 2h6v6h-6z"/></svg>').toString('base64');
+for (const file of ['plugin.js', 'tools/mac-symbols.sh', 'look/logseq/calm.js']) assert.ok(!/base64,[A-Za-z0-9+\/]{40}/.test(fs.readFileSync(path.join(ROOT, file), 'utf8')), `${file} holds a picture: only a symbol's name may be kept`);
+assert.ok(macSymbols.names().length > 40 && macSymbols.names().every(name => /^[a-z0-9.]+(@[a-z]+)?$/.test(name)), 'the symbols are named, in Apple’s spelling');
+for (const name of Object.keys(macSymbols.list.icons)) assert.ok(ICONS[name], `a symbol is named for an icon the library lacks: ${name}`);
+for (const name of Object.keys(macSymbols.list.toolbar)) assert.ok(global.window.PluginDoor.TOOLBAR_ICONS[name], `a symbol is named for a toolbar icon the library lacks: ${name}`);
+for (const kept of ['child']) assert.ok(!macSymbols.list.icons[kept], `${kept} is left as it is`);
+assert.ok(!macSymbols.list.toolbar.structure, 'the Ontology toolbar button is left as it is');
+const allCss = macSymbols.css(Object.fromEntries(macSymbols.names().map(name => [name, SQUARE])));
+for (const piece of ['.lk-i-plus', '.lk-enter::after', '.lk-check', '.lk-icon.ti-number', '.property-m > .ls-icon-number > svg', '#head .ls-icon-search > svg', '#left-sidebar .ls-icon-calendar > svg', '[data-lk-menu-icon="trash"]', '.lk-tool, .ls-icon-puzzle', '--lk-sf-page']) assert.ok(allCss.includes(piece), `with its picture there, the symbols' stylesheet reaches ${piece}`);
+for (const kept of ['M6 2.6', '.lk-web', '.lk-i-child', '.lk-fold', '.lk-tick', '.lk-bul', '.lk-status', 'topology-star', '.bullet']) assert.ok(!allCss.includes(kept), `the symbols' stylesheet leaves ${kept} alone`);
+assert.ok(!macSymbols.css({ plus: SQUARE }).includes('.lk-i-bin'), 'an icon whose symbol this Mac did not draw gets no rule');
 const sum = kind => Object.values(debts[kind]).reduce((a, b) => a + b, 0);
 console.log(`library: ${KINDS.length} kinds drawn, every button in ${FILES.length} files draws from them; no module draws a frame, a tick box, a colour or a motion of its own; known debts still to fold in: ${sum('restyled')} library pieces restyled, ${sum('greys')} greys mixed by a module`);
