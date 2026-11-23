@@ -47,7 +47,8 @@ async function main() {
   logseq.provideModel({ findOpen: () => Find.window.open() });
   onStop(window.PluginDoor.offerAsk('find:kind', kind => Find.window.openKind(kind)));
   /* 0.5: Find as a small panel under the line being written (the owner, 22 November 2026: "that window opens and takes over majority
-     of screen"). Asked through the door as find:panel with the bullet's box, so Predictive's Hyper tap opens it without knowing Find. */
+     of screen"). Opened by the command below, and asked through the door as find:panel with the bullet's box. Since 22 November 2026
+     Predictive's Hyper tap on a line opens Logseq's own link list instead (PluginDoor.screen.linkList). */
   onStop(window.PluginDoor.offerAsk('find:panel', ({ box } = {}) => Find.window.panel(box)));
   onStop(window.PluginDoor.offerAsk('find:held', () => Find.window.held()));
   logseq.App.registerCommandPalette({ key: 'find-held', label: 'Find: tag the selected bullets' }, async () => { if (!await Find.window.held()) logseq.UI.showMsg('Select some bullets first', 'warning'); });
