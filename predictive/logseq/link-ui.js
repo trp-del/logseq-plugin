@@ -217,6 +217,8 @@ function onHyperUp(event) {
     Promise.resolve(D.ask('find:panel', { box })).then(opened => { if (opened !== true) Flow.tagPick?.fromHyper?.(box); }).catch(() => {});
     return;
   }
+  // Bullets selected, none being written: the panel on what is held (Find's, 0.5 D).
+  if (!app.isBlockBox(box) && !/^(INPUT|TEXTAREA)$/.test(box?.tagName || '') && !box?.isContentEditable && D.answers?.('find:held')) { Promise.resolve(D.ask('find:held')).then(opened => { if (opened === true) hyperTap.firedAt = Date.now(); }).catch(() => {}); return; }
   if (Flow.tagPick?.fromHyper?.(event.target)) hyperTap.firedAt = Date.now();
 }
 

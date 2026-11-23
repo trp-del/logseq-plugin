@@ -203,11 +203,8 @@ async function dayValue(typed, kind) {
 }
 // Runs one change on every picked node; a node that fails is left as it was and the rest go on. Undo puts back the rest.
 async function writeAll(text, steps) {
-  const undos = [];
-  let failed = 0;
-  for (const step of steps) {
-    try { const undo = await step(); if (undo) undos.push(undo); } catch (error) { failed++; warnOnce('a picked node could not be changed', error); }
-  }
+  // The steps run through the library's one piece for many changes (plugin.js write.each, 0.5: Find's held bullets use it too).
+  const { undos, failed } = await window.PluginDoor.write.each(steps);
   twoWay.stopPicking(); twoWay.later(300); twoWay.draw(host());
   if (failed) notify(`${failed} of the picked nodes could not be changed`, 'warning');
   if (undos.length) twoWay.offerUndo(text, async () => {

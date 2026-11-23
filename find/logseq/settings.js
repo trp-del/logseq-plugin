@@ -8,6 +8,8 @@ const schema = [
     description: 'High: near the top of the screen, with the page in view under it. Centred: in the middle, as Logseq’s own search.' },
   { key: 'panel', type: 'boolean', default: true, title: 'A small Find under the line you are writing',
     description: 'A tap of the Hyper key (Caps Lock as Cmd+Ctrl+Opt+Shift) in a bullet opens a small Find under the line: type, and Enter links the lit row where the cursor is. Its first line offers tags for the bullet. Escape puts the cursor back. Off: the tap lists the tags, as before.' },
+  { key: 'moveHeld', type: 'boolean', default: false, title: 'Move selected bullets under a page from the small Find',
+    description: 'With bullets selected, a tap of Hyper opens the small Find; a tag lit and Enter tags them all. On: a page lit and Enter also moves the bullets under that page, with one Undo. Off until you turn it on, since it changes where your notes are.' },
   { key: 'look', type: 'boolean', default: true, title: 'Open a linked page under the line',
     description: 'With the cursor on a link in the bullet you are writing, the key below opens that page under the line, where it can be read and changed. The key again, or Escape, closes it and the cursor is where it was.' },
   { key: 'lookKeys', type: 'string', keys: true, default: 'alt+l', title: 'The key that opens the link under the cursor',

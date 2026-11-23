@@ -49,6 +49,8 @@ async function main() {
   /* 0.5: Find as a small panel under the line being written (the owner, 22 November 2026: "that window opens and takes over majority
      of screen"). Asked through the door as find:panel with the bullet's box, so Predictive's Hyper tap opens it without knowing Find. */
   onStop(window.PluginDoor.offerAsk('find:panel', ({ box } = {}) => Find.window.panel(box)));
+  onStop(window.PluginDoor.offerAsk('find:held', () => Find.window.held()));
+  logseq.App.registerCommandPalette({ key: 'find-held', label: 'Find: tag the selected bullets' }, async () => { if (!await Find.window.held()) logseq.UI.showMsg('Select some bullets first', 'warning'); });
   logseq.App.registerCommandPalette({ key: 'find-panel', label: 'Find: link from here' }, () => { const box = Find.kit.host().activeElement; if (!Find.window.panel(box)) logseq.UI.showMsg('Put the cursor in a bullet first', 'warning'); });
   onStop(logseq.DB.onChanged(() => Find.window.forget()));
   onStop(logseq.App.onCurrentGraphChanged(() => { Find.window.close(); Find.window.forget(true); }));

@@ -154,7 +154,7 @@ const rowsShown = () => S.host ? PANEL_ROWS : (setting('rowsShown') || 12);
 const setHeight = () => { if (!S.dlg) return; if (S.host) return place(); S.dlg.style.height = FRAME + (S.say ? SAY : 0) + rowsShown() * ROW + (S.line ? S.lineH - 52 : 0) + 'px'; };
 // The panel's place: under the bullet's words at their width; above them where the window has no room below.
 function place() {
-  const d = S.dlg, box = S.host?.box; if (!d || !box?.isConnected) return;
+  const d = S.dlg, box = S.host?.box || S.host?.anchor; if (!d || !box?.isConnected) return;
   const r = box.getBoundingClientRect(), win = S.doc.defaultView, h = PANEL_FRAME + PANEL_ROWS * ROW;
   const below = win.innerHeight - r.bottom - 12, above = r.top - 12;
   const under = below >= h || below >= above;
@@ -434,12 +434,14 @@ const inNode = target => !!target?.closest?.('[data-th-node], [popover], .th-in-
 /* In the panel, words that name no page are a new name (0.5, B): one row, "+ words", that makes the page with its kind and links
    it. It stands first, lit, when no page's name begins with the words; after the pages found when one does (↓ reaches it). */
 function newName(shown) {
-  if (!S.host || !canMake() || S.loading || S.failed || S.picks.length) return null;
+  if (!S.host || S.host.held || !canMake() || S.loading || S.failed || S.picks.length) return null;
   const name = S.typed.trim(), low = name.toLowerCase();
   const names = shown.filter(n => n.isPage).map(n => String(n.text || '').toLowerCase());
   if (names.includes(low)) return null;
   return { kind: 'make', name, first: !names.some(n => n.startsWith(low)) };
 }
+// With bullets held and nothing typed, the rows are the tags (the kinds, most used first): what bullets are most often given.
+const heldKinds = () => S.kinds.slice(0, 12).map(k => ({ id: k.id, uuid: k.uuid, text: k.title, title: k.title, raw: k.title, isPage: true, sign: 'tag', tags: [], page: null, day: 0, journal: false }));
 function rowList() {
   const list = [];
   if (isCommandMode()) {
@@ -450,7 +452,7 @@ function rowList() {
     if (hasWord('Plugin settings', ws)) list.push({ kind: 'command', label: 'Plugin settings', id: 'plugin:settings', key: '' });
     return list;
   }
-  const top = atRest() ? S.recents : S.shown.filter(timeKeeps);
+  const top = atRest() ? (S.host?.held ? heldKinds() : S.recents) : S.shown.filter(timeKeeps);
   const shown = S.allShown ? top : top.slice(0, rowsShown());
   const fresh = newName(shown);
   if (fresh?.first) list.push(fresh);
@@ -570,7 +572,7 @@ function render() {
     body.append(wrap);
   }
   // With nothing typed the rows are the pages opened last, and a head says so; otherwise the rows are what was found.
-  if (!isCommandMode() && rows.length && atRest()) body.append(el(doc, 'div', { class: 'fd-head fd-head-rows lk-name' }, 'recently opened'));
+  if (!isCommandMode() && rows.length && atRest()) body.append(el(doc, 'div', { class: 'fd-head fd-head-rows lk-name' }, S.host?.held ? 'tags' : 'recently opened'));
   const ws = words();
   // What ends the list found: nothing found, "show all", a kind cut to its newest.
   const tail = () => {
@@ -697,7 +699,7 @@ function drawSentence(doc) {
       else piece.append(el(doc, 'span', { class: 'fd-month' }, p.label));
       find.insertBefore(piece, sentence);
     });
-    input.placeholder = S.picks.length ? '' : S.host ? 'link a page, or type' : 'pick a kind, or type';
+    input.placeholder = S.picks.length ? '' : S.host?.held ? heldHint(S.host) : S.host ? 'link a page, or type' : 'pick a kind, or type';
     return;
   }
   input.placeholder = 'what, with whom, when';
@@ -941,6 +943,7 @@ function foot(doc, groups, rows) {
   else {
     if (lit) add(KEY('Tab', `narrow to ${esc(lit.label)}`)); else if (choices.length) add(KEY('Tab', groups[0]?.key === 'newkind' ? 'its kind' : groups[0]?.key === 'tagme' ? 'tag it' : 'narrow'));
     if (cur?.kind === 'make') add(KEY('Enter', `<b>make ${esc(short(cur.name))}${S.host?.newKind ? `, a ${esc(S.host.newKind.title)},` : ''} and link it</b>`));
+    else if (cur?.kind === 'node' && S.host?.held) { const n = S.host.held.length, many = n === 1 ? '1 bullet' : `${n} bullets`; if (cur.node.sign === 'tag') add(KEY('Enter', `<b>tag ${many} ${esc(short(cur.node.text))}</b>`)); else if (cur.node.isPage && setting('moveHeld') === true) add(KEY('Enter', `<b>move ${many} under ${esc(short(cur.node.text))}</b>`)); }
     else if (cur?.kind === 'node' && S.host) add(KEY('Enter', `<b>link ${esc(short(cur.node.text))}</b>`));
     else if (cur?.kind === 'node') { add(KEY('Enter', `open ${esc(short(cur.node.text))}`)); add(KEY('Shift Enter', 'in the sidebar')); }
     else if (cur?.kind === 'group') add(KEY('Enter', `open the ${cur.count}`));
@@ -1018,6 +1021,7 @@ function takeEnter(shift) {
   const groups = choiceGroups(), rows = rowList();
   if (S.mode === 'choices') { flatChoices(groups)[S.choiceAt]?.pick(); return; }
   if (S.mode === 'line') { const d = S.lineDots[S.lineAt]; if (d) { openPage(d.node.uuid, shift); close(); } return; }
+  if (S.host?.held) { const r = rows[S.rowAt]; if (r?.kind === 'group') return toggleGroup(r); if (r?.kind !== 'node') return; if (r.node.sign === 'tag') return tagHeld(r.node); if (r.node.isPage && setting('moveHeld') === true) return moveHeld(r.node); return notify(r.node.isPage ? 'Moving bullets under a page is switched off in the settings' : 'Light a tag to give the bullets'); }
   if (S.host) { const r = rows[S.rowAt]; if (r?.kind === 'group') return toggleGroup(r); if (r?.kind === 'make') return makeAndLink(r.name); if (r?.kind === 'node') linkRow(r); return; }   // the panel links; a new name is made there in its own step
   if (makesPage(rows)) return makePage(S.typed.trim());
   openRow(rows[S.rowAt], shift);
@@ -1163,7 +1167,7 @@ function open(typed = '', say = false, panel = null) {
   const find = el(doc, 'div', { class: 'fd-find' });
   const sentence = el(doc, 'div', { class: 'fd-sentence' });
   const mirror = el(doc, 'div', { class: 'fd-mirror', 'aria-hidden': 'true' });
-  const input = el(doc, 'input', { class: 'fd-input', type: 'text', spellcheck: 'false', autocomplete: 'off', autocapitalize: 'off', placeholder: panel ? 'link a page, or type' : S.say ? 'what, with whom, when' : 'pick a kind, or type' });
+  const input = el(doc, 'input', { class: 'fd-input', type: 'text', spellcheck: 'false', autocomplete: 'off', autocapitalize: 'off', placeholder: panel?.held ? heldHint(panel) : panel ? 'link a page, or type' : S.say ? 'what, with whom, when' : 'pick a kind, or type' });
   input.addEventListener('input', onInput);
   input.addEventListener('scroll', () => { mirror.scrollLeft = input.scrollLeft; });
   sentence.append(mirror, input);
@@ -1295,9 +1299,9 @@ function close() {
   d.remove();
   // The panel gone: the caret is where it was in the line, the letters it stood between untouched.
   const h = S.host; S.host = null;
-  h?.coming?.remove();
+  h?.coming?.remove(); for (const c of h?.comings || []) c.remove();
   if (S.hostOff) { S.hostOff(); S.hostOff = null; }
-  if (h && !h.left) backToLine(h);
+  if (h && !h.left && !h.held) backToLine(h);
 }
 function backToLine(h, at = null) {
   const { box } = h, start = at ?? h.start, end = at ?? h.end;
@@ -1338,6 +1342,59 @@ async function makeAndLink(name) {
   } catch (error) { notify('The page was not made: ' + D.reason(error, 'Logseq did not take the name'), 'warning'); backToLine(h); }
   finally { S.making = false; }
 }
+/* What is held (0.5, D): with bullets selected, the same panel under the last of them. A tag lit: Enter gives it to every held
+   bullet that lacks it, as one change with one Undo. A page lit: Enter moves them under it, in their order, with one Undo; that
+   is switched off until the owner turns it on (it rewrites where notes are). */
+const heldHint = h => `${h.held.length === 1 ? '1 bullet' : h.held.length + ' bullets'} held: type a tag` + (setting('moveHeld') === true ? ', or a page to move them under' : '');
+async function held() {
+  if (setting('panel') === false) return false;
+  const blocks = await Promise.resolve(logseq.Editor.getSelectedBlocks()).catch(() => null);
+  const uuids = (blocks || []).map(b => String(b.uuid).toLowerCase());
+  if (!uuids.length) return false;
+  const doc = host(), lines = uuids.map(u => doc.querySelector(`.ls-block[blockid="${u}"] > .block-main-container`)).filter(Boolean);
+  if (!lines.length) return false;
+  open('', false, { held: uuids, lines, anchor: lines[lines.length - 1] });
+  return true;
+}
+const manyOf = n => (n === 1 ? '1 bullet' : `${n} bullets`);
+function offerMany(text, undos, key) {
+  const D = window.PluginDoor;
+  if (undos.length) D.undo.offer({ owner: 'find', key, many: true, text, at: () => null, run: async () => { const { missed, kept } = await D.write.back(undos); if (missed) notify(`${manyOf(missed)} could not be put back`, 'warning'); if (kept) notify(`${manyOf(kept)} changed since, so ${kept === 1 ? 'it stays' : 'they stay'}`, 'warning'); } });
+}
+async function tagHeld(tag) {
+  const h = S.host; if (!h?.held) return;
+  const D = window.PluginDoor;
+  h.left = true; close();
+  const has = new Set(((await logseq.DB.datascriptQuery(`[:find ?u :where [?t :block/uuid #uuid "${tag.uuid}"] [?b :block/tags ?t] [?b :block/uuid ?u]]`)) || []).map(r => String(r[0]).toLowerCase()));
+  const { undos, failed } = await D.write.each(h.held.map(u => async () => { if (has.has(u)) return null; await D.write.addTag(u, tag.uuid); return () => D.write.removeTag(u, tag.uuid); }));
+  if (failed) notify(`${manyOf(failed)} could not be tagged`, 'warning');
+  if (!undos.length && !failed) notify(`${h.held.length === 1 ? 'It is' : 'They are'} ${tag.text} already`);
+  offerMany(`Tagged ${manyOf(undos.length)} ${tag.text}`, undos, `find:held:${Date.now()}`);
+}
+async function moveHeld(page) {
+  const h = S.host; if (!h?.held) return;
+  const D = window.PluginDoor, E = logseq.Editor;
+  h.left = true; close();
+  const tree = await Promise.resolve(E.getPageBlocksTree(page.uuid)).catch(() => []) || [];
+  let after = tree.length ? tree[tree.length - 1].uuid : null, spare = null;
+  if (!after) { spare = (await E.appendBlockInPage(page.uuid, ''))?.uuid; after = spare; }
+  if (!after) return notify(`Nothing could be moved under ${page.text}`, 'warning');
+  const { undos, failed } = await D.write.each(h.held.map(u => async () => {
+    // Where it was: after the bullet before it, else first under its parent (a page's first place when the parent is the page).
+    const before = await Promise.resolve(E.getPreviousSiblingBlock(u)).catch(() => null), me = await E.getBlock(u);
+    const parent = me?.parent?.id != null ? await E.getBlock(me.parent.id).catch(() => null) : null, next = await Promise.resolve(E.getNextSiblingBlock(u)).catch(() => null);
+    await E.moveBlock(u, after, { before: false, children: false }); after = u;
+    return async () => {
+      if (before?.uuid) return void await E.moveBlock(u, before.uuid, { before: false, children: false });
+      if (next?.uuid) return void await E.moveBlock(u, next.uuid, { before: true, children: false });
+      if (parent?.uuid) return void await E.moveBlock(u, parent.uuid, { before: false, children: true });
+      throw new Error('where it was is gone');
+    };
+  }));
+  if (spare) await E.removeBlock(spare).catch(() => {});
+  if (failed) notify(`${manyOf(failed)} could not be moved`, 'warning');
+  offerMany(`Moved ${manyOf(undos.length)} under ${page.text}`, undos, `find:moved:${Date.now()}`);
+}
 // The panel on the line a box is writing: its caret kept for the way back.
 function panel(box) {
   if (!box || box.tagName !== 'TEXTAREA' || setting('panel') === false) return false;
@@ -1352,6 +1409,20 @@ function panel(box) {
 // The tag a choice would give, shown coming (green) at the line's right end while the choice is lit, before anything is written.
 function showComing(groups) {
   const h = S.host; if (!h) return;
+  if (h.held) {
+    // Bullets held and a tag lit: the tag stands coming at the right end of each held bullet's line.
+    const cur = S.mode === 'rows' ? rowList()[S.rowAt] : null, tag = cur?.kind === 'node' && cur.node.sign === 'tag' ? cur.node.text : '';
+    for (const c of h.comings || []) c.remove();
+    h.comings = [];
+    if (!tag) return;
+    for (const line of h.lines || []) {
+      if (!line.isConnected) continue;
+      const r = line.getBoundingClientRect(), c = el(S.doc, 'span', { class: 'fd-coming lk-tag lk-coming', 'aria-hidden': 'true' }, tag);
+      Object.assign(c.style, { top: Math.round(r.top) + 'px', right: Math.round(S.doc.defaultView.innerWidth - r.right + 8) + 'px', lineHeight: Math.round(Math.min(r.height, 28)) + 'px' });
+      S.doc.body.append(c); h.comings.push(c);
+    }
+    return;
+  }
   const lit = S.mode === 'choices' ? flatChoices(groups)[S.choiceAt] : null, word = lit?.coming || '';
   if (!word) { h.coming?.remove(); h.coming = null; return; }
   if (!h.box?.isConnected) return;
@@ -1397,5 +1468,5 @@ async function openKind(kind = {}) {
   if (k) addPick({ kind: 'tag', id: k.id, uuid: k.uuid, title: k.title });
   return !!k;
 }
-Find.window = { open, openKind, panel, close, toggle, sentence, commands, forget, warm, state: S };
+Find.window = { open, openKind, panel, held, close, toggle, sentence, commands, forget, warm, state: S };
 })();

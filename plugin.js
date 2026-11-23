@@ -107,6 +107,11 @@ Door.PROPERTY_TYPES = [['default', 'Text'], ['number', 'Number'], ['date', 'Date
 Door.write = {
   addTag: (uuid, tagUuid) => logseq.Editor.addBlockTag(uuid, tagUuid),
   removeTag: (uuid, tagUuid) => logseq.Editor.removeBlockTag(uuid, tagUuid),
+  /* Many changes as one (0.5, D; Relations' picked bar had this for itself): each step is an async function that makes one change
+     and answers its inverse (or nothing, when it changed nothing). each(steps) runs them in order and answers { undos, failed };
+     back(undos) runs the inverses last first and answers { missed, kept } (an inverse answers 'kept' when the node changed since). */
+  async each(steps) { const undos = []; let failed = 0; for (const step of steps) { try { const undo = await step(); if (undo) undos.push(undo); } catch (error) { failed++; console.warn('Plugin: one of several changes could not be made', error); } } return { undos, failed }; },
+  async back(undos) { let missed = 0, kept = 0; for (const undo of [...undos].reverse()) { try { if (await undo() === 'kept') kept++; } catch (error) { missed++; console.warn('Plugin: one of several changes could not be put back', error); } } return { missed, kept }; },
   setValue: (uuid, ident, value, opts) => logseq.Editor.upsertBlockProperty(uuid, ident, value, opts),
   unsetValue: (uuid, ident) => logseq.Editor.removeBlockProperty(uuid, ident),
   setWords: (uuid, words, opts) => logseq.Editor.updateBlock(uuid, words, opts),
