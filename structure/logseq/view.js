@@ -52,6 +52,13 @@ const CSS = `
    stood far from its names, and three areas squeezed into 202 px each broke "Pharmacological" inside the word. 232 px holds a 15-letter
    name two steps in. */
 .st-area { min-width: 0; position: relative; z-index: 1; }
+/* A tall area in more than one column (23 November 2026, the owner: "Because I group everything under 2, that mean everything in
+   the ontology page is just 2 columns so it is getting uneven"): where there is room for more columns than areas, the tallest area
+   takes the spare ones, its top-level tag standing over its first column and its branches, each whole, poured down its columns in
+   order. Every column keeps the one width and the one gap (regions.js, columns). */
+.st-area.st-split { column-fill: balance; }
+.st-area.st-split > .st-row.kind { column-span: all; width: var(--st-col); }
+.st-branch { break-inside: avoid; }
 .st-regions .st-lines { position: absolute; left: 0; top: 0; pointer-events: none; color: var(--lk-text, #222); }
 .st-regions .st-row { grid-template-columns: 14px 14px 12px minmax(0, 1fr) 40px 8px; }
 .st-regions .st-row.kind .nm { font-weight: 600; }
@@ -617,7 +624,10 @@ function make(holder, mode, app, opts = {}) {
     for (const r of visibleRows()) { if (!r.d) areas.push([]); areas[areas.length - 1]?.push(r); }
     const asking = st.edit && st.edit.owner === mode && (st.edit.what === 'kids' || st.edit.on === LOOSE);
     const edit = asking ? `<div class="st-area"><div class="st-row lk-row kind"><span></span><span></span><span></span><span class="nm"><input class="st-in lk-field" data-edit value="${esc(st.edit.text)}" placeholder="${st.edit.what === 'kids' ? `The first child tags of ${esc(name(st.edit.on))}, with commas` : 'Name of the new top-level tag'}" autocomplete="off" spellcheck="false"></span></div></div>` : '';
-    return `<div class="st-regions lk-list" data-picking><svg class="st-lines" aria-hidden="true"></svg>${areas.map(a => `<div class="st-area">${a.map(rowHtml).join('')}</div>`).join('')}${edit}</div>${st.aim ? '' : focusHtml(st.cur)}`;
+    // Each tag one step under the top holds its own rows in a branch, so a tall area can stand in more than one column and break
+    // only between branches (regions.js, columns).
+    const areaHtml = a => { let h = '', open = false; for (const r of a) { if (r.d === 1) { h += `${open ? '</div>' : ''}<div class="st-branch">`; open = true; } h += rowHtml(r); } return h + (open ? '</div>' : ''); };
+    return `<div class="st-regions lk-list" data-picking><svg class="st-lines" aria-hidden="true"></svg>${areas.map(a => `<div class="st-area">${areaHtml(a)}</div>`).join('')}${edit}</div>${st.aim ? '' : focusHtml(st.cur)}`;
   }
   // The relationships of a tag, read left to right: the tag that holds the property, the property and what it holds, how many nodes.
   /* What a property's line on one tag can do, each named for that tag alone (the owner, 19 November 2026: "doesn't seem obvious
