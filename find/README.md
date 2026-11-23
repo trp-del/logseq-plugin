@@ -14,7 +14,11 @@ Find has two hosts and one code (`find.js`, `S.host`): the window, over the page
   name still takes the tap, as before), or the command "Find: link from here". The setting "A small Find under the line you are
   writing" switches it off; the tap then lists the tags as before. Predictive hears the tap and asks the door (`find:panel`).
 - **What it is.** The window's own four pieces, the find line, the choices, the rows and the foot, in the library's pop-up
-  (`lk-pop`), under the bullet at its width, above it where the window has no room below, four rows. Not modal: the page stays
+  (`lk-pop`), hung from the caret at the width of its rows (540 px, less in a narrower window; the owner, 22 November 2026, of a
+  panel as wide as the page: "it is not well suited"), above the line where the window has no room below, four rows, and six rows more while a row is opened in place, where the window has the room. Before a
+  letter is typed it shows no kinds of the whole graph, and its rows are the pages linked in the lines around the one being
+  written (`db.near`: the lines above, nearest first, then below, then the bullet they stand under), then the pages opened
+  lately. Its rows have no day column. Not modal: the page stays
   as it is, the bullet stays in writing, a press elsewhere lets it go.
 - **Keys.** Typing finds as the window does; ↑ ↓ move; Tab narrows or steps into the choices; → opens a row in place; Enter
   links the lit row at the caret (`[[Name]]`, a space before it after a letter), one Cmd+Z takes it back; Escape goes back a

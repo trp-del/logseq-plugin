@@ -130,6 +130,7 @@ const CSS = `
 .fd-faint { color: var(--lk-quiet); }
 .fd-foot { display: flex; gap: 16px; flex-wrap: wrap; padding: 8px 16px 10px; border-top: 1px solid var(--lk-hair); font-size: var(--lk-small); color: var(--lk-text, #222); }
 .fd-foot:empty { display: none; }
+.fd.fd-panel .fd-foot { column-gap: 12px; }   /* the panel's longest foot line, a row opened, stays one line */
 .fd-foot .fd-k { color: var(--lk-quiet); margin-left: .4em; display: inline-flex; gap: 3px; vertical-align: middle; }
 .fd-foot .fd-right { margin-left: auto; padding: 0; }
 .fd-foot .fd-say-way { margin-left: auto; } .fd-foot .fd-right + .fd-say-way { margin-left: 0; }   /* at the right end, after Make a page when that stands there */
@@ -153,9 +154,25 @@ const rowsShown = () => S.host ? PANEL_ROWS : (setting('rowsShown') || 12);
 // One height from the opening, whatever is listed; the line opened adds its own height to it.
 const setHeight = () => { if (!S.dlg) return; if (S.host) return place(); S.dlg.style.height = FRAME + (S.say ? SAY : 0) + rowsShown() * ROW + (S.line ? S.lineH - 52 : 0) + 'px'; };
 // The panel's place: under the bullet's words at their width; above them where the window has no room below.
+const PANEL_WIDTH = 540;   // its foot's longest line (a row opened: narrow, link, into it, close, Find window) on one line
+const PANEL_OPENED = 6;     // the rows of room an opened row's node is given, where the window has it
+// Where the caret stands in a bullet's box, from the window's left: the box's words up to the caret, laid out as the box lays them.
+function caretLeft(box, at) {
+  const doc = box.ownerDocument, win = doc.defaultView, r = box.getBoundingClientRect();
+  try {
+    const cs = win.getComputedStyle(box), m = doc.createElement('div');
+    for (const k of ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'letterSpacing', 'lineHeight', 'paddingLeft', 'paddingRight', 'paddingTop', 'borderLeftWidth', 'borderRightWidth', 'boxSizing', 'textIndent', 'tabSize', 'wordSpacing']) m.style[k] = cs[k];
+    Object.assign(m.style, { position: 'fixed', left: r.left + 'px', top: '0', width: r.width + 'px', visibility: 'hidden', whiteSpace: 'pre-wrap', overflowWrap: 'break-word', pointerEvents: 'none' });
+    m.textContent = box.value.slice(0, at ?? box.selectionStart ?? 0);
+    const mark = doc.createElement('span'); mark.textContent = '\u200b'; m.append(mark);
+    doc.body.append(m);
+    const x = mark.getBoundingClientRect().left; m.remove();
+    return Number.isFinite(x) && x >= r.left ? x : r.left;
+  } catch (error) { return r.left; }
+}
 function place() {
   const d = S.dlg, box = S.host?.box || S.host?.anchor; if (!d || !box?.isConnected) return;
-  const r = box.getBoundingClientRect(), win = S.doc.defaultView, h = PANEL_FRAME + PANEL_ROWS * ROW;
+  const r = box.getBoundingClientRect(), win = S.doc.defaultView, h = PANEL_FRAME + (PANEL_ROWS + (S.dug.length ? PANEL_OPENED : 0)) * ROW;
   /* Under the line whenever a usable panel fits there, shorter if it must be: above, it would cover what was just written (tried by
      hand, 22 November 2026: on a line low in the window it stood over the page's title and the window's top). Above only when
      under has no room for the find line and two rows; never over Logseq's header, which is the window's drag handle. */
@@ -163,7 +180,13 @@ function place() {
   const under = below >= Math.min(h, PANEL_FRAME + 2 * ROW) || below >= above;
   const height = Math.max(150, Math.min(h, under ? below : above));
   const set = (k, v) => d.style.setProperty(k, v, 'important');
-  set('left', Math.round(r.left) + 'px'); set('right', 'auto'); set('width', Math.round(Math.max(320, r.width)) + 'px');
+  /* From the caret, as wide as its rows (the owner, 22 November 2026, of a panel as wide as the page: "it is not well suited"):
+     its left edge under the caret where it was when the panel opened, moved left only as far as the window needs. Held bullets
+     have no caret: from their words' left edge. */
+  const width = Math.min(PANEL_WIDTH, Math.max(280, win.innerWidth - 24));
+  if (S.host.caretX == null) S.host.caretX = S.host.box ? caretLeft(S.host.box, S.host.start) : r.left;
+  const left = Math.max(12, Math.min(S.host.caretX - 14, win.innerWidth - 12 - width));
+  set('left', Math.round(left) + 'px'); set('right', 'auto'); set('width', Math.round(width) + 'px');
   set('top', Math.round(under ? r.bottom + 4 : Math.max(band, r.top - height - 4)) + 'px'); set('bottom', 'auto');
   d.style.height = height + 'px';
 }
@@ -346,7 +369,7 @@ function choiceGroups() {
   } else if (!tag) {
     // With letters typed, the kinds whose names match come first (so "cons" picks Consultation whatever the words find);
     // when none match, the kinds among the results say what was found.
-    const named = typed ? S.kinds.filter(k => matches(k.title)) : atRest() ? S.kinds : [];
+    const named = typed ? S.kinds.filter(k => matches(k.title)) : atRest() && !S.host ? S.kinds : [];   // the panel counts no kinds of the whole graph before a letter is typed (the owner, 22 November 2026: "it is not well suited")
     const kinds = named.length ? named : (S.facets?.kinds || []);
     if (kinds.length) groups.push({ key: 'kind', label: typed ? 'kind' : 'start from', icon: '', items: kinds.slice(0, limit('kind')).map(k => ({ label: k.title, count: k.count, lit: named.length > 0 && matches(k.title), pick: () => take({ kind: 'tag', id: k.id, uuid: k.uuid, title: k.title }, k.title, matches(k.title)) })), more: kinds.length > limit('kind') });
   }
@@ -445,6 +468,10 @@ function newName(shown) {
 }
 // With bullets held and nothing typed, the rows are the tags (the kinds, most used first): what bullets are most often given.
 const heldKinds = () => S.kinds.slice(0, 12).map(k => ({ id: k.id, uuid: k.uuid, text: k.title, title: k.title, raw: k.title, isPage: true, sign: 'tag', tags: [], page: null, day: 0, journal: false }));
+// With nothing typed: in the panel, the pages linked in the lines around the one being written come first, then the ones opened lately.
+const nearLine = () => (S.host && !S.host.held ? S.host.near || [] : []);
+const restRows = () => { const near = nearLine(); return near.length ? near.concat(S.recents.filter(n => !near.some(x => x.uuid === n.uuid))) : S.recents; };
+const restHead = () => { if (S.host?.held) return 'tags'; const near = nearLine().length; return !near ? 'recently opened' : near >= rowsShown() || S.recents.length === 0 ? 'near this line' : 'near this line, then recently opened'; };
 function rowList() {
   const list = [];
   if (isCommandMode()) {
@@ -455,7 +482,7 @@ function rowList() {
     if (hasWord('Plugin settings', ws)) list.push({ kind: 'command', label: 'Plugin settings', id: 'plugin:settings', key: '' });
     return list;
   }
-  const top = atRest() ? (S.host?.held ? heldKinds() : S.recents) : S.shown.filter(timeKeeps);
+  const top = atRest() ? (S.host?.held ? heldKinds() : restRows()) : S.shown.filter(timeKeeps);
   const shown = S.allShown ? top : top.slice(0, rowsShown());
   const fresh = newName(shown);
   if (fresh?.first) list.push(fresh);
@@ -548,7 +575,8 @@ function render() {
   const scrollTop = body.scrollTop;
   // The day's column stands only when a node in the list has a day to show in it.
   const dayOf = n => (n.journal ? '' : db.dayLabel(n.day));
-  body.classList.toggle('fd-noday', !isCommandMode() && ![...rows.filter(r => r.kind === 'node').map(r => r.node), ...S.shown].some(dayOf));
+  if (S.host) place();
+  body.classList.toggle('fd-noday', !!S.host || !isCommandMode() && ![...rows.filter(r => r.kind === 'node').map(r => r.node), ...S.shown].some(dayOf));
   body.replaceChildren();
   if (S.failed) body.append(el(doc, 'div', { class: 'fd-none lk-none' }, 'The graph could not be read: ' + S.failed));
   const lineNode = lineDugNode(), lineBox = lineNode ? dugBox(doc, lineNode) : null;
@@ -575,7 +603,7 @@ function render() {
     body.append(wrap);
   }
   // With nothing typed the rows are the pages opened last, and a head says so; otherwise the rows are what was found.
-  if (!isCommandMode() && rows.length && atRest()) body.append(el(doc, 'div', { class: 'fd-head fd-head-rows lk-name' }, S.host?.held ? 'tags' : 'recently opened'));
+  if (!isCommandMode() && rows.length && atRest()) body.append(el(doc, 'div', { class: 'fd-head fd-head-rows lk-name' }, restHead()));
   const ws = words();
   // What ends the list found: nothing found, "show all", a kind cut to its newest.
   const tail = () => {
@@ -1406,6 +1434,8 @@ function panel(box) {
   if (D.answers?.('predictive:tagChoices')) Promise.resolve(D.ask('predictive:tagChoices', box)).then(tags => { if (S.host?.box === box && dlgNow() && Array.isArray(tags) && tags.length) { S.host.tags = tags; render(); } }).catch(() => {});
   // The kinds a new name here is likely to be, from the lines written before (Predictive, core/newkind.js): the clear one comes lit.
   if (D.answers?.('predictive:kindsFor')) Promise.resolve(D.ask('predictive:kindsFor', box.value.slice(0, box.selectionStart))).then(kinds => { if (S.host?.box === box && dlgNow() && Array.isArray(kinds) && kinds.length) { S.host.kinds = kinds; S.host.newKind = kinds.find(k => k.lit) || null; render(); } }).catch(() => {});
+  const lineUuid = box.closest('.ls-block')?.getAttribute('blockid') || null;
+  if (lineUuid) db.near(lineUuid, PANEL_ROWS - 1).then(near => { if (S.host?.box === box && dlgNow() && near.length) { S.host.near = near; if (atRest()) { S.rowAt = 0; render(); } } }).catch(() => {});
   open('', false, { box, start: box.selectionStart, end: box.selectionEnd, uuid: box.closest('.ls-block')?.getAttribute('blockid') || null });
   return true;
 }

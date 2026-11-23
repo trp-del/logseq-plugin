@@ -301,6 +301,26 @@ async function recents(limit = 8) {
   const order = new Map(top.map((b, i) => [b, i]));
   return list.sort((a, b) => order.get(a.id) - order.get(b.id));
 }
+/* The pages linked in the lines around a bullet (the one above it and its other siblings, nearest first): what a new link on
+   this line is most likely to name again. Tags, properties and days are left out; so is what the bullet already links. */
+async function near(uuid, limit = 3) {
+  if (!UUID.test(String(uuid || ''))) return [];
+  const PAGE = '[?r :block/name _] [?r :block/uuid ?ru] (not [?r :block/journal-day _]) (not [?r :block/tags :logseq.class/Tag]) (not [?r :block/tags :logseq.class/Property]) (not [?r :logseq.property/built-in? true]) (not [?r :logseq.property/deleted-at _])';
+  const sibs = await query(`[:find ?cu ?o ?ru :where [?b :block/uuid #uuid "${uuid}"] [?b :block/parent ?p] [?c :block/parent ?p] [?c :block/uuid ?cu] [?c :block/order ?o] [?c :block/refs ?r] ${PAGE}]`).catch(() => []);
+  const over = await query(`[:find ?cu ?ru :where [?b :block/uuid #uuid "${uuid}"] [?b :block/parent ?c] [?c :block/uuid ?cu] [?c :block/refs ?r] ${PAGE}]`).catch(() => []);
+  const rows = sibs.concat(over.map(([cu, ru]) => [cu, '', ru]));
+  const me = String(uuid).toLowerCase(), mine = new Set(rows.filter(r => String(r[0]).toLowerCase() === me).map(r => String(r[2]).toLowerCase()));
+  const myOrder = rows.find(r => String(r[0]).toLowerCase() === me)?.[1] ?? (await query(`[:find ?o :where [?b :block/uuid #uuid "${uuid}"] [?b :block/order ?o]]`).catch(() => []))[0]?.[0] ?? '';
+  // Nearest first: the lines above, the closest first, then the lines below, then the bullet they all stand under.
+  const rank = o => (o === '' ? 3 : o < myOrder ? 0 : 1);
+  const others = rows.filter(r => String(r[0]).toLowerCase() !== me).sort((x, y) => rank(x[1]) - rank(y[1]) || (rank(x[1]) === 0 ? (x[1] < y[1] ? 1 : -1) : (x[1] < y[1] ? -1 : 1)));
+  const uuids = [];
+  for (const r of others) { const u = String(r[2]).toLowerCase(); if (!mine.has(u) && !uuids.includes(u)) uuids.push(u); }
+  if (!uuids.length) return [];
+  const list = await details([], uuids.slice(0, limit));
+  const order = new Map(uuids.map((u, i) => [u, i]));
+  return list.sort((a, b) => order.get(a.uuid) - order.get(b.uuid));
+}
 // A page made from the find line, through Logseq's own call; opened once made.
 async function makePage(name) {
   const page = await window.PluginDoor.write.createPage(name, {}, { redirect: true, createFirstBlock: true });
@@ -308,5 +328,5 @@ async function makePage(name) {
 }
 const forget = () => { tags = null; };
 
-Find.db = { tagIndex, kinds, kindTree, nodesOfKind, details, facets, pages, months, byDay, search, node, recents, makePage, dayLabel, monthLabel, forget, UUID };
+Find.db = { tagIndex, kinds, kindTree, nodesOfKind, details, facets, pages, months, byDay, search, node, recents, near, makePage, dayLabel, monthLabel, forget, UUID };
 })();
