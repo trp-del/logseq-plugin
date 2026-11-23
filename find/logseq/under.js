@@ -20,7 +20,7 @@ let open = null;   // { holder, block, uuid (the block's), pos, node (the linked
 function linkAt(box) {
   const at = box.selectionStart, text = box.value;
   const re = /\[\[([^\]\n]+)\]\]/g; let m;
-  while ((m = re.exec(text))) if (at >= m.index && at <= m.index + m[0].length) return m[1].trim();
+  while ((m = re.exec(text))) if (at >= m.index && at <= m.index + m[0].length) return { name: m[1].trim(), end: m.index + m[0].length };
   return null;
 }
 async function nodeOf(name) {
@@ -40,8 +40,14 @@ async function close({ back = true } = {}) {
 async function look(box) {
   const block = box.closest('.ls-block'), line = block?.querySelector(':scope > .block-main-container');
   if (!block || !line) return;
-  const name = linkAt(box);
+  const link = linkAt(box), name = link?.name;
   if (!name) return notify('Put the cursor on a link first');
+  /* With the caret inside the brackets Logseq lists pages to link, over the very place the node opens in: the caret steps to just
+     after the link, and Logseq's list is let go with its own Escape (which closes the list, not the writing). */
+  if (box.selectionStart < link.end) { box.setSelectionRange(link.end, link.end); box.dispatchEvent(new (host().defaultView.Event)('select', { bubbles: true })); }
+  await new Promise(r => setTimeout(r, 60));
+  if (D.screen.editorPopupOpen(host())) { D.screen.key(box, 'Escape'); await new Promise(r => setTimeout(r, 120)); }
+  if (host().activeElement !== box) return;   // Logseq took the Escape for the bullet: nothing is opened over a line no longer written
   if (!D.answers?.('relations:node')) return notify('Relations is off, so the page cannot be opened here', 'warning');
   const node = await nodeOf(name);
   if (!node) return notify(`No page is named “${name}” yet`);
