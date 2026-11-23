@@ -42,7 +42,7 @@ const SCREENS = {
   look: ['person', 'tag with a table', 'a page in the right sidebar', 'key sheet'],
   threads: ['person', 'journal day', 'a page in the right sidebar'],
   structure: ['Ontology', 'tag with a table', 'property', 'row view, a row pressed'],
-  find: ['Find, typed'], todo: ['Todo'], settings: ['settings window'],
+  find: ['Find, typed', 'Find, empty', 'Find, in the choices', 'Find, a row opened', 'Find, a new page offered', 'Find, by sentence'], todo: ['Todo'], settings: ['settings window'],
   predictive: ['person, writing in a bullet'],
   sidebar: ['a page in the right sidebar', 'row view, a row pressed'],
   export: [], split: [],
