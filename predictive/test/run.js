@@ -794,6 +794,21 @@ section('A linked page and the property the graph shows it belongs in (core/prop
   });
 }
 
+section('The kind a new page is likely to be, from how earlier lines were written (core/newkind.js)');
+{
+  const { kindsAfter } = require('../core/newkind.js');
+  const id = n => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+  const M = { uuid: 'm', title: 'Merchant' }, P = { uuid: 'p', title: 'Person' }, A = { uuid: 'a', title: 'Bank Account' }, PAGE = { uuid: 'x', title: 'Page' };
+  const tags = { [id(1)]: [M, PAGE], [id(2)]: [M], [id(3)]: [M], [id(4)]: [P], [id(5)]: [A], [id(6)]: [A], [id(7)]: [P] };
+  const tagsOf = u => tags[u];
+  const lines = [`Lunch at [[${id(1)}]] $24`, `Coffee at [[${id(2)}]]`, `Groceries at [[${id(3)}]] $82`, `Coffee with [[${id(4)}]] at [[${id(2)}]]`, `Paid the gas bill from [[${id(5)}]]`, `Rent paid from [[${id(6)}]]`, `Dinner with [[${id(7)}]]`];
+  test('"at" was followed by merchants: Merchant first and lit', () => { const k = kindsAfter('Coffee with Dana at ', lines, tagsOf, { skip: ['Page'] }); assert.equal(k[0].title, 'Merchant'); assert.equal(k[0].lit, true); assert.ok(!k.some(x => x.title === 'Page')); });
+  test('"with" was followed by people, twice only: offered, not lit', () => { const k = kindsAfter('Lunch with ', lines, tagsOf, { skip: ['Page'] }); assert.equal(k[0].title, 'Person'); assert.equal(k[0].lit, false); });
+  test('the two last words the same count double', () => { const k = kindsAfter('Paid the water bill from ', lines, tagsOf); assert.equal(k[0].title, 'Bank Account'); assert.equal(k[0].count, 3); });
+  test('words never followed by a link: no kind, nothing lit', () => { assert.deepEqual(kindsAfter('Thinking about ', lines, tagsOf), []); assert.deepEqual(kindsAfter('', lines, tagsOf), []); });
+  test('a link earlier in the line is not read as a word', () => { const k = kindsAfter(`Coffee with [[${id(4)}]] at `, lines, tagsOf, { skip: ['Page'] }); assert.equal(k[0].title, 'Merchant'); });
+}
+
 section('The part a page, a sum and a day play in the sentence (core/roles.js)');
 {
   // 22 November 2026, the owner: "I want the property filling to be very sophisticated and have very nuanced way of distinguishing

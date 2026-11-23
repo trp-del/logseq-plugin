@@ -319,6 +319,10 @@ function choiceGroups() {
   const limit = key => S.moreOf.has(key) ? 999 : 3;
   /* In the panel with nothing typed, the first line is the tags the bullet could be, Predictive's own guesses with their reasons
      (0.5, the owner: the tag list goes "Into the panel"). One line, so the kinds wait until letters come. */
+  if (S.host?.kinds?.length && newName(S.shown.slice(0, rowsShown()))) {
+    groups.push({ key: 'newkind', label: 'kind of the new page', icon: '', items: S.host.kinds.map(k => ({ label: k.title, count: k.count, does: S.host.newKind?.uuid === k.uuid ? `no kind` : `make it a ${k.title}`, pick: () => { S.host.newKind = S.host.newKind?.uuid === k.uuid ? null : k; S.mode = 'rows'; S.rowAt = Math.max(0, rowList().findIndex(r => r.kind === 'make')); render(); } })) });
+    return groups;
+  }
   if (S.host?.tags?.length && atRest()) {
     groups.push({ key: 'tagme', label: 'tag this bullet', icon: '', items: S.host.tags.slice(0, limit('tagme')).map((t, i) => ({ label: t.title, hint: t.reason, does: `tag this bullet ${t.title}`, coming: t.title, pick: () => tagLine(i) })), more: S.host.tags.length > limit('tagme') });
     for (const g of groups) if (g.more) g.items.push({ more: true, label: 'more', pick: () => { S.moreOf.add(g.key); growChoices(); } });
@@ -427,6 +431,15 @@ const relHolds = uuid => { const at = S.dug.filter(u => u !== S.lineDug).indexOf
 const inNode = target => !!target?.closest?.('[data-th-node], [popover], .th-in-place, textarea');
 /* The rows, flat, in the order they show: the rows found, then the near ones, and inside a dug one its pointed-at groups
    and their nodes. */
+/* In the panel, words that name no page are a new name (0.5, B): one row, "+ words", that makes the page with its kind and links
+   it. It stands first, lit, when no page's name begins with the words; after the pages found when one does (↓ reaches it). */
+function newName(shown) {
+  if (!S.host || !canMake() || S.loading || S.failed || S.picks.length) return null;
+  const name = S.typed.trim(), low = name.toLowerCase();
+  const names = shown.filter(n => n.isPage).map(n => String(n.text || '').toLowerCase());
+  if (names.includes(low)) return null;
+  return { kind: 'make', name, first: !names.some(n => n.startsWith(low)) };
+}
 function rowList() {
   const list = [];
   if (isCommandMode()) {
@@ -439,6 +452,8 @@ function rowList() {
   }
   const top = atRest() ? S.recents : S.shown.filter(timeKeeps);
   const shown = S.allShown ? top : top.slice(0, rowsShown());
+  const fresh = newName(shown);
+  if (fresh?.first) list.push(fresh);
   const nearShown = atRest() ? [] : (S.nearAll ? S.nearShown : S.nearShown.slice(0, NEAR_SHOWN));
   const add = (n, near, fromLine) => {
     if (!fromLine) list.push({ kind: 'node', node: n, top: true, near });
@@ -461,6 +476,7 @@ function rowList() {
   if (lineNode) add(lineNode, false, true);
   for (const n of shown) add(n, false);
   for (const n of nearShown) add(n, true);
+  if (fresh && !fresh.first) list.push(fresh);
   return list;
 }
 
@@ -572,6 +588,15 @@ function render() {
   rows.forEach((r, i) => {
     const on = S.mode === 'rows' && i === S.rowAt;
     if (r.kind === 'command') { body.append(commandRow(doc, r, i, on)); return; }
+    if (r.kind === 'make') {
+      const row = el(doc, 'div', { class: 'fd-r fd-make lk-row' + (on ? ' on' : ''), 'data-i': i });
+      row.append(el(doc, 'span', { class: 'fd-day lk-day' }), el(doc, 'span', {}), el(doc, 'span', { class: 'fd-bul fd-sign', html: window.PluginDoor.logseqIconHtml('plus', { doc }) }));
+      const nm = el(doc, 'span', { class: 'fd-nm' }, el(doc, 'span', { class: 'fd-w' }, r.name));
+      if (S.host?.newKind) nm.append(el(doc, 'span', { class: 'lk-tag lk-coming' }, S.host.newKind.title));
+      row.append(nm);
+      row.addEventListener('click', () => makeAndLink(r.name));
+      container = body; body.append(row); return;
+    }
     // The near rows stand after what was found, under their own head.
     if (r.near && !tailed) { tailed = true; tail(); body.append(el(doc, 'div', { class: 'fd-near' }, 'Near')); container = body; }
     if (r.kind === 'group') {
@@ -911,11 +936,12 @@ function foot(doc, groups, rows) {
     add(KEY('Escape', S.lineDug ? 'close' : 'fold the line'));
     return items;
   }
-  if (S.mode === 'choices' && lit?.does) { add(KEY('Enter', `<b>${esc(lit.does)}</b>`)); add(KEY('← →', 'choose')); add(KEY('Escape', 'back to the rows')); }
+  if (S.mode === 'choices' && lit?.does) { add(KEY('Enter', `<b>${esc(lit.does)}</b>`)); add(KEY('Escape', 'back to the rows')); }
   else if (S.mode === 'choices') { add(KEY('Tab', lit.more ? 'show more' : `narrow to ${esc(lit.label)}`)); add(KEY('← → ↑ ↓', 'choose')); add(KEY('Escape', 'back to the rows')); if (groupOf(groups, S.choiceAt) === 0 && canLine()) add(KEY('↑', 'the line')); }
   else {
     if (lit) add(KEY('Tab', `narrow to ${esc(lit.label)}`)); else if (choices.length) add(KEY('Tab', 'narrow'));
-    if (cur?.kind === 'node' && S.host) add(KEY('Enter', `<b>link ${esc(short(cur.node.text))}</b>`));
+    if (cur?.kind === 'make') add(KEY('Enter', `<b>make ${esc(short(cur.name))}${S.host?.newKind ? `, a ${esc(S.host.newKind.title)},` : ''} and link it</b>`));
+    else if (cur?.kind === 'node' && S.host) add(KEY('Enter', `<b>link ${esc(short(cur.node.text))}</b>`));
     else if (cur?.kind === 'node') { add(KEY('Enter', `open ${esc(short(cur.node.text))}`)); add(KEY('Shift Enter', 'in the sidebar')); }
     else if (cur?.kind === 'group') add(KEY('Enter', `open the ${cur.count}`));
   }
@@ -992,7 +1018,7 @@ function takeEnter(shift) {
   const groups = choiceGroups(), rows = rowList();
   if (S.mode === 'choices') { flatChoices(groups)[S.choiceAt]?.pick(); return; }
   if (S.mode === 'line') { const d = S.lineDots[S.lineAt]; if (d) { openPage(d.node.uuid, shift); close(); } return; }
-  if (S.host) { const r = rows[S.rowAt]; if (r?.kind === 'group') return toggleGroup(r); if (r?.kind === 'node') linkRow(r); return; }   // the panel links; a new name is made there in its own step
+  if (S.host) { const r = rows[S.rowAt]; if (r?.kind === 'group') return toggleGroup(r); if (r?.kind === 'make') return makeAndLink(r.name); if (r?.kind === 'node') linkRow(r); return; }   // the panel links; a new name is made there in its own step
   if (makesPage(rows)) return makePage(S.typed.trim());
   openRow(rows[S.rowAt], shift);
 }
@@ -1288,12 +1314,35 @@ function linkRow(r) {
   window.PluginDoor.screen.insert(h.box, text, h.start, h.end);
   backToLine(h, h.start + text.length);
 }
+/* A new name taken: the page is made, given its kind, and linked at the caret. One Undo takes the link out again and drops the page
+   while nothing was written on it (the library's dropMade), as Predictive's new page goes. */
+async function makeAndLink(name) {
+  const h = S.host; if (!h || S.making) return;
+  const kind = h.newKind || null, D = window.PluginDoor, text = `[[${name}]]`;
+  S.making = true; h.left = true; close();
+  try {
+    const page = await D.write.createPage(name, {}, { redirect: false, createFirstBlock: false });
+    if (!page?.uuid) throw new Error('Logseq did not make the page');
+    if (kind) await D.write.addTag(page.uuid, kind.uuid);
+    if (h.box?.isConnected) { h.box.focus({ preventScroll: true }); D.screen.insert(h.box, text, h.start, h.end); backToLine(h, h.start + text.length); }
+    D.undo.offer({ owner: 'find', key: `find:made:${page.uuid}`, node: h.uuid || page.uuid, text: `Made “${name}”${kind ? ', a ' + kind.title : ''}`, at: () => null,
+      run: async () => {
+        const box = h.box;
+        if (box?.isConnected && box.value.slice(h.start, h.start + text.length) === text) { box.focus({ preventScroll: true }); D.screen.insert(box, '', h.start, h.start + text.length); }
+        const went = await D.write.dropMade(page);
+        if (!went) notify(`“${name}” has been written on since, so it stays`, 'warning');
+      } });
+  } catch (error) { notify('The page was not made: ' + D.reason(error, 'Logseq did not take the name'), 'warning'); backToLine(h); }
+  finally { S.making = false; }
+}
 // The panel on the line a box is writing: its caret kept for the way back.
 function panel(box) {
   if (!box || box.tagName !== 'TEXTAREA' || setting('panel') === false) return false;
   const D = window.PluginDoor, dlgNow = () => S.dlg;
   // The bullet's tags, when Predictive runs: asked as the panel opens, drawn when they answer (nothing moves: the line is kept for them).
   if (D.answers?.('predictive:tagChoices')) Promise.resolve(D.ask('predictive:tagChoices', box)).then(tags => { if (S.host?.box === box && dlgNow() && Array.isArray(tags) && tags.length) { S.host.tags = tags; render(); } }).catch(() => {});
+  // The kinds a new name here is likely to be, from the lines written before (Predictive, core/newkind.js): the clear one comes lit.
+  if (D.answers?.('predictive:kindsFor')) Promise.resolve(D.ask('predictive:kindsFor', box.value.slice(0, box.selectionStart))).then(kinds => { if (S.host?.box === box && dlgNow() && Array.isArray(kinds) && kinds.length) { S.host.kinds = kinds; S.host.newKind = kinds.find(k => k.lit) || null; render(); } }).catch(() => {});
   open('', false, { box, start: box.selectionStart, end: box.selectionEnd, uuid: box.closest('.ls-block')?.getAttribute('blockid') || null });
   return true;
 }

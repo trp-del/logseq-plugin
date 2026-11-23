@@ -95,6 +95,24 @@ async function takeAsked(box, i) {
   return true;
 }
 
+/* The kinds a new page named after these words is likely to be (core/newkind.js), for Find's panel: the earlier lines that link a
+   page right after the same last word are read, and the tags of the pages they link counted. Logseq's own tags say no kind. */
+const NO_KIND = ['Page', 'Journal', 'Tag', 'Property', 'Asset', 'Whiteboard', 'Task', 'Template', 'Query', 'Card'];
+async function kindsFor(before) {
+  try {
+    const cue = Flow.newkind.lastWords(before, 1)[0];
+    if (!cue || /["\\]/.test(cue)) return [];
+    const rows = await logseq.DB.datascriptQuery(`[:find ?t :where [?b :block/title ?t] [(clojure.string/includes? ?t " ${cue} [[")]]`) || [];
+    const lines = rows.map(r => String(r[0] || '')).slice(0, 600);
+    const ids = [...new Set(lines.flatMap(l => l.match(/\[\[[0-9a-f-]{36}\]\]/gi) || []).map(x => x.slice(2, -2).toLowerCase()))].slice(0, 400);
+    if (!ids.length) return [];
+    const got = await logseq.DB.datascriptQuery(`[:find ?u ?tu ?tt :in $ [?u ...] :where [?p :block/uuid ?u] [?p :block/tags ?tg] [?tg :block/uuid ?tu] [?tg :block/title ?tt]]`, `[${ids.map(u => `#uuid "${u}"`).join(' ')}]`) || [];
+    const tags = new Map();
+    for (const [u, tu, tt] of got) { const k = String(u).toLowerCase(); if (!tags.has(k)) tags.set(k, []); tags.get(k).push({ uuid: String(tu), title: String(tt) }); }
+    return Flow.newkind.kindsAfter(before, lines, u => tags.get(u), { skip: NO_KIND });
+  } catch (error) { warnOnce('the kinds for a new page could not be worked out', error); return []; }
+}
+
 async function pick(i) {
   const chosen = open, item = chosen?.items[i];
   if (!item) return;
@@ -160,6 +178,7 @@ function start() {
   app.onStop(close);
   app.onStop(window.PluginDoor.offerAsk('predictive:tagChoices', choicesAsked));
   app.onStop(window.PluginDoor.offerAsk('predictive:tagTake', takeAsked));
+  app.onStop(window.PluginDoor.offerAsk('predictive:kindsFor', kindsFor));
   app.onStop(logseq.App.onRouteChanged?.(close));
   logseq.App.registerCommandPalette?.({ key: 'flow-choose-tag', label: 'Predictive: choose a tag for this bullet' }, () => { const box = host().activeElement; if (app.isBlockBox(box)) show(box); else notify('Put the cursor in a bullet first'); });
 }
