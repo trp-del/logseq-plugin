@@ -46,6 +46,14 @@ const firstRow = async page => {
   await cell.click();
 };
 
+// Find's window by its key. On a Logseq started a moment ago the plugin's keys are not yet taken, and the first press does nothing
+// (22 November 2026: every Find screen came out as the bare page); so the press is tried until the window stands.
+const openFind = async (b, key = 'Meta+k') => {
+  const up = () => b.page.evaluate(() => !!document.querySelector('dialog[open].fd'));
+  for (let i = 0; i < 4; i++) { await b.page.keyboard.press(key); for (let t = 0; t < 8; t++) { await sleep(150); if (await up()) { await sleep(700); return; } } await sleep(1500); }
+  throw new Error('Find did not open on ' + key);
+};
+
 // [name, graph, set-up(box), { dark, width }]. Names are the guard's words for the screen; they stay the same across versions.
 const SCREENS = [
   ['person', 'Illness Test Graph', async b => go(b.page, 'Dr. Mei Chen')],
@@ -61,15 +69,15 @@ const SCREENS = [
   ['a page in the right sidebar, dark', 'Illness Test Graph', async b => { await go(b.page, 'Consultation'); await sleep(1500); await inSidebar(b, 'Dr. Mei Chen'); }, { dark: true }],
   ['Ontology', 'Illness Test Graph', async b => route(b.page, '#/structure')],
   ['Todo', 'Illness Test Graph', async b => route(b.page, '#/todo')],
-  ['Find, typed', 'Illness Test Graph', async b => { await go(b.page, 'Dr. Mei Chen'); await sleep(1500); await b.page.keyboard.press('Meta+k'); await sleep(900); await b.page.keyboard.type('cons', { delay: 60 }); }],
+  ['Find, typed', 'Illness Test Graph', async b => { await go(b.page, 'Dr. Mei Chen'); await sleep(1500); await openFind(b); await b.page.keyboard.type('cons', { delay: 60 }); }],
   // The Find window in every state its keys reach (22 November 2026, before 0.5 gives Find a second host: the window must not move).
-  ['Find, in the choices', 'Illness Test Graph', async b => { await go(b.page, 'Dr. Mei Chen'); await sleep(1500); await b.page.keyboard.press('Meta+k'); await sleep(900); await b.page.keyboard.type('cons', { delay: 60 }); await sleep(900); await b.page.keyboard.press('Tab'); }],
-  ['Find, a row opened', 'Illness Test Graph', async b => { await go(b.page, 'Consultation'); await sleep(1500); await b.page.keyboard.press('Meta+k'); await sleep(900); await b.page.keyboard.type('mei chen', { delay: 60 }); await sleep(1500); await b.page.keyboard.press('ArrowRight'); await sleep(1500); }],
-  ['Find, a new page offered', 'Illness Test Graph', async b => { await go(b.page, 'Dr. Mei Chen'); await sleep(1500); await b.page.keyboard.press('Meta+k'); await sleep(900); await b.page.keyboard.type('zqx wvk', { delay: 60 }); }],
-  ['Find, by sentence', 'Illness Test Graph', async b => { await go(b.page, 'Dr. Mei Chen'); await sleep(1500); await b.page.keyboard.press('Meta+Alt+k'); await sleep(900); await b.page.keyboard.type('consultation with chen in october', { delay: 40 }); }],
-  ['Find, typed, dark', 'Illness Test Graph', async b => { await go(b.page, 'Dr. Mei Chen'); await sleep(1500); await b.page.keyboard.press('Meta+k'); await sleep(900); await b.page.keyboard.type('cons', { delay: 60 }); }, { dark: true }],
-  ['Find, typed, narrow window', 'Illness Test Graph', async b => { await go(b.page, 'Dr. Mei Chen'); await sleep(1500); await b.page.keyboard.press('Meta+k'); await sleep(900); await b.page.keyboard.type('cons', { delay: 60 }); }, { width: 700 }],
-  ['Find, a row opened, narrow window', 'Illness Test Graph', async b => { await go(b.page, 'Consultation'); await sleep(1500); await b.page.keyboard.press('Meta+k'); await sleep(900); await b.page.keyboard.type('mei chen', { delay: 60 }); await sleep(1500); await b.page.keyboard.press('ArrowRight'); await sleep(1500); }, { width: 700 }],
+  ['Find, in the choices', 'Illness Test Graph', async b => { await go(b.page, 'Dr. Mei Chen'); await sleep(1500); await openFind(b); await b.page.keyboard.type('cons', { delay: 60 }); await sleep(900); await b.page.keyboard.press('Tab'); }],
+  ['Find, a row opened', 'Illness Test Graph', async b => { await go(b.page, 'Consultation'); await sleep(1500); await openFind(b); await b.page.keyboard.type('mei chen', { delay: 60 }); await sleep(1500); await b.page.keyboard.press('ArrowRight'); await sleep(1500); }],
+  ['Find, a new page offered', 'Illness Test Graph', async b => { await go(b.page, 'Dr. Mei Chen'); await sleep(1500); await openFind(b); await b.page.keyboard.type('zqx wvk', { delay: 60 }); }],
+  ['Find, by sentence', 'Illness Test Graph', async b => { await go(b.page, 'Dr. Mei Chen'); await sleep(1500); await openFind(b, 'Meta+Alt+k'); await b.page.keyboard.type('consultation with chen in october', { delay: 40 }); }],
+  ['Find, typed, dark', 'Illness Test Graph', async b => { await go(b.page, 'Dr. Mei Chen'); await sleep(1500); await openFind(b); await b.page.keyboard.type('cons', { delay: 60 }); }, { dark: true }],
+  ['Find, typed, narrow window', 'Illness Test Graph', async b => { await go(b.page, 'Dr. Mei Chen'); await sleep(1500); await openFind(b); await b.page.keyboard.type('cons', { delay: 60 }); }, { width: 700 }],
+  ['Find, a row opened, narrow window', 'Illness Test Graph', async b => { await go(b.page, 'Consultation'); await sleep(1500); await openFind(b); await b.page.keyboard.type('mei chen', { delay: 60 }); await sleep(1500); await b.page.keyboard.press('ArrowRight'); await sleep(1500); }, { width: 700 }],
   ['settings window', 'Illness Test Graph', async b => { await go(b.page, 'Dr. Mei Chen'); await sleep(1500); await b.page.keyboard.press('g'); await b.page.keyboard.press(','); }],
   ['key sheet', 'Illness Test Graph', async b => { await go(b.page, 'Dr. Mei Chen'); await sleep(1500); await b.page.keyboard.down('Alt'); await sleep(1200); await b.page.keyboard.up('Alt'); }],
   ['table of purchases', 'Personal Finance', async b => go(b.page, 'Purchase')],
