@@ -22,6 +22,9 @@ const CSS = `
 .fd:not([open]) { display: none; }
 .fd.fd-high { top: max(10vh, 60px) !important; bottom: auto !important; }
 .fd.fd-centred { top: 50% !important; bottom: auto !important; transform: translate(-50%, -50%); }
+/* The same window as a small panel under the line being written (0.5, 22 November 2026, the owner: "the small should be build
+   from same library"): no dimming, placed and sized by place(), the pop-up's lighter edge. */
+.fd.fd-panel { transform: none; max-height: none; z-index: 99; border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,.12); }
 .fd * { box-sizing: border-box; }
 /* The find line: the pieces, then the letters. */
 .fd-find { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; padding: 14px 16px; border-bottom: 1px solid var(--lk-hair); font-size: 16px; cursor: text; }
@@ -136,14 +139,30 @@ const S = {
   dlg: null, doc: null, gen: 0, timer: 0, reads: 0, enter: null, making: false, say: false,
   typed: '', picks: [], spans: [], words: [], trail: [], trailFrom: 0, mode: 'rows', rowAt: 0, choiceAt: 0,
   kinds: [], pages: null, names: null, tree: null, recents: [], base: [], shown: [], near: [], nearShown: [], facets: null, allShown: false, nearAll: false, moreOf: new Set(),
-  dug: [], dugData: new Map(), pointers: new Map(), noteOf: new Map(), unroll: null, unrollFrom: null, openGroups: new Set(), groupAll: new Set(), stale: false,
+  host: null, hostOff: null, dug: [], dugData: new Map(), pointers: new Map(), noteOf: new Map(), unroll: null, unrollFrom: null, openGroups: new Set(), groupAll: new Set(), stale: false,
   line: 0, lineAt: 0, lineDots: [], lineDug: null, lineH: 52,   // the year line: 0 the strip, 1 the days as towers, 2 a lane a value; the dot the cursor is on; the dots drawn; the node dug from it
   cache: { kind: new Map(), kindFacets: new Map(), counted: new Map(), words: new Map() }, loading: false, failed: '', commands: null,
   statuses: new Map(), statusNow: new Map(),   // the statuses Logseq's Status takes (PluginDoor.statusChoices), by id; a status set here since the window opened, by node
 };
 const setting = key => Find.settings.setting(key);
+/* The window has two hosts (0.5): the window itself, over the page, and a panel under the line being written (S.host: the bullet's
+   box, where its caret was). One Find shows at a time, so the state is one; what differs is asked of the host. */
+const PANEL_ROWS = 4, PANEL_FRAME = 148;   // the panel: its find line, one line of choices and the foot; the rows it shows
+const rowsShown = () => S.host ? PANEL_ROWS : (setting('rowsShown') || 12);
 // One height from the opening, whatever is listed; the line opened adds its own height to it.
-const setHeight = () => { if (S.dlg) S.dlg.style.height = FRAME + (S.say ? SAY : 0) + (setting('rowsShown') || 12) * ROW + (S.line ? S.lineH - 52 : 0) + 'px'; };
+const setHeight = () => { if (!S.dlg) return; if (S.host) return place(); S.dlg.style.height = FRAME + (S.say ? SAY : 0) + rowsShown() * ROW + (S.line ? S.lineH - 52 : 0) + 'px'; };
+// The panel's place: under the bullet's words at their width; above them where the window has no room below.
+function place() {
+  const d = S.dlg, box = S.host?.box; if (!d || !box?.isConnected) return;
+  const r = box.getBoundingClientRect(), win = S.doc.defaultView, h = PANEL_FRAME + PANEL_ROWS * ROW;
+  const below = win.innerHeight - r.bottom - 12, above = r.top - 12;
+  const under = below >= h || below >= above;
+  const height = Math.max(180, Math.min(h, under ? below : above));
+  const set = (k, v) => d.style.setProperty(k, v, 'important');
+  set('left', Math.round(r.left) + 'px'); set('right', 'auto'); set('width', Math.round(Math.max(320, r.width)) + 'px');
+  set('top', Math.round(under ? r.bottom + 4 : r.top - height - 4) + 'px'); set('bottom', 'auto');
+  d.style.height = height + 'px';
+}
 const words = () => S.words;
 const isCommandMode = () => S.typed.startsWith('>');
 const kindPick = () => S.picks.find(p => p.kind === 'tag');
@@ -411,7 +430,7 @@ function rowList() {
     return list;
   }
   const top = atRest() ? S.recents : S.shown.filter(timeKeeps);
-  const shown = S.allShown ? top : top.slice(0, setting('rowsShown') || 12);
+  const shown = S.allShown ? top : top.slice(0, rowsShown());
   const nearShown = atRest() ? [] : (S.nearAll ? S.nearShown : S.nearShown.slice(0, NEAR_SHOWN));
   const add = (n, near, fromLine) => {
     if (!fromLine) list.push({ kind: 'node', node: n, top: true, near });
@@ -532,7 +551,7 @@ function render() {
   // What ends the list found: nothing found, "show all", a kind cut to its newest.
   const tail = () => {
     if (isCommandMode() || atRest()) return;
-    const total = S.shown.length, limit = setting('rowsShown') || 12, tag = kindPick();
+    const total = S.shown.length, limit = rowsShown(), tag = kindPick();
     if (!S.loading && !total && !S.failed) body.append(el(doc, 'div', { class: 'fd-none lk-none' }, 'Nothing with these words here'));
     const more = total > limit && !S.allShown ? el(doc, 'button', { class: 'fd-showall lk-more', type: 'button', click: () => { S.allShown = true; render(); } }, `show all ${total}`) : null;
     // A kind too long to read whole says so where the list ends, and which part it holds.
@@ -887,17 +906,20 @@ function foot(doc, groups, rows) {
   if (S.mode === 'choices') { add(KEY('Tab', lit.more ? 'show more' : `narrow to ${esc(lit.label)}`)); add(KEY('← → ↑ ↓', 'choose')); add(KEY('Escape', 'back to the rows')); if (groupOf(groups, S.choiceAt) === 0 && canLine()) add(KEY('↑', 'the line')); }
   else {
     if (lit) add(KEY('Tab', `narrow to ${esc(lit.label)}`)); else if (choices.length) add(KEY('Tab', 'narrow'));
-    if (cur?.kind === 'node') { add(KEY('Enter', `open ${esc(short(cur.node.text))}`)); add(KEY('Shift Enter', 'in the sidebar')); }
+    if (cur?.kind === 'node' && S.host) add(KEY('Enter', `<b>link ${esc(short(cur.node.text))}</b>`));
+    else if (cur?.kind === 'node') { add(KEY('Enter', `open ${esc(short(cur.node.text))}`)); add(KEY('Shift Enter', 'in the sidebar')); }
     else if (cur?.kind === 'group') add(KEY('Enter', `open the ${cur.count}`));
   }
   /* The sentence's own key, said and pressable, in the plain window (16 November 2026, the owner: "put a shortcut in the find
      window"): a press or ⌥⌘K turns this window into Find by sentence, with its timeline. */
-  const way = () => S.say ? items : items.concat(el(doc, 'span', { class: 'fd-say-way' }, el(doc, 'button', { class: 'lk-btn lk-low', type: 'button', title: 'Find by sentence, with its timeline', click: () => sentence() }, 'By sentence', el(doc, 'span', { class: 'fd-k', html: window.PluginDoor.keyCaps('mod+alt+k') }))));
+  // The panel's way to the window: Cmd K, said at the foot's right end where the window says By sentence.
+  const wide = () => items.concat(el(doc, 'span', { class: 'fd-say-way' }, el(doc, 'button', { class: 'lk-btn lk-low', type: 'button', title: 'The Find window, with these letters', click: () => widen() }, 'Find window', el(doc, 'span', { class: 'fd-k', html: window.PluginDoor.keyCaps(setting('takesSearchKey') !== false ? 'mod+k' : 'mod+shift+k') }))));
+  const way = () => S.host ? wide() : S.say ? items : items.concat(el(doc, 'span', { class: 'fd-say-way' }, el(doc, 'button', { class: 'lk-btn lk-low', type: 'button', title: 'Find by sentence, with its timeline', click: () => sentence() }, 'By sentence', el(doc, 'span', { class: 'fd-k', html: window.PluginDoor.keyCaps('mod+alt+k') }))));
   if (atRest()) return way();
   if (cur?.kind === 'node' && cur.top) { if (S.dug.includes(cur.node.uuid)) { add(KEY('→', 'into it')); add(KEY('←', 'close')); } else add(KEY('→', 'dig')); }
   if (cur?.kind === 'group') add(KEY(S.openGroups.has(cur.key) ? '←' : '→', S.openGroups.has(cur.key) ? 'close' : 'open'));
   if (!S.say && S.picks.length && !S.typed) add(KEY('Backspace', `take ${esc(S.picks[S.picks.length - 1].title || S.picks[S.picks.length - 1].label)} off`));
-  if (canMake()) { const name = S.typed.trim(); items.push(el(doc, 'span', { class: 'fd-right' }, el(doc, 'button', { class: 'lk-btn lk-low lk-i-plus', type: 'button', title: 'Make a page with these words as its name', click: () => makePage(name) }, `make a page “${name}”`, el(doc, 'span', { class: 'fd-k', html: window.PluginDoor.keyCaps(makesPage(rows) ? 'enter' : 'mod+enter') })))); }
+  if (canMake() && !S.host) { const name = S.typed.trim(); items.push(el(doc, 'span', { class: 'fd-right' }, el(doc, 'button', { class: 'lk-btn lk-low lk-i-plus', type: 'button', title: 'Make a page with these words as its name', click: () => makePage(name) }, `make a page “${name}”`, el(doc, 'span', { class: 'fd-k', html: window.PluginDoor.keyCaps(makesPage(rows) ? 'enter' : 'mod+enter') })))); }
   return way();
 }
 
@@ -953,7 +975,7 @@ function showRest(rows) {
   if (cur?.under && next?.under !== cur.under && !S.groupAll.has(cur.under) && rows.find(r => r.key === cur.under)?.count > 3) { S.groupAll.add(cur.under); return true; }
   if (isCommandMode() || atRest()) return false;
   if (cur?.near) { if (next || S.nearAll || S.nearShown.length <= NEAR_SHOWN) return false; return S.nearAll = true; }
-  if ((next && !next.near) || S.allShown || S.shown.length <= (setting('rowsShown') || 12)) return false;
+  if ((next && !next.near) || S.allShown || S.shown.length <= rowsShown()) return false;
   return S.allShown = true;
 }
 // Enter takes what is on screen; pressed while the letters are being read, it waits for what they find.
@@ -961,6 +983,7 @@ function takeEnter(shift) {
   const groups = choiceGroups(), rows = rowList();
   if (S.mode === 'choices') { flatChoices(groups)[S.choiceAt]?.pick(); return; }
   if (S.mode === 'line') { const d = S.lineDots[S.lineAt]; if (d) { openPage(d.node.uuid, shift); close(); } return; }
+  if (S.host) { const r = rows[S.rowAt]; if (r?.kind === 'group') return toggleGroup(r); if (r?.kind === 'node') linkRow(r); return; }   // the panel links; a new name is made there in its own step
   if (makesPage(rows)) return makePage(S.typed.trim());
   openRow(rows[S.rowAt], shift);
 }
@@ -1089,21 +1112,23 @@ function onInput() {
 
 /* Opening and closing. open(typed, say): the window with those letters already in the find line (">" for the commands); say, as
    a sentence. */
-function open(typed = '', say = false) {
+function open(typed = '', say = false, panel = null) {
   const doc = host();
   close();
-  S.say = !!say;
+  S.host = panel;
+  S.say = !!say && !panel;
   S.commands = null;
   /* The graph changed since the last opening: the kinds, their tree and the recent pages read before are shown at once and read
      again behind the window, which is drawn again when they answer. Emptied here, the window stood blank for about a tenth of a
      second on every such opening (recorded 12 November 2026: frames 96 to 187 ms empty). */
   if (S.stale) { S.stale = false; S.again = { kinds: S.kinds.length > 0, tree: !!S.tree, recents: S.recents.length > 0 }; S.pages = null; S.dugData.clear(); S.pointers.clear(); S.noteOf.clear(); }
   style('find', CSS);
-  const dlg = el(doc, 'dialog', { class: 'fd lk-window fd-own ' + (setting('windowPlace') === 'centred' ? 'fd-centred' : 'fd-high') + (S.say ? ' fd-say' : ''), 'aria-label': S.say ? 'Find by sentence' : 'Find' });
+  const dlg = panel ? el(doc, 'dialog', { class: 'fd lk-window fd-own fd-panel', 'aria-label': 'Link from here', 'data-editor-popup-ref': 'find-panel' })
+    : el(doc, 'dialog', { class: 'fd lk-window fd-own ' + (setting('windowPlace') === 'centred' ? 'fd-centred' : 'fd-high') + (S.say ? ' fd-say' : ''), 'aria-label': S.say ? 'Find by sentence' : 'Find' });
   const find = el(doc, 'div', { class: 'fd-find' });
   const sentence = el(doc, 'div', { class: 'fd-sentence' });
   const mirror = el(doc, 'div', { class: 'fd-mirror', 'aria-hidden': 'true' });
-  const input = el(doc, 'input', { class: 'fd-input', type: 'text', spellcheck: 'false', autocomplete: 'off', autocapitalize: 'off', placeholder: S.say ? 'what, with whom, when' : 'pick a kind, or type' });
+  const input = el(doc, 'input', { class: 'fd-input', type: 'text', spellcheck: 'false', autocomplete: 'off', autocapitalize: 'off', placeholder: panel ? 'link a page, or type' : S.say ? 'what, with whom, when' : 'pick a kind, or type' });
   input.addEventListener('input', onInput);
   input.addEventListener('scroll', () => { mirror.scrollLeft = input.scrollLeft; });
   sentence.append(mirror, input);
@@ -1185,7 +1210,16 @@ function open(typed = '', say = false) {
   Object.assign(S, { typed, typedAt: 0, changedAt: 0, picks: [], spans: [], words: [], trail: [], trailFrom: typed.length, mode: 'rows', rowAt: 0, choiceAt: 0, allShown: false, nearAll: false, dug: [], failed: '', enter: null, near: [], nearShown: [], line: 0, lineAt: 0, lineDots: [], lineDug: null, lineH: 52 });
   setHeight();
   S.moreOf.clear(); S.openGroups.clear(); S.groupAll.clear();
-  if (typeof dlg.showModal === 'function') dlg.showModal(); else dlg.setAttribute('open', '');
+  // The window dims the page and takes every key; the panel stands on the page, which stays as it is under it.
+  if (panel) {
+    if (typeof dlg.show === 'function') dlg.show(); else dlg.setAttribute('open', '');
+    // A press anywhere else lets the panel go; the window resized, it is placed again.
+    const away = event => { if (S.dlg === dlg && !dlg.contains(event.target) && !event.target.closest?.('.lk-door-menu, .lk-pop, [popover]')) close(); };
+    doc.addEventListener('pointerdown', away, true);
+    const moved = () => { if (S.dlg === dlg) place(); };
+    doc.defaultView.addEventListener('resize', moved);
+    S.hostOff = () => { doc.removeEventListener('pointerdown', away, true); doc.defaultView.removeEventListener('resize', moved); };
+  } else if (typeof dlg.showModal === 'function') dlg.showModal(); else dlg.setAttribute('open', '');
   input.focus();
   S.statusNow.clear();
   readStatuses().then(() => { if (S.dlg === dlg) render(); });
@@ -1224,12 +1258,40 @@ function close() {
   window.PluginDoor.menu.close();
   try { d.close(); } catch (error) { /* not open */ }
   d.remove();
+  // The panel gone: the caret is where it was in the line, the letters it stood between untouched.
+  const h = S.host; S.host = null;
+  if (S.hostOff) { S.hostOff(); S.hostOff = null; }
+  if (h && !h.left) backToLine(h);
 }
-const toggle = () => (S.dlg ? close() : open());
+function backToLine(h, at = null) {
+  const { box } = h, start = at ?? h.start, end = at ?? h.end;
+  if (box?.isConnected) { box.focus({ preventScroll: true }); try { box.setSelectionRange(start, end); } catch (error) { /* the words changed under it */ } }
+  else if (h.uuid) Promise.resolve(logseq.Editor.editBlock(h.uuid, { pos: start })).catch(() => {});
+}
+// What Enter does in the panel: the lit row is linked at the caret, as one change Cmd+Z takes back.
+function linkRow(r) {
+  const h = S.host; if (!h || r?.kind !== 'node') return;
+  const text = `[[${r.node.isPage ? r.node.text : r.node.uuid}]]`;
+  h.left = true; close();
+  if (!h.box?.isConnected) return;
+  h.box.focus({ preventScroll: true });
+  window.PluginDoor.screen.insert(h.box, text, h.start, h.end);
+  backToLine(h, h.start + text.length);
+}
+// The panel on the line a box is writing: its caret kept for the way back.
+function panel(box) {
+  if (!box || box.tagName !== 'TEXTAREA') return false;
+  open('', false, { box, start: box.selectionStart, end: box.selectionEnd, uuid: box.closest('.ls-block')?.getAttribute('blockid') || null });
+  return true;
+}
+// Cmd K from the panel: the window, with the same letters.
+function widen() { const typed = S.typed, h = S.host; if (h) h.left = true; close(); open(typed); }
+const toggle = () => (S.dlg ? (S.host ? widen() : close()) : open());
 // The sentence's own key: open as a sentence; pressed while one is open, it closes; from the pieces it turns to a sentence.
-const sentence = () => { if (S.dlg && S.say) return close(); if (S.dlg) { S.picks = []; S.typed = ''; S.say = true; S.dlg.classList.add('fd-say'); setHeight(); S.dlg.querySelector('.fd-input').placeholder = 'what, with whom, when'; said(); return; } open('', true); };
+const sentence = () => { if (S.host) { S.host.left = true; close(); return open('', true); } if (S.dlg && S.say) return close(); if (S.dlg) { S.picks = []; S.typed = ''; S.say = true; S.dlg.classList.add('fd-say'); setHeight(); S.dlg.querySelector('.fd-input').placeholder = 'what, with whom, when'; said(); return; } open('', true); };
 // The commands' key: open with > typed; pressed while the commands are listed, it closes; from anything else it turns to them.
 function commands() {
+  if (S.host) { S.host.left = true; close(); return open('>'); }
   if (S.dlg && isCommandMode()) return close();
   if (!S.dlg) return open('>');
   S.typed = '>'; S.picks = []; S.mode = 'rows'; S.rowAt = 0; S.dug = []; readNow(); refresh(); S.dlg.querySelector('.fd-input')?.focus();
@@ -1252,5 +1314,5 @@ async function openKind(kind = {}) {
   if (k) addPick({ kind: 'tag', id: k.id, uuid: k.uuid, title: k.title });
   return !!k;
 }
-Find.window = { open, openKind, close, toggle, sentence, commands, forget, warm, state: S };
+Find.window = { open, openKind, panel, close, toggle, sentence, commands, forget, warm, state: S };
 })();
