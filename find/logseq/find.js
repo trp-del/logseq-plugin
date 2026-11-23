@@ -156,12 +156,15 @@ const setHeight = () => { if (!S.dlg) return; if (S.host) return place(); S.dlg.
 function place() {
   const d = S.dlg, box = S.host?.box || S.host?.anchor; if (!d || !box?.isConnected) return;
   const r = box.getBoundingClientRect(), win = S.doc.defaultView, h = PANEL_FRAME + PANEL_ROWS * ROW;
-  const below = win.innerHeight - r.bottom - 12, above = r.top - 12;
-  const under = below >= h || below >= above;
-  const height = Math.max(180, Math.min(h, under ? below : above));
+  /* Under the line whenever a usable panel fits there, shorter if it must be: above, it would cover what was just written (tried by
+     hand, 22 November 2026: on a line low in the window it stood over the page's title and the window's top). Above only when
+     under has no room for the find line and two rows; never over Logseq's header, which is the window's drag handle. */
+  const band = dragBand(S.doc), below = win.innerHeight - r.bottom - 12, above = r.top - 8 - band;
+  const under = below >= Math.min(h, PANEL_FRAME + 2 * ROW) || below >= above;
+  const height = Math.max(150, Math.min(h, under ? below : above));
   const set = (k, v) => d.style.setProperty(k, v, 'important');
   set('left', Math.round(r.left) + 'px'); set('right', 'auto'); set('width', Math.round(Math.max(320, r.width)) + 'px');
-  set('top', Math.round(under ? r.bottom + 4 : r.top - height - 4) + 'px'); set('bottom', 'auto');
+  set('top', Math.round(under ? r.bottom + 4 : Math.max(band, r.top - height - 4)) + 'px'); set('bottom', 'auto');
   d.style.height = height + 'px';
 }
 const words = () => S.words;
