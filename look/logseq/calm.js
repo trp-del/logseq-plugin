@@ -320,8 +320,8 @@ ${WRITING_LIST}:not(:has(.menu-link)) { visibility: hidden !important; }
    before its rows were in, set it past the window's edge for a frame). 300 pt holds its widest line. */
 ${WRITING_LIST}[data-editor-popup-ref="page-search-hashtag"] { width: 300px !important; min-width: 0 !important; max-width: calc(100vw - 16px) !important; }
 ${WRITING_LIST}[data-editor-popup-ref="page-search-hashtag"] #ui__ac-inner { min-width: 0 !important; }
-${WRITING_LIST}[data-side="bottom"] { margin-top: 3px !important; }
-${WRITING_LIST}[data-side="top"] { margin-bottom: 3px !important; }
+${WRITING_LIST}[data-side="bottom"] { margin-top: 6px !important; }
+${WRITING_LIST}[data-side="top"] { margin-bottom: 6px !important; }
 ${WRITING_LIST} #ui__ac-inner { max-height: 192px !important; }
 ${WRITING_LIST} .menu-link-wrap { padding: 0 !important; }
 ${WRITING_LIST} .menu-link { ${LOOKS.line} display: flex !important; align-items: center !important; white-space: nowrap !important; }
@@ -349,7 +349,7 @@ PARTS.calmMenus += `
 .ui__popover-content .cp__select #ui__ac-inner > .menu-link-wrap { padding-left: calc(5px + var(--st-pad, 0px)) !important; }
 /* Whatever floats is there at once, at its one size, as the Mac's menus are (measured 24 November 2026: Logseq's lists took four
    to eight sizes on their way open and went on changing for a tenth of a second). */
-:is(.ui__popover-content, .ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content, .ui__context-menu-sub-content, .ui__select-content) { animation: none !important; }
+:is(.ui__popover-content, .ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content, .ui__context-menu-sub-content, .ui__select-content) { ${LOOKS.atOnce} }
 `;
 const WIDTHS = { Narrow: '44rem', Medium: '52rem', Wide: '60rem' };
 const reading = () => WIDTHS[setting('readingWidth')] || null;

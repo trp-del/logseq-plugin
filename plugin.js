@@ -1858,10 +1858,12 @@ const TOKENS = `
      lit          the line you are on in a float: filled in the text colour, its words in the page's (22 November 2026);
      fit(min,max) as big as what it holds (the owner, 24 November 2026, of a list 512 wide round names 150 wide: "much too
                   massive"): as wide as its widest line between two limits, never wider than the window, and there at once,
-                  at its one size, as the Mac's menus are. */
+                  at its one size, as the Mac's menus are;
+     atOnce       whatever floats is there at once: no motion on its way in, so it takes one size and one place. */
 Door.LOOKS = {
   line: 'font-size: 13px !important; line-height: 18px !important; padding: 3px 9px !important; border-radius: 6px !important; box-sizing: border-box !important; min-height: 24px !important;',
   lit: 'background: var(--lk-text) !important; color: var(--lk-paper) !important;',
+  atOnce: 'animation: none !important;',
   fit: (min = '11rem', max = '22rem') => `width: max-content !important; min-width: min(${min}, calc(100vw - 16px)) !important; max-width: min(${max}, calc(100vw - 16px)) !important; animation: none !important;`,
   link: (firm = true) => { const i = firm ? ' !important' : ''; return `text-decoration: underline${i}; text-decoration-color: var(--lk-link)${i}; text-decoration-thickness: var(--lk-link-width)${i}; text-underline-offset: 3px;`; },
   out: 'content: "\\2197"; display: inline-block; margin-left: .2em; color: var(--lk-quiet); text-decoration: none;',
