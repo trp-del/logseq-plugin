@@ -217,8 +217,11 @@ function start(app, doc) {
     if (!box) return; if (!box.bar.isConnected) return close();
     // Hung from its word in the bar (the owner's "good" to "Emptiness, Applied", 24 November 2026), so the ticked names stay in view
     // beside it; where the window has no room to the word's right, it ends at the window's edge.
-    const r = box.bar.getBoundingClientRect(), word = box.bar.querySelector('[data-st-values]')?.getBoundingClientRect() || r, w = Math.min(400, win.innerWidth - 24);
-    Object.assign(box.pop.style, { left: `${Math.max(8, Math.min(Math.round(word.left), win.innerWidth - w - 8))}px`, top: `${Math.round(r.bottom + 6)}px`, width: `${w}px`, maxHeight: `${Math.max(160, win.innerHeight - r.bottom - 16)}px` });
+    // As wide as what it holds, 400 at most; then placed, so its left edge is read from the width it has.
+    const r = box.bar.getBoundingClientRect(), word = box.bar.querySelector('[data-st-values]')?.getBoundingClientRect() || r, most = Math.min(400, win.innerWidth - 24);
+    Object.assign(box.pop.style, { width: 'max-content', minWidth: `${Math.min(280, most)}px`, maxWidth: `${most}px`, top: `${Math.round(r.bottom + 6)}px`, maxHeight: `${Math.max(160, win.innerHeight - r.bottom - 16)}px` });
+    const w = box.pop.getBoundingClientRect().width;
+    box.pop.style.left = `${Math.max(8, Math.min(Math.round(word.left), Math.floor(win.innerWidth - w - 8)))}px`;
   }
   const intoProp = () => (box.into != null ? P(box.into) : null);
   const intoName = () => (box.into != null ? P(box.into)?.title || '' : box.name);
