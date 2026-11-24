@@ -54,12 +54,14 @@ const FLOWS = [
     float: PICKER, rows: '.menu-link-wrap', still: ['.ls-table-row', '.ls-table-header'], protect: [`${TICKED} .ls-table-cell`],
     faces: { 'a property’s name': '#ui__ac-inner .menu-link-wrap' }, faceWant: { 'a property’s name': mono },
     after: async (b, H) => { await H.reset(); await H.untick(); } },
+  // On the page's third bullet: on its first, Predictive pencils a tag at the line's right end as [[ is typed, the words wrap
+  // anew, and the list then stands where the caret was (found 24 November 2026; Predictive's to settle, measured apart).
   { name: 'link-list', graph: ILL, says: 'Logseq’s list of pages to link, after [[ on a line',
-    setup: async (b, H) => { await H.go(WRITING); await H.write(0); },
+    setup: async (b, H) => { await H.go(WRITING); await H.write(2); },
     anchor: 'caret', input: async b => b.page.keyboard.type(' [['),
     float: LIST, rows: '.menu-link-wrap', still: [others], protect: ['editing'], after: async (b, H) => H.putBack() },
   { name: 'tag-list', graph: ILL, says: 'the list of tags, after # on a line',
-    setup: async (b, H) => { await H.go(WRITING); await H.write(0); },
+    setup: async (b, H) => { await H.go(WRITING); await H.write(2); },
     anchor: 'caret', input: async b => b.page.keyboard.type(' #'),
     float: LIST, rows: '.menu-link-wrap', still: [others], protect: ['editing'], unevenRows: true,
     faces: { 'a tag': '#ui__ac-inner .menu-link-wrap.st-hrow, #ui__ac-inner .menu-link-wrap.st-in-tree' }, faceWant: { 'a tag': serif },
