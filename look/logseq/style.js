@@ -57,7 +57,11 @@ ${AREA} .block-row:not(.ls-page-title-container *) > .block-content-wrapper { fl
 ${AREA} .block-row > .ls-block-right { margin-left: auto !important; }
 /* A tag by a title is the size of any other tag, not the title's. A day's own tag shows only under the pointer, so its row holds no line of its own under the title. */
 ${AREA} .ls-page-title-container .block-tag { font-size: 16px; line-height: 1.5; }
-${AREA} .ls-page-title-container .block-row:not(:has(.lk-path)) { flex-direction: row !important; }
+${AREA} .ls-page-title-container .block-row:not(:has(.lk-path)) { flex-direction: row !important; flex-wrap: wrap; }
+/* Where the pane is too narrow for the title and that tag side by side (a day's page beside the open sidebar, about 100 px), the tag
+   goes under the title, as Logseq puts it there; kept beside it, the unseen tag left the title 26 px and a day read a letter a line
+   ("1 / 6 / t / h / ,": tried by hand, 24 November 2026). */
+${AREA} .ls-page-title-container .block-row:not(:has(.lk-path)) > .block-content-wrapper { flex: 1 1 min(8em, 100%); min-width: 0; }
 /* In Logseq's tables a tag's cell writes the # into the name itself ("#Consultation"); the # is clipped off in place, the name
    standing where it stood (10 November 2026, the audit's 22). Its width in the tag's face, --lk-hash (in em), is measured once
    below. Only a name that starts with # is marked. */
@@ -122,7 +126,7 @@ ${AREA} .ls-block .positioned-properties.block-below .bottom-properties-row { he
 ${AREA} .ls-block .positioned-properties.block-below { container-type: inline-size; }
 @container (max-width: 240px) {
   ${AREA} .ls-block .positioned-properties.block-below .bottom-properties-row > :not(.bottom-properties-pills-strip) { display: none !important; }
-  ${AREA} .ls-block .positioned-properties.block-below .bottom-properties-pills-strip { flex-direction: column !important; flex-wrap: nowrap !important; align-items: flex-start !important; padding-inline: 8px 24px !important; }   /* the right room: at this width Logseq's own line runs 8 px past the page's cut edge */
+  ${AREA} .ls-block .positioned-properties.block-below .bottom-properties-pills-strip { flex-direction: column !important; flex-wrap: nowrap !important; align-items: flex-start !important; padding-inline: 8px 16px !important; }   /* the right room: at this width Logseq's own line runs 8 px past the page's cut edge */
   ${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill { flex-wrap: wrap !important; max-width: 100% !important; height: auto !important; white-space: normal !important; transform: none !important; }
   ${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill::before { display: none !important; }
   /* Each name over its value, as a page's own properties stand where they have little width: the name takes the line (so the colon
@@ -130,6 +134,14 @@ ${AREA} .ls-block .positioned-properties.block-below { container-type: inline-si
   ${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill :is(div, a) { min-width: 0 !important; max-width: 100%; white-space: normal !important; overflow-wrap: anywhere; }
   ${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill > div:first-child { width: 100%; }
   ${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill > div:first-child > .property-key-inner ~ div { display: none; }
+  /* The press that changes a value stays right after the value, inside the line (the value took the whole line and pushed the press
+     half past the page's cut edge), and the ring round the property that has the keys follows the two lines instead of swelling into
+     a circle (both tried by hand, 24 November 2026). */
+  ${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill > .bottom-property-content { display: flex; flex-wrap: nowrap; align-items: flex-start; }
+  ${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill > .bottom-property-content > .property-value-inner { flex: 0 1 auto !important; width: auto !important; }
+  ${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill > .bottom-property-content > .lk-valpress { flex: none; width: auto !important; margin-right: -8px !important; }   /* its own room here: it has no next property's space to stand in; it reaches the page's cut edge, so a value keeps what room there is */
+  ${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill > .bottom-property-content > .lk-valpress > span { margin-left: 2px; }
+  ${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill.bottom-property-pill.bottom-property-pill:focus-within::after { inset: -1px -4px !important; left: -4px !important; border-radius: 8px !important; }   /* the class three times: past the rule that starts a later property's ring after its space */
 }
 /* The first property on a wrapped line: the space before it stands at nothing, so the name lines up with the line above. The space keeps its room, so the wrap does not change.
    Only a property that has that space, one after a filled property: after empty ones alone it has none, and moved all the same its
