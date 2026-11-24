@@ -276,4 +276,21 @@ console.log('  ok  properties merged: values converted, what stays, what clashes
   assert.equal(np[0].type, 'node'); assert.ok(np[3].into.h === np[0].prop, 'the values go to the property made in the same batch');
   assert.ok([...nw.model.props.values()].some(p => p.made && p.title === 'Provider'));
   console.log('  ok  one tag\'s values moved to another property: the line, the model, the steps'); }
+// The picked nodes' values into another property (24 November 2026, the owner: "select nodes and then have the values from one property placed in a pre-existing or new property and perhaps delete the values in original property").
+{ const base = { tags: [{ id: 1, uuid: 't1', title: 'Bills', parents: [], props: [10] }, { id: 4, uuid: 't4', title: 'Organization', parents: [] }],
+    props: [{ id: 10, uuid: 'p10', ident: 'user.property/charged-by', title: 'Charged by', type: 'node', range: [4] }, { id: 11, uuid: 'p11', ident: 'user.property/services', title: 'Services provided by', type: 'node', range: [4] }],
+    holders: { 'user.property/charged-by': [100, 101, 200] } };
+  const cp = S.changes.makeTray(); cp.setBase(plain(base));
+  cp.stage({ kind: 'moveForNodes', prop: 10, intoProp: 11, picked: [100, 101], gave: [100, 101], left: [], keep: true });
+  assert.equal(cp.lines()[0].text, 'Copy Charged by into Services provided by'); assert.equal(cp.lines()[0].nodes, 2);
+  deq(cp.model.tags.get(1).props, [10], 'no tag is asked for anything new');
+  deq([...cp.model.holders.get('user.property/charged-by')].sort(), [100, 101, 200], 'a copy leaves the first property as it is'); deq([...cp.model.holders.get('user.property/services')], [100, 101]);
+  const plan = cp.plan(); deq(plan.map(s => s.op), ['moveValues']); deq(plan[0].onNodes, [100, 101]); assert.equal(plan[0].keep, true);
+  cp.setBase(plain(base)); assert.equal(cp.changes.length, 1, 'the change still stands when the graph is read again at Apply'); deq(cp.lost, []);
+  const mv = S.changes.makeTray(); mv.setBase(plain(base));
+  mv.stage({ kind: 'moveForNodes', prop: 10, intoProp: null, name: 'Provider', picked: [100], gave: [100], left: [], keep: false });
+  assert.equal(mv.lines()[0].text, 'Move Charged by into Provider (a new property)');
+  deq([...mv.model.holders.get('user.property/charged-by')].sort(), [101, 200], 'a move takes the picked node\'s value out of the first property');
+  const np = mv.plan(); deq(np.map(s => s.op), ['makeProp', 'setRange', 'moveValues']); assert.equal(np[2].keep, false); assert.ok(np[2].into.h === np[0].prop);
+  console.log('  ok  the picked nodes\' values copied or moved to another property: the line, the model, the steps'); }
 console.log('core: every check passed');

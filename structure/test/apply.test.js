@@ -196,5 +196,15 @@ const { apply } = S.apply;
   assert.equal((await one.undo()).length, 0);
   assert.deepEqual(held.get(key('n70', 'charged')), ['Comcast']); assert.deepEqual(held.get(key('n70', 'services')), []);
   console.log('  ok  one tag\'s values moved, the other tag\'s left, and Undo puts them back');
+  // The picked nodes alone (moveForNodes): a copy leaves the first property as it is; a move empties it on those nodes; Undo puts both back.
+  held.set(key('n80', 'charged'), ['Amazon']); held.set(key('n81', 'charged'), ['Netflix']); held.set(key('n82', 'charged'), ['Apple']);
+  const copy = await apply([{ op: 'moveValues', from: { ident: 'charged', type: 'node' }, into: { ident: 'provider', type: 'node', many: false }, onNodes: [80, 81], keep: true }]);
+  assert.deepEqual(held.get(key('n80', 'provider')), ['Amazon']); assert.deepEqual(held.get(key('n80', 'charged')), ['Amazon'], 'a copy keeps the first value');
+  assert.equal(held.get(key('n82', 'provider')), undefined, 'a node not picked is left as it is');
+  assert.equal((await copy.undo()).length, 0); assert.deepEqual(held.get(key('n80', 'provider')), []); assert.deepEqual(held.get(key('n80', 'charged')), ['Amazon']);
+  const moved81 = await apply([{ op: 'moveValues', from: { ident: 'charged', type: 'node' }, into: { ident: 'provider', type: 'node', many: false }, onNodes: [81], keep: false }]);
+  assert.deepEqual(held.get(key('n81', 'provider')), ['Netflix']); assert.deepEqual(held.get(key('n81', 'charged')), []); assert.deepEqual(held.get(key('n80', 'charged')), ['Amazon']);
+  assert.equal((await moved81.undo()).length, 0); assert.deepEqual(held.get(key('n81', 'charged')), ['Netflix']);
+  console.log('  ok  the picked nodes\' values copied, then moved, and Undo puts them back');
   console.log('apply: every check passed');
 })().catch(error => { console.error(error); process.exit(1); });

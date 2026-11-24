@@ -140,6 +140,7 @@ async function runStep(s, rec) {
       const keptInto = v => into.choice || V.family(into.type) === 'ref' ? { id: v.id } : v.raw != null ? { raw: v.raw } : into.type === 'number' ? { num: Number(v.title) } : { text: v.title };
       for (const [nodeId, list] of fromVals) {
         if (onTags && !onTags.has(nodeId)) continue;
+        if (s.onNodes && !s.onNodes.includes(nodeId)) continue;   // the picked nodes alone (moveForNodes)
         const node = String(await db.uuidOfNode(nodeId)), was = (intoVals.get(nodeId) || []).map(keptInto), before = list.map(kept);
         const go = [], stay = [];
         for (const v of list) { const w = only && !only.has(v.id) ? null : V.convert(from, { ...into, choices }, v); if (w) go.push(w); else stay.push(kept(v)); }
@@ -156,7 +157,7 @@ async function runStep(s, rec) {
         add({ do: 'putValues', g, node, ident: into.ident, list: was });
         await ready();
         await db.putValues(node, into.ident, [...was, ...put]);
-        await db.putValues(node, from.ident, stay);
+        if (!s.keep) await db.putValues(node, from.ident, stay);   // keep: a copy, the first property is left as it is
         await seal(rec, g);
       }
       break; }

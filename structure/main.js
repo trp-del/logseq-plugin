@@ -62,11 +62,12 @@ const app = {
   // every minor change"), standing alone in the tray. What can lose links or values (a merge, a removal, a property deleted from a
   // tag, properties merged, a split) waits for Apply with its plain count, and so do changes staged together (ticked rows, a new
   // top-level tag with its first child tags: `wait`), since several at once are what Apply is for.
-  stage(change, { wait = false } = {}) {
+  // here: the change is made where the person stands (a table's ticked rows), so the map is not opened for it.
+  stage(change, { wait = false, here = false } = {}) {
     if (app.st.busy) { notify('Wait for this to finish, then try again', 'warning'); return null; }
     const c = tray.stage(change); tray.note = ''; tray.version = (tray.version || 0) + 1;
     const onTag = [...app.views].some(v => v.mode === 'tag' || v.mode === 'line');
-    if (!onTag && !mounts.onPage()) mounts.openPage();
+    if (!here && !onTag && !mounts.onPage()) mounts.openPage();
     if (!wait && AT_ONCE.has(c.kind) && !c.lasting && tray.changes.length === 1) setTimeout(() => { if (tray.changes.length === 1 && tray.changes[0] === c && !app.st.busy) app.apply(); });
     return c;
   },
@@ -93,10 +94,12 @@ const app = {
       run: async () => { if (graph !== app.graph) return; localStorage.setItem(`structure-groups:${graph}`, before); app.draw(); },
       onFail: error => { console.error('Structure: the groups could not be put back', error); notify("The groups could not be put back", "warning"); } });
   },
-  async apply() {
+  async apply({ docks = false } = {}) {
     if (app.st.busy || !tray.changes.length) return;
     const n = tray.changes.length;
-    app.st.busy = `Applying ${n === 1 ? 'the change' : n + ' changes'}…`; app.draw();
+    // hush: a change made from a table's ticked rows is written without a line on the tag's page above the table, which would
+    // push the table down under the hand and back again; the map says it as ever.
+    app.st.hush = !!docks; app.st.busy = `Applying ${n === 1 ? 'the change' : n + ' changes'}…`; app.draw();
     let plan = null, graph = app.graph;
     try {
       // Read now, not when the map last looked: a merge moves the nodes the tag holds this moment.
@@ -114,7 +117,7 @@ const app = {
         const uncopied = big && !await S.db.safetyCopy(graph);
         try {
           const result = await S.apply.apply(plan, here, rec);
-          keepDone(graph, { text: `${changesWord(n)} applied`, undo: result.undo, left: result.left, graph, rec });
+          keepDone(graph, { text: `${changesWord(n)} applied`, undo: result.undo, left: result.left, graph, rec, docks });
           if (uncopied) notify('Applied, with its Undo, but Logseq’s copy of the graph could not be made first', 'warning');
           if (rec.lost) notify('Applied, but its Undo could not be kept on this Mac: it works until Logseq closes', 'warning');
           app.log(graph, lines, rec.id);
@@ -127,7 +130,7 @@ const app = {
       if (error.left?.()) keepDone(graph, { text: `${stepsWord(error.left())} not put back`, undo: error.undo, left: error.left, graph, rec: error.rec });
       // A tag deleted and put back has a new id: the waiting lines that name it follow, so pressing Apply again does the same thing.
       if (plan) tray.renumber(new Map([...plan.handles.values()].filter(h => h.realId != null && h.id > 0).map(h => [h.id, h.realId])));
-    } finally { app.st.busy = ''; }
+    } finally { app.st.busy = ''; app.st.hush = false; }
     await app.reread();
     await app.readRecords();
   },
@@ -138,7 +141,7 @@ const app = {
      logged, with its nodes, then one line that undoes them all; Escape or a press elsewhere leaves everything as it is. */
   askUndo(rec, text, run) {
     const doc = host();
-    const from = (rec && doc.querySelector(`[data-logundo="${String(rec).replace(/["\\]/g, '')}"]`)) || doc.querySelector('.st-tray .st-done .lk-undo, .st-tray .st-done') || doc.querySelector('.st-tray') || doc.body;
+    const from = (rec && doc.querySelector(`[data-logundo="${String(rec).replace(/["\\]/g, '')}"]`)) || doc.querySelector('.st-tray .st-done .lk-undo, .st-tray .st-done') || doc.querySelector('.lk-undo-dock [data-lk-undo="structure"]') || doc.querySelector('.st-tray') || doc.body;
     const lines = (rec ? app.logged().filter(x => x.rec === rec) : []).map(x => ({ note: x.text, count: x.nodes ? `${x.nodes} ${x.nodes === 1 ? 'node' : 'nodes'}` : '' }));
     const all = lines.length ? lines : [{ note: text }];
     window.PluginDoor.menu(from, [{ group: all.length === 1 ? 'Undo will take back' : `Undo will take back these ${all.length} changes` }, ...all, { gap: true },
@@ -161,7 +164,7 @@ const app = {
   },
   async undoRun(done) {
     const of = done.left();
-    app.st.busy = 'Undoing…'; app.draw();
+    app.st.hush = !!done.docks; app.st.busy = 'Undoing…'; app.draw();
     try {
       const failures = await done.undo();
       if (failures.kept) notify(`${failures.kept === 1 ? 'One node or page' : `${failures.kept} nodes or pages`} changed after Apply, so Undo left ${failures.kept === 1 ? 'it' : 'them'} as ${failures.kept === 1 ? 'it is' : 'they are'}`, 'warning');
@@ -173,7 +176,7 @@ const app = {
       if (done.left()) done.text = `${stepsWord(done.left())} not undone`;
       syncUndo();
       notify(error.elsewhere ? `Another graph was opened: the Undo waits in ${done.graph.replace(/^logseq_db_/, '')}` : `Could not undo: ${window.PluginDoor.reason(error, 'Logseq did not take a step back')}`, 'error');
-    } finally { app.st.busy = ''; }
+    } finally { app.st.busy = ''; app.st.hush = false; }
     await app.reread();
     await app.readRecords();
   },
@@ -243,9 +246,10 @@ const app = {
     let moved = 0, kept = 0, intoName = '', intoVals = new Map(), stayName = from.title;
     if (kind === 'merge') { const into = P(a.into); intoName = into.title; intoVals = await S.db.propValues(into.ident, into.type); var target = { ...into, choices: into.choice ? await S.db.choicesOf(into.id) : null }; }
     else if (kind === 'retype') { intoName = from.title; stayName = `${from.title}, as written`; var target = { type: a.type, many: from.many }; }
-    else if (kind === 'forTag') {
+    else if (kind === 'forTag' || kind === 'forNodes') {
       // One tag's nodes (and those of the tags beneath it, which inherit the property from it); the other tags' nodes stay as they are.
-      var mine = Mo.nodesUnder(m, a.tag), into = a.into != null ? P(a.into) : null;
+      // forNodes (24 November 2026): the nodes picked, whatever their tags; keep: a copy, the first property left as it is.
+      var mine = kind === 'forTag' ? Mo.nodesUnder(m, a.tag) : new Set(a.nodes), into = a.into != null ? P(a.into) : null;
       intoName = into ? into.title : a.name;
       if (into) { intoVals = await S.db.propValues(into.ident, into.type); var target = { ...into, choices: into.choice ? await S.db.choicesOf(into.id) : null }; }
       else var target = { type: from.choice ? 'default' : from.type, many: from.many };
@@ -260,12 +264,12 @@ const app = {
       moved += go.length; kept += stay.length;
       if (!go.length && !stay.length) continue;
       if (go.length) gave.push(n); if (stay.length && (kind !== 'splitProp')) left.push(n); if (go.length && !stay.length) emptied.push(n);
-      if (kind === 'forTag' && !target.many && go.length + (intoVals.get(n) || []).length > 1) clash.push(n);
+      if ((kind === 'forTag' || kind === 'forNodes') && !target.many && go.length + (intoVals.get(n) || []).length > 1) clash.push(n);
       after.set(n, { go, stay });
     }
     // Which notes to show: one left as it is (or partly) first, then ones that change.
     // For one tag, the note left as it is is one of another tag's (Bill payment's, beside Bills'), so it shows that tag is untouched.
-    const unchanged = kind === 'splitProp' || kind === 'forTag' ? [...fromVals.keys()].filter(n => !gave.includes(n) && !(mine && mine.has(n))) : left.filter(n => !gave.includes(n));
+    const unchanged = kind === 'forNodes' ? [] : kind === 'splitProp' || kind === 'forTag' ? [...fromVals.keys()].filter(n => !gave.includes(n) && !(mine && mine.has(n))) : left.filter(n => !gave.includes(n));
     const picks = [...unchanged.slice(0, 1), ...gave.filter(n => !unchanged.includes(n)).slice(0, unchanged.length ? 2 : 3)];
     const notes = (await S.db.notesFor(picks)).sort((x, y) => picks.indexOf(x.id) - picks.indexOf(y.id));
     const out = notes.map(note => {
@@ -278,6 +282,10 @@ const app = {
       } else if (kind === 'retype') {
         if (x.go.length) aft.push({ name: intoName, vals: x.go.map(w => ({ w, mark: 'new' })) });
         if (x.stay.length) aft.push({ name: stayName, vals: x.stay.map(w => ({ w })), mark: 'new' });
+      } else if (kind === 'forNodes') {
+        if (hadInto.length) now.push({ name: intoName, vals: hadInto });
+        if (a.keep || x.stay.length) aft.push({ name: from.title, vals: (a.keep ? had : x.stay).map(w => ({ w })) }); else if (x.go.length) aft.push({ name: from.title, vals: had.map(w => ({ w })), mark: 'gone' });
+        if (x.go.length || hadInto.length) aft.push({ name: intoName, vals: [...hadInto.map(w => ({ w })), ...x.go.filter(w => !hadInto.includes(w)).map(w => ({ w, mark: 'new' }))], mark: hadInto.length ? '' : 'new' });
       } else if (kind === 'forTag') {
         if (hadInto.length) now.push({ name: intoName, vals: hadInto });
         if (x.stay.length) aft.push({ name: from.title, vals: x.stay.map(w => ({ w })) }); else if (x.go.length) aft.push({ name: from.title, vals: had.map(w => ({ w })), mark: 'gone' }); else aft.push({ name: from.title, vals: had.map(w => ({ w })) });
@@ -326,7 +334,8 @@ function syncUndo() {
   if (tray.done) {
     if (undoOffered && !door.has('structure')) { tray.done = null; undoOffered = false; return; }
     door.forget('structure');
-    door.offer({ owner: 'structure', key: 'structure', at: () => host().querySelector('.st-tray .st-done'), text: tray.done.text, run: () => app.undo(), many: true, docks: false });
+    // docks: a change made away from the map (the ticked rows of a table) keeps its arrow at the bottom right where no tray stands.
+    door.offer({ owner: 'structure', key: 'structure', at: () => host().querySelector('.st-tray .st-done'), text: tray.done.text, run: () => app.undo(), many: true, docks: !!tray.done.docks });
     undoOffered = true;
   } else if (undoOffered) { door.forget('structure'); undoOffered = false; }
 }
@@ -418,10 +427,11 @@ async function main() {
   stopHash = S.hash.start(app, doc);
   stopValues = S.valueList.start(app, doc);
   stopTagMenu = S.tagMenu.start(app, doc);
+  stopTableValues = S.tableValues.start(app, doc);
 }
-const stop = () => { S.inspector.stop(); mounts.stop?.(); where?.stop(); stopHash?.(); stopValues?.(); stopTagMenu?.(); for (const v of [...app.views]) v.destroy(); host().querySelectorAll('.st-tagholder').forEach(n => n.remove()); return S.base.stop(); };   // the base: the passes, the hooks, the menu's lines and the stylesheets
+const stop = () => { S.inspector.stop(); mounts.stop?.(); where?.stop(); stopHash?.(); stopValues?.(); stopTagMenu?.(); stopTableValues?.(); for (const v of [...app.views]) v.destroy(); host().querySelectorAll('.st-tagholder').forEach(n => n.remove()); return S.base.stop(); };   // the base: the passes, the hooks, the menu's lines and the stylesheets
 /* The lines on a tag's own page: set above Logseq's table, in the page's own column, each time Logseq draws a tag's page. */
-let where = null, stopHash = null, stopValues = null, stopTagMenu = null, tagTimer = 0, tagAsking = 0;
+let where = null, stopHash = null, stopValues = null, stopTagMenu = null, stopTableValues = null, tagTimer = 0, tagAsking = 0;
 const days = new Set();   // pages found to be journal days, which a tag's lines never stand on
 const lookup = uuid => { const id = [...tray.model.tags.values()].find(t => t.uuid === uuid)?.id ?? null; return { id, prop: id == null ? [...tray.model.props.values()].find(p => p.uuid === uuid)?.id ?? null : null }; };
 const SPLIT = '#right-sidebar[data-lk-split] .sidebar-item[data-lk-split-item]';
@@ -432,11 +442,13 @@ function place(doc, inner, here, id, prop) {
   S.inspector.pageKnown?.(id == null && prop == null);   // a page that is no tag's and no property's: the tab may say so at once
   if (id == null && prop == null) { clear(); return; }
   /* A tag's page: Parent on one line above its title, always; its other lines (Child tags first) in the inspector while that stands in
-     the right sidebar. A property's page: its lines above the table, or at the inspector's top while it is open. */
+     the right sidebar. A property's page: nothing of the plugin's above Logseq's table (the owner, 24 November 2026: "the things
+     that appear on a property page are also either unnecessary or getting ahead of itself"); its lines stand only at the
+     inspector's top while that is open. */
   const box = S.inspector.top(), title = [...inner.children].find(c => !c.classList.contains('st-tagholder')) || null;
   const want = id != null
     ? [{ mode: 'line', parent: inner, before: title, cls: 'st-holder-line' }, ...(box ? [{ mode: 'tag', parent: box, before: null, cls: '' }] : [])]
-    : [{ mode: 'tag', parent: box || inner, before: box ? null : here, cls: '' }];
+    : box ? [{ mode: 'tag', parent: box, before: null, cls: '' }] : [];
   const same = want.length === views.length && want.every(w => views.some(v => v.mode === w.mode && v.tag === (id ?? undefined) && v.prop === (prop ?? undefined) && v.root.isConnected && v.root.parentElement.parentElement === w.parent));
   if (same) {
     for (const w of want) { const holder = views.find(v => v.mode === w.mode).root.parentElement; if (w.parent === inner && w.before !== holder && holder.nextElementSibling !== w.before) inner.insertBefore(holder, w.before); }
@@ -471,8 +483,8 @@ function tagPage() {
   }
   if (!tagTimer) tagTimer = setTimeout(() => { tagTimer = 0; tagPageAsked(); }, 150);
 }
-/* The right half of two pages side by side: a tag's page gets its Parent line over the split's title, a property's page its lines
-   above Logseq's table, as on the main page; the inspector stays the main page's. */
+/* The right half of two pages side by side: a tag's page gets its Parent line over the split's title; a property's page gets
+   nothing, as on the main page (24 November 2026); the inspector stays the main page's. */
 function splitPage() {
   const doc = host(), panel = doc.querySelector(`${SPLIT} .sidebar-panel-content`), now = window.PluginDoor.split?.page?.();
   const views = [...app.views].filter(v => (v.mode === 'tag' || v.mode === 'line') && v.root.parentElement?.classList.contains('st-tagholder') && onRight(v));
@@ -480,8 +492,8 @@ function splitPage() {
   const inner = panel?.querySelector(':scope > .page > .grid'), here = inner && (inner.querySelector(':scope > .page-tabs') || inner.querySelector(':scope > .ls-page-blocks'));
   if (!now?.page || !here || days.has(now.uuid)) return clear();
   const { id, prop } = lookup(now.uuid);
-  if (id == null && prop == null) return clear();
-  const want = id != null ? { mode: 'line', parent: panel, before: panel.firstElementChild, cls: 'st-holder-line' } : { mode: 'tag', parent: inner, before: here, cls: '' };
+  if (id == null) return clear();
+  const want = { mode: 'line', parent: panel, before: panel.firstElementChild, cls: 'st-holder-line' };
   const view = views.length === 1 && views[0].mode === want.mode && views[0].tag === (id ?? undefined) && views[0].prop === (prop ?? undefined) && views[0].root.isConnected ? views[0] : null;
   if (view) { const holder = view.root.parentElement; if (holder.parentElement !== want.parent || (want.mode === 'line' ? want.parent.firstElementChild !== holder : holder.nextElementSibling !== want.before)) want.parent.insertBefore(holder, want.mode === 'line' ? want.parent.firstElementChild : want.before); return; }
   clear();
