@@ -4,6 +4,7 @@
    faces its words must be in. `typing` flows type letters 80 ms apart into a thing already open. */
 const LIST = ['[data-editor-popup-ref]', '#ui__ac', '.absolute-modal'];
 const PICKER = ['[data-radix-popper-content-wrapper]:has(#ui__ac-inner)', '.ui__popover-content:has(#ui__ac-inner)', '#ui__ac-inner'];
+const PROPERTY = ['.ui__popover-content:has(.ls-property-dialog)'], MADE = 'Measure Calm Probe';
 const TICKED = '.ls-table-row:has(label[data-table-row-select] [aria-checked="true"], label[data-table-row-select] [data-state="checked"])';
 const mono = f => /mono|menlo|consolas|courier/i.test(f.family), serif = f => /new york|serif|georgia/i.test(f.family) && !/sans/i.test(f.family);
 
@@ -28,6 +29,8 @@ function helpers(box, sleep) {
       for (let i = 0; i < n; i++) { const row = page.locator('.ls-table-row').nth(i); await row.hover(); await sleep(150); await row.locator('label[data-table-row-select]').click({ force: true }); await sleep(250); }
     },
     untick: async () => { const all = page.locator('.ls-table-header label[data-table-row-select], .ls-table-header [role="checkbox"]').first(); if (await page.locator(TICKED).count()) { await all.click({ force: true }).catch(() => {}); await sleep(200); if (await page.locator(TICKED).count()) { await all.click({ force: true }).catch(() => {}); await sleep(200); } } },
+    addProperty: () => page.getByText('Add property', { exact: true }).first().click(),
+    unmake: async name => { await f().evaluate(async n => { const p = await logseq.Editor.getPage(n); if (p) await logseq.Editor.deletePage(n); }, name).catch(() => {}); await sleep(200); },
     bar: text => page.locator('.ls-table-actions').getByText(text, { exact: true }),
   };
   return H;
@@ -52,7 +55,7 @@ const FLOWS = [
     setup: async (b, H) => { await H.go('Bills'); await H.untick(); await H.tick(3); },
     anchor: { sel: '.ls-table-actions button', text: 'Set property' }, input: async (b, H) => H.bar('Set property').click(),
     float: PICKER, rows: '.menu-link-wrap', still: ['.ls-table-row', '.ls-table-header'], protect: [`${TICKED} .ls-table-cell`],
-    faces: { 'a property’s name': '#ui__ac-inner .menu-link-wrap' }, faceWant: { 'a property’s name': mono },
+    faces: { 'a property’s name': '#ui__ac-inner .menu-link span[title*="property/"]' }, faceWant: { 'a property’s name': mono },
     after: async (b, H) => { await H.reset(); await H.untick(); } },
   // On the page's third bullet: on its first, Predictive pencils a tag at the line's right end as [[ is typed, the words wrap
   // anew, and the list then stands where the caret was (found 24 November 2026; Predictive's to settle, measured apart).
@@ -64,7 +67,7 @@ const FLOWS = [
     setup: async (b, H) => { await H.go(WRITING); await H.write(2); },
     anchor: 'caret', input: async b => b.page.keyboard.type(' #'),
     float: LIST, rows: '.menu-link-wrap', still: [others], protect: ['editing'], unevenRows: true, keepsWidth: true,   // a tree stepped in and out of keeps its width
-    faces: { 'a tag': '#ui__ac-inner .menu-link-wrap.st-hrow, #ui__ac-inner .menu-link-wrap.st-in-tree' }, faceWant: { 'a tag': serif },
+    faces: { 'a tag': '#ui__ac-inner .menu-link-wrap.st-hrow:not(.st-plain), #ui__ac-inner .menu-link-wrap.st-in-tree' }, faceWant: { 'a tag': serif },
     after: async (b, H) => H.putBack() },
   { name: 'small-find', graph: ILL, says: 'the small Find under the line, on Option-K',
     setup: async (b, H) => { await H.go(WRITING); await H.write(0); },
@@ -84,6 +87,24 @@ const FLOWS = [
     setup: async (b, H) => { await H.go(WRITING); await b.page.keyboard.press('Meta+k'); await H.sleep(1200); },
     input: async b => b.page.keyboard.type('report', { delay: 80 }),
     float: ['dialog[open].fd'], rows: '.fd-r', after: async (b, H) => H.reset() },
+  // Making a property, the owner's five pictures of 24 November 2026: the list under "+ Add property", a new name typed into it,
+  // and "Choose tag" after the type Node. Each hangs from "+ Add property"; the name made is taken out again after each run.
+  { name: 'property-list', graph: ILL, says: 'the list of properties, from “+ Add property” on a page',
+    setup: async (b, H) => { await H.go('Dr. Mei Chen'); },
+    anchor: { sel: '.ls-new-property button', text: 'Add property' }, input: async (b, H) => H.addProperty(),
+    float: PROPERTY, rows: '.menu-link-wrap', still: ['.ls-page-properties .property-pair', '.th-two-way .th-tw-name'],
+    faces: { 'a property’s name': `${PROPERTY[0]} .menu-link span[title*="property/"]` }, faceWant: { 'a property’s name': mono },
+    after: async (b, H) => H.reset() },
+  { name: 'property-name-typing', graph: ILL, says: 'typing a new property’s name into that list', typing: true, ms: 1700,
+    setup: async (b, H) => { await H.go('Dr. Mei Chen'); await H.addProperty(); await H.sleep(900); },
+    input: async b => b.page.keyboard.type(MADE, { delay: 80 }),
+    float: PROPERTY, rows: '.menu-link-wrap', after: async (b, H) => H.reset() },
+  { name: 'property-choose-tag', graph: ILL, says: '“Choose tag”, after a new property is given the type Node', ms: 1100,
+    setup: async (b, H) => { await H.go('Dr. Mei Chen'); await H.unmake(MADE); await H.addProperty(); await H.sleep(900); await b.page.keyboard.type(MADE, { delay: 30 }); await H.sleep(800); await b.page.keyboard.press('Enter'); await H.sleep(1000); },
+    anchor: { sel: '.ls-new-property button', text: 'Add property' }, input: async b => b.page.locator('.ui__select-content').getByText('Node', { exact: true }).click(),
+    float: PROPERTY, rows: '.menu-link-wrap', unevenRows: true, still: ['.ls-page-properties .property-pair'],
+    faces: { 'a tag': `${PROPERTY[0]} #ui__ac-inner > .menu-link-wrap:not(.st-vplain) .menu-link` }, faceWant: { 'a tag': serif },
+    after: async (b, H) => { await H.reset(); await H.unmake(MADE); } },
 ];
 
 module.exports = FLOWS;
