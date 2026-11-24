@@ -2168,6 +2168,8 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
    the # list, a name over a dot). Both on the page's paper, a hairline round them, one shadow each. */
 .lk-window { background: var(--lk-paper, #fff); color: var(--lk-text, #222); border: 1px solid var(--lk-hair); border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,.14); font-size: 14px; line-height: 1.5; text-align: left; }
 .lk-window::backdrop { background: rgba(0,0,0,.16); }
+/* A window that leaves the page behind it as it is (lk-clear; Find, 24 November 2026): you keep your place while you look something up. */
+.lk-window.lk-clear::backdrop { background: transparent; }
 /* The surface of whatever floats (the owner, 22 November 2026, of three drawn directions: "try c", then "Yes, build C"): the Mac's
    own. Glass the page shows through, a 10-point corner, a hair-thin edge, the Mac's shadow. */
 .lk-pop { background: var(--lk-glass); -webkit-backdrop-filter: var(--lk-glass-blur); backdrop-filter: var(--lk-glass-blur); color: var(--lk-text, #222); border: .5px solid var(--lk-line); border-radius: 10px; box-shadow: var(--lk-float-shadow); font-size: 14px; line-height: 1.4; text-align: left; }

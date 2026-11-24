@@ -17,7 +17,10 @@ const db = Find.db;
 
 const FRAME = 236, SAY = 72, ROW = 32;   // the find line, the foot, three lines of choices and "show all"; what the sentence adds (room for the notes, the year line); a row
 const CSS = `
-.fd { position: fixed !important; left: 50% !important; right: auto !important; transform: translateX(-50%); margin: 0 !important; width: min(900px, 92vw); max-height: 78vh;
+/* As big as what it holds (the owner, 24 November 2026: "the window that appears is much too massive"; measured that day at 644 by
+   437 in a 700 by 560 window, round one line): three quarters of the window's width at most, as high as its rows, grown
+   downward as they come and never shrunk while it is open (grown), over a page left as it is (the library's lk-clear). */
+.fd { position: fixed !important; left: 50% !important; right: auto !important; transform: translateX(-50%); margin: 0 !important; width: min(640px, 76vw); max-height: 78vh;
   box-sizing: border-box; padding: 0; display: flex; flex-direction: column; }   /* the window's look is the library's lk-window */
 .fd:not([open]) { display: none; }
 .fd.fd-high { top: max(10vh, 60px) !important; bottom: auto !important; }
@@ -31,7 +34,7 @@ html[data-lk-held-panel] .ui__popover-content:has(> .selection-action-bar), html
 .fd.fd-panel { transform: none; max-height: none; z-index: 1000; line-height: 1.5; }   /* its edge and shadow are the library's pop-up, lk-pop; over Logseq's help button (999), which stood on the foot's keys where the panel reached the window's corner, under Logseq's own pop-ups (99999) */
 .fd * { box-sizing: border-box; }
 /* The find line: the pieces, then the letters. */
-.fd-find { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; padding: 14px 16px; border-bottom: 1px solid var(--lk-hair); font-size: 16px; cursor: text; }
+.fd-find { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; padding: 8px 16px; border-bottom: 1px solid var(--lk-hair); font-size: 16px; cursor: text; }
 .fd-piece { display: inline-flex; align-items: baseline; gap: 5px; position: relative; }
 /* A pick's × is the library's lk-reveal and keeps its place, so nothing moves when it shows. */
 .fd-piece .fd-month { color: var(--lk-quiet); }
@@ -156,10 +159,21 @@ const S = {
 const setting = key => Find.settings.setting(key);
 /* The window has two hosts (0.5): the window itself, over the page, and a panel under the line being written (S.host: the bullet's
    box, where its caret was). One Find shows at a time, so the state is one; what differs is asked of the host. */
-const PANEL_ROWS = 4, PANEL_FRAME = 148;   // the panel: its find line, one line of choices and the foot; the rows it shows
+const PANEL_ROWS = 4, PANEL_FRAME = 136, PANEL_WIDE = 420;   // the panel: its find line, one line of choices and the foot; the rows it shows
 const rowsShown = () => S.host ? PANEL_ROWS : (setting('rowsShown') || 12);
 // One height from the opening, whatever is listed; the line opened adds its own height to it.
-const setHeight = () => { if (!S.dlg) return; if (S.host) return place(); S.dlg.style.height = FRAME + (S.say ? SAY : 0) + rowsShown() * ROW + (S.line ? S.lineH - 52 : 0) + 'px'; };
+// The sentence keeps one height from its opening (its notes and year line need their room); the window is as high as what it lists.
+const setHeight = () => { if (!S.dlg) return; if (S.host) return place(); S.dlg.style.height = S.say ? FRAME + SAY + rowsShown() * ROW + (S.line ? S.lineH - 52 : 0) + 'px' : ''; };
+/* The window grows downward as its rows come and never shrinks while it is open: its foot only ever moves down, and a shorter list
+   leaves the room it had. The height it has reached is kept as its least height; read when its size changes, before the frame is
+   drawn, so no frame shows it shorter. */
+function grown(dlg) {
+  const view = dlg.ownerDocument.defaultView; if (!view?.ResizeObserver) return () => {};
+  let tall = 0;
+  const seen = new view.ResizeObserver(() => { if (S.dlg !== dlg || S.host || S.say) return; const h = Math.ceil(dlg.getBoundingClientRect().height); if (h > tall) { tall = h; dlg.style.minHeight = tall + 'px'; } });
+  seen.observe(dlg);
+  return () => seen.disconnect();
+}
 // The panel's place: under the bullet's words at their width; above them where the window has no room below.
 function place() {
   const d = S.dlg, box = S.host?.box || S.host?.anchor; if (!d || !box?.isConnected) return;
@@ -187,7 +201,7 @@ function place() {
   const set = (k, v) => d.style.setProperty(k, v, 'important');
   // Its width kept inside the window: a bullet in the right sidebar starts near the window's edge (found by script, 23 November 2026:
   // the panel ran past the right edge, its rows cut).
-  const width = Math.round(Math.min(Math.max(320, r.width), win.innerWidth - 16)), left = Math.round(Math.max(8, Math.min(r.left, win.innerWidth - width - 8)));
+  const width = Math.round(Math.min(Math.max(320, Math.min(r.width, PANEL_WIDE)), win.innerWidth - 16)), left = Math.round(Math.max(8, Math.min(r.left, win.innerWidth - width - 8)));
   set('left', left + 'px'); set('right', 'auto'); set('width', width + 'px');
   set('top', Math.round(under ? r.bottom + 4 : Math.max(band, r.top - height - 4)) + 'px'); set('bottom', 'auto');
   d.style.height = height + 'px';
@@ -1240,7 +1254,7 @@ function open(typed = '', say = false, panel = null) {
   if (S.stale) { S.stale = false; S.again = { kinds: S.kinds.length > 0, tree: !!S.tree, recents: S.recents.length > 0 }; S.pages = null; S.dugData.clear(); S.pointers.clear(); S.noteOf.clear(); }
   style('find', CSS);
   const dlg = panel ? el(doc, 'dialog', { class: 'fd lk-pop fd-own fd-panel', 'aria-label': 'Link from here', 'data-editor-popup-ref': 'find-panel' })
-    : el(doc, 'dialog', { class: 'fd lk-window fd-own ' + (setting('windowPlace') === 'centred' ? 'fd-centred' : 'fd-high') + (S.say ? ' fd-say' : ''), 'aria-label': S.say ? 'Find by sentence' : 'Find' });
+    : el(doc, 'dialog', { class: 'fd lk-window lk-clear fd-own ' + (setting('windowPlace') === 'centred' ? 'fd-centred' : 'fd-high') + (S.say ? ' fd-say' : ''), 'aria-label': S.say ? 'Find by sentence' : 'Find' });
   const find = el(doc, 'div', { class: 'fd-find' });
   const sentence = el(doc, 'div', { class: 'fd-sentence' });
   const mirror = el(doc, 'div', { class: 'fd-mirror', 'aria-hidden': 'true' });
@@ -1325,6 +1339,7 @@ function open(typed = '', say = false, panel = null) {
   S.dlg = dlg; S.doc = doc;
   Object.assign(S, { typed, typedAt: 0, changedAt: 0, picks: [], spans: [], words: [], trail: [], trailFrom: typed.length, mode: 'rows', rowAt: 0, choiceAt: 0, allShown: false, nearAll: false, dug: [], failed: '', enter: null, near: [], nearShown: [], line: 0, lineAt: 0, lineDots: [], lineDug: null, lineH: 52 });
   setHeight();
+  if (!panel) { const off = grown(dlg); dlg.addEventListener('close', off, { once: true }); }
   S.moreOf.clear(); S.openGroups.clear(); S.groupAll.clear();
   // The window dims the page and takes every key; the panel stands on the page, which stays as it is under it.
   if (panel) {
@@ -1547,5 +1562,8 @@ async function openKind(kind = {}) {
   if (k) addPick({ kind: 'tag', id: k.id, uuid: k.uuid, title: k.title });
   return !!k;
 }
-Find.window = { open, openKind, panel, held, close, toggle, sentence, commands, forget, warm, state: S };
+// The stylesheet is given to Logseq when the plugin starts, not at the first opening: Logseq takes a stylesheet a frame or more
+// after it is given, and the first opening was drawn bare for a frame (measured 24 November 2026: 7% of the screen flashed).
+const dress = () => style('find', CSS);
+Find.window = { open, openKind, panel, held, close, toggle, sentence, commands, forget, warm, dress, state: S };
 })();

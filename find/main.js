@@ -87,6 +87,7 @@ async function main() {
   takeSearchButton();
   const { onStop } = Find.kit;
   onStop(window.PluginDoor.addMenuItem({ key: 'find', label: 'Find', icon: 'search', run: () => Find.window.open() }));
+  Find.window.dress();
   listenForKeys();
   rememberBullet();
   Find.under.start();

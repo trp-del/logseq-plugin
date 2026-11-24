@@ -10,6 +10,12 @@ The owner, 22 November 2026: "I want to be able to do actions quicker or edits, 
 context"; of the window: "that window opens and takes over majority of screen"; "the small should be build from same library".
 Find has two hosts and one code (`find.js`, `S.host`): the window, over the page, and a panel under the line being written.
 
+**The window's size** (24 November 2026, the same words of the owner's; it had stood 644 by 437 in a 700 by 560 window round one
+line): three quarters of Logseq's window wide at most (640 pt), as high as what it lists, grown downward as rows come and never
+shrunk while it is open, so the foot only ever moves down. The page behind it is left as it is, not greyed (the library's
+`lk-clear`). Find by sentence keeps one height from its opening. Its stylesheet is given to Logseq when the plugin starts, so the
+first opening is not drawn bare for a frame.
+
 - **Opening.** Its own key, Option-K (the setting "The key that opens the small Find under the line", shown on the key sheet as
   "Find under the line" and set there; the owner, 23 November 2026: "Give it its own key"), pressed in a bullet being written, on
   the page or in the right sidebar; the key again closes it, the caret where it was. The command "Find: link from here" (the door's
@@ -20,7 +26,7 @@ Find has two hosts and one code (`find.js`, `S.host`): the window, over the page
   of pages to link (`PluginDoor.screen.linkList`, in `plugin.js`). The setting "A small Find under the line you are writing"
   switches the panel, and its key, off.
 - **What it is.** The window's own four pieces, the find line, the choices, the rows and the foot, in the library's pop-up
-  (`lk-pop`), under the bullet at its width, above it where the window has no room below, four rows. Where its lines of choices or
+  (`lk-pop`), under the bullet at its width up to 420 pt (the owner, 24 November 2026: "the window that appears is much too massive"), above it where the window has no room below, four rows. Where its lines of choices or
   its foot wrap (the narrow sidebar), it grows, as far as the window has room, until its first row shows whole under the choices'
   names; where the room is not enough, a line of choices keeps fewer of them before its "more", so it stands on one line. Not modal: the page stays
   as it is, the bullet stays in writing, a press elsewhere lets it go. Where it reaches the window's lower right corner it stands over
