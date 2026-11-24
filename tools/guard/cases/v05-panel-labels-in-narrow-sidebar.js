@@ -55,11 +55,14 @@ module.exports = {
       const b = document.querySelector(`#right-sidebar .ls-block[blockid="${u}"] > .block-main-container, .cp__right-sidebar .ls-block[blockid="${u}"] > .block-main-container`); if (!b) return null;
       let sc = b.parentElement; while (sc && !(sc.scrollHeight > sc.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(sc).overflowY))) sc = sc.parentElement;
       if (sc) sc.scrollTop += b.getBoundingClientRect().top - y;
-      const r = b.getBoundingClientRect(); return [Math.round(r.top), r.left + 30, r.top + Math.min(r.height / 2, 12)];
+      const r = b.getBoundingClientRect(), words = b.querySelector('.block-content'), w = words?.getBoundingClientRect();
+      // Already in writing (Escape put the caret back): no click. Otherwise a click on its words, never on its bullet.
+      return [Math.round(r.top), w ? w.left + 30 : null, w ? w.top + Math.min(w.height / 2, 12) : null];
     }, [uuid, 320]);
     if (!low) return done({ ok: false, said: 'the sidebar bullet was gone after the panel closed' });
     if (Math.abs(low[0] - 320) > 24) return done({ ok: false, said: `the sidebar bullet could not be brought to the hand test's place (its top at ${low[0]}, not about 320)` });
-    await T.sleep(500); await page.mouse.click(low[1], low[2]); await T.sleep(700);
+    await T.sleep(500);
+    if (low[1] != null) { await page.mouse.click(low[1], low[2]); await T.sleep(700); }
     await page.keyboard.press('End'); await T.sleep(200);
     const still = await page.evaluate(() => !!document.activeElement?.closest?.('#right-sidebar, .cp__right-sidebar') && document.activeElement.tagName === 'TEXTAREA');
     if (!still) return done({ ok: false, said: 'the sidebar bullet low in the window could not be put in writing' });
