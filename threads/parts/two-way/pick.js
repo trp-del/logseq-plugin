@@ -129,7 +129,7 @@ function raiseHtml(group, item) {
   const only = raisablePicked();
   const best = only.length === 1 && only[0] === item.uuid ? state.raise.get(item.uuid)?.best : null;
   if (!best) return '';
-  const piece = (name, value) => `<span class="th-tw-dprop"><span class="th-tw-dname">${esc(name)}</span><span class="th-pencil lk-pencil">${esc(value)}</span></span>`;
+  const piece = (name, value) => `<span class="th-tw-dprop"><span class="th-tw-dname lk-prop">${esc(name)}</span><span class="th-pencil lk-pencil">${esc(value)}</span></span>`;
   return `<div class="th-tw-raise" title="What it would get: the tag its words look like, and “${esc(best.prop.title)}” set to this page. Make it from the bar above.">${piece('Tags', best.tag.title)}${piece(best.prop.title, pageTitle())}</div>`;
 }
 async function raiseMenu(at) {

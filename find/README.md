@@ -105,7 +105,7 @@ What the page holds is read with Find's own reader (`db.js`, `details` and `face
 
 **Nothing typed:** the kinds in your graph (your tags, and Task), most used first, with how many nodes each holds, counting the tags under it; then the pages you opened last. Pick a kind with Up, Down and Enter, or a click. "more" opens every kind, laid out as Ontology has them: a column under each top-level tag, by name, each tag beneath its parent and stepped in, Task under a head "Logseq" at the foot of the last column. Up and Down run down a column and on to the next, Left and Right go to the column beside.
 
-**A pick** sits in the find line as the thing it is: a tag in mono, a node with Look's mark and underline, a month in grey. Point at it and an × takes it off; Backspace on an empty line takes the last one off, and the list widens again.
+**A pick** sits in the find line as the thing it is: a tag in its serif, a node with Look's mark and underline, a month in grey. Point at it and an × takes it off; Backspace on an empty line takes the last one off, and the list widens again.
 
 **Typing** finds within what is left. The letters match the choices first: "mei" lights Dr. Mei Chen under Provider, and Tab makes her the filter; "oct" lights October; with no kind picked, "cons" lights Consultation. Meanwhile the rows narrow to the letters, with the letters in bold. Enter always opens the row the cursor is on: Tab narrows, Enter opens.
 

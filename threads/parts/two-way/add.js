@@ -75,7 +75,7 @@ function draftLineHtml(group, d) {
 const pieceKey = piece => `${piece.ident}|${(piece.ids || []).join(',')}`;
 function propsHtml(group, d) {
   if (!d) return '';
-  const item = (title, shown) => `<span class="th-tw-dprop"><span class="th-tw-dname">${esc(title)}</span><span class="th-pencil th-pencil-taken">${esc(shown)}</span></span>`;
+  const item = (title, shown) => `<span class="th-tw-dprop"><span class="th-tw-dname lk-prop">${esc(title)}</span><span class="th-pencil th-pencil-taken">${esc(shown)}</span></span>`;
   const parts = [item(group.name, pageTitleNow())];
   if (d.set?.ident && d.set.text != null) parts.push(item(twoWay.groupName(twoWay.groupOf(group)), String(d.set.text)));
   if (!d.quiet) {
@@ -83,7 +83,7 @@ function propsHtml(group, d) {
     for (const p of d.proposals) {
       const key = pieceKey(p), kept = !!d.kept?.has(key), passed = p.guess && anyKept && !kept;
       const tip = p.guess ? (kept ? 'Kept: Enter sets it. Click to let it go again' : 'A guess. Enter sets it; click to keep this one and let the other guesses go') : 'From the words: Enter sets it';
-      parts.push(`<button type="button" class="th-tw-dprop th-tw-dpick" data-pkey="${esc(key)}" aria-pressed="${kept}" title="${esc(tip)}"><span class="th-tw-dname">${esc(p.title)}</span><span class="th-pencil${kept ? ' th-pencil-taken' : ' lk-pencil'}${passed ? ' th-tw-dpassed' : ''}">${esc(p.shown)}</span></button>`);
+      parts.push(`<button type="button" class="th-tw-dprop th-tw-dpick" data-pkey="${esc(key)}" aria-pressed="${kept}" title="${esc(tip)}"><span class="th-tw-dname lk-prop">${esc(p.title)}</span><span class="th-pencil${kept ? ' th-pencil-taken' : ' lk-pencil'}${passed ? ' th-tw-dpassed' : ''}">${esc(p.shown)}</span></button>`);
     }
   }
   return parts.join('');

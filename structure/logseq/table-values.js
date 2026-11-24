@@ -48,6 +48,20 @@ function start(app, doc) {
      hand that is ticking them (found by hand, 24 November 2026: the second tick landed on the wrong row), and what is above the
      rows moves up instead. All of it goes back when the bar goes. */
   const scrollerOf = el => { let s = el; while (s && s !== doc.body && !(/(auto|scroll)/.test(win.getComputedStyle(s).overflowY) && s.scrollHeight > s.clientHeight + 4)) s = s.parentElement; return s && s !== doc.body ? s : null; };
+  const rootOf = el => { let e = el; while (e && e !== doc.body && !e.querySelector(':scope > .lk-tstate')) e = e.parentElement; return e && e !== doc.body ? e : null; };
+  function lineRoom(root, want) {
+    if (root.style.getPropertyValue('--lk-bar-room') === want) return;
+    const line = root.querySelector(':scope > .lk-tstate'), scroller = scrollerOf(root), grew = Number(root.dataset.stBarGrew || 0);
+    if (!want) {   // back to one line, or the bar gone (the line has then shrunk already): the page goes back by what it was scrolled
+      root.style.removeProperty('--lk-bar-room'); delete root.dataset.stBarGrew;
+      if (scroller && grew) scroller.scrollTop -= grew;
+      return;
+    }
+    const before = line ? line.getBoundingClientRect().height : 0;
+    root.style.setProperty('--lk-bar-room', want);
+    const delta = line ? line.getBoundingClientRect().height - before : 0;
+    if (delta) { root.dataset.stBarGrew = String(grew + delta); if (scroller) scroller.scrollTop += delta; }
+  }
   function fit(bar) {
     const holder = bar.closest('.table-action-bar') || bar, header = bar.closest('.ls-table-header'), scroller = bar.closest('.ls-table-rows'), main = doc.querySelector('#main-content-container');
     if (!header || !scroller) return;
@@ -55,13 +69,22 @@ function start(app, doc) {
     if (room < 160) return;
     if (holder.style.maxWidth !== `${room}px`) holder.style.maxWidth = `${room}px`;
     bar.classList.add('st-bar-fit');
+    // Since 24 November 2026 Look sets the bar in the line above the names (the flat capsule), so it lies over no name and pushes
+    // no row. Only where its words take two lines does that line grow, by --lk-bar-room, and the page is scrolled by the same
+    // height in the same turn, so the rows stay under the hand.
+    const root = rootOf(bar), lifted = !!root && !header.classList.contains('ls-fixed') && parseFloat(win.getComputedStyle(holder).top) < 0;
+    if (root && (lifted || root.style.getPropertyValue('--lk-bar-room'))) {
+      const h = Math.round(bar.getBoundingClientRect().height);
+      lineRoom(root, lifted && h > 30 ? `${h + 3}px` : '');
+      if (lifted) return;
+    }
     const extra = Math.max(0, Math.round(bar.getBoundingClientRect().height - header.getBoundingClientRect().height + 2)), rows = header.nextElementSibling, foot = header.parentElement?.querySelector(':scope > .ls-table-footer');
     const want = extra ? `${extra}px` : '', had = parseInt(rows?.style.marginTop || '0', 10) || 0;
     for (const el of [rows, foot]) if (el && el.style.marginTop !== want) { el.style.marginTop = want; if (want) el.dataset.stBarPushed = ''; else delete el.dataset.stBarPushed; }
     if (header.parentElement && header.parentElement.style.marginBottom !== want) { header.parentElement.style.marginBottom = want; if (want) header.parentElement.dataset.stBarPushed = ''; else delete header.parentElement.dataset.stBarPushed; }
     if (extra !== had) { const scroller = scrollerOf(header.parentElement); if (scroller) scroller.scrollTop += extra - had; }   // in the same turn, before the screen is drawn
   }
-  const unfit = table => { let had = 0; for (const el of [table, ...table.querySelectorAll('[data-st-bar-pushed]')]) if (el.dataset && 'stBarPushed' in el.dataset) { had = Math.max(had, parseInt(el.style.marginTop || '0', 10) || 0); el.style.marginTop = ''; el.style.marginBottom = ''; delete el.dataset.stBarPushed; } if (had) { const scroller = scrollerOf(table); if (scroller) scroller.scrollTop -= had; } };
+  const unfit = table => { const root = rootOf(table); if (root) lineRoom(root, ''); let had = 0; for (const el of [table, ...table.querySelectorAll('[data-st-bar-pushed]')]) if (el.dataset && 'stBarPushed' in el.dataset) { had = Math.max(had, parseInt(el.style.marginTop || '0', 10) || 0); el.style.marginTop = ''; el.style.marginBottom = ''; delete el.dataset.stBarPushed; } if (had) { const scroller = scrollerOf(table); if (scroller) scroller.scrollTop -= had; } };
 
   // ---------- the word in Logseq's bar ----------
   function dress() {
@@ -133,7 +156,7 @@ function start(app, doc) {
     if (!from) { b.pop.innerHTML = `<div class="tv-none">None of the ${plural(b.nodes.length, 'picked node')} holds a value in a property of yours.</div><div class="lk-answers"><span class="act lk-btn lk-low lk-i-x" role="button" tabindex="0" data-leave>Leave it</span></div>`; return; }
     const propOf = n => (n === from.title ? from : into || from);   // a new property is made as the first one's kind, so it reads as that kind
     const vals = (r, p) => r.vals.map(v => { const w = typeof v === 'string' ? v : v.w, mark = r.mark === 'gone' ? '' : (typeof v === 'object' && v.mark === 'new') || r.mark === 'new' ? ' lk-coming' : ''; return `<span class="${p.type === 'node' || p.type === 'page' ? 'lk-node' : ''}${mark}">${esc(w)}</span>`; }).join('<span class="tv-sep">, </span>');
-    const row = r => { const p = propOf(r.name), cls = r.mark === 'gone' ? ' lk-going' : r.mark === 'new' ? ' lk-coming' : ''; return `<span class="tv-k${cls}">${icon(p)}<span class="lk-prop">${esc(r.name)}</span></span><span class="tv-v${cls}">${vals(r, p)}</span>`; };
+    const row = r => { const p = propOf(r.name), cls = r.mark === 'gone' ? ' lk-going' : r.mark === 'new' ? ' lk-coming' : ''; return `<span class="tv-k lk-prop${cls}">${icon(p)}<span class="lk-prop">${esc(r.name)}</span></span><span class="tv-v${cls}">${vals(r, p)}</span>`; };
     const note = n => `<div class="tv-n"><div class="tv-nh"><span class="lk-node">${esc(n.title)}</span>${n.tags.map(t => `<span class="lk-tag">${esc(t)}</span>`).join('')}</div><div class="tv-rows">${n.after.map(row).join('')}</div></div>`;
     const shown = pv ? pv.notes.filter(n => !n.same).slice(0, 2) : [], more = pv ? pv.gave.length - shown.length : 0;
     const why = !pv ? '' : pv.clash.length ? `${esc(name)} takes one value, and ${plural(pv.clash.length, 'picked node')} would hold more.` : !pv.gave.length ? `None of the ${plural(b.nodes.length, 'picked node')} holds a value that ${esc(name)} can take.` : '';
@@ -141,7 +164,7 @@ function start(app, doc) {
     b.pop.innerHTML =
       `<div class="tv-form"><span class="lk-name">From</span><span>${pick('from', from, from.title)}</span>` +
       `<span class="lk-name">Into</span><span>${name ? pick('into', into || from, name) : pick('into', null, 'Choose a property, or type a new name', true)}${name && !into ? '<span class="lk-note tv-new">new property</span>' : ''}</span></div>` +
-      `<label class="tv-rm"><input type="checkbox" class="lk-tick" data-remove ${b.remove ? 'checked' : ''}><span>Remove them from</span><span class="tv-k">${icon(from)}<span class="lk-prop">${esc(from.title)}</span></span></label>` +
+      `<label class="tv-rm"><input type="checkbox" class="lk-tick" data-remove ${b.remove ? 'checked' : ''}><span>Remove them from</span><span class="tv-k lk-prop">${icon(from)}<span class="lk-prop">${esc(from.title)}</span></span></label>` +
       (pv ? `<div class="tv-pv">${why ? `<div class="tv-none">${why}</div>` : shown.map(note).join('') + (more > 0 ? `<div class="lk-note tv-more">and ${more} more</div>` : '')}</div>` : '') +
       `<div class="lk-answers"><span class="act lk-accent lk-i-tick lk-enter${can ? '' : ' waits'}" role="button" tabindex="0" data-go>${can ? `${b.remove ? 'Move' : 'Copy'} ${plural(pv.moved, 'value')}` : b.remove ? 'Move' : 'Copy'}</span><span class="act lk-btn lk-low lk-i-x" role="button" tabindex="0" data-leave>Leave it</span></div>`;
   }

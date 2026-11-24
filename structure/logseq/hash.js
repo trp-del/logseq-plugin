@@ -97,7 +97,7 @@ function start(app, doc) {
   // One of the plugin's rows, built as Logseq builds its own (menu-link-wrap, menu-link, chosen), so it looks and lights the same.
   function rowEl(r, i) {
     const m = M(), t = r.tag != null ? m.tags.get(r.tag) : null;
-    const wrap = doc.createElement('div'); wrap.className = `menu-link-wrap st-hrow${r.head ? ' st-head' : ''}${r.quiet ? ' st-quiet' : ''}`; wrap.dataset.i = String(i); wrap.style.setProperty('--st-pad', `${(r.depth || 0) * STEP}px`);
+    const wrap = doc.createElement('div'); wrap.className = `menu-link-wrap st-hrow${r.head ? ' st-head' : ''}${r.quiet ? ' st-quiet' : ''}${t ? '' : ' st-plain'}`; wrap.dataset.i = String(i); wrap.style.setProperty('--st-pad', `${(r.depth || 0) * STEP}px`);
     const a = doc.createElement('a'); a.className = 'flex justify-between menu-link';
     const name = doc.createElement('span'); name.className = 'flex-1'; name.textContent = t ? t.title : (r.title ?? r.text); a.append(name);
     const path = r.path && t ? Mo.pathOf(m, t.id).slice(0, -1) : [];

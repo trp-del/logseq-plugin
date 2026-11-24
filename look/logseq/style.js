@@ -4,7 +4,7 @@
 (function () {
 const Look = window.Look;
 const { style } = Look.kit, { setting } = Look.settings;
-const { link, out, tag } = window.PluginDoor.LOOKS;   // a link's line, the ↗ after a web address, a tag's name: the door's, written once
+const { link, out, tag, prop, tagFace } = window.PluginDoor.LOOKS;   // a link's line, the ↗ after a web address, a tag's name: the door's, written once
 const AREA = ':is(#main-content-container, #right-sidebar)';
 const DAY = ':is([data-uuid^="00000001-"], .ls-datetime *)'; // Logseq 2.0.2 gives every journal page a uuid starting 00000001-
 
@@ -75,13 +75,40 @@ const hashWidth = doc => {
   let ctx = null; try { ctx = doc.createElement('canvas').getContext('2d'); } catch {} if (!ctx) return;
   ctx.font = `100px ${face}`; root.style.setProperty('--lk-hash', `${(ctx.measureText('#').width / 100).toFixed(3)}em`);
 };
-const hashes = doc => { hashWidth(doc); const on = !!setting('tagsAsClasses'); for (const span of doc.querySelectorAll('.ls-table-cell a.tag > span')) { const want = on && span.textContent.startsWith('#'); if (want !== span.hasAttribute('data-lk-hash')) span.toggleAttribute('data-lk-hash', want); } };
+// In Logseq's list of pages to link, a page's tags are written into its name ("Elm Street Medical Centre #Hospital"). The tags
+// are set apart as tags: the # gone, the tag's face (the library's lk-tag-on-line). Only a name whose last stretch is plain words
+// is touched, and only by adding to it, so Logseq redraws it as before when the letters change.
+const TAGGED = /^(.*?\S)((?: #[^#]+)+)$/;
+const listTags = doc => {
+  for (const span of doc.querySelectorAll('.ui__popover-content[data-editor-popup-ref] .menu-link .flex-row > span > span:last-child')) {
+    if (span.childNodes.length !== 1 || span.firstChild.nodeType !== 3) continue;
+    const m = TAGGED.exec(span.firstChild.nodeValue); if (!m || !setting('tagsAsClasses')) continue;
+    const tags = doc.createElement('span'); tags.className = 'lk-tag-on-line'; tags.textContent = m[2].split(' #').filter(Boolean).join('  ');
+    span.firstChild.nodeValue = m[1]; span.append(tags);
+  }
+};
+const hashes = doc => { hashWidth(doc); listTags(doc); const on = !!setting('tagsAsClasses'); for (const span of doc.querySelectorAll('.ls-table-cell a.tag > span')) { const want = on && span.textContent.startsWith('#'); if (want !== span.hasAttribute('data-lk-hash')) span.toggleAttribute('data-lk-hash', want); } };
 let hashWatched = false;
 function watchHashes() {
   const doc = Look.kit.host();
   if (!hashWatched) { hashWatched = true; Look.kit.watchScreen(hashes, hashes); Look.kit.onStop(() => { hashWatched = false; for (const span of Look.kit.host().querySelectorAll('[data-lk-hash]')) span.removeAttribute('data-lk-hash'); Look.kit.host().documentElement.style.removeProperty('--lk-hash'); }); }
   hashes(doc);
 }
+/* One face for each kind of word (the owner, 24 November 2026: "Property should be in mono everywhere, tags should remain the
+   serif, and normal text and input should be what it is. Suggested or predicted should be regular italic with dots underneath.
+   this should be universal everywhere"). Here, on what Logseq draws itself: a property's name in a page's and a bullet's lines, a
+   table's column heads, the lists a property is picked from (Add property, Set property, Filter, Sort), the name in Configure
+   property; a tag in the lists a tag is picked from (after #, Set Tags, Choose tag). The faces are the library's (LOOKS.prop,
+   LOOKS.tagFace); what the plugin's own parts draw takes them through lk-prop, lk-tag and lk-pencil. */
+const PICKS = ':is(.ui__popover-content, .ui__dropdown-menu-content, .ui__dropdown-menu-sub-content)';
+const faces = `
+:is(${AREA}, ${PICKS}) :is(a.property-k, .property-key-inner > a) { ${prop()} }
+${AREA} .ls-table-header-cell { ${prop()} }
+${PICKS} .menu-link span[title*="property/"] { ${prop()} }
+.ui__dropdown-menu-content > .cp__select-main .menu-link { ${prop()} }
+.ui__dropdown-menu-content .ls-view-order-setting [aria-roledescription="sortable"] .text-muted-foreground.whitespace-nowrap { ${prop()} }
+.ls-property-dropdown .inner-wrap:has(> .property-setting-title > .ls-icon-pencil) > label { ${prop()} }
+.ui__popover-content[data-editor-popup-ref="page-search-hashtag"] #ui__ac-inner > .menu-link-wrap:not(.st-last, .st-plain) { ${tagFace} }`;
 /* The greys are mixed from currentColor, so they are set once per box and inherited, never on every descendant. The
    value keeps the text colour; the name, one level in, is a shade lighter. */
 const names = `
@@ -322,6 +349,7 @@ function apply() {
   style('tags', setting('tagsAsClasses') ? tags : '');
   watchHashes();
   style('names', setting('quietNames') ? names : '');
+  style('faces', faces);
   style('capsules', setting('noCapsules') ? capsules : '');
   style('title-words', setting('hideTitleWords') ? titleWords : '');
   style('empty', emptyProps + EMPTY_ROWS);

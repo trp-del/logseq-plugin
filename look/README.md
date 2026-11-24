@@ -62,7 +62,9 @@ There is one short list of class names, one per word of the grammar. They and th
 | `lk-prop` | a property's name | a shade lighter than the value |
 | `lk-day` | a day in the margin | faint, small, figures lined up |
 | `lk-count` | a number of things | never shown |
-| `lk-pencil` | a pencilled value | mono, grey, a dotted line, no background; a tag inside it keeps its mono and fades once, to the pencil's grey |
+| `lk-pencil` | a pencilled value | regular italic, grey, a dotted line, no background, in the face of its own kind of word; a tag inside it keeps the tag's serif and fades once, to the pencil's grey |
+| `lk-prop` | a property's name | mono, upright, nine tenths the words' size, the quiet grey (24 November 2026: "Property should be in mono everywhere") |
+| `lk-tag-on-line` | a tag after a name on a line of a list | the tag's serif, a shade quieter than the line |
 | `lk-undo` | the Undo arrow | faded |
 | `lk-name` | the small name above a value | faint, small, never pressed |
 | `lk-value` | a value, the thing pressed | the text colour; quiet under the pointer; faint when off (`off`) or unwritten |

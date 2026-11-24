@@ -6,6 +6,7 @@
 const Look = window.Look;
 const { style } = Look.kit, { setting } = Look.settings;
 const AREA = ':is(#main-content-container, #right-sidebar)';
+const LOOKS = window.PluginDoor.LOOKS;   // the library's looks, written once there
 const PARTS = {
   calmType: `
 /* The second pass (the owner: "You did not change much"). One typeface, the Mac's own, for Logseq and the plugin alike (mono
@@ -154,8 +155,22 @@ ${AREA} .ls-view-head .view-actions > button:has(.ls-icon-dots) { padding: 4px 8
 ${AREA} .ls-view-head .view-action-search input { background: transparent !important; border: 0 !important; border-bottom: 1px solid var(--lk-line) !important; border-radius: 0 !important; box-shadow: none !important; outline: none !important; font-size: 14px; color: var(--lk-text); }
 ${AREA} .ls-view-head .view-action-search input:focus { border-bottom-color: var(--lk-text) !important; }
 ${AREA} .ls-view-head .view-action-search input::placeholder { color: var(--lk-off); }
-/* What you can do with the rows you ticked: one block on the wash, its actions the library's presses (no boxes), Delete red. */
-${AREA} .table-action-bar .ls-table-actions { background: var(--lk-paper) !important; border-radius: 6px; padding: 2px 6px; gap: 2px !important; box-shadow: 0 0 0 1px var(--lk-hair); }
+/* What you can do with the rows you ticked (the owner's "good" to "Emptiness, Applied", 24 November 2026): a flat capsule in the
+   line above the column names, where "Sorted by…" stands, so it covers no name and no row moves; its words start on the names'
+   edge; the bin stands apart at its end. Logseq draws the bar inside the head of the table, over the names, and the table cuts off
+   whatever leaves it; so while a bar stands, the table's own boxes (its rows, and the fold around them) reach one line up (pulled up and padded by
+   the same 31 pt, so nothing in them moves) and the bar is set in that line. "Sorted by…" keeps its room, unseen, while the bar stands there. With the
+   head held at the window's top (Logseq's ls-fixed) the line above is out of sight, and the bar stays on the head as Logseq has
+   it. A table with no such line above it keeps the bar where Logseq puts it. The capsule is the library's (LOOKS.capsule). */
+${AREA} :has(> .lk-tstate) :is(.ls-foldable-content-inner, .ls-table-rows):has(.ls-table-actions) { margin-top: calc(-1 * var(--lk-bar-room, 31px)) !important; padding-top: var(--lk-bar-room, 31px) !important; }
+${AREA} :has(> .lk-tstate) .ls-table-header:not(.ls-fixed) > .table-action-bar { top: calc(1px - var(--lk-bar-room, 31px)) !important; left: 24px !important; }
+${AREA} :has(> .lk-tstate) .ls-table-header:not(.ls-fixed):has(> .table-action-bar) { overflow: visible !important; }   /* the head cuts off what leaves it; it needs to only while it is held at the window's top */
+${AREA} .ls-table-header.ls-fixed > .table-action-bar .ls-table-actions { background-image: linear-gradient(var(--lk-wash), var(--lk-wash)) !important; background-color: var(--lk-paper) !important; }   /* over the names there, so on the page's own ground */
+/* In a narrow page the bar's words take two lines: the line it stands in is then as high as the bar (--lk-bar-room, set by Ontology's
+   table-values, which also keeps the rows where they stood on the screen). */
+${AREA} :has(> .lk-tstate):has(.ls-table-actions) > .lk-tstate { visibility: hidden; box-sizing: border-box; min-height: calc(var(--lk-bar-room, 31px) - 4px); }
+${AREA} .table-action-bar .ls-table-actions { ${LOOKS.capsule} border-radius: 14px !important; min-height: 28px; padding: 0 10px 0 8px !important; gap: 2px !important; }   /* round ends at one line; the same corners when its words take two */
+${AREA} .table-action-bar .ui__button:has(.ls-icon-trash) { margin-left: 10px !important; }
 ${AREA} .table-action-bar .selection-count { color: var(--lk-quiet); font-size: 14px; white-space: nowrap; }
 ${AREA} .table-action-bar .ui__toolbar-group { gap: 2px !important; }
 ${AREA} .table-action-bar .ui__button { border: 0 !important; background: transparent !important; box-shadow: none !important; border-radius: 999px !important; font-size: 14px !important; font-weight: 400 !important; color: var(--lk-text) !important; height: 28px !important; padding: 0 10px !important; margin: 0 !important; }
@@ -310,7 +325,7 @@ ${MENUS} :is([role=menuitem], .ui__dropdown-menu-item):is([data-highlighted], :h
    226 pt left of the caret by its own width, 5 pt from the window's edge, eight sizes on its way open). As wide as its widest
    name, eight lines at most and then it scrolls, the menu's tight line, the line you are on filled, there in one frame at one
    size, a few points clear of the line it hangs from. Every number is the library's (Door.LOOKS.line, lit, fit). */
-const WRITING_LIST = '.ui__popover-content[data-editor-popup-ref]', LOOKS = window.PluginDoor.LOOKS;
+const WRITING_LIST = '.ui__popover-content[data-editor-popup-ref]';
 PARTS.calmMenus += `
 ${WRITING_LIST} { ${LOOKS.fit('7rem')} padding: 5px !important; font-size: 13px !important; line-height: 18px !important; overflow: hidden !important; }
 /* A list that holds no line yet shows nothing: Logseq draws the box a frame before its rows, and an empty box that then grows is a flash. */
@@ -347,6 +362,19 @@ PARTS.calmMenus += `
 .ui__popover-content .cp__select .menu-link { box-sizing: border-box !important; min-height: 24px !important; align-items: center !important; }
 .ui__popover-content .cp__select .menu-link .pt-1 { padding-top: 0 !important; display: inline-flex !important; align-items: center !important; }
 .ui__popover-content .cp__select #ui__ac-inner > .menu-link-wrap { padding-left: calc(5px + var(--st-pad, 0px)) !important; }
+/* Hung from "+ Add property", every step of it (the list, the new name with its type, "Choose tag"): the left edge on the
+   words' own (Logseq sets it a few points to their left), 6 pt clear of them, as the lists on a line being written are, so the
+   corner stays through the steps. Logseq keeps the box 224 pt wide round a list 202 wide; the box is as wide as its list. */
+.ui__popover-content:has(.ls-property-dialog) { margin-left: 4.5px !important; }
+.ui__popover-content[data-side="bottom"]:has(.ls-property-dialog) { margin-top: 6px !important; }
+.ui__popover-content[data-side="top"]:has(.ls-property-dialog) { margin-bottom: 6px !important; }
+.ls-property-dialog .ls-property-input:has(.cp__select-main) { min-width: 0 !important; }
+.ls-property-dialog .ls-property-input:has(.cp__select-main) > .ls-property-add { min-width: 13rem !important; }
+/* One size from the first frame. Logseq draws the field a frame or three before its lines, so the box grew after it was there;
+   and the tags of "Choose tag" come a frame after "Skip choosing tag". While no line is in, and for "Choose tag" before a letter
+   is typed, the list has the height of its eight lines already (there are always more than eight to come). */
+.ls-property-dialog .cp__select-main:not(:has(.menu-link)) > :not(.input-wrap),
+.ls-property-dialog .cp__select-main:has(input[placeholder="Choose tag"]:placeholder-shown) > :not(.input-wrap) { min-height: 198px !important; }
 /* Whatever floats is there at once, at its one size, as the Mac's menus are (measured 24 November 2026: Logseq's lists took four
    to eight sizes on their way open and went on changing for a tenth of a second). */
 :is(.ui__popover-content, .ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content, .ui__context-menu-sub-content, .ui__select-content) { ${LOOKS.atOnce} }

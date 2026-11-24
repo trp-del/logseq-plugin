@@ -23,6 +23,7 @@ const CSS = `
 #ui__ac-inner.st-vg.st-vmore-lit > .menu-link-wrap .menu-link.chosen { background: none !important; }
 #ui__ac-inner.st-vt > .menu-link-wrap { padding-left: var(--st-pad, 0); }
 #ui__ac-inner.st-vt > .menu-link-wrap.st-vtop .menu-link { font-weight: 600; }
+#ui__ac-inner.st-vt > .menu-link-wrap:not(.st-vplain) .menu-link { ${Door.LOOKS.tagFace} }   /* every line but "Skip choosing tag" and "+ New option" is a tag */
 #ui__ac-inner.st-vt .st-vp { font-size: var(--lk-small); color: var(--lk-quiet); margin-left: .6em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; direction: rtl; min-width: 3em; max-width: 15em; flex: 0 1 auto; }
 #ui__ac-inner.st-vt .st-vp > bdi { direction: ltr; unicode-bidi: isolate; }
 #ui__ac-inner.st-vt { max-width: 460px; }
@@ -64,7 +65,7 @@ function start(app, doc) {
   const sweep = list => {
     list.classList.remove('st-vg', 'st-vmore-lit', 'st-vt');
     list.querySelectorAll(':scope > .st-vh, :scope > .st-vmore, .st-vp').forEach(n => n.remove());
-    for (const row of rowsOf(list)) { row.style.order = ''; row.style.removeProperty('--st-pad'); row.classList.remove('st-vhide', 'st-vtop'); }
+    for (const row of rowsOf(list)) { row.style.order = ''; row.style.removeProperty('--st-pad'); row.classList.remove('st-vhide', 'st-vtop', 'st-vplain'); }
   };
   const hover = row => { Door.screen.hover(row.querySelector('a') || row); row.scrollIntoView?.({ block: 'nearest' }); };
   // What the keys walk: the rows shown and each "and N more", in the order they stand.
@@ -116,7 +117,7 @@ function start(app, doc) {
       Mo.tops(m).forEach(id => walk(id, 0));
       for (const row of rowsOf(list)) {
         const t = byName.get(nameOf(row)), place = t && at.get(t.id);
-        row.classList.remove('st-vhide');
+        row.classList.remove('st-vhide'); row.classList.toggle('st-vplain', NEW.test(nameOf(row)) || SKIP.test(nameOf(row)));
         if (!place) { (NEW.test(nameOf(row)) || SKIP.test(nameOf(row)) ? news : theirs).push(row); row.style.removeProperty('--st-pad'); row.classList.remove('st-vtop'); continue; }
         row.style.order = String(SPAN + place.i);
         row.style.setProperty('--st-pad', `${Math.min(place.d, 8) * STEP}px`);
@@ -128,7 +129,7 @@ function start(app, doc) {
     } else {
       // Letters typed: Logseq's matches in Logseq's order, each of your tags with its path after its name; "+ New option" last.
       rows.forEach((row, i) => {
-        row.classList.remove('st-vhide', 'st-vtop'); row.style.removeProperty('--st-pad');
+        row.classList.remove('st-vhide', 'st-vtop'); row.style.removeProperty('--st-pad'); row.classList.toggle('st-vplain', NEW.test(nameOf(row)) || SKIP.test(nameOf(row)));
         row.style.order = String(NEW.test(nameOf(row)) ? 2 * SPAN : SPAN + i);
         const t = byName.get(nameOf(row)); if (!t) return;
         const path = Mo.pathOf(m, t.id).slice(0, -1); if (!path.length) return;

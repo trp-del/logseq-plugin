@@ -40,7 +40,7 @@ A value changed or cleared in a row, a task's status set from its circle, and a 
 
 ## The look is the shared names'
 
-How the section's pieces look (a tag in mono, the underline a node's name takes under the pointer, the chevron only under the pointer, the tick boxes of a list where picking is on, no counts) comes from the shared class names on what Threads draws, which stand whichever modules run; they are listed in Look's README. With Look switched off the section reads the same, but for the sort's mark before a name, which Look works out.
+How the section's pieces look (a tag in its serif, a property's name in mono, the underline a node's name takes under the pointer, the chevron only under the pointer, the tick boxes of a list where picking is on, no counts) comes from the shared class names on what Threads draws, which stand whichever modules run; they are listed in Look's README. With Look switched off the section reads the same, but for the sort's mark before a name, which Look works out.
 
 ## What is here
 

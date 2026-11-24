@@ -171,7 +171,8 @@ const setHeight = () => { if (!S.dlg) return; if (S.host) return place(); S.dlg.
 function grown(dlg) {
   const view = dlg.ownerDocument.defaultView; if (!view?.ResizeObserver) return () => {};
   let tall = 0;
-  const seen = new view.ResizeObserver(() => { if (S.dlg !== dlg || S.host || S.say) return; const h = Math.ceil(dlg.getBoundingClientRect().height); if (h > tall) { tall = h; dlg.style.minHeight = tall + 'px'; } });
+  // Its own height, to the fraction: rounded up, the window grew by a part of a point a frame after it opened.
+  const seen = new view.ResizeObserver(() => { if (S.dlg !== dlg || S.host || S.say) return; const h = dlg.getBoundingClientRect().height; if (h > tall + 0.5) { tall = h; dlg.style.minHeight = tall + 'px'; } });
   seen.observe(dlg);
   return () => seen.disconnect();
 }
@@ -643,7 +644,7 @@ function render() {
     // through its data-c.
     let ci = 0;
     const lines = groups.map(g => ({
-      name: g.key === 'kind' ? 'kind' : g.label, icon: g.icon || '', prop: g.key.startsWith('p:'), tree: g.tree || 0,
+      name: g.key === 'kind' ? 'kind' : g.label, icon: g.icon || '', prop: g.key.startsWith('p:'), tags: g.key === 'kind', tree: g.tree || 0,
       values: g.items.map(c => {
         const at = ci++;
         const lit = g.tree ? S.mode === 'choices' && at === S.choiceAt : (S.mode === 'choices' && at === S.choiceAt) || (S.mode !== 'choices' && litChoice(groups) === c);
@@ -1345,6 +1346,10 @@ function open(typed = '', say = false, panel = null) {
   // leaves room for the rows shown before "show all", under three lines of choices.
   doc.body.appendChild(dlg);
   S.dlg = dlg; S.doc = doc;
+  // What the last opening listed is let go before the first frame: left in place, a window opened again after a search was drawn for
+  // one frame with that search's lines of choices and day column, then again without them (measured 24 November 2026: two sizes, a
+  // flash over a hundredth of the screen, and a band of 80 pt kept empty by the height it had reached).
+  Object.assign(S, { base: [], shown: [], near: [], nearShown: [], facets: null });
   Object.assign(S, { typed, typedAt: 0, changedAt: 0, picks: [], spans: [], words: [], trail: [], trailFrom: typed.length, mode: 'rows', rowAt: 0, choiceAt: 0, allShown: false, nearAll: false, dug: [], failed: '', enter: null, near: [], nearShown: [], line: 0, lineAt: 0, lineDots: [], lineDug: null, lineH: 52 });
   setHeight();
   if (!panel) { const off = grown(dlg); dlg.addEventListener('close', off, { once: true }); }

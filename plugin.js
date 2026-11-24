@@ -1141,7 +1141,7 @@ Door.regrow = (el, from, ms = MOTION_MS) => {
    19 November 2026): each a property's small name over its values, each value with its count, a press narrowing the list to the
    nodes holding it. Find draws them over its rows, and in its panel; Relations over a list of nodes (0.5: "the small should be build
    from same library", so Find's own drawing of these lines folded into this one).
-     lines: [{ name, icon (html), prop = true (the name in a property's look), values, tree }]
+     lines: [{ name, icon (html), prop = true (the name in a property's look), tags (its values are tags, in the tag's face), values, tree }]
      a value: { label, count (none: no count), lit, on (in force: the list under the line is narrowed to it, so it takes the look of
        a view in force, the text colour and the short bar, as the grammar's narrowing words do), more (the line's "more", which opens),
        title (the hover words), cut = 44, attrs: { data-…: … } }
@@ -1159,7 +1159,7 @@ Door.choicesHtml = (lines, { cls = '' } = {}) => {
   const values = l => l.tree
     ? `<span class="lk-cv lk-tree">${Array.from({ length: l.tree }, (_, col) => `<span class="lk-tree-col">${l.values.filter(v => v.col === col).map(v => (v.head ? `<span class="lk-tree-head">${esc(v.head)}</span>` : '') + button(v, 'lk-view' + (v.depth ? '' : ' lk-tree-top'), v.cut || 30, ` style="--lk-depth: ${Math.max(0, (v.depth || 0) - 1)}"`)).join('')}</span>`).join('')}</span>`
     : `<span class="lk-cv lk-views">${l.values.map(v => v.more ? button({ ...v, count: null }, 'lk-more') : button(v, 'lk-view')).join('')}</span>`;
-  return `<div class="lk-choices${cls ? ' ' + cls : ''}">${lines.map(l => `<div class="lk-ch"><span class="lk-ck${l.prop === false ? '' : ' lk-prop'}">${l.icon ? `<span class="lk-ck-icon">${l.icon}</span>` : ''}${esc(l.name)}</span>${values(l)}</div>`).join('')}</div>`;
+  return `<div class="lk-choices${cls ? ' ' + cls : ''}">${lines.map(l => `<div class="lk-ch${l.tags ? ' lk-ch-tags' : ''}"><span class="lk-ck${l.prop === false ? '' : ' lk-prop'}">${l.icon ? `<span class="lk-ck-icon">${l.icon}</span>` : ''}${esc(l.name)}</span>${values(l)}</div>`).join('')}</div>`;
 };
 Door.timeline = (() => {
   const D = () => Door.dates, DAY = 864e5;
@@ -1815,6 +1815,7 @@ const TOKENS = `
   --lk-picked: var(--rx-blue-09, #0091ff);   /* the one thing picked among many, kept while it is the one shown (a table's row beside the Item tab) */
   --lk-mono: var(--ls-font-family-mono, ui-monospace, "SF Mono", Menlo, Consolas, monospace);
   --lk-tag-face: "New York", ui-serif, Georgia, serif; --lk-tag-adjust: none;
+  --lk-prop-adjust: .47;   /* a property's name in mono stands nine tenths the size of the words beside it, so it is no wider than they are */
   --lk-day: 48px;
   --lk-small: 13px; --lk-label: 12px; }`;
 /* The shared names: one per word of the grammar. A module puts these on what it draws and carries no look of its own
@@ -1823,7 +1824,7 @@ const TOKENS = `
    lk-row: a row; lk-fold: its fold arrow, only under the pointer; lk-list: a list that can be picked from; lk-tick: a
    tick box, appearing when the pointer is on the list; lk-node: a node's name (with data-uuid: Look adds its sort mark); lk-url: a web address, ↗ after it;
    lk-tag: a tag; lk-prop: a property's name; lk-day: a day in the margin; lk-count: a number of things, never shown;
-   lk-pencil: a pencilled value (Predictive's guess, and nothing else); lk-coming, lk-going: what a waiting change brings and takes away; lk-undo: the faded arrow; lk-status: a task's status circle, Logseq's own icon (Door.statusHtml).
+   lk-pencil: a pencilled value, italic with dots (a guess or a suggestion, and nothing else); lk-coming, lk-going: what a waiting change brings and takes away; lk-undo: the faded arrow; lk-status: a task's status circle, Logseq's own icon (Door.statusHtml).
    The Pressing set (buttons-mockup.html beside the plugins, 30 October 2026), for the controls of a bar or a window:
    lk-name: the small faint name above a value; lk-value: the value, the thing pressed, in the text colour, quiet under
    the pointer, faint when off (.off) or unwritten; lk-pick: a value that unfolds, a hairline standing before it (its
@@ -1853,20 +1854,32 @@ const TOKENS = `
      link(firm)   a link's line: the faint underline, 3px under the words; firm (unless false) holds against Logseq's own rule;
      out          the ↗ after a web address, in the quiet grey, outside the underline;
      tag(firm)    a tag's name: the Mac's serif, upright, the quiet grey, the words' own size;
+     prop(firm)   a property's name: mono, upright, wherever it is read (the owner, 24 November 2026: "Property should be in mono
+                  everywhere, tags should remain the serif, and normal text and input should be what it is. Suggested or predicted
+                  should be regular italic with dots underneath. this should be universal everywhere");
+     tagFace      a tag's face alone, for a tag on a line of a list, which keeps the line's own colour (the lit line's too);
+     guess        a suggestion or a prediction: the face of its own kind of word, regular weight, italic, dots under it;
      line         a line of anything that floats (a menu's, a list's): 13 on 18, 24 high, so Logseq's lists and the plugin's menus
                   are one height (24 November 2026);
      lit          the line you are on in a float: filled in the text colour, its words in the page's (22 November 2026);
      fit(min,max) as big as what it holds (the owner, 24 November 2026, of a list 512 wide round names 150 wide: "much too
                   massive"): as wide as its widest line between two limits, never wider than the window, and there at once,
                   at its one size, as the Mac's menus are;
-     atOnce       whatever floats is there at once: no motion on its way in, so it takes one size and one place. */
+     capsule      what lies in the page and acts on it (a bar for the rows you ticked): flat, round ends, the 7% wash, no line and
+                  no shadow, so it reads as part of the page and never as something over it (the owner's "good" to "Emptiness,
+                  Applied", 24 November 2026). Never inside something that floats;
+     atOnce       whatever floats is there at once: no motion on its way in, so it takes one size and one place */
 Door.LOOKS = {
   line: 'font-size: 13px !important; line-height: 18px !important; padding: 3px 9px !important; border-radius: 6px !important; box-sizing: border-box !important; min-height: 24px !important;',
   lit: 'background: var(--lk-text) !important; color: var(--lk-paper) !important;',
+  capsule: 'background: var(--lk-wash) !important; border: 0 !important; border-radius: 999px !important; box-shadow: none !important;',
   atOnce: 'animation: none !important;',
   fit: (min = '11rem', max = '22rem') => `width: max-content !important; min-width: min(${min}, calc(100vw - 16px)) !important; max-width: min(${max}, calc(100vw - 16px)) !important; animation: none !important;`,
   link: (firm = true) => { const i = firm ? ' !important' : ''; return `text-decoration: underline${i}; text-decoration-color: var(--lk-link)${i}; text-decoration-thickness: var(--lk-link-width)${i}; text-underline-offset: 3px;`; },
   out: 'content: "\\2197"; display: inline-block; margin-left: .2em; color: var(--lk-quiet); text-decoration: none;',
+  prop: (firm = true) => { const i = firm ? ' !important' : ''; return `font-family: var(--lk-mono)${i}; font-style: normal${i}; font-size-adjust: var(--lk-prop-adjust); letter-spacing: -.01em; word-spacing: -.2em;`; },
+  tagFace: 'font-family: var(--lk-tag-face) !important; font-style: normal !important; font-size-adjust: var(--lk-tag-adjust);',
+  guess: 'font-style: italic !important; font-weight: 400 !important; color: var(--lk-quiet) !important; text-decoration: underline dotted !important; text-decoration-color: var(--lk-line) !important; text-underline-offset: 3px; background: none !important;',
   tag: (firm = true) => { const i = firm ? ' !important' : ''; return `color: var(--lk-quiet) !important; font-family: var(--lk-tag-face)${i}; font-style: normal${i}; font-size: inherit${i}; font-size-adjust: var(--lk-tag-adjust); text-decoration: none !important;`; },
 };
 Door.NAMES = `${TOKENS}
@@ -1875,6 +1888,9 @@ Door.NAMES = `${TOKENS}
    mono read too close to the words, a box would distract; 11 November 2026: not italic, and in the quiet grey, "do new york quiet grey"; the text colour under the pointer). Its line height is the words', so a tag never makes its row taller. */
 .lk-tag { ${Door.LOOKS.tag()} line-height: 1; }
 .lk-tag:hover { color: var(--lk-text, currentColor) !important; }
+/* A tag after a name on a line of a list (Logseq's list of pages to link writes "#Hospital" into the name): the tag's face, a shade
+   quieter than the line whatever the line's colour, so it holds on the lit line too. */
+.lk-tag-on-line { ${Door.LOOKS.tagFace} opacity: .72; margin-left: .5em; }
 .lk-node { color: inherit; ${Door.LOOKS.link()} cursor: pointer; }
 .lk-node:hover { text-decoration-color: currentColor !important; }
 /* A web address is a link like a node's name with a ↗ after it in the quiet grey, saying it leaves Logseq (the owner, 11 November
@@ -1882,14 +1898,17 @@ Door.NAMES = `${TOKENS}
 .lk-url { color: inherit; overflow-wrap: anywhere; ${Door.LOOKS.link()} cursor: pointer; }
 .lk-url:hover { text-decoration-color: currentColor !important; }
 .lk-url::after { ${Door.LOOKS.out} }
-.lk-prop { color: var(--lk-quiet); }
+.lk-prop { color: var(--lk-quiet); ${Door.LOOKS.prop()} }
+.lk-capsule { ${Door.LOOKS.capsule} }
 .lk-day { color: var(--lk-quiet) !important; font-size: var(--lk-small) !important; font-variant-numeric: tabular-nums; }
 .lk-count { display: none !important; }
-/* A pencilled value, a proposal: in mono, grey, a dotted line under it; a pencilled tag too, so a proposal never reads as a
-   written tag (the owner, 10 November 2026: "I want proposed to be mono"). */
-.lk-pencil { font-family: var(--lk-mono) !important; font-style: normal !important; font-size-adjust: 0.51; color: var(--lk-quiet) !important; text-decoration: underline dotted !important; text-decoration-color: var(--lk-line) !important; text-underline-offset: 3px; background: none !important; }
+/* A pencilled value, a proposal: the face of its own kind of word, regular italic, grey, dots under it; a pencilled tag keeps the
+   tag's serif and a pencilled property's name its mono, each italic (the owner, 24 November 2026: "Suggested or predicted should
+   be regular italic with dots underneath. this should be universal everywhere"; until then a proposal was mono, 10 November). */
+.lk-pencil { ${Door.LOOKS.guess} }
 /* A pencilled tag fades once: the pencil's grey, not the tag's own fade on top of it. */
-.lk-pencil .lk-tag, .lk-tag.lk-pencil { opacity: 1; font-family: var(--lk-mono) !important; font-style: normal !important; font-size-adjust: 0.51; }
+.lk-pencil .lk-tag, .lk-tag.lk-pencil { opacity: 1; font-style: italic !important; }
+.lk-pencil .lk-prop, .lk-prop.lk-pencil { font-style: italic !important; }
 /* What a change about to be made brings, and what it takes away (the owner, 16 November 2026: "make it much more prominent what is
    to change. I thought dotted is just for predictive suggestions, not actual consequential changes"): in green text (the owner,
    19 November 2026: "green should replace yellow highlight for what is added", then "it should be green text, not highlight like a
@@ -1926,6 +1945,7 @@ Door.NAMES = `${TOKENS}
    notes stand above its words; the values the tab picker (lk-views) with no underline and no padding, so the whole tab space is the
    gap; the count after the word, always, quiet (the owner, 13 November 2026: "keep it same tab picker sans underline"). */
 .lk-choices { padding-bottom: 14px; }
+.lk-ch-tags :is(.lk-view, .lk-tree-head) { ${Door.LOOKS.tagFace} }   /* a line of tags to narrow to (Find's kinds): each a tag, in the tag's face */
 .lk-ch { display: grid; grid-template-columns: minmax(0, 1fr); gap: 3px 0; font-size: var(--lk-small); padding: 3px 0 7px; align-items: baseline; }
 .lk-ch > .lk-ck { font-size: var(--lk-label); }
 .lk-ck { color: var(--lk-quiet); display: flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
