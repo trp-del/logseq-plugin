@@ -10,7 +10,13 @@
    it above the bullet, clear of it, with the pinned lines named. The fourth hand test (24 November 2026, a thread, the panel above):
    its top at the window's, about 265 px high, it held one row and half of another, "recently opened" was cut in half under the
    pinned line, and after Down the foot took three lines and no row could be read. So, there, at rest, with "amex" typed and after
-   Down: the foot stays one line inside the panel, no head over rows is cut in half, and two rows show whole under the pinned lines. */
+   Down: the foot stays one line inside the panel, no head over rows is cut in half, and two rows show whole under the pinned lines.
+   The fifth hand test (24 November 2026, a thread, Relations folded on Chase Checking): the kind line still on two lines, one row
+   whole and the second cut by the foot; the foot's words cut to "narr…" and "lin…", then "n" and "li…"; with "amex" typed the Amex
+   Gold row's words a third of the way in, past an empty day's column; after Down the Amex Gold row seen faded through the pinned
+   kind line. So, there, the pinned lines are one line each and opaque, no word of the foot's keys is cut (what Enter does may lose
+   the end of its name, never its first word), every row's words start at one edge, and the lit row stands whole under the pinned
+   lines. */
 module.exports = {
   parts: ['find', 'shared'],
   name: '0.5: in the narrow sidebar the small Find shows each line of choices with its name, and its first row whole; low in the window it opens above the line, its foot on one line, no head cut, two rows whole',
@@ -90,7 +96,19 @@ module.exports = {
       // A head over rows ("recently opened", a group's name) shows whole or not at all: never cut by the pinned lines or the list's foot.
       const cut = [...d.querySelectorAll('.fd-body .fd-head, .fd-body .fd-near')].filter(h => { const b = h.getBoundingClientRect(); if (!b.height) return false;
         const inTop = Math.max(b.top, from), inBottom = Math.min(b.bottom, body.bottom); return inBottom - inTop > 0.5 && (b.top < from - 0.5 || b.bottom > body.bottom + 0.5); }).map(h => `“${h.textContent.trim()}”`);
-      return { whole, all: rows.length, foot: footLines, footOut, cut };
+      // Each pinned line of choices on one line: its values' middles at one height.
+      const pinLines = [...d.querySelectorAll('.fd-body > .fd-choices > .lk-ch')].map(l => new Set([...l.querySelectorAll('.lk-cv > *')].map(v => { const b = v.getBoundingClientRect(); return Math.round((b.top + b.bottom) / 16); })).size);
+      // The pinned lines opaque, so a row under them never shows through.
+      const pinEl = d.querySelector('.fd-body > .fd-choices'), bg = pinEl ? getComputedStyle(pinEl).backgroundColor : '', alpha = !bg || bg === 'transparent' ? 0 : Number((bg.match(/\/\s*([\d.]+)\)$/) || bg.match(/^rgba\([^,]+,[^,]+,[^,]+,\s*([\d.]+)\)$/) || [])[1] ?? 1);
+      const under = pin ? rows.filter(r => { const b = r.getBoundingClientRect(); return b.height > 0 && b.top < pin.bottom - 0.5 && b.bottom > pin.top + 0.5; }).length : 0;
+      // A key's label cut: every label whole but what Enter does (bold), which keeps at least its first word.
+      const ctx = document.createElement('canvas').getContext('2d');
+      const footCut = foot ? [...foot.querySelectorAll('.fd-kl')].filter(l => { if (l.scrollWidth <= l.clientWidth + 1) return false; if (!l.querySelector('b')) return true;
+        const st = getComputedStyle(l.querySelector('b')); ctx.font = `${st.fontWeight} ${st.fontSize} ${st.fontFamily}`; return l.clientWidth < ctx.measureText(l.textContent.trim().split(/\s+/)[0] + ' \u2026').width; }).map(l => `“${l.textContent.trim()}”`) : [];
+      // A row with no day has its words just after its fold arrow and bullet, never past an empty day's column.
+      const edges = [...d.querySelectorAll('.fd-body > .fd-r')].filter(r => !r.querySelector('.fd-day')?.textContent.trim() && r.querySelector('.fd-nm') && r.querySelector('.fd-nm').getBoundingClientRect().left - r.getBoundingClientRect().left > 40).map(r => `“${r.querySelector('.fd-nm').textContent.trim().slice(0, 30)}”`);
+      const lit = d.querySelector('.fd-body .fd-r.on')?.getBoundingClientRect(), litWhole = !lit || (lit.top >= from - 0.5 && lit.bottom <= body.bottom + 0.5);
+      return { whole, all: rows.length, foot: footLines, footOut, cut, pinLines, alpha, under, footCut, edges, litWhole };
     });
     for (const [state, key] of [['nothing typed', ''], ['“amex” typed', 'amex'], ['“amex” typed and Down pressed', 'ArrowDown']]) {
       if (key === 'amex') { await page.keyboard.type('amex', { delay: 60 }); await T.sleep(1600); }
@@ -105,6 +123,11 @@ module.exports = {
       if (hid.length) return done({ ok: false, said: `${where}, the name ${hid.join(', ')} of a line of choices is out of view (panel ${s.width} wide)` });
       if (seen.foot > 1 || seen.footOut) return done({ ok: false, said: `${where}, the foot is not one line inside the panel (on ${seen.foot} lines${seen.footOut ? ', a key past its right edge' : ''})` });
       if (seen.cut.length) return done({ ok: false, said: `${where}, the head ${seen.cut.join(', ')} is cut in half` });
+      if (seen.pinLines.some(n => n > 1)) return done({ ok: false, said: `${where}, a pinned line of choices stands on ${Math.max(...seen.pinLines)} lines, not one` });
+      if (seen.footCut.length) return done({ ok: false, said: `${where}, the foot cuts the words ${seen.footCut.join(', ')}` });
+      if (seen.edges.length) return done({ ok: false, said: `${where}, the row ${seen.edges.join(', ')} has no day yet its words stand past an empty day's column` });
+      if (seen.under && seen.alpha < 1) return done({ ok: false, said: `${where}, a row shows through the pinned line of choices (its background not opaque)` });
+      if (!seen.litWhole) return done({ ok: false, said: `${where}, the lit row is not whole under the pinned lines` });
       // Two rows whole at this size (the third hand test: the panel's top already at the window's, about 265 px high).
       const want = Math.min(2, seen.all);
       if (!want) return done({ ok: false, said: `${where}, the panel lists no row` });

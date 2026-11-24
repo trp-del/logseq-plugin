@@ -66,7 +66,15 @@ html[data-lk-held-panel] .ui__popover-content:has(> .selection-action-bar), html
 /* In the small panel the lines of choices stay put at the body's top and only the rows scroll under them, on the pop-up's own glass:
    low room under a sidebar bullet showed the find line, a gap and a row and a half, the line "kind" scrolled out above (found by
    hand, 24 November 2026). Its gap to the rows is the library's (lk-choices' foot), kept as the strip's own. */
-.fd-panel .fd-body > .fd-choices { position: sticky; top: -8px; z-index: 1; margin: -8px -16px 0; padding-left: 16px; padding-right: 16px; padding-top: 8px; background: var(--lk-glass); -webkit-backdrop-filter: var(--lk-glass-blur); backdrop-filter: var(--lk-glass-blur); }
+.fd-panel .fd-body > .fd-choices { position: sticky; top: -8px; z-index: 1; margin: -8px -16px 0; padding-left: 16px; padding-right: 16px; padding-top: 8px; background: var(--lk-paper, #fff); }
+/* Opaque, so a row scrolled up never shows through it faded (tried by hand, 24 November 2026); the lit row scrolls to just under it
+   (render's scroll padding, its height). */
+/* In the small panel a row's day stands at its right end, quiet, so every row's words start at one edge: a day's column at the left
+   put a row without a day a third of the way in (tried by hand, 24 November 2026, "amex" in the narrow sidebar). */
+.fd-panel .fd-body { --fd-day: 0px; }
+.fd-panel .fd-r:not(.fd-cmd) { grid-template-columns: 16px 18px minmax(0, 1fr) auto auto; }
+.fd-panel .fd-r:not(.fd-cmd) > .fd-day { grid-column: 5; grid-row: 1; padding-left: 10px; }
+.fd-panel .fd-r:not(.fd-cmd) > .fd-day:empty { display: none; }
 /* A group's head: a bold word after a gap of one line (the grammar). */
 .fd-near { font-weight: 600; margin: 20px 0 2px calc(var(--fd-day) + 36px); }
 /* The lines of choices are the library's (Door.choicesHtml: lk-choices, the tab words, the tree of kinds). */
@@ -126,10 +134,10 @@ html[data-lk-held-panel] .ui__popover-content:has(> .selection-action-bar), html
 /* In the small panel the foot stays one line: what Enter does (the bold words, "link Pay the Amex Gold statement by…") is cut with an
    ellipsis to the width the other keys leave it, its key kept whole, so the rows keep their room (tried by hand, 24 November 2026:
    in the narrow sidebar after Down the foot took three lines and no row could be read). The other keys stay whole; where even they
-   do not fit, they are cut last. */
+   do not fit, the way to the Find window goes (drawFoot). */
 .fd-panel .fd-foot { flex-wrap: nowrap; gap: 0 12px; overflow: hidden; }
-.fd-panel .fd-foot > * { flex: 0 1 auto; min-width: 0; white-space: nowrap; }
-.fd-panel .fd-foot > :has(b) { flex-shrink: 1000; min-width: 4em; }
+.fd-panel .fd-foot > * { flex: none; white-space: nowrap; }
+.fd-panel .fd-foot > :has(b) { flex: 0 1 auto; min-width: 0; }
 .fd-panel .fd-foot .fd-ki { display: flex; align-items: baseline; min-width: 0; }
 .fd-panel .fd-foot .fd-kl { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .fd-panel .fd-foot .fd-ki > .fd-k, .fd-panel .fd-foot .fd-say-way { flex: none; }
@@ -207,7 +215,9 @@ function fitPanel(body, groups) {
     return Math.ceil((first ? first.getBoundingClientRect().bottom - body.getBoundingClientRect().top + body.scrollTop + pad : body.scrollHeight) - body.clientHeight); };
   let more = need();
   if (more > 0) { h.grow = (h.grow || 0) + more; place(); more = need(); }
-  if (more <= 0) return false;
+  /* Where the pinned lines are one line each (lk-one), a line whose values still wrap keeps fewer before its "more" too (tried by
+     hand, 24 November 2026: the kinds stood on two lines in the narrow sidebar, the rows left with room for one). */
+  if (more <= 0 && !h.oneLine) return false;
   const lines = [...body.querySelectorAll('.fd-choices > .lk-ch')];
   for (let i = 0; i < lines.length; i++) {
     const g = groups[i], key = g?.key; if (!key || !(key === 'kind' || key.startsWith('p:')) || g.tree || S.moreOf.has(key)) continue;
@@ -725,10 +735,13 @@ function render() {
   body.scrollTop = scrollTop;
   // The pinned lines of choices (the panel) are kept clear when the lit row is scrolled into view.
   const pinned = S.host && body.querySelector(':scope > .fd-choices');
-  body.style.scrollPaddingTop = pinned ? pinned.offsetHeight - 8 + 'px' : '';
+  body.style.scrollPaddingTop = pinned ? pinned.offsetHeight + 'px' : '';
   showLit(body.querySelector(S.mode === 'choices' ? `[data-c="${S.choiceAt}"]` : `.fd-r[data-i="${S.rowAt}"]`));
   drawFoot(groups, rows);
-  if (S.host) place();   // the foot as drawn (it wraps in the narrow sidebar) is part of the panel's height
+  if (S.host) {   // the foot as drawn is part of the panel's height
+    const was = S.host.oneLine; place();
+    if (!was && S.host.oneLine) return render();   // short of room just now: the pinned lines drawn again, one line each
+  }
   // What was just opened rolls out (a dug node once it is read, a group's nodes), so the rows under it glide down.
   // A node not read yet first shows "reading…", rolled out; what it holds then grows on from there.
   if (S.unroll) {
@@ -877,7 +890,18 @@ function digDot() {
 const withData = (root, name, value) => [...root.querySelectorAll(`[data-${name}]`)].filter(e => e.getAttribute('data-' + name) === value);
 // The kinds in columns: a top-level tag bold at the head of its column, the tags under it stepped in by depth; "Logseq" a
 // head that is no kind. Each is a choice like any other, lit by the cursor, its count shown only then or under the pointer.
-function drawFoot(groups, rows) { S.dlg.querySelector('.fd-foot').replaceChildren(...foot(S.doc, groups, rows)); showComing(groups); }
+function drawFoot(groups, rows) {
+  const f = S.dlg.querySelector('.fd-foot');
+  f.replaceChildren(...foot(S.doc, groups, rows));
+  /* In the small panel the foot is one line and no word of a key's label is cut: where it is short of room, the way to the Find
+     window goes first, so the keys at hand show whole (tried by hand, 24 November 2026: "narrow" and "link" cut to "n" and "li…" in
+     the narrow sidebar). What Enter does then takes the room left, a long name cut with an ellipsis. */
+  if (S.host) {
+    const cut = () => f.scrollWidth > f.clientWidth + 1 || [...f.querySelectorAll('.fd-kl')].some(l => l.scrollWidth > l.clientWidth + 1);
+    if (cut()) f.querySelector(':scope > .fd-say-way')?.remove();
+  }
+  showComing(groups);
+}
 // The cursor moves along the rows: the lit mark goes from one to the other and nothing is drawn again.
 function litRow(at, groups, rows) {
   S.rowAt = at;
