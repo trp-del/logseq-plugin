@@ -776,7 +776,11 @@ const kitCss = `/* The kit (parts/shared.js): where the library's pieces stand i
 .th-lsq-pop { position: fixed; inset: auto; margin: 0; padding: 0; width: max-content; min-width: 14rem; max-width: min(602px, calc(100vw - 32px)); overflow: visible; }
 .th-lsq-pop .menu-link .flex-row > div:first-child { min-width: 0; }
 .th-lsq-pop.th-anchored { top: anchor(bottom); left: anchor(left); margin-top: 4px; position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline; }
-.th-lsq-pop .th-lsq-list { max-height: 18rem; overflow-y: auto; }
+/* The list fills its box from edge to edge (the owner, 24 November 2026, of the Set Tags list: "There is a weird extra space to the
+   right": the box was as wide as its least width, 224, and the list inside it only as wide as its own words), and it shows whole
+   lines, ten at most (18rem cut the eleventh in half). */
+.th-lsq-pop .property-select > .cp__select-main { width: 100% !important; box-sizing: border-box; }
+.th-lsq-pop .th-lsq-list { max-height: calc(10 * var(--lk-line-h)); overflow-y: auto; }
 .th-lsq-pop .th-lsq-list > .menu-link-wrap { padding-left: calc(5px + var(--st-pad, 0px)) !important; }
 .th-lsq-pop .th-lsq-list > .menu-link-wrap.th-lsq-tag .menu-link { ${window.PluginDoor.LOOKS.tagFace} }
 .th-lsq-pop .th-lsq-list > .menu-link-wrap.th-lsq-top .menu-link { font-weight: 600; }

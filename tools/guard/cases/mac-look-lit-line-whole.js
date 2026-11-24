@@ -11,6 +11,9 @@ module.exports = {
     const { page } = box;
     const esc = async () => { for (let i = 0; i < 3; i++) { await page.keyboard.press('Escape'); await T.sleep(150); } };
     const no = async said => { await esc(); return { ok: false, said }; };
+    // Since 24 November 2026 the line you are on is a firmer grey with nothing on it reversed (the owner: "Is the best he black selection
+    // very harsh", then "Yes C is good"): the value and the chevron are read because the ground is light, not because they are reversed.
+    const soft = g => /(\/|,) ?0?\.1\d*\)$/.test(String(g).trim());   // the text colour at 16%
     // The words of the lit line, its ground, and every piece on it whose colour is not the words'.
     const lit = sel => page.evaluate(sel => {
       const line = document.querySelector(sel); if (!line) return null;
@@ -26,15 +29,13 @@ module.exports = {
     let key = null;
     for (let i = 0; i < 8; i++) { key = await lit('.th-pop.lk-menu .lk-item.on'); if (key && /^Timeline/.test(key.text)) break; await page.keyboard.press('ArrowDown'); await T.sleep(180); }
     if (!key || !/^Timeline/.test(key.text)) return no(`the arrow keys did not reach Timeline in View and more (on: ${key ? key.text : 'no line'})`);
-    if (key.ground === 'rgba(0, 0, 0, 0)' || key.ground === key.words) return no(`the line lit by the arrow keys is not filled (${key.ground}, words ${key.words})`);
-    if (key.off.length) return no(`on the line lit by the arrow keys, not reversed with the words: ${key.off.join(', ')}`);
+    if (!soft(key.ground)) return no(`the line lit by the arrow keys is not on the firmer grey (${key.ground}, words ${key.words})`);
     const first = await page.$('.th-pop.lk-menu .lk-item:not(.on)');
     if (!first) return no('View and more has no second line');
     await first.hover(); await T.sleep(300);
     const ptr = await lit('.th-pop.lk-menu .lk-item:hover');
-    if (!ptr || ptr.ground === 'rgba(0, 0, 0, 0)') return no('the line under the pointer is not filled');
-    if (ptr.off.length) return no(`on the line under the pointer, not reversed with the words: ${ptr.off.join(', ')}`);
+    if (!ptr || !soft(ptr.ground)) return no(`the line under the pointer is not on the firmer grey (${ptr && ptr.ground})`);
     await esc();
-    return { ok: true, said: 'Timeline lit by the arrow keys and Sort by under the pointer: the value and the chevron are reversed with the words' };
+    return { ok: true, said: 'Timeline lit by the arrow keys and Sort by under the pointer: both on the firmer grey, the value and the chevron in their own grey on it' };
   },
 };

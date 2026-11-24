@@ -215,15 +215,15 @@ ${AREA} .ls-table[data-lk-notags="1"] :is(.ls-table-header, .ls-table-row) > .fl
    groups, keys as the Mac's marks with no cap round them. */
 :is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content, .ui__context-menu-sub-content, .ui__popover-content, .ui__select-content, .ui__multi-select-content) { background: var(--lk-glass) !important; -webkit-backdrop-filter: var(--lk-glass-blur) !important; backdrop-filter: var(--lk-glass-blur) !important; color: var(--lk-text) !important; border: .5px solid var(--lk-line) !important; border-radius: 10px !important; box-shadow: var(--lk-float-shadow) !important; }
 :is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content, .ui__context-menu-sub-content, .ui__select-content) { padding: 5px !important; }
-:is(.ui__dropdown-menu-item, .ui__dropdown-menu-sub-trigger, .ui__select-item, .ui__context-menu-content [role=menuitem]) { font-weight: 400 !important; font-size: var(--lk-line-size) !important; line-height: var(--lk-line-lead) !important; padding: 3px 9px !important; box-sizing: border-box !important; height: 24px !important; min-height: 0 !important; border-radius: 6px !important; color: var(--lk-text) !important; gap: 8px !important; }
+:is(.ui__dropdown-menu-item, .ui__dropdown-menu-sub-trigger, .ui__select-item, .ui__context-menu-content [role=menuitem]) { font-weight: 400 !important; font-size: var(--lk-line-size) !important; line-height: var(--lk-line-lead) !important; padding: 3px 9px 4px !important; box-sizing: border-box !important; height: var(--lk-line-h) !important; min-height: 0 !important; border-radius: 6px !important; color: var(--lk-text) !important; gap: 8px !important; }
 /* A line that opens a further menu stays on the soft ground while that menu is open, as Logseq has it. */
 .ui__dropdown-menu-sub-trigger[data-open]:not([data-highlighted], :hover) { background: var(--lk-wash) !important; }
 :is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content) :is(.ui__icon, i.ti) { font-size: 14px !important; width: 14px; }
 :is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content) svg.tabler-icon { width: 14px !important; height: 14px !important; stroke-width: 1.4 !important; }
 :is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content, .ui__popover-content) :is(.ui__icon, i.ti) { color: var(--lk-quiet) !important; }
 /* The line you are on, under the pointer or the keyboard: filled in the text colour, everything on it in the page's. Never a ring. */
-:is(.ui__dropdown-menu-item, .ui__dropdown-menu-sub-trigger, .ui__select-item, .ui__context-menu-content [role=menuitem]):is([data-highlighted], :hover) { background: var(--lk-text) !important; color: var(--lk-paper) !important; }
-:is(.ui__dropdown-menu-item, .ui__dropdown-menu-sub-trigger, .ui__select-item, .ui__context-menu-content [role=menuitem]):is([data-highlighted], :hover) :is(*, .ui__icon, i.ti) { color: var(--lk-paper) !important; }
+:is(.ui__dropdown-menu-item, .ui__dropdown-menu-sub-trigger, .ui__select-item, .ui__context-menu-content [role=menuitem]):is([data-highlighted], :hover) { ${LOOKS.lit} }
+/* Nothing on the line you are on is reversed: its icon, key and check keep their own colours (24 November 2026). */
 :is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content, .ui__popover-content, .ui__select-content) :focus-visible { outline: none !important; box-shadow: none !important; }
 :is(.ui__dropdown-menu-separator, .ui__context-menu-separator, .ui__dropdown-menu-content [role=separator], .ui__context-menu-content [role=separator]) { background: var(--lk-hair) !important; height: 1px !important; margin: 5px 9px !important; }
 :is(.ui__dropdown-menu-label, .ui__context-menu-label) { font-weight: 400 !important; color: var(--lk-quiet) !important; }
@@ -247,8 +247,7 @@ ${AREA} .ls-table[data-lk-notags="1"] :is(.ls-table-header, .ls-table-row) > .fl
 .ui__popover-content .cp__select .menu-link { display: flex !important; padding: 3px 9px 4px !important; border-radius: 6px !important; }
 .ui__popover-content .cp__select .menu-link, .ui__popover-content .cp__select .menu-link * { font-size: var(--lk-line-size) !important; line-height: var(--lk-line-lead) !important; }
 .ui__popover-content .cp__select .menu-link svg { width: 14px !important; height: 14px !important; }
-.ui__popover-content .cp__select .menu-link.chosen { background: var(--lk-text) !important; }
-.ui__popover-content .cp__select .menu-link.chosen, .ui__popover-content .cp__select .menu-link.chosen * { color: var(--lk-paper) !important; }
+.ui__popover-content .cp__select .menu-link.chosen { ${LOOKS.lit} }
 /* Logseq's ask (Are you sure…): the Mac's alert. Small, on the same glass, its icon above the question, the two answers one over
    the other at full width, the one that goes ahead filled in the text colour; the page behind dimmed a little, never blurred white. */
 .ui__alert-dialog-content { width: 260px !important; max-width: 260px !important; padding: 18px 14px 14px !important; gap: 4px !important; text-align: center !important; background: var(--lk-glass) !important; -webkit-backdrop-filter: var(--lk-glass-blur) !important; backdrop-filter: var(--lk-glass-blur) !important; border: .5px solid var(--lk-line) !important; border-radius: 14px !important; box-shadow: var(--lk-float-shadow) !important; }
@@ -314,7 +313,7 @@ const menuHuesCss = `
 PARTS.calmMenus += menuHuesCss;
 /* On the filled line a coloured icon, and one the plugin draws, takes the page's colour like the words beside it. */
 PARTS.calmMenus += `
-${MENUS} :is([role=menuitem], .ui__dropdown-menu-item):is([data-highlighted], :hover) :is(.ui__icon, i.ti, svg), ${MENUS} :is([role=menuitem], .ui__dropdown-menu-item):is([data-highlighted], :hover)[data-lk-menu-icon]::before { color: var(--lk-paper) !important; }`;
+`;
 /* Width by kind (the owner, 8 November 2026: "certain things need to be wide like a table but others like outline can
    benefit from readable width"; "the readable width needs to be centered"). The page is one column at reading width,
    centred, so the title, the properties, Structure's lines, Threads' rows, the outline and the references share one left
@@ -351,7 +350,6 @@ ${WRITING_LIST} .menu-link .flex-row > .h-5 { height: var(--lk-line-lead) !impor
 ${WRITING_LIST} .menu-link .flex-row > :not(.h-5) { min-width: 0 !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; }
 ${WRITING_LIST} .menu-link svg { width: 14px !important; height: 14px !important; }
 ${WRITING_LIST} .menu-link.chosen { ${LOOKS.lit} }
-${WRITING_LIST} .menu-link.chosen * { color: var(--lk-paper) !important; }
 `;
 /* Making or picking a property (Logseq's list under "+ Add property", then the new name, its type, its tag): as big as what it
    holds (the owner's five pictures, 24 November 2026). Logseq gives the list one height, 286 pt, whatever it holds, so the box

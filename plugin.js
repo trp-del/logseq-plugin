@@ -1824,6 +1824,7 @@ const TOKENS = `
   --lk-hair: color-mix(in srgb, currentColor 12%, transparent); --lk-line: color-mix(in srgb, currentColor 26%, transparent);
   --lk-link: color-mix(in srgb, currentColor 45%, transparent); --lk-link-width: .5px;
   --lk-wash: color-mix(in srgb, currentColor 7%, transparent);
+  --lk-lit: color-mix(in srgb, var(--lk-text, currentColor) 16%, transparent);   /* the line you are on in a list or a menu: a firmer grey, its words as they are (the owner, 24 November 2026: "Is the best he black selection very harsh", then of four drawings "Yes C is good"; until then filled in the text colour, its words reversed) */
   --lk-glass: color-mix(in srgb, var(--lk-paper, #fff) 72%, transparent); --lk-glass-blur: blur(22px) saturate(1.6); --lk-float-shadow: 0 12px 34px rgba(0,0,0,.22);   /* whatever floats (22 November 2026): the Mac's glass, the page showing through, and its one shadow */
   --lk-picked: var(--rx-blue-09, #0091ff);   /* the one thing picked among many, kept while it is the one shown (a table's row beside the Item tab) */
   --lk-mono: var(--ls-font-family-mono, ui-monospace, "SF Mono", Menlo, Consolas, monospace);
@@ -1875,7 +1876,8 @@ const TOKENS = `
      guess        a suggestion or a prediction: the face of its own kind of word, regular weight, italic, dots under it;
      line         a line of anything that floats (a menu's, a list's): 14 on 21, 28 high (--lk-line-size, -lead, -h), so Logseq's lists and the plugin's menus
                   are one height (24 November 2026);
-     lit          the line you are on in a float: filled in the text colour, its words in the page's (22 November 2026);
+     lit          the line you are on in a float: the firmer grey (--lk-lit, the text colour at 16%), nothing on it reversed
+                  (24 November 2026; the dark fill is kept for the one step that decides, a yes);
      fit(min,max) as big as what it holds (the owner, 24 November 2026, of a list 512 wide round names 150 wide: "much too
                   massive"): as wide as its widest line between two limits, never wider than the window, and there at once,
                   at its one size, as the Mac's menus are;
@@ -1887,7 +1889,7 @@ const TOKENS = `
      atOnce       whatever floats is there at once: no motion on its way in, so it takes one size and one place */
 Door.LOOKS = {
   line: 'font-size: var(--lk-line-size) !important; line-height: var(--lk-line-lead) !important; padding: 3px 9px 4px !important; border-radius: 6px !important; box-sizing: border-box !important; min-height: var(--lk-line-h) !important;',
-  lit: 'background: var(--lk-text) !important; color: var(--lk-paper) !important;',
+  lit: 'background: var(--lk-lit) !important;',
   going: 'text-decoration: line-through !important; text-decoration-thickness: 1.5px !important; color: var(--rx-red-10, #dc3e42) !important;',
   capsule: 'background: var(--lk-wash) !important; border: 0 !important; border-radius: 999px !important; box-shadow: none !important;',
   atOnce: 'animation: none !important;',
@@ -2153,7 +2155,7 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
    measured on a bullet's menu): lines 20px high, the icon in the quiet grey in a 16px box 4px from the words, the parts apart by
    Logseq's hairline across the whole menu (a gap outside a menu, Export's column, stays a space), a key in Logseq's key caps (Door.keyCaps). Red and faint lines keep their icon's colour. */
 .lk-menu .lk-item { font-size: var(--lk-line-size); line-height: var(--lk-line-lead); padding: 3px 9px 4px; border-radius: 6px; align-items: center; }
-.lk-menu .lk-item:not(.gap) { box-sizing: border-box; min-height: 24px; }   /* one line height, Logseq's menus' 24px, whatever stands on the line */
+.lk-menu .lk-item:not(.gap) { box-sizing: border-box; min-height: var(--lk-line-h); }   /* one line height, the same as Logseq's menus, whatever stands on the line */
 .lk-menu .lk-menu-note { padding: 3px 9px 4px; font-size: var(--lk-line-size); line-height: var(--lk-line-lead); color: var(--lk-text); max-width: 380px; white-space: normal; }
 .lk-menu .lk-item[class*="lk-i-"]::before { width: 14px; height: 14px; -webkit-mask-size: 14px; mask-size: 14px; margin-right: 4px; vertical-align: middle; background: var(--lk-quiet); }
 .lk-menu .lk-item.lk-del[class*="lk-i-"]::before, .lk-menu .lk-item.off[class*="lk-i-"]::before { background: currentColor; }
@@ -2174,10 +2176,8 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
    Relations' View and more the value and the chevron of the lit line kept their grey and were lost on the fill). One line only:
    while the pointer is on a line, the line the keyboard was on gives way to the pointer's. Never blue. */
 .lk-menu .lk-item:is(.on, :focus-visible) { background: none; }
-.lk-menu .lk-item:hover:not(.gap, .off), .lk-menu:not(:has(.lk-item:hover)) .lk-item:is(.on, :focus-visible):not(.gap, .off) { background: var(--lk-text, currentColor) !important; color: var(--lk-paper, #fff) !important; }
-:is(.lk-menu .lk-item:hover:not(.gap, .off), .lk-menu:not(:has(.lk-item:hover)) .lk-item:is(.on, :focus-visible):not(.gap, .off)) * { color: inherit !important; }
-:is(.lk-menu .lk-item:hover:not(.gap, .off), .lk-menu:not(:has(.lk-item:hover)) .lk-item:is(.on, :focus-visible):not(.gap, .off))[class*="lk-i-"]::before, :is(.lk-menu .lk-item:hover:not(.gap, .off), .lk-menu:not(:has(.lk-item:hover)) .lk-item:is(.on, :focus-visible):not(.gap, .off)) :is([class*="lk-i-"], .lk-bul)::before { background: currentColor !important; }
-:is(.lk-menu .lk-item:hover:not(.gap, .off), .lk-menu:not(:has(.lk-item:hover)) .lk-item:is(.on, :focus-visible):not(.gap, .off)) input.lk-tick[type=checkbox] { border-color: currentColor !important; }
+.lk-menu .lk-item:hover:not(.gap, .off), .lk-menu:not(:has(.lk-item:hover)) .lk-item:is(.on, :focus-visible):not(.gap, .off) { ${Door.LOOKS.lit} }
+/* Nothing on the line you are on is reversed: its icon, key, note, tick and tag keep their own colours (the owner, 24 November 2026). */
 /* A key in a menu is the Mac's marks, plain and off-grey at the line's end: no cap round it. */
 .lk-menu .lk-keys, .lk-menu .lk-keys kbd { background: none !important; border: 0 !important; box-shadow: none !important; padding: 0 !important; min-width: 0 !important; font: inherit !important; }
 .lk-menu .lk-keys { gap: 1px !important; color: var(--lk-off); }

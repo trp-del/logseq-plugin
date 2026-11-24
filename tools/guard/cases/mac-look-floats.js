@@ -2,11 +2,11 @@
    reported as checked while it lived only in a trial stylesheet laid over a test Logseq (the owner, 23 November 2026: "this is
    done?", then "you didn't write the cpde"). So, with nothing but the plugin loaded: Logseq's menu on a bullet, its ask before a
    page is deleted, a yes or no on a property, and the plugin's own menu carry the look: glass with a 10-point corner, every line
-   24 px, the line you are on filled in the text colour with its words reversed, the ask a small alert that names the page, the
+   28 px (24 until 24 November 2026), the line you are on a firmer grey with nothing on it reversed (filled in the text colour until then), the ask a small alert that names the page, the
    yes or no a switch. */
 module.exports = {
   parts: ['look', 'shared'],
-  name: 'The Mac look is in the plugin: glass menus with a filled line, the delete ask as a small alert, a yes or no as a switch',
+  name: 'The Mac look is in the plugin: glass menus with the line you are on a firmer grey, the delete ask as a small alert, a yes or no as a switch',
   from: '23 Nov: "this is done?" … "you didn\'t write the cpde"',
   graph: 'Personal Finance',
   async check(box, T) {
@@ -23,13 +23,15 @@ module.exports = {
     if (!menu) return no('Logseq\'s menu on a bullet did not open');
     if (menu.corner !== '10px' || !menu.blur) return no(`Logseq's menu on a bullet: corner ${menu.corner}, ${menu.blur ? 'glass' : 'no glass'}`);
     const heights = await page.evaluate(() => [...new Set([...document.querySelectorAll('.ui__dropdown-menu-content [role=menuitem]')].map(e => Math.round(e.getBoundingClientRect().height)))]);
-    if (heights.length !== 1 || heights[0] !== 24) return no(`the bullet menu's lines are ${heights.join(' and ')} px high, not all 24`);
+    if (heights.length !== 1 || heights[0] !== 28) return no(`the bullet menu's lines are ${heights.join(' and ')} px high, not all 28`);
     const cut = await page.evaluateHandle(() => [...document.querySelectorAll('.ui__dropdown-menu-content [role=menuitem]')].find(e => /^Cut/.test(e.textContent)));
     if (!cut.asElement()) return no('the bullet menu has no Cut line');
+    const soft = g => /(\/|,) ?0?\.1\d*\)$/.test(String(g).trim());   // the text colour at 16%
     const rest = await cut.asElement().evaluate(e => getComputedStyle(e).color);
     await cut.asElement().hover(); await T.sleep(300);
     const lit = await cut.asElement().evaluate(e => { const c = getComputedStyle(e); return { ground: c.backgroundColor, words: c.color }; });
-    if (lit.ground !== rest || lit.words === rest) return no(`the line under the pointer is ${lit.ground} with words ${lit.words}; the text colour is ${rest}`);
+    // The line you are on: the firmer grey, its words as they are (the owner, 24 November 2026: "Is the best he black selection very harsh"; "Yes C is good"). It was filled in the text colour, its words reversed.
+    if (!soft(lit.ground) || lit.words !== rest) return no(`the line under the pointer is ${lit.ground} with words ${lit.words}; the firmer grey with words ${rest} was meant`);
     await esc();
 
     // 2. The plugin's own menu, the line lit by the arrow keys.
@@ -40,8 +42,8 @@ module.exports = {
     if (own.corner !== '10px' || !own.blur) return no(`the plugin's menu: corner ${own.corner}, ${own.blur ? 'glass' : 'no glass'}`);
     await page.mouse.move(5, 300); await page.keyboard.press('ArrowDown'); await T.sleep(300);
     const mine = await page.evaluate(() => { const m = document.querySelector('.lk-door-menu'), on = m.querySelector('.lk-item.on'), other = [...m.querySelectorAll('.lk-item:not(.gap):not(.on):not(.off)')][0]; const c = on && getComputedStyle(on); return { ground: c?.backgroundColor, words: c?.color, rest: other && getComputedStyle(other).color, heights: [...new Set([...m.querySelectorAll('.lk-item:not(.gap)')].map(e => Math.round(e.getBoundingClientRect().height)))] }; });
-    if (!mine.ground || mine.ground !== mine.rest || mine.words === mine.rest) return no(`the plugin's menu line lit by the arrow keys is ${mine.ground} with words ${mine.words}; the text colour is ${mine.rest}`);
-    if (mine.heights.length !== 1 || mine.heights[0] !== 24) return no(`the plugin's menu lines are ${mine.heights.join(' and ')} px high, not all 24`);
+    if (!soft(mine.ground) || mine.words !== mine.rest) return no(`the plugin's menu line lit by the arrow keys is ${mine.ground} with words ${mine.words}; the firmer grey with words ${mine.rest} was meant`);
+    if (mine.heights.length !== 1 || mine.heights[0] !== 28) return no(`the plugin's menu lines are ${mine.heights.join(' and ')} px high, not all 28`);
     await esc();
 
     // 3. A yes or no on a property, and the ask before a page is deleted (answered with Escape: nothing is deleted).
@@ -64,6 +66,6 @@ module.exports = {
     if (!kept) return no('Mortgage was deleted though the ask was answered with Escape');
     if (ask.w !== 260 || ask.corner !== '14px' || !ask.blur || !ask.stacked) return no(`the ask is ${ask.w} px wide, corner ${ask.corner}, ${ask.blur ? 'glass' : 'no glass'}, its answers ${ask.stacked ? 'one over the other' : 'side by side'}`);
     if (!/Delete “Mortgage”\?/.test(ask.words) || !/Delete/.test(ask.yes)) return no(`the ask reads ${ask.words || 'Logseq\'s words'} / ${ask.yes || 'Confirm'}, not Delete “Mortgage”? / Delete`);
-    return { ok: true, said: 'glass menus with every line 24 px and the lit line filled, Logseq\'s and the plugin\'s; the ask a small alert naming the page, Escape cancels; the yes or no a switch' };
+    return { ok: true, said: 'glass menus with every line 28 px and the lit line on the firmer grey, Logseq\'s and the plugin\'s; the ask a small alert naming the page, Escape cancels; the yes or no a switch' };
   },
 };
