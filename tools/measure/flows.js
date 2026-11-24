@@ -57,6 +57,17 @@ const FLOWS = [
     float: PICKER, rows: '.menu-link-wrap', still: ['.ls-table-row', '.ls-table-header'], protect: [`${TICKED} .ls-table-cell`],
     faces: { 'a property’s name': '#ui__ac-inner .menu-link span[title*="property/"]' }, faceWant: { 'a property’s name': mono },
     after: async (b, H) => { await H.reset(); await H.untick(); } },
+  { name: 'move-values', graph: PF, says: 'the Move values box, from its word on the bar',
+    setup: async (b, H) => { await H.go('Bills'); await H.untick(); await H.tick(3); },
+    anchor: { sel: '.ls-table-actions button', text: 'Move values…' }, input: async (b, H) => H.bar('Move values…').click(),
+    float: ['.st-values'], still: ['.ls-table-row', '.ls-table-header'], protect: [`${TICKED} .table-block-title`],
+    after: async (b, H) => { await H.reset(); await H.untick(); } },
+  // The bin's question: Logseq's own window on main, the bar's own question since 24 November 2026. Never answered: Escape leaves.
+  { name: 'bin-ask', graph: PF, says: 'the question the bin asks before deleting the ticked rows', ms: 900,
+    setup: async (b, H) => { await H.go('Bills'); await H.untick(); await H.tick(3); },
+    input: async b => b.page.locator('.ls-table-actions button:has(.ls-icon-trash)').click(),
+    float: ['.st-bar-ask', '.ui__dialog-content'], still: ['.ls-table-row', '.ls-table-header'], protect: [`${TICKED} .table-block-title`, '.ls-table-header .ls-table-header-cell:not(:first-child)'],
+    after: async (b, H) => { await H.reset(); await b.page.locator('.ui__dialog-content button', { hasText: /^Cancel$/ }).click({ force: true, timeout: 500 }).catch(() => {}); await H.untick(); } },
   // On the page's third bullet: on its first, Predictive pencils a tag at the line's right end as [[ is typed, the words wrap
   // anew, and the list then stands where the caret was (found 24 November 2026; Predictive's to settle, measured apart).
   { name: 'link-list', graph: ILL, says: 'Logseq’s list of pages to link, after [[ on a line',
