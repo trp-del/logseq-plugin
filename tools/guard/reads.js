@@ -36,7 +36,13 @@ const once = page => page.evaluate(OWN => {
   const worded = own.filter(el => words(el).length >= 3);
   // A piece that holds words itself: no other piece of the plugin's with words inside it.
   const holdsWords = el => words(el).length >= 3 && !worded.some(o => o !== el && el.contains(o));
-  const lines = el => [...el.getClientRects()].filter(r => r.width > 1 && r.height > 1);
+  /* A line's box as far as it is drawn: what a scrolling list keeps out of sight is not on the screen, so it cannot lie over
+     anything (24 November 2026: a row half under the foot of Find's window, scrolled out by the list, was read as "words drawn
+     over" the foot's words). Each line is cut to every box above it that hides what runs past its edge. */
+  const lines = el => {
+    const clips = []; for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) { const c = getComputedStyle(p); if (/(hidden|clip|auto|scroll)/.test(c.overflowY + c.overflowX)) clips.push(p.getBoundingClientRect()); }
+    return [...el.getClientRects()].map(r => { let left = r.left, top = r.top, right = r.right, bottom = r.bottom; for (const c of clips) { left = Math.max(left, c.left); top = Math.max(top, c.top); right = Math.min(right, c.right); bottom = Math.min(bottom, c.bottom); } return { left, top, right, bottom, width: right - left, height: bottom - top }; }).filter(r => r.width > 1 && r.height > 1);
+  };
   const inOwn = el => { for (let p = el; p; p = p.parentElement) if (isOwn.has(p)) return true; return false; };
 
   // Logseq's own sizes for words on this screen, and its bullets' size and line height.
