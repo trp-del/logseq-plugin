@@ -48,10 +48,11 @@ module.exports = {
       if (s.first === false) return done({ ok: false, said: `${state}, the first row is cut at the panel's foot` });
       said.push(`${state}: ${s.names.length} names shown, the first line of choices on ${s.lines} lines`);
     }
-    // Low in the sidebar: the panel closed, the bullet's top brought to 320, the panel opened again and "amex" typed.
+    // Low in the sidebar: the panel closed (Escape puts the caret back, and a bullet being written shows a box in place of its words,
+    // so its row is looked for, not its words: run 3 of 24 November 2026 lost the bullet there), the bullet's top brought to 320, the panel opened again and "amex" typed.
     await page.keyboard.press('Escape'); await T.sleep(500);
     const low = await page.evaluate(([u, y]) => {
-      const b = document.querySelector(`#right-sidebar .ls-block[blockid="${u}"] .block-content, .cp__right-sidebar .ls-block[blockid="${u}"] .block-content`); if (!b) return null;
+      const b = document.querySelector(`#right-sidebar .ls-block[blockid="${u}"] > .block-main-container, .cp__right-sidebar .ls-block[blockid="${u}"] > .block-main-container`); if (!b) return null;
       let sc = b.parentElement; while (sc && !(sc.scrollHeight > sc.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(sc).overflowY))) sc = sc.parentElement;
       if (sc) sc.scrollTop += b.getBoundingClientRect().top - y;
       const r = b.getBoundingClientRect(); return [Math.round(r.top), r.left + 30, r.top + Math.min(r.height / 2, 12)];
@@ -66,7 +67,7 @@ module.exports = {
     await page.keyboard.type('amex', { delay: 60 }); await T.sleep(1600);
     const s = await look();
     if (!s) return done({ ok: false, said: 'the panel did not open under the sidebar bullet low in the window' });
-    const under = await page.evaluate(u => { const d = document.querySelector('dialog[open].fd.fd-panel'), b = document.querySelector(`#right-sidebar .ls-block[blockid="${u}"] .block-content, .cp__right-sidebar .ls-block[blockid="${u}"] .block-content`); return !!(d && b) && d.getBoundingClientRect().top >= b.getBoundingClientRect().top; }, uuid);
+    const under = await page.evaluate(u => { const d = document.querySelector('dialog[open].fd.fd-panel'), b = document.querySelector(`#right-sidebar .ls-block[blockid="${u}"] > .block-main-container, .cp__right-sidebar .ls-block[blockid="${u}"] > .block-main-container`); return !!(d && b) && d.getBoundingClientRect().top >= b.getBoundingClientRect().top; }, uuid);
     if (!under) return done({ ok: false, said: `the panel opened above the sidebar bullet (its top at ${low[0]}), not under it as in the hand test` });
     const where = `the bullet's top at ${low[0]}, “amex” typed`;
     const hid = s.names.filter(n => !n.ok).map(n => `“${n.text}”`);
