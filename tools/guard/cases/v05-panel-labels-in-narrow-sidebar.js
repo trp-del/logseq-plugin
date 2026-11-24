@@ -3,10 +3,14 @@
    ("kind") of the line of choices under the find line. Every line of choices shows its name, and the first row shows whole, inside
    the panel's list, at rest and with letters typed. The second hand test (24 November 2026, a thread): the bullet lower in the
    sidebar (top about 320 of 560), the panel under it short, and "amex" typed showed the find line, a gap and a row and a half, the
-   line "kind" scrolled out above; so the case also opens the panel there and types "amex". */
+   line "kind" scrolled out above; so the case also opens the panel there and types "amex". The third hand test (24 November 2026, a
+   thread, the kind line pinned): there, with about 230 px under the bullet, the first row stood faded under the pinned kind line, and
+   after Down the foot grew to three lines and no row showed at all. Where the room under the line cannot hold the find line, the
+   pinned lines, three rows and the foot on one line, the panel opens above the line, as Logseq's own pop-ups do: the case looks for
+   it above the bullet, clear of it, with the pinned lines named and three rows whole under them, before and after Down. */
 module.exports = {
   parts: ['find', 'shared'],
-  name: '0.5: in the narrow sidebar the small Find shows each line of choices with its name, and its first row whole',
+  name: '0.5: in the narrow sidebar the small Find shows each line of choices with its name, and its first row whole; low in the window it opens above the line with three rows whole',
   from: '24 Nov: Option-K hand test, the word “kind” hidden under the input in the sidebar',
   graph: 'Personal Finance',
   async check(box, T) {
@@ -70,14 +74,31 @@ module.exports = {
     await page.keyboard.type('amex', { delay: 60 }); await T.sleep(1600);
     const s = await look();
     if (!s) return done({ ok: false, said: 'the panel did not open under the sidebar bullet low in the window' });
-    const under = await page.evaluate(u => { const d = document.querySelector('dialog[open].fd.fd-panel'), b = document.querySelector(`#right-sidebar .ls-block[blockid="${u}"] > .block-main-container, .cp__right-sidebar .ls-block[blockid="${u}"] > .block-main-container`); return !!(d && b) && d.getBoundingClientRect().top >= b.getBoundingClientRect().top; }, uuid);
-    if (!under) return done({ ok: false, said: `the panel opened above the sidebar bullet (its top at ${low[0]}), not under it as in the hand test` });
-    const where = `the bullet's top at ${low[0]}, “amex” typed`;
-    const hid = s.names.filter(n => !n.ok).map(n => `“${n.text}”`);
-    if (!s.names.length) return done({ ok: false, said: `${where}, no line of choices shows in the panel` });
-    if (hid.length) return done({ ok: false, said: `${where}, the name ${hid.join(', ')} of a line of choices is out of view (panel ${s.width} wide)` });
-    if (s.first === false) return done({ ok: false, said: `${where}, the first row is cut at the panel's foot` });
-    said.push(`${where}: ${s.names.length} names shown`);
+    // Too little room under the bullet: the panel stands above it, clear of the bullet and of the window's top.
+    const side = () => page.evaluate(u => { const d = document.querySelector('dialog[open].fd.fd-panel'), b = document.querySelector(`#right-sidebar .ls-block[blockid="${u}"] > .block-main-container, .cp__right-sidebar .ls-block[blockid="${u}"] > .block-main-container`); if (!d || !b) return null; const p = d.getBoundingClientRect(), r = b.getBoundingClientRect(); return { above: p.bottom <= r.top + 0.5, top: Math.round(p.top), bottom: Math.round(p.bottom), line: Math.round(r.top) }; }, uuid);
+    // The rows shown whole under the pinned lines of choices, inside the panel's list, and how many rows there are.
+    const rowsSeen = () => page.evaluate(() => {
+      const d = document.querySelector('dialog[open].fd.fd-panel'); if (!d) return null;
+      const body = d.querySelector('.fd-body').getBoundingClientRect(), pin = d.querySelector('.fd-body > .fd-choices')?.getBoundingClientRect();
+      const from = pin ? Math.max(body.top, pin.bottom) : body.top, rows = [...d.querySelectorAll('.fd-body .fd-r')];
+      const whole = rows.filter(r => { const b = r.getBoundingClientRect(); return b.height > 0 && b.top >= from - 0.5 && b.bottom <= body.bottom + 0.5; }).length;
+      return { whole, all: rows.length, foot: (d.querySelector('.fd-foot')?.innerText || '').split('\n').filter(Boolean).length };
+    });
+    for (const [state, key] of [['“amex” typed', ''], ['“amex” typed and Down pressed', 'ArrowDown']]) {
+      if (key) { await page.keyboard.press(key); await T.sleep(900); }
+      const where = `the bullet's top at ${low[0]}, ${state}`;
+      const at = await side(), s = await look(), seen = await rowsSeen();
+      if (!at || !s || !seen) return done({ ok: false, said: `${where}, the panel was not open` });
+      if (!at.above) return done({ ok: false, said: `${where}, the panel opened under the bullet (its top at ${at.top}), where the room cannot hold three rows; it should open above the line` });
+      if (at.top < 0) return done({ ok: false, said: `${where}, the panel's top is out of the window (${at.top})` });
+      const hid = s.names.filter(n => !n.ok).map(n => `“${n.text}”`);
+      if (!s.names.length) return done({ ok: false, said: `${where}, no line of choices shows in the panel` });
+      if (hid.length) return done({ ok: false, said: `${where}, the name ${hid.join(', ')} of a line of choices is out of view (panel ${s.width} wide)` });
+      const want = Math.min(3, seen.all);
+      if (!want) return done({ ok: false, said: `${where}, the panel lists no row` });
+      if (seen.whole < want) return done({ ok: false, said: `${where}, ${seen.whole} of ${want} rows show whole under the pinned lines (the foot on ${seen.foot} lines)` });
+      said.push(`${where}: above the line, ${s.names.length} names shown, ${seen.whole} rows whole, the foot on ${seen.foot} lines`);
+    }
     return done({ ok: true, said: said.join('; ') });
   },
 };

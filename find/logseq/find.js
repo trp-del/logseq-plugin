@@ -150,12 +150,18 @@ function place() {
   // (found by script, 23 November 2026: above the last it covered the two held above it).
   const lines = (S.host?.lines || []).filter(l => l.isConnected), last = box.getBoundingClientRect(), first = lines[0]?.getBoundingClientRect() || last;
   const r = { left: first.left, width: last.width, top: first.top, bottom: last.bottom };
-  /* Under the line whenever a usable panel fits there, shorter if it must be: above, it would cover what was just written (tried by
-     hand, 22 November 2026: on a line low in the window it stood over the page's title and the window's top). Above only when
-     under has no room for the find line and two rows; never over Logseq's header, which is the window's drag handle. */
+  /* Under the line whenever the panel can be read there: the find line, its pinned lines of choices, three rows whole and the foot
+     on one line. Where the room under the line cannot hold that, it opens above the line, as Logseq's own pop-ups do (tried by hand,
+     24 November 2026: under a bullet low in the sidebar, about 230 px from the window's foot, the first row stood faded under the
+     pinned kind line and, the foot grown to three lines, no row showed at all). Where neither side holds it, the side with more
+     room. Once above, it stays above while it is open, so it never jumps across the line; never over Logseq's header, which is the
+     window's drag handle. */
   const band = dragBand(S.doc), below = win.innerHeight - r.bottom - 12, above = r.top - 8 - band;
-  const under = below >= Math.min(h, PANEL_FRAME + 2 * ROW) || below >= above;
-  const height = Math.max(150, Math.min(h + (S.host?.grow || 0), under ? below : above));
+  const need = panelNeed(d, false), under = S.host.side !== 'above' && (below >= need || below >= above);
+  S.host.side = under ? 'under' : 'above';
+  // As high as the rows need with the foot as it stands (it can wrap), grown only, never shrunk while open.
+  S.host.tall = Math.max(S.host.tall || 0, panelNeed(d, true));
+  const height = Math.max(150, Math.min(Math.max(h + (S.host?.grow || 0), S.host.tall), under ? below : above));
   const set = (k, v) => d.style.setProperty(k, v, 'important');
   // Its width kept inside the window: a bullet in the right sidebar starts near the window's edge (found by script, 23 November 2026:
   // the panel ran past the right edge, its rows cut).
@@ -163,6 +169,18 @@ function place() {
   set('left', left + 'px'); set('right', 'auto'); set('width', width + 'px');
   set('top', Math.round(under ? r.bottom + 4 : Math.max(band, r.top - height - 4)) + 'px'); set('bottom', 'auto');
   d.style.height = height + 'px';
+}
+/* The height the panel needs to be read: its find line, its pinned lines of choices (two lines at least, as typing brings the
+   line "kind of the new page", so the side chosen at the opening holds when it comes), three rows whole, and the foot on one line,
+   or the foot as it stands when asked (asFoot). Measured from the panel as drawn. */
+function panelNeed(d, asFoot) {
+  const view = S.doc.defaultView, px = (e, k) => e ? parseFloat(view.getComputedStyle(e)[k]) || 0 : 0;
+  const find = d.querySelector('.fd-find'), body = d.querySelector('.fd-body'), foot = d.querySelector('.fd-foot');
+  const choices = body?.querySelector(':scope > .fd-choices'), line = choices?.querySelector(':scope > .lk-ch')?.getBoundingClientRect().height || ROW;
+  const pinned = Math.max(choices?.getBoundingClientRect().height || 0, 2 * line);
+  const oneLine = px(foot, 'paddingTop') + px(foot, 'paddingBottom') + px(foot, 'borderTopWidth') + (px(foot, 'lineHeight') || 20);
+  const footH = asFoot && foot?.textContent ? Math.max(foot.getBoundingClientRect().height, oneLine) : oneLine;
+  return Math.ceil((find?.getBoundingClientRect().height || 52) + pinned + px(body, 'paddingTop') + px(body, 'paddingBottom') + 3 * ROW + footH);
 }
 /* The panel grown, never shrunk while it is open, until its first row shows whole under the lines of choices: in the narrow sidebar
    the kinds wrap onto two lines and the foot onto two, and the first row, scrolled into view, hid the word "kind" under the find line
@@ -697,6 +715,7 @@ function render() {
   const cur = body.querySelector(S.mode === 'choices' ? `[data-c="${S.choiceAt}"]` : `.fd-r[data-i="${S.rowAt}"]`);
   cur?.scrollIntoView?.({ block: 'nearest' });
   drawFoot(groups, rows);
+  if (S.host) place();   // the foot as drawn (it wraps in the narrow sidebar) is part of the panel's height
   // What was just opened rolls out (a dug node once it is read, a group's nodes), so the rows under it glide down.
   // A node not read yet first shows "reading…", rolled out; what it holds then grows on from there.
   if (S.unroll) {
