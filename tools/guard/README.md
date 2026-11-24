@@ -29,8 +29,9 @@ Each of these happened more than once before the guard:
    `node tools/guard/guard.js run --change <your folder> --expect "tag with a table,row view, a row pressed"`
    (`guard.js screens` lists the screens). It starts four Logseqs of its own at once (ports 9340 to 9343; `GUARD_SHARDS` sets
    the number), each with its share of the screens and cases on your folder, compares them with the pictures and case results
-   of origin/main (each screen and each case kept on its own, so a new case is run alone on the plugin as it was and nothing
-   kept is taken again; `guard.js baseline` takes them ahead), and writes a page with each difference marked in red, before
+   of origin/main (the screens kept from one walk of the whole tour, each case kept on its own, so a new case is run alone on
+   the plugin as it was and nothing kept is taken again; `guard.js baseline` takes them ahead; a graph's screens stay in one
+   Logseq in the tour's order, only the cases are shared out), and writes a page with each difference marked in red, before
    and after. The whole tour and every case: about four minutes on a Mac with 8 GB (24 November 2026: 27 screens and 60 cases
    are fourteen minutes of work for one Logseq, most of it the cases' own waits; before the work was shared out and kept
    piece by piece a release check took sixteen to thirty).
