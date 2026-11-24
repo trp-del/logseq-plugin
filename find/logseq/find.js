@@ -28,7 +28,7 @@ const CSS = `
 /* Over held bullets the panel does what Logseq's selection bar does (a tag for them all), so the bar steps back while it is open
    (found by script, 23 November 2026: the bar stood over the panel's foot, the words of what Enter does). */
 html[data-lk-held-panel] .ui__popover-content:has(> .selection-action-bar), html[data-lk-held-panel] .selection-action-bar { visibility: hidden !important; }
-.fd.fd-panel { transform: none; max-height: none; z-index: 99; line-height: 1.5; }   /* its edge and shadow are the library's pop-up, lk-pop */
+.fd.fd-panel { transform: none; max-height: none; z-index: 1000; line-height: 1.5; }   /* its edge and shadow are the library's pop-up, lk-pop; over Logseq's help button (999), which stood on the foot's keys where the panel reached the window's corner, under Logseq's own pop-ups (99999) */
 .fd * { box-sizing: border-box; }
 /* The find line: the pieces, then the letters. */
 .fd-find { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; padding: 14px 16px; border-bottom: 1px solid var(--lk-hair); font-size: 16px; cursor: text; }
