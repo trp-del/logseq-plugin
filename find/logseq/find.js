@@ -162,13 +162,24 @@ function place() {
 }
 /* The panel grown, never shrunk while it is open, until its first row shows whole under the lines of choices: in the narrow sidebar
    the kinds wrap onto two lines and the foot onto two, and the first row, scrolled into view, hid the word "kind" under the find line
-   (found by hand, 24 November 2026). As high as the room the window has, as place() allows. */
-function fitPanel(body) {
-  const h = S.host; if (!h || !body) return;
-  const pad = parseFloat(S.doc.defaultView.getComputedStyle(body).paddingBottom) || 0, first = body.querySelector('.fd-r');
-  const bottom = first ? first.getBoundingClientRect().bottom - body.getBoundingClientRect().top + body.scrollTop + pad : body.scrollHeight;
-  const need = Math.ceil(bottom - body.clientHeight);
-  if (need > 0) { h.grow = (h.grow || 0) + need; place(); }
+   (found by hand, 24 November 2026). As high as the room the window has, as place() allows; where that is not enough, a line of
+   choices that wraps keeps fewer of them before its "more", so it stands on one line, as the panel is meant (PANEL_FRAME). Says
+   whether the choices must be drawn again. */
+function fitPanel(body, groups) {
+  const h = S.host; if (!h || !body) return false;
+  const need = () => { const pad = parseFloat(S.doc.defaultView.getComputedStyle(body).paddingBottom) || 0, first = body.querySelector('.fd-r');
+    return Math.ceil((first ? first.getBoundingClientRect().bottom - body.getBoundingClientRect().top + body.scrollTop + pad : body.scrollHeight) - body.clientHeight); };
+  let more = need();
+  if (more > 0) { h.grow = (h.grow || 0) + more; place(); more = need(); }
+  if (more <= 0) return false;
+  const lines = [...body.querySelectorAll('.fd-choices > .lk-ch')];
+  for (let i = 0; i < lines.length; i++) {
+    const g = groups[i], key = g?.key; if (!key || !(key === 'kind' || key.startsWith('p:')) || g.tree || S.moreOf.has(key)) continue;
+    const tops = new Set([...lines[i].querySelectorAll('.lk-cv > *')].map(v => Math.round(v.getBoundingClientRect().top)));
+    const shown = g.items.filter(c => !c.more).length;
+    if (tops.size > 1 && shown > 1) { h.cut = { ...(h.cut || {}), [key]: shown - 1 }; return true; }
+  }
+  return false;
 }
 const words = () => S.words;
 const isCommandMode = () => S.typed.startsWith('>');
@@ -322,7 +333,7 @@ function choiceGroups() {
   const trail = S.trail, typed = trail.length > 0;
   const matches = label => typed && trail.every(w => label.toLowerCase().split(/[\s,./()-]+/).some(l => l.startsWith(w)) || label.toLowerCase().startsWith(w));
   const tag = kindPick();
-  const limit = key => S.moreOf.has(key) ? 999 : 3;
+  const limit = key => S.moreOf.has(key) ? 999 : Math.min(3, S.host?.cut?.[key] ?? 3);   // fewer where the panel has no room (fitPanel)
   /* In the panel with nothing typed, the first line is the tags the bullet could be, Predictive's own guesses with their reasons
      (0.5, the owner: the tag list goes "Into the panel"). One line, so the kinds wait until letters come. */
   if (S.host?.kinds?.length && newName(S.shown.slice(0, rowsShown()))) {
@@ -674,7 +685,7 @@ function render() {
   });
   if (!tailed) tail();
   else if (S.nearShown.length > NEAR_SHOWN && !S.nearAll) body.append(el(doc, 'button', { class: 'fd-showall lk-more', type: 'button', click: () => { S.nearAll = true; render(); } }, `show all ${S.nearShown.length}`));
-  fitPanel(body);
+  if (fitPanel(body, groups)) return render();
   body.scrollTop = scrollTop;
   const cur = body.querySelector(S.mode === 'choices' ? `[data-c="${S.choiceAt}"]` : `.fd-r[data-i="${S.rowAt}"]`);
   cur?.scrollIntoView?.({ block: 'nearest' });
