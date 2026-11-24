@@ -31,7 +31,9 @@ module.exports = {
       return { over: !!top?.closest?.('.fd-panel'), top: (top?.className || top?.tagName || '').toString().slice(0, 40) };
     });
     if (got.none) return done({ ok: false, said: got.none });
-    if (got.apart) return done({ ok: false, said: got.apart + ', not the place this case is about' });
+    // Since 24 November 2026 the small Find is at most 460 wide ("much too massive"), so under a line of the page it ends short of the
+    // corner: the button stands on nothing of the panel's, which is what the complaint asked. Where the two still meet, the panel is on top.
+    if (got.apart) return done({ ok: true, said: got.apart + ': the button stands clear of the foot\'s keys' });
     if (!got.over) return done({ ok: false, said: `Logseq's help button stands on top of the small Find (${got.top})` });
     return done({ ok: true, said: 'where they meet, the small Find stands over Logseq\'s help button' });
   },

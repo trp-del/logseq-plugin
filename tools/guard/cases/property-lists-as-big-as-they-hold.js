@@ -16,7 +16,7 @@ module.exports = {
     await T.go(page, 'Dr. Mei Chen'); await T.sleep(2000);
     const add = page.getByText('Add property', { exact: true }).first();
     if (!await add.count()) return { ok: false, said: 'Dr. Mei Chen shows no “Add property”' };
-    const read = () => page.evaluate(() => { const e = document.querySelector('.ui__popover-content:has(.ls-property-dialog)'); if (!e) return null; const r = e.getBoundingClientRect(), rows = [...e.querySelectorAll('.menu-link')].filter(a => a.checkVisibility()); return { side: e.dataset.side, w: Math.round(r.width), h: Math.round(r.height), rows: rows.length, heights: [...new Set(rows.slice(0, 8).map(a => Math.round(a.getBoundingClientRect().height)))], anim: getComputedStyle(e).animationName, pads: rows.slice(0, 12).map(a => Math.round(parseFloat(getComputedStyle(a.closest('.menu-link-wrap')).paddingLeft))), first: rows[0]?.textContent.trim() }; });
+    const read = () => page.evaluate(() => { const e = document.querySelector('.ui__popover-content:has(.ls-property-dialog)'); if (!e) return null; const r = e.getBoundingClientRect(), rows = [...e.querySelectorAll('.menu-link')].filter(a => a.checkVisibility()); return { side: e.dataset.side, w: Math.round(r.width), h: Math.round(r.height), rows: rows.length, heights: [...new Set(rows.slice(0, 8).map(a => Math.round(a.getBoundingClientRect().height)))], anim: getComputedStyle(e).animationName, pads: rows.map(a => Math.round(parseFloat(getComputedStyle(a.closest('.menu-link-wrap')).paddingLeft))), first: rows[0]?.textContent.trim() }; });
     await add.click(); await T.sleep(900);
     let r = await read();
     if (!r) { await clean(); return { ok: false, said: 'the list of properties did not open' }; }

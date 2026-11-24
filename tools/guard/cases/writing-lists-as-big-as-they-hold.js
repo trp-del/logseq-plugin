@@ -27,7 +27,7 @@ module.exports = {
         const r = el.getBoundingClientRect(), line = ta.getBoundingClientRect(), words = [...el.querySelectorAll('.menu-link')].map(a => { const g = document.createRange(); g.selectNodeContents(a); return g.getBoundingClientRect().width; });
         res({ sizes: [...sizes], w: r.width, h: r.height, left: r.left, right: innerWidth - r.right, bottom: innerHeight - r.bottom,
           over: Math.max(0, Math.min(r.bottom, line.bottom) - Math.max(r.top, line.top)) > 0.5 && Math.min(r.right, line.right) - Math.max(r.left, line.left) > 0.5,
-          gap: r.top >= line.bottom - 1 ? r.top - line.bottom : line.top - r.bottom, rows: [...new Set([...el.querySelectorAll('.menu-link')].map(a => Math.round(a.getBoundingClientRect().height)))], lines: words.length });
+          gap: r.top >= line.bottom - 1 ? r.top - line.bottom : line.top - r.bottom, rows: [...new Set([...el.querySelectorAll('.menu-link')].filter(a => a.checkVisibility()).map(a => Math.round(a.getBoundingClientRect().height)))], lines: words.length });
       };
       requestAnimationFrame(tick);
     });
