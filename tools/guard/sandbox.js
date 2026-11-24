@@ -6,7 +6,8 @@
      … box.page, box.frame() …
      await sandbox.stop(box)
 
-   Ports from GUARD_PORT, 9340 by default, one more for each graph run at the same time (9340, 9341); the owner's Logseq keeps 9222,
+   Ports from GUARD_PORT, 9340 by default: one for each test graph (9340, 9341), then one for each further Logseq a side shares its
+   work among (9342 to 9347; guard.js); the owner's Logseq keeps 9222,
    the audit 9333, other threads 9334–9336, 9444, 9555–9556.
    Graph copies come from GUARD_GRAPHS (folders of graphs, colon-separated), else ~/logseq-test-graphs/graphs and ~/logseq/graphs,
    newest backup first, which Logseq writes whole and never holds locked. */
@@ -113,8 +114,9 @@ async function started(page) {
   if (!parts) throw new Error('the plugin loaded but none of its parts started');
   return { frame, parts };
 }
-async function warm({ store, graph, plugin, port = PORT }) {
-  const dir = path.join(store, 'warm', slug(graph)), own = path.join(dir, 'plugin'), meta = path.join(dir, 'meta.json'), stamp = path.join(dir, 'used');
+async function warm({ store, graph, plugin, port = PORT, index = 0 }) {
+  // A graph may have several Logseqs at once (guard.js shares the screens and cases out): each its own folder and port.
+  const dir = path.join(store, 'warm', slug(graph) + (index ? '-' + (index + 1) : '')), own = path.join(dir, 'plugin'), meta = path.join(dir, 'meta.json'), stamp = path.join(dir, 'used');
   const want = graphHash(graph);
   let had = null; try { had = JSON.parse(fs.readFileSync(meta, 'utf8')); } catch (e) { /* first time */ }
   copyPlugin(plugin, own);
@@ -153,15 +155,16 @@ async function leave(box) { fs.writeFileSync(path.join(box.dir, 'used'), String(
 // For `guard.js stop`: whatever answers on the guard's port, and only that.
 async function stopAny(store) {
   const said = [];
-  for (const port of [PORT, PORT + 1]) {
-    if (!(await up(port))) { said.push('nothing ran on ' + port); continue; }
+  // The guard's ports: one for each test graph, then the further Logseqs a side shares its work among (eight at most).
+  for (const port of Array.from({ length: 8 }, (_, i) => PORT + i)) {
+    if (!(await up(port))) { if (port < PORT + 2) said.push('nothing ran on ' + port); continue; }
     const { chromium } = require('playwright');
     const browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`, { timeout: 8000 }).catch(() => null);
     await stop({ port, browser: browser || { newBrowserCDPSession: async () => { throw new Error('no'); } } });
     said.push((await up(port)) ? 'still answering on ' + port : 'stopped on ' + port);
   }
   // And the graph workers those Logseqs left, whether or not a window still answered: only the ones in the guard's own folder.
-  const ended = store ? endWorkers(path.join(store, 'warm') + path.sep) + endWorkers(path.join(store, 'runs') + path.sep) : 0;
+  const ended = store ? endWorkers(path.join(store, 'warm') + path.sep) + endWorkers(path.join(store, 'runs') + path.sep) + endWorkers(path.join(store, 'kept') + path.sep) : 0;
   if (ended) said.push(`ended ${ended} graph worker${ended > 1 ? 's' : ''} left behind`);
   return said.join('; ');
 }

@@ -55,7 +55,7 @@ One command, from your own copy of the plugin (`logseq-workspace/work/<name>/`):
 ```
 node tools/check.js                      # the change in this folder against GitHub's main: seconds
 node tools/check.js --expect "Todo"      # the same, naming the screens the change means to alter
-node tools/check.js --release            # everything, before a release: under two minutes
+node tools/check.js --release            # everything, before a release: about four minutes on a Mac with 8 GB (it says where its time went)
 ```
 
 It checks six things, each for something that really went wrong here (19 November 2026; the checks before that day took a
@@ -71,8 +71,8 @@ quarter of an hour and two of them failed on an unchanged plugin):
 | logseq | what the plugin relies on in Logseq is still there; its lines of words measure as Logseq's bullets do | `test/logseq-contract.js`, `tools/logseq-contract-app.js`, `reads.js` |
 
 A change is checked only where it can reach: the parts whose files changed pick the logic checks, the screens and the cases
-(`tools/check.js` holds the list). The guard's own Logseq (ports 9340 and 9341, its own home and copies of the test graphs) stays
-running between checks and ends by itself after twenty idle minutes; `node tools/guard/guard.js stop` ends it at once.
+(`tools/check.js` holds the list). The guard's own Logseqs (ports 9340 to 9343: four at once on a Mac with 8 GB, each with its share of the screens and cases, its own home and a copy of a test graph) stay
+running between checks and end by themselves after twenty idle minutes; `node tools/guard/guard.js stop` ends them at once.
 
 **After a Logseq update**, before using the plugin: `node test/logseq-contract.js` fails as soon as Logseq's version is not the one
 last checked. Run `node tools/check.js --release`, look at the plugin in Logseq, then `node test/logseq-contract.js --accept`.

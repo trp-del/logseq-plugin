@@ -133,7 +133,7 @@ const layout = page => page.evaluate(([OWN, MAIN]) => {
 }, [OWN, MAIN]);
 
 /* Runs the tour on one graph in a started sandbox (sandbox.js) and writes into dir/<file>.png and returns the records. */
-async function tour(box, outDir, only) {
+async function tour(box, outDir, only, took) {
   fs.mkdirSync(outDir, { recursive: true });
   box.cdp = box.cdp || await box.page.context().newCDPSession(box.page);
   const said = []; box.page.on('console', m => { if (m.type() === 'error') said.push(m.text().slice(0, 300)); });
@@ -191,6 +191,7 @@ async function tour(box, outDir, only) {
     } catch (e) { rec.failed = String(e && e.message || e).slice(0, 200); }
     rec.console = said.slice(from).filter(t => !/net::ERR_|ERR_NAME_NOT_RESOLVED|ERR_INTERNET_DISCONNECTED/.test(t));
     T.all = Date.now() - t0; if (process.env.GUARD_TIME) console.log('    ' + JSON.stringify(T));
+    if (took && !rec.failed) took['screen ' + name] = Math.round(T.all / 100) / 10;   // for sharing the screens out next time (guard.js)
     records.push(rec);
     console.log(`  ${rec.failed ? 'FAILED ' : ''}${name}${rec.failed ? ': ' + rec.failed : ''}`);
   }
