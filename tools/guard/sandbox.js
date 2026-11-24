@@ -139,6 +139,9 @@ async function warm({ store, graph, plugin, port = PORT, index = 0 }) {
     } catch (e) { console.log(`the running test Logseq on ${port} did not take the plugin (${String(e && e.message || e).slice(0, 80)}): starting it afresh`); }
   }
   if (await up(port)) await stop({ port, home: had && had.home, browser: { newBrowserCDPSession: async () => { throw new Error('none'); } } });
+  /* A Logseq this folder started earlier on another port (24 November 2026: the plan of who takes which port changed between two
+     checks, the folder was emptied under a Logseq still running in it, and the check stopped): ended by its own profile folder. */
+  try { execFileSync('pkill', ['-9', '-f', `--user-data-dir=${path.join(dir, 'profile')}`]); await sleep(800); } catch (e) { /* none ran */ }
   // A worker left by a Logseq that is gone (its window closed, the check stopped halfway) still holds this folder: ended before the folder is made anew.
   if (endWorkers(path.join(dir, 'home'))) await sleep(500);
   for (const f of ['home', 'profile']) fs.rmSync(path.join(dir, f), { recursive: true, force: true });

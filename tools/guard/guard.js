@@ -59,9 +59,10 @@ function shares(graphs, screenNames, caseList, extras = []) {
     const most = work.filter(w => total(w) / n.get(w.graph) > 40 && n.get(w.graph) < w.items.length + (w.screens.length ? 1 : 0)).sort((x, y) => total(y) / n.get(y.graph) - total(x) / n.get(x.graph))[0];
     if (!most) break; n.set(most.graph, n.get(most.graph) + 1);
   }
-  const out = []; let extra = 0;
+  const out = [];
   for (const w of work) {
-    const boxes = Array.from({ length: n.get(w.graph) }, (_, i) => ({ graph: w.graph, index: i, port: require('./sandbox').PORT + (i === 0 ? GRAPHS.indexOf(w.graph) : GRAPHS.length + extra++), screens: [], cases: [], secs: 0 }));
+    // A Logseq's port follows its graph and its place among that graph's Logseqs, whatever the plan: a kept Logseq is found again on it.
+    const boxes = Array.from({ length: n.get(w.graph) }, (_, i) => ({ graph: w.graph, index: i, port: require('./sandbox').PORT + GRAPHS.indexOf(w.graph) + GRAPHS.length * i, screens: [], cases: [], secs: 0 }));
     // The checks that need the running app (check.js asks for them) go to the first Logseq of the first test graph, counted in its share.
     if (w.graph === GRAPHS[0] && extras.length) { boxes[0].extras = extras; boxes[0].secs += extras.reduce((n, x) => n + cost('in-app ' + x.name, x.secs), 0); }
     boxes[0].screens = w.screens; boxes[0].secs += tourSecs(w.graph);
