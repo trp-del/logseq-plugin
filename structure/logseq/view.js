@@ -311,7 +311,7 @@ ${ROW} > .block-children-container > .block-children-left-border { display: none
 .st-values .tv-pv { border-top: 1px solid var(--lk-hair); margin-top: 10px; }
 .st-values .tv-n { margin-top: 10px; } .st-values .tv-nh { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; }
 .st-values .tv-rows { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 2px 14px; align-items: baseline; padding-left: 14px; margin-top: 2px; }
-.st-values .tv-v { min-width: 0; overflow-wrap: anywhere; } .st-values .lk-coming .lk-node, .st-values .lk-node.lk-coming { color: inherit; }
+.st-values .tv-v { min-width: 0; overflow-wrap: anywhere; }
 .st-values .tv-more, .st-values .tv-none { margin-top: 8px; } .st-values .tv-none { color: var(--lk-quiet); }
 .st-values .lk-answers { margin-top: 12px; }
 .st-q .lk-answers { margin-top: 6px; } .st-q .lk-hint { white-space: normal; }
