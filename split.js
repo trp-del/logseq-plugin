@@ -397,9 +397,10 @@ Door.split = {
   onChange: fn => { heard.add(fn); return () => heard.delete(fn); },
 };
 Door.rootSchema = [...(Door.rootSchema || []), { key: 'splitHeading', type: 'heading', default: null, title: 'Two pages side by side', description: '' }, ...SCHEMA];
+const standing = Door.described.plugin || {};   // what the library itself says under the plugin's name (the Mac's symbols, plugin.js)
 Door.describe('plugin', {
-  schema: [{ type: 'heading', title: 'Two pages side by side', place: 'following' }, { ...SCHEMA[0], looks: ['Goes to the page', 'Opens beside'] }],
-  specimen: (item, on) => on
+  schema: [...(standing.schema || []), { type: 'heading', title: 'Two pages side by side', place: 'following' }, { ...SCHEMA[0], looks: ['Goes to the page', 'Opens beside'] }],
+  specimen: (item, on) => item.key !== SCHEMA[0].key ? standing.specimen?.(item, on) || '' : on
     ? '<span style="display:grid;grid-template-columns:1fr 1fr"><span style="padding-right:12px;border-right:1px solid var(--lk-hair)"><span class="sw-big">Fatigue</span><br><span class="lk-node">Dr. Mei Chen</span></span><span style="padding-left:12px"><span class="sw-big">Dr. Mei Chen</span><br><span class="sw-faintw">opened beside</span></span></span>'
     : '<span class="sw-big">Dr. Mei Chen</span><br><span class="sw-faintw">Fatigue gave way to it, as a click does</span>',
 });
