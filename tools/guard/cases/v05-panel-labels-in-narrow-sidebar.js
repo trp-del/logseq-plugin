@@ -17,7 +17,10 @@ module.exports = {
     await box.cdp.send('Emulation.setDeviceMetricsOverride', { width: 700, height: 560, deviceScaleFactor: 1, mobile: false });
     await T.go(page, 'Amex Gold'); await T.sleep(1200);
     await T.inSidebar(box, 'Chase Checking'); await T.sleep(1500);
-    const uuid = await f.evaluate(async () => { const p = await logseq.Editor.getPage('Chase Checking'); return (await logseq.Editor.appendBlockInPage(p.uuid, 'GUARDNARROWKIND paid the card at')).uuid; });
+    const uuid = await f.evaluate(async () => { const p = await logseq.Editor.getPage('Chase Checking'); const b = await logseq.Editor.appendBlockInPage(p.uuid, 'GUARDNARROWKIND paid the card at');
+      // Bullets under it, so the sidebar can bring it up to where the hand test had it (its top about 320 of 560).
+      for (let i = 1; i <= 8; i++) await logseq.Editor.appendBlockInPage(p.uuid, 'GUARDNARROWKIND after ' + i);
+      return b.uuid; });
     await T.sleep(900);
     const at = await page.evaluate(u => { const b = document.querySelector(`#right-sidebar .ls-block[blockid="${u}"] .block-content, .cp__right-sidebar .ls-block[blockid="${u}"] .block-content`); if (!b) return null; b.scrollIntoView({ block: 'center' }); const r = b.getBoundingClientRect(); return [r.left + 30, r.top + Math.min(r.height / 2, 12)]; }, uuid);
     if (!at) return done({ ok: false, said: 'the new bullet did not show in the right sidebar' });
@@ -54,6 +57,7 @@ module.exports = {
       const r = b.getBoundingClientRect(); return [Math.round(r.top), r.left + 30, r.top + Math.min(r.height / 2, 12)];
     }, [uuid, 320]);
     if (!low) return done({ ok: false, said: 'the sidebar bullet was gone after the panel closed' });
+    if (Math.abs(low[0] - 320) > 24) return done({ ok: false, said: `the sidebar bullet could not be brought to the hand test's place (its top at ${low[0]}, not about 320)` });
     await T.sleep(500); await page.mouse.click(low[1], low[2]); await T.sleep(700);
     await page.keyboard.press('End'); await T.sleep(200);
     const still = await page.evaluate(() => !!document.activeElement?.closest?.('#right-sidebar, .cp__right-sidebar') && document.activeElement.tagName === 'TEXTAREA');
@@ -62,6 +66,8 @@ module.exports = {
     await page.keyboard.type('amex', { delay: 60 }); await T.sleep(1600);
     const s = await look();
     if (!s) return done({ ok: false, said: 'the panel did not open under the sidebar bullet low in the window' });
+    const under = await page.evaluate(u => { const d = document.querySelector('dialog[open].fd.fd-panel'), b = document.querySelector(`#right-sidebar .ls-block[blockid="${u}"] .block-content, .cp__right-sidebar .ls-block[blockid="${u}"] .block-content`); return !!(d && b) && d.getBoundingClientRect().top >= b.getBoundingClientRect().top; }, uuid);
+    if (!under) return done({ ok: false, said: `the panel opened above the sidebar bullet (its top at ${low[0]}), not under it as in the hand test` });
     const where = `the bullet's top at ${low[0]}, “amex” typed`;
     const hid = s.names.filter(n => !n.ok).map(n => `“${n.text}”`);
     if (!s.names.length) return done({ ok: false, said: `${where}, no line of choices shows in the panel` });
