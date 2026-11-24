@@ -33,8 +33,16 @@ function digChev(key, uuid, id, title, open = state.dig.has(key)) {
   if (!isUuid(uuid) || (!open && !holdsMore(uuid, key))) return '';
   return O.chev({ open, label: title, attrs: { 'data-dig': key, 'data-uuid': uuid, 'data-id': id ? String(id) : null, 'data-title': title } });
 }
+/* On a ground (the owner, 23 November 2026, picture 1A: the node opened under a line "is unclear", it read as more of the outline):
+   where the place that holds this node asks for it (data-lk-ground on the holder; Find's node under a line does), the node has no
+   guide line from the margin, and a node opened inside it lies on one more layer of the library's ground (lk-ground), its top line
+   saying its place (Look fills it) and holding the close ×, with the name that was opened lit (lk-opened). Elsewhere, as before. */
+const grounded = () => !!twoWay.pane?.root?.(host())?.hasAttribute?.('data-lk-ground');
+const groundTop = (key, uuid) => `<div class="lk-ground-top"><span data-lk-place="${esc(uuid)}"></span><button type="button" class="lk-close lk-i-x" data-dig="${esc(key)}" data-uuid="${esc(uuid)}" aria-label="Close ${esc(twoWay.shortName(titleOf(uuid)))}" title="Close"></button></div>`;
+const lit = (html, open) => (open && grounded() ? html.replace('th-ol-open', 'th-ol-open lk-opened') : html);
 // What an opened node holds, under its name; the hairline starts at the chevron of its line ('day', 'prop', 'back', '').
-function digKids(key, uuid, from) {
+// node: it is a node opened from its name (a value, a node that links here), not a bullet's own children: on a ground it gets its layer.
+function digKids(key, uuid, from, node = false) {
   const data = state.node.get(uuid);
   if (!data) return '';
   const fresh = state.fresh === key;
@@ -43,7 +51,8 @@ function digKids(key, uuid, from) {
   const adding = state.addProp?.uuid === uuid && state.addProp.key === key ? state.addProp.prop.title.length : 0;
   const longest = Math.max(adding, ...data.props.filter(r => r.values.length || state.emptyOpen.has(key) || data.guesses.has(r.prop.ident)).map(r => r.prop.title.length), ...data.rows.map(g => String(g.label || '').length));
   const name = `clamp(7em, calc(${longest} * .6em + 58px), 16em)`;   // the letters, the kind's mark and its gap, the fold arrow's room ("Provider" took two lines at .56em + 42px, 11 November 2026)
-  return O.kids({ html: nodeHtml(uuid, key, data), from, fresh, attrs: { 'data-key': key, style: `--th-tw-name: ${name}` } });
+  const on = grounded(), top = on && key.startsWith('node>') && !key.slice(5).includes('>');
+  return O.kids({ html: (on && node ? groundTop(key, uuid) : '') + nodeHtml(uuid, key, data), from, fresh, cls: on && node ? 'th-ol-bare th-tw-ground lk-ground' : top ? 'th-ol-bare' : '', attrs: { 'data-key': key, style: `--th-tw-name: ${name}` } });
 }
 /* Whether a node, opened at this place, would show anything beyond what its line says (10 November 2026, the owner's yes to
    the audit's "opens to an empty box": as in Logseq, a node with nothing under it has no fold arrow). Unread, it is
@@ -109,8 +118,8 @@ function nodeHtml(uuid, key, data, asTop = false, field = true) {
       // appear next"): a value that is a node is a bullet, its fold arrow before it, as on a page's own properties.
       const vchev = isUuid(v.uuid) ? digChev(k, v.uuid, v.id, v.text, open) : '';
       const vdot = isUuid(v.uuid) ? O.dot(false, { uuid: v.uuid, closed: !open && !!vchev, title: v.text }) : '';
-      const line = O.prop({ kind, many: prop.many, name: i ? '' : prop.title, nameAttrs: i ? null : nameAttrs, cls: found, chev: vchev || (vdot ? O.room() : ''), value: `${vdot}<span class="th-ol-body">${isUuid(v.uuid) ? twoWay.nameHtml(item, open) : esc(v.text)}</span>` });
-      html += open ? O.unit({ html: line + digKids(k, v.uuid, 'prop'), focus: state.focus === k, attrs: { 'data-key': k } }) : line;
+      const line = O.prop({ kind, many: prop.many, name: i ? '' : prop.title, nameAttrs: i ? null : nameAttrs, cls: found, chev: vchev || (vdot ? O.room() : ''), value: `${vdot}<span class="th-ol-body">${isUuid(v.uuid) ? lit(twoWay.nameHtml(item, open), open) : esc(v.text)}</span>` });
+      html += open ? O.unit({ html: line + digKids(k, v.uuid, 'prop', true), focus: state.focus === k, attrs: { 'data-key': k } }) : line;
     });
   }
   if (onlyFound) return html + O.more({ text: 'show the rest', attrs: { 'data-findall': key } });
@@ -145,8 +154,8 @@ function nodeHtml(uuid, key, data, asTop = false, field = true) {
       shownItems.forEach((item, i) => {
         const k = `${key}>${item.uuid}`, open = state.dig.has(k);
         twoWay.lineDay.set(k, twoWay.dayCell(item));
-        const line = O.line({ dot: { uuid: item.uuid, closed: !open && twoWay.hasKids(item.uuid), title: twoWay.shortName(item.title) }, chev: digChev(k, item.uuid, 0, twoWay.shortName(item.title), open), day: days[i] || (dated ? '' : null), body: `${twoWay.nameHtml(item, open)}${O.from(days[i])}${!open && twoWay.hasKids(item.uuid) ? O.held(item.uuid) : ''}` });
-        lines += open ? O.unit({ html: line + digKids(k, item.uuid, 'in'), focus: state.focus === k, attrs: { 'data-key': k } }) : line;
+        const line = O.line({ dot: { uuid: item.uuid, closed: !open && twoWay.hasKids(item.uuid), title: twoWay.shortName(item.title) }, chev: digChev(k, item.uuid, 0, twoWay.shortName(item.title), open), day: days[i] || (dated ? '' : null), body: `${lit(twoWay.nameHtml(item, open), open)}${O.from(days[i])}${!open && twoWay.hasKids(item.uuid) ? O.held(item.uuid) : ''}` });
+        lines += open ? O.unit({ html: line + digKids(k, item.uuid, 'in', true), focus: state.focus === k, attrs: { 'data-key': k } }) : line;
       });
       if (items.length > twoWay.INLINE) lines += O.more({ text: all ? 'show fewer' : `show ${items.length - twoWay.INLINE} more`, attrs: { 'data-nall': allKey }, under: dated ? 'dotday' : 'dot' });
       html += O.kids({ html: lines, cls: 'th-tw-lkids' });
@@ -264,6 +273,8 @@ function closeDig(key) {
    whole path from the page, so nothing is moved between keys: a step only says where the view starts. The outline
    moves as one piece from where the clicked node was, so the eye stays on it. */
 function shiftOnce(key) {
+  // On a ground each opened node has its own layer, which says where you are: nothing folds into a breadcrumb there, and a long line wraps as in Logseq's outline (a shift in a holder, which draws no breadcrumb, lost the opened node; found 23 November 2026).
+  if (grounded()) return false;
   const t = topStep(), at = (t?.key ? t.key.split('>').length : 1) + 1;
   const firstKey = key.split('>').slice(0, at).join('>'), first = state.dig.get(firstKey);
   if (!first) return false;
@@ -954,7 +965,7 @@ twoWay.starters.push(() => {
 function onOutlineClick(event) {
   const t = event.target;
   const stop = () => { event.preventDefault(); event.stopPropagation(); twoWay.hidePeek(); };
-  const chev = t.closest('.th-chev[data-dig]');
+  const chev = t.closest('.th-chev[data-dig], .lk-close[data-dig]');   // the × on an opened node's ground closes it as its arrow does
   if (chev) { stop(); toggleDig(chev.dataset.dig, chev.dataset.uuid, chev.dataset.id, chev.dataset.title || '').catch(error => warnOnce('could not open a node', error)); return true; }
   const take = t.closest('[data-take]');
   if (take) { stop(); takeGuesses(take.dataset.uuid, [take.dataset.take]).catch(error => warnOnce('could not fill a proposed value', error)); return true; }

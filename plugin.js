@@ -745,6 +745,11 @@ Door.sweep = (key, doc) => { for (const base of Door.bases(key)) base.sweep(doc)
    #ui__ac, .absolute-modal or [data-editor-popup-ref]. */
 const LOGSEQ_POPUPS = '.cp__select, .ui__popover-content, [data-radix-popper-content-wrapper], .ui__modal-panel, .ui__modal, [role="menu"], [role="dialog"], [role="listbox"]';
 const LOGSEQ_FRAME = '#right-sidebar, #main-content-container, #left-sidebar, .cp__header', OWN_POPUPS = '.lk-pop, .th-pop';
+/* The lines of the bullets written on the page in the main pane, in the page's order: not a property's value, a table's row, the
+   references under the page, or a node a part opened in place (23 November 2026, for the filter bar, Find's). pageRows(scroller) → each bullet's own line (.block-main-container); its bullet is the parent. */
+Door.PAGE_ROWS = '.ls-block[blockid] > .block-main-container:not(.is-page-title-row)';
+Door.NOT_PAGE = '.ls-properties-area, .property-value-container, .ls-table, .references, [data-th-node], .lk-ghost';
+Door.pageRows = scroller => [...(scroller?.querySelectorAll(Door.PAGE_ROWS) || [])].filter(row => !row.closest(Door.NOT_PAGE));
 Door.screen = {
   // Looks for find() until it gives something or ms pass (null then): every 50 ms, or with frames: true once a frame, for what must
   // be there before the screen is next drawn.
@@ -1803,7 +1808,7 @@ const TOKENS = `
    only darken under the pointer, no ground behind them); lk-reveal on any of them, with lk-reveals on what it acts on: shown
    only while that is pointed at, light grey, darker near it, kept while the hand wavers (lk-near, put on by the module, where what
    it acts on is not around it); lk-more: show all; lk-views with lk-view
-   (.on): other contents of one place; lk-trail with lk-step: the places you came through; lk-head (.on): a sort head;
+   (.on): other contents of one place; lk-trail with lk-step: the places you came through; lk-ground (lk-ground-top, lk-opened): a node opened in the page; lk-piece: a thing picked in a line you type in; lk-head (.on): a sort head;
    lk-menu with lk-item (.off, .gap, a faint lk-note, an lk-item-icon before its words) and lk-group, the heading of a part of it: a menu.
    Drawn whole here since 6 November 2026, so no module draws them again: lk-window (a window mid-screen) and lk-pop (a pop-up at
    the thing pressed), the frames; lk-tick, the tick box; lk-fold, the fold arrow, its markup empty; lk-bul (.folded, .opens), Logseq's bullet;
@@ -2012,6 +2017,25 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
 .lk-trail > :not(.lk-step) { color: var(--lk-quiet); }
 .lk-step { color: var(--lk-quiet) !important; padding: 0; text-decoration: underline !important; text-decoration-color: var(--lk-hair) !important; text-underline-offset: 3px; }
 .lk-step:hover { color: var(--lk-text, currentColor) !important; text-decoration-color: var(--lk-line) !important; }
+/* A node opened in the page, under the line that links to it (the owner, 23 November 2026: "show the node, which is a link, different
+   underneath than just the outline, like add a background"; picture 1A): lk-ground, the wash as its ground with the corner a pop-up
+   has, no edge and no shadow, since it stays in the page and pushes the lines down; a node opened inside it lies on one more layer
+   of the same. lk-ground-top: its top line, the node's place at the left and the close × (lk-close with lk-i-x) at the right.
+   lk-opened: the link (or the value) that was opened, on the same wash with a small corner and no underline, so the eye joins the two.
+   lk-opened-at: the same ground laid behind letters that cannot carry it (a link in the box being written in), placed by its part. */
+.lk-ground { background: var(--lk-wash); border-radius: 10px; padding: 8px 14px 12px; }
+/* --lk-ground-in: where the lines on the ground start (their bullets and icons), set by the part that draws them; the top line starts
+   there too, so the place and the lines share one left edge (24 November 2026), the fold arrows hanging into the ground's margin. */
+.lk-ground-top { display: flex; align-items: center; gap: 12px; min-height: 24px; margin-bottom: 2px; padding-left: var(--lk-ground-in, 0px); font-size: 14px; }
+.lk-ground-top > .lk-close { all: unset; flex: none; margin-left: auto; cursor: pointer; font-size: 16px; line-height: 1; padding: 2px 0 2px 6px; }
+.lk-opened { background: var(--lk-wash) !important; border-radius: 5px; padding: 2px 5px; margin: 0 -5px; text-decoration: none !important; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.lk-opened-at { position: absolute; background: var(--lk-wash); border-radius: 5px; pointer-events: none; }
+/* lk-piece: one thing picked to narrow by, standing in a line you type in (a tag, a property's value, a page): on the wash with a
+   small corner, its faint × (lk-x) after it (the owner, 23 November 2026, picture 3D: "an input bar, where you can type free text
+   but also do the tag or property search"). */
+.lk-piece { display: inline-flex; align-items: baseline; gap: 4px; max-width: 100%; background: var(--lk-wash); border-radius: 5px; padding: 1px 2px 1px 7px; white-space: nowrap; }
+.lk-piece > :not(.lk-x) { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.lk-piece > .lk-x { flex: none; padding: 0 4px; }
 /* A sort head: the others grey and of the body's weight, the sorted one dark and bold, so it stands out from them. */
 .lk-head { color: var(--lk-quiet) !important; text-align: left; font-weight: 400; }
 .lk-head:hover, .lk-head.on { color: var(--lk-text, currentColor) !important; }
@@ -2065,6 +2089,7 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
 .lk-menu .lk-keys .shui-shortcut-separator { display: none !important; }
 /* lk-note is regular weight wherever it stands, under a heading's bold too (15 November 2026: a heading's ↳ line read bold). */
 .lk-note { color: var(--lk-quiet); font-size: var(--lk-small); font-weight: 400; font-variant-numeric: tabular-nums; }
+.lk-item > .lk-note.off { color: var(--lk-off); }   /* the kind of thing a line of a list is (tag, property, page), at its right end: read last, so in the off grey (23 November 2026, picture 3D) */
 /* lk-picked: what you can do with what you picked, right above the picked rows on the same grey as them, so the picks and what
    acts on them read as one block, the only filled area in a list (the owner, 5 November 2026, the grey block of picking-redesign.html:
    "build 2"). lk-picked-count holds the number (lk-picked-n), lk-picked-x clears the picks, lk-picked-act is an action, a plain word

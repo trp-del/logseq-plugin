@@ -14,6 +14,10 @@ const schema = [
     description: 'With the cursor on a link in the bullet you are writing, the key below opens that page under the line, where it can be read and changed. The key again, or Escape, closes it and the cursor is where it was.' },
   { key: 'lookKeys', type: 'string', keys: true, default: 'alt+l', title: 'The key that opens the link under the cursor',
     description: 'Option+L unless you set another on the key sheet (hold Option).' },
+  { key: 'within', type: 'boolean', default: true, title: 'A bar that filters the page you are on',
+    description: 'The key below brings up a bar at the foot of the page. Words typed narrow the page to the bullets that hold them; a tag, a property value or a linked page picked from the short list above the bar narrows by that. The rest is hidden, or greyed. Escape, the ×, or the key again closes it and the page is as it was. Nothing is saved.' },
+  { key: 'withinKeys', type: 'string', keys: true, default: 'alt+f', title: 'The key that filters the page',
+    description: 'Option+F unless you set another on the key sheet (hold Option).' },
   { key: 'rowsShown', type: 'number', presets: [5, 12, 30], default: 12, title: 'Rows before “show all”',
     description: 'How many matches are listed at first; “show all” lists the rest.' },
 ];

@@ -898,6 +898,8 @@ a.th-tag:hover { opacity: 1; }
 .th-ol-kids .th-ol-kids > .th-ol-in { --th-ol-name: 9.5em; }   /* 8.5em until 7 November 2026: "Symptom type", "Diagnosed by" and "Confirmation" took two lines at the rows' size, and the lines lost their rhythm */
 /* A list that opens with no line of its own (a row's list): the same unrolling, no hairline. */
 .th-ol-kids.th-ol-bare { margin-left: 0; padding-left: 0; border-left: 0; }
+/* A node opened inside a node that stands on a ground: its own layer of the library's ground (lk-ground), which keeps its padding; a little room above and below it. */
+.th-ol-kids.th-ol-bare.th-tw-ground { margin: 4px 0 8px; padding-left: 14px; }
 .th-ol-pv > .th-ol-day { margin-right: 0; }
 .th-ol-bullet { display: flex; align-items: baseline; gap: 8px; min-height: 26px; padding: 1px 4px; margin-left: -4px; }
 /* The dot is the library's lk-bul (outline.dot): only its place here, centred on the first line of the words as Logseq centres it on

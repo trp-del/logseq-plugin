@@ -43,6 +43,48 @@ on the key sheet) opens that page under the line, in the page itself: Relations'
 down (`find/logseq/under.js`; an empty `data-th-node` holder inside the bullet, which Relations fills). The bullet stays in
 writing. The key again, or Escape, rolls it up. A click on a link still opens its page. One at a time; it goes on a route change.
 
+Since 23 November 2026 (the owner: "show the node, which is a link, different underneath than just the outline, like add a
+background or something to make it distinct. it is unclear") the opened node stands on a ground of the library's wash
+(`lk-ground`: a rounded ground, no edge, no shadow), with no guide line from the margin. Its top line says the node's place (its tag
+and the tags above it, drawn by Look as beside a page's title) and holds a close × that does what Escape and the key again do.
+The link that was opened is lit on the same wash; with two links in a line, only the opened one. A node opened inside it lies on
+one more layer of the same ground, with its own place and ×, and the name that was opened lit (Relations draws that).
+
+The place on the top line starts where the node's lines start (their bullets and the properties' icons), the fold arrows hanging
+in the ground's margin; a node opened inside lies across the whole width of the outer lines, from their left edge. A press on
+something to press inside the node (a fold arrow, a ×, a link) keeps the caret in the line, so the press is never lost to Logseq
+letting go of the line. Escape closes one layer at a time: a node opened inside first, then the node; after a press inside the
+node that left the keyboard on no field it does so too, and after editing a value inside, the first Escape leaves the value
+(24 November 2026, found by hand).
+
+## A bar that filters the page you are on (23 November 2026)
+
+The owner: "also fingure out a way to filter bullets in view like based on properties, tags etc. I am not talking about in a query
+since this would only be atemporary thing. so it would be on top but not in the way of things since you have to see bullets", then
+"I was thinking more of an input bar, where you can type free text but also do the tag or property search. it is more flexible".
+
+Option-F (a setting, on the key sheet; also "Find: filter the bullets on this page" in the command list) brings up one bar on glass
+at the foot of the main pane, over the page (`find/logseq/within.js`). Nothing on the page moves.
+
+- **Words** typed narrow the page, as they are typed, to the bullets whose words or property values hold every one of them.
+- **A short list** above the bar, six lines at most, offers what is on this page and matches the letters: tags, property values
+  ("Charged by: Acme Corp") and linked pages, each with its kind at its right end. Up and Down move the lit line; Enter takes it,
+  and it stands in the bar as a piece with its own ×. Letters that match nothing in the list stay words. While the list offers
+  something for letters that stand in no bullet (“pur” on the way to the tag Purchase), the page stays as the pieces already set
+  leave it, and waits for Enter.
+- **Pieces and words narrow together.** A bullet that matches is shown with everything under it. The bullets it sits under stay,
+  in the off grey. The rest is hidden; the word at the bar's right end ("The rest hidden" / "The rest greyed") greys it instead.
+- **Backspace** in the empty line takes the last piece off. **Escape**, the × at the bar's right end, or the key again clears the
+  bar, closes it and leaves the page as it was: the same scroll place, the caret back in the bullet it stood in.
+- **Nothing is written**: the bullets are marked on the screen only, no fold is changed, nothing is saved or put into Undo. So a
+  match inside a folded bullet is not opened: the folded bullet stays as it is, as the place the match is in.
+- With nothing matching and nothing offered, the page says "No bullet on this page holds that." and the bar stays open.
+- In the main pane only (not the right sidebar or the right half of two pages side by side). The bullet being written in is never
+  hidden. In a long list, which Logseq draws piece by piece, a hidden bullet keeps one pixel of height, because Logseq's list
+  cannot place a bullet of none: a run of a hundred hidden bullets there leaves a gap of a hundred pixels.
+
+What the page holds is read with Find's own reader (`db.js`, `details` and `facets`) when the bar opens and after the graph changes.
+
 ## What it does
 
 **Open it** with Cmd+K (Ctrl+K elsewhere), Logseq's magnifier at the top left, or Find in the ··· menu at the top right, or Find in the command palette; Logseq's own search moves to Cmd+Shift+K, or Shift and the magnifier. The window opens with its kinds and recent pages already in it: they are read once a moment after the plugin starts, and after a change to the graph the ones read before are shown while they are read again behind the window, so it never opens empty (another graph's are never shown). **Find by sentence** opens with Cmd+Option+K (Ctrl+Alt+K elsewhere), or from the command palette (Find by sentence); pressed while Find is open it turns the window into a sentence, pressed again it closes. Cmd+Shift+. (Ctrl+Shift+. elsewhere) opens it with `>` already typed, Logseq's commands listed, as a command palette; pressed again it closes. Or the route icon in the toolbar's plugin menu (the puzzle piece at the top right; pin it from there), or **Find** in the command palette. A setting turns the key the other way round.
@@ -118,6 +160,7 @@ The root `files.js` lists these in order, each adding to `window.Find`:
 | `logseq/db.js` | the one place that reads the graph: the kinds with their counts, the kinds as a tree, the nodes under a kind, what they hold as choices (and every value by name, for the sentence), the pages by name, the months, Logseq's search, a node's properties and what points at it, the recent pages |
 | `logseq/settings.js` | the switches |
 | `logseq/commands.js` | Logseq's commands as the app lists them, with their keys; their English names from Logseq's dictionary |
+| `logseq/within.js` | the filter bar at the foot of the page: the pieces, the list, the marks on the page's bullets |
 | `logseq/find.js` | the window: the find line of pieces, or the sentence with its mirror and notes and the year line; the choices, the rows and the near rows, digging, the keys |
 | `main.js` | registers at the plugin's door, listens for the key, registers the commands, takes Logseq's magnifier at the top left, forgets what it read when the graph changes, stops |
 
