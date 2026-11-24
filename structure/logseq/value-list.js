@@ -31,7 +31,9 @@ const CSS = `
 #ui__ac-inner.st-vt .flex-row:has(> .st-vp) > :not(.st-vp) { white-space: nowrap; flex: none; }`;
 const FEW = 5, SPAN = 100000, STEP = 16;
 // Logseq's lists of tags, by the words in their box: the Tags property and a tag's Extends (its parent).
-const TAG_LISTS = /^Set (Tags|Extends|Parent)$/;
+// "Choose tag" is the list a new property of the Node kind asks with (the owner, 24 November 2026: "shouldn't this be the structured
+// tag selected with hirearchy that we use elsewhere"); its first line, "Skip choosing tag", stays first.
+const TAG_LISTS = /^(Set (Tags|Extends|Parent)|Choose tag)$/, SKIP = /^Skip choosing tag$/;
 
 function start(app, doc) {
   const sheet = S.base.sheet('st-value-list-style', CSS, 'st-own', doc);
@@ -115,7 +117,7 @@ function start(app, doc) {
       for (const row of rowsOf(list)) {
         const t = byName.get(nameOf(row)), place = t && at.get(t.id);
         row.classList.remove('st-vhide');
-        if (!place) { (NEW.test(nameOf(row)) ? news : theirs).push(row); row.style.removeProperty('--st-pad'); row.classList.remove('st-vtop'); continue; }
+        if (!place) { (NEW.test(nameOf(row)) || SKIP.test(nameOf(row)) ? news : theirs).push(row); row.style.removeProperty('--st-pad'); row.classList.remove('st-vtop'); continue; }
         row.style.order = String(SPAN + place.i);
         row.style.setProperty('--st-pad', `${Math.min(place.d, 8) * STEP}px`);
         row.classList.toggle('st-vtop', place.d === 0 && Mo.kids(m, t.id).length > 0);

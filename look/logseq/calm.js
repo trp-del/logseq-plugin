@@ -334,6 +334,23 @@ ${WRITING_LIST} .menu-link svg { width: 13px !important; height: 13px !important
 ${WRITING_LIST} .menu-link.chosen { ${LOOKS.lit} }
 ${WRITING_LIST} .menu-link.chosen * { color: var(--lk-paper) !important; }
 `;
+/* Making or picking a property (Logseq's list under "+ Add property", then the new name, its type, its tag): as big as what it
+   holds (the owner's five pictures, 24 November 2026). Logseq gives the list one height, 286 pt, whatever it holds, so the box
+   for a new name stood 235 by 286 round one line; the list of tags ran 42 lines down the window. Now eight lines at most, and
+   under its line the box is as high as its lines. Above its line it keeps one height, so the field you type in does not move
+   as the list shortens. Its lines are the menu's (the library's line). A list of tags keeps the tree's steps (--st-pad, set by
+   Ontology): the rule above had set every line to one edge. */
+PARTS.calmMenus += `
+.ui__popover-content[data-side="bottom"] .ls-property-dialog .ls-property-key { height: auto !important; }
+.ui__popover-content:not([data-side="bottom"]) .ls-property-dialog .ls-property-key { height: 238px !important; }
+.ls-property-dialog .cp__select-main > :not(.input-wrap) { max-height: 198px !important; overflow-y: auto !important; }
+.ui__popover-content .cp__select .menu-link { box-sizing: border-box !important; min-height: 24px !important; align-items: center !important; }
+.ui__popover-content .cp__select .menu-link .pt-1 { padding-top: 0 !important; display: inline-flex !important; align-items: center !important; }
+.ui__popover-content .cp__select #ui__ac-inner > .menu-link-wrap { padding-left: calc(5px + var(--st-pad, 0px)) !important; }
+/* Whatever floats is there at once, at its one size, as the Mac's menus are (measured 24 November 2026: Logseq's lists took four
+   to eight sizes on their way open and went on changing for a tenth of a second). */
+:is(.ui__popover-content, .ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content, .ui__context-menu-sub-content, .ui__select-content) { animation: none !important; }
+`;
 const WIDTHS = { Narrow: '44rem', Medium: '52rem', Wide: '60rem' };
 const reading = () => WIDTHS[setting('readingWidth')] || null;
 const widthCss = col => `
