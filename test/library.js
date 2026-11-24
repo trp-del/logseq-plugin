@@ -159,8 +159,15 @@ for (const name of Object.keys(macSymbols.list.toolbar)) assert.ok(global.window
 for (const kept of ['child']) assert.ok(!macSymbols.list.icons[kept], `${kept} is left as it is`);
 assert.ok(!macSymbols.list.toolbar.structure, 'the Ontology toolbar button is left as it is');
 const allCss = macSymbols.css(Object.fromEntries(macSymbols.names().map(name => [name, SQUARE])));
-for (const piece of ['.lk-i-plus', '.lk-enter::after', '.lk-check', '.lk-icon.ti-number', '.property-m > .ls-icon-number > svg', '#head .ls-icon-search > svg', '#left-sidebar .ls-icon-calendar > svg', '[data-lk-menu-icon="trash"]', '.lk-tool, .ls-icon-puzzle', '--lk-sf-page']) assert.ok(allCss.includes(piece), `with its picture there, the symbols' stylesheet reaches ${piece}`);
-for (const kept of ['M6 2.6', '.lk-web', '.lk-i-child', '.lk-fold', '.lk-tick', '.lk-bul', '.lk-status', 'topology-star', '.bullet']) assert.ok(!allCss.includes(kept), `the symbols' stylesheet leaves ${kept} alone`);
+for (const piece of ['.lk-i-plus', '.lk-enter::after', '.lk-check', '.lk-icon.ti-number', '.property-m .ls-icon-number > svg', '.property-pair[data-property-title="Notes" i] .property-m .ui__icon > svg', '.ls-icon-search > svg', '.ti.ti-arrow-right', '#head .ls-icon-arrow-right > svg', '#left-sidebar .ls-icon-calendar > svg', '.cp__settings-inner .ls-icon-adjustments > svg', 'M6 2.6 2.4 9.2h7.2Z', '[data-lk-menu-icon="hash"]', '[data-lk-menu-icon="trash"]', '.lk-tool, .ls-icon-puzzle', '--lk-sf-page']) assert.ok(allCss.includes(piece), `with its picture there, the symbols' stylesheet reaches ${piece}`);
+for (const kept of ['.lk-i-child', '.lk-fold', '.lk-tick', '.lk-bul', 'topology-star', '.bullet', 'grip-vertical', 'ls-icon-circle >', 'letter-d', 'letter-n', 'letter-p', 'brand-']) assert.ok(!allCss.includes(kept), `the symbols' stylesheet leaves ${kept} alone`);
+// A Mac without its symbols is told how to draw them, and the release carries the script (the owner, 24 November 2026: "it says the symbols have not been drawn?").
+assert.ok(/tools\/mac-symbols\.sh/.test(fs.readFileSync(path.join(ROOT, 'tools/release.sh'), 'utf8')), 'the release carries the script that draws the Mac’s symbols');
+global.logseq = { baseInfo: { url: '/somewhere/logseq-plugin', id: 'logseq-plugin' }, settings: {} };
+{ const described = global.window.PluginDoor.described.plugin, said = described.specimen(described.schema.find(item => item.key === 'macSymbols'), true);
+  assert.ok(/In Terminal:.*sh \/somewhere\/logseq-plugin\/tools\/mac-symbols\.sh/s.test(said), 'with no symbols drawn, the settings say the one line that draws them'); }
+// One name, one symbol: every rule for a name leaves alone an icon the owner gave, a status circle and a property's own icon.
+for (const line of allCss.split('\n').filter(line => /^:is\(\.(ls-icon|ti\.ti)-/.test(line))) assert.ok(line.includes(':not(.lk-icon, .icon-cp-container *, .lk-status *, .property-m *)'), `a rule by name reaches kept icons: ${line.slice(0, 80)}`);
 assert.ok(!macSymbols.css({ plus: SQUARE }).includes('.lk-i-bin'), 'an icon whose symbol this Mac did not draw gets no rule');
 const sum = kind => Object.values(debts[kind]).reduce((a, b) => a + b, 0);
 console.log(`library: ${KINDS.length} kinds drawn, every button in ${FILES.length} files draws from them; no module draws a frame, a tick box, a colour or a motion of its own; known debts still to fold in: ${sum('restyled')} library pieces restyled, ${sum('greys')} greys mixed by a module`);

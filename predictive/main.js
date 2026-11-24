@@ -96,12 +96,8 @@ const REASONS = {
   modelNotReady: 'Apple’s model is not ready yet: it may still be downloading to this Mac.',
   deviceNotEligible: 'This Mac cannot run Apple’s model.',
 };
-// The plugin's own folder is Logseq's baseInfo.url (the frame itself is served from elsewhere).
-const helperLine = () => {
-  const url = String(logseq.baseInfo?.url || '');
-  const folder = url.startsWith('/') ? url.replace(/\/?$/, '/') : `~/.logseq/plugins/${logseq.baseInfo?.id || 'logseq-plugin'}/`;
-  return `sh ${folder.replace(/^\/Users\/[^/]+\//, '~/')}predictive/helper/install.sh`;
-};
+// The line that installs the helper, from the plugin's own folder (the library's Door.terminalLine).
+const helperLine = () => window.PluginDoor.terminalLine('predictive/helper/install.sh');
 // The answer first, in the words a person asks with (connected or not), then why and what to do, faint. The three tools each
 // say whether they answer: the matcher and the name finder need only the helper (version 4), the model Apple Intelligence too.
 const modelWords = s => {

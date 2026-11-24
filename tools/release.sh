@@ -28,6 +28,9 @@ done
 mkdir -p "$stage/predictive/helper"
 cp predictive/helper/main.swift predictive/helper/build.sh predictive/helper/install.sh "$stage/predictive/helper/"
 if sh predictive/helper/build.sh >/dev/null; then cp predictive/helper/predictive-helper "$stage/predictive/helper/"; else echo "the helper could not be built here: the zip holds its source only"; fi
+# The script that has a Mac draw its own symbols for the icons (tools/mac-symbols.sh; it reads the names from plugin.js beside it),
+# so a Mac that installs this zip can draw them: the settings say the line to run (24 November 2026).
+mkdir -p "$stage/tools" && cp tools/mac-symbols.sh "$stage/tools/"
 zipfile="dist/logseq-plugin-v$version.zip"
 rm -f "$zipfile"
 (cd dist/stage && zip -q -r -X "../../$zipfile" logseq-plugin)

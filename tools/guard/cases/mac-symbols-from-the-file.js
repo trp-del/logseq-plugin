@@ -22,11 +22,11 @@ const read = page => page.evaluate(() => {
     'Settings, in the ··· menu': mask(doc.querySelector('.ui__dropdown-menu-content .ls-icon-settings > svg')),
     'a property’s kind': mask(doc.querySelector('.lk-kind .lk-icon.ti'), '::before'),
     'the Todo toolbar button': mask(doc.querySelector('#head .lk-tool[title="Todo"] > svg')),
+    'the mark of a property that points at a node': mask(doc.querySelector('.lk-icon.lk-web > svg')),
     'the library’s plus': mask(p('plus'), '::before'),
     'the library’s bin': mask(p('bin'), '::before'),
     'the plugin’s search glyph': mask(p('glyph'), '::before'),
     // The kinds left alone.
-    'KEEP the mark of a property that points at a node': mask(doc.querySelector('.lk-icon.lk-web > svg')),
     'KEEP the Ontology toolbar button': mask(doc.querySelector('#head .lk-tool[title^="Ontology"] > svg')),
     'KEEP Add a child': mask(p('child'), '::before'),
     'KEEP the fold arrow': mask(p('fold'), '::before'),
