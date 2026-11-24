@@ -1127,6 +1127,7 @@ Door.regrow = (el, from, ms = MOTION_MS) => {
      a value: { label, count (none: no count), lit, more (the line's "more", which opens), title (the hover words), cut = 44, attrs: { data-…: … } }
      tree: a number of columns; then each value also has col, depth and head (a column's heading word above it), and a value of
        depth 0 heads its column.
+   cls 'lk-one' draws each line on one line, its name before its values, for a pop-up with little room.
    → html. The look is the library's (lk-choices, lk-ch, lk-ck, lk-cv, lk-nb, lk-lit, lk-more, lk-tree). */
 Door.short = (text, max = 36) => { const t = String(text ?? '').trim(); return t.length > max ? t.slice(0, max - 2).replace(/\s+\S*$/, '') + '\u2026' : t; };
 Door.choicesHtml = (lines, { cls = '' } = {}) => {
@@ -1907,6 +1908,9 @@ Door.NAMES = `${TOKENS}
 .lk-nb { color: var(--lk-quiet); font-size: var(--lk-small); font-variant-numeric: tabular-nums; }
 /* A line's "more" sits on the line's words, its underline under them; lit, it takes the text colour as a lit value does. */
 .lk-cv .lk-more { margin: -3px 0; }
+/* Lines of choices one line each, the name before its values, where a pop-up has little room (lk-one: the small Find low in the
+   window, 24 November 2026). A tree of kinds keeps its columns under its name. */
+.lk-choices.lk-one > .lk-ch:not(:has(> .lk-tree)) { grid-template-columns: max-content minmax(0, 1fr); column-gap: 10px; }
 .lk-cv .lk-more.lk-lit { color: var(--lk-text, #222) !important; }
 /* A tree of values (Find's kinds opened): columns, each a top-level tag in bold over the tags beneath it, stepped in by depth; every
    kind is the tab word (lk-view), its count on its line, the side padding taken away so the steps stand on the words. */

@@ -7,10 +7,13 @@
    thread, the kind line pinned): there, with about 230 px under the bullet, the first row stood faded under the pinned kind line, and
    after Down the foot grew to three lines and no row showed at all. Where the room under the line cannot hold the find line, the
    pinned lines, three rows and the foot on one line, the panel opens above the line, as Logseq's own pop-ups do: the case looks for
-   it above the bullet, clear of it, with the pinned lines named and three rows whole under them, before and after Down. */
+   it above the bullet, clear of it, with the pinned lines named. The fourth hand test (24 November 2026, a thread, the panel above):
+   its top at the window's, about 265 px high, it held one row and half of another, "recently opened" was cut in half under the
+   pinned line, and after Down the foot took three lines and no row could be read. So, there, at rest, with "amex" typed and after
+   Down: the foot stays one line inside the panel, no head over rows is cut in half, and two rows show whole under the pinned lines. */
 module.exports = {
   parts: ['find', 'shared'],
-  name: '0.5: in the narrow sidebar the small Find shows each line of choices with its name, and its first row whole; low in the window it opens above the line with three rows whole',
+  name: '0.5: in the narrow sidebar the small Find shows each line of choices with its name, and its first row whole; low in the window it opens above the line, its foot on one line, no head cut, two rows whole',
   from: '24 Nov: Option-K hand test, the word “kind” hidden under the input in the sidebar',
   graph: 'Personal Finance',
   async check(box, T) {
@@ -71,7 +74,6 @@ module.exports = {
     const still = await page.evaluate(() => !!document.activeElement?.closest?.('#right-sidebar, .cp__right-sidebar') && document.activeElement.tagName === 'TEXTAREA');
     if (!still) return done({ ok: false, said: 'the sidebar bullet low in the window could not be put in writing' });
     await f.evaluate(() => { window.PluginDoor.ask('find:panel', { box: window.PluginDoor.host().activeElement }); }); await T.sleep(1800);
-    await page.keyboard.type('amex', { delay: 60 }); await T.sleep(1600);
     const s = await look();
     if (!s) return done({ ok: false, said: 'the panel did not open under the sidebar bullet low in the window' });
     // Too little room under the bullet: the panel stands above it, clear of the bullet and of the window's top.
@@ -82,22 +84,32 @@ module.exports = {
       const body = d.querySelector('.fd-body').getBoundingClientRect(), pin = d.querySelector('.fd-body > .fd-choices')?.getBoundingClientRect();
       const from = pin ? Math.max(body.top, pin.bottom) : body.top, rows = [...d.querySelectorAll('.fd-body .fd-r')];
       const whole = rows.filter(r => { const b = r.getBoundingClientRect(); return b.height > 0 && b.top >= from - 0.5 && b.bottom <= body.bottom + 0.5; }).length;
-      return { whole, all: rows.length, foot: (d.querySelector('.fd-foot')?.innerText || '').split('\n').filter(Boolean).length };
+      // The foot's lines: its pieces at as many heights; a piece past its right edge counts as out of it.
+      const foot = d.querySelector('.fd-foot'), fr = foot?.getBoundingClientRect(), parts = foot ? [...foot.children].map(c => c.getBoundingClientRect()).filter(r => r.height > 0) : [];
+      const footLines = new Set(parts.map(r => Math.round(r.top / 4))).size, footOut = parts.some(r => r.right > fr.right + 0.5);
+      // A head over rows ("recently opened", a group's name) shows whole or not at all: never cut by the pinned lines or the list's foot.
+      const cut = [...d.querySelectorAll('.fd-body .fd-head, .fd-body .fd-near')].filter(h => { const b = h.getBoundingClientRect(); if (!b.height) return false;
+        const inTop = Math.max(b.top, from), inBottom = Math.min(b.bottom, body.bottom); return inBottom - inTop > 0.5 && (b.top < from - 0.5 || b.bottom > body.bottom + 0.5); }).map(h => `“${h.textContent.trim()}”`);
+      return { whole, all: rows.length, foot: footLines, footOut, cut };
     });
-    for (const [state, key] of [['“amex” typed', ''], ['“amex” typed and Down pressed', 'ArrowDown']]) {
-      if (key) { await page.keyboard.press(key); await T.sleep(900); }
+    for (const [state, key] of [['nothing typed', ''], ['“amex” typed', 'amex'], ['“amex” typed and Down pressed', 'ArrowDown']]) {
+      if (key === 'amex') { await page.keyboard.type('amex', { delay: 60 }); await T.sleep(1600); }
+      else if (key) { await page.keyboard.press(key); await T.sleep(900); }
       const where = `the bullet's top at ${low[0]}, ${state}`;
       const at = await side(), s = await look(), seen = await rowsSeen();
       if (!at || !s || !seen) return done({ ok: false, said: `${where}, the panel was not open` });
-      if (!at.above) return done({ ok: false, said: `${where}, the panel opened under the bullet (its top at ${at.top}), where the room cannot hold three rows; it should open above the line` });
+      if (!at.above && key) return done({ ok: false, said: `${where}, the panel opened under the bullet (its top at ${at.top}), where the room cannot hold three rows; it should open above the line` });
       if (at.top < 0) return done({ ok: false, said: `${where}, the panel's top is out of the window (${at.top})` });
       const hid = s.names.filter(n => !n.ok).map(n => `“${n.text}”`);
       if (!s.names.length) return done({ ok: false, said: `${where}, no line of choices shows in the panel` });
       if (hid.length) return done({ ok: false, said: `${where}, the name ${hid.join(', ')} of a line of choices is out of view (panel ${s.width} wide)` });
-      const want = Math.min(3, seen.all);
+      if (seen.foot > 1 || seen.footOut) return done({ ok: false, said: `${where}, the foot is not one line inside the panel (on ${seen.foot} lines${seen.footOut ? ', a key past its right edge' : ''})` });
+      if (seen.cut.length) return done({ ok: false, said: `${where}, the head ${seen.cut.join(', ')} is cut in half` });
+      // Two rows whole at this size (the third hand test: the panel's top already at the window's, about 265 px high).
+      const want = Math.min(2, seen.all);
       if (!want) return done({ ok: false, said: `${where}, the panel lists no row` });
-      if (seen.whole < want) return done({ ok: false, said: `${where}, ${seen.whole} of ${want} rows show whole under the pinned lines (the foot on ${seen.foot} lines)` });
-      said.push(`${where}: above the line, ${s.names.length} names shown, ${seen.whole} rows whole, the foot on ${seen.foot} lines`);
+      if (seen.whole < want) return done({ ok: false, said: `${where}, ${seen.whole} of ${want} rows show whole under the pinned lines` });
+      said.push(`${where}: ${at.above ? 'above' : 'under'} the line, ${s.names.length} names shown, ${seen.whole} rows whole, the foot on one line`);
     }
     return done({ ok: true, said: said.join('; ') });
   },

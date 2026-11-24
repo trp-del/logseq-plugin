@@ -123,6 +123,16 @@ html[data-lk-held-panel] .ui__popover-content:has(> .selection-action-bar), html
 .fd-foot .fd-k { color: var(--lk-quiet); margin-left: .4em; display: inline-flex; gap: 3px; vertical-align: middle; }
 .fd-foot .fd-right { margin-left: auto; padding: 0; }
 .fd-foot .fd-say-way { margin-left: auto; } .fd-foot .fd-right + .fd-say-way { margin-left: 0; }   /* at the right end, after Make a page when that stands there */
+/* In the small panel the foot stays one line: what Enter does (the bold words, "link Pay the Amex Gold statement by…") is cut with an
+   ellipsis to the width the other keys leave it, its key kept whole, so the rows keep their room (tried by hand, 24 November 2026:
+   in the narrow sidebar after Down the foot took three lines and no row could be read). The other keys stay whole; where even they
+   do not fit, they are cut last. */
+.fd-panel .fd-foot { flex-wrap: nowrap; gap: 0 12px; overflow: hidden; }
+.fd-panel .fd-foot > * { flex: 0 1 auto; min-width: 0; white-space: nowrap; }
+.fd-panel .fd-foot > :has(b) { flex-shrink: 1000; min-width: 4em; }
+.fd-panel .fd-foot .fd-ki { display: flex; align-items: baseline; min-width: 0; }
+.fd-panel .fd-foot .fd-kl { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.fd-panel .fd-foot .fd-ki > .fd-k, .fd-panel .fd-foot .fd-say-way { flex: none; }
 `;
 
 const NEAR_SHOWN = 5;   // near rows listed before "show all"
@@ -159,6 +169,10 @@ function place() {
   const band = dragBand(S.doc), below = win.innerHeight - r.bottom - 12, above = r.top - 8 - band;
   const need = panelNeed(d, false), under = S.host.side !== 'above' && (below >= need || below >= above);
   S.host.side = under ? 'under' : 'above';
+  /* Where the side taken cannot hold it all, each pinned line of choices takes one line, its name before its values (the library's
+     lk-one), so the rows keep their room (tried by hand, 24 November 2026: about 265 px above a low sidebar bullet held one row and
+     half of another). Once so, it stays so while the panel is open. */
+  if (!S.host.oneLine && (under ? below : above) < need) { S.host.oneLine = true; d.querySelector('.fd-body > .fd-choices')?.classList.add('lk-one'); }
   // As high as the rows need with the foot as it stands (it can wrap), grown only, never shrunk while open.
   S.host.tall = Math.max(S.host.tall || 0, panelNeed(d, true));
   const height = Math.max(150, Math.min(Math.max(h + (S.host?.grow || 0), S.host.tall), under ? below : above));
@@ -604,7 +618,7 @@ function render() {
         return { label: c.label, count: c.more ? null : c.count, more: !!c.more, lit, title: c.hint, col: c.col, depth: c.depth, head: c.head, attrs: { 'data-c': at } };
       }),
     }));
-    const holder = el(doc, 'div', { html: window.PluginDoor.choicesHtml(lines, { cls: 'fd-choices' }) });
+    const holder = el(doc, 'div', { html: window.PluginDoor.choicesHtml(lines, { cls: 'fd-choices' + (S.host?.oneLine ? ' lk-one' : '') }) });
     const wrap = holder.firstElementChild;
     wrap.addEventListener('click', event => { const b = event.target.closest('[data-c]'); if (b) choices[Number(b.dataset.c)]?.pick(); });
     body.append(wrap);
@@ -712,8 +726,7 @@ function render() {
   // The pinned lines of choices (the panel) are kept clear when the lit row is scrolled into view.
   const pinned = S.host && body.querySelector(':scope > .fd-choices');
   body.style.scrollPaddingTop = pinned ? pinned.offsetHeight - 8 + 'px' : '';
-  const cur = body.querySelector(S.mode === 'choices' ? `[data-c="${S.choiceAt}"]` : `.fd-r[data-i="${S.rowAt}"]`);
-  cur?.scrollIntoView?.({ block: 'nearest' });
+  showLit(body.querySelector(S.mode === 'choices' ? `[data-c="${S.choiceAt}"]` : `.fd-r[data-i="${S.rowAt}"]`));
   drawFoot(groups, rows);
   if (S.host) place();   // the foot as drawn (it wraps in the narrow sidebar) is part of the panel's height
   // What was just opened rolls out (a dug node once it is read, a group's nodes), so the rows under it glide down.
@@ -872,8 +885,16 @@ function litRow(at, groups, rows) {
   body.querySelector('.fd-r.on')?.classList.remove('on');
   const cur = body.querySelector(`.fd-r[data-i="${at}"]`);
   cur?.classList.add('on');
-  cur?.scrollIntoView?.({ block: 'nearest' });
+  showLit(cur);
   drawFoot(groups, rows);
+}
+/* The lit row scrolled into view; the head just over it ("recently opened", a group's name) comes with it, so a head is never cut in
+   half under the pinned lines of choices (tried by hand, 24 November 2026); where both cannot show, the row wins. */
+function showLit(cur) {
+  if (!cur?.scrollIntoView) return;
+  const head = cur.previousElementSibling;
+  if (head?.matches?.('.fd-head, .fd-near')) head.scrollIntoView({ block: 'nearest' });
+  cur.scrollIntoView({ block: 'nearest' });
 }
 // Rows under an opened group sit one step in; a group line sits inside its node's box.
 function wrapIn(doc, row, r) {
@@ -949,7 +970,7 @@ const short = (text, max = 36) => { const t = String(text || '').trim(); return 
    2026: the keys in Find's foot looked too much like the words for what they do): the action in words, the key in its cap. "Shift Enter" is
    one press of two keys; "← → ↑ ↓" four keys, a cap each. */
 const capsOf = k => k === 'Shift Enter' ? window.PluginDoor.keyCaps('shift+enter') : k.split(' ').map(part => window.PluginDoor.keyCaps(part)).join(' ');
-const KEY = (k, label) => `<span>${label}<span class="fd-k">${capsOf(k)}</span></span>`;
+const KEY = (k, label) => `<span class="fd-ki"><span class="fd-kl">${label}</span><span class="fd-k">${capsOf(k)}</span></span>`;
 /* The foot names what the keys do right now, naming the thing: "narrow to Consultation Tab", "open Look test Enter", "in the
    sidebar Shift Enter", dig →, close ←. What a key does is in the text colour and the key faint beside it, as in the Pressing set; the key is a word at the
    foot's own size, since the symbols ⏎ and ⇧⏎ small and faint could not be read. Not a legend of keys (none is wanted, 31 October): each word is the action at hand, and it changes
