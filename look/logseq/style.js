@@ -350,6 +350,7 @@ function apply() {
   watchHashes();
   style('names', setting('quietNames') ? names : '');
   style('faces', faces);
+  style('prop-face', window.PluginDoor.propFaceCss(setting('propFace')));   // the face of a property's name, at once everywhere: two names on the page's root
   style('capsules', setting('noCapsules') ? capsules : '');
   style('title-words', setting('hideTitleWords') ? titleWords : '');
   style('empty', emptyProps + EMPTY_ROWS);

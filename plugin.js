@@ -1829,6 +1829,7 @@ const TOKENS = `
   --lk-picked: var(--rx-blue-09, #0091ff);   /* the one thing picked among many, kept while it is the one shown (a table's row beside the Item tab) */
   --lk-mono: var(--ls-font-family-mono, ui-monospace, "SF Mono", Menlo, Consolas, monospace);
   --lk-tag-face: "New York", ui-serif, Georgia, serif; --lk-tag-adjust: none;
+  --lk-prop-face: "LK SF Mono", Menlo, Monaco, monospace; --lk-prop-weight: 300;   /* a property's name: the Mac's fixed-width face at its light weight (the owner, 24 November 2026, of the regular weight: "What mono font is that? I'm not crazy about it", then of eight drawn faces "I like the light version of mono but allow to change this in settings"); Look's setting "Property names, the face" sets these two */
   --lk-prop-adjust: .47;   /* a property's name in mono stands nine tenths the size of the words beside it, so it is no wider than they are */
   --lk-day: 48px;
   --lk-small: 13px; --lk-label: 12px;
@@ -1887,6 +1888,10 @@ const TOKENS = `
                   no shadow, so it reads as part of the page and never as something over it (the owner's "good" to "Emptiness,
                   Applied", 24 November 2026). Never inside something that floats;
      atOnce       whatever floats is there at once: no motion on its way in, so it takes one size and one place */
+/* The faces a property's name can be set in (Look's setting), by the names the Mac gives them. Each falls back to the Mac's own
+   fixed-width face where a Mac does not have it. → the two names the library's look reads. */
+Door.PROP_FACES = { 'SF Mono Light': ['"LK SF Mono"', 300], 'SF Mono': ['"LK SF Mono"', 400], 'Menlo': ['Menlo', 400], 'Monaco': ['Monaco', 400], 'Andale Mono': ['"Andale Mono"', 400], 'PT Mono': ['"PT Mono"', 400], 'Courier New': ['"Courier New"', 400], 'American Typewriter': ['"American Typewriter"', 400] };
+Door.propFaceCss = name => { const [face, weight] = Door.PROP_FACES[name] || Door.PROP_FACES['SF Mono Light']; return `:root { --lk-prop-face: ${face}, "LK SF Mono", Menlo, Monaco, monospace; --lk-prop-weight: ${weight}; }`; };
 Door.LOOKS = {
   line: 'font-size: var(--lk-line-size) !important; line-height: var(--lk-line-lead) !important; padding: 3px 9px 4px !important; border-radius: 6px !important; box-sizing: border-box !important; min-height: var(--lk-line-h) !important;',
   lit: 'background: var(--lk-lit) !important;',
@@ -1896,12 +1901,18 @@ Door.LOOKS = {
   fit: (min = '11rem', max = '22rem') => `width: max-content !important; min-width: min(${min}, calc(100vw - 16px)) !important; max-width: min(${max}, calc(100vw - 16px)) !important; animation: none !important;`,
   link: (firm = true) => { const i = firm ? ' !important' : ''; return `text-decoration: underline${i}; text-decoration-color: var(--lk-link)${i}; text-decoration-thickness: var(--lk-link-width)${i}; text-underline-offset: 3px;`; },
   out: 'content: "\\2197"; display: inline-block; margin-left: .2em; color: var(--lk-quiet); text-decoration: none;',
-  prop: (firm = true) => { const i = firm ? ' !important' : ''; return `font-family: var(--lk-mono)${i}; font-style: normal${i}; font-size-adjust: var(--lk-prop-adjust); letter-spacing: -.01em; word-spacing: -.2em;`; },
+  prop: (firm = true) => { const i = firm ? ' !important' : ''; return `font-family: var(--lk-prop-face)${i}; font-weight: var(--lk-prop-weight)${i}; font-style: normal${i}; font-size-adjust: var(--lk-prop-adjust); letter-spacing: -.01em; word-spacing: -.2em;`; },
   tagFace: 'font-family: var(--lk-tag-face) !important; font-style: normal !important; font-size-adjust: var(--lk-tag-adjust);',
   guess: 'font-style: italic !important; font-weight: 400 !important; color: var(--lk-quiet) !important; text-decoration: underline dotted !important; text-decoration-color: var(--lk-line) !important; text-underline-offset: 3px; background: none !important;',
   tag: (firm = true) => { const i = firm ? ' !important' : ''; return `color: var(--lk-quiet) !important; font-family: var(--lk-tag-face)${i}; font-style: normal${i}; font-size: inherit${i}; font-size-adjust: var(--lk-tag-adjust); text-decoration: none !important;`; },
 };
+/* SF Mono, the Mac's own fixed-width face. The Mac does not hand it to apps by name (seen in Logseq, 24 November 2026: "SF Mono" and
+   ui-monospace both came out as Menlo, the face the owner was "not crazy about"); it lies in the Mac's Terminal, and Logseq can
+   read a file of this Mac through assets://. So the face is drawn from the Mac's own copy, nothing of it is carried in the
+   plugin, and a Mac without that file gets Menlo. */
+const SF_MONO = (weight, style, file) => `@font-face { font-family: "LK SF Mono"; font-weight: ${weight}; font-style: ${style}; src: local("SFMono-${file}"), url("assets:///System/Applications/Utilities/Terminal.app/Contents/Resources/Fonts/SF-Mono-${file}.otf") format("opentype"); }`;
 Door.NAMES = `${TOKENS}
+${SF_MONO(300, 'normal', 'Light')} ${SF_MONO(300, 'italic', 'LightItalic')} ${SF_MONO(400, 'normal', 'Regular')} ${SF_MONO(400, 'italic', 'RegularItalic')}
 /* A tag: its name in the Mac's serif, upright (New York, --lk-tag-face), in the quiet grey, the words' own size (the owner,
    8 November 2026: "no reason why tags should be fainter ... or why there is an odd size discrepancy"; 10 November 2026: the
    mono read too close to the words, a box would distract; 11 November 2026: not italic, and in the quiet grey, "do new york quiet grey"; the text colour under the pointer). Its line height is the words', so a tag never makes its row taller. */

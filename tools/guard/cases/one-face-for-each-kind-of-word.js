@@ -19,6 +19,22 @@ module.exports = {
     await esc();
     await T.go(page, 'Dr. Mei Chen'); await T.sleep(2200);
     await want('a property’s name on a page’s lines', '.ls-page-properties a.property-k', mono, 'in mono');
+    // The face itself, as the Mac draws it (the owner, 24 November 2026, of the face first built: "What mono font is that? I'm not crazy about
+    // it", it was Menlo; then of eight drawn faces "I like the light version of mono but allow to change this in settings"): SF Mono
+    // Light by default; Look's setting changes it at once, and back.
+    const drawn = async () => { try { await box.cdp.send('DOM.enable'); await box.cdp.send('CSS.enable'); const { root } = await box.cdp.send('DOM.getDocument', { depth: 0 }); const { nodeId } = await box.cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector: '.ls-page-properties a.property-k' }); const f = await box.cdp.send('CSS.getPlatformFontsForNode', { nodeId }); return (f.fonts || []).map(x => x.postScriptName || x.familyName).join(', '); } catch (e) { return ''; } };
+    const hasFace = await page.evaluate(() => document.fonts.check('300 16px "LK SF Mono"') && [...document.fonts].some(f => f.family.replace(/"/g, '') === 'LK SF Mono'));
+    const first = await drawn();
+    if (!hasFace) out.push('the library names no SF Mono of the Mac’s own for a property’s name');
+    else if (first && !/SFMono-Light/.test(first)) out.push(`a property’s name is drawn in ${first} (SF Mono Light)`);
+    else if (first) {
+      await f.evaluate(() => logseq.updateSettings({ propFace: 'Menlo' })); await T.sleep(900);
+      const menlo = await drawn();
+      await f.evaluate(() => logseq.updateSettings({ propFace: 'SF Mono Light' })); await T.sleep(900);
+      const back = await drawn();
+      if (!/Menlo/.test(menlo)) out.push(`with the setting on Menlo a property’s name is drawn in ${menlo}`);
+      if (!/SFMono-Light/.test(back)) out.push(`set back to SF Mono Light, a property’s name is drawn in ${back}`);
+    }
     await want('a property’s name over a Relations list', '.th-two-way .th-tw-name.lk-prop', mono, 'in mono');
     await want('the words of a Relations row', '.th-two-way .th-ol-name', plain, 'plain');
     const add = page.getByText('Add property', { exact: true }).first();
