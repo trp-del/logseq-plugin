@@ -377,6 +377,8 @@ html[data-lk-try="new"] .th-two-way .th-ls-node .ls-block-right { margin-left: 0
 .th-two-way .th-tw-head .th-tw-chips { padding-bottom: 6px; margin-bottom: -6px; }
 .th-two-way .th-tw-head .th-tw-chip.lk-view { --lk-view-pad: 0px; padding: 0 !important; font-weight: 400; font-size: inherit; }
 .th-two-way .th-tw-head .th-tw-chip.lk-view.on::after { bottom: -5px; }
+/* A kind to narrow to is a tag, so it is in the tag's face (the owner, 24 November 2026: one face for each kind of word); "All" is no tag. */
+.th-two-way .th-tw-head .th-tw-chip.lk-view[data-tag]:not([data-tag=""]) { ${window.PluginDoor.LOOKS.tagFace} }
 .th-two-way .th-tw-head .th-tw-sep { display: none; }
 /* A tab's count, beside its word, a step lighter. */
 .th-two-way .th-tw-head .th-tw-n { margin-left: .3em; color: var(--lk-quiet); font-weight: 400; font-variant-numeric: tabular-nums; }

@@ -467,6 +467,10 @@ html.st-bin-ask :is(.ui__dialog-overlay, .ui__dialog-content) { opacity: 0 !impo
 /* On a tree row the name is the door (the grammar's row): the words carry the faint line under the pointer, since a line on every row would multiply. */
 .st-row .nm .st-name { cursor: pointer; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 3px; transition: text-decoration-color ${window.PluginDoor.timing('edge')}; }
 .st-row .nm .st-name:hover { text-decoration-color: var(--lk-line); }
+/* One face for each kind of word (the owner, 24 November 2026), in Ontology's own lists: a tag in the tag's serif in the tree and the
+   regions, a property's name in mono in the list of properties and in a tag's Relationships lines. */
+.st-tree .st-row:not(.st-topdrop) .nm > span, .st-regions .st-row .nm > span { ${window.PluginDoor.LOOKS.tagFace} }
+.st-tbl .k.lk, .st-rel .lk[data-open] { ${window.PluginDoor.LOOKS.prop()} }
 .st-h { font-size: 14px; font-weight: 600; margin: 22px 0 4px; }
 /* A narrow pane (the right sidebar open): the table keeps its four columns, the tag columns wrapping. */
 @container (max-width: 640px) { .st-tbl .hd, .st-tbl .tr { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 76px; } .st-tbl .hd > *, .st-tbl .tr > * { padding-inline: 8px; } }
