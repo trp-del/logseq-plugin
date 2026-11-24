@@ -300,6 +300,14 @@ ${ROW} > .block-children-container > .block-children-left-border { display: none
    of a page read, a property's icon and lighter name before its value. Only the layout is its own; every look is the library's. */
 .st-values { position: fixed; z-index: 500; box-sizing: border-box; padding: 14px 18px 12px; overflow: auto; font-size: 14px; }
 .st-values:focus { outline: none; }
+/* The bin's question, asked in the bar (table-values.js): Logseq's own window for it is kept unseen behind and does the deleting. */
+html.st-bin-ask :is(.ui__dialog-overlay, .ui__dialog-content) { opacity: 0 !important; pointer-events: none !important; }
+.ls-table-actions.st-bar-asking > :not(.st-bar-ask) { display: none !important; }
+.st-bar-ask { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 10px; min-height: 28px; padding: 0 0 0 8px; font-size: 14px; }
+.st-bar-ask > b { font-weight: 600; white-space: nowrap; } .st-bar-ask > .lk-note { white-space: nowrap; } .st-bar-ask > .lk-answers { flex-basis: auto; margin: 0 0 0 8px; }
+[data-st-going] .ls-table-row:has(label[data-table-row-select] :is([aria-checked="true"], [data-state="checked"], [data-checked])) :is(.table-block-title, .table-block-title *) { ${window.PluginDoor.LOOKS.going} }
+.st-values .tv-pick:not(.off) .tv-pn { ${window.PluginDoor.LOOKS.prop()} }
+.ls-table-actions > .st-bar-ghost { pointer-events: none; } .ls-table-actions:has(> .ui__toolbar-group:not(.st-bar-ghost)) > .st-bar-ghost { display: none; }   /* the bar's words kept in view while a list of Logseq's is open from one of them (table-values.js) */
 .ls-table-actions.st-bar-fit { flex-wrap: wrap; row-gap: 0; column-gap: 0; } .ls-table-actions.st-bar-fit .selection-action-group { display: contents; }   /* Logseq's bar for ticked rows, kept to the width in view */
 .st-values .tv-form { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 14px; align-items: baseline; }
 .st-values .tv-pick { display: inline-flex; align-items: baseline; gap: 6px; max-width: 100%; border-left: 0; padding-left: 0; background: none; cursor: pointer; }

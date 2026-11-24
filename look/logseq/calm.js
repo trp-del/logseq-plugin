@@ -171,6 +171,8 @@ ${AREA} .ls-table-header.ls-fixed > .table-action-bar .ls-table-actions { backgr
 ${AREA} :has(> .lk-tstate):has(.ls-table-actions) > .lk-tstate { visibility: hidden; box-sizing: border-box; min-height: calc(var(--lk-bar-room, 31px) - 4px); }
 ${AREA} .table-action-bar .ls-table-actions { ${LOOKS.capsule} border-radius: 14px !important; min-height: 28px; padding: 0 10px 0 8px !important; gap: 2px !important; }   /* round ends at one line; the same corners when its words take two */
 ${AREA} .table-action-bar .ui__button:has(.ls-icon-trash) { margin-left: 10px !important; }
+/* The word that is pressed, while its list or box is open: a shade firmer than the capsule, so the bar says where you are. */
+${AREA} .table-action-bar .ui__button:is([data-lk-on], [aria-expanded="true"]) { background: var(--lk-hair) !important; }
 ${AREA} .table-action-bar .selection-count { color: var(--lk-quiet); font-size: 14px; white-space: nowrap; }
 ${AREA} .table-action-bar .ui__toolbar-group { gap: 2px !important; }
 ${AREA} .table-action-bar .ui__button { border: 0 !important; background: transparent !important; box-shadow: none !important; border-radius: 999px !important; font-size: 14px !important; font-weight: 400 !important; color: var(--lk-text) !important; height: 28px !important; padding: 0 10px !important; margin: 0 !important; }

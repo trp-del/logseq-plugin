@@ -1865,6 +1865,8 @@ const TOKENS = `
      fit(min,max) as big as what it holds (the owner, 24 November 2026, of a list 512 wide round names 150 wide: "much too
                   massive"): as wide as its widest line between two limits, never wider than the window, and there at once,
                   at its one size, as the Mac's menus are;
+     going        what a change about to be made takes away: struck through, in red (lk-going wears it; Look and Ontology put it
+                  on Logseq's own words where a change will take them);
      capsule      what lies in the page and acts on it (a bar for the rows you ticked): flat, round ends, the 7% wash, no line and
                   no shadow, so it reads as part of the page and never as something over it (the owner's "good" to "Emptiness,
                   Applied", 24 November 2026). Never inside something that floats;
@@ -1872,6 +1874,7 @@ const TOKENS = `
 Door.LOOKS = {
   line: 'font-size: 13px !important; line-height: 18px !important; padding: 3px 9px !important; border-radius: 6px !important; box-sizing: border-box !important; min-height: 24px !important;',
   lit: 'background: var(--lk-text) !important; color: var(--lk-paper) !important;',
+  going: 'text-decoration: line-through !important; text-decoration-thickness: 1.5px !important; color: var(--rx-red-10, #dc3e42) !important;',
   capsule: 'background: var(--lk-wash) !important; border: 0 !important; border-radius: 999px !important; box-shadow: none !important;',
   atOnce: 'animation: none !important;',
   fit: (min = '11rem', max = '22rem') => `width: max-content !important; min-width: min(${min}, calc(100vw - 16px)) !important; max-width: min(${max}, calc(100vw - 16px)) !important; animation: none !important;`,
@@ -1915,7 +1918,7 @@ Door.NAMES = `${TOKENS}
    diff style"); struck through in red. A change that waits (Ontology's tray, a part switched on or off until the reload) wears these wherever it is
    shown. The pencil above stays Predictive's: a guess you can ignore. */
 .lk-coming { color: var(--rx-green-11, #18794e) !important; }
-.lk-going { text-decoration: line-through !important; text-decoration-thickness: 1.5px !important; color: var(--rx-red-10, #dc3e42) !important; }
+.lk-going { ${Door.LOOKS.going} }
 .lk-undo { opacity: .28 !important; transition: opacity ${Door.timing('undo')}; }
 .lk-undo:hover, .lk-undo:focus-visible { opacity: .85 !important; }
 .lk-row .lk-fold { opacity: 0 !important; transition: opacity ${Door.timing('reveal')}; }

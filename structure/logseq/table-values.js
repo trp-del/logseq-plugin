@@ -87,21 +87,96 @@ function start(app, doc) {
   const unfit = table => { const root = rootOf(table); if (root) lineRoom(root, ''); let had = 0; for (const el of [table, ...table.querySelectorAll('[data-st-bar-pushed]')]) if (el.dataset && 'stBarPushed' in el.dataset) { had = Math.max(had, parseInt(el.style.marginTop || '0', 10) || 0); el.style.marginTop = ''; el.style.marginBottom = ''; delete el.dataset.stBarPushed; } if (had) { const scroller = scrollerOf(table); if (scroller) scroller.scrollTop -= had; } };
 
   // ---------- the word in Logseq's bar ----------
+  /* While a list of Logseq's is open from one of the bar's words (Set property, Unset property, #), Logseq takes every word out of
+     the bar and leaves its count, so nothing on the screen says what was pressed (the owner's "good" to "Emptiness, Applied", 24
+     November 2026: "The bar stays whole and Set property is lit, so the screen still says where you are"). The words as they
+     last stood are kept, and drawn in the shrunk bar as a stand-in that takes no press and no key, the pressed word marked; it
+     goes when Logseq's own words come back (the stylesheet hides it in that same frame) or when no list is open. */
+  const words = new WeakMap();   // a table → { cls, html } of its bar's words as last seen whole
+  let pressed = '';              // the word last pressed in a bar: its letters, or the name of its icon
+  const nameOf = b => b.textContent.trim() || [...(b.querySelector('.ui__icon')?.classList || [])].find(c => c.startsWith('ls-icon-')) || '';
+  const realGroup = bar => [...bar.children].find(c => !c.classList.contains('st-bar-ghost') && c.querySelector('button'));
+  function keep(bar, table) { const g = realGroup(bar); if (g && table) words.set(table, { cls: g.className, html: g.innerHTML }); }
+  function ghost(bar, table) {
+    const had = bar.querySelector(':scope > .st-bar-ghost');
+    if (realGroup(bar)) { had?.remove(); return false; }
+    const kept = table && words.get(table), listOpen = !!doc.querySelector('.ui__popover-content, .ui__dropdown-menu-content');
+    if (!kept || !listOpen) { had?.remove(); return !!kept; }
+    if (!had) {
+      const g = doc.createElement('div'); g.className = `${kept.cls} st-bar-ghost`; g.innerHTML = kept.html; g.inert = true; g.setAttribute('aria-hidden', 'true');
+      for (const el of g.querySelectorAll('[id]')) el.removeAttribute('id');
+      for (const b of g.querySelectorAll('button')) { b.tabIndex = -1; b.removeAttribute('data-st-values'); if (pressed && nameOf(b) === pressed) b.dataset.lkOn = ''; }
+      bar.append(g);
+    }
+    fit(bar);
+    return true;
+  }
   function dress() {
     for (const bar of doc.querySelectorAll(BAR)) {
       const table = tableOf(bar); if (table) { table.dataset.stValuesTable = ''; read(table); }
-      if (bar.querySelector('[data-st-values]')) { fit(bar); continue; }
+      if (ghost(bar, table)) continue;
+      if (bar.querySelector('[data-st-values]')) { keep(bar, table); fit(bar); continue; }
       const group = bar.querySelector('.selection-action-group') || bar, like = [...group.querySelectorAll('button')].filter(b => b.textContent.trim().length > 1).pop();
       if (!like) continue;
       // Logseq's own button, copied bare: its look is Logseq's, so the word reads as one of the bar's.
       const word = like.cloneNode(false); word.removeAttribute('id'); word.dataset.stValues = ''; word.textContent = WORD;
       word.addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); open(bar); });
       like.after(word);
-      fit(bar);
+      keep(bar, table); fit(bar);
     }
     // A table with no bar has no row ticked: what was kept of it is let go. The box goes with its bar.
     for (const table of doc.querySelectorAll('[data-st-values-table]')) if (!table.querySelector(BAR)) { known.delete(table); delete table.dataset.stValuesTable; unfit(table); }
     if (box && !box.bar.isConnected) close();
+  }
+  const press = event => { const word = event.target.closest?.(`${BAR} button`); if (word && !word.closest('.st-bar-ghost, .st-bar-ask')) { pressed = nameOf(word); pressedBar = word.closest(BAR); } };   // Logseq takes the words out at the press, before any click
+  /* The bin (the owner's "good" to "Emptiness, Applied", 24 November 2026: "The bar itself turns into the question, in the same
+     place, so nothing lies over the table. The three rows are struck red where they stand… The yes names its result, and the
+     keyboard waits on Leave it"). Logseq's own window for the question still opens and still does the deleting: it is kept
+     unseen from its first frame, the keyboard put on its Cancel, and the bar shows the question with two presses that press
+     Logseq's Cancel and Yes. Whatever goes wrong here, the window is shown again as Logseq draws it. */
+  let ask = null, pressedBar = null;   // the question in a bar: { dlg, bar, table, el, no, yes, off }
+  function endAsk() {
+    const a = ask; if (!a) return; ask = null;
+    a.off(); a.el.remove(); a.bar.classList.remove('st-bar-asking'); if (a.table) delete a.table.dataset.stGoing;
+    doc.documentElement.classList.remove('st-bin-ask');
+    for (const bar of doc.querySelectorAll(BAR)) fit(bar);
+  }
+  function binAsk() {
+    if (ask) { if (!ask.dlg.isConnected || !ask.bar.isConnected) endAsk(); return; }
+    if (pressed !== 'ls-icon-trash' || !pressedBar?.isConnected) return;
+    const dlg = doc.querySelector('.ui__dialog-content'); if (!dlg) return;
+    const head = dlg.querySelector('#modal-headline')?.textContent || '', what = /delete (?:these|this|the) ([a-z]+)/i.exec(head);
+    const buttons = [...dlg.querySelectorAll('.ui__dialog-main-content button')], no = buttons.find(b => /^cancel$/i.test(b.textContent.trim())), yes = buttons.find(b => /^yes$/i.test(b.textContent.trim()));
+    pressed = '';
+    if (!what || !no || !yes) return;   // not the question known here: Logseq's window stands as it is
+    const bar = pressedBar, table = tableOf(bar), n = dlg.querySelectorAll('ol > li').length || said(bar) || 0, noun = n === 1 ? what[1].replace(/s$/, '') : what[1];
+    const el = doc.createElement('div'); el.className = 'st-bar-ask';
+    el.innerHTML = `<b>Delete ${n} ${esc(noun)}?</b>${/permanently/i.test(head) ? '<span class="lk-note">Properties and tags go for good.</span>' : ''}<span class="lk-answers"><button type="button" class="lk-btn lk-low lk-enter" data-ask="no">Leave it</button><button type="button" class="lk-big" data-ask="yes">Delete ${n} ${esc(noun)}</button></span>`;
+    const light = () => { const on = doc.activeElement === yes ? 'yes' : 'no'; for (const b of el.querySelectorAll('[data-ask]')) b.classList.toggle('lk-enter', b.dataset.ask === on); };
+    const focus = () => { if (!ask) return; if (doc.activeElement !== yes && doc.activeElement !== no) no.focus({ preventScroll: true }); light(); };
+    // A press on the bar's question is a press outside Logseq's window, which would let the window go (and with it the ticks) before
+    // the answer is given. So the press is kept from Logseq, from the window's own edge inwards, and the click gives the answer.
+    const click = event => {
+      if (!ask || !el.contains(event.target)) return;
+      event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation();
+      const b = event.type === 'click' && event.target.closest('[data-ask]'); if (b) (b.dataset.ask === 'yes' ? yes : no).click();
+    };
+    const PRESSES = ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'];
+    // The keys while the question stands: Enter and Space answer with the press the keyboard is on (Leave it, unless Tab moved it),
+    // Tab moves between the two, Escape leaves. Taken here, before Logseq's own keys, so Enter can never mean anything else.
+    const key = event => {
+      if (!ask || event.isComposing) return;
+      const k = event.key; if (k !== 'Enter' && k !== ' ' && k !== 'Tab' && k !== 'Escape') return;
+      event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation();
+      if (k === 'Tab') { (doc.activeElement === yes ? no : yes).focus({ preventScroll: true }); light(); }
+      else if (k === 'Escape') no.click();
+      else (doc.activeElement === yes ? yes : no).click();
+    };
+    dlg.addEventListener('focusin', focus); for (const t of PRESSES) win.addEventListener(t, click, true);
+    win.addEventListener('keydown', key, true);
+    ask = { dlg, bar, table, el, no, yes, off: () => { dlg.removeEventListener('focusin', focus); win.removeEventListener('keydown', key, true); for (const t of PRESSES) win.removeEventListener(t, click, true); } };
+    doc.documentElement.classList.add('st-bin-ask'); bar.classList.add('st-bar-asking'); if (table) table.dataset.stGoing = '';
+    bar.append(el); no.focus({ preventScroll: true }); light(); fit(bar);
   }
   function seen(event) {   // a tick pressed: the rows are read again once Logseq has drawn them
     if (!event.target.closest?.(`${TICK}, [role="checkbox"]`)) return;
@@ -128,18 +203,22 @@ function start(app, doc) {
     box = { bar, table, pop, nodes, from: from?.id ?? null, into: null, name: '', remove: false, pv: null, seq: 0 };
     pop.addEventListener('click', onClick); pop.addEventListener('change', onChange); pop.addEventListener('keydown', onKey);
     doc.addEventListener('pointerdown', away, true); win.addEventListener('resize', place); doc.addEventListener('scroll', place, true);
+    bar.querySelector('[data-st-values]')?.setAttribute('data-lk-on', '');   // the word is lit while its box is open
     draw(); place(); pop.focus({ preventScroll: true });
   }
   function close() {
     if (!box) return;
     const b = box; box = null;
+    b.bar.querySelector('[data-st-values]')?.removeAttribute('data-lk-on');
     b.pop.remove(); doc.removeEventListener('pointerdown', away, true); win.removeEventListener('resize', place); doc.removeEventListener('scroll', place, true);
   }
   const away = event => { if (box && !box.pop.contains(event.target) && !event.target.closest?.('[data-st-values], .th-lsq-pop, .lk-door-menu')) close(); };
   function place() {
     if (!box) return; if (!box.bar.isConnected) return close();
-    const r = box.bar.getBoundingClientRect(), w = Math.min(470, win.innerWidth - 16 - Math.max(8, r.left));
-    Object.assign(box.pop.style, { left: `${Math.max(8, Math.round(r.left))}px`, top: `${Math.round(r.bottom + 6)}px`, width: `${w}px`, maxHeight: `${Math.max(160, win.innerHeight - r.bottom - 16)}px` });
+    // Hung from its word in the bar (the owner's "good" to "Emptiness, Applied", 24 November 2026), so the ticked names stay in view
+    // beside it; where the window has no room to the word's right, it ends at the window's edge.
+    const r = box.bar.getBoundingClientRect(), word = box.bar.querySelector('[data-st-values]')?.getBoundingClientRect() || r, w = Math.min(400, win.innerWidth - 24);
+    Object.assign(box.pop.style, { left: `${Math.max(8, Math.min(Math.round(word.left), win.innerWidth - w - 8))}px`, top: `${Math.round(r.bottom + 6)}px`, width: `${w}px`, maxHeight: `${Math.max(160, win.innerHeight - r.bottom - 16)}px` });
   }
   const intoProp = () => (box.into != null ? P(box.into) : null);
   const intoName = () => (box.into != null ? P(box.into)?.title || '' : box.name);
@@ -221,12 +300,15 @@ function start(app, doc) {
     event.stopPropagation();   // a letter typed here is not one of Logseq's keys
   }
 
+  // In the frame Logseq draws or shrinks its bar, not one later: the word added, the bar fitted, the stand-in drawn (measured 24 November
+  // 2026: the bar took two sizes, drawn and then grown when the word came).
+  const offEarly = Door.watch(() => { try { binAsk(); } catch (error) { endAsk(); S.base.warnOnce('the bin\'s question could not be asked in the bar', error); } for (const bar of doc.querySelectorAll(BAR)) if (!bar.querySelector('[data-st-values], .st-bar-ghost') || (realGroup(bar) && bar.querySelector('.st-bar-ghost'))) return dress(); }, { early: true });
   const offWatch = Door.watch(dress);
-  doc.addEventListener('click', seen, true);
+  doc.addEventListener('click', seen, true); doc.addEventListener('pointerdown', press, true);
   dress();
   const refit = () => { for (const bar of doc.querySelectorAll(BAR)) fit(bar); };
   win.addEventListener('resize', refit);
-  return () => { offWatch?.(); doc.removeEventListener('click', seen, true); win.removeEventListener('resize', refit); close(); doc.querySelectorAll('[data-st-values]').forEach(el => el.remove()); doc.querySelectorAll('[data-st-values-table]').forEach(unfit); doc.querySelectorAll('.st-bar-fit').forEach(el => { el.classList.remove('st-bar-fit'); (el.closest('.table-action-bar') || el).style.maxWidth = ''; }); };
+  return () => { endAsk(); offEarly?.(); offWatch?.(); doc.querySelectorAll('.st-bar-ghost').forEach(el => el.remove()); doc.removeEventListener('click', seen, true); doc.removeEventListener('pointerdown', press, true); win.removeEventListener('resize', refit); close(); doc.querySelectorAll('[data-st-values]').forEach(el => el.remove()); doc.querySelectorAll('[data-st-values-table]').forEach(unfit); doc.querySelectorAll('.st-bar-fit').forEach(el => { el.classList.remove('st-bar-fit'); (el.closest('.table-action-bar') || el).style.maxWidth = ''; }); };
 }
 S.tableValues = { start, WORD };
 })();
