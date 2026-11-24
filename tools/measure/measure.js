@@ -138,7 +138,8 @@ function reckon(flow, got, anchor) {
   // At rest.
   const F = got.float.rect;
   if (anchor) {
-    if (flow.anchor === 'caret') { r.dx = anchor.x - F.x; r.gap = F.y >= anchor.y ? F.y - (anchor.y + anchor.h) : anchor.y - (F.y + F.h); }
+    // A list at the caret starts where the typed sign starts, or, with no room to the right, ends at the caret.
+    if (flow.anchor === 'caret') { const left = anchor.x - F.x, right = F.x + F.w - anchor.x; r.dx = left >= -M.EPS && left <= 32 ? left : Math.abs(right) <= 32 ? Math.abs(right) : left; r.gap = F.y >= anchor.y ? F.y - (anchor.y + anchor.h) : anchor.y - (F.y + F.h); }
     else { r.dx = F.x - anchor.x; r.gap = F.y >= anchor.y + anchor.h - 1 ? F.y - (anchor.y + anchor.h) : anchor.y - (F.y + F.h); }
   }
   const room = M.room(F, got.float.words); r.band = room.band; r.side = room.side;
@@ -201,8 +202,8 @@ function verdict(flow, runs, flash, base) {
     add('M8', 'sizes it takes', worst('sizes'), worst('sizes') <= (flow.motionMs ? 99 : 1), flow.motionMs ? 'grows once' : '1');
     if (flow.anchor) {
       const dx = good.map(r => r.dx), gap = good.map(r => r.gap), worstDx = dx.reduce((a, b) => (Math.abs(b) > Math.abs(a) ? b : a), 0);
-      const okDx = flow.anchor === 'caret' ? dx.every(v => v >= -M.EPS && v <= 24) : dx.every(v => Math.abs(v) <= M.EPS);
-      add('G1', flow.anchor === 'caret' ? 'left of the caret by' : 'off its anchor’s edge by', worstDx, okDx, flow.anchor === 'caret' ? '0 to 24 pt' : '≤ 0.5 pt', ' pt');
+      const okDx = flow.anchor === 'caret' ? dx.every(v => v >= -M.EPS && v <= 32) : dx.every(v => Math.abs(v) <= M.EPS);
+      add('G1', flow.anchor === 'caret' ? 'its near edge from the caret' : 'off its anchor’s edge by', worstDx, okDx, flow.anchor === 'caret' ? '0 to 32 pt' : '≤ 0.5 pt', ' pt');
       add('G1', 'gap to what called it', Math.max(...gap), gap.every(v => v >= PASS.gapMin - M.EPS && v <= PASS.gapMax + M.EPS), `${PASS.gapMin} to ${PASS.gapMax} pt`, ' pt');
     }
     add('G2', 'tallest band with nothing in it', worst('band'), worst('band') <= PASS.band, `≤ ${PASS.band} pt`, ' pt');

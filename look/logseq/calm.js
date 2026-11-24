@@ -305,6 +305,35 @@ ${MENUS} :is([role=menuitem], .ui__dropdown-menu-item):is([data-highlighted], :h
    they stand under a bullet however deep (place(), below, measures where each stands). A tag's or a property's page, which
    holds the table of its nodes, keeps Logseq's own layout, everything on the left edge of the wide page (the owner: "tag or
    property pages should still have non-table elements on left side like default"). */
+/* The lists that open on the line you are writing ([[ pages, # tags, / commands, (( nodes): as big as what they hold (the owner,
+   24 November 2026: "the window that appears is much too massive"; measured that day at 512 by 288 round names 150 wide, pushed
+   226 pt left of the caret by its own width, 5 pt from the window's edge, eight sizes on its way open). As wide as its widest
+   name, eight lines at most and then it scrolls, the menu's tight line, the line you are on filled, there in one frame at one
+   size, a few points clear of the line it hangs from. Every number is the library's (Door.LOOKS.line, lit, fit). */
+const WRITING_LIST = '.ui__popover-content[data-editor-popup-ref]', LOOKS = window.PluginDoor.LOOKS;
+PARTS.calmMenus += `
+${WRITING_LIST} { ${LOOKS.fit('7rem')} padding: 5px !important; font-size: 13px !important; line-height: 18px !important; overflow: hidden !important; }
+/* A list that holds no line yet shows nothing: Logseq draws the box a frame before its rows, and an empty box that then grows is a flash. */
+${WRITING_LIST}:not(:has(.menu-link)) { visibility: hidden !important; }
+/* The tag list keeps one width from its first frame: it is a tree you step in and out of, and the line you are on names its
+   child tags at the right end, so a width that followed each step would move the names sideways (and Logseq, placing the list
+   before its rows were in, set it past the window's edge for a frame). 300 pt holds its widest line. */
+${WRITING_LIST}[data-editor-popup-ref="page-search-hashtag"] { width: 300px !important; min-width: 0 !important; max-width: calc(100vw - 16px) !important; }
+${WRITING_LIST}[data-editor-popup-ref="page-search-hashtag"] #ui__ac-inner { min-width: 0 !important; }
+${WRITING_LIST}[data-side="bottom"] { margin-top: 3px !important; }
+${WRITING_LIST}[data-side="top"] { margin-bottom: 3px !important; }
+${WRITING_LIST} #ui__ac-inner { max-height: 192px !important; }
+${WRITING_LIST} .menu-link-wrap { padding: 0 !important; }
+${WRITING_LIST} .menu-link { ${LOOKS.line} display: flex !important; align-items: center !important; white-space: nowrap !important; }
+${WRITING_LIST} .menu-link, ${WRITING_LIST} .menu-link * { font-size: 13px !important; line-height: 18px !important; }
+${WRITING_LIST} .menu-link .flex-1, ${WRITING_LIST} .menu-link .flex-1 > .flex-col { min-width: 0 !important; overflow: hidden !important; }
+${WRITING_LIST} .menu-link .flex-row { align-items: center !important; min-width: 0 !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; }
+${WRITING_LIST} .menu-link .flex-row > .h-5 { height: 18px !important; flex: none !important; }
+${WRITING_LIST} .menu-link .flex-row > :not(.h-5) { min-width: 0 !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; }
+${WRITING_LIST} .menu-link svg { width: 13px !important; height: 13px !important; }
+${WRITING_LIST} .menu-link.chosen { ${LOOKS.lit} }
+${WRITING_LIST} .menu-link.chosen * { color: var(--lk-paper) !important; }
+`;
 const WIDTHS = { Narrow: '44rem', Medium: '52rem', Wide: '60rem' };
 const reading = () => WIDTHS[setting('readingWidth')] || null;
 const widthCss = col => `

@@ -22,7 +22,7 @@ It starts a Logseq of its own (port 9480, 700 × 560, a copy of the flow's test 
 | M6 | the longest gap between frames while it moves | ≤ 34 ms |
 | M7 | while typing: rows that stay keep their place, no empty list between two full ones, the corner stays, height changes | 0, 0, ≤ 0.5 pt, ≤ 1 a letter |
 | M8 | sizes it takes with no motion named for it | 1 |
-| G1 | distance from the edge of what called it (or from the caret), and the gap | ≤ 0.5 pt (0 to 24 pt left of a caret); 4 to 8 pt |
+| G1 | distance from the edge of what called it (or from the caret), and the gap | ≤ 0.5 pt (for a caret: it starts 0 to 32 pt left of the caret, where the typed sign starts, or ends there); 4 to 8 pt |
 | G2 | the tallest band in it where nothing stands; the room beside its widest row | ≤ 36 pt; ≤ 40 pt |
 | G3 | its nearest edge of the window | ≥ 8 pt |
 | G4 | area of what the person is acting on that it covers | 0 |

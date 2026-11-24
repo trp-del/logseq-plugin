@@ -63,7 +63,7 @@ const FLOWS = [
   { name: 'tag-list', graph: ILL, says: 'the list of tags, after # on a line',
     setup: async (b, H) => { await H.go(WRITING); await H.write(2); },
     anchor: 'caret', input: async b => b.page.keyboard.type(' #'),
-    float: LIST, rows: '.menu-link-wrap', still: [others], protect: ['editing'], unevenRows: true,
+    float: LIST, rows: '.menu-link-wrap', still: [others], protect: ['editing'], unevenRows: true, keepsWidth: true,   // a tree stepped in and out of keeps its width
     faces: { 'a tag': '#ui__ac-inner .menu-link-wrap.st-hrow, #ui__ac-inner .menu-link-wrap.st-in-tree' }, faceWant: { 'a tag': serif },
     after: async (b, H) => H.putBack() },
   { name: 'small-find', graph: ILL, says: 'the small Find under the line, on Option-K',
