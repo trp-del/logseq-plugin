@@ -23,7 +23,8 @@ Find has two hosts and one code (`find.js`, `S.host`): the window, over the page
   (`lk-pop`), under the bullet at its width, above it where the window has no room below, four rows. Where its lines of choices or
   its foot wrap (the narrow sidebar), it grows, as far as the window has room, until its first row shows whole under the choices'
   names; where the room is not enough, a line of choices keeps fewer of them before its "more", so it stands on one line. Not modal: the page stays
-  as it is, the bullet stays in writing, a press elsewhere lets it go.
+  as it is, the bullet stays in writing, a press elsewhere lets it go. Where it reaches the window's lower right corner it stands over
+  Logseq's round help button, which otherwise sat on the foot's keys.
 - **Keys.** Typing finds as the window does; ↑ ↓ move; Tab narrows or steps into the choices; → opens a row in place; Enter
   links the lit row at the caret (`[[Name]]`, a space before it after a letter), one Cmd+Z takes it back; Escape goes back a
   step and at last closes, the caret exactly where it was (the panel's own key closes it at once); Cmd K opens the window with the same letters. The foot says what
