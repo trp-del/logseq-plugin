@@ -130,7 +130,7 @@ function placeOf(el) {
   if (mark) return { says: mark.hasAttribute('data-lk-says') ? list(mark.getAttribute('data-lk-says')) : pageSays, match: list(mark.getAttribute('data-lk-match')), facts: mark.hasAttribute('data-lk-facts'), typed, words: wordsOf(mark.closest('.lk-row, .fd-r, .th-ol-line, .td-line') || mark.parentElement) };
   // Logseq's own bullet shows its own properties under its words while open; folded, it hides them, so the note says the first two.
   const block = el.closest?.('.ls-block[blockid]');
-  const facts = !!(block && [...block.querySelectorAll('.block-properties, .ls-properties-area, .property-k')].some(p => p.closest('.ls-block[blockid]') === block));
+  const facts = !!(block && [...block.querySelectorAll('.ls-properties-area, .property-k')].some(p => p.closest('.ls-block[blockid]') === block));
   return { says: pageSays, facts, typed, words: block ? wordsOf(own(block, '.block-title-wrap') || own(block, '.block-content')) : '' };
 }
 const shownIn = (now, place) => shows(fitted(now, place));
