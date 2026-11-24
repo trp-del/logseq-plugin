@@ -578,7 +578,7 @@ function make(holder, mode, app, opts = {}) {
     const views = `<div class="st-views lk-views">${[['tree', 'Tags', 'tag'], ['table', 'Properties', 'list'], ['log', 'History', 'history']].map(([k, w, ic]) => `<span class="lk-view lk-i-${ic} ${v === k ? 'here on' : 'act'}" ${v === k ? '' : `data-show="${k}"`}>${w}</span>`).join('')}</div>`;
     const split = st.view === 'tree' ? `<span class="st-split act lk-btn lk-low lk-i-side" data-split>${st.split ? 'One pane' : 'Two panes'}</span>` : '';
     const find = st.view === 'tree' && st.split ? '' : `<div class="st-find lk-field"><input data-find placeholder="${st.view === 'table' ? 'Find a property' : 'Find a tag'}" value="${esc(st.find)}" autocomplete="off" spellcheck="false"></div>`;
-    return `<div class="st-top">${views}${find}${split}${st.view === 'tree' ? `<span class="st-new act lk-add lk-i-plus" data-do="new" data-on="${LOOSE}">New top-level tag</span>` : ''}</div>${st.view === 'tree' ? actsHtml() + tmergeHtml() + tmoveHtml() : st.view === 'table' ? pactsHtml() + pkeepHtml() : ''}`;
+    return `<div class="st-top">${views}${find}${split}${st.view === 'tree' ? `<span class="st-new act lk-add lk-i-plus" data-do="new" data-on="${LOOSE}">New top-level tag</span>` : ''}</div>${st.view === 'tree' ? actsHtml() + tmergeHtml() : st.view === 'table' ? pactsHtml() + pkeepHtml() : ''}`;
   }
   // What can be done stays in view, faint until it can be (the research: what you can do is recognised, not remembered), so nothing moves when a tag is picked.
   function actsHtml() {
@@ -639,7 +639,10 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
   }
   function focusHtml(id) {
     const t = T(id); if (!t) return '';
-    return `<div class="st-focus"><div class="f-h"><span class="lk" data-go="${esc(id)}">${esc(t.title)}</span></div>${relsHtml(id)}${mergeAskHtml(id)}${changeAskHtml(id)}${suggestHtml(id)}</div>`;
+    /* No list of relations under the areas (the owner, 24 November 2026: "this is not even useful to me. remove"): the pressed tag's
+       name stands there only over a question or a suggestion about it. */
+    const under = mergeAskHtml(id) + changeAskHtml(id) + suggestHtml(id);
+    return under ? `<div class="st-focus"><div class="f-h"><span class="lk" data-go="${esc(id)}">${esc(t.title)}</span></div>${under}</div>` : '';
   }
   /* What Ontology suggests: the word "Suggested" once, as a small heading, then one line each, the sentence and its fix at the line's
      end, lined up (16 November 2026, the owner: "look how bad this looks" of "Suggested" run into each sentence, every line its own). */
@@ -838,25 +841,6 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     return `<div class="st-q"><div class="h">Merge ${esc(R.list(names))} into one tag. Keep which name?</div>${keepLine(byCount(ids, x => Mo.count(M(), x)), keep, !!(a.newName || '').trim(), x => plural(Mo.count(M(), x), 'node'), 'data-tkeep')}` +
       `<div class="l">Or a new name <input class="st-in lk-field" data-tnew value="${esc(a.newName || '')}" placeholder="type a name" autocomplete="off" spellcheck="false"></div>` +
       `<div class="l cnt">${esc(R.list(gone.map(name)))} ${gone.length === 1 ? 'goes' : 'go'}; ${plural(moving, 'node')} move into ${esc(into)}, and links to ${gone.length === 1 ? 'it' : 'them'} in your notes follow.</div>${pv}${applyWords(`Merge ${ids.length} tags into ${into}`)}</div>`;
-  }
-  // The tags a change asks for on their nodes: its own and those of every tag above it.
-  const asksFor = id => { const out = new Set(); for (const x of Mo.pathOf(M(), id)) for (const pid of T(x)?.props || []) out.add(pid); return out; };
-  /* Moving ticked tags up a level or under another (16 November 2026): where each sits now and after, what its nodes are newly asked
-     for or no longer asked for, and a yes that names the move. */
-  function tmoveHtml() {
-    const a = st.ask?.tmove; if (!a || st.ask.owner !== mode) return '';
-    const ids = a.ids.filter(T); if (!ids.length) return '';
-    const dest = a.to === LOOSE ? null : T(a.to), who = ids.length === 1 ? name(ids[0]) : `${ids.length} tags`;
-    const head = a.up ? `Move ${who} up a level, out from under ${name(Mo.parentOf(M(), ids[0]))}` : dest ? `Move ${who} under ${dest.title}` : `Move ${who} to the top`;
-    const rows = ids.map(id => {
-      const from = Mo.parentOf(M(), id), own = new Set(T(id).props), before = asksFor(id), after = new Set([...(dest ? asksFor(a.to) : []), ...own]);
-      const gains = [...after].filter(x => !before.has(x)), loses = [...before].filter(x => !after.has(x) && !own.has(x));
-      return `<div class="pn"><div class="pt"><b>${esc(name(id))}</b><span class="n">${plural(Mo.count(M(), id), 'node')}</span></div><dl><dt>Sits under</dt><dd><span class="gone lk-going">${esc(from == null ? 'the top' : name(from))}</span> <span class="chg lk-coming">${esc(dest ? dest.title : 'the top')}</span></dd>` +
-        (gains.length ? `<dt>Its nodes are now asked for</dt><dd>${gains.map(x => `<span class="chg lk-coming">${esc(P(x)?.title ?? '')}</span>`).join(', ')}</dd>` : '') +
-        (loses.length ? `<dt>No longer asked for</dt><dd>${loses.map(x => `<span class="gone lk-going">${esc(P(x)?.title ?? '')}</span>`).join(', ')} (their values stay)</dd>` : '') +
-        (!gains.length && !loses.length ? '<dt></dt><dd>Its properties stay the same</dd>' : '') + `</dl></div>`;
-    }).join('');
-    return `<div class="st-q"><div class="h">${esc(head)}</div><div class="st-pv one"><div>${rows}</div></div><div class="l cnt">No node changes its tag · nothing is lost</div>${applyWords(dest ? `Move ${who} under ${dest.title}` : `Move ${who} to the top`)}</div>`;
   }
   // Merging ticked properties from the bar: which to keep, then the merge's own preview, all under the bar.
   function pkeepHtml() {
@@ -1082,15 +1066,16 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
   function menuHtml() {
     const mn = st.menu, m = M(), ticked = st.ticks.size;
     // Every word with its icon (16 November 2026, the owner: "no icons used at all"), the same icon as the bar's word for it.
-    const MENU_ICON = { page: 'go', ppage: 'go', openall: 'chevron', tick: 'tick', rename: 'rename', prename: 'rename', nodes: 'list', new: 'child', addprop: 'plus', addpropall: 'plus', up: 'up', move: 'move', tmerge: 'merge', merge: 'merge', pmerge: 'merge', remove: 'bin', pretype: 'calendar', psplit: 'split', prange: 'tag', pmove: 'move', pullup: 'up', split: 'split', pdrop: 'bin', pfor: 'move' };
+    const MENU_ICON = { page: 'go', ppage: 'go', openall: 'chevron', rename: 'rename', prename: 'rename', new: 'child', addprop: 'plus', addpropall: 'plus', up: 'up', move: 'move', tmerge: 'merge', merge: 'merge', pmerge: 'merge', remove: 'bin', pretype: 'calendar', psplit: 'split', prange: 'tag', pmove: 'move', pullup: 'up', split: 'split', pdrop: 'bin', pfor: 'move' };
     // k: a count, in the faint note; a key (key: 'shift+right') in Logseq's key caps, as its own menus show keys (18 November 2026).
     const it = (t, act, off, k) => `<div class="lk-item ${MENU_ICON[act] ? `lk-i-${MENU_ICON[act]}` : ''} ${off ? 'off' : ''} ${/^(Remove|Delete)/.test(t) ? 'lk-del' : ''}" data-act="${act}">${esc(t)}${k?.key ? `<span class="rt">${Door.keyCaps(k.key)}</span>` : k ? `<span class="rt lk-note">${k}</span>` : ''}</div>`;
     let h = `<div class="st-menu lk-pop lk-menu" style="left:${mn.x}px;top:${mn.y}px">`;
     if (mn.kind === 'row') {
       const t = T(mn.on), none = !t, loose = mn.on === LOOSE;   // none: nothing behind the row
       const n = Mo.count(m, mn.on), nodesOf = ids => plural(ids.reduce((s, x) => s + Mo.count(m, x), 0), 'node');
-      h += (t?.uuid ? it('Go to this tag', 'page') : '') + it('Open everything under', 'openall', false, { key: 'shift+right' }) + it(st.ticks.has(mn.on) ? 'Untick' : 'Tick', 'tick', none || loose, { key: 'space' }) + '<div class="gap lk-item"></div>' +
-        it('Rename', 'rename', loose || !t) + it('Show its nodes', 'nodes', !n) + it(loose ? 'New top-level tag' : 'Add a child tag', 'new') + it('Add a property…', 'addprop', none || loose) + it('Add a property to all beneath…', 'addpropall', loose, Mo.kids(m, mn.on).length ? nodesOf(Mo.kids(m, mn.on)) : '') + '<div class="gap lk-item"></div>' +
+      // Open and Expand, Logseq's own one word for each; no Tick and no Show its nodes (the owner, 24 November 2026).
+      h += (t?.uuid ? it('Open', 'page') : '') + it('Expand', 'openall', false, { key: 'shift+right' }) + '<div class="gap lk-item"></div>' +
+        it('Rename', 'rename', loose || !t) + it(loose ? 'New top-level tag' : 'Add a child tag', 'new') + it('Add a property…', 'addprop', none || loose) + it('Add a property to all beneath…', 'addpropall', loose, Mo.kids(m, mn.on).length ? nodesOf(Mo.kids(m, mn.on)) : '') + '<div class="gap lk-item"></div>' +
         it('Move up a level', 'up', none || loose || Mo.parentOf(m, mn.on) == null, { key: 'shift+tab' }) + it('Move under…', 'move', none || loose, n ? plural(n, 'node') : '') +
         it('Merge…', 'tmerge', none || loose) + '<div class="gap lk-item"></div>' +
         it('Delete', 'remove', none || loose || n > 0 || Mo.kids(m, mn.on).length > 0, n ? plural(n, 'node') : '');
@@ -1098,7 +1083,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
       const [tagId, pid] = mn.on.split('·').map(Number), t = T(tagId), p = P(pid), parent = Mo.parentOf(m, tagId);
       const declared = !!t?.props.includes(pid);
       const f = t ? plural(Mo.filled(m, tagId, pid), 'value') : '';
-      h += (p?.uuid ? it('Go to this property', 'ppage') + '<div class="gap lk-item"></div>' : '') + it('Rename', 'prename', !p) + it('Merge…', 'pmerge', !p) + (p && !p.choice && p.type === 'default' ? it('Turn into dates…', 'pretype') : '') + (p?.type === 'node' ? it('Split into two properties…', 'psplit') : '') + (p?.type === 'node' ? it('Specify node tags…', 'prange') : '') + '<div class="gap lk-item"></div>' +
+      h += (p?.uuid ? it('Open', 'ppage') + '<div class="gap lk-item"></div>' : '') + it('Rename', 'prename', !p) + it('Merge…', 'pmerge', !p) + (p && !p.choice && p.type === 'default' ? it('Turn into dates…', 'pretype') : '') + (p?.type === 'node' ? it('Split into two properties…', 'psplit') : '') + (p?.type === 'node' ? it('Specify node tags…', 'prange') : '') + '<div class="gap lk-item"></div>' +
         (t ? it(ACTS.move(tagId), 'pmove', !declared, f) + it(parent != null ? `Pull up to ${name(parent)}` : 'Pull up to the parent', 'pullup', !declared || parent == null, f) +
         // One tag's values into another property, the other tags' left as they are (19 November 2026). Only on a tag's own line
         // of the property: a row of the table of every property stands for all its tags, so "only on this tag" would be a guess there.
@@ -1272,10 +1257,8 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     const p = st.prompt; if (!row || !row.ok) return;
     if (row.more) { p.whole = true; p.had = new Set(p.shown.filter(r => !r.more).map(r => r.key)); wantFocus = true; return redraw(); }
     st.prompt = null;
-    // On the map a move first says what it will do, under the bar, and its yes names the result (16 November 2026). A tag's own
-    // page has no bar to say it under: there the choice is the move, with its Undo. Until the 0.4 audit this line stood after the
-    // plain move below and so never ran: Move under… staged at once, with no preview.
-    if (p.what === 'tag' && p.preview && !TAGISH) return askTagMove(p.tags, row.key);
+    // A tag's move is the choice itself, with its Undo, on the map as on a tag's page (the owner, 24 November 2026, of the box that
+    // asked first: "This is confusing"; 5 November: what loses nothing is written at once).
     if (p.what === 'tag') { moveTags(p.tags, row.key); }
     else if (p.what === 'prop') { const [tagId, pid] = p.key.split('·').map(Number); if (!tagId) { app.stage({ kind: 'addProp', prop: pid, tags: [row.key] }); st.propCur = `${row.key}·${pid}`; st.cur = row.key; } else if (row.key !== tagId) { app.stage({ kind: 'moveProp', prop: pid, from: [tagId], to: row.key }); st.propCur = `${row.key}·${pid}`; st.cur = row.key; } }
     else if (p.what === 'nodes') moveTicked(row.key);
@@ -1335,14 +1318,11 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     st.menu = null; st.ask = null;
     const m = M();
     if (a === 'openall') openAll(on);
-    // Show its nodes opens Find with the tag picked (the thirteen proposals, 9); without Find, Ontology's own list as before.
-    else if (a === 'nodes') { redraw(); const t = T(on); window.PluginDoor.ask('find:kind', { uuid: t?.uuid, title: t?.title }).then(got => { if (got === window.PluginDoor.UNANSWERED) openNodes(on); }); }
     else if (a === 'page') { redraw(); app.openNode(T(on)?.uuid, shift); }
     else if (a === 'prename') { const p = P(Number(on.split('·')[1])); if (p) startEdit('prename', on, p.title); else redraw(); }
     else if (a === 'ppage') { redraw(); app.openNode(P(Number(on.split('·')[1]))?.uuid, shift); }
     else if (a === 'main') app.openMain(on);
-    else if (a === 'tick') tick(on);
-    else if (a === 'move') { if (!T(on)) return redraw(); const ids = st.ticks.has(on) ? [...st.ticks].filter(T) : [on]; startPrompt({ what: 'tag', list: 'tags', tags: ids, row: on, preview: true }); }
+    else if (a === 'move') { if (!T(on)) return redraw(); const ids = st.ticks.has(on) ? [...st.ticks].filter(T) : [on]; startPrompt({ what: 'tag', list: 'tags', tags: ids, row: on }); }
     else if (a === 'up') { const ids = st.ticks.has(on) ? [...st.ticks].filter(T) : [on]; moveUp(ids); }
     // Merge… from a tag's menu: the tag is ticked with any others; with two or more the bar's merge asks which to keep, with one the bar says to tick the others.
     else if (a === 'tmerge') { if (!T(on)) return redraw(); st.ticks.add(on); const ids = [...st.ticks].filter(T); if (ids.length > 1) return askTagMerge(ids); redraw(); app.notify(`Tick the tags to merge with ${name(on)}, then press Merge…`, 'info'); }
@@ -1392,8 +1372,8 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     const notes = await S.db.notesFor(nodes).catch(() => []);
     if (st.ask?.tmerge?.ids === ids) { st.ask.tmerge.notes = notes; redraw(); }
   }
-  const askTagMove = (ids, to, up = false) => { st.menu = null; st.aim = null; st.prompt = null; st.ask = { tmove: { ids, to, up }, owner: mode }; redraw(); };
-  const moveUp = ids => { ids = ids.filter(id => T(id) && Mo.parentOf(M(), id) != null); if (!ids.length) return; const p = Mo.parentOf(M(), ids[0]); askTagMove(ids, Mo.parentOf(M(), p) ?? LOOSE, true); };
+  // Up a level: each tag goes under its own parent's parent, or to the top.
+  const moveUp = ids => { for (const id of ids.filter(id => T(id) && Mo.parentOf(M(), id) != null)) moveTags([id], Mo.parentOf(M(), Mo.parentOf(M(), id)) ?? LOOSE); redraw(); };
   // Turn into dates, split into two properties: the change is read on real notes first, then asked under the property.
   async function askChange(kind, a) {
     st.paim = false; st.menu = null;
@@ -1417,9 +1397,6 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
       for (const g of ids.filter(x => x !== keep)) app.stage({ kind: 'merge', from: g, into: keep }, { wait: true });
       if (nm && nm !== name(keep)) app.stage({ kind: 'rename', tag: keep, name: nm }, { wait: true });
       st.cur = keep; redraw(); return app.apply(); }
-    if (st.ask?.tmove) { const a = st.ask.tmove; st.ask = null; st.ticks.clear();
-      for (const id of a.ids.filter(T)) app.stage({ kind: 'move', tag: id, to: a.to }, { wait: true });
-      if (a.to !== LOOSE) st.open.add(a.to); redraw(); return app.apply(); }
     if (st.ask?.pmerge) { const a = st.ask.pmerge; if (a.preview.some(x => x.clash.length)) return; st.ask = null;
       a.froms.forEach((f, i) => { const x = a.preview[i]; app.stage({ kind: 'mergeProp', prop: f, intoProp: a.into, kept: x.kept, left: x.left, gave: x.gave }); });
       if (a.rename && a.rename !== P(a.into)?.title) app.stage({ kind: 'renameProp', prop: a.into, name: a.rename });
@@ -1517,7 +1494,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     if (t.dataset.tbar) { if (t.classList.contains('waits')) return; const ids = [...st.ticks].filter(T), w = t.dataset.tbar;
       if (w === 'merge') return askTagMerge(ids);
       if (w === 'up') return moveUp(ids);
-      if (w === 'move') { st.ask = null; return startPrompt({ what: 'tag', list: 'tags', tags: ids, row: ids[0], preview: true }); }
+      if (w === 'move') { st.ask = null; return startPrompt({ what: 'tag', list: 'tags', tags: ids, row: ids[0] }); }
       if (w === 'rename') return startEdit('rename', ids[0], name(ids[0]));
       if (w === 'delete') { st.ticks.clear(); for (const id of ids) app.stage({ kind: 'remove', tag: id }, { wait: true }); redraw(); return app.apply(); }
       if (w === 'clear') { st.ticks.clear(); st.ask = null; return redraw(); } }
