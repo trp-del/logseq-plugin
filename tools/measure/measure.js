@@ -222,7 +222,7 @@ function verdict(flow, runs, flash, base) {
     const was = base?.lines?.find(b => b.id === l.id && b.name === l.name);
     if (!was || typeof l.value !== 'number' || typeof was.value !== 'number') continue;
     l.was = was.value; const tol = Math.max(Math.abs(was.value) * 0.1, M.EPS);
-    l.change = Math.abs(l.value - was.value) <= tol ? 'same' : (l.pass && !was.pass) ? 'better' : (!l.pass && was.pass) ? 'worse' : l.lowerIsBetter !== false && l.value < was.value ? 'better' : 'worse';
+    l.change = Math.abs(l.value - was.value) <= tol ? 'same' : (l.pass && !was.pass) ? 'better' : (!l.pass && was.pass) ? 'worse' : l.lowerIsBetter !== false && Math.abs(l.value) < Math.abs(was.value) ? 'better' : 'worse';   // a distance off an edge is judged by its size, left or right (−188 pt is nearer than −410)
     if (l.id === 'G3') l.change = Math.abs(l.value - was.value) <= tol ? 'same' : l.value > was.value ? 'better' : 'worse';
   }
   // Without a baseline every line must pass; against one, a line may fail only if it failed before and is no worse.
