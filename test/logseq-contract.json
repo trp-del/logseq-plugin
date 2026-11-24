@@ -63,6 +63,7 @@
   "Editor.setBlockCollapsed",
   "Editor.updateBlock",
   "Editor.upsertBlockProperty",
+  "Editor.upsertNodes",
   "Experiments.registerDaemonRenderer",
   "Experiments.registerRouteRenderer",
   "Experiments.registerSidebarRenderer",

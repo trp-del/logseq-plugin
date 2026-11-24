@@ -204,10 +204,12 @@ async function apply(plan, here = async () => true, rec = S.records ? S.records.
   catch (error) {
     const out = (text, moved = false) => Object.assign(new Error(text), { undo: put, left, elsewhere: moved, rec });
     if (error.elsewhere || !await here()) { rec.state = 'done'; await rec.flush().catch(() => {}); throw out(`another graph was opened after step ${at} of ${plan.length}, so the rest stopped; what was written stays in that graph, with its Undo`, true); }
-    const where = `${error.message || error}, at step ${at + 1} of ${plan.length} (${plan[at]?.op})`;
+    // Said in the person's words, not the writer's (the owner, 24 November 2026, of "at step 1 of 3 (makeProp)": "what is this").
+    const DOING = { makeProp: 'making the new property', makeTag: 'making the new tag', moveValues: 'moving the values', deleteTag: 'removing the tag', rename: 'renaming', setRange: 'setting the node tags', moveBullets: 'moving the bullets' };
+    const said = String(error.message || error), where = /^Logseq would not make/.test(said) ? said : `${said}, while ${DOING[plan[at]?.op] || 'writing the change'}`;
     const failures = await put().catch(stop => { if (stop.elsewhere) return []; throw stop; });
     if (left()) throw out(`${where}; ${plural(failures.length || left(), 'step')} could not be put back: the arrow tries again`);
-    throw out(`${where}; ${at ? `the ${plural(at, 'step')} made before ${at === 1 ? 'was' : 'were'} put back` : 'nothing was written'}`);
+    throw out(`${where}; ${at ? `the ${plural(at, 'step')} made before ${at === 1 ? 'was' : 'were'} put back` : 'nothing was changed'}`);
   }
   return { steps: at, undo: put, left, rec };
 }

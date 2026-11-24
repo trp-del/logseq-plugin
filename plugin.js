@@ -143,15 +143,33 @@ Door.write = {
     const lower = name.toLowerCase().replace(/["\\]/g, '');
     const same = await read(`[?p :db/ident ?i] [(namespace ?i) ?ns] [(= ?ns "user.property")] [?p :block/title ?t] [(clojure.string/lower-case ?t) ?l] [(= ?l "${lower}")]`);
     if (same) return { ...same, made: false };
-    const slug = name.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'property';
-    let ident = '';
-    for (let i = 0; i < 20 && !ident; i++) { const tryIdent = `user.property/${/^[a-z]/.test(slug) ? slug : 'p-' + slug}${i ? '-' + (i + 1) : ''}`; if (!(await ask(`[:find ?p :where [?p :db/ident :${tryIdent}]]`) || []).length) ident = tryIdent; }
-    if (!ident) throw new Error('no free id for the property');
-    // many: a property that holds several values (16 November 2026, Ontology's split and change of kind keep the old one's).
-    const edn = ['^ ', '~:logseq.property/type', `~:${type}`, '~:block/title', name, ...(many ? ['~:db/cardinality', '~:db.cardinality/many'] : [])];
-    await logseq.Editor.importEdn(JSON.stringify(['^ ', '~:properties', ['^ ', `~:${ident}`, edn]]));
+    const wait = async look => { let got = null; for (let i = 0; i < 20 && !got; i++) { got = await look(); if (!got) await new Promise(resolve => setTimeout(resolve, 100)); } return got; };
+    /* Made by Logseq's own "upsert nodes" first (24 November 2026). The EDN import used alone until then makes Logseq check every
+       item of the graph before it writes, so one item it calls invalid anywhere in the graph refused every new property (the
+       owner: a red notice, "The Imported EDN has 4 validation error(s)"). Upsert nodes checks only what it makes, and names the
+       property as Logseq itself does. The import stays for a Logseq without upsert nodes; a property that came out as another
+       kind than asked is taken away again and made by the import. */
     let made = null;
-    for (let i = 0; i < 20 && !made; i++) { made = await read(`[?p :db/ident :${ident}]`); if (!made) await new Promise(resolve => setTimeout(resolve, 100)); }
+    try {
+      await logseq.Editor.upsertNodes([{ operation: 'add', entityType: 'property', id: `lk-new-${Date.now()}`, data: { title: name, 'property-type': type, ...(many ? { 'property-cardinality': 'many' } : {}) } }], {});
+      made = await wait(() => read(`[?p :db/ident ?i] [(namespace ?i) ?ns] [(= ?ns "user.property")] [?p :block/title ?t] [(clojure.string/lower-case ?t) ?l] [(= ?l "${lower}")]`));
+      if (made && made.type !== type) { await Door.write.dropMadeProperty(made, ask).catch(() => {}); made = null; }
+    } catch (error) { made = null; }
+    if (!made) {
+      const slug = name.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'property';
+      let ident = '';
+      for (let i = 0; i < 20 && !ident; i++) { const tryIdent = `user.property/${/^[a-z]/.test(slug) ? slug : 'p-' + slug}${i ? '-' + (i + 1) : ''}`; if (!(await ask(`[:find ?p :where [?p :db/ident :${tryIdent}]]`) || []).length) ident = tryIdent; }
+      if (!ident) throw new Error('no free id for the property');
+      // many: a property that holds several values (16 November 2026, Ontology's split and change of kind keep the old one's).
+      const edn = ['^ ', '~:logseq.property/type', `~:${type}`, '~:block/title', name, ...(many ? ['~:db/cardinality', '~:db.cardinality/many'] : [])];
+      try { await logseq.Editor.importEdn(JSON.stringify(['^ ', '~:properties', ['^ ', `~:${ident}`, edn]])); }
+      catch (error) {
+        // Logseq's refusal in everyday words: it checked the whole graph and found items it calls invalid, none of them this property.
+        const n = (String(error?.message || '').match(/has (\d+) validation error/) || [])[1];
+        throw new Error(n ? `Logseq would not make “${name}”: it calls ${n === '1' ? '1 item' : n + ' items'} of this graph invalid` : `Logseq would not make “${name}”`);
+      }
+      made = await wait(() => read(`[?p :db/ident :${ident}]`));
+    }
     if (!made?.uuid) throw new Error('the property was not made');
     return { ...made, made: true };
   },
