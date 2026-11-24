@@ -76,6 +76,7 @@ function groups() {
     ['Finding', [
       ['Find', [fixed(Door.keyMarks(finds.find))]],
       ['Find by sentence', [fixed(Door.keyMarks(finds.sentence))]],
+      ['Filter the bullets on this page', [find && plugin('within') !== false ? own('find', 'withinKeys') : fixed('')]],
       ['Logseq’s search', [find ? fixed(Door.keyMarks(finds.logseqSearch)) : logseqKey('go/search')]],
       ['Logseq’s commands', [find ? fixed(Door.keyMarks(finds.commands)) : logseqKey('command-palette/toggle')]],
     ]],

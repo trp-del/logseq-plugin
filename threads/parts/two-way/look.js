@@ -538,6 +538,13 @@ html[data-lk-try="new"] .th-two-way .th-ls-node .ls-block-right { margin-left: 0
    bullet the same way. */
 .th-two-way .th-ol-kids.th-ol-kids:not(.th-ol-bare) { --th-ol-cx: 29px; margin-left: 29px; padding-left: 0; border-left: 1px solid var(--lk-line); }
 .th-two-way .th-ol-kids.th-ol-kids.th-ol-from-prop { margin-left: calc(var(--th-ol-name) + var(--th-ol-gap) + 7px); }   /* the value's bullet stands after the name's column and the line's gap */
+/* On a ground (a node opened under a line, picture 1A; found by hand 24 November 2026): the lines start one step in from the ground's
+   edge, where the bullets and the properties' icons stand (the fold arrows in the step), and the top line with the node's place starts
+   there too (the library's --lk-ground-in). A node opened inside lies on its own layer across the whole width of the outer lines, from
+   their edge, never hanging from the value's column (where it was narrow and a tag took two lines). */
+[data-lk-ground], .th-ol-kids.th-tw-ground { --lk-ground-in: calc(16px + 6px + 1.5px); }
+[data-lk-ground] .th-two-way .th-tw-value.th-tw-nodetop { padding-left: 0; margin-left: 0; }
+.th-two-way .th-ol-kids.th-ol-kids.th-tw-ground { margin-left: var(--lk-ground-in); }
 .th-two-way .th-ol-in > .th-ol-unit:has(> .th-ol-bullet) + .th-ol-bullet { margin-top: 0; }   /* a bullet after an opened bullet keeps the outline's rhythm */
 .th-two-way .th-ol-kids.th-ol-kids:not(.th-ol-bare) > .th-ol-in { padding-left: 0; }
 .th-two-way .th-ol-kids .th-ol-bullet { gap: var(--th-ol-gap); }

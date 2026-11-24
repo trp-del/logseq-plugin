@@ -90,6 +90,7 @@ async function main() {
   listenForKeys();
   rememberBullet();
   Find.under.start();
+  Find.within.start();
   logseq.App.registerCommandPalette({ key: 'find-open', label: 'Find' }, () => Find.window.open());
   logseq.App.registerCommandPalette({ key: 'find-sentence', label: 'Find by sentence' }, () => Find.window.sentence());
   logseq.provideModel({ findOpen: () => Find.window.open() });

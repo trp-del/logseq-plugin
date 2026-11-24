@@ -185,7 +185,7 @@ async function facets(nodes) {
     const id = pick(v, 'db/id'), title = pick(v, 'block/title'), content = pick(v, 'property.value/content');
     labels.set(id, { label: String(title ?? content ?? '').trim(), uuid: String(pick(v, 'block/uuid') || '') });
   }
-  const props = new Map(), byNode = new Map(), byLabel = new Map();
+  const props = new Map(), byNode = new Map(), byLabel = new Map(), said = new Map();   // said: "name=key" -> { name, label, uuid }, every value held, for the filter bar
   for (const [b, name, type, v] of rows) {
     const kind = bare(type);
     // Days are left to the months, a date and time too; a value kept in place is its own label.
@@ -201,6 +201,7 @@ async function facets(nodes) {
     if (!val.nodes.has(b)) { val.nodes.add(b); val.count++; }
     if (!byNode.has(b)) byNode.set(b, new Set());
     byNode.get(b).add(name + '=' + key);
+    if (!said.has(name + '=' + key)) said.set(name + '=' + key, { name: String(name), label: got.label, uuid: val.uuid });
     // Every value by its name, for the sentence to read: the first property that holds it wins.
     const label = window.PluginDoor.sentence.norm(got.label);
     if (label && !byLabel.has(label)) byLabel.set(label, { name: String(name), key, label: got.label, uuid: val.uuid, type: kind });
@@ -211,7 +212,7 @@ async function facets(nodes) {
     // A property with one value, or one every node holds, narrows nothing; words with a value per node are not choices.
     .filter(p => p.values.length > 1 && !(p.type === 'default' && p.values.length > 24))
     .sort((a, b) => (a.type === 'node' ? 0 : 1) - (b.type === 'node' ? 0 : 1) || a.name.localeCompare(b.name));
-  return { props: list, byNode, byLabel };
+  return { props: list, byNode, byLabel, said };
 }
 /* Every page of yours by name, for the sentence to read (Dr. Mei Chen, Fatigue, a tag's or a property's page too): journal
    days are left to the times, Logseq's own pages out. [{ id, uuid, title }] */

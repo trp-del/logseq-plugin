@@ -48,6 +48,9 @@ const css = `
 /* Under a bullet's words in Ontology's row view: as under a sidebar page's name, its first name under the words' first letter (the room
    kept before it for the × hangs out to the left), the lines under it. */
 .lk-path.lk-path-row { margin: 2px 0 10px -18px; }
+/* On the top line of a node opened in the page (the library's lk-ground-top; Find's node under a line, and a node opened inside it):
+   one line from the ground's left edge, the room kept before it for the × hanging out to the left, giving way from the middle. */
+.lk-path.lk-path-in { flex: 0 1 auto; min-width: 0; max-width: none; margin: 0 0 0 -18px; align-self: center; }
 /* The Undo arrow of a tag taken off, at the right end of the title row: on the line the tags stand on. */
 .ls-block-right > .lk-undo.lk-undo-title { align-self: flex-start; margin: 21px 0 0 6px; }
 .sidebar-item-header .page-title > .lk-undo.lk-undo-title { text-decoration: none !important; }   /* beside a sidebar page's name: the name's underline is not the arrow's */`;
@@ -93,7 +96,7 @@ function open(event) {
   event.preventDefault(); event.stopPropagation();
   const own = pageOf(event.currentTarget);
   const x = event.target.closest('.lk-x');
-  if (x) return takeOff(x.getAttribute('data-take'), own || { page: state.page, tagPage: state.tagPage }, x.closest('.lk-held')?.querySelector('a.lk-tag')?.textContent || 'The tag', event.currentTarget.classList.contains('lk-path-row') ? 'node' : 'page');
+  if (x) return takeOff(x.getAttribute('data-take'), own || { page: state.page, tagPage: state.tagPage }, x.closest('.lk-held')?.querySelector('a.lk-tag')?.textContent || 'The tag', event.currentTarget.matches('.lk-path-row, .lk-path-in') ? 'node' : 'page');
   const a = event.target.closest('a[data-uuid]');
   if (a) openPage(a.getAttribute('data-uuid'), event.shiftKey);
 }
@@ -135,8 +138,8 @@ function drawTitle(doc, index) {
   if (box.dataset.key !== key) { box.dataset.key = key; box.dataset.page = uuid; box.dataset.tagPage = groups.tagPage ? '1' : ''; box.replaceChildren(...build(doc, groups)); }
   if (box.parentElement !== spot) spot.append(box);
 }
-function drawSidebar(doc, index) {
-  const on = setting('tagChainSidebar'), seen = new Set();
+function drawSidebar(doc, index, seen = new Set()) {
+  const on = setting('tagChainSidebar');
   // The right half of two pages side by side follows the main page's setting; the other sidebar pages their own.
   for (const item of doc.querySelectorAll(SIDEBAR_PAGE)) {
     if (!(item.hasAttribute('data-lk-split-item') ? setting('tagChain') : on)) continue;
@@ -182,7 +185,27 @@ function drawRows(doc, index, seen = new Set()) {
     if (under.nextElementSibling !== box) under.after(box);
   }
 }
-function draw(doc) { const index = Look.index; if (!index) return; drawTitle(doc, index); drawSidebar(doc, index); }
+/* A node opened in the page on a ground (23 November 2026, picture 1A): whoever draws the ground leaves an empty mark carrying the
+   node's uuid (data-lk-place) on its top line, and the same line of tags goes into it, so the node says what it is as a page does
+   beside its title. A mark drawn again (Relations redraws its lines) is filled again in the same frame. */
+const PLACE = '[data-lk-place]';
+function drawPlaces(doc, index) {
+  const on = setting('tagChain'), seen = new Set();
+  for (const slot of doc.querySelectorAll(PLACE)) {
+    const uuid = slot.getAttribute('data-lk-place');
+    if (!on || !uuid) continue;
+    const groups = groupsOf(index, uuid);
+    if (!groups.length) continue;
+    seen.add(slot);
+    let box = state.boxes.get(slot);
+    if (!box) state.boxes.set(slot, box = el(doc, 'div', { class: 'lk-path lk-path-in lk-own', click: open, keydown: press, mousedown: keep, pointerdown: keep }));
+    const key = JSON.stringify([uuid, groups.tagPage, groups]);
+    if (box.dataset.key !== key) { box.dataset.key = key; box.dataset.page = uuid; box.dataset.tagPage = groups.tagPage ? '1' : ''; box.replaceChildren(...build(doc, groups, 'node')); }
+    if (box.parentElement !== slot) slot.replaceChildren(box);
+  }
+  return seen;
+}
+function draw(doc) { const index = Look.index; if (!index) return; drawTitle(doc, index); const places = drawPlaces(doc, index); drawSidebar(doc, index, places); }
 /* Before the screen is drawn, when another page's title has come: its line of tags goes into the title row in the frame the title
    shows. Drawn a frame later (as it was until the 0.4 audit) the tag in the row, which Logseq draws with the title, moved left by
    the line's width, 90 px on Dr. Mei Chen (the motion check: "ls-block-right moved left 90 px" at 64 ms). Nothing is done while the
@@ -191,6 +214,7 @@ function early(doc) {
   const index = Look.index; if (!index) return;
   const uuid = shownTitle(doc)?.querySelector('.ls-block[blockid]')?.getAttribute('blockid') || '';
   if (setting('tagChainSidebar') && doc.querySelector(ROW_ITEM)) drawRows(doc, index);   // the row view's row, in the frame Ontology marks it
+  if (doc.querySelector(`${PLACE}:empty`)) drawPlaces(doc, index);   // a node opened on a ground, or drawn again: its place in the frame its top line comes
   if (uuid === state.page && (!state.box || state.box.isConnected)) return;
   drawTitle(doc, index);
 }
