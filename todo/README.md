@@ -47,7 +47,7 @@ Canceled is left out, and Done stands at the foot. Nothing is coloured but a lat
 
 ## Its keys
 
-g then d outside a bullet opens the page (set in Logseq's keyboard shortcuts). In the add line: Return adds, Escape clears, then leaves. In the list: Tab reaches the Show word, the grouping word, each circle and each task's words; Right on a task's words opens it in place and Left closes it; Return or Space on a circle opens its status list, Return on the words opens the task, Shift-F10 on the words its right-click menu, Return on Show or the grouping word its menu.
+g then d outside a bullet opens the page (set in Logseq's keyboard shortcuts). In the add line: Return adds, Escape clears, then leaves. In the list: Down from the add line goes to the first task and Down and Up walk the tasks, the task the keys are on in the library's wash, as a Relations row lit by the keys (not the browser's box); Tab reaches the Show word, the grouping word, each circle and each task's words; Right on a task's words opens it in place and Left closes it; Return or Space on a circle opens its status list, Return on the words opens the task, Shift-F10 on the words its right-click menu, Return on Show or the grouping word its menu.
 
 ## What it writes
 

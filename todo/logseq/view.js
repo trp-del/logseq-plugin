@@ -44,6 +44,8 @@ const CSS = `
 .td-bul { display: inline-flex; align-items: center; height: var(--lk-status-line); margin-right: -4px; }
 .td-row { position: relative; --lk-status-line: 1.45em; display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; column-gap: var(--td-gap); align-items: start; padding: 7px 8px; margin: 0 -8px; border-radius: 6px; }
 .td-words { color: inherit; text-decoration: none; cursor: pointer; overflow-wrap: anywhere; line-height: var(--lk-status-line); }
+/* The task the arrow keys are on, or the one a closed menu gives the keys back to: the wash, as a Relations row lit by the keys, not the browser's orange box. */
+.td-words:focus-visible { outline: none; background: var(--lk-wash); border-radius: 3px; }
 .td-where { margin-top: 1px; line-height: 1.45; }   /* the way down to the task: the library's trail (lk-trail, lk-step); a line tall enough that a cut name keeps its g and y (the owner's list, 18 November 2026: "Mortgage" lost its g) */
 .td-where .lk-step { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .td-day { white-space: nowrap; padding-top: .2em; }   /* the library's day (lk-day), at the row's right */
