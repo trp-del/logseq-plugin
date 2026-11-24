@@ -359,8 +359,10 @@ ${WRITING_LIST} .menu-link.chosen { ${LOOKS.lit} }
    Ontology): the rule above had set every line to one edge. */
 PARTS.calmMenus += `
 .ui__popover-content[data-side="bottom"] .ls-property-dialog .ls-property-key { height: auto !important; }
-.ui__popover-content:not([data-side="bottom"]) .ls-property-dialog .ls-property-key { height: calc(8 * var(--lk-line-h) + 46px) !important; }
-.ls-property-dialog .cp__select-main > :not(.input-wrap) { max-height: calc(8 * var(--lk-line-h) + 6px) !important; overflow-y: auto !important; }
+.ui__popover-content:not([data-side="bottom"]) .ls-property-dialog .ls-property-key { height: min(calc(8 * var(--lk-line-h) + 46px), calc(var(--available-height, 100vh) - 12px)) !important; }
+/* Eight lines, or as many as the window has room for under (or over) the words it hangs from: Logseq says how much that is
+   (--available-height), and the list keeps 8 pt clear of the window's edge (at 28 a line, eight lines ran past the foot of a 560 pt window). */
+.ls-property-dialog .cp__select-main > :not(.input-wrap) { max-height: min(calc(8 * var(--lk-line-h) + 6px), calc(var(--available-height, 100vh) - 52px)) !important; overflow-y: auto !important; }
 .ui__popover-content .cp__select .menu-link { box-sizing: border-box !important; min-height: var(--lk-line-h) !important; align-items: center !important; }
 .ui__popover-content .cp__select .menu-link .pt-1 { padding-top: 0 !important; display: inline-flex !important; align-items: center !important; }
 .ui__popover-content .cp__select #ui__ac-inner > .menu-link-wrap { padding-left: calc(5px + var(--st-pad, 0px)) !important; }
@@ -371,12 +373,12 @@ PARTS.calmMenus += `
 .ui__popover-content[data-side="bottom"]:has(.ls-property-dialog) { margin-top: 6px !important; }
 .ui__popover-content[data-side="top"]:has(.ls-property-dialog) { margin-bottom: 6px !important; }
 .ls-property-dialog .ls-property-input:has(.cp__select-main) { min-width: 0 !important; }
-.ls-property-dialog .ls-property-input:has(.cp__select-main) > .ls-property-add { min-width: 13rem !important; }
+.ls-property-dialog .ls-property-input:has(.cp__select-main) > .ls-property-add { min-width: 11rem !important; }
 /* One size from the first frame. Logseq draws the field a frame or three before its lines, so the box grew after it was there;
    and the tags of "Choose tag" come a frame after "Skip choosing tag". While no line is in, and for "Choose tag" before a letter
    is typed, the list has the height of its eight lines already (there are always more than eight to come). */
 .ls-property-dialog .cp__select-main:not(:has(.menu-link)) > :not(.input-wrap),
-.ls-property-dialog .cp__select-main:has(input[placeholder="Choose tag"]:placeholder-shown) > :not(.input-wrap) { min-height: calc(8 * var(--lk-line-h) + 6px) !important; }
+.ls-property-dialog .cp__select-main:has(input[placeholder="Choose tag"]:placeholder-shown) > :not(.input-wrap) { min-height: min(calc(8 * var(--lk-line-h) + 6px), calc(var(--available-height, 100vh) - 52px)) !important; }
 /* Whatever floats is there at once, at its one size, as the Mac's menus are (measured 24 November 2026: Logseq's lists took four
    to eight sizes on their way open and went on changing for a tenth of a second). */
 :is(.ui__popover-content, .ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content, .ui__context-menu-sub-content, .ui__select-content) { ${LOOKS.atOnce} }
