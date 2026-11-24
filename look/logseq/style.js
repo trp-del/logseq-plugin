@@ -114,6 +114,23 @@ ${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill input
 /* Room above and below inside the strip, given back outside, so the press after a value catches a pointer a little off the line. */
 ${AREA} .ls-block .positioned-properties.block-below .bottom-properties-pills-strip { margin-block: -8px !important; padding-block: 8px !important; width: 0 !important; flex-wrap: wrap !important; }
 ${AREA} .ls-block .positioned-properties.block-below .bottom-properties-row { height: auto !important; max-height: none !important; overflow: visible !important; }
+/* A bullet left little width (the page beside an open right sidebar in a narrow window, a task under "Mentioned in" in the
+   sidebar, a bullet many levels down): its properties stand one a line, each name whole with its value after it or under it, and
+   Logseq's Expand button gives its room back, since every property already shows here. Before, the button took most of a 130 px
+   line, each property kept its full width and was cut at the pane's edge, and the ones on later lines lost their first letters
+   ("Category" read "n", 24 November 2026, by script at 700 px with both sidebars open). */
+${AREA} .ls-block .positioned-properties.block-below { container-type: inline-size; }
+@container (max-width: 240px) {
+  ${AREA} .ls-block .positioned-properties.block-below .bottom-properties-row > :not(.bottom-properties-pills-strip) { display: none !important; }
+  ${AREA} .ls-block .positioned-properties.block-below .bottom-properties-pills-strip { flex-direction: column !important; flex-wrap: nowrap !important; align-items: flex-start !important; padding-inline: 8px 24px !important; }   /* the right room: at this width Logseq's own line runs 8 px past the page's cut edge */
+  ${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill { flex-wrap: wrap !important; max-width: 100% !important; height: auto !important; white-space: normal !important; transform: none !important; }
+  ${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill::before { display: none !important; }
+  /* Each name over its value, as a page's own properties stand where they have little width: the name takes the line (so the colon
+     goes), and a long name or value breaks between its words instead of being cut. */
+  ${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill :is(div, a) { min-width: 0 !important; max-width: 100%; white-space: normal !important; overflow-wrap: anywhere; }
+  ${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill > div:first-child { width: 100%; }
+  ${AREA} .ls-block .positioned-properties.block-below .bottom-property-pill > div:first-child > .property-key-inner ~ div { display: none; }
+}
 /* The first property on a wrapped line: the space before it stands at nothing, so the name lines up with the line above. The space keeps its room, so the wrap does not change.
    Only a property that has that space, one after a filled property: after empty ones alone it has none, and moved all the same its
    name was cut off at the pane's left edge ("Topic:" read "ɔic:" in the Item tab, 12 November 2026). */
