@@ -87,6 +87,8 @@ const run = (cmd, args, cwd, quiet) => new Promise(resolve => {
     const args = ['tools/guard/guard.js', 'run', '--change', ROOT, '--base', base];
     if (!release) args.push('--only', screens.join(','), '--parts', parts.join(','));
     if (arg('--expect')) args.push('--expect', arg('--expect'));
+    // The checks that need the running app go along, into one of the guard's Logseqs, while the others walk their screens.
+    if (release || parts.includes('shared')) args.push('--in-app', release ? 'write,contract' : 'write');
     guard = await run('node', args, ROOT, true);
   }
   const results = await quick, lines = [];
@@ -94,21 +96,26 @@ const run = (cmd, args, cwd, quiet) => new Promise(resolve => {
      part shares changed): every kind of write made, read back and taken back, the graph left as it was; and, before a release, what
      the plugin relies on in Logseq looked at in the running app. */
   const port = String(Number(process.env.GUARD_PORT || 9340));
-  const inApp = [];
-  if ((release || parts.includes('shared')) && ((guard && !/did not answer|could not be started/.test(guard.out)) || (warmed && warmed.ok))) {
+  const inApp = [], NAMES = { write: ['safe: in Logseq', 'every kind of write made in a real Logseq, read back and taken back'], contract: ['logseq: in the app', 'what the plugin relies on, looked at in the running Logseq'] };
+  // What the guard ran along the way, one line each in its output.
+  for (const m of (guard ? guard.out : '').matchAll(/^IN-APP (\{.*\})$/gm)) { try { const r = JSON.parse(m[1]); if (NAMES[r.name]) inApp.push({ name: NAMES[r.name][0], what: NAMES[r.name][1], ok: r.ok, out: r.out, secs: r.secs }); } catch (e) { /* not a line of ours */ } }
+  if (!inApp.length && (release || parts.includes('shared')) && ((guard && !/did not answer|could not be started/.test(guard.out)) || (warmed && warmed.ok))) {
     const appEnv = { ...env, LOGSEQ_PORT: port };
     const app = (cmd) => new Promise(resolve => { const started = Date.now(), child = spawn('node', cmd, { cwd: ROOT, env: appEnv, stdio: ['ignore', 'pipe', 'pipe'] }); let out = ''; child.stdout.on('data', d => out += d); child.stderr.on('data', d => out += d); child.on('close', code => resolve({ ok: code === 0, out, secs: (Date.now() - started) / 1000 })); });
     inApp.push({ name: 'safe: in Logseq', what: 'every kind of write made in a real Logseq, read back and taken back', ...(await app(['tools/write-check.js'])) });
     if (release) inApp.push({ name: 'logseq: in the app', what: 'what the plugin relies on, looked at in the running Logseq', ...(await app(['tools/logseq-contract-app.js'])) });
   }
   results.push(...inApp);
-  for (const r of results) lines.push(`${r.ok ? 'ok    ' : 'FAILED'}  ${r.name}: ${r.what}${r.ok ? '' : '\n' + r.out.trim().split('\n').slice(-12).map(l => '          ' + l).join('\n')}`);
+  for (const r of results) lines.push(`${r.ok ? 'ok    ' : 'FAILED'}  ${r.name}: ${r.what}${r.secs >= 10 ? ` (${Math.round(r.secs)} s)` : ''}${r.ok ? '' : '\n' + r.out.trim().split('\n').slice(-12).map(l => '          ' + l).join('\n')}`);
   if (guard) {
     const tail = guard.out.trim().split('\n'), at = tail.findIndex(l => /^The page:/.test(l));
     const passed = /^PASSED/m.test(guard.out), open = /NOT PASSED/.test(guard.out), partial = /A part of the tour only/.test(guard.out);
     guard.ok = guard.ok && !open && (passed || partial);
     lines.push(`${guard.ok ? 'ok    ' : 'FAILED'}  same, reads, logseq: ${release ? 'every screen' : screens.length + ' screen' + (screens.length > 1 ? 's' : '') + ' (' + screens.join(' · ') + ')'} and the earlier complaints${guard.ok ? '' : '\n' + tail.slice(at >= 0 ? at : -14).map(l => '          ' + l).join('\n')}`);
     if (guard.ok && at >= 0) lines.push('        ' + tail[at]);
+    // Where the time went, so a slow check says so itself: the Logseqs used, and the guard's own time.
+    const shared = guard.out.match(/^after: \d+ Logseqs at once.*$/m), took = guard.out.match(/^took (\d+) s$/m);
+    if (took) lines.push(`        the screens and cases took ${took[1]} s${shared ? '; ' + shared[0] : ''}`);
   } else if (already) lines.push('ok      same, reads, logseq: the guard already passed on exactly these files');
   else lines.push('—       no screen to look at: nothing that ships changed, or a part with no screen in the tour (export, split)');
   console.log(lines.join('\n'));

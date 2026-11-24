@@ -31,64 +31,161 @@ const ship = require('./ship');
 const GRAPHS = ['Illness Test Graph', 'Personal Finance'];
 const cases = () => fs.readdirSync(path.join(HERE, 'cases')).filter(f => f.endsWith('.js')).sort().map(f => ({ file: f, ...require(path.join(HERE, 'cases', f)) }));
 
-// One side (the plugin as it was, or as changed): each graph in a Logseq of its own, all at once, on ports 9340, 9341….
-async function side(label, plugin, runDir, graphs, only, parts) {
+/* How many Logseqs a side may use at once (24 November 2026). The check had grown to 27 screens and 60 cases gone round one after
+   another in two Logseqs, eight minutes a side and half an hour when a side had to be taken twice. The work is waiting, not
+   computing (a Logseq sits near idle while a case waits for a list to draw), so the cure is more Logseqs side by side, each
+   with its share. Four on a Mac with 8 GB, six from 16 GB; GUARD_SHARDS sets it by hand. Six were tried on the 8 GB Mac the same
+   day: no faster (250 s against 250 s), and cases that pass alone failed from the load (words typed after Enter in Find, a tap
+   of Hyper, a table's columns), so each needed a second look. More Logseqs than the Mac carries make the check slower, not faster. */
+const SHARDS = Math.max(GRAPHS.length, Number(process.env.GUARD_SHARDS) || (os.totalmem() >= 15 * 2 ** 30 ? 6 : 4));
+const TIMES = path.join(STORE, 'times.json');
+const times = () => { try { return JSON.parse(fs.readFileSync(TIMES, 'utf8')); } catch (e) { return {}; } };
+const keep = (file, data) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file + '.part', JSON.stringify(data, null, 1)); fs.renameSync(file + '.part', file); };
+// The share of each Logseq: the longest pieces first, each to the Logseq with the least so far (times as last measured here).
+function shares(graphs, screenNames, caseList, extras = []) {
+  const known = times(), cost = (k, dflt) => Math.max(1, Number(known[k]) || dflt);
+  /* A graph's screens stay together, in the tour's order, in that graph's first Logseq: a screen can carry something of the one
+     before it (a table row left ticked by "row view, a row pressed" showed in its dark twin, 24 November 2026), so the plugin as
+     it was and as changed must walk them in the same order. Only the cases, which each start from a clean state and are judged by
+     what they find, not by a picture, are shared out. */
+  const tour = g => screenNames.filter(n => require('./tour').SCREENS.some(x => x[0] === n && x[1] === g));
+  const items = g => caseList.filter(c => c.graph === g).map(c => ({ case: c, secs: cost('case ' + c.file, 10) }));
+  const tourSecs = g => tour(g).reduce((n, name) => n + cost('screen ' + name, 6), 0);
+  const work = graphs.map(g => ({ graph: g, items: items(g), screens: tour(g) })).filter(w => w.items.length || w.screens.length);
+  const total = w => w.items.reduce((n, i) => n + i.secs, 0) + tourSecs(w.graph);
+  // A Logseq for each graph that has work, then one more at a time to the graph whose Logseqs carry the most; none for under 40 s of work.
+  const n = new Map(work.map(w => [w.graph, 1]));
+  for (let spare = SHARDS - work.length; spare > 0; spare--) {
+    const most = work.filter(w => total(w) / n.get(w.graph) > 40 && n.get(w.graph) < w.items.length + (w.screens.length ? 1 : 0)).sort((x, y) => total(y) / n.get(y.graph) - total(x) / n.get(x.graph))[0];
+    if (!most) break; n.set(most.graph, n.get(most.graph) + 1);
+  }
+  const out = [];
+  for (const w of work) {
+    // A Logseq's port follows its graph and its place among that graph's Logseqs, whatever the plan: a kept Logseq is found again on it.
+    const boxes = Array.from({ length: n.get(w.graph) }, (_, i) => ({ graph: w.graph, index: i, port: require('./sandbox').PORT + GRAPHS.indexOf(w.graph) + GRAPHS.length * i, screens: [], cases: [], secs: 0 }));
+    // The checks that need the running app (check.js asks for them) go to the first Logseq of the first test graph, counted in its share.
+    if (w.graph === GRAPHS[0] && extras.length) { boxes[0].extras = extras; boxes[0].secs += extras.reduce((n, x) => n + cost('in-app ' + x.name, x.secs), 0); }
+    boxes[0].screens = w.screens; boxes[0].secs += tourSecs(w.graph);
+    for (const it of [...w.items].sort((x, y) => y.secs - x.secs)) { const least = boxes.reduce((m, x) => x.secs < m.secs ? x : m); least.cases.push(it.case); least.secs += it.secs; }
+    out.push(...boxes);
+  }
+  return out;
+}
+
+// One side (the plugin as it was, or as changed): the screens and cases asked for, shared out among Logseqs that run at once.
+async function side(label, plugin, runDir, graphs, only, parts, pickCases, extras) {
   const sandbox = require('./sandbox'), T = require('./tour');
   const shots = path.join(runDir, label); fs.mkdirSync(shots, { recursive: true });
-  const one = async (graph, i) => {
-    // One Logseq per test graph, kept running between checks (sandbox.warm); GUARD_COLD=1 starts and ends a fresh one each time.
-    const port = sandbox.PORT + GRAPHS.indexOf(graph);
-    const box = process.env.GUARD_COLD ? await sandbox.start({ dir: path.join(runDir, 'box', label + '-' + graph.replace(/\W+/g, '-')), graph, plugin, port }) : await sandbox.warm({ store: STORE, graph, plugin, port });
-    const caseResults = [], lines = [`${label}: ${graph}`];
+  const wantScreens = T.SCREENS.map(x => x[0]).filter(n => !only || only.includes(n));
+  const wantCases = cases().filter(c => graphs.includes(c.graph) && (!parts || parts.includes('shared') || (c.parts || []).some(p => parts.includes(p)))).filter(c => !pickCases || pickCases(c));
+  const took = {};
+  const one = async sh => {
+    const began = Date.now();
+    // Kept running between checks (sandbox.warm); GUARD_COLD=1 starts and ends a fresh one each time.
+    const box = process.env.GUARD_COLD ? await sandbox.start({ dir: path.join(runDir, 'box', label + '-' + sh.graph.replace(/\W+/g, '-') + '-' + sh.index), graph: sh.graph, plugin, port: sh.port }) : await sandbox.warm({ store: STORE, graph: sh.graph, plugin, port: sh.port, index: sh.index });
+    const caseResults = [], lines = [`${label}: ${sh.graph}${sh.index ? ', Logseq ' + (sh.index + 1) : ''}`];
+    // A Logseq started this moment has no debugging session yet (the tour opens one; a share of cases alone never reached it).
+    box.cdp = box.cdp || await box.page.context().newCDPSession(box.page);
+    const ready = Date.now();
     try {
-      const records = await T.tour(box, shots, only);
-      for (const c of cases().filter(c => c.graph === graph && (!parts || parts.includes('shared') || (c.parts || []).some(p => parts.includes(p))))) {
-        let got;
+      const records = sh.screens.length ? await T.tour(box, shots, sh.screens, took) : [];
+      for (const c of sh.cases) {
+        let got; const c0 = Date.now(); let tried = 0;
         // A case fails only when it fails twice: one slow frame in a busy Logseq must not stop a release.
         for (let tries = 0; tries < 2 && !(got && got.ok); tries++) {
+          tried++;
           try { await T.reset(box); got = await c.check(box, T); } catch (e) { got = { ok: false, said: 'the case could not run: ' + String(e && e.message || e).slice(0, 160) }; }
         }
+        took['case ' + c.file] = Math.round((Date.now() - c0) / 100) / 10;   // both tries, when it took two: that is what its Logseq spends on it
+        if (process.env.GUARD_TIME) console.log(`    ${((Date.now() - c0) / 1000).toFixed(1)} s${tried > 1 ? ' (tried twice)' : ''}  ${c.file}`);
         if (!got.ok) { got.picture = `case-${c.file.replace(/\.js$/, '')}.png`; await box.page.screenshot({ path: path.join(shots, got.picture), scale: 'css' }).catch(() => { delete got.picture; }); }
         caseResults.push({ file: c.file, name: c.name, from: c.from, ...got });
         lines.push(`  case ${got.ok ? 'passes' : 'FAILS'}: ${c.name}${got.ok ? '' : ' — ' + got.said}`);
       }
+      lines[0] += ` (${Math.round((ready - began) / 1000)} s to be ready, ${Math.round((Date.now() - ready) / 1000)} s for its share)`;
       console.log(lines.join('\n'));
+      /* The checks that need the real app with the plugin as changed (every kind of write read back, what the plugin relies on in
+         Logseq) run here, in this Logseq, while the others go on with their share; until 24 November 2026 they ran after the
+         whole tour, three quarters of a minute with every other Logseq idle. One line each, for check.js to read. */
+      for (const x of sh.extras || []) {
+        await T.reset(box).catch(() => {});
+        const x0 = Date.now(), r = require('node:child_process').spawnSync(process.execPath, x.cmd, { cwd: plugin, env: { ...process.env, LOGSEQ_PORT: String(sh.port), NODE_PATH: process.env.NODE_PATH || path.join(REPO, 'node_modules') }, encoding: 'utf8', timeout: 180000 });
+        took['in-app ' + x.name] = Math.round((Date.now() - x0) / 100) / 10;
+        console.log('IN-APP ' + JSON.stringify({ name: x.name, ok: r.status === 0, secs: took['in-app ' + x.name], out: String((r.stdout || '') + (r.stderr || '')).trim().split('\n').slice(-12).join('\n') }));
+      }
       return { records, cases: caseResults };
     } finally { if (box.warm) await sandbox.leave(box); else await sandbox.stop(box); }
   };
-  const sides = await Promise.all(graphs.map(one));
-  const out = { records: sides.flatMap(p => p.records), cases: sides.flatMap(p => p.cases) };
+  const plan = shares(graphs, wantScreens, wantCases, extras);
+  if (plan.length > 1) console.log(`${label}: ${plan.length} Logseqs at once (${plan.map(p => `${p.graph.split(' ')[0]} ${p.screens.length}+${p.cases.length}, about ${Math.round(p.secs)} s`).join('; ')})`);
+  const sides = await Promise.all(plan.map(one));
+  try { keep(TIMES, { ...times(), ...took }); } catch (e) { /* the times are only a help */ }
+  // In the tour's own order and the cases' own order, however they were shared out.
+  const order = T.SCREENS.map(x => x[0]), files = cases().map(c => c.file);
+  const out = { records: sides.flatMap(p => p.records).sort((x, y) => order.indexOf(x.name) - order.indexOf(y.name)), cases: sides.flatMap(p => p.cases).sort((x, y) => files.indexOf(x.file) - files.indexOf(y.file)) };
   fs.writeFileSync(path.join(runDir, label + '.json'), JSON.stringify(out, null, 1));
   return out;
 }
 
 /* The plugin as it was is photographed once per base commit and kept (the owner, 18 November 2026: eleven minutes a change is far
-   too long). Kept under the base commit and the guard's own tour and cases, so a new tour or a new case takes new pictures. */
+   too long). Kept in two parts (24 November 2026): the screens under the commit, the tour and the test graphs; each case under
+   those and its own file. Until then one key covered the tour and every case together, so each fix, which adds a case, threw the
+   whole kept side away and the release check took it again: every screen and every case, twice over. Now a new case is run alone
+   on the plugin as it was, and the screens are walked again only for a new commit, a new tour or a new copy of a test graph. */
 function baselineKey(base) {
   /* origin/main means GitHub's main as it is now: fetched first. On 19 November a run compared a change with 0.3.162, because the
      checkout the guard ran from had not fetched for a day, and showed eleven screens "changed" that the change never touched. */
   if (/^origin\//.test(base)) try { execFileSync('git', ['-C', REPO, 'fetch', '-q', 'origin', base.slice(7)], { stdio: 'ignore', timeout: 30000 }); } catch (e) { console.log(`could not fetch ${base} from GitHub: comparing with the copy this Mac last fetched`); }
   const commit = execFileSync('git', ['-C', REPO, 'rev-parse', base], { encoding: 'utf8' }).trim();
-  const h = require('node:crypto').createHash('sha256');
-  for (const f of ['tour.js', 'reads.js', 'sandbox.js', ...fs.readdirSync(path.join(HERE, 'cases')).sort().map(f => 'cases/' + f)]) h.update(f + fs.readFileSync(path.join(HERE, f)));
+  const sha = () => require('node:crypto').createHash('sha256');
+  const h = sha();
+  for (const f of ['tour.js', 'reads.js', 'sandbox.js']) h.update(f + fs.readFileSync(path.join(HERE, f)));
   /* And under the test graphs' copies themselves: a graph that changed since the pictures were taken (19 November: today's test
      graphs had new notes) made every run fail on five screens no change had touched. A new copy of a graph takes new pictures. */
   // By content, not by file name or time: Logseq writes a new backup every hour while a graph is open, most of them the same notes.
-  for (const g of GRAPHS) { try { h.update(g + require('node:crypto').createHash('sha256').update(fs.readFileSync(require('./sandbox').graphFile(g))).digest('hex')); } catch (e) { h.update(g + 'missing'); } }
-  return { commit, key: commit.slice(0, 12) + '-' + h.digest('hex').slice(0, 12) };
+  for (const g of GRAPHS) { try { h.update(g + sha().update(fs.readFileSync(require('./sandbox').graphFile(g))).digest('hex')); } catch (e) { h.update(g + 'missing'); } }
+  const ground = h.digest('hex');
+  return { commit, key: commit.slice(0, 12) + '-' + ground.slice(0, 12), caseKey: file => sha().update(ground + fs.readFileSync(path.join(HERE, 'cases', file))).digest('hex').slice(0, 16) };
 }
 async function baseline(base, graphs, only, parts) {
-  const { commit, key } = baselineKey(base);
-  const dir = path.join(STORE, 'baseline', key);
-  if (fs.existsSync(path.join(dir, 'before.json'))) { console.log(`before: ${base} is ${commit.slice(0, 7)}; its pictures were taken earlier`); return { dir, ...JSON.parse(fs.readFileSync(path.join(dir, 'before.json'), 'utf8')) }; }
-  const work = only ? path.join(STORE, 'runs', 'tmp-' + Date.now()) : dir + '.part';
-  fs.rmSync(work, { recursive: true, force: true }); fs.mkdirSync(work, { recursive: true });
-  const plugin = path.join(work, 'plugin-before'); fs.mkdirSync(plugin);
-  execFileSync('sh', ['-c', `git -C "${REPO}" archive "${commit}" | tar -x -C "${plugin}"`]);
-  const got = await side('before', plugin, work, graphs, only, parts);
-  fs.rmSync(path.join(work, 'box'), { recursive: true, force: true });
-  if (!only) { fs.rmSync(dir, { recursive: true, force: true }); fs.renameSync(work, dir); return { dir, ...got }; }
-  return { dir: work, ...got };
+  const { commit, key, caseKey } = baselineKey(base);
+  const dir = path.join(STORE, 'kept', key), shots = path.join(dir, 'before');
+  const read = f => { try { return JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')); } catch (e) { return {}; } };
+  const T = require('./tour');
+  const wantScreens = T.SCREENS.filter(x => graphs.includes(x[1]) && (!only || only.includes(x[0]))).map(x => x[0]);
+  const wantCases = cases().filter(c => graphs.includes(c.graph) && (!parts || parts.includes('shared') || (c.parts || []).some(p => parts.includes(p))));
+  let screens = read('screens.json'), kept = read('cases.json');
+  const has = c => kept[c.file] && kept[c.file].key === caseKey(c.file);
+  /* A graph's screens are kept only from a walk of its whole tour, in the tour's order (see shares()). A part of the tour is compared
+     with the kept walk when there is one; when there is none it is photographed for this run alone and not kept. */
+  const whole = g => T.SCREENS.filter(x => x[1] === g).map(x => x[0]);
+  const keptWhole = g => whole(g).every(n => screens[n] && fs.existsSync(path.join(shots, screens[n].file + '.png')));
+  const needScreens = graphs.flatMap(g => keptWhole(g) ? [] : only ? whole(g).filter(n => only.includes(n)) : whole(g));
+  const needCases = wantCases.filter(c => !has(c));
+  const plugin = path.join(dir, 'plugin-before');
+  if (!fs.existsSync(path.join(plugin, 'package.json'))) { fs.rmSync(plugin, { recursive: true, force: true }); fs.mkdirSync(plugin, { recursive: true }); execFileSync('sh', ['-c', `git -C "${REPO}" archive "${commit}" | tar -x -C "${plugin}"`]); }
+  if (!needScreens.length && !needCases.length) console.log(`before: ${base} is ${commit.slice(0, 7)}; its pictures and cases were taken earlier`);
+  else {
+    console.log(`before: ${base} is ${commit.slice(0, 7)}; taking ${needScreens.length} screen(s) and ${needCases.length} case(s) not kept yet`);
+    const work = path.join(dir, 'taking-' + process.pid);
+    const got = await side('before', plugin, work, graphs, needScreens, parts, c => needCases.some(n => n.file === c.file));
+    fs.mkdirSync(shots, { recursive: true });
+    // Read again before writing: another check may have kept its own pieces meanwhile.
+    screens = read('screens.json'); kept = read('cases.json');
+    for (const c of got.cases) kept[c.file] = { key: caseKey(c.file), result: c };
+    keep(path.join(dir, 'cases.json'), kept);
+    if (needScreens.length && !only && got.records.every(r => !r.failed)) {
+      for (const f of fs.readdirSync(path.join(work, 'before'))) fs.renameSync(path.join(work, 'before', f), path.join(shots, f));
+      for (const r of got.records) screens[r.name] = r;
+      keep(path.join(dir, 'screens.json'), screens);
+      fs.rmSync(work, { recursive: true, force: true });
+    } else if (needScreens.length) {
+      // A part of the tour, or a walk in which a screen's set-up failed: used for this run, from this run's own folder, not kept.
+      if (!only) for (const r of got.records.filter(r => r.failed)) console.log(`  not kept, a screen's set-up failed: ${r.name}`);
+      return { dir, shots: path.join(work, 'before'), records: wantScreens.map(n => got.records.find(r => r.name === n) || screens[n]).filter(Boolean), cases: wantCases.filter(c => kept[c.file]).map(c => kept[c.file].result) };
+    } else fs.rmSync(work, { recursive: true, force: true });
+  }
+  return { dir, shots, records: wantScreens.map(n => screens[n]).filter(Boolean), cases: wantCases.filter(c => kept[c.file]).map(c => kept[c.file].result) };
 }
 
 // What still stops a commit: a difference with no reason, a case broken by the change.
@@ -186,11 +283,14 @@ async function run() {
   // Only the test graphs the screens asked for are opened.
   const needed = only ? graphs.filter(g => require('./tour').SCREENS.some(x => x[1] === g && only.includes(x[0]))) : graphs;
   const before = await baseline(base, needed, only, parts);
-  const after = await side('after', changePlugin, runDir, needed, only, parts);
+  // --in-app "write,contract": the checks that need the running app, run in one of the after side's Logseqs (see side()).
+  const INAPP = { write: { name: 'write', secs: 15, cmd: ['tools/write-check.js'] }, contract: { name: 'contract', secs: 32, cmd: ['tools/logseq-contract-app.js'] } };
+  const extras = needed.includes(GRAPHS[0]) ? (arg('--in-app', '')).split(',').map(k => INAPP[k.trim()]).filter(Boolean) : [];
+  const after = await side('after', changePlugin, runDir, needed, only, parts, null, extras);
   fs.rmSync(path.join(runDir, 'box'), { recursive: true, force: true });
   console.log(`took ${Math.round((Date.now() - t0) / 1000)} s`);
   const C = require('./compare');
-  let screens = await C.compare(path.join(before.dir, 'before'), path.join(runDir, 'after'), before.records, after.records, path.join(runDir, 'after'));
+  let screens = await C.compare(before.shots, path.join(runDir, 'after'), before.records, after.records, path.join(runDir, 'after'));
   let casesOut = after.cases.map(c => ({ name: c.name, from: c.from, before: before.cases.find(b => b.file === c.file) || null, after: c }));
   /* A second look (19 November 2026: an unchanged plugin failed on screens where a card or a shade happened to be caught in one
      picture). Each screen that differs, and each case broken now, is taken again on both sides, the plugin as it was and as
@@ -207,8 +307,10 @@ async function run() {
     const gs = [...new Set([...again.map(n => SC.find(x => x[0] === n)[1]), ...brokeCases.map(c => cases().find(x => x.name === c.name)?.graph).filter(Boolean)])];
     console.log(`a second look at ${again.length} screen(s) and ${brokeCases.length} case(s), on both sides`);
     const onlyAgain = again.length ? again : ['(none)'];
-    b2 = await side('before-again', path.join(before.dir, 'plugin-before'), runDir, gs, onlyAgain, parts);
-    a2 = await side('after-again', changePlugin, runDir, gs, onlyAgain, parts);
+    // Only what differed is taken again: the screens named, and the cases broken now (not every case of their graph).
+    const broke = c => brokeCases.some(x => x.name === c.name);
+    b2 = await side('before-again', path.join(before.dir, 'plugin-before'), runDir, gs, onlyAgain, parts, broke);
+    a2 = await side('after-again', changePlugin, runDir, gs, onlyAgain, parts, broke);
     fs.rmSync(path.join(runDir, 'box'), { recursive: true, force: true });
     const second = await C.compare(path.join(runDir, 'before-again'), path.join(runDir, 'after-again'), b2.records, a2.records, path.join(runDir, 'after-again'));
     screens = screens.map(s => {
@@ -228,7 +330,7 @@ async function run() {
   const R = require('./reads');
   const pick = (first, second) => first.map(r => (second && second.records.find(x => x.name === r.name)) || r);
   const reads = R.brought(pick(before.records, b2), pick(after.records, a2));
-  fs.writeFileSync(path.join(runDir, 'result.json'), JSON.stringify({ base, beforeDir: before.dir, change, ship: shipHash, expect, screens, cases: casesOut, reads, partial: !!only || !!parts || graphs.length < GRAPHS.length }, null, 1));
+  fs.writeFileSync(path.join(runDir, 'result.json'), JSON.stringify({ base, beforeDir: path.dirname(before.shots), change, ship: shipHash, expect, screens, cases: casesOut, reads, partial: !!only || !!parts || graphs.length < GRAPHS.length }, null, 1));
   report(runDir);
 }
 
@@ -281,7 +383,7 @@ const cmd = process.argv[2];
   else if (cmd === 'why') why();
   else if (cmd === 'page') report(path.resolve(process.argv[3]));
   else if (cmd === 'verify') verify();
-  else if (cmd === 'baseline') { const b = await baseline(arg('--base', 'origin/main'), GRAPHS, null); console.log('kept in ' + b.dir); }
+  else if (cmd === 'baseline') { const t0 = Date.now(); const b = await baseline(arg('--base', 'origin/main'), GRAPHS, null); console.log(`kept in ${b.dir} (${Math.round((Date.now() - t0) / 1000)} s)`); }
   else if (cmd === 'screens') console.log(require('./tour').SCREENS.map(s => s[0]).join('\n'));
   else if (cmd === 'stop') console.log(await require('./sandbox').stopAny(STORE));
   else console.log('run | why | page | verify | stop   (see the top of tools/guard/guard.js)');

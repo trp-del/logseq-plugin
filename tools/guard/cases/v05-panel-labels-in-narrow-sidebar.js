@@ -26,6 +26,10 @@ module.exports = {
     const { page } = box; const f = box.frame();
     const clean = () => f.evaluate(async () => { const rows = await logseq.DB.datascriptQuery('[:find ?u :where [?b :block/title ?t] [?b :block/uuid ?u] [(clojure.string/includes? ?t "GUARDNARROWKIND")]]'); for (const [u] of rows || []) await logseq.Editor.removeBlock(u).catch(() => {}); });
     const done = async verdict => { for (let i = 0; i < 4; i++) { await page.keyboard.press('Escape'); await T.sleep(120); } await clean(); return verdict; };
+    /* The caret goes to the end of the bullet's words by its own box, not by the End key: with the caret already at the end, End
+       scrolls the sidebar to its foot, the bullet went from 320 to the window's top, and the panel then rightly opened under it;
+       so the case failed on a plugin that did what it should (found 24 November 2026, by the bullet's place before and after each step). */
+    const caretToEnd = () => page.evaluate(() => { const t = document.activeElement; if (t && t.tagName === 'TEXTAREA') t.setSelectionRange(t.value.length, t.value.length); });
     await clean();
     await box.cdp.send('Emulation.setDeviceMetricsOverride', { width: 700, height: 560, deviceScaleFactor: 1, mobile: false });
     await T.go(page, 'Amex Gold'); await T.sleep(1200);
@@ -38,7 +42,7 @@ module.exports = {
     const at = await page.evaluate(u => { const b = document.querySelector(`#right-sidebar .ls-block[blockid="${u}"] .block-content, .cp__right-sidebar .ls-block[blockid="${u}"] .block-content`); if (!b) return null; b.scrollIntoView({ block: 'center' }); const r = b.getBoundingClientRect(); return [r.left + 30, r.top + Math.min(r.height / 2, 12)]; }, uuid);
     if (!at) return done({ ok: false, said: 'the new bullet did not show in the right sidebar' });
     await T.sleep(500); await page.mouse.click(at[0], at[1]); await T.sleep(700);
-    await page.keyboard.press('End'); await T.sleep(200);
+    await caretToEnd(); await T.sleep(200);
     const inSide = await page.evaluate(() => !!document.activeElement?.closest?.('#right-sidebar, .cp__right-sidebar') && document.activeElement.tagName === 'TEXTAREA');
     if (!inSide) return done({ ok: false, said: 'the sidebar bullet could not be put in writing' });
     await f.evaluate(() => { window.PluginDoor.ask('find:panel', { box: window.PluginDoor.host().activeElement }); }); await T.sleep(1800);
@@ -76,7 +80,7 @@ module.exports = {
     if (Math.abs(low[0] - 320) > 24) return done({ ok: false, said: `the sidebar bullet could not be brought to the hand test's place (its top at ${low[0]}, not about 320)` });
     await T.sleep(500);
     if (low[1] != null) { await page.mouse.click(low[1], low[2]); await T.sleep(700); }
-    await page.keyboard.press('End'); await T.sleep(200);
+    await caretToEnd(); await T.sleep(200);
     const still = await page.evaluate(() => !!document.activeElement?.closest?.('#right-sidebar, .cp__right-sidebar') && document.activeElement.tagName === 'TEXTAREA');
     if (!still) return done({ ok: false, said: 'the sidebar bullet low in the window could not be put in writing' });
     await f.evaluate(() => { window.PluginDoor.ask('find:panel', { box: window.PluginDoor.host().activeElement }); }); await T.sleep(1800);

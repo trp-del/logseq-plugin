@@ -6,7 +6,8 @@
      … box.page, box.frame() …
      await sandbox.stop(box)
 
-   Ports from GUARD_PORT, 9340 by default, one more for each graph run at the same time (9340, 9341); the owner's Logseq keeps 9222,
+   Ports from GUARD_PORT, 9340 by default: one for each test graph (9340, 9341), then one for each further Logseq a side shares its
+   work among (9342 to 9347; guard.js); the owner's Logseq keeps 9222,
    the audit 9333, other threads 9334–9336, 9444, 9555–9556.
    Graph copies come from GUARD_GRAPHS (folders of graphs, colon-separated), else ~/logseq-test-graphs/graphs and ~/logseq/graphs,
    newest backup first, which Logseq writes whole and never holds locked. */
@@ -50,8 +51,10 @@ async function start({ dir, graph, plugin, settings = {}, port = PORT }) {
   const child = spawn(APP, [`--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, '--use-mock-keychain', COLOUR],
     { detached: true, stdio: ['ignore', log, log], env: { ...process.env, HOME: home, CFFIXED_USER_HOME: home } });
   child.unref();
-  for (let i = 0; i < 80 && !(await up(port)); i++) await sleep(500);
-  if (!(await up(port))) throw new Error(`the guard's Logseq did not answer on ${port}; see ${path.join(dir, 'logseq.log')}`);
+  // Once it has answered it is up: a second ask could time out while four Logseqs start at once, and a Logseq that had started was given up on.
+  let answered = false;
+  for (let i = 0; i < 80 && !(answered = !!(await up(port))); i++) await sleep(500);
+  if (!answered) throw new Error(`the guard's Logseq did not answer on ${port}; see ${path.join(dir, 'logseq.log')}`);
   const { chromium } = require('playwright');
   const browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`, { timeout: 10000 });
   let page = null;
@@ -113,8 +116,9 @@ async function started(page) {
   if (!parts) throw new Error('the plugin loaded but none of its parts started');
   return { frame, parts };
 }
-async function warm({ store, graph, plugin, port = PORT }) {
-  const dir = path.join(store, 'warm', slug(graph)), own = path.join(dir, 'plugin'), meta = path.join(dir, 'meta.json'), stamp = path.join(dir, 'used');
+async function warm({ store, graph, plugin, port = PORT, index = 0 }) {
+  // A graph may have several Logseqs at once (guard.js shares the screens and cases out): each its own folder and port.
+  const dir = path.join(store, 'warm', slug(graph) + (index ? '-' + (index + 1) : '')), own = path.join(dir, 'plugin'), meta = path.join(dir, 'meta.json'), stamp = path.join(dir, 'used');
   const want = graphHash(graph);
   let had = null; try { had = JSON.parse(fs.readFileSync(meta, 'utf8')); } catch (e) { /* first time */ }
   copyPlugin(plugin, own);
@@ -137,6 +141,9 @@ async function warm({ store, graph, plugin, port = PORT }) {
     } catch (e) { console.log(`the running test Logseq on ${port} did not take the plugin (${String(e && e.message || e).slice(0, 80)}): starting it afresh`); }
   }
   if (await up(port)) await stop({ port, home: had && had.home, browser: { newBrowserCDPSession: async () => { throw new Error('none'); } } });
+  /* A Logseq this folder started earlier on another port (24 November 2026: the plan of who takes which port changed between two
+     checks, the folder was emptied under a Logseq still running in it, and the check stopped): ended by its own profile folder. */
+  try { execFileSync('pkill', ['-9', '-f', '--', `--user-data-dir=${path.join(dir, 'profile')}`], { stdio: 'ignore' }); await sleep(800); } catch (e) { /* none ran */ }
   // A worker left by a Logseq that is gone (its window closed, the check stopped halfway) still holds this folder: ended before the folder is made anew.
   if (endWorkers(path.join(dir, 'home'))) await sleep(500);
   for (const f of ['home', 'profile']) fs.rmSync(path.join(dir, f), { recursive: true, force: true });
@@ -153,15 +160,16 @@ async function leave(box) { fs.writeFileSync(path.join(box.dir, 'used'), String(
 // For `guard.js stop`: whatever answers on the guard's port, and only that.
 async function stopAny(store) {
   const said = [];
-  for (const port of [PORT, PORT + 1]) {
-    if (!(await up(port))) { said.push('nothing ran on ' + port); continue; }
+  // The guard's ports: one for each test graph, then the further Logseqs a side shares its work among (eight at most).
+  for (const port of Array.from({ length: 8 }, (_, i) => PORT + i)) {
+    if (!(await up(port))) { if (port < PORT + 2) said.push('nothing ran on ' + port); continue; }
     const { chromium } = require('playwright');
     const browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`, { timeout: 8000 }).catch(() => null);
     await stop({ port, browser: browser || { newBrowserCDPSession: async () => { throw new Error('no'); } } });
     said.push((await up(port)) ? 'still answering on ' + port : 'stopped on ' + port);
   }
   // And the graph workers those Logseqs left, whether or not a window still answered: only the ones in the guard's own folder.
-  const ended = store ? endWorkers(path.join(store, 'warm') + path.sep) + endWorkers(path.join(store, 'runs') + path.sep) : 0;
+  const ended = store ? endWorkers(path.join(store, 'warm') + path.sep) + endWorkers(path.join(store, 'runs') + path.sep) + endWorkers(path.join(store, 'kept') + path.sep) : 0;
   if (ended) said.push(`ended ${ended} graph worker${ended > 1 ? 's' : ''} left behind`);
   return said.join('; ');
 }
