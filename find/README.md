@@ -26,7 +26,7 @@ first opening is not drawn bare for a frame.
   of pages to link (`PluginDoor.screen.linkList`, in `plugin.js`). The setting "A small Find under the line you are writing"
   switches the panel, and its key, off.
 - **What it is.** The window's own four pieces, the find line, the choices, the rows and the foot, in the library's pop-up
-  (`lk-pop`), under the bullet at its width up to 420 pt (the owner, 24 November 2026: "the window that appears is much too massive"), above it where the window has no room below, four rows. Where its lines of choices or
+  (`lk-pop`), under the bullet at its width up to 460 pt (the owner, 24 November 2026: "the window that appears is much too massive"), above it where the window has no room below, as high as the rows it has held so far, four at most, grown as rows come and never shrunk while it is open; a line of choices that would wrap keeps fewer before its "more". Where its lines of choices or
   its foot wrap (the narrow sidebar), it grows, as far as the window has room, until its first row shows whole under the choices'
   names; where the room is not enough, a line of choices keeps fewer of them before its "more", so it stands on one line. Not modal: the page stays
   as it is, the bullet stays in writing, a press elsewhere lets it go. Where it reaches the window's lower right corner it stands over

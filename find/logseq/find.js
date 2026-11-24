@@ -22,6 +22,7 @@ const CSS = `
    downward as they come and never shrunk while it is open (grown), over a page left as it is (the library's lk-clear). */
 .fd { position: fixed !important; left: 50% !important; right: auto !important; transform: translateX(-50%); margin: 0 !important; width: min(640px, 76vw); max-height: 78vh;
   box-sizing: border-box; padding: 0; display: flex; flex-direction: column; }   /* the window's look is the library's lk-window */
+.fd.fd-say { width: min(900px, 92vw); }   /* the sentence keeps its width: its year line is read along it */
 .fd:not([open]) { display: none; }
 .fd.fd-high { top: max(10vh, 60px) !important; bottom: auto !important; }
 .fd.fd-centred { top: 50% !important; bottom: auto !important; transform: translate(-50%, -50%); }
@@ -159,7 +160,7 @@ const S = {
 const setting = key => Find.settings.setting(key);
 /* The window has two hosts (0.5): the window itself, over the page, and a panel under the line being written (S.host: the bullet's
    box, where its caret was). One Find shows at a time, so the state is one; what differs is asked of the host. */
-const PANEL_ROWS = 4, PANEL_FRAME = 136, PANEL_WIDE = 420;   // the panel: its find line, one line of choices and the foot; the rows it shows
+const PANEL_ROWS = 4, PANEL_FRAME = 136, PANEL_WIDE = 460;   // the panel: its find line, one line of choices and the foot; the rows it shows
 const rowsShown = () => S.host ? PANEL_ROWS : (setting('rowsShown') || 12);
 // One height from the opening, whatever is listed; the line opened adds its own height to it.
 // The sentence keeps one height from its opening (its notes and year line need their room); the window is as high as what it lists.
@@ -177,7 +178,8 @@ function grown(dlg) {
 // The panel's place: under the bullet's words at their width; above them where the window has no room below.
 function place() {
   const d = S.dlg, box = S.host?.box || S.host?.anchor; if (!d || !box?.isConnected) return;
-  const win = S.doc.defaultView, h = PANEL_FRAME + PANEL_ROWS * ROW;
+  // As high as the rows it has held so far, four at most (24 November 2026: it stood four rows high round one), grown as rows come.
+  const win = S.doc.defaultView, h = PANEL_FRAME + Math.min(PANEL_ROWS, Math.max(1, S.host?.rowsSeen || 1)) * ROW;
   // Over held bullets the panel takes the span of them all: under the last, or above the first, never over the bullets it acts on
   // (found by script, 23 November 2026: above the last it covered the two held above it).
   const lines = (S.host?.lines || []).filter(l => l.isConnected), last = box.getBoundingClientRect(), first = lines[0]?.getBoundingClientRect() || last;
@@ -216,7 +218,9 @@ function panelNeed(d, asFoot) {
   const pinned = Math.max(choices?.getBoundingClientRect().height || 0, 2 * line);
   const oneLine = px(foot, 'paddingTop') + px(foot, 'paddingBottom') + px(foot, 'borderTopWidth') + (px(foot, 'lineHeight') || 20);
   const footH = asFoot && foot?.textContent ? Math.max(foot.getBoundingClientRect().height, oneLine) : oneLine;
-  return Math.ceil((find?.getBoundingClientRect().height || 52) + pinned + px(body, 'paddingTop') + px(body, 'paddingBottom') + 3 * ROW + footH);
+  // To choose its side it is reckoned with three rows, so it need not cross the line later; to be drawn, with the rows it has held.
+  const rows = asFoot ? Math.min(3, Math.max(1, S.host?.rowsSeen || 1)) : 3;
+  return Math.ceil((find?.getBoundingClientRect().height || 52) + pinned + px(body, 'paddingTop') + px(body, 'paddingBottom') + rows * ROW + footH);
 }
 /* The panel grown, never shrunk while it is open, until its first row shows whole under the lines of choices: in the narrow sidebar
    the kinds wrap onto two lines and the foot onto two, and the first row, scrolled into view, hid the word "kind" under the find line
@@ -227,18 +231,21 @@ function fitPanel(body, groups) {
   const h = S.host; if (!h || !body) return false;
   const need = () => { const pad = parseFloat(S.doc.defaultView.getComputedStyle(body).paddingBottom) || 0, first = body.querySelector('.fd-r');
     return Math.ceil((first ? first.getBoundingClientRect().bottom - body.getBoundingClientRect().top + body.scrollTop + pad : body.scrollHeight) - body.clientHeight); };
-  let more = need();
-  if (more > 0) { h.grow = (h.grow || 0) + more; place(); more = need(); }
-  /* Where the pinned lines are one line each (lk-one), a line whose values still wrap keeps fewer before its "more" too (tried by
-     hand, 24 November 2026: the kinds stood on two lines in the narrow sidebar, the rows left with room for one). */
-  if (more <= 0 && !h.oneLine) return false;
+  /* A line of choices whose values wrap keeps fewer of them before its "more", so each line of the panel stands on one line (the
+     panel is at most 460 wide since 24 November 2026: the kinds wrapped a moment after it opened and the panel grew by a line,
+     two sizes within a tenth of a second). Before anything is grown, so the panel takes its one height at once. */
   const lines = [...body.querySelectorAll('.fd-choices > .lk-ch')];
   for (let i = 0; i < lines.length; i++) {
-    const g = groups[i], key = g?.key; if (!key || !(key === 'kind' || key.startsWith('p:')) || g.tree || S.moreOf.has(key)) continue;
+    const g = groups[i], key = g?.key; if (!key || !(key === 'kind' || key === 'tagme' || key.startsWith('p:')) || g.tree || S.moreOf.has(key)) continue;
     const tops = new Set([...lines[i].querySelectorAll('.lk-cv > *')].map(v => Math.round(v.getBoundingClientRect().top)));
     const shown = g.items.filter(c => !c.more).length;
-    if (tops.size > 1 && shown > 1) { h.cut = { ...(h.cut || {}), [key]: shown - 1 }; return true; }
+    // The height read while the line stood wrapped is let go: that state is never drawn (render draws again in the same turn).
+    if (tops.size > 1 && shown > 1) { h.cut = { ...(h.cut || {}), [key]: shown - 1 }; h.tall = h.tallWas || 0; return true; }
   }
+  const held = body.querySelectorAll('.fd-r').length;
+  if (held > (h.rowsSeen || 0)) { h.rowsSeen = held; place(); }
+  const more = need();
+  if (more > 0) { h.grow = (h.grow || 0) + more; place(); }
   return false;
 }
 const words = () => S.words;
@@ -611,6 +618,7 @@ async function setStatus(node, to) {
     onFail: error => { console.error('Find: could not undo', error); notify('The status could not be put back', 'warning'); S.statusNow.set(uuid, to); render(); } });
 }
 function render() {
+  if (S.host) S.host.tallWas = S.host.tall || 0;   // the height reached before this drawing (fitPanel)
   const d = S.dlg; if (!d) return;
   const doc = S.doc;
   const groups = choiceGroups(), choices = flatChoices(groups), rows = rowList();
