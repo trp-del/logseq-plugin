@@ -1,7 +1,9 @@
 /* The Option-K hand test of 24 November 2026, the owner's window of 700 px, the right sidebar about 280 wide: under a sidebar bullet
    the small Find's kinds wrapped onto two lines and its foot onto two, and the first row, scrolled into view, hid the small name
    ("kind") of the line of choices under the find line. Every line of choices shows its name, and the first row shows whole, inside
-   the panel's list, at rest and with letters typed. */
+   the panel's list, at rest and with letters typed. The second hand test (24 November 2026, a thread): the bullet lower in the
+   sidebar (top about 320 of 560), the panel under it short, and "amex" typed showed the find line, a gap and a row and a half, the
+   line "kind" scrolled out above; so the case also opens the panel there and types "amex". */
 module.exports = {
   parts: ['find', 'shared'],
   name: '0.5: in the narrow sidebar the small Find shows each line of choices with its name, and its first row whole',
@@ -43,6 +45,27 @@ module.exports = {
       if (s.first === false) return done({ ok: false, said: `${state}, the first row is cut at the panel's foot` });
       said.push(`${state}: ${s.names.length} names shown, the first line of choices on ${s.lines} lines`);
     }
+    // Low in the sidebar: the panel closed, the bullet's top brought to 320, the panel opened again and "amex" typed.
+    await page.keyboard.press('Escape'); await T.sleep(500);
+    const low = await page.evaluate(([u, y]) => {
+      const b = document.querySelector(`#right-sidebar .ls-block[blockid="${u}"] .block-content, .cp__right-sidebar .ls-block[blockid="${u}"] .block-content`); if (!b) return null;
+      let sc = b.parentElement; while (sc && !(sc.scrollHeight > sc.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(sc).overflowY))) sc = sc.parentElement;
+      if (sc) sc.scrollTop += b.getBoundingClientRect().top - y;
+      return Math.round(b.getBoundingClientRect().top);
+    }, [uuid, 320]);
+    await T.sleep(500);
+    const still = await page.evaluate(() => !!document.activeElement?.closest?.('#right-sidebar, .cp__right-sidebar') && document.activeElement.tagName === 'TEXTAREA');
+    if (!still) return done({ ok: false, said: 'Escape did not leave the sidebar bullet in writing' });
+    await f.evaluate(() => { window.PluginDoor.ask('find:panel', { box: window.PluginDoor.host().activeElement }); }); await T.sleep(1800);
+    await page.keyboard.type('amex', { delay: 60 }); await T.sleep(1600);
+    const s = await look();
+    if (!s) return done({ ok: false, said: 'the panel did not open under the sidebar bullet low in the window' });
+    const where = `the bullet's top at ${low}, “amex” typed`;
+    const hid = s.names.filter(n => !n.ok).map(n => `“${n.text}”`);
+    if (!s.names.length) return done({ ok: false, said: `${where}, no line of choices shows in the panel` });
+    if (hid.length) return done({ ok: false, said: `${where}, the name ${hid.join(', ')} of a line of choices is out of view (panel ${s.width} wide)` });
+    if (s.first === false) return done({ ok: false, said: `${where}, the first row is cut at the panel's foot` });
+    said.push(`${where}: ${s.names.length} names shown`);
     return done({ ok: true, said: said.join('; ') });
   },
 };

@@ -63,6 +63,10 @@ html[data-lk-held-panel] .ui__popover-content:has(> .selection-action-bar), html
    lighter than its values, which are quiet. */
 .fd-body { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 16px 10px; }
 .fd-head { margin: 6px 0 2px; }   /* the library's small faint name (lk-name) */
+/* In the small panel the lines of choices stay put at the body's top and only the rows scroll under them, on the pop-up's own glass:
+   low room under a sidebar bullet showed the find line, a gap and a row and a half, the line "kind" scrolled out above (found by
+   hand, 24 November 2026). Its gap to the rows is the library's (lk-choices' foot), kept as the strip's own. */
+.fd-panel .fd-body > .fd-choices { position: sticky; top: -8px; z-index: 1; margin: -8px -16px 0; padding-left: 16px; padding-right: 16px; padding-top: 8px; background: var(--lk-glass); -webkit-backdrop-filter: var(--lk-glass-blur); backdrop-filter: var(--lk-glass-blur); }
 /* A group's head: a bold word after a gap of one line (the grammar). */
 .fd-near { font-weight: 600; margin: 20px 0 2px calc(var(--fd-day) + 36px); }
 /* The lines of choices are the library's (Door.choicesHtml: lk-choices, the tab words, the tree of kinds). */
@@ -687,6 +691,9 @@ function render() {
   else if (S.nearShown.length > NEAR_SHOWN && !S.nearAll) body.append(el(doc, 'button', { class: 'fd-showall lk-more', type: 'button', click: () => { S.nearAll = true; render(); } }, `show all ${S.nearShown.length}`));
   if (fitPanel(body, groups)) return render();
   body.scrollTop = scrollTop;
+  // The pinned lines of choices (the panel) are kept clear when the lit row is scrolled into view.
+  const pinned = S.host && body.querySelector(':scope > .fd-choices');
+  body.style.scrollPaddingTop = pinned ? pinned.offsetHeight - 8 + 'px' : '';
   const cur = body.querySelector(S.mode === 'choices' ? `[data-c="${S.choiceAt}"]` : `.fd-r[data-i="${S.rowAt}"]`);
   cur?.scrollIntoView?.({ block: 'nearest' });
   drawFoot(groups, rows);
