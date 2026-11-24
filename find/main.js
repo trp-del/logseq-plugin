@@ -10,12 +10,15 @@ const Keys = window.PluginDoor.keys;
    uses it. Each is matched by the key's place on the keyboard, since Shift and Option change what a key reads. */
 const keys = () => { const takes = Find.settings.setting('takesSearchKey') !== false; return { find: takes ? 'mod+k' : 'mod+shift+k', logseqSearch: takes ? 'mod+shift+k' : 'mod+k', sentence: 'mod+alt+k', commands: 'mod+shift+.' }; };
 /* A bullet being written, and the last one that was: the palette takes the caret before its command runs (found by hand, 23 November
-   2026: "Put the cursor in a bullet first"), so "Find: link from here" goes back to the bullet the hand was in, at its caret. */
+   2026: "Put the cursor in a bullet first"), so "Find: link from here" goes back to the bullet the hand was in, at its caret. The
+   very copy of it: the same page open on the left and in the sidebar draws the bullet twice, and Logseq's editBlock writes in the
+   first copy it finds (found by hand, 24 November 2026: the panel opened, and Escape left the caret, in the left copy). */
 const bulletBox = at => at?.tagName === 'TEXTAREA' && !!at.closest('.ls-block') && !at.closest('[data-th-node]');
-let lastBullet = null;   // { uuid, pos, side }
+const SIDE = '#right-sidebar, .cp__right-sidebar';
+let lastBullet = null;   // { uuid, pos, side, copy: the bullet's own .ls-block, id: its id }
 function rememberBullet() {
-  const doc = Find.kit.host(), SIDE = '#right-sidebar, .cp__right-sidebar';
-  const note = () => { const at = doc.activeElement; if (bulletBox(at)) lastBullet = { uuid: at.closest('.ls-block').getAttribute('blockid'), pos: at.selectionStart, side: !!at.closest(SIDE) }; };
+  const doc = Find.kit.host();
+  const note = () => { const at = doc.activeElement; if (!bulletBox(at)) return; const copy = at.closest('.ls-block'); lastBullet = { uuid: copy.getAttribute('blockid'), pos: at.selectionStart, side: !!at.closest(SIDE), copy, id: copy.id || '' }; };
   for (const type of ['keyup', 'mouseup', 'focusin']) Find.kit.listen(doc, type, note, true);
   Find.kit.onStop(logseq.App.onRouteChanged?.(() => { lastBullet = null; }));
   Find.kit.onStop(() => { lastBullet = null; });
@@ -27,10 +30,23 @@ async function panelFromCommand() {
   const was = lastBullet;
   if (!was?.uuid || !doc.querySelector(`.ls-block[blockid="${was.uuid}"]`)) return no();
   await new Promise(r => setTimeout(r, 150));   // the palette closes first
-  await Promise.resolve(logseq.Editor.editBlock(was.uuid, { pos: was.pos })).catch(() => {});
-  for (let i = 0; i < 20 && !bulletBox(doc.activeElement); i++) await new Promise(r => setTimeout(r, 50));
-  const at = doc.activeElement;
-  if (!bulletBox(at) || at.closest('.ls-block')?.getAttribute('blockid') !== was.uuid) return no();
+  // The copy that was written in: the same element, or, drawn again, the one of the same id; else the one on the same side.
+  const copyNow = () => (was.copy?.isConnected ? was.copy : null) || (was.id && doc.getElementById(was.id)) ||
+    [...doc.querySelectorAll(`.ls-block[blockid="${was.uuid}"]`)].find(b => !!b.closest(SIDE) === was.side) || null;
+  const inCopy = () => { const at = doc.activeElement, copy = copyNow(); return bulletBox(at) && copy && at.closest('.ls-block') === copy ? at : null; };
+  const wait = async () => { for (let i = 0; i < 20 && !inCopy(); i++) await new Promise(r => setTimeout(r, 50)); return inCopy(); };
+  // Logseq puts a bullet in writing where the hand presses its words, in that copy; its editBlock only where the first copy stands.
+  const press = copy => { const words = copy?.querySelector(':scope > .block-main-container .block-content') || copy?.querySelector('.block-content'); if (!words) return false;
+    const r = words.getBoundingClientRect(), view = doc.defaultView, at = { bubbles: true, cancelable: true, view, button: 0, clientX: r.right - 2, clientY: r.top + Math.min(r.height / 2, 10) };
+    for (const [Kind, type] of [[view.PointerEvent || view.MouseEvent, 'pointerdown'], [view.MouseEvent, 'mousedown'], [view.PointerEvent || view.MouseEvent, 'pointerup'], [view.MouseEvent, 'mouseup'], [view.MouseEvent, 'click']]) words.dispatchEvent(new Kind(type, { ...at, pointerType: 'mouse', isPrimary: true }));
+    return true; };
+  let at = null;
+  if (press(copyNow())) at = await wait();
+  if (!at) { await Promise.resolve(logseq.Editor.editBlock(was.uuid, { pos: was.pos })).catch(() => {}); at = await wait(); }
+  if (!at) return no();
+  await new Promise(r => setTimeout(r, 60));   // Logseq places its own caret once writing starts; the hand's place is put back after it
+  at = inCopy(); if (!at) return no();
+  try { at.setSelectionRange(was.pos, was.pos); } catch (error) { /* the words changed */ }
   Find.window.panel(at);
 }
 function listenForKeys() {

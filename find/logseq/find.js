@@ -151,7 +151,7 @@ function place() {
      under has no room for the find line and two rows; never over Logseq's header, which is the window's drag handle. */
   const band = dragBand(S.doc), below = win.innerHeight - r.bottom - 12, above = r.top - 8 - band;
   const under = below >= Math.min(h, PANEL_FRAME + 2 * ROW) || below >= above;
-  const height = Math.max(150, Math.min(h, under ? below : above));
+  const height = Math.max(150, Math.min(h + (S.host?.grow || 0), under ? below : above));
   const set = (k, v) => d.style.setProperty(k, v, 'important');
   // Its width kept inside the window: a bullet in the right sidebar starts near the window's edge (found by script, 23 November 2026:
   // the panel ran past the right edge, its rows cut).
@@ -159,6 +159,16 @@ function place() {
   set('left', left + 'px'); set('right', 'auto'); set('width', width + 'px');
   set('top', Math.round(under ? r.bottom + 4 : Math.max(band, r.top - height - 4)) + 'px'); set('bottom', 'auto');
   d.style.height = height + 'px';
+}
+/* The panel grown, never shrunk while it is open, until its first row shows whole under the lines of choices: in the narrow sidebar
+   the kinds wrap onto two lines and the foot onto two, and the first row, scrolled into view, hid the word "kind" under the find line
+   (found by hand, 24 November 2026). As high as the room the window has, as place() allows. */
+function fitPanel(body) {
+  const h = S.host; if (!h || !body) return;
+  const pad = parseFloat(S.doc.defaultView.getComputedStyle(body).paddingBottom) || 0, first = body.querySelector('.fd-r');
+  const bottom = first ? first.getBoundingClientRect().bottom - body.getBoundingClientRect().top + body.scrollTop + pad : body.scrollHeight;
+  const need = Math.ceil(bottom - body.clientHeight);
+  if (need > 0) { h.grow = (h.grow || 0) + need; place(); }
 }
 const words = () => S.words;
 const isCommandMode = () => S.typed.startsWith('>');
@@ -664,6 +674,7 @@ function render() {
   });
   if (!tailed) tail();
   else if (S.nearShown.length > NEAR_SHOWN && !S.nearAll) body.append(el(doc, 'button', { class: 'fd-showall lk-more', type: 'button', click: () => { S.nearAll = true; render(); } }, `show all ${S.nearShown.length}`));
+  fitPanel(body);
   body.scrollTop = scrollTop;
   const cur = body.querySelector(S.mode === 'choices' ? `[data-c="${S.choiceAt}"]` : `.fd-r[data-i="${S.rowAt}"]`);
   cur?.scrollIntoView?.({ block: 'nearest' });

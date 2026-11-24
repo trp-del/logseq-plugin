@@ -14,13 +14,15 @@ Find has two hosts and one code (`find.js`, `S.host`): the window, over the page
   "Find under the line" and set there; the owner, 23 November 2026: "Give it its own key"), pressed in a bullet being written, on
   the page or in the right sidebar; the key again closes it, the caret where it was. The command "Find: link from here" (the door's
   `find:panel`) opens it too: Logseq's palette takes the caret before the command runs, so the command goes back to the bullet
-  that was last being written, at its caret (`rememberBullet` in `main.js`; a bullet shown twice is taken where Logseq finds it
-  first). With bullets selected, a tap of the Hyper key opens it over them. A tap of Hyper in a bullet being written does not
+  that was last being written, at its caret (`rememberBullet` in `main.js`): to the very copy of it, so a bullet shown both on the
+  left and in the sidebar opens, and Escape returns, where the hand was. With bullets selected, a tap of the Hyper key opens it over them. A tap of Hyper in a bullet being written does not
   open it (the owner, 22 November 2026: "i don't think find is right piece for the job"): there the tap opens Logseq's own list
   of pages to link (`PluginDoor.screen.linkList`, in `plugin.js`). The setting "A small Find under the line you are writing"
   switches the panel, and its key, off.
 - **What it is.** The window's own four pieces, the find line, the choices, the rows and the foot, in the library's pop-up
-  (`lk-pop`), under the bullet at its width, above it where the window has no room below, four rows. Not modal: the page stays
+  (`lk-pop`), under the bullet at its width, above it where the window has no room below, four rows. Where its lines of choices or
+  its foot wrap (the narrow sidebar), it grows, as far as the window has room, until its first row shows whole under the choices'
+  names. Not modal: the page stays
   as it is, the bullet stays in writing, a press elsewhere lets it go.
 - **Keys.** Typing finds as the window does; ↑ ↓ move; Tab narrows or steps into the choices; → opens a row in place; Enter
   links the lit row at the caret (`[[Name]]`, a space before it after a letter), one Cmd+Z takes it back; Escape goes back a
