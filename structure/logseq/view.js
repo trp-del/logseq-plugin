@@ -22,7 +22,7 @@ const day = ms => ms ? Door.dates.words(Door.dates.number(new Date(ms)), { year:
 const dayWords = d => d ? Door.dates.words(d, { year: false }) : '';
 
 // The icon of a press: by what it does, and for a fix by its first word.
-const ACT_ICON = { page: 'go', ppage: 'go', rename: 'rename', prename: 'rename', move: 'move', pmove: 'move', new: 'child', addprop: 'plus', addpropall: 'plus', merge: 'merge', remove: 'bin', pullup: 'up', split: 'split', pdrop: 'minus' };
+const ACT_ICON = { page: 'go', ppage: 'go', rename: 'rename', prename: 'rename', move: 'move', pmove: 'move', new: 'child', addprop: 'plus', merge: 'merge', remove: 'bin', pullup: 'up', split: 'split', pdrop: 'minus' };
 const fixIcon = word => [[/^(remove|delete)/i, 'bin'], [/^drop/i, 'minus'], [/^(pull|lift)/i, 'up'], [/^(move|place|put)/i, 'move'], [/^merge/i, 'merge'], [/^rename/i, 'rename'], [/^(add|new)/i, 'plus']].find(([re]) => re.test(word))?.[1] || 'tick';
 // The row view's bullet: the top bullet of the row's section (the bullets inside it are its children, drawn as Logseq draws them).
 const ROW = '#right-sidebar .sidebar-item.item-type-block[data-st-item] .sidebar-panel-content .ls-block:not(.ls-block .ls-block)';
@@ -1008,7 +1008,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
       if (typed && ![...m.props.values()].some(x => x.title.trim().toLowerCase() === typed.toLowerCase())) all.push({ key: 'new', nm: `New property “${typed}”`, ct: '', d: 0, why: '', icon: '<i class="st-pi" aria-hidden="true"><i class="ti ti-plus"></i></i>' });
     } else if (p.list === 'props') {
       kind = 'property';
-      ask = `Add a property to ${name(p.tag)}${p.under ? ' and all beneath' : ''}…`;
+      ask = `Add a property to ${name(p.tag)}…`;
       all = [...m.props.values()].filter(x => hit(x.title)).sort(byTitle).map(x => { const g = giver(p.tag, x.id); return { key: x.id, nm: x.title, ct: x.on.length ? `on ${x.on.length}` : '', ctt: x.on.length ? `on ${plural(x.on.length, 'tag')}` : '', d: 0, why: g == null ? '' : g === p.tag ? `already on ${name(p.tag)}` : `inherited from ${name(g)}`, icon: pi(x) }; });
     } else {
       const subject = p.what === 'nodes' ? plural(p.nodes.length, 'ticked node') : p.what === 'prop' ? P(p.prop).title : p.what === 'tag' ? (p.tags.length > 1 ? `${p.tags.length} picked tags` : name(p.tags[0])) : '';
@@ -1066,16 +1066,17 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
   function menuHtml() {
     const mn = st.menu, m = M(), ticked = st.ticks.size;
     // Every word with its icon (16 November 2026, the owner: "no icons used at all"), the same icon as the bar's word for it.
-    const MENU_ICON = { page: 'go', ppage: 'go', openall: 'chevron', rename: 'rename', prename: 'rename', new: 'child', addprop: 'plus', addpropall: 'plus', up: 'up', move: 'move', tmerge: 'merge', merge: 'merge', pmerge: 'merge', remove: 'bin', pretype: 'calendar', psplit: 'split', prange: 'tag', pmove: 'move', pullup: 'up', split: 'split', pdrop: 'bin', pfor: 'move' };
+    const MENU_ICON = { page: 'go', ppage: 'go', openall: 'chevron', rename: 'rename', prename: 'rename', new: 'child', addprop: 'plus', up: 'up', move: 'move', tmerge: 'merge', merge: 'merge', pmerge: 'merge', remove: 'bin', pretype: 'calendar', psplit: 'split', prange: 'tag', pmove: 'move', pullup: 'up', split: 'split', pdrop: 'bin', pfor: 'move' };
     // k: a count, in the faint note; a key (key: 'shift+right') in Logseq's key caps, as its own menus show keys (18 November 2026).
     const it = (t, act, off, k) => `<div class="lk-item ${MENU_ICON[act] ? `lk-i-${MENU_ICON[act]}` : ''} ${off ? 'off' : ''} ${/^(Remove|Delete)/.test(t) ? 'lk-del' : ''}" data-act="${act}">${esc(t)}${k?.key ? `<span class="rt">${Door.keyCaps(k.key)}</span>` : k ? `<span class="rt lk-note">${k}</span>` : ''}</div>`;
     let h = `<div class="st-menu lk-pop lk-menu" style="left:${mn.x}px;top:${mn.y}px">`;
     if (mn.kind === 'row') {
       const t = T(mn.on), none = !t, loose = mn.on === LOOSE;   // none: nothing behind the row
-      const n = Mo.count(m, mn.on), nodesOf = ids => plural(ids.reduce((s, x) => s + Mo.count(m, x), 0), 'node');
-      // Open and Expand, Logseq's own one word for each; no Tick and no Show its nodes (the owner, 24 November 2026).
+      const n = Mo.count(m, mn.on);
+      // Open and Expand, Logseq's own one word for each; no Tick and no Show its nodes (the owner, 24 November 2026); no "Add a
+      // property to all beneath…" either: a tag's properties already reach every tag beneath it (the owner, the same day).
       h += (t?.uuid ? it('Open', 'page') : '') + it('Expand', 'openall', false, { key: 'shift+right' }) + '<div class="gap lk-item"></div>' +
-        it('Rename', 'rename', loose || !t) + it(loose ? 'New top-level tag' : 'Add a child tag', 'new') + it('Add a property…', 'addprop', none || loose) + it('Add a property to all beneath…', 'addpropall', loose, Mo.kids(m, mn.on).length ? nodesOf(Mo.kids(m, mn.on)) : '') + '<div class="gap lk-item"></div>' +
+        it('Rename', 'rename', loose || !t) + it(loose ? 'New top-level tag' : 'Add a child tag', 'new') + it('Add a property…', 'addprop', none || loose) + '<div class="gap lk-item"></div>' +
         it('Move up a level', 'up', none || loose || Mo.parentOf(m, mn.on) == null, { key: 'shift+tab' }) + it('Move under…', 'move', none || loose, n ? plural(n, 'node') : '') +
         it('Merge…', 'tmerge', none || loose) + '<div class="gap lk-item"></div>' +
         it('Delete', 'remove', none || loose || n > 0 || Mo.kids(m, mn.on).length > 0, n ? plural(n, 'node') : '');
@@ -1268,7 +1269,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     else if (p.what === 'pnew') app.openNode(T(row.key)?.uuid);   // Logseq makes properties, not a plugin: its Add tag property is on the tag's page
     else if (p.what === 'range') { const was = P(p.prop).range; if (!was.includes(row.key)) app.stage({ kind: 'setRange', prop: p.prop, to: [...was, row.key] }); }
     else if (p.what === 'split') { const v = p.values.find(x => x.id === row.key); app.nodesWhere(p.tag, P(p.prop).ident, v.id).then(nodes => { const title = v.title.charAt(0).toUpperCase() + v.title.slice(1); app.stage({ kind: 'split', tag: p.tag, name: Mo.titled(M(), title).length ? `${title} ${name(p.tag)}` : title, prop: p.prop, nodes, where: `${P(p.prop).title} is ${v.title}` }); }); }
-    else if (p.what === 'addprop') app.stage(p.under ? { kind: 'addProp', prop: row.key, under: p.tag } : { kind: 'addProp', prop: row.key, tags: [p.tag] });
+    else if (p.what === 'addprop') app.stage({ kind: 'addProp', prop: row.key, tags: [p.tag] });
     redraw();
   }
   // The ticked nodes of the list go to a tag, each from the tag it carries. Those landing beneath the list's tag stay in the list: its count still holds them.
@@ -1329,7 +1330,6 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     else if (a === 'rename') { if (T(on)) startEdit('rename', on, name(on)); else redraw(); }
     else if (a === 'new') { if (!st.open.has(on)) st.open.add(on); startEdit('new', on, ''); }
     else if (a === 'addprop') { if (T(on)) startPrompt({ what: 'addprop', list: 'props', tag: on, row: on }); }
-    else if (a === 'addpropall') { if (T(on)) startPrompt({ what: 'addprop', list: 'props', tag: on, under: true, row: on }); }
     else if (a === 'merge') { const from = [...st.ticks].filter(x => x !== on && T(x)); if (!from.length || !T(on)) return redraw(); st.cur = on; st.view = 'tree'; st.propCur = null; st.ask = { merges: from, into: on, owner: mode }; redraw(); }
     else if (a === 'remove') { const t = T(on); if (!t || Mo.count(m, on) || t.kids.length) return redraw(); const p = Mo.parentOf(m, on); app.stage({ kind: 'remove', tag: on }); if (st.cur === on) st.cur = p ?? Mo.tops(m)[0] ?? m.kinds[0].id; redraw(); }
     else if (a === 'pmove') { const [tagId] = on.split('·').map(Number); startPrompt({ what: 'prop', list: 'tags', key: on, prop: Number(on.split('·')[1]), from: tagId }); }

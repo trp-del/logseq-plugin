@@ -1,6 +1,7 @@
 /* The owner, 24 November 2026, of a tag's right-click menu on Ontology, sent as a picture: "Go to this tag -> Open", "Oven everything
    under -> Expand", "remove: tick, show its nodes". A tag's menu starts Open, Expand, and has no Tick and no Show its nodes; a
-   property's menu starts with the same word, Open. */
+   property's menu starts with the same word, Open. The same day, of "Add a property to all beneath…": "isn't Add a property to all
+   beneath redudnant since children take on their parents properties". The item is gone too. */
 module.exports = {
   parts: ['structure'],
   name: 'Ontology: a tag\'s menu starts Open, Expand, without Tick or Show its nodes; a property\'s starts Open',
@@ -18,7 +19,7 @@ module.exports = {
     const tag = await words();
     await page.keyboard.press('Escape'); await T.sleep(300);
     if (tag[0] !== 'Open' || tag[1] !== 'Expand') return done({ ok: false, said: `a tag's menu starts “${tag.slice(0, 2).join('”, “') || 'nothing'}”, not Open, Expand` });
-    const gone = tag.filter(w => /^(Tick|Untick|Show its nodes|Go to this tag|Open everything under)$/.test(w));
+    const gone = tag.filter(w => /^(Tick|Untick|Show its nodes|Go to this tag|Open everything under|Add a property to all beneath…)$/.test(w));
     if (gone.length) return done({ ok: false, said: `a tag's menu still has ${gone.join(', ')}` });
     const tab = await page.$('#main-content-container .st-views [data-show="table"]');
     if (!tab) return done({ ok: false, said: 'no Properties tab on Ontology' });
