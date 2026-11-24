@@ -384,6 +384,10 @@ html[data-lk-try="new"] .th-two-way .th-ls-node .ls-block-right { margin-left: 0
 .th-two-way .th-tw-head > .th-ol-body { flex: 1 1 auto; min-width: 0; }
 .th-two-way .th-tw-head > .th-ol-body > .th-tw-chips { flex: 0 1 auto; }
 .th-two-way .th-tw-head > .th-ol-body > .th-tw-endpiece { margin-left: auto; flex: none; white-space: nowrap; }   /* the days whole, on one line, at the right end */
+/* In a cramped place (the right sidebar of a window 700 px wide is 280) a head whose pieces do not fit one line wraps: the kinds keep the line's
+   whole width, and the +, the ··· and the days go to the line under them. Held on one line, the kinds were left 26 px beside the
+   days and broke a letter or two a line ("A", "ll 3", "Pur", 24 November 2026). A wider list is as it was. */
+@container th-ol (max-width: 300px) { .th-two-way .th-tw-head > .th-ol-body { flex-wrap: wrap; } }
 .th-two-way .th-tw-head .th-tw-piece:has(> .th-tw-right) { margin-left: auto; }
 .th-two-way .th-tw-head .lk-more { padding: 0; font-weight: 400; }
 .th-two-way .th-tw-head .th-tw-piece { position: relative; display: inline-flex; align-items: baseline; white-space: nowrap; }

@@ -1124,7 +1124,9 @@ Door.regrow = (el, from, ms = MOTION_MS) => {
    nodes holding it. Find draws them over its rows, and in its panel; Relations over a list of nodes (0.5: "the small should be build
    from same library", so Find's own drawing of these lines folded into this one).
      lines: [{ name, icon (html), prop = true (the name in a property's look), values, tree }]
-     a value: { label, count (none: no count), lit, more (the line's "more", which opens), title (the hover words), cut = 44, attrs: { data-…: … } }
+     a value: { label, count (none: no count), lit, on (in force: the list under the line is narrowed to it, so it takes the look of
+       a view in force, the text colour and the short bar, as the grammar's narrowing words do), more (the line's "more", which opens),
+       title (the hover words), cut = 44, attrs: { data-…: … } }
      tree: a number of columns; then each value also has col, depth and head (a column's heading word above it), and a value of
        depth 0 heads its column.
    cls 'lk-one' draws each line on one line, its name before its values, for a pop-up with little room.
@@ -1134,7 +1136,7 @@ Door.choicesHtml = (lines, { cls = '' } = {}) => {
   const esc = Door.esc, attrs = a => Object.entries(a || {}).filter(([, v]) => v != null).map(([k, v]) => ` ${k}="${esc(v)}"`).join('');
   const button = (v, cls, cut = v.cut || 44, style = '') => {
     const title = v.title || (v.label.length > cut ? v.label : '');
-    return `<button type="button" class="${cls}${v.lit ? ' lk-lit' : ''}"${v.lit ? ' aria-pressed="true"' : ''}${attrs(v.attrs)}${title ? ` title="${esc(title)}"` : ''}${style}>${esc(Door.short(v.label, cut))}${v.count == null ? '' : `<span class="lk-nb">${esc(v.count)}</span>`}</button>`;
+    return `<button type="button" class="${cls}${v.lit ? ' lk-lit' : ''}${v.on ? ' on' : ''}"${v.lit || v.on ? ' aria-pressed="true"' : ''}${attrs(v.attrs)}${title ? ` title="${esc(title)}"` : ''}${style}>${esc(Door.short(v.label, cut))}${v.count == null ? '' : `<span class="lk-nb">${esc(v.count)}</span>`}</button>`;
   };
   const values = l => l.tree
     ? `<span class="lk-cv lk-tree">${Array.from({ length: l.tree }, (_, col) => `<span class="lk-tree-col">${l.values.filter(v => v.col === col).map(v => (v.head ? `<span class="lk-tree-head">${esc(v.head)}</span>` : '') + button(v, 'lk-view' + (v.depth ? '' : ' lk-tree-top'), v.cut || 30, ` style="--lk-depth: ${Math.max(0, (v.depth || 0) - 1)}"`)).join('')}</span>`).join('')}</span>`

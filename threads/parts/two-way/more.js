@@ -111,7 +111,9 @@ twoWay.lineMenuHooks.push((group, item) => {
    the owner's go of 19 November 2026): the library's lines (Door.choicesHtml), as Find draws over its rows. Of the properties the
    list's nodes hold, not the one linking here: each held by two nodes or more and not all, with more than one value, the most held
    one (the drawing shows one line); each with its values and their counts, most held first. A press narrows the list to the nodes holding that value; pressed
-   again, the whole list. Lists of five nodes or more, not the mentions. */
+   again, the whole list. Lists of five nodes or more, not the mentions. The value the list is narrowed to is a view in force
+   (the library's `on`: the text colour and the short bar, as "All" has in the line of kinds above it); until 24 November 2026 it was
+   told from the others by a darker grey alone, and a list of 3 under a head saying 53 passed for the whole. */
 state.keeps = new Map();
 const valuesOf = item => { const out = []; for (const [name, entry] of state.values.get(item.uuid) || []) for (const v of entry.values || []) { const text = v.day ? '' : String(v.title ?? v.text ?? '').trim(); if (text) out.push({ name, text, ident: entry.ident }); } return out; };
 function choiceLines(group, items) {
@@ -132,7 +134,7 @@ twoWay.underHeadHooks.push((group, key) => {
   const chosen = state.keeps.get(key), lines = choiceLines(group, group.items);
   if (!lines.length) return '';
   const kindOf = ident => state.schema?.props.find(x => x.ident === ident)?.type || 'default';
-  return `<div class="th-tw-choices">${window.PluginDoor.choicesHtml(lines.map(l => ({ name: l.name, icon: shared.kindIconHtml(kindOf(l.ident)), values: l.values.slice(0, 6).map(([text, n]) => ({ label: text, count: n, lit: chosen?.name === l.name && chosen?.text === text, attrs: { 'data-keeps': key, 'data-kname': l.name, 'data-ktext': text } })) })))}</div>`;
+  return `<div class="th-tw-choices">${window.PluginDoor.choicesHtml(lines.map(l => ({ name: l.name, icon: shared.kindIconHtml(kindOf(l.ident)), values: l.values.slice(0, 6).map(([text, n]) => { const taken = chosen?.name === l.name && chosen?.text === text; return { label: text, count: n, lit: taken, on: taken, attrs: { 'data-keeps': key, 'data-kname': l.name, 'data-ktext': text } }; }) })))}</div>`;
 });
 
 twoWay.clickHooks.push(event => {
