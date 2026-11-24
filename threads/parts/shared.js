@@ -438,10 +438,14 @@ function pickValue({ at, placeholder = '', options = [], clearLabel = '', free =
         mousedown: event => event.preventDefault(), click: event => { event.preventDefault(); choose(item); },
         mousemove: () => { if (lit !== i) light(i); } },
         el(doc, 'span', { class: 'flex-1' }, item.crumb ? el(doc, 'div', { class: 'flex flex-col gap-1' }, el(doc, 'div', { class: 'text-xs opacity-70' }, item.crumb), line) : line));
-      return el(doc, 'div', { class: 'menu-link-wrap' }, link);
+      // A tag is in the tag's face; with no letter typed, a tree's line is stepped in by its depth and a top tag heavier (item.depth, item.top).
+      const wrap = el(doc, 'div', { class: `menu-link-wrap${item.tag ? ' th-lsq-tag' : ''}${item.top && !typing ? ' th-lsq-top' : ''}` }, link);
+      if (item.depth && !typing) wrap.style.setProperty('--st-pad', `${Math.min(item.depth, 8) * 16}px`);
+      return wrap;
     };
+    let typing = false;
     function draw() {
-      const q = input.value.trim().toLowerCase();
+      const q = input.value.trim().toLowerCase(); typing = !!q;
       const starts = o => o.label.toLowerCase().startsWith(q);
       const found = q ? options.filter(o => o.label.toLowerCase().includes(q)).sort((a, b) => (starts(b) - starts(a)) || a.label.length - b.label.length)
         : keepOrder ? options : [...options.filter(o => o.held), ...options.filter(o => !o.held)]; // what it holds first, ticked, as Logseq lists it
@@ -773,6 +777,9 @@ const kitCss = `/* The kit (parts/shared.js): where the library's pieces stand i
 .th-lsq-pop .menu-link .flex-row > div:first-child { min-width: 0; }
 .th-lsq-pop.th-anchored { top: anchor(bottom); left: anchor(left); margin-top: 4px; position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline; }
 .th-lsq-pop .th-lsq-list { max-height: 18rem; overflow-y: auto; }
+.th-lsq-pop .th-lsq-list > .menu-link-wrap { padding-left: calc(5px + var(--st-pad, 0px)) !important; }
+.th-lsq-pop .th-lsq-list > .menu-link-wrap.th-lsq-tag .menu-link { ${window.PluginDoor.LOOKS.tagFace} }
+.th-lsq-pop .th-lsq-list > .menu-link-wrap.th-lsq-top .menu-link { font-weight: 600; }
 /* The type step, by Logseq's own numbers (2.0.2): the bar 344px, the name's room 160px at 15px, the drop-down 178 by 32px; its
    list hangs from the drop-down's left edge, 118px wide, 4px in, each type 30px high at 14px, the lit one on a 7% wash. */
 .th-lsq-pop.th-lsq-type { width: 344px; min-width: 0; padding: 0; }

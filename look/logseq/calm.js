@@ -215,7 +215,7 @@ ${AREA} .ls-table[data-lk-notags="1"] :is(.ls-table-header, .ls-table-row) > .fl
    groups, keys as the Mac's marks with no cap round them. */
 :is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content, .ui__context-menu-sub-content, .ui__popover-content, .ui__select-content, .ui__multi-select-content) { background: var(--lk-glass) !important; -webkit-backdrop-filter: var(--lk-glass-blur) !important; backdrop-filter: var(--lk-glass-blur) !important; color: var(--lk-text) !important; border: .5px solid var(--lk-line) !important; border-radius: 10px !important; box-shadow: var(--lk-float-shadow) !important; }
 :is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content, .ui__context-menu-sub-content, .ui__select-content) { padding: 5px !important; }
-:is(.ui__dropdown-menu-item, .ui__dropdown-menu-sub-trigger, .ui__select-item, .ui__context-menu-content [role=menuitem]) { font-weight: 400 !important; font-size: 13px !important; line-height: 18px !important; padding: 3px 9px !important; box-sizing: border-box !important; height: 24px !important; min-height: 0 !important; border-radius: 6px !important; color: var(--lk-text) !important; gap: 8px !important; }
+:is(.ui__dropdown-menu-item, .ui__dropdown-menu-sub-trigger, .ui__select-item, .ui__context-menu-content [role=menuitem]) { font-weight: 400 !important; font-size: var(--lk-line-size) !important; line-height: var(--lk-line-lead) !important; padding: 3px 9px !important; box-sizing: border-box !important; height: 24px !important; min-height: 0 !important; border-radius: 6px !important; color: var(--lk-text) !important; gap: 8px !important; }
 /* A line that opens a further menu stays on the soft ground while that menu is open, as Logseq has it. */
 .ui__dropdown-menu-sub-trigger[data-open]:not([data-highlighted], :hover) { background: var(--lk-wash) !important; }
 :is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content) :is(.ui__icon, i.ti) { font-size: 14px !important; width: 14px; }
@@ -232,7 +232,7 @@ ${AREA} .ls-table[data-lk-notags="1"] :is(.ls-table-header, .ls-table-row) > .fl
 :is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content) .shui-shortcut-key { color: var(--lk-off) !important; }
 :is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content) .shui-shortcut-separator { display: none !important; }
 /* The marks are the Mac's: its sign for the Delete key, and a click named in small letters after its sign (⇧ click). Only the look: the words Logseq wrote stay in the page. */
-:is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content) .shui-shortcut-key { display: inline-flex !important; align-items: center; height: 18px !important; line-height: 18px !important; }
+:is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content) .shui-shortcut-key { display: inline-flex !important; align-items: center; height: var(--lk-line-lead) !important; line-height: 18px !important; }
 :is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content) [role=menuitem] :is([data-shortcut-binding="delete"], [data-shortcut-binding="backspace"]) kbd.shui-shortcut-key.shui-shortcut-key { color: transparent !important; position: relative; width: 16px; overflow: hidden; white-space: nowrap; }
 :is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content) [role=menuitem] > span:has(.shui-shortcut-key) { display: flex !important; align-items: center; }
 :is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content) [role=menuitem] :is([data-shortcut-binding="delete"], [data-shortcut-binding="backspace"]) kbd.shui-shortcut-key.shui-shortcut-key::after { content: "⌫"; position: absolute; inset: 0; text-align: right; color: var(--lk-off); }
@@ -240,13 +240,13 @@ ${AREA} .ls-table[data-lk-notags="1"] :is(.ls-table-header, .ls-table-row) > .fl
 :is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content) [data-shortcut-binding$="+click"] .shui-shortcut-key:last-child { text-transform: lowercase; margin-left: 3px; }
 /* A list you pick from (a property's values, a tag): the menu's lines; its field is words over a hairline, not a slab; the value in
    force is the filled line. */
-.ui__popover-content .cp__select { font-size: 13px !important; }
+.ui__popover-content .cp__select { font-size: var(--lk-line-size) !important; }
 .ui__popover-content .cp__select .input-wrap { background: transparent !important; padding: 4px 5px 0 !important; }
-.ui__popover-content .cp__select-input { background: transparent !important; font-size: 13px !important; padding: 4px 9px !important; border: 0 !important; box-shadow: inset 0 -1px 0 var(--lk-hair) !important; border-radius: 0 !important; }
+.ui__popover-content .cp__select-input { background: transparent !important; font-size: var(--lk-line-size) !important; padding: 4px 9px !important; border: 0 !important; box-shadow: inset 0 -1px 0 var(--lk-hair) !important; border-radius: 0 !important; }
 .ui__popover-content .cp__select .menu-link-wrap { padding: 0 5px !important; }
-.ui__popover-content .cp__select .menu-link { display: flex !important; padding: 3px 9px !important; border-radius: 6px !important; }
-.ui__popover-content .cp__select .menu-link, .ui__popover-content .cp__select .menu-link * { font-size: 13px !important; line-height: 18px !important; }
-.ui__popover-content .cp__select .menu-link svg { width: 13px !important; height: 13px !important; }
+.ui__popover-content .cp__select .menu-link { display: flex !important; padding: 3px 9px 4px !important; border-radius: 6px !important; }
+.ui__popover-content .cp__select .menu-link, .ui__popover-content .cp__select .menu-link * { font-size: var(--lk-line-size) !important; line-height: var(--lk-line-lead) !important; }
+.ui__popover-content .cp__select .menu-link svg { width: 14px !important; height: 14px !important; }
 .ui__popover-content .cp__select .menu-link.chosen { background: var(--lk-text) !important; }
 .ui__popover-content .cp__select .menu-link.chosen, .ui__popover-content .cp__select .menu-link.chosen * { color: var(--lk-paper) !important; }
 /* Logseq's ask (Are you sure…): the Mac's alert. Small, on the same glass, its icon above the question, the two answers one over
@@ -329,7 +329,7 @@ ${MENUS} :is([role=menuitem], .ui__dropdown-menu-item):is([data-highlighted], :h
    size, a few points clear of the line it hangs from. Every number is the library's (Door.LOOKS.line, lit, fit). */
 const WRITING_LIST = '.ui__popover-content[data-editor-popup-ref]';
 PARTS.calmMenus += `
-${WRITING_LIST} { ${LOOKS.fit('7rem')} padding: 5px !important; font-size: 13px !important; line-height: 18px !important; overflow: hidden !important; }
+${WRITING_LIST} { ${LOOKS.fit('7rem')} padding: 5px !important; font-size: var(--lk-line-size) !important; line-height: var(--lk-line-lead) !important; overflow: hidden !important; }
 /* A list that holds no line yet shows nothing: Logseq draws the box a frame before its rows, and an empty box that then grows is a flash. */
 ${WRITING_LIST}:not(:has(.menu-link)) { visibility: hidden !important; }
 /* The tag list keeps one width from its first frame: it is a tree you step in and out of, and the line you are on names its
@@ -339,15 +339,17 @@ ${WRITING_LIST}[data-editor-popup-ref="page-search-hashtag"] { width: 300px !imp
 ${WRITING_LIST}[data-editor-popup-ref="page-search-hashtag"] #ui__ac-inner { min-width: 0 !important; }
 ${WRITING_LIST}[data-side="bottom"] { margin-top: 6px !important; }
 ${WRITING_LIST}[data-side="top"] { margin-bottom: 6px !important; }
-${WRITING_LIST} #ui__ac-inner { max-height: 192px !important; }
-${WRITING_LIST} .menu-link-wrap { padding: 0 !important; }
+${WRITING_LIST} #ui__ac-inner { max-height: calc(8 * var(--lk-line-h)) !important; }
+/* A list of tags keeps the tree's steps (--st-pad, set by Ontology): set to one edge here, the list after # showed every tag flush left
+   (the owner, 24 November 2026: "Why don't you use the tag hierarchy anytime a tag is chosen?"). */
+${WRITING_LIST} .menu-link-wrap { padding: 0 0 0 var(--st-pad, 0px) !important; }
 ${WRITING_LIST} .menu-link { ${LOOKS.line} display: flex !important; align-items: center !important; white-space: nowrap !important; }
-${WRITING_LIST} .menu-link, ${WRITING_LIST} .menu-link * { font-size: 13px !important; line-height: 18px !important; }
+${WRITING_LIST} .menu-link, ${WRITING_LIST} .menu-link * { font-size: var(--lk-line-size) !important; line-height: var(--lk-line-lead) !important; }
 ${WRITING_LIST} .menu-link .flex-1, ${WRITING_LIST} .menu-link .flex-1 > .flex-col { min-width: 0 !important; overflow: hidden !important; }
 ${WRITING_LIST} .menu-link .flex-row { align-items: center !important; min-width: 0 !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; }
-${WRITING_LIST} .menu-link .flex-row > .h-5 { height: 18px !important; flex: none !important; }
+${WRITING_LIST} .menu-link .flex-row > .h-5 { height: var(--lk-line-lead) !important; flex: none !important; }
 ${WRITING_LIST} .menu-link .flex-row > :not(.h-5) { min-width: 0 !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; }
-${WRITING_LIST} .menu-link svg { width: 13px !important; height: 13px !important; }
+${WRITING_LIST} .menu-link svg { width: 14px !important; height: 14px !important; }
 ${WRITING_LIST} .menu-link.chosen { ${LOOKS.lit} }
 ${WRITING_LIST} .menu-link.chosen * { color: var(--lk-paper) !important; }
 `;
@@ -359,9 +361,9 @@ ${WRITING_LIST} .menu-link.chosen * { color: var(--lk-paper) !important; }
    Ontology): the rule above had set every line to one edge. */
 PARTS.calmMenus += `
 .ui__popover-content[data-side="bottom"] .ls-property-dialog .ls-property-key { height: auto !important; }
-.ui__popover-content:not([data-side="bottom"]) .ls-property-dialog .ls-property-key { height: 238px !important; }
-.ls-property-dialog .cp__select-main > :not(.input-wrap) { max-height: 198px !important; overflow-y: auto !important; }
-.ui__popover-content .cp__select .menu-link { box-sizing: border-box !important; min-height: 24px !important; align-items: center !important; }
+.ui__popover-content:not([data-side="bottom"]) .ls-property-dialog .ls-property-key { height: calc(8 * var(--lk-line-h) + 46px) !important; }
+.ls-property-dialog .cp__select-main > :not(.input-wrap) { max-height: calc(8 * var(--lk-line-h) + 6px) !important; overflow-y: auto !important; }
+.ui__popover-content .cp__select .menu-link { box-sizing: border-box !important; min-height: var(--lk-line-h) !important; align-items: center !important; }
 .ui__popover-content .cp__select .menu-link .pt-1 { padding-top: 0 !important; display: inline-flex !important; align-items: center !important; }
 .ui__popover-content .cp__select #ui__ac-inner > .menu-link-wrap { padding-left: calc(5px + var(--st-pad, 0px)) !important; }
 /* Hung from "+ Add property", every step of it (the list, the new name with its type, "Choose tag"): the left edge on the
@@ -376,7 +378,7 @@ PARTS.calmMenus += `
    and the tags of "Choose tag" come a frame after "Skip choosing tag". While no line is in, and for "Choose tag" before a letter
    is typed, the list has the height of its eight lines already (there are always more than eight to come). */
 .ls-property-dialog .cp__select-main:not(:has(.menu-link)) > :not(.input-wrap),
-.ls-property-dialog .cp__select-main:has(input[placeholder="Choose tag"]:placeholder-shown) > :not(.input-wrap) { min-height: 198px !important; }
+.ls-property-dialog .cp__select-main:has(input[placeholder="Choose tag"]:placeholder-shown) > :not(.input-wrap) { min-height: calc(8 * var(--lk-line-h) + 6px) !important; }
 /* Whatever floats is there at once, at its one size, as the Mac's menus are (measured 24 November 2026: Logseq's lists took four
    to eight sizes on their way open and went on changing for a tenth of a second). */
 :is(.ui__popover-content, .ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content, .ui__context-menu-sub-content, .ui__select-content) { ${LOOKS.atOnce} }

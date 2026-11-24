@@ -27,7 +27,7 @@ module.exports = {
         const r = el.getBoundingClientRect(), line = ta.getBoundingClientRect(), words = [...el.querySelectorAll('.menu-link')].map(a => { const g = document.createRange(); g.selectNodeContents(a); return g.getBoundingClientRect().width; });
         res({ sizes: [...sizes], w: r.width, h: r.height, left: r.left, right: innerWidth - r.right, bottom: innerHeight - r.bottom,
           over: Math.max(0, Math.min(r.bottom, line.bottom) - Math.max(r.top, line.top)) > 0.5 && Math.min(r.right, line.right) - Math.max(r.left, line.left) > 0.5,
-          gap: r.top >= line.bottom - 1 ? r.top - line.bottom : line.top - r.bottom, rows: [...new Set([...el.querySelectorAll('.menu-link')].filter(a => a.checkVisibility()).map(a => Math.round(a.getBoundingClientRect().height)))], lines: words.length });
+          gap: r.top >= line.bottom - 1 ? r.top - line.bottom : line.top - r.bottom, rows: [...new Set([...el.querySelectorAll('.menu-link')].filter(a => a.checkVisibility()).map(a => Math.round(a.getBoundingClientRect().height)))], lines: words.length, stepped: [...el.querySelectorAll('.menu-link-wrap')].filter(w => w.checkVisibility() && parseFloat(getComputedStyle(w).paddingLeft) >= 16).length });
       };
       requestAnimationFrame(tick);
     });
@@ -39,12 +39,14 @@ module.exports = {
       if (r.none) out.push(`${name} did not open`);
       else {
         if (r.w > widest + 1) out.push(`${name} is ${Math.round(r.w)} pt wide (at most ${widest})`);
-        if (r.h > 8 * 24 + 12) out.push(`${name} is ${Math.round(r.h)} pt high (eight lines at most)`);
+        if (r.h > 8 * 28 + 12) out.push(`${name} is ${Math.round(r.h)} pt high (eight lines at most)`);
         if (r.over) out.push(`${name} lies over the line being written`);
         if (r.gap < 3.5 || r.gap > 8.5) out.push(`${name} stands ${r.gap.toFixed(1)} pt from the line (4 to 8)`);
         if (Math.min(r.left, r.right, r.bottom) < 8) out.push(`${name} is ${Math.min(r.left, r.right, r.bottom).toFixed(1)} pt from the window's edge (8 at least)`);
         if (r.sizes.length !== 1) out.push(`${name} took ${r.sizes.length} sizes on its way open (${r.sizes.slice(0, 4).join(', ')})`);
-        if (r.rows.length !== 1 || r.rows[0] !== 24) out.push(`${name}'s lines are ${r.rows.join(' and ')} pt high (24)`);
+        // The owner, 24 November 2026: "Why don't you use the tag hierarchy anytime a tag is chosen?" (the list after # had lost the tree's steps).
+        if (sign.trim() === '#' && !r.stepped) out.push('the list of tags is flat: no tag is stepped in under its parent');
+        if (r.rows.length !== 1 || r.rows[0] !== 28) out.push(`${name}'s lines are ${r.rows.join(' and ')} pt high (28)`);
       }
       await back();
     }

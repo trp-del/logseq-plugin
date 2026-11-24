@@ -1391,11 +1391,24 @@ Door.nodeMenu.status = async (from, uuid, name) => {
   Door.undo.offer({ owner: 'node-menu', key: `node-menu:status:${uuid}`, node: uuid, text: `Set “${name}” to ${to.title}`, at: () => [], run: undoLogseq });
   return true;
 };
-Door.nodeMenu.tag = async (from, uuid, name, held) => {
+/* Choosing a tag, wherever a part asks for one in a list of its own (a row's "Add tag…", Relations' "Set tag" for picked rows): the
+   tag tree (the owner, 24 November 2026: "Why don't you use the tag hierarchy anytime a tag is chosen?"), Ontology's order, each
+   tag stepped in under its parent, in the tag's face; a tag the tree does not hold follows after. Without Ontology, the names in
+   their order. held: the uuids of tags already there, ticked. → { label, uuid, held } or null. */
+Door.pickTag = async (from, { held = [], placeholder = 'Set Tags' } = {}) => {
   const all = await Door.query('[:find ?u ?t :where [?c :db/ident :logseq.class/Tag] [?g :block/tags ?c] [?g :block/uuid ?u] [?g :block/title ?t] (not [?g :logseq.property/built-in? true])]').catch(() => []);
-  const options = all.map(([u, t]) => ({ label: t, uuid: String(u), held: held.includes(String(u)) })).sort((a, b) => a.label.localeCompare(b.label));
-  const got = await Door.ask('relations:pickValue', { at: from, placeholder: 'Set Tags', options, doc: from.ownerDocument });
-  const tag = got?.label && options.find(o => o.label === got.label);
+  let options = all.map(([u, t]) => ({ label: t, uuid: String(u), held: held.includes(String(u)), tag: true })).sort((a, b) => a.label.localeCompare(b.label));
+  const tree = Door.answers('structure:tagOrder') ? await Door.ask('structure:tagOrder') : null;
+  if (Array.isArray(tree) && tree.length) {
+    const by = new Map(options.map(o => [o.uuid, o])), placed = new Set();
+    const inTree = tree.filter(t => by.has(String(t.uuid))).map(t => { placed.add(String(t.uuid)); return { ...by.get(String(t.uuid)), depth: t.depth, top: t.top }; });
+    options = [...inTree, ...options.filter(o => !placed.has(o.uuid))];
+  }
+  const got = await Door.ask('relations:pickValue', { at: from, placeholder, options, keepOrder: true, doc: from.ownerDocument });
+  return (got?.label && options.find(o => o.label === got.label)) || null;
+};
+Door.nodeMenu.tag = async (from, uuid, name, held) => {
+  const tag = await Door.pickTag(from, { held });
   if (!tag || tag.held) return false;
   await Door.write.addTag(uuid, tag.uuid);
   Door.undo.offer({ owner: 'node-menu', key: `node-menu:tag:${uuid}`, node: uuid, text: `Tagged “${name}” ${tag.label}`, at: () => [], run: () => Door.write.removeTag(uuid, tag.uuid) });
@@ -1817,7 +1830,8 @@ const TOKENS = `
   --lk-tag-face: "New York", ui-serif, Georgia, serif; --lk-tag-adjust: none;
   --lk-prop-adjust: .47;   /* a property's name in mono stands nine tenths the size of the words beside it, so it is no wider than they are */
   --lk-day: 48px;
-  --lk-small: 13px; --lk-label: 12px; }`;
+  --lk-small: 13px; --lk-label: 12px;
+  --lk-line-size: 14px; --lk-line-lead: 21px; --lk-line-h: 28px; }`;   /* a line of a list or a menu: a pop-up's own 14 px on one and a half times that, 28 a line (the owner, 24 November 2026: "Don't you think you tightened the line spacing more than is recommended for easy reading?"; it was 13 on 18, 24 a line) */
 /* The shared names: one per word of the grammar. A module puts these on what it draws and carries no look of its own
    for them; these words are final (hence !important where a module still has a rule). They stand whichever modules run:
    Look's switch takes off what Look draws on Logseq's own page, never what they mean on what the others draw.
@@ -1859,7 +1873,7 @@ const TOKENS = `
                   should be regular italic with dots underneath. this should be universal everywhere");
      tagFace      a tag's face alone, for a tag on a line of a list, which keeps the line's own colour (the lit line's too);
      guess        a suggestion or a prediction: the face of its own kind of word, regular weight, italic, dots under it;
-     line         a line of anything that floats (a menu's, a list's): 13 on 18, 24 high, so Logseq's lists and the plugin's menus
+     line         a line of anything that floats (a menu's, a list's): 14 on 21, 28 high (--lk-line-size, -lead, -h), so Logseq's lists and the plugin's menus
                   are one height (24 November 2026);
      lit          the line you are on in a float: filled in the text colour, its words in the page's (22 November 2026);
      fit(min,max) as big as what it holds (the owner, 24 November 2026, of a list 512 wide round names 150 wide: "much too
@@ -1872,7 +1886,7 @@ const TOKENS = `
                   Applied", 24 November 2026). Never inside something that floats;
      atOnce       whatever floats is there at once: no motion on its way in, so it takes one size and one place */
 Door.LOOKS = {
-  line: 'font-size: 13px !important; line-height: 18px !important; padding: 3px 9px !important; border-radius: 6px !important; box-sizing: border-box !important; min-height: 24px !important;',
+  line: 'font-size: var(--lk-line-size) !important; line-height: var(--lk-line-lead) !important; padding: 3px 9px 4px !important; border-radius: 6px !important; box-sizing: border-box !important; min-height: var(--lk-line-h) !important;',
   lit: 'background: var(--lk-text) !important; color: var(--lk-paper) !important;',
   going: 'text-decoration: line-through !important; text-decoration-thickness: 1.5px !important; color: var(--rx-red-10, #dc3e42) !important;',
   capsule: 'background: var(--lk-wash) !important; border: 0 !important; border-radius: 999px !important; box-shadow: none !important;',
@@ -2138,9 +2152,9 @@ input.lk-value:focus { border-bottom-color: currentColor; outline: none; box-sha
 /* A menu's lines as Logseq's own menus (18 November 2026, the owner: Ontology's right-click menu "doesn't seem like other menus",
    measured on a bullet's menu): lines 20px high, the icon in the quiet grey in a 16px box 4px from the words, the parts apart by
    Logseq's hairline across the whole menu (a gap outside a menu, Export's column, stays a space), a key in Logseq's key caps (Door.keyCaps). Red and faint lines keep their icon's colour. */
-.lk-menu .lk-item { font-size: 13px; line-height: 18px; padding: 3px 9px; border-radius: 6px; align-items: center; }
+.lk-menu .lk-item { font-size: var(--lk-line-size); line-height: var(--lk-line-lead); padding: 3px 9px 4px; border-radius: 6px; align-items: center; }
 .lk-menu .lk-item:not(.gap) { box-sizing: border-box; min-height: 24px; }   /* one line height, Logseq's menus' 24px, whatever stands on the line */
-.lk-menu .lk-menu-note { padding: 3px 9px; font-size: 13px; line-height: 18px; color: var(--lk-text); max-width: 380px; white-space: normal; }
+.lk-menu .lk-menu-note { padding: 3px 9px 4px; font-size: var(--lk-line-size); line-height: var(--lk-line-lead); color: var(--lk-text); max-width: 380px; white-space: normal; }
 .lk-menu .lk-item[class*="lk-i-"]::before { width: 14px; height: 14px; -webkit-mask-size: 14px; mask-size: 14px; margin-right: 4px; vertical-align: middle; background: var(--lk-quiet); }
 .lk-menu .lk-item.lk-del[class*="lk-i-"]::before, .lk-menu .lk-item.off[class*="lk-i-"]::before { background: currentColor; }
 .lk-menu .lk-item-icon > .ti { color: var(--lk-quiet); }

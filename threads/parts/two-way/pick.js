@@ -312,10 +312,14 @@ async function act(what, at = null) {
       }));
     }
     if (what === 'tag') {
-      const tags = (await twoWay.provided.propPages()).filter(page => page.isTag);
-      const name = await ask(`Add a tag to ${counted(nodes.length)}`, '', tags.map(t => t.title), 'Add', '', false, at);
+      // The tag is chosen from the tag tree, as everywhere a tag is chosen (the library's Door.pickTag; until 24 November 2026 a window
+      // with a field and the tags' names in one flat list).
+      // Started with nothing pressed (a key), there is nothing to hang the list from: the window with a field, as before.
+      let name = '', tagUuid = '';
+      if (at && window.PluginDoor.pickTag) { const picked = await window.PluginDoor.pickTag(at, { placeholder: `Add a tag to ${counted(nodes.length)}` }); name = picked?.label || ''; tagUuid = picked?.uuid || ''; }
+      else { const tags = (await twoWay.provided.propPages()).filter(page => page.isTag); name = (await ask(`Add a tag to ${counted(nodes.length)}`, '', tags.map(t => t.title), 'Add', '', false, at) || '').replace(/^#/, ''); if (name) name = tags.find(t => t.lower === name.toLowerCase())?.title || name; }
       if (!name) return;
-      const tagUuid = await twoWay.provided.tagUuidNamed(tags.find(t => t.lower === name.replace(/^#/, '').toLowerCase())?.title || name.replace(/^#/, ''));
+      if (!tagUuid) tagUuid = await twoWay.provided.tagUuidNamed(name);
       if (!tagUuid) return notify(`There is no tag named “${name}”, so nothing was changed`, 'warning');
       return writeAll(`Tagged ${counted(nodes.length)} ${name.replace(/^#/, '')}`, nodes.map(uuid => async () => {
         if (await twoWay.provided.hasTag(uuid, tagUuid)) return null;

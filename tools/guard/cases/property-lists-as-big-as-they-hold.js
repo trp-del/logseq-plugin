@@ -1,7 +1,7 @@
 /* The owner's five pictures of making a property, 24 November 2026: the box for a new name stood 235 by 286 round one line
    (Logseq gives the list one height whatever it holds), the list of tags ran 42 lines down the window as a flat list ("shouldn't
    this be the structured tag selected with hirearchy that we use elsewhere"), and Logseq's lists took several sizes on their way
-   open. Under its line the list is as high as its lines, eight at most, each 24 pt; it is there at one size; and "Choose tag" is
+   open. Under its line the list is as high as its lines, eight at most, each 28 pt; it is there at one size; and "Choose tag" is
    the tag tree, your own tags stepped in under their parents, "Skip choosing tag" first. */
 const NAME = 'Guard Calm Probe';
 module.exports = {
@@ -21,8 +21,8 @@ module.exports = {
     let r = await read();
     if (!r) { await clean(); return { ok: false, said: 'the list of properties did not open' }; }
     if (r.anim !== 'none') out.push(`the list comes in by a motion (${r.anim}), so it takes several sizes`);
-    if (r.h > 35 + 8 * 24 + 16) out.push(`the list of properties is ${r.h} pt high (eight lines and its field at most)`);
-    if (r.heights.length !== 1 || r.heights[0] !== 24) out.push(`its lines are ${r.heights.join(' and ')} pt high (24)`);
+    if (r.h > 35 + 8 * 28 + 16) out.push(`the list of properties is ${r.h} pt high (eight lines and its field at most)`);
+    if (r.heights.length !== 1 || r.heights[0] !== 28) out.push(`its lines are ${r.heights.join(' and ')} pt high (28)`);
     await page.keyboard.type(NAME, { delay: 30 }); await T.sleep(900);
     r = await read();
     if (r && r.side === 'bottom' && r.h > 90) out.push(`the box for a new name is ${r.h} pt high round one line`);
@@ -33,7 +33,7 @@ module.exports = {
       r = await read();
       if (!r || !/Skip choosing tag/.test(r.first || '')) out.push('“Choose tag” did not open with “Skip choosing tag” first');
       else if (!r.pads.some(p => p >= 16)) out.push('“Choose tag” is a flat list: no tag is stepped in under its parent');
-      else if (r.h > 40 + 8 * 24 + 16) out.push(`“Choose tag” is ${r.h} pt high (eight lines and its field at most)`);
+      else if (r.h > 40 + 8 * 28 + 16) out.push(`“Choose tag” is ${r.h} pt high (eight lines and its field at most)`);
     } else out.push('the list of types did not offer Node');
     await clean();
     return out.length ? { ok: false, said: out.join('; ') } : { ok: true, said: 'the lists as high as their lines, one size, the tag tree in Choose tag' };

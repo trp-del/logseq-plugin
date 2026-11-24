@@ -218,7 +218,15 @@ function start(app, doc) {
   let pointer = '';
   function onOver(e) { const at = `${e.clientX},${e.clientY}`, moved = at !== pointer; pointer = at; const list = listEl(); if (moved && tagList && list?.contains(e.target)) { tagList.first = false; tagList.walked = null; } if (!moved || !open || !list?.contains(e.target)) return; open.first = false; open.walked = null; if (open.lit == null && !e.target.closest?.('.st-vmore')) return; if (e.target.closest?.('.menu-link-wrap')) { open.lit = null; light(list); } else { const more = e.target.closest?.('.st-vmore'); if (more) { open.lit = Number(more.dataset.tag); light(list); } } }
   const offs = [S.base.listen(doc, 'keydown', onKey, true), S.base.listen(doc, ['pointerdown', 'mousedown', 'mouseup', 'click'], onPress, true), S.base.listen(doc, 'mousemove', onOver, true), S.base.listen(doc, ['pointerdown', 'focusin'], ahead, true)];
-  return () => { offWatch(); offs.forEach(off => off?.()); sheet.remove(); const list = listEl(); if (list) sweep(list); open = null; tagList = null; known.clear(); };
+  // The tag tree, for any part that lets a tag be chosen in a list of its own (the owner, 24 November 2026: "Why don't you use the tag
+  // hierarchy anytime a tag is chosen?"): your own tags in the tree's order, each with its depth; Logseq's own tags are not in it.
+  const offOrder = Door.offerAsk('structure:tagOrder', () => {
+    const m = M(); if (!m) return null;
+    const out = [], walk = (id, depth) => { const t = m.tags.get(id); if (t) out.push({ uuid: t.uuid, title: t.title, depth, top: depth === 0 && Mo.kids(m, id).length > 0 }); Mo.kids(m, id).forEach(k => walk(k, depth + 1)); };
+    Mo.tops(m).forEach(id => walk(id, 0));
+    return out;
+  });
+  return () => { offOrder?.(); offWatch(); offs.forEach(off => off?.()); sheet.remove(); const list = listEl(); if (list) sweep(list); open = null; tagList = null; known.clear(); };
 }
 S.valueList = { start };
 })();
