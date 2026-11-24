@@ -25,6 +25,7 @@ const ONLY_ON_DEMAND = new Set(['selection-action-group', 'selection-count', 'ta
   'ls-sidebar-page-properties',
   'hl-page', 'prefix-link',   // a quote taken from a PDF: only on a page that holds one
   'lsp-host-renderer-container',   // what a plugin's own sidebar section holds (Todo opened in the sidebar): only while one is open
+  'ui__dialog-content', 'ui__dialog-main-content', 'ui__dropdown-menu-content',   // Logseq's own windows and menus (the bin's question, the list of properties, 24 November 2026): only while one is open; seen by hand that day
   'cp__cmdk__modal', 'ui__ac-group-name',   // Logseq's command search and the group names in its lists (Look's Hide, 16 November 2026): only while one is open
   'ac-block-search', 'time-spent',   // Logseq's Node embed search (Predictive's <<) and a task's worked time: only while one is open, only on a task timed
   'ui__alert-dialog-content', 'ui__alert-dialog-title', 'ui__alert-dialog-main-content', 'ui__alert-dialog-footer', 'as-solid',   // Logseq's ask (Are you sure…), named by Look for the Mac's words (23 November 2026): only while one is open; the guard case mac-look-floats opens it
