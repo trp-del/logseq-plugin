@@ -102,7 +102,7 @@ function pages() {
   for (const el of host().querySelectorAll(PAGE)) {
     if (el.closest(OURS)) continue;
     const uuid = (el.querySelector(PAGE_NODE) || (el.querySelector('.ls-page-title') ? null : el.querySelector(FIRST_NODE)))?.getAttribute('blockid');
-    if (uuid) out.push({ el, uuid: uuid.toLowerCase(), feed: !!el.closest(FEED) });
+    if (uuid) out.push({ el, uuid: uuid.toLowerCase(), feed: !!el.closest(FEED), side: !!el.closest('#right-sidebar') });
   }
   return out;
 }

@@ -1,7 +1,8 @@
 /* GROUND: the one way the plugin reads the graph. Nothing here draws.
      read.q(query)            a question in, rows out
      read.node(uuid)          { id, uuid, day } of a node by its uuid (day: the journal day, when it is one), or null
-     read.describe(ids)       id -> the node as a line shows it: { id, uuid, words, tag, day, dayFrom, status, isPage }
+     read.describe(ids)       id -> the node as a line shows it: { id, uuid, words, tag, day, dayFrom, status, isPage, written, dates, made, changed }
+                              written: the journal day it is written on; dates: { name: day } every day it holds; made, changed: times
                               tag: its first tag of the person's own (or Task) by name; day: its Date property (the one named
                               Date first, else the earliest), else the journal day it is written on; status: the id of its Status
      read.pointingAt(id)      { links: [{ prop, node }], mentions: [node] }   what holds this node as a value, what names it
@@ -21,6 +22,7 @@
      read.search(words)       Logseq's own search for the words, its order kept: [node]
      read.tagged(tagIds)      the nodes holding any of these tags: [node]
      read.values(ids)         id -> [words]   what each node holds under the person's properties
+     read.held(ids)           id -> { name: [words] }   the same, told apart by the property's name
      read.tasks()             the open tasks, each a node whose day is the day it is due (Deadline, else Scheduled)
      read.journal(day)        the uuid of a day's journal page, or '' when the graph has none
      read.byUuids(uuids)      the nodes of these uuids, in their order: [node]
@@ -35,6 +37,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const bare = value => String(value ?? '').replace(/^:/, '');
 const among = (variable, ids) => `[(ground [${[...new Set(ids)].filter(isId).join(' ')}]) [${variable} ...]]`;
 const amongUuids = (variable, uuids) => `[(ground [${[...new Set(uuids.map(u => String(u).toLowerCase()))].filter(u => UUID.test(u)).map(u => `#uuid "${u}"`).join(' ')}]) [${variable} ...]]`;
+const STAMP = 100000000000;   // an id of the graph is small; a time in milliseconds is past this
+const dayOfTime = ms => D.number(new Date(ms));
 const LIVE = '(not [?b :logseq.property/deleted-at]) (not-join [?b] [?b :block/page ?pg] [?pg :logseq.property/deleted-at])';
 
 // What is asked once and kept until the graph changes (G.read.forget, called by the ground on every change).
@@ -124,7 +128,7 @@ async function describe(ids) {
   const list = [...new Set(ids)].filter(isId), out = new Map();
   if (!list.length) return out;
   const these = among('?b', list);
-  const [titled, tagged, dated, written, status, pages, tags] = await Promise.all([
+  const [titled, tagged, dated, written, status, pages, tags, ...moments] = await Promise.all([
     q(`[:find ?b ?u ?t :where ${these} [?b :block/uuid ?u] [?b :block/title ?t] ${LIVE}]`),
     q(`[:find ?b ?t :where ${these} [?b :block/tags ?t]]`),
     q(`[:find ?b ?attr ?day ?name :where ${these} [?prop :logseq.property/type :date] [?prop :db/ident ?attr] [?prop :block/title ?name] [?b ?attr ?d] [?d :block/journal-day ?day]]`),
@@ -132,7 +136,10 @@ async function describe(ids) {
     q(`[:find ?b ?s :where ${these} [?b :logseq.property/status ?s]]`),
     q(`[:find ?b :where ${these} [?b :block/name]]`),
     lineTags(),
+    Promise.all([q(`[:find ?b ?c :where ${these} [?b :block/created-at ?c]]`), q(`[:find ?b ?u :where ${these} [?b :block/updated-at ?u]]`)]),
+    q(`[:find ?b ?attr ?v :where ${these} [(ground [:logseq.property/deadline :logseq.property/scheduled]) [?attr ...]] [?b ?attr ?v]]`).catch(() => []),
   ]);
+  const times = moments[0], dueRows = moments[1];
   const tagOf = new Map();
   for (const [b, t] of tagged) { const name = tags.get(t); if (name && (!tagOf.has(b) || name < tagOf.get(b))) tagOf.set(b, name); }
   const dayOf = new Map();
@@ -142,8 +149,16 @@ async function describe(ids) {
     if (!had || rank < had.rank || (rank === had.rank && day < had.day)) dayOf.set(b, { rank, day: Number(day), from: String(name).trim() });
   }
   for (const [b, day] of written) if (!dayOf.has(b)) dayOf.set(b, { rank: 2, day: Number(day), from: '' });
+  // Every day a node holds, by the name of what holds it: its date properties, Logseq's Deadline and Scheduled; the day it is written on; when it was made and last changed.
+  const datesOf = new Map(), put = (b, name, day) => { if (!day) return; if (!datesOf.has(b)) datesOf.set(b, {}); datesOf.get(b)[name] = Number(day); };
+  for (const [b, attr, day, name] of dated) if (/^user\.property\//.test(bare(attr))) put(b, String(name).trim(), day);
+  const asked = dueRows.map(([, , v]) => v).filter(v => isId(v) && v < STAMP), journals = asked.length ? new Map(await q(`[:find ?p ?d :where ${among('?p', asked)} [?p :block/journal-day ?d]]`)) : new Map();
+  for (const [b, attr, v] of dueRows) put(b, /deadline$/.test(bare(attr)) ? 'Deadline' : 'Scheduled', v > STAMP ? dayOfTime(v) : journals.get(v));
+  const writtenOn = new Map(written.map(([b, day]) => [b, Number(day)])), timeOf = new Map(times[0].map(([b, c]) => [b, { made: Number(c) || 0, changed: Number(c) || 0 }]));
+  for (const [b, u] of times[1]) { const at = timeOf.get(b) || { made: 0, changed: 0 }; at.changed = Number(u) || at.changed; timeOf.set(b, at); }
   const statusOf = new Map(status.map(([b, s]) => [b, Number(s) || 0])), isPage = new Set(pages.map(([b]) => b));
-  for (const [b, uuid, title] of titled) out.set(b, { id: b, uuid: String(uuid).toLowerCase(), words: String(title ?? ''), tag: tagOf.get(b) || '', day: dayOf.get(b)?.day || 0, dayFrom: dayOf.get(b)?.from || '', status: statusOf.get(b) || 0, isPage: isPage.has(b) });
+  for (const [b, uuid, title] of titled) out.set(b, { id: b, uuid: String(uuid).toLowerCase(), words: String(title ?? ''), tag: tagOf.get(b) || '', day: dayOf.get(b)?.day || 0, dayFrom: dayOf.get(b)?.from || '', status: statusOf.get(b) || 0, isPage: isPage.has(b),
+    written: writtenOn.get(b) || 0, dates: datesOf.get(b) || {}, made: timeOf.get(b)?.made || 0, changed: timeOf.get(b)?.changed || 0 });
   return out;
 }
 
@@ -213,7 +228,6 @@ async function tagged(tagIds) {
   const rows = await q(`[:find ?b :where ${among('?t', list)} [?b :block/tags ?t] ${LIVE}]`);
   return [...(await describe(rows.map(([b]) => b))).values()];
 }
-const STAMP = 100000000000;   // an id of the graph is small; a time in milliseconds is past this
 async function values(ids) {
   const list = [...new Set(ids)].filter(isId), out = new Map();
   if (!list.length) return out;
@@ -224,7 +238,22 @@ async function values(ids) {
   for (const [b, v] of raw) { const word = said.get(v) ?? (typeof v === 'string' ? v : ''); if (word) { if (!out.has(b)) out.set(b, []); out.get(b).push(word); } }
   return out;
 }
-const dayOfTime = ms => D.number(new Date(ms));
+// What each node holds under each of the person's properties, by the property's name, as words: id -> { name: [words] }.
+async function held(ids) {
+  const list = [...new Set(ids)].filter(isId), out = new Map();
+  if (!list.length) return out;
+  const [props, raw] = await Promise.all([properties(), q(`[:find ?b ?attr ?v :where ${among('?b', list)} [?b ?attr ?v] [?prop :db/ident ?attr] [(namespace ?attr) ?ns] [(= ?ns "user.property")]]`)]);
+  const refs = [...new Set(raw.map(([, , v]) => v).filter(v => isId(v) && v < STAMP))];
+  const [titles, kept, days] = refs.length ? await Promise.all([q(`[:find ?v ?t :where ${among('?v', refs)} [?v :block/title ?t]]`), q(`[:find ?v ?n :where ${among('?v', refs)} [?v :logseq.property/value ?n]]`), q(`[:find ?v ?d :where ${among('?v', refs)} [?v :block/journal-day ?d]]`)]) : [[], [], []];
+  const said = new Map([...kept.map(([v, n]) => [v, String(n)]), ...titles.map(([v, t]) => [v, W.plain(W.firstLine(String(t)).line, new Map())]), ...days.map(([v, d]) => [v, D.short(Number(d))])]);
+  for (const [b, attr, v] of raw) {
+    const prop = props.get(bare(attr)), word = said.get(v) ?? (typeof v === 'string' ? v : typeof v === 'number' && !isId(v) ? String(v) : typeof v === 'boolean' ? (v ? 'Yes' : 'No') : '');
+    if (!prop || !word) continue;
+    if (!out.has(b)) out.set(b, {});
+    (out.get(b)[prop.title] ||= []).push(word);
+  }
+  return out;
+}
 async function tasks() {
   const all = await statuses(), shut = new Set(all.filter(s => /^(done|canceled|cancelled)$/.test(s.name)).map(s => s.id));
   const held = (await q(`[:find ?b ?s :where [?b :logseq.property/status ?s] ${LIVE}]`)).filter(([, s]) => !shut.has(s));
@@ -288,5 +317,5 @@ async function writing(uuid) {
     page: isId(pageId) ? { id: pageId, tags: tagsFor(pageId), day: Number(pageDay) || 0 } : null, dated };
 }
 
-G.read = { byUuids, schema, writing, search, tagged, values, tasks, journal, q, node, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, relations, holders, heldUnder, graph, newPages, tagsOf, forget: () => kept.clear(), isId, UUID };
+G.read = { held, byUuids, schema, writing, search, tagged, values, tasks, journal, q, node, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, relations, holders, heldUnder, graph, newPages, tagsOf, forget: () => kept.clear(), isId, UUID };
 })();

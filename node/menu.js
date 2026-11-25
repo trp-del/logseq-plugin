@@ -1,6 +1,7 @@
 /* NODE: the one menu. A short list at the thing pressed; arrows walk it, Enter takes, Escape lets go and gives the focus back.
      G.menu(at, items, opts)   at: the element pressed, or { x, y, from } for a right-click;
-                               items: { word, icon?, on?, depth?, face?, take } | { group } | { gap: true }
+                               items: { word, icon?, on?, depth?, face?, value?, take } | { group } | { gap: true }
+                               (value: a quiet word at the line's end, what a setting is at)
    One menu at a time; a second closes the first.
    opts.quiet: a list offered while a bullet is being written, as Logseq offers its own: the keys stay in the bullet, nothing is
    lit until an arrow is pressed, Enter takes only a lit line, Escape lets go, and any other key lets go and goes on into the
@@ -13,7 +14,7 @@ G.menu = (at, items, opts = {}) => {
   const from = at.from || at, doc = from.ownerDocument, win = doc.defaultView;
   const menu = doc.createElement('div'); menu.className = 'lk-menu'; menu.setAttribute('role', 'menu');
   menu.innerHTML = items.map((item, i) => item.gap ? '<div class="lk-gap"></div>' : item.group ? `<div class="lk-group">${G.esc(item.group)}</div>`
-    : `<button type="button" class="lk-item${item.on ? ' on' : ''}" role="menuitem" data-i="${i}" data-face="${item.face || ''}" style="padding-left: ${9 + (item.depth || 0) * 14}px"${opts.quiet ? ' tabindex="-1"' : ''}><span class="lk-item-icon">${item.icon || ''}</span><span>${G.esc(item.word)}</span>${item.on ? `<span class="lk-item-on">${G.touch.icon('check', 14)}</span>` : ''}</button>`).join('');
+    : `<button type="button" class="lk-item${item.on ? ' on' : ''}" role="menuitem" data-i="${i}" data-face="${item.face || ''}" style="padding-left: ${9 + (item.depth || 0) * 14}px"${opts.quiet ? ' tabindex="-1"' : ''}><span class="lk-item-icon">${item.icon || ''}</span><span>${G.esc(item.word)}</span>${item.value ? `<span class="lk-item-value">${G.esc(item.value)}</span>` : ''}${item.on ? `<span class="lk-item-on">${G.touch.icon('check', 14)}</span>` : ''}</button>`).join('');
   doc.body.appendChild(menu);
   const box = at.from ? { left: at.x, right: at.x, top: at.y, bottom: at.y } : from.getBoundingClientRect();
   const w = menu.offsetWidth, h = menu.offsetHeight;
