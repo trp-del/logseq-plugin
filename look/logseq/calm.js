@@ -363,7 +363,7 @@ PARTS.calmMenus += `
 /* Whole lines only (seen in the hand test, 24 November 2026: "Choose tag" cut its seventh line in half in a short window).
    Eight lines, or as many as the window has room for under (or over) the words it hangs from: Logseq says how much that is
    (--available-height), and the list keeps 8 pt clear of the window's edge (at 28 a line, eight lines ran past the foot of a 560 pt window). */
-.ls-property-dialog .cp__select-main > :not(.input-wrap) { max-height: min(calc(8 * var(--lk-line-h) + 8px), calc(round(down, var(--available-height, 100vh) - 60px, var(--lk-line-h)) + 8px)) !important; overflow-y: auto !important; }
+.ls-property-dialog .cp__select-main > :not(.input-wrap) { max-height: min(calc(8 * var(--lk-line-h) + 4px), calc(round(down, var(--available-height, 100vh) - 56px, var(--lk-line-h)) + 4px)) !important; overflow-y: auto !important; }
 .ui__popover-content .cp__select .menu-link { box-sizing: border-box !important; min-height: var(--lk-line-h) !important; align-items: center !important; }
 .ui__popover-content .cp__select .menu-link .pt-1 { padding-top: 0 !important; display: inline-flex !important; align-items: center !important; }
 .ui__popover-content .cp__select #ui__ac-inner > .menu-link-wrap { padding-left: calc(5px + var(--st-pad, 0px)) !important; }
@@ -379,7 +379,7 @@ PARTS.calmMenus += `
    and the tags of "Choose tag" come a frame after "Skip choosing tag". While no line is in, and for "Choose tag" before a letter
    is typed, the list has the height of its eight lines already (there are always more than eight to come). */
 .ls-property-dialog .cp__select-main:not(:has(.menu-link)) > :not(.input-wrap),
-.ls-property-dialog .cp__select-main:has(input[placeholder="Choose tag"]:placeholder-shown) > :not(.input-wrap) { min-height: min(calc(8 * var(--lk-line-h) + 8px), calc(round(down, var(--available-height, 100vh) - 60px, var(--lk-line-h)) + 8px)) !important; }
+.ls-property-dialog .cp__select-main:has(input[placeholder="Choose tag"]:placeholder-shown) > :not(.input-wrap) { min-height: min(calc(8 * var(--lk-line-h) + 4px), calc(round(down, var(--available-height, 100vh) - 56px, var(--lk-line-h)) + 4px)) !important; }
 /* Whatever floats is there at once, at its one size, as the Mac's menus are (measured 24 November 2026: Logseq's lists took four
    to eight sizes on their way open and went on changing for a tenth of a second). */
 :is(.ui__popover-content, .ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content, .ui__context-menu-sub-content, .ui__select-content) { ${LOOKS.atOnce} }
