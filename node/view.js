@@ -13,6 +13,7 @@ const store = (key, fallback) => {
   return { get: read, set(value) { kept = value; try { G.host().defaultView.localStorage.setItem(key, JSON.stringify(value)); } catch (error) { /* kept for this sitting only */ } } };
 };
 const views = store('lk.views', {}), orders = store('lk.lists-order', {}), seen = store('lk.seen', {});
+const reads = store('lk.reads', {}), oneEnd = store('lk.one-end', []);   // how a property reads on the pages it points to, by the person; the properties not listed there at all
 const viewOf = key => views.get()[key] || {};
 const setView = (key, change) => { const next = { ...viewOf(key), ...change }; for (const name of Object.keys(next)) if (!next[name]) delete next[name]; const all = { ...views.get() }; if (Object.keys(next).length) all[key] = next; else delete all[key]; views.set(all); };
 const VIEWED = new Set(['property', 'mentions', 'due']);
@@ -91,6 +92,13 @@ function menu(state, box, at) {
     { word: 'Group by', value: now.group || 'None', take: choose('Group by', 'group', [['', 'None'], ...offers.groups.map(name => [name, name, name === 'Tag' || name === 'Month' ? '' : 'prop'])]) },
     { word: 'Date', value: dateWord(now.date || ''), take: choose('Date', 'date', [['', 'Its own date'], ...offers.dates.map(name => [name, name === 'Journal' ? 'The day it is written on' : name, name === 'Journal' ? '' : 'prop']), ['none', 'No date']]) },
     { word: 'Sort by', value: sortWord[now.sort || ''], take: choose('Sort by', 'sort', [['', 'Day'], ...offers.sorts.map(name => [name, sortWord[name]])]) },
+    ...(list.kind === 'property' ? [{ gap: true },
+      { word: 'Reads back as…', value: list.name, take: () => {
+        const title = list.prop.title, give = name => { const all = { ...reads.get() }; if (name && name !== G.reads.back(title)) all[title] = name; else delete all[title]; reads.set(all); state.again(); };
+        G.menu(at, [{ group: `How ${title} reads on the pages it points to` }, { word: G.reads.back(title), value: 'by grammar', on: !reads.get()[title], take: () => give('') },
+          ...(G.reads.back(title) === title ? [] : [{ word: title, value: 'its own name', on: reads.get()[title] === title, take: () => give(title) }])], { find: 'Or type how it reads', enter: give });
+      } },
+      { word: 'Hide where it points', icon: icon('eye-off'), take: () => { oneEnd.set([...new Set([...oneEnd.get(), list.prop.ident])]); state.again(); G.say(`${list.name} is no longer listed on the pages it points to. Right-click the word Relations to bring it back.`); } }] : []),
     { gap: true },
     { word: picking ? 'Stop picking' : 'Pick nodes', icon: icon('square-check'), take: () => { if (picking) { view.picking.delete(key); view.picked.delete(key); } else view.picking.add(key); state.redraw(); } },
     { gap: true },
@@ -124,7 +132,14 @@ function act(state, event) {
   if (group) { event.preventDefault(); G.node.folded.flip(`${key}/${group.dataset.group}`); state.redraw(); return true; }
   return false;
 }
-G.listview = { state, order, shape, head, items, paint, act, menu, viewOf, setView, VIEWED };
+// The properties hidden where they point, to bring back: a list at the word Relations.
+async function hiddenMenu(at, again) {
+  const idents = oneEnd.get(), props = await G.read.properties();
+  if (!idents.length) return false;
+  G.menu(at, [{ group: 'Hidden where they point. A press shows one again' }, ...idents.map(ident => ({ word: props.get(ident)?.title || ident, face: 'prop', take: () => { oneEnd.set(oneEnd.get().filter(one => one !== ident)); again(); } }))]);
+  return true;
+}
+G.listview = { state, order, shape, head, items, paint, act, menu, viewOf, setView, VIEWED, hiddenMenu, named: () => reads.get(), hidden: () => oneEnd.get() };
 G.listview.CSS = `
 .lk-tabs { display: flex; align-items: center; flex-wrap: wrap; gap: 0 16px; min-width: 0; flex: 0 1 auto; }
 .lk-head-do { display: inline-flex; align-items: center; margin-left: -10px; }   /* the + and the ⋯ follow the last word, on whichever line it stands */

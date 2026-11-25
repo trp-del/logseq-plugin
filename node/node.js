@@ -152,9 +152,14 @@ function related(el, uuid) {
     if (!node) return [];
     view.own = node.day || 0;
     const [pointing, dues] = await Promise.all([G.read.pointingAt(node.id), node.day ? G.read.dues(node.day) : []]);
-    const made = L.lists({ ...pointing, dues, own: node.day || 0 });
-    const held = await G.read.held(made.flatMap(list => list.rows.map(row => row.id)));
-    for (const list of made) list.rows = list.rows.map(row => ({ ...row, held: held.get(row.id) || {} }));
+    const hidden = new Set(G.listview.hidden()), named = G.listview.named();
+    const made = L.lists({ ...pointing, dues, own: node.day || 0 }).filter(list => !(list.kind === 'property' && hidden.has(list.prop.ident)));
+    const said = made.filter(list => list.kind === 'mentions').flatMap(list => list.rows.map(row => row.id));
+    const [held, sits] = await Promise.all([G.read.held(made.flatMap(list => list.rows.map(row => row.id))), G.read.where(said)]);
+    for (const list of made) {
+      if (list.kind === 'property') list.name = G.reads.back(list.prop.title, named);   // read from this end: "Prescribed by" is "Prescribed" here
+      list.rows = list.rows.map(row => ({ ...row, held: held.get(row.id) || {}, where: list.kind === 'mentions' && !row.isPage ? (sits.get(row.id) || []) : [] }));
+    }
     total = made.reduce((n, list) => n + list.rows.length, 0);
     return G.view.ordered(made, G.listview.order(uuid));
   }, { view, add: async list => {

@@ -23,6 +23,8 @@
      read.tagged(tagIds)      the nodes holding any of these tags: [node]
      read.values(ids)         id -> [words]   what each node holds under the person's properties
      read.held(ids)           id -> { name: [words] }   the same, told apart by the property's name
+     read.where(ids)          id -> [{ uuid, words }]   where a bullet sits: its page, then the bullet it is under
+     read.firstLines(id, n)   the first lines a node keeps under it
      read.tasks()             the open tasks, each a node whose day is the day it is due (Deadline, else Scheduled)
      read.journal(day)        the uuid of a day's journal page, or '' when the graph has none
      read.byUuids(uuids)      the nodes of these uuids, in their order: [node]
@@ -254,6 +256,24 @@ async function held(ids) {
   }
   return out;
 }
+// Where each bullet sits: its page, then the bullet it is under when that is not the page itself. id -> [{ uuid, words }].
+async function where(ids) {
+  const list = [...new Set(ids)].filter(isId), out = new Map();
+  if (!list.length) return out;
+  const [pages, parents] = await Promise.all([q(`[:find ?b ?pg ?u ?t :where ${among('?b', list)} [?b :block/page ?pg] [?pg :block/uuid ?u] [?pg :block/title ?t]]`),
+    q(`[:find ?b ?p ?u ?t :where ${among('?b', list)} [?b :block/parent ?p] [?p :block/uuid ?u] [?p :block/title ?t]]`)]);
+  const page = new Map(pages.map(([b, pg, u, t]) => [b, { id: pg, uuid: String(u).toLowerCase(), words: String(t ?? '') }]));
+  for (const [b, at] of page) out.set(b, [{ uuid: at.uuid, words: at.words }]);
+  for (const [b, p, u, t] of parents) if (page.get(b) && page.get(b).id !== p) out.get(b).push({ uuid: String(u).toLowerCase(), words: W.firstLine(String(t ?? '')).line });
+  return out;
+}
+// The first lines a node keeps under it, in their order: its own bullets, never the values of its properties.
+async function firstLines(id, few = 3) {
+  if (!isId(id)) return [];
+  const [kids, values] = await Promise.all([q(`[:find ?c ?o ?t :where [?c :block/parent ${id}] [?c :block/order ?o] [?c :block/title ?t] (not [?c :logseq.property/deleted-at])]`), q(`[:find ?c :where [?c :block/parent ${id}] [?c :logseq.property/created-from-property _]]`)]);
+  const not = new Set(values.map(([c]) => c));
+  return kids.filter(([c, , t]) => !not.has(c) && String(t ?? '').trim()).sort((a, b) => String(a[1]).localeCompare(String(b[1]))).slice(0, few).map(([, , t]) => W.firstLine(String(t)).line);
+}
 async function tasks() {
   const all = await statuses(), shut = new Set(all.filter(s => /^(done|canceled|cancelled)$/.test(s.name)).map(s => s.id));
   const held = (await q(`[:find ?b ?s :where [?b :logseq.property/status ?s] ${LIVE}]`)).filter(([, s]) => !shut.has(s));
@@ -317,5 +337,5 @@ async function writing(uuid) {
     page: isId(pageId) ? { id: pageId, tags: tagsFor(pageId), day: Number(pageDay) || 0 } : null, dated };
 }
 
-G.read = { held, byUuids, schema, writing, search, tagged, values, tasks, journal, q, node, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, relations, holders, heldUnder, graph, newPages, tagsOf, forget: () => kept.clear(), isId, UUID };
+G.read = { held, where, firstLines, byUuids, schema, writing, search, tagged, values, tasks, journal, q, node, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, relations, holders, heldUnder, graph, newPages, tagsOf, forget: () => kept.clear(), isId, UUID };
 })();

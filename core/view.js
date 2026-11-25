@@ -76,10 +76,15 @@ function shape(list, view = {}, find = {}, today = 0) {
   const all = list.rows || [], own = list.own || 0, since = view.since || 0;
   const every = kinds(all), isNew = row => !!since && (row.made || 0) > since;
   const fresh = all.filter(isNew).length;
+  // A property four in five of the list hold: a node without it is marked ("no Topic?"). Only from five nodes up.
+  const lacked = new Map();
+  if (all.length >= 5) { const n = new Map(); for (const row of all) for (const name of Object.keys(row.held || {})) n.set(name, (n.get(name) || 0) + 1);
+    const common = [...n].filter(([, count]) => count < all.length && count >= all.length * 0.8).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([name]) => name);
+    for (const row of all) { const name = common.find(one => !(row.held || {})[one]); if (name) lacked.set(row.uuid, name); } }
   const tabs = every.length > 1 ? [{ kind: '', word: 'All', n: all.length }, ...every.slice(0, 3).map(one => ({ kind: one.name || '@none', word: one.name || 'No tag', n: one.n }))].map(tab => ({ ...tab, on: (view.kind || '') === tab.kind })) : [];
   let rows = !view.kind ? all : view.kind === '@new' ? all.filter(isNew) : all.filter(row => (row.tag || '@none') === view.kind);
   rows = rows.filter(row => holds(row, tokens(find.words)));
-  rows = rows.map(row => { const day = dayBy(row, view.date || ''); return { ...row, goesBy: day, dayShown: day && day !== own ? day : 0 }; });
+  rows = rows.map(row => { const day = dayBy(row, view.date || ''); return { ...row, goesBy: day, dayShown: day && day !== own ? day : 0, lacks: lacked.get(row.uuid) || '' }; });
   let later = find.upTo ? rows.filter(row => row.goesBy > find.upTo) : [];
   if (find.upTo) rows = rows.filter(row => !(row.goesBy > find.upTo));
   const byDay = (a, b) => (b.goesBy || 0) - (a.goesBy || 0), byWords = (a, b) => String(a.plain ?? a.words).localeCompare(String(b.plain ?? b.words)) || String(a.uuid).localeCompare(String(b.uuid));

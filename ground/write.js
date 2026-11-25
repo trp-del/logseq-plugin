@@ -79,6 +79,8 @@ G.write = {
     return made;
   },
   placeTag: (uuid, under) => logseq.Editor.addTagExtends(sure(uuid), sure(under)),
+  // A new, empty line at the end of what a node keeps under it; answers its uuid.
+  async addLine(uuid, isPage) { const made = isPage ? await logseq.Editor.appendBlockInPage(sure(uuid), '') : await logseq.Editor.insertBlock(sure(uuid), '', { sibling: false }); return String(made?.uuid || ''); },
   // Words, a number or yes/no written under one of the person's properties.
   setText(uuid, ident, value) {
     if (!/^user\.property\/[\w.-]+$/.test(String(ident))) throw new Error('a value is written under one of your properties');

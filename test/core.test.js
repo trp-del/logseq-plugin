@@ -253,3 +253,15 @@ test('a node made since the page was last open is new, and the lists keep the or
   const lists = [{ key: 'x' }, { key: 'y' }, { key: 'z' }];
   assert.deepEqual([view.ordered(lists, ['z', 'x']).map(l => l.key), view.moved(['x', 'y', 'z'], 'y', -1), view.moved(['x', 'y', 'z'], 'z', 1)], [['z', 'x', 'y'], ['y', 'x', 'z'], ['x', 'y', 'z']]);
 });
+
+// ---- how a property reads from the page it points to
+const reads = require('../core/reads.js');
+test('a property reads back by grammar, a plain noun keeps its name, and a name the person gave wins', () => {
+  assert.deepEqual(['Prescribed by', 'Symptom of', 'Child of', 'Located in', 'Diagnosed with', 'Works at', 'Lives in', 'Treats', 'Mentions', 'Provider', 'Topic', 'From account', 'Spoke with', 'Notes'].map(t => reads.back(t)),
+    ['Prescribed', 'Symptoms', 'Children', 'Location of', 'Diagnosis of', 'Employer of', 'Home of', 'Treated by', 'Mentioned in', 'Provider of', 'Topic', 'From account', 'Spoke with', 'Notes']);
+  assert.equal(reads.back('Provider', { Provider: 'Seen by me' }), 'Seen by me');
+});
+test('a node without a property four in five of its list hold is marked', () => {
+  const rows = ['a', 'b', 'c', 'd', 'e'].map((u, i) => R(u, u, 'T', 20261001 + i, { held: i ? { Topic: ['x'] } : {} }));
+  assert.deepEqual(view.shape({ rows }, {}, {}, 20261125).rows.map(r => r.lacks).sort(), ['', '', '', '', 'Topic']);
+});
