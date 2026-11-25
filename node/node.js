@@ -252,6 +252,7 @@ function draw(state, made, names, statuses) {
       if (line.lkHtml !== html) { line.innerHTML = html; line.lkHtml = html; }
     });
     G.pick.bar(state, box, made);
+    G.timeline.keep(state, box, made, today);
     let more = box.querySelector(':scope > .lk-more');
     if (hidden > 0 && !isFolded) {
       if (!more) { more = doc.createElement('button'); more.type = 'button'; more.className = 'lk-more'; more.textContent = 'Show all'; box.appendChild(more); }
@@ -283,6 +284,7 @@ function handle(state, event) {
   if (row && target.closest('.lk-open')?.closest('.lk-row') === row) return;   // inside the opened node everything is Logseq's
   if (event.type === 'mousedown') { if (event.shiftKey && target.closest('.lk-line')) event.preventDefault(); return; }   // Shift-click opens beside: it selects no words on its way
   if (state.view && G.pick.act(state, event)) { event.stopPropagation(); return; }
+  if (state.view && G.timeline.act(state, event)) { event.stopPropagation(); return; }
   if (row && event.type === 'click' && state.press && target.closest('.lk-line') && !target.closest('.lk-status, a[data-to], .lk-url') && state.press(row, event)) { event.stopPropagation(); return; }
   if (row && event.type === 'keydown' && state.key && target.matches('.lk-line') && state.key(row, event)) { event.preventDefault(); event.stopPropagation(); return; }
   if (row && G.line.act(event, row, state.more)) { event.stopPropagation(); return; }

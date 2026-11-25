@@ -265,3 +265,15 @@ test('a node without a property four in five of its list hold is marked', () => 
   const rows = ['a', 'b', 'c', 'd', 'e'].map((u, i) => R(u, u, 'T', 20261001 + i, { held: i ? { Topic: ['x'] } : {} }));
   assert.deepEqual(view.shape({ rows }, {}, {}, 20261125).rows.map(r => r.lacks).sort(), ['', '', '', '', 'Topic']);
 });
+
+// ---- where nodes fall in time
+const time = require('../core/time.js');
+test('a timeline runs from the first node\'s month to today, a dot on each node\'s day, months ticked', () => {
+  const made = time.layout({ dots: [{ day: 20260915 }, { day: 20261101 }, { day: 20261103, off: true }], today: 20261125 });
+  assert.deepEqual([made.year, made.months.map(m => m.name), made.dots.map(d => d.left > 0 && d.left < 100), made.dots[2].off, made.today > made.dots[2].left], [2026, ['Sep', 'Oct', 'Nov'], [true, true, true], true, true]);
+  assert.deepEqual([time.week(20261007), time.words(20261007)], [[20261004, 20261010], 'Oct 7, 2026']);
+  const tall = time.layout({ dots: Array.from({ length: 7 }, () => ({ day: 20261103 })), tall: true, today: 20261125 });
+  assert.deepEqual([tall.dots.length, tall.dots.map(d => d.pile), tall.more[0].n], [5, [0, 1, 2, 3, 4], 2]);
+  const lanes = time.lanesBy([{ held: { Topic: ['A'] } }, { held: { Topic: ['A'] } }, { held: { Topic: ['B'] } }, { held: {} }], 'Topic');
+  assert.deepEqual([lanes.names, lanes.counts], [['A', 'B', 'others'], [2, 1, 1]]);
+});

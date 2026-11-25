@@ -21,15 +21,18 @@ const VIEWED = new Set(['property', 'mentions', 'due']);
 function state(uuid) {
   const last = seen.get()[uuid] || 0;
   seen.set({ ...seen.get(), [uuid]: Date.now() });
-  return { uuid, own: 0, since: last, kinds: new Map(), find: { words: '', upTo: 0 }, picking: new Set(), picked: new Map(), all: new Set() };
+  return { uuid, own: 0, since: last, kinds: new Map(), find: { words: '', upTo: 0 }, picking: new Set(), picked: new Map(), all: new Set(), spans: new Map(), lanes: new Map(), lit: new Map() };
 }
 const order = uuid => orders.get()[uuid] || [];
 function shape(state, list, names, today) {
   const view = state.view;
   if (!view || !VIEWED.has(list.kind)) return null;
   const rows = list.rows.map(row => ({ ...row, plain: W.plain(W.firstLine(row.words).line, names) }));
-  const made = V.shape({ ...list, rows, own: view.own }, { ...viewOf(list.key), kind: view.kinds.get(list.key) || '', since: view.since }, view.find, today);
-  made.finding = !!(view.find.words || view.find.upTo);
+  const time = G.timeline.narrowing(state, { ...list, rows });
+  const made = V.shape({ ...list, rows, own: view.own }, { ...viewOf(list.key), kind: view.kinds.get(list.key) || '', since: view.since, span: time.span, lane: time.lane }, view.find, today);
+  if (time.span || time.lane) made.said.push(`showing ${[time.lane ? `${viewOf(list.key).timeline} ${time.lanes.names[time.lane.at]}` : '', time.span ? `${D.short(time.span[0], today)} to ${D.short(time.span[1], today)}` : ''].filter(Boolean).join(', ')}`);
+  made.finding ||= !!(time.span || time.lane);
+  made.finding = !!(view.find.words || view.find.upTo) || made.finding;
   made.kind = view.kinds.get(list.key) || '';
   made.picking = view.picking.has(list.key);
   made.picked = view.picked.get(list.key) || new Set();
@@ -91,6 +94,10 @@ function menu(state, box, at) {
     { group: 'View' },
     { word: 'Group by', value: now.group || 'None', take: choose('Group by', 'group', [['', 'None'], ...offers.groups.map(name => [name, name, name === 'Tag' || name === 'Month' ? '' : 'prop'])]) },
     { word: 'Date', value: dateWord(now.date || ''), take: choose('Date', 'date', [['', 'Its own date'], ...offers.dates.map(name => [name, name === 'Journal' ? 'The day it is written on' : name, name === 'Journal' ? '' : 'prop']), ['none', 'No date']]) },
+    { word: 'Timeline', value: !now.timeline ? 'Hidden' : now.timeline === 'line' ? (now.tall ? 'Taller' : 'One line') : `By ${now.timeline}`, take: () => G.menu(at, [{ group: 'Timeline' },
+      { word: 'Hidden', on: !now.timeline, take: () => { view.spans.delete(key); view.lanes.delete(key); view.lit.delete(key); set({ timeline: '' }); } }, { word: 'One line', on: now.timeline === 'line', take: () => { view.lanes.delete(key); set({ timeline: 'line' }); } },
+      ...offers.groups.filter(name => name !== 'Tag' && name !== 'Month').map(name => ({ word: `By ${name}`, face: 'prop', on: now.timeline === name, take: () => { view.lanes.delete(key); set({ timeline: name }); } })),
+      ...(now.timeline ? [{ gap: true }, { word: 'Taller', on: !!now.tall, take: () => set({ tall: now.tall ? '' : '1' }) }] : [])]) },
     { word: 'Sort by', value: sortWord[now.sort || ''], take: choose('Sort by', 'sort', [['', 'Day'], ...offers.sorts.map(name => [name, sortWord[name]])]) },
     ...(list.kind === 'property' ? [{ gap: true },
       { word: 'Reads back as…', value: list.name, take: () => {

@@ -85,6 +85,9 @@ function shape(list, view = {}, find = {}, today = 0) {
   let rows = !view.kind ? all : view.kind === '@new' ? all.filter(isNew) : all.filter(row => (row.tag || '@none') === view.kind);
   rows = rows.filter(row => holds(row, tokens(find.words)));
   rows = rows.map(row => { const day = dayBy(row, view.date || ''); return { ...row, goesBy: day, dayShown: day && day !== own ? day : 0, lacks: lacked.get(row.uuid) || '' }; });
+  const inSpan = row => !view.span || (row.goesBy >= view.span[0] && row.goesBy <= view.span[1]), inLane = row => !view.lane || view.lane.of(row) === view.lane.at;
+  const timed = rows;
+  rows = rows.filter(row => inSpan(row) && inLane(row));
   let later = find.upTo ? rows.filter(row => row.goesBy > find.upTo) : [];
   if (find.upTo) rows = rows.filter(row => !(row.goesBy > find.upTo));
   const byDay = (a, b) => (b.goesBy || 0) - (a.goesBy || 0), byWords = (a, b) => String(a.plain ?? a.words).localeCompare(String(b.plain ?? b.words)) || String(a.uuid).localeCompare(String(b.uuid));
@@ -112,7 +115,8 @@ function shape(list, view = {}, find = {}, today = 0) {
   if (view.date) said.push(view.date === 'none' ? 'No date' : view.date);
   if (view.sort) said.push(view.sort === 'changed' ? 'Last changed first' : view.sort === 'name' ? 'By name' : 'By tag');
   return { tabs, more: Math.max(0, every.length - 3), rows, groups, since: later, count: rows.length, of: oneTag ? (rows.length === 1 ? oneTag : plural(oneTag)) : (rows.length === 1 ? 'node' : 'nodes'),
-    from: from !== to ? from : 0, to: from !== to ? to : 0, said, fresh, total: all.length };
+    from: from !== to ? from : 0, to: from !== to ? to : 0, said, fresh, total: all.length,
+    dots: timed.filter(row => row.goesBy).map(row => ({ day: row.goesBy, uuid: row.uuid, title: String(row.plain ?? row.words ?? ''), off: !(inSpan(row) && inLane(row)), row })).sort((a, b) => a.day - b.day) };
 }
 // The lists of a page in the order the person gave them: the named ones first in that order, the rest as they came.
 function ordered(lists, order = []) {
