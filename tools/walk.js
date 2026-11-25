@@ -84,7 +84,7 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await page.locator('.lk-row .lk-line').nth(1).click({ button: 'right' }); await wait(400);
       const items = await page.locator('.lk-menu .lk-item').allInnerTexts();
       await page.keyboard.press('Escape'); await wait(300);
-      return is([items, await count('.lk-menu'), await count('.lk-row[data-open]')], [['Open', 'Open in sidebar', 'Delete'], 0, 0]);
+      return is([items, await count('.lk-menu'), await count('.lk-row[data-open]')], [['Open', 'Open in sidebar', 'Tags…', 'Delete'], 0, 0]);
     });
     await step('Delete takes a node away and Logseq\'s own Undo brings it back', async () => {
       const before = await count('.lk-rows > .lk-row');
@@ -175,7 +175,7 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
     // ---- Tending: Ontology
     await step('the toolbar\'s tree opens Ontology: the tags as an outline in their own face, then the properties', async () => {
       await page.locator('#head a[title="Ontology"]').first().click(); await wait(2500);
-      return is(await page.evaluate(() => { const lists = [...document.querySelectorAll('.lk-ontology > .lk-list')]; const first = lists[0]?.querySelectorAll('.lk-row'); return [lists.map(l => l.querySelector('.lk-list-name').innerText), [...(first || [])].slice(0, 3).map(r => [r.querySelector('.lk-line').innerText, r.style.getPropertyValue('--lk-depth')]), /New York|serif/.test(getComputedStyle(first[0].querySelector('.lk-words')).fontFamily)]; }),
+      return is(await page.evaluate(() => { const lists = [...document.querySelectorAll('.lk-ontology > .lk-rel > .lk-list')]; const first = lists[0]?.querySelectorAll('.lk-row'); return [lists.map(l => l.querySelector('.lk-list-name').innerText), [...(first || [])].slice(0, 3).map(r => [r.querySelector('.lk-line').innerText, r.style.getPropertyValue('--lk-depth')]), /New York|serif/.test(getComputedStyle(first[0].querySelector('.lk-words')).fontFamily)]; }),
         [['Tags', 'Properties'], [['Entity', '0'], ['Organization', '1'], ['Hospital', '2']], true]);
     });
     await step('a tag opens in place as Logseq\'s own page for it, where it is renamed and moved', async () => {
@@ -186,6 +186,21 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await page.locator('.lk-ontology .lk-row[data-open] .lk-editor .is-page-title-row .block-control').click(); await wait(500);
       await page.locator('.lk-ontology .lk-row[data-open] > .lk-fold').click(); await wait(400);
       return is([name, extends_, await count('.lk-ontology .lk-row[data-open]')], ['Hospital', true, 0]);
+    });
+    await step('Ontology\'s New tag line makes one of your own tags, and the list shows it', async () => {
+      await page.locator('.lk-ontology .lk-field').click(); await page.keyboard.type('Zzontag', { delay: 20 }); await page.keyboard.press('Enter'); await wait(2500);
+      const ident = await box.frame().evaluate(async () => (await logseq.DB.datascriptQuery('[:find ?i :where [?b :block/title "Zzontag"] [?b :block/tags :logseq.class/Tag] [?b :db/ident ?i]]')).flat().map(String));
+      return is([ident.length === 1 && /user\.class\//.test(ident[0]), await page.locator('.lk-ontology .lk-row', { hasText: 'Zzontag' }).count(), await page.locator('.lk-ontology .lk-field').inputValue()], [true, 1, '']);
+    });
+    await step('a closed line\'s menu puts a tag on the node and takes it off again', async () => {
+      const row = page.locator('.lk-todo .lk-row').first(), uuid = await row.getAttribute('data-uuid');
+      const tags = () => box.frame().evaluate(async u => (await logseq.DB.datascriptQuery(`[:find ?tt :where [?b :block/uuid #uuid "${u}"] [?b :block/tags ?t] [?t :block/title ?tt]]`)).flat().sort(), uuid);
+      const before = await tags();
+      const pick = async () => { await page.locator(`.lk-todo .lk-row[data-uuid="${uuid}"] > .lk-line`).click({ button: 'right' }); await wait(500); await page.locator('.lk-menu .lk-item', { hasText: 'Tags…' }).click(); await wait(700); };
+      await pick(); const head = await page.locator('.lk-menu .lk-group').innerText(); await page.locator('.lk-menu .lk-item', { hasText: /^Hospital$/ }).click(); await wait(1800);
+      const set = await tags();
+      await pick(); const on = await page.locator('.lk-menu .lk-item.on', { hasText: /^Hospital$/ }).count(); await page.locator('.lk-menu .lk-item', { hasText: /^Hospital$/ }).click(); await wait(1800);
+      return is([head, set.includes('Hospital') && !before.includes('Hospital'), on, await tags()], ['Tags', true, 1, before]);
     });
     // ---- Writing: sure values
     await goto(OCT7);
@@ -231,6 +246,18 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       const text = await page.evaluate(() => document.activeElement?.value || '');
       await page.keyboard.press('Escape'); await wait(800);
       return is([asked, await count('.lk-menu'), / on$/.test(text)], [1, 0, true]);
+    });
+    await step('a page made while writing asks what it is: an arrow and Enter give it its tag, and the keys stay in the bullet', async () => {
+      await box.frame().evaluate(u => logseq.Editor.editBlock(u), tagged); await wait(700);
+      await page.keyboard.type(' [[Zzdoc Quill', { delay: 50 }); await wait(900); await page.keyboard.press('Enter'); await wait(1800);
+      const head = await page.locator('.lk-menu .lk-group').innerText().catch(() => '');
+      await page.keyboard.press('ArrowDown'); await wait(200);
+      const lit = await page.locator('.lk-menu .lk-item.lit').innerText().catch(() => '');
+      await page.keyboard.press('Enter'); await wait(1500);
+      const tags = await box.frame().evaluate(async () => (await logseq.DB.datascriptQuery('[:find ?tt :where [?p :block/title "Zzdoc Quill"] [?p :block/tags ?t] [?t :block/title ?tt]]')).flat());
+      const writing = await page.evaluate(() => document.activeElement?.tagName);
+      await page.keyboard.press('Escape'); await wait(800);
+      return is([head, lit !== '' && tags.includes(lit), writing, await count('.lk-menu')], ['Zzdoc Quill is a new page. What is it?', true, 'TEXTAREA', 0]);
     });
     await step('nothing the plugin did was said as an error', async () => is(errors, []));
   } finally {

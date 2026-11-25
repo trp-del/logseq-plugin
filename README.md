@@ -16,7 +16,7 @@ Each layer uses only the layers under it. `node tools/layers.js` fails if a file
 | 1 The node | `node/` | One line for any node. A press opens the node in place as Logseq's own editor, with the lists of what points at it underneath, each row a line that opens in turn. |
 | 2 The node's page | `page/` | Relations: under a page, one list for each property that points at it, then where it is mentioned. Under a page's title, its tags and the tags above them. |
 | 3 Arriving | `arrive/` | Find: a window to reach any node by its kind, a value, a day or its words. Todo: your open tasks by day, in the right sidebar. |
-| 4 Writing | `write/` | Sure values: on leaving a bullet, what its words say for certain is written into its empty properties. Where a tag sits: Logseq's own list of tags says the tags each one sits under. A new tag asks where it goes. Not built yet: a link panel under the line, guessed values. |
+| 4 Writing | `write/` | Sure values: on leaving a bullet, what its words say for certain is written into its empty properties. Where a tag sits: Logseq's own list of tags says the tags each one sits under. A new tag asks where it goes, and a new page asks what it is. Not built yet: guessed values. |
 | 5 Tending | `tend/` | Ontology: your tags as an outline and your properties, in the right sidebar; each opens in place as Logseq's own page for it. |
 
 `core/` holds the pieces that decide (how words read, how rows are grouped and ordered, how a tag's path runs). They know
@@ -106,6 +106,18 @@ share gets no path.
 A tag made while you write (Logseq's "New tag …") stands at the top. A list of your tags opens next to your line, as an outline:
 Down or Up lights a tag and Enter puts the new tag under it. Escape, or simply writing on, leaves it at the top; the keys never
 leave your bullet. Logseq's own Undo takes the placing back. A tag made anywhere else is not asked about.
+
+### A new page asks what it is (`write/place.js`)
+
+A page made while you write (Logseq's "New page …" in its list on `[[`) is of no kind. The same list opens at your line, headed
+"… is a new page. What is it?": Down or Up lights a tag and Enter gives the page that tag; Escape, or writing on, leaves the
+page untagged. Linking a node that exists stays Logseq's own list on `[[`, which already says each page's tag.
+
+### A new tag from Ontology, and tags from a line's menu
+
+Ontology has a line at its top, "New tag": Enter makes a tag of your own at the top of the outline and the list moves to it; a
+name that exists is shown instead of made twice. A closed line's right-click menu has "Tags…": your tags as an outline, the
+node's own ticked; a press puts a tag on the node or takes it off. The same line that adds a task in Todo adds the tag here.
 
 ### The day in Find
 

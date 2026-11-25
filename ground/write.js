@@ -6,6 +6,9 @@
      write.remove(uuid, isPage)     a bullet deleted; a page sent to Logseq's Recycle
      write.addTask(words)           a new bullet at the end of today's journal, its status Todo; answers its uuid
      write.setNode(uuid, ident, id) a node (or a day's journal page) put under one of the person's properties
+     write.newTag(name)             a new tag of the person's, at the top; answers its uuid
+     write.untag(uuid, tag)         one of the person's tags taken off a node
+     write.tag(uuid, tag)           one of the person's tags put on a node
      write.placeTag(uuid, under)    a tag put under another tag (in place of where it sat)
      write.undo()                   Logseq's Undo */
 (function () {
@@ -28,6 +31,11 @@ G.write = {
     if (!/^user\.property\/[\w.-]+$/.test(String(ident)) || !Number.isSafeInteger(id) || id <= 0) throw new Error('a value is written under one of your properties, as a node of the graph');
     return logseq.Editor.upsertBlockProperty(sure(uuid), ident, id, { entityId: true });
   },
+  // Logseq's createTag makes a tag that belongs to the plugin (plugin.class/…), which is not one of the person's own: a page made
+  // as a class is (user.class/…), the same as "New tag" in Logseq's own list.
+  async newTag(name) { const made = await logseq.Editor.createPage(String(name || '').trim(), {}, { redirect: false, class: true }); return String(made?.uuid || ''); },
+  untag: (uuid, tag) => logseq.Editor.removeBlockTag(sure(uuid), sure(tag)),
+  tag: (uuid, tag) => logseq.Editor.addBlockTag(sure(uuid), sure(tag)),
   placeTag: (uuid, under) => logseq.Editor.addTagExtends(sure(uuid), sure(under)),
   undo: () => logseq.App.invokeExternalCommand('logseq.editor/undo'),
 };

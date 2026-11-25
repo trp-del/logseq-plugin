@@ -34,11 +34,20 @@ async function pickStatus(at, row) {
   G.menu(at, statuses.map(s => ({ word: s.title, icon: G.touch.statusIcon(s.icon), on: s.id === now,
     take: () => G.write.setStatus(row.dataset.uuid, s.title).catch(error => G.say(`The status could not be set: ${error?.message || 'Logseq refused'}`, 'warning')) })));
 }
+// The person's tags as an outline, the node's own ticked: a press puts a tag on the node or takes it off.
+async function pickTags(at, row) {
+  const uuid = row.dataset.uuid, node = await G.read.node(uuid);
+  if (!node) return;
+  const [tags, own] = await Promise.all([G.read.tags(), G.read.tagsOf(node.id)]), has = new Set(own);
+  G.menu(at, [{ group: 'Tags' }, ...G.find.tree(tags).map(({ tag, depth }) => ({ word: tag.title, depth, face: 'tag', on: has.has(tag.id),
+    take: () => (has.has(tag.id) ? G.write.untag(uuid, tag.uuid) : G.write.tag(uuid, tag.uuid)).catch(error => G.say(`The tag could not be changed: ${error?.message || 'Logseq refused'}`, 'warning')) }))]);
+}
 async function menu(at, row) {
   const uuid = row.dataset.uuid, statuses = row.dataset.status ? await G.read.statuses() : [], now = Number(row.dataset.status) || 0;
   G.menu(at, [
     { word: 'Open', icon: G.touch.icon('arrow-right'), take: () => G.touch.open(uuid) },
     { word: 'Open in sidebar', icon: G.touch.icon('layout-sidebar-right'), take: () => G.touch.open(uuid, true) },
+    ...(row.closest('.lk-list')?.dataset.face ? [] : [{ gap: true }, { word: 'Tags…', icon: G.touch.icon('hash'), take: () => pickTags(at, row) }]),   // not on a tag or a property itself
     ...(statuses.length ? [{ gap: true }, { group: 'Status' }, ...statuses.map(s => ({ word: s.title, icon: G.touch.statusIcon(s.icon), on: s.id === now, take: () => G.write.setStatus(uuid, s.title).catch(error => G.say(`The status could not be set: ${error?.message || 'Logseq refused'}`, 'warning')) }))] : []),
     { gap: true },
     { word: 'Delete', icon: G.touch.icon('trash'), take: () => G.write.remove(uuid, row.dataset.page === '1').catch(error => G.say(`It could not be deleted: ${error?.message || 'Logseq refused'}`, 'warning')) },

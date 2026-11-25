@@ -7,6 +7,7 @@
                                                  'prop' draws its rows' words as tags or properties are drawn); opts: press(row,
                                                  event) -> true when the place takes a press on a line itself, few (rows before Show
                                                  all), none (words to say when there is nothing). Gives back { off(), again() }
+     G.node.adder(holder, name, add, failed)     a line at the head of holder that adds (a task, a tag); gives back what removes it
      G.node.lists(el, uuid)                      the listing of what points at a node; gives back what takes it away */
 (function () {
 const G = window.PluginDoor, L = G.lists, D = G.days, W = G.words;
@@ -172,7 +173,33 @@ function handle(state, event) {
     if (next) { event.preventDefault(); event.stopPropagation(); next.focus(); }
   }
 }
-G.node = { toggle, open, close, listing, lists };
+/* A line that adds: one field at the head of a place's list. Enter hands its words to add(words), which answers the uuid of what
+   it made (or of what was there already); the list then moves to that row and lights it for a moment, while the field stays in
+   view. Escape empties the field and lets go. Gives back what takes the line's ears away. */
+function adder(holder, name, add, failed) {
+  const doc = holder.ownerDocument, view = doc.defaultView, line = doc.createElement('div'); line.className = 'lk-add';
+  line.innerHTML = `<input class="lk-field" type="text" placeholder="${G.esc(name)}" aria-label="${G.esc(name)}" spellcheck="true" autocomplete="off">`;
+  holder.prepend(line);
+  const field = line.firstElementChild;
+  const show = (uuid, tries = 0) => {
+    const row = uuid && holder.querySelector(`.lk-row[data-uuid="${uuid}"]`);
+    if (!row) { if (tries < 20 && holder.isConnected) view.setTimeout(() => show(uuid, tries + 1), 150); return; }
+    row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    row.classList.add('lk-new'); view.setTimeout(() => row.classList.remove('lk-new'), 1800);
+  };
+  const onKey = async event => {
+    if (event.key === 'Escape') { field.value = ''; field.blur(); return; }
+    if (event.key !== 'Enter' || !field.value.trim() || field.disabled) return;
+    event.preventDefault(); event.stopPropagation();
+    field.disabled = true;
+    try { const uuid = await add(field.value.trim()); field.value = ''; show(String(uuid || '').toLowerCase()); }
+    catch (error) { G.say(`${failed}: ${error?.message || 'Logseq refused'}`, 'warning'); }
+    field.disabled = false; field.focus();
+  };
+  field.addEventListener('keydown', onKey);
+  return () => { field.removeEventListener('keydown', onKey); line.remove(); };
+}
+G.node = { toggle, open, close, listing, lists, adder };
 G.node.CSS = `
 .lk-rel:empty { display: none; }
 .lk-rel { display: flex; flex-direction: column; gap: 18px; container: lk-list / inline-size; }
@@ -189,6 +216,13 @@ G.node.CSS = `
 .lk-list-name .lk-tag { margin-left: .5em; font-size: var(--lk-small); }
 .lk-more { margin: 2px 0 0 calc(var(--lk-daycol, 0px) + 34px); padding: 2px 0; border: 0; background: none; color: var(--lk-quiet); font: inherit; font-size: var(--lk-small); cursor: pointer; }
 .lk-more:hover { color: var(--lk-text); }
+.lk-add { display: flex; margin: -4px 0 12px -22px; padding: 4px 0 0 22px; position: sticky; top: 0; z-index: 2; background: var(--lk-ground, transparent); }   /* stays in view while the list moves to what was added */
+.lk-add .lk-field { flex: 1; min-width: 0; border: 0; border-bottom: 1px solid var(--lk-hair); outline: 0; background: none; color: inherit; font: inherit; line-height: 24px; padding: 2px 0; box-shadow: none; border-radius: 0; }
+.lk-add .lk-field:focus { border-bottom-color: var(--lk-line); }
+.lk-add .lk-field::placeholder { color: var(--lk-off); }
+.lk-add ~ .lk-rel .lk-row { scroll-margin: 44px 0 8px; }
+.lk-add ~ .lk-rel .lk-row > .lk-line { transition: background-color .6s ease; }
+.lk-add ~ .lk-rel .lk-row.lk-new > .lk-line { background: var(--lk-lit); transition: none; }
 .lk-open { margin-left: -2px; }
 .lk-open > .lk-rel { margin: 6px 0 10px 28px; }`;
 })();

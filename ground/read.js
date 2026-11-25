@@ -12,6 +12,7 @@
      read.tags()              id -> { id, title, uuid, parents: [id] }   the person's own tags and what each sits under
      read.tagsOf(id)          the ids of a node's own tags
      read.tagIds()            the ids of the person's tags as they are this moment (never kept)
+     read.newPages(since)     the plain, untagged pages made since a time in milliseconds (never kept): [{ id, uuid, title }]
      read.search(words)       Logseq's own search for the words, its order kept: [node]
      read.tagged(tagIds)      the nodes holding any of these tags: [node]
      read.values(ids)         id -> [words]   what each node holds under the person's properties
@@ -55,6 +56,15 @@ const tags = () => once('tags', async () => {
 });
 // The ids of the person's tags, asked afresh each time (never kept): how a tag made a moment ago is noticed.
 const tagIds = async () => new Set((await q('[:find ?t ?i :where [?t :block/tags :logseq.class/Tag] [?t :db/ident ?i]]')).filter(([, ident]) => /^user\.class\//.test(bare(ident))).map(([id]) => id));
+// The plain pages made since a moment (a time in milliseconds), asked afresh each time: no journal day, no tag, no property,
+// and none that already holds one of the person's tags.
+async function newPages(since) {
+  const rows = await q(`[:find ?p ?u ?t :where [?p :block/created-at ?c] [(> ?c ${Number(since) || 0})] [?p :block/tags :logseq.class/Page] [?p :block/uuid ?u] [?p :block/title ?t]]`);
+  if (!rows.length) return [];
+  const [mine, tagged] = await Promise.all([tagIds(), q(`[:find ?p ?t :where ${among('?p', rows.map(([p]) => p))} [?p :block/tags ?t]]`)]);
+  const has = new Set(tagged.filter(([, t]) => mine.has(t)).map(([p]) => p));
+  return rows.filter(([p]) => !has.has(p)).map(([id, uuid, title]) => ({ id, uuid: String(uuid).toLowerCase(), title: String(title) }));
+}
 const tagsOf = async id => isId(id) ? (await q(`[:find ?t :where [${id} :block/tags ?t]]`)).map(([t]) => t) : [];
 const statuses = () => once('statuses', async () => {
   const rows = await q('[:find ?v ?ident ?t ?o ?icon :where [?v :block/closed-value-property ?p] [?p :db/ident :logseq.property/status] [?v :block/title ?t] [(get-else $ ?v :db/ident "") ?ident] [(get-else $ ?v :block/order "") ?o] [(get-else $ ?v :logseq.property/icon "") ?icon]]');
@@ -233,5 +243,5 @@ async function writing(uuid) {
     page: isId(pageId) ? { id: pageId, tags: tagsFor(pageId), day: Number(pageDay) || 0 } : null, dated };
 }
 
-G.read = { byUuids, schema, writing, search, tagged, values, tasks, journal, q, node, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagsOf, forget: () => kept.clear(), isId, UUID };
+G.read = { byUuids, schema, writing, search, tagged, values, tasks, journal, q, node, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, newPages, tagsOf, forget: () => kept.clear(), isId, UUID };
 })();
