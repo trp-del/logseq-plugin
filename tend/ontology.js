@@ -25,6 +25,7 @@ G.part({
       }, 'The tag could not be made');
       const plain = node => ({ ...node, tag: '', tagShown: false, dayShown: 0, day: 0 });
       const rel = holder.lastElementChild;
+      G.moving.last(holder);   // the line of the last move of values, until it is let go
       // A tag moved under another, or to the top: written at once; Logseq's own Undo takes it back. The row keeps the keys.
       const move = async (uuid, to) => {
         try {
@@ -95,7 +96,8 @@ G.part({
           return true;
         },
         more(row, at) {
-          if (!isTag(row)) return [];
+          if (!isTag(row)) return row.closest('.lk-list')?.dataset.face === 'prop'
+            ? [{ gap: true }, { word: 'Move values…', icon: G.touch.icon('arrows-right-left'), take: async () => { const prop = [...(await G.read.properties()).values()].find(one => one.uuid === row.dataset.uuid); if (prop) G.moving.ask(holder, { from: prop.ident }); } }] : [];
           const uuid = row.dataset.uuid;
           const under = async () => {
             const tags = await G.read.tags(), tag = [...tags.values()].find(one => one.uuid === uuid);
@@ -104,6 +106,7 @@ G.part({
             G.menu(at, [{ group: `Put ${tag.title} under` }, ...G.find.tree(others).map(({ tag: one, depth }) => ({ word: one.title, depth, face: 'tag', on: tag.parents.includes(one.id), take: () => move(uuid, one.uuid) }))]);
           };
           return [{ gap: true }, { word: 'Show its nodes', icon: G.touch.icon('search'), take: async () => { const tag = [...(await G.read.tags()).values()].find(one => one.uuid === uuid); if (tag) G.arrive.find(tag.id); } },
+            { word: 'Move values…', icon: G.touch.icon('arrows-right-left'), take: async () => { const tag = [...(await G.read.tags()).values()].find(one => one.uuid === uuid); if (tag) G.moving.ask(holder, { tag: { id: tag.id, title: tag.title } }); } },
             { word: 'Put under…', icon: G.touch.icon('corner-down-right'), take: under },
             ...(depthOf(row) > 0 ? [{ word: 'Move to the top', icon: G.touch.icon('arrow-bar-to-up'), take: () => move(uuid, '') }] : [])];
         } });

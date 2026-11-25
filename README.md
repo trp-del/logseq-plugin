@@ -135,6 +135,17 @@ Logseq's Undo. The tag under the pointer or the keys shows hairlines to the tags
 when its nodes hold, under one of your properties, nodes of the other; the small head stands at the tag that is held, and the
 other names step back.
 
+### Move values (`tend/move.js`, decided in `core/move.js`)
+
+In Ontology, a tag's or a property's right-click menu has "Move values…". A box opens at the head of the section: the property
+the values come out of, the property they go into (one there is of the same kind, or a new one, made as your own with the first
+one's kind and node tags), and a tick, "Remove them from" the first. A tag takes its own nodes and those of the tags below it; a
+property takes every node that holds it. Before anything is written the box shows four of the nodes as they will read, what
+comes in green and what goes struck through in red, and the yes says how many: "Copy 16 values", or "Move 16 values" with the
+tick. A property that takes one value is never given a second: those nodes are left as they are and the box says how many.
+Afterwards one line says what was done, with one Undo that puts every value back and removes a property the move made; the
+line stays, Logseq closed and opened again, until Done.
+
 ### The day in Find
 
 In Find the words start each row and the day stands at the row's right end, right-aligned. In the lists of Relations and Todo

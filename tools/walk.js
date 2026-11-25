@@ -301,6 +301,21 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       for (let i = 0; i < 3; i++) { await page.keyboard.press('Escape'); await wait(250); }
       return is([items.includes('Show its nodes'), items.includes('Put under…'), piece], [true, true, 'Consultation']);
     });
+    await step('a tag\'s values are moved into a new property: shown first, written on the yes, and one Undo puts all of it back', async () => {
+      const held = title => box.frame().evaluate(async t => { const G = window.PluginDoor; G.read.forget(); const prop = [...(await G.read.properties()).values()].find(p => p.title === t); return prop ? (await G.read.holders(prop.ident)).length : -1; }, title);
+      const before = await held('Provider');
+      await page.locator('.lk-ontology .lk-row', { hasText: /^Consultation/ }).first().locator('.lk-line').click({ button: 'right' }); await wait(500);
+      await page.locator('.lk-menu .lk-item', { hasText: 'Move values…' }).click(); await wait(1500);
+      await page.locator('.lk-ask [data-do="from"]').click(); await wait(400); await page.locator('.lk-menu .lk-item', { hasText: /^Provider$/ }).click(); await wait(1200);
+      await page.locator('.lk-ask [data-do="into"]').click(); await wait(400); await page.locator('.lk-menu .lk-item', { hasText: 'A new property…' }).click(); await wait(400);
+      await page.keyboard.type('Zzseen by', { delay: 20 }); await page.keyboard.press('Enter'); await wait(1200);
+      await page.locator('.lk-ask .lk-tick').click(); await wait(500);
+      const yes = await page.locator('.lk-ask .lk-accent').innerText(), n = parseInt(yes.replace(/\D+/g, ''), 10), shown = [await count('.lk-ask-row .lk-going') > 0, await count('.lk-ask-row .lk-coming') > 0];
+      await page.locator('.lk-ask .lk-accent').click(); await wait(2500 + n * 400);
+      const said = await page.locator('.lk-ask-said').innerText().catch(() => ''), after = [await held('Provider'), await held('Zzseen by')];
+      await page.locator('.lk-ask [data-do="undo"]').click(); await wait(2500 + n * 500);
+      return is([/^Move \d+ values?$/.test(yes), shown, said.startsWith(`Moved ${n} value`), after, await held('Provider'), await held('Zzseen by'), await count('.lk-ask')], [true, [true, true], true, [before - n, n], before, -1, 0]);
+    });
     await step('nothing the plugin did was said as an error', async () => is(errors, []));
   } finally {
     if (!keep) { await sandbox.stop(box); fs.rmSync(DIR, { recursive: true, force: true }); }

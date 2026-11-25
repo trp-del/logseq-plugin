@@ -14,6 +14,8 @@
      read.tagIds()            the ids of the person's tags as they are this moment (never kept)
      read.tagPairs()          [[tag id, node id]]   which node holds which of the person's tags
      read.relations()         [[tag id, property ident, tag id, n]]   n nodes of the first tag hold, under the property, a node of the second
+     read.holders(ident)      the nodes holding a value under a property: [{ id, uuid, words, tag, values: [{ raw, text }] }]
+     read.graph()             the open graph's name
      read.newPages(since)     the plain, untagged pages made since a time in milliseconds (never kept): [{ id, uuid, title }]
      read.search(words)       Logseq's own search for the words, its order kept: [node]
      read.tagged(tagIds)      the nodes holding any of these tags: [node]
@@ -72,6 +74,25 @@ const relations = () => once('relations', async () => {
   const rows = await q(`[:find ?ta ?a ?tb (count ?b) :where [?p :db/ident ?a] [(namespace ?a) ?ns] [(= ?ns "user.property")] [?b ?a ?v] [?b :block/tags ?ta] [?v :block/tags ?tb]]`);
   return rows.filter(([a, , b]) => mine.has(a) && mine.has(b)).map(([a, ident, b, n]) => [a, bare(ident), b, Number(n) || 0]);
 });
+/* The nodes that hold a value under one of the person's properties, each with what it holds: [{ id, uuid, words, tag, values }],
+   a value { raw, text }: raw is what is written to give another node the same value (a node's or a day's id, a number, words),
+   text is how it reads. Asked afresh each time. */
+async function holders(ident) {
+  const prop = (await schema()).props.get(ident);
+  if (!prop || !/^user\.property\/[\w.-]+$/.test(ident)) return [];
+  const rows = await q(`[:find ?b ?v :where [?b :${ident} ?v] ${LIVE}]`);
+  if (!rows.length) return [];
+  const ref = prop.type === 'node' || prop.type === 'date', ids = [...new Set(rows.map(([, v]) => v).filter(isId))];
+  const [nodes, titles, numbers] = await Promise.all([describe(rows.map(([b]) => b)),
+    ids.length ? q(`[:find ?v ?t :where ${among('?v', ids)} [?v :block/title ?t]]`) : [], ids.length ? q(`[:find ?v ?n :where ${among('?v', ids)} [?v :logseq.property/value ?n]]`) : []]);
+  const title = new Map(titles.map(([v, t]) => [v, String(t)])), number = new Map(numbers);
+  const names = await G.read.names([...nodes.values()].flatMap(node => W.named(node.words)));
+  const value = v => !isId(v) || prop.type === 'checkbox' ? { raw: v, text: String(v) } : ref ? { raw: v, text: title.get(v) || '' } : number.has(v) ? { raw: number.get(v), text: String(number.get(v)) } : { raw: title.get(v) ?? '', text: title.get(v) ?? '' };
+  const out = new Map();
+  for (const [b, v] of rows) { const node = nodes.get(b); if (!node) continue; if (!out.has(b)) out.set(b, { id: b, uuid: node.uuid, words: W.plain(W.firstLine(node.words).line, names), tag: node.tag, values: [] }); out.get(b).values.push(value(v)); }
+  return [...out.values()];
+}
+const graph = async () => String((await logseq.App.getCurrentGraph())?.name || '');
 async function newPages(since) {
   const rows = await q(`[:find ?p ?u ?t :where [?p :block/created-at ?c] [(> ?c ${Number(since) || 0})] [?p :block/tags :logseq.class/Page] [?p :block/uuid ?u] [?p :block/title ?t]]`);
   if (!rows.length) return [];
@@ -260,5 +281,5 @@ async function writing(uuid) {
     page: isId(pageId) ? { id: pageId, tags: tagsFor(pageId), day: Number(pageDay) || 0 } : null, dated };
 }
 
-G.read = { byUuids, schema, writing, search, tagged, values, tasks, journal, q, node, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, relations, newPages, tagsOf, forget: () => kept.clear(), isId, UUID };
+G.read = { byUuids, schema, writing, search, tagged, values, tasks, journal, q, node, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, relations, holders, graph, newPages, tagsOf, forget: () => kept.clear(), isId, UUID };
 })();

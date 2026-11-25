@@ -176,3 +176,30 @@ test('the nodes under a tag are its own and those of the tags below it, each cou
   const counts = find.counts(tags, [[1, 10], [2, 11], [3, 11], [3, 12], [4, 13], [9, 14]]);
   assert.deepEqual([counts.get(1), counts.get(2), counts.get(3), counts.get(4)], [3, 2, 2, 1]);
 });
+
+// ---- values moved from one property into another
+const move = require('../core/move.js');
+const v = text => ({ raw: text, text });
+const P = (title, more = {}) => ({ ident: 'p/' + title.toLowerCase(), title, type: 'node', many: false, ...more });
+test('a value is copied into the other property, and taken off the first only when asked', () => {
+  const nodes = [{ uuid: 'a', words: 'Gas bill', from: [v('SoCalGas')], into: [] }, { uuid: 'b', words: 'No value', from: [], into: [] }];
+  const copy = move.plan({ nodes, from: P('Charged by'), into: P('Provider') });
+  assert.deepEqual([copy.rows.length, copy.rows[0].comes, copy.rows[0].goes, copy.values, move.yes(copy, false)], [1, [v('SoCalGas')], [], 1, 'Copy 1 value']);
+  const moved = move.plan({ nodes, from: P('Charged by'), into: P('Provider'), remove: true });
+  assert.deepEqual([moved.rows[0].goes, move.yes(moved, true)], [[v('SoCalGas')], 'Move 1 value']);
+});
+test('a value already held is not written twice; a property that takes one value is not given a second', () => {
+  const nodes = [{ uuid: 'a', words: 'Same', from: [v('X')], into: [v('X')] }, { uuid: 'b', words: 'Other', from: [v('X')], into: [v('Y')] }, { uuid: 'c', words: 'Two', from: [v('X'), v('Y')], into: [] }];
+  const one = move.plan({ nodes, from: P('From', { many: true }), into: P('Into'), remove: true });
+  assert.deepEqual(one.rows.map(row => [row.comes.length, row.goes.length, !!row.skip]), [[0, 1, false], [0, 0, true], [0, 0, true]]);
+  assert.deepEqual([one.values, one.kept, move.yes(one, true)], [0, 2, 'Remove 1 value']);
+  const many = move.plan({ nodes, from: P('From', { many: true }), into: P('Into', { many: true }) });
+  assert.deepEqual([many.rows.map(row => row.comes.length), many.kept, move.yes(many, false)], [[0, 1, 2], 0, 'Copy 3 values']);
+});
+test('different kinds of value, the same property, or nothing to move are refused in words', () => {
+  const nodes = [{ uuid: 'a', words: 'A', from: [v('X')], into: [] }];
+  assert.match(move.plan({ nodes, from: P('From'), into: P('When', { type: 'date' }) }).refused, /different kinds/);
+  assert.match(move.plan({ nodes, from: P('From'), into: P('From') }).refused, /already under From/);
+  assert.match(move.plan({ nodes: [], from: P('From'), into: P('Into') }).refused, /No node here/);
+  assert.equal(move.plan({ nodes, from: P('From'), into: { title: 'Brand new', isNew: true, many: false } }).refused, '');
+});

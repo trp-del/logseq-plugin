@@ -9,6 +9,9 @@
      write.newTag(name)             a new tag of the person's, at the top; answers its uuid
      write.untag(uuid, tag)         one of the person's tags taken off a node
      write.tag(uuid, tag)           one of the person's tags put on a node
+     write.newProperty(title, type, many, range)  a property of the person's own; answers { ident, uuid }
+     write.setValues(uuid, ident, raws, { ref, many })  what a node holds under a property, set to exactly these
+     write.dropProperty(uuid)       a property removed, by its page
      write.moveTag(uuid, to, from)  a tag put under another (to) or at the top (''), and taken from under the tags in from
      write.addNode(tag, ident, id)  a new empty bullet on today's journal, tagged, pointing at node id through a property; its uuid
      write.placeTag(uuid, under)    a tag put under another tag (in place of where it sat)
@@ -38,6 +41,26 @@ G.write = {
   async newTag(name) { const made = await logseq.Editor.createPage(String(name || '').trim(), {}, { redirect: false, class: true }); return String(made?.uuid || ''); },
   untag: (uuid, tag) => logseq.Editor.removeBlockTag(sure(uuid), sure(tag)),
   tag: (uuid, tag) => logseq.Editor.addBlockTag(sure(uuid), sure(tag)),
+  /* A property of the person's own, made as Logseq's own "new property" makes it (Logseq's upsertProperty would make one that
+     belongs to the plugin). Answers { ident, uuid }. range: the ids of the tags its values must hold (a node property). */
+  async newProperty(title, type, many, range = []) {
+    const name = String(title || '').trim();
+    if (!name) throw new Error('a property needs a name');
+    await logseq.Editor.upsertNodes([{ operation: 'add', entityType: 'property', id: `lk-new-${Date.now()}`, data: { title: name, 'property-type': String(type || 'default'), ...(many ? { 'property-cardinality': 'many' } : {}) } }], {});
+    const found = (await G.read.q(`[:find ?i ?u ?c :where [?p :block/title ?t] [(= ?t ${JSON.stringify(name)})] [?p :db/ident ?i] [(namespace ?i) ?ns] [(= ?ns "user.property")] [?p :block/uuid ?u] [?p :block/created-at ?c]]`)).sort((a, b) => b[2] - a[2])[0];
+    if (!found) throw new Error(`Logseq did not make “${name}”`);
+    const made = { ident: String(found[0]).replace(/^:/, ''), uuid: String(found[1]) };
+    if (range.length) await logseq.Editor.setPropertyNodeTags(made.uuid, range.filter(id => Number.isSafeInteger(id) && id > 0));
+    return made;
+  },
+  // What a node holds under a property, set to exactly these values (raw, as read.holders answers them); none clears it.
+  async setValues(uuid, ident, raws, { ref = false, many = false } = {}) {
+    if (!/^user\.property\/[\w.-]+$/.test(String(ident))) throw new Error('a value is written under one of your properties');
+    await logseq.Editor.removeBlockProperty(sure(uuid), ident);
+    if (!raws.length) return;
+    await logseq.Editor.upsertBlockProperty(uuid, ident, many ? raws : raws[0], ref ? { entityId: true } : {});
+  },
+  dropProperty: uuid => logseq.Editor.deletePage(sure(uuid)),   // Logseq lets a plugin remove only its own properties by name; a property's page it deletes like any page
   // A tag moved: put under another tag (to), or to the top (to: ''), and taken from under the ones it sat under (from).
   async moveTag(uuid, to, from = []) {
     if (to) await logseq.Editor.addTagExtends(sure(uuid), sure(to));
