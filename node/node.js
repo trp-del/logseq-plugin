@@ -167,7 +167,8 @@ function related(el, uuid) {
     if (those.length !== 1 || !target) throw new Error(`no one tag is called ${list.one}`);
     return G.write.addNode(those[0].uuid, list.prop.ident, target.id);
   } });
-  return { ...handle, rows: () => total, find(words) { view.find = G.view.parse(words, D.number(new Date())); mounted.get(el)?.redraw(); } };
+  const offDrags = G.listview.drags(mounted.get(el));
+  return { ...handle, off() { offDrags(); handle.off(); }, rows: () => total, find(words) { view.find = G.view.parse(words, D.number(new Date())); mounted.get(el)?.redraw(); } };
 }
 const lists = (el, uuid) => related(el, uuid).off;
 async function load(state) {
@@ -221,6 +222,7 @@ function draw(state, made, names, statuses) {
     const name = made && list.count ? G.listview.head(state, list, made, plus, today) : via ? (list.count ? `<span class="lk-said">${G.esc(list.tag ? said : `${said} nodes`)}</span>${plus}${span}` : '')
       : `<span class="${list.kind === 'due' ? 'lk-prop' : list.kind === 'none' ? 'lk-none' : 'lk-plain'}">${G.esc(list.name)}</span>${said ? ` <span class="lk-tag">${G.esc(said)}</span>` : ''}${span}`;
     if (head.children[1].innerHTML !== first) head.children[1].innerHTML = first;
+    if (made) head.children[1].draggable = true;   // a list's name dragged among the page's lists sets their order
     head.toggleAttribute('data-one', !!lined && !list.count); head.toggleAttribute('data-plain', !!lined && !via);
     box.lkList = list;
     if (head.lastElementChild.innerHTML !== name) head.lastElementChild.innerHTML = name;
@@ -249,6 +251,7 @@ function draw(state, made, names, statuses) {
       let tick = el.querySelector(':scope > .lk-tick');
       if (item.picking) { if (!tick) { tick = doc.createElement('input'); tick.type = 'checkbox'; tick.className = 'lk-tick'; tick.setAttribute('aria-label', 'Pick this node'); el.insertBefore(tick, el.children[1]); } tick.checked = !!item.picked; } else tick?.remove();
       const html = G.line.html(row, { names, statuses, tagShown: row.tagShown }), line = el.querySelector(':scope > .lk-line');
+      if (made) line.draggable = true;   // onto another list's head: the node gets that list's property
       if (line.lkHtml !== html) { line.innerHTML = html; line.lkHtml = html; }
     });
     G.pick.bar(state, box, made);

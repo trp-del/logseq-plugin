@@ -25,6 +25,7 @@
      read.held(ids)           id -> { name: [words] }   the same, told apart by the property's name
      read.where(ids)          id -> [{ uuid, words }]   where a bullet sits: its page, then the bullet it is under
      read.firstLines(id, n)   the first lines a node keeps under it
+     read.recycled()          Logseq's Recycle, newest first: [{ uuid, words, isPage, from, at }]
      read.tasks()             the open tasks, each a node whose day is the day it is due (Deadline, else Scheduled)
      read.journal(day)        the uuid of a day's journal page, or '' when the graph has none
      read.byUuids(uuids)      the nodes of these uuids, in their order: [node]
@@ -274,6 +275,14 @@ async function firstLines(id, few = 3) {
   const not = new Set(values.map(([c]) => c));
   return kids.filter(([c, , t]) => !not.has(c) && String(t ?? '').trim()).sort((a, b) => String(a[1]).localeCompare(String(b[1]))).slice(0, few).map(([, , t]) => W.firstLine(String(t)).line);
 }
+// Logseq's Recycle: what was deleted and can still be brought back, newest first. [{ uuid, words, isPage, from, at }]
+async function recycled() {
+  const [rows, pages, from] = await Promise.all([q('[:find ?b ?u ?d :where [?b :logseq.property/deleted-at ?d] [?b :block/uuid ?u]]'), q('[:find ?b :where [?b :logseq.property/deleted-at _] [?b :block/name]]'),
+    q('[:find ?b ?t :where [?b :logseq.property/deleted-at _] [?b :logseq.property.recycle/original-page ?p] [?p :block/title ?t]]').catch(() => [])]);
+  const ids = rows.map(([b]) => b), titles = ids.length ? new Map(await q(`[:find ?b ?t :where ${among('?b', ids)} [?b :block/title ?t]]`)) : new Map();
+  const isPage = new Set(pages.map(([b]) => b)), where = new Map(from);
+  return rows.map(([b, u, d]) => ({ uuid: String(u).toLowerCase(), words: W.firstLine(String(titles.get(b) ?? '')).line, isPage: isPage.has(b), from: String(where.get(b) ?? ''), at: Number(d) || 0 })).sort((a, b) => b.at - a.at);
+}
 async function tasks() {
   const all = await statuses(), shut = new Set(all.filter(s => /^(done|canceled|cancelled)$/.test(s.name)).map(s => s.id));
   const held = (await q(`[:find ?b ?s :where [?b :logseq.property/status ?s] ${LIVE}]`)).filter(([, s]) => !shut.has(s));
@@ -337,5 +346,5 @@ async function writing(uuid) {
     page: isId(pageId) ? { id: pageId, tags: tagsFor(pageId), day: Number(pageDay) || 0 } : null, dated };
 }
 
-G.read = { held, where, firstLines, byUuids, schema, writing, search, tagged, values, tasks, journal, q, node, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, relations, holders, heldUnder, graph, newPages, tagsOf, forget: () => kept.clear(), isId, UUID };
+G.read = { recycled, held, where, firstLines, byUuids, schema, writing, search, tagged, values, tasks, journal, q, node, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, relations, holders, heldUnder, graph, newPages, tagsOf, forget: () => kept.clear(), isId, UUID };
 })();

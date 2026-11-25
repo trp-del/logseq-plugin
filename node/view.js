@@ -139,6 +139,43 @@ function act(state, event) {
   if (group) { event.preventDefault(); G.node.folded.flip(`${key}/${group.dataset.group}`); state.redraw(); return true; }
   return false;
 }
+/* Dragging. A node's line dragged onto the head of another property's list gets that list's property, pointing here. A list's
+   name dragged above or below another list sets the order of the page's lists. Gives back what takes the ears away. */
+function drags(state) {
+  const el = state.el, view = state.view, doc = el.ownerDocument;
+  let moving = null, marked = null;
+  const unmark = () => { marked?.removeAttribute('data-drop'); marked = null; };
+  const mine = target => { const box = target.closest?.('.lk-list'); return box && box.parentElement === el ? box : null; };
+  const where = (event, box) => {
+    if (!moving || !box) return '';
+    if (moving.kind === 'list') { if (box.dataset.key === moving.key) return ''; const at = box.getBoundingClientRect(); return event.clientY < at.top + Math.min(at.height, 60) / 2 ? 'above' : 'below'; }
+    return box.lkList?.kind === 'property' && box.dataset.key !== moving.from && event.target.closest('.lk-list-head') ? 'into' : '';
+  };
+  const start = event => {
+    const box = mine(event.target), line = event.target.closest?.('.lk-row > .lk-line'), via = event.target.closest?.('.lk-list-via');
+    if (!box || !VIEWED.has(box.lkList?.kind)) return;
+    if (line && line.closest('.lk-list') === box && !line.parentElement.dataset.open) moving = { kind: 'node', uuid: line.parentElement.dataset.uuid, from: box.dataset.key, words: line.querySelector('.lk-words')?.innerText || '' };
+    else if (via) moving = { kind: 'list', key: box.dataset.key };
+    else return;
+    event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', moving.uuid || moving.key);
+  };
+  const over = event => { const box = mine(event.target), at = where(event, box); if (!at) { unmark(); return; } event.preventDefault(); event.dataTransfer.dropEffect = 'move'; if (marked !== box) unmark(); marked = box; box.dataset.drop = at; };
+  const drop = async event => {
+    const box = mine(event.target), at = where(event, box), was = moving; unmark(); moving = null;
+    if (!at || !was) return;
+    event.preventDefault();
+    if (was.kind === 'list') {
+      const keys = [...el.querySelectorAll(':scope > .lk-list')].map(one => one.dataset.key).filter(key => key !== was.key), i = keys.indexOf(box.dataset.key) + (at === 'below' ? 1 : 0);
+      keys.splice(i, 0, was.key); orders.set({ ...orders.get(), [view.uuid]: keys }); state.again(); return;
+    }
+    try { const here = await G.read.node(view.uuid); await G.write.setNode(was.uuid, box.lkList.prop.ident, here.id); G.say(`${was.words.trim().slice(0, 60) || 'The node'} now points here through ${box.lkList.prop.title}. Cmd-Z takes it back.`); state.again(); }
+    catch (error) { G.say(`It could not be given ${box.lkList.prop.title}: ${error?.message || 'Logseq refused'}`, 'warning'); }
+  };
+  const end = () => { unmark(); moving = null; };
+  const ears = [['dragstart', start], ['dragover', over], ['drop', drop], ['dragend', end], ['dragleave', event => { if (!el.contains(event.relatedTarget)) unmark(); }]];
+  for (const [type, fn] of ears) el.addEventListener(type, fn);
+  return () => { for (const [type, fn] of ears) el.removeEventListener(type, fn); };
+}
 // The properties hidden where they point, to bring back: a list at the word Relations.
 async function hiddenMenu(at, again) {
   const idents = oneEnd.get(), props = await G.read.properties();
@@ -146,7 +183,7 @@ async function hiddenMenu(at, again) {
   G.menu(at, [{ group: 'Hidden where they point. A press shows one again' }, ...idents.map(ident => ({ word: props.get(ident)?.title || ident, face: 'prop', take: () => { oneEnd.set(oneEnd.get().filter(one => one !== ident)); again(); } }))]);
   return true;
 }
-G.listview = { state, order, shape, head, items, paint, act, menu, viewOf, setView, VIEWED, hiddenMenu, named: () => reads.get(), hidden: () => oneEnd.get() };
+G.listview = { state, order, shape, head, items, paint, act, menu, viewOf, setView, VIEWED, hiddenMenu, drags, named: () => reads.get(), hidden: () => oneEnd.get() };
 G.listview.CSS = `
 .lk-tabs { display: flex; align-items: center; flex-wrap: wrap; gap: 0 16px; min-width: 0; flex: 0 1 auto; }
 .lk-head-do { display: inline-flex; align-items: center; margin-left: -10px; }   /* the + and the ⋯ follow the last word, on whichever line it stands */
@@ -174,5 +211,9 @@ G.listview.CSS = `
 .lk-since::after { content: ""; flex: 1; height: 1px; margin-left: 8px; background: var(--lk-hair); }
 .lk-row.lk-faint > .lk-line, .lk-row.lk-faint > .lk-day { opacity: .5; }
 .lk-menu .lk-item-value { margin-left: auto; padding-left: 16px; color: var(--lk-quiet); font-size: var(--lk-small); white-space: nowrap; }
+.lk-list[data-drop="into"] > .lk-list-head { background: var(--lk-lit); }
+.lk-list[data-drop="above"] { box-shadow: 0 -2px 0 0 var(--lk-text); }
+.lk-list[data-drop="below"] { box-shadow: 0 2px 0 0 var(--lk-text); }
+.lk-list-via[draggable="true"] { cursor: grab; }
 @container lk-list (max-width: 300px) { .lk-head-end { flex: 0 0 100%; margin-left: 0; padding-left: 0; } }`;
 })();

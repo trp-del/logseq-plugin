@@ -1,6 +1,7 @@
 /* PAGE: Relations. On every page Logseq shows (the main page, a page in the sidebar), the lists of what points at the page
    stand under the page's own bullets, and Logseq's own Linked references and two-way tabs, which say the same less plainly,
-   are taken away there. A day in the journals feed is left as Logseq draws it.
+   are taken away there. A day in the journals feed has them too, at the foot of the day; with nothing pointing at it they
+   take no place there.
    The section stands under its own line, the word Relations with a thin line after it: a press folds the whole of it, kept
    for each page. From twenty nodes up a find line stands under that line (Relations: find in them calls it up anywhere):
    words narrow every list, "on Oct 7" turns the lists back to that day, Enter opens the first node found, Escape empties it. */
@@ -26,20 +27,32 @@ ${G.touch.PAGE} > .lk-rel { margin: 8px 0 32px; }
 .lk-relfind[hidden] { display: none; }
 .lk-relfind .lk-field { flex: 1; min-width: 0; border: 0; border-bottom: 1px solid transparent; outline: 0; background: none; color: inherit; font: inherit; font-size: var(--lk-line-size); line-height: 24px; padding: 2px 0; box-shadow: none; border-radius: 0; }
 .lk-relfind .lk-field:focus, .lk-relfind .lk-field:not(:placeholder-shown) { border-bottom-color: var(--lk-line); }
-.lk-relfind .lk-field::placeholder { color: var(--lk-off); }`);
+.lk-relfind .lk-field::placeholder { color: var(--lk-off); }
+.lk-relday { display: inline-flex; flex: none; font-size: var(--lk-small); }
+.lk-relday[hidden] { display: none; }`);
     const kept = new Map();   // the plugin's element on a page -> { off, head }
     const doc = G.host();
     const section = (page, foot) => {
       const head = G.touch.pageFoot(page.el, 'lk-relsec'), uuid = page.uuid;
-      head.innerHTML = `<div class="lk-relhead" role="button" tabindex="0" aria-expanded="${!shut.read().has(uuid)}"><span class="lk-fold">${G.node.ARROW}</span>Relations</div><div class="lk-relfind" hidden><input class="lk-field" type="text" placeholder="Find in these, or a day: on Oct 7" aria-label="Find in Relations" spellcheck="false" autocomplete="off"></div>`;
+      head.innerHTML = `<div class="lk-relhead" role="button" tabindex="0" aria-expanded="${!shut.read().has(uuid)}"><span class="lk-fold">${G.node.ARROW}</span>Relations</div><div class="lk-relfind" hidden><input class="lk-field" type="text" placeholder="Find in these, or a day: on Oct 7" aria-label="Find in Relations" spellcheck="false" autocomplete="off"><span class="lk-relday" hidden><button type="button" class="lk-btn lk-low" data-by="-7">‹ a week earlier</button><button type="button" class="lk-btn lk-low" data-by="7">a week later ›</button><button type="button" class="lk-btn lk-low" data-by="0">Today</button></span></div>`;
       const line = head.firstElementChild, find = head.lastElementChild, field = find.firstElementChild;
+      // On a day: a week earlier, a week later, and back to today.
+      const steps = find.lastElementChild, today = () => G.days.number(new Date());
+      const onDay = () => { const at = G.view.parse(field.value, today()); steps.hidden = !at.upTo; return at; };
+      steps.addEventListener('click', event => {
+        const by = event.target.closest('[data-by]')?.dataset.by, at = onDay();
+        if (by == null || !at.upTo) return;
+        if (by === '0') field.value = at.words;
+        else { const day = new Date(Math.floor(at.upTo / 10000), Math.floor(at.upTo / 100) % 100 - 1, at.upTo % 100 + Number(by)); field.value = `${at.words ? at.words + ' ' : ''}on ${G.time.words(G.days.number(day))}`; }
+        lists.find(field.value); onDay(); field.focus();
+      });
       const lists = G.node.related(foot, uuid);
       const fold = () => line.setAttribute('aria-expanded', String(!shut.flip(uuid)));
       const onLine = event => { if (event.type === 'click' || event.key === 'Enter' || event.key === ' ') { event.preventDefault(); fold(); } };
       const onDrawn = () => { if (lists.rows() >= 20 || field.value) find.hidden = false; };
-      const onInput = () => lists.find(field.value);
+      const onInput = () => { lists.find(field.value); onDay(); };
       const onKey = event => {
-        if (event.key === 'Escape') { if (field.value) { event.preventDefault(); event.stopPropagation(); field.value = ''; lists.find(''); } else field.blur(); return; }
+        if (event.key === 'Escape') { if (field.value) { event.preventDefault(); event.stopPropagation(); field.value = ''; lists.find(''); onDay(); } else field.blur(); return; }
         const first = foot.querySelector('.lk-row:not(.lk-faint) > .lk-line');
         if (event.key === 'Enter' && first) { event.preventDefault(); G.touch.open(first.parentElement.dataset.uuid, event.shiftKey); }
         else if (event.key === 'ArrowDown' && first) { event.preventDefault(); first.focus(); }
@@ -53,7 +66,6 @@ ${G.touch.PAGE} > .lk-rel { margin: 8px 0 32px; }
     const pass = () => {
       for (const [foot, one] of kept) if (!foot.isConnected) { one.off(); kept.delete(foot); }
       for (const page of G.touch.pages()) {
-        if (page.feed) continue;
         const foot = G.touch.pageFoot(page.el, 'lk-rel');
         if (foot.dataset.uuid === page.uuid) continue;
         kept.get(foot)?.off();
