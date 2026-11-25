@@ -360,6 +360,18 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await page.locator('.lk-ask [data-do="undo"]').click(); await wait(2500 + n * 500);
       return is([/^Move \d+ values?$/.test(yes), shown, said.startsWith(`Moved ${n} value`), after, await held('Provider'), await held('Zzseen by'), await count('.lk-ask')], [true, [true, true], true, [before - n, n], before, -1, 0]);
     });
+    await step('u p has Logseq load the plugin again from its folder and says in one line what that brought; typed in a bullet it is letters', async () => {   // the owner, 25 November 2026: "can you add update plugins with `u p`?"
+      const run = () => box.frame().evaluate(() => (window.lkRun = (window.lkRun || 0) + 1));   // 1 in a plugin just loaded
+      const toast = async () => { for (let i = 0; i < 40; i++) { const text = await page.evaluate(() => [...document.querySelectorAll('.ui__toast-description')].map(el => el.innerText.trim()).find(t => /^Plugins /.test(t)) || ''); if (text) return text; await wait(250); } return ''; };
+      await goto(CHEN); await run();
+      await page.locator('#main-content-container .block-add-button').first().click(); await wait(900);
+      await page.keyboard.type('up', { delay: 150 }); await wait(2500);
+      const typed = [await page.evaluate(() => document.activeElement?.value), await run()];
+      await page.keyboard.press('Meta+z'); await page.keyboard.press('Escape'); await wait(700);
+      await page.keyboard.press('Escape'); await wait(300); await page.keyboard.press('u'); await wait(150); await page.keyboard.press('p');
+      const said = await toast(); await wait(4500);
+      return is([typed, /^Plugins reloaded, nothing newer in its folder: Logseq Plugin \d/.test(said), await run()], [['up', 2], true, 1]);
+    });
     await step('nothing the plugin did was said as an error', async () => is(errors, []));
   } finally {
     if (!keep) { await sandbox.stop(box); fs.rmSync(DIR, { recursive: true, force: true }); }

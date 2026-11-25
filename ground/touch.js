@@ -227,7 +227,27 @@ function tagList(say) {
   });
   return () => { off(); for (const note of host().querySelectorAll(`${LIST} .lk-where`)) note.remove(); };
 }
-const command = (name, label, run) => logseq.App.registerCommandPalette({ key: name, label }, run);
+// A command in Logseq's palette; with keys ('u p'), also a shortcut of Logseq's own kind, listed and changed in its settings.
+const command = (name, label, run, keys) => logseq.App.registerCommandPalette(keys ? { key: name, label, keybinding: { binding: keys } } : { key: name, label }, run);
+/* The plugins Logseq loads from a folder of the person's own, each { id, title, version }; the ones Logseq installed itself are
+   Logseq's to update. reload(ids) has Logseq load them again from their folders, this plugin last: its own code ends there. What
+   keep() is given outlives that reload for a minute, for took() to hand to the plugin's next run, once. */
+const LOADED = 'lk.plugins-before';
+const plugins = {
+  mine() {
+    const core = host().defaultView.LSPluginCore;
+    return core ? [...core.registeredPlugins.values()].filter(one => !one.isInstalledInLocalDotRoot && !one.isWebPlugin).map(one => ({ id: one.id, title: one.options?.title || one.options?.name || one.id, version: one.options?.version || '' })) : [];
+  },
+  async reload(ids) {
+    const core = host().defaultView.LSPluginCore, own = logseq.baseInfo.id;
+    for (const id of ids.filter(one => one !== own)) { try { await core.reload(id); } catch (error) { console.error(`Logseq Plugin: ${id} could not be reloaded`, error); } }
+    if (ids.includes(own)) await core.reload(own);
+  },
+  keep(list) { try { host().defaultView.localStorage.setItem(LOADED, JSON.stringify({ at: Date.now(), list })); } catch (error) { /* then nothing is said afterwards */ } },
+  took() {
+    try { const at = host().defaultView.localStorage, kept = JSON.parse(at.getItem(LOADED) || 'null'); at.removeItem(LOADED); return kept && Date.now() - kept.at < 60000 ? kept.list : null; } catch (error) { return null; }
+  },
+};
 function section(name, title, draw, path) {
   const E = logseq.Experiments, React = E?.React;
   if (!React?.createElement || !E.registerSidebarRenderer) return { open() { G.say(`${title} cannot be shown: this Logseq lends plugins no sidebar section`, 'warning'); }, off() {} };
@@ -420,5 +440,5 @@ const OPENED = `
 .lk-editor .ls-page-icon :is(.ui__icon, svg) { width: 18px !important; height: 18px !important; font-size: 18px !important; }
 .lk-editor .lsp-hook-ui-slot { display: none !important; }`;
 
-G.touch = { watch, changed, writing, edit, digs, seat, names, pages, pageFoot, pageHead, editor, open, openUrl, busy, left, tagList, key, command, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE };
+G.touch = { watch, changed, writing, edit, digs, seat, names, plugins, pages, pageFoot, pageHead, editor, open, openUrl, busy, left, tagList, key, command, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE };
 })();

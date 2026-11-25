@@ -203,3 +203,13 @@ test('different kinds of value, the same property, or nothing to move are refuse
   assert.match(move.plan({ nodes: [], from: P('From'), into: P('Into') }).refused, /No node here/);
   assert.equal(move.plan({ nodes, from: P('From'), into: { title: 'Brand new', isNew: true, many: false } }).refused, '');
 });
+
+// ---- what a reload of the plugins brought
+const update = require('../core/update.js');
+test('a reload says which plugin now runs another version, or that nothing newer was there', () => {
+  const was = [{ id: 'a', title: 'Logseq Plugin', version: '0.9.0' }, { id: 'b', title: 'Other', version: '1.0.0' }];
+  assert.equal(update.said(was, [{ id: 'a', title: 'Logseq Plugin', version: '0.9.1' }, { id: 'b', title: 'Other', version: '1.0.0' }]), 'Plugins updated: Logseq Plugin 0.9.0 to 0.9.1');
+  assert.equal(update.said(was, was), 'Plugins reloaded, nothing newer in their folders: Logseq Plugin 0.9.0, Other 1.0.0');
+  assert.equal(update.said([was[0]], [was[0]]), 'Plugins reloaded, nothing newer in its folder: Logseq Plugin 0.9.0');
+  assert.equal(update.said([], [was[0]]), '');
+});
