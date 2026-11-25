@@ -9,6 +9,8 @@
      write.newTag(name)             a new tag of the person's, at the top; answers its uuid
      write.untag(uuid, tag)         one of the person's tags taken off a node
      write.tag(uuid, tag)           one of the person's tags put on a node
+     write.moveTag(uuid, to, from)  a tag put under another (to) or at the top (''), and taken from under the tags in from
+     write.addNode(tag, ident, id)  a new empty bullet on today's journal, tagged, pointing at node id through a property; its uuid
      write.placeTag(uuid, under)    a tag put under another tag (in place of where it sat)
      write.undo()                   Logseq's Undo */
 (function () {
@@ -36,6 +38,21 @@ G.write = {
   async newTag(name) { const made = await logseq.Editor.createPage(String(name || '').trim(), {}, { redirect: false, class: true }); return String(made?.uuid || ''); },
   untag: (uuid, tag) => logseq.Editor.removeBlockTag(sure(uuid), sure(tag)),
   tag: (uuid, tag) => logseq.Editor.addBlockTag(sure(uuid), sure(tag)),
+  // A tag moved: put under another tag (to), or to the top (to: ''), and taken from under the ones it sat under (from).
+  async moveTag(uuid, to, from = []) {
+    if (to) await logseq.Editor.addTagExtends(sure(uuid), sure(to));
+    for (const was of from) if (was !== to) await logseq.Editor.removeTagExtends(sure(uuid), sure(was));
+  },
+  // A new, empty bullet at the end of today's journal that holds a tag and points at a node through a property; answers its uuid.
+  async addNode(tag, ident, id) {
+    if (!/^user\.property\/[\w.-]+$/.test(String(ident)) || !Number.isSafeInteger(id) || id <= 0) throw new Error('a new node points at a node of the graph through one of your properties');
+    const page = await G.read.journal(G.days.number(new Date())) || String((await logseq.Editor.createJournalPage(new Date()))?.uuid || '');
+    if (!UUID.test(page)) throw new Error('today’s journal could not be found');
+    const made = String((await logseq.Editor.appendBlockInPage(page, ''))?.uuid || '');
+    await logseq.Editor.addBlockTag(sure(made), sure(tag));
+    await logseq.Editor.upsertBlockProperty(made, ident, id, { entityId: true });
+    return made;
+  },
   placeTag: (uuid, under) => logseq.Editor.addTagExtends(sure(uuid), sure(under)),
   undo: () => logseq.App.invokeExternalCommand('logseq.editor/undo'),
 };

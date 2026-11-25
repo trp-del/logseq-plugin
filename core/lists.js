@@ -6,15 +6,32 @@
    One list for each property, by the property's name; then Scheduled and Deadline; Mentioned in last. A node already in a
    property's list is not said again under Mentioned in. Rows: dated ones newest first, then the undated by their words.
    A list whose rows all have the same tag says the tag once, on the list (tag), and its rows leave it out (row.tagShown false).
+   A list of two or more says how many (count, said: "4 Transfers", or the bare number where the tags differ) and, where its rows
+   have different days, from when to when (from, to).
    own: the day of the node itself, when it is a journal day: a row's day is left out where it would only repeat it (dayShown). */
 (function (root) {
 const byRow = (a, b) => (b.day || 0) - (a.day || 0) || String(a.words).localeCompare(String(b.words)) || String(a.uuid).localeCompare(String(b.uuid));
+// A tag's name for several of its kind: "Transfer" -> "Transfers", "Category" -> "Categories", "Bills" stays.
+function plural(name) {
+  const word = String(name || '');
+  if (!word || /s$/i.test(word)) return word;
+  if (/[^aeiou]y$/i.test(word)) return word.slice(0, -1) + 'ies';
+  if (/(x|z|ch|sh)$/i.test(word)) return word + 'es';
+  return word + 's';
+}
 function finish(list, own) {
   const seen = new Set();
   list.rows = list.rows.filter(node => !seen.has(node.uuid) && seen.add(node.uuid)).sort(byRow);
   const tags = new Set(list.rows.map(node => node.tag || ''));
-  list.tag = tags.size === 1 && list.rows.length > 1 ? [...tags][0] : '';
+  list.one = tags.size === 1 ? [...tags][0] : '';   // the one tag all its rows hold, a single row's too: what + adds
+  list.tag = list.one && list.rows.length > 1 ? list.one : '';
   list.rows = list.rows.map(node => ({ ...node, tagShown: !list.tag && !!node.tag, dayShown: node.day && node.day !== own ? node.day : 0 }));
+  // How many, of what, over what time: said once on the list's head. One row needs no count; one day needs no span.
+  list.count = list.rows.length > 1 ? list.rows.length : 0;
+  list.said = !list.count ? '' : list.tag ? `${list.count} ${plural(list.tag)}` : String(list.count);
+  const days = list.rows.map(node => node.dayShown).filter(Boolean);
+  list.from = days.length > 1 ? Math.min(...days) : 0; list.to = days.length > 1 ? Math.max(...days) : 0;
+  if (list.from === list.to) list.from = list.to = 0;
   return list;
 }
 function lists({ links = [], mentions = [], dues = [], own = 0 } = {}) {
@@ -35,7 +52,7 @@ function lists({ links = [], mentions = [], dues = [], own = 0 } = {}) {
 }
 // Which rows a list shows before "Show all": the first few, or every one once asked or when only a couple more would be hidden.
 function shown(rows, all, few = 10) { return all || rows.length <= few + 2 ? rows : rows.slice(0, few); }
-const api = { lists, shown };
+const api = { lists, shown, plural };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else (root.PluginDoor ||= {}).lists = api;
 })(typeof window !== 'undefined' ? window : globalThis);

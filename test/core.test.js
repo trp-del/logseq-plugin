@@ -155,3 +155,24 @@ test('a date takes the journal day only where every earlier node was dated that 
 test('a property with no range takes nothing', () => {
   assert.deepEqual(sure(facts({ props: [{ ident: 'p/any', type: 'node', range: [] }], linked: [chen] })), []);
 });
+
+// ---- what a list's head says, and how many stand under a tag
+const { plural } = require('../core/lists.js');
+test('a tag\'s name for several of its kind', () => {
+  assert.deepEqual(['Transfer', 'Category', 'Bills', 'Tax', 'Bill payment', ''].map(plural), ['Transfers', 'Categories', 'Bills', 'Taxes', 'Bill payments', '']);
+});
+test('a list of several says how many, of what, and from when to when; a list of one says neither', () => {
+  const node = (uuid, day, tag) => ({ uuid, words: uuid, day, tag });
+  const prop = { ident: 'p/by', title: 'By', uuid: 'u' };
+  const [many] = lists({ links: [{ prop, node: node('a', 20261004, 'Visit') }, { prop, node: node('b', 20260920, 'Visit') }, { prop, node: node('c', 0, 'Visit') }] });
+  assert.deepEqual([many.said, many.one, many.from, many.to], ['3 Visits', 'Visit', 20260920, 20261004]);
+  const [mixed] = lists({ links: [{ prop, node: node('a', 20261004, 'Visit') }, { prop, node: node('b', 20261004, 'Call') }] });
+  assert.deepEqual([mixed.said, mixed.one, mixed.from, mixed.to], ['2', '', 0, 0]);
+  const [single] = lists({ links: [{ prop, node: node('a', 20261004, 'Visit') }] });
+  assert.deepEqual([single.said, single.one, single.tag], ['', 'Visit', '']);
+});
+test('the nodes under a tag are its own and those of the tags below it, each counted once', () => {
+  const tags = new Map([[1, { id: 1, title: 'Entity', parents: [] }], [2, { id: 2, title: 'Person', parents: [1] }], [3, { id: 3, title: 'Doctor', parents: [2] }], [4, { id: 4, title: 'Place', parents: [] }]]);
+  const counts = find.counts(tags, [[1, 10], [2, 11], [3, 11], [3, 12], [4, 13], [9, 14]]);
+  assert.deepEqual([counts.get(1), counts.get(2), counts.get(3), counts.get(4)], [3, 2, 2, 1]);
+});

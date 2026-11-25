@@ -1,5 +1,6 @@
 /* NODE: the one line any node is shown as, wherever a list shows it.
-     G.line.html(node, { names, statuses, tagShown })   the line's markup: bullet, status circle if a task, words, tag, and
+     G.line.html(node, { names, statuses, tagShown })   the line's markup: bullet, status circle if a task, words, tag, a count
+                                                        at its end where the node has one (node.count), and
                                                         after them node.why: values of the node that a search matched
      G.line.act(event, row)                             what a press or a key on a line does; true when it took the event
      G.line.menu(at, row)                               the line's right-click menu
@@ -26,7 +27,7 @@ function statusHtml(node, statuses) {
   return `<button type="button" class="lk-status" title="${G.esc(s.title)}" aria-label="Status: ${G.esc(s.title)}">${G.touch.statusIcon(s.icon) || G.esc(s.title)}</button>`;
 }
 function html(node, { names, statuses, tagShown }) {
-  return `<span class="lk-bul" aria-hidden="true"></span>${statusHtml(node, statuses)}<span class="lk-words">${wordsHtml(node.words, names)}${tagShown && node.tag ? ` <span class="lk-tag">${G.esc(node.tag)}</span>` : ''}${(node.why || []).map(value => ` <span class="lk-why">${G.esc(value)}</span>`).join('')}</span>`;
+  return `<span class="lk-bul" aria-hidden="true"></span>${statusHtml(node, statuses)}<span class="lk-words">${wordsHtml(node.words, names)}${tagShown && node.tag ? ` <span class="lk-tag">${G.esc(node.tag)}</span>` : ''}${(node.why || []).map(value => ` <span class="lk-why">${G.esc(value)}</span>`).join('')}</span>${node.count ? `<span class="lk-num">${Number(node.count)}</span>` : ''}`;
 }
 
 async function pickStatus(at, row) {
@@ -42,21 +43,22 @@ async function pickTags(at, row) {
   G.menu(at, [{ group: 'Tags' }, ...G.find.tree(tags).map(({ tag, depth }) => ({ word: tag.title, depth, face: 'tag', on: has.has(tag.id),
     take: () => (has.has(tag.id) ? G.write.untag(uuid, tag.uuid) : G.write.tag(uuid, tag.uuid)).catch(error => G.say(`The tag could not be changed: ${error?.message || 'Logseq refused'}`, 'warning')) }))]);
 }
-async function menu(at, row) {
+async function menu(at, row, more) {
   const uuid = row.dataset.uuid, statuses = row.dataset.status ? await G.read.statuses() : [], now = Number(row.dataset.status) || 0;
   G.menu(at, [
     { word: 'Open', icon: G.touch.icon('arrow-right'), take: () => G.touch.open(uuid) },
     { word: 'Open in sidebar', icon: G.touch.icon('layout-sidebar-right'), take: () => G.touch.open(uuid, true) },
     ...(row.closest('.lk-list')?.dataset.face ? [] : [{ gap: true }, { word: 'Tags…', icon: G.touch.icon('hash'), take: () => pickTags(at, row) }]),   // not on a tag or a property itself
     ...(statuses.length ? [{ gap: true }, { group: 'Status' }, ...statuses.map(s => ({ word: s.title, icon: G.touch.statusIcon(s.icon), on: s.id === now, take: () => G.write.setStatus(uuid, s.title).catch(error => G.say(`The status could not be set: ${error?.message || 'Logseq refused'}`, 'warning')) }))] : []),
+    ...((more && more(row, at)) || []),   // what the place itself offers for this row
     { gap: true },
     { word: 'Delete', icon: G.touch.icon('trash'), take: () => G.write.remove(uuid, row.dataset.page === '1').catch(error => G.say(`It could not be deleted: ${error?.message || 'Logseq refused'}`, 'warning')) },
   ]);
 }
 // A press or a key on a closed line. The list calls this for every event in it; true says the line took it.
-function act(event, row) {
+function act(event, row, more) {
   const target = event.target, line = target.closest('.lk-line');
-  if (event.type === 'contextmenu') { if (!line) return false; event.preventDefault(); menu({ x: event.clientX, y: event.clientY, from: line }, row); return true; }
+  if (event.type === 'contextmenu') { if (!line) return false; event.preventDefault(); menu({ x: event.clientX, y: event.clientY, from: line }, row, more); return true; }
   if (event.type === 'click') {
     const status = target.closest('.lk-status');
     if (status && line) { pickStatus(status, row); return true; }
@@ -99,6 +101,7 @@ G.line.CSS = `
 a.lk-tag { cursor: pointer; }
 .lk-none, .lk-off { color: var(--lk-off); }
 .lk-why { color: var(--lk-quiet); font-size: var(--lk-small); margin-left: .35em; }
+.lk-num { flex: none; margin-left: auto; padding-left: 12px; font-size: var(--lk-small); color: var(--lk-off); font-variant-numeric: tabular-nums; }
 /* In a narrow place (the sidebar) the words get the whole width: the day stands under them, an outline steps in less, and an
    opened node takes the width of the list. */
 @container lk-list (max-width: 300px) {

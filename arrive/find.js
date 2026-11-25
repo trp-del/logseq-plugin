@@ -119,6 +119,9 @@ G.part({
       try { was.back?.focus?.({ preventScroll: true }); } catch (error) { /* gone */ }
     }
     G.touch.command('lk-find', 'Find', open);
+    // Find opened with a kind already taken: how another place shows a tag's nodes.
+    G.arrive = { find: async id => { const tag = (await G.read.tags()).get(id); open(); if (tag) take(tag); } };
+    base.onStop(() => { G.arrive = { find() {} }; });
     base.onStop(G.touch.key('mod+k', () => { if (G.setting('findTakesSearchKey') === false) return false; if (win) close(); else open(); }));
     base.onStop(G.touch.changed(() => { if (win) { win.kindNodes = null; draw(); } }));
     base.onStop(close);

@@ -6,7 +6,9 @@
                                                  [{ key, kind, name, tag, rows, face }] (a list with no name has no head; face 'tag' or
                                                  'prop' draws its rows' words as tags or properties are drawn); opts: press(row,
                                                  event) -> true when the place takes a press on a line itself, few (rows before Show
-                                                 all), none (words to say when there is nothing). Gives back { off(), again() }
+                                                 all), none (words to say when there is nothing), add(list) -> the uuid of a
+                                                 node it made for a list's + , key(row, event) -> true when the place takes a key
+                                                 on a line, more(row) -> the place's own lines for a row's menu. Gives back { off(), again() }
      G.node.adder(holder, name, add, failed)     a line at the head of holder that adds (a task, a tag); gives back what removes it
      G.node.lists(el, uuid)                      the listing of what points at a node; gives back what takes it away */
 (function () {
@@ -61,7 +63,7 @@ const mounted = new Map();   // el -> state
 const EVENTS = ['click', 'keydown', 'contextmenu', 'mousedown'];
 let offChanged = null;
 function listing(el, read, opts = {}) {
-  const state = { el, read, all: new Set(), turn: 0, press: opts.press || null, few: opts.few || 10, none: opts.none || '' };
+  const state = { el, read, all: new Set(), turn: 0, press: opts.press || null, few: opts.few || 10, none: opts.none || '', add: opts.add || null, key: opts.key || null, more: opts.more || null };
   mounted.set(el, state);
   const onEvent = event => handle(state, event);
   for (const type of EVENTS) el.addEventListener(type, onEvent);
@@ -86,7 +88,11 @@ function lists(el, uuid) {
     if (!node) return [];
     const [pointing, dues] = await Promise.all([G.read.pointingAt(node.id), node.day ? G.read.dues(node.day) : []]);
     return L.lists({ ...pointing, dues, own: node.day || 0 });
-  }).off;
+  }, { add: async list => {
+    const [tags, target] = await Promise.all([G.read.tags(), G.read.node(uuid)]), those = [...tags.values()].filter(tag => tag.title === list.one);
+    if (those.length !== 1 || !target) throw new Error(`no one tag is called ${list.one}`);
+    return G.write.addNode(those[0].uuid, list.prop.ident, target.id);
+  } }).off;
 }
 async function load(state) {
   const turn = ++state.turn;
@@ -126,7 +132,12 @@ function draw(state, made, names, statuses) {
   }, (box, list) => {
     const isFolded = folded.has(list.key), head = box.firstElementChild, rowsEl = box.children[1];
     head.setAttribute('aria-expanded', String(!isFolded));
-    const name = `<span class="${list.kind === 'property' || list.kind === 'due' ? 'lk-prop' : list.kind === 'none' ? 'lk-none' : 'lk-plain'}">${G.esc(list.name)}</span>${list.tag ? ` <span class="lk-tag">${G.esc(list.tag)}</span>` : ''}`;
+    // The head says what the list is, how many it holds and of what, and from when to when; + adds one more of its kind.
+    const said = list.said || list.tag || '';
+    const name = `<span class="${list.kind === 'property' || list.kind === 'due' ? 'lk-prop' : list.kind === 'none' ? 'lk-none' : 'lk-plain'}">${G.esc(list.name)}</span>${said ? ` <span class="lk-tag">${G.esc(said)}</span>` : ''}`
+      + (state.add && list.kind === 'property' && list.one ? `<button type="button" class="lk-plus" title="Add a ${G.esc(list.one)}" aria-label="Add a ${G.esc(list.one)}">${G.touch.icon('plus', 14)}</button>` : '')
+      + (list.from ? `<span class="lk-span">${G.esc(D.short(list.from, today))} to ${G.esc(D.short(list.to, today))}</span>` : '');
+    box.lkList = list;
     if (head.lastElementChild.innerHTML !== name) head.lastElementChild.innerHTML = name;
     head.hidden = !list.name; box.dataset.kind = list.kind; box.dataset.face = list.face || '';
     rowsEl.hidden = isFolded;
@@ -152,6 +163,22 @@ function draw(state, made, names, statuses) {
     } else more?.remove();
   });
 }
+/* + on a list's head: one more node of the list's kind, pointing here through the list's property. It is made on today's
+   journal, shown in the list, opened in place, and the caret stands in it. */
+async function addTo(state, box) {
+  const list = box?.lkList, view = state.el.ownerDocument.defaultView;
+  if (!list || !state.add || box.dataset.adding) return;
+  box.dataset.adding = '1';
+  try {
+    const uuid = String(await state.add(list) || '').toLowerCase();
+    for (let tries = 0; uuid && tries < 30; tries++) {
+      const row = state.el.querySelector(`.lk-row[data-uuid="${uuid}"]`);
+      if (row) { if (!row.dataset.open) open(row); view.setTimeout(() => G.touch.edit(uuid), 900); break; }
+      await new Promise(done => view.setTimeout(done, 150));
+    }
+  } catch (error) { G.say(`It could not be added: ${error?.message || 'Logseq refused'}`, 'warning'); }
+  delete box.dataset.adding;
+}
 function handle(state, event) {
   const target = event.target;
   if (!(target instanceof target.ownerDocument.defaultView.Element)) return;
@@ -161,7 +188,10 @@ function handle(state, event) {
   if (row && target.closest('.lk-open') && target.closest('.lk-open').parentElement === row) return;   // inside the opened node everything is Logseq's
   if (event.type === 'mousedown') { if (event.shiftKey && target.closest('.lk-line')) event.preventDefault(); return; }   // Shift-click opens beside: it selects no words on its way
   if (row && event.type === 'click' && state.press && target.closest('.lk-line') && !target.closest('.lk-status, a[data-to], .lk-url') && state.press(row, event)) { event.stopPropagation(); return; }
-  if (row && G.line.act(event, row)) { event.stopPropagation(); return; }
+  if (row && event.type === 'keydown' && state.key && target.matches('.lk-line') && state.key(row, event)) { event.preventDefault(); event.stopPropagation(); return; }
+  if (row && G.line.act(event, row, state.more)) { event.stopPropagation(); return; }
+  const plus = target.closest('.lk-plus');
+  if (plus) { if (event.type === 'click') { event.preventDefault(); event.stopPropagation(); addTo(state, plus.closest('.lk-list')); } return; }
   const head = target.closest('.lk-list-head');
   if (head && head.parentElement.dataset.kind !== 'none' && (event.type === 'click' || (event.type === 'keydown' && (event.key === 'Enter' || event.key === ' ')))) {
     event.preventDefault(); event.stopPropagation(); folded.flip(head.parentElement.dataset.key); load(state); return;
@@ -213,7 +243,12 @@ G.node.CSS = `
 .lk-list-head:hover .lk-fold, .lk-list-head:focus-visible .lk-fold, .lk-list-head[aria-expanded="false"] .lk-fold { opacity: 1; }
 .lk-prop { font-family: var(--lk-prop-face); font-weight: var(--lk-prop-weight); font-size: .9em; letter-spacing: -.01em; color: var(--lk-quiet); }
 .lk-plain { color: var(--lk-quiet); }
+.lk-list-name { flex: 1; min-width: 0; display: flex; align-items: center; }
 .lk-list-name .lk-tag { margin-left: .5em; font-size: var(--lk-small); }
+.lk-span { margin-left: auto; padding-left: 12px; font-size: var(--lk-small); color: var(--lk-off); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.lk-plus { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; margin-left: 4px; padding: 0; border: 0; border-radius: 6px; background: none; color: var(--lk-quiet); opacity: .55; cursor: pointer; }
+.lk-plus:hover, .lk-plus:focus-visible { opacity: 1; background: var(--lk-wash); outline: none; }
+@container lk-list (max-width: 300px) { .lk-span { display: none; } }
 .lk-more { margin: 2px 0 0 calc(var(--lk-daycol, 0px) + 34px); padding: 2px 0; border: 0; background: none; color: var(--lk-quiet); font: inherit; font-size: var(--lk-small); cursor: pointer; }
 .lk-more:hover { color: var(--lk-text); }
 .lk-add { display: flex; margin: -4px 0 12px -22px; padding: 4px 0 0 22px; position: sticky; top: 0; z-index: 2; background: var(--lk-ground, transparent); }   /* stays in view while the list moves to what was added */

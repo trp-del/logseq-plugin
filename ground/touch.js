@@ -5,6 +5,7 @@
      touch.changed(fn, atOnce) fn runs a moment after the graph changed (atOnce: at every change, so it must be light); gives
                               back what stops it
      touch.writing()          the text box of the bullet being written in, or null
+     touch.edit(uuid)         the caret put into a node's words
      touch.pages()            Logseq's own pages on screen, each { el, uuid, feed }: the main page, a page in the sidebar,
                               a day in the journals feed (feed: true)
      touch.pageFoot(el, name) where, in one of those pages, something of the plugin's may stand under the page's bullets
@@ -50,6 +51,8 @@ function changed(fn, atOnce = false) {
   if (!offChanged) offChanged = logseq.DB.onChanged(() => { tell(heardAtOnce); clearTimeout(timer); timer = setTimeout(() => { G.read.forget(); tell(heard); }, 500); });
   return () => { heard.delete(fn); heardAtOnce.delete(fn); if (!heard.size && !heardAtOnce.size && typeof offChanged === 'function') { offChanged(); offChanged = null; clearTimeout(timer); } };
 }
+// The caret put into a node's words, wherever Logseq shows the node.
+const edit = uuid => logseq.Editor.editBlock(String(uuid));
 // The text box of the bullet being written in, or null.
 const writing = () => { const el = host().activeElement; return el?.tagName === 'TEXTAREA' && el.closest('.ls-block[blockid]') ? el : null; };
 
@@ -298,5 +301,5 @@ const OPENED = `
 .lk-editor .ls-page-icon :is(.ui__icon, svg) { width: 18px !important; height: 18px !important; font-size: 18px !important; }
 .lk-editor .lsp-hook-ui-slot { display: none !important; }`;
 
-G.touch = { watch, changed, writing, pages, pageFoot, pageHead, editor, open, openUrl, busy, left, tagList, key, command, section, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE };
+G.touch = { watch, changed, writing, edit, pages, pageFoot, pageHead, editor, open, openUrl, busy, left, tagList, key, command, section, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE };
 })();

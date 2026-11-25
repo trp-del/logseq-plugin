@@ -119,6 +119,22 @@ Ontology has a line at its top, "New tag": Enter makes a tag of your own at the 
 name that exists is shown instead of made twice. A closed line's right-click menu has "Tags…": your tags as an outline, the
 node's own ticked; a press puts a tag on the node or takes it off. The same line that adds a task in Todo adds the tag here.
 
+### A list's head, and + on it
+
+In Relations a list of two or more says, after the property's name, how many it holds and of what ("4 Transfers", or the bare
+number where the tags differ) and, at its right end, from when to when. Where every row of a list has the same tag, a + stands
+on the head: a press makes one more node of that kind on today's journal, pointing here through the list's property, opens it
+in place and puts the caret in it.
+
+### Ontology: counts, moving a tag, the lines between tags
+
+Each tag says at its right how many nodes stand under it, its own and those of the tags below it. With the keys on a tag, Tab
+puts it under the tag above it at its level and Shift-Tab takes it out one level, as in any outline; its right-click menu has
+Show its nodes (Find, with the tag taken), Put under… and Move to the top. A move is written at once and is two steps of
+Logseq's Undo. The tag under the pointer or the keys shows hairlines to the tags it is joined with: a tag is joined to another
+when its nodes hold, under one of your properties, nodes of the other; the small head stands at the tag that is held, and the
+other names step back.
+
 ### The day in Find
 
 In Find the words start each row and the day stands at the row's right end, right-aligned. In the lists of Relations and Todo

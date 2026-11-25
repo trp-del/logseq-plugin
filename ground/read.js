@@ -12,6 +12,8 @@
      read.tags()              id -> { id, title, uuid, parents: [id] }   the person's own tags and what each sits under
      read.tagsOf(id)          the ids of a node's own tags
      read.tagIds()            the ids of the person's tags as they are this moment (never kept)
+     read.tagPairs()          [[tag id, node id]]   which node holds which of the person's tags
+     read.relations()         [[tag id, property ident, tag id, n]]   n nodes of the first tag hold, under the property, a node of the second
      read.newPages(since)     the plain, untagged pages made since a time in milliseconds (never kept): [{ id, uuid, title }]
      read.search(words)       Logseq's own search for the words, its order kept: [node]
      read.tagged(tagIds)      the nodes holding any of these tags: [node]
@@ -58,6 +60,18 @@ const tags = () => once('tags', async () => {
 const tagIds = async () => new Set((await q('[:find ?t ?i :where [?t :block/tags :logseq.class/Tag] [?t :db/ident ?i]]')).filter(([, ident]) => /^user\.class\//.test(bare(ident))).map(([id]) => id));
 // The plain pages made since a moment (a time in milliseconds), asked afresh each time: no journal day, no tag, no property,
 // and none that already holds one of the person's tags.
+// Which node holds which of the person's tags: [[tag id, node id]], kept until the graph changes.
+const tagPairs = () => once('tagPairs', async () => {
+  const mine = await tagIds();
+  return (await q(`[:find ?t ?b :where [?b :block/tags ?t] [?t :block/tags :logseq.class/Tag] ${LIVE}]`)).filter(([t]) => mine.has(t));
+});
+// How the person's tags are joined by their properties, from the real values: [[tag id, property ident, tag id, how many]], a
+// node of the first tag holding, under the property, a node of the second. Kept until the graph changes.
+const relations = () => once('relations', async () => {
+  const mine = await tagIds();
+  const rows = await q(`[:find ?ta ?a ?tb (count ?b) :where [?p :db/ident ?a] [(namespace ?a) ?ns] [(= ?ns "user.property")] [?b ?a ?v] [?b :block/tags ?ta] [?v :block/tags ?tb]]`);
+  return rows.filter(([a, , b]) => mine.has(a) && mine.has(b)).map(([a, ident, b, n]) => [a, bare(ident), b, Number(n) || 0]);
+});
 async function newPages(since) {
   const rows = await q(`[:find ?p ?u ?t :where [?p :block/created-at ?c] [(> ?c ${Number(since) || 0})] [?p :block/tags :logseq.class/Page] [?p :block/uuid ?u] [?p :block/title ?t]]`);
   if (!rows.length) return [];
@@ -228,10 +242,13 @@ async function writing(uuid) {
   const props = [...idents].map(ident => known.props.get(ident)).filter(Boolean);
   if (!props.length) return null;
   const [held, refs, [[pageId, pageDay] = []]] = await Promise.all([
-    q(`[:find ?a :where [${at.id} ?a _] [?p :db/ident ?a] [(namespace ?a) ?ns] [(= ?ns "user.property")]]`),
+    q(`[:find ?a ?v :where [${at.id} ?a ?v] [?p :db/ident ?a] [(namespace ?a) ?ns] [(= ?ns "user.property")]]`),
     q(`[:find ?r :where [${at.id} :block/refs ?r] [?r :block/title _] (not [?r :db/ident _])]`),
     q(`[:find ?p ?d :where [${at.id} :block/page ?p] [(get-else $ ?p :block/journal-day 0) ?d]]`)]);
-  const about = [...new Set([...refs.map(([r]) => r), pageId].filter(isId))];
+  // A node the bullet already holds as a value is no link of its words (Logseq counts a value among a bullet's references): it
+  // is never offered to a second property.
+  const valued = new Set(held.map(([, v]) => v).filter(isId)), linkedRefs = refs.filter(([r]) => !valued.has(r));
+  const about = [...new Set([...linkedRefs.map(([r]) => r), pageId].filter(isId))];
   const tagged = about.length ? await q(`[:find ?n ?t :where ${among('?n', about)} [?n :block/tags ?t]]`) : [];
   const tagsFor = id => tagged.filter(([n, t]) => n === id && tagIndex.has(t)).map(([, t]) => t);
   const dated = new Map();
@@ -239,9 +256,9 @@ async function writing(uuid) {
     const rows = await q(`[:find ?b ?d ?jd :where ${among('?t', own)} [?b :block/tags ?t] [?b :${prop.ident} ?v] [?v :block/journal-day ?d] [?b :block/page ?pg] [?pg :block/journal-day ?jd]]`);
     dated.set(prop.ident, { same: rows.filter(([, d, jd]) => d === jd).length, other: rows.filter(([, d, jd]) => d !== jd).length });
   }
-  return { uuid: at.uuid, tags: own, tagIndex, props, held: new Set(held.map(([a]) => bare(a))), linked: refs.map(([r]) => ({ id: r, tags: tagsFor(r) })).filter(one => one.tags.length),
+  return { uuid: at.uuid, tags: own, tagIndex, props, held: new Set(held.map(([a]) => bare(a))), linked: linkedRefs.map(([r]) => ({ id: r, tags: tagsFor(r) })).filter(one => one.tags.length),
     page: isId(pageId) ? { id: pageId, tags: tagsFor(pageId), day: Number(pageDay) || 0 } : null, dated };
 }
 
-G.read = { byUuids, schema, writing, search, tagged, values, tasks, journal, q, node, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, newPages, tagsOf, forget: () => kept.clear(), isId, UUID };
+G.read = { byUuids, schema, writing, search, tagged, values, tasks, journal, q, node, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, relations, newPages, tagsOf, forget: () => kept.clear(), isId, UUID };
 })();

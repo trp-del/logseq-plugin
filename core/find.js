@@ -1,6 +1,7 @@
 /* Finding, decided. No Logseq here.
      tree(tags)                 the tags as an outline: [{ tag, depth }], tops by name, each tag's children under it by name
      under(id, tags)            the ids of a tag and of every tag below it
+     counts(tags, pairs)        tag id -> how many nodes hold it or a tag below it; pairs: [[tag id, node id]]
      kinds(tags, words)         the tags whose name holds every typed word, best first
      narrow(nodes, words)       the nodes that hold every typed word, in their words, their tag, a value of theirs or their day;
                                 each answered with why: the values a word matched that the node's own words do not show
@@ -48,7 +49,15 @@ function narrow(nodes, words) {
   }
   return out.sort((a, b) => b.starts - a.starts).map(found => found.node);
 }
-const api = { tokens, tree, under, kinds, narrow };
+// How many nodes stand under each tag: its own and those of every tag below it, a node counted once. pairs: [[tag id, node id]].
+function counts(tags, pairs) {
+  const own = new Map();
+  for (const [tag, node] of pairs) { if (!tags.has(tag)) continue; if (!own.has(tag)) own.set(tag, new Set()); own.get(tag).add(node); }
+  const out = new Map();
+  for (const id of tags.keys()) { const all = new Set(); for (const one of under(id, tags)) for (const node of own.get(one) || []) all.add(node); out.set(id, all.size); }
+  return out;
+}
+const api = { tokens, tree, under, kinds, narrow, counts };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else (root.PluginDoor ||= {}).find = api;
 })(typeof window !== 'undefined' ? window : globalThis);
