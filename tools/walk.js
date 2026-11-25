@@ -21,7 +21,7 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
   const wait = ms => page.waitForTimeout(ms);
   const goto = async uuid => { await page.evaluate(u => window.logseq.api.push_state('page', { name: u }), uuid); await wait(1800); };
   const count = sel => page.locator(sel).count();
-  const lists = () => page.evaluate(() => [...document.querySelectorAll('.lk-rel')].map(rel => ({ where: rel.closest('#right-sidebar') ? 'sidebar' : rel.closest('.lk-open') ? 'opened' : 'main', lists: [...rel.querySelectorAll(':scope > .lk-list')].map(l => `${l.querySelector('.lk-list-name').innerText} (${l.querySelectorAll(':scope > .lk-rows > .lk-row').length})`) })));
+  const lists = () => page.evaluate(() => [...document.querySelectorAll('.lk-rel')].map(rel => ({ where: rel.closest('#right-sidebar') ? 'sidebar' : rel.closest('.lk-open') ? 'opened' : 'main', lists: [...rel.querySelectorAll(':scope > .lk-list')].map(l => `${[l.querySelector('.lk-list-via').innerText, l.querySelector('.lk-list-name').innerText].filter(Boolean).join('\n')} (${l.querySelectorAll(':scope > .lk-rows > .lk-row').length})`) })));
   let n = 0;
   const step = async (what, check) => { n++; try { const said = await check(); if (said !== true) faults.push(`${what}: ${said}`); } catch (error) { faults.push(`${what}: ${String(error.message || error).split('\n')[0]}`); } };
   const is = (got, want) => JSON.stringify(got) === JSON.stringify(want) || `got ${JSON.stringify(got)}, not ${JSON.stringify(want)}`;
@@ -59,7 +59,7 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
     await goto(NORTHGATE);
     await step('a page opened in a row reads as a line: its name the size of the words, its own lists under it', async () => {
       await page.locator('.lk-row .lk-line').first().click(); await wait(2200);
-      return is(await page.evaluate(() => { const ed = document.querySelector('.lk-editor'); return [getComputedStyle(ed.querySelector('.ls-page-title-container')).fontSize, [...document.querySelectorAll('.lk-open > .lk-rel > .lk-list .lk-list-name')].map(el => el.innerText)]; }), ['16px', ['Decided by\n3 Decisions\nAug 20 to Oct 14', 'Provider\n2 Consultations\nAug 20 to Oct 7']]);
+      return is(await page.evaluate(() => { const ed = document.querySelector('.lk-editor'); return [getComputedStyle(ed.querySelector('.ls-page-title-container')).fontSize, [...document.querySelectorAll('.lk-open > .lk-rel > .lk-list > .lk-list-head')].map(el => [el.querySelector('.lk-list-via').innerText, el.querySelector('.lk-list-name').innerText].filter(Boolean).join('\n'))]; }), ['16px', ['Decided by\n3 Decisions\nAug 20 to Oct 14', 'Provider\n2 Consultations\nAug 20 to Oct 7']]);
     });
     await step('a node opens inside an opened node, and Escape closes one at a time, innermost first', async () => {
       await page.locator('.lk-open .lk-row .lk-line').nth(1).click(); await wait(1800);
@@ -270,12 +270,17 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
     await goto(CHEN);
     const MAIN = '#main-content-container .cp__page-inner-wrap > .lk-rel > .lk-list';
     await step('a list\'s head says how many it holds, of what, and from when to when', async () => {
-      const heads = await page.evaluate(sel => [...document.querySelectorAll(sel)].map(l => [l.querySelector('.lk-list-name .lk-tag')?.innerText || '', l.querySelector('.lk-span')?.innerText || '', l.querySelectorAll(':scope > .lk-rows > .lk-row').length]), MAIN);
+      const heads = await page.evaluate(sel => [...document.querySelectorAll(sel)].map(l => [l.querySelector('.lk-list-name :is(.lk-said, .lk-tag)')?.innerText || '', l.querySelector('.lk-span')?.innerText || '', l.querySelectorAll(':scope > .lk-rows > .lk-row').length]), MAIN);
       const counted = heads.filter(h => /^\d+ \S/.test(h[0]));
       return is([counted.length > 0, counted.every(h => parseInt(h[0], 10) >= h[2] && parseInt(h[0], 10) > 1), heads.some(h => /^\w{3} \d+.* to \w{3} \d+/.test(h[1]))], [true, true, true]);
     });
+    await step('a property\'s list has its head on two lines: the property\'s name, and under it the count, starting on one line', async () => {   // the owner, 25 November 2026: "I prefer the two line of oriiginal"
+      const heads = await page.evaluate(sel => { const left = el => { const range = document.createRange(); range.selectNodeContents(el); return range.getBoundingClientRect(); };
+        return [...document.querySelectorAll(sel)].filter(l => l.dataset.kind === 'property' && l.querySelector('.lk-said')).map(l => { const name = left(l.querySelector('.lk-list-via .lk-prop')), said = left(l.querySelector('.lk-said')); return [name.bottom <= said.top + 1, Math.abs(name.left - said.left) < 1.5, /^\d+ \S/.test(l.querySelector('.lk-said').innerText)]; }); }, MAIN);
+      return is([heads.length > 0, heads.every(h => h[0] && h[1] && h[2])], [true, true]);
+    });
     await step('+ on a list\'s head adds a node of its kind that points here, opens it, and leaves the caret in it', async () => {
-      const list = page.locator(MAIN, { has: page.locator('.lk-plus') }).first(), before = await list.locator(':scope > .lk-rows > .lk-row').count(), name = await list.locator('.lk-list-name .lk-prop').innerText();
+      const list = page.locator(MAIN, { has: page.locator('.lk-plus') }).first(), before = await list.locator(':scope > .lk-rows > .lk-row').count(), name = await list.locator('.lk-list-head .lk-prop').innerText();
       await list.locator('.lk-plus').click(); await wait(3800);
       const where = await page.evaluate(() => [document.activeElement?.tagName, !!document.activeElement?.closest('.lk-open')]);
       await page.keyboard.type('Zzadded here', { delay: 20 }); await page.keyboard.press('Escape'); await wait(2500);

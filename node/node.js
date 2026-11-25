@@ -184,16 +184,23 @@ function draw(state, made, names, statuses) {
   const wanted = made.length || !state.none ? made : [{ key: 'none', kind: 'none', name: state.none, rows: [] }];
   sync(state.el, wanted, list => list.key, () => {
     const box = doc.createElement('div'); box.className = 'lk-list';
-    box.innerHTML = `<div class="lk-list-head" role="button" tabindex="0"><span class="lk-fold">${ARROW}</span><span class="lk-list-name"></span></div><div class="lk-rows"></div>`;
+    box.innerHTML = `<div class="lk-list-head" role="button" tabindex="0"><span class="lk-fold">${ARROW}</span><span class="lk-list-via"></span><span class="lk-list-name"></span></div><div class="lk-rows"></div>`;
     return box;
   }, (box, list) => {
     const isFolded = folded.has(list.key), head = box.firstElementChild, rowsEl = box.children[1];
     head.setAttribute('aria-expanded', String(!isFolded));
-    // The head says what the list is, how many it holds and of what, and from when to when; + adds one more of its kind.
-    const said = list.said || list.tag || '';
-    const name = `<span class="${list.kind === 'property' || list.kind === 'due' ? 'lk-prop' : list.kind === 'none' ? 'lk-none' : 'lk-plain'}">${G.esc(list.name)}</span>${said ? ` <span class="lk-tag">${G.esc(said)}</span>` : ''}`
-      + (state.add && list.kind === 'property' && list.one ? `<button type="button" class="lk-plus" title="Add a ${G.esc(list.one)}" aria-label="Add a ${G.esc(list.one)}">${G.touch.icon('plus', 14)}</button>` : '')
-      + (list.from ? `<span class="lk-span">${G.esc(D.short(list.from, today))} to ${G.esc(D.short(list.to, today))}</span>` : '');
+    /* The head says what the list is, how many it holds and of what, and from when to when; + adds one more of its kind.
+       A property's list has its head on two lines, as the plugin before the rebuild drew it (the owner, 25 November 2026: "I
+       prefer the two line of oriiginal"): the property's mark and name on the first, and under it the count with its kind in
+       the words' own face, the + and the days. A list of one node has nothing to count, so its head is the first line alone. */
+    const said = list.said || list.tag || '', via = list.kind === 'property';
+    const plus = state.add && via && list.one ? `<button type="button" class="lk-plus" title="Add a ${G.esc(list.one)}" aria-label="Add a ${G.esc(list.one)}">${G.touch.icon('plus', 14)}</button>` : '';
+    const span = list.from ? `<span class="lk-span">${G.esc(D.short(list.from, today))} to ${G.esc(D.short(list.to, today))}</span>` : '';
+    const first = via ? `${G.touch.icon('hierarchy', 13)}<span class="lk-prop">${G.esc(list.name)}</span>${list.count ? '' : plus}` : '';
+    const name = via ? (list.count ? `<span class="lk-said">${G.esc(list.tag ? said : `${said} nodes`)}</span>${plus}${span}` : '')
+      : `<span class="${list.kind === 'due' ? 'lk-prop' : list.kind === 'none' ? 'lk-none' : 'lk-plain'}">${G.esc(list.name)}</span>${said ? ` <span class="lk-tag">${G.esc(said)}</span>` : ''}${span}`;
+    if (head.children[1].innerHTML !== first) head.children[1].innerHTML = first;
+    head.toggleAttribute('data-one', via && !list.count);
     box.lkList = list;
     if (head.lastElementChild.innerHTML !== name) head.lastElementChild.innerHTML = name;
     head.hidden = !list.name; box.dataset.kind = list.kind; box.dataset.face = list.face || '';
@@ -301,6 +308,13 @@ G.node.CSS = `
 .lk-prop { font-family: var(--lk-prop-face); font-weight: var(--lk-prop-weight); font-size: .9em; letter-spacing: -.01em; color: var(--lk-quiet); }
 .lk-plain { color: var(--lk-quiet); }
 .lk-list-name { flex: 1; min-width: 0; display: flex; align-items: center; }
+.lk-list-head:has(> .lk-list-via:not(:empty)) { flex-wrap: wrap; }
+.lk-list-via { order: -1; flex: 0 0 100%; display: flex; align-items: center; min-height: 24px; }
+.lk-list-via:empty { display: none; }
+.lk-list-via > :is(svg, .ti):first-child { flex: none; width: 13px; height: 13px; margin: 0 5px 0 2px; font-size: 13px; color: var(--lk-off); }
+.lk-list-head[data-one] > :is(.lk-fold, .lk-list-name) { display: none; }
+.lk-said { font-weight: 500; }
+.lk-list-head:has(> .lk-list-via:not(:empty)) .lk-fold { opacity: 1; }   /* on the count's line the arrow stays in view, faint, as it was */
 .lk-list-name .lk-tag { margin-left: .5em; font-size: var(--lk-small); }
 .lk-span { margin-left: auto; padding-left: 12px; font-size: var(--lk-small); color: var(--lk-off); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .lk-plus { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; margin-left: 4px; padding: 0; border: 0; border-radius: 6px; background: none; color: var(--lk-quiet); opacity: .55; cursor: pointer; }
@@ -330,6 +344,6 @@ G.node.CSS = `
 .lk-relhead::after { content: ""; flex: 1; height: 1px; background: var(--lk-hair); }
 .lk-relhead:not(:has(+ .lk-rel > .lk-list)) { display: none; }
 .lk-dugopen > .lk-relhead { margin-left: 0; }
-.lk-row > .lk-open > .lk-rel { margin: 2px 0 6px 22px; }
-.lk-dugopen > .lk-rel { margin: 2px 0 0; }`;
+.lk-row > .lk-open > .lk-rel { margin: 2px 0 6px 40px; }   /* one step in under the word Relations, so a head's mark stands where the word starts */
+.lk-dugopen > .lk-rel { margin: 2px 0 0 18px; }`;
 })();
