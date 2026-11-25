@@ -50,12 +50,12 @@ test('a day is said short, with its year only in another year', () => {
   assert.equal(days.short(20261340, 20261125), '');
 });
 const node = (uuid, wordsOf, day = 0, tag = '') => ({ uuid, words: wordsOf, day, tag });
-test('one list for each property, by name, mentions last', () => {
+test('one list for each property, the fullest first, mentions last', () => {
   const provider = { ident: 'user.property/provider', title: 'Provider', uuid: 'p1' }, agent = { ident: 'user.property/agent', title: 'Agent', uuid: 'p2' };
   const got = lists({ links: [{ prop: provider, node: node('n1', 'First visit', 20260902, 'Consultation') }, { prop: agent, node: node('n2', 'Chemo') }, { prop: provider, node: node('n3', 'Video call', 20260930, 'Consultation') }],
     mentions: [node('n1', 'First visit'), node('n4', 'A note')] });
-  assert.deepEqual(got.map(l => l.name), ['Agent', 'Provider', 'Mentioned in']);
-  assert.deepEqual(got[1].rows.map(r => r.uuid), ['n3', 'n1']);          // newest first
+  assert.deepEqual(got.map(l => l.name), ['Provider', 'Agent', 'Mentioned in']);
+  assert.deepEqual(got[0].rows.map(r => r.uuid), ['n3', 'n1']);          // newest first
   assert.deepEqual(got[2].rows.map(r => r.uuid), ['n4']);                // n1 is said under Provider already
 });
 test('a tag every row shares is said once, on the list', () => {

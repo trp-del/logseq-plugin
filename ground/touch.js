@@ -114,6 +114,15 @@ function pageFoot(el, name) {
   return foot;
 }
 
+// Under the title and the page's properties, above the page's own bullets: the last thing inside the title's block. null where
+// the page has no title of its own (a bullet shown as a page).
+function pageUnder(el, name) {
+  const block = el.querySelector(':scope > .page-inner .ls-page-title .ls-block');
+  if (!block) return null;
+  let under = [...block.children].find(child => child.classList.contains(name));
+  if (!under) { under = host().createElement('div'); under.className = name; block.appendChild(under); }
+  return under;
+}
 // Under the title's own row and above the page's properties, inside the title's block.
 function pageHead(el, name) {
   const row = el.querySelector(':scope > .page-inner .ls-page-title .ls-block > .is-page-title-row');
@@ -359,7 +368,7 @@ const openUrl = url => logseq.App.openExternalLink(url);
    property tabs. Only where the plugin's stand (:has), so a plugin that failed to draw leaves Logseq's in place. */
 const HIDES_TAGS = `.ls-page-title .ls-block:has(> .lk-place:not(:empty)) > .is-page-title-row .block-tags { display: none !important; }`;
 const HIDES = `
-${PAGE}:has(> .lk-rel) .references, ${PAGE}:has(> .lk-rel) .ls-bidirectional-properties { display: none !important; }
+${PAGE}:has(.lk-relpage) .references, ${PAGE}:has(.lk-relpage) .ls-bidirectional-properties { display: none !important; }
 .lk-open ${PAGE} .references, .lk-open ${PAGE} .unlinked-references, .lk-open ${PAGE} .ls-bidirectional-properties { display: none !important; }`;
 
 /* Logseq's editor draws a node as a whole page: a wide margin under it, the path to it above, a large title. Opened in a row it
@@ -440,5 +449,5 @@ const OPENED = `
 .lk-editor .ls-page-icon :is(.ui__icon, svg) { width: 18px !important; height: 18px !important; font-size: 18px !important; }
 .lk-editor .lsp-hook-ui-slot { display: none !important; }`;
 
-G.touch = { watch, changed, writing, edit, digs, seat, names, plugins, pages, pageFoot, pageHead, editor, open, openUrl, busy, left, tagList, key, command, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE };
+G.touch = { watch, changed, writing, edit, digs, seat, names, plugins, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, busy, left, tagList, key, command, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE };
 })();

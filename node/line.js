@@ -1,4 +1,5 @@
 /* NODE: the one line any node is shown as, wherever a list shows it.
+     G.line.html(node, { names, statuses, tagShown, day })   (day: words for the day, drawn after the bullet as Relations has it)
      G.line.html(node, { names, statuses, tagShown })   the line's markup: bullet, status circle if a task, words, tag, a count
                                                         at its end where the node has one (node.count), and
                                                         after them node.why: values of the node that a search matched
@@ -26,8 +27,8 @@ function statusHtml(node, statuses) {
   if (!s) return '';
   return `<button type="button" class="lk-status" title="${G.esc(s.title)}" aria-label="Status: ${G.esc(s.title)}">${G.touch.statusIcon(s.icon) || G.esc(s.title)}</button>`;
 }
-function html(node, { names, statuses, tagShown }) {
-  return `<span class="lk-bul" aria-hidden="true"></span>${statusHtml(node, statuses)}<span class="lk-words">${wordsHtml(node.words, names)}${tagShown && node.tag ? ` <span class="lk-tag">${G.esc(node.tag)}</span>` : ''}${(node.why || []).map(value => ` <span class="lk-why">${G.esc(value)}</span>`).join('')}${node.lacks ? ` <button type="button" class="lk-lacks" data-lacks="${G.esc(node.lacks)}" title="Give it a ${G.esc(node.lacks)}">no ${G.esc(node.lacks)}?</button>` : ''}${(node.where || []).length ? `<span class="lk-sits">${node.where.map(step => `<a class="lk-step" data-to="${G.esc(step.uuid)}">${G.esc(W.plain(step.words, names))}</a>`).join('<span class="lk-off"> › </span>')}</span>` : ''}</span>${node.count ? `<span class="lk-num">${Number(node.count)}</span>` : ''}`;
+function html(node, { names, statuses, tagShown, day }) {
+  return `<span class="lk-bul" aria-hidden="true"></span>${day == null ? '' : `<span class="lk-dayin">${G.esc(day)}</span>`}${statusHtml(node, statuses)}<span class="lk-words">${wordsHtml(node.words, names)}${tagShown && node.tag ? ` <span class="lk-tag">${G.esc(node.tag)}</span>` : ''}${(node.why || []).map(value => ` <span class="lk-why">${G.esc(value)}</span>`).join('')}${node.tell ? `<span class="lk-tell">${G.esc(node.tell)}</span>` : ''}${node.lacks ? ` <button type="button" class="lk-lacks" data-lacks="${G.esc(node.lacks)}" title="Give it a ${G.esc(node.lacks)}">no ${G.esc(node.lacks)}?</button>` : ''}${(node.where || []).length ? `<span class="lk-sits">${node.where.map(step => `<a class="lk-step" data-to="${G.esc(step.uuid)}">${G.esc(W.plain(step.words, names))}</a>`).join('<span class="lk-off"> › </span>')}</span>` : ''}</span>${node.count ? `<span class="lk-num">${Number(node.count)}</span>` : ''}`;
 }
 
 async function pickStatus(at, row) {
@@ -66,15 +67,18 @@ async function addLine(row) {
 }
 async function menu(at, row, more) {
   const uuid = row.dataset.uuid, statuses = row.dataset.status ? await G.read.statuses() : [], now = Number(row.dataset.status) || 0;
+  // Where a bullet sits, by its page's name ("Go to Nov 15th, 2026").
+  let sits = null;
+  if (row.dataset.page !== '1') { const node = await G.read.node(uuid), at = node && (await G.read.where([node.id])).get(node.id); if (at?.[0]) sits = { uuid: at[0].uuid, name: (await G.read.names([at[0].uuid])).get(at[0].uuid) || at[0].words }; }
   G.menu(at, [
     { word: 'Open', icon: G.touch.icon('arrow-right'), take: () => G.touch.open(uuid) },
     { word: 'Open in sidebar', icon: G.touch.icon('layout-sidebar-right'), take: () => G.touch.open(uuid, true) },
-    ...(row.dataset.page === '1' ? [] : [{ word: 'Go to its page', icon: G.touch.icon('file'), take: async () => { const node = await G.read.node(uuid), at = node && (await G.read.where([node.id])).get(node.id); if (at?.[0]) G.touch.open(at[0].uuid); } }]),
-    ...(row.closest('.lk-list')?.dataset.face ? [] : [{ gap: true }, { word: 'Tags…', icon: G.touch.icon('hash'), take: () => pickTags(at, row) }]),   // not on a tag or a property itself
+    ...(sits ? [{ word: `Go to ${sits.name}`, icon: G.touch.icon('arrow-up-right'), take: () => G.touch.open(sits.uuid) }] : []),
+    ...(row.closest('.lk-list')?.dataset.face ? [] : [{ gap: true }, { word: 'Add tag…', icon: G.touch.icon('hash'), take: () => pickTags(at, row) }]),   // not on a tag or a property itself
     ...(statuses.length ? [{ gap: true }, { group: 'Status' }, ...statuses.map(s => ({ word: s.title, icon: G.touch.statusIcon(s.icon), on: s.id === now, take: () => G.write.setStatus(uuid, s.title).catch(error => G.say(`The status could not be set: ${error?.message || 'Logseq refused'}`, 'warning')) }))] : []),
-    ...(row.closest('.lk-list')?.dataset.face ? [] : [{ gap: true },
-      { word: 'Add property…', icon: G.touch.icon('plus'), take: () => addProperty(at, uuid) },
-      { word: 'Add a line', icon: G.touch.icon('corner-down-right'), take: () => addLine(row) }]),
+    ...(row.closest('.lk-list')?.dataset.face ? [] : [
+      { word: 'Add property…', icon: G.touch.icon('forms'), take: () => addProperty(at, uuid) },
+      { word: 'Add a line', icon: G.touch.icon('plus'), take: () => addLine(row) }]),
     ...((more && more(row, at)) || []),   // what the place itself offers for this row
     { gap: true },
     { word: 'Delete', icon: G.touch.icon('trash'), take: () => G.write.remove(uuid, row.dataset.page === '1').catch(error => G.say(`It could not be deleted: ${error?.message || 'Logseq refused'}`, 'warning')) },
@@ -130,6 +134,9 @@ G.line.CSS = `
 a.lk-tag { cursor: pointer; }
 .lk-none, .lk-off { color: var(--lk-off); }
 .lk-why { color: var(--lk-quiet); font-size: var(--lk-small); margin-left: .35em; }
+.lk-tell { margin-left: 6px; color: var(--lk-quiet); font-size: var(--lk-small); white-space: nowrap; }
+.lk-dayin { flex: none; width: var(--lk-dayin, 54px); margin: 0 2px 0 6px; overflow: hidden; white-space: nowrap; font-size: var(--lk-small); color: var(--lk-quiet); font-variant-numeric: tabular-nums; }
+.lk-words > .lk-tag { margin-left: 4px; }
 .lk-lacks { appearance: none; border: 0; background: none; padding: 0; margin-left: .35em; font: inherit; font-size: var(--lk-small); color: var(--lk-off); cursor: pointer; }
 .lk-lacks:hover, .lk-lacks:focus-visible { color: var(--lk-text); outline: none; }
 .lk-sits { display: block; font-size: var(--lk-small); line-height: 18px; color: var(--lk-off); margin: -2px 0 2px; }

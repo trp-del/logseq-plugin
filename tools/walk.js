@@ -84,7 +84,7 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await page.locator('.lk-row .lk-line').nth(1).click({ button: 'right' }); await wait(400);
       const items = await page.locator('.lk-menu .lk-item').allInnerTexts();
       await page.keyboard.press('Escape'); await wait(300);
-      return is([items, await count('.lk-menu'), await count('.lk-row[data-open]')], [['Open', 'Open in sidebar', 'Tags…', 'Add property…', 'Add a line', 'Delete'], 0, 0]);
+      return is([items, await count('.lk-menu'), await count('.lk-row[data-open]')], [['Open', 'Open in sidebar', 'Add tag…', 'Add property…', 'Add a line', 'Delete'], 0, 0]);
     });
     await step('Delete takes a node away and Logseq\'s own Undo brings it back', async () => {
       const before = await count('.lk-rows > .lk-row');
@@ -205,7 +205,7 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       const row = page.locator('.lk-todo .lk-row').first(), uuid = await row.getAttribute('data-uuid');
       const tags = () => box.frame().evaluate(async u => (await logseq.DB.datascriptQuery(`[:find ?tt :where [?b :block/uuid #uuid "${u}"] [?b :block/tags ?t] [?t :block/title ?tt]]`)).flat().sort(), uuid);
       const before = await tags();
-      const pick = async () => { await page.locator(`.lk-todo .lk-row[data-uuid="${uuid}"] > .lk-line`).click({ button: 'right' }); await wait(500); await page.locator('.lk-menu .lk-item', { hasText: 'Tags…' }).click(); await wait(700); };
+      const pick = async () => { await page.locator(`.lk-todo .lk-row[data-uuid="${uuid}"] > .lk-line`).click({ button: 'right' }); await wait(500); await page.locator('.lk-menu .lk-item', { hasText: 'Add tag…' }).click(); await wait(700); };
       await pick(); const head = await page.locator('.lk-menu .lk-group').innerText(); await page.locator('.lk-menu .lk-item', { hasText: /^Hospital$/ }).click(); await wait(1800);
       const set = await tags();
       await pick(); const on = await page.locator('.lk-menu .lk-item.on', { hasText: /^Hospital$/ }).count(); await page.locator('.lk-menu .lk-item', { hasText: /^Hospital$/ }).click(); await wait(1800);
@@ -270,7 +270,7 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
     });
     // ---- Relations: what a list's head says, and + on it
     await goto(CHEN);
-    const MAIN = '#main-content-container .cp__page-inner-wrap > .lk-rel > .lk-list';
+    const MAIN = '#main-content-container .lk-relpage > .lk-list';
     await step('a list\'s head says how many it holds, of what, and from when to when', async () => {
       const heads = await page.evaluate(sel => [...document.querySelectorAll(sel)].map(l => [l.querySelector('.lk-list-name :is(.lk-said, .lk-tag)')?.innerText || '', l.querySelector('.lk-span')?.innerText || '', l.querySelectorAll(':scope > .lk-rows > .lk-row').length]), MAIN);
       const counted = heads.filter(h => /^\d+ \S/.test(h[0]));

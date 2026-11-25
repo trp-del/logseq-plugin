@@ -51,7 +51,8 @@ function head(state, list, made, plus, today) {
   if (made.fresh) kinds += tab('@new', `${made.fresh} new`, null, made.kind === '@new', ' lk-newtab');
   const dots = `<button type="button" class="lk-dots" title="View and more" aria-label="View and more">${icon('dots', 16)}</button>`;
   const said = made.said.length ? `<button type="button" class="lk-set" title="View">${G.esc(made.said.join(' · '))}</button>` : '';
-  const upTo = state.view.find.upTo, days = upTo ? `up to ${D.short(upTo, today)} · ${made.total} today` : made.from ? `${D.short(made.from, today)} to ${D.short(made.to, today)}` : '';
+  const finding = !!(state.view.find.words || state.view.find.upTo), days = made.from ? `${D.short(made.from, today)} to ${D.short(made.to, today)}` : '';
+  if (finding && made.total !== made.count) kinds += `<span class="lk-today">${made.total} today</span>`;
   return `${made.picking ? `<input type="checkbox" class="lk-tick lk-tick-all" aria-label="Pick every node of the list">` : ''}<span class="lk-tabs">${kinds}<span class="lk-head-do">${plus}${dots}</span></span><span class="lk-head-end">${said}${days ? `<span class="lk-span">${G.esc(days)}</span>` : ''}</span>`;
 }
 // What stands under the head, in order: a group's line, a node's row, the line saying since when.
@@ -64,7 +65,7 @@ function items(state, list, made, few) {
       if (!shut) for (const one of group.rows) out.push(row(one, `g:${group.key}`));
     }
   } else {
-    const all = made.finding || made.picking || state.view.all.has(list.key) || made.rows.length <= few + 2;
+    const all = made.finding || made.picking || state.view.all.has(list.key) || made.rows.length <= few;
     for (const one of all ? made.rows : made.rows.slice(0, few)) out.push(row(one));
     out.hidden = all ? 0 : made.rows.length - few;
   }
@@ -74,7 +75,7 @@ function items(state, list, made, few) {
 // A group's line or the since line, drawn into its element.
 function paint(el, item, today) {
   const html = item.type === 'group'
-    ? `<span class="lk-fold">${G.node.ARROW}</span><span class="${item.group.tag ? 'lk-tag' : 'lk-group-name'}">${G.esc(item.group.name)}</span><span class="lk-n">${item.group.rows.length}</span>`
+    ? `<span class="lk-fold">${G.node.CHEV}</span><span class="${item.group.tag ? 'lk-tag' : 'lk-group-name'}">${G.esc(item.group.name)}</span><span class="lk-n">${item.group.rows.length}</span>`
     : `<span>since ${G.esc(D.short(item.day, today))}</span><span class="lk-n">${item.n}</span>`;
   el.className = item.type === 'group' ? 'lk-group-head' : 'lk-since';
   if (item.type === 'group') { el.setAttribute('role', 'button'); el.tabIndex = 0; el.setAttribute('aria-expanded', String(!item.shut)); el.dataset.group = item.group.key; }
@@ -85,32 +86,38 @@ function menu(state, box, at) {
   const list = box.lkList, key = list.key, now = viewOf(key), offers = V.offers(list.rows), view = state.view;
   const set = change => { setView(key, change); state.redraw(); };
   const choose = (title, name, choices) => () => G.menu(at, [{ group: title }, ...choices.map(([value, word, face]) => ({ word, face, on: (now[name] || '') === value, take: () => set({ [name]: value }) }))]);
-  const dateWord = value => !value ? 'Its own' : value === 'none' ? 'No date' : value === 'Journal' ? 'Day written' : value;
+  const dateWord = value => !value ? 'Date or journal' : value === 'none' ? 'No date' : value === 'Journal' ? 'Day written' : value;
   const sortWord = { '': 'Day', changed: 'Last changed', name: 'Name', tag: 'Tag' };
   const keys = [...state.el.querySelectorAll(':scope > .lk-list')].map(one => one.dataset.key), at0 = keys.indexOf(key);
   const move = by => { orders.set({ ...orders.get(), [view.uuid]: V.moved(keys, key, by) }); state.again(); };
   const picking = view.picking.has(key);
+  const timeline = { word: 'Timeline', value: !now.timeline ? 'Hidden' : now.timeline === 'line' ? (now.tall ? 'Taller' : 'One line') : `By ${now.timeline}`, take: () => G.menu(at, [{ group: 'Timeline' },
+    { word: 'Hidden', on: !now.timeline, take: () => { view.spans.delete(key); view.lanes.delete(key); view.lit.delete(key); set({ timeline: '' }); } }, { word: 'One line', on: now.timeline === 'line', take: () => { view.lanes.delete(key); set({ timeline: 'line' }); } },
+    ...offers.groups.filter(name => name !== 'Tag' && name !== 'Month').map(name => ({ word: `By ${name}`, face: 'prop', on: now.timeline === name, take: () => { view.lanes.delete(key); set({ timeline: name }); } })),
+    ...(now.timeline ? [{ gap: true }, { word: 'Taller', on: !!now.tall, take: () => set({ tall: now.tall ? '' : '1' }) }] : [])]) };
+  // The order and the words the plugin had before the rebuild: Group by, Sort by, Timeline, Date; then Pick nodes; then moving the list.
   G.menu(at, [
-    { group: 'View' },
     { word: 'Group by', value: now.group || 'None', take: choose('Group by', 'group', [['', 'None'], ...offers.groups.map(name => [name, name, name === 'Tag' || name === 'Month' ? '' : 'prop'])]) },
-    { word: 'Date', value: dateWord(now.date || ''), take: choose('Date', 'date', [['', 'Its own date'], ...offers.dates.map(name => [name, name === 'Journal' ? 'The day it is written on' : name, name === 'Journal' ? '' : 'prop']), ['none', 'No date']]) },
-    { word: 'Timeline', value: !now.timeline ? 'Hidden' : now.timeline === 'line' ? (now.tall ? 'Taller' : 'One line') : `By ${now.timeline}`, take: () => G.menu(at, [{ group: 'Timeline' },
-      { word: 'Hidden', on: !now.timeline, take: () => { view.spans.delete(key); view.lanes.delete(key); view.lit.delete(key); set({ timeline: '' }); } }, { word: 'One line', on: now.timeline === 'line', take: () => { view.lanes.delete(key); set({ timeline: 'line' }); } },
-      ...offers.groups.filter(name => name !== 'Tag' && name !== 'Month').map(name => ({ word: `By ${name}`, face: 'prop', on: now.timeline === name, take: () => { view.lanes.delete(key); set({ timeline: name }); } })),
-      ...(now.timeline ? [{ gap: true }, { word: 'Taller', on: !!now.tall, take: () => set({ tall: now.tall ? '' : '1' }) }] : [])]) },
     { word: 'Sort by', value: sortWord[now.sort || ''], take: choose('Sort by', 'sort', [['', 'Day'], ...offers.sorts.map(name => [name, sortWord[name]])]) },
-    ...(list.kind === 'property' ? [{ gap: true },
-      { word: 'Reads back as…', value: list.name, take: () => {
-        const title = list.prop.title, give = name => { const all = { ...reads.get() }; if (name && name !== G.reads.back(title)) all[title] = name; else delete all[title]; reads.set(all); state.again(); };
-        G.menu(at, [{ group: `How ${title} reads on the pages it points to` }, { word: G.reads.back(title), value: 'by grammar', on: !reads.get()[title], take: () => give('') },
-          ...(G.reads.back(title) === title ? [] : [{ word: title, value: 'its own name', on: reads.get()[title] === title, take: () => give(title) }])], { find: 'Or type how it reads', enter: give });
-      } },
-      { word: 'Hide where it points', icon: icon('eye-off'), take: () => { oneEnd.set([...new Set([...oneEnd.get(), list.prop.ident])]); state.again(); G.say(`${list.name} is no longer listed on the pages it points to. Right-click the word Relations to bring it back.`); } }] : []),
-    { gap: true },
+    timeline,
+    { word: 'Date', value: dateWord(now.date || ''), take: choose('Date', 'date', [['', 'Date or journal'], ...offers.dates.map(name => [name, name === 'Journal' ? 'The day it is written on' : name, name === 'Journal' ? '' : 'prop']), ['none', 'No date']]) },
     { word: picking ? 'Stop picking' : 'Pick nodes', icon: icon('square-check'), take: () => { if (picking) { view.picking.delete(key); view.picked.delete(key); } else view.picking.add(key); state.redraw(); } },
-    { gap: true },
+    ...(at0 > 0 || (at0 >= 0 && at0 < keys.length - 1) ? [{ gap: true }] : []),
     ...(at0 > 0 ? [{ word: 'Move up', icon: icon('arrow-up'), take: () => move(-1) }] : []),
     ...(at0 >= 0 && at0 < keys.length - 1 ? [{ word: 'Move down', icon: icon('arrow-down'), take: () => move(1) }] : []),
+  ]);
+}
+// A property's name, right-clicked: View, how it reads back, and hiding it where it points.
+function nameMenu(state, box, at) {
+  const list = box.lkList;
+  if (list.kind !== 'property') return menu(state, box, at);
+  const title = list.prop.title, give = name => { const all = { ...reads.get() }; if (name && name !== G.reads.back(title)) all[title] = name; else delete all[title]; reads.set(all); state.again(); };
+  G.menu(at, [{ group: title },
+    { word: 'View', icon: icon('arrows-sort'), value: '›', take: () => menu(state, box, at) },
+    { gap: true },
+    { word: 'Reads back as…', icon: icon('cursor-text'), take: () => G.menu(at, [{ group: `How ${title} reads on the pages it points to` }, { word: G.reads.back(title), value: 'by grammar', on: !reads.get()[title], take: () => give('') },
+      ...(G.reads.back(title) === title ? [] : [{ word: title, value: 'its own name', on: reads.get()[title] === title, take: () => give(title) }])], { find: 'Or type how it reads', enter: give }) },
+    { word: 'Hide where it points', icon: icon('eye-off'), take: () => { oneEnd.set([...new Set([...oneEnd.get(), list.prop.ident])]); state.again(); G.say(`${list.name} is no longer listed on the pages it points to. Right-click the word Relations to bring it back.`); } },
   ]);
 }
 // Every kind of a list with its count, for "and 3 more".
@@ -124,7 +131,7 @@ function act(state, event) {
   const target = event.target, box = target.closest('.lk-list');
   if (!box || box.parentElement !== state.el || !box.lkList || !VIEWED.has(box.lkList.kind)) return false;
   const key = box.lkList.key, view = state.view, press = event.type === 'click' || (event.type === 'keydown' && (event.key === 'Enter' || event.key === ' '));
-  if (event.type === 'contextmenu' && target.closest('.lk-list-head')) { event.preventDefault(); menu(state, box, { x: event.clientX, y: event.clientY, from: target.closest('.lk-list-head') }); return true; }
+  if (event.type === 'contextmenu' && target.closest('.lk-list-head')) { event.preventDefault(); (target.closest('.lk-list-via') ? nameMenu : menu)(state, box, { x: event.clientX, y: event.clientY, from: target.closest('.lk-list-head') }); return true; }
   if (!press) return false;
   const tab = target.closest('.lk-tab');
   if (tab) {
@@ -185,14 +192,19 @@ async function hiddenMenu(at, again) {
 }
 G.listview = { state, order, shape, head, items, paint, act, menu, viewOf, setView, VIEWED, hiddenMenu, drags, named: () => reads.get(), hidden: () => oneEnd.get() };
 G.listview.CSS = `
-.lk-tabs { display: flex; align-items: center; flex-wrap: wrap; gap: 0 16px; min-width: 0; flex: 0 1 auto; }
-.lk-head-do { display: inline-flex; align-items: center; margin-left: -10px; }   /* the + and the ⋯ follow the last word, on whichever line it stands */
+.lk-tabs { display: flex; align-items: center; flex-wrap: wrap; gap: 0 24px; min-width: 0; flex: 0 1 auto; }
+.lk-head-do { display: inline-flex; align-items: center; gap: 12px; margin-left: -12px; }   /* the + and the ⋯ follow the last word, on whichever line it stands */
 .lk-tab { appearance: none; position: relative; border: 0; background: none; padding: 0; margin: 0; font: inherit; color: var(--lk-quiet); cursor: pointer; white-space: nowrap; }
 .lk-tab:hover, .lk-tab:focus-visible { color: var(--lk-text); outline: none; }
-.lk-tab.on { color: var(--lk-text); font-weight: 500; }
-.lk-tab.on::after { content: ""; position: absolute; left: 0; bottom: -3px; width: 14px; height: 1.5px; border-radius: 1px; background: currentColor; }
-.lk-tab .lk-n, .lk-group-head .lk-n, .lk-since .lk-n { margin-left: .25em; font-size: var(--lk-small); font-weight: 400; color: var(--lk-off); font-variant-numeric: tabular-nums; }
-.lk-tabmore, .lk-newtab { font-size: var(--lk-small); }
+.lk-tab:not([data-kind=""]):not(.lk-tabmore):not(.lk-newtab):not([data-kind="@none"]) { font-family: var(--lk-tag-face); }   /* a kind is a tag: in the tag's face */
+.lk-tab.on { color: var(--lk-text); }
+.lk-tab.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: -5px; height: 1.5px; border-radius: 1px; background: currentColor; }
+.lk-tab .lk-n { margin-left: .25em; color: var(--lk-quiet); font-variant-numeric: tabular-nums; }
+.lk-group-head .lk-n, .lk-since .lk-n { margin-left: .25em; font-size: var(--lk-small); font-weight: 400; color: var(--lk-off); font-variant-numeric: tabular-nums; }
+.lk-tabmore { text-decoration: underline; text-decoration-color: var(--lk-link); text-decoration-thickness: var(--lk-link-width); text-underline-offset: 3px; }
+.lk-newtab { font-size: var(--lk-small); }
+.lk-today { font-size: var(--lk-small); color: var(--lk-quiet); white-space: nowrap; }
+.lk-words mark.lk-hit { background: color-mix(in srgb, var(--ls-link-text-color, #2563eb) 14%, transparent); color: inherit; border-radius: 2px; text-decoration: underline; text-decoration-color: var(--lk-link); text-underline-offset: 3px; }
 .lk-dots, .lk-set { appearance: none; border: 0; background: none; padding: 0; font: inherit; cursor: pointer; color: var(--lk-quiet); }
 .lk-dots { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; margin-left: 2px; border-radius: 6px; opacity: .55; }
 .lk-dots:hover, .lk-dots:focus-visible { opacity: 1; background: var(--lk-wash); outline: none; }

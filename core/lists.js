@@ -3,7 +3,7 @@
      links     [{ prop: { ident, title, uuid }, node }]   a node holding this one as a property's value
      mentions  [node]                                      a node naming this one in its words
      dues      [{ which: 'Scheduled' | 'Deadline', node }] on a journal day, what Logseq's own dates put there
-   One list for each property, by the property's name; then Scheduled and Deadline; Mentioned in last. A node already in a
+   One list for each property, the fullest first, then by the property's name; then Scheduled and Deadline; Mentioned in last. A node already in a
    property's list is not said again under Mentioned in. Rows: dated ones newest first, then the undated by their words.
    A list whose rows all have the same tag says the tag once, on the list (tag), and its rows leave it out (row.tagShown false).
    A list of two or more says how many (count, said: "4 Transfers", or the bare number where the tags differ) and, where its rows
@@ -41,7 +41,7 @@ function lists({ links = [], mentions = [], dues = [], own = 0 } = {}) {
     if (!byProp.has(prop.ident)) byProp.set(prop.ident, { key: `prop:${prop.ident}`, kind: 'property', name: prop.title, prop, rows: [] });
     byProp.get(prop.ident).rows.push(node); held.add(node.uuid);
   }
-  const out = [...byProp.values()].sort((a, b) => a.name.localeCompare(b.name) || a.key.localeCompare(b.key));
+  const out = [...byProp.values()].sort((a, b) => b.rows.length - a.rows.length || a.name.localeCompare(b.name) || a.key.localeCompare(b.key));   // the fullest list first, as the plugin before the rebuild had it
   for (const which of ['Scheduled', 'Deadline']) {
     const rows = dues.filter(due => due.which === which).map(due => due.node);
     if (rows.length) out.push({ key: `due:${which}`, kind: 'due', name: which, rows });

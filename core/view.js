@@ -81,7 +81,9 @@ function shape(list, view = {}, find = {}, today = 0) {
   if (all.length >= 5) { const n = new Map(); for (const row of all) for (const name of Object.keys(row.held || {})) n.set(name, (n.get(name) || 0) + 1);
     const common = [...n].filter(([, count]) => count < all.length && count >= all.length * 0.8).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([name]) => name);
     for (const row of all) { const name = common.find(one => !(row.held || {})[one]); if (name) lacked.set(row.uuid, name); } }
-  const tabs = every.length > 1 ? [{ kind: '', word: 'All', n: all.length }, ...every.slice(0, 3).map(one => ({ kind: one.name || '@none', word: one.name || 'No tag', n: one.n }))].map(tab => ({ ...tab, on: (view.kind || '') === tab.kind })) : [];
+  // While words or a day narrow the list, its kinds count what was found, and the head says how many there are today.
+  const found = all.filter(row => holds(row, tokens(find.words)) && !(find.upTo && dayBy(row, view.date || '') > find.upTo)), counted = find.words || find.upTo ? kinds(found) : every;
+  const tabs = every.length > 1 ? [{ kind: '', word: 'All', n: found.length }, ...counted.slice(0, 3).map(one => ({ kind: one.name || '@none', word: one.name || 'No tag', n: one.n }))].map(tab => ({ ...tab, on: (view.kind || '') === tab.kind })) : [];
   let rows = !view.kind ? all : view.kind === '@new' ? all.filter(isNew) : all.filter(row => (row.tag || '@none') === view.kind);
   rows = rows.filter(row => holds(row, tokens(find.words)));
   rows = rows.map(row => { const day = dayBy(row, view.date || ''); return { ...row, goesBy: day, dayShown: day && day !== own ? day : 0, lacks: lacked.get(row.uuid) || '' }; });
@@ -96,6 +98,19 @@ function shape(list, view = {}, find = {}, today = 0) {
   rows = [...rows].sort(order); later = [...later].sort(order);
   const oneTag = every.length === 1 && every[0].name ? every[0].name : (view.kind && !view.kind.startsWith('@') ? view.kind : '');
   rows = rows.map(row => ({ ...row, tagShown: !oneTag && !!row.tag && view.group !== 'Tag' }));
+  /* The property that tells a list's nodes apart, said after each node's words where the head already names their one kind
+     ("Amount 1413.56"): of what they hold, not the list's own property, never a node, a day or an address, a value of at
+     most 24 letters, held by at least half of them with more than one value; the most held, then the fewest values. */
+  if (oneTag && rows.length) {
+    const held = new Map(), types = list.types || {};
+    for (const row of rows) for (const [name, values] of Object.entries(row.held || {})) {
+      if (name === list.own_name || /^(node|page|date|datetime|url)$/.test(types[name] || 'default') || !values.length || values.some(value => !value || String(value).length > 24)) continue;
+      if (!held.has(name)) held.set(name, { nodes: 0, values: new Set() });
+      const at = held.get(name); at.nodes++; for (const value of values) at.values.add(value);
+    }
+    const best = [...held].filter(([, at]) => at.nodes * 2 >= rows.length && at.values.size > 1).sort((a, b) => b[1].nodes - a[1].nodes || a[1].values.size - b[1].values.size || a[0].localeCompare(b[0]))[0];
+    if (best) rows = rows.map(row => { const text = ((row.held || {})[best[0]] || []).join(', '); return { ...row, tell: text && !String(row.plain ?? row.words ?? '').toLowerCase().includes(text.toLowerCase()) ? `${best[0]} ${text}` : '' }; });
+  }
   let groups = null;
   if (view.group) {
     const by = new Map();

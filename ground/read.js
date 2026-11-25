@@ -173,7 +173,7 @@ async function pointingAt(id) {
   const outside = `[(not= ?b ${id})] (not [?b :block/page ${id}])`;
   const [held, named, uuids] = await Promise.all([
     q(`[:find ?b ?attr :where [?b ?attr ${id}] [?prop :db/ident ?attr] [(namespace ?attr) ?ns] [(= ?ns "user.property")] ${outside} ${LIVE}]`),
-    q(`[:find ?b :where ${among('?t', targets)} [?b :block/refs ?t] [?b :block/page _] ${outside} ${LIVE}]`),
+    q(`[:find ?b :where ${among('?t', targets)} [?b :block/refs ?t] [?b :block/page _] ${outside} (not [?b :logseq.property/created-from-property _]) ${LIVE}]`),   // a property's words-value is a block of its own to Logseq: it is no note
     q(`[:find ?u ?n :where ${among('?t', targets)} [?t :block/uuid ?u] [(get-else $ ?t :block/title "") ?n]]`),
   ]);
   const nodes = await describe([...held.map(([b]) => b), ...named.map(([b]) => b)]);
@@ -183,7 +183,10 @@ async function pointingAt(id) {
   const marks = [...new Set([String(mine ?? ''), ...uuids.map(([u]) => String(u))].filter(Boolean).flatMap(u => [`[[${u.toLowerCase()}]]`, `((${u.toLowerCase()}))`])
     .concat(uuids.map(([, name]) => String(name).trim().toLowerCase()).filter(Boolean).map(name => `[[${name}]]`)))];
   const says = words => { const text = words.toLowerCase(); return marks.some(mark => { for (let at = text.indexOf(mark); at >= 0; at = text.indexOf(mark, at + 1)) if (text[at - 1] !== '#') return true; return false; }); };
-  const mentions = named.map(([b]) => nodes.get(b)).filter(n => n && says(n.words));
+  // A bullet that says nothing but this node's own name tells the page nothing it does not know: it is no row there
+  // (the owner, 25 November 2026: thirteen rows reading only "City of Hope" on City of Hope's own page).
+  const more = words => marks.reduce((text, mark) => text.split(mark).join(''), words.toLowerCase()).replace(/[\s.,;:!?()\[\]–—-]+/g, '') !== '';
+  const mentions = named.map(([b]) => nodes.get(b)).filter(n => n && says(n.words) && more(n.words));
   return { links, mentions };
 }
 

@@ -14,6 +14,8 @@
 (function () {
 const G = window.PluginDoor, L = G.lists, D = G.days, W = G.words;
 const ARROW = '<svg viewBox="0 0 192 512" fill="currentColor" aria-hidden="true"><path d="M0 384.662V127.338c0-17.818 21.543-26.741 34.142-14.142l128.662 128.662c7.81 7.81 7.81 20.474 0 28.284L34.142 398.804C21.543 411.404 0 402.48 0 384.662z"/></svg>';
+// The thin arrow Relations' heads had before the rebuild: on the section's line, a list's head and a group's line.
+const CHEV = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6l-6 6"/></svg>';
 const FOLDED = 'lk.folded';   // the lists the person keeps folded, by their key, kept across pages and restarts
 const folded = (() => { let set = null; const read = () => { if (!set) { try { set = new Set(JSON.parse(G.host().defaultView.localStorage.getItem(FOLDED) || '[]')); } catch (error) { set = new Set(); } } return set; };
   return { has: key => read().has(key), flip(key) { const s = read(); if (!s.delete(key)) s.add(key); try { G.host().defaultView.localStorage.setItem(FOLDED, JSON.stringify([...s])); } catch (error) { /* kept for this session only */ } } }; })();
@@ -156,19 +158,21 @@ function related(el, uuid) {
     const made = L.lists({ ...pointing, dues, own: node.day || 0 }).filter(list => !(list.kind === 'property' && hidden.has(list.prop.ident)));
     const said = made.filter(list => list.kind === 'mentions').flatMap(list => list.rows.map(row => row.id));
     const [held, sits] = await Promise.all([G.read.held(made.flatMap(list => list.rows.map(row => row.id))), G.read.where(said)]);
+    const types = Object.fromEntries([...(await G.read.schema()).props.values()].map(prop => [prop.title, prop.type]));
     for (const list of made) {
+      list.types = types; list.own_name = list.prop?.title || '';
       if (list.kind === 'property') list.name = G.reads.back(list.prop.title, named);   // read from this end: "Prescribed by" is "Prescribed" here
       list.rows = list.rows.map(row => ({ ...row, held: held.get(row.id) || {}, where: list.kind === 'mentions' && !row.isPage ? (sits.get(row.id) || []) : [] }));
     }
     total = made.reduce((n, list) => n + list.rows.length, 0);
     return G.view.ordered(made, G.listview.order(uuid));
-  }, { view, add: async list => {
+  }, { view, few: 5, add: async list => {
     const [tags, target] = await Promise.all([G.read.tags(), G.read.node(uuid)]), those = [...tags.values()].filter(tag => tag.title === list.one);
     if (those.length !== 1 || !target) throw new Error(`no one tag is called ${list.one}`);
     return G.write.addNode(those[0].uuid, list.prop.ident, target.id);
   } });
   const offDrags = G.listview.drags(mounted.get(el));
-  return { ...handle, off() { offDrags(); handle.off(); }, rows: () => total, find(words) { view.find = G.view.parse(words, D.number(new Date())); mounted.get(el)?.redraw(); } };
+  return { ...handle, off() { offDrags(); handle.off(); }, rows: () => total, day: () => view.own, find(words) { view.find = G.view.parse(words, D.number(new Date())); mounted.get(el)?.redraw(); } };
 }
 const lists = (el, uuid) => related(el, uuid).off;
 async function load(state) {
@@ -222,6 +226,7 @@ function draw(state, made, names, statuses) {
     const name = made && list.count ? G.listview.head(state, list, made, plus, today) : via ? (list.count ? `<span class="lk-said">${G.esc(list.tag ? said : `${said} nodes`)}</span>${plus}${span}` : '')
       : `<span class="${list.kind === 'due' ? 'lk-prop' : list.kind === 'none' ? 'lk-none' : 'lk-plain'}">${G.esc(list.name)}</span>${said ? ` <span class="lk-tag">${G.esc(said)}</span>` : ''}${span}`;
     if (head.children[1].innerHTML !== first) head.children[1].innerHTML = first;
+    if (made && !head.dataset.thin) { head.dataset.thin = '1'; head.firstElementChild.innerHTML = CHEV; }
     if (made) head.children[1].draggable = true;   // a list's name dragged among the page's lists sets their order
     head.toggleAttribute('data-one', !!lined && !list.count); head.toggleAttribute('data-plain', !!lined && !via);
     box.lkList = list;
@@ -231,7 +236,8 @@ function draw(state, made, names, statuses) {
     const items = made ? G.listview.items(state, list, made, state.few) : L.shown(list.rows, state.all.has(list.key), state.few).map(row => ({ type: 'row', key: row.uuid, row }));
     const hidden = made ? (items.hidden || 0) : list.rows.length - items.length;
     const dated = items.filter(item => item.type === 'row' && item.row.dayShown), long = dated.some(item => Math.floor(item.row.dayShown / 10000) !== Math.floor(today / 10000));
-    box.style.setProperty('--lk-daycol', dated.length ? (long ? '92px' : '56px') : '0px');
+    box.style.setProperty('--lk-daycol', made ? '0px' : dated.length ? (long ? '92px' : '56px') : '0px');   // a list of Relations has the day after the bullet, inside the line
+    box.style.setProperty('--lk-dayin', long ? '90px' : '54px');
     box.toggleAttribute('data-picking', !!made?.picking);
     sync(rowsEl, items, item => item.key, item => {
       const el = doc.createElement('div');
@@ -246,21 +252,41 @@ function draw(state, made, names, statuses) {
       el.classList.toggle('lk-faint', !!item.faint); el.classList.toggle('lk-fresh', !!(state.view?.since && (row.made || 0) > state.view.since)); el.classList.toggle('lk-picked', !!item.picked);
       el.style.setProperty('--lk-depth', String(row.depth || 0));   // an outline's row stands in by its depth
       const day = D.short(row.dayShown, today), dayEl = el.firstElementChild;
-      if (dayEl.textContent !== day) dayEl.textContent = day;
+      if (dayEl.textContent !== (made ? '' : day)) dayEl.textContent = made ? '' : day;
       dayEl.title = day ? (row.dayFrom || 'The day it was written') : '';
       let tick = el.querySelector(':scope > .lk-tick');
       if (item.picking) { if (!tick) { tick = doc.createElement('input'); tick.type = 'checkbox'; tick.className = 'lk-tick'; tick.setAttribute('aria-label', 'Pick this node'); el.insertBefore(tick, el.children[1]); } tick.checked = !!item.picked; } else tick?.remove();
-      const html = G.line.html(row, { names, statuses, tagShown: row.tagShown }), line = el.querySelector(':scope > .lk-line');
+      const want = made?.finding ? G.find.tokens(state.view.find.words) : [];
+      const html = G.line.html(row, { names, statuses, tagShown: row.tagShown, day: made && dated.length ? day : undefined }) + (want.length ? `<!--${G.esc(want.join(' '))}-->` : ''), line = el.querySelector(':scope > .lk-line');
       if (made) line.draggable = true;   // onto another list's head: the node gets that list's property
-      if (line.lkHtml !== html) { line.innerHTML = html; line.lkHtml = html; }
+      if (line.lkHtml !== html) { line.innerHTML = html; line.lkHtml = html; if (want.length) hit(line.querySelector('.lk-words'), want); }
     });
+    box.hidden = !!made?.finding && !made.rows.length && !made.since.length;   // while finding, a list with nothing found is left out
     G.pick.bar(state, box, made);
     G.timeline.keep(state, box, made, today);
     let more = box.querySelector(':scope > .lk-more');
     if (hidden > 0 && !isFolded) {
-      if (!more) { more = doc.createElement('button'); more.type = 'button'; more.className = 'lk-more'; more.textContent = 'Show all'; box.appendChild(more); }
+      if (!more) { more = doc.createElement('button'); more.type = 'button'; more.className = 'lk-more'; box.appendChild(more); }
+      more.textContent = made ? `show ${hidden} more` : 'Show all'; more.dataset.fewer = '';
+    } else if (made && !isFolded && state.view.all.has(list.key) && !made.finding && !made.picking && !made.groups && made.rows.length > state.few + 2) {
+      if (!more) { more = doc.createElement('button'); more.type = 'button'; more.className = 'lk-more'; box.appendChild(more); }
+      more.textContent = 'show fewer'; more.dataset.fewer = '1';
     } else more?.remove();
+    more?.classList.toggle('lk-more-link', !!made);
   });
+}
+// The words being found, marked where they stand in a line's words.
+function hit(words, want) {
+  if (!words) return;
+  const doc = words.ownerDocument, walk = doc.createTreeWalker(words, 4), nodes = [];
+  for (let node; (node = walk.nextNode());) if (!node.parentElement.closest('.lk-tag, .lk-tell, .lk-lacks, .lk-sits')) nodes.push(node);
+  for (const node of nodes) {
+    const low = node.textContent.toLowerCase(); let at = -1, len = 0;
+    for (const word of want) { const i = low.indexOf(word); if (i >= 0 && (at < 0 || i < at)) { at = i; len = word.length; } }
+    if (at < 0) continue;
+    const rest = node.splitText(at); rest.splitText(len);
+    const mark = doc.createElement('mark'); mark.className = 'lk-hit'; rest.replaceWith(mark); mark.appendChild(rest);
+  }
 }
 /* + on a list's head: one more node of the list's kind, pointing here through the list's property. It is made on today's
    journal, shown in the list, opened in place, and the caret stands in it. */
@@ -299,7 +325,7 @@ function handle(state, event) {
     if (target.closest('.lk-tick, button')) return;
     event.preventDefault(); event.stopPropagation(); folded.flip(head.parentElement.dataset.key); state.redraw(); return;
   }
-  if (event.type === 'click' && target.closest('.lk-more')) { const key = target.closest('.lk-list').dataset.key; state.all.add(key); state.view?.all.add(key); state.redraw(); return; }
+  if (event.type === 'click' && target.closest('.lk-more')) { const key = target.closest('.lk-list').dataset.key; if (target.closest('.lk-more').dataset.fewer) { state.all.delete(key); state.view?.all.delete(key); } else { state.all.add(key); state.view?.all.add(key); } state.redraw(); return; }
   if (event.type === 'keydown' && (event.key === 'ArrowDown' || event.key === 'ArrowUp') && target.matches('.lk-line, .lk-list-head')) {
     const stops = [...state.el.querySelectorAll('.lk-line, .lk-list-head')].filter(el => el.closest('.lk-rel') === state.el && el.offsetParent);
     const next = stops[stops.indexOf(target) + (event.key === 'ArrowDown' ? 1 : -1)];
@@ -332,11 +358,12 @@ function adder(holder, name, add, failed) {
   field.addEventListener('keydown', onKey);
   return () => { field.removeEventListener('keydown', onKey); line.remove(); };
 }
-G.node = { toggle, open, close, back, listing, lists, related, adder, folded, ARROW };
+G.node = { toggle, open, close, back, listing, lists, related, adder, folded, ARROW, CHEV };
 G.node.CSS = `
 .lk-rel:empty { display: none; }
 .lk-rel { display: flex; flex-direction: column; gap: 18px; container: lk-list / inline-size; }
 .lk-list-head[hidden] { display: none; }
+.lk-list[hidden] { display: none; }
 .lk-list[data-face="tag"] > .lk-rows > .lk-row > .lk-line .lk-words { font-family: var(--lk-tag-face); }
 .lk-list[data-face="prop"] > .lk-rows > .lk-row > .lk-line .lk-words { font-family: var(--lk-prop-face); font-weight: var(--lk-prop-weight); font-size: .9em; letter-spacing: -.01em; }
 .lk-list[data-kind="none"] .lk-fold { visibility: hidden; }
@@ -352,6 +379,9 @@ G.node.CSS = `
 .lk-list-via:empty { display: none; }
 .lk-list-via > :is(svg, .ti):first-child { flex: none; width: 13px; height: 13px; margin: 0 5px 0 2px; font-size: 13px; color: var(--lk-off); }
 .lk-list-head[data-one] > :is(.lk-fold, .lk-list-name) { display: none; }
+.lk-list-head[data-thin] { padding-bottom: 6px; }
+.lk-list-head[data-thin] > .lk-fold { opacity: .45 !important; }
+.lk-list-head[data-thin]:hover > .lk-fold { opacity: .8 !important; }
 .lk-list-head[data-plain] > .lk-list-via > .lk-plain { font-size: var(--lk-line-size); }
 .lk-row.lk-fresh > .lk-line > .lk-bul::before { background: var(--lk-text); width: 7px; height: 7px; }   /* made since the page was last open */
 .lk-list[data-picking] .lk-row > .lk-fold { display: none; }
@@ -365,6 +395,8 @@ G.node.CSS = `
 .lk-plus { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; margin-left: 4px; padding: 0; border: 0; border-radius: 6px; background: none; color: var(--lk-quiet); opacity: .55; cursor: pointer; }
 .lk-plus:hover, .lk-plus:focus-visible { opacity: 1; background: var(--lk-wash); outline: none; }
 @container lk-list (max-width: 300px) { .lk-span { display: none; } }
+.lk-more.lk-more-link { margin-left: calc(18px + 16px + 6px + var(--lk-dayin, 54px) + 6px); font-size: inherit; line-height: 24px; text-decoration: underline; text-decoration-color: var(--lk-link); text-decoration-thickness: var(--lk-link-width); text-underline-offset: 3px; }
+.lk-list:not(:has(.lk-dayin)) > .lk-more.lk-more-link { margin-left: 38px; }
 .lk-more { margin: 2px 0 0 calc(var(--lk-daycol, 0px) + 34px); padding: 2px 0; border: 0; background: none; color: var(--lk-quiet); font: inherit; font-size: var(--lk-small); cursor: pointer; }
 .lk-more:hover { color: var(--lk-text); }
 .lk-add { display: flex; margin: -4px 0 12px -22px; padding: 4px 0 0 22px; position: sticky; top: 0; z-index: 2; background: var(--lk-ground, transparent); }   /* stays in view while the list moves to what was added */
