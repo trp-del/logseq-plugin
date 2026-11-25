@@ -362,10 +362,17 @@ const OPENED = `
 .lk-editor .bottom-properties-pills-strip { display: flex !important; flex-direction: column !important; align-items: stretch !important; gap: 0 !important; overflow: visible !important; width: 100% !important; }
 .lk-editor :is(.bottom-property-pill, .property-pair.property-panel-row) { display: grid !important; grid-template-columns: calc(var(--lk-keycol) + var(--lk-gutter)) minmax(0, 1fr) !important; gap: 0 !important; align-items: start !important; min-height: var(--lk-line-h); height: auto !important; width: 100% !important; max-width: none !important; margin: 0; padding: 0 !important; border: 0 !important; border-radius: 0 !important; background: none !important; box-shadow: none !important; outline: 0 !important; overflow: visible !important; font-size: var(--lk-line-size) !important; line-height: 20px !important; transition: margin-bottom .14s ease; }
 .lk-editor .bottom-property-pill::after { content: none !important; }
+/* Logseq's own "Show hidden properties" is a capsule too: here one quiet line under the rows, not a row. */
+.lk-editor button.bottom-property-pill.bottom-property-hidden-toggle-btn { display: inline-flex !important; align-self: flex-start; align-items: center !important; gap: 4px !important; width: auto !important; min-height: 24px; font-size: var(--lk-small) !important; color: var(--lk-off) !important; cursor: pointer; text-align: left; justify-content: flex-start; }
+.lk-editor button.bottom-property-pill.bottom-property-hidden-toggle-btn:is(:hover, :focus-visible) { color: var(--lk-text) !important; }
+.lk-editor .bottom-property-hidden-toggle-btn .bottom-property-action-icon { width: 14px !important; height: 14px !important; color: inherit !important; }
 .lk-editor .bottom-property-pill > div:first-child { min-height: var(--lk-line-h); align-items: center; min-width: 0; }
 .lk-editor .bottom-property-pill > div:first-child > .select-none { display: none !important; }
 .lk-editor .bottom-property-pill .bottom-property-edit-icon, .lk-editor .property-panel-edit-btn { display: none !important; }
 .lk-editor .bottom-property-pill:has(.empty-value), .lk-editor .property-pair.property-panel-row.property-panel-row-empty, .lk-editor .ls-new-property { display: none !important; }
+/* Pressed, Logseq's "Show hidden properties" brings the node's other properties: the person asked for all of them, so the ones
+   with no value are listed too, to be filled here. */
+.lk-editor:has(.bottom-property-hidden-toggle-btn > .ls-icon-chevron-up) :is(.bottom-property-pill:has(.empty-value), .property-pair.property-panel-row.property-panel-row-empty) { display: grid !important; }
 .lk-editor .property-key-panel { width: auto !important; min-width: 0 !important; min-height: var(--lk-line-h) !important; }
 .lk-editor :is(.bottom-property-pill, .property-pair) .property-key-inner { min-width: 0; max-width: var(--lk-keycol); min-height: 0 !important; }
 .lk-editor .property-pair .property-icon, .lk-editor .property-pair .property-panel-bullet { display: none !important; }
@@ -373,6 +380,7 @@ const OPENED = `
 .lk-editor :is(.bottom-property-pill, .property-pair) .property-value-container { min-height: var(--lk-line-h) !important; display: flex !important; align-items: center !important; flex-wrap: wrap; overflow: visible !important; white-space: normal !important; min-width: 0; font-size: var(--lk-line-size) !important; line-height: 20px !important; padding: 0 !important; }
 .lk-editor :is(.bottom-property-pill, .property-pair) .property-value-inner { background: none !important; }
 .lk-editor .ls-properties-area, .lk-editor .properties-panel { margin: 0 !important; padding: 0 !important; overflow: visible !important; border-radius: 0 !important; }
+.lk-editor .ls-properties-area { display: block !important; }   /* Logseq drops these rows in a place narrower than 430px (the sidebar, a deep level); the rows here fit, so they stay */
 .lk-editor .ls-block-content-indent { padding-left: 42px !important; }   /* a bullet's other properties start where its first ones do */
 /* A value that is words is a bullet of Logseq's: its words stand in the values' column, without the bullet. */
 .lk-editor .property-pair .property-block-container { margin: 2px 0 0 !important; font-size: var(--lk-line-size) !important; }

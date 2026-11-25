@@ -51,7 +51,8 @@ A row:
 | Arrow up and down | Walk the lines and list names |
 | Click a list's name | Folds the list; it stays folded on every page |
 
-Everything inside an opened node is Logseq's own: its words, bullets, properties, menus and keys.
+Everything inside an opened node is Logseq's own: its words, bullets, properties, menus and keys. How it is laid out, and how
+a node it points at is opened under it, is under "An opened node, and digging" below.
 
 ### A page's place (`page/place.js`)
 
@@ -119,20 +120,34 @@ Ontology has a line at its top, "New tag": Enter makes a tag of your own at the 
 name that exists is shown instead of made twice. A closed line's right-click menu has "Tags…": your tags as an outline, the
 node's own ticked; a press puts a tag on the node or takes it off. The same line that adds a task in Todo adds the tag here.
 
-### Digging
+### An opened node, and digging
 
-Inside a node opened in place, a press on a node it points at (a value of one of its properties, a link in its words) does not
-leave the page: that node opens right under the opened one, headed by the property it was reached through, as a row like any
-other. Its own values are dug into in turn, as deep as you go, and what points at it stands under it. Escape closes the deepest
-first; a node dug into and closed is gone from under the node again. A press with Shift, Cmd, Ctrl or Option stays Logseq's
-own (the sidebar, a new window).
+A node opened in place is Logseq's own editor for it, laid out one way whatever the node is. A tagged bullet's properties,
+which Logseq draws as capsules in one clipped strip, and a page's, which it draws as rows, are one kind of row here: the names
+in one column as wide as the longest of them, the values in the next. Every row stays Logseq's: a press on a value opens
+Logseq's own list, date picker or field, and Cmd-Z takes a change back. A property with no value is not listed. What points at
+the node stands under its rows, under the word Relations and a thin line.
+
+A value that is a node has a small arrow before it. A press on the arrow digs: that node opens under its value, starting where
+the value's words start, with a guide line down from the arrow. It reads the same way (its rows, its Relations) and its own
+values are dug into in turn. A second press on the arrow closes it. A press on the value's name stays Logseq's: it goes to
+that page, and with Shift, Cmd, Ctrl or Option it does what Logseq does (the sidebar, a new window).
+
+| Do | Result |
+|---|---|
+| Click the arrow before a value | The node opens under its value; a second click closes it |
+| Escape, once nothing is being written | Back one node: the deepest dug node first, then the opened row |
+| Click the value's name | Goes to that node, as in Logseq |
+
+A page opened from a row keeps Logseq's faint dot for a first bullet; a dug page has none, so no level ends in an empty line.
 
 ### A list's head, and + on it
 
-In Relations a list of two or more says, after the property's name, how many it holds and of what ("4 Transfers", or the bare
-number where the tags differ) and, at its right end, from when to when. Where every row of a list has the same tag, a + stands
-on the head: a press makes one more node of that kind on today's journal, pointing here through the list's property, opens it
-in place and puts the caret in it.
+In Relations the head of a property's list is two lines. The first is the property's mark and name. The second says how many
+nodes the list holds and of what ("4 Transfers", or "53 nodes" where their tags differ) and, at its right end, from when to
+when; a press on it folds the list. A list of one node has nothing to count: its head is the first line alone. Where every row
+of a list has the same tag, a + stands on the head: a press makes one more node of that kind on today's journal, pointing here
+through the list's property, opens it in place and puts the caret in it.
 
 ### Ontology: counts, moving a tag, the lines between tags
 
