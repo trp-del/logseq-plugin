@@ -131,15 +131,17 @@ in place and puts the caret in it.
 Each tag says at its right how many nodes stand under it, its own and those of the tags below it. With the keys on a tag, Tab
 puts it under the tag above it at its level and Shift-Tab takes it out one level, as in any outline; its right-click menu has
 Show its nodes (Find, with the tag taken), Put under… and Move to the top. A move is written at once and is two steps of
-Logseq's Undo. The tag under the pointer or the keys shows hairlines to the tags it is joined with: a tag is joined to another
-when its nodes hold, under one of your properties, nodes of the other; the small head stands at the tag that is held, and the
-other names step back.
+Logseq's Undo. The tag under the pointer or the keys shows its lines to the tags it is joined with (and those of the tags under it): a tag is
+joined to another when its nodes hold, under one of your properties, nodes of the other. The lines are drawn as the released
+Ontology drew them: one hairline a pair, in the quiet grey, from the edge of an area at one row to the edge at the other,
+turning on a corner of 6; a bracket just outside the area inside one area, one soft curve across the gap between neighbours,
+and over the band above the areas when they are further apart.
 
 ### Ontology as a page of its own (`tend/ontology.js`)
 
 The toolbar's tree opens Ontology as a page: every top tag is an area with the tags under it as an outline, as many areas side
-by side as fit, then the properties. The lines of the tag under the pointer or the keys run from name to name, up the area,
-over the band above the areas and down into the next; areas on different rows meet in a lane at the left edge. At the top stand
+by side as fit, then the properties. The lines of the tag under the pointer or the keys run between the edges of the areas, in
+the gaps and over the band above the areas, never over a name. At the top stand
 the New tag line, **Move values…** (the box, with the property still to choose) and **In the sidebar**, which opens the same
 outline as a section of the right sidebar, for use beside a page you are reading. Everything the outline does, it does in both
 places: a press opens a tag in place, Tab and Shift-Tab move it (one move at a time: a second key waits for the first to

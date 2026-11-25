@@ -15,6 +15,8 @@ const onDisk = LAYERS.flatMap(l => l.endsWith('/') ? (fs.existsSync(path.join(ro
 for (const file of onDisk) if (!listed.includes(file)) faults.push(`${file} is not in files.js`);
 for (const file of listed) if (!onDisk.includes(file)) faults.push(`files.js lists ${file}, which is not there`);
 if (new Set(listed).size !== listed.length) faults.push('files.js lists a file twice');
+// Every file reads as code: a slip that would stop a part from starting is caught here, in a second, not in Logseq.
+for (const file of listed.filter(one => onDisk.includes(one))) { try { new Function(fs.readFileSync(path.join(root, file), 'utf8')); } catch (error) { faults.push(`${file} does not read as code: ${error.message}`); } }
 let high = -1;
 for (const file of listed) { const l = layerOf(file); if (l < 0) faults.push(`${file} stands in no layer`); if (l < high) faults.push(`${file} loads after a file of a higher layer`); high = Math.max(high, l); }
 const strip = text => text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`\\])\/\/[^\n]*/g, '$1');

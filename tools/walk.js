@@ -177,7 +177,7 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await page.locator('#head a[title="Ontology"]').first().click(); await wait(3000);
       const areas = await page.evaluate(() => [...document.querySelectorAll('.lk-map > .lk-rel > .lk-list[data-face="tag"]')].map(l => [l.querySelector('.lk-row .lk-words').innerText, Math.round(l.getBoundingClientRect().top)]));
       await page.locator('.lk-map .lk-row', { hasText: /^Consultation/ }).first().locator('.lk-line').hover(); await wait(500);
-      const joined = [await count('.lk-map .lk-joins path') > 0, await count('.lk-map .lk-row.lk-joined') > 1];
+      const joined = await page.evaluate(() => { const paths = [...document.querySelectorAll('.lk-map .lk-joins path')]; return [paths.length > 0, paths.every(p => getComputedStyle(p).strokeOpacity === '0.5' && getComputedStyle(p).fill === 'none' && !/L/.test(p.getAttribute('d')))]; });   // the old Ontology's hairlines: one a pair, quiet grey, no heads (the owner, 25 November 2026)
       return is([await page.evaluate(() => location.hash.split('?')[0]), await page.locator('.lk-page-title').innerText(), areas.length > 1, areas[0][0], areas.length > 1 && areas[0][1] === areas[1][1], joined], ['#/lk-ontology', 'Ontology', true, 'Entity', true, [true, true]]);
     });
     await step('In the sidebar, on that page, opens the outline beside whatever you read: the tags in their own face, then the properties', async () => {
@@ -304,7 +304,7 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
     });
     await step('the tag under the pointer shows its lines to the tags it is joined with, and only its own', async () => {
       await page.locator('.lk-ontology .lk-row', { hasText: /^Consultation/ }).first().locator('.lk-line').hover(); await wait(500);
-      const one = [await count('.lk-joins path') > 0, (await count('.lk-ontology .lk-row.lk-joined')) > 1, await count('.lk-joins')];
+      const one = [await count('.lk-joins path') > 0, await page.evaluate(() => { const box = document.querySelector('.lk-ontology:not(.lk-map) .lk-list[data-face="tag"] > .lk-rows').getBoundingClientRect(), svg = document.querySelector('.lk-ontology:not(.lk-map) .lk-joins path').getBoundingClientRect(); return svg.right > box.right && svg.right < box.right + 20; }), await count('.lk-joins')];   // a bracket just outside the outline's right edge
       await page.evaluate(() => document.activeElement?.blur()); await page.locator('.lk-ontology .lk-field').hover(); await wait(400);   // the keys on no row, the pointer off the list
       return is([one, await count('.lk-joins')], [[true, true, 1], 0]);
     });

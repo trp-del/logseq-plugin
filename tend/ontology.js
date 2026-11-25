@@ -19,11 +19,12 @@ G.part({
 .lk-map > .lk-side { order: 3; margin-bottom: 12px; }
 .lk-map > .lk-ask { order: 4; flex: 0 0 100%; min-width: 0; }
 .lk-map > .lk-rel { order: 5; flex: 0 0 100%; min-width: 0; }
-.lk-map > .lk-rel { display: grid; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); gap: 40px 28px; align-items: start; padding-top: 16px; container-type: normal; }   /* as many areas beside each other as fit */
-.lk-map > .lk-rel > .lk-list { container: lk-list / inline-size; min-width: 0; max-width: 340px; }
+.lk-map > .lk-rel { display: grid; grid-template-columns: repeat(2, minmax(232px, 340px)); justify-content: space-between; gap: 56px 44px; align-items: start; padding: 34px 26px 0 0; container-type: normal; }   /* the columns are counted as the areas are drawn */
+.lk-map > .lk-rel > .lk-list { container: lk-list / inline-size; min-width: 0; }
 .lk-joins { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
-.lk-joins path { fill: none; stroke: var(--lk-line); stroke-width: 1; stroke-linecap: round; stroke-linejoin: round; }
-.lk-ontology .lk-rel:has(> .lk-joins) .lk-list[data-face="tag"] .lk-row:not(.lk-joined) > .lk-line .lk-words { color: var(--lk-quiet); }`);
+.lk-joins { color: var(--lk-text); }
+.lk-joins path { fill: none; stroke: currentColor; stroke-opacity: .5; stroke-width: 1; }   /* a hairline in the quiet grey, in light and dark alike */
+.lk-ontology:not(.lk-map) > .lk-rel { padding-right: 20px; }   /* room at the right for the bracket of a tag's lines */`);
     /* One drawing for both places. In the sidebar: one outline. On the page: every top tag an area of its own, side by side,
        so the lines between tags run in the gaps and over the band above the areas. */
     const draw = (holder, wide) => {
@@ -62,59 +63,58 @@ G.part({
       const depthOf = row => Number(row.style.getPropertyValue('--lk-depth')) || 0;
       // The nearest row above at a depth: the row's sibling (its own depth), its parent (one less), its parent's parent (two less).
       const above = (row, want) => { for (let at = row.previousElementSibling; at; at = at.previousElementSibling) { const d = depthOf(at); if (d === want) return at; if (d < want) return null; } return null; };
-      /* The lines between tags. A tag is joined to another when its nodes hold, under one of your properties, nodes of the
-         other. For the tag under the pointer or the keys, a hairline runs from its name to each tag it is joined with, clear of
-         every name between them, with a small head at the tag that is held. Only that one tag's lines are drawn. */
-      let ids = new Map(), lit = '', joins = [];
-      const NS = 'http://www.w3.org/2000/svg';
+      /* The lines between tags, drawn as the released Ontology drew them (the owner, 25 November 2026: "I prefer the style of
+         the connecting lines of the old ontology"). A tag is joined to another when its nodes hold, under one of your
+         properties, nodes of the other. Each pair is one hairline of its own, in the quiet grey, from the edge of one area at
+         its row to the edge of the other at its row, turning on a corner of 6: inside one area a bracket just outside its right
+         edge; between neighbouring areas one soft curve across the gap; further apart up to the band above the row of areas,
+         across, and down into the other from its left; between rows of areas down the gap at the right of each. Lines never
+         cross words. Only the lines of the tag under the pointer or the keys, and of the tags under it, are drawn. */
+      let ids = new Map(), lit = '', joins = [], tagIndex = new Map();
+      const NS = 'http://www.w3.org/2000/svg', R = 6, NARROW = 232, WIDE = 340;
+      // As many areas beside each other as fit at their narrowest, none wider than 340, the room left over in the gaps.
+      const columns = () => {
+        if (!wide) return;
+        const view = doc.defaultView, css = view.getComputedStyle(rel), gap = parseFloat(css.columnGap) || 0, inner = rel.clientWidth - (parseFloat(css.paddingLeft) || 0) - (parseFloat(css.paddingRight) || 0);
+        const n = Math.max(1, Math.min(rel.querySelectorAll(':scope > .lk-list').length || 1, Math.floor((inner + gap) / (NARROW + gap)))), want = `repeat(${n}, minmax(${NARROW}px, ${WIDE}px))`;
+        if (rel.style.gridTemplateColumns !== want) rel.style.gridTemplateColumns = want;
+      };
       const lines = () => {
+        columns();
         rel.querySelector(':scope > .lk-joins')?.remove();
-        for (const row of rel.querySelectorAll('.lk-row.lk-joined')) row.classList.remove('lk-joined');
         const me = ids.get(lit);
         if (!me) return;
-        const rowOf = new Map([...rel.querySelectorAll('.lk-list[data-face="tag"] > .lk-rows > .lk-row')].map(row => [ids.get(row.dataset.uuid), row]));
-        const mine = joins.filter(([a, , b]) => a !== b && (a === me || b === me) && rowOf.has(a) && rowOf.has(b));
-        if (!mine.length || !rowOf.has(me)) return;
-        const frame = rel.getBoundingClientRect(), r = 5;
-        const end = row => { const words = (row.querySelector(':scope > .lk-line .lk-words') || row).getBoundingClientRect(); return { x: words.right - frame.left + 8, y: words.top - frame.top + 13 }; };
-        // Every joined row with its area; held: the lit tag holds it (the head stands at the tag that is held).
-        const stops = [{ row: rowOf.get(me), held: mine.some(([a]) => a !== me) }, ...new Map(mine.map(([a, , b]) => [a === me ? b : a, { row: rowOf.get(a === me ? b : a), held: a === me }])).values()];
-        const byArea = new Map();
-        for (const stop of stops) { stop.at = end(stop.row); const area = stop.row.parentElement; if (!byArea.has(area)) byArea.set(area, []); byArea.get(area).push(stop); stop.row.classList.add('lk-joined'); }
+        const near = G.find.under(me, tagIndex), rowOf = new Map([...rel.querySelectorAll('.lk-list[data-face="tag"] > .lk-rows > .lk-row')].map(row => [ids.get(row.dataset.uuid), row]));
+        const at = rel.getBoundingClientRect(), areas = [...rel.querySelectorAll('.lk-list[data-face="tag"] > .lk-rows')];
+        const tops = [...new Set(areas.map(area => Math.round(area.getBoundingClientRect().top - at.top)))].sort((x, y) => x - y);
+        const seat = row => { const r = (row.querySelector(':scope > .lk-line') || row).getBoundingClientRect(), area = row.parentElement, ar = area.getBoundingClientRect(); return { y: r.top - at.top + 14, l: ar.left - at.left, r: ar.right - at.left, area: areas.indexOf(area), line: tops.indexOf(Math.round(ar.top - at.top)) }; };
+        const pairs = new Map();
+        for (const [from, , to] of joins) { if (from === to || !(near.has(from) || near.has(to))) continue; const a = rowOf.get(from), b = rowOf.get(to); if (a && b && a !== b) pairs.set(`${from}>${to}`, { a, b }); }
+        if (!pairs.size) return;
+        let lane = 0;
         const svg = doc.createElementNS(NS, 'svg'); svg.setAttribute('class', 'lk-joins'); svg.setAttribute('width', rel.scrollWidth); svg.setAttribute('height', rel.scrollHeight); svg.setAttribute('aria-hidden', 'true');
-        const draw = d => { const path = doc.createElementNS(NS, 'path'); path.setAttribute('d', d); svg.appendChild(path); };
-        const across = byArea.size > 1, trunks = [];
-        for (const [area, here] of byArea) {
-          const box = area.getBoundingClientRect(), band = box.top - frame.top - 10, ys = here.map(stop => stop.at.y), top = across ? band : Math.min(...ys), bottom = Math.max(...ys);
-          // The trunk stands to the right of every name it passes, and never over the counts.
-          let x = 0;
-          for (const row of area.children) { const at = end(row); if (at.y >= top - 1 && at.y <= bottom + 1) x = Math.max(x, at.x); }
-          x = Math.min(x + 14, box.right - frame.left - 34);
-          for (const stop of here) {
-            const first = !across && stop.at.y === top && top !== bottom, lastOne = stop.at.y === bottom && top !== bottom;
-            draw(top === bottom && !across ? `M${stop.at.x} ${stop.at.y}H${x}` : first ? `M${stop.at.x} ${stop.at.y}H${x - r}Q${x} ${stop.at.y} ${x} ${stop.at.y + r}` : lastOne ? `M${stop.at.x} ${stop.at.y}H${x - r}Q${x} ${stop.at.y} ${x} ${stop.at.y - r}` : `M${stop.at.x} ${stop.at.y}H${x}`);
-            if (stop.held) draw(`M${stop.at.x + 5} ${stop.at.y - 3.5}L${stop.at.x} ${stop.at.y}L${stop.at.x + 5} ${stop.at.y + 3.5}`);
+        for (const pair of pairs.values()) {
+          let a = seat(pair.a), b = seat(pair.b), d;
+          if (a.line > b.line || (a.line === b.line && a.area > b.area)) [a, b] = [b, a];
+          if (a.area === b.area) { const x = a.r + 10 + (Math.abs(a.y - b.y) % 3) * 3, turn = b.y > a.y ? 1 : -1; d = `M${a.r} ${a.y} H${x - R} Q${x} ${a.y} ${x} ${a.y + turn * R} V${b.y - turn * R} Q${x} ${b.y} ${x - R} ${b.y} H${b.r}`; }
+          else if (a.line === b.line && b.area === a.area + 1) { const mid = (a.r + b.l) / 2; d = `M${a.r} ${a.y} C${mid} ${a.y} ${mid} ${b.y} ${b.l} ${b.y}`; }
+          else if (a.line === b.line) {
+            const top = tops[a.line] - 26 + (lane++ % 5) * 4, x1 = a.r + 14, x2 = b.l - 14;
+            d = `M${a.r} ${a.y} H${x1 - R} Q${x1} ${a.y} ${x1} ${a.y - R} V${top + R} Q${x1} ${top} ${x1 + R} ${top} H${x2 - R} Q${x2} ${top} ${x2} ${top + R} V${b.y - R} Q${x2} ${b.y} ${x2 + R} ${b.y} H${b.l}`;
+          } else {
+            const k = lane++ % 5, top = tops[b.line] - 26 + k * 4, x1 = a.r + 14 + k * 3, x2 = b.r + 14 + k * 3, turn = x2 > x1 ? 1 : x2 < x1 ? -1 : 0;
+            const across = turn ? `Q${x1} ${top} ${x1 + turn * R} ${top} H${x2 - turn * R} Q${x2} ${top} ${x2} ${top + R}` : `V${top + R}`;
+            d = `M${a.r} ${a.y} H${x1 - R} Q${x1} ${a.y} ${x1} ${a.y + R} V${top - (turn ? R : 0)} ${across} V${b.y - R} Q${x2} ${b.y} ${x2 - R} ${b.y} H${b.r}`;
           }
-          if (top !== bottom) draw(`M${x} ${across ? top + r : top + r}V${bottom - r}`);
-          if (across) trunks.push({ x, band });
-        }
-        // Areas side by side share the band above them; areas on different rows meet in the lane at the left edge.
-        if (across) {
-          const bands = [...new Set(trunks.map(trunk => Math.round(trunk.band)))].sort((a, b) => a - b), lane = -12;
-          for (const band of bands) {
-            const xs = trunks.filter(trunk => Math.round(trunk.band) === band).map(trunk => trunk.x), laned = bands.length > 1, least = Math.min(...xs), to = Math.max(...xs);
-            // Each trunk turns into the band toward the others: the leftmost to the right, unless the band runs on to the lane.
-            for (const x of xs) { const right = !laned && x === least && xs.length > 1; draw(`M${x} ${band + r}Q${x} ${band} ${right ? x + r : x - r} ${band}`); }
-            const from = laned ? lane + r : least + r;
-            if (to - r > from) draw(`M${from} ${band}H${to - r}`);
-            if (bands.length > 1) draw(`M${lane + r} ${band}Q${lane} ${band} ${lane} ${band === bands[0] ? band + r : band - r}`);
-          }
-          if (bands.length > 1) draw(`M${lane} ${bands[0] + r}V${bands[bands.length - 1] - r}`);
+          const path = doc.createElementNS(NS, 'path'); path.setAttribute('d', d); svg.appendChild(path);
         }
         rel.appendChild(svg);
       };
+      // The lines follow the width: the sidebar opened, the window narrowed.
+      const RO = doc.defaultView.ResizeObserver, sized = RO ? new RO(() => { if (rel.isConnected && rel.clientWidth !== sized.was) { sized.was = rel.clientWidth; lines(); } }) : null;
+      sized?.observe(rel);
       const light = uuid => { if (uuid === lit) return; lit = uuid; lines(); };
-      const onPoint = event => { const row = event.target.closest?.('.lk-list[data-face="tag"] > .lk-rows > .lk-row'); if (row && !row.dataset.open && row.closest('.lk-rel') === rel) light(row.dataset.uuid); };
+      const onPoint = event => { const row = event.target.closest?.('.lk-list[data-face="tag"] > .lk-rows > .lk-row'); if (row && !row.dataset.open && row.closest('.lk-rel') === rel) light(row.dataset.uuid); };   // the tag under the pointer or the keys
       const onLeave = () => light(rel.contains(doc.activeElement) ? doc.activeElement.closest('.lk-row')?.dataset.uuid || '' : '');
       rel.addEventListener('pointerover', onPoint); rel.addEventListener('focusin', onPoint); rel.addEventListener('pointerleave', onLeave);
       rel.addEventListener('lk-drawn', () => lines());
@@ -130,7 +130,7 @@ G.part({
         const tags = await G.read.tags(), tree = G.find.tree(tags), props = [...(await G.read.properties()).values()].sort((a, b) => a.title.localeCompare(b.title));
         const [tagNodes, propNodes, pairs] = await Promise.all([G.read.byUuids(tree.map(row => row.tag.uuid)), G.read.byUuids(props.map(prop => prop.uuid)), G.read.tagPairs()]);
         const depth = new Map(tree.map(row => [row.tag.uuid, row.depth])), counts = G.find.counts(tags, pairs), idOf = new Map(tree.map(row => [row.tag.uuid, row.tag.id]));
-        ids = idOf; joins = await G.read.relations();
+        ids = idOf; tagIndex = tags; joins = await G.read.relations();
         const tagRows = tagNodes.map(node => ({ ...plain(node), depth: depth.get(node.uuid) || 0, count: counts.get(idOf.get(node.uuid)) || 0 }));
         const propList = { key: 'ontology:properties', kind: 'group', name: 'Properties', tag: '', face: 'prop', rows: propNodes.map(plain) };
         if (!wide) return [{ key: 'ontology:tags', kind: 'group', name: 'Tags', tag: '', face: 'tag', rows: tagRows }, propList].filter(one => one.rows.length);
@@ -167,7 +167,7 @@ G.part({
         side.addEventListener('click', open); values.addEventListener('click', ask); (holder.querySelector(':scope > .lk-add') || holder.firstElementChild).after(values, side);
         offSide = () => { side.removeEventListener('click', open); values.removeEventListener('click', ask); side.remove(); values.remove(); };
       }
-      return () => { offSide?.(); offAdd(); list.off(); };
+      return () => { sized?.disconnect(); offSide?.(); offAdd(); list.off(); };
     };
     const section = G.touch.section('lk-ontology', 'Ontology', holder => draw(holder, false), TREE);
     const page = G.touch.page('lk-ontology', 'Ontology', holder => draw(holder, true));
