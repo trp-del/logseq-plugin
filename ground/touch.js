@@ -152,22 +152,34 @@ const command = (name, label, run) => logseq.App.registerCommandPalette({ key: n
 function section(name, title, draw, path) {
   const E = logseq.Experiments, React = E?.React;
   if (!React?.createElement || !E.registerSidebarRenderer) return { open() { G.say(`${title} cannot be shown: this Logseq lends plugins no sidebar section`, 'warning'); }, off() {} };
-  // Logseq heads a plugin's section with the section's own address and a puzzle: its name and its own drawing are put there, and
-  // put back whenever Logseq draws the head again.
-  const offHead = watch(() => {
+  const drawn = new Map();   // the element Logseq gave -> what clears it
+  const fill = holder => {
+    if (drawn.has(holder)) return;
+    holder.replaceChildren(); holder.className = 'lk-section';
+    try { drawn.set(holder, draw(holder) || (() => {})); } catch (error) { console.error(`Logseq Plugin: ${title} could not be drawn`, error); }
+  };
+  const clear = holder => { const off = drawn.get(holder); drawn.delete(holder); try { off?.(); } catch (error) { /* gone with its element */ } };
+  /* Logseq heads a plugin's section with the section's own address and a puzzle: its name and its own drawing are put there, and
+     put back whenever Logseq draws the head again. And a section left open while the plugin is loaded again keeps the element
+     Logseq gave the plugin's earlier copy, with nothing behind it that answers a press (the walk, 25 November 2026): it is taken
+     over and drawn afresh. */
+  const offWatch = watch(() => {
     const head = host().getElementById('_sidebar.' + name);
     if (!head) return;
     if (head.textContent !== title) head.textContent = title;
     const lines = path ? [...(head.parentElement?.querySelectorAll('.ui__icon svg path') || [])] : [];
     lines.forEach((line, i) => { const d = i ? '' : path; if (line.getAttribute('d') !== d) line.setAttribute('d', d); });
+    const holder = head.closest('.sidebar-item')?.querySelector('.lk-section');
+    if (holder) fill(holder);
+    for (const one of [...drawn.keys()]) if (!one.isConnected) clear(one);
   });
   const View = () => {
     const ref = React.useRef(null);
-    React.useEffect(() => { let off = null; try { off = ref.current ? draw(ref.current) : null; } catch (error) { console.error(`Logseq Plugin: ${title} could not be drawn`, error); } return () => off?.(); }, []);
+    React.useEffect(() => { const holder = ref.current; if (holder) fill(holder); return () => { if (holder) clear(holder); }; }, []);
     return React.createElement('div', { ref, className: 'lk-section' });
   };
   E.registerSidebarRenderer(name, { title, render: () => React.createElement(View) });
-  return { open: () => logseq.Editor.openInRightSidebar('_sidebar.' + name), off: offHead };
+  return { open: () => logseq.Editor.openInRightSidebar('_sidebar.' + name), off() { offWatch(); for (const holder of [...drawn.keys()]) { clear(holder); holder.replaceChildren(); } } };
 }
 /* Logseq 2.0.2 draws a plugin's toolbar button only when it is in its list of pinned ones, otherwise set from the puzzle icon's
    menu. So the button pins itself: into Logseq's state (which redraws the toolbar) and its preferences file. One at a time. */
@@ -225,8 +237,10 @@ ${PAGE}:has(> .lk-rel) .references, ${PAGE}:has(> .lk-rel) .ls-bidirectional-pro
 
 /* Logseq's editor draws a node as a whole page: a wide margin under it, the path to it above, a large title. Opened in a row it
    stands as the row's own line: no margins of a page, the path left out, a page's title at the size of the words around it.
-   The node's own fold arrow is left out too: it would stand exactly where the row's arrow stands, and the row's arrow, which
-   closes the node, is the one a person means there (the walk, 25 November 2026: a press on the row's arrow reached Logseq's). */
+   A bullet's own fold arrow is left out too: it would stand exactly where the row's arrow stands, and the row's arrow, which
+   closes the node, is the one a person means there (the walk, 25 November 2026: a press on the row's arrow reached Logseq's).
+   A page's own arrow stays, in the place the line's bullet had: it unfolds what the page keeps folded (a tag's Extends and
+   properties), and nothing else opens those. */
 const OPENED = `
 .lk-editor ${PAGE} { padding: 0 !important; }
 .lk-editor ${PAGE} > .page-inner { display: block !important; margin: 0 !important; }
@@ -237,8 +251,11 @@ const OPENED = `
 .lk-editor .ls-page-title-container, .lk-editor .ls-page-title-container :is(h1, .block-title-wrap, .ls-page-title-actions) { font-size: inherit !important; line-height: 24px !important; font-weight: 600 !important; min-height: 0 !important; margin: 0 !important; }
 .lk-editor .ls-page-properties { margin-top: 4px !important; }
 .lk-editor .ls-page-title-actions { display: none !important; }
-.lk-editor .is-page-title-row > .block-control-wrap { visibility: hidden !important; }
-.lk-editor:has(.ls-page-title) { margin-left: 20px; }
+.lk-editor .is-page-title-row { margin-left: 0 !important; }
+.lk-editor:has(.ls-page-title) { margin-left: -2px; }
+.lk-editor .ls-page-icon { align-self: flex-start !important; height: 24px !important; padding: 0 !important; margin: 0 !important; align-items: center !important; }
+.lk-editor .ls-page-icon button { width: 20px !important; height: 24px !important; min-width: 0 !important; padding: 0 !important; }
+.lk-editor .ls-page-icon :is(.ui__icon, svg) { width: 18px !important; height: 18px !important; font-size: 18px !important; }
 .lk-editor .lsp-hook-ui-slot { display: none !important; }`;
 
 G.touch = { watch, changed, pages, pageFoot, pageHead, editor, open, openUrl, busy, left, key, command, section, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE };

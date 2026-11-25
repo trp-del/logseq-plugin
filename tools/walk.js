@@ -161,7 +161,26 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
     await step('Todo does not say Task on every row, and still lists the tasks after the plugin is loaded again', async () => {
       const tags = await page.locator('.lk-todo .lk-row .lk-tag').allInnerTexts();
       await page.evaluate(() => window.LSPluginCore.reload('logseq-plugin')); await wait(5500);
-      return is([tags.includes('Task'), await page.evaluate(() => document.getElementById('_sidebar.lk-todo')?.textContent), (await count('.lk-todo .lk-row')) > 0], [false, 'Todo', true]);
+      const rows = await count('.lk-todo .lk-row');
+      await page.locator('.lk-todo .lk-row .lk-line').first().click(); await wait(1800);   // it still answers a press: the row opens
+      const open = await count('.lk-todo .lk-row[data-open]');
+      await page.keyboard.press('Escape'); await wait(400);
+      return is([tags.includes('Task'), await page.evaluate(() => document.getElementById('_sidebar.lk-todo')?.textContent), rows > 0, open, await count('.lk-todo .lk-row[data-open]')], [false, 'Todo', true, 1, 0]);
+    });
+    // ---- Tending: Ontology
+    await step('the toolbar\'s tree opens Ontology: the tags as an outline in their own face, then the properties', async () => {
+      await page.locator('#head a[title="Ontology"]').first().click(); await wait(2500);
+      return is(await page.evaluate(() => { const lists = [...document.querySelectorAll('.lk-ontology > .lk-list')]; const first = lists[0]?.querySelectorAll('.lk-row'); return [lists.map(l => l.querySelector('.lk-list-name').innerText), [...(first || [])].slice(0, 3).map(r => [r.querySelector('.lk-line').innerText, r.style.getPropertyValue('--lk-depth')]), /New York|serif/.test(getComputedStyle(first[0].querySelector('.lk-words')).fontFamily)]; }),
+        [['Tags', 'Properties'], [['Entity', '0'], ['Organization', '1'], ['Hospital', '2']], true]);
+    });
+    await step('a tag opens in place as Logseq\'s own page for it, where it is renamed and moved', async () => {
+      await page.locator('.lk-ontology .lk-row .lk-line', { hasText: 'Hospital' }).first().click(); await wait(2500);
+      const name = await page.evaluate(() => document.querySelector('.lk-ontology .lk-row[data-open] .lk-editor .ls-page-title-container')?.innerText.trim().split('\n')[0]);
+      await page.locator('.lk-ontology .lk-row[data-open] .lk-editor .is-page-title-row .block-control').click(); await wait(900);   // Logseq's own arrow unfolds what the tag keeps
+      const extends_ = await page.evaluate(() => /Extends/.test(document.querySelector('.lk-ontology .lk-row[data-open] .lk-editor').innerText));
+      await page.locator('.lk-ontology .lk-row[data-open] .lk-editor .is-page-title-row .block-control').click(); await wait(500);
+      await page.locator('.lk-ontology .lk-row[data-open] > .lk-fold').click(); await wait(400);
+      return is([name, extends_, await count('.lk-ontology .lk-row[data-open]')], ['Hospital', true, 0]);
     });
     // ---- Writing: sure values
     await goto(OCT7);

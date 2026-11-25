@@ -8,5 +8,6 @@ window.PluginFiles = [
   'page/relations.js', 'page/place.js',
   'arrive/find.js', 'arrive/todo.js',
   'write/sure.js',
+  'tend/ontology.js',
   'main.js',
 ];

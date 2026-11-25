@@ -16,6 +16,7 @@
      read.values(ids)         id -> [words]   what each node holds under the person's properties
      read.tasks()             the open tasks, each a node whose day is the day it is due (Deadline, else Scheduled)
      read.journal(day)        the uuid of a day's journal page, or '' when the graph has none
+     read.byUuids(uuids)      the nodes of these uuids, in their order: [node]
      read.schema()            { props: ident -> { ident, title, type, range: [tag id], many }, byTag: tag id -> [ident] }
      read.writing(uuid)       what a bullet's words say, as core/sure.js takes it; null for a bullet with no tag of the person's
    Deleted nodes, and nodes on deleted pages, are never answered. */
@@ -178,6 +179,13 @@ async function tasks() {
 }
 const journal = async day => { const [[uuid] = []] = await q(`[:find ?u :where [?p :block/journal-day ${Number(day)}] [?p :block/uuid ?u] (not [?p :logseq.property/deleted-at])]`); return uuid ? String(uuid) : ''; };
 
+async function byUuids(uuids) {
+  const list = uuids.map(u => String(u).toLowerCase()).filter(u => UUID.test(u));
+  if (!list.length) return [];
+  const ids = new Map((await q(`[:find ?u ?b :where ${amongUuids('?u', list)} [?b :block/uuid ?u]]`)).map(([u, b]) => [String(u).toLowerCase(), b]));
+  const nodes = await describe([...ids.values()]);
+  return list.map(u => nodes.get(ids.get(u))).filter(Boolean);
+}
 const schema = () => once('schema', async () => {
   const [all, ranges, many, given] = await Promise.all([properties(),
     q('[:find ?i ?c :where [?p :logseq.property/classes ?c] [?p :db/ident ?i] [(namespace ?i) ?ns] [(= ?ns "user.property")]]'),
@@ -215,5 +223,5 @@ async function writing(uuid) {
     page: isId(pageId) ? { id: pageId, tags: tagsFor(pageId), day: Number(pageDay) || 0 } : null, dated };
 }
 
-G.read = { schema, writing, search, tagged, values, tasks, journal, q, node, describe, pointingAt, dues, names, properties, statuses, tags, tagsOf, forget: () => kept.clear(), isId, UUID };
+G.read = { byUuids, schema, writing, search, tagged, values, tasks, journal, q, node, describe, pointingAt, dues, names, properties, statuses, tags, tagsOf, forget: () => kept.clear(), isId, UUID };
 })();

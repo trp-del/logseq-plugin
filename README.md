@@ -17,7 +17,7 @@ Each layer uses only the layers under it. `node tools/layers.js` fails if a file
 | 2 The node's page | `page/` | Relations: under a page, one list for each property that points at it, then where it is mentioned. Under a page's title, its tags and the tags above them. |
 | 3 Arriving | `arrive/` | Find: a window to reach any node by its kind, a value, a day or its words. Todo: your open tasks by day, in the right sidebar. |
 | 4 Writing | `write/` | Sure values: on leaving a bullet, what its words say for certain is written into its empty properties. Not built yet: tags placed, a link panel under the line. |
-| 5 Tending | `tend/` | Not built yet: the map of tags and properties. |
+| 5 Tending | `tend/` | Ontology: your tags as an outline and your properties, in the right sidebar; each opens in place as Logseq's own page for it. |
 
 `core/` holds the pieces that decide (how words read, how rows are grouped and ordered, how a tag's path runs). They know
 nothing of Logseq and are checked without it (`node --test test/`).
@@ -94,6 +94,13 @@ When you leave a bullet you wrote in, what its words already say for certain is 
 
 Nothing is written where two things could be meant, into a property that already holds a value, or on a bullet you did not
 change. Each value is one step of Logseq's own Undo.
+
+### Ontology (`tend/ontology.js`)
+
+The tree in the toolbar, or **Ontology** in the command palette, opens a section of the right sidebar: your tags as an outline,
+each under the tag it sits under, then your properties by name. A tag and a property are nodes like any other, so a row opens
+in place as Logseq's own page for it. There its name is renamed, and Logseq's own arrow beside the name unfolds what it keeps:
+the tag it extends, its properties, a property's kind and what it takes. Ontology itself writes nothing.
 
 ## What it writes
 

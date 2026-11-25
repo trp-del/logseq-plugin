@@ -3,7 +3,8 @@
    what points at it underneath, each row a line that opens in turn. Nothing of the node is drawn by the plugin.
      G.node.toggle(row), open(row), close(row)   a row of a list opened and closed in place
      G.node.listing(el, read, opts)              lists of nodes drawn into el and kept true while the graph changes. read() answers
-                                                 [{ key, kind, name, tag, rows }] (a list with no name has no head); opts: press(row,
+                                                 [{ key, kind, name, tag, rows, face }] (a list with no name has no head; face 'tag' or
+                                                 'prop' draws its rows' words as tags or properties are drawn); opts: press(row,
                                                  event) -> true when the place takes a press on a line itself, few (rows before Show
                                                  all), none (words to say when there is nothing). Gives back { off(), again() }
      G.node.lists(el, uuid)                      the listing of what points at a node; gives back what takes it away */
@@ -124,7 +125,7 @@ function draw(state, made, names, statuses) {
     head.setAttribute('aria-expanded', String(!isFolded));
     const name = `<span class="${list.kind === 'property' || list.kind === 'due' ? 'lk-prop' : list.kind === 'none' ? 'lk-none' : 'lk-plain'}">${G.esc(list.name)}</span>${list.tag ? ` <span class="lk-tag">${G.esc(list.tag)}</span>` : ''}`;
     if (head.lastElementChild.innerHTML !== name) head.lastElementChild.innerHTML = name;
-    head.hidden = !list.name; box.dataset.kind = list.kind;
+    head.hidden = !list.name; box.dataset.kind = list.kind; box.dataset.face = list.face || '';
     rowsEl.hidden = isFolded;
     const rows = L.shown(list.rows, state.all.has(list.key), state.few);
     const days = list.rows.some(row => row.dayShown), long = list.rows.some(row => row.dayShown && Math.floor(row.dayShown / 10000) !== Math.floor(today / 10000));
@@ -135,6 +136,7 @@ function draw(state, made, names, statuses) {
       return el;
     }, (el, row) => {
       el.dataset.uuid = row.uuid; el.dataset.status = row.status || ''; el.dataset.page = row.isPage ? '1' : '';
+      el.style.setProperty('--lk-depth', String(row.depth || 0));   // an outline's row stands in by its depth
       const day = D.short(row.dayShown, today), dayEl = el.firstElementChild;
       if (dayEl.textContent !== day) dayEl.textContent = day;
       dayEl.title = day ? (row.dayFrom || 'The day it was written') : '';
@@ -173,6 +175,8 @@ G.node.CSS = `
 .lk-rel:empty { display: none; }
 .lk-rel { display: flex; flex-direction: column; gap: 18px; }
 .lk-list-head[hidden] { display: none; }
+.lk-list[data-face="tag"] > .lk-rows > .lk-row > .lk-line .lk-words { font-family: var(--lk-tag-face); }
+.lk-list[data-face="prop"] > .lk-rows > .lk-row > .lk-line .lk-words { font-family: var(--lk-prop-face); font-weight: var(--lk-prop-weight); font-size: .9em; letter-spacing: -.01em; }
 .lk-list[data-kind="none"] .lk-fold { visibility: hidden; }
 .lk-list-head { display: flex; align-items: center; gap: 2px; min-height: 28px; margin-left: -18px; cursor: default; border-radius: 6px; }
 .lk-list-head:focus-visible { outline: none; background: var(--lk-wash); }
