@@ -460,8 +460,6 @@ function choiceGroups() {
   return groups;
 }
 const flatChoices = groups => groups.flatMap(g => g.items);
-// What Find's sentence names, for a folded row's line (Look's folded note leaves these out): the kind read, the values and pages picked.
-const heldSays = () => [kindPick()?.title, ...S.picks.filter(p => p.kind === 'who').map(p => p.label || p.title)].filter(Boolean).join('|');
 // "more" grows the choices where they stand, so the rows under them glide down (window.PluginDoor.regrow).
 function growChoices() { const was = S.dlg?.querySelector('.fd-choices')?.getBoundingClientRect().height; render(); window.PluginDoor.regrow(S.dlg?.querySelector('.fd-choices'), was); }
 const litChoice = groups => (S.trail.length && (S.say || S.trail.length === 1) ? flatChoices(groups).find(c => c.lit) : null);
@@ -730,10 +728,7 @@ function render() {
     if (node.kind && !(r.under && rows.find(x => x.key === r.under)?.tag === node.kind.title) && !(kindPick() && r.top && kindPick().title === node.kind.title)) nm.append(el(doc, 'span', { class: 'lk-tag', 'data-tag-uuid': node.kind.uuid || '', 'data-tag-title': node.kind.title }, node.kind.title));
     // A found bullet holds what is under it folded: Look's ↳ line follows its words, as on Logseq's own folded bullets (16 November
     // 2026, the owner: in Linked and Find too). Opened in place, what it holds is shown, so no line.
-    // The mark tells the line its place (0.5, E): what Find's sentence already names (the kind, a value, a page), not said again;
-    // the words typed, so the line beneath that holds them is shown; and that the window says the nodes' properties itself (its
-    // lines of choices, a row opened), so no row carries its own: a note on every row would double the list (seen 23 November 2026).
-    if (!node.isPage && !node.sign && !dug) nm.append(el(doc, 'span', { class: 'lk-held', 'data-lk-held': node.uuid, 'data-lk-says': heldSays(), 'data-lk-match': ws.join('|'), 'data-lk-facts': '' }));
+    if (!node.isPage && !node.sign && !dug) nm.append(el(doc, 'span', { class: 'lk-held', 'data-lk-held': node.uuid }));
     row.append(nm);
     const right = node.page && !node.page.journal ? node.page.title : '';
     row.append(el(doc, 'span', { class: 'fd-right fd-page', ...(right ? { title: right } : {}) }, right));

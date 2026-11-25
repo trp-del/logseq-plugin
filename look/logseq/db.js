@@ -136,11 +136,8 @@ async function heldBelow(uuids) {
     visit(r, 0);
     below.set(r, all); nearOf.set(r, near);
   }
-  /* The folded node's own filled properties, in its tag's order (0.5, E: "the tag picks the facts"): the properties its tags give
-     it, each with the words of its value, as Logseq shows them (a page or a value by its title, a day by its journal page's name). */
-  const factsOf = await ownFacts(roots.map(r => r[1]), ground);
   const ids = [...new Set([...below.values()].flat())];
-  if (!ids.length) { for (const [u, r] of roots) if (factsOf.get(r)?.length) held.set(String(u).toLowerCase(), { task: 0, done: 0, files: [], quotes: 0, tags: [], due: 0, facts: factsOf.get(r), lines: [] }); return held; }
+  if (!ids.length) return held;
   const among = ground('?b', ids);
   // A tag that extends Task, at any depth (7 November 2026, the owner: "include not just #tasks but other children of tasks"),
   // counts its nodes as tasks too, done or cancelled ones left out as for Task itself.
@@ -148,17 +145,14 @@ async function heldBelow(uuids) {
   const extendsRows = await query(`[:find ?c ?p :where [?c :${EXTENDS} ?p]]`).catch(() => []);
   const [[taskId] = []] = await query('[:find ?t :where [?t :db/ident :logseq.class/Task]]').catch(() => []);
   if (taskId != null) { taskKinds.add(taskId); for (let grew = true; grew;) { grew = false; for (const [c, parent] of extendsRows) if (taskKinds.has(parent) && !taskKinds.has(c)) { taskKinds.add(c); grew = true; } } }
-  const [tagRows, statusRows, dayRows, stampRows, fileRows, quoteRows, titleRows] = await Promise.all([
+  const [tagRows, statusRows, dayRows, stampRows, fileRows, quoteRows] = await Promise.all([
     query(`[:find ?b ?title ?ident ?t :where ${among} [?b :block/tags ?t] [?t :block/title ?title] [(get-else $ ?t :db/ident :none) ?ident]]`),
     query(`[:find ?b ?sid :where ${among} [?b :logseq.property/status ?s] [(get-else $ ?s :db/ident :none) ?sid]]`),
     query(`[:find ?b ?day :where ${among} (or [?b :logseq.property/deadline ?d] [?b :logseq.property/scheduled ?d]) [?d :block/journal-day ?day]]`),
     query(`[:find ?b ?ms :where ${among} (or [?b :logseq.property/deadline ?ms] [?b :logseq.property/scheduled ?ms]) [(> ?ms 100000000000)]]`),
     query(`[:find ?b ?a ?type :where ${among} (or-join [?b ?a] [(identity ?b) ?a] [?b :logseq.property/asset ?a] [?b :block/refs ?a]) [?a :logseq.property.asset/type ?type]]`),
     query(`[:find ?b ?q :where ${among} (or-join [?b ?q] (and [?b :logseq.property.pdf/hl-page _] [(identity ?b) ?q]) (and [?b :block/refs ?q] [?q :logseq.property.pdf/hl-page _]) (and [?b :logseq.property.node/display-type :quote] [(identity ?b) ?q]))]`),
-    // The words of every line under it, so a place that found the node by some words can show the line beneath that holds them.
-    query(`[:find ?b ?title :where ${among} [?b :block/title ?title]]`),
   ]);
-  const titleOf = new Map(titleRows.map(([b, title]) => [b, String(title)]));
   const tagsOf = new Map(), taskIds = new Set(), dueOf = new Map(), filesOf = new Map(), quoteOf = new Map();
   const add = (map, key, value) => { if (!map.has(key)) map.set(key, []); map.get(key).push(value); };
   for (const [b, title, ident, t] of tagRows) { if (String(ident) === ':logseq.class/Task' || taskKinds.has(t)) taskIds.add(b); if (!/^:?logseq\.class\//.test(String(ident))) add(tagsOf, b, String(title)); }
@@ -195,37 +189,9 @@ async function heldBelow(uuids) {
     }
     const files = ['image', 'pdf', 'file'].filter(k => fileSets.has(k)).map(k => [k, fileSets.get(k).size]);
     const tags = [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([title]) => title);
-    const lines = below.get(r).map(b => titleOf.get(b)).filter(Boolean).slice(0, 200).map(t => t.slice(0, 200));
-    held.set(String(u).toLowerCase(), { task, done, files, quotes: passages.size, tags, due, facts: factsOf.get(r) || [], lines });
+    held.set(String(u).toLowerCase(), { task, done, files, quotes: passages.size, tags, due });
   }
   return held;
-}
-
-/* The filled properties a node's own tags give it, by node, in the tag's order (the order Logseq lists a tag's properties in, its
-   properties' :block/order), each { name, value }: the value's words as Logseq shows them; several values joined by commas. Logseq's
-   own tags (Task's Status, Priority, Deadline) are left out: the circle and the due day say those. */
-async function ownFacts(nodes, ground) {
-  const facts = new Map();
-  if (!nodes.length) return facts;
-  const rows = await query(`[:find ?r ?pt ?ord ?type ?v :where ${ground('?r', nodes)} [?r :block/tags ?t] (not [?t :db/ident ?ti] [(namespace ?ti) ?ns] [(clojure.string/starts-with? ?ns "logseq")]) [?t :logseq.property.class/properties ?p] [?p :db/ident ?pi] [?r ?pi ?v] [?p :block/title ?pt] [(get-else $ ?p :block/order "") ?ord] [(get-else $ ?p :logseq.property/type :default) ?type]]`).catch(error => { console.warn('Look: could not read a folded node\'s properties', error); return []; });
-  if (!rows.length) return facts;
-  const refs = [...new Set(rows.filter(([, , , type, v]) => !/checkbox|datetime/.test(String(type)) && Number.isInteger(v)).map(row => row[4]))];
-  const words = new Map(refs.length ? (await query(`[:find ?v ?w :where ${ground('?v', refs)} (or-join [?v ?w] [?v :block/title ?w] (and (not [?v :block/title _]) [?v :logseq.property/value ?w]))]`).catch(() => [])).map(([v, w]) => [v, String(w)]) : []);
-  // A day is said as the plugin says a day everywhere (Door.dates.words), not by its journal page's long name.
-  const days = new Map(refs.length ? (await query(`[:find ?v ?d :where ${ground('?v', refs)} [?v :block/journal-day ?d]]`).catch(() => [])).map(([v, d]) => [v, window.PluginDoor.dates.words(Number(d), { year: false })]) : []);
-  for (const [v, d] of days) words.set(v, d);
-  const said = (type, v) => /checkbox/.test(String(type)) ? (v === true ? 'yes' : v === false ? 'no' : '') : /datetime/.test(String(type)) ? window.PluginDoor.dates.words(dayNumber(new Date(Number(v))), { year: false }) : Number.isInteger(v) ? (words.get(v) || '') : String(v ?? '');
-  const byNode = new Map();
-  for (const [r, name, ord, type, v] of rows) {
-    const w = said(type, v).trim();
-    if (!w) continue;
-    if (!byNode.has(r)) byNode.set(r, new Map());
-    const props = byNode.get(r);
-    if (!props.has(name)) props.set(name, { name: String(name), ord: String(ord), values: [] });
-    if (!props.get(name).values.includes(w)) props.get(name).values.push(w);
-  }
-  for (const [r, props] of byNode) facts.set(r, [...props.values()].sort((a, b) => (a.ord < b.ord ? -1 : a.ord > b.ord ? 1 : a.name.localeCompare(b.name))).map(p => ({ name: p.name, value: p.values.join(', ') })));
-  return facts;
 }
 
 // The two writes the title row makes, through Logseq's own calls.
