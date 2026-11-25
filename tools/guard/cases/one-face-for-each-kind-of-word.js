@@ -33,7 +33,7 @@ module.exports = {
       await f.evaluate(() => logseq.updateSettings({ propFace: 'SF Mono Light' })); await T.sleep(900);
       const back = await drawn();
       // The faces the plugin carries (the owner, 24 November 2026: "add them to the plugin as options"): each is drawn from its own file.
-      for (const [choice, want] of [['Source Code Pro Light', /SourceCodePro-Light/], ['Source Code Pro', /SourceCodePro-Regular/], ['IBM Plex Mono Light', /IBMPlexMono-Light/], ['JetBrains Mono Light', /JetBrainsMono\w*-Light/], ['Fira Mono', /FiraMono-Regular/]]) {
+      for (const [choice, want] of [['Source Code Pro Light', /SourceCodePro-Light/], ['Source Code Pro', /SourceCodePro-Regular/], ['IBM Plex Mono Light', /IBMPlexMono-Light/], ['IBM Plex Mono', /IBMPlexMono-Regular/], ['JetBrains Mono Light', /JetBrainsMono\w*-Light/], ['Fira Mono', /FiraMono-Regular/]]) {
         await f.evaluate(c => logseq.updateSettings({ propFace: c }), choice); await T.sleep(900);
         const got = await drawn();
         if (!want.test(got)) out.push(`with the setting on ${choice} a property’s name is drawn in ${got}`);
