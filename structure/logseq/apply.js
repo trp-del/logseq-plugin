@@ -131,8 +131,6 @@ async function runStep(s, rec) {
       // Read now: the values as they are at Apply. What the kept property cannot take stays where it was; each node is put back on its own.
       // A property made earlier in the batch is named by its handle, which knows its id only once it is made.
       const from = s.from, into = s.into.h ? { ...s.into, ident: s.into.h.ident, id: idOf(s.into.h), title: s.into.h.title } : s.into, V = S.values;
-      // A split moves only the values that are nodes of one tag; the others stay where they are.
-      const only = s.only != null ? await db.valuesTagged(from.ident, s.only) : null;
       // One tag's move (moveForTag): only the nodes that hold that tag or one beneath it, as they are at Apply.
       const onTags = s.onTags ? await db.nodesTagged(s.onTags.map(idOf)) : null;
       const [fromVals, intoVals, choices] = await Promise.all([db.propValues(from.ident, from.type), db.propValues(into.ident, into.type), into.choice ? db.choicesOf(into.id) : null]);
@@ -143,7 +141,7 @@ async function runStep(s, rec) {
         if (s.onNodes && !s.onNodes.includes(nodeId)) continue;   // the picked nodes alone (moveForNodes)
         const node = String(await db.uuidOfNode(nodeId)), was = (intoVals.get(nodeId) || []).map(keptInto), before = list.map(kept);
         const go = [], stay = [];
-        for (const v of list) { const w = only && !only.has(v.id) ? null : V.convert(from, { ...into, choices }, v); if (w) go.push(w); else stay.push(kept(v)); }
+        for (const v of list) { const w = V.convert(from, { ...into, choices }, v); if (w) go.push(w); else stay.push(kept(v)); }
         if (!go.length) continue;
         if (!into.many && was.length + go.length > 1) throw new Error(`${into.title} takes one value, and a node holds more`);
         const put = [];

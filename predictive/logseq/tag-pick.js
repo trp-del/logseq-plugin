@@ -4,8 +4,7 @@
    names (linked, or in plain words) could take, best first by the words, with what each would add. Up and Down move, Enter picks,
    a click picks, anything else closes it and goes on typing, a digit like any other key (no key that writes is a key you might be typing). Picking gives the bullet the tag and the bullet's properties are proposed as
    they are for any tagged bullet; a faded arrow puts the tag back. Nothing is ever written until one is picked, and it is only there when
-   asked, so plain notes that happen to name a person stay quiet. With Apple's model on this Mac, the tag it reads the line as
-   comes first, said so in its row. When the guesses sit under more than one top-level tag, each group stands under that tag's name,
+   asked, so plain notes that happen to name a person stay quiet. When the guesses sit under more than one top-level tag, each group stands under that tag's name,
    so it shows where a guess sits in your tags; the keys pass over the names. */
 (function () {
 const Flow = (window.Flow ||= {});
@@ -21,7 +20,7 @@ function close() { open?.list.remove(); open = null; }
 // the reason and what picking fills; else how it was read, and the properties it brings. The Alfred panel says the same (outside-note.js).
 function reasonOf(item) {
   const takes = (item.takes || []).slice(0, 2).map(t => `${t.prop}: ${t.pages.join(', ')}`).join(' · ');
-  return item.how === 'mentioned' && takes ? takes : [item.how === 'model' ? 'by Apple’s model' : item.how === 'twin' ? 'written like this before' : item.how === 'meaning' ? 'by its meaning' : item.how === 'mentioned' ? item.via.join(', ') : 'by its words', item.fields.slice(0, 3).join(', ')].filter(Boolean).join(' · ');
+  return item.how === 'mentioned' && takes ? takes : [item.how === 'twin' ? 'written like this before' : item.how === 'mentioned' ? item.via.join(', ') : 'by its words', item.fields.slice(0, 3).join(', ')].filter(Boolean).join(' · ');
 }
 function draw() {
   const { box, items, at, list } = open, doc = box.ownerDocument, rect = box.getBoundingClientRect();
@@ -54,22 +53,8 @@ async function choicesFor(box, say = () => {}) {
   if (!block) return null;
   const bullet = db.bulletOf(block, box.value, ctx.schema);
   if (bullet.tags.length) return say('This bullet already has a tag'), null;
-  const items = propose.tagChoices(ctx, bullet), words = box.value;
-  // Apple's model, when it is on this Mac: the tag it reads the line as goes first (core/model.js, tagRequest). The list waits
-  // for it a moment rather than move a row under the pointer once it is open.
-  // Apple's model, when it is on this Mac: the tag it reads the line as goes first (core/model.js, tagRequest); the tag the earlier
-  // notes nearest in meaning carry (core/meaning.js) before it. The list waits for them a moment rather than move a row under
-  // the pointer once it is open.
-  const on = app.setting('proposalsModel');
-  const [meant, read] = on ? await Promise.all([Flow.meaningAsk ? Flow.meaningAsk.tagFor(ctx, bullet).catch(() => null) : null, Flow.modelAsk ? Flow.modelAsk.tagFor(ctx, bullet).catch(() => null) : null]) : [null, null];
-  for (const [found, how] of [[read, 'model'], [meant, 'meaning']]) {
-    if (!found) continue;
-    const at = items.findIndex(item => item.tag.id === found.id), was = at < 0 ? null : items.splice(at, 1)[0];
-    items.unshift({ ...(was || { score: 0, via: [], fields: Flow.schema.fieldsOfTags([found.id], ctx.schema).map(p => p.title) }), tag: { id: found.id, uuid: found.uuid, title: found.title }, how });
-    if (items.length > 5) items.length = 5;
-  }
+  const items = propose.tagChoices(ctx, bullet);
   if (!items.length) return say('No tag to suggest for this line'), null;
-  if (box.value !== words) return null;   // the words moved on while it was being worked out
   // The best guess stays first; the rest follow under their top-level tags, each group where its best guess came.
   return { uuid, items: Flow.schema.byTop(items, ctx.schema), titleOf: id => ctx.byId.get(id)?.title || '' };
 }
@@ -143,12 +128,11 @@ function onKey(event) {
 const MODIFIER_ONLY = event => MODIFIERS.has(event.key);
 
 /* Hyper alone (16 November 2026, the owner), the second job of the one Hyper tap that link-ui.js hears: with no grey page name to
-   take, on a bullet with no tag guess showing, the same list as the key above. Hyper is only modifiers, so nothing is typed and
+   take, the same list as the key above. Hyper is only modifiers, so nothing is typed and
    the cursor stays mid-word. (0.3.136 listened for Hyper here too and opened the list right after the tap had taken a grey
    name: the owner typed "Infe", tapped Hyper, and got both.) */
 function fromHyper(box) {
   if (open || !setting('proposalsTagHyper') || !app.isBlockBox(box)) return false;
-  if (box.closest('.ls-block')?.querySelector('.flow-tag-ghost')) return false;   // a tag guess is showing: Enter takes it
   show(box).catch(error => warnOnce('the tags could not be worked out', error));
   return true;
 }

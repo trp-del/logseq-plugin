@@ -12,9 +12,8 @@
 
    Logseq's shape (read 2026-10-29 in 2.0.2): .ls-block[blockid] > .block-main-container > ... > .positioned-properties.block-below >
    .bottom-properties-row > .bottom-property-pill (the name in its first child, the value in .bottom-property-content, an
-   .empty-value inside while there is none). A property Logseq shows no pill for gets one made for the value. A proposed tag is
-   drawn where Logseq draws a bullet's tags: at the right end of the bullet's own line (.ls-block-right, which is there, empty,
-   even on an untagged bullet), as "#Tag". */
+   .empty-value inside while there is none). A property Logseq shows no pill for gets one made for the value. A bullet with no
+   tag is offered none here (the owner, 24 November 2026): its tags are Option-T's list (logseq/tag-pick.js). */
 (function () {
 const Flow = (window.Flow ||= {});
 const { app, db, propose, text: textLib } = Flow;
@@ -58,8 +57,6 @@ const ownNames = row => new Set(pillsOf(row).filter(p => !p.classList.contains('
 const editingBox = el => app.isBlockBox(el) ? el : null;
 const uuidOf = app.uuidOf;
 
-// The names of the tags Logseq itself shows on a row (at the right end of its line).
-const tagsShown = row => new Set([...row.querySelectorAll('.block-tags .tag')].filter(ownRow(row)).map(a => a.textContent.trim().toLowerCase()));
 // A pill for a property Logseq shows none for, in the record's own pill row; the row is made too when there is none.
 function makePill(doc, row, piece) {
   const main = [...row.querySelectorAll('.block-main-container')].find(ownRow(row));
@@ -84,7 +81,7 @@ function makePill(doc, row, piece) {
 /* ---------- drawing ---------- */
 // Why (hover): where a value came from, and for a guess from look-alike bullets, the two nearest of them.
 const REASONS = {
-  alike: p => `Earlier bullets like this one had ${p.shown}`, 'alike-tag': () => 'Earlier lines like this one have this tag',
+  alike: p => `Earlier bullets like this one had ${p.shown}`,
   words: () => 'Named in your words', parent: () => 'The bullet above has it', day: () => 'The day this is written on', 'guess-day': () => 'The day this is written on; change it if it happens another day',
   'words-day': () => 'A day named in your words', 'words-deadline': () => 'The day your words say it is due', 'words-scheduled': () => 'The day your words say it is set for',
   'words-start': () => 'The day your words say it starts', 'words-end': () => 'The day your words say it ends', 'words-completed': () => 'The day your words say it was done',
@@ -92,8 +89,7 @@ const REASONS = {
   'words-learned': p => `You put a day after these words in ${p.prop.title} before`,
   lesson: p => `put in ${p.prop?.title} because you moved such values there before (the Predictive lessons page)`,
   'words-money': () => 'The sum of money in your words', 'alike-money': p => `The sum of money in your words; earlier bullets like this one put theirs in ${p.prop.title}`, 'words-number': p => `The number beside “${p.prop.title.toLowerCase()}” in your words`,
-  model: () => 'Read from your words by Apple’s model, on this Mac', meaning: () => 'Earlier notes that mean the same, matched by Apple’s tools on this Mac',
-  names: () => 'A name Apple’s name finder read in your words, with no page yet; taking it makes the page, with this tag', untagged: () => 'A page linked in your words that has no tag yet; taking it gives the page the tag too',
+  untagged: () => 'A page linked in your words that has no tag yet; taking it gives the page the tag too',
   linked: () => 'A page linked in your words', 'linked-part': p => `A page linked in your words, where they say “${p.prop.title.toLowerCase()}”`, 'linked-wide': () => 'A page linked in your words', page: () => 'The page this is written on', 'page-wide': () => 'The page this is written on',
 };
 function reasonOf(piece) {
@@ -102,16 +98,12 @@ function reasonOf(piece) {
   return parts.length ? parts.join('; ') + from : '';
 }
 function ghostLook(piece, live) {
-  const what = piece.kind === 'tag' ? 'A guess: Enter gives the bullet this tag and fills in the rest'
-    : piece.guess ? 'A guess: Enter fills it in with the rest; Option-Enter stops on it to check; a click accepts it'
+  const what = piece.guess ? 'A guess: Enter fills it in with the rest; Option-Enter stops on it to check; a click accepts it'
     : live?.changed === false ? 'Enter fills it in with the rest; a click accepts it' : 'Filled in when you leave the bullet';
   const why = reasonOf(piece);
-  // From Apple's tools (the model, the matcher, the name finder): the asterisk after the value (the stylesheet draws it, and
-  // takes it off once the value is taken).
-  const model = Flow.apple.fromApple(piece);
-  return { cls: `flow-ghost${piece.guess ? ' flow-guess' : ''}${model ? ' flow-model' : ''}`, title: why ? `${why}.\n${what}` : what };
+  return { cls: `flow-ghost${piece.guess ? ' flow-guess' : ''}`, title: why ? `${why}.\n${what}` : what };
 }
-// A proposal whose value changes in place (more words typed, Apple's model reading the line): the old words fade out where
+// A proposal whose value changes in place (more words typed): the old words fade out where
 // they stood while the new fade in, so the place does not blink empty. The old words are a copy beside the proposal, placed
 // over it, and go when they have faded.
 const { ms: FADE_MS, ease: FADE_EASE } = window.PluginDoor.MOTION.crossFade;
@@ -120,7 +112,7 @@ const still = doc => window.PluginDoor.still(doc);
 function crossFade(g) {
   if (!g.isConnected || !g.childNodes.length || still(g.ownerDocument)) return;
   const old = g.cloneNode(true);
-  old.className = 'flow-old ' + [...g.classList].filter(c => c !== 'flow-ghost' && c !== 'flow-model').join(' ');
+  old.className = 'flow-old ' + [...g.classList].filter(c => c !== 'flow-ghost').join(' ');
   for (const key of Object.keys(old.dataset)) delete old.dataset[key];
   old.removeAttribute('title');
   Object.assign(old.style, { position: 'absolute', left: g.offsetLeft + 'px', top: g.offsetTop + 'px', pointerEvents: 'none', margin: '0' });
@@ -128,22 +120,10 @@ function crossFade(g) {
   old.animate([{ opacity: 1 }, { opacity: 0 }], { duration: FADE_MS, easing: FADE_EASE }).finished.then(() => old.remove(), () => old.remove());
   g.animate([{ opacity: 0 }, { opacity: 1 }], { duration: FADE_MS, easing: FADE_EASE });
 }
-// What a proposed value shows: its words; a tag in mono with no #; a page that would get a tag says so after its name.
+// What a proposed value shows: its words; a page that would get a tag says so after its name.
 function fillGhost(g, piece) {
   const doc = g.ownerDocument;
-  if (piece.kind === 'tag') {   // a tag reads as a class: its name, no #, in Look's shared tag look (lk-tag)
-    const title = piece.tag?.title || String(piece.shown).replace(/^#/, '');
-    // Beside the tag, the short reason for it (core/tag-score.js: "like 6 earlier lines", "words “mouth”, “stings”").
-    const why = piece.why || '';
-    if (g.dataset.flowWords !== title) { crossFade(g); g.dataset.flowWords = title; g.replaceChildren(Object.assign(doc.createElement('span'), { className: 'flow-tag lk-tag', textContent: title })); }
-    if (g.dataset.flowWhy !== why) {
-      g.dataset.flowWhy = why;
-      g.querySelector('.flow-why')?.remove();
-      if (why && !g.classList.contains('flow-taken')) g.append(Object.assign(doc.createElement('span'), { className: 'flow-why lk-note', textContent: why }));
-    }
-    return;
-  }
-  const words = piece.kind === 'tag' ? '' : piece.shown, tagTitle = piece.kind === 'tag' ? piece.tag?.title || String(piece.shown).replace(/^#/, '') : piece.tagPage?.tag.title || piece.newPage?.tag.title || '';
+  const words = piece.shown, tagTitle = piece.tagPage?.tag.title || '';
   if (g.dataset.flowWords === words && g.dataset.flowTag === tagTitle) return;
   crossFade(g);
   g.dataset.flowWords = words; g.dataset.flowTag = tagTitle;
@@ -161,46 +141,23 @@ function fillGhost(g, piece) {
   g.replaceChildren(...[words ? doc.createTextNode(words) : null, words && tagTitle ? doc.createTextNode(' ') : null, tag].filter(Boolean));
 }
 // The × beside a proposal, while it is being written: the library's Take off (lk-x), shown under the pointer. It takes no room
-// (the stylesheet), so nothing moves when it goes: after a value, over the gap that follows it; before a tag, in the place
-// Look keeps for a tag's × (the grammar's "in the #'s place").
-const xOf = g => g.classList.contains('flow-tag-ghost') ? g.previousElementSibling : g.nextElementSibling;
-const ghostOfX = x => x.classList.contains('flow-x-before') ? x.nextElementSibling : x.previousElementSibling;
+// (the stylesheet), so nothing moves when it goes: after the value, over the gap that follows it.
+const xOf = g => g.nextElementSibling;
+const ghostOfX = x => x.previousElementSibling;
 function drawX(doc, g, piece) {
   let x = xOf(g);
   if (!x?.classList.contains('flow-x')) {
     x = doc.createElement('button');
     x.type = 'button'; x.className = 'flow-x lk-x lk-reveal'; x.textContent = '×';
     x.setAttribute('contenteditable', 'false');
-    if (piece.kind === 'tag') { x.classList.add('flow-x-before'); g.before(x); } else g.after(x);
+    g.after(x);
   }
-  g.closest('.bottom-property-pill, .ls-block-right')?.classList.add('lk-reveals');
-  const what = piece.kind === 'tag' ? `the tag ${piece.tag?.title || ''}` : `${piece.prop.title}: ${piece.shown}`;
+  g.closest('.bottom-property-pill')?.classList.add('lk-reveals');
+  const what = `${piece.prop.title}: ${piece.shown}`;
   x.dataset.flowKey = guessKey(piece);
   if (x.title !== `Take off ${what}`) { x.title = `Take off ${what}`; x.setAttribute('aria-label', x.title); }
 }
 const fillingJobs = () => { const now = Date.now(); for (const [uuid, job] of S.filling) if (job.until < now) S.filling.delete(uuid); return [...S.filling.values()]; };
-
-// The proposed tag, where Logseq draws a bullet's tags: the right end of its own line.
-function drawTag(doc, row, piece, job) {
-  if (tagsShown(row).has(String(piece.tag.title).toLowerCase())) return;   // Logseq shows it already: the proposal is over
-  const right = [...row.querySelectorAll('.ls-block-right')].find(ownRow(row));
-  if (!right) return;
-  const look = ghostLook(piece);
-  let g = right.querySelector(':scope > .flow-tag-ghost');
-  if (!g) {
-    g = doc.createElement('span');
-    g.setAttribute('contenteditable', 'false');
-    g.dataset.flowIdent = piece.ident;
-    right.appendChild(g);
-  }
-  g.dataset.flowKey = guessKey(piece);   // another tag in its place keeps the place, and fades over (fillGhost)
-  fillGhost(g, piece);
-  const cls = `${look.cls} flow-tag-ghost${(job.live ? job.live.clicked?.has(guessKey(piece)) : true) ? ' flow-taken' : ' lk-pencil'}`;
-  if (g.className !== cls) g.className = cls;
-  const title = job.live ? look.title : 'Being filled in';
-  if (g.title !== title) g.title = title;
-  if (job.live) { (job.live.drawn ||= new Set()).add(guessKey(piece)); drawX(doc, g, piece); }
-}
 
 function drawInPlace(doc = host()) {
   const live = S.live;
@@ -218,9 +175,8 @@ function drawInPlace(doc = host()) {
   for (const g of doc.querySelectorAll('.flow-ghost')) {
     if (g.closest('.flow-closing')) continue;
     const row = g.closest('.ls-block[blockid]'), job = jobs.find(j => j.rows.includes(row)), piece = job?.want.get(g.dataset.flowIdent);
-    const filled = g.classList.contains('flow-tag-ghost') ? !!piece && piece.kind === 'tag' && tagsShown(row).has(String(piece.tag.title).toLowerCase())
-      : !g.closest('.flow-made') ? !g.parentElement?.querySelector('.empty-value') : piece && ownNames(row).has(piece.prop.lower);
-    if (piece && !filled && (piece.kind === 'tag') === g.classList.contains('flow-tag-ghost')) continue;
+    const filled = !g.closest('.flow-made') ? !g.parentElement?.querySelector('.empty-value') : piece && ownNames(row).has(piece.prop.lower);
+    if (piece && !filled) continue;
     going.push(g);
   }
   // A row of pills the plugin made, all of whose proposals go, rolls closed as it is (rollClosed).
@@ -239,7 +195,6 @@ function drawInPlace(doc = host()) {
   for (const job of jobs) for (const row of job.rows) {
     const pills = pillsOf(row), filled = filledNames(row);
     for (const piece of job.want.values()) {
-      if (piece.kind === 'tag') { drawTag(doc, row, piece, job); continue; }
       if (filled.has(piece.prop.lower)) continue;   // filled meanwhile in Logseq's own way: the proposal for it goes
       // Logseq's own pill first, then one the plugin made earlier, else one made now.
       const pill = pills.find(p => pillName(p) === piece.prop.lower && !p.classList.contains('flow-made')) || pills.find(p => pillName(p) === piece.prop.lower) || makePill(doc, row, piece);
@@ -338,48 +293,31 @@ async function compute(box) {
   const now = editingBox(host().activeElement);
   if (!now || uuidOf(now) !== uuid) return;
   if (!block) { S.live = null; return hide(); }
-  // The tag shown on this bullet is held while it is written (core/tag-score.js steady), so it does not come and go between pauses.
-  if (S.tagHeld?.uuid !== uuid) S.tagHeld = { uuid, state: {} };
-  const bullet = { ...db.bulletOf(block, words, ctx.schema), tagState: S.tagHeld.state }, result = propose.propose(ctx, bullet), { record } = result;
-  const refused = S.refused.get(String(record.uuid || '')), open = p => !refused?.has(guessKey(p));
-  const rules = result.pieces.filter(open).filter((p, i, kept) => !p.needsTag || kept.some(q => q.kind === 'tag'));
-  // Apple's tools (logseq/apple.js: the matcher, the name finder, then the model), for what the rules left open: what is in for
-  // these words at once, the rest asked now and drawn as it comes, as long as the bullet and its words are still the same.
-  // A tag read comes first, the tag's properties as the next answer comes.
-  const asking = Flow.apple, had = asking?.had(ctx, bullet, result);
+  const bullet = db.bulletOf(block, words, ctx.schema), result = propose.propose(ctx, bullet), { record } = result;
+  const refused = S.refused.get(String(record.uuid || ''));
   S.ctx = ctx;
-  show(box, uuid, words, record, rules, (had || []).filter(open));
-  if ((had && asking.done(ctx, bullet, result)) || !asking?.wanted(ctx, bullet, result)) return;
-  const drawn = more => {
-    if (!more.length || version !== S.version || S.stopped || S.hushed.uuid === uuid) return;
-    const now = editingBox(host().activeElement);
-    if (now && uuidOf(now) === uuid && now.value === words) show(now, uuid, words, record, rules, more.filter(open));
-  };
-  asking.ask(ctx, bullet, result, drawn).then(drawn, error => warnOnce('Apple’s model could not be asked', error));
+  show(box, uuid, words, record, result.pieces.filter(p => !refused?.has(guessKey(p))));
 }
 /* The lessons of this graph (core/lessons.js) applied to what is proposed: a suggestion you keep saying no to is held back, and a
-   value you keep moving to another property is proposed there. The record's properties as its tags (a proposed tag's too) give them. */
+   value you keep moving to another property is proposed there. The record's properties as its tags give them. */
 function byLessons(ctx, record, pieces) {
   const store = Flow.lessonsStore;
   if (!ctx || !store || !store.lessons().size) return pieces;
-  const tags = [...new Set([...(record.tags || []), ...pieces.filter(p => p.kind === 'tag').flatMap(p => p.ids)])];
-  const fields = Flow.schema.fieldsOfTags(tags, ctx.schema);
+  const fields = Flow.schema.fieldsOfTags(record.tags || [], ctx.schema);
   return Flow.lessons.apply(pieces, store.lessons(), { fields, open: f => !(record.values?.get(f.ident) || []).length });
 }
-// What you did with a suggestion you left untaken, learned once the bullet is saved: another tag, or another value set by hand in
-// its property, is a no; the same sum or day set by hand in another property of the same kind is a move.
+// What you did with a suggestion you left untaken, learned once the bullet is saved: another value set by hand in its property
+// is a no; the same sum or day set by hand in another property of the same kind is a move.
 async function learnLeft(live, block, ctx, record) {
   const store = Flow.lessonsStore, recordUuid = String(record.uuid || '');
   if (!store || !textLib.UUID.test(recordUuid)) return;
   const left = live.pieces.filter(p => p.guess && live.drawn?.has(guessKey(p)) && !wanted(live, p));
   if (!left.length) return;
-  const tags = new Set((db.pick(block, 'block/tags') || []).map(db.idOf));
   const holds = (prop, ids, p) => !ids.length ? false : p.kind === 'number' ? Number(ids[0]) === Number(p.ids[0])
     : p.kind === 'day' ? (prop.type === 'datetime' ? Flow.dates.dayNumber(new Date(Number(ids[0]))) : ctx.days?.get(ids[0])) === p.day
     : textLib.sameIds(ids, p.ids);
   const fields = Flow.schema.fieldsOfTags(record.tags || [], ctx.schema);
   for (const p of left) {
-    if (p.kind === 'tag') { if (!tags.has(p.tag.id) && [...tags].some(id => ctx.knownTags.has(id))) store.note(p, 'no'); continue; }
     if (!p.prop) continue;
     const own = await db.currentIds(recordUuid, p.prop);
     if (own.length) { if (!holds(p.prop, own, p)) store.note(p, 'no'); continue; }
@@ -390,7 +328,7 @@ async function learnLeft(live, block, ctx, record) {
     }
   }
 }
-// The proposals of the bullet being written: the rules' and the model's (core/model.js, merge).
+// The proposals of the bullet being written.
 /* Two ways (22 November 2026, the owner: "could I press a hot key at the end of a bullet to even see the suggestion then accept
    quickly or not with enter or ESC. so there are two ways, either it is left on, or I turn it on per bullet"): as you write, the
    proposals come by themselves once typing pauses; on the key, nothing is worked out, shown or filled in on a bullet until the key
@@ -411,14 +349,14 @@ function showNow(box) {
     if (now === box && S.live?.uuid !== uuid && S.hushed.uuid !== uuid && !S.stopped) Flow.linkUi?.sayAfterWords?.(box, 'Nothing to suggest');
   }).catch(error => warnOnce('the proposals could not be worked out', error)).finally(() => { if (mine === S.dueId) S.due = ''; });
 }
-function show(box, uuid, words, record, rules, more) {
-  const pieces = byLessons(S.ctx, record, Flow.model.merge(rules, more)), fromModel = pieces.filter(Flow.apple.fromApple);
+function show(box, uuid, words, record, rules) {
+  const pieces = byLessons(S.ctx, record, rules);
   if (!pieces.length) { S.live = null; return hide(); }
   if (S.accepted.uuid !== uuid) S.accepted = { uuid, at: 0, keys: new Set() };
   // What was clicked or picked stays while the words change, for the proposals still there.
   const keep = S.live?.uuid === uuid ? S.live : null;
   // Asked for with the key, a bullet whose words have not changed is treated as changed: what you asked to see is filled in as shown.
-  S.live = { uuid, text: words, changed: S.entered.uuid !== uuid || words !== S.entered.words || S.asked === uuid, recordUuid: String(record.uuid || ''), pieces, drawn: new Set(), clicked: keep?.clicked, picked: keep?.picked, model: fromModel.length ? { words, pieces: fromModel } : null };
+  S.live = { uuid, text: words, changed: S.entered.uuid !== uuid || words !== S.entered.words || S.asked === uuid, recordUuid: String(record.uuid || ''), pieces, drawn: new Set(), clicked: keep?.clicked, picked: keep?.picked };
   drawInPlace(box.ownerDocument);
 }
 // Once typing pauses: longer than the gap between two letters, so a proposal is not worked out after every key.
@@ -475,19 +413,16 @@ async function takeShadow(live) {
   // A tag typed in the words must be on the bullet as saved (Enter just before a typed tag moves the tag to the next bullet).
   const savedTags = new Set((db.pick(block, 'block/tags') || []).map(db.idOf));
   if (propose.inWords(live.text, ctx).tags.some(tag => !savedTags.has(tag))) return lost('the tag typed in the words is not on the bullet');
-  // The tag that was on screen stands for the saved words too (a copy of what was held, so leaving moves nothing).
-  const shownTag = live.pieces.find(p => p.kind === 'tag')?.tag;
-  const { record, pieces: found } = propose.propose(ctx, { ...db.bulletOf(block, db.pick(block, 'block/title'), ctx.schema), tagState: { shown: shownTag || null } });
+  const { record, pieces: found } = propose.propose(ctx, db.bulletOf(block, db.pick(block, 'block/title'), ctx.schema));
   const recordUuid = String(record.uuid || ''), refused = S.refused.get(recordUuid);
-  // The guesses of Apple's tools go with them, for the words they were given (the rules do not ask them again here).
-  const again = byLessons(ctx, record, Flow.model.merge(found, live.model?.words === (live.boxText ?? live.text) ? live.model.pieces : []));
+  const again = byLessons(ctx, record, found);
   learnLeft(live, block, ctx, record).catch(error => warnOnce('a lesson could not be learned', error));
   // What was shown is what is written: the rules worked out again on the saved bullet, and where they now come out otherwise
-  // for a property (another page, names in another order), the value that was on screen. The tag first, which the rest wait for.
+  // for a property (another page, names in another order), the value that was on screen.
   const chosen = new Map();
   for (const p of again) if (wanted(live, p)) chosen.set(p.ident, p);
   for (const p of live.pieces) if (!chosen.has(p.ident) && wanted(live, p)) chosen.set(p.ident, p);
-  const pieces = [...chosen.values()].filter(p => !refused?.has(guessKey(p))).sort((x, y) => (y.kind === 'tag') - (x.kind === 'tag')).map(p => narrowed(live, p));
+  const pieces = [...chosen.values()].filter(p => !refused?.has(guessKey(p))).map(p => narrowed(live, p));
   if (!pieces.length || S.stopped) return;
   if (!textLib.UUID.test(recordUuid)) return lost('the bullet they belong to could not be found');
   const { written, undo } = await writePieces(recordUuid, pieces);
@@ -496,7 +431,8 @@ async function takeShadow(live) {
   return written;
 }
 
-/* The writes. A value that rests on a proposed tag is written only once the bullet has the tag. */
+/* The writes: the values of a bullet being left, and a note from outside Logseq with the tag asked for there (logseq/outside-note.js),
+   where a value that rests on that tag is written only once the note has the tag. */
 async function writePieces(recordUuid, pieces) {
   const written = [];
   for (const piece of pieces) {
@@ -508,10 +444,8 @@ async function writePieces(recordUuid, pieces) {
       // screen is yours, and stays.
       if ((await db.currentIds(recordUuid, piece.prop)).length) continue;
       if (piece.tagPage) for (const uuid of piece.tagPage.uuids) { await db.addTag(uuid, piece.tagPage.tag.uuid); gave.push(uuid); }
-      // A new page for a name no page had (core/people.js): made with its tag, then filled in.
-      if (piece.newPage) { const made = await db.makePage(piece.newPage.title, piece.newPage.tag.uuid); piece.madePage = made; piece.wrote = [made.id]; await db.setValue(recordUuid, piece.ident, made.id, { entityId: true }); }
       // Logseq's Deadline and Scheduled hold a moment, not a journal page: the day's start, as Logseq's own date picker writes it.
-      else if (piece.kind === 'day' && piece.prop.type === 'datetime') { const d = Flow.dates.asDate(piece.day).getTime(); piece.wrote = [d]; await db.setValue(recordUuid, piece.ident, d); }
+      if (piece.kind === 'day' && piece.prop.type === 'datetime') { const d = Flow.dates.asDate(piece.day).getTime(); piece.wrote = [d]; await db.setValue(recordUuid, piece.ident, d); }
       else if (piece.kind === 'day') { piece.wrote = [piece.journalId ?? await db.journalPageFor(piece.day)]; await db.setValue(recordUuid, piece.ident, piece.wrote[0]); }
       else if (piece.kind === 'number') await db.setValue(recordUuid, piece.ident, piece.ids[0]);
       else if (piece.prop.many) await db.setValue(recordUuid, piece.ident, piece.ids, { entityId: true, reset: true });
@@ -533,7 +467,6 @@ async function writePieces(recordUuid, pieces) {
         const now = await db.currentIds(recordUuid, piece.prop);
         const same = piece.kind === 'number' ? now.length === 1 && now[0] === Number(piece.ids[0]) : textLib.sameIds(now, piece.wrote);
         if (same) await db.unsetValue(recordUuid, piece.ident);
-        if (piece.madePage) await db.dropPage(piece.madePage);   // the page made for this fill goes again, if nothing was written on it
         if (piece.tagPage) for (const uuid of piece.tagPage.uuids) await db.removeTag(uuid, piece.tagPage.tag.uuid);
       } catch (error) { failed.push(error); }
     }
@@ -604,7 +537,7 @@ function onFocusOut(event) {
   S.live.text = box.value; S.live.changed ||= written; S.live.unseen = unseen;
   // Enter's taking counts only when the bullet is left right after it.
   const live = S.live, taken = Date.now() - (S.accepted.at || 0) < ENTER_LEAVES && S.accepted.uuid === uuid ? new Set(S.accepted.keys) : new Set();
-  if (taken.size && S.accepted.words != null) { live.boxText = live.text; live.text = S.accepted.words; }
+  if (taken.size && S.accepted.words != null) live.text = S.accepted.words;
   S.version++;
   setTimeout(() => {
     const active = host().activeElement, now = editingBox(active);
@@ -652,14 +585,6 @@ function onKey(event) {
   if (!S.live) return;
   const box = editingBox(event.target);
   if (!box || uuidOf(box) !== S.live.uuid) return;
-  // Cmd-Option-Enter: everything shown is accepted, as with Enter, and the bullet is simply left, with no new bullet made.
-  if (event.key === 'Enter' && app.keyMatches(event, setting('proposalsAcceptKeys'))) {
-    if (app.editorPopupOpen()) return;
-    S.accepted = { uuid: S.live.uuid, at: Date.now(), keys: shownPieces(S.live) };
-    event.preventDefault(); event.stopImmediatePropagation();
-    Promise.resolve(logseq.Editor.exitEditingMode()).catch(error => warnOnce('the bullet could not be left', error));
-    return;
-  }
   if (event.key !== 'Escape' && event.key !== 'Enter') return;
   if (app.editorPopupOpen()) return;
   if (event.key === 'Enter') {
@@ -703,8 +628,8 @@ function onGhostPress(event) {
   drawInPlace(el.ownerDocument);
 }
 
-// The ×: the proposal goes, and is kept from being proposed on that bullet again, as after an Undo. A tag taken off takes the
-// properties that came with it. The press is held back, so the bullet keeps the cursor.
+// The ×: the proposal goes, and is kept from being proposed on that bullet again, as after an Undo. The press is held back, so
+// the bullet keeps the cursor.
 function onTakeOff(event) {
   event.stopImmediatePropagation(); event.preventDefault();
   if (event.type !== 'click') return;
@@ -712,9 +637,8 @@ function onTakeOff(event) {
   if (!piece) return;
   refuse(live.recordUuid, [key]);
   Flow.lessonsStore?.note(piece, 'no');
-  live.pieces = live.pieces.filter(p => p !== piece && !(piece.kind === 'tag' && p.needsTag));
+  live.pieces = live.pieces.filter(p => p !== piece);
   live.clicked?.delete(key); live.picked?.delete(key);
-  if (live.model) live.model.pieces = live.model.pieces.filter(p => live.pieces.includes(p));
   if (!live.pieces.length) { S.live = null; return hide(); }
   drawInPlace(event.target.ownerDocument);
 }
@@ -722,23 +646,13 @@ function onTakeOff(event) {
 const PILL = ':is(#main-content-container, #right-sidebar) .ls-block .positioned-properties.block-below .bottom-property-pill', AT = '.bottom-property-pill.bottom-property-pill[data-flow-at]';
 const css = `
 /* A proposed value, in the record's own property where the value goes. Its look (italic, grey, the dotted line, sure and
-   guessed alike) is Look's, through the shared name lk-pencil; a tag's (mono, small capitals) through lk-tag. */
+   guessed alike) is Look's, through the shared name lk-pencil; the tag a linked page would get, through lk-tag. */
 .flow-ghost { white-space: nowrap; opacity: 1; transition: opacity ${window.PluginDoor.timing('pencil')}, color ${window.PluginDoor.timing('pencil')}; }
 @starting-style { .flow-ghost { opacity: 0; } }
-/* A proposed tag, at the right end of the bullet's line where Logseq draws its tags. */
-.flow-tag-ghost { white-space: nowrap; padding-right: 4px; }
-/* The reason beside a guessed tag: Look's quiet note, in the body's face, out of the pencil's dotted line. */
-.flow-tag-ghost .flow-why { display: inline-block; margin-left: .6em; font-family: var(--ls-font-family, inherit) !important; text-decoration: none !important; }   /* the room Logseq's tag keeps after its name, so it stands where that tag will */
 /* Taken (clicked, or on its way in): it reads as the value will once written, over the pencil's look, so when Logseq's own value
    takes its place nothing changes: plain words, and a node's name with the link's faint underline (Look's lk-node). */
 .flow-ghost.flow-taken, .flow-ghost > .flow-name.flow-taken { color: inherit !important; font-style: normal !important; text-decoration: none !important; }
 .flow-ghost.flow-taken.flow-node, .flow-ghost > .flow-name.flow-taken { ${window.PluginDoor.LOOKS.link()} }
-/* From Apple's model: a small asterisk raised at the end of the value, in the pencil's grey. It takes no room, so nothing moves
-   when it goes, and it goes once the value is taken. */
-.flow-ghost.flow-model { position: relative; }
-.flow-ghost.flow-model::after { content: '*'; position: absolute; left: 100%; top: -.35em; margin-left: 1px; font-size: .8em; font-style: normal; line-height: 1; color: var(--lk-quiet); text-decoration: none; pointer-events: none; }
-.flow-ghost.flow-model.flow-taken::after { content: none; }
-.bottom-property-pill:hover .flow-ghost.flow-model::after { opacity: 0; }   /* the × stands there under the pointer */
 /* A pill row the plugin made rolls open out of the bullet and closed into it (rollClosed), so the bullets under it slide. */
 .positioned-properties.flow-made { interpolate-size: allow-keywords; min-height: 0 !important; overflow: clip; overflow-clip-margin: 4px; transition: height ${window.PluginDoor.timing('grow')}, opacity ${window.PluginDoor.timing('grow')}; }
 @starting-style { .positioned-properties.flow-made { height: 0; opacity: 0; } }
@@ -759,18 +673,16 @@ ${PILL}:is(:not(:has(.empty-value)), :has(.lk-pencil)) ~ ${AT}::after { left: 16
    on their baselines the first pill stood 5 px above the others (the audit's 36). */
 .positioned-properties.flow-made .bottom-properties-row { display: flex; flex-wrap: wrap; align-items: center; column-gap: .5rem; row-gap: .25rem; }
 .flow-made-pill { display: inline-flex; align-items: baseline; gap: .3em; }
-/* A proposal's ×, the library's Take off: under the pointer on its property, or on the line for a proposed tag. */
+/* A proposal's ×, the library's Take off: under the pointer on its property. */
 .flow-x { font-size: .95em; line-height: 1; display: inline-block; width: 0 !important; min-width: 0 !important; padding: 0 !important; margin: 0 !important; overflow: visible; white-space: nowrap; }
-.flow-x-before { direction: rtl; }
-.flow-x { text-indent: 3px; }   /* a hair from the words, on whichever side it stands */
+.flow-x { text-indent: 3px; }   /* a hair from the words */
 /* In a value Logseq lays its parts out with a gap: the × gives that gap back, so it takes no room at all. */
-/* Logseq clips a value at its end; a value holding a proposal shows past it, for the × and the asterisk that take no room. */
+/* Logseq clips a value at its end; a value holding a proposal shows past it, for the × that takes no room. */
 .bottom-property-pill:is([data-flow-proposal], .flow-made-pill) .bottom-property-content { overflow: visible !important; }
 .bottom-property-content > .flow-x { margin-left: calc(-1 * var(--spacing, .25rem)) !important; }
 
-/* The × sits past its zero-wide box, to the right, or to the left before a tag: its catch zone goes with it. */
+/* The × sits past its zero-wide box, to the right: its catch zone goes with it. */
 .flow-x::after { inset: -9px -14px -9px -4px; }
-.flow-x-before::after { inset: -9px -4px -9px -14px; }
 /* The × stands outside its pill's box, so pointing at it would not count as pointing at the pill: the × itself stays
    pointable at rest (as Look's tag × is inside its tag), and its catch zone wakes only once it shows. */
 .flow-x.lk-reveal { pointer-events: auto; }

@@ -59,24 +59,12 @@ body { font-family: var(--ls-font-family) !important; -webkit-font-smoothing: an
 #head .r .nav-left, #head .r .nav-right, #head [id^="injected-ui-item-find-open"] { display: none !important; }
 /* Scroll bars: the Mac's own (the owner, 14 November 2026: "default to macos scrollbar behavior", then "They should actually be
    them"). The plugin draws none, and Logseq's own scroll bar styling is set aside where it reaches the page and the sidebar
-   (macBars, below), so each bar is the system's, following System Settings > Appearance > Show scroll bars. The old thin bar
-   stays a choice of its own (calmScrollbars, off). */`,
-  calmScrollbars: `
-/* Scroll bars thin and faint, always shown, firmer under the pointer (the plugin's look until 14 November 2026). */
-::-webkit-scrollbar { width: 8px; height: 8px; background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--lk-hair); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: var(--lk-line); }
-::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }`,
+   (macBars, below), so each bar is the system's, following System Settings > Appearance > Show scroll bars. The plugin's
+   earlier thin bar, and the setting that chose it, went on 24 November 2026. */`,
   calmPage: `
 /* A page's title a step smaller and a little tighter, so it heads the page without shouting over it. */
 ${AREA} .ls-page-title-container { font-size: 30px !important; line-height: 1.3 !important; }
 ${AREA} .ls-page-title-container .block-content-or-editor-inner { font-size: inherit !important; line-height: inherit !important; }
-/* The row pressed in a table, shown in the sidebar's row view (structure/logseq/view.js): when it is a bullet, its words are its title,
-   a heading at the sidebar's title size, as a page's name heads it (the owner, 17 November 2026). */
-#right-sidebar .sidebar-item.item-type-block[data-st-item] .sidebar-panel-content .ls-block:not(.ls-block .ls-block) > .block-main-container .block-content-or-editor-wrap { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.3; }
-/* The same while it is written in: the words keep their size and weight in the box (the owner, 18 November 2026: "text changes weight
-   when selected"; the box was the outline's 16 px regular). */
-#right-sidebar .sidebar-item.item-type-block[data-st-item] .sidebar-panel-content .ls-block:not(.ls-block .ls-block) > .block-main-container .block-content-or-editor-wrap :is(.block-content-wrapper, .editor-inner, textarea) { font-size: inherit !important; font-weight: inherit !important; letter-spacing: inherit !important; line-height: inherit !important; }
 ${AREA} .ls-page-title-container :is(.block-title-wrap, .editor-inner textarea) { font-weight: 600 !important; letter-spacing: -.015em; }
 /* Journal days are parted by space, not a rule. */
 #journals .journal-item { border-bottom-color: transparent !important; }
@@ -396,7 +384,7 @@ const widthCss = col => `
 #main-content-container :is(.ls-foldable-content-inner, .ls-page-blocks):has([data-lk-wide]) { overflow: visible !important; }`;
 /* What reaches out to the window's width: each one's left edge is measured and moved so it spans the page's middle
    (up to 1440 px, 48 px from each side), whatever indent it stands at. Run before the screen is drawn, so nothing jumps. */
-const WIDE = '#main-content-container :is(.ls-page-blocks .ls-table, .th-tw-beside)';
+const WIDE = '#main-content-container .ls-page-blocks .ls-table';
 function place(doc) {
   if (!reading()) { for (const node of doc.querySelectorAll('[data-lk-wide]')) { node.removeAttribute('data-lk-wide'); node.style.removeProperty('--lk-out'); node.style.removeProperty('--lk-w'); } return; }
   const main = doc.querySelector('#main-content-container');
@@ -418,8 +406,7 @@ function place(doc) {
 /* The Mac's own scroll bars. Any ::-webkit-scrollbar rule that reaches a scroller makes Chromium draw that bar itself, not the
    system's, and a later rule cannot undo it: Logseq 2.0.2 has #main-content-container::-webkit-scrollbar (a 16 px strip whose
    handle never shows). So each of Logseq's rules that reaches the main page or the right sidebar is made to match nothing
-   (:not(*) before the part that reaches it) while the plugin runs, and given back as it was when the plugin stops or the old
-   thin bar is switched on. Checked on every pass of the screen, so a scroller Logseq draws later, or a stylesheet it loads again,
+   (:not(*) before the part that reaches it) while the plugin runs, and given back as it was when the plugin stops. Checked on every pass of the screen, so a scroller Logseq draws later, or a stylesheet it loads again,
    is caught. */
 const SCROLLERS = '#main-content-container, #right-sidebar .sidebar-item-list, #right-sidebar .cp__right-sidebar-scrollable';
 const OFF = ':not(*)';
@@ -431,7 +418,7 @@ const parts = list => { const out = []; let depth = 0, from = 0; for (let i = 0;
 const owner = part => { const base = part.replace(/::-webkit-scrollbar[\s\S]*$/, ''); return !base.trim() ? '*' : /\s$/.test(base) ? base + '*' : base; };
 function collect(rules) { for (const rule of rules) { if (rule.cssRules?.length && !rule.selectorText) collect(rule.cssRules); else if (rule.selectorText?.includes('::-webkit-scrollbar')) barRules.push(rule); } }
 function macBars(doc) {
-  if (!setting('calmToolbar') || setting('calmScrollbars')) return giveBack();
+  if (!setting('calmToolbar')) return giveBack();
   for (const sheet of doc.styleSheets) {
     if (seen.has(sheet) || sheet.ownerNode?.hasAttribute?.('data-injected-style')) continue;   // the plugin's own sheets draw no bar now
     seen.add(sheet);

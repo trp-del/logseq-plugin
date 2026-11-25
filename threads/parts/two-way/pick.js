@@ -15,7 +15,7 @@ const { state, warnOnce } = twoWay;
    ticked; Shift-click ticks every record from the last one ticked. A pick is a record under one field ("uuid|field"),
    since a record can point here through two fields. The bar above the rows, the library's: how many are picked with its
    tick box, then open in the sidebar, point to another page, take the link off (these two through the picked
-   record's own field), add a tag, copy, set a property, clear a property, delete, as the library's words with their icons.
+   record's own field), add a tag, set a property, clear a property, delete, as the library's words with their icons.
    Every change but delete has Undo (the faded arrow); delete asks first. Escape or the bar's box clears
    the picks; going to another page does too. */
 /* The bar's room is always kept above the rows, the bar shown in it only while something is picked (the owner:
@@ -78,15 +78,14 @@ function togglePick(el, range) {
   state.html = null;
   twoWay.draw(host());
   readTitle().catch(() => {});
-  for (const uuid of raisablePicked()) prepareRaise(uuid).catch(error => warnOnce('could not work out what a mention could be made', error));
 }
 /* Making a mention a node (state 3 and 4 of pick A, the owner: "are you then proposing to change the tag from
    symptom log to consultation" — no: a mention that has a tag of yours keeps it and is offered nothing). For a picked
    mention with no tag of yours: every tag with a property that takes this page (Conversation · Spoke with, Consultation ·
-   Provider, Decision · Decided by for a doctor), the one its words look like first (the proposals' tag vote, tagGuess,
-   when that part is loaded), then the kinds of link the page already has, the most used first; with one mention picked, that one shows under it in the proposals' grey before anything is
-   written. A pick from the bar's menu adds the tag and sets the property to this page on every picked mention with no
-   tag; the words stay as they are; the faded Undo arrow takes both off again. */
+   Provider, Decision · Decided by for a doctor), the kinds of link the page already has first, the most used first. A pick
+   from More's menu adds the tag and sets the property to this page on every picked mention with no tag; the words stay as
+   they are; the faded Undo arrow takes both off again. What a mention's words look like is no longer guessed (24 November
+   2026: the pencilled "could be a …" went, and the guess with it). */
 const raisablePicked = () => picks().filter(p => twoWay.isMentions(p.group) && p.group.items.some(item => item.uuid === p.uuid && (!item.tag || item.tag === 'note'))).map(p => p.uuid);
 async function raisePairs() {
   const uuid = state.pageUuid;
@@ -111,35 +110,12 @@ async function raisePairs() {
   state.raisePairs = { page: uuid, pairs };
   return pairs;
 }
-async function prepareRaise(uuid) {
-  if (state.raise.has(uuid)) return;
-  if (twoWay.couldBeOff().has(uuid)) return;   // its suggestion was taken off: not asked
-  state.raise.set(uuid, { pairs: [], best: null });
-  const page = state.pageUuid;
-  const [pairs, guess] = await Promise.all([raisePairs(), twoWay.provided.tagGuess ? twoWay.provided.tagGuess(uuid).catch(error => { warnOnce('the tag a mention looks like could not be read', error); return null; }) : null]);
-  // Worked out for the page it was asked on: a page left meanwhile drops it, to be asked again for the page now open.
-  if (state.pageUuid !== page) { if (state.raise.get(uuid)?.pairs?.length === 0) state.raise.delete(uuid); return; }
-  const best = guess ? pairs.find(p => p.tag.id === guess.id) || null : null;
-  state.raise.set(uuid, { pairs: best ? [best, ...pairs.filter(p => p !== best)] : pairs, best });
-  state.html = null; twoWay.draw(host());
-}
-// Under the one picked mention, what it would get, as the + line shows a new node's (the proposals' grey).
-function raiseHtml(group, item) {
-  if (!twoWay.isMentions(group) || !state.picked.has(`${item.uuid}|${group.name}`)) return '';
-  const only = raisablePicked();
-  const best = only.length === 1 && only[0] === item.uuid ? state.raise.get(item.uuid)?.best : null;
-  if (!best) return '';
-  const piece = (name, value) => `<span class="th-tw-dprop"><span class="th-tw-dname lk-prop">${esc(name)}</span><span class="th-pencil lk-pencil">${esc(value)}</span></span>`;
-  return `<div class="th-tw-raise" title="What it would get: the tag its words look like, and “${esc(best.prop.title)}” set to this page. Make it from the bar above.">${piece('Tags', best.tag.title)}${piece(best.prop.title, pageTitle())}</div>`;
-}
 async function raiseMenu(at) {
   const uuids = raisablePicked();
   if (!uuids.length) return;
-  await Promise.all(uuids.map(uuid => prepareRaise(uuid)));
-  const one = uuids.length === 1 ? state.raise.get(uuids[0]) : null;
-  const pairs = one ? one.pairs : await raisePairs();
+  const pairs = await raisePairs();
   if (!pairs.length) return notify(`No tag has a property that takes “${pageTitle()}”, so a mention cannot be made one here`, 'warning');
-  const items = pairs.map(pair => ({ icon: 'tag', label: `${pair.tag.title} · ${pair.prop.title}`, right: one?.best === pair ? 'its words look like one' : '', run: () => { raise(pair, uuids).catch(error => { warnOnce('could not make the mentions nodes', error); notify('That could not be done', 'warning'); }); } }));
+  const items = pairs.map(pair => ({ icon: 'tag', label: `${pair.tag.title} · ${pair.prop.title}`, run: () => { raise(pair, uuids).catch(error => { warnOnce('could not make the mentions nodes', error); notify('That could not be done', 'warning'); }); } }));
   shared.popup({ at, width: 'max-content', head: `Make ${uuids.length === 1 ? 'it' : `these ${uuids.length}`} a node, with “${pageTitle()}” set`, items });
 }
 async function raise(pair, uuids) {
@@ -151,23 +127,6 @@ async function raise(pair, uuids) {
     const tagged = await twoWay.provided.hasTag(uuid, pair.tag.uuid);
     if (!tagged) await twoWay.model.addTag(uuid, pair.tag.uuid);
     if (!had.includes(here)) await setValues(uuid, pair.prop, pair.prop.many ? [...had, here] : [here]);
-    state.raise.delete(uuid);
-    return twoWay.guard([[uuid, pair.prop.ident], [uuid, 'block/tags']], async () => { await setValues(uuid, pair.prop, had); if (!tagged) await twoWay.model.removeTag(uuid, pair.tag.uuid); });
-  }));
-}
-// Every sure proposal of the mentions row taken at once, with one Undo (C19, 7 November 2026); a refused one is left.
-async function raiseAll() {
-  const here = await twoWay.provided.idByUuid(state.pageUuid);
-  if (!here) return;
-  const off = twoWay.couldBeOff(), group = state.groups.find(twoWay.isMentions);
-  const todo = (group?.items || []).filter(item => (!item.tag || item.tag === 'note') && !off.has(item.uuid) && state.raise.get(item.uuid)?.best).map(item => ({ uuid: item.uuid, pair: state.raise.get(item.uuid).best }));
-  if (!todo.length) return;
-  return writeAll(`Made ${counted(todo.length)} what their words looked like`, todo.map(({ uuid, pair }) => async () => {
-    const had = await twoWay.provided.valuesOf(uuid, pair.prop.ident);
-    const tagged = await twoWay.provided.hasTag(uuid, pair.tag.uuid);
-    if (!tagged) await twoWay.model.addTag(uuid, pair.tag.uuid);
-    if (!had.includes(here)) await setValues(uuid, pair.prop, pair.prop.many ? [...had, here] : [here]);
-    state.raise.delete(uuid);
     return twoWay.guard([[uuid, pair.prop.ident], [uuid, 'block/tags']], async () => { await setValues(uuid, pair.prop, had); if (!tagged) await twoWay.model.removeTag(uuid, pair.tag.uuid); });
   }));
 }
@@ -254,32 +213,21 @@ async function act(what, at = null) {
   if (!chosen.length) return;
   // The two words with a menu: the menu opens under the word, and what is picked from it acts as its own word did.
   if (what === 'raise') return raiseMenu(at);
-  if (what === 'compare') return twoWay.compare?.(nodes, at);
   // More (5 November 2026): Select all, then every action but Open in sidebar, Set tag, Set property and Delete, which stand on the bar; the page's own
   // two only with a node from a property's row picked, Make it… only with a mention that has no tag.
   if (what === 'more') {
     const fromProps = chosen.some(p => !twoWay.isMentions(p.group)), raisable = raisablePicked();
-    const best = raisable.length === 1 ? state.raise.get(raisable[0])?.best : null;
     const items = [
       ...(state.listed.some(key => !state.picked.has(key)) ? [{ label: `Select all ${state.listed.length} shown`, run: () => { act('all', at); } }, { sep: true }] : []),
-      // Compare, for two, here rather than on the bar, which keeps to the drawn order on one line (the thirteen proposals, 11).
-      ...(nodes.length === 2 ? [{ label: 'Compare', run: () => { twoWay.compare?.(nodes, at); } }] : []),
       { label: 'Clear a property…', run: () => { act('unset', at); } },
       ...(fromProps ? [{ label: `Change “${pageTitle()}” to…`, run: () => { act('point', at); } }, { label: `Take out “${pageTitle()}”`, run: () => { act('unlink', at); } }] : []),
-      ...(raisable.length ? [{ label: best ? `Make it a${/^[aeiou]/i.test(best.tag.title) ? 'n' : ''} ${best.tag.title}…` : 'Make it…', run: () => { raiseMenu(at).catch(error => warnOnce('could not open Make it…', error)); } }] : []),
-      { label: 'Copy as references', run: () => { act('copy', at); } },
+      ...(raisable.length ? [{ label: 'Make it…', run: () => { raiseMenu(at).catch(error => warnOnce('could not open Make it…', error)); } }] : []),
     ];
     shared.popup({ at, width: 'max-content', items });
     return;
   }
   if (what === 'sidebar') { for (const uuid of nodes) openEntity(uuid, true); twoWay.stopPicking(); return twoWay.draw(host()); }
   try {
-    if (what === 'copy') {
-      const lines = await Promise.all(nodes.map(async uuid => { const page = await twoWay.model.getPage(uuid).catch(() => null); return page?.name ? `[[${page.title || page.originalName || page.name}]]` : `((${uuid}))`; }));
-      if (!await window.PluginDoor.copy({ text: lines.join('\n') })) throw new Error('the clipboard could not be reached');
-      notify(`Copied ${counted(nodes.length)}`);
-      twoWay.stopPicking(); return twoWay.draw(host());
-    }
     const schema = await twoWay.provided.propSchema();
     const here = await twoWay.provided.idByUuid(state.pageUuid);
     if (what === 'point' || what === 'unlink') {
@@ -391,6 +339,6 @@ async function act(what, at = null) {
   } catch (error) { warnOnce(`could not ${what} the picked nodes`, error); notify('That could not be done', 'warning'); }
 }
 
-Object.assign(twoWay, { raise, raiseAll, act, barHtml, dayValue, heldById, heldNow, named, pageNamed, placeBar, prepareRaise, raiseHtml, raiseMenu, readTitle, setValues, takerOf, togglePick });
+Object.assign(twoWay, { raise, act, barHtml, dayValue, heldById, heldNow, named, pageNamed, placeBar, raiseMenu, readTitle, setValues, takerOf, togglePick });
 });
 })();

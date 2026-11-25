@@ -1,13 +1,13 @@
 /* The guard's tour (18 November 2026): the same screens, in the same states, set up the same way, on whichever copy of the plugin
-   the guard's Logseq runs. Each screen starts from one known state (light, 1440 × 900, nothing open, right sidebar shut, row view
-   off), is set up, waits until the screen is still, and is then recorded:
+   the guard's Logseq runs. Each screen starts from one known state (light, 1440 × 900, nothing open, right sidebar shut), is set
+   up, waits until the screen is still, and is then recorded:
      - two pictures 700 ms apart (what differs between them is the screen's own restlessness, a blinking caret, and is not
        counted as a change),
      - where the plugin's own pieces and Logseq's main pieces stand (to name what moved),
      - how many changes the page makes by itself in 1.5 s once still (an endless redraw shows here),
      - what the console said.
-   The screens were chosen from what broke before: a person page, its bullets under the pointer and in writing, a tag's table, the
-   row view in the sidebar, a page in the sidebar, a journal day, Find, Todo, Ontology, settings, the key sheet, dark, narrow.
+   The screens were chosen from what broke before: a person page, its bullets under the pointer and in writing, a tag's table,
+   a page in the sidebar, a journal day, Find, Todo, Ontology, settings, the key sheet, dark, narrow.
    A screen whose set-up fails is recorded as failed, with why, and the tour goes on. Read-only: it opens, points, presses into a
    bullet and lets go; it types only into Find's box. */
 const fs = require('node:fs'), path = require('node:path');
@@ -20,7 +20,6 @@ const go = async (page, name) => { await page.evaluate(n => window.logseq.api.pu
 const route = async (page, hash) => { await page.evaluate(h => { location.hash = h; }, hash); };
 const pageUuid = (box, name) => box.frame().evaluate(async n => (await logseq.Editor.getPage(n))?.uuid, name);
 const inSidebar = async (box, name) => { const id = await pageUuid(box, name); if (!id) throw new Error(`no page “${name}”`); await box.frame().evaluate(id => logseq.Editor.openInRightSidebar(id), id); };
-const rowView = (box, on) => box.frame().evaluate(on => window.PluginDoor?.sideTabs?.rows?.(on), on);
 // The journal day most pointed at in the graph (the same day on both sides of a comparison, whatever the graph's dates).
 const busiestDay = async box => {
   if (box.day) return box.day;
@@ -83,8 +82,6 @@ const SCREENS = [
   ['settings window', 'Illness Test Graph', async b => { await go(b.page, 'Dr. Mei Chen'); await sleep(1500); await b.page.keyboard.press('g'); await b.page.keyboard.press(','); }],
   ['key sheet', 'Illness Test Graph', async b => { await go(b.page, 'Dr. Mei Chen'); await sleep(1500); await b.page.keyboard.down('Alt'); await sleep(1200); await b.page.keyboard.up('Alt'); }],
   ['table of purchases', 'Personal Finance', async b => go(b.page, 'Purchase')],
-  ['row view, a row pressed', 'Personal Finance', async b => { await go(b.page, 'Purchase'); await sleep(2000); await rowView(b, true); await sleep(800); await firstRow(b.page); }],
-  ['row view, a row pressed, dark', 'Personal Finance', async b => { await go(b.page, 'Purchase'); await sleep(2000); await rowView(b, true); await sleep(800); await firstRow(b.page); }, { dark: true }],
   ['journal day with Relations', 'Personal Finance', async b => go(b.page, await deadlineDay(b))],
 ];
 
@@ -94,7 +91,6 @@ async function reset(box, { dark = false, width = 1440 } = {}) {
   await page.evaluate(() => document.getElementById('guard-still')?.remove()).catch(() => {});
   for (let i = 0; i < 4; i++) { await page.keyboard.press('Escape').catch(() => {}); await sleep(80); }
   await page.mouse.move(720, 6).catch(() => {});   // Logseq's top strip, the window's drag handle: nothing there lights or opens a card
-  await rowView(box, false).catch(() => {});
   await box.frame().evaluate(() => logseq.App.setRightSidebarVisible(false)).catch(() => {});
   await page.evaluate(() => window.logseq.api.clear_right_sidebar_blocks?.()).catch(() => {});
   await page.evaluate(m => window.logseq.api.set_theme_mode(m), dark ? 'dark' : 'light');
@@ -199,4 +195,4 @@ async function tour(box, outDir, only, took) {
   return records;
 }
 
-module.exports = { deadlineDay, SCREENS, tour, reset, still, churn, go, route, inSidebar, rowView, firstRow, pageUuid, sleep };
+module.exports = { deadlineDay, SCREENS, tour, reset, still, churn, go, route, inSidebar, firstRow, pageUuid, sleep };

@@ -41,10 +41,10 @@ const touches = (...names) => release || parts.includes('shared') || names.some(
 const SCREENS = {
   look: ['person', 'tag with a table', 'a page in the right sidebar', 'key sheet'],
   threads: ['person', 'journal day', 'a page in the right sidebar'],
-  structure: ['Ontology', 'tag with a table', 'property', 'row view, a row pressed'],
+  structure: ['Ontology', 'tag with a table', 'property'],
   find: ['Find, typed', 'Find, in the choices', 'Find, a row opened', 'Find, a new page offered', 'Find, by sentence'], todo: ['Todo'], settings: ['settings window'],
   predictive: ['person, writing in a bullet'],
-  sidebar: ['a page in the right sidebar', 'row view, a row pressed'],
+  sidebar: ['a page in the right sidebar'],
   export: [], split: [],
   shared: ['person', 'tag with a table', 'Ontology', 'Todo', 'Find, typed', 'a page in the right sidebar'],
 };

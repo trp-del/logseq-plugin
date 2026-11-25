@@ -1,13 +1,12 @@
 /* Structure's screens, drawn in three places. The page of the whole (mode 'page'): each top-level tag an area, its tags a small
-   outline, the relationships as lines between them, the tray on top. A tag's own page in Logseq (mode 'tag'): five short lines above
-   Logseq's table saying what surrounds the tag, then what Structure suggests.
-   Every property, a property's card, a tag's nodes and the log open in the place of the areas. Nothing a single letter does: letters
-   typed on the outline find a tag; what a thing can take is in its right-click menu. A fix first says what it would do, with the nodes
-   it touches, and is staged only on a second yes. A change waiting is in green text where it will happen. It is drawn into Logseq's own
+   outline, the relationships as lines between them, the tray on top. A tag's own page in Logseq: Parent on one line above its title
+   (mode 'line'), and its other lines in the Ontology section of the right sidebar (mode 'tag').
+   Every property, a tag's nodes and the log open in the place of the areas. Nothing a single letter does; what a thing can take is in
+   its right-click menu. A change waiting is in green text where it will happen. It is drawn into Logseq's own
    document, so the shared names (lk-row, lk-fold, lk-bul, lk-list, lk-tick, lk-field, lk-pop, lk-none, lk-node, lk-undo) sit on what they name and carry no look here. */
 (function () {
 const S = window.Structure;
-const Mo = S.model, R = S.rules;
+const Mo = S.model;
 const { LOOSE } = Mo;
 const { esc } = window.PluginDoor;
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
@@ -21,11 +20,8 @@ const pi = p => `<i class="st-pi" aria-hidden="true">${Door.kindIconHtml(KIND_OF
 const day = ms => ms ? Door.dates.words(Door.dates.number(new Date(ms)), { year: false }) : '';
 const dayWords = d => d ? Door.dates.words(d, { year: false }) : '';
 
-// The icon of a press: by what it does, and for a fix by its first word.
-const ACT_ICON = { page: 'go', ppage: 'go', rename: 'rename', prename: 'rename', move: 'move', pmove: 'move', new: 'child', merge: 'merge', remove: 'bin', pullup: 'up', split: 'split', pdrop: 'minus' };
-const fixIcon = word => [[/^(remove|delete)/i, 'bin'], [/^drop/i, 'minus'], [/^(pull|lift)/i, 'up'], [/^(move|place|put)/i, 'move'], [/^merge/i, 'merge'], [/^rename/i, 'rename'], [/^(add|new)/i, 'plus']].find(([re]) => re.test(word))?.[1] || 'tick';
-// The row view's bullet: the top bullet of the row's section (the bullets inside it are its children, drawn as Logseq draws them).
-const ROW = '#right-sidebar .sidebar-item.item-type-block[data-st-item] .sidebar-panel-content .ls-block:not(.ls-block .ls-block)';
+// The icon of a press, by what it does.
+const ACT_ICON = { page: 'go', ppage: 'go', rename: 'rename', prename: 'rename', move: 'move', pmove: 'move', new: 'child', merge: 'merge', remove: 'bin', pullup: 'up', pdrop: 'minus' };
 const CSS = `
 .st { color: var(--lk-text, #222); font-size: 14px; line-height: 1.5; outline: none; position: relative; }
 .st * { box-sizing: border-box; }
@@ -57,7 +53,7 @@ const CSS = `
 .st-regions .st-row.kind .nm { font-weight: 600; }
 .st-regions .st-row .nm { word-break: normal; overflow-wrap: break-word; }   /* whole words first; a word breaks only when it alone is wider than the line (Logseq's page-wide word-break: break-word broke it anywhere) */
 .st-regions .st-row.cur { font-weight: 600; } .st-regions .st-row.cur::before { display: none; }
-/* The tag you are on, under the areas: its name opens its page; its relationships; what Structure suggests. */
+/* The tag you are on, under the areas, while a question about it stands there: its name opens its page. */
 .st-focus { padding: 16px 6px 24px; border-top: 1px solid var(--lk-hair); margin-top: 6px; max-width: 760px; }
 .st-focus .f-h { font-weight: 600; margin-bottom: 8px; }
 .st-rel { display: grid; grid-template-columns: auto auto auto; gap: 3px 14px; justify-content: start; align-items: baseline; font-size: 14px; }
@@ -95,11 +91,6 @@ const CSS = `
 .st-lines-t { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 8px 14px; margin: 0; align-items: baseline; }   /* a label and its value's first line on one baseline: stretched, a value holding a press stood 3 to 7 px lower than its label (measured 12 November 2026) */
 .st-lines-t dt { font-weight: 600; } .st-lines-t dd { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; min-width: 0; }
 .st-lines-t .chev { margin-left: 2px; padding: 0 2px; }   /* the library's chevron (lk-change), centred on the name it changes */
-.sugs { display: grid; gap: 6px; margin-top: 14px; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--lk-hair); }   /* "Suggested" once, then a line each: the sentence, its fix, its ×. A box of its own so it is seen (the owner, 16 November 2026: "This is where subtley is not important"), but no green: the green text is for a change about to be made, and this is only a suggestion (17 November 2026: "too bright for just a suggestion") */
-.sugs .sh { font-weight: 600; display: flex; gap: 6px; align-items: center; color: var(--lk-text, #222); cursor: pointer; }
-.sugs-shut { display: flex; gap: 6px; align-items: center; margin-top: 14px; color: var(--lk-quiet); cursor: pointer; } .sugs-shut:hover { color: var(--lk-text); } .sugs-shut .nm { margin-left: 4px; }
-.sugs .sug { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 2px 6px; align-items: baseline; }
-.sugs .sug .fix { white-space: nowrap; margin-left: 12px !important; }   /* the library's fix, the word alone with the round ground under the pointer; a delete stays red, at whatever level it stands (the owner, 1 November) */
 .st-lines-t dd.col { display: grid; gap: 3px; justify-items: start; }
 .st-lines-t .ont { display: grid; grid-template-columns: 170px 70px auto; gap: 0 14px; align-items: baseline; }
 .st-lines-t .ont.kid { padding-left: 16px; } .st-lines-t .ont.kid .lk-tag { margin-right: -16px; }
@@ -121,10 +112,9 @@ const CSS = `
 .st-tag .st-in { max-width: 240px; }
 /* The inspector: two parts, each under its head, a hairline and space between them. The heads in the heading weight; the names
    of the lines in the quiet grey at the body weight, as Logseq writes a property's name, so what you read is the values. */
-/* One left edge with every section of the stack: Ontology's lines and the row's words start where Logseq's own sections start
-   theirs (a page opened in the sidebar), 22 November 2026; they started 24 and 34 px further left. */
+/* One left edge with every section of the stack: Ontology's lines start where Logseq's own sections start theirs (a page opened
+   in the sidebar), 22 November 2026; they started 24 px further left. */
 .st-holder-insp { display: grid; gap: 24px; padding: 4px 2px 12px 26px; }
-#right-sidebar .sidebar-item.item-type-block[data-st-item] .sidebar-panel-content { padding-left: 42px !important; }
 .st-holder-insp .st-lines-t { grid-template-columns: 112px minmax(0, 1fr); gap: 10px 14px; }
 .st-holder-insp { container-type: inline-size; }
 /* A narrow sidebar: each label stands over its value, which then has the pane's whole width (12 November 2026: at 270 px the count lay
@@ -145,132 +135,15 @@ const CSS = `
 #right-sidebar .sidebar-item:has(h3[id^="_sidebar.structure"]) [data-testid="sidebar-item-more"] { display: none !important; }
 /* In the sidebar the page in front already says whose lines these are: the name is not said again (22 November 2026; until then the
    tag's name stood here in large serif). */
-.st-holder-insp .st-insp-h .st-pi { width: 13px; height: 13px; color: var(--lk-quiet); }
 .st-holder-insp dt .st-pi, .st-holder-insp dt .ti { flex: none; width: 13px; font-size: 13px; color: var(--lk-quiet); position: relative; top: 1px; }
 .st-insp-top:not(:has(.st-insp-h, .st-lines-t)) { display: none; }
-/* No row pressed: the lines at the top, the faint waiting line under them. A row pressed (data-row): the row first, the lines
-   folded under the foot line "About Consultation" until it is opened (data-about); the tag's name is said by that line. */
-.st-holder-insp:not([data-row]) .st-insp-top { order: -1; }
-/* A row pressed: it stands in the Item tab, Logseq's own view of its node (inspector.js), so the line that says what the panel waits for goes. */
-.st-holder-insp[data-row] .st-insp-node { display: none; }
-/* The row's section is a section like any other, headed by its own name with its fold arrow (the owner, 17 November 2026: "the
-   stacked section that should open up is of the specific page, called the page name and item"); it has no ×, since it goes with the
-   page. At the end of its head, quiet, "Item · 3 of 13": that it is the row pressed, and where it stands in the table. The head is one
-   line: the arrow, the name and those words on one middle line, the words in the head's own size, so nothing in it sits higher or
-   smaller than the rest (the owner, 18 November 2026: "the top row with the fold control and total is misaligned"). */
-/* Its × ends the row view (sidebar-tabs.js), as on any section of the stack; Logseq's ··· menu is left out, as on the plugin's panels
-   (the owner, 22 November 2026: "Lets make row view just seem like any other stack"). Where it stands in the table follows the head's
-   word, and the × follows that, as the ··· and × follow a page's name. */
-#right-sidebar .sidebar-item[data-st-item] .sidebar-item-header .item-actions [data-testid="sidebar-item-more"] { display: none !important; }
-#right-sidebar .sidebar-item[data-st-item] .sidebar-item-header .item-actions { order: 2; }
-/* The still picture of the row before, which lies over the row's section while the next row is drawn (inspector.js, hold): it stands
-   outside Logseq's list, so the room and the head's height the list gives a section are given to it here, and it lies exactly on the
-   row it pictures. */
-#right-sidebar .st-item-hold { border: 0 !important; padding: 0 !important; box-sizing: border-box; box-shadow: none !important; border-radius: 0 !important; }
-#right-sidebar .st-item-hold .sidebar-item-header { box-sizing: border-box; min-height: 32px; align-items: center !important; background: none !important; }
-#right-sidebar .st-item-hold .sidebar-item-header > button { align-self: stretch; }
-#right-sidebar .sidebar-item[data-st-item] .sidebar-item-header { align-items: center !important; }
-#right-sidebar .sidebar-item[data-st-item] .sidebar-item-header::after { content: var(--st-where); order: 1; flex: none; margin-left: 0; padding: 0 4px 0 10px; color: var(--lk-quiet); font-size: var(--lk-small); font-weight: 400; line-height: inherit; font-variant-numeric: tabular-nums; white-space: nowrap; }
-/* A bullet's row is shown like a page (the owner, 17 November 2026: "if the row is of a node, it will display the node as if it is
-   just a bullet with the tag to the right instead of making look like a proper node with properties below"): no bullet, its words
-   as the title, its tags under them (Look's own line of a page's tags, title.js), then each of its properties on a line of its own,
-   the empty ones too, faint, to be filled in as on a page; then the bullets inside it. All of it Logseq's own, so it is edited there.
-   The head names no page (the bullet's page, which is not what was pressed): only where the row stands. */
-#right-sidebar .sidebar-item.item-type-block[data-st-item] .sidebar-item-header > button > div { visibility: hidden; display: flex; align-items: center; width: 58px; overflow: hidden; }   /* as wide as the icon and "Row", not the hidden words: where it stands follows "Row" */
-/* The head says what the section is, as every section's does: the table's icon and "Row" (B of table-sidebar-look.html, 18 November 2026;
-   the head was an arrow and a number). The bullet's own words, hidden above, are the section's title below it. */
-#right-sidebar .sidebar-item.item-type-block[data-st-item] .sidebar-item-header > button > div::before { content: ""; visibility: visible; flex: none; width: 18px; height: 18px; margin-right: 8px; background: currentColor; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 5a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2zM3 10h18M10 3v18'/%3E%3C/svg%3E") center / contain no-repeat; }
-#right-sidebar .sidebar-item.item-type-block[data-st-item] .sidebar-item-header > button > div::after { content: "Row"; visibility: visible; font-size: 14px; font-weight: 500; position: absolute; margin-left: 26px; }
-${ROW} > .block-main-container > .block-control-wrap { display: none !important; }
-${ROW} > .block-main-container .ls-block-right .block-tags { display: none !important; }
-/* Every property line of the node, the tag's (Logseq's line under the words) and the node's own (Logseq's panel under them), on one
-   grid, the grid of a page's properties in Logseq: the icon, the name at 150 px, 12 px, the value; the text's size, 28 px a line, one
-   left edge. Look puts the icon of what each holds before the name, as on a page (props.js). So a bullet's row reads like a page's
-   row, line for line (the owner, 18 November 2026: "it doesn't use the plugin's normal library elements"). */
-html ${ROW} > .block-main-container .positioned-properties.block-below { display: block !important; overflow: visible !important; margin: 0 !important; padding: 0 !important; font-size: 16px !important; width: 100% !important; max-width: 100% !important; box-sizing: border-box; }   /* no wider than the row: 16 px wider, the sidebar slid sideways when a value took the keyboard */
-${ROW} > .block-main-container :is(.bottom-properties-row, .bottom-properties-pills-strip) { display: block !important; overflow: visible !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }
-html ${ROW} > .block-main-container .bottom-property-pill,
-${ROW} > .ls-block-content-indent > .ls-properties-area .property-pair { display: grid !important; grid-template-columns: 150px minmax(0, 1fr) !important; column-gap: 12px !important; align-items: center !important; min-height: 28px; width: 100% !important; margin: 0 !important; padding: 0 !important; opacity: 1 !important; font-size: 16px !important; line-height: 24px !important; box-sizing: border-box; }
-/* In a narrow sidebar each name stands over its value, as Ontology's lines do under 360 px, so no value is cut (22 November 2026: with
-   the row's words on the stack's left edge, at a 700 px window the values stood 70 px wide, "Amex (" and "Shoppi"). */
-#right-sidebar .sidebar-item.item-type-block[data-st-item] .sidebar-panel-content { container-type: inline-size; }
-@container (max-width: 360px) {
-  html ${ROW} > .block-main-container .bottom-property-pill, ${ROW} > .ls-block-content-indent > .ls-properties-area .property-pair { grid-template-columns: minmax(0, 1fr) !important; height: auto !important; min-height: 0 !important; max-height: none !important; padding-bottom: 6px !important; align-items: start !important; }
-  html ${ROW} > .block-main-container .bottom-property-pill > *, ${ROW} > .ls-block-content-indent > .ls-properties-area .property-pair > * { height: auto !important; max-height: none !important; }
-  /* An empty one keeps its name and its faint mark on one line: under the name it was a blank line (22 November 2026). */
-  html ${ROW} > .block-main-container .bottom-property-pill:has(.empty-value), ${ROW} > .ls-block-content-indent > .ls-properties-area .property-pair:has(.empty-value) { grid-template-columns: auto minmax(0, 1fr) !important; align-items: center !important; }
-}
-${ROW} > .block-main-container .bottom-property-pill > div:first-child,
-${ROW} > .ls-block-content-indent > .ls-properties-area .property-pair .property-key-inner { display: flex !important; align-items: center; gap: 4px; min-width: 0; padding: 0 !important; margin: 0 !important; }
-${ROW} > .block-main-container .bottom-property-pill .lk-kind { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 15px; height: 15px; opacity: .5; }
-${ROW} > .block-main-container .bottom-property-pill > div:first-child > div:last-child:not(.property-key-inner) { display: none; }
-/* Look's dot between two properties on a line, and its step back for a line that wraps, mean nothing with one property a line. */
-${ROW} > .block-main-container .bottom-property-pill::before, ${ROW} > .block-main-container .bottom-property-pill::after { content: none !important; display: none !important; }   /* ::after is Logseq's ring round a line given the keyboard */
-html ${ROW} > .block-main-container .bottom-property-pill[data-lk-line] { transform: none !important; }
-${ROW} > .block-main-container .bottom-property-pill .property-key-inner { min-width: 0; }
-${ROW} > .block-main-container .bottom-property-content { min-width: 0; margin: 0 !important; }
-/* Logseq's Expand, for a row of properties too long for one line, means nothing once each stands on its own line (it blinked in on
-   every row change, the owner, 17 November 2026: "there is a flash"). */
-${ROW} > .block-main-container .bottom-property-expand-btn { display: none !important; }
-/* The node's other properties (a task's Status, Priority, Deadline once Logseq's own "Show hidden properties" is pressed; one added
-   by hand), which Logseq hides in a bullet narrower than 430 px, are shown in the row view. Logseq's switch is left as Logseq has it:
-   it holds per bullet, the outline too, so pressing it for the row would change the bullet everywhere (the owner, 17 November 2026:
-   "if it changes it everywhere, then revert to old ways"). Its lines start at the same left edge as the tag's lines above them. */
-${ROW} > .ls-block-content-indent > .ls-properties-area { display: block !important; margin: 0 !important; padding: 0 !important; }
-${ROW} > .ls-block-content-indent { margin-left: 0 !important; padding-left: 0 !important; }
-${ROW} > .ls-block-content-indent > .ls-properties-area .property-pair .property-key-panel { min-width: 0; }
-/* Logseq's dot before a value there: the tag's lines have none, so the values of both stand in one column. */
-${ROW} > .ls-block-content-indent > .ls-properties-area .property-pair :is(.property-panel-bullet, .property-value-container .block-control-wrap) { display: none !important; }
-${ROW} > .ls-block-content-indent > .ls-properties-area .property-pair .property-block-container { margin-left: 0 !important; }   /* Logseq pulls it left over its bullet, gone here */
-/* An empty value's name is faint, on a page as here; the room under the lines is the same room a page leaves. */
-${ROW} > .block-main-container .bottom-property-pill:has(.empty-value):not(:focus-within) > div:first-child,
-${ROW} > .ls-block-content-indent > .ls-properties-area .property-pair.property-panel-row-empty:not(:focus-within) .property-key-inner { color: var(--lk-off) !important; }
-${ROW} > .block-main-container .positioned-properties.block-below + *, ${ROW} > .ls-block-content-indent { margin-top: 0 !important; }
-${ROW} > .block-main-container { margin-bottom: 0 !important; }
-/* A tag the property is on: its name and count on one line, what you can do with it under them, so the narrow panel never
-   squeezes the count into a column of single letters. */
+/* The lines at the top, the faint waiting line under them. */
+.st-holder-insp .st-insp-top { order: -1; }
+/* A child tag: its name and its count on one line, so the narrow panel never squeezes the count into a column of single letters. */
 .st-holder-insp .st-lines-t .ont { grid-template-columns: minmax(0, 1fr) auto; }
-.st-holder-insp .st-lines-t .ont .acts-r { grid-column: 1 / -1; flex-wrap: wrap; gap: 2px 8px; margin-left: -6px; }
-.st-holder-insp .st-lines-t .ont .acts-r:empty { display: none; }
-/* A property's lines only (a tag's Child tags keep theirs). In the sidebar each action named for its tag stands on a line of its own, so every tag's actions read alike (19 November 2026),
-   and a child tag's name keeps its room before its count ("Bill payment35 of 35" ran together). */
-.st-holder-insp .st-lines-t dd.col:not(.kids) > .ont .acts-r { flex-direction: column; align-items: flex-start; }
-.st-holder-insp .st-lines-t dd.col:not(.kids) > .ont.kid .lk-tag { margin-right: 0; }
-.st-holder-insp .st-lines-t dd.col:not(.kids) > .ont { justify-self: stretch; }   /* every count at the sidebar's right edge, under 103 of 107 */
-.st-holder-insp:not([data-row]):has(.st-insp-top :is(.st-insp-h, .st-lines-t)) .st-insp-node { border-top: 1px solid var(--lk-hair); padding-top: 16px; }
-/* The line by line review (the owner, 18 November 2026: "sidebar of table view needs a deep visual analysis"). */
-/* A line is no box: Logseq's ring around a property it has given the keyboard (a rounded outline across the line, past its end)
-   gives way to the wash a pressed line has everywhere. */
-html ${ROW} > .block-main-container :is(.bottom-property-pill, .bottom-property-pill:focus, .bottom-property-pill:focus-within) { outline: none !important; box-shadow: none !important; border: 0 !important; border-radius: 0 !important; background: none !important; }
-html ${ROW} > .block-main-container .bottom-property-pill:focus-visible { background: var(--lk-wash) !important; border-radius: 4px !important; }
-/* Logseq's "Show hidden properties": one line, its arrow in the icons' place and its words where the names start, quiet as a name. */
-html ${ROW} > .block-main-container .bottom-property-hidden-toggle-btn { display: flex !important; align-items: center !important; justify-content: flex-start !important; gap: 4px !important; color: var(--lk-quiet) !important; font-size: inherit !important; text-align: left; cursor: pointer; }
-html ${ROW} > .block-main-container .bottom-property-hidden-toggle-btn > .ui__icon { flex: none; width: 15px; display: inline-flex; justify-content: center; }
-html ${ROW} > .block-main-container .bottom-property-hidden-toggle-btn:hover { color: var(--lk-text) !important; }
-/* An empty value says nothing: the faint name already says it is empty, so Logseq's "---" goes (the place to press stays). */
-${ROW} :is(.bottom-property-pill, .property-pair) .ls-icon-line-dashed { visibility: hidden !important; }
-/* A name is faint only while its value is empty: a hidden property that holds a value (Status: Todo) reads as any other. */
-html ${ROW} > .block-main-container .bottom-property-pill { opacity: 1 !important; }
-html ${ROW} > .block-main-container .bottom-property-pill:not(:has(.empty-value)) > div:first-child { color: var(--lk-quiet) !important; opacity: 1 !important; }
-html ${ROW} > .ls-block-content-indent > .ls-properties-area .property-pair:not(:has(.empty-value)) :is(.property-key-panel, .property-key-inner, .property-k) { color: var(--lk-quiet) !important; opacity: 1 !important; }
-/* A date is a date: Logseq's yellow on a deadline near or past stays in the outline; here it reads as the other values. */
-${ROW} :is(.bottom-property-pill, .property-pair) .property-value-inner :is(.overdue, .overdue *) { color: var(--lk-text) !important; }
-/* A number while it is written: its box fills the value's column, where the number stood. */
-${ROW} :is(.bottom-property-pill, .property-pair) .ls-number { flex: 1; min-width: 0; }
-${ROW} :is(.bottom-property-pill, .property-pair) .property-value-inner:has(> .ls-number > input) { flex: 1; width: 100%; }
-${ROW} :is(.bottom-property-pill, .property-pair) .ls-number > input { width: 100% !important; border: 0 !important; border-bottom: 1px solid var(--lk-line) !important; border-radius: 0 !important; box-shadow: none !important; background: none !important; padding: 0 !important; height: auto !important; font: inherit !important; }   /* the library's field: on a hairline */
-/* The bullets inside the row stand as a page's do: under the icons' column, the first level with no line of its own (the line beside
-   them belonged to the row's own bullet, which the row view does not draw), each deeper line under its own bullet (the owner,
-   18 November 2026: "look at misalignment of vertical bullet lines"). */
-${ROW} > .block-children-container { margin-left: -23px !important; }
-${ROW} > .block-children-container > .block-children-left-border { display: none !important; }
+.st-holder-insp:has(.st-insp-top :is(.st-insp-h, .st-lines-t)) .st-insp-node { border-top: 1px solid var(--lk-hair); padding-top: 16px; }
 .st-insp-node:empty { display: none; }
 .st-insp-none { margin: 0; } .st-insp-none.lk-none { padding: 0; }   /* the library's nothing-here line, at the top of the tab, as Links' and Endnotes' (the audit's 32) */
-/* Two marks in a table beside the Item tab (the owner, 12 November 2026): the row Item shows keeps a blue outline for as long as it is
-   the one shown; the row under the pointer keeps Logseq's own wash.
-   The outline is a frame laid over the row, since the row's cells paint over an outline of its own. */
-.ls-table-row[data-st-picked] { position: relative; }
-.ls-table-row[data-st-picked]::after { content: ""; position: absolute; inset: 0; border: 1.5px solid var(--lk-picked); border-radius: 3px; pointer-events: none; z-index: 20; }
 .st-lines-t .to { margin: 0 .35em; }
 .st-sb { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; font-size: 14px; margin: 10px 0 2px; }
 .st-sb .h { font-weight: 600; margin-bottom: 4px; } .st-sb .o { padding-left: calc(var(--d, 0) * 16px); }
@@ -355,8 +228,6 @@ html.st-bin-ask :is(.ui__dialog-overlay, .ui__dialog-content) { opacity: 0 !impo
 .st-row.kind .nm { font-weight: 500; }
 .st-row.dim .nm, .st-row.dim .ct, .st-row.loose .nm { color: var(--lk-off); }
 .st-row .ct { text-align: right; line-height: 26px; color: var(--lk-quiet); font-size: var(--lk-small); font-variant-numeric: tabular-nums; }
-.st-row .iss { width: 5px; height: 5px; margin-top: 10.5px; border-radius: 50%; background: currentColor; opacity: 0; justify-self: center; }
-.st-row .iss.on { opacity: .35; } .st-row .iss.own { opacity: .7; }
 /* Everything that presses shows it under the pointer, and nothing else does: a line or a row that opens a card, a number, the rest of a list. */
 .st [data-row], .st [data-prop], .st [data-nodes], .st [data-node], .st [data-pick], .st [data-all], .st [data-more], .st [data-go], .st [data-open] { cursor: pointer; }
 .st .lk-view.on { cursor: default; } .st-row.off[data-pick] { cursor: default; }
@@ -408,17 +279,6 @@ html.st-bin-ask :is(.ui__dialog-overlay, .ui__dialog-content) { opacity: 0 !impo
 .st-ln.low .ct { color: var(--lk-quiet); }
 .st-ln.rng .x { margin-left: 2px; }
 .st-ln.add .ct { text-align: left; white-space: normal; }
-/* An issue's row, each part keyed by its role (the owner, 31 October 2026): the thing to settle in the text colour with the underline
-   that opens its card, the tying words and the sentence in the quiet grey at the row's size, the tags as tags, the count as a number,
-   the fix last in the text colour, taking the room it needs (the sentence wraps before it, never the fix word). */
-.st-ln.iss { grid-template-columns: 16px minmax(0, 1fr) max-content; }
-.st-ln.iss .w { color: var(--lk-quiet); display: block; }   /* the parts flow as text, so a long sentence wraps as text */
-.st-ln.iss .w > span { margin: 0 2px; } .st-ln.iss .w > span:first-child { margin-left: 0; }
-.st-ln.iss .w .sj { color: var(--lk-text, #222); font-weight: 500; margin-right: 4px; }
-.st-ln.iss .w .to { color: var(--lk-quiet); font-size: 14px; } .st-ln.iss .w .pn { margin-left: -2px; }
-.st-ln.iss .w .nm { color: var(--lk-quiet); font-variant-numeric: tabular-nums; font-size: 14px; margin-left: 6px; }
-/* A line with its own issue: the fix word at its right end, after the faint count. */
-.st-ln.fx { grid-template-columns: 16px minmax(0, 1fr) 84px max-content; }
 /* A merge before it is staged, as the grammar shows a consequence: the two tags side by side, their properties lined up. */
 .st-two { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; font-size: 14px; margin: 8px 0 6px; }
 .st-two .h { font-weight: 600; padding-bottom: 4px; display: flex; gap: 8px; align-items: baseline; color: var(--lk-text, #222); } .st-two .h .ct { font-weight: 400; color: var(--lk-quiet); font-size: var(--lk-small); }
@@ -526,7 +386,7 @@ html.st-bin-ask :is(.ui__dialog-overlay, .ui__dialog-content) { opacity: 0 !impo
 const ensureStyle = doc => { S.base.sheet('st-style', CSS, 'st-own', doc); };
 
 /* make(holder, mode, app): draws the screen into holder; mode is 'page' (Regions or Every property, with the tray), 'line'
-   (the line above a tag's title) or 'tag' (a tag's lines, in the Ontology tab). app holds the state every view shares
+   (the line above a tag's title) or 'tag' (a tag's other lines, in the Ontology section of the sidebar). app holds the state every view shares
    (main.js): the tray with its model, the cursor, what is open and ticked, the trail. */
 function make(holder, mode, app, opts = {}) {
   const doc = holder.ownerDocument;
@@ -538,7 +398,7 @@ function make(holder, mode, app, opts = {}) {
   const root = doc.createElement('div');
   const TAGISH = mode === 'tag' || mode === 'line';
   // Which page this view draws: a menu opened here is drawn only here (st is shared by every view of Ontology).
-  const placeKey = `${mode}|${opts.tag ?? ''}|${opts.prop ?? ''}`;   // 'line': the one line above a tag's title; 'tag': all its lines, in the inspector
+  const placeKey = `${mode}|${opts.tag ?? ''}`;   // 'line': the one line above a tag's title; 'tag': its other lines, in the Ontology section
   root.className = `st ${TAGISH ? `st-tag${mode === 'line' ? ' st-line' : ''}` : 'st-page'}`;
   root.tabIndex = 0;
   holder.appendChild(root);
@@ -546,8 +406,6 @@ function make(holder, mode, app, opts = {}) {
   const T = id => M().tags.get(id);
   const P = id => M().props.get(id);
   const name = id => id === LOOSE ? 'The top' : T(id)?.title ?? '';
-  const ISS = () => app.issues();
-  const own = id => R.issuesOn(ISS(), id).length, below = id => R.issuesUnder(M(), ISS(), id).length;
   const touched = () => app.touched();
   const waitTag = id => touched().tags.has(id) ? 'wait' : '', waitProp = id => touched().props.has(id) ? 'wait' : '';
   let wantFocus = false;   // a press in this view asked for the keyboard; nothing else takes it
@@ -573,7 +431,6 @@ function make(holder, mode, app, opts = {}) {
   }
   function rowHtml(r) {
     const t = r.n === LOOSE ? null : T(r.n), isTop = r.d === 0;
-    const o = own(r.n), b = below(r.n);
     const arrow = r.kids ? `<span class="lk-fold" data-fold="${esc(r.n)}" aria-expanded="${r.open}"></span>` : '<span></span>';
     const bullet = `<span class="st-bul lk-bul ${r.kids && !r.open ? 'folded' : ''}"></span>`;
     const editing = !inPane2 && st.edit && st.edit.what === 'rename' && st.edit.on === r.n;
@@ -582,8 +439,8 @@ function make(holder, mode, app, opts = {}) {
     let h = `<div class="st-row lk-row ${isTop ? 'kind' : ''} ${r.n === LOOSE ? 'loose' : ''} ${r.dim || (st.aim && !aimOk(r.n)) ? 'dim' : ''} ${st.cur === r.n ? 'cur' : ''} ${waitTag(r.n)}" style="--d:${r.d}" data-row="${esc(r.n)}" ${canDrag ? 'draggable="true"' : ''}>` +
       `<input type="checkbox" class="lk-tick" data-tick="${esc(r.n)}" ${st.ticks.has(r.n) ? 'checked' : ''} ${r.n === LOOSE ? 'disabled style="visibility:hidden"' : ''}>` +
       arrow + bullet +
-      `<span class="nm"><span class="${waitTag(r.n) ? 'lk-coming' : ''} ${t?.uuid && !editing ? 'st-name' : ''}" ${t?.uuid && !editing ? `data-tpage="${esc(r.n)}"` : ''}>${nm}</span></span><span class="ct">${Mo.count(M(), r.n) || ''}</span><span class="iss ${o ? 'own' : b ? 'on' : ''}"></span></div>`;
-    if (!inPane2 && st.edit && st.edit.what === 'new' && st.edit.on === r.n && st.edit.owner === mode) h += `<div class="st-row lk-row" style="--d:${r.d + 1}"><span></span><span></span><span class="st-bul lk-bul"></span><span class="nm"><input class="st-in lk-field" data-edit value="${esc(st.edit.text)}" placeholder="a new tag under ${esc(name(r.n))}" autocomplete="off" spellcheck="false"></span><span class="ct"></span><span class="iss"></span></div>`;
+      `<span class="nm"><span class="${waitTag(r.n) ? 'lk-coming' : ''} ${t?.uuid && !editing ? 'st-name' : ''}" ${t?.uuid && !editing ? `data-tpage="${esc(r.n)}"` : ''}>${nm}</span></span><span class="ct">${Mo.count(M(), r.n) || ''}</span><span></span></div>`;   // the last, empty cell keeps the count where it stood beside the dot of a suggestion (gone 24 November 2026)
+    if (!inPane2 && st.edit && st.edit.what === 'new' && st.edit.on === r.n && st.edit.owner === mode) h += `<div class="st-row lk-row" style="--d:${r.d + 1}"><span></span><span></span><span class="st-bul lk-bul"></span><span class="nm"><input class="st-in lk-field" data-edit value="${esc(st.edit.text)}" placeholder="a new tag under ${esc(name(r.n))}" autocomplete="off" spellcheck="false"></span><span class="ct"></span><span></span></div>`;
     return h;
   }
 
@@ -613,7 +470,7 @@ function make(holder, mode, app, opts = {}) {
   }
   // What can be done stays in view, faint until it can be (the research: what you can do is recognised, not remembered), so nothing moves when a tag is picked.
   function actsHtml() {
-    const aim = st.aim, names = aim && (aim.tags.length > 3 ? `${aim.tags.length} tags` : R.list(aim.tags.map(name)));
+    const aim = st.aim, names = aim && (aim.tags.length > 3 ? `${aim.tags.length} tags` : Mo.list(aim.tags.map(name)));
     if (aim) return `<div class="st-acts lk-bar"><b class="lk-said">${aim.what === 'move' ? `Move ${esc(names)} to` : `Merge ${esc(names)} into`}: press a tag</b><span class="act lk-btn lk-low lk-i-x" data-aimoff>Leave it</span>${aim.what === 'move' ? '<span class="act lk-btn lk-low lk-i-up" data-aimtop>To the top</span>' : ''}</div>`;
     /* Tick tags, then say what to do with them (the owner, 16 November 2026: "you would think you could select multiple items then
        hit a merge item and it ask for which to merge together"; the clickable mockup pick-then-merge-live.html, "ok build"). One word
@@ -633,7 +490,7 @@ function make(holder, mode, app, opts = {}) {
   /* Every property's bar, as Regions' is for tags: what is picked and what it can take, waiting faintly until it can. Merging,
      the rows are the choice ("press a property"); combining, the bar asks the name of the property they become. */
   function pactsHtml() {
-    const ids = [...st.pticks].filter(id => P(id)), names = ids.length > 3 ? `${ids.length} properties` : R.list(ids.map(id => P(id).title));
+    const ids = [...st.pticks].filter(id => P(id)), names = ids.length > 3 ? `${ids.length} properties` : Mo.list(ids.map(id => P(id).title));
     if (st.paim) return `<div class="st-acts lk-bar"><b class="lk-said">Merge ${esc(names)} into: press a property</b><span class="act lk-btn lk-low lk-i-x" data-paimoff>Leave it</span></div>`;
     if (st.edit?.what === 'pcombine' && st.edit.owner === mode) return `<div class="st-acts lk-bar"><b class="lk-said">Combine ${esc(names)} as</b><input class="st-in lk-field" data-edit value="${esc(st.edit.text)}" placeholder="Name of the property they become" autocomplete="off" spellcheck="false"><span class="act lk-btn lk-low lk-i-x" data-paimoff>Leave it</span></div>`;
     const n = ids.length;
@@ -652,9 +509,9 @@ function make(holder, mode, app, opts = {}) {
   }
   // The relationships of a tag, read left to right: the tag that holds the property, the property and what it holds, how many nodes.
   /* What a property's line on one tag can do, each named for that tag alone (the owner, 19 November 2026: "doesn't seem obvious
-     what the point is"), one name on the line's buttons, in its right-click menu and in Suggested. */
+     what the point is"), one name on the line's buttons and in its right-click menu. */
   const poss = id => { const n = name(id); return /s$/i.test(n) ? `${n}'` : `${n}'s`; };
-  const ACTS = { move: id => `Move from ${name(id)} to another tag…`, split: id => `Split ${name(id)} by value…`, remove: id => `Remove from ${name(id)}`, values: id => `Move ${poss(id)} values to another property…` };
+  const ACTS = { move: id => `Move from ${name(id)} to another tag…`, remove: id => `Remove from ${name(id)}`, values: id => `Move ${poss(id)} values to another property…` };
   const relWord = (id, t) => `<span class="lk-tag ${id === t ? 'self' : ''}" data-go="${esc(id)}">${esc(name(id))}</span>`;
   const relProp = (r, t) => `<span><span class="lk" data-open="${esc(P(r.prop)?.uuid || '')}">${esc(r.title)}</span>: ${relWord(r.to, t)}</span>`;
   // The tag itself, which the heading above already names, is left out of its own lines (the audit's 31): "Provider: Doctor 74"
@@ -671,16 +528,10 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
   function focusHtml(id) {
     const t = T(id); if (!t) return '';
     /* No list of relations under the areas (the owner, 24 November 2026: "this is not even useful to me. remove"): the pressed tag's
-       name stands there only over a question or a suggestion about it. */
-    const under = mergeAskHtml(id) + changeAskHtml(id) + suggestHtml(id);
+       name stands there only over a question about it. */
+    const under = mergeAskHtml(id) + changeAskHtml(id);
     return under ? `<div class="st-focus"><div class="f-h"><span class="lk" data-go="${esc(id)}">${esc(t.title)}</span></div>${under}</div>` : '';
   }
-  /* What Ontology suggests: the word "Suggested" once, as a small heading, then one line each, the sentence and its fix at the line's
-     end, lined up (16 November 2026, the owner: "look how bad this looks" of "Suggested" run into each sentence, every line its own). */
-  /* Closed until asked for (17 November 2026, the owner: "having this large red button when I wasn't asking for anything is distracting
-     and suggestions should have to be opened"): one quiet line, "Suggested 2", that opens the box; the box's heading closes it. */
-  const sugsHtml = (list, on) => !list.length ? '' : !st.sugsOpen?.has(String(on)) ? `<div class="sugs-shut lk-row" role="button" tabindex="0" data-sugs="${esc(on)}" aria-expanded="false"><span class="lk-fold" aria-expanded="false"></span><i class="ti ti-bulb" aria-hidden="true"></i>Suggested<span class="nm">${list.length}</span></div>` : `<div class="sugs" data-on="${esc(on)}"><div class="sh" role="button" tabindex="0" data-sugs="${esc(on)}" aria-expanded="true"><span class="lk-fold" aria-expanded="true"></span><i class="ti ti-bulb" aria-hidden="true"></i>Suggested</div>${list.map(i => { const n = ISS().indexOf(i); return `<div class="sug"><span>${partsHtml(i.parts)}</span><span class="fix act lk-fix lk-i-${fixIcon(i.fix)}" data-fix="${n}">${esc(fixWord(i))}</span><span class="act lk-x" role="button" tabindex="0" data-dismiss="${n}" title="Dismiss this suggestion" aria-label="Dismiss this suggestion">×</span></div>${askHtml(n)}`; }).join('')}</div>`;
-  const suggestHtml = id => sugsHtml(R.issuesOn(ISS(), id), id);
   // ---------- a tag's lines: Parent alone on one line above its title; the others in the inspector ----------
   // (the owner, 8 November 2026: Extends is called Parent, on one line above the title without moving the title down; 12 November:
   // Parent alone there; Child tags, Beside and Relationships live in the inspector alone.)
@@ -702,29 +553,27 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     // it says what that line does not, Child tags first (the owner, 12 November 2026: "just have parent and that is all … the
     // children and other details in a sidebar view"; with several child tags the one line wrapped onto the title).
     return `<dl class="st-lines-t"><dt>Child tags</dt><dd class="col kids">${kidsHtml(id)}</dd>${beside.length ? `<dt>Beside</dt><dd><span>${ranges(beside)}</span></dd>` : ''}` +
-      `<dt>Relationships</dt><dd>${relsHtml(id)}</dd></dl>${mergeAskHtml(id)}${changeAskHtml(id)}${suggestHtml(id)}`;
+      `<dt>Relationships</dt><dd>${relsHtml(id)}</dd></dl>${mergeAskHtml(id)}${changeAskHtml(id)}`;
   }
-  // A property's own page: the same short lines above what Logseq shows. Each action sits on what it acts on.
+  // A property's lines, opened in place under its row in Every property. Each action sits on what it acts on. (Until 24 November
+  // 2026 they also stood on the property's own page, then in the sidebar beside it; the owner dropped both.)
   function propLinesHtml(pid) {
     const m = M(), p = P(pid); if (!p) return '';
     const on = [...p.on].sort((a, b) => Mo.count(m, b) - Mo.count(m, a));
-    const onRow = id => { const key = `${id}·${pid}`, t = T(id), kids = Mo.kids(m, id), fx = { word: '', ask: '' };
-      return `<div class="ont" data-prop="${key}">${tagLink(id)}<span class="num">${Mo.filled(m, id, pid)} of ${Mo.count(m, id)}</span><span class="acts-r"><span class="act lk-btn lk-low lk-i-move" data-do="pmove" data-on="${key}">${esc(ACTS.move(id))}</span>${(p.choice || p.type === 'node') && t?.nodes.size ? `<span class="act lk-btn lk-low lk-i-split" data-do="split" data-on="${key}">${esc(ACTS.split(id))}</span>` : ''}<span class="act lk-btn lk-low lk-del lk-i-minus" data-do="pdrop" data-on="${key}">${esc(ACTS.remove(id))}</span></span></div>` +
-        kids.map(k => { const lf = lineFix(id, pid, k); return `<div class="ont kid">${tagLink(k)}<span class="num">${Mo.filled(m, k, pid)} of ${Mo.count(m, k)}</span><span class="acts-r">${lf.word}</span></div>${lf.ask}`; }).join(''); };
+    const onRow = id => { const key = `${id}·${pid}`, kids = Mo.kids(m, id);
+      return `<div class="ont" data-prop="${key}">${tagLink(id)}<span class="num">${Mo.filled(m, id, pid)} of ${Mo.count(m, id)}</span><span class="acts-r"><span class="act lk-btn lk-low lk-i-move" data-do="pmove" data-on="${key}">${esc(ACTS.move(id))}</span><span class="act lk-btn lk-low lk-del lk-i-minus" data-do="pdrop" data-on="${key}">${esc(ACTS.remove(id))}</span></span></div>` +
+        kids.map(k => `<div class="ont kid">${tagLink(k)}<span class="num">${Mo.filled(m, k, pid)} of ${Mo.count(m, k)}</span><span class="acts-r"></span></div>`).join(''); };
     const cutAt = st.whole.has(`range${pid}`) ? p.range.length : 3, nodeTags = p.range.slice(0, cutAt).map(id => `<span class="rg">${tagLink(id)}<span class="lk-x" data-unrange="${id}" data-unprop="${pid}" title="Take ${esc(name(id))} out">×</span></span>`).join('') + (p.range.length > cutAt ? `<span class="lk-more" data-all="range${pid}">and ${p.range.length - cutAt} more</span>` : '');
     // No Relationships here (the owner, 19 November 2026: rows like "Bills · Charged by: Company · 5" were not useful); a tag's
     // Relationships in the Ontology tab stay.
     return `<dl class="st-lines-t"><dt>Property type</dt><dd>${esc(Mo.kindWord(p.choice ? 'choice' : p.type))}${p.many ? ', several values' : ''}<span class="act lk-btn lk-low lk-i-merge" data-do="pmerge" data-on="0·${pid}">Merge into…</span></dd>` +
       (p.type === 'node' ? `<dt>Node tags</dt><dd>${nodeTags}<span class="act lk-add lk-i-plus" data-addrange="0·${pid}">Specify node tags…</span></dd>` : '') +
       `<dt>On tags</dt><dd class="col">${on.map(onRow).join('')}${on.length ? '' : `<span>${plural(m.holders.get(p.ident)?.size || 0, 'node')}, on no tag</span>`}<span class="act lk-add lk-i-plus" data-do="pmove" data-on="0·${pid}">Put on a tag…</span></dd>` +
-      `</dl>${pmergeAskHtml(pid)}` +
-      sugsHtml(R.issuesOfProp(ISS(), pid).filter(i => !(i.line && i.line.kid != null)), `p${pid}`);
+      `</dl>${pmergeAskHtml(pid)}`;
   }
-  /* In the inspector each part is headed by what it describes (the owner, 9 November 2026: "how the section appear"): the tag in
-     its mono, or the property with its icon. Above the table the page's own title says it, so the head shows in the inspector only. */
-  const inspHeadHtml = o => { const p = o.prop != null ? P(o.prop) : null;
-    if (o.prop != null) return p ? `<div class="st-insp-h">${pi(p)}<span>${esc(p.title)}</span></div>` : '';
-    return T(o.tag) ? `<div class="st-insp-h">${tagLink(o.tag)}</div>` : ''; };
+  /* In the Ontology section the lines are headed by the tag they describe (the owner, 9 November 2026: "how the section appear");
+     the head is not shown there since 22 November 2026, as the page in front already says the name. */
+  const inspHeadHtml = o => T(o.tag) ? `<div class="st-insp-h">${tagLink(o.tag)}</div>` : '';
   /* Each Apply's lines, newest first. The first line of an Apply whose record is still on this Mac (30 days, records.js) carries
      its faded Undo arrow, the door's own drawing; once undone it says so, quietly, and a change Logseq cut off says that. */
   function logHtml() {
@@ -748,31 +597,13 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
   const tagLink = id => `<span class="lk-tag tg ${waitTag(id) ? 'lk-coming' : ''}" data-go="${esc(id)}">${esc(name(id))}</span>`;
   // A range of many tags (Topic, on purpose, takes fifteen): the first three, then how many more; the property's card lists them all.
   const ranges = ids => ids.slice(0, 3).map(tagLink).join('<span class="to sp">, </span>') + (ids.length > 3 ? ` <span class="to and">and ${ids.length - 3} more</span>` : '');
-  // An issue that belongs to a line puts its fix word at the line's right end, after the faint count, with its ask under the line.
-  const lineFix = (tagId, pid, kid) => { const i = R.issueOnLine(ISS(), tagId, pid, kid); return i ? { cls: 'fx', word: `<span class="fix act lk-fix lk-i-${fixIcon(i.fix)}" data-fix="${ISS().indexOf(i)}">${esc(fixWord(i))}</span>`, ask: askHtml(ISS().indexOf(i)) } : { cls: '', word: '', ask: '' }; };
-  // An issue: what is wrong, then the fix as a word. Choosing the fix opens one line that says what it would do, with the
-  // nodes it touches; only "stage it" puts it in the tray. A fix that needs a choice (which kind, which tag) opens the prompt.
-  // The sentence in parts, each keyed by its role: the thing to settle in the text colour with the underline that opens its card
-  // (a tag, or a property on a tag), the tying words quiet, the tags as tags (three, then "and N more"), the count as a number.
-  const partsHtml = parts => parts.map(p => p.subject ? (p.subject.prop != null
-      ? `<span class="k lk sj ${waitProp(p.subject.prop) ? 'lk-coming' : ''}" data-prop="${p.subject.tag}·${p.subject.prop}">${esc(P(p.subject.prop)?.title ?? '')}</span>`
-      : `<span class="k lk sj ${waitTag(p.subject.tag) ? 'lk-coming' : ''}" data-go="${esc(p.subject.tag)}">${esc(name(p.subject.tag))}</span>`)
-    : p.tags ? (p.sep === 'and' && p.tags.length === 2 ? p.tags.map(tagLink).join('<span class="to">and</span>') : ranges(p.tags))
-    : p.count != null ? `<span class="nm">${esc(p.count)}</span>`
-    : `<span class="to ${/^[,:;]/.test(p.words) ? 'pn' : ''}">${esc(p.words)}</span>`).join(' ').replace(/ (<span class="to pn")/g, '$1');
-  const fixWord = i => { if (i.fix === 'drop' && i.change?.tag != null) return ACTS.remove(i.change.tag); const t = i.fix; return t.charAt(0).toUpperCase() + t.slice(1); };
   const askLine = (c, last) => {
     const s = S.changes.sentence(M(), c), two = c.kind === 'merge';
     const words = last ? `<div class="lk-answers"><span class="act lk-accent lk-i-tick lk-enter" data-stage>Stage it</span><span class="act lk-btn lk-low lk-i-x" data-leave>Leave it</span></div>` : '';
     // Each thing once: what it asks; the merge's columns say which tag goes and how many nodes; what no Undo brings back, under them.
     return `<div class="st-q"><div class="h">${esc(two ? s.ask : s.text)}${s.nodes && !two ? ` · ${plural(s.nodes, 'node')}` : ''}</div>${two ? twoHtml(c.from, c.into) : ''}${two && s.lost.length ? `<div class="l">${s.lost.map(esc).join(' · ')}</div>` : ''}${words}</div>`;
   };
-  function askHtml(n) {
-    if (!st.ask || st.ask.i !== n) return '';
-    const i = ISS()[n];
-    return i ? askLine(i.change, true) : '';
-  }
-  // Ticked tags merged into this one: the same ask as a fix, one consequence for each.
+  // Ticked tags merged into this one: one consequence for each.
   const mergeAskHtml = id => st.ask?.merges && st.ask.into === id ? st.ask.merges.map((from, n, all) => askLine({ kind: 'merge', from, into: id }, n === all.length - 1)).join('') : '';
   // A change that comes with its ask already (the × on a tag's own page): under the card's words, while what it names still holds.
   const changeAsk = () => { const c = st.ask?.change; return c && T(c.tag)?.parents.includes(c.from) ? c : null; };
@@ -844,14 +675,11 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     const c = st.ask?.pchange; if (!c || c.a.prop !== pid || st.ask.owner !== mode) return '';
     const p = P(pid), pv = c.pv; if (!p) return '';
     if (c.kind === 'forTag') return forTagAskHtml(c, p);
-    const head = c.kind === 'retype' ? `Turn ${esc(p.title)} into dates` : `Split ${esc(p.title)}: ${esc(name(c.a.only))} values move to a new property`;
-    const why = c.kind === 'retype' ? `Dates typed as words are only words: Logseq cannot show the note on that day or sort by it. Words that read as a date become a real date; the others stay as they are, in ${p.title}, as written.`
-      : `${p.title} holds more than one kind of thing. The values that are ${name(c.a.only)} move into a new property; the others stay in ${p.title}.`;
-    const count = c.kind === 'retype' ? `${plural(pv.gave.length, 'note')} ${pv.gave.length === 1 ? 'gets' : 'get'} a real date · ${plural(pv.left.length, 'note')} ${pv.left.length === 1 ? 'keeps its words' : 'keep their words'}`
-      : `${plural(pv.gave.length, 'note')} ${pv.gave.length === 1 ? 'gets' : 'get'} ${c.a.name} · ${plural(pv.nodes - pv.gave.length, 'note')} ${pv.nodes - pv.gave.length === 1 ? 'keeps' : 'keep'} just ${p.title}`;
-    const field = c.kind === 'splitProp' ? `<div class="l">Name of the new property <input class="st-in lk-field" data-pcname value="${esc(c.a.name)}" autocomplete="off" spellcheck="false"></div>` : '';
+    const head = `Turn ${esc(p.title)} into dates`;
+    const why = `Dates typed as words are only words: Logseq cannot show the note on that day or sort by it. Words that read as a date become a real date; the others stay as they are, in ${p.title}, as written.`;
+    const count = `${plural(pv.gave.length, 'note')} ${pv.gave.length === 1 ? 'gets' : 'get'} a real date · ${plural(pv.left.length, 'note')} ${pv.left.length === 1 ? 'keeps its words' : 'keep their words'}`;
     const none = !pv.gave.length;
-    return `<div class="st-q"><div class="h">${head}</div><div class="l">${esc(why)}</div>${field}${notesPv(pv, c.kind === 'splitProp' ? c.a.orig : '', c.a.name)}<div class="l cnt">${esc(count)}</div>${none ? `<div class="l">Nothing here would change.</div><div class="lk-answers"><span class="act lk-btn lk-low lk-i-x" data-leave>Leave it</span></div>` : applyWords(c.kind === 'retype' ? `Turn ${plural(pv.moved, 'value')} into dates` : `Move ${plural(pv.moved, 'value')} to ${c.a.name}`)}</div>`;
+    return `<div class="st-q"><div class="h">${head}</div><div class="l">${esc(why)}</div>${notesPv(pv)}<div class="l cnt">${esc(count)}</div>${none ? `<div class="l">Nothing here would change.</div><div class="lk-answers"><span class="act lk-btn lk-low lk-i-x" data-leave>Leave it</span></div>` : applyWords(`Turn ${plural(pv.moved, 'value')} into dates`)}</div>`;
   }
   /* Merging ticked tags (16 November 2026, the clickable mockup): which name to keep (the biggest first, or a new one), what goes and
      how many nodes move, a few notes now and after with their tags marked, and a yes that names the result. Under the bar. */
@@ -869,7 +697,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     const shown = (a.notes || []).filter(n => n.tags.some(t => goneNames.has(t))).slice(0, 3);
     const note = n => `<div class="mn"><span class="lk-node">${esc(n.title)}</span>${n.tags.map(t => tagW(t, goneNames.has(t) ? 'lk-going' : '')).join('')}${n.tags.includes(keepName) ? '' : tagW(keepName, 'lk-coming')}</div>`;
     const others = gone.map(x => `<span class="act lk-btn lk-low lk-i-merge" data-tkeep="${x}">${gone.length === 1 ? 'Keep the other name' : `Keep ${esc(name(x))}`}</span>`).join('');
-    return `<div class="st-q st-merge"><div class="h">Merge ${R.list(gone.map(x => tagW(name(x))))} into ${tagW(keepName)}</div>${shown.map(note).join('')}` +
+    return `<div class="st-q st-merge"><div class="h">Merge ${Mo.list(gone.map(x => tagW(name(x))))} into ${tagW(keepName)}</div>${shown.map(note).join('')}` +
       `<div class="l">${plural(moving, 'node')} · links to ${gone.length === 1 ? 'the tag' : 'the tags'} follow</div>` +
       `<div class="lk-answers"><span class="act lk-accent lk-i-tick lk-enter" data-stage>Merge</span><span class="act lk-btn lk-low lk-i-x" data-leave>Leave it</span>${others}</div></div>`;
   }
@@ -877,14 +705,14 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
   function pkeepHtml() {
     const a = st.ask?.pmerge; if (!a?.atBar || st.ask.owner !== mode) return '';
     const ids = [...a.froms, a.into].filter(P), held = x => m0().holders.get(P(x).ident)?.size || 0;
-    return `<div class="st-q"><div class="h">Merge ${esc(R.list(ids.map(x => P(x).title)))} into one property. Keep which name?</div>${keepLine(byCount(ids, held), a.into, !!(a.rename || '').trim() && a.rename !== P(a.into).title, x => plural(held(x), 'node'), 'data-pkeep')}` +
+    return `<div class="st-q"><div class="h">Merge ${esc(Mo.list(ids.map(x => P(x).title)))} into one property. Keep which name?</div>${keepLine(byCount(ids, held), a.into, !!(a.rename || '').trim() && a.rename !== P(a.into).title, x => plural(held(x), 'node'), 'data-pkeep')}` +
       `<div class="l">Or a new name <input class="st-in lk-field" data-pnew2 value="${esc(a.rename && a.rename !== P(a.into).title ? a.rename : '')}" placeholder="type a name" autocomplete="off" spellcheck="false"></div></div>${pmergeAskHtml(a.into, true)}`;
   }
   const m0 = () => M();
   function pmergeAskHtml(pid, atBar = false) {
     const pc = pchangeAskHtml(pid); if (pc) return pc;
     if (!!st.ask?.pmerge?.atBar !== atBar) return '';
-    const a = st.ask?.pmerge; if (!a || a.into !== pid && !(TAGISH && a.froms.includes(pid)) || st.ask.owner !== mode) return '';
+    const a = st.ask?.pmerge; if (!a || a.into !== pid || st.ask.owner !== mode) return '';
     const m = M(), into = P(a.into); if (!into) return '';
     const held = id => m.holders.get(P(id).ident)?.size || 0;
     const col = (p, other, gone) => `<div><div class="h">${pi(p)}${esc(p.title)}<span class="ct">${[held(p.id) ? plural(held(p.id), 'node') : '', gone ? 'emptied' : 'kept'].filter(Boolean).join(', ')}</span></div>` +
@@ -1025,15 +853,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     let ask, all, few, kind = 'tag';
     // The tag that gives n the property pid: n itself, or the nearest tag above it (a child tag inherits its parent's properties).
     const giver = (n, pid) => Mo.pathOf(m, n).reverse().find(a => T(a)?.props.includes(pid)) ?? null;
-    if (p.list === 'values') {
-      kind = 'value';
-      ask = p.what === 'psplit' ? `Split ${P(p.prop).title}: move which values to a new property?` : `Split ${name(p.tag)} by ${P(p.prop).title}: a child tag for…`;
-      all = p.values.filter(v => hit(v.title)).map(v => ({ key: v.id, nm: v.title, ct: v.count, ctt: v.count ? plural(v.count, 'node') : '', d: 0, why: '' }));
-    } else if (p.what === 'pmerge') {
-      kind = 'property';
-      ask = `Merge ${P(p.prop).title} into…`;
-      all = [...m.props.values()].filter(x => x.id !== p.prop && hit(x.title)).sort(byTitle).map(x => ({ key: x.id, nm: x.title, ct: m.holders.get(x.ident)?.size || '', ctt: m.holders.get(x.ident)?.size ? `${plural(m.holders.get(x.ident).size, 'node')} with a value` : '', d: 0, why: '', icon: pi(x) }));
-    } else if (p.what === 'pfor') {
+    if (p.what === 'pfor') {
       // Into a property there is, or a new one by the name typed (offered after the matches, so Enter on a few letters takes the property they find).
       kind = 'property';
       ask = `On ${name(p.tag)} only, move ${P(p.prop).title} into…`;
@@ -1096,7 +916,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
   function menuHtml() {
     const mn = st.menu, m = M(), ticked = st.ticks.size;
     // Every word with its icon (16 November 2026, the owner: "no icons used at all"), the same icon as the bar's word for it.
-    const MENU_ICON = { page: 'go', ppage: 'go', openall: 'chevron', rename: 'rename', prename: 'rename', new: 'child', up: 'up', move: 'move', tmerge: 'merge', merge: 'merge', pmerge: 'merge', remove: 'bin', pretype: 'calendar', psplit: 'split', prange: 'tag', pmove: 'move', pullup: 'up', split: 'split', pdrop: 'bin', pfor: 'move' };
+    const MENU_ICON = { page: 'go', ppage: 'go', openall: 'chevron', rename: 'rename', prename: 'rename', new: 'child', up: 'up', move: 'move', tmerge: 'merge', merge: 'merge', pmerge: 'merge', remove: 'bin', pretype: 'calendar', prange: 'tag', pmove: 'move', pullup: 'up', pdrop: 'bin', pfor: 'move' };
     // k: a count, in the faint note; a key (key: 'shift+right') in Logseq's key caps, as its own menus show keys (18 November 2026).
     const it = (t, act, off, k) => `<div class="lk-item ${MENU_ICON[act] ? `lk-i-${MENU_ICON[act]}` : ''} ${off ? 'off' : ''} ${/^(Remove|Delete)/.test(t) ? 'lk-del' : ''}" data-act="${act}">${esc(t)}${k?.key ? `<span class="rt">${Door.keyCaps(k.key)}</span>` : k ? `<span class="rt lk-note">${k}</span>` : ''}</div>`;
     let h = `<div class="st-menu lk-pop lk-menu" style="left:${mn.x}px;top:${mn.y}px">`;
@@ -1144,7 +964,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
       const card = st.view === 'table' ? tableHtml() : st.view === 'log' ? logHtml() : st.view === 'nodes' ? nodesHtml() : st.split ? panesHtml() : regionsHtml();
       h = `${topHtml()}<div class="st-tray">${trayHtml()}</div><div class="st-right">${card}</div>`;
     } else if (mode === 'line') h = `<div class="st-tray">${trayHtml()}</div>${lineHtml(opts.tag)}`;
-    else if (mode === 'tag') h = opts.prop != null ? `${inspHeadHtml(opts)}<div class="st-tray">${trayHtml()}</div>${propLinesHtml(opts.prop)}` : inspHeadHtml(opts) + linesHtml(opts.tag);
+    else if (mode === 'tag') h = inspHeadHtml(opts) + linesHtml(opts.tag);
     if (st.menu && st.menu.owner === mode && st.menu.place !== placeKey) st.menu = null;   // opened on another page: let go (0.4 gallery check)
     if (st.menu && st.menu.owner === mode) h += menuHtml();
     // What a fold opens rolls out (the grammar), as Threads' rows do: the rows, groups and properties that were not there before.
@@ -1299,12 +1119,9 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     if (p.what === 'tag') { moveTags(p.tags, row.key); }
     else if (p.what === 'prop') { const [tagId, pid] = p.key.split('·').map(Number); if (!tagId) { app.stage({ kind: 'addProp', prop: pid, tags: [row.key] }); st.propCur = `${row.key}·${pid}`; st.cur = row.key; } else if (row.key !== tagId) { app.stage({ kind: 'moveProp', prop: pid, from: [tagId], to: row.key }); st.propCur = `${row.key}·${pid}`; st.cur = row.key; } }
     else if (p.what === 'nodes') moveTicked(row.key);
-    else if (p.what === 'pmerge') return askMerge([p.prop], row.key);
     else if (p.what === 'pfor') return askChange('forTag', row.key === 'new' ? { prop: p.prop, tag: p.tag, name: p.text.trim(), orig: p.text.trim() } : { prop: p.prop, tag: p.tag, into: row.key });
-    else if (p.what === 'psplit') { const v = p.values.find(x => x.id === row.key), taken = t => [...M().props.values()].some(x => x.title.trim().toLowerCase() === t.toLowerCase()); let nm = v.title; for (let i = 2; taken(nm); i++) nm = `${v.title} ${i}`; return askChange('splitProp', { prop: p.prop, only: row.key, name: nm, orig: nm }); }
     else if (p.what === 'pnew') app.openNode(T(row.key)?.uuid);   // Logseq makes properties, not a plugin: its Add tag property is on the tag's page
     else if (p.what === 'range') { const was = P(p.prop).range; if (!was.includes(row.key)) app.stage({ kind: 'setRange', prop: p.prop, to: [...was, row.key] }); }
-    else if (p.what === 'split') { const v = p.values.find(x => x.id === row.key); app.nodesWhere(p.tag, P(p.prop).ident, v.id).then(nodes => { const title = v.title.charAt(0).toUpperCase() + v.title.slice(1); app.stage({ kind: 'split', tag: p.tag, name: Mo.titled(M(), title).length ? `${title} ${name(p.tag)}` : title, prop: p.prop, nodes, where: `${P(p.prop).title} is ${v.title}` }); }); }
     redraw();
   }
   // The ticked nodes of the list go to a tag, each from the tag it carries. Those landing beneath the list's tag stay in the list: its count still holds them.
@@ -1368,28 +1185,14 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     else if (a === 'remove') { const t = T(on); if (!t || Mo.count(m, on) || t.kids.length) return redraw(); const p = Mo.parentOf(m, on); app.stage({ kind: 'remove', tag: on }); if (st.cur === on) st.cur = p ?? Mo.tops(m)[0] ?? m.kinds[0].id; redraw(); }
     else if (a === 'pmove') { const [tagId] = on.split('·').map(Number); startPrompt({ what: 'prop', list: 'tags', key: on, prop: Number(on.split('·')[1]), from: tagId }); }
     else if (a === 'pullup') { const [tagId, pid] = on.split('·').map(Number); const dest = Mo.parentOf(m, tagId); if (dest == null) return redraw(); app.stage({ kind: 'moveProp', prop: pid, from: [tagId], to: dest }); st.propCur = `${dest}·${pid}`; st.cur = dest; redraw(); }
-    else if (a === 'pmerge') { const pid = Number(on.split('·')[1]); if (!P(pid)) return redraw(); if (mode === 'page' && st.view === 'table') { st.pticks = new Set([pid, ...st.pticks]); st.paim = true; return redraw(); } startPrompt({ what: 'pmerge', list: 'props', prop: pid }); }
+    else if (a === 'pmerge') { const pid = Number(on.split('·')[1]); if (!P(pid) || mode !== 'page' || st.view !== 'table') return redraw(); st.pticks = new Set([pid, ...st.pticks]); st.paim = true; return redraw(); }   // the rows are the choice: "press a property"
     else if (a === 'pfor') { const [tagId, pid] = on.split('·').map(Number); if (!T(tagId) || !P(pid)) return redraw(); startPrompt({ what: 'pfor', list: 'props', prop: pid, tag: tagId }); }
     else if (a === 'pretype') { const pid = Number(on.split('·')[1]); if (P(pid)) askChange('retype', { prop: pid, type: 'date' }); }
-    else if (a === 'psplit') { const pid = Number(on.split('·')[1]); if (!P(pid)) return redraw(); S.db.valueKinds(P(pid).ident).then(kinds => { if (kinds.length < 2) return app.notify(`${P(pid).title}'s values are all of one kind, so there is nothing to split`, 'warning'); startPrompt({ what: 'psplit', list: 'values', prop: pid, values: kinds }); }); }
     else if (a === 'prange') { const [, pid] = on.split('·').map(Number); startPrompt({ what: 'range', list: 'tags', prop: pid }); }
         else if (a === 'pdrop') { const [tagId, pid] = on.split('·').map(Number); app.stage({ kind: 'dropProp', prop: pid, tag: tagId }); if (st.propCur === on) st.propCur = null; redraw(); }
-    else if (a === 'split') { const [tagId, pid] = on.split('·').map(Number); app.valuesOf(tagId, P(pid).ident).then(values => { if (!values.length) return app.notify(`No ${P(pid).title} values on ${name(tagId)}'s own nodes`, 'warning'); startPrompt({ what: 'split', list: 'values', tag: tagId, prop: pid, values }); }); }
     else if (a === 'nmove') { const n = st.nodes; const nodes = n.list.filter(x => n.ticks.has(x.uuid)); if (nodes.length) startPrompt({ what: 'nodes', list: 'tags', tag: n.tag, nodes }); }
     else if (a === 'nsplit') { if (st.nodes?.ticks.size) startEdit('split', st.nodes.tag, ''); }
     else redraw();
-  }
-  // A fix, chosen: the ask line opens under the issue (what it would do, the nodes it touches); the second yes stages it.
-  function fix(i) {
-    const issue = ISS()[i]; if (!issue) return;
-    const c = issue.change;
-    if (c.kind === 'prompt') {
-      if (c.what === 'tag') startMoveTag(c.tag);
-      else if (c.what === 'range') startPrompt({ what: 'range', list: 'tags', prop: c.prop });
-      else if (c.what === 'rename') { Mo.pathOf(M(), c.tag).slice(0, -1).forEach(a => st.open.add(a)); startEdit('rename', c.tag, c.name); }
-      return;
-    }
-    st.ask = st.ask && st.ask.i === i ? null : { i, owner: mode }; st.menu = null; redraw();
   }
   // The merge's ask, once the values are read: what moves, what stays, what would clash.
   async function askMerge(froms, into, rename, atBar = false) {
@@ -1408,7 +1211,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
   }
   // Up a level: each tag goes under its own parent's parent, or to the top.
   const moveUp = ids => { for (const id of ids.filter(id => T(id) && Mo.parentOf(M(), id) != null)) moveTags([id], Mo.parentOf(M(), Mo.parentOf(M(), id)) ?? LOOSE); redraw(); };
-  // Turn into dates, split into two properties: the change is read on real notes first, then asked under the property.
+  // Turn into dates, one tag's values into another property: the change is read on real notes first, then asked under the property.
   async function askChange(kind, a) {
     st.paim = false; st.menu = null;
     redraw();
@@ -1440,19 +1243,12 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
         app.stage({ kind: 'moveForTag', prop: c.a.prop, tag: c.a.tag, intoProp: c.a.into ?? null, name: nm, gave: pv.gave, left: pv.left }, { wait: true });
         redraw(); return app.apply(); }
       if (!pv.gave.length) return redraw();
-      const typed = root.querySelector('[data-pcname]')?.value.trim(), nm = c.kind === 'splitProp' ? (typed || c.a.name) : '';
-      if (nm && [...M().props.values()].some(x => x.title.trim().toLowerCase() === nm.toLowerCase())) { st.ask = { pchange: c, owner: mode }; redraw(); return app.notify(`“${nm}” is another property's name: choose another`, 'warning'); }
-      app.stage(c.kind === 'retype' ? { kind: 'retype', prop: c.a.prop, type: c.a.type, gave: pv.gave, left: pv.left, moved: pv.moved, kept: pv.kept } : { kind: 'splitProp', prop: c.a.prop, only: c.a.only, name: nm, gave: pv.gave, emptied: pv.emptied }, { wait: true });
+      app.stage({ kind: 'retype', prop: c.a.prop, type: c.a.type, gave: pv.gave, left: pv.left, moved: pv.moved, kept: pv.kept }, { wait: true });
       redraw(); return app.apply(); }
     if (st.ask?.apply) { st.ask = null; return app.apply(); }
     if (st.ask?.change) { const c = changeAsk(); st.ask = null; if (c) app.stage(c); return redraw(); }
     if (st.ask?.merges) { const { merges, into } = st.ask; st.ask = null; for (const from of merges) app.stage({ kind: 'merge', from, into }); st.ticks.clear(); return redraw(); }
-    const issue = st.ask && ISS()[st.ask.i]; st.ask = null; if (!issue) return redraw();
-    const c = issue.change;
-    app.stage({ ...c });
-    if (c.kind === 'merge' && st.cur === c.from) st.cur = c.into;
-    if (c.kind === 'remove' && st.cur === c.tag) st.cur = Mo.parentOf(M(), c.tag) ?? Mo.tops(M())[0] ?? null;
-    redraw();
+    st.ask = null; redraw();
   }
   async function openNodes(id) {
     const list = await app.readNodes(id);
@@ -1462,7 +1258,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
   
   // ---------- events ----------
   root.addEventListener('click', e => {
-    const t = e.target.closest('[data-ppage],[data-tpage],[data-pfold],[data-pon],[data-prange],[data-all],[data-fold],[data-tick],[data-ptick],[data-paim],[data-paimoff],[data-pcombine],[data-ntick],[data-row],[data-go],[data-open],[data-unrange],[data-addrange],[data-prop],[data-fix],[data-dismiss],[data-sugs],[data-stage],[data-leave],[data-sort],[data-apply],[data-discard],[data-drop],[data-undo],[data-act],[data-do],[data-show],[data-compare],[data-aim],[data-aimtop],[data-aimoff],[data-pick],[data-nodes],[data-more],[data-node],[data-split],[data-gfold],[data-gname],[data-gdrop],[data-gnew],[data-pnew],[data-logundo],[data-tbar],[data-pbar],[data-tkeep],[data-pkeep]');
+    const t = e.target.closest('[data-ppage],[data-tpage],[data-pfold],[data-pon],[data-prange],[data-all],[data-fold],[data-tick],[data-ptick],[data-paim],[data-paimoff],[data-pcombine],[data-ntick],[data-row],[data-go],[data-open],[data-unrange],[data-addrange],[data-prop],[data-stage],[data-leave],[data-sort],[data-apply],[data-discard],[data-drop],[data-undo],[data-act],[data-do],[data-show],[data-compare],[data-aim],[data-aimtop],[data-aimoff],[data-pick],[data-nodes],[data-more],[data-node],[data-split],[data-gfold],[data-gname],[data-gdrop],[data-gnew],[data-pnew],[data-logundo],[data-tbar],[data-pbar],[data-tkeep],[data-pkeep]');
     const outside = st.prompt?.owner === mode && !e.target.closest('.st-prompt');
     if (!t) { if (st.menu || outside) { st.menu = null; if (outside) st.prompt = null; redraw(); } return; }
     if (e.target.matches?.('[data-edit]')) return;   // a click in a field being written stays in the field
@@ -1510,17 +1306,14 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     if (t.hasAttribute('data-aimtop')) return finishAim(LOOSE);
     if (t.hasAttribute('data-aimoff')) { st.aim = null; return redraw(); }
     if (t.hasAttribute('data-compare')) { st.compare = !st.compare; return redraw(); }
-    if (t.dataset.unrange) { const pid = Number(t.dataset.unprop ?? opts.prop); app.stage({ kind: 'setRange', prop: pid, to: P(pid).range.filter(id => id !== Number(t.dataset.unrange)) }); return redraw(); }
+    if (t.dataset.unrange) { const pid = Number(t.dataset.unprop); app.stage({ kind: 'setRange', prop: pid, to: P(pid).range.filter(id => id !== Number(t.dataset.unrange)) }); return redraw(); }
     if (t.dataset.addrange) { const pid = Number(t.dataset.addrange.split('·')[1]); return startPrompt({ what: 'range', list: 'tags', prop: pid }); }
-    if (t.dataset.fix) return fix(+t.dataset.fix);
-    if (t.dataset.sugs) { const k = t.dataset.sugs; st.sugsOpen = st.sugsOpen || new Set(); if (st.sugsOpen.has(k)) { st.sugsOpen.delete(k); st.ask = null; } else st.sugsOpen.add(k); return redraw(); }
-    if (t.dataset.dismiss) { const i = ISS()[+t.dataset.dismiss]; st.ask = null; return app.dismiss(i?.key, t.closest('.sugs')?.dataset.on); }   // indices move once one is gone, so an open ask closes
     if (t.hasAttribute('data-stage')) return stageAsk();
     if (t.hasAttribute('data-leave')) { st.ask = null; return redraw(); }
     if (t.dataset.sort) { st.sort = t.dataset.sort; return redraw(); }
     if (t.dataset.prop && st.paim && mode === 'page') { const id = Number(t.dataset.prop.split('·')[1]); return st.pticks.has(id) ? undefined : askMerge([...st.pticks], id); }
     if (t.dataset.prop) { if (mode !== 'page') return; const [tagId] = t.dataset.prop.split('·').map(Number); st.propCur = t.dataset.prop; if (T(tagId)) st.cur = tagId; st.menu = null; return redraw(); }   // the rest of a row selects
-    if (t.dataset.do) return act(t.dataset.do, t.dataset.do.startsWith('p') && t.dataset.do !== 'page' || t.dataset.do === 'split' ? t.dataset.on : keyOf(t.dataset.on), e.shiftKey);
+    if (t.dataset.do) return act(t.dataset.do, t.dataset.do.startsWith('p') && t.dataset.do !== 'page' ? t.dataset.on : keyOf(t.dataset.on), e.shiftKey);
     if (t.dataset.show) return show(t.dataset.show);
     if (t.dataset.logundo) return app.undoLogged(t.dataset.logundo);
     if (t.dataset.tbar) { if (t.classList.contains('waits')) return; const ids = [...st.ticks].filter(T), w = t.dataset.tbar;
@@ -1634,7 +1427,6 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     if (e.target.matches?.('[data-pnew2]') && st.ask?.pmerge) { const a = st.ask.pmerge; a.rename = e.target.value.trim(); root.querySelectorAll('.st-q [data-stage]').forEach(el => { el.textContent = el.textContent.replace(/ into .*$/, ` into ${a.rename || P(a.into).title}`); }); return; }
     // The new property's name, typed: the preview's notes take it as it is written, nothing else is drawn again.
     if (e.target.matches?.('[data-pcname]') && st.ask?.pchange?.kind === 'forTag') { const a = st.ask.pchange.a, v = e.target.value.trim() || a.orig; a.name = v; root.querySelectorAll('.st-q .pcn').forEach(el => { el.textContent = v; }); root.querySelectorAll('.st-q .cnt').forEach(el => { el.textContent = el.textContent.replace(/ to .+?( ·|$)/, ` to ${v}$1`); }); root.querySelectorAll('.st-q [data-stage]').forEach(el => { el.textContent = el.textContent.replace(/ (to|for) .+ on /, ` $1 ${v} on `); }); return; }
-    if (e.target.matches?.('[data-pcname]') && st.ask?.pchange) { const v = e.target.value.trim() || st.ask.pchange.a.name; st.ask.pchange.a.name = v; root.querySelectorAll('.st-pv .pcn').forEach(el => { el.textContent = v; }); root.querySelectorAll('.st-q .cnt').forEach(el => { el.textContent = el.textContent.replace(/get .+? ·/, `get ${v} ·`); }); root.querySelectorAll('.st-q [data-stage]').forEach(el => { el.textContent = el.textContent.replace(/ to .*$/, ` to ${v}`); }); return; }
     if (e.target.matches('[data-find]')) { st.find = e.target.value; draw(); if (lightFirst()) draw(); }
     else if (e.target.matches('[data-find2]')) { st.pane2.find = e.target.value; draw(); }
     else if (e.target.matches('[data-pin]')) { st.prompt.text = e.target.value; st.prompt.lit = 0; draw(); }
@@ -1670,8 +1462,6 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
     app.openNode(n?.uuid || (pid != null ? P(pid)?.uuid : T(st.cur)?.uuid), inSidebar);
   }
   root.addEventListener('keydown', e => {
-    // A press of ours reached by Tab (the suggestions' line, a ×) takes Enter and Space wherever it stands, the inspector too.
-    if ((e.key === 'Enter' || e.key === ' ') && e.target.closest?.('[data-dismiss],[data-sugs]')) { e.preventDefault(); e.stopPropagation(); e.target.closest('[data-dismiss],[data-sugs]').click(); return; }
     if (TAGISH && !standing()) return;
     if (!passes(e)) e.stopPropagation(); else if (doc.querySelector('.ui__dialog-overlay')) return;
     const k = e.key;
@@ -1757,7 +1547,7 @@ const relLine = (r, t) => r.from === t ? `<span></span>${relProp(r, t)}<span cla
   const menuOpen = () => st.menu && st.menu.owner === mode && root.querySelector('.st-menu');
   offs.push(S.base.listen(doc, 'pointerdown', e => { if (menuOpen() && !e.target.closest?.('.st-menu')) { st.menu = null; app.draw(); } }, true));
   offs.push(S.base.listen(doc, 'keydown', e => { if (e.key === 'Escape' && menuOpen()) { e.preventDefault(); e.stopPropagation(); st.menu = null; app.draw(); } }, true));
-  const view = { root, mode, tag: opts.tag, prop: opts.prop, draw, destroy: () => { app.views.delete(view); for (const off of offs.splice(0)) off(); root.remove(); }, focus: () => { if (TAGISH) return; if (!doc.activeElement?.matches('input, textarea, [contenteditable="true"]')) root.focus({ preventScroll: true }); } };
+  const view = { root, mode, tag: opts.tag, draw, destroy: () => { app.views.delete(view); for (const off of offs.splice(0)) off(); root.remove(); }, focus: () => { if (TAGISH) return; if (!doc.activeElement?.matches('input, textarea, [contenteditable="true"]')) root.focus({ preventScroll: true }); } };
   app.views.add(view);
   return view;
 }

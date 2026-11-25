@@ -2,12 +2,9 @@
    Run by osascript as JavaScript (runner.zsh), the command being the name of the script Alfred ran:
      today <words>              a bullet on today's journal
      active <words>             a bullet on the page open in Logseq
-     page <Name> [#Tag]         a page named so, made if there is none, with an existing tag if one is given
-     picture [Name]             the picture on the clipboard, into the graph, on today's journal or on a page named
      today-selection <items…>   what is selected or chosen: files into the graph on today's journal; words with where they
                                 came from, as a quote and a citation; a web page as its link
-     page-selection <items…>    the same, each on a page of its own: a file on a page named after it, words on a page
-                                named after the page they came from
+   (page, picture and page-selection, and the panels Home, Todo, Search and a page read here, were removed on 24 November 2026.)
    Words, links and pages go through Logseq's own HTTP API. Files go to the Logseq Plugin (its "add" from outside), which
    puts them into the graph as Logseq puts a dropped file: a node of its own, the file copied into the graph. A citation is
    written as the plugin's Cite writes one: ([Title](url)) for the web, (*Name*, p. 3) for a document, ([[uuid]], p. 3) for a
@@ -122,41 +119,8 @@ function openPage() {
   return page;
 }
 
-// A page by its name, made when there is none. A "#Tag" at the end of the words is an existing tag put on the page.
-function pageNamed(words) {
-  let name = String(words || "").trim();
-  const tags = [];
-  const tagged = /^(.*?)((?:\s+#[^\s#]+)+)\s*$/.exec(name);
-  if (tagged) {
-    name = tagged[1].trim();
-    tagged[2].trim().split(/\s+/).forEach(function (t) { tags.push(t.slice(1)); });
-  }
-  if (!name) throw new Error("Give the page a name");
-  tags.forEach(function (tag) {   // before the page is made, so a wrong tag leaves nothing behind
-    const found = safeCall(function () { return api("logseq.Editor.getTagsByName", [tag]); }) || [];
-    if (!found.length) throw new Error("There is no tag named " + tag);
-  });
-  let page = api("logseq.Editor.getPage", [name]);
-  let made = false;
-  if (!page || !nodeUuid(page)) {
-    page = api("logseq.Editor.createPage", [name, {}, { redirect: false, createFirstBlock: false }]);
-    made = true;
-  }
-  if (!page || !nodeUuid(page)) throw new Error("The page “" + name + "” could not be made");
-  tags.forEach(function (tag) {
-    try { api("logseq.Editor.addBlockTag", [nodeUuid(page), tag]); }
-    catch (error) { throw new Error(/Not a tag/i.test(messageFrom(error)) ? "There is no tag named " + tag : messageFrom(error)); }
-  });
-  return { page: page, made: made, tags: tags };
-}
-
 function appendTo(page, content) {
   return api("logseq.Editor.appendBlockInPage", [nodeUuid(page), content, {}]);
-}
-
-// Logseq shows the page, without coming to the front.
-function showPage(page) {
-  try { api("logseq.App.pushState", ["page", { name: nodeUuid(page) }, {}]); } catch (_) {}
 }
 
 // Files into the graph, by the plugin. `where` is "today", "open" or { page: name }; the answer names what was added, or says
@@ -357,28 +321,6 @@ function selectionContent(selection) {
   return { content: quote(text) + "\n\n" + citation, title: name, hasWords: true };
 }
 
-// The picture on the clipboard, written as a PNG file named by the moment, for the plugin to take.
-function clipboardPicture() {
-  const board = $.NSPasteboard.generalPasteboard;
-  let data = board.dataForType("public.png");
-  if (!data || data.isNil()) {
-    const tiff = board.dataForType("public.tiff");
-    if (tiff && !tiff.isNil()) {
-      const rep = $.NSBitmapImageRep.imageRepWithData(tiff);
-      if (rep && !rep.isNil()) data = rep.representationUsingTypeProperties($.NSBitmapImageFileTypePNG, $());
-    }
-  }
-  if (!data || data.isNil()) throw new Error("There is no picture on the clipboard");
-  const now = new Date();
-  const two = n => String(n).padStart(2, "0");
-  const name = "Picture " + now.getFullYear() + "-" + two(now.getMonth() + 1) + "-" + two(now.getDate()) + " " + two(now.getHours()) + "." + two(now.getMinutes()) + "." + two(now.getSeconds()) + ".png";
-  const directory = env("alfred_workflow_cache", "/tmp/com.openai.alfred.logseq-db") + "/pictures";
-  try { app.doShellScript("/bin/mkdir -p " + shellQuote(directory)); } catch (_) {}
-  const path = directory + "/" + name;
-  if (!data.writeToFileAtomically(path, true)) throw new Error("The picture could not be written");
-  return path;
-}
-
 // --------------------------------------------------------------------------------------------------------------------
 // The commands
 // --------------------------------------------------------------------------------------------------------------------
@@ -391,18 +333,6 @@ function filesToToday(paths) {
   return stillGoing(answer, names) || "Added " + (names.length === 1 ? names[0] : plural(names.length, "file")) + " to Today";
 }
 
-function filesToPages(paths) {
-  const names = [];
-  let pending = false;
-  paths.forEach(function (path) {
-    const name = nameWithoutExtension(fileNames([path])[0]);
-    if (addFiles([path], { page: name }).pending) pending = true;
-    names.push(name);
-  });
-  if (pending) return stillGoing({ pending: true }, fileNames(paths));
-  return names.length === 1 ? "Added as the page “" + names[0] + "”" : "Added " + plural(names.length, "page");
-}
-
 function selectionToToday(items) {
   const files = items.filter(isFile);
   if (files.length) return filesToToday(files);
@@ -410,17 +340,6 @@ function selectionToToday(items) {
   if (found.file) return filesToToday([found.file]);
   appendTo(todayPage(), found.content);
   return found.hasWords ? "Added the selection to Today" : "Added the page's link to Today";
-}
-
-function selectionToPage(items) {
-  const files = items.filter(isFile);
-  if (files.length) return filesToPages(files);
-  const found = selectionContent(items.join("\n"));
-  if (found.file) return filesToPages([found.file]);
-  const named = pageNamed(found.title);
-  appendTo(named.page, found.content);
-  showPage(named.page);
-  return (named.made ? "Made the page “" : "Added to the page “") + nodeTitle(named.page) + "”";
 }
 
 /* ---------- The Add panel (add.alfredui, Alfred 6's Alfred UI) ----------
@@ -438,14 +357,6 @@ const whereOf = value => (value === "open" ? "open" : "today");
 const whereName = value => (value === "open" ? "the open page" : "today");
 function pluginModel(name, request) {
   return api("logseq.App.invokeExternalPluginCmd", [PLUGIN_ID, "models", name, [request]], 12);
-}
-// A model the running plugin does not have answers null (the plugin off, reloading, or older than this workflow). For what a panel cannot
-// do without, that is said in the panel instead of leaving it waiting (the owner's page view stood at "Reading…", 19 November 2026).
-const PLUGIN_OLD = "The Logseq Plugin in Logseq did not answer. It may be off, reloading, or older than this workflow. Try again in a moment.";
-function pluginMust(name, request) {
-  const got = pluginModel(name, request);
-  if (got == null) throw new Error(PLUGIN_OLD);
-  return got;
 }
 function tagLine(tag, picked, words) {
   if (tag) return {
@@ -564,406 +475,12 @@ function pickAnswer(words, where, tagId) {
   return JSON.stringify(answer);
 }
 
-/* ---------- Home (home.alfredui): Home as Find, below the pane ---------- */
-const SUB_FONT = { size: 14 }, HEAD_FONT = { size: 14, weight: "semibold" };
-
-/* The second pane (19 November 2026): beside the list, what the lit row cannot say on its own line. A page shows its tags, its
-   properties and where it leads; a note shows its words in full. An action has no pane, and the list takes the whole width. */
-const PANE_FILL = { light: "#0000000a", dark: "#ffffff12" };   // the fill the selection panel's card has
-const noPane = id => ({ type: "view", id: id, hidden: true, constraints: { region: "right", size: { width: 1 } }, components: [] });
-const PANE_GAP = 12;
-const paneLine = () => ({ type: "view", background: "separatorColor", constraints: { stretch: "horizontal", size: { height: 1 } } });
-function paneView(id, uuid, width, withWords, lead) {
-  const got = pluginMust("read", { uuid: uuid });
-  const tags = [], inner = width - 28;
-  const words = String(got.text || "").replace(/^# .*\n+/, "").split("\n").filter(function (line) {
-    if (/^\s*(#\S+\s*)+$/.test(line)) { line.trim().split(/\s+/).forEach(t => tags.push(t.replace(/^#/, ""))); return false; }
-    return true;
-  }).join("\n").replace(/\n{3,}/g, "\n\n").trim();
-  const left = { position: "left" }, parts = [];
-  if (got.isPage || !withWords) {
-    parts.push({ type: "label", text: got.title || "Untitled", font: { size: 20, weight: "medium" }, linebreak: "wordwrap", constraints: { position: "left", size: { width: inner } } });
-    if (tags.length) parts.push({ type: "label", text: tags.join(", "), colour: SECONDARY, font: { size: 14 }, constraints: left });
-  } else {
-    if (lead || tags.length) parts.push({ type: "label", text: lead || tags.join(", "), colour: SECONDARY, font: { size: 14 }, linebreak: "truncatetail", constraints: left });
-    parts.push({ type: "label", text: (words || got.title || "").slice(0, 600), font: { size: 16 }, linebreak: "wordwrap", constraints: { position: "left", size: { width: inner } } });
-  }
-  const props = (got.properties || []).filter(p => (p.values || []).length).slice(0, 6), form = [];
-  props.forEach(function (p) {
-    form.push({ type: "label", text: p.name, colour: SECONDARY, font: { size: 15 }, constraints: { position: "right" } });
-    form.push({ type: "label", text: p.values.map(v => v.label).join(", "), font: { size: 15 }, linebreak: "truncatetail" });
-  });
-  if (form.length) parts.push({ type: "view", layout: "form", spacing: 7, components: form, constraints: left });
-  const leads = (got.pointed || []).map(g => [g.name + " of", plural(g.nodes.length + g.more, g.kind || "node")]);
-  if ((got.mentioned || []).length) leads.push(["Mentioned in", plural(got.mentionedCount, "node")]);
-  if (leads.length) {
-    parts.push(paneLine());
-    leads.slice(0, 6).forEach(function (l) {
-      parts.push({ type: "view", layout: "border", constraints: { stretch: "horizontal" }, components: [
-        { type: "label", text: l[0], font: { size: 15 }, constraints: { region: "left" } },
-        { type: "label", text: l[1], colour: SECONDARY, font: { size: 15 }, textalign: "right", constraints: { region: "centre", position: "right" } }
-      ] });
-    });
-  }
-  return { type: "view", id: id, layout: "inline", constraints: { region: "right", position: "top", size: { width: width + PANE_GAP } }, components: [
-    { type: "view", constraints: { size: { width: PANE_GAP } }, components: [] },
-    { type: "view", layout: "inline", direction: "vertical", padding: 14, spacing: 8, cornerradius: 14, background: PANE_FILL, constraints: { size: { width: width } }, components: parts }
-  ] };
-}
-// The lit row changed. A heading is stepped past, the way the arrows were going; a page gets its pane; an action has none.
-function homePane(go, title, order, lit, tabLabel) {
-  const ids = String(order || "").split("¦");
-  if (!go && !title) {
-    const at = ids.findIndex(u => u.indexOf("h:") === 0), was = ids.indexOf(lit);
-    const to = at < 0 ? "" : (was >= 0 && was > at ? ids[at - 1] : ids[at + 1]) || ids[at - 1] || "";
-    return JSON.stringify(to ? { update: { ids: { homeList: { select: to } } } } : {});
-  }
-  const out = { variables: { h_lit: go }, replace: { ids: {} }, update: { relayout: true, ids: {} }, window: { resize: { height: "auto" } } };
-  if (go.indexOf("read:") === 0) {
-    try { out.replace.ids.hPane = paneView("hPane", go.slice(5), 330, false); } catch (_) { out.replace.ids.hPane = noPane("hPane"); }
-  } else out.replace.ids.hPane = noPane("hPane");
-  Object.assign(out.update.ids, homeFoot(go, tabLabel || "", null));
-  return JSON.stringify(out);
-}
-// "3 today · 1 late", from Todo's own list; nothing when the Todo part is off.
-function todoCounts() {
-  try {
-    const got = pluginModel("todoList", {}) || { parts: [] }, today = (got.parts || []).find(p => p.head === "Today");
-    const all = (got.parts || []).reduce((n, p) => n + p.rows.length + (p.more || 0), 0);
-    if (!today) return plural(all, "open task");
-    const late = today.rows.filter(r => r.late).length, now = today.rows.length - late;
-    return [now ? now + " today" : "", late ? late + " late" : "", !now && !late ? plural(all, "open task") : ""].filter(Boolean).join(" · ");
-  } catch (_) { return "Open tasks"; }
-}
-/* Home as Find (the owner, 19 November 2026: "is it possible to make it more like find from plugin?"). One panel that finds,
-   narrows and walks, as the plugin's Find does, from the plugin's browse:
-     nothing typed   Add to today (⌘1) and Todo (⌘2) as buttons, your kinds with counts, the pages you came back to
-     letters         pages by name, then Logseq's search; the kinds among them as choices; the letters light a kind
-     a kind taken    it stands before the line; its nodes newest first, the day in the margin; the choices the graph holds for
-                     them (Provider, Topic, When; Status for tasks) as lines above; the letters narrow and light a choice
-   ⇥ takes the lit choice (the letters that lit it go), a press on a choice takes it, ⌘⌫ or a press on a taken one lets it go;
-   ↩ reads the lit row (the page view, walking on from there), ⌘↩ opens it in Logseq. With a task lit, ⌘D done, ⌘G doing, ⌘Z
-   takes it back. The state travels in h_state (base64 JSON: kind, picks, month), so every script answers from it.
-     panel-home-start   panel-home-find <words> <state>   panel-home-take <words> <state> <what>   panel-home-tab <words> <state> <tab>
-     panel-home-untake <words> <state> [index]   panel-home-status <uuid> <status> <words> <state>   panel-home-undo <uuid> <words> <state> */
-const HOME_ROW = 56, HOME_MOST = 7;
-const SYMBOL_OF = r => r.status ? (STATUS_SYMBOL[r.status] || "circle") : r.isPage ? "doc.text" : "text.alignleft";
-const homeState = text => { try { const st = unpacked(text || ""); return { kind: st.kind || null, kindTitle: st.kindTitle || "", picks: st.picks || [], month: st.month || null, monthLabel: st.monthLabel || "" }; } catch (_) { return { kind: null, kindTitle: "", picks: [], month: null, monthLabel: "" }; } };
-const lastWord = words => (String(words).trim().split(/\s+/).pop() || "").toLowerCase();
-const begins = (label, words) => { const w = lastWord(words); return w.length >= 2 && String(label).toLowerCase().split(/\s+/).some(x => x.replace(/^dr\.?$/, "").indexOf(w) === 0 && x.length) || (w.length >= 2 && String(label).toLowerCase().indexOf(w) === 0); };
-function homeListView(rows, lit, withDay) {
-  const left = [];
-  if (withDay) left.push({ type: "label", id: "hDay", font: { size: 14 }, colour: SECONDARY, constraints: { position: "centre", size: { width: 56 } } });
-  left.push({ type: "imageview", id: "hIcon", constraints: { position: "centre", size: { width: 24, height: 24 } } });
-  return { type: "dataview", id: "homeList", placeholder: "Nothing found",
-    constraints: { region: "centre", size: { height: Math.max(1, Math.min(rows.length, HOME_MOST)) * HOME_ROW + 6 } },
-    behaviour: { selection: { wrap: "vertical" } },
-    events: [{ triggers: "changed", action: { type: "script", src: "pane", async: true, args: ["{value:homeList.selected.hGo.text}", "{value:homeList.selected.hTitle.text}", "{var:h_order}", "{var:h_lit}", "{var:h_tabLabel}"] } }],
-    cell: { height: HOME_ROW,
-      init: { "hRow.background": null, "hTitle.colour": "labelColor", "hSub.colour": SECONDARY, "hIcon.contenttintcolour": SECONDARY },
-      selected: { "hRow.background": SOFT_ROW },
-      root: { type: "view", id: "hRow", layout: "border", padding: 8, spacing: 12, cornerradius: 12, components: [
-        { type: "view", layout: "inline", spacing: 10, constraints: { region: "left", position: "centre" }, components: left },
-        { type: "view", layout: "inline", direction: "vertical", spacing: 3, constraints: { region: "centre", size: { height: 44 } }, components: [
-          { type: "label", id: "hTitle", font: { size: 18 }, linebreak: "truncatetail", constraints: { position: "left", size: { height: 24 } } },
-          { type: "label", id: "hSub", font: { size: 14 }, linebreak: "truncatetail", constraints: { position: "left", size: { height: 19 } } }
-        ] },
-        { type: "label", id: "hGo", hidden: true }
-      ] } },
-    data: { type: "basic", src: rows }, select: lit };
-}
-const nodeHomeRow = (r, heading) => ({ uid: "read:" + r.uuid, "hIcon.image": { type: "symbol", src: SYMBOL_OF(r) }, "hDay.text": r.day || "", "hTitle.text": r.title,
-  "hSub.text": heading ? [r.kind, r.page].filter(Boolean).join(" · ") : [r.kind, r.page].filter(Boolean).join(" · "), "hSub.font": SUB_FONT, "hGo.text": "read:" + r.uuid });
-const homeHeadRow = text => ({ uid: "h:" + text, "hIcon.image": null, "hDay.text": "", "hTitle.text": "", "hSub.text": text, "hSub.font": HEAD_FONT, "hGo.text": "" });
-const addRow = words => ({ uid: "add:" + words, "hIcon.image": { type: "symbol", src: "plus.circle" }, "hDay.text": "", "hTitle.text": "Add “" + words + "” to today", "hSub.text": "as a note, its tag guessed as you write", "hSub.font": SUB_FONT, "hGo.text": "add:" + words });
-// A line of choices: its name, then its values as presses; the lit one (the letters began it) in a capsule.
-function choiceLine(name, items) {
-  return { type: "view", layout: "inline", spacing: 6, constraints: { position: "left" }, components: [
-    { type: "label", text: name, colour: SECONDARY, font: { size: 14 }, constraints: { position: "centre", size: { width: 78 } } }
-  ].concat(items.map(it => Object.assign({ type: "button", text: it.text, font: { size: 15 }, tooltip: it.tip || "",
-    events: [{ triggers: "actioned", action: { type: "script", src: "take", args: ["{value:hq.text}", "{var:h_state}", it.what] } }] },
-    it.lit ? { bordered: true, bordershape: "capsule" } : { bordered: false, contenttintcolour: it.key ? "labelColor" : "labelColor" }))) };
-}
-function doLine(todo) {
-  const press = (text, key, go) => ({ type: "button", text: text + "   " + key, font: { size: 15 }, bordered: true, bordershape: "capsule", shortcut: key.toLowerCase(),
-    events: [{ triggers: "actioned", action: { type: "json", src: { finish: { args: go } } } }] });
-  return { type: "view", layout: "inline", spacing: 8, constraints: { position: "left" }, components: [
-    { type: "label", text: "Do", colour: SECONDARY, font: { size: 14 }, constraints: { position: "centre", size: { width: 78 } } },
-    press("Add to today", "⌘1", "add:{value:hq.text}"),
-    press("Todo" + (todo ? " · " + todo : ""), "⌘2", "todo")
-  ] };
-}
-// The picks before the line: each a capsule; a press lets it go.
-function picksView(st) {
-  const parts = [];
-  if (st.kind) parts.push(st.kindTitle);
-  st.picks.forEach(p => parts.push(p.label));
-  if (st.month) parts.push(st.monthLabel);
-  return { type: "view", id: "hPicks", layout: "inline", spacing: 6, hidden: !parts.length, constraints: { region: "left", position: "centre" },
-    components: parts.map((label, i) => ({ type: "button", text: label + "  ×", font: { size: 16 }, bordered: true, bordershape: "capsule", tooltip: "Let it go",
-      events: [{ triggers: "actioned", action: { type: "script", src: "untake", args: ["{value:hq.text}", "{var:h_state}", String(i)] } }] })) };
-}
-function homeAnswerFind(words, st, lit, note) {
-  const typed = String(words || "").trim();
-  const ask = { kind: st.kind, picks: st.picks.map(p => p.p), month: st.month, words: typed, limit: 40 };
-  let got;
-  try { got = pluginMust("browse", ask); }
-  catch (error) { return JSON.stringify({ update: { ids: { hCount: { text: messageFrom(error), colour: "systemRedColor" } } } }); }
-  const lines = [], rows = [];
-  let tab = "", tabLabel = "", count = "";
-  if (!st.kind) {
-    if (!typed) {
-      lines.push(doLine(todoCounts()));
-    }
-    const kinds = (got.kinds || []).map(k => ({ text: k.title + "  " + k.count, what: "kind:" + k.id + ":" + k.title, lit: typed && !tab && begins(k.title, typed) && (tab = "kind:" + k.id + ":" + k.title) && (tabLabel = k.title) }));
-    if (kinds.length) lines.push(choiceLine("Kind", kinds.slice(0, 6)));
-    if (!typed && (got.rows || []).length) rows.push(homeHeadRow("Pages you came back to"));
-    (got.rows || []).forEach(r => rows.push(nodeHomeRow(r)));
-    if (typed) rows.push(addRow(typed));
-    count = typed ? plural((got.rows || []).length, "node") : "";
-  } else {
-    (got.choices || []).forEach(function (c) {
-      lines.push(choiceLine(c.name, c.values.slice(0, 4).map(v => {
-        const what = "pick:" + c.name + "=" + v.key + ":" + v.label, on = typed && !tab && begins(v.label, typed);
-        if (on) { tab = what; tabLabel = v.label; }
-        return { text: v.label + "  " + v.count, what: what, lit: on };
-      })));
-    });
-    if ((got.months || []).length > 1) lines.push(choiceLine("When", got.months.map(m => {
-      const what = "month:" + m.key + ":" + m.label + " " + String(m.key).slice(0, 4), on = typed && !tab && begins(m.label, typed);
-      if (on) { tab = what; tabLabel = m.label; }
-      return { text: m.label + "  " + m.count, what: what, lit: on };
-    })));
-    (got.rows || []).forEach(r => rows.push(nodeHomeRow(r)));
-    count = plural(got.total, got.kind.title === "Task" ? "task" : "node") + (got.cutFrom ? ", the newest of " + got.cutFrom : "");
-  }
-  const withDay = rows.some(r => r["hDay.text"]);
-  const first = rows.find(r => r["hGo.text"]);
-  lit = lit && rows.some(r => r.uid === lit) ? lit : first ? first.uid : "";
-  const out = {
-    variables: { h_state: packed(st), h_tab: tab, h_tabLabel: tabLabel, h_order: rows.map(r => r.uid).join("¦"), h_lit: lit },
-    replace: { ids: {
-      hPicks: picksView(st),
-      hLines: { type: "view", id: "hLines", layout: "inline", direction: "vertical", spacing: 10, hidden: !lines.length, constraints: { stretch: "horizontal" }, components: lines },
-      homeList: homeListView(rows, lit, withDay)
-    } },
-    update: { relayout: true, ids: {
-      hLine2: { hidden: !lines.length },
-      hCount: { text: note || count, colour: SECONDARY },
-      hq: { placeholder: st.kind ? "Narrow " + st.kindTitle + " by words, or a choice" : "Find, or write a note" }
-    } },
-    window: { resize: { height: "auto" } }
-  };
-  Object.assign(out.update.ids, homeFoot(lit, tabLabel, st));
-  return JSON.stringify(out);
-}
-// What ⇥ and ↩ do right now, at the foot (Find's foot: "narrow to Consultation", "read Dr. Mei Chen").
-function homeFoot(go, tabLabel, st) {
-  const parts = [];
-  if (tabLabel) parts.push("⇥ narrow to " + tabLabel);
-  if (go.indexOf("read:") === 0) parts.push("↩ read", "⌘↩ open in Logseq");
-  else if (go.indexOf("add:") === 0) parts.push("↩ write the note");
-  if (st && st.kindTitle === "Task") parts.unshift("Done ⌘D", "Doing ⌘G");
-  return { hFoot: { text: parts.join("      ") } };
-}
-function homeStart() { return homeAnswerFind("", homeState(""), ""); }
-function homeFind(words, state) { return homeAnswerFind(words, homeState(state), ""); }
-// A choice taken, by a press or by ⇥: "kind:<id>:<title>", "pick:<Name=key>:<label>", "month:<key>:<label>". The letters that lit it go.
-function homeTake(words, state, what) {
-  const st = homeState(state), m = /^(kind|pick|month):([^:]*):(.*)$/.exec(String(what || ""));
-  if (!m) return homeAnswerFind(words, st, "");
-  if (m[1] === "kind") { st.kind = Number(m[2]); st.kindTitle = m[3]; st.picks = []; st.month = null; st.monthLabel = ""; }
-  if (m[1] === "pick" && !st.picks.some(p => p.p === m[2])) st.picks.push({ p: m[2], label: m[3] });
-  if (m[1] === "month") { st.month = Number(m[2]); st.monthLabel = m[3]; }
-  const rest = begins(m[3], words) ? String(words).trim().split(/\s+/).slice(0, -1).join(" ") : String(words || "").trim();
-  const out = JSON.parse(homeAnswerFind(rest, st, ""));
-  out.update.ids.hq = Object.assign(out.update.ids.hq || {}, { text: rest });
-  return JSON.stringify(out);
-}
-function homeTab(words, state, tab) { return tab ? homeTake(words, state, tab) : JSON.stringify({}); }
-// A taken one let go: the one pressed, or (⌘⌫) the last. Letting the kind go lets everything go.
-function homeUntake(words, state, index) {
-  const st = homeState(state);
-  const all = [].concat(st.kind ? ["kind"] : [], st.picks.map((p, i) => "pick" + i), st.month ? ["month"] : []);
-  const which = index === "" || index == null ? all[all.length - 1] : all[Number(index)];
-  if (!which) return JSON.stringify({});
-  if (which === "kind") return homeAnswerFind(words, homeState(""), "");
-  if (which === "month") { st.month = null; st.monthLabel = ""; }
-  else st.picks.splice(Number(which.slice(4)), 1);
-  return homeAnswerFind(words, st, "");
-}
-// ⌘D, ⌘G on a lit task, and ⌘Z: Todo's own writes with their Undo, then the list read again with the same row lit.
-function homeStatus(go, status, words, state) {
-  if (go.indexOf("read:") !== 0) return JSON.stringify({});
-  const uuid = go.slice(5);
-  try { pluginMust("todoStatus", { uuid: uuid, status: status }); }
-  catch (error) { return JSON.stringify({ update: { ids: { hCount: { text: messageFrom(error), colour: "systemRedColor" } } } }); }
-  const out = JSON.parse(homeAnswerFind(words, homeState(state), go, (status === "done" ? "Done" : "Set to " + status) + ".   Undo ⌘Z"));
-  out.variables.h_last = uuid;
-  return JSON.stringify(out);
-}
-function homeUndo(uuid, words, state) {
-  if (!uuid) return JSON.stringify({});
-  try { pluginMust("todoUndo", { uuid: uuid }); }
-  catch (error) { return JSON.stringify({ update: { ids: { hCount: { text: messageFrom(error), colour: "systemRedColor" } } } }); }
-  const out = JSON.parse(homeAnswerFind(words, homeState(state), "read:" + uuid, "Taken back."));
-  out.variables.h_last = "";
-  return JSON.stringify(out);
-}
-// Where ↩ went: another panel, or a page shown in Logseq.
+// Where a panel's ↩ went: another panel (a selection of files goes to the files tray).
 function route(where) {
   const at = where.indexOf(":"), kind = at < 0 ? where : where.slice(0, at), arg = at < 0 ? "" : where.slice(at + 1);
-  // ⌘↩: the node itself in Logseq, a page shown, a bullet scrolled to on its page.
-  if (kind === "open") {
-    const uuid = arg.replace(/^[a-z]+:/, "");
-    let node = null;
-    try { node = api("logseq.Editor.getBlock", [uuid]); } catch (_) { /* a page */ }
-    if (node && node.page && node.name == null) { try { api("logseq.Editor.scrollToBlockInPage", [uuid]); } catch (_) { /* gone */ } }
-    else { try { api("logseq.App.pushState", ["page", { name: uuid }]); } catch (_) { /* gone */ } }
-    return "";
-  }
-  if (kind === "block") { try { api("logseq.Editor.scrollToBlockInPage", [arg]); } catch (_) { /* gone */ } return ""; }
-  if (kind === "page") { try { api("logseq.App.pushState", ["page", { name: arg }]); } catch (_) { /* gone */ } return ""; }
-  const trigger = { home: "home", add: "add", todo: "todo", search: "search", read: "read", files: "files" }[kind];
+  const trigger = { add: "add", files: "files" }[kind];
   if (trigger) app.doShellScript("/usr/bin/osascript -e " + shellQuote('tell application id "com.runningwithcrayons.Alfred" to run trigger "' + trigger + '" in workflow "com.openai.alfred.logseq-db" with argument ' + JSON.stringify(arg)) + " >/dev/null 2>&1 &");
   return "";
-}
-
-/* ---------- Todo (todo.alfredui): the Todo page's list, grouped as it is there ----------
-   Typing filters the list; ↩ with words adds them as a task ("by friday" is its Deadline, said before it is added); ⌘D marks the
-   lit task done, ⌘G doing, ⌘Z takes the last change back, ⌘O shows the task in Logseq.
-     panel-todo-list [note]   panel-todo-read <words>   panel-todo-add <words>   panel-todo-status <uuid> <status>   panel-todo-undo <uuid> */
-const STATUS_SYMBOL = { todo: "circle", doing: "circle.lefthalf.filled", "in-review": "circle.dotted", backlog: "circle.dashed", done: "checkmark.circle.fill", canceled: "xmark.circle" };
-function todoRows() {
-  const got = pluginMust("todoList", {}), rows = [];
-  (got.parts || []).forEach(function (part) {
-    if (!part.rows.length) return;   // an empty group is left out here: the panel is short
-    rows.push({ uid: "h:" + part.head, "tIcon.image": null, "tWords.text": "", "tHead.text": part.head, "tDay.text": "", "tUuid.text": "", "tFind.text": "" });
-    part.rows.forEach(function (r) {
-      rows.push({ uid: r.uuid, "tIcon.image": { type: "symbol", src: STATUS_SYMBOL[r.status] || "circle" }, "tWords.text": r.words, "tHead.text": "", "tDay.text": r.day + (r.page ? (r.day ? " · " : "") + r.page : ""), "tDay.colour": r.late ? "systemRedColor" : SECONDARY, "tUuid.text": r.uuid, "tFind.text": r.words + " " + r.page });
-    });
-  });
-  return rows;
-}
-function todoAnswer(note, lit) {
-  let rows;
-  try { rows = todoRows(); } catch (error) { return JSON.stringify({ update: { ids: { tNote: { text: messageFrom(error), colour: "systemRedColor" } } } }); }
-  const first = rows.find(r => r["tUuid.text"]);
-  const out = { update: { relayout: true, ids: { todoList: { data: { src: rows }, select: lit || (first ? first.uid : ""), constraints: { stretch: "horizontal", size: { height: Math.min(rows.length, 10) * 44 + 6 } } } } }, window: { resize: { height: "auto" } } };
-  if (note !== undefined) out.update.ids.tNote = { text: note, colour: SECONDARY };
-  return JSON.stringify(out);
-}
-function todoRead(words) {
-  // What ↩ would add, said before it is added: the words and the day read from them.
-  if (!words.trim()) return JSON.stringify({ update: { ids: { tNote: { text: "" } } } });
-  return JSON.stringify({ update: { ids: { tNote: { text: "↩ adds “" + words.trim() + "” as a task on today's journal", colour: SECONDARY } } } });
-}
-function todoAdd(words) {
-  if (!words.trim()) return JSON.stringify({});
-  try {
-    const made = pluginMust("todoAdd", { words: words });
-    const out = JSON.parse(todoAnswer("Added “" + made.words + "”" + (made.day ? ", deadline " + made.day : "") + ".   Undo ⌘Z", made.uuid));
-    out.variables = { last_uuid: made.uuid };
-    out.update.ids.tq = { text: "" };
-    return JSON.stringify(out);
-  } catch (error) { return JSON.stringify({ update: { ids: { tNote: { text: messageFrom(error), colour: "systemRedColor" } } } }); }
-}
-function todoStatus(uuid, status) {
-  if (!uuid) return JSON.stringify({});
-  try {
-    pluginModel("todoStatus", { uuid: uuid, status: status });
-    const out = JSON.parse(todoAnswer((status === "done" ? "Done" : "Set to " + status) + ".   Undo ⌘Z", uuid));
-    out.variables = { last_uuid: uuid };
-    return JSON.stringify(out);
-  } catch (error) { return JSON.stringify({ update: { ids: { tNote: { text: messageFrom(error), colour: "systemRedColor" } } } }); }
-}
-function todoUndo(uuid) {
-  try { pluginModel("todoUndo", { uuid: uuid }); return todoAnswer("Taken back.", uuid); }
-  catch (error) { return JSON.stringify({ update: { ids: { tNote: { text: messageFrom(error), colour: "systemRedColor" } } } }); }
-}
-
-/* ---------- Search (search.alfredui) and a page read here (read.alfredui) ----------
-   Search: Logseq's own search through Find, each node with its kind and day; ↩ reads it here, ⌘↩ opens it in Logseq.
-   A page read here: its words as DB Export writes them, then where it leads: its properties' pages, and what points at it by
-   property, as Find opens a node in place. ↩ steps into the lit node, ⌘[ steps back along the path, ⌘↩ opens it in Logseq.
-     panel-search <words>      panel-read <uuid> <path>      panel-back <path>                                             */
-const nodeSub = n => [n.kind, n.day, n.page].filter(Boolean).join(" · ");
-const nodeRow = (n, sub) => ({ uid: n.uuid, "rIcon.image": { type: "symbol", src: n.isPage ? "doc.text" : "text.alignleft" }, "rTitle.text": n.title, "rSub.text": sub == null ? nodeSub(n) : sub, "rHead.text": "", "rUuid.text": n.uuid });
-// A group's heading: small and grey on the row's lower line, where Alfred puts a result's subtitle.
-const headRow = (key, text) => ({ uid: "h:" + key, "rIcon.image": null, "rTitle.text": "", "rSub.text": text, "rHead.text": "", "rUuid.text": "" });
-const listAnswer = (id, rows, lit, most) => ({ ids: { [id]: { data: { src: rows }, select: lit || (rows.find(r => r["rUuid.text"]) || {}).uid || "", constraints: { [id === "searchList" ? "region" : "stretch"]: id === "searchList" ? "centre" : "horizontal", size: { height: Math.max(1, Math.min(rows.length, most)) * 56 + 6 } } } } });
-function searchAnswer(words) {
-  let got = { nodes: [] };
-  try { if (words.trim()) got = pluginMust("find", { words: words, limit: 30 }); }
-  catch (error) { return JSON.stringify({ update: { ids: { sNote: { text: messageFrom(error), colour: "systemRedColor" } } } }); }
-  const seen = {}, rows = (got.nodes || []).filter(n => !seen[n.uuid] && (seen[n.uuid] = true)).map(n => nodeRow(n));
-  const out = { update: Object.assign({ relayout: true }, listAnswer("searchList", rows, "", 7)), window: { resize: { height: "auto" } } };
-  out.update.ids.sNote = { text: !words.trim() ? "" : rows.length ? plural(rows.length, "node") : "Nothing has these words.", colour: SECONDARY };
-  return JSON.stringify(out);
-}
-// The lit result changed: its pane. A page shows its tags, properties and where it leads; a note its words in full.
-function searchPane(uuid, sub) {
-  const out = { replace: { ids: {} }, update: { relayout: true }, window: { resize: { height: "auto" } } };
-  try { out.replace.ids.sPane = uuid ? paneView("sPane", uuid, 360, true, sub) : noPane("sPane"); } catch (_) { out.replace.ids.sPane = noPane("sPane"); }
-  return JSON.stringify(out);
-}
-function readAnswer(uuid, path) {
-  let got;
-  try { got = pluginMust("read", { uuid: uuid }); }
-  catch (error) {
-    // The reason in the words' place, where it can wrap; the title is one line and cut a long reason to "Logseq…".
-    return JSON.stringify({ update: { relayout: true, ids: { pTitle: { text: "This could not be read", colour: "labelColor" },
-      pText: { text: messageFrom(error), hidden: false, constraints: { stretch: "horizontal", size: { height: 70 } } },
-      pFoot: { text: "esc closes" } } }, window: { resize: { height: "auto" } } });
-  }
-  const rows = [];
-  const linked = (got.properties || []).filter(p => p.values.some(v => v.uuid));
-  if (linked.length) {
-    rows.push(headRow("props", "Its properties"));
-    linked.forEach(p => p.values.filter(v => v.uuid).forEach(v => rows.push(nodeRow({ uuid: v.uuid, title: v.label, isPage: true }, p.name))));
-  }
-  (got.pointed || []).forEach(function (g, i) {
-    rows.push(headRow("g" + i, g.name + " of · " + plural(g.nodes.length + g.more, g.kind || "node")));
-    g.nodes.forEach(n => rows.push(nodeRow(n)));
-  });
-  if ((got.mentioned || []).length) {
-    rows.push(headRow("m", "Mentioned in · " + plural(got.mentionedCount, "node")));
-    got.mentioned.forEach(n => rows.push(nodeRow(n)));
-  }
-  // The words as DB Export writes them, less the title (drawn above) and the tag line (drawn beside the title: Alfred's Markdown
-  // reads "#Doctor" as a heading).
-  const tags = [];
-  const words = String(got.text || "").replace(/^# .*\n+/, "").split("\n").filter(function (line) {
-    if (/^\s*(#\S+\s*)+$/.test(line)) { line.trim().split(/\s+/).forEach(t => tags.push(t)); return false; }
-    return true;
-  }).join("\n").replace(/\n{3,}/g, "\n\n").trim();
-  // Relations below the bullets (the owner, 19 November 2026): DB Export writes a page's properties above its bullets; here the
-  // bullets come first, then the properties. One whose value is a page is left to its row in the list under them, said once.
-  const blocks = words.split(/\n\n+/), isProp = line => /^[^:\n]{1,60}: \S/.test(line.trim());
-  let shown = words;
-  if (blocks.length && blocks[0].split("\n").every(isProp)) {
-    const linkedNames = linked.map(p => p.name.toLowerCase());
-    const kept = blocks[0].split("\n").filter(line => linkedNames.indexOf(line.split(":")[0].trim().toLowerCase()) < 0);
-    shown = blocks.slice(1).concat(kept.length ? [kept.join("\n")] : []).join("\n\n").trim();
-  }
-  const trail = csv(path).concat([uuid]);
-  const out = { variables: { r_path: trail.join(","), r_uuid: uuid, r_page: got.isPage ? "1" : "" },
-    update: Object.assign({ relayout: true }, listAnswer("readList", rows, "", 7)), window: { resize: { height: "auto" } } };
-  Object.assign(out.update.ids, {
-    pTrail: { text: trail.length > 1 ? "Back ⌘[ · " + plural(trail.length - 1, "step") + " walked" : "" },
-    pTitle: { text: got.title || "Untitled", colour: "labelColor" },
-    pTags: { text: tags.join("  ") },
-    pText: { text: shown || "—", hidden: !shown, constraints: { stretch: "horizontal", size: { height: Math.min(300, 18 + 30 * shown.split("\n").filter(Boolean).length) } } },
-    pFoot: { text: rows.length ? "↩ walks into the lit one      ⌘[ back      ⌘↩ open in Logseq" : "Nothing points here.      ⌘[ back      ⌘↩ open in Logseq" }
-  });
-  return JSON.stringify(out);
-}
-function backAnswer(path) {
-  const trail = csv(path);
-  trail.pop();
-  const to = trail.pop();
-  // Back from the first node read: Home again, as it was left (the walk began there: Home as Find, 19 November 2026).
-  return to ? readAnswer(to, trail.join(",")) : JSON.stringify({ finish: { args: "home" } });
 }
 
 /* ---------- The files tray (files.alfredui) ----------
@@ -1101,23 +618,6 @@ function panel(command, items) {
   if (command === "panel-files-add") return filesAdd(items[0] || "", items[1] || "today");
   if (command === "panel-files-progress") return filesProgress();
   if (command === "panel-files-undo") return filesUndo(items[0] || "");
-  if (command === "panel-search") return searchAnswer(items[0] || "");
-  if (command === "panel-search-pane") return searchPane(items[0] || "", items[1] || "");
-  if (command === "panel-read") return readAnswer(items[0] || "", items[1] || "");
-  if (command === "panel-back") return backAnswer(items[0] || "");
-  if (command === "panel-todo-list") return todoAnswer("");
-  if (command === "panel-todo-read") return todoRead(items[0] || "");
-  if (command === "panel-todo-add") return todoAdd(items[0] || "");
-  if (command === "panel-todo-status") return todoStatus(items[0] || "", items[1] || "done");
-  if (command === "panel-todo-undo") return todoUndo(items[0] || "");
-  if (command === "panel-home-start") return homeStart();
-  if (command === "panel-home-find") return homeFind(items[0] || "", items[1] || "");
-  if (command === "panel-home-pane") return homePane(items[0] || "", items[1] || "", items[2] || "", items[3] || "", items[4] || "");
-  if (command === "panel-home-take") return homeTake(items[0] || "", items[1] || "", items[2] || "");
-  if (command === "panel-home-tab") return homeTab(items[0] || "", items[1] || "", items[2] || "");
-  if (command === "panel-home-untake") return homeUntake(items[0] || "", items[1] || "", items.length > 2 ? items[2] : "");
-  if (command === "panel-home-status") return homeStatus(items[0] || "", items[1] || "done", items[2] || "", items[3] || "");
-  if (command === "panel-home-undo") return homeUndo(items[0] || "", items[1] || "", items[2] || "");
   if (command === "panel-route") return route(items[0] || "");
   if (command === "panel-tags") return tagsAnswer(items[0] || "");
   if (command === "panel-pick") return pickAnswer(items[0] || "", items[1] || "today", items[2] || "");
@@ -1146,19 +646,7 @@ function main(argv) {
       appendTo(page, words);
       return "Added to “" + nodeTitle(page) + "”";
     }
-    if (command === "page") {
-      const named = pageNamed(words);
-      showPage(named.page);
-      const tagged = named.tags.length ? " with #" + named.tags.join(" #") : "";
-      return (named.made ? "Made the page “" : "Found the page “") + nodeTitle(named.page) + "”" + tagged;
-    }
-    if (command === "picture") {
-      const path = clipboardPicture();
-      const answer = addFiles([path], words ? { page: words } : "today");
-      return stillGoing(answer, ["the picture"]) || (words ? "Added the picture to “" + words + "”" : "Added the picture to Today");
-    }
     if (command === "today-selection") return selectionToToday(items);
-    if (command === "page-selection") return selectionToPage(items);
     throw new Error("Unknown workflow command");
   } catch (error) {
     return "Error: " + messageFrom(error);

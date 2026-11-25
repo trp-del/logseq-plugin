@@ -42,50 +42,6 @@ function all(ctx) {
     { name: 'before (1+2)', guess: (c, l, t) => vote(c, l, t) || profile(c, l, t, 3) },   // as released: gap 3
     { name: 'now: tagFor (1+2+3)', guess: today },
   ];
-  if (process.env.FINAL) {
-    const ts = require('../../core/tag-score.js'), st = new Map();
-    // The plugin as built: propose() with the bullet's state, as logseq/propose-ui.js calls it while you write.
-    const st4 = new Map();
-    list.push({ name: 'plugin as built', guess: (c, l, t, o) => {
-      if (o.at === 1) st4.set(l.id, {});
-      const r = propose.propose(c, { id: l.id, uuid: '', text: t, tags: [], values: new Map(), page: l.page != null ? { id: l.page, day: c.days?.get(l.page) || 0 } : null, parent: null, tagState: st4.get(l.id) });
-      const p = r.pieces.find(x => x.kind === 'tag'); return p ? { id: p.tag.id } : null;
-    } });
-    list.push({ name: 'now + steady', guess: (c, l, t, o) => { if (o.at === 1) st.set(l.id, {}); return ts.steady(st.get(l.id), today(c, l, t)); } });
-    // Steady, but a pause where nothing would show keeps the shown tag only while the words still lean to it (it leads the
-    // runner-up, plain included, by at least `hold`); otherwise it goes.
-    // Hysteresis: a tag first shows at gap `show` (stricter), then stays while it leads by `hold`; another tag replaces it at two
-    // pauses running.
-    for (const spec of (process.env.HYST || '').split(';').filter(Boolean)) {
-      const [show, hold] = spec.split(',').map(Number), st3 = new Map();
-      list.push({ name: `show ${show}, hold ${hold}`, guess: (c, l, t, o) => {
-        if (o.at === 1) st3.set(l.id, {});
-        const s = st3.get(l.id), keep = c.limits.tagGap;
-        c.limits.tagGap = show; const g = today(c, l, t); c.limits.tagGap = keep;
-        if (!g && s.shown) {
-          const sc = ts.scored(c, { id: l.id, page: l.page != null ? { id: l.page } : null }, t).list;
-          const mine = sc.find(([k]) => k === s.shown.id), rival = sc.find(([k]) => k !== s.shown.id);
-          if (!(mine && rival && propose.enoughForTag(c, t) && mine[1] - rival[1] >= hold)) { s.shown = null; s.pending = null; s.n = 0; return null; }
-        }
-        return ts.steady(s, g);
-      } });
-    }
-    if (process.env.HYST) return list;
-    for (const hold of (process.env.HOLD || '0,1,2').split(',').map(Number)) {
-      const st2 = new Map();
-      list.push({ name: `steady, hold ${hold}`, guess: (c, l, t, o) => {
-        if (o.at === 1) st2.set(l.id, {});
-        const s = st2.get(l.id), g = today(c, l, t);
-        if (!g && s.shown) {
-          const sc = ts.scored(c, { id: l.id, page: l.page != null ? { id: l.page } : null }, t).list;
-          const mine = sc.find(([k]) => k === s.shown.id), rival = sc.find(([k]) => k !== s.shown.id);
-          if (!(mine && rival && propose.enoughForTag(c, t) && mine[1] - rival[1] >= hold)) { s.shown = null; s.pending = null; s.n = 0; return null; }
-        }
-        return ts.steady(s, g);
-      } });
-    }
-    return list;
-  }
   if (process.env.JOIN) {
     // Idea 5: join the ways. A loose vote (any near line, a modest lead) is a second opinion beside words + clues.
     const kept = new Set(['journal', 'link']), model = clues.build(ctx, kept);

@@ -1,3 +1,0 @@
-#!/bin/zsh
-# Todo: read, answered by logseq.js (panel-todo-read), in Alfred UI's JSON.
-exec /usr/bin/osascript -l JavaScript "${0:A:h:h}/logseq.js" panel-todo-read "$@"

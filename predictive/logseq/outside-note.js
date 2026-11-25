@@ -1,5 +1,5 @@
-/* A note written from outside Logseq, in the Alfred workflow's Add panel (outside.js asks; 18 November 2026). The same proposals
-   Predictive pencils under a bullet you write in Logseq, for words that are not in a bullet yet: the tag first, then the properties
+/* A note written from outside Logseq, in the Alfred workflow's Add panel (outside.js asks; 18 November 2026). The proposals
+   Predictive pencils under a tagged bullet you write in Logseq, for words that are not in a bullet yet: the tag first, then the properties
    it brings. And the note written with the ones you took, through the same writer and the same lessons, with one Undo.
 
      guess({ words, where, tag })  → { tag, sure, choices, pieces }   nothing written
@@ -7,8 +7,10 @@
      undo({ uuid })                → { undone }
 
    `where` is outside.js's: "today", "open" or { page }. `tag` is a tag's id the caller picked (⌘T in the panel), or null for the
-   guess. A tag is pencilled only when Predictive would pencil it in Logseq (the same four words, the same care setting); the other
-   tags it could be come as `choices`, best first, which the panel offers on keys and never takes by Enter. */
+   guess. The panel asks for a tag with every guess, so here one is still offered (core/propose.js, offerTag: four words, the
+   nearest earlier lines, a tag's own words, words written before with a tag); in Logseq a bullet is offered none by itself since
+   24 November 2026. The other tags it could be come as `choices`, best first, in the order of Option-T's list (tagChoices), which
+   the panel offers on keys and never takes by Enter. */
 (function () {
 const Flow = window.Flow, Door = window.PluginDoor;
 
@@ -25,7 +27,7 @@ async function pageOf(where) {
 const tagOf = (ctx, id) => { const t = ctx.byId.get(Number(id)); return t && t.isTag ? { id: Number(id), uuid: t.uuid, title: t.title } : null; };
 const fieldsOf = (ctx, id) => Flow.schema.fieldsOfTags([id], ctx.schema).map(p => p.title);
 // What the panel draws of a proposed value: its property, the value as it will read, and whether it is only a guess.
-const piecesOut = pieces => pieces.filter(p => p.kind !== 'tag').map(p => ({ key: p.ident, prop: p.prop?.title || '', shown: p.shown || '', guess: Boolean(p.guess), made: p.newPage ? p.newPage.title : '' }));
+const piecesOut = pieces => pieces.filter(p => p.kind !== 'tag').map(p => ({ key: p.ident, prop: p.prop?.title || '', shown: p.shown || '', guess: Boolean(p.guess), made: '' }));   // made: a new page's title, never since the name finder went; the panel still reads it
 
 async function proposal(ctx, b, tagId) {
   if (tagId) {
@@ -34,7 +36,7 @@ async function proposal(ctx, b, tagId) {
     const r = Flow.propose.propose(ctx, { ...b, tags: [tag.id] }, tag);
     return { tag: { ...tag, why: 'you picked it' }, sure: true, pieces: r.pieces };
   }
-  const r = Flow.propose.propose(ctx, b), t = r.pieces.find(p => p.kind === 'tag');
+  const r = Flow.propose.propose(ctx, b, null, { offerTag: true }), t = r.pieces.find(p => p.kind === 'tag');
   return t ? { tag: { id: t.tag.id, uuid: t.tag.uuid, title: t.tag.title, why: t.why || '' }, sure: false, pieces: r.pieces } : { tag: null, sure: false, pieces: r.pieces };
 }
 async function bulletFor(words, where) {

@@ -52,7 +52,7 @@ const settingsSchema = [
     zone: '<div><span class="m">doctor of →</span> &nbsp;<u>9 Appointments</u> <span class="m">· next Nov 12</span></div>',
     description: 'Changes here apply right away.' },
   { key: 'twoWayRows', type: 'boolean', title: 'Links read the same from both ends', default: true,
-    description: 'On a page that one of your properties points to (a doctor named as the “doctor” of visits, a report named as the “report” of a scan), each such property becomes a row in the page’s own property list, with an arrow after its name: “doctor of →   9 Appointments · next Nov 12”. Up to three nodes show by name; more show as a count that opens into the list. Click a node’s name to open it (Shift-click: in the sidebar); rest the pointer on it to see its properties and first lines. Click the property’s name to open the property; right-click it to change how it reads here. In a list with several kinds of nodes, click a kind to show only those. The + at the end of a row adds a new node with that property pointing here (Undo is the faded arrow after the row’s name). Tick the box before nodes (Shift-click a box: every one between) to act on them together: open in the sidebar, change this page to another one in their property, take the link off, add a tag, copy, set or clear a property, or delete them. A list of more than three can be grouped: the word “group” after its count (or right-click the name, “Group by…”) groups it by tag, month or any property its nodes hold, each group folding, and the + at the end of a group adds a node with that group’s tag or value already set. The chevron before a node’s name opens it under its name: its properties, what points at it and its first bullets, with a faint empty bullet to write a new one in; nodes open in place until one would break its lines, then the outline shifts by one level: the outermost goes into the way back above, the next reads like a page at the top. While you type a new node’s words in the + line, what it would get shows under the line in grey, as the proposals do in a bullet (a guess with a dotted line under it): Enter takes everything shown, a click on a guess keeps that one and lets the other guesses go, Escape clears them until you type again; a page’s name typed in the words completes in grey after the cursor, and the Right arrow links it. The same in the empty bullet of an opened node. The node’s properties show above its bullets there; click what one holds to change it (the likely values first), and the faded Undo arrow puts it back. After Enter the + line stays open, empty, for the next node; Escape closes it. Changing this page to another for the picked nodes lists first the pages their own words name.' },
+    description: 'On a page that one of your properties points to (a doctor named as the “doctor” of visits, a report named as the “report” of a scan), each such property becomes a row in the page’s own property list, with an arrow after its name: “doctor of →   9 Appointments · next Nov 12”. Up to three nodes show by name; more show as a count that opens into the list. Click a node’s name to open it (Shift-click: in the sidebar); rest the pointer on it to see its properties and first lines. Click the property’s name to open the property; right-click it to change how it reads here. In a list with several kinds of nodes, click a kind to show only those. The + at the end of a row adds a new node with that property pointing here (Undo is the faded arrow after the row’s name). Tick the box before nodes (Shift-click a box: every one between) to act on them together: open in the sidebar, change this page to another one in their property, take the link off, add a tag, set or clear a property, or delete them. A list of more than three can be grouped: the word “group” after its count (or right-click the name, “Group by…”) groups it by tag, month or any property its nodes hold, each group folding, and the + at the end of a group adds a node with that group’s tag or value already set. The chevron before a node’s name opens it under its name: its properties, what points at it and its first bullets, with a faint empty bullet to write a new one in; nodes open in place until one would break its lines, then the outline shifts by one level: the outermost goes into the way back above, the next reads like a page at the top. While you type a new node’s words in the + line, what it would get shows under the line in grey, as the proposals do in a bullet (a guess with a dotted line under it): Enter takes everything shown, a click on a guess keeps that one and lets the other guesses go, Escape clears them until you type again; a page’s name typed in the words completes in grey after the cursor, and the Right arrow links it. The same in the empty bullet of an opened node. The node’s properties show above its bullets there; click what one holds to change it (the likely values first), and the faded Undo arrow puts it back. After Enter the + line stays open, empty, for the next node; Escape closes it. Changing this page to another for the picked nodes lists first the pages their own words name.' },
   { key: 'twoWayDays', type: 'boolean', title: 'Show each node’s day in the margin', default: true,
     description: 'Each node in the rows shows its day (its own date, or the day it was written on) in a column at the left. Off, the column goes and the rows move left into its place; the day still shows in the card when you point at a node, and the find line still finds it.' },
   { key: 'twoWayNames', hidden: true, type: 'string', title: 'How properties read on the other page', default: '',
@@ -62,9 +62,7 @@ const settingsSchema = [
     list: { split: ';', suggest: 'properties', about: 'Properties whose link is not shown as a row on the page they point to, for a property that points at a busy page (a status, a city with hundreds of people). The link stays in that page’s Linked references and in searches. Set from the tag tree as well.' },
     description: 'Properties whose link is not shown as a row on the page they point to, as “property; property”. Useful for a property that points at a busy page (a status, a city with hundreds of people). The link itself stays: it still shows in that page’s Linked references and in searches. Set from the tag tree as well.' },
   { key: 'twoWayMentions', type: 'boolean', title: 'Mentions come up to the rows', default: true,
-    description: 'On a page, the nodes whose words link it (“Called [[Dr. Mei Chen]] about the scan”) show as one more row under the rows from properties, “Mentioned in”, with their day and tag, folding, grouping and tick boxes like the other rows. Logseq still lists them under Linked references too. A node that points here through a property shows in that property’s row only. Tick a mention that has no tag and the bar offers to make it a node: the tag its words look like first, with the property that would point at this page (“Make it a Conversation · Spoke with Dr. Mei Chen”). Its words stay as they are; the faded Undo arrow takes it back. A mention whose words look like a kind says so after its line, pencilled (“could be a Consultation · Provider”); its ×, under the pointer, says no: the suggestion goes and is not shown again, the faded arrow puts it back, and right-click “Mentioned in”, Show the suggestions taken off, brings the page’s back. Right-click “mentioned in” to hide the row on that page.' },
-  { key: 'twoWayCouldBeOff', hidden: true, type: 'string', title: 'Mentions whose “could be” suggestion was taken off', default: '',
-    description: 'The mentions (by id) whose pencilled “could be a …” was taken off with its ×, so it is not shown again. Right-click “Mentioned in”, Show the suggestions taken off, brings this page’s back.' },
+    description: 'On a page, the nodes whose words link it (“Called [[Dr. Mei Chen]] about the scan”) show as one more row under the rows from properties, “Mentioned in”, with their day and tag, folding, grouping and tick boxes like the other rows. Logseq still lists them under Linked references too. A node that points here through a property shows in that property’s row only. Tick a mention that has no tag and the bar’s More offers to make it a node: a tag with the property that would point at this page (“Conversation · Spoke with”). Its words stay as they are; the faded Undo arrow takes it back. Right-click “mentioned in” to hide the row on that page.' },
   { key: 'twoWayMentionsHidden', type: 'string', title: 'Pages without the mentions row', default: '',
     list: { split: ';', about: 'Pages where the “Mentioned in” row is left out, for a page almost everything names. Set from the row itself: right-click “Mentioned in”, Hide mentions on this page. The mentions stay in the page’s Linked references.' },
     description: 'Pages where the “Mentioned in” row is left out, as “page; page”, for a page almost everything names. Set from the row itself: right-click “Mentioned in”, then Hide mentions on this page. The mentions stay in the page’s Linked references.' },
@@ -85,19 +83,19 @@ const take = (core, names) => shared.take(core, names, warnOnce);
 // indexed: every page's rows were read in one look-up, so a page not in byPage has none, and a page
 // opened for the first time gets its rows in the same frame as its title instead of half a second later.
 // open, all and only: per row, whether its list is open, shows every record, or only one kind ("Infusion").
-const state = { kindsAll: new Set(), listed: [], findDug: new Map(), findAsked: new Set(), version: 0, pageUuid: '', groups: [], byPage: new Map(), replacesOf: new Map(), ownNamesOf: new Map(), indexed: false, open: new Map(), all: new Set(), only: new Map(), box: null, html: '', picked: new Set(), lastPick: '', group: new Map(), values: new Map(), nodeDraft: null, mentionsOf: new Map(), raise: new Map(), kids: new Set(), selecting: new Set(), dig: new Map(), focus: '', fresh: '', node: new Map(), nall: new Set(), ball: new Set(), steps: [], pageTitle: '', kept: new Map(), find: '', drawingTop: false, pagesRead: null, linksShut: new Set(), emptyOpen: new Set(), keepEmpty: new Set() };
+const state = { kindsAll: new Set(), listed: [], findDug: new Map(), findAsked: new Set(), version: 0, pageUuid: '', groups: [], byPage: new Map(), replacesOf: new Map(), ownNamesOf: new Map(), indexed: false, open: new Map(), all: new Set(), only: new Map(), box: null, html: '', picked: new Set(), lastPick: '', group: new Map(), values: new Map(), nodeDraft: null, mentionsOf: new Map(), kids: new Set(), selecting: new Set(), dig: new Map(), focus: '', fresh: '', node: new Map(), nall: new Set(), ball: new Set(), steps: [], pageTitle: '', kept: new Map(), find: '', drawingTop: false, pagesRead: null, linksShut: new Set(), emptyOpen: new Set(), keepEmpty: new Set() };
 /* A second copy (the right half's) shares with the main one what is read of the graph and what is kept between visits, so the
    same page reads the same on both sides and the graph is not read twice: every page's rows, the mentions read, what nodes hold
    and have under them, the values the lists are grouped by, which lists are open, grouped or ordered, and what was open on a page. */
-const SHARED = ['byPage', 'replacesOf', 'ownNamesOf', 'indexed', 'mentionsOf', 'node', 'kids', 'values', 'group', 'dayBy', 'open', 'kept', 'pagesRead', 'pagesList'];
+const SHARED = ['byPage', 'replacesOf', 'ownNamesOf', 'indexed', 'mentionsOf', 'node', 'kids', 'values', 'group', 'dayBy', 'open', 'kept', 'pagesRead'];
 if (pane.from) for (const key of SHARED) Object.defineProperty(state, key, { get: () => pane.from.state[key], set: value => { pane.from.state[key] = value; }, enumerable: true });
 // Where the pieces join the part's load and start (7 November 2026): loadHooks(page, groups) may give the groups back changed, settledHooks() run once the page's state stands, starters() when the part starts.
 const loadHooks = [], settledHooks = [], starters = [], clickHooks = [];
 /* Where the pieces join a list's drawing (7 November 2026, the forty): listHooks(group, key, items) may give the nodes back
    narrowed or reordered; headHooks(group, key, items) add words to a head; underHeadHooks(group, key, items) a line under it
-   while open; leadHooks(group, item) a mark before a node's name; betweenHooks(group, item, prev) a line before a node;
+   while open; leadHooks(group, item) a mark before a node's name;
    lineMenuHooks(group, item) and rowMenuHooks(group) items for the right-click menus. */
-const tailHooks = [], viewMenuHooks = [], listHooks = [], headHooks = [], underHeadHooks = [], leadHooks = [], betweenHooks = [], lineMenuHooks = [], rowMenuHooks = [];
+const tailHooks = [], viewMenuHooks = [], listHooks = [], headHooks = [], underHeadHooks = [], leadHooks = [], lineMenuHooks = [], rowMenuHooks = [];
 // Today's number and a day in words are the door's (plugin.js, Door.dates): one rule in every module.
 const todayNumber = () => window.PluginDoor.dates.today();
 const dayText = day => window.PluginDoor.dates.words(day);
@@ -113,14 +111,10 @@ const plural = (word, n) => n === 1 ? word : /[^aeiou]y$/i.test(word) ? word.sli
    over; a pair giving a property its own name again is no renaming. */
 const OLD_DEFAULTS = new Set(['symptoms|logged in', 'ask|asked', 'works at|works here', 'insurer|insurer of', 'related|related to']);
 /* Names from the other end (11 November 2026, the owner: "I want it to happen automatically", and "I preferred more connector
-   type names with preposition or relational, but not always"; then their pick of the cloud model with grammar behind it). A row
-   with no name of the owner's reads by the name Apple's larger model in Private Cloud Compute gives for it ("Located in" →
-   "Location of"), asked once for each property in the background (nameByCloud) and kept in twoWayCloudNames, in the same
-   "Located in = Location of" pairs; until it has answered, or where it cannot be reached, by grammar (byGrammar). The model is sent
-   only the property's and tags' names (the owner, 3 November 2026: the cloud for the ontology alone). A name the owner gives,
-   the property's own name too, always wins. twoWayAppleNames, the on-device model's names of 0.3.70 (2 good of 16), is passed over. */
+   type names with preposition or relational, but not always"). A row with no name of the owner's reads by grammar (byGrammar).
+   A name the owner gives, the property's own name too, always wins. The names Apple's models gave (twoWayCloudNames,
+   twoWayAppleNames) are no longer asked for nor read (24 November 2026). */
 const pairsOf = text => String(text || '').split(/[;\n]/).map(pair => pair.split('=').map(part => part?.trim())).filter(([field, words]) => field && words);
-const appleOn = () => setting('proposalsModel') !== false;
 /* The property read from the other end by English grammar (11 November 2026, the owner: "a more sophisticated way ... by having a
    set of words or libraries rather than simple heuristics"): compromise (vendor/compromise.js) gives the verb forms, plurals and
    parts of speech, and word lists below give what grammar alone cannot know: the noun a verb makes ("Located in" → "Location
@@ -183,16 +177,13 @@ const byGrammar = (() => {
 })();
 function backwardsNames() {
   const names = new Map();
-  if (appleOn()) for (const [field, words] of pairsOf(setting('twoWayCloudNames'))) names.set(field.toLowerCase(), words);
-  // The owner's own, over the model's; their property's own name typed in keeps the row on it.
+  // The owner's own; their property's own name typed in keeps the row on it.
   for (const [field, words] of pairsOf(setting('twoWayNames'))) {
     if (OLD_DEFAULTS.has(`${field.toLowerCase()}|${words.toLowerCase()}`)) continue;
     names.set(field.toLowerCase(), words);
   }
   return names;
 }
-const ownedName = name => pairsOf(setting('twoWayNames')).some(([field, words]) => field.toLowerCase() === name.toLowerCase() && !OLD_DEFAULTS.has(`${field.toLowerCase()}|${words.toLowerCase()}`));
-const cloudHas = name => pairsOf(setting('twoWayCloudNames')).some(([field]) => field.toLowerCase() === name.toLowerCase());
 const readBackwards = (name, names) => names.get(name.toLowerCase()) || byGrammar(name);
 
 // Fields shown from one end only: "status; city" -> Set of lower-case names.
@@ -203,8 +194,8 @@ const backwardsLabel = name => readBackwards(name, backwardsNames());
 function setBackwards(name, words) {
   words = String(words || '').replace(/[;=\n]/g, ' ').replace(/\s+/g, ' ').trim();
   const pairs = String(setting('twoWayNames') || '').split(/[;\n]/).map(pair => pair.split('=').map(part => part?.trim())).filter(([field, said]) => field && said && field.toLowerCase() !== name.toLowerCase());
-  // Empty: no pair, so the row reads as it does by itself (the model's name, else by grammar). The property's own name typed in
-  // is kept as a pair, so neither comes back over it.
+  // Empty: no pair, so the row reads as it does by itself (by grammar). The property's own name typed in
+  // is kept as a pair, so grammar's does not come back over it.
   if (words) pairs.push([name, words]);
   saveSettings({ twoWayNames: pairs.map(([field, said]) => `${field} = ${said}`).join('; ') });
 }
@@ -274,7 +265,7 @@ async function load() {
   reading(version, false);
   state.replaces = replaces;
   if (pageUuid) { state.replacesOf.set(pageUuid, replaces); state.ownNamesOf.set(pageUuid, new Set(state.ownNames)); }
-  if (pageUuid !== state.pageUuid) { state.raise.clear(); state.raisePairs = null; state.nodeRolled = ''; }
+  if (pageUuid !== state.pageUuid) { state.raisePairs = null; state.nodeRolled = ''; }
   putBackOpen(pageUuid);
   state.pageUuid = pageUuid;
   state.groups = groups;
@@ -361,11 +352,6 @@ async function mentionsGroup(id, groups) {
   const filed = new Set(groups.flatMap(g => g.items.map(item => item.uuid)));
   const found = (await provided.mentionsInto(id)).filter(m => UUID.test(m.uuid) && !filed.has(m.uuid));
   if (!found.length) return null;
-  // What an untagged mention looks like, asked once each, a few at a time: at once when the earlier lines are
-  // read, else after a quiet moment, since asking reads them, and a look at a page reads no whole graph.
-  askQuietly.uuids = found.filter(m => !m.tag).slice(0, 30).map(m => m.uuid);
-  clearTimeout(state.quiet);
-  if (askQuietly.uuids.length) state.quiet = setTimeout(askQuietly, provided.earlierLinesRead?.() ? 0 : QUIET);
   // Each with the page and bullets it sits in, as Linked references shows it.
   const crumbs = provided.crumbsInto ? await provided.crumbsInto(id).catch(() => new Map()) : new Map();
   const items = await Promise.all(found.map(async m => { const words = await linkedWordsOf(m.title); return { uuid: m.uuid, title: plainWords(words), words, tag: m.tag || 'note', day: m.day, dayFrom: m.dayFrom || '', status: m.status || 0,
@@ -373,9 +359,6 @@ async function mentionsGroup(id, groups) {
   items.sort(byWhen(todayNumber()));
   return { name: MENTIONS, label: 'Mentioned in', items, fieldUuid: '', ident: '', mentions: true };
 }
-const QUIET = 5000;
-function askQuietly() { for (const uuid of askQuietly.uuids.splice(0)) twoWay.prepareRaise(uuid).catch(() => {}); }
-askQuietly.uuids = [];
 // Whether words being written reach this page's rows: a row's node or a node opened from it, a bullet under one of those, or
 // a line that links this page. Writing elsewhere, or on this page itself, changes nothing the rows show.
 function touchesRows({ blocks = [] } = {}) {
@@ -409,34 +392,8 @@ async function groupsByPage(id) {
     groups.sort((a, b) => b.items.length - a.items.length || a.label.localeCompare(b.label));
     result.set(page, { uuid, groups });
   }
-  nameByCloud([...result.values()].flatMap(page => page.groups));
   return result;
 }
-/* Asks the cloud model for the rows that have no name yet, one property at a time, in the background, once a session each; the
-   names are saved together when the round is over and the rows drawn again with them. */
-const cloudAsked = new Set();
-let cloudRound = null;
-function nameByCloud(groups) {
-  if (!appleOn() || cloudRound) return;
-  const wanting = [...new Map(groups.filter(g => !isMentions(g) && !cloudAsked.has(g.name.toLowerCase()) && !ownedName(g.name) && !cloudHas(g.name)).map(g => [g.name.toLowerCase(), g])).values()];
-  if (!wanting.length) return;
-  cloudRound = (async () => {
-    const got = [];
-    // No helper, or no cloud model for this Mac: nothing is asked, and these rows not again this session; grammar names them.
-    if (!await cloudReady()) { for (const group of wanting) cloudAsked.add(group.name.toLowerCase()); return; }
-    for (const group of wanting) {
-      if (stopped) return;
-      cloudAsked.add(group.name.toLowerCase());
-      const [best] = await readsBackOffers(group).catch(() => []);
-      if (best) got.push([group.name, String(best).replace(/[;=\n]/g, ' ').trim()]);
-    }
-    if (!got.length || stopped) return;
-    const kept = pairsOf(setting('twoWayCloudNames')).filter(([field]) => !got.some(([name]) => name.toLowerCase() === field.toLowerCase()));
-    saveSettings({ twoWayCloudNames: [...kept, ...got].map(([field, words]) => `${field} = ${words}`).join('; ') });
-    later(0); indexLater(0);
-  })().catch(error => warnOnce('could not ask for the rows’ names', error)).finally(() => { cloudRound = null; });
-}
-
 // Every page's rows in one look-up, at the start and again when the graph has been still for a while. The
 // page on screen still asks for its own rows, which are newer; this only lets a page show its rows from its first
 // frame. In a graph with very many links it is read once, at the start, so typing never waits behind it. In one with more than
@@ -700,24 +657,21 @@ function rowHtml(group, top = null) {
     const grouping = twoWay.groupingOf(group, items);
     if (grouping) list = underHeadHooks.map(hook => hook(group, key, items) || '').join('') + grouping.parts.map(part => twoWay.groupHtml(group, part, grouping.by)).join('');
     else {
-      list = underHeadHooks.map(hook => hook(group, key, items) || '').join('') + shown.map((item, i) => (i > 0 && dayIn(group, item) && dayIn(group, item) < today && dayIn(group, shown[i - 1]) >= today ? '<div class="th-tw-earlier lk-note">earlier</div>' : '') + yearLine(group, item, shown[i - 1]) + betweenHooks.map(hook => hook(group, item, shown[i - 1], key) || '').join('') + itemHtml(group, item, base, '', bare, tell)).join('')
+      list = underHeadHooks.map(hook => hook(group, key, items) || '').join('') + shown.map((item, i) => (i > 0 && dayIn(group, item) && dayIn(group, item) < today && dayIn(group, shown[i - 1]) >= today ? '<div class="th-tw-earlier lk-note">earlier</div>' : '') + yearLine(group, item, shown[i - 1]) + itemHtml(group, item, base, '', bare, tell)).join('')
         + (items.length > LISTED ? O.more({ text: all ? 'show fewer' : `show ${items.length - LISTED} more`, attrs: { class: null, 'data-more': key }, under: isDated(group) ? 'dotday' : 'dot' }) : '');
     }
   }
   const fold = O.chev({ open, label: group.label, attrs: { 'data-fold': key } });
   // The list's own line is the parent of its nodes (the owner, 2026-10-27: "header chevron is over the other chevrons of
   // its children"): its chevron starts where the days do, its words right after; the nodes, their days too, one step in.
-  // The mentions' sure proposals, all at once (C19): a quiet word at the head once two or more are pencilled in.
-  const proposed = isMentions(group) ? group.items.filter(item => couldBeHtml(item)).length : 0;
-  const takeAll = proposed > 1 ? `<button type="button" class="lk-btn lk-low th-tw-takeall" data-takeall-could="" title="Make each what its words look like, with one Undo">Take the ${proposed} proposed</button>` : '';
   /* The + and the ⋯ follow the head's words, not the far right (21 November 2026, the owner: "move plus and dots to right of
      items, not far right"); what the list is set to and its days still stand at the right end. */
   const pickAll = state.selecting.has(group.name) && !state.drawingTop ? '<input type="checkbox" class="lk-tick th-tw-pickall" data-act="allhere" aria-label="Pick every node in this list" title="Pick every node in this list">' : '';
-  const headLine = O.line({ day: null, chev: fold, tick: pickAll, body: `${head}${addLink(group)}${takeAll}${twoWay.groupBtn(group)}${right ? `<span class="th-tw-piece th-tw-endpiece">${right}</span>` : ''}`, cls: 'th-tw-head' });
+  const headLine = O.line({ day: null, chev: fold, tick: pickAll, body: `${head}${addLink(group)}${twoWay.groupBtn(group)}${right ? `<span class="th-tw-piece th-tw-endpiece">${right}</span>` : ''}`, cls: 'th-tw-head' });
   const listHtml = open ? O.kids({ html: list + since, cls: 'th-ol-bare th-tw-list', fresh: state.fresh === key }) : '';
   return `<div class="th-tw-row" data-field="${esc(group.name)}"${open ? ' data-open=""' : ''}>${name}<div class="${listCls}"${picking}${datedAttrs(group)}>${headLine}${listHtml}${twoWay.addLineHtml(group)}</div></div>`;
 }
-// One node of a row: its line, where it sits (a mention's page and bullets), what it could be, and what it holds when open.
+// One node of a row: its line, where it sits (a mention's page and bullets), and what it holds when open.
 // bare: the heading above names the one tag, so the lines leave it out (for a list of one kind); tell:
 // the property whose value tells these nodes apart, said in the tag's place.
 function itemHtml(group, item, base, end = '', bare = false, tell = '') {
@@ -732,38 +686,12 @@ function itemHtml(group, item, base, end = '', bare = false, tell = '') {
   lineDay.set(key, dayCell(item));
   const day = dayCellOf(group, item);
   // Opened, the node's properties show the telling value: the line lets go of it.
-  const body = `${leadHooks.map(hook => hook(group, item) || '').join('')}${nameHtml(shown, open && state.findDug.get(key) !== true, bare)}${couldBeHtml(item)}${tailHooks.map(hook => hook(group, item) || '').join('')}${O.from(day)}${!open && hasKids(item.uuid) ? O.held(item.uuid) : ''}${tell && !open ? twoWay.tellHtml(item, tell) : ''}${end}`;
+  const body = `${leadHooks.map(hook => hook(group, item) || '').join('')}${nameHtml(shown, open && state.findDug.get(key) !== true, bare)}${tailHooks.map(hook => hook(group, item) || '').join('')}${O.from(day)}${!open && hasKids(item.uuid) ? O.held(item.uuid) : ''}${tell && !open ? twoWay.tellHtml(item, tell) : ''}${end}`;
   const line = O.line({ tick: pickBox(group, item), dot: { uuid: item.uuid, closed: !open && hasKids(item.uuid), title: shortName(item.title) }, day: day || (isDated(group) ? '' : null), chev: twoWay.digChev(key, item.uuid, 0, shortName(item.title), open), body, cls: 'th-tw-line', attrs: { 'data-uuid': item.uuid } });
-  const under = `${crumbHtml(item)}${twoWay.raiseHtml(group, item)}`;
+  const under = crumbHtml(item);
   return open ? O.unit({ html: line + under + twoWay.digKids(key, item.uuid, 'in'), focus: state.focus === key, attrs: { 'data-key': key } }) : line + under;
 }
-/* Where a mention sits: its page and the bullets above it, small, under its line. A mention with no tag whose
-   words look like a known kind says so, pencilled in where its tag would stand, on its own line, so that coming late
-   moves nothing (the review, 31 October: it came after the rows and pushed them down): a click opens Make it… for that one mention. */
-// Its × (the library's Take off, under the pointer) says no: the suggestion goes, is remembered as refused (twoWayCouldBeOff)
-// and is not shown again; the faded arrow puts it back, and the row's right-click brings the page's refused ones back.
-const couldBeOff = () => new Set(String(setting('twoWayCouldBeOff') || '').split(/[;\n]/).map(s => s.trim()).filter(Boolean));
-const couldBeHtml = item => {
-  const best = (!item.tag || item.tag === 'note') && !couldBeOff().has(item.uuid) ? state.raise.get(item.uuid)?.best : null;
-  if (!best) return '';
-  const pencil = O.pencil(`could be a ${best.tag.title} · ${best.prop.title}`, { 'data-could': item.uuid, title: `Its words look like a ${best.tag.title}: click to make it one, with “${best.prop.title}” set to this page` });
-  return `<span class="th-tw-could lk-reveals">${pencil}<button type="button" class="lk-x lk-reveal" data-could-off="${esc(item.uuid)}" title="Not this: the suggestion goes and is not shown again" aria-label="Take off the suggestion">×</button></span>`;
-};
-function refuseCouldBe(uuid, nameEl) {
-  const before = String(setting('twoWayCouldBeOff') || '');
-  saveSettings({ twoWayCouldBeOff: [...couldBeOff(), uuid].join('; ') });
-  state.html = null; draw(host());
-  offerUndo('The suggestion is off this mention', () => { saveSettings({ twoWayCouldBeOff: before }); state.html = null; draw(host()); }, MENTIONS, () => nameEl);
-}
-// The refused suggestions of this page's mentions, shown again.
-function showCouldBeAgain() {
-  const group = state.groups.find(isMentions), here = new Set((group?.items || []).map(item => item.uuid));
-  const before = String(setting('twoWayCouldBeOff') || '');
-  saveSettings({ twoWayCouldBeOff: [...couldBeOff()].filter(uuid => !here.has(uuid)).join('; ') });
-  state.html = null; draw(host());
-  offerUndo('The suggestions taken off on this page are back', () => { saveSettings({ twoWayCouldBeOff: before }); state.html = null; draw(host()); }, MENTIONS);
-}
-const refusedHere = () => { const off = couldBeOff(); return (state.groups.find(isMentions)?.items || []).filter(item => off.has(item.uuid)).length; };
+// Where a mention sits: its page and the bullets above it, small, under its line.
 // A crumb that is only the journal day the node is written on says the day again: left out. Each place is a step (lk-step,
 // the faint underline of the trail): a press opens its page or bullet, Shift in the right sidebar.
 const crumbsOf = item => (item.crumbs || []).filter((c, i) => !(i === 0 && item.day && /^[A-Z][a-z]{2} \d{1,2}(st|nd|rd|th), \d{4}$/.test(c.name)));
@@ -991,8 +919,7 @@ function draw(doc) {
   const nodeTop = rows && pane.node ? twoWay.nodeTopHtml() : '';
   if (pane.node && rows && !state.dig.has(`node>${state.pageUuid}`)) state.dig.set(`node>${state.pageUuid}`, { uuid: state.pageUuid, id: Number(state.pageId) || 0, title: state.pageTitle });   // it stands open: its lines take the keys and the presses of an opened node
   state.listed = [];   // filled as the rows are drawn, so the rows come before the bar that reads it
-  // A piece may draw in the rows' place (two pages side by side).
-  const rowsHtml = rows && stepped == null ? (twoWay.rowsInstead?.() ?? twoWay.openHits(twoWay.foundGroups()).map(g => rowHtml(g)).join('')) : '';
+  const rowsHtml = rows && stepped == null ? twoWay.openHits(twoWay.foundGroups()).map(g => rowHtml(g)).join('') : '';
   /* The whole section folds to one line under its name (the owner, 8 November 2026: "allow it to be folded in, the whole
      thing"), kept per page as a list's fold is; while letters are in the find line it stays open. */
   const wholeKey = `${state.pageUuid}|*`, wholeOpen = !!state.find.trim() || twoWay.isOpen(wholeKey);
@@ -1079,17 +1006,6 @@ const drawEarly = (doc, records) => { if (performance.now() - settle.since < SET
 function onClick(event) {
   const pickEl = event.target.closest?.('.th-tw-bar [data-act], .th-tw-head > .th-tw-pickall') || event.target.closest?.('.th-tw-row .th-tw-pick');
   if (pickEl) { event.preventDefault(); event.stopPropagation(); twoWay.hidePeek(); return pickEl.dataset.act ? twoWay.act(pickEl.dataset.act, pickEl) : twoWay.togglePick(pickEl, event.shiftKey); }
-  const couldOff = event.target.closest?.('[data-could-off]');
-  if (couldOff) { event.preventDefault(); event.stopPropagation(); twoWay.hidePeek(); return refuseCouldBe(couldOff.dataset.couldOff, couldOff.closest('.th-tw-line') || couldOff); }
-  const could = event.target.closest?.('[data-could]');
-  if (could) {
-    event.preventDefault(); event.stopPropagation(); twoWay.hidePeek();
-    const group = state.groups.find(isMentions);
-    // The menu opens where the words were: the drawing that ticks the mention replaces them.
-    const r = could.getBoundingClientRect(), at = { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
-    if (group) { state.picked.clear(); state.picked.add(`${could.dataset.could}|${group.name}`); draw(host()); twoWay.raiseMenu(at).catch(error => warnOnce('could not open Make it…', error)); }
-    return;
-  }
   const back = event.target.closest?.('[data-step]');
   if (back) { event.preventDefault(); event.stopPropagation(); twoWay.hidePeek(); return twoWay.stepBack(Number(back.dataset.step)); }
   const whole = event.target.closest?.('[data-whole]');
@@ -1151,11 +1067,9 @@ function onClick(event) {
   if (dpick) { event.preventDefault(); event.stopPropagation(); return twoWay.keepPiece(dpick.dataset.pkey); }
   const lineEl = event.target.closest?.('.th-tw-draft');
   if (lineEl && !event.target.closest('a, input, button')) { lineEl.querySelector('.th-tw-draft-field')?.focus(); return; }
-  if (twoWay.pieceClick?.(event)) return;
   const task = event.target.closest?.('[data-task]');
   if (task) { event.preventDefault(); event.stopPropagation(); setStatus(task).catch(error => warnOnce('could not set the status', error)); return; }
   for (const hook of clickHooks) if (hook(event)) return;
-  if (event.target.closest?.('[data-takeall-could]')) { event.preventDefault(); event.stopPropagation(); twoWay.raiseAll().catch(error => { warnOnce('could not take the proposals', error); notify('The proposals could not all be taken', 'warning'); }); return; }
   // The name opens, the arrow unfolds: the blank part of a row does nothing, and the page stays.
   const target = event.target.closest?.('a, button');
   if (!target) return;
@@ -1234,14 +1148,14 @@ function onRename(event) {
   const tagEl = event.target.closest?.('.th-tw-tag[data-tag-page]'), tagLine = tagEl?.closest('.th-tw-line[data-uuid]');
   if (tagEl && tagLine) { event.preventDefault(); event.stopPropagation(); twoWay.hidePeek(); window.PluginDoor.tagMenu(tagEl, tagLine.dataset.uuid, { title: tagEl.dataset.tagPage }).then(ok => { if (!ok) (tagLine.querySelector('.th-tw-record') || tagLine).dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: event.clientX, clientY: event.clientY })); }); return; }
   if (twoWay.onNodeMenu?.(event)) return;   // a line inside an opened node: its own menu (dig.js)
-  // A node's line: its own menu, from the pieces (pin, compare, …); nothing when none has an item for it.
+  // A node's line: its own menu, with the pieces' own lines.
   const lineEl = !event.target.closest?.('.th-tw-name') && event.target.closest?.('.th-tw-line[data-uuid]');
   if (lineEl) {
     const row = lineEl.closest('.th-tw-row'), group = state.groups.find(g => g.name === row?.dataset.field), item = group?.items.find(i => i.uuid === lineEl.dataset.uuid);
     if (!item || !window.PluginDoor.UUID.test(String(item.uuid || ""))) return;
     const items = lineMenuHooks.flatMap(hook => hook(group, item) || []);
     event.preventDefault(); event.stopPropagation(); twoWay.hidePeek(); twoWay.closeAdd();
-    // The node's menu, the same in every place (PluginDoor.nodeMenu), with this list's own lines (Pin, Add property…) in it.
+    // The node's menu, the same in every place (PluginDoor.nodeMenu), with this list's own lines (Add property…, Add a line) in it.
     const own = which => items.find(i => i?.nodeLine === which)?.run;
     window.PluginDoor.nodeMenu(lineEl.querySelector('.th-tw-record') || lineEl, item.uuid, { property: own('property'), newLine: own('newLine'), extra: twoWay.menuLines(items.filter(i => !i?.nodeLine)) });
     return;
@@ -1257,7 +1171,6 @@ function onRename(event) {
     isMentions(group)
       ? { icon: 'remove', label: 'Hide mentions on this page', run: () => { hideMentionsHere().catch(error => warnOnce('could not hide the mentions row', error)); } }
       : null,
-    ...(isMentions(group) && refusedHere() ? [{ icon: 'show', label: `Show the ${refusedHere()} suggestion${refusedHere() === 1 ? '' : 's'} taken off`, run: showCouldBeAgain }] : []),
     ...rowMenuHooks.flatMap(hook => hook(group) || []),
     ...(isMentions(group) ? [] : [{ icon: 'rename', label: 'Reads back as…', run: () => { renameRow(group, nameEl).catch(error => warnOnce('could not rename the row', error)); } }]),
     // The same two words as the tag map's (one word for each idea); the head above already names the row.
@@ -1278,38 +1191,11 @@ async function hideMentionsHere() {
   saveSettings({ twoWayMentionsHidden: [...names, title].join('; ') });
   offerUndo(`The mentions row is hidden on “${title}”`, () => { saveSettings({ twoWayMentionsHidden: before }); later(0); });
 }
-/* The cloud model's name for a row (Predictive's helper, /reads-back, version 6): the property seen from the page it points to.
-   Only the property's name and tags' names are sent. [] when the helper or the cloud model is not there, or "Read my words with
-   Apple's tools" is off; kept for each property until the plugin reloads, asked again after a miss. */
-const { helper } = window.PluginDoor || {};
-const readsBackKept = new Map();
-// No fetch (a test's stand-in window) or the setting off: never asked.
-const canAsk = () => appleOn() && !!helper?.can();
-// Whether the helper answers, knows /reads-back from the cloud (version 6) and the cloud model is there for this Mac.
-const cloudReady = async () => canAsk() && !!await helper.status().then(status => status?.cloud && (status.version || 0) >= 6, () => false);
-function readsBackOffers(group) {
-  if (!canAsk()) return Promise.resolve([]);
-  const key = group.name.toLowerCase();
-  if (!readsBackKept.has(key)) {
-    const asking = (async () => {
-      if (!await cloudReady()) return [];
-      const schema = provided.propSchema ? await provided.propSchema().catch(() => null) : null;
-      const prop = schema?.props.find(p => p.title.toLowerCase() === key);
-      const from = [...new Set(group.items.map(item => item.tag).filter(tag => tag && tag !== 'note'))].slice(0, 6);
-      const to = (prop?.classes || []).map(c => c.title).filter(Boolean).slice(0, 6);
-      const reply = await helper.post('/reads-back', { property: group.name, from, to }, { wait: 20000 }).catch(() => null);
-      return Array.isArray(reply?.names) ? reply.names.filter(name => typeof name === 'string' && name.trim()).slice(0, 3) : [];
-    })().catch(() => []);
-    readsBackKept.set(key, asking);
-    asking.then(names => { if (!names.length && readsBackKept.get(key) === asking) readsBackKept.delete(key); });
-  }
-  return readsBackKept.get(key);
-}
 async function renameRow(group, nameEl) {
   const before = backwardsLabel(group.name);
   // Typed on the row's own name, as a page is renamed in Logseq (1.0.4); empty goes back to how it reads by itself. Under the
-  // box: the cloud model's name, grammar's and the property's own, each once, leaving out what the row reads now.
-  const offers = () => readsBackOffers(group).catch(() => []).then(names => [...new Set([...names, byGrammar(group.name), group.name])].filter(name => name !== before));
+  // box: grammar's name and the property's own, each once, leaving out what the row reads now.
+  const offers = [...new Set([byGrammar(group.name), group.name])].filter(name => name !== before);
   const typed = await shared.editInPlace({ at: nameEl, value: before, placeholder: group.name, offers });
   if (typed == null || typed.trim() === before) return;
   setBackwards(group.name, typed.trim());
@@ -1426,8 +1312,6 @@ function start() {
   if (!pane.main) onUnload(offPage);
   onDatabaseChange(change => {
     if (stopped) return;
-    clearTimeout(state.quiet);
-    if (askQuietly.uuids.length) state.quiet = setTimeout(askQuietly, QUIET);
     checkMade();
     const writing = window.PluginDoor?.writing(change);
     if (!writing || touchesRows(change)) later(900);
@@ -1447,7 +1331,7 @@ function start() {
     if (state.picked.size || state.selecting.size) { stopPicking(); draw(host()); }
     // TRIAL: the deepest open node closes, and what stays is laid out as digging lays it out (dig.js, escapeBack).
     else if (state.dig.size && twoWay.escapeBack?.()) event.preventDefault();
-    // Then the find line's words (a day, a page beside, letters): back to today's whole page (7 November 2026).
+    // Then the find line's words (a day, letters): back to today's whole page (7 November 2026).
     else if (state.find) { event.preventDefault(); state.find = ''; draw(host()); }
   };
   listen(host(), 'keydown', escape);
@@ -1522,6 +1406,6 @@ const pieces = pane.from ? pane.from.pieces : [];
 if (pane.main) Object.assign(twoWay, { pieces, piece: piece => { pieces.push(piece); piece(twoWay); } });
 if (pane.main) ((window.Threads ||= {}).parts ||= []).push({ name: 'two-way', says: 'the rows on a page', schema: settingsSchema, start, stop: runUnloadTasks, inner: twoWay });
 // What the pieces reach of the part, and of the core once it starts (useCore).
-Object.assign(twoWay, { setStatus, taskHtml, dayCellOf, headWhen, whenTip, INLINE, LISTED, UUID, stopPicking, clickHooks, tailHooks, viewMenuHooks, listHooks, headHooks, underHeadHooks, leadHooks, betweenHooks, lineMenuHooks, rowMenuHooks, saveSettings: changes => saveSettings(changes), dayCell, isDated, readKids, hasKids, loadHooks, settledHooks, starters, summary, plural, tagWord, dayText, draw, groupsFor, inBox, isMentions, couldBeOff, itemHtml, later, lineDay, model, nameHtml, offerKept, offerMade, offerUndo, guard, onUnload, listen, provided, rowHtml, setting, shortName, state, tagLink, todayNumber, uuidsIn, valueBox, warnOnce, useCore });
+Object.assign(twoWay, { setStatus, taskHtml, dayCellOf, headWhen, whenTip, INLINE, LISTED, UUID, stopPicking, clickHooks, tailHooks, viewMenuHooks, listHooks, headHooks, underHeadHooks, leadHooks, lineMenuHooks, rowMenuHooks, saveSettings: changes => saveSettings(changes), dayCell, isDated, readKids, hasKids, loadHooks, settledHooks, starters, summary, plural, tagWord, dayText, draw, groupsFor, inBox, isMentions, itemHtml, later, lineDay, model, nameHtml, offerKept, offerMade, offerUndo, guard, onUnload, listen, provided, rowHtml, setting, shortName, state, tagLink, todayNumber, uuidsIn, valueBox, warnOnce, useCore });
 if (!pane.main) { for (const piece of pieces) piece(twoWay); pane.made = { twoWay, start, stop: runUnloadTasks }; }
 })();

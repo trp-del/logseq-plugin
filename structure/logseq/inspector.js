@@ -1,176 +1,21 @@
-/* The Ontology tab and the Item tab of Logseq's right sidebar, beside a tag's or a property's page (8 and 12 November 2026).
-   Ontology is a panel Logseq hosts (mount.js): it holds the lines that otherwise stand above the page's table (main.js places the
-   same 'tag' view there while the panel is shown). Item is the row pressed in the page's table, or reached with the arrows: Logseq's
-   own view of that node, the one Shift and a press open in the sidebar, so its words, its tags, its properties and the bullets under
-   it are edited there as on any page, with Logseq's own Undo (the owner, 12 November 2026: "make Item pane fully editable"; until
-   then this file drew a copy of the node that could only be read). The plugin opens that view when a row is pressed, names it as the
-   Item tab's (sidebar-tabs.js shows it alone, without its head), puts one quiet line on top saying where the row stands in the table,
-   and closes it when another row is pressed or the page is left. A node the person had already opened in the sidebar is shown as it
-   is and never closed by the plugin. The row shown keeps a blue outline in the table. */
+/* The Ontology section of Logseq's right sidebar, beside a tag's page (8 and 12 November 2026; once called the inspector, and the
+   names here keep that). It is a panel Logseq hosts (mount.js): it holds a tag's lines that do not stand above the page's title,
+   Child tags, Beside and Relationships (main.js places the 'tag' view there while the panel is shown). On any other page, a
+   property's included, it has nothing to show and stands aside (mount.js, sidebar-tabs.js).
+   Until 24 November 2026 this file also drew the row view, the row pressed in a table shown as a section of the sidebar, and a
+   property's lines stood here; the owner dropped both. A press on a table row is Logseq's alone. */
 (function () {
 const S = window.Structure;
-const { host } = window.PluginDoor;
 const ROW = '#main-content-container .ls-table-row[blockid]';
-const ITEMS = '#right-sidebar .sidebar-item-list > .sidebar-item';
-const insp = { holder: null, top: null, node: null, uuid: '', ask: 0, stops: [], el: null, before: null, kind: '', title: '', openedKeys: new Set(), missing: new Map(), shownKey: '', since: 0, pageAt: 0 };
+const insp = { holder: null, top: null, node: null, stops: [], pageAt: 0 };
 
 // Shown: the panel is in the page and drawn (Logseq's sidebar open and the panel not folded).
 const shown = () => !!(insp.holder?.isConnected && insp.holder.getClientRects().length);
 const top = () => (shown() ? insp.top : null);
-// At work: the row view is on (the toolbar's Row view button, 17 November 2026). Only then does a press on a row pick it; otherwise
-// a press in the table is Logseq's alone and nothing is opened in the sidebar's stack.
-const active = () => !!window.PluginDoor.sideTabs?.rows?.();
 
-const sync = () => insp.holder?.toggleAttribute('data-row', !!insp.uuid);
-
-/* Logseq's item for the node shown. Just asked for, it is the item that was not there before the ask (told in the same pass of the
-   screen that first sees it, so the tabs never take it for a page opened by hand); after that, the one that holds the node: a
-   bullet's item starts with the bullet, a page's is named in its head. */
-const nameOf = item => (item.querySelector('.sidebar-item-header .page-title > span:last-child')?.textContent || '').trim();
-/* An item is known by the node it holds, never by its element: Logseq keeps its sidebar's items by their place in the list, so when
-   a new one comes in at the top the elements are handed on (the element that showed one node shows the next), and an item followed
-   by its element was lost: the first row's view was never closed and stood under "Opened" for good (found 13 November 2026). */
-const keyOf = item => item.classList.contains('item-type-page') ? 'page:' + nameOf(item)
-  : item.querySelector('.sidebar-panel-content .ls-block[blockid]')?.getAttribute('blockid') || '';
-const wanted = () => (!insp.uuid || !insp.kind ? '' : insp.kind === 'page' ? 'page:' + insp.title : insp.uuid);
-const holds = item => !!wanted() && keyOf(item) === wanted();
-const listed = doc => [...doc.querySelectorAll(ITEMS)].filter(i => !i.classList.contains('lk-side') && !i.classList.contains('item-type-plugin'));
-/* The row's view is drawn by Logseq a moment after it is asked for: its item comes empty and fills some frames later. Shown
-   at once, the pane stood blank for about a tenth of a second on every row change (measured 12 November 2026: 83 to 168 ms).
-   So the view shown before (shownKey: the node it holds) stays until an item holds the new row's node, drawn; the first row
-   pressed has no view before it, and the tab that was showing stays until then (pass picks Item). A view that has not come two
-   seconds after the press is given up: what is there is shown. */
-/* Drawn to the end: Logseq writes a node's links as empty brackets first and fills in the names a frame or two later, and Look marks a
-   wrapped property a pass after the item is laid out (it waits laid out, unseen: sidebar-tabs.js). Shown before both, the view
-   changed twice under the eye in its first 40 ms (13 November 2026). A view with brackets of its own in its words is waited for at
-   most 300 ms after it holds its node. */
-const settledAt = new WeakMap();
-const drawn = el => {
-  const body = el.querySelector('.sidebar-panel-content');
-  if (!body?.querySelector(':is(.ls-block, .ls-page-blocks, .ls-page-properties, .ls-page-title)')) return false;
-  const key = keyOf(el);   // by the node held: Logseq hands its elements on
-  if (settledAt.get(el)?.key !== key) { settledAt.set(el, { key, at: Date.now() }); el.ownerDocument.defaultView.setTimeout(() => { pass(host()); window.PluginDoor.sideTabs?.draw(); }, 40); el.ownerDocument.defaultView.setTimeout(() => { pass(host()); window.PluginDoor.sideTabs?.draw(); }, 320); }
-  const since = Date.now() - settledAt.get(el).at;
-  return since >= 300 || (since >= 32 && !body.textContent.includes('[[]]'));
-};
-/* While the next row's view is drawn, a still picture of the one shown lies over the views (a copy of its element, outside what
-   Logseq draws). Logseq hands the element on screen to the next node at once and fills it in over a few frames (empty brackets for
-   links first, a wrapped property a step in until Look has marked it), so the eye saw the view change two or three times in 40 ms
-   (the owner, 13 November 2026: "fix"). The picture goes in the frame the new view stands drawn to the end, at the latest 1.2 s
-   after the press, and at once when no row is pressed any more. */
-function hold(doc) {
-  release();
-  const shown = listed(doc).find(i => i.hasAttribute('data-st-item') && i.getClientRects().length);
-  const side = doc.getElementById('right-sidebar');
-  if (!shown || !side) return;
-  const at = shown.getBoundingClientRect(), copy = shown.cloneNode(true);
-  /* The picture reaches down to the next section's head (Ontology, folded under the row), not over it: laid to the sidebar's foot it
-     hid that head for as long as it stood, so Ontology's head blinked out and back on every row change (seen frame by frame,
-     18 November 2026). */
-  const under = [...doc.querySelectorAll(ITEMS)].filter(i => i !== shown && i.getClientRects().length && i.getBoundingClientRect().top >= at.bottom - 1).map(i => i.getBoundingClientRect().top);
-  const floor = under.length ? Math.min(...under) : side.getBoundingClientRect().bottom;
-  /* The picture keeps the row's dress (data-st-item: the row view's whole look hangs on it, view.js). Taken off, the picture fell back
-     to Logseq's plain bullet, its tag at the right and its properties in a line, and that is what faded over the next row (the owner,
-     18 November 2026: "the whole sidebar does not animate well when changing rows"). */
-  copy.classList.add('st-item-hold', 'lk-own'); copy.setAttribute('aria-hidden', 'true');
-  for (const el of copy.querySelectorAll('[id]')) el.removeAttribute('id');
-  Object.assign(copy.style, { position: 'fixed', left: at.left + 'px', top: at.top + 'px', width: at.width + 'px', height: Math.max(Math.min(at.height, floor - at.top - 1), Math.floor(floor - at.top) - 1) + 'px', margin: '0', zIndex: '5', pointerEvents: 'none', background: 'var(--lk-paper, #fff)', overflow: 'hidden', display: 'block' });
-  side.appendChild(copy);
-  insp.held = copy; insp.heldAt = Date.now();
-  doc.defaultView.setTimeout(() => { if (insp.held === copy) release(); }, 1200);
-}
-/* The still picture goes by fading, so one row's view gives way to the next rather than being swapped in a frame (the owner,
-   17 November 2026: "when things change, there is a flash, nothing smooth"). */
-function release() {
-  const copy = insp.held; insp.held = null;
-  if (!copy) return;
-  if (window.PluginDoor.still(copy) || !copy.animate) return copy.remove();
-  const { ms, ease } = window.PluginDoor.MOTION.reveal;
-  copy.animate([{ opacity: 1 }, { opacity: 0 }], { duration: ms, easing: ease, fill: 'forwards' }).finished.then(() => copy.remove(), () => copy.remove());
-}
-function item(doc = host()) {
-  if (!insp.uuid) return null;
-  const items = listed(doc);
-  const now = items.find(i => holds(i) && drawn(i));
-  if (now) { insp.shownKey = wanted(); insp.settled = true; return now; }
-  const old = insp.shownKey ? items.find(i => keyOf(i) === insp.shownKey) || null : null;
-  return old;
-}
-/* The items that are the Item tab's though not the one shown: a view the plugin opened that is on its way out or in, and, while a
-   row's view is awaited, an item that holds nothing yet. The tabs leave them out of "Opened". */
-const owns = el => { const key = keyOf(el); return key ? insp.openedKeys.has(key) : !!insp.uuid && Date.now() - insp.since < 2000 && (el.classList.contains('item-type-block') || el.classList.contains('item-type-page')); };
-// A view the plugin opened and no longer shows goes, by its own ×, as a person would close it. The one shown, and the one awaited, stay.
-function closeStale(doc = host()) {
-  const keep = new Set(insp.uuid ? [wanted(), insp.shownKey].filter(Boolean) : []);
-  const items = listed(doc);
-  for (const el of items) {
-    const key = keyOf(el); if (!key || !insp.openedKeys.has(key) || keep.has(key)) continue;
-    window.PluginDoor.screen.click(el.querySelector('.sidebar-item-header .item-actions button:last-child'));
-  }
-  /* A view no longer in the sidebar is forgotten once it has been missing from the open sidebar for a while: with the sidebar shut
-     its items are not drawn, and as it opens they come before their heads are written, so a view looked missing then was never
-     closed and came back as a page you had opened (17 November 2026). */
-  let open = false; try { open = !!doc.defaultView.logseq?.api?.get_state_from_store('ui/sidebar-open?'); } catch (error) { /* no answer: kept */ }
-  const now = Date.now();
-  for (const key of [...insp.openedKeys]) {
-    if (keep.has(key) || items.some(el => keyOf(el) === key)) { insp.missing.delete(key); continue; }
-    if (!open) continue;
-    if (!insp.missing.has(key)) { insp.missing.set(key, now); doc.defaultView.setTimeout(() => closeStale(host()), 1600); }
-    else if (now - insp.missing.get(key) > 1500) { insp.openedKeys.delete(key); insp.missing.delete(key); }
-  }
-  if (!insp.uuid) insp.shownKey = '';
-}
-/* Where the row stands in Logseq's table, "Item · 12 of 53" (the owner's O1c, 12 November 2026): its place is the
-   number Logseq's list gives the row (data-item-index, as only the rows near the screen are drawn), the whole is the count
-   Logseq writes beside the table's view. Either one missing, the line is not drawn. */
-function whereText(uuid) {
-  const row = host().querySelector(`${ROW}[blockid="${uuid}"]`);
-  const at = Number(row?.closest('[data-item-index]')?.dataset.itemIndex);
-  let all = NaN;
-  for (let up = row?.parentElement, i = 0; up && i < 14 && !(all > 0); up = up.parentElement, i++) {
-    const n = [...up.querySelectorAll('.text-muted-foreground.text-xs')].map(e => e.textContent.trim()).find(t => /^\d+$/.test(t));
-    if (n) all = Number(n);
-  }
-  if (!row || !(at >= 0) || !(all > 0) || at >= all) return '';
-  // Whose table it is goes without saying: the page in the middle is the tag's or the property's own.
-  return `${at + 1} of ${all}`;
-}
-// One pass of the screen: the item is named as the Item tab's and carries its line; what was shown before goes.
-function pass(doc) {
-  const el = item(doc);
-  // Item is picked once the row has a view to show: the one before it, or its own once drawn.
-  if (el && insp.uuid && insp.pickedFor !== insp.ask) { insp.pickedFor = insp.ask; window.PluginDoor.sideTabs?.pick('item'); }
-  dress(el, doc);
-  if (el && holds(el)) closeStale(doc);
-  else if (!insp.uuid && insp.openedKeys.size) closeStale(doc);   // a view left over from a page since left, once the sidebar shows it
-  // The new view stands, drawn to the end: the tabs show it, and the picture of the row before goes in the same frame.
-  if (insp.held && insp.settled) { window.PluginDoor.sideTabs?.draw(); release(); }
-  mark(insp.uuid);
-}
-/* The view shown is named as the Item tab's and carries its line. Done by whoever first learns which view it is (this pass, or the
-   tabs as they ask for the view), so the line stands in the very frame the view is shown: named a pass later, the view stood a
-   frame or two without its "7 of 56" (seen frame by frame, 13 November 2026). */
-function dress(el, doc) {
-  for (const old of doc.querySelectorAll('#right-sidebar [data-st-item]:not(.st-item-hold)')) if (old !== el) old.removeAttribute('data-st-item');
-  const list = doc.querySelector('#right-sidebar .sidebar-item-list');
-  if (el && !el.hasAttribute('data-st-item')) el.setAttribute('data-st-item', '');
-  /* The line is written on the list, not into the view: Logseq hands a view's element on to the next node and draws its inside
-     afresh, which took a line put inside it away for a frame or two on every row change (13 November 2026). The stylesheet draws
-     the words above the view (view.js). While the view of the row before is still shown, the line stays as it is. */
-  if (el && holds(el)) insp.where = whereText(insp.uuid) || insp.where || '';
-  const say = el ? insp.where || list?.getAttribute('data-st-where') || '' : '';
-  if (list && (list.getAttribute('data-st-where') || '') !== say) { if (say) list.setAttribute('data-st-where', say); else list.removeAttribute('data-st-where'); }
-  /* With the sidebar as stacked sections (17 November 2026) the words stand at the end of the row's own section's head: they go to the
-     item as a custom property, which the stylesheet draws there and which outlives Logseq drawing the item's inside afresh. */
-  const words = say ? JSON.stringify(say) : '';
-  if (el && el.style.getPropertyValue('--st-where') !== words) { if (words) el.style.setProperty('--st-where', words); else el.style.removeProperty('--st-where'); }
-  for (const old of doc.querySelectorAll('#right-sidebar .sidebar-item[style*="--st-where"]:not(.st-item-hold)')) if (old !== el) old.style.removeProperty('--st-where');
-}
-
-// No row pressed: one faint line says what the panel is waiting for, or nothing when the lines above already fill it.
+// One faint line says what the panel is waiting for, or nothing when the lines above already fill it.
 function idle() {
-  sync();
-  const box = insp.node; if (!box || insp.uuid) return;
+  const box = insp.node; if (!box) return;
   const doc = box.ownerDocument, lines = !!insp.top?.querySelector('.st-lines-t');
   /* Between two tags' pages Logseq has no table for a moment and gives the panel a new holder: said from what stood there in that
      moment, the line went and came back within a quarter of a second (seen frame by frame, 12 November 2026). For the first 700 ms
@@ -179,115 +24,23 @@ function idle() {
   const table = !!doc.querySelector(ROW) || (settling && lines);
   if (settling && !idle.again) idle.again = doc.defaultView.setTimeout(() => { idle.again = 0; idle(); }, 720);
   if (settling && !lines && !table && !insp.plain) return;   // nothing is known of the page yet: no line said, so none is pushed down when the tag's lines come (a 260 px jump, the motion check, 12 November 2026)
-  // The line about pressing a row belongs to the row view (its own line, sidebar-tabs.js); with the row view off a press shows nothing here.
-  const say = table ? (active() ? 'Press a row in the table to see it here.' : '') : lines ? '' : 'Open a tag’s or a property’s page to see it here.';
+  const say = table || lines ? '' : 'Open a tag’s page to see it here.';
   if (box.textContent === say) return;
   box.innerHTML = say ? `<p class="st-insp-none lk-none">${say}</p>` : '';
 }
-/* A row is picked: Logseq is asked for its node's view, which becomes the Item tab and is picked; the view shown before goes once
-   the new one stands, so the sidebar is never left empty. No row (the page left): the view goes and the sidebar falls back to
-   Ontology. */
-async function pick(uuid) {
-  if (uuid === insp.uuid) return mark(uuid);
-  if (uuid && !active()) return;   // the sidebar shut, or on another tab: the press is Logseq's alone
-  const ask = ++insp.ask, doc = host();
-  if (uuid) hold(doc); else release();
-  insp.uuid = uuid; insp.kind = ''; insp.title = ''; insp.where = ''; insp.since = Date.now(); insp.settled = false;
-  sync(); mark(uuid);
-  if (!uuid) { closeStale(doc); window.PluginDoor.sideTabs?.draw(); return idle(); }
-  let block = null, page = null;
-  try {
-    block = await logseq.Editor.getBlock(uuid).catch(() => null);
-    if (!block || block.page == null) page = await logseq.Editor.getPage(uuid).catch(() => null);   // a page's row: Logseq hands it only as a page
-  } catch (error) { /* gone meanwhile */ }
-  if (ask !== insp.ask) return;
-  insp.kind = block && block.page != null ? 'block' : 'page';
-  insp.title = String(page?.title ?? page?.name ?? '');
-  // Asked for only when no item holds the node yet (one the person opened is shown as it is, and never closed by the plugin).
-  if (!listed(doc).some(holds)) {
-    insp.openedKeys.add(wanted());
-    try { await logseq.Editor.openInRightSidebar(uuid); } catch (error) { console.error('Structure: the row could not be opened in the sidebar', error); insp.openedKeys.delete(wanted()); }
-  }
-  if (ask !== insp.ask) return;
-  pass(doc);
-  // Should the view never come, the row is no longer waited for: whatever is there is shown, and the tabs are drawn once more.
-  doc.defaultView.setTimeout(() => { if (ask === insp.ask) { pass(host()); window.PluginDoor.sideTabs?.draw(); } }, 2050);
-}
-// The row Item shows carries a blue outline, so the eye finds it in the table; the arrows move it with the row.
-function mark(uuid) {
-  const doc = host();
-  for (const r of doc.querySelectorAll('[data-st-picked]')) if (r.getAttribute('blockid') !== uuid) r.removeAttribute('data-st-picked');
-  if (uuid) for (const r of doc.querySelectorAll(`${ROW}[blockid="${uuid}"]:not([data-st-picked])`)) r.setAttribute('data-st-picked', '');
-}
-/* While the Ontology or the Item tab is shown, a single press on a cell of the table only selects its row (the owner, 8 November 2026: "single
-   to select and double to edit"): Logseq's own press, which opens the cell's editor or follows a link, waits for a double press,
-   which hands it the press it would have had. The tick box, the heads and the keys stay Logseq's; with neither tab shown every
-   press is Logseq's as before. Cmd, Ctrl, Alt and Shift presses pass, so Shift still opens a link in the sidebar. The two buttons
-   Logseq shows at the end of a name under the pointer (open the page, open it in the sidebar) are Logseq's too: held back, the
-   open-page button only picked the row (the owner, 16 November 2026). */
-const TICK = '[data-table-row-select], [role="checkbox"], .table-block-title > .absolute button';
-/* A double press on a cell edits it in the row's own section in the sidebar (the owner, 18 November 2026: "clicking on cell in table
-   view just flashes and cannot edit"). With the same bullet open in the sidebar, Logseq 2.0.2 itself puts a cell's editor in the
-   sidebar's copy and closes it at once, the plugin off too, so in the row view the cell cannot be written in the table: the Name
-   column opens the bullet's words, any other column that property's value, there where the row stands. */
-const press2 = { cell: '', at: 0 };
-function cellOf(e) {
-  if (!active() || e.button !== 0 || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return null;
-  const cell = e.target?.closest?.('.ls-table-cell');
-  return cell && cell.closest(ROW) && !e.target.closest(TICK) ? cell : null;
-}
-const DOUBLE_MS = 500;   // as long as the Mac's double press waits, at its default
-// A cell known by its row's node and its column: Logseq draws the row again when it is picked, so the element itself changes.
-const cellKey = cell => `${cell.closest(ROW)?.getAttribute('blockid') || ''}|${[...cell.closest(ROW).querySelectorAll('.ls-table-cell')].indexOf(cell)}`;
-// Logseq follows a link as the button goes down, so the press is held from there on, not only at its click.
-function holdPress(e) { if (cellOf(e)) { e.preventDefault(); e.stopImmediatePropagation(); } }
-function press(e) {
-  const cell = cellOf(e); if (!cell) return;
-  e.preventDefault(); e.stopImmediatePropagation();
-  const key = cellKey(cell), again = key === press2.cell && e.timeStamp - press2.at < DOUBLE_MS;
-  press2.cell = again ? '' : key; press2.at = e.timeStamp;
-  if (!again) { cell.focus({ preventScroll: true }); pick(cell.closest(ROW).getAttribute('blockid') || ''); return; }
-  editInRow(cell);
-}
-async function editInRow(cell) {
-  const doc = host(), row = cell.closest(ROW), uuid = row?.getAttribute('blockid');
-  if (!uuid) return;
-  const at = [...row.querySelectorAll('.ls-table-cell')].indexOf(cell);
-  const name = (doc.querySelectorAll('#main-content-container .ls-table-header .ls-table-header-cell')[at]?.textContent || '').trim();
-  const title = !!cell.querySelector('.table-block-title');
-  // The row's section, once it holds this row (a double press can come before the first press's view is drawn).
-  const section = await window.PluginDoor.screen.waitFor(() => { const it = doc.querySelector('#right-sidebar .sidebar-item[data-st-item]:not(.st-item-hold)'); return it && holds(it) && keyOf(it) === wanted() ? it : null; }, 1500);
-  const line = !title && section ? [...section.querySelectorAll('.bottom-property-pill, .property-pair')].find(l => l.querySelector('.property-k')?.textContent.trim() === name) : null;
-  // What Logseq opens on a press: the value's own trigger, else what takes the keyboard in it (asked in turn: one selector list gives the outer box first).
-  const value = line?.querySelector('.property-value-inner .jtrigger') || line?.querySelector('.property-value-inner [tabindex="0"]') || line?.querySelector('.property-value-inner');
-  /* After the double press has ended: Logseq opens a value's editor on a click, scripted too, but a list opened while the press is
-     still under way is closed again by the press's own end, as a press outside it. */
-  await new Promise(resolve => doc.defaultView.setTimeout(resolve, 120));
-  if (value?.isConnected) { value.scrollIntoView({ block: 'nearest' }); doc.activeElement?.blur?.(); window.PluginDoor.screen.click(value); return; }
-  try { await logseq.Editor.editBlock(uuid); } catch (error) { console.error('Ontology: the row could not be opened for writing', error); }
-}
-// A row of Logseq's table is pressed, or reached with the arrows: its node is the one shown. Only rows in the main view count.
-function onRow(e) { const row = e.target?.closest?.(ROW); if (row) pick(row.getAttribute('blockid') || ''); }
 function start() {
-  const doc = host();
-  const HELD = ['pointerdown', 'mousedown', 'pointerup', 'mouseup'];
-  const { listen } = S.base;
-  const offKeys = [listen(doc, HELD, holdPress, true), listen(doc, 'click', press, true), listen(doc, ['focusin', 'click'], onRow, true)];
-  const offRoute = S.base.onStop(logseq.App.onRouteChanged?.(() => { insp.pageAt = Date.now(); insp.plain = false; pick(''); }));
-  // The row view turned off: the row's view goes, as when the page is left.
-  // Its line about pressing a row is said or taken back with it: turned off with no row pressed, the line stayed under Ontology (22 November 2026).
-  const offRows = window.PluginDoor.sideTabs?.onRows?.(on => { if (!on) pick(''); idle(); });
-  insp.stops = [...offKeys, () => { insp.uuid = ''; release(); closeStale(); mark(''); }, offRoute, offRows, window.PluginDoor.watch(pass)];
+  const offRoute = S.base.onStop(logseq.App.onRouteChanged?.(() => { insp.pageAt = Date.now(); insp.plain = false; }));
+  insp.stops = [offRoute];
 }
 function stop() { for (const s of insp.stops) { try { s?.(); } catch (error) { /* already gone */ } } insp.stops = []; if (insp.holder) insp.holder.innerHTML = ''; insp.watch?.disconnect(); }
 
-// Logseq gives the panel a holder: the line that says what it waits for, and the place of the tag's or property's lines.
+// Logseq gives the panel a holder: the line that says what it waits for, and the place of the tag's lines.
 function mounted(holder) {
   const doc = holder.ownerDocument;
   S.view.ensureStyle(doc);
   holder.innerHTML = '<div class="st st-tag st-insp-node"></div><div class="st-insp-top"></div>';
   insp.holder = holder; insp.node = holder.firstChild; insp.top = holder.lastChild; insp.pageAt = Date.now();
-  // Logseq's sidebar hidden or the panel folded leaves the holder in the page with no size: the lines go back above the table.
+  // Logseq's sidebar hidden or the panel folded leaves the holder in the page with no size: the lines are taken out, and put back when it shows.
   let was = shown();
   insp.watch?.disconnect();
   insp.watch = doc.defaultView.ResizeObserver && new doc.defaultView.ResizeObserver(() => { if (shown() !== was) { was = shown(); S.inspector.changed?.(); } });
@@ -297,11 +50,11 @@ function mounted(holder) {
 }
 function gone(holder) { if (insp.holder !== holder) return; insp.watch?.disconnect(); insp.holder = insp.top = insp.node = null; S.inspector.changed?.(); }
 
-/* The page is read: no tag's and no property's (plain), so the tab's line need not wait, and the Ontology tab is not shown. Between two
-   pages the last answer stands until the next is read, so walking from tag to tag never takes the tab away for a moment. */
+/* The page is read: no tag's (plain), so the section's line need not wait, and the Ontology section is not shown. Between two
+   pages the last answer stands until the next is read, so walking from tag to tag never takes the section away for a moment. */
 function pageKnown(plain) {
   const was = insp.plain; insp.plain = !!plain; if (plain && !was) idle();
   if (insp.applies !== !plain) { insp.applies = !plain; window.PluginDoor.sideTabs?.draw(); }
 }
-S.inspector = { start, stop, mounted, gone, top, shown, idle, pageKnown, applies: () => !!insp.applies, row: () => insp.uuid, item: (doc = host()) => { const el = item(doc); if (el && !el.hasAttribute('data-st-item')) dress(el, doc); return el; }, owns, KEY: 'structure-inspector', model: null, changed: null };
+S.inspector = { start, stop, mounted, gone, top, shown, idle, pageKnown, applies: () => !!insp.applies, KEY: 'structure-inspector', model: null, changed: null };
 })();

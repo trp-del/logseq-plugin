@@ -561,8 +561,6 @@ Door.TOOLBAR_ICONS = {
   structure: 'M3 12h2c3 0 3 -6 6 -6h1M3 12h2c3 0 3 6 6 6h1M12 6c2 0 2 -3 4 -3h4M12 6c2 0 2 3 4 3h4M12 18c2 0 2 -3 4 -3h4M12 18c2 0 2 3 4 3h4',
   inspector: 'M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0M12 9h.01M11 12h1v4h1',
   todo: 'M5 12l5 5l10 -10',
-  // Row view, the pressed table row in the sidebar: Tabler's table (the sidebar's own icon, a panel at the right, is Logseq's).
-  rows: 'M3 5a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2zM3 10h18M10 3v18',
   // The split screen's two, in the window's top right corner while two pages stand side by side (14 November 2026): Tabler's
   // arrows-left-right (swap the pages) and x (close the right page).
   swap: 'M21 17l-18 0M6 10l-3 -3l3 -3M3 7l18 0M18 20l3 -3l-3 -3',
@@ -599,8 +597,7 @@ Door.addMenuItem = item => { Door.menuItems = Door.menuItems.filter(x => x.key !
    ones once, so the watcher never answers itself. A pass that throws five times is retired for the session. The observer stands
    while any pass is registered and goes with the last. */
 const screen = { early: new Set(), passes: new Set(), witnesses: new Set(), observer: null, frame: 0, doc: null, win: null, failures: new Map() };
-// data-st-item: the sidebar section Ontology's row view has made the row pressed; Look then draws its tag line and icons there.
-const SCREEN_ATTRS = ['data-uuid', 'blockid', 'data-collapsed', 'data-page-tags', 'data-ref', 'class', 'data-hl-type', 'data-st-item'];
+const SCREEN_ATTRS = ['data-uuid', 'blockid', 'data-collapsed', 'data-page-tags', 'data-ref', 'class', 'data-hl-type'];
 function passFailed(fn, set, error) {
   const n = (screen.failures.get(fn) || 0) + 1;
   screen.failures.set(fn, n);
@@ -862,7 +859,7 @@ Door.screen = {
    ident without its leading colon; pick(node, name) an attribute of a pulled map whatever its key's spelling (:block/title,
    block/title, title); idOf(value) a node's number, from the number or the map; listOf(value) always a list; query(q) the rows
    of a query, [] when it gives none; isEntityId(id); idsIn and uuidsIn write a list into a query, letting in only whole numbers
-   and well-formed ids; HELPER, where Predictive's helper for Apple's tools answers on this Mac. The id pattern is Door.UUID. */
+   and well-formed ids. The id pattern is Door.UUID. */
 Door.bare = value => String(value ?? '').replace(/^:/, '');
 /* The one place a machine name turns into words (18 November 2026, the owner's list: a Todo row headed by
    ":logseq.property/empty-placeholder"). Logseq writes its own value for a property that is there but empty,
@@ -889,21 +886,6 @@ Door.query = async query => { const rows = await logseq.DB.datascriptQuery(query
 Door.isEntityId = id => Number.isSafeInteger(id) && id > 0;
 Door.idsIn = (variable, ids) => `[(identity [${[...new Set(ids)].filter(Door.isEntityId).join(' ')}]) [${variable} ...]]`;
 Door.uuidsIn = (variable, uuids) => `[(identity [${[...new Set(uuids)].map(String).filter(u => UUID.test(u)).map(u => `#uuid "${u}"`).join(' ')}]) [${variable} ...]]`;
-Door.HELPER = 'http://127.0.0.1:47615';
-/* The one way to ask the helper (12 November 2026, the library review: six files each sent to it by lines of their own).
-     can()                          whether this window can ask at all (a test's stand-in may have no fetch);
-     status(wait)                   what the helper says of itself ({ ready, meaning, names, cloud, version, reason }); it throws
-                                    when the helper does not answer within wait ms (0.8 s unless given);
-     post(path, body, { wait, signal })   an answer to a question ("/fill", "/meaning", "/names", "/reads-back"), body an object
-                                    or words already made; it throws on no answer within wait ms (4 s unless given) or when
-                                    signal stops it. What an answer means, and how long each part waits, stays the part's. */
-const helperSignal = (wait, signal) => signal ? AbortSignal.any([signal, AbortSignal.timeout(wait)]) : AbortSignal.timeout(wait);
-Door.helper = {
-  can: () => typeof fetch === 'function' && typeof AbortSignal?.timeout === 'function',
-  status: (wait = 800) => fetch(Door.HELPER + '/status', { signal: AbortSignal.timeout(wait) }).then(reply => reply.json()),
-  post: (path, body, { wait = 4000, signal = null } = {}) => fetch(Door.HELPER + path, { method: 'POST', headers: { 'content-type': 'application/json' },
-    body: typeof body === 'string' ? body : JSON.stringify(body), signal: helperSignal(wait, signal) }).then(reply => reply.json()),
-};
 
 /* Words onto the clipboard, once for every module (12 November 2026; DB Export had its own and Predictive's report window copied
    nothing): text, and html beside it when given. Logseq's own window first, since the plugin's frame never has the keyboard and
@@ -1139,7 +1121,7 @@ Door.regrow = (el, from, ms = MOTION_MS) => {
      lanes  [{ name, count, on, off }] or null      asked, pick: [fromDay, toDay] or null      at: a dot's index or null */
 /* Lines of choices over a long list (the thirteen proposals, 2: "Find's lines of choices on any long list"; the owner's go of
    19 November 2026): each a property's small name over its values, each value with its count, a press narrowing the list to the
-   nodes holding it. Find draws them over its rows, and in its panel; Relations over a list of nodes (0.5: "the small should be build
+   nodes holding it. Find draws them over its rows, and in its panel (0.5: "the small should be build
    from same library", so Find's own drawing of these lines folded into this one).
      lines: [{ name, icon (html), prop = true (the name in a property's look), tags (its values are tags, in the tag's face), values, tree }]
      a value: { label, count (none: no count), lit, on (in force: the list under the line is narrowed to it, so it takes the look of
@@ -1672,7 +1654,7 @@ const SYMBOLS = {
     merge: 'arrow.trianglehead.merge', split: 'arrow.trianglehead.branch', bin: 'trash', rename: 'pencil', copy: 'square.on.square', eq: 'equal',
     sidel: 'sidebar.left', side: 'sidebar.right', save: 'square.and.arrow.down', tag: 'tag', list: 'list.bullet',
     history: 'clock.arrow.trianglehead.counterclockwise.rotate.90', calendar: 'calendar', undo: 'arrow.uturn.backward', reload: 'arrow.clockwise', enter: 'return' },
-  toolbar: { todo: 'checkmark', inspector: 'info.circle', rows: 'tablecells', swap: 'arrow.left.arrow.right', close: 'xmark' },
+  toolbar: { todo: 'checkmark', inspector: 'info.circle', swap: 'arrow.left.arrow.right', close: 'xmark' },
   /* A property's kind, before its name: Look's (Door.kindIconHtml) and Logseq's own where it draws one (a number, a tick box, a
      day, Alias's page: .property-m > .ls-icon-name). The number is the digits, not #, which means a tag. These stand 15 px small
      and half faint, where a symbol's fine line all but goes (found by hand, 23 November 2026: "smaller and much fainter"), so
@@ -1767,7 +1749,7 @@ const symbolCss = pictures => {
   const page = ref(SYMBOLS.page);
   return `:root { ${[...used].map(sf => `--lk-sf-${sf.replace(/[^a-z0-9]+/g, '-')}: url("${pictures[sf]}");`).join(' ')}${page ? ` --lk-sf-page: ${page}; --lk-sf-page-size: 76%;` : ''} }\n${rules.join('\n')}`;
 };
-/* The line a person runs in Terminal for a script of the plugin's own (Predictive's helper, the Mac's symbols): the plugin's own
+/* The line a person runs in Terminal for a script of the plugin's own (the Mac's symbols): the plugin's own
    folder is Logseq's baseInfo.url when it is loaded from a folder (the frame itself is served from elsewhere), else where Logseq
    keeps a plugin it installed. Said with ~ for the home folder. */
 Door.terminalLine = file => {
@@ -1971,7 +1953,7 @@ ${SF_MONO(300, 'normal', 'Light')} ${SF_MONO(300, 'italic', 'LightItalic')} ${SF
 .lk-say > input, .lk-say > .lk-say-mirror { padding-top: 14px !important; }   /* room above the letters for the notes, always, so nothing moves when one comes */
 .lk-say[data-said] > input { color: transparent !important; caret-color: var(--lk-text, currentColor); }
 .lk-say:not([data-said]) > .lk-say-mirror { visibility: hidden; }
-/* Lines of choices over a list (Door.choicesHtml; Find's and Relations'): each line its small name above its values, as a find line's
+/* Lines of choices over a list (Door.choicesHtml; Find's): each line its small name above its values, as a find line's
    notes stand above its words; the values the tab picker (lk-views) with no underline and no padding, so the whole tab space is the
    gap; the count after the word, always, quiet (the owner, 13 November 2026: "keep it same tab picker sans underline"). */
 .lk-choices { padding-bottom: 14px; }

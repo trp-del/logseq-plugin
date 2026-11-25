@@ -85,19 +85,6 @@ async function pullBlock(uuid) {
   const [[b] = []] = await dsQuery(`[:find (pull ?b ${BLOCK_PULL}) :where [?b :block/uuid #uuid "${uuid}"]]`);
   return b || null;
 }
-// The same, by the block's id (the engine's entries know ids, not uuids): for measuring Apple's model on earlier notes.
-async function pullBlockById(id) {
-  if (!Number.isInteger(Number(id))) return null;
-  const [[b] = []] = await dsQuery(`[:find (pull ?b ${BLOCK_PULL}) :where [(ground ${Number(id)}) ?b] [?b :block/uuid _]]`);
-  return b || null;
-}
-/* What a value holds, for the entities a property points at: a number's value, a journal page's day. id -> { number, day }. */
-async function valueEntities(ids) {
-  const list = ids.map(Number).filter(Number.isInteger);
-  if (!list.length) return new Map();
-  const rows = await dsQuery(`[:find (pull ?v [:db/id :block/journal-day :logseq.property/value]) :where [(ground [${list.join(' ')}]) [?v ...]] [?v :block/uuid _]]`);
-  return new Map(rows.map(([v]) => [idOf(v), { number: pick(v, 'logseq.property/value'), day: Number(pick(v, 'block/journal-day') || 0) }]));
-}
 function valuesMap(node, schema) {
   const values = new Map();
   for (const prop of schema.props) { const ids = valuesOf(node, prop.ident); if (ids.length) values.set(prop.ident, ids); }
@@ -209,8 +196,6 @@ async function learnNodes(ctx, ids) {
     // Tagged only with tags that are not yours: not learned from. Plain (no tag at all): learned as a plain line.
     learnEntry(ctx, id, raw.tags.length || !anyTags ? raw : null);
   }
-  // The matcher learns the same nodes, a moment later (logseq/meaning.js).
-  Flow.meaningAsk?.learnIds?.(ctx, list);
 }
 
 // The title of a node's value under a property (a text value is a small block of its own).
@@ -237,22 +222,9 @@ async function forgetGone(ctx) {
   }
   const gone = ids.filter(id => !here.has(id));
   for (const id of gone) learnEntry(ctx, id, null);
-  if (gone.length) Flow.meaningAsk?.learnIds?.(ctx, gone);
 }
 const forget = () => window.PluginDoor.dates.forget();   // each graph has its own format
 const journalPageFor = day => window.PluginDoor.dates.pageFor(day, dsQuery);
-
-// A page made for a name (core/people.js), with its tag: { id, uuid, title }. And taken back by Undo, only while nothing has been
-// written on it (a page the person has since filled is theirs, and stays).
-async function makePage(title, tagUuid) {
-  const page = await window.PluginDoor.write.createPage(title, {}, { redirect: false, createFirstBlock: false });
-  if (!page?.uuid) throw new Error('the page could not be made');
-  if (tagUuid) await window.PluginDoor.write.addTag(page.uuid, tagUuid);
-  return { id: page.id, uuid: String(page.uuid), title: String(page.title ?? page.originalName ?? title) };
-}
-// The door's one check and one delete (10 November 2026): no words on it, nothing pointing at it, no value of its own; and it goes
-// by its id, never by a name another page could share.
-const dropPage = page => window.PluginDoor.write.dropMade(page);
 
 // THE writes: Logseq's own editor calls, here only.
 const setValue = (uuid, ident, value, opts) => window.PluginDoor.write.setValue(uuid, ident, value, opts);
@@ -261,6 +233,6 @@ const addTag = (uuid, tagUuid) => window.PluginDoor.write.addTag(uuid, tagUuid);
 const removeTag = (uuid, tagUuid) => window.PluginDoor.write.removeTag(uuid, tagUuid);
 const currentGraph = () => Promise.resolve(logseq.App.getCurrentGraph?.()).catch(() => null);
 
-Flow.db = { forget, forgetGone, dsQuery, bare, pick, idOf, valuesOf, loadSchema, loadPages, loadPdfs, pagesNamed, pullBlock, pullBlockById, valueEntities, bulletOf, readContext, learnNodes,
-  currentIds, valueTitle, journalPageFor, makePage, dropPage, setValue, unsetValue, addTag, removeTag, currentGraph };
+Flow.db = { forget, forgetGone, dsQuery, bare, pick, idOf, valuesOf, loadSchema, loadPages, loadPdfs, pagesNamed, pullBlock, bulletOf, readContext, learnNodes,
+  currentIds, valueTitle, journalPageFor, setValue, unsetValue, addTag, removeTag, currentGraph };
 })();

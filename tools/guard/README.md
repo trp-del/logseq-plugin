@@ -26,7 +26,7 @@ Each of these happened more than once before the guard:
    returns `{ ok, said }`) and see it fail on the plugin as it is. The case stays for good: every later change must keep it passing.
 2. **Work in a folder that holds only your change**: a clean clone of origin with your hunks, never the shared checkout.
 3. **Say what you mean to change, then run the guard:**
-   `node tools/guard/guard.js run --change <your folder> --expect "tag with a table,row view, a row pressed"`
+   `node tools/guard/guard.js run --change <your folder> --expect "tag with a table,person, dark"`
    (`guard.js screens` lists the screens). It starts four Logseqs of its own at once (ports 9340 to 9343; `GUARD_SHARDS` sets
    the number), each with its share of the screens and cases on your folder, compares them with the pictures and case results
    of origin/main (the screens kept from one walk of the whole tour, each case kept on its own, so a new case is run alone on
@@ -46,6 +46,6 @@ If the guard itself is wrong (a screen will not set up, a false difference), fix
 
 ## What it does not see
 
-Typing into the graph (writes are made and read back by `tools/write-check.js`, which the release check runs in the guard's Logseq), Apple's tools (off in its Logseq), motion
+Typing into the graph (writes are made and read back by `tools/write-check.js`, which the release check runs in the guard's Logseq), motion
 between the pictures (it sees the screen at rest and counts restless redraws), and screens not in the tour: when a change touches
 one, add it to `tour.js` in the same change.

@@ -1,5 +1,5 @@
 /* node test/core.test.js
-   The pure core on the mockup's made-up graph (test/sample.js): the counts, the five rules, the tray's sentences, the
+   The pure core on the mockup's made-up graph (test/sample.js): the counts, the tray's sentences, the
    changes shown in the model before Apply, and the steps the writer runs with what Undo needs. */
 const assert = require('node:assert/strict');
 const S = require('./run-core.js');
@@ -21,35 +21,19 @@ deq(titles(M, Mo.kids(M, id('Medical event'))), ['Blood draw', 'Consultation', '
 assert.equal(Mo.filled(M, id('Consultation'), pid('Provider')), 87); assert.equal(Mo.filled(M, id('Medical event'), pid('Date')), 226, 'filled counts the nodes under the tag, not where the property is declared');
 deq(Mo.inherited(M, id('Consultation')).map(x => M.props.get(x.prop).title), ['Notes', 'Status']);
 deq(Mo.pointedAt(M, id('Consultation')).map(x => `${M.tags.get(x.tag).title}·${M.props.get(x.prop).title} ${x.filled}`), ['Report·Source 41', 'Question·Asked at 15', 'Decision·After 9', 'Plan·Decided at 6']);
-deq(Mo.rangeGuess(M, pid('Maker')).map(([t, n]) => [M.tags.get(t).title, n]), [['Organisation', 4]]);
 const empty = Mo.build({ tags: [], props: [] });
 assert.equal(Mo.tops(empty).length, 0); assert.equal(empty.tags.size, 0, 'a graph with no tags has nothing at the top: no row is made up');
 console.log('  ok  the model: counts, paths, the top, what a tag has and what points at it');
 
-// The five rules.
-const I = S.rules.issues(M);
-const by = text => I.find(i => i.text.startsWith(text));
-assert.equal(by('Side effect sits under').fix, 'keep only under Symptom');
-assert.equal(by('Source has no nodes').fix, 'remove');
-assert.equal(by('Visit reads like Consultation').fix, 'merge into Consultation');
-assert.equal(by('Maker on Medication points at no tag').fix, 'point at Organisation');
-assert.equal(by('Date is on Blood draw').fix, 'move it up to Medical event'); assert.equal(by('Date is on Blood draw').change.from.length, 6);
-assert.equal(by('With on Consultation, 7 of 90').fix, 'drop');
-assert.equal(by('Results and Result name the same thing').fix, 'merge into Result');
-const named = title => Mo.build({ ...raw, tags: raw.tags.map(t => t.title === 'Mood' ? { ...t, title } : t) });
-const soft = S.rules.issues(named('Diabetes')).find(i => i.text.startsWith('Diabetes'));
-assert.equal(soft, undefined, 'a name that only reads plural is no suggestion');
-assert.equal(S.rules.singularOf("Crohn's"), null, 'a possessive is no plural');
-assert.equal(S.rules.singularOf('Consultations'), 'Consultation'); assert.equal(S.rules.singularOf('Studies'), 'Study'); assert.equal(S.rules.singularOf('Diagnosis'), null); assert.equal(S.rules.singularOf('Status'), null); assert.equal(S.rules.singularOf('Process'), null);
-assert.equal(S.rules.issuesOn(I, id('Consultation')).length, 1, 'With, on Consultation'); assert.ok(S.rules.issuesUnder(M, I, id('Occurrence')).length >= 3);
+// The top is open: a tag taken out from under its parent stands at the top among the others, by name.
 const loose = Mo.build({ ...raw, tags: raw.tags.map(t => t.title === 'Task' ? { ...t, parents: [] } : t) });
-const keys = I.map(i => i.key); assert.equal(new Set(keys).size, keys.length, 'each suggestion has its own key, so dismissing one leaves the rest'); deq(S.rules.issues(M).map(i => i.key), keys, 'the same suggestion has the same key on every read, so a dismissal holds');
-assert.ok(!S.rules.issues(loose).some(i => i.text.startsWith('Task sits under none')));   // a tag at the top is as good as any, since the top is open
 deq(loose.loose.map(i => loose.tags.get(i).title), ['Entity', 'Information', 'Occurrence', 'Phenomenon', 'Task'], 'Task stands at the top among the others, by name');
-// A tag named like one of the old kinds, or one slip from it, is a tag like any other: nothing asks to make it a kind.
-const slipped = { ...raw, tags: raw.tags.map(t => t.title === 'Occurrence' ? { ...t, title: 'Occurence', parents: [id('Information')] } : t) };
-assert.ok(!S.rules.issues(Mo.build(slipped)).some(i => /kind/.test(i.text) || /kind/.test(i.fix)), 'no suggestion speaks of a kind');
-console.log('  ok  the five rules, each with its fix');
+assert.equal(Mo.list(['A']), 'A'); assert.equal(Mo.list(['A', 'B']), 'A and B'); assert.equal(Mo.list(['A', 'B', 'C']), 'A, B and C');
+console.log('  ok  the top is open; names listed as a sentence lists them');
+
+// A property moved up from the child tags that each declare it to their parent (Move from … to another tag…, one tag at a time on screen).
+const dateUp = () => ({ kind: 'moveProp', prop: pid('Date'), from: Mo.kids(Mo.build(raw), id('Medical event')).filter(k => Mo.build(raw).tags.get(k).props.includes(pid('Date'))), to: id('Medical event') });
+assert.equal(dateUp().from.length, 6);
 
 // The tray: sentences, the model showing the change, lines taken out.
 const tray = S.changes.makeTray(); tray.setBase(raw); M = tray.model;
@@ -58,20 +42,19 @@ deq(tray.lines(), [{ text: 'Move Scan from Medical event to Conversation', nodes
 assert.equal(Mo.parentOf(M, id('Scan')), id('Conversation')); assert.equal(Mo.count(M, id('Medical event')), 204);
 tray.stage({ kind: 'merge', from: id('Visit'), into: id('Consultation') });
 tray.stage({ kind: 'merge', from: id('Results'), into: id('Result') });
-tray.stage(by('Date is on Blood draw').change);
+tray.stage(dateUp());
 deq(tray.lines().slice(1).map(l => l.text), ['Merge Visit into Consultation, Visit removed', 'Merge Results into Result, Results removed', 'Move Date from Blood draw, Consultation, Procedure, Scan and Stay to Medical event'], 'Visit, merged away a line earlier, is not named');
 assert.equal(tray.lines()[3].nodes, 226, 'Visit\'s nodes, now Consultation\'s, still count');
 assert.ok(!M.tags.has(id('Visit')) && Mo.count(M, id('Consultation')) === 121 && M.tags.get(id('Medical event')).props.includes(pid('Date')) && !M.tags.get(id('Stay')).props.includes(pid('Date')));
 tray.stage({ kind: 'rename', tag: id('Scan'), name: 'Imaging' }); assert.equal(M.tags.get(id('Scan')).title, 'Imaging');
 tray.stage({ kind: 'dropProp', prop: pid('With'), tag: id('Consultation') }); assert.equal(tray.lines()[5].text, 'Remove With from Consultation, 7 values kept on the nodes');
 const made = tray.stage({ kind: 'make', name: 'Follow-up', under: id('Consultation') }); assert.ok(made.made < 0 && M.tags.get(made.made).title === 'Follow-up' && Mo.parentOf(M, made.made) === id('Consultation'));
-tray.stage({ kind: 'keepUnder', tag: id('Side effect'), parent: id('Symptom') }); deq(M.tags.get(id('Side effect')).parents, [id('Symptom')]);
 tray.stage({ kind: 'setRange', prop: pid('Maker'), to: [id('Organisation')] }); deq(M.props.get(pid('Maker')).range, [id('Organisation')]); assert.equal(tray.lines().at(-1).text, 'Set Maker to point at Organisation');
 tray.stage({ kind: 'setRange', prop: pid('With'), to: [id('Person'), id('Organisation')] }); assert.equal(tray.lines().at(-1).text, 'Set With to point at Person and Organisation');
 tray.stage({ kind: 'setRange', prop: pid('Provider'), to: [] }); assert.equal(tray.lines().at(-1).text, 'Set Provider to point at any node');
 tray.stage({ kind: 'addProp', prop: pid('Notes'), under: id('Conversation') }); assert.ok(M.tags.get(id('Call')).props.includes(pid('Notes')));
-assert.equal(tray.lines()[11].text, 'Add Notes to every tag under Conversation');
-assert.equal(tray.nodes(), 22 + 31 + 3 + 226 + 22 + 7 + 0 + 30 + 4 + 0 + (87 + 28) + (120 + 22), 'With was dropped a line earlier; Provider counts Visit\'s merged nodes; Scan, moved under Conversation first, counts under it last');
+assert.equal(tray.lines()[10].text, 'Add Notes to every tag under Conversation');
+assert.equal(tray.nodes(), 22 + 31 + 3 + 226 + 22 + 7 + 0 + 4 + 0 + (87 + 28) + (120 + 22), 'With was dropped a line earlier; Provider counts Visit\'s merged nodes; Scan, moved under Conversation first, counts under it last');
 tray.drop(0); assert.equal(Mo.parentOf(tray.model, id('Scan')), id('Medical event'), 'a line taken out leaves the others'); assert.equal(tray.model.tags.get(id('Scan')).title, 'Imaging');
 tray.discard(); assert.equal(tray.changes.length, 0); assert.ok(tray.model.tags.has(id('Visit')));
 console.log('  ok  the tray: sentences with their counts, the model showing the result, a line taken out');
@@ -80,7 +63,7 @@ console.log('  ok  the tray: sentences with their counts, the model showing the 
 tray.stage({ kind: 'move', tag: id('Scan'), to: id('Conversation') });
 tray.stage({ kind: 'merge', from: id('Visit'), into: id('Consultation') });
 tray.stage({ kind: 'remove', tag: id('Source') });
-tray.stage(by('Date is on Blood draw').change);
+tray.stage(dateUp());
 tray.stage({ kind: 'make', name: 'Follow-up', under: id('Consultation') });
 tray.stage({ kind: 'move', tag: id('Stay'), to: tray.changes.find(c => c.kind === 'make').made });
 let plan = tray.plan();
@@ -95,9 +78,10 @@ deq(pull.map(s => `${s.op} ${s.tag.title}`), ['addClassProp Medical event', 'rem
 const mk = plan.find(s => s.op === 'makeTag'); assert.equal(mk.tag.title, 'Follow-up'); assert.equal(mk.parent.title, 'Consultation');
 const last = plan.at(-2); assert.equal(last.op, 'addExtends'); assert.equal(last.tag.title, 'Stay'); assert.strictEqual(last.parent, mk.tag, 'the move under the new tag shares its handle, so the uuid learned at Apply reaches it');
 tray.discard();
-tray.stage({ kind: 'split', tag: id('Consultation'), name: 'Follow-up', prop: pid('With'), nodes: raw.nodes[id('Consultation')].slice(0, 2), where: 'With is Family' });
-assert.equal(tray.lines()[0].text, 'Make Follow-up under Consultation with 2 nodes where With is Family');
-plan = tray.plan(); deq(plan.map(s => s.op), ['makeTag', 'addClassProp', 'addTag', 'removeTag', 'addTag', 'removeTag']);
+// A tag's ticked nodes into a new child tag (the nodes list).
+tray.stage({ kind: 'split', tag: id('Consultation'), name: 'Follow-up', nodes: raw.nodes[id('Consultation')].slice(0, 2) });
+assert.equal(tray.lines()[0].text, 'Make Follow-up under Consultation with 2 nodes');
+plan = tray.plan(); deq(plan.map(s => s.op), ['makeTag', 'addTag', 'removeTag', 'addTag', 'removeTag']);
 tray.discard();
 tray.stage({ kind: 'remove', tag: id('Source') }); plan = tray.plan(); deq(plan.map(s => s.op), ['deleteTag']); assert.equal(plan[0].restore.title, 'Source');
 tray.discard();
@@ -236,7 +220,7 @@ console.log('  ok  properties merged: values converted, what stays, what clashes
 // The groups of a property's list of values: the narrower tag before the wider, siblings by name; a tag reached twice stands once.
 { const g = Mo.build({ tags: [{ id: 1, title: 'Person', parents: [] }, { id: 2, title: 'Doctor', parents: [1] }, { id: 3, title: 'Nurse', parents: [1] }, { id: 4, title: 'Surgeon', parents: [2] }, { id: 5, title: 'Organization', parents: [] }], props: [] });
   deq(Mo.rangeOrder(g, [1]), [4, 2, 3, 1]); deq(Mo.rangeOrder(g, [1, 5, 2]), [4, 2, 5, 3, 1]); deq(Mo.rangeOrder(g, [99]), []); }
-// Fixing messy properties (16 November 2026): words turned into dates, and a property split in two by what its values are.
+// Fixing messy properties (16 November 2026): words turned into dates.
 { const base = { tags: [{ id: 1, uuid: 't1', title: 'Consultation', parents: [], props: [10, 11] }, { id: 2, uuid: 't2', title: 'Hospital', parents: [] }, { id: 3, uuid: 't3', title: 'Doctor', parents: [] }],
     props: [{ id: 10, uuid: 'p10', ident: 'user.property/date-seen', title: 'Date seen', type: 'default' }, { id: 11, uuid: 'p11', ident: 'user.property/provider', title: 'Provider', type: 'node', many: true, range: [2, 3] }],
     holders: { 'user.property/date-seen': [100, 101, 102], 'user.property/provider': [100, 101] } };
@@ -252,13 +236,7 @@ console.log('  ok  properties merged: values converted, what stays, what clashes
   const all = S.changes.makeTray(); all.setBase(plain(base));
   all.stage({ kind: 'retype', prop: 10, type: 'date', gave: [100, 101, 102], left: [], moved: 3, kept: 0 });
   deq(all.plan().map(s => s.op), ['makeProp', 'addClassProp', 'moveValues', 'rename', 'rename', 'removeClassProp'], 'nothing left behind: the old one leaves its tags');
-  const sp = S.changes.makeTray(); sp.setBase(plain(base));
-  sp.stage({ kind: 'splitProp', prop: 11, only: 2, name: 'Place', gave: [100, 101], emptied: [101] });
-  assert.equal(sp.lines()[0].text, 'Split Provider: Hospital values move to a new property, Place');
-  const sPlan = sp.plan(); deq(sPlan.map(s => s.op), ['makeProp', 'addClassProp', 'setRange', 'moveValues']);
-  assert.equal(sPlan[0].many, true, 'the new one takes several values, as the old one does'); assert.equal(sPlan[3].only, 2, 'only the Hospital values move');
-  deq([...sp.model.holders.get('user.property/provider')], [100], 'a node whose every value moved no longer holds Provider');
-  console.log('  ok  words turned into dates, a property split in two: the line, the model, the steps'); }
+  console.log('  ok  words turned into dates: the line, the model, the steps'); }
 // One tag's values moved to another property (19 November 2026, the owner: Bills' Charged by into Services provided by, Bill payment left alone).
 { const base = { tags: [{ id: 1, uuid: 't1', title: 'Bills', parents: [], props: [10] }, { id: 2, uuid: 't2', title: 'Bill payment', parents: [], props: [10] }, { id: 3, uuid: 't3', title: 'Utility bill', parents: [1] }, { id: 4, uuid: 't4', title: 'Organization', parents: [] }],
     props: [{ id: 10, uuid: 'p10', ident: 'user.property/charged-by', title: 'Charged by', type: 'node', range: [4] }, { id: 11, uuid: 'p11', ident: 'user.property/services', title: 'Services provided by', type: 'node', range: [4] }],

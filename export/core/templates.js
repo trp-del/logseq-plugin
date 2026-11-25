@@ -8,11 +8,11 @@ const E = (window.DbExport ||= {});
 
 // What a template can hold, as the window's choice names them. Not the lines round one page's title, nor the preview's size.
 const KEYS = ['target', 'layout', 'look', 'paper', 'margins', 'size', 'footer', 'pageNumbers', 'tags', 'tasks', 'titleDate', 'preparedBy', 'links', 'frontMatter',
-  'dated', 'prose', 'customCss', 'elements', 'hiddenHead', 'hiddenNodes'];
+  'dated', 'prose', 'elements', 'hiddenHead', 'hiddenNodes'];
 const BUILT_IN = {
-  Report: { customCss: '', layout: 'prose', look: 'plain', margins: 'normal', size: 'normal', prose: { children: 'join', contents: true, numbered: true, titleSheet: false, sectionSheets: false, runIn: false, notesHead: 'Notes' } },
-  Paper: { customCss: '', layout: 'prose', look: 'book', margins: 'wide', size: 'normal', prose: { children: 'join', contents: false, numbered: false, titleSheet: false, sectionSheets: false, runIn: false, notesHead: 'Notes' } },
-  Brief: { customCss: '', layout: 'prose', look: 'compact', margins: 'narrow', size: 'small', prose: { children: 'join', contents: false, numbered: false, titleSheet: false, sectionSheets: false, runIn: true, notesHead: '' } },
+  Report: { layout: 'prose', look: 'plain', margins: 'normal', size: 'normal', prose: { children: 'join', contents: true, numbered: true, titleSheet: false, sectionSheets: false, runIn: false, notesHead: 'Notes' } },
+  Paper: { layout: 'prose', look: 'book', margins: 'wide', size: 'normal', prose: { children: 'join', contents: false, numbered: false, titleSheet: false, sectionSheets: false, runIn: false, notesHead: 'Notes' } },
+  Brief: { layout: 'prose', look: 'compact', margins: 'narrow', size: 'small', prose: { children: 'join', contents: false, numbered: false, titleSheet: false, sectionSheets: false, runIn: true, notesHead: '' } },
 };
 const plain = value => value instanceof Set ? [...value].sort() : value && typeof value === 'object' && !Array.isArray(value) ? Object.fromEntries(Object.keys(value).sort().map(k => [k, plain(value[k])])) : Array.isArray(value) ? [...value].sort() : value;
 // The set a choice makes: every key of KEYS, a Set as a sorted list.
@@ -21,8 +21,9 @@ const own = store => store && typeof store === 'object' && !Array.isArray(store)
 const names = store => [...Object.keys(BUILT_IN), ...Object.keys(own(store)).filter(name => !BUILT_IN[name]).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))];
 const get = (store, name) => own(store)[name] || BUILT_IN[name] || null;
 const isOwn = (store, name) => !!own(store)[name];
-// Whether a choice still is the template: only the keys the template holds are compared.
-const changed = (set, choice) => !!set && Object.keys(set).some(key => JSON.stringify(plain(set[key])) !== JSON.stringify(plain(choice[key])));
+// Whether a choice still is the template: only the keys the template holds are compared, and of those only what a template can
+// hold today (a template saved before 24 November 2026 may still carry CSS of your own, which is no longer read).
+const changed = (set, choice) => !!set && Object.keys(set).filter(key => KEYS.includes(key)).some(key => JSON.stringify(plain(set[key])) !== JSON.stringify(plain(choice[key])));
 const clean = name => String(name ?? '').replace(/\s+/g, ' ').trim().slice(0, 60);
 // Each gives back a new store; rename and remove leave it as it was when there is nothing to do.
 const save = (store, name, choice) => ({ ...own(store), [name]: held(choice) });

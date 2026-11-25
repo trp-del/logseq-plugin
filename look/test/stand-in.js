@@ -52,7 +52,7 @@ const empty = '<div class="empty-value">Empty</div>';
 const pencil = words => `${empty}<span class="flow-ghost flow-guess lk-pencil">${words}</span>`;
 const tagOf = (uuid, name) => `<span class="block-tag"><a class="hash-symbol">#</a><a class="tag page-ref" data-uuid="${uuid}">${name}</a></span>`;
 const item = (name, icon = '<i class="ls-icon-page"></i>') => `<a class="link-item" data-page-name="${name}"><span class="page-icon">${icon}</span><span class="page-title">${name}</span></a>`;
-// A bullet: its dot, its words with Logseq's tags (or a proposed one) at the right end of the line, its line of properties under them.
+// A bullet: its dot, its words with Logseq's tags at the right end of the line, its line of properties under them.
 const bullet = (uuid, words, right = '', more = '', extra = '') => `<div class="ls-block" blockid="${uuid}"${extra}><div class="block-main-container"><div class="block-control-wrap"><span class="bullet-container"><span class="bullet"></span></span></div><div class="block-content-wrapper"><div class="block-head-wrap"><div class="block-title-wrap">${words}</div>${right ? `<div class="ls-block-right">${right}</div>` : ''}</div>${more}</div></div></div>`;
 
 const page = `
@@ -68,10 +68,10 @@ const page = `
 </div>
 <div id="left-sidebar"><div class="recent"><h4>Recent</h4>${['Dr. Mei Chen', 'Consultation with Dr. Chen', 'Fatigue', 'CT report', 'Oct 19th, 2026', 'Northgate Hospital', 'Doctor', 'Questions for Dr. Chen', 'Dr. Tom Okonkwo'].map(n => item(n)).join('')}</div></div>`;
 /* A bullet as Predictive leaves it while it is written: Logseq's own pills for the tag's properties, three of them holding a
-   pencilled value beside Logseq's "Empty", and the proposed tag pencilled at the right end of the line. */
+   pencilled value beside Logseq's "Empty"; its tag is the bullet's own, at the right end of the line. */
 const pencilled = `
 <div id="main-content-container">
-  ${bullet(U(500), `Saw ${link(U(20), 'Dr. Mei Chen')} about the fatigue, worse in the evenings`, `<span class="flow-ghost flow-guess flow-tag-ghost lk-pencil"><span class="flow-tag lk-tag">Consultation</span></span>`,
+  ${bullet(U(500), `Saw ${link(U(20), 'Dr. Mei Chen')} about the fatigue, worse in the evenings`, `<div class="block-tags">${tagOf(U(5), 'Consultation')}</div>`,
     `<div class="positioned-properties block-below"><div class="bottom-properties-row">${pill('Provider', pencil('Dr. Mei Chen'), ' data-flow-proposal=""')}${pill('Date', pencil('Oct 23rd, 2026'), ' data-flow-proposal=""')}${pill('Symptom', pencil('Fatigue'), ' data-flow-proposal=""')}${pill('Topic', empty)}${pill('Report', empty)}</div></div>`)}
 </div><div id="left-sidebar"></div>`;
 

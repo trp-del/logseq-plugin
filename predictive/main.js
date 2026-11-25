@@ -4,53 +4,6 @@
 const Flow = window.Flow;
 Flow.locales = { en: Flow.dates.en };   // another language: add its locale here (README, Other languages)
 
-async function describe(result) {
-  const p = result.properties, t = result.tags, n = result.plain;
-  const spoken = p.guessRight + p.guessWrong;
-  return [
-    `${result.lines} earlier lines tried, each with one value hidden.`,
-    `Values: ${p.sureRight} sure and right, ${p.sureWrong} sure and wrong; ${p.guessRight} guessed right, ${p.guessWrong} guessed wrong${spoken ? ` (${Math.round(100 * p.guessWrong / spoken)}% wrong)` : ''}; ${p.silent} left empty.`,
-    `Tags: ${t.right} right, ${t.wrong} wrong, ${t.silent} left empty. Plain lines given a tag: ${n.spoke} of ${n.spoke + n.silent}.`,
-  ].join('\n');
-}
-
-async function scoreCommand() {
-  const ctx = await Flow.app.context();
-  if (!ctx?.index?.entries.length) return Flow.app.notify('Nothing to score yet: this graph has no tagged lines', 'warning');
-  Flow.app.notify('Scoring proposals on this graph…');
-  await new Promise(r => setTimeout(r, 50));
-  const result = Flow.score.score(ctx, { sample: 600 });
-  const text = await describe(result);
-  console.log('Predictive: how well proposals work on this graph\n' + text);
-  Flow.app.notify(text, result.properties.sureWrong ? 'warning' : 'success');
-}
-
-async function tuneCommand() {
-  const ctx = await Flow.app.context();
-  if (!ctx?.index?.entries.length) return Flow.app.notify('Nothing to tune on yet: this graph has no tagged lines', 'warning');
-  Flow.app.notify('Tuning to this graph: a minute or less, you can keep working');
-  const pause = () => new Promise(r => setTimeout(r, 30));
-  const result = await Flow.score.tune(ctx, { sample: 300, pause });
-  const graph = ctx.graph || await Flow.app.graphName();
-  const all = { ...(logseq.settings?.tuned || {}), [graph]: result.limits };
-  Flow.app.remember('tuned', all);
-  const { tagNearLeast, tagGap, ...forProperties } = result.limits;   // how readily a tag is suggested is the setting's (logseq/app.js)
-  Object.assign(ctx.limits, forProperties);
-  console.log('Predictive: tuned to this graph', result);
-  Flow.app.notify(`Tuned for “${graph}”: nearest line at least ${result.limits.nearLeast}, lead ${result.limits.lead} (for properties; tags follow the setting “How readily a tag is suggested”).\n${await describe(result.after)}`, 'success');
-}
-
-async function speedCommand() {
-  const ctx = await Flow.app.context();
-  if (!ctx) return Flow.app.notify('Still reading the graph; try again in a moment');
-  Flow.app.notify('Asking Apple’s model three times…');
-  const r = await Flow.modelAsk.speed(ctx);
-  if (!r.reached) return Flow.app.notify('Apple’s model is not connected: Plugin settings, Predictive, says why', 'warning');
-  if (!r.times.length) return Flow.app.notify('Apple’s model did not answer the sample question', 'warning');
-  const s = ms => (ms / 1000).toFixed(1) + ' s';
-  Flow.app.notify(`Apple’s model answered one tag question in ${r.times.map(s).join(', then ')}. The first may start cold; after it the helper has the next one ready.\nAsked about: “${r.text.length > 80 ? r.text.slice(0, 79) + '…' : r.text}”`, 'success');
-}
-
 /* The settings window's specimens: each setting as the thing itself, as it looks while you write. The pencil, tag and
    name looks are Look's, through the shared names. */
 const pen = w => `<span class="lk-pencil">${w}</span>`;
@@ -59,15 +12,9 @@ const then = k => `<span class="sw-then">${(window.PluginDoor.settings.keyWords(
 const SPECIMENS = {
   proposals: on => `<span class="sw-dot"></span>Saw <span class="lk-node">Dr. Mei Chen</span> about the fatigue, worse in the evenings<br><span style="padding-left:14px"><span class="sw-k">Provider:</span> ${on ? pen('Dr. Mei Chen') : '<span class="sw-faintw">empty</span>'} <span class="sw-sep">·</span> <span class="sw-k">Date:</span> ${on ? pen('Oct 23rd, 2026') : '<span class="sw-faintw">empty</span>'} <span class="sw-sep">·</span> <span class="sw-k">Symptom:</span> ${on ? pen('Fatigue') : '<span class="sw-faintw">empty</span>'}</span>`,
   proposalsHideEmpty: on => `<span class="sw-dot"></span>Lena Park came to take the pump off<br><span style="padding-left:14px"><span class="sw-k">Spoke with:</span> <span class="lk-node">Lena Park</span>${on ? '' : ' <span class="sw-sep">·</span> <span class="sw-faintw">Date: empty</span> <span class="sw-sep">·</span> <span class="sw-faintw">Topic: empty</span>'}</span>`,
-  // Placement shows the choice: careful pencils neither line, balanced the fresh symptom line, eager the plain note too.
-  tagEagerness: value => {
-    const tag = on => on ? ' &nbsp; <span class="lk-pencil"><span class="lk-tag">Symptom Log</span></span>' : '';
-    return `<span class="sw-dot"></span>Mouth feels like sandpaper, even water stings${tag(value !== 'careful')}<br><span class="sw-dot"></span>Bought bread and milk on the way home${tag(value === 'eager')}`;
-  },
   linkSuggest: on => `<span class="sw-dot"></span>Saw Dr. Mei${on ? '<span class="sw-grey"> Chen</span>' : ''}`,
   linkKeepCase: on => `<span class="sw-dot"></span>Saw <span class="lk-node">${on ? 'dr. mei chen' : 'Dr. Mei Chen'}</span> <span class="sw-faintw">&nbsp; typed as [[dr. mei chen]]</span>`,
   // The keys, the numbers and the graphs: what pressing, waiting or listing does in a bullet (the settings window, 12 November 2026).
-  proposalsModel: on => `<span class="sw-dot"></span>Lena from the clinic called back<br><span style="padding-left:14px"><span class="sw-k">Spoke with:</span> ${on ? pen('Lena Park') + '<sup>*</sup>' : '<span class="sw-faintw">empty</span>'}</span>${on ? '<br>' + modelLine() : ''}`,
   proposalsSkipGraphs: value => { const graphs = String(value || '').split(',').map(g => g.trim()).filter(Boolean); return graphs.length ? graphs.map(g => `${g} <span class="sw-faintw">&nbsp; left alone</span>`).join('<br>') : '<span class="sw-faintw">Every graph gets proposals</span>'; },
   linkSuggestMinLetters: n => { let seen = 0, cut = 0; const name = 'Dr. Mei Chen'; for (; cut < name.length && seen < Number(n); cut++) if (/[a-z0-9]/i.test(name[cut])) seen++; return `<span class="sw-dot"></span>Saw ${name.slice(0, cut)}<span class="sw-caret"></span><span class="sw-grey">${name.slice(cut)}</span>`; },
   linkSuggestPause: ms => `<span class="sw-dot"></span>Saw Dr. Mei<span class="sw-caret"></span><span class="sw-grey"> Chen</span><span class="sw-then">${Number(ms) ? `shows ${Number(ms) >= 1000 ? (Number(ms) / 1000).toFixed(1) + ' s' : ms + ' ms'} after your last key` : 'shows at once, as you type'}</span>`,
@@ -78,7 +25,6 @@ const SPECIMENS = {
     ? `<span class="sw-dot"></span>Saw <span class="lk-node">Dr. Mei Chen</span> about the fatigue<span class="sw-caret"></span> <span class="sw-faintw">&nbsp; nothing until the key</span>`
     : `<span class="sw-dot"></span>Saw <span class="lk-node">Dr. Mei Chen</span> about the fatigue<span class="sw-caret"></span><br><span style="padding-left:14px"><span class="sw-k">Provider:</span> ${pen('Dr. Mei Chen')}</span>`,
   proposalsShowKeys: k => `<span class="sw-dot"></span>Saw <span class="lk-node">Dr. Mei Chen</span><span class="sw-caret"></span>${then(k)}<span class="sw-dot"></span>Saw <span class="lk-node">Dr. Mei Chen</span><br><span style="padding-left:14px"><span class="sw-k">Provider:</span> ${pen('Dr. Mei Chen')}</span>`,
-  proposalsAcceptKeys: k => `<span class="sw-dot"></span>Saw <span class="lk-node">Dr. Mei Chen</span><br><span style="padding-left:14px"><span class="sw-k">Provider:</span> ${pen('Dr. Mei Chen')}</span>${then(k)}<span class="sw-dot"></span>Saw <span class="lk-node">Dr. Mei Chen</span><br><span style="padding-left:14px"><span class="sw-k">Provider:</span> <span class="lk-node">Dr. Mei Chen</span></span>`,
   citeKeys: k => `<span class="sw-dot"></span>Iron was low in March${then(k)}<span style="padding-left:14px"><span class="sw-k">Source:</span> <span class="sw-caret"></span></span>`,
   pageKeys: k => `<span class="sw-dot"></span>Pump trial<span class="sw-caret"></span>${then(k)}<span class="sw-dot"></span><span class="lk-node">Pump trial</span>`,
   embedTrigger: t => t ? `<span class="sw-dot"></span>${String(t).replace(/</g, '&lt;')}<span class="sw-caret"></span>refill<span class="sw-then">Enter</span><span class="sw-dot" style="background:none;box-shadow:inset 0 0 0 1.5px currentColor"></span><span class="lk-node">Refill steps</span>` : '<span class="sw-faintw">Only /Node embed</span>',
@@ -87,53 +33,11 @@ const SPECIMENS = {
   linkSuggestHyperTap: on => `<span class="sw-dot"></span>Saw Dr. Mei<span class="sw-caret"></span><span class="sw-grey"> Chen</span><span class="sw-then"><span class="sw-key">Hyper</span> tapped alone</span><span class="sw-dot"></span>${on ? 'Saw <span class="lk-node">Dr. Mei Chen</span>' : 'Saw Dr. Mei<span class="sw-caret"></span><span class="sw-grey"> Chen</span>'}`,
   linkSuggestLearn: on => `<span class="sw-dot"></span>Saw ${on ? 'Mei<span class="sw-grey"> Chen</span>' : 'Mei'} <span class="sw-faintw">&nbsp; ${on ? 'offered from three letters, a name the graph usually links' : 'offered only after the usual count of letters'}</span>`,
 };
-/* Under the model's setting, whether Apple's model answers on this Mac: asked as the window draws (at most every two
-   seconds), and the line written in place when the answer comes, so nothing else in the window moves. The last answer is
-   drawn meanwhile; before the first, an empty line holds the place. The line is in the row's label, so a click on it (to
-   select the Terminal line) must not flip the setting. */
-const REASONS = {
-  appleIntelligenceNotEnabled: 'Apple Intelligence is off on this Mac: turn it on in System Settings.',
-  modelNotReady: 'Apple’s model is not ready yet: it may still be downloading to this Mac.',
-  deviceNotEligible: 'This Mac cannot run Apple’s model.',
-};
-// The line that installs the helper, from the plugin's own folder (the library's Door.terminalLine).
-const helperLine = () => window.PluginDoor.terminalLine('predictive/helper/install.sh');
-// The answer first, in the words a person asks with (connected or not), then why and what to do, faint. The three tools each
-// say whether they answer: the matcher and the name finder need only the helper (version 4), the model Apple Intelligence too.
-const modelWords = s => {
-  if (!s) return '&nbsp;';
-  if (!s.reached) return `Not connected. <span class="sw-faintw">Predictive’s helper is not running on this Mac. In Terminal:</span><br><span class="pr-model-line">${helperLine()}</span>`;
-  const have = [s.meaning ? 'the matcher' : '', s.names ? 'the name finder' : '', s.ready ? 'Apple’s model' : ''].filter(Boolean);
-  const why = s.ready ? '' : `<span class="sw-faintw">${REASONS[s.reason] || `Apple’s model is not ready: ${s.reason || 'no reason given'}.`}</span>`;
-  const old = s.version < 4 ? `<span class="sw-faintw">The helper is older than this release, so the matcher and the name finder are not here. In Terminal:</span><br><span class="pr-model-line">${helperLine()}</span>` : '';
-  const head = have.length ? `Connected to ${have.join(', ').replace(/, ([^,]*)$/, ' and $1')}.` : 'Not connected.';
-  return [head, old || why].filter(Boolean).join(' ');
-};
-const model = { last: null, at: 0 };
-function modelLine() {
-  const doc = window.parent.document;
-  if (!model.guarded) { model.guarded = true; Flow.app.listen(doc, 'click', event => { if (event.target.closest?.('.pr-model')) event.preventDefault(); }, true); Flow.app.onStop(() => { model.guarded = false; }); }
-  if (Date.now() - model.at > 2000 && Flow.modelAsk?.status) {
-    model.at = Date.now();
-    Flow.modelAsk.status().then(s => {
-      if (JSON.stringify(s) === JSON.stringify(model.last)) return;
-      model.last = s;
-      for (const el of doc.querySelectorAll('.pr-model')) el.innerHTML = modelWords(s);
-    });
-  }
-  return `<div class="pr-model" style="user-select:text;cursor:text">${modelWords(model.last)}</div>`;
-}
 const specimen = (item, value) => SPECIMENS[item.key] ? SPECIMENS[item.key](value) : '';
 
 async function main() {
-  logseq.App.registerCommandPalette({ key: 'flow-score', label: 'Predictive: how well do proposals work on this graph?' }, scoreCommand);
-  logseq.App.registerCommandPalette({ key: 'flow-tune', label: 'Predictive: tune proposals to this graph' }, tuneCommand);
-  logseq.App.registerCommandPalette({ key: 'flow-model-speed', label: 'Predictive: how fast is Apple’s model?' }, speedCommand);
-  logseq.App.registerCommandPalette({ key: 'flow-model-measure', label: 'Predictive: measure Apple’s tools on this graph' }, () => Flow.measureUi.open());
-  logseq.App.registerCommandPalette({ key: 'flow-reread', label: 'Predictive: read the graph again' }, async () => { Flow.app.forget(); await Flow.app.context(); Flow.app.notify('Read the graph again'); });
   const { onStop } = Flow.app;
   onStop(logseq.DB.onChanged(({ blocks, txMeta }) => Flow.app.learnSoon(blocks, txMeta)));
-  onStop(logseq.onSettingsChanged?.((now, before) => { if (!window.PluginDoor.settingChanged(['tagEagerness'], now, before)) return; const ctx = Flow.app.state.ctx; if (ctx) Object.assign(ctx.limits, Flow.app.tagLimits()); }));   // applies at once, no new reading
   onStop(logseq.App.onCurrentGraphChanged(() => Flow.app.forget()));
   Flow.app.context().catch(() => {});   // the first reading starts at once and is never waited for while typing
   await Flow.linkUi.start();
@@ -152,12 +56,11 @@ const row = (key, title, more = {}) => ({ ...Flow.settingsSchema.find(item => it
 window.PluginDoor.describe('predictive', {
   schema: [
     { type: 'heading', title: 'Proposals', place: 'writing' },
-    row('proposals', 'Propose values for a bullet’s properties'), row('proposalsWhen', 'When they show'), row('proposalsHideEmpty', 'Hide empty properties', { looks: ['Shown', 'Hidden'] }), row('tagEagerness', 'Suggest a tag'), row('proposalsModel', 'Use Apple’s language tools on this Mac'),
-    { type: 'action', key: 'measureModel', title: 'Measure Apple’s tools on this graph', run: () => Flow.measureUi.open() }, row('proposalsSkipGraphs', 'Leave these graphs alone'),
+    row('proposals', 'Propose values for a bullet’s properties'), row('proposalsWhen', 'When they show'), row('proposalsHideEmpty', 'Hide empty properties', { looks: ['Shown', 'Hidden'] }), row('proposalsSkipGraphs', 'Leave these graphs alone'),
     { type: 'heading', title: 'Suggested links', place: 'writing' },
     row('linkSuggest', 'Suggest a link as I type'), row('linkSuggestLearn', 'Learn which pages I link'), row('linkSuggestMinLetters', 'Letters before a suggestion shows', { presets: [3, 5, 8] }), row('linkSuggestPause', 'Pause before a suggestion shows', { presets: [0, 350, 800] }), row('linkKeepCase', 'Keep my capitals in a link', { looks: ['The page’s capitals', 'My capitals'] }),
     { type: 'heading', title: 'Keys', place: 'keys' },
-    row('proposalsStepKeys', 'Step through a bullet’s properties'), row('proposalsShowKeys', 'Show the proposals now'), row('proposalsTagKeys', 'Choose a tag'), row('proposalsAcceptKeys', 'Accept everything shown, without a new bullet'), row('citeKeys', 'Cite a source'), row('pageKeys', 'Make the bullet a page'), row('embedTrigger', 'Typing that embeds a node'),
+    row('proposalsStepKeys', 'Step through a bullet’s properties'), row('proposalsShowKeys', 'Show the proposals now'), row('proposalsTagKeys', 'Choose a tag'), row('citeKeys', 'Cite a source'), row('pageKeys', 'Make the bullet a page'), row('embedTrigger', 'Typing that embeds a node'),
     row('linkSuggestRightArrow', 'Right arrow takes the suggested link'), row('linkSuggestHyperTap', 'A tap of Hyper takes it'), row('linkSuggestKeys', 'Another key takes it'),
   ],
   specimen,

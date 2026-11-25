@@ -1,7 +1,7 @@
 /* Lessons: what Predictive learns from how you answer its suggestions, kept per graph on a page of that graph ("Predictive
    lessons", logseq/lessons.js). Pure: no Logseq, no screen.
 
-   A lesson is one source and one target: "Apple's matcher · tag Conversation", "your words · Deadline". It counts how often a
+   A lesson is one source and one target: "earlier lines · Provider", "your words · Deadline". It counts how often a
    suggestion of it was taken (Enter, a click), said no to (its ×, the faded arrow, or another value or tag set by hand instead),
    and moved (the same value set by hand in another property of the same kind: a sum put in Amount instead of Payment). A
    suggestion passed over, neither taken nor answered, teaches nothing: you may simply not have cared.
@@ -11,24 +11,22 @@
    - moved to the same other property at least twice, and more often than taken: the value is suggested there instead.
 
    The page holds one line per lesson, in plain words, so you can read it and delete a line to make Predictive forget it:
-     Apple's matcher · tag Conversation: taken 1, said no 5
+     earlier lines · Provider: taken 1, said no 5
      your words · Deadline: taken 2, moved to Scheduled 3 */
 (function () {
 
 const SOURCE = {
   'alike-tag': 'earlier lines', alike: 'earlier lines', 'alike-money': 'earlier lines', parent: 'the bullet above',
-  meaning: 'Apple’s matcher', model: 'Apple’s model', names: 'Apple’s name finder',
   words: 'your words', 'words-day': 'your words', 'words-number': 'your words', 'words-money': 'your words', 'words-deadline': 'your words', 'words-scheduled': 'your words', 'words-start': 'your words', 'words-end': 'your words', 'words-completed': 'your words', 'words-name': 'your words', 'words-ahead': 'your words', 'words-learned': 'your words',
   day: 'the day written', 'guess-day': 'the day written', untagged: 'a linked page', linked: 'a linked page', 'linked-part': 'a linked page', 'linked-wide': 'a linked page', page: 'the page', 'page-wide': 'the page',
 };
-const APPLE = ['model', 'meaning', 'names'];
 const NO_LEAST = 3, MOVED_LEAST = 2;
 
-// Where a suggestion came from, in plain words: Apple's tool when one took part, else the first reason.
+// Where a suggestion came from, in plain words: its first reason. A line on the page from a source that is no more (Apple's
+// matcher, model and name finder, until 24 November 2026) is read and left as it stands; nothing is suggested from it.
 function sourceOf(piece) {
   const parts = String(piece?.how || '').split('+').filter(h => h !== 'lesson');
-  const apple = parts.find(h => APPLE.includes(h));
-  return SOURCE[apple || parts[0]] || 'Predictive';
+  return SOURCE[parts[0]] || 'Predictive';
 }
 const targetOf = piece => piece.kind === 'tag' ? `tag ${piece.tag?.title || String(piece.shown || '').replace(/^#/, '')}` : piece.prop?.title || piece.ident;
 const keyOf = piece => `${sourceOf(piece)} · ${targetOf(piece)}`;

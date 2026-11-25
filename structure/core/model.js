@@ -78,12 +78,6 @@ function filled(M, tagId, propId) {
   const p = M.props.get(propId); if (!p) return 0;
   return memo(M, `fill:${tagId}:${propId}`, () => { const holders = M.holders.get(p.ident); if (!holders?.size) return 0; const nodes = nodesUnder(M, tagId); let n = 0; const [small, big] = holders.size < nodes.size ? [holders, nodes] : [nodes, holders]; for (const x of small) if (big.has(x)) n++; return n; });
 }
-// Of a tag's own nodes only (not those under its children).
-function filledOwn(M, tagId, propId) {
-  const p = M.props.get(propId), t = M.tags.get(tagId); if (!p || !t) return 0;
-  const holders = M.holders.get(p.ident); if (!holders?.size) return 0;
-  let n = 0; for (const x of t.nodes) if (holders.has(x)) n++; return n;
-}
 // Every declared property as the table lists it: the tag, the property, how many fill it of how many.
 function propRows(M) {
   const rows = [];
@@ -149,8 +143,8 @@ function rangeOrder(M, range) {
 const roadsOf = (M, id) => { const all = roads(M).sort((a, b) => b.n - a.n), mine = within(M, id); return { out: all.filter(r => mine.has(r.from)), in: all.filter(r => mine.has(r.to) && !mine.has(r.from)) }; };
 // The links that reach a tag's nodes, its tags beneath included: what a change to the tag has to keep.
 const linksOf = (M, id) => { const seen = new Set(), walk = x => { if (seen.has(x)) return 0; seen.add(x); const t = M.tags.get(x); return !t ? 0 : t.refs + t.kids.reduce((s, k) => s + walk(k), 0); }; return walk(id); };
-// What a relation's values are tagged, most common first: the guess for a range Logseq's property does not set.
-const rangeGuess = (M, propId) => { const p = M.props.get(propId); const m = p && M.pointed.get(p.ident); return m ? [...m].filter(([t]) => M.tags.has(t)).sort((a, b) => b[1] - a[1]) : []; };
+// Names in a row, as a sentence lists them: "A", "A and B", "A, B and C".
+const list = names => names.length < 2 ? names.join('') : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
 const kindWord = type => ({ date: 'a date', datetime: 'a date', number: 'a number', default: 'words', text: 'words', choice: 'a choice', checkbox: 'yes or no', url: 'a link', node: 'nodes', page: 'nodes' })[type] || 'words';
 const propKind = p => p.choice ? 'choice' : p.type === 'node' || p.type === 'page' ? 'rel' : p.type === 'number' ? 'num' : /^date/.test(p.type) ? 'date' : 'text';
 // A name that is free among the tags (Logseq allows two tags of one name; the map does not add a third).
@@ -164,5 +158,5 @@ function addTag(M, title, parent, id = madeId--) {
 }
 const removeTag = (M, id) => { M.tags.delete(id); for (const t of M.tags.values()) t.parents = t.parents.filter(p => p !== id); for (const p of M.props.values()) p.range = p.range.filter(r => r !== id); link(M); };
 
-S.model = { tops, lately, nearTag, rangeOrder, roads, roadsOf, within, linksOf, LOOSE, build, link, tag, prop, parentOf, kids, nodesUnder, count, carrier, pathOf, under, depth, inherited, filled, filledOwn, propRows, pointedAt, rangeGuess, kindWord, propKind, titled, addTag, removeTag, byTitle };
+S.model = { tops, lately, nearTag, rangeOrder, roads, roadsOf, within, linksOf, LOOSE, build, link, tag, prop, parentOf, kids, nodesUnder, count, carrier, pathOf, under, depth, inherited, filled, propRows, pointedAt, list, kindWord, propKind, titled, addTag, removeTag, byTitle };
 })();

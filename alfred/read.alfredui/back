@@ -1,3 +1,0 @@
-#!/bin/zsh
-# A page read here: one step back, answered by logseq.js (panel-back), in Alfred UI's JSON.
-exec /usr/bin/osascript -l JavaScript "${0:A:h:h}/logseq.js" panel-back "$@"

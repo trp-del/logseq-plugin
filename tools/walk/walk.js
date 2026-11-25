@@ -336,22 +336,6 @@ const PLACES = [
     },
   },
   {
-    name: 'The table\'s row view (the row in the sidebar)',
-    async enter(box) {
-      // As a person does it: the table's page, the toolbar's Row view button, then the row's words.
-      await go(box.page, NODE.tag); await sleep(3000);
-      const button = () => firstVisible(box.page, '.lk-tool[data-on-click="rowView"]');
-      const on = await box.frame().evaluate(() => !!(window.PluginDoor && window.PluginDoor.sideTabs.rows()));
-      if (on) { await press(box.page, await button()); await sleep(1200); }
-      await press(box.page, await button()); await sleep(1500);
-      for (const r of await box.page.$$(`${MAIN} .ls-table-row`)) if ((await r.textContent()).includes(NODE.words)) { await press(box.page, await r.$('.table-block-title')); break; }
-      await sleep(2000);
-    },
-    async leave(box) { const on = await box.frame().evaluate(() => !!(window.PluginDoor && window.PluginDoor.sideTabs.rows())).catch(() => false); if (on) { await press(box.page, await firstVisible(box.page, '.lk-tool[data-on-click="rowView"]')); await sleep(1000); } },
-    handles(box) { return blockHandles(box, SIDE); },
-    open: 'here',
-  },
-  {
     name: 'An embedded node',
     async enter(box) { await sidebarShut(box); await embedReady(box); },
     handles(box) { return blockHandles(box, `${MAIN} .ls-page-blocks`); },

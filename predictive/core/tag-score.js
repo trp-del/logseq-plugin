@@ -226,32 +226,7 @@ function tagRank(ctx, b, text, tagIds) {
 }
 const tagScore = (ctx, b, text, tagId) => tagRank(ctx, b, text, [tagId, ...(contextLib.profileOf(ctx)?.classes || []).filter(c => c !== tagId)]).find(r => r.id === tagId) || null;
 
-/* Steady, with a higher bar to appear than to stay. A tag first shows when it leads by tagGap (5 as set "balanced"); once shown it
-   stays while the words go on as long as it still leads the runner-up, plain lines included, by tagHold (4); another tag replaces
-   it only when it would be shown at two pauses running. Measured 16 November 2026 on 8,900 tagged bullets and 2,100 plain ones
-   (made-up graphs of 6,000 and 20,000 notes asked in other sentences, Scale Check, the Illness Test Graph), against the version
-   before (gap 3, nothing held): right 4,085 → 3,780, wrong 218 → 156, the shown tag switching to another 362 → 97, vanishing again
-   787 → 437, plain notes left with a tag 80 → 25. Holding more loosely (tagHold 0 to 3) kept more tags on screen but left a tag on
-   up to 69 of 750 plain notes; keeping the tag whatever the words said did so too. state: { shown, pending, n } kept per bullet;
-   leadOf(id): how far the words lean to that tag now. */
-function steady(state, next, leadOf = null, hold = 4) {
-  if (!state.shown) { state.shown = next || null; return state.shown; }
-  if (!next) {
-    if (leadOf && !(leadOf(state.shown.id) >= hold)) { state.shown = null; state.pending = null; state.n = 0; }
-    return state.shown;
-  }
-  if (next.id === state.shown.id) { state.pending = null; state.n = 0; return state.shown = next; }
-  if (state.pending === next.id) state.n++; else { state.pending = next.id; state.n = 1; }
-  if (state.n >= 2) { state.pending = null; state.n = 0; return state.shown = next; }
-  return state.shown;
-}
-// How far the words (and clues) lean to one tag now: its score less the best other's, plain lines included.
-function leadOf(ctx, b, text, tagId) {
-  const list = scored(ctx, b, text).list, mine = list.find(([c]) => c === tagId), rival = list.find(([c]) => c !== tagId);
-  return mine && rival ? mine[1] - rival[1] : -Infinity;
-}
-
-const api = { guess, twinOf, tagRank, tagScore, steady, leadOf, cluesOf, cluesModel, clueScores, scored };
+const api = { guess, twinOf, tagRank, tagScore, cluesOf, cluesModel, clueScores, scored };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 if (typeof window !== 'undefined') (window.Flow ||= {}).tagScore = api;
 })();

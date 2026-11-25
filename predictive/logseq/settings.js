@@ -1,5 +1,5 @@
 /* The settings Logseq shows for the plugin (Plugins, then the gear on its card). What the plugin remembers on its own (what
-   was taken or passed over in suggested links, the limits tuned for each graph) is kept in keys this list does not show. */
+   was taken or passed over in suggested links) is kept in keys this list does not show. */
 (function () {
 const Flow = (window.Flow ||= {});
 Flow.settingsSchema = [
@@ -10,8 +10,6 @@ Flow.settingsSchema = [
     description: 'Whether proposals come by themselves or only when you ask for them. As I write: they come by themselves once typing pauses. When I press the key: nothing shows, and nothing is filled in, until you press the key for showing them (Option-P) in a bullet; then Enter takes them and Escape lets them go. The key shows them at once in either way.' },
   { key: 'proposalsShowKeys', type: 'string', keys: true, title: 'Keys for showing the proposals now', default: 'alt+p',
     description: 'Option-P, in a bullet: what its properties could hold shows at once, without waiting for a pause, even on a bullet you have not changed. Enter takes it all and goes on to the next bullet, Escape lets it go. Empty binds none.' },
-  { key: 'proposalsModel', type: 'boolean', title: 'Read my words with Apple’s tools on this Mac', default: true,
-    description: 'Where the rules leave a thing open, three of Apple’s tools on the Mac read the bullet and guess (dotted, with a small asterisk). The matcher finds earlier notes that mean the same in other words, and offers their tag. The name finder reads a person or place no page has yet, and offers it as a new page with the tag the property takes. Apple’s model reads which property a person you named belongs in, a number such as a dose, which day is the start and which the end. Each picks only among your own pages that fit, and nothing leaves the Mac. Needs Predictive’s helper installed (helper/install.sh); the model also needs macOS 26 or later with Apple Intelligence on. Without them nothing changes.' },
   { key: 'proposalsSkipGraphs', type: 'string', title: 'Not in these graphs', default: '', description: 'Graph names, separated by commas. Empty: proposals work in every graph.' },
   { key: 'proposalsHideEmpty', type: 'boolean', title: 'Hide empty properties until something is proposed', default: true,
     description: 'Under a bullet, a property with no value stays hidden until the plugin proposes something for it (a doctor linked in a consultation brings Provider up, with the doctor in grey). Under the bullet you are writing, they stay, faint, so nothing comes and goes. Only in graphs where proposals are on.' },
@@ -20,17 +18,13 @@ Flow.settingsSchema = [
   { key: 'proposalsTagKeys', type: 'string', keys: true, title: 'Keys for choosing a tag', default: 'alt+t',
     description: 'Option-T, on a bullet that has no tag: a short list of the tags the pages the line names could take (linked or in plain words), best first by its words. Up and Down move, Enter picks, Escape closes; picking gives the bullet the tag and proposes its properties. Nothing is written until you pick. Empty binds none.' },
   { key: 'proposalsTagHyper', type: 'boolean', title: 'Hyper alone chooses a tag', default: true,
-    description: 'Hyper (Cmd, Control, Option and Shift together, as a Caps Lock remapped by Karabiner sends it), pressed and let go with no other key, on a bullet that has no tag and no tag guess showing: the same list as Option-T. When grey words of a page name show, the tap takes them instead (the setting below), never both. The cursor stays where it was, mid-word too, and nothing is typed.' },
-  { key: 'proposalsAcceptKeys', type: 'string', keys: true, title: 'Keys for accepting everything shown without a new bullet', default: 'mod+alt+enter',
-    description: 'Cmd-Option-Enter: everything shown is accepted, as with Enter, and the bullet is left with no new bullet made. Empty binds none.' },
+    description: 'Hyper (Cmd, Control, Option and Shift together, as a Caps Lock remapped by Karabiner sends it), pressed and let go with no other key, on a bullet that has no tag: the same list as Option-T. When grey words of a page name show, the tap takes them instead (the setting below), never both. The cursor stays where it was, mid-word too, and nothing is typed.' },
   { key: 'citeKeys', type: 'string', keys: true, title: 'Keys for citing', default: 'alt+c',
     description: 'Option-C, in a bullet: opens the line under it to say where it came from, as /Cite does, for a citation at the cursor. Empty binds none.' },
   { key: 'pageKeys', type: 'string', keys: true, title: 'Keys for making the bullet a page', default: 'mod+;',
     description: 'Cmd-;: the bullet’s words become a page, and the bullet stays in the outline with the page’s children under it, the same children in both places. With a page by that name already, the bullet shows that page. Empty binds none.' },
   { key: 'embedTrigger', type: 'string', title: 'Typing that embeds a node', default: '<<',
     description: '<< typed in a bullet, at its start or after a space: opens Logseq’s own Node embed search there, as /Node embed does. Type to find a node or page, Enter shows it in the bullet, Cmd-Z takes it back; Escape gives the << back. (( stays Logseq’s block reference. Empty: none.' },
-  { key: 'tagEagerness', type: 'enum', title: 'How readily a tag is suggested', default: 'balanced', enumChoices: ['careful', 'balanced', 'eager'], enumPicker: 'select',
-    description: 'A bullet with no tag that reads like earlier tagged ones is offered that tag, with the tag\'s properties as guesses; Enter takes it, Undo puts it back. A close lookalike among the earlier lines, or, failing that, the words a tag\'s lines use as a whole. Careful: about one fresh line in three gets one, almost never wrong. Balanced: about one in two. Eager: a few more, and now and then a wrong one or a tag on a plain note. Measured on the Illness Test Graph (README, "How readily a tag is suggested"). At balanced and eager, Apple’s model may also suggest one where these find none. Applies at once.' },
   { key: 'linkHeading', type: 'heading', title: 'Suggested links', default: null, description: 'While you write, the rest of a page’s name shows in grey after the cursor; Right arrow makes the link.' },
   { key: 'linkSuggest', type: 'boolean', title: 'Suggest links while typing', default: true,
     description: 'When the last words typed start a page’s name, or a word in it, the rest of the name shows in grey. Right arrow turns the words into [[the page]]; Cmd+Z takes it back. Anything else ignores it.' },

@@ -89,15 +89,6 @@ async function nodesOf(nodeIds) {
   const dated = window.PluginDoor.datedDays(dates), onDay = new Map(written), words = await named(rows.map(row => String(row[2])));
   return rows.map(([id, u, title, c, pg]) => ({ id, uuid: String(u), title: words(String(title)), created: Number(c) || 0, day: dated.get(id) || Number(onDay.get(id)) || 0, isPage: !pg }));
 }
-// The values of a property among a tag's nodes, with how many nodes hold each (a choice or a link), for a split by value.
-async function valuesOf(tagId, ident) {
-  const rows = await query(`[:find ?v ?title (count ?b) :where [?b :block/tags ${tagId}] [?b :${ident} ?v] [?v :block/title ?title] ${LIVE}]`).catch(() => []);
-  return rows.map(([v, title, n]) => ({ id: v, title: String(title), count: Number(n) })).sort((a, b) => b.count - a.count);
-}
-async function nodesWhere(tagId, ident, valueId) {
-  const rows = await query(`[:find ?b ?u :where [?b :block/tags ${tagId}] [?b :${ident} ${valueId}] [?b :block/uuid ?u] ${LIVE}]`).catch(() => []);
-  return rows.map(([id, u]) => ({ id, uuid: String(u) }));
-}
 /* A property's values, node by node, for a merge: Map of node id to [{ id, title, raw, day }]. A yes or no is held raw; anything
    else points at an entity: a node, a day, a choice, or the words of a text or number value. */
 async function propValues(ident, type) {
@@ -217,7 +208,7 @@ async function moveBullets(uuids, pageUuid) {
     last = uuid;
   }
 }
-/* A property of the person's own made by a change (a split, a change of what it holds), and taken away again by its Undo only
+/* A property of the person's own made by a change (a change of what it holds, values moved into a new property), and taken away again by its Undo only
    while empty and on no tag (plugin.js). A name another property holds already makes nothing, and stops the change. */
 async function makeProp(title, type, many) {
   const made = await window.PluginDoor.write.makeProperty(title, type, query, { many });
@@ -225,12 +216,8 @@ async function makeProp(title, type, many) {
   return made;
 }
 const dropProp = made => window.PluginDoor.write.dropMadeProperty(made, query);
-// The values of a property that are nodes carrying a tag: what a split moves.
-const valuesTagged = async (ident, tagId) => new Set((await query(`[:find ?v :where [?b :${ident} ?v] [?v :block/tags ${tagId}] ${LIVE}]`)).map(([v]) => v));
 // The live nodes that hold any of these tags.
 const nodesTagged = async tagIds => new Set(tagIds.length ? (await query(`[:find ?b :where [(ground [${tagIds.join(' ')}]) [?t ...]] [?b :block/tags ?t] ${LIVE}]`)).map(([b]) => b) : []);
-// What the values of a node property are, by their tags of yours, with how many values carry each: a split's choice.
-const valueKinds = async ident => (await query(`[:find ?g ?n (count ?v) :where [?b :${ident} ?v] ${LIVE} [?v :block/tags ?g] [?g :block/title ?n] [?g :db/ident ?i] [(namespace ?i) ?ns] [(= ?ns "user.class")]]`)).map(([id, title, n]) => ({ id, title: String(title), count: Number(n) })).sort((a, b) => b.count - a.count);
 // A few nodes as a note reads: its words and its tags, for a change's preview.
 async function notesFor(nodeIds) {
   if (!nodeIds.length) return [];
@@ -257,5 +244,5 @@ const editing = () => Promise.resolve(logseq.Editor.checkEditing?.()).then(v => 
 
 // A journal day, or a page that shares a day's name (a tag made with a day's name): Structure sets nothing above it.
 const isDay = async uuid => /^[0-9a-f-]{36}$/i.test(uuid) && (await query(`[:find ?d :where [?p :block/uuid #uuid "${uuid}"] [?p :block/name ?n] [?j :block/name ?n] [?j :block/journal-day ?d]]`)).length > 0;
-S.db = { nodesTagged, valueKinds, makeProp, dropProp, valuesTagged, notesFor, safetyCopy, wordRefs, setWords, propValues, choicesOf, uuidOfNode, pageNamed, dayPage, putValues, query, read, isDay, nodesOf, valuesOf, nodesWhere, tagOfPage, tagIdByUuid, titleOf, nodeUuids, graph, valueRefs, valueIds, rangeIds, classPropIds, putClassProps, setValues, addExtends, removeExtends, rename, addTag, removeTag, addClassProp, removeClassProp, setRange, nameTaken, makeTag, remakeTag, deleteTag, untouched, stamp, pageBullets, moveBullets, editing, bare, pick, idOf };
+S.db = { nodesTagged, makeProp, dropProp, notesFor, safetyCopy, wordRefs, setWords, propValues, choicesOf, uuidOfNode, pageNamed, dayPage, putValues, query, read, isDay, nodesOf, tagOfPage, tagIdByUuid, titleOf, nodeUuids, graph, valueRefs, valueIds, rangeIds, classPropIds, putClassProps, setValues, addExtends, removeExtends, rename, addTag, removeTag, addClassProp, removeClassProp, setRange, nameTaken, makeTag, remakeTag, deleteTag, untouched, stamp, pageBullets, moveBullets, editing, bare, pick, idOf };
 })();

@@ -1,3 +1,0 @@
-#!/bin/zsh
-# Search: the pane for the lit row, answered by logseq.js (panel-search-pane), in Alfred UI's JSON.
-exec /usr/bin/osascript -l JavaScript "${0:A:h:h}/logseq.js" panel-search-pane "$@"

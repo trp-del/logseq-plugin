@@ -18,14 +18,11 @@
    - openPageNamed(name, inSidebar)   opens a page by its name the same way.
    - settingReader(schema)        the door's reader: setting(key) is the saved value, or the schema's default when
                                   the saved value is missing or of another type.
-   - perf                         measuring hooks (add, time, seen, style, frameState, pass, passDone,
-                                  ownSettingsOnly): no-ops until the diagnostics part measures.
-   - warnings                     every distinct warnOnce message of this session (message, first time, count): the door's list.
+   - ownSettingsOnly(now, before) whether a settings change touched only the plugin's own note (the self-check's).
    - lifeCounts()                 every part's clean-up steps waiting, by part: the stress tests' count of what a part has
                                   set going (listeners, hooks, timers given to onUnload); one that grows with use leaks.
-   - MARK_CLASS, MARK_ATTR, isOwnMark(node), ownMarks(doc)   THE finder of the plugin's marks on Logseq's screen: every
-                                  class and attribute prefix a part uses; the troubleshooting box, the boot test and the
-                                  frame tests all count with it.
+   - MARK_CLASS, MARK_ATTR, isOwnMark(node)   THE finder of the plugin's marks on Logseq's screen: every
+                                  class and attribute prefix a part uses; the frame tests count with it.
 
    Layer 2, the kit. A part
    draws nothing of its own: it uses these and adds only its own layout. A new kind of thing goes in here first.
@@ -74,18 +71,15 @@
      listen, stop; leaves is what the part may leave on screen if a copy is cut short), so that a reload still stops each
      part's earlier copy on its own;
    - push { name, schema, provide?, start, ready?, commands?, moved?, foundation?, stop } onto window.Threads.parts
-     (foundation: true keeps the part running under the setting Foundation only: the model, the troubleshooting
-     tools and the settings window);
+     (foundation: true keeps the part running under the setting Foundation only: the model, the Recycle
+     list and the settings window);
      main.js joins the schemas, in the order of PART_FILES, after its own, and from main() calls every
      part's provide(core), then every start(), then every ready() (what draws on screen, once every part
      has started), and stop() at unload; it puts each command in the one register ({ key, label, run, shortcut,
      binding, icon, places }: main.js says what each is) and moves a saved setting named in moved
      ({ key: [old default, new default] }). The core starts no part by name.
    - call Logseq only through layer 1: the graph through parts/model.js, the screen through core.screen, a
-     command through the register, a notice through notify; never logseq.* itself;
-   - bring its own troubleshooting: what it looks for on screen and any tool of its own, through
-     core.provided.addTroubleshooting({ checks, tools }) from parts/diagnostics.js, never by
-     the troubleshooting part reaching into it.
+     command through the register, a notice through notify; never logseq.* itself.
 
    LOAD ORDER AND WHY: loader.js → main.js → parts/shared.js → parts/model.js → the other parts → main().
    loader.js loads main.js with a fresh timestamp (Logseq caches a plugin's script between reloads);
@@ -107,8 +101,6 @@ const { host, notify, esc } = window.PluginDoor;
    listeners, the settings reader, the sweep of what a copy cut short left on screen and the take-over from an earlier copy were
    Threads' own until then, a second kit beside the plugin's. Each part takes its base from the door itself. */
 const Door = window.PluginDoor;
-// Every distinct warning of this session, for "Copy warnings": message (with its prefix), first time, count.
-const warnings = Door.warnings;
 const sweepLeftovers = doc => Door.sweep('threads', doc);
 // Every part's clean-up steps waiting, by its prefix, so the stress tests can see one that grows with use. Several parts share a
 // prefix: their steps are added up under it, so none hides another's.
@@ -128,25 +120,11 @@ async function openPageNamed(name, inSidebar = false) {
   logseq.App.pushState('page', { name });
 }
 
-/* Measuring, for the troubleshooting tools (parts/diagnostics.js). The core calls perf.* on its hot
-   paths (every screen change, every stylesheet, every database round); while nothing is measuring,
-   each call returns at once. The diagnostics part puts its measuring object in perf.impl while
-   measuring is on and takes it out when it is off. */
-const perf = {
-  impl: null,
-  add(name, ms) { if (perf.impl) perf.impl.add(name, ms); },
-  time(name, fn) { return perf.impl ? perf.impl.time(name, fn) : fn(); },
-  seen(name, records) { if (perf.impl) perf.impl.seen(name, records); },
-  style(key, text, sent) { if (perf.impl) perf.impl.style(key, text, sent); },
-  frameState() { return perf.impl ? perf.impl.frameState() : ''; },
-  pass(state) { if (perf.impl) perf.impl.pass(state); },
-  passDone() { if (perf.impl) perf.impl.passDone(); },
-  // Measuring or not: whether a settings change touched only the plugin's own keys (reports, debugPerf, the self-check note).
-  ownSettingsOnly(now, before) {
-    const changed = Object.keys({ ...now, ...before }).filter(key => JSON.stringify(now?.[key]) !== JSON.stringify(before?.[key]));
-    return changed.length > 0 && changed.every(key => /^(?:perf|debugPerf|selfCheck)/.test(key));
-  },
-};
+// Whether a settings change touched only the plugin's own note (the self-check's seen version), which no part needs to hear of.
+function ownSettingsOnly(now, before) {
+  const changed = Object.keys({ ...now, ...before }).filter(key => JSON.stringify(now?.[key]) !== JSON.stringify(before?.[key]));
+  return changed.length > 0 && changed.every(key => /^selfCheck/.test(key));
+}
 
 
 // A part's settings: the saved value, or the default when the saved value is missing or of the wrong type (the door's reader).
@@ -528,7 +506,7 @@ function pickType({ at, name = '', options = [], doc } = {}) {
    typed (a bullet saves as it is written); show(words) gives the html that stands in the box's place once new words are kept,
    so the old words never come back for a moment before the redraw. offers: words (or a promise of them, or a function giving
    one) listed under the box once they come, the library's menu rows: ↓ and ↑ light one, Enter or a press takes it, typing goes
-   on as before (Threads' "Reads back as…", Apple's names for a row). */
+   on as before (Relations' "Reads back as…": grammar's name for a row and the property's own). */
 function editInPlace({ at, value = '', type = 'text', placeholder = '', doc, again, wrap = false, onType, show, onEnd, offers, escapeKeeps = false, backspaceEnds = false } = {}) {
   const numeric = type === 'number';
   type = 'text';
@@ -815,10 +793,10 @@ const kitCss = `/* The kit (parts/shared.js): where the library's pieces stand i
 .th-item-words { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .th-item kbd, .th-end { margin-left: auto; flex: none; font: inherit; font-size: var(--lk-small); color: var(--lk-quiet); }
 .th-pop .th-field { margin: 0 8px 4px; }
-/* A report to copy (the troubleshooting tools): the text in a quiet box, Copy as the one word. */
+/* A report to copy (what Logseq's Recycle wrote as it broke): the text in a quiet box, Copy as the one word. */
 .th-report { padding: 8px 10px; max-width: min(720px, 92vw); }
 .th-report > .th-pop-body { max-height: none; }
-/* The Recycle list (troubleshooting): as tall as the window allows below the pop-up's place, so many lines show at once. */
+/* The Recycle list: as tall as the window allows below the pop-up's place, so many lines show at once. */
 .th-recycle { max-width: min(640px, 92vw); }
 .th-recycle > .th-pop-body { max-height: calc(84vh - 60px); }
 .th-recycle .th-recycle-acts { gap: 2px; }
@@ -1008,25 +986,15 @@ span.th-ol-count { text-decoration: none; cursor: default; }
 Door.base('threads', { prefix: 'Relations: ', leaves: { elements: '.th-pop, .th-anchor' } });   // what the kit itself may leave on screen
 
 // THE finder of the plugin's marks on Logseq's screen (2026-10-23): every class and attribute prefix any part uses.
-// The troubleshooting box counts with it, the boot test looks for leftovers with it and the frame tests
-// (tools/frames.js, the plugin's tools/motion-check.js) track with it, so a new prefix is never counted by one and missed by another.
+// The frame tests track with it (threads/tools/marks.js reads the two rules from this file), so a new prefix is never counted by one and missed by another.
 // A new prefix goes here and nowhere else.
 const MARK_CLASS = /^th-/, MARK_ATTR = /^data-th-/;
 const isOwnMark = node => node?.nodeType === 1 && ([...node.attributes].some(attr => MARK_ATTR.test(attr.name))
   || (typeof node.className === 'string' && [...node.classList].some(cls => MARK_CLASS.test(cls))));
-// Every mark in doc, counted: 'data-th-x' → n, '.th-y' → n.
-function ownMarks(doc) {
-  const marks = new Map();
-  for (const node of doc.querySelectorAll('*')) {
-    for (const attr of node.attributes) if (MARK_ATTR.test(attr.name)) marks.set(attr.name, (marks.get(attr.name) || 0) + 1);
-    if (typeof node.className === 'string') for (const cls of node.classList) if (MARK_CLASS.test(cls)) marks.set('.' + cls, (marks.get('.' + cls) || 0) + 1);
-  }
-  return marks;
-}
 
 (window.Threads ||= {}).shared = {
-  host, notify, sweepLeftovers, take, screen, openEntity, openPageNamed, settingReader, perf, warnings,
+  host, notify, sweepLeftovers, take, screen, openEntity, openPageNamed, settingReader, ownSettingsOnly,
   kitCss, el, esc, ICONS, icon, iconHtml, kindIconHtml, tag, quiet, go, keepKeys, field, fieldHtml, outline, note, popup, popups, pickValue, pickType, editInPlace, ask, card, undo,
-  MARK_CLASS, MARK_ATTR, isOwnMark, ownMarks, lifeCounts,
+  MARK_CLASS, MARK_ATTR, isOwnMark, lifeCounts,
 };
 })();

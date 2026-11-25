@@ -16,7 +16,7 @@
 (function () {
 const Door = window.PluginDoor;
 const ORDER = ['look', 'find', 'threads', 'predictive', 'structure', 'export'];
-const GROUPS = [['What you see', ['window', 'page', 'sidebar']], ['What you do', ['writing', 'finding', 'following', 'out']], ['Everything else', ['keys', 'parts']]];
+const GROUPS = [['What you see', ['window', 'page', 'sidebar']], ['What you do', ['writing', 'finding', 'following']], ['Everything else', ['keys', 'parts']]];
 const PLACES = {
   window: ['The window', 'How Logseq’s own screens look: type, sidebar, tables, search and menus.'],
   page: ['A page', 'How links, tags, properties and bullets read on a page.'],
@@ -24,11 +24,10 @@ const PLACES = {
   writing: ['Writing', 'What the plugin offers while you type.'],
   finding: ['Finding', 'The search window.'],
   following: ['Following links', 'What a ⌘-click on a link does, and the rows under a page that show everything pointing at it.'],
-  out: ['Taking a page out', 'The PDF, Markdown and rich-text export.'],
   keys: ['Keys', 'Every keyboard shortcut, in one list.'],
   parts: ['Parts', 'Switch a part off, and find a fault.'],
 };
-const HOME = { plugin: 'following', look: 'window', find: 'finding', threads: 'following', predictive: 'writing', export: 'out', structure: 'parts', todo: 'parts' };   // where a part's own name leads
+const HOME = { plugin: 'following', look: 'window', find: 'finding', threads: 'following', predictive: 'writing', export: 'parts', structure: 'parts', todo: 'parts' };   // where a part's own name leads
 const placeOf = key => PLACES[key] ? key : HOME[key] || 'window';
 const REOPEN_KEY = 'logseq-plugin-settings-reopen';
 const { esc, host } = window.PluginDoor;
@@ -137,7 +136,7 @@ const keySpelling = words => String(words || '').toLowerCase().split(/[\s+]+/).f
 const pressed = event => Door.keys.pressed(event);
 
 /* A part's rows, as sections: a heading opens one, the rows under it follow. An action stands under the setting before it
-   (Measure under Apple's tools, Open troubleshooting under Run only the base). Under Parts, a switch for each part. */
+   (Open the Recycle list under Run only the base). Under Parts, a switch for each part. */
 function sectionsOf(part) {
   const described = Door.described[part.key], sections = [];
   let current = null, last = null;

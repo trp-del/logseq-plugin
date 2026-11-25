@@ -11,8 +11,6 @@ const schema = [
     description: 'One fine line at its edge where Logseq paints a grey panel (lighter than the page in dark mode); the page you are on a little heavier; “Navigations” left out, its edit press still there under the pointer.' },
   { key: 'calmToolbar', type: 'boolean', looks: ['Logseq’s eight', 'Four, finer'], default: true, title: 'Toolbar',
     description: 'The icons at the top drawn with a finer line at Logseq’s own strength, four where Logseq has eight: Ontology, Todo, the ··· menu, which Find and Ontology in the sidebar head, and the sidebar button; back and forward are Cmd [ and Cmd ]; the ? at the bottom right without its circle.' },
-  { key: 'calmScrollbars', type: 'boolean', looks: ['The Mac’s own', 'Thin, always shown'], default: false, title: 'Scroll bars',
-    description: 'Off, scroll bars are the Mac’s own and follow System Settings > Appearance > Show scroll bars: usually a bar that comes while you scroll and fades. On, they are thin and faint and always shown, firmer under the pointer.' },
   { key: 'calmPage', type: 'boolean', looks: ['Logseq’s', 'Tighter and heavier'], default: true, title: 'Page titles and journal days',
     description: 'A page’s title at 30 px, a little heavier and tighter; journal days parted by space, not a line; Linked references with a medium heading, not a bold one.' },
   { key: 'calmTables', type: 'boolean', looks: ['Lines and a grey head', 'A line under each row'], default: true, title: 'Tables',

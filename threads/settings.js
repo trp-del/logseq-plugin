@@ -1,6 +1,6 @@
 /* Threads in the plugin's settings window: its rows, each with a specimen of the thing itself. The settings list Logseq
    shows comes from the parts' own schemas; this says how they read here. Tools of the window: a list offers the graph's
-   properties as you type, and Open troubleshooting runs the command the diagnostics part registers. */
+   properties as you type, and Open the Recycle list opens the list the diagnostics part draws. */
 (function () {
 const schemaOf = () => (window.Threads.parts || []).flatMap(part => part.schema || []);
 const item = (key, more = {}) => ({ ...schemaOf().find(row => row.key === key), hidden: false, ...more });
@@ -40,7 +40,7 @@ window.PluginDoor.describe('threads', {
       { type: 'heading', title: 'When something is wrong', place: 'parts' },
       item('foundationOnly', { title: 'Run only the base of Relations, to find a fault in it', looks: ['All of Relations runs', 'Only its base'] }),
       // Only while Threads runs: there is nothing to open otherwise.
-      ...(window.Threads.core?.provided?.openTroubleshooting ? [{ type: 'action', key: 'troubleshoot', title: 'Open troubleshooting', run: () => window.Threads.core.provided.openTroubleshooting() }] : []),
+      ...(window.Threads.core?.provided?.openRecycleList ? [{ type: 'action', key: 'recycle', title: 'Open the Recycle list', run: () => window.Threads.core.provided.openRecycleList() }] : []),
     ];
   },
   specimen,

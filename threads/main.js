@@ -6,24 +6,23 @@
    of old defaults went the same day, since no part used them.
    Logseq keeps only the most recent beforeunload callback a plugin registers, so every part keeps its own clean-up list and
    the module's stop runs them all. */
-let host, notify, warnOnce, onUnload, runUnloadTasks, setting, perf, base;
+let host, notify, warnOnce, onUnload, runUnloadTasks, setting, ownSettingsOnly, base;
 function useShared() {
   const shared = window.Threads?.shared;
   if (!shared) throw new Error('parts/shared.js did not load');
-  ({ host, notify, perf } = shared);
+  ({ host, notify, ownSettingsOnly } = shared);
   // The core's base (plugin.js, Door.base). Its stop takes Threads' screen updaters off the door's watcher first, so nothing
-  // re-applies while the steps undo their changes; every stylesheet it sends is counted for the troubleshooting tools.
-  base = window.PluginDoor.base('threads', { prefix: 'Relations: ', styled: (key, style, changed) => perf.style(key, style, changed) });
+  // re-applies while the steps undo their changes.
+  base = window.PluginDoor.base('threads', { prefix: 'Relations: ' });
   warnOnce = base.warnOnce; onUnload = base.onStop; runUnloadTasks = () => { screen.count = 0; return base.stop(); };
 }
 
 /* Threads' screen updaters on the door's one watcher. An early one (watchDomEarly) runs at once on every change, before the
-   screen is drawn, given the changes; it must be quick. Each is timed for the troubleshooting tools; the base takes them off at
+   screen is drawn, given the changes; it must be quick. The base takes them off at
    Threads' stop, so only Threads' go. A failing one is retired by the door after five errors. */
 const screen = { count: 0 };
 function watchDomEarly(update) {
-  const timed = (doc, records) => { perf.seen('screen watcher', records); perf.time(update.name, () => update(doc, records)); };
-  base.watch(timed, { early: true });
+  base.watch(update, { early: true });
   screen.count++;
 }
 const addsElements = records => window.PluginDoor.addsElements(records);
@@ -70,14 +69,14 @@ function runSelfCheck(first) {
   }
   const [what, , , stops] = missing[0];
   const lost = missing.length === 1 ? `Relations could not find ${what} on this page, so ${stops} may not show.` : `Relations could not find ${missing.length} parts of this page it works with, so some of what it draws may not show.`;
-  notify(`${lost} Your notes are safe. To look closer: Relations: troubleshooting, then “Check what the plugin finds on this page”.`, 'warning');
+  notify(`${lost} Your notes are safe.`, 'warning');
 }
 async function versionNotice() {
   let version = '';
   try { version = (await logseq.App.getInfo('version')) || ''; } catch (error) { return; }
   if (!version || version === provided.CHECKED_WITH || logseq.settings?.selfCheckSeenVersion === version) return;
   logseq.updateSettings({ selfCheckSeenVersion: version });
-  notify(`You are on Logseq ${version}; Relations was last checked with Logseq ${provided.CHECKED_WITH}. If something looks off: Relations: troubleshooting, then “Check what the plugin finds on this page”.`, 'warning');
+  notify(`You are on Logseq ${version}; Relations was last checked with Logseq ${provided.CHECKED_WITH}.`, 'warning');
 }
 function startSelfCheck() {
   versionNotice();
@@ -134,7 +133,6 @@ function scheduleDbWork() {
 }
 function runDbWork() {
   dbWork.since = 0;
-  perf.add('database round (calls only)', 0);
   // A job's look-up still waiting from a page change is not needed too: each job says what to cancel first.
   for (const job of dbJobs) if (job.before) { try { job.before(); } catch (error) { warnOnce(`${job.name} could not cancel its earlier look-up`, error); } }
   const failed = error => warnOnce('a look-up after a change failed', error);
@@ -217,7 +215,7 @@ function main() {
   // next: provide() gives the core the part's functions and state; start() takes the others' things and
   // registers with the core; ready() starts what draws on screen, once every part has started. The core
   // starts no part by name. With the setting Foundation only, only the parts marked foundation run:
-  // the model, the troubleshooting tools and the settings window; the others stay loaded (their settings
+  // the model, the Recycle list and the settings window; the others stay loaded (their settings
   // keep their place) but are never started.
   const foundationOnly = setting('foundationOnly') === true;
   window.Threads.runningBaseOnly = foundationOnly;   // read by the settings window, which offers the reload when the setting differs
@@ -239,7 +237,6 @@ function main() {
   }));
   // Edits fire this constantly while typing, so the database round waits for a pause before re-querying.
   onUnload(logseq.DB.onChanged((change = {}) => {
-    perf.add('DB.onChanged (calls only)', 0);
     graphCache.changed = true;
     runHooks(hooks.database, 'database change', change);
     scheduleDbWork();
@@ -247,7 +244,7 @@ function main() {
   onUnload(logseq.App.onCurrentGraphChanged(() => { graphCache.clear(); window.Threads.shared.undo.clear(); runHooks(hooks.graph, 'graph change'); })); // another graph has other lists, and an arrow would act on what is not there
   onUnload(() => { clearTimeout(dbWork.timer); clearTimeout(dbWork.slowTimer); });
   onUnload(logseq.onSettingsChanged((now, before) => {
-    if (perf.ownSettingsOnly(now, before) || !window.PluginDoor.settingChanged(schemaAll.map(item => item.key), now, before)) return;
+    if (ownSettingsOnly(now, before) || !window.PluginDoor.settingChanged(schemaAll.map(item => item.key), now, before)) return;
     runHooks(hooks.settings, 'settings change', now, before);
     // Logseq rewrites every setting when the plugin starts, so a setting with no earlier value is a
     // default being filled in (first install, or a new setting after an update), not a change.
@@ -256,7 +253,7 @@ function main() {
 }
 /* Every part lives in parts/*.js and adds itself to window.Threads.parts. The plugin's files.js loads them, in order,
    before this file: shared.js first (the other parts read window.Threads.shared as they load), model.js second (the
-   Logseq model, which every part reads the graph through, core.provided), then diagnostics, two-way,
+   Logseq model, which every part reads the graph through, core.provided), then diagnostics (the Recycle list), two-way,
    proposals. The parts' settings, in that order, each under its heading, go to the plugin
    with this module's registration, so they hold their defaults when main runs. */
 let plugInParts = [];

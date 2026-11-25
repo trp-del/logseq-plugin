@@ -75,7 +75,7 @@ const CHECKS = [
     if (wrote.length) return 'Undo wrote over a bullet that had changed since';
   }],
   ['4. a page the plugin made is deleted by its id, never by a shared name', async () => {
-    // Two pages share a name: an older "dr. lee" of the person's own, and "Dr. Lee" that Predictive made a moment ago.
+    // Two pages share a name: an older "dr. lee" of the person's own, and "Dr. Lee" that the plugin made a moment ago.
     for (const byIdWorks of [true, false]) {
       const OLD = U(1), MADE = U(2), pages = [{ uuid: OLD, title: 'dr. lee', name: 'dr. lee' }, { uuid: MADE, title: 'Dr. Lee', name: 'dr. lee' }], deleted = [];
       const find = key => pages.find(p => p.uuid === key) || pages.find(p => p.name === String(key).toLowerCase());
@@ -84,11 +84,9 @@ const CHECKS = [
         // Logseq 2.0.2 has been seen to leave a page in place when asked by its uuid: then only the name is left to ask by.
         deletePage: async key => { const p = find(key); if (!p || (!byIdWorks && p.uuid === key)) return; deleted.push(p.uuid); pages.splice(pages.indexOf(p), 1); } },
         DB: { datascriptQuery: async q => { const uuid = /#uuid "([^"]+)"/.exec(q)?.[1]; return /deleted-at/.test(q) && !/:block\/page|:block\/refs|\?a/.test(q) ? (pages.some(p => p.uuid === uuid) ? [[1]] : []) : []; } } };
-      const { win, context } = doorWith(logseq);
-      win.Flow = { context: {}, schema: {}, link: {}, text: { UUID: /x/ } };
-      vm.runInContext(code('predictive/logseq/db.js'), context);
+      const { door } = doorWith(logseq);
       let said = '';
-      const went = await win.Flow.db.dropPage({ uuid: MADE, title: 'Dr. Lee' }).catch(error => { said = error.message; return false; });
+      const went = await door.write.dropMade({ uuid: MADE, title: 'Dr. Lee' }).catch(error => { said = error.message; return false; });
       if (deleted.includes(OLD)) return `the person's own page of the same name was deleted (delete by id ${byIdWorks ? 'works' : 'ignored'})`;
       if (byIdWorks && !(went === true && deleted.length === 1 && deleted[0] === MADE)) return 'the made page should go by its id: ' + JSON.stringify(deleted);
       if (!byIdWorks && !(deleted.length === 0 && /another page answers to its name/.test(said))) return 'with the name answering to another page, nothing may be deleted: ' + JSON.stringify([deleted, said]);
@@ -107,7 +105,7 @@ const CHECKS = [
   }],
   ['6. the lessons page is never written twice, and keeps your own lines', async () => {
     const ABOUT = 'What Predictive has learned from how you answer its suggestions in this graph. Delete a line to make it forget that lesson.';
-    const LINE = 'Apple\'s matcher · tag Conversation: taken 1, said no 5';
+    const LINE = 'earlier lines · Provider: taken 1, said no 5';
     const run = async ({ lines, readFails = false, recycled = false }) => {
       const wrote = [], page = { uuid: U(9), ...(recycled ? { 'deleted-at': 1 } : {}) };
       const blocks = lines.map((title, i) => ({ uuid: U(20 + i), title }));

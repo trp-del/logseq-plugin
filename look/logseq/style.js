@@ -189,7 +189,7 @@ ${AREA} .ls-block > .block-main-container .positioned-properties.block-below .bo
    its label"): Logseq draws a value of words, a day or a choice 24px tall at the top of a 28px row, its name centred in it, so
    both stood 2px high. A value that is a block of its own keeps Logseq's place. */
 ${AREA} .property-pair > .property-value-container:not(:has(.ls-block)) > :is(.property-panel-bullet, .property-value) { margin-top: 2px; }
-/* Where a page has little width, each of its property names stands over its value, as a row's do in the row view and Ontology's
+/* Where a page has little width, each of its property names stands over its value, as Ontology's
    lines do under 360 px (24 November 2026, at the owner's window, 700 px wide with the left sidebar open: the right sidebar is 280
    and the page beside it 174; Logseq's name column keeps its 150, so in the sidebar a balance read "-1 / 38 / 7.4 / 2" down four
    lines and a linked page ran past the window's edge, and on the page the values had no width at all). The box of the property rows

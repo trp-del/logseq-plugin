@@ -640,7 +640,7 @@ function render() {
   if (lineBox) body.append(lineBox);
   if (!isCommandMode() && groups.length) {
     // No word over the lines: each is a label and the choices that narrow the list, and the gap under them tells them from the
-    // rows. Drawn by the library's lines of choices (Door.choicesHtml), as Relations draws its own; a press reaches the choice
+    // rows. Drawn by the library's lines of choices (Door.choicesHtml); a press reaches the choice
     // through its data-c.
     let ci = 0;
     const lines = groups.map(g => ({

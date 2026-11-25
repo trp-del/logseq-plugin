@@ -9,7 +9,7 @@ const { notify, host } = window.PluginDoor;
 
 const tray = S.changes.makeTray();
 tray.setBase({ tags: [], props: [] });
-const AT_ONCE = new Set(['move', 'takeOut', 'rename', 'renameProp', 'moveProp', 'addProp', 'make', 'keepUnder', 'setRange', 'retag']);   // Undo puts each back whole; nothing is lost
+const AT_ONCE = new Set(['move', 'takeOut', 'rename', 'renameProp', 'moveProp', 'addProp', 'make', 'setRange', 'retag']);   // Undo puts each back whole; nothing is lost
 const startState = () => ({ cur: null, open: new Set(), seen: new Set(), whole: new Set(), ticks: new Set(), pticks: new Set(), popen: new Set(), paim: false, find: '', view: 'tree', sort: 'filled', propCur: null, menu: null, prompt: null, edit: null, nodes: null, busy: '', trail: [], ask: null, places: new Map(), at: null, walking: false, split: false, pane2: { find: '', open: new Set(), seen: new Set() } });
 const changesWord = n => n === 1 ? '1 change' : `${n} changes`;
 const stepsWord = n => n === 1 ? '1 step' : `${n} steps`;
@@ -23,36 +23,13 @@ let saidTimer = 0;
 const SAID_FOR = 6000;
 function say(text) { tray.note = text; clearTimeout(saidTimer); saidTimer = setTimeout(() => { if (tray.note === text) { tray.note = ''; app.draw(); } }, SAID_FOR); }
 const app = {
-  tray, views: new Set(), issuesCache: { model: null, list: [] }, reading: null, readAt: 0, graph: '',
+  tray, views: new Set(), reading: null, readAt: 0, graph: '',
   st: startState(),
-  // What Ontology suggests, less the suggestions dismissed on this graph: gone from the box, the lines and the Regions dots alike.
-  issues() {
-    const off = app.dismissed();
-    if (app.issuesCache.model !== tray.model || app.issuesCache.at !== tray.version || app.issuesCache.off !== off) app.issuesCache = { model: tray.model, at: tray.version, off, list: S.rules.issues(tray.model).filter(i => !off.has(i.key)) };
-    return app.issuesCache.list;
-  },
-  /* A suggestion dismissed stays dismissed (17 November 2026, the owner: allow dismissing it): kept by its key with the graph's name
-     on this computer, as the groups are, nothing written to the graph. The faded Undo arrow brings it back. */
-  dismissed() {
-    if (app.dismissedCache?.graph === app.graph) return app.dismissedCache.set;
-    let list = []; try { list = JSON.parse(localStorage.getItem(`structure-dismissed:${app.graph}`) || '[]'); } catch (error) { list = []; }
-    app.dismissedCache = { graph: app.graph, set: new Set(Array.isArray(list) ? list : []) };
-    return app.dismissedCache.set;
-  },
-  dismiss(key, on) {
-    const graph = app.graph, keep = set => { try { localStorage.setItem(`structure-dismissed:${graph}`, JSON.stringify([...set])); } catch (error) { console.error('Structure: the dismissal could not be kept', error); } };
-    const set = new Set(app.dismissed()); if (!key || set.has(key)) return;
-    set.add(key); keep(set); app.dismissedCache = { graph, set }; app.draw();
-    window.PluginDoor.undo.offer({ owner: 'structure', key: `structure:dismiss:${++groupChanges}`, text: 'Bring the suggestion back',
-      at: () => host().querySelector(`.sugs[data-on="${String(on).replace(/["\\]/g, '')}"] .sh`) || null,
-      run: async () => { if (graph !== app.graph) return; const back = new Set(app.dismissed()); back.delete(key); keep(back); app.dismissedCache = { graph, set: back }; app.draw(); },
-      onFail: error => { console.error('Structure: the suggestion could not be brought back', error); notify('The suggestion could not be brought back', 'warning'); } });
-  },
   // The tags and properties a change waiting in the tray touches: in green text (lk-coming) wherever they are drawn.
   touched() {
     if (app.touchedCache && app.touchedCache.at === tray.version && app.touchedCache.model === tray.model) return app.touchedCache.set;
     const tags = new Set(), props = new Set();
-    for (const c of tray.changes) { for (const k of ['tag', 'from', 'into', 'to', 'made', 'under', 'parent']) { const v = c[k]; if (Array.isArray(v)) v.forEach(x => tags.add(x)); else if (typeof v === 'number' && !(k === 'to' && c.kind === 'setRange')) tags.add(v); } if (c.tags) c.tags.forEach(x => tags.add(x)); if (c.prop != null) props.add(c.prop); if (c.intoProp != null) props.add(c.intoProp); }
+    for (const c of tray.changes) { for (const k of ['tag', 'from', 'into', 'to', 'made', 'under']) { const v = c[k]; if (Array.isArray(v)) v.forEach(x => tags.add(x)); else if (typeof v === 'number' && !(k === 'to' && c.kind === 'setRange')) tags.add(v); } if (c.tags) c.tags.forEach(x => tags.add(x)); if (c.prop != null) props.add(c.prop); if (c.intoProp != null) props.add(c.intoProp); }
     app.touchedCache = { at: tray.version, model: tray.model, set: { tags, props } };
     return app.touchedCache.set;
   },
@@ -201,7 +178,7 @@ const app = {
     catch (error) { console.error('Structure: the graph could not be read', error); notify(`The graph could not be read: ${window.PluginDoor.reason(error, 'Logseq did not answer. Open Ontology again in a moment')}`, 'error'); }
     sayLost('what it names is no longer in the graph');
     settle(was);
-    if (!app.st.ask?.change && !app.st.ask?.apply) app.st.ask = null;   // an ask of an issue or a merge names what this reading may have moved
+    if (!app.st.ask?.change && !app.st.ask?.apply) app.st.ask = null;   // an ask of a merge names what this reading may have moved
     app.draw();
   },
   mounted(view) { view.draw(); view.focus(); if (!app.st.busy) app.reread(); },   // the graph as it is now, not as it was last read
@@ -233,8 +210,8 @@ const app = {
   },
   /* A property change before it is made, shown on real notes (16 November 2026, the owner: "make sure you design it in a way where
      it is obvious what the outcome will be"): the counts, and up to three notes as they are now and as they will be. A note the
-     change leaves as it is comes first, when there is one. kind: 'merge' { prop, into }, 'retype' { prop, type }, 'splitProp'
-     { prop, only, name }. Each note: { title, tags, now: [{ name, vals }], after: [{ name, vals: [{ w, mark }], mark }], same }. */
+     change leaves as it is comes first, when there is one. kind: 'merge' { prop, into }, 'retype' { prop, type }, 'forTag'
+     { prop, tag, into or name }, 'forNodes' { prop, nodes, into or name, keep }. Each note: { title, tags, now: [{ name, vals }], after: [{ name, vals: [{ w, mark }], mark }], same }. */
   async propPreview(kind, a) {
     const m = tray.model, P = id => m.props.get(id), from = P(a.prop), V = S.values;
     const fromVals = await S.db.propValues(from.ident, from.type);
@@ -242,11 +219,11 @@ const app = {
     // A day as its journal page will be named, in the graph's own date format (the door's dates).
     const D = window.PluginDoor.dates, fmt = await D.format() || 'MMM do, yyyy', dayWord = d => D.title(D.date(d), fmt);
     const shown = w => w.day ? dayWord(w.day) : w.page ?? w.text ?? (w.num != null ? String(w.num) : w.raw != null ? (w.raw ? 'yes' : 'no') : '');
-    const gave = [], left = [], emptied = [], after = new Map();   // after: node -> { into: [words new], stay: [words] }
+    const gave = [], left = [], after = new Map();   // after: node -> { into: [words new], stay: [words] }
     let moved = 0, kept = 0, intoName = '', intoVals = new Map(), stayName = from.title;
     if (kind === 'merge') { const into = P(a.into); intoName = into.title; intoVals = await S.db.propValues(into.ident, into.type); var target = { ...into, choices: into.choice ? await S.db.choicesOf(into.id) : null }; }
     else if (kind === 'retype') { intoName = from.title; stayName = `${from.title}, as written`; var target = { type: a.type, many: from.many }; }
-    else if (kind === 'forTag' || kind === 'forNodes') {
+    else {
       // One tag's nodes (and those of the tags beneath it, which inherit the property from it); the other tags' nodes stay as they are.
       // forNodes (24 November 2026): the nodes picked, whatever their tags; keep: a copy, the first property left as it is.
       var mine = kind === 'forTag' ? Mo.nodesUnder(m, a.tag) : new Set(a.nodes), into = a.into != null ? P(a.into) : null;
@@ -254,22 +231,21 @@ const app = {
       if (into) { intoVals = await S.db.propValues(into.ident, into.type); var target = { ...into, choices: into.choice ? await S.db.choicesOf(into.id) : null }; }
       else var target = { type: from.choice ? 'default' : from.type, many: from.many };
     }
-    else { intoName = a.name; var target = { type: 'node', many: from.many }; var only = await S.db.valuesTagged(from.ident, a.only); }
     const clash = [];
     for (const [n, list] of fromVals) {
       if (mine && !mine.has(n)) continue;
       const go = [], stay = [];
       for (const v of list) { if (!word(v).trim()) continue;   // an empty value says nothing on a note: neither shown nor counted
-        const w = only && !only.has(v.id) ? null : V.convert(from, target, v); if (w) go.push(shown(w) || word(v)); else stay.push(word(v)); }
+        const w = V.convert(from, target, v); if (w) go.push(shown(w) || word(v)); else stay.push(word(v)); }
       moved += go.length; kept += stay.length;
       if (!go.length && !stay.length) continue;
-      if (go.length) gave.push(n); if (stay.length && (kind !== 'splitProp')) left.push(n); if (go.length && !stay.length) emptied.push(n);
+      if (go.length) gave.push(n); if (stay.length) left.push(n);
       if ((kind === 'forTag' || kind === 'forNodes') && !target.many && go.length + (intoVals.get(n) || []).length > 1) clash.push(n);
       after.set(n, { go, stay });
     }
     // Which notes to show: one left as it is (or partly) first, then ones that change.
     // For one tag, the note left as it is is one of another tag's (Bill payment's, beside Bills'), so it shows that tag is untouched.
-    const unchanged = kind === 'forNodes' ? [] : kind === 'splitProp' || kind === 'forTag' ? [...fromVals.keys()].filter(n => !gave.includes(n) && !(mine && mine.has(n))) : left.filter(n => !gave.includes(n));
+    const unchanged = kind === 'forNodes' ? [] : kind === 'forTag' ? [...fromVals.keys()].filter(n => !gave.includes(n) && !(mine && mine.has(n))) : left.filter(n => !gave.includes(n));
     const picks = [...unchanged.slice(0, 1), ...gave.filter(n => !unchanged.includes(n)).slice(0, unchanged.length ? 2 : 3)];
     const notes = (await S.db.notesFor(picks)).sort((x, y) => picks.indexOf(x.id) - picks.indexOf(y.id));
     const out = notes.map(note => {
@@ -286,14 +262,10 @@ const app = {
         if (hadInto.length) now.push({ name: intoName, vals: hadInto });
         if (a.keep || x.stay.length) aft.push({ name: from.title, vals: (a.keep ? had : x.stay).map(w => ({ w })) }); else if (x.go.length) aft.push({ name: from.title, vals: had.map(w => ({ w })), mark: 'gone' });
         if (x.go.length || hadInto.length) aft.push({ name: intoName, vals: [...hadInto.map(w => ({ w })), ...x.go.filter(w => !hadInto.includes(w)).map(w => ({ w, mark: 'new' }))], mark: hadInto.length ? '' : 'new' });
-      } else if (kind === 'forTag') {
+      } else {   // forTag
         if (hadInto.length) now.push({ name: intoName, vals: hadInto });
         if (x.stay.length) aft.push({ name: from.title, vals: x.stay.map(w => ({ w })) }); else if (x.go.length) aft.push({ name: from.title, vals: had.map(w => ({ w })), mark: 'gone' }); else aft.push({ name: from.title, vals: had.map(w => ({ w })) });
         if (x.go.length || hadInto.length) aft.push({ name: intoName, vals: [...hadInto.map(w => ({ w })), ...x.go.filter(w => !hadInto.includes(w)).map(w => ({ w, mark: 'new' }))], mark: hadInto.length ? '' : 'new' });
-      } else {
-        const stays = had.filter(w => !x.go.includes(w));
-        if (stays.length) aft.push({ name: from.title, vals: stays.map(w => ({ w })) }); else aft.push({ name: from.title, vals: had.map(w => ({ w })), mark: 'gone' });
-        if (x.go.length) aft.push({ name: intoName, vals: x.go.map(w => ({ w, mark: 'new' })), mark: 'new' });
       }
       return { title: note.title, tags: note.tags, now, after: aft, same: !x.go.length };
     });
@@ -302,9 +274,8 @@ const app = {
     const elsewhere = kind === 'forTag' ? [...fromVals.keys()].filter(n => !mine.has(n)).length : 0;
     // A node of the tag that also holds another tag asking for the property: its value moves all the same, so the other tag's note loses it.
     const also = kind === 'forTag' ? gave.filter(n => [...m.tags.values()].some(t => t.props.includes(a.prop) && !Mo.under(m, t.id, a.tag) && !Mo.under(m, a.tag, t.id) && Mo.nodesUnder(m, t.id).has(n))) : [];
-    return { notes: out, gave, left, emptied, moved, kept, nodes: fromVals.size, clash, others, elsewhere, also, inMine: mine ? mine.size : 0 };
+    return { notes: out, gave, left, moved, kept, nodes: fromVals.size, clash, others, elsewhere, also, inMine: mine ? mine.size : 0 };
   },
-  valuesOf: (id, ident) => S.db.valuesOf(id, ident), nodesWhere: (id, ident, v) => S.db.nodesWhere(id, ident, v),
   notify,
   nameTaken: name => S.db.nameTaken(name),
 };
@@ -358,20 +329,6 @@ async function otherGraph() {
   await app.reread();
 }
 let mounts = { onPage: () => false, openPage() {}, openInspector() {} };
-// The row view, on hold (22 November 2026): its toolbar button and command are added once the setting is on, and taken out of sight
-// again, the view ended, when it is turned off (Logseq keeps a button once added, so it is hidden rather than removed).
-const rowViewOn = () => logseq.settings?.rowView === true;
-const rowViewHere = { added: false };
-function rowViewFollow() {
-  const on = rowViewOn();
-  S.base.style('row-view', on ? '' : '#head :is(.injected-ui-item-toolbar, [class*="injected-ui-item"]):has(.lk-tool[data-on-click="rowView"]), #head .lk-tool[data-on-click="rowView"] { display: none !important; }');
-  if (!on) { if (window.PluginDoor.sideTabs?.rows?.()) window.PluginDoor.sideTabs.rows(false); return; }
-  if (rowViewHere.added) return;
-  rowViewHere.added = true;
-  window.PluginDoor.toolbarItem('row-view', 'rowView', 'Row view: the table row you press, in the sidebar', 'rows');
-  logseq.App.registerCommandPalette({ key: 'structure-row-view', label: 'Row view: the table row you press, in the sidebar' }, () => { if (rowViewOn()) window.PluginDoor.sideTabs?.rows(!window.PluginDoor.sideTabs.rows()); });
-}
-
 let reReadTimer = 0;
 const reachesMap = window.PluginDoor.structureWatch();
 function graphChanged(change) {
@@ -387,23 +344,18 @@ function graphChanged(change) {
 
 async function main() {
   S.inspector.model = () => tray.model;
-  S.inspector.changed = () => tagPage();   // the inspector opened, closed or folded: the lines go to it or back above the table
+  S.inspector.changed = () => tagPage();   // the Ontology section opened, closed or folded: a tag's lines go into it or out
   S.inspector.start();
   mounts = S.mount.mount(app);
   logseq.App.registerCommandPalette({ key: 'structure-open', label: 'Ontology: the map of tags and properties' }, () => app.openMain());
   logseq.App.registerCommandPalette({ key: 'structure-inspector', label: 'Ontology: this page’s part, in the right sidebar' }, () => mounts.openInspector());
-  logseq.provideModel({ structureOpen: () => app.openMain(), rowView: () => { if (rowViewOn()) window.PluginDoor.sideTabs?.rows(!window.PluginDoor.sideTabs.rows()); } });
-  // The map is a button in Logseq's toolbar (the owner, 14 November 2026); the inspector stays in Logseq's ··· menu.
+  logseq.provideModel({ structureOpen: () => app.openMain() });
+  // The map is a button in Logseq's toolbar (the owner, 14 November 2026); the Ontology section stays in Logseq's ··· menu.
   const { onStop } = S.base;
   // Look's × on a tag's own page asks for the tag to leave its place: the map asks first (askTakeOut).
   onStop(window.PluginDoor.offerAsk('structure.takeOut', (tagUuid, parentUuid) => app.askTakeOut(tagUuid, parentUuid)));
   onStop(window.PluginDoor.addMenuItem({ key: 'inspector', label: 'Ontology in the sidebar', icon: 'info-circle', run: () => mounts.openInspector() }));
   window.PluginDoor.toolbarItem('structure-open', 'structureOpen', 'Ontology: the map of tags and properties', 'structure');
-  // Row view: a press on a row of a tag's or a property's table shows that row in the right sidebar. On hold since 22 November 2026
-  // (the owner: "lets just put the row view feature on hold now and disable it in settings"): its button, its command and the view
-  // itself are there only while the setting Row view is on (off by default).
-  rowViewFollow();
-  onStop(logseq.onSettingsChanged?.((now, before) => { if (window.PluginDoor.settingChanged(['rowView'], now, before)) rowViewFollow(); }));
   onStop(logseq.DB.onChanged(change => graphChanged(change)));
   onStop(logseq.App.onCurrentGraphChanged(() => otherGraph()));
   onStop(logseq.App.onRouteChanged?.(() => { tagPage(); }));
@@ -433,33 +385,31 @@ const stop = () => { S.inspector.stop(); mounts.stop?.(); where?.stop(); stopHas
 /* The lines on a tag's own page: set above Logseq's table, in the page's own column, each time Logseq draws a tag's page. */
 let where = null, stopHash = null, stopValues = null, stopTagMenu = null, stopTableValues = null, tagTimer = 0, tagAsking = 0;
 const days = new Set();   // pages found to be journal days, which a tag's lines never stand on
-const lookup = uuid => { const id = [...tray.model.tags.values()].find(t => t.uuid === uuid)?.id ?? null; return { id, prop: id == null ? [...tray.model.props.values()].find(p => p.uuid === uuid)?.id ?? null : null }; };
+const lookup = uuid => [...tray.model.tags.values()].find(t => t.uuid === uuid)?.id ?? null;   // the tag whose page this is, or null
 const SPLIT = '#right-sidebar[data-lk-split] .sidebar-item[data-lk-split-item]';
 const onRight = v => !!v.root.closest(SPLIT);
-function place(doc, inner, here, id, prop) {
+function place(doc, inner, here, id) {
   const views = [...app.views].filter(v => (v.mode === 'tag' || v.mode === 'line') && v.root.parentElement?.classList.contains('st-tagholder') && !onRight(v));
   const clear = () => { for (const v of views) v.destroy(); doc.querySelectorAll('.st-tagholder').forEach(n => { if (!n.closest(SPLIT)) n.remove(); }); };
-  S.inspector.pageKnown?.(id == null && prop == null);   // a page that is no tag's and no property's: the tab may say so at once
-  if (id == null && prop == null) { clear(); return; }
-  /* A tag's page: Parent on one line above its title, always; its other lines (Child tags first) in the inspector while that stands in
-     the right sidebar. A property's page: nothing of the plugin's above Logseq's table (the owner, 24 November 2026: "the things
-     that appear on a property page are also either unnecessary or getting ahead of itself"); its lines stand only at the
-     inspector's top while that is open. */
+  S.inspector.pageKnown?.(id == null);   // a page that is no tag's: the Ontology section stands aside, and may say so at once
+  if (id == null) { clear(); return; }
+  /* A tag's page: Parent on one line above its title, always; its other lines (Child tags first) in the Ontology section while that
+     stands in the right sidebar. A property's page: nothing of the plugin's, above Logseq's table (the owner, 24 November 2026: "the
+     things that appear on a property page are also either unnecessary or getting ahead of itself") or in the sidebar, where the
+     Ontology section stands aside as on any page that is no tag's (the same day: the lines that still stood there were dropped). */
   const box = S.inspector.top(), title = [...inner.children].find(c => !c.classList.contains('st-tagholder')) || null;
-  const want = id != null
-    ? [{ mode: 'line', parent: inner, before: title, cls: 'st-holder-line' }, ...(box ? [{ mode: 'tag', parent: box, before: null, cls: '' }] : [])]
-    : box ? [{ mode: 'tag', parent: box, before: null, cls: '' }] : [];
-  const same = want.length === views.length && want.every(w => views.some(v => v.mode === w.mode && v.tag === (id ?? undefined) && v.prop === (prop ?? undefined) && v.root.isConnected && v.root.parentElement.parentElement === w.parent));
+  const want = [{ mode: 'line', parent: inner, before: title, cls: 'st-holder-line' }, ...(box ? [{ mode: 'tag', parent: box, before: null, cls: '' }] : [])];
+  const same = want.length === views.length && want.every(w => views.some(v => v.mode === w.mode && v.tag === id && v.root.isConnected && v.root.parentElement.parentElement === w.parent));
   if (same) {
     for (const w of want) { const holder = views.find(v => v.mode === w.mode).root.parentElement; if (w.parent === inner && w.before !== holder && holder.nextElementSibling !== w.before) inner.insertBefore(holder, w.before); }
     return false;
   }
   clear();
-  if (id != null) app.st.cur = id;
+  app.st.cur = id;
   for (const w of want) {
     const holder = doc.createElement('div'); holder.className = `st-tagholder st-holder-tag ${w.cls}`;
     w.parent.insertBefore(holder, w.before);
-    app.mounted(S.view.make(holder, w.mode, app, id != null ? { tag: id } : { prop }));
+    app.mounted(S.view.make(holder, w.mode, app, { tag: id }));
   }
   return true;
 }
@@ -467,7 +417,7 @@ function tagPage() {
   setTimeout(() => S.inspector.idle());   // after the lines are placed: the faint line under them says what the panel waits for
   const doc = host(), inner = doc.querySelector('#main-content-container .page-inner'), ask = ++tagAsking;
   const here = inner && (inner.querySelector(':scope > .page-tabs') || inner.querySelector(':scope > .ls-page-blocks'));
-  if (!here) return place(doc, null, null, null, null);
+  if (!here) return place(doc, null, null, null);
   /* A journal day is never a tag's page, even where the graph holds the day as a tag, or a tag shares the day's name: nothing is
      set above it. The page is the one drawn on screen (its title's block), since Logseq's answer to which page is current can
      still name the last one; the day is told three ways: Logseq's mark on the page, its journal date, a journal day of its name.
@@ -475,10 +425,9 @@ function tagPage() {
      that is also a tag needs the graph's answer, which takes them away again. */
   const shown = doc.querySelector('#main-content-container .ls-page-title .ls-block[blockid]')?.getAttribute('blockid') || '';
   if (shown) {
-    if (inner.closest('.page')?.classList.contains('is-journals')) return place(doc, inner, here, null, null);
-    if (days.has(shown)) return place(doc, inner, here, null, null);
-    const { id, prop } = lookup(shown);
-    if (place(doc, inner, here, id, prop)) S.db.isDay(shown).then(day => { if (!day) return; days.add(shown); tagPage(); }).catch(() => {});
+    if (inner.closest('.page')?.classList.contains('is-journals')) return place(doc, inner, here, null);
+    if (days.has(shown)) return place(doc, inner, here, null);
+    if (place(doc, inner, here, lookup(shown))) S.db.isDay(shown).then(day => { if (!day) return; days.add(shown); tagPage(); }).catch(() => {});
     return;
   }
   if (!tagTimer) tagTimer = setTimeout(() => { tagTimer = 0; tagPageAsked(); }, 150);
@@ -491,46 +440,40 @@ function splitPage() {
   const clear = () => { for (const v of views) v.destroy(); doc.querySelectorAll(`${SPLIT} .st-tagholder`).forEach(n => n.remove()); };
   const inner = panel?.querySelector(':scope > .page > .grid'), here = inner && (inner.querySelector(':scope > .page-tabs') || inner.querySelector(':scope > .ls-page-blocks'));
   if (!now?.page || !here || days.has(now.uuid)) return clear();
-  const { id, prop } = lookup(now.uuid);
+  const id = lookup(now.uuid);
   if (id == null) return clear();
   const want = { mode: 'line', parent: panel, before: panel.firstElementChild, cls: 'st-holder-line' };
-  const view = views.length === 1 && views[0].mode === want.mode && views[0].tag === (id ?? undefined) && views[0].prop === (prop ?? undefined) && views[0].root.isConnected ? views[0] : null;
+  const view = views.length === 1 && views[0].mode === want.mode && views[0].tag === id && views[0].root.isConnected ? views[0] : null;
   if (view) { const holder = view.root.parentElement; if (holder.parentElement !== want.parent || (want.mode === 'line' ? want.parent.firstElementChild !== holder : holder.nextElementSibling !== want.before)) want.parent.insertBefore(holder, want.mode === 'line' ? want.parent.firstElementChild : want.before); return; }
   clear();
   const holder = doc.createElement('div'); holder.className = `st-tagholder st-holder-tag ${want.cls}`;
   want.parent.insertBefore(holder, want.mode === 'line' ? want.parent.firstElementChild : want.before);
-  app.mounted(S.view.make(holder, want.mode, app, id != null ? { tag: id } : { prop }));
+  app.mounted(S.view.make(holder, want.mode, app, { tag: id }));
   S.db.isDay(now.uuid).then(day => { if (!day) return; days.add(now.uuid); splitPage(); }).catch(() => {});
 }
 // No title's block on screen yet: Logseq is asked which page is current.
 async function tagPageAsked() {
   const doc = host(), inner = doc.querySelector('#main-content-container .page-inner'), ask = ++tagAsking;
   const here = inner && (inner.querySelector(':scope > .page-tabs') || inner.querySelector(':scope > .ls-page-blocks'));
-  if (!here) return place(doc, null, null, null, null);
-  let id = null, prop = null;
+  if (!here) return place(doc, null, null, null);
+  let id = null;
   try {
     const page = await logseq.Editor.getCurrentPage();
     const uuid = String(page?.uuid || '');
     const day = !!inner.closest('.page')?.classList.contains('is-journals') || !!page?.journalDay || await S.db.isDay(uuid);
-    if (uuid && !day) ({ id, prop } = lookup(uuid));
+    if (uuid && !day) id = lookup(uuid);
   } catch (error) { /* no page on screen */ }
   if (ask !== tagAsking) return;
-  place(doc, inner, here, id, prop);
+  place(doc, inner, here, id);
 }
 // A holder Logseq already shows (the map's page or the sidebar panel, left from before a reload of the plugin) gets its drawing.
 function adopt() {
   for (const holder of host().querySelectorAll('.st-holder-insp')) if (!holder.firstChild) S.inspector.mounted(holder);
   for (const holder of host().querySelectorAll('.st-holder')) if (!holder.querySelector('.st')) { try { app.mounted(S.view.make(holder, 'page', app)); } catch (error) { console.error('Structure: could not draw into a holder', error); } }
 }
-const schema = [
-  { key: 'rowView', type: 'boolean', default: false, title: 'Row view',
-    description: 'A table button in the toolbar: on a tag’s or a property’s page, the table row you press is shown in the right sidebar, first in its stack, with its ×. On hold since 22 November 2026: off, the button and its command are gone.' },
-];
-window.PluginDoor.describe('structure', { schema: [{ type: 'heading', title: 'Row view', place: 'page' }, schema[0]],
-  specimen: (item, on) => on ? '<span class="sw-faintw">The toolbar</span><br>a table button: the row you press, in the sidebar' : '<span class="sw-faintw">The toolbar</span><br>no row view button',
-  picture: on => `<span class="sw-faintw">The toolbar</span><br>${on ? 'Ontology<br>' : ''}···` });
+window.PluginDoor.describe('structure', { none: 'Ontology has nothing to set.', picture: on => `<span class="sw-faintw">The toolbar</span><br>${on ? 'Ontology<br>' : ''}···` });
 window.PluginDoor.register({
-  key: 'structure', title: 'Ontology', schema,   /* the owner, 12 November 2026: "Why don't we call it Ontology. Lets change name of Structure too to that"; the folder, the key and the names in the code stay */ about: 'The map of the graph’s tags and properties: one screen to see the whole shape, move things and change many at once, with one Undo.',
+  key: 'structure', title: 'Ontology',   /* the owner, 12 November 2026: "Why don't we call it Ontology. Lets change name of Structure too to that"; the folder, the key and the names in the code stay */ about: 'The map of the graph’s tags and properties: one screen to see the whole shape, move things and change many at once, with one Undo.',
   start: main, stop,
 });
 })();

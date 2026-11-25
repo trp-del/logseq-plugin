@@ -3,8 +3,7 @@
    it would normally do with just a sidebar").
 
    Two kinds of section. The page's own parts appear by themselves, at the top, while the sidebar is open, and only on a page where
-   they apply: Outline on a page with headings (Look), Ontology on a tag's or a property's page, and Item, the row pressed in that
-   page's table (Structure). They come and go with the page ("Ontology appears when ontology is relevant. outline appears when
+   they apply: Outline on a page with headings (Look) and Ontology on a tag's page (Structure). They come and go with the page ("Ontology appears when ontology is relevant. outline appears when
    there is a page with an outline"), and each has its × too (the owner, 22 November 2026: "everything can be removed from
    sidebar"): closed by hand, it stays closed until it is asked for again (show), and closing the last thing in the sidebar closes
    the sidebar. Everything else is there only because you opened it, each with its ×: Links
@@ -13,15 +12,13 @@
    never keep it open. Logseq's Contents, which it puts in a sidebar opened empty, is not shown.
 
    A module adds a section with Door.sideTabs.add({ key, word, order, find(doc) → its .sidebar-item or null, open(), hidden(doc)? →
-   true where it has nothing to show, auto? → true for a part of the page, opened by itself, owns(item)? → an item of the section's
-   that is on its way in or out, panel? → the name its panel is registered under in Logseq's sidebar, revive(item)? → fills a section of that panel which
+   true where it has nothing to show, auto? → true for a part of the page, opened by itself, panel? → the name its panel is registered under in Logseq's sidebar, revive(item)? → fills a section of that panel which
    Logseq drew before the module was there }) and gets back what takes it off. The name sideTabs is kept from the tabs, so the modules did not change their calls. */
 (function () {
 const Door = window.PluginDoor;
 const { host } = Door;
 const views = [];
-const rowsHeard = new Set();   // who hears the row view go on or off
-const st = { closed: new Set(), off: null, offClick: null, asked: new Map(), retry: 0, emptyTimer: 0, autoShut: false, rows: false, folded: false, width: 0, shownParts: new Set(), wasOpen: false, openAt: 0, byHand: false, selfOpenAt: 0, moreOpen: false };   // rows: the row view is on; folded: Ontology was folded by the row view   // autoShut: the sidebar was closed for standing blank, not by you   // asked: when an automatic section was last asked to open, by key
+const st = { closed: new Set(), off: null, offClick: null, asked: new Map(), retry: 0, emptyTimer: 0, autoShut: false, width: 0, shownParts: new Set(), wasOpen: false, openAt: 0, byHand: false, selfOpenAt: 0 };   // autoShut: the sidebar was closed for standing blank, not by you   // asked: when an automatic section was last asked to open, by key
 
 const CSS = `
 /* Logseq's words in the bar on top (Contents, Page graph, Help, the cube with a +) stay left out, as with the tabs: the ? at the
@@ -32,12 +29,8 @@ const CSS = `
 /* The first section sits just under the bar (the owner, 17 November 2026: "why is there a big gap on the top?"): Logseq's 24 px above
    the list, under its own 48 px bar, made a band of 72 px with nothing in it. */
 #right-sidebar[data-lk-stack] .sidebar-item-list { padding-top: 8px !important; }
-/* In the row view the row's head stands on the toolbar's middle line, its arrow and its words level with the toolbar's buttons, each
-   head of the view 32 px high with what it holds on its middle line (the owner, 18 November 2026: "the top row with the fold control
-   and total is misaligned": it stood at the window's top edge, 14 px above them, the count higher and smaller than the arrow). Every
-   section's head is that height in the stack too (B of table-sidebar-look.html, 18 November 2026): Ontology's stood 20 px, the others 32. */
-/* (Until 22 November 2026 the row view's list stood 8 px lower than the stack's, so the row's head stood on the toolbar's middle line;
-   a section like any other, it stands where every first section stands.) */
+/* Every section's head is 32 px high, with what it holds on its middle line (B of table-sidebar-look.html, 18 November 2026):
+   Ontology's stood 20 px, the others 32. */
 #right-sidebar[data-lk-stack] .sidebar-item-list > .sidebar-item .sidebar-item-header { box-sizing: border-box; min-height: 32px; align-items: center !important; }
 #right-sidebar[data-lk-stack] .sidebar-item-list > .sidebar-item .sidebar-item-header > button { align-self: stretch; }
 /* The three dots and the × stand right after the item's name, not at the sidebar's far edge (the owner, 20 November 2026: "can the 3
@@ -72,41 +65,15 @@ const CSS = `
    whatever their place in Logseq's list): the first seen has none. */
 #right-sidebar[data-lk-stack] .sidebar-item-list > .sidebar-item { border-top: 1px solid var(--lk-line) !important; margin-top: 10px; padding-top: 6px; }
 #right-sidebar[data-lk-stack] .sidebar-item-list > .sidebar-item[data-lk-first] { border-top: 0 !important; margin-top: 0; padding-top: 0; }
-/* A part with nothing to show on this page, Logseq's Contents, and an item on its way in or out stand aside. */
+/* A part with nothing to show on this page and Logseq's Contents stand aside. */
 #right-sidebar[data-lk-stack] .sidebar-item-list > .sidebar-item:is([data-lk-aside], [data-lk-contents]) { display: none !important; }
-/* The row view is a section of the stack like any other (the owner, 22 November 2026: "Lets make row view just seem like any other
-   stack"): the row pressed is the first section, with its fold arrow, where it stands and its ×, and every other section stays as you
-   left it, open or folded, right under it with the stack's line between. Until then (below, kept for its history) the others were
-   folded to heads at the sidebar's foot.
-   The row view (the owner, 17 November 2026: "the table view should be a different view, not in stack. open with toolbar button";
-   "ontology part is folded. main focus is the row item"). The row pressed is the first section, and every other section stays in
-   the stack, folded to its head (the owner, 19 November 2026, picking A of bullets-sidebar-rowview.html: before, they were hidden
-   and nothing said they were there). The heads stand at the sidebar's foot and the row takes the room above them, scrolling in it
-   when it is taller, so arrowing from a short row to a tall one moves no head ("won't the folded come up and down depending on
-   height of row item view"). At most four heads: the page's own parts first, then the rest in Logseq's order; past four, a line
-   "and 2 more" shows them all. */
-
-/* Only the row and the heads the plugin has placed show: a section Logseq adds or a row's view going out is unseen until a pass places
-   it, so no head stands for a frame where it does not belong (the view-change check, frame by frame). */
-#right-sidebar[data-lk-rows] .sidebar-item-list > .sidebar-item[data-st-item] { order: 0 !important; }
-#right-sidebar .sidebar-item-list > .lk-side-more { display: none; }
-/* In the row view the room around the sections never changes: the row has none above it, each head its hairline, so the row coming,
-   going or changing moves nothing (the owner, 18 November 2026: "things jump"). */
-#right-sidebar[data-lk-rows] .sidebar-item-list > .sidebar-item[data-st-item] { border-top: 0 !important; margin-top: 0 !important; padding-top: 0 !important; }
-#right-sidebar[data-lk-rows] .sidebar-item-list > .sidebar-drop-indicator { display: none !important; }
 /* Logseq's button that opens and shuts the sidebar is drawn as a sidebar of stacked sections (the owner, 17 November 2026: "switch
    sidebar icon to something that looks stacked"): the window, its right part cut into three. Drawn with the icon's own colour and
    size, so its strength, the pointer's wash and the dark mode stay Logseq's. */
 #head .toggle-right-sidebar .ui__icon > svg { visibility: hidden; }
 #head .toggle-right-sidebar .ui__icon { position: relative; }
 #head .toggle-right-sidebar .ui__icon::before { content: ''; position: absolute; inset: 0; background: currentColor; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2zM14 4v16M14 9.5h6M14 14.5h6'/%3E%3C/svg%3E") center / 20px 20px no-repeat; }
-/* No row pressed yet: one faint line says what the view waits for, above Ontology's folded head. */
-#right-sidebar[data-lk-rows]:not(:has(.sidebar-item[data-st-item])) .sidebar-item-list::before { content: 'Press a row in the table to see it here.'; order: 0; display: block; color: var(--lk-quiet); font-size: var(--lk-small); padding: 4px 8px 12px; }
-/* Its toolbar button, while the row view is on: in the text colour on the wash, as a button held down. */
-.lk-tool[aria-pressed="true"] { color: var(--lk-text) !important; opacity: 1 !important; background: var(--lk-wash) !important; border-radius: 6px; }
-/* An item on its way in (a pressed row's view while Logseq draws it) is laid out, unseen and out of the flow, at the width it will
-   have: Look's passes then mark it as they mark what is on screen, so nothing in it settles after it is shown (13 November 2026). */
-#right-sidebar[data-lk-stack] .sidebar-item-list > .sidebar-item[data-lk-wait] { visibility: hidden !important; position: absolute !important; pointer-events: none !important; }`;
+`;
 
 const itemsOf = doc => [...doc.querySelectorAll('#right-sidebar .sidebar-item-list > .sidebar-item')].filter(item => !item.hasAttribute('data-lk-closed'));
 // Logseq's own list of what its sidebar holds, top first: [graph, id, kind] each, the id a page's or bullet's number, or a plugin's
@@ -121,55 +88,8 @@ const nameOf = item => (item.querySelector('.sidebar-item-header .page-title')?.
 const isContents = item => nameOf(item) === 'Contents' && !item.classList.contains('lk-side');
 const toggle = (el, name, on) => { if (on !== el.hasAttribute(name)) el.toggleAttribute(name, on); };
 
-const FOOT_MAX = 4;
-function footOf(doc, partItems, parts) {
-  const list = doc.querySelector('#right-sidebar .sidebar-item-list');
-  if (!list) return;
-  const items = [...list.querySelectorAll(':scope > .sidebar-item')];
-  const owned = item => !item.hasAttribute('data-st-item') && views.some(v => v.owns?.(item));   // a row's view on its way in or out
-  const standing = item => !owned(item) && !item.hasAttribute('data-st-item') && partItems.get(item)?.key !== 'item' && !item.hasAttribute('data-lk-aside') && !item.hasAttribute('data-lk-contents') && !item.hasAttribute('data-lk-wait') && !item.hasAttribute('data-lk-closed');
-  const rank = item => partItems.has(item) ? parts.indexOf(partItems.get(item)) : parts.length + items.indexOf(item);
-  const foot = [];   // the row view folds and pins nothing (22 November 2026): every section stands as you left it
-  const cut = st.moreOpen || foot.length <= FOOT_MAX ? FOOT_MAX * 99 : FOOT_MAX - 1;   // the line "and 2 more" takes the fourth place
-  for (const item of items) {
-    const at = foot.indexOf(item);
-    toggle(item, 'data-lk-foot', at >= 0);
-    toggle(item, 'data-lk-foot-first', at === 0);
-    toggle(item, 'data-lk-over', at >= cut || (st.rows && owned(item)));   // a row's view going or coming is never a head for a frame
-  }
-  // The order seen is the order counted: parts by their part order, the rest after them as Logseq keeps them.
-  for (const item of foot) if (!partItems.has(item)) { const o = String(20 + foot.indexOf(item)); if (item.style.order !== o) item.style.order = o; }
-  for (const item of items) if (!foot.includes(item) && !partItems.has(item) && item.style.order) item.style.order = '';
-  let more = list.querySelector(':scope > .lk-side-more');
-  const over = foot.length - Math.min(foot.length, cut);
-  if (st.rows && over > 0) {
-    if (!more) {
-      more = doc.createElement('button'); more.type = 'button'; more.className = 'lk-more lk-side-more';
-      more.addEventListener('click', () => { st.moreOpen = true; draw(); });
-      list.appendChild(more);
-    }
-    if (more.textContent !== `and ${over} more`) more.textContent = `and ${over} more`;
-  } else more?.remove();
-  /* The row's own section is never folded by the view: a section that was folded as the view came on and then became the row
-     (a page already in the sidebar, pressed in the table) opens again. */
-  /* What the view folded carries data-lk-rows-folded on Logseq's own element, kept through a reload of the plugin, so a section folded
-     by a row view that a reload ended opens again too. */
-  for (const item of items) if (item.hasAttribute('data-lk-rows-folded') && (item.hasAttribute('data-st-item') || !st.rows)) {
-    item.removeAttribute('data-lk-rows-folded');
-    const fold = item.querySelector('.sidebar-item-header > button[aria-expanded="false"]'); if (fold) Door.screen.click(fold);
-  }
-  // Folded once, as the view comes on (and Ontology when it comes a moment later).
-  if (st.rows && st.foldDue) {
-    for (const item of foot) {
-      if (st.foldSeen.has(item) || !(st.foldFrom.has(item) || partItems.has(item))) continue;   // only what stood there as the view came on, and the page's own parts: a row's view on its way out is never folded (folding it kept the plugin from closing it)
-      st.foldSeen.add(item);
-      const fold = item.querySelector('.sidebar-item-header > button[aria-expanded="true"]');
-      if (fold) { item.setAttribute('data-lk-rows-folded', ''); Door.screen.click(fold); }
-    }
-  }
-}
-// A section that is on the sidebar's screen: not one stood aside, on its way in or out, or closed.
-const shownItem = item => !item.hasAttribute('data-lk-aside') && !item.hasAttribute('data-lk-contents') && !item.hasAttribute('data-lk-wait') && !item.hasAttribute('data-lk-closed') && !(st.rows && item.hasAttribute('data-lk-over'));
+// A section that is on the sidebar's screen: not one stood aside or closed.
+const shownItem = item => !item.hasAttribute('data-lk-aside') && !item.hasAttribute('data-lk-contents') && !item.hasAttribute('data-lk-closed');
 function draw(doc = host()) {
   const side = doc.getElementById('right-sidebar');
   if (!side) return;
@@ -198,23 +118,13 @@ function draw(doc = host()) {
     else if (item.style.getPropertyValue('--lk-part-order')) item.style.removeProperty('--lk-part-order');
     toggle(item, 'data-lk-aside', !!view && !!view.hidden?.(doc));
     toggle(item, 'data-lk-contents', isContents(item));
-    toggle(item, 'data-lk-wait', !view && views.some(v => v.owns?.(item)));
-    toggle(item, 'data-lk-row', !!view?.rows);
     toggle(item, 'data-lk-closable', !!view?.closable);
   }
   named(doc);
-  toggle(side, 'data-lk-rows', st.rows);
   // The open width, taken only once it holds still for a pass, so a width on the way open or shut never sets it.
   const w = Math.round(side.getBoundingClientRect().width);
   if (w > 240 && w === st.width && side.style.getPropertyValue('--lk-side-w') !== w - 16 + 'px') side.style.setProperty('--lk-side-w', w - 16 + 'px');
   st.width = w;
-  // The Row view button reads as pressed while the row view is on.
-  for (const a of doc.querySelectorAll('.lk-tool[data-on-click="rowView"]')) if (a.getAttribute('aria-pressed') !== String(st.rows)) a.setAttribute('aria-pressed', String(st.rows));
-  /* The row view's foot: every section but the row, folded to its head, at most four, parts first (see the stylesheet). Each section
-     standing open as the view comes on is folded once by Logseq's own fold, so its head still opens it, and opened again as the view
-     goes (rows(false)); a section you open or fold after that is yours (the owner, 18 November 2026: "how does ontology reveal
-     itself?"). A section opened while the view is on stands as you opened it. */
-  footOf(doc, partItems, parts);
   /* The first section seen: the first part shown, else the first item shown in Logseq's order. Marked before anything rolls out, so a
      section rolls out to the room it keeps: marked after, the first one rolled out to room for a hairline above it and then lost that
      room in a frame, a jump of 10 px (the owner, 18 November 2026: "things jump"). */
@@ -235,13 +145,11 @@ function draw(doc = host()) {
   if (nowOpen && !st.wasOpen) { st.openAt = Date.now(); st.byHand = Date.now() - st.selfOpenAt > 1500 && !opened(doc); }   // opened empty, not by the plugin and not with a page in it: the button or its keys
   if (!nowOpen) st.byHand = false;
   st.wasOpen = nowOpen;
-  /* Known by the part, not by its element: Logseq hands a row's view a new element on every row, and the row's view changing is a
-     fade of its own (inspector.js), never a roll. */
   for (const view of parts) {
     const item = view.find(doc);
     const seen = nowOpen && !!item && !item.hasAttribute('data-lk-aside') && !!item.getClientRects().length;
     if (seen && !st.shownParts.has(view.key)) { st.shownParts.add(view.key); if (Date.now() - st.openAt > 450) Door.unroll(item); }   // in the same pass, before it is painted whole
-    else if (!seen && !(view.key === 'item' && view.owns && st.shownParts.has('item') && views.some(v => v.key === 'item' && !v.hidden?.(doc)))) st.shownParts.delete(view.key);
+    else if (!seen) st.shownParts.delete(view.key);
   }
   /* The sidebar never stands open and blank by itself (the owner, 17 November 2026: "the sidebar also shouldn't have a blank or be open to
      that"): open with nothing to show, and no part of the page on its way, it closes after a moment. Opened by a person (the sidebar
@@ -250,7 +158,7 @@ function draw(doc = host()) {
      by itself on the next page where a part of the page applies (from Dr. Mei Chen back to Doctor, Ontology is back). Closed by you,
      it stays closed. */
   const open = sidebarOpen();
-  const due = parts.some(view => view.key !== 'item' && !view.hidden?.(doc) && !st.closed.has(view.key));
+  const due = parts.some(view => !view.hidden?.(doc) && !st.closed.has(view.key));
   if (open) st.autoShut = false;
   else if (st.autoShut && due) { st.autoShut = false; openSide(); return; }
   const empty = open && !st.byHand && !coming && !all.some(shown) && !parts.some(view => !view.hidden?.(doc) && !view.find(doc) && !st.closed.has(view.key));
@@ -267,7 +175,7 @@ function draw(doc = host()) {
    the plugin started after it): Logseq heads it with the panel's machine name, ":logseq-plugin/_sidebar.todo-side", and leaves it
    empty, and does not draw it again once the plugin is there (the owner, 18 November 2026, a journal day beside such a Todo). So
    the head takes the section's word, and a section with nothing in it is handed to its module to fill (revive(item)). */
-// The plugin opening the sidebar itself (a section asked for, the row view, a part of the page coming back): told apart from a
+// The plugin opening the sidebar itself (a section asked for, a part of the page coming back): told apart from a
 // person opening it with the sidebar button or its keys, which keeps it open (byHand).
 function openSide() { st.selfOpenAt = Date.now(); logseq.App.setRightSidebarVisible(true); }
 function named(doc) {
@@ -286,15 +194,13 @@ function named(doc) {
 
 /* Something you opened is closed by its ×: once the sidebar has taken it away, if nothing you opened is left, the sidebar closes,
    even with a part of the page still in it. */
-const opened = doc => itemsOf(doc).some(item => !item.hasAttribute('data-lk-part') && !item.hasAttribute('data-lk-contents') && !item.hasAttribute('data-lk-wait') && !views.some(v => v.owns?.(item)));
+const opened = doc => itemsOf(doc).some(item => !item.hasAttribute('data-lk-part') && !item.hasAttribute('data-lk-contents'));
 function onClose(event) {
   const doc = host();
   const close = event.target?.closest?.('#right-sidebar .sidebar-item .item-actions button, #right-sidebar .sidebar-item .lk-close');
-  // A person's press only: the plugin closing a view of its own (a pressed row's, the page since left) never closes the sidebar.
+  // A person's press only: a close made by a script never closes the sidebar.
   if (!event.isTrusted || !close || doc.getElementById('right-sidebar')?.hasAttribute('data-lk-split')) return;
   const item = close.closest('.sidebar-item');
-  // The row's ×: the row view ends, as its toolbar button ends it.
-  if (item?.hasAttribute('data-st-item')) { doc.defaultView.setTimeout(() => { if (st.rows) Door.sideTabs.rows(false); }, 0); return; }
   if (item?.hasAttribute('data-lk-part')) {
     // A part closed by hand (Ontology) stays closed until it is asked for again (show).
     const view = views.find(v => v.auto && v.closable && v.find(doc) === item);
@@ -338,12 +244,11 @@ function stop() {
   Door.root.style('sidebar-tabs', '');
   const doc = host();
   doc.getElementById('right-sidebar')?.removeAttribute('data-lk-stack');
-  doc.getElementById('right-sidebar')?.removeAttribute('data-lk-rows'); doc.getElementById('right-sidebar')?.style.removeProperty('--lk-side-w');
-  for (const n of doc.querySelectorAll('#right-sidebar :is([data-lk-part], [data-lk-aside], [data-lk-contents], [data-lk-wait], [data-lk-first], [data-lk-row], [data-lk-foot], [data-lk-over])')) {
-    for (const a of ['data-lk-part', 'data-lk-aside', 'data-lk-contents', 'data-lk-wait', 'data-lk-first', 'data-lk-row', 'data-lk-foot', 'data-lk-foot-first', 'data-lk-over']) n.removeAttribute(a);
-    n.style.removeProperty('--lk-part-order'); n.style.removeProperty('order');
+  doc.getElementById('right-sidebar')?.style.removeProperty('--lk-side-w');
+  for (const n of doc.querySelectorAll('#right-sidebar :is([data-lk-part], [data-lk-aside], [data-lk-contents], [data-lk-first])')) {
+    for (const a of ['data-lk-part', 'data-lk-aside', 'data-lk-contents', 'data-lk-first']) n.removeAttribute(a);
+    n.style.removeProperty('--lk-part-order');
   }
-  doc.querySelector('#right-sidebar .lk-side-more')?.remove();
 }
 Door.sideTabs = {
   add(view) {
@@ -354,22 +259,6 @@ Door.sideTabs = {
   // A section asked for from elsewhere (the ··· menu, the command palette, a toolbar button): opened, and the sidebar with it.
   // A part of the page is only shown with the sidebar; it opens by itself where it applies.
   show(key) { const view = views.find(v => v.key === key); if (view) st.closed.delete(key); if (view && !view.auto && !view.find(host()) && !held(view)) view.open(); openSide(); draw(); },
-  /* The row view, on or off (the toolbar's Row view button). On: the sidebar opens, showing the row pressed and Ontology folded. Off:
-     Ontology unfolded again if the row view folded it, and the stack as it was; the module that draws the row lets it go (onRows). */
-  rows(on) {
-    if (on === undefined) return st.rows;
-    st.rows = !!on;
-    const doc = host();
-    if (st.rows) { st.foldDue = true; st.foldSeen = new WeakSet(); st.foldFrom = new WeakSet(doc.querySelectorAll('#right-sidebar .sidebar-item-list > .sidebar-item')); st.moreOpen = false; doc.defaultView.setTimeout(() => { st.foldDue = false; }, 2500); }   // what stands open as the view comes on, or a moment after (Ontology), is folded once
-    else {
-      st.foldDue = false; st.moreOpen = false;
-    }
-    for (const fn of rowsHeard) { try { fn(st.rows); } catch (error) { console.error('logseq-plugin: the row view could not be followed', error); } }
-    if (st.rows) openSide();
-    draw();
-    return st.rows;
-  },
-  onRows(fn) { rowsHeard.add(fn); return () => rowsHeard.delete(fn); },
   // Kept for the parts that picked a tab: with every section in view there is nothing to pick.
   pick() { draw(); },
   draw, stop,

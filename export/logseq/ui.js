@@ -123,7 +123,6 @@ const CSS = `
 .xp-side .xp-tpl .lk-alts[data-ask] > :not(.ask) { display: none; }
 .xp-side .xp-tpl .ask { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 14px; padding: 6px 8px; cursor: default; white-space: normal; }
 .xp-side .xp-tpl .ask input { width: 100%; }
-/* Your CSS: the box, and under it the parts of the sheet in plain words; a word pointed at lights its part on the sheet. */
 /* Elements: a row per element of the sheet, what was picked for it at its right, cut short where the column is narrow. */
 .xp-side .xp-elrow > .lk-note { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }`;
 
@@ -144,7 +143,7 @@ function read() {   // the remembered choices, with their defaults
     layout: D.layouts.some(l => l.key === s.layout) ? s.layout : 'document', look: themes.looks.some(l => l.key === s.look) ? s.look : 'plain',
     paper: s.paper === 'Letter' ? 'Letter' : 'A4', margins: themes.MARGINS[s.margins] ? s.margins : 'normal', size: themes.SIZES[s.size] ? s.size : 'normal',
     footer: str('footer'), pageNumbers: bool('pageNumbers', true), tags: bool('showTags', true), tasks: bool('taskBoxes', true), titleDate: bool('titleDate', true), preparedBy: str('preparedBy'),
-    links: LINKS.some(l => l[0] === s.mdLinks) ? s.mdLinks : 'plain', zoom: ZOOMS.some(z => z[0] === s.previewZoom) ? s.previewZoom : 'fit', frontMatter: bool('frontMatter', false), customCss: str('customCss'), elements: themes.cleanElements(s.elements),
+    links: LINKS.some(l => l[0] === s.mdLinks) ? s.mdLinks : 'plain', zoom: ZOOMS.some(z => z[0] === s.previewZoom) ? s.previewZoom : 'fit', frontMatter: bool('frontMatter', false), elements: themes.cleanElements(s.elements),
     hiddenHead: new Set(Array.isArray(s.hiddenHeadProperties) ? s.hiddenHeadProperties : Array.isArray(s.hiddenProperties) ? s.hiddenProperties : []),   // the one list of 0.1.1 counts for both
     hiddenNodes: new Set(Array.isArray(s.hiddenNodeProperties) ? s.hiddenNodeProperties : Array.isArray(s.hiddenProperties) ? s.hiddenProperties : []), dated: s.dated && typeof s.dated === 'object' ? { ...s.dated } : { dateKey: 'auto', under: '', newestFirst: false },
     titleLines: s.titleLines && typeof s.titleLines === 'object' ? s.titleLines : {},
@@ -153,7 +152,7 @@ function read() {   // the remembered choices, with their defaults
 // A template's set laid over a choice: only the keys the set holds; the lists of properties left out become Sets again.
 function withTemplate(c, set) {
   const next = { ...c };
-  for (const [key, value] of Object.entries(set || {})) next[key] = key === 'hiddenHead' || key === 'hiddenNodes' ? new Set(value) : value && typeof value === 'object' ? { ...value } : value;
+  for (const [key, value] of Object.entries(set || {})) if (T.KEYS.includes(key)) next[key] = key === 'hiddenHead' || key === 'hiddenNodes' ? new Set(value) : value && typeof value === 'object' ? { ...value } : value;
   if (set?.prose) next.prose = D.proseOpts(set.prose);
   return next;
 }
@@ -161,7 +160,7 @@ function remember(c, title) {
   const titleLines = { ...c.titleLines };
   if (title) titleLines[title] = { kicker: c.kicker || '', subtitle: c.subtitle || '' };
   const now = { target: c.target, layout: c.layout, look: c.look, paper: c.paper, margins: c.margins, size: c.size, footer: c.footer, pageNumbers: c.pageNumbers, showTags: c.tags, taskBoxes: c.tasks,
-    titleDate: c.titleDate, preparedBy: c.preparedBy, customCss: c.customCss, elements: themes.cleanElements(c.elements), mdLinks: c.links, frontMatter: c.frontMatter, previewZoom: c.zoom, hiddenHeadProperties: [...c.hiddenHead], hiddenNodeProperties: [...c.hiddenNodes], dated: c.dated, titleLines, prose: c.prose, template: c.template || '' };
+    titleDate: c.titleDate, preparedBy: c.preparedBy, elements: themes.cleanElements(c.elements), mdLinks: c.links, frontMatter: c.frontMatter, previewZoom: c.zoom, hiddenHeadProperties: [...c.hiddenHead], hiddenNodeProperties: [...c.hiddenNodes], dated: c.dated, titleLines, prose: c.prose, template: c.template || '' };
   // Only what changed: a save tells every module, and an export usually changes nothing.
   const changed = Object.fromEntries(Object.entries(now).filter(([key, value]) => JSON.stringify(value) !== JSON.stringify(logseq.settings?.[key])));
   try {
@@ -302,7 +301,7 @@ function open({ doc, what, act }) {
       tags: q('.xp-tags').checked, tasks: q('.xp-tasks').checked, zoom: q('.xp-zoom').value, links: q('.xp-links').value, frontMatter: q('.xp-frontmatter').checked,
       kicker: q('.xp-kicker')?.value || '', subtitle: q('.xp-subtitle')?.value || '', preparedBy: q('.xp-by')?.value ?? c.preparedBy, titleDate: q('.xp-titledate')?.checked ?? c.titleDate,
       dated: { dateKey: q('.xp-datekey').value, under: q('.xp-under').value, newestFirst: q('.xp-newest').checked },
-      customCss: c.customCss, elements: els,
+      elements: els,
       prose: { children: q('.xp-kids').value, numbered: q('.xp-numbered').checked, contents: q('.xp-contents').checked, titleSheet: q('.xp-titlesheet').checked, sectionSheets: q('.xp-sectionsheets').checked, runIn: q('.xp-runin').checked, notesHead: q('.xp-noteshead').value.trim() },
       hiddenHead: hiddenNow('head', c.hiddenHead), hiddenNodes: hiddenNow('nodes', c.hiddenNodes),
       shownHead: boxes('head').length ? new Set(boxes('head').filter(b => b.checked).map(b => b.value)) : null, shownNodes: boxes('nodes').length ? new Set(boxes('nodes').filter(b => b.checked).map(b => b.value)) : null });
@@ -351,11 +350,6 @@ function open({ doc, what, act }) {
     function takeTemplate(name) {
       const set = T.get(c.templates, name); if (!set) return;
       const now = choice();
-      // Rules of your own that no template holds would go with this pick: they are kept as a template first.
-      if (now.customCss.trim() && 'customCss' in set && set.customCss !== now.customCss && !T.names(c.templates).some(n => T.get(c.templates, n).customCss === now.customCss)) {
-        let kept = 'Earlier CSS'; for (let k = 2; T.names(c.templates).includes(kept); k++) kept = `Earlier CSS ${k}`;
-        keepTemplates(T.save(c.templates, kept, now), c.template); logseq.UI.showMsg(`Your CSS was kept as the template ${kept}`);
-      }
       show(withTemplate({ ...now, template: name, templates: c.templates }, set));
       closePops(); refresh();
     }

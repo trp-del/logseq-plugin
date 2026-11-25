@@ -90,7 +90,8 @@ const logseqClasses = selected.filter(c => hasClass(c) && !(createdByPlugin(c) &
 // A class a stylesheet names is Logseq's when Logseq's own styles or page code name it and the plugin never puts it on a piece of its own.
 // A short plain word (.active, .inner, .x) is in Logseq's bundle by chance as often as not: it counts only where its own selector
 // also names a class of Logseq's with a hyphen in it (.left-sidebar-inner a.item.active) and none of the plugin's own.
-const OWN_PREFIX = /^(?:lk|st|th|fd|sw|xp|pv|pm|rf|flow)-/;
+// x- is the export's own (export/core/html.js writes x-title, x-p, x-li …; .x-p is in Logseq's bundle by chance).
+const OWN_PREFIX = /^(?:lk|st|th|fd|sw|xp|x|pv|pm|rf|flow)-/;
 const plainWithLogseq = new Set(ruleSelectors.flatMap(t => t.split(',')).flatMap(part => { const all = classesIn(part);
   return all.some(c => /[-_]/.test(c) && !OWN_PREFIX.test(c) && hasClass(c)) && !all.some(c => OWN_PREFIX.test(c)) ? all.filter(c => !/[-_]/.test(c)) : []; }));
 const styled = styledAll.filter(c => !selected.includes(c) && !OWN_PREFIX.test(c) && hasClass(c) && !createdByPlugin(c) && (/[-_]/.test(c) || plainWithLogseq.has(c)));

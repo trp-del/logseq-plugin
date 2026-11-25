@@ -59,7 +59,6 @@ function groups() {
       ['Say where it came from', [own('predictive', 'citeKeys')]],
       ['Make the bullet a page', [own('predictive', 'pageKeys')]],
       ['Embed a node', [fixed(Door.runs('predictive') ? String(plugin('embedTrigger') ?? '').trim() : '')]],
-      ['Accept all, no new bullet', [own('predictive', 'proposalsAcceptKeys')]],
       ['Take the grey link', [fixed(link ? '→' : '')]],
       ['Link a page from here, or tag the bullet', [fixed(Door.runs('predictive') ? 'Hyper' : '')]],   // Predictive's Hyper tap: Logseq's own link list on a line (PluginDoor.screen.linkList), Find's panel only on selected bullets
       ['Find under the line', [find && plugin('panel') !== false ? own('find', 'panelKeys') : fixed('')]],

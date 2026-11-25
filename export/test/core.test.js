@@ -71,7 +71,8 @@ const cal = html.toHtml(doc, { layout: 'calendar', locale: L });
 assert.ok(cal.includes('<h2 class="x-month">September 2026</h2>\n<table class="x-cal"><tbody>\n<tr class="x-calrow"><td class="x-calday"><span class="x-weekday">Tue</span><span class="x-date">8 Sept</span></td><td class="x-calitems">'), cal);
 for (const look of themes.looks) {
   const css = themes.stylesheet(look.key, { paper: 'Letter', margins: 'narrow', size: 'large', footer: 'Private "notes"', pageNumbers: true, customCss: '.x-p { color: red }' });
-  assert.ok(css.includes('@page { size: Letter; margin: 14mm 15mm 16mm; @bottom-left { content: "Private \\"notes\\"";') && css.includes('counter(page) " / " counter(pages)') && css.includes('.x-title {') && css.endsWith('.x-p { color: red }'), look.key);
+  assert.ok(!css.includes('color: red'), look.key + ': CSS of your own is no longer read (24 November 2026)');
+  assert.ok(css.includes('@page { size: Letter; margin: 14mm 15mm 16mm; @bottom-left { content: "Private \\"notes\\"";') && css.includes('counter(page) " / " counter(pages)') && css.includes('.x-title {'), look.key);
   const { cls, root } = themes.inliner(look.key, {});
   assert.ok(cls('title').startsWith(' style="margin:0') && cls('task done').includes('color:') && cls('nothing') === '' && root.includes('font-family:'), look.key + ' inline');
 }
@@ -83,8 +84,8 @@ for (const look of themes.looks) {
   assert.ok(themes.stylesheet('plain', {}).includes('.x-task:not(.x-typed) { display: inline-block;') && themes.stylesheet('plain', {}).includes('border-radius: 50%'), 'the print draws the circles');
   assert.equal(JSON.stringify(themes.cleanElements({ title: { face: 'serif', size: 'huge', nonsense: 1 }, nothing: { face: 'sans' }, task: { mark: 'bracket', face: 'mono' }, tag: {} })), JSON.stringify({ title: { face: 'serif' }, task: { mark: 'bracket' } }));
   const mine = { title: { face: 'serif', size: 'l', letters: 'spaced', align: 'center' }, tag: { colour: 'ink', align: 'center' } };
-  const css = themes.stylesheet('plain', { elements: mine, customCss: '.x-p { color: red }' });
-  assert.ok(css.includes('.x-title.x-title { font-family:Charter') && css.includes('font-size:27.6pt') && css.includes('letter-spacing:.14em') && css.includes('text-align:center') && css.includes('.x-tag.x-tag { color:#111; }') && css.endsWith('.x-p { color: red }'), css);
+  const css = themes.stylesheet('plain', { elements: mine });
+  assert.ok(css.includes('.x-title.x-title { font-family:Charter') && css.includes('font-size:27.6pt') && css.includes('letter-spacing:.14em') && css.includes('text-align:center') && css.includes('.x-tag.x-tag { color:#111; }'), css);
   assert.ok(themes.inliner('plain', { elements: mine }).cls('title').includes('font-size:27.6pt') && !themes.inliner('plain', {}).cls('title').includes('27.6pt'), 'the elements inline, for the clipboard');
   assert.ok(themes.stylesheet('book', { layout: 'prose' }).includes('.x-notes-head::before') && !themes.stylesheet('book', {}).includes('.x-notes-head::before'), 'Book refines Prose only');
   assert.ok(themes.looks.some(l => l.key === 'formal') && !themes.stylesheet('formal', {}).includes('first-letter'), 'Formal, with no large first letter');
@@ -162,12 +163,13 @@ console.log('  ok  HTML, the looks’ stylesheets and their inline form');
 {
   const T = E.templates;
   assert.deepEqual(plain(T.names({})), ['Report', 'Paper', 'Brief']);
-  const choice = { target: 'pdf', layout: 'prose', look: 'book', hiddenHead: new Set(['b', 'a']), prose: D.proseOpts({}), customCss: '', zoom: '125' };
+  const choice = { target: 'pdf', layout: 'prose', look: 'book', hiddenHead: new Set(['b', 'a']), prose: D.proseOpts({}), zoom: '125' };
   let store = T.save({}, 'Letter', choice);
   assert.deepEqual(plain(store.Letter.hiddenHead), ['a', 'b']); assert.ok(!('zoom' in store.Letter), 'only a template’s keys are held');
   assert.deepEqual(plain(T.names(store)), ['Report', 'Paper', 'Brief', 'Letter']);
   assert.equal(T.changed(T.get(store, 'Letter'), choice), false); assert.equal(T.changed(T.get(store, 'Letter'), { ...choice, look: 'plain' }), true);
   assert.equal(T.changed(T.get(store, 'Report'), { ...choice, look: 'plain', margins: 'normal', size: 'normal', prose: D.proseOpts(T.BUILT_IN.Report.prose) }), false, 'a key the template does not hold never counts');
+  assert.equal(T.changed({ ...T.get(store, 'Letter'), customCss: '.x-p { color: red }' }, choice), false, 'CSS a template saved earlier still carries never counts');
   store = T.rename(store, 'Letter', 'Clinic letter'); assert.deepEqual(plain(T.names(store)), ['Report', 'Paper', 'Brief', 'Clinic letter']);
   store = T.save(store, 'Report', choice); assert.ok(T.isOwn(store, 'Report') && T.get(store, 'Report').look === 'book', 'one of the plugin’s saved is the person’s');
   store = T.remove(store, 'Report'); assert.equal(T.get(store, 'Report').look, 'plain', 'deleted, the plugin’s comes back');

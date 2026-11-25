@@ -12,8 +12,7 @@ const { WORD } = text;
 
 // k: how many nearest holders vote. nearLeast: the least similarity of the nearest holder. lead: the share of the vote
 // the leading value must hold. The tag* ones are the same for the tag of an untagged bullet, stricter because a wrong
-// tag brings wrong properties with it. These came from one graph's scoreboard: tools/tune.js (or the plugin's
-// "Tune to this graph" command) finds the numbers that fit another.
+// tag brings wrong properties with it. These came from one graph's scoreboard.
 // tagGap: when the vote finds no near-twin, the lead in log-odds a tag's word profile needs over the runner-up (core/profile.js;
 // 0 turns the profile off). profileLeast: the fewest bullet lines a tag needs to have a profile. profileAlpha: its smoothing.
 const DEFAULT_LIMITS = Object.freeze({ k: 5, nearLeast: .3, lead: .7, stem: true, lemma: false, tagNearLeast: .6, tagLead: .7, tagLeast: 1, tagLinks: false, tagGap: 5, profileLeast: 10, profileAlpha: .25 });

@@ -1,9 +1,7 @@
 /* New things on a list (7 November 2026, the owner: "build all that is left" of Threads Forty):
    - Since you last looked (N1): a quiet dot before a node made since this page was last open, and "· 2 new" at the head,
      which narrows the list to them; the next visit starts again from then.
-   - Pin a line (N2): a node's right-click menu pins it above the others of its list, on this page, until unpinned.
    - Sort (N20): the View menu's Sort by: the day (Threads' own order), last changed, name or tag; the head says which.
-   - What the list keeps saying (N6): under an open list's head, the values most of its nodes share, a click narrows to one.
    A piece of Threads' two-way part: parts/two-way.js is the part (the rows, their drawing, the start) and holds twoWay,
    where its pieces meet. What this piece uses of the part or another piece it reaches through twoWay when it runs; what
    it gives them is listed at its end. */
@@ -34,7 +32,7 @@ twoWay.loadHooks.push(async (page, groups) => {
     seen[page.uuid] = Date.now();
     keep(SEEN_KEY, seen);
   }
-  // What the lists keep saying rests on their nodes' values: read for every list of five or more.
+  // “no Topic?” and the timeline's lanes rest on the nodes' values: read for every list of five or more.
   const want = groups.filter(g => g.items.length >= 5).flatMap(g => g.items.map(item => item.uuid)).filter(uuid => !state.values.has(uuid));
   if (want.length) await twoWay.readValues(want.slice(0, 2000)).catch(error => warnOnce('could not read the values the lists share', error));
   return groups;
@@ -78,71 +76,14 @@ twoWay.viewMenuHooks.push(group => {
     ...Object.entries(SORTS).map(([k, label]) => ({ label: label[0].toUpperCase() + label.slice(1), chosen: by === k, run: () => setSort(group, k) }))];
 });
 
-/* Pin a line (N2): kept per list on this page; pinned nodes lead the list in the order they were pinned. */
-const PIN_KEY = 'thTwoWayPins';
-const pinsOf = group => stored(PIN_KEY, {})[listKey(group)] || [];
-function setPins(group, list) {
-  const all = stored(PIN_KEY, {});
-  if (list.length) all[listKey(group)] = list; else delete all[listKey(group)];
-  keep(PIN_KEY, all); redraw();
-}
-function pin(group, item, on) {
-  const before = pinsOf(group);
-  setPins(group, on ? [...before.filter(u => u !== item.uuid), item.uuid] : before.filter(u => u !== item.uuid));
-  twoWay.offerUndo(`${on ? 'Pinned' : 'Unpinned'} “${twoWay.shortName(item.title)}”`, () => setPins(group, before), group.name);
-}
-twoWay.listHooks.push((group, key, items) => {
-  const pins = pinsOf(group);
-  if (!pins.length) return items;
-  const at = uuid => { const i = pins.indexOf(uuid); return i < 0 ? Infinity : i; };
-  return [...items.filter(item => pins.includes(item.uuid)).sort((a, b) => at(a.uuid) - at(b.uuid)), ...items.filter(item => !pins.includes(item.uuid))];
-});
-twoWay.leadHooks.push((group, item) => pinsOf(group).includes(item.uuid) ? `<span class="th-tw-pinned" title="Pinned to the top of this list (right-click to unpin)" aria-label="Pinned">${shared.iconHtml('pin')}</span>` : '');
-twoWay.betweenHooks.push((group, item, prev) => { const pins = pinsOf(group); return prev && pins.includes(prev.uuid) && !pins.includes(item.uuid) ? '<div class="th-tw-pingap"></div>' : ''; });
-twoWay.lineMenuHooks.push((group, item) => {
-  if (state.drawingTop) return [];
-  const on = pinsOf(group).includes(item.uuid);
-  return [{ icon: 'pin', label: on ? 'Unpin' : 'Pin to the top', run: () => pin(group, item, !on) }];
-});
-
 /* Gaps (N7), "quiet for 25 days" between two dated nodes, were taken out at the owner's word (10 November 2026). */
 
-/* Lines of choices over a long list (the thirteen proposals, 2: "Find's lines of choices on any long list", in place of "Often";
-   the owner's go of 19 November 2026): the library's lines (Door.choicesHtml), as Find draws over its rows. Of the properties the
-   list's nodes hold, not the one linking here: each held by two nodes or more and not all, with more than one value, the most held
-   one (the drawing shows one line); each with its values and their counts, most held first. A press narrows the list to the nodes holding that value; pressed
-   again, the whole list. Lists of five nodes or more, not the mentions. The value the list is narrowed to is a view in force
-   (the library's `on`: the text colour and the short bar, as "All" has in the line of kinds above it); until 24 November 2026 it was
-   told from the others by a darker grey alone, and a list of 3 under a head saying 53 passed for the whole. */
-state.keeps = new Map();
+// A node's values as words, each with the property it is of (a day is left out): what the timeline's lanes are made from.
 const valuesOf = item => { const out = []; for (const [name, entry] of state.values.get(item.uuid) || []) for (const v of entry.values || []) { const text = v.day ? '' : String(v.title ?? v.text ?? '').trim(); if (text) out.push({ name, text, ident: entry.ident }); } return out; };
-function choiceLines(group, items) {
-  const props = new Map();
-  for (const item of items) for (const v of new Map(valuesOf(item).filter(v => v.name !== group.name).map(v => [`${v.name}\u0000${v.text}`, v])).values()) {
-    if (!props.has(v.name)) props.set(v.name, { name: v.name, ident: v.ident, counts: new Map() });
-    const c = props.get(v.name).counts; c.set(v.text, (c.get(v.text) || 0) + 1);
-  }
-  return [...props.values()]
-    .map(p => ({ ...p, values: [...p.counts].filter(([, n]) => n < items.length).sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0])) }))
-    .filter(p => p.values.length > 1 && p.values.some(([, n]) => n >= 2) && p.values.length <= 12)
-    .map(p => ({ ...p, held: p.values.reduce((n, [, c]) => n + c, 0) }))
-    .sort((x, y) => y.held - x.held || x.name.localeCompare(y.name)).slice(0, 1);   // one line, as drawn: the most held
-}
-twoWay.listHooks.push((group, key, items) => { const k = state.keeps.get(key); return k ? items.filter(item => valuesOf(item).some(v => v.name === k.name && v.text === k.text)) : items; });
-twoWay.underHeadHooks.push((group, key) => {
-  if (group.items.length < 5 || twoWay.isMentions(group)) return '';
-  const chosen = state.keeps.get(key), lines = choiceLines(group, group.items);
-  if (!lines.length) return '';
-  const kindOf = ident => state.schema?.props.find(x => x.ident === ident)?.type || 'default';
-  return `<div class="th-tw-choices">${window.PluginDoor.choicesHtml(lines.map(l => ({ name: l.name, icon: shared.kindIconHtml(kindOf(l.ident)), values: l.values.slice(0, 6).map(([text, n]) => { const taken = chosen?.name === l.name && chosen?.text === text; return { label: text, count: n, lit: taken, on: taken, attrs: { 'data-keeps': key, 'data-kname': l.name, 'data-ktext': text } }; }) })))}</div>`;
-});
-
 twoWay.clickHooks.push(event => {
   const t = event.target;
   const onlyNew = t.closest?.('[data-onlynew]');
   if (onlyNew) { event.preventDefault(); event.stopPropagation(); const k = onlyNew.dataset.onlynew; if (state.onlyNew.has(k)) state.onlyNew.delete(k); else state.onlyNew.add(k); twoWay.setOpen?.(k, true); redraw(); return true; }
-  const keeps = t.closest?.('[data-keeps]');
-  if (keeps) { event.preventDefault(); event.stopPropagation(); const k = keeps.dataset.keeps, was = state.keeps.get(k); if (was && was.name === keeps.dataset.kname && was.text === keeps.dataset.ktext) state.keeps.delete(k); else state.keeps.set(k, { name: keeps.dataset.kname, text: keeps.dataset.ktext }); redraw(); return true; }
   return false;
 });
 
@@ -281,22 +222,6 @@ twoWay.starters.push(() => {
 
 });
 
-/* Compare two nodes (N4): with two picked, the bar's Compare lays them side by side in a card, one property to a line, the
-   values that differ in the text colour and the same ones quiet, then their first bullets. */
-async function compare(uuids, at) {
-  if (uuids.length !== 2) return;
-  const [a, b] = await Promise.all(uuids.map(async uuid => ({ uuid, title: twoWay.shortName(state.groups.flatMap(g => g.items).find(i => i.uuid === uuid)?.title || ''), fields: await twoWay.provided.nodeFields(uuid).catch(() => new Map()), lines: await twoWay.provided.firstLines(uuid, 4, true).catch(() => []) })));
-  const text = (fields, name) => (fields.get(name) || []).map(v => v.day ? twoWay.dayText(v.day) : String(v.title ?? v.text ?? '').replace(/\[\[([^\]]+)\]\]/g, '$1')).filter(Boolean).join(', ');
-  const names = [...new Set([...a.fields.keys(), ...b.fields.keys()])].filter(n => n !== 'Date' || text(a.fields, n) !== text(b.fields, n));
-  const readable = async t => String(await twoWay.provided.readableTitle(String(t || '')).catch(() => t)).replace(/\[\[([^\]]+)\]\]/g, '$1');
-  const lines = async n => (await Promise.all(n.lines.map(l => readable(l.title)))).filter(Boolean).map(t => `<div class="th-tw-cmpline">${esc(t)}</div>`).join('') || '<div class="th-tw-cmpnone">no bullets</div>';
-  const cell = (n, name) => { const t = text(n.fields, name), other = text((n === a ? b : a).fields, name); return `<div class="th-tw-cmpv${t === other ? ' th-tw-cmpsame' : ''}">${t ? esc(t) : '<span class="th-tw-cmpnone">empty</span>'}</div>`; };
-  const html = `<div class="th-tw-cmp"><div></div><div class="th-tw-cmph">${esc(a.title)}</div><div class="th-tw-cmph">${esc(b.title)}</div>${names.map(name => `<div class="th-tw-cmpk">${esc(name)}</div>${cell(a, name)}${cell(b, name)}`).join('')}<div class="th-tw-cmpk">Bullets</div><div>${await lines(a)}</div><div>${await lines(b)}</div></div>`;
-  twoWay.hidePeek();
-  const pop = shared.popup({ at, width: 560, head: 'Compare', onClose: () => {}, items: [] });
-  pop.body.insertAdjacentHTML('beforeend', html);
-}
-
 /* The odd one out (N8): in a list of five or more, a property most of its nodes hold (four in five) and one does not: that
    node's line says so, pencilled; a click opens the node in place with its empty properties shown, where Predictive's
    pencilled guess for it waits to be taken. */
@@ -403,70 +328,8 @@ async function joinList(uuid, group) {
   twoWay.offerUndo(`Now in “${group.label}” too`, async () => { await twoWay.setValues(uuid, prop, had); twoWay.later(200); }, group.name);
 }
 
-/* Ask this page (N13): a question after a "?" in the find line finds the page's nodes nearest to it in meaning, by Apple's
-   sentence matcher in Predictive's helper on this Mac (nothing leaves it); the lists narrow to them, nearest first. Apple's
-   model that writes an answer in words is not on every Mac (this one says "device not eligible"), so the answer is the nodes. */
-const { helper } = window.PluginDoor;   // the one way to ask Predictive's helper (plugin.js)
-state.ask = { q: '', page: '', hits: null, asking: false };
-const askOf = () => { const t = String(state.find || '').trim(); return t.startsWith('?') ? t.slice(1).trim() : ''; };
-async function askPage(q) {
-  const items = [...new Map(state.groups.flatMap(g => g.items).map(item => [item.uuid, item])).values()];
-  const ids = new Map(items.map((item, i) => [i + 1, item.uuid]));
-  const graph = `threads:${state.pageUuid}`;
-  const post = body => helper.post('/meaning', body, { wait: 6000 });
-  if (state.ask.page !== state.pageUuid) { await post({ graph, learn: items.map((item, i) => ({ id: i + 1, text: item.title })) }); state.ask.page = state.pageUuid; }
-  const answer = await post({ graph, text: q, k: 8 });
-  const near = (answer.near || []).filter(n => n.sim >= .3);
-  return new Map(near.map(n => [ids.get(n.id), n.sim]));
-}
-twoWay.listHooks.unshift((group, key, items) => {
-  const q = askOf();
-  if (!q) return items;
-  if (state.ask.q !== q && !state.ask.asking) {
-    state.ask.asking = true;
-    const asked = q;
-    setTimeout(() => askPage(asked).then(hits => { state.ask = { ...state.ask, q: asked, hits, asking: false, failed: false }; redraw(); }, error => { state.ask = { ...state.ask, q: asked, hits: new Map(), asking: false, failed: true }; warnOnce('could not ask the matcher', error); redraw(); }), 350);
-  }
-  if (state.ask.q !== q || !state.ask.hits) return items;
-  return items.filter(item => state.ask.hits.has(item.uuid)).sort((a, b) => state.ask.hits.get(b.uuid) - state.ask.hits.get(a.uuid));
-});
-twoWay.askCount = () => { const q = askOf(); if (!q) return ''; if (state.ask.q !== q || !state.ask.hits) return 'asking…'; if (state.ask.failed) return 'Predictive’s helper did not answer'; return state.ask.hits.size ? `${state.ask.hits.size} nearest in meaning, read on this Mac` : 'nothing near in meaning'; };
+twoWay.starters.push(() => { state.stamps = new Map(); state.visitPage = ''; state.yearOn = new Set(); state.yearPick = new Map(); state.yearLaneOn = new Map(); state.yearAt = new Map(); state.yearTall = new Set(); state.yearDots = new Map(); });
 
-/* Keep a list beside you (N15): a list's right-click keeps it in a small panel at the window's right edge, there while you
-   visit other pages; a line in it opens its node, × lets it go. Kept in Logseq's window storage. */
-const BESIDE_KEY = 'thTwoWayKept';
-function keepBeside(group) {
-  const kept = { page: state.pageUuid, title: state.pageTitle, label: group.label, name: group.name, items: group.items.slice(0, 40).map(item => ({ uuid: item.uuid, title: twoWay.shortName(item.title), day: twoWay.dayCell(item) })) };
-  keep(BESIDE_KEY, kept); drawBeside();
-}
-function drawBeside() {
-  const doc = host(), kept = stored(BESIDE_KEY, null);
-  let panel = doc.querySelector('.th-tw-dock');
-  if (!kept) { panel?.remove(); return; }
-  // Fresh nodes from the look-up of every page, where it has the page.
-  const fresh = state.byPage.get(kept.page)?.find(g => g.name === kept.name);
-  const items = fresh ? fresh.items.slice(0, 40).map(item => ({ uuid: item.uuid, title: twoWay.shortName(item.title), day: twoWay.dayCell(item) })) : kept.items;
-  if (!panel) { panel = doc.createElement('div'); panel.className = 'th-tw-dock lk-pop'; doc.body.append(panel); }
-  panel.innerHTML = `<div class="th-tw-dockhead"><span><b>${esc(kept.label)}</b> <span class="th-tw-dockpage">${esc(kept.title)}</span></span><button type="button" class="lk-x" data-dockoff="" aria-label="Let this list go" title="Let this list go">×</button></div><div class="th-tw-docklist">${items.map(item => `<a href="#" class="th-tw-dockline" data-dockopen="${esc(item.uuid)}"><span class="th-tw-dockday">${esc(item.day || '')}</span><span>${esc(item.title)}</span></a>`).join('')}</div>`;
-}
-twoWay.rowMenuHooks.push(group => state.drawingTop ? [] : [{ icon: 'sidebar', label: 'Keep in the corner', run: () => keepBeside(group) }]);
-// The list kept in the corner is one for the window: the main view's copy draws it.
-twoWay.settledHooks.push(() => twoWay.pane.main && drawBeside());
-twoWay.starters.push(() => {
-  if (!twoWay.pane.main) return;
-  const doc = host();
-  const onDock = e => {
-    const off = e.target.closest?.('.th-tw-dock [data-dockoff]'), open = e.target.closest?.('.th-tw-dock [data-dockopen]');
-    if (off) { e.preventDefault(); const before = stored(BESIDE_KEY, null); keep(BESIDE_KEY, null); drawBeside(); twoWay.offerUndo('The list beside you is gone', () => { keep(BESIDE_KEY, before); drawBeside(); }); }
-    else if (open) { e.preventDefault(); shared.openEntity(open.dataset.dockopen, e.shiftKey); }
-  };
-  twoWay.listen(doc, 'click', onDock, true);
-  twoWay.onUnload(() => doc.querySelector('.th-tw-dock')?.remove());
-  setTimeout(drawBeside, 1500);
-});
-
-twoWay.starters.push(() => { state.stamps = new Map(); state.keeps = new Map(); state.visitPage = ''; state.yearOn = new Set(); state.yearPick = new Map(); state.yearLaneOn = new Map(); state.yearAt = new Map(); state.yearTall = new Set(); state.yearDots = new Map(); });
-
-Object.assign(twoWay, { keepBeside, compare, isNew, pinsOf, sortOf });
+Object.assign(twoWay, { isNew, sortOf });
 });
 })();

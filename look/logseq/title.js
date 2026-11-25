@@ -45,9 +45,6 @@ const css = `
    before it for the × hangs out to the left. Where the head has no fold arrow (the Item tab) structure/logseq/view.js moves it with the ◇. */
 .lk-path.lk-path-sb { display: block; max-width: none; margin: 4px 0 0 -4px; white-space: normal; overflow: visible; }
 .lk-path.lk-path-sb .lk-held { white-space: nowrap; }
-/* Under a bullet's words in Ontology's row view: as under a sidebar page's name, its first name under the words' first letter (the room
-   kept before it for the × hangs out to the left), the lines under it. */
-.lk-path.lk-path-row { margin: 2px 0 10px -18px; }
 /* On the top line of a node opened in the page (the library's lk-ground-top; Find's node under a line, and a node opened inside it):
    one line from the ground's left edge, the room kept before it for the × hanging out to the left, giving way from the middle. */
 .lk-path.lk-path-in { flex: 0 1 auto; min-width: 0; max-width: none; margin: 0 0 0 -18px; align-self: center; }
@@ -58,7 +55,6 @@ const css = `
 const state = { box: null, page: '', tagPage: false, boxes: new Map() };
 const PAGE_TITLE = '#main-content-container :is(.ls-page-title, .page-title, h1.title)';
 const SIDEBAR_PAGE = '#right-sidebar .sidebar-item.item-type-page';
-const ROW_ITEM = '#right-sidebar .sidebar-item.item-type-block[data-st-item]';
 // Not a title inside a node opened in place: Logseq's editor for an opened page brings that page's title with it (left unseen there), and with two titles on the page the tag path beside the real one went (20 November 2026).
 const shownTitle = doc => { const titles = [...doc.querySelectorAll(PAGE_TITLE)].filter(t => !t.closest('.th-ls-node') && t.querySelector('.ls-block[blockid]')); return titles.length === 1 ? titles[0] : null; };
 
@@ -96,7 +92,7 @@ function open(event) {
   event.preventDefault(); event.stopPropagation();
   const own = pageOf(event.currentTarget);
   const x = event.target.closest('.lk-x');
-  if (x) return takeOff(x.getAttribute('data-take'), own || { page: state.page, tagPage: state.tagPage }, x.closest('.lk-held')?.querySelector('a.lk-tag')?.textContent || 'The tag', event.currentTarget.matches('.lk-path-row, .lk-path-in') ? 'node' : 'page');
+  if (x) return takeOff(x.getAttribute('data-take'), own || { page: state.page, tagPage: state.tagPage }, x.closest('.lk-held')?.querySelector('a.lk-tag')?.textContent || 'The tag', event.currentTarget.matches('.lk-path-in') ? 'node' : 'page');
   const a = event.target.closest('a[data-uuid]');
   if (a) openPage(a.getAttribute('data-uuid'), event.shiftKey);
 }
@@ -163,27 +159,7 @@ function drawSidebar(doc, index, seen = new Set()) {
     if (spot) { if (box.nextElementSibling !== spot) spot.before(box); }
     else { const inner = pageEl.querySelector('.page-inner') || pageEl; if (inner.firstElementChild !== box) inner.prepend(box); }
   }
-  if (on) drawRows(doc, index, seen);
   for (const [item, box] of state.boxes) if (!seen.has(item)) { box.remove(); state.boxes.delete(item); }
-}
-/* The row of a table pressed in Ontology's row view, when it is a bullet (structure/logseq/view.js shows it like a page): the same
-   line under its words, the words standing as its title (18 November 2026). */
-function drawRows(doc, index, seen = new Set()) {
-  for (const item of doc.querySelectorAll(ROW_ITEM)) {
-    if (item.classList.contains('st-item-hold')) continue;   // Ontology's still picture of the row before: it carries that row's line already
-    const root = item.querySelector('.sidebar-panel-content .ls-block[blockid]');
-    const under = root?.querySelector(':scope > .block-main-container .block-main-content');
-    const uuid = root?.getAttribute('blockid');
-    if (!under || !uuid) continue;
-    seen.add(item);
-    const groups = groupsOf(index, uuid);
-    let box = state.boxes.get(item);
-    if (!box) state.boxes.set(item, box = el(doc, 'div', { class: 'lk-path lk-path-sb lk-path-row lk-own', click: open, keydown: press, mousedown: keep, pointerdown: keep }));
-    const key = JSON.stringify([uuid, groups]);
-    if (box.dataset.key !== key) { box.dataset.key = key; box.dataset.page = uuid; box.dataset.tagPage = ''; box.replaceChildren(...build(doc, groups, 'node')); }
-    if (!groups.length) { box.remove(); continue; }
-    if (under.nextElementSibling !== box) under.after(box);
-  }
 }
 /* A node opened in the page on a ground (23 November 2026, picture 1A): whoever draws the ground leaves an empty mark carrying the
    node's uuid (data-lk-place) on its top line, and the same line of tags goes into it, so the node says what it is as a page does
@@ -213,7 +189,6 @@ function draw(doc) { const index = Look.index; if (!index) return; drawTitle(doc
 function early(doc) {
   const index = Look.index; if (!index) return;
   const uuid = shownTitle(doc)?.querySelector('.ls-block[blockid]')?.getAttribute('blockid') || '';
-  if (setting('tagChainSidebar') && doc.querySelector(ROW_ITEM)) drawRows(doc, index);   // the row view's row, in the frame Ontology marks it
   if (doc.querySelector(`${PLACE}:empty`)) drawPlaces(doc, index);   // a node opened on a ground, or drawn again: its place in the frame its top line comes
   if (uuid === state.page && (!state.box || state.box.isConnected)) return;
   drawTitle(doc, index);

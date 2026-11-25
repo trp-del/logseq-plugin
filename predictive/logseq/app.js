@@ -7,7 +7,7 @@ const { db } = Flow;
 const { host, notify } = window.PluginDoor;
 /* Predictive's base (plugin.js, Door.base): a warning written once, its settings read with their defaults, its stylesheets sent
    only when changed, its listeners on Logseq's window and its clean-up steps, taken off and run when the plugin stops.
-   Settings: the schema (settings.js) holds the defaults; the plugin's own memory (what was taken, what was tuned) lives in keys
+   Settings: the schema (settings.js) holds the defaults; the plugin's own memory (what was taken) lives in keys
    the schema does not show. */
 const base = window.PluginDoor.base('predictive', { prefix: 'Predictive: ', schema: () => Flow.settingsSchema });
 const { warnOnce, setting, listen, onStop } = base;
@@ -23,15 +23,13 @@ async function allowed() {
   return !skip.includes((await graphName()).toLowerCase());
 }
 
-// How readily a tag is suggested: how near the nearest earlier line must be, and how far ahead of the others the leading tag. Measured on 45
-// hand-written lines the graph had not seen the twin of (README): careful 2 right of 45, balanced 9, eager 14, one wrong tag in each of the last two.
-// The vote's limits and the profile's gap (core/engine.js DEFAULT_LIMITS) for each eagerness; README, "How readily a tag is suggested".
-// modelTag: whether Apple's model may pencil a tag where the rules found none (Option-T asks it whatever the setting).
-const TAG_EAGERNESS = { careful: { tagNearLeast: .6, tagLead: .7, tagGap: 6, modelTag: false }, balanced: { tagNearLeast: .3, tagLead: .7, tagGap: 5, modelTag: true }, eager: { tagNearLeast: .25, tagLead: .6, tagGap: 4, modelTag: true } };
-const tagLimits = () => TAG_EAGERNESS[setting('tagEagerness')] || TAG_EAGERNESS.balanced;
-// What was tuned for the graph (properties), then the eagerness the setting asks for (tags): the tuner judges tags on the graph's own lines,
-// which have twins in them, so it is too strict for lines written afresh.
-const limitsFor = graph => ({ ...((logseq.settings?.tuned || {})[graph] || {}), ...tagLimits() });
+// The tag of an untagged line, where one is asked for (the Alfred workflow's Add panel, Relations' list of tags for a mention):
+// how near the nearest earlier line must be, how far ahead of the others the leading tag, and the word profile's gap
+// (core/tag-score.js). The numbers the setting "How readily a tag is suggested" held at "balanced", its default, until the
+// tag pencilled on a bullet went (24 November 2026).
+const TAG_LIMITS = { tagNearLeast: .3, tagLead: .7, tagGap: 5 };
+// Limits tuned for a graph before 24 November 2026 (properties) are still read, so its guesses stay as they were; nothing tunes them now.
+const limitsFor = graph => ({ ...((logseq.settings?.tuned || {})[graph] || {}), ...TAG_LIMITS });
 const localeNow = () => (Flow.locales || {})[setting('locale')] || Flow.dates.en;
 
 /* The context, read once and then kept: returned at once when there is one (read again in the background when it is five
@@ -48,7 +46,6 @@ async function context({ wait = true } = {}) {
         if (generation !== state.generation) return context({ wait });
         ctx.graph = graph;
         state.ctx = ctx;
-        Flow.meaningAsk?.teach(ctx).catch(() => {});   // the matcher learns the graph in the background (logseq/meaning.js)
         return ctx;
       })().catch(error => { warnOnce('the graph could not be read', error); return state.ctx; }).finally(() => { if (state.loading === job) state.loading = null; });
       state.loading = job;
@@ -61,7 +58,7 @@ async function context({ wait = true } = {}) {
 /* The date format Logseq names new journal days in (Settings, Editor), so a day is pencilled as it will be written. Read
    again when it is a second old: a change there shows at the next pause in typing, with nothing to reload. */
 const dateFormat = () => window.PluginDoor.dates.format();   // the door's date service (plugin.js)
-const forget = () => { state.generation++; state.ctx = null; Flow.meaningAsk?.forget(); Flow.peopleAsk?.forget(); state.loading = null; state.pages.list = null; state.pages.at = 0; state.pages.loading = null; learning.ids.clear(); clearTimeout(learning.timer); db.forget(); };
+const forget = () => { state.generation++; state.ctx = null; state.loading = null; state.pages.list = null; state.pages.at = 0; state.pages.loading = null; learning.ids.clear(); clearTimeout(learning.timer); db.forget(); };
 
 // The page list for suggested links, read again at most every 30 s, so a page made a moment ago is offered soon.
 async function pages() {
@@ -126,5 +123,5 @@ const editorPopupOpen = (doc = host()) => window.PluginDoor.screen.editorPopupOp
 // The door's, one way for the whole plugin.
 const keyMatches = (event, spec) => window.PluginDoor.keys.matches(event, spec);
 
-Flow.app = { watch: base.watch, sendStyle: base.style, sheet: base.sheet, stopAll: base.stop, tagLimits, host, warnOnce, notify, setting, remember, state, graphName, allowed, context, forget, pages, freshLinks, learnSoon, popupOpen, editorPopupOpen, keyMatches, isBlockBox, uuidOf, listen, onStop, limitsFor };
+Flow.app = { watch: base.watch, sendStyle: base.style, sheet: base.sheet, stopAll: base.stop, host, warnOnce, notify, setting, remember, state, graphName, allowed, context, forget, pages, freshLinks, learnSoon, popupOpen, editorPopupOpen, keyMatches, isBlockBox, uuidOf, listen, onStop, limitsFor };
 })();

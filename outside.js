@@ -16,12 +16,10 @@
      files    check (each file's name and its twin in the graph, before anything is added), add with linkTwins (a twin linked on
               the page, not refused), progress (how far an add is), unadd (every bullet an add made, taken back)
      notes    guess, note, undo, tags: Predictive's (predictive/logseq/outside-note.js)
-     tasks    todoList, todoAdd, todoStatus, todoUndo: Todo's (todo/logseq/outside-todo.js)
-     reading  find (Find's search), read (a node as DB Export writes it, and what points at it as Find opens it in place),
-              browse (Home as Find: kinds, a kind's nodes and choices, words) */
+   The tasks answers (todoList, todoAdd, todoStatus, todoUndo) and the reading answers (find, read, browse) went on 24 November
+   2026, with the workflow's Todo, Search, Home and page panels. */
 (function () {
 const Door = window.PluginDoor;
-const browseCache = new Map();   // Home as Find's reads of a kind, kept a minute (browse); a write clears it
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const until = async (check, ms, every = 100) => {
   const end = Date.now() + ms;
@@ -197,7 +195,6 @@ async function guess(request) {
   return p ? p.guess(request || {}) : { off: true, tag: null, choices: [], pieces: [] };
 }
 async function note(request) {
-  browseCache.clear();
   const p = predictive();
   if (p) return p.note(request || {});
   const words = String(request?.words || '').trim();
@@ -206,7 +203,6 @@ async function note(request) {
   return { uuid: block?.uuid || '', page: target.title || target.name || '', tag: '', wrote: [] };
 }
 async function undo(request) {
-  browseCache.clear();
   const p = predictive();
   if (p) return p.undo(request || {});
   await Door.write.removeBlock(String(request?.uuid || ''));
@@ -216,121 +212,8 @@ async function tags() {
   const p = predictive();
   return p ? p.tags() : { off: true, tags: [] };
 }
-/* Todo's list, a task added, a status set and taken back, for the workflow's Todo panel; Todo's own reading and writes. */
-const todo = () => window.Todo?.outside;
-const needTodo = () => { if (!todo()) throw new Error('The Todo part of the plugin is off'); return todo(); };
-const todoList = async () => needTodo().list();
-const todoAdd = async request => { browseCache.clear(); return needTodo().add(request || {}); };
-const todoStatus = async request => { browseCache.clear(); return needTodo().status(request || {}); };
-const todoUndo = async request => { browseCache.clear(); return needTodo().undo(request || {}); };
-/* Finding and reading, for the workflow's Search and page panels: Find's own search (Logseq's, with each node's kind, day and
-   page), and a node as DB Export writes it out (its words as Markdown) with what points at it, as Find opens a node in place
-   (by property, then mentions). */
-const short = n => ({ uuid: n.uuid, title: n.text || n.raw || '', isPage: Boolean(n.isPage), kind: n.kind?.title || '', day: n.day ? window.Find.db.dayLabel(n.day) : '', page: n.page && !n.page.journal ? n.page.title : '' });
-async function find({ words = '', limit = 30 } = {}) {
-  if (!window.Find?.db) throw new Error('The Find part of the plugin is off');
-  const list = String(words).trim() ? await window.Find.db.search(String(words).trim(), limit) : [];
-  return { nodes: list.map(short) };
-}
-async function readNode({ uuid } = {}) {
-  if (!window.Find?.db) throw new Error('The Find part of the plugin is off');
-  const block = await logseq.Editor.getBlock(String(uuid)).catch(() => null) || await logseq.Editor.getPage(String(uuid)).catch(() => null);
-  if (!block) throw new Error('That node is no longer in the graph');
-  const isPage = !block.page || block.name != null;
-  let text = '';
-  const E = window.DbExport;
-  if (E?.db) { try { const doc = isPage ? await E.db.readPage(block.name || block.title || uuid) : await E.db.readBlocks([String(uuid)]); text = E.markdown.toMarkdown(doc, {}); } catch (error) { console.warn('From outside: the page could not be written out', error); } }
-  const n = await window.Find.db.node(String(uuid));
-  return {
-    uuid: String(uuid), title: block.title || block.name || '', isPage, text,
-    properties: (n.properties || []).map(p => ({ name: p.name, values: (p.values || []).map(v => ({ label: v.label, uuid: v.uuid || '' })) })),
-    pointed: (n.pointed || []).map(g => ({ name: g.name, kind: g.kind, nodes: g.nodes.slice(0, 12).map(short), more: Math.max(0, g.nodes.length - 12) })),
-    mentioned: (n.mentioned || []).slice(0, 12).map(short), mentionedCount: (n.mentioned || []).length,
-  };
-}
-/* Home as Find (the owner, 19 November 2026: "is it possible to make it more like find from plugin?"): the workflow's Home panel
-   asks once per change and is answered with what Find shows for the same state, from Find's own readers.
-     browse({ kind, picks, month, words, limit })
-       nothing:    { kinds: [{ id, title, count }], rows: the pages opened last }
-       words:      { rows: pages by name, then Logseq's search; kinds: the kinds among them, with counts }
-       a kind:     { kind, total, rows: its nodes newest first, narrowed by picks ("Name=key"), month (202610) and words;
-                     choices: [{ name, values: [{ key, label, count }] }], months: [{ key, label, count }] }
-   Each row: { uuid, title, isPage, kind, day ("Nov 18"), page, status (todo, doing…) }. A kind's nodes and what they hold are
-   kept a minute, so typing does not read them again. */
-async function kindRead(id) {
-  const hit = browseCache.get(id);
-  if (hit && Date.now() - hit.at < 60000) return hit;
-  const F = window.Find.db, nodes = await F.nodesOfKind(id), full = await F.facets(nodes);
-  const got = { at: Date.now(), nodes, full };
-  browseCache.set(id, got);
-  return got;
-}
-let statusNames = null;
-async function statusName(id) {
-  if (!id) return '';
-  if (!statusNames) statusNames = new Map((await Door.statusChoices()).map(s => [s.id, s.name]));
-  return statusNames.get(id) || '';
-}
-const shortDay = day => { if (!day) return ''; const words = window.Find.db.dayLabel(day); return words.replace(/(st|nd|rd|th),? \d{4}$/, '').replace(/, \d{4}$/, ''); };
-async function rowOf(n) {
-  return { uuid: n.uuid, title: n.text || n.raw || '', isPage: Boolean(n.isPage), kind: n.kind?.title || '', day: shortDay(n.day),
-    page: n.page && !n.page.journal ? n.page.title : '', status: await statusName(n.status) };
-}
-const lower = s => String(s || '').toLowerCase();
-async function browse({ kind = null, picks = [], month = null, words = '', limit = 40 } = {}) {
-  if (!window.Find?.db) throw new Error('The Find part of the plugin is off');
-  const F = window.Find.db, typed = String(words || '').trim();
-  if (!kind) {
-    if (!typed) {
-      const kinds = (await F.kinds()).slice(0, 8).map(k => ({ id: k.id, title: k.title, count: k.count }));
-      const rows = await Promise.all((await F.recents(5)).map(rowOf));
-      return { kinds, rows };
-    }
-    const q = lower(typed);
-    const named = (await F.pages()).filter(p => lower(p.title).includes(q))
-      .sort((a, b) => (lower(a.title).startsWith(q) ? 0 : 1) - (lower(b.title).startsWith(q) ? 0 : 1) || a.title.length - b.title.length).slice(0, 5);
-    const pages = named.length ? await F.details([], named.map(p => p.uuid)) : [];
-    const order = new Map(named.map((p, i) => [p.uuid, i]));
-    pages.sort((a, b) => order.get(a.uuid) - order.get(b.uuid));
-    const found = (await F.search(typed, 30)).filter(n => !pages.some(p => p.uuid === n.uuid));
-    const counts = new Map();
-    for (const n of found) if (n.kind) counts.set(n.kind.id, { id: n.kind.id, title: n.kind.title, count: (counts.get(n.kind.id)?.count || 0) + 1 });
-    // The kinds whose names begin with the letters come first, as in Find ("cons" lights Consultation whatever the words find).
-    const all = await F.kinds(), begins = all.filter(k => lower(k.title).startsWith(q)).slice(0, 2).map(k => ({ id: k.id, title: k.title, count: k.count, whole: true }));
-    const kinds = begins.concat([...counts.values()].filter(k => !begins.some(b => b.id === k.id)).sort((a, b) => b.count - a.count)).slice(0, 6);
-    return { kinds, rows: await Promise.all(pages.concat(found).slice(0, limit).map(rowOf)) };
-  }
-  const index = await F.tagIndex(), tag = index.byId.get(Number(kind));
-  if (!tag) throw new Error('That kind is no longer in the graph');
-  const { nodes, full } = await kindRead(tag.id);
-  let list = nodes.slice();
-  // A task's status is Logseq's own property, not a choice Find's facets read: it is offered as Status (Task only).
-  const isTask = tag.ident === 'logseq.class/Task';
-  if (isTask && !statusNames) await statusName(-1);
-  const statusOf = n => statusNames?.get(n.status) || '';
-  for (const p of picks || []) list = p.startsWith('Status=') ? list.filter(n => statusOf(n) === p.slice(7)) : list.filter(n => full.byNode.get(n.id)?.has(p));
-  if (month) list = list.filter(n => n.day && Math.floor(n.day / 100) === Number(month));
-  if (typed) { const ws = lower(typed).split(/\s+/); list = list.filter(n => ws.every(w => lower(n.text || n.raw).includes(w))); }
-  list.sort(F.byDay);
-  // The choices among what is left: each property's values with how many of the rows hold each, as Find counts them.
-  const held = new Map();
-  for (const n of list) for (const h of full.byNode.get(n.id) || []) held.set(h, (held.get(h) || 0) + 1);
-  let choices = full.props.filter(p => !(picks || []).some(x => x.startsWith(p.name + '=')))
-    .map(p => ({ name: p.name, values: p.values.map(v => ({ key: v.key, label: v.label, count: held.get(p.name + '=' + v.key) || 0 })).filter(v => v.count && v.count < list.length).sort((a, b) => b.count - a.count) }))
-    .filter(p => p.values.length).slice(0, 2);
-  if (isTask && !(picks || []).some(x => x.startsWith('Status='))) {
-    const by = new Map();
-    for (const n of list) { const st = statusOf(n); if (st) by.set(st, (by.get(st) || 0) + 1); }
-    const titles = new Map((await Door.statusChoices()).map(x => [x.name, x.title]));
-    const values = [...by].sort((a, b) => b[1] - a[1]).map(([key, count]) => ({ key, label: titles.get(key) || key, count }));
-    if (values.length > 1) choices.unshift({ name: 'Status', values });
-  }
-  const months = month ? [] : F.months(list).slice(0, 4).map(m => ({ key: m.key, label: m.label, count: m.count }));
-  return { kind: { id: tag.id, title: tag.title }, total: list.length, cutFrom: nodes.cutFrom || 0, choices, months,
-    rows: await Promise.all(list.slice(0, limit).map(rowOf)) };
-}
 function start() {
-  logseq.provideModel({ add, check, progress, unadd, guess, note, undo, tags, todoList, todoAdd, todoStatus, todoUndo, find, read: readNode, browse });
+  logseq.provideModel({ add, check, progress, unadd, guess, note, undo, tags });
 }
 Door.outside = { start, add, page, progress: null, patience: 30000, answerWithin: 8000 };   // how long Logseq is given to take one file; how long the caller waits
 })();

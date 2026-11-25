@@ -1,4 +1,4 @@
-/* Where the screen lives in Logseq: a page of its own (the route #/structure, in the main view) and the Ontology tab in the
+/* Where the screen lives in Logseq: a page of its own (the route #/structure, in the main view) and the Ontology section in the
    right sidebar, both hosted by Logseq's own React through logseq.Experiments.
    Each mount draws the view into the holder Logseq gives and takes it down when Logseq does. */
 (function () {
@@ -54,25 +54,19 @@ function mount(app) {
     try { logseq.Experiments.registerSidebarRenderer(S.inspector.KEY, { title: 'Ontology', render: () => React.createElement(Inspector) }); hosted.inspector = true; }
     catch (error) { console.error('Structure: the inspector could not be added', error); }
   }
-  /* Ontology is a section of the right sidebar that appears by itself, at the top, on a tag's or a property's page, where it has
-     something to show (the owner, 17 November 2026: "Ontology appears when ontology is relevant"); elsewhere it stands aside. */
+  /* Ontology is a section of the right sidebar that appears by itself, at the top, on a tag's page, where it has something to show
+     (the owner, 17 November 2026: "Ontology appears when ontology is relevant"); elsewhere, a property's page included (24 November
+     2026), it stands aside. */
   // Its ×: closed, it stays closed until asked for again (the owner, 22 November 2026: "you should be able to close ontology").
-  const offTab = Door.sideTabs?.add({ key: 'inspector', word: 'Ontology', order: 1, auto: true, rows: true, closable: true, panel: S.inspector.KEY,
+  const offTab = Door.sideTabs?.add({ key: 'inspector', word: 'Ontology', order: 1, auto: true, closable: true, panel: S.inspector.KEY,
     find: doc => doc.getElementById('_sidebar.' + S.inspector.KEY)?.closest('.sidebar-item') || null,
     open: () => { logseq.Editor.openInRightSidebar('_sidebar.' + S.inspector.KEY); },
-    hidden: () => !S.inspector.applies() && !S.inspector.row() });
-  // Item, the row pressed in a table (the owner, 12 November 2026): Logseq's own view of the row's node, which inspector.js opens and
-  // names. Only in the row view, the toolbar's Row view button (the owner, 17 November 2026: "the table view should be a different
-  // view, not in stack"): there it is first, Ontology folded under it ("main focus is the row item").
-  // Its × ends the row view (sidebar-tabs.js onClose), as any section of the stack is closed by its × (22 November 2026).
-  const offItem = Door.sideTabs?.add({ key: 'item', word: 'Item', order: -1, auto: true, rows: true, closable: true,
-    find: doc => S.inspector.item(doc), owns: item => S.inspector.owns(item), open: () => {},
-    hidden: () => !S.inspector.row() });
+    hidden: () => !S.inspector.applies() });
   const offMenu = Door.watch(icons);
   const onPage = () => host().defaultView.location.hash.split('?')[0] === '#' + ROUTE;   // the address carries the place (view.js)
   return {
     ...hosted,
-    stop: () => { offMenu(); offTab?.(); offItem?.(); },
+    stop: () => { offMenu(); offTab?.(); },
     openPage: () => { const win = host().defaultView; if (!onPage()) win.location.hash = '#' + ROUTE; },
     onPage,
     openInspector: () => Door.sideTabs?.show('inspector'),

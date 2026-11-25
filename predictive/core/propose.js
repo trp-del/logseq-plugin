@@ -19,7 +19,7 @@
      read from the graph (dated[ident]: for each tag, how many nodes carry the day they were written on, how many another).
    - No list of English words that name nothing: ctx.common comes from the graph's own lines (context.js).
    - Dates in words come from a locale (dates.js). Nothing else here is language-bound.
-   - Limits live in ctx.limits, so each graph can be tuned (score.js). */
+   - Limits live in ctx.limits. */
 (function () {
 const need = n => (typeof require === 'function' && typeof module !== 'undefined') ? require('./' + n + '.js') : window.Flow[n];
 const { LINK, TAG, UUID, wordsOf, cleanWords, sameIds } = need('text');
@@ -163,12 +163,9 @@ const dayText = (ctx, day) => {
 // The tag an untagged bullet reads like, in two stages: the nearest earlier lines vote (a near-twin, almost never wrong);
 // when they find none, the tags' word profiles (core/profile.js) are asked, which know the words a tag's lines use as a
 // whole. Either way a tag of yours that bullets carry, or nothing.
-/* Enough words to suggest a tag: four words (each once, a page's name counted by its words), for every source of a tag (the vote,
-   the word profiles, Apple's matcher and model); Option-T, asked for, lists at any length. Measured 8 November 2026 on the 59
-   held-out lines typed a word at a time on the Illness Test Graph: with no such wait, 36 wrong tags showed on the way and the tag
-   changed 10 times; waiting for four words, 15 and 3, and the tag each line ends with is the same (16 right, 1 wrong). Most wrong
-   ones came from Apple's matcher on one to three words. Plain word count, not the graph's uncommon words: a graph of look-alike
-   lines finds half its words common, and the wait would never end there. */
+/* Enough words to guess a tag: four words (each once, a page's name counted by its words), for the vote and the word profiles;
+   Option-T, asked for, lists at any length. Plain word count, not the graph's uncommon words: a graph of look-alike lines finds
+   half its words common, and the wait would never end there. */
 const TAG_WORDS_LEAST = 4;
 const tellingWords = (ctx, text) => engine.tokensOf(shownWords(text, ctx), [], [], ctx.limits).length;
 const enoughForTag = (ctx, text) => tellingWords(ctx, text) >= (ctx.limits?.tagWordsLeast ?? TAG_WORDS_LEAST);
@@ -261,7 +258,9 @@ function meantDaysFor(reader, dates, text, base, meant, ctx = null) {
   const saidAsAppointment = reader.dayMeant({ words: ['on'] }, text, base) === days[0] || /\sat\s+\d{1,2}(?::\d\d)?\s*(?:am|pm)?(?=[\s.,;!?]|$)/i.test(' ' + text);
   if (days[0] > base && saidAsAppointment) give(scheduled && !isBuiltInProp(scheduled) ? scheduled : null, days[0], 'words-ahead');
 }
-function propose(ctx, b, assume = null) {
+/* offerTag: asked for by a caller that offers a tag for words on request (the Alfred workflow's Add panel, logseq/outside-note.js).
+   A bullet written in Logseq is never given a tag by itself (the owner, 24 November 2026): there the tags are Option-T's list. */
+function propose(ctx, b, assume = null, { offerTag = false } = {}) {
   const { schema } = ctx;
   const text = b.text;
   const { links, tags: typedTags } = inWords(text, ctx);
@@ -269,19 +268,10 @@ function propose(ctx, b, assume = null) {
   const { record, fields, ordered, rankOf } = recordOf(b, allTags, schema);
   const pieces = [];
 
-  // No tag, and no record above: the tag of the nodes it looks like, with the properties it brings, all guesses.
+  // No tag, and no record above: nothing, unless a tag was asked for; then the tag of the nodes it looks like, with the
+  // properties it brings, all guesses.
   if (!fields.length) {
-    const fresh = allTags.length || assume ? null : tagFor(ctx, b, text);
-    // Steady (core/tag-score.js): with the bullet's state, a shown tag stays while the words go on, and another replaces it only
-    // at two pauses running. Fewer than enough words again (the words taken back): nothing held.
-    const held = b.tagState && !(allTags.length || assume);
-    const ready = held && readyForTag(ctx, b, text);
-    if (held && !ready) Object.assign(b.tagState, { shown: null, pending: null, n: 0 });
-    // Words written before with one tag (by: 'twin') are sure, so they take the place at once: "Gas" shows Purchase, and the
-    // bill's "Gas bill" Bill payment as soon as "bill" is typed, not a pause later.
-    const sure = ready && fresh?.by === 'twin';
-    if (sure) Object.assign(b.tagState, { shown: fresh, pending: null, n: 0 });
-    const tag = sure ? fresh : ready ? tagScoreLib.steady(b.tagState, fresh, id => tagScoreLib.leadOf(ctx, b, text, id), ctx.limits.tagHold ?? 4) : fresh;
+    const tag = !offerTag || allTags.length || assume ? null : tagFor(ctx, b, text);
     if (!tag) return { record, pieces };
     const assumed = propose(ctx, { ...b, tags: [...b.tags, tag.id] }, tag);
     const tagPiece = { ident: 'block/tags', prop: { ident: 'block/tags', title: 'Tags', lower: 'tags', type: 'tag', many: true, classes: [] }, kind: 'tag', ids: [tag.id], tag, shown: `#${tag.title}`, how: 'alike-tag', from: tag.from, why: tag.why, guess: true };
@@ -350,8 +340,7 @@ function propose(ctx, b, assume = null) {
   pieces.sort((a, c) => fields.indexOf(a.prop) - fields.indexOf(c.prop));   // shown in the order the tag gives them
   const guesses = guessesFor(ctx, { b, text, record, fields: ordered, recordTags, links, free, used, quiet, part, done: new Set(pieces.map(p => p.ident)) });
   guesses.sort((a, c) => fields.indexOf(a.prop) - fields.indexOf(c.prop));
-  // quiet: the properties held back (two names for one place), which nothing else may fill either (core/model.js).
-  return { record, pieces: [...pieces, ...guesses], quiet: [...quiet] };
+  return { record, pieces: [...pieces, ...guesses] };
 }
 
 /* The reading of core/roles.js set against the record's properties: aside (pages that take no part), owner (page -> the property
@@ -543,7 +532,7 @@ function tagChoices(ctx, b, { max = 5 } = {}) {
   const item = (id, how) => { const page = ctx.byId.get(id); return page && page.isTag && page.uuid ? { tag: { id, uuid: page.uuid, title: page.title }, score: scores.get(id) || 0, via: [...new Set([...(candidates.get(id)?.values() || [])].flatMap(set => [...set]))], takes: [...(candidates.get(id) || [])].map(([prop, set]) => ({ prop, pages: [...set] })), how, fields: fieldsOfTags([id], ctx.schema).map(p => p.title) } : null; };
   const byScore = (x, y) => y.score - x.score || y.via.length - x.via.length || x.tag.title.localeCompare(y.tag.title);
   const out = [...candidates.keys()].map(id => item(id, 'mentioned')).filter(Boolean).sort(byScore);
-  // The tag the same words carried before (core/tag-score.js twinOf) comes first, as it is the one pencilled in.
+  // The tag the same words carried before (core/tag-score.js twinOf) comes first.
   const twin = tagScoreLib.twinOf(ctx, b, b.text);
   if (twin) { const at = out.findIndex(x => x.tag.id === twin.id), it = at >= 0 ? out.splice(at, 1)[0] : item(twin.id, 'twin'); if (it) out.unshift(it); }
   // Fewer than three from the structure (or none: nothing named, or a kind of line no property points at): the words fill the list up.

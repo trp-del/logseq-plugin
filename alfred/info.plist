@@ -97,149 +97,6 @@
 				<false/>
 			</dict>
 		</array>
-		<key>A0000000-0000-4000-8000-000000000021</key>
-		<array>
-			<dict>
-				<key>destinationuid</key>
-				<string>A0000000-0000-4000-8000-000000000024</string>
-				<key>modifiers</key>
-				<integer>0</integer>
-				<key>modifiersubtext</key>
-				<string></string>
-				<key>vitoclose</key>
-				<false/>
-			</dict>
-		</array>
-		<key>A0000000-0000-4000-8000-000000000022</key>
-		<array>
-			<dict>
-				<key>destinationuid</key>
-				<string>A0000000-0000-4000-8000-000000000021</string>
-				<key>modifiers</key>
-				<integer>0</integer>
-				<key>modifiersubtext</key>
-				<string></string>
-				<key>vitoclose</key>
-				<false/>
-			</dict>
-		</array>
-		<key>A0000000-0000-4000-8000-000000000023</key>
-		<array>
-			<dict>
-				<key>destinationuid</key>
-				<string>A0000000-0000-4000-8000-000000000021</string>
-				<key>modifiers</key>
-				<integer>0</integer>
-				<key>modifiersubtext</key>
-				<string></string>
-				<key>vitoclose</key>
-				<false/>
-			</dict>
-		</array>
-		<key>A0000000-0000-4000-8000-000000000031</key>
-		<array>
-			<dict>
-				<key>destinationuid</key>
-				<string>A0000000-0000-4000-8000-000000000024</string>
-				<key>modifiers</key>
-				<integer>0</integer>
-				<key>modifiersubtext</key>
-				<string></string>
-				<key>vitoclose</key>
-				<false/>
-			</dict>
-		</array>
-		<key>A0000000-0000-4000-8000-000000000032</key>
-		<array>
-			<dict>
-				<key>destinationuid</key>
-				<string>A0000000-0000-4000-8000-000000000031</string>
-				<key>modifiers</key>
-				<integer>0</integer>
-				<key>modifiersubtext</key>
-				<string></string>
-				<key>vitoclose</key>
-				<false/>
-			</dict>
-		</array>
-		<key>A0000000-0000-4000-8000-000000000033</key>
-		<array>
-			<dict>
-				<key>destinationuid</key>
-				<string>A0000000-0000-4000-8000-000000000031</string>
-				<key>modifiers</key>
-				<integer>0</integer>
-				<key>modifiersubtext</key>
-				<string></string>
-				<key>vitoclose</key>
-				<false/>
-			</dict>
-		</array>
-		<key>A0000000-0000-4000-8000-000000000041</key>
-		<array>
-			<dict>
-				<key>destinationuid</key>
-				<string>A0000000-0000-4000-8000-000000000024</string>
-				<key>modifiers</key>
-				<integer>0</integer>
-				<key>modifiersubtext</key>
-				<string></string>
-				<key>vitoclose</key>
-				<false/>
-			</dict>
-		</array>
-		<key>A0000000-0000-4000-8000-000000000042</key>
-		<array>
-			<dict>
-				<key>destinationuid</key>
-				<string>A0000000-0000-4000-8000-000000000041</string>
-				<key>modifiers</key>
-				<integer>0</integer>
-				<key>modifiersubtext</key>
-				<string></string>
-				<key>vitoclose</key>
-				<false/>
-			</dict>
-		</array>
-		<key>A0000000-0000-4000-8000-000000000043</key>
-		<array>
-			<dict>
-				<key>destinationuid</key>
-				<string>A0000000-0000-4000-8000-000000000041</string>
-				<key>modifiers</key>
-				<integer>0</integer>
-				<key>modifiersubtext</key>
-				<string></string>
-				<key>vitoclose</key>
-				<false/>
-			</dict>
-		</array>
-		<key>A0000000-0000-4000-8000-000000000051</key>
-		<array>
-			<dict>
-				<key>destinationuid</key>
-				<string>A0000000-0000-4000-8000-000000000024</string>
-				<key>modifiers</key>
-				<integer>0</integer>
-				<key>modifiersubtext</key>
-				<string></string>
-				<key>vitoclose</key>
-				<false/>
-			</dict>
-		</array>
-		<key>A0000000-0000-4000-8000-000000000053</key>
-		<array>
-			<dict>
-				<key>destinationuid</key>
-				<string>A0000000-0000-4000-8000-000000000051</string>
-				<key>modifiers</key>
-				<integer>0</integer>
-				<key>modifiersubtext</key>
-				<string></string>
-				<key>vitoclose</key>
-				<false/>
-			</dict>
-		</array>
 		<key>A0000000-0000-4000-8000-000000000062</key>
 		<array>
 			<dict>
@@ -305,84 +162,6 @@
 				<false/>
 			</dict>
 		</array>
-		<key>B0000000-0000-4000-8000-000000000015</key>
-		<array>
-			<dict>
-				<key>destinationuid</key>
-				<string>B0000000-0000-4000-8000-000000000016</string>
-				<key>modifiers</key>
-				<integer>0</integer>
-				<key>modifiersubtext</key>
-				<string></string>
-				<key>vitoclose</key>
-				<false/>
-			</dict>
-		</array>
-		<key>B0000000-0000-4000-8000-000000000016</key>
-		<array>
-			<dict>
-				<key>destinationuid</key>
-				<string>10ACFFB5-D08A-470D-BD03-811CC969AA12</string>
-				<key>modifiers</key>
-				<integer>0</integer>
-				<key>modifiersubtext</key>
-				<string></string>
-				<key>vitoclose</key>
-				<false/>
-			</dict>
-		</array>
-		<key>C0000000-0000-4000-8000-000000000001</key>
-		<array>
-			<dict>
-				<key>destinationuid</key>
-				<string>C0000000-0000-4000-8000-000000000002</string>
-				<key>modifiers</key>
-				<integer>0</integer>
-				<key>modifiersubtext</key>
-				<string></string>
-				<key>vitoclose</key>
-				<false/>
-			</dict>
-		</array>
-		<key>C0000000-0000-4000-8000-000000000002</key>
-		<array>
-			<dict>
-				<key>destinationuid</key>
-				<string>10ACFFB5-D08A-470D-BD03-811CC969AA12</string>
-				<key>modifiers</key>
-				<integer>0</integer>
-				<key>modifiersubtext</key>
-				<string></string>
-				<key>vitoclose</key>
-				<false/>
-			</dict>
-		</array>
-		<key>C0000000-0000-4000-8000-000000000003</key>
-		<array>
-			<dict>
-				<key>destinationuid</key>
-				<string>C0000000-0000-4000-8000-000000000004</string>
-				<key>modifiers</key>
-				<integer>0</integer>
-				<key>modifiersubtext</key>
-				<string></string>
-				<key>vitoclose</key>
-				<false/>
-			</dict>
-		</array>
-		<key>C0000000-0000-4000-8000-000000000004</key>
-		<array>
-			<dict>
-				<key>destinationuid</key>
-				<string>10ACFFB5-D08A-470D-BD03-811CC969AA12</string>
-				<key>modifiers</key>
-				<integer>0</integer>
-				<key>modifiersubtext</key>
-				<string></string>
-				<key>vitoclose</key>
-				<false/>
-			</dict>
-		</array>
 	</dict>
 	<key>createdby</key>
 	<string>Logseq Value</string>
@@ -439,94 +218,6 @@
 		<dict>
 			<key>config</key>
 			<dict>
-				<key>argumenttype</key>
-				<integer>0</integer>
-				<key>keyword</key>
-				<string>{var:page_keyword}</string>
-				<key>subtext</key>
-				<string>A page named so, made if there is none; end with #Tag to tag it</string>
-				<key>text</key>
-				<string>Logseq page</string>
-				<key>withspace</key>
-				<true/>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.input.keyword</string>
-			<key>uid</key>
-			<string>C0000000-0000-4000-8000-000000000001</string>
-			<key>version</key>
-			<integer>1</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>concurrently</key>
-				<false/>
-				<key>escaping</key>
-				<integer>0</integer>
-				<key>script</key>
-				<string></string>
-				<key>scriptargtype</key>
-				<integer>1</integer>
-				<key>scriptfile</key>
-				<string>page</string>
-				<key>type</key>
-				<integer>8</integer>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.action.script</string>
-			<key>uid</key>
-			<string>C0000000-0000-4000-8000-000000000002</string>
-			<key>version</key>
-			<integer>2</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>argumenttype</key>
-				<integer>1</integer>
-				<key>keyword</key>
-				<string>{var:picture_keyword}</string>
-				<key>subtext</key>
-				<string>The picture on the clipboard, into the graph on today's journal; add a name for a page of its own</string>
-				<key>text</key>
-				<string>Add the clipboard picture to Logseq</string>
-				<key>withspace</key>
-				<true/>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.input.keyword</string>
-			<key>uid</key>
-			<string>C0000000-0000-4000-8000-000000000003</string>
-			<key>version</key>
-			<integer>1</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>concurrently</key>
-				<false/>
-				<key>escaping</key>
-				<integer>0</integer>
-				<key>script</key>
-				<string></string>
-				<key>scriptargtype</key>
-				<integer>1</integer>
-				<key>scriptfile</key>
-				<string>picture</string>
-				<key>type</key>
-				<integer>8</integer>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.action.script</string>
-			<key>uid</key>
-			<string>C0000000-0000-4000-8000-000000000004</string>
-			<key>version</key>
-			<integer>2</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
 				<key>acceptsfiles</key>
 				<true/>
 				<key>acceptsmulti</key>
@@ -573,50 +264,6 @@
 			<string>alfred.workflow.trigger.hotkey</string>
 			<key>uid</key>
 			<string>44444444-4444-4444-8444-444444444444</string>
-			<key>version</key>
-			<integer>2</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>acceptsfiles</key>
-				<true/>
-				<key>acceptsmulti</key>
-				<integer>1</integer>
-				<key>acceptstext</key>
-				<true/>
-				<key>acceptsurls</key>
-				<true/>
-				<key>name</key>
-				<string>Add to Logseq as a page</string>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.trigger.universalaction</string>
-			<key>uid</key>
-			<string>B0000000-0000-4000-8000-000000000015</string>
-			<key>version</key>
-			<integer>1</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>concurrently</key>
-				<false/>
-				<key>escaping</key>
-				<integer>0</integer>
-				<key>script</key>
-				<string></string>
-				<key>scriptargtype</key>
-				<integer>1</integer>
-				<key>scriptfile</key>
-				<string>page-selection</string>
-				<key>type</key>
-				<integer>8</integer>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.action.script</string>
-			<key>uid</key>
-			<string>B0000000-0000-4000-8000-000000000016</string>
 			<key>version</key>
 			<integer>2</integer>
 		</dict>
@@ -728,65 +375,12 @@ exit 0</string>
 		<dict>
 			<key>config</key>
 			<dict>
-				<key>launchmode</key>
-				<integer>0</integer>
-				<key>path</key>
-				<string>home.alfredui</string>
-				<key>stackview</key>
-				<false/>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.userinterface.alfredui</string>
-			<key>uid</key>
-			<string>A0000000-0000-4000-8000-000000000021</string>
-			<key>version</key>
-			<integer>1</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>argumenttype</key>
-				<integer>1</integer>
-				<key>keyword</key>
-				<string>{var:home_keyword}</string>
-				<key>subtext</key>
-				<string>Add, tag what came in, find a page</string>
-				<key>text</key>
-				<string>Logseq</string>
-				<key>withspace</key>
-				<true/>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.input.keyword</string>
-			<key>uid</key>
-			<string>A0000000-0000-4000-8000-000000000022</string>
-			<key>version</key>
-			<integer>1</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>availableviaurlhandler</key>
-				<false/>
-				<key>triggerid</key>
-				<string>home</string>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.trigger.external</string>
-			<key>uid</key>
-			<string>A0000000-0000-4000-8000-000000000023</string>
-			<key>version</key>
-			<integer>1</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
 				<key>concurrently</key>
 				<false/>
 				<key>escaping</key>
 				<integer>0</integer>
 				<key>script</key>
-				<string># Where the home panel's ↩ goes: another panel, or a page shown in Logseq.
+				<string># Where the selection panel's ↩ goes: files go to the files panel.
 exec /usr/bin/osascript -l JavaScript ./logseq.js panel-route "$1"</string>
 				<key>scriptargtype</key>
 				<integer>1</integer>
@@ -801,144 +395,6 @@ exec /usr/bin/osascript -l JavaScript ./logseq.js panel-route "$1"</string>
 			<string>A0000000-0000-4000-8000-000000000024</string>
 			<key>version</key>
 			<integer>2</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>launchmode</key>
-				<integer>0</integer>
-				<key>path</key>
-				<string>todo.alfredui</string>
-				<key>stackview</key>
-				<false/>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.userinterface.alfredui</string>
-			<key>uid</key>
-			<string>A0000000-0000-4000-8000-000000000031</string>
-			<key>version</key>
-			<integer>1</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>argumenttype</key>
-				<integer>1</integer>
-				<key>keyword</key>
-				<string>{var:todo_keyword}</string>
-				<key>subtext</key>
-				<string>Open tasks, grouped as the Todo page groups them</string>
-				<key>text</key>
-				<string>Logseq Todo</string>
-				<key>withspace</key>
-				<true/>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.input.keyword</string>
-			<key>uid</key>
-			<string>A0000000-0000-4000-8000-000000000032</string>
-			<key>version</key>
-			<integer>1</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>availableviaurlhandler</key>
-				<false/>
-				<key>triggerid</key>
-				<string>todo</string>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.trigger.external</string>
-			<key>uid</key>
-			<string>A0000000-0000-4000-8000-000000000033</string>
-			<key>version</key>
-			<integer>1</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>launchmode</key>
-				<integer>0</integer>
-				<key>path</key>
-				<string>search.alfredui</string>
-				<key>stackview</key>
-				<false/>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.userinterface.alfredui</string>
-			<key>uid</key>
-			<string>A0000000-0000-4000-8000-000000000041</string>
-			<key>version</key>
-			<integer>1</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>availableviaurlhandler</key>
-				<false/>
-				<key>triggerid</key>
-				<string>search</string>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.trigger.external</string>
-			<key>uid</key>
-			<string>A0000000-0000-4000-8000-000000000043</string>
-			<key>version</key>
-			<integer>1</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>argumenttype</key>
-				<integer>1</integer>
-				<key>keyword</key>
-				<string>{var:search_keyword}</string>
-				<key>subtext</key>
-				<string>Logseq's search, each note with its kind and day</string>
-				<key>text</key>
-				<string>Search Logseq</string>
-				<key>withspace</key>
-				<true/>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.input.keyword</string>
-			<key>uid</key>
-			<string>A0000000-0000-4000-8000-000000000042</string>
-			<key>version</key>
-			<integer>1</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>launchmode</key>
-				<integer>0</integer>
-				<key>path</key>
-				<string>read.alfredui</string>
-				<key>stackview</key>
-				<false/>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.userinterface.alfredui</string>
-			<key>uid</key>
-			<string>A0000000-0000-4000-8000-000000000051</string>
-			<key>version</key>
-			<integer>1</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>availableviaurlhandler</key>
-				<false/>
-				<key>triggerid</key>
-				<string>read</string>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.trigger.external</string>
-			<key>uid</key>
-			<string>A0000000-0000-4000-8000-000000000053</string>
-			<key>version</key>
-			<integer>1</integer>
 		</dict>
 		<dict>
 			<key>config</key>
@@ -1052,18 +508,19 @@ exec /usr/bin/osascript -l JavaScript ./logseq.js panel-route "$1"</string>
 	<key>readme</key>
 	<string>## Setup
 
-Enable Logseq's HTTP API server (Settings → Features), paste its token into Configure Workflow, and keep the DB graph open. For files and pictures, install the Logseq Plugin (0.3.25 or newer) in Logseq.
+Enable Logseq's HTTP API server (Settings → Features), paste its token into Configure Workflow, and keep the DB graph open. Install the Logseq Plugin in Logseq: the tag guesses and files go through it.
 
 ## Ways in
 
-- `{var:today_keyword} words` — a bullet on today's journal.
-- `{var:active_keyword} words` — a bullet on the page open in Logseq.
-- `{var:page_keyword} Name` — a page named so, made if there is none; end with `#Tag` to tag it with an existing tag.
-- `{var:picture_keyword}` — the picture on the clipboard, into the graph on today's journal; `{var:picture_keyword} Name` puts it on a page named so.
-- **Add to Logseq Today** (Universal Action, or the hotkey) — files into the graph on today's journal; selected words as a quote with a citation to where they came from; a web page as its link.
-- **Add to Logseq as a page** (Universal Action) — the same, each on a page of its own: a file on a page named after it, words on a page named after the page they came from.
+- `{var:today_keyword} words` — the Add panel, for a bullet on today's journal.
+- `{var:active_keyword} words` — the Add panel, for a bullet on the page open in Logseq.
+- **Add files to Logseq…** (Universal Action) — the files panel: each file as the node it will be, then into the graph.
+- **Add to Logseq…** (Universal Action, or the hotkey) — the selection panel: selected words as a quote with a citation to where they came from, or a web page as its link, seen before it is written; files go to the files panel.
 
-A file put into the graph is a node of its own, as when it is dropped into Logseq: the plugin's Cite finds a PDF, Threads lists it, and it opens inside Logseq.</string>
+A file put into the graph is a node of its own, as when it is dropped into Logseq.
+
+Removed on 24 November 2026: the keywords for a page and for the clipboard's picture, the Universal Action "Add to Logseq as a page", and the panels Home, Todo, Search and a page read inside Alfred.
+</string>
 	<key>uidata</key>
 	<dict>
 		<key>10ACFFB5-D08A-470D-BD03-811CC969AA12</key>
@@ -1157,89 +614,12 @@ A file put into the graph is a node of its own, as when it is dropped into Logse
 			<key>ypos</key>
 			<real>700.0</real>
 		</dict>
-		<key>A0000000-0000-4000-8000-000000000021</key>
-		<dict>
-			<key>xpos</key>
-			<real>500.0</real>
-			<key>ypos</key>
-			<real>1060.0</real>
-		</dict>
-		<key>A0000000-0000-4000-8000-000000000022</key>
-		<dict>
-			<key>xpos</key>
-			<real>80.0</real>
-			<key>ypos</key>
-			<real>1060.0</real>
-		</dict>
-		<key>A0000000-0000-4000-8000-000000000023</key>
-		<dict>
-			<key>xpos</key>
-			<real>80.0</real>
-			<key>ypos</key>
-			<real>1180.0</real>
-		</dict>
 		<key>A0000000-0000-4000-8000-000000000024</key>
 		<dict>
 			<key>xpos</key>
 			<real>700.0</real>
 			<key>ypos</key>
 			<real>1060.0</real>
-		</dict>
-		<key>A0000000-0000-4000-8000-000000000031</key>
-		<dict>
-			<key>xpos</key>
-			<real>500.0</real>
-			<key>ypos</key>
-			<real>1300.0</real>
-		</dict>
-		<key>A0000000-0000-4000-8000-000000000032</key>
-		<dict>
-			<key>xpos</key>
-			<real>80.0</real>
-			<key>ypos</key>
-			<real>1300.0</real>
-		</dict>
-		<key>A0000000-0000-4000-8000-000000000033</key>
-		<dict>
-			<key>xpos</key>
-			<real>80.0</real>
-			<key>ypos</key>
-			<real>1420.0</real>
-		</dict>
-		<key>A0000000-0000-4000-8000-000000000041</key>
-		<dict>
-			<key>xpos</key>
-			<real>500.0</real>
-			<key>ypos</key>
-			<real>1540.0</real>
-		</dict>
-		<key>A0000000-0000-4000-8000-000000000042</key>
-		<dict>
-			<key>xpos</key>
-			<real>80.0</real>
-			<key>ypos</key>
-			<real>1540.0</real>
-		</dict>
-		<key>A0000000-0000-4000-8000-000000000043</key>
-		<dict>
-			<key>xpos</key>
-			<real>80.0</real>
-			<key>ypos</key>
-			<real>1660.0</real>
-		</dict>
-		<key>A0000000-0000-4000-8000-000000000051</key>
-		<dict>
-			<key>xpos</key>
-			<real>500.0</real>
-			<key>ypos</key>
-			<real>1780.0</real>
-		</dict>
-		<key>A0000000-0000-4000-8000-000000000053</key>
-		<dict>
-			<key>xpos</key>
-			<real>80.0</real>
-			<key>ypos</key>
-			<real>1900.0</real>
 		</dict>
 		<key>A0000000-0000-4000-8000-000000000061</key>
 		<dict>
@@ -1282,60 +662,6 @@ A file put into the graph is a node of its own, as when it is dropped into Logse
 			<real>80.0</real>
 			<key>ypos</key>
 			<real>2260.0</real>
-		</dict>
-		<key>B0000000-0000-4000-8000-000000000015</key>
-		<dict>
-			<key>note</key>
-			<string>The same, each as a page of its own</string>
-			<key>xpos</key>
-			<real>40.0</real>
-			<key>ypos</key>
-			<real>900.0</real>
-		</dict>
-		<key>B0000000-0000-4000-8000-000000000016</key>
-		<dict>
-			<key>note</key>
-			<string>A page named after the file or the source</string>
-			<key>xpos</key>
-			<real>360.0</real>
-			<key>ypos</key>
-			<real>900.0</real>
-		</dict>
-		<key>C0000000-0000-4000-8000-000000000001</key>
-		<dict>
-			<key>note</key>
-			<string>Page</string>
-			<key>xpos</key>
-			<real>40.0</real>
-			<key>ypos</key>
-			<real>340.0</real>
-		</dict>
-		<key>C0000000-0000-4000-8000-000000000002</key>
-		<dict>
-			<key>note</key>
-			<string>A page by name, tagged</string>
-			<key>xpos</key>
-			<real>360.0</real>
-			<key>ypos</key>
-			<real>340.0</real>
-		</dict>
-		<key>C0000000-0000-4000-8000-000000000003</key>
-		<dict>
-			<key>note</key>
-			<string>Clipboard picture</string>
-			<key>xpos</key>
-			<real>40.0</real>
-			<key>ypos</key>
-			<real>480.0</real>
-		</dict>
-		<key>C0000000-0000-4000-8000-000000000004</key>
-		<dict>
-			<key>note</key>
-			<string>The picture into the graph, by the plugin</string>
-			<key>xpos</key>
-			<real>360.0</real>
-			<key>ypos</key>
-			<real>480.0</real>
 		</dict>
 	</dict>
 	<key>userconfigurationconfig</key>
@@ -1407,27 +733,6 @@ A file put into the graph is a node of its own, as when it is dropped into Logse
 			<key>config</key>
 			<dict>
 				<key>default</key>
-				<string>l</string>
-				<key>placeholder</key>
-				<string></string>
-				<key>required</key>
-				<false/>
-				<key>trim</key>
-				<true/>
-			</dict>
-			<key>description</key>
-			<string>One keyword that leads everywhere</string>
-			<key>label</key>
-			<string>Home</string>
-			<key>type</key>
-			<string>textfield</string>
-			<key>variable</key>
-			<string>home_keyword</string>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>default</key>
 				<string>lt</string>
 				<key>placeholder</key>
 				<string>lt</string>
@@ -1465,90 +770,6 @@ A file put into the graph is a node of its own, as when it is dropped into Logse
 			<string>textfield</string>
 			<key>variable</key>
 			<string>active_keyword</string>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>default</key>
-				<string>lp</string>
-				<key>placeholder</key>
-				<string>lp</string>
-				<key>required</key>
-				<true/>
-				<key>trim</key>
-				<true/>
-			</dict>
-			<key>description</key>
-			<string>A page named so, made if there is none; end with #Tag to tag it.</string>
-			<key>label</key>
-			<string>Page Keyword</string>
-			<key>type</key>
-			<string>textfield</string>
-			<key>variable</key>
-			<string>page_keyword</string>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>default</key>
-				<string>lpic</string>
-				<key>placeholder</key>
-				<string>lpic</string>
-				<key>required</key>
-				<true/>
-				<key>trim</key>
-				<true/>
-			</dict>
-			<key>description</key>
-			<string>The picture on the clipboard, into the graph.</string>
-			<key>label</key>
-			<string>Picture Keyword</string>
-			<key>type</key>
-			<string>textfield</string>
-			<key>variable</key>
-			<string>picture_keyword</string>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>default</key>
-				<string>ltd</string>
-				<key>placeholder</key>
-				<string></string>
-				<key>required</key>
-				<false/>
-				<key>trim</key>
-				<true/>
-			</dict>
-			<key>description</key>
-			<string></string>
-			<key>label</key>
-			<string>Todo</string>
-			<key>type</key>
-			<string>textfield</string>
-			<key>variable</key>
-			<string>todo_keyword</string>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>default</key>
-				<string>ls</string>
-				<key>placeholder</key>
-				<string></string>
-				<key>required</key>
-				<false/>
-				<key>trim</key>
-				<true/>
-			</dict>
-			<key>description</key>
-			<string></string>
-			<key>label</key>
-			<string>Search</string>
-			<key>type</key>
-			<string>textfield</string>
-			<key>variable</key>
-			<string>search_keyword</string>
 		</dict>
 	</array>
 	<key>variablesdontexport</key>

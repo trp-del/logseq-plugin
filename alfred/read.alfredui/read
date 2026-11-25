@@ -1,3 +1,0 @@
-#!/bin/zsh
-# A page read here, answered by logseq.js (panel-read), in Alfred UI's JSON.
-exec /usr/bin/osascript -l JavaScript "${0:A:h:h}/logseq.js" panel-read "$@"

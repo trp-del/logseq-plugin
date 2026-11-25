@@ -190,7 +190,7 @@ const looks = [
 ];
 const look = key => looks.find(l => l.key === key) || looks[0];
 const page = (p = {}) => ({ paper: p.paper === 'Letter' ? 'Letter' : 'A4', margins: MARGINS[p.margins] ? p.margins : 'normal', size: SIZES[p.size] ? p.size : 'normal',
-  footer: String(p.footer || '').trim(), pageNumbers: p.pageNumbers !== false, customCss: String(p.customCss || ''), layout: String(p.layout || 'document'),
+  footer: String(p.footer || '').trim(), pageNumbers: p.pageNumbers !== false, layout: String(p.layout || 'document'),
   elements: p.elements && typeof p.elements === 'object' ? p.elements : {} });
 /* The elements of a sheet a person can change by picking, in place of writing CSS (the owner, 22 November 2026: "instead of
    css editing of elements, there is a graphical way to adjust the different elements"). An element is one or more of the
@@ -264,7 +264,6 @@ function stylesheet(key, p = {}) {
     `img { max-width: 100%; }`,
     shared(), lk.extra ? lk.extra(SIZES[pg.size], pg.layout) : '',
     ...Object.entries(elementRules(key, pg)).map(([name, decl]) => `.x-${name}.x-${name} { ${decl} }`),
-    pg.customCss ? `/* your own rules */\n${pg.customCss}` : '',
   ].filter(Boolean).join('\n');
 }
 /* The same rules written inline, for the clipboard. */

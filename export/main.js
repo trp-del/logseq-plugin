@@ -18,7 +18,7 @@ const allBut = (doc, role, hidden) => hidden?.size ? new Set(D.propertiesIn(doc,
 const writerOpts = (doc, ch) => ({ layout: ch.layout, prose: ch.prose, tags: ch.tags, tasks: ch.tasks, marks: themes.marksOf(ch.look, ch.elements), shownHead: ch.shownHead ?? allBut(doc, 'head', ch.hiddenHead), shownNodes: ch.shownNodes ?? allBut(doc, 'nodes', ch.hiddenNodes),
   dateKey: ch.dated?.dateKey || 'auto', under: ch.dated?.under || '', newestFirst: !!ch.dated?.newestFirst,
   titleBlock: doc.title ? { kicker: ch.kicker || '', subtitle: ch.subtitle || '', date: ch.titleDate ? today() : null, preparedBy: ch.preparedBy || '' } : {} });
-const pageOpts = ch => ({ paper: ch.paper, margins: ch.margins, size: ch.size, footer: ch.footer, pageNumbers: ch.pageNumbers, customCss: ch.customCss, layout: ch.layout, elements: ch.elements });
+const pageOpts = ch => ({ paper: ch.paper, margins: ch.margins, size: ch.size, footer: ch.footer, pageNumbers: ch.pageNumbers, layout: ch.layout, elements: ch.elements });
 
 /* The page as HTML with its look: pictures baked in as data URLs, so the preview, the print frame and a saved page all show them. */
 async function pageHtml(doc, ch, { extraCss = '', body = null } = {}) {
@@ -98,7 +98,6 @@ const settingsSchema = [
   { key: 'paper', type: 'enum', enumChoices: ['A4', 'Letter'], enumPicker: 'radio', default: 'A4', title: 'Paper' },
   { key: 'margins', type: 'enum', enumChoices: ['narrow', 'normal', 'wide'], enumPicker: 'radio', default: 'normal', title: 'Margins' },
   { key: 'size', type: 'enum', enumChoices: ['small', 'normal', 'large'], enumPicker: 'radio', default: 'normal', title: 'Text size' },
-  { key: 'customCss', type: 'string', inputAs: 'textarea', default: '', title: 'Your own CSS for the PDF', description: 'Added after the look’s rules. The classes are x-title, x-h2, x-p, x-li, x-meta, x-tag, x-quote, x-pre, x-table, x-figure, x-month, x-date… (core/html.js names them). Name static fonts only: the system font (-apple-system, system-ui) prints as outlines, and the PDF’s words can then not be selected.' },
   { key: 'footer', type: 'string', default: '', title: 'PDF footer' },
   { key: 'pageNumbers', type: 'boolean', default: true, title: 'Page numbers' },
   { key: 'showTags', type: 'boolean', default: true, title: 'Show tags' },
@@ -133,11 +132,7 @@ function main() {
 }
 const stop = () => { try { E.ui.sweep(); } catch (error) { /* Logseq's window is gone */ } return E.base.stop(); };   // the window and its stylesheet live in Logseq's document
 // Everything else is chosen in the export window, beside the preview that shows it.
-/* The settings window's picture: a few lines of a printed page with your rules on them, kept to the picture (every selector
-   is put under the picture's own class), so the rules change it as you type. */
-const scoped = css => String(css || '').split('}').filter(rule => rule.includes('{')).map(rule => { const [sel, body] = rule.split('{'); return `${sel.split(',').map(one => `.xp-sample ${one.trim()}`).join(', ')} {${body}}`; }).join('\n');
-const sample = css => `<style>${scoped(css).replace(/<\//g, '')}</style><div class="xp-sample" style="font-family:Georgia,serif;font-size:13px;line-height:1.5"><div class="x-title" style="font-size:20px;font-weight:600">Dr. Mei Chen</div><div class="x-meta" style="color:var(--lk-quiet);font-size:12px">Doctor · St. Mary’s</div><p class="x-p" style="margin:8px 0 0">Oncologist. First seen Oct 2 about the fatigue; follow-up Oct 21.</p></div>`;
-window.PluginDoor.describe('export', { schema: [{ type: 'heading', title: 'The PDF', place: 'out' }, { ...settingsSchema.find(item => item.key === 'customCss'), placeholder: '.x-title { letter-spacing: -.01em; }' }], specimen: (item, value) => item.key === 'customCss' ? sample(value) : '', picture: on => on ? '<span class="sw-faintw">The ··· menu</span><br>PDF or Markdown, your styles…' : '<span class="sw-faintw">The ··· menu</span><br><span class="sw-faintw">no export</span>' });
+window.PluginDoor.describe('export', { picture: on => on ? '<span class="sw-faintw">The ··· menu</span><br>PDF or Markdown, your styles…' : '<span class="sw-faintw">The ··· menu</span><br><span class="sw-faintw">no export</span>' });
 window.PluginDoor.register({
   key: 'export', title: 'DB Export', about: 'A page or some bullets out as a PDF, as Markdown or as rich text on the clipboard.',
   schema: settingsSchema, start: main, stop,

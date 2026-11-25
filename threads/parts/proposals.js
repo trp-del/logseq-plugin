@@ -9,12 +9,10 @@
    pretend window in the tests) this part provides nothing, and the + line proposes nothing.
 
    WHAT IT PROVIDES (core.provided):
-   - earlierLinesRead()                              whether the graph has been read, so a mention's tag can be asked at once
    - draftProposals({ text, tag, set, journalDay })  the pieces for a node not yet made, from the words typed; never waits for a reading
    - nodeProposals(uuid)                             the pieces for a node already made, from its own words; waits for the first reading
    - pickerOrder(uuid, title)                        the page ids that fit a node's link property best, best first, for a pick list
    - namedPages(text, tagIds)                        the page ids some words name: linked, by a whole name, or by a word the graph earned
-   - tagGuess(uuid)                                  the tag an untagged node's words look like, { id, uuid, title } or null
    A piece: { ident, title, kind: 'node' | 'day' | 'number', ids, shown, names, guess, many, day, journalId }. */
 const shared = window.Threads.shared;
 const base = window.PluginDoor.base('threads', { prefix: 'Relations (proposals): ' }), runUnloadTasks = () => base.stop();
@@ -28,7 +26,6 @@ const fresh = (ctx, text) => Flow.app.freshLinks(ctx, text).catch(() => ctx);
 // A day is said the short way every row says it (the thirteen proposals, 4: one way to write a day): "Nov 21", not the journal's "Nov 21st, 2026".
 const plain = p => ({ ident: p.ident, title: p.prop.title, kind: p.kind, ids: p.ids, shown: p.kind === 'day' && p.day ? window.PluginDoor.dates.words(p.day) : p.shown, names: p.names || null, guess: !!p.guess, many: !!p.prop.many, day: p.day || 0, journalId: p.journalId > 0 ? p.journalId : null });
 const shown = pieces => pieces.filter(p => p.kind !== 'tag' && !p.needsTag && !p.tagPage).map(plain);
-const earlierLinesRead = () => !!Flow.app.state.ctx?.index;
 
 // A node as the rules read one: its words, tags and values, its page and its parent.
 async function bulletOf(uuid, ctx) {
@@ -90,17 +87,8 @@ async function namedPages(text, tagIds = []) {
   if (one && !out.includes(one.id)) out.push(one.id);
   return out;
 }
-// The tag an untagged mention looks like, so it can be offered to be made one: the same vote a bullet gets while it is
-// written, on the node's stored words. Null for a node with a tag of yours already.
-async function tagGuess(uuid) {
-  const ctx0 = await context();
-  const b = ctx0 && await bulletOf(uuid, ctx0);
-  if (!b || b.tags.some(id => ctx0.knownTags.has(id))) return null;
-  const tag = Flow.propose.tagFor(await fresh(ctx0, b.text), b, b.text);
-  return tag ? { id: tag.id, uuid: tag.uuid, title: tag.title } : null;
-}
 
-function provide(core) { if (ready()) core.provide({ earlierLinesRead, draftProposals, nodeProposals, pickerOrder, namedPages, tagGuess }); }
+function provide(core) { if (ready()) core.provide({ draftProposals, nodeProposals, pickerOrder, namedPages }); }
 // Another graph opened: the reading is Predictive's, and Predictive forgets it only while it runs.
 function start() { if (ready()) window.Threads.core.onGraphChange(() => Flow.app.forget()); }
 ((window.Threads ||= {}).parts ||= []).push({ name: 'proposals', says: 'what the + line proposes', schema: [], provide, start, stop: runUnloadTasks });

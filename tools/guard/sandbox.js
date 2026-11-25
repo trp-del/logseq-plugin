@@ -41,8 +41,8 @@ async function start({ dir, graph, plugin, settings = {}, port = PORT }) {
   fs.mkdirSync(path.join(home, '.logseq', 'settings'), { recursive: true }); fs.mkdirSync(profile, { recursive: true });
   const to = path.join(home, 'logseq', 'graphs', graph); fs.mkdirSync(to, { recursive: true });
   fs.copyFileSync(graphFile(graph), path.join(to, 'db.sqlite'));
-  // Apple's helper is one per Mac: a test copy must never teach it its notes (the audit, 16 Nov). The window is narrow-read as the owner's.
-  fs.writeFileSync(path.join(home, '.logseq', 'settings', ID + '.json'), JSON.stringify({ proposalsModel: false, ...settings }));
+  // The window is narrow-read as the owner's.
+  fs.writeFileSync(path.join(home, '.logseq', 'settings', ID + '.json'), JSON.stringify(settings));
   const log = fs.openSync(path.join(dir, 'logseq.log'), 'a');
   /* Colours are drawn in sRGB whatever the Mac's display is (23 November 2026). Logseq writes its yellow (the Doing circle, an
      overdue Deadline) as a colour outside sRGB, and a picture followed the display of the moment: the same plugin came out with
