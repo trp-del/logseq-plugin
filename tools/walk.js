@@ -173,8 +173,16 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       return is([tags.includes('Task'), await page.evaluate(() => document.getElementById('_sidebar.lk-todo')?.textContent), rows > 0, open, await count('.lk-todo .lk-row[data-open]')], [false, 'Todo', true, 1, 0]);
     });
     // ---- Tending: Ontology
-    await step('the toolbar\'s tree opens Ontology: the tags as an outline in their own face, then the properties', async () => {
-      await page.locator('#head a[title="Ontology"]').first().click(); await wait(2500);
+    await step('the toolbar\'s tree opens Ontology as a page of its own: each top tag an area, side by side', async () => {
+      await page.locator('#head a[title="Ontology"]').first().click(); await wait(3000);
+      const areas = await page.evaluate(() => [...document.querySelectorAll('.lk-map > .lk-rel > .lk-list[data-face="tag"]')].map(l => [l.querySelector('.lk-row .lk-words').innerText, Math.round(l.getBoundingClientRect().top)]));
+      await page.locator('.lk-map .lk-row', { hasText: /^Consultation/ }).first().locator('.lk-line').hover(); await wait(500);
+      const joined = [await count('.lk-map .lk-joins path') > 0, await count('.lk-map .lk-row.lk-joined') > 1];
+      return is([await page.evaluate(() => location.hash.split('?')[0]), await page.locator('.lk-page-title').innerText(), areas.length > 1, areas[0][0], areas.length > 1 && areas[0][1] === areas[1][1], joined], ['#/lk-ontology', 'Ontology', true, 'Entity', true, [true, true]]);
+    });
+    await step('In the sidebar, on that page, opens the outline beside whatever you read: the tags in their own face, then the properties', async () => {
+      await page.locator('.lk-map > .lk-side').click(); await wait(2500); await goto(CHEN);   // the outline beside a page, the page of its own left behind
+      
       return is(await page.evaluate(() => { const lists = [...document.querySelectorAll('.lk-ontology > .lk-rel > .lk-list')]; const first = lists[0]?.querySelectorAll('.lk-row'); return [lists.map(l => l.querySelector('.lk-list-name').innerText), [...(first || [])].slice(0, 3).map(r => [r.querySelector('.lk-line').innerText, r.style.getPropertyValue('--lk-depth')]), /New York|serif/.test(getComputedStyle(first[0].querySelector('.lk-words')).fontFamily)]; }),
         [['Tags', 'Properties'], [['Entity\n24', '0'], ['Organization\n5', '1'], ['Hospital\n3', '2']], true]);
     });
@@ -286,6 +294,13 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       const moved = await shape(), focus = await page.evaluate(() => document.activeElement?.querySelector?.('.lk-words')?.innerText);
       await page.keyboard.press('Shift+Tab'); await wait(2500);
       return is([before.find(r => r[0] === 'Person')?.[1], moved.find(r => r[0] === 'Person')?.[1], focus, await shape()], [1, 2, 'Person', before]);
+    });
+    await step('Tab and Shift-Tab pressed one right after the other end where they should: the second waits for the first', async () => {   // found by hand, 25 November 2026
+      const before = await shape();
+      await page.locator('.lk-ontology .lk-row', { hasText: /^Person/ }).first().locator('.lk-line').focus(); await wait(200);
+      await page.keyboard.press('Tab'); await page.keyboard.press('Shift+Tab'); await wait(5000);
+      const parents = await box.frame().evaluate(async () => (await logseq.DB.datascriptQuery('[:find ?pt :where [?b :block/title "Person"] [?b :block/tags :logseq.class/Tag] [?b :logseq.property.class/extends ?p] [?p :block/title ?pt]]')).flat());
+      return is([await shape(), parents], [before, ['Entity']]);
     });
     await step('the tag under the pointer shows its lines to the tags it is joined with, and only its own', async () => {
       await page.locator('.lk-ontology .lk-row', { hasText: /^Consultation/ }).first().locator('.lk-line').hover(); await wait(500);

@@ -38,6 +38,7 @@ function close(row, focus = false) {
   if (!holder) return;
   for (const inner of holder.querySelectorAll('.lk-open')) inner.lkOff?.();
   holder.lkOff?.(); holder.remove(); delete row.dataset.open;
+  row.dispatchEvent(new (row.ownerDocument.defaultView.CustomEvent)('lk-closed', { bubbles: true }));   // its line is read again at once: what was written in it shows without a wait
   row.querySelector(':scope > .lk-fold')?.setAttribute('aria-label', 'Open');
   if (focus) row.querySelector(':scope > .lk-line')?.focus({ preventScroll: true });
 }
@@ -67,6 +68,8 @@ function listing(el, read, opts = {}) {
   mounted.set(el, state);
   const onEvent = event => handle(state, event);
   for (const type of EVENTS) el.addEventListener(type, onEvent);
+  const onClosed = event => { if (event.target.closest('.lk-rel') === el) { G.read.forget(); load(state); } };
+  el.addEventListener('lk-closed', onClosed);
   watchKeys(el.ownerDocument);
   offChanged ||= G.touch.changed(() => { for (const [one, s] of mounted) { if (!one.isConnected) mounted.delete(one); else load(s); } });
   load(state);
@@ -75,6 +78,7 @@ function listing(el, read, opts = {}) {
     off() {
       mounted.delete(el);
       for (const type of EVENTS) el.removeEventListener(type, onEvent);
+      el.removeEventListener('lk-closed', onClosed);
       for (const row of el.querySelectorAll('.lk-row[data-open]')) close(row);
       el.replaceChildren();
       if (!mounted.size) { offChanged?.(); offChanged = null; offKeys?.(); }
@@ -173,7 +177,7 @@ async function addTo(state, box) {
     const uuid = String(await state.add(list) || '').toLowerCase();
     for (let tries = 0; uuid && tries < 30; tries++) {
       const row = state.el.querySelector(`.lk-row[data-uuid="${uuid}"]`);
-      if (row) { if (!row.dataset.open) open(row); view.setTimeout(() => G.touch.edit(uuid), 900); break; }
+      if (row) { if (!row.dataset.open) open(row); const page = row.querySelector(':scope > .lk-open > .lk-editor'); if (page) G.touch.editor.whole(page, () => G.touch.edit(uuid)); break; }   // the caret as soon as Logseq has drawn the node
       await new Promise(done => view.setTimeout(done, 150));
     }
   } catch (error) { G.say(`It could not be added: ${error?.message || 'Logseq refused'}`, 'warning'); }
@@ -252,6 +256,7 @@ G.node.CSS = `
 .lk-more { margin: 2px 0 0 calc(var(--lk-daycol, 0px) + 34px); padding: 2px 0; border: 0; background: none; color: var(--lk-quiet); font: inherit; font-size: var(--lk-small); cursor: pointer; }
 .lk-more:hover { color: var(--lk-text); }
 .lk-add { display: flex; margin: -4px 0 12px -22px; padding: 4px 0 0 22px; position: sticky; top: 0; z-index: 2; background: var(--lk-ground, transparent); }   /* stays in view while the list moves to what was added */
+.lk-add:has(+ .lk-ask) { position: static; }   /* a box open under it: it scrolls away with the rest, and never floats over the box */
 .lk-add .lk-field { flex: 1; min-width: 0; border: 0; border-bottom: 1px solid var(--lk-hair); outline: 0; background: none; color: inherit; font: inherit; line-height: 24px; padding: 2px 0; box-shadow: none; border-radius: 0; }
 .lk-add .lk-field:focus { border-bottom-color: var(--lk-line); }
 .lk-add .lk-field::placeholder { color: var(--lk-off); }

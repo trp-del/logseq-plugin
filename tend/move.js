@@ -18,7 +18,7 @@ const few = (values, cls) => values.map(value => `<span class="${cls}">${esc(val
 
 function boxAt(place) {
   let box = place.querySelector(':scope > .lk-ask');
-  if (!box) { box = place.ownerDocument.createElement('div'); box.className = 'lk-ask'; const head = place.querySelector(':scope > .lk-add'); if (head) head.after(box); else place.prepend(box); }
+  if (!box) { box = place.ownerDocument.createElement('div'); box.className = 'lk-ask'; const head = place.querySelector(':scope > .lk-add'); if (head) head.after(box); else place.prepend(box); }   // under the line that adds, above the lists
   return box;
 }
 
@@ -137,7 +137,7 @@ G.part({
   key: 'moving', title: 'Move values', about: 'The values of one property put into another, for a tag’s nodes or for every node, with a look at the result first and one Undo.',
   start(base) {
     base.style('moving', `
-.lk-ask { margin: 0 0 14px; padding: 10px 12px 12px; border-radius: 10px; box-shadow: 0 0 0 1px var(--lk-line); display: flex; flex-direction: column; gap: 6px; font-size: var(--lk-line-size); line-height: var(--lk-line-lead); }
+.lk-ask { max-width: 420px; margin: 0 0 14px; padding: 10px 12px 12px; border-radius: 10px; box-shadow: 0 0 0 1px var(--lk-line); display: flex; flex-direction: column; gap: 6px; font-size: var(--lk-line-size); line-height: var(--lk-line-lead); }
 .lk-ask:empty { display: none; }
 .lk-ask-head { font-weight: 600; }
 .lk-ask-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }

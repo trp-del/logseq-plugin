@@ -24,6 +24,7 @@
      touch.section(key, title, draw, path)  a section of Logseq's right sidebar that is the plugin's own: Logseq hosts it and
                               hands draw(el) the element (draw gives back what clears it); path: its icon's line.
                               Answers { open(), off() }
+     touch.page(key, title, draw)  a page of the plugin's own in Logseq's main view; draw(el) fills it. Answers { open(), at() }
      touch.toolbar(key, title, path, run)   a button in Logseq's toolbar, drawn as Logseq draws its own (path: the icon's line)
      touch.icon(id), touch.statusIcon(icon)   one of Logseq's own icons as markup
      touch.HIDES              the stylesheet that takes away Logseq's own lists where the plugin's stand */
@@ -224,6 +225,29 @@ function section(name, title, draw, path) {
   E.registerSidebarRenderer(name, { title, render: () => React.createElement(View) });
   return { open: () => logseq.Editor.openInRightSidebar('_sidebar.' + name), off() { offWatch(); for (const holder of [...drawn.keys()]) { clear(holder); holder.replaceChildren(); } } };
 }
+/* A page of the plugin's own in Logseq's main view, at its own address: Logseq hosts it and draw(el) fills it (and gives back
+   what clears it). A page left on screen while the plugin is loaded again keeps the element given to the earlier copy: it is
+   taken over and drawn afresh, as a sidebar section is. Answers { open(), at() }. */
+function page(name, title, draw) {
+  const E = logseq.Experiments, React = E?.React, path = '/' + name;
+  if (!React?.createElement || !E.registerRouteRenderer) return { open() { G.say(`${title} cannot be shown: this Logseq lends plugins no page`, 'warning'); }, at: () => false, off() {} };
+  const drawn = new Map();
+  const fill = holder => { if (drawn.has(holder)) return; holder.replaceChildren(); holder.className = 'lk-section'; try { drawn.set(holder, draw(holder) || (() => {})); } catch (error) { console.error(`Logseq Plugin: ${title} could not be drawn`, error); } };
+  const clear = holder => { const off = drawn.get(holder); drawn.delete(holder); try { off?.(); } catch (error) { /* gone with its element */ } };
+  const offWatch = watch(() => {
+    const holder = host().querySelector(`.lk-page[data-page="${name}"] > .lk-section`);
+    if (holder) fill(holder);
+    for (const one of [...drawn.keys()]) if (!one.isConnected) clear(one);
+  });
+  const View = () => {
+    const ref = React.useRef(null);
+    React.useEffect(() => { const holder = ref.current; if (holder) fill(holder); return () => { if (holder) clear(holder); }; }, []);
+    return React.createElement('div', { className: 'lk-page', 'data-page': name }, React.createElement('h1', { className: 'lk-page-title' }, title), React.createElement('div', { ref, className: 'lk-section' }));
+  };
+  E.registerRouteRenderer(name, { name, path, render: () => React.createElement(View) });
+  const at = () => host().defaultView.location.hash.split('?')[0] === '#' + path;
+  return { at, open() { if (!at()) host().defaultView.location.hash = '#' + path; }, off() { offWatch(); for (const holder of [...drawn.keys()]) { clear(holder); holder.replaceChildren(); } } };
+}
 /* Logseq 2.0.2 draws a plugin's toolbar button only when it is in its list of pinned ones, otherwise set from the puzzle icon's
    menu. So the button pins itself: into Logseq's state (which redraws the toolbar) and its preferences file. One at a time. */
 let pinning = Promise.resolve();
@@ -301,5 +325,5 @@ const OPENED = `
 .lk-editor .ls-page-icon :is(.ui__icon, svg) { width: 18px !important; height: 18px !important; font-size: 18px !important; }
 .lk-editor .lsp-hook-ui-slot { display: none !important; }`;
 
-G.touch = { watch, changed, writing, edit, pages, pageFoot, pageHead, editor, open, openUrl, busy, left, tagList, key, command, section, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE };
+G.touch = { watch, changed, writing, edit, pages, pageFoot, pageHead, editor, open, openUrl, busy, left, tagList, key, command, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE };
 })();

@@ -61,6 +61,7 @@ G.menu.CSS = `
 .lk-menu .lk-item { display: flex; align-items: center; gap: 8px; width: 100%; min-height: var(--lk-line-h); padding: 3px 9px 4px; border: 0; border-radius: 6px; background: none; color: inherit; font: inherit; font-size: var(--lk-line-size); line-height: var(--lk-line-lead); text-align: left; cursor: default; }
 .lk-menu .lk-item:hover, .lk-menu .lk-item:focus, .lk-menu .lk-item.lit { background: var(--lk-lit); outline: none; }
 .lk-menu .lk-item[data-face="tag"] { font-family: var(--lk-tag-face); }
+.lk-menu .lk-item[data-face="prop"] { font-family: var(--lk-prop-face); font-weight: var(--lk-prop-weight); font-size: .9em; letter-spacing: -.01em; }
 .lk-menu .lk-item-icon { display: inline-flex; width: 18px; justify-content: center; color: var(--lk-quiet); flex: none; }
 .lk-menu .lk-item-icon:empty { display: none; }
 .lk-menu .lk-item-on { margin-left: auto; display: inline-flex; color: var(--lk-quiet); }

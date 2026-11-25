@@ -135,6 +135,16 @@ Logseq's Undo. The tag under the pointer or the keys shows hairlines to the tags
 when its nodes hold, under one of your properties, nodes of the other; the small head stands at the tag that is held, and the
 other names step back.
 
+### Ontology as a page of its own (`tend/ontology.js`)
+
+The toolbar's tree opens Ontology as a page: every top tag is an area with the tags under it as an outline, as many areas side
+by side as fit, then the properties. The lines of the tag under the pointer or the keys run from name to name, up the area,
+over the band above the areas and down into the next; areas on different rows meet in a lane at the left edge. At the top stand
+the New tag line, **Move values…** (the box, with the property still to choose) and **In the sidebar**, which opens the same
+outline as a section of the right sidebar, for use beside a page you are reading. Everything the outline does, it does in both
+places: a press opens a tag in place, Tab and Shift-Tab move it (one move at a time: a second key waits for the first to
+show), the right-click menu is the same.
+
 ### Move values (`tend/move.js`, decided in `core/move.js`)
 
 In Ontology, a tag's or a property's right-click menu has "Move values…". A box opens at the head of the section: the property
