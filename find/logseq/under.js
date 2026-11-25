@@ -138,6 +138,10 @@ async function look(box) {
   sized?.observe(line);
   open = { holder, block, uuid: block.getAttribute('blockid'), pos: box.selectionStart, node, watch, lit, sized, name, nth: link.nth };
   light();
+  /* On the last line in the window the node opened below the window's edge, its place and its × out of sight (found 25 November
+     2026: the guard's press on the × landed on nothing in a Logseq just started). Its top line is brought into view, by the
+     least scroll that shows it; a line already in view moves nothing. */
+  holder.firstElementChild?.scrollIntoView?.({ block: 'nearest' });
 }
 function onKey(event) {
   const doc = host(), at = doc.activeElement;

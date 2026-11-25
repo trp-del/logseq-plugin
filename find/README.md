@@ -67,7 +67,7 @@ one more layer of the same ground, with its own place and ×, and the name that 
 The place on the top line starts where the node's lines start (their bullets and the properties' icons), the fold arrows hanging
 in the ground's margin; a node opened inside lies across the whole width of the outer lines, from their left edge. A press on
 something to press inside the node (a fold arrow, a ×, a link) keeps the caret in the line, so the press is never lost to Logseq
-letting go of the line. Escape closes one layer at a time: a node opened inside first, then the node; after a press inside the
+letting go of the line. Opened on the last line in the window, the node's top line (its place and its ×) is scrolled into view; a line already in view moves nothing (25 November 2026). Escape closes one layer at a time: a node opened inside first, then the node; after a press inside the
 node that left the keyboard on no field it does so too, and after editing a value inside, the first Escape leaves the value
 (24 November 2026, found by hand).
 
