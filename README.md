@@ -16,7 +16,7 @@ Each layer uses only the layers under it. `node tools/layers.js` fails if a file
 | 1 The node | `node/` | One line for any node. A press opens the node in place as Logseq's own editor, with the lists of what points at it underneath, each row a line that opens in turn. |
 | 2 The node's page | `page/` | Relations: under a page, one list for each property that points at it, then where it is mentioned. Under a page's title, its tags and the tags above them. |
 | 3 Arriving | `arrive/` | Find: a window to reach any node by its kind, a value, a day or its words. Todo: your open tasks by day, in the right sidebar. |
-| 4 Writing | `write/` | Not built yet: values pencilled in as you write, tags placed. |
+| 4 Writing | `write/` | Sure values: on leaving a bullet, what its words say for certain is written into its empty properties. Not built yet: tags placed, a link panel under the line. |
 | 5 Tending | `tend/` | Not built yet: the map of tags and properties. |
 
 `core/` holds the pieces that decide (how words read, how rows are grouped and ordered, how a tag's path runs). They know
@@ -83,9 +83,21 @@ The checkmark in the toolbar, or **Todo** in the command palette, opens a sectio
 **Today** (due today, or overdue with its day), **Coming up** and **Any time**. The line at the top adds a task to today's
 journal. A task set Done or Canceled leaves the list.
 
+### Sure values (`write/sure.js`)
+
+When you leave a bullet you wrote in, what its words already say for certain is written into its empty properties:
+
+- a node you linked, under the one property of the bullet's tags that takes that kind of node;
+- the page the bullet is on, under the one property that takes the page's kind, when no link fits it;
+- the journal day it is written on, under a date property, when every earlier node of that tag was dated the day it was written
+  (three at least).
+
+Nothing is written where two things could be meant, into a property that already holds a value, or on a bullet you did not
+change. Each value is one step of Logseq's own Undo.
+
 ## What it writes
 
-Only what you do: a status set from a line, a node deleted from a line's menu, a task added in Todo. Each is one of Logseq's own editor calls, so
+Only what you do: a status set from a line, a node deleted from a line's menu, a task added in Todo, a sure value on leaving a bullet. Each is one of Logseq's own editor calls, so
 **Undo is Logseq's own Undo** (Cmd-Z), the same as on the node's own page. The plugin keeps a list of folded lists in the
 window's local storage and nothing else.
 

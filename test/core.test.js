@@ -125,3 +125,33 @@ test('tasks stand under Today, Coming up and Any time; an overdue one says its d
   assert.deepEqual(todo.groups([], 20261125), []);
   assert.deepEqual(todo.groups([{ uuid: 'a', words: 'x', day: 0, tag: 'Task' }, { uuid: 'b', words: 'y', day: 0, tag: 'Bill' }], 20261125)[0].rows.map(r => r.tagShown), [false, true]);
 });
+const { sure } = require('../core/sure.js'), { above } = require('../core/tags.js');
+// Doctor(1) < Person(2) < Entity(3); Consultation(4) < Occurrence(5); Hospital(7) < Entity(3)
+const INDEX = new Map([[1, { id: 1, parents: [2] }], [2, { id: 2, parents: [3] }], [3, { id: 3, parents: [] }], [4, { id: 4, parents: [5] }], [5, { id: 5, parents: [] }], [7, { id: 7, parents: [3] }]]);
+const provider = { ident: 'p/provider', type: 'node', range: [2] }, place = { ident: 'p/place', type: 'node', range: [7] }, date = { ident: 'p/date', type: 'date', range: [] };
+const chen = { id: 100, tags: [1] }, northgate = { id: 200, tags: [7] }, alvarez = { id: 101, tags: [1] };
+const facts = more => ({ tags: [4], tagIndex: INDEX, props: [provider, place, date], held: new Set(), linked: [], page: { id: 900, tags: [], day: 20261007 }, dated: new Map(), ...more });
+test('a tag is under every tag above it', () => { assert.deepEqual([...above(1, INDEX)].sort(), [1, 2, 3]); });
+test('a linked node that fits one empty property is written under it', () => {
+  assert.deepEqual(sure(facts({ linked: [chen, northgate] })).map(v => [v.ident, v.value]), [['p/provider', 100], ['p/place', 200]]);
+});
+test('two nodes that fit one property, or a property already filled, are left alone', () => {
+  assert.deepEqual(sure(facts({ linked: [chen, alvarez] })), []);
+  assert.deepEqual(sure(facts({ linked: [chen], held: new Set(['p/provider']) })), []);
+});
+test('a node that fits two empty properties is not sure for either', () => {
+  const from = { ident: 'p/from', type: 'node', range: [2] }, to = { ident: 'p/to', type: 'node', range: [3] };
+  assert.deepEqual(sure(facts({ props: [from, to], linked: [chen] })), []);
+});
+test('the page a bullet is written on fills the one property it fits, when no link does', () => {
+  assert.deepEqual(sure(facts({ page: { id: 100, tags: [1], day: 0 } })).map(v => [v.ident, v.value, v.why]), [['p/provider', 100, 'page']]);
+  assert.deepEqual(sure(facts({ page: { id: 100, tags: [1], day: 0 }, linked: [alvarez] })).map(v => v.value), [101]);
+});
+test('a date takes the journal day only where every earlier node was dated that way', () => {
+  assert.deepEqual(sure(facts({ dated: new Map([['p/date', { same: 5, other: 0 }]]) })).map(v => [v.ident, v.value]), [['p/date', 900]]);
+  assert.deepEqual(sure(facts({ dated: new Map([['p/date', { same: 5, other: 1 }]]) })), []);
+  assert.deepEqual(sure(facts({ dated: new Map([['p/date', { same: 2, other: 0 }]]) })), []);
+});
+test('a property with no range takes nothing', () => {
+  assert.deepEqual(sure(facts({ props: [{ ident: 'p/any', type: 'node', range: [] }], linked: [chen] })), []);
+});

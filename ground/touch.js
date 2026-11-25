@@ -12,6 +12,8 @@
      touch.open(uuid, side)   go to a node's page, or open it in the sidebar
      touch.openUrl(url)       a web address, in the browser
      touch.busy()             whether one of Logseq's own menus, lists or windows is open
+     touch.left(fn)           fn(uuid) runs a moment after a bullet whose words changed stops being written in; gives back what
+                              stops it. Only looks on: nothing of Logseq's editor is touched while it is written in
      touch.key(combo, fn)     a key taken before Logseq sees it ('mod+k'), matched by its place on the keyboard; gives back what
                               lets it go. fn answers false to leave the press to Logseq after all
      touch.command(key, label, run)   a line in Logseq's command palette
@@ -119,6 +121,22 @@ const editor = (() => {
 
 // Whether one of Logseq's own floats is open (a menu, a list to pick from, a window): a key pressed then is Logseq's.
 const busy = () => !!host().querySelector('.ui__popover-content, .ui__dropdown-menu-content, .ui__context-menu-content, .ui__dialog-content, .ui__modal, #ui__ac');
+// The bullet being written in is the one whose text box has the keys. It is "left" when another one has them, or none.
+function left(fn) {
+  const doc = host();
+  let at = null, timer = 0;   // at: { uuid, was, now }
+  const boxNow = () => { const el = doc.activeElement; const block = el?.tagName === 'TEXTAREA' ? el.closest('.ls-block[blockid]') : null; return block ? { el, uuid: block.getAttribute('blockid').toLowerCase() } : null; };
+  const look = () => {
+    const box = boxNow();
+    if (at && (!box || box.uuid !== at.uuid)) { const gone = at; at = null; if (gone.now !== gone.was) setTimeout(() => { try { fn(gone.uuid); } catch (error) { console.error('Logseq Plugin: a bullet just left could not be read', error); } }, 250); }
+    if (box && !at) at = { uuid: box.uuid, was: box.el.value, now: box.el.value };
+    else if (box && at) at.now = box.el.value;
+  };
+  const soon = () => { clearTimeout(timer); timer = setTimeout(look, 120); };
+  const types = ['focusin', 'focusout', 'keyup', 'pointerup', 'input'];
+  for (const type of types) doc.addEventListener(type, soon, true);
+  return () => { clearTimeout(timer); for (const type of types) doc.removeEventListener(type, soon, true); };
+}
 function key(combo, fn) {
   const parts = combo.toLowerCase().split('+'), code = parts.pop(), want = { mod: parts.includes('mod'), shift: parts.includes('shift'), alt: parts.includes('alt') };
   const onKey = event => {
@@ -223,5 +241,5 @@ const OPENED = `
 .lk-editor:has(.ls-page-title) { margin-left: 20px; }
 .lk-editor .lsp-hook-ui-slot { display: none !important; }`;
 
-G.touch = { watch, changed, pages, pageFoot, pageHead, editor, open, openUrl, busy, key, command, section, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE };
+G.touch = { watch, changed, pages, pageFoot, pageHead, editor, open, openUrl, busy, left, key, command, section, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE };
 })();

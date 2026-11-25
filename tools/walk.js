@@ -158,6 +158,29 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await page.locator('.lk-menu .lk-item', { hasText: 'Done' }).click(); await wait(2000);
       return is(await page.locator('.lk-todo .lk-row', { hasText: 'Ring the pharmacy' }).count(), 0);
     });
+    await step('Todo does not say Task on every row, and still lists the tasks after the plugin is loaded again', async () => {
+      const tags = await page.locator('.lk-todo .lk-row .lk-tag').allInnerTexts();
+      await page.evaluate(() => window.LSPluginCore.reload('logseq-plugin')); await wait(5500);
+      return is([tags.includes('Task'), await page.evaluate(() => document.getElementById('_sidebar.lk-todo')?.textContent), (await count('.lk-todo .lk-row')) > 0], [false, 'Todo', true]);
+    });
+    // ---- Writing: sure values
+    await goto(OCT7);
+    const typed = await box.frame().evaluate(async u => (await logseq.Editor.appendBlockInPage(u, '')).uuid, OCT7);
+    const holds = () => box.frame().evaluate(async u => (await logseq.DB.datascriptQuery(`[:find ?pn ?vt :where [?b :block/uuid #uuid "${u}"] [?b ?a ?v] [?p :db/ident ?a] [(namespace ?a) ?ns] [(= ?ns "user.property")] [?p :block/title ?pn] [?v :block/title ?vt]]`)).map(r => r.join(': ')).sort(), typed);
+    await step('a bullet typed with a link and a tag gets, on leaving it, what its words say for certain', async () => {
+      await wait(600); await box.frame().evaluate(u => logseq.Editor.editBlock(u), typed); await wait(700);
+      await page.keyboard.type('Quick word with [[Dr. Mei Ch', { delay: 50 }); await wait(700); await page.keyboard.press('Enter'); await wait(500);
+      await page.keyboard.type(' #Consult', { delay: 50 }); await wait(700); await page.keyboard.press('Enter'); await wait(700);
+      const before = await holds();
+      await page.keyboard.press('Escape'); await wait(2500);
+      return is([before, await holds()], [[], ['Date: Oct 7th, 2026', 'Provider: Dr. Mei Chen']]);
+    });
+    await step('Logseq\'s own Undo takes each value back, and a bullet left unchanged gets nothing', async () => {
+      await page.keyboard.press('Meta+z'); await wait(700); await page.keyboard.press('Meta+z'); await wait(900);
+      const undone = await holds();
+      await box.frame().evaluate(u => logseq.Editor.editBlock(u), typed); await wait(700); await page.keyboard.press('Escape'); await wait(2200);
+      return is([undone, await holds()], [[], []]);
+    });
     await step('nothing the plugin did was said as an error', async () => is(errors, []));
   } finally {
     if (!keep) { await sandbox.stop(box); fs.rmSync(DIR, { recursive: true, force: true }); }

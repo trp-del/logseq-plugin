@@ -16,6 +16,8 @@
      read.values(ids)         id -> [words]   what each node holds under the person's properties
      read.tasks()             the open tasks, each a node whose day is the day it is due (Deadline, else Scheduled)
      read.journal(day)        the uuid of a day's journal page, or '' when the graph has none
+     read.schema()            { props: ident -> { ident, title, type, range: [tag id], many }, byTag: tag id -> [ident] }
+     read.writing(uuid)       what a bullet's words say, as core/sure.js takes it; null for a bullet with no tag of the person's
    Deleted nodes, and nodes on deleted pages, are never answered. */
 (function () {
 const G = window.PluginDoor, W = G.words, D = G.days;
@@ -176,5 +178,42 @@ async function tasks() {
 }
 const journal = async day => { const [[uuid] = []] = await q(`[:find ?u :where [?p :block/journal-day ${Number(day)}] [?p :block/uuid ?u] (not [?p :logseq.property/deleted-at])]`); return uuid ? String(uuid) : ''; };
 
-G.read = { search, tagged, values, tasks, journal, q, node, describe, pointingAt, dues, names, properties, statuses, tags, tagsOf, forget: () => kept.clear(), isId, UUID };
+const schema = () => once('schema', async () => {
+  const [all, ranges, many, given] = await Promise.all([properties(),
+    q('[:find ?i ?c :where [?p :logseq.property/classes ?c] [?p :db/ident ?i] [(namespace ?i) ?ns] [(= ?ns "user.property")]]'),
+    q('[:find ?i :where [?p :db/ident ?i] [(namespace ?i) ?ns] [(= ?ns "user.property")] [?p :db/cardinality :db.cardinality/many]]'),
+    q('[:find ?t ?i :where [?t :logseq.property.class/properties ?p] [?p :db/ident ?i] [(namespace ?i) ?ns] [(= ?ns "user.property")]]')]);
+  const props = new Map([...all].map(([ident, prop]) => [ident, { ...prop, range: [], many: false }])), byTag = new Map();
+  for (const [ident, tag] of ranges) props.get(bare(ident))?.range.push(tag);
+  for (const [ident] of many) { const prop = props.get(bare(ident)); if (prop) prop.many = true; }
+  for (const [tag, ident] of given) { if (!byTag.has(tag)) byTag.set(tag, []); byTag.get(tag).push(bare(ident)); }
+  return { props, byTag };
+});
+async function writing(uuid) {
+  const at = await node(uuid);
+  if (!at) return null;
+  const [tagIndex, known, mine] = await Promise.all([tags(), schema(), tagsOf(at.id)]);
+  const own = mine.filter(id => tagIndex.has(id));
+  if (!own.length) return null;
+  const idents = new Set();
+  for (const id of own) for (const up of G.tags.above(id, tagIndex)) for (const ident of known.byTag.get(up) || []) idents.add(ident);
+  const props = [...idents].map(ident => known.props.get(ident)).filter(Boolean);
+  if (!props.length) return null;
+  const [held, refs, [[pageId, pageDay] = []]] = await Promise.all([
+    q(`[:find ?a :where [${at.id} ?a _] [?p :db/ident ?a] [(namespace ?a) ?ns] [(= ?ns "user.property")]]`),
+    q(`[:find ?r :where [${at.id} :block/refs ?r] [?r :block/title _] (not [?r :db/ident _])]`),
+    q(`[:find ?p ?d :where [${at.id} :block/page ?p] [(get-else $ ?p :block/journal-day 0) ?d]]`)]);
+  const about = [...new Set([...refs.map(([r]) => r), pageId].filter(isId))];
+  const tagged = about.length ? await q(`[:find ?n ?t :where ${among('?n', about)} [?n :block/tags ?t]]`) : [];
+  const tagsFor = id => tagged.filter(([n, t]) => n === id && tagIndex.has(t)).map(([, t]) => t);
+  const dated = new Map();
+  if (pageDay) for (const prop of props.filter(one => one.type === 'date' && !held.some(([a]) => bare(a) === one.ident))) {
+    const rows = await q(`[:find ?b ?d ?jd :where ${among('?t', own)} [?b :block/tags ?t] [?b :${prop.ident} ?v] [?v :block/journal-day ?d] [?b :block/page ?pg] [?pg :block/journal-day ?jd]]`);
+    dated.set(prop.ident, { same: rows.filter(([, d, jd]) => d === jd).length, other: rows.filter(([, d, jd]) => d !== jd).length });
+  }
+  return { uuid: at.uuid, tags: own, tagIndex, props, held: new Set(held.map(([a]) => bare(a))), linked: refs.map(([r]) => ({ id: r, tags: tagsFor(r) })).filter(one => one.tags.length),
+    page: isId(pageId) ? { id: pageId, tags: tagsFor(pageId), day: Number(pageDay) || 0 } : null, dated };
+}
+
+G.read = { schema, writing, search, tagged, values, tasks, journal, q, node, describe, pointingAt, dues, names, properties, statuses, tags, tagsOf, forget: () => kept.clear(), isId, UUID };
 })();

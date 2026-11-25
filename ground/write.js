@@ -5,6 +5,7 @@
      write.setStatus(uuid, title)   a task's status, by the name Logseq shows it under
      write.remove(uuid, isPage)     a bullet deleted; a page sent to Logseq's Recycle
      write.addTask(words)           a new bullet at the end of today's journal, its status Todo; answers its uuid
+     write.setNode(uuid, ident, id) a node (or a day's journal page) put under one of the person's properties
      write.undo()                   Logseq's Undo */
 (function () {
 const G = window.PluginDoor;
@@ -21,6 +22,10 @@ G.write = {
     if (!UUID.test(page)) throw new Error('today’s journal could not be found');
     const made = await logseq.Editor.appendBlockInPage(page, text, { properties: { 'logseq.property/status': 'Todo' } });
     return String(made?.uuid || '');
+  },
+  setNode(uuid, ident, id) {
+    if (!/^user\.property\/[\w.-]+$/.test(String(ident)) || !Number.isSafeInteger(id) || id <= 0) throw new Error('a value is written under one of your properties, as a node of the graph');
+    return logseq.Editor.upsertBlockProperty(sure(uuid), ident, id, { entityId: true });
   },
   undo: () => logseq.App.invokeExternalCommand('logseq.editor/undo'),
 };
