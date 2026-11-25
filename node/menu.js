@@ -3,6 +3,8 @@
                                items: { word, icon?, on?, depth?, face?, value?, take } | { group } | { gap: true }
                                (value: a quiet word at the line's end, what a setting is at)
    One menu at a time; a second closes the first.
+   opts.find: a line to type in at the list's head, which narrows it (true, or the words it shows while empty); with it,
+   opts.make(words) -> { word, take } offers a line for words no line has, and opts.enter(words) takes the words themselves.
    opts.quiet: a list offered while a bullet is being written, as Logseq offers its own: the keys stay in the bullet, nothing is
    lit until an arrow is pressed, Enter takes only a lit line, Escape lets go, and any other key lets go and goes on into the
    bullet, so carrying on writing is the answer no. */
@@ -13,7 +15,7 @@ G.menu = (at, items, opts = {}) => {
   close?.();
   const from = at.from || at, doc = from.ownerDocument, win = doc.defaultView;
   const menu = doc.createElement('div'); menu.className = 'lk-menu'; menu.setAttribute('role', 'menu');
-  menu.innerHTML = items.map((item, i) => item.gap ? '<div class="lk-gap"></div>' : item.group ? `<div class="lk-group">${G.esc(item.group)}</div>`
+  menu.innerHTML = (opts.find ? `<input class="lk-menu-find" type="text" placeholder="${G.esc(opts.find === true ? 'Find' : opts.find)}" aria-label="${G.esc(opts.find === true ? 'Find' : opts.find)}" spellcheck="false" autocomplete="off">` : '') + items.map((item, i) => item.gap ? '<div class="lk-gap"></div>' : item.group ? `<div class="lk-group">${G.esc(item.group)}</div>`
     : `<button type="button" class="lk-item${item.on ? ' on' : ''}" role="menuitem" data-i="${i}" data-face="${item.face || ''}" style="padding-left: ${9 + (item.depth || 0) * 14}px"${opts.quiet ? ' tabindex="-1"' : ''}><span class="lk-item-icon">${item.icon || ''}</span><span>${G.esc(item.word)}</span>${item.value ? `<span class="lk-item-value">${G.esc(item.value)}</span>` : ''}${item.on ? `<span class="lk-item-on">${G.touch.icon('check', 14)}</span>` : ''}</button>`).join('');
   doc.body.appendChild(menu);
   const box = at.from ? { left: at.x, right: at.x, top: at.y, bottom: at.y } : from.getBoundingClientRect();
@@ -53,6 +55,34 @@ G.menu = (at, items, opts = {}) => {
     ...(opts.quiet ? [on(menu, 'mousedown', event => event.preventDefault())] : []),
     on(doc, 'pointerdown', outside, true), on(doc, 'wheel', outside, { capture: true, passive: true }), on(win, 'blur', () => done(false)), on(win, 'resize', () => done(false))];
   close = done;
+  if (opts.find) {
+    /* A list with a line to type in: the words narrow it, an arrow lights a line, Enter takes the lit one (the first, when none
+       is lit). opts.make(words) answers a line for words no line has ("+ New option: …", Logseq's own words); opts.enter(words)
+       takes the words themselves where the list has nothing to light. */
+    const field = menu.firstElementChild, extra = doc.createElement('button');
+    extra.type = 'button'; extra.className = 'lk-item lk-item-make'; extra.hidden = true; menu.appendChild(extra);
+    let made = null;
+    const seen = () => [...menu.querySelectorAll('.lk-item')].filter(row => !row.hidden);
+    const lightIn = to => { const all = seen(); all.forEach(row => row.classList.remove('lit')); if (!all.length) { lit = -1; return; } lit = (to + all.length) % all.length; all[lit].classList.add('lit'); all[lit].scrollIntoView({ block: 'nearest' }); };
+    const narrow = () => {
+      const want = field.value.trim().toLowerCase().split(/\s+/).filter(Boolean); let exact = false;
+      for (const el of menu.querySelectorAll('.lk-group, .lk-gap')) el.hidden = want.length > 0;
+      for (const row of menu.querySelectorAll('.lk-item:not(.lk-item-make)')) { const text = row.textContent.toLowerCase(); row.hidden = !want.every(word => text.includes(word)); if (text.trim() === field.value.trim().toLowerCase()) exact = true; }
+      made = opts.make && field.value.trim() && !exact ? opts.make(field.value.trim()) : null;
+      extra.hidden = !made; if (made) extra.innerHTML = `<span class="lk-item-icon">${G.touch.icon('plus', 14)}</span><span>${G.esc(made.word)}</span>`;
+      lightIn(0);
+    };
+    offs.push(on(field, 'input', narrow), on(field, 'keydown', event => {
+      if (event.key === 'ArrowDown') lightIn(lit + 1);
+      else if (event.key === 'ArrowUp') lightIn(lit - 1);
+      else if (event.key === 'Enter') { const row = seen()[lit]; const words = field.value.trim(); if (row === extra && made) { done(); made.take(); } else if (row) take(row); else if (opts.enter && words) { done(); opts.enter(words); } }
+      else if (event.key === 'Escape') done();
+      else return;
+      event.preventDefault(); event.stopPropagation();
+    }), on(extra, 'click', event => { event.stopPropagation(); if (made) { done(); made.take(); } }));
+    field.focus({ preventScroll: true }); lightIn(items.findIndex(item => item.on) >= 0 ? seen().findIndex(row => row.classList.contains('on')) : 0);
+    return done;
+  }
   if (!opts.quiet) (rows().find(row => row.classList.contains('on')) || rows()[0])?.focus({ preventScroll: true });
   return done;
 };
@@ -67,5 +97,8 @@ G.menu.CSS = `
 .lk-menu .lk-item-icon:empty { display: none; }
 .lk-menu .lk-item-on { margin-left: auto; display: inline-flex; color: var(--lk-quiet); }
 .lk-menu .lk-group { padding: 4px 9px 2px; font-size: var(--lk-label); color: var(--lk-quiet); }
-.lk-menu .lk-gap { height: 1px; margin: 4px 9px; background: var(--lk-hair); }`;
+.lk-menu .lk-gap { height: 1px; margin: 4px 9px; background: var(--lk-hair); }
+.lk-menu [hidden] { display: none !important; }
+.lk-menu-find { display: block; width: 100%; box-sizing: border-box; margin: 0 0 4px; padding: 5px 9px; border: 0; border-bottom: 1px solid var(--lk-hair); outline: 0; background: none; color: inherit; font: inherit; font-size: var(--lk-line-size); box-shadow: none; border-radius: 0; }
+.lk-menu-find::placeholder { color: var(--lk-off); }`;
 })();

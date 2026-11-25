@@ -202,7 +202,7 @@ function draw(state, made, names, statuses) {
     box.innerHTML = `<div class="lk-list-head" role="button" tabindex="0"><span class="lk-fold">${ARROW}</span><span class="lk-list-via"></span><span class="lk-list-name"></span></div><div class="lk-rows"></div>`;
     return box;
   }, (box, list) => {
-    const isFolded = folded.has(list.key), head = box.firstElementChild, rowsEl = box.children[1];
+    const isFolded = folded.has(list.key), head = box.firstElementChild, rowsEl = box.querySelector(':scope > .lk-rows');
     head.setAttribute('aria-expanded', String(!isFolded));
     /* The head says what the list is, how many it holds and of what, and from when to when; + adds one more of its kind.
        A property's list has its head on two lines, as the plugin before the rebuild drew it (the owner, 25 November 2026: "I
@@ -246,6 +246,7 @@ function draw(state, made, names, statuses) {
       const html = G.line.html(row, { names, statuses, tagShown: row.tagShown }), line = el.querySelector(':scope > .lk-line');
       if (line.lkHtml !== html) { line.innerHTML = html; line.lkHtml = html; }
     });
+    G.pick.bar(state, box, made);
     let more = box.querySelector(':scope > .lk-more');
     if (hidden > 0 && !isFolded) {
       if (!more) { more = doc.createElement('button'); more.type = 'button'; more.className = 'lk-more'; more.textContent = 'Show all'; box.appendChild(more); }
@@ -276,6 +277,7 @@ function handle(state, event) {
   const row = target.closest('.lk-row');
   if (row && target.closest('.lk-open')?.closest('.lk-row') === row) return;   // inside the opened node everything is Logseq's
   if (event.type === 'mousedown') { if (event.shiftKey && target.closest('.lk-line')) event.preventDefault(); return; }   // Shift-click opens beside: it selects no words on its way
+  if (state.view && G.pick.act(state, event)) { event.stopPropagation(); return; }
   if (row && event.type === 'click' && state.press && target.closest('.lk-line') && !target.closest('.lk-status, a[data-to], .lk-url') && state.press(row, event)) { event.stopPropagation(); return; }
   if (row && event.type === 'keydown' && state.key && target.matches('.lk-line') && state.key(row, event)) { event.preventDefault(); event.stopPropagation(); return; }
   if (row && G.line.act(event, row, state.more)) { event.stopPropagation(); return; }
@@ -343,7 +345,7 @@ G.node.CSS = `
 .lk-list-head[data-plain] > .lk-list-via > .lk-plain { font-size: var(--lk-line-size); }
 .lk-row.lk-fresh > .lk-line > .lk-bul::before { background: var(--lk-text); width: 7px; height: 7px; }   /* made since the page was last open */
 .lk-list[data-picking] .lk-row > .lk-fold { display: none; }
-.lk-row > .lk-tick { grid-column: 2; align-self: start; margin-top: 7px; justify-self: center; position: relative; z-index: 1; }
+.lk-row > .lk-tick { grid-column: 2; align-self: start; margin-top: 9px; justify-self: center; position: relative; z-index: 1; }
 .lk-list-head > .lk-list-name > .lk-tick-all { margin: 0 6px 0 -19px; }
 .lk-row.lk-picked > .lk-line { background: var(--lk-wash); border-radius: 6px; }
 .lk-said { font-weight: 500; }

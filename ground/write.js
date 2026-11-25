@@ -15,6 +15,8 @@
      write.moveTag(uuid, to, from)  a tag put under another (to) or at the top (''), and taken from under the tags in from
      write.addNode(tag, ident, id)  a new empty bullet on today's journal, tagged, pointing at node id through a property; its uuid
      write.placeTag(uuid, under)    a tag put under another tag (in place of where it sat)
+     write.setText(uuid, ident, value), setDay(uuid, ident, day), clear(uuid, ident), newPage(name, tag)
+                                    words or a number, a day, nothing at all under a property; a new page, tagged
      write.undo()                   Logseq's Undo */
 (function () {
 const G = window.PluginDoor;
@@ -77,6 +79,30 @@ G.write = {
     return made;
   },
   placeTag: (uuid, under) => logseq.Editor.addTagExtends(sure(uuid), sure(under)),
+  // Words, a number or yes/no written under one of the person's properties.
+  setText(uuid, ident, value) {
+    if (!/^user\.property\/[\w.-]+$/.test(String(ident))) throw new Error('a value is written under one of your properties');
+    return logseq.Editor.upsertBlockProperty(sure(uuid), ident, value);
+  },
+  // A day written under a date property: the day's journal page, made when the graph has none yet.
+  async setDay(uuid, ident, day) {
+    if (!G.days.valid(day)) throw new Error('that is not a day');
+    const page = await G.read.journal(day) || String((await logseq.Editor.createJournalPage(new Date(Math.floor(day / 10000), Math.floor(day / 100) % 100 - 1, day % 100)))?.uuid || '');
+    const node = await G.read.node(page);
+    if (!node) throw new Error('the day’s journal could not be found');
+    return G.write.setNode(uuid, ident, node.id);
+  },
+  // Everything a node holds under a property taken off.
+  clear(uuid, ident) {
+    if (!/^user\.property\/[\w.-]+$/.test(String(ident))) throw new Error('only one of your properties is cleared');
+    return logseq.Editor.removeBlockProperty(sure(uuid), ident);
+  },
+  // A new page, with one of the person's tags when one is given; answers its uuid.
+  async newPage(name, tag = '') {
+    const made = String((await logseq.Editor.createPage(String(name || '').trim(), {}, { redirect: false }))?.uuid || '');
+    if (tag) await logseq.Editor.addBlockTag(sure(made), sure(tag));
+    return made;
+  },
   undo: () => logseq.App.invokeExternalCommand('logseq.editor/undo'),
 };
 })();

@@ -4,7 +4,7 @@ window.PluginFiles = [
   'plugin.js',
   'core/words.js', 'core/days.js', 'core/lists.js', 'core/tags.js', 'core/find.js', 'core/todo.js', 'core/sure.js', 'core/move.js', 'core/update.js', 'core/view.js',
   'ground/look.js', 'ground/read.js', 'ground/write.js', 'ground/touch.js',
-  'node/menu.js', 'node/line.js', 'node/node.js', 'node/view.js',
+  'node/menu.js', 'node/line.js', 'node/node.js', 'node/view.js', 'node/pick.js',
   'page/relations.js', 'page/place.js',
   'arrive/find.js', 'arrive/todo.js',
   'write/sure.js', 'write/where.js', 'write/place.js',

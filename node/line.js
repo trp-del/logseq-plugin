@@ -72,6 +72,8 @@ function act(event, row, more) {
   }
   if (event.type === 'keydown' && line && target === line) {
     if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); if (event.shiftKey) G.touch.open(row.dataset.uuid, true); else G.node.toggle(row); return true; }
+    if (event.key === 'ArrowRight' && !row.dataset.open) { event.preventDefault(); G.node.open(row); return true; }   // Right opens in place, Left closes
+    if (event.key === 'ArrowLeft' && row.dataset.open) { event.preventDefault(); G.node.close(row, true); return true; }
   }
   return false;
 }
