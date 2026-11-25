@@ -26,7 +26,16 @@ G.part({
 .lk-kind .lk-tag { color: var(--lk-text); }
 .lk-kind.lit, .lk-find .lk-line.lit { background: var(--lk-lit); }
 .lk-find-kinds:not(:empty) + .lk-find-rows:not(:empty) { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--lk-hair); }
-.lk-find .lk-none { padding: 4px 8px; }`);
+.lk-find .lk-none { padding: 4px 8px; }
+/* In Find the words start the row and the day stands at its right end, right-aligned (the owner, 25 November 2026). The line
+   reaches under the day, so the lit line is one band from the bullet to the day. An opened node takes the whole width. */
+.lk-find .lk-row { grid-template-columns: 18px minmax(0, 1fr) var(--lk-daycol, 0px); }
+.lk-find .lk-row > .lk-fold { grid-column: 1; grid-row: 1; }
+.lk-find .lk-row > .lk-line { grid-column: 2 / -1; grid-row: 1; padding-right: calc(var(--lk-daycol, 0px) + 10px); }
+.lk-find .lk-row > .lk-open { grid-column: 2 / -1; }
+.lk-find .lk-row > .lk-day { grid-column: 3; grid-row: 1; z-index: 1; text-align: right; padding-right: 10px; }
+.lk-find .lk-row > .lk-day:empty, .lk-find .lk-row[data-open="1"] > .lk-day { display: none; }
+.lk-find .lk-more { margin-left: 34px; }`);
 
     const stops = () => [...win.body.querySelectorAll('.lk-kind, .lk-find-rows > .lk-list > .lk-rows > .lk-row > .lk-line')].filter(el => el.offsetParent);
     const light = (index, scroll = true) => {

@@ -128,6 +128,11 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await page.keyboard.type('neuro oct', { delay: 30 }); await wait(700);
       return is([await page.locator('.lk-find .lk-piece').innerText(), all > 2, await page.locator('.lk-find .lk-row .lk-day').allInnerTexts(), await page.locator('.lk-find .lk-row .lk-why').first().innerText()], ['Consultation', true, ['Oct 7'], 'Peripheral neuropathy']);
     });
+    await step('in Find the day stands at the right end of its row, right-aligned, after the words', async () => {   // the owner, 25 November 2026
+      const at = await page.evaluate(() => { const list = document.querySelector('.lk-find-rows').getBoundingClientRect();
+        return [...document.querySelectorAll('.lk-find .lk-row')].filter(r => r.querySelector(':scope > .lk-day')?.textContent).map(r => { const range = document.createRange(); range.selectNodeContents(r.querySelector(':scope > .lk-day')); const day = range.getBoundingClientRect(), words = r.querySelector('.lk-words').getBoundingClientRect(); return [day.left > words.right, Math.round(list.right - day.right)]; }); });
+      return is([at.length > 0, at.every(one => one[0]), [...new Set(at.map(one => one[1]))].length], [true, true, 1]);
+    });
     await step('Right arrow opens the found node in place, where its line stood; Escape goes back a step at a time', async () => {
       await page.keyboard.press('Meta+a'); await page.keyboard.type('chen', { delay: 30 }); await wait(700);   // two rows, so one stays closed to measure against
       await page.keyboard.press('ArrowRight'); await wait(1800);

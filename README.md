@@ -107,6 +107,11 @@ A tag made while you write (Logseq's "New tag …") stands at the top. A list of
 Down or Up lights a tag and Enter puts the new tag under it. Escape, or simply writing on, leaves it at the top; the keys never
 leave your bullet. Logseq's own Undo takes the placing back. A tag made anywhere else is not asked about.
 
+### The day in Find
+
+In Find the words start each row and the day stands at the row's right end, right-aligned. In the lists of Relations and Todo
+the day keeps its own place.
+
 ### In a narrow place
 
 In the right sidebar a list gives its words the whole width: a line's day stands under its words, an outline steps in less, and
