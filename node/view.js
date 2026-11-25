@@ -197,6 +197,7 @@ G.listview.CSS = `
 .lk-dots { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; margin-left: 2px; border-radius: 6px; opacity: .55; }
 .lk-dots:hover, .lk-dots:focus-visible { opacity: 1; background: var(--lk-wash); outline: none; }
 .lk-head-end { margin-left: auto; display: inline-flex; align-items: baseline; gap: 12px; padding-left: 12px; white-space: nowrap; }
+.lk-list-name:has(> .lk-tabs) { flex-wrap: wrap; }   /* short of room, what is set and the days go to a line of their own before the kinds break */
 .lk-head-end .lk-span { margin-left: 0; padding-left: 0; }
 .lk-set { font-size: var(--lk-small); }
 .lk-set:hover, .lk-set:focus-visible { color: var(--lk-text); outline: none; }

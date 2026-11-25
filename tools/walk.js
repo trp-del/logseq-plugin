@@ -44,7 +44,7 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
     await step('Logseq\'s own Undo takes the writing back', async () => { await page.keyboard.press('Meta+z'); await wait(1300); return is(await page.locator('.lk-row .lk-line').nth(8).innerText(), 'Tired by evening.'); });
     await step('Enter opens the line the keys are on, the arrows walk the lines', async () => {
       await page.locator('.lk-row .lk-line').first().focus(); await page.keyboard.press('ArrowDown');
-      const second = await page.evaluate(() => document.activeElement.innerText);
+      const second = await page.evaluate(() => { const words = document.activeElement.querySelector('.lk-words').cloneNode(true); words.querySelectorAll('.lk-lacks, .lk-sits').forEach(el => el.remove()); return words.innerText.trim(); });
       await page.keyboard.press('Enter'); await wait(1500);
       const open = await page.evaluate(() => [...document.querySelectorAll('.lk-rows > .lk-row')].findIndex(r => r.dataset.open));
       await page.locator('.lk-row[data-open] > .lk-fold').click(); await wait(300);
@@ -59,7 +59,7 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
     await goto(NORTHGATE);
     await step('a page opened in a row reads as a line: its name the size of the words, its own lists under it', async () => {
       await page.locator('.lk-row .lk-line').first().click(); await wait(2200);
-      return is(await page.evaluate(() => { const ed = document.querySelector('.lk-editor'); return [getComputedStyle(ed.querySelector('.ls-page-title-container')).fontSize, [...document.querySelectorAll('.lk-open > .lk-rel > .lk-list > .lk-list-head')].map(el => [el.querySelector('.lk-list-via').innerText, el.querySelector('.lk-list-name').innerText].filter(Boolean).join('\n'))]; }), ['16px', ['Decided by\n3 Decisions\nAug 20 to Oct 14', 'Provider\n2 Consultations\nAug 20 to Oct 7']]);
+      return is(await page.evaluate(() => { const ed = document.querySelector('.lk-editor'); return [getComputedStyle(ed.querySelector('.ls-page-title-container')).fontSize, [...document.querySelectorAll('.lk-open > .lk-rel > .lk-list > .lk-list-head')].map(el => [el.querySelector('.lk-list-via').innerText, el.querySelector('.lk-list-name').innerText].filter(Boolean).join('\n'))]; }), ['16px', ['Decided\n3 Decisions\nAug 20 to Oct 14', 'Provider of\n2 Consultations\nAug 20 to Oct 7']]);
     });
     await step('a node opens inside an opened node, and Escape closes one at a time, innermost first', async () => {
       await page.locator('.lk-open .lk-row .lk-line').nth(1).click(); await wait(1800);
@@ -84,7 +84,7 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await page.locator('.lk-row .lk-line').nth(1).click({ button: 'right' }); await wait(400);
       const items = await page.locator('.lk-menu .lk-item').allInnerTexts();
       await page.keyboard.press('Escape'); await wait(300);
-      return is([items, await count('.lk-menu'), await count('.lk-row[data-open]')], [['Open', 'Open in sidebar', 'Tags…', 'Delete'], 0, 0]);
+      return is([items, await count('.lk-menu'), await count('.lk-row[data-open]')], [['Open', 'Open in sidebar', 'Tags…', 'Add property…', 'Add a line', 'Delete'], 0, 0]);
     });
     await step('Delete takes a node away and Logseq\'s own Undo brings it back', async () => {
       const before = await count('.lk-rows > .lk-row');
@@ -96,7 +96,9 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
     });
     await goto(OCT7);
     await step('on a journal day the rows do not repeat the day', async () => is(await page.locator('.lk-row .lk-day').evaluateAll(els => els.map(el => el.textContent)), ['', '']));
-    await step('the journals feed is left as Logseq draws it', async () => { await page.evaluate(() => window.logseq.api.push_state('home')); await wait(1600); return is(await lists(), []); });
+    await step('a day in the journals feed has what points at it at its foot, and a day nothing points at shows nothing', async () => { await page.evaluate(() => window.logseq.api.push_state('home')); await wait(2500);
+      const days = await page.evaluate(() => [...document.querySelectorAll('#main-content-container .lk-rel')].map(rel => [rel.querySelectorAll(':scope > .lk-list').length, rel.offsetHeight > 0]));
+      return is([days.length > 0, days.every(([n, shown]) => (n > 0) === shown)], [true, true]); });
     await goto(FATIGUE);
     await step('Shift-click opens the node in the sidebar, selects no words, and the sidebar\'s page gets its own lists', async () => {
       await page.locator('.lk-row .lk-line').first().click({ modifiers: ['Shift'] }); await wait(2000);
@@ -280,7 +282,7 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       return is([heads.length > 0, heads.every(h => h[0] && h[1] && h[2])], [true, true]);
     });
     await step('+ on a list\'s head adds a node of its kind that points here, opens it, and leaves the caret in it', async () => {
-      const list = page.locator(MAIN, { has: page.locator('.lk-plus') }).first(), before = await list.locator(':scope > .lk-rows > .lk-row').count(), name = await list.locator('.lk-list-head .lk-prop').innerText();
+      const list = page.locator(MAIN, { has: page.locator('.lk-plus') }).first(), before = await list.locator(':scope > .lk-rows > .lk-row').count(), name = await list.evaluate(el => el.lkList.prop.title);
       await list.locator('.lk-plus').click(); await wait(3800);
       const where = await page.evaluate(() => [document.activeElement?.tagName, !!document.activeElement?.closest('.lk-open')]);
       await page.keyboard.type('Zzadded here', { delay: 20 }); await page.keyboard.press('Escape'); await wait(2500);
@@ -371,6 +373,76 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await page.keyboard.press('Escape'); await wait(300); await page.keyboard.press('u'); await wait(150); await page.keyboard.press('p');
       const said = await toast(); await wait(4500);
       return is([typed, /^Plugins reloaded, nothing newer in its folder: Logseq Plugin \d/.test(said), await run()], [['up', 2], true, 1]);
+    });
+    // ---- Relations as it was: kinds, View, picking, the find line, the timeline
+    await step('a list of several kinds names them with their counts; a kind pressed narrows the list, All gives it back', async () => {   // the owner, 25 November 2026: "relations from original was quite developed. take all the features from it"
+      let list = null;
+      for (const where of [OCT7, NORTHGATE, FATIGUE, CHEN]) { await goto(where); list = page.locator(MAIN, { has: page.locator('.lk-tab') }).first(); if (await list.count()) break; }
+      if (!(await list.count())) return is('no list of several kinds on these pages', 'one');
+      const tabs = await list.locator('.lk-tab:not(.lk-tabmore):not(.lk-newtab)').evaluateAll(els => els.map(el => [el.dataset.kind, parseInt(el.querySelector('.lk-n').innerText, 10)]));
+      const all = tabs[0][1], kind = tabs[1];
+      await list.locator('.lk-tab').nth(1).click(); await wait(500);
+      const narrowed = await list.locator(':scope > .lk-rows > .lk-row').count(), more = await list.locator(':scope > .lk-more').count();
+      await list.locator('.lk-tab').first().click(); await wait(500);
+      return is([tabs[0][0], all === tabs.slice(1).reduce((n, t) => n + t[1], 0) || all > kind[1], more ? narrowed <= kind[1] : narrowed === kind[1], await list.locator('.lk-tab.on').first().innerText().then(t => t.startsWith('All'))], ['', true, true, true]);
+    });
+    await step('View groups a list by month and sorts it by name; what is set is said on the head and kept', async () => {
+      await goto(CHEN);
+      const list = page.locator(MAIN, { has: page.locator('.lk-dots') }).first(), key = await list.getAttribute('data-key');
+      const view = async (line, choice) => { await list.locator('.lk-dots').click(); await wait(400); await page.locator('.lk-menu .lk-item', { hasText: line }).first().click(); await wait(400); await page.locator('.lk-menu .lk-item', { hasText: choice }).first().click(); await wait(600); };
+      await view('Group by', 'Month');
+      const groups = await list.locator('.lk-group-head').count(), said = await list.locator('.lk-set').innerText();
+      await view('Group by', 'None'); await view('Sort by', 'Name');
+      const words = await list.locator(':scope > .lk-rows > .lk-row .lk-words').evaluateAll(els => els.map(el => el.innerText.trim().toLowerCase()));
+      const kept = await page.evaluate(k => JSON.parse(localStorage.getItem('lk.views') || '{}')[k], key);
+      await view('Sort by', 'Day');
+      return is([groups > 0, said, words.join('|') === [...words].sort((a, b) => a.localeCompare(b)).join('|'), kept, await page.evaluate(k => JSON.parse(localStorage.getItem('lk.views') || '{}')[k] ?? null, key)], [true, 'By month', true, { sort: 'name' }, null]);
+    });
+    await step('Pick nodes draws tick boxes; a tag put on the picked nodes is said with an Undo that takes it back', async () => {
+      const list = page.locator(MAIN, { has: page.locator('.lk-dots') }).first();
+      const tagsOf = () => list.locator(':scope > .lk-rows > .lk-row .lk-line').evaluateAll(els => els.slice(0, 2).map(el => el.querySelector('.lk-tag')?.innerText || ''));
+      await list.locator('.lk-dots').click(); await wait(400); await page.locator('.lk-menu .lk-item', { hasText: 'Pick nodes' }).click(); await wait(500);
+      await list.locator('.lk-row > .lk-tick').nth(0).click(); await wait(200); await list.locator('.lk-row > .lk-tick').nth(1).click(); await wait(400);
+      const bar = await list.locator('.lk-pickbar').innerText();
+      await list.locator('.lk-pickbar [data-do="tag"]').click(); await wait(600); await page.keyboard.type('Zzontag', { delay: 30 }); await wait(500);
+      const offered = await page.locator('.lk-menu .lk-item:not([hidden])').count();
+      if (!offered) { await page.keyboard.press('Escape'); await wait(200); await list.locator('.lk-pickbar [data-do="clear"]').click(); return is('the tag made earlier in the walk is not offered', 'offered'); }
+      await page.keyboard.press('Enter'); await wait(3500);
+      const did = await list.locator('.lk-pickbar .lk-did').innerText().catch(() => ''), held = await box.frame().evaluate(async () => (await logseq.DB.datascriptQuery('[:find ?b :where [?t :block/title "Zzontag"] [?b :block/tags ?t]]')).length);
+      await list.locator('.lk-pickbar [data-do="undo"]').click(); await wait(4000);
+      const after = await box.frame().evaluate(async () => (await logseq.DB.datascriptQuery('[:find ?b :where [?t :block/title "Zzontag"] [?b :block/tags ?t]]')).length);
+      return is([bar.startsWith('2'), did, held, after, await list.locator('.lk-row > .lk-tick').count()], [true, 'Zzontag put on 2 nodes', 2, 0, 0]);
+    });
+    await step('the find line narrows every list to typed words and turns the lists back to a day; Escape gives them back', async () => {
+      const rows = () => page.locator(MAIN + ' > .lk-rows > .lk-row:not(.lk-faint)').count();
+      await page.keyboard.press('Meta+Shift+p'); await wait(700); await page.keyboard.type('Relations: find', { delay: 20 }); await wait(700); await page.keyboard.press('Enter'); await wait(700);
+      const field = page.locator('#main-content-container .lk-relfind .lk-field'), focused = await field.evaluate(el => el === document.activeElement);
+      const before = await rows();
+      await page.keyboard.type('on Sep 1', { delay: 30 }); await wait(700);
+      const back = [await rows(), await page.locator(MAIN + ' .lk-since').count(), await page.locator('#main-content-container .lk-relday').isVisible()];
+      await page.keyboard.press('Escape'); await wait(500);
+      return is([focused, back[0] < before, back[1] > 0, back[2], await rows(), await field.inputValue()], [true, true, true, true, before, '']);
+    });
+    await step('a list\'s timeline has a dot for each dated node; a dot pressed narrows the list to its week, Escape lets go', async () => {
+      const list = page.locator(MAIN, { has: page.locator('.lk-dots') }).first();
+      const view = async (line, choice) => { await list.locator('.lk-dots').click(); await wait(400); await page.locator('.lk-menu .lk-item', { hasText: line }).first().click(); await wait(400); await page.locator('.lk-menu .lk-item', { hasText: choice }).first().click(); await wait(700); };
+      await view('Timeline', 'One line');
+      const dots = await list.locator('.lk-time-dot').count(), all = await list.evaluate(el => el.lkList.rows.filter(row => row.day).length);
+      await list.locator('.lk-time-dot').first().click({ force: true }); await wait(600);
+      const said = await list.locator('.lk-set').innerText().catch(() => '');
+      await page.keyboard.press('Escape'); await wait(500);
+      const free = await list.locator('.lk-set').count();
+      await view('Timeline', 'Hidden');
+      return is([dots, /^showing /.test(said), free, await list.locator('.lk-time').count()], [all, true, 0, 0]);
+    });
+    await step('the Recycle list shows what Logseq keeps deleted, and Delete asks first with the keyboard on Leave it', async () => {
+      await page.keyboard.press('Meta+Shift+p'); await wait(700); await page.keyboard.type('the Recycle list', { delay: 20 }); await wait(700); await page.keyboard.press('Enter'); await wait(2000);
+      const rows = await page.locator('.lk-recycle-row').count(), told = await page.locator('.lk-recycle-top').innerText().catch(() => '');
+      let asked = 'nothing to delete';
+      if (rows) { await page.locator('.lk-recycle-row [data-do="delete"]').first().click(); await wait(400); asked = await page.evaluate(() => document.activeElement?.innerText || ''); await page.keyboard.press('Enter'); await wait(400); }
+      const after = await page.locator('.lk-recycle-row').count();
+      await goto(CHEN);
+      return is([told.length > 0, rows ? asked : 'nothing to delete', after], [true, rows ? 'Leave it' : 'nothing to delete', rows]);
     });
     await step('nothing the plugin did was said as an error', async () => is(errors, []));
   } finally {

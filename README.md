@@ -50,7 +50,35 @@ A row:
 | Click a task's circle | Lists Logseq's statuses; a press sets one |
 | Right-click | Open, Open in sidebar, the statuses of a task, Delete |
 | Arrow up and down | Walk the lines and list names |
+| Space | Picks the node, for the bar of what is done to several |
 | Click a list's name | Folds the list; it stays folded on every page |
+
+### What a list of Relations can do
+
+Everything the plugin's Relations did before the rebuild, built again on the rebuild's pieces (`core/view.js`, `core/time.js`,
+`core/reads.js` decide; `node/view.js`, `node/pick.js`, `node/time.js`, `node/card.js` draw).
+
+| On | Do | Result |
+|---|---|---|
+| The word Relations | Click | Folds the whole section, kept for the page. Right-click: the lists hidden where they point, to show again |
+| The find line (from twenty nodes up, or **Relations: find in them**) | Type words | Every list narrows to them. "on Oct 7", "up to 7 Oct", "until 2026-10-07" turn the lists back to that day, the later nodes faint under a "since" line; a week earlier, a week later and Today step the day. Enter opens the first node found, Down goes to it, Escape empties the line |
+| A list's head | Click a kind | A list whose nodes hold different tags names its three most held kinds, each with its count, All first; a kind narrows the list to it, "and 2 more" lists the rest. "2 new" narrows to the nodes made since the page was last open, which also carry a darker dot |
+| The ⋯ on a head, or a right-click on it | View | Group by (tag, month, or a property whose groups hold two nodes each on the whole), Date (which day the list goes by: its own, the day written, any date its nodes hold, Deadline, Scheduled, or none), Timeline, Sort by (day, last changed, name, tag). What is not the default is said quietly on the head. Kept for the property on every page |
+| | Reads back as… | How the property reads on the pages it points to. By grammar unless you type a name: "Prescribed by" reads "Prescribed", "Symptom of" reads "Symptoms", "Provider" reads "Provider of", a plain noun keeps its name |
+| | Hide where it points | The list is no longer shown on the pages the property points to |
+| | Pick nodes | A tick box before each node and one on the head for all; Space picks the node the keys are on. The bar: Open in sidebar, Set tag, Set property, More (Select all, Clear a property, Take out this page, Change this page, and Make it… for mentions), Delete, which asks first. One line then says what was done, with an Undo |
+| | Move up, Move down | The list's place among the page's lists, kept for the page. A list's name can also be dragged above or below another |
+| The timeline | Click a dot, or drag across | A dot for each dated node from the first node's month to today. A dot narrows the list to its week; Left and Right walk the dots, Enter opens the node; a drag narrows to any span. By a property: a lane for each of its three most held values and one for the others; a lane's name narrows to it. Taller piles a week's dots. Escape lets go of the lane, then of the span |
+| A node's line | Right-click | Open, Open in sidebar, Go to its page, Tags…, Add property… (the properties its tags give first, then every other; the value asked for by its kind), Add a line, the statuses of a task, Delete |
+| | Rest the pointer on its words | A card with what the line does not say: its whole name when cut, its properties, its first lines |
+| | Right, Left | Opens the node in place, closes it |
+| | Drag onto another list's head | The node gets that list's property, pointing here |
+| "no Topic?" after a node | Click | A property four in five of the list hold and this node lacks: asks its value there |
+| A mention | Click a step of where it sits | Under a mention stands the page it is on, and the bullet it is under: each opens |
+
+A day in the journals feed has its lists at the foot of the day. **Relations: the Recycle list** opens Logseq's Recycle as a
+plain list: Restore brings a page or a bullet back; Delete asks under the line and deletes for good, the keyboard waiting on
+Leave it.
 
 Everything inside an opened node is Logseq's own: its words, bullets, properties, menus and keys. How it is laid out, and how
 a node it points at is opened under it, is under "An opened node, and digging" below.
