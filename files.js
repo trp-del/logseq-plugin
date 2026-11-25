@@ -2,9 +2,9 @@
 // decide (core, no Logseq in them), the ground, the node, then each part that stands on them. main.js, last, starts the parts.
 window.PluginFiles = [
   'plugin.js',
-  'core/words.js', 'core/days.js', 'core/lists.js',
+  'core/words.js', 'core/days.js', 'core/lists.js', 'core/tags.js',
   'ground/look.js', 'ground/read.js', 'ground/write.js', 'ground/touch.js',
   'node/menu.js', 'node/line.js', 'node/node.js',
-  'page/relations.js',
+  'page/relations.js', 'page/place.js',
   'main.js',
 ];

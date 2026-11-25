@@ -5,10 +5,13 @@
      touch.changed(fn)        fn runs a moment after the graph changed; gives back what stops it
      touch.pages()            Logseq's own pages on screen, each { el, uuid, feed }: the main page, a page in the sidebar,
                               a day in the journals feed (feed: true)
-     touch.pageFoot(el)       where, in one of those pages, something of the plugin's may stand under the page's bullets
+     touch.pageFoot(el, name) where, in one of those pages, something of the plugin's may stand under the page's bullets
+     touch.pageHead(el, name) and where something may stand right under the page's title
      touch.editor             Logseq's own editor for a node, placed in an element of the plugin's:
                               start(), can(), show(el, uuid) -> what takes it out again
      touch.open(uuid, side)   go to a node's page, or open it in the sidebar
+     touch.openUrl(url)       a web address, in the browser
+     touch.busy()             whether one of Logseq's own menus, lists or windows is open
      touch.icon(id), touch.statusIcon(icon)   one of Logseq's own icons as markup
      touch.HIDES              the stylesheet that takes away Logseq's own lists where the plugin's stand */
 (function () {
@@ -40,7 +43,7 @@ function pages() {
   for (const el of host().querySelectorAll(PAGE)) {
     if (el.closest(OURS)) continue;
     const uuid = (el.querySelector(PAGE_NODE) || (el.querySelector('.ls-page-title') ? null : el.querySelector(FIRST_NODE)))?.getAttribute('blockid');
-    if (uuid) out.push({ el, uuid: uuid.toLowerCase(), feed: !!el.closest(FEED) && host().querySelectorAll(FEED).length > 1 });
+    if (uuid) out.push({ el, uuid: uuid.toLowerCase(), feed: !!el.closest(FEED) });
   }
   return out;
 }
@@ -50,6 +53,15 @@ function pageFoot(el, name) {
   let foot = [...el.children].find(child => child.classList.contains(name));
   if (!foot) { foot = host().createElement('div'); foot.className = name; const first = el.firstElementChild; if (first) first.after(foot); else el.appendChild(foot); }
   return foot;
+}
+
+// Under the title's own row and above the page's properties, inside the title's block.
+function pageHead(el, name) {
+  const row = el.querySelector(':scope > .page-inner .ls-page-title .ls-block > .is-page-title-row');
+  if (!row) return null;
+  let head = [...row.parentElement.children].find(child => child.classList.contains(name));
+  if (!head) { head = host().createElement('div'); head.className = name; row.after(head); }
+  return head;
 }
 
 /* Logseq lends its editor (Experiments.Components.Editor: any node by its uuid) only inside a tree it hosts itself. One piece
@@ -98,6 +110,8 @@ const editor = (() => {
   };
 })();
 
+// Whether one of Logseq's own floats is open (a menu, a list to pick from, a window): a key pressed then is Logseq's.
+const busy = () => !!host().querySelector('.ui__popover-content, .ui__dropdown-menu-content, .ui__context-menu-content, .ui__dialog-content, .ui__modal, #ui__ac');
 // to: a node's uuid, or a page's name where the words gave only a name.
 async function open(to, side = false) {
   if (!side) return logseq.App.pushState('page', { name: to });
@@ -122,20 +136,30 @@ function icon(id, size = 18) {
   if (drawn) { try { return markup(drawn({ size })); } catch (error) { /* the font below */ } }
   return `<i class="ti ti-${G.esc(String(id).replace(/([a-z0-9])([A-Z])/g, '$1-$2').replace(/([a-zA-Z])([0-9])/g, '$1-$2').toLowerCase())}" aria-hidden="true"></i>`;
 }
-const statusIcon = found => !found?.id ? '' : found.type === 'emoji' ? `<em-emoji id="${G.esc(found.id)}" size="1em"></em-emoji>` : icon(found.id);
+// A status's icon in Logseq's own colour for it (its class for the icon carries the colour; an icon's own colour wins).
+function statusIcon(found) {
+  if (!found?.id) return '';
+  const drawn = found.type === 'emoji' ? `<em-emoji id="${G.esc(found.id)}" size="1em"></em-emoji>` : icon(found.id);
+  return `<span class="lk-status-icon ls-icon-${G.esc(found.id)}"${found.color ? ` style="color: ${G.esc(found.color)}"` : ''}>${drawn}</span>`;
+}
+const openUrl = url => logseq.App.openExternalLink(url);
 
 /* Where the plugin's lists stand, Logseq's own for the same thing are taken away: its Linked references and its two-way
    property tabs. Only where the plugin's stand (:has), so a plugin that failed to draw leaves Logseq's in place. */
+const HIDES_TAGS = `.ls-page-title .ls-block:has(> .lk-place:not(:empty)) > .is-page-title-row .block-tags { display: none !important; }`;
 const HIDES = `
 ${PAGE}:has(> .lk-rel) .references, ${PAGE}:has(> .lk-rel) .ls-bidirectional-properties { display: none !important; }
 .lk-open ${PAGE} .references, .lk-open ${PAGE} .unlinked-references, .lk-open ${PAGE} .ls-bidirectional-properties { display: none !important; }`;
 
 /* Logseq's editor draws a node as a whole page: a wide margin under it, the path to it above, a large title. Opened in a row it
-   stands as the row's own line: no margins of a page, the path left out, a page's title at the size of the words around it. */
+   stands as the row's own line: no margins of a page, the path left out, a page's title at the size of the words around it.
+   The node's own fold arrow is left out too: it would stand exactly where the row's arrow stands, and the row's arrow, which
+   closes the node, is the one a person means there (the walk, 25 November 2026: a press on the row's arrow reached Logseq's). */
 const OPENED = `
 .lk-editor ${PAGE} > .page-inner { display: block !important; margin: 0 !important; }
 .lk-editor ${PAGE} > :not(.page-inner) { display: none !important; }
 .lk-editor .breadcrumb { display: none !important; }
+.lk-editor:not(:has(.ls-page-title)) .ls-page-blocks .blocks-list-wrap[data-level="0"] > .ls-block > .block-main-container > .block-control-wrap > .block-control { visibility: hidden !important; pointer-events: none !important; }
 .lk-editor .ls-page-blocks { margin-top: 0 !important; }
 .lk-editor .ls-page-title-container, .lk-editor .ls-page-title-container :is(h1, .block-title-wrap, .ls-page-title-actions) { font-size: inherit !important; line-height: 24px !important; font-weight: 600 !important; min-height: 0 !important; margin: 0 !important; }
 .lk-editor .ls-page-properties { margin-top: 4px !important; }
@@ -144,5 +168,5 @@ const OPENED = `
 .lk-editor:has(.ls-page-title) { margin-left: 20px; }
 .lk-editor .lsp-hook-ui-slot { display: none !important; }`;
 
-G.touch = { watch, changed, pages, pageFoot, editor, open, icon, statusIcon, HIDES, OPENED, PAGE };
+G.touch = { watch, changed, pages, pageFoot, pageHead, editor, open, openUrl, busy, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE };
 })();

@@ -1,5 +1,6 @@
 // node --test test/     The deciding pieces, checked without Logseq.
 const test = require('node:test'), assert = require('node:assert/strict');
+const { path } = require('../core/tags.js');
 const words = require('../core/words.js'), days = require('../core/days.js'), { lists, shown } = require('../core/lists.js');
 const A = '1a000000-0000-4000-8000-00000000000e', B = '1a000000-0000-4000-8000-000000000013';
 const names = new Map([[A, 'Dr. Mei Chen'], [B, 'Fatigue']]);
@@ -75,9 +76,22 @@ test('a journal day\'s Scheduled and Deadline stand before Mentioned in', () => 
   const got = lists({ dues: [{ which: 'Deadline', node: node('d', 'Pay') }, { which: 'Scheduled', node: node('s', 'Call') }], mentions: [node('m', 'Note')] });
   assert.deepEqual(got.map(l => l.name), ['Scheduled', 'Deadline', 'Mentioned in']);
 });
+test('on a journal day a row does not repeat the day', () => {
+  const p = { ident: 'user.property/date', title: 'Date', uuid: 'p' };
+  const got = lists({ own: 20261007, links: [{ prop: p, node: node('a', 'x', 20261007) }, { prop: p, node: node('b', 'y', 20261001) }] })[0];
+  assert.deepEqual(got.rows.map(r => r.dayShown), [0, 20261001]);
+});
 test('a long list shows a few until asked, and never hides only one or two', () => {
   const rows = n => Array.from({ length: n }, (_, i) => i);
   assert.equal(shown(rows(40), false).length, 10);
   assert.equal(shown(rows(40), true).length, 40);
   assert.equal(shown(rows(12), false).length, 12);
+});
+test('a tag\'s path runs up to the top, and a loop ends it', () => {
+  const tags = new Map([[1, { id: 1, title: 'Doctor', parents: [2] }], [2, { id: 2, title: 'Person', parents: [3] }], [3, { id: 3, title: 'Entity', parents: [] }],
+    [4, { id: 4, title: 'A', parents: [5] }], [5, { id: 5, title: 'B', parents: [4] }], [6, { id: 6, title: 'Two', parents: [3, 2] }]]);
+  assert.deepEqual(path(1, tags).map(t => t.title), ['Doctor', 'Person', 'Entity']);
+  assert.deepEqual(path(4, tags).map(t => t.title), ['A', 'B']);
+  assert.deepEqual(path(6, tags).map(t => t.title), ['Two', 'Entity']);
+  assert.deepEqual(path(9, tags), []);
 });

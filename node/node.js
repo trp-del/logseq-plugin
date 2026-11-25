@@ -12,6 +12,7 @@ const folded = (() => { let set = null; const read = () => { if (!set) { try { s
   return { has: key => read().has(key), flip(key) { const s = read(); if (!s.delete(key)) s.add(key); try { G.host().defaultView.localStorage.setItem(FOLDED, JSON.stringify([...s])); } catch (error) { /* kept for this session only */ } } }; })();
 
 // ---- a node opened in place
+let within = null, offKeys = null;   // the opened node the person is in; what stops the keys being watched
 function open(row) {
   if (row.dataset.open || !G.touch.editor.can()) { if (!row.dataset.open) G.touch.open(row.dataset.uuid); return; }
   const doc = row.ownerDocument, holder = doc.createElement('div'); holder.className = 'lk-open';
@@ -21,6 +22,7 @@ function open(row) {
   row.querySelector(':scope > .lk-fold')?.setAttribute('aria-label', 'Close');
   const offEditor = G.touch.editor.show(page, row.dataset.uuid), offLists = lists(rel, row.dataset.uuid);
   holder.lkOff = () => { offEditor(); offLists(); };
+  within = row;
 }
 function close(row, focus = false) {
   const holder = row.querySelector(':scope > .lk-open');
@@ -31,23 +33,40 @@ function close(row, focus = false) {
   if (focus) row.querySelector(':scope > .lk-line')?.focus({ preventScroll: true });
 }
 const toggle = row => row.dataset.open ? close(row, true) : open(row);
+/* Escape closes the opened node the person is in, one node at a time, innermost first. Inside it everything is Logseq's, so
+   Logseq's own Escapes come first: the one that stops the writing is left to Logseq (a field has the focus), and the next one,
+   pressed with nothing being written, closes the node. "In" is the node last opened, or where the last press or focus landed. */
+function watchKeys(doc) {
+  if (offKeys) return;
+  const note = event => { within = event.target.closest?.('.lk-row[data-open]') || null; };
+  const onKey = event => {
+    if (event.key !== 'Escape' || event.defaultPrevented) return;
+    const at = event.target, row = within?.isConnected && within.dataset.open ? within : null;
+    if (!row || /^(TEXTAREA|INPUT|SELECT)$/.test(at.tagName) || at.isContentEditable || G.touch.busy()) return;
+    close(row, true); within = row.parentElement.closest('.lk-row[data-open]');
+  };
+  doc.addEventListener('pointerdown', note, true); doc.addEventListener('focusin', note, true); doc.addEventListener('keydown', onKey, true);
+  offKeys = () => { doc.removeEventListener('pointerdown', note, true); doc.removeEventListener('focusin', note, true); doc.removeEventListener('keydown', onKey, true); offKeys = null; within = null; };
+}
 
 // ---- the lists of what points at a node
 const mounted = new Map();   // el -> state
+const EVENTS = ['click', 'keydown', 'contextmenu', 'mousedown'];
 let offChanged = null;
 function lists(el, uuid) {
   const state = { el, uuid: String(uuid).toLowerCase(), all: new Set(), turn: 0 };
   mounted.set(el, state);
   const onEvent = event => handle(state, event);
-  for (const type of ['click', 'keydown', 'contextmenu']) el.addEventListener(type, onEvent);
+  for (const type of EVENTS) el.addEventListener(type, onEvent);
+  watchKeys(el.ownerDocument);
   offChanged ||= G.touch.changed(() => { for (const [one, s] of mounted) { if (!one.isConnected) mounted.delete(one); else load(s); } });
   load(state);
   return () => {
     mounted.delete(el);
-    for (const type of ['click', 'keydown', 'contextmenu']) el.removeEventListener(type, onEvent);
+    for (const type of EVENTS) el.removeEventListener(type, onEvent);
     for (const row of el.querySelectorAll('.lk-row[data-open]')) close(row);
     el.replaceChildren();
-    if (!mounted.size && offChanged) { offChanged(); offChanged = null; }
+    if (!mounted.size) { offChanged?.(); offChanged = null; offKeys?.(); }
   };
 }
 async function load(state) {
@@ -55,7 +74,7 @@ async function load(state) {
   try {
     const node = await G.read.node(state.uuid);
     const [pointing, dues, statuses] = node ? await Promise.all([G.read.pointingAt(node.id), node.day ? G.read.dues(node.day) : [], G.read.statuses()]) : [{ links: [], mentions: [] }, [], []];
-    const made = L.lists({ ...pointing, dues });
+    const made = L.lists({ ...pointing, dues, own: node?.day || 0 });
     const names = await G.read.names(made.flatMap(list => list.rows.flatMap(row => W.named(W.firstLine(row.words).line))));
     if (turn !== state.turn || !state.el.isConnected) return;
     draw(state, made, names, statuses);
@@ -92,7 +111,7 @@ function draw(state, made, names, statuses) {
     if (head.lastElementChild.innerHTML !== name) head.lastElementChild.innerHTML = name;
     rowsEl.hidden = isFolded;
     const rows = L.shown(list.rows, state.all.has(list.key));
-    const days = list.rows.some(row => row.day), long = list.rows.some(row => row.day && Math.floor(row.day / 10000) !== Math.floor(today / 10000));
+    const days = list.rows.some(row => row.dayShown), long = list.rows.some(row => row.dayShown && Math.floor(row.dayShown / 10000) !== Math.floor(today / 10000));
     box.style.setProperty('--lk-daycol', days ? (long ? '92px' : '56px') : '0px');
     sync(rowsEl, rows, row => row.uuid, () => {
       const el = doc.createElement('div'); el.className = 'lk-row';
@@ -100,7 +119,7 @@ function draw(state, made, names, statuses) {
       return el;
     }, (el, row) => {
       el.dataset.uuid = row.uuid; el.dataset.status = row.status || ''; el.dataset.page = row.isPage ? '1' : '';
-      const day = D.short(row.day, today), dayEl = el.firstElementChild;
+      const day = D.short(row.dayShown, today), dayEl = el.firstElementChild;
       if (dayEl.textContent !== day) dayEl.textContent = day;
       dayEl.title = day ? (row.dayFrom || 'The day it was written') : '';
       const html = G.line.html(row, { names, statuses, tagShown: row.tagShown }), line = el.children[2];
@@ -118,21 +137,18 @@ function handle(state, event) {
   // Only what belongs to this node's lists: a nested node's lists handle their own.
   if (target.closest('.lk-rel') !== state.el) return;
   const row = target.closest('.lk-row');
-  if (row && target.closest('.lk-open') && target.closest('.lk-open').parentElement === row) {
-    // Inside the opened node everything is Logseq's. Escape, once Logseq is no longer editing, closes the node.
-    if (event.type === 'keydown' && event.key === 'Escape' && !/^(TEXTAREA|INPUT)$/.test(target.tagName) && !target.isContentEditable) { event.stopPropagation(); close(row, true); }
-    return;
-  }
+  if (row && target.closest('.lk-open') && target.closest('.lk-open').parentElement === row) return;   // inside the opened node everything is Logseq's
+  if (event.type === 'mousedown') { if (event.shiftKey && target.closest('.lk-line')) event.preventDefault(); return; }   // Shift-click opens beside: it selects no words on its way
   if (row && G.line.act(event, row)) { event.stopPropagation(); return; }
   const head = target.closest('.lk-list-head');
   if (head && (event.type === 'click' || (event.type === 'keydown' && (event.key === 'Enter' || event.key === ' ')))) {
-    event.preventDefault(); folded.flip(head.parentElement.dataset.key); load(state); return;
+    event.preventDefault(); event.stopPropagation(); folded.flip(head.parentElement.dataset.key); load(state); return;
   }
   if (event.type === 'click' && target.closest('.lk-more')) { state.all.add(target.closest('.lk-list').dataset.key); load(state); return; }
   if (event.type === 'keydown' && (event.key === 'ArrowDown' || event.key === 'ArrowUp') && target.matches('.lk-line, .lk-list-head')) {
     const stops = [...state.el.querySelectorAll('.lk-line, .lk-list-head')].filter(el => el.closest('.lk-rel') === state.el && el.offsetParent);
     const next = stops[stops.indexOf(target) + (event.key === 'ArrowDown' ? 1 : -1)];
-    if (next) { event.preventDefault(); next.focus(); }
+    if (next) { event.preventDefault(); event.stopPropagation(); next.focus(); }
   }
 }
 G.node = { toggle, open, close, lists };

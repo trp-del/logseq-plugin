@@ -22,8 +22,7 @@ function wordsHtml(words, names) {
 function statusHtml(node, statuses) {
   const s = node.status && statuses.find(one => one.id === node.status);
   if (!s) return '';
-  const colour = s.icon?.color ? ` style="color: ${G.esc(s.icon.color)}"` : '';
-  return `<button type="button" class="lk-status ls-icon-${G.esc(s.icon?.id || '')}"${colour} title="${G.esc(s.title)}" aria-label="Status: ${G.esc(s.title)}">${G.touch.statusIcon(s.icon) || G.esc(s.title)}</button>`;
+  return `<button type="button" class="lk-status" title="${G.esc(s.title)}" aria-label="Status: ${G.esc(s.title)}">${G.touch.statusIcon(s.icon) || G.esc(s.title)}</button>`;
 }
 function html(node, { names, statuses, tagShown }) {
   return `<span class="lk-bul" aria-hidden="true"></span>${statusHtml(node, statuses)}<span class="lk-words">${wordsHtml(node.words, names)}${tagShown && node.tag ? ` <span class="lk-tag">${G.esc(node.tag)}</span>` : ''}</span>`;
@@ -54,7 +53,7 @@ function act(event, row) {
     const link = target.closest('a[data-to]');
     if (link && line) { G.touch.open(link.dataset.to, event.shiftKey); return true; }
     const url = target.closest('.lk-url');
-    if (url && line) { logseq.App.openExternalLink(url.dataset.href); return true; }
+    if (url && line) { G.touch.openUrl(url.dataset.href); return true; }
     if (target.closest('.lk-fold') && target.closest('.lk-row') === row) { G.node.toggle(row); return true; }
     if (line) { if (event.shiftKey) G.touch.open(row.dataset.uuid, true); else G.node.toggle(row); return true; }
     return false;
@@ -68,7 +67,7 @@ G.line = { html, act, menu };
 G.line.CSS = `
 .lk-row { display: grid; grid-template-columns: var(--lk-daycol, 0px) 18px minmax(0, 1fr); align-items: start; }
 .lk-row > .lk-day { grid-column: 1; overflow: hidden; white-space: nowrap; font-size: var(--lk-small); color: var(--lk-off); font-variant-numeric: tabular-nums; line-height: 24px; padding-top: 2px; }
-.lk-row > .lk-fold { grid-column: 2; }
+.lk-row > .lk-fold { grid-column: 2; position: relative; z-index: 1; }   /* above the opened node, whose own margin reaches under it */
 .lk-row > .lk-line, .lk-row > .lk-open { grid-column: 3; min-width: 0; }
 .lk-row[data-open] > .lk-line { display: none; }
 .lk-fold { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 24px; margin-top: 2px; padding: 0; border: 0; background: none; color: var(--lk-off); cursor: pointer; opacity: 0; }
@@ -80,6 +79,7 @@ G.line.CSS = `
 .lk-line:focus-visible { outline: none; background: var(--lk-wash); }
 .lk-bul { flex: none; width: 16px; height: 24px; display: inline-flex; align-items: center; justify-content: center; }
 .lk-bul::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--lk-line); }
+.lk-status-icon { display: inline-flex; }
 .lk-status { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 24px; padding: 0; border: 0; background: none; color: var(--lk-quiet); cursor: pointer; }
 .lk-words { min-width: 0; overflow-wrap: anywhere; }
 .lk-words a.lk-node, .lk-words a.lk-url { color: inherit; cursor: pointer; text-decoration: underline; text-decoration-color: var(--lk-link); text-decoration-thickness: var(--lk-link-width); text-underline-offset: 3px; }

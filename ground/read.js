@@ -9,6 +9,8 @@
      read.names(uuids)        uuid -> the node's name as plain words
      read.properties()        ident -> { ident, title, uuid, type }   the person's own properties
      read.statuses()          Logseq's statuses in its order: [{ id, name, title, icon }]
+     read.tags()              id -> { id, title, uuid, parents: [id] }   the person's own tags and what each sits under
+     read.tagsOf(id)          the ids of a node's own tags
    Deleted nodes, and nodes on deleted pages, are never answered. */
 (function () {
 const G = window.PluginDoor, W = G.words, D = G.days;
@@ -33,6 +35,16 @@ const lineTags = () => once('lineTags', async () => {
   const rows = await q('[:find ?t ?i ?n :where [?t :block/tags :logseq.class/Tag] [?t :db/ident ?i] [?t :block/title ?n]]');
   return new Map(rows.filter(([, ident]) => /^(user\.class\/|logseq\.class\/Task$)/.test(bare(ident))).map(([id, , name]) => [id, String(name)]));
 });
+const tags = () => once('tags', async () => {
+  const [rows, above] = await Promise.all([
+    q('[:find ?t ?i ?n ?u :where [?t :block/tags :logseq.class/Tag] [?t :db/ident ?i] [?t :block/title ?n] [?t :block/uuid ?u]]'),
+    q('[:find ?t ?p :where [?t :logseq.property.class/extends ?p]]'),
+  ]);
+  const out = new Map(rows.filter(([, ident]) => /^user\.class\//.test(bare(ident))).map(([id, , name, uuid]) => [id, { id, title: String(name), uuid: String(uuid).toLowerCase(), parents: [] }]));
+  for (const [t, parent] of above) if (out.has(t) && out.has(parent)) out.get(t).parents.push(parent);
+  return out;
+});
+const tagsOf = async id => isId(id) ? (await q(`[:find ?t :where [${id} :block/tags ?t]]`)).map(([t]) => t) : [];
 const statuses = () => once('statuses', async () => {
   const rows = await q('[:find ?v ?ident ?t ?o ?icon :where [?v :block/closed-value-property ?p] [?p :db/ident :logseq.property/status] [?v :block/title ?t] [(get-else $ ?v :db/ident "") ?ident] [(get-else $ ?v :block/order "") ?o] [(get-else $ ?v :logseq.property/icon "") ?icon]]');
   return rows.map(([id, ident, title, order, icon]) => ({ id: Number(id), name: bare(ident).replace(/^logseq\.property\/status\./, ''), title: String(title || ''), order: String(order || ''), icon: icon && typeof icon === 'object' ? icon : null }))
@@ -119,5 +131,5 @@ async function names(uuids) {
   return new Map([...first].map(([u, t]) => [u, W.plain(W.firstLine(t).line, new Map([...known].map(([k, v]) => [k, W.named(v).length ? '…' : v])))]));
 }
 
-G.read = { q, node, describe, pointingAt, dues, names, properties, statuses, forget: () => kept.clear(), isId, UUID };
+G.read = { q, node, describe, pointingAt, dues, names, properties, statuses, tags, tagsOf, forget: () => kept.clear(), isId, UUID };
 })();

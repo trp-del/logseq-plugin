@@ -19,7 +19,11 @@ async function main() {
     return;
   }
   logseq.beforeunload(async () => { for (const base of bases.splice(0).reverse()) await base.stop(); });
+  // What stands whichever parts run: the look's ground, the pieces of the node, and Logseq's editor asked for.
+  const root = G.base('ground'); bases.push(root);
+  root.style('look', G.look.TOKENS + G.menu.CSS + G.line.CSS + G.node.CSS + G.touch.OPENED);
   await graphReady();
+  G.touch.editor.start(); root.onStop(() => G.touch.editor.stop());
   for (const part of G.parts) {
     if (!G.on(part.key)) continue;
     const base = G.base(part.key); bases.push(base);
