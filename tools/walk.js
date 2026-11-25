@@ -104,13 +104,59 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
     });
     await step('a reload of the plugin leaves nothing doubled and nothing behind', async () => {
       await page.evaluate(() => window.LSPluginCore.reload('logseq-plugin')); await wait(5000);
-      return is([(await lists()).map(l => l.lists.length), await page.evaluate(() => document.querySelectorAll('style[id^="lk-style"]').length), await count('.lk-place')], [[1, 0], 3, 1]);
+      return is([(await lists()).map(l => l.lists.length), await page.evaluate(() => { const ids = [...document.querySelectorAll('style[id^="lk-style"]')].map(el => el.id); return ids.length - new Set(ids).size; }), await count('.lk-place')], [[1, 0], 0, 1]);
     });
     await step('the dark theme carries the same greys', async () => {
       await page.evaluate(() => window.logseq.api.set_theme_mode('dark')); await wait(600);
       const got = await page.evaluate(() => { const row = document.querySelector('.lk-row .lk-words'), day = document.querySelector('.lk-row .lk-day'); const lum = c => { const m = c.match(/[\d.]+/g).map(Number), k = /^color\(/.test(c) ? 255 : 1; return (m[0] * 299 + m[1] * 587 + m[2] * 114) / 1000 * k * (m[3] ?? 1); }; return lum(getComputedStyle(row).color) > 150 && lum(getComputedStyle(day).color) > 40; });
       await page.evaluate(() => window.logseq.api.set_theme_mode('light'));
       return is(got, true);
+    });
+    // ---- Arriving: Find
+    await goto(FATIGUE);
+    await step('Cmd-K opens Find on the kinds of things, as an outline', async () => {
+      await page.keyboard.press('Meta+k'); await wait(700);
+      return is(await page.locator('.lk-find .lk-kind').evaluateAll(els => els.slice(0, 4).map(el => [el.innerText, el.style.paddingLeft])), [['Entity', '8px'], ['Organization', '26px'], ['Hospital', '44px'], ['Person', '26px']]);
+    });
+    await step('typed words find kinds by name and nodes through Logseq\'s own search', async () => {
+      await page.keyboard.type('consul', { delay: 30 }); await wait(900);
+      return is([await page.locator('.lk-find .lk-kind').allInnerTexts(), (await count('.lk-find .lk-row')) > 0], [['Consultation'], true]);
+    });
+    await step('a kind taken stands in the line; words then narrow by a value and a month, and say the value', async () => {
+      await page.keyboard.press('Enter'); await wait(900);
+      const all = await count('.lk-find .lk-row');
+      await page.keyboard.type('neuro oct', { delay: 30 }); await wait(700);
+      return is([await page.locator('.lk-find .lk-piece').innerText(), all > 2, await page.locator('.lk-find .lk-row .lk-day').allInnerTexts(), await page.locator('.lk-find .lk-row .lk-why').first().innerText()], ['Consultation', true, ['Oct 7'], 'Peripheral neuropathy']);
+    });
+    await step('Right arrow opens the found node in place, where its line stood; Escape goes back a step at a time', async () => {
+      await page.keyboard.press('Meta+a'); await page.keyboard.type('chen', { delay: 30 }); await wait(700);   // two rows, so one stays closed to measure against
+      await page.keyboard.press('ArrowRight'); await wait(1800);
+      const at = await page.evaluate(() => { const open = document.querySelector('.lk-find .lk-row[data-open]'), closed = document.querySelector('.lk-find .lk-row:not([data-open])'); return open && closed ? Math.round(open.querySelector('.lk-editor .block-content-wrapper').getBoundingClientRect().left - closed.querySelector('.lk-words').getBoundingClientRect().left) : 'no row'; });
+      await page.keyboard.press('Escape'); await wait(300); const open = await count('.lk-find .lk-row[data-open]');
+      await page.keyboard.press('Escape'); await wait(300); const text = await page.locator('.lk-find .lk-field').inputValue();
+      await page.keyboard.press('Escape'); await wait(300); const kind = await page.locator('.lk-find .lk-piece').isHidden();
+      await page.keyboard.press('Escape'); await wait(300);
+      return is([at, open, text, kind, await count('.lk-find')], [0, 0, '', true, 0]);
+    });
+    await step('Enter goes to the node and closes Find', async () => {
+      await page.keyboard.press('Meta+k'); await wait(500); await page.keyboard.type('northgate', { delay: 30 }); await wait(1000);
+      await page.keyboard.press('Enter'); await wait(1800);
+      return is([await count('.lk-find'), await page.evaluate(() => location.hash.includes('1a000000-0000-4000-8000-000000000002'))], [0, true]);
+    });
+    // ---- Arriving: Todo
+    await step('the toolbar\'s checkmark opens Todo in the sidebar, under its own name', async () => {
+      await page.locator('#head a[title="Todo"]').first().click(); await wait(2200);
+      return is([await page.evaluate(() => document.getElementById('_sidebar.lk-todo')?.textContent), await count('.lk-todo .lk-field')], ['Todo', 1]);
+    });
+    await step('a task typed in its line lands on today\'s journal as a Todo and shows under Any time', async () => {
+      await page.locator('.lk-todo .lk-field').click(); await page.keyboard.type('Ring the pharmacy', { delay: 20 }); await page.keyboard.press('Enter'); await wait(2200);
+      return is(await page.evaluate(() => [...document.querySelectorAll('.lk-todo .lk-list')].filter(l => l.querySelector('.lk-list-name').innerText === 'Any time').map(l => [...l.querySelectorAll('.lk-line')].map(el => el.innerText).filter(t => t === 'Ring the pharmacy').length)), [1]);
+    });
+    await step('a task set Done from its circle leaves the list', async () => {
+      const row = page.locator('.lk-todo .lk-row', { hasText: 'Ring the pharmacy' });
+      await row.locator('.lk-status').click(); await wait(400);
+      await page.locator('.lk-menu .lk-item', { hasText: 'Done' }).click(); await wait(2000);
+      return is(await page.locator('.lk-todo .lk-row', { hasText: 'Ring the pharmacy' }).count(), 0);
     });
     await step('nothing the plugin did was said as an error', async () => is(errors, []));
   } finally {

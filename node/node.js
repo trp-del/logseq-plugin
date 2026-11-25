@@ -2,8 +2,11 @@
    An opened node is Logseq's own editor for it (its words, its bullets, its properties, its menus, its Undo) with the lists of
    what points at it underneath, each row a line that opens in turn. Nothing of the node is drawn by the plugin.
      G.node.toggle(row), open(row), close(row)   a row of a list opened and closed in place
-     G.node.lists(el, uuid)                      the lists of what points at a node, drawn into el and kept true while the graph
-                                                 changes; gives back what takes them away */
+     G.node.listing(el, read, opts)              lists of nodes drawn into el and kept true while the graph changes. read() answers
+                                                 [{ key, kind, name, tag, rows }] (a list with no name has no head); opts: press(row,
+                                                 event) -> true when the place takes a press on a line itself, few (rows before Show
+                                                 all), none (words to say when there is nothing). Gives back { off(), again() }
+     G.node.lists(el, uuid)                      the listing of what points at a node; gives back what takes it away */
 (function () {
 const G = window.PluginDoor, L = G.lists, D = G.days, W = G.words;
 const ARROW = '<svg viewBox="0 0 192 512" fill="currentColor" aria-hidden="true"><path d="M0 384.662V127.338c0-17.818 21.543-26.741 34.142-14.142l128.662 128.662c7.81 7.81 7.81 20.474 0 28.284L34.142 398.804C21.543 411.404 0 402.48 0 384.662z"/></svg>';
@@ -53,33 +56,44 @@ function watchKeys(doc) {
 const mounted = new Map();   // el -> state
 const EVENTS = ['click', 'keydown', 'contextmenu', 'mousedown'];
 let offChanged = null;
-function lists(el, uuid) {
-  const state = { el, uuid: String(uuid).toLowerCase(), all: new Set(), turn: 0 };
+function listing(el, read, opts = {}) {
+  const state = { el, read, all: new Set(), turn: 0, press: opts.press || null, few: opts.few || 10, none: opts.none || '' };
   mounted.set(el, state);
   const onEvent = event => handle(state, event);
   for (const type of EVENTS) el.addEventListener(type, onEvent);
   watchKeys(el.ownerDocument);
   offChanged ||= G.touch.changed(() => { for (const [one, s] of mounted) { if (!one.isConnected) mounted.delete(one); else load(s); } });
   load(state);
-  return () => {
-    mounted.delete(el);
-    for (const type of EVENTS) el.removeEventListener(type, onEvent);
-    for (const row of el.querySelectorAll('.lk-row[data-open]')) close(row);
-    el.replaceChildren();
-    if (!mounted.size) { offChanged?.(); offChanged = null; offKeys?.(); }
+  return {
+    again: () => load(state),
+    off() {
+      mounted.delete(el);
+      for (const type of EVENTS) el.removeEventListener(type, onEvent);
+      for (const row of el.querySelectorAll('.lk-row[data-open]')) close(row);
+      el.replaceChildren();
+      if (!mounted.size) { offChanged?.(); offChanged = null; offKeys?.(); }
+    },
   };
+}
+// What points at a node: its properties' lists, what Logseq's dates put on its day, where it is mentioned.
+function lists(el, uuid) {
+  return listing(el, async () => {
+    const node = await G.read.node(uuid);
+    if (!node) return [];
+    const [pointing, dues] = await Promise.all([G.read.pointingAt(node.id), node.day ? G.read.dues(node.day) : []]);
+    return L.lists({ ...pointing, dues, own: node.day || 0 });
+  }).off;
 }
 async function load(state) {
   const turn = ++state.turn;
   try {
-    const node = await G.read.node(state.uuid);
-    const [pointing, dues, statuses] = node ? await Promise.all([G.read.pointingAt(node.id), node.day ? G.read.dues(node.day) : [], G.read.statuses()]) : [{ links: [], mentions: [] }, [], []];
-    const made = L.lists({ ...pointing, dues, own: node?.day || 0 });
+    const [made, statuses] = await Promise.all([state.read(), G.read.statuses()]);
     const names = await G.read.names(made.flatMap(list => list.rows.flatMap(row => W.named(W.firstLine(row.words).line))));
     if (turn !== state.turn || !state.el.isConnected) return;
     draw(state, made, names, statuses);
+    state.el.dispatchEvent(new (state.el.ownerDocument.defaultView.CustomEvent)('lk-drawn'));
   } catch (error) {
-    console.error('Logseq Plugin: what points at a node could not be read', error);
+    console.error('Logseq Plugin: a list of nodes could not be read', error);
   }
 }
 // Elements are kept by their key and only what changed is redrawn, so an opened row keeps its editor and the writing in it.
@@ -100,17 +114,19 @@ function sync(parent, wanted, keyOf, make, update) {
 }
 function draw(state, made, names, statuses) {
   const doc = state.el.ownerDocument, today = D.number(new Date());
-  sync(state.el, made, list => list.key, () => {
+  const wanted = made.length || !state.none ? made : [{ key: 'none', kind: 'none', name: state.none, rows: [] }];
+  sync(state.el, wanted, list => list.key, () => {
     const box = doc.createElement('div'); box.className = 'lk-list';
     box.innerHTML = `<div class="lk-list-head" role="button" tabindex="0"><span class="lk-fold">${ARROW}</span><span class="lk-list-name"></span></div><div class="lk-rows"></div>`;
     return box;
   }, (box, list) => {
     const isFolded = folded.has(list.key), head = box.firstElementChild, rowsEl = box.children[1];
     head.setAttribute('aria-expanded', String(!isFolded));
-    const name = `<span class="${list.kind === 'mentions' ? 'lk-plain' : 'lk-prop'}">${G.esc(list.name)}</span>${list.tag ? ` <span class="lk-tag">${G.esc(list.tag)}</span>` : ''}`;
+    const name = `<span class="${list.kind === 'property' || list.kind === 'due' ? 'lk-prop' : list.kind === 'none' ? 'lk-none' : 'lk-plain'}">${G.esc(list.name)}</span>${list.tag ? ` <span class="lk-tag">${G.esc(list.tag)}</span>` : ''}`;
     if (head.lastElementChild.innerHTML !== name) head.lastElementChild.innerHTML = name;
+    head.hidden = !list.name; box.dataset.kind = list.kind;
     rowsEl.hidden = isFolded;
-    const rows = L.shown(list.rows, state.all.has(list.key));
+    const rows = L.shown(list.rows, state.all.has(list.key), state.few);
     const days = list.rows.some(row => row.dayShown), long = list.rows.some(row => row.dayShown && Math.floor(row.dayShown / 10000) !== Math.floor(today / 10000));
     box.style.setProperty('--lk-daycol', days ? (long ? '92px' : '56px') : '0px');
     sync(rowsEl, rows, row => row.uuid, () => {
@@ -139,9 +155,10 @@ function handle(state, event) {
   const row = target.closest('.lk-row');
   if (row && target.closest('.lk-open') && target.closest('.lk-open').parentElement === row) return;   // inside the opened node everything is Logseq's
   if (event.type === 'mousedown') { if (event.shiftKey && target.closest('.lk-line')) event.preventDefault(); return; }   // Shift-click opens beside: it selects no words on its way
+  if (row && event.type === 'click' && state.press && target.closest('.lk-line') && !target.closest('.lk-status, a[data-to], .lk-url') && state.press(row, event)) { event.stopPropagation(); return; }
   if (row && G.line.act(event, row)) { event.stopPropagation(); return; }
   const head = target.closest('.lk-list-head');
-  if (head && (event.type === 'click' || (event.type === 'keydown' && (event.key === 'Enter' || event.key === ' ')))) {
+  if (head && head.parentElement.dataset.kind !== 'none' && (event.type === 'click' || (event.type === 'keydown' && (event.key === 'Enter' || event.key === ' ')))) {
     event.preventDefault(); event.stopPropagation(); folded.flip(head.parentElement.dataset.key); load(state); return;
   }
   if (event.type === 'click' && target.closest('.lk-more')) { state.all.add(target.closest('.lk-list').dataset.key); load(state); return; }
@@ -151,10 +168,12 @@ function handle(state, event) {
     if (next) { event.preventDefault(); event.stopPropagation(); next.focus(); }
   }
 }
-G.node = { toggle, open, close, lists };
+G.node = { toggle, open, close, listing, lists };
 G.node.CSS = `
 .lk-rel:empty { display: none; }
 .lk-rel { display: flex; flex-direction: column; gap: 18px; }
+.lk-list-head[hidden] { display: none; }
+.lk-list[data-kind="none"] .lk-fold { visibility: hidden; }
 .lk-list-head { display: flex; align-items: center; gap: 2px; min-height: 28px; margin-left: -18px; cursor: default; border-radius: 6px; }
 .lk-list-head:focus-visible { outline: none; background: var(--lk-wash); }
 .lk-list-head .lk-fold { opacity: 0; margin-top: 0; }
@@ -164,6 +183,6 @@ G.node.CSS = `
 .lk-list-name .lk-tag { margin-left: .5em; font-size: var(--lk-small); }
 .lk-more { margin: 2px 0 0 calc(var(--lk-daycol, 0px) + 34px); padding: 2px 0; border: 0; background: none; color: var(--lk-quiet); font: inherit; font-size: var(--lk-small); cursor: pointer; }
 .lk-more:hover { color: var(--lk-text); }
-.lk-open { margin-left: -10px; }
+.lk-open { margin-left: -2px; }
 .lk-open > .lk-rel { margin: 6px 0 10px 28px; }`;
 })();

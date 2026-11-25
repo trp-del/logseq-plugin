@@ -15,7 +15,7 @@ Each layer uses only the layers under it. `node tools/layers.js` fails if a file
 | 0 Ground | `core/`, `ground/` | One way to read the graph, one way to write, Logseq's own Undo, one fenced file for everything that touches Logseq's own screen. Nothing to see. |
 | 1 The node | `node/` | One line for any node. A press opens the node in place as Logseq's own editor, with the lists of what points at it underneath, each row a line that opens in turn. |
 | 2 The node's page | `page/` | Relations: under a page, one list for each property that points at it, then where it is mentioned. Under a page's title, its tags and the tags above them. |
-| 3 Arriving | `arrive/` | Not built yet: Find and Todo. |
+| 3 Arriving | `arrive/` | Find: a window to reach any node by its kind, a value, a day or its words. Todo: your open tasks by day, in the right sidebar. |
 | 4 Writing | `write/` | Not built yet: values pencilled in as you write, tags placed. |
 | 5 Tending | `tend/` | Not built yet: the map of tags and properties. |
 
@@ -57,9 +57,35 @@ Everything inside an opened node is Logseq's own: its words, bullets, properties
 
 Under a page's title: each of its tags with the tags it sits under, up to the top. Each name opens its tag.
 
+### Find (`arrive/find.js`)
+
+Cmd-K, or **Find** in the command palette (a setting gives Cmd-K back to Logseq's own search).
+
+- Nothing typed: your tags as an outline, the kinds of things there are.
+- Words typed: kinds whose name they spell, then what Logseq's own search finds.
+- A kind taken (Enter or Tab on it) stands in the line. The list is every node of that kind and of the kinds under it, newest
+  first. Words then narrow it by a node's own words, its tag, a value of one of its properties or its day (`chen oct`). A value
+  that matched and is not in the node's words is said after them.
+
+| Do | Result |
+|---|---|
+| Arrow up and down | Walk the list |
+| Enter, or a click on a line | Goes to the node and closes Find; with Shift, opens it in the sidebar |
+| Right arrow, or a click on the arrow | Opens the node in place, in the window |
+| Backspace on an empty line | Lets the kind go |
+| Escape | Back one step: the opened node, the words, the kind, the window |
+
+A click on a line goes to the node here, where on a page it opens the node in place: Find is for arriving.
+
+### Todo (`arrive/todo.js`)
+
+The checkmark in the toolbar, or **Todo** in the command palette, opens a section of the right sidebar: your open tasks under
+**Today** (due today, or overdue with its day), **Coming up** and **Any time**. The line at the top adds a task to today's
+journal. A task set Done or Canceled leaves the list.
+
 ## What it writes
 
-Only what you do: a status set from a line, a node deleted from a line's menu. Each is one of Logseq's own editor calls, so
+Only what you do: a status set from a line, a node deleted from a line's menu, a task added in Todo. Each is one of Logseq's own editor calls, so
 **Undo is Logseq's own Undo** (Cmd-Z), the same as on the node's own page. The plugin keeps a list of folded lists in the
 window's local storage and nothing else.
 

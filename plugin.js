@@ -2,6 +2,7 @@
      G.part({ key, title, about, start(base), stop() })   a part says what it is; main.js starts the ones switched on
      G.base(key)     what a part adds to Logseq's window, kept so that all of it goes when the part stops:
                      listen(target, type, fn, opts), style(id, css), onStop(fn), stop()
+     G.setting(key)  what a setting holds
      G.host()        Logseq's own page (the plugin runs in a frame beside it)
      G.esc(text)     words made safe to put into markup
      G.say(text)     a notice, Logseq's own
@@ -10,7 +11,8 @@
 const G = (window.PluginDoor ||= {});
 G.parts = []; G.started = [];
 G.part = part => { G.parts.push(part); };
-G.on = key => logseq.settings?.[key + 'On'] !== false;
+G.setting = key => logseq.settings?.[key];
+G.on = key => G.setting(key + 'On') !== false;
 G.host = () => window.parent.document;
 G.esc = text => String(text ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
 G.say = (text, status = 'info') => { try { logseq.UI.showMsg(text, status); } catch (error) { console.log('Logseq Plugin: ' + text); } };

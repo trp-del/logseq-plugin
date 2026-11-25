@@ -6,6 +6,7 @@ const bases = [];
 logseq.useSettingsSchema([
   { key: 'partsHeading', type: 'heading', default: null, title: 'What runs', description: 'Each part of the plugin, on or off. A change takes effect after the plugin is reloaded.' },
   ...G.parts.map(part => ({ key: part.key + 'On', type: 'boolean', default: true, title: part.title, description: part.about })),
+  ...G.parts.flatMap(part => part.settings || []),
 ]);
 // On a cold start Logseq starts a plugin before the graph's database is up: wait for the first read that answers.
 async function graphReady() {

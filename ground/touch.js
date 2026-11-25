@@ -12,6 +12,13 @@
      touch.open(uuid, side)   go to a node's page, or open it in the sidebar
      touch.openUrl(url)       a web address, in the browser
      touch.busy()             whether one of Logseq's own menus, lists or windows is open
+     touch.key(combo, fn)     a key taken before Logseq sees it ('mod+k'), matched by its place on the keyboard; gives back what
+                              lets it go. fn answers false to leave the press to Logseq after all
+     touch.command(key, label, run)   a line in Logseq's command palette
+     touch.section(key, title, draw, path)  a section of Logseq's right sidebar that is the plugin's own: Logseq hosts it and
+                              hands draw(el) the element (draw gives back what clears it); path: its icon's line.
+                              Answers { open(), off() }
+     touch.toolbar(key, title, path, run)   a button in Logseq's toolbar, drawn as Logseq draws its own (path: the icon's line)
      touch.icon(id), touch.statusIcon(icon)   one of Logseq's own icons as markup
      touch.HIDES              the stylesheet that takes away Logseq's own lists where the plugin's stand */
 (function () {
@@ -112,6 +119,53 @@ const editor = (() => {
 
 // Whether one of Logseq's own floats is open (a menu, a list to pick from, a window): a key pressed then is Logseq's.
 const busy = () => !!host().querySelector('.ui__popover-content, .ui__dropdown-menu-content, .ui__context-menu-content, .ui__dialog-content, .ui__modal, #ui__ac');
+function key(combo, fn) {
+  const parts = combo.toLowerCase().split('+'), code = parts.pop(), want = { mod: parts.includes('mod'), shift: parts.includes('shift'), alt: parts.includes('alt') };
+  const onKey = event => {
+    const mod = event.metaKey || event.ctrlKey;
+    if (event.code !== (code.length === 1 ? 'Key' + code.toUpperCase() : code) || mod !== want.mod || event.shiftKey !== want.shift || event.altKey !== want.alt) return;
+    if (fn(event) === false) return;
+    event.preventDefault(); event.stopPropagation();
+  };
+  host().addEventListener('keydown', onKey, true);
+  return () => host().removeEventListener('keydown', onKey, true);
+}
+const command = (name, label, run) => logseq.App.registerCommandPalette({ key: name, label }, run);
+function section(name, title, draw, path) {
+  const E = logseq.Experiments, React = E?.React;
+  if (!React?.createElement || !E.registerSidebarRenderer) return { open() { G.say(`${title} cannot be shown: this Logseq lends plugins no sidebar section`, 'warning'); }, off() {} };
+  // Logseq heads a plugin's section with the section's own address and a puzzle: its name and its own drawing are put there, and
+  // put back whenever Logseq draws the head again.
+  const offHead = watch(() => {
+    const head = host().getElementById('_sidebar.' + name);
+    if (!head) return;
+    if (head.textContent !== title) head.textContent = title;
+    const lines = path ? [...(head.parentElement?.querySelectorAll('.ui__icon svg path') || [])] : [];
+    lines.forEach((line, i) => { const d = i ? '' : path; if (line.getAttribute('d') !== d) line.setAttribute('d', d); });
+  });
+  const View = () => {
+    const ref = React.useRef(null);
+    React.useEffect(() => { let off = null; try { off = ref.current ? draw(ref.current) : null; } catch (error) { console.error(`Logseq Plugin: ${title} could not be drawn`, error); } return () => off?.(); }, []);
+    return React.createElement('div', { ref, className: 'lk-section' });
+  };
+  E.registerSidebarRenderer(name, { title, render: () => React.createElement(View) });
+  return { open: () => logseq.Editor.openInRightSidebar('_sidebar.' + name), off: offHead };
+}
+/* Logseq 2.0.2 draws a plugin's toolbar button only when it is in its list of pinned ones, otherwise set from the puzzle icon's
+   menu. So the button pins itself: into Logseq's state (which redraws the toolbar) and its preferences file. One at a time. */
+let pinning = Promise.resolve();
+function toolbar(name, title, path, run) {
+  const model = `lk_${name.replace(/\W/g, '_')}`;
+  logseq.provideModel({ [model]: run });
+  logseq.App.registerUIItem('toolbar', { key: name, template: `<a class="button" data-on-click="${model}" title="${G.esc(title)}" aria-label="${G.esc(title)}"><svg class="tabler-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${G.esc(path)}"/></svg></a>` });
+  pinning = pinning.then(async () => {
+    const id = `${logseq.baseInfo?.id || 'logseq-plugin'}:${name}`, where = ['plugin/preferences', 'pinnedToolbarItems'];
+    const pinned = await logseq.App.getStateFromStore?.(where);
+    if (!Array.isArray(pinned) || pinned.includes(id)) return;
+    await logseq.App.setStateFromStore?.(where, [...pinned, id]);
+    await host().defaultView.LSPluginCore?.saveUserPreferences?.({ pinnedToolbarItems: [...pinned, id] });
+  }).catch(error => console.warn('Logseq Plugin: a toolbar button could not be pinned', error));
+}
 // to: a node's uuid, or a page's name where the words gave only a name.
 async function open(to, side = false) {
   if (!side) return logseq.App.pushState('page', { name: to });
@@ -156,6 +210,7 @@ ${PAGE}:has(> .lk-rel) .references, ${PAGE}:has(> .lk-rel) .ls-bidirectional-pro
    The node's own fold arrow is left out too: it would stand exactly where the row's arrow stands, and the row's arrow, which
    closes the node, is the one a person means there (the walk, 25 November 2026: a press on the row's arrow reached Logseq's). */
 const OPENED = `
+.lk-editor ${PAGE} { padding: 0 !important; }
 .lk-editor ${PAGE} > .page-inner { display: block !important; margin: 0 !important; }
 .lk-editor ${PAGE} > :not(.page-inner) { display: none !important; }
 .lk-editor .breadcrumb { display: none !important; }
@@ -168,5 +223,5 @@ const OPENED = `
 .lk-editor:has(.ls-page-title) { margin-left: 20px; }
 .lk-editor .lsp-hook-ui-slot { display: none !important; }`;
 
-G.touch = { watch, changed, pages, pageFoot, pageHead, editor, open, openUrl, busy, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE };
+G.touch = { watch, changed, pages, pageFoot, pageHead, editor, open, openUrl, busy, key, command, section, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE };
 })();

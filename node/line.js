@@ -1,5 +1,6 @@
 /* NODE: the one line any node is shown as, wherever a list shows it.
-     G.line.html(node, { names, statuses, tagShown })   the line's markup: bullet, status circle if a task, words, tag
+     G.line.html(node, { names, statuses, tagShown })   the line's markup: bullet, status circle if a task, words, tag, and
+                                                        after them node.why: values of the node that a search matched
      G.line.act(event, row)                             what a press or a key on a line does; true when it took the event
      G.line.menu(at, row)                               the line's right-click menu
    A row is the list's element for one node (data-uuid, data-page when the node is a page); the line stands in it. */
@@ -25,7 +26,7 @@ function statusHtml(node, statuses) {
   return `<button type="button" class="lk-status" title="${G.esc(s.title)}" aria-label="Status: ${G.esc(s.title)}">${G.touch.statusIcon(s.icon) || G.esc(s.title)}</button>`;
 }
 function html(node, { names, statuses, tagShown }) {
-  return `<span class="lk-bul" aria-hidden="true"></span>${statusHtml(node, statuses)}<span class="lk-words">${wordsHtml(node.words, names)}${tagShown && node.tag ? ` <span class="lk-tag">${G.esc(node.tag)}</span>` : ''}</span>`;
+  return `<span class="lk-bul" aria-hidden="true"></span>${statusHtml(node, statuses)}<span class="lk-words">${wordsHtml(node.words, names)}${tagShown && node.tag ? ` <span class="lk-tag">${G.esc(node.tag)}</span>` : ''}${(node.why || []).map(value => ` <span class="lk-why">${G.esc(value)}</span>`).join('')}</span>`;
 }
 
 async function pickStatus(at, row) {
@@ -86,5 +87,6 @@ G.line.CSS = `
 .lk-words a.lk-url::after { content: "\\2197"; display: inline-block; margin-left: .2em; color: var(--lk-quiet); text-decoration: none; }
 .lk-tag { font-family: var(--lk-tag-face); font-style: normal; color: var(--lk-quiet); text-decoration: none; }
 a.lk-tag { cursor: pointer; }
-.lk-none, .lk-off { color: var(--lk-off); }`;
+.lk-none, .lk-off { color: var(--lk-off); }
+.lk-why { color: var(--lk-quiet); font-size: var(--lk-small); margin-left: .35em; }`;
 })();

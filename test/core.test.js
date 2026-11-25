@@ -95,3 +95,33 @@ test('a tag\'s path runs up to the top, and a loop ends it', () => {
   assert.deepEqual(path(6, tags).map(t => t.title), ['Two', 'Entity']);
   assert.deepEqual(path(9, tags), []);
 });
+const find = require('../core/find.js'), todo = require('../core/todo.js');
+const TAGS = new Map([[1, { id: 1, title: 'Doctor', parents: [2] }], [2, { id: 2, title: 'Person', parents: [3] }], [3, { id: 3, title: 'Entity', parents: [] }], [4, { id: 4, title: 'Consultation', parents: [5] }], [5, { id: 5, title: 'Occurrence', parents: [] }], [6, { id: 6, title: 'Patient', parents: [2] }]]);
+test('the tags read as an outline, tops and children by name', () => {
+  assert.deepEqual(find.tree(TAGS).map(r => '  '.repeat(r.depth) + r.tag.title), ['Entity', '  Person', '    Doctor', '    Patient', 'Occurrence', '  Consultation']);
+});
+test('a tag holds every tag below it', () => {
+  assert.deepEqual([...find.under(3, TAGS)].sort(), [1, 2, 3, 6]);
+  assert.deepEqual([...find.under(4, TAGS)], [4]);
+});
+test('typed words find kinds, the one that starts with them first', () => {
+  assert.deepEqual(find.kinds(TAGS, 'p').map(t => t.title), ['Person', 'Patient']);
+  assert.deepEqual(find.kinds(TAGS, 'on').map(t => t.title), ['Person', 'Consultation']);
+  assert.deepEqual(find.kinds(TAGS, ''), []);
+});
+test('words narrow by a node\'s words, its tag, a value of its, or its day, and say which value', () => {
+  const nodes = [{ uuid: 'a', words: 'Video call about the tingling', tag: 'Consultation', day: 20261007, values: ['Dr. Mei Chen', 'Peripheral neuropathy'] },
+    { uuid: 'b', words: 'First appointment', tag: 'Consultation', day: 20260820, values: ['Dr. Mei Chen'] }, { uuid: 'c', words: 'Chen family dinner', tag: '', day: 0, values: [] }];
+  assert.deepEqual(find.narrow(nodes, 'chen oct').map(n => [n.uuid, n.why]), [['a', ['Dr. Mei Chen']]]);
+  assert.deepEqual(find.narrow(nodes, 'chen').map(n => n.uuid), ['c', 'a', 'b']);          // the one whose own words start with it first
+  assert.deepEqual(find.narrow(nodes, 'consult 2026').map(n => n.uuid), ['a', 'b']);
+  assert.deepEqual(find.narrow(nodes, '').length, 3);
+  assert.deepEqual(find.narrow(nodes, 'nothing'), []);
+});
+test('tasks stand under Today, Coming up and Any time; an overdue one says its day', () => {
+  const got = todo.groups([{ uuid: 'a', words: 'Pay', day: 20261125 }, { uuid: 'b', words: 'Dispute', day: 20261118 }, { uuid: 'c', words: 'Move', day: 20261130 }, { uuid: 'd', words: 'Call', day: 0 }], 20261125);
+  assert.deepEqual(got.map(l => [l.name, l.rows.map(r => r.uuid)]), [['Today', ['b', 'a']], ['Coming up', ['c']], ['Any time', ['d']]]);
+  assert.deepEqual(got[0].rows.map(r => r.dayShown), [20261118, 0]);
+  assert.deepEqual(todo.groups([], 20261125), []);
+  assert.deepEqual(todo.groups([{ uuid: 'a', words: 'x', day: 0, tag: 'Task' }, { uuid: 'b', words: 'y', day: 0, tag: 'Bill' }], 20261125)[0].rows.map(r => r.tagShown), [false, true]);
+});

@@ -11,6 +11,11 @@
      read.statuses()          Logseq's statuses in its order: [{ id, name, title, icon }]
      read.tags()              id -> { id, title, uuid, parents: [id] }   the person's own tags and what each sits under
      read.tagsOf(id)          the ids of a node's own tags
+     read.search(words)       Logseq's own search for the words, its order kept: [node]
+     read.tagged(tagIds)      the nodes holding any of these tags: [node]
+     read.values(ids)         id -> [words]   what each node holds under the person's properties
+     read.tasks()             the open tasks, each a node whose day is the day it is due (Deadline, else Scheduled)
+     read.journal(day)        the uuid of a day's journal page, or '' when the graph has none
    Deleted nodes, and nodes on deleted pages, are never answered. */
 (function () {
 const G = window.PluginDoor, W = G.words, D = G.days;
@@ -131,5 +136,45 @@ async function names(uuids) {
   return new Map([...first].map(([u, t]) => [u, W.plain(W.firstLine(t).line, new Map([...known].map(([k, v]) => [k, W.named(v).length ? '…' : v])))]));
 }
 
-G.read = { q, node, describe, pointingAt, dues, names, properties, statuses, tags, tagsOf, forget: () => kept.clear(), isId, UUID };
+async function search(words, limit = 40) {
+  let found = null;
+  try { found = await logseq.App.search(String(words), { limit, 'search-limit': limit }); } catch (error) { console.warn('Logseq Plugin: Logseq\'s search did not answer', error); return []; }
+  const ids = [...new Set((found?.blocks || []).map(block => block.id).filter(isId))], nodes = await describe(ids);
+  return ids.map(id => nodes.get(id)).filter(Boolean);
+}
+async function tagged(tagIds) {
+  const list = [...new Set(tagIds)].filter(isId);
+  if (!list.length) return [];
+  const rows = await q(`[:find ?b :where ${among('?t', list)} [?b :block/tags ?t] ${LIVE}]`);
+  return [...(await describe(rows.map(([b]) => b))).values()];
+}
+const STAMP = 100000000000;   // an id of the graph is small; a time in milliseconds is past this
+async function values(ids) {
+  const list = [...new Set(ids)].filter(isId), out = new Map();
+  if (!list.length) return out;
+  const raw = await q(`[:find ?b ?v :where ${among('?b', list)} [?b ?attr ?v] [?prop :db/ident ?attr] [(namespace ?attr) ?ns] [(= ?ns "user.property")]]`);
+  const held = [...new Set(raw.map(([, v]) => v).filter(v => isId(v) && v < STAMP))];
+  const [titles, kept] = held.length ? await Promise.all([q(`[:find ?v ?t :where ${among('?v', held)} [?v :block/title ?t]]`), q(`[:find ?v ?n :where ${among('?v', held)} [?v :logseq.property/value ?n]]`)]) : [[], []];
+  const said = new Map([...kept.map(([v, n]) => [v, String(n)]), ...titles.map(([v, t]) => [v, String(t)])]);
+  for (const [b, v] of raw) { const word = said.get(v) ?? (typeof v === 'string' ? v : ''); if (word) { if (!out.has(b)) out.set(b, []); out.get(b).push(word); } }
+  return out;
+}
+const dayOfTime = ms => D.number(new Date(ms));
+async function tasks() {
+  const all = await statuses(), shut = new Set(all.filter(s => /^(done|canceled|cancelled)$/.test(s.name)).map(s => s.id));
+  const held = (await q(`[:find ?b ?s :where [?b :logseq.property/status ?s] ${LIVE}]`)).filter(([, s]) => !shut.has(s));
+  const ids = held.map(([b]) => b);
+  if (!ids.length) return [];
+  const [nodes, deadline, scheduled, days] = await Promise.all([describe(ids),
+    q(`[:find ?b ?v :where ${among('?b', ids)} [?b :logseq.property/deadline ?v]]`), q(`[:find ?b ?v :where ${among('?b', ids)} [?b :logseq.property/scheduled ?v]]`),
+    q('[:find ?p ?d :where [?p :block/journal-day ?d]]')]);
+  const journal = new Map(days), dayOf = v => v > STAMP ? dayOfTime(v) : Number(journal.get(v)) || 0;
+  const due = new Map();
+  for (const [b, v] of scheduled) due.set(b, { day: dayOf(v), from: 'Scheduled' });
+  for (const [b, v] of deadline) due.set(b, { day: dayOf(v), from: 'Deadline' });
+  return ids.map(id => nodes.get(id)).filter(Boolean).map(node => ({ ...node, day: due.get(node.id)?.day || 0, dayFrom: due.get(node.id)?.from || '' }));
+}
+const journal = async day => { const [[uuid] = []] = await q(`[:find ?u :where [?p :block/journal-day ${Number(day)}] [?p :block/uuid ?u] (not [?p :logseq.property/deleted-at])]`); return uuid ? String(uuid) : ''; };
+
+G.read = { search, tagged, values, tasks, journal, q, node, describe, pointingAt, dues, names, properties, statuses, tags, tagsOf, forget: () => kept.clear(), isId, UUID };
 })();

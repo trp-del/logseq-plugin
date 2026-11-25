@@ -4,6 +4,7 @@
    from the plugin each went back with one Undo, the Task tag Logseq had added going with the status).
      write.setStatus(uuid, title)   a task's status, by the name Logseq shows it under
      write.remove(uuid, isPage)     a bullet deleted; a page sent to Logseq's Recycle
+     write.addTask(words)           a new bullet at the end of today's journal, its status Todo; answers its uuid
      write.undo()                   Logseq's Undo */
 (function () {
 const G = window.PluginDoor;
@@ -12,6 +13,15 @@ const sure = uuid => { if (!UUID.test(String(uuid || ''))) throw new Error('a no
 G.write = {
   setStatus: (uuid, title) => logseq.Editor.upsertBlockProperty(sure(uuid), 'logseq.property/status', String(title)),
   remove: (uuid, isPage) => isPage ? logseq.Editor.deletePage(sure(uuid)) : logseq.Editor.removeBlock(sure(uuid)),
+  async addTask(words) {
+    const text = String(words || '').trim();
+    if (!text) throw new Error('a task needs words');
+    const today = G.days.number(new Date());
+    const page = await G.read.journal(today) || String((await logseq.Editor.createJournalPage(new Date()))?.uuid || '');
+    if (!UUID.test(page)) throw new Error('today’s journal could not be found');
+    const made = await logseq.Editor.appendBlockInPage(page, text, { properties: { 'logseq.property/status': 'Todo' } });
+    return String(made?.uuid || '');
+  },
   undo: () => logseq.App.invokeExternalCommand('logseq.editor/undo'),
 };
 })();
