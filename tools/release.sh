@@ -26,6 +26,8 @@ done
 # The script that has a Mac draw its own symbols for the icons (tools/mac-symbols.sh; it reads the names from plugin.js beside it),
 # so a Mac that installs this zip can draw them: the settings say the line to run (24 November 2026).
 mkdir -p "$stage/tools" && cp tools/mac-symbols.sh "$stage/tools/"
+# The four fixed-width faces a property's name can be drawn in (fonts/, with their licences): plugin.js names them by their place in the folder.
+mkdir -p "$stage/fonts" && cp fonts/*.ttf fonts/OFL-*.txt "$stage/fonts/"
 zipfile="dist/logseq-plugin-v$version.zip"
 rm -f "$zipfile"
 (cd dist/stage && zip -q -r -X "../../$zipfile" logseq-plugin)
