@@ -1,28 +1,10 @@
-// The plugin's files, in the order they load (loader.js reads this list). plugin.js first: the door each module comes in
-// by. Then what stands whichever modules run (the sidebar's tabs, two pages side by side, the settings window, what comes in from outside). Then each module's files, its own main.js last, in the order the modules start: Look first, Todo last. main.js, last of all, starts them.
+// The plugin's files, in the order they load (loader.js reads this list). The order is the stack: the frame, the pieces that
+// decide (core, no Logseq in them), the ground, the node, then each part that stands on them. main.js, last, starts the parts.
 window.PluginFiles = [
-  'plugin.js', 'sentence.js', 'sidebar-tabs.js', 'split.js', 'settings/window.js', 'settings/ways-in.js', 'outside.js',
-  'look/logseq/kit.js', 'look/logseq/db.js', 'look/logseq/settings.js', 'look/logseq/style.js', 'look/logseq/calm.js', 'look/logseq/marks.js', 'look/logseq/props.js', 'look/logseq/title.js', 'look/logseq/folded.js', 'look/logseq/sidebar.js', 'look/logseq/cites.js', 'look/logseq/links.js', 'look/logseq/values.js', 'look/logseq/notices.js', 'look/logseq/focus.js', 'look/logseq/keys.js', 'look/logseq/hidden.js', 'look/logseq/tables.js', 'look/main.js',
-  'find/logseq/kit.js', 'find/logseq/db.js', 'find/logseq/settings.js', 'find/logseq/commands.js', 'find/logseq/find.js', 'find/logseq/under.js', 'find/logseq/within.js', 'find/main.js',
-  'predictive/core/text.js', 'predictive/core/engine.js', 'predictive/core/profile.js', 'predictive/core/dates.js', 'predictive/core/schema.js', 'predictive/core/context.js', 'predictive/core/tag-score.js', 'predictive/core/date-words.js', 'predictive/core/names.js', 'predictive/core/roles.js', 'predictive/core/newkind.js', 'predictive/core/link.js', 'predictive/core/propose.js', 'predictive/core/lessons.js', 'predictive/core/typed-case.js',
-  'predictive/logseq/settings.js', 'predictive/logseq/db.js', 'predictive/logseq/app.js', 'predictive/logseq/lessons.js', 'predictive/logseq/link-ui.js', 'predictive/logseq/propose-ui.js', 'predictive/logseq/tag-pick.js', 'predictive/logseq/cite.js', 'predictive/logseq/page-here.js', 'predictive/logseq/embed-here.js', 'predictive/logseq/one-dollar.js', 'predictive/logseq/steps.js', 'predictive/logseq/typed-case.js', 'predictive/logseq/outside-note.js', 'predictive/main.js',
-  'structure/core/model.js', 'structure/core/values.js', 'structure/core/changes.js', 'structure/logseq/db.js', 'structure/logseq/records.js', 'structure/logseq/apply.js', 'structure/logseq/view.js', 'structure/logseq/regions.js', 'structure/logseq/inspector.js', 'structure/logseq/mount.js', 'structure/logseq/where.js', 'structure/logseq/hash.js', 'structure/logseq/value-list.js', 'structure/logseq/tag-menu.js', 'structure/logseq/table-values.js', 'structure/main.js',
-  'export/core/inline.js', 'export/core/dates.js', 'export/core/doc.js', 'export/core/markdown.js', 'export/core/html.js', 'export/core/themes.js', 'export/core/templates.js',
-  'export/logseq/db.js', 'export/logseq/files.js', 'export/logseq/clipboard.js', 'export/logseq/print.js', 'export/logseq/preview.js', 'export/logseq/ui.js', 'export/main.js',
-  'threads/vendor/compromise.js', 'threads/parts/shared.js', 'threads/parts/model.js', 'threads/parts/diagnostics.js', 'threads/parts/two-way.js', 'threads/parts/two-way/look.js', 'threads/parts/two-way/group.js', 'threads/parts/two-way/find.js', 'threads/parts/two-way/peek.js', 'threads/parts/two-way/dig.js', 'threads/parts/two-way/add.js', 'threads/parts/two-way/pick.js', 'threads/parts/two-way/more.js', 'threads/parts/proposals.js', 'threads/settings.js', 'threads/main.js',
-  'todo/logseq/db.js', 'todo/logseq/view.js', 'todo/main.js',
+  'plugin.js',
+  'core/words.js', 'core/days.js', 'core/lists.js',
+  'ground/look.js', 'ground/read.js', 'ground/write.js', 'ground/touch.js',
+  'node/menu.js', 'node/line.js', 'node/node.js',
+  'page/relations.js',
   'main.js',
 ];
-// Any of them failing to load, or stopping as it loads, is kept here for main.js to say. Only main.js itself failing has nobody
-// to say it, so then this does.
-window.PluginFilesFailed = [];
-window.PluginFilesSaid = () => { const all = window.PluginFilesFailed; return all.slice(0, 3).join(', ') + (all.length > 3 ? ` and ${all.length - 3} more` : ''); };
-window.PluginFilesWatch = event => {
-  const url = String(event.target?.src || event.filename || '').split('?')[0];
-  const file = (window.PluginFiles || []).filter(name => url.endsWith('/' + name)).sort((a, b) => b.length - a.length)[0];
-  if (!file || window.PluginFilesFailed.includes(file)) return;
-  window.PluginFilesFailed.push(file);
-  if (window.PluginFiles.at(-1) !== file) return;
-  logseq.ready(() => logseq.UI.showMsg(`Logseq Plugin could not start: ${window.PluginFilesSaid()} did not load.`, 'error'));
-};
-window.addEventListener('error', window.PluginFilesWatch, true);

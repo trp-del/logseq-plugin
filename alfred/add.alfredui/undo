@@ -1,3 +1,0 @@
-#!/bin/zsh
-# The Add panel's undo: answered by logseq.js (panel-undo), in Alfred UI's JSON.
-exec /usr/bin/osascript -l JavaScript "${0:A:h:h}/logseq.js" panel-undo "$@"

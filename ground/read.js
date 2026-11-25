@@ -1,0 +1,123 @@
+/* GROUND: the one way the plugin reads the graph. Nothing here draws.
+     read.q(query)            a question in, rows out
+     read.node(uuid)          { id, uuid, day } of a node by its uuid (day: the journal day, when it is one), or null
+     read.describe(ids)       id -> the node as a line shows it: { id, uuid, words, tag, day, dayFrom, status, isPage }
+                              tag: its first tag of the person's own (or Task) by name; day: its Date property (the one named
+                              Date first, else the earliest), else the journal day it is written on; status: the id of its Status
+     read.pointingAt(id)      { links: [{ prop, node }], mentions: [node] }   what holds this node as a value, what names it
+     read.dues(day)           [{ which, node }]   what Logseq's Scheduled and Deadline put on a journal day
+     read.names(uuids)        uuid -> the node's name as plain words
+     read.properties()        ident -> { ident, title, uuid, type }   the person's own properties
+     read.statuses()          Logseq's statuses in its order: [{ id, name, title, icon }]
+   Deleted nodes, and nodes on deleted pages, are never answered. */
+(function () {
+const G = window.PluginDoor, W = G.words, D = G.days;
+const q = async query => { const rows = await logseq.DB.datascriptQuery(query); return Array.isArray(rows) ? rows : []; };
+const isId = v => Number.isSafeInteger(v) && v > 0;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const bare = value => String(value ?? '').replace(/^:/, '');
+const among = (variable, ids) => `[(ground [${[...new Set(ids)].filter(isId).join(' ')}]) [${variable} ...]]`;
+const amongUuids = (variable, uuids) => `[(ground [${[...new Set(uuids.map(u => String(u).toLowerCase()))].filter(u => UUID.test(u)).map(u => `#uuid "${u}"`).join(' ')}]) [${variable} ...]]`;
+const LIVE = '(not [?b :logseq.property/deleted-at]) (not-join [?b] [?b :block/page ?pg] [?pg :logseq.property/deleted-at])';
+
+// What is asked once and kept until the graph changes (G.read.forget, called by the ground on every change).
+const kept = new Map();
+const once = (name, ask) => { if (!kept.has(name)) { const asked = ask(); kept.set(name, asked); asked.catch(() => kept.delete(name)); } return kept.get(name); };
+
+const properties = () => once('properties', async () => {
+  const rows = await q('[:find ?i ?t ?u ?ty :where [?p :block/tags :logseq.class/Property] [?p :db/ident ?i] [(namespace ?i) ?ns] [(= ?ns "user.property")] [?p :block/title ?t] [?p :block/uuid ?u] [(get-else $ ?p :logseq.property/type :default) ?ty]]');
+  return new Map(rows.map(([ident, title, uuid, type]) => [bare(ident), { ident: bare(ident), title: String(title), uuid: String(uuid), type: bare(type) }]));
+});
+// The tags a line is named by: the person's own, and Logseq's Task. Logseq's other tags (Page, Journal, Tag) say nothing a line needs.
+const lineTags = () => once('lineTags', async () => {
+  const rows = await q('[:find ?t ?i ?n :where [?t :block/tags :logseq.class/Tag] [?t :db/ident ?i] [?t :block/title ?n]]');
+  return new Map(rows.filter(([, ident]) => /^(user\.class\/|logseq\.class\/Task$)/.test(bare(ident))).map(([id, , name]) => [id, String(name)]));
+});
+const statuses = () => once('statuses', async () => {
+  const rows = await q('[:find ?v ?ident ?t ?o ?icon :where [?v :block/closed-value-property ?p] [?p :db/ident :logseq.property/status] [?v :block/title ?t] [(get-else $ ?v :db/ident "") ?ident] [(get-else $ ?v :block/order "") ?o] [(get-else $ ?v :logseq.property/icon "") ?icon]]');
+  return rows.map(([id, ident, title, order, icon]) => ({ id: Number(id), name: bare(ident).replace(/^logseq\.property\/status\./, ''), title: String(title || ''), order: String(order || ''), icon: icon && typeof icon === 'object' ? icon : null }))
+    .sort((a, b) => (a.order < b.order ? -1 : a.order > b.order ? 1 : a.id - b.id));
+});
+
+async function node(uuid) {
+  if (!UUID.test(String(uuid || ''))) return null;
+  const [[id, day] = []] = await q(`[:find ?b ?d :where [?b :block/uuid #uuid "${uuid}"] [(get-else $ ?b :block/journal-day 0) ?d] ${LIVE}]`);
+  return isId(id) ? { id, uuid: String(uuid).toLowerCase(), day: Number(day) || 0 } : null;
+}
+
+async function describe(ids) {
+  const list = [...new Set(ids)].filter(isId), out = new Map();
+  if (!list.length) return out;
+  const these = among('?b', list);
+  const [titled, tagged, dated, written, status, pages, tags] = await Promise.all([
+    q(`[:find ?b ?u ?t :where ${these} [?b :block/uuid ?u] [?b :block/title ?t] ${LIVE}]`),
+    q(`[:find ?b ?t :where ${these} [?b :block/tags ?t]]`),
+    q(`[:find ?b ?attr ?day ?name :where ${these} [?prop :logseq.property/type :date] [?prop :db/ident ?attr] [?prop :block/title ?name] [?b ?attr ?d] [?d :block/journal-day ?day]]`),
+    q(`[:find ?b ?day :where ${these} [?b :block/page ?p] [?p :block/journal-day ?day]]`),
+    q(`[:find ?b ?s :where ${these} [?b :logseq.property/status ?s]]`),
+    q(`[:find ?b :where ${these} [?b :block/name]]`),
+    lineTags(),
+  ]);
+  const tagOf = new Map();
+  for (const [b, t] of tagged) { const name = tags.get(t); if (name && (!tagOf.has(b) || name < tagOf.get(b))) tagOf.set(b, name); }
+  const dayOf = new Map();
+  for (const [b, attr, day, name] of dated) {
+    if (!/^user\.property\//.test(bare(attr))) continue;
+    const rank = String(name).trim().toLowerCase() === 'date' ? 0 : 1, had = dayOf.get(b);
+    if (!had || rank < had.rank || (rank === had.rank && day < had.day)) dayOf.set(b, { rank, day: Number(day), from: String(name).trim() });
+  }
+  for (const [b, day] of written) if (!dayOf.has(b)) dayOf.set(b, { rank: 2, day: Number(day), from: '' });
+  const statusOf = new Map(status.map(([b, s]) => [b, Number(s) || 0])), isPage = new Set(pages.map(([b]) => b));
+  for (const [b, uuid, title] of titled) out.set(b, { id: b, uuid: String(uuid).toLowerCase(), words: String(title ?? ''), tag: tagOf.get(b) || '', day: dayOf.get(b)?.day || 0, dayFrom: dayOf.get(b)?.from || '', status: statusOf.get(b) || 0, isPage: isPage.has(b) });
+  return out;
+}
+
+async function pointingAt(id) {
+  if (!isId(id)) return { links: [], mentions: [] };
+  const [props, aliases, [[mine] = []]] = await Promise.all([properties(), q(`[:find ?a :where [${id} :block/alias ?a]]`), q(`[:find ?u :where [${id} :block/uuid ?u]]`)]);
+  const targets = [id, ...aliases.map(([a]) => a).filter(isId)];
+  // A node's own bullets do not point at it, and it does not point at itself.
+  const outside = `[(not= ?b ${id})] (not [?b :block/page ${id}])`;
+  const [held, named, uuids] = await Promise.all([
+    q(`[:find ?b ?attr :where [?b ?attr ${id}] [?prop :db/ident ?attr] [(namespace ?attr) ?ns] [(= ?ns "user.property")] ${outside} ${LIVE}]`),
+    q(`[:find ?b :where ${among('?t', targets)} [?b :block/refs ?t] [?b :block/page _] ${outside} ${LIVE}]`),
+    q(`[:find ?u ?n :where ${among('?t', targets)} [?t :block/uuid ?u] [(get-else $ ?t :block/title "") ?n]]`),
+  ]);
+  const nodes = await describe([...held.map(([b]) => b), ...named.map(([b]) => b)]);
+  const links = [];
+  for (const [b, attr] of held) { const prop = props.get(bare(attr)), n = nodes.get(b); if (prop && n) links.push({ prop, node: n }); }
+  // Named in the words, and not only as a tag: a link to this node (or to a name it also goes by) with no # before it.
+  const marks = [...new Set([String(mine ?? ''), ...uuids.map(([u]) => String(u))].filter(Boolean).flatMap(u => [`[[${u.toLowerCase()}]]`, `((${u.toLowerCase()}))`])
+    .concat(uuids.map(([, name]) => String(name).trim().toLowerCase()).filter(Boolean).map(name => `[[${name}]]`)))];
+  const says = words => { const text = words.toLowerCase(); return marks.some(mark => { for (let at = text.indexOf(mark); at >= 0; at = text.indexOf(mark, at + 1)) if (text[at - 1] !== '#') return true; return false; }); };
+  const mentions = named.map(([b]) => nodes.get(b)).filter(n => n && says(n.words));
+  return { links, mentions };
+}
+
+async function dues(day) {
+  const span = D.span(day);
+  if (!span) return [];
+  const [[page] = []] = await q(`[:find ?p :where [?p :block/journal-day ${day}]]`);
+  const found = [];
+  for (const [which, attr] of [['Scheduled', ':logseq.property/scheduled'], ['Deadline', ':logseq.property/deadline']]) {
+    const [timed, paged] = await Promise.all([
+      q(`[:find ?b :where [?b ${attr} ?t] [(>= ?t ${span.from})] [(< ?t ${span.to})] ${LIVE}]`).catch(() => []),
+      isId(page) ? q(`[:find ?b :where [?b ${attr} ${page}] ${LIVE}]`).catch(() => []) : [],
+    ]);
+    for (const [b] of [...timed, ...paged]) found.push([which, b]);
+  }
+  const nodes = await describe(found.map(([, b]) => b));
+  return found.map(([which, b]) => ({ which, node: nodes.get(b) })).filter(due => due.node && !(isId(page) && due.node.id === page));
+}
+
+// Names as plain words. A name that itself links other nodes reads with their names (one level in; deeper links read as "…").
+async function names(uuids) {
+  const ask = async list => new Map((list.length ? await q(`[:find ?u ?t :where ${amongUuids('?u', list)} [?b :block/uuid ?u] [?b :block/title ?t]]`) : []).map(([u, t]) => [String(u).toLowerCase(), String(t ?? '')]));
+  const first = await ask([...uuids]);
+  const inner = await ask([...new Set([...first.values()].flatMap(W.named))].filter(u => !first.has(u)));
+  const known = new Map([...inner, ...first]);
+  return new Map([...first].map(([u, t]) => [u, W.plain(W.firstLine(t).line, new Map([...known].map(([k, v]) => [k, W.named(v).length ? '…' : v])))]));
+}
+
+G.read = { q, node, describe, pointingAt, dues, names, properties, statuses, forget: () => kept.clear(), isId, UUID };
+})();

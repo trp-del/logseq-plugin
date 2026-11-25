@@ -1,3 +1,0 @@
-#!/bin/zsh
-# The files tray: how far the add is, answered by logseq.js (panel-files-progress), in Alfred UI's JSON.
-exec /usr/bin/osascript -l JavaScript "${0:A:h:h}/logseq.js" panel-files-progress "$@"

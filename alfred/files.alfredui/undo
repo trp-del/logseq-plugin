@@ -1,3 +1,0 @@
-#!/bin/zsh
-# The files tray: the add taken back, answered by logseq.js (panel-files-undo), in Alfred UI's JSON.
-exec /usr/bin/osascript -l JavaScript "${0:A:h:h}/logseq.js" panel-files-undo "$@"
