@@ -159,9 +159,12 @@ function start(app, doc) {
     const click = event => {
       if (!ask || !el.contains(event.target)) return;
       event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation();
-      const b = event.type === 'click' && event.target.closest('[data-ask]'); if (b) (b.dataset.ask === 'yes' ? yes : no).click();
+      // The yes stands near where the bin stood (seen in the hand test, 24 November 2026): a second press of a double press on the bin
+      // must not answer, so no press counts in the question's first half second.
+      const b = event.type === 'click' && Date.now() - born > 500 && event.target.closest('[data-ask]'); if (b) (b.dataset.ask === 'yes' ? yes : no).click();
     };
     const PRESSES = ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'];
+    const born = Date.now();
     // The keys while the question stands: Enter and Space answer with the press the keyboard is on (Leave it, unless Tab moved it),
     // Tab moves between the two, Escape leaves. Taken here, before Logseq's own keys, so Enter can never mean anything else.
     const key = event => {
