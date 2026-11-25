@@ -7,7 +7,7 @@ G.part({
   key: 'place', title: 'A page’s place', about: 'Under a page’s title: its tags, each with the tags it sits under.',
   start(base) {
     base.style('place', G.touch.HIDES_TAGS + `
-.lk-place { font-family: var(--lk-tag-face); color: var(--lk-quiet); font-size: 16px; font-weight: 400; line-height: 24px; margin: 2px 0 6px; }
+.lk-place { font-family: var(--lk-tag-face); color: var(--lk-quiet); font-size: var(--lk-words-size); font-weight: 400; line-height: 24px; margin: 2px 0 6px; }
 .lk-place:empty { display: none; }
 .lk-place a { color: inherit; cursor: pointer; }
 .lk-place a:hover { color: var(--lk-text); }

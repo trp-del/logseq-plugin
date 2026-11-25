@@ -89,7 +89,7 @@ ${!made.refused && made.kept ? `<div class="lk-ask-note">${made.kept} ${made.kep
     } else {
       const fit = props.filter(prop => prop.ident !== state.from && (!fromProp || prop.type === fromProp.type));
       G.menu(button, [{ group: 'The values go into' }, ...fit.map(prop => ({ word: prop.title, face: 'prop', on: state.into?.ident === prop.ident, take: () => { state.into = { ident: prop.ident, title: prop.title }; again(); } })),
-        ...(fit.length ? [{ gap: true }] : []), { word: 'A new property…', icon: G.touch.icon('plus'), take: () => { state.naming = true; draw(); } }]);
+        ...(fit.length ? [{ gap: true }] : []), { word: 'A new property…', take: () => { state.naming = true; draw(); } }]);
     }
   };
   const apply = async () => {
@@ -137,7 +137,7 @@ G.part({
   key: 'moving', title: 'Move values', about: 'The values of one property put into another, for a tag’s nodes or for every node, with a look at the result first and one Undo.',
   start(base) {
     base.style('moving', `
-.lk-ask { max-width: 420px; margin: 0 0 14px; padding: 10px 12px 12px; border-radius: 10px; box-shadow: 0 0 0 1px var(--lk-line); display: flex; flex-direction: column; gap: 6px; font-size: var(--lk-line-size); line-height: var(--lk-line-lead); }
+.lk-ask { max-width: 420px; margin: 0 0 14px; padding: 12px; border-radius: var(--lk-corner-float); box-shadow: 0 0 0 1px var(--lk-line); display: flex; flex-direction: column; gap: 6px; font-size: var(--lk-line-size); line-height: var(--lk-line-lead); }
 .lk-ask:empty { display: none; }
 .lk-ask-head { font-weight: 600; }
 .lk-ask-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }

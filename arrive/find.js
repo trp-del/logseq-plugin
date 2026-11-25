@@ -15,14 +15,19 @@ G.part({
     let win = null;   // the open window's state, or null
     base.style('find', `
 .lk-veil { position: fixed; inset: 0; z-index: 40; display: flex; justify-content: center; align-items: flex-start; padding: 12vh 16px 0; background: color-mix(in srgb, var(--lk-paper) 40%, transparent); }
-.lk-find { width: min(1040px, 100%); height: min(86vh, 900px); display: flex; flex-direction: column; border-radius: 12px; background: var(--lk-paper); color: var(--lk-text); box-shadow: var(--lk-float-shadow), 0 0 0 .5px var(--lk-line); overflow: hidden; }
+.lk-find { width: min(1040px, 100%); height: min(86vh, 900px); display: flex; flex-direction: column; border-radius: var(--lk-corner-float); background: var(--lk-paper); color: var(--lk-text); box-shadow: var(--lk-float-shadow), 0 0 0 .5px var(--lk-line); overflow: hidden; }
 .lk-find-top { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--lk-hair); flex: none; }
-.lk-find-top .lk-piece { flex: none; font-size: 18px; line-height: 28px; }
-.lk-find-top .lk-field { flex: 1; min-width: 0; border: 0; outline: 0; background: none; color: inherit; font: inherit; font-size: 18px; line-height: 28px; padding: 0; box-shadow: none; }
+.lk-find-top .lk-piece { flex: none; font-size: var(--lk-words-size); line-height: 28px; }
+.lk-find-top .lk-field { flex: 1; min-width: 0; border: 0; outline: 0; background: none; color: inherit; font: inherit; font-size: var(--lk-words-size); line-height: 28px; padding: 0; box-shadow: none; }
 .lk-find-top .lk-field::placeholder { color: var(--lk-off); }
 .lk-find-body { overflow-y: auto; padding: 8px 16px 12px; }
 .lk-find-body:empty { display: none; }
-.lk-kind { display: flex; align-items: center; min-height: 28px; padding: 0 8px; border-radius: 6px; cursor: default; }
+.lk-find-body { flex: 1; }
+.lk-find-foot { flex: none; display: flex; justify-content: flex-end; align-items: baseline; gap: 8px; padding: 8px 56px 8px 16px; border-top: 1px solid var(--lk-hair); }   /* clear of Logseq's own help button, which stands over that corner */
+.lk-find-foot[hidden] { display: none; }
+.lk-find-new { border: 0; background: none; padding: 0; color: var(--lk-quiet); font: inherit; font-size: var(--lk-small); cursor: pointer; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lk-find-new:hover, .lk-find-new:focus-visible { color: var(--lk-text); outline: none; }
+.lk-kind { display: flex; align-items: center; min-height: 28px; padding: 0 8px; border-radius: var(--lk-corner); cursor: default; }
 .lk-kind .lk-tag { color: var(--lk-text); }
 .lk-kind.lit, .lk-find .lk-line.lit { background: var(--lk-lit); }
 .lk-find-kinds:not(:empty) + .lk-find-rows:not(:empty) { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--lk-hair); }
@@ -58,9 +63,18 @@ G.part({
       win.found = await nodesFor();
       if (!win || mine !== win.turn) return;
       win.noneEl.hidden = !!(kinds.length || win.found.length) || !(win.text.trim() || win.kind);
+      // Words typed and no kind taken: the foot offers a new page by those words, and says its key.
+      const name = win.kind ? '' : win.text.trim();
+      win.footEl.hidden = !name; win.newEl.textContent = name ? `New page “${name}”` : '';
       await win.list.again();
     }
     const take = tag => { win.kind = tag; win.text = ''; win.field.value = ''; win.lit = 0; draw(); };
+    async function make() {
+      const name = win && !win.kind ? win.text.trim() : '';
+      if (!name) return;
+      try { const uuid = await G.write.newPage(name); close(); G.touch.open(uuid); }
+      catch (error) { G.say(`The page could not be made: ${error?.message || 'Logseq refused'}`, 'warning'); }
+    }
     const go = (row, side) => { const uuid = row.dataset.uuid; if (!side) close(); G.touch.open(uuid, side); };
     function act(event) {
       const all = stops(), at = all[win.lit];
@@ -81,6 +95,7 @@ G.part({
       }
       if (!typing) return;
       if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); light(win.lit + (event.key === 'ArrowDown' ? 1 : -1)); }
+      else if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) { event.preventDefault(); make(); }
       else if (event.key === 'Enter') { event.preventDefault(); act(event); }
       else if (event.key === 'Tab') { event.preventDefault(); const at = stops()[win.lit]; if (at?.classList.contains('lk-kind')) act(event); }
       else if (event.key === 'ArrowRight' && field.selectionStart === field.value.length) { const row = stops()[win.lit]?.closest('.lk-row'); if (row) { event.preventDefault(); G.node.open(row); } }
@@ -91,16 +106,17 @@ G.part({
     function open() {
       if (win) { win.field.focus(); win.field.select(); return; }
       const doc = G.host(), veil = doc.createElement('div'); veil.className = 'lk-veil';
-      veil.innerHTML = `<div class="lk-find" role="dialog" aria-label="Find"><div class="lk-find-top"><span class="lk-piece lk-tag" hidden></span><input class="lk-field" type="text" placeholder="Find" spellcheck="false" autocomplete="off" aria-label="Find"></div><div class="lk-find-body"><div class="lk-find-kinds"></div><div class="lk-find-rows lk-rel"></div><div class="lk-none" hidden>Nothing found</div></div></div>`;
+      veil.innerHTML = `<div class="lk-find" role="dialog" aria-label="Find"><div class="lk-find-top"><span class="lk-piece lk-tag" hidden></span><input class="lk-field" type="text" placeholder="Find" spellcheck="false" autocomplete="off" aria-label="Find"></div><div class="lk-find-body"><div class="lk-find-kinds"></div><div class="lk-find-rows lk-rel"></div><div class="lk-none" hidden>Nothing found</div></div><div class="lk-find-foot" hidden><button type="button" class="lk-find-new"></button><span class="lk-key">${/Mac/.test(doc.defaultView.navigator.platform) ? '⌘↩' : 'Ctrl ↩'}</span></div></div>`;
       doc.body.appendChild(veil);
       const q = sel => veil.querySelector(sel);
-      win = { veil, field: q('.lk-field'), pieceEl: q('.lk-piece'), body: q('.lk-find-body'), kindsEl: q('.lk-find-kinds'), rowsEl: q('.lk-find-rows'), noneEl: q('.lk-none'), kind: null, text: '', lit: 0, turn: 0, found: [], kindNodes: null, back: doc.activeElement, timer: 0 };
+      win = { veil, field: q('.lk-field'), pieceEl: q('.lk-piece'), body: q('.lk-find-body'), kindsEl: q('.lk-find-kinds'), rowsEl: q('.lk-find-rows'), noneEl: q('.lk-none'), footEl: q('.lk-find-foot'), newEl: q('.lk-find-new'), kind: null, text: '', lit: 0, turn: 0, found: [], kindNodes: null, back: doc.activeElement, timer: 0 };
       win.list = G.node.listing(win.rowsEl, async () => win.found.length ? [{ key: 'found', kind: 'plain', name: '', tag: '', rows: win.found.map(node => ({ ...node, tagShown: !!node.tag && node.tag !== win.kind?.title, dayShown: node.day })) }] : [],
         { few: 40, press: (row, event) => { go(row, event.shiftKey); return true; } });
       win.rowsEl.addEventListener('lk-drawn', () => { if (win) light(win.lit, false); });
       win.field.addEventListener('input', () => { win.text = win.field.value; win.lit = 0; clearTimeout(win.timer); win.timer = setTimeout(draw, win.kind ? 0 : 120); });
       veil.addEventListener('keydown', onKey, true);
       veil.addEventListener('mousedown', event => { if (event.target === veil) close(); });
+      win.newEl.addEventListener('click', make);
       win.kindsEl.addEventListener('click', event => { const kind = event.target.closest('.lk-kind'); if (kind) G.read.tags().then(tags => take(tags.get(Number(kind.dataset.id)))); win.field.focus(); });
       win.field.focus();
       draw();

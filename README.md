@@ -62,10 +62,18 @@ a node it points at is opened under it, is under "An opened node, and digging" b
   holds on Logseq's own pages, in the sidebar and inside an opened node, as in the plugin's lists. On Logseq's own pages a
   property with nothing in it is its name, fainter.
 - Colour is kept for a change: green for what comes, red struck through for what goes; Delete in a menu is red.
-- After the plugin changes a node shown as a line (a status, a tag, a new task), the line lights and fades, and a faded arrow
-  stands at its end: a press takes the change back with Logseq's own Undo. Where the node is no longer shown (it was
-  deleted), the arrow waits at the bottom right. The arrow goes at the next change to the graph. A tag moved in Ontology and
-  Move values keep their own way back.
+- After the plugin changes a node shown as a line (a status, a tag, a new task, a tag moved in Ontology), the line lights and
+  fades, and a faded arrow stands at its end: a press takes the change back with Logseq's own Undo, in as many steps as the
+  change took. Where the node is no longer shown (it was deleted), the arrow waits at the bottom right. The arrow goes at
+  the next change to the graph. Move values keeps its own way back.
+- Delete on a tag or a property asks first, in a box under its line: what goes, how many nodes hold it, a red yes and
+  Cancel. The keys wait on Cancel; only a press on the red yes deletes.
+- A key is told only where it is not a common one, as the Mac writes it, with no box: Find's foot says ⌘↩ beside
+  "New page", which makes a page by the words typed and goes to it.
+- An opened node rolls out of its line in one short move. A tick box on a line shows under the pointer and stays once
+  ticked (no list has tick boxes yet).
+- Three corners (a small one, one for what floats, the round of a press) and the sizes of text are named once in
+  `ground/look.js`.
 
 ### A page's place (`page/place.js`)
 

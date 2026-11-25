@@ -62,9 +62,20 @@ G.write = {
   },
   dropProperty: uuid => logseq.Editor.deletePage(sure(uuid)),   // Logseq lets a plugin remove only its own properties by name; a property's page it deletes like any page
   // A tag moved: put under another tag (to), or to the top (to: ''), and taken from under the ones it sat under (from).
+  // Answers how many writes it took: that many steps of Logseq's Undo put the tag back.
   async moveTag(uuid, to, from = []) {
-    if (to) await logseq.Editor.addTagExtends(sure(uuid), sure(to));
-    for (const was of from) if (was !== to) await logseq.Editor.removeTagExtends(sure(uuid), sure(was));
+    let steps = 0;
+    if (to) { await logseq.Editor.addTagExtends(sure(uuid), sure(to)); steps++; }
+    for (const was of from) if (was !== to) { await logseq.Editor.removeTagExtends(sure(uuid), sure(was)); steps++; }
+    return steps;
+  },
+  // A page of the person's own by this name, made if there is none; answers its uuid.
+  async newPage(name) {
+    const title = String(name || '').trim();
+    if (!title) throw new Error('a page needs a name');
+    const made = await logseq.Editor.createPage(title, {}, { redirect: false }) || await logseq.Editor.getPage(title);
+    if (!made?.uuid) throw new Error(`Logseq did not make “${title}”`);
+    return String(made.uuid);
   },
   // A new, empty bullet at the end of today's journal that holds a tag and points at a node through a property; answers its uuid.
   async addNode(tag, ident, id) {

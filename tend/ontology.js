@@ -58,7 +58,7 @@ G.part({
           const tags = await G.read.tags(), tag = [...tags.values()].find(one => one.uuid === uuid);
           if (!tag || to === uuid) { done(); return; }
           rel.addEventListener('lk-drawn', shown);
-          await G.write.moveTag(uuid, to, tag.parents.map(id => tags.get(id)?.uuid).filter(Boolean));
+          G.undo.mark(uuid, await G.write.moveTag(uuid, to, tag.parents.map(id => tags.get(id)?.uuid).filter(Boolean)));   // the faded arrow beside the tag takes the whole move back
           writing = false;
         } catch (error) { done(); G.say(`The tag could not be moved: ${error?.message || 'Logseq refused'}`, 'warning'); }
       };
@@ -162,7 +162,7 @@ G.part({
         },
         more(row, at) {
           if (!isTag(row)) return row.closest('.lk-list')?.dataset.face === 'prop'
-            ? [{ gap: true }, { word: 'Move values…', icon: G.touch.icon('arrows-right-left'), take: async () => { const prop = [...(await G.read.properties()).values()].find(one => one.uuid === row.dataset.uuid); if (prop) G.moving.ask(holder, { from: prop.ident }); } }] : [];
+            ? [{ gap: true }, { word: 'Move values…', take: async () => { const prop = [...(await G.read.properties()).values()].find(one => one.uuid === row.dataset.uuid); if (prop) G.moving.ask(holder, { from: prop.ident }); } }] : [];
           const uuid = row.dataset.uuid;
           const under = async () => {
             const tags = await G.read.tags(), tag = [...tags.values()].find(one => one.uuid === uuid);
@@ -170,10 +170,10 @@ G.part({
             const below = G.find.under(tag.id, tags), others = new Map([...tags].filter(([id]) => !below.has(id)));
             G.menu(at, [{ group: `Put ${tag.title} under` }, ...G.find.tree(others).map(({ tag: one, depth }) => ({ word: one.title, depth, face: 'tag', on: tag.parents.includes(one.id), take: () => move(uuid, one.uuid) }))]);
           };
-          return [{ gap: true }, { word: 'Show its nodes', icon: G.touch.icon('search'), take: async () => { const tag = [...(await G.read.tags()).values()].find(one => one.uuid === uuid); if (tag) G.arrive.find(tag.id); } },
-            { word: 'Move values…', icon: G.touch.icon('arrows-right-left'), take: async () => { const tag = [...(await G.read.tags()).values()].find(one => one.uuid === uuid); if (tag) G.moving.ask(holder, { tag: { id: tag.id, title: tag.title } }); } },
-            { word: 'Put under…', icon: G.touch.icon('corner-down-right'), take: under },
-            ...(depthOf(row) > 0 ? [{ word: 'Move to the top', icon: G.touch.icon('arrow-bar-to-up'), take: () => move(uuid, '') }] : [])];
+          return [{ gap: true }, { word: 'Show its nodes', take: async () => { const tag = [...(await G.read.tags()).values()].find(one => one.uuid === uuid); if (tag) G.arrive.find(tag.id); } },
+            { word: 'Move values…', take: async () => { const tag = [...(await G.read.tags()).values()].find(one => one.uuid === uuid); if (tag) G.moving.ask(holder, { tag: { id: tag.id, title: tag.title } }); } },
+            { word: 'Put under…', take: under },
+            ...(depthOf(row) > 0 ? [{ word: 'Move to the top', take: () => move(uuid, '') }] : [])];
         } });
       let offSide = null;
       if (wide) {   // the outline beside a page you are reading: one press away

@@ -44,7 +44,7 @@ async function pickTags(at, row) {
     take: () => G.undo.after(uuid, has.has(tag.id) ? G.write.untag(uuid, tag.uuid) : G.write.tag(uuid, tag.uuid)).catch(error => G.say(`The tag could not be changed: ${error?.message || 'Logseq refused'}`, 'warning')) }))]);
 }
 async function menu(at, row, more) {
-  const uuid = row.dataset.uuid, statuses = row.dataset.status ? await G.read.statuses() : [], now = Number(row.dataset.status) || 0;
+  const uuid = row.dataset.uuid, statuses = row.dataset.status ? await G.read.statuses() : [], now = Number(row.dataset.status) || 0, face = row.closest('.lk-list')?.dataset.face || '';
   G.menu(at, [
     { word: 'Open', take: () => G.touch.open(uuid) },
     { word: 'Open in sidebar', take: () => G.touch.open(uuid, true) },
@@ -52,7 +52,14 @@ async function menu(at, row, more) {
     ...(statuses.length ? [{ gap: true }, { group: 'Status' }, ...statuses.map(s => ({ word: s.title, icon: G.touch.statusIcon(s.icon), on: s.id === now, take: () => G.undo.after(uuid, G.write.setStatus(uuid, s.title)).catch(error => G.say(`The status could not be set: ${error?.message || 'Logseq refused'}`, 'warning')) }))] : []),
     ...((more && more(row, at)) || []),   // what the place itself offers for this row
     { gap: true },
-    { word: 'Delete', goes: true, take: () => G.undo.after(uuid, G.write.remove(uuid, row.dataset.page === '1')).catch(error => G.say(`It could not be deleted: ${error?.message || 'Logseq refused'}`, 'warning')) },
+    { word: face ? 'Delete…' : 'Delete', goes: true, take: () => {
+      // A tag and a property are pages. Logseq does not always tell of a page that went, so the list is asked to read again.
+      const del = async () => { await G.undo.after(uuid, G.write.remove(uuid, !!face || row.dataset.page === '1')); row.dispatchEvent(new (row.ownerDocument.defaultView.CustomEvent)('lk-closed', { bubbles: true })); };
+      if (!face) return void del().catch(error => G.say(`It could not be deleted: ${error?.message || 'Logseq refused'}`, 'warning'));
+      // A tag or a property reaches every node that holds it: the question first, in red.
+      const name = row.querySelector('.lk-words')?.textContent.trim() || 'this', held = Number(row.querySelector('.lk-num')?.textContent) || 0, kind = face === 'tag' ? 'tag' : 'property';
+      G.ask.gone(row, { words: `Delete the ${kind} “${name}”?`, note: held ? `${held} ${held === 1 ? 'node holds' : 'nodes hold'} it. It is taken off every one of them.` : 'It is taken off every node that holds it.', yes: `Delete the ${kind}`, take: del });
+    } },
   ]);
 }
 // A press or a key on a closed line. The list calls this for every event in it; true says the line took it.
@@ -93,7 +100,7 @@ G.line.CSS = `
 .lk-row:hover > .lk-fold, .lk-row:focus-within > .lk-fold, .lk-row[data-open] > .lk-fold, .lk-list-head .lk-fold { opacity: 1; }
 .lk-row[data-open] > .lk-fold svg, [aria-expanded="true"] > .lk-fold svg { transform: rotate(90deg); }
 .lk-fold:hover { color: var(--lk-text); }
-.lk-line { display: flex; align-items: flex-start; gap: 4px; padding: 2px 6px 2px 0; border-radius: 6px; line-height: 24px; cursor: default; }
+.lk-line { display: flex; align-items: flex-start; gap: 4px; padding: 2px 6px 2px 0; border-radius: var(--lk-corner); line-height: 24px; cursor: default; }
 .lk-line:focus-visible { outline: none; background: var(--lk-wash); }
 .lk-bul { flex: none; width: 16px; height: 24px; display: inline-flex; align-items: center; justify-content: center; }
 .lk-bul::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--lk-line); }
@@ -107,6 +114,9 @@ G.line.CSS = `
 a.lk-tag { cursor: pointer; }
 a.lk-tag:hover { color: var(--lk-text); }
 .lk-none, .lk-off { color: var(--lk-off); }
+/* A tick box on a line shows under the pointer or the keyboard, and stays once ticked (the owner, 25 November 2026). */
+.lk-line > input.lk-tick { align-self: center; margin-right: 2px; opacity: 0; }
+.lk-row:is(:hover, :focus-within) > .lk-line > input.lk-tick, .lk-line > input.lk-tick:checked { opacity: 1; }
 .lk-why { color: var(--lk-quiet); font-size: var(--lk-small); margin-left: .35em; }
 .lk-num { flex: none; margin-left: auto; padding-left: 12px; font-size: var(--lk-small); color: var(--lk-off); font-variant-numeric: tabular-nums; }
 /* In a narrow place (the sidebar) the words get the whole width: the day stands under them, an outline steps in less, and an

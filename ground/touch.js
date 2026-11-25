@@ -427,7 +427,7 @@ const OPENED = `
    is moved or taken away. */
 const IN = ':is(#main-content-container, #right-sidebar, .lk-editor)', OWN = ':is(#main-content-container, #right-sidebar)';
 const MARKS = `
-${OWN} a.property-k:not(.lk-editor a) { font-family: var(--lk-prop-face) !important; font-weight: var(--lk-prop-weight) !important; font-size: .9em !important; letter-spacing: -.01em; color: var(--lk-quiet) !important; }
+${OWN} a.property-k:not(.lk-editor a) { font-family: var(--lk-prop-face) !important; font-weight: var(--lk-prop-weight) !important; font-size: var(--lk-prop-size) !important; letter-spacing: -.01em; color: var(--lk-quiet) !important; }
 ${OWN} .property-key-inner > .property-icon { display: none !important; }
 ${IN} :is(.property-panel-row-empty, .bottom-property-pill:has(.empty-value)) a.property-k { color: var(--lk-off) !important; }
 ${OWN} .empty-value :is(.empty-text-btn, .ui__button):not(.lk-editor *) { opacity: 0; }

@@ -22,7 +22,7 @@ async function main() {
   logseq.beforeunload(async () => { for (const base of bases.splice(0).reverse()) await base.stop(); });
   // What stands whichever parts run: the look's ground, the pieces of the node, and Logseq's editor asked for.
   const root = G.base('ground'); bases.push(root);
-  root.style('look', G.look.faces(String(logseq.baseInfo?.lsr || '')) + G.look.TOKENS + G.look.PRESS + G.menu.CSS + G.undo.CSS + G.line.CSS + G.node.CSS + G.touch.OPENED + G.touch.MARKS);
+  root.style('look', G.look.faces(String(logseq.baseInfo?.lsr || '')) + G.look.TOKENS + G.look.PRESS + G.menu.CSS + G.undo.CSS + G.ask.CSS + G.line.CSS + G.node.CSS + G.touch.OPENED + G.touch.MARKS);
   await graphReady();
   G.touch.editor.start(); root.onStop(() => G.touch.editor.stop());
   for (const part of G.parts) {

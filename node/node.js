@@ -64,13 +64,25 @@ function mount(holder, uuid) {
   };
   holder.lkOff = () => { whole(); sized?.disconnect(); for (const dug of dugs.values()) dug.lkOff?.(); dugs.clear(); offEditor(); offLists(); };
 }
+/* An opened node rolls out of its line: from the line's height to its own, in one short move, and nothing is held once it is
+   there (the owner's pages of 25 November 2026: "Rolls out of its line"). Not where the person asks for less motion. */
+function roll(holder, from) {
+  const view = holder.ownerDocument.defaultView, full = holder.offsetHeight;
+  if (!full || full <= from + 4 || view.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const done = () => { holder.style.height = ''; holder.style.overflow = ''; holder.style.transition = ''; holder.removeEventListener('transitionend', done); view.clearTimeout(cap); };
+  const cap = view.setTimeout(done, 400);
+  holder.style.height = `${from}px`; holder.style.overflow = 'hidden';
+  void holder.offsetHeight;
+  holder.style.transition = 'height .16s ease-out'; holder.style.height = `${full}px`;
+  holder.addEventListener('transitionend', done);
+}
 function open(row) {
   if (row.dataset.open || !G.touch.editor.can()) { if (!row.dataset.open) G.touch.open(row.dataset.uuid); return; }
   const holder = row.ownerDocument.createElement('div'); holder.className = 'lk-open';
   row.appendChild(holder); row.dataset.open = 'soon';
   mount(holder, row.dataset.uuid);
   // Logseq fills the node in over a few frames (a link's name, a property's value): it is shown once it has come to rest.
-  const shown = new (row.ownerDocument.defaultView.MutationObserver)(() => { if (holder.dataset.whole) { shown.disconnect(); if (row.dataset.open === 'soon') row.dataset.open = '1'; } });
+  const shown = new (row.ownerDocument.defaultView.MutationObserver)(() => { if (holder.dataset.whole) { shown.disconnect(); if (row.dataset.open === 'soon') { const from = row.querySelector(':scope > .lk-line')?.offsetHeight || 28; row.dataset.open = '1'; roll(holder, from); } } });
   shown.observe(holder, { attributes: true, attributeFilter: ['data-whole'] });
   holder.lkClose = () => close(row, true);
   row.querySelector(':scope > .lk-fold')?.setAttribute('aria-label', 'Close');
@@ -304,25 +316,25 @@ G.node.CSS = `
 .lk-rel { display: flex; flex-direction: column; gap: 18px; container: lk-list / inline-size; }
 .lk-list-head[hidden] { display: none; }
 .lk-list[data-face="tag"] > .lk-rows > .lk-row > .lk-line .lk-words { font-family: var(--lk-tag-face); }
-.lk-list[data-face="prop"] > .lk-rows > .lk-row > .lk-line .lk-words { font-family: var(--lk-prop-face); font-weight: var(--lk-prop-weight); font-size: .9em; letter-spacing: -.01em; }
+.lk-list[data-face="prop"] > .lk-rows > .lk-row > .lk-line .lk-words { font-family: var(--lk-prop-face); font-weight: var(--lk-prop-weight); font-size: var(--lk-prop-size); letter-spacing: -.01em; }
 .lk-list[data-kind="none"] .lk-fold { visibility: hidden; }
-.lk-list-head { display: flex; align-items: center; gap: 2px; min-height: 28px; margin-left: -18px; cursor: default; border-radius: 6px; }
+.lk-list-head { display: flex; align-items: center; gap: 2px; min-height: 28px; margin-left: -18px; cursor: default; border-radius: var(--lk-corner); }
 .lk-list-head:focus-visible { outline: none; background: var(--lk-wash); }
 .lk-list-head .lk-fold { opacity: 0; margin-top: 0; }
 .lk-list-head:hover .lk-fold, .lk-list-head:focus-visible .lk-fold, .lk-list-head[aria-expanded="false"] .lk-fold { opacity: 1; }
-.lk-prop { font-family: var(--lk-prop-face); font-weight: var(--lk-prop-weight); font-size: .9em; letter-spacing: -.01em; color: var(--lk-quiet); }
+.lk-prop { font-family: var(--lk-prop-face); font-weight: var(--lk-prop-weight); font-size: var(--lk-prop-size); letter-spacing: -.01em; color: var(--lk-quiet); }
 .lk-plain { color: var(--lk-quiet); }
 .lk-list-name { flex: 1; min-width: 0; display: flex; align-items: center; }
 .lk-list-head:has(> .lk-list-via:not(:empty)) { flex-wrap: wrap; }
 .lk-list-via { order: -1; flex: 0 0 100%; display: flex; align-items: center; min-height: 24px; }
 .lk-list-via:empty { display: none; }
-.lk-list-via > :is(svg, .ti):first-child { flex: none; width: 13px; height: 13px; margin: 0 5px 0 2px; font-size: 13px; color: var(--lk-off); }
+.lk-list-via > :is(svg, .ti):first-child { flex: none; width: 13px; height: 13px; margin: 0 5px 0 2px; font-size: var(--lk-small); color: var(--lk-off); }
 .lk-list-head[data-one] > :is(.lk-fold, .lk-list-name) { display: none; }
 .lk-said { font-weight: 500; }
 .lk-list-head:has(> .lk-list-via:not(:empty)) .lk-fold { opacity: 1; }   /* on the count's line the arrow stays in view, faint, as it was */
 .lk-list-name .lk-tag { margin-left: .5em; font-size: var(--lk-small); }
 .lk-span { margin-left: auto; padding-left: 12px; font-size: var(--lk-small); color: var(--lk-off); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.lk-plus { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; margin-left: 4px; padding: 0; border: 0; border-radius: 6px; background: none; color: var(--lk-quiet); opacity: .55; cursor: pointer; }
+.lk-plus { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; margin-left: 4px; padding: 0; border: 0; border-radius: var(--lk-corner); background: none; color: var(--lk-quiet); opacity: .55; cursor: pointer; }
 .lk-plus:hover, .lk-plus:focus-visible { opacity: 1; background: var(--lk-wash); outline: none; }
 @container lk-list (max-width: 300px) { .lk-span { display: none; } }
 .lk-more { margin: 2px 0 0 34px; padding: 2px 0; border: 0; background: none; color: var(--lk-quiet); font: inherit; font-size: var(--lk-small); cursor: pointer; text-decoration: underline; text-decoration-color: var(--lk-link); text-decoration-thickness: var(--lk-link-width); text-underline-offset: 3px; }
@@ -337,7 +349,7 @@ G.node.CSS = `
 /* The levels show: one soft band for the node opened from a row; a node dug into stands under the value it was reached
    through, its rows starting where the value's words start, with a guide line down from the value's arrow. It takes its room
    in one move, once Logseq has drawn it. */
-.lk-row > .lk-open { background: color-mix(in srgb, var(--lk-text) 3.5%, transparent); border-radius: 6px; padding: 0 8px 6px 0; }
+.lk-row > .lk-open { background: color-mix(in srgb, var(--lk-text) 3.5%, transparent); border-radius: var(--lk-corner); padding: 0 8px 6px 0; }
 .lk-dugopen { position: absolute; right: 0; margin: 0; padding: 0 0 6px; opacity: 0; pointer-events: none; }
 .lk-dugopen[data-whole] { opacity: 1; pointer-events: auto; transition: opacity .16s ease .04s; }
 .lk-dugopen.lk-flow { position: relative; margin: 2px 0 6px 28px; }
