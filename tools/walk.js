@@ -200,6 +200,33 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await box.frame().evaluate(u => logseq.Editor.editBlock(u), typed); await wait(700); await page.keyboard.press('Escape'); await wait(2200);
       return is([undone, await holds()], [[], []]);
     });
+    // ---- Writing: where a tag sits, and where a new tag goes
+    const tagged = await box.frame().evaluate(async u => (await logseq.Editor.appendBlockInPage(u, '')).uuid, OCT7);
+    await step('Logseq\'s own list of tags says where each tag sits', async () => {
+      await wait(600); await box.frame().evaluate(u => logseq.Editor.editBlock(u), tagged); await wait(700);
+      await page.keyboard.type('Scan #Hosp', { delay: 50 }); await wait(900);
+      const where = await page.evaluate(() => [...document.querySelectorAll('.ui__popover-content a.menu-link')].filter(a => /^Hospital/.test(a.innerText)).map(a => a.querySelector('.lk-where')?.innerText));
+      for (let i = 0; i < 4; i++) await page.keyboard.press('Backspace');
+      await wait(500);
+      return is(where, ['Organization / Entity', 'Occurrence']);   // Hospital, and Hospitalization
+    });
+    await step('a tag made while writing asks where it goes: an arrow and Enter put it there, and the keys stay in the bullet', async () => {
+      await page.keyboard.type('Zzward', { delay: 50 }); await wait(900); await page.keyboard.press('Enter'); await wait(1500);
+      const head = await page.locator('.lk-menu .lk-group').innerText().catch(() => '');
+      await page.keyboard.press('ArrowDown'); await wait(200);
+      const lit = await page.locator('.lk-menu .lk-item.lit').innerText().catch(() => '');
+      await page.keyboard.press('Enter'); await wait(1500);
+      const placed = await box.frame().evaluate(async () => (await logseq.DB.datascriptQuery('[:find ?pt :where [?b :block/title "Zzward"] [?b :logseq.property.class/extends ?p] [?p :block/title ?pt]]')).flat());
+      return is([head, lit !== '', placed.length === 1 && placed[0] === lit, await page.evaluate(() => document.activeElement?.tagName), await count('.lk-menu')], ['Zzward is a new tag. Put it under:', true, true, 'TEXTAREA', 0]);
+    });
+    await step('writing on is the answer no: the list goes and the letters land in the bullet', async () => {
+      await page.keyboard.type(' #Zzbay', { delay: 50 }); await wait(900); await page.keyboard.press('Enter'); await wait(1500);
+      const asked = await count('.lk-menu');
+      await page.keyboard.type(' on', { delay: 50 }); await wait(400);
+      const text = await page.evaluate(() => document.activeElement?.value || '');
+      await page.keyboard.press('Escape'); await wait(800);
+      return is([asked, await count('.lk-menu'), / on$/.test(text)], [1, 0, true]);
+    });
     await step('nothing the plugin did was said as an error', async () => is(errors, []));
   } finally {
     if (!keep) { await sandbox.stop(box); fs.rmSync(DIR, { recursive: true, force: true }); }

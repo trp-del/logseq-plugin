@@ -11,6 +11,7 @@
      read.statuses()          Logseq's statuses in its order: [{ id, name, title, icon }]
      read.tags()              id -> { id, title, uuid, parents: [id] }   the person's own tags and what each sits under
      read.tagsOf(id)          the ids of a node's own tags
+     read.tagIds()            the ids of the person's tags as they are this moment (never kept)
      read.search(words)       Logseq's own search for the words, its order kept: [node]
      read.tagged(tagIds)      the nodes holding any of these tags: [node]
      read.values(ids)         id -> [words]   what each node holds under the person's properties
@@ -52,6 +53,8 @@ const tags = () => once('tags', async () => {
   for (const [t, parent] of above) if (out.has(t) && out.has(parent)) out.get(t).parents.push(parent);
   return out;
 });
+// The ids of the person's tags, asked afresh each time (never kept): how a tag made a moment ago is noticed.
+const tagIds = async () => new Set((await q('[:find ?t ?i :where [?t :block/tags :logseq.class/Tag] [?t :db/ident ?i]]')).filter(([, ident]) => /^user\.class\//.test(bare(ident))).map(([id]) => id));
 const tagsOf = async id => isId(id) ? (await q(`[:find ?t :where [${id} :block/tags ?t]]`)).map(([t]) => t) : [];
 const statuses = () => once('statuses', async () => {
   const rows = await q('[:find ?v ?ident ?t ?o ?icon :where [?v :block/closed-value-property ?p] [?p :db/ident :logseq.property/status] [?v :block/title ?t] [(get-else $ ?v :db/ident "") ?ident] [(get-else $ ?v :block/order "") ?o] [(get-else $ ?v :logseq.property/icon "") ?icon]]');
@@ -142,8 +145,15 @@ async function names(uuids) {
 async function search(words, limit = 40) {
   let found = null;
   try { found = await logseq.App.search(String(words), { limit, 'search-limit': limit }); } catch (error) { console.warn('Logseq Plugin: Logseq\'s search did not answer', error); return []; }
-  const ids = [...new Set((found?.blocks || []).map(block => block.id).filter(isId))], nodes = await describe(ids);
-  return ids.map(id => nodes.get(id)).filter(Boolean);
+  const ids = [...new Set((found?.blocks || []).map(block => block.id).filter(isId))];
+  if (!ids.length) return [];
+  // A property's text value (a tag's description) is a block of its own to Logseq: it is no note, and is left out. A tag and a
+  // property found by name say that they are one.
+  const [nodes, values, kinds] = await Promise.all([describe(ids), q(`[:find ?b :where ${among('?b', ids)} [?b :logseq.property/created-from-property _]]`),
+    q(`[:find ?b ?k :where ${among('?b', ids)} [?b :block/tags ?t] [?t :db/ident ?k]]`)]);
+  const value = new Set(values.map(([b]) => b)), kind = new Map();
+  for (const [b, k] of kinds) { const name = bare(k) === 'logseq.class/Tag' ? 'Tag' : bare(k) === 'logseq.class/Property' ? 'Property' : ''; if (name) kind.set(b, name); }
+  return ids.filter(id => !value.has(id)).map(id => { const node = nodes.get(id); return node && !node.tag && kind.has(id) ? { ...node, tag: kind.get(id) } : node; }).filter(Boolean);
 }
 async function tagged(tagIds) {
   const list = [...new Set(tagIds)].filter(isId);
@@ -223,5 +233,5 @@ async function writing(uuid) {
     page: isId(pageId) ? { id: pageId, tags: tagsFor(pageId), day: Number(pageDay) || 0 } : null, dated };
 }
 
-G.read = { byUuids, schema, writing, search, tagged, values, tasks, journal, q, node, describe, pointingAt, dues, names, properties, statuses, tags, tagsOf, forget: () => kept.clear(), isId, UUID };
+G.read = { byUuids, schema, writing, search, tagged, values, tasks, journal, q, node, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagsOf, forget: () => kept.clear(), isId, UUID };
 })();

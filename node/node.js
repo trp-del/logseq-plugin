@@ -22,10 +22,12 @@ function open(row) {
   const doc = row.ownerDocument, holder = doc.createElement('div'); holder.className = 'lk-open';
   const page = doc.createElement('div'); page.className = 'lk-editor';
   const rel = doc.createElement('div'); rel.className = 'lk-rel';
-  holder.append(page, rel); row.appendChild(holder); row.dataset.open = '1';
+  holder.append(page, rel); row.appendChild(holder); row.dataset.open = 'soon';
+  // Logseq fills the node in over a few frames (a link's name, a property's value): it is shown once it has come to rest.
+  const whole = G.touch.editor.whole(page, () => { if (row.dataset.open === 'soon') row.dataset.open = '1'; });
   row.querySelector(':scope > .lk-fold')?.setAttribute('aria-label', 'Close');
   const offEditor = G.touch.editor.show(page, row.dataset.uuid), offLists = lists(rel, row.dataset.uuid);
-  holder.lkOff = () => { offEditor(); offLists(); };
+  holder.lkOff = () => { whole(); offEditor(); offLists(); };
   within = row;
 }
 function close(row, focus = false) {
@@ -173,7 +175,7 @@ function handle(state, event) {
 G.node = { toggle, open, close, listing, lists };
 G.node.CSS = `
 .lk-rel:empty { display: none; }
-.lk-rel { display: flex; flex-direction: column; gap: 18px; }
+.lk-rel { display: flex; flex-direction: column; gap: 18px; container: lk-list / inline-size; }
 .lk-list-head[hidden] { display: none; }
 .lk-list[data-face="tag"] > .lk-rows > .lk-row > .lk-line .lk-words { font-family: var(--lk-tag-face); }
 .lk-list[data-face="prop"] > .lk-rows > .lk-row > .lk-line .lk-words { font-family: var(--lk-prop-face); font-weight: var(--lk-prop-weight); font-size: .9em; letter-spacing: -.01em; }

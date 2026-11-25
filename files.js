@@ -7,7 +7,7 @@ window.PluginFiles = [
   'node/menu.js', 'node/line.js', 'node/node.js',
   'page/relations.js', 'page/place.js',
   'arrive/find.js', 'arrive/todo.js',
-  'write/sure.js',
+  'write/sure.js', 'write/where.js', 'write/place.js',
   'tend/ontology.js',
   'main.js',
 ];

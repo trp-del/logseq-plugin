@@ -16,7 +16,7 @@ Each layer uses only the layers under it. `node tools/layers.js` fails if a file
 | 1 The node | `node/` | One line for any node. A press opens the node in place as Logseq's own editor, with the lists of what points at it underneath, each row a line that opens in turn. |
 | 2 The node's page | `page/` | Relations: under a page, one list for each property that points at it, then where it is mentioned. Under a page's title, its tags and the tags above them. |
 | 3 Arriving | `arrive/` | Find: a window to reach any node by its kind, a value, a day or its words. Todo: your open tasks by day, in the right sidebar. |
-| 4 Writing | `write/` | Sure values: on leaving a bullet, what its words say for certain is written into its empty properties. Not built yet: tags placed, a link panel under the line. |
+| 4 Writing | `write/` | Sure values: on leaving a bullet, what its words say for certain is written into its empty properties. Where a tag sits: Logseq's own list of tags says the tags each one sits under. A new tag asks where it goes. Not built yet: a link panel under the line, guessed values. |
 | 5 Tending | `tend/` | Ontology: your tags as an outline and your properties, in the right sidebar; each opens in place as Logseq's own page for it. |
 
 `core/` holds the pieces that decide (how words read, how rows are grouped and ordered, how a tag's path runs). They know
@@ -94,6 +94,23 @@ When you leave a bullet you wrote in, what its words already say for certain is 
 
 Nothing is written where two things could be meant, into a property that already holds a value, or on a bullet you did not
 change. Each value is one step of Logseq's own Undo.
+
+### Where a tag sits (`write/where.js`)
+
+In Logseq's own list of tags, the one that opens when you type `#`, each of your tags is followed by the tags it sits under, up
+to the top ("Purchase  Payment Event / Occurrent"). The list, its order and its keys stay Logseq's. A name two of your tags
+share gets no path.
+
+### A new tag asks where it goes (`write/place.js`)
+
+A tag made while you write (Logseq's "New tag …") stands at the top. A list of your tags opens next to your line, as an outline:
+Down or Up lights a tag and Enter puts the new tag under it. Escape, or simply writing on, leaves it at the top; the keys never
+leave your bullet. Logseq's own Undo takes the placing back. A tag made anywhere else is not asked about.
+
+### In a narrow place
+
+In the right sidebar a list gives its words the whole width: a line's day stands under its words, an outline steps in less, and
+a node opened in place takes the width of the list.
 
 ### Ontology (`tend/ontology.js`)
 

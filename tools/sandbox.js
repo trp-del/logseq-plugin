@@ -14,7 +14,7 @@
 const fs = require('node:fs'), path = require('node:path'), os = require('node:os'), http = require('node:http');
 const { spawn, execFileSync } = require('node:child_process');
 const COLOUR = '--force-color-profile=srgb';
-const PORT = Number(process.env.GUARD_PORT || 9340), APP = '/Applications/Logseq.app/Contents/MacOS/Logseq', ID = 'logseq-plugin';
+const PORT = Number(process.env.GUARD_PORT || 9340), APP = process.env.LOGSEQ_APP || '/Applications/Logseq.app/Contents/MacOS/Logseq', ID = 'logseq-plugin';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const ROOTS = (process.env.GUARD_GRAPHS || [path.join(os.homedir(), 'logseq-test-graphs', 'graphs'), path.join(os.homedir(), 'logseq', 'graphs')].join(':')).split(':');
 

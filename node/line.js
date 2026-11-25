@@ -70,7 +70,8 @@ G.line.CSS = `
 .lk-row > .lk-day { grid-column: 1; overflow: hidden; white-space: nowrap; font-size: var(--lk-small); color: var(--lk-off); font-variant-numeric: tabular-nums; line-height: 24px; padding-top: 2px; }
 .lk-row > .lk-fold { grid-column: 2; position: relative; z-index: 1; }   /* above the opened node, whose own margin reaches under it */
 .lk-row > .lk-line, .lk-row > .lk-open { grid-column: 3; min-width: 0; }
-.lk-row[data-open] > .lk-line { display: none; }
+.lk-row[data-open="1"] > .lk-line { display: none; }
+.lk-row[data-open="soon"] > .lk-open { height: 0; overflow: hidden; visibility: hidden; }   /* Logseq is still filling it in: the line stays until it is whole */
 .lk-fold { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 24px; margin-top: 2px; padding: 0; border: 0; background: none; color: var(--lk-off); cursor: pointer; opacity: 0; }
 .lk-fold svg { width: 14px; height: 14px; transition: transform .12s ease; }
 .lk-row:hover > .lk-fold, .lk-row:focus-within > .lk-fold, .lk-row[data-open] > .lk-fold, .lk-list-head .lk-fold { opacity: 1; }
@@ -88,5 +89,18 @@ G.line.CSS = `
 .lk-tag { font-family: var(--lk-tag-face); font-style: normal; color: var(--lk-quiet); text-decoration: none; }
 a.lk-tag { cursor: pointer; }
 .lk-none, .lk-off { color: var(--lk-off); }
-.lk-why { color: var(--lk-quiet); font-size: var(--lk-small); margin-left: .35em; }`;
+.lk-why { color: var(--lk-quiet); font-size: var(--lk-small); margin-left: .35em; }
+/* In a narrow place (the sidebar) the words get the whole width: the day stands under them, an outline steps in less, and an
+   opened node takes the width of the list. */
+@container lk-list (max-width: 300px) {
+  .lk-row { grid-template-columns: 18px minmax(0, 1fr); padding-left: calc(var(--lk-depth, 0) * 12px); }
+  .lk-row > .lk-fold { grid-column: 1; grid-row: 1; }
+  .lk-row > .lk-line, .lk-row > .lk-open { grid-column: 2; grid-row: 1; }
+  .lk-row > .lk-day { grid-column: 2; grid-row: 2; padding: 0 0 4px 20px; margin-top: -3px; line-height: 16px; font-size: var(--lk-label); }
+  .lk-row[data-status]:not([data-status=""]) > .lk-day { padding-left: 44px; }
+  .lk-row > .lk-day:empty, .lk-row[data-open="1"] > .lk-day { display: none; }
+  .lk-row[data-open="1"] { padding-left: 0; }
+  .lk-more { margin-left: 34px; }
+  .lk-open > .lk-rel { margin-left: 8px; }
+}`;
 })();

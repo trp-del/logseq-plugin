@@ -2,7 +2,9 @@
    not in its plugin API, and every piece of Logseq lent to the plugin stands here and nowhere else, so a Logseq update is
    checked against this one file. Seen in Logseq 2.0.2.
      touch.watch(fn)          fn runs once a frame after Logseq's page changed; gives back what stops it
-     touch.changed(fn)        fn runs a moment after the graph changed; gives back what stops it
+     touch.changed(fn, atOnce) fn runs a moment after the graph changed (atOnce: at every change, so it must be light); gives
+                              back what stops it
+     touch.writing()          the text box of the bullet being written in, or null
      touch.pages()            Logseq's own pages on screen, each { el, uuid, feed }: the main page, a page in the sidebar,
                               a day in the journals feed (feed: true)
      touch.pageFoot(el, name) where, in one of those pages, something of the plugin's may stand under the page's bullets
@@ -14,6 +16,7 @@
      touch.busy()             whether one of Logseq's own menus, lists or windows is open
      touch.left(fn)           fn(uuid) runs a moment after a bullet whose words changed stops being written in; gives back what
                               stops it. Only looks on: nothing of Logseq's editor is touched while it is written in
+     touch.tagList(say)       words after each tag's name in Logseq's own list of tags (the one on "#"): say(name) -> words
      touch.key(combo, fn)     a key taken before Logseq sees it ('mod+k'), matched by its place on the keyboard; gives back what
                               lets it go. fn answers false to leave the press to Logseq after all
      touch.command(key, label, run)   a line in Logseq's command palette
@@ -34,18 +37,21 @@ const passes = new Set(); let observer = null, queued = false;
 function run() { queued = false; for (const fn of [...passes]) { try { fn(); } catch (error) { console.error('Logseq Plugin: a pass over the page failed', error); } } }
 function watch(fn) {
   passes.add(fn);
-  if (!observer) { observer = new (host().defaultView.MutationObserver)(() => { if (!queued) { queued = true; host().defaultView.requestAnimationFrame(run); } }); observer.observe(host().body, { childList: true, subtree: true }); }
+  if (!observer) { observer = new (host().defaultView.MutationObserver)(() => { if (!queued) { queued = true; host().defaultView.requestAnimationFrame(run); } }); observer.observe(host().body, { childList: true, subtree: true }); observer.observe(host().documentElement, { attributes: true, attributeFilter: ['class', 'data-theme', 'data-color'] }); }
   host().defaultView.requestAnimationFrame(() => { if (passes.has(fn)) fn(); });
   return () => { passes.delete(fn); if (!passes.size && observer) { observer.disconnect(); observer = null; } };
 }
 
 // The graph changed: said once, a moment after the last change of a burst (typing saves every few letters).
-const heard = new Set(); let offChanged = null, timer = 0;
-function changed(fn) {
-  heard.add(fn);
-  if (!offChanged) offChanged = logseq.DB.onChanged(() => { clearTimeout(timer); timer = setTimeout(() => { G.read.forget(); for (const one of [...heard]) { try { one(); } catch (error) { console.error('Logseq Plugin: a part could not follow a change', error); } } }, 500); });
-  return () => { heard.delete(fn); if (!heard.size && typeof offChanged === 'function') { offChanged(); offChanged = null; clearTimeout(timer); } };
+const heard = new Set(), heardAtOnce = new Set(); let offChanged = null, timer = 0;
+function changed(fn, atOnce = false) {
+  (atOnce ? heardAtOnce : heard).add(fn);
+  const tell = (all) => { for (const one of [...all]) { try { one(); } catch (error) { console.error('Logseq Plugin: a part could not follow a change', error); } } };
+  if (!offChanged) offChanged = logseq.DB.onChanged(() => { tell(heardAtOnce); clearTimeout(timer); timer = setTimeout(() => { G.read.forget(); tell(heard); }, 500); });
+  return () => { heard.delete(fn); heardAtOnce.delete(fn); if (!heard.size && !heardAtOnce.size && typeof offChanged === 'function') { offChanged(); offChanged = null; clearTimeout(timer); } };
 }
+// The text box of the bullet being written in, or null.
+const writing = () => { const el = host().activeElement; return el?.tagName === 'TEXTAREA' && el.closest('.ls-block[blockid]') ? el : null; };
 
 function pages() {
   const out = [];
@@ -115,6 +121,15 @@ const editor = (() => {
       ensure(); bump?.();
       return () => { if (spots.delete(el)) bump?.(); };
     },
+    // fn runs once, when Logseq has drawn the node into el and it has come to rest. Gives back what runs it now.
+    whole(el, fn) {
+      const view = el.ownerDocument.defaultView; let rest = 0, done = false;
+      const now = () => { if (done) return; done = true; watcher.disconnect(); view.clearTimeout(rest); view.clearTimeout(cap); fn(); };
+      const watcher = new view.MutationObserver(() => { view.clearTimeout(rest); if (el.querySelector('.ls-block')) rest = view.setTimeout(now, 70); });
+      watcher.observe(el, { childList: true, subtree: true, characterData: true });
+      const cap = view.setTimeout(now, 900);
+      return now;
+    },
     stop() { spots.clear(); try { bump?.(); if (typeof off === 'function') off(); } catch (error) { /* gone with the plugin */ } off = null; },
   };
 })();
@@ -148,6 +163,26 @@ function key(combo, fn) {
   host().addEventListener('keydown', onKey, true);
   return () => host().removeEventListener('keydown', onKey, true);
 }
+/* Logseq's own list of tags, the one that opens on "#" in a bullet. say(name) answers the words to stand after a tag's name
+   there, or ''. Logseq draws the rows again at every letter, so each pass sets the words anew. Gives back what takes them out. */
+function tagList(say) {
+  const LIST = '.ui__popover-content[data-editor-popup-ref="page-search-hashtag"]';
+  const off = watch(() => {
+    const list = host().querySelector(LIST);
+    if (!list) return;
+    for (const row of list.querySelectorAll('a.menu-link')) {
+      const line = row.querySelector('.flex-row.items-start');
+      if (!line) continue;
+      let note = [...line.children].find(child => child.classList.contains('lk-where')) || null;
+      const name = [...line.childNodes].filter(node => node !== note).map(node => node.textContent).join('').trim();
+      let words = ''; try { words = String(say(name) || ''); } catch (error) { words = ''; }
+      if (!words) { note?.remove(); continue; }
+      if (!note) { note = host().createElement('span'); note.className = 'lk-where'; line.appendChild(note); }
+      if (note.textContent !== words) note.textContent = words;
+    }
+  });
+  return () => { off(); for (const note of host().querySelectorAll(`${LIST} .lk-where`)) note.remove(); };
+}
 const command = (name, label, run) => logseq.App.registerCommandPalette({ key: name, label }, run);
 function section(name, title, draw, path) {
   const E = logseq.Experiments, React = E?.React;
@@ -170,7 +205,12 @@ function section(name, title, draw, path) {
     const lines = path ? [...(head.parentElement?.querySelectorAll('.ui__icon svg path') || [])] : [];
     lines.forEach((line, i) => { const d = i ? '' : path; if (line.getAttribute('d') !== d) line.setAttribute('d', d); });
     const holder = head.closest('.sidebar-item')?.querySelector('.lk-section');
-    if (holder) fill(holder);
+    if (holder) {
+      fill(holder);
+      // The ground the section stands on, for a piece of it that stays in view while the rest scrolls under it.
+      const ground = holder.ownerDocument.defaultView.getComputedStyle(head.closest('.sidebar-item')).backgroundColor;
+      if (holder.style.getPropertyValue('--lk-ground') !== ground) holder.style.setProperty('--lk-ground', ground);
+    }
     for (const one of [...drawn.keys()]) if (!one.isConnected) clear(one);
   });
   const View = () => {
@@ -242,7 +282,7 @@ ${PAGE}:has(> .lk-rel) .references, ${PAGE}:has(> .lk-rel) .ls-bidirectional-pro
    A page's own arrow stays, in the place the line's bullet had: it unfolds what the page keeps folded (a tag's Extends and
    properties), and nothing else opens those. */
 const OPENED = `
-.lk-editor ${PAGE} { padding: 0 !important; }
+.lk-editor ${PAGE} { padding: 0 !important; margin: 0 !important; }   /* Logseq pads it in the main page and insets it in the sidebar */
 .lk-editor ${PAGE} > .page-inner { display: block !important; margin: 0 !important; }
 .lk-editor ${PAGE} > :not(.page-inner) { display: none !important; }
 .lk-editor .breadcrumb { display: none !important; }
@@ -251,12 +291,12 @@ const OPENED = `
 .lk-editor .ls-page-title-container, .lk-editor .ls-page-title-container :is(h1, .block-title-wrap, .ls-page-title-actions) { font-size: inherit !important; line-height: 24px !important; font-weight: 600 !important; min-height: 0 !important; margin: 0 !important; }
 .lk-editor .ls-page-properties { margin-top: 4px !important; }
 .lk-editor .ls-page-title-actions { display: none !important; }
-.lk-editor .is-page-title-row { margin-left: 0 !important; }
+.lk-editor .is-page-title-row { margin-left: 0 !important; gap: 0 !important; }   /* the title's words stand where the line's words stood */
 .lk-editor:has(.ls-page-title) { margin-left: -2px; }
 .lk-editor .ls-page-icon { align-self: flex-start !important; height: 24px !important; padding: 0 !important; margin: 0 !important; align-items: center !important; }
 .lk-editor .ls-page-icon button { width: 20px !important; height: 24px !important; min-width: 0 !important; padding: 0 !important; }
 .lk-editor .ls-page-icon :is(.ui__icon, svg) { width: 18px !important; height: 18px !important; font-size: 18px !important; }
 .lk-editor .lsp-hook-ui-slot { display: none !important; }`;
 
-G.touch = { watch, changed, pages, pageFoot, pageHead, editor, open, openUrl, busy, left, key, command, section, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE };
+G.touch = { watch, changed, writing, pages, pageFoot, pageHead, editor, open, openUrl, busy, left, tagList, key, command, section, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE };
 })();
