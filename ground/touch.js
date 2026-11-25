@@ -6,7 +6,8 @@
                               back what stops it
      touch.writing()          the text box of the bullet being written in, or null
      touch.edit(uuid)         the caret put into a node's words
-     touch.digs(fn)           fn(editor, uuid) -> true takes a plain press on a link inside an opened node, in Logseq's place
+     touch.digs(fn)           fn(editor, uuid) -> true takes a plain press on the arrow before a value that is a node
+     touch.seat(editor, uuid) where a node dug into stands under its value's row: { top, left, row, mark } or null
      touch.pages()            Logseq's own pages on screen, each { el, uuid, feed }: the main page, a page in the sidebar,
                               a day in the journals feed (feed: true)
      touch.pageFoot(el, name) where, in one of those pages, something of the plugin's may stand under the page's bullets
@@ -53,20 +54,43 @@ function changed(fn, atOnce = false) {
   if (!offChanged) offChanged = logseq.DB.onChanged(() => { tell(heardAtOnce); clearTimeout(timer); timer = setTimeout(() => { G.read.forget(); tell(heard); }, 500); });
   return () => { heard.delete(fn); heardAtOnce.delete(fn); if (!heard.size && !heardAtOnce.size && typeof offChanged === 'function') { offChanged(); offChanged = null; clearTimeout(timer); } };
 }
-/* A plain press on a link inside an opened node (a value of one of its properties, a link in its words). fn(editor, uuid)
-   answers true when the place takes the press; Logseq then does not go to that page. A press with Shift, Cmd, Ctrl or Option
-   stays Logseq's own. Gives back what stops it. */
+/* Digging, where it meets Logseq's screen. Inside an opened node a value that is a node carries a small arrow before its name
+   (drawn by the stylesheet, so nothing is added to Logseq's rows). A plain press on the arrow is the plugin's: fn(editor, uuid)
+   answers true when the place takes it. A press on the name itself, and any press with Shift, Cmd, Ctrl or Option, stays
+   Logseq's own and goes to that page. Gives back what stops it. */
+const ROW = '.bottom-property-pill, .property-pair', VALUE = '.property-value-inner[data-type="node"] a.page-ref[data-uuid]';
 function digs(fn) {
   const doc = host(), types = ['pointerdown', 'mousedown', 'click'];
   const on = event => {
     if (event.button !== 0 || event.shiftKey || event.metaKey || event.ctrlKey || event.altKey) return;
-    const link = event.target.closest?.('a.page-ref[data-uuid]'), editor = link?.closest('.lk-editor');
-    if (!link || !editor || link.closest('textarea')) return;
+    const link = event.target.closest?.(VALUE), editor = link?.closest('.lk-editor');
+    if (!link || !editor || !link.closest(ROW) || event.clientX - link.getBoundingClientRect().left > 18) return;   // only the arrow
     if (event.type === 'click' && !fn(editor, String(link.getAttribute('data-uuid')).toLowerCase())) return;
     event.preventDefault(); event.stopPropagation();
   };
   for (const type of types) doc.addEventListener(type, on, true);
   return () => { for (const type of types) doc.removeEventListener(type, on, true); };
+}
+/* Where a node dug into stands: under the row of the value it was reached through. Answers null when the value has no row in
+   this editor, else { top, left } (from the editor's own corner: the row's foot, the value's left edge) and two selectors for
+   the style rule that opens the room: row (that row) and mark (the value's own link, whose arrow turns). */
+function seat(editor, uuid) {
+  const link = [...editor.querySelectorAll(VALUE)].find(one => String(one.getAttribute('data-uuid')).toLowerCase() === uuid && one.closest(ROW) && one.closest('.lk-editor') === editor);
+  const row = link?.closest(ROW);
+  if (!row) return null;
+  const at = editor.getBoundingClientRect(), r = row.getBoundingClientRect(), v = (link.closest('.property-value-container') || link).getBoundingClientRect();
+  const kind = row.classList.contains('property-pair') ? '.property-pair' : '.bottom-property-pill', n = [...row.parentElement.children].indexOf(row) + 1;
+  return { top: r.bottom - at.top, left: v.left - at.left, row: `${kind}:nth-child(${n}):has(a.page-ref[data-uuid="${uuid}"])`, mark: `:is(${ROW}) a.page-ref[data-uuid="${uuid}"]` };
+}
+// How wide the longest property name of an opened node is drawn, so its holder can set the names' column to it.
+function names(editor) {
+  const range = editor.ownerDocument.createRange();
+  let wide = 0;
+  for (const key of editor.querySelectorAll(':is(.bottom-property-pill, .property-pair) .property-k')) {
+    if (key.closest('.lk-editor') !== editor || !key.offsetParent) continue;
+    range.selectNodeContents(key); wide = Math.max(wide, range.getBoundingClientRect().width);
+  }
+  return Math.ceil(wide);
 }
 // The caret put into a node's words, wherever Logseq shows the node.
 const edit = uuid => logseq.Editor.editBlock(String(uuid));
@@ -324,22 +348,69 @@ ${PAGE}:has(> .lk-rel) .references, ${PAGE}:has(> .lk-rel) .ls-bidirectional-pro
    closes the node, is the one a person means there (the walk, 25 November 2026: a press on the row's arrow reached Logseq's).
    A page's own arrow stays, in the place the line's bullet had: it unfolds what the page keeps folded (a tag's Extends and
    properties), and nothing else opens those. */
+const ARROW = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 512'%3E%3Cpath d='M0 384.662V127.338c0-17.818 21.543-26.741 34.142-14.142l128.662 128.662c7.81 7.81 7.81 20.474 0 28.284L34.142 398.804C21.543 411.404 0 402.48 0 384.662z'/%3E%3C/svg%3E\")";
 const OPENED = `
+/* One form for every node (25 November 2026: "this does not look like a coherent system to dig"). Logseq draws a page's
+   properties as rows, name then value, and a tagged bullet's as capsules in one clipped strip. Inside an opened node both are
+   laid out as one kind of row: the names in one column as wide as the longest of them (--lk-keycol, set by the node's holder),
+   the values in the next. Every row stays Logseq's own, so a press on a value opens Logseq's own list. A property with no
+   value draws nothing. */
+.lk-editor { --lk-keycol: 104px; --lk-gutter: 22px; }
+.lk-editor .positioned-properties.block-below { overflow: visible !important; height: auto !important; max-height: none !important; margin: 0 !important; padding: 0 !important; gap: 0 !important; }
+.lk-editor .bottom-properties-row { display: block !important; height: auto !important; max-height: none !important; overflow: visible !important; padding: 0 !important; transition: none !important; }
+.lk-editor .bottom-properties-row > button { display: none !important; }
+.lk-editor .bottom-properties-pills-strip { display: flex !important; flex-direction: column !important; align-items: stretch !important; gap: 0 !important; overflow: visible !important; width: 100% !important; }
+.lk-editor :is(.bottom-property-pill, .property-pair.property-panel-row) { display: grid !important; grid-template-columns: calc(var(--lk-keycol) + var(--lk-gutter)) minmax(0, 1fr) !important; gap: 0 !important; align-items: start !important; min-height: var(--lk-line-h); height: auto !important; width: 100% !important; max-width: none !important; margin: 0; padding: 0 !important; border: 0 !important; border-radius: 0 !important; background: none !important; box-shadow: none !important; outline: 0 !important; overflow: visible !important; font-size: var(--lk-line-size) !important; line-height: 20px !important; transition: margin-bottom .14s ease; }
+.lk-editor .bottom-property-pill::after { content: none !important; }
+.lk-editor .bottom-property-pill > div:first-child { min-height: var(--lk-line-h); align-items: center; min-width: 0; }
+.lk-editor .bottom-property-pill > div:first-child > .select-none { display: none !important; }
+.lk-editor .bottom-property-pill .bottom-property-edit-icon, .lk-editor .property-panel-edit-btn { display: none !important; }
+.lk-editor .bottom-property-pill:has(.empty-value), .lk-editor .property-pair.property-panel-row.property-panel-row-empty, .lk-editor .ls-new-property { display: none !important; }
+.lk-editor .property-key-panel { width: auto !important; min-width: 0 !important; min-height: var(--lk-line-h) !important; }
+.lk-editor :is(.bottom-property-pill, .property-pair) .property-key-inner { min-width: 0; max-width: var(--lk-keycol); min-height: 0 !important; }
+.lk-editor .property-pair .property-icon, .lk-editor .property-pair .property-panel-bullet { display: none !important; }
+.lk-editor :is(.bottom-property-pill, .property-pair) .property-k { display: block !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--lk-prop-face) !important; font-weight: var(--lk-prop-weight) !important; font-size: var(--lk-label) !important; line-height: 20px !important; letter-spacing: -.01em; color: var(--lk-quiet) !important; }
+.lk-editor :is(.bottom-property-pill, .property-pair) .property-value-container { min-height: var(--lk-line-h) !important; display: flex !important; align-items: center !important; flex-wrap: wrap; overflow: visible !important; white-space: normal !important; min-width: 0; font-size: var(--lk-line-size) !important; line-height: 20px !important; padding: 0 !important; }
+.lk-editor :is(.bottom-property-pill, .property-pair) .property-value-inner { background: none !important; }
+.lk-editor .ls-properties-area, .lk-editor .properties-panel { margin: 0 !important; padding: 0 !important; overflow: visible !important; border-radius: 0 !important; }
+.lk-editor .ls-block-content-indent { padding-left: 42px !important; }   /* a bullet's other properties start where its first ones do */
+/* A value that is words is a bullet of Logseq's: its words stand in the values' column, without the bullet. */
+.lk-editor .property-pair .property-block-container { margin: 2px 0 0 !important; font-size: var(--lk-line-size) !important; }
+.lk-editor .property-pair .property-block-container .block-control-wrap { display: none !important; }
+.lk-editor .property-pair .property-block-container .block-main-container { gap: 0 !important; }
+.lk-editor .property-pair .property-block-container .ls-block-content-indent { display: none !important; }
+/* The arrow before a value that is a node: a press on it digs. The arrow stands in the gutter between the two columns, so the
+   words of every value start on one line. */
+.lk-editor :is(.bottom-property-pill, .property-pair) .property-value-inner[data-type="node"] { margin-left: -16px; overflow: visible !important; }
+.lk-editor :is(.bottom-property-pill, .property-pair) .property-value-inner[data-type="node"] a.page-ref::before { content: ""; display: inline-block; width: 12px; height: 14px; margin: 0 4px 0 0; vertical-align: -2px; background: var(--lk-off); -webkit-mask: ${ARROW} center / 5px 13px no-repeat; mask: ${ARROW} center / 5px 13px no-repeat; transition: transform .14s ease; cursor: pointer; }
+.lk-editor :is(.bottom-property-pill, .property-pair) .property-value-inner[data-type="node"] a.page-ref:hover::before { background: var(--lk-text); }
+/* A node dug into: its name already stands on the value's line, so only what it holds is shown under it. */
+.lk-dugopen > .lk-editor .is-page-title-row { display: none !important; }
+.lk-dugopen > .lk-editor .ls-page-title, .lk-dugopen > .lk-editor .ls-page-title .ls-block > div { margin: 0 !important; padding: 0 !important; min-height: 0 !important; }
 .lk-editor ${PAGE} { padding: 0 !important; margin: 0 !important; }   /* Logseq pads it in the main page and insets it in the sidebar */
 .lk-editor ${PAGE} > .page-inner { display: block !important; margin: 0 !important; }
 .lk-editor ${PAGE} > :not(.page-inner) { display: none !important; }
 .lk-editor .breadcrumb { display: none !important; }
 .lk-editor:not(:has(.ls-page-title)) .ls-page-blocks .blocks-list-wrap[data-level="0"] > .ls-block > .block-main-container > .block-control-wrap > .block-control { visibility: hidden !important; pointer-events: none !important; }
-.lk-editor .ls-page-blocks { margin-top: 0 !important; }
+.lk-editor .ls-page-blocks { margin-top: 0 !important; min-height: 0 !important; }
+.lk-editor .ls-page-blocks:has(.ls-block[blockid]) .block-add-button { display: none !important; }   /* Logseq's dot for a first bullet, only where there is none yet */
 .lk-editor .ls-page-title-container, .lk-editor .ls-page-title-container :is(h1, .block-title-wrap, .ls-page-title-actions) { font-size: inherit !important; line-height: 24px !important; font-weight: 600 !important; min-height: 0 !important; margin: 0 !important; }
-.lk-editor .ls-page-properties { margin-top: 4px !important; }
+.lk-editor .ls-page-properties { margin: 2px 0 0 24px !important; }   /* a page's rows start where its title's words do */
+.lk-dugopen > .lk-editor .ls-page-properties { margin: 0 !important; }
+.lk-dugopen > .lk-editor .ls-page-blocks:not(:has(.ls-block[blockid])) { display: none !important; }   /* no empty line at every level: a first bullet is added in the node opened from a row */
+.lk-editor ${PAGE} > .page-inner { margin-bottom: 0 !important; gap: 0 !important; }
+.lk-editor .is-page-title-row > .block-control-wrap > .block-control { visibility: hidden !important; pointer-events: none !important; }   /* the row's own arrow closes it: one arrow, not two */
 .lk-editor .ls-page-title-actions { display: none !important; }
+.lk-editor .is-page-title-row .ls-block-right { height: 24px !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; align-self: flex-start !important; }
+.lk-editor .is-page-title-row .ls-block-right .block-tags { margin: 0 !important; padding-block: 0 !important; }
+.lk-editor .is-page-title-row .block-row { min-height: 0 !important; align-items: flex-start !important; }
 .lk-editor .is-page-title-row { margin-left: 0 !important; gap: 0 !important; }   /* the title's words stand where the line's words stood */
 .lk-editor:has(.ls-page-title) { margin-left: -2px; }
+.lk-dugopen > .lk-editor:has(.ls-page-title) { margin-left: 0; }
 .lk-editor .ls-page-icon { align-self: flex-start !important; height: 24px !important; padding: 0 !important; margin: 0 !important; align-items: center !important; }
 .lk-editor .ls-page-icon button { width: 20px !important; height: 24px !important; min-width: 0 !important; padding: 0 !important; }
 .lk-editor .ls-page-icon :is(.ui__icon, svg) { width: 18px !important; height: 18px !important; font-size: 18px !important; }
 .lk-editor .lsp-hook-ui-slot { display: none !important; }`;
 
-G.touch = { watch, changed, writing, edit, digs, pages, pageFoot, pageHead, editor, open, openUrl, busy, left, tagList, key, command, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE };
+G.touch = { watch, changed, writing, edit, digs, seat, names, pages, pageFoot, pageHead, editor, open, openUrl, busy, left, tagList, key, command, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE };
 })();

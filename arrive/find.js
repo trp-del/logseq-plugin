@@ -79,8 +79,7 @@ G.part({
       if (event.key === 'Escape') {
         if (G.touch.busy() || (!typing && /^(TEXTAREA|INPUT)$/.test(event.target.tagName))) return;   // Logseq's own Escape first
         event.preventDefault(); event.stopPropagation();
-        const opened = [...win.body.querySelectorAll('.lk-row[data-open]')].pop();
-        if (opened) { G.node.close(opened); field.focus(); }
+        if (G.node.back(win.body)) { if (!win.body.querySelector('.lk-row[data-open]')) field.focus(); }
         else if (win.text) { win.text = ''; field.value = ''; draw(); }
         else if (win.kind) { win.kind = null; draw(); }
         else close();

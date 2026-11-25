@@ -283,18 +283,30 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await page.keyboard.press('Escape'); await wait(600);
       return is([where, (await list.locator(':scope > .lk-rows > .lk-row').count()) >= before, held], [['TEXTAREA', true], true, [name]]);
     });
-    await step('a press on a node that an opened node points at opens it under that node, and Escape closes the deepest first', async () => {   // the owner, 25 November 2026: "does not allow me to dig"
+    await step('the arrow before a value that is a node opens that node under its value, in the same rows; Escape closes the deepest first', async () => {   // the owner, 25 November 2026: "does not allow me to dig", "this does not look like a coherent system to dig"
       const hash = await page.evaluate(() => location.hash);
       const row = page.locator(MAIN + ' > .lk-rows > .lk-row', { has: page.locator('.lk-line') }).nth(1);
       await row.locator(':scope > .lk-line').click(); await wait(2500);
-      const link = row.locator(':scope > .lk-open > .lk-editor a.page-ref').first(), name = await link.innerText();
-      await link.click(); await wait(3000);
-      const dug = await row.evaluate(el => { const box = el.querySelector(':scope > .lk-open > .lk-dug'); return [box.querySelectorAll(':scope > .lk-list > .lk-rows > .lk-row[data-open]').length, (box.querySelector('.lk-editor')?.innerText || '').trim().split('\n')[0]]; });
+      const link = row.locator(':scope > .lk-open > .lk-editor .property-value-inner[data-type="node"] a.page-ref').first(), uuid = (await link.getAttribute('data-uuid')).toLowerCase();
+      await link.click({ position: { x: 5, y: 10 } }); await wait(3000);
+      const dug = await row.evaluate(el => { const holder = el.querySelector(':scope > .lk-open'), box = holder.querySelector(':scope > .lk-dugopen'), value = holder.querySelector(':scope > .lk-editor .property-value-inner[data-type="node"] a.page-ref');
+        const left = one => { const walk = document.createTreeWalker(one, NodeFilter.SHOW_TEXT); let text; while ((text = walk.nextNode())) { const range = document.createRange(); range.selectNodeContents(text); const at = range.getBoundingClientRect(); if (text.textContent.trim() && at.width) return at.left; } return null; };
+        const under = box.getBoundingClientRect(), valueRow = value.closest('.bottom-property-pill, .property-pair'), next = valueRow.nextElementSibling;
+        return [box.dataset.node, Math.round(under.top - valueRow.getBoundingClientRect().bottom), next ? next.getBoundingClientRect().top >= under.bottom - 1 : true, Math.abs(left(box) - left(value)) < 1.5]; });
       const stayed = (await page.evaluate(() => location.hash)) === hash;
       await page.keyboard.press('Escape'); await wait(700);
-      const afterOne = [await row.locator(':scope > .lk-open > .lk-dug .lk-row').count(), await row.getAttribute('data-open')];
+      const afterOne = [await row.locator('.lk-dugopen').count(), await row.getAttribute('data-open')];
       await page.keyboard.press('Escape'); await wait(700);
-      return is([dug[0], dug[1] === name, stayed, afterOne, await count(MAIN + ' .lk-row[data-open]')], [1, true, true, [0, '1'], 0]);
+      return is([dug[0] === uuid, dug[1], dug[2], dug[3], stayed, afterOne, await count(MAIN + ' .lk-row[data-open]')], [true, 0, true, true, true, [0, '1'], 0]);
+    });
+    await step('in an opened node every property is one kind of row: names in one column, values in the next, no capsule', async () => {
+      const row = page.locator(MAIN + ' > .lk-rows > .lk-row', { has: page.locator('.lk-line') }).nth(1);
+      await row.locator(':scope > .lk-line').click(); await wait(2500);
+      const rows = await row.evaluate(el => { // where the first thing drawn in a piece starts: its words, or the icon Logseq draws before them (a status circle)
+        const left = one => { const walk = document.createTreeWalker(one, NodeFilter.SHOW_ALL); let at; while ((at = walk.nextNode())) { if (at.nodeType === 1 && at.tagName.toLowerCase() !== 'svg') continue; if (at.nodeType === 3 && !at.textContent.trim()) continue; const range = document.createRange(); at.nodeType === 3 ? range.selectNodeContents(at) : range.selectNode(at); const box = range.getBoundingClientRect(); if (box.width) return Math.round(box.left); } return null; };
+        return [...el.querySelectorAll(':scope > .lk-open > .lk-editor :is(.bottom-property-pill, .property-pair)')].filter(one => one.offsetParent).map(one => [left(one.querySelector('.property-k')), left(one.querySelector('.property-value-container')), getComputedStyle(one, '::after').content]); });
+      await page.keyboard.press('Escape'); await wait(700);
+      return is([rows.length > 1, new Set(rows.map(r => r[0])).size, new Set(rows.map(r => r[1])).size, rows.every(r => r[2] === 'none')], [true, 1, 1, true]);
     });
     // ---- Ontology: counts, moving a tag with the keys, its lines, its menu
     await step('each tag says how many nodes stand under it', async () => is(await page.evaluate(() => { const rows = [...document.querySelectorAll('.lk-ontology .lk-list[data-face="tag"] .lk-row')]; const n = r => Number(r.querySelector('.lk-num')?.innerText || 0); return [n(rows[0]) > 0, n(rows[0]) >= n(rows[1])]; }), [true, true]));

@@ -19,38 +19,62 @@ const folded = (() => { let set = null; const read = () => { if (!set) { try { s
   return { has: key => read().has(key), flip(key) { const s = read(); if (!s.delete(key)) s.add(key); try { G.host().defaultView.localStorage.setItem(FOLDED, JSON.stringify([...s])); } catch (error) { /* kept for this session only */ } } }; })();
 
 // ---- a node opened in place
-let within = null, offKeys = null;   // the opened node the person is in; what stops the keys being watched
+let within = null, offKeys = null, count = 0;   // the opened node the person is in (its holder); what stops the keys being watched
+/* What an opened node is made of, put into a holder of the plugin's: Logseq's own editor for the node, the nodes dug into from
+   it, and what points at it under the word Relations.
+   Digging: the arrow before a value that is a node opens that node under its value, one step in, in the same form: its own
+   rows, the nodes dug into from it, its Relations. The dug node is the plugin's own element. It is never put inside Logseq's
+   rows (Logseq throws away what it did not draw there): room is opened under the value's row by a style rule, and the node is
+   laid into that room. Where the value has no row of its own, the node stands under the rows. */
+function mount(holder, uuid) {
+  const doc = holder.ownerDocument, view = doc.defaultView, k = String(++count);
+  holder.dataset.k = k; holder.dataset.node = uuid;
+  const rule = doc.createElement('style'), page = doc.createElement('div'), head = doc.createElement('div'), rel = doc.createElement('div');
+  page.className = 'lk-editor'; head.className = 'lk-relhead'; head.textContent = 'Relations'; rel.className = 'lk-rel';
+  holder.append(rule, page, head, rel);
+  const dugs = new Map();   // the uuid of a value -> the holder of the node dug into
+  const place = () => {
+    if (!holder.isConnected) return;
+    const wide = G.touch.names(page), col = wide ? Math.min(150, Math.max(56, wide)) + 'px' : '';
+    if (page.style.getPropertyValue('--lk-keycol') !== col) page.style.setProperty('--lk-keycol', col);
+    let css = '';
+    for (const [value, dug] of dugs) {
+      const seat = G.touch.seat(page, value);
+      dug.classList.toggle('lk-flow', !seat);
+      if (!seat) { dug.style.top = dug.style.left = ''; continue; }
+      dug.style.top = Math.round(page.offsetTop + seat.top) + 'px'; dug.style.left = Math.round(page.offsetLeft + seat.left) + 'px';
+      css += `.lk-open[data-k="${k}"] > .lk-editor ${seat.mark}::before { transform: rotate(90deg); background: var(--lk-text); }\n`;
+      if (dug.dataset.whole) css += `.lk-open[data-k="${k}"] > .lk-editor ${seat.row} { margin-bottom: ${dug.offsetHeight}px !important; }\n`;   // room only once the node has come to rest: one move, not a stutter
+    }
+    if (rule.textContent !== css) rule.textContent = css;
+  };
+  const sized = view.ResizeObserver ? new view.ResizeObserver(() => place()) : null;
+  sized?.observe(page);
+  holder.lkPlace = place;
+  const whole = G.touch.editor.whole(page, () => { holder.dataset.whole = '1'; place(); holder.parentElement?.closest('.lk-open')?.lkPlace?.(); });
+  const offEditor = G.touch.editor.show(page, uuid), offLists = lists(rel, uuid);
+  const undig = value => { const dug = dugs.get(value); if (!dug) return; dugs.delete(value); sized?.unobserve(dug); dug.lkOff?.(); dug.remove(); place(); };
+  holder.lkDig = value => {
+    if (dugs.has(value)) { undig(value); return; }
+    const dug = doc.createElement('div'); dug.className = 'lk-open lk-dugopen';
+    holder.insertBefore(dug, head); dugs.set(value, dug);
+    mount(dug, value); dug.lkClose = () => undig(value);
+    sized?.observe(dug); place(); within = dug;
+    view.setTimeout(() => { if (dug.isConnected && !dug.dataset.whole) { dug.dataset.whole = '1'; place(); } }, 800);
+  };
+  holder.lkOff = () => { whole(); sized?.disconnect(); for (const dug of dugs.values()) dug.lkOff?.(); dugs.clear(); offEditor(); offLists(); };
+}
 function open(row) {
   if (row.dataset.open || !G.touch.editor.can()) { if (!row.dataset.open) G.touch.open(row.dataset.uuid); return; }
-  const doc = row.ownerDocument, holder = doc.createElement('div'); holder.className = 'lk-open';
-  const page = doc.createElement('div'); page.className = 'lk-editor';
-  const rel = doc.createElement('div'); rel.className = 'lk-rel';
-  /* Digging. A press on a node that the opened node points at (a value of one of its properties, a link in its words) opens
-     that node in place, right under the opened one, headed by the property it was reached through; it is a row like any
-     other, so its own values are dug into in turn, and Escape closes the deepest first. A node dug into and closed is gone
-     from under the node again. */
-  const dug = doc.createElement('div'); dug.className = 'lk-rel lk-dug';
-  holder.append(page, dug, rel); row.appendChild(holder); row.dataset.open = 'soon';
-  const digs = [];
-  const dugList = listing(dug, async () => {
-    if (!digs.length) return [];
-    const nodes = new Map((await G.read.byUuids(digs.map(one => one.uuid))).map(node => [node.uuid, node]));
-    return digs.filter(one => nodes.has(one.uuid)).map(one => { const node = nodes.get(one.uuid); return { key: `dug:${one.uuid}`, kind: 'property', name: one.name, tag: '', rows: [{ ...node, tagShown: !!node.tag, dayShown: node.day }] }; });
-  });
-  holder.lkDig = async uuid => {
-    if (!digs.some(one => one.uuid === uuid)) digs.push({ uuid, name: await G.read.heldUnder(row.dataset.uuid, uuid) });
-    await dugList.again();
-    const at = dug.querySelector(`.lk-row[data-uuid="${uuid}"]`);
-    if (at && !at.dataset.open) open(at);
-    at?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  };
-  dug.addEventListener('lk-closed', event => { if (event.target.closest('.lk-rel') !== dug) return; const i = digs.findIndex(one => one.uuid === event.target.dataset.uuid); if (i >= 0) { digs.splice(i, 1); dugList.again(); } });
+  const holder = row.ownerDocument.createElement('div'); holder.className = 'lk-open';
+  row.appendChild(holder); row.dataset.open = 'soon';
+  mount(holder, row.dataset.uuid);
   // Logseq fills the node in over a few frames (a link's name, a property's value): it is shown once it has come to rest.
-  const whole = G.touch.editor.whole(page, () => { if (row.dataset.open === 'soon') row.dataset.open = '1'; });
+  const shown = new (row.ownerDocument.defaultView.MutationObserver)(() => { if (holder.dataset.whole) { shown.disconnect(); if (row.dataset.open === 'soon') row.dataset.open = '1'; } });
+  shown.observe(holder, { attributes: true, attributeFilter: ['data-whole'] });
+  holder.lkClose = () => close(row, true);
   row.querySelector(':scope > .lk-fold')?.setAttribute('aria-label', 'Close');
-  const offEditor = G.touch.editor.show(page, row.dataset.uuid), offLists = lists(rel, row.dataset.uuid);
-  holder.lkOff = () => { whole(); offEditor(); dugList.off(); offLists(); };
-  within = row;
+  within = holder;
 }
 function close(row, focus = false) {
   const holder = row.querySelector(':scope > .lk-open');
@@ -62,17 +86,26 @@ function close(row, focus = false) {
   if (focus) row.querySelector(':scope > .lk-line')?.focus({ preventScroll: true });
 }
 const toggle = row => row.dataset.open ? close(row, true) : open(row);
+/* One step back in a place: closes the opened node the person is in there (else the one opened last), a node dug into before
+   the node it was dug from. Says whether one was closed. */
+function back(scope) {
+  const holder = within?.isConnected && scope.contains(within) ? within : [...scope.querySelectorAll('.lk-open')].pop();
+  if (!holder?.lkClose) return false;
+  const up = holder.parentElement.closest('.lk-open');
+  holder.lkClose(); within = up;
+  return true;
+}
 /* Escape closes the opened node the person is in, one node at a time, innermost first. Inside it everything is Logseq's, so
    Logseq's own Escapes come first: the one that stops the writing is left to Logseq (a field has the focus), and the next one,
    pressed with nothing being written, closes the node. "In" is the node last opened, or where the last press or focus landed. */
 function watchKeys(doc) {
   if (offKeys) return;
-  const note = event => { within = event.target.closest?.('.lk-row[data-open]') || null; };
+  const note = event => { within = event.target.closest?.('.lk-open') || null; };
   const onKey = event => {
     if (event.key !== 'Escape' || event.defaultPrevented) return;
-    const at = event.target, row = within?.isConnected && within.dataset.open ? within : null;
-    if (!row || /^(TEXTAREA|INPUT|SELECT)$/.test(at.tagName) || at.isContentEditable || G.touch.busy()) return;
-    close(row, true); within = row.parentElement.closest('.lk-row[data-open]');
+    const at = event.target, holder = within?.isConnected ? within : null;
+    if (!holder || /^(TEXTAREA|INPUT|SELECT)$/.test(at.tagName) || at.isContentEditable || G.touch.busy()) return;
+    back(doc);
   };
   doc.addEventListener('pointerdown', note, true); doc.addEventListener('focusin', note, true); doc.addEventListener('keydown', onKey, true);
   offKeys = () => { doc.removeEventListener('pointerdown', note, true); doc.removeEventListener('focusin', note, true); doc.removeEventListener('keydown', onKey, true); offKeys = null; within = null; };
@@ -90,7 +123,7 @@ function listing(el, read, opts = {}) {
   const onClosed = event => { if (event.target.closest('.lk-rel') === el) { G.read.forget(); load(state); } };
   el.addEventListener('lk-closed', onClosed);
   watchKeys(el.ownerDocument);
-  offDigs ||= G.touch.digs((editor, uuid) => { const holder = editor.closest('.lk-open'); if (!holder?.lkDig) return false; holder.lkDig(uuid); return true; });
+  offDigs ||= G.touch.digs((editor, uuid) => { const holder = editor.parentElement; if (!holder?.lkDig) return false; holder.lkDig(uuid); return true; });
   offChanged ||= G.touch.changed(() => { for (const [one, s] of mounted) { if (!one.isConnected) mounted.delete(one); else load(s); } });
   load(state);
   return {
@@ -209,7 +242,7 @@ function handle(state, event) {
   // Only what belongs to this node's lists: a nested node's lists handle their own.
   if (target.closest('.lk-rel') !== state.el) return;
   const row = target.closest('.lk-row');
-  if (row && target.closest('.lk-open') && target.closest('.lk-open').parentElement === row) return;   // inside the opened node everything is Logseq's
+  if (row && target.closest('.lk-open')?.closest('.lk-row') === row) return;   // inside the opened node everything is Logseq's
   if (event.type === 'mousedown') { if (event.shiftKey && target.closest('.lk-line')) event.preventDefault(); return; }   // Shift-click opens beside: it selects no words on its way
   if (row && event.type === 'click' && state.press && target.closest('.lk-line') && !target.closest('.lk-status, a[data-to], .lk-url') && state.press(row, event)) { event.stopPropagation(); return; }
   if (row && event.type === 'keydown' && state.key && target.matches('.lk-line') && state.key(row, event)) { event.preventDefault(); event.stopPropagation(); return; }
@@ -253,7 +286,7 @@ function adder(holder, name, add, failed) {
   field.addEventListener('keydown', onKey);
   return () => { field.removeEventListener('keydown', onKey); line.remove(); };
 }
-G.node = { toggle, open, close, listing, lists, adder };
+G.node = { toggle, open, close, back, listing, lists, adder };
 G.node.CSS = `
 .lk-rel:empty { display: none; }
 .lk-rel { display: flex; flex-direction: column; gap: 18px; container: lk-list / inline-size; }
@@ -283,8 +316,20 @@ G.node.CSS = `
 .lk-add ~ .lk-rel .lk-row { scroll-margin: 44px 0 8px; }
 .lk-add ~ .lk-rel .lk-row > .lk-line { transition: background-color .6s ease; }
 .lk-add ~ .lk-rel .lk-row.lk-new > .lk-line { background: var(--lk-lit); transition: none; }
-.lk-open { margin-left: -2px; }
-.lk-open > .lk-rel { margin: 6px 0 10px 28px; }
-.lk-open > .lk-dug { margin-bottom: 0; }
-.lk-open > .lk-dug:has(.lk-list) { margin-bottom: 10px; }`;
+.lk-open { margin-left: -2px; position: relative; }
+/* The levels show: one soft band for the node opened from a row; a node dug into stands under the value it was reached
+   through, its rows starting where the value's words start, with a guide line down from the value's arrow. It takes its room
+   in one move, once Logseq has drawn it. */
+.lk-row > .lk-open { background: color-mix(in srgb, var(--lk-text) 3.5%, transparent); border-radius: 6px; padding: 0 8px 6px 0; }
+.lk-dugopen { position: absolute; right: 0; margin: 0; padding: 0 0 6px; opacity: 0; pointer-events: none; }
+.lk-dugopen[data-whole] { opacity: 1; pointer-events: auto; transition: opacity .16s ease .04s; }
+.lk-dugopen.lk-flow { position: relative; margin: 2px 0 6px 28px; }
+.lk-dugopen::before { content: ""; position: absolute; left: -11px; top: 1px; bottom: 8px; width: 1px; background: var(--lk-line); }
+/* What points at the node: under one word and a thin line, apart from the node's own rows. */
+.lk-relhead { display: flex; align-items: center; gap: 10px; margin: 6px 0 0 22px; color: var(--lk-quiet); font-size: var(--lk-line-size); line-height: var(--lk-line-lead); }
+.lk-relhead::after { content: ""; flex: 1; height: 1px; background: var(--lk-hair); }
+.lk-relhead:not(:has(+ .lk-rel > .lk-list)) { display: none; }
+.lk-dugopen > .lk-relhead { margin-left: 0; }
+.lk-row > .lk-open > .lk-rel { margin: 2px 0 6px 22px; }
+.lk-dugopen > .lk-rel { margin: 2px 0 0; }`;
 })();
