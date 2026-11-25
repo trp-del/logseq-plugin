@@ -31,12 +31,6 @@ main() {
   version=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' package.json | head -1)
   if [ "$before" = "$(git log -1 --format=%s | cut -c1-90)" ]; then echo "The folder Logseq loads was already at GitHub's latest: $version."
   else echo "The folder Logseq loads is now at GitHub's latest: $version ($(git log -1 --format=%h))."; fi
-  # The guard's "before" pictures of this release, taken now in the background (about four minutes, in the guard's own Logseqs), so
-  # the next check starts from them and stays short (19 November 2026).
-  if [ -d "$folder/node_modules/playwright" ]; then
-    (cd "$folder" && NODE_PATH="$folder/node_modules" nohup node tools/guard/guard.js baseline >/dev/null 2>&1 &)
-    echo "The guard is taking its pictures of this release in the background."
-  fi
   if ! curl -s -m 2 http://localhost:9222/json/version >/dev/null; then
     echo "Logseq is not running with its debugging port: the plugin reloads the next time Logseq starts."
     exit 0

@@ -1,6 +1,6 @@
 {
   "name": "logseq-plugin",
-  "version": "0.5.15",
+  "version": "0.9.0",
   "description": "For a Logseq DB graph: any node shown whole, and changed wherever it appears. Relations under every page; any row opens in place.",
   "license": "MIT",
   "repository": {
