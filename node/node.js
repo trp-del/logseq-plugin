@@ -25,12 +25,31 @@ function open(row) {
   const doc = row.ownerDocument, holder = doc.createElement('div'); holder.className = 'lk-open';
   const page = doc.createElement('div'); page.className = 'lk-editor';
   const rel = doc.createElement('div'); rel.className = 'lk-rel';
-  holder.append(page, rel); row.appendChild(holder); row.dataset.open = 'soon';
+  /* Digging. A press on a node that the opened node points at (a value of one of its properties, a link in its words) opens
+     that node in place, right under the opened one, headed by the property it was reached through; it is a row like any
+     other, so its own values are dug into in turn, and Escape closes the deepest first. A node dug into and closed is gone
+     from under the node again. */
+  const dug = doc.createElement('div'); dug.className = 'lk-rel lk-dug';
+  holder.append(page, dug, rel); row.appendChild(holder); row.dataset.open = 'soon';
+  const digs = [];
+  const dugList = listing(dug, async () => {
+    if (!digs.length) return [];
+    const nodes = new Map((await G.read.byUuids(digs.map(one => one.uuid))).map(node => [node.uuid, node]));
+    return digs.filter(one => nodes.has(one.uuid)).map(one => { const node = nodes.get(one.uuid); return { key: `dug:${one.uuid}`, kind: 'property', name: one.name, tag: '', rows: [{ ...node, tagShown: !!node.tag, dayShown: node.day }] }; });
+  });
+  holder.lkDig = async uuid => {
+    if (!digs.some(one => one.uuid === uuid)) digs.push({ uuid, name: await G.read.heldUnder(row.dataset.uuid, uuid) });
+    await dugList.again();
+    const at = dug.querySelector(`.lk-row[data-uuid="${uuid}"]`);
+    if (at && !at.dataset.open) open(at);
+    at?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  };
+  dug.addEventListener('lk-closed', event => { if (event.target.closest('.lk-rel') !== dug) return; const i = digs.findIndex(one => one.uuid === event.target.dataset.uuid); if (i >= 0) { digs.splice(i, 1); dugList.again(); } });
   // Logseq fills the node in over a few frames (a link's name, a property's value): it is shown once it has come to rest.
   const whole = G.touch.editor.whole(page, () => { if (row.dataset.open === 'soon') row.dataset.open = '1'; });
   row.querySelector(':scope > .lk-fold')?.setAttribute('aria-label', 'Close');
   const offEditor = G.touch.editor.show(page, row.dataset.uuid), offLists = lists(rel, row.dataset.uuid);
-  holder.lkOff = () => { whole(); offEditor(); offLists(); };
+  holder.lkOff = () => { whole(); offEditor(); dugList.off(); offLists(); };
   within = row;
 }
 function close(row, focus = false) {
@@ -62,7 +81,7 @@ function watchKeys(doc) {
 // ---- the lists of what points at a node
 const mounted = new Map();   // el -> state
 const EVENTS = ['click', 'keydown', 'contextmenu', 'mousedown'];
-let offChanged = null;
+let offChanged = null, offDigs = null;
 function listing(el, read, opts = {}) {
   const state = { el, read, all: new Set(), turn: 0, press: opts.press || null, few: opts.few || 10, none: opts.none || '', add: opts.add || null, key: opts.key || null, more: opts.more || null };
   mounted.set(el, state);
@@ -71,6 +90,7 @@ function listing(el, read, opts = {}) {
   const onClosed = event => { if (event.target.closest('.lk-rel') === el) { G.read.forget(); load(state); } };
   el.addEventListener('lk-closed', onClosed);
   watchKeys(el.ownerDocument);
+  offDigs ||= G.touch.digs((editor, uuid) => { const holder = editor.closest('.lk-open'); if (!holder?.lkDig) return false; holder.lkDig(uuid); return true; });
   offChanged ||= G.touch.changed(() => { for (const [one, s] of mounted) { if (!one.isConnected) mounted.delete(one); else load(s); } });
   load(state);
   return {
@@ -81,7 +101,7 @@ function listing(el, read, opts = {}) {
       el.removeEventListener('lk-closed', onClosed);
       for (const row of el.querySelectorAll('.lk-row[data-open]')) close(row);
       el.replaceChildren();
-      if (!mounted.size) { offChanged?.(); offChanged = null; offKeys?.(); }
+      if (!mounted.size) { offChanged?.(); offChanged = null; offDigs?.(); offDigs = null; offKeys?.(); }
     },
   };
 }
@@ -264,5 +284,7 @@ G.node.CSS = `
 .lk-add ~ .lk-rel .lk-row > .lk-line { transition: background-color .6s ease; }
 .lk-add ~ .lk-rel .lk-row.lk-new > .lk-line { background: var(--lk-lit); transition: none; }
 .lk-open { margin-left: -2px; }
-.lk-open > .lk-rel { margin: 6px 0 10px 28px; }`;
+.lk-open > .lk-rel { margin: 6px 0 10px 28px; }
+.lk-open > .lk-dug { margin-bottom: 0; }
+.lk-open > .lk-dug:has(.lk-list) { margin-bottom: 10px; }`;
 })();

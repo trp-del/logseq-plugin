@@ -15,6 +15,7 @@
      read.tagPairs()          [[tag id, node id]]   which node holds which of the person's tags
      read.relations()         [[tag id, property ident, tag id, n]]   n nodes of the first tag hold, under the property, a node of the second
      read.holders(ident)      the nodes holding a value under a property: [{ id, uuid, words, tag, values: [{ raw, text }] }]
+     read.heldUnder(node, value)  the name of the property under which one node holds another (uuids), or ''
      read.graph()             the open graph's name
      read.newPages(since)     the plain, untagged pages made since a time in milliseconds (never kept): [{ id, uuid, title }]
      read.search(words)       Logseq's own search for the words, its order kept: [node]
@@ -91,6 +92,12 @@ async function holders(ident) {
   const out = new Map();
   for (const [b, v] of rows) { const node = nodes.get(b); if (!node) continue; if (!out.has(b)) out.set(b, { id: b, uuid: node.uuid, words: W.plain(W.firstLine(node.words).line, names), tag: node.tag, values: [] }); out.get(b).values.push(value(v)); }
   return [...out.values()];
+}
+// The name of the property under which one node holds another, '' when it holds it under none (a link in its words).
+async function heldUnder(node, value) {
+  if (!UUID.test(String(node)) || !UUID.test(String(value))) return '';
+  const rows = await q(`[:find ?pt :where [?b :block/uuid #uuid "${node}"] [?v :block/uuid #uuid "${value}"] [?b ?a ?v] [?p :db/ident ?a] [(namespace ?a) ?ns] [(= ?ns "user.property")] [?p :block/title ?pt]]`);
+  return rows.length ? String(rows.map(([t]) => t).sort()[0]) : '';
 }
 const graph = async () => String((await logseq.App.getCurrentGraph())?.name || '');
 async function newPages(since) {
@@ -281,5 +288,5 @@ async function writing(uuid) {
     page: isId(pageId) ? { id: pageId, tags: tagsFor(pageId), day: Number(pageDay) || 0 } : null, dated };
 }
 
-G.read = { byUuids, schema, writing, search, tagged, values, tasks, journal, q, node, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, relations, holders, graph, newPages, tagsOf, forget: () => kept.clear(), isId, UUID };
+G.read = { byUuids, schema, writing, search, tagged, values, tasks, journal, q, node, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, relations, holders, heldUnder, graph, newPages, tagsOf, forget: () => kept.clear(), isId, UUID };
 })();

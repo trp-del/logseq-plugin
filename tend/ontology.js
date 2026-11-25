@@ -6,11 +6,14 @@
 const G = window.PluginDoor;
 const TREE = 'M3 12h2c3 0 3 -6 6 -6h1M3 12h2c3 0 3 6 6 6h1M12 6c2 0 2 -3 4 -3h4M12 6c2 0 2 3 4 3h4M12 18c2 0 2 -3 4 -3h4M12 18c2 0 2 3 4 3h4';   // one into two into four, on its side
 G.part({
-  key: 'ontology', title: 'Ontology', about: 'Your tags and properties, on a page of their own and as an outline in the right sidebar. Any of them opens in place to be renamed, moved or changed; a line at the top makes a new tag.',
+  key: 'ontology', title: 'Ontology', about: 'Your tags and properties, on a page of their own and as an outline in the right sidebar. A press on a name goes to its page; a press beside it shows the tag’s lines; a line at the top makes a new tag.',
   start(base) {
     base.style('ontology', `
 .lk-ontology { padding: 4px 4px 16px 22px; }
 .lk-ontology > .lk-rel { position: relative; }
+.lk-ontology .lk-row > .lk-fold { visibility: hidden; }   /* nothing opens under a tag or a property here */
+.lk-ontology .lk-row.lk-chosen > .lk-line { background: var(--lk-wash); }
+.lk-ontology .lk-line .lk-words { cursor: pointer; }
 .lk-page { padding: 0 0 48px; }
 .lk-page-title { font-size: var(--ls-page-title-size, 2rem); font-weight: 600; line-height: 1.25; margin: 0 0 18px; color: var(--lk-text); }
 .lk-map { --lk-ground: var(--lk-paper); padding-left: 22px; display: flex; flex-wrap: wrap; align-items: center; column-gap: 8px; }
@@ -114,10 +117,17 @@ G.part({
       const RO = doc.defaultView.ResizeObserver, sized = RO ? new RO(() => { if (rel.isConnected && rel.clientWidth !== sized.was) { sized.was = rel.clientWidth; lines(); } }) : null;
       sized?.observe(rel);
       const light = uuid => { if (uuid === lit) return; lit = uuid; lines(); };
-      const onPoint = event => { const row = event.target.closest?.('.lk-list[data-face="tag"] > .lk-rows > .lk-row'); if (row && !row.dataset.open && row.closest('.lk-rel') === rel) light(row.dataset.uuid); };   // the tag under the pointer or the keys
-      const onLeave = () => light(rel.contains(doc.activeElement) ? doc.activeElement.closest('.lk-row')?.dataset.uuid || '' : '');
-      rel.addEventListener('pointerover', onPoint); rel.addEventListener('focusin', onPoint); rel.addEventListener('pointerleave', onLeave);
-      rel.addEventListener('lk-drawn', () => lines());
+      /* A row is selected by a press beside its name or by the arrow keys: its lines show, and stay until another row is
+         selected. Nothing opens under a tag or a property here (the owner, 25 November 2026: "don't show the whole tag page in
+         ontology under a tag nor property page"): a press on the name goes to its page, Shift in the sidebar, Enter too. */
+      const select = row => {
+        for (const was of rel.querySelectorAll('.lk-row.lk-chosen')) if (was !== row) was.classList.remove('lk-chosen');
+        row?.classList.add('lk-chosen');
+        light(row && isTag(row) ? row.dataset.uuid : '');
+      };
+      const onFocus = event => { const row = event.target.closest?.('.lk-rows > .lk-row'); if (row && row.closest('.lk-rel') === rel) select(row); };
+      rel.addEventListener('focusin', onFocus);
+      rel.addEventListener('lk-drawn', () => { const row = lit && rel.querySelector(`.lk-row[data-uuid="${lit}"]`); if (row) row.classList.add('lk-chosen'); lines(); });
       // One step in or out for a tag, worked out from where its row stands now.
       const step = (uuid, out) => {
         const row = rel.querySelector(`.lk-list[data-face="tag"] > .lk-rows > .lk-row[data-uuid="${uuid}"]`);
@@ -138,8 +148,14 @@ G.part({
         for (const row of tagRows) { if (!row.depth || !areas.length) areas.push([]); areas[areas.length - 1].push(row); }
         return [...areas.map(rows => ({ key: `ontology:area:${rows[0].uuid}`, kind: 'group', name: '', tag: '', face: 'tag', rows })), propList].filter(one => one.rows.length);
       }, { few: 2000, none: 'No tags or properties of your own yet',
+        press(row, event) {
+          if (event.target.closest('.lk-words')) G.touch.open(row.dataset.uuid, event.shiftKey);
+          else row.querySelector(':scope > .lk-line')?.focus({ preventScroll: true });
+          return true;
+        },
         // As in any outline: Tab puts a tag under the tag above it at its level, Shift-Tab takes it out one level.
         key(row, event) {
+          if (event.key === 'Enter' || event.key === ' ') { if (event.key === 'Enter') G.touch.open(row.dataset.uuid, event.shiftKey); return true; }   // nothing opens under the row
           if (event.key !== 'Tab' || !isTag(row)) return false;
           if (moving) waiting = [row.dataset.uuid, event.shiftKey]; else step(row.dataset.uuid, event.shiftKey);
           return true;

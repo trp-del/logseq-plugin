@@ -6,6 +6,7 @@
                               back what stops it
      touch.writing()          the text box of the bullet being written in, or null
      touch.edit(uuid)         the caret put into a node's words
+     touch.digs(fn)           fn(editor, uuid) -> true takes a plain press on a link inside an opened node, in Logseq's place
      touch.pages()            Logseq's own pages on screen, each { el, uuid, feed }: the main page, a page in the sidebar,
                               a day in the journals feed (feed: true)
      touch.pageFoot(el, name) where, in one of those pages, something of the plugin's may stand under the page's bullets
@@ -51,6 +52,21 @@ function changed(fn, atOnce = false) {
   const tell = (all) => { for (const one of [...all]) { try { one(); } catch (error) { console.error('Logseq Plugin: a part could not follow a change', error); } } };
   if (!offChanged) offChanged = logseq.DB.onChanged(() => { tell(heardAtOnce); clearTimeout(timer); timer = setTimeout(() => { G.read.forget(); tell(heard); }, 500); });
   return () => { heard.delete(fn); heardAtOnce.delete(fn); if (!heard.size && !heardAtOnce.size && typeof offChanged === 'function') { offChanged(); offChanged = null; clearTimeout(timer); } };
+}
+/* A plain press on a link inside an opened node (a value of one of its properties, a link in its words). fn(editor, uuid)
+   answers true when the place takes the press; Logseq then does not go to that page. A press with Shift, Cmd, Ctrl or Option
+   stays Logseq's own. Gives back what stops it. */
+function digs(fn) {
+  const doc = host(), types = ['pointerdown', 'mousedown', 'click'];
+  const on = event => {
+    if (event.button !== 0 || event.shiftKey || event.metaKey || event.ctrlKey || event.altKey) return;
+    const link = event.target.closest?.('a.page-ref[data-uuid]'), editor = link?.closest('.lk-editor');
+    if (!link || !editor || link.closest('textarea')) return;
+    if (event.type === 'click' && !fn(editor, String(link.getAttribute('data-uuid')).toLowerCase())) return;
+    event.preventDefault(); event.stopPropagation();
+  };
+  for (const type of types) doc.addEventListener(type, on, true);
+  return () => { for (const type of types) doc.removeEventListener(type, on, true); };
 }
 // The caret put into a node's words, wherever Logseq shows the node.
 const edit = uuid => logseq.Editor.editBlock(String(uuid));
@@ -325,5 +341,5 @@ const OPENED = `
 .lk-editor .ls-page-icon :is(.ui__icon, svg) { width: 18px !important; height: 18px !important; font-size: 18px !important; }
 .lk-editor .lsp-hook-ui-slot { display: none !important; }`;
 
-G.touch = { watch, changed, writing, edit, pages, pageFoot, pageHead, editor, open, openUrl, busy, left, tagList, key, command, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE };
+G.touch = { watch, changed, writing, edit, digs, pages, pageFoot, pageHead, editor, open, openUrl, busy, left, tagList, key, command, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE };
 })();

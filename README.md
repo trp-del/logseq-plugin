@@ -119,6 +119,14 @@ Ontology has a line at its top, "New tag": Enter makes a tag of your own at the 
 name that exists is shown instead of made twice. A closed line's right-click menu has "Tags…": your tags as an outline, the
 node's own ticked; a press puts a tag on the node or takes it off. The same line that adds a task in Todo adds the tag here.
 
+### Digging
+
+Inside a node opened in place, a press on a node it points at (a value of one of its properties, a link in its words) does not
+leave the page: that node opens right under the opened one, headed by the property it was reached through, as a row like any
+other. Its own values are dug into in turn, as deep as you go, and what points at it stands under it. Escape closes the deepest
+first; a node dug into and closed is gone from under the node again. A press with Shift, Cmd, Ctrl or Option stays Logseq's
+own (the sidebar, a new window).
+
 ### A list's head, and + on it
 
 In Relations a list of two or more says, after the property's name, how many it holds and of what ("4 Transfers", or the bare
@@ -131,7 +139,7 @@ in place and puts the caret in it.
 Each tag says at its right how many nodes stand under it, its own and those of the tags below it. With the keys on a tag, Tab
 puts it under the tag above it at its level and Shift-Tab takes it out one level, as in any outline; its right-click menu has
 Show its nodes (Find, with the tag taken), Put under… and Move to the top. A move is written at once and is two steps of
-Logseq's Undo. The tag under the pointer or the keys shows its lines to the tags it is joined with (and those of the tags under it): a tag is
+Logseq's Undo. The selected tag shows its lines to the tags it is joined with (and those of the tags under it): a tag is
 joined to another when its nodes hold, under one of your properties, nodes of the other. The lines are drawn as the released
 Ontology drew them: one hairline a pair, in the quiet grey, from the edge of an area at one row to the edge at the other,
 turning on a corner of 6; a bracket just outside the area inside one area, one soft curve across the gap between neighbours,
@@ -140,12 +148,14 @@ and over the band above the areas when they are further apart.
 ### Ontology as a page of its own (`tend/ontology.js`)
 
 The toolbar's tree opens Ontology as a page: every top tag is an area with the tags under it as an outline, as many areas side
-by side as fit, then the properties. The lines of the tag under the pointer or the keys run between the edges of the areas, in
+by side as fit, then the properties. The lines of the selected tag run between the edges of the areas, in
 the gaps and over the band above the areas, never over a name. At the top stand
 the New tag line, **Move values…** (the box, with the property still to choose) and **In the sidebar**, which opens the same
 outline as a section of the right sidebar, for use beside a page you are reading. Everything the outline does, it does in both
-places: a press opens a tag in place, Tab and Shift-Tab move it (one move at a time: a second key waits for the first to
-show), the right-click menu is the same.
+places. Nothing opens under a tag or a property: a press on its name goes to its page (Shift: in the sidebar; Enter too), and a
+press beside the name, or the arrow keys, selects the row, which shows a tag's lines until another row is selected. Tab and
+Shift-Tab move the selected tag (one move at a time: a second key waits for the first to show); the right-click menu is the
+same in both places.
 
 ### Move values (`tend/move.js`, decided in `core/move.js`)
 
