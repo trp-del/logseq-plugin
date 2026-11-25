@@ -53,7 +53,7 @@ function head(state, list, made, plus, today) {
   const said = made.said.length ? `<button type="button" class="lk-set" title="View">${G.esc(made.said.join(' · '))}</button>` : '';
   const finding = !!(state.view.find.words || state.view.find.upTo), days = made.from ? `${D.short(made.from, today)} to ${D.short(made.to, today)}` : '';
   if (finding && made.total !== made.count) kinds += `<span class="lk-today">${made.total} today</span>`;
-  return `${made.picking ? `<input type="checkbox" class="lk-tick lk-tick-all" aria-label="Pick every node of the list">` : ''}<span class="lk-tabs">${kinds}<span class="lk-head-do">${plus}${dots}</span></span><span class="lk-head-end">${said}${days ? `<span class="lk-span">${G.esc(days)}</span>` : ''}</span>`;
+  return `${made.picking ? `<input type="checkbox" class="lk-tick lk-tick-all" aria-label="Pick every node of the list">` : ''}<span class="lk-tabs">${kinds}</span><span class="lk-head-do">${plus}${dots}</span><span class="lk-head-end">${said}${days ? `<span class="lk-span">${G.esc(days)}</span>` : ''}</span>`;
 }
 // What stands under the head, in order: a group's line, a node's row, the line saying since when.
 function items(state, list, made, few) {
@@ -193,7 +193,7 @@ async function hiddenMenu(at, again) {
 G.listview = { state, order, shape, head, items, paint, act, menu, viewOf, setView, VIEWED, hiddenMenu, drags, named: () => reads.get(), hidden: () => oneEnd.get() };
 G.listview.CSS = `
 .lk-tabs { display: flex; align-items: center; flex-wrap: wrap; gap: 0 24px; min-width: 0; flex: 0 1 auto; }
-.lk-head-do { display: inline-flex; align-items: center; gap: 12px; margin-left: -12px; }   /* the + and the ⋯ follow the last word, on whichever line it stands */
+.lk-head-do { flex: none; display: inline-flex; align-items: center; gap: 12px; height: 24px; margin-left: 8px; }   /* the + and the ⋯ follow the last word, on whichever line it stands */
 .lk-tab { appearance: none; position: relative; border: 0; background: none; padding: 0; margin: 0; font: inherit; color: var(--lk-quiet); cursor: pointer; white-space: nowrap; }
 .lk-tab:hover, .lk-tab:focus-visible { color: var(--lk-text); outline: none; }
 .lk-tab:not([data-kind=""]):not(.lk-tabmore):not(.lk-newtab):not([data-kind="@none"]) { font-family: var(--lk-tag-face); }   /* a kind is a tag: in the tag's face */
@@ -208,8 +208,7 @@ G.listview.CSS = `
 .lk-dots, .lk-set { appearance: none; border: 0; background: none; padding: 0; font: inherit; cursor: pointer; color: var(--lk-quiet); }
 .lk-dots { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; margin-left: 2px; border-radius: 6px; opacity: .55; }
 .lk-dots:hover, .lk-dots:focus-visible { opacity: 1; background: var(--lk-wash); outline: none; }
-.lk-head-end { margin-left: auto; display: inline-flex; align-items: baseline; gap: 12px; padding-left: 12px; white-space: nowrap; }
-.lk-list-name:has(> .lk-tabs) { flex-wrap: wrap; }   /* short of room, what is set and the days go to a line of their own before the kinds break */
+.lk-head-end { flex: none; margin-left: auto; display: inline-flex; align-items: baseline; gap: 12px; padding-left: 12px; white-space: nowrap; line-height: 24px; }
 .lk-head-end .lk-span { margin-left: 0; padding-left: 0; }
 .lk-set { font-size: var(--lk-small); }
 .lk-set:hover, .lk-set:focus-visible { color: var(--lk-text); outline: none; }

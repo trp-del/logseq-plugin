@@ -239,6 +239,7 @@ function draw(state, made, names, statuses) {
     box.style.setProperty('--lk-daycol', made ? '0px' : dated.length ? (long ? '92px' : '56px') : '0px');   // a list of Relations has the day after the bullet, inside the line
     box.style.setProperty('--lk-dayin', long ? '90px' : '54px');
     box.toggleAttribute('data-picking', !!made?.picking);
+    box.toggleAttribute('data-viewed', !!made);
     sync(rowsEl, items, item => item.key, item => {
       const el = doc.createElement('div');
       if (item.type !== 'row') return el;
@@ -252,7 +253,7 @@ function draw(state, made, names, statuses) {
       el.classList.toggle('lk-faint', !!item.faint); el.classList.toggle('lk-fresh', !!(state.view?.since && (row.made || 0) > state.view.since)); el.classList.toggle('lk-picked', !!item.picked);
       el.style.setProperty('--lk-depth', String(row.depth || 0));   // an outline's row stands in by its depth
       const day = D.short(row.dayShown, today), dayEl = el.firstElementChild;
-      if (dayEl.textContent !== (made ? '' : day)) dayEl.textContent = made ? '' : day;
+      if (dayEl.textContent !== day) dayEl.textContent = day;
       dayEl.title = day ? (row.dayFrom || 'The day it was written') : '';
       let tick = el.querySelector(':scope > .lk-tick');
       if (item.picking) { if (!tick) { tick = doc.createElement('input'); tick.type = 'checkbox'; tick.className = 'lk-tick'; tick.setAttribute('aria-label', 'Pick this node'); el.insertBefore(tick, el.children[1]); } tick.checked = !!item.picked; } else tick?.remove();
@@ -379,7 +380,15 @@ G.node.CSS = `
 .lk-list-via:empty { display: none; }
 .lk-list-via > :is(svg, .ti):first-child { flex: none; width: 13px; height: 13px; margin: 0 5px 0 2px; font-size: 13px; color: var(--lk-off); }
 .lk-list-head[data-one] > :is(.lk-fold, .lk-list-name) { display: none; }
-.lk-list-head[data-thin] { padding-bottom: 6px; }
+/* A list of Relations has the day after the bullet, inside the line. Opened, the node stands where its words stood, and its
+   day stays where it was. */
+.lk-list[data-viewed] > .lk-rows > .lk-row { position: relative; }
+.lk-list[data-viewed] > .lk-rows > .lk-row > .lk-day { display: none; }
+.lk-list[data-viewed]:has(.lk-dayin) > .lk-rows > .lk-row[data-open="1"] > .lk-day { display: block; position: absolute; left: 44px; top: 2px; width: var(--lk-dayin, 54px); padding: 0; color: var(--lk-quiet); z-index: 1; }
+.lk-list[data-viewed]:has(.lk-dayin) > .lk-rows > .lk-row > .lk-open { margin-left: calc(var(--lk-dayin, 54px) + 10px); }
+.lk-list[data-viewed] > .lk-rows > .lk-row[data-open="1"]::before { content: ""; position: absolute; left: 23px; top: 13px; width: 6px; height: 6px; border-radius: 50%; background: var(--lk-line); z-index: 1; }
+.lk-list-head[data-thin] { padding-bottom: 6px; align-items: flex-start; }
+.lk-list-head[data-thin] > .lk-list-name { align-items: flex-start; }
 .lk-list-head[data-thin] > .lk-fold { opacity: .45 !important; }
 .lk-list-head[data-thin]:hover > .lk-fold { opacity: .8 !important; }
 .lk-list-head[data-plain] > .lk-list-via > .lk-plain { font-size: var(--lk-line-size); }

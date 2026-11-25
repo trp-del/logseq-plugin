@@ -5,8 +5,9 @@
    value is never given a second: such nodes are left as they are, and the box says how many. Afterwards one line says what was
    done, with one Undo for all of it, a property it made included; the line stays, Logseq closed and opened again, until you
    let it go.
-     G.moving.ask(place, { from, tag })   the box, put at the head of place: from, a property's ident; tag, { id, title } to take
-                                          only that tag's nodes and those of the tags below it. One of the two at least
+     G.moving.ask(place, { from, tag, only })   the box, put at the head of place: from, a property's ident; tag, { id, title } to
+                                          take only that tag's nodes and those of the tags below it; only, the ids of the nodes to
+                                          take (the rows ticked in one of Logseq's tables). One of the three at least
      G.moving.last(place)                 the line of the last move, if it has not been let go */
 (function () {
 const G = window.PluginDoor;
@@ -49,14 +50,17 @@ async function last(place) {
   };
 }
 
-async function ask(place, { from = '', tag = null } = {}) {
+async function ask(place, { from = '', tag = null, only = null } = {}) {
   const doc = place.ownerDocument, box = boxAt(place);
   box.dataset.asking = '1'; box.onclick = null;
   const state = { from, into: null, naming: false, remove: false, nodes: [], made: null, busy: false };
   const [schema, pairs, tags] = await Promise.all([G.read.schema(), tag ? G.read.tagPairs() : [], G.read.tags()]);
-  const within = tag ? new Set(pairs.filter(([t]) => G.find.under(tag.id, tags).has(t)).map(([, node]) => node)) : null;
+  const within = only ? new Set(only) : tag ? new Set(pairs.filter(([t]) => G.find.under(tag.id, tags).has(t)).map(([, node]) => node)) : null;
+  // For ticked rows with no property named: the one most of them hold comes first.
+  if (only && !state.from) { const held = await G.read.held([...within]), n = new Map(); for (const has of held.values()) for (const title of Object.keys(has)) n.set(title, (n.get(title) || 0) + 1);
+    const most = [...n].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0]; state.from = [...schema.props.values()].find(prop => prop.title === most)?.ident || ''; }
   const props = [...schema.props.values()].sort((a, b) => a.title.localeCompare(b.title));
-  const whose = tag ? `the nodes tagged ${tag.title}` : 'every node that holds it';
+  const whose = only ? `the ${within.size} ticked ${within.size === 1 ? 'node' : 'nodes'}` : tag ? `the nodes tagged ${tag.title}` : 'every node that holds it';
   const close = () => { delete box.dataset.asking; box.remove(); doc.removeEventListener('keydown', onKey, true); last(place); };
   const read = async () => {
     const prop = schema.props.get(state.from);
@@ -139,6 +143,8 @@ G.part({
     base.style('moving', `
 .lk-ask { max-width: 420px; margin: 0 0 14px; padding: 10px 12px 12px; border-radius: 10px; box-shadow: 0 0 0 1px var(--lk-line); display: flex; flex-direction: column; gap: 6px; font-size: var(--lk-line-size); line-height: var(--lk-line-lead); }
 .lk-ask:empty { display: none; }
+.lk-table-pop { position: fixed; z-index: 9990; width: min(420px, calc(100vw - 16px)); max-height: calc(100vh - 120px); overflow-y: auto; border-radius: 12px; background: var(--lk-glass); -webkit-backdrop-filter: var(--lk-glass-blur); backdrop-filter: var(--lk-glass-blur); box-shadow: var(--lk-float-shadow), 0 0 0 .5px var(--lk-line); }
+.lk-table-pop > .lk-ask { margin: 0; box-shadow: none; }
 .lk-ask-head { font-weight: 600; }
 .lk-ask-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
 .lk-ask .lk-prop { color: var(--lk-text); }
@@ -150,6 +156,18 @@ G.part({
 .lk-ask-more, .lk-ask-note { color: var(--lk-quiet); font-size: var(--lk-small); }
 .lk-answers { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; align-items: center; }`);
     G.moving = { ask, last };
+    /* In Logseq's own tables, as the plugin before the rebuild had it: tick rows on a tag's or a property's page, and Logseq's bar
+       for ticked rows has one more word, Move values…. The box hangs under the bar, for the ticked nodes only. */
+    base.onStop(G.touch.tableBar('Move values…', ({ ids, bar }) => {
+      const doc = bar.ownerDocument, spot = bar.getBoundingClientRect();
+      doc.querySelector('.lk-table-pop')?.remove();
+      const pop = doc.createElement('div'); pop.className = 'lk-table-pop';
+      pop.style.left = `${Math.max(8, Math.min(spot.left, doc.defaultView.innerWidth - 440))}px`; pop.style.top = `${spot.bottom + 6}px`;
+      doc.body.appendChild(pop);
+      const watchEmpty = new (doc.defaultView.MutationObserver)(() => doc.defaultView.setTimeout(() => { if (pop.isConnected && !pop.querySelector('.lk-ask')) { watchEmpty.disconnect(); pop.remove(); } }, 600));   // the line of what was done takes the box's place a moment later
+      ask(pop, { only: ids }).then(() => watchEmpty.observe(pop, { childList: true }));
+    }));
+    base.onStop(() => { for (const pop of G.host().querySelectorAll('.lk-table-pop')) pop.remove(); });
     base.onStop(() => { G.moving = { ask() {}, last() {} }; for (const box of G.host().querySelectorAll('.lk-ask')) box.remove(); });
   },
 });

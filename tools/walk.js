@@ -24,13 +24,16 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
   const lists = () => page.evaluate(() => [...document.querySelectorAll('.lk-rel')].map(rel => ({ where: rel.closest('#right-sidebar') ? 'sidebar' : rel.closest('.lk-open') ? 'opened' : 'main', lists: [...rel.querySelectorAll(':scope > .lk-list')].map(l => `${[l.querySelector('.lk-list-via').innerText, l.querySelector('.lk-list-name').innerText].filter(Boolean).join('\n')} (${l.querySelectorAll(':scope > .lk-rows > .lk-row').length})`) })));
   let n = 0;
   const step = async (what, check) => { n++; try { const said = await check(); if (said !== true) faults.push(`${what}: ${said}`); } catch (error) { faults.push(`${what}: ${String(error.message || error).split('\n')[0]}`); } };
+  // A line's own words, without what Relations says after them (the value that tells nodes apart, what it lacks, where it sits).
+  const lineWords = i => page.locator('.lk-row .lk-line').nth(i).evaluate(el => { const words = el.querySelector('.lk-words').cloneNode(true); words.querySelectorAll('.lk-tell, .lk-lacks, .lk-sits').forEach(one => one.remove()); return words.innerText.trim(); });
   const is = (got, want) => JSON.stringify(got) === JSON.stringify(want) || `got ${JSON.stringify(got)}, not ${JSON.stringify(want)}`;
   try {
     await page.evaluate(() => { window.resizeTo(1100, 800); }); await wait(2500);   // the editor is asked for a moment after the start
     await goto(FATIGUE);
-    await step('a page lists what points at it, by property, the shared tag said once', async () => is(await lists(), [{ where: 'main', lists: ['Symptom type\n12 Symptom Logs\nJul 6 to Oct 4 (12)'] }]));
+    await step('a page lists what points at it, by property, the shared tag said once', async () => is(await lists(), [{ where: 'main', lists: ['Symptom type\n12 Symptom Logs\nJul 6 to Oct 4 (5)'] }]));
+    await step('a list shows five nodes, then "show 7 more" shows them all', async () => { const more = page.locator('#main-content-container .lk-relpage .lk-more').first(), said = await more.innerText(); await more.click(); await wait(500); return is([said, await count('#main-content-container .lk-relpage > .lk-list > .lk-rows > .lk-row')], ['show 7 more', 12]); });
     await step('Logseq\'s own Linked references are gone where the lists stand', async () => is(await page.evaluate(() => [...document.querySelectorAll('.references')].filter(el => el.offsetParent).length), 0));
-    await step('rows carry their day, newest first', async () => is(await page.locator('.lk-row .lk-day').evaluateAll(els => els.slice(0, 3).map(el => el.textContent)), ['Oct 4', 'Oct 2', 'Sep 20']));
+    await step('rows carry their day, newest first', async () => is(await page.locator('.lk-row .lk-dayin').evaluateAll(els => els.slice(0, 3).map(el => el.textContent)), ['Oct 4', 'Oct 2', 'Sep 20']));
     await step('a press on a line opens the node in place as Logseq\'s own', async () => { await page.locator('.lk-row .lk-line').nth(8).click(); await wait(1800); return is([await count('.lk-row[data-open]'), await count('.lk-row[data-open] .lk-editor .ls-block')], [1, 2]); });
     await step('the opened node stands where its line stood', async () => is(await page.evaluate(() => { const open = document.querySelector('.lk-row[data-open]'), closed = document.querySelector('.lk-row:not([data-open])'); const a = open.querySelector('.lk-editor .block-content-wrapper').getBoundingClientRect(), b = closed.querySelector('.lk-words').getBoundingClientRect(), r = open.getBoundingClientRect(), c = closed.getBoundingClientRect(); return [Math.round(a.left - b.left), Math.round((a.top - r.top) - (b.top - c.top))]; }), [0, 0]));
     await step('writing in the opened node changes the line once it is closed', async () => {
@@ -39,12 +42,12 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await page.keyboard.press('Escape'); await wait(400);
       const open = await count('.lk-row[data-open]');
       await page.keyboard.press('Escape'); await wait(900);
-      return is([open, await count('.lk-row[data-open]'), await page.locator('.lk-row .lk-line').nth(8).innerText(), await page.evaluate(() => document.activeElement.className)], [1, 0, 'Tired by evening. again', 'lk-line']);
+      return is([open, await count('.lk-row[data-open]'), await lineWords(8), await page.evaluate(() => document.activeElement.className)], [1, 0, 'Tired by evening. again', 'lk-line']);
     });
-    await step('Logseq\'s own Undo takes the writing back', async () => { await page.keyboard.press('Meta+z'); await wait(1300); return is(await page.locator('.lk-row .lk-line').nth(8).innerText(), 'Tired by evening.'); });
+    await step('Logseq\'s own Undo takes the writing back', async () => { await page.keyboard.press('Meta+z'); await wait(1300); return is(await lineWords(8), 'Tired by evening.'); });
     await step('Enter opens the line the keys are on, the arrows walk the lines', async () => {
       await page.locator('.lk-row .lk-line').first().focus(); await page.keyboard.press('ArrowDown');
-      const second = await page.evaluate(() => { const words = document.activeElement.querySelector('.lk-words').cloneNode(true); words.querySelectorAll('.lk-lacks, .lk-sits').forEach(el => el.remove()); return words.innerText.trim(); });
+      const second = await page.evaluate(() => { const words = document.activeElement.querySelector('.lk-words').cloneNode(true); words.querySelectorAll('.lk-lacks, .lk-sits, .lk-tell').forEach(el => el.remove()); return words.innerText.trim(); });
       await page.keyboard.press('Enter'); await wait(1500);
       const open = await page.evaluate(() => [...document.querySelectorAll('.lk-rows > .lk-row')].findIndex(r => r.dataset.open));
       await page.locator('.lk-row[data-open] > .lk-fold').click(); await wait(300);
