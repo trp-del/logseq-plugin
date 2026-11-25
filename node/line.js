@@ -33,7 +33,7 @@ function html(node, { names, statuses, tagShown }) {
 async function pickStatus(at, row) {
   const statuses = await G.read.statuses(), now = Number(row.dataset.status) || 0;
   G.menu(at, statuses.map(s => ({ word: s.title, icon: G.touch.statusIcon(s.icon), on: s.id === now,
-    take: () => G.write.setStatus(row.dataset.uuid, s.title).catch(error => G.say(`The status could not be set: ${error?.message || 'Logseq refused'}`, 'warning')) })));
+    take: () => G.undo.after(row.dataset.uuid, G.write.setStatus(row.dataset.uuid, s.title)).catch(error => G.say(`The status could not be set: ${error?.message || 'Logseq refused'}`, 'warning')) })));
 }
 // The person's tags as an outline, the node's own ticked: a press puts a tag on the node or takes it off.
 async function pickTags(at, row) {
@@ -41,18 +41,18 @@ async function pickTags(at, row) {
   if (!node) return;
   const [tags, own] = await Promise.all([G.read.tags(), G.read.tagsOf(node.id)]), has = new Set(own);
   G.menu(at, [{ group: 'Tags' }, ...G.find.tree(tags).map(({ tag, depth }) => ({ word: tag.title, depth, face: 'tag', on: has.has(tag.id),
-    take: () => (has.has(tag.id) ? G.write.untag(uuid, tag.uuid) : G.write.tag(uuid, tag.uuid)).catch(error => G.say(`The tag could not be changed: ${error?.message || 'Logseq refused'}`, 'warning')) }))]);
+    take: () => G.undo.after(uuid, has.has(tag.id) ? G.write.untag(uuid, tag.uuid) : G.write.tag(uuid, tag.uuid)).catch(error => G.say(`The tag could not be changed: ${error?.message || 'Logseq refused'}`, 'warning')) }))]);
 }
 async function menu(at, row, more) {
   const uuid = row.dataset.uuid, statuses = row.dataset.status ? await G.read.statuses() : [], now = Number(row.dataset.status) || 0;
   G.menu(at, [
-    { word: 'Open', icon: G.touch.icon('arrow-right'), take: () => G.touch.open(uuid) },
-    { word: 'Open in sidebar', icon: G.touch.icon('layout-sidebar-right'), take: () => G.touch.open(uuid, true) },
-    ...(row.closest('.lk-list')?.dataset.face ? [] : [{ gap: true }, { word: 'Tags…', icon: G.touch.icon('hash'), take: () => pickTags(at, row) }]),   // not on a tag or a property itself
-    ...(statuses.length ? [{ gap: true }, { group: 'Status' }, ...statuses.map(s => ({ word: s.title, icon: G.touch.statusIcon(s.icon), on: s.id === now, take: () => G.write.setStatus(uuid, s.title).catch(error => G.say(`The status could not be set: ${error?.message || 'Logseq refused'}`, 'warning')) }))] : []),
+    { word: 'Open', take: () => G.touch.open(uuid) },
+    { word: 'Open in sidebar', take: () => G.touch.open(uuid, true) },
+    ...(row.closest('.lk-list')?.dataset.face ? [] : [{ gap: true }, { word: 'Tags…', take: () => pickTags(at, row) }]),   // not on a tag or a property itself
+    ...(statuses.length ? [{ gap: true }, { group: 'Status' }, ...statuses.map(s => ({ word: s.title, icon: G.touch.statusIcon(s.icon), on: s.id === now, take: () => G.undo.after(uuid, G.write.setStatus(uuid, s.title)).catch(error => G.say(`The status could not be set: ${error?.message || 'Logseq refused'}`, 'warning')) }))] : []),
     ...((more && more(row, at)) || []),   // what the place itself offers for this row
     { gap: true },
-    { word: 'Delete', icon: G.touch.icon('trash'), take: () => G.write.remove(uuid, row.dataset.page === '1').catch(error => G.say(`It could not be deleted: ${error?.message || 'Logseq refused'}`, 'warning')) },
+    { word: 'Delete', goes: true, take: () => G.undo.after(uuid, G.write.remove(uuid, row.dataset.page === '1')).catch(error => G.say(`It could not be deleted: ${error?.message || 'Logseq refused'}`, 'warning')) },
   ]);
 }
 // A press or a key on a closed line. The list calls this for every event in it; true says the line took it.
@@ -77,10 +77,15 @@ function act(event, row, more) {
 }
 G.line = { html, act, menu };
 G.line.CSS = `
-.lk-row { display: grid; grid-template-columns: var(--lk-daycol, 0px) 18px minmax(0, 1fr); align-items: start; padding-left: calc(var(--lk-depth, 0) * 18px); }
-.lk-row > .lk-day { grid-column: 1; overflow: hidden; white-space: nowrap; font-size: var(--lk-small); color: var(--lk-off); font-variant-numeric: tabular-nums; line-height: 24px; padding-top: 2px; }
-.lk-row > .lk-fold { grid-column: 2; position: relative; z-index: 1; }   /* above the opened node, whose own margin reaches under it */
-.lk-row > .lk-line, .lk-row > .lk-open { grid-column: 3; min-width: 0; }
+/* A row: the fold arrow, the line, and the line's day at the right end, in every place (the owner, 25 November 2026). The line
+   reaches under the day, so the wash of a lit line holds both. */
+.lk-row { display: grid; grid-template-columns: 18px minmax(0, 1fr) var(--lk-daycol, 0px); align-items: start; padding-left: calc(var(--lk-depth, 0) * 18px); }
+.lk-row > .lk-day { grid-column: 3; grid-row: 1; z-index: 1; overflow: hidden; white-space: nowrap; text-align: right; padding: 2px 6px 0 0; font-size: var(--lk-small); color: var(--lk-quiet); font-variant-numeric: tabular-nums; line-height: 24px; }
+.lk-row > .lk-day.lk-late { color: var(--lk-text); }   /* a task past its day says so in the ink: colour is kept for a change */
+.lk-row > .lk-day:empty, .lk-row[data-open="1"] > .lk-day { display: none; }
+.lk-row > .lk-fold { grid-column: 1; grid-row: 1; position: relative; z-index: 1; }   /* above the opened node, whose own margin reaches under it */
+.lk-row > .lk-line { grid-column: 2 / -1; grid-row: 1; min-width: 0; padding-right: calc(var(--lk-daycol, 0px) + 6px); }
+.lk-row > .lk-open { grid-column: 2 / -1; min-width: 0; }
 .lk-row[data-open="1"] > .lk-line { display: none; }
 .lk-row[data-open="soon"] > .lk-open { height: 0; overflow: hidden; visibility: hidden; }   /* Logseq is still filling it in: the line stays until it is whole */
 .lk-fold { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 24px; margin-top: 2px; padding: 0; border: 0; background: none; color: var(--lk-off); cursor: pointer; opacity: 0; }
@@ -96,9 +101,11 @@ G.line.CSS = `
 .lk-status { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 24px; padding: 0; border: 0; background: none; color: var(--lk-quiet); cursor: pointer; }
 .lk-words { min-width: 0; overflow-wrap: anywhere; }
 .lk-words a.lk-node, .lk-words a.lk-url { color: inherit; cursor: pointer; text-decoration: underline; text-decoration-color: var(--lk-link); text-decoration-thickness: var(--lk-link-width); text-underline-offset: 3px; }
+.lk-words a:is(.lk-node, .lk-url):hover { text-decoration-color: currentColor; }
 .lk-words a.lk-url::after { content: "\\2197"; display: inline-block; margin-left: .2em; color: var(--lk-quiet); text-decoration: none; }
-.lk-tag { font-family: var(--lk-tag-face); font-style: normal; color: var(--lk-quiet); text-decoration: none; }
+.lk-tag { font-family: var(--lk-tag-face); font-size: var(--lk-tag-size); font-style: normal; color: var(--lk-quiet); text-decoration: none; }
 a.lk-tag { cursor: pointer; }
+a.lk-tag:hover { color: var(--lk-text); }
 .lk-none, .lk-off { color: var(--lk-off); }
 .lk-why { color: var(--lk-quiet); font-size: var(--lk-small); margin-left: .35em; }
 .lk-num { flex: none; margin-left: auto; padding-left: 12px; font-size: var(--lk-small); color: var(--lk-off); font-variant-numeric: tabular-nums; }
@@ -108,7 +115,8 @@ a.lk-tag { cursor: pointer; }
   .lk-row { grid-template-columns: 18px minmax(0, 1fr); padding-left: calc(var(--lk-depth, 0) * 12px); }
   .lk-row > .lk-fold { grid-column: 1; grid-row: 1; }
   .lk-row > .lk-line, .lk-row > .lk-open { grid-column: 2; grid-row: 1; }
-  .lk-row > .lk-day { grid-column: 2; grid-row: 2; padding: 0 0 4px 20px; margin-top: -3px; line-height: 16px; font-size: var(--lk-label); }
+  .lk-row > .lk-line { padding-right: 6px; }
+  .lk-row > .lk-day { grid-column: 2; grid-row: 2; text-align: left; padding: 0 0 4px 20px; margin-top: -3px; line-height: 16px; font-size: var(--lk-label); }
   .lk-row[data-status]:not([data-status=""]) > .lk-day { padding-left: 44px; }
   .lk-row > .lk-day:empty, .lk-row[data-open="1"] > .lk-day { display: none; }
   .lk-row[data-open="1"] { padding-left: 0; }

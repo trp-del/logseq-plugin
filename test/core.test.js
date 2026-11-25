@@ -123,6 +123,7 @@ test('tasks stand under Today, Coming up and Any time; an overdue one says its d
   assert.deepEqual(got.map(l => [l.name, l.rows.map(r => r.uuid)]), [['Today', ['b', 'a']], ['Coming up', ['c']], ['Any time', ['d']]]);
   assert.deepEqual(got[0].rows.map(r => r.dayShown), [20261118, 0]);
   assert.deepEqual(todo.groups([], 20261125), []);
+  assert.deepEqual(got[0].rows.map(r => r.late), [true, false], 'a task past its day is late, one due today is not');
   assert.deepEqual(todo.groups([{ uuid: 'a', words: 'x', day: 0, tag: 'Task' }, { uuid: 'b', words: 'y', day: 0, tag: 'Bill' }], 20261125)[0].rows.map(r => r.tagShown), [false, true]);
 });
 const { sure } = require('../core/sure.js'), { above } = require('../core/tags.js');

@@ -78,7 +78,7 @@ async function ask(place, { from = '', tag = null } = {}) {
 ${state.into && fromProp && !made.refused ? `<div class="lk-ask-rows">${changed.slice(0, 4).map(row => `<div class="lk-ask-row"><div class="lk-ask-words">${esc(row.words || 'Untitled')}</div><div><span class="lk-prop">${esc(fromProp.title)}</span> ${row.goes.length ? few(row.goes, 'lk-going') : few(state.nodes.find(node => node.uuid === row.uuid)?.from || [], '')}</div><div><span class="lk-prop">${esc(state.into.title)}</span> ${[few(row.stays, ''), few(row.comes, 'lk-coming')].filter(Boolean).join(', ') || '—'}</div></div>`).join('')}${changed.length > 4 ? `<div class="lk-ask-more">and ${changed.length - 4} more</div>` : ''}</div>` : ''}
 ${made.refused && (state.into || !fromProp) ? `<div class="lk-ask-note">${esc(made.refused)}</div>` : ''}
 ${!made.refused && made.kept ? `<div class="lk-ask-note">${made.kept} ${made.kept === 1 ? 'node is' : 'nodes are'} left as ${made.kept === 1 ? 'it is' : 'they are'}: ${esc(made.rows.find(row => row.skip).skip)}</div>` : ''}
-<div class="lk-answers"><button type="button" class="lk-accent" data-do="yes"${yes && state.into && !state.busy ? '' : ' disabled'}>${esc(yes || 'Move values')}</button><button type="button" class="lk-btn" data-do="leave">Leave it</button></div>`;
+<div class="lk-answers"><button type="button" class="lk-accent" data-do="yes"${yes && state.into && !state.busy ? '' : ' disabled'}>${esc(yes || 'Move values')}</button><button type="button" class="lk-btn" data-do="leave">Cancel</button></div>`;
     if (state.naming) box.querySelector('.lk-ask-name')?.focus();
   };
   const again = async () => { await read(); draw(); };

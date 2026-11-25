@@ -3,6 +3,12 @@
 (function () {
 const G = window.PluginDoor;
 G.look = {
+  /* The faces. Logseq reaches no face of the Mac by its name alone ("New York" came out as Georgia, "SF Mono" as Menlo), so
+     each face the look uses comes with the plugin, in fonts/, and is said from there once Logseq has told the plugin where its
+     folder is (root: logseq.baseInfo.lsr, known at the start, not at load). A tag is written in Spectral, a property's name in
+     IBM Plex Mono (the owner, 25 November 2026); both are free under the SIL Open Font License, the licences beside the files.
+     Where a file is not there the next face in the token stands in. */
+  faces: root => root ? ['IBMPlexMono-Regular.ttf|LK Plex Mono|400', 'Spectral-Regular.ttf|LK Spectral|400'].map(one => { const [file, name, weight] = one.split('|'); return `@font-face { font-family: "${name}"; font-weight: ${weight}; font-style: normal; src: url("${root}fonts/${file}") format("truetype"); }`; }).join('\n') : '',
   TOKENS: `
 :root { --lk-text: var(--ls-primary-text-color, hsl(var(--foreground))); --lk-paper: var(--ls-primary-background-color, hsl(var(--background)));
   --lk-quiet: color-mix(in srgb, var(--lk-text) 70%, transparent); --lk-off: color-mix(in srgb, var(--lk-text) 46%, transparent);
@@ -10,8 +16,8 @@ G.look = {
   --lk-link: color-mix(in srgb, var(--lk-text) 45%, transparent); --lk-link-width: .5px;
   --lk-wash: color-mix(in srgb, var(--lk-text) 7%, transparent); --lk-lit: color-mix(in srgb, var(--lk-text) 16%, transparent);
   --lk-glass: color-mix(in srgb, var(--lk-paper) 72%, transparent); --lk-glass-blur: blur(22px) saturate(1.6); --lk-float-shadow: 0 12px 34px rgba(0,0,0,.22);
-  --lk-tag-face: "New York", ui-serif, Georgia, serif;
-  --lk-prop-face: "SF Mono", ui-monospace, Menlo, Monaco, monospace; --lk-prop-weight: 300;
+  --lk-tag-face: "LK Spectral", Georgia, serif; --lk-tag-size: 1.06em;
+  --lk-prop-face: "LK Plex Mono", Menlo, Monaco, monospace; --lk-prop-weight: 400;
   --lk-small: 13px; --lk-label: 12px;
   --lk-line-size: 14px; --lk-line-lead: 21px; --lk-line-h: 28px;
   --lk-coming: var(--rx-green-11, #18794e); --lk-going: var(--rx-red-10, #dc3e42); }`,

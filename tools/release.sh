@@ -15,6 +15,8 @@ node tools/check.js || { echo "the check did not pass: no zip built"; exit 1; }
 stage=dist/stage/logseq-plugin
 rm -rf dist/stage && mkdir -p "$stage"
 cp package.json loader.js files.js plugin.js main.js README.md LICENSE "$stage/"
+# The faces the look is written in come with the plugin.
+mkdir -p "$stage/fonts" && cp fonts/* "$stage/fonts/"
 for file in $(grep -o "'[a-z/-]*\.js'" files.js | tr -d "'"); do
   [ -f "$file" ] || { echo "files.js names $file, which is not here"; exit 1; }
   mkdir -p "$stage/$(dirname "$file")" && cp "$file" "$stage/$file"

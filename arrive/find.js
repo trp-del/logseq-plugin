@@ -15,9 +15,9 @@ G.part({
     let win = null;   // the open window's state, or null
     base.style('find', `
 .lk-veil { position: fixed; inset: 0; z-index: 40; display: flex; justify-content: center; align-items: flex-start; padding: 12vh 16px 0; background: color-mix(in srgb, var(--lk-paper) 40%, transparent); }
-.lk-find { width: min(680px, 100%); max-height: 72vh; display: flex; flex-direction: column; border-radius: 12px; background: var(--lk-paper); color: var(--lk-text); box-shadow: var(--lk-float-shadow), 0 0 0 .5px var(--lk-line); overflow: hidden; }
+.lk-find { width: min(1040px, 100%); height: min(86vh, 900px); display: flex; flex-direction: column; border-radius: 12px; background: var(--lk-paper); color: var(--lk-text); box-shadow: var(--lk-float-shadow), 0 0 0 .5px var(--lk-line); overflow: hidden; }
 .lk-find-top { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--lk-hair); flex: none; }
-.lk-find-top .lk-piece { flex: none; padding: 1px 8px; border-radius: 999px; background: var(--lk-wash); }
+.lk-find-top .lk-piece { flex: none; font-size: 18px; line-height: 28px; }
 .lk-find-top .lk-field { flex: 1; min-width: 0; border: 0; outline: 0; background: none; color: inherit; font: inherit; font-size: 18px; line-height: 28px; padding: 0; box-shadow: none; }
 .lk-find-top .lk-field::placeholder { color: var(--lk-off); }
 .lk-find-body { overflow-y: auto; padding: 8px 16px 12px; }
@@ -29,13 +29,7 @@ G.part({
 .lk-find .lk-none { padding: 4px 8px; }
 /* In Find the words start the row and the day stands at its right end, right-aligned (the owner, 25 November 2026). The line
    reaches under the day, so the lit line is one band from the bullet to the day. An opened node takes the whole width. */
-.lk-find .lk-row { grid-template-columns: 18px minmax(0, 1fr) var(--lk-daycol, 0px); }
-.lk-find .lk-row > .lk-fold { grid-column: 1; grid-row: 1; }
-.lk-find .lk-row > .lk-line { grid-column: 2 / -1; grid-row: 1; padding-right: calc(var(--lk-daycol, 0px) + 10px); }
-.lk-find .lk-row > .lk-open { grid-column: 2 / -1; }
-.lk-find .lk-row > .lk-day { grid-column: 3; grid-row: 1; z-index: 1; text-align: right; padding-right: 10px; }
-.lk-find .lk-row > .lk-day:empty, .lk-find .lk-row[data-open="1"] > .lk-day { display: none; }
-.lk-find .lk-more { margin-left: 34px; }`);
+`);
 
     const stops = () => [...win.body.querySelectorAll('.lk-kind, .lk-find-rows > .lk-list > .lk-rows > .lk-row > .lk-line')].filter(el => el.offsetParent);
     const light = (index, scroll = true) => {

@@ -7,7 +7,8 @@ G.part({
   key: 'relations', title: 'Relations', about: 'Under a page: every node that points at it, one list for each property, and where it is mentioned. Any row opens in place.',
   start(base) {
     base.style('hides', G.touch.HIDES + `
-${G.touch.PAGE} > .lk-rel { margin: 8px 0 32px; }`);
+${G.touch.PAGE} > .lk-rel { margin: 8px 0 32px; }
+${G.touch.PAGE} > .lk-rel:not(:empty)::before { content: "Linked"; font-weight: 600; margin-bottom: -6px; }`);   /* the lists stand under a title of their own (the owner, 25 November 2026) */
     const offs = new Map();   // the plugin's element on a page -> what takes its lists away
     const pass = () => {
       for (const [foot, off] of offs) if (!foot.isConnected) { off(); offs.delete(foot); }

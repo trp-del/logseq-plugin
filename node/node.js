@@ -207,7 +207,8 @@ function draw(state, made, names, statuses) {
     rowsEl.hidden = isFolded;
     const rows = L.shown(list.rows, state.all.has(list.key), state.few);
     const days = list.rows.some(row => row.dayShown), long = list.rows.some(row => row.dayShown && Math.floor(row.dayShown / 10000) !== Math.floor(today / 10000));
-    box.style.setProperty('--lk-daycol', days ? (long ? '92px' : '56px') : '0px');
+    const late = list.rows.some(row => row.dayShown && row.late);
+    box.style.setProperty('--lk-daycol', days ? `${(long ? 92 : 56) + (late ? 56 : 0)}px` : '0px');
     sync(rowsEl, rows, row => row.uuid, () => {
       const el = doc.createElement('div'); el.className = 'lk-row';
       el.innerHTML = `<span class="lk-day"></span><button type="button" class="lk-fold" aria-label="Open">${ARROW}</button><div class="lk-line" role="button" tabindex="0"></div>`;
@@ -215,15 +216,19 @@ function draw(state, made, names, statuses) {
     }, (el, row) => {
       el.dataset.uuid = row.uuid; el.dataset.status = row.status || ''; el.dataset.page = row.isPage ? '1' : '';
       el.style.setProperty('--lk-depth', String(row.depth || 0));   // an outline's row stands in by its depth
-      const day = D.short(row.dayShown, today), dayEl = el.firstElementChild;
+      const said = D.short(row.dayShown, today), day = said && row.late ? `was due ${said}` : said, dayEl = el.firstElementChild;
       if (dayEl.textContent !== day) dayEl.textContent = day;
+      dayEl.classList.toggle('lk-late', !!(said && row.late));
       dayEl.title = day ? (row.dayFrom || 'The day it was written') : '';
       const html = G.line.html(row, { names, statuses, tagShown: row.tagShown }), line = el.children[2];
       if (line.lkHtml !== html) { line.innerHTML = html; line.lkHtml = html; }
+      G.undo.dress(el);   // the node changed last keeps its arrow through a redraw
     });
     let more = box.querySelector(':scope > .lk-more');
     if (rows.length < list.rows.length && !isFolded) {
-      if (!more) { more = doc.createElement('button'); more.type = 'button'; more.className = 'lk-more'; more.textContent = 'Show all'; box.appendChild(more); }
+      if (!more) { more = doc.createElement('button'); more.type = 'button'; more.className = 'lk-more'; box.appendChild(more); }
+      const words = `Show ${list.rows.length - rows.length} more`;   // how many wait, before the press
+      if (more.textContent !== words) more.textContent = words;
     } else more?.remove();
   });
 }
@@ -279,7 +284,7 @@ function adder(holder, name, add, failed) {
     const row = uuid && holder.querySelector(`.lk-row[data-uuid="${uuid}"]`);
     if (!row) { if (tries < 20 && holder.isConnected) view.setTimeout(() => show(uuid, tries + 1), 150); return; }
     row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    row.classList.add('lk-new'); view.setTimeout(() => row.classList.remove('lk-new'), 1800);
+    G.undo.mark(uuid);   // what was added lights, with the way back at its end
   };
   const onKey = async event => {
     if (event.key === 'Escape') { field.value = ''; field.blur(); return; }
@@ -320,16 +325,14 @@ G.node.CSS = `
 .lk-plus { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; margin-left: 4px; padding: 0; border: 0; border-radius: 6px; background: none; color: var(--lk-quiet); opacity: .55; cursor: pointer; }
 .lk-plus:hover, .lk-plus:focus-visible { opacity: 1; background: var(--lk-wash); outline: none; }
 @container lk-list (max-width: 300px) { .lk-span { display: none; } }
-.lk-more { margin: 2px 0 0 calc(var(--lk-daycol, 0px) + 34px); padding: 2px 0; border: 0; background: none; color: var(--lk-quiet); font: inherit; font-size: var(--lk-small); cursor: pointer; }
-.lk-more:hover { color: var(--lk-text); }
+.lk-more { margin: 2px 0 0 34px; padding: 2px 0; border: 0; background: none; color: var(--lk-quiet); font: inherit; font-size: var(--lk-small); cursor: pointer; text-decoration: underline; text-decoration-color: var(--lk-link); text-decoration-thickness: var(--lk-link-width); text-underline-offset: 3px; }
+.lk-more:hover { color: var(--lk-text); text-decoration-color: currentColor; }
 .lk-add { display: flex; margin: -4px 0 12px -22px; padding: 4px 0 0 22px; position: sticky; top: 0; z-index: 2; background: var(--lk-ground, transparent); }   /* stays in view while the list moves to what was added */
 .lk-add:has(+ .lk-ask) { position: static; }   /* a box open under it: it scrolls away with the rest, and never floats over the box */
 .lk-add .lk-field { flex: 1; min-width: 0; border: 0; border-bottom: 1px solid var(--lk-hair); outline: 0; background: none; color: inherit; font: inherit; line-height: 24px; padding: 2px 0; box-shadow: none; border-radius: 0; }
 .lk-add .lk-field:focus { border-bottom-color: var(--lk-line); }
 .lk-add .lk-field::placeholder { color: var(--lk-off); }
 .lk-add ~ .lk-rel .lk-row { scroll-margin: 44px 0 8px; }
-.lk-add ~ .lk-rel .lk-row > .lk-line { transition: background-color .6s ease; }
-.lk-add ~ .lk-rel .lk-row.lk-new > .lk-line { background: var(--lk-lit); transition: none; }
 .lk-open { margin-left: -2px; position: relative; }
 /* The levels show: one soft band for the node opened from a row; a node dug into stands under the value it was reached
    through, its rows starting where the value's words start, with a guide line down from the value's arrow. It takes its room

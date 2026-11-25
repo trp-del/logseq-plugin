@@ -420,5 +420,25 @@ const OPENED = `
 .lk-editor .ls-page-icon :is(.ui__icon, svg) { width: 18px !important; height: 18px !important; font-size: 18px !important; }
 .lk-editor .lsp-hook-ui-slot { display: none !important; }`;
 
-G.touch = { watch, changed, writing, edit, digs, seat, names, pages, pageFoot, pageHead, editor, open, openUrl, busy, left, tagList, key, command, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE };
+/* The marks, on what Logseq itself draws. A property's name, a link to a node and a tag are written the one way the plugin
+   writes them, on a page and in the sidebar (the owner, 25 November 2026: one way for each, in every place; no small picture
+   before a property's name; an empty property is its name, fainter). A link and a tag are written so inside a node opened in
+   place too; how that node's rows are laid out, and its property names, is OPENED's, above. Looks only: nothing of Logseq's
+   is moved or taken away. */
+const IN = ':is(#main-content-container, #right-sidebar, .lk-editor)', OWN = ':is(#main-content-container, #right-sidebar)';
+const MARKS = `
+${OWN} a.property-k:not(.lk-editor a) { font-family: var(--lk-prop-face) !important; font-weight: var(--lk-prop-weight) !important; font-size: .9em !important; letter-spacing: -.01em; color: var(--lk-quiet) !important; }
+${OWN} .property-key-inner > .property-icon { display: none !important; }
+${IN} :is(.property-panel-row-empty, .bottom-property-pill:has(.empty-value)) a.property-k { color: var(--lk-off) !important; }
+${OWN} .empty-value :is(.empty-text-btn, .ui__button):not(.lk-editor *) { opacity: 0; }
+${OWN} :is(.property-pair, .bottom-property-pill):is(:hover, :focus-within) .empty-value :is(.empty-text-btn, .ui__button):not(.lk-editor *) { opacity: .5; }
+${IN} a.page-ref { color: var(--lk-text) !important; text-decoration: underline !important; text-decoration-color: var(--lk-link) !important; text-decoration-thickness: var(--lk-link-width) !important; text-underline-offset: 3px; }
+${IN} a.page-ref:hover { text-decoration-color: currentColor !important; }
+${IN} .page-reference > .bracket { display: none !important; }
+${IN} a.tag { font-family: var(--lk-tag-face) !important; font-size: var(--lk-tag-size); color: var(--lk-quiet) !important; text-decoration: none !important; }
+${IN} a.tag:hover { color: var(--lk-text) !important; }
+${IN} .block-tag a.hash-symbol { opacity: 0; }
+${IN} .block-tag:hover a.hash-symbol { opacity: .6; }
+`;
+G.touch = { MARKS, watch, changed, writing, edit, digs, seat, names, pages, pageFoot, pageHead, editor, open, openUrl, busy, left, tagList, key, command, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE };
 })();
