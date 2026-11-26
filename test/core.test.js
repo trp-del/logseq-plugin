@@ -338,3 +338,28 @@ test('a node is written as Markdown: its name, its tags, what it holds, then its
   assert.equal(markdown.outline([{ depth: 2, words: 'deep one' }, { depth: 3, words: 'under it' }]), '- deep one\n  - under it');
   assert.equal(markdown.page({ title: 'Empty' }), '# Empty');
 });
+
+const S = require('../core/search.js'), sentence = require('../core/sentence.js');
+test('a kind\'s choices: what narrows, with counts, and the months newest first', () => {
+  const nodes = [
+    { held: { Provider: ['Dr. Mei Chen'], Topic: ['Colon cancer'] }, day: 20261007 },
+    { held: { Provider: ['Dr. Mei Chen'], Topic: ['Colon cancer'] }, day: 20260820 },
+    { held: { Provider: ['Dr. Raj Patel'], Topic: ['Colon cancer'] }, day: 20260709 },
+  ];
+  const got = S.choices(nodes);
+  assert.deepEqual(got.props, [{ prop: 'Provider', values: [{ label: 'Dr. Mei Chen', count: 2 }, { label: 'Dr. Raj Patel', count: 1 }] }]);   // Topic: one value on every node narrows nothing
+  assert.deepEqual(got.months.map(m => m.label), ['Oct 2026', 'Aug 2026', 'Jul 2026']);
+  assert.equal(S.holds(nodes[0], [{ kind: 'value', prop: 'Provider', label: 'Dr. Mei Chen' }, { kind: 'month', key: 202610 }]), true);
+  assert.equal(S.holds(nodes[2], [{ kind: 'value', prop: 'Provider', label: 'Dr. Mei Chen' }]), false);
+});
+test('a sentence reads a kind, a value of its nodes, a page and a time', () => {
+  const today = new Date(2026, 10, 26);
+  const names = { kinds: new Map([['consultation', { id: 1, title: 'Consultation' }]]), values: new Map([['dr. mei chen', { prop: 'Provider', label: 'Dr. Mei Chen' }]]), pages: new Map([['fatigue', { uuid: 'u', title: 'Fatigue' }]]) };
+  const got = sentence.read('consultations with mei chen around Aug 2026 tingling', names, today);
+  assert.deepEqual(got.picks.map(p => p.kind), ['tag', 'value', 'when']);
+  assert.equal(got.picks[2].label, 'around Aug 2026');
+  assert.equal(got.picks[2].from, 20260701); assert.equal(got.picks[2].to, 20260930);
+  assert.deepEqual(got.words, ['tingling']);
+  assert.deepEqual(sentence.read('fatigue since march', names, today).picks.map(p => p.kind), ['page', 'when']);
+  assert.equal(sentence.when('may to august', today).label, 'May–Aug 2026');
+});

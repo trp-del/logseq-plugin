@@ -139,25 +139,34 @@ Each name opens its tag. On a tag's own page a line above the title says **Paren
 your tags as an outline (not the tag itself, nor a tag under it) and **None (at the top)**, and the one taken is where the tag
 goes, with the Undo arrow at the bottom right.
 
-### Search (`arrive/search.js`, decided in `core/search.js`)
+### Search (`arrive/search.js`, decided in `core/search.js` and `core/sentence.js`)
 
 Cmd-K, the corner, or **Search** in the command palette opens a section of the right sidebar with the keys in its line (a
-setting gives Cmd-K back to Logseq's own search).
+setting gives Cmd-K back to Logseq's own search). It does what Find did (the owner's choices of 26 November 2026).
 
-- Words typed: only the nodes whose own words hold every word typed, each node once, grouped under its kind (a tag's name;
-  pages with no tag, then lines), pages first, the name itself before the rest. The typed letters are marked a step heavier.
-- A line found in a note says the bullet it sits under; a journal is said once, as the day at the line's end.
-- A kind taken (Ontology's **Show its nodes**) stands before the words. The list is every node of that kind and of the kinds
-  under it, newest first; words then narrow it by a node's words, its tag, a value or its day.
+- Nothing typed: the kinds in the graph, most held first, each with how many nodes it holds (the kinds under it counted in);
+  **more** shows all of them as an outline. Under them the pages opened last.
+- Letters typed light the choice they begin: a kind ("cons" lights Consultation, with its count), or with a kind taken a value
+  its nodes hold ("mei" lights Dr. Mei Chen under Provider). Tab takes the lit choice as a piece of the line.
+- Plain words: Logseq's own search answers: what holds the words first, then what holds them in a value (said after the words),
+  then the rest Logseq found; grouped by kind, the kinds among them offered above. The typed letters are marked a step heavier.
+- A kind taken: its nodes (and those of the kinds under it), newest first, and above them what they hold to narrow by, each
+  value with how many hold it, then the months. A value or month pressed becomes a piece; words narrow further.
+- **By sentence** (the press at the line's end, or Option-Cmd-K): "Consultation with Mei Chen around Aug 2026" is read as a
+  kind, a value and a time, each said under the line with what it was read as; the time is a strip of months, and the nodes
+  just outside it follow under **Near**. A page named alone gives what points at it. Tab puts the lit choice's name in place of
+  the letters that lit it.
 
 | Do | Result |
 |---|---|
 | A click on a line, or Enter | Goes to the node in the main view; with Shift, opens it in the sidebar |
+| The fold arrow, or Right on a line | Opens the node in place under its line; Left closes it |
 | Down from the line | Walks the lines |
+| Tab | Takes the lit choice; with none lit, steps into the choices (arrows walk them, Escape goes back) |
+| A click on a piece, or Backspace on an empty line | Takes that piece, or the last, off |
 | Right-click | The line's own menu, as everywhere |
 | Cmd-Enter | Makes a page of the words typed and goes to it |
-| Backspace on an empty line | Lets the kind go |
-| Escape | Empties the words, then lets go of the kind |
+| Escape | Empties the words, then lets go of the pieces |
 
 ### The corner (`beside/corner.js`)
 

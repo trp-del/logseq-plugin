@@ -136,10 +136,32 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await page.keyboard.press('Meta+k'); await wait(1500);
       return is(await page.evaluate(() => [document.getElementById('_sidebar.lk-search')?.textContent, document.activeElement?.closest('.lk-search') != null]), ['Search', true]);
     });
-    await step('Search shows only what holds every word, each node once, grouped by kind, the typed letters marked', async () => {   // the owner's marked page, 26 November 2026
+    await step('Search shows what holds every word first, each node once, grouped by kind, the typed letters marked', async () => {   // the owner's marked page, then their choice of Logseq's own answers after (26 November 2026)
       await page.keyboard.type('chen', { delay: 30 }); await wait(1500);
-      const got = await page.evaluate(() => { const rows = [...document.querySelectorAll('.lk-search .lk-row')]; return [rows.length > 0, rows.every(r => /chen/i.test(r.querySelector('.lk-words').textContent)), new Set(rows.map(r => r.dataset.uuid)).size === rows.length, document.querySelectorAll('.lk-search .lk-list-name').length > 1, rows.every(r => r.querySelector('mark.lk-hit'))]; });
+      const got = await page.evaluate(() => { const rows = [...document.querySelectorAll('.lk-search .lk-row')], holds = rows.map(r => /chen/i.test(r.querySelector('.lk-words').textContent)); return [rows.length > 0, holds[0], new Set(rows.map(r => r.dataset.uuid)).size === rows.length, document.querySelectorAll('.lk-search .lk-list-name').length > 1, rows.filter(r => { const w = r.querySelector('.lk-words').cloneNode(true); for (const el of w.querySelectorAll('.lk-sits')) el.remove(); return /chen/i.test(w.textContent); }).every(r => r.querySelector('mark.lk-hit'))]; });
       return is(got, [true, true, true, true, true]);
+    });
+    await step('Search as Find: nothing typed shows the kinds with counts and the pages opened last; letters light a kind, Tab takes it and its values show with counts; a value taken narrows', async () => {   // the owner's choices, 26 November 2026
+      await page.locator('.lk-search .lk-field').focus(); await page.keyboard.press('Escape'); await wait(1200);
+      const bare = await page.evaluate(() => [/\d/.test(document.querySelector('.lk-search .lk-choice')?.textContent || ''), document.querySelector('.lk-search .lk-list-name')?.textContent]);
+      await page.keyboard.type('cons', { delay: 30 }); await wait(1500);
+      const lit = await page.evaluate(() => document.querySelector('.lk-search .lk-choice.lit')?.firstChild?.textContent);
+      await page.keyboard.press('Tab'); await wait(1500);
+      const lines = await page.evaluate(() => [...document.querySelectorAll('.lk-search .lk-choice-name')].map(el => el.textContent));
+      await page.keyboard.type('mei', { delay: 30 }); await wait(1200);
+      await page.keyboard.press('Tab'); await wait(1500);
+      const after = await page.evaluate(() => [[...document.querySelectorAll('.lk-search-piece')].map(el => el.textContent), [...document.querySelectorAll('.lk-search .lk-row')].every(r => /Mei Chen/.test(r.textContent))]);
+      for (let i = 0; i < 2; i++) { await page.keyboard.press('Escape'); await wait(400); }
+      return is([...bare, lit, lines.includes('Provider') && lines.includes('When'), ...after], [true, 'Recently opened', 'Consultation', true, ['Consultation', 'ProviderDr. Mei Chen'], true]);
+    });
+    await step('Search by sentence reads a kind, a value and a time, and puts the near ones under Near', async () => {
+      await page.locator('.lk-search .lk-field').focus(); await page.keyboard.press('Meta+Alt+k'); await wait(800);
+      await page.keyboard.type('Consultation with mei chen around Aug 2026', { delay: 20 }); await wait(2500);
+      const got = await page.evaluate(() => [[...document.querySelectorAll('.lk-search-read small')].map(el => el.textContent), [...document.querySelectorAll('.lk-search .lk-list-name')].map(el => el.textContent).filter(Boolean), !document.querySelector('.lk-search .lk-time').hidden]);
+      await page.keyboard.press('Meta+a'); await page.keyboard.press('Backspace'); await page.keyboard.press('Meta+Alt+k'); await wait(800);
+      // Search closed again, so the steps after it find their own rows (Search shows the pages opened last when empty).
+      await page.locator('#right-sidebar .sidebar-item', { has: page.locator('.lk-search') }).first().locator('.item-actions button').last().click().catch(() => {}); await wait(800);
+      return is(got, [['kind', 'Provider', 'when'], ['Near'], true]);
     });
     await step('a press on a found line goes to it in the main view; Escape empties the line', async () => {
       await page.locator('.lk-search .lk-row', { hasText: 'Dr. Mei Chen' }).first().locator('.lk-words').click(); await wait(1500);
@@ -379,7 +401,7 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await page.locator('.lk-ontology .lk-row', { hasText: /^Consultation/ }).first().locator('.lk-line').click({ button: 'right' }); await wait(500);
       const items = await page.locator('.lk-menu .lk-item').allInnerTexts();
       await page.locator('.lk-menu .lk-item', { hasText: 'Show its nodes' }).click(); await wait(1500);
-      const piece = await page.locator('.lk-search .lk-piece').innerText().catch(() => '');
+      const piece = await page.locator('.lk-search .lk-search-piece').innerText().catch(() => '');
       for (let i = 0; i < 3; i++) { await page.keyboard.press('Escape'); await wait(250); }
       return is([items.includes('Show its nodes'), items.includes('Put under…'), piece], [true, true, 'Consultation']);
     });

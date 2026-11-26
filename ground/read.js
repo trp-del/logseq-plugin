@@ -31,6 +31,8 @@
      read.journal(day)        the uuid of a day's journal page, or '' when the graph has none
      read.pageNamed(name)     the page of that very name, { uuid, gone } (gone: it lies in Logseq's Recycle), or null
      read.byUuids(uuids)      the nodes of these uuids, in their order: [node]
+     read.recent(n)           the pages opened last, newest first: [node] (Logseq's own list of them; else the pages changed last)
+     read.pageNames()         every page of the person's own by name, journal days left out: [{ id, uuid, title }]
      read.schema()            { props: ident -> { ident, title, type, range: [tag id], many }, byTag: tag id -> [ident] }
      read.writing(uuid)       what a bullet's words say, as core/sure.js takes it; null for a bullet with no tag of the person's
      read.outline(uuid, isPage)  a node's bullets in their order: [{ id, uuid, depth, words }], words as a person reads them
@@ -423,5 +425,16 @@ async function choices() {
   return out;
 }
 
-G.read = { pageNamed, outline, holds, choices, recycled, held, where, withLines, byUuids, schema, writing, search, tagged, values, tasks, journal, q, node, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, propertyCounts, relations, holders, heldUnder, graph, newPages, tagsOf, forget: () => kept.clear(), isId, UUID };
+async function recent(n = 8) {
+  let uuids = [];
+  try { const got = await logseq.App.getCurrentGraphRecent?.(); if (Array.isArray(got)) uuids = got.map(one => String(one?.uuid || one?.['block/uuid'] || one || '').toLowerCase()).filter(uuid => UUID.test(uuid)); } catch (error) { uuids = []; }
+  if (uuids.length) return byUuids([...new Set(uuids)].slice(0, n));
+  // Logseq keeps no list yet (a graph just opened): the pages changed last stand in for it.
+  const rows = await q(`[:find ?b ?u ?at :where [?b :block/name _] [?b :block/uuid ?u] [?b :block/updated-at ?at] (not [?b :block/journal-day _]) (not [?b :logseq.property/built-in? true]) (not [?b :block/tags :logseq.class/Property]) (not [?b :block/tags :logseq.class/Tag]) ${LIVE}]`);
+  return byUuids(rows.sort((a, b) => Number(b[2]) - Number(a[2])).slice(0, n).map(([, uuid]) => String(uuid).toLowerCase()));
+}
+const pageNames = () => once('pageNames', async () => (await q(`[:find ?b ?u ?title :where [?b :block/name _] [?b :block/uuid ?u] [?b :block/title ?title] (not [?b :block/journal-day _]) (not [?b :logseq.property/built-in? true]) ${LIVE}]`))
+  .map(([id, uuid, title]) => ({ id, uuid: String(uuid).toLowerCase(), title: String(title) })).filter(page => page.title));
+
+G.read = { recent, pageNames, pageNamed, outline, holds, choices, recycled, held, where, withLines, byUuids, schema, writing, search, tagged, values, tasks, journal, q, node, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, propertyCounts, relations, holders, heldUnder, graph, newPages, tagsOf, forget: () => kept.clear(), isId, UUID };
 })();
