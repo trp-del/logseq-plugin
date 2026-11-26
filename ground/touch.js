@@ -102,7 +102,7 @@ function pages() {
   for (const el of host().querySelectorAll(PAGE)) {
     if (el.closest(OURS)) continue;
     const uuid = (el.querySelector(PAGE_NODE) || (el.querySelector('.ls-page-title') ? null : el.querySelector(FIRST_NODE)))?.getAttribute('blockid');
-    if (uuid) out.push({ el, uuid: uuid.toLowerCase(), feed: !!el.closest(FEED) });
+    if (uuid) out.push({ el, uuid: uuid.toLowerCase(), feed: !!el.closest(FEED), side: !!el.closest('#right-sidebar') });
   }
   return out;
 }
@@ -114,6 +114,15 @@ function pageFoot(el, name) {
   return foot;
 }
 
+// Under the title and the page's properties, above the page's own bullets: the last thing inside the title's block. null where
+// the page has no title of its own (a bullet shown as a page).
+function pageUnder(el, name) {
+  const block = el.querySelector(':scope > .page-inner .ls-page-title .ls-block');
+  if (!block) return null;
+  let under = [...block.children].find(child => child.classList.contains(name));
+  if (!under) { under = host().createElement('div'); under.className = name; block.appendChild(under); }
+  return under;
+}
 // Under the title's own row and above the page's properties, inside the title's block.
 function pageHead(el, name, above = false) {
   const row = el.querySelector(':scope > .page-inner .ls-page-title .ls-block > .is-page-title-row');
@@ -239,7 +248,67 @@ function tagList(say) {
   });
   return () => { off(); for (const note of host().querySelectorAll(`${LIST} .lk-where`)) note.remove(); };
 }
-const command = (name, label, run) => logseq.App.registerCommandPalette({ key: name, label }, run);
+/* Logseq's own bar for the rows ticked in one of its tables (a tag's page, a property's page: "Selected: 3", Copy, Set property…)
+   gets one more word. A press hands run({ ids, bar }) the ids of the ticked nodes. Logseq draws only the rows on screen, so each
+   row's tick is kept as it passes; when the count kept differs from the bar's own "Selected: N" (every row ticked at once in a
+   long table) the table is walked once from top to bottom to read the rest and put back where it stood. A count that still
+   differs changes nothing and says so. Gives back what takes the word away. */
+function tableBar(word, run) {
+  const BAR = '.ls-table-actions', TABLE = '.ls-table', ROW = '.ls-table-row', TICK = 'label[data-table-row-select]', doc = host(), win = doc.defaultView;
+  const known = new WeakMap();
+  const idOf = label => { const n = parseInt(label.getAttribute('for') || '', 10); return Number.isFinite(n) ? n : null; };
+  const ticked = label => !!label.querySelector('[aria-checked="true"], [data-state="checked"]');
+  const read = table => { const map = known.get(table) || known.set(table, new Map()).get(table); for (const label of table.querySelectorAll(`${ROW} ${TICK}`)) { const id = idOf(label); if (id != null) map.set(id, ticked(label)); } return map; };
+  const picked = table => [...read(table)].filter(([, on]) => on).map(([id]) => id);
+  const said = bar => { const n = parseInt((bar.querySelector('.selection-count')?.textContent || '').replace(/\D+/g, ''), 10); return Number.isFinite(n) ? n : null; };
+  async function walk(table) {
+    let scroller = table; while (scroller && scroller !== doc.body && !(/(auto|scroll)/.test(win.getComputedStyle(scroller).overflowY) && scroller.scrollHeight > scroller.clientHeight + 4)) scroller = scroller.parentElement;
+    if (!scroller || scroller === doc.body) return;
+    const was = scroller.scrollTop, step = Math.max(120, Math.round(scroller.clientHeight * 0.7)), frame = () => new Promise(done => win.requestAnimationFrame(() => win.setTimeout(done, 30)));
+    const top = () => table.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
+    for (let y = Math.max(0, top() - 40), end = top() + table.scrollHeight; y <= end; y += step) { scroller.scrollTop = y; await frame(); read(table); if (scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 2) break; }
+    scroller.scrollTop = was; await frame();
+  }
+  const press = async bar => {
+    const table = bar.closest(TABLE); if (!table) return;
+    const want = said(bar); let ids = picked(table);
+    if (want != null && ids.length !== want) { await walk(table); ids = picked(table); }
+    if (want != null && ids.length !== want) { G.say(`${word.replace(/…$/, '')} could not tell which ${want} rows are ticked (it read ${ids.length}). Nothing was changed.`, 'warning'); return; }
+    if (ids.length) run({ ids, bar });
+  };
+  const off = watch(() => {
+    for (const table of doc.querySelectorAll(TABLE)) read(table);
+    for (const bar of doc.querySelectorAll(BAR)) {
+      if (bar.querySelector('.lk-table-word')) continue;
+      const like = [...bar.querySelectorAll('button')].find(button => button.textContent.trim().length > 1), button = doc.createElement('button');
+      button.type = 'button'; button.className = `${like?.className || ''} lk-table-word`; button.textContent = word;
+      button.addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); press(bar); });
+      (like?.parentElement || bar).appendChild(button);
+    }
+  });
+  return () => { off(); for (const button of doc.querySelectorAll('.lk-table-word')) button.remove(); };
+}
+// A command in Logseq's palette; with keys ('u p'), also a shortcut of Logseq's own kind, listed and changed in its settings.
+const command = (name, label, run, keys) => logseq.App.registerCommandPalette(keys ? { key: name, label, keybinding: { binding: keys } } : { key: name, label }, run);
+/* The plugins Logseq loads from a folder of the person's own, each { id, title, version }; the ones Logseq installed itself are
+   Logseq's to update. reload(ids) has Logseq load them again from their folders, this plugin last: its own code ends there. What
+   keep() is given outlives that reload for a minute, for took() to hand to the plugin's next run, once. */
+const LOADED = 'lk.plugins-before';
+const plugins = {
+  mine() {
+    const core = host().defaultView.LSPluginCore;
+    return core ? [...core.registeredPlugins.values()].filter(one => !one.isInstalledInLocalDotRoot && !one.isWebPlugin).map(one => ({ id: one.id, title: one.options?.title || one.options?.name || one.id, version: one.options?.version || '' })) : [];
+  },
+  async reload(ids) {
+    const core = host().defaultView.LSPluginCore, own = logseq.baseInfo.id;
+    for (const id of ids.filter(one => one !== own)) { try { await core.reload(id); } catch (error) { console.error(`Logseq Plugin: ${id} could not be reloaded`, error); } }
+    if (ids.includes(own)) await core.reload(own);
+  },
+  keep(list) { try { host().defaultView.localStorage.setItem(LOADED, JSON.stringify({ at: Date.now(), list })); } catch (error) { /* then nothing is said afterwards */ } },
+  took() {
+    try { const at = host().defaultView.localStorage, kept = JSON.parse(at.getItem(LOADED) || 'null'); at.removeItem(LOADED); return kept && Date.now() - kept.at < 60000 ? kept.list : null; } catch (error) { return null; }
+  },
+};
 function section(name, title, draw, path) {
   const E = logseq.Experiments, React = E?.React;
   if (!React?.createElement || !E.registerSidebarRenderer) return { open() { G.say(`${title} cannot be shown: this Logseq lends plugins no sidebar section`, 'warning'); }, off() {} };
@@ -352,7 +421,7 @@ const openUrl = url => logseq.App.openExternalLink(url);
 const HIDES_TAGS = `.ls-page-title .ls-block:has(> .lk-place:not(:empty)) > .is-page-title-row .block-tags, .ls-block-right:has(> .lk-place:not(:empty)) > .block-tags { display: none !important; }
 .ls-block-right > .lk-place { align-self: flex-start; }`;
 const HIDES = `
-${PAGE}:has(> .lk-rel) .references, ${PAGE}:has(> .lk-rel) .ls-bidirectional-properties { display: none !important; }
+${PAGE}:has(.lk-relpage) .references, ${PAGE}:has(.lk-relpage) .ls-bidirectional-properties { display: none !important; }
 .lk-open ${PAGE} .references, .lk-open ${PAGE} .unlinked-references, .lk-open ${PAGE} .ls-bidirectional-properties { display: none !important; }`;
 
 /* Logseq's editor draws a node as a whole page: a wide margin under it, the path to it above, a large title. Opened in a row it
@@ -426,16 +495,21 @@ const OPENED = `
 .lk-editor .is-page-title-row .ls-block-right .block-tags { margin: 0 !important; padding-block: 0 !important; }
 .lk-editor .is-page-title-row .block-row { min-height: 0 !important; align-items: flex-start !important; }
 .lk-editor .is-page-title-row { margin-left: 0 !important; gap: 0 !important; }   /* the title's words stand where the line's words stood */
-/* A row whose line says its day after the bullet: opened, the node's first words stay where the line's stood, after the day,
-   which the row goes on showing. In a narrow place the day stands under a line's words and goes while the node is open. */
-.lk-rows:not(.lk-day-end *) > .lk-row > .lk-open > .lk-editor :is(.blocks-list-wrap[data-level="0"] > .ls-block > .block-main-container, .is-page-title-row) .block-row > .block-content-wrapper:not(.property-block-container *) { margin-left: var(--lk-daycol, 0px); }
-@container lk-list (max-width: 300px) { .lk-rows:not(.lk-day-end *) > .lk-row > .lk-open > .lk-editor :is(.blocks-list-wrap[data-level="0"] > .ls-block > .block-main-container, .is-page-title-row) .block-row > .block-content-wrapper:not(.property-block-container *) { margin-left: 0; } }
 .lk-editor:has(.ls-page-title) { margin-left: -2px; }
 .lk-dugopen > .lk-editor:has(.ls-page-title) { margin-left: 0; }
 .lk-editor .ls-page-icon { align-self: flex-start !important; height: 24px !important; padding: 0 !important; margin: 0 !important; align-items: center !important; }
 .lk-editor .ls-page-icon button { width: 20px !important; height: 24px !important; min-width: 0 !important; padding: 0 !important; }
 .lk-editor .ls-page-icon :is(.ui__icon, svg) { width: 18px !important; height: 18px !important; font-size: 18px !important; }
-.lk-editor .lsp-hook-ui-slot { display: none !important; }`;
+.lk-editor .lsp-hook-ui-slot { display: none !important; }
+/* The page's Relations stand inside Logseq's title block, whose own rules for a title's tags, properties and bullets would reach
+   a node opened there: they are put back to a plain bullet's. */
+.ls-page-title .lk-editor :is(.positioned-properties, .time-spent) { margin-top: 0 !important; }
+.ls-page-title .lk-editor .block-tags { margin-top: 0 !important; min-height: 0 !important; }
+.ls-page-title .lk-editor .block-main-container { gap: 4px !important; }
+.ls-page-title .lk-editor .ls-block-right { margin-left: 0 !important; }
+/* In a list of Relations the row's own dot stays where it was while the node is open, before its day: Logseq's bullet for the
+   node's first line is left out there. */
+.lk-list[data-viewed] > .lk-rows > .lk-row[data-open="1"] > .lk-open > .lk-editor:not(:has(.ls-page-title)) .ls-page-blocks .blocks-list-wrap[data-level="0"] > .ls-block > .block-main-container > .block-control-wrap .bullet-container { visibility: hidden !important; }`;
 
 /* The marks, on what Logseq itself draws. A property's name, a link to a node and a tag are written the one way the plugin
    writes them, on a page and in the sidebar (the owner, 25 November 2026: one way for each, in every place; no small picture
@@ -553,5 +627,5 @@ function titleEnd(el, name) {
   if (!end) { end = host().createElement('div'); end.className = name; for (const type of ['mousedown', 'pointerdown']) end.addEventListener(type, event => event.stopPropagation()); spot.append(end); }
   return end;
 }
-G.touch = { MARKS, CALM, titleEnd, lessColumn, valued, valueTags, watch, changed, writing, edit, digs, seat, names, pages, pageFoot, pageHead, editor, open, openUrl, busy, left, tagList, key, command, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE };
+G.touch = { MARKS, CALM, titleEnd, lessColumn, valued, valueTags, watch, changed, writing, edit, digs, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, busy, left, tagList, key, command, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE };
 })();

@@ -14,6 +14,8 @@
 (function () {
 const G = window.PluginDoor, L = G.lists, D = G.days, W = G.words;
 const ARROW = '<svg viewBox="0 0 192 512" fill="currentColor" aria-hidden="true"><path d="M0 384.662V127.338c0-17.818 21.543-26.741 34.142-14.142l128.662 128.662c7.81 7.81 7.81 20.474 0 28.284L34.142 398.804C21.543 411.404 0 402.48 0 384.662z"/></svg>';
+// The thin arrow Relations' heads had before the rebuild: on the section's line, a list's head and a group's line.
+const CHEV = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6l-6 6"/></svg>';
 const FOLDED = 'lk.folded';   // the lists the person keeps folded, by their key, kept across pages and restarts
 const folded = (() => { let set = null; const read = () => { if (!set) { try { set = new Set(JSON.parse(G.host().defaultView.localStorage.getItem(FOLDED) || '[]')); } catch (error) { set = new Set(); } } return set; };
   return { has: key => read().has(key), flip(key) { const s = read(); if (!s.delete(key)) s.add(key); try { G.host().defaultView.localStorage.setItem(FOLDED, JSON.stringify([...s])); } catch (error) { /* kept for this session only */ } } }; })();
@@ -141,7 +143,9 @@ const mounted = new Map();   // el -> state
 const EVENTS = ['click', 'keydown', 'contextmenu', 'mousedown'];
 let offChanged = null, offDigs = null;
 function listing(el, read, opts = {}) {
-  const state = { el, read, all: new Set(), turn: 0, press: opts.press || null, few: opts.few || 10, none: opts.none || '', add: opts.add || null, key: opts.key || null, more: opts.more || null };
+  const state = { el, read, all: new Set(), turn: 0, press: opts.press || null, few: opts.few || 10, none: opts.none || '', add: opts.add || null, key: opts.key || null, more: opts.more || null, view: opts.view || null, last: null };
+  state.redraw = () => { if (state.last && el.isConnected) draw(state, ...state.last); };
+  state.again = () => load(state);
   mounted.set(el, state);
   const onEvent = event => handle(state, event);
   for (const type of EVENTS) el.addEventListener(type, onEvent);
@@ -163,25 +167,46 @@ function listing(el, read, opts = {}) {
     },
   };
 }
-// What points at a node: its properties' lists, what Logseq's dates put on its day, where it is mentioned.
-function lists(el, uuid) {
-  return listing(el, async () => {
+/* What points at a node: its properties' lists, what Logseq's dates put on its day, where it is mentioned. Each list is shown
+   as its View says (node/view.js), in the order the person gave the page's lists. Gives back the listing's handle with
+   find(words), which narrows every list to the words and turns them back to a day ("on Oct 7"), and rows(), how many nodes
+   the lists hold. */
+function related(el, uuid) {
+  const view = G.listview.state(uuid);
+  let total = 0;
+  const handle = listing(el, async () => {
     const node = await G.read.node(uuid);
     if (!node) return [];
+    view.own = node.day || 0;
     const [pointing, dues] = await Promise.all([G.read.pointingAt(node.id), node.day ? G.read.dues(node.day) : []]);
-    return L.lists({ ...pointing, dues, own: node.day || 0 });
-  }, { add: async list => {
+    const hidden = new Set(G.listview.hidden()), named = G.listview.named();
+    const made = L.lists({ ...pointing, dues, own: node.day || 0 }).filter(list => !(list.kind === 'property' && hidden.has(list.prop.ident)));
+    const said = made.filter(list => list.kind === 'mentions').flatMap(list => list.rows.map(row => row.id));
+    const [held, sits] = await Promise.all([G.read.held(made.flatMap(list => list.rows.map(row => row.id))), G.read.where(said)]);
+    const types = Object.fromEntries([...(await G.read.schema()).props.values()].map(prop => [prop.title, prop.type]));
+    for (const list of made) {
+      list.types = types; list.own_name = list.prop?.title || '';
+      if (list.kind === 'property') list.name = G.reads.back(list.prop.title, named);   // read from this end: "Prescribed by" is "Prescribed" here
+      list.rows = list.rows.map(row => ({ ...row, held: held.get(row.id) || {}, where: list.kind === 'mentions' && !row.isPage ? (sits.get(row.id) || []) : [] }));
+    }
+    total = made.reduce((n, list) => n + list.rows.length, 0);
+    return G.view.ordered(made, G.listview.order(uuid));
+  }, { view, few: 10, add: async list => {
     const [tags, target] = await Promise.all([G.read.tags(), G.read.node(uuid)]), those = [...tags.values()].filter(tag => tag.title === list.one);
     if (those.length !== 1 || !target) throw new Error(`no one tag is called ${list.one}`);
     return G.write.addNode(those[0].uuid, list.prop.ident, target.id);
-  } }).off;
+  } });
+  const offDrags = G.listview.drags(mounted.get(el));
+  return { ...handle, off() { offDrags(); handle.off(); }, rows: () => total, day: () => view.own, find(words) { view.find = G.view.parse(words, D.number(new Date())); mounted.get(el)?.redraw(); } };
 }
+const lists = (el, uuid) => related(el, uuid).off;
 async function load(state) {
   const turn = ++state.turn;
   try {
     const [made, statuses] = await Promise.all([state.read(), G.read.statuses()]);
     const names = await G.read.names(made.flatMap(list => list.rows.flatMap(row => W.named(W.firstLine(row.words).line))));
     if (turn !== state.turn || !state.el.isConnected) return;
+    state.last = [made, names, statuses];
     draw(state, made, names, statuses);
     state.el.dispatchEvent(new (state.el.ownerDocument.defaultView.CustomEvent)('lk-drawn'));
   } catch (error) {
@@ -212,49 +237,84 @@ function draw(state, made, names, statuses) {
     box.innerHTML = `<div class="lk-list-head" role="button" tabindex="0"><span class="lk-fold">${ARROW}</span><span class="lk-list-via"></span><span class="lk-list-name"></span></div><div class="lk-rows"></div>`;
     return box;
   }, (box, list) => {
-    const isFolded = folded.has(list.key), head = box.firstElementChild, rowsEl = box.children[1];
+    const isFolded = folded.has(list.key), head = box.firstElementChild, rowsEl = box.querySelector(':scope > .lk-rows');
     head.setAttribute('aria-expanded', String(!isFolded));
     /* The head says what the list is, how many it holds and of what, and from when to when; + adds one more of its kind.
        A property's list has its head on two lines, as the plugin before the rebuild drew it (the owner, 25 November 2026: "I
        prefer the two line of oriiginal"): the property's mark and name on the first, and under it the count with its kind in
        the words' own face, the + and the days. A list of one node has nothing to count, so its head is the first line alone. */
-    const said = list.said || list.tag || '', via = list.kind === 'property';
+    const said = list.said || list.tag || '', via = list.kind === 'property', made = G.listview.shape(state, list, names, today);
     const plus = state.add && via && list.one ? `<button type="button" class="lk-plus" title="Add a ${G.esc(list.one)}" aria-label="Add a ${G.esc(list.one)}">${G.touch.icon('plus', 14)}</button>` : '';
     const span = list.from ? `<span class="lk-span">${G.esc(D.short(list.from, today))} to ${G.esc(D.short(list.to, today))}</span>` : '';
-    const first = via ? `${G.touch.icon('hierarchy', 13)}<span class="lk-prop">${G.esc(list.name)}</span>${list.count ? '' : plus}` : '';
-    const name = via ? (list.count ? `<span class="lk-said">${G.esc(list.tag ? said : `${said} nodes`)}</span>${plus}${span}` : '')
+    const lined = via || (made && list.count);   // two lines: what the list is, then what it holds
+    const first = lined ? `${via ? G.touch.icon('hierarchy', 13) : ''}<span class="${via || list.kind === 'due' ? 'lk-prop' : 'lk-plain'}">${G.esc(list.name)}</span>${list.count ? '' : plus}` : '';
+    const name = made && list.count ? G.listview.head(state, list, made, plus, today) : via ? (list.count ? `<span class="lk-said">${G.esc(list.tag ? said : `${said} nodes`)}</span>${plus}${span}` : '')
       : `<span class="${list.kind === 'due' ? 'lk-prop' : list.kind === 'none' ? 'lk-none' : 'lk-plain'}">${G.esc(list.name)}</span>${said ? ` <span class="lk-tag">${G.esc(said)}</span>` : ''}${span}`;
     if (head.children[1].innerHTML !== first) head.children[1].innerHTML = first;
-    head.toggleAttribute('data-one', via && !list.count);
+    if (made && !head.dataset.thin) { head.dataset.thin = '1'; head.firstElementChild.innerHTML = CHEV; }
+    if (made) head.children[1].draggable = true;   // a list's name dragged among the page's lists sets their order
+    head.toggleAttribute('data-one', !!lined && !list.count); head.toggleAttribute('data-plain', !!lined && !via);
     box.lkList = list;
     if (head.lastElementChild.innerHTML !== name) head.lastElementChild.innerHTML = name;
     head.hidden = !list.name; box.dataset.kind = list.kind; box.dataset.face = list.face || '';
     rowsEl.hidden = isFolded;
-    const rows = L.shown(list.rows, state.all.has(list.key), state.few);
-    const days = list.rows.some(row => row.dayShown), long = list.rows.some(row => row.dayShown && Math.floor(row.dayShown / 10000) !== Math.floor(today / 10000));
-    box.style.setProperty('--lk-daycol', days ? (long ? '92px' : '56px') : '0px');
-    sync(rowsEl, rows, row => row.uuid, () => {
-      const el = doc.createElement('div'); el.className = 'lk-row';
+    const items = made ? G.listview.items(state, list, made, state.few) : L.shown(list.rows, state.all.has(list.key), state.few).map(row => ({ type: 'row', key: row.uuid, row }));
+    const hidden = made ? (items.hidden || 0) : list.rows.length - items.length;
+    const dated = items.filter(item => item.type === 'row' && item.row.dayShown), long = dated.some(item => Math.floor(item.row.dayShown / 10000) !== Math.floor(today / 10000));
+    box.style.setProperty('--lk-daycol', made ? '0px' : dated.length ? (long ? '92px' : '56px') : '0px');   // a list of Relations has the day after the bullet, inside the line
+    box.style.setProperty('--lk-dayin', long ? '90px' : '54px');
+    box.toggleAttribute('data-picking', !!made?.picking);
+    box.toggleAttribute('data-viewed', !!made);
+    sync(rowsEl, items, item => item.key, item => {
+      const el = doc.createElement('div');
+      if (item.type !== 'row') return el;
+      el.className = 'lk-row';
       el.innerHTML = `<span class="lk-day"></span><button type="button" class="lk-fold" aria-label="Open">${ARROW}</button><div class="lk-line" role="button" tabindex="0"></div>`;
       return el;
-    }, (el, row) => {
+    }, (el, item) => {
+      if (item.type !== 'row') { G.listview.paint(el, item, today); return; }
+      const row = item.row;
       el.dataset.uuid = row.uuid; el.dataset.status = row.status || ''; el.dataset.page = row.isPage ? '1' : '';
+      el.classList.toggle('lk-faint', !!item.faint); el.classList.toggle('lk-fresh', !!(state.view?.since && (row.made || 0) > state.view.since)); el.classList.toggle('lk-picked', !!item.picked);
       el.style.setProperty('--lk-depth', String(row.depth || 0));   // an outline's row stands in by its depth
       const day = D.short(row.dayShown, today), dayEl = el.firstElementChild;
       if (dayEl.textContent !== day) dayEl.textContent = day;
       dayEl.classList.toggle('lk-late', !!(day && row.late));
       dayEl.title = day ? (row.dayFrom || 'The day it was written') : '';
-      const html = G.line.html(row, { names, statuses, tagShown: row.tagShown }), line = el.children[2];
-      if (line.lkHtml !== html) { line.innerHTML = html; line.lkHtml = html; }
+      let tick = el.querySelector(':scope > .lk-tick');
+      if (item.picking) { if (!tick) { tick = doc.createElement('input'); tick.type = 'checkbox'; tick.className = 'lk-tick'; tick.setAttribute('aria-label', 'Pick this node'); el.insertBefore(tick, el.children[1]); } tick.checked = !!item.picked; } else tick?.remove();
+      const want = made?.finding ? G.find.tokens(state.view.find.words) : [];
+      const html = G.line.html(row, { names, statuses, tagShown: row.tagShown, day: made && dated.length ? day : undefined }) + (want.length ? `<!--${G.esc(want.join(' '))}-->` : ''), line = el.querySelector(':scope > .lk-line');
+      if (made) line.draggable = true;   // onto another list's head: the node gets that list's property
+      if (line.lkHtml !== html) { line.innerHTML = html; line.lkHtml = html; if (want.length) hit(line.querySelector('.lk-words'), want); }
       G.undo.dress(el);   // the node changed last keeps its arrow through a redraw
     });
+    box.hidden = !!made?.finding && !made.rows.length && !made.since.length;   // while finding, a list with nothing found is left out
+    G.pick.bar(state, box, made);
+    G.timeline.keep(state, box, made, today);
     let more = box.querySelector(':scope > .lk-more');
-    if (rows.length < list.rows.length && !isFolded) {
+    if (hidden > 0 && !isFolded) {
       if (!more) { more = doc.createElement('button'); more.type = 'button'; more.className = 'lk-more'; box.appendChild(more); }
-      const words = `Show ${list.rows.length - rows.length} more`;   // how many wait, before the press
-      if (more.textContent !== words) more.textContent = words;
+      more.textContent = `Show ${hidden} more`; more.dataset.fewer = '';   // how many wait, before the press (the owner, 25 November 2026)
+    } else if (made && !isFolded && state.view.all.has(list.key) && !made.finding && !made.picking && !made.groups && made.rows.length > state.few + 2) {
+      if (!more) { more = doc.createElement('button'); more.type = 'button'; more.className = 'lk-more'; box.appendChild(more); }
+      more.textContent = 'Show fewer'; more.dataset.fewer = '1';
     } else more?.remove();
+    more?.classList.toggle('lk-more-link', !!made);
   });
+}
+// The words being found, marked where they stand in a line's words.
+function hit(words, want) {
+  if (!words) return;
+  const doc = words.ownerDocument, walk = doc.createTreeWalker(words, 4), nodes = [];
+  for (let node; (node = walk.nextNode());) if (!node.parentElement.closest('.lk-tag, .lk-tell, .lk-lacks, .lk-sits')) nodes.push(node);
+  for (const node of nodes) {
+    const low = node.textContent.toLowerCase(); let at = -1, len = 0;
+    for (const word of want) { const i = low.indexOf(word); if (i >= 0 && (at < 0 || i < at)) { at = i; len = word.length; } }
+    if (at < 0) continue;
+    const rest = node.splitText(at); rest.splitText(len);
+    const mark = doc.createElement('mark'); mark.className = 'lk-hit'; rest.replaceWith(mark); mark.appendChild(rest);
+  }
 }
 /* + on a list's head: one more node of the list's kind, pointing here through the list's property. It is made on today's
    journal, shown in the list, opened in place, and the caret stands in it. */
@@ -280,16 +340,20 @@ function handle(state, event) {
   const row = target.closest('.lk-row');
   if (row && target.closest('.lk-open')?.closest('.lk-row') === row) return;   // inside the opened node everything is Logseq's
   if (event.type === 'mousedown') { if (event.shiftKey && target.closest('.lk-line')) event.preventDefault(); return; }   // Shift-click opens beside: it selects no words on its way
+  if (state.view && G.pick.act(state, event)) { event.stopPropagation(); return; }
+  if (state.view && G.timeline.act(state, event)) { event.stopPropagation(); return; }
   if (row && event.type === 'click' && state.press && target.closest('.lk-line') && !target.closest('.lk-status, a[data-to], .lk-url') && state.press(row, event)) { event.stopPropagation(); return; }
   if (row && event.type === 'keydown' && state.key && target.matches('.lk-line') && state.key(row, event)) { event.preventDefault(); event.stopPropagation(); return; }
   if (row && G.line.act(event, row, state.more)) { event.stopPropagation(); return; }
+  if (state.view && !row && G.listview.act(state, event)) { event.stopPropagation(); return; }
   const plus = target.closest('.lk-plus');
   if (plus) { if (event.type === 'click') { event.preventDefault(); event.stopPropagation(); addTo(state, plus.closest('.lk-list')); } return; }
   const head = target.closest('.lk-list-head');
   if (head && head.parentElement.dataset.kind !== 'none' && (event.type === 'click' || (event.type === 'keydown' && (event.key === 'Enter' || event.key === ' ')))) {
-    event.preventDefault(); event.stopPropagation(); folded.flip(head.parentElement.dataset.key); load(state); return;
+    if (target.closest('.lk-tick, button')) return;
+    event.preventDefault(); event.stopPropagation(); folded.flip(head.parentElement.dataset.key); state.redraw(); return;
   }
-  if (event.type === 'click' && target.closest('.lk-more')) { state.all.add(target.closest('.lk-list').dataset.key); load(state); return; }
+  if (event.type === 'click' && target.closest('.lk-more')) { const key = target.closest('.lk-list').dataset.key; if (target.closest('.lk-more').dataset.fewer) { state.all.delete(key); state.view?.all.delete(key); } else { state.all.add(key); state.view?.all.add(key); } state.redraw(); return; }
   if (event.type === 'keydown' && (event.key === 'ArrowDown' || event.key === 'ArrowUp') && target.matches('.lk-line, .lk-list-head')) {
     const stops = [...state.el.querySelectorAll('.lk-line, .lk-list-head')].filter(el => el.closest('.lk-rel') === state.el && el.offsetParent);
     const next = stops[stops.indexOf(target) + (event.key === 'ArrowDown' ? 1 : -1)];
@@ -322,11 +386,12 @@ function adder(holder, name, add, failed) {
   field.addEventListener('keydown', onKey);
   return () => { field.removeEventListener('keydown', onKey); line.remove(); };
 }
-G.node = { toggle, open, close, back, listing, lists, adder };
+G.node = { toggle, open, close, back, listing, lists, related, adder, folded, ARROW, CHEV };
 G.node.CSS = `
 .lk-rel:empty { display: none; }
 .lk-rel { display: flex; flex-direction: column; gap: 18px; container: lk-list / inline-size; }
 .lk-list-head[hidden] { display: none; }
+.lk-list[hidden] { display: none; }
 .lk-list[data-face="tag"] > .lk-rows > .lk-row > .lk-line .lk-words { font-family: var(--lk-tag-face); }
 .lk-list[data-face="prop"] > .lk-rows > .lk-row > .lk-line .lk-words { font-family: var(--lk-prop-face); font-weight: var(--lk-prop-weight); font-size: var(--lk-prop-size); letter-spacing: -.01em; }
 .lk-list[data-kind="none"] .lk-fold { visibility: hidden; }
@@ -342,16 +407,37 @@ G.node.CSS = `
 .lk-list-via:empty { display: none; }
 .lk-list-via > :is(svg, .ti):first-child { flex: none; width: 13px; height: 13px; margin: 0 5px 0 2px; font-size: var(--lk-small); color: var(--lk-off); }
 .lk-list-head[data-one] > :is(.lk-fold, .lk-list-name) { display: none; }
+/* A list of Relations has the day after the bullet, inside the line. Opened, the node stands where its words stood, and its
+   day stays where it was. */
+.lk-list[data-viewed] > .lk-rows > .lk-row { position: relative; }
+.lk-list[data-viewed] > .lk-rows > .lk-row > .lk-day { display: none; }
+.lk-list[data-viewed]:has(.lk-dayin) > .lk-rows > .lk-row[data-open="1"] > .lk-day { display: block; position: absolute; left: 44px; top: 2px; width: var(--lk-dayin, 54px); padding: 0; color: var(--lk-quiet); z-index: 1; }
+.lk-list[data-viewed]:has(.lk-dayin) > .lk-rows > .lk-row > .lk-open { margin-left: calc(var(--lk-dayin, 54px) + 10px); }
+.lk-list[data-viewed] > .lk-rows > .lk-row[data-open="1"]::before { content: ""; position: absolute; left: 23px; top: 13px; width: 6px; height: 6px; border-radius: 50%; background: var(--lk-line); z-index: 1; }
+.lk-list-head[data-thin] { padding-bottom: 6px; align-items: flex-start; }
+.lk-list-head[data-thin] > .lk-list-name { align-items: flex-start; }
+.lk-list-head[data-thin] > .lk-fold { opacity: .45 !important; }
+.lk-list-head[data-thin]:hover > .lk-fold { opacity: .8 !important; }
+.lk-list-head[data-plain] > .lk-list-via > .lk-plain { font-size: var(--lk-line-size); }
+.lk-row.lk-fresh > .lk-line > .lk-bul::before { background: var(--lk-text); width: 7px; height: 7px; }   /* made since the page was last open */
+.lk-list[data-picking] .lk-row > .lk-fold { display: none; }
+.lk-row > .lk-tick { grid-column: 2; align-self: start; margin-top: 9px; justify-self: center; position: relative; z-index: 1; }
+.lk-list-head > .lk-list-name > .lk-tick-all { margin: 0 6px 0 -19px; }
+.lk-row.lk-picked > .lk-line { background: var(--lk-wash); border-radius: 6px; }
 .lk-said { font-weight: 500; }
+/* What a list's head says of its nodes ("4 Transfers", the kinds with their counts) is a size under the lines it heads, in every place (the owner, 26 November 2026). */
+.lk-list-head .lk-said, .lk-list-head .lk-tabs { font-size: var(--lk-line-size); }
 .lk-list-head:has(> .lk-list-via:not(:empty)) .lk-fold { opacity: 1; }   /* on the count's line the arrow stays in view, faint, as it was */
 .lk-list-name .lk-tag { margin-left: .5em; font-size: var(--lk-small); }
 .lk-span { margin-left: auto; padding-left: 12px; font-size: var(--lk-small); color: var(--lk-off); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .lk-plus { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; margin-left: 4px; padding: 0; border: 0; border-radius: var(--lk-corner); background: none; color: var(--lk-quiet); opacity: .55; cursor: pointer; }
 .lk-plus:hover, .lk-plus:focus-visible { opacity: 1; background: var(--lk-wash); outline: none; }
 @container lk-list (max-width: 300px) { .lk-span { display: none; } }
-.lk-day-end .lk-more { margin-left: 34px; }
+.lk-more.lk-more-link { margin-left: calc(18px + 16px + 6px + var(--lk-dayin, 54px) + 6px); font-size: inherit; line-height: 24px; text-decoration: underline; text-decoration-color: var(--lk-link); text-decoration-thickness: var(--lk-link-width); text-underline-offset: 3px; }
+.lk-list:not(:has(.lk-dayin)) > .lk-more.lk-more-link { margin-left: 38px; }
 .lk-more { margin: 2px 0 0 calc(var(--lk-daycol, 0px) + 34px); padding: 2px 0; border: 0; background: none; color: var(--lk-quiet); font: inherit; font-size: var(--lk-small); cursor: pointer; text-decoration: underline; text-decoration-color: var(--lk-link); text-decoration-thickness: var(--lk-link-width); text-underline-offset: 3px; }
 .lk-more:hover { color: var(--lk-text); text-decoration-color: currentColor; }
+.lk-day-end .lk-more { margin-left: 34px; }
 .lk-add { display: flex; margin: -4px 0 12px -22px; padding: 4px 0 0 22px; position: sticky; top: 0; z-index: 2; background: var(--lk-ground, transparent); }   /* stays in view while the list moves to what was added */
 .lk-add:has(+ .lk-ask) { position: static; }   /* a box open under it: it scrolls away with the rest, and never floats over the box */
 .lk-add .lk-field { flex: 1; min-width: 0; border: 0; border-bottom: 1px solid var(--lk-hair); outline: 0; background: none; color: inherit; font: inherit; line-height: 24px; padding: 2px 0; box-shadow: none; border-radius: 0; }
@@ -372,7 +458,7 @@ G.node.CSS = `
 /* What points at the node: under one word and a thin line, apart from the node's own rows. */
 .lk-relhead { display: flex; align-items: center; gap: 10px; margin: 6px 0 0 22px; color: var(--lk-quiet); font-size: var(--lk-line-size); line-height: var(--lk-line-lead); }
 .lk-relhead::after { content: ""; flex: 1; height: 1px; background: var(--lk-hair); }
-.lk-relhead:not(:has(+ .lk-rel > .lk-list)) { display: none; }
+.lk-open > .lk-relhead:not(:has(+ .lk-rel > .lk-list)) { display: none; }
 .lk-dugopen > .lk-relhead { margin-left: 0; }
 .lk-row > .lk-open > .lk-rel { margin: 2px 0 6px 40px; }   /* one step in under the word Relations, so a head's mark stands where the word starts */
 .lk-dugopen > .lk-rel { margin: 2px 0 0 18px; }`;

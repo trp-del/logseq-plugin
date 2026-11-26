@@ -1,28 +1,95 @@
 /* PAGE: Relations. On every page Logseq shows (the main page, a page in the sidebar), the lists of what points at the page
-   stand under the page's own bullets, and Logseq's own Linked references and two-way tabs, which say the same less plainly,
-   are taken away there. A day in the journals feed is left as Logseq draws it. */
+   stand under the page's title and properties, above its own bullets, where the plugin before the rebuild had them, and
+   Logseq's own Linked references and two-way tabs, which say the same less plainly, are taken away there. A journal day has
+   them at its foot, after its bullets. A day in the journals feed has them too, at the foot of the day; with nothing pointing at it they
+   take no place there.
+   The section stands under its own line, the word Relations with a thin line after it: a press folds the whole of it, kept
+   for each page. From twenty nodes up a find line stands under that line (Relations: find in them calls it up anywhere):
+   words narrow every list, "on Oct 7" turns the lists back to that day, Enter opens the first node found, Escape empties it. */
 (function () {
 const G = window.PluginDoor;
+const SHUT = 'lk.rel-shut';
+const shut = { read() { try { return new Set(JSON.parse(G.host().defaultView.localStorage.getItem(SHUT) || '[]')); } catch (error) { return new Set(); } },
+  flip(uuid) { const set = shut.read(); if (!set.delete(uuid)) set.add(uuid); try { G.host().defaultView.localStorage.setItem(SHUT, JSON.stringify([...set])); } catch (error) { /* this sitting only */ } return set.has(uuid); } };
 G.part({
   key: 'relations', title: 'Relations', about: 'Under a page: every node that points at it, one list for each property, and where it is mentioned. Any row opens in place.',
   start(base) {
     base.style('hides', G.touch.HIDES + `
-${G.touch.PAGE} > .lk-rel { margin: 8px 0 32px; }
-${G.touch.PAGE} > .lk-rel:not(:empty)::before { content: "Relations"; color: var(--lk-quiet); font-size: var(--lk-line-size); line-height: 24px; margin-bottom: -4px; background: linear-gradient(var(--lk-hair), var(--lk-hair)) no-repeat 82px 55% / calc(100% - 82px) 1px; }`);   /* the lists stand under their own quiet word and a hairline, as before 0.9 (the owner, 25 November 2026) */
-    const offs = new Map();   // the plugin's element on a page -> what takes its lists away
+.lk-relwrap { margin: 10px 0 20px; padding-left: 18px; font-size: 1rem; font-weight: 400; line-height: 24px; letter-spacing: normal; color: var(--lk-text); cursor: auto; }
+.lk-relwrap:not(:has(.lk-relpage > .lk-list)) { display: none; }
+.lk-relpage { gap: 28px; margin: 22px 0 0; }
+.lk-relsec { margin: 0; }
+.lk-relfind-icon { display: inline-flex; align-items: center; width: 17px; margin-left: -18px; padding-right: 1px; color: var(--lk-quiet); }
+.lk-relsec:not(:has(+ .lk-rel > .lk-list)) { display: none; }
+.lk-relsec > .lk-relhead { display: flex; margin: 0 0 0 -18px; cursor: default; border-radius: 6px; }
+.lk-relsec > .lk-relhead:focus-visible { outline: none; background: var(--lk-wash); }
+.lk-relsec > .lk-relhead .lk-fold { opacity: 0; margin-top: 0; }
+.lk-relsec > .lk-relhead:hover .lk-fold, .lk-relsec > .lk-relhead[aria-expanded="false"] .lk-fold { opacity: 1; }
+.lk-relsec > .lk-relhead[aria-expanded="true"] .lk-fold svg { transform: rotate(90deg); }
+.lk-relsec:has(> .lk-relhead[aria-expanded="false"]) + .lk-rel, .lk-relsec:has(> .lk-relhead[aria-expanded="false"]) > .lk-relfind { display: none; }
+.lk-relfind { display: flex; align-items: center; margin: 8px 0 0; }
+.lk-relfind[hidden] { display: none; }
+.lk-relfind .lk-field { flex: 1; min-width: 0; border: 0; border-bottom: 1px solid transparent; outline: 0; background: none; color: inherit; font: inherit; line-height: 24px; padding: 2px 0; box-shadow: none; border-radius: 0; }
+.lk-relfind .lk-field:focus, .lk-relfind .lk-field:not(:placeholder-shown) { border-bottom-color: var(--lk-line); }
+.lk-relfind .lk-field::placeholder { color: var(--lk-quiet); }
+.lk-relsec > .lk-relhead .lk-fold { opacity: .45 !important; }
+.lk-relsec > .lk-relhead:hover .lk-fold { opacity: .8 !important; }
+.lk-relday { display: inline-flex; flex: none; font-size: var(--lk-small); }
+.lk-relday[hidden] { display: none; }`);
+    const kept = new Map();   // the plugin's element on a page -> { off, head }
+    const wrapOf = foot => foot.parentElement;
+    const doc = G.host();
+    const section = (page, foot) => {
+      const head = foot.previousElementSibling, uuid = page.uuid;
+      head.innerHTML = `<div class="lk-relhead" role="button" tabindex="0" aria-expanded="${!shut.read().has(uuid)}"><span class="lk-fold">${G.node.CHEV}</span>Relations</div><div class="lk-relfind" hidden><span class="lk-relfind-icon">${G.touch.icon('search', 15)}</span><input class="lk-field" type="text" placeholder="Find in these" title="Words narrow every list. A day turns the lists back: on Oct 7" aria-label="Find in Relations" spellcheck="false" autocomplete="off"><span class="lk-relday" hidden><button type="button" class="lk-btn lk-low" data-by="-7">‹ a week earlier</button><button type="button" class="lk-btn lk-low" data-by="7">a week later ›</button><button type="button" class="lk-btn lk-low" data-by="0">Today</button></span></div>`;
+      const line = head.firstElementChild, find = head.lastElementChild, field = find.querySelector('.lk-field');
+      // On a day: a week earlier, a week later, and back to today.
+      const steps = find.lastElementChild, today = () => G.days.number(new Date());
+      const onDay = () => { const at = G.view.parse(field.value, today()); steps.hidden = !at.upTo; return at; };
+      steps.addEventListener('click', event => {
+        const by = event.target.closest('[data-by]')?.dataset.by, at = onDay();
+        if (by == null || !at.upTo) return;
+        if (by === '0') field.value = at.words;
+        else { const day = new Date(Math.floor(at.upTo / 10000), Math.floor(at.upTo / 100) % 100 - 1, at.upTo % 100 + Number(by)); field.value = `${at.words ? at.words + ' ' : ''}on ${G.time.words(G.days.number(day))}`; }
+        lists.find(field.value); onDay(); field.focus();
+      });
+      const lists = G.node.related(foot, uuid);
+      const fold = () => line.setAttribute('aria-expanded', String(!shut.flip(uuid)));
+      const onLine = event => { if (event.type === 'click' || event.key === 'Enter' || event.key === ' ') { event.preventDefault(); fold(); } };
+      // A journal day has its lists at the foot of the day, after its bullets; every other page under its title and properties.
+      const onDrawn = () => { if (lists.rows() >= 20 || field.value) find.hidden = false; if (lists.day() && !page.feed) { const at = G.touch.pageFoot(page.el, 'lk-relfoot'); if (wrapOf(foot).parentElement !== at) at.appendChild(wrapOf(foot)); } };
+      const onInput = () => { lists.find(field.value); onDay(); };
+      const onKey = event => {
+        if (event.key === 'Escape') { if (field.value) { event.preventDefault(); event.stopPropagation(); field.value = ''; lists.find(''); onDay(); } else field.blur(); return; }
+        const first = foot.querySelector('.lk-row:not(.lk-faint) > .lk-line');
+        if (event.key === 'Enter' && first) { event.preventDefault(); G.touch.open(first.parentElement.dataset.uuid, event.shiftKey); }
+        else if (event.key === 'ArrowDown' && first) { event.preventDefault(); first.focus(); }
+      };
+      line.addEventListener('contextmenu', event => { event.preventDefault(); G.listview.hiddenMenu({ x: event.clientX, y: event.clientY, from: line }, () => lists.again()).then(shown => { if (!shown) G.say('No list is hidden on the pages it points to.'); }); });
+      line.addEventListener('click', onLine); line.addEventListener('keydown', onLine);
+      foot.addEventListener('lk-drawn', onDrawn); field.addEventListener('input', onInput); field.addEventListener('keydown', onKey);
+      return { head, side: page.side, show() { if (line.getAttribute('aria-expanded') === 'false') fold(); find.hidden = false; field.focus(); field.select(); },
+        off() { foot.removeEventListener('lk-drawn', onDrawn); lists.off(); } };
+    };
     const pass = () => {
-      for (const [foot, off] of offs) if (!foot.isConnected) { off(); offs.delete(foot); }
+      for (const [foot, one] of kept) if (!foot.isConnected) { one.off(); kept.delete(foot); }
       for (const page of G.touch.pages()) {
-        if (page.feed) continue;
-        const foot = G.touch.pageFoot(page.el, 'lk-rel');
-        if (foot.dataset.uuid === page.uuid) continue;
-        offs.get(foot)?.();
-        foot.dataset.uuid = page.uuid;
-        offs.set(foot, G.node.lists(foot, page.uuid));
+        // Where the plugin before the rebuild had it: under the title and the page's properties, above the page's own bullets.
+        const wrap = page.el.querySelector('.lk-relwrap') || (!page.feed && G.touch.pageUnder(page.el, 'lk-relwrap')) || G.touch.pageFoot(page.el, 'lk-relwrap');
+        if (wrap.dataset.uuid === page.uuid) continue;
+        kept.get(wrap.lastElementChild)?.off();
+        wrap.dataset.uuid = page.uuid;
+        wrap.innerHTML = '<div class="lk-relsec"></div><div class="lk-rel lk-relpage"></div>';
+        kept.set(wrap.lastElementChild, section(page, wrap.lastElementChild));
       }
     };
     base.onStop(G.touch.watch(pass));
-    base.onStop(() => { for (const [foot, off] of offs) { off(); foot.remove(); } offs.clear(); });
+    base.onStop(() => { for (const [foot, one] of kept) { one.off(); wrapOf(foot)?.remove(); } kept.clear(); for (const el of doc.querySelectorAll('.lk-relfoot')) el.remove(); });
+    // The find line called up where it does not stand by itself: on the page in front.
+    G.touch.command('lk-relations-find', 'Relations: find in them', () => {
+      const live = [...kept].filter(([foot]) => foot.isConnected && foot.firstElementChild), one = (live.find(([, sec]) => !sec.side) || live[0])?.[1];
+      if (one) one.show(); else G.say('Nothing points at this page yet.');
+    });
   },
 });
 })();

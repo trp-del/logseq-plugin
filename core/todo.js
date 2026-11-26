@@ -18,7 +18,17 @@ function groups(tasks, today) {
     { key: 'todo:any', kind: 'group', name: 'Any time', tag: '', rows: by.any.map(task => row(task, false)) },
   ].filter(list => list.rows.length);
 }
-const api = { groups };
+/* The same tasks under another heading: by('status' | 'tag' | 'page', tasks, today, names) with names(task) the heading a task
+   stands under ('' for none, which goes last under its own word). Every row then says its day, late first. */
+function by(what, tasks, today, name, order = []) {
+  const none = { status: 'No status', tag: 'No tag', page: 'No page' }[what] || 'Other', lists = new Map();
+  for (const task of tasks) { const key = name(task) || ''; if (!lists.has(key)) lists.set(key, []); lists.get(key).push(task); }
+  const rank = key => key === '' ? 1e9 : order.includes(key) ? order.indexOf(key) : 1e6;
+  const words = (a, b) => String(a.words).localeCompare(String(b.words)) || String(a.uuid).localeCompare(String(b.uuid));
+  return [...lists.keys()].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b)).map(key => ({ key: `todo:${what}:${key}`, kind: 'group', name: key || none, tag: '',
+    rows: lists.get(key).sort((a, b) => (a.day || 99999999) - (b.day || 99999999) || words(a, b)).map(task => ({ ...task, tagShown: what !== 'tag' && !!task.tag && task.tag !== 'Task', dayShown: task.day, late: !!task.day && task.day < today })) }));
+}
+const api = { groups, by };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else (root.PluginDoor ||= {}).todo = api;
 })(typeof window !== 'undefined' ? window : globalThis);

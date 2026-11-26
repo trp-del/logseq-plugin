@@ -50,12 +50,12 @@ test('a day is said short, with its year only in another year', () => {
   assert.equal(days.short(20261340, 20261125), '');
 });
 const node = (uuid, wordsOf, day = 0, tag = '') => ({ uuid, words: wordsOf, day, tag });
-test('one list for each property, by name, mentions last', () => {
+test('one list for each property, the fullest first, mentions last', () => {
   const provider = { ident: 'user.property/provider', title: 'Provider', uuid: 'p1' }, agent = { ident: 'user.property/agent', title: 'Agent', uuid: 'p2' };
   const got = lists({ links: [{ prop: provider, node: node('n1', 'First visit', 20260902, 'Consultation') }, { prop: agent, node: node('n2', 'Chemo') }, { prop: provider, node: node('n3', 'Video call', 20260930, 'Consultation') }],
     mentions: [node('n1', 'First visit'), node('n4', 'A note')] });
-  assert.deepEqual(got.map(l => l.name), ['Agent', 'Provider', 'Mentioned in']);
-  assert.deepEqual(got[1].rows.map(r => r.uuid), ['n3', 'n1']);          // newest first
+  assert.deepEqual(got.map(l => l.name), ['Provider', 'Agent', 'Mentioned in']);
+  assert.deepEqual(got[0].rows.map(r => r.uuid), ['n3', 'n1']);          // newest first
   assert.deepEqual(got[2].rows.map(r => r.uuid), ['n4']);                // n1 is said under Provider already
 });
 test('a tag every row shares is said once, on the list', () => {
@@ -123,6 +123,8 @@ test('tasks stand under Today, Coming up and Any time; an overdue one says its d
   assert.deepEqual(got.map(l => [l.name, l.rows.map(r => r.uuid)]), [['Today', ['b', 'a']], ['Coming up', ['c']], ['Any time', ['d']]]);
   assert.deepEqual(got[0].rows.map(r => r.dayShown), [20261118, 0]);
   assert.deepEqual(todo.groups([], 20261125), []);
+  const sorted = todo.by('status', [{ uuid: 'a', words: 'Pay', day: 20261125, s: 'Todo' }, { uuid: 'b', words: 'Call', day: 0, s: 'Doing' }, { uuid: 'c', words: 'Old', day: 20261101, s: 'Todo' }, { uuid: 'd', words: 'Odd', day: 0, s: '' }], 20261120, task => task.s, ['Backlog', 'Todo', 'Doing']);
+  assert.deepEqual(sorted.map(list => [list.name, list.rows.map(row => row.uuid), list.rows.map(row => row.late)]), [['Todo', ['c', 'a'], [true, false]], ['Doing', ['b'], [false]], ['No status', ['d'], [false]]]);
   assert.deepEqual(got[0].rows.map(r => r.late), [true, false], 'a task past its day is late, one due today is not');
   assert.deepEqual(todo.groups([{ uuid: 'a', words: 'x', day: 0, tag: 'Task' }, { uuid: 'b', words: 'y', day: 0, tag: 'Bill' }], 20261125)[0].rows.map(r => r.tagShown), [false, true]);
 });
@@ -203,4 +205,78 @@ test('different kinds of value, the same property, or nothing to move are refuse
   assert.match(move.plan({ nodes, from: P('From'), into: P('From') }).refused, /already under From/);
   assert.match(move.plan({ nodes: [], from: P('From'), into: P('Into') }).refused, /No node here/);
   assert.equal(move.plan({ nodes, from: P('From'), into: { title: 'Brand new', isNew: true, many: false } }).refused, '');
+});
+
+// ---- what a reload of the plugins brought
+const update = require('../core/update.js');
+test('a reload says which plugin now runs another version, or that nothing newer was there', () => {
+  const was = [{ id: 'a', title: 'Logseq Plugin', version: '0.9.0' }, { id: 'b', title: 'Other', version: '1.0.0' }];
+  assert.equal(update.said(was, [{ id: 'a', title: 'Logseq Plugin', version: '0.9.1' }, { id: 'b', title: 'Other', version: '1.0.0' }]), 'Plugins updated: Logseq Plugin 0.9.0 to 0.9.1');
+  assert.equal(update.said(was, was), 'Plugins reloaded, nothing newer in their folders: Logseq Plugin 0.9.0, Other 1.0.0');
+  assert.equal(update.said([was[0]], [was[0]]), 'Plugins reloaded, nothing newer in its folder: Logseq Plugin 0.9.0');
+  assert.equal(update.said([], [was[0]]), '');
+});
+
+// ---- how one list of Relations is shown
+const view = require('../core/view.js');
+const R = (uuid, words, tag, day, more = {}) => ({ uuid, words, tag, day, written: day, dates: {}, held: {}, changed: 0, made: 0, ...more });
+const some = { key: 'prop:x', rows: [R('a', 'Gas bill', 'Bill payment', 20261114, { held: { Category: ['Utilities'] }, changed: 5 }), R('b', 'Paycheck', 'Income', 20261115, { changed: 9 }),
+  R('c', 'Water bill', 'Bill payment', 20261005, { held: { Category: ['Utilities'] }, dates: { Due: 20261020 } }), R('d', 'Rent', 'Bill payment', 20260901, { held: { Category: ['Housing'] } }), R('e', 'Mortgage', 'Bill payment', 20260902, { held: { Category: ['Housing'] } }), R('f', 'A note', '', 0)] };
+test('a list names its kinds with their counts, All first, and a kind pressed narrows it', () => {
+  const made = view.shape(some, {}, {}, 20261125);
+  assert.deepEqual(made.tabs.map(t => [t.word, t.n, t.on]), [['All', 6, true], ['Bill payment', 4, false], ['Income', 1, false], ['No tag', 1, false]]);
+  assert.deepEqual([made.count, made.of, made.rows.map(r => r.uuid).join('')], [6, 'nodes', 'bacedf']);
+  const bills = view.shape(some, { kind: 'Bill payment' }, {}, 20261125);
+  assert.deepEqual([bills.count, bills.of, bills.rows.every(r => !r.tagShown), bills.from, bills.to], [4, 'Bill payments', true, 20260901, 20261114]);
+});
+test('a list sorts by last change, name or tag, and groups by tag, month or a property that groups well', () => {
+  assert.equal(view.shape(some, { sort: 'changed' }, {}, 20261125).rows.map(r => r.uuid).slice(0, 2).join(''), 'ba');
+  assert.equal(view.shape(some, { sort: 'name' }, {}, 20261125).rows[0].uuid, 'f');
+  assert.deepEqual(view.offers(some.rows), { groups: ['Tag', 'Month', 'Category'], dates: ['Journal', 'Due'], sorts: ['changed', 'name', 'tag'] });
+  const months = view.shape(some, { group: 'Month' }, {}, 20261125).groups.map(g => [g.name, g.rows.length]);
+  assert.deepEqual(months, [['November', 2], ['October', 1], ['September', 2], ['No day', 1]]);
+  const by = view.shape(some, { group: 'Category' }, {}, 20261125);
+  assert.deepEqual([by.groups.map(g => [g.name, g.rows.length]), by.said], [[['Housing', 2], ['Utilities', 2], ['No Category', 2]], ['By Category']]);
+});
+test('another date can be what a list goes by, or none', () => {
+  const due = view.shape(some, { date: 'Due' }, {}, 20261125);
+  assert.deepEqual([due.rows[0].uuid, due.rows[0].dayShown, due.rows[1].dayShown, due.said], ['c', 20261020, 0, ['Due']]);
+  assert.equal(view.shape(some, { date: 'none' }, {}, 20261125).rows.every(r => !r.dayShown), true);
+});
+test('words narrow a list, and a day turns it back to what was there up to that day', () => {
+  assert.deepEqual(view.shape(some, {}, { words: 'bill util' }, 20261125).rows.map(r => r.uuid), ['a', 'c']);
+  assert.deepEqual(view.parse('water on Oct 7', 20261125), { words: 'water', upTo: 20261007 });
+  assert.deepEqual([view.parse('up to 7 Oct', 20261125).upTo, view.parse('until 2026-10-07', 20261125).upTo, view.parse('on Dec 3', 20261125).upTo, view.parse('carry on', 20261125).upTo], [20261007, 20261007, 20251203, 0]);
+  const back = view.shape(some, {}, { upTo: 20261007 }, 20261125);
+  assert.deepEqual([back.rows.map(r => r.uuid).join(''), back.since.map(r => r.uuid).join(''), back.total], ['cedf', 'ba', 6]);
+});
+test('a node made since the page was last open is new, and the lists keep the order they were given', () => {
+  const made = view.shape({ rows: [R('a', 'A', 'T', 1, { made: 50 }), R('b', 'B', 'T', 2, { made: 5 })] }, { since: 10 }, {}, 20261125);
+  assert.deepEqual([made.fresh, view.shape({ rows: [R('a', 'A', 'T', 1, { made: 50 }), R('b', 'B', 'T', 2, { made: 5 })] }, { since: 10, kind: '@new' }, {}, 20261125).rows.map(r => r.uuid)], [1, ['a']]);
+  const lists = [{ key: 'x' }, { key: 'y' }, { key: 'z' }];
+  assert.deepEqual([view.ordered(lists, ['z', 'x']).map(l => l.key), view.moved(['x', 'y', 'z'], 'y', -1), view.moved(['x', 'y', 'z'], 'z', 1)], [['z', 'x', 'y'], ['y', 'x', 'z'], ['x', 'y', 'z']]);
+});
+
+// ---- how a property reads from the page it points to
+const reads = require('../core/reads.js');
+test('a property reads back by grammar, a plain noun keeps its name, and a name the person gave wins', () => {
+  assert.deepEqual(['Prescribed by', 'Symptom of', 'Child of', 'Located in', 'Diagnosed with', 'Works at', 'Lives in', 'Treats', 'Mentions', 'Provider', 'Topic', 'From account', 'Spoke with', 'Notes'].map(t => reads.back(t)),
+    ['Prescribed', 'Symptoms', 'Children', 'Location of', 'Diagnosis of', 'Employer of', 'Home of', 'Treated by', 'Mentioned in', 'Provider of', 'Topic', 'From account', 'Spoke with', 'Notes']);
+  assert.equal(reads.back('Provider', { Provider: 'Seen by me' }), 'Seen by me');
+});
+test('a node without a property four in five of its list hold is marked', () => {
+  const rows = ['a', 'b', 'c', 'd', 'e'].map((u, i) => R(u, u, 'T', 20261001 + i, { held: i ? { Topic: ['x'] } : {} }));
+  assert.deepEqual(view.shape({ rows }, {}, {}, 20261125).rows.map(r => r.lacks).sort(), ['', '', '', '', 'Topic']);
+});
+
+// ---- where nodes fall in time
+const time = require('../core/time.js');
+test('a timeline runs from the first node\'s month to today, a dot on each node\'s day, months ticked', () => {
+  const made = time.layout({ dots: [{ day: 20260915 }, { day: 20261101 }, { day: 20261103, off: true }], today: 20261125 });
+  assert.deepEqual([made.year, made.months.map(m => m.name), made.dots.map(d => d.left > 0 && d.left < 100), made.dots[2].off, made.today > made.dots[2].left], [2026, ['Sep', 'Oct', 'Nov'], [true, true, true], true, true]);
+  assert.deepEqual([time.week(20261007), time.words(20261007)], [[20261004, 20261010], 'Oct 7, 2026']);
+  const tall = time.layout({ dots: Array.from({ length: 7 }, () => ({ day: 20261103 })), tall: true, today: 20261125 });
+  assert.deepEqual([tall.dots.length, tall.dots.map(d => d.pile), tall.more[0].n], [5, [0, 1, 2, 3, 4], 2]);
+  const lanes = time.lanesBy([{ held: { Topic: ['A'] } }, { held: { Topic: ['A'] } }, { held: { Topic: ['B'] } }, { held: {} }], 'Topic');
+  assert.deepEqual([lanes.names, lanes.counts], [['A', 'B', 'others'], [2, 1, 1]]);
 });

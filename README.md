@@ -18,6 +18,7 @@ Each layer uses only the layers under it. `node tools/layers.js` fails if a file
 | 3 Arriving | `arrive/` | Find: a window to reach any node by its kind, a value, a day or its words. Todo: your open tasks by day, in the right sidebar. |
 | 4 Writing | `write/` | Sure values: on leaving a bullet, what its words say for certain is written into its empty properties. Where a tag sits: Logseq's own list of tags says the tags each one sits under. A new tag asks where it goes, and a new page asks what it is. Not built yet: guessed values. |
 | 5 Tending | `tend/` | Ontology: your tags as an outline and your properties, in the right sidebar; each opens in place as Logseq's own page for it. |
+| Beside the stack | `beside/` | Update plugins: two keys have Logseq load the plugins it loads from a folder again, so they run what their folders hold now. |
 
 `core/` holds the pieces that decide (how words read, how rows are grouped and ordered, how a tag's path runs). They know
 nothing of Logseq and are checked without it (`node --test test/`).
@@ -37,6 +38,7 @@ On every page Logseq shows (the main page, a page in the right sidebar):
 - the lists stand under the quiet word **Relations** and a hairline;
 - rows carry their day right after the bullet, in a column of its own before the words (a Date property, else the journal day they were written on), newest first; in a narrow place the day stands under the words;
 - a long list shows ten rows, then **Show 43 more**, saying how many wait;
+- what a list's head says of its nodes ("4 Transfers", the kinds with their counts) is a size under the lines it heads;
 - Logseq's own Linked references and two-way tabs are taken away where these lists stand.
 
 A row:
@@ -50,7 +52,35 @@ A row:
 | Click a task's circle | Lists Logseq's statuses; a press sets one |
 | Right-click | Open, Open in sidebar, Tags…, the statuses of a task, Delete (in red): words alone, a status with its circle |
 | Arrow up and down | Walk the lines and list names |
+| Space | Picks the node, for the bar of what is done to several |
 | Click a list's name | Folds the list; it stays folded on every page |
+
+### What a list of Relations can do
+
+Everything the plugin's Relations did before the rebuild, built again on the rebuild's pieces (`core/view.js`, `core/time.js`,
+`core/reads.js` decide; `node/view.js`, `node/pick.js`, `node/time.js`, `node/card.js` draw).
+
+| On | Do | Result |
+|---|---|---|
+| The word Relations | Click | Folds the whole section, kept for the page. Right-click: the lists hidden where they point, to show again |
+| The find line (from twenty nodes up, or **Relations: find in them**) | Type words | Every list narrows to them. "on Oct 7", "up to 7 Oct", "until 2026-10-07" turn the lists back to that day, the later nodes faint under a "since" line; a week earlier, a week later and Today step the day. Enter opens the first node found, Down goes to it, Escape empties the line |
+| A list's head | Click a kind | A list whose nodes hold different tags names its three most held kinds, each with its count, All first; a kind narrows the list to it, "and 2 more" lists the rest. "2 new" narrows to the nodes made since the page was last open, which also carry a darker dot |
+| The ⋯ on a head, or a right-click on it | View | Group by (tag, month, or a property whose groups hold two nodes each on the whole), Date (which day the list goes by: its own, the day written, any date its nodes hold, Deadline, Scheduled, or none), Timeline, Sort by (day, last changed, name, tag). What is not the default is said quietly on the head. Kept for the property on every page |
+| | Reads back as… | How the property reads on the pages it points to. By grammar unless you type a name: "Prescribed by" reads "Prescribed", "Symptom of" reads "Symptoms", "Provider" reads "Provider of", a plain noun keeps its name |
+| | Hide where it points | The list is no longer shown on the pages the property points to |
+| | Pick nodes | A tick box before each node and one on the head for all; Space picks the node the keys are on. The bar: Open in sidebar, Set tag, Set property, More (Select all, Clear a property, Take out this page, Change this page, and Make it… for mentions), Delete, which asks first. One line then says what was done, with an Undo |
+| | Move up, Move down | The list's place among the page's lists, kept for the page. A list's name can also be dragged above or below another |
+| The timeline | Click a dot, or drag across | A dot for each dated node from the first node's month to today. A dot narrows the list to its week; Left and Right walk the dots, Enter opens the node; a drag narrows to any span. By a property: a lane for each of its three most held values and one for the others; a lane's name narrows to it. Taller piles a week's dots. Escape lets go of the lane, then of the span |
+| A node's line | Right-click | Open, Open in sidebar, Tags…, the statuses of a task, what the place itself offers, Delete. Words alone, Delete in red (the owner chose the short menu, 25 November 2026) |
+| | Rest the pointer on its words | A card with what the line does not say: its whole name when cut, its properties, its first lines |
+| | Right, Left | Opens the node in place, closes it |
+| | Drag onto another list's head | The node gets that list's property, pointing here |
+| "no Topic?" after a node | Click | A property four in five of the list hold and this node lacks: asks its value there |
+| A mention | Click a step of where it sits | Under a mention stands the page it is on, and the bullet it is under: each opens |
+
+A day in the journals feed has its lists at the foot of the day. **Relations: the Recycle list** opens Logseq's Recycle as a
+plain list: Restore brings a page or a bullet back; Delete asks under the line and deletes for good, the keyboard waiting on
+Leave it.
 
 Everything inside an opened node is Logseq's own: its words, bullets, properties, menus and keys. How it is laid out, and how
 a node it points at is opened under it, is under "An opened node, and digging" below.
@@ -122,6 +152,12 @@ The checkmark in the toolbar, or **Todo** in the command palette, opens a sectio
 **Today** (due today, or past its day), **Coming up** and **Any time**, each under a small bold word, the words a size smaller
 than a page's. A task's day stands at the right end of its line, red once it has passed. The line at the top, **Add or find a
 todo**, narrows the list to the tasks holding every word typed, and Return adds what is typed as a task on today's journal. A task set Done or Canceled leaves the list.
+
+Under that line stands a strip of time: a hairline from the first task's month to today, a dot for each listed task that has a
+day, a late one in red, today a short upright line. A press on a dot goes to its task. On the first group's line, at the right,
+two quiet words: **All open** lists the open statuses, each ticked or left out (the last one listed cannot be left out; Show
+all brings them back), and **By day** groups the tasks by day, status, tag or page. Both are kept for the next time, on this
+Mac. Grouping by priority, and a second level of grouping, are not built.
 
 ### Sure values (`write/sure.js`)
 
@@ -241,6 +277,15 @@ The tree in the toolbar, or **Ontology** in the command palette, opens a section
 each under the tag it sits under, then your properties by name. A tag and a property are nodes like any other, so a row opens
 in place as Logseq's own page for it. There its name is renamed, and Logseq's own arrow beside the name unfolds what it keeps:
 the tag it extends, its properties, a property's kind and what it takes. Ontology itself writes nothing.
+
+### Update plugins (`beside/update.js`, its words in `core/update.js`)
+
+Logseq loads a plugin from a folder once, when it starts: what is put into the folder afterwards waits for the next start.
+**u p** (two keys one after the other, as Logseq's own **t p** for its plugins page), or **Update plugins** in the command
+palette, has Logseq load every plugin it loads from a folder again, this one last. One line then says what that brought:
+"Plugins updated: Logseq Plugin 0.9.0 to 0.9.1", or that nothing newer was in the folder. The keys do nothing while you write
+in a bullet, and can be changed in Logseq's own keyboard settings. Plugins that Logseq installed itself are left alone: Logseq
+updates those from its plugins page. Nothing is fetched from anywhere: the key loads what the folder holds.
 
 ## What it writes
 
