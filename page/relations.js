@@ -20,11 +20,12 @@ G.part({
    inside a head, 32 from a head to what it heads, and 54 from one section to the next. */
 .lk-relwrap { margin: 27px 0 20px; padding-left: 18px; font-size: 1rem; font-weight: 400; line-height: 24px; letter-spacing: normal; color: var(--lk-text); cursor: auto; }
 .lk-relwrap:not(:has(.lk-relpage > .lk-list)) { display: none; }
-.lk-relpage { gap: 28px; margin: 28px 0 0; }
+.lk-relpage { gap: 28px; margin: 28px 0 0 19px; }   /* the lists one step in under the word Relations, as a bullet's children stand under it (the owner, 26 November 2026: "in-line with natural hierarchy") */
+.lk-relpage > .lk-list > .lk-rows { margin-left: -7px; }   /* a row's dot one step in from its list's name, as Logseq sets a child under its parent */
 .lk-relsec { margin: 0; }
 .lk-relfind-icon { flex: none; display: inline-flex; align-items: center; justify-content: center; width: var(--lk-mark-box); margin: 0 var(--lk-mark-gap) 0 -18px; color: var(--lk-quiet); }
 .lk-relsec:not(:has(+ .lk-rel > .lk-list)) { display: none; }
-.lk-relsec > .lk-relhead { display: flex; gap: var(--lk-mark-gap); margin: 0 0 0 -18px; cursor: default; border-radius: 6px; }
+.lk-relsec > .lk-relhead { display: flex; gap: var(--lk-mark-gap); margin: 0 0 0 -28px;   /* the word on the page's edge, its arrow hanging before it as Logseq's own */ cursor: default; border-radius: 6px; }
 .lk-relsec > .lk-relhead::after { margin-left: 8px; }
 .lk-relsec > .lk-relhead:focus-visible { outline: none; background: var(--lk-wash); }
 .lk-relsec > .lk-relhead .lk-fold { opacity: 0; margin-top: 0; }

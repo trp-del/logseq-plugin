@@ -5,7 +5,7 @@
 const G = window.PluginDoor;
 const CHECK = 'M5 12l5 5l10 -10';   // a checkmark, as Logseq's own line icons are drawn
 G.part({
-  key: 'todo', title: 'Todo', about: 'Your open tasks, in the right sidebar and on a page of their own. The checkmark in the toolbar opens the sidebar’s; g then d opens the page.',
+  key: 'todo', title: 'Todo', about: 'Your open tasks, in the right sidebar and on a page of their own. The corner (bottom right) opens the sidebar’s; g then d opens the page.',
   start(base) {
     /* As before 0.9 (the owner, 25 November 2026): the words a size smaller than a page's, each group under a small bold word, a
        task's day at the right end and red once it has passed, the line on top with a + that adds a task and narrows the list
@@ -108,12 +108,11 @@ G.part({
       const tick = doc.defaultView.setInterval(() => { const now = G.days.number(new Date()); if (now !== today) { today = now; list.again(); } }, 60000);
       return () => { doc.defaultView.clearInterval(tick); viewEl.removeEventListener('click', onView); field.removeEventListener('input', narrow); field.removeEventListener('keyup', narrow); offAdd(); list.off(); };
     };
-    // In the sidebar from the toolbar's checkmark; in the middle of the window, a page of its own, from the command or g then d.
+    // In the sidebar from the corner; in the middle of the window, a page of its own, from the command or g then d.
     const section = G.touch.section('lk-todo', 'Todo', draw, CHECK), page = G.touch.page('lk-todo-page', 'Todo', draw);
     base.onStop(section.off); base.onStop(page.off);
     G.touch.command('lk-todo', 'Todo', page.open, 'g d');
     G.touch.command('lk-todo-side', 'Todo in the sidebar', section.open);
-    G.touch.toolbar('lk-todo', 'Todo', CHECK, section.open);
   },
 });
 })();

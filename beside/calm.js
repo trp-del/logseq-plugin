@@ -3,7 +3,7 @@
    Stylesheets written in the ground (touch.CALM); beside them only the press that opens a sidebar page's properties. */
 (function () {
 const G = window.PluginDoor;
-const SAID = { bar: 'The top bar: fewer buttons', title: 'A page’s title: a step smaller', add: '“Add property” as quiet words', pills: 'A bullet’s properties as one quiet line', side: 'The right sidebar flat on the page’s ground, a page in it with its properties open', table: 'Logseq’s tables, quieter' };
+const SAID = { bar: 'The top bar: fewer buttons', title: 'A page’s title: a step smaller', add: '“Add property” as quiet words', pills: 'A bullet’s properties as one quiet line', side: 'The right sidebar flat on the page’s ground, a page in it with its properties open', table: 'Logseq’s tables, quieter' , left: 'The left sidebar as words alone, no section words', chrome: 'Logseq’s search button and its ? left out (Search and the corner stand in)' };
 G.part({
   key: 'calm', title: 'Logseq, quieted', about: 'Logseq’s own top bar, titles, properties and tables drawn more quietly.',
   settings: Object.entries(SAID).map(([key, title]) => ({ key: 'calm-' + key, type: 'boolean', default: true, title, description: '' })),

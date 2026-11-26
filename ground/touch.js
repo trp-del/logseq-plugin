@@ -636,6 +636,7 @@ ${IN} .block-tag a.hash-symbol { opacity: 0; }
 ${IN} .block-tag:hover a.hash-symbol { opacity: .6; }
 ${IN} a.external-link { color: var(--lk-text) !important; text-decoration: underline !important; text-decoration-color: var(--lk-link) !important; text-decoration-thickness: var(--lk-link-width) !important; text-underline-offset: 3px; }   /* a web link is a link: the ink, underlined, never Logseq's blue */
 ${IN} a.external-link:hover { text-decoration-color: currentColor !important; }
+${OWN} .ls-page-properties:not(.lk-editor *) { margin-left: 10px; }   /* a page's property names and Add property on the edge its title and its bullets stand on */
 ${OWN} .property-pair .property-panel-bullet:not(.lk-editor *), ${OWN} .property-pair .property-block-container .block-control-wrap:not(.lk-editor *) { display: none !important; }   /* no bullet before a value: the row says it is one */
 `;
 /* On a page, a link to that same page is its words alone: it leads nowhere (the owner's marked page, 26 November 2026). */
@@ -775,6 +776,25 @@ ${AREA} .ls-view-head .view-action-type:has(.ls-icon-list) .select-item::after {
 ${AREA} .ls-view-head .view-action-type:has(.ls-icon-layout-grid) .select-item::after { content: "Gallery"; }
 ${AREA} .ls-view-head .view-actions > button:has(.ls-icon-plus)::after { content: "New"; }
 ${[1, 2, 3, 4, 5, 6, 7, 8].map(n => `${AREA} .ls-table[data-lk-less="${n}"] :is(.ls-table-header, .ls-table-row) > .flex-row:not(.sticky-columns) > :nth-child(${n})`).join(', ')} { display: none !important; }`,
+  /* The left sidebar as words alone (the owner, on "A Leaner Logseq", 26 November 2026): no picture before Journals, Pages, a
+     favourite or a recent page; no section words (Navigations, Favorites, Recent), a gap between the groups instead; the graph's
+     name alone, its up-down mark under the pointer. The words stand on one edge. */
+  left: `
+.left-sidebar-inner :is(.sidebar-navigations .item, .recent-item, .favorite-item) :is(.ui__icon, svg, .page-icon) { display: none !important; }
+.left-sidebar-inner .sidebar-navigations .item { margin-left: 2px !important; }
+.left-sidebar-inner :is(.recent-item, .favorite-item) > a { margin-left: -4px !important; }
+.left-sidebar-inner .sidebar-content-group > .sidebar-content-group-inner > .hd { display: none !important; }
+.left-sidebar-inner .sidebar-content-group { margin-top: 14px; }
+.left-sidebar-inner .cp__graphs-selector .thumb { display: none !important; }
+.left-sidebar-inner .cp__graphs-selector .ls-icon-selector { opacity: 0; }
+.left-sidebar-inner .cp__graphs-selector:hover .ls-icon-selector { opacity: 1; }
+`,
+  /* Logseq's search button at the top left (Cmd-K opens the plugin's Search) and its ? at the bottom right (the corner holds the
+     plugin's commands there) go (the owner, on "A Leaner Logseq", 26 November 2026). */
+  chrome: `
+#head button:has(.ls-icon-search) { display: none !important; }
+.cp__sidebar-help-btn { display: none !important; }
+`,
 };
 /* On the main page the path of a page's tags stands at the right end of its title's line, where Logseq keeps a page's own
    tags; anywhere else (the sidebar, a page opened in a row) there is no such room and it stands under the title (pageHead).

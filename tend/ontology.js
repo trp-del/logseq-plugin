@@ -198,7 +198,6 @@ G.part({
     base.onStop(section.off); base.onStop(page.off);
     G.touch.command('lk-ontology', 'Ontology', page.open);
     G.touch.command('lk-ontology-side', 'Ontology in the sidebar', section.open);
-    G.touch.toolbar('lk-ontology', 'Ontology', TREE, page.open);
   },
 });
 })();
