@@ -298,7 +298,9 @@ journal without a question.
 
 ### Ontology: counts, moving a tag, the lines between tags
 
-Each tag says at its right how many nodes stand under it, its own and those of the tags below it. With the keys on a tag, Tab
+Each tag is a row as before the rebuild: its name at the small size, no tag in bold, the rows close, and a hairline from each
+tag's bullet down along the tags under it, as Logseq's own outline has. Each tag says in a column at its area's right edge how
+many nodes stand under it, its own and those of the tags below it. With the keys on a tag, Tab
 puts it under the tag above it at its level and Shift-Tab takes it out one level, as in any outline; its right-click menu has
 Show its nodes (Search, with the tag taken), Move under… (the same list as the row of actions) and Move to the top. A move is written at once and is two steps of
 Logseq's Undo. The selected tag shows its lines to the tags it is joined with (and those of the tags under it): a tag is

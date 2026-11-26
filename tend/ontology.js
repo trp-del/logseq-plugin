@@ -36,8 +36,14 @@ G.part({
 .lk-ontology > .lk-rel { position: relative; }
 .lk-ontology .lk-row > .lk-fold { visibility: hidden; }   /* nothing opens under a tag or a property here */
 .lk-ontology .lk-row.lk-chosen > .lk-line:is(:focus-visible, :hover) { background: var(--lk-wash); }   /* lit only where the keys or the pointer are: a row left chosen keeps its lines, not a wash (the owner's marked page, 26 Nov) */
-.lk-ontology .lk-list[data-face="tag"] > .lk-rows > .lk-row[style*="--lk-depth: 0;"] .lk-words { font-weight: 600; }   /* a top tag heads its tree */
-.lk-ontology .lk-line > .lk-num { margin-left: 8px; }   /* a tag's count right after its name */
+/* A row as Ontology drew it before the rebuild (the owner, 26 November 2026: "I prefer this line style of before and non bold for
+   all of these.. there should also be line with bullets like normal"): the name at the small size and in no tag bold, the count in
+   a column at the area's right edge, the rows close; a hairline from each tag's bullet down along the tags under it, as Logseq's
+   own outline has. */
+.lk-ontology .lk-list > .lk-rows > .lk-row .lk-words { font-size: var(--lk-small); font-weight: 400; }
+.lk-ontology .lk-list > .lk-rows > .lk-row > .lk-line { padding-block: 1px; line-height: 24px; }
+.lk-ontology .lk-line > .lk-num { margin-left: auto; padding-left: 12px; }
+.lk-ontology .lk-list[data-face="tag"] > .lk-rows > .lk-row:not([style*="--lk-depth: 0;"]) { background: repeating-linear-gradient(90deg, transparent 0 11px, var(--lk-line) 11px 12px) 14px 0 / calc(var(--lk-depth, 0) * 12px) 100% no-repeat; }   /* one hairline under each tag the row sits under, through its bullet (25 px in, 12 a step) */
 .lk-ontology .lk-line .lk-words { cursor: pointer; }
 .lk-page { padding: 0 0 48px; }
 .lk-page-title { font-size: var(--ls-page-title-size, 2rem); font-weight: 600; line-height: 1.25; margin: 0 0 18px; color: var(--lk-text); }
